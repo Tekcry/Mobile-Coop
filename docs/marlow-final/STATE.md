@@ -56,6 +56,11 @@ Rejected by you (~01:25): anything that assumes a dark camera is blind (G240 sta
 Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN section 6; slice reports S0-*.md.
 
 ## Now (2026-10-23 ~01:20, new account; FULL BURN to 100% per Michael ~01:05 via the orchestrator)
+- ~09:45 (window 88%): A8 greybox IN (3dfc6e9a, slices/S8.md, 58 A8 tests, unchecked); its engine requests done by the job lead
+  (d3ec16c3: a door with several gates is locked only while none is open, the grille request-to-exit on; camera levels merged
+  from the set parts so C2 hangs over the gallery). Dressers A3-A7 still running. NEXT WINDOW FIRST: Opus checker on A8
+  greybox (slices/S8-check.md; the A3-A7 checker briefs are the model), dressing checks, A8 dressing; Character Build on
+  the newest commit (ctcourse :1-:4, coop, netmove, course).
 - ~09:25 (window ~65%+, 100% near ~09:30). Done this window: master 4.68.0 merged (42af9795, protocol 33); A3 + A4
   check (S34-check.md) and A5-A7 check (S567-check.md): A5, A6 PASS; A3, A4, A7 fixed by the job lead (45458bbc:
   cameras to the 14 m cap, claim zones hold ROLE_HOLD 2 s after a bay restart, A3 relay waits out the send-back hold, A4
