@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased - anim-n3b
+
+- Deleted the dash-in slide and the doorway check sweep animations (Michael 2026-10-22: "Delete them"; never set in
+  play, CT has neither): the `slide` lower state and clip, `AnimInput` / `RigPose` / `PlayerPose` `slide` and `check`, the
+  tuner's `slide` action row. Old tuner saves and exports that still carry `joint.slide` / `ik.slide` /
+  `hand.<gun>.slide` / `weapon.<gun>.slide` load with those rows dropped (`isRemovedTuneGroup`).
+- Firing: Wren's body kicks per shot (`src/anim/recoil.ts`): rifle about 3 cm back at the hands, 1.1 deg muzzle rise, 1.5
+  deg chest give; pistol 1.8 cm lift, 3.6 deg flip; settled within 0.3 s. Local and co-op partner alike (from the kick, no
+  wire change). New Gun slider `recoilMul` (aim states) with a bake rule. Guards unchanged.
+- Wall block: no more muzzle-up swing (69 deg) and stall; the rifle comes off the eye and tips about 66 deg under the aim
+  line about the butt, pulled in, in one eased 0.4 s move with hysteresis (no half-way hold).
+
 ## 4.53.0 - Train 2: guard tuning and clip speed in the animation tuner (2026-10-22, PR #112; #105, #109)
 
 ### #109 Clip speed
