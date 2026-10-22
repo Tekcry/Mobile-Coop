@@ -559,12 +559,14 @@ export class FootPlanner {
         // swingTo eases it onto the planner's over CLIP_PITCH_EASE (mid-swing the planner's 0 snapped a 0.86 rad toe-off
         // flat at the rig's pitch cap, the ankle-toe bone 35-41 deg in a frame at a stop); a planner swing in the air
         // keeps its ease running. Its place eases over too (swingTo: the gap to the planner's swing fades out over
-        // OFF_FADE; it dropped the clip's 13 cm lift or jumped 21 cm back in a frame), standing with the planner's lift.
-        // A quick stop's set-down already starts from the foot, its pitch too (setDown, swingTo's quick ease)
-        if (f.clipOwn && !f.contact && !this.quick) {
+        // OFF_FADE; it dropped the clip's 13 cm lift or jumped 21 cm back in a frame), with the planner's lift.
+        // A quick stop's set-down already starts from the foot, its pitch too (setDown, swingTo's quick ease); moving
+        // (clip feet gone: a part mocap share) the clock's swing takes it as before (eased there the walk 2.0 x 2.5 turn
+        // sweep's joint jerk rose 14.8 -> 29.7 cm/frame2)
+        if (f.clipOwn && !f.contact && !i.moving && !this.quick) {
           f.clipPitchT = 0;
           f.clipPitchOff = f.pitch;
-          if (!i.moving) f.stepLift = i.liftH * STEP[SP.lift]!;
+          f.stepLift = i.liftH * STEP[SP.lift]!;
         } else if (f.contact || f.clipOwn) f.clipPitchT = -1;
         f.clipOwn = false;
       }
@@ -1826,8 +1828,8 @@ export class FootPlanner {
     f.plantT = f.pivot = f.heelP = 0;
     // (mocap-trial-2, CHECK-2 required 2) a taken-over clip swing still easing its pitch lands on it, flagged as the clip's
     // plant so standing flattens it either way (updateIdle): set to 0 here, the rig's pitch cap wrote the capped pitch
-    // back and a toe up stayed up (-0.27 rad) for the whole stand
-    const eased = f.clipPitchT >= 0;
+    // back and a toe up stayed up (-0.27 rad) for the whole stand. (A clip swing's own landing here, clipOwn, as before.)
+    const eased = f.clipPitchT >= 0 && !f.clipOwn;
     // (step 22, A79) heel first at a walking pace: the toe comes down over HEEL_ROLL.time
     f.roll = this.rollOn && !eased ? HEEL_ROLL.time : 0;
     if (!eased) f.pitch = this.rollOn ? -HEEL_ROLL.pitch * STEP[SP.heel]! : 0;
