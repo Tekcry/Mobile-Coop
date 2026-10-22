@@ -68,7 +68,7 @@ const BOOST_CONTACT_K = 0.35;
 // ---------------------------------------------------------------- pure metrics for node
 const LIB = resolve('test-results/anim-audit/lib');
 // node + esbuild's JS entry, not node_modules/.bin/esbuild: on Windows .bin holds a .cmd shim execFileSync cannot spawn.
-execFileSync(process.execPath, ['node_modules/esbuild/bin/esbuild', 'src/anim/audit/metrics.ts', 'src/anim/audit/limits.ts', 'src/anim/footGeom.ts', '--bundle', '--format=esm', `--outdir=${LIB}`, '--log-level=warning'], { windowsHide: true, stdio: 'inherit' });
+execFileSync(process.execPath, ['node_modules/esbuild/bin/esbuild', 'src/anim/audit/metrics.ts', 'src/anim/audit/limits.ts', 'src/anim/footGeom.ts', '--bundle', '--format=esm', '--entry-names=[name]', `--outdir=${LIB}`, '--log-level=warning'], { windowsHide: true, stdio: 'inherit' });
 const M = await import(pathToFileURL(`${LIB}/metrics.js`).href);
 const L = await import(pathToFileURL(`${LIB}/limits.js`).href);
 // (anim-natural N1) the foot's contact geometry the planner and the rig share (heel / ball under the ankle)

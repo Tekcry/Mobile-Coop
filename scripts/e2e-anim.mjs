@@ -12,7 +12,7 @@ import { launch, assert as hard } from './e2e-lib.mjs';
 // (anim-metrics) the pure audit metrics and limits for node (as anim-audit: bundled with esbuild at start; node + its JS
 // entry, not .bin, which is a .cmd shim on Windows)
 const LIB = resolve('test-results/e2e-anim/lib');
-execFileSync(process.execPath, ['node_modules/esbuild/bin/esbuild', 'src/anim/audit/metrics.ts', 'src/anim/audit/limits.ts', 'src/anim/footGeom.ts', '--bundle', '--format=esm', `--outdir=${LIB}`, '--log-level=warning'], { windowsHide: true, stdio: 'inherit' });
+execFileSync(process.execPath, ['node_modules/esbuild/bin/esbuild', 'src/anim/audit/metrics.ts', 'src/anim/audit/limits.ts', 'src/anim/footGeom.ts', '--bundle', '--format=esm', '--entry-names=[name]', `--outdir=${LIB}`, '--log-level=warning'], { windowsHide: true, stdio: 'inherit' });
 const M = await import(pathToFileURL(`${LIB}/metrics.js`).href);
 const L = await import(pathToFileURL(`${LIB}/limits.js`).href);
 // (anim-natural N1) the foot's contact geometry (heel / ball under the ankle) the planner and the rig share
