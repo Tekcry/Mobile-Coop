@@ -4,7 +4,8 @@
  * defaults are the planner's current constants, read where they are, never copied. Pure, Babylon-free; the planner's
  * hooks read `STEP` (the gait row `stepSelect` copied in at the top of each planner update): no allocation.
  *
- * The gaits are the ones the planner tells apart: standing still (idle stepping), standing walk / jog / run by pace
+ * The gaits are the ones the planner tells apart: standing still (idle stepping; (anim-natural N1) also the aimed turn
+ * on the spot, stride 'velocity' under 0.3 m/s), standing walk / jog / run by pace
  * (split halfway between the `GEARS.stand` walk, jog and run speeds), crouched walk / run (halfway between the crouched
  * jog and run speeds). (item 24, track A) Wren's planners (the player, the partner, the studio puppets) read this table;
  * a guard's reads the guards' (`tuneGuard.ts`), any other rig's the identity table `STEP_IDENTITY_ROWS`.
@@ -21,9 +22,9 @@ export const STEP_GAITS = ['idle', 'walk', 'jog', 'run', 'crouchWalk', 'crouchRu
 export type StepGait = (typeof STEP_GAITS)[number];
 
 /** Parameter slots of a gait row (`STEP[SP.lift]` ...). */
-export const SP = { lift: 0, lock: 1, dur: 2, slide: 3, stride0: 4, stride1: 5, stride2: 6, toeOff: 7, heel: 8, replant: 9 } as const;
+export const SP = { lift: 0, lock: 1, dur: 2, slide: 3, stride0: 4, stride1: 5, stride2: 6, toeOff: 7, heel: 8, replant: 9, turnTwist: 10, turnRate: 11, pivot: 12, pivotHeel: 13, landTurn: 14 } as const;
 export type StepParam = keyof typeof SP;
-export const STEP_N = 10;
+export const STEP_N = 15;
 
 /** Ids, labels and ranges (the registry's sliders); `hook` names the planner expression each one multiplies. */
 export const STEP_PARAMS: readonly { id: StepParam; label: string; min: number; max: number; step: number; hook: string }[] = [
@@ -37,6 +38,12 @@ export const STEP_PARAMS: readonly { id: StepParam; label: string; min: number; 
   { id: 'toeOff', label: 'toe-off roll (late-stance heel raise and swing toe pitch)', min: 0, max: 2, step: 0.05, hook: 'footPlanner HEEL_RAISE heel raise; swingTo toe-off pitch 0.45' },
   { id: 'heel', label: 'heel-strike roll (toe up at landing)', min: 0, max: 2, step: 0.05, hook: 'footPlanner swingTo pre-landing toe up 0.22; land / roll HEEL_ROLL.pitch' },
   { id: 'replant', label: 'replant threshold (moving: trailing-foot toe-off reach; still: idle step error)', min: 0.4, max: 1.5, step: 0.01, hook: 'footPlanner holdOrStep: reach * 0.92; updateIdle: idle error > 1' },
+  // (anim-natural N1) the feet in turns; the idle row is the aimed turn on the spot
+  { id: 'turnTwist', label: 'turn step: twist a planted foot may reach before it steps round (lower: steps sooner)', min: 0.4, max: 2.5, step: 0.05, hook: 'footPlanner turnOver: FOOT_TURN_STEP.twist[gait]' },
+  { id: 'turnRate', label: 'turn step: body turn rate that arms it (lower: steps in gentler turns)', min: 0.5, max: 3, step: 0.05, hook: 'footPlanner turn rules: FOOT_TURN_STEP.rate[gait]' },
+  { id: 'pivot', label: 'ball pivot: how far a planted foot turns on its ball in one plant (0: locked)', min: 0, max: 2, step: 0.05, hook: 'footPlanner pivotFeet: TURN_PIVOT.max[gait]' },
+  { id: 'pivotHeel', label: 'ball pivot: heel raise while it turns', min: 0, max: 2, step: 0.05, hook: 'footPlanner pivotFeet: TURN_PIVOT.heel[gait]' },
+  { id: 'landTurn', label: 'landing turned into the turn (yaw lead at touchdown)', min: 0, max: 2, step: 0.05, hook: 'footPlanner aimClock: LAND_TURN[gait]' },
 ];
 
 const G = STEP_GAITS.length;
