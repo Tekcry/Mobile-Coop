@@ -5,7 +5,7 @@
 // pair plates, hold consoles, the annex's grid lever), then both stand on the airlock pad and the course moves to the
 // next bay. (B3, marlow-jammer) station 3 is the camera hallway (the jam handoff, the 5 s cap, the reboot, a jammed lamp), station 4 has a real laser (sector-fixes P: jammed at its power panel); (sector-fixes S) station 3 ends in its security room (the console refuses while the duty guard is up; with him down it switches the camera off on both pages). At the end the course refuses with ONE player in the exit zone and completes only when BOTH are in it (G138).
 import { launch, openPage, assert } from './e2e-lib.mjs';
-import { until, waitSim, setSimPages, NET_VIEWPORT, LOAD_MS, watchTeam, teamLog } from './e2e-net-lib.mjs';
+import { until, waitSim, waitHostSim, setSimPages, NET_VIEWPORT, LOAD_MS, watchTeam, teamLog, onHostStep, offHostStep, hostStepResult } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 let failed = false;
@@ -283,11 +283,67 @@ async function station3(x0) {
   assert(dj.cams[0].mode === 'off' && dj.cams[0].frozen && dj.cams[0].jam === 1 && dj.left[0] < 5, `station 3: the jam blinds and freezes the camera and counts down (${dj.left[0]})`);
   assert(/JAMMING/.test(dj.hud), `station 3: the host's HUD shows the jam (${dj.hud})`);
   // frozen: the sweep stands still on both pages; the LED flashes (jam phase 1), the buzz plays at it on both pages
-  const yA = dj.cams[0].yaw;
-  const yB = (await dev(B)).cams[0].yaw;
-  await sleep(800);
-  const [fA, fB] = [await dev(A), await dev(B)];
-  assert(fA.cams[0].jam === 1 && Math.abs(fA.cams[0].yaw - yA) < 1e-6 && Math.abs(fB.cams[0].yaw - yB) < 1e-6 && fB.cams[0].frozen, `station 3: the jammed camera stops sweeping on both pages (${yA} -> ${fA.cams[0].yaw}; client ${yB} -> ${fB.cams[0].yaw})`);
+  let yA = dj.cams[0].yaw;
+  let yB = (await dev(B)).cams[0].yaw;
+  // (load-audit) the full 800 ms on each page's clock; when less than 800 ms + 0.3 s of the jam is left, the host lets
+  // go, waits for the camera back and jams it afresh first (up to 3 tries: the slow steps that ate the first jam can eat
+  // a fresh one; asserted after the last). The release starts JAMMER.cooldown (5 s); the held LT re-jams once it is
+  // over (stepJam is level-triggered), inside the 20 s wait
+  let left3 = (await dev(A)).left[0];
+  const rejam3 = async () => {
+    await lt(A, false);
+    await until(A, () => window.__ctdev.debug().jam[0] === '', null, 8000, 'station 3: the host lets go of the camera (re-jam)');
+    await until(A, () => window.__ctdev.debug().cams[0].mode !== 'off', null, 20000, 'station 3: the camera is back before the re-jam');
+    await lt(A, true);
+    await aimAt(A, ...CAM);
+    await until(A, () => window.__ctdev.debug().jam[0] === 'cam-s3', null, 20000, 'station 3: the host jams the camera again');
+    await until(B, () => window.__ctdev.debug().cams[0].mode === 'off', null, 20000, 'station 3: the client page sees the camera blind again');
+    const dr = await dev(A);
+    yA = dr.cams[0].yaw;
+    yB = (await dev(B)).cams[0].yaw;
+    left3 = dr.left[0];
+  };
+  const room3 = async () => {
+    for (let tries = 0; tries < 3 && left3 * 1000 < 800 + 300; tries++) await rejam3();
+    assert(left3 * 1000 >= 800 + 300, `station 3: the jam leaves room for the 800 ms freeze check (${left3} s left)`);
+  };
+  await room3();
+  // (load-audit M1) each page latched over 800 ms of its OWN clock, side by side: the client's frames sweep its copy
+  // (`frame`), so a host-timed window gave the client only 0.2-0.6 s of them. The host's jam must still be on at the
+  // client's last read, else the client's window outran the jam (a client at a fraction of the host's rate) and proves
+  // nothing: then a fresh jam and the windows again (up to 3 tries), asserted after the last
+  let fr;
+  for (let w = 0; w < 3; w++) {
+    if (w > 0) {
+      await rejam3();
+      await room3();
+    }
+    let mA = 0;
+    let mB = 0;
+    let thawB = false;
+    const [fz, fzB] = await Promise.all([
+      waitHostSim(A, 800, async () => { mA = Math.max(mA, Math.abs((await dev(A)).cams[0].yaw - yA)); }),
+      waitHostSim(B, 800, async () => { const c = (await dev(B)).cams[0]; mB = Math.max(mB, Math.abs(c.yaw - yB)); if (!c.frozen) thawB = true; }),
+    ]);
+    const [fA, fB] = [await dev(A), await dev(B)];
+    mA = Math.max(mA, Math.abs(fA.cams[0].yaw - yA));
+    mB = Math.max(mB, Math.abs(fB.cams[0].yaw - yB));
+    fr = { fz, fzB, jam: fA.cams[0].jam, left: fA.left[0], mA, mB, thawB, frozenB: fB.cams[0].frozen };
+    if (fr.jam === 1) break;
+  }
+  assert(fr.fz >= 800 && fr.fzB >= 800, `station 3: the freeze windows ran 800 ms on each page's clock (host ${fr.fz.toFixed(0)} ms, client ${fr.fzB.toFixed(0)} ms)`);
+  assert(fr.jam === 1, `station 3: the host's jam is still on at the client's last read (jam phase ${fr.jam}, ${fr.left} s left)`);
+  assert(fr.mA < 1e-6 && fr.mB < 1e-6 && !fr.thawB && fr.frozenB, `station 3: the jammed camera stops sweeping on both pages (host moved ${fr.mA}; client moved ${fr.mB}, thawed ${fr.thawB})`);
+  // (load-latent-net) the reboot (jam phase 2) is read on the host step it starts: polled from here, under load it could
+  // be over (or the cooldown run down) before the read. Installed after the last freeze-window try (the jam is on,
+  // asserted above), so it catches the 1 -> 2 step of this jam; per step it reads only the camera's jam phase and runs
+  // the full debug() on the hit step
+  const rebootKey = await onHostStep(A, (g, _a, st) => {
+    const j = window.__ctdev.cams[0].jam;
+    const hit = st.prev === 1 && j === 2;
+    st.prev = j;
+    return hit ? window.__ctdev.debug() : undefined;
+  });
   const buzz = (P) => P.evaluate(() => window.__ctdev.nearestJammed(0, 0, 0, { x: 0, y: 0, z: 0 }));
   assert((await buzz(A)) && (await buzz(B)), 'station 3: both pages have a jammed device to buzz at');
   await until(A, cueOff, null, 3000, "station 3: the jammed camera's grid fades out (host)");
@@ -300,7 +356,7 @@ async function station3(x0) {
   await aimAt(B, ...CAM);
   // the 5 s cap ends the host's jam (still held): the cooldown runs, the camera reboots, still blind and frozen
   await until(A, () => window.__ctdev.debug().jam[0] === '', null, 8000, "station 3: the 5 s cap ends the host's held jam");
-  const dc = await dev(A);
+  const dc = await hostStepResult(A, rebootKey, 8000, 'station 3: the host step the camera starts its reboot');
   assert(dc.cool[0] > 3 && dc.cams[0].jam === 2 && dc.cams[0].mode === 'off' && dc.cams[0].frozen, `station 3: the host cools down (${dc.cool[0]}), the camera reboots blind (${dc.cams[0].jam}, ${dc.cams[0].mode})`);
   assert(dc.alarm === al, 'station 3: the client crossed without the camera reacting');
   // the reboot refuses a jam: the client holds Co-op on it now
@@ -343,8 +399,18 @@ async function station3(x0) {
   assert(!(await lit(A)) && !(await lit(B)), 'station 3: the jammed lamp is off in the light registry on both pages (after its flicker)');
   await lt(A, false);
   await until(A, () => window.__ctdev.debug().jam[0] === '', null, 8000, 'station 3: the host lets go of the lamp');
-  await sleep(2000);
-  assert(!(await lit(A)) && !(await lit(B)), 'station 3: the lamp stays off after the release');
+  // (load-audit) 2 s of the HOST's clock (JAM_LIGHT.offHold 4 s runs there), both pages' lamps latched every poll.
+  // (M1) Not a window on the client's own clock, unlike the camera's freeze above: the client's light timeline mirrors
+  // the host's (`ctDevices.apply`, forward only), so the client's lamp comes on with the host's at 4 s of host time, and
+  // 2 s of a client at x0.2-0.3 is 7-10 s of host time - a window no correct build could pass under load
+  let litSeen = false;
+  let litSeenB = false;
+  const off = await waitHostSim(A, 2000, async () => {
+    if (await lit(A)) litSeen = true;
+    if (await lit(B)) litSeenB = true;
+  });
+  assert(off >= 2000, `station 3: the lamp-off window ran 2 s on the host's clock (${off.toFixed(0)} ms)`);
+  assert(!litSeen && !litSeenB && !(await lit(A)) && !(await lit(B)), `station 3: the lamp stays off after the release (lit seen on the host: ${litSeen}, on the client: ${litSeenB})`);
   await until(A, (i) => window.__app.current.world.level.lights.get(i).on && window.__ctdev.debug().devs.length === 0, reg, 10000, 'station 3: the lamp flickers back on after its 4 s');
   await until(B, (i) => window.__app.current.world.level.lights.get(i).on, reg, 10000, 'station 3: the client page sees the lamp on again');
   await holster(A);
@@ -456,11 +522,36 @@ async function laserTest(x0) {
   await until(A, () => window.__ctdev.debug().lasers[0].on === false, null, 8000, 'station 4: the panel jam cuts the band (host)');
   await until(B, () => window.__ctdev.debug().lasers[0].on === false, null, 8000, 'station 4: the client page sees the laser off');
   await until(B, () => window.__ctdev.debug().panels[0].ph === 1, null, 8000, 'station 4: the client page sees the panel jammed');
-  const hp2 = await hp();
-  const hj = (await dev(A)).hits;
+  let hp2 = await hp();
+  let hj = (await dev(A)).hits;
   await moveClient(x0 + 9 - 0.2, 7);
   // (marlow-jammer) inside the 5 s jam (it then reboots 1.5 s): 2 s on the beam line, no break (sector-fixes C: no alarm, no cost)
-  await sleep(2000);
+  // (load-audit) the full 2 s, timed on the HOST's clock (the client clock runs x0.2-0.3 under load, so a client-timed
+  // 2 s let the host's jam and reboot end); when less than 2 s + 0.3 s of the jam is left, the client steps off the beam
+  // line, the host lets go, waits for the band back and jams the panel afresh, then the client returns; the band latched
+  // off every poll. Up to 3 re-jams (the slow steps that ate the first jam can eat a fresh one), asserted after the
+  // last; the release starts JAMMER.cooldown (5 s) and the held LT re-jams once it is over (stepJam is level-triggered)
+  let left4 = (await dev(A)).left[0];
+  for (let tries = 0; tries < 3 && left4 * 1000 < 2000 + 300; tries++) {
+    await moveClient(x0 + 5, 12.6);
+    await lt(A, false);
+    await until(A, () => window.__ctdev.debug().jam[0] === '', null, 8000, 'station 4: the host lets go of the panel (re-jam)');
+    await until(A, () => window.__ctdev.debug().lasers[0].on === true, null, 20000, 'station 4: the laser is on again before the re-jam');
+    await lt(A, true);
+    await aimAt(A, panel.at[0], panel.at[1], panel.at[2]);
+    await until(A, () => window.__ctdev.debug().jam[0] === 'panel-s4', null, 20000, 'station 4: the host jams the power panel again');
+    await until(A, () => window.__ctdev.debug().lasers[0].on === false, null, 8000, 'station 4: the fresh panel jam cuts the band (host)');
+    await until(B, () => window.__ctdev.debug().lasers[0].on === false, null, 8000, 'station 4: the client page sees the laser off again');
+    hp2 = await hp();
+    hj = (await dev(A)).hits;
+    await moveClient(x0 + 9 - 0.2, 7);
+    left4 = (await dev(A)).left[0];
+  }
+  assert(left4 * 1000 >= 2000 + 300, `station 4: the jam leaves room for the 2 s check on the beam line (${left4} s left)`);
+  let bandOn = false;
+  const bw = await waitHostSim(A, 2000, async () => { if ((await dev(A)).lasers[0].on) bandOn = true; });
+  assert(bw >= 2000, `station 4: the beam-line window ran 2 s on the host's clock (${bw.toFixed(0)} ms)`);
+  assert(!bandOn, 'station 4: the band stays off over the check window (host)');
   assert((await hp()) === hp2 && (await dev(A)).hits === hj, 'station 4: no break while the laser is jammed');
   await lt(A, false);
   await until(A, () => window.__ctdev.debug().lasers[0].on === true, null, 8000, 'station 4: released, the laser is on again');
@@ -594,6 +685,9 @@ async function hangDown(x0) {
   // pulled back up (the client's Co-op)
   await holdUntil(B, RB, () => window.__app.current.team.count.pulls >= 1, 'station 5: the client is pulled back up');
   await until(A, () => window.__app.current.team.state === 'none', null, 8000, 'station 5: the holder is free');
+  // (load-latent-net) the holder frees on the host step; the client's own pull-up still runs on its slower clock: wait for
+  // it there, then the same check
+  await until(B, () => { const g = window.__app.current; return g.player.controller.pos.y > 4.2 && g.player.pose.tumble === 0 && g.team.state === 'none'; }, null, 8000, 'station 5: the client is back on the roof, upright').catch(() => {});
   const up = await GB(() => { const g = window.__app.current; return { y: g.player.controller.pos.y, tumble: g.player.pose.tumble, st: g.team.state }; });
   assert(up.y > 4.2 && up.tumble === 0 && up.st === 'none', `station 5: the client is back on the roof, upright (y ${up.y.toFixed(2)})`);
 }
@@ -719,7 +813,18 @@ async function station6(x0) {
   assert(hp1 > 0 && hp0 - hp1 >= 9 && hp0 - hp1 <= 10, `station 6: the failed hack cost ${hp0 - hp1} HP (${hp0} -> ${hp1}), the run goes on`);
   await until(A, () => { const s = window.__ctdev.debug().scan; return s.ph[0] === 'idle' && s.ph[1] === 'idle'; }, null, 8000, 'station 6: both scanners reset (host)');
   await until(B, () => { const s = window.__ctdev.debug().scan; return s.ph[0] === 'idle' && s.ph[1] === 'idle'; }, null, 8000, 'station 6: both scanners reset (client page)');
-  const [ra, rb] = await Promise.all([use(A, 'c-sw-s6-a'), use(B, 'c-sw-s6-b')]);
+  // (load-latent-net) the client starts scanner B; the host starts scanner A on its own fixed step that first sees B
+  // started (two presses from here landed seconds of host time apart under load, past the sync window)
+  const s6Key = await onHostStep(A, (g) => {
+    if (window.__ctdev.debug().scan.ph[1] === 'idle') return undefined;
+    const it = g.interactables?.items.find((i) => i.id === 'c-sw-s6-a');
+    if (!it) return 'missing';
+    if (!it.enabled) return 'disabled';
+    it.onUse(it, 'local');
+    return 'ok';
+  });
+  const rb = await use(B, 'c-sw-s6-b');
+  const ra = rb === 'ok' ? await hostStepResult(A, s6Key, 8000, 'station 6: the host sees scanner B started and starts scanner A') : (await offHostStep(A, s6Key), 'client not pressed');
   assert(ra === 'ok' && rb === 'ok', `station 6: both start the hacks together (${ra}, ${rb})`);
   await until(A, () => window.__course.debug().gates['g-s6'], null, 15000, 'station 6: both hacks inside the window open the door');
   await until(B, () => { const s = window.__ctdev.debug().scan; return s.ph[0] === 'done' && s.ph[1] === 'done'; }, null, 8000, 'station 6: the client page sees both scanners done');
@@ -763,7 +868,19 @@ async function openGate(n, i) {
     await pullUp(B, 'station 5 client');
     await moveHost(x0 + 11, 3.6, 4.5);
     await moveClient(x0 + 11, 10.4, 4.5);
-    const [ra, rb] = await Promise.all([use(A, 'c-sw-s5-a'), use(B, 'c-sw-s5-b')]);
+    // (load-latent-net) the client presses plate B; the host presses plate A on its own fixed step that first sees B's
+    // press stamped on the gate (PAIR_WINDOW is 1.0 s of host time; two presses from here could land further apart)
+    const s5Key = await onHostStep(A, (g) => {
+      const gt = window.__course.state.gates.find((x) => x.def.id === 'g-s5');
+      if (!(gt.tb >= 0 && gt.pb !== 0)) return undefined;
+      const it = g.interactables?.items.find((i) => i.id === 'c-sw-s5-a');
+      if (!it) return 'missing';
+      if (!it.enabled) return 'disabled';
+      it.onUse(it, 'local');
+      return 'ok';
+    });
+    const rb = await use(B, 'c-sw-s5-b');
+    const ra = rb === 'ok' ? await hostStepResult(A, s5Key, 8000, "station 5: the host sees the client's roof plate and presses its own") : (await offHostStep(A, s5Key), 'client not pressed');
     assert(ra === 'ok' && rb === 'ok', `station 5: both roof plates pressed (${ra}, ${rb})`);
     await until(A, () => window.__course.debug().gates['g-s5'], null, 8000, 'station 5: the roof pair gate opens');
   } else if (n === 3) {
@@ -811,10 +928,16 @@ async function station8(x0) {
     r.protectT = 0;
     r.applyDamage({ amount: 1000, point: r.feet.clone(), sourcePos: r.feet.clone(), dir: new V(0, 0, 1), part: 'body', kind: 'explosion', attackerTeam: 'enemy', attackerId: '' });
   }, clientId);
+  const hostT = () => GA(() => window.__app.current.time);
+  const tDown = await hostT();
   await until(B, () => !window.__app.current.player.alive, null, 5000, 'station 8: the client is down');
   await until(B, () => /DOWN - revive in \d+ s/.test(document.querySelector('.hud-down-timer')?.textContent ?? ''), null, 8000, 'station 8: the downed client sees the revive countdown');
-  await waitSim(2500);
+  // (load-latent-net) 2.5 s of the host's clock (the window runs there; `waitSim` counts the slower client clock, and
+  // under load 3-5x more host time passed)
+  const w8 = await waitHostSim(A, 2500);
+  assert(w8 >= 2500, `station 8: the pause ran 2.5 s on the host's clock (${w8.toFixed(0)} ms)`);
   const left = await GA((id) => window.__app.current.net.reviveClock.remaining(id), clientId);
+  console.log(`  (station 8: ${((await hostT()) - tDown).toFixed(2)} s of host time from the downing to the read)`);
   assert(left > 15 && left < 30, `station 8: the 30 s window runs on the host (sim time) (${left.toFixed(1)} s left)`);
   await GA((id) => { const it = window.__app.current.interactables.items.find((i) => i.id === `revive-${id}`); it.onUse(it); }, clientId);
   await until(B, () => window.__app.current.player.alive, null, 8000, 'station 8: the host revives the client inside 30 s');

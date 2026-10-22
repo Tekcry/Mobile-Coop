@@ -12,8 +12,17 @@ export const CAMERA = {
   /** SN02 vertical field of view (rad). Centred on the camera's pitch (sector-fixes C: `aim` in the map data pitches it down
    *  to a floor patch; none looks level, so a body under the mount is out of frame, SN04). */
   vFov: 45 * DEG,
-  /** SN03 range (m): the most any camera reaches (a camera's own `range` in the map data may be shorter). */
-  range: 18,
+  /** SN03 range (m) of a camera with neither `range` nor `aim` in its map data. (camera-range, Michael 2026-10-23:
+   *  "cameras need to have less range") 18 -> 12: the Security Lab and Kestrel cameras. `camRange` has the whole rule. */
+  range: 12,
+  /** (camera-range) The most any camera's range may be (m): the longest Sector Ops zone (cam-floor). */
+  rangeMax: 14,
+  /** (camera-range) An aimed camera with no `range` of its own watches the floor patch centred on its aim point: its range
+   *  is this times `aim` (the rule the Sector Ops ranges already follow: 5 / 10, 6 / 12, 7 / 14; Marlow Yard 6.5 / 13). */
+  aimReach: 2,
+  /** (camera-range) Distance falloff over the camera's own range: rate x (1 - (d / range)^edgePow). Close to the guard
+   *  curve inside the zone (the fill times there hold), down to 0 at its edge: no full-rate pick-up at the range cut. */
+  edgePow: 2,
   /** (sector-fixes C) Shortest per-camera range and nearest aim point (m) the map data may set. */
   rangeMin: 4,
   aimMin: 2,

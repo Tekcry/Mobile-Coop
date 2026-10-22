@@ -28,3 +28,14 @@ CLAUDE.md "Sessions" (who merges).
   checked-out folder's own HEAD (`src/core/buildSha.ts`), so a slot shows its branch's commit; GITHUB_SHA (the
   workflow's trigger, master) is only the fallback when git fails.
 - Boot a preview straight into a map: `/<repo>/<slot>/?autostart=<mapId>&mode=<mode>`.
+
+## Updates of an open game (sw-reload)
+- The service worker uses `registerType: 'prompt'` (`vite.config.ts`, `clientsClaim` on, `skipWaiting` off): a new
+  deploy's worker installs and waits; it never reloads an open window by itself. `src/pwa/pwa.ts` re-reads the screen
+  each second and `src/pwa/updatePolicy.ts` (pure, tested) applies it (SKIP_WAITING, then one reload) only on the title
+  or main menu with no match, no load screen and no co-op screen (`.coop-screen`) open; anywhere else it defers and
+  shows "Update ready - restarts at the menu" once. Closing every window also applies it (the next launch).
+- A worker another window activated takes the page over without a reload; the reload waits for the menu the same way
+  (`controllerchange`; the first claim of a page that had no worker is not an update). Until that reload, a first lazy
+  import of an old build's chunk can fail (the new worker dropped the old precache): rare, and far better than a
+  mid-match reload.
