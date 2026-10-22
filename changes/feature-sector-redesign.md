@@ -9,3 +9,4 @@ kind: minor
 - Camera limit: 12 cameras live per Sector section (was 12 per map), at most 16 per map.
 - Sector Ops co-op: the host's lights (switched circuits, shot lamps; jams as before) now match on the client's screen, light meter and guard reads; a client can shoot lamps out through the host (protocol 31, slice L).
 - Sector Ops: new map campusOps (Saltmarsh Park), S1 greybox playable; not yet listed.
+- Sector Ops campusOps: S3 lab block greybox (16 guards, the first lasers las-gown and las-store with their power panels, cam-view and cam-dock, the prototype grab, CR3 chamber roof).

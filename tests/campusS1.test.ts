@@ -118,7 +118,8 @@ describe('Saltmarsh Park (campusOps), registration and shape', () => {
     expect(CAMPUS_SECTORS.length).toBe(5);
     expect(checkSectors(CAMPUS_SECTORS)).toEqual([]);
     for (let i = 1; i < 5; i++) expect(CAMPUS_SECTORS[i]!.start).toEqual(CAMPUS_SECTORS[i - 1]!.connector!.checkpoint);
-    for (const s of CAMPUS_SECTORS.slice(1)) expect(s.guards.length, s.id).toBe(0);
+    // (slice 3) the stubs have none; S3 is built in full (tests/campusS3.test.ts)
+    for (const s of CAMPUS_SECTORS.filter((q) => q.name.endsWith('(stub)'))) expect(s.guards.length, s.id).toBe(0);
     expect(CAMPUS_SECTORS[4]!.extract).toBeTruthy();
     // every stub and S1 connector's near / far doorway and the objective stand on the nav grid (S1 only: the stubs are outside this rectangle)
     expect(lay.playerSpawns.length).toBe(4);
@@ -246,7 +247,7 @@ describe('S1 guards (SPEC guard table)', () => {
 
 describe('S1 cameras, alarm, objective, routes', () => {
   it('two cameras, range 8-12 with a reason, valid security data, both in section 1', () => {
-    const cams = CAMPUS_SECURITY.devices;
+    const cams = CAMPUS_SECURITY.devices.filter((c) => c.section === 0);
     expect(cams.map((c) => c.id)).toEqual(['cam-gate', 'cam-walk']);
     expect(validateSecurity(CAMPUS_SECURITY)).toEqual([]);
     for (const c of cams) {
@@ -267,7 +268,7 @@ describe('S1 cameras, alarm, objective, routes', () => {
   });
 
   it('the alarm panel is in the gatehouse by its door; the layout carries it', () => {
-    expect(CAMPUS_ALARMS.length).toBe(1);
+    expect(CAMPUS_ALARMS.filter((q) => q.section === 0).length).toBe(1);
     const a = lay.alarms![0]!;
     expect(a.section).toBe(0);
     expect(a.pos.x).toBeGreaterThan(14);
@@ -319,7 +320,7 @@ describe('S1 cameras, alarm, objective, routes', () => {
 
   it('the spawns and hide spots stand on the nav grid; the ground reaches the plant roof by the ladder only', () => {
     for (const s of lay.playerSpawns) expect(onNav(s.pos.x, s.pos.z), `spawn ${s.pos.x}`).toBe(true);
-    for (const h of lay.hideSpots!) expect(onNav(h.pos.x, h.pos.z), `hide (${h.pos.x}, ${h.pos.z})`).toBe(true);
+    for (const h of lay.hideSpots!.filter((q) => q.pos.z < -30)) expect(onNav(h.pos.x, h.pos.z), `hide (${h.pos.x}, ${h.pos.z})`).toBe(true);
     const up = nav.findPath([24, -79], [-33, -37], 100000, 0, 4.4);
     expect(up).not.toBeNull();
     expect(up!.some((w) => w.link?.kind === 'ladder')).toBe(true);
@@ -489,7 +490,7 @@ describe('S1 element register E1-E12 (SPEC)', () => {
   });
   it('E3 weldmesh fences 2.4 round the site', () => {
     expect(b.anchors.fences.length).toBeGreaterThanOrEqual(7);
-    expect(b.anchors.fences.every((f) => f.height === 2.4)).toBe(true);
+    expect(b.anchors.fences.filter((f) => f.a.z < -30).every((f) => f.height === 2.4)).toBe(true);
   });
   it('E4 the bin-store walls 3.0 (west, north, east; open south)', () => {
     const walls = solid.filter((p) => Math.abs(p.s[1] - 3.0) < 1e-6 && p.c[0] > -40.2 && p.c[0] < -29.8 && p.c[2] > -52.2 && p.c[2] < -44.8);
