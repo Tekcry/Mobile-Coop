@@ -6,6 +6,7 @@ import { parseDifficulty } from './ai/archetypes';
 import { MISSIONS, missionById } from './game/missions';
 import './cosmetics/catalog';
 import { App } from './core/app';
+import { LOCO } from './anim/mocap';
 import { loadHavok } from './physics/havok';
 import { setupServiceWorker, suppressBrowserGestures } from './pwa/pwa';
 import { flags } from './core/flags';
@@ -79,6 +80,8 @@ async function boot(): Promise<void> {
   (window as unknown as { __app: App }).__app = app;
   // tests: the bundled mission definitions
   (window as unknown as { __missions: typeof MISSIONS }).__missions = MISSIONS;
+  // tests (mocap-trial M1): whether the mocap locomotion switch is on for this page (`?mocap=` over the setting), read-only
+  (window as unknown as { __mocapOn: () => boolean }).__mocapOn = () => LOCO.mocap;
 
   setBoot(0.15, 'Loading settings…');
   await app.loadSettings();

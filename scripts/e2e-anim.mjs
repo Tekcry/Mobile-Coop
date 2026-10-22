@@ -22,7 +22,9 @@ const FG = await import(pathToFileURL(`${LIB}/footGeom.js`).href);
 const FOOT = { back: FG.HEEL_BACK, down: FG.HEEL_DOWN, ball: FG.TOE_BALL };
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
+// (mocap-trial M1) E2E_MOCAP=0 / 1 forces the mocap locomotion switch for the page (`?mocap=`); unset: the stored setting
+const mocapParam = process.env.E2E_MOCAP === '0' || process.env.E2E_MOCAP === '1' ? `&mocap=${process.env.E2E_MOCAP}` : '';
+const { browser, page, errors } = await launch({ url, params: `autostart=proving${mocapParam}` });
 const G = (f, a) => page.evaluate(f, a);
 let failed = false;
 const within = (v, lo, hi) => v >= lo && v <= hi;
@@ -31,6 +33,15 @@ const assert = (cond, msg) => {
   if (cond || !process.env.SOFT) return hard(cond, msg);
   failed = true;
   console.log('  FAIL -', msg);
+};
+// (mocap-trial M1 "Mocap, as captured") with the switch on, the old procedural shape / style limits (walk bob, knee-out,
+// arm swing and the like, tuned for the hand-keyed clips) are notes, not fails: printed with the value. Pops, foot
+// slides, crossing feet, clipping, speed and timing stay `assert`. Switch off: `shape` asserts exactly as `assert`.
+const MOCAP = await G(() => window.__mocapOn?.() ?? false);
+if (MOCAP) console.log('mocap locomotion ON: the old shape / style limits are notes (M1 as captured)');
+const shape = (cond, msg) => {
+  if (!MOCAP) return assert(cond, msg);
+  console.log(`  note - ${msg} [M1 as captured${cond ? '' : ': past the old limit'}]`);
 };
 const f2 = (v) => (typeof v === 'number' ? v.toFixed(2) : String(v));
 
@@ -681,7 +692,7 @@ try {
       const C = r.C;
       assert(r.knee.pass, `${name}: knee separation within ${C.kneeSep.min}-${C.kneeSep.max} x the hips (${r.row.knee.join(' / ')})`);
       assert(r.track.pass, `${name}: planted feet within ${cm(C.trackHalf)} cm of the line under the hips (${r.row.track.join(' / ')} cm)`);
-      assert(r.bow.pass, `${name}: knees over the toes (outside by ${r.row.bow} cm)`);
+      shape(r.bow.pass, `${name}: knees over the toes (outside by ${r.row.bow} cm)`);
       assert(r.slide < C.slide && r.plants >= 3, `${name}: planted feet locked (${r.row.slide} cm, ${r.plants} plants)`);
       assert(r.wing.pass, `${name}: elbows in (${r.row.wing} cm outside the shoulder)`);
     }
