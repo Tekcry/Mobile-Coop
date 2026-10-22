@@ -67,6 +67,10 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- 01:50 Guard AI Build (feature/guard-ai) data shapes agreed: optional `MapLayout.guardAi` (zones per set, noisy
+  machinery in A5 / A6) and `SquadSlot.post` (A4, A8 high-security posts; A1 checker `leash: 0`) are filled by the set
+  slices once those types reach master; until then omitted. They do not set em.stealth (ours, A8) and keep out of
+  courseMode / course / ctDevices / securityRoom / scanners; their camera body callback lives in src/security.
 - ~01:55 Sydney: Michael reset the 5-hour window (2% at resume; resets 2026-10-23 ~06:40 Sydney). PHASE B: lean,
   at most 3 agents, 97 / 98 / 99% rule, Sonnet builds sets from Opus briefs (Pacing above). Four agents carried
   over (0d, set docs x2, 0f): no new agent until 2 or fewer run. (Note: earlier "~0x:xx" times in this file are
