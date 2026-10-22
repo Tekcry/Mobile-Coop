@@ -55,12 +55,13 @@ export function measurePlayer(R: Rec): PlayerM {
 export const fmtPlayer = (m: PlayerM): string =>
   `pel ${(m.pel * 100).toFixed(2)}@${m.pelAt} bone ${m.bone.toFixed(1)} ${m.boneN}@${m.boneAt} toe ${m.toe.toFixed(1)} slide ${(m.slide * 100).toFixed(2)}`;
 
-/** The rules (CHECK-3): bone / ankle-toe <= OFF + 2 deg or <= 24; planted slide < 2 cm; pelvis <= max(2 cm, OFF). */
+/** The rules (CHECK-3): bone / ankle-toe <= OFF + 2 deg or <= 24; planted slide < 2 cm (or <= OFF's); pelvis <= max(2 cm, OFF). */
 export function playerFails(on: PlayerM, off: PlayerM): string[] {
   const f: string[] = [];
   if (on.bone > 24 && on.bone > off.bone + 2) f.push('BONE');
   if (on.toe > 24 && on.toe > off.toe + 2) f.push('TOE');
-  if (on.slide >= 0.02) f.push('SLIDE');
+  // (mt2-fixC) a slide OFF already has (a crouched sneak flick's band at offset 0.5: OFF 16.9 cm) is OFF's, not the switch's
+  if (on.slide >= 0.02 && on.slide > off.slide) f.push('SLIDE');
   if (on.pel > Math.max(0.02, off.pel)) f.push('PEL');
   return f;
 }

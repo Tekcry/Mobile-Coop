@@ -2644,9 +2644,11 @@ export class CharacterRig {
     // the legs' rate limit before anything is placed against them (the weapon's clearance sees the final legs)
     // (mt2-fixB) while the switch's cross-fade runs (`switchFade`) a planted leg goes unlimited: the new pose's legs jump at the
     // toggle and the limit held a planted ankle 3.6 cm off its plant; the fade eases what is seen (undefined: as before)
+    // (mt2-fixC, CHECK-3 item 6) and on the mocap share (`poleM`), a leg on its landing frame (plantT 0): the knee leaves
+    // the swing's bow and pole there, and the limit held a 5 m/s flick's landed ankle 2.2 cm off its plant for the frame
     const xf = this.xfT >= 0 || this.xfStart;
-    const xl = xf && L.contact ? 1e9 : undefined;
-    const xrr = xf && R.contact ? 1e9 : undefined;
+    const xl = (xf || (poleM && L.plantT === 0)) && L.contact ? 1e9 : undefined;
+    const xrr = (xf || (poleM && R.plantT === 0)) && R.contact ? 1e9 : undefined;
     const lHip = this.limitJoint(this.hipL, dt, xl);
     const lh = this.limitJoint(this.kneeL, dt, xl) || lHip;
     const rHip = this.limitJoint(this.hipR, dt, xrr);
@@ -2662,7 +2664,9 @@ export class CharacterRig {
     // (mt2-pop1) clip feet on hand: a rate-limited hip / knee carried the foot round with it for the frame (the knee pole's
     // swing / stance share swaps at a landing: in a fast walk turn the landed foot flicked 24-25 deg in a frame and back);
     // the foot keeps the planner's yaw and pitch (its pitch already turns at most MOCAP_FEET.pitchRate), its Joints offset on top
-    if ((lh || rh) && this.pin.clipFeet && !legKeyed && !HANDS_CUR.ikOn) {
+    // (mt2-fixC, CHECK-3 item 6c) also on the mocap share (`poleM`) and in the crouched capture (switch on, crouchWalk set):
+    // a crouched sneak flick's toe-off turned the limited leg's foot off the planner's and its ball slid 2.1 cm
+    if ((lh || rh) && (this.pin.clipFeet || poleM || (LOCO.mocap && LOCO.set.crouchWalk !== null && this.input.crouch > 0)) && !legKeyed && !HANDS_CUR.ikOn) {
       const ly = Number.isNaN(this.legYaw);
       if (lh) {
         Quaternion.RotationYawPitchRollToRef(ly ? L.yaw : this.legYaw, L.pitch + st.lPitch, 0, tmpQ3);
