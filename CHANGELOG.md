@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased - anim-natural N4b (track A: co-op holders, traversal, holds)
+- Co-op team moves: the partner who helps is no longer a statue. Leg-up: cupped hands take her foot, he dips, then drives
+  up with legs and arms while she pushes off his hands. Throw: he loads and throws with his whole body. Hang-down: his
+  hands hold her ankles, leaning back or bending over the edge with the depth. Rope: both hands on the rope, leaning
+  back against her weight. Animation only (no timing, position or protocol change).
+- Mantle: both hands plant on the top edge and she presses over them. Drops: a step off with the arms up for balance, the
+  legs ahead in the air, and a landing that bends more for a longer drop. Roll: a grounded shoulder roll instead of an
+  airborne somersault (slower hands, the slung rifle swings far less). Split brace: hands braced on the walls instead of
+  arms straight out.
+- Holding a guard still: she braces, breathes and shifts her weight against him (the trunk no longer stays at 0 deg).
+  Animation tuner (Holds and carries): brace, brace roll and breath sliders; they bake. Anim Studio: the hold walks
+  travel with planted feet instead of sliding on the spot.
+
 ## 4.54.0 - Train 3: every tuner Body slider bakes, holds and carries (2026-10-22, PR #114; #103, #113)
 
 ### #103 Body sliders bake
