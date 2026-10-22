@@ -72,7 +72,7 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
-- 08:40 SAVED for the account swap (window ~79%+). After the save: A7 (slices/S7.md, 40 tests) and A5 (S5.md, 44 tests) greybox COMPLETE, not yet Opus-checked; A5 solo laser crossing in MORNING-REVIEW. WIP commit "WIP A4-A7 greybox (agents mid-work, UNCHECKED)" holds
+- 08:40 SAVED for the account swap (window ~79%+). After the save: A7 (slices/S7.md, 40 tests), A5 (S5.md, 44 tests) and A6 (S6.md, 37 tests; host use-slack note for the cage: 2.08 m vs 2.15 m accepted, only a forced client press) greybox COMPLETE, not yet Opus-checked; A5 solo laser crossing in MORNING-REVIEW. WIP commit "WIP A4-A7 greybox (agents mid-work, UNCHECKED)" holds
   a4GoodsShed / a5Substation / a6PumpHouse / a7DataHall .ts + tests + light.json as the agents left them; A8 had not
   written yet. On resume: for each of A4-A8 read the set file and its test; if the agent's report (slices/S4-S8.md) is
   missing, rerun that set's builder with the SET BRIEF below (A4 Sonnet ok; A5-A8 Opus), telling it to continue from
