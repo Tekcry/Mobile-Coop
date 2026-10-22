@@ -10,7 +10,7 @@
  * Hot paths read a section's preallocated objects: `values[group][field]`, or `cur[field]` after `tuneSectionLoad`
  * (a copy loop, no allocation). The API is documented in `docs/anim-tuner/STATE.md` ("Section registry").
  */
-import { migrateTuneChanged, migrateTuneRows, TUNE_ROWS_VERSION } from './tuneRows';
+import { aliasTuneChanged, aliasTuneValues, migrateTuneChanged, migrateTuneRows, TUNE_ROWS_VERSION } from './tuneRows';
 import { isRemovedTuneGroup } from './tuneMoveRows';
 
 export interface TuneTunable {
@@ -398,7 +398,7 @@ export function tuneLoad(s: unknown): void {
     pending = Object.create(null) as Record<string, Record<string, number>>;
     // (marlow-bays T1a) a save from before the own rows of the shared states: each new row takes its old row's values
     const raw = snap.values && typeof snap.values === 'object' ? snap.values : {};
-    const saved = snap.version === TUNE_ROWS_VERSION ? raw : migrateTuneRows(raw);
+    const saved = aliasTuneValues(snap.version === TUNE_ROWS_VERSION ? raw : migrateTuneRows(raw)); // (anim-natural N3) split sliders
     for (const [g, vals] of Object.entries(saved)) {
       // (anim-n3b) a deleted move's rows (the dash-in slide) are dropped, not kept for a section that never registers
       if (unsafeKey(g) || isRemovedTuneGroup(g)) continue;
@@ -465,7 +465,7 @@ export function tuneImport(data: unknown, name = 'import', now = Date.now()): Tu
     pending = Object.create(null) as Record<string, Record<string, number>>;
     // (marlow-bays T1a) an export from before the own rows: each new row takes its old row's values
     const list = (e.changed as unknown[]).filter((c): c is { group: string } => !!c && typeof c === 'object' && typeof (c as { group?: unknown }).group === 'string');
-    for (const c of e.version === 1 ? migrateTuneChanged(list) : list) {
+    for (const c of aliasTuneChanged(e.version === 1 ? migrateTuneChanged(list) : list)) { // (anim-natural N3) split sliders
       const { group, id, value } = c as Partial<TuneValue>;
       if (typeof group !== 'string' || typeof id !== 'string' || typeof value !== 'number' || !Number.isFinite(value)) continue;
       if (unsafeKey(group) || unsafeKey(id) || isRemovedTuneGroup(group)) continue;

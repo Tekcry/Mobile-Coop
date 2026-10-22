@@ -12,6 +12,24 @@
 - Wall block: no more muzzle-up swing (69 deg) and stall; the rifle comes off the eye and tips about 66 deg under the aim
   line about the butt, pulled in, in one eased 0.4 s move with hysteresis (no half-way hold).
 
+## Unreleased - anim-n3 (anim-natural N3: believable draws, holsters and swaps)
+
+- Draw, holster and swap are one continuous move per gun (reach, grip, lift / clear, present, settle;
+  `anim/drawMotion.ts`): the "random stop" when taking a gun out is gone (the swap clip held the gun level at its
+  pocket for 0.08-0.17 s, then pitched it 34-53 deg into the low ready), and so are the 28 / 11 / 7 cm one-frame jumps at
+  the swap press, the hand-off and the pistol LT draw.
+- Real-world times (Michael: "Research what is believable and realistic"; sources in docs/anim-natural/n3/DRAW-TIMES.md):
+  rifle draw 0.3 -> 1.1 s, pistol draw 0.5 -> 0.75 s, rifle holster 0.15 -> 1.0 s, pistol holster 0.15 -> 0.9 s. A
+  traversal or busy move still holsters in 0.15 s (`HOLSTER_TIME_MOVE`); the aim camera from low ready keeps the old
+  0.3 / 0.5 s blend (`AIM_IN_*`). Gameplay: the gun can fire, strike, reload or use a gadget only when the longer draw
+  ends; the LT sling draw is about 1.5 / 1.2 s.
+- A holster or a traversal mid-draw runs the draw backwards from where the gun is (no snap to the slot: 4.7-39 cm
+  one-frame jumps -> 0.4-2.3 cm); RT pressed during a holster queues the strike (tap / hold from the press) and the
+  holster speeds up to finish first; a re-draw just after the seat starts from the hand still on the gun.
+- Tuner: a Draw section per gun (reach, grip, hand-over, settle, lift and present paths; bakes into `DRAW_MOTION`). The
+  times are Clip speed's: the holster row is now one per gun (Rifle / Pistol holster speed) and the draw / holster rows
+  go up to 7x so the old times stay reachable; an older save, preset or export with the single holster value sets both.
+
 ## 4.55.1 - Master CI green again: the guardInfo test admits station 3's security guard (test only) (2026-10-22, PR #124)
 - `tests/guardInfo.test.ts` expects both passive guards with information: `s1-guard` (bay 1) and `s3-sec-guard` (bay 3, the security room from #115, which has an INTERROGATE line by plan). Train 4 merged with this unit test red.
 

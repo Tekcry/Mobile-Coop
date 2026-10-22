@@ -22,13 +22,19 @@ export const CLIP_ALL = 'clip.all';
 export const CLIP_GROUPS = [CLIP_GUN, CLIP_BODY, CLIP_ALL] as const;
 
 /** The per-clip sliders, in panel order (the draws, holster and swap first). */
-export const CLIP_SPEED_IDS = ['rifleDraw', 'pistolDraw', 'holster', 'swap', 'grenade', 'startShift', 'stopSettle', 'land'] as const;
+export const CLIP_SPEED_IDS = ['rifleDraw', 'pistolDraw', 'holsterPrimary', 'holsterSidearm', 'swap', 'grenade', 'startShift', 'stopSettle', 'land'] as const;
 export type ClipSpeedId = (typeof CLIP_SPEED_IDS)[number];
 
-const ROWS: readonly { id: ClipSpeedId; label: string; group: string; hook: string }[] = [
-  { id: 'rifleDraw', label: 'Rifle draw speed (every long gun)', group: CLIP_GUN, hook: 'drawState.ts DRAW_TIME_PRIMARY / this (also when the gun can fire, and the aim camera blend)' },
-  { id: 'pistolDraw', label: 'Pistol draw speed', group: CLIP_GUN, hook: 'drawState.ts DRAW_TIME_SIDEARM / this (also when the gun can fire, and the aim camera blend)' },
-  { id: 'holster', label: 'Holster speed (every gun)', group: CLIP_GUN, hook: 'drawState.ts HOLSTER_TIME / this' },
+// (anim-natural N3) the draws and holsters go up to 7x, so the pre-N3 times stay reachable (rifle draw 1.1 -> 0.3 s is 3.7x,
+// the holsters 1.0 / 0.9 -> 0.15 s are 6.7 / 6x)
+const FAST_MAX = 7;
+const ROWS: readonly { id: ClipSpeedId; label: string; group: string; hook: string; max?: number }[] = [
+  { id: 'rifleDraw', label: 'Rifle draw speed (every long gun)', group: CLIP_GUN, hook: 'drawState.ts DRAW_TIME_PRIMARY / this (also when the gun can fire, and the aim camera blend)', max: FAST_MAX },
+  { id: 'pistolDraw', label: 'Pistol draw speed', group: CLIP_GUN, hook: 'drawState.ts DRAW_TIME_SIDEARM / this (also when the gun can fire, and the aim camera blend)', max: FAST_MAX },
+  // (anim-natural N3) one holster row per gun (the N3 holsters differ: rifle 1.0 s, pistol 0.9 s); an older record's single
+  // `holster` value is skipped as an unknown id (the row shipped in 4.53.0, hours before the split)
+  { id: 'holsterPrimary', label: 'Rifle holster speed (every long gun)', group: CLIP_GUN, hook: 'drawState.ts HOLSTER_TIME_PRIMARY / this (an X holster; HOLSTER_TIME_MOVE, the traversal one, is not scaled)', max: FAST_MAX },
+  { id: 'holsterSidearm', label: 'Pistol holster speed', group: CLIP_GUN, hook: 'drawState.ts HOLSTER_TIME_SIDEARM / this (an X holster; HOLSTER_TIME_MOVE, the traversal one, is not scaled)', max: FAST_MAX },
   { id: 'swap', label: 'Weapon swap speed', group: CLIP_GUN, hook: 'playerWeapons.ts SWAP_TIME / this (the swap clock runs this much faster; also the stow for a climb)' },
   { id: 'grenade', label: 'Grenade throw speed', group: CLIP_GUN, hook: 'playerWeapons.ts GRENADE_TIME / this (the release moves with it)' },
   { id: 'startShift', label: 'Start-off weight shift speed', group: CLIP_BODY, hook: 'animGraph START_SHIFT clock x clips/actions.ts CLIP_RATE.startShift x this' },
@@ -36,7 +42,7 @@ const ROWS: readonly { id: ClipSpeedId; label: string; group: string; hook: stri
   { id: 'land', label: 'Landing speed (soft and deep)', group: CLIP_BODY, hook: 'animGraph LAND / LAND_DEEP clock x clips/actions.ts CLIP_RATE.land x this' },
 ];
 
-const speed = (id: string, label: string, groups: readonly string[], hook: string): TuneTunable => ({ id, label, kind: 'mul', def: 1, min: 0.25, max: 3, step: 0.05, unit: 'x', groups, hook });
+const speed = (id: string, label: string, groups: readonly string[], hook: string, max = 3): TuneTunable => ({ id, label, kind: 'mul', def: 1, min: 0.25, max, step: 0.05, unit: 'x', groups, hook });
 
 /**
  * Today's duration (s) of each clip at speed 1, filled by the owner module from where the value lives (the panel's
@@ -51,7 +57,7 @@ export const CLIP_SPEED_SECTION = registerTuneSection({
   label: 'Clip speed',
   note: 'How fast each clip plays: 1 is today, 2 twice as fast (half the time), 0.5 half as fast. Baked by the bake script.',
   groups: CLIP_GROUPS,
-  tunables: [...ROWS.map((r) => speed(r.id, r.label, [r.group], r.hook)), speed('all', 'Every clip speed (all of the above)', [CLIP_ALL], 'multiplies every clip speed slider of this section')],
+  tunables: [...ROWS.map((r) => speed(r.id, r.label, [r.group], r.hook, r.max)), speed('all', 'Every clip speed (all of the above)', [CLIP_ALL], 'multiplies every clip speed slider of this section')],
   notes: (_g, id) => {
     const b = CLIP_BASE[id as ClipSpeedId];
     return b !== undefined ? [`today: ${fmt(b)} at 1${id === 'land' ? ' (the soft landing)' : ''}`] : [];

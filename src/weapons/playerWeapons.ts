@@ -25,7 +25,9 @@ const modelLength = (d: WeaponDef): number => {
   return e.z1 - e.z0;
 };
 import { WeaponModel, DEFAULT_WEAPON_COLORS, type WeaponColors } from './weaponModel';
-import { DRAW_DRAWN, DRAW_HOLSTERED, DRAW_HOLSTERING, DrawState, drawTimeFor, fireReady, type DrawPhase } from './drawState';
+import { AIM_IN_PRIMARY, AIM_IN_SIDEARM, DRAW_DRAWN, DRAW_HOLSTERED, DRAW_HOLSTERING, DrawState, drawTimeFor, fireReady, HOLSTER_TIME_MOVE, holsterTimeFor, type DrawPhase } from './drawState';
+import { DRAW_BEAT, DRAW_CUR, drawClass, liftStart } from '../anim/drawMotion';
+import { drawTuneApply } from './drawTune';
 import { CLIP_BASE, clipSpeed } from '../anim/tuneClipSpeed'; // (clip-speed, track A)
 import { STANCE } from '../player/weaponStance';
 import { computeStats, damageAt, playerSpreadDeg, recoilKick, sampleSpread, NO_UPGRADES, type EffectiveStats, type StatMods, type WeaponUpgrades } from './weaponStats';
@@ -74,9 +76,27 @@ const SWAP_HOLD = 0.8;
  * (anim-cleanup) The draw / holster travel beats: the outgoing gun leaves the aim pocket at TRAVEL_OUT and reaches its
  * slot at SWAP_HOLSTER in the trigger hand; the next one leaves its slot at TRAVEL_IN and is in the pocket at SWAP_HOLD
  * (actions.ts swap clip: the hand holds the grip over both spans, empty only between the slots).
+ * (anim-natural N3) The incoming travel runs from the holstered beat (TRAVEL_IN = SWAP_HOLSTER = drawMotion DRAW_BEAT,
+ * was 0.5: the reach is its first part, the hand blending onto the grip) to the clip's end (was SWAP_HOLD 0.8: the gun
+ * stopped at the clip's level pocket for the last 20 % and then moved again into the low ready as the overlay faded;
+ * the "random stop"), settling in the final pose; SWAP_HOLD stays for a gun that does not travel (the sling hand-off).
+ * The outgoing travel starts at once (TRAVEL_OUT 0.06 -> 0): the gun moved with the overlay's pocket for 0.06 of the
+ * clip, then stopped as the travel took it from rest (and the pistol's muzzle tipped up 44 deg before going down).
  */
-const TRAVEL_OUT = 0.06;
-const TRAVEL_IN = 0.5;
+const TRAVEL_OUT = 0;
+const TRAVEL_IN = DRAW_BEAT;
+/**
+ * (anim-natural N3 fix) A draw holstered mid-way runs back at its own rate (X), or this many times it for a traversal, a
+ * busy move or a queued strike (quicker, slow enough to stay one move); the turn from the draw to the return (s).
+ */
+export const REWIND_QUICK = 2;
+const REWIND_TURN = 0.12;
+/** (anim-natural N3 fix) The share of the travel over which a quick rewind eases back to the draw's rate as it seats. */
+const REWIND_SEAT = 0.25;
+/** (anim-natural N3 fix) Time constant (s) a running holster eases onto a quicker holster time with. */
+const HOLSTER_EASE = 0.04;
+/** (anim-natural N3 fix) The fixed step a rewind's length is stepped out with (the 60 Hz sim). */
+const REWIND_DT = 1 / 60;
 /** Grenade throw (s) and the moment it leaves the hand. */
 const GRENADE_TIME = 1.2;
 const GRENADE_RELEASE = 0.68;
@@ -234,6 +254,24 @@ export class PlayerWeapons {
   /** (locomotion step 10) An elbow strike running: aim / reload do not draw until it ends (the gun stays in its
    *  slot with no stow overlay, so the local rig poses exactly as the remotes do from MoveState, D8). */
   handsBusy = false;
+  /** (anim-natural N3 fix) RT pressed for a strike while holstering: the holster runs as a busy move (HOLSTER_TIME_MOVE)
+   *  and the strike starts once holstered (GameState). */
+  strikePending = false;
+  /**
+   * (anim-natural N3 fix) A draw holstered mid-way (X, a traversal, a busy move) rewinds: the swap clock runs back to the
+   * holstered beat, from the draw's own rate `rewV0` (clip s / s) turning to the return (`rewVd` x `rewK` while the gun
+   * travels), so the gun slows, turns back and returns along its draw path. `rewHol` is the holster time the draw state
+   * uses meanwhile, so its phase reaches holstered as the gun is seated.
+   */
+  private rewind = false;
+  private rewV0 = 0;
+  private rewVd = 0;
+  private rewK = 1;
+  private rewLift = 0;
+  private rewTau = 0;
+  private rewHol = 0;
+  /** (anim-natural N3 fix) The swap clock's rate in the last step (clip s / s): a rewind starts from it. */
+  private swapRate = 0;
 
   /** (locomotion step 10) A reload running or queued (A43): the hands are busy, no elbow strike. */
   get reloadBusy(): boolean {
@@ -249,10 +287,17 @@ export class PlayerWeapons {
     if (v === this.stowed) return;
     this.stowed = v;
     this.cancelReload();
+    // (anim-natural N3 fix) drawn again mid-rewind: the draw carries on from where the gun is
+    if (!v) this.rewind = false;
     const rig = this.player.rig;
     if (v) {
-      if (this.swapT >= 0 && this.swapPhase >= 2) {
-        // mid-draw: the gun goes straight back to its slot
+      if (this.swapT >= 0 && this.swapPhase === 2 && this.slots[this.index]!.model.travelling) {
+        // (anim-natural N3 fix) mid-draw: the draw runs backwards from where it is (the swap clip's draw half and the
+        // gun's draw path rewound to the slot, the reach letting go last), eased through the turn (was a snap into the
+        // slot, 20-39 cm; then a fresh holster travel from clip time 0: the overlay's reach pose dropped out in a frame)
+        this.startRewind();
+      } else if (this.swapT >= 0 && this.swapPhase >= 2) {
+        // mid-draw with no travel (the sling hand-off): the gun goes straight back to its slot
         this.holsterAll(-1);
         this.swapPhase = 1;
         this.swapT = SWAP_TIME * SWAP_HOLSTER;
@@ -386,13 +431,80 @@ export class PlayerWeapons {
   private applyAimCamera(): void {
     const cam = this.player.cam;
     cam.adsZoom = this.current.scoped && this.zoomOn ? this.current.stats.adsZoom : 1;
-    cam.adsInTime = this.drawTime() * 0.9;
+    // (anim-natural N3) drawn, the aim from low ready keeps its pre-N3 blend (AIM_IN_*): the longer draws never slow it
+    // (anim-natural N3 fix, check finding 6) so does LT pressed during an X draw; the LT sling draw blends over what is
+    // left of it, never under AIM_IN (the blend's time fell from 0.99 / 1.35 s to 0.27 s mid-dolly as the draw ended)
+    const aimIn = this.current.def.class === 'pistol' ? AIM_IN_SIDEARM : AIM_IN_PRIMARY;
+    const sling = this.draw.phase !== DRAW_DRAWN && this.player.stance.slingDraw;
+    cam.adsInTime = (sling ? Math.max(aimIn, (1 - this.draw.progress) * this.drawTime()) : aimIn) * 0.9;
   }
 
   /** The current gun's draw time (s); (anim-rework S1, M2) the sling draw (LT from holstered) is slower. */
   private drawTime(): number {
     const cls = this.current.def.class;
     return drawTimeFor(cls) * (this.player.stance.slingDraw ? (cls === 'pistol' ? STANCE.slingDrawMult : STANCE.slingDrawLong) : 1);
+  }
+
+  /**
+   * (anim-natural N3) The current gun's holster time (s), per class, with the tuner's Clip speed (rifle / pistol holster); a traversal or a
+   * busy move (the stance suspended) holsters in HOLSTER_TIME_MOVE, as fast as before N3.
+   * (anim-natural N3 fix) A queued strike too (`strikePending`); a holster already running eases onto the quicker time
+   * (`holS`), and a rewound draw keeps its own (`rewHol`).
+   */
+  private holsterTime(): number {
+    if (this.rewind && this.rewHol > 0) return this.rewHol;
+    return this.holS;
+  }
+
+  /** (anim-natural N3 fix) The holster time asked for now (see `holsterTime`). */
+  private holsterWant(): number {
+    if (this.player.stance.suspended || this.strikePending) return HOLSTER_TIME_MOVE;
+    return this.deliberateHolster();
+  }
+
+  /**
+   * (anim-natural N3 fix) The holster time in use: a holster sped up mid-way (RT queued, a traversal) eases onto the
+   * quicker time over HOLSTER_EASE (it switched in a frame: the gun jumped 8 cm, the rifle's muzzle 22 m/s); else as asked.
+   */
+  private holS = HOLSTER_TIME_MOVE;
+
+  /** (anim-natural N3) The deliberate (X) holster time of the current gun (s). */
+  private deliberateHolster(): number {
+    return holsterTimeFor(this.current.def.class);
+  }
+
+  /**
+   * (anim-natural N3 fix) Starts the rewind of a draw in progress (see `rewind`): the swap clock turns from the draw's rate
+   * to the return over REWIND_TURN (the hand slows, stops and comes back), then runs back at the draw's own rate (X: the
+   * elapsed draw mirrored). A traversal, a busy move, a queued strike, an attach or the host's forced holster bring the
+   * gun back REWIND_QUICK x faster, easing to the draw's rate as it seats, so the hand lets go of it at the reach's pace
+   * (G2's 0.15 s from mid-draw moved the gun 14-18 cm in a frame; the reach let go at 2x left the wrist 10 cm behind).
+   * The rewind's length is stepped out here once (the same steps `fixedUpdate` takes), for the draw state's pace.
+   */
+  private startRewind(): void {
+    const pr = this.draw.progress;
+    const quick = this.player.stance.suspended || this.strikePending || this.attachMode || this.drawLock;
+    this.rewVd = (SWAP_TIME * (1 - TRAVEL_IN)) / Math.max(1e-3, this.drawTime());
+    this.rewK = quick ? REWIND_QUICK : 1;
+    this.rewLift = liftStart(DRAW_CUR[drawClass(this.current.def.class)]);
+    this.rewind = true;
+    this.rewV0 = Math.min(Math.max(0, this.swapRate), 2 * this.rewVd);
+    this.rewTau = 0;
+    let x = this.swapT;
+    let n = 0;
+    while (x > SWAP_TIME * TRAVEL_IN + 1e-9 && n < 600) x = this.rewindStep(x, ++n * REWIND_DT, REWIND_DT);
+    this.rewHol = pr > 1e-6 ? (n * REWIND_DT) / pr : 0;
+  }
+
+  /** (anim-natural N3 fix) One step of the rewind's swap clock from `x` (clip s) at rewind time `tau` (s). */
+  private rewindStep(x: number, tau: number, dt: number): number {
+    const u = (x / SWAP_TIME - TRAVEL_IN) / (1 - TRAVEL_IN);
+    const k = (u - this.rewLift) / REWIND_SEAT;
+    const ks = k <= 0 ? 0 : k >= 1 ? 1 : k * k * (3 - 2 * k);
+    const back = this.rewVd * (1 + (this.rewK - 1) * ks);
+    const c = tau >= REWIND_TURN ? 1 : tau / REWIND_TURN;
+    const s = c * c * (3 - 2 * c);
+    return Math.max(SWAP_TIME * TRAVEL_IN, x + (this.rewV0 * (1 - s) - back * s) * dt);
   }
 
   private equip(i: number): void {
@@ -448,16 +560,21 @@ export class PlayerWeapons {
 
   fixedUpdate(dt: number, inp: InputState): void {
     const s = this.current;
+    // (anim-natural N3) the Draw section's values for this step (identity unless a slider moved)
+    drawTuneApply(drawClass(s.def.class));
     this.player.reload = this.reloading ? this.reloadProgress : -1;
     this.player.reloadEmpty = this.reloadEmpty;
     this.player.reloadQueued = this.reloadQueued;
     // holstered by aim and settled: no swap overlay (the free hands hang at the sides, unarmed)
-    this.player.swapT = this.swapT >= 0 && !(this.stowed && !this.attachMode && this.swapPhase >= 1) ? this.swapT / SWAP_TIME : -1;
+    this.player.swapT = this.swapT >= 0 && !(this.stowed && !this.attachMode && this.swapPhase >= 1 && !this.rewind) ? this.swapT / SWAP_TIME : -1;
     this.pouches.setCount(this.grenades);
     this.player.grenadeT = this.grenadeT >= 0 ? this.grenadeT / GRENADE_TIME : -1;
     this.player.sinceShot = this.sinceShot;
     this.player.weaponDrawn = this.draw.phase === DRAW_DRAWN;
-    this.player.weaponWeight = s.def.weight ?? classWeight(s.def.class);
+    // (anim-natural N3) the weight of the gun in the hands: through a swap's holster half the outgoing one (the next gun's
+    // weight picked the pistol's pocket for the rifle at the press: a 28 cm jump in one frame)
+    const inHand = this.swapT >= 0 && this.swapPhase === 0 && this.held >= 0 ? this.slots[this.held]!.def : s.def;
+    this.player.weaponWeight = inHand.weight ?? classWeight(inHand.class);
     this.cooldown = Math.max(0, this.cooldown - dt);
     this.grenadeCd = Math.max(0, this.grenadeCd - dt);
     this.sinceShot += dt;
@@ -491,7 +608,9 @@ export class PlayerWeapons {
     } else {
       // (A43) a reload in progress or asked for while holstered keeps / brings the gun out at low ready
       const reloadWant = this.reloadT >= 0 || this.reloadQueued;
-      const ph = this.draw.update(dt, !this.drawLock && !this.handsBusy && (this.player.drawWanted || reloadWant), this.drawTime());
+      const hw = this.holsterWant();
+      this.holS = this.draw.phase === DRAW_HOLSTERING && hw < this.holS ? this.holS + (hw - this.holS) * (1 - Math.exp(-dt / HOLSTER_EASE)) : hw;
+      const ph = this.draw.update(dt, !this.drawLock && !this.handsBusy && (this.player.drawWanted || reloadWant), this.drawTime(), this.holsterTime());
       const away = ph === DRAW_HOLSTERED || ph === DRAW_HOLSTERING;
       if (away !== this.stowed) {
         const reverse = !away && this.swapT >= 0 && this.swapPhase === 0 && this.index === this.held;
@@ -537,6 +656,11 @@ export class PlayerWeapons {
         // (CT prototype G2, AUDIT-AIM row 13) holstered and settled the swap is the selection only: CT's hero stays idle,
         // arms at the sides, no body motion (051812 6-10.8); the next aim draws the new gun from its slot
         if (!this.attachMode && (this.swapT < 0 || this.swapPhase >= 1)) {
+          // (anim-natural N3 fix) a rewinding draw is cut short: the gun goes to its slot (the old mid-draw snap)
+          if (this.rewind) {
+            this.rewind = false;
+            this.holsterAll(-1);
+          }
           this.swapT = SWAP_TIME * SWAP_HOLSTER;
           this.swapPhase = 1;
           this.player.swapFrom = this.player.swapTo = this.reach(this.index);
@@ -561,13 +685,20 @@ export class PlayerWeapons {
       return;
     }
     if (this.swapT >= 0) {
+      const t0 = this.swapT;
       // stowing for a climb / hang is quick: both hands are wanted on the anchor
-      if (this.aimDriven) {
-        // a draw / holster from aim keeps pace with the draw state (0.3 / 0.4 s draw, 0.4 s holster)
-        const left = this.draw.remaining(this.drawTime());
+      if (this.rewind) {
+        // (anim-natural N3 fix) a draw holstered mid-way runs backwards to the holstered beat on its own clock
+        this.rewTau += dt;
+        this.swapT = Math.min(SWAP_TIME * (1 - 1e-6), this.rewindStep(this.swapT, this.rewTau, dt));
+      } else if (this.aimDriven) {
+        // a draw / holster from aim keeps pace with the draw state (drawTime / holsterTime: N3 1.1 / 0.75 s draws, 1.0 / 0.9 s
+        // holsters, a traversal's 0.15 s)
+        const left = this.draw.remaining(this.drawTime(), this.holsterTime());
         const togo = (this.stowed ? SWAP_TIME * SWAP_HOLSTER : SWAP_TIME) - this.swapT;
         this.swapT += left > dt ? Math.max(0, togo) * (dt / left) : Math.max(0, togo);
       } else this.swapT += ((this.stowed && this.swapPhase === 0 ? dt * STOW_RATE : dt) * clipSpeed('swap')) / this.handsMul; // (clip-speed, track A) = SWAP_TIME / speed
+      this.swapRate = (this.swapT - t0) / dt;
       // the outgoing gun goes into its slot (hands empty), the hand takes the next from its slot and
       // brings it up, then it settles into the aim pocket with both hands on it
       let f = this.swapT / SWAP_TIME;
@@ -587,7 +718,7 @@ export class PlayerWeapons {
         this.holsterAll(-1);
       }
       // stowed: hold at the holstered beat (hands empty) until drawn again
-      if (this.stowed && this.swapPhase >= 1) this.swapT = SWAP_TIME * SWAP_HOLSTER;
+      if (this.stowed && this.swapPhase >= 1 && !this.rewind) this.swapT = SWAP_TIME * SWAP_HOLSTER;
       else if (this.swapPhase === 1) {
         // (anim-cleanup) the next gun leaves its slot in the trigger hand and travels to the aim pocket
         const next = this.slots[this.index]!;
@@ -601,11 +732,20 @@ export class PlayerWeapons {
           next.model.inHand(this.player.rig);
         }
       }
+      // (anim-natural N3) the incoming travel runs to the clip's end (the settle in the final pose); held at its end
+      let inTravel = false;
       if (this.swapPhase === 2) {
         const m = this.slots[this.index]!.model;
-        if (m.travelling) m.travel(this.player.rig, (f - TRAVEL_IN) / (SWAP_HOLD - TRAVEL_IN));
+        inTravel = m.travelling;
+        if (inTravel) m.travel(this.player.rig, (f - TRAVEL_IN) / (1 - TRAVEL_IN));
       }
-      if (this.swapPhase === 2 && f >= SWAP_HOLD) {
+      if (this.rewind && this.swapT <= SWAP_TIME * TRAVEL_IN + 1e-9) {
+        // (anim-natural N3 fix) the rewind is back at the holstered beat: the gun is seated, the hand off it
+        this.rewind = false;
+        this.holsterAll(-1);
+        this.swapPhase = 1;
+        this.swapT = SWAP_TIME * SWAP_HOLSTER;
+      } else if (this.swapPhase === 2 && !this.rewind && f >= (inTravel ? 1 - 1e-9 : SWAP_HOLD)) {
         this.swapPhase = 3;
         this.equip(this.index);
       }

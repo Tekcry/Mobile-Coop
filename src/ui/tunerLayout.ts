@@ -476,7 +476,8 @@ const PLAIN: Readonly<Record<string, string>> = {
   // (clip-speed, track A) Clip speed (1 = today's timing)
   'clip:rifleDraw': 'Rifle draw speed',
   'clip:pistolDraw': 'Pistol draw speed',
-  'clip:holster': 'Holster speed',
+  'clip:holsterPrimary': 'Rifle holster speed', // (anim-natural N3) one holster row per gun
+  'clip:holsterSidearm': 'Pistol holster speed',
   'clip:swap': 'Weapon swap speed',
   'clip:grenade': 'Grenade throw speed',
   'clip:startShift': 'Start-off weight shift speed',
