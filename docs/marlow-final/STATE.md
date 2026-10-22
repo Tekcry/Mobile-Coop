@@ -67,6 +67,9 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- ~02:00 slice 0 e2e on 1949764e (Character Build, GPU, JOBS=3): smoke, e2e-ctcourse:2, :3, e2e-course, e2e-coop,
+  e2e-netmove, e2e-stealth-ai PASS; e2e-ctcourse:1 FAIL at the security room 'off' assert (the by-design failure
+  fixed in 5920cce5, test script only). Rerun of e2e-ctcourse on 5920cce5 and the 13 unit files on f315434f running.
 - 01:50 Guard AI Build (feature/guard-ai) data shapes agreed: optional `MapLayout.guardAi` (zones per set, noisy
   machinery in A5 / A6) and `SquadSlot.post` (A4, A8 high-security posts; A1 checker `leash: 0`) are filled by the set
   slices once those types reach master; until then omitted. They do not set em.stealth (ours, A8) and keep out of
