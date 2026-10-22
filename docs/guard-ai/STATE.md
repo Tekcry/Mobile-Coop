@@ -2,7 +2,7 @@
 
 ## Now
 SAVED ~10:30 (98% window). Top items for the resume:
-- Chain 'bodies': PASSED on the S8 tip 54627243 (laptop), FAILED on ae1f1895 -> timing-sensitive. s7 head 8094c5b1 =
+- Chain 'bodies' FIXED (test only, s7 62884858: bodiesFound baseline + finder must be w; cause in S7.md "Chain fix"); laptop run requested on 62884858 (stealth-ai + sectorops all; verdict also as a PR #196 comment). Green -> train-ready message. (old:) s7 head 8094c5b1 =
   WIP diagnostic logs ("DBG bodies": who found the body, levels) in e2e-stealth-ai; laptop run requested (stealth-ai
   2x + sectorops all; verdict to Guard AI Build and, if possible, a comment on PR #196). From the DBG lines: make the
   scenario deterministic (or fix the game if the finder truly never searches), REMOVE the DBG logs, push, then the
