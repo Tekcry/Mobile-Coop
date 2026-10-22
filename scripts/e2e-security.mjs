@@ -12,7 +12,11 @@ let failed = false;
 const { browser, page, errors } = await launch({ url, params: 'autostart=seclab&mode=sandbox' });
 const G = (f, a) => page.evaluate(f, a);
 
-// S0 section 5: SN08 lit detection walking at 10 m, SN09 crouched still lit at 10 m, SN67 test tolerance
+// S0 section 5: SN08 lit detection walking at 10 m, SN09 crouched still lit at 10 m, SN67 test tolerance. (camera-range)
+// The cameras' range is 12 m now (was 18) with the falloff over it (`cameraRate`): the strip spot moves from 11 to 9 m
+// out (8.5 m from the lens, 0.72 of the range) and the dark spot in from (10, 1.5) (11 m, outside the crouched reach of
+// ~10 m) to (7.5, 2.5) with the lamps put out; the pan pad spot from 9.5 to 7.5 m. The times stay under these bounds
+// (docs/camera-range/MEASURE.md: walking ~0.7 s, standing still ~2.6 s at the new spot).
 const SN08 = 1.3;
 const SN09 = 9;
 const TOL = 0.5;
@@ -80,7 +84,7 @@ try {
   console.log('lit strip, walking');
   await S((s) => {
     s.reset();
-    s.tp(11, 7, -Math.PI / 2);
+    s.tp(9, 7, -Math.PI / 2);
     s.step(0.6);
   });
   const lit = await S((s) => s.light());
@@ -113,7 +117,7 @@ try {
   console.log('lit strip, standing still');
   await S((s) => {
     s.reset();
-    s.tp(11, 7, -Math.PI / 2);
+    s.tp(9, 7, -Math.PI / 2);
     s.step(0.6);
   });
   const still = await G(() => {
@@ -137,7 +141,14 @@ try {
   console.log('dark corner, crouched');
   await S((s) => {
     s.reset();
-    s.tp(10, 1.5, -Math.PI / 2);
+    // (camera-range) every lamp out: the spot is dark however the strip lamps reach it
+    const reg = window.__app.current.world.level.lights;
+    window.__labLamps = [];
+    for (let i = 0; reg.get(i); i++) {
+      window.__labLamps.push(reg.get(i).on);
+      reg.setOn(i, false);
+    }
+    s.tp(7.5, 2.5, -Math.PI / 2);
     s.crouch(true);
     s.step(1);
   });
@@ -158,12 +169,16 @@ try {
   assert(dark.light < SHADOW, `the dark corner reads dark (light ${dark.light.toFixed(2)} below ${SHADOW})`);
   // (marlow-jammer M3) the camera sees by its own IR: the dark corner no longer hides a body in its frame
   assert(dark.max >= 0.3, `crouched in the dark corner for 15 s is seen by the camera's IR (meter max ${dark.max.toFixed(2)})`);
+  await S(() => {
+    const reg = window.__app.current.world.level.lights;
+    window.__labLamps.forEach((on, i) => reg.setOn(i, on));
+  });
 
   // ---- the panning camera: far pause misses, near pause sees ------------------------------------------------------------------------
   console.log('panning camera');
   await S((s) => {
     s.reset();
-    s.tp(14, 12, Math.PI / 2);
+    s.tp(16, 12, Math.PI / 2);
     s.step(0.6);
     // restart the sweep: the first pause (2 s) is at the far end (yaw 190), looking south of the pad
     const pan = s.sec.camera('cam-pan');
@@ -217,7 +232,7 @@ try {
   assert(shot.missed === 'online', 'a shot over the housing leaves the camera online');
   assert(shot.after === 'destroyed' && shot.other === 'online', 'a shot through the housing destroys that camera only');
   await S((s) => {
-    s.tp(11, 7, -Math.PI / 2);
+    s.tp(9, 7, -Math.PI / 2);
     s.step(0.6);
     s.sec.camera('cam-fixed').meters.clear();
   });

@@ -5,7 +5,7 @@
  * (`inFrame` with the camera's pitch and range), the lens has a clear line to it, the body stands free, and the rate is
  * over the leak (`seenAt`). Door leaves are not boxes: every door counts as open (the worst case).
  */
-import { LevelBuilder } from '../src/world/levelBuilder';
+import { LevelBuilder, type BoxPiece } from '../src/world/levelBuilder';
 import { SightWorld } from '../src/game/sectorCheck';
 import { roomAt, type RoomRect } from '../src/world/rooms';
 import { CameraUnit, camPitch, inFrame, sweepYaw } from '../src/security/camera';
@@ -23,6 +23,7 @@ const DEG = Math.PI / 180;
 export const STANCES = [
   { id: 'standStill', crouched: false, speed: 0 },
   { id: 'standWalk', crouched: false, speed: GEARS.stand[2] },
+  { id: 'standRun', crouched: false, speed: GEARS.stand[4] },
   { id: 'crouchStill', crouched: true, speed: 0 },
   { id: 'crouchMove', crouched: true, speed: GEARS.crouch[1] },
 ] as const;
@@ -49,12 +50,13 @@ export interface CamScan {
   range: number;
   /** Farthest horizontal distance (m) a head is picked up, per stance (0 = never). */
   reach: Record<(typeof STANCES)[number]['id'], number>;
-  /** Picked-up points for the standing walk (the widest stance), with their room. */
+  /** Picked-up points for the standing run (the widest stance), with their zone. */
   seen: ScanPoint[];
 }
 
 export interface MapWorld {
   world: SightWorld;
+  boxes: readonly BoxPiece[];
   rooms: RoomRect[];
   security: SecurityData;
 }
@@ -62,7 +64,7 @@ export interface MapWorld {
 export function buildMap(map: MapDef): MapWorld {
   const b = new LevelBuilder();
   const lay = map.build(b, 0);
-  return { world: new SightWorld(b.boxes, b.cylinders), rooms: lay.rooms ?? [], security: lay.security! };
+  return { world: new SightWorld(b.boxes, b.cylinders), boxes: b.boxes, rooms: lay.rooms ?? [], security: lay.security! };
 }
 
 /** Scan one camera with `model`. `zoneOf` names the zone a floor point is in (default: its room). */
@@ -71,7 +73,7 @@ export function scanCamera(mw: MapWorld, def: CameraDevice, model: CamModel, zon
   const unit = new CameraUnit(def, floor);
   const range = model.range(def);
   const pitch = camPitch(def);
-  const reach = { standStill: 0, standWalk: 0, crouchStill: 0, crouchMove: 0 };
+  const reach = { standStill: 0, standWalk: 0, standRun: 0, crouchStill: 0, crouchMove: 0 };
   const seen: ScanPoint[] = [];
   const yaws: number[] = [];
   if (def.sweep) {
@@ -92,7 +94,7 @@ export function scanCamera(mw: MapWorld, def: CameraDevice, model: CamModel, zon
       for (let h = 0.4; h <= 20; h += 0.1) {
         const x = unit.x + sx * h;
         const z = unit.z + cz * h;
-        if (mw.world.blocked(x, floor, z, 0.3)) continue;
+        if (mw.world.blocked(x, floor, z, 0.3) || !standsOn(mw.boxes, x, z, floor)) continue;
         let walkSeen = false;
         for (const s of STANCES) {
           const hy = remoteHeadY(floor, s.crouched);
@@ -103,7 +105,7 @@ export function scanCamera(mw: MapWorld, def: CameraDevice, model: CamModel, zon
           if (!mw.world.clear(unit.x, unit.y, unit.z, unit.x + (x - unit.x) * k, unit.y + (hy - unit.y) * k, unit.z + (z - unit.z) * k)) continue;
           if (!seenAt(model.rate(dist, s.crouched, s.speed, range))) continue;
           if (h > reach[s.id]) reach[s.id] = h;
-          if (s.id === 'standWalk') walkSeen = true;
+          if (s.id === 'standRun') walkSeen = true;
         }
         if (walkSeen) {
           const key = `${Math.round(x * 2)},${Math.round(z * 2)}`;
@@ -137,4 +139,19 @@ export function floorPatch(def: CameraDevice): { near: number; centre: number; f
   const bot = pitch + VF / 2;
   const top = pitch - VF / 2;
   return { near: def.y / Math.tan(bot), centre: pitch > 0 ? def.y / Math.tan(pitch) : Infinity, far: top > 0 ? def.y / Math.tan(top) : Infinity };
+}
+
+/** A body can stand at (x, z) on a floor at height y: the ground (y about 0), or a solid piece whose top is that floor. */
+function standsOn(boxes: readonly BoxPiece[], x: number, z: number, y: number): boolean {
+  if (y < 0.3) return true;
+  for (const b of boxes) {
+    if (!b.collide || Math.abs(b.pitch) > 1e-3) continue;
+    if (Math.abs(b.c[1] + b.s[1] / 2 - y) > 0.2) continue;
+    const dx = x - b.c[0];
+    const dz = z - b.c[2];
+    const c = Math.cos(b.yaw);
+    const sn = Math.sin(b.yaw);
+    if (Math.abs(dx * c - dz * sn) <= b.s[0] / 2 && Math.abs(dx * sn + dz * c) <= b.s[2] / 2) return true;
+  }
+  return false;
 }
