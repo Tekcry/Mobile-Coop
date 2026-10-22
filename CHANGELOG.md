@@ -1,5 +1,35 @@
 # Changelog
 
+## 4.69.0 - Train 20: Guard AI incident board, partner throw KO, mocap on by default (2026-10-23, PR #192; #185, #186, #188)
+
+### Guard AI
+- S2 incident board: one event, one response. A noise, distant gunfire or a lure sends one guard (the nearest by walking
+  distance; an officer sends someone else), says "Checking it out." on the radio, and the others who heard it answer
+  "Copy." and look a moment; more noise in the same spot never pulls a second guard. A light shot out or switched off is
+  noticed only by guards who can see it go (in their view with a clear line, or the room they stand in goes dark): one
+  checks it, two if a second witness is close. They look at the light, sweep the area round it, say "Nothing here.
+  Back to it." and return to their routes calm. An investigator taken out (or held) who stays silent for 25 s brings
+  two more as a pair. Investigating and searching guards now walk slower than their patrol, not faster. Hunter and
+  Mission (parked) keep the old rules.
+  Fix: a patrol point with a wait of 0 is now walked straight through; before, the guard stopped there for good.
+
+### Mocap locomotion on by default
+- Settings > Gameplay > Mocap locomotion is now ON by default (Michael: "On by default"); a save from before keeps the
+  new default once, after that the player's choice stays. Off uses the hand-keyed animations.
+- Mocap locomotion (switch on): the clip's planted feet hold their contact through turns and straights (contact slide
+  0.01 cm, twist at lift 14.3 deg).
+- Mocap locomotion: the switch now drives Wren only (the player and the co-op partner); guards keep their hand-keyed
+  walk and the planner's feet with it on (they took the mocap walk and its clip feet before). The menu and Anim Studio
+  Wren keep the hand-keyed set too.
+- Tests: e2e-anim reads the mocap switch (`window.__mocapOn`, `E2E_MOCAP=0/1`); with mocap on, the old shape / style
+  bars (knee-out, knee separation, track width, elbows, pelvis / shoulder rotation, sway, head yaw / pitch) print as
+  "M1 as captured" notes; slides, crossings, pops and timings still fail. OFF asserts unchanged.
+
+### Partner throw onto a guard
+- Co-op partner throw onto a guard (throw-ko, spare job 3; CT: the thrown partner landing on a guard knocks him out):
+  the host replays each throw's arc and the guard the thrown player comes down on (head / shoulders, descending) is
+  knocked out through the existing knockout path; the joiner sees it through the guard sync. No wire change.
+
 ## 4.68.0 - Train 19: Sector Ops part 1: armed guards, reinforcements, dogs, co-op light sync; guard-cap report (2026-10-23, PR #187; #180, #184)
 
 ### Guard cap measure
