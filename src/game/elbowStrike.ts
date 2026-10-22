@@ -60,6 +60,11 @@ export function facingDot(gy: number, gx: number, gz: number, sx: number, sz: nu
 
 const COS_HALF = Math.cos(STRIKE.cone / 2);
 
+/** (G42, sector-redesign G20) Can the palm strike take this guard? Every human guard; never a dog (four-legged). */
+export function strikeTargetable(def: { readonly quadruped: boolean }): boolean {
+  return !def.quadruped;
+}
+
 /** Distance to a guard at (dx, dz) from the striker facing `yaw`, or -1 outside the reach (+ `slack`) or the cone. */
 export function strikeReach(dx: number, dz: number, yaw: number, slack = 0): number {
   const d = hyp2(dx, dz);

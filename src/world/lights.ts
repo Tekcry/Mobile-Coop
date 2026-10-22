@@ -277,6 +277,31 @@ export class LightRegistry {
     this.version++;
   }
 
+  /**
+   * (sector-redesign G22) Put a light back to a recorded state (a Sector Ops section restart): shot out or not, and the
+   * on state its switches give it. A lamp shot since comes back; an EMP outage is dropped; a jammed lamp gets the base
+   * and keeps the jam's flicker until the jam ends (then it takes `on`). Not on a hot path.
+   */
+  resetTo(id: number, on: boolean, destroyed: boolean): void {
+    const l = this.lights[id];
+    if (!l) return;
+    this.outFor.delete(id);
+    if (destroyed) {
+      if (!l.destroyed) {
+        l.destroyed = true;
+        l.on = false;
+        this.version++;
+      }
+      return;
+    }
+    if (l.destroyed) this.restore(id);
+    const b = this.jamBits.get(id);
+    if (b !== undefined) {
+      this.jamBits.set(id, (b & JAM_LIT) | (on ? JAM_BASE : 0));
+      this.setOn(id, on && (b & JAM_LIT) !== 0);
+    } else this.setOn(id, on);
+  }
+
   /** Mirror a shot-out lamp from the host (co-op client), destructible or not. */
   kill(id: number): void {
     const l = this.lights[id];

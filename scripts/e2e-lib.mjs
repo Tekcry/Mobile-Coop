@@ -92,6 +92,9 @@ export async function launch({ url = 'http://localhost:4173/', params = '', view
   const ctx = await browser.newContext({ viewport, acceptDownloads: true, ...context });
   // context level: covers every page of the context, including ones a suite opens itself (ctx.newPage())
   await ctx.addInitScript(fakePointerLock);
+  // (load-audit) so does the 120 s navigation default (openPage sets it per page too): e2e-desktop's crash-log page
+  // (`ctx.newPage()`) ran past Playwright's 30 s at JOBS=5 + a CPU burner
+  ctx.setDefaultNavigationTimeout(120000);
   const { page, errors } = await openPage(ctx, url, params);
   return { browser, ctx, page, errors };
 }
@@ -287,6 +290,66 @@ async function onePoll(page, kind, i, v) {
 
 export async function press(page, btn) {
   await onePoll(page, 'button', btn, 1);
+}
+
+/**
+ * (load-latent-ui1) Two pad buttons back to back in ONE evaluate, each held for exactly one input poll, with a poll in
+ * between with nothing down (what a capture needs to arm). Made for a remap capture: its 5 s timeout and its overlay
+ * countdown are wall clock, and press() + reads between the two presses took seconds under CPU load. `read` (a function,
+ * run in the page) is recorded at the start of the poll after `b1`'s frame (the screens have run that frame) as
+ * `first`, and after `b2`'s release has been polled as `second`. `onlyIf` (`'capturing'`): `b2` is pressed only when
+ * the pad capture is on after `b1` (a `b2` of B with no capture is Back). Returns { first, second, pressed2, polled }.
+ */
+export async function pressPair(page, b1, b2, read = () => null, { onlyIf = '' } = {}) {
+  const r = await page.evaluate(([b1, b2, src, onlyIf]) => new Promise((res) => {
+    const read = (0, eval)(`(${src})`);
+    const inp = window.__app?.input;
+    const pad = window.__pad;
+    const out = { first: null, second: null, pressed2: false, polled: false };
+    if (!inp?.poll) return res(out);
+    const orig = inp.poll;
+    let n = 0;
+    let done = false;
+    const finish = (polled) => {
+      if (done) return;
+      done = true;
+      if (inp.poll === wrap) inp.poll = orig;
+      pad.set(b1, 0);
+      pad.set(b2, 0);
+      out.polled = polled;
+      res(out);
+    };
+    // polls: 1 b1 down | 2 (record first) nothing down | 3 b2 down | 4 b2 released | 5 (record second)
+    const wrap = function (...a) {
+      n++;
+      if (n === 2) {
+        out.first = read();
+        if (onlyIf === 'capturing' && !inp.gamepad.capturing) {
+          const r0 = orig.apply(this, a);
+          finish(true);
+          return r0;
+        }
+      }
+      if (n === 5) {
+        out.second = read();
+        const r0 = orig.apply(this, a);
+        finish(true);
+        return r0;
+      }
+      const r0 = orig.apply(this, a);
+      if (n === 1) pad.set(b1, 0);
+      else if (n === 2) {
+        pad.set(b2, 1);
+        out.pressed2 = true;
+      } else if (n === 3) pad.set(b2, 0);
+      return r0;
+    };
+    inp.poll = wrap;
+    pad.set(b1, 1);
+    setTimeout(() => finish(false), 60000);
+  }), [b1, b2, read.toString(), onlyIf]);
+  await frames(page, 3);
+  return r;
 }
 
 export async function stick(page, axis, v) {

@@ -5,6 +5,7 @@
  * target sits in the field of view (a focused cone, then slower peripheral vision), the light on the body,
  * stance, motion and how much of the body is in view (the fraction of sample points with line of sight).
  * Out of sight the meter holds for a moment, then drains. Noises push it to a floor (`noiseSuspicion`).
+ * Vertical view is limited (G44, `pitchFactor`): a body well above the eye line fills far slower.
  * Point blank in full light in the focused cone is instant; everything else takes visible time (the HUD arc
  * fills first: AI fairness).
  */
@@ -52,6 +53,15 @@ export const PERCEPTION = {
   sprintMul: 1.9,
   /** Even a sliver in view counts for something. */
   exposureMin: 0.2,
+  /** (G44) Vertical view: full sight up to `upFull` above the eye line, easing (smoothstep) to `upFloor` by `upEnd`;
+   *  below it full to `downFull`, easing to `downFloor` by `downEnd` (rad). A floor, not zero: an obvious body
+   *  overhead is still seen, slowly. The CT research is silent on looking up: these are Night Shift numbers. */
+  upFull: 22 * (Math.PI / 180),
+  upEnd: 48 * (Math.PI / 180),
+  upFloor: 0.15,
+  downFull: 40 * (Math.PI / 180),
+  downEnd: 75 * (Math.PI / 180),
+  downFloor: 0.6,
 } as const;
 
 /** Standing eye height above the feet (m, x the def's scale; crouched 1.0): `Enemy.eye`. */
@@ -86,6 +96,8 @@ export interface SightInput {
   exposure: number;
   /** State sensitivity multiplier (searching enemies look harder). */
   sensitivity: number;
+  /** (G44) Elevation of the body above the eye line (rad, + = above; absent = level). The guard sends 0 in combat. */
+  pitch?: number;
 }
 
 /** 0..1 how much a light level shows a body (squared: shadow hides far more than linear). */
@@ -132,6 +144,13 @@ export function fieldFactor(angle: number, out?: number[]): number {
   return mul;
 }
 
+/** (G44) Vertical view multiplier: 1 near the eye line, easing to `upFloor` well above, `downFloor` well below. */
+export function pitchFactor(pitch: number): number {
+  const P = PERCEPTION;
+  if (pitch >= 0) return pitch <= P.upFull ? 1 : 1 + (P.upFloor - 1) * smooth((pitch - P.upFull) / (P.upEnd - P.upFull));
+  return -pitch <= P.downFull ? 1 : 1 + (P.downFloor - 1) * smooth((-pitch - P.downFull) / (P.downEnd - P.downFull));
+}
+
 const rangeOut = [0];
 
 /** Sight fill rate (/s) for one target, 0 when not seen at all. */
@@ -146,7 +165,7 @@ export function sightRate(i: SightInput): number {
   if (field > 0 && i.dist < range) {
     const df = Math.pow(1 - i.dist / range, P.distPow);
     const exp = P.exposureMin + (1 - P.exposureMin) * Math.min(1, i.exposure);
-    rate = P.rate * df * field * lightFactor(i.light) * stance * motion * exp;
+    rate = P.rate * df * field * lightFactor(i.light) * stance * motion * exp * pitchFactor(i.pitch ?? 0);
   }
   // close by: a moving body is noticed whatever the light (felt / heard as much as seen); still and
   // behind, it is not
@@ -160,9 +179,9 @@ export function sightRate(i: SightInput): number {
   return rate > P.maxRate ? P.maxRate : rate;
 }
 
-/** Point blank in full light in the focused cone: detected at once. */
+/** Point blank in full light in the focused cone, not well above the eye (G44): detected at once. */
 export function instantDetect(i: SightInput): boolean {
-  return i.exposure > 0.3 && i.dist < PERCEPTION.instantRange && i.light >= LIGHT.lit && Math.abs(i.angle) <= PERCEPTION.focusHalf;
+  return i.exposure > 0.3 && i.dist < PERCEPTION.instantRange && i.light >= LIGHT.lit && Math.abs(i.angle) <= PERCEPTION.focusHalf && (i.pitch ?? 0) <= PERCEPTION.upFull;
 }
 
 /** The target counts as seen (the meter rises) at this rate. */

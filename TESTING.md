@@ -271,6 +271,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   grid never shows inside an airlock. Jam a hallway lamp: it flickers off, stays off 4 s after you let go, flickers on.
   Run the hallway without a jam: the camera catches you and you are put back at the hallway's start (radio line); the
   airlock door stays locked until both got through under a jam.
+- [ ] Camera range (camera-range): Marlow Yard station 3, stand in the entry lobby in line with the hallway (stand, crouch,
+  run on the spot): the camera never picks you up there; step a metre into the hallway and it does. Sector Ops: walk
+  toward each camera from just past the far end of its red grid: nothing until you are inside the grid's far edge.
 - [ ] Cameras and lasers (sector-fixes C): in Sector Ops and Marlow Yard station 3 each camera points down at the floor
   in front of it; its red grid is faint (thin lines) and covers only that patch, never far walls or the ceiling, and it
   catches you only there. Lasers are invisible until night vision (not in thermal or electro); walking through one
@@ -452,6 +455,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Installed app (desktop Chrome / Edge install) offline: the same; Co-op shows the offline notice and nothing else
   is blocked.
 - [ ] Deploy a new version while the app is closed; the next online launch picks it up, progress intact.
+- [ ] Deploy a new version while a (co-op) match is open: no reload mid-match, an "Update ready - restarts at the menu"
+  toast; back on the main menu the game reloads once into the new version (sw-reload).
 - [ ] Switch to another window mid-match: on return a solo match is paused, sound was silent while away, progress saved.
 
 ### Save migration

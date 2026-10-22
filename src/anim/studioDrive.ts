@@ -78,6 +78,9 @@ export function studioDriveTargets(d: StudioDrive, o: RigTargets, dt: number): v
   o.keyDrawn = d.drawn ? 1 : 0;
   o.keyTrunk = d.drawn ? 1 - o.aimW : 1;
   o.keyKneeOut = c.kneeOut;
+  // (mocap-trial) the loop player's clip is not the mocap gait: no mocap layer scales, no clip feet
+  o.keyMocap = 0;
+  o.clipFeet.valid = o.clipFeet.on = false;
   if (d.inPlace) {
     o.gait.phase = d.phase;
     o.gait.duty = c.duty;

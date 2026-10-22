@@ -42,6 +42,8 @@ export class MissionMode implements GameMode {
     for (const t of this.terminals) ints.setEnabled(t, true);
     // pre-placed squads, unaware until they see or hear you
     this.g.enemyMgr!.stealth = true;
+    // (guard-ai S1) the parked Mission keeps the old hearing: everyone in reach hears and walks over
+    this.g.enemyMgr!.coordinated = false;
     const kinds: EnemyKind[] = ['grunt', 'grunt', 'runner'];
     this.g.world.layout.enemySpawns.forEach((s, i) => {
       const n = i % 3 === 0 ? 3 : 2;

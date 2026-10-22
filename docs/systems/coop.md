@@ -21,7 +21,7 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 ## Protocol (`protocol.ts`)
 - Every inbound message goes through `parseMessage` (shape, clamps, string sanitising, caps); anything unknown is
   dropped. Add a message: type in `Msg`, case in `parseMessage`, a test in `tests/net.test.ts`.
-- `PROTOCOL_VERSION` 30 (30: several scanner pairs, `sec.sc` one entry per pair, marlow-final N6; also in 30: a client's noisy hold pulses the host through `use` with `pulse` and items carry the hold noise radius `hn`, so guards hear it (marlow-final, `src/net/holdPulse.ts`); 29: the lasers are jammed at their power panels, sector-fixes P: `jam` and `sec.dv` name panel ids; 28: the `jam` claim's camera eye `e`, jammer-fixes; 26: the jammer rules in `sec`, marlow-jammer: per-camera clocks `ck`, jam left `ch`, cooldown `cd`, jammed / recovering devices `dv`; 25: the guard torch bit in enemy `al`, below; 24: the `sector` message extras, below). A `hello` with another version is ignored by the host. History: 11 = the training course and
+- `PROTOCOL_VERSION` 33 (33: the merge of marlow-final's 30 and Sector Ops' 31, both below; 32 is reserved for guard-ai; 31: the Sector Ops lamps, sector-redesign slice L, below; 30: several scanner pairs, `sec.sc` one entry per pair, marlow-final N6; also in 30: a client's noisy hold pulses the host through `use` with `pulse` and items carry the hold noise radius `hn`, so guards hear it (marlow-final, `src/net/holdPulse.ts`); 29: the lasers are jammed at their power panels, sector-fixes P: `jam` and `sec.dv` name panel ids; 28: the `jam` claim's camera eye `e`, jammer-fixes; 26: the jammer rules in `sec`, marlow-jammer: per-camera clocks `ck`, jam left `ch`, cooldown `cd`, jammed / recovering devices `dv`; 25: the guard torch bit in enemy `al`, below; 24: the `sector` message extras, below). A `hello` with another version is ignored by the host. History: 11 = the training course and
   locomotion 10 together (G52); 12 = Wave, team deathmatch, free-for-all and PvP removed (`NetMode`, `team`, `ptd`,
   `frag`, snapshot `score` / `tl`, end `waves` / `winner`); 13 = emotes removed (`emote` message and event), then in the
   same version the custom difficulty (`dc`) and carried medkits (`PlayerState.mk`, MoveState `medkit`, `cmove` kind
@@ -179,6 +179,16 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   alive with its health kept.
 
 ## Sector Ops wire (`sector`)
+- (sector-redesign slice L, protocol 31) Light state: the host sends `lamps` (host -> all; `net/lampSync.ts`) on a
+  change, a join / rejoin, a section restart and every `LAMP_KEEPALIVE` 2 s: `n` lights by registry id, `of` the ones
+  their switches have off, `sh` the ones shot out (6-bit bitsets, about 23 characters each for 133 lamps). Flashlights
+  are left out (torch mirror). The jam is not in it: its timeline rides `sec.dv` as before and the registry keeps the
+  base under a jam, so `lamps` carries the base (`baseOn`) and both pages end a jam on it. The client applies it with
+  `resetTo` / `kill` (`LampMirror`), so its picture, meter and guard-torch reads use the host's lamps; a newly shot lamp
+  sparks there. A client's round through a lamp goes to the host as a `shot` at `lt-<id>` (draw, weapon, 4 a second,
+  origin at the shooter, the lamp first on the ray in the host's registry, a clear static line; `lampShotOk`), which
+  shoots it out as its own round would (`StealthSystems.shootLight`). Switches are items (`use`) as before. Change
+  detection reads the registry only when its `version` moved (no allocation unless it sends). Course mode unchanged.
 - `NetMode` `sector`, two players. The host runs `SectorMode` and sends `sector` (host -> all) on a device change and
   every 0.5 s: `sec` (`SecWire`: (26) each camera's clock, jams, each player's jam left `ch` and cooldown `cd`, the
   jammed / recovering devices `dv`, alarm stage; the same field rides the course message) and (protocol 24) `ls` the live section (-1

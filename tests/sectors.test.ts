@@ -10,6 +10,8 @@ import {
   SectorRun,
   alarmStep,
   checkSectors,
+  checkSectorGuards,
+  SECTOR_REINFORCE_KIND,
   exitZone,
   fmtTime,
   inDoorway,
@@ -239,6 +241,30 @@ describe('sector rules', () => {
     expect(checkSectors([def('a', 0, false)])).toEqual(['a: the last section has no extraction', 'a: a connector after the last section']);
   });
 
+  it('(sector-redesign G3 / G20) guards: everyone armed, no heavies, dogs only by the section allowance and with a handler', () => {
+    const g = (kind: SectorDef['guards'][number]['kind'], handler?: number): SectorDef['guards'][number] => ({ kind, x: 0, z: 0, yaw: 0, takedownSpot: [0, 0], ...(handler !== undefined ? { handler } : {}) });
+    const sec = (guards: SectorDef['guards'], dogs?: number): SectorDef => ({ ...def('s', 0, true), guards, ...(dogs !== undefined ? { dogs } : {}) });
+    // every armed kind passes
+    for (const k of ['grunt', 'officer', 'enforcer', 'sniper', 'droneOp'] as const) expect(checkSectorGuards(sec([g(k)])), k).toEqual([]);
+    // M1: no melee-only guards; G155: no heavies
+    expect(checkSectorGuards(sec([g('runner')]))).toEqual(['s: guard 0 (runner) carries no gun (M1)']);
+    expect(checkSectorGuards(sec([g('heavy')]))).toEqual(['s: guard 0 is a heavy (G155)']);
+    // dogs: none by default; allowed by `dogs`, each with an armed human handler of the section
+    expect(checkSectorGuards(sec([g('grunt'), g('dog', 0)]))).toEqual(['s: 1 dogs, the section allows 0']);
+    expect(checkSectorGuards(sec([g('grunt'), g('dog', 0)], 1))).toEqual([]);
+    expect(checkSectorGuards(sec([g('grunt'), g('dog', 0), g('dog', 0)], 1))).toEqual(['s: 2 dogs, the section allows 1']);
+    expect(checkSectorGuards(sec([g('grunt'), g('dog')], 1))).toEqual(['s: dog 1 has no handler']);
+    expect(checkSectorGuards(sec([g('grunt'), g('dog', 5)], 1))).toEqual(['s: dog 1 has no handler']);
+    expect(checkSectorGuards(sec([g('dog', 1), g('dog', 0)], 2))).toEqual(["s: dog 0's handler 1 is not an armed human guard", "s: dog 1's handler 0 is not an armed human guard"]);
+    expect(checkSectorGuards(sec([g('runner'), g('dog', 0)], 1))).toEqual(['s: guard 0 (runner) carries no gun (M1)', "s: dog 1's handler 0 is not an armed human guard"]);
+    // checkSectors runs it on every section
+    expect(checkSectors([sec([g('runner')])])).toContain('s: guard 0 (runner) carries no gun (M1)');
+    // the reinforcements are armed guards, not heavies (G155)
+    expect(SECTOR_REINFORCE_KIND).toBe('grunt');
+    expect(ENEMIES[SECTOR_REINFORCE_KIND].weapon).toBeTruthy();
+    expect(ENEMIES[SECTOR_REINFORCE_KIND].melee).toBeNull();
+  });
+
   it('alarm stages cap and send reinforcements per stage (the section perStage)', () => {
     expect(alarmStep(0, 3)).toEqual({ stage: 1, send: 3 });
     expect(alarmStep(SECTOR.alarmMax, 3)).toEqual({ stage: SECTOR.alarmMax, send: 0 });
@@ -404,9 +430,12 @@ describe('the Warehouse sections (A12, M8)', () => {
     expect(world.blocked(s.objective.x + 0.9, 0, s.objective.z, 0.3)).toBe(false);
     expect(0.9).toBeLessThan(SECTOR.downloadRange);
     expect(s.guards.length).toBe(8);
-    // ?sectorGuards=4 takes the first four: the gate officer, the yard patrol, the checker and the CCTV operator (no heavies, G155)
-    expect(s.guards.slice(0, 4).map((g) => g.kind)).toEqual(['officer', 'runner', 'officer', 'officer']);
-    expect(s.guards.some((g) => g.kind === 'heavy' || g.kind === 'sniper' || g.kind === 'dog')).toBe(false);
+    // ?sectorGuards=4 takes the first four: the gate officer, the yard patrol, the checker and the CCTV operator (no heavies, G155;
+    // the yard patrol was a melee runner, armed as a grunt by sector-redesign G3)
+    expect(s.guards.slice(0, 4).map((g) => g.kind)).toEqual(['officer', 'grunt', 'officer', 'officer']);
+    // (sector-redesign G3 / G20) everyone armed, no heavies (G155), no sniper here, dogs only where the section allows them
+    expect(s.guards.some((g) => g.kind === 'sniper')).toBe(false);
+    expect(checkSectorGuards(s)).toEqual([]);
     // the rooms: none of the old south band's, none overlapping the section 3 floor
     const ids = (lay.rooms ?? []).map((r) => r.id);
     for (const gone of ['dock', 'dispatch', 'corridor']) expect(ids).not.toContain(gone);
@@ -422,7 +451,9 @@ describe('the Warehouse sections (A12, M8)', () => {
     expect(s.guards.length).toBe(8);
     // ?sectorGuards=4 takes the checker, the reach driver, the stocktaker and the cage officer (no heavies, G155)
     expect(s.guards.slice(0, 4).map((g) => g.kind)).toEqual(['enforcer', 'grunt', 'officer', 'officer']);
-    expect(s.guards.some((g) => g.kind === 'heavy' || g.kind === 'sniper' || g.kind === 'dog')).toBe(false);
+    // (sector-redesign G3 / G20) everyone armed, no heavies (G155), no sniper here, dogs only where the section allows them
+    expect(s.guards.some((g) => g.kind === 'sniper')).toBe(false);
+    expect(checkSectorGuards(s)).toEqual([]);
     // the e2e stands 0.9 m east of the case: free floor, no door within 1.6 m (the context menu), no first-four guard within 1.8 m
     const sx = s.objective.x + 0.9;
     expect(world.blocked(sx, 0, s.objective.z, 0.3)).toBe(false);
@@ -448,9 +479,11 @@ describe('the Warehouse sections (A12, M8)', () => {
     expect(s.extract?.label).toBe('Extract by the east fire exit');
     expect(s.extract?.box).toEqual([21.4, -8.5, 23.7, -5.9]);
     expect(s.guards.length).toBe(9);
-    // ?sectorGuards=4 takes the porter, the loader, the clerk and the tour guard (no heavies, G155)
-    expect(s.guards.slice(0, 4).map((g) => g.kind)).toEqual(['enforcer', 'grunt', 'officer', 'runner']);
-    expect(s.guards.some((g) => g.kind === 'heavy' || g.kind === 'sniper' || g.kind === 'dog')).toBe(false);
+    // ?sectorGuards=4 takes the porter, the loader, the clerk and the tour guard (no heavies, G155; the tour guard armed, G3)
+    expect(s.guards.slice(0, 4).map((g) => g.kind)).toEqual(['enforcer', 'grunt', 'officer', 'grunt']);
+    // (sector-redesign G3 / G20) everyone armed, no heavies (G155), no sniper here, dogs only where the section allows them
+    expect(s.guards.some((g) => g.kind === 'sniper')).toBe(false);
+    expect(checkSectorGuards(s)).toEqual([]);
     // the e2e stands 0.9 m east of the terminal, on the deck: free, no door within 1.6 m, no first-four guard within 1.8 m
     const sx = s.objective.x + 0.9;
     expect(world.blocked(sx, 3.3, s.objective.z, 0.3)).toBe(false);

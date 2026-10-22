@@ -453,11 +453,39 @@ export class StealthSystems {
     }
   }
 
+  /**
+   * (sector-redesign G22) After the lights were put back (a section restart): each switch reads its circuit again (on
+   * while any unbroken light of its group is on by its switches) and its label and indicator follow. No guard reacts.
+   */
+  syncSwitches(): void {
+    const reg = this.g.world.level.lights;
+    for (const sw of this.switches) {
+      let on = false;
+      let live = 0;
+      for (const l of reg.lights) {
+        if (l.group !== sw.group || l.destroyed) continue;
+        live++;
+        if (reg.baseOn(l)) on = true;
+      }
+      // every lamp of the circuit shot out: the switch keeps its place
+      if (live === 0 || on === sw.on) continue;
+      sw.on = on;
+      sw.it.label = on ? 'Lights off' : 'Lights on';
+      this.ints.setIndicator(sw.it, on ? '#ffe08a' : '#3a3f45');
+    }
+  }
+
   /** A hitscan ray: shoot out the first bulb along it. */
   shotRay(from: Vector3, to: Vector3): void {
     const reg = this.g.world.level.lights;
-    const id = lightOnRay(reg, from.x, from.y, from.z, to.x, to.y, to.z);
-    if (id < 0 || !reg.destroy(id)) return;
+    this.shootLight(lightOnRay(reg, from.x, from.y, from.z, to.x, to.y, to.z));
+  }
+
+  /** Shoot out light `id` (the host's own round, or a co-op client's checked lamp shot, sector-redesign slice L):
+   *  sparks, the shot noise and a guard sent to look. False when it cannot be (none, already out, not destructible). */
+  shootLight(id: number): boolean {
+    const reg = this.g.world.level.lights;
+    if (id < 0 || !reg.destroy(id)) return false;
     const l = reg.lights[id]!;
     this.lightsShot++;
     const at = new Vector3(l.x, l.y, l.z);
@@ -465,6 +493,7 @@ export class StealthSystems {
     this.g.events.emit('lightOut', { x: l.x, y: l.y, z: l.z, shot: true });
     this.noise(SHOT_LIGHT_NOISE, at);
     this.em.lightsOut(l.x, l.z);
+    return true;
   }
 
   /**
