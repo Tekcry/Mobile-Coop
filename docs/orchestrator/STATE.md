@@ -13,7 +13,8 @@ v4.52.0 (train 1 #111 = #99 + #108, protocol 28, b1f13b19, ~12:30). 4.51.1 (#107
   pause at 97%. A recurring cron (17, 37, 57 past) checks it in this session; recreate it after a clear.
 - Weekly: "Full speed, swap account" (09:20): at weekly ~98% pause everything at clean commits, save, and hand off with
   docs/orchestrator/HANDOFF.md (prompts one at a time). Weekly 65% at 10:02 (pace slowed to ~3%/h with one agent per session).
-- Pace now: one agent per session (since 09:45); 5-hour 30% at 10:02, projecting ~88% at the 14:10 reset.
+- Pace now: one agent per session (since 09:45). 12:25: 5-hour 82% rising ~0.5%/min: flake-fix agent paused, desktop
+  leads start no new agent and pause at 97% or their current agent's end; a one-shot cron at 14:13 resumes everyone.
 - Overnight: never leave a question dialog open (it blocks the turn and the cron); log assumed decisions instead.
 - Context: sessions over ~60% get cleared at clean points (Michael approved 09:30): save STATE, clear, send resume.
 
