@@ -1,6 +1,6 @@
 # Resume - Night Shift | CT Core Build (track B, animation; overflow session)
 
-Saved 2026-10-22 ~23:22 (both fix rounds in, suites running) by the CT Core session. Every branch
+Saved 2026-10-22 ~23:37 (N2 in train 8; mocap suites pass, waiting on Course Ready) by the CT Core session. Every branch
 below is committed and pushed. Agents that were running at the save are lost: the resume prompt says what to redo.
 
 ## Rules carried
@@ -30,8 +30,8 @@ below is committed and pushed. Agents that were running at the save are lost: th
 ## Open jobs (branch, folder, head, next step)
 | Job | Branch / folder | Head | State | Next step |
 | --- | --- | --- | --- | --- |
-| mocap-trial (TOP PRIORITY) | `feature/mocap-trial`, `C:/NightShift/Mobile-Coop-mocap-trial` | f10b0108 | Fix round in (30c8ee3c, docs/mocap-trial/FIX-1.md: pops fixed, OFF byte-identical) + master 4.60.0 (44d7c2a7). Michael M1 "Mocap, as captured" (BRIEF). Six GPU suites RUNNING on the desktop (mt-e2e.sh, heavy.lock, 23:19): /c/NightShift/mt-e2e.out + mt-e2e.log. Sheets: feature/mocap-sheets-real 04598e9a; Menu Notes reruns turn / start rows on 44d7c2a7 (f027fc98). | Six pass: REPORT.md, PR (minor; suites, sheets, M1 / A4 notes, FIX-1 open items: 2.0 x 4 rad/s pelvis 2.005 cm, turn-plan slide assert skipped as OFF is worse), orchestrator. A fail: diagnose (switch is off in e2e, so it is the merge or the OFF path). Then the gap takes. |
-| anim-natural N2 #138 (contains N1) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | 7667b681 | 362359a4 GPU failed e2e-anim knee-out 3.5 / e2e-clip crouched holstered -3.0. Fix round 4 (3e5aab2e, docs/anim-natural-n2/REPORT-4.md: walk sway timing A14, squat palm on the kneecap) + master 4.60.0 (7667b681). Six suites: requested from Character Build (laptop) AND queued on the desktop after mocap (n138-e2e.sh, /c/NightShift/n138-e2e.out). | All six pass on 7667b681: #138 body, send the orchestrator the sha (train 8 = #119 + #138). A fail: one more round. |
+| mocap-trial (TOP PRIORITY) | `feature/mocap-trial`, `C:/NightShift/Mobile-Coop-mocap-trial` | cc32b3c7 | Fix round in (30c8ee3c, FIX-1.md) + master 4.60.0 (44d7c2a7); REPORT.md (cc32b3c7). Six GPU suites on 44d7c2a7: anim, clip, move, studio, netmove PASS; coop FAIL under load, PASS solo (mt-coop.log). Sheets: feature/mocap-sheets-real ce76361a (turn / start on 44d7c2a7), 04598e9a (rest). Course Ready re-checking 44d7c2a7. PR body ready: /c/NightShift/mt-pr.md (fill CHECK_RESULT). | Course Ready PASS: gh pr create (base master, title "mocap-trial: CMU mocap locomotion behind a switch (default off)", body mt-pr.md), message the orchestrator. FIX: one more round. Then the gap takes. |
+| anim-natural N2 #138 (contains N1) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | 7667b681 | DONE: fix round 4 (REPORT-4.md) + master 4.60.0; six GPU suites PASS on the laptop (knee-out 3.4 / 3.5, crouched holstered -2.0 / -3); #138 body updated; in train 8 (train/8 fc2e8bd3 with #156). | Nothing unless train 8 fails. |
 | vent-kick T1 #141 | `feature/vent-kick`, `C:/NightShift/Mobile-Coop-vent-kick` | ebce0da7 | Done: PR #141 open; checker PASS + fix round (M1 pad matches keyboard); e2e-traverse, e2e-pad, e2e-mouse, e2e-netmove pass on the desktop GPU (9fd7b5b6). | Nothing unless its train fails. DECISIONS at merge: M1, A1. |
 
 ## Test logs on the desktop
