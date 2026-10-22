@@ -4,6 +4,9 @@ Saved 2026-10-23 ~10:30 by the CT Core session, for the ~10:45 account swap (win
 agent milestone. Agents running at a cut-off are lost: their last pushed commit is the resume point (table below).
 
 ## Live (resumed 10:48 on the new account; newest first, overrides the table)
+- 10:58 Swap rule (Michael 10:55 via the orchestrator, CLAUDE.md "Account swap" on feature/menu; replaces "save at 98%,
+  swap at 99%"): at 95% slow down (no new agents, finish those in flight, queue long runs), save by 98%, small work to
+  100%; Michael swaps at 100%. The orchestrator messages at 95%.
 - 10:55 Batch branch `feature/ctcore-batch-22` (worktree `C:/NightShift/Mobile-Coop-ctcore-batch`, node_modules junction)
   = master 8e5dbd83 + strike-pops c917c3d8 + hang-down 4072e2b9 (e6ffddff, clean, no protocol bump). Hang-down GREEN:
   Character Build laptop GPU netmove + takedown PASS 161 s on 4072e2b9. Next into the batch: traverse-fix-2 when its
