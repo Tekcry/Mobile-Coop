@@ -35,6 +35,16 @@ S4 PR based on feature/guard-ai, each PR retargeted to master after train 21.
   three profile reads in the combat branch that S8 must carry). Batch checker S5b + S6 RUNNING (Opus; writes
   S5b-CHECK.md / S6-CHECK.md + the merge plan with S8). S10 implementer RUNNING (Opus) in ...-guard-ai-s10, branch off
   S5b 6c214068 (A32-A34).
+- Batch check PASS: S5b (2d363f3e, S5b-CHECK.md) and S6 (4712a713, S6-CHECK.md). MERGE MUST-DOS (git will not flag):
+  (1) S5b x S8: both add `Enemy.role` (S5b string, S8 number) -> rename S5b's to `job` (enemy.ts:937, :646,
+  enemyManager.ts:927, stubs in tests/sectorGuardTags.test.ts; S10 is built on S5b, so rename there too).
+  (2) S6 x S8: restore `const ADVANCE_HOLD = 2.5`; advance hold = (roled || tacticsProfile === P_AGGRESSIVE) ?
+  profileOf(..).advanceHold : ADVANCE_HOLD. (3) S6 `joinAsReinforcement` also sets tacticsProfile = P_AGGRESSIVE.
+  (4) S6 `get behaviour()` / `i.hunting` read profileOf(this.tacticsProfile); take S8's three combat lines; update
+  tests/alarmCall.test.ts. Order: S5b (rename) -> S8 -> S6 (-> S10). S5b x S6: union the enemyManager import; in
+  sectorMode.fill S5b's placeSlot(.., gs, gs.indexOf(slot)) first, then S6's joinReinforcement; barks union.
+  e2e fixes: e2e-sectorops panel scenario (~208-258) assert alarmBy === 'panel'; S6 'alarm' part 1 panel beats the
+  radio by ~2.5 s. New e2e blocks never run: S5b sectorops, S6 'alarm call' + sectorops.
 - Planned order after checks: s8 <- s7; then S5b, S6, S10 stacked on S8 (merge each into the next), one laptop GPU
   run on that tip (e2e-stealth-ai, e2e-sectorops, e2e-levels, e2e-enemies, e2e-wall, e2e-takedown), one PR each.
 - (done) S5b and S6 implementers (Opus, ~10:20) in worktrees ...-guard-ai-s5b / -s6, branches off the chain tip
