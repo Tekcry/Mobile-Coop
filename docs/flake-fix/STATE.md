@@ -3,7 +3,18 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
-**Character Build SAVE 5 (2026-10-23 ~10:35, swap at 99%; wins over all below):**
+**Character Build SAVE 6 (2026-10-23 ~10:55, new account; wins over all below):**
+- SENT: hang-down 4072e2b9 GREEN (netmove + takedown, 161 s) -> CT Core.
+- RUNNING: chain-1023p.ps1 (waits for no locks, then 4189 ALONE guardrender-s6cap-c181002e), chain-1023q.ps1 (after p),
+  chain-1023r.ps1 marlowfinal-45a74383 on 4189 (JOBS=3; verdict per suite to Menu Notes). 4192: guardais7-4052c434
+  (Guard AI S7 test fix: build; e2e-stealth-ai x2; e2e-sectorops, JOBS=2; replaces the 62884858 2x rerun) -> verdict
+  to Guard AI Build + PR #196 comment (full 'lkp' assert line if it fails).
+- AGENTS: Opus S3a fix round on feature/guard-render-s3a (from WIP c8128bdb, checker findings 1-4 in SAVE 5); Sonnet S1
+  PR prep on feature/guard-render (merge master, fragment, TESTING, systems doc, shot commands; no PR yet); Haiku chore
+  feature/changelog-dedupe (worktree -changelog-dedupe: changelog-assemble skips entries already in CHANGELOG.md).
+  Next: S1 look shots on 4189 (after trains) -> S1 PR; one Opus checker S3a recheck + S6; S5 PR after S1.
+
+**Character Build SAVE 5 (2026-10-23 ~10:35, swap at 99%; wins over SAVE 4 and below):**
 - SENT since SAVE 4: train 21 b5895388 GREEN 39/39 (JOBS=3, 616 s) -> orchestrator. Guard AI S5 80efb8b4 9/10
   (sectorops:1 posts site assert), S7 084e373c 10/10, chain tip ae1f1895 9/11 (sectorops:1 posts TypeError, stealth-ai
   "the finder searches"), S8 54627243 8/9 (ran though dropped). Course Ready 22e755bf coop + netmove GREEN; c92fc53b
