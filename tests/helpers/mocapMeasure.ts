@@ -34,6 +34,8 @@ export interface PlanStep {
   speed: number;
   yawRate: number;
   rec: boolean;
+  /** (mt2-crouch) The crouch 0..1 (absent: standing). */
+  crouch?: number;
 }
 export type Plan = (k: number, t: number) => PlanStep;
 
@@ -99,6 +101,7 @@ export async function driveRig(steps: number, plan: Plan, onStep?: (rig: Charact
       rig.root.position.x += Math.sin(yaw) * s.speed * DT;
       rig.root.position.z += Math.cos(yaw) * s.speed * DT;
       p.speed = s.speed;
+      p.crouch = s.crouch ?? 0;
       p.localZ = s.speed > 0 ? 1 : 0;
       p.stride = 'facing';
       rig.animate(DT, p);

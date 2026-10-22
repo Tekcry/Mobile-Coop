@@ -36,6 +36,7 @@ Skeletons: 16.asf, 35.asf, 69.asf.
 | 16_31 (16.asf) | 0-2.183 | `start.ts` | start from standing (walking) |
 | 16_34 (16.asf) | 0.458-2.883 | `stop.ts` | stop to standing (walking) |
 | 69_13 (69.asf) | 15.5-19.058 (the first 90 deg of a walking turnaround) | `turn_in_place.ts` | 90 deg turn on the spot (the left one mirrored) |
+| 136_09 (136.asf) | 4.233-5.508 (one R-strike cycle, 120 fps frames 508-661; scripts/mocap/m3.mjs) | `crouch_walk.ts` | (mocap-trial-2) the crouched sneak band's body (BRIEF A5, MT2-CROUCH.md) |
 
 Emitted, not in the game yet (`build/mocap/clips/`, a later step): `extra/` 16_41 / 16_44 (jog 90 turns), 16_51 / 16_53
 (run turns, performed at a jog, 16_53 cut at 68 deg), 69_14 (the left turn on the spot and both 180 turnarounds with
@@ -59,7 +60,7 @@ fetched one at a time from http://mocap.cs.cmu.edu/subjects/<S>/ (a 2 s pause be
 self-check OK). Analysis: TAKES.md "M3 takes".
 | Take | Site description | Size KB | Category |
 | --- | --- | --- | --- |
-| 136_09, 136_10 | Walk Crouched (subject 136 "Weird Walks") | 890, 1053 | crouch walk |
+| 136_10 | Walk Crouched (subject 136 "Weird Walks") | 1053 | crouch walk (runner-up; 136_09, 890 KB, is used: "Used" above) |
 | 139_29, 139_32, 139_34 | Sneaking (subject 139 "Action Walks, sneaking, wounded, looking around") | 1638, 1478, 878 | sneak |
 | 139_11 | Run To Sneak | 248 | sneak (from a run) |
 | 127_06, 127_07, 127_08 | Run (subject 127 "Action Adventure Obstacles, running, jumping, ducking, rolling") | 135, 113, 109 | sprint |

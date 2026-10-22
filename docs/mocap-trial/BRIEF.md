@@ -69,3 +69,16 @@ fetched, one at a time.
   "capture vs old limit" in the side-by-side notes for Michael to judge by eye. Checkers block only on broken things
   (clipping, foot slide, pops, wrong speed). Suites pass with the switch off; with it on, an assert encoding an old limit
   is a note until Michael decides.
+- A5 (mocap-trial-2, crouch implementer 2026-10-23; M2 / M3): with the switch on, the holstered crouched sneak band plays
+  the CMU crouch walk 136_09 (one R-strike cycle 4.23-5.51 s, `clips/mocap/crouch_walk.ts`, `LocoClipSet.crouchWalk`)
+  in place of the hand-keyed sneak, as a body only (pelvis, trunk, arms, head, as captured: hips about 11 cm higher than
+  the hand-keyed sneak, a 15 cm crouch drop from Wren's mocap walk, the trunk about 43 deg over); the faster bands stay
+  hand-keyed (crouch walk 1.8 / crouch run 2.6 m/s: no crouched capture is faster than about 1 m/s), cross-faded into
+  over the hand-keyed set's own sneak -> crouch walk blend (about 1.07-1.46 m/s), the crouched idle (squat) as before.
+  The feet stay the planner's (the hand-keyed sneak's duty, lift, track and knee pole), not clip feet (A3), by
+  measurement: clip feet popped the shins 33-36 deg at a 0.5-0.7 m/s sneak and every start / stop (planner 9-13 deg
+  steady, starts / stops at or under OFF's), and handing a crouched step between clip and planner needs the clip-duty /
+  footPlanner work other agents own. Crouched, a spin cuts the keyed set by the crouch as the hand-keyed set does (the
+  filled turn-in-place slot kept it on; planted feet slid 4-5 cm in a 0.5 m/s x 3 rad/s spin); MOCAP_LAYERS also scale
+  N2's body motion on the capture's share; the drawn set's crouched legs stay hand-keyed. Numbers: MT2-CROUCH.md.
+  Undo: the switch off, or `crouchWalk: null` in MOCAP_SET (src/anim/mocap.ts).

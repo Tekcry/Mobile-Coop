@@ -12,7 +12,8 @@
  * One switch per machine: every rig drawn here follows it, the local player and the co-op partner alike (a visual
  * choice; nothing goes on the wire, the partner's machine draws by its own setting). Guards never play the keyed sets
  * (`AnimInput.keyedOk` is off for them). The drawn set (gun out), the crouched set, the standing idle and the wall set
- * stay hand-keyed; so do the guards, the studio's keyed loops and every weapon clip.
+ * stay hand-keyed; so do the guards, the studio's keyed loops and every weapon clip. (mocap-trial-2) Except the holstered
+ * crouched sneak band's body: the set's `crouchWalk` (CMU 136_09) over the planner's feet (animGraph `crouchSet`, BRIEF A5).
  */
 import { TURN_GAIT_MIN } from './motion';
 import type { ClipFeetIn } from './footPlanner';
@@ -28,6 +29,7 @@ import { MOCAP_TURN_MOVE_L } from './clips/mocap/turn_move_l';
 import { MOCAP_TURN_MOVE_R } from './clips/mocap/turn_move_r';
 import { MOCAP_START, MOCAP_START_SECONDS } from './clips/mocap/start';
 import { MOCAP_STOP, MOCAP_STOP_SECONDS } from './clips/mocap/stop';
+import { MOCAP_CROUCH_WALK } from './clips/mocap/crouch_walk';
 
 /**
  * Per-layer scales for the mocap set (one table; the job lead tunes them once the real clips land). Each scales a
@@ -108,6 +110,9 @@ export interface LocoClipSet {
   readonly stopSeconds: number;
   /** The layer scales this set's clips are sampled with (null: the layers as they are). */
   readonly layers: MocapLayers | null;
+  /** (mocap-trial-2, crouch) The crouched sneak's cycle in place of the hand-keyed sneak (animGraph `crouchSet`; null: the
+   *  hand-keyed sneak). The faster crouched bands stay hand-keyed (BRIEF A5). */
+  readonly crouchWalk: KeyedClip | null;
 }
 
 /** The hand-keyed set: the game as it was (no slots: starts, stops and turns stay procedural). */
@@ -124,6 +129,7 @@ export const HAND_KEYED_SET: LocoClipSet = {
   startSeconds: 0.6,
   stopSeconds: 0.6,
   layers: null,
+  crouchWalk: null,
 };
 
 /** The mocap set (`clips/mocap/*`). */
@@ -140,6 +146,7 @@ export const MOCAP_SET: LocoClipSet = {
   startSeconds: MOCAP_START_SECONDS,
   stopSeconds: MOCAP_STOP_SECONDS,
   layers: MOCAP_LAYERS,
+  crouchWalk: MOCAP_CROUCH_WALK,
 };
 
 /** Any slot filled (the graph runs `MocapSlots` only then). */
