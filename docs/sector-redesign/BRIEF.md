@@ -221,3 +221,18 @@ Lead, slice 1 check (2026-10-23, checks/slice1-check.md PASS; one fix round):
   Undo: change the value in campusS2.ts back to the SPEC value.
 - A77 (slice 2, L15) `kp-fac` is not built (EW5): the facilities door is a plain door. The code beat is cut.
   Undo: change the value in campusS2.ts back to the SPEC value.
+- A78-A98 (2026-10-23 ~10:15, Opus S4 / S5 planner; detail and undo in briefs/SLICE4.md, SLICE5.md): A78 S4 hall z 22..42
+  (SPEC 20..44), pods z 24..32, cage x 14..22 z 34..40; A79 S4 no fire-stair core (riser caged ladders, compound plant
+  ladder, NOC straight flight; kp-deck on the riser door); A80 no NOC roof light (hall window); A81 keypad codes from a
+  board in the same section (S4 dock, S5 kitchen); A82 kp-ctl dropped; A83 cage walls solid 3.0 m open top; A84 sections
+  sealed (2.8 m solid boundary walls, roof edges over outside ground >= 1.9 m; no fall damage); A85 CR7 co-op-quiet (4.2 m
+  rope, TEAM.ropeMax 6.0; a solo drop is heard by #9) - ask Michael at the playtest; A86 S5 keyholders face the hall door,
+  token behind; A87 dogs heel by a shared loop clock with the handler (M8 exception each); A88 stage reinforcements stay
+  grunts (SECTOR_REINFORCE_KIND global); A89 S4 dock pair staggered; A90 S4 compound board a 20 s isolator in the dock;
+  A91 one laser each in S4 / S5 (totals ramp); A92 S5 terrace gate = balustrade gap with #20; A93 guard routes stay on one
+  floor (S5 #24, S4 #16); A94 S5 #22 faces into the house; A95 camera armour ramp (stealth over shooting, Michael ~10:10):
+  S1-S2 shootable, S3 cam-view bulletproof / cam-dock not, all S4-S5 bulletproof; A96 S5 cameras flagged thermal (data;
+  cameras already ignore lamps); A97 armoured routes with a named quiet bypass (S4 mantrap door + NOC glass, S5 anteroom
+  hall door + front door); A98 no ammo inside sections, one weapons crate slot at each section start (Michael ~10:20),
+  data only until E9-crate. Engine items for Opus: E8 bulletproof + thermal camera flags, E9-crate, E10 armoured glass /
+  door pieces (glass needs E2).
