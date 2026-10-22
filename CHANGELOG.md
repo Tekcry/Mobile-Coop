@@ -1,7 +1,21 @@
 # Changelog
 
-## Unreleased - anim-n3b
+## 4.57.0 - Train 6: body recoil and wall block, every tuner slider bakes, Sector Ops cameras, lasers and lights, steady heap tests, merge-train script (2026-10-22, PR #133; #123, #128, #129, #127, #122, #131)
 
+### Process: changelog fragments and a merge-train script
+- Changelog fragments: each PR adds one `changes/<branch>.md` (`# title`, optional `kind: minor|patch`, the entries)
+  instead of a "## Unreleased - <job>" block in `CHANGELOG.md`, so merges stop conflicting there.
+  `scripts/changelog-assemble.mjs <version> <title> <date> <PR> [members...]` writes them as one released section at
+  the version step, folds any legacy "Unreleased" blocks on top (dropping ones already released) and deletes the
+  fragments. Format: `changes/README.md`.
+- `scripts/merge-train.mjs`: `build <n> <branch>...` makes `train/<n>` from origin/master and the branches (CHANGELOG /
+  fragment conflicts resolved keeping both sides; a branch with any other conflict is left out and listed);
+  `release <n> <version> "<title>"` and `single <branch> <version> "<title>"` merge master in, open the train PR,
+  assemble the changelog, set the version, push and wait for CI on that exact commit, and only on a pass merge, tag and
+  move `dev` (exit 2 on red CI with the failing log tail, 3 on a source conflict). `--dry-run` moves nothing.
+- Tests: `tests/changelogAssemble.test.ts`, `tests/mergeTrain.test.ts` (tool only, no game change).
+
+### anim-n3b
 - Deleted the dash-in slide and the doorway check sweep animations (Michael 2026-10-22: "Delete them"; never set in
   play, CT has neither): the `slide` lower state and clip, `AnimInput` / `RigPose` / `PlayerPose` `slide` and `check`, the
   tuner's `slide` action row. Old tuner saves and exports that still carry `joint.slide` / `ik.slide` /
@@ -12,11 +26,8 @@
 - Wall block: no more muzzle-up swing (69 deg) and stall; the rifle comes off the eye and tips about 66 deg under the aim
   line about the butt, pulled in, in one eased 0.4 s move with hysteresis (no half-way hold).
 
-## Unreleased - anim-n3 (anim-natural N3: believable draws, holsters and swaps)
-
-## Unreleased - sector-fixes
-
-### Slice C: cameras and lasers (Michael 2026-10-22, items 3-5)
+### sector-fixes
+#### Slice C: cameras and lasers (Michael 2026-10-22, items 3-5)
 - Security cameras pitch down to a floor patch (`aim` in the map data, `camPitch`) and see only their own `range`
   (`camRange`, at most 18 m). Detection (`CameraUnit.covers`) and the red grid cue read the same pitch and range, so the
   grid is drawn only where the camera can detect. Sector Ops: cam-yard aim 5 / range 10, cam-floor 7 / 14, the others
@@ -29,7 +40,7 @@
   alarm, banner, radio line) and never deals damage (`LASER.damage`, `floorHp` and `laserDamage` removed). Station 4
   panel text updated. No wire change (protocol unchanged).
 
-### Slice L: Sector Ops lights (Michael 2026-10-22: "light fittings in same rooms are different heights and locations. Theres random lights on the roof. Theres a light in the middle of a climbing pipe." / "All lights should look like LED designs.")
+#### Slice L: Sector Ops lights (Michael 2026-10-22: "light fittings in same rooms are different heights and locations. Theres random lights on the roof. Theres a light in the middle of a climbing pipe." / "All lights should look like LED designs.")
 - Every Sector Ops lamp is laid out by room (`world/maps/lampRooms.ts`): one LED model, one height and a regular grid or
   row per room; flush LED panels in the rooms, LED strips on short wires under the hall roofs (on the solid roof strips,
   never under a sheet), slim LED bulkheads on 0.3 m wall brackets. No lamp on the roof (the roof reads by the moon), none
@@ -42,14 +53,14 @@
 - Section 2's two roof rafters are dressing (out of the light shapes): they no longer cut the hall strips' light off the
   rack tops.
 
-## Unreleased - heap-asserts (track A)
+### heap-asserts (track A)
 - Tests: every "allocates nothing" check now measures bytes per call deterministically (a garbage collection before each
   round, the new-space size, rounds with a collection discarded; shared helper `tests/helpers/allocPerCall.ts`), so
   they no longer pass or fail on when a collection happens to land.
 - Menus: the menu camera director no longer allocates every frame (`menuShots.ts` `held()`: a closure per frame in the
   title, loadout and lobby menus; same shots chosen).
 
-## Unreleased - anim-bake-all
+### anim-bake-all
 - Animation tuner: every slider bakes, also those with no code value of their own: the aimed gun's height and angles,
   the camera FOV (a change on top of the player's FOV setting), aim zoom and aim-in blend, the aimed glide forward
   speed, the rest of Stepping (lift on the moving gaits, idle lock, duration, slide, the three stride points, toe-off,
