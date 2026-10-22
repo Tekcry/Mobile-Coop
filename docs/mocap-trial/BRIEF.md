@@ -58,6 +58,11 @@ fetched, one at a time.
   and pinning only), because the hand-keyed clips' legs are preview-only and the foot planner's steps are what Michael
   called broken. Undo: the switch off (the planner places the feet as today).
 
+- A7 (CT Core, 2026-10-23 ~04:30): the strafe and back-to-wall takes (69_56 / 69_59, 139_14 / 139_15, 139_01 / 139_04) need a
+  sideways cycle the clip format does not have (CLIP-FORMAT cycles travel along +z): they go in a batch-2 PR
+  (mocap-trial-3); this PR ships the pop fixes, the crouch walk and the sprint, and (M4) the ON-by-default flip once its
+  checker and GPU suites pass. Undo: hold the flip until batch 2.
+
 ## Approval log
 - 2026-10-22 ~21:00: download approved in the CT Core session ("Yes, download"): the named takes in SOURCES.md only.
 - 2026-10-22 ~21:45: standing OK for further named CMU takes for this trial (Michael "Yes, CMU only" ~21:40, relayed by
