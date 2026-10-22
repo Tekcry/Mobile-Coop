@@ -24,6 +24,7 @@ Train 4 = train/4 4e1bbec1 (#110 16b1a044, #115 a070e504, #116 b8022c1f): full e
 v4.53.0 (train 2 #112 = #105 + #109, 5220f79c, ~13:05). 4.52.0 (train 1 #111 = #99 + #108, protocol 28, b1f13b19, ~12:30). 4.51.1 (#107, 71ce1bff, ~11:25). 4.51.0 (#106 key tools, d52d37a5, ~11:10). 4.50.0 (#92 rejoin, 1a2c60ca, ~11:00; protocol 27 taken: #99 -> 28, #108 -> 29 at their merges). /preview/ = dev = 5220f79c (4.53.0). Michael 2026-10-22 ~11:20: "Yes I'll allow it" (pushing master merges to dev and editing ROADMAP after auto mode blocked them). Menu Notes cleared and resumed ~11:20. Earlier today: 4.49.0 #97 tuner v3; see ROADMAP Done for the full list.
 
 ## Pacing (Michael)
+- 2026-10-22 ~22:15 (overrides the 97 / 98 / 99% stops below): "dont try save tokens, i will reset usage as soon as you hit 100%". Every session runs full speed to 100%; nobody pauses early. Because 100% cuts off mid-step, every session commits and pushes WIP and refreshes its resume file after each agent hand-back, and the orchestrator keeps HANDOFF.md current after each event (it is the resume point when Michael resets).
 - 5-hour window: use as much as possible, never hit it; trim in order (cloud, laptop job, one agent per session).
   Michael 2026-10-22 ~12:50: "Hard stop at 99% to allow saving work": sessions start no new agent at 97%, save (commit,
   push, STATE) at 98%, and are stopped by 99%. A recurring cron (17, 37, 57 past) checks it in this session; recreate it after a clear.

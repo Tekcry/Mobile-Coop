@@ -1,7 +1,8 @@
 # Account handoff
 
-Michael (2026-10-22 ~19:15): "Now, swap back once the next 5h limit is reached on the other account". Second swap
-(~22:05, this account's 5-hour window at 98%): work moves back to the first account (its window reset at 21:10).
+Michael (2026-10-22 ~19:15): "Now, swap back once the next 5h limit is reached on the other account". 22:15: "dont try
+save tokens, i will reset usage as soon as you hit 100%": sessions run to 100% (no early stops); at 100% Michael resets
+(the swap back to the first account) and pastes the orchestrator prompt below.
 Repeat as long as it pays. Earlier handoffs (2026-10-21, 2026-10-22 13:10, 19:25) are in git history.
 
 ## State at the switch (2026-10-22 ~22:00)
