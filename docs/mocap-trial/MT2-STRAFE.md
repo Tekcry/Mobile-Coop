@@ -28,6 +28,15 @@ null` in `MOCAP_SET` (src/anim/mocap.ts).
   playerController.ts:523 does, and let the graph's `mOn` (animGraph.ts:1020, read by `mSide` at :1023) skip the carrier
   test; then drop the non-carrier bit-identity case in tests/mocapStrafe.test.ts.
 
+## A11 (lead decision, fix round after the fresh check of 842270f0)
+With the switch ON, the e2e-anim anti-crab rows for the standing aimed strafe keep knee separation and the planted track
+at the captures' measured values (M1 "Mocap, as captured": the takes' ankles are up to 62 cm apart). Only those two gates
+are re-based, for mocap-ON aimed strafe rows only, in `scripts/e2e-anim.mjs` (`MOCAP_STRAFE_DRAWN`, next to the
+CRAB_DRAWN_GATES rows, with the derivation): kneeSep max 2.4 x the hips (capture: ankles 0.10-0.63 m apart at Wren's
+scale, a knee midway at 0.40 m = 2.3 x the 0.173 m hips), trackHalf 0.40 m (capture: planted ankle up to 0.374 m from
+the pelvis line). Knee-outside-ankle, slides, pops and the 'cross' check keep their limits; switch-OFF rows unchanged.
+Undo: delete `MOCAP_STRAFE_DRAWN` (the rows read CRAB_STRAFE again).
+
 ## The PEL rows (zz-strafe.txt), judged
 The previous agent's probe flagged startstop R 0.4 (ON pelvis 2.21 vs OFF 1.55 cm), L 0.9 (2.06 vs 1.59), R 0.9 (2.21 vs
 1.58). All were at the CT stop frame (the root's pace 0.13 -> 0 m/s). Frame by frame (R 0.9, f79) the hips' y rose 1.75 cm
