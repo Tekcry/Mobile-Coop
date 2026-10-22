@@ -1,68 +1,53 @@
 # Resume - Night Shift | CT Core Build (track B, animation; overflow session)
 
-Saved 2026-10-23 ~00:55 (SAVE at 94%: account swap; #159 train 15; mocap-trial-2 WIP e0298f90) by the CT Core session. Every branch
-below is committed and pushed. Agents that were running at the save are lost: the resume prompt says what to redo.
+Saved 2026-10-23 ~01:45 by the CT Core session (new account, after the ~00:55 swap). Every branch below is committed and
+pushed at each agent hand-back. Agents running at a cut-off are lost: the resume prompt says what to redo.
 
 ## Rules carried
-- CT Core is the overflow session: it works and starts agents up to 100% of the 5-hour window. Cutoff-proof: commit +
-  push a WIP after every agent hand-back, keep this file and the job STATEs current. If cut off: do nothing; resume when
-  the orchestrator messages after the reset.
-- Up to 3 parallel Opus agents where the work splits (implementer + fresh checker, one fix round; from
-  `docs/systems/agent-preamble.md`; they return text, the job lead writes REPORT / CHECK and commits; no full vitest /
-  check / e2e inside them). `git checkout -- tests/__snapshots__/visionIsolation.test.ts.snap` before every commit.
-- e2e: ALWAYS `E2E_GPU=1` (Michael ~21:10; a GPU failure counts; a software rerun is diagnosis only). Desktop lanes:
-  `C:/NightShift/heavy.lock` (port 4191; also full checks and any software run) and `C:/NightShift/heavy2.lock` (port
-  4192, GPU only, `E2E_JOBS=1`, start only while desktop CPU < 50%). Atomic create:
-  `until ( set -o noclobber; echo "CT Core Build | <job> | $(date '+%H:%M')" > <lock> ) 2>/dev/null; do sleep 20; done`;
-  release only if it names you. Laptop runs go through the orchestrator / Character Build.
-- A PR enters a train only when EVERY suite it touches ran to completion and passed on the GPU (orchestrator, after
-  N1); list them with results in the PR body. Touched suites: e2e-anim, e2e-move (+ e2e-clip, e2e-studio for anim /
-  studio code), e2e-coop / e2e-netmove when src/player, src/game or src/net changed, the edited suite.
-- Stopping a background script on Windows does NOT kill it (TaskStop leaves bash children alive; a stopped lock script
-  took the lock 30 min later): kill the tree with `taskkill //PID <pid> //T //F`, free the port, check the lock file.
-  Scripts that must outlive the session: start them detached (not as a child of the session).
-- Changelog: one fragment per branch, `changes/<branch-with-dashes>.md` (`changes/README.md`); never CHANGELOG.md.
-- Never loosen a metric to pass. Every tuner slider bakes.
-- CMU mocap (mocap-trial): downloads from mocap.cs.cmu.edu only, raw files in `.mocap-cache/` (gitignored), every take
-  in docs/mocap-trial/SOURCES.md. Standing OK for further CMU takes for the trial (Michael ~21:40 "Yes, CMU only",
-  confirmed in the CT Core session ~21:45). This is the CMU-only exception to "no external art".
+- FULL BURN to 100% of the 5-hour window (Michael ~01:05 via the orchestrator: "push as hard as possible"; replaces the
+  97% stop). Up to 6 parallel Opus agents. Cutoff-proof: agents push their own branch at milestones; the lead commits +
+  pushes and refreshes this file after every hand-back. If cut off: do nothing; resume when the orchestrator messages.
+- Agents: one worktree each, `C:/NightShift/Mobile-Coop-mt2-<slug>`, branch `feature/mt2-<slug>` (node_modules a
+  junction to Mobile-Coop-mocap-trial-2's), common rules `C:/NightShift/scratch/mt2/COMMON.md`. They return a report
+  (`docs/mocap-trial/MT2-<SLUG>.md` on their branch); the lead merges the branches into feature/mocap-trial-2 in order and
+  writes the changelog fragment `changes/feature-mocap-trial-2.md`. No full vitest / check / e2e inside agents.
+  `git checkout -- tests/__snapshots__/visionIsolation.test.ts.snap` before every commit.
+- e2e: ALWAYS `E2E_GPU=1`; full runs and GPU suites go to Character Build on the laptop. Desktop lanes (`heavy.lock` 4191,
+  `heavy2.lock` 4192 GPU only, `E2E_JOBS=1`, CPU < 50%) only for single quick suites. Atomic create:
+  `until ( set -o noclobber; echo "CT Core Build | <job> | $(date '+%H:%M')" > <lock> ) 2>/dev/null; do sleep 20; done`.
+- A PR enters a train only when every suite it touches passed on the GPU: e2e-anim, e2e-move, e2e-clip, e2e-studio
+  (+ e2e-coop / e2e-netmove for src/player, src/game, src/net). List them with results in the PR body.
+- Windows: TaskStop does not kill bash children; `taskkill //PID <pid> //T //F`, free the port, check the lock file.
+- Changelog: one fragment per branch, never CHANGELOG.md. Never loosen a metric to pass.
+- CMU mocap: mocap.cs.cmu.edu only, raw files in `.mocap-cache/` (gitignored, local to Mobile-Coop-mocap-trial-2; agent
+  worktrees junction it), every take in docs/mocap-trial/SOURCES.md, credited in docs/art-credits.md. M3 approval (Michael
+  00:15-00:20 "Yes, download them"): crouch walk, sprint, strafe, back-to-wall. All 21 M3 takes are already downloaded.
+- Michael M1 "Mocap, as captured" (old limits are notes; pops / slides fail); M2 no sheets, fresh checker, GPU suites,
+  PR into a train.
+- Fresh checker: CT Core runs it itself (Course Ready moved to Sector Ops, orchestrator ~01:40): a NEW Opus agent with
+  `C:/NightShift/scratch/mt-check/CHECK3-BRIEF.md`.
 
-## Open jobs (branch, folder, head, next step)
+## Open jobs
 | Job | Branch / folder | Head | State | Next step |
 | --- | --- | --- | --- | --- |
-| mocap-trial (TOP PRIORITY) | `feature/mocap-trial`, `C:/NightShift/Mobile-Coop-mocap-trial` | f4b5b7c1 | DONE, train-ready: PR #159 at f4b5b7c1, train 15 (orchestrator). Master 4.61.0 merged (d10d68f2) + review fixes 1 / 2 / 6; mocapSwitch 13 / 13 (c10284e7); OFF byte-identical to af56ab43; six GPU suites ALL PASS on c10284e7; #159 body updated; orchestrator told. | Nothing unless train 13 fails. |
-| mocap-trial-2 | `feature/mocap-trial-2`, `C:/NightShift/Mobile-Coop-mocap-trial-2` (npm ci done) | e0298f90 | WIP pushed at the swap (~00:55), NOT checked: CMU M3 downloads under way (80 files in .mocap-cache/, gitignored, local to this worktree; SOURCES.md / TAKES.md partial; scripts/mocap/m3.mjs) and review items 3 / 4 / 5 / 8 partial (mocap.ts, animGraph, characterRig, tests/mocapFix2.test.ts). Branch is on 089259be (pre 4.61.0 merge). Agents at the save (all lost after the swap): (a) downloads, (b) review 3 / 4 / 5 / 8 in the worktree; prototypes in this session's scratchpad, diffs NOT in git: (c) CHECK-2 required 1 + turn-offset sweep, (d) required 2 stop pitch snap, (e) required 3 short-stand start, (f) run 4.0 x 4 ankle-toe 81 ON vs 58 OFF (N1 uncross + swing bow). | Resume: check e0298f90 (git diff 9156c0e0..e0298f90; finish or redo (a) and (b): SOURCES.md must list every file in .mocap-cache, one take at a time, M3 approval; (b) needs tests + OFF dump proof). Then `git merge origin/feature/mocap-trial` (f4b5b7c1). Redo (c)-(f) as separate agents on the merged tree (each a different footPlanner area; briefs: CHECK-2.md, FIX-1.md "Merge 4.61.0", repros C:/NightShift/scratch/mt-check/repro2/), mocapSwitch + OFF dump after each; fresh checker, six GPU suites (desktop only if CPU < 60%, else Character Build), PR into a train, orchestrator. Then the new clips (crouch walk, sprint, strafe, wall) + the 15 gap takes, per-clip agents, PR per batch. No sheets. |
-| anim-natural N2 #138 | merged | af56ab43 | MERGED in train 8 (master 4.61.0). | Nothing. |
-| vent-kick T1 #141 | `feature/vent-kick`, `C:/NightShift/Mobile-Coop-vent-kick` | ebce0da7 | Done: PR #141 open; checker PASS + fix round (M1 pad matches keyboard); e2e-traverse, e2e-pad, e2e-mouse, e2e-netmove pass on the desktop GPU (9fd7b5b6). | Nothing unless its train fails. DECISIONS at merge: M1, A1. |
+| mocap-trial #159 | merged in train 15 | f4b5b7c1 | Train 15 PASSED, releasing as 4.64.0 (orchestrator ~01:30). | Nothing. |
+| mocap-trial-2 | `feature/mocap-trial-2`, `C:/NightShift/Mobile-Coop-mocap-trial-2` | 20515978 | M3 downloads done + #159 merged (36df9644) + orchestrator merge review applied (20515978). Six agents started ~01:20 on 20515978: `feature/mt2-pop1` (CHECK-2 req 1 walk-turn sink + turn-offset sweep in mocapSwitch), `mt2-pop2` (req 2 stop pitch snap, tests/mocapStopPitch), `mt2-pop3` (req 3 short-stand start, tests/mocapShortStart), `mt2-runturn` (run 4.0 x 4 ankle-toe 81 ON vs 58 OFF after 4.61.0, tests/mocapRunTurn), `mt2-fix2` (review items 3/4/5/8 check; the WIP's allocation regression: mocapSwitch alloc 2525 vs <= 2500 B, passes on f4b5b7c1; OFF dump proof vs f4b5b7c1), `mt2-crouch` (136_09 crouch walk clip behind the switch, A5, tests/mocapCrouch). | On each hand-back: read MT2-<SLUG>.md, merge the branch into mocap-trial-2 (order: fix2, pop2, pop3, pop1, runturn, crouch; footPlanner conflicts by hand), run the mocap tests, push, update this file. Free slots: sprint (127_07 + 127_03 start), strafe (69_59 / 69_56; the clip format needs a lateral cycle), wall (139_14/15 crouched, 69_56/59 standing side-steps, 139_01/04 peek stand-ins; after strafe's format). Merge origin/master once 4.64.0 lands. Then fresh checker (CHECK3-BRIEF), six GPU suites via Character Build, PR into a train, orchestrator. |
+| vent-kick T1 #141 | `feature/vent-kick` | ebce0da7 | PR open, suites pass. | Nothing unless its train fails. |
 
-## Test logs on the desktop
-`/c/NightShift/vk-e2e.log` (T1 GPU, all pass), `/c/NightShift/n2pr-e2e.log` (N2 c3a10b41 software: anim / move /
-studio / clip ok, coop / netmove killed at 600 s under load), mocap sheets `build/mocap/sheets/` in the mocap folder.
-
-## Done today (this account)
-N2 pre-PR round (CHECK-4 fixes, run arm pop, CHECK-5 PASS), PR #138; N1 merged master 4.58.0 (08023227) and into N2
-(fixtures re-captured with proofs, edabdc2c); T1 vent-kick PR #141; mocap-trial switch, clip feet and CMU pipeline.
+Spare jobs (orchestrator, docs/orchestrator/spare-jobs.md on feature/menu), only when no mocap work is left for a slot:
+#8 traversal (feature/traverse-fix), #5 strike / swap pops, #2 hang-down sidearm / grab / neck-snap (runHang
+teamController.ts:497), #3 throw onto a guard KO (no wire change, else protocol 31; merge master before the PR). Never
+anything touching animGraph, footPlanner, characterRig, keyed, tune while mocap-trial-2 is open.
 
 ## Resume prompt
 ```
-Night Shift | CT Core Build: RESUME (after the account swap, ~21:50 save). Model Opus, effort high. Read CLAUDE.md
-(on origin/feature/menu: GPU for logic e2e, the two desktop lanes, the test tiers), docs/ROADMAP.md, then
-docs/orchestrator/resume-ct-core.md on origin/feature/menu (git fetch; git show
-origin/feature/menu:docs/orchestrator/resume-ct-core.md) and follow its "Rules carried". A C:/NightShift/heavy.lock or
-heavy2.lock naming CT Core Build with no node / bash process of ours running is stale: delete it.
-1. mocap-trial (top priority; C:/NightShift/Mobile-Coop-mocap-trial, feature/mocap-trial, head 82f43716, master 4.59.0 in): read
-   docs/mocap-trial/STATE.md and CHECK.md (and FIX-1.md if the fix agent finished). One Opus implementer (fix round) on CHECK.md:
-   required 1 (clear FootState.clipOwn in beginSwing / land), 1b (ease a planner-planted foot's pitch into the clip's over
-   ~0.15 s at the hand-back, or rate-limit pelvisDrop ~1 cm / frame when ON), 2 (fade fromPitch into the clip pitch over
-   the first ~0.3 of the first clip swing, or pitchRate ~12), 3 (cap the start slot's arm weight at 0.5), note 5 (gate the
-   updateIdle pitch < 0 branch on clip feet); done = walk 1.4 / 2.0 x turn 1-4 rad/s pelvis beyond speed x dt <= 2 cm,
-   bone steps < 25 deg ON, a pelvis-step assert in mocapSwitch; switch off bit-identical. Course Ready's repro scripts:
-   path in CHECK.md. Then bash /c/NightShift/mt-e2e.sh detached (powershell Start-Process -WindowStyle Hidden), all six
-   pass: REPORT.md, PR (minor; suites listed; Menu Notes' sheets from feature/mocap-sheets linked; A4 notes for Michael),
-   message the orchestrator. Then the gap takes (SOURCES.md "Downloaded ... not yet used") through scripts/mocap.
-2. N2 #138 (C:/NightShift/Mobile-Coop-anim-natural-n2, head 1c6f06a3): the 362359a4 GPU run failed e2e-anim knees-over-toes and e2e-clip crouched holstered; read docs/anim-natural-n2/REPORT-4.md (fix agent) or redo the round, then rerun n138-e2e.sh;
-   (six suites on the GPU, started 22:31). All pass: list them in #138's body, send the orchestrator the sha. A fail: one
-   round (watch: crouch 90 first swing, crouched holstered).
-3. T1 #141: nothing unless its train fails.
+Night Shift | CT Core Build: RESUME. Model Opus, effort high. Read CLAUDE.md (on origin/feature/menu) and
+docs/ROADMAP.md, then docs/orchestrator/resume-ct-core.md on origin/feature/menu (git fetch; git show
+origin/feature/menu:docs/orchestrator/resume-ct-core.md) and follow its "Rules carried" (full burn to 100%). A
+C:/NightShift/heavy.lock or heavy2.lock naming CT Core Build with no node / bash process of ours running is stale: tell
+the orchestrator. mocap-trial-2 (C:/NightShift/Mobile-Coop-mocap-trial-2): for each agent branch feature/mt2-<slug> in
+the "Open jobs" row: if it has a docs/mocap-trial/MT2-<SLUG>.md report committed, merge it (order in the row); if not,
+redo that agent from its WIP (brief: C:/NightShift/scratch/mt2/COMMON.md + the row's one-line task). Then the remaining
+clips, the fresh checker, GPU suites via Character Build, PR. Michael is asleep: log assumptions, no question dialogs.
 Message "Night Shift | Orchestrator" at each slice and PR.
 ```
