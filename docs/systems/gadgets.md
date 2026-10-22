@@ -78,10 +78,18 @@ Design authority: docs/DECISIONS.md (G76, G99-G102), then docs/design-bible.md (
 
 ## Security cameras and lasers (sector-fixes C, Michael 2026-10-22 items 3-5)
 - Camera aim (`security/camera.ts`): each camera's map data may set `aim` (m, the floor point at the centre of its frame:
-  it pitches down by `camPitch` = atan2(mount height, aim)) and `range` (m, its detection range, at most `CAMERA.range`
-  18; `camRange`). `CameraUnit.pitch` / `range` feed both detection (`covers` -> `inFrame`) and the cue: one source of
+  it pitches down by `camPitch` = atan2(mount height, aim)) and `range` (m, its detection range, at most `CAMERA.rangeMax`
+  14; `camRange`). `CameraUnit.pitch` / `range` feed both detection (`covers` -> `inFrame`) and the cue: one source of
   truth. No `aim` looks level. Sector Ops: cam-yard aim 5 / range 10, cam-floor 7 / 14, the others 6 / 12
-  (`warehouseSectors.ts`). Marlow Yard cam-s3 (the bay 3 hallway): aim 6.5 (`S3_CAMERA_AIM`, pitch 20 deg: heads covered end to end, the frame under the 4.5 m ceiling), range 18 (the hallway walls bound it).
+  (`warehouseSectors.ts`). Marlow Yard cam-s3 (the bay 3 hallway): aim 6.5 (`S3_CAMERA_AIM`, pitch 20 deg: heads covered end to end, the frame under the 4.5 m ceiling).
+- Range and falloff (camera-range, Michael 2026-10-23: "cameras need to have less range (they currently pick the player up
+  well outside of the intended area)"; every map): `camRange` = the camera's own `range`, else `CAMERA.aimReach` 2 x its
+  `aim` (the floor patch centred on its aim point), else `CAMERA.range` 12 (was 18), never over `CAMERA.rangeMax` 14.
+  cam-s3 is 13 m (was 18: it reached into the entry lobby); the Sector Ops ranges are already 2 x aim. `cameraRate` fills
+  by the guard terms with the falloff over that range, 1 - (d / range)^2 (`CAMERA.edgePow`), not the guard's 25 m: close
+  to the old fill times inside the zone, 0 at its edge, so the picked-up reach (`cameraReach`) is ~0.84-0.97 of the range
+  by stance. One `cameraSight` serves the host's think and the co-op client's cue: no wire change. Measured per camera:
+  `docs/camera-range/MEASURE.md` (`tests/cameraReach.test.ts`).
 - Cue (`security/cameraCue.ts`, `vfx/cameraCueView.ts`): the sample grid spans the pitched field, the rays reach
   `cueReach(range)`, and the shader's frame mask (`CUE_MASK_GLSL`, mirrored by `cueEdge`) takes the camera's pitch and
   range, so the grid is drawn only where the camera can detect. Normal vision is very subtle (`CUE.line` 0.055,
