@@ -9,7 +9,7 @@ first, then this file. Message "Night Shift | Orchestrator" at each slice and PR
   round 2 shots 3135a783. Orchestrator told; nothing to do unless the train sends it back.
 - mocap-sheets: real-clip sheets DONE and sent to the orchestrator + CT Core: feature/mocap-sheets-real 04598e9a
   (79005dfd + mocap-trial 82f43716; laptop GPU 354 s; VP9 webms; worktree C:/NightShift/Mobile-Coop-mocap-sheets-real).
-  The laptop now has ffmpeg (Michael approved). CT Core fix 44d7c2a7 merged = f027fc98: laptop reruns turns + start
+  The laptop now has ffmpeg (Michael approved). CT Core fix 44d7c2a7 merged = f027fc98: turns + start rerun pushed ce76361a, sent
   (4192). Later: fold -real into feature/mocap-sheets with the start / stop fix.
   Start / stop cause: agent running in C:/NightShift/Mobile-Coop-mocap-sheets (may commit there: script fix, merge of
   82f43716, start / stop rerun). CT Core's fix sha comes later: rerun turn + start rows on it if cheap.
