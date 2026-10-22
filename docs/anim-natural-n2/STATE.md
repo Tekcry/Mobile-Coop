@@ -1,5 +1,20 @@
 # anim-natural N2 - state
 
+## 2026-10-22 ~18:45: master 4.55.1 merged, A13, run rebaked (head 53e6dc03)
+- Master 4.55.1 merged by an agent in the temp worktree (70953f1c): CHANGELOG both kept; run.ts `half` took master's
+  0.05042 (#110's measure), N2's A1 keys kept; e2e-anim crabRow (ranges 5th, pelvisFrame 6th, flag only on turn rows).
+  Proof: amounts 0 + master's run clip = master's fixture 40 / 40; motion-off vs master and layer-on vs motion-off differ
+  only on partner:moves. Guard fixture unchanged.
+- A13 (416184da): the drawn chest yaw x (1 - drawn); headless low ready jog elbows 6.01 -> 5.69 cm (limit 6), low ready
+  walk 5.17 -> 4.89; crabFacing now gates the elbow wing on the low ready rows. bodyMotion: low ready walk head yaw <= 2.
+- Run rebake (Blender -b, /c/NightShift/ctb10.out): half 0.05042 -> 0.04997; both Wren fixtures re-captured (53e6dc03):
+  keyed:run and partner:moves only. Headless crab rows (agent, pre-rebake): walk 3.4 / 3.5, walk 2.1 3.5 / 3.7, jog
+  3.1 / 3.4, low ready walk 3.3 / 3.5, low ready jog 3.1 / 3.4, crouch rows 1.7-2.2 / 3 (#110's crouch halves), run
+  pelvis-frame knee-out 6.1 -> 6.9 cm (within RUN_TUNE kneeBow 0.107).
+- Laptop asked (18:45): check + e2e-anim e2e-studio e2e-clip on 53e6dc03.
+- Step 3 (arms): implementer agent in feature/anim-natural-n2-s3 (C:/NightShift/Mobile-Coop-anim-natural-n2-merge,
+  from 4028d386); merge it here after (re-capture the fixture again then).
+
 ## 2026-10-22 ~17:55: bodyMotion allocation test (Course Ready, PR #128 feature/heap-asserts)
 The deterministic helper is `tests/helpers/allocPerCall.ts` (#128: gc() + new space per round, rounds with a scavenge
 discarded; `inputs()` into a Float64Array; typed `sink`; HEAP_NUMBER 16). When #128 is on master (or copy the helper),
