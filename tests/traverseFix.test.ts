@@ -54,3 +54,70 @@ describe('(traverse-fix 1) a ledge hand at the lip end', () => {
     }
   });
 });
+
+describe('(traverse-fix 3) the rifle sling draw clears the trunk', () => {
+  it('no frame of the draw from the diagonal sling puts the gun into the trunk (e2e-clip "sling draw + glide": was -1.5 cm)', async () => {
+    const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+    const { Scene, Vector3 } = await import('../src/core/babylon');
+    const { PartLibrary } = await import('../src/world/partLibrary');
+    const { CharacterRig } = await import('../src/player/characterRig');
+    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const { WeaponModel, DEFAULT_WEAPON_COLORS, TRAVEL_VIA } = await import('../src/weapons/weaponModel');
+    const { WEAPONS } = await import('../src/weapons/weaponDefs');
+    const scene = new Scene(new NullEngine());
+    const lib = new PartLibrary(scene);
+    const rig = new CharacterRig(scene, (shape, hex, slot) => lib.instance(shape, hex, slot), defaultLook());
+    const def = WEAPONS.rifle;
+    const rifle = new WeaponModel(scene, lib, def, DEFAULT_WEAPON_COLORS, rig.root);
+    const pose = { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 1, kick: 0, armed: true };
+    // e2e-clip's trunk check: the bore line and the top edge against the pelvis -> neck capsule (r 0.1)
+    const seg = (p: InstanceType<typeof Vector3>, a: InstanceType<typeof Vector3>, b: InstanceType<typeof Vector3>): number => {
+      const ab = b.subtract(a);
+      const t = Math.max(0, Math.min(1, p.subtract(a).dot(ab) / (ab.lengthSquared() || 1)));
+      return Vector3.Distance(p, a.add(ab.scale(t)));
+    };
+    const drawMin = (): number => {
+      rifle.hold(rig);
+      for (let k = 0; k < 30; k++) rig.animate(1 / 60, pose);
+      rifle.holster(rig, 'backC');
+      for (let k = 0; k < 30; k++) rig.animate(1 / 60, pose);
+      rifle.beginTravel(rig, 'backC', true, true);
+      let min = 9;
+      for (let k = 1; k <= 60; k++) {
+        rifle.travel(rig, k / 60);
+        rig.animate(1 / 60, pose);
+        const m = rifle.node.computeWorldMatrix(true);
+        const pv = rig.hips.computeWorldMatrix(true).getTranslation();
+        const nk = rig.neck.computeWorldMatrix(true).getTranslation();
+        for (let z = rig.gunSpan.z0; z <= def.muzzle[2] + 1e-6; z += 0.06) {
+          for (const y of [def.muzzle[1], rig.gunSpan.top]) min = Math.min(min, seg(Vector3.TransformCoordinates(new Vector3(0, y, z), m), pv, nk) - 0.1);
+        }
+      }
+      rifle.endTravel();
+      return min;
+    };
+    const now = drawMin();
+    // the old waypoint (0.3, -0.22, 0.14) for comparison: the new one passes further out
+    const via = TRAVEL_VIA.sling as unknown as number[];
+    const keep = [via[0]!, via[1]!, via[2]!];
+    via[0] = 0.3;
+    via[2] = 0.14;
+    const old = drawMin();
+    via[0] = keep[0]!;
+    via[2] = keep[2]!;
+    // (the headless rig has no swap clip overlay: here the old path just grazes the trunk, 0.3 cm, the new one clears it
+    // by ~4.7 cm; in the game, e2e-clip "sling draw + glide", -1.5 -> +0.9 cm)
+    expect(now - old).toBeGreaterThan(0.03);
+    expect(now).toBeGreaterThan(0.03);
+    rifle.dispose();
+    scene.dispose();
+  });
+});
+
+describe('(traverse-fix 2) the climb-up hands', () => {
+  // Measured in the game (proving ledge, Wren, arm 0.54 m): the grips hold the hands at weight 1 until k 0.38, but the
+  // shoulders rise out of reach from k 0.31 (0.60 m over the lip at 0.32, 0.92 m at 0.39: the CLIMB_UP clip's torso is
+  // near upright while the knee comes on), so the palms leave the lip as the knee comes on whatever the grip weight. The
+  // fix is in the mocap clip (src/anim/clips/traverse.ts CLIMB_UP), outside this job: docs/traverse-fix/REPORT.md item 2.
+  it.todo('the palms stay on the lip (within 3 cm) until the right foot is on the top (k 0.52), then let go by the crouch');
+});
