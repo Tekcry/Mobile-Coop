@@ -32,8 +32,18 @@ export function ankleToBall(p: number): number {
  * floor. (G1 fix) Also in the air: the heel-first landing's toe-up (terminal swing) lifts the ankle as it will on the
  * floor, and the toe-off's raised heel fades over the first 0.3 of the swing (the ankle target jumped 1-5 cm at strike
  * and toe-off).
+ * (mocap-trial, A3) A clip feet swing (`clipOwn`, in the air) carries the clip's own ankle lift (its pitch's rise
+ * included): nothing is added until its last fifth, which eases in the heel the planted foot takes on landing (a
+ * heel-first strike lifted the ankle target 2-4 cm in one frame, the near-straight knee hit its rate limit and the landed
+ * ankle missed its spot by 5 cm). With the switch off `clipOwn` is never set: the rest is the planner's as above.
  */
-export function heelLift(f: { readonly contact: boolean; readonly pitch: number; readonly swing: number }): number {
+export function heelLift(f: { readonly contact: boolean; readonly pitch: number; readonly swing: number; readonly clipOwn?: boolean }): number {
+  if (f.clipOwn === true && !f.contact) {
+    if (!(f.swing > 0.8)) return 0;
+    const u = Math.min(1, (f.swing - 0.8) / 0.2);
+    const e = u * u * (3 - 2 * u);
+    return f.pitch < 0 ? (-Math.sin(f.pitch) * HEEL_BACK + (1 - Math.cos(f.pitch)) * HEEL_DOWN) * e : (Math.sin(f.pitch) * TOE_BALL - (1 - Math.cos(f.pitch)) * HEEL_DOWN) * e;
+  }
   if (f.pitch < 0) return f.contact || f.swing > 0.5 ? -Math.sin(f.pitch) * HEEL_BACK + (1 - Math.cos(f.pitch)) * HEEL_DOWN : 0;
   if (f.pitch <= 0) return 0;
   // (G1, footPlanner HEEL_RAISE) heel up, toe on the floor: the ankle rises by the ball's lever
