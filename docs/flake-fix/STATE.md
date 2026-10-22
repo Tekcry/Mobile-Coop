@@ -38,6 +38,16 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   (runs/guardcap-e2123367, outputs scratch/work/guardcap-e2123367) -> numbers to orchestrator + Course Ready (Sector Ops
   redesign, up to 24 guards per section), then REPORT.md + PR. Train 16 (#168 + #169 + #170) next: full JOBS=3, then the
   JOBS=5 trial on the next master.
+- PACING NOW (Michael 01:45, "Lean windows", after the ~01:55 reset): every 5-hour window to 99%: no new agent at 97%,
+  save at 98%, stop by 99%; laptop runs already started may finish. Opus plans / checks / real test fixes; Sonnet 5.5 or
+  Haiku 5.5 agents for log reading, triage, mechanical chores from strict briefs. Laptop = the only e2e lane; slot order:
+  Marlow slice suites, trains, mocap GPU suites, guard-ai and sector-redesign suites, guard-cap ALONE.
+- ~02:00: train 16 45c9ebf0 (#168-#176) full GPU JOBS=3 running on 4189 (runs/train16-45c9ebf0) -> verdict to the
+  orchestrator (4.65.0 on pass); then the JOBS=5 trial on the next master. marlow-final slice 0 1949764e: 7/8 (ctcourse:1
+  security room = by design, fixed 5920cce5) -> e2e-ctcourse on 5920cce5 running on 4192 (runs/marlowfinal-5920cce5-ctcourse).
+  Menu Notes unit files on f315434f: 12/13 PASS (117 tests); tests/facilityProps.test.ts ran past 600 s -> rerun alone
+  (30 min cap). sw-reload 0a34662b GREEN (reported). Guard-cap e2123367 stopped twice for priority; rerun ALONE after train 16
+  and the Marlow suites.
 - schtasks creation is BLOCKED in this session (auto mode): runs are session-bound background commands and die on a swap.
   On resume check runs/<label>/summary.txt for DONE; a run without DONE died: rerun it.
 - Train 15 e1050e14: 38/39 GPU JOBS=5, 349 s; e2e-coop FAIL "client takedown offered on the host's guard (offer none)"
