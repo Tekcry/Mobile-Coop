@@ -30,6 +30,7 @@ Last updated: 2026-10-22 20:05 Sydney (master 4.58.0, train 7; train 8 next: #11
 5. Sector Ops lights (#129): s1-goods-in / s1-workshop show strong white volumetric cones under the new strip lights (fog only; meter and guards read the light field): look on the next walk.
 
 ## Decided (Michael, 2026-10-22 ~11:15 unless dated)
+- Laptop 3 browsers (2026-10-22 ~22:32; trial: full run 443 s vs 740 s, one load-only netmove compare miss): "Keep 3, fix the test" (JOBS=3 plus the second slot; the netmove compare moves to sim time).
 - (Vent hold-jump to unscrew, T1 A1: pending Michael's walk, Waiting item 7.)
 Entries from 2026-10-21 ~07:30 to 2026-10-22 ~21:40 are now DECISIONS G229-G269 (PR #146, 4.58.3; its body maps each entry). New entries go above this line.
 Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body maps each entry to its G number). Later entries stay here until the next fold.

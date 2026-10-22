@@ -20,8 +20,9 @@ Train 9 = train/9 765162a6 (#136 P, #139 N4c, #141 T1, #148, #147): GREEN on its
 v4.59.0 tag and dev; if it died, rerun merge-train.mjs release 9 4.59.0 "Sector Ops laser panels, hand swap and elbow
 strike, vent kick, touch and GPU test fixes" from C:/NightShift/Mobile-Coop-train. Then add the ROADMAP Done row.
 Laptop JOBS=3 trial: wall 443 s vs 740 s (-40%), times within 15%, CPU avg 40%, but a NEW load failure (the netmove
-compare), so per the rule the laptop went back to JOBS=2, one slot. Open for Michael: keep JOBS=3 and fix netmove's
-sampling as a test item?
+compare). Michael (~22:32): "Keep 3, fix the test": laptop stays at JOBS=3 plus the second slot; Course Ready fixes the
+netmove compare on sim time (feature/netmove-compare). Mocap checker (Course Ready) at 06e773e1: FIX (walk-turn hand-off
+pelvis pops 5.8 cm/frame, start toe pop 26 deg/frame; switch off bit-identical, no slide): CT Core's fix round.
 
 Train 8 next: #119 N4b e957db2f (ready) + #138 N2 (contains N1): fix round 2 running (run 180 planted contact 14 cm; then
 merge master 4.58.3, rerun its six GPU suites, send the sha). Build after train 9 merges, from C:/NightShift/Mobile-Coop-train:
