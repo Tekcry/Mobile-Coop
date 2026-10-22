@@ -110,6 +110,25 @@ describe('clip speed values', () => {
     for (const id of CLIP_SPEED_IDS) expect(clipSpeed(id)).toBe(1);
   });
 
+  it('(anim-natural N3) a 4.53.0 save, preset or export with the single holster row sets both gun holsters', () => {
+    // literal records as 4.53.0 wrote them (one `holster` row in clip.gun)
+    tuneLoad({ version: 2, values: { 'clip.gun': { holster: 0.5, swap: 1.2 } }, log: [] });
+    expect(tuneGet(CLIP_GUN, 'holsterPrimary')).toBe(0.5);
+    expect(tuneGet(CLIP_GUN, 'holsterSidearm')).toBe(0.5);
+    expect(tuneGet(CLIP_GUN, 'swap')).toBe(1.2);
+    expect(holsterTimeFor('rifle')).toBeCloseTo(HOLSTER_TIME_PRIMARY * 2, 12);
+    expect(holsterTimeFor('pistol')).toBeCloseTo(HOLSTER_TIME_SIDEARM * 2, 12);
+    tuneResetAll();
+    const old = { magic: 'night-shift-anim-tune', version: 2, exported: '2026-10-22T12:00:00.000Z', changed: [{ group: 'clip.gun', id: 'holster', value: 1.5, kind: 'mul' }], log: [] };
+    expect(tuneImport(old, 'old.json').ok).toBe(true);
+    expect(tuneGet(CLIP_GUN, 'holsterPrimary')).toBe(1.5);
+    expect(tuneGet(CLIP_GUN, 'holsterSidearm')).toBe(1.5);
+    // a record that already has its own per-gun value keeps it
+    tuneLoad({ version: 2, values: { 'clip.gun': { holster: 0.5, holsterSidearm: 2 } }, log: [] });
+    expect(tuneGet(CLIP_GUN, 'holsterPrimary')).toBe(0.5);
+    expect(tuneGet(CLIP_GUN, 'holsterSidearm')).toBe(2);
+  });
+
   it('shows in its own tab with plain names', () => {
     expect(tabOfSection('clip')).toBe('sec:clip');
     expect(plainLabel('clip', 'rifleDraw', 'x')).toBe('Rifle draw speed');
@@ -180,6 +199,17 @@ describe('clip speed bake', () => {
     expect(wpn).toContain('const SWAP_TIME = 0.3;');
     expect(wpn).toContain('const GRENADE_TIME = 0.6;');
     expect(t.read(ACT)).toContain('export const CLIP_RATE = { startShift: 2, stopSettle: 2, land: 2 };');
+  });
+
+  it('(anim-natural N3) a 4.53.0 export\'s single holster row bakes into both gun holsters', () => {
+    const t = tree();
+    const r = tuneBake(exp([entry(CLIP_GUN, 'holster', 2)]), cat, t.read);
+    expect(r.ok, r.error).toBe(true);
+    t.write(r.writes);
+    const draw = t.read(DRAW)!;
+    expect(draw).toContain('export const HOLSTER_TIME_PRIMARY = 0.5;');
+    expect(draw).toContain('export const HOLSTER_TIME_SIDEARM = 0.45;');
+    expect(draw).toContain('export const DRAW_TIME_PRIMARY = 1.1;');
   });
 
   it('a dry run (no write) changes nothing and identity bakes nothing', () => {
