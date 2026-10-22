@@ -224,7 +224,8 @@ describe('R3 team door: the plant room service door into the fire-exit lobby, bo
       expect(solidAt(bolt.at[0], 1.0, bolt.at[1])).toBe(false);
       expect(solidAt(bolt.at[0], 3.0, bolt.at[1])).toBe(true);
     }
-    expect(sec.bolts).toEqual(S3_BOLTS);
+    // (sector-fixes-r2) the sector list adds the door width (w) for the unbolt reach
+    expect(sec.bolts?.map(({ at, side }) => ({ at, side }))).toEqual(S3_BOLTS);
   });
 
   it('the bolt side is the lobby, the far side the plant room', () => {
