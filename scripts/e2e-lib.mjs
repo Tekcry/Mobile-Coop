@@ -90,11 +90,11 @@ export async function launch({ url = 'http://localhost:4173/', params = '', view
   const lo = launchOptions();
   const browser = await timed('launch', () => chromium.launch({ ...lo, args: [...lo.args, ...args] }));
   const ctx = await browser.newContext({ viewport, acceptDownloads: true, ...context });
-  // (load-audit) the 120 s navigation default for every page of the context, also one a suite opens itself
-  // (`ctx.newPage()`, e2e-desktop's crash-log page): at JOBS=5 + a CPU burner its load ran past Playwright's 30 s
-  ctx.setDefaultNavigationTimeout(120000);
   // context level: covers every page of the context, including ones a suite opens itself (ctx.newPage())
   await ctx.addInitScript(fakePointerLock);
+  // (load-audit) so does the 120 s navigation default (openPage sets it per page too): e2e-desktop's crash-log page
+  // (`ctx.newPage()`) ran past Playwright's 30 s at JOBS=5 + a CPU burner
+  ctx.setDefaultNavigationTimeout(120000);
   const { page, errors } = await openPage(ctx, url, params);
   return { browser, ctx, page, errors };
 }
