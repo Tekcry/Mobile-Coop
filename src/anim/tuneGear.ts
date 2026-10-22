@@ -7,6 +7,11 @@
  * - `holster`: the sidearm on the right thigh (`CharacterRig.thighMount`, Wren's WREN_HOLSTER, or the generic thigh slot);
  * - `backL` / `backC` / `backR`: the long guns on the back (`CharacterRig.backMount` slots, the diagonal centre sling);
  * - `slingHip`: the rig's `slingHip` node (the belt's sling socket) and the compact gun on the left-hip sling;
+ * - (anim-goggle) `goggles`: the worn goggle (track C's `GOGGLE_OFFSET.inUse`, `operators/runtime/goggle.ts`) in the head
+ *   frame (x right, y up, z forward), about the goggle's own pivot after its rest pose. Each Wren rig writes its own
+ *   composed value (`GearRigState.goggle`, metres and degrees) into `GOGGLE_OFFSET.inUse` inside its tuner window, just
+ *   before `CharacterRig.goggleFrame()` copies it, and puts the old value back after. On LOD1 / LOD2 the housing is
+ *   fused into the head: only the lens moves there. No stowed socket: the stowed goggle has no vertices yet.
  * (No `slingBack` socket: nothing reads the rig's `slingBack` node yet (no sling is modelled; the diagonal centre gun uses
  *   `backMount.backC`), so its slider would move nothing; dropped with the pouches, orchestrator 2026-10-22.)
  * (No pouches socket: on Wren her own kit draws the grenade pouches and the GrenadePouches meshes are hidden, so a
@@ -22,7 +27,7 @@
 import { ANIM_BASE } from './animBase';
 import { eulerQuat, wrapDeg } from './tuneJoints';
 
-export const GEAR_SOCKETS = ['holster', 'backL', 'backC', 'backR', 'slingHip'] as const;
+export const GEAR_SOCKETS = ['holster', 'backL', 'backC', 'backR', 'slingHip', 'goggles'] as const;
 export type GearSocket = (typeof GEAR_SOCKETS)[number];
 export const GEAR_SOCKET_COUNT = GEAR_SOCKETS.length;
 /** Socket index by id. */
@@ -174,15 +179,21 @@ export interface GearRigState {
   readonly live: Uint8Array;
   /** Per socket (`GEAR_OUT` floats): the offset in the socket's frame. */
   readonly out: Float64Array;
+  /**
+   * (anim-goggle) The `goggles` socket as `GOGGLE_OFFSET` takes it: x, y, z (m), pitch, yaw, roll (deg; standing +
+   * crouch x crouched). All 0 while `live[GS.goggles]` is 0.
+   */
+  readonly goggle: Float64Array;
 }
 
 export function gearRigState(): GearRigState {
   const out = new Float64Array(GEAR_SOCKET_COUNT * GEAR_OUT);
   for (let s = 0; s < GEAR_SOCKET_COUNT; s++) out[s * GEAR_OUT + 6] = 1;
-  return { gen: -1, crouch: Number.NaN, on: false, ver: 0, live: new Uint8Array(GEAR_SOCKET_COUNT), out };
+  return { gen: -1, crouch: Number.NaN, on: false, ver: 0, live: new Uint8Array(GEAR_SOCKET_COUNT), out, goggle: new Float64Array(6) };
 }
 
 const D2R = Math.PI / 180;
+const GOGGLE_S = GS.goggles;
 
 /**
  * Compose this rig's offsets: standing + crouch x crouched, per socket (`crouch` clamped 0..1). Nothing live and
@@ -220,6 +231,16 @@ export function gearRigUpdate(st: GearRigState, crouch: number): void {
     }
     st.live[s] = live;
     if (live) on = true;
+    if (s === GOGGLE_S) {
+      // (anim-goggle) the goggle takes metres and degrees (its figure turns them itself)
+      const g = st.goggle;
+      g[0] = out[o]!;
+      g[1] = out[o + 1]!;
+      g[2] = out[o + 2]!;
+      g[3] = x;
+      g[4] = y;
+      g[5] = z;
+    }
   }
   st.on = on;
   st.ver++;

@@ -22,10 +22,13 @@ import { studioFeet } from '../anim/studioDrive';
 import { J, JOINTS_CUR, jointApply, mulInto } from '../anim/tuneJoints';
 import { HANDS_CUR, HANDS_GUN, HP, gunVisualPoint, handsRotApply, ikStrength, type GunVisual } from '../anim/tuneHands';
 import { tuneRigBegin, tuneRigEnd, tuneRigState, type TuneRigState } from '../anim/tuneJointsRig';
+import { guardRigBegin, guardRigEnd, guardRigState, type GuardRigState } from '../anim/tuneGuardRig';
+import { GUARD_STEP_ROWS } from '../anim/tuneGuard';
+import { STEP_IDENTITY_ROWS } from '../anim/tuneStep';
 import { gearCompose, GS } from '../anim/tuneGear';
 import { FING_L, FING_LEN, FING_R, FINGER_N, handGripShape, SPREAD_MAX_DEG } from '../anim/fingers';
 import { CLAV_L, CLAV_LEN, CLAV_R, clavActive, clavCompose, clavPoint, clavQuat } from '../anim/clavicle';
-import { GOGGLE_OFFSET } from '../operators/runtime/goggle';
+import { GOGGLE_OFFSET, setGoggleOffset } from '../operators/runtime/goggle';
 
 /** Creates a unit-sized part mesh (instanced from the shared PartLibrary). `slot` names the colour/pattern slot. */
 /** Weapon changing hands at an open-left back-to-wall edge (s): inside D9's 0.2-0.3 s draw / lean-out step (12b);
@@ -469,6 +472,8 @@ const tmpQ3 = new Quaternion();
 /** (21w) Weapon glide scratch. */
 /** (anim-gear) `gearPlace`'s result (position, rotation). */
 const gearRes = new Float64Array(7);
+/** (anim-goggle) `GOGGLE_OFFSET.inUse` kept across a Wren rig's goggle write (x, y, z, pitch, yaw, roll). */
+const goggleSave = new Float64Array(6);
 const glideInv = new Matrix();
 const glideLocal = new Matrix();
 const glideS = new Vector3();
@@ -669,6 +674,23 @@ export class CharacterRig {
     else if (!on) this.tuneSt = null;
     // (anim-bake-1022) a Wren rig holds Wren's low ready / pistol ready, every other rig the guards' (a reference swap)
     this.graph.wrenReady = on;
+    // (item 24, track A) a Wren rig's planner reads Wren's Stepping rows (the shared table), any other the identity table
+    if (!this.guardSt) this.planner.stepRows = on ? null : STEP_IDENTITY_ROWS;
+  }
+  /** (item 24, track A) This guard rig's window state on the guard tables (`guardRows`); null: not a guard rig. */
+  guardSt: GuardRigState | null = null;
+  /**
+   * (item 24, track A) A guard rig reads the guard base table and the tuner's guard rows (Guard joints, Guard stepping,
+   * Guard weight; `tuneGuard.ts`), never Wren's: set where a guard's rig is made (`buildEnemyRig`: the host's guards
+   * and the co-op client's puppets). Its planner reads the guards' stepping table. Off for every other rig.
+   */
+  get guardRows(): boolean {
+    return this.guardSt !== null;
+  }
+  set guardRows(on: boolean) {
+    if (on && !this.guardSt) this.guardSt = guardRigState();
+    else if (!on) this.guardSt = null;
+    this.planner.stepRows = on ? GUARD_STEP_ROWS : this.tuneSt ? null : STEP_IDENTITY_ROWS;
   }
   /**
    * (anim-gear, marlow-bays item 22) The version of this rig's gear offsets (`tuneGear.ts`; 0 on a rig without
@@ -1077,6 +1099,8 @@ export class CharacterRig {
     const p = proportions(opts.build ?? BUILD_OF[look.body], height);
     this.p = p;
     this.graph = new AnimGraph(p);
+    // (item 24, track A) neither Wren's nor a guard's until `tuneRows` / `guardRows` says so: the identity stepping table
+    this.planner.stepRows = STEP_IDENTITY_ROWS;
     const n = (nm: string, parent: TransformNode | null, x = 0, y = 0, z = 0): TransformNode => {
       const t = new TransformNode(`${name}-${nm}`, scene);
       t.parent = parent;
@@ -1556,7 +1580,17 @@ export class CharacterRig {
     // (anim-joints J1) a Wren rig (`tuneRows`) opens its own tuner window: its rows of the base table + the tuner deltas
     const ts = this.tuneSt;
     if (ts === null) {
-      this.animateFrame(dt, s);
+      // (item 24, track A) a guard rig (`guardRows`) opens its own window on the guard tables; nothing live: untouched
+      const gs = this.guardSt;
+      if (gs === null || !guardRigBegin(gs, s, this, dt)) {
+        this.animateFrame(dt, s);
+        return;
+      }
+      try {
+        this.animateFrame(dt, s);
+      } finally {
+        guardRigEnd(gs, this);
+      }
       return;
     }
     tuneRigBegin(ts, s, this, dt);
@@ -1850,8 +1884,36 @@ export class CharacterRig {
     for (let i = 0; i < FING_LEN; i++) f[i] = f[i]! + c[i]!;
   }
 
-  /** (S2) This window's goggle gear offsets into `goggleOff` (the figure applies its own pose's). No allocation. */
+  /**
+   * (S2) This window's goggle gear offsets into `goggleOff` (the figure applies its own pose's). (anim-goggle) A Wren rig
+   * with a `goggles` gear offset writes it into `GOGGLE_OFFSET.inUse` (over the table's own value) for the copy and puts
+   * the old value back after, so the global never leaks to the next rig. No offset: the table copied as it stands. No
+   * allocation.
+   */
   private goggleFrame(): void {
+    const ts = this.tuneSt;
+    const gOn = ts !== null && ts.gear.live[GS.goggles] === 1;
+    if (gOn) {
+      const u = GOGGLE_OFFSET.inUse;
+      const v = ts.gear.goggle;
+      const w = goggleSave;
+      w[0] = u.x;
+      w[1] = u.y;
+      w[2] = u.z;
+      w[3] = u.pitch;
+      w[4] = u.yaw;
+      w[5] = u.roll;
+      setGoggleOffset('inUse', u.x + v[0]!, u.y + v[1]!, u.z + v[2]!, u.pitch + v[3]!, u.yaw + v[4]!, u.roll + v[5]!);
+    }
+    this.goggleCopy();
+    if (gOn) {
+      const w = goggleSave;
+      setGoggleOffset('inUse', w[0]!, w[1]!, w[2]!, w[3]!, w[4]!, w[5]!);
+    }
+  }
+
+  /** (S2) `GOGGLE_OFFSET` (stowed, then in use) into `goggleOff`. */
+  private goggleCopy(): void {
     const g = this.goggleOff;
     for (let k = 0; k < 2; k++) {
       const o = k === 0 ? GOGGLE_OFFSET.stowed : GOGGLE_OFFSET.inUse;

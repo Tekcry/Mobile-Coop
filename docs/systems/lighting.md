@@ -38,7 +38,11 @@ not change what a camera sees. Lights matter for guards and the meter only.
 - (marlow-jammer) Jammed lamps: the pistol jammer switches a fixed electric lamp (`lamp` / `spot`) through
   `LightRegistry.setOn` from one timeline (`jammer.ts` `lightLit`: a 0.5 s flicker off, off while held, 4 s off after the
   release, a 0.5 s flicker on), so the bake's lamp term, the meter, the guards and the picture agree on every frame; the
-  co-op client runs the host's timeline (`sec.dv`) on its own registry.
+  co-op client runs the host's timeline (`sec.dv`) on its own registry. (jammer-fixes) The registry keeps a jammed lamp's
+  base state under the jam (`jamStart` / `jamLit` / `jamEnd`, `jammer.ts` `applyJamLight`): wall switches (`setGroup`), the
+  EMP and shots move the base, the jam only its flicker; at the end of the jam the lamp takes its base as it is then (a
+  group switched off or EMPed during the jam stays off). `baseOn` / `groupBaseOn` leave the jam out: the course's mains
+  gates read them, so a jam never counts as the group switched off.
 - Gameplay reads only the field: `GameState.updateLight` (10 Hz, the local player and, on the host, every remote player's
   `PlayerRef.light`), `Enemy.perceive`, body light (`EnemyManager`, 1 Hz), `Enemy.torchWanted`.
 - Guard flashlights (`world/torches.ts`, pure; coop-torches): `addTorchSlots` (dark maps: `FLASHLIGHTS` 4 slots,

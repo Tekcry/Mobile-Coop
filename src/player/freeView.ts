@@ -26,8 +26,30 @@ export const GAME_SPEED = { min: 0.1, max: 1, step: 0.05 } as const;
  */
 export const FREE_VIEW: { mode: FreeMode; demo: FreeDemo; spin: number; snap: '' | FreeSnap; lock: '' | FreeSnap } = { mode: 'off', demo: 'idle', spin: 0, snap: '', lock: '' };
 
-/** A camera snap: the view from the body's front, its right side, its back, or from above. */
-export type FreeSnap = 'front' | 'side' | 'back' | 'top';
+/** A camera snap: the view from the body's front, its right side ('side'), its left side ('left': (marlow-bays item 29
+ *  phase 2) Side pressed again swaps), its back, or from above. */
+export type FreeSnap = 'front' | 'side' | 'left' | 'back' | 'top';
+
+/**
+ * (marlow-bays item 29 phase 2, Michael: "manual camera sliders to rotate 360 degrees around the body") The orbit set by
+ * the View tab's sliders, a request the game takes once (NaN: none): `angle` degrees around her from behind (0 behind,
+ * 90 her right, 180 her front, 270 her left), `tilt` degrees the camera looks down (+) or up, `dist` metres. `FREE_ORBIT`
+ * is what the orbit shows now (written by the game each frame, read back by the sliders).
+ */
+export const FREE_SET = { angle: Number.NaN, tilt: Number.NaN, dist: Number.NaN };
+export const FREE_ORBIT = { on: false, angle: 0, tilt: 0, dist: 0 };
+
+/** The orbit's angle around her (degrees 0..360, 0 behind, 90 her right) from the view's yaw and her facing. */
+export function orbitAngleDeg(viewYaw: number, bodyYaw: number): number {
+  const d = ((bodyYaw - viewYaw) * 180) / Math.PI;
+  const w = d - 360 * Math.floor(d / 360);
+  return w >= 360 ? 0 : w;
+}
+
+/** The view's yaw for an orbit angle around her (degrees, as `orbitAngleDeg`). */
+export function orbitViewYaw(angleDeg: number, bodyYaw: number): number {
+  return bodyYaw - (angleDeg * Math.PI) / 180;
+}
 
 /**
  * (anim-studio) A camera snap: the orbit's yaw and pitch to look at the body (facing `bodyYaw`) from its front, its
@@ -43,6 +65,9 @@ export function freeSnap(snap: FreeSnap, bodyYaw: number, out: { yaw: number; pi
     out.pitch = -0.1;
   } else if (snap === 'side') {
     out.yaw = bodyYaw - Math.PI / 2;
+    out.pitch = -0.1;
+  } else if (snap === 'left') {
+    out.yaw = bodyYaw + Math.PI / 2;
     out.pitch = -0.1;
   } else if (snap === 'back') {
     out.yaw = bodyYaw;
@@ -179,9 +204,13 @@ export class FreeViewCore {
   rise = 0;
   zoom = 0;
   nudge = 0;
-  /** (tuner-ui) A held snap ('' none) and the body's facing it holds to (set every frame by the game). */
+  /** (tuner-ui) A held snap ('' none) and the body's facing it holds to (set every frame by the game). (item 29 phase 2)
+   *  Held, the orbit keeps its angle to her facing (`relYaw`); the look (stick, drag, touch) and the sliders turn that
+   *  angle. */
   lock: '' | FreeSnap = '';
   bodyYaw = 0;
+  relYaw = 0;
+  private lockWas: '' | FreeSnap = '';
   /** (marlow-bays item 26) Orbit: the circled point's level offset from her (m, world; the touch pan), and this frame's
    *  pan input (m along the view's level right, m up). */
   panX = 0;
@@ -210,14 +239,38 @@ export class FreeViewCore {
     this.lookX = this.lookY = this.moveX = this.moveY = this.rise = this.zoom = this.nudge = this.panR = this.panU = 0;
   }
 
+  /** A camera snap now (front / side / ... of her facing `bodyYaw`): the view and, held, the angle it keeps. */
+  snapTo(snap: FreeSnap, bodyYaw: number): void {
+    freeSnap(snap, bodyYaw, this);
+    this.relYaw = this.yaw - bodyYaw;
+  }
+
+  /** (item 29 phase 2) The sliders' orbit (NaN: that value stays): the angle around her, the tilt (deg, + looks down), the
+   *  distance (m). */
+  setOrbit(angleDeg: number, tiltDeg: number, dist: number, bodyYaw: number): void {
+    const C = FREE_CFG;
+    if (!Number.isNaN(angleDeg)) {
+      this.yaw = orbitViewYaw(angleDeg, bodyYaw);
+      this.relYaw = this.yaw - bodyYaw;
+    }
+    if (!Number.isNaN(tiltDeg)) this.pitch = Math.max(-C.pitchMax, Math.min(C.pitchMax, (-tiltDeg * Math.PI) / 180));
+    if (!Number.isNaN(dist)) this.dist = Math.max(C.distMin, Math.min(C.distMax, dist));
+  }
+
   /** One rendered frame: apply the input and place the view around / from the feet. No allocation. */
   place(fx: number, fy: number, fz: number): void {
     const C = FREE_CFG;
     const dt = this.dt;
-    this.yaw += this.lookX;
+    // (item 29 phase 2) a held snap keeps the angle to her facing; the look turns that angle (and tilts the view)
+    const held = this.mode === 'orbit' && this.lock !== '';
+    const lk = this.lock;
+    if (held && lk !== '' && lk !== this.lockWas) this.snapTo(lk, this.bodyYaw);
+    this.lockWas = held ? this.lock : '';
+    if (held) {
+      this.relYaw += this.lookX;
+      this.yaw = this.bodyYaw + this.relYaw;
+    } else this.yaw += this.lookX;
     this.pitch = Math.max(-C.pitchMax, Math.min(C.pitchMax, this.pitch + this.lookY));
-    // (tuner-ui) a held snap: the angle to the body's facing wins over the look (the zoom and the height still apply)
-    if (this.mode === 'orbit' && this.lock) freeSnap(this.lock, this.bodyYaw, this);
     if (this.mode === 'orbit') {
       this.dist = Math.max(C.distMin, Math.min(C.distMax, this.dist * Math.exp(-this.zoom)));
       this.height = Math.max(C.heightMin, Math.min(C.heightMax, this.height + this.nudge * C.nudgeRate * dt + this.panU));
