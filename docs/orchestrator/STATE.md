@@ -44,9 +44,12 @@ background (gh run watch <id> --exit-status), gh pr merge <n> --merge, then tag 
 separate commands; update this file's Master line and the ROADMAP Done table.
 Merge train (Michael 2026-10-22 ~11:25, CLAUDE.md test tiers): in the scratch worktree, `git checkout -B train/<n> origin/master`,
 merge each ready PR head in order (CHANGELOG / package / PROTOCOL_VERSION conflicts resolved there; abort a PR on any
-other src conflict), push train/<n>, run one full e2e on it (desktop lock or the laptop runner). On a pass, merge each
-PR by the procedure above in the same order (its src then equals the train's: check `git diff train/<n> origin/master
--- src scripts tests` is empty at the end), then move dev once.
+other src conflict), push train/<n>, run one full e2e on it (desktop lock or the laptop runner). On a pass (Michael
+2026-10-22 "One PR per batch"): one commit on train/<n> sets the version (npm version, one CHANGELOG heading
+"## <v> - Train <n>: <short list> (<date>, PR #<train PR>; #a, #b, ...)" with each member's entries under it), push,
+open a PR train/<n> -> master listing the members, CI, gh pr merge --merge, tag, move dev once. The member PRs show as
+merged because their heads are in master; close any that don't with a comment naming the train PR.
+Train 1 order: #105, #108 (protocol 28, already set), #99 (renumber to 29), #109. #110 waits for #103, then a train.
 
 ## Known
 - e2e-netmove doorPeek fails on master-based branches until CT Core's remote-feet fix (e4d85253, on ct-prototype)
