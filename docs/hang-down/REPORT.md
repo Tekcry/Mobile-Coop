@@ -13,7 +13,8 @@ The co-op hang-down's hanging player can now act, as in CT 1.5 Drop Line (levels
 - **Sidearm** (A6): LT draws the pistol one-handed and aims it upside down (the inverted pipe's aim band and spread),
   never the rifle; RT fires; RB while aiming is the jammer (G212); the camera frames the hanging head.
 - **KO by default** (A4): the holder pulling up or letting go (or the hold lost) while a guard is held knocks him out.
-- The hack in reach is now the menu's hold row while hanging (A1); lowering / pull-up keep the old direct press.
+- The hack in reach: A uses it directly while hanging with no guard there (A9, fix round); by a guard it is a row of
+  the hold-A menu (A1); lowering / pull-up keep the old direct press.
 - Joiner as the hanger (A7), no wire change: the hanger's MoveState stays `boost` + `HANG_SUB`; the host keeps a
   hanging client's seized guard (no `TD_MAX` let-go) and holds him lifted under its head (`net/hangHold.ts`), allows the
   drawn pistol (`hostHandsFree`) and a shot origin up to 2.2 m under the turned-over root (`checkShot` `under`).
@@ -48,8 +49,6 @@ The co-op hang-down's hanging player can now act, as in CT 1.5 Drop Line (levels
 No wire change; `PROTOCOL_VERSION` stays 31 (asserted in `tests/hangDownNet.test.ts`). 34 (reserved) is not used.
 
 ## Open items / polish list
-- The e2e-coop "hang-down" section is unrun: it may need a fix round on its first laptop run (the mezzanine lip spot,
-  timings under load).
 - Animation (A8): the hands go to the guard's neck by the reach IK only; the upside-down grab, choke and neck snap need
   their own poses (team-pose / graph files belong to another agent). The pistol aim upside down uses the generic aim
   with the world-space aim (no `pipeInv` one-handed grip channel: the graph keys it on the traverse pose).
@@ -57,6 +56,28 @@ No wire change; `PROTOCOL_VERSION` stays 31 (asserted in `tests/hangDownNet.test
   hanger shows no hands on the guard (no wire data).
 - The jammer from the hang works as on the ground (RB while aiming) but is not covered by a test.
 - The hanging player's own "inverse crouch" hide pose (CT) is not built.
+
+## Fix round (2026-10-23, laptop GPU e2e on 0578d554)
+- **e2e-coop hang-down, "the second guard offered" timeout: test bug, not a game bug.** Traced on the desktop GPU lane
+  (client takedown trace + host kill log): after the grab KO the second guard WAS offered at once, RT held started the
+  lethal `hangDown` takedown and the host killed him (melee, by the client) within 1 s. The test then waited on the
+  host for `!!e && !e.alive && !e.ko`, but `EnemyManager` drops dead entries from `enemies` the same step, so that never
+  held; its retry then waited 15 s for an offer on a dead guard. Fix (`scripts/e2e-coop.mjs`): the section logs the
+  host's kills / knockouts (`enemyMgr.onKilled`, restored after) and reads every outcome from that log; a compact
+  why-not-offered dump (`hdWhy`) on the offer waits. No unit test: the game was right (KO then the next offer is
+  already covered by `hangDownTakedown`).
+- **e2e-ctcourse:2 station 5, tap-A hack while hanging (A9, BRIEF).** The branch had moved the settled-hang hack into
+  the hold-A menu, so a held A only opened the list. Playability: hanging with no guard on offer or held, A is the
+  item's own again (`updateInteract`: a press uses it, a hold fills a hold item, the centre prompt); by a guard the
+  hold-A menu takes A (GRAB CHARACTER + the item row). `GameState.hangDirectA` is set once per step in
+  `contextMenuStep`, so one reader owns A per step, and an A still held from a list fills nothing (no double fire).
+  The hanging prompt reads "A to use what is in reach, hold A by a guard to grab". The test is unchanged.
+- Files: `src/game/gameState.ts`, `src/game/teamController.ts` (prompt), `scripts/e2e-coop.mjs`,
+  `docs/hang-down/BRIEF.md` (A9), `docs/systems/takedowns.md`, `changes/feature-hang-down.md`.
+- Tests: unit (single files) hangDown 8, hangDownTakedown 7, hangDownNet 6, takedown 18, teamMoves 24, grabMenu 3,
+  net 72 - pass; `tsc --noEmit` clean; eslint clean (gameState, teamController). e2e on the desktop heavy2 lane
+  (`E2E_GPU=1`, port 4192, `E2E_JOBS=1`, CPU ~15%): `e2e-coop` PASS (the hang-down section all ok), `e2e-ctcourse`
+  PASS (station 5: A on the panel while hanging, the grid opens).
 
 ## Changelog line
 - (hang-down) The co-op hang-down's hanging player can grab (hold A), neck-snap (RT tap / hold) and use the pistol (LT);
