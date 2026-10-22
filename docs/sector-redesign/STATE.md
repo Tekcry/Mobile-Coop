@@ -9,8 +9,11 @@
   C:/NightShift/scratch/runs/sectorredesign-b0fd3edf). Green -> PR 2 per Next 1.
 - S4 DONE (Sonnet): feature/sector-redesign-s4 @ ebbd5789 (checks/slice4-build.md). S5 DONE: -s5 @ f546db0d
   (checks/slice5-build.md). Data only, no nav code.
-- IN FLIGHT: Sonnet checker S4 + S5 -> checks/slice45-check.md (lead worktree, uncommitted); Opus E8 finisher on -e8
-  (code 378dd187 + tests b88cf04c were committed; it reviews, commits the e2e assert, writes checks/e8-cameras.md);
+- E8 DONE: -e8 @ 9fbd18c2 (checks/e8-cameras.md; 106 tests in 6 files; ricochet scratch vectors). Owes an Opus
+  checker (batch it with E9's engine part). At the S4 / S5 merge: `bulletproof: true` on every S4 camera,
+  `bulletproof: true, thermal: true` on every S5 camera, drop their side tables, extend the "campus armour ramp" test.
+  Gap (wire change): a co-op client sees no ricochet sparks for its own shot.
+- IN FLIGHT: Sonnet checker S4 + S5 -> checks/slice45-check.md (lead worktree, uncommitted);
   Opus E9-crate planner -> briefs/E9-CRATE.md (commits only that file). On resume: check each file / branch; rerun if
   missing.
 
