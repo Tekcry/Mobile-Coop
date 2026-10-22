@@ -20,7 +20,8 @@ real failures, diagnosed headless by an agent (scratch repros C:/NightShift/scra
   2.2-4.0 give ankle 4.6-4.8 N1 vs 3.9-4.5 master). Assumed decision 5 (job lead, undo: revert the metric): e2e-move's
   stop metric reads the contact point (metrics.ts contactSlide, as the e2e-anim foot lock and turn block do), the 2 cm
   bar kept, marked `(anim-natural-n1)` and listed in the PR's switched metrics (stricter: master's planner would read
-  2.6 cm). Not yet built.
+  2.6 cm). Built 2026-10-22 ~15:35 (scripts/e2e-move.mjs: heel / ball per rendered frame, contactSlide 2 cm, the
+  ankle travel printed alongside); not yet run.
 - e2e-clip "crouched holstered: arms / hands through the thighs (min -3.2 cm)": not reproduced as N1's. A headless copy
   of the limb check (crouch 3 s, stick 0.4 / 0.8 / 1.0 crouched, stop, stand) reads -2.8 cm for N1 turnRule 1, turnRule
   0 and the base-master planner alike (S4 baseline -2.6). Next: run e2e-clip on master 5220f79c and on N1 with `--log`
