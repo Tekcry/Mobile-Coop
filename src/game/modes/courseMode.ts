@@ -607,6 +607,8 @@ export class CourseMode implements GameMode {
         for (const h of this.holds) h.holders = 0;
         this.g.hud.banner('RESTART', bay.id, 2000);
         this.g.scheduleRespawn(this.checkpointPos(), 0.5);
+        // (marlow-final) no pass zone fires on the old positions before both players are back at the checkpoint
+        this.ct?.holdZones(2);
         break;
       case 'gateOpened':
         this.isolatorEdge(e.gate, false);

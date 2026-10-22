@@ -284,6 +284,13 @@ export class CtDevices {
   private nv = false;
   private lamp: InstancedMesh | null = null;
   private zoneSet = new Set<string>();
+  /** (marlow-final) Seconds the pass zones stay shut after a bay restart (`holdZones`). */
+  private zoneHoldT = 0;
+
+  /** (marlow-final) Shut the pass zones for `seconds` (a bay restart: the players are still at their old positions). */
+  holdZones(seconds: number): void {
+    this.zoneHoldT = Math.max(this.zoneHoldT, seconds);
+  }
   /** (fix round 1) Per pass zone with a hallway rule: each player's hallway state (zone * 2 + player), its camera. */
   private hallRun = new Uint8Array(0);
   /** (fix round 2) Per zone and player: seconds left of the sent-back hold (`HALL_BACK_HOLD`, the client only). */
@@ -795,6 +802,12 @@ export class CtDevices {
     // pass zones: both (or the solo player; N1: one player in an `any` zone) inside sets the flag; (B8) a bay restart
     // that cleared the flag re-arms it
     if (this.hooks.has) rearmZones(this.zoneSet, this.zones, this.hooks.has);
+    // (marlow-final) just after a bay restart the players still stand where they were (the respawn waits 0.5 s and the
+    // client's new position reaches the host later): no zone fires on those old positions
+    if (this.zoneHoldT > 0) {
+      this.zoneHoldT -= dt;
+      return;
+    }
     const solo = !!this.hooks.solo?.();
     for (let z = 0; z < this.zones.length; z++) {
       const zone = this.zones[z]!;
