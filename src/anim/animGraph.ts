@@ -1524,10 +1524,14 @@ export class AnimGraph {
       // the left hand comes up as a guard (forward first, down last)
       src[CH.hLY] = src[CH.hLY]! + 0.15 * wHand;
       src[CH.hLZ] = src[CH.hLZ]! + 0.3 * wFwd;
-      const turn = 0.22 * wWind - 0.4 * wStrike;
-      src[CH.pelYaw] = src[CH.pelYaw]! + turn * 0.4;
-      src[CH.spYaw] = src[CH.spYaw]! + turn * 0.6;
-      src[CH.hdYaw] = src[CH.hdYaw]! - turn * 0.5;
+      // (anim-natural N4c, AUDIT row 49) a Wren rig's hip and trunk turn is the rig's strike body layer (strikeBody.ts,
+      // after the keyed trunk, which wiped this turn: 0.8 deg of shoulder turn); every other rig keeps this one
+      if (!this.wrenReady) {
+        const turn = 0.22 * wWind - 0.4 * wStrike;
+        src[CH.pelYaw] = src[CH.pelYaw]! + turn * 0.4;
+        src[CH.spYaw] = src[CH.spYaw]! + turn * 0.6;
+        src[CH.hdYaw] = src[CH.hdYaw]! - turn * 0.5;
+      }
       src[CH.pelY] = src[CH.pelY]! - 0.015 * wStrike;
     }
 

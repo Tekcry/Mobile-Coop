@@ -67,6 +67,15 @@ import {
   type ScannerDef,
 } from './scanners';
 import { cameraOff } from './course/securityRoom';
+import {
+  PANEL,
+  PANEL_LED_PART,
+  PANEL_PART,
+  laserLive,
+  panelLed,
+  panelTarget,
+  type LaserPanelDef,
+} from './laserPanels';
 
 /** The host's device state for the clients (a field of the `course` / `sector` message): camera clocks, who jams what,
  *  each jammer's use and cooldown, the devices' jam timelines, alarm stage. */
@@ -132,7 +141,32 @@ interface LaserRt {
   def: LaserDef;
   meshes: InstancedMesh[];
   on: boolean;
+  /** (sector-fixes P) Switched off for good by its `offFlag` (a release switch), refreshed in `applyJam`. */
+  off: boolean;
+  /** (sector-fixes P) The panel that powers it (null: none, always powered and never jammable). */
+  panel: PanelRt | null;
 }
+
+/** (sector-fixes P) A laser power panel: its jam target, the lasers it powers, its meshes and status LED. */
+interface PanelRt {
+  def: LaserPanelDef;
+  dv: DevRt;
+  lasers: LaserRt[];
+  meshes: InstancedMesh[];
+  led: InstancedMesh | null;
+  /** The LED state last shown (`panelLed`; -1 none yet). */
+  ledK: number;
+}
+
+/** (sector-fixes P) Panel colours: housing, door, seams, conduit; the LED by state (dark, on, jammed, dim, rebooting). */
+const PANEL_HOUSING = '#3b4248';
+const PANEL_DOOR = '#4a535a';
+const PANEL_SEAM = '#15191c';
+const PANEL_CONDUIT = '#5d656c';
+const PANEL_TAG = '#c9a227';
+const LED_COL: readonly Color4[] = [new Color4(0.06, 0.06, 0.06, 1), new Color4(0.2, 1, 0.35, 1), ON, ON_DIM, BUSY];
+/** The LED's glow (`pattern.w`, render only) by state: lit states glow, dark and the blink's dim half do not. */
+const LED_GLOW: readonly number[] = [0, 0.55, 0.8, 0, 0.6];
 
 /** (marlow-jammer) One jam target: its pick record, its jam timeline and the device it drives. */
 interface DevRt {
@@ -177,10 +211,12 @@ export interface CtHooks {
 export class CtDevices {
   readonly cams: CameraUnit[] = [];
   readonly lasers: LaserRt[] = [];
+  /** (sector-fixes P) The lasers' power panels (the lasers' jam targets). */
+  private readonly panels: PanelRt[] = [];
   /** The jam targets that are live (Sector Ops: only the live section's devices). */
   readonly targets: JamTarget[] = [];
   private readonly allTargets: JamTarget[] = [];
-  /** (marlow-jammer) Every jam target's runtime (cameras, lasers, lights) and by id. */
+  /** (marlow-jammer) Every jam target's runtime (cameras, lights; sector-fixes P: the lasers' power panels) and by id. */
   private readonly devs: DevRt[] = [];
   private readonly devOf = new Map<string, DevRt>();
   /** (marlow-jammer) The jammer's HUD line (use left, cooldown) and its last text. */
@@ -292,12 +328,21 @@ export class CtDevices {
       const b = g.ballistics;
       this.cue = new CameraCueView(g.scene, this.cams, (a, z, m) => b.hitDistance(a, z, m), g.app.quality.level.minimal);
     }
-    for (const def of lay.lasers ?? []) {
-      const l: LaserRt = { def, meshes: this.buildBeams(def), on: true };
-      this.lasers.push(l);
-      const base = def.floorY ?? 0;
-      const ym = def.ys.reduce((a, b) => a + b, 0) / Math.max(1, def.ys.length);
-      this.addDev({ id: def.id, kind: 'laser', x: (def.x1 + def.x2) / 2, y: base + ym, z: (def.z1 + def.z2) / 2 }, null, l, null);
+    // (sector-fixes P, A1) the lasers are no jam targets themselves: their power panels are (undo: an addDev per laser,
+    // kind 'laser', at the band's middle, and `applyJam` reading that device's phase)
+    for (const def of lay.lasers ?? []) this.lasers.push({ def, meshes: this.buildBeams(def), on: true, off: false, panel: null });
+    const at = { x: 0, y: 0, z: 0 };
+    for (const def of lay.laserPanels ?? []) {
+      panelTarget(def, at);
+      const dv = this.addDev({ id: def.id, kind: 'panel', x: at.x, y: at.y, z: at.z }, null, null, null);
+      const p: PanelRt = { def, dv, lasers: [], meshes: [], led: null, ledK: -1 };
+      for (const l of this.lasers) {
+        if (!def.lasers.includes(l.def.id)) continue;
+        l.panel = p;
+        p.lasers.push(l);
+      }
+      this.buildPanel(p);
+      this.panels.push(p);
     }
     // (marlow-jammer, item 8) the map's fixed electric lamps are jam targets too (id `lt-<registry id>`, the same on both
     // pages: both build the level's lights in the same order)
@@ -318,11 +363,57 @@ export class CtDevices {
     (window as unknown as { __ctdev?: unknown }).__ctdev = this;
   }
 
-  private addDev(t: JamTarget, cam: CameraUnit | null, laser: LaserRt | null, light: LightDef | null): void {
+  private addDev(t: JamTarget, cam: CameraUnit | null, laser: LaserRt | null, light: LightDef | null): DevRt {
     const dv: DevRt = { t, d: newDevJam(), cam, laser, light, lastPh: DEV_IDLE, idleFor: Infinity };
     this.devs.push(dv);
     this.devOf.set(t.id, dv);
     this.allTargets.push(t);
+    return dv;
+  }
+
+  /**
+   * (sector-fixes P) A panel's meshes (render only, no collision: gameplay reads the jam point, never these): a box
+   * housing on its wall, a door plate with its seam and hinge, a label strip, a conduit up and the status LED. The
+   * housing parts are named `PANEL_PART` (electro paints them, gameState `paintElectro`); the LED keeps its own glow.
+   */
+  private buildPanel(p: PanelRt): void {
+    const parts = this.g.world.parts;
+    const def = p.def;
+    // facing (sin yaw, cos yaw); the mesh's local +x after `rotation.y = yaw` is (cos yaw, -sin yaw)
+    const fx = Math.sin(def.yaw);
+    const fz = Math.cos(def.yaw);
+    const put = (hex: string, name: string, lx: number, ly: number, lz: number, sx: number, sy: number, sz: number): InstancedMesh => {
+      const m = parts.instance('box', hex, name);
+      m.scaling.set(sx, sy, sz);
+      m.position.set(def.x + fz * lx + fx * lz, def.y + ly, def.z - fx * lx + fz * lz);
+      m.rotation.y = def.yaw;
+      m.isPickable = false;
+      p.meshes.push(m);
+      return m;
+    };
+    const { w, h, d } = PANEL;
+    put(PANEL_HOUSING, PANEL_PART, 0, 0, d / 2, w, h, d);
+    put(PANEL_DOOR, PANEL_PART, 0, -0.01, d + 0.004, w - 0.06, h - 0.07, 0.008);
+    put(PANEL_SEAM, PANEL_PART, w / 2 - 0.04, -0.01, d + 0.009, 0.006, h - 0.09, 0.004);
+    put(PANEL_SEAM, PANEL_PART, -(w / 2 - 0.035), -0.01, d + 0.009, 0.012, h - 0.11, 0.004);
+    put(PANEL_TAG, PANEL_PART, -0.04, -h / 4, d + 0.009, 0.14, 0.035, 0.004);
+    put(PANEL_CONDUIT, PANEL_PART, -0.1, h / 2 + 0.15, d / 2, 0.05, 0.3, 0.05);
+    p.led = put(PANEL_HOUSING, PANEL_LED_PART, w / 2 - 0.08, h / 2 - 0.07, d + 0.012, 0.03, 0.03, 0.014);
+    this.showPanel(p);
+  }
+
+  /** (sector-fixes P) The panel's LED from its jam timeline (render only; only on a change: no per-step writes). */
+  private showPanel(p: PanelRt): void {
+    let allOff = p.lasers.length > 0;
+    for (let i = 0; i < p.lasers.length && allOff; i++) allOff = p.lasers[i]!.off;
+    const k = panelLed(p.dv.d.ph, p.dv.d.t, this.dead.has(p.def.id), allOff);
+    if (k === p.ledK) return;
+    p.ledK = k;
+    const led = p.led;
+    if (!led) return;
+    led.instancedBuffers.color = LED_COL[k]!;
+    const pt = led.instancedBuffers.pattern as Vector4 | undefined;
+    if (pt) pt.w = LED_GLOW[k]!;
   }
 
   private buildScan(def: ScannerDef, ax: number, az: number, bx: number, bz: number): ScanRt {
@@ -462,6 +553,8 @@ export class CtDevices {
     this.dead.clear();
     for (const c of this.cams) if (c.def.section !== undefined && c.def.section !== section) this.dead.add(c.def.id);
     for (const l of this.lasers) if (l.def.section !== undefined && l.def.section !== section) this.dead.add(l.def.id);
+    // (sector-fixes P) a panel of a section that is not live is dark like its lasers, and no jam target
+    for (const p of this.panels) if (p.def.section !== undefined && p.def.section !== section) this.dead.add(p.def.id);
     this.targets.length = 0;
     for (const t of this.allTargets) if (!this.dead.has(t.id)) this.targets.push(t);
     this.changed = true;
@@ -771,8 +864,8 @@ export class CtDevices {
 
   /**
    * Put the jam timelines on the devices (both roles). A jammed or rebooting camera is blind (mode off: no grid, no
-   * meter) and frozen (its sweep stops), its LED flashing while jammed; a jammed or rebooting laser is off; a jammed
-   * light follows `lightLit` in the registry, which the bake, the light meter and the guards read (light parity).
+   * meter) and frozen (its sweep stops), its LED flashing while jammed; a laser whose power panel is jammed or rebooting
+   * is off, the panel's LED showing it (sector-fixes P); a jammed light follows `lightLit` in the registry, which the bake, the light meter and the guards read (light parity).
    */
   private applyJam(): void {
     const shared = this.hooks.hasShared ?? this.hooks.has;
@@ -801,12 +894,14 @@ export class CtDevices {
     }
     for (let i = 0; i < this.lasers.length; i++) {
       const l = this.lasers[i]!;
-      const off = l.def.offFlag !== undefined && !!shared?.(l.def.offFlag);
-      const on = !off && this.devOf.get(l.def.id)?.d.ph === DEV_IDLE && !this.dead.has(l.def.id);
+      l.off = l.def.offFlag !== undefined && !!shared?.(l.def.offFlag);
+      // (sector-fixes P) powered by its panel: off while the panel is jammed or rebooting
+      const on = laserLive(l.panel ? l.panel.dv.d.ph : -1, this.dead.has(l.def.id), l.off);
       if (on === l.on) continue;
       l.on = on;
       this.showLaser(l);
     }
+    for (let i = 0; i < this.panels.length; i++) this.showPanel(this.panels[i]!);
     const reg = this.g.world.level.lights;
     for (let k = 0; k < this.devs.length; k++) {
       const dv = this.devs[k]!;
@@ -861,7 +956,7 @@ export class CtDevices {
     const raised = this.raiseAlarm(`${l.label ?? 'Laser'} tripped`);
     if (this.time - this.radioT > 6) {
       this.radioT = this.time;
-      this.hooks.say(raised ? `${l.label ?? 'Laser'} tripped: alarm stage ${this.alarm}. Night vision shows the beams; jam it with the pistol.` : `${l.label ?? 'Laser'} tripped again. Night vision shows the beams.`);
+      this.hooks.say(raised ? `${l.label ?? 'Laser'} tripped: alarm stage ${this.alarm}. Jam its power panel (electro shows it).` : `${l.label ?? 'Laser'} tripped again. Night vision shows the beams.`);
     }
   }
 
@@ -1033,7 +1128,9 @@ export class CtDevices {
       hallHold: [...this.hallHold],
       pick: this.localPick,
       cams: this.cams.map((c) => ({ id: c.def.id, mode: c.mode, yaw: c.yaw, pitch: c.pitch, range: c.range, clock: c.clock, frozen: c.frozen, jam: c.jam, live: this.live(c.def.id), stage: [...c.meters.values()].map((m) => m.stage), meter: [...c.meters.values()].map((m) => m.meter) })),
-      lasers: this.lasers.map((l) => ({ id: l.def.id, on: l.on, live: this.live(l.def.id) })),
+      lasers: this.lasers.map((l) => ({ id: l.def.id, on: l.on, live: this.live(l.def.id), panel: l.panel?.def.id ?? '' })),
+      // (sector-fixes P) each power panel: its jam phase (0 idle, 1 jammed, 2 rebooting), LED (laserPanels LED_*), lasers
+      panels: this.panels.map((p) => ({ id: p.def.id, ph: p.dv.d.ph, t: p.dv.d.t, led: p.ledK, live: this.live(p.def.id), lasers: p.lasers.map((l) => l.def.id), at: [p.dv.t.x, p.dv.t.y, p.dv.t.z] })),
       live: this.liveSection,
       range: CAMERA.range,
       cue: this.cue?.debug() ?? [],
@@ -1067,6 +1164,8 @@ export class CtDevices {
     this.cue?.dispose();
     this.cue = null;
     for (const l of this.lasers) for (const m of l.meshes) m.dispose();
+    for (const p of this.panels) for (const m of p.meshes) m.dispose();
+    this.panels.length = 0;
     this.lasers.length = 0;
     this.lamp?.dispose();
     this.lamp = null;

@@ -616,6 +616,39 @@ console.log('sector ops: co-op client mirrors the live section');
     await until(B, () => !!window.__ctdev && window.__ctdev.debug().role === 'client', null, 15000, 'the client builds its device mirror');
     await until(B, () => window.__ctdev.debug().live === 0, null, 15000, 'the client knows section 1 is live');
     assert(await devOk(B, 0), `the client: only section 1's devices work (${JSON.stringify(await GB(() => window.__ctdev.debug().cams.map((c) => [c.id, c.live, c.mode])))})`);
+    // (sector-fixes P) the lasers' power panels: every laser has one; a dead section's panel is dark. The host, on the
+    // workshop catwalk (the panel's vantage), jams the workshop panel: the workshop band goes off on both pages for the
+    // jam and its reboot, then comes back. The host's intent is forced (the trigger's aim and line of sight are the
+    // unit test's and e2e-ctcourse station 4's); the jam rules, the wire and the client mirror run as in play.
+    const pan = await GB(() => window.__ctdev.debug());
+    assert(pan.lasers.every((l) => l.panel !== '') && pan.panels.length === 4, `every laser has its power panel (${JSON.stringify(pan.lasers)})`);
+    assert(pan.panels.every((p) => (p.live ? p.led === 1 : p.led === 0)), `live panels are lit, dead ones dark (${JSON.stringify(pan.panels)})`);
+    assert(!(await GA(() => window.__ctdev.targets.some((t) => t.id.startsWith('laser-')))), 'the beams are no jam targets (the panels are)');
+    await GA(() => {
+      const g = window.__app.current;
+      g.player.controller.teleport(new g.player.position.constructor(10.5, 3.0, -9.55), -Math.PI / 2);
+      const d = window.__ctdev;
+      d.__forceJam = 'panel-workshop';
+      if (!d.__jamHook) {
+        d.__jamHook = true;
+        const step = d.localStep.bind(d);
+        d.localStep = (dt, held) => {
+          step(dt, held);
+          if (d.__forceJam) {
+            d.want[0] = d.__forceJam;
+            d.wantAt[0] = d.time;
+          }
+        };
+      }
+    });
+    const ws = (P) => P.evaluate(() => { const d = window.__ctdev.debug(); return [d.lasers.find((l) => l.id === 'laser-workshop').on, d.panels.find((p) => p.id === 'panel-workshop').ph]; });
+    await until(A, () => window.__ctdev.debug().jam[0] === 'panel-workshop', null, 15000, 'the host jams the workshop panel from the catwalk');
+    await until(A, () => !window.__ctdev.debug().lasers.find((l) => l.id === 'laser-workshop').on, null, 8000, 'the panel jam cuts the workshop band (host)');
+    await until(B, () => { const d = window.__ctdev.debug(); return !d.lasers.find((l) => l.id === 'laser-workshop').on && d.panels.find((p) => p.id === 'panel-workshop').ph === 1; }, null, 8000, 'the client sees the panel jammed and the band off');
+    assert((await ws(B))[0] === false && (await GB(() => window.__ctdev.debug().lasers.find((l) => l.id === 'laser-deck').on)) === true, 'the plant deck band (its own panel) stays on');
+    await GA(() => { window.__ctdev.__forceJam = ''; });
+    await until(A, () => window.__ctdev.debug().lasers.find((l) => l.id === 'laser-workshop').on, null, 10000, 'after the reboot the workshop band is back (host)');
+    await until(B, () => window.__ctdev.debug().lasers.find((l) => l.id === 'laser-workshop').on, null, 10000, 'after the reboot the workshop band is back (client)');
     const locks = () => GA(() => window.__app.current.world.doors.list.filter((d) => d.anchor.locked).map((d) => d.index).join(','));
     const lk0 = await locks();
     await until(B, (k) => window.__app.current.world.doors.list.filter((d) => d.anchor.locked).map((d) => d.index).join(',') === k, lk0, 15000, 'the client mirrors the locked doors');

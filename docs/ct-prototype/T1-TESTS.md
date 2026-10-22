@@ -18,5 +18,5 @@ Not touched: e2e-kestrel, e2e-editor (off-limits), e2e-camera-bounds level U (pr
 
 ## Possible real bugs (not fixed, game code untouched)
 1. World prompts for ledge grab, ledge "Hang" (drop), and rappel read empty / the `.wp-vault` element does not show in those spots, while ladder ("Climb") and vent ("Kick vent") prompts show. The hints are right. Likely `project()` off-screen after the F1a camera shift, or a prompt-label regression: check in play.
-2. Keyboard: Space then E held at a vent did not start the unscrew in the harness (pad equivalent works). Check by hand.
+2. Keyboard: Space then E held at a vent did not start the unscrew in the harness (pad equivalent works). Check by hand. Fixed (vent-kick, 2026-10-22): a game bug, the kick was decided 33 ms after the Space press unless E was already down; the keyboard checks run again.
 3. Brace / boost: the pad press that started brace in anim-audit (Y, then RB tried) did not start a brace; confirm the co-op stack still works in play.

@@ -1,5 +1,69 @@
 # Changelog
 
+## 4.59.0 - Train 9: Sector Ops laser panels, hand swap and elbow strike, vent kick, touch and GPU test fixes (2026-10-22, PR #151; #136, #139, #141, #148, #147)
+
+### anim-natural N4c: hand swap and elbow strike
+- Hand swap (the left-shoulder aim swap and the left wall end with the gun out, AUDIT row 29): the gun now passes low
+  across the chest, under the chin, muzzle forward-down, instead of swinging round the head. Mid-swap the sight lets go
+  of the eye and the aim pitch, the body clearance push is eased (no centre-line pop: largest grip step per frame 28-41
+  cm -> 9-12 cm). `src/anim/handSwapPath.ts` (`HAND_SWAP` drop 0.12 m, forward 0.3 m, aimed only).
+- Elbow strike and the lethal takedown blow (AUDIT row 49) drive from the hips and trunk: the wind-up loads the hips
+  and rear shoulder, the hips lead the shoulders by about 3 frames through about 32 deg of turn (was 0.8; the keyed idle
+  trunk wiped the graph's turn every frame), the weight shifts onto the lead foot, the head stays on the target. Wren
+  rigs only (local and co-op partner); guards unchanged. `src/anim/strikeBody.ts` (`STRIKE_BODY`).
+- Elbow strike, faster arm (Michael M1): the strike plays its arc warped onto the hit, so the elbow lands as the
+  knockout resolves (`STRIKE.hitAt` 0.08 s unchanged; hand across by 0.1 s, was 0.37 s), the hips and shoulders drive
+  through first, and the follow-through and return fill the rest of the 0.68 s. Same on a co-op partner (the wire keeps
+  the raw phase; both sides warp). `strikeWarp` in `src/anim/strikeBody.ts`; the lethal takedown blow and the grab kill
+  are unchanged.
+- Tuner: Gun slider "Gun drop changing hands" (`swapDropMul`) and a new "Elbow strike" section (turn, hips lead,
+  weight shift); all bake (`tuneBakeTable.ts`).
+
+### GPU test fixes 3
+- Tests: e2e-menus' touch block holds the finger still before lifting it after the look drag. On a fast GPU the drag
+  took ~80 ms, Chrome turned it into a fling, and the pause button's first tap only cancelled the fling ("a tap on the
+  pause button pauses ((none))" on the laptop, not the desktop). The game's touch pause was never broken.
+
+### e2e-menus touch pause waits for the screen
+- e2e-menus (item 29 touch): the pause-button tap and the Resume tap wait for the screen change (3 s cap) instead of
+  reading the top screen after 4 frames; the tap is handled on a later sim step, and under the full parallel run the
+  read came first (train 9 laptop run: "a tap on the pause button pauses ((none))"). Test only, no game change.
+
+### Sector Ops laser power panels
+- (sector-fixes P, Michael item 6) Every laser has a power panel nearby, out of plain sight and hard to reach; jamming
+  the panel (the pistol jammer: 5 s at most, 5 s cooldown, stand still, a clear line) cuts every laser it powers for
+  the jam and its 1.5 s reboot. The beams themselves are no longer jam targets (A1).
+- Sector Ops: four panels. Workshop: in the office void, jammed from the catwalk through its opening. Plant deck: in the
+  slot behind the AHU, jammed round its corner from the deck's south-west corner. VNA aisle: on top of R2N, jammed from
+  R1N's top. Mezzanine (both deck lasers): under the deck behind the parts store's back shelf, jammed along the slot. A
+  panel of a section that is not live is dark like its lasers.
+- Marlow Yard station 4: the panel is high on the far side's south wall, jammed diagonally through the gap from the near
+  side's north half; the throw and the release stay the taught route. Walkthrough and spec updated.
+- The panel is a small procedural wall box (housing, door seam, hinge, label, conduit) with a status LED: green
+  powered, cyan blink jammed, amber rebooting, dark when dead or released. Electro vision highlights it.
+- The laser trip radio line now says to jam its power panel (electro shows it).
+- Co-op: the panel rides the existing jam claim and device timelines; PROTOCOL_VERSION 28 -> 29 (the jam ids name
+  panels, not lasers).
+
+### Vent unscrew on keyboard and pad
+- Keyboard: a closed vent can be unscrewed again. Space starts it as before; while Space is still held it is no kick,
+  and the hold carries on into E, so Space then E held (or Space held) unscrews quietly and a Space tap still kicks.
+  Before, the kick was decided 33 ms after the press unless E was already down, so Space then E always kicked. A jump
+  bound to a mouse button works the same.
+- Pad (Michael: "Yes, match keyboard"): the same rule. Holding Y is no kick and the hold carries on into A, so Y then A
+  held (or Y held) unscrews and a Y tap still kicks. Before, A had to be down within 33 ms of Y.
+- The tap / hold rule is a pure module (`player/ventOpen.ts`) with unit tests; e2e-traverse's keyboard vent checks run
+  again (Space, then E a few frames later: progress shows, letting go early stops it, no kick) and e2e-pad checks the
+  pad vent (Y then A held unscrews, a Y tap kicks).
+
+## 4.58.3 - Decisions G229-G269 folded from the roadmap (2026-10-22, PR #146)
+- docs/DECISIONS.md: roadmap decisions of 2026-10-21 16:10 to 2026-10-22 ~21:50 folded in as G229-G269.
+
+## 4.58.2 - GPU test waits for the tuner panel reads (2026-10-22, PR #143)
+- Tests: e2e-studio's reads of the tuner panel's effect mode and Keys readout wait 300 ms of wall time first (the
+  panel refreshes them every 250 / 100 ms; a few frames on a hardware GPU pass in ~50 ms), so the suite no longer
+  fails at a shifting spot (:755, :854) on the GPU. Software GL is unchanged apart from the waits (~3.3 s total).
+
 ## 4.58.1 - GPU test fixes: studio keyed walk and lightbake waits (2026-10-22, PR #140)
 - Tests: e2e-studio and e2e-lightbake pass on a hardware GPU (the laptop's default for logic e2e, `E2E_GPU=1`). Both
   waited a fixed number of rendered frames, which a GPU finishes in ~0.1 s: the studio's keyed-walk check now waits

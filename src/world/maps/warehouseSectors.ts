@@ -4,6 +4,7 @@ import type { LaserDef } from '../../game/jammer';
 import { S1_BOLTS } from './warehouseS1';
 import { S2_BOLTS } from './warehouseS2';
 import { S3_BOLTS } from './warehouseS3';
+import type { LaserPanelDef } from '../../game/laserPanels';
 
 /**
  * Sector Ops on the Warehouse (feature/sector-ops A12, M7, M8): three sections in a row from the Warehouse's own
@@ -223,6 +224,29 @@ export const WAREHOUSE_OPS_LASERS: LaserDef[] = [
   { id: 'laser-north-aisle', x1: -17.55, z1: 14.8, x2: -15.85, z2: 14.8, ys: [0.35, 0.9, 1.45], label: 'VNA aisle sensor', section: 1 },
   { id: 'laser-deck-stairs', x1: 22.1, z1: 12.3, x2: 23.3, z2: 12.3, ys: [0.35, 0.9, 1.45], floorY: 3.3, label: 'Stair head laser', section: 2 },
   { id: 'laser-deck-west', x1: 15.5, z1: 12.05, x2: 15.5, z2: 17.85, ys: [0.35, 0.9, 1.45], floorY: 3.3, label: 'Deck laser', section: 2 },
+];
+
+/**
+ * (sector-fixes P, item 6) The lasers' power panels, by section: each near its band but out of plain sight and hard to
+ * reach; the jammer cuts every band a panel powers (`game/laserPanels.ts`). `tests/laserPanels.test.ts` traces each one
+ * through the level's pieces: hidden from the floor round its band, jammable from the vantage named here.
+ * - workshop: in the office void (the crawl over the corridor), on its north wall 4.5 m in from the catwalk opening.
+ *   The void's east wall hides it from the workshop floor; it is jammed from the catwalk (the east ladder) through the
+ *   opening, about (10.5, 3.0, -9.55), or from inside the void.
+ * - plant deck: in the 0.75 m slot behind the AHU, on the facade's inner face. The AHU hides it from the open deck; it
+ *   is jammed round the corner from the deck's south-west corner, about (-3.6, 3.3, -17.2), west of the band
+ *   (re-merge with sector-fixes R: just west of R1's plant-room sill, x -3.2 to -2.0, which took the old spot).
+ * - VNA aisle: on top of R2N's north end (4 m up). The rack hides it from the aisle and the gangway; it is jammed from
+ *   R1N's top across the aisle (its ladder at the aisle's north end), about (-18.75, 4.0, 12.5).
+ * - mezzanine deck (both deck bands): under the deck, low on the north wall behind the parts store's back shelving
+ *   row. The deck and the shelving hide it; it is jammed along the slot behind the row from under the deck's east
+ *   half, about (19, 0, 17.4).
+ */
+export const WAREHOUSE_OPS_PANELS: LaserPanelDef[] = [
+  { id: 'panel-workshop', lasers: ['laser-workshop'], x: 3.5, y: 3.5, z: -8.95, yaw: Math.PI, section: 0, label: 'Workshop laser power' },
+  { id: 'panel-deck', lasers: ['laser-deck'], x: 2.5, y: 4.3, z: -17.85, yaw: 0, section: 0, label: 'Plant deck laser power' },
+  { id: 'panel-vna', lasers: ['laser-north-aisle'], x: -14.9, y: 4.33, z: 14.3, yaw: -Math.PI / 2, section: 1, label: 'VNA aisle sensor power' },
+  { id: 'panel-mezz', lasers: ['laser-deck-stairs', 'laser-deck-west'], x: 12, y: 1.4, z: 18, yaw: Math.PI, section: 2, label: 'Deck lasers power' },
 ];
 
 /**

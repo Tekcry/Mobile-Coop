@@ -395,14 +395,14 @@ describe('net session', () => {
     cli.toHost({ t: 'door', i: 0, crack: true });
     expect(got).toEqual([{ t: 'door', i: 0, crack: true }]);
   });
-  it('a peer on protocol version 27 is refused; version 28 joins (28 = the jam claim eye, jammer-fixes; 27 rejoin)', () => {
-    expect(PROTOCOL_VERSION).toBe(28);
+  it('a peer on protocol version 28 is refused; version 29 joins (29 = the lasers jammed at their power panels, sector-fixes P; 28 the jam claim eye)', () => {
+    expect(PROTOCOL_VERSION).toBe(29);
     const h = hub();
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const old = h.make('O');
-    old.send({ t: 'hello', v: 27, name: 'Old', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 28, name: 'Old', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(false);
-    old.send({ t: 'hello', v: 28, name: 'New', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 29, name: 'New', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(true);
   });
   it('clients ignore authority claims from non-hosts and handle the host leaving', async () => {
@@ -486,10 +486,11 @@ describe('team moves (3.2.0 phase 5)', () => {
 import { clientForcedHolster, hostDrawPhase, hostShotAllowed, hostShotWeapon, hostWeapon } from '../src/net/validate';
 import { DrawState, DRAW_TIME_PRIMARY } from '../src/weapons/drawState';
 import { MOVE_MODES, dropBadWallMove, packMoveState, sanitizeMoveState, emptyMoveState, poseFromMoveState, emptyMovePose } from '../src/player/moveState';
+import { strikeWarp } from '../src/anim/strikeBody';
 
 describe('step 09: host-authoritative drawn state (D8)', () => {
   it('protocol 7 (step 12 raised it)', () => {
-    expect(PROTOCOL_VERSION).toBe(28);
+    expect(PROTOCOL_VERSION).toBe(29);
   });
   it('(step 11) wall packs and sanitizes: `a` a segment in range, `sub` a u8', () => {
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 3, s: 2.25, sub: 1 | 2 | 64, ph: 1 };
@@ -649,7 +650,7 @@ describe('step 10: committed-move messages (A5, PLAN H3)', () => {
     expect(back.m).toBe('strike');
     expect(back.tid).toBe('e3');
     const pose = poseFromMoveState(back, 0, emptyMovePose());
-    expect(pose.melee).toBeCloseTo(0.4);
+    expect(pose.melee).toBeCloseTo(strikeWarp(0.4)); // (anim-n4c M1) the strike's phase posed warped onto the hit
     expect(pose.drawn).toBe(false);
   });
 });
@@ -674,7 +675,7 @@ describe('A3: the wall wire after the SWAT turn and the lean-out are gone (proto
   });
   it('PROTOCOL_VERSION is 17; leftHand (128) and low (64) round-trip on a wall state', async () => {
     const { PROTOCOL_VERSION } = await import('../src/net/protocol');
-    expect(PROTOCOL_VERSION).toBe(28);
+    expect(PROTOCOL_VERSION).toBe(29);
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 2, s: 1, sub: 1 | 4 | 16 | 64 | 128 };
     const back = sanitizeMoveState(JSON.parse(JSON.stringify(packMoveState(mv))), 4096, 8)!;
     expect(back.sub).toBe(1 | 4 | 16 | 64 | 128);
@@ -719,7 +720,7 @@ describe('step 13: door peek on the wire', () => {
     expect(new Set(dcr).size).toBe(dcr.length);
   });
   it('PROTOCOL_VERSION is 24', () => {
-    expect(PROTOCOL_VERSION).toBe(28);
+    expect(PROTOCOL_VERSION).toBe(29);
   });
 });
 
@@ -794,7 +795,7 @@ describe('course messages (T1b)', () => {
   });
   it('the course takes two players and the protocol was bumped', () => {
     expect(capacity('course')).toBe(2);
-    expect(PROTOCOL_VERSION).toBe(28);
+    expect(PROTOCOL_VERSION).toBe(29);
   });
   it('the ctick limiter allows 4 a second', () => {
     const l = new TickLimiter();

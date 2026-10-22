@@ -27,6 +27,7 @@ import { AttachGrips, VENT_LOWER_K } from './attachGrips';
 import { attachGripWeight, climbUpFootWeight } from './moveState';
 import { CLIMB_UP_CROUCH_K } from '../anim/clips/traverse';
 import { PipeHang, SPLIT, splitReach, WALL_JUMP, wallJumpReach, type PipeMode } from './splitJump';
+import { ventStep, type VentHold } from './ventOpen';
 import type { Player } from './player';
 import type { MoveOverride } from './playerController';
 import type { Breakables } from '../world/breakables';
@@ -43,6 +44,9 @@ export interface AttachInput {
   /** The use control (Y / E) is down, and for how long (hold to unscrew a grate). */
   useHeld: boolean;
   useHeldT: number;
+  /** (vent-kick) The jump control (Y / Space, any held source) is down: held on from the press that starts a vent, no
+   *  kick yet. */
+  startHeld: boolean;
   /** Sprint held: climb ladders / drainpipes faster. */
   sprintHeld: boolean;
 }
@@ -59,9 +63,8 @@ export function anchorFirst(r: ReachResult | null): boolean {
 }
 const isAbove = (r: ReachResult): boolean => r.entry === 'above' && r.anchor.kind === 'ledge';
 const notAbove = (r: ReachResult): boolean => r.entry !== 'above' || r.anchor.kind === 'rappel';
-/** Unscrewing a grate (s, after the hold delay) and the press length under which a press is a kick. */
-export const UNSCREW_TIME = 1.2;
-const KICK_TAP = 0.3;
+/** Unscrewing a grate (s, after the hold delay; the tap / hold classifier: `ventOpen.ts`). */
+export { UNSCREW_TIME } from './ventOpen';
 /** Hold drop this long at a hangable edge to lower into a hang (s). */
 export const LOWER_HOLD = 0.3;
 /** Lowering in from the top (turn round, step out, drop to the hands) and stepping onto a ladder from its top (s).
@@ -160,11 +163,11 @@ const angleTo = (a: number, b: number): number => Math.atan2(Math.sin(b - a), Ma
  */
 export class AttachController {
   readonly m = new AttachMachine();
-  readonly input: AttachInput = { moveX: 0, moveY: 0, camYaw: 0, dropPressed: false, dropHeld: false, dropHeldT: 0, useHeld: false, useHeldT: 0, sprintHeld: false };
+  readonly input: AttachInput = { moveX: 0, moveY: 0, camYaw: 0, dropPressed: false, dropHeld: false, dropHeldT: 0, useHeld: false, useHeldT: 0, startHeld: false, sprintHeld: false };
   /** Window glass and duct grates (set by the traversal controller's owner). */
   breakables: Breakables | null = null;
   /** Opening a duct grate: the duct, seconds since the press, and the unscrew progress 0..1 (prompt ring). */
-  vent: { duct: Duct; t: number; progress: number } | null = null;
+  vent: (VentHold & { duct: Duct }) | null = null;
   /** What traverse would attach to from the ground (prompt), refreshed with the traversal probe. */
   hint: ReachResult | null = null;
   /** A lip to lower into a hang from (the drop control held), refreshed with the probe. */
@@ -355,7 +358,7 @@ export class AttachController {
     if (a.kind === 'duct') {
       // a closed grate is opened first: a tap kicks it in, a hold unscrews it
       if (this.breakables?.isOpen(`grate:${a.id}:entry`) === false) {
-        this.vent = { duct: a, t: 0, progress: 0 };
+        this.vent = { duct: a, t: 0, progress: 0, carried: false };
         return true;
       }
       return this.attachTo(a, 0, 'side', 1, 0.55);
@@ -592,7 +595,6 @@ export class AttachController {
     if (!v) return false;
     const c = this.player.controller;
     const g = v.duct.entry;
-    v.t += dt;
     const inp = this.input;
     const key = `grate:${v.duct.id}:entry`;
     c.override = { velocity: { x: 0, z: 0 }, yaw: Math.atan2(-g.nx, -g.nz), turnRate: 10 };
@@ -601,25 +603,15 @@ export class AttachController {
       c.override = null;
       return false;
     }
-    let opened = false;
-    if (!inp.useHeld && v.t > 0.02) {
-      if (v.progress <= 0 && v.t < KICK_TAP + 0.1) {
-        this.breakables?.open(key, 'kick');
-        opened = true;
-      } else {
-        // let go mid-unscrew: stop (the progress is lost)
-        this.vent = null;
-        c.override = null;
-        return false;
-      }
-    } else if (inp.useHeldT >= KICK_TAP) {
-      v.progress = Math.min(1, (inp.useHeldT - KICK_TAP) / UNSCREW_TIME);
-      if (v.progress >= 1) {
-        this.breakables?.open(key, 'unscrew');
-        opened = true;
-      }
+    const r = ventStep(v, dt, inp.useHeld, inp.useHeldT, inp.startHeld);
+    if (r === 'stop') {
+      // let go mid-unscrew: stop (the progress is lost)
+      this.vent = null;
+      c.override = null;
+      return false;
     }
-    if (!opened) return true;
+    if (r === 'wait') return true;
+    this.breakables?.open(key, r);
     this.vent = null;
     c.override = null;
     this.attachTo(v.duct, 0, 'side', 1, 0.55);
