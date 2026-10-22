@@ -4,11 +4,18 @@
 RESUMED (~09:40, new account; session Night Shift | Guard AI Build [4656d4]). Orchestrator: train 21 = #191 S3 on
 4.69.0; S4 -> S5 -> S7 enter train 22 together once their PRs are open and the chain tip's E2E_GPU=1 pass is green;
 S4 PR based on feature/guard-ai, each PR retargeted to master after train 21.
-- S4 = PR #193 (base feature/guard-ai), head 0cb0db2c pushed.
-- Chain merge agent RUNNING (Opus): in s5 merge origin/feature/guard-ai-s4 + "revived guard keeps his post" (inherit
-  carries S5 fields); in s7 merge local feature/guard-ai-s5. Not pushed by the agent: the lead reviews, pushes, opens
-  the S5 PR (base feature/guard-ai-s4) and S7 PR (base feature/guard-ai-s5).
-- Character Build running S5 (80efb8b4, 4192) and S7 (084e373c, 4189) solo e2e, verdicts ~10:00.
+- PRs: S4 #193 (base feature/guard-ai, 0cb0db2c); S5 #195 (base feature/guard-ai-s4; b2d170de merge S4, 4d78a92a
+  revived guard keeps his post, 47347f4c fix round: posts e2e site search over the whole nav grid); S7 #196 (base
+  feature/guard-ai-s5; 958838a0 merge S5, ae1f1895 merge S5 fix = CHAIN TIP). Orchestrator told (one message).
+- Chain tip ae1f1895 E2E_GPU=1 queued with Character Build (laptop): e2e-sectorops all, e2e-stealth-ai, e2e-takedown,
+  e2e-ctcourse, e2e-ct-warehouse. Green -> one message to the orchestrator "train-ready" (train 22). Open note: A20 /
+  S7.md still say "the squad within 22 m searches until S4" (wording only).
+- Orchestrator token rules (10:05, origin/feature/menu CLAUDE.md "Token rules"): message only at PRs open /
+  train-ready / blocked / Michael needed; progress here; save + tell at ~25-30% context; no polling; merge master into
+  the chain only when it enters a train; parallel slices (S5b / S6 / S10 beside S8) up to the CPU cap.
+- Character Build solo e2e (laptop GPU): S7 084e373c ALL 10 PASS (log C:/NightShift/scratch/runs/guardais7-084e373c/).
+  S5 80efb8b4 9/10: FAIL e2e-sectorops:1 setup assert "posts: an open stretch near section 1 for the test guards"
+  (the new S5 posts block never ran before; its site search returns null) -> S5 fix round after the chain merge.
 - S8 implementer RUNNING (Opus) in ...-guard-ai-s8 on the WIP 2d3dfc51; writes slices/S8.md. Then: merge s7 into s8,
   fresh checker, PR stacked on S7.
 - Then the chain tip e2e (E2E_GPU=1: e2e-stealth-ai, e2e-takedown, e2e-sectorops, e2e-ctcourse, e2e-ct-warehouse).
