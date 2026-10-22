@@ -40,7 +40,7 @@ export const S5_GUARDS: SectorGuard[] = [
   { kind: 'officer', x: -44, z: 34.0, yaw: PI, takedownSpot: [-44, 34.5], role: 'posted', zone: 'token', squad: 2, pair: 9, reason: 'Two-person rule: neither is alone with the token' },
   { kind: 'officer', x: -42, z: 34.0, yaw: PI, takedownSpot: [-42, 34.5], role: 'posted', zone: 'token', squad: 2, pair: 8, reason: 'Two-person rule: neither is alone with the token' },
   // 11 the audit escort
-  { kind: 'officer', x: -45.2, z: 33.0, yaw: PI / 2, route: [[-45.2, 33.0], [-40.8, 36.2], [-39.0, 33.6]], waits: [4, 4, 4], takedownSpot: [-45.6, 32.6], role: 'escort', zone: 'ante', squad: 2, reason: 'Escorts the audit papers; alone at the shaft door' },
+  { kind: 'officer', x: -45.2, z: 33.0, yaw: PI / 2, route: [[-45.2, 33.0], [-40.8, 36.2], [-39.0, 33.6]], waits: [4, 4, 4], takedownSpot: [-45.4, 33.3], role: 'escort', zone: 'ante', squad: 2, reason: 'Escorts the audit papers; alone at the shaft door' },
   // 12 the front door
   { kind: 'officer', x: -44, z: 20.5, yaw: PI, takedownSpot: [-44, 20.0], role: 'door', zone: 'hall', squad: 0, reason: 'Front door, under the hall camera' },
   // 13-14 the gallery pair, opposite phases
@@ -49,7 +49,7 @@ export const S5_GUARDS: SectorGuard[] = [
   // 15 the boardroom
   { kind: 'officer', x: -53, y: Y1, z: 24, yaw: PI / 2, takedownSpot: [-53.5, 24], role: 'post', zone: 'board', squad: 3, dormant: true, reason: 'Board papers laid out for 08:00' },
   // 16-17 the CEO suite pair
-  { kind: 'officer', x: -51.6, y: Y1, z: 30.8, yaw: 0, takedownSpot: [-51.6, 30.4], role: 'post', zone: 'ceo', squad: 3, pair: 16, reason: "The CEO's safe and laptop" },
+  { kind: 'officer', x: -51.6, y: Y1, z: 30.8, yaw: 0, takedownSpot: [-50.9, 30.8], role: 'post', zone: 'ceo', squad: 3, pair: 16, reason: "The CEO's safe and laptop" },
   { kind: 'grunt', x: -51.6, y: Y1, z: 32.0, yaw: PI, takedownSpot: [-51.6, 32.4], role: 'post', zone: 'ceo', squad: 3, pair: 15, reason: "The CEO's safe and laptop" },
   // 18 the archive round
   { kind: 'grunt', x: -45, y: Y1, z: 33, yaw: 0, route: [[-45, 33], [-45, 43], [-42.2, 43], [-42.2, 33]], waits: [3, 3, 3, 3], takedownSpot: [-45, 43.3], role: 'patrol', zone: 'archive', squad: 3, reason: 'Archive round; alone in the dark stacks' },
@@ -112,9 +112,9 @@ export const S5_ROUTES: SectorDef['routes'] = [
   {
     // high (solo): the service stair to the roof, the rappel, the garden and the drawing room's door, then the stealth exit
     name: 'The service stair, the roof and the rappel',
-    pts: [[-18, 29], [-24.6, 29], [-27.0, 28.0], [-31.0, 29.0], [-33.0, 29.0], [-35.0, 37.2], [-35.0, 38.9], [-35.0, 38.9, YR], [-35.0, 37.0, YR], [-44.0, 40.0, YR], [-53.6, 43.2, YR], [-54.0, 45.4], [-63.0, 45.5], [-63.0, 42.5], [-57.0, 40.0], [-55.0, 39.5], [-51.0, 33.0], [-48.0, 33.0], [-48.0, 31.0], [-43.0, 31.0], [-43.0, 32.8], [-43.0, 35.6], [-43.0, 38.0], [-43.0, 42.2], ...S5_EXIT],
-    obj: 23,
-    climbs: [10],
+    pts: [[-18, 29], [-24.6, 29], [-27.0, 28.0], [-31.0, 29.0], [-33.0, 29.0], [-35.0, 37.2], [-35.0, 38.9], [-35.0, 38.9, YR], [-35.0, 37.0, YR], [-41.0, 35.0, YR], [-44.0, 40.0, YR], [-53.6, 43.2, YR], [-54.0, 45.4], [-63.0, 45.5], [-63.0, 42.5], [-57.0, 40.0], [-55.0, 39.5], [-51.0, 33.0], [-48.0, 33.0], [-48.0, 31.0], [-43.0, 31.0], [-43.0, 32.8], [-43.0, 35.6], [-43.0, 38.0], [-43.0, 42.2], ...S5_EXIT],
+    obj: 24,
+    climbs: [11],
   },
 ];
 

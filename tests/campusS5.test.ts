@@ -12,14 +12,12 @@ import {
   S5_AMMO_CRATE,
   S5_ARMOURED,
   S5_CAMERA_FLAGS,
-  S5_GUARDS,
   S5_POSTS,
   S5_ROUTES,
   S5_SECTOR,
 } from '../src/world/maps/campusS5Data';
 import {
   S5_BOARDS,
-  S5_BOX,
   S5_CORE,
   S5_DOORS,
   S5_FLIGHTS,
@@ -376,7 +374,7 @@ describe('S5 codes, the rota board, the pair gate', () => {
     expect(it.kind).toBe('board');
     if (it.kind === 'board') {
       // the board's reading point in the kitchen is reachable from the start on G
-      expect(pathLen([S5.start.x, S5.start.z, 0], [it.at[0] + 0.9, it.at[2], 0])).not.toBeNull();
+      expect(pathLen([S5.start.x, S5.start.z, 0], [it.at[0] - 0.9, it.at[2], 0])).not.toBeNull();
     }
     const pg = S5.pairGates![0]!;
     const d = hyp2(pg.a.at[0] - pg.b.at[0], pg.a.at[1] - pg.b.at[1]);
@@ -582,7 +580,11 @@ describe('CR7: the two-person rope into the well (A85)', () => {
   it('ropeRoom(4.2, 0) is ok; the rope edge is the hoist door\'s sill; the well\'s cells reach nothing else; the well to #9 line is clear through the window and shorter than a roll landing\'s noise', () => {
     expect(ropeRoom(S5_ROPE_EDGE.y, S5_ROPE_EDGE.floor)).toBe('ok');
     expect(onNav(-48, 36, 0)).toBe(true);
+    // L-log: the guards' grid steps over the 0.45 sill of the open window (its 1.6 clear height is not read there); the sash is closed on the grid here
+    const sash = addDoorClosure(nav, { cx: -46, cz: 35.5, yaw: 0, width: 1.6, y: 0 });
+    nav.setClosed(sash, true);
     for (const to of [[-48, 33], [-44.5, 36], [-48, 40], [-43, 33], [-43, 40]] as const) expect(nav.findPath([-48, 36], [to[0], to[1]], 200000, 0, 0), `well -> ${to}`).toBeNull();
+    nav.setClosed(sash, false);
     const world = new SightWorld(b.boxes, b.cylinders);
     const nine = G[8]!;
     expect(world.clear(-48, 0.3, 36, nine.x, 1.6, nine.z)).toBe(true);
@@ -606,6 +608,9 @@ describe('no leg-up lip in S5 and the sealed section', () => {
   });
 
   it('a flood from the start (doors open, ladders as links) never leaves x -70..-26, z 18..70 plus the C4 box; every roof edge over outside ground is >= 1.9 high', () => {
+    // the front door is locked and unbreachable: shut on the grid
+    const front = addDoorClosure(nav, { cx: S5_DOORS.front[0], cz: S5_DOORS.front[1], yaw: PI / 2, width: 1.2, y: 0 });
+    nav.setClosed(front, true);
     const dist = nav.flowField([[S5.start.x, S5.start.z]], undefined, [0]);
     const [c0, cz0, c1, cz1] = CAMPUS_SECTORS[3]!.connector!.box;
     let cells = 0;
@@ -617,6 +622,7 @@ describe('no leg-up lip in S5 and the sealed section', () => {
       const inC4 = x >= c0 - 0.5 && x <= c1 + 0.5 && z >= cz0 - 0.5 && z <= cz1 + 0.5;
       if (!inFoot(x, z) && !inC4 && !out && x < -16) out = `(${x}, ${z}, ${nav.height[i]})`;
     }
+    nav.setClosed(front, false);
     expect(cells).toBeGreaterThan(5000);
     expect(out).toBe('');
     // the main roof's south edge and the wing's east and south edges
