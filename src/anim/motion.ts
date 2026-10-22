@@ -107,6 +107,13 @@ export const WALK_STEP = { k: 0.2, to: 2.1, blend: 3.0 } as const;
 export const GLIDE_STEP = { lat0: 0.075, latK: 0.05, back: 0.35, fwd0: 0.25, fwdK: 0.15 } as const;
 
 /**
+ * (mocap-trial-2, strafe, BRIEF A10) The mocap strafe's side-step (m) at a pace, standing, in place of the glide's
+ * (`GLIDE_STEP.lat0 + latK x speed`), or NaN: the glide's own. `mocap.ts` sets `step` (`mocapSideStep`: NaN unless the
+ * switch is on with a strafe in the set); null until then. The crouched aimed glide keeps its shuffle (blended by the crouch).
+ */
+export const GLIDE_SIDE: { step: ((speed: number) => number) | null } = { step: null };
+
+/**
  * Step length (m) at a ground speed; a gait cycle is two steps. Side-steps are shorter (feet cannot
  * pass each other sideways, so a full-length stride would spread them ~1 m): `lateral` = |sideways
  * share of the velocity| (0..1) shortens steps to 60% at a pure strafe, with a higher cadence.
@@ -133,7 +140,10 @@ export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 
   if (g <= 0) return old * TUNE_CUR.strideMul;
   const fwd = base + (Math.min(base, GLIDE_STEP.fwd0 + GLIDE_STEP.fwdK * v) - base) * g;
   const l2 = lateral * lateral;
-  const side = Math.min(fwd, GLIDE_STEP.lat0 + GLIDE_STEP.latK * v);
+  // (mocap-trial-2, strafe) the mocap strafe's side-step standing (GLIDE_SIDE; NaN: the glide's, as before)
+  const sideG = GLIDE_STEP.lat0 + GLIDE_STEP.latK * v;
+  const sideM = GLIDE_SIDE.step === null ? Number.NaN : GLIDE_SIDE.step(v);
+  const side = Math.min(fwd, !Number.isNaN(sideM) ? sideG + (sideM - sideG) * (1 - Math.max(0, Math.min(1, crouch))) : sideG);
   const step = (fwd + (side - fwd) * l2) * (1 - GLIDE_STEP.back * back * back);
   return (old + (step - old) * g) * TUNE_CUR.strideMul;
 }
