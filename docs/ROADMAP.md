@@ -24,6 +24,7 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
    section 11 "solo first" vs G2 (co-op only); the story's 16 guards vs the cap of 9.
 
 ## Decided (Michael, 2026-10-22 ~11:15 unless dated)
+- Idle shins (2026-10-22 ~14:35, #103's baked idle trackMul 0.05 overlaps the shins ~1.2 cm in anim-audit): "Widen just enough. They didn't clip when I viewed it though". CT Core clamps the idle track only to clearance (patch, train 4).
 - Unused clips (2026-10-22 ~14:05, N0 pass 2): slide (pose.slide) and doorway sweep (pose.check) have no trigger and are not CT moves; chose "Delete them" (Menu Notes).
 - Run twist (2026-10-22 ~13:55, CT Core N2 A1: key 0 pelvis yaw 25.5 vs ~10 at his other keys, a ~21 deg snap twice a stride): "Only fix it if it will result in a more believable, realistic, less rigid run". CT Core applies it on a branch and keeps it only if the before / after sheet reads more natural.
 - Full burn (2026-10-22 ~13:30, new account): "using this account, i want to use all available weekly tokens before the reset. make sure each 5 hour token window hits 99%". All sessions full speed with parallel agents; the orchestrator resumes them after every 5-hour reset; 97 / 98 / 99% thresholds kept (STATE "Pacing").
