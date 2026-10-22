@@ -39,6 +39,11 @@
    wire change is needed), Sonnet builds; then E8 camera flags (Opus, small); E10 after E2.
 4. When guard-ai's types reach master: merge master, CAMPUS_POSTS -> slot `post`, validatePosts in campus tests, E2 glass.
    When guard-render lands: lift the A64 cap for S4 / S5 (20 / 24 guards).
+5. Campus detail art (Michael ~10:40 "add the full detail-art lift of campus as efficiently as possible"; G278 covers
+   campusOps, ROADMAP fdf10e28) after the S4 / S5 greybox: Opus plans a shared instanced prop / material kit (reuse
+   marlow-final pieces), rule-based base dressing by room tag, hero sets only in the atrium, lab block, data hall, Old
+   House strongroom and gatehouse; Sonnet dressers in parallel; one Opus checker per batch (props keep routes / cover /
+   nav); one GPU perf pass.
 
 ## History: the 09:50 save (superseded by "Now" above)
 - feature/sector-redesign @ 22e755bf = master 4.68.0 + S2 + S3 + int (E1 keypads, E3 pair bolt / gate, E4 isolator
