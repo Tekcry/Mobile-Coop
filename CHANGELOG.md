@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased - studio-pairs (track A, AUDIT fix 12)
+- Anim Studio: the stage lights light only Wren's own meshes, so the guard in the hold pairs (and the props) no longer
+  turn white under them; he reads by the room's light as in game.
+- Anim Studio pairs: the puppets stay on their full-detail model for the whole loop (a distance swap mid-loop could
+  blank a puppet for a moment while the new model's shaders compiled). Test hook `__studioStage.puppets()`.
+- Anim Studio (GPU round): a shared part base pushed into a stage light's list later (the anim audit's pair rows did)
+  is dropped again within a second and the parts it lit recompile, so the hold pairs' guard no longer turns white after
+  a team pair has played. `__studioStage.puppets()` also gives `lodName` (`lod` 1 is LOD0).
+
 ## 4.57.0 - Train 6: body recoil and wall block, every tuner slider bakes, Sector Ops cameras, lasers and lights, steady heap tests, merge-train script (2026-10-22, PR #133; #123, #128, #129, #127, #122, #131)
 
 ### Process: changelog fragments and a merge-train script
