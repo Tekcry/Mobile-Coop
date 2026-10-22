@@ -1,6 +1,6 @@
 // Controller-only navigation test: every step uses the fake gamepad, never the screen.
 // Run against `npm run preview` (default http://localhost:4173/).
-import { launch, openPage, press, stick, frames, BTN, focusedText, focusTo, assert } from './e2e-lib.mjs';
+import { launch, openPage, press, pressPair, stick, frames, BTN, focusedText, focusTo, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const { browser, page, errors } = await launch({ url });
@@ -776,17 +776,19 @@ try {
       assert((await pad()).zoom.length === 0, 'X clears the focused slot (R3 off Zoom)');
       // A, then R3: draw / holster moves from X to R3
       await focusSlot('draw:0');
-      await press(P, BTN.A);
-      const listening = await G((p) => document.querySelector(`${p} .pad-key[data-bind="draw:0"]`).classList.contains('listening'), panel);
-      await press(P, BTN.RS);
+      // (load-latent-ui1) A and R3 in one evaluate (pressPair): the capture's 5 s timeout is wall clock and under CPU load
+      // press(A) + a read + press(R3) ran past it. The listening state is the one recorded the frame after A
+      const pr = await pressPair(P, BTN.A, BTN.RS, () => document.querySelector('.controls-screen .tab-panel.active .pad-key[data-bind="draw:0"]')?.classList.contains('listening') ?? false);
+      const listening = pr.first === true;
       let v = await view();
       const lab = await G((p) => document.querySelector(`${p} .pad-key[data-bind="draw:0"]`).textContent, panel);
       assert(listening && JSON.stringify((await pad()).draw) === '[11]' && lab === 'R3' && v.rows === '' && !v.cap, `A then R3 rebinds draw (${lab}, conflicts "${v.rows}")`);
       // (G22, MD13) a capture is cancelled by Menu / Start (the screen stays, the overlay goes, nothing binds)
       await focusSlot('draw:1');
-      await press(P, BTN.A);
-      const ov = await G(() => ({ o: !!document.querySelector('.cap-overlay'), n: document.querySelector('.cap-overlay .cap-count')?.textContent }));
-      await press(P, BTN.START);
+      // (load-latent-ui1) A and Start in one evaluate: the overlay's countdown is wall clock and a read after press(A)
+      // came seconds late under CPU load; the overlay is the one recorded the frame after A
+      const prS = await pressPair(P, BTN.A, BTN.START, () => ({ o: !!document.querySelector('.cap-overlay'), n: document.querySelector('.cap-overlay .cap-count')?.textContent }));
+      const ov = prS.first ?? {};
       await P.waitForFunction(() => !window.__app.input.gamepad.capturing, null, { timeout: 8000 }).catch(() => {});
       await P.waitForTimeout(300);
       v = await view();
@@ -880,15 +882,16 @@ try {
       assert(here.mark && here.screen, `after the play page the remap page is still on the Controls screen (${JSON.stringify(here)})`);
       // onto B (crouch): the conflict shows on both rows and in the summary; reset (confirm) restores the defaults
       await focusSlot('draw:0');
-      await press(P, BTN.A);
+      // (load-latent-ui1) A and B in one evaluate (pressPair), B only when the capture is on (a B with no capture is
+      // Back): the capture's 5 s timeout is wall clock and press(A) + a wait + press(B) ran past it under CPU load
+      const capRead = () => ({ cap: window.__app.input.gamepad.capturing, mode: window.__app.input.mode, focused: window.__app.nav.focused?.dataset?.bind ?? window.__app.nav.focused?.className });
+      let prB = await pressPair(P, BTN.A, BTN.B, capRead, { onlyIf: 'capturing' });
       // (the first pad press after the page came back to the front can be taken as the input-mode switch: one more A)
-      if (!(await P.waitForFunction(() => window.__app.input.gamepad.capturing, null, { timeout: 4000 }).then(() => true).catch(() => false))) {
-        console.log(`  (no capture after the first A: ${JSON.stringify(await G(() => ({ mode: window.__app.input.mode, focused: window.__app.nav.focused?.dataset?.bind ?? window.__app.nav.focused?.className })))}; A again)`);
+      if (!prB.pressed2) {
+        console.log(`  (no capture after the first A: ${JSON.stringify(prB.first)}; A again)`);
         await focusSlot('draw:0');
-        await press(P, BTN.A);
-        await P.waitForFunction(() => window.__app.input.gamepad.capturing, null, { timeout: 8000 }).catch(() => {});
+        prB = await pressPair(P, BTN.A, BTN.B, capRead, { onlyIf: 'capturing' });
       }
-      await press(P, BTN.B);
       v = await view();
       assert(v.rows === 'crouch,draw' && /share B/.test(v.sum) && v.screen && JSON.stringify((await pad()).draw) === '[1]', `A then B binds B (G22), warned on both rows (${JSON.stringify(v)})`);
       // Y: Reset all asks first, Cancel focused (MD18); right then A resets
