@@ -48,6 +48,16 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 - 4.59.0 merged (train 9, #151). Train 10 train/10 0c6bf0bd (#142 n4d, #145 lamp-plugin-gap): GREEN 35/35 (GPU, JOBS=3,
   wall 465 s; CPU avg 35%, GPU 3D avg 37% max 84%, RAM free min 7.4 GB; runs/train10-0c6bf0bd, load-train10.csv).
   #149 touch-fling-note: master merged in (1afdcd54), clean, waits for a later train. Slot 4192 free.
+- ~22:45-23:15: ffmpeg 9.0.2 INSTALLED on the laptop (Michael approved in this session; winget Gyan.FFmpeg; the path
+  scripts/mocap-sheets.mjs checks). Mocap sheets 8cb4d26c pushed to feature/mocap-sheets-real 04598e9a (VP9 webms
+  encoded after the run; Menu Notes fixed a stray index.md line in f0504588). vol-cone-fix round 1 pushed e4bd85ad on
+  e6e70b48 (before 533a1f30 / after db0ffadf + 3 reshot views; e2e smoke, darkness, desktop:3 pass). Train 11 d4290357
+  GREEN on code (38/39 JOBS=3, 507 s; e2e-ct fence "climbing at gear 4 rattles (0.00 m)" under load, PASS solo twice
+  at 4.00 m: a second load-sensitive check after netmove). #149 resolved against 4.60.0 (61301b1a), merged into train 11.
+  Running: vol-cone-fix round 2 (LED-only) 72102b7e on 4189 (ns-chain-1022af; runs/volcone2-*), then commit the after
+  files + sheet on 72102b7e. Round-1 untracked shots from the 4189 worktree: scratch/work/vol-cone-fix-4189-untracked.
+  Runner note: a shot script with a different version than the commit runs as an untracked copy (the runner reverts
+  tracked files); an untracked file that the target commit tracks blocks the checkout (move it aside first).
 - MONITOR RULE: never `tail -F` a file a chain appends to (it locks chain-1022.log; Add-Content fails and the chain
   dies; expired monitors leave the tail running). Poll summary.txt files instead.
 - NEXT (ask the orchestrator first): train 8 rebuild once the #119 / #135 fixes land (full GPU JOBS=3 on 4189,
