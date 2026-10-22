@@ -18,6 +18,14 @@
     MEASURE.md + one engine cut; off ctDevices.ts / securityRoom.ts (hunks for Menu Notes go to FOR-MENU-NOTES.md).
 - Guard-cap perf run (24 awake) requested on the laptop by the orchestrator; slice 4 waits on it.
 
+## Rules after the reset (Michael 01:45 "Lean windows", via the orchestrator)
+- Each 5-hour window to 99%, lean, no quality loss: no new agent at 97%, save at 98%, stop by 99%; a cron resumes the
+  session after each reset. Max 3 agents (desktop CPU).
+- Opus plans, writes strict slice briefs (exact files, line ranges, acceptance, tests), reviews, and runs every fresh
+  checker. Sonnet 5.5 builds from those briefs (section greyboxes, guard / camera / laser placement data, e2e routes);
+  Haiku 5.5 for chores. Engine work (slice L protocol 31, camera-range, slice-0 engine items) stays Opus. A failed
+  Sonnet slice gets its fix round from Opus.
+
 ## Next
 1. Slice 0 hand-back -> commit, merge slice L branch when done, full npm test (desktop at 100% CPU: send the full run
    to Character Build instead), checker.
@@ -34,7 +42,7 @@
 Night Shift | Course Ready Build: RESUME sector-redesign. Read CLAUDE.md, docs/ROADMAP.md (origin/feature/menu for the
 live "Decided"), docs/sector-redesign/BRIEF.md and this STATE (origin/feature/sector-redesign), and
 docs/marlow-bays/RESUME-trackA.md on origin/feature/marlow-bays for the other open jobs (sw-reload, g44-above,
-camera-range). Carry on from "Next". After the reset pace to ~97-99% per window, at most 3 agents (orchestrator); WIP pushed after every hand-back. Report to
+camera-range). Carry on from "Next". Follow "Rules after the reset" above; WIP pushed after every hand-back. Report to
 "Night Shift | Orchestrator".
 ```
 
