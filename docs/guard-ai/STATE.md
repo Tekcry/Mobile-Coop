@@ -1,6 +1,19 @@
 # Guard AI - state
 
 ## Now
+RESUMED (~09:40, new account; session Night Shift | Guard AI Build [4656d4]). Orchestrator: train 21 = #191 S3 on
+4.69.0; S4 -> S5 -> S7 enter train 22 together once their PRs are open and the chain tip's E2E_GPU=1 pass is green;
+S4 PR based on feature/guard-ai, each PR retargeted to master after train 21.
+- S4 = PR #193 (base feature/guard-ai), head 0cb0db2c pushed.
+- Chain merge agent RUNNING (Opus): in s5 merge origin/feature/guard-ai-s4 + "revived guard keeps his post" (inherit
+  carries S5 fields); in s7 merge local feature/guard-ai-s5. Not pushed by the agent: the lead reviews, pushes, opens
+  the S5 PR (base feature/guard-ai-s4) and S7 PR (base feature/guard-ai-s5).
+- Character Build running S5 (80efb8b4, 4192) and S7 (084e373c, 4189) solo e2e, verdicts ~10:00.
+- S8 implementer RUNNING (Opus) in ...-guard-ai-s8 on the WIP 2d3dfc51; writes slices/S8.md. Then: merge s7 into s8,
+  fresh checker, PR stacked on S7.
+- Then the chain tip e2e (E2E_GPU=1: e2e-stealth-ai, e2e-takedown, e2e-sectorops, e2e-ctcourse, e2e-ct-warehouse).
+
+(Before, at the swap:)
 SAVED at the account swap (~09:45, 2026-10-23; orchestrator: window 91%). Branch heads, all pushed:
 - feature/guard-ai (S3 radio) = PR #191, OPEN, train 21 after train 20 (#185 S2 + #186) releases. Checker PASS
   (slices/S3-CHECK.md); e2e GPU desktop 4192 all green (e2e-stealth-ai, e2e-sectorops 1-5, e2e-ct-warehouse,
