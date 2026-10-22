@@ -468,43 +468,60 @@ try {
       const t = window.__t;
       const g = window.__app.current;
       const em = g.enemyMgr;
-      t.light(1);
-      // no alarm run (Hunter would bring the doubled hostiles in hunting, and they find you)
-      em.alarmRaised = true;
-      const e = t.spawn('grunt', 0, 5, Math.PI);
-      t.tp(-0.5, 0, 0);
-      let k = 0;
-      while (!(e.alerted && em.sightT < 0.1) && k++ < 400) {
-        t.step(1 / 60);
-        g.frameUpdate(1 / 60, 1);
+      // (guard-ai chain fix) the same random draws every run (think ticks, reaction and radio jitter): unseeded, the
+      // laptop run on 62884858 missed the ghost on a build where it passed before (test code only in between)
+      const rnd = Math.random;
+      let seed = 4242;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      try {
+        t.light(1);
+        // no alarm run (Hunter would bring the doubled hostiles in hunting, and they find you)
+        em.alarmRaised = true;
+        const e = t.spawn('grunt', 0, 5, Math.PI);
+        t.tp(-0.5, 0, 0);
+        let k = 0;
+        while (!(e.alerted && em.sightT < 0.1) && k++ < 900) {
+          t.step(1 / 60);
+          g.frameUpdate(1 / 60, 1);
+        }
+        const seen = { alerted: e.alerted, level: e.level, sightT: +em.sightT.toFixed(2), lkp: em.lkpValid, frames: k, captured: g.ghost.captured };
+        const seenAt = { x: em.lkp.x, z: em.lkp.z };
+        // vanish behind the dispatch wall (out of sight, far from the last known position)
+        t.light(0);
+        t.tp(-2, -15, 0);
+        let ghost = false;
+        let searching = false;
+        let closest = 99;
+        let wallhack = false;
+        // why no ghost, if none: the first frame each condition of `updateStealthHud`'s show held
+        const why = { lost: -1, hunting: -1, lkp: -1, show: -1 };
+        for (let i = 0; i < 500; i++) {
+          // (the mode's later squads stay out of it: this is about the one guard)
+          for (const x of em.enemies) if (x !== e) x.passive = true;
+          t.step(0.05);
+          g.frameUpdate(0.05, 1);
+          if (why.lost < 0 && em.sightT > 0.6) why.lost = i;
+          if (why.hunting < 0 && em.hunting) why.hunting = i;
+          if (why.lkp < 0 && em.lkpValid) why.lkp = i;
+          if (why.show < 0 && g.ghost.show) why.show = i;
+          if (g.ghost.visible) ghost = true;
+          if (e.level === 'searching') searching = true;
+          closest = Math.min(closest, Math.hypot(e.pos.x - seenAt.x, e.pos.z - seenAt.z));
+          if (e.level === 'alert' && e.sinceSeen > 1 && Math.hypot(e.pos.x + 2, e.pos.z + 15) < 2) wallhack = true;
+        }
+        const lkpNear = Math.hypot(em.lkp.x - seenAt.x, em.lkp.z - seenAt.z);
+        // the search ends
+        for (let i = 0; i < 50; i++) t.step(1);
+        for (let i = 0; i < 5; i++) g.frameUpdate(0.2, 1);
+        t.light(null);
+        return { seen, why, lkpNear, ghost, searching, closest, wallhack, end: e.level, lkpAfter: em.lkpValid, ghostAfter: g.ghost.visible };
+      } finally {
+        Math.random = rnd;
       }
-      const seenAt = { x: em.lkp.x, z: em.lkp.z };
-      // vanish behind the dispatch wall (out of sight, far from the last known position)
-      t.light(0);
-      t.tp(-2, -15, 0);
-      let ghost = false;
-      let searching = false;
-      let closest = 99;
-      let wallhack = false;
-      for (let i = 0; i < 500; i++) {
-        // (the mode's later squads stay out of it: this is about the one guard)
-        for (const x of em.enemies) if (x !== e) x.passive = true;
-        t.step(0.05);
-        g.frameUpdate(0.05, 1);
-        if (g.ghost.visible) ghost = true;
-        if (e.level === 'searching') searching = true;
-        closest = Math.min(closest, Math.hypot(e.pos.x - seenAt.x, e.pos.z - seenAt.z));
-        if (e.level === 'alert' && e.sinceSeen > 1 && Math.hypot(e.pos.x + 2, e.pos.z + 15) < 2) wallhack = true;
-      }
-      const lkpNear = Math.hypot(em.lkp.x - seenAt.x, em.lkp.z - seenAt.z);
-      // the search ends
-      for (let i = 0; i < 50; i++) t.step(1);
-      for (let i = 0; i < 5; i++) g.frameUpdate(0.2, 1);
-      t.light(null);
-      return { lkpNear, ghost, searching, closest, wallhack, end: e.level, lkpAfter: em.lkpValid, ghostAfter: g.ghost.visible };
     });
+    assert(r.seen.alerted && r.seen.sightT < 0.1, `the guard detects the lit player in front of him (${JSON.stringify(r.seen)})`);
     assert(r.lkpNear < 1.5, `the last known position stays where the player was seen (${r.lkpNear.toFixed(2)} m off)`);
-    assert(r.ghost, 'the LKP ghost shows once they lose sight');
+    assert(r.ghost, `the LKP ghost shows once they lose sight (first frame of: ${JSON.stringify(r.why)}, captured ${r.seen.captured})`);
     assert(r.closest < 2.5, `they converge on the last known position (closest ${r.closest.toFixed(2)} m)`);
     assert(r.searching, 'they search from it');
     assert(!r.wallhack, 'they never home in on the hidden player');
