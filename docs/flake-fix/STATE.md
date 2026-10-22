@@ -3,7 +3,7 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
-**Character Build now (2026-10-22 ~18:20):**
+**Character Build now (2026-10-22 ~18:45):**
 - Verdicts sent (CT Core, Course Ready, orchestrator copied): anim-bake-all a850e103 FAIL at check
   (animSkeletonRows.test.ts:127 never-allocate, 7981152 bytes; solo fail, fail, pass; master pass 3/3: real regression).
   N4b 0a6bc567 FAIL at check (tunerLayout.test.ts: sec:cq has no tab, cq:holdTwist label 33 chars; deterministic).
@@ -25,11 +25,19 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 - Sent ~18:00-18:20: #119 N4b 1e442236 (clip "ladder down + slide" 30.1 cm FAIL, coop #125 pageerror); studio-pairs
   8091de94 GPU sheets pushed to shots/studio-pairs-8091de94 ef7fd5d2; sector-fixes L f21cc2b1 GPU shots + sheet
   pushed to feature/sector-fixes 985b0916 (e2e-darkness PASS); CT Core N2 53e6dc03 all PASS.
-- test-speed-2: feature/test-speed-2 d7571102 (master 79216e49 merged), implementer done (estimate only ~90-135 s
-  suite time; 15 min needs bigger levers, see docs/test-speed-2/STATE.md "Next"; GPU for logic suites raised with the
-  orchestrator). Proof on 4191 via chain-1022j.ps1 after the baseline: testspeed2-base-79216e49 (full, JOBS=3), then
-  testspeed2-d7571102-a (build + full) and -b (full). Compare per-suite times; then PR (tests-only tier) if green.
-- 4192 and GPU 4189 free for requests; train 6 expected ~18:45-19:15.
+- Slot rule (orchestrator ~18:45): at most ONE full run at a time; the other slots take single suites only.
+- Running (~18:45): train6-6551afe9 (train/6 full, JOBS=3, 4192). Train 6 GPU on 4189: e2e-darkness PASS, e2e-lightbake
+  FAIL ("gfx=epic&voxels=1" boot timeout 240 s, under two-full-run load). After the train: solo-rerun its failures
+  (single suites, 4192), send the verdict naming the likely member (members: #123 anim-bake-all, #128 heap-asserts,
+  #129 sector-fixes L, #127 sector-fixes C, #122 anim-n3b, #131 merge-tools, feature/menu docs).
+- chain-1022l.ps1 (waits for the train's DONE, then one after another): train6-6551afe9-gpu-solo (e2e-lightbake GPU),
+  studiopairs-63ec33ec-gpu (Course Ready audit rerun; push sheets to shots/studio-pairs-63ec33ec; pass = the four hold
+  rows show the guard in grey cloth, no orange glow, Wren's rifle dark; "1@" in labels is LOD0), gpufull-79216e49
+  (orchestrator's GPU lever: full e2e with E2E_GPU=1 alone; report wall, per-suite times, GPU-only failures),
+  testspeed2-base-79216e49 (software-GL baseline), testspeed2-d7571102-a / -b (proofs).
+- test-speed-2: feature/test-speed-2 d7571102 (master 79216e49 merged); implementer estimate only ~90-135 s suite time;
+  levers next (orchestrator): GPU for logic e2e if the experiment is fast and green, then docs/test-speed-2/STATE.md
+  "Next" (1)-(3) as measured runs; keep the wait changes.
 
 ## Done
 - 2026-10-22 ~15:20: PR #117 merged (4.54.1).
