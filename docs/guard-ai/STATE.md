@@ -8,7 +8,7 @@ SAVED at the account swap (~09:45, 2026-10-23; orchestrator: window 91%). Branch
 - feature/guard-ai-s4 (S4 awareness / caution) fd3a0018, worktree C:/NightShift/Mobile-Coop-guard-ai-s4. Built
   (slices/S4.md, A14-A16). Fresh checker was RUNNING at the swap: if slices/S4-CHECK.md is missing in the worktree /
   branch, run a fresh Opus checker (brief = the S7 checker's shape; diff 7a4167b2..fd3a0018; focus revive / inherit,
-  keys, held caution clearing). e2e (desktop 4192, E2E_GPU=1: e2e-stealth-ai, e2e-takedown, e2e-sectorops) was
+  keys, held caution clearing). e2e desktop 4192 GPU on fd3a0018: e2e-stealth-ai, e2e-takedown, e2e-sectorops 1-5 ALL PASS (09:31). (old note:
   RUNNING at the swap: log C:/NightShift/scratch/runs/guardai-s4-fd3a0018/e2e.log; if no run is alive and
   C:/NightShift/heavy2.lock still says "guard-ai S4 e2e", delete the lock and rerun.
 - feature/guard-ai-s5 (S5 posts + map data) 63047d27 (code 80efb8b4), worktree ...-guard-ai-s5. Built (slices/S5.md with the note for
