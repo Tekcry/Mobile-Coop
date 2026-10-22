@@ -453,15 +453,18 @@ try {
   const RUN_STAND = L.crabRanges(false);
   const RUN_TUNE = {
     ...RUN_STAND,
-    // (anim-bake-1022) Michael's 2026-10-22 run tune: was 0.5-1.1 (measured 0.55 / 1.2 / 1.93)
+    // (anim-bake-1022) Michael's 2026-10-22 run tune: was 0.5-1.1 (measured 0.55 / 1.2 / 1.93); (anim-run-half) the
+    // half in the pelvis yaw frame: measured 0.67 / 1.27 / 2.01, kept
     // (anim-bake-targets) Michael's 2026-10-22 tune: was min 0.5 (measured 0.49, the body.run row)
     kneeSep: { min: 0.44, max: 2.15 },
-    // (anim-bake-1022) Michael's 2026-10-22 run tune: was 0.07 (measured max 14.6 cm)
-    trackHalf: 0.16,
+    // (anim-bake-1022) Michael's 2026-10-22 run tune: was 0.07 (measured max 14.6 cm); (anim-run-half) the half in the
+    // pelvis yaw frame (+0.050, was -0.020): measured 4.2 / 7.3 / 16.4 cm (the metric reads the yawed hips): was 0.16
+    trackHalf: 0.18,
     // (anim-bake-1022) Michael's 2026-10-22 run tune: was 0.03 (measured 8.2 cm)
-    // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.09 (measured 9.7 cm, the body.run row)
+    // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.09 (measured 9.7 cm, the body.run row); (anim-run-half) the
+    // half in the pelvis yaw frame measured 4.4 cm before the body.run bake: re-measured after the merge
     kneeBow: 0.107,
-    // (anim-bake-1022) Michael's 2026-10-22 run tune: was 0.06 (measured 9.9 cm)
+    // (anim-bake-1022) Michael's 2026-10-22 run tune: was 0.06 (measured 9.9 cm); (anim-run-half) measured 9.9 cm, kept
     elbowWing: 0.11,
   };
   // (anim-bake-targets) Michael's 2026-10-22 Body tune (animBase.ts body rows: idle / walk / jog / run trackMul 0.05, the

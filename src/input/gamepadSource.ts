@@ -90,6 +90,7 @@ export class GamepadSource {
         if (i === this.activeIndex) {
           this.activeIndex = -1;
           this.state.releaseSource(SRC);
+          this.state.stick.x = this.state.stick.y = 0;
         }
         this.events.onDisconnect(id);
       }
@@ -164,6 +165,8 @@ export class GamepadSource {
       this.lookX * BASE_YAW_RATE * s.lookSensitivityX * ads * dt,
       this.lookY * BASE_PITCH_RATE * s.lookSensitivityY * ads * dt,
     );
+    this.state.stick.x = frame.stick.x;
+    this.state.stick.y = frame.stick.y;
     this.state.fireAnalog = frame.fireAnalog;
   }
 
@@ -171,6 +174,7 @@ export class GamepadSource {
    *  repeats reset); a press still makes the pad the input mode. */
   private takenByHook(pad: Gamepad, now: number): void {
     this.state.releaseSource(SRC);
+    this.state.stick.x = this.state.stick.y = 0;
     this.lookX = 0;
     this.lookY = 0;
     this.heldT = 0;
