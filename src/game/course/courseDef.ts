@@ -5,6 +5,7 @@
  */
 import { AIRLOCK_PAD_INSET, AIRLOCK_SIZE, AIRLOCK_SIZE_TOL, COURSE_TEXT_MAX } from '../../config/course';
 import type { SquadSlot } from '../../world/rooms';
+import type { SecurityConsole } from './securityRoom';
 
 /** Player index: 0 = P1 (host), 1 = P2 (client). */
 export type PlayerIdx = 0 | 1;
@@ -335,6 +336,8 @@ export interface CourseLayout {
   groups?: Record<string, number>;
   devices: Record<string, CourseDevice>;
   squads: Record<string, SquadSlot>;
+  /** (sector-fixes S) Security room consoles: usable once their guard is down (`securityRoom.ts`). */
+  consoles?: SecurityConsole[];
 }
 
 /** The ids a course layout really has (for `validateCourse`). */

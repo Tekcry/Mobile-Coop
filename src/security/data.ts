@@ -17,6 +17,8 @@ export interface CameraDevice {
   reason: string;
   /** Sector Ops: the section the camera belongs to (live only while that section is; none = always live). */
   section?: number;
+  /** (sector-fixes S) A course flag that switches the camera off until the bay restarts (a security room's console). */
+  offFlag?: string;
 }
 
 export type SecurityDevice = CameraDevice;
