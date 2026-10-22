@@ -22,7 +22,8 @@ import { buildEnemyRig } from '../ai/enemyRig';
 import { ENEMIES } from '../ai/enemyDefs';
 import { TUNE_WHO } from '../anim/tuneGuard';
 import type { WeaponModel } from '../weapons/weaponModel';
-import { stageLightMeshes } from '../anim/studio';
+import { stageLightKeep, stageLightMeshes } from '../anim/studio';
+import { LOD_NAMES } from '../operators/runtime/manifest';
 
 /** What the stage needs from the match (GameState). */
 export interface StudioHost {
@@ -127,6 +128,8 @@ export class StudioStage {
   private readonly stageP = { x: 0, y: 0, z: 0 };
   /** Her meshes the stage lights take (her own; never an instance, `stageLightMeshes`). */
   private stageSrc: AbstractMesh[] = [];
+  /** (fix 12 GPU round) A stage light's include list without the shared part bases (`stageLightKeep`; reused). */
+  private readonly stageKeep: AbstractMesh[] = [];
   // (marlow-bays item 24, track A) the guard puppet: a real guard rig (`buildEnemyRig`, guard rows on), no AI
   private puppet: CharacterRig | null = null;
   private puppetGun: WeaponModel | null = null;
@@ -160,12 +163,14 @@ export class StudioStage {
         return { x: r.position.x, y: r.position.y, z: r.position.z, yaw: r.rotation.y, viewYaw };
       },
       // (studio-pairs, AUDIT fix 12) each pair puppet's figure: the LOD shown, its meshes drawn (enabled) and whether
-      // they are ready to draw (material and shaders; false = not drawn this frame), its root
+      // they are ready to draw (material and shaders; false = not drawn this frame), its root. (fix 12 GPU round) `lod`
+      // is the LOD index (`LOD_NAMES`: 0 hero, 1 LOD0, 2 LOD1, 3 LOD2), so 1 is LOD0; `lodName` spells it out
       puppets: () =>
         (this.puppets ?? []).map((op) => {
           const ms = op.figure.renderMeshes.filter((m) => m.isEnabled());
           const r = op.rig.root.position;
-          return { lod: op.figure.current, shown: ms.length, ready: ms.length > 0 && ms.every((m) => m.isReady(true)), x: r.x, y: r.y, z: r.z };
+          const lod = op.figure.current;
+          return { lod, lodName: LOD_NAMES[lod] ?? 'none', shown: ms.length, ready: ms.length > 0 && ms.every((m) => m.isReady(true)), x: r.x, y: r.y, z: r.z };
         }),
     };
     const d = host.debug;
@@ -345,8 +350,18 @@ export class StudioStage {
         const src = stageLightMeshes(ms, []);
         this.stageSrc = src;
         for (const p of this.stageLights) {
+          this.unlight(p.includedOnlyMeshes, src);
           p.includedOnlyMeshes = src.slice();
           p.setEnabled(src.length > 0);
+        }
+      } else {
+        // (studio-pairs, AUDIT fix 12 GPU round) a shared part base pushed into a list since (the N0 audit's pair rows
+        // push `sourceMesh ?? mesh`) lit every part instance in the scene: the hold pair's guard read white on the GPU
+        // sheets. Dropped here; anything else pushed (a puppet's figure) stays
+        for (const p of this.stageLights) {
+          if (!stageLightKeep(p.includedOnlyMeshes, this.stageKeep)) continue;
+          this.unlight(p.includedOnlyMeshes, this.stageKeep);
+          p.includedOnlyMeshes = this.stageKeep.slice();
         }
       }
       this.fitStageMaterials();
@@ -365,6 +380,20 @@ export class StudioStage {
       const o = stageLightPlace(l, pos.x, pos.y, pos.z, yaw, this.stageP);
       p.position.set(o.x, o.y, o.z);
       p.intensity = l.intensity * k;
+    }
+  }
+
+  /**
+   * (studio-pairs, AUDIT fix 12 GPU round) The meshes of `old` not in `keep` lose the stage lights: their frozen
+   * materials are frozen again (`freeze` marks them dirty), so the next frame recompiles them for the lights they still
+   * take. A frozen material otherwise keeps the shader built with the stage lights' slots and only rebinds the lights
+   * left, and the slots it no longer binds read whatever light block was bound there last (her stage lights).
+   */
+  private unlight(old: readonly AbstractMesh[], keep: readonly AbstractMesh[]): void {
+    for (const m of old) {
+      if (keep.includes(m)) continue;
+      const mat = m.material;
+      if (mat?.isFrozen) mat.freeze();
     }
   }
 

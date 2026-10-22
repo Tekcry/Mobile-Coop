@@ -551,3 +551,22 @@ export function stageLightMeshes<T extends object>(ms: readonly T[], out: T[]): 
   for (const m of ms) if ((m as { sourceMesh?: unknown }).sourceMesh == null && !out.includes(m)) out.push(m);
   return out;
 }
+
+/**
+ * (studio-pairs, AUDIT fix 12 GPU round) A stage light's include list kept clean: every mesh of `list` except a shared
+ * part base (a mesh with instances) or an instance, into `out` (cleared); true when one was dropped. Her own list
+ * (`stageLightMeshes`) never holds one, but the list is a live array other code can push into: the N0 audit's pair
+ * rows push each puppet mesh's `sourceMesh ?? mesh`, the shared part bases, and the list was only rewritten when her
+ * mesh count changed, so the bases stayed through the hold rows that followed and lit the hold pair's guard (and her
+ * slung gun) white. The studio drops them on its once-a-second check; anything else pushed (a puppet's figure) stays.
+ */
+export function stageLightKeep<T extends object>(list: readonly T[], out: T[]): boolean {
+  out.length = 0;
+  let dropped = false;
+  for (const m of list) {
+    const o = m as { sourceMesh?: unknown; instances?: readonly unknown[] };
+    if (o.sourceMesh != null || (o.instances?.length ?? 0) > 0) dropped = true;
+    else out.push(m);
+  }
+  return dropped;
+}

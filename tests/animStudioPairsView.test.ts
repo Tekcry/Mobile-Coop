@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { stageLightMeshes } from '../src/anim/studio';
+import { stageLightKeep, stageLightMeshes } from '../src/anim/studio';
 import { newPairRole, pairCycle, pairPose } from '../src/anim/studioPairs';
 import { PAIR_STATION } from '../src/anim/studioTraversal';
 import { TEAM_MOVES } from '../src/anim/moveTune';
 import { pickLod } from '../src/operators/runtime/lodPick';
-import { LOD_0, LOD_1, LOD_2 } from '../src/operators/runtime/manifest';
+import { LOD_0, LOD_1, LOD_2, LOD_NAMES } from '../src/operators/runtime/manifest';
 import { PLAYER_HEIGHT } from '../src/operators/runtime/playerFigure';
 
 /** (studio-pairs, AUDIT fix 12) The Anim Studio pairs: what the stage lights take, and the puppets' LOD. */
@@ -74,5 +74,31 @@ describe('anim studio pairs: the puppets stay on one LOD through every loop', ()
     // before LOD0 loads: the loaded one, held
     expect(swaps(() => 0, 1 << LOD_2).every((r) => r.n === 0)).toBe(true);
     expect(pickLod(LOD_2, 0, false, ALL)).toBe(LOD_0);
+  });
+});
+
+describe('anim studio pairs: a stage light list stays clean of the shared part bases (fix 12 GPU round)', () => {
+  it('drops a pushed part base (it has instances) or instance, keeps her figure and a pushed puppet figure', () => {
+    const lod0 = { name: 'wren-lod0-0' };
+    const puppet = { name: 'studio-p1-lod0-0', instances: [] as unknown[] };
+    const guardTorso = { name: 'guard-torso' };
+    // the shared torso base: the guard's torso is one of its instances
+    const base = { name: 'part-torso', instances: [guardTorso] as unknown[] };
+    const inst = { name: 'studio-p1-part', sourceMesh: base };
+    // as the N0 audit's pair rows leave it: her figure, a puppet's figure and the base it pushed for a puppet part
+    const list = [lod0, puppet, base, inst];
+    const out: object[] = [{ name: 'stale' }];
+    expect(stageLightKeep(list, out)).toBe(true);
+    expect(out).toEqual([lod0, puppet]);
+    // her own list (`stageLightMeshes`) is already clean: nothing dropped, the list copied as it is
+    expect(stageLightKeep([lod0, puppet], out)).toBe(false);
+    expect(out).toEqual([lod0, puppet]);
+    expect(stageLightKeep([], out)).toBe(false);
+    expect(out).toEqual([]);
+  });
+
+  it('the puppets hook labels LOD index 1 as LOD0 (the audit label `1@8.x` is LOD0, not LOD1)', () => {
+    expect(LOD_NAMES[LOD_0]).toBe('lod0');
+    expect(LOD_0).toBe(1);
   });
 });

@@ -5,6 +5,9 @@
   turn white under them; he reads by the room's light as in game.
 - Anim Studio pairs: the puppets stay on their full-detail model for the whole loop (a distance swap mid-loop could
   blank a puppet for a moment while the new model's shaders compiled). Test hook `__studioStage.puppets()`.
+- Anim Studio (GPU round): a shared part base pushed into a stage light's list later (the anim audit's pair rows did)
+  is dropped again within a second and the parts it lit recompile, so the hold pairs' guard no longer turns white after
+  a team pair has played. `__studioStage.puppets()` also gives `lodName` (`lod` 1 is LOD0).
 
 ## 4.55.0 - Train 4: Marlow Yard security room, wheel opens on goggles, run feet no longer cross (2026-10-22, PR #121; #110, #115, #116)
 
