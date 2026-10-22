@@ -15,7 +15,7 @@ import { S1_LIGHT_PASS } from '../src/world/maps/warehouseS1';
 import { WAREHOUSE_SECTORS } from '../src/world/maps/warehouseSectors';
 import { dressingOn } from '../src/world/detailPass';
 import { canonicalLightSet } from '../src/voxel/lightShapes';
-import { bakeLamps, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE } from '../src/voxel/lampBake';
+import { bakeLamps, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE, lampColumnDist, lampPlanReach } from '../src/voxel/lampBake';
 import { bakeMoon, MOON_CELL } from '../src/voxel/skyBake';
 import { bakedLights, type LightBake } from '../src/world/lightBake';
 import { buildAmbientGrid } from '../src/world/ambientGrid';
@@ -234,16 +234,16 @@ describe('Sector Ops section 1 lamp pass (warehouse-s23)', () => {
     const cols = Math.ceil((bake.hi[0] - bake.lo[0]) / LAMP_GRID);
     const rows = Math.ceil((bake.hi[2] - bake.lo[2]) / LAMP_GRID);
     let worst = 0;
+    const reach = [0, 0, 0, 0, 0];
     for (let r = 0; r < rows; r++) {
       for (let q = 0; q < cols; q++) {
         const cx0 = bake.lo[0] + q * LAMP_GRID;
         const cz0 = bake.lo[2] + r * LAMP_GRID;
         let c = 0;
         for (let i = 0; i < n; i++) {
-          const o = i * LAMP_STRIDE;
-          const dx = Math.max(cx0 - L[o]!, 0, L[o]! - (cx0 + LAMP_GRID));
-          const dz = Math.max(cz0 - L[o + 2]!, 0, L[o + 2]! - (cz0 + LAMP_GRID));
-          if (Math.sqrt(dx * dx + dz * dz) < L[o + 3]!) c++;
+          // (the plan reach as `lampGrid` reads it: a cone's beam reaches less far than its radius)
+          lampPlanReach(L, i, reach);
+          if (lampColumnDist(L, i, reach, cx0, cz0, LAMP_GRID) >= 0) c++;
         }
         worst = Math.max(worst, c);
       }

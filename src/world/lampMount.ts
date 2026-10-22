@@ -29,8 +29,8 @@ export const FITTING = {
 export const PANEL_GAP = 0.03;
 /** Longest strip wires (m). */
 export const MAX_HANGER = 0.6;
-/** Longest bulkhead stand-off from its wall (m). */
-export const WALL_GAP = 0.1;
+/** Longest bulkhead bracket from its wall (m): a wall light stands 0.3 m off the face so the bake sees past its wall. */
+export const WALL_GAP = 0.35;
 /** The wires stand this far each side of a strip's middle (m, along it). */
 export const HANGER_AT = 0.45;
 

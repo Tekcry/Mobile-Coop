@@ -29,9 +29,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   you, the next section loads and the far door opens. The extraction shows time, kills, times spotted and GHOST when
   there were none. Being seen raises ALARM STAGE and more guards come. Going down restarts the section at the room.
 - [ ] Sector Ops Warehouse with night vision off: each section's routes and objective read by lamp light, with dark
-  pockets between; sections 2 and 3 each offer three routes (`docs/warehouse-s23/WALK.md`). Every lamp is a fitting
-  on its ceiling (dome on a rod, batten on hangers), its wall (caged bulkhead) or a roof mast: none floats or pokes
-  through a ceiling; a lamp switched off or shot goes dark on its lens. The roof's open strips are pale corrugated
+  pockets between; sections 2 and 3 each offer three routes (`docs/warehouse-s23/WALK.md`). Every lamp is an LED
+  fitting (sector-fixes L): a flush panel under a room ceiling, a strip on short wires under the roof, a slim bulkhead on
+  a wall bracket; a room's fittings share one height on a regular grid or row (some dark, over the pockets), none stands
+  on the roof or near a climbing pipe, ladder or duct (the yard drainpipe's lamp is 1 m beside it); none floats or pokes
+  through a ceiling; a lamp switched off or shot goes dark on its diffuser. The roof's open strips are pale corrugated
   sheets (moonlight still comes through); the walls carry pipes, trays, signs and fire points, trusses span the roof,
   and the halls' dead corners hold pallets, drums and cartons, none on a route or patrol.
 - [ ] Sector Ops stars: finish a run on a difficulty; back on the menu that difficulty's star is filled beside Sector Ops

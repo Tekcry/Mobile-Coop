@@ -46,42 +46,49 @@ export const S1_ROOMS: RoomDef[] = [
 ].map((r) => ({ ...r, squad: [] }));
 
 const FLOOD = makeCone(0, -1, -0.25, 0.7);
+/** The hall strips' beam optic (a 90 degree LED high-bay beam). */
+const HALL = makeCone(0, -1, 0, Math.PI / 4);
+/** A wall bulkhead's forward-down beam (35 degrees out from straight down, 55 degree half angle): facing -z (the facade, the walkway). */
+const WALL_S = makeCone(0, -0.819, -0.574, 0.96);
 // <lamps:S1>
 /**
  * Section 1's lamps by room (sector-fixes L, Michael 2026-10-22: one height and a regular layout per room, nothing on the
  * roof or on a climbing pipe, LED fittings; the levels of warehouse-s23 M1 kept: `tests/warehouseS1Light.test.ts`). The
  * hall (the goods-in bay, the lobby-block roof, the plant deck and the workshop share the 5.8 roof): LED strips 0.22 under
- * it on rows over the bays; the rooms: LED panels flush under their ceilings; the facade: LED bulkheads and floods at
- * 5.0, the drainpipe's lamp 1.0 m east of the pipe; no lamp on the roof (it reads by the moon). Dead fittings
- * (intensity 0) keep the grids regular over the dark pockets.
+ * it in grids over the bays (the bay and workshop with a 45 degree beam); the rooms: LED panels flush under their
+ * ceilings; the facade: two floods at 5.0 over the shutters and door bulkheads at 3.0 (the drainpipe's 1.0 m east of the
+ * pipe), on 0.3 m brackets with a forward-down beam; the crane walkway: bulkheads at 5.0 on the wall over it; no lamp on
+ * the roof (it reads by the moon). Radius and intensity per fitting are tuned against the light tests' bands (sector-fixes
+ * L); dead fittings (intensity 0) keep the grids regular over the dark pockets. [x, z, radius, intensity].
  */
 export const S1_LAMPS: readonly LampRoom[] = [
-  // the facade (z -18 south face, 5.0): the floods over shutters W and E, the drainpipe, entrance and workshop door lamps
-  { id: 'facade', model: 'bulkhead', y: 5.0, group: 20, yaw: PI, cone: FLOOD, colour: [0.85, 0.9, 1], pass: true, lamps: [[-19, -18.25, 7.5, 0.62]] },
-  { id: 'facade', model: 'bulkhead', y: 5.0, group: 20, yaw: PI, cone: FLOOD, colour: [0.85, 0.9, 1], pass: false, lamps: [[-11, -18.25, 7.5, 0.9]] },
-  { id: 'facade', model: 'bulkhead', y: 5.0, group: 20, yaw: PI, pass: true, lamps: [[-21.4, -18.25, 4, 0.4]] },
-  { id: 'facade', model: 'bulkhead', y: 5.0, group: 20, yaw: PI, pass: false, lamps: [[-5, -18.25, 6, 0.4], [11, -18.25, 6, 0.4]] },
+  // the facade (z -18, south face -18.15): the floods over shutters W and E (5.0), the drainpipe, entrance and workshop door lamps (3.0)
+  { id: 'facade', model: 'bulkhead', y: 5.0, group: 20, yaw: PI, cone: FLOOD, colour: [0.85, 0.9, 1], pass: true, lamps: [[-19, -18.45, 5.09, 0.418]] },
+  { id: 'facade', model: 'bulkhead', y: 5.0, group: 20, yaw: PI, cone: FLOOD, colour: [0.85, 0.9, 1], pass: false, lamps: [[-11, -18.45, 7.5, 0]] },
+  { id: 'facadeDoor', model: 'bulkhead', y: 3.0, group: 20, yaw: PI, cone: WALL_S, pass: true, lamps: [[-21.4, -18.45, 2.27, 1.315]] },
+  { id: 'facadeDoor', model: 'bulkhead', y: 3.0, group: 20, yaw: PI, cone: WALL_S, pass: false, lamps: [[-5, -18.45, 5.59, 0.261], [11, -18.45, 5.97, 0.197]] },
   // the gatehouse door lamp (its north wall, z -22.6)
-  { id: 'gatehouse', model: 'bulkhead', y: 2.3, group: 20, yaw: 0, pass: false, lamps: [[11.25, -22.51, 4, 0.7]] },
+  { id: 'gatehouse', model: 'bulkhead', y: 2.3, group: 20, yaw: 0, pass: false, lamps: [[11.25, -22.3, 5.76, 0.242]] },
   // the hall: the goods-in bay (circuit 30), the lobby-block roof (31), the plant deck (34), the workshop (36)
-  { id: 'bay', model: 'strip', y: 5.58, group: 30, yaw: 0, pass: true, lamps: [[-22, -15.4, 7, 0.5], [-17, -15.4, 7, 0.5], [-12, -15.4, 7, 0.5], [-22, -11.6, 7, 0.5], [-17, -11.6, 7, 0.5], [-12, -11.6, 7, 0.5]] },
-  { id: 'lobbyRoof', model: 'strip', y: 5.58, group: 31, yaw: 0, pass: true, lamps: [[-22, -7.4, 5, 0.5], [-17, -7.4, 5, 0.5], [-12, -7.4, 5, 0.5], [-7, -7.4, 5, 0.5]] },
-  { id: 'plantDeck', model: 'strip', y: 5.58, group: 34, yaw: 0, pass: true, lamps: [[-5, -14.6, 5, 0.5], [-1, -14.6, 5, 0.5], [3, -14.6, 5, 0.5], [7, -14.6, 5, 0.5]] },
-  { id: 'workshop', model: 'strip', y: 5.58, group: 36, yaw: 0, pass: true, lamps: [[10, -15.6, 7, 0.5], [14, -15.6, 7, 0.5], [18, -15.6, 7, 0.5], [22, -15.6, 7, 0.5], [10, -11, 7, 0.5], [14, -11, 7, 0.5], [18, -11, 7, 0.5], [22, -11, 7, 0.5]] },
+  { id: 'bay', model: 'strip', y: 5.58, group: 30, yaw: 0, cone: HALL, pass: true, lamps: [[-22, -15.4, 7.02, 0.7], [-18, -15.4, 6.78, 0.7], [-14, -15.4, 5.51, 0.852], [-10, -15.4, 5.05, 1.022], [-22, -11.6, 5.4, 0.7], [-18, -11.6, 4.8, 0.7], [-14, -11.6, 5.55, 1.345], [-10, -11.6, 8.8, 0.579]] },
+  { id: 'lobbyRoof', model: 'strip', y: 5.58, group: 31, yaw: 0, pass: true, lamps: [[-22, -7.4, 6.09, 0.567], [-17, -7.4, 6.49, 0.608], [-12, -7.4, 1.5, 0.4], [-7, -7.4, 3.5, 0]] },
+  { id: 'plantDeck', model: 'strip', y: 5.58, group: 34, yaw: 0, pass: true, lamps: [[-5, -14.6, 3.5, 0], [-1, -14.6, 3.5, 0], [3, -14.6, 5.19, 0.976], [7, -14.6, 1.5, 0.726]] },
+  // the crane walkway (y 3 along the z -8.8 wall's south face): LED bulkheads at 5.0 on brackets, one every 7 m
+  { id: 'walkway', model: 'bulkhead', y: 5.0, group: 36, yaw: PI, cone: WALL_S, pass: true, lamps: [[8.6, -9.25, 2.12, 0.365], [15.6, -9.25, 2.31, 0.303], [22.6, -9.25, 2.5, 0.349]] },
+  { id: 'workshop', model: 'strip', y: 5.58, group: 36, yaw: 0, cone: HALL, pass: true, lamps: [[10.7, -15.8, 5.51, 0.967], [16, -15.8, 6.7, 0.921], [21.3, -15.8, 7.5, 0.921], [10.7, -11.8, 5.43, 0.921], [16, -11.8, 6.83, 1.376], [21.3, -11.8, 6.3, 1.182]] },
   // the lobby block (ceiling 3.0): the goods-in office, the fire lobby C2; the charging bay's sign on the z -6 wall
-  { id: 'goodsInOffice', model: 'panel', y: 2.95, group: 31, yaw: 0, pass: false, lamps: [[-20.25, -7.4, 4, 0.8]] },
-  { id: 'lobby', model: 'panel', y: 2.95, group: 31, yaw: 0, pass: true, lamps: [[-14.5, -7.4, 4, 0.8]] },
-  { id: 'charging', model: 'bulkhead', y: 2.4, group: 31, yaw: PI, colour: EXIT_GREEN, pass: false, lamps: [[-10.2, -6.24, 3, 0.4]] },
+  { id: 'goodsInOffice', model: 'panel', y: 2.95, group: 31, yaw: 0, pass: false, lamps: [[-20.25, -7.4, 4, 0]] },
+  { id: 'lobby', model: 'panel', y: 2.95, group: 31, yaw: 0, pass: true, lamps: [[-15.5, -7.4, 4, 0], [-13.5, -7.4, 5.65, 0.626]] },
+  { id: 'charging', model: 'bulkhead', y: 2.4, group: 31, yaw: PI, colour: EXIT_GREEN, pass: false, lamps: [[-10.2, -6.24, 0.6, 0.15]] },
   // the office block: the south rooms (ceiling 3.0 under the plant deck), the corridor and the mess (2.8 under the void), the void (4.6)
-  { id: 'reception', model: 'panel', y: 2.95, group: 33, yaw: 0, pass: true, lamps: [[-6.5, -15.9, 4.5, 0.5]] },
-  { id: 'reception', model: 'panel', y: 2.95, group: 33, yaw: 0, pass: false, lamps: [[-3.5, -15.9, 4.5, 0.3]] },
-  { id: 'security', model: 'panel', y: 2.95, group: 34, yaw: 0, pass: false, lamps: [[5.5, -15.9, 4.5, 0.75]] },
-  { id: 'corridor', model: 'panel', y: 2.75, group: 32, yaw: 0, pass: true, lamps: [[-4.4, -12.3, 4.5, 0.6]] },
-  { id: 'corridor', model: 'panel', y: 2.75, group: 32, yaw: 0, pass: false, lamps: [[0, -12.3, 4.5, 0.6], [4.4, -12.3, 3.2, 0.6]] },
-  { id: 'mess', model: 'panel', y: 2.75, group: 35, yaw: 0, pass: false, lamps: [[4.5, -9.8, 4, 1.0]] },
-  { id: 'void', model: 'panel', y: 4.55, group: 32, yaw: 0, pass: true, lamps: [[-5.6, -12.3, 2.8, 0.5], [-1.6, -12.3, 2.8, 0], [2.4, -12.3, 2.8, 0], [6.4, -12.3, 2.8, 0], [-5.6, -10, 2.8, 0], [-1.6, -10, 2.8, 0], [2.4, -10, 2.8, 0.5], [6.4, -10, 2.8, 0.5]] },
+  { id: 'reception', model: 'panel', y: 2.95, group: 33, yaw: 0, pass: true, lamps: [[-6.5, -15.9, 6.93, 0.496]] },
+  { id: 'reception', model: 'panel', y: 2.95, group: 33, yaw: 0, pass: false, lamps: [[-3.5, -15.9, 4.5, 0]] },
+  { id: 'security', model: 'panel', y: 2.95, group: 34, yaw: 0, pass: false, lamps: [[4.3, -15.9, 4.42, 0.706], [6.7, -15.9, 2.18, 0.45]] },
+  { id: 'corridor', model: 'panel', y: 2.75, group: 32, yaw: 0, pass: true, lamps: [[-6.8, -12.3, 3.46, 0.321], [-3.4, -12.3, 5.82, 0.411], [0, -12.3, 2.84, 0.314], [3.4, -12.3, 3.4, 0.664], [6.8, -12.3, 4, 0]] },
+  { id: 'mess', model: 'panel', y: 2.75, group: 35, yaw: 0, pass: false, lamps: [[4.5, -9.8, 4.14, 0.861]] },
+  { id: 'void', model: 'panel', y: 4.55, group: 32, yaw: 0, pass: true, lamps: [[-5.3, -12.3, 2.53, 0.513], [-1.1, -12.3, 2.8, 0], [3.1, -12.3, 2.8, 0], [7.3, -12.3, 2.8, 0], [-5.3, -10, 2.8, 0], [-1.1, -10, 2.8, 0], [3.1, -10, 2.89, 0.623], [7.3, -10, 2, 0.732]] },
   // the workshop door's exit sign (the facade's inside face)
-  { id: 'workshop', model: 'bulkhead', y: 2.4, group: 36, yaw: 0, colour: EXIT_GREEN, pass: false, lamps: [[11, -17.76, 3, 0.4]] },
+  { id: 'workshop', model: 'bulkhead', y: 2.4, group: 36, yaw: 0, colour: EXIT_GREEN, pass: false, lamps: [[11, -17.76, 3.14, 0.06]] },
 ];
 
 /** The section's lamp pass (the light test switches these off to compare): the pass rooms' lit lamps. */

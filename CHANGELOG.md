@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased - sector-fixes
+
+### Slice L: Sector Ops lights (Michael 2026-10-22: "light fittings in same rooms are different heights and locations. Theres random lights on the roof. Theres a light in the middle of a climbing pipe." / "All lights should look like LED designs.")
+- Every Sector Ops lamp is laid out by room (`world/maps/lampRooms.ts`): one LED model, one height and a regular grid or
+  row per room; flush LED panels in the rooms, LED strips on short wires under the hall roofs (on the solid roof strips,
+  never under a sheet), slim LED bulkheads on 0.3 m wall brackets. No lamp on the roof (the roof reads by the moon), none
+  within 0.8 m of a climbing pipe, ladder or duct (the drainpipe's lamp moved 1 m east). Dead fittings keep the grids
+  regular over the dark pockets. The three fitting models are rebuilt as flat LED housings with opal diffusers.
+- Light parity: every fitting is a registry light (the bake, the meter and the guards read it); radius and intensity per
+  fitting are tuned so the light tests' route, objective and pocket bands still hold (sections 1 to 3).
+- The light grid lists a cone light only in the columns its beam can reach (`lampPlanReach`, lossless), so a 2 m column
+  stays within its 8 lights with the hall strips' and wall packs' beams.
+- Section 2's two roof rafters are dressing (out of the light shapes): they no longer cut the hall strips' light off the
+  rack tops.
+
 ## 4.54.0 - Train 3: every tuner Body slider bakes, holds and carries (2026-10-22, PR #114; #103, #113)
 
 ### #103 Body sliders bake

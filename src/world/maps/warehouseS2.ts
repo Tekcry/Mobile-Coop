@@ -53,25 +53,31 @@ export const S2_NAV_SEEDS: Vector3[] = [
   new Vector3(-9.35, 4, 11),
 ];
 
-const AISLE = makeCone(0, -1, 0, Math.PI / 4);
+/** The lane row's narrow beam (30 degrees): the lane, not the pockets at its east end. */
+const LANE = makeCone(0, -1, 0, Math.PI / 6);
+/** The south aisles' beam (50 degrees): the aisle floors and the cross aisle, not the rack tops beside them. */
+const SOUTH = makeCone(0, -1, 0, 0.87);
 // <lamps:S2>
 /**
  * Section 2's lamps by room (sector-fixes L, Michael 2026-10-22: one height and a regular layout per room, LED fittings;
- * the levels of warehouse-s23 M1 kept: `tests/warehouseS2Light.test.ts`). The hall: rows of LED strips 0.22 under the
- * roof (5.8) across the hall on the roof strips (z -3.6, 2.4, 8.4, 14.4), one over every aisle and every rack line; the
- * aisle strips have a narrow aisle optic (the floor, not the rack tops beside them), the rack strips light the rack tops
- * of the high route. Dead fittings (intensity 0) over the dark rack tops and pockets. The exit signs: LED bulkheads at
- * 2.4 on the walls. [x, z, radius, intensity].
+ * the levels of warehouse-s23 M1 kept: `tests/warehouseS2Light.test.ts`). The hall: LED strips at 5.8 under the solid
+ * roof strips (z -6 to -1.2, 0 to 4.8, 6 to 10.8, 12 to 16.8; the gaps are sheets) over the aisles: the lane row with a
+ * narrow beam (the lane, not the pockets at its east end), the south aisles' row with a 50 degree beam (the floors, not
+ * the dark south rack tops), the north half as two staggered grids without a beam (the floors and the rack tops of the
+ * high route), two strips over the cage; the exit signs: small LED bulkheads at 2.4 on the walls. Radius and intensity
+ * per fitting tuned against the light test's bands; dead fittings (intensity 0) keep the grids regular.
+ * [x, z, radius, intensity].
  */
 export const S2_LAMPS: readonly LampRoom[] = [
-  // the aisle strips (A1 -21.4, A2 -16.7, A3 -12.0, the east gangway -7.2): the lane and south racks (circuit 40), north (41)
-  { id: 'hallAisle', model: 'strip', y: 5.8, group: 40, yaw: PI / 2, cone: AISLE, pass: true, lamps: [[-21.4, -3.6, 7, 0.6], [-16.7, -3.6, 7, 0.6], [-12, -3.6, 7, 0.6], [-7.2, -3.6, 7, 0.6], [-21.4, 2.4, 7, 0.6], [-16.7, 2.4, 7, 0.6], [-12, 2.4, 7, 0.6], [-7.2, 2.4, 7, 0.6]] },
-  { id: 'hallAisle', model: 'strip', y: 5.8, group: 41, yaw: PI / 2, cone: AISLE, pass: true, lamps: [[-21.4, 8.4, 7, 0.6], [-16.7, 8.4, 7, 0.6], [-12, 8.4, 7, 0.6], [-7.2, 8.4, 7, 0.6], [-21.4, 14.4, 7, 0.6], [-16.7, 14.4, 7, 0.6], [-12, 14.4, 7, 0.6], [-7.2, 14.4, 7, 0.6]] },
-  // the rack strips (W0 -23.45, R1 -18.75, R2 -14.65, R3 -9.35): only the north rack tops of the high route are lit
-  { id: 'hallRack', model: 'strip', y: 5.8, group: 40, yaw: PI / 2, pass: true, lamps: [[-23.45, -3.6, 3, 0], [-18.75, -3.6, 3, 0], [-14.65, -3.6, 3, 0], [-9.35, -3.6, 3, 0], [-23.45, 2.4, 3, 0], [-18.75, 2.4, 3, 0], [-14.65, 2.4, 3, 0], [-9.35, 2.4, 3, 0]] },
-  { id: 'hallRack', model: 'strip', y: 5.8, group: 41, yaw: PI / 2, pass: true, lamps: [[-23.45, 8.4, 3.5, 0.5], [-18.75, 8.4, 3.5, 0.5], [-14.65, 8.4, 3.5, 0.5], [-9.35, 8.4, 3, 0], [-23.45, 14.4, 3.5, 0.5], [-18.75, 14.4, 3.5, 0.5], [-14.65, 14.4, 3.5, 0.5], [-9.35, 14.4, 3, 0]] },
+  // the aisle strips (A1 -21.4, A2 -16.7 (-16.2 in the north), A3 -12.0, the east gangway -7.2): the lane and south racks (circuit 40), north (41)
+  { id: 'lane', model: 'strip', y: 5.8, group: 40, yaw: 0, cone: LANE, pass: true, lamps: [[-21.5, -4.6, 8.1, 0.679], [-17, -4.6, 5.89, 0.87], [-12.5, -4.6, 6.04, 0.862]] },
+  { id: 'southAisles', model: 'strip', y: 5.8, group: 40, yaw: 0, cone: SOUTH, pass: true, lamps: [[-21.4, 1.9, 6.61, 0.603], [-16.7, 1.9, 9, 0.494], [-12, 1.9, 5.56, 0.951], [-7.2, 1.9, 6.41, 0.121]] },
+  { id: 'northA', model: 'strip', y: 5.8, group: 41, yaw: 0, pass: true, lamps: [[-21.4, 6.9, 6.4, 0.966], [-12, 6.9, 9, 0.709], [-21.4, 13.5, 7.64, 0.572], [-12, 13.5, 5.78, 0.582]] },
+  { id: 'northB', model: 'strip', y: 5.8, group: 41, yaw: 0, pass: true, lamps: [[-16.2, 9.6, 7.91, 0.558], [-7.2, 9.6, 9, 0.685], [-16.2, 12.9, 6.5, 0], [-7.2, 12.9, 6.5, 0], [-16.2, 16.2, 9, 0.627], [-7.2, 16.2, 9, 0.488]] },
+  // the high-value cage (x -24 to -19.9, z 12 to 18, open under the roof): two strips down its middle
+  { id: 'cage', model: 'strip', y: 5.8, group: 41, yaw: 0, pass: true, lamps: [[-22.2, 13.4, 5.2, 0.653], [-22.2, 16.2, 5.3, 0.452]] },
   // the exit signs: the west fire exit, the C3 door, the charger indicator (a small glow: it must not light the charge hand's pocket)
-  { id: 'storage', model: 'bulkhead', y: 2.4, group: 42, yaw: PI / 2, colour: EXIT_GREEN, pass: true, lamps: [[-23.91, 5.5, 3, 0.43], [-4.24, 14.55, 3, 0.25], [-4.24, -5.2, 0.65, 0.155]] },
+  { id: 'storage', model: 'bulkhead', y: 2.4, group: 42, yaw: PI / 2, colour: EXIT_GREEN, pass: true, lamps: [[-23.7, 5.5, 0.6, 0.15], [-4.45, 14.55, 0.6, 0.15], [-4.45, -5.2, 0.6, 0.15]] },
 ];
 
 /** The section's lamp pass (the light test switches these off to compare): every lit lamp of section 2. */
@@ -105,7 +111,11 @@ export function buildStorageS2(b: LevelBuilder): void {
   b.mark(p0, { noLedge: true });
 
   // two visual rafters on the frame lines; the west fire exit (visual only)
-  for (const x of [-16, -8]) b.box(x, 5.75, 6.0, 0.3, 0.5, 24.0, STEEL, 0, 0, false);
+  // (sector-fixes L: dressing, out of the light shapes, so they do not cut the hall strips' light off the rack tops)
+  for (const x of [-16, -8]) {
+    b.box(x, 5.75, 6.0, 0.3, 0.5, 24.0, STEEL, 0, 0, false);
+    b.boxes[b.boxes.length - 1]!.detail = true;
+  }
   b.box(-23.97, 1.05, 5.5, 0.06, 2.1, 1.2, STEEL, 0, 0, false);
   b.box(-23.92, 1.0, 5.5, 0.04, 0.06, 1.0, HAZARD, 0, 0, false);
 
