@@ -1,6 +1,20 @@
 # sector-redesign - state
 
-## Now (2026-10-23 ~10:20, second window after the account swap)
+## Now (2026-10-23 ~11:00, third window after the account swap)
+- feature/sector-redesign @ b0fd3edf (pushed): + the part-6 lights-out fix found uncommitted from 10:43 (a wall switch
+  going dark lures a guard from its own floor only: EnemyManager.lightsOut(x, z, y), LIGHTS_OUT_FLOOR 2,
+  tests/enemyLightsOut.test.ts 2/2; the S2 reception panel was luring #4 off the L2 balcony). The 3796700d part-6
+  verdict was not found (Character Build is not running); assumed red on the lights-out lure.
+- RUNNING: this session runs build + e2e-sectorops:6 (GPU) at b0fd3edf on the first free desktop lane (log
+  C:/NightShift/scratch/runs/sectorredesign-b0fd3edf). Green -> PR 2 per Next 1.
+- S4 DONE (Sonnet): feature/sector-redesign-s4 @ ebbd5789 (checks/slice4-build.md). S5 DONE: -s5 @ f546db0d
+  (checks/slice5-build.md). Data only, no nav code.
+- IN FLIGHT: Sonnet checker S4 + S5 -> checks/slice45-check.md (lead worktree, uncommitted); Opus E8 finisher on -e8
+  (code 378dd187 + tests b88cf04c were committed; it reviews, commits the e2e assert, writes checks/e8-cameras.md);
+  Opus E9-crate planner -> briefs/E9-CRATE.md (commits only that file). On resume: check each file / branch; rerun if
+  missing.
+
+## Now at ~10:20 (superseded)
 - feature/sector-redesign @ 88f5c33a+ (pushed) = the 09:50 state + part-6 fixes + campusOps listed + ammo removal + S4 / S5
   briefs. Commits since 22e755bf: 7c2087ee part 6 fix (S3 SW stair half-landing collision lip campusS3.ts:350, navBuild
   `navGridFromLevel`, tests/campusRuntimeNav.test.ts runs the e2e leg check on the runtime grid; checks/part6-fix.md);
