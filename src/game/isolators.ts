@@ -125,6 +125,14 @@ export class IsolatorBoards {
 
   /** (A50) A section restart, before the lamps are put back: every running window is dropped (nothing relit by it). */
   cancel(): void {
+    // a running window's circuits come back silently (no cue, no feed, no lightsOut), so a later `take` records them on
+    if (this.running > 0) {
+      for (let i = 0; i < this.left.length; i++) {
+        if (this.left[i]! <= 0) continue;
+        const gs = this.defs[i]!.groups;
+        for (let k = 0; k < gs.length; k++) this.reg.setGroup(gs[k]!, true);
+      }
+    }
     this.left.fill(0);
     this.running = 0;
   }
@@ -136,7 +144,13 @@ export class IsolatorBoards {
       if (this.left[i]! > 0) continue;
       const gs = this.defs[i]!.groups;
       let on = false;
-      for (let k = 0; k < gs.length && !on; k++) on = groupBaseOn(this.reg, gs[k]!);
+      let live = false;
+      for (let k = 0; k < gs.length; k++) {
+        if (!on) on = groupBaseOn(this.reg, gs[k]!);
+        if (!live) live = groupHasLive(this.reg, gs[k]!);
+      }
+      // every lamp of its circuits shot out: the board keeps its place
+      if (!live) continue;
       this.cut[i] = on ? 0 : 1;
     }
   }
@@ -151,4 +165,14 @@ export class IsolatorBoards {
     for (let k = 0; k < d.groups.length; k++) this.reg.setGroup(d.groups[k]!, true);
     this.sink?.back(i, how);
   }
+}
+
+/** A group has a lamp that is not shot out (a shot lamp never relights). No allocation. */
+function groupHasLive(reg: LightRegistry, group: number): boolean {
+  const ls = reg.lights;
+  for (let i = 0; i < ls.length; i++) {
+    const l = ls[i]!;
+    if (l.group === group && !l.destroyed) return true;
+  }
+  return false;
 }

@@ -158,6 +158,82 @@ describe('Sector Ops breaker / timed isolator boards (E4, EW8)', () => {
     expect(b.left[1]).toBe(ISOLATOR_WINDOW);
   });
 
+  it('I5: a window running at a section change, then a restart in the next section: the lamps are lit', () => {
+    const reg = level();
+    const b = new IsolatorBoards(BOARDS, reg);
+    const start = new SectionStartState();
+    b.use(1);
+    // the next section begins while the window runs: `take` records the dark lamps, then the mode marks the groups on
+    start.take(reg, doors);
+    for (const g of BOARDS[1]!.groups) start.markGroupOn(g);
+    for (let k = 0; k < 120; k++) b.update(DT);
+    expect(groupBaseOn(reg, 3)).toBe(false);
+    b.cancel();
+    start.apply(reg, doors);
+    b.follow();
+    expect(groupBaseOn(reg, 3)).toBe(true);
+    expect(groupBaseOn(reg, 5)).toBe(true);
+    expect(b.cut[1]).toBe(0);
+    // the restart-during-a-cycle path: `cancel` relights silently, so a `take` after it records them on
+    b.use(1);
+    const sink2 = recorder();
+    const b2 = new IsolatorBoards(BOARDS, reg, sink2);
+    b.cancel();
+    expect(groupBaseOn(reg, 3)).toBe(true);
+    expect(groupBaseOn(reg, 5)).toBe(true);
+    expect(sink2.backs.length + sink2.outs.length).toBe(0);
+    const s2 = new SectionStartState();
+    s2.take(reg, doors);
+    reg.setGroup(3, false);
+    s2.apply(reg, doors);
+    expect(groupBaseOn(reg, 3)).toBe(true);
+    b2.follow();
+    expect(b2.cut[0]).toBe(0);
+  });
+
+  it('two boards on one circuit stay in step (follow after one moves)', () => {
+    const reg = level();
+    const two: BoardDef[] = [
+      { pos: new Vector3(0, 1.3, 0), yaw: 0, groups: [3] },
+      { pos: new Vector3(5, 1.3, 0), yaw: 0, groups: [3] },
+    ];
+    const b = new IsolatorBoards(two, reg);
+    expect(b.use(0)).toBe(BOARD_CUT);
+    b.follow();
+    expect(b.cut[0]).toBe(1);
+    expect(b.cut[1]).toBe(1);
+    expect(b.use(1)).toBe(BOARD_BACK);
+    b.follow();
+    expect(b.cut[0]).toBe(0);
+    expect(b.cut[1]).toBe(0);
+  });
+
+  it('a lamp shot during a window stays dark at the return', () => {
+    const reg = level();
+    const b = new IsolatorBoards(BOARDS, reg);
+    b.use(1);
+    expect(reg.destroy(0)).toBe(true);
+    for (let k = 0; k < Math.ceil((ISOLATOR_WINDOW + 1) / DT); k++) b.update(DT);
+    expect(b.returns).toBe(1);
+    expect(reg.lights[0]!.on).toBe(false);
+    expect(reg.lights[1]!.on).toBe(true);
+  });
+
+  it('a circuit with every lamp shot does not stick its board', () => {
+    const reg = level();
+    const b = new IsolatorBoards(BOARDS, reg);
+    expect(b.cut[0]).toBe(0);
+    reg.destroy(0);
+    reg.destroy(1);
+    b.follow();
+    expect(b.cut[0]).toBe(0);
+    // an isolator whose circuits are all shot keeps its place too, and can still start a window
+    reg.destroy(2);
+    b.follow();
+    expect(b.cut[1]).toBe(0);
+    expect(b.use(1)).toBe(BOARD_CUT);
+  });
+
   it('co-op: the client sees the same circuit state through slice L lamps (cut, window end), picture = meter', () => {
     const host = level();
     const client = level();

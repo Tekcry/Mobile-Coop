@@ -56,3 +56,11 @@ boards: [
 - `vitest run tests/sectorIsolator.test.ts tests/sectorLampSync.test.ts tests/sectorRestart.test.ts tests/sectors.test.ts`:
   4 files, 53 tests pass. `IsolatorBoards.update` 0.0 B per call (`allocPerCall` helper).
 - eslint on the 4 changed files: clean. No e2e, no build (brief).
+
+## Fix round
+From the checker's report (e4-check.md):
+- I5: `IsolatorBoards.cancel()` relights running windows' groups silently (no cue, feed or lightsOut) before clearing them. `SectionStartState` records each light's group in `take` and has `markGroupOn(group)` (recorded 0 -> 1; shot and flashlight untouched). `SectorMode.beginSection` (kit path) marks running windows' groups on after `take`. The CONN_UNLOCK_FAR path is covered by `cancel` running before its `take`.
+- `StealthSystems.boardChanged` calls `followBoards()` (a second board on the circuit follows).
+- `IsolatorBoards.follow` skips a board whose groups have no live lamp (all shot): it keeps its place.
+- Tests (tests/sectorIsolator.test.ts): window at a section change then restart -> lit; silent relight on cancel; two boards on one circuit; lamp shot in a window stays dark; all-shot circuit does not stick.
+- Not done (non-blocking polish 3 and 5): "Circuit isolated" label, hardcoded 1/60.

@@ -486,7 +486,7 @@ export class StealthSystems {
   private boardChanged(i: number, on: boolean): void {
     const gs = this.boards!.defs[i]!.groups;
     for (let k = 0; k < gs.length; k++) this.syncGroup(gs[k]!, on);
-    this.showBoard(i);
+    this.followBoards();
     this.g.events.emit('lightSwitch', { on });
   }
 
