@@ -207,6 +207,24 @@ export function throwArc(t: number, x0: number, y0: number, z0: number, x1: numb
   return out;
 }
 
+/** The thrown player's vertical speed (m/s) at `t` s into the throw (`throwArc`'s y over time; < 0 = descending). */
+export function throwArcVy(t: number, y0: number, y1: number): number {
+  const k = Math.max(0, Math.min(1, t / TEAM.throwTime));
+  return (y1 - y0 + 4 * TEAM.throwApex * (1 - 2 * k)) / TEAM.throwTime;
+}
+
+/**
+ * (throw-ko, CT: the thrown partner landing on a guard knocks him out) Whether the thrown player's feet at (`fx`, `fy`,
+ * `fz`), moving at `vy` m/s vertically, come down on a guard whose feet are at (`gx`, `gy`, `gz`): descending, within
+ * `TEAM.throwKoReach` across and between `TEAM.throwKoLow` and `TEAM.throwKoHigh` over his feet (head / shoulders).
+ */
+export function throwKoHit(fx: number, fy: number, fz: number, vy: number, gx: number, gy: number, gz: number): boolean {
+  if (!(vy < 0)) return false;
+  const up = fy - gy;
+  if (up < TEAM.throwKoLow || up > TEAM.throwKoHigh) return false;
+  return hyp2(fx - gx, fz - gz) <= TEAM.throwKoReach;
+}
+
 export type ThrowRoom = 'ok' | 'arc' | 'floor' | 'head';
 
 /**
