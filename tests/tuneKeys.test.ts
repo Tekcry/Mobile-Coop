@@ -7,7 +7,7 @@ import { KEYED_WALK } from '../src/anim/clips/keyed/walk';
 import { KEYED_IDLE } from '../src/anim/clips/keyed/idle';
 import { KEY_CLIPS } from '../src/anim/tuneKeysMeta';
 import { applyKeyEdits, editedClips, KEY_FIELDS, keyFileText, keyGroupId, keyValuesOf, readKeys, type KeyFile } from '../src/anim/tuneKeysFile';
-import { KEYS_SECTION, keyedClipByName, tuneKeysClipValues, tuneKeysFrame, tuneKeysSync } from '../src/anim/tuneKeys';
+import { KEYS_SECTION, keyedClipByName, tuneKeysClipValues, tuneKeysFilesReady, tuneKeysFrame, tuneKeysSync } from '../src/anim/tuneKeys';
 import { TUNE_SECTIONS, tuneExport, tuneLoad, tuneResetAll, tuneSet, tuneSnapshot } from '../src/anim/tuneRegistry';
 
 const DIR = path.join(__dirname, '..', 'scripts', 'anim-keys', 'keys');
@@ -80,7 +80,13 @@ describe('tuner-v2 item 4: per-key editing', () => {
     expect(KEYED_WALK.keyOff).toBe(tables);
   });
 
-  it('live preview: the edit shows at its key, fades to the next key, its mirror follows; the chest stays put', () => {
+  it('live preview: the edit shows at its key, fades to the next key, its mirror follows; the chest stays put', async () => {
+    // (marlow-bays item 30e) the exact preview: with walk's key file loaded the edit spreads on the bake's curve
+    tuneSet(keyGroupId('walk', 1), 'spine_pitch', 1);
+    tuneKeysSync();
+    await tuneKeysFilesReady();
+    tuneResetAll();
+    tuneKeysSync();
     const p0 = newKeyedPose();
     const p1 = newKeyedPose();
     const at = (ph: number, out: typeof p0): void => void sampleKeyed(KEYED_WALK, ph, 1, out);
@@ -99,14 +105,20 @@ describe('tuner-v2 item 4: per-key editing', () => {
     const sc = (p: typeof p0): number[] => mul([...p.q.slice(4, 8)], [...p.q.slice(8, 12)]);
     expect(qAngle(sc(p0), sc(p1), 0)).toBeLessThan(1e-3);
     // half way to the neighbouring keys (0 and 0.25): half the offset
-    at(0.1875, p1);
-    tuneResetAll();
-    tuneKeysSync();
-    at(0.1875, p0);
-    tuneSet(keyGroupId('walk', 1), 'spine_pitch', 10);
-    tuneKeysSync();
-    at(0.1875, p1);
-    expect(qAngle(p0.q, p1.q, 4)).toBeCloseTo(5, 1);
+    // (item 30, track A) off centre the bake's curve, not the linear fade (7.9 at 0.15, 2.4 at 0.22): measured 8.751, 1.500
+    for (const [ph, deg, dp] of [
+      [0.1875, 5, 1],
+      [0.15, 8.751, 2],
+      [0.22, 1.5, 2],
+    ] as const) {
+      tuneResetAll();
+      tuneKeysSync();
+      at(ph, p0);
+      tuneSet(keyGroupId('walk', 1), 'spine_pitch', 10);
+      tuneKeysSync();
+      at(ph, p1);
+      expect(qAngle(p0.q, p1.q, 4)).toBeCloseTo(deg, dp);
+    }
     // the mirrored key (0.625) carries it too; the keys either side of the pair stay as baked
     tuneResetAll();
     tuneKeysSync();
@@ -118,7 +130,8 @@ describe('tuner-v2 item 4: per-key editing', () => {
     at(0.625, p1);
     expect(qAngle(p0.q, p1.q, 4)).toBeCloseTo(10, 3);
     at(0, p1);
-    expect(qAngle(base0, p1.q, 4)).toBeLessThan(1e-4);
+    // (item 30e) the trunk re-keyed from the key file: the clip modules' 1e-5 rounding (tests/keyedExactPreview.test.ts)
+    expect(qAngle(base0, p1.q, 4)).toBeLessThan(0.002);
   });
 
   it('arms: an elbow edit turns the forearm only; a wrist edit on a clip without wrist keys samples a wrist frame', () => {

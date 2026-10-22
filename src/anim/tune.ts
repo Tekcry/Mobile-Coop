@@ -333,6 +333,19 @@ export const TUNE_LOCAL: CurValues = defCur();
 /** What the local player is doing now (the panel's auto-follow); '' = no group (a vault, a ladder top-out, ...). The
  *  registry's state bag (a new section may add its own key). */
 export const TUNE_STATE = TUNE_STATE_BAG as { body: BodyGroup | ''; gun: GunGroup | ''; cam: CamGroup | '' } & Record<string, string>;
+/**
+ * (marlow-bays item 29, tuner v3: "with Keyed ticked the Body sliders do nothing") The body state the local player's rig
+ * tunes with, pinned ('' none: chosen from the pose by `selectBodyGroup`). The Anim Studio pins a keyed clip's own state
+ * while it plays: a clip on the spot has no speed, so the pose alone picked `idle` and the jog's sliders never reached
+ * the keyed jog (nor her Joints, Hands & feet and Limb reach rows: `tuneJointsRig` reads the pin too). Only `rig` (her
+ * rig) is pinned. Written by the studio stage only (cleared when it leaves).
+ */
+export const TUNE_PIN: { body: BodyGroup | ''; rig: unknown } = { body: '', rig: null };
+
+/** The body state for a rig's pose: the pin for the pinned rig, else `selectBodyGroup`. */
+export function tuneBodyGroup(p: TunePoseIn, ledge: boolean, armed: boolean, rig: unknown): BodyGroup | null {
+  return TUNE_PIN.body !== '' && rig === TUNE_PIN.rig ? TUNE_PIN.body : selectBodyGroup(p, ledge, armed);
+}
 
 const inSection = (groups: readonly string[]): Tunable[] => TUNABLES.filter((t) => t.groups.every((g) => groups.includes(g)));
 const EMPTY: readonly string[] = [];
@@ -550,7 +563,7 @@ function restoreTarget(t: TuneTarget, slot: number): void {
 export function tuneBegin(p: TunePoseIn, rig: TuneRigIn, dt = 0): void {
   const armed = rig.heldWeapon !== null && rig.heldWeapon !== undefined;
   const ledge = rig.reachL.hook === 1 || rig.reachR.hook === 1;
-  const bg = selectBodyGroup(p, ledge, armed);
+  const bg = tuneBodyGroup(p, ledge, armed, rig);
   const gg = selectGunGroup(p, armed);
   TUNE_STATE.body = bg ?? '';
   TUNE_STATE.gun = gg ?? '';

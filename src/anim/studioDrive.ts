@@ -15,6 +15,7 @@
  */
 import { mirrorKeyed, sampleKeyed, type KeyedClip } from './keyed';
 import type { RigTargets } from './animGraph';
+import { TUNE_CUR } from './tune';
 
 export interface StudioDrive {
   /** The clip played (null: the drive does nothing). */
@@ -75,7 +76,9 @@ export function studioDriveTargets(d: StudioDrive, o: RigTargets, dt: number): v
   if (d.inPlace) {
     o.gait.phase = d.phase;
     o.gait.duty = c.duty;
-    o.gait.liftH = c.liftH;
+    // (marlow-bays item 29) the Body sliders "Foot width" and "Knee lift" reach the clip on the spot as in the game
+    // (identity outside the local player's tuning window)
+    o.gait.liftH = c.liftH * TUNE_CUR.kneeLiftMul;
     o.gait.moving = d.pace > 0;
   }
 }
@@ -110,8 +113,8 @@ export interface TreadOut {
 export function treadmillFoot(d: StudioDrive, side: -1 | 1, scale: number, out: TreadOut): TreadOut {
   const c = d.clip;
   const duty = c ? Math.min(0.95, Math.max(0.05, c.duty)) : 0.6;
-  const half = (c ? c.half : 0.08) * scale;
-  const lift = (c ? c.liftH : 0) * scale;
+  const half = (c ? c.half : 0.08) * scale * TUNE_CUR.trackMul;
+  const lift = (c ? c.liftH : 0) * scale * TUNE_CUR.kneeLiftMul;
   const u = wrap01(d.phase - (side < 0 ? 0 : 0.5));
   const S = Math.max(0, d.pace) * d.cycle * duty;
   let along: number;

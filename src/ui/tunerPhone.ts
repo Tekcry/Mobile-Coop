@@ -1,102 +1,67 @@
 /**
- * (marlow-bays item 26, the M21 exception for the animation tuner and the Anim Studio only; the game stays desktop
- * only) The tuner on a phone, the pure part (no DOM, no Babylon; unit-tested in `tests/tunerPhone.test.ts`):
- * - which layout the panel takes from the viewport, the pointer and the last input (`tunerPhoneLayout`): a phone (a
- *   touch screen as the main pointer, `flags.phone`, and a short side of at most `PHONE_MAX_SIDE`) in landscape gets a
- *   side drawer on the right (height is scarce, width is not: she keeps the left of the screen), in portrait a bottom
- *   sheet (she keeps the top); anything else keeps the desktop layout untouched. (26b, Michael: "Smaller buttons, more
- *   compact. Adjust smaller with controller connected also") Two densities: touch (targets `TOUCH_TARGET`) and, with a
- *   pad the last input, pad (rows `PAD_ROW`, no touch minimum, narrower again);
+ * (marlow-bays item 26; item 29 tuner v3) The tuner on a small screen, the pure part (no DOM, no Babylon; unit-tested in
+ * `tests/tunerPhone.test.ts`):
+ * - which layout the panel takes (`tunerPhoneLayout`), from the viewport size ONLY (item 29, Michael: "It should only
+ *   adapt to different screen sizes"; never from touch or pointer detection, so a touchscreen laptop at desktop size
+ *   keeps the dock): landscape with a short side of at most `PHONE_MAX_SIDE` gets a side drawer on the right (height is
+ *   scarce, width is not: she keeps the left); portrait up to `SHEET_MAX_WIDTH` wide (phones, a portrait tablet: the dock
+ *   would take most of the width) a bottom sheet (she keeps the top); anything else the desktop dock. One density per
+ *   size, whatever the input (item 26b's pad density is gone: the input only changes the hint glyphs);
  * - the touch camera's gesture classification (`TouchGesture`): a tap (no drag) picks a part, one finger dragged orbits,
- *   two fingers either pinch (zoom) or drag together (pan), decided once per two-finger gesture. Allocation-free.
+ *   two fingers either pinch (zoom) or drag together (pan), decided once per two-finger gesture. Allocation-free. It
+ *   works in every layout.
  */
 
-/** The panel's layout: the desktop dock (unchanged), the phone's side drawer (landscape) or bottom sheet (portrait). */
+/** The panel's layout: the desktop dock, the side drawer (a short landscape screen) or the bottom sheet (portrait). */
 export type TunerLayoutMode = 'desktop' | 'drawer' | 'sheet';
 
-/** (26b) The phone's touch target (CSS px): tabs, buttons, chips, sliders, steppers, body map joints, the playback bar. */
-export const TOUCH_TARGET = 34;
-/** (26b) The phone's row height with a pad the last input (nothing is tapped: no touch minimum). */
-export const PAD_ROW = 26;
-/** A viewport whose short side is longer than this is not a phone (a tablet keeps the desktop layout). */
+/** The small screen's smallest control (CSS px): tabs, buttons, sliders, steppers, the playback bar (touch-sized, compact). */
+export const TOUCH_TARGET = 30;
+/** Landscape with a short side longer than this keeps the dock (a landscape tablet, a laptop). */
 export const PHONE_MAX_SIDE = 600;
-/** The phone panel's text size (CSS px), touch and pad, independent of the S / M / L desktop sizes. */
-export const PHONE_FONT = 13;
-export const PHONE_PAD_FONT = 11;
-/** The body map's scale on a phone (CSS px per map unit), touch and pad. */
-export const PHONE_MAP_SCALE = 1.2;
-export const PHONE_PAD_MAP_SCALE = 1;
+/** Portrait up to this wide gets the bottom sheet (a phone, a portrait tablet such as an 820 x 1180 iPad). */
+export const SHEET_MAX_WIDTH = 900;
+/** The small screen's text size (CSS px) on a phone-sized screen; a larger sheet (a tablet) uses the desktop scale. */
+export const PHONE_FONT = 12;
 
 export interface TunerPhoneLayout {
   mode: TunerLayoutMode;
-  /** (26b) A phone with a pad the last input: the pad density. */
-  pad: boolean;
-  /** The panel's font size (px; 0 on desktop: `tunerScale` decides). */
+  /** The panel's font size (px; 0: `tunerScale` decides, as on desktop). */
   font: number;
-  /** The smallest control (px): `TOUCH_TARGET` by touch, `PAD_ROW` by pad; 0 on desktop. */
+  /** The smallest control (px; 0 on desktop). */
   target: number;
   /** The drawer's width (px; 0 otherwise). The canvas gives it up beside the drawer. */
   width: number;
   /** The sheet's height (px; 0 otherwise). The canvas gives it up above the sheet. */
   height: number;
-  /** The body map's scale (px per unit) and its hit radius (units; 0 on desktop and by pad: the map's own). */
-  mapScale: number;
-  mapHitR: number;
 }
 
 export function emptyPhoneLayout(): TunerPhoneLayout {
-  return { mode: 'desktop', pad: false, font: 0, target: 0, width: 0, height: 0, mapScale: 0, mapHitR: 0 };
-}
-
-/** The hit radius (map units) that gives a `target` px circle at `scale` px per unit. */
-export function phoneMapHitRadius(scale = PHONE_MAP_SCALE, target = TOUCH_TARGET): number {
-  return Math.ceil((target / 2 / scale) * 10) / 10;
+  return { mode: 'desktop', font: 0, target: 0, width: 0, height: 0 };
 }
 
 /**
- * The layout for a viewport (`vw` x `vh` CSS px), whether the device is a phone (a touch screen as the main pointer) and
- * whether a pad was the last input (`pad`). Touch: the drawer about 38% of the width, the sheet about 45% of the
- * height; pad: about 34% and 40%. No allocation with `out`.
+ * The layout for a viewport (`vw` x `vh` CSS px; the size alone decides). The drawer about 36% of the width (250-380
+ * px), the sheet about 42% of the height (at least 200 px left above it). No allocation with `out`.
  */
-export function tunerPhoneLayout(vw: number, vh: number, phone: boolean, pad = false, out?: TunerPhoneLayout): TunerPhoneLayout {
+export function tunerPhoneLayout(vw: number, vh: number, out?: TunerPhoneLayout): TunerPhoneLayout {
   const o = out ?? emptyPhoneLayout();
   o.mode = 'desktop';
-  o.pad = false;
-  o.font = o.target = o.width = o.height = o.mapScale = o.mapHitR = 0;
-  if (!phone || !(vw > 0) || !(vh > 0) || Math.min(vw, vh) > PHONE_MAX_SIDE) return o;
-  o.pad = pad;
-  o.font = pad ? PHONE_PAD_FONT : PHONE_FONT;
-  o.target = pad ? PAD_ROW : TOUCH_TARGET;
-  o.mapScale = pad ? PHONE_PAD_MAP_SCALE : PHONE_MAP_SCALE;
-  o.mapHitR = pad ? 0 : phoneMapHitRadius(o.mapScale, o.target);
+  o.font = o.target = o.width = o.height = 0;
+  if (!(vw > 0) || !(vh > 0)) return o;
   if (vw >= vh) {
+    if (vh > PHONE_MAX_SIDE) return o;
     o.mode = 'drawer';
-    o.width = Math.round(Math.max(Math.min(pad ? 240 : 270, vw * 0.5), Math.min(vw * (pad ? 0.34 : 0.38), pad ? 360 : 400)));
+    o.width = Math.round(Math.max(Math.min(250, vw * 0.5), Math.min(vw * 0.36, 380)));
   } else {
+    if (vw > SHEET_MAX_WIDTH) return o;
     o.mode = 'sheet';
-    o.height = Math.round(Math.max(Math.min(pad ? 220 : 240, vh * 0.55), Math.min(vh * (pad ? 0.4 : 0.45), vh - 200)));
+    o.height = Math.round(Math.max(Math.min(220, vh * 0.55), Math.min(vh * 0.42, vh - 200)));
   }
+  o.target = TOUCH_TARGET;
+  // a phone-sized screen: compact text; a larger sheet (a tablet) keeps the desktop's scaled text
+  o.font = Math.min(vw, vh) <= PHONE_MAX_SIDE ? PHONE_FONT : 0;
   return o;
-}
-
-/**
- * The map part nearest a tap (map units), within `r`: index into the parallel arrays (`px`, `py`, `n` entries), -1 none.
- * The phone's map targets overlap (34 px circles on joints 10 units apart); the nearest centre wins, so every target is
- * at least its own half of the gap and the whole circle where nothing else is near.
- */
-export function nearestMapPart(px: ArrayLike<number>, py: ArrayLike<number>, n: number, x: number, y: number, r: number): number {
-  let best = -1;
-  let bd = r * r;
-  for (let i = 0; i < n; i++) {
-    const dx = px[i]! - x;
-    const dy = py[i]! - y;
-    const d = dx * dx + dy * dy;
-    if (d <= bd) {
-      bd = d;
-      best = i;
-    }
-  }
-  return best;
 }
 
 // ------------------------------------------------------------------------------------------

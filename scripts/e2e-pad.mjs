@@ -201,7 +201,9 @@ try {
   assert(await q('.main-menu'), 'B returns to the main menu');
   // the checks below need an empty map (Free roam, only behind ?legacy=1 now): the test hook starts it at the level picked
   await page.evaluate(() => window.__play('warehouse', 'sandbox', 'realistic'));
-  await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 30000 });
+  // (marlow-bays item 29) the warehouse match builds its voxel world in workers first: under a loaded run (E2E_JOBS=2) that
+  // took over 30 s on the laptop; the match start is the real condition, waited for as e2e-lib waits for an autostart
+  await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 120000 });
   const rd = await page.evaluate(() => ({ p: window.__app.current.diff.perception, l: window.__app.current.diff.label, m: window.__app.current.enemyMgr?.diff?.perception ?? null }));
   assert(rd.p === 1.3 && rd.l === 'Realistic' && (rd.m === null || rd.m === 1.3), `the match runs Realistic (${JSON.stringify(rd)})`);
   // (anim-rework S1) the pad: D-pad up / down no longer step a speed (the stick sets it), LB held opens the selection
@@ -457,6 +459,8 @@ try {
   assert(dr.xHoldT >= 0.35 && dr.xHoldT <= 0.6 && dr.xHoldStill && dr.xFull, `X held 0.4 s with the gun out reloads (A2) and stays drawn (${dr.xHoldT.toFixed(2)} s, full ${dr.xFull})`);
   assert(dr.xFullHol, 'X held with nothing to reload holsters');
   assert(dr.slingState === 'slingDraw' && dr.slingAim && dr.tSling > dr.tDraw * 1.3 && dr.slingLow, `LT from holstered: the sling draw straight to the aim, slower (M2: ${dr.tSling.toFixed(2)} s vs X ${dr.tDraw.toFixed(2)} s); let go: low ready (${dr.slingLow})`);
+  // (marlow-bays item 29) the on-screen pause button is a touch thing: never shown in pad play
+  assert(!(await page.evaluate(() => document.body.classList.contains('touch-play') || getComputedStyle(document.querySelector('.touch-pause')).display !== 'none')), 'pad play: no on-screen pause button');
   await press(page, BTN.START);
   assert(await q('.pause-screen'), 'Start opens pause');
   await press(page, BTN.B);
