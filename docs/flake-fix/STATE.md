@@ -3,7 +3,7 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
-**Character Build now (2026-10-22 ~18:05):**
+**Character Build now (2026-10-22 ~18:20):**
 - Verdicts sent (CT Core, Course Ready, orchestrator copied): anim-bake-all a850e103 FAIL at check
   (animSkeletonRows.test.ts:127 never-allocate, 7981152 bytes; solo fail, fail, pass; master pass 3/3: real regression).
   N4b 0a6bc567 FAIL at check (tunerLayout.test.ts: sec:cq has no tab, cq:holdTwist label 33 chars; deterministic).
@@ -22,17 +22,14 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   slot if CPU allows. A result also stands for a later commit whose only diff is docs / CHANGELOG / fragments / test
   scripts. Runner: -Slot 4191 (worktree Mobile-Coop-testrun) / 4192 (Mobile-Coop-testrun-4192) / 4189 GPU
   (Mobile-Coop-testrun-4189, E2E_GPU=1); lock C:/NightShift/heavy-<slot>.lock; raw "node "/"npm "/"npx " steps run as given.
-- Sent ~18:00: #119 N4b 1e442236 solo: check, ctcourse, netmove PASS; e2e-clip FAIL "ladder down + slide" 30.1 cm;
-  coop FAIL on the #125 teardown pageerror only.
-- Running (~18:05): 4189 studiopairs-8091de94-gpu (Course Ready audit, under the old heavy.lock in the 4191 worktree:
-  push docs/anim-natural/audit outputs to shots/studio-pairs-8091de94, send exit code, log tail, paths); 4192
-  animn2-53e6dc03 (CT Core: check + e2e-anim e2e-studio e2e-clip; report e2e-anim ASSERTs, "rifle low ready jog"
-  elbow, walk / low ready walk knee-out, run row, body motion block; bodyMotion alloc test is a known flake); then
-  4189 sectorfixesl-f21cc2b1-gpu (Menu Notes: sector-lights-shots after + --sheet + e2e-darkness; commit outputs in
-  docs/sector-fixes/l to feature/sector-fixes "sector-fixes L: GPU after shots and sheet (laptop)").
-- Gap job test-speed-2 (orchestrator): feature/test-speed-2 in C:/NightShift/Mobile-Coop-test-speed-2 (off master
-  170ee701, node_modules junction to testrun-4192). Goal full e2e ~27 -> ~15 min, tests only; an Opus implementer edits
-  the six slow suites (no runs); its notes go to docs/test-speed-2/STATE.md. Proof: two full runs (JOBS=3) on a slot.
+- Sent ~18:00-18:20: #119 N4b 1e442236 (clip "ladder down + slide" 30.1 cm FAIL, coop #125 pageerror); studio-pairs
+  8091de94 GPU sheets pushed to shots/studio-pairs-8091de94 ef7fd5d2; sector-fixes L f21cc2b1 GPU shots + sheet
+  pushed to feature/sector-fixes 985b0916 (e2e-darkness PASS); CT Core N2 53e6dc03 all PASS.
+- test-speed-2: feature/test-speed-2 d7571102 (master 79216e49 merged), implementer done (estimate only ~90-135 s
+  suite time; 15 min needs bigger levers, see docs/test-speed-2/STATE.md "Next"; GPU for logic suites raised with the
+  orchestrator). Proof on 4191 via chain-1022j.ps1 after the baseline: testspeed2-base-79216e49 (full, JOBS=3), then
+  testspeed2-d7571102-a (build + full) and -b (full). Compare per-suite times; then PR (tests-only tier) if green.
+- 4192 and GPU 4189 free for requests; train 6 expected ~18:45-19:15.
 
 ## Done
 - 2026-10-22 ~15:20: PR #117 merged (4.54.1).
