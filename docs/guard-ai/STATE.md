@@ -26,6 +26,11 @@ turn, including the search after combat, so the alerted guard could not reach th
 (post-combat search keeps 1.3 + aimed turn; calm searches keep A9). Desktop GPU: e2e-stealth-ai PASS x2 (lkp 0.91 m,
 light pair both stand down 32.3 s), e2e-sectorops PASS. Full `npm run check` not yet run (heavy.lock was held).
 
+Full burn (orchestrator ~07:55, up to 5 agents): in parallel with the S2 checker, four Opus agents build the pure
+modules (new files only, no wiring): S3 radioNet.ts, S4 awareness.ts, S5 posts.ts + guardAiData.ts, S8 squadRoles.ts
+(+ coverGrid.ts), each with tests/ and a slices/S<n>-module.md report. Integration of each stays sequential (S3, S4,
+S5/S5b, S6, S7, S8) because they share enemy.ts / enemyManager.ts.
+
 ## Next
 S2 fresh checker (review `git diff cd37c3e8 <S2 head>`, slices/S2.md, run `npm run check` under heavy.lock), then S2
 as its own PR (feature/guard-ai-s2); (slices/S2.md, review the S2 commit diff), then S2 as its own PR when green; then S3 radio net, then
@@ -49,6 +54,11 @@ S4-S10 in PLAN order.
 - Bug from Menu Notes (~03:05): `PatrolWalker.step` (src/ai/patrol.ts) freezes on a `waits` entry of 0 (waitT 0 never
   reaches `advance`; the guard stands there for good). Fix in the S2 fix round: a wait of 0 = pass-through, + a unit
   test (theirs: tests/ctcourse/a2CarriageShed.test.ts on feature/marlow-final; they use 0.1 s waits meanwhile).
+- Glass (Course Ready ~08:10, DEC G45, their E2): guard-ai adds optional `glass?: 'clear' | 'frosted'` on collision
+  pieces + the sight ray read (clear = see-through, frosted = opaque; hearing = wall for both; the S7 camera body ray
+  too) as a small step after S3 integration; they fill the data. Piece type: `BoxPiece` in src/world/levelBuilder.ts:45
+  (campus maps src/world/maps/campusS1-3.ts on their branch). Light pass through glass
+  is lighting's (Menu Notes), not ours.
 - Protocol 32 only if S9 is needed (marlow-final 30, sector-redesign 31).
 - A11: Sector Ops melee tour guards vs "every guard armed" (Course Ready's data).
 
