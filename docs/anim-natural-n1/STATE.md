@@ -8,6 +8,24 @@ comes back as text: write it to CHECK-2.md); the laptop runs check + 14 logic su
 from Character Build); the desktop runs N1's anim-audit (/c/NightShift/ctb-c.log, compare with master's
 /c/NightShift/ctb-b.log).
 
+## 2026-10-22 ~14:55 (5-hour pause): the laptop's e2e regressions
+Laptop solo on 79be5623: e2e-anim's footSlide TypeError (stale lib bundle; fixed 79be5623) and its turn-block snap
+(1032 m/s: a foot airborne on the first frame read its distance from the origin; fixed fc15381f) were test bugs. Two
+real failures, diagnosed headless by an agent (scratch repros C:/NightShift/scratch/n1-e2e/, no repo change):
+- e2e-move "stopping: planted feet stay planted (3.93 cm)": HOLD_CONTACT (footPlanner.ts:320, anchorFeet :576-600)
+  anchors a planted foot at its contact point, so the heel-first landing's roll (HEEL_ROLL.pitch 0.3 rad, land()
+  :1509) and the late-stance heel lowering (:1012) move the ANKLE (0.3 rad alone 2.6 cm) while the contact stays put;
+  e2e-move (scripts/e2e-move.mjs:120-169) reads the ankle. An exact trade with master: footTurnHarness stop sweep,
+  ankle / contact cm, N1 0.6-2.6 / 0, master's planner 0 / 0.6-2.6 (master's pass depended on timing too: paces
+  2.2-4.0 give ankle 4.6-4.8 N1 vs 3.9-4.5 master). Assumed decision 5 (job lead, undo: revert the metric): e2e-move's
+  stop metric reads the contact point (metrics.ts contactSlide, as the e2e-anim foot lock and turn block do), the 2 cm
+  bar kept, marked `(anim-natural-n1)` and listed in the PR's switched metrics (stricter: master's planner would read
+  2.6 cm). Not yet built.
+- e2e-clip "crouched holstered: arms / hands through the thighs (min -3.2 cm)": not reproduced as N1's. A headless copy
+  of the limb check (crouch 3 s, stick 0.4 / 0.8 / 1.0 crouched, stop, stand) reads -2.8 cm for N1 turnRule 1, turnRule
+  0 and the base-master planner alike (S4 baseline -2.6). Next: run e2e-clip on master 5220f79c and on N1 with `--log`
+  (the LIMB frames) to see whether it is in-game only (crouch toggle path, the controller's yaw rate) or the base.
+
 ## Next (from ~14:30)
 1. CHECK-2.md from the re-checker. Blockers only get one targeted fix (the current goal); the rest go on the polish list.
 2. Master 4.54.0 (#103 body base, #113) merge; the laptop / desktop results on the exact head.
