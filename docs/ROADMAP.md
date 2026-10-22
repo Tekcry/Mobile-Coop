@@ -30,6 +30,7 @@ Last updated: 2026-10-22 20:05 Sydney (master 4.58.0, train 7; train 8 next: #11
 5. Sector Ops lights (#129): s1-goods-in / s1-workshop show strong white volumetric cones under the new strip lights (fog only; meter and guards read the light field): look on the next walk.
 
 ## Decided (Michael, 2026-10-22 ~11:15 unless dated)
+- 2026-10-22 ~21:50 (laptop GPU full run: CPU avg 35%, GPU 3D avg 9%, RAM free min 7.6 GB of 31.7): "trial 3 browsers + 2nd slot. monitor performance and ensure it doesnt affect eachother". Laptop full runs at E2E_JOBS=3 on the GPU plus a second single-suite GPU slot; kept only if suite times hold (within ~15%), no new load failures, CPU under ~90% outside spikes.
 - 2026-10-22 ~21:40: more CMU takes for the mocap trial (starts, run turns, on-the-spot turns): "Yes, CMU only", no asking per download.
 - 2026-10-22 ~21:20: warehouse-redesign restarts "After Marlow Yard" (finished and walked); its 15 level-standard loosenings L1-L15 (docs/warehouse-redesign/SPEC.md on feature/warehouse-redesign): "Approve all". R section 2 (one co-op route left after two proved solo-reachable): "Add another" before R merges. Vent hold-jump-to-unscrew (T1 A1): Michael reviews it on his walk of recent changes.
 - Vent kick (2026-10-22 ~21:00, T1 feature/vent-kick): the pad's Y then late A also kicks (33 ms); chose "Yes, match keyboard": holding Y doesn't kick, the hold carries into A, a Y tap still kicks.
