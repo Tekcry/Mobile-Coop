@@ -40,9 +40,9 @@ const GPU = ['e2e-darkness', 'e2e-desktop:3', 'e2e-coop-gpu'];
 const REPORT = ['anim-audit'];
 // A suite that is several independent sections (each its own browser) runs as one job per section: `e2e-desktop` =
 // `e2e-desktop:1`, `:2`, `:4` (part 3 is in GPU). `node scripts/e2e-desktop.mjs --part=N`; the script run directly with no --part runs whole.
-// (test-speed) e2e-ctcourse = three station groups (1-3, 4-5, 6-8), each its own pair of pages.
+// (marlow-final 0d) e2e-ctcourse = four pairs of sets (A1-A2, A3-A4, A5-A6, A7-A8), each its own pair of pages.
 // (sector-fixes-r RE) e2e-sectorops = part 1 (sections, alarms, restarts, nav, the co-op mirror), 2 (solo: co-op lips refused, route links, team doors), 3-5 (co-op routes and team doors of sections 1-3)
-const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3'], 'e2e-sectorops': ['1', '2', '3', '4', '5'] };
+const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4'], 'e2e-sectorops': ['1', '2', '3', '4', '5'] };
 const expand = (list) => list.flatMap((s) => (PARTS[s] ? PARTS[s].map((n) => `${s}:${n}`) : [s]));
 const REQUIRED_JOBS = new Set(expand(REQUIRED));
 
@@ -109,6 +109,9 @@ const COVERS = {
   'src/world/maps/courselab.ts': ['e2e-course'],
   'src/world/maps/bunker': ['e2e-course'],
   'src/world/maps/ctcourse.ts': ['e2e-ctcourse'],
+  // (marlow-final 0d) the set parts, the facility and the greybox helpers of Marlow Yard
+  'src/world/maps/ctcourseSets/': ['e2e-ctcourse'],
+  'src/world/maps/ctcourseGreybox.ts': ['e2e-ctcourse'],
   'src/world/': ['e2e-lightbake', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
   'src/voxel/': ['e2e-lightbake', 'e2e-desktop'],
   'src/vfx/': ['e2e-desktop'],
@@ -128,6 +131,8 @@ const COVERS = {
 // (the -lib helpers are not suites: e2e-lib reruns CORE, e2e-net-lib the two-page suites in HELPERS)
 const SCRIPT = /^scripts\/(smoke|anim-audit|e2e-(?!(?:[\w-]*-)?lib\.mjs$)[\w-]+)\.mjs$/;
 const HELPERS = { 'scripts/e2e-net-lib.mjs': ['e2e-netmove', 'anim-audit'] };
+// (marlow-final 0d) the set step modules of e2e-ctcourse (scripts/e2e-ctcourse/<set>.mjs) rerun it
+const SUITE_DIRS = { 'scripts/e2e-ctcourse/': ['e2e-ctcourse'] };
 
 const argv = process.argv.slice(2);
 const flag = (n) => argv.includes(`--${n}`);
@@ -169,6 +174,7 @@ function quickSuites() {
     let hit = null;
     if (f.startsWith('src/')) hit = Object.entries(COVERS).find(([p]) => f.startsWith(p))?.[1] ?? CORE;
     else if (HELPERS[f]) hit = HELPERS[f];
+    else if (Object.keys(SUITE_DIRS).some((d) => f.startsWith(d))) hit = SUITE_DIRS[Object.keys(SUITE_DIRS).find((d) => f.startsWith(d))];
     else if (SCRIPT.test(f)) hit = [f.replace(/^scripts\/|\.mjs$/g, '')];
     else if (/^(scripts\/(e2e-lib|run-e2e)\.mjs|package\.json|index\.html|vite\.config\.\w+|public\/)/.test(f)) hit = CORE;
     for (const s of hit ?? []) picked.add(s);

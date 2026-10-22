@@ -10,10 +10,13 @@ import { SCANNER, SCAN_GLOW, SC_DONE, SC_HACKING, SC_IDLE, SC_READY, newScanPair
 import type { CtDevices as CtDevicesT, SecWire } from '../src/game/ctDevices';
 import type { CourseDevice } from '../src/game/course/courseDef';
 import { parseMessage, PROTOCOL_VERSION } from '../src/net/protocol';
-import { LevelBuilder } from '../src/world/levelBuilder';
-import { ctcourse, S6_SCANNERS } from '../src/world/maps/ctcourse';
 
 const dev = (x: number, z: number, yaw: number, y = 0): CourseDevice => ({ x, y, z, yaw });
+
+/** (marlow-final 0d) The retired Marlow Yard station 6 pair, kept as data (the bunker bays are gone): panels on the
+ *  south and north fences at x 115, z 0.4 facing +z and z 13.6 facing -z. Its glows must stay at z 0.3 / 13.7. */
+const S6_SCANNERS: ScannerDef = { id: 'sc-s6', a: 'sw-s6-a', b: 'sw-s6-b', flag: 's6-sync' };
+const S6_DEVICES: Record<string, CourseDevice> = { 'sw-s6-a': dev(115, 0.4, 0), 'sw-s6-b': dev(115, 13.6, Math.PI) };
 
 /** Two pairs as A7 / A8 place them: a7 on the cage's west and east faces (yaw -pi/2 and pi/2), a8 with T2 on a
  *  raised floor (y 1.2) to check the panel floor. */
@@ -76,9 +79,8 @@ function world(layout: Record<string, unknown>, refs: Ref[]) {
 
 describe('(N6) scanner glow placement and the wire entry (pure)', () => {
   it("Marlow's station 6 devices give the old hard-coded panel faces z 0.3 / 13.7", () => {
-    const lay = ctcourse.build(new LevelBuilder(), 0);
-    const da = lay.course!.devices[S6_SCANNERS.a]!;
-    const db = lay.course!.devices[S6_SCANNERS.b]!;
+    const da = S6_DEVICES[S6_SCANNERS.a]!;
+    const db = S6_DEVICES[S6_SCANNERS.b]!;
     const o = { x: 0, y: 0, z: 0 };
     scanGlowAt(da.x, da.y, da.z, da.yaw, o);
     expect(o.x).toBeCloseTo(da.x, 9);
@@ -173,12 +175,11 @@ describe('(N6) CtDevices: every scanner pair', () => {
   const pos = (m: InstancedMesh): [number, number, number] => [m.position.x, m.position.y, m.position.z];
 
   it("Marlow Yard: one pair, built as before (glows at z 0.3 / 13.7, heights 1.95 / 2.25), `scan` is it", () => {
-    const lay = ctcourse.build(new LevelBuilder(), 0);
-    const { d } = make('host', { scanners: lay.scanners, course: lay.course }, [ref('host', 0, 0, 7)]);
+    const { d } = make('host', { scanners: [S6_SCANNERS], course: { devices: S6_DEVICES } }, [ref('host', 0, 0, 7)]);
     expect(d.scans).toHaveLength(1);
     expect(d.scan).toBe(d.scans[0]);
     const sc = d.scans[0]!;
-    const ax = lay.course!.devices[S6_SCANNERS.a]!.x;
+    const ax = S6_DEVICES[S6_SCANNERS.a]!.x;
     expect(pos(sc.glow[0]!)[0]).toBeCloseTo(ax, 9);
     expect(pos(sc.glow[0]!)[1]).toBeCloseTo(1.95, 9);
     expect(pos(sc.glow[0]!)[2]).toBeCloseTo(0.3, 9);

@@ -6,7 +6,6 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Vector3 } from '../src/core/babylon';
 import { passZoneNeed, type PassZone } from '../src/game/passZones';
 import type { CtDevices as CtDevicesT } from '../src/game/ctDevices';
-import { S3_PASS } from '../src/world/maps/ctcourse';
 
 interface Ref {
   id: string;
@@ -39,9 +38,8 @@ describe('(N1) passZoneNeed', () => {
     expect(passZoneNeed(false, 1, false)).toBe(2);
     expect(passZoneNeed(undefined, 1, true)).toBe(1);
   });
-  it("Marlow's station 3 zone stays a both-players zone", () => {
-    expect(S3_PASS.any).toBeUndefined();
-  });
+  // (marlow-final 0d) "Marlow's station 3 zone stays a both-players zone" pinned the retired bunker bay; A3's corridor
+  // zone (`PassZone.hall`, both players) returns in tests/ctcourse/a3OfficeRange.test.ts
 });
 
 describe('(N1) CtDevices: PassZone.any', () => {
