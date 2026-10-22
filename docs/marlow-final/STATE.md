@@ -67,6 +67,10 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- ~01:55 Sydney: Michael reset the 5-hour window (2% at resume; resets 2026-10-23 ~06:40 Sydney). PHASE B: lean,
+  at most 3 agents, 97 / 98 / 99% rule, Sonnet builds sets from Opus briefs (Pacing above). Four agents carried
+  over (0d, set docs x2, 0f): no new agent until 2 or fewer run. (Note: earlier "~0x:xx" times in this file are
+  session estimates; the machine clock reads about 02:00 Sydney now.)
 - ~03:10 slice 0 fresh checker: PASS (slices/S0-check.md). Fixed its should-fix 1 (e2e-ctcourse expects 'looped',
   5920cce5); Character Build reruns e2e-ctcourse on 5920cce5. Slice 0 follow-ups (Opus, small, next free slot):
   unit test for ctDevices camera mode transitions (console -> looped, jam during loop -> off -> looped, flag clear ->
