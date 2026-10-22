@@ -1,5 +1,16 @@
 # anim-natural N2 - state
 
+## 2026-10-22 ~17:55: bodyMotion allocation test (Course Ready, PR #128 feature/heap-asserts)
+The deterministic helper is `tests/helpers/allocPerCall.ts` (#128: gc() + new space per round, rounds with a scavenge
+discarded; `inputs()` into a Float64Array; typed `sink`; HEAP_NUMBER 16). When #128 is on master (or copy the helper),
+replace tests/bodyMotion.test.ts:126-149 with Course Ready's version: `import { bytesPerCall, HEAP_NUMBER, inputs, sink }
+from './helpers/allocPerCall'`; N = 2000 precomputed inputs PH / MV / CR / AM / DR (phase, move, crouch, aim, drawn) and
+TA / TB (band times: `((k * 3) % 6000) / 1000`, `((k * 3) % 3000) / 1000`); per call: set the inputs,
+`bodyMotionBands(i, TA[k], TB[k], KEYED_GAITS, KEYED_CROUCH)`, `bodyMotionStep(i, o)`, `sink[0] += o.hipYaw + o.chestYaw +
+o.pelX + o.headPitch`; `bytesPerCall(fn, HEAP_NUMBER / 2)`; expect finite sink and per <= HEAP_NUMBER / 2. If it reads
+16-32 B (the two band times boxed at a non-inlined call), the limit may go to 3 * HEAP_NUMBER (still under one object).
+Field names to check against the test.
+
 ## 2026-10-22 ~16:55: step 2 desktop verification (ctb9 on 21106003, /c/NightShift/ctb9.out, ctb9.log)
 - check ok (2696 tests); e2e-netmove ok, e2e-studio ok, e2e-clip ok.
 - e2e-anim FAIL, one assert: "rifle low ready jog speed 4: elbows in (6 cm outside the shoulder)", limit 6.0
