@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased - anim-natural-n2
+
+### Body motion layer (step 2)
+- Wren's walk, jog, run, sneak, crouch walk, crouch run and the aimed glides now move the whole body (Michael: "All
+  movements must move naturally with twisting/swaying/balancing"): the hips and shoulders turn against each other with
+  each step, the hips sway over the standing foot, and the head lets a little of the chest's turn through and nods with
+  the steps. Aiming, the hips swing under a steady chest and the head stays on the aim.
+- Added on top of the keyed clips and Michael's key edits (never rescaling them), timed onto the gait phase: no pops at
+  speed or stance changes, the same at every frame rate. Measured headless (pelvis / shoulders deg peak to peak): walk
+  3 / 3 -> 8 / 8, jog 5 / 7 -> 12 / 16, sneak 2 / 2.4 -> 5 / 5.4, crouch walk 4 / 4.8 -> 8 / 8.8; walk hip sway 1.7 ->
+  4.4 cm; aimed side-step counter-rotation -0.47 -> -0.99. The run keeps its keyed hip pop (waiting on Michael, A1).
+- Every Wren rig (the player, the co-op partner, the studio puppets walking a loop); guards are unchanged bit for bit.
+  The amounts are per tuner body row (`BODY_MOTION` in `src/anim/bodyMotion.ts`); the stills come in a later step.
+- The animation audit's walk sway limit for Wren is 5 cm (Michael approved ~5 cm; guards keep 3 cm).
+
 ## 4.53.0 - Train 2: guard tuning and clip speed in the animation tuner (2026-10-22, PR #112; #105, #109)
 
 ### #109 Clip speed

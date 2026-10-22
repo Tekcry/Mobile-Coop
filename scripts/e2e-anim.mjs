@@ -969,6 +969,113 @@ try {
     }
   }
 
+  // ---------------------------------------------------------------- body motion (anim-natural-n2 step 2)
+  {
+    // Wren's body motion layer (src/anim/bodyMotion.ts) on the player: pelvis and shoulder yaw (the hip-joint and
+    // shoulder-joint lines in the root frame), their correlation (counter-rotation), the pelvis lateral swing off the
+    // root, the head's yaw off the root and its pitch, each a peak-to-peak over the recording, sampled every 60 Hz step.
+    // The same maths as the unit harness (tests/helpers/bodyMotionMeasure.ts, tests/bodyMotion.test.ts); the targets are
+    // PLAN step 2's (docs/anim-natural-n2/PLAN.md). The run keeps its keyed pelvis pop (A1, waits for Michael): its yaw is
+    // report-only, its lateral asserts.
+    console.log('body motion');
+    const bm = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const p = g.player;
+      const c = p.controller;
+      const rig = p.rig;
+      const W = g.weapons;
+      const D = 180 / Math.PI;
+      const ang = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+      const range = (a) => (a.length ? Math.max(...a) - Math.min(...a) : 0);
+      const corr = (a, b) => {
+        const n = a.length;
+        const ma = a.reduce((s, x) => s + x, 0) / n;
+        const mb = b.reduce((s, x) => s + x, 0) / n;
+        let sab = 0;
+        let saa = 0;
+        let sbb = 0;
+        for (let i = 0; i < n; i++) {
+          sab += (a[i] - ma) * (b[i] - mb);
+          saa += (a[i] - ma) ** 2;
+          sbb += (b[i] - mb) ** 2;
+        }
+        return saa > 1e-12 && sbb > 1e-12 ? sab / Math.sqrt(saa * sbb) : 0;
+      };
+      const rows = [];
+      const one = (name, gear, crouch, mode, inp) => {
+        if (mode === 'hol') p.stance.holster();
+        else if (p.stance.base !== 'lowReady' || W.drawPhase !== 2) p.stance.base = 'lowReady';
+        t.run(0.6, mode === 'hol' ? {} : { draw: true });
+        t.tp(12, -14, -Math.PI / 2);
+        rig.planner.L.init = rig.planner.R.init = false;
+        c.gears.set(gear);
+        c['crouchToggled'] = crouch;
+        t.run(0.6, mode === 'hol' ? {} : { draw: true });
+        const pel = [];
+        const sh = [];
+        const lat = [];
+        const hy = [];
+        const hp = [];
+        let speed = 0;
+        t.run(1.5, inp);
+        t.run(3.0, inp, () => {
+          for (const n of [rig.root, rig.hips, rig.spine, rig.torso, rig.neck, rig.headNode, rig.shoulderL, rig.shoulderR, rig.hipL, rig.hipR]) n.computeWorldMatrix(true);
+          const rm = rig.root.getWorldMatrix().m;
+          const rootYaw = Math.atan2(rm[8], rm[10]);
+          const rr = Math.atan2(rm[2], rm[0]);
+          const lineYaw = (a, b) => ang(Math.atan2(b[14] - a[14], b[12] - a[12]) - rr) * D;
+          const hm = rig.hips.getWorldMatrix().m;
+          const em = rig.headNode.getWorldMatrix().m;
+          pel.push(lineYaw(rig.hipL.getWorldMatrix().m, rig.hipR.getWorldMatrix().m));
+          sh.push(lineYaw(rig.shoulderL.getWorldMatrix().m, rig.shoulderR.getWorldMatrix().m));
+          lat.push((hm[12] - rm[12]) * Math.cos(rootYaw) - (hm[14] - rm[14]) * Math.sin(rootYaw));
+          hy.push(ang(Math.atan2(em[8], em[10]) - rootYaw) * D);
+          const nl = Math.sqrt(em[8] * em[8] + em[9] * em[9] + em[10] * em[10]);
+          hp.push(Math.asin(Math.max(-1, Math.min(1, em[9] / nl))) * D);
+          speed += c.speed;
+          return 0;
+        });
+        c['crouchToggled'] = false;
+        c.gears.set(4);
+        rows.push({ name, speed: speed / Math.max(1, pel.length), pelvis: range(pel), shoulders: range(sh), corr: corr(pel, sh), lateral: range(lat), headYaw: range(hy), headPitch: range(hp) });
+      };
+      one('walk', 2, false, 'hol', { y: 1 });
+      one('jog', 4, false, 'hol', { y: 1 });
+      one('run', 5, false, 'hol', { y: 1 });
+      one('sneak', 1, true, 'hol', { y: 1 });
+      one('crouch walk', 3, true, 'hol', { y: 1 });
+      one('aim glide fwd', 4, false, 'drawn', { ads: true, y: 1 });
+      one('aim glide side', 4, false, 'drawn', { ads: true, x: 1 });
+      p.stance.holster();
+      t.run(0.6, {});
+      return rows;
+    });
+    const B = Object.fromEntries(bm.map((r) => [r.name, r]));
+    for (const r of bm) console.log(`  ${r.name} (${f2(r.speed)} m/s): pelvis ${f2(r.pelvis)} / shoulders ${f2(r.shoulders)} deg p2p, corr ${f2(r.corr)}, lateral ${cm(r.lateral)} cm, head yaw ${f2(r.headYaw)} / pitch ${f2(r.headPitch)} deg`);
+    const inR = (v, lo, hi) => v >= lo && v <= hi;
+    const w = B.walk;
+    assert(inR(w.pelvis, 7, 9) && inR(w.shoulders, 7, 9), `walk: pelvis / shoulders counter-rotate ~8 / 8 deg p2p (${f2(w.pelvis)} / ${f2(w.shoulders)}; 7-9)`);
+    assert(inR(w.lateral, 0.04, 0.05), `walk: pelvis lateral sway 4-5 cm (${cm(w.lateral)})`);
+    const j = B.jog;
+    assert(inR(j.pelvis, 11, 13) && inR(j.shoulders, 14.5, 17), `jog: pelvis / shoulders ~12 / 16 deg p2p (${f2(j.pelvis)} / ${f2(j.shoulders)}; 11-13 / 14.5-17)`);
+    const s = B.sneak;
+    assert(inR(s.pelvis, 4.5, 5.5) && inR(s.shoulders, 4.5, 6), `sneak: pelvis / shoulders ~5 / 5 deg p2p (${f2(s.pelvis)} / ${f2(s.shoulders)}; 4.5-5.5 / 4.5-6)`);
+    const cw = B['crouch walk'];
+    assert(inR(cw.pelvis, 7, 9) && inR(cw.shoulders, 7, 9.5), `crouch walk: pelvis / shoulders ~8 / 8 deg p2p (${f2(cw.pelvis)} / ${f2(cw.shoulders)}; 7-9 / 7-9.5)`);
+    assert(inR(B.run.lateral, 0.02, 0.03), `run: pelvis lateral sway 2-3 cm (${cm(B.run.lateral)}; its yaw ${f2(B.run.pelvis)} deg is the keyed pop, A1, report-only)`);
+    for (const n of ['walk', 'jog', 'sneak', 'crouch walk']) {
+      assert(B[n].corr < -0.9, `${n}: pelvis and shoulders counter-rotate (corr ${f2(B[n].corr)} < -0.9)`);
+      assert(inR(B[n].headYaw, 2, 6), `${n}: the head follows the chest a little (${f2(B[n].headYaw)} deg p2p; 2-6)`);
+    }
+    assert(inR(B['aim glide fwd'].pelvis, 3, 4.5), `aim glide fwd: pelvis 3-4 deg p2p (${f2(B['aim glide fwd'].pelvis)})`);
+    for (const n of ['aim glide fwd', 'aim glide side']) {
+      assert(B[n].corr < -0.8, `${n}: the pelvis counters the shoulders (corr ${f2(B[n].corr)} < -0.8)`);
+      assert(B[n].headYaw < 0.05, `${n}: the head stays on the aim (${f2(B[n].headYaw)} deg p2p)`);
+    }
+    for (const r of bm) assert(r.headPitch <= 2, `${r.name}: head pitch p2p <= 2 deg (${f2(r.headPitch)})`);
+  }
+
   // ---------------------------------------------------------------- transitions and flinch
   console.log('transitions');
   const tr = await G(() => {

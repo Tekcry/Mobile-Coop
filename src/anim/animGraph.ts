@@ -51,6 +51,7 @@ import { KEYED_GLIDE_FWD } from './clips/keyed/glide_fwd';
 import { KEYED_GLIDE_STRAFE } from './clips/keyed/glide_strafe';
 import { KEYED_GLIDE_BACK } from './clips/keyed/glide_back';
 import { studioDriveTargets, type StudioDrive } from './studioDrive';
+import { bodyMotionBands, bodyMotionStep, newBodyMotion, newBodyMotionIn, type BodyMotion } from './bodyMotion';
 import { KEYED_SNEAK } from './clips/keyed/sneak';
 import { KEYED_CROUCH_WALK } from './clips/keyed/crouch_walk';
 import { KEYED_CROUCH_RUN } from './clips/keyed/crouch_run';
@@ -336,6 +337,8 @@ export interface RigTargets {
   /** (anim-rework S4) The keyed squat's share of the free arms (the crouched idle, hands on the knees): the rig moves each
    *  palm onto the top of its own posed knee by it (`kneeRest`). */
   kneeRest: number;
+  /** (anim-natural-n2) The body motion layer (`bodyMotion.ts`): Wren rigs on foot only, all 0 on every other rig. */
+  motion: BodyMotion;
 }
 
 export function emptyTargets(): RigTargets {
@@ -372,6 +375,7 @@ export function emptyTargets(): RigTargets {
     keyTrunk: 1,
     kneel: 0,
     kneeRest: 0,
+    motion: newBodyMotion(),
   };
 }
 
@@ -1584,7 +1588,35 @@ export class AnimGraph {
     o.readyShoulder.y = p.y.shoulder + this.readyFy * fw * k;
     o.readyShoulder.z = -0.01 + this.readyFz * fw * k;
     if (this.drive !== null) studioDriveTargets(this.drive, o, dt); // (anim-studio) the loop player's clip; null outside the studio
+    this.bodyMotion(i, o, dt);
     return o;
+  }
+
+  /** (anim-natural-n2) The body motion layer's inputs and eased gate (preallocated). */
+  private readonly motionIn = newBodyMotionIn();
+  private motionGate = 0;
+
+  /**
+   * (anim-natural-n2 step 2) The body motion layer into `o.motion` (`bodyMotion.ts`), on this frame's gait phase: a Wren
+   * rig (`wrenReady`) on foot (no wall, traversal, air, slide, close-quarters hold / bend, melee, dash, tense sneak or
+   * kneel), the gate eased over KEYED_WALK_BAND.tau. Graph-internal inputs only (co-op parity). No allocation.
+   */
+  private bodyMotion(i: AnimInput, o: RigTargets, dt: number): void {
+    const onFoot = this.wrenReady && (i.keyedOk || i.keyedDrawn) && i.grounded && i.traverse === 'none' && i.slide < 0 && !i.wall && i.melee < 0 ? 1 : 0;
+    const target = onFoot * (1 - this.wallW) * (1 - this.dashS) * (1 - this.tenseW) * (1 - smoothstep(this.kneelW));
+    this.motionGate = approach(this.motionGate, target, KEYED_WALK_BAND.tau, dt);
+    if (this.motionGate < 1e-4) this.motionGate = 0;
+    const m = this.motionIn;
+    m.gate = this.motionGate;
+    if (m.gate > 0) {
+      m.phase = o.gait.phase;
+      m.move = this.moveW;
+      m.crouch = clamp(i.crouch, 0, 1);
+      m.drawn = o.keyDrawn;
+      m.aim = this.raiseS;
+      bodyMotionBands(m, effortSpeed(this.locoSpeed, false), this.cPace, KEYED_GAITS, KEYED_CROUCH);
+    }
+    bodyMotionStep(m, o.motion);
   }
 
   /**

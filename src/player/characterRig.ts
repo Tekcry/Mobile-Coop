@@ -2173,6 +2173,8 @@ export class CharacterRig {
       this.glideShift = approachTo(this.glideShift, want, dt, GLIDE_HIP.tau);
       pex += this.glideShift;
     }
+    // (anim-natural-n2) the body motion layer's pelvis sway, before the feet's reach (a Wren rig on foot; 0 on any other)
+    if (t.motion.pelX !== 0) pex += t.motion.pelX * kk;
     const peZ = pez + this.restShift;
     const yc = Math.cos(yaw);
     const ys = Math.sin(yaw);
@@ -2264,6 +2266,8 @@ export class CharacterRig {
     // (marlow-bays T1a, COVERAGE gap 4) aiming, the keyed trunk is not applied (the gun platform): the glide's and the
     // ready stance's per-key trunk edits go on over it by the share the keyed trunk leaves
     if (kq.edOn && kw * (1 - t.keyTrunk) > 0) this.keyedTrunkEdit(kq, kw * (1 - t.keyTrunk));
+    // (anim-natural-n2) the body motion layer's pelvis / shoulder counter-rotation over the keyed trunk and its edits
+    if (t.motion.hipYaw !== 0 || t.motion.chestYaw !== 0) this.motionTrunk(t.motion.hipYaw, t.motion.chestYaw);
     if (JOINTS_CUR.on) this.jointOffsets(0); // (tuner-v2) per-joint offsets on the trunk, before the leg and arm IK
     this.limitJoint(this.hips, dt);
     this.limitJoint(this.spine, dt);
@@ -2391,12 +2395,19 @@ export class CharacterRig {
     // head: world-stabilised (eyes level): looks along the aim plus the head channel
     // (anim-rework S2) plus the keyed idle's head scan (standing holstered and still only; the keyed neck alone was
     // undone by this stabilisation)
-    Quaternion.RotationYawPitchRollToRef(
-      yaw + this.input.aimYaw * 0.85 + this.lookYaw + t.head.yaw * 0.25 + (freeGait && !free ? t.keyScan : 0),
-      -this.input.aimPitch * 0.8 - this.lookPitch + t.head.pitch * 0.4,
-      t.head.roll * 0.6,
-      tmpQ,
-    );
+    // (anim-natural-n2) the body motion layer: the head lets a share of the chest's yaw off the facing through (not
+    // aiming) and nods with the steps; added only when non-zero (every other rig is unchanged bit for bit)
+    let hdYaw = yaw + this.input.aimYaw * 0.85 + this.lookYaw + t.head.yaw * 0.25 + (freeGait && !free ? t.keyScan : 0);
+    let hdPitch = -this.input.aimPitch * 0.8 - this.lookPitch + t.head.pitch * 0.4;
+    const mo = t.motion;
+    if (mo.headFollow > 0 && t.aimW < 1) {
+      const tm = this.torso.getWorldMatrix().m;
+      const d = Math.atan2(tm[8]!, tm[10]!) - yaw;
+      const f = mo.headFollow * Math.atan2(Math.sin(d), Math.cos(d)) * (1 - t.aimW);
+      if (f !== 0) hdYaw += f;
+    }
+    if (mo.headPitch !== 0) hdPitch += mo.headPitch;
+    Quaternion.RotationYawPitchRollToRef(hdYaw, hdPitch, t.head.roll * 0.6, tmpQ);
     this.setWorldRot(this.headNode, this.neck, tmpQ);
     // (marlow-bays T1a, item 17) a keyed head turn (local, on the look)
     if (kq.hasHead && kw > 0) {
@@ -2598,6 +2609,24 @@ export class CharacterRig {
     Quaternion.RotationYawPitchRollToRef(lookYaw, 0, 0, kF);
     kF.multiplyToRef(kT, kT);
     Quaternion.SlerpToRef(this.neck.rotationQuaternion!, kT, w, this.neck.rotationQuaternion!);
+  }
+
+  /**
+   * (anim-natural-n2) The body motion layer's trunk (`bodyMotion.ts`): the pelvis turns `hip` rad about the vertical
+   * (root frame) and the spine takes back `hip - chest`, so the shoulders turn `chest` rad (0: the chest stays where the
+   * keyed / procedural trunk put it, the aim's gun platform). No allocation.
+   */
+  private motionTrunk(hip: number, chest: number): void {
+    const h = this.hips.rotationQuaternion!;
+    const s = this.spine.rotationQuaternion!;
+    kP.copyFrom(h);
+    Quaternion.RotationYawPitchRollToRef(hip, 0, 0, kF);
+    kF.multiplyToRef(kP, h);
+    Quaternion.RotationYawPitchRollToRef(chest - hip, 0, 0, kF);
+    Quaternion.InverseToRef(kP, kT);
+    kT.multiplyToRef(kF, kT);
+    kT.multiplyToRef(kP, kT);
+    kT.multiplyToRef(s, s);
   }
 
   /**

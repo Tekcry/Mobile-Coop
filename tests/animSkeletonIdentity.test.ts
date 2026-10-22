@@ -7,6 +7,10 @@
  * pistol low ready, the base table's idle / walk / jog upperArm roll), which changed 33 of the 39 hashes. Before the
  * re-capture, the run with the pre-bake data restored at run time (the old jog / run clips, the low ready and pistol
  * ready, now WREN_READY_LOW / WREN_PISTOL_READY, an empty base) matched the 4e3cbbda fixture bit for bit: the bake changed data, not the rig code.
+ * (anim-natural-n2 step 2) Re-captured after the body motion layer: `partner:moves` moved (the one scenario walking on
+ * foot along the facing, the layer's gate) and `keyed:skeleton_test` joined the capture; the other 38 are unchanged.
+ * Before the re-capture the run with every BODY_MOTION amount at 0 matched the old fixture bit for bit (kept as
+ * `tests/fixtures/anim-skeleton-identity-motion-off.json`, asserted by tests/bodyMotion.test.ts).
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';

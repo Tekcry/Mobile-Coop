@@ -988,8 +988,8 @@ function steady(rec, hz, out, a, b, band, lateral, cap, surface) {
         if (r < mn) mn = r;
         if (r > mx) (mx = r), (fr = i);
       }
-      res(out, 'lateralSway', { worst: mx - mn, frame: fr, pass: mx - mn <= L.WALK_SWAY }, L.WALK_SWAY, ':1255', 'm', a);
-    } else res(out, 'lateralSway', M.lateralSway(vec(rec, 'hips', a, b), vec(rec, 'cap', a, b), col(rec, 'yaw', a, b), L.WALK_SWAY), L.WALK_SWAY, ':1255', 'm', a);
+      res(out, 'lateralSway', { worst: mx - mn, frame: fr, pass: mx - mn <= L.WALK_SWAY_WREN }, L.WALK_SWAY_WREN, ':1255', 'm', a);
+    } else res(out, 'lateralSway', M.lateralSway(vec(rec, 'hips', a, b), vec(rec, 'cap', a, b), col(rec, 'yaw', a, b), L.WALK_SWAY_WREN), L.WALK_SWAY_WREN, ':1255', 'm', a);
   }
   // camera: high-passed over two steps (a slow framing ease, e.g. the sprint framing, is not an oscillation)
   const si = [];

@@ -75,6 +75,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   Y over a wall at low ready or aiming: the gun goes away for the climb and comes back after. A opens doors and uses
   things at low ready and aiming too. Aim the pistol at a camera or a laser and hold RB (keyboard F) to jam it; aiming
   alone does not jam, and RB not aiming the pistol is still the co-op action.
+- [ ] Body motion (anim-natural-n2): walk, jog, sneak and crouch walk holstered: the hips and shoulders turn against each
+  other with each step, the hips sway over the standing foot, the head turns a little with the chest and nods; aiming
+  and side-stepping, the hips swing under a steady chest and the gun and head stay on the aim. No pop speeding up,
+  slowing down or crouching. Guards walk as before.
 - [ ] A at a wall puts your back to it; slide along it, stop at the edge, A to leave (CT prototype).
 - [ ] (G6) Crouched on a wall: side-on, a hand on the knee, turning through facing out on a reversal; Open from the door
   menu steps to the latch side and pushes the door with a hand; the edge peek puts the head just past the frame.
