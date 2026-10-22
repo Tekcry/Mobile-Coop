@@ -782,7 +782,7 @@ try {
       const listening = pr.first === true;
       let v = await view();
       const lab = await G((p) => document.querySelector(`${p} .pad-key[data-bind="draw:0"]`).textContent, panel);
-      assert(listening && JSON.stringify((await pad()).draw) === '[11]' && lab === 'R3' && v.rows === '' && !v.cap, `A then R3 rebinds draw (${lab}, conflicts "${v.rows}")`);
+      assert(listening && JSON.stringify((await pad()).draw) === '[11]' && lab === 'R3' && v.rows === '' && !v.cap, `A then R3 rebinds draw (${lab}, conflicts "${v.rows}"${pr.polled ? '' : ', no input poll'})`);
       // (G22, MD13) a capture is cancelled by Menu / Start (the screen stays, the overlay goes, nothing binds)
       await focusSlot('draw:1');
       // (load-latent-ui1) A and Start in one evaluate: the overlay's countdown is wall clock and a read after press(A)
@@ -793,7 +793,7 @@ try {
       await P.waitForTimeout(300);
       v = await view();
       const ovGone = await G(() => !document.querySelector('.cap-overlay'));
-      assert(ov.o && ['5', '4'].includes(ov.n) && ovGone && !v.cap && v.screen && JSON.stringify((await pad()).draw) === '[11]', `Start cancels the capture; the overlay showed the 5 s countdown (5 or 4 on a slow frame) (${JSON.stringify({ ...v, ov, ovGone })})`);
+      assert(ov.o && ['5', '4'].includes(ov.n) && ovGone && !v.cap && v.screen && JSON.stringify((await pad()).draw) === '[11]', `Start cancels the capture; the overlay showed the 5 s countdown (5 or 4 on a slow frame) (${JSON.stringify({ ...v, ov, ovGone, polled: prS.polled })})`);
       // play: the new button draws, X does not (settings persist through IndexedDB to a new page)
       await P.waitForTimeout(600);
       const Q = await openPage(R.ctx, url, 'autostart=proving');
@@ -893,7 +893,7 @@ try {
         prB = await pressPair(P, BTN.A, BTN.B, capRead, { onlyIf: 'capturing' });
       }
       v = await view();
-      assert(v.rows === 'crouch,draw' && /share B/.test(v.sum) && v.screen && JSON.stringify((await pad()).draw) === '[1]', `A then B binds B (G22), warned on both rows (${JSON.stringify(v)})`);
+      assert(v.rows === 'crouch,draw' && /share B/.test(v.sum) && v.screen && JSON.stringify((await pad()).draw) === '[1]', `A then B binds B (G22), warned on both rows (${JSON.stringify({ ...v, polled: prB.polled })})`);
       // Y: Reset all asks first, Cancel focused (MD18); right then A resets
       await press(P, BTN.Y);
       await P.waitForFunction(() => !!document.querySelector('.dialog-screen'), null, { timeout: 3000 }).catch(() => {});

@@ -248,16 +248,19 @@ try {
       const s0 = await shotOf(F.page);
       // (load-latent-ui1) was 8 s of wall time: under CPU load few frames ran and the menu clock (clamped frame dt) had not
       // reached the next shot. 8 s of frame time (summed min(dt, 0.1), as the loop clamps it), 120 s real-time cap; the
-      // assert below fails a miss
+      // assert below fails a miss. The cap is also a timer, in case rAF stops
       await F.page.evaluate((n) => new Promise((res) => {
         const w0 = performance.now();
         let last = w0;
         let sum = 0;
+        const cap = setTimeout(res, 120000);
         const tick = (t) => {
           sum += Math.min(Math.max(t - last, 0) / 1000, 0.1);
           last = t;
-          if ((window.__app.current?.shotChanges ?? 0) > n || sum >= 8 || t - w0 > 120000) res();
-          else requestAnimationFrame(tick);
+          if ((window.__app.current?.shotChanges ?? 0) > n || sum >= 8 || t - w0 > 120000) {
+            clearTimeout(cap);
+            res();
+          } else requestAnimationFrame(tick);
         };
         requestAnimationFrame(tick);
       }), s0.n);
@@ -268,21 +271,25 @@ try {
         () =>
           new Promise((res) => {
             // (load-latent-ui1) gives up after 10 s of frame time (summed min(dt, 0.1)), not 10 s of wall time: under CPU
-            // load the menu clock ran slower than the wall. 120 s real-time cap
+            // load the menu clock ran slower than the wall. 120 s real-time cap (also a timer, in case rAF stops)
             const t0 = performance.now();
             let last = t0;
             let sum = 0;
+            const cap = setTimeout(() => res({ fade: window.__app.current?.shotFade ?? 0, before: '', after: '' }), 120000);
             const tick = () => {
               const now = performance.now();
               sum += Math.min(Math.max(now - last, 0) / 1000, 0.1);
               last = now;
               const fade = window.__app.current?.shotFade ?? 0;
               if (fade > 0.15) {
+                clearTimeout(cap);
                 const before = window.__app.nav.focused?.dataset.key;
                 window.__app.nav.move('down');
                 res({ fade, before, after: window.__app.nav.focused?.dataset.key });
-              } else if (sum >= 10 || now - t0 > 120000) res({ fade, before: '', after: '' });
-              else requestAnimationFrame(tick);
+              } else if (sum >= 10 || now - t0 > 120000) {
+                clearTimeout(cap);
+                res({ fade, before: '', after: '' });
+              } else requestAnimationFrame(tick);
             };
             tick();
           }),
