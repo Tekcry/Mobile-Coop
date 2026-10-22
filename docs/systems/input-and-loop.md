@@ -131,7 +131,7 @@ Edit the table and the code together.
 | Switch weapon (next) | `swapNext` | - | - | `nextWeapon` (T) | LB / Tab tap switches weapon (the wheel opens on a hold); also through the wheel |
 | Previous weapon | `swapPrev` | - | - | `prevWeapon` (Q) | No pad button |
 | Quick-use selected gadget (hold aims, release throws) | `grenade` | D-pad right | D-pad right | `gadget` (G) | F1a: the gadget picked on the wheel; works holstered (G21) |
-| Selection wheel (G181) | `gadgetWheel` | LB (hold) | L1 / L | `wheel` (Tab, hold) | Over the live game, no time slow: vision modes (stack at the top; A / E on the slot cycles them), guns with ammo, kit gadgets with counts; right stick / mouse picks, release selects |
+| Selection wheel (G181) | `gadgetWheel` | LB (hold) | L1 / L | `wheel` (Tab, hold) | Over the live game, no time slow: vision modes (stack at the top; A / E on the slot cycles them), guns with ammo, kit gadgets with counts; right stick / mouse picks, release selects. Opens on the vision slot (A / E cycles with no stick); the stick let go (mouse back in the centre) returns to it, sector-fixes W |
 | Co-op action; jammer (aiming the pistol) | `coop` | RB | R1 / R | `coop` (F, PageDown) | CT's Black button: team moves; held while aiming the drawn pistol, the jammer (Michael 14:55) |
 | Vision on / off | `vision` | D-pad left | D-pad left | `goggles` (N) | F1a, G181: toggles the mode picked on the wheel (night first), never cycles between modes |
 | Shoulder swap | `shoulderSwap` | L3 | L3 / LS | `shoulder` (V) | G17: only while aiming; L3 is the wall button when not aiming (F1a) |
@@ -174,6 +174,9 @@ Edit the table and the code together.
   most 2 buttons each, defaults = `GAME_BINDINGS`); `GamepadSource` rebuilds the flat `padBindTable` only when
   `settings.pad` changes and `mapPad(p, t, table)` reads it. Sticks, the triggers' analog aim / fire and the menu buttons
   (`UI_BINDINGS`) are fixed; LT / RT can take a button verb. Keyboard: `Settings.keys` / `BINDS`.
+- (sector-fixes W) `PadFrame.stick` / `InputState.stick`: the right stick's position after the radial dead zone, no curve
+  or invert (x right, y up, 0 when let go or the pad is gone / taken by a hook): the selection wheel's absolute cursor
+  under the pad (`docs/systems/gadgets.md`, Wheel). The look rate still comes from `look`.
 - Shared-by-design verbs are one row: X = holster / draw (tap) + reload (held, gun out), RT = fire (aiming) / the
   strike's tap knockout and hold kill (holstered). The tap / hold splits follow the button. A3 split the old shared Y (jump + interact) and A (context) into Y = jump, A = interact.
 - Conflicts (`input/conflicts.ts`, `findConflicts(binds, groups)`): two verbs of one group on one input, once per pair;

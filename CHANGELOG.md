@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased - sector-fixes W (feature/sector-fixes-w)
+
+### The selection wheel defaults to the goggles (Michael item 8)
+- Michael: "Change goggles in inventory to the default selection so you can just hold l1 and press a to automatically
+  swap between them. Don't hold selections in the wheel, if analogue stick is let go it defaults to goggles/vision
+  selection."
+- The wheel opens on the vision slot: hold LB and press A to cycle night, thermal, electro with no stick; release LB
+  and the mode shown is selected.
+- The pad's right stick now places the wheel cursor where the stick points (it used to drift with the look rate and stay
+  put). Let go of the stick and the vision slot lights again, so nothing else stays picked. A stick and LB let go
+  together still pick the slot under the stick (a 0.08 s grace, `WHEEL_LETGO_S`); A with the stick centred always
+  cycles the vision.
+- Keyboard and mouse: hold Tab, the wheel opens on vision and E cycles; the mouse back in the centre lights vision.
+- Tests: `tests/selectionWheel.test.ts` (default slot, let go, grace, A centred), `tests/input.test.ts` (the stick
+  position); e2e-gadgets and e2e-pad assert the new behaviour; `scripts/wheel-shots.mjs` drives the stick.
+
 ## 4.53.0 - Train 2: guard tuning and clip speed in the animation tuner (2026-10-22, PR #112; #105, #109)
 
 ### #109 Clip speed

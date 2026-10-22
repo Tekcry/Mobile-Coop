@@ -88,6 +88,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   clear, a soft dark band only at the edges and corners).
 - [ ] Wheel carousel: hold LB (Tab), put the cursor on the vision slot, A (E) cycles night, thermal, electro; release
   selects it. The wheel reopens on that mode. A off the vision slot does nothing.
+- [ ] (sector-fixes W) The wheel opens on the vision slot: hold LB and tap A with the right stick untouched, the mode
+  cycles. Push the stick onto a gun, then let go of the stick: the vision slot lights again (nothing stays picked). Push
+  onto a gun and let go of the stick and LB together: the gun is picked. Keys: hold Tab, E cycles; move the mouse out to
+  a slot and back to the centre, the vision slot lights.
 - [ ] The rifle hangs flat on Wren's back (stud on the back plate), the pistol sits in her thigh holster; aiming, her
   fingers wrap the grips, the support hand is under the launcher (rifle) or cups the trigger hand (pistol, arms out).
 - [ ] Draw and holster: the current gun goes away (rifle over the right shoulder onto the back stud, pistol into the thigh
