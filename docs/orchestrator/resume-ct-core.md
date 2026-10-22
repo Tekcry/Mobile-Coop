@@ -1,6 +1,6 @@
 # Resume - Night Shift | CT Core Build (track B, animation; overflow session)
 
-Saved 2026-10-22 ~21:50 by the CT Core session (second account of the day) ahead of the 5-hour cut-off. Every branch
+Saved 2026-10-22 ~22:50 (99% save point) by the CT Core session (second account of the day) ahead of the 5-hour cut-off. Every branch
 below is committed and pushed. Agents that were running at the save are lost: the resume prompt says what to redo.
 
 ## Rules carried
@@ -30,8 +30,8 @@ below is committed and pushed. Agents that were running at the save are lost: th
 ## Open jobs (branch, folder, head, next step)
 | Job | Branch / folder | Head | State | Next step |
 | --- | --- | --- | --- | --- |
-| mocap-trial (TOP PRIORITY) | `feature/mocap-trial`, `C:/NightShift/Mobile-Coop-mocap-trial` | 91dab855 | Real CMU clips IN (a05bdde7): subject 16 walk / jog / run, walk turns, start, stop; 69_13 turn in place; layers tuned; mocapSwitch 12/12; switch off bit-identical. Six GPU suites queued detached (waits on heavy.lock): /c/NightShift/mt-e2e.out + mt-e2e.log. Menu Notes runs the side-by-side on a05bdde7 (feature/mocap-sheets). Gap takes downloaded (SOURCES.md). | Suites pass: fresh checker (open: walk bob 5.5-6.6 cm vs bible 4; walk knee-out at 3.5 limit; run arms 24 vs 85 cm), REPORT.md, PR (minor; suites + sheets in body), orchestrator. Then the gap takes through scripts/mocap. |
-| anim-natural N2 #138 (contains N1) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | f2f8e396 | Fix round 1 (f2f8e396): run 90 + crouched clip FIXED. Desktop GPU on f2f8e396 (/c/NightShift/n138-e2e.log): coop, move, clip, netmove PASS; e2e-anim FAIL "run 180: the planted contact stays put (14.0 cm)" (log ~223; the new body-frame push moves a planted foot); e2e-studio FAIL "keyed walk: Step length greyed, Arm swing not" (log ~494; Arm swing now greyed on the keyed walk). Fix round 2 agent was running at the save (notes: C:/NightShift/scratch/n138-fix2/NOTES.md). | If round 2 is not committed past f2f8e396: redo it (prompt item 2). Then rerun all six suites on the desktop GPU (script /c/NightShift/n138-e2e.sh, detached), list them in #138 body, send the sha. |
+| mocap-trial (TOP PRIORITY) | `feature/mocap-trial`, `C:/NightShift/Mobile-Coop-mocap-trial` | f873a6d5 | Real CMU clips in (a05bdde7). Fresh checker (Course Ready) FIX: docs/mocap-trial/CHECK.md (required 1 / 1b pelvis-drop pops at clip/planner hand-offs, 2 toe pop on the first clip swing; decide 3 start-slot arms). GPU suites (switch off) on a05bdde7: coop, move, netmove, clip, anim PASS; studio FAIL = master timing assert (needs master 4.58.3). Menu Notes runs the side-by-side on a05bdde7 (feature/mocap-sheets). Gap takes downloaded (SOURCES.md). | Merge origin/master 4.58.3; one Opus fix round on CHECK.md (required 1, 1b, 2; 3: cap start-slot arm weight 0.5; note 5); bash /c/NightShift/mt-e2e.sh detached (six suites GPU); REPORT.md; PR (minor; suites + sheets); orchestrator. Then the gap takes. |
+| anim-natural N2 #138 (contains N1) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | 362359a4 | Fix round 1 (f2f8e396: run 90 crossing, crouch entry) + fix round 2 (5e996cc1: KEY_PEL_RATE, run 180 planted contact 16.45 -> 0.01 cm) + master 4.58.3 merged (362359a4; studio timing fix). Six suites RUNNING on the desktop GPU since 22:31 (detached, heavy.lock): /c/NightShift/n138-e2e.out + n138-e2e.log. | All six pass: list them in #138 body (gh pr edit 138 --body-file), send the orchestrator 362359a4 (+ any docs commit). A fail: crouch 90 first swing (10.7 m/s headless, known) or crouched holstered (the pelvis rate) are the watch items: one more round. |
 | vent-kick T1 #141 | `feature/vent-kick`, `C:/NightShift/Mobile-Coop-vent-kick` | ebce0da7 | Done: PR #141 open; checker PASS + fix round (M1 pad matches keyboard); e2e-traverse, e2e-pad, e2e-mouse, e2e-netmove pass on the desktop GPU (9fd7b5b6). | Nothing unless its train fails. DECISIONS at merge: M1, A1. |
 
 ## Test logs on the desktop
@@ -49,22 +49,19 @@ Night Shift | CT Core Build: RESUME (after the account swap, ~21:50 save). Model
 docs/orchestrator/resume-ct-core.md on origin/feature/menu (git fetch; git show
 origin/feature/menu:docs/orchestrator/resume-ct-core.md) and follow its "Rules carried". A C:/NightShift/heavy.lock or
 heavy2.lock naming CT Core Build with no node / bash process of ours running is stale: delete it.
-1. mocap-trial (top priority; C:/NightShift/Mobile-Coop-mocap-trial, feature/mocap-trial; docs/mocap-trial/STATE.md).
-   Integration DONE (a05bdde7). If mt-e2e.out shows all six passed: checker, REPORT, PR. (Old step, done:) put build/mocap/clips into
-   src/anim/clips/mocap (one performer for the speed blend, subject 16 unless 16_15's cycle is bad), reconcile duty /
-   liftH / missing hand channels with the clip-feet mode, tune MOCAP_LAYERS / MOCAP_FEET (the capture's own twist, lean,
-   arm swing, hip follow, load drop: near 0 on the mocap share), pin slide < 1 cm, crab limits, stride within 10%, no
-   blend pops in tests/mocapSwitch.test.ts; switch off stays bit-identical. Then e2e-anim, e2e-move, e2e-clip,
-   e2e-studio, e2e-coop, e2e-netmove fully on the desktop GPU (switch off: the default), GPU sheets current vs mocap
-   (walk / jog / run, 90 / 180 turn, start, stop; anim-sheet or shot with ?mocap=0/1) for Michael, a fresh checker, the
-   PR (minor; suites listed), message the orchestrator. Then the gaps with more CMU takes (standing OK).
-2. N2 #138 (C:/NightShift/Mobile-Coop-anim-natural-n2, head f2f8e396): fix round 1 done; GPU run: anim + studio FAIL.
-   If not committed past f2f8e396, one Opus implementer: (a) e2e-anim run 180 planted contact 14 cm: the body-frame push
-   in uncross / uncrossIn must never move a planted (held) foot; keep every turn plan least gap >= 5 cm and slide < 1 cm;
-   pin it in tests/turnCrossRig.test.ts. (b) e2e-studio keyed walk: Arm swing greyed (expected live): find the change
-   (orchestrator ~22:30: covered by master 4.58.1-4.58.2 GPU test fixes: merge origin/master 4.58.3 into N2 first, it
-   merges clean; only if Arm swing still reads greyed after the wait is it ours). Then bash /c/NightShift/n138-e2e.sh
-   detached (powershell Start-Process -WindowStyle Hidden bash), all six pass: list them in #138 body, send the sha.
+1. mocap-trial (top priority; C:/NightShift/Mobile-Coop-mocap-trial, feature/mocap-trial, head f873a6d5): read
+   docs/mocap-trial/STATE.md and CHECK.md. Merge origin/master 4.58.3. One Opus implementer (fix round) on CHECK.md:
+   required 1 (clear FootState.clipOwn in beginSwing / land), 1b (ease a planner-planted foot's pitch into the clip's over
+   ~0.15 s at the hand-back, or rate-limit pelvisDrop ~1 cm / frame when ON), 2 (fade fromPitch into the clip pitch over
+   the first ~0.3 of the first clip swing, or pitchRate ~12), 3 (cap the start slot's arm weight at 0.5), note 5 (gate the
+   updateIdle pitch < 0 branch on clip feet); done = walk 1.4 / 2.0 x turn 1-4 rad/s pelvis beyond speed x dt <= 2 cm,
+   bone steps < 25 deg ON, a pelvis-step assert in mocapSwitch; switch off bit-identical. Course Ready's repro scripts:
+   path in CHECK.md. Then bash /c/NightShift/mt-e2e.sh detached (powershell Start-Process -WindowStyle Hidden), all six
+   pass: REPORT.md, PR (minor; suites listed; Menu Notes' sheets from feature/mocap-sheets linked; A4 notes for Michael),
+   message the orchestrator. Then the gap takes (SOURCES.md "Downloaded ... not yet used") through scripts/mocap.
+2. N2 #138 (C:/NightShift/Mobile-Coop-anim-natural-n2, head 362359a4): read /c/NightShift/n138-e2e.out and n138-e2e.log
+   (six suites on the GPU, started 22:31). All pass: list them in #138's body, send the orchestrator the sha. A fail: one
+   round (watch: crouch 90 first swing, crouched holstered).
 3. T1 #141: nothing unless its train fails.
 Message "Night Shift | Orchestrator" at each slice and PR.
 ```
