@@ -616,6 +616,11 @@ export class CoopHost implements NetAttachment {
     this.s.send({ t: 'sector', sec, ...extra });
   }
 
+  /** (sector-redesign EW5) Sector Ops: a radio line (a keypad code found) to every client, as the existing `feed` event. */
+  radioLine(text: string): void {
+    this.push({ e: 'feed', text });
+  }
+
   /** Sector Ops: the syringes left this op (the revive cap less the revives used). */
   revivesLeft(): number {
     return Math.max(0, this.reviveClock.cap - this.reviveClock.used);

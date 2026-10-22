@@ -11,6 +11,7 @@ import type { PassZone } from '../game/ctDevices';
 import type { ScannerDef } from '../game/scanners';
 import type { CourseLayout } from '../game/course/courseDef';
 import type { SectorDef } from '../game/sectors';
+import type { BoardDef } from '../game/isolators';
 import type { CamSize, CamSpace } from './camSpaces';
 
 /** 3.0 weather choice (visual only): clear, rain (wet floors under the open sky, roofs keep it out), fog (light shafts). */
@@ -62,6 +63,9 @@ export interface MapLayout {
   rooms?: RoomDef[];
   /** Light switches on walls (facing `yaw`): each turns a lamp circuit (`group`) on / off. */
   switches?: { pos: Vector3; yaw: number; group: number }[];
+  /** (sector-redesign E4, EW8) Breaker / timed isolator boards on walls (facing `yaw`): each cuts its circuits
+   *  (`groups`) until switched back (a breaker) or for `window` s (a timed isolator); `game/isolators.ts`. */
+  boards?: BoardDef[];
   /** Alarm panels on walls: an alerted enemy who reaches one calls reinforcements. `section` (Sector Ops): the panel
    *  works only while that section is live. */
   alarms?: { pos: Vector3; yaw: number; section?: number }[];
