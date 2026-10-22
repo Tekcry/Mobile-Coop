@@ -18,7 +18,7 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 
 ## Waiting on Michael
 1. Walk slice F on /ct/ in the morning (CT Core, overnight).
-2. Prune old branches and worktrees when convenient (docs/process-audit/REPORT.md section 5). feature/ct-research is deleted.
+2. Prune: done 2026-10-22 ~16:35 (85 merged remote branches, 21 clean worktrees). Kept: dirty worktrees anim-cleanup, anim-joints, guard-tune, tuner-v3 (uncommitted files) and branches still in use.
 3. #67 S2b walk (step length vs the wall peek): Michael fixes it himself in animation dev (2026-10-21 13:20); stays parked.
 4. Review on the next walk (Menu Notes N3b, feature/anim-n3b): A2 wall block tips the gun muzzle-DOWN about the butt
    (replaces G6's CT muzzle-up; real-world standard per the 2026-10-20 13:30 "ignore CT movement references"); A1 body
@@ -26,6 +26,7 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
    recoilMul 0. W (#116): 0.08 s wheel let-go grace (WHEEL_LETGO_S).
 
 ## Decided (Michael, 2026-10-22 ~11:15 unless dated)
+- 2026-10-22 ~16:25: firing body recoil above CT's 0.5 deg (N3b A1): "Keep it". Prune: "Delete merged ones" (merged branches and clean worktrees; dirty or in-use ones kept). #67 S2b walk: "Close it" (superseded by the tuner bakes, N1, N2).
 - Wall block (2026-10-22 ~16:20, N3b A2, #122): chose "Muzzle down" (tips down about the butt; replaces G6's CT muzzle-up).
 - Campaign rules (2026-10-22 ~14:45): solo first vs co-op only: chose "Co-op only" (level-design section 11's solo rules do not bind campaign maps; open item 1 there). Guard count, story 16 vs SQUAD_CAP 9: "Maximum amount of guards allowable. If there are ways to increase this cap (for example moving to webgpu) then let me know and make suggestions." Campaign spec: "Ignore campaign spec until Marlow yard and sector ops warehouse are fully completed".
 - Idle shins (2026-10-22 ~14:35, #103's baked idle trackMul 0.05 overlaps the shins ~1.2 cm in anim-audit): "Widen just enough. They didn't clip when I viewed it though". CT Core clamps the idle track only to clearance (patch, train 4).
