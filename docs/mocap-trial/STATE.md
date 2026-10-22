@@ -1,5 +1,13 @@
 # mocap-trial - state
 
+## 2026-10-22 ~22:25: gap takes downloaded (standing OK), not yet in SOURCES.md
+- `.mocap-cache/`: 104.asf + 104_06, 104_08 (StartJog), 104_53, 104_54, 104_55 (StartRun), 104_09, 104_10 (JogStop);
+  69_16, 69_17, 69_18 (turn in place); 127.asf + 127_15, 127_16 (Run Turn L / R); 143.asf + 143_03 (Start to Run);
+  78.asf + 78_31 (Pivoting). Add them to SOURCES.md (the integration agent edits it: after its hand-back), then run them
+  through scripts/mocap (analyze, retarget, emit) for the start / turn / stop slots.
+- Side-by-side: Menu Notes Build builds the GPU sheet script on feature/mocap-sheets (spec in its message); merge it, rerun
+  on the clip commit.
+
 ## 2026-10-22 ~21:50: switch + clip feet (7ac3b80e) and CMU pipeline (05c1ef15) in; integration agent running
 - If the integration is not committed past 6c0e3320, redo it (resume prompt in docs/orchestrator/resume-ct-core.md on
   feature/menu, item 1). Standing OK for more CMU takes (BRIEF approval log).
