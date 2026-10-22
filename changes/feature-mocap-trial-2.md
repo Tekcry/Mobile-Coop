@@ -30,3 +30,5 @@ kind: minor
 - Mocap locomotion (switch on): spot turns, sprint and crouched sneak flicks keep the planted foot on its spot;
   crouching mid-jog no longer snaps the swing leg; a stop's hold fades out softly and no longer jolts the hips when
   moving again.
+- Mocap locomotion (switch on): a run start after a short stand no longer pops the first step's foot forward (knee
+  47 deg, hips 9 cm down at 4 m/s): the start's leftover step restarts its swing from where it is.
