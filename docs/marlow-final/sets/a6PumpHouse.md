@@ -91,7 +91,7 @@ flag: 'a6-drive', doorId: <facility's L6 near door id> }`.
 | --- | --- |
 | Guard | `a6-attendant`, kind `grunt`, A6 squad, slot (61.5, 67.1) (D), yaw pi |
 | Job | The pump attendant on watch: logs the duty pumps at the desk, reads the gauge board between pumps 1 and 2, then walks to the far standby pump (pump 3) to read its gauge |
-| Route | `route: [[61.5, 67.1], [58.0, 63.1], [54.2, 62.9], [54.2, 61.2], [48.2, 61.0], [54.2, 61.2], [54.2, 62.9]]`, `waits: [4, 3, 0, 0, 4, 0, 0]`, `faces: [pi, pi, NaN, NaN, -pi/2, NaN, NaN]`. D = the desk (facing south over the log), G = the gauge board (facing south), the gap between pump 2's plinth and the cage's south-east corner (1.2 m), P3 = pump 3's east face (facing west, its gauge). Walk 32.9 m at the patrol pace (0.99 m/s) = 33.3 s + 11 s of stops: cycle about 44 s (A6-C1) |
+| Route | `route: [[61.5, 67.1], [60.0, 67.0], [58.0, 63.1], [54.2, 62.9], [54.2, 61.2], [48.2, 61.0], [54.2, 61.2], [54.2, 62.9], [60.0, 67.0]]` (W (60.0, 67.0) is a pass point round the desk's west end: the straight legs clip the desk for a 0.3 m body), `waits: [4, 0.1, 3, 0.1, 0.1, 4, 0.1, 0.1, 0.1]` (0.1 s pass-through stops as built: a wait of 0 freezes `PatrolWalker`), `faces: [pi, NaN, pi, NaN, NaN, -pi/2, NaN, NaN, NaN]`. D = the desk (facing south over the log), G = the gauge board (facing south), the gap between pump 2's plinth and the cage's south-east corner (1.2 m), P3 = pump 3's east face (facing west, its gauge). Walk 33.7 m at the patrol pace (0.99 m/s) + 11 s of stops: loop 42.35 s on the walker as built (0.45 m arrival radius; plain sum 45.6 s) (A6-C1) |
 | Timeline (t = leaving D) | 0-5.4 D -> G. 5.4-8.4 G stop, facing south. 8.4-19.9 through the gap and west along z 61.2 past the cage door (t 14-17) to P3. 19.9-23.9 P3 stop facing west. 23.9-31.7 back east past the cage door (t 26-29) and north through the gap. 31.7-40.2 north-east to D. 40.2-44.3 D stop facing south |
 | What he sees | At D: south over pumps 1-2 and the outfall door; the stair foot is behind him. At G: south to the sump kerb (the kerb hides crouched players). At P3: west into the dark west third; the gallery's open span is 57 deg off his facing, 9.6 m (periphery). Walking along z 61.2 he passes the cage door at 0.9 m (the cage walls are solid: he sees nothing inside) |
 | Gaps | t 31-12: he is east of the cage (desk, gauge board), the west end and the cage are out of his focus. t 14-30: he is west (pump 3), the east end and the outfall door are behind him |
@@ -156,7 +156,7 @@ flag: 'a6-drive', doorId: <facility's L6 near door id> }`.
 | Bridge / cage | Bridge 5.0 m, cage 4.2 m, overhang 0.4 | `hangPlate` (a 3 m bridge throws) | Yes (correction) |
 | Holder hidden from the floor | Crouched head (5.4) behind the 1.1 m handrail / the slab from D and G | Sight lines from D and G checked by hand (A6-C5) | Yes (the light / sight test confirms) |
 | Exit window | Stair head -> foot 7.7 m + foot -> L6 door 9.4 m at 1.7-2.1 m/s = 9-10 s | His P3 leg, t 14-30 | Yes |
-| Cycle / stops | 44.3 s; 4 / 3 / 4 s | LD 4.3: 25-45 s; 3-6 s | Yes (A6-C1) |
+| Cycle / stops | 42.35 s on the walker (plain sum 45.6 s); 4 / 3 / 4 s | LD 4.3: 25-45 s; 3-6 s | Yes (A6-C1) |
 | Pump-2 gap | 1.2 m (x 53.6-54.8) | Nav agent 0.64 m | Yes |
 | Under the bridge | Headroom 4.0, 3.4 m deep | Nav headroom 1.7 | Yes |
 | Stair | 27 x 0.163, run 0.285, 1.2 wide | Scale sheet; handrails both sides | Yes |
@@ -167,10 +167,10 @@ flag: 'a6-drive', doorId: <facility's L6 near door id> }`.
 
 | Group | Key | Kind | Lamps (plan, y) | Switch / reason | Cut by | Lure |
 | --- | --- | --- | --- | --- | --- | --- |
-| 60 | `a6-floor` | switch | 3 high-bays (y 8.4, radius about 11, floor pool about 7 m): (61.0, 57.5), (61.0, 63.0), (60.5, 68.5): the east third only | `a6-sw-floor` (63.6, 60.4), by the outfall door | switch, jam, shot | attendant (to the outfall door) |
-| 61 | `a6-gallery` | switch | 3 bulkheads on the north wall over the gallery (y 6.6, radius about 4): (50.5, 71.7), (53.5, 71.7), (59.5, 71.7) (the bridge junction and the stair) | `a6-sw-gallery` (56.4, 5.6, 71.4), at the stair head on the gallery (A6-C6) | switch, jam, shot | attendant (to the gallery front by the stair) |
+| 60 | `a6-floor` | switch | 3 high-bays (y 8.4, radius 11, intensity 1.1; at radius 10 / 1.0 the desk and stair foot read 0.58, floor pool about 7 m): (61.0, 57.5), (61.0, 63.0), (61.0, 68.5): the east third only | `a6-sw-floor` (63.7, 60.4), by the outfall door | switch, jam, shot | attendant (to the outfall door) |
+| 61 | `a6-gallery` | switch | a pendant over the bridge (51.5, 7.0, 67.6), radius 5, intensity 0.9, in place of the (50.5, 71.7) bulkhead (with wall bulkheads only the holder's spot read 0.17; a larger wall radius lights the rope spot), and 2 bulkheads on the north wall over the gallery (53.5, 71.4), (59.5, 71.4) (y 6.6, 0.35 m off the wall face, radius 6.5, intensity 0.9) | `a6-sw-gallery` (56.4, 5.6, 71.7), on the wall face at the stair head on the gallery (A6-C6) | switch, jam, shot | attendant (to the gallery front by the stair) |
 | 62 | `a6-desk` | switch | 1 desk lamp (61.5, 1.0, 66.0), radius 2 | `a6-sw-desk` (61.0, 66.0), on the desk | switch, jam, shot | attendant (to the desk) |
-| 63 | `a6-cage` | device | 1 work light inside the cage (51.5, 3.0, 64.1), radius 2.2 (the solid cage walls keep it in) | None: the drive panel's own circuit | jam, shot | none |
+| 63 | `a6-cage` | device | 1 work light inside the cage at the door end (51.5, 3.4, 62.9), radius 3.0, intensity 1.3 (at (51.5, 3.0, 64.1) the cage read 0.50, and a larger radius there reaches the holder's spot through the plate; the solid cage walls keep it in) | None: the drive panel's own circuit | jam, shot | none |
 | 69 | `a6-sump` | dead | Sump high-bay (51.0, 8.4, 56.0) and the west gallery bulkheads (42.5, 6.6, 71.7), (46.5, 6.6, 71.7), all intensity 0, not in `course.groups` | None: tagged out for repair (lock-off tag on the board) | - | - |
 
 - Zones: set `ambientZone` x 40-64, z 54-72 at 0.14 (`minY` -1, `maxY` 8.9); gallery and bridge zone x 40.3-63.7,
@@ -252,7 +252,7 @@ door; revive on the gallery and the bridge from deck level (slice 9).
 1. B in the cage is invisible from outside (`hangPlate`'s solid walls): the "seen hanging" danger SPEC describes is not
    there; the tension is the buzzer and the holder. Fix: the 6 m buzzer and the walk past the cage door carry it; if it
    feels safe, a 0.6 m louvre slot in the cage's south wall (a light and sight gap at 1.6-2.2 m) shows B's legs.
-2. The attendant's cycle is 44 s, not SPEC's 32 s (A6-C1): long waits on the bridge. Fix: drop the gauge-board stop
+2. The attendant's cycle is 42 s (planned 44), not SPEC's 32 s (A6-C1): long waits on the bridge. Fix: drop the gauge-board stop
    (about 41 s) if it drags.
 3. The holder is hidden from the floor by the handrails and the slab, so the holder's "watch him" job has no risk. Fix:
    keep it (the holder's job is the timing call); P8 records it.
@@ -319,12 +319,12 @@ looking down through the plate; the stair head (56.0, 71.2, y 4.4) looking south
 | A6-D7 | Extra LANTERN line on the buzzer timing | The buzzer rule is new to the player | Drop the line |
 | A6-D8 | Gallery depth 2.175 (to the north wall's face), not 2.4 | The stair runs against the deck's back; with 2.4 it would sit 0.225 m inside the facility wall | - |
 | A6-D9 | Attendant kind `grunt` | SPEC rule 9 | - |
-| A6-C1 | SPEC: cycle 32 s with a 4 s stop at each of four gauges; the walk alone is about 41 m (41 s) at 0.99 m/s | Three stops (the desk, a gauge board between pumps 1 and 2, pump 3) and pump 3 at x 46: 44.3 s, inside LD 25-45 | Drop the gauge-board stop (about 41 s) |
+| A6-C1 | SPEC: cycle 32 s with a 4 s stop at each of four gauges; the walk alone is about 41 m (41 s) at 0.99 m/s | Three stops (the desk, a gauge board between pumps 1 and 2, pump 3) and pump 3 at x 46: 44.3 s planned, 42.35 s as built, inside LD 25-45 | Drop the gauge-board stop (about 41 s) |
 | A6-C2 | SPEC: the drive cage is "mesh 2.4 m with solid kick panels"; `hangPlate` builds it from solid collide boxes to the slab, and A7's mesh cage (`b.fence`) passes sight: the same look would behave two ways (LD 2.5) | The A6 cage is dressed as louvred sheet-steel panels (a VFD enclosure), not welded mesh | A sight slot (see self-critique 1) |
 | A6-C3 | SPEC A6: the sump bay inside the L5 door is a dark mixed zone; SPEC 5: no planned dark pocket within 4 m of a gallery wall, and the north strip steps out to z 54 over A6's south wall | Kept dark (the A6 sheet is the specific rule); the gallery lamps there stop short of the glass and the light test samples the vantage | Move the vantage pocket north of z 58 (behind pump 2) |
 | A6-C4 | `MARLOW_POCKETS` `a6-sump` [40.3, 54.3, 46, 60] is the south-west corner, not SPEC's sump bay (x 48-58, z 54-58); `a6-pump3` [40.5, 56, 44, 60] misses pump 3 | Pockets here: `a6-sump` [48.3, 54.3, 53.5, 57.8], `a6-pump3` [44.5, 58.5, 49.5, 63], `a6-westfloor` [40.3, 66, 46, 69.6]; the lighting agent's table needs them (shared file: reported to the job lead) | Follow the table and move the vantage |
 | A6-C5 | SPEC: "If B is seen hanging"; B cannot be seen inside the solid cage, and the crouched holder is hidden by the handrails and the slab | The danger is the buzzer (A6-D6) and the walk past the cage door | Sight slot in the cage (self-critique 1) |
-| A6-C6 | SPEC: the gallery switch "draws him to the stair foot"; `MARLOW_CIRCUITS` puts the switch at (62.6, 70.6) "at the stair head", but the helper's stair rises west, so its head is at x 56 | Switch at the real stair head (56.4, 71.4, y 4.4); the lure walks him to the floor under it (56.5, 70.0), not the stair foot | A two-way switch at the stair foot too |
+| A6-C6 | SPEC: the gallery switch "draws him to the stair foot"; `MARLOW_CIRCUITS` puts the switch at (62.6, 70.6) "at the stair head", but the helper's stair rises west, so its head is at x 56 | Switch at the real stair head (56.4, 71.7, y 4.4); the lure walks him to the floor under it (56.5, 70.0), not the stair foot | A two-way switch at the stair foot too |
 | A6-C7 | SPEC calls the outfall door a set door "on the east wall (x 64, z 59-65)"; that span is L6's whole west wall and its near door is the facility's 1.8 m sliding door | The outfall door is the L6 near door with a `flag` gate on `a6-drive` and the interlock lamp beside it (the same pattern as A5's L5 gate) | A set door 1 m inside the box (the "outfall door") and L6's door always open |
 | A6-C8 | SPEC: the attendant "passes the cage side-on"; the cage door faces south onto his path | He passes the door at 0.9 m twice per cycle: the fallback exit must wait for his east leg | - |
 

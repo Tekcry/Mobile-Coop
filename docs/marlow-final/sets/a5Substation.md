@@ -12,7 +12,7 @@ section 13 (`A5-D<n>` / `A5-C<n>`).
 
 | Field | Content |
 | --- | --- |
-| Space | Set 5, the Substation. Ground (y 0), one storey. An urban grid substation built indoors as a switchgear hall: the east apron where tonight's cable drums were delivered, the inner security wall with its 6 m cable gateway held by three IR beams, the inner zone with two transformer pens, the switchroom and the zone control kiosk. Set box x 40-70, z 24-48 (30 x 24 m), 6 m set ceiling (the hall's charcoal panels and coves above it) |
+| Space | Set 5, the Substation. Ground (y 0), one storey. An urban grid substation built indoors as a switchgear hall: the east apron where tonight's cable drums were delivered, the inner security wall with its 6 m cable gateway held by three IR beams, the inner zone with two transformer pens, the switchroom and the zone control kiosk. Set box x 40-70, z 24-48 (30 x 24 m), no set ceiling slab as built (open to the hall's roof; the inner wall alone is 6 m; the hall's charcoal panels and coves above) |
 | New mechanic | Teaches the partner throw with a far-side release. Combines the held jammer on a light (the flood) and patrol timing |
 | Entry vantage | From L4's door (70, 33) to the north end of the drum stack, (64.9, 34.0), crouched: through the gateway the kiosk (47, 33), the floodlit strip, the beams (night vision), the beam towers' panel high on the switchroom face, and the patrol's whole loop (K, R2 and R4 all lie inside the gateway's view cone from here). Concealed by stance and distance (8.5 m from his R4 stop, the nearest; a crouched still body in the apron's mid light stays under the 0.2 leak) and by the drums from the south half of the zone (P1) |
 | Routes | Shadow (taught): "I throw you over by the drums, you wait in the dark by the transformer; when he walks off west I jam the flood, you key the kiosk." Alternative (the second tool): "I jam the beam panel, you walk through in the 6.5 s, then you key the kiosk for me." Timing: "Cross the flood strip while he stands behind pen 1." Loud: "Walk the beams" (alarm stage; he comes to the gateway). Secret: "From the landing, round pen 2, along the cable trench, in by the switchroom's back door and out of its front door, 3 m from the kiosk." |
@@ -31,16 +31,16 @@ section 13 (`A5-D<n>` / `A5-C<n>`).
 
 | Piece | Plan box (x0-x1, z0-z1) | Height | Notes |
 | --- | --- | --- | --- |
-| Set box | 40-70, 24-48 | ceiling 6.0 | Box-edge walls are `facility.ts`'s (L4 door x 70, z 32.1-33.9; L5 door z 48, x 52.1-53.9; gallery glazing above 4.5 m on the south, north and east walls) |
+| Set box | 40-70, 24-48 | no set ceiling slab as built (a 6 m slab would cut the gallery glazing, 4.5-7.5 m); the zone's `maxY` is 9.9 | Box-edge walls are `facility.ts`'s (L4 door x 70, z 32.1-33.9; L5 door z 48, x 52.1-53.9; gallery glazing above 4.5 m on the south, north and east walls) |
 | Apron | 58.15-70, 24-48 | - | Concrete. The cable drums and the throw spot |
 | Cable drum stack | 62.1-64.3, 29.4-33.0 | 1.8 | Two by two `cableDrum` (1.8 dia x 1.1) on their sides, one collide box. 4.05 m from the beam line's south end (A5-D1) |
 | Inner security wall | 57.85-58.15, 24-33 and 39-48 | 6.0 (to the ceiling) | `throwGateway` walls, `noLedge`. No lip on a security wall (register A5-1) |
 | Cable gateway | x 58, z 33-39 (6 m) | header underside 4.8 | Three IR beams at 0.35 / 0.9 / 1.45 between two `beamTower`s at (58, 33.1) and (58, 38.9) |
 | Pen 1 (south-west) | bund 42-48, 24.3-29.3; unit 43.2-46.8, 25.4-28.2 | bund 1.2; unit 3.5 | `transformer` prop; its south bund wall stands against the set wall (A5-D4). Unit `noLedge` |
 | Pen 2 (north of the gateway) | bund 50-56, 40.5-45.5; unit 51.2-54.8, 41.6-44.4 | bund 1.2; unit 3.5 | Bund 6 x 5 (the prop's size, SPEC said z 40-46, A5-D5). Unit `noLedge` |
-| Switchroom | 40.2-46.0, 36-46 | walls 4.0, flat roof | 0.3 m walls; roof box `noLedge` (4.0 is in the band, A5-D2). Front door east face z 41.0-42.2 (x 46); back door north face x 41.0-42.2 (z 46). Inside: a `switchgearPanel` run on the west wall (x 40.5-41.3, z 37-45). 6 x 10 (SPEC 12 x 6 at z 36-48, A5-C2) |
-| Zone control kiosk | 46.6-47.4, 32.75-33.25 (device at (47.0, 1.2, 33.0), yaw pi/2, faces +x) | 1.5 | `zoneKiosk`; the release (`sw-a5-release`). 1.0 m clear in front (east) |
-| Flood (group 52) | (44.5, 4.2, 35.85) on the switchroom's south face | - | Cone light aimed at (51.0, 0, 33.5); the lit strip about x 46-54, z 30.5-36 |
+| Switchroom | 40.2-46.0, 36-46 | walls 4.0, flat roof | 0.3 m walls; roof box `noLedge` (4.0 is in the band, A5-D2). Front door east face z 41.0-42.2 (x 46); back door north face x 41.0-42.2 (z 46). Inside: a `switchgearPanel` run on the west wall (x 40.3-41.1, z 37-45, 2.3 m). 6 x 10 (SPEC 12 x 6 at z 36-48, A5-C2) |
+| Zone control kiosk | 46.75-47.25, 32.6-33.4 (built: with the doc's box the helper's press spot (47.6, 33.0) is 0.2 m from the face, closer than a body's radius; device at (47.0, 1.2, 33.0), yaw pi/2, faces +x) | 1.5 | `zoneKiosk`; the release (`sw-a5-release`). 1.0 m clear in front (east) |
+| Flood (group 52) | (44.5, 4.2, 35.6) on a bracket 0.25 m out from the switchroom's south face (on the face the jammer's line from the apron grazes the wall's east end) | - | Cone light aimed at (51.5, 0, 34), outer 0.55 rad (31.5 deg), radius 10.5, intensity 1.5 (at 38 deg the inner zone's read spot (51, 29) reads 0.25 with 51 off); the lit strip about x 46-54, z 30.5-36 |
 | Beam power panel (`panel-a5`) | (43.0, 3.2, 35.85) on the switchroom's south face, yaw pi (faces -z) | - | Existing laser panel (electro). Powers `laser-a5` |
 | Cable trench | 46.0-57.85, 46.6-47.775 | lids flush | Chequer-plate lids (`metal`, loud); the 1.2 m path along the north wall behind pen 2 and the switchroom |
 | Landing pocket | 53.5-57.7, 34-39.5 | - | `a5-landing`: no lamp reaches it (section 7) |
@@ -87,8 +87,8 @@ the L5 near door gate `{ kind: 'flag', id: 'g-a5-l5', flag: 'a5-release', doorId
 | --- | --- |
 | Guard | `a5-patrol`, kind `grunt`, A5 squad, slot (47.9, 33.4) (K), yaw -pi/2 |
 | Job | Substation security on the night round: reads the kiosk's alarm log, checks pen 1's bund sump gauge (on the bund's west end), checks the gateway's beam towers |
-| Route | `route: [[47.9, 33.4], [41.3, 31.0], [47.0, 34.6], [56.5, 37.6]]`, `waits: [4, 3, 0, 3]`, `faces: [-pi/2, pi, NaN, pi/2]`. K = the kiosk (facing west, the log), R2 = the gap mouth behind pen 1 (facing south, the sump gauge), W = a waypoint north of the kiosk, R4 = the gateway's north tower (facing east, through the gateway). Walk 33.3 m at the patrol pace (0.9 x 1.1 = 0.99 m/s) = 33.6 s + 10 s of stops: cycle about 44 s (A5-C1) |
-| Timeline (t = leaving K) | 0-7.1 K -> R2, walking west (back to the gateway). 7.1-10.1 R2 stop, facing south. 10.1-16.9 to W, walking north-east past the kiosk. 16.9-27.0 W -> R4 along the strip, facing the landing. 27.0-30.0 R4 stop, facing east through the gateway onto the apron. 30.0-39.7 R4 -> K, walking west-south-west (back to the gateway). 39.7-43.7 K stop facing west |
+| Route | `route: [[47.9, 33.4], [41.3, 31.0], [47.0, 34.6], [56.5, 37.6]]`, `waits: [4, 3, 0.1, 3]` (0.1 at W as built: a wait of 0 freezes `PatrolWalker`), `faces: [-pi/2, pi, NaN, pi/2]`. K = the kiosk (facing west, the log), R2 = the gap mouth behind pen 1 (facing south, the sump gauge), W = a waypoint north of the kiosk, R4 = the gateway's north tower (facing east, through the gateway). Walk 33.3 m at the patrol pace (0.9 x 1.1 = 0.99 m/s) = 33.6 s + 10 s of stops: cycle 42.0 s on the walker as built (43.6 s without the 0.45 m arrival radius) (A5-C1). K -> R2 is not a straight leg: the straight line clips the kiosk, so his A* goes round it (under 1 m longer; undo: a 0.1 s pass point at (47.6, 32.0)) |
+| Timeline (t = leaving K) | 0-7.1 K -> R2, walking west (back to the gateway). 7.1-10.1 R2 stop, facing south. 10.1-16.2 to W, walking north-east past the kiosk. 16.2-26.2 W -> R4 along the strip, facing the landing. 26.2-29.2 R4 stop, facing east through the gateway onto the apron. 29.2-38.0 R4 -> K, walking west-south-west (back to the gateway). 38.0-42.0 K stop facing west (as built; the doc's plain sum ran 4 s longer) |
 | What he sees | At K: focus west over pen 1 and the switchroom's south face; the strip is behind him. At R2: south into the bund gap; the kiosk is 135 deg off his facing (outside the periphery). At R4: focus 55 deg east through the 6 m gateway to 25 m (the throw spot and the apron's centre); periphery to 12 m (the landing pocket beside him). Walking W -> R4 he looks straight at the landing |
 | Gaps | t 30-10 (24 s across the cycle end): his back to the gateway and the landing (the throw window opens at t 31-34 when he is 4 m past the landing). t 0-10: his back to the strip and the kiosk (the jam-and-key window). t 10-30: he walks the strip to the gateway (B must be off the strip and out of the landing by t 16) |
 | Isolation moment | R2 (41.3, 31.0), t 7.1-10.1: alone, in the `a5-pen1` dark pocket, facing the bund, unwatched (no camera in A5). And in the switchroom when lured by 51 (dark when 51 is off): a takedown from the switchroom's north-west corner |
@@ -138,16 +138,16 @@ the L5 near door gate `{ kind: 'flag', id: 'g-a5-l5', flag: 'a5-release', doorId
 | Element | Number | Window (source) | Pass |
 | --- | --- | --- | --- |
 | Throw landing | Thrower 1.2 m behind the line, landing 2.0 m past (`TEAM.throwDist` 3.2) | `throwGateway` tests: feet over the top beam, head under the 4.8 header, `throwRoom` ok | Yes |
-| Throw free air | Thrower at (59.2, 36), ceiling 6.0 | `TEAM.throwUp` 2.2 over the standing thrower | Yes |
+| Throw free air | Thrower at (59.2, 36), no slab (free air to the hall roof; the header is 4.8-6.0) | `TEAM.throwUp` 2.2 over the standing thrower | Yes |
 | Drum stack (solo jump over the beams) | Nearest corner 4.05 m from the line, top 1.8 | `BEAM_KEEP_CLEAR` 4.0 (2.72 m for a 1.8 m top) | Yes (A5-D1) |
 | Release out of reach from the near side | Kiosk 11 m past the line | `throwGateway` throws under 1.85 m | Yes |
-| Flood jam | (60, 1.6, 36) -> (44.5, 4.2, 35.85): 15.7 m, through the gateway | `JAMMER.range` 20; the line passes the 6 m opening (no wall, no glass) | Yes |
-| Panel jam | (60.5, 1.6, 36.5) -> (43.0, 3.2, 35.85): 17.6 m | `JAMMER.range` 20; 6.5 s with the beams off | Yes |
+| Flood jam | (60, 1.6, 36) -> (44.5, 4.2, 35.6): 15.7 m, through the gateway | `JAMMER.range` 20; the line passes the 6 m opening (no wall, no glass) | Yes |
+| Panel jam | (60.5, 1.6, 35.0) -> (43.0, 3.2, 35.85): 17.5 m (from the doc's (60.5, 36.5) some aiming eyes lose the panel behind the switchroom's east end) | `JAMMER.range` 20; 6.5 s with the beams off | Yes |
 | B's crossing under the jam | Landing -> kiosk press spot 9.0 m at 1.7 m/s = 5.3 s | `JAM_LIGHT` about 9.5-10 s dark | Yes (4 s spare) |
 | B off the strip after the key | Kiosk -> pen 2's west face 7.6 m = 4.5 s | Before he walks back past the kiosk (t 10-17) | Yes |
 | Panel-jam walk-through | Gateway crossing about 1 s; B then keys the kiosk 10 m on | 6.5 s window | Yes |
-| Lure range, 51 | Switch (45.4, 41.6) from any loop point: 8.3-12.3 m | `LURE_RANGE` 25 | Yes |
-| Lure range, 50 | Switch (69.4, 35.2) from R4 13 m, from R2 28.4 m | 25 | From R4 and W only |
+| Lure range, 51 | Switch (45.8, 40.7) from any loop point: 8.3-12.3 m | `LURE_RANGE` 25 | Yes |
+| Lure range, 50 | Switch (69.7, 36.0) from R4 13 m, from K 21.9 m, from R2 28.4 m | 25 | From R4, W and K; not R2 |
 | Cycle / stops | 43.6 s; 4 / 3 / 3 s | LD 4.3: 25-45 s; 3-6 s | Yes (A5-C1) |
 | Inner wall and header | 6.0 to the ceiling / header 4.8 | No lip (security wall); throw apex under the header | Yes |
 | Switchroom roof | 4.0 | In the band: `noLedge` | Yes (A5-D2) |
@@ -161,12 +161,12 @@ the L5 near door gate `{ kind: 'flag', id: 'g-a5-l5', flag: 'a5-release', doorId
 
 | Group | Key | Kind | Lamps (plan, y) | Switch / reason | Cut by | Lure |
 | --- | --- | --- | --- | --- | --- | --- |
-| 50 | `a5-apron` | switch | 3 wall bulkheads (y 3.5): (69.7, 27.0), (69.7, 42.0) on the east wall, (64.0, 47.7) on the north wall; radius about 5 | `a5-sw-apron` (69.4, 35.2), by the L4 door | switch, jam, shot | patrol, from R4 / W only |
-| 51 | `a5-inner` | switch | 3 wall bulkheads (y 3.5): (57.7, 26.5) on the inner wall's west face (south end), (49.0, 24.4) on the south wall, (46.3, 44.5) on the switchroom's east face; 1 panel in the switchroom (43.1, 3.7, 41.0); radius about 5, none reaching the landing pocket (A5-C3) | `a5-sw-inner` (45.4, 41.6), inside the switchroom's front door | switch, jam, shot | patrol (into the switchroom) |
-| 52 | `a5-flood` | photocell | 1 cone flood (44.5, 4.2, 35.85), aimed at (51.0, 0, 33.5), outer half-angle about 38 deg, radius about 9.5 (tune) | None: photocell security flood | jam, shot | none (a jam lures nobody) |
-| 53 | `a5-kiosk` | emergency | 1 panel light in the kiosk (47.0, 1.5, 33.0), radius 1.2: lights the keypad, not the operator | None: the kiosk's emergency supply | jam, shot | none |
+| 50 | `a5-apron` | switch | 3 wall bulkheads (y 3.5): (69.55, 29.5), (69.55, 38.5) on the east wall (radius 9, intensity 1.2), (64.0, 47.55) on the north wall (radius 9, intensity 1.0); radius 9 not 5: a 5 m bulkhead does not reach the apron read spot (66, 36) | `a5-sw-apron` (69.7, 36.0), by the L4 door, north of the glass slot (the hint (69.4, 35.2) is on it) | switch, jam, shot | patrol, from R4 / W / K |
+| 51 | `a5-inner` | switch | 3 wall bulkheads (y 3.5): (57.65, 27.0) on the inner wall's west face (south end; radius 9, intensity 1.0), (51.0, 24.45) on the south wall (radius 9, intensity 1.2; x 51.0 so (51, 29) reads 0.51), (46.35, 44.5) on the switchroom's east face (radius 7, intensity 1.0); 1 panel in the switchroom (43.1, 3.7, 41.0) (radius 5, intensity 0.8); none reaching the landing pocket (A5-C3) | `a5-sw-inner` (45.8, 40.7), on the wall beside the switchroom's front door (the hint (45.4, 41.6) is in the doorway) | switch, jam, shot | patrol (into the switchroom) |
+| 52 | `a5-flood` | photocell | 1 cone flood (44.5, 4.2, 35.6), aimed at (51.5, 0, 34), outer half-angle 0.55 rad (31.5 deg), radius 10.5, intensity 1.5 | None: photocell security flood | jam, shot | none (a jam lures nobody) |
+| 53 | `a5-kiosk` | emergency | 1 panel light in front of the kiosk keypad (47.5, 1.45, 33.0) (the doc's (47.0, 1.5, 33.0) is inside the kiosk body), radius 1.2, intensity 0.1: lights the keypad, not the operator | None: the kiosk's emergency supply | jam, shot | none |
 
-- Zones: set `ambientZone` x 40-70, z 24-48 at 0.14 (`minY` -1, `maxY` 5.9). No upper level.
+- Zones: set `ambientZone` x 40-70, z 24-48 at 0.14 (`minY` -1, `maxY` 9.9 as built: no 6 m slab, see the set box row; `MARLOW_ZONES` uses 10). No upper level.
 - Dark pockets: `a5-landing` x 53.5-57.7, z 34-39.5 (reason: no fitting reaches it; the flood's cone and radius stop
   short and pen 2 shades it from the switchroom's bulkhead) and `a5-pen1` x 40.3-42.5, z 28-31.5 (reason: behind pen
   1's transformer, outside the flood's cone, the zone's bulkheads on the far side). Both <= 0.22 crouched. Both boxes
@@ -220,7 +220,7 @@ and he comes to the gateway; re-hide in the pocket or the bund gap and retry on 
 
 ### Route 2 (the second tool): jam the beam panel
 
-A at (60.5, 36.5) jams `panel-a5` (17.6 m, through the gateway) while he is at R2 or walking to it: the beams are off
+A at (60.5, 35.0) jams `panel-a5` (17.5 m, through the gateway) while he is at R2 or walking to it: the beams are off
 6.5 s; B walks through (claims B), crouches in the landing pocket; B times the strip on his R2 stop (no flood jam: A's
 jammer cools 5 s) and keys the kiosk; A walks through. About 1:40.
 
@@ -247,7 +247,7 @@ the next cycle (no softlock: the kiosk is always reachable from the inner zone).
 1. The patrol's cycle is 44 s, not SPEC's 34 s (A5-C1): the throw window is long and the set may feel slow. Fix: if
    playtests drag, drop the R2 stop to the gap mouth (41.8, 32.6) for about 38 s; the isolation moment stays dark.
 2. The vantage is lit (apron mid light) and concealed only by stance and distance (P1). Fix: the LD 15 e2e check (a
-   crouched still player for a full cycle); fallback: an apron dark pocket at the drums (move bulkhead (69.7, 27) to
+   crouched still player for a full cycle); fallback: an apron dark pocket at the drums (move bulkhead (69.55, 29.5) to
    (69.7, 24.6)).
 3. The kiosk faces the strip, so a player keying it stands in the flood; with no jam and bad timing, detection is
    near-instant at 2-6 m. Fix: the route-1 jam is the taught answer; the HUD line says so; R2 is a real second answer.
@@ -288,7 +288,7 @@ that the claim holds after the throw).
 8. Variant pass (time allowing): restart A5; host jams `panel-a5` (laser off 6.5 s on both pages); client walks
    through at (58, 36) with no alarm; client keys the kiosk.
 9. Unit cases moved here from `tests/jammer.test.ts` / `tests/laserPanels.test.ts` (SPEC 16): `A5_LASER` heights and
-   offFlag, `A5_PANEL` and its jam spot (60.5, 1.6, 36.5) with the vantage trace (the panel's line of sight from the
+   offFlag, `A5_PANEL` and its jam spot (60.5, 1.6, 35.0) with the vantage trace (the panel's line of sight from the
    apron through the gateway), the hidden-box case.
 
 Shot vantages: the vantage (64.9, 34.0) looking west through the gateway; the kiosk (48.5, 33.2) looking east at the
@@ -317,7 +317,7 @@ gateway; the trench path (56.5, 47) looking south-west along pen 2.
 | A5-D6 | Extra LANTERN line on the throw timing | The R4 stop is easy to miss | Drop the line |
 | A5-D7 | Release device id `sw-a5-release` (helper name) with SPEC's gate id `g-a5-release` and flag `a5-release` | One id from the helper; the SPEC names match | Rename the device in one place |
 | A5-D8 | Patrol kind `grunt` | SPEC rule 9 (normal guards) | - |
-| A5-C1 | SPEC: cycle 34 s round kiosk -> pen 1 -> switchroom door -> gateway; at 0.99 m/s that loop is about 45 m (45 s walking alone) | Loop trimmed to K -> R2 -> W -> R4 (the switchroom door is the lure destination instead of a stop): 43.6 s, inside LD 25-45 | Drop the R2 spur to the gap mouth (about 38 s) |
+| A5-C1 | SPEC: cycle 34 s round kiosk -> pen 1 -> switchroom door -> gateway; at 0.99 m/s that loop is about 45 m (45 s walking alone) | Loop trimmed to K -> R2 -> W -> R4 (the switchroom door is the lure destination instead of a stop): 42.0 s as built (43.6 s planned), inside LD 25-45 | Drop the R2 spur to the gap mouth (about 38 s) |
 | A5-C2 | SPEC: switchroom x 40-46, z 36-48 "on the west wall" and a secret "cable trench edge path, z 46-48 behind the switchroom": both cannot hold | Switchroom 6 x 10 at z 36-46 with a second (back) door: HV switchrooms over a few metres long need two exits; the trench path runs behind it and the back door ends the dead end | Switchroom to z 48 and no secret route (P11 fallback) |
 | A5-C3 | `MARLOW_POCKETS` `a5-pen2` [46.2, 33, 49.5, 38] sits on the floodlit strip in front of the kiosk, and `a5-pen1` [42.5, 25, 45.5, 28.5] is inside pen 1's bund; `MARLOW_CIRCUITS` 51 puts all 4 bulkheads "on the inner wall", which would light the landing | The landing is where the helper puts it (56, 36) and the isolation spot is behind pen 1; pockets here are `a5-landing` [53.5, 34, 57.7, 39.5] and `a5-pen1` [40.3, 28, 42.5, 31.5]; 51 is 3 bulkheads away from the landing plus the switchroom panel. The lighting agent's file needs these boxes (shared file: reported to the job lead) | Follow the table's boxes and move the throw to suit |
 | A5-C4 | SPEC: "B lands 3.2 m past, at about x 56, z 38"; `TEAM.throwDist` 3.2 is from the thrower, so the landing is 2.0 m past the line (x 56.0) on the throw axis z 36 | Helper numbers | - |

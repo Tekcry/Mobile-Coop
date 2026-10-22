@@ -17,7 +17,7 @@ Decisions and contradictions: section 13 (`A3-D<n>` / `A3-C<n>`).
 | Entry vantage | The west lobby at the archway (x 78.5, z 10.75): the camera, its red view grid on the corridor floor (G222), the recess and the far lobby, in a straight 17.5 m line. Out of the camera's 17 m range (unit test) and behind solid walls from the cleaner. Lit (lobby circuit 34): concealed by range and walls (P1) |
 | Routes | Shadow (taught): "Jam the camera, I walk to the recess; jam again, I walk to the far lobby; then I jam for you." Secret / alternative: "Through office 1's lobby door and the communicating doors past the cleaner; out of office 3's corridor door on one short jam from the lobby." Loud: "Shoot the camera" (alarm stage, rating; host only until the client-shot fix). High: none (3 m offices, no high route; P11) |
 | Loop | Offices 1-2-3 through the communicating doors and back along the corridor (office 2's recess door, office 3's corridor door) |
-| Stepping stones | Corridor: west lobby -> the recess hide spot (88.6, 8.5), 10.0 m walk -> the east lobby (97.3, 10.75), about 9.3 m. Offices: desk runs, the trolley bay, each office's desks, 3-6 m apart |
+| Stepping stones | Corridor: west lobby -> the recess hide spot (88.6, 8.5), 10.0 m walk -> the east lobby (97.3, 10.75), about 9.6 m. Offices: desk runs, the trolley bay, each office's desks, 3-6 m apart |
 | Guards | `a3-cleaner` (section 2) and the camera `cam-a3-hall` (section 2, device sheet). The camera never sees into the offices; the cleaner never enters the corridor (only the corridor-switch lure brings him into the west lobby, out of the camera's range), so neither covers the other: the player chooses corridor (camera) or offices (cleaner) |
 | Lights | Corridor 30 (switch in the west lobby), offices 31-33 (a switch inside each office door), lobbies 34 (landlord's timer circuit, no switch). The camera ignores light (G240, SPEC rule 10): the corridor stays lit so the meter and the camera agree |
 | Surfaces | Offices carpet tile (`carpet`, x0.6, the quiet floor); corridor vinyl (`concrete`, quiet); lobbies polished concrete (`concrete`). No loud floor: the set's pressure is the camera |
@@ -37,13 +37,13 @@ Decisions and contradictions: section 13 (`A3-D<n>` / `A3-C<n>`).
 | Office 2 door reveal (recess) | 87.55-88.95, 7.85-9.0 | 3.0 | 1.0 m deep, 1.4 m wide; office 2's 1.2 m door at its back (z 7.85) |
 | Office 1 | 79.5-85.4, 0-8.7 | 3.0 | Desks, desk run on the north wall, door to the west lobby |
 | Office 2 | 85.4-91.2, 0-8.7 | 3.0 | Desks, the trolley bay, door at the back of the recess |
-| Office 3 | 91.2-97, 0-8.7 | 3.0 | Desks, the far desk (95.5, 1.5); corridor door x 93.4-94.6 cut in the helper's wall (A3-D2); no door to the east lobby (A3-D3) |
+| Office 3 | 91.2-97, 0-8.7 | 3.0 | Desks, the far desk (95.5, 1.5); corridor door x 91.4-92.6 cut in the helper's wall (A3-D2); no door to the east lobby (A3-D3) |
 | Frosted partitions | x 85.4 and x 91.2, z 0-8.7 | 3.0 | `kit.glass` frosted (stops sight, jam lines, bullets; passes baked light); a 1.2 m communicating door in each at z 1.8-3.0 |
 | East lift lobby | 97-100, 0-13 | 3.0 | Under and behind the camera; L3 door at x 100, z 9.1-10.9; lift doors (dressing) on its south part |
 | Camera `cam-a3-hall` | (96.6, y 2.8, 10.75), facing 270 deg (west), sweep 262-278, aim 8.75 m, `range` 14 (was 17; master camera-range cut 2026-10-23: sees the corridor from x 83.5 east) | - | From the helper; the builder sets `range: 17` (the helper leaves the 18 m default) (A3-D4) |
 
 Doors and spacing: L2 door (76, 10) -> archway (79.5): an archway, not a door (scale sheet 5); office doors 3 m+ apart on
-the corridor wall (recess door at x 88.25, office 3 door at x 94.0: 5.75 m); communicating doors 1.8 m from the south
+the corridor wall (recess door at x 88.25, office 3 door at x 92.0: 3.75 m); communicating doors 1.8 m from the south
 wall's corner (>= 1.5). The lobbies are 3.5 and 3 m wide (corridor class, tight camera spaces) (A3-C3).
 
 ### 1.2 Heights and lips
@@ -62,7 +62,7 @@ jamRelay({ id: 'a3-hall', at: { x: 79.5, z: 10.75 }, facing: '+x', length: 17.5,
 ```
 
 Post-processing before `applyGreybox` (plain data): split the south wall's east piece (x 88.95-97) to leave office 3's
-1.2 m door at x 93.4-94.6 (A3-D2); add office 2's door leaf at the recess back; set the camera's `range: 17`; export
+1.2 m door at x 91.4-92.6 (A3-D2); add office 2's door leaf at the recess back; set the camera's `range: 17`; export
 the hallway box and the camera as `A3_HALL` for the re-added `jammer.test.ts` cases.
 
 Send-back (the one hard rule, G125): pass zones in the east lobby carry `hall: { camera: 'cam-a3-hall', box: [79.5, 9,
@@ -82,7 +82,7 @@ and jam it properly this time.' }` (say 69 characters).
 | Gaps | While he is in office 3 (about 15 s: the walk in, 5 s at the far desk, the walk out) offices 1 and 2 are empty; while he is in office 1, office 3 is empty |
 | Isolation moment | Office 3's far desk (95.5, 1.5), 5 s facing east, his back to the communicating door at x 91.2: alone, lit but unwatched (the camera cannot see in); darkenable from cover by office 3's switch (LR4) |
 | Covered by / covers | Nobody (the camera and he never see the same floor) |
-| Lures | An office switch turned off (`lightsOut`, 25 m: every office switch reaches every desk): he walks to that switch by the office's door with his torch on (dark office, head under 0.35). Office 1's switch (79.8, 6.0) brings him to office 1's west wall beside the lobby door: a player in the west lobby takes him through the door from his left. Office 3's switch (95.0, 8.4) brings him to office 3's corridor door, his back to the far desk |
+| Lures | An office switch turned off (`lightsOut`, 25 m: every office switch reaches every desk): he walks to that switch by the office's door with his torch on (dark office, head under 0.35). Office 1's switch (79.7, 6.0) brings him to office 1's west wall beside the lobby door: a player in the west lobby takes him through the door from his left. Office 3's switch (93.0, 8.65) brings him to office 3's corridor door, his back to the far desk |
 | Search | Inside the offices (search ring to 11 m, stops at the partitions' doors); nearest hide spots: the desk-run recess, the trolley bay, the west lobby beyond office 1's door |
 | Body | Any office (all on his loop); the corridor is the camera's |
 
@@ -133,7 +133,7 @@ and jam it properly this time.' }` (say 69 characters).
 | --- | --- | --- | --- |
 | Corridor | 3.5 x 17.5 m | Corridor 3.5-4.0 m (scale sheet); `jamRelay` length <= 19 | Yes |
 | First hop | 10.0 m walk (lane, then into the hide spot) = 5.9 s at 1.7 m/s | `JAM_WINDOW` 6.5 s (correction from the greybox tests) | Yes |
-| Second hop | hide spot -> east lobby (97.3, 10.75) about 9.3 m = 5.5 s | 6.5 s | Yes |
+| Second hop | hide spot -> east lobby (97.3, 10.75) about 9.6 m (0.8 m to the lane + 8.8 m) = 5.7 s | 6.5 s | Yes |
 | Recess spacing | 8.75 m | `JAM_HOP` 8.84 m | Yes |
 | Jam posts to camera | 18.1 m (west), 1.4 m (east) | `JAMMER.range` 20 | Yes |
 | Camera mount / range | 2.8 m / 17 m | `CAMERA.mountMin` 2.4-3.5; range <= 18 | Yes |
@@ -149,11 +149,11 @@ and jam it properly this time.' }` (say 69 characters).
 
 | Group | Key | Kind | Lamps (plan, y 2.95) | Switch / reason | Lure |
 | --- | --- | --- | --- | --- | --- |
-| 30 | `a3-corridor` | switch | 6 recessed panels at x 81, 84, 87, 90, 93, 96, z 10.75 | `a3-sw-corr` (78.6, 12.1), in the west lobby | cleaner (within 25 m: he walks out of office 1's lobby door to the switch; a lobby takedown spot) |
-| 31 | `a3-office1` | switch | (81.5, 4.3), (84.0, 4.3) | `a3-sw-off1` (79.8, 6.0), inside office 1 by its lobby door | cleaner |
-| 32 | `a3-office2` | switch | (87.3, 4.3), (89.6, 4.3) | `a3-sw-off2` (87.2, 8.4), inside by the recess door | cleaner |
-| 33 | `a3-office3` | switch | (93.2, 4.3), (95.5, 4.3) | `a3-sw-off3` (95.0, 8.4), inside by the corridor door | cleaner |
-| 34 | `a3-lobbies` | house | (77.75, 6.5), (98.5, 6.5) downlights | None: the landlord's common-parts timer circuit | - |
+| 30 | `a3-corridor` | switch | 6 recessed panels at x 81, 84, 87, 90, 93, 96, z 10.75 | `a3-sw-corr` (78.6, 12.7), in the west lobby | cleaner (within 25 m: he walks out of office 1's lobby door to the switch; a lobby takedown spot) |
+| 31 | `a3-office1` | switch | (81.5, 4.3), (84.0, 4.3) | `a3-sw-off1` (79.7, 6.0), inside office 1 by its lobby door | cleaner |
+| 32 | `a3-office2` | switch | (87.3, 4.3), (89.6, 4.3) | `a3-sw-off2` (87.45, 7.65), on the recess back's jamb inside office 2 | cleaner |
+| 33 | `a3-office3` | switch | (93.2, 4.3), (95.5, 4.3) | `a3-sw-off3` (93.0, 8.65), inside by the (moved) corridor door | cleaner |
+| 34 | `a3-lobbies` | house | (77.75, 8.0) radius 6.0 intensity 1.5 (moved from (77.75, 6.5): at 6.5 the lobby read 0.18), (98.5, 6.5) downlights | None: the landlord's common-parts timer circuit | - |
 
 - Zones: set `ambientZone` x 76-100, z 0-13 at 0.14 (`minY` -1, `maxY` 2.9: ceiling 3.0 - 0.1; `MARLOW_ZONES` uses 10,
   A3-C5).
@@ -192,7 +192,7 @@ no claim of its own; the zone claim settles both (A3-D5).
 | 1 | Both | Through L2's door to the west lobby; read the camera, the grid and the recess | 0:10 | 0:10 |
 | 2 | A, B | A jams from the post (78.5, 10.75); B walks 10.0 m to the hide spot (5.9 s; B claims B on entry) | 0:07 | 0:17 |
 | 3 | A | Cooldown 5 s (the camera reboots 1.5 s after the jam); B waits in the recess | 0:06 | 0:23 |
-| 4 | A, B | A jams again; B walks 9.3 m to the east lobby (`a3-in` done) | 0:07 | 0:30 |
+| 4 | A, B | A jams again; B walks 9.6 m to the east lobby (`a3-in` done) | 0:07 | 0:30 |
 | 5 | B, A | B jams from the east post (98, 10.75); A walks to the hide spot | 0:07 | 0:37 |
 | 6 | B | Cooldown | 0:06 | 0:43 |
 | 7 | B, A | B jams again; A walks to the east lobby (`a3-swap` done) | 0:07 | 0:50 |
@@ -205,7 +205,7 @@ Sum 1:30 (target). Min 0:50 (rows 1-8 with quick reads). Max 2:30 (two or three 
 
 The first player through office 1's lobby door when the cleaner heads for office 3; follows him at a room's distance
 (or waits in office 1's desk-run recess); when he is at the far desk (5 s, back to the door) passes behind him in
-office 3 to its corridor door (or takes him there); the partner in the west lobby jams once (18.1 m); 3 m east into the
+office 3 to its corridor door (or takes him there); the partner in the west lobby jams once (18.1 m); 5.3 m east (door x 91.4-92.6, the lobby from x 97) into the
 east lobby (`a3-far1`). The second player then takes the corridor relay on the first player's jams (steps 5-7) or the
 offices too. About 1:45-2:00.
 
@@ -269,7 +269,7 @@ Shot vantages: the west lobby at the archway looking east; office 2 looking east
 | Id | What | Why | Undo |
 | --- | --- | --- | --- |
 | A3-D1 (correction, job lead / greybox tests) | B's first hop is a 10.0 m walk; the hide spot is (88.6, 8.5) against the recess's camera-side cheek | The recess middle showed a body's edge to the camera on a longer corridor; every real walk is checked in the window | - (test-proven) |
-| A3-D2 | Office 3's corridor door cut into the helper's south wall (post-processing the returned boxes) at x 93.4-94.6 | SPEC's offices route needs the door 3 m from the east lobby, inside the camera's near frame; the helper makes one opening only (the recess) | Office 3 opens into the east lobby (then the offices route needs no jam and is solo) |
+| A3-D2 | Office 3's corridor door cut into the helper's south wall (post-processing the returned boxes) at x 91.4-92.6 (built; first planned at 93.4-94.6) | The camera pitches down 17.7 deg: a crouched head within about 2.1 m of the mount (x past 94.5) is out of frame, so a door at x 94 was nearly invisible to it and the offices route needed no jam (the undo note below); at x 92.0 every standing pace and the creep reach stage 2, a crouch walk peaks 0.83-0.98 and a crouched run 0.63-0.68 (the investigate band, no send-back). The helper makes one opening only (the recess) | Office 3 opens into the east lobby (then the offices route needs no jam and is solo) |
 | A3-D3 | No door between office 3 and the east lobby; lobbies full depth (z 0-13) | Keeps the offices route co-op (one jam) and gives L3's door 3 m from each lobby corner | - |
 | A3-D4 | Camera `range: 17` set by the builder | The helper leaves the 18 m default; SPEC wants the west lobby out of range | - |
 | A3-D5 | The B claim alone (first into the corridor); A follows | `RoleClaim.press` takes course devices, not a jam | - |

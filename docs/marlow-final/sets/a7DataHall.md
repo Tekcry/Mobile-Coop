@@ -17,13 +17,13 @@ camera facings in degrees with 0 = +z, 90 = +x. Decisions and contradictions: se
 | Entry vantage | The entry lobby (73.5, 62.0): through the glazed sidelight of the hall door, aisle B to the cage front and terminal T1 and the technician's whole round (it passes the hall door); through the glazed sidelight of the plant door, the corridor, its grating and the sweeping camera at its east end; the fire plan on the north wall shows both routes, both terminals and both cameras. No guard enters the lobby; glass stops guard and camera sight (P17), so the lobby is out of every view |
 | Routes | Hall (A): "Wait for him to go up the west aisle, slip into aisle B behind him, then to terminal one when he walks off south." Corridor (B): "Crouch to the first cooling unit, hop the grating while the camera looks away, then the pod door." Either player may take either path. Hall, high-risk: "The north aisle and down the front aisle under the north camera (jam-hop)." Corridor, loud: "Run the grating in one window" (loud: the technician hears it through the wall). Lure: "Switch the aisle ends off and he walks to the south-west corner." Loud: shoot a camera (alarm stage) |
 | Loop | The technician's loop round rows 1-2 west of the cage is also the hall player's loop (aisles A, B, C and the two cross aisles); the corridor is a dead end by design (the pod door at its end is the goal), with the lobby behind |
-| Stepping stones | Hall: lobby -> aisle B's west end (78.5, 61.5), 5 m, behind row 1 -> T1 (85.35, 61.5), 7 m along aisle B. Corridor: lobby -> plant door (72.8, 56) -> the x 85 cooling unit's lee (84.0, 55.1), 11 m -> the x 93 unit's lee (92.0, 55.1), 8 m over the grating -> the pod door (97.9, 55.8), 6 m: each hop a blind window or a unit's lee |
+| Stepping stones | Hall: lobby -> aisle B's west end (78.5, 61.5), 5 m, behind row 1 -> T1 (85.35, 61.5), 7 m along aisle B. Corridor: lobby -> plant door (72.8, 55.8) -> the x 85 cooling unit's lee (83.7, 55.2), 11 m -> the x 93 unit's lee (91.75, 55.2), 8 m over the grating -> the pod door (97.9, 55.8), 6 m: each hop a blind window or a unit's lee |
 | Guards | `a7-tech` (section 2). One guard, two cameras: the guard covers the hall, `a7-cam1` the north approach to the cage, `a7-cam2` the corridor. Isolation moment: R1 at the south aisle's west end |
 | Lights | Rack rows 70 (switch in the lobby by the hall door), aisle ends 71 (switch at the south aisle's west end), plant corridor 72 (switch inside its west door), pod 73 (on the cage's own control). Cameras ignore light (G240): darkness helps against the technician only |
 | Surfaces | Raised floor tiles in the hall and the lobby (quiet), the plant corridor's concrete (quiet), the 6 m trench grating across the corridor (`metal`, loud above crouched gears 1-3) |
 | Toys | Two cameras (jam, shoot), three switches (70, 71, 72), the grating (a quiet and a loud way across), the lobby's two glazed doors, the cage doors (on the sync) |
 | Hide spots | The ends of each rack row (aisle B's west part, the cross aisles); the lobby's coat bay (x 74.5-76, z 64-66); the cooling units' west lees in the corridor. A body at the cage front is found at his R0 stop; a body in aisle B is seen from R0 (facing east) only by its back: found on his next south walk past the aisle's mouth |
-| Traversal elements | None in the co-op band. Racks 2.2 m, cooling units 2.0 m, cage lid 2.45, pod roof 2.6: all `noLedge` (over the 1.9 m auto-lip line). The cage fence anchors locked (`anchorLock`) |
+| Traversal elements | None in the co-op band. Racks 2.2 m, cooling units 2.0 m, cage lid 2.5, pod roof 2.6: all `noLedge` (over the 1.9 m auto-lip line). The cage fence anchors locked (`anchorLock`) |
 | Exit | Pinch point: the pod (one-player pass zone `a7-pod`). After the sync the cage doors open, so the hall player walks through the cage into the pod and both leave by `A7-east` (the facility's L7 near door, `flag` on `a7-sync`). Checkpoint: L7 (x 100-106, z 57-63), the Model Room, with the A8 vitrine and a wall medkit |
 | Tension | 4 |
 
@@ -32,15 +32,15 @@ camera facings in degrees with 0 = +z, 90 = +x. Decisions and contradictions: se
 | Piece | Plan box (x0-x1, z0-z1) | Height | Notes |
 | --- | --- | --- | --- |
 | Set box | 70-100, 52-72 | slab 4.0 | Box-edge walls are `facility.ts`'s (L6 door x 70, z 61.1-62.9; L7 door x 100, z 59.1-60.9) |
-| Entry lobby | 70.2-76, 56-66 | ceiling 3.0 | Hall door `A7-hall` (x 76, z 61.0-62.2) with a `kit.glass` sidelight (z 62.4-63.6); plant door `A7-plant` (z 56, x 72.2-73.4) with a sidelight (x 73.6-74.8). Fire plan board on the north wall (73.0, 1.5, 65.8). Coat bay x 74.5-76, z 64-66 |
+| Entry lobby | 70.2-76, 56-66 | ceiling 3.0 | Hall door `A7-hall` (x 76, z 61.0-62.2) with a `kit.glass` sidelight (z 62.4-63.6); plant door `A7-plant` (z 55.8, x 72.2-73.4) with a sidelight (x 73.6-74.8). Fire plan board on the north wall (73.0, 1.5, 65.8). Coat bay x 74.5-76, z 64-66 |
 | Plant corridor | 70.2-100, 52.2-55.65 | 3.5 | Its north wall (z 55.65-55.95) runs x 70.2-100; the lobby's south wall and the pod's south wall sit on it |
 | Cooling units (3) | centres x 78.0, 85.0, 93.0; z 54.75-55.65 | 2.0 | `coolingUnit` 1.8 x 0.9, against the corridor's north wall, `noLedge`. Clear corridor width beside them 2.55 m |
 | Trench grating | 86-92, 52.2-55.65 | flush | Full width (no way round): `metal` surface |
 | Rack rows | row 1: 78.8-83.0 and 86.0-95.6, z 58.8-60.0; row 2: 78.8-83.0, z 63.0-64.2; row 3: 78.8-83.0, z 67.2-68.4 | 2.2 | `serverRack` 0.6 x 1.2, one collide box per run, `noLedge`. Row 1's east part runs along the cage's south face |
 | Aisles | A (south) z 55.95-58.8; B z 60.0-63.0; C z 64.2-67.2; D (north) z 68.4-71.775; west cross aisle x 76.15-78.8; front aisle x 83.0-86.0 | - | 3.0 m aisles (D 3.4, west cross 2.65: the lobby wall side) |
-| Cage | 86-96, 60-66 | mesh 2.4, lid 2.4-2.45 | `b.fence` mesh on all four faces over 1.2 m solid kick-panel boxes; lid a `noLedge` box; fence anchors locked by `{ kind: 'anchorLock', id: 'g-a7-cage-lock', anchorId: <each fence anchor>, flag: 'a7-never' }` (never set). Doors `A7-cage-w` (x 86, z 63.9-65.1) and `A7-cage-e` (x 96, z 63.9-65.1), 1.2 x 2.1, locked, `flag` gates on `a7-sync` |
-| Terminal T1 (`a7-t1`) | (85.95, 1.2, 61.5) on the cage's west face, yaw -pi/2 (faces west); hack spot (85.35, 61.5) | - | Scanner panel; ready lamp seen from the pod through both mesh faces |
-| Terminal T2 (`a7-t2`) | (96.05, 1.2, 61.5) on the cage's east face, yaw pi/2 (faces east, into the pod); hack spot (96.65, 61.5) | - | 10.1 m from T1, the cage between |
+| Cage | 86-96, 60-66 | mesh 2.4, lid 2.4-2.5 (a 5 cm slab failed `tests/voxelFit.test.ts`, floor parity on the 5 cm grid) | `b.fence` mesh on all four faces over 1.2 m solid kick-panel boxes; lid a `noLedge` box; fence anchors locked by `{ kind: 'anchorLock', id: 'g-a7-cage-lock', anchorId: <each fence anchor>, flag: 'a7-never' }` (never set). Doors `A7-cage-w` (x 86, z 63.9-65.1) and `A7-cage-e` (x 96, z 63.9-65.1), 1.2 x 2.1, locked, `flag` gates on `a7-sync` |
+| Terminal T1 (`a7-t1`) | (85.95, 0, 61.5) (device y 0: the scanner's `y` is its panel's floor, so the ready lamps hang at 1.95 / 2.25; the housing stays at 1.2) on the cage's west face, yaw -pi/2 (faces west); hack spot (85.35, 61.5) | - | Scanner panel; ready lamp seen from the pod through both mesh faces |
+| Terminal T2 (`a7-t2`) | (96.05, 0, 61.5) (device y 0, housing 1.2) on the cage's east face, yaw pi/2 (faces east, into the pod); hack spot (96.65, 61.5) | - | 10.1 m from T1, the cage between |
 | Containment pod | 96.0-100, 55.95-68 | roof 2.6 | Solid containment panels on its west wall except the cage's mesh face (z 60-66) and on its north wall; roof box `noLedge`. South door `A7-pod-s` (z 55.8, x 97.4-98.6), unlocked. East door = `A7-east` (facility) |
 | Hall north-east | 86-100, 66-71.775 | - | Open floor north of the cage and the pod (the cage's north apron) |
 | Camera `a7-cam1` | (86.5, 3.2, 71.5) on the north wall over the front aisle | - | Fixed, facing 195 deg, `aim` 4.0, `range` 12 (A7-C2) |
@@ -55,7 +55,7 @@ Doors and spacing: L6 door (70, 62) -> hall door (76, 61.6): 6.0 m; L6 door -> p
 | --- | --- | --- | --- | --- |
 | Rack runs | 2.2 | hand boxes, `noLedge` | No | Over the 1.9 m auto-lip line; a 2.2 m top is no solo jump top (no mantle) |
 | Cooling units | 2.0 | hand boxes, `noLedge` | No | Same |
-| Cage mesh, kick panels, lid | 2.4 / 1.2 / 2.45 | `b.fence` (climbable: anchors locked), boxes, lid `noLedge` | No | Q8: a fence is climbable; the lid and the anchor lock close it |
+| Cage mesh, kick panels, lid | 2.4 / 1.2 / 2.5 | `b.fence` (climbable: anchors locked), boxes, lid `noLedge` | No | Q8: a fence is climbable; the lid and the anchor lock close it |
 | Pod roof | 2.6 | hand box, `noLedge` | No | - |
 | Lobby partitions | 3.0 (to the lobby ceiling) | hand boxes | No | To the ceiling |
 
@@ -83,7 +83,7 @@ near door), the pass zone `a7-pod`, the two cameras.
 | --- | --- |
 | Guard | `a7-tech`, kind `grunt`, A7 squad, slot (84.4, 60.6) (R0), yaw pi/2 |
 | Job | The data-hall technician on his rounds: reads the rack status screen at the cage front, walks the south aisle to the west wall's power distribution unit, back up the west cross aisle and along aisle C to the cage again |
-| Route | `route: [[84.4, 60.6], [84.4, 57.4], [77.5, 57.4], [77.5, 65.7], [84.4, 65.7]]`, `waits: [5, 0, 3, 0, 0]`, `faces: [pi/2, NaN, -pi/2, NaN, NaN]`. R0 = the cage front (facing east: the screen on row 1's east part, (86.0, 59.4)), R1 = the south aisle's west end (facing west: the PDU). Walk 30.4 m at 0.99 m/s = 30.7 s + 8 s of stops: cycle about 39 s (A7-C1) |
+| Route | `route: [[84.4, 60.6], [84.4, 57.4], [77.5, 57.4], [77.5, 65.7], [84.4, 65.7]]`, `waits: [5, 0.1, 3, 0.1, 0.1]` (0.1 s pass-through stops as built: a wait of 0 freezes `PatrolWalker`), `faces: [pi/2, NaN, -pi/2, NaN, NaN]`. R0 = the cage front (facing east: the screen on row 1's east part, (86.0, 59.4)), R1 = the south aisle's west end (facing west: the PDU). Walk 30.4 m at 0.99 m/s = 30.7 s + 8 s of stops: cycle 35-41 s on the walker as built (A7-C1) |
 | Timeline (t = leaving R0) | 0-3.2 south down the front aisle. 3.2-10.2 west along aisle A (behind row 1). 10.2-13.2 R1 stop, facing west. 13.2-21.6 north up the west cross aisle (passes the hall door at 1.5 m at about t 17.6). 21.6-28.6 east along aisle C (row 2 hides aisle B until about t 26.6). 28.6-33.7 south down the front aisle. 33.7-38.7 R0 stop facing east (his back to aisle B and T1's hack spot is 1.1 m to his right) |
 | What he sees | At R0: the cage's west mesh and the screen; aisle B is behind him. On aisle A: the south aisle only (row 1 is solid: nothing of aisle B). At R1: the west wall; the hall door is 4 m to his right (north). Up the west cross aisle: aisles A-D open to his right in turn (he sees down each). Along aisle C: the cage's north part and the front aisle ahead |
 | Gaps | T1's hack spot is out of his view t 5-26 (21 s): the hall player's window. The hall door: safe to open t 21.6-13 (when he is east of x 80 or facing east) |
@@ -153,17 +153,17 @@ near door), the pass zone `a7-pod`, the two cameras.
 | Cycle / stops | 38.7 s; 5 / 3 s | LD 4.3: 25-45 s; 3-6 s | Yes (A7-C1) |
 | Aisles / corridor | 3.0 m aisles, 2.55 m beside the units, 3.45 m corridor | Q13: 3.0 m and 3.5 m fit the shoulder camera (`camSpaces` tight) | Yes (GPU shot pending) |
 | Doors | Lobby doors 1.2 x 2.1, 6.0-6.6 m apart; cage and pod doors 1.2 x 2.1 | Doors; 5 m between doors | Yes |
-| Racks, units, lid, roof | 2.2 / 2.0 / 2.45 / 2.6, all `noLedge` | LD 12.1 auto lips at 1.9 m | Yes |
+| Racks, units, lid, roof | 2.2 / 2.0 / 2.5 / 2.6, all `noLedge` | LD 12.1 auto lips at 1.9 m | Yes |
 | Clearance | 1.0 m in front of T1, T2 and both doors of the cage | LD 16.4.2 | Yes (T1 has the front aisle, T2 the pod's 4 m) |
 
 ## 7. Lights (LIGHTING-PLAN section 3, `MARLOW_CIRCUITS`)
 
 | Group | Key | Kind | Lamps (plan, y) | Switch / reason | Cut by | Lure |
 | --- | --- | --- | --- | --- | --- | --- |
-| 70 | `a7-rows` | switch | 6 strips over the aisles (y 3.8, radius about 4, cool): (80.9, 57.4), (80.9, 61.5), (80.9, 65.7), (84.5, 63.0) over the front aisle, (91.0, 57.4), (91.0, 69.0); 1 lobby panel (73.0, 2.9, 61.0) (A7-D4) | `a7-sw-rows` (75.6, 1.2, 60.4), in the lobby by the hall door | switch, jam, shot | tech (to the hall door) |
-| 71 | `a7-aisles` | switch | 2 bulkheads at the aisle ends (y 2.6, radius 3): (76.4, 57.4), (76.4, 69.9) | `a7-sw-aisles` (76.5, 1.2, 56.3), at the south aisle's west end (hall side) | switch, jam, shot | tech (to the south-west corner) |
-| 72 | `a7-plant` | switch | 4 bulkheads (y 3.0, radius 3.5): (74.0, 53.9), (79.5, 53.9), (85.0, 53.9), (91.0, 53.9) | `a7-sw-plant` (73.0, 1.2, 55.3), inside the corridor by its west door | switch, jam, shot | tech (into the corridor) |
-| 73 | `a7-pod` | device | 2 strips in the pod roof (y 2.5, radius 2.5): (98.0, 59.0), (98.0, 65.0) | None: on the cage's own control | jam, shot | none |
+| 70 | `a7-rows` | switch | 6 strips over the aisles (y 3.8, radius 4.5, intensity 1.0, cool): (81.6, 57.4) (moved from 80.9 so R1 reads cut with only 71 off), (80.9, 61.5), (80.9, 65.7), (84.5, 61.8) lengthwise over the front aisle (T1 read 0.50 at (84.5, 63.0); the pool needs 0.60), (91.0, 57.4), (91.0, 69.0); 1 lobby panel (73.0, 2.9, 61.0), radius 4.0 (A7-D4): 7 lamps | `a7-sw-rows` (75.8, 1.2, 60.4), in the lobby by the hall door | switch, jam, shot | tech (to the hall door) |
+| 71 | `a7-aisles` | switch | 2 bulkheads at the aisle ends (y 2.6, radius 3.2): (76.4, 57.4), (76.4, 69.9) | `a7-sw-aisles` (76.6, 1.2, 56.0), at the south aisle's west end (hall side) | switch, jam, shot | tech (to the south-west corner) |
+| 72 | `a7-plant` | switch | 4 bulkheads (y 3.0, radius 4.5: at 3.5 the grating read 0.39): (74.0, 53.9), (79.5, 53.9), (85.0, 53.9), (91.0, 53.9) | `a7-sw-plant` (71.6, 1.2, 55.6), in the corridor west of its west door (the doc's (73.0, 55.3) is inside the door opening, x 72.2-73.4) | switch, jam, shot | tech (into the corridor) |
+| 73 | `a7-pod` | device | 2 strips in the pod roof (y 2.5, radius 3.5: T2 read 0.18 at radius 2.5): (97.8, 60.0), (97.8, 63.0) | None: on the cage's own control | jam, shot | none |
 
 - Zones: set `ambientZone` x 70-100, z 52-72 at 0.14 (`minY` -1, `maxY` 3.9). No upper level.
 - Dark pockets: none (rack-row ends and the coat bay are hide spots). Isolation moment R1 lit but darkenable by 71
@@ -200,7 +200,7 @@ corridor takes B; the other is A (the hall). Until then the lead (P1, odd set) s
 | --- | --- | --- | --- | --- |
 | 1 | Both | Through L6's door into the lobby; the fire plan; both glazed doors | 0:05 | 0:05 |
 | 2 | Both | Watch the technician's round once through the hall door's sidelight; watch the corridor camera's sweep through the plant door's sidelight | 0:35 | 0:40 |
-| 3 | B | Through the plant door (claims B), crouch along the corridor to the x 85 unit's lee (84.0, 55.1), the last 3 m in a blind window | 0:15 | 0:55 |
+| 3 | B | Through the plant door (claims B), crouch along the corridor to the x 85 unit's lee (83.7, 55.2), the last 3 m in a blind window | 0:15 | 0:55 |
 | 3' | A | (in parallel) When he turns into aisle C (t 21.6), through the hall door and into aisle B's west end (78.5, 61.5); crouch still | - | - |
 | 4 | B | Hop the grating to the x 93 unit's lee (8 m, 4.7 s) at the start of a blind window | 0:10 | 1:05 |
 | 5 | B | Next window: to the pod door (6 m), in, to T2's spot (`a7-pod`; `a7-split` ticks) | 0:10 | 1:15 |

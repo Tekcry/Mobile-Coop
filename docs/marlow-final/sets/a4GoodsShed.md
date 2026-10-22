@@ -46,8 +46,8 @@ radians with 0 = +z. Decisions and contradictions: section 13 (`A4-D<n>` / `A4-C
 | East stair | 106-111.7, 46.8-48 | 0 -> 3.3 | Rising west; foot by the east wall |
 | Dispatch office | 76-82.6, 38-44 (6.3 clear) | 3.0 | Clear glazing (`kit.glass`) on its south and east faces (stops sight; passes light); door x 77.7-78.9 on the south face; kettle counter on its west wall (kettle at (76.9, 39.5)); no lamp tonight (L-A5) |
 | Dock desk | 79.2-80.8, 32.6-33.4 | 1.0 | Standing desk (not low cover: 1.0 m) |
-| Pallet stack N | 79.8-81.0, 35.8-36.6 | 1.2 | Low cover behind D1 (dispatch waiting) |
-| Pallet stack S | 79.0-80.2, 29.4-30.2 | 1.2 | Low cover behind D2 |
+| Pallet stack N | 79.8-81.0, 35.1-35.9 | 1.2 | Low cover behind D1 (dispatch waiting), 0.7 m behind him (A4-C7) |
+| Pallet stack S | 79.0-80.2, 30.1-30.9 | 1.2 | Low cover behind D2, 0.7 m behind him (A4-C7) |
 | Dock wicket | L4's east door, x 76, z 32.1-33.9 | 2.1 | Facility door; push bar `a4-pushbar` at (76.5, 1.0, 34.6) on the floor side (A4-D3) |
 | Dock roller shutter | x 76 face, z 37-40 | 3.0 | Closed, dressing (no opening) |
 
@@ -94,7 +94,7 @@ No greybox helper (SPEC 12: A4 has no co-op piece). Hand data:
 | Gaps | Always (static, facing away from the L3 door) |
 | Isolation moment | Always: alone in the room, the door behind him, by design (SPEC) |
 | Covered by / covers | Nobody; the floor guards are 25 m+ away behind walls |
-| Lures | The room switch `a4-sw-sec` (101.2, 13.8) turned off brings him to it (2 m from the L3 door); not needed |
+| Lures | The room switch `a4-sw-sec` (101.2, 13.3) turned off brings him to it (2 m from the L3 door); not needed |
 | Search | The room and the passage; hide spots: the passage (dark), L3 is locked behind |
 | Info lines (P14) | "The console loops the floor cameras. Sixty seconds, then they reboot." (69) / "Those two at the dock only split when the kettle boils." (55) |
 | Console rule | The console refuses while he is up (`CONSOLE_GUARD_UP`) |
@@ -107,10 +107,10 @@ No greybox helper (SPEC 12: A4 has no co-op piece). Hand data:
 | Job | Dock loader, booking tonight's container out at the dispatch desk, talking to his mate |
 | Route | None: a talking post (glances) |
 | What he sees | South: past D2 to stack S, the dock's south side and aisle 2's west end (the man who would come for D2). His back is to the dispatch office and stack N |
-| Gaps | While D2 is at the kettle (about 22 s every 40 s) nobody watches D1's back except C3 |
+| Gaps | While D2 is at the kettle (about 24 s every 40 s) nobody watches D1's back except C3 |
 | Isolation moment | Alone at the desk while D2 is away (lit, under the dock high-bay; darkenable by the floor switch, which lures him); or at the floor switch when lured (dark, torch on, facing the switch, his back to the main aisle) |
 | Covered by / covers | Covers D2 (sees his attacker); covered by D2 |
-| Lures | The floor switch `a4-sw-floor` (79.4, 37.7) off: he is the nearest calm guard (3.4 m; D2 at the desk 6.1 m), walks to it with his torch (the floor is cut). While D2 is at the kettle (2.6 m from the switch) D2 is the nearer and goes instead (A4-C6) |
+| Lures | The floor switch `a4-sw-floor` (79.4, 37.85) off: he is the nearest calm guard (3.5 m; D2 at the desk 6.3 m), walks to it with his torch (the floor is cut). While D2 is at the kettle (3.0 m from the switch) D2 is the nearer and goes instead (A4-C6) |
 | Search | The dock and the main aisle's west end; hide spots: the dispatch office corner, the racking end bays |
 
 ### `a4-dock2` (D2, "the man nearest the racking", the kettle man)
@@ -119,9 +119,9 @@ No greybox helper (SPEC 12: A4 has no co-op piece). Hand data:
 | --- | --- |
 | Guard | `a4-dock2`, kind `grunt`, A4 squad, slot (80.0, 31.6), yaw 0 (facing north across the desk at D1) |
 | Job | Dock loader; makes the tea: every 40 s he walks to the kettle in the dispatch office and waits for it |
-| Route | Timed loop (`loop: { period: 40, leave: [...], t0: 0 }`): `route: [[80, 31.6], [78.6, 33.0], [78.3, 37.3], [76.9, 39.5], [78.3, 37.3], [78.6, 33.0]]`, `waits` / `leave` so that he stands at the desk 0-17.6 s, walks 8.6 m to the kettle (8.7 s), stops there 5 s facing west (-pi/2, his back to the office door), walks back (8.7 s). Cycle 40 s |
+| Route | Timed loop (`loop: { period: 40, leave: [...], t0: 0 }`): `route: [[80, 31.6], [78.4, 31.8], [78.3, 37.3], [78.3, 38.5], [76.95, 39.5], [78.3, 38.5], [78.3, 37.3], [78.4, 31.8]]` (through the office door), `loop { period: 40, leave: [17, 18.4, 24, 24.9, 31.3, 32.7, 33.6, 39.3], t0: 0 }` (the leave clock: no pass-through wait is needed): at the grunt's 0.9 m/s he stands at the desk about 16 s, walks 10.0 m to the kettle, stops there 5 s facing west (-pi/2, his back to the office door), walks back; away from the desk 23.6-24.1 s, departures 40 s apart. Cycle 40 s |
 | What he sees | At the desk: north, past D1 to stack N, the main aisle's west end and the office door (the man who would come for D1). At the kettle: the office's west wall |
-| Gaps | His kettle walk and stop (about 22 s) |
+| Gaps | His kettle walk and stop (about 24 s) |
 | Isolation moment | At the kettle: alone in the unlit dispatch office (dark, glazing stops the floor's sight), back to the door, 5 s (+ the walk in) |
 | Covered by / covers | Covers D1; covered by D1 |
 | Lures | The floor switch, only while he is at the kettle (he is then the nearer) |
@@ -183,10 +183,10 @@ frame.
 | Main route passage mouth -> stack N | 38.9 m = 22.9 s at 1.7 m/s (18.5 s at 2.1) | Inside the 60 s loop with the takedown (SPEC "about 40 m") | Yes |
 | Shadow route mouth -> stack S | 24.4 m = 14.4 s | 60 s | Yes |
 | High route mouth -> stack N | about 68 m = 40 s | 60 s (slow by design) | Yes, barely: the dual takedown then needs a second loop or the kettle |
-| Dual takedown | stacks 1.6 m behind each man; crouch spots 2.63 m out; a 0.85 m step to the 1.8 m reach | `takedown.reach` 1.8; window 1.5 s on finish times (Q11) | Yes |
+| Dual takedown | stacks 0.7 m behind each man; crouch spots (80.4, 36.2) and (79.6, 29.8) against the stacks' far faces, 1.84 m from the man (over-cover reach `TAKEDOWN.coverReach` 1.9; `pickTakedown` answers `overCover` there, A4-C7) | `takedown.reach` 1.8; window 1.5 s on finish times (Q11) | Yes |
 | Officer approach | L3 door -> 1.8 m behind him: 2.9 m, outside his 100 deg periphery the whole way | `PERCEPTION.periphHalf` 100 deg | Yes |
-| D2 kettle walk | 8.6 m each way; 5 s stop; 40 s period | SPEC 8 m, 40 s; LD stops 3-6 s | Yes |
-| Lure range | floor switch -> D1 3.4 m, -> D2 6.1 m | Nearest calm guard within 25 m | D1 (D2 when at the kettle) |
+| D2 kettle walk | 10.0 m each way (the office door detour) at 0.9 m/s; 5 s stop; 40 s period | SPEC 8 m, 40 s; LD stops 3-6 s | Yes |
+| Lure range | floor switch -> D1 3.5 m, -> D2 6.3 m | Nearest calm guard within 25 m | D1 (D2 when at the kettle) |
 | Racking aisles | 3.0 (back), 3.5 (aisle 2, cross aisle), 4 (east lane), 8.4 (main) | Aisles 3.0-3.5 (reach-truck) | Yes |
 | Security room | 6.0 clear | Play space >= 6 m (SPEC draws it 6.6 for this) | Yes |
 | Passage | 3.0 x 4.4 | Corridor >= 3.0 | Yes |
@@ -200,10 +200,10 @@ frame.
 
 | Group | Key | Kind | Lamps (plan) | Switch / reason | Lure |
 | --- | --- | --- | --- | --- | --- |
-| 40 | `a4-secroom` | switch | 2 panels (102, 2.95, 16.3), (105, 2.95, 16.3) | `a4-sw-sec` (101.2, 13.8), by the L3 door | officer |
-| 41 | `a4-floor` | switch | 8 high-bays (y 7.2): dock (79.5, 33); main aisle (80, 39.8), (86, 39.8), (92, 39.8), (98, 39.8), (104, 39.8), (110, 39.8); east lane (110, 35.0); none reaches the back aisle pocket (radius <= 7) | `a4-sw-floor` (79.4, 37.7), at the dispatch office door (A4-C8) | D1 (D2 when at the kettle) |
-| 42 | `a4-aisles` | switch | 6 strips over aisle 2 (y 5.6): x 87.5, 90.5, 93.5, 100, 103, 106 at z 31.45 (R1 shades the back aisle) | `a4-sw-aisles` (76.4, 28.0), at the west end | D2 |
-| 43 | `a4-mezz` | switch | 4 strips over the deck (y 6.3): x 89, 94, 99, 104 at z 46 | Two-way: `a4-sw-mezz-w` (86.3, 46.4, y 3.3), `a4-sw-mezz-e` (105.7, 46.4, y 3.3), the stair heads (A4-C8) | - |
+| 40 | `a4-secroom` | switch | 2 panels (102, 2.95, 16.3), (105, 2.95, 16.3) | `a4-sw-sec` (101.2, 13.3), by the L3 door | officer |
+| 41 | `a4-floor` | switch | 8 high-bays (y 7.2): dock (79.5, 33); main aisle (80, 39.8), (86, 39.8), (92, 39.8), (98, 39.8), (104, 39.8), (110, 39.8); east lane (110, 35.0); none reaches the back aisle pocket (built radius 9, intensity 1.15: radius 7 cannot reach a head 5.5 m below a lamp at 7.2) | `a4-sw-floor` (79.4, 37.85), on the pier east of the dispatch office door (A4-C8) | D1 (D2 when at the kettle) |
+| 42 | `a4-aisles` | switch | 6 strips over aisle 2 (y 5.6): x 87.5, 90.5, 93.5, 100, 103, 106 at z 31.45 (R1 shades the back aisle) | `a4-sw-aisles` (76.3, 28.0), at the west end | D2 |
+| 43 | `a4-mezz` | switch | 4 strips over the deck (y 6.3): x 89, 94, 99, 104 at z 46 | Two-way: `a4-sw-mezz-w` (87.0, 47.7), `a4-sw-mezz-e` (105.0, 47.7), on the north wall by the stair heads, switch height 4.5 m (A4-C8) | - |
 | 49 | `a4-bulk` | dead | 0 lit (fittings at intensity 0 over the back aisle) | Motion sensors set off tonight | - |
 
 - Zones (A4-C5): security room x 100-107, z 13-20 at 0.14 (`maxY` 2.9); passage x 101-104, z 20-24 (`maxY` 4.1);
@@ -280,14 +280,14 @@ the floor side.
 
 ## 10. Self-critique (the 10 weakest points and the fix)
 
-1. The dual takedown in a lit dock is hard: each man sees the other's attacker for about 0.5 s. Fix: stacks 1.6 m
+1. The dual takedown in a lit dock is hard: each man sees the other's attacker for about 0.5 s. Fix: stacks 0.7 m (as built)
    behind each man; the kettle and lure routes are the easier ways; the takedown stays optional (P10).
 2. The monitor wall does not show the camera feeds (no feed render in the engine) (A4-C1). Fix: the observe beat moves
    to the passage mouth and the back aisle's west end; the monitor wall is lit screens (dressing).
 3. The 60 s loop is generous for the main route and short for the high route. Fix: intended (fast vs slow); the re-arm
    (20 s) makes the return worth it.
 4. D2's kettle path passes 1.8-2.1 m from A's crouch spot (A4-C7). Fix: the line tells A to wait until "your partner
-   is set"; the LD 15 vantage check at that spot; fallback: stack N moved 0.6 m east with A's spot.
+   is set"; the LD 15 vantage check at that spot; built: the stacks moved 0.7 m nearer their men and the spots to their far faces (A4-C7).
 5. The floor-switch lure picks D2 when he is at the kettle (nearest guard) (A4-C6). Fix: documented in the guard sheets;
    the radio does not promise D1.
 6. The mezzanine is reachable only by stairs and its edge is a 3.3 m `noLedge` rail: no overwatch takedown from above.
@@ -353,7 +353,7 @@ main aisle's east end looking west to the dock.
 | A4-C4 | The staff passage (x 101-104, z 19.6-24) crosses the south service corridor (z 20-24) | `facility.ts` must break its corridor at x 101-104 (shared-file request to the job lead / 0d) | - |
 | A4-C5 | `MARLOW_ZONES` A4 box [76, 13, 112, 48] up to 10 m wraps the plant room and the gallery strip; SPEC 7 asks per-level zones | Four zones asked of the lighting table's owner | - |
 | A4-C6 | SPEC "the lure sends D1" vs the nearest-guard rule: while D2 is at the kettle, D2 is the nearer | Documented | - |
-| A4-C7 | D2's kettle path passes 1.8-2.1 m from A's stack N spot | Set up after he returns; LD 15 check | Stack N 0.6 m east |
+| A4-C7 | D2's kettle path passes 1.8-2.1 m from A's stack N spot | Set up after he returns; LD 15 check; built with the stacks 0.7 m nearer their men (over-cover reach) | The doc's z values (a step round the stack's end, about 2 m of crouch walk) |
 | A4-C8 | LIGHTING hint switch points (floor (82.4, 36.6), aisles (77, 28), mezzanine (78, 46.4) / (110, 46.4)) vs the built doors and stair heads | Built points (L-A6) | - |
 | A4-C9 | N1 "the first press of a named device takes the role": unclear whether a refused console press (officer up) claims | e2e records it; if it claims, the player who pokes it first becomes B | Claim on the `a4-loop` flag (no such claim kind) |
 

@@ -177,12 +177,12 @@ Light parity check, every set (the per-set light test and the e2e in section 5):
   does not darken the aisle the shadow route needs).
 
 ### A5 the Substation (partner throw; jam the light)
-- Lit default: apron 50 (3 bulkheads, switch at the L4 door), inner zone 51 (4 bulkheads on the inner wall, switch
+- Lit default: apron 50 (3 bulkheads, switch at the L4 door), inner zone 51 (3 bulkheads: inner wall, south wall and switchroom face, and the switchroom panel; switch
   inside the switchroom door: lures the patrol there), kiosk flood 52 (photocell spot on the switchroom face: jam or
   shoot only), kiosk panel 53 (its emergency supply). 9 lamps.
 - No timer: the jam's own window (0.5 s flicker, held up to 5 s, 4 s off, 0.5 s flicker on: about 9.5-10 s dark,
   `JAM_LIGHT`, `jammer.ts:43-48`) covers B's 8 m kiosk crossing (4.7 s).
-- Pockets: `a5-pen2` (the throw's landing, between pen 2 and the switchroom), `a5-pen1` (the patrol's isolation moment).
+- Pockets: `a5-landing` (box 53.5-57.7 x 34-39.5: the throw's landing; no fitting reaches it, the flood's cone and radius stop short and pen 2 shades the switchroom bulkhead), `a5-pen1` (box 40.3-42.5 x 28-31.5, behind pen 1's transformer outside the flood's cone: the patrol's isolation moment).
 - States:
   - Start: kiosk strip >= 0.60 (the flood), inner zone >= 0.40, pockets <= 0.22.
   - Flood jammed: the kiosk strip <= 0.24 **with 51 and 53 on**: the inner-zone bulkheads stand on the pen side with
@@ -194,14 +194,14 @@ Light parity check, every set (the per-set light test and the e2e in section 5):
 
 ### A6 the Pump House (hang-down; rope)
 - Lit default: pump floor high-bays 60 (3 over pumps 1-2 and the desk, switch by the outfall door), gallery strip 61
-  (3 bulkheads on the east part of the gallery, switch at the stair head, y 4.4: lures the attendant to the stair foot),
+  (a pendant over the bridge and 2 bulkheads on the gallery wall, switch at the stair head, y 4.4: lures the attendant to the gallery front by the stair head),
   desk lamp 62 (switch on the desk), cage work light 63 (the drive panel's own circuit), sump bay 69 dead (tagged out:
   the SW corner, pump 3 and the gallery's west end dark). 8 lit lamps.
 - No timer (the hold is N4's 3 s).
-- Pockets: `a6-sump` (entry vantage from L5), `a6-west` (y 4.4: the leg-up and rope), `a6-pump3` (isolation moment).
+- Pockets: `a6-sump` (entry vantage from L5), `a6-west` (y 4.4: the leg-up and rope), `a6-westfloor` (floor, 40.3-46 x 66-69.6: the leg-up spot under the tagged-out gallery fittings), `a6-pump3` (isolation moment).
 - States: east end >= 0.40, the desk and stair foot >= 0.60, the cage lit by 63 (B hanging in it is lit: the tension;
   A watches the attendant), pockets <= 0.22. Gallery off (61): the gallery's east part at standby; the attendant comes
-  to the stair foot. Floor off (60): the cage becomes the one lit box in the dark: advise against it during the hang.
+  to the gallery front by the stair head. Floor off (60): the cage becomes the one lit box in the dark: advise against it during the hang.
 - The outfall interlock lamp (red / green) is a device emissive, not a `LightDef` (no jam target, no light term).
 
 ### A7 the Data Hall (split paths; synced hack)
