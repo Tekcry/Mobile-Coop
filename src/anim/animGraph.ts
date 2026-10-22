@@ -848,8 +848,12 @@ export class AnimGraph {
   /** (mocap-trial-2, strafe) The still share the aimed glide's pose takes with the mocap strafe: the drawn set's, eased
    *  rising (STRAFE_IDLE_TAU; a CT stop fades the moving pose out in ~0.1 s, the captures' larger pelvis swing popped it). */
   private stIdle = 1;
+  /** (mocap-trial-2, strafe) stIdle's first stage: the fade runs through two (C1: a stop's fade starts at rest, no hips kink). */
+  private stIdleA = 1;
   /** (mocap-trial-2, strafe) The hips' shift back over the planner's side-steps (m, + right; rate-limited, STRAFE_LEAD). */
   private stHip = 0;
+  /** (mocap-trial-2, strafe) The captures' cycle amplitude (the glide's `amp`, eased: STRAFE_AMP_TAU). */
+  private stAmp = GLIDE.ampMin;
   private mcK = 0;
   private cHalf = KEYED_CROUCH_WALK.half;
   private cKneeOut = 0;
@@ -1080,6 +1084,8 @@ export class AnimGraph {
       const want = Number.isNaN(st) ? 0 : (2 * this.stSide - 1) * STRAFE_LEAD.hips * 2 * st;
       const dm = STRAFE_LEAD.rate * dt;
       this.stHip = want > this.stHip + dm ? this.stHip + dm : want < this.stHip - dm ? this.stHip - dm : want;
+      // (and the captures' amplitude, eased: a CT stop's last pace step scaled their wide hips swing by 8 % in a frame)
+      this.stAmp = approach(this.stAmp, clamp(GLIDE.ampMin + ((1 - GLIDE.ampMin) * locoSpeed) / GLIDE.full, 0, 1), STRAFE_AMP_TAU, dt);
     }
     this.raiseS = approach(this.raiseS, i.raise, 0.02, dt);
     this.dashS = approach(this.dashS, i.dash, 0.15, dt);
@@ -1877,7 +1883,8 @@ export class AnimGraph {
       o.keyTrunk = 1 - dS * this.raiseS;
       if (this.mOn) {
         const iD = locoD + stillD > 1e-4 ? stillD / (locoD + stillD) : 0;
-        this.stIdle = approach(this.stIdle, iD, iD > this.stIdle ? STRAFE_IDLE_TAU : 0, dt);
+        this.stIdleA = approach(this.stIdleA, iD, iD > this.stIdleA ? STRAFE_IDLE_TAU * 0.5 : 0, dt);
+        this.stIdle = approach(this.stIdle, this.stIdleA, this.stIdleA > this.stIdle ? STRAFE_IDLE_TAU * 0.5 : 0, dt);
       }
       if (dS > 1e-4) this.keyedDrawnSet(ph, es, locoD + stillD > 1e-4 ? stillD / (locoD + stillD) : 0, dS, pose, o);
       // (anim-rework S4) the crouched clips' height is the crouch's whole depth: by the crouched share it replaces the
@@ -2276,19 +2283,20 @@ export class AnimGraph {
           // aimed head on the gun platform (no keyed head turn, as the trunk)
           // (its hips' own height kept: the captures sink 3.6 cm into the wide side-step, as captured)
           if (stW < 1) {
-            sampleKeyed(SL, ph, amp, this.kD);
+            sampleKeyed(SL, ph, this.stAmp, this.kD);
             this.dynPel(this.kD, SL, pose);
             this.kD.pel[1] = this.kD.pel[1]! + SL.meanPel[1]!;
           }
           if (stW > 0) {
             const k = stW < 1 ? this.kSt : this.kD;
-            sampleKeyed(SR, ph, amp, k);
+            sampleKeyed(SR, ph, this.stAmp, k);
             this.dynPel(k, SR, pose);
             k.pel[1] = k.pel[1]! + SR.meanPel[1]!;
             if (stW < 1) mixKeyed(this.kD, this.kSt, stW, this.kD);
           }
-          // the hips back over the planner's steps (STRAFE_LEAD.hips of a cycle's travel against the travel)
-          this.kD.pel[0] = this.kD.pel[0]! - this.stHip / (this.p.height / 1.75);
+          // the hips back over the planner's steps (STRAFE_LEAD.hips of a cycle's travel against the travel); the captures'
+          // own sideways sway, not the procedural one too (it fell away at a CT stop's last pace step: the hips kinked)
+          this.kD.pel[0] = this.kD.pel[0]! - this.stHip / (this.p.height / 1.75) - pose[CH.pelX]!;
           const h = this.kD.head;
           h[0] = h[1] = h[2] = 0;
           h[3] = 1;
@@ -2467,15 +2475,6 @@ export class AnimGraph {
     st.lZ = (0.01 + stag + q[CH.fLZ]!) * k;
     st.rX = (half + wide + q[CH.fRX]!) * k;
     st.rZ = (0.01 - stag + q[CH.fRZ]!) * k;
-    // (mocap-trial-2, strafe) the mocap strafe's stance spots lead along the travel (STRAFE_LEAD of a cycle's travel, by its
-    // share and eased side): the planner lands a side-step half a stance ahead and the closing foot a gap off the lead, so
-    // the captured shuffle's long stance and stride left the feet 14 cm behind the hips on average (the trailing leg over
-    // its reach, the hips 8-10 cm down); the capture keeps its feet about its hips
-    if (o.keyStrafe > 0) {
-      const sl = o.keyStrafe * (2 * this.stSide - 1) * STRAFE_LEAD.feet * Math.max(0, i.speed) * o.gait.cycleTime;
-      st.lX += sl;
-      st.rX += sl;
-    }
     st.lY = q[CH.fLY]! * k;
     st.rY = q[CH.fRY]! * k;
     st.lPitch = q[CH.fLPitch]!;
@@ -2748,16 +2747,19 @@ export const KNEEL_NARROW = 0.12;
  * 18 cm stagger, the ready stance's bladed base; the holstered idle keeps IDLE_STANCE.lead), `tau` (s) its easing.
  */
 export const READY_STANCE = { period: 8, lead: 0.09, tau: 0.25 } as const;
-/** (anim-rework S3) The aimed glide's cycle amplitude: `ampMin` at a standstill, the full keyed swing from `full` m/s;
- *  `halfK` / `halfKSide` the forward / back and the side clips' track half-width share for the planner (the feet a little under the hips: the glide's narrow base); `kneeOut` / `kneeOutSide` the forward / back and the side glides' knee pole share (a little in: the narrow track's
- *  knees stay over the toes, not out past the ankles); `yawCut` the share of the stepping pelvis twist taken off. */
 /** (mocap-trial-2, strafe) How fast the mocap strafe's side follows the travel's (s; a flip cross-fades the left and right
  *  captures over about three of it). */
 export const STRAFE_SIDE_TAU = 0.06;
-/** (mocap-trial-2, strafe) The mocap strafe's pose fades to the still stance over this (s, rising; `stIdle`). */
+/** (mocap-trial-2, strafe) The mocap strafe's pose fades to the still stance over this (s, rising, through two stages: `stIdle`). */
 export const STRAFE_IDLE_TAU = 0.2;
-/** (mocap-trial-2, strafe) The mocap strafe's stance spots lead along the travel by this share of a cycle's travel. */
-export const STRAFE_LEAD = { feet: 0, hips: 0.25, rate: 0.3 };
+/** (mocap-trial-2, strafe) The captures' cycle amplitude follows the glide's (pace-scaled `amp`) over this (s). */
+export const STRAFE_AMP_TAU = 0.06;
+/** (mocap-trial-2, strafe) The hips' shift back over the planner's side-steps: `hips` of a cycle's travel against the
+ *  travel, changing at most `rate` m/s. */
+export const STRAFE_LEAD = { hips: 0.25, rate: 0.3 };
+/** (anim-rework S3) The aimed glide's cycle amplitude: `ampMin` at a standstill, the full keyed swing from `full` m/s;
+ *  `halfK` / `halfKSide` the forward / back and the side clips' track half-width share for the planner (the feet a little under the hips: the glide's narrow base); `kneeOut` / `kneeOutSide` the forward / back and the side glides' knee pole share (a little in: the narrow track's
+ *  knees stay over the toes, not out past the ankles); `yawCut` the share of the stepping pelvis twist taken off. */
 export const GLIDE = { ampMin: 0.4, full: 1.0, halfK: 0.8, halfKSide: 0.9, kneeOut: -0.05, kneeOutSide: -0.08, yawCut: 0.85 } as const;
 
 /** (G1) Move a free hand target (channels x, y, z from `ch`) toward (x, y, z) by `w`. */

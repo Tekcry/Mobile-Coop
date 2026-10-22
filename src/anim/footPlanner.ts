@@ -192,6 +192,8 @@ export interface PlannerInput {
   reachNeedR?: number;
   /** (mocap-trial-2, crouchpop) The mocap switch (LOCO.mocap): a clip-planted foot's hand-off rules (clipHeld, beginSwing). */
   mocap?: boolean;
+  /** (mocap-trial-2, strafe) The mocap strafe's share of the pose (animGraph `keyStrafe`; absent / 0: off, the switch off). */
+  strafe?: number;
 }
 
 /**
@@ -321,6 +323,9 @@ const CLIP_PITCH_SWING = 0.3;
  */
 const CLIP_TOE_OFF_SWING = 0.75;
 const CLIP_TOE_OFF_NEED = 0.01;
+/** (mocap-trial-2, strafe) In the mocap strafe a swing target that moves more than this in a frame (m) fades in as the
+ *  rest spot's re-aim does (OFF_FADE), not in one frame. */
+const STRAFE_REAIM = 0.05;
 /**
  * (mocap-trial-2, runturn) A fast jog / run turn hands the steps to the planner inside the clip's long swing window (the
  * gait clock keeps the clip's stance; run duty 0.156: ~0.55 s in the air, 126 deg of a 4 rad/s turn). Swung along the
@@ -1010,7 +1015,10 @@ export class FootPlanner {
         // fades out over OFF_FADE instead of moving the foot in one frame (a stop from gear 4-6 snapped the swing
         // foot back up to 27 cm: knee and hip 33-45 deg in a frame)
         const wasClamped = side < 0 ? this.restL : this.restR;
-        if (clamped !== wasClamped && !fresh && !takeover) {
+        // (mocap-trial-2, strafe) and in the mocap strafe a target that jumps in a frame (a flip or a snap off the strafe
+        // re-aims the long side-step: the swing foot moved 24-29 cm in a frame, knee-ankle 21-25 deg)
+        const reaim = (i.strafe ?? 0) > 0 && hyp2(f.toX - prevToX, f.toZ - prevToZ) > STRAFE_REAIM;
+        if ((clamped !== wasClamped || reaim) && !fresh && !takeover) {
           const h = smooth(sp);
           const k = f.offBase >= 0 ? 1 - smooth(f.offBase / OFF_FADE) : 0;
           f.offX = f.offX * k - (f.toX - prevToX) * h;
@@ -1654,7 +1662,9 @@ export class FootPlanner {
     // left-behind toe-off (clipFoot) waits for the other foot to land; lifted mid-air instead, the clock's takeover of
     // that early swing froze it a frame and its narrow landing put the next clip swing 4.3 cm inside the uncross gap
     // (mocapSwitch "starts and stops" joint jerk 14.6 cm/frame2 vs 9.0 off)
-    const flight = o.contact || hyp2(i.velX, i.velZ) > 2 || (!!i.clipFeet && this.moveT >= START_TOE_OFF && o.swing >= CLIP_TOE_OFF_SWING && ((side < 0 ? i.reachNeedL : i.reachNeedR) ?? 0) > CLIP_TOE_OFF_NEED);
+    // (mocap-trial-2, strafe) and in the mocap strafe with the other foot nearly down: the captures' long stance (duty 0.7)
+    // after a closing step the lead foot blocked (a snap into the strafe on the wrong foot) dragged the trailing foot 1.6 cm
+    const flight = o.contact || hyp2(i.velX, i.velZ) > 2 || (!!i.clipFeet && this.moveT >= START_TOE_OFF && o.swing >= CLIP_TOE_OFF_SWING && ((side < 0 ? i.reachNeedL : i.reachNeedR) ?? 0) > CLIP_TOE_OFF_NEED) || ((i.strafe ?? 0) > 0.5 && o.swing >= CLIP_TOE_OFF_SWING);
     if (i.moving && flight && (turnLeft || startOff || (dl > i.reach * 0.92 * STEP[SP.replant]! && (hyp2(i.velX, i.velZ) > 2 || i.quickStop > 0)))) {
       // accelerating (a sprint or a walk start): the trailing foot toes off early instead of sliding or pulling the
       // pelvis down; the clock's contact window then lands it ahead

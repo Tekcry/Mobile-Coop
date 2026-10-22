@@ -1977,6 +1977,8 @@ export class CharacterRig {
     pin.reachNeedR = this.liftR;
     // (mocap-trial-2, crouchpop) the switch: a clip-planted foot's hand-off rules once clip feet are gone
     pin.mocap = this.mOn;
+    // (mocap-trial-2, strafe) the mocap strafe's share (0 with the switch off): its trailing foot's toe-off rule
+    pin.strafe = t.keyStrafe;
     // (mocap-trial, fix 2) the switch turned off mid-game: no clip feet state is left on the feet (a clip-planted foot kept
     // its flag, read at a stop), so the planner has them as if the switch had never been on (but a toe-up plant's flag)
     if (this.mOn !== this.mocapWas) {
