@@ -238,6 +238,9 @@ export class PlayerWeapons {
   /** (locomotion step 10) An elbow strike running: aim / reload do not draw until it ends (the gun stays in its
    *  slot with no stow overlay, so the local rig poses exactly as the remotes do from MoveState, D8). */
   handsBusy = false;
+  /** (anim-natural N3 fix) RT pressed for a strike while holstering: the holster runs as a busy move (HOLSTER_TIME_MOVE)
+   *  and the strike starts once holstered (GameState). */
+  strikePending = false;
 
   /** (locomotion step 10) A reload running or queued (A43): the hands are busy, no elbow strike. */
   get reloadBusy(): boolean {
@@ -256,10 +259,21 @@ export class PlayerWeapons {
     const rig = this.player.rig;
     if (v) {
       if (this.swapT >= 0 && this.swapPhase >= 2) {
-        // mid-draw: the gun goes straight back to its slot
-        this.holsterAll(-1);
-        this.swapPhase = 1;
-        this.swapT = SWAP_TIME * SWAP_HOLSTER;
+        // (anim-natural N3 fix) mid-draw: the gun in the hand travels back to its slot from where it is (was a snap into
+        // the slot: a 20-39 cm grip jump); mirrors the mid-holster reversal in fixedUpdate
+        const m = this.slots[this.index]!.model;
+        const slot = this.carrySlots[this.index] ?? null;
+        if (m.canTravel(slot) && rig.weaponHand > 0 && !rig.handSwitching) {
+          this.held = this.index;
+          m.beginTravel(rig, slot!, false);
+          this.swapT = SWAP_TIME * TRAVEL_OUT;
+          this.swapPhase = 0;
+          this.player.swapFrom = this.player.swapTo = this.reach(this.index);
+        } else {
+          this.holsterAll(-1);
+          this.swapPhase = 1;
+          this.swapT = SWAP_TIME * SWAP_HOLSTER;
+        }
       } else if (this.swapT < 0) {
         this.swapT = 0;
         this.swapPhase = 0;
@@ -406,7 +420,7 @@ export class PlayerWeapons {
    * busy move (the stance suspended) holsters in HOLSTER_TIME_MOVE, as fast as before N3.
    */
   private holsterTime(): number {
-    if (this.player.stance.suspended) return HOLSTER_TIME_MOVE;
+    if (this.player.stance.suspended || this.strikePending) return HOLSTER_TIME_MOVE;
     const cls = this.current.def.class;
     return holsterTimeFor(cls) * DRAW_TIME_MUL[drawClass(cls)].holster;
   }

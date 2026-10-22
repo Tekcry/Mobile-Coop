@@ -77,3 +77,23 @@ Then:
 - GPU before / after sheets (port 4189 under the lock), then the PR (minor version; CHANGELOG, TESTING, systems docs;
   old -> new times in the body; name the animGraph / tuneBakeTable lines, the `swapRel` carriage change, the slower
   strike / reload / gadget windows). CT Core: no clash with N1 / N2 (2026-10-22).
+
+## Fix round, stopped at 95% (2026-10-22 ~13:15, account handoff) - UNVERIFIED, 5 tests fail
+Committed as WIP so nothing is lost. Undo all of it: `git revert` this commit (or check out its parent's
+src/game/gameState.ts, src/weapons/playerWeapons.ts, tests/helpers/drawScenarios.ts, tests/n3DrawMotion.test.ts).
+- **Fix 1 (RT during the holster), built, no test yet:** gameState.ts imports DRAW_HOLSTERED / DRAW_HOLSTERING (~47);
+  new `rtQueued: 'tap' | 'hold' | null` (~429); ~1612-1624: the trigger also arms while HOLSTERING (holstered stance,
+  not aiming), a tap / hold decided then goes to `rtQueued` (timing still from the press), cleared if the phase goes to
+  drawing / drawn, `weapons.strikePending` set meanwhile; ~1773-1778 the strike reads `rtRes ?? rtQueued` at phase 0.
+  playerWeapons.ts: `strikePending` field (~241); `holsterTime()` (~419) returns HOLSTER_TIME_MOVE when suspended or
+  strikePending. To do: the Vitest test (rifle / pistol, tap / hold, RT 0.2 s after X).
+- **Fix 2 (holster mid-draw), built, 5 of 8 new scenarios fail:** playerWeapons.ts ~261-277 in `setStowed(true)` with
+  `swapPhase >= 2`: if the gun can travel and is in the right hand, `held = index`, `beginTravel(rig, slot, false)`,
+  `swapT = SWAP_TIME * TRAVEL_OUT`, `swapPhase = 0`; else the old snap. drawScenarios.ts: optional `final`, `midDraw()`
+  (8 scenarios: rifle / pistol X at 0.3 / 0.6 / 0.9 of the draw, traversal at 0.5); n3DrawMotion.test.ts covers them.
+  Results: `Tests 5 failed | 27 passed (32)`. Grip jumps: rifle X@0.3 5.3 cm, X@0.6 3.7 cm, traversal 13.8 cm; pistol
+  X@0.3 4.8 cm, traversal 18.2 cm (the 0.9 cases and pistol X@0.6 pass). Suspects, unchecked: `beginTravel(..., false)`
+  sets `rig.travelReach = 1` at once (mid-reach the hand jumps onto the grip: start it from the current reach weight);
+  a 0.15 s HOLSTER_TIME_MOVE stow from mid-draw may not fit a 3.5 cm / frame limit at all (decide: a slower traversal
+  stow from mid-draw, e.g. the remaining draw time mirrored, or a traversal-specific limit).
+- Then should-fixes 3-4 and the "Then" list above.

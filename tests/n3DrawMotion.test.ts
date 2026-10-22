@@ -263,7 +263,7 @@ describe('the real rig: draw, holster, swap and low ready to aim are one continu
         expect(jmax, `${sc.name}: ${k === 'g' ? 'grip' : 'wrist'} jumps ${(jmax * 100).toFixed(1)} cm at ${(jat * DT * 1000).toFixed(0)} ms`).toBeLessThan(0.035);
       }
       // the rifle comes off the back at an even turn (master: the muzzle swung 218 deg in 0.2 s, 17 m/s)
-      if (sc.name.startsWith('draw rifle')) {
+      if (sc.name.startsWith('draw rifle') || sc.name.includes('mid-draw')) {
         let mx = 0;
         for (let i = 2; i < s.length; i++) mx = Math.max(mx, speed(s, i, 'm'));
         expect(mx, `${sc.name}: muzzle peak ${mx.toFixed(1)} m/s`).toBeLessThan(10);
@@ -276,7 +276,7 @@ describe('the real rig: draw, holster, swap and low ready to aim are one continu
         expect(post, `${sc.name}: muzzle ${post.toFixed(2)} m/s after the end`).toBeLessThan(0.8);
       }
       // the final pose as on master (chest frame): the low ready, the aim, the holstered gun unchanged
-      const m = MASTER_FINAL[sc.name]!;
+      const m = MASTER_FINAL[sc.final ?? sc.name]!;
       const tolG = sc.name.startsWith('holster pistol') ? 0.005 : 0.004;
       expect(Math.hypot(f.cgx - m[0]!, f.cgy - m[1]!, f.cgz - m[2]!), `${sc.name}: final grip`).toBeLessThan(tolG);
       expect(Math.hypot(f.cmx - m[3]!, f.cmy - m[4]!, f.cmz - m[5]!), `${sc.name}: final muzzle`).toBeLessThan(2 * tolG);
