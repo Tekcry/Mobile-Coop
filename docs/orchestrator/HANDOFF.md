@@ -5,46 +5,40 @@ save tokens, i will reset usage as soon as you hit 100%": sessions run to 100% (
 (the swap back to the first account) and pastes the orchestrator prompt below.
 Repeat as long as it pays. Earlier handoffs (2026-10-21, 2026-10-22 13:10, 19:25) are in git history.
 
-## State at the switch (2026-10-22 ~22:29, 99% save point; Michael: "make 99% a save point and we can run a clear on all sessions again")
-Update 23:45: master v4.61.0 (train 8 #157, af56ab43, dev moved); STATE "Now" top entry has the live state.
-Master v4.58.3 (#146 decisions G229-G269, cb198a91; 4.58.2 #143, 4.58.1 #140, 4.58.0 train 7). /preview/ = dev = cb198a91.
+## State at the switch (2026-10-23 ~00:40, 97% save point; Michael: "I'd suggest stopping around 97% to allow sufficient usage to stop and save all sessions")
+Master v4.62.0 (train 12 #160 = #119 N4b + #158, 52e9d0a6; /preview/ = dev = 52e9d0a6). Tonight: 4.60.0 #153 (train 10),
+4.60.1 #155 (train 11), 4.61.0 #157 (train 8: #138 N2 + #135 N1 + #156 strip-light fix), 4.62.0 #160 (train 12).
 
-Rules today (CLAUDE.md on feature/menu "GPU for logic e2e"; STATE "Known"): every e2e run E2E_GPU=1, a GPU failure counts;
-desktop heavy.lock (check / software) + heavy2.lock GPU lane on 4192 when CPU < 50%; laptop trial (Michael ~21:50): full
-runs JOBS=3 + a second single-suite slot on 4192, kept only if times within ~15%, no new load failures, CPU < ~90%.
-A PR enters a train only when every suite it touches ran to completion on the GPU. Stop runners with taskkill /T /F.
-Long runs go detached (scheduled tasks) so a session end does not kill them.
+Rules (CLAUDE.md on feature/menu; STATE "Merge procedure" / "Known"): every e2e E2E_GPU=1; laptop full runs and trains
+at JOBS=5 (Michael 00:10 "Yes, if clean"; back to 3 on the first JOBS=5 failure) + a second single-suite slot on 4192;
+desktop e2e only when CPU < ~60% at the start, else the laptop (Michael 00:25: "push as hard as possible without causing
+failures"). Before a train build: `gh pr checks <n>` green for every member. Docs-only conflicts are resolved in the train
+by the orchestrator. A load-only failure that passes solo on the same commit counts as known. Trains: merge-train.mjs from
+C:/NightShift/Mobile-Coop-train. CLAUDE.md now allows CMU mocap takes (credited in docs/art-credits.md).
 
-Train 9 = train/9 765162a6 (#136 P, #139 N4c, #141 T1, #148, #147): GREEN on its code (34/35 at JOBS=3; e2e-netmove's
-10 cm ankle compare read 10.7 cm under load, and it passed solo twice). Release 4.59.0 started ~22:30 as a detached process
-(log C:/NightShift/scratch/runs/release-train9.log): check it merged (gh pr list --head train/9 --state all), the
-v4.59.0 tag and dev; if it died, rerun merge-train.mjs release 9 4.59.0 "Sector Ops laser panels, hand swap and elbow
-strike, vent kick, touch and GPU test fixes" from C:/NightShift/Mobile-Coop-train. Then add the ROADMAP Done row.
-Laptop JOBS=3 trial: wall 443 s vs 740 s (-40%), times within 15%, CPU avg 40%, but a NEW load failure (the netmove
-compare). Michael (~22:32): "Keep 3, fix the test": laptop stays at JOBS=3 plus the second slot; Course Ready fixes the
-netmove compare on sim time (feature/netmove-compare). Mocap checker (Course Ready) at 06e773e1: FIX (walk-turn hand-off
-pelvis pops 5.8 cm/frame, start toe pop 26 deg/frame; switch off bit-identical, no slide): CT Core's fix round.
-
-Train 8 next: #119 N4b e957db2f (ready) + #138 N2 (contains N1): fix round 2 running (run 180 planted contact 14 cm; then
-merge master 4.58.3, rerun its six GPU suites, send the sha). Build after train 9 merges, from C:/NightShift/Mobile-Coop-train:
-merge-train.mjs build 8 feature/anim-n4b feature/anim-natural-n2, laptop full run, release 4.60.0.
-4.59.0 MERGED (#151, 2f1961ad, ~22:32; /preview/ = dev = 2f1961ad): add its ROADMAP Done row if missing.
-Train 10 = train/10 0c6bf0bd (#142 n4d, #145 lamp-plugin-gap), laptop full run (JOBS=3) started ~22:35. Left out on
-conflicts with 4.59.0: #144 R (warehouseOps / warehouseSectors vs P), #150 gpu-waits-sweep (e2e-menus), and #149
-touch-fling-note (backlog.md). Owners merge master (Course Ready: R, #150; Character Build: #149), then train 11 with
-them; train 8 (#119 + #138) builds as soon as #138's six GPU suites pass (detached run /c/NightShift/n138-e2e.out).
+Train 13 = train/13 d2be5f6c (#144 R 53e72a11, #161 ct-rattle a8af5535, #162 decisions G270-G275 docs): laptop full run
+requested (JOBS=5). On a pass: `node scripts/merge-train.mjs release 13 4.63.0 "Sector Ops co-op routes and team doors, fence
+rattle test, decisions G270-G275"` from C:/NightShift/Mobile-Coop-train. If e2e-desktop:1 or e2e-move fail, they are the
+known load-audit pair (solo rerun). Pending review of #144 / #161 (orchestrator agent) - read its findings if it reported.
 
 Open work (each job's resume file has the detail):
-- CT Core: mocap-trial first cut feature/mocap-trial 06e773e1 (clips a05bdde7; ?mocap=1 or Settings > Gameplay > "Mocap
-  locomotion", off by default; 15 gap takes downloaded); its GPU suites queued (/c/NightShift/mt-e2e.out); N2 round 2.
+- CT Core: #159 mocap-trial (089259be) conflicts with 4.61.0; Opus merge agent running. Fix WITH the merge (orchestrator
+  review): N2 bodyMotion / scaleKeyedArms gated by mocapLayerK; N1 turn rules clipFeet-gated; characterRig.ts:1910 pitch
+  limit per rig, not global; art-credits CMU entry. Then six GPU suites -> train 14. Then feature/mocap-trial-2: residual
+  pops 1-3 (Course Ready CHECK-2), review 3 / 4 / 5 / 8, turn-offset test sweep. Then more clips: crouch walk, sprint,
+  strafe, back-to-wall (Michael 00:15 "Yes, download them": named CMU takes, one at a time, SOURCES.md). No sheets.
   Resume: docs/orchestrator/resume-ct-core.md on feature/menu.
-- Course Ready: fresh checker on mocap-trial 06e773e1 (C:/NightShift/Mobile-Coop-mocap-check; old-limit numbers are notes
-  for Michael, BRIEF A4). Resume: docs/marlow-bays/RESUME-trackA.md on feature/marlow-bays.
-- Menu Notes: the mocap side-by-side GPU sheets (feature/mocap-sheets, current vs mocap) and a Sector Ops strip-light look
-  (Waiting item 5). Resume: docs/anim-natural/RESUME-menu-notes.md on feature/anim-natural.
-- Character Build: train 9 verdict + trial numbers, then the train 8 rebuild; second slot for single suites.
+- Menu Notes: marlow-final lead (feature/marlow-final, C:/NightShift/Mobile-Coop-marlow-final; BRIEF M1-M5). Step 1
+  parallel agents (audit, exercises, route, constraints) -> SPEC.md + PLAN.md, then greybox slices, then dressing straight
+  after each slice (luxury training facility, instructor gallery behind glass, LED strips, sliding doors; lighting
+  sufficient; rule loosenings proposed, not applied; no explainer pads, objective list guides). Resume:
+  docs/anim-natural/RESUME-menu-notes.md on feature/anim-natural.
+- Course Ready: lightfield-heap (agent), marlow-final prep files (C:/NightShift/scratch/course-ready/marlow-final/ -> to
+  Menu Notes), then second builder on marlow-final slices; checker for mocap-trial-2. Resume: docs/marlow-bays/RESUME-trackA.md.
+- Character Build: train 13 run; load-audit (feature/load-audit: e2e-desktop:1 crash-page hang fix 7d4dbc5f, e2e-move
+  game-time windows; PR when proven under load); guard-cap measure (report only, docs/guard-cap/REPORT.md).
   Resume: docs/flake-fix/STATE.md on feature/flake-fix.
-Michael's answers today: ROADMAP "Decided" and DECISIONS G229-G269.
+Michael's answers tonight: ROADMAP "Decided" (top entries) and DECISIONS G270-G275 (#162, in train 13).
 
 ## In the new account
 Michael signs in to the other account in the desktop app (and on the laptop for Character Build), then pastes the
@@ -62,7 +56,7 @@ uses the same table and prompts.
 
 ### 1. Orchestrator
 ```
-Night Shift | Orchestrator (account swap). Resume from docs/orchestrator/HANDOFF.md and docs/orchestrator/STATE.md on feature/menu in C:/NightShift/Mobile-Coop-menu (git fetch; git pull; merge origin/master into feature/menu). Read CLAUDE.md "Sessions" and docs/ROADMAP.md. First: HANDOFF "State at the switch" (release train 9 if the laptop passed it, rebuild train 8 when its fixes land; check C:/NightShift/heavy.lock and heavy2.lock: a lock with no live node process is stale, ask Michael to delete it, since sessions' permission checks block that delete). Then give Michael each session's prompt from HANDOFF "In the new account", one at a time, with session title, model and effort, as the last thing in the message. Recreate the usage and bottleneck cron (17, 37, 57 past) with the prompt in STATE "Cron prompt" and check get_usage now. At 99% of the 5-hour window every session saves and is cleared (STATE "Pacing", Michael 22:20). Short replies, native multiple choice only, hyphens not em dashes.
+Night Shift | Orchestrator (account swap). Resume from docs/orchestrator/HANDOFF.md "State at the switch" and docs/orchestrator/STATE.md on feature/menu in C:/NightShift/Mobile-Coop-menu (git fetch; git pull; merge origin/master into feature/menu). Read CLAUDE.md "Sessions" and docs/ROADMAP.md (top "Decided" entries are tonight's answers). First: train 13 verdict and release 4.63.0; check C:/NightShift/heavy.lock and heavy2.lock (a lock with no live node process is stale; ask Michael to delete it). Then give Michael each session's prompt from HANDOFF "In the new account", one at a time, with session title, model and effort, as the last thing in the message. Recreate the usage and bottleneck cron (17, 37, 57 past) with the prompt in STATE "Cron prompt" and check get_usage now. Overnight: Michael is asleep, no question dialogs; marlow-final (Menu Notes lead, Course Ready builder), mocap #159 then mocap-trial-2 and new clips (CT Core), train 14, guard-cap and load-audit (Character Build). Stop and save at 97% of the 5-hour window (STATE "Pacing", Michael 00:35). Short replies, native multiple choice only, hyphens not em dashes.
 ```
 
 ### 2. CT Core Build
