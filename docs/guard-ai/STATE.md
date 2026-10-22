@@ -1,7 +1,22 @@
 # Guard AI - state
 
 ## Now
-USAGE LIMIT (~10:50). s7 62884858 laptop GPU: e2e-sectorops 1-5 PASS (posts block green); e2e-stealth-ai FAIL at the
+RESUMED ~11:05 (new account, session Night Shift | Guard AI Build [3f221b]). Swap rule (orchestrator 10:55): at 95%
+no new agents, save by 98%, small work to 100%; Michael swaps at 100%.
+- 'lkp' FIX (test only) s7 4052c434: Math.random seeded (4242) in the 'lkp' scenario, detection window 900 frames,
+  a detection assert first, the ghost assert prints the first frame of each show condition. Laptop GPU run requested
+  from Character Build (e2e-stealth-ai 2x + e2e-sectorops all; replaces the 62884858 rerun). Green -> one
+  "train-ready" message (S4 #193 / S5 #195 / S7 #196). Red -> read the printed state, fix the test or the game.
+- RUNNING (Opus, background): (a) stealth-over-shooting planner (docs only, this worktree: PLAN.md S11+,
+  research/stealth-over-shooting.md, BRIEF A35+); (b) stack merge agent: s8 <- s7 4052c434 + CT Core's
+  `Enemy.patrolRoute` getter (CT Core spare 9; told it rides on the S8 PR), then s5b <- s8 (role -> job), then
+  s6 <- s5b (must-dos 2-4, e2e assert edits), stops before s10; (c) S10 fresh checker (writes slices/S10-CHECK.md in
+  ...-guard-ai-s10). After (b) + (c): s10 <- s6 (role -> job in S10 too), one laptop GPU run on the s10 tip
+  (e2e-stealth-ai, e2e-sectorops, e2e-levels, e2e-enemies, e2e-wall, e2e-takedown), one PR each (S8 on #196, S5b on
+  S8, S6 on S5b, S10 on S6), one message to the orchestrator.
+- If any agent is cut off: its WIP is on its branch; check `git log` / the slice report and finish with a fresh Opus.
+
+(Before, ~10:50:) USAGE LIMIT (~10:50). s7 62884858 laptop GPU: e2e-sectorops 1-5 PASS (posts block green); e2e-stealth-ai FAIL at the
 OLD 'lkp' scenario "the LKP ghost shows once they lose sight" (passed on ae1f1895 and the S8 tip; only the 'bodies'
 scenario changed): likely timing-flaky; rerun 2x requested from Character Build. If it repeats, diagnose (ghost =
 g.ghost.visible during the 25 s lost-sight loop, scripts/e2e-stealth-ai.mjs ~485). Then train-ready message.
@@ -230,11 +245,12 @@ write: CLAUDE.md "A job"). Read CLAUDE.md, docs/ROADMAP.md (origin/feature/menu 
 PLAN.md and this STATE.md. Continue from "Now" (top entry first): per slice worktree
 C:/NightShift/Mobile-Coop-guard-ai-s<n> (branch feature/guard-ai-s<n>, its own guard). Agents cut off by a swap leave
 WIP commits "WIP at the swap" on their branch: review `git show --stat HEAD` and the slice's report, then finish with a
-fresh Opus agent. Order: chain fix ('bodies' e2e) in s7 -> merge s5 (master) into s7 -> laptop GPU run on the s7 tip ->
-one "train-ready" message (S4 #193 / S5 #195 / S7 #196) -> "Next": stealth-over-shooting planner -> s8 merges s7 -> S5b, S6, S10 stacked on S8 per the batch
-checker's merge plan (S5b-CHECK.md / S6-CHECK.md) -> one laptop GPU run on that tip -> one PR per slice (S8 stacked
-on #196). Token rules: origin/feature/menu CLAUDE.md "Heavy-usage throughput" (message the orchestrator only at
-PRs / train-ready / blocked; no new tsc / vitest agent while desktop CPU >= 80%). The loop in docs/systems/session-method.md (implementer, fresh
+fresh Opus agent. Order: "Now" top entry first: laptop GPU verdict on s7 4052c434 ('lkp' seeded) -> one
+"train-ready" message (S4 #193 / S5 #195 / S7 #196) -> stack merge (s8 <- s7, s5b <- s8, s6 <- s5b, s10 <- s6; check
+each branch's slice report "Stack merge" section for what is done) -> one laptop GPU run on the s10 tip -> one PR per
+slice (S8 stacked on #196) -> build the stealth-over-shooting slices S11+ from PLAN.md. Token rules: CLAUDE.md "Heavy-usage
+throughput" on master (message the orchestrator only at PRs / train-ready / blocked; no new tsc / vitest agent while
+desktop CPU >= 80%; at 95% no new agents, save by 98%, small work to 100%). The loop in docs/systems/session-method.md (implementer, fresh
 checker, at most 1 fix round per slice; subagents start from docs/systems/agent-preamble.md; slice detail in
 research/tactics-design.md and slices/S<n>-module.md). AI behaviour code and checkers Opus; Sonnet 5.5 only for tests /
 data from strict briefs. Every e2e run E2E_GPU=1: desktop lane (heavy2.lock, 4192, E2E_JOBS=1) when CPU allows, else
