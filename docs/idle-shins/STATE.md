@@ -3,7 +3,24 @@
 Patch job (orchestrator 2026-10-22 ~14:30). Michael: "Widen just enough. They didn't clip when I viewed it though".
 Branch feature/idle-shins from master 4.54.0 (99f3e488), folder C:/NightShift/Mobile-Coop-idle-shins.
 
-## Now (2026-10-22 ~14:55)
+## Now (2026-10-22 ~15:25)
+Michael (via the orchestrator, 15:05): "Michael's idle trackMul 0.05 stays (revert the 0.3 try); the mesh never clips, so
+fix only the frame-0 overlap the audit sees." Done:
+- Reverted `body.idle.trackMul` to 0.05 (the identity fixture and BAKE.md back to master).
+- Cause (headless, the audit's `tp` replayed: planner reset + idle / still clocks zeroed): before a teleport the idle
+  reads 0.00 cm (the feet stay where spawn planted them, ±7.1 cm, the body rows still easing in); after
+  `FootPlanner.reset` the feet sit on the 0.05 ideal, ±0.4 cm off the midline, 7.7 cm staggered: shanks 2.36 cm in
+  (in-game 3.18), held until the first step. Frame 0 is only the first of equal frames. Every free-movement landing
+  (`aim`) clamps into the stance band (3-9 cm, `bandMin` / `bandMax`); `reset` skipped it.
+- Fix: `reset` lifts a foot to the band's floor (widen only, never narrows) on Wren rigs only
+  (`FootPlanner.resetBand`, set by `CharacterRig.tuneRows`): the first try (whole band, every rig) changed the guard and
+  dog identity hashes. Headless 2.36 -> 0.3 cm. tests/idleShins.test.ts rewritten; footPlanner, both identity tests pass.
+- Desktop anim-audit on the final code: running 15:20 (/c/NightShift/ish2-audit.log).
+
+Not fixed (not frame 0, out of scope by Michael's rule): turn180 120 Hz 2.36 cm at frame 134 (a turn's re-step onto the
+narrow ideal), stance / drop24 / wall / slope35-stand4 rows (on master or #103 already).
+
+## History: the 0.3 try
 Built: `src/anim/animBase.ts` body.idle.trackMul 0.05 -> 0.3 (walk / jog / run keep 0.05). Headless selfShanks (audit
 maths, shank capsules 2 x LIMB_RADIUS.shank): 0.05 2.42 cm, 0.15 1.93, 0.25 1.27, 0.3 0.85, 0.4 0 (the in-game audit
 read 3.18 at 0.05, ~1.3x headless: 0.3 estimated 1.1-1.6 cm, limit 2.0). Mesh: the skinned wren-lod0.glb shins never
@@ -19,8 +36,14 @@ teleport leaves (the walk / run rows' trackMul 0.05 easing over BODY_TAU, or the
 the narrow track before the idle row takes over), not the settled idle stance.
 
 ## Next
-1. Find what sets the shins at the audit's frame 0 (scripts/anim-audit.mjs `tp` and the first recorded frame; the body
-   row the rig holds then; the planner's init placement): measure headless the same way the audit does at frame 0
-   (not after 3 s of idle). Widen only that, just enough (Michael: "Widen just enough").
-2. Desktop anim-audit: selfShanks < 2.0. Then PR (patch) for train 4; the body says the mesh never clipped (audit
-   capsules only: the GLB shins are 4.8 cm apart at 0.05).
+1. Read /c/NightShift/ish2-audit.log + test-results/anim-audit/fails.txt: selfShanks frame-0 rows gone (local and
+   remote), no new fails vs #103 (703 / 108) and master (645 / 89).
+2. npm run check + e2e-anim e2e-move e2e-clip e2e-netmove (src/player changed), then commit, push, PR (patch) for
+   train 4; message the orchestrator.
+
+## Resume prompt
+```
+Night Shift | CT Core Build: resume idle-shins from docs/idle-shins/STATE.md on feature/idle-shins
+(C:/NightShift/Mobile-Coop-idle-shins). Follow "Next"; then the next row of docs/orchestrator/resume-ct-core.md
+(origin/feature/menu).
+```

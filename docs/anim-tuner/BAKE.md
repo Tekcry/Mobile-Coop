@@ -190,9 +190,6 @@ target `src/anim/animBase.ts: body.<row>.<id> x` (mul) or `+` (add).
   TUNE_LOCAL (the wall gap and the root offset, read outside the window). Guards never open a window. Empty: nothing
   opens (bit-identical). Dev hook `window.__animBase.setBody(row, id, v)`. Tests: `tests/animBodyBase.test.ts`, the
   literal export in `tests/animTuneBake.test.ts`.
-- (idle-shins) `body.idle.trackMul` is 0.3, not the baked 0.05: at 0.05 the audit's shank capsules overlapped 3.18 cm at
-  every standing row's first frame (limit 2 cm; the mesh itself kept clear). A re-bake of an export holding idle
-  `trackMul` composes onto 0.3. Test: `tests/idleShins.test.ts`.
 - Open: the root offsets (bodyFwdAdd, bodyUpAdd, guardGapAdd, guardSideAdd) and the wall gap are applied by the local
   player's `player.ts` only; the partner's and the puppets' roots are placed elsewhere (`src/net`, the studio) and do
   not read them yet.

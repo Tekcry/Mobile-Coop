@@ -685,6 +685,8 @@ export class CharacterRig {
     this.graph.wrenReady = on;
     // (item 24, track A) a Wren rig's planner reads Wren's Stepping rows (the shared table), any other the identity table
     if (!this.guardSt) this.planner.stepRows = on ? null : STEP_IDENTITY_ROWS;
+    // (idle-shins) a Wren rig's teleport plants the feet inside the stance band's floor
+    this.planner.resetBand = on && !this.guardSt;
   }
   /** (item 24, track A) This guard rig's window state on the guard tables (`guardRows`); null: not a guard rig. */
   guardSt: GuardRigState | null = null;

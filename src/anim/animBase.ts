@@ -43,7 +43,7 @@ export const ANIM_BASE: AnimBaseData =
   "hands": {},
   "ik": {},
   "body": {
-    "idle": { "elbowOutAdd": 0.03, "trackMul": 0.3 },
+    "idle": { "elbowOutAdd": 0.03, "trackMul": 0.05 },
     "jog": { "armSwingMul": 1.7, "elbowOutAdd": 0.03, "trackMul": 0.05 },
     "lowReady": { "elbowPoleMul": 2.25 },
     "run": { "armSwingMul": 1.6, "kneeLiftMul": 1.55, "trackMul": 0.05 },

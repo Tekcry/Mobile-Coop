@@ -2,11 +2,13 @@
 
 ## Unreleased - idle-shins
 
-- Idle stance a little wider (Michael: "Widen just enough. They didn't clip when I viewed it though"): the base
-  table's idle track `body.idle.trackMul` 0.05 -> 0.3; walk / jog / run keep 0.05. The anim-audit's shank capsules
-  overlapped 3.18 cm (limit 2.00) at the first frame of every standing row; headless 2.42 -> 0.85 cm. The visible mesh
-  never touched: its shins sit on the figure's own wider skeleton (4.8 cm apart at 0.05), only the audit's capsules on
-  the rig's joints overlapped.
+- A teleport (spawn, respawn, checkpoint, the anim-audit's `tp`) plants Wren's feet no closer to the midline than the
+  standing stance band's floor (3 cm, `TURN_FOLLOW.standMinLateral`), as every free-movement landing already does.
+  `FootPlanner.reset` skipped the band, so Michael's idle track 0.05 (kept) put the feet 0.4 cm off the midline and
+  the audit's shank capsules sat 3.18 cm into each other (limit 2.00) from the teleport to the first step, the first
+  frame of every standing row. Michael: "Widen just enough. They didn't clip when I viewed it though": the mesh never
+  clipped (its knees sit wider than the rig's proxy knees); only the capsules overlapped. Wren rigs only (guard and
+  dog rigs unchanged, bit-identical). Headless 2.36 -> 0.3 cm. The 0.3 idle track tried first is reverted.
 
 ## 4.54.0 - Train 3: every tuner Body slider bakes, holds and carries (2026-10-22, PR #114; #103, #113)
 
