@@ -15,6 +15,10 @@
 - IN FLIGHT: Sonnet S4 builder (worktree C:/NightShift/Mobile-Coop-sector-redesign-s4, branch feature/sector-redesign-s4)
   and Sonnet S5 builder (-s5), both from 5a8973e6, told to commit + push WIP per step and keep checks/slice4-build.md /
   slice5-build.md current. On resume: check each branch log and build file; rerun a builder from its brief if unfinished.
+- IN FLIGHT (~10:45, after the save, orchestrator "keep working to 99%"): Opus E8 builder (bulletproof / thermal camera
+  flags, S3 cam-view bulletproof) on feature/sector-redesign-e8 (worktree -e8, pushes per step, checks/e8-cameras.md);
+  Opus E9-crate planner writing briefs/E9-CRATE.md (commits + pushes only that file). On resume: check both; rerun if
+  missing.
 - Desktop lane: heavy.lock was held by CT Core / Menu Notes all morning; send part 6 to Character Build.
 - Token rules (orchestrator ~10:00, CLAUDE.md "Heavy-usage throughput" on origin/feature/menu): message the orchestrator
   only at PR open / train-ready / blocked / needs Michael; progress lives here; save at ~25-30% context; one checker per
