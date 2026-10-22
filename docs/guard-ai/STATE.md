@@ -1,25 +1,46 @@
 # Guard AI - state
 
 ## Now
-(~09:25) #185 S2 in train 20 (origin/train/20, with #186). #191 S3 radio OPEN (feature/guard-ai 7a4167b2; checker PASS
-slices/S3-CHECK.md; e2e GPU desktop 4192 all green: e2e-stealth-ai, e2e-sectorops 1-5, e2e-ct-warehouse, e2e-stealth,
-e2e-ctcourse 1-3), train 21 after train 20 releases. Parallel slices, each its own worktree + branch off 7a4167b2 +
-own PR (node_modules junction -> C:/NightShift/Mobile-Coop/node_modules; remove with `cmd /c rmdir node_modules`
-before `git worktree remove`):
-- S4 awareness / caution: C:/NightShift/Mobile-Coop-guard-ai-s4, feature/guard-ai-s4, BUILT fd3a0018 (pushed); fresh checker RUNNING (S4-CHECK.md); e2e desktop 4192 (stealth-ai, takedown, sectorops; logs scratch/runs/guardai-s4-fd3a0018)
-  (report slices/S4.md, BRIEF A14-A16).
-- S5 posts + map data: C:/NightShift/Mobile-Coop-guard-ai-s5, feature/guard-ai-s5, BUILT 80efb8b4 (pushed); fresh checker RUNNING (S5-CHECK.md); e2e asked of Character Build after s7; S5.md has the note for the map teams (send it after the check); open: revive loses the post (S4 merge carries postDef / postYaw / section / profile)
-  (slices/S5.md, A17-A19).
-- S7 cameras see bodies: C:/NightShift/Mobile-Coop-guard-ai-s7, feature/guard-ai-s7, BUILT 084e373c (pushed); fresh checker RUNNING (S7-CHECK.md); e2e asked of Character Build (sectorops, ctcourse, stealth-ai, ct-warehouse)
-  (slices/S7.md, A20-A22).
-- S8 tactics: C:/NightShift/Mobile-Coop-guard-ai-s8, feature/guard-ai-s8, Opus implementer started ~09:25
-  (slices/S8.md, A23-A25).
-Implementers were told: no full npm run check (desktop CPU), tsc + eslint + single vitest files; no e2e; no commits.
-If the window cut them off: in each worktree `git status`, read slices/S<n>.md if present, then a fresh implementer
-finishes from the WIP (same brief: the module report's wiring list) or a checker if done. Then per slice: commit,
-push, fresh Opus checker, e2e on a free GPU lane (desktop 4192 heavy2.lock or laptop Character Build [06fe56],
-E2E_GPU=1, PLAN row suites), PR, message the orchestrator. S10 pairs after S5 (patrol overlap); S5b and S6 after S5;
-Stacking plan: once checked, chain the branches s4 <- s5 (merge s4) <- s7 (merge s5) so each PR merges cleanly after the one before (trains take no src conflicts); S5b / S6 / S10 then start off the chain tip. S9 only if needed (protocol 32). Next agents (when desktop CPU < 90%): S5b and S6 off feature/guard-ai-s5, then S10.
+SAVED at the account swap (~09:45, 2026-10-23; orchestrator: window 91%). Branch heads, all pushed:
+- feature/guard-ai (S3 radio) = PR #191, OPEN, train 21 after train 20 (#185 S2 + #186) releases. Checker PASS
+  (slices/S3-CHECK.md); e2e GPU desktop 4192 all green (e2e-stealth-ai, e2e-sectorops 1-5, e2e-ct-warehouse,
+  e2e-stealth, e2e-ctcourse 1-3). Code head 7a4167b2; later commits are STATE only.
+- feature/guard-ai-s4 (S4 awareness / caution) fd3a0018, worktree C:/NightShift/Mobile-Coop-guard-ai-s4. Built
+  (slices/S4.md, A14-A16). Fresh checker was RUNNING at the swap: if slices/S4-CHECK.md is missing in the worktree /
+  branch, run a fresh Opus checker (brief = the S7 checker's shape; diff 7a4167b2..fd3a0018; focus revive / inherit,
+  keys, held caution clearing). e2e (desktop 4192, E2E_GPU=1: e2e-stealth-ai, e2e-takedown, e2e-sectorops) was
+  RUNNING at the swap: log C:/NightShift/scratch/runs/guardai-s4-fd3a0018/e2e.log; if no run is alive and
+  C:/NightShift/heavy2.lock still says "guard-ai S4 e2e", delete the lock and rerun.
+- feature/guard-ai-s5 (S5 posts + map data) 80efb8b4, worktree ...-guard-ai-s5. Built (slices/S5.md with the note for
+  the map teams; A17-A19). Checker was RUNNING at the swap (S5-CHECK.md; rerun if missing). e2e queued with Character
+  Build [06fe56] on the laptop (4192, GPU: e2e-sectorops all, e2e-ctcourse, e2e-stealth-ai, e2e-ct-warehouse).
+  Known: a revived guard loses his post (Enemy.inherit from S4 must carry postDef / postYaw / section / profile; fix it
+  at the chain merge below).
+- feature/guard-ai-s7 (S7 cameras see bodies) 38345438 (code 084e373c), worktree ...-guard-ai-s7. Checker PASS
+  (slices/S7-CHECK.md). e2e queued with Character Build (4189, GPU, same 4 suites; the result counts for 38345438).
+- feature/guard-ai-s8 (S8 tactics) 2d3dfc51 = WIP commit of the implementer cut off by the swap, worktree
+  ...-guard-ai-s8. Read slices/S8.md if present and `git show --stat HEAD`, then a fresh Opus implementer finishes it
+  (brief: slices/S8-module.md wiring list, PLAN row S8, design 7-8; combat code only; A23-A25), then a checker.
+Worktrees have a node_modules junction to C:/NightShift/Mobile-Coop/node_modules (remove it with `cmd /c rmdir
+node_modules` before `git worktree remove`).
+
+CHAIN ORDER (orchestrator agreed): #191 -> S4 -> S5 -> S7 (-> S8). They all edit enemy.ts / enemyManager.ts, and
+trains take no src conflicts, so once each is checked: in s5 merge feature/guard-ai-s4 (dry run: conflicts only in
+TESTING.md and changes/feature-guard-ai.md; add the S4 inherit fields for posts), in s7 merge feature/guard-ai-s5
+(conflicts: enemy.ts, enemyManager.ts, e2e-sectorops.mjs, BRIEF.md, ai.md, TESTING.md, fragment), in s8 merge s7.
+Rerun tsc + the AI unit files, then ONE e2e pass on the chain tip (e2e-stealth-ai, e2e-takedown, e2e-sectorops,
+e2e-ctcourse, e2e-ct-warehouse, E2E_GPU=1) covers the chain. Open one PR per slice (base master; body says "stacked
+on #<prev>"), message the orchestrator per PR. Then S5b + S6 (+ S10 pairs) off the chain tip, each its own worktree,
+branch and PR (S6 sets RadioNet.section to the Sector index before RADIO_ALARM goes on, S3-CHECK note). S9 only if
+needed (protocol 32; registry: master 31, marlow-final 33).
+
+Pacing (orchestrator, Michael 09:00): hit the cap but efficiently: AI behaviour code and checkers Opus, Sonnet 5.5 for
+tests / data from strict briefs, Haiku 5.5 chores; no new agent while desktop CPU > 90%; desktop GPU lanes for single
+suites when CPU allows (heavy.lock 4191 / heavy2.lock 4192, E2E_JOBS=1), else Character Build on the laptop. Push WIP
+and refresh this file after every hand-back.
+Other jobs in enemy.ts: Character Build's guard-render S3a (head hitboxes from the sim; fields ~185, ctor, blind,
+beginTakedown, syncHitboxes, aimWeight, frame) on feature/guard-render-s3a; told to merge from feature/guard-ai and send
+the diff before its PR.
 
 (~08:40, account swap 2) #185 S2: master 4.68.0 merged (a0554459; conflict stealthSystems.shootLight = S2's
 `lightsOut(x, z, y, id)` before the noise + master's `return true`); no wire change, so no protocol (registry: master
@@ -124,9 +145,14 @@ behaviour code Opus; Sonnet only for tests / e2e scenarios / data from a strict 
 Night Shift | Guard AI Build - guard-ai: RESUME. Model Opus, effort high; clear context first.
 Folder C:/NightShift/Mobile-Coop-guard-ai, branch feature/guard-ai (git fetch; git status; branch guard before every
 write: CLAUDE.md "A job"). Read CLAUDE.md, docs/ROADMAP.md (origin/feature/menu if newer), docs/guard-ai/BRIEF.md,
-PLAN.md and this STATE.md. Continue from "Now": the loop in docs/systems/session-method.md (implementer, fresh checker,
-at most 1 fix round per slice; at most 3 agents; subagents start from docs/systems/agent-preamble.md; slice detail in
-research/tactics-design.md). e2e by message to Night Shift | Character Build (branch, commit, suites, E2E_GPU=1).
-Message Night Shift | Orchestrator at each slice and the PR. Michael asleep: log assumptions (BRIEF A-numbers), no
-question dialogs. Lean windows: no new agent at 97%, save at 98% (WIP pushed, STATE current).
+PLAN.md and this STATE.md. Continue from "Now" (saved at the swap): per slice worktree
+C:/NightShift/Mobile-Coop-guard-ai-s<n> (branch feature/guard-ai-s<n>, its own guard), finish what was cut off (S4 / S5
+checkers, S4 e2e, S8 implementer), then the CHAIN ORDER #191 -> S4 -> S5 -> S7 -> S8 (merge each into the next, one e2e
+pass on the tip, one PR per slice), then S5b / S6 / S10. The loop in docs/systems/session-method.md (implementer, fresh
+checker, at most 1 fix round per slice; subagents start from docs/systems/agent-preamble.md; slice detail in
+research/tactics-design.md and slices/S<n>-module.md). AI behaviour code and checkers Opus; Sonnet 5.5 only for tests /
+data from strict briefs. Every e2e run E2E_GPU=1: desktop lane (heavy2.lock, 4192, E2E_JOBS=1) when CPU allows, else
+message Night Shift | Character Build (branch, commit, suites). Message Night Shift | Orchestrator at each slice, hand-back
+and PR; push WIP and refresh this file after every hand-back. Log assumptions (BRIEF A-numbers, next free after the
+slices' A14-A25), no question dialogs.
 ```
