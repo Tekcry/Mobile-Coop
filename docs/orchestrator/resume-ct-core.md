@@ -1,6 +1,6 @@
 # Resume - Night Shift | CT Core Build (track B, animation)
 
-Written 2026-10-22 ~14:55 at the 5-hour pause; updated ~19:12 by the resumed CT Core session (overflow session). Every branch
+Written 2026-10-22 ~14:55 at the 5-hour pause; updated ~19:37 by the resumed CT Core session (overflow session). Every branch
 below is committed and pushed. Each job's own `docs/<job>/STATE.md` has the detail; this is the index.
 
 ## Rules carried
@@ -40,7 +40,7 @@ below is committed and pushed. Each job's own `docs/<job>/STATE.md` has the deta
 | anim-run-half (#110) | `feature/anim-run-half`, `C:/NightShift/Mobile-Coop-anim-run-half` | 16b1a044 | Master 4.54.0 merged, fixture re-captured; check 2682 ok, e2e-anim ok, e2e-studio ok solo (a JOBS=2 phase-sampling flake). In train 4. | Nothing unless train 4 fails. |
 | idle-shins (#120) | `feature/idle-shins`, `C:/NightShift/Mobile-Coop-idle-shins` | 741da1da | PR #120; master 4.55.1 merged. Train 5. | Nothing unless train 5 fails. |
 | anim-natural N1 (feet) | `feature/anim-natural-n1`, `C:/NightShift/Mobile-Coop-anim-natural-n1` (a separate clone: use origin/ refs) | 50acdc7e | Jog 180 fix f8e98b26 (REPORT-D) + the 4.55.1 merge branch merged (50acdc7e). After the merge footTurn's new timing test fails: run 180 at 1.067 s 6.11 m/s (<= 5). Agent (19:10) in the N1 folder: run 180 fix (task 1) + master 4.56.0 merge and fixture proof (task 2), commits locally; report -> REPORT-E.md (lost on a clear: check git log / status there). | Push; laptop: e2e-anim e2e-clip e2e-move on the head; fresh checker; CHANGELOG Unreleased section; PR (minor; checker pass -> train with CI only). GPU sheets on the laptop. |
-| anim-natural N2 (body motion) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | 77b21ea4 | Step 2 DONE: laptop on 53e6dc03 check / e2e-anim / e2e-studio / e2e-clip PASS (STATE 19:10). Step 3 (arms) implementer agent (18:30) in branch feature/anim-natural-n2-s3, folder C:/NightShift/Mobile-Coop-anim-natural-n2-merge (from 4028d386; uncommitted until its report -> REPORT-3.md; lost on a clear: check git status there). | Step 3 report -> REPORT-3, fresh checker; merge s3 + master 4.56.0 into N2 (fixture proof); steps 4-5; #128 alloc test. |
+| anim-natural N2 (body motion) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | 77b21ea4 | Step 2 DONE (laptop PASS on 53e6dc03). Step 3 (arms) built and pushed on `feature/anim-natural-n2-s3` (4e974ea1, REPORT-3). Two agents (19:35): a fresh checker reading the s3 folder C:/NightShift/Mobile-Coop-anim-natural-n2-merge (verdict -> CHECK-4.md); a merge agent in the N2 folder: s3 + master 4.56.0 + fixture proof (commits locally). Both reports are lost on a clear: check git log / status in the N2 folder, rerun the checker if no CHECK-4.md. | Push N2; laptop: check + e2e-anim e2e-studio e2e-clip; step 4 (drawn stills), step 5 (tuner + bake); #128 alloc test. |
 | anim-bake-all (#123) | `feature/anim-bake-all`, `C:/NightShift/Mobile-Coop-anim-bake-all` | ad967e39 | Master 4.56.0 merged (tuneRegistry: both imports; 146 tests + tsc green). Told the orchestrator: train 6 once CI is green. | Nothing unless train 6 fails. |
 | anim-n2-runkey | `feature/anim-n2-runkey` | 038e2519 | A1 branch, merged into N2. | None (history; sheets in docs/anim-natural-n2/sheets/). |
 
@@ -62,7 +62,7 @@ overflow session: works to 100%, WIP pushed after each agent hand-back; the atom
 orchestrator's lock queue; the laptop runner "Night Shift | Character Build" when the lock is held; merge trains,
 versions at merge). Work the "Open jobs" table top to bottom, each from its own docs/<job>/STATE.md:
 1. N1: the run 180 + 4.56.0 merge agent (REPORT-E) or rerun; push; laptop e2e-anim e2e-clip e2e-move; checker; PR.
-2. N2: step 3 agent (REPORT-3) or rerun; checker; merge s3 + master 4.56.0; steps 4-5.
+2. N2: CHECK-4 (step 3 checker) and the s3 + 4.56.0 merge agent, or rerun; push; laptop suites; steps 4-5.
 3. #123 in train 6 (master 4.56.0 merged).
 Desktop lock: ask the orchestrator for the current order; scripts take it atomically and free it themselves.
 Message "Night Shift | Orchestrator" at each slice, verdict and PR.
