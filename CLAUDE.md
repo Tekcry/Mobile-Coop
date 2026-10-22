@@ -63,6 +63,9 @@ software-GL wording below and in "Commands"): both machines run logic e2e with `
 225 s, e2e-menus 61 s vs ~13 min, e2e-coop 74 s vs ~10 min; laptop GPU full run 585 s vs 2025 s in software. A failure
 seen only on the GPU is rerun in software on the same commit before it counts, and is then fixed as a test bug. CI
 stays software GL (`npm run check` only). Ports stay as in the table; a GPU logic run may use 4191 / 4192.
+Desktop second lane (2026-10-22 21:06, a GPU run left the desktop at ~40% CPU): a second GPU-only e2e run may start
+under `C:/NightShift/heavy2.lock` (same atomic create and release rules) on port 4192, `E2E_GPU=1`, `E2E_JOBS=1`,
+only while desktop CPU is under 50% at the start. Software runs and full `npm run check` keep the single `heavy.lock`.
 
 **Machines** (Michael, 2026-10-19; 2026-10-21 16:40: "i dont care about usage on the desktop, i use the laptop": the desktop is the main test machine at full power, full e2e there with E2E_JOBS=2; the laptop is overflow only, BelowNormal, E2E_JOBS=1). Two heavy slots. CPU or GPU heavy work (e2e, full test runs, builds in loops, GPU
 shots, Blender, heavy subagents) runs on the desktop (orchestrator, CT Core and the other desktop job leads), the main
