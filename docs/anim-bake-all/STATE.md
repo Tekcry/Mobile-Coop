@@ -8,6 +8,8 @@ carries, CQ_GAIT code rules, `cqRows` reads the tuner values) added to `GENERIC_
 lint (0 errors) and 9 unit files (the bake files, cqGait, the two skeleton identity files) green.
 
 ## Next
+0. (15:55) Job lead accepted the cq refusal (GENERIC_REFUSED) and documented it in BAKE.md (a850e103). Laptop asked to run
+   check + the 11 logic suites on a850e103; anim-audit on the desktop after CT Core's current batch.
 1. npm run check + the area suites (smoke e2e-move e2e-traverse e2e-anchors e2e-stealth e2e-weapons-carry e2e-anim
    e2e-clip e2e-wall e2e-coop e2e-ct e2e-studio anim-audit) under the lock or on the laptop runner; then the PR (minor)
    naming the gameplay values (Speed glideFwdMul, Weight startMul / stopMul / turnMul / turnRunMul, stopSettle).
