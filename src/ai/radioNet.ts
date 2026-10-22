@@ -44,6 +44,8 @@ export const RADIO = {
   /** Voice reach (m) through the hearing model (walls, ambient): heard at tier >= 2 = inside half of it (6 m open,
    *  2.7 m through one wall). */
   voice: 12,
+  /** (S3 integration) Seconds from a shout to a guard who heard it joining (fixed: no randomness, A7). */
+  voiceDelay: 0.3,
   /** Seconds a caller holds the radio for a report, x his reaction (the old `ALERT.callIn`). */
   callIn: 2.5,
   /** Seconds a `command` call ("Command, contact. Send backup.") takes, x reaction (alarm, design section 7). */
@@ -72,6 +74,8 @@ export interface RadioSink {
   deliver(guard: number, inc: number, kind: CallKind, caller: number): void;
   /** A `command` call from `caller` got through in `section`: raise the alarm (reinforcements, M4). */
   alarm(section: number, caller: number): void;
+  /** (S3 integration, optional) `caller`'s call got through (before its receivers are queued): his radio line. */
+  completed?(caller: number, inc: number, kind: CallKind): void;
 }
 
 /** How long a caller holds the radio (s): `command` RADIO.report, else RADIO.callIn, x his reaction. */
@@ -160,6 +164,13 @@ export class RadioNet {
   get commandOpen(): boolean {
     for (let c = 0; c < NC; c++) if (this.callOpen[c] && this.callKind[c] === C_COMMAND) return true;
     return false;
+  }
+
+  /** Seconds until `caller`'s earliest open call completes (0: none open). Tests / debug / e2e. */
+  pendingFor(caller: number): number {
+    let best = Infinity;
+    for (let c = 0; c < NC; c++) if (this.callOpen[c] && this.caller[c] === caller && this.callDue[c]! < best) best = this.callDue[c]!;
+    return best < Infinity ? Math.max(0, best - this.now) : 0;
   }
 
   /** Start a call (see the header); -1 when refused. */
@@ -252,6 +263,7 @@ export class RadioNet {
     }
     this.completed++;
     const k = this.callKind[c]!;
+    sink.completed?.(caller, this.callInc[c]!, CALL_KIND[k]!);
     if (k === C_COMMAND) {
       this.alarms++;
       sink.alarm(this.section, caller);

@@ -789,3 +789,98 @@ describe('search pace: after combat vs calm (fix round 2: e2e lkp)', () => {
     expect(old.aimedMotion).toBe(true);
   });
 });
+
+describe('S2 check polish (guard-ai S3)', () => {
+  it('polish 1: a full pool never evicts the incident being escalated from; the new missing pair is sent', () => {
+    const b = new IncidentBoard(paths());
+    // 16 noises, all reported at the same moment (equal ages: the followed one, slot 0, is "the oldest" by ties);
+    // each heard and investigated by its own guard; two free guards far off for the pair
+    const gs: G[] = [];
+    for (let k = 0; k < INCIDENT.perSection; k++) gs.push({ id: k + 1, x: k * 20 + 1, z: 0 });
+    gs.push({ id: 100, x: 0, z: 40 }, { id: 101, x: 6, z: 40 });
+    let v = view(gs);
+    for (let k = 0; k < INCIDENT.perSection; k++) b.report('noise', k * 20, 0, 0, -1, ids(k + 1), 1);
+    b.tick(0, v);
+    apply(b, v);
+    expect(b.openCount).toBe(INCIDENT.perSection);
+    // the first investigator is taken out: gone from the list; the others stay on their tasks
+    const tasks = Array.from(v.task.subarray(1, v.n));
+    v = view(gs.slice(1));
+    for (let i = 0; i < tasks.length; i++) v.task[i] = tasks[i]!;
+    let lead = -1;
+    let cover = -1;
+    for (let t = 0; t < INCIDENT.silentEscalate + 2 && lead < 0; t += 0.2) {
+      b.tick(0.2, v);
+      for (const [g, m] of sends(b)) {
+        if (m === MODE_LEAD) lead = g;
+        if (m === MODE_COVER) cover = g;
+      }
+      apply(b, v);
+    }
+    expect(b.escalations).toBe(1);
+    // before the fix the missing incident took slot 0 and the same follow closed it: nobody was sent
+    expect([lead, cover].sort()).toEqual([100, 101]);
+    // one other incident made room (the oldest other); the pool is still full, the missing one open
+    expect(b.openCount).toBe(INCIDENT.perSection - 1);
+  });
+
+  it('polish 2: an investigation sent to a plain noise that finds nothing ends calm (unaware), not in the cooldown', () => {
+    const run = (calmEnd: boolean, fought: boolean): string => {
+      const m = new AlertMachine();
+      if (fought) {
+        m.set('alert');
+        m.set('cooldown');
+      }
+      m.set('investigating');
+      const i = emptyAlertInput();
+      i.arrived = true;
+      i.calmEnd = calmEnd;
+      for (let t = 0; t < ALERT.investigateLook + 0.5; t += 0.1) m.step(0.1, i);
+      return m.level;
+    };
+    expect(run(true, false)).toBe('unaware');
+    // gunfire (no calmEnd) keeps the cooldown; so does a guard who has fought
+    expect(run(false, false)).toBe('cooldown');
+    expect(run(true, true)).toBe('cooldown');
+  });
+
+  it('polish 2: the board tells the investigator whether to end calm: a noise or a lure yes, gunfire no', () => {
+    const sent: [string, boolean][] = [];
+    const mk = (num: number, x: number) => ({
+      id: `p${num}`,
+      num,
+      alive: true,
+      alerted: false,
+      passive: false,
+      taken: false,
+      level: 'unaware',
+      incident: -1,
+      def: { melee: null, kind: 'grunt', scale: 1 },
+      pos: new Vector3(x, 0, 0),
+      yaw: 0,
+      hear: vi.fn(),
+      hearTurn: vi.fn(),
+      hearGunfire: vi.fn(),
+      sendTo: vi.fn((_x: number, _z: number, _id: number, calm: boolean) => sent.push([`p${num}`, calm])),
+      ack: vi.fn(),
+      checkLight: vi.fn(),
+      pairSearch: vi.fn(),
+    });
+    const world = { level: { lights: { lights: [], setOn: vi.fn() }, cover: [], coverSegments: [] }, layout: { rooms: [] }, doors: { list: [] } };
+    const nav = { walk: new Uint8Array(4), nearestWalkable: vi.fn(() => -1), lineClear: vi.fn(() => true), findPath: vi.fn(() => null), heightAt: vi.fn(() => 0) };
+    const em = new EnemyManager({} as Scene, world as unknown as World, nav as unknown as NavGrid, {} as DamageRegistry, { clear: () => true } as unknown as Ballistics, {} as Vfx, DIFFICULTY.normal, () => []);
+    em.enemies.push(mk(1, 3) as unknown as Enemy, mk(2, 60) as unknown as Enemy);
+    em.hear(new Vector3(0, 0, 0), 15, 'noise');
+    em.hear(new Vector3(60, 0, 3), 15, 'distraction');
+    expect(sent).toEqual([
+      ['p1', true],
+      ['p2', true],
+    ]);
+    // gunfire heard at the investigate tier (far enough not to be combat) sends one who keeps the cooldown after
+    const em2 = new EnemyManager({} as Scene, world as unknown as World, nav as unknown as NavGrid, {} as DamageRegistry, { clear: () => true } as unknown as Ballistics, {} as Vfx, DIFFICULTY.normal, () => []);
+    sent.length = 0;
+    em2.enemies.push(mk(3, 10) as unknown as Enemy);
+    em2.noise(new Vector3(0, 0, 0), 28);
+    expect(sent).toEqual([['p3', false]]);
+  });
+});

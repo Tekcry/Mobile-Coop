@@ -24,7 +24,9 @@ export type BarkEvent =
   | 'checking'
   | 'lightOut'
   | 'standDown'
-  | 'missing';
+  | 'missing'
+  // (guard-ai S3, design 5) a guard joining on a shout or a radio call
+  | 'joining';
 
 export const BARKS: Record<BarkEvent, readonly string[]> = {
   suspicious: ['Huh?', 'What was that?', 'Hello?', 'Something there...'],
@@ -42,16 +44,18 @@ export const BARKS: Record<BarkEvent, readonly string[]> = {
   alarm: ['Raising the alarm!', 'Sound the alarm!'],
   clear: ['Must have been nothing.', 'Back to it.', 'All quiet.'],
   drone: ['Drone has him!', 'Eyes in the sky - contact!'],
-  callIn: ['All units, contact!', 'Command, intruder on site!', 'Contact, my position!'],
+  // (guard-ai S3) the spotter's section call, when it gets through ("Command" is the S6 alarm call)
+  callIn: ['Control, contact. Moving on him.', 'Control, I have contact.', 'Control, contact, my position.'],
   ack: ['Copy.', 'Copy, holding.'],
   checking: ['Checking it out.'],
   lightOut: ["Light's gone. Taking a look."],
   standDown: ['Nothing here. Back to it.'],
   missing: ["He's not answering. Two of us, go."],
+  joining: ['Copy, moving!', 'On my way!', 'Coming to you!'],
 };
 
 /** Radio lines (a chirp plays with them). */
-export const RADIO_BARKS: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['radioCheck', 'radioOk', 'missed', 'alarm', 'drone', 'search', 'callIn', 'ack', 'checking', 'standDown', 'missing']);
+export const RADIO_BARKS: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['radioCheck', 'radioOk', 'missed', 'alarm', 'drone', 'search', 'callIn', 'ack', 'checking', 'lightOut', 'standDown', 'missing']);
 /** Urgent lines cut through a speaker's cooldown. */
 const URGENT: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['contact', 'body', 'blind', 'grenade', 'alarm', 'callIn']);
 

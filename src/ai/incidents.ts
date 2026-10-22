@@ -247,6 +247,9 @@ export class IncidentBoard {
   readonly copies = new Uint8Array(P);
 
   private nextId = 1;
+  /** (S3, S2 check polish 1) The slot `follow` is escalating from: `alloc` never evicts it (a full pool could hand the
+   *  new `missing` the followed incident's own slot, which the same `follow` then closed). -1 none. */
+  private keep = -1;
   /** Scratch: candidate flags per view index and straight distances. */
   private cand = new Uint8Array(32);
   private dist = new Float32Array(32);
@@ -371,12 +374,13 @@ export class IncidentBoard {
     return -1;
   }
 
-  /** A free slot: a closed one, else the oldest open one (dropped). */
+  /** A free slot: a closed one, else the oldest open one (dropped), never the slot being escalated from (`keep`). */
   private alloc(): number {
-    let oldest = 0;
+    let oldest = -1;
     for (let s = 0; s < P; s++) {
       if (!this.open[s]) return s;
-      if (this.t0[s]! < this.t0[oldest]!) oldest = s;
+      if (s === this.keep) continue;
+      if (oldest < 0 || this.t0[s]! < this.t0[oldest]!) oldest = s;
     }
     return oldest;
   }
@@ -596,7 +600,9 @@ export class IncidentBoard {
         // he is not answering: two go to where he was last
         this.inv[q] = -1;
         this.escalations++;
+        this.keep = s;
         this.report('missing', this.invX[q]!, this.invZ[q]!, this.invY[q]!, gid, NO_ONE, 0, this.now);
+        this.keep = -1;
         busy--;
       } else if (this.kind[s] === K_MISSING && this.silentT[q]! >= INCIDENT.silentEscalate) {
         // (S4 / S6 take it from here: caution, the radio, the alarm)
