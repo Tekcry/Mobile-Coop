@@ -423,8 +423,10 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
 
 /** (ct-prototype E2) A climb-up keeps the hands planted on the top until the knee is on: 1 - smooth((k - k0) / span).
  *  (F5) Released only after the knee plant (the CLIMB_UP clip plants it by k 0.56, the root is on the top by 0.59): 0.6 - 0.74.
- *  (G4) The retimed clip plants the knee by 0.36 (0.47 s), the root is on the top by 0.38: 0.38 - 0.5 (0.49 - 0.65 s). */
-export const CLIMB_UP_HANDS = { k0: 0.38, span: 0.12 };
+ *  (G4) The retimed clip plants the knee by 0.36 (0.47 s), the root is on the top by 0.38: 0.38 - 0.5 (0.49 - 0.65 s).
+ *  (traverse-fix-2) The clip keeps the chest low over the lip now (shoulders within reach): the palms stay on it until the
+ *  right foot is on the top, 0.52 - 0.64 (0.68 - 0.83 s), off before the crouch (CLIMB_UP_CROUCH_K 0.654). Undo: 0.38. */
+export const CLIMB_UP_HANDS = { k0: 0.52, span: 0.12 };
 
 /** (G4) Crawling out of a duct the hands leave the duct floor over the first share of the exit (the clip's hands take over). */
 export const CRAWL_OUT_HANDS = 0.25;
