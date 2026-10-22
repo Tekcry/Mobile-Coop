@@ -37,9 +37,19 @@ investigators still end in the 45 s cooldown. Pure modules built and pushed, unw
 awareness (095b0451), S5 posts + guardAiData (e57a30b5), S7 security body pass (027ca979), S8 squadRoles + coverGrid
 (851eba39), S10 pairs (f10dcaf8); each has slices/S<n>-module.md with its wiring list.
 
+S1 merged to master (train, #179). S2 = PR #185 (feature/guard-ai-s2): master 4.67.0 merged in at c8906e22 (~08:20;
+conflicts: changes/feature-guard-ai.md re-added with S2+ entries only, src/security/securitySystem.ts = our lensRay
+helper + master's per-camera range `cameraRate(..., c.range)`); tsc clean, security tests 42/42; full npm run check
+started in the background in C:/NightShift/Mobile-Coop-guard-ai-s2 (temp worktree, node_modules junction; remove it
+with `git worktree remove` only after deleting the junction: `cmd /c rmdir node_modules`). Joins train 20.
+Map data fields on feature/guard-ai (971711c4; both teams told). S3 radio integration agent RUNNING at the account
+swap (~08:20): its WIP is uncommitted in this worktree if it did not finish - read slices/S3.md if present, review
+`git status`, then either finish it with a fresh S3 implementer (brief: slices/S3-module.md wiring list) or commit.
+feature/guard-ai itself still needs origin/master merged (same two conflicts) before its next PR.
+
 ## Next
-S2 PR (feature/guard-ai-s2 at the S2-CHECK commit; carries the unwired modules too); then S3 integration (radio net
-wiring + the 2 S2 polish items above), then S4, S5/S5b (+ glass hook), S6, S7, S8, S10 wiring in order; (slices/S2.md, review the S2 commit diff), then S2 as its own PR when green; then S3 radio net, then
+S3 integration finish + fresh checker, e2e-stealth-ai / e2e-sectorops on the desktop second lane; then S4, S5/S5b
+(+ glass sight read), S6, S7, S8, S10 wiring in order; (slices/S2.md, review the S2 commit diff), then S2 as its own PR when green; then S3 radio net, then
 S4-S10 in PLAN order.
 
 ## Open
