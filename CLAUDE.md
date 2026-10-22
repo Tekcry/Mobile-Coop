@@ -73,14 +73,14 @@ only while desktop CPU is under 50% at the start. Full `npm run check` and any s
 - Desktop e2e lane: heavy.lock (4191) runs `E2E_GPU=1 E2E_JOBS=1` single suites whenever desktop CPU is under ~80% at the start (was 60%); heavy2.lock (4192) keeps the 50% rule. A desktop-lane timeout under load is not a verdict: rerun that suite on the laptop. The laptop keeps full runs, trains and the e2e-coop / e2e-netmove / e2e-ctcourse group.
 - Fewer per-PR runs: a PR with a fresh checker PASS whose change is outside `src/net`, `PROTOCOL_VERSION` and the save shape goes straight into the next train on CI `check` plus at most the one or two suites its own area names, run on the desktop lane; the train's full run covers the rest. Stacked series (one job's chained PRs, e.g. guard-ai S4 -> S5 -> S7) enter one train together.
 - Bigger trains: build a train when 3+ PRs are ready, or when the oldest ready PR has waited 2 hours, whichever comes first (was "2+ ready"). One full laptop run per train.
-- Token rules (Michael, 2026-10-23 ~10:05: "apply all. maximise token usage during full burn where possible to achieve more"): spend tokens on work, not overhead, and put what is saved into more parallel slices and spare jobs up to the CPU cap.
+- Token rules (Michael, 2026-10-23 ~09:40: "apply all. maximise token usage during full burn where possible to achieve more"): spend tokens on work, not overhead, and put what is saved into more parallel slices and spare jobs up to the CPU cap.
   - Message the orchestrator only when a PR opens or is train-ready, when blocked, or when Michael is needed; progress goes in the job's STATE.md (the orchestrator's cron reads it).
   - Clear a session at ~25-30% context (was ~40%) at the next clean point (PR open, slice done): save STATE, then the orchestrator gives Michael the resume prompt.
   - Small and spare jobs of one lead ride in one batch PR per train (one branch, one checker, one CI), not one PR each.
   - One fresh checker per batch of related slices; Sonnet 5.5 checks greybox, data and dressing; Opus checks AI, anim and `src/net` code.
   - No polling turns: start long runs in the background and wait for the notification or the reply; Character Build sends one verdict message per batch, not per suite.
   - Merge master into a job branch only when it is about to enter a train (or to fix a real conflict), not after every release.
-- Account swap at 99% (Michael 2026-10-23 ~10:05): every session saves at 98% (WIP pushed, STATE and resume prompt current); the orchestrator refreshes HANDOFF.md.
+- Account swap at 99% (Michael 2026-10-23 ~09:40): every session saves at 98% (WIP pushed, STATE and resume prompt current); the orchestrator refreshes HANDOFF.md.
 
 **Machines** (Michael, 2026-10-19; 2026-10-21 16:40: "i dont care about usage on the desktop, i use the laptop": the desktop is the main test machine at full power, full e2e there with E2E_JOBS=2; the laptop is overflow only, BelowNormal, E2E_JOBS=1). Two heavy slots. CPU or GPU heavy work (e2e, full test runs, builds in loops, GPU
 shots, Blender, heavy subagents) runs on the desktop (orchestrator, CT Core and the other desktop job leads), the main
