@@ -45,14 +45,28 @@ import { MOCAP_STOP, MOCAP_STOP_SECONDS } from './clips/mocap/stop';
  *   clip's own elbows (a capture carries its elbows where the performer did).
  * - `stopSettle`: the procedural stop settle clip's weight (`STOP_SETTLE`, remote copies from the derived motion state)
  *   on top of a captured stop.
- * - `bodyMotion`, `turnStep`: reserved for the anim-natural N2 body motion layer (counter-rotation, sway, arm balance)
- *   and N1's turn-step rule; neither is on master yet, so nothing reads them here (their merge reads them).
+ * - (anim-natural N2 merge, master 4.61.0, `bodyMotion.ts`) `motionArmGain`: KEY_MOTION's per-clip arm gain on the
+ *   clip's arms (the graph's speed set, `armGain`); `motionTrunk`: the layer's pelvis / shoulder yaw swing (hipYaw,
+ *   chestYaw); `motionSway`: its pelvis lateral sway (pelX); `motionHead`: the head following the chest's yaw
+ *   (headFollow); `motionNod`: the head's nod with the steps (headPitch); `motionArmCap`: the keyed arm speed cap
+ *   (armSpeed, the rig's `armCap`: 0 lets it go on the share); `keyPelRate`: the keyed pelvis offset's rate limit
+ *   (characterRig KEY_PEL_RATE: 0 lets it go on the share). The layer's parts are scaled in the graph (`bodyMotion`).
+ * - `turnStep`: anim-natural N1's turn rules (the turn step, the ball pivot, the held contact) on the mocap set: 1, they
+ *   stay (fast turns, starts and stops hand the steps to the planner, which turns them). Not a scale (the planner's
+ *   `turnRule` is an on / off opt-out), so nothing reads it.
  * (integration, measured on the headless rig, tests/mocapSwitch.test.ts) Every layer that doubles the capture is off on
  * the mocap share: Michael's Body tune swings the keyed arms 1.7x at the jog and 1.6x at the run (the capture's own swing
  * doubled: elbows 10.3 cm out at the jog, over e2e-anim's 8) and pushes the elbows out 3 cm (the walk's 9.0 cm, over
  * 8.3); the twist, lean, Weight load and stop settle sliders sit at identity today and stay off the capture if moved;
- * the pelvis follow added its own yaw over the capture's (a walking 90 deg turn's pelvis 30.6 deg p2p, 25.3 off). The
- * N2 body motion is the capture's own; N1's turn steps stay (fast turns hand the steps to the planner).
+ * the pelvis follow added its own yaw over the capture's (a walking 90 deg turn's pelvis 30.6 deg p2p, 25.3 off).
+ * (N2 merge, BRIEF M1 "Mocap, as captured") N2's additive parts double what the capture holds, so they are off on it:
+ * the walk arm gain 1.3 (wrist +2.1 cm at 1.4 m/s; the capture swings its own arms at its own speed, as `armSwing`),
+ * the trunk counter-rotation (+1.1-1.9 cm at the wrists: the clip's `q` holds the performer's pelvis / shoulder yaw, as
+ * `trunkTwist`), the sway (+1.2 cm at the hips: the clip's `pel` holds the performer's lateral weight shift), the head
+ * follow and nod (the clip's `head` channel holds the performer's head turn and nod over the look). The two limiters stay
+ * (1): under their limits they are identity, and on the capture's own walk / jog / run, walking turns and starts they
+ * never engage (0.000 cm with or without); they act only where the clips cross-fade in a frame (a pace jump across the
+ * speed bands: the arm cap holds a 29.7 cm wrist jump, KEY_PEL_RATE a 5.3 cm toe / pelvis jump), pops M1 still fixes.
  */
 export const MOCAP_LAYERS = {
   armSwing: 0,
@@ -62,7 +76,13 @@ export const MOCAP_LAYERS = {
   weightLoad: 0,
   elbowOut: 0,
   stopSettle: 0,
-  bodyMotion: 0,
+  motionArmGain: 0,
+  motionTrunk: 0,
+  motionSway: 0,
+  motionHead: 0,
+  motionNod: 0,
+  motionArmCap: 1,
+  keyPelRate: 1,
   turnStep: 1,
 };
 export type MocapLayers = typeof MOCAP_LAYERS;

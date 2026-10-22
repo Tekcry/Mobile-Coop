@@ -276,3 +276,48 @@ describe('foot planner: turns (A1.1)', () => {
     }
   });
 });
+
+describe('(anim-natural N1) still: the idle step tie', () => {
+  /** A planner settled square in a stance of half-width `w` (crouch `c`), then the stance changed to half-width `w2`. */
+  const restep = (rule: number, longer: -1 | 1, c0: number, w0: number, c1: number, w1: number) => {
+    const p = new FootPlanner();
+    const i = emptyPlannerInput();
+    i.dt = 1 / 120;
+    i.stride = 'facing';
+    i.turnRule = rule;
+    i.crouch = c0;
+    i.lX = -w0;
+    i.rX = w0;
+    i.lZ = i.rZ = 0;
+    for (let k = 0; k < 60; k++) p.update(i);
+    expect(p.L.contact && p.R.contact).toBe(true);
+    // this foot has stood longer (the other one stepped last)
+    (longer < 0 ? p.L : p.R).plantT += 1;
+    i.crouch = c1;
+    i.lX = -w1;
+    i.rX = w1;
+    p.update(i);
+    return p;
+  };
+  it('crouching down from a square stance: the right foot re-steps first with the turn rules (turnRule 0: the left, as before)', () => {
+    // (n138 fix) was the foot planted longer: e2e-clip crouched holstered read the right wrist 3.2 cm into the right thigh
+    // in-game when the left went first (the turn history's plantT, flipped by the master 4.58.0 merge)
+    for (const rule of [1, 0])
+      for (const longer of [-1, 1] as const) {
+        // crouched: the stance widens by 2.5 cm a side, the stance change's re-step
+        const p = restep(rule, longer, 0, 0.06, 1, 0.085);
+        const first = rule === 0 ? p.L : p.R;
+        expect(first.contact, `rule ${rule} longer ${longer}`).toBe(false);
+        expect((first === p.L ? p.R : p.L).contact, `rule ${rule} longer ${longer}`).toBe(true);
+      }
+  });
+  it('standing up from a square crouched stance: the foot planted longer steps first (turnRule 0: the left)', () => {
+    for (const rule of [1, 0])
+      for (const longer of [-1, 1] as const) {
+        const p = restep(rule, longer, 1, 0.085, 0, 0.06);
+        const first = rule === 0 ? p.L : longer < 0 ? p.L : p.R;
+        expect(first.contact, `rule ${rule} longer ${longer}`).toBe(false);
+        expect((first === p.L ? p.R : p.L).contact, `rule ${rule} longer ${longer}`).toBe(true);
+      }
+  });
+});

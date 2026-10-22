@@ -101,16 +101,18 @@ const STILL_PATH: Seg[] = [[0, 0, 0], [0.5, 0, GEARS.stand[2]], [1.5, 90, 0], [2
  */
 async function unhookedPlanner(): Promise<new () => FootPlanner> {
   const src = readFileSync(resolve('src/anim/footPlanner.ts'), 'utf8');
+  // (anim-natural N1) the planner reads the gait index (`stepGaitNow`, its turn tables' entry) from tuneStep: the import
+  // stays (as a file URL, as every relative import); only the hooks (the multipliers) go
   const out = src
     .split(/\r?\n/)
-    .filter((l) => !l.includes("from './tuneStep'") && !l.includes('stepSelect('))
     .join('\n')
     .replace(/ \* STEP\[SP\.\w+\]!/g, '')
     .replace(/ \/ STEP\[SP\.lock\]!/g, '')
     .replace(/ \* stepStride\(v\)/g, '')
     .replace(/STEP\[SP\.replant\]!/g, '1')
+    .replace(/from '\.\/(\w+)'/g, (_m, f: string) => `from '${pathToFileURL(resolve(`src/anim/${f}.ts`)).href}'`)
     .replace("from '../core/mathx'", `from '${pathToFileURL(resolve('src/core/mathx.ts')).href}'`);
-  expect(out).not.toMatch(/STEP\[|stepStride|tuneStep/);
+  expect(out).not.toMatch(/STEP\[|stepStride\(/);
   const file = join(mkdtempSync(join(tmpdir(), 'tuneStep-')), 'footPlannerUnhooked.ts');
   writeFileSync(file, out);
   return ((await import(pathToFileURL(file).href)) as { FootPlanner: new () => FootPlanner }).FootPlanner;
@@ -230,7 +232,15 @@ describe('tuner-v2 item 3: feet stuck while running', () => {
     for (const [path, crouch] of [[RUN_PATH, false], [CRUN_PATH, true]] as const) {
       const m = measure(path, crouch);
       if (!crouch) expect(m.ruleOff).toBeGreaterThan(m.clockOff * 2);
-      expect(m.worstBehind).toBeGreaterThan(m.thr - 0.03);
+      // (anim-natural N1, HOLD_CONTACT) crouched, the planted foot keeps its ball on the floor as the heel rises to
+      // HEEL_RAISE.pitchCrouch (1 rad), so its ankle comes ~12 cm forward over the late stance: the clock lifts it before
+      // the leg reaches the stretch limit (0.52 m behind, limit 0.6). Was: worstBehind > thr - 0.03 for both paths
+      // (fix round, CHECK finding 3) pinned to the measurement (0.52 m behind; `over` 0 made `<= thr` alone vacuous)
+      if (!crouch) expect(m.worstBehind).toBeGreaterThan(m.thr - 0.03);
+      else {
+        expect(m.worstBehind).toBeGreaterThan(0.49);
+        expect(m.worstBehind).toBeLessThanOrEqual(m.thr - 0.05);
+      }
       expect(m.over).toBe(0);
       expect(m.slide).toBe(0);
     }

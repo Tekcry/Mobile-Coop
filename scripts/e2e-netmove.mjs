@@ -21,8 +21,44 @@ const localJoints = () => lj(B);
 const remoteJoints = () => rj(A);
 const err = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 
+// (netmove-compare) The idle cycles (the drawn ready stance's 8 s stagger, the 12 s keyed idle, the breath) run on each
+// rig's own AnimGraph clock (`idleT`, started at a random phase; `breathPh`), which is not on the wire: the client's rig
+// and the host's copy of it play them at unrelated phases, so a still pose differed by the phase gap (drawn: ankleL
+// 7.8 cm alone, 10.7 cm under load). For a compare both graphs are held at the same idle phase, then released.
+// The planted feet are history too: each rig's planner leaves a still foot up to PLANNER.idleErr (7.5 cm) off its spot
+// before it re-steps, so after the same teleport the two rigs' ankles sat 2.8-7.2 cm apart with the bodies exact
+// (drawn, loaded runs). During a compare both planners re-step at the tighter RESTEP.err (2 cm), as after a crouch change.
+const PIN_IDLE = (on) => {
+  const pin = (rig) => {
+    if (!rig) return;
+    if (on && !Object.prototype.hasOwnProperty.call(rig, 'animate')) {
+      const orig = Object.getPrototypeOf(rig).animate;
+      rig.animate = function (dt, s) {
+        this.graph.idleT = 1;
+        this.graph.breathPh = 0;
+        this.planner.restepT = 1.2;
+        return orig.call(this, dt, s);
+      };
+    } else if (!on) delete rig.animate;
+  };
+  const g = window.__app.current;
+  pin(g.player?.rig);
+  for (const r of g.net?.remotes?.values?.() ?? []) pin(r.avatar?.rig);
+};
+const pinIdle = (on) => Promise.all([A.evaluate(PIN_IDLE, on), B.evaluate(PIN_IDLE, on)]);
+/** (netmove-compare) the worst joint error of every compare, printed at the end (the margin under the limit) */
+const worstLog = [];
+
 /** The client's pose mirrored on the host: same mode, joints within `tol` (m). */
 async function compare(label, mode, tol = 0.1, joints = JOINTS) {
+  await pinIdle(true);
+  try {
+    await compareAt(label, mode, tol, joints);
+  } finally {
+    await pinIdle(false);
+  }
+}
+async function compareAt(label, mode, tol, joints) {
   await until(A, (m) => window.__app.current.net.remotes.values().next().value?.avatar.mode === m, mode, 8000, `host sees ${label} (${mode})`);
   // the client settled (its joints still for 0.3 s), then interpolation on the host
   let settled = false;
@@ -57,6 +93,8 @@ async function compare(label, mode, tol = 0.1, joints = JOINTS) {
   const [loc, rem] = [await localJoints(), await remoteJoints()];
   const errs = Object.fromEntries(joints.map((n) => [n, +err(loc[n], rem.j[n]).toFixed(3)]));
   const worst = Math.max(...Object.values(errs));
+  worstLog.push([label, worst]);
+  console.log(`  ${label}: worst joint ${(worst * 100).toFixed(1)} cm (limit ${tol * 100} cm)`);
   if (worst > tol || process.env.LOG) {
     const b = await GB(() => { const g = window.__app.current; const c = g.player.controller; const r = g.player.rig.root; return { pos: [c.pos.x, c.pos.y, c.pos.z], yaw: c.yaw, root: [r.position.x, r.position.y, r.position.z], ry: r.rotation.y, crouch: c.crouchBlend, rig: { kneel: g.player.rig.kneelW ?? null, h: g.player.rig.p.height, build: g.player.rig.p.build, hy: g.player.rig.headNode.getAbsolutePosition().y - r.position.y, lod: g.player.rig.lodSkip, mv: g.net.mvNow, sp: c.speed, Lc: g.player.rig.planner.L.contact, Rc: g.player.rig.planner.R.contact } }; });
     const a = await GA(() => { const r = window.__app.current.net.remotes.values().next().value; const av = r.avatar; const rt = av.rig.root; return { feet: [r.feet.x, r.feet.y, r.feet.z], pos: [av.pos.x, av.pos.y, av.pos.z], root: [rt.position.x, rt.position.y, rt.position.z], ry: rt.rotation.y, st: r.state, rig: { h: av.rig.p.height, build: av.rig.p.build, hy: av.rig.headNode.getAbsolutePosition().y - rt.position.y, lod: av.rig.lodSkip, crouch: av.crouch, sp: av.speed, pins: av.rig.footPins, Lc: av.rig.planner.L.contact, Rc: av.rig.planner.R.contact, moving: av.rig.pin?.moving } }; });
@@ -628,6 +666,10 @@ try {
 } catch (e) {
   console.error(e);
   failed = true;
+}
+if (worstLog.length) {
+  const m = worstLog.reduce((a, b) => (b[1] > a[1] ? b : a));
+  console.log(`  (netmove-compare) max joint error ${(m[1] * 100).toFixed(1)} cm (${m[0]}) over ${worstLog.length} compares; drawn ${((worstLog.find((w) => w[0] === 'drawn')?.[1] ?? NaN) * 100).toFixed(1)} cm`);
 }
 await browser.close();
 if (failed || process.exitCode) {

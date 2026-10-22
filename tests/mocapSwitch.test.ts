@@ -155,8 +155,9 @@ describe('mocap switch: default and selection', () => {
     expect(MOCAP_SET.stopSeconds).toBeGreaterThan(1);
     expect(hasSlots(MOCAP_SET)).toBe(true);
     expect(hasSlots(HAND_KEYED_SET)).toBe(false);
-    // every layer that doubles the capture off on the mocap share; N1's turn steps kept
-    expect(MOCAP_LAYERS).toEqual({ armSwing: 0, trunkTwist: 0, keyLean: 0, pelvisFollow: 0, weightLoad: 0, elbowOut: 0, stopSettle: 0, bodyMotion: 0, turnStep: 1 });
+    // every layer that doubles the capture off on the mocap share (N2's arm gain, trunk swing, sway, head follow and nod
+    // too); N2's two limiters (arm speed cap, keyed pelvis rate) and N1's turn steps kept
+    expect(MOCAP_LAYERS).toEqual({ armSwing: 0, trunkTwist: 0, keyLean: 0, pelvisFollow: 0, weightLoad: 0, elbowOut: 0, stopSettle: 0, motionArmGain: 0, motionTrunk: 0, motionSway: 0, motionHead: 0, motionNod: 0, motionArmCap: 1, keyPelRate: 1, turnStep: 1 });
   });
 });
 
@@ -446,6 +447,43 @@ describe('mocap switch: the CMU clips on the rig (integration)', () => {
     }
     console.info(rows.join(String.fromCharCode(10)));
   }, 120_000);
+
+  it('N2 body motion on the mocap share: the additive parts off (MOCAP_LAYERS), the arm speed cap kept', async () => {
+    // (N2 merge, M1) the trunk swing, sway, head follow and nod are the capture's own on the full mocap share; with the
+    // switch off the same walk runs the layer
+    const plan: Plan = (_k, t) => ({ speed: 1.4, yawRate: 0, rec: t > 1.5 });
+    const F = ['hipYaw', 'chestYaw', 'pelX', 'headFollow', 'headPitch'] as const;
+    // the switch off: the layer's amplitudes on this walk
+    const offMax = [0, 0, 0, 0, 0];
+    await driveRig(60 * 4, plan, (rig) => {
+      const m = rig.graph.out.motion;
+      F.forEach((k, j) => (offMax[j] = Math.max(offMax[j]!, Math.abs(m[k]))));
+    });
+    for (const v of offMax) expect(v).toBeGreaterThan(0);
+    // the switch on: each part only on the share that is not the capture's (1 - keyMocap)
+    let mostly = 0;
+    let cap = 0;
+    setMocapLocomotion(true);
+    await driveRig(60 * 4, plan, (rig) => {
+      const o = rig.graph.out;
+      if (o.keyMocap < 0.9) return;
+      mostly++;
+      expect(o.motion.w).toBeGreaterThan(0);
+      F.forEach((k, j) => expect(Math.abs(o.motion[k]), k).toBeLessThanOrEqual((1 - o.keyMocap) * offMax[j]! * 1.0001 + 1e-12));
+      if (Number.isFinite(o.motion.armSpeed)) cap++;
+    });
+    expect(mostly).toBeGreaterThan(100);
+    expect(cap).toBe(mostly);
+    // the arm gain: the mocap walk's arms as sampled with the gain's layer at 1 differ (KEY_MOTION walk 1.3), at 0 not
+    setMocapLocomotion(true);
+    const wrist = async (): Promise<number[]> => (await driveRig(60 * 3, (_k, t) => ({ speed: 1.4, yawRate: 0, rec: t > 2 }))).pos.wristL;
+    const base = await wrist();
+    MOCAP_LAYERS.motionArmGain = 1;
+    const gained = await wrist();
+    let d = 0;
+    for (let i = 0; i < base.length; i++) d = Math.max(d, Math.abs(base[i]! - gained[i]!));
+    expect(d).toBeGreaterThan(0.005);
+  }, 60_000);
 });
 
 describe('mocap switch: slots', () => {
