@@ -26,8 +26,9 @@ import {
 } from '../src/anim/bodyMotion';
 import { KEYED_CROUCH, KEYED_GAITS } from '../src/anim/animGraph';
 import { BODY_GROUPS } from '../src/anim/tune';
-import { measureMotion, measureTurns, withBodyMotionOff, withKeyMotionOff, withTrunkMotionOff, type MotionMetrics } from './helpers/bodyMotionMeasure';
+import { measureMotion, measureStudioArms, measureTurns,withBodyMotionOff, withKeyMotionOff, withTrunkMotionOff, type MotionMetrics } from './helpers/bodyMotionMeasure';
 import { runIdentity, type IdentityFixture } from './helpers/animSkeletonIdentity';
+import { bytesPerCall, HEAP_NUMBER, inputs, sink } from './helpers/allocPerCall';
 
 const OFF_FIXTURE = 'tests/fixtures/anim-skeleton-identity-motion-off.json';
 const CAPTURE = process.env.ANIM_SKELETON_CAPTURE === '1';
@@ -179,29 +180,38 @@ describe('body motion: the rows', () => {
     expect(bodyMotionStep(i, o).armSpeed).toBeCloseTo(KEY_MOTION.crouchRun.armSpeed * 2, 9);
   });
 
-  it('allocates nothing per step', () => {
+  it('allocates nothing per step', async () => {
     const i = newBodyMotionIn();
     const o = newBodyMotion();
     i.gate = 1;
-    let acc = 0;
-    const run = (): number => {
-      const before = process.memoryUsage().heapUsed;
-      for (let k = 0; k < 200000; k++) {
-        i.phase = (k * 0.013) % 1;
-        i.move = 0.5 + 0.5 * Math.sin(k * 0.001);
-        i.crouch = (k & 1023) / 1023;
-        i.aim = (k & 511) / 511;
-        i.drawn = (k & 255) / 255;
-        bodyMotionBands(i, (k % 6000) / 1000, (k % 3000) / 1000, KEYED_GAITS, KEYED_CROUCH);
+    // (CHECK-3 should-fix 1) gc() + new space per round (tests/helpers/allocPerCall.ts): heapUsed over 200k steps read
+    // other work's garbage under load (3.2 MB > 2 MB in a 12-file parallel run). Inputs precomputed (no double arithmetic
+    // in the measured loop), the result into a typed slot; the pace sweeps every band edge (0..6 / 0..3 m/s).
+    const N = 2000;
+    const PH = inputs(N, (k) => (k * 0.013) % 1);
+    const MV = inputs(N, (k) => 0.5 + 0.5 * Math.sin(k * 0.003));
+    const CR = inputs(N, (k) => (k & 1023) / 1023);
+    const AM = inputs(N, (k) => (k & 511) / 511);
+    const DR = inputs(N, (k) => (k & 255) / 255);
+    const TA = inputs(N, (k) => ((k * 3) % 6000) / 1000);
+    const TB = inputs(N, (k) => ((k * 3) % 3000) / 1000);
+    sink[0] = 0;
+    // a step leaving one boxed double (16 B) reads over the limit; any object (48 B and up) far over it
+    const per = await bytesPerCall((n) => {
+      for (let k = 0; k < n; k++) {
+        i.phase = PH[k]!;
+        i.move = MV[k]!;
+        i.crouch = CR[k]!;
+        i.aim = AM[k]!;
+        i.drawn = DR[k]!;
+        bodyMotionBands(i, TA[k]!, TB[k]!, KEYED_GAITS, KEYED_CROUCH);
         bodyMotionStep(i, o);
-        acc += o.hipYaw + o.chestYaw + o.pelX + o.headPitch;
+        sink[0]! += o.hipYaw + o.chestYaw + o.pelX + o.headPitch;
       }
-      return process.memoryUsage().heapUsed - before;
-    };
-    run();
-    const grown = Math.min(run(), run(), run());
-    expect(Number.isFinite(acc)).toBe(true);
-    expect(grown).toBeLessThan(2_000_000);
+    }, HEAP_NUMBER / 2, { n: N });
+    console.info(`bytes per bodyMotionBands + bodyMotionStep: ${per.toFixed(2)}`);
+    expect(Number.isFinite(sink[0]!)).toBe(true);
+    expect(per).toBeLessThanOrEqual(HEAP_NUMBER / 2);
   });
 });
 
@@ -371,6 +381,33 @@ describe('body motion: measured on a headless Wren rig', () => {
       }
       // the walk's sway is the layer's (the side glide's lateral is its own eased hip shift, GLIDE_HIP)
       expect(Math.abs(r.walk!.lateralCm - on.walk!.lateralCm), `walk lateral @${hz}`).toBeLessThanOrEqual(0.3);
+    }
+  }, 600000);
+});
+
+/**
+ * (CHECK-4 should-fix 2) Anim Studio: the loop player shows Michael's keys as keyed. The studio Wren stands (stride
+ * 'facing', the gate open) while the drive plays, so the layer's bands read the walk's and its 6 m/s cap filtered the
+ * playing loops (keyed:run 7.7 cm off its keys on 24 / 240 frames, hold_knife 27.5 cm, hold_choke 2.0 cm). No cap while a
+ * drive is set: cap on equals the cap-off rig (KEY_MOTION at its identity) on every frame.
+ */
+describe('body motion: the studio loop player is never capped', () => {
+  it('keyed:run, hold_knife and hold_choke: cap on = cap off on every frame (0.0 cm)', async () => {
+    const ids = ['keyed:run', 'keyed:hold_knife', 'keyed:hold_choke'];
+    const on = await measureStudioArms(ids);
+    const off = await withKeyMotionOff(() => measureStudioArms(ids));
+    for (const id of ids) {
+      // the gate is open (the cap would apply without the drive's override) and the drive lifts it
+      expect(on[id]!.gated, `${id} gated frames`).toBeGreaterThan(0);
+      expect(on[id]!.armSpeedMax, `${id} arm speed cap`).toBe(Infinity);
+      expect(on[id]!.pts.length, `${id} frames`).toBe(off[id]!.pts.length);
+      let worst = 0;
+      for (let k = 0; k < on[id]!.pts.length; k += 3) {
+        const a = on[id]!.pts;
+        const b = off[id]!.pts;
+        worst = Math.max(worst, Math.sqrt((a[k]! - b[k]!) ** 2 + (a[k + 1]! - b[k + 1]!) ** 2 + (a[k + 2]! - b[k + 2]!) ** 2));
+      }
+      expect(worst * 100, `${id} elbow / wrist cm off the cap-off rig`).toBe(0);
     }
   }, 600000);
 });

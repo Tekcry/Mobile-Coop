@@ -2748,16 +2748,17 @@ export class CharacterRig {
    * `armCapO`, capped in speed: where the arm will pose them (the upper arm along the elbow target, the forearm from there
    * toward the wrist target) may move at most `armStep` from where it posed them last frame (`cont`: this side ran last
    * frame), both by the same share so the arm keeps its shape. Under the cap the targets are the keyed points exactly
-   * (bit for bit). No allocation.
+   * (bit for bit). The caller writes the targets into `armCapO` first: six computed doubles passed as arguments to this
+   * non-inlined call boxed (~208 B a frame a rig, CHECK-4 should-fix 1). No allocation.
    */
-  private armCap(si: number, ex: number, ey: number, ez: number, wx: number, wy: number, wz: number, cont: boolean): void {
+  private armCap(si: number, cont: boolean): void {
     const O = this.armCapO;
-    O[0] = ex;
-    O[1] = ey;
-    O[2] = ez;
-    O[3] = wx;
-    O[4] = wy;
-    O[5] = wz;
+    const ex = O[0]!;
+    const ey = O[1]!;
+    const ez = O[2]!;
+    const wx = O[3]!;
+    const wy = O[4]!;
+    const wz = O[5]!;
     const lu = this.p.upperArm.len;
     const lf = this.p.forearm.len;
     const le = Math.sqrt(ex * ex + ey * ey + ez * ez) || 1;
@@ -2824,8 +2825,14 @@ export class CharacterRig {
     const S = sh.getAbsolutePosition();
     const Rc = this.torso.absoluteRotationQuaternion;
     this.dirToWorld(0, 0, 1, kH);
-    this.armCap(si, a[eo]! * kk + side * TUNE_CUR.elbowOutAdd, a[eo + 1]! * kk, a[eo + 2]! * kk, a[wo]! * kk, a[wo + 1]! * kk, a[wo + 2]! * kk, cont);
     const O = this.armCapO;
+    O[0] = a[eo]! * kk + side * TUNE_CUR.elbowOutAdd;
+    O[1] = a[eo + 1]! * kk;
+    O[2] = a[eo + 2]! * kk;
+    O[3] = a[wo]! * kk;
+    O[4] = a[wo + 1]! * kk;
+    O[5] = a[wo + 2]! * kk;
+    this.armCap(si, cont);
     // upper arm onto the keyed elbow
     kV.set(O[0]!, O[1]!, O[2]!);
     kV.rotateByQuaternionToRef(Rc, kV);

@@ -1699,6 +1699,9 @@ export class AnimGraph {
       bodyMotionBands(m, effortSpeed(this.locoSpeed, false), this.cPace, KEYED_GAITS, KEYED_CROUCH);
     }
     bodyMotionStep(m, o.motion);
+    // (CHECK-4 should-fix 2) the studio's loop player shows Michael's keys as keyed: no arm speed cap while it drives
+    // (the drive bypasses the pace bands, so the cap would read the walk's)
+    if (this.drive !== null) o.motion.armSpeed = Infinity;
   }
 
   /**
