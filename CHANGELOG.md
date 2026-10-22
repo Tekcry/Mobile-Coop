@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased - studio-pairs (track A, AUDIT fix 12)
+## 4.58.0 - Train 7: Anim Studio co-op pairs, animation audit scripts (2026-10-22, PR #137; #132, #134)
+
+### anim-natural N0: the full animation audit (docs and scripts only)
+- `docs/anim-natural/AUDIT.md`: every animation scored against the realism standard (pass 1 and pass 2), with the fix
+  list that N1-N4 build from; `PASS2.md`: the pass 2 reruns and the N0 leftovers (rows 29 / 39 / 49: script problems,
+  no game bug); GPU contact sheets and `metrics.json` in `docs/anim-natural/audit/`.
+- `scripts/anim-natural/audit.mjs`: the audit driver (studio loops, proving rows, pass 2 rows, per-row metrics and
+  `ev` move summary; `NAT_PORT` for a software-GL logic check). Stage lights never include shared part bases, which lit
+  every instance in the scene. No game change.
+
+### studio-pairs (track A, AUDIT fix 12)
 - Anim Studio: the stage lights light only Wren's own meshes, so the guard in the hold pairs (and the props) no longer
   turn white under them; he reads by the room's light as in game.
 - Anim Studio pairs: the puppets stay on their full-detail model for the whole loop (a distance swap mid-loop could
