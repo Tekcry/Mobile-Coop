@@ -6,6 +6,16 @@
 // Serves dist/ with `vite preview` (needs a prior `npm run build`). GPU: E2E_GPU=1 on port 4189. Never headed.
 // Usage: E2E_GPU=1 E2E_PORT=4189 timeout 1200 node scripts/sector-lights-shots.mjs docs/sector-fixes/l before
 //        E2E_GPU=1 E2E_PORT=4189 timeout 600 node scripts/sector-lights-shots.mjs docs/sector-fixes/l --sheet
+// Optional env (defaults unchanged): ONLY=a,b just those views; GFX=high another preset; VOL=off the volumetric light
+// shafts off (the post stack scatters no lights, the height fog stays); SUFFIX=-high appended to each file name;
+// PROBE=1 logs the light field (meter / guards) under the camera's view and the volumetric pass's lights; VOLFIX=1
+// previews the look-4.58 NOTE's proposed volumetric fix in the page (src unchanged).
+// (vol-cone-fix) Rows may name another map (the 5th field, a key of MAPS): Marlow Yard (no spot or flood exists there:
+// its views check that the lamp-only map does not change), the base Warehouse's facade floods (sandbox), and the S1
+// workshop strips over the crane girder. Each map boots once (one browser per map, in turn). The 2nd argument is the
+// file prefix, so `before` / `after` (or any name) give before-<view>.webp / after-<view>.webp, e.g. the vol-cone-fix set:
+//   E2E_GPU=1 E2E_PORT=4189 timeout 1800 node scripts/sector-lights-shots.mjs docs/vol-cone-fix before
+//   E2E_GPU=1 E2E_PORT=4189 GFX=high SUFFIX=-high ONLY=s1-goods-in,s1-workshop timeout 900 node scripts/sector-lights-shots.mjs docs/vol-cone-fix before
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { launch } from './e2e-lib.mjs';
@@ -13,12 +23,20 @@ import { launch } from './e2e-lib.mjs';
 const [dir = 'docs/sector-fixes/l', prefix = 'before'] = process.argv.slice(2);
 const PORT = Number(process.env.E2E_PORT ?? 4189);
 const URL = `http://127.0.0.1:${PORT}/`;
-const GFX = 'epic';
+const GFX = process.env.GFX ?? 'epic';
+const VOL_OFF = process.env.VOL === 'off';
+const VOL_FIX = process.env.VOLFIX === '1';
+const SUFFIX = process.env.SUFFIX ?? '';
+const PROBE = process.env.PROBE === '1';
 // The whole warehouse is built at once (a section change only moves guards and doors), so every view is a teleport.
-const QUERY = 'autostart=warehouseOps&mode=sector&sectorGuards=4';
+const MAPS = {
+  ops: 'autostart=warehouseOps&mode=sector&sectorGuards=4',
+  marlow: 'autostart=ctcourse&mode=course',
+  warehouse: 'autostart=warehouse&mode=sandbox',
+};
 const WIDTH = 960;
 
-// name, player feet [x, y, z], camera [x, y, z], target [x, y, z]
+// name, player feet [x, y, z], camera [x, y, z], target [x, y, z], map (a MAPS key; default ops)
 const ROWS = [
   // S1 yard facade: the drainpipe (x -22.4, z -18.23, y 0-6) and its wall lamp, the floodlights over the shutters, the roof edge
   ['s1-drainpipe', [-19, 0, -23], [-18.5, 1.6, -23.5], [-22.2, 3.6, -18.3]],
@@ -38,6 +56,16 @@ const ROWS = [
   ['s3-deck-sheets', [14, 0, 8], [14, 4.0, 8], [15, 6.1, 11.6]],
   // S3 the east lobby and plant room: lamps over the lobby roof (y 5.8) and the plant battens
   ['s3-lobby', [14, 0, -2], [13.5, 2.4, 1], [20, 4.2, -5.5]],
+  // (vol-cone-fix) S1 workshop looking west at the crane girder (x 16, y 4.5-4.9, z -16.5 to -9.5, warehouseS1.ts ~:334)
+  // under the two HALL-beam strips at x 16 (z -15.8 and -11.8, y 5.58): the fog cone ran through the girder to the floor
+  ['s1-girder', [22.5, 0, -13.6], [22.5, 1.5, -13.6], [16, 3.0, -13.6]],
+  // (vol-cone-fix) Marlow Yard (ctcourse): S2 high hall pendants and the S7 high hall (lamps only, no cone light on the map)
+  ['marlow-s2-wall', [29.4, 0, 7], [26, 2.4, 2.5], [31, 2.6, 7], 'marlow'],
+  ['marlow-s7-hall', [141, 4.5, 7], [137, 3.6, 3.2], [141, 4.6, 7], 'marlow'],
+  // (vol-cone-fix) base Warehouse (sandbox) yard: the facade floods over the dock doors (-18.5 / -10.5, 5.6, -18.6) and
+  // the workshop door (11.5, 4.6, -18.6), FLOOD cones 0.7 rad tilted out to the yard (warehouse.ts ~:408)
+  ['wh-floods-dock', [-14, 0, -25], [-25, 2.2, -27.5], [-13, 2.5, -19], 'warehouse'],
+  ['wh-flood-workshop', [8, 0, -25], [5, 1.8, -26.5], [11.5, 2.2, -19], 'warehouse'],
 ];
 
 /** Draw a PNG buffer into a canvas in `page` and return a webp buffer `w` px wide. */
@@ -62,7 +90,7 @@ let browser = null;
 const stop = () => { try { server.kill(); } catch { /* already gone */ } };
 process.on('exit', stop);
 const fail = async (msg) => { console.error(`sector-lights-shots: ${msg}`); try { await browser?.close(); } catch { /* gone */ } stop(); process.exit(2); };
-const kill = setTimeout(() => fail('timed out after 1200 s'), 1_200_000);
+const kill = setTimeout(() => fail('timed out after 1800 s'), 1_800_000);
 
 let up = false;
 for (let i = 0; i < 60 && !up; i++) {
@@ -93,55 +121,103 @@ if (prefix === '--sheet') {
   process.exit(0);
 }
 
-const l = await launch({ url: URL, params: `${QUERY}&gfx=${GFX}` });
-browser = l.browser;
-const page = l.page;
-try {
-  await page.waitForFunction(() => globalThis.__app?.current?.player && globalThis.__app.current.world, null, { timeout: 180_000 });
-  await page.waitForTimeout(3000);
-  const conv = await l.ctx.newPage();
-  // ONLY=a,b: just those views (a retry)
-  const only = (process.env.ONLY ?? '').split(',').filter(Boolean);
-  for (const [name, p, c, t] of ROWS.filter(([n]) => !only.length || only.includes(n))) {
-    const draws = await page.evaluate(async ([p, c, t]) => {
-      const g = globalThis.__app.current;
-      const V = g.player.position.constructor;
-      g.photoFreeze(false);
-      document.body.classList.remove('photo-mode');
-      g.player.controller.teleport(new V(p[0], p[1], p[2]), Math.PI / 2);
-      g.vision.set('off');
-      await new Promise((res) => setTimeout(res, 900));
-      g.photoFreeze(true);
-      document.body.classList.add('photo-mode');
-      const cam = g.photoCamera();
-      cam.position.set(c[0], c[1], c[2]);
-      cam.setTarget(new V(t[0], t[1], t[2]));
-      for (let i = 0; i < 40 && !g.scene.isReady(); i++) await new Promise((res) => setTimeout(res, 250));
-      await new Promise((res) => setTimeout(res, 2000));
-      const eng = g.scene.getEngine();
-      const n = [];
-      // the counter only grows here (nothing resets it per frame): take per-frame deltas
-      await new Promise((res) => requestAnimationFrame(res));
-      let prev = eng._drawCalls.current;
-      for (let i = 0; i < 7; i++) {
+// ONLY=a,b: just those views (a retry)
+const only = (process.env.ONLY ?? '').split(',').filter(Boolean);
+const picked = ROWS.filter(([n]) => !only.length || only.includes(n));
+if (only.length && picked.length !== only.length) await fail(`unknown view in ONLY=${process.env.ONLY}`);
+// one browser per map, in table order of first use
+for (const map of [...new Set(picked.map((r) => r[4] ?? 'ops'))]) {
+  const QUERY = MAPS[map];
+  const l = await launch({ url: URL, params: `${QUERY}&gfx=${GFX}` });
+  browser = l.browser;
+  const page = l.page;
+  try {
+    await page.waitForFunction(() => globalThis.__app?.current?.player && globalThis.__app.current.world, null, { timeout: 180_000 });
+    await page.waitForTimeout(3000);
+    const conv = await l.ctx.newPage();
+    for (const [name, p, c, t] of picked.filter((r) => (r[4] ?? 'ops') === map)) {
+      const draws = await page.evaluate(async ([p, c, t, volOff, volFix]) => {
+        const g = globalThis.__app.current;
+        // VOL=off: the post stack scatters no lights (the height fog stays)
+        if (volOff) g.stack.setAdaptive(1, 0);
+        // VOLFIX=1 (a preview of a proposed fix, docs/sector-fixes/l/look-4.58/NOTE.md; nothing in src changes): every
+        // fixed light, spots included, scatters under its shade like a lamp; only flashlights keep the long beam
+        if (volFix && !g.stack.volFixed) {
+          const st = g.stack;
+          const frame = st.frame.bind(st);
+          st.volFixed = true;
+          st.frame = (dt) => {
+            frame(dt);
+            const ls = st.opts.lights?.lights ?? [];
+            for (let i = 0; i < st.volCount; i++) {
+              const l = ls[st.ids[i]];
+              if (!l || l.kind === 'flashlight' || !l.cone) continue;
+              st.lPos[i * 4 + 3] = Math.min(3.2, l.radius * 0.5, Math.max(0.8, l.y));
+              st.lDir[i * 4 + 3] = Math.max(l.cone.cosOuter, 0.88);
+              for (let c = 0; c < 3; c++) st.lCol[i * 4 + c] = l.color[c] * l.intensity;
+            }
+          };
+        }
+        const V = g.player.position.constructor;
+        g.photoFreeze(false);
+        document.body.classList.remove('photo-mode');
+        g.team?.end?.(true);
+        g.player.controller.teleport(new V(p[0], p[1], p[2]), Math.PI / 2);
+        g.vision.set('off');
+        await new Promise((res) => setTimeout(res, 900));
+        g.photoFreeze(true);
+        document.body.classList.add('photo-mode');
+        const cam = g.photoCamera();
+        cam.position.set(c[0], c[1], c[2]);
+        cam.setTarget(new V(t[0], t[1], t[2]));
+        for (let i = 0; i < 40 && !g.scene.isReady(); i++) await new Promise((res) => setTimeout(res, 250));
+        await new Promise((res) => setTimeout(res, 2000));
+        const eng = g.scene.getEngine();
+        const n = [];
+        // the counter only grows here (nothing resets it per frame): take per-frame deltas
         await new Promise((res) => requestAnimationFrame(res));
-        const cur = eng._drawCalls.current;
-        n.push(cur >= prev ? cur - prev : cur);
-        prev = cur;
+        let prev = eng._drawCalls.current;
+        for (let i = 0; i < 7; i++) {
+          await new Promise((res) => requestAnimationFrame(res));
+          const cur = eng._drawCalls.current;
+          n.push(cur >= prev ? cur - prev : cur);
+          prev = cur;
+        }
+        n.sort((a, b) => a - b);
+        return n[3];
+      }, [p, c, t, VOL_OFF, VOL_FIX]);
+      const png = await page.screenshot({ timeout: 120_000 });
+      writeFileSync(`${dir}/${prefix}-${name}${SUFFIX}.webp`, await toWebp(conv, png));
+      console.log(`${name}${SUFFIX} draws=${draws}`);
+      if (PROBE) {
+        // the light field (what the meter and the guards read) under each lit ceiling light within 9 m of the player,
+        // beside what the volumetric pass scatters for it this frame
+        const probe = await page.evaluate(([p]) => {
+          const g = globalThis.__app.current;
+          const st = g.stack;
+          const f = g.world.lightField;
+          const out = [`player light ${g.lightLevel.toFixed(2)} vol lights ${st.volCount}`];
+          for (let i = 0; i < st.volCount; i++) {
+            const q = (a) => [0, 1, 2, 3].map((k) => st[a][i * 4 + k].toFixed(2)).join(',');
+            out.push(`  vol[${i}] pos,r ${q('lPos')} dir,cosOuter ${q('lDir')} col ${q('lCol')}`);
+          }
+          for (const l of st.opts.lights.lights) {
+            if (!l.on || l.kind === 'flashlight' || l.y < 3 || Math.sqrt((l.x - p[0]) ** 2 + (l.z - p[2]) ** 2) > 9) continue;
+            const lv = (x, y, z) => f.levelAt(x, y, z).toFixed(2);
+            out.push(`  ${l.kind} ${l.fixture?.model ?? 'box'} (${l.x}, ${l.y}, ${l.z}) r ${l.radius} i ${l.intensity} cosOuter ${l.cone ? l.cone.cosOuter.toFixed(3) : '-'}: field under it y0.05 ${lv(l.x, 0.05, l.z)} y1 ${lv(l.x, 1, l.z)} y1.7 ${lv(l.x, 1.7, l.z)} y3 ${lv(l.x, 3, l.z)} y4.5 ${lv(l.x, 4.5, l.z)}; 2 m off at y1 ${lv(l.x + 2, 1, l.z)}, 3.5 m off ${lv(l.x + 3.5, 1, l.z)}`);
+          }
+          return out.join('\n');
+        }, [p]);
+        console.log(probe);
       }
-      n.sort((a, b) => a - b);
-      return n[3];
-    }, [p, c, t]);
-    const png = await page.screenshot({ timeout: 120_000 });
-    writeFileSync(`${dir}/${prefix}-${name}.webp`, await toWebp(conv, png));
-    console.log(`${name} draws=${draws}`);
+    }
+    if (l.errors.length) console.log(l.errors.slice(0, 5).join('\n'));
+  } catch (e) {
+    await fail(`${QUERY} ${GFX}: ${String(e?.message ?? e)}`);
   }
-  if (l.errors.length) console.log(l.errors.slice(0, 5).join('\n'));
-} catch (e) {
-  await fail(`${QUERY} ${GFX}: ${String(e?.message ?? e)}`);
+  await browser.close();
+  browser = null;
 }
-await browser.close();
-browser = null;
 clearTimeout(kill);
 stop();
 process.exit(0);
