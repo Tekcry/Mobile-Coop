@@ -12,7 +12,7 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 - LESSONS: TaskStop / killing a chain's bash does NOT stop a powershell runner it already started (S8 ran). A step list
   without "build" serves whatever dist the slot worktree holds: always build.
 - CHAIN (10:40, survives the swap: PowerShell, not bash): C:/NightShift/scratch/chain-1023p.ps1, log
-  runs/chain-1023p.log (start / end per label). Order: wait marlowcap-5100141d (runner live, ALONE 4189) ->
+  runs/chain-1023p.log (start / end per label). Order: marlowcap-5100141d DONE + SENT to Menu Notes ->
   4192 sectorredesign-3796700d-ops6 -> guardaichain-62884858 -> hangdown-4072e2b9 -> wait no locks -> 4189 ALONE
   guardrender-s6cap-c181002e (guard-cap S6 sun rules on: work/guardrender-s6-on; ?guardsun=0: work/guardrender-s6-off).
   THEN chain-1023q.ps1 (log runs/chain-1023q.log; starts when chain-1023p.log says "done"), Menu Notes marlow-final,
