@@ -5,7 +5,7 @@
 // pair plates, hold consoles, the annex's grid lever), then both stand on the airlock pad and the course moves to the
 // next bay. (B3, marlow-jammer) station 3 is the camera hallway (the jam handoff, the 5 s cap, the reboot, a jammed lamp), station 4 has a real laser (sector-fixes P: jammed at its power panel); (sector-fixes S) station 3 ends in its security room (the console refuses while the duty guard is up; with him down it switches the camera off on both pages). At the end the course refuses with ONE player in the exit zone and completes only when BOTH are in it (G138).
 import { launch, openPage, assert } from './e2e-lib.mjs';
-import { until, waitSim, waitHostSim, setSimPages, NET_VIEWPORT, LOAD_MS, watchTeam, teamLog, onHostStep, hostStepResult } from './e2e-net-lib.mjs';
+import { until, waitSim, waitHostSim, setSimPages, NET_VIEWPORT, LOAD_MS, watchTeam, teamLog, onHostStep, offHostStep, hostStepResult } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 let failed = false;
@@ -336,13 +336,13 @@ async function station3(x0) {
   assert(fr.mA < 1e-6 && fr.mB < 1e-6 && !fr.thawB && fr.frozenB, `station 3: the jammed camera stops sweeping on both pages (host moved ${fr.mA}; client moved ${fr.mB}, thawed ${fr.thawB})`);
   // (load-latent-net) the reboot (jam phase 2) is read on the host step it starts: polled from here, under load it could
   // be over (or the cooldown run down) before the read. Installed after the last freeze-window try (the jam is on,
-  // asserted above), so it catches the 1 -> 2 step of this jam
+  // asserted above), so it catches the 1 -> 2 step of this jam; per step it reads only the camera's jam phase and runs
+  // the full debug() on the hit step
   const rebootKey = await onHostStep(A, (g, _a, st) => {
-    const d = window.__ctdev.debug();
-    const j = d.cams[0].jam;
+    const j = window.__ctdev.cams[0].jam;
     const hit = st.prev === 1 && j === 2;
     st.prev = j;
-    return hit ? d : undefined;
+    return hit ? window.__ctdev.debug() : undefined;
   });
   const buzz = (P) => P.evaluate(() => window.__ctdev.nearestJammed(0, 0, 0, { x: 0, y: 0, z: 0 }));
   assert((await buzz(A)) && (await buzz(B)), 'station 3: both pages have a jammed device to buzz at');
@@ -824,7 +824,7 @@ async function station6(x0) {
     return 'ok';
   });
   const rb = await use(B, 'c-sw-s6-b');
-  const ra = rb === 'ok' ? await hostStepResult(A, s6Key, 8000, 'station 6: the host sees scanner B started and starts scanner A') : 'client not pressed';
+  const ra = rb === 'ok' ? await hostStepResult(A, s6Key, 8000, 'station 6: the host sees scanner B started and starts scanner A') : (await offHostStep(A, s6Key), 'client not pressed');
   assert(ra === 'ok' && rb === 'ok', `station 6: both start the hacks together (${ra}, ${rb})`);
   await until(A, () => window.__course.debug().gates['g-s6'], null, 15000, 'station 6: both hacks inside the window open the door');
   await until(B, () => { const s = window.__ctdev.debug().scan; return s.ph[0] === 'done' && s.ph[1] === 'done'; }, null, 8000, 'station 6: the client page sees both scanners done');
@@ -872,7 +872,7 @@ async function openGate(n, i) {
     // press stamped on the gate (PAIR_WINDOW is 1.0 s of host time; two presses from here could land further apart)
     const s5Key = await onHostStep(A, (g) => {
       const gt = window.__course.state.gates.find((x) => x.def.id === 'g-s5');
-      if (!(gt.tb >= 0)) return undefined;
+      if (!(gt.tb >= 0 && gt.pb !== 0)) return undefined;
       const it = g.interactables?.items.find((i) => i.id === 'c-sw-s5-a');
       if (!it) return 'missing';
       if (!it.enabled) return 'disabled';
@@ -880,7 +880,7 @@ async function openGate(n, i) {
       return 'ok';
     });
     const rb = await use(B, 'c-sw-s5-b');
-    const ra = rb === 'ok' ? await hostStepResult(A, s5Key, 8000, "station 5: the host sees the client's roof plate and presses its own") : 'client not pressed';
+    const ra = rb === 'ok' ? await hostStepResult(A, s5Key, 8000, "station 5: the host sees the client's roof plate and presses its own") : (await offHostStep(A, s5Key), 'client not pressed');
     assert(ra === 'ok' && rb === 'ok', `station 5: both roof plates pressed (${ra}, ${rb})`);
     await until(A, () => window.__course.debug().gates['g-s5'], null, 8000, 'station 5: the roof pair gate opens');
   } else if (n === 3) {

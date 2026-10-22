@@ -10,7 +10,7 @@
 // T2: `?autostart=bunker&mode=course` boots the course solo; two pages at `?net=local&autostart=courselab&mode=course` host / join one
 // course session with no clicks (the walk URLs).
 import { launch, openPage, assert, press, BTN } from './e2e-lib.mjs';
-import { until, setSimPages, LOAD_MS, onHostStep, hostStepResult } from './e2e-net-lib.mjs';
+import { until, setSimPages, LOAD_MS, onHostStep, offHostStep, hostStepResult } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -290,7 +290,7 @@ try {
       return 'ok';
     }, cHalf);
     const rc = await use(B, `c-sw-p${cHalf}`);
-    const rh = rc === 'ok' ? await hostStepResult(A, pairKey, 8000, `${tag}: the host sees the client's pair half and presses its own`) : 'client not pressed';
+    const rh = rc === 'ok' ? await hostStepResult(A, pairKey, 8000, `${tag}: the host sees the client's pair half and presses its own`) : (await offHostStep(A, pairKey), 'client not pressed');
     assert(rc === 'ok' && rh === 'ok', `${tag}: both pair halves pressed (client ${rc}, host ${rh})`);
     await until(A, () => window.__course.debug().gates['g-pair'], null, 3000, 'pair open');
     assert(true, `${tag}: pair gate opens with both halves`);

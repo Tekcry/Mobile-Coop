@@ -139,9 +139,22 @@ const installStep = (fn, arg) => {
   return key;
 };
 export const onHostStep = (A, fn, arg) => A.evaluate(`(${installStep})(${fn}, ${JSON.stringify(arg) ?? 'undefined'})`);
-/** Wait (the `until` clocks) for host step hook `key`'s result and return it; logs the host sim time it fired at. */
+/** Drop host step hook `key` if it has not fired (a path that will not read it), so it never fires late. */
+export const offHostStep = (A, key) => A.evaluate((k) => {
+  const s = window.__app?.loop?.hooks?.__steps;
+  const i = s?.findIndex((x) => x.key === k) ?? -1;
+  if (i >= 0) s.splice(i, 1);
+  if (window.__hostStep) delete window.__hostStep.res[k];
+}, key);
+/** Wait (the `until` clocks) for host step hook `key`'s result and return it; logs the host sim time it fired at. On a
+ * timeout the hook is dropped before the error is rethrown. */
 export async function hostStepResult(A, key, timeout = 8000, what = 'host step hook') {
-  await until(A, (k) => window.__hostStep?.res[k] !== undefined, key, timeout, what);
+  try {
+    await until(A, (k) => window.__hostStep?.res[k] !== undefined, key, timeout, what);
+  } catch (e) {
+    await offHostStep(A, key).catch(() => {});
+    throw e;
+  }
   const { v, t } = await A.evaluate((k) => { const r = window.__hostStep.res[k]; delete window.__hostStep.res[k]; return r; }, key);
   if (v && typeof v === 'object' && v.__error) throw new Error(`${what}: the host step hook threw: ${v.__error}`);
   console.log(`  (${what}: on the host step at ${t} s)`);
