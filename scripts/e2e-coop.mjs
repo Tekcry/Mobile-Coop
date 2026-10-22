@@ -690,8 +690,8 @@ try {
       try {
         await moveClient(B, 6, 0.1, -7.1, 0);
         // (load-audit) the client starts the grab in the frame its offer from behind comes up (latched: the offer can come and go
-        // between two polls), then waits for the hostage, within 6 s of the client's match clock (was 30 polls 150 ms apart in
-        // real time, which a loaded page spent in a fraction of that game time); 90 s real-time cap
+        // between two polls), then waits for the hostage, within 4.5 s of the client's match clock (was 30 polls 150 ms apart,
+        // 4.5 s of real time, which a loaded page spent in a fraction of that game time); 90 s real-time cap
         grabbed = await GB((id) => new Promise((res) => {
           const g = window.__app.current;
           const t0 = g.time;
@@ -700,7 +700,7 @@ try {
             // (only the offer from behind is taken: a guard who turned round in the instant before offers the front takedown, a knock-out, not a grab)
             if (g.takedown.offer?.e.id === id && g.takedown.offer.plan.kind === 'behind' && !g.takedown.active) g.takedown.start();
             if (g.takedown.hostage?.id === id) res(true);
-            else if (g.time - t0 > 6 || performance.now() - w0 > 90000) res(false);
+            else if (g.time - t0 > 4.5 || performance.now() - w0 > 90000) res(false);
             else requestAnimationFrame(tick);
           };
           tick();
