@@ -40,9 +40,6 @@ export interface Settings {
   /** (CT prototype G3) The camera defaults' version (`CAM_V`): 1 moved the FOV 75 -> 86 and the pad's vertical look
    *  0.8 -> 1.0; an untouched old default follows once. */
   camV: number;
-  /** (mocap-trial-2, M4) The mocap default's version (`MOCAP_V`): 1 turned Mocap locomotion on by default; a save from
-   *  before it (off was the default) takes the new default once. */
-  mocapV: number;
   video: {
     /** Graphics preset; 'custom' once a feature is changed by hand. */
     preset: GraphicsPreset;
@@ -95,7 +92,7 @@ export interface Settings {
     /** Training course: the next drill's marker (D19; default on). */
     courseMarkers: boolean;
     /** (mocap-trial) Mocap locomotion: Wren's holstered walk / jog / run (and the mocap turn / start / stop clips) from
-     *  the CMU mocap set instead of the hand-keyed one (default on since mocap-trial-2, Michael M4; `?mocap=0/1` overrides it for a page; this machine
+     *  the CMU mocap set instead of the hand-keyed one (default off; `?mocap=0/1` overrides it for a page; this machine
      *  only: the co-op partner drawn here follows it, nothing on the wire). */
     mocapLoco: boolean };
   /** Accessibility and HUD. */
@@ -121,8 +118,6 @@ export interface Settings {
  *  default FOV (75) or pad vertical look (0.8) takes the new one (Michael 2026-10-20 "Match CT (86)"; CT's pitch rate
  *  137 deg/s); a value the player chose stays. */
 export const CAM_V = 1;
-/** (mocap-trial-2, M4: Michael ~01:25 "On by default") The mocap default's version: 1 turned Mocap locomotion on. */
-export const MOCAP_V = 1;
 const camKept = (v: unknown, n: number, old: number, d: number): number => (typeof v === 'number' && v >= CAM_V ? n : n === old ? d : n);
 
 /** (Playtest 2) Look speed while aiming = 0.3 of the explore speed (70% less). A saved old default (0.55 pad, 0.6 mouse) follows it. */
@@ -151,10 +146,9 @@ export function defaultSettings(): Settings {
     padV: PAD_LAYOUT_V,
     keysV: KEY_LAYOUT_V,
     camV: CAM_V,
-    mocapV: MOCAP_V,
     video: { preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 86, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, brightness: 1, brightnessSet: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.15, ui: 0.7, musicV: 3 },
-    gameplay: { defaultShoulder: 'right', crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true, grabToggle: true, rumble: 1, courseMarkers: true, mocapLoco: true },
+    gameplay: { defaultShoulder: 'right', crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true, grabToggle: true, rumble: 1, courseMarkers: true, mocapLoco: false },
     access: { hudScale: 1, healthBar: true, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
   };
 }
@@ -323,7 +317,6 @@ export function sanitizeSettings(raw: unknown): Settings {
     padV: PAD_LAYOUT_V,
     keysV: KEY_LAYOUT_V,
     camV: CAM_V,
-    mocapV: MOCAP_V,
     video: {
       ...videoGfx(v),
       // (3.0 settings: Auto when still on the 3.0 default, Epic; a preset picked by hand stays)
@@ -367,8 +360,7 @@ export function sanitizeSettings(raw: unknown): Settings {
       autoRecentre: bool(gp.autoRecentre, d.gameplay.autoRecentre),
       rumble: num(gp.rumble, d.gameplay.rumble, 0, 1),
       courseMarkers: bool(gp.courseMarkers, d.gameplay.courseMarkers),
-      // (mocap-trial-2, M4) a save from before MOCAP_V (off was the default) takes the new default (on) once
-      mocapLoco: typeof r.mocapV === 'number' && r.mocapV >= MOCAP_V ? bool(gp.mocapLoco, d.gameplay.mocapLoco) : d.gameplay.mocapLoco,
+      mocapLoco: bool(gp.mocapLoco, d.gameplay.mocapLoco),
     },
     access: {
       hudScale: num(ac.hudScale, d.access.hudScale, 0.8, 1.4),

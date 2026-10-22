@@ -90,18 +90,15 @@ function withFeet(c: KeyedClip, name: string, S: number | null): KeyedClip {
 }
 
 describe('mocap switch: default and selection', () => {
-  it('is on by default (mocap-trial-2, M4): the setting, the URL flag (absent in node); the live state off until applied', () => {
-    expect(defaultSettings().gameplay.mocapLoco).toBe(true);
-    // a save from before the setting (no field) and a broken value load the default (on)
-    expect(sanitizeSettings({ gameplay: { courseMarkers: false } }).gameplay.mocapLoco).toBe(true);
-    expect(sanitizeSettings({ mocapV: 1, gameplay: { mocapLoco: 'yes' } }).gameplay.mocapLoco).toBe(true);
+  it('is off by default: the setting, the URL flag (absent in node), the live state', () => {
+    expect(defaultSettings().gameplay.mocapLoco).toBe(false);
+    // a save from before the setting (no field) and a broken value load off
+    expect(sanitizeSettings({ gameplay: { courseMarkers: false } }).gameplay.mocapLoco).toBe(false);
+    expect(sanitizeSettings({ gameplay: { mocapLoco: 'yes' } }).gameplay.mocapLoco).toBe(false);
     expect(flags.mocap).toBeNull();
-    // the pure module starts on the hand-keyed set; the app applies the setting at boot
     expect(LOCO.mocap).toBe(false);
     expect(LOCO.set).toBe(HAND_KEYED_SET);
-    expect(applyMocapSwitch(flags.mocap, defaultSettings().gameplay.mocapLoco)).toBe(true);
-    expect(LOCO.set).toBe(MOCAP_SET);
-    expect(applyMocapSwitch(flags.mocap, false)).toBe(false);
+    expect(applyMocapSwitch(flags.mocap, defaultSettings().gameplay.mocapLoco)).toBe(false);
     expect(LOCO.set).toBe(HAND_KEYED_SET);
   });
 

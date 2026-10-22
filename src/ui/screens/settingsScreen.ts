@@ -152,8 +152,8 @@ export class SettingsScreen extends MenuScreen {
           rowList(
             desc(toggle('Course markers', () => s().gameplay.courseMarkers, (v) => upd((d) => void (d.gameplay.courseMarkers = v))), 'Shows the markers on training and test courses.'),
             desc(toggle('Last-guard slow motion', () => s().gameplay.slowBeat, (v) => upd((d) => void (d.gameplay.slowBeat = v))), 'A short slow-motion beat when the last guard in a room goes down.'),
-            // (mocap-trial) the switch for the CMU mocap locomotion (default on since mocap-trial-2, M4; off: the hand-keyed set)
-            desc(toggle('Mocap locomotion', () => s().gameplay.mocapLoco, (v) => upd((d) => void (d.gameplay.mocapLoco = v))), 'Wren walks, jogs, runs, sprints and sneaks crouched with motion-captured clips (CMU), weapon holstered. On by default; off uses the hand-keyed animations. This machine only (your partner\'s view follows their own setting); ?mocap=1 or ?mocap=0 in the address overrides it for that page.'),
+            // (mocap-trial) the rollback switch for the CMU mocap locomotion trial (default off)
+            desc(toggle('Mocap locomotion', () => s().gameplay.mocapLoco, (v) => upd((d) => void (d.gameplay.mocapLoco = v))), 'Trial: Wren walks, jogs and runs with motion-captured clips (CMU) instead of the hand-keyed ones, weapon holstered. Off is the game as before. This machine only (your partner\'s view follows their own setting); ?mocap=1 or ?mocap=0 in the address overrides it for that page.'),
           ),
       },
       {
