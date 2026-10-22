@@ -158,9 +158,14 @@ export const S5_PANEL = { x: bayX(4) + 14.4, y: 1.2, z: 0.4 };
 export const S3_SEC_GUARD = 's3-sec-guard';
 export const S3_CONSOLE = 'sw-s3-console';
 export const S3_CAMS_OFF = 'cams-off-s3';
-export const S3_SEC_ROOM = { x0: bayX(2) + 7.6, x1: S3_HALL.x1, z0: 8, z1: CT_W, door: [9.2, 10.4] as const } as const;
-/** The duty guard's post: at the desk, facing -x (the monitors on the west wall), his back to the door. */
-export const S3_SEC_POST = { x: bayX(2) + 9.1, z: 11.0, yaw: -Math.PI / 2 } as const;
+/** The room's door gap in the far cross wall: its start z and an exact 1.2 m width (no float drift in the builder);
+ *  `S3_SEC_ROOM.door` is the same gap as [start, end], its end written out (9.2 + 1.2 in floats is 10.399...). */
+const S3_DOOR_Z = 9.2;
+const S3_DOOR_W = 1.2;
+export const S3_SEC_ROOM = { x0: bayX(2) + 7.6, x1: S3_HALL.x1, z0: 8, z1: CT_W, door: [S3_DOOR_Z, 10.4] as const } as const;
+/** The duty guard's post: at the desk, facing -x (the monitors on the west wall), his back to the door. On a nav cell
+ *  centre (cell 0.5 m, origin -1: a spawn snaps there), so he stands exactly on it. */
+export const S3_SEC_POST = { x: bayX(2) + 9.25, z: 10.75, yaw: -Math.PI / 2 } as const;
 /** LANTERN's second line as station 3 starts (A10): it names the room (<= 90 characters). */
 export const S3_ROOM_RADIO = 'Security room off the far lobby: down its guard, and his console turns the camera off.';
 const S3_SEC_INFO: GuardInfo = { lines: ['All right! The desk console switches the hallway camera off.'] };
@@ -463,13 +468,13 @@ export const ctcourse: MapDef = {
         // from the rest of the void (to the ceiling, no lip), a lintel over the door to the ceiling
         const R = S3_SEC_ROOM;
         b.wallZ(S3_HALL.x1, S3_HALL.wallZ, CT_W, [R.door], ceil, WALL, 0.3);
-        b.box(R.x1, (2.1 + ceil) / 2, (R.door[0] + R.door[1]) / 2, 0.3, ceil - 2.1, R.door[1] - R.door[0], WALL);
+        b.box(R.x1, (2.1 + ceil) / 2, S3_DOOR_Z + S3_DOOR_W / 2, 0.3, ceil - 2.1, S3_DOOR_W, WALL);
         b.wallZ(R.x0, R.z0, R.z1, [], ceil, WALL, 0.3);
         b.wallX(R.z0, R.x0, R.x1, [], ceil, WALL, 0.3);
         b.mark(from, { noLedge: true });
-        doorFrame(b, R.x1, 0.3, R.door[0], R.door[1] - R.door[0]);
+        doorFrame(b, R.x1, 0.3, S3_DOOR_Z, S3_DOOR_W);
         // a plain unlocked door (not a course door: nothing gates it)
-        b.door(R.x1, 0, R.door[0], R.door[1] - R.door[0], 0);
+        b.door(R.x1, 0, S3_DOOR_Z, S3_DOOR_W, 0);
       } else if (n === 7) {
         // B7: the 4.4 m wall, 1 m thick (a top to stand on and hold the rope), full width, no door
         b.wallZ(x0 + CT_OBST, 0, CT_W, [], OBST_H[7]!, WALL, 1.0);

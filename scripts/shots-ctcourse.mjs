@@ -29,12 +29,12 @@ const ROWS = [
   ['s7-stair', [145, 0, 1], [146, 2.6, 5], [142.5, 1.6, 1]],
   ['s8-exit', [167.5, 0, 7], [164, 2.2, 2.5], [167.5, 0.4, 7]],
   // ceiling rows (marlow-bunker CT_CEIL 4.5 m low cells S1/S6; AIRLOCK_LID 3.2 m, airlock A1 x 16-22 z 4-10; ctcourseVariety.ts: S1 desk x 11.2 z 1.3,
-  // S3 monitor wall z 0.15 x 45.4-50.6 y 1-2.7, S8 coffer x 164.65-168.65 z 4-10 under the 4.5 m ceiling)
+  // S3 monitor wall in the security room (ctcourse.ts S3_SEC_ROOM): west face x 51.75, z 9-13, y 1-2.7; S8 coffer x 164.65-168.65 z 4-10 under the 4.5 m ceiling)
   ['lowcell-s1', [5, 0, 10], [2, 1.9, 11.5], [8, 4.0, 5]],
   ['lowcell-s6', [112.5, 0, 7], [111, 2.0, 11], [116, 4.2, 5]],
   ['airlock-lid', [19.5, 0, 7], [17, 1.8, 5], [20.5, 3.1, 8.5]],
   ['s1-desk', [6, 0, 6], [5.5, 2.2, 6], [11.2, 1.6, 1.3]],
-  ['s3-monitors', [47, 0, 4.5], [48, 1.9, 5.8], [48, 2.4, 0.2]],
+  ['s3-monitors', [56, 0, 9.4], [56.4, 2.0, 12.6], [51.8, 1.85, 11]],
   ['s8-coffer', [166.6, 0, 7], [167.8, 1.8, 11.5], [165.5, 4.4, 5.5]],
   ['yard-look', [64, 0, 7], [60, 5.5, 13], [75, 0, 3]],
 ];

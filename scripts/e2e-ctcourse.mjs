@@ -358,13 +358,13 @@ async function securityRoom(x0) {
   const GUARD = 's3-sec-guard';
   const CONSOLE = 'c-sw-s3-console';
   const FLAG = 'cams-off-s3';
-  // a standing spot in reach of the console (x0 + 8.55, 11.6) and clear of the guard's post (x0 + 9.1, 11.0) and of
+  // a standing spot in reach of the console (x0 + 8.55, 11.6) and clear of the guard's post (x0 + 9.25, 10.75) and of
   // where his body falls (toward the desk, -x)
   const SPOT = [x0 + 9.3, 12.4];
   const cueHidden = () => { const c = window.__ctdev.debug().cue[0]; return !!c && c.a === 0 && !c.shown && !c.seen; };
   // the guard spawned at his post (part A has no nav seed in the room: a failed spawn shows here first)
   const g0 = await GA((s) => { const e = window.__course.squadOf?.(s); return e ? { alive: e.alive, passive: e.passive, x: e.pos.x, z: e.pos.z } : null; }, GUARD);
-  assert(!!g0 && g0.alive && g0.passive && Math.hypot(g0.x - (x0 + 9.1), g0.z - 11) < 0.6, `security room: the duty guard is up at his post (${JSON.stringify(g0)})`);
+  assert(!!g0 && g0.alive && g0.passive && Math.hypot(g0.x - (x0 + 9.25), g0.z - 10.75) < 0.6, `security room: the duty guard is up at his post (${JSON.stringify(g0)})`);
   // the client in the room presses the console with the guard up: refused, the camera stays on
   await moveClient(...SPOT);
   assert((await use(B, CONSOLE)) === 'ok', 'security room: the client presses the console');

@@ -163,6 +163,9 @@ export interface CtHooks {
   solo?(): boolean;
   /** (B4) Is a course flag set (a laser's release)? */
   has?(flag: string): boolean;
+  /** (sector-fixes S) Is a shared (not per-player) course flag set? Non-allocating: the camera and laser `offFlag`
+   *  checks run it every step / frame (falls back to `has`). */
+  hasShared?(flag: string): boolean;
 }
 
 /**
@@ -767,6 +770,7 @@ export class CtDevices {
    * light follows `lightLit` in the registry, which the bake, the light meter and the guards read (light parity).
    */
   private applyJam(): void {
+    const shared = this.hooks.hasShared ?? this.hooks.has;
     for (let k = 0; k < this.devs.length; k++) {
       const dv = this.devs[k]!;
       const c = dv.cam;
@@ -777,7 +781,7 @@ export class CtDevices {
       c.jam = ph;
       c.jamT = dv.d.t;
       // (sector-fixes S) switched off at its security console: off like a dead device until the bay restart clears it
-      const fOff = cameraOff(c.def, this.hooks.has);
+      const fOff = cameraOff(c.def, shared);
       if (fOff) this.flagOff.add(id);
       else this.flagOff.delete(id);
       if (ph !== DEV_IDLE || this.dead.has(id) || fOff) {
@@ -792,7 +796,7 @@ export class CtDevices {
     }
     for (let i = 0; i < this.lasers.length; i++) {
       const l = this.lasers[i]!;
-      const off = l.def.offFlag !== undefined && !!this.hooks.has?.(l.def.offFlag);
+      const off = l.def.offFlag !== undefined && !!shared?.(l.def.offFlag);
       const on = !off && this.devOf.get(l.def.id)?.d.ph === DEV_IDLE && !this.dead.has(l.def.id);
       if (on === l.on) continue;
       l.on = on;

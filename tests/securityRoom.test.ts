@@ -125,4 +125,22 @@ describe('securityRoom', () => {
     mirror.apply(JSON.parse(JSON.stringify(s.pack())));
     expect(cameraOff(CAMS[0]!, (f) => mirror.hasFlag(f))).toBe(false);
   });
+
+  it('CourseState.hasShared: the shared flag only (the console flag reads the same as hasFlag), not a per-player key', () => {
+    const s = new CourseState(def());
+    expect(s.hasShared('cams-off')).toBe(false);
+    s.press('sw-con', 0);
+    expect(s.hasShared('cams-off')).toBe(true);
+    expect(s.hasShared('cams-off')).toBe(s.hasFlag('cams-off'));
+    const mirror = new CourseState(def());
+    mirror.apply(JSON.parse(JSON.stringify(s.pack())));
+    expect(mirror.hasShared('cams-off')).toBe(true);
+    expect(cameraOff(CAMS[0]!, (f) => mirror.hasShared(f))).toBe(true);
+    // a per-player key counts for hasFlag but not for the shared check
+    s.setFlag('mine@1');
+    expect(s.hasFlag('mine')).toBe(true);
+    expect(s.hasShared('mine')).toBe(false);
+    s.restart();
+    expect(s.hasShared('cams-off')).toBe(false);
+  });
 });

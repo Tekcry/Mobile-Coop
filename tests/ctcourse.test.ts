@@ -528,7 +528,7 @@ describe('sector-fixes S: the station 3 security room', () => {
     expect(R.x1).toBe(S3_HALL.x1);
     expect(solidAt(R.x1, 1, zm)).toBe(false);
     expect(solidAt(R.x1, 3, zm)).toBe(true);
-    expect(b.anchors.doors.some((dr) => Math.abs(dr.hinge.x - R.x1) < 1e-6 && Math.abs(dr.hinge.z - z0) < 1e-6 && dr.width === z1 - z0 && !dr.locked)).toBe(true);
+    expect(b.anchors.doors.some((dr) => Math.abs(dr.hinge.x - R.x1) < 1e-6 && Math.abs(dr.hinge.z - z0) < 1e-6 && dr.width === 1.2 && Math.abs(z1 - z0 - 1.2) < 1e-9 && !dr.locked)).toBe(true);
     // the far cross wall is whole but for the door
     for (let z = S3_HALL.wallZ + 0.15; z < CT_W - 0.15; z += 0.1) if (z < z0 - 0.01 || z > z1 + 0.01) expect(solidAt(R.x1, 1, z), `x ${R.x1} z ${z.toFixed(2)}`).toBe(true);
     // the room's south and west walls, and the void's other sides (the hallway wall, the entry cross wall), have no opening
