@@ -543,6 +543,11 @@ export class Enemy implements Damageable {
     this.setCaution(this.caution);
   }
 
+  /** (CT Core spare 9) The route he walks while unaware (null: a post); read by interrogation intel. */
+  get patrolRoute(): PatrolRoute | null {
+    return this.walker.route;
+  }
+
   /** 0 standing .. 1 crouched (cover). */
   get crouchBlend(): number {
     return this.crouch;
