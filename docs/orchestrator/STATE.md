@@ -2,6 +2,9 @@
 
 2026-10-22 ~13:10: account handoff prepared: docs/orchestrator/HANDOFF.md has the open work and every session's prompt
 (it supersedes the "Sessions" table below).
+2026-10-22 ~13:20: new account live. All five sessions resumed from HANDOFF prompts: CT Core (local_f21a4036, #103
+ctcourse:1 solo rerun on d487495b), Menu Notes (local_ec5ab600, N3 fix round), Course Ready, Character Build (laptop,
+Remote Control; address it by title via ListAgents). Usage 5-hour 2%, weekly 2%. Cron 17/37/57 recreated.
 Read CLAUDE.md (above all "Sessions") and docs/ROADMAP.md first (its "Decided" list holds Michael's answers verbatim).
 Work folder C:/NightShift/Mobile-Coop-menu, branch feature/menu (orchestrator docs; merge origin/master before each
 docs batch; a docs PR when convenient). Scratch worktree for version / merge steps: C:/NightShift/Mobile-Coop-phone-native
