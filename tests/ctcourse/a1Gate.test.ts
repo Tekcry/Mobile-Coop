@@ -4,8 +4,11 @@
  * keep-clear), the leg-up from the striped mark takes the near lip (the relay works), the wicket bolts open from the yard
  * side only, the circuits and lamps are the plan's, the steps validate and read per player, the role claim is the mark,
  * the checker is armed and passive and can be grabbed from behind. The map-wide frames (`tests/ctcourse.test.ts`,
- * `tests/ctcourseLight.test.ts`) run the contract, the register and the light bands over this part too.
+ * `tests/ctcourseLight.test.ts`) run the contract, the register and the light bands over this part too. The last block is the
+ * dressing (slice 1 step 5): the greybox pinned, hand-built skins out of the light shapes, the props' budgets, boxes and keep-clear
+ * rules, every kit glow on its circuit.
  */
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { generateLedges, findJumpTarget, type Ledge } from '../../src/world/anchors';
 import { LevelBuilder, type BoxPiece } from '../../src/world/levelBuilder';
@@ -16,11 +19,14 @@ import { layoutKnownIds, validateCourse } from '../../src/game/course/courseDef'
 import { CourseState, REFUSE_BOLT } from '../../src/game/course/courseState';
 import { hyp2 } from '../../src/core/mathx';
 import { buildCtcourse, COOP_LIPS, LIGHT_SPOTS } from '../../src/world/maps/ctcourse';
-import { boostWall, COOP_BAND, GREY_KEEP_CLEAR, WALL_STANDOFF } from '../../src/world/maps/ctcourseGreybox';
+import { boostWall, COOP_BAND, GREY_KEEP_CLEAR, WALL_STANDOFF, type CoopLip } from '../../src/world/maps/ctcourseGreybox';
 import { A1_CHECKER, A1_CHECKER_INFO, A1_LOUNGE_DOOR, A1_MARK, A1_MARK_ZONE, A1_WALL, A1_WICKET_DOOR, A1_WICKET_GATE, A1_YARD_FLAG, A1_YARD_ZONE } from '../../src/world/maps/ctcourseSets/a1Gate';
-import { checkSetPart, inBox, LOUNGE_BOX, OBJECTIVE_ID_MAX, SET_BOX, SPAWNS } from '../../src/world/maps/ctcourseSets/types';
+import { checkSetPart, inBox, LOUNGE_BOX, OBJECTIVE_ID_MAX, SET_BOX, setGroups, SPAWNS } from '../../src/world/maps/ctcourseSets/types';
 import { circuitOf, marlowCourseGroups } from '../../src/world/lighting/marlowCircuits';
 import { MARLOW_LEVEL } from '../../src/world/lighting/levels';
+import { kitTriangles } from '../../src/world/kit/facilityKit';
+import { FacilityProps, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_HUNG, PROP_SET_BUDGET, type PropPlacement, type PropReport } from '../../src/world/props/facilityProps';
+import { CANON_MIN_THICK } from '../../src/voxel/lightShapes';
 import { soloJumpThreats } from '../helpers/soloJumpReach';
 
 const b = new LevelBuilder();
@@ -473,5 +479,192 @@ describe('A1 the Gate: map data the e2e and the modes read', () => {
     expect(part.scanners).toEqual([]);
     expect(part.hideSpots).toEqual([]);
     expect(part.consoles).toEqual([]);
+  });
+});
+
+describe('A1 the Gate: dressing (slice 1 step 5)', () => {
+  /** The greybox as S1 left it: 22 boxes (21 solids and the mark's paint), 9 lamps, 3 doors, no other anchor. */
+  const GREY = { boxes: 22, solids: 21, lights: 9, doors: 3, anchors: 0, checksum: 2456.795 };
+  const kitReport = JSON.parse(readFileSync('src/world/kit/assets/facility-kit.json', 'utf8')) as { pieces: Record<string, { meshes: Record<string, number> }> };
+  const propReport = JSON.parse(readFileSync('src/world/props/assets/facility-props.json', 'utf8')) as PropReport;
+  const box = SET_BOX.a1Gate[0]!;
+  const area = { x0: box[0], z0: box[1], x1: box[2], z1: box[3] };
+  const own = part.props;
+  const dressing = mine.slice(GREY.boxes);
+  /** The props' own boxes as written (matched by centre and size), a quarter-turn prop folded to the axis-aligned box `soloJumpThreats` reads. */
+  const propBoxes = own.flatMap((p) => propCollisionBox(p) ?? []);
+  const written = propBoxes.map((w) => mine.find((p) => p.collide && p.c.every((v, k) => Math.abs(v - w.c[k]!) < 1e-6) && p.s.every((v, k) => Math.abs(v - w.s[k]!) < 1e-6) && Math.abs(p.yaw - w.yaw) < 1e-6)!);
+  const upright = (p: BoxPiece): BoxPiece => (Math.abs(Math.sin(p.yaw)) > 0.5 ? { ...p, s: [p.s[2], p.s[1], p.s[0]], yaw: 0 } : { ...p, yaw: 0 });
+  /** Plan gap (m) from an axis-aligned piece to a lip's run (the lips run along z). */
+  const gapTo = (p: BoxPiece, l: CoopLip): number => {
+    const dx = Math.max(Math.abs(l.a.x - p.c[0]) - p.s[0] / 2, 0);
+    const dz = Math.max(Math.min(l.a.z, l.b.z) - (p.c[2] + p.s[2] / 2), p.c[2] - p.s[2] / 2 - Math.max(l.a.z, l.b.z), 0);
+    return hyp2(dx, dz);
+  };
+  const gap = (p: BoxPiece): number => Math.min(gapTo(p, NEAR), gapTo(p, FAR));
+
+  it('the greybox is as S1 built it: its 22 boxes (checksum), 9 lamps, 3 doors, no anchor; the only new collision is the props\' own boxes', () => {
+    let sum = 0;
+    for (const p of mine.slice(0, GREY.boxes)) sum += (p.c[0] + 2 * p.c[1] + 3 * p.c[2] + 5 * p.s[0] + 7 * p.s[1] + 11 * p.s[2] + p.yaw) * (p.collide ? 1 : 1.5) * (p.visible === false ? 1.25 : 1) * (p.overhead ? 1.1 : 1);
+    expect(sum).toBeCloseTo(GREY.checksum, 3);
+    expect(mine.slice(0, GREY.boxes).filter((p) => p.collide)).toHaveLength(GREY.solids);
+    expect(propBoxes.length).toBeGreaterThan(0);
+    expect(written.every((p) => p !== undefined)).toBe(true);
+    expect(built.counts.sets.a1Gate).toEqual({ lights: GREY.lights, solids: GREY.solids + propBoxes.length, doors: GREY.doors, anchors: GREY.anchors });
+    // after the greybox: the props' boxes and visual skins, nothing else collides
+    expect(dressing.filter((p) => p.collide)).toHaveLength(propBoxes.length);
+    expect(lamps).toHaveLength(GREY.lights);
+    expect(part.register.map((r) => r.id)).toEqual(expect.arrayContaining(['A1-3', 'A1-11', 'A1-12', 'A1-13', 'A1-14', 'A1-15']));
+    for (const r of part.register) expect(/[–—]/.test(r.element), r.id).toBe(false);
+  });
+
+  it('every hand-built dressing box is a visual skin: no collision, noLedge, a side under 5 cm (out of the canonical light shapes, so the light is the greybox\'s)', () => {
+    const skins = dressing.filter((p) => !p.collide);
+    expect(skins.length).toBeGreaterThan(100);
+    for (const p of skins) {
+      expect(p.noLedge, `skin at (${p.c.join(', ')})`).toBe(true);
+      expect(Math.min(...p.s), `skin at (${p.c.join(', ')}) size (${p.s.join(', ')})`).toBeLessThan(CANON_MIN_THICK);
+      expect(p.visible).not.toBe(false);
+    }
+    // the mark's paint is thin too; no visible box that is not solid reaches the light shapes
+    expect(mine.filter((p) => !p.collide && p.visible !== false && Math.min(...p.s) >= CANON_MIN_THICK)).toEqual([]);
+  });
+
+  it('the chained vehicle gate is dressing on the solid wall (A1-D3): skins on the apron face over z 4-7, up to 3.0 m with the lintel and sign, no opening', () => {
+    const gate = dressing.filter((p) => !p.collide && p.c[0] > A1_WALL.near - 0.13 && p.c[0] < A1_WALL.near && p.c[2] > 3.7 && p.c[2] < 7.3);
+    expect(gate.length).toBeGreaterThan(20);
+    // flat on the face: nothing stands more than 0.12 m off it, and the leaves cover z 4-7 from the floor to 3.0 m
+    for (const p of gate) expect(p.c[0] + p.s[0] / 2).toBeLessThanOrEqual(A1_WALL.near + 1e-9);
+    for (const p of gate) expect(p.c[0] - p.s[0] / 2).toBeGreaterThanOrEqual(A1_WALL.near - 0.12 - 1e-9);
+    const leaves = gate.filter((p) => p.s[2] > 1.4 && p.s[1] > 2.5);
+    expect(leaves).toHaveLength(2);
+    expect(Math.max(...gate.map(top))).toBeGreaterThanOrEqual(3.3);
+    // the wall itself is the greybox's three pieces, unchanged
+    expect(mine.filter((p) => p.collide && Math.abs(p.c[0] - A1_WALL.x) < 0.01 && Math.abs(p.s[0] - A1_WALL.thick) < 1e-6)).toHaveLength(3);
+  });
+
+  it('budgets (computed): kit triangles <= 60 k; props pass FacilityProps.check against the set box at 60 k triangles and 12 draws, with the facility\'s plates in the box counted', () => {
+    const kitIn = lay.kit!.instances.filter((i) => inBox(box, i.x, i.z));
+    const kitTris = kitTriangles({ instances: kitIn, doors: [] }, kitReport);
+    expect(kitIn.some((i) => i.piece === 'wallPanel')).toBe(true);
+    expect(kitTris).toBeGreaterThan(0);
+    expect(kitTris, `${kitTris} kit triangles`).toBeLessThanOrEqual(60_000);
+    // the arrival lounge's furniture is the facility dresser's and has its own area budget (S0e); any other facility prop in the box (a set-side plate) counts here
+    const facilityIn = built.facility.props.filter((p) => inBox(box, p.x, p.z));
+    const counted = [...own, ...facilityIn.filter((p) => !inBox(LOUNGE_BOX, p.x, p.z))];
+    const checker = (list: readonly PropPlacement[]): FacilityProps => {
+      const f = new FacilityProps();
+      f.placements.push(...list);
+      return f;
+    };
+    expect(checker(counted).check(area, propReport)).toEqual([]);
+    expect(propTriangles(counted, propReport)).toBeLessThanOrEqual(PROP_SET_BUDGET.tris);
+    expect(propDraws(counted, propReport)).toBeLessThanOrEqual(PROP_SET_BUDGET.draws);
+    // footprints inside the box and no two gameplay boxes overlapping, the lounge's props too
+    expect(checker([...own, ...facilityIn]).check(area)).toEqual([]);
+    expect(own.map((p) => p.prop).sort()).toEqual(['barrierPost', 'bollard', 'bollard', 'bollard', 'bollard', 'checkerDesk', 'wicketBolt']);
+  });
+
+  it('every kit glow in A1 carries a circuit: panels, skirting and unlit slots are grouped on the plan\'s A1 rows (10 the lounge, 12 the hall coves, never 10 above the wall); no lamp was added', () => {
+    const plan = new Set(Object.values(marlowCourseGroups()));
+    const [g0, g1] = setGroups('a1Gate');
+    const kitIn = lay.kit!.instances.filter((i) => inBox(box, i.x, i.z));
+    const glowing = kitIn.filter((i) => ['wallPanel', 'skirting', 'column', 'handrail'].includes(i.piece) || (i.piece === 'ledSlot' && !i.noLed));
+    expect(glowing.length).toBeGreaterThan(40);
+    for (const i of glowing) {
+      expect(i.group, `${i.piece} at ${i.x}, ${i.y}, ${i.z}`).toBeDefined();
+      expect(plan.has(i.group!), `${i.piece} group ${i.group}`).toBe(true);
+      expect(i.group!, `${i.piece} group ${i.group}`).toBeGreaterThanOrEqual(g0);
+      expect(i.group!, `${i.piece} group ${i.group}`).toBeLessThanOrEqual(g1);
+    }
+    // the hall's coves over the boundary wall (the south wall's and the L1 wall's faces): the yard circuit
+    const coves = glowing.filter((i) => i.piece === 'wallPanel' && (Math.abs(i.z - 2.25) < 0.1 || Math.abs(i.x - 21.75) < 0.1));
+    expect(coves.length).toBeGreaterThan(20);
+    for (const i of coves) expect(i.group).toBe(12);
+    // the lounge's panels and toe-kick lines: its house circuit, inside the lounge
+    const lounge = glowing.filter((i) => inBox(LOUNGE_BOX, i.x, i.z, 0.2));
+    expect(lounge.some((i) => i.piece === 'skirting')).toBe(true);
+    for (const i of lounge) expect(i.group).toBe(10);
+    // no lamp was added: the nine of the plan, each on its row
+    expect(lamps).toHaveLength(9);
+    for (const l of lamps) expect(l.group).toBeGreaterThanOrEqual(g0);
+  });
+
+  it('the lounge panels leave the sliding door\'s architrave clear and the hall coves stay above the 4.4 m wall', () => {
+    const kitIn = lay.kit!.instances.filter((i) => inBox(box, i.x, i.z));
+    const onDoorWall = kitIn.filter((i) => i.piece === 'wallPanel' && Math.abs(i.x - 5.85) < 0.1 && i.z > 8 && i.z < 14);
+    expect(onDoorWall.length).toBeGreaterThan(0);
+    for (const i of onDoorWall) expect(Math.abs(i.z - 11) - 0.6 * i.sx, `panel at z ${i.z}`).toBeGreaterThanOrEqual(1.0 - 1e-6);
+    const hall = kitIn.filter((i) => i.piece === 'wallPanel' && (Math.abs(i.z - 2.25) < 0.1 || Math.abs(i.x - 21.75) < 0.1));
+    for (const i of hall) expect(i.y, `hall panel at ${i.x}, ${i.z}`).toBeGreaterThanOrEqual(A1_WALL.lip - 1e-9);
+  });
+
+  it('props inside the set box: every drawn footprint and every gameplay box; the arm and the bolt are drawn only', () => {
+    for (const w of propBoxes) {
+      const swap = Math.abs(Math.sin(w.yaw)) > 0.5;
+      const hx = (swap ? w.s[2] : w.s[0]) / 2;
+      const hz = (swap ? w.s[0] : w.s[2]) / 2;
+      expect(inBox(box, w.c[0] - hx, w.c[2] - hz)).toBe(true);
+      expect(inBox(box, w.c[0] + hx, w.c[2] + hz)).toBe(true);
+    }
+    for (const p of own) {
+      const f = PROP_FOOTPRINT[p.prop];
+      for (const [lx, lz] of [[f[0], f[1]], [f[2], f[1]], [f[2], f[3]], [f[0], f[3]]] as const) {
+        const w = propToWorld(p, lx, 0, lz);
+        expect(inBox(box, w[0], w[2], 1e-6), `${p.prop} at ${p.x}, ${p.z}`).toBe(true);
+      }
+    }
+    // the wall-hung bolt has no box, the post's 6 m arm none beyond the post's own
+    expect(own.filter((p) => propCollisionBox(p) === null).map((p) => p.prop)).toEqual(['wicketBolt']);
+    expect(propBoxes).toHaveLength(6);
+  });
+
+  it('props that collide are noLedge; none within 4.7 m of a 4.4 m lip tops out at 1.0 m or more unless noLedge, and with the props written no solo jump reaches either lip', () => {
+    for (const p of written) expect(p.noLedge, `prop box at (${p.c.join(', ')})`).toBe(true);
+    for (const p of written) if (top(p) >= 1.9) expect(p.noLedge).toBe(true);
+    const near = written.filter((p) => gap(upright(p)) <= GREY_KEEP_CLEAR);
+    // (the cabin's counter and the gate's bollards stand inside the radius, so the rule has something to bite on)
+    expect(near.length).toBeGreaterThanOrEqual(3);
+    for (const p of near) expect(top(p) < 1.0 || p.noLedge, `prop box at (${p.c.join(', ')}) tops out at ${top(p).toFixed(2)}`).toBe(true);
+    // the file's soloJumpThreats setup, rerun over every solid in the map with the props written (quarter-turn boxes folded upright)
+    const withProps = [...solid, ...written.filter((p) => !solid.includes(p)).map(upright)];
+    expect(withProps.length).toBeGreaterThan(solid.length);
+    expect(soloJumpThreats(withProps, NEAR)).toEqual([]);
+    expect(soloJumpThreats(withProps, FAR)).toEqual([]);
+    // teeth: the same call flags a 1.3 m crate with no noLedge 2.5 m off the near lip
+    const crate: BoxPiece = { c: [A1_WALL.near - 2.5 - 0.5, 0.65, 5], s: [1, 1.3, 1], yaw: 0, pitch: 0, color: '#888', collide: true, visible: true };
+    expect(soloJumpThreats([...withProps, crate], NEAR).length).toBeGreaterThan(0);
+  });
+
+  it('props stand clear of the leg-up mark and its room, the wicket\'s swing and bolt spot, the checker\'s grab spot and the ways to L1', () => {
+    const boxes = written.map(upright);
+    const dist = (p: BoxPiece, x: number, z: number): number => hyp2(Math.max(Math.abs(x - p.c[0]) - p.s[0] / 2, 0), Math.max(Math.abs(z - p.c[2]) - p.s[2] / 2, 0));
+    for (const p of boxes) {
+      expect(dist(p, A1_MARK.x, A1_MARK.z), 'the mark').toBeGreaterThanOrEqual(TEAM.roomSide + MOVEMENT.radius);
+      expect(dist(p, A1_WALL.x, 10.4), 'the wicket\'s hinge (the leaf swings 1.2 m)').toBeGreaterThanOrEqual(1.2 + MOVEMENT.radius);
+      expect(dist(p, A1_WALL.x, A1_WALL.z), 'the bolt spot').toBeGreaterThanOrEqual(1.2 + MOVEMENT.radius);
+      expect(dist(p, 7.9, 16.5), 'the checker\'s grab spot (1.1 m behind him)').toBeGreaterThanOrEqual(MOVEMENT.radius);
+    }
+    for (const d of [10.4, 11, 11.6]) expect(walkBlocked(13.2, d, 21.4, d), `yard to the L1 door at z ${d}`).toBeNull();
+    expect(walkBlocked(7.0, 11, 11.2, 11)).toBeNull();
+    expect(walkBlocked(7.0, 11, A1_MARK.x, A1_MARK.z)).toBeNull();
+    expect(walkBlocked(7.5, A1_MARK.z, A1_MARK.x - 0.5, A1_MARK.z)).toBeNull();
+    // the checker's slot and the spot behind him are clear of the counter
+    expect(blockedAt(9.0, 16.5, 0.3)).toEqual([]);
+    expect(blockedAt(7.9, 16.5, 0.3)).toEqual([]);
+  });
+
+  it('the wicket\'s bolt hangs on the wall\'s yard face beside the opening, 1.0 m or more up; the checker\'s counter stands inside the cabin with its monitor dark', () => {
+    const bolt = own.find((p) => p.prop === 'wicketBolt')!;
+    expect(PROP_HUNG).toContain('wicketBolt');
+    expect(bolt.x).toBeCloseTo(A1_WALL.far, 9);
+    expect(bolt.y).toBeGreaterThanOrEqual(1.0);
+    expect(bolt.y).toBeLessThanOrEqual(1.4);
+    const f = PROP_FOOTPRINT.wicketBolt;
+    const zs = [f[0], f[2]].map((lx) => propToWorld(bolt, lx, 0, 0)[2]);
+    expect(Math.min(...zs)).toBeGreaterThanOrEqual(A1_WALL.z + 0.6 - 1e-6);
+    const desk = own.find((p) => p.prop === 'checkerDesk')!;
+    expect(inBox([7, 15, 10, 18], desk.x, desk.z, -0.3)).toBe(true);
+    expect(desk.tint).toEqual([0, 0, 0]);
   });
 });

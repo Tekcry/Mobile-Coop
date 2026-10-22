@@ -543,7 +543,7 @@ function dressLounge(kit: FacilityKit, props: FacilityProps): void {
   props.add('kitCaseWall', face, 12.75, Math.PI / 2);
   props.add('loungeSeat', 4.2, 9.1, -Math.PI / 2);
   props.add('loungeSeat', 4.2, 12.9, -Math.PI / 2);
-  kit.wallPanel(face, 11.0, 5.6, Math.PI / 2, { h: HALL_H - 3, y: 3.0, tone: 'warm', group: LOUNGE_GROUP });
+  kit.wallPanel(face, 11.0, 5.6, Math.PI / 2, { h: HALL_H - 3.2, y: 3.2, tone: 'warm', group: LOUNGE_GROUP });
 }
 
 /** The cash dock as a VIP debrief bay: warm panels on circuit 98 over its three walls (the west side is open to A8's vault) and a board of plates. */
