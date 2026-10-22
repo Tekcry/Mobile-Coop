@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased - sector-fixes
+
+### Slice C: cameras and lasers (Michael 2026-10-22, items 3-5)
+- Security cameras pitch down to a floor patch (`aim` in the map data, `camPitch`) and see only their own `range`
+  (`camRange`, at most 18 m). Detection (`CameraUnit.covers`) and the red grid cue read the same pitch and range, so the
+  grid is drawn only where the camera can detect. Sector Ops: cam-yard aim 5 / range 10, cam-floor 7 / 14, the others
+  6 / 12. Marlow Yard cam-s3: aim 6.5 (pitch 20 deg), range 18. The housing points down its pitch.
+- The camera grid is very subtle in normal vision (line 0.16 -> 0.055, fill 0.025 -> 0.006, 0.6 px hairlines); electro
+  keeps the stronger white lattice.
+- Lasers are infrared: drawn (glowing) only in night vision, invisible in normal, thermal and electro. Render only: the
+  sensor works the same in every mode.
+- A laser break raises the alarm stage (the camera alarm path: one stage per `ALARM_GAP`, the course stat / Sector Ops
+  alarm, banner, radio line) and never deals damage (`LASER.damage`, `floorHp` and `laserDamage` removed). Station 4
+  panel text updated. No wire change (protocol unchanged).
+
 ## 4.54.0 - Train 3: every tuner Body slider bakes, holds and carries (2026-10-22, PR #114; #103, #113)
 
 ### #103 Body sliders bake

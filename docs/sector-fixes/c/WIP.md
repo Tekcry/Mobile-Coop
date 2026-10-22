@@ -16,3 +16,52 @@ panels) is unblocked now that J is in master.
 Parked again (2026-10-22 ~08:55, priority switch to anim-natural): master 4.48.0 merged (J's 5 conflicts resolved by
 the implementer), after-shots taken; whether check / e2e passed after the merge is unknown (it was mid-run). Resume:
 read the diff, run check and the camera / laser suites, then a checker.
+
+## Resumed and verified (implementer, 2026-10-22 ~15:10, head 3bb3d644 = master 4.54.0 merged)
+
+Per BRIEF slice C item:
+- **Cue only within the camera's real range and cone (item 3): done.** `camPitch` / `camRange` (`security/camera.ts`)
+  feed `CameraUnit.pitch` / `range`; detection (`covers` -> `inFrame`, `securitySystem.cameraSight`) and the cue
+  (`cueSpan` about the pitch, rays to `cueReach(range)`, shader mask `CUE_MASK_GLSL` with pitch and range) read the same
+  numbers. `validateSecurity` bounds `aim` (2 m .. range) and `range` (4-18 m).
+- **Cameras pitch down to a set floor section (item 3): done.** Sector Ops: cam-yard aim 5 / range 10, cam-floor 7 / 14,
+  the other five 6 / 12. Marlow Yard cam-s3: aim 6.5 (`S3_CAMERA_AIM`, 20 deg), range 18. Housing `rotation.x` = pitch.
+- **Grid very subtle (item 4): done.** Normal: line 0.16 -> 0.055, fill 0.025 -> 0.006, 0.6 px lines (`CUE.lineW`);
+  electro unchanged.
+- **Lasers only in night vision (item 4): done.** Beams start disabled; `followVision` / `showLaser` draw them with a
+  0.9 glow only while on and NV is up (host and client pages, local vision). Fixed this session: gameState's
+  `paintElectro(0)` zeroed every 'laser' mesh's `pattern.w` on leaving electro, after the devices' step, so on the CT
+  cycle electro -> night the beams lost their glow; `followVision` now re-asserts while NV is on (no allocation).
+- **Break raises the alarm, never damage (item 5): done.** `deviceAlarm` (jammer.ts) + `CtDevices.raiseAlarm` (shared
+  with the camera alarm); the damage path and `LASER.damage` / `floorHp` / `laserDamage` are gone. In Sector Ops it
+  reaches `sectorMode.cameraAlarm` (counts in `camAlarms`, reinforcements as a camera alarm). Station 4 panel text.
+- **Marlow Yard same rules: done** (same `CtDevices` code, cam-s3 pitched).
+- jammer.ts vs J on master: only the LASER damage fields removed and `deviceAlarm` added; J's jam / light code untouched.
+
+Files this session: src/game/ctDevices.ts (glow re-assert; debug `cams[].pitch` / `range`), src/game/modes/sectorMode.ts
+(comment), tests/laserAlarm.test.ts (+1 test: electro -> night glow), CHANGELOG.md (new "Unreleased - sector-fixes"
+heading), TESTING.md (+1 item), docs/systems/gadgets.md.
+
+Checks: vitest cameraCue, jammer, laserAlarm, jammerFixes, securityCamera, ctcourse, ctcourseLight, sectorStep3,
+sectors: 9 files, 164 passed, 1 skipped (pre-existing conditional skip). `tsc --noEmit` clean; eslint on the changed
+src / tests clean. Not run here (desktop heavy lock held): npm run check, full vitest, build, e2e, GPU shots.
+
+Protocol: no wire change (alarm already synced; beams follow each page's own vision). Master is at PROTOCOL_VERSION 28.
+
+e2e: `e2e-ctcourse` station 4 already updated (beams hidden normal / shown NV / hidden electro; break counted on the
+host, course alarm stat up, health unchanged; jammed: no break). Run `e2e-ctcourse`, `e2e-sectorops` (lasers / cameras
+mirrored on the client), `e2e-security` (seclab cameras, no `aim`: unchanged), `e2e-coop`, `e2e-netmove`, plus `e2e:quick`.
+
+GPU: rerun the after shots on this head and the sheet (port 4189):
+`E2E_GPU=1 E2E_PORT=4189 timeout 900 node scripts/sector-fixes-c-shots.mjs docs/sector-fixes/c after`, then `... sheet`.
+The 4.48-era sheet already shows the subtle grid, pitched frames and NV-only beams; worth an extra NV shot reached via
+electro -> night to confirm the glow fix.
+
+Assumed decisions (undo):
+- A-C1 per-camera ranges / aims above (edit `aim` / `range` in warehouseSectors.ts / `S3_CAMERA_AIM`; delete them to
+  look level at 18 m).
+- A-C2 a laser break counts as a camera alarm in Sector Ops (`camAlarms`); undo: a separate hook in `DeviceHooks`.
+- A-C3 beam NV glow 0.9 (`BEAM_NV_GLOW`).
+
+Open: the Kestrel editor's coverage preview (`editor/security.ts` `camSees`) still tests level at `CAMERA.range`
+(Kestrel paused, G53; its maps set no `aim`, so no mismatch today). A checker pass is still due.

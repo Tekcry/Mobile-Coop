@@ -85,4 +85,6 @@ Design authority: docs/DECISIONS.md (G76, G99-G102), then docs/design-bible.md (
   per `ALARM_GAP`, the course stat / Sector Ops `cameraAlarm` hook, the banner, a radio line) and never deals damage (the
   damage path is gone). The beams are infrared: drawn (glowing, `pattern.w`) only while the laser is on and night vision
   is on screen; hidden in normal, thermal and electro. Render only: the sensor reads `on`, never the drawing
-  (`tests/laserAlarm.test.ts`).
+  (`tests/laserAlarm.test.ts`). While night vision is on the glow is re-set every step (leaving electro zeroes the
+  `pattern.w` of every mesh named `laser` in gameState's `paintElectro`). In Sector Ops a break goes through the same
+  `cameraAlarm` hook as a camera (it counts in `camAlarms`).

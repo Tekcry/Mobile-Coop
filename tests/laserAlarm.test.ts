@@ -149,4 +149,16 @@ describe('(sector-fixes C) the laser sensor', () => {
     expect(m.damage).toEqual([]);
     m.dev.dispose();
   });
+
+  it('electro -> night (the CT cycle): the glow comes back after leaving electro zeroes it (gameState paintElectro)', () => {
+    const m = make();
+    m.g.vision.night = 1;
+    step(m.dev, 0.1);
+    expect(m.beams.every((b) => b.enabled && b.instancedBuffers.pattern.w > 0)).toBe(true);
+    // gameState's paintElectro(0) on leaving electro writes 0 to every mesh named 'laser', after the devices' step
+    for (const b of m.beams) b.instancedBuffers.pattern.w = 0;
+    step(m.dev, 1 / 60);
+    expect(m.beams.every((b) => b.enabled && b.instancedBuffers.pattern.w > 0)).toBe(true);
+    m.dev.dispose();
+  });
 });

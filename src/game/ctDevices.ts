@@ -810,8 +810,10 @@ export class CtDevices {
   /** (sector-fixes C, item 4) Night vision on or off: the IR beams follow it (render only, every fixed step / frame). */
   private followVision(): void {
     const nv = this.g.vision.night === 1;
-    if (nv === this.nv) return;
+    if (nv === this.nv && !nv) return;
     this.nv = nv;
+    // while night vision is on, re-assert every step: leaving electro (the CT cycle's electro -> night) zeroes the
+    // `pattern.w` of every mesh named 'laser' in gameState's `paintElectro` after this step ran (a few beams: no cost)
     for (let i = 0; i < this.lasers.length; i++) this.showLaser(this.lasers[i]!);
   }
 
@@ -826,7 +828,7 @@ export class CtDevices {
       const m = l.meshes[k]!;
       if (m.isEnabled(false) !== show) m.setEnabled(show);
       const pt = m.instancedBuffers.pattern as Vector4 | undefined;
-      if (show && pt) pt.w = BEAM_NV_GLOW;
+      if (show && pt && pt.w !== BEAM_NV_GLOW) pt.w = BEAM_NV_GLOW;
     }
   }
 
@@ -1017,7 +1019,7 @@ export class CtDevices {
       hall: [...this.hallRun],
       hallHold: [...this.hallHold],
       pick: this.localPick,
-      cams: this.cams.map((c) => ({ id: c.def.id, mode: c.mode, yaw: c.yaw, clock: c.clock, frozen: c.frozen, jam: c.jam, live: this.live(c.def.id), stage: [...c.meters.values()].map((m) => m.stage), meter: [...c.meters.values()].map((m) => m.meter) })),
+      cams: this.cams.map((c) => ({ id: c.def.id, mode: c.mode, yaw: c.yaw, pitch: c.pitch, range: c.range, clock: c.clock, frozen: c.frozen, jam: c.jam, live: this.live(c.def.id), stage: [...c.meters.values()].map((m) => m.stage), meter: [...c.meters.values()].map((m) => m.meter) })),
       lasers: this.lasers.map((l) => ({ id: l.def.id, on: l.on, live: this.live(l.def.id) })),
       live: this.liveSection,
       range: CAMERA.range,
