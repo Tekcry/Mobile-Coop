@@ -34,6 +34,7 @@ import { localMoveState } from '../game/localMoveState';
 import { dropBadWallMove, emptyMoveState, moveChanged } from '../player/moveState';
 import { CrackPrediction } from '../world/doorPeek';
 import { markCompleted } from '../save/sectorRecord';
+import { HoldPulseWatch } from './holdPulse';
 import { SECTOR_RESTART_TITLE, boltById } from '../game/sectors';
 
 const SEND_HZ = 20;
@@ -72,6 +73,9 @@ export class CoopClient implements NetAttachment {
   private lastBlast: { p: Vector3; t: number } | null = null;
   private ints: Interactables | null = null;
   private items = new Map<string, Interactable>();
+  /** (marlow-final Q12) The mirrored noisy holds: each pulse of our own hold goes to the host's guards. */
+  private holdPulses = new HoldPulseWatch();
+  private readonly sendPulse = (id: string): void => this.s.toHost({ t: 'use', id, pulse: true });
   /** Sector Ops: the client's mirror of the cameras and lasers. */
   private sec: CtDevices | null = null;
   /** (sector-restart) The section our checkpoint loadout was recorded for (the host's live section only moves on). */
@@ -364,6 +368,11 @@ export class CoopClient implements NetAttachment {
         // data (no wire change); the host checks the side again on the `use`
         const bolt = boltById(this.g.world.map.sectors, id);
         if (bolt) it.side = bolt.bolt.side;
+        // (30, Q12) a noisy hold: our own hold pulses it to the host, and our noise meter reads it as the host's does
+        if (n.hn && n.hold > 0) {
+          it.holdNoise = n.hn;
+          this.holdPulses.add(it);
+        }
         this.items.set(n.id, it);
       }
       it.pos.set(n.x, n.y, n.z);
@@ -377,6 +386,7 @@ export class CoopClient implements NetAttachment {
     }
     for (const [id, it] of this.items) {
       if (keep.has(id)) continue;
+      this.holdPulses.remove(it);
       ints.remove(it);
       this.items.delete(id);
     }
@@ -641,6 +651,8 @@ export class CoopClient implements NetAttachment {
         if (isClientVerb(v)) this.ctick(v);
       }
     }
+    // (Q12) our noisy hold's first moment and each pulse go to the host, whose guards hear them at the item
+    if (this.holdPulses.size) this.holdPulses.step(this.sendPulse);
     const changed = moveChanged(this.mvSent, mv);
     if (this.sendT > 0 && !changed) return;
     this.sendT = 1 / SEND_HZ;
@@ -767,6 +779,7 @@ export class CoopClient implements NetAttachment {
     this.dying.length = 0;
     this.ragdolls.length = 0;
     this.kept.clear();
+    this.holdPulses.clear();
     this.ints?.dispose();
     this.g.explosions.onLocalBlast = null;
     this.g.gadgets.onLocal = null;
