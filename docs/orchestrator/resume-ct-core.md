@@ -17,6 +17,8 @@ below is committed and pushed. Each job's own `docs/<job>/STATE.md` has the deta
   delete it only if it still names you (`grep -q "<job>" "$L" && rm -f "$L"`). Port 4191 (logic), 4189 (GPU). Follow
   the orchestrator's lock queue; when you free the lock, tell whoever is next. When it is held, send logic suites to
   the laptop runner "Night Shift | Character Build" (branch, commit, named suites). Single test files need no lock.
+- Load (orchestrator, ~17:50): the desktop runs at ~99% CPU with every session's agents; e2e-coop, e2e-netmove and
+  e2e-ctcourse go to the laptop only; desktop e2e uses E2E_JOBS=1 while agents are running. GPU work stays on the desktop.
 - Merge trains: a PR needs CI + its area suites; the orchestrator runs one full e2e per train and sets versions at merge
   (G183). CHANGELOG entries are "## Unreleased - <job>".
 - Every tuner slider bakes. Never loosen a metric to pass; a widened limit from Michael's tune is marked
