@@ -10,6 +10,10 @@ Next: commit, fresh checker, one fix round at most, laptop suites (`npm run chec
 e2e-netmove: src/player changed), GPU sheet rows (hand-swap-shoulder, wall-edge-left, elbow-strike-guard) on the laptop,
 PR with `changes/feature-anim-n4c.md`.
 Open: none.
+After the PR (orchestrator ~21:00): slice n4d applies M1's "faster arm" principle to the lethal takedown blow (kill at
+approach + 0.7 s, visual contact 0.39 s) and the grab kill (`GRAB.killTime` 0.5 s, contact 0.28 s): gameplay timing
+stays, the animation's contact lands on the gameplay moment; an assumed decision citing M1, with its undo. Branch from
+feature/anim-n4c (it builds on `strikeWarp`) or from master once n4c merges.
 
 ## Checker (fresh Opus, 2026-10-22 ~20:45, on a90ab77f): PASS
 tsc clean; eslint clean; Vitest 17 files / 286 tests pass. Fix round = M1 faster arm (Michael), on master 4.58.0 merged.
@@ -21,6 +25,13 @@ tsc clean; eslint clean; Vitest 17 files / 286 tests pass. Fix round = M1 faster
 3. The `(1 - swapK)` aim-pitch release also applies to the lowered swap (pivot unchanged; harmless).
 4. `solveArm`'s free target turns about the shoulder's rest point, not the turned shoulder.
 5. `StrikeController.reset` does not clear `STRIKE_SIM` (tuner follow only).
+7. (fix round checker, PASS on e23bd1cd) Co-op client: the host's accept rewinds the strike clock
+   (`StrikeController.accepted`, `t = min(t, elapsed)`) and the warp's ~6x slope in the load magnifies it: a one-frame
+   hitch at RTT 80-100 ms (wrist 21 -> 26 -> 15 cm). Done looks like: the posed phase never steps back on accept, with a
+   test. Candidate for n4d.
+8. A whiff now ends at arc 0.79 (was 0.56) before `melee` goes to -1: still a cut, rare.
+9. The drive spans about one frame (wrist 31 cm step; elbow extreme at 100 ms vs the 80 ms hit): if it reads as a snap
+   on the GPU sheet, spread it over 2 frames.
 6. An aimed strike swings the gun with the 33 deg trunk turn (as master's procedural turn did): look on the GPU sheet.
 
 ## Done
