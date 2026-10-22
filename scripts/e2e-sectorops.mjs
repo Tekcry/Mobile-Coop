@@ -1907,6 +1907,17 @@ async function campusS3Part(page) {
   assert(d3.alive === 16, `section 3 has 16 guards in (${d3.alive})`);
   const live3 = d3.ct.cams.filter((c) => c.live).map((c) => c.id).sort();
   assert(JSON.stringify(live3) === JSON.stringify(['cam-dock', 'cam-view']), `cam-view and cam-dock are the live cameras (${JSON.stringify(live3)})`);
+  // (sector-redesign E8, A95) cam-view is bulletproof: a round down its axis through the housing ricochets, it stays live
+  const pv = await G(() => {
+    const g = window.__app.current;
+    const c = g.security.camera('cam-view');
+    const sx = Math.sin(c.yaw);
+    const sz = Math.cos(c.yaw);
+    // shotRay reads x / y / z only: plain points stand in for the Vector3s
+    const down = g.security.shotRay({ x: c.x + sx * 3, y: c.y, z: c.z + sz * 3 }, { x: c.x - sx * 3, y: c.y, z: c.z - sz * 3 });
+    return { down, mode: c.mode, live: window.__ctdev.debug().cams.find((k) => k.id === 'cam-view').live };
+  });
+  assert(pv.down === null && pv.mode === 'online' && pv.live, `a round on bulletproof cam-view ricochets and leaves it live (${JSON.stringify(pv)})`);
   const las = d3.ct.lasers.filter((l) => l.live);
   assert(las.length === 2 && las.every((l) => l.on && l.panel !== ''), `las-gown and las-store are live, each with its panel (${JSON.stringify(las)})`);
   // the route legs on the guards' real grid (the ladder legs are the routes' climbs)
