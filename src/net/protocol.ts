@@ -14,8 +14,8 @@ import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 import type { SecWire } from '../game/ctDevices';
 import type { SectorNetExtra } from '../game/sectors';
 
-/** 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
-export const PROTOCOL_VERSION = 26;
+/** 28: the `jam` claim carries the client's camera eye `e` (jammer-fixes: the host checks the jam's line of sight from it); 27: rejoin (marlow-bays R): `hello.tok`, `PlayerInfo.away`, the `you` message, the `restore` event; 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
+export const PROTOCOL_VERSION = 28;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -48,6 +48,8 @@ export interface PlayerInfo {
   loadout: WeaponId[];
   ready: boolean;
   host: boolean;
+  /** (marlow-bays R2) Dropped mid-match: the host holds the slot (frozen, invulnerable) until a rejoin or the hold ends. */
+  away: boolean;
 }
 
 /** Bit flags in player state. */
@@ -127,6 +129,8 @@ export type NetEvent =
   /** A player took damage from a source at (x, z). */
   | { e: 'hurt'; player: string; x: number; z: number; boom: boolean }
   | { e: 'revive'; player: string; x: number; y: number; z: number }
+  /** (marlow-bays R2) A rejoined player is put back where the host held them (health and team state come as usual). */
+  | { e: 'restore'; player: string; x: number; y: number; z: number; yaw: number }
   /** (26, marlow-jammer fix round 1) The camera hallway sent `player` back to (x, y, z), facing `yaw` (alive, health kept). */
   | { e: 'back'; player: string; x: number; y: number; z: number; yaw: number }
   /** Co-op: a takedown the host refused (the client lets go of its puppet). */
@@ -145,7 +149,10 @@ export interface EndStats {
 }
 
 export type Msg =
-  | { t: 'hello'; v: number; name: string; tag: PlayerInfo['tag']; look: AvatarLook; loadout: WeaponId[] }
+  /** `tok` (marlow-bays R2): the client's rejoin token for this room ('' = none), so a rejoin gets its held slot back. */
+  | { t: 'hello'; v: number; name: string; tag: PlayerInfo['tag']; look: AvatarLook; loadout: WeaponId[]; tok: string }
+  /** (marlow-bays R2) Host -> one client: the player id the host knows it by (its held slot's on a rejoin). */
+  | { t: 'you'; id: string }
   | { t: 'lobby'; players: PlayerInfo[]; mode: NetMode; map: string; difficulty: Difficulty; phase: 'lobby' | 'playing'; mission: string; weather: WeatherChoice }
   | { t: 'ready'; ready: boolean }
   | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; mission: string; weather: WeatherChoice; bay?: number }
@@ -193,7 +200,8 @@ export type Msg =
   /** A client's local-only drill verb (DECISIONS C10; at most CTICK_RATE a second). */
   | { t: 'ctick'; verb: ClientVerb }
   /** (CT prototype B3) A client's held pistol jammer: the device it aims at ('' = released); sent on change and every 0.25 s while held. */
-  | { t: 'jam'; tgt: string }
+  /** (27) `e`: the client's camera eye (m) a claim was aimed from (a release has none). */
+  | { t: 'jam'; tgt: string; e?: [number, number, number] }
   | { t: 'end'; stats: EndStats }
   | { t: 'bye'; reason: string };
 
@@ -283,7 +291,7 @@ function playerInfo(p: unknown): PlayerInfo | null {
   if (!isObj(p)) return null;
   const pid = id(p.id);
   if (!pid) return null;
-  return { id: pid, name: safeText(p.name, 16) || 'Operator', tag: tag(p.tag), look: sanitizeLook(p.look), loadout: loadout(p.loadout), ready: p.ready === true, host: p.host === true };
+  return { id: pid, name: safeText(p.name, 16) || 'Operator', tag: tag(p.tag), look: sanitizeLook(p.look), loadout: loadout(p.loadout), ready: p.ready === true, host: p.host === true, away: p.away === true };
 }
 
 function netEvent(v: unknown): NetEvent | null {
@@ -335,6 +343,13 @@ function netEvent(v: unknown): NetEvent | null {
       const y = num(v.y, -50, 100);
       const z = num(v.z, -WORLD, WORLD);
       return player && x !== null && y !== null && z !== null ? { e: 'revive', player, x, y, z } : null;
+    }
+    case 'restore': {
+      const player = id(v.player);
+      const x = num(v.x, -WORLD, WORLD);
+      const y = num(v.y, -50, 100);
+      const z = num(v.z, -WORLD, WORLD);
+      return player && x !== null && y !== null && z !== null ? { e: 'restore', player, x, y, z, yaw: num(v.yaw, -10, 10) ?? 0 } : null;
     }
     case 'back': {
       const player = id(v.player);
@@ -548,7 +563,11 @@ export function parseMessage(raw: unknown): Msg | null {
     case 'hello': {
       const v = num(raw.v, 0, 1e6);
       if (v === null) return null;
-      return { t: 'hello', v, name: safeText(raw.name, 16) || 'Operator', tag: tag(raw.tag), look: sanitizeLook(raw.look), loadout: loadout(raw.loadout) };
+      return { t: 'hello', v, name: safeText(raw.name, 16) || 'Operator', tag: tag(raw.tag), look: sanitizeLook(raw.look), loadout: loadout(raw.loadout), tok: id(raw.tok) ?? '' };
+    }
+    case 'you': {
+      const pid = id(raw.id);
+      return pid ? { t: 'you', id: pid } : null;
     }
     case 'lobby': {
       if (!Array.isArray(raw.players)) return null;
@@ -588,7 +607,13 @@ export function parseMessage(raw: unknown): Msg | null {
     case 'jam': {
       if (raw.tgt === '') return { t: 'jam', tgt: '' };
       const tgt = id(raw.tgt);
-      return tgt ? { t: 'jam', tgt } : null;
+      if (!tgt) return null;
+      // (27) the camera eye, clamped to the world; a malformed one is dropped (the host then checks from the head)
+      const e = Array.isArray(raw.e) && raw.e.length === 3 ? raw.e : null;
+      const ex = e ? num(e[0], -WORLD, WORLD) : null;
+      const ey = e ? num(e[1], -50, 100) : null;
+      const ez = e ? num(e[2], -WORLD, WORLD) : null;
+      return ex !== null && ey !== null && ez !== null ? { t: 'jam', tgt, e: [ex, ey, ez] } : { t: 'jam', tgt };
     }
     case 'gadget': {
       const kind = oneOf(raw.kind, NET_GADGETS);
