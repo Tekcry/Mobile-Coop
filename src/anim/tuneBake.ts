@@ -19,6 +19,7 @@ import { KEY_AT_ID, KEY_DEL_ID, parseKeyAdded } from './tuneKeysEdit'; // (item 
 import { migrateTuneChanged } from './tuneRows';
 import { BODY_BASE_FIELDS } from './tune';
 import { applyBaseEntries, BAKE_BASE_FILE, BAKE_BASE_SECTIONS, baseTarget, bakeFmt, parseAnimBase, spliceAnimBase } from './tuneBakeBase';
+import { applyGuardBaseEntries, BAKE_GUARD_FILE, BAKE_GUARD_SECTIONS, guardBaseTarget, parseAnimBaseGuard, spliceAnimBaseGuard } from './tuneBakeGuard'; // (item 24, track A)
 import { BAKE_KEYS_DIR, BAKE_LEDGER, BAKE_MANUAL, BAKE_RULES, BAKE_WRITE_ROOTS, type BakeOp, type BakeRule, type DeclaredSection, type DeclaredTunable, type ManualRule } from './tuneBakeTable';
 
 export const BAKE_MAGIC = 'night-shift-anim-tune';
@@ -603,9 +604,22 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
   // (anim-bake-targets) also every Body slider and group no code rule covers (the `body` key)
   const isBase = (en: Entry): boolean => BAKE_BASE_SECTIONS.includes(en.section) && !(byEntry.get(en)?.length) && (en.section !== 'body' || BODY_BASE_IDS.has(en.id)) && !MANUAL.some((x) => x.section === en.section && (x.id === en.id || x.id === '*') && (x.groups ? x.groups.includes(en.group) : true));
   const baseEntries: Entry[] = [];
+  // (item 24, track A) Guard joints, Guard stepping, Guard weight: the generated guard table (`animBaseGuard.ts`)
+  const guardEntries: Entry[] = [];
   for (const en of entries) {
     const row = en.row;
     if (en.section === 'keys') continue;
+    if (BAKE_GUARD_SECTIONS.includes(en.section)) {
+      try {
+        row.target = guardBaseTarget(en);
+      } catch (err) {
+        return fail((err as Error).message);
+      }
+      row.result = 'baked (guard base table)';
+      guardEntries.push(en);
+      baked++;
+      continue;
+    }
     if (isBase(en)) {
       try {
         row.target = baseTarget(en);
@@ -683,6 +697,17 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
     try {
       const after = spliceAnimBase(before, applyBaseEntries(parseAnimBase(before), baseEntries));
       if (after !== before) writes.push({ path: BAKE_BASE_FILE, before, after });
+    } catch (err) {
+      return fail((err as Error).message);
+    }
+  }
+  // (item 24, track A) the guard table: one write, only when the export has guard rows
+  if (guardEntries.length) {
+    const before = read(BAKE_GUARD_FILE);
+    if (before === null) return fail(`${BAKE_GUARD_FILE}: not found`);
+    try {
+      const after = spliceAnimBaseGuard(before, applyGuardBaseEntries(parseAnimBaseGuard(before), guardEntries));
+      if (after !== before) writes.push({ path: BAKE_GUARD_FILE, before, after });
     } catch (err) {
       return fail((err as Error).message);
     }

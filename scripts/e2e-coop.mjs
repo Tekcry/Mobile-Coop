@@ -79,6 +79,20 @@ try {
   setSimPages([A, B]);
   const GB = (f, a) => B.evaluate(f, a);
   await B.click('.main-menu .btn:has-text("Co-op")');
+  // (server browser, prototype) the host's Room row (default Private) set Public lists the room under Browse rooms, live,
+  // on the same relays (here the local test relay); full, it leaves the list
+  console.log('server browser: a public room shows in Browse rooms; full, it leaves the list');
+  const roomRow = '.lobby-opts .row-choice:has-text("Room")';
+  const rv0 = (await A.textContent(`${roomRow} .choice-val`)) ?? '';
+  assert(/Private/.test(rv0) && (await GA(() => !window.__coop.isPublic)), `a new room is Private (${rv0})`);
+  await A.click(`${roomRow} .choice-arrow >> nth=1`);
+  await until(A, () => window.__coop.isPublic && !!window.__coop.dir?.posted, null, 15000, 'the public room posts its notice');
+  await B.click('.btn:has-text("Browse rooms")');
+  await until(B, (c) => /1 \/ 2/.test(document.querySelector(`.browse-screen [data-key="room-${c}"]`)?.textContent ?? ''), code, 20000, 'Browse rooms lists the public room (1 / 2)');
+  const listed = await GB((c) => document.querySelector(`.browse-screen [data-key="room-${c}"]`)?.textContent ?? '', code);
+  assert(listed.includes(code) && /Marlow Yard|ctcourse/.test(listed), `the listed room names its code and map (${listed})`);
+  await B.keyboard.press('Escape');
+  await until(B, () => !!document.querySelector('.coop-screen:not(.browse-screen) [data-key="join"]'), null, 8000, 'back to the co-op menu');
   await B.click('.btn:has-text("Join with code")');
   await B.keyboard.type(code.toLowerCase());
   const typed = await GB(() => [...document.querySelectorAll('.code-slot')].map((s) => s.textContent).join(''));
@@ -86,6 +100,7 @@ try {
   await B.keyboard.press('Enter');
   await until(B, () => window.__coop?.session.hostId && window.__coop.session.players.size === 2, null, 15000, 'client sees host lobby');
   await until(A, () => window.__coop.session.players.size === 2, null, 5000, 'host sees client');
+  await until(A, () => window.__coop.isPublic && window.__coop.dir?.posted === '', null, 8000, 'the full room leaves the list (gone)');
   if (process.env.SHOTS) await B.screenshot({ path: `${process.env.SHOTS}/coop-lobby.png` });
   const startBlocked = await GA(() => document.querySelector('.lobby-actions .btn')?.classList.contains('blocked'));
   assert(startBlocked, 'start is blocked until everyone is ready');

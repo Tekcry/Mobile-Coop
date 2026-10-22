@@ -2,6 +2,13 @@
 
 ## Now
 anim-tuner merged as 4.20.0 (PR #56). tuner-pad (pad control) PR open from feature/tuner-pad.
+(2026-10-22, marlow-bays item 24, track A, `feature/guard-tune` off tuner v3) Guard tuning built, not committed by the
+implementer: the "Who" list (Wren / Guard) in the Body, Stepping and Weight tabs' what-row; the sections Guard joints
+(`guard.joint.<row>`), Guard stepping (`guard.step.<gait>`), Guard weight (`guard.weight.<row>`; rows idle, walk, run,
+aim, crouch, cover) registered from `src/anim/tuneGuard.ts`; every guard rig reads them over the generated guard base
+table `src/anim/animBaseGuard.ts` (`rig.guardRows` in `buildEnemyRig`), Wren never; the Anim Studio's guard puppet
+(a grunt's real rig, no AI) plays `guard:<loop>` loops on the spot. The bake writes the guard table (BAKE.md). Detail:
+`docs/systems/ui.md` (item 24 bullet). Pending: GPU / visual check on Michael's PC; Michael's playtest.
 
 ## Next
 1. The orchestrator merges tuner-pad on its tests + CI.
@@ -103,7 +110,9 @@ Tests: `tests/animTuneCamera.test.ts` (registry block), `tests/animTunePass2.tes
 an export's values into the code defaults. Always `--dry-run` first (the diff and a table: section, group, slider, value,
 result, target; nothing written). A real run writes the source files, the Keys section's key JSONs (the apply-tune
 functions) and the ledger `src/anim/tuneBakeLog.json`, then prints the rebake command per key clip (Blender is never
-run). Sections for `--only`: body, gun, cam, speed, joint, hand, ik, weapon, step, keys, weight. Detail: `BAKE.md`.
+run). Sections for `--only`: body, gun, cam, speed, joint, hand, ik, weapon, step, gear, keys, weight, guardJoint,
+guardStep, guardWeight (item 24: the guard rows go into the guard base table `src/anim/animBaseGuard.ts`). Detail:
+`BAKE.md`.
 (marlow-bays T1a) The Keys rows also write the new key fields (`head`, `armX.twist`, `armX.twistUpper`, `armX.sh`,
 the pelvis `dx / dy / dz`) and a clip whose Mirror box is off with its halves edited apart is written in full
 (`mirror: false`, every key); the rebake then writes the clip channels `fore`, `head`, `sh`. A version 1 export (before
