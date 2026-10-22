@@ -23,10 +23,13 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   (5) fragment covers only the nav-timeout commits -> FIXED 887c7d4d (all fixes listed).
   (2) BLOCKING e2e-ctcourse station 4 (~466-472) and station 3 (~288-292): the windows shrink to min(nominal, left - 0.3 s)
       with floors 500 / 200 ms = a weaker check. Keep the original 2000 / 800 ms windows on the host clock; if too little
-      jam time is left, RE-JAM before measuring. An agent was on it at the save; check git log on feature/load-audit for
-      its commit, else do it.
-  (3) RECOMMENDED e2e-coop grab (~625-655): allowTeleport(2) once before moveClient (not every host frame), only the
-      awareness reset + statue per frame; a generation token for the rAF pin chain; clear the pin in finally. Same agent.
+      jam time is left, RE-JAM before measuring. -> FIXED 72ffda53 (original 800 / 2000 ms windows on the host clock;
+      re-jam when under 1.1 / 2.3 s left, the client steps off the beam during the station 4 re-jam). Syntax-checked only;
+      assumes no jammer cooldown blocks an immediate re-jam.
+  (3) RECOMMENDED, NOT DONE, e2e-coop grab (~625-655): allowTeleport(2) once per attempt in its own GA before
+      moveClient; keep spotted=false + awareness reset + statue per frame; replace __grabPinOn with a token
+      (const gen = ++window.__grabPinGen; stop when stale or the guard is taken); try/finally around moveClient + the GB
+      grab wait with window.__grabPinGen++ in the finally.
   After (2)/(3): rerun the stress set on the new head (the remaining stress steps of ns-chain-1022ap run on 0067b5f5,
   so they do NOT cover these fixes), then open the PR.
 - LOAD-AUDIT branch (worktree C:/NightShift/Mobile-Coop-load-audit), 7 commits on master af56ab43:
