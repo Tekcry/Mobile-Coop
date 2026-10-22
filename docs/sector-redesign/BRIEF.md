@@ -46,6 +46,8 @@ lighting where players make their own shadows. Prototype first (CLAUDE.md curren
 - M9 (Q4 lighting, not asked; the orchestrator took it from M1 "there shouldnt always be shadows, the player may have
   to make shadows (disabling lights etc)"): lit like a real site, players cut lights, dark zones only where believable.
 - M10 (Q5 security tools): "Include guard dogs": cameras, lasers, alarm panels, keypads, then dogs and armed response.
+- M11 (~01:25, through the orchestrator): "Keep both": the Warehouse stays selectable as a second Sector Ops map,
+  never delisted.
 
 ## Questions sent to Michael (~01:50, through the orchestrator)
 Q1 setting, Q2 run length, Q3 guards per section, Q4 lighting default, Q5 security tools. Answers land here as M6+;
@@ -66,8 +68,8 @@ Spec writer, 2026-10-23 ~03:00 (SPEC.md / PLAN.md; A1-A7 adopt CONCEPT.md sectio
 - A7 Guards 8 / 12 / 16 / 20 / 24, `perStage` 2, `alarmMax` 3 (S5 peak 30 <= 32). Undo: data.
 - A8 One map `campusOps` (new id, new stars record; main-menu stars at `src/main.ts:151` to point at it). Why: sections
   are native data, one live at a time (ENGINE fact 1); per-section maps need an L-size swap system. Undo: chunks (EW-L1).
-- A9 Warehouse Ops stays listed until campusOps S1-S3 plays (PLAN slice 3), then is delisted from the Sector selector
-  and parked as the regression map (files and tests kept). Undo: keep both listed.
+- A9 (replaced by M11 "Keep both"): Warehouse Ops stays listed as a second Sector Ops map, never delisted; campusOps
+  joins the Sector selector beside it once S1-S3 plays.
 - A10 Encounter spaces use a 0.14 standby fill (LR7's number), connectors / transit 0.30: a map choice, not an LS
   change. Undo: ambient 0.30 (cut circuits then never read dark).
 - A11 Breakers and boards are `MapDef.switches` at the real board until EW8 builds an isolator device. Undo: n/a.

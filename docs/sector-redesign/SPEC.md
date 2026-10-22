@@ -26,7 +26,7 @@ pair gates, camera cut): the engine items are listed in "Engine work needed", ea
 and built in PLAN slice 0 / slice L / slices E. Guard **behaviour** (hearing, bodies, light investigations, posted
 guards, radio, squads, reinforcement tactics) is owned by the guard-ai job ("guard-ai provides"); this job owns map
 data and `sectorMode` (placement, archetype per guard, dog allowance, post / zone / squad / reason tags, restart
-resets, camera cap). Enemy tuning tables never change for this map. Other maps: no changes (Warehouse: A9).
+resets, camera cap). Enemy tuning tables never change for this map. Other maps: no changes (Warehouse: M11 "Keep both", stays listed).
 
 ## Originality (fixed)
 Original design. Do not copy `warehouse*.ts` layouts, coordinates, room ids, colours, set pieces or guard routes; the

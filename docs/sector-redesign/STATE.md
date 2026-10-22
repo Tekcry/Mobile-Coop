@@ -39,48 +39,16 @@
 
 ## Resume prompt
 ```
-Night Shift | Course Ready Build: RESUME sector-redesign. Read CLAUDE.md, docs/ROADMAP.md (origin/feature/menu for the
-live "Decided"), docs/sector-redesign/BRIEF.md and this STATE (origin/feature/sector-redesign), and
-docs/marlow-bays/RESUME-trackA.md on origin/feature/marlow-bays for the other open jobs (sw-reload, g44-above,
-camera-range). Carry on from "Next". Follow "Rules after the reset" above; WIP pushed after every hand-back. Report to
-"Night Shift | Orchestrator".
+Night Shift | Course Ready Build: RESUME (cleared session). Job: sector-redesign (lead), branch feature/sector-redesign,
+worktree C:/NightShift/Mobile-Coop-sector-redesign. git fetch, then read: CLAUDE.md and docs/ROADMAP.md (origin/feature/menu
+for the live "Decided"); docs/sector-redesign/BRIEF.md (Michael M1-M11, assumptions A1-A45), STATE.md (this file: Now,
+Rules after the reset, Next, MORNING-REVIEW), PLAN.md and SPEC.md, all on origin/feature/sector-redesign. Other open
+items are in docs/marlow-bays/RESUME-trackA.md on origin/feature/marlow-bays (PRs #169 g44-above and #176 sw-reload in
+the orchestrator's train 16: post the laptop rerun of sw-reload 0a34662b on #176 when Character Build replies).
+In flight at the save (check each branch's log; an agent from the old session is gone, so rerun its slice from PLAN.md
+if its work is not committed): slice 0 (this branch), slice L (feature/sector-redesign-light, protocol 31),
+camera-range (feature/camera-range). Carry on from "Next" under "Rules after the reset" (99% windows, max 3 agents,
+Opus briefs / checks, Sonnet 5.5 builds greyboxes, Opus for engine work). Michael is asleep: log assumptions, no
+question dialogs. Every e2e is E2E_GPU=1 and goes to Night Shift | Character Build on the laptop. Report to
+"Night Shift | Orchestrator" at each slice and PR.
 ```
-
-## MORNING-REVIEW (Michael ~01:42: "Apply, logged and undoable")
-Every loosening and assumed decision built tonight, with its undo. Filled in as the spec and slices land.
-Applied for campusOps only: docs/level-design.md, the template and the bible are NOT edited. Each row and its undo
-is in SPEC.md "Applied loosenings" and BRIEF "Assumed decisions".
-- A23-A32 = CONCEPT P1-P10:
-  - A23: vantages may be safe by occlusion.
-  - A24: cuttable lights count as stepping stones.
-  - A25: lit default with standby fill.
-  - A26: a lit chokepoint may be darkened one way, or crossed by timing.
-  - A27: an isolation moment may be darkened from cover.
-  - A28: lit vantages are tested for out-of-sight.
-  - A29: co-op verbs gain rope / hang-down / jam-and-pass / pair gate; CR4-CR7 rest on it.
-  - A30: dual-control doors and a padlocked ladder guard are allowed; CR3 / CR5 / CR6 rest on it.
-  - A31: the Warehouse loosenings L1-L15 carry over.
-  - A32: patrol mix is judged per section.
-- A33-A44 = lighting review LR1-LR12 (docs/lighting-review/PROPOSAL.md on feature/marlow-final):
-  - A33: lit by default, the players make the dark.
-  - A35: dark checkpoints are allowed; connectors are lit at 0.30.
-  - A37: ways to darken include at least one that is not a shot.
-  - A38: player-started windows are allowed, with no area clock that fails the run.
-  - A39: standby fills of 0.14 / 0.30.
-  - A40: a cut circuit drops below 0.28 on host and client.
-  - A41: when darkness happens it is true dark.
-  - A42 and A43: the build sheets record the light plans.
-  - A44: the light-sync engine fact (slice L closes it).
-  - A34 and A36 repeat A23 and A27.
-- A45: the template's "existing systems only" rule is lifted for this job (it builds engine items EW1-EW16).
-- Other assumptions to review (BRIEF A1-A22):
-  - A2: dogs in S4-S5 only, at an armed handler's heel (an exception to G155 for Sector Ops).
-  - A3 and A12: no runners, heavies, snipers or drone operators.
-  - A8: a new map id, campusOps, so a new stars record and a menu line to repoint.
-  - A9: the Warehouse map stays until S1-S3 play, then is delisted and kept for regression.
-  - A11: breakers are wall switches until EW8.
-  - A15: no lifts, hatches or roller doors.
-  - A16: talking pairs are faked with timed loops until guard-ai's GA2.
-  - A20: load under 2x Warehouse Ops, else the chunk or compact fallback.
-  - A21: no plain team doors.
-- Finished and green slices merge to master in the next train (/preview/).

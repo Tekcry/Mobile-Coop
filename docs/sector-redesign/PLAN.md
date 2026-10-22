@@ -77,7 +77,7 @@ Tests: unit common + 16 guards, each laser's panel visible from the near side; e
 grab by the stealth route; solo cannot reach the chamber roof from the floor (burn-in racks, benches, EMC room roof);
 the gallery -> chamber roof solo step is allowed (from above); co-op leg-up; jamming las-store's panel lets a crouch
 pass; the high-bay switch bank lures #16.
-Done when: S1-S3 plays; then campusOps joins `LISTED_MAP_IDS` and the Sector selector (A9: Warehouse stays listed).
+Done when: S1-S3 plays; then campusOps joins `LISTED_MAP_IDS` and the Sector selector (M11: Warehouse stays listed, both maps).
 
 ## Slice 4 - S4 data hall (first dog), gated by EW15
 First: EW15 guard-cap perf run (12 / 16 / 24 awake) on the laptop GPU; result in STATE; if it fails, report, keep the
@@ -110,7 +110,6 @@ that hold but can be distracted, GA4 light investigations by 1-2 guards (relight
 alerts, GA6 reinforcement tactics. Our slices only place guards and tag them; each section is re-checked when a GA
 item merges. Camera fill over range (EG2) comes from `feature/camera-range`.
 
-## The old Warehouse map (A9)
-`warehouseOps` stays as it is and listed until campusOps S1-S3 is playable (slice 3); then it is delisted from the
-Sector selector (parked: files, tests and `e2e-sectorops` Warehouse part kept as the regression map, nothing deleted).
-Undo: keep both listed.
+## The old Warehouse map (M11 "Keep both")
+`warehouseOps` stays as it is and stays listed as a second Sector Ops map, never delisted (Michael ~01:25). campusOps
+joins the Sector selector beside it once S1-S3 is playable (slice 3); `e2e-sectorops` keeps its Warehouse parts.
