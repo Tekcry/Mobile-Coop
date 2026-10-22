@@ -226,6 +226,9 @@ function clipFootOff(f: FootState): void {
   f.clipPitchOff = 0;
 }
 
+/** (guard-render S5 L5) A joint's limiter state (`limitJoint`): its max rate once resolved, the previous local rotation. */
+type LimitedNode = TransformNode & { _lim?: { rate: number | undefined; prev: Quaternion | null } };
+
 /**
  * Max joint angular speeds (rad/s) by joint name suffix: realistic limits, also blend continuity. (locomotion step 21)
  * hips and knees 25 rad/s = 23.9 deg per 60 Hz frame, under bible 5.12.2's 25 deg per frame.
@@ -1197,7 +1200,6 @@ export class CharacterRig {
   private handDur = EDGE_HAND_TIME;
   /** Smoothed world aim rotation of the weapon (inertia from the weapon's mass). */
   private aimQ: Quaternion | null = null;
-  private prevRot = new Map<TransformNode, Quaternion>();
   /** Joint-rate limiter hits (debug overlay warning counter). */
   limited = 0;
   /** Last graph output (debug overlay: layer weights, weapon bob). */
@@ -3494,7 +3496,7 @@ export class CharacterRig {
       Quaternion.RotationAxisToRef(elbAxis, pass === 0 ? best : -2 * best, elbQ);
       elbQ.multiplyToRef(sh.absoluteRotationQuaternion, tmpQ3);
       this.setWorldRot(sh, sh.parent as TransformNode, tmpQ3);
-      this.prevRot.get(sh)?.copyFrom(sh.rotationQuaternion!);
+      (sh as LimitedNode)._lim?.prev?.copyFrom(sh.rotationQuaternion!);
       fresh(sh);
       fresh(el);
       const e = el.getAbsolutePosition();
@@ -3521,7 +3523,7 @@ export class CharacterRig {
     Quaternion.RotationAxisToRef(elbAxis, th, elbQ);
     elbQ.multiplyToRef(sh.absoluteRotationQuaternion, tmpQ3);
     this.setWorldRot(sh, sh.parent as TransformNode, tmpQ3);
-    this.prevRot.get(sh)?.copyFrom(sh.rotationQuaternion!);
+    (sh as LimitedNode)._lim?.prev?.copyFrom(sh.rotationQuaternion!);
     fresh(sh);
     fresh(el);
     this.setWorldRot(wr, el, elbHand);
@@ -3533,18 +3535,19 @@ export class CharacterRig {
    * angular speed. Any abrupt pose change (state switch, IK flip, scripted pose) is spread over a few frames,
    * so motion stays continuous (an inertialization-style safety net under the weighted blends).
    */
-  private jointRate = new Map<TransformNode, number>();
-
   private limitJoint(node: TransformNode, dt: number, rate?: number): boolean {
-    let maxRate = rate ?? this.jointRate.get(node);
+    // (guard-render S5 L5) the limiter state lives on the node itself (a node belongs to one rig): no Map lookups
+    let st = (node as LimitedNode)._lim;
+    if (st === undefined) st = (node as LimitedNode)._lim = { rate: undefined, prev: null };
+    let maxRate = rate ?? st.rate;
     if (maxRate === undefined) {
       maxRate = JOINT_RATE.get(node.name.split('-').pop() ?? '') ?? 20;
-      this.jointRate.set(node, maxRate);
+      st.rate = maxRate;
     }
     const q = node.rotationQuaternion!;
-    const prev = this.prevRot.get(node);
+    const prev = st.prev;
     if (!prev) {
-      this.prevRot.set(node, q.clone());
+      st.prev = q.clone();
       return false;
     }
     const dot = Math.min(1, Math.abs(Quaternion.Dot(prev, q)));
