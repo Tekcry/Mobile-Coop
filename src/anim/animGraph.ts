@@ -13,6 +13,7 @@
  * Feet are placed by the rig's world-space FootPlanner from the stance and gait values output here.
  */
 import type { Proportions } from '../player/proportions';
+import { rollRide } from '../player/traversePath';
 import { overClip, addClip, type Clip } from './clip';
 import { evalCurve } from './curves';
 import { CH, Inertializer, lerpPose, newPose, type Pose } from './pose';
@@ -39,7 +40,7 @@ import {
 } from './clips/locomotion';
 import { CLIP_RATE, DROP, GRENADE, LAND, LAND_DEEP, MANTLE, PIVOT, reloadClipFor, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions'; // (clip-speed, track A) CLIP_RATE
 import { CLIP_BASE, clipSpeed } from './tuneClipSpeed'; // (clip-speed, track A)
-import { airPoseW, CLIMB, CLIMB_UP, CLIMB_UP_TEAM, CRAWL, CRAWL_OUT, HANG, LAND_ABSORB, landDeep, landLight, mantlePlant, PIPE_CLIMB, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollBody, rollRide, SPLIT_BRACE, splitBreath, VENT_DROP, WALL_KICK, WINDOW_VAULT, type MantlePlantOut, type RollBodyOut, type SplitBreathOut } from './clips/traverse';
+import { airPoseW, CLIMB, CLIMB_UP, CLIMB_UP_TEAM, CRAWL, CRAWL_OUT, HANG, LAND_ABSORB, landDeep, landLight, mantlePlant, PIPE_CLIMB, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollBody, SPLIT_BRACE, splitBreath, VENT_DROP, WALL_KICK, WINDOW_VAULT, type MantlePlantOut, type RollBodyOut, type SplitBreathOut } from './clips/traverse';
 import { hyp2 } from '../core/mathx';
 import { emptyActionWeights, type TuneActionWeights } from './tuneMoveRows';
 import { effortSpeed } from './effort';
@@ -1477,10 +1478,11 @@ export class AnimGraph {
     if (clipHands) {
       const tc = i.traverse === 'roll' ? ROLL : DROP;
       const tt = clamp(i.traverseT, 0, 1);
+      const hw = this.travHandW; // (anim-n4b fix) eased in from the hands before (it overwrote at full weight: a pop)
       for (let h = 0; h < TRAV_CLIP_HANDS.length; h++) {
         const ch = TRAV_CLIP_HANDS[h]!;
         const cv = tc.curves[ch];
-        if (cv) src[ch] = evalCurve(cv, tt);
+        if (cv) src[ch] = src[ch]! + (evalCurve(cv, tt) - src[ch]!) * hw;
       }
     } else if (this.plant.w > 0) {
       const pl = this.plant;
@@ -1581,7 +1583,10 @@ export class AnimGraph {
       src[CH.pelY] = src[CH.pelY]! - this.bendDropS;
       src[CH.pelX] = src[CH.pelX]! + this.swayS;
     }
-    this.cqGait.apply(src, i.bend > 0 || i.bendDrop > 0, i.cqBody, i.cqCarry, this.phase, this.moveW, dt, this.swayS); // (anim-n4, track A; anim-n4b, track A: the hold sway drives the still brace)
+    // (anim-n4b fix) a team holder's brace bends too (team pose `applyB`, traverse 'brace'): not a hold or a carry, so no
+    // close-quarters walk or hostage brace on it
+    const cqOn = (i.bend > 0 || i.bendDrop > 0) && i.traverse !== 'brace';
+    this.cqGait.apply(src, cqOn, i.cqBody, i.cqCarry, this.phase, this.moveW, dt, this.swayS); // (anim-n4, track A; anim-n4b, track A: the hold sway drives the still brace)
 
     // --- additive: hit flinch, heel-strike compression, weight over the support foot
     const hx = this.hit.step(0, 9, dt);

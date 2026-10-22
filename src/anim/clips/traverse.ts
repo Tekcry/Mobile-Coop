@@ -9,6 +9,7 @@
  * and flat in a crawl. Weapons are holstered while attached (grip weights 0).
  */
 import { makeClip } from '../clip';
+import { MANTLE_PATH, mantleAlong, mantleRise } from '../../player/traversePath';
 
 /**
  * Hanging from a lip / pipe / cable: arms overhead, body long, knees soft, feet together and slightly forward.
@@ -226,8 +227,11 @@ const smooth01 = (x: number): number => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 
  * right shoulder goes down first) turns it a full turn about the hips-to-feet line (`tilt`: that line leans `tilt`
  * forward at the feet) over 0.16 - 0.84, so it rolls shoulder, back, hip along the floor; `drop` (m at 1.75 m) sinks the
  * pivot towards the floor with the dive (it also takes out the path's ride, `rollRide`, so the body stays down).
+ * (anim-n4b fix) `faceLift` (m at 1.75 m) gives back part of the drop while the chest faces the floor (the dive in and the
+ * last of the spin): the knees bend toward the chest, so then they point down (rig knee joints were 7.7 cm under the floor).
  */
-export const ROLL_BODY = { pitch: 1.5, pitchIn: 0.38, pitchOut: 0.68, pitchOutT: 0.3, spinFrom: 0.16, spinTo: 0.84, drop: 0.32, dropIn: 0.36, dropOut: 0.66, dropOutT: 0.32, tilt: 0.237 } as const;
+export const ROLL_BODY = { pitch: 1.5, pitchIn: 0.38, pitchOut: 0.68, pitchOutT: 0.3, spinFrom: 0.16, spinTo: 0.84, drop: 0.32, dropIn: 0.36, dropOut: 0.66, dropOutT: 0.32, tilt: 0.237, faceLift: 0.13 } as const;
+const rollFwd = { x: 0, y: 0, z: 0 };
 
 export interface RollBodyOut {
   pitch: number;
@@ -240,14 +244,10 @@ export function rollBody(t: number, out: RollBodyOut): RollBodyOut {
   const B = ROLL_BODY;
   out.pitch = B.pitch * (smooth01(t / B.pitchIn) - smooth01((t - B.pitchOut) / B.pitchOutT));
   out.spin = -Math.PI * 2 * smooth01((t - B.spinFrom) / (B.spinTo - B.spinFrom));
-  out.drop = B.drop * (smooth01(t / B.dropIn) - smooth01((t - B.dropOut) / B.dropOutT));
+  // the body's forward (the chest) turned down toward the floor: the knees with it
+  const down = -rollTurn(out.pitch, out.spin, 0, 0, 1, rollFwd).y;
+  out.drop = B.drop * (smooth01(t / B.dropIn) - smooth01((t - B.dropOut) / B.dropOutT)) - B.faceLift * Math.max(0, down);
   return out;
-}
-
-/** The roll path's ride (m): the root rises a little over the roll (`traversePath` 'roll'; shared so the rig can take it
- *  back out of the body). */
-export function rollRide(k: number): number {
-  return 0.16 * Math.sin(Math.PI * Math.min(1, Math.max(0, (k - 0.1) / 0.75)));
 }
 
 /**
@@ -274,18 +274,6 @@ export function rollTurn(pitch: number, spin: number, x: number, y: number, z: n
   return out;
 }
 
-/**
- * (anim-n4b, PASS2 row 61 / AUDIT fix 26) The mantle's root path shares (as `traversePath` 'mantle', which uses these):
- * the feet rise to the top (+ `MANTLE_PATH.topLift`) over 0 - 0.65 and move along to the end (`standIn` past the edge)
- * over 0.35 - 1.
- */
-export const MANTLE_PATH = { riseEnd: 0.65, alongFrom: 0.35, topLift: 0.04, standIn: 0.4 } as const;
-export function mantleRise(k: number): number {
-  return smooth01(k / MANTLE_PATH.riseEnd);
-}
-export function mantleAlong(k: number): number {
-  return smooth01((k - MANTLE_PATH.alongFrom) / (1 - MANTLE_PATH.alongFrom));
-}
 
 /**
  * (anim-n4b) The mantle's hand plant: both hands reach up to the top edge (an arc over the lip, 0.06 - 0.2), press on it
@@ -321,10 +309,16 @@ export function mantlePlant(k: number, H: number, D: number, shoulderY: number, 
 
 /**
  * (anim-n4b, PASS2 row 64 / AUDIT fix 26) Landing absorb by the landing's strength (`AnimInput.landing`, 0..1: the
- * controller's recovery, which grows with the fall speed): `light` the shallow landing's share (from a ~0.5 m drop),
- * `deep` the deep landing's (knees and hips flex further the harder it lands: ~1.2 m starts it, ~2.4 m and more full).
+ * controller's recovery, which grows with the fall speed): `light` the shallow landing's share (from a 0.5 m drop, full
+ * by ~1.05 m), `deep` the deep landing's (knees and hips flex further the harder it lands: ~1.05 m starts it, ~1.5 m and
+ * more full). (anim-n4b fix) Calibrated at the game's gravity `LAND_GRAVITY` (was 9.81): the controller's landing is
+ * min(1, 2 landT), landT = 0.15 + (v - 3) 0.08 over 3 m/s (playerController), so 0.5 m -> 0.50, 1.05 m -> 0.80, 1.5 m ->
+ * 1 (the strength tops out there); a stair or step under ~0.25 m (v under 3 m/s) is 0 and never starts one.
  */
-export const LAND_ABSORB = { lightFrom: 0.3, lightTo: 0.55, deepFrom: 0.55, deepTo: 0.95 } as const;
+export const LAND_ABSORB = { lightFrom: 0.5, lightTo: 0.8, deepFrom: 0.8, deepTo: 1 } as const;
+/** (anim-n4b fix) The game's gravity (m/s^2, `physics/havok.ts` GRAVITY.y = -18), not imported: that module pulls
+ *  Babylon and Havok into the anim module. The landing calibration's fall speeds. */
+export const LAND_GRAVITY = 18;
 export function landLight(landing: number): number {
   return smooth01((landing - LAND_ABSORB.lightFrom) / (LAND_ABSORB.lightTo - LAND_ABSORB.lightFrom));
 }

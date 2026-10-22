@@ -2318,7 +2318,10 @@ export class GameState implements AppState {
     this.net?.frameUpdate(dt);
     // (B8) the two-person rope, drawn while it is out (render only; built on first use)
     // (anim-n4b, track A) the rope starts in the holder's hands (its facing on this page)
-    if (this.ropeLine || this.team.state.startsWith('rope')) (this.ropeLine ??= new RopeLine(this.scene)).update(this.team, this.player.position, this.player.controller.renderYaw, this.team.partnerYaw(), this.player.rig.height);
+    // (anim-n4b fix) the partner's yaw only on the climber's side (the line starts in the partner's hands there)
+    const ropeSt = this.team.state;
+    const ropeClimber = ropeSt === 'ropeClimb' || ropeSt === 'ropeTop' || ropeSt === 'ropeSlide';
+    if (this.ropeLine || ropeSt.startsWith('rope')) (this.ropeLine ??= new RopeLine(this.scene)).update(this.team, this.player.position, this.player.controller.renderYaw, ropeClimber ? this.team.partnerYaw() : NaN, this.player.rig.height);
     this.drawShadows();
     this.renderPings(dt);
     this.updateHud();

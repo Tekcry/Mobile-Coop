@@ -1105,6 +1105,8 @@ export class CharacterRig {
   private pelvisWorldYaw = 0;
   /** (G6 fix) The legs' yaw override this frame (side-on at a wall: the body's), NaN = the planner's foot yaws. */
   private legYaw = Number.NaN;
+  /** (anim-n4b fix) A grounded roll this frame (the body spun / tumbled with `tumbleLift`): the knee poles turn with the body. */
+  private rollPole = false;
 
   constructor(
     scene: Scene,
@@ -2089,6 +2091,7 @@ export class CharacterRig {
 
   private applyTargets(t: ReturnType<AnimGraph['update']>, dt: number, free: boolean): void {
     const p = this.p;
+    this.rollPole = t.tumbleLift || t.tumbleSpin !== 0;
     // (anim-n4b, PASS2 row 66) a roll: the spin about the hips-to-feet line first, then the tumble's pitch (as `rollTurn`),
     // and the pivot sunk toward the floor (`tumbleDrop`)
     if (t.tumbleSpin !== 0) {
@@ -3482,6 +3485,14 @@ export class CharacterRig {
     const climbK = this.input.traverse === 'climb' || this.input.traverse === 'pipeClimb';
     const o = climbK ? Math.max(out, CLIMB_KNEE_OUT * TUNE_CUR.kneeOutMul) : out;
     tmpPole.set(sn + side * o * c, climbK ? CLIMB_KNEE_UP * TUNE_CUR.kneeLiftMul : 0, c - side * o * sn);
+    if (this.rollPole) {
+      // (anim-n4b fix) in a roll the pole turns with the body (into the root frame, then the body's world rotation): a
+      // level world pole lay along the pitched, spun hip-to-ankle line and the knees bent through the floor (-0.21 m)
+      const ry = this.root.rotation.y;
+      const rc = Math.cos(ry);
+      const rs = Math.sin(ry);
+      Vector3.TransformNormalFromFloatsToRef(tmpPole.x * rc - tmpPole.z * rs, tmpPole.y, tmpPole.x * rs + tmpPole.z * rc, this.body.getWorldMatrix(), tmpPole);
+    }
     solveTwoBone(H, tmpA, p.thigh.len, p.calf.len, tmpPole, tmpC, tmpD);
     // twist references that stay defined at any hip flexion (deep sneak, kneel): the kneecap faces away
     // from the shin, the shin faces along the thigh; the pole only steers them when the leg is straight

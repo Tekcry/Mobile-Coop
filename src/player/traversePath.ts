@@ -9,11 +9,29 @@ export interface PathPoint {
   z: number;
 }
 
-import { MANTLE_PATH, mantleAlong, mantleRise, rollRide } from '../anim/clips/traverse';
-
 export type PathKind = 'step' | 'vault' | 'mantle' | 'drop' | 'hop' | 'roll';
 
 const smooth = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+
+/**
+ * (anim-n4b, PASS2 row 61 / AUDIT fix 26) The mantle's root path shares ('mantle' below; the anim graph's hand plant,
+ * `anim/clips/traverse` mantlePlant, reads them too): the feet rise to the top (+ `MANTLE_PATH.topLift`) over 0 - 0.65
+ * and move along to the end (`standIn` past the edge) over 0.35 - 1. (anim-n4b fix: here, so the path never imports
+ * animation.)
+ */
+export const MANTLE_PATH = { riseEnd: 0.65, alongFrom: 0.35, topLift: 0.04, standIn: 0.4 } as const;
+export function mantleRise(k: number): number {
+  return smooth(k / MANTLE_PATH.riseEnd);
+}
+export function mantleAlong(k: number): number {
+  return smooth((k - MANTLE_PATH.alongFrom) / (1 - MANTLE_PATH.alongFrom));
+}
+
+/** The roll path's ride (m): the root rises a little over the roll ('roll' below; shared so the rig can take it back out
+ *  of the body: the anim graph's `tumbleDrop`). */
+export function rollRide(k: number): number {
+  return 0.16 * Math.sin(Math.PI * Math.min(1, Math.max(0, (k - 0.1) / 0.75)));
+}
 
 /** Feet at progress `k` (0..1) of a move from `f` to `e` over an obstacle top `top`, entered at `speed0` (m/s). */
 export function traversePath(kind: PathKind, f: PathPoint, e: PathPoint, top: number, speed0: number, k: number, out: PathPoint): PathPoint {

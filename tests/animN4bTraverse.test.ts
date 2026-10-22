@@ -8,8 +8,8 @@ import { Matrix, Quaternion, Vector3 } from '../src/core/babylon';
 import { AIR_POSE, AnimGraph, defaultInput, type AnimInput } from '../src/anim/animGraph';
 import { DROP } from '../src/anim/clips/actions';
 import { sample } from '../src/anim/clip';
-import { MANTLE_PATH, MANTLE_PLANT, mantleRise, mantleAlong, ROLL_BODY, rollRide, rollTurn, SPLIT_HANDS, splitBreath, type SplitBreathOut } from '../src/anim/clips/traverse';
-import { traversePath } from '../src/player/traversePath';
+import { LAND_GRAVITY, MANTLE_PLANT, ROLL_BODY, rollTurn, SPLIT_HANDS, splitBreath, type SplitBreathOut } from '../src/anim/clips/traverse';
+import { MANTLE_PATH, mantleAlong, mantleRise, rollRide, traversePath } from '../src/player/traversePath';
 import { proportions } from '../src/player/proportions';
 import { AttachGrips } from '../src/player/attachGrips';
 import { TraversalAnchors, type SplitAnchor } from '../src/world/anchors';
@@ -109,10 +109,11 @@ describe('anim-n4b: the drop has an air pose and a landing that flexes by the dr
     expect(hx0 - g.out.handL.x).toBeGreaterThan(0.15);
   });
 
-  it('the landing dip grows with the drop height (0.6 -> 1.2 -> 1.8 -> 2.4 m)', () => {
-    // the controller's landing strength (playerController: landT from the fall speed, Player: landing = 2 landT)
+  it('the landing dip grows with the drop height (0.6 -> 0.9 -> 1.2 -> 1.5 m); a step under 0.25 m none', () => {
+    // the controller's landing strength (playerController: landT from the fall speed at the game's gravity, Player:
+    // landing = 2 landT; it tops out at ~1.5 m, and from LANDING.roll 2.5 m a fall is a roll)
     const landingOf = (h: number) => {
-      const v = Math.sqrt(2 * 9.81 * h);
+      const v = Math.sqrt(2 * LAND_GRAVITY * h);
       const landT = v > 3 ? Math.min(0.7, 0.15 + (v - 3) * 0.08) : 0;
       return Math.min(1, landT * 2);
     };
@@ -132,7 +133,9 @@ describe('anim-n4b: the drop has an air pose and a landing that flexes by the dr
       expect(Math.abs(g.out.pelvis.y - y0)).toBeLessThan(0.02);
       return -lo;
     };
-    const d = [0.6, 1.2, 1.8, 2.4].map(dip);
+    expect(landingOf(0.25)).toBe(0);
+    expect(dip(0.24)).toBeLessThan(0.001);
+    const d = [0.6, 0.9, 1.2, 1.5].map(dip);
     expect(d[0]).toBeGreaterThan(0.005);
     for (let n = 1; n < d.length; n++) expect(d[n]!).toBeGreaterThan(d[n - 1]! + 0.02);
     expect(d[3]).toBeGreaterThan(0.3);

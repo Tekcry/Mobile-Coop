@@ -947,13 +947,15 @@ export class TeamController {
 
   /** The partner's feet (its avatar), null when it is gone. (B8: the rope line reads it.) */
   partnerPos(): Vector3 | null {
-    for (const m of this.mates()) if (m.id === this.partner) return m.pos;
+    const ms = this.mates();
+    for (let n = 0; n < ms.length; n++) if (ms[n]!.id === this.partner) return ms[n]!.pos;
     return null;
   }
 
   /** (anim-n4b, track A) The partner's facing (its avatar's yaw), NaN when it is gone: the team pose's contact. */
   partnerYaw(): number {
-    for (const m of this.mates()) if (m.id === this.partner) return m.yaw;
+    const ms = this.mates();
+    for (let n = 0; n < ms.length; n++) if (ms[n]!.id === this.partner) return ms[n]!.yaw;
     return NaN;
   }
 
