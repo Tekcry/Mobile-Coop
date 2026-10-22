@@ -1,6 +1,6 @@
 # Track A (Night Shift | Course Ready Build) - resume
 
-Written 2026-10-22 ~09:10, updated ~17:50 (full burn; stop new agents at 97% of the 5-hour window). Read CLAUDE.md, docs/ROADMAP.md, docs/marlow-bays/BRIEF.md (items
+Written 2026-10-22 ~09:10, updated ~19:05 (paused at the 5-hour 98% stop; resumes after the 21:10 reset). Read CLAUDE.md, docs/ROADMAP.md, docs/marlow-bays/BRIEF.md (items
 24, 29, 30 and "Tracks") and this file. Report to "Night Shift | Orchestrator".
 
 ## Open jobs
@@ -13,9 +13,10 @@ Written 2026-10-22 ~09:10, updated ~17:50 (full burn; stop new agents at 97% of 
 | clip-speed | `feature/clip-speed` | merged | #109 merged in train/2 #112 as 4.53.0 (5220f79c) | Done. Menu Notes N3 splits holster per gun (agreed) |
 | anim-natural N4 holds and carries | `feature/anim-n4` | merged | #113 merged in train/3 #114 as 4.54.0 (99f3e488) | Done |
 | sector-fixes slice S (security room) | `feature/sector-fixes-s` | merged | #115 in 4.55.0; guardInfo test patch #124 merged as 4.55.1 (master green) | Done (GPU look of the room still owed: scripts/shots-ctcourse.mjs s3-monitors) |
-| anim-n4b | `feature/anim-n4b`, `C:/NightShift/Mobile-Coop-anim-n4b` | 1e442236 | PR Tekcry/Mobile-Coop#119. Desktop 149003aa: vitest / lint / build / e2e-anim / studio / traverse ok; e2e-clip ladder drop failed (fixed in 1e442236: no legs-ahead fall straight off a wall hold), netmove / coop killed at 600 s and ctcourse station 3 setup check failed (load: same on other branches today), split breath now on a shared split-entry clock. GPU audit posted. Laptop asked: check + e2e-clip, netmove, coop, ctcourse SOLO on 1e442236 | Laptop verdict; then train 5 (orchestrator) |
-| heap-asserts (tests + one menu fix) | `feature/heap-asserts`, `C:/NightShift/Mobile-Coop-heap-asserts` | 48de5497 | PR Tekcry/Mobile-Coop#128: shared tests/helpers/allocPerCall.ts (gc + new space), all 8 heap asserts use it, 5x stable; src/world/menuShots.ts held() per-frame closure fixed. bodyMotion.test.ts patch sent to CT Core | Orchestrator: CI check + e2e-menus tier, merge |
-| studio-pairs (AUDIT fix 12) | `feature/studio-pairs`, `C:/NightShift/Mobile-Coop-studio-pairs` | 8091de94 | Stage lights only on Wren's own meshes (hold-pair guard no longer white); pair puppets hold LOD0 through the loop; `__studioStage.puppets()` readiness hook; boost vanish not reproduced on the CPU (likely a shader not ready on a fresh page). GPU script ready: `bash C:/NightShift/sp-gpu.sh` (audit.mjs copied untracked) | When the orchestrator gives the desktop lock (after Menu Notes): run sp-gpu.sh, read the pair sheets, PR (merge after #119 lands; both edit studioPairs.ts / studioStage.ts, dry-run merge clean) |
+| anim-n4b | `feature/anim-n4b`, `C:/NightShift/Mobile-Coop-anim-n4b` | aee3fd34 | PR Tekcry/Mobile-Coop#119: PR fix 2 (6f734d3e: ladder top-entry plays no mantle plant / sink; ROLL_CLEAR 0.9, a roll needs ~1.5 m, in the PR body) + master 4.56.0. Desktop e2e-clip 19/19, traverse / move / anim / netmove ok | In train 7 (orchestrator) |
+| heap-asserts (tests + one menu fix) | `feature/heap-asserts`, `C:/NightShift/Mobile-Coop-heap-asserts` | 66f60318 | PR Tekcry/Mobile-Coop#128 + master 4.56.0 (8 heap files 99/99) | Orchestrator train (e2e-menus in its run) |
+| studio-pairs (AUDIT fix 12) | `feature/studio-pairs`, `C:/NightShift/Mobile-Coop-studio-pairs` | c30d3391 | PR Tekcry/Mobile-Coop#134: stageLightKeep drops shared part bases (anim-natural audit.mjs:642 pushed them: white guard), unlight() recompiles; laptop GPU 63ec33ec good; checker PASS; polish in docs/studio-pairs/FIX-GPU.md | In train 7 (orchestrator) |
+| sector-fixes R (co-op-only routes) | `feature/sector-fixes-r`, `C:/NightShift/Mobile-Coop-sector-fixes-r` | e0e50027 | docs/sector-fixes/r/PLAN.md, R1-R3.md, RT.md: 2 routes per section (4.4 m lips, leg-up + relay / rope) + 1 team door per section (bolt, no wire change; coopClient.ts one change). Unit tests S1 10, S2 13, S3 19, sectorBolt; tsc, lint ok. RE agent (e2e-sectorops two-player route walks, solo refusal, bolt; engine proof of lip-to-5.0-pipe jumps and crouch under 1.63 m roofs) was running at the pause: check `git status` and docs/sector-fixes/r/RE.md for its WIP | Finish / rerun RE, one checker (one fix round), then ask Character Build for e2e-coop + e2e-netmove + e2e-sectorops on the checked commit, open the PR, tell the orchestrator (train 7) |
 
 Merged tonight (track A): #81 coop-torches 4.34.0, #82 T 4.35.0, #83 T1a 4.36.0, #86 T2 4.39.0, #87 item 23 4.40.0,
 #89 items 26 / 26b 4.41.0, #91 item 25 4.43.0.
@@ -42,6 +43,7 @@ characterRig.ts, tuneStep.ts, footPlanner.ts, player.ts. Checker's two findings 
 - Michael's tuner rules: one layout for every input (only hint glyphs follow the input), layout from viewport size only,
   no search / recent / pins / body map, plain-English labels, subtle highlight with an off switch.
 - Load rule (orchestrator 17:45): e2e-coop / e2e-netmove / e2e-ctcourse run on the laptop only; desktop e2e at E2E_JOBS=1 while agents run; GPU stays on the desktop.
+- Laptop is the main test machine, GPU included (Michael 17:50): full runs, co-op suites and GPU work (shots, anim-audit, studio audits) go to Character Build with branch, commit, script and output place; the desktop runs only quick single suites at E2E_JOBS=1. A checker-passed PR joins the next train with CI only, except src/net / PROTOCOL_VERSION / save-shape PRs, which pass their area suites first; a result stands for later commits that change only docs / CHANGELOG / test scripts.
 - Tell Menu Notes (track C) when key-file / tuneKeys PRs open and land.
 
 ## N4 checker (2026-10-22 ~12:55, verdict FIX) - fixed in a65a9496 (13:40)
@@ -70,9 +72,10 @@ work (full vitest, build, e2e, GPU) takes C:/NightShift/heavy.lock atomically
 the orchestrator's lock queue, deleted only if it still names you; the laptop ("Night Shift | Character Build") runs
 area suites and train e2e on request.
 
-Next (2026-10-22 ~17:50):
-1. #128 heap-asserts: open; act only if CI or e2e-menus fails.
-2. #119: act on the laptop verdict for 1e442236 (Open jobs row).
-3. studio-pairs: GPU look when the lock is handed to you, then PR.
-4. Then ask the orchestrator for the next job.
+Next (2026-10-22 ~19:05, after the 21:10 reset when the orchestrator says resume):
+1. sector-fixes R: look at the worktree (RE's e2e WIP, docs/sector-fixes/r/RE.md); finish RE, then a fresh checker
+   (one fix round), then Character Build runs e2e-coop + e2e-netmove + e2e-sectorops on the checked commit (no
+   separate full run: train 7 has it), then the PR; tell the orchestrator.
+2. #119, #128, #134: in the orchestrator's trains; act only if a train run fails on them.
+3. Then ask the orchestrator for the next job.
 ```
