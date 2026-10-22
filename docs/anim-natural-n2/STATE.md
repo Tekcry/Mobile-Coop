@@ -1,6 +1,18 @@
 # anim-natural N2 - state
 
-## Now (2026-10-22 ~16:00: merged master 4.54.1 at 14cbecc2)
+## 2026-10-22 ~16:55: step 2 desktop verification (ctb9 on 21106003, /c/NightShift/ctb9.out, ctb9.log)
+- check ok (2696 tests); e2e-netmove ok, e2e-studio ok, e2e-clip ok.
+- e2e-anim FAIL, one assert: "rifle low ready jog speed 4: elbows in (6 cm outside the shoulder)", limit 6.0
+  (ctb9.log:245 / :250; master's base #110 read 5.7, ctb-d.log:245; pre-#103 4.5). Every crab knee-out passes in-browser
+  (low ready walk 3.4 / 3.5, low ready jog 3.2 / 3.4, walk rows about the headless numbers), so CHECK-3 should-fix 2 is
+  answered: no further walk sway cut needed.
+- Step 2 checker: PASS (CHECK-3.md). The bodyMotion allocation check goes to Course Ready's heap-asserts job
+  (orchestrator 16:50).
+- Master 4.55.1 merge: an agent in the temp worktree feature/anim-natural-n2-merge
+  (C:/NightShift/Mobile-Coop-anim-natural-n2-merge), then the low ready jog elbow fix there (layer, never the limit);
+  then fast-forward this branch to it and rerun e2e-anim on the desktop.
+
+## Before (2026-10-22 ~16:00: merged master 4.54.1 at 14cbecc2)
 Merged master 4.54.1 (#103 body base, #113 anim-n4, #117 flake fix) at 14cbecc2. Conflicts: CHANGELOG, e2e-anim crab
 state rows (master's BODY_STATE ranges 5th, N2's turn pelvis-frame flag 6th), identity test header, the Wren identity
 fixture. Proof: BODY_MOTION amounts 0 + master's run clip at run time = master's fixture on all 40 entries; with N2's
