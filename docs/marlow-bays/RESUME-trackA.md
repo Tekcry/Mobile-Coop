@@ -38,3 +38,17 @@ characterRig.ts, tuneStep.ts, footPlanner.ts, player.ts. Checker's two findings 
 - Michael's tuner rules: one layout for every input (only hint glyphs follow the input), layout from viewport size only,
   no search / recent / pins / body map, plain-English labels, subtle highlight with an off switch.
 - Tell Menu Notes (track C) when key-file / tuneKeys PRs open and land.
+
+## N4 checker (2026-10-22 ~12:55, verdict FIX) - fix round after the 14:10 reset
+1. (required) Carry lean / hip shift applied with nothing on the shoulder: `src/game/gameState.ts:1754` sets `carryBody`
+   from `st.bend > 0 || st.bendDrop > 0` (true for the whole lift and put-down), so `src/anim/cqGait.ts:166-168` eases
+   `carryK` / `side` to 1 within ~0.3 s of the lift start: she rolls 6 deg toward an empty shoulder while kneeling
+   (t < liftReach 0.8 s), and keeps leaning after the ragdoll takes the body on the drop (dropHand 0.4 s). Fix: pass a
+   load share 0..1 (`RigPose.carrySide = loadSide * k`, k = `lc.hoist` in the lift, 1 carrying,
+   `1 - ease(t/dropHand)` on the drop), scale `spRoll` and `pelX` by it; test: no lean at lift t = 0.4.
+2. (decide in the fix round) `src/game/stealthSystems.ts:362` reads `rig.planner` foot contact inside the 60 Hz sim step
+   to time the controller crouch (frame-rate dependent; stale if the rig is not animated); the controller crouch now
+   starts ~0.42 s instead of 0 (`closeQuarters.ts:131`, stealth profile). Preferred fix: keep the controller crouch on
+   the sim's fixed lift timeline and make "stay down until a foot lands" animation-only.
+3. (note) Remote carries get no N4 effect (body carry not on the wire, pre-existing); reword the tuner note "read by
+   every rig holding or carrying". Minor: `cqRows()` once per frame rather than per rig; no bake re-run no-op test.
