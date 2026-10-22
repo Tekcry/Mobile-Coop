@@ -13,6 +13,8 @@ const evalJs = opt('eval', '');
 const browser = await chromium.launch(launchOptions());
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 640 } });
 await ctx.addInitScript(fakePointerLock);
+// (load-audit) the 120 s navigation default of e2e-lib's launch(): this context is smoke's own
+ctx.setDefaultNavigationTimeout(120000);
 const page = await ctx.newPage();
 const errors = [];
 page.on('console', (m) => {
