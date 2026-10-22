@@ -13,9 +13,10 @@ import { CLIENT_VERBS, type ClientVerb, type CourseWire } from '../game/course/c
 import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 import type { SecWire } from '../game/ctDevices';
 import type { SectorNetExtra } from '../game/sectors';
+import { LAMP_BITS, LAMP_CHARS, LAMP_MAX, type LampWire } from './lampSync';
 
-/** 29: the lasers' jam point is their power panel (sector-fixes P): the `jam` claim and `sec.dv` name panel ids (`panel-*`), never laser ids (a 28 peer would jam a laser the other side does not know); 28: the `jam` claim carries the client's camera eye `e` (jammer-fixes: the host checks the jam's line of sight from it); 27: rejoin (marlow-bays R): `hello.tok`, `PlayerInfo.away`, the `you` message, the `restore` event; 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
-export const PROTOCOL_VERSION = 29;
+/** 31: Sector Ops light state (sector-redesign slice L): the `lamps` message (host -> all: switched-off and shot-out bitsets, `lampSync.ts`) and a client's lamp shot as a `shot` whose target is `lt-<light id>`; 30: taken by marlow-final (Menu Notes); 29: the lasers' jam point is their power panel (sector-fixes P): the `jam` claim and `sec.dv` name panel ids (`panel-*`), never laser ids (a 28 peer would jam a laser the other side does not know); 28: the `jam` claim carries the client's camera eye `e` (jammer-fixes: the host checks the jam's line of sight from it); 27: rejoin (marlow-bays R): `hello.tok`, `PlayerInfo.away`, the `you` message, the `restore` event; 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
+export const PROTOCOL_VERSION = 31;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -203,7 +204,9 @@ export type Msg =
   /** (27) `e`: the client's camera eye (m) a claim was aimed from (a release has none). */
   | { t: 'jam'; tgt: string; e?: [number, number, number] }
   | { t: 'end'; stats: EndStats }
-  | { t: 'bye'; reason: string };
+  | { t: 'bye'; reason: string }
+  /** (31, sector-redesign slice L) Sector Ops light state (host -> all): `n` lights by registry id, `of` switched off, `sh` shot out (6-bit bitsets, `lampSync.ts`); on change, join and every 2 s. */
+  | ({ t: 'lamps' } & LampWire);
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -784,6 +787,13 @@ export function parseMessage(raw: unknown): Msg | null {
     }
     case 'bye':
       return { t: 'bye', reason: safeText(raw.reason, 60) ?? '' };
+    case 'lamps': {
+      // (31) bitsets of known characters only, at most LAMP_CHARS each
+      const n = num(raw.n, 0, LAMP_MAX);
+      const of = typeof raw.of === 'string' && raw.of.length <= LAMP_CHARS && LAMP_BITS.test(raw.of) ? raw.of : null;
+      const sh = typeof raw.sh === 'string' && raw.sh.length <= LAMP_CHARS && LAMP_BITS.test(raw.sh) ? raw.sh : null;
+      return n === null || of === null || sh === null ? null : { t: 'lamps', n: Math.round(n), of, sh };
+    }
     default:
       return null;
   }
