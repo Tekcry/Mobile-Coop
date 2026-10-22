@@ -67,6 +67,11 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- 08:35 A3 greybox IN (7286d6c6; slices/S3.md; 43 A3 tests). Job lead: tests/ctcourse.test.ts lets house lamps stand
+  in A3's lobbies (group 34; LIGHTING-PLAN's own rows; A3-C4 table change is the undo). A3 moved office 3's corridor
+  door to x 91.4-92.6 (the camera's vertical frame missed a crouched head at the doc's x 94: simulated, tested).
+  Open for the A3 checker: a lone creeping jam from office 3's door (the set still needs both players to finish).
+  A8 greybox started on Opus. Running: A4, A5, A6, A7, A8. Known: voxelFit floor-air points in A7's hall (A7 agent).
 - 08:20 Guard AI: `MapLayout.guardAi` (zones / noisy / entries / squads) and `SquadSlot.post` / `profile` types are on
   feature/guard-ai 971711c4 (src/ai/guardAiData.ts, posts.ts); the PatrolWalker wait-0 freeze is fixed in PR #185. Both
   reach master with the next guard-ai PR: after merging master, fill guardAi per set (zones per set, A5 / A6 noisy
