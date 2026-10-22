@@ -862,10 +862,15 @@ async function station8(x0) {
     r.protectT = 0;
     r.applyDamage({ amount: 1000, point: r.feet.clone(), sourcePos: r.feet.clone(), dir: new V(0, 0, 1), part: 'body', kind: 'explosion', attackerTeam: 'enemy', attackerId: '' });
   }, clientId);
+  const hostT = () => GA(() => window.__app.current.time);
+  const tDown = await hostT();
   await until(B, () => !window.__app.current.player.alive, null, 5000, 'station 8: the client is down');
   await until(B, () => /DOWN - revive in \d+ s/.test(document.querySelector('.hud-down-timer')?.textContent ?? ''), null, 8000, 'station 8: the downed client sees the revive countdown');
-  await waitSim(2500);
+  // (load-latent-net) 2.5 s of the host's clock (the window runs there; `waitSim` counts the slower client clock, and
+  // under load 3-5x more host time passed)
+  await waitHostSim(A, 2500);
   const left = await GA((id) => window.__app.current.net.reviveClock.remaining(id), clientId);
+  console.log(`  (station 8: ${((await hostT()) - tDown).toFixed(2)} s of host time from the downing to the read)`);
   assert(left > 15 && left < 30, `station 8: the 30 s window runs on the host (sim time) (${left.toFixed(1)} s left)`);
   await GA((id) => { const it = window.__app.current.interactables.items.find((i) => i.id === `revive-${id}`); it.onUse(it); }, clientId);
   await until(B, () => window.__app.current.player.alive, null, 8000, 'station 8: the host revives the client inside 30 s');
