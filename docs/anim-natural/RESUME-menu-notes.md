@@ -1,4 +1,4 @@
-# Night Shift | Menu Notes Build - resume (updated 2026-10-22 ~15:05, before the clear for the 16:10 reset)
+# Night Shift | Menu Notes Build - resume (updated 2026-10-22 ~15:15, before the clear for the 16:10 reset)
 
 Every open job this session leads, with branches, heads, next steps and rules. Read CLAUDE.md and docs/ROADMAP.md
 first, then this file. Message "Night Shift | Orchestrator" at each slice and PR.
@@ -37,10 +37,14 @@ N4 rows (co-op role B, mantle / drop, roll, guard-hold trunk).
   (2) open the PR to master (minor; body: old -> new times, the animGraph / tuneBakeTable lines, the `swapRel` carriage
   change, the slower strike / reload / gadget windows, assumed decisions A1-A4 in WIP.md, the checker's should-fix list);
   message the orchestrator. Merge master again if it moved.
-- **N3b** (routed pass 2 rows): `feature/anim-n3b`, worktree C:/NightShift/Mobile-Coop-anim-n3b (from master 5220f79c;
-  merge master 4.54.0 before its PR). Implementer running / or done: delete the slide (pose.slide) and doorway sweep
-  (pose.check) animations (Michael: "Delete them"), body recoil when firing (row 25), the wall-block rifle swing + 0.42 s
-  stall (row 24). State in docs/anim-natural/n3b/STATE.md there. Then a fresh checker, area suites, its own PR.
+- **N3b** (routed pass 2 rows): `feature/anim-n3b`, worktree C:/NightShift/Mobile-Coop-anim-n3b, head 9db9d372 (from
+  master 5220f79c; merge master 4.54.0+ before its PR). Built, UNCHECKED: slide + doorway sweep deleted (Michael), Wren
+  body recoil (src/anim/recoil.ts, Gun tuner recoilMul), wall block tips the gun down with hysteresis and no stall.
+  Assumed A1 recoil bigger than CT G2's "under 0.5 deg", A2 wall block muzzle DOWN replaces G6's muzzle-up (tell the
+  orchestrator: a design change for Michael to confirm), A3 Wren only. Tests: 56 files / 614 pass, tsc / eslint clean.
+  State and next steps: docs/anim-natural/n3b/STATE.md there. **Next:** fresh checker; merge master; e2e-anim,
+  e2e-stealth-ai, e2e-coop (+ the wall suite) on the laptop or under the lock; GPU sheets wall-block, fire-rifle,
+  fire-pistol; PR (minor).
 - **N0 audit:** pass 1 + pass 2 done (feature/anim-natural 905e115f): AUDIT.md, PASS2.md, fixes 23-36, sheets.
   Not captured: 29 / 39 (aiming at the wall end steps her off the wall; needs anim-audit's wall driver), 49 elbow strike
   (no strike starts with a calm guard in reach; find what blocks it), 31 launcher (not in game), 80 (covered by revive B).
@@ -65,8 +69,8 @@ if none arrived; everything else passed on b2e2689f). On a pass, when the orches
 C:/NightShift/heavy.lock atomically, npm run build, take the GPU after-sheets (E2E_GPU=1 node scripts/anim-natural/audit.mjs
 proving --only=<the N3 draw / holster / swap rows>, port 4189), release the lock, then open the PR to master (minor;
 body per the resume file and docs/anim-natural/n3/WIP.md) and message the orchestrator. Merge master again first if it
-moved. (2) N3b on feature/anim-n3b (worktree C:/NightShift/Mobile-Coop-anim-n3b): read docs/anim-natural/n3b/STATE.md;
-fresh checker, merge master, area suites (laptop or lock), PR. (3) N0 pass 2 leftovers (rows 29 / 39 wall-end aim, 49
+moved. (2) N3b on feature/anim-n3b (worktree C:/NightShift/Mobile-Coop-anim-n3b, head 9db9d372, built but unchecked): read
+docs/anim-natural/n3b/STATE.md; fresh checker, merge master, area suites (laptop or lock), GPU sheets, PR. (3) N0 pass 2 leftovers (rows 29 / 39 wall-end aim, 49
 elbow strike) only if spare. (4) sector-fixes L and C (W is Character Build's). Parallel agents allowed (full burn).
 Branch guard before every write; the atomic heavy.lock rule; check the 5-hour meter before each agent (97% no new
 agent, 98% commit / push / update the resume file, stopped by 99%). Message the orchestrator at each slice and PR.
