@@ -10,7 +10,16 @@
 - Bakes like the other sections (`node scripts/anim-tune-bake.mjs`, section `clip`): into the draw, holster, swap and
   throw times and a new playback rate per timed body clip (`CLIP_RATE`). Untuned, nothing changes; the save is unchanged.
 
-## Unreleased - jammer-fixes (feature/jammer-fixes)
+## Unreleased - marlow-bays item 24 (guard tuning)
+- Animation tuner: a "Who" list (Wren / Guard) at the head of the Body, Stepping and Weight tabs. Guard tunes every
+  guard's Joints, Stepping and Weight (lean, step load, springs, the start dip) per guard state: idle, walk (patrol and
+  alert), run, aim, crouched, wall cover. Wren's sliders never change a guard and the guard sliders never change Wren.
+- Every guard (in single player and on a co-op client) reads a guard base table the bake writes from an export's guard
+  rows (`src/anim/animBaseGuard.ts`); untuned guards look and act exactly as before.
+- Anim Studio: Who = Guard (or a "Guard: ..." loop) plays a guard puppet (a real guard, no AI) where Wren stands:
+  idle, patrol walk, alert walk, run, aim, crouched aim and wall cover, moving loops on the spot; the camera, the
+  highlight, pause and speed work on it. Who = Wren brings her back.
+- Saves, exports, imports, presets and undo carry the guard rows; older saves and exports load as before.
 
 ## 4.52.0 - Train 1: server browser and jammer fixes; protocol 28 (2026-10-22, PR #111; #99, #108)
 
@@ -26,8 +35,6 @@
 - The jam buzz no longer allocates an object every frame while a device is jammed.
 - Not changed (Michael 2026-10-22): cameras keep their IR on every camera ("Cameras should still work in the dark").
 
-## Unreleased - server browser (prototype)
-
 ### #99 Server browser (prototype)
 - Co-op: public rooms (Michael: a server browser, "prototype only, quick and fast to build"). The host lobby has a
   Room row, Private (default: only the code brings anyone in) or Public. A public room posts a notice (code, map, mode,
@@ -35,17 +42,6 @@
   taken off when the room is full, goes private or closes, and a notice not refreshed for 75 s drops out.
 - Co-op > Browse rooms: the public rooms of this exact version and protocol, live, with pad, keyboard and mouse; a pick
   joins by its code as today. No quick match, no relay server, no game server.
-
-## Unreleased - marlow-bays item 24 (guard tuning)
-- Animation tuner: a "Who" list (Wren / Guard) at the head of the Body, Stepping and Weight tabs. Guard tunes every
-  guard's Joints, Stepping and Weight (lean, step load, springs, the start dip) per guard state: idle, walk (patrol and
-  alert), run, aim, crouched, wall cover. Wren's sliders never change a guard and the guard sliders never change Wren.
-- Every guard (in single player and on a co-op client) reads a guard base table the bake writes from an export's guard
-  rows (`src/anim/animBaseGuard.ts`); untuned guards look and act exactly as before.
-- Anim Studio: Who = Guard (or a "Guard: ..." loop) plays a guard puppet (a real guard, no AI) where Wren stands:
-  idle, patrol walk, alert walk, run, aim, crouched aim and wall cover, moving loops on the spot; the camera, the
-  highlight, pause and speed work on it. Who = Wren brings her back.
-- Saves, exports, imports, presets and undo carry the guard rows; older saves and exports load as before.
 
 ## 4.51.1 - e2e-coop: the client-takedown step holds steady under load (test only) (2026-10-22, PR #107)
 - The client-takedown step in `scripts/e2e-coop.mjs` calms the host's guards and holds the picked guard still until
