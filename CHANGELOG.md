@@ -1,5 +1,41 @@
 # Changelog
 
+## 4.60.1 - Train 11: GPU test waits, netmove compare on sim time, touch fling note (2026-10-22, PR #155; #150, #154, #149)
+
+### Tests: condition waits before UI-state asserts (GPU)
+- e2e-studio: waits (up to 3 s) for the studio bar's throttled readouts (the Keyed box, the playback readout) and the
+  Keys readouts (the fixed first key, Add key) before asserting on them; hardware-GPU frames pass inside one refresh.
+- e2e-menus: the touch pass waits (up to 3 s) for the Settings / main menu screens and the hidden pause button
+  before asserting, instead of a fixed few frames after the tap or key press (the pause / Resume taps already wait, #148).
+
+### e2e-netmove pose compares hold under load
+- Tests (netmove-compare): e2e-netmove's pose compares hold the client's rig and the host's copy of it at the same idle
+  phase (the drawn ready stance, the keyed idle and the breath run on each rig's own random clock, not on the wire) and
+  re-step both foot planners at the tight 2 cm rest tolerance while comparing. The "drawn" ankle read 7.8 cm alone and
+  10.7 cm under load; it now reads 0.3-3.6 cm, under the same 10 cm limit. Every compare logs its worst joint, and the
+  suite prints the maximum.
+
+### Touch fling note
+- Docs: backlog 31, a fast look-drag may eat the next tap on a real touch device (to check on a phone).
+
+## 4.60.0 - Train 10: Takedown blow and grab kill land on the kill, baked lamp material fix (2026-10-22, PR #153; #142, #145)
+
+### anim-natural N4d: takedown blow and grab kill on the kill moment
+- Lethal takedown blow and grab kill (Michael M1 "Faster arm", applied to the kills): the elbow arc's contact now lands
+  on the kill instead of well before it (takedown: contact 0.39 s into the 0.7 s blow -> 0.68 s, kill at 0.7 s; grab
+  kill: 0.28 s -> 0.48 s, kill at `GRAB.killTime` 0.5 s). The kill timing is unchanged. The follow-through and return
+  play on after the kill (0.31 s / 0.22 s, pose only: the operator is free as before). Same on a co-op partner (the
+  wire keeps the blow's own phase; both sides warp, the partner plays the follow-through itself). `killWarp`,
+  `TAKEDOWN_BLOW`, `GRAB_KILL_BLOW` in `src/anim/strikeBody.ts`. Guards unchanged.
+- Co-op client elbow strike: the host's accept no longer steps the strike's pose back (a one-frame hitch at RTT
+  80-100 ms, the arc stepped back 0.13-0.21); the pose keeps its place and the clock catches up at half pace. Gameplay
+  timing unchanged.
+
+### Baked lamps: a material added in the frame another is disposed gets the lamp plugin
+- Fix (backlog 30): `BakedLamps` now also attaches the baked-lamp plugin on the frame after the scene's new-material
+  event, not only when `scene.materials.length` changes, so a material made in the same frame another is disposed
+  is lit by the baked lamps (light parity). The observer is removed on dispose. Test: `tests/lampPluginGap.test.ts`.
+
 ## 4.59.0 - Train 9: Sector Ops laser panels, hand swap and elbow strike, vent kick, touch and GPU test fixes (2026-10-22, PR #151; #136, #139, #141, #148, #147)
 
 ### anim-natural N4c: hand swap and elbow strike
