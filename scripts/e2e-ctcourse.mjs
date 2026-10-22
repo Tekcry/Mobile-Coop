@@ -770,7 +770,18 @@ async function station6(x0) {
   assert(hp1 > 0 && hp0 - hp1 >= 9 && hp0 - hp1 <= 10, `station 6: the failed hack cost ${hp0 - hp1} HP (${hp0} -> ${hp1}), the run goes on`);
   await until(A, () => { const s = window.__ctdev.debug().scan; return s.ph[0] === 'idle' && s.ph[1] === 'idle'; }, null, 8000, 'station 6: both scanners reset (host)');
   await until(B, () => { const s = window.__ctdev.debug().scan; return s.ph[0] === 'idle' && s.ph[1] === 'idle'; }, null, 8000, 'station 6: both scanners reset (client page)');
-  const [ra, rb] = await Promise.all([use(A, 'c-sw-s6-a'), use(B, 'c-sw-s6-b')]);
+  // (load-latent-net) the client starts scanner B; the host starts scanner A on its own fixed step that first sees B
+  // started (two presses from here landed seconds of host time apart under load, past the sync window)
+  const s6Key = await onHostStep(A, (g) => {
+    if (window.__ctdev.debug().scan.ph[1] === 'idle') return undefined;
+    const it = g.interactables?.items.find((i) => i.id === 'c-sw-s6-a');
+    if (!it) return 'missing';
+    if (!it.enabled) return 'disabled';
+    it.onUse(it, 'local');
+    return 'ok';
+  });
+  const rb = await use(B, 'c-sw-s6-b');
+  const ra = rb === 'ok' ? await hostStepResult(A, s6Key, 8000, 'station 6: the host sees scanner B started and starts scanner A') : 'client not pressed';
   assert(ra === 'ok' && rb === 'ok', `station 6: both start the hacks together (${ra}, ${rb})`);
   await until(A, () => window.__course.debug().gates['g-s6'], null, 15000, 'station 6: both hacks inside the window open the door');
   await until(B, () => { const s = window.__ctdev.debug().scan; return s.ph[0] === 'done' && s.ph[1] === 'done'; }, null, 8000, 'station 6: the client page sees both scanners done');
@@ -814,7 +825,19 @@ async function openGate(n, i) {
     await pullUp(B, 'station 5 client');
     await moveHost(x0 + 11, 3.6, 4.5);
     await moveClient(x0 + 11, 10.4, 4.5);
-    const [ra, rb] = await Promise.all([use(A, 'c-sw-s5-a'), use(B, 'c-sw-s5-b')]);
+    // (load-latent-net) the client presses plate B; the host presses plate A on its own fixed step that first sees B's
+    // press stamped on the gate (PAIR_WINDOW is 1.0 s of host time; two presses from here could land further apart)
+    const s5Key = await onHostStep(A, (g) => {
+      const gt = window.__course.state.gates.find((x) => x.def.id === 'g-s5');
+      if (!(gt.tb >= 0)) return undefined;
+      const it = g.interactables?.items.find((i) => i.id === 'c-sw-s5-a');
+      if (!it) return 'missing';
+      if (!it.enabled) return 'disabled';
+      it.onUse(it, 'local');
+      return 'ok';
+    });
+    const rb = await use(B, 'c-sw-s5-b');
+    const ra = rb === 'ok' ? await hostStepResult(A, s5Key, 8000, "station 5: the host sees the client's roof plate and presses its own") : 'client not pressed';
     assert(ra === 'ok' && rb === 'ok', `station 5: both roof plates pressed (${ra}, ${rb})`);
     await until(A, () => window.__course.debug().gates['g-s5'], null, 8000, 'station 5: the roof pair gate opens');
   } else if (n === 3) {
