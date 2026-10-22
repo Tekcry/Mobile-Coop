@@ -425,6 +425,27 @@ describe('Enemy: the lure, the search clamp and the leash', () => {
     expect(g.lureLook[1]).toBeCloseTo(-3, 5);
   });
 
+  it('a revived guard keeps his post (inherit): leash centre, facing, high security, section and profile', async () => {
+    const old = await probe({ leash: 3, highSecurity: true, guards: 'vault door' }, 4, -2, 1.25);
+    const o = old as unknown as { section: number; profile: string };
+    o.section = 2;
+    o.profile = 'aggressive';
+    Object.assign(old, { key: 5, squad: 1, info: null, walker: { tick: vi.fn(), rejoin: vi.fn(), waitMul: 1 } });
+    // the new Enemy is built on the body, 6 m off his post, with no post of its own
+    const back = await probe(null, 10, -2, 0);
+    Object.assign(back, { section: 0, profile: 'standard' });
+    (back as unknown as { inherit(o: Enemy, downFor?: number): void }).inherit(old as unknown as Enemy, 30);
+    const b = back as unknown as Probe & { post: P2; postYaw: number; section: number; profile: string; key: number };
+    expect(b.key).toBe(5);
+    expect(b.secure).toBe(true);
+    expect(b.postYaw).toBe(1.25);
+    expect([b.post[0], b.post[1]]).toEqual([4, -2]);
+    expect(b.inLeash(6.5, -2)).toBe(true);
+    expect(b.inLeash(8, -2)).toBe(false);
+    expect(b.section).toBe(2);
+    expect(b.profile).toBe('aggressive');
+  });
+
   it('a search (a body, a call) far off: a high-security post searches only from inside his leash', async () => {
     const g = await probe({ leash: 3, highSecurity: true }, 0, 0, 0);
     g.aware.set('searching');

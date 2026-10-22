@@ -614,7 +614,8 @@ export class Enemy implements Damageable {
    * (guard-ai S4) A woken guard is the guard who went down (`EnemyManager.revive` builds a new `Enemy` on the body):
    * his key, squad, held room, passive flag, what he knows (`info`, unless spent), the sniper post and his patrol
    * walker (route, post and facing; its clock moved on by `downFor` s, so a timed loop rejoins where the schedule
-   * says), back on the route at the nearest point.
+   * says), back on the route at the nearest point. (guard-ai S5) He keeps his post too: the leash (centre `post`),
+   * its facing and high security, his section and profile (any lure in progress is dropped).
    */
   inherit(o: Enemy, downFor = 0): void {
     this.key = o.key;
@@ -624,6 +625,9 @@ export class Enemy implements Damageable {
     this.info = o.info;
     this.post[0] = o.post[0];
     this.post[1] = o.post[1];
+    this.setPost(o.postDef, o.postYaw);
+    this.section = o.section;
+    this.profile = o.profile;
     this.walker = o.walker;
     this.walker.tick(downFor);
     this.walker.rejoin(this.pos.x, this.pos.z);

@@ -131,7 +131,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   and gives only a turn's meter floor. A search (a body, a radio check, after combat) and his investigate spot are
   clamped into the leash; he wakes no knocked-out guard outside it; in combat `chasePoint` / strafe points are clamped,
   cover outside the leash is skipped, and a target outside it (+1.5 m) is held from the post (the `hold` rule); he
-  never runs to an alarm panel outside it. Not yet: a revived guard loses his post (S4's `revive`); squads / handler /
+  never runs to an alarm panel outside it. A revived guard keeps his post (`Enemy.inherit`). Not yet: squads / handler /
   zone / role tags (S5b). Map data: `MapLayout.guardAi` (zones, `noisy`, entries, squads) and `SectorDef.noisy` /
   `entries`; `EnemyManager.mapNoisy` loads the map's noisy things as the masking, Sector Ops swaps in the live
   section's (`setNoisy` on load). Checks: `validateGuardAi` / `validatePosts` run on load in dev (console warnings via
