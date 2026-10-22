@@ -235,6 +235,42 @@ function guardLoop(name: string, label: string, g: GuardLoop): StudioEntry {
   return { id: `guard:${name}`, label: `guard: ${label}`, kind: 'guard', clip: null, pace: 0, cycle: 1, move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: null, gloop: g };
 }
 
+/** (anim-n4b) Wren's hold clips that take the game's close-quarters layer on their keyed trunk (studioDrive `cq`): the
+ *  still hold braces, the hold walks counter-rotate. The choke and the knife are moves of their own (none). */
+const CQ_CLIPS: Readonly<Record<string, 'still' | 'walk'>> = { hold_idle: 'still', hold_fwd: 'walk', hold_back: 'walk', hold_side: 'walk' };
+
+/** (anim-n4b) The close-quarters layer an entry's clip of Wren's takes ('none': not a hold clip, or a guard's). */
+export function studioCq(e: StudioEntry): 'none' | 'still' | 'walk' {
+  return e.clip && !e.guard ? (CQ_CLIPS[e.clip.name] ?? 'none') : 'none';
+}
+
+/** (anim-n4b) A walking hold pair travels with its clip this many cycles, then back to the start (at a heel strike,
+ *  both feet down): the treadmill's planted feet stay on the floor (on the spot they slid 22-32 cm, PASS2 row 44). */
+export const HOLD_PAIR_CYCLES = 8;
+
+/** (anim-n4b) A walking hold pair's travel state: the cycles done (mod `HOLD_PAIR_CYCLES`) and the last phase. */
+export interface HoldTravel {
+  n: number;
+  last: number;
+}
+
+/**
+ * (anim-n4b) How far (m, along the clip's travel) a walking hold pair is from where it started at the pair clock's
+ * `phase`: the pace x the cycle time over the cycles done and this one (a wrap of the phase counts a cycle; a scrub back
+ * over the wrap takes one off). 0 for any other entry. No allocation.
+ */
+export function holdPairTravel(e: StudioEntry, phase: number, s: HoldTravel): number {
+  if (e.kind !== 'pair' || e.team || !e.clip || e.pace <= 0) {
+    s.n = 0;
+    s.last = phase;
+    return 0;
+  }
+  if (phase < s.last - 0.5) s.n = (s.n + 1) % HOLD_PAIR_CYCLES;
+  else if (phase > s.last + 0.5) s.n = (s.n + HOLD_PAIR_CYCLES - 1) % HOLD_PAIR_CYCLES;
+  s.last = phase;
+  return e.pace * e.cycle * (s.n + phase);
+}
+
 export function studioEntry(id: string): StudioEntry {
   // a plain loop: called every fixed step and frame (no closure allocation)
   for (let i = 0; i < STUDIO_ENTRIES.length; i++) if (STUDIO_ENTRIES[i]!.id === id) return STUDIO_ENTRIES[i]!;

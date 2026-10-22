@@ -1472,7 +1472,7 @@ export class AnimGraph {
       src[CH.pelY] = src[CH.pelY]! - this.bendDropS;
       src[CH.pelX] = src[CH.pelX]! + this.swayS;
     }
-    this.cqGait.apply(src, i.bend > 0 || i.bendDrop > 0, i.cqBody, i.cqCarry, this.phase, this.moveW, dt); // (anim-n4, track A)
+    this.cqGait.apply(src, i.bend > 0 || i.bendDrop > 0, i.cqBody, i.cqCarry, this.phase, this.moveW, dt, this.swayS); // (anim-n4, track A; anim-n4b, track A: the hold sway drives the still brace)
 
     // --- additive: hit flinch, heel-strike compression, weight over the support foot
     const hx = this.hit.step(0, 9, dt);

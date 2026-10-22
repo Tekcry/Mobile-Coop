@@ -10,6 +10,14 @@
  * `cqSim` on the local player's gait clock) is a slider for a slower cadence, default x1: longer steps leave the trailing
  * foot further behind, and at this pace the late-stance slide is already ~5 cm in a free walk (an N1 planner item).
  *
+ * (anim-n4b, PASS2 rows 43-44) Holding a guard still, the trunk was a statue (0.0 deg): standing, the hold now braces
+ * against him (`cqBraceAt`, on the layer's own clock): the shoulders turn a little to keep him (a slow yaw, the hips a
+ * little against it), the chest rolls against the pair's side-to-side weight shift (the takedown's hold `sway`, which
+ * already moves the pelvis on the local rig; a rig without it, a remote copy, shifts on the same 0.5 Hz on its own clock)
+ * and a slow braced breath in the spine pitch. A few degrees at most; it fades out as the walk comes in. The Anim
+ * Studio's hold clips get the same layer on their keyed trunk (`cqKeyedHold`): the brace on `hold_idle`, the hold walk's
+ * counter-rotation on the hold walks.
+ *
  * The values are the code defaults (`CQ_GAIT`); the tuner's "Holds and carries" section scales them (`CQ_SECTION`,
  * identity at default) and `scripts/anim-tune-bake.mjs` bakes a tune back into `CQ_GAIT` (tuneBakeTable.ts).
  */
@@ -32,6 +40,12 @@ export interface CqGaitRow {
   dip: number;
   /** Step length at the same pace (x: > 1 is a slower cadence). */
   stride: number;
+  /** (anim-n4b) Standing still: the shoulders' brace turn (rad, amplitude; the hips 0.3 of it the other way). */
+  brace: number;
+  /** (anim-n4b) Standing still: the chest's roll against the side-to-side weight shift (rad, amplitude). */
+  braceRoll: number;
+  /** (anim-n4b) Standing still: the braced breath in the spine pitch (rad, amplitude). */
+  breath: number;
 }
 
 /**
@@ -40,10 +54,12 @@ export interface CqGaitRow {
  * Carry: +-3.4 deg pelvis, shoulders at 0.8 (the body on the shoulder damps the chest), 6 deg lean away from the
  * load, the hips 1.5 cm under it, a 1.2 cm dip per step. (The gait clips' own small twist and the turn follow add to
  * these: measured on Proving, counterCorr -0.76 hold, -0.91 carry.)
+ * (anim-n4b) Holding still: the shoulders turn up to 1.3 deg (a 2.5 deg range), the chest rolls 1.1 deg against the
+ * weight shift, a 0.7 deg breath. The carry has none (the body on the shoulder: its lean is the still pose).
  */
 export const CQ_GAIT: { hold: CqGaitRow; carry: CqGaitRow } = {
-  hold: { pelvis: 0.052, counter: 0.9, lean: 0, shift: 0, dip: 0.006, stride: 1 },
-  carry: { pelvis: 0.06, counter: 0.8, lean: 0.105, shift: 0.015, dip: 0.012, stride: 1 },
+  hold: { pelvis: 0.052, counter: 0.9, lean: 0, shift: 0, dip: 0.006, stride: 1, brace: 0.022, braceRoll: 0.019, breath: 0.012 },
+  carry: { pelvis: 0.06, counter: 0.8, lean: 0.105, shift: 0.015, dip: 0.012, stride: 1, brace: 0, braceRoll: 0, breath: 0 },
 };
 
 // ------------------------------------------------------------------------------------------
@@ -62,6 +78,10 @@ export const CQ_TUNABLES: readonly TuneTunable[] = [
   mul('holdCounter', 'Hold walk: shoulders against the hips', HOLD, 'cqGait.ts CQ_GAIT.hold.counter (0: the shoulders hold square, 1: as far as the hips the other way)'),
   mul('holdDip', 'Hold walk: step weight (dip)', HOLD, 'cqGait.ts CQ_GAIT.hold.dip (the pelvis drop at each loading response)'),
   mul('holdStride', 'Hold walk: step length (cadence)', HOLD, 'cqGait.ts CQ_GAIT.hold.stride (longer steps at the same pace: a slower cadence)', 1.6),
+  // (anim-n4b) the hold standing still
+  mul('holdBrace', 'Hold still: shoulders bracing (turn)', HOLD, 'cqGait.ts CQ_GAIT.hold.brace (the slow shoulder turn keeping the guard; the hips 0.3 of it the other way)'),
+  mul('holdBraceRoll', 'Hold still: chest against the weight shift', HOLD, 'cqGait.ts CQ_GAIT.hold.braceRoll (the chest roll against the side-to-side sway)'),
+  mul('holdBreath', 'Hold still: braced breath', HOLD, 'cqGait.ts CQ_GAIT.hold.breath (the slow spine pitch)'),
   mul('carryTwist', 'Carry: hip and shoulder twist', CARRY, 'cqGait.ts CQ_GAIT.carry.pelvis'),
   mul('carryCounter', 'Carry: shoulders against the hips', CARRY, 'cqGait.ts CQ_GAIT.carry.counter'),
   { id: 'carryLean', label: 'Carry: lean away from the load', kind: 'add', def: 0, min: -10, max: 10, step: 0.5, unit: 'deg', groups: CARRY, hook: 'cqGait.ts CQ_GAIT.carry.lean (the trunk away from the loaded shoulder; + = further)' },
@@ -91,8 +111,8 @@ function tv(v: Record<string, number>, id: string, def: number): number {
 }
 
 /** The tuned rows (scratch, rewritten by `cqRows`). */
-const RH: CqGaitRow = { pelvis: 0, counter: 0, lean: 0, shift: 0, dip: 0, stride: 1 };
-const RC: CqGaitRow = { pelvis: 0, counter: 0, lean: 0, shift: 0, dip: 0, stride: 1 };
+const RH: CqGaitRow = { pelvis: 0, counter: 0, lean: 0, shift: 0, dip: 0, stride: 1, brace: 0, braceRoll: 0, breath: 0 };
+const RC: CqGaitRow = { pelvis: 0, counter: 0, lean: 0, shift: 0, dip: 0, stride: 1, brace: 0, braceRoll: 0, breath: 0 };
 
 /** CQ_GAIT with the tuner's sliders on it (into RH / RC). No allocation. */
 export function cqRows(): void {
@@ -103,6 +123,9 @@ export function cqRows(): void {
   RH.shift = h.shift;
   RH.dip = h.dip * tv(VH, 'holdDip', 1);
   RH.stride = h.stride * tv(VH, 'holdStride', 1);
+  RH.brace = h.brace * tv(VH, 'holdBrace', 1);
+  RH.braceRoll = h.braceRoll * tv(VH, 'holdBraceRoll', 1);
+  RH.breath = h.breath * tv(VH, 'holdBreath', 1);
   const c = CQ_GAIT.carry;
   RC.pelvis = c.pelvis * tv(VC, 'carryTwist', 1);
   RC.counter = c.counter * tv(VC, 'carryCounter', 1);
@@ -110,6 +133,9 @@ export function cqRows(): void {
   RC.shift = c.shift * tv(VC, 'carryShift', 1);
   RC.dip = c.dip * tv(VC, 'carryDip', 1);
   RC.stride = c.stride * tv(VC, 'carryStride', 1);
+  RC.brace = c.brace;
+  RC.braceRoll = c.braceRoll;
+  RC.breath = c.breath;
 }
 
 // ------------------------------------------------------------------------------------------
@@ -146,6 +172,45 @@ export function cqGaitAt(row: CqGaitRow, ph: number, move: number, side: number,
   return out;
 }
 
+/** (anim-n4b) The hold still's offsets for one frame (rad, m). */
+export interface CqBraceOut {
+  pelYaw: number;
+  spYaw: number;
+  spRoll: number;
+  spPitch: number;
+  pelX: number;
+}
+
+/**
+ * (anim-n4b) The brace's rates (Hz): the shoulder turn and its overtone, the weight shift (the takedown's hold sway,
+ * `CQ.swayHz`) and the braced breath. All divide 4 s (the studio's `hold_idle` cycle), so a keyed loop closes.
+ */
+export const CQ_BRACE_HZ = { turn: 0.25, turn2: 0.75, shift: CQ.swayHz, breath: 0.25 } as const;
+/** The hips turn this share of the shoulders' brace, the other way. */
+export const BRACE_PELVIS = 0.3;
+
+/**
+ * (anim-n4b) The hold standing still at `t` s held. `sway` the pair's side-to-side shift (m, + right: the takedown's
+ * hold sway as the rig gets it) and `seen` 0..1 how much of it the rig has (0: a rig without it, a remote copy or the
+ * studio clip: the shift runs on `t` at the same rate and `pelX` carries it). The shoulder line (0.4 pelvis + spine) turns
+ * by the brace, the hips `BRACE_PELVIS` of it the other way; the chest rolls against the shift (hips right, chest left:
+ * + roll); the breath pitches the spine. Pure: writes `out`.
+ */
+export function cqBraceAt(row: CqGaitRow, t: number, sway: number, seen: number, out: CqBraceOut): CqBraceOut {
+  const TAU = 2 * Math.PI;
+  const turn = row.brace * (0.75 * Math.sin(TAU * CQ_BRACE_HZ.turn * t) + 0.25 * Math.sin(TAU * CQ_BRACE_HZ.turn2 * t + 1.1));
+  const pel = -BRACE_PELVIS * turn;
+  out.pelYaw = pel;
+  out.spYaw = turn - CHEST_OF_PELVIS * pel;
+  const own = Math.sin(TAU * CQ_BRACE_HZ.shift * t);
+  const sn = sway / CQ.swayAmp;
+  const s = (sn < -1 ? -1 : sn > 1 ? 1 : sn) * seen + own * (1 - seen);
+  out.spRoll = row.braceRoll * s;
+  out.pelX = CQ.swayAmp * own * (1 - seen);
+  out.spPitch = row.breath * Math.sin(TAU * CQ_BRACE_HZ.breath * t);
+  return out;
+}
+
 /** (hot path) The anim graph's close-quarters layer: eased in / out, written onto the graph's pose channels. */
 export class CqGaitLayer {
   /** Eased 0..1: holding or carrying. */
@@ -153,17 +218,25 @@ export class CqGaitLayer {
   /** Eased 0 (hold) .. 1 (carry), and the load (side x weight on the shoulder; held while fading out). */
   carryK = 0;
   side = 0;
+  /** (anim-n4b) The brace's clock (s since the hold began, wrapped every 4 s) and its fade in (s, capped at 1). */
+  braceT = 0;
+  braceIn = 0;
+  /** (anim-n4b) 0..1: the rig gets the takedown's hold sway (eased; 0 on a remote copy). */
+  swaySeen = 0;
   private readonly a: CqGaitOut = { pelYaw: 0, spYaw: 0, spRoll: 0, pelX: 0, pelY: 0 };
   private readonly b: CqGaitOut = { pelYaw: 0, spYaw: 0, spRoll: 0, pelX: 0, pelY: 0 };
+  private readonly br: CqBraceOut = { pelYaw: 0, spYaw: 0, spRoll: 0, spPitch: 0, pelX: 0 };
 
   /**
    * `on`: a held guard or a body (the graph's bend inputs), `body` the bend is over a body (the carry walk), `load` the
    * body's load (1 right shoulder .. -1 left, x its weight on it 0..1: 0 kneeling at the body and after the put down's
    * hand-over), `ph` the gait phase, `move` the graph's moving share. The carry's lean and hip shift follow the load as
-   * given (the sim eases it; a body hidden or dropped at once ends `on`, and the layer fades out on the last load). Adds
-   * to `src` (the graph's pose). No allocation.
+   * given (the sim eases it; a body hidden or dropped at once ends `on`, and the layer fades out on the last load).
+   * (anim-n4b) `sway` the hold's side-to-side shift as the graph has it (m; 0 on a rig without it): standing still with
+   * a guard the hold braces (`cqBraceAt`), faded in over its first second and out as the walk comes in. Adds to `src`
+   * (the graph's pose). No allocation.
    */
-  apply(src: Float32Array, on: boolean, body: boolean, load: number, ph: number, move: number, dt: number): void {
+  apply(src: Float32Array, on: boolean, body: boolean, load: number, ph: number, move: number, dt: number, sway = 0): void {
     const k = dt > 0 ? 1 - Math.exp(-dt / 0.15) : 1;
     this.w += ((on ? 1 : 0) - this.w) * k;
     if (on) {
@@ -172,7 +245,16 @@ export class CqGaitLayer {
     }
     if (this.w < 1e-4) {
       this.w = 0;
+      this.braceT = this.braceIn = this.swaySeen = 0;
       return;
+    }
+    if (body) this.braceT = this.braceIn = 0;
+    else if (on && dt > 0) {
+      this.braceT += dt;
+      if (this.braceT >= 4) this.braceT -= 4;
+      this.braceIn = Math.min(1, this.braceIn + dt);
+      const seen = Math.abs(sway) > 1e-4 ? 1 : 0;
+      this.swaySeen += (seen - this.swaySeen) * (1 - Math.exp(-dt / (seen ? 0.2 : 1.5)));
     }
     cqRows();
     const m = move < 0 ? 0 : move > 1 ? 1 : move;
@@ -185,7 +267,72 @@ export class CqGaitLayer {
     src[CH.spRoll] = src[CH.spRoll]! + (a.spRoll + (b.spRoll - a.spRoll) * ck) * w;
     src[CH.pelX] = src[CH.pelX]! + (a.pelX + (b.pelX - a.pelX) * ck) * w;
     src[CH.pelY] = src[CH.pelY]! + (a.pelY + (b.pelY - a.pelY) * ck) * w;
+    // (anim-n4b) holding still: the brace (the hold's share, standing, faded in)
+    const bw = w * (1 - ck) * (1 - m) * this.braceIn;
+    if (bw > 1e-4) {
+      const r = cqBraceAt(RH, this.braceT, sway, this.swaySeen, this.br);
+      src[CH.pelYaw] = src[CH.pelYaw]! + r.pelYaw * bw;
+      src[CH.spYaw] = src[CH.spYaw]! + r.spYaw * bw;
+      src[CH.spRoll] = src[CH.spRoll]! + r.spRoll * bw;
+      src[CH.spPitch] = src[CH.spPitch]! + r.spPitch * bw;
+      src[CH.pelX] = src[CH.pelX]! + r.pelX * bw;
+    }
   }
+}
+
+// ------------------------------------------------------------------------------------------
+// (anim-n4b) The Anim Studio's hold clips: the same layer on the keyed trunk
+// ------------------------------------------------------------------------------------------
+
+/** `q[o..o+3]` (x, y, z, w) pre-multiplied by a yaw (about y), pitch (x) and roll (z) in Babylon's yaw-pitch-roll order
+ *  (in the parent frame). No allocation. */
+function preYpr(q: Float64Array, o: number, yaw: number, pitch: number, roll: number): void {
+  const cy = Math.cos(yaw / 2);
+  const sy = Math.sin(yaw / 2);
+  const cp = Math.cos(pitch / 2);
+  const sp = Math.sin(pitch / 2);
+  const cr = Math.cos(roll / 2);
+  const sr = Math.sin(roll / 2);
+  // Babylon RotationYawPitchRoll: q = qYaw(y) * qPitch(x) * qRoll(z)
+  const rx = cy * sp * cr + sy * cp * sr;
+  const ry = sy * cp * cr - cy * sp * sr;
+  const rz = cy * cp * sr - sy * sp * cr;
+  const rw = cy * cp * cr + sy * sp * sr;
+  const x = q[o]!;
+  const y = q[o + 1]!;
+  const z = q[o + 2]!;
+  const qw = q[o + 3]!;
+  q[o] = rw * x + rx * qw + ry * z - rz * y;
+  q[o + 1] = rw * y - rx * z + ry * qw + rz * x;
+  q[o + 2] = rw * z + rx * y - ry * x + rz * qw;
+  q[o + 3] = rw * qw - rx * x - ry * y - rz * z;
+}
+
+const KG: CqGaitOut = { pelYaw: 0, spYaw: 0, spRoll: 0, pelX: 0, pelY: 0 };
+const KB: CqBraceOut = { pelYaw: 0, spYaw: 0, spRoll: 0, spPitch: 0, pelX: 0 };
+
+/**
+ * (anim-n4b) A studio hold clip with the game's close-quarters layer on its keyed trunk (the clips are studio-only
+ * references; the game's hold is procedural with this layer): `walk` the hold walk's counter-rotation at gait phase `ph`
+ * (the left heel strike at 0), else the hold still's brace at `t` s (the shift on its own clock). `pel` the keyed pelvis
+ * offset (x, y, z), `q` the pelvis, spine, chest, neck quaternions (`KQ` layout: pelvis 0, spine 4). The keyed spine is
+ * the procedural spine and chest together, so it takes the whole spine yaw, roll and pitch. No allocation.
+ */
+export function cqKeyedHold(pel: Float64Array, q: Float64Array, walk: boolean, ph: number, t: number): void {
+  cqRows();
+  if (walk) {
+    const g = cqGaitAt(RH, ph, 1, 0, KG);
+    preYpr(q, 0, g.pelYaw, 0, 0);
+    preYpr(q, 4, g.spYaw - (1 - CHEST_OF_PELVIS) * g.pelYaw, 0, 0);
+    pel[1] = pel[1]! + g.pelY;
+    return;
+  }
+  const b = cqBraceAt(RH, t, 0, 0, KB);
+  preYpr(q, 0, b.pelYaw, 0, 0);
+  // the keyed spine sits on the keyed pelvis: the shoulder line ends at pelvis + spine (the procedural rig's 0.4 share
+  // of the pelvis is its own split)
+  preYpr(q, 4, b.spYaw - (1 - CHEST_OF_PELVIS) * b.pelYaw, b.spPitch, b.spRoll);
+  pel[0] = pel[0]! + b.pelX;
 }
 
 // ------------------------------------------------------------------------------------------

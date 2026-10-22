@@ -314,7 +314,7 @@ for (const id of ['stopSettle', 'accelLean', 'stopLean', 'bank', 'plantDrop', 'l
 // ------------------------------------------------------------------------------------------
 
 for (const [walk, ids] of [
-  ['hold', [['holdTwist', 'pelvis'], ['holdCounter', 'counter'], ['holdDip', 'dip'], ['holdStride', 'stride']]],
+  ['hold', [['holdTwist', 'pelvis'], ['holdCounter', 'counter'], ['holdDip', 'dip'], ['holdStride', 'stride'], ['holdBrace', 'brace'], ['holdBraceRoll', 'braceRoll'], ['holdBreath', 'breath']]], // (anim-n4b) the hold still
   ['carry', [['carryTwist', 'pelvis'], ['carryCounter', 'counter'], ['carryShift', 'shift'], ['carryDip', 'dip'], ['carryStride', 'stride']]],
 ] as const) {
   for (const [id, f] of ids) rules.push(rule('cq', id, [`cq.${walk}`], [e(CQG, `CQ_GAIT.${walk}.${f}`, 'mul')], f === 'stride' ? 'the local player gait clock only (remote copies run their own)' : undefined));
