@@ -65,3 +65,15 @@ Assumed decisions (undo):
 
 Open: the Kestrel editor's coverage preview (`editor/security.ts` `camSees`) still tests level at `CAMERA.range`
 (Kestrel paused, G53; its maps set no `aim`, so no mismatch today). A checker pass is still due.
+
+## Fresh checker (2026-10-22 ~15:30, on 85b66ffb): PASS, no must-fix, no should-fix
+Every BRIEF slice C item met: detection (`covers` / `inFrame`) and the cue (span, reach, shader mask) read the same
+per-camera pitch and range; housing tilt sign right; grid ink 0.055 / 0.006, electro unchanged; beams only in night
+vision (the electro -> night glow re-assert works); a break alarms through `deviceAlarm`, no damage path left. No wire
+change needed (pitch / range from map data on both pages; alarm stage already in `sec.al`); protocol stays 28. No
+allocation in the update paths; slice J not regressed (a jammed laser is hidden and its sensor off). Tests meaningful;
+7 files / 125 pass, eslint clean. e2e-ctcourse station 4 asserts the new rules; nothing stale.
+Polish: cam-yard (warehouseSectors.ts:763, y 3.5, aim 5, range 10) draws its grid to ~9.4 m but a standing head leaves
+the frame at ~8.1-8.6 m (range 9 or aim 5.5 would match); `segmentHitsHousing` tests an unpitched box (~0.1 m off at
+the tips); the client shows no ALARM STAGE banner (older than the slice); station 4's alarm assert could flake if a
+station 3 alarm lands within ALARM_GAP 5 s; Kestrel `camSees` still level at 18 m (Kestrel paused).
