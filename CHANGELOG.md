@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased - heap-asserts (track A)
+- Tests: every "allocates nothing" check now measures bytes per call deterministically (a garbage collection before each
+  round, the new-space size, rounds with a collection discarded; shared helper `tests/helpers/allocPerCall.ts`), so
+  they no longer pass or fail on when a collection happens to land.
+- Menus: the menu camera director no longer allocates every frame (`menuShots.ts` `held()`: a closure per frame in the
+  title, loadout and lobby menus; same shots chosen).
+
 ## Unreleased - anim-bake-all
 - Animation tuner: every slider bakes, also those with no code value of their own: the aimed gun's height and angles,
   the camera FOV (a change on top of the player's FOV setting), aim zoom and aim-in blend, the aimed glide forward
