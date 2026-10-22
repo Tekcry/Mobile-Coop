@@ -1,6 +1,6 @@
 # Resume - Night Shift | CT Core Build (track B, animation)
 
-Written 2026-10-22 ~14:55 at the 5-hour pause; updated ~16:40 by the resumed CT Core session (overflow session). Every branch
+Written 2026-10-22 ~14:55 at the 5-hour pause; updated ~16:35 by the resumed CT Core session (saved for a clear) (overflow session). Every branch
 below is committed and pushed. Each job's own `docs/<job>/STATE.md` has the detail; this is the index.
 
 ## Rules carried
@@ -31,10 +31,10 @@ below is committed and pushed. Each job's own `docs/<job>/STATE.md` has the deta
 | Job | Branch / folder | Head | State | Next step |
 | --- | --- | --- | --- | --- |
 | anim-run-half (#110) | `feature/anim-run-half`, `C:/NightShift/Mobile-Coop-anim-run-half` | 16b1a044 | Master 4.54.0 merged, fixture re-captured; check 2682 ok, e2e-anim ok, e2e-studio ok solo (a JOBS=2 phase-sampling flake). In train 4. | Nothing unless train 4 fails. |
-| idle-shins (#120) | `feature/idle-shins`, `C:/NightShift/Mobile-Coop-idle-shins` | d0245244 | PR #120, master 4.55.0 merged. Train 5. | Nothing unless train 5 fails. |
-| anim-natural N1 (feet) | `feature/anim-natural-n1`, `C:/NightShift/Mobile-Coop-anim-natural-n1` | 7955f883 | Crouched-wrist fix 1e4556a8 (idle step tie -> the foot planted longer; headless -3.0 -> -2.7). Laptop asked for check + e2e-clip e2e-anim e2e-move on 1e4556a8; else /c/NightShift/ctb8.sh on the desktop in lock order (Menu Notes, Course Ready, then CT Core). | Verdict; laptop 14 area suites; master 4.55.0 merge; GPU sheets; PR (minor). Then STATE item 5. |
-| anim-natural N2 (body motion) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | see STATE | Master 4.54.1 merged (14cbecc2; fixtures re-captured, identity proof clean). crabFacing walk knee-out 3.6 (master base 3.1 + layer): A12 (crabFacing vs master's widened e2e-anim limits, walk sway cut to fit) by an agent (16:35). 4.55.0 (#121 keyed clips) not merged yet. | A12 result; step 2 suites (check, e2e-anim, e2e-studio, e2e-netmove, e2e-clip); 4.55.0 merge; steps 3-5. |
-| anim-bake-all (#123) | `feature/anim-bake-all`, `C:/NightShift/Mobile-Coop-anim-bake-all` | see STATE | PR #123 open; master 4.55.0 merged (cba9e371). Desktop anim-audit = #103 locally. Laptop check failed only animSkeletonRows alloc: a vitest GC-timing flake identical on master (STATE 0c). Laptop asked for the e2e suites on cba9e371. | Laptop verdict -> PR body tests; train. |
+| idle-shins (#120) | `feature/idle-shins`, `C:/NightShift/Mobile-Coop-idle-shins` | 741da1da | PR #120; master 4.55.1 merged. Train 5. | Nothing unless train 5 fails. |
+| anim-natural N1 (feet) | `feature/anim-natural-n1`, `C:/NightShift/Mobile-Coop-anim-natural-n1` | c25ab4ba | Desktop on 7955f883: check ok, e2e-move ok (decision 5), e2e-clip ok (crouched -2.9, the idle step tie fix 1e4556a8). e2e-anim FAIL: N1's own turn feet block "jog 180 first swing frames 5.29 m/s (<= 5)" (STATE 16:31, /c/NightShift/ctb8.log:156). Still on master 4.53.0: a 4.55.1 merge conflicts in both identity fixtures + animSkeletonIdentity.test.ts (needs re-capture with a data-only proof, as N2's merge did). | (1) agent: jog 180 swing launch fix in the planner, headless; (2) agent: master 4.55.1 merge + fixture re-capture; (3) desktop e2e-anim (+ e2e-clip, e2e-move) then laptop area suites; GPU sheets; PR (minor). |
+| anim-natural N2 (body motion) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | 21106003 | Master 4.54.1 merged; A12 (crabFacing vs master's widened e2e-anim limits; walk sway 0.98 -> 0.6, walk lateral 2.9 cm: below Michael's ~5 cm sway, tell him at the step). A fresh checker on step 2 + A12 was running at the clear (its verdict is lost on a clear: rerun it if no CHECK-3.md). /c/NightShift/ctb9.sh (check + e2e-anim e2e-studio e2e-netmove e2e-clip on 21106003) took the desktop lock at ~16:32: read /c/NightShift/ctb9.out. | ctb9 result; checker verdict -> CHECK-3.md; master 4.55.1 merge (#121 keyed clips); steps 3-5. |
+| anim-bake-all (#123) | `feature/anim-bake-all`, `C:/NightShift/Mobile-Coop-anim-bake-all` | 6f87bf8d | PR #123; master 4.55.1 merged (test-only on top of cba9e371). Desktop anim-audit = #103 locally. The laptop runs smoke + 11 e2e suites on cba9e371 (verdict by message; check skipped: its only fail was the animSkeletonRows heap assert, a vitest GC-timing flake identical on master; Course Ready fixes those asserts in feature/heap-asserts). | Laptop verdict -> add to the PR body; train 5. |
 | anim-n2-runkey | `feature/anim-n2-runkey` | 038e2519 | A1 branch, merged into N2. | None (history; sheets in docs/anim-natural-n2/sheets/). |
 
 ## Test logs on the desktop
@@ -48,17 +48,15 @@ ours runs, the lock is stale: delete it.
 
 ## Resume prompt
 ```
-Night Shift | CT Core Build: RESUME after the 5-hour pause. Model Opus, effort high. Read CLAUDE.md, docs/ROADMAP.md,
+Night Shift | CT Core Build: RESUME (after a clear or a pause). Model Opus, effort high. Read CLAUDE.md, docs/ROADMAP.md,
 then docs/orchestrator/resume-ct-core.md on origin/feature/menu (git fetch; git show
 origin/feature/menu:docs/orchestrator/resume-ct-core.md) and follow its rules (full burn with parallel agents,
 overflow session: works to 100%, WIP pushed after each agent hand-back; the atomic heavy.lock and the
 orchestrator's lock queue; the laptop runner "Night Shift | Character Build" when the lock is held; merge trains,
 versions at merge). Work the "Open jobs" table top to bottom, each from its own docs/<job>/STATE.md:
-1. idle-shins: PR #120 open, in train 5. Nothing to do.
-2. N1: the crouched-arm e2e-clip fail (STATE "~16:00"; agent result or redo), then laptop reruns, master merge, GPU
-   sheets, PR.
-3. N2: step 2 desktop verification, then steps 3-5.
-4. anim-bake-all: the laptop verdict on a850e103 + /c/NightShift/ctb7-audit.log, then PR.
-Desktop lock order (orchestrator 16:02): Menu Notes, then Course Ready, then CT Core.
+1. N1: STATE "16:31": the jog 180 swing launch (agent), the 4.55.1 merge + fixture re-capture (agent), desktop e2e-anim.
+2. N2: /c/NightShift/ctb9.out and the step 2 checker (rerun it if no CHECK-3.md), 4.55.1 merge, steps 3-5.
+3. #120 / #123 wait for train 5 (anim-bake-all: the laptop verdict on cba9e371 into the PR body).
+Desktop lock: ask the orchestrator for the current order; scripts take it atomically and free it themselves.
 Message "Night Shift | Orchestrator" at each slice, verdict and PR.
 ```
