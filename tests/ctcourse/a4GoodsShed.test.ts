@@ -16,7 +16,7 @@ import { PatrolWalker } from '../../src/ai/patrol';
 import { PERCEPTION } from '../../src/ai/perception';
 import { ContextMenu } from '../../src/game/contextMenu';
 import { addGrabRows } from '../../src/game/grabMenu';
-import { TAKEDOWN } from '../../src/game/takedown';
+import { pickTakedown, TAKEDOWN } from '../../src/game/takedown';
 import { COURSE_TEXT_MAX } from '../../src/config/course';
 import { MOVEMENT } from '../../src/config/movement';
 import { hyp2 } from '../../src/core/mathx';
@@ -283,11 +283,14 @@ describe('A4 the Goods Shed: the floor (racking, mezzanine, stairs; nothing clim
 
   it('no solo way up: no top a running jump uses reaches a lip on the deck edge (a hypothetical one) or over the racking; the check has teeth', () => {
     const deckEdge: CoopGrip = { y: A4_MEZZ.deck, a: { x: A4_MEZZ.x0, z: A4_MEZZ.z0 }, b: { x: A4_MEZZ.x1, z: A4_MEZZ.z0 }, n: { x: 0, z: -1 } };
-    expect(soloJumpThreats(solid, deckEdge)).toEqual([]);
+    // any lip height a jump could be asked to reach: the deck's 3.3 m, the 4.4 m co-op band over it, the racking's 5.4 m and the 4.4 m under it
+    for (const y of [A4_MEZZ.deck, 4.4]) expect(soloJumpThreats(solid, { ...deckEdge, y }), `deck edge lip at ${y}`).toEqual([]);
     for (const [z0, z1] of A4_RACK_Z) {
       for (const [x0, x1] of A4_RACK_X) {
-        expect(soloJumpThreats(solid, { y: A4_RACK_H, a: { x: x0, z: z0 }, b: { x: x1, z: z0 }, n: { x: 0, z: -1 } }), `rack z ${z0}`).toEqual([]);
-        expect(soloJumpThreats(solid, { y: A4_RACK_H, a: { x: x0, z: z1 }, b: { x: x1, z: z1 }, n: { x: 0, z: 1 } }), `rack z ${z1}`).toEqual([]);
+        for (const y of [4.4, A4_RACK_H]) {
+          expect(soloJumpThreats(solid, { y, a: { x: x0, z: z0 }, b: { x: x1, z: z0 }, n: { x: 0, z: -1 } }), `rack z ${z0} lip at ${y}`).toEqual([]);
+          expect(soloJumpThreats(solid, { y, a: { x: x0, z: z1 }, b: { x: x1, z: z1 }, n: { x: 0, z: 1 } }), `rack z ${z1} lip at ${y}`).toEqual([]);
+        }
       }
     }
     // teeth: a 1.8 m crate on the aisle beside the deck's south edge is a top a jump uses; a 1.2 m stack too close would not matter (it is low), so only the tall crate is tested
@@ -568,6 +571,8 @@ describe('A4 the Goods Shed: the lights (LIGHTING-PLAN 3, A4)', () => {
   const by = (g: number) => lamps.filter((l) => l.group === g);
 
   it('twenty lamps on the plan\'s circuits 40-43: room 2, floor 8, aisles 6, mezzanine 4; none on the dead row 49; every one grouped, electric and destructible as its row says', () => {
+    // every lamp in the set's boxes but the gallery's decor lamps above the glazing (group 90) is one of the twenty: none is ungrouped or on another set's circuit
+    expect(b.lights.lights.filter((l) => l.kind !== 'flashlight' && l.group !== 90 && box.some((bx) => inBox(bx, l.x, l.z)))).toHaveLength(20);
     expect(lamps).toHaveLength(20);
     expect([40, 41, 42, 43].map((g) => by(g).length)).toEqual([2, 8, 6, 4]);
     expect(by(49)).toEqual([]);
@@ -817,6 +822,20 @@ describe('A4 the Goods Shed: the guards', () => {
     // and a step round the stack's end to the man's back is open floor too (the takedown's other way)
     expect(pathBlocked([[A4_SPOT_N.x, A4_SPOT_N.z], [79.4, 36.2], [79.4, 35.4]], 0.3)).toBeNull();
     expect(pathBlocked([[A4_SPOT_S.x, A4_SPOT_S.z], [80.6, 29.8], [80.6, 30.6]], 0.3)).toBeNull();
+  });
+
+  it('the takedown geometry works: from each crouch spot, back to the stack, the game\'s own pick (`pickTakedown`, state wallLow) is an over-cover takedown on the man behind it; the doc\'s first stack position (far face 0.7 m further out) would be out of reach (the check has teeth)', () => {
+    const pick = (a: { x: number; z: number }, v: { x: number; z: number; yaw: number }, n: { x: number; z: number }) =>
+      pickTakedown({ state: 'wallLow', ax: a.x, ay: 0, az: a.z, vx: v.x, vy: 0, vz: v.z, vyaw: v.yaw, vCalm: true, los: true, coverNx: n.x, coverNz: n.z });
+    expect(pick(A4_SPOT_N, d1, { x: 0, z: 1 })?.kind).toBe('overCover');
+    expect(pick(A4_SPOT_S, d2, { x: 0, z: -1 })?.kind).toBe('overCover');
+    expect(pick({ x: A4_SPOT_N.x, z: A4_SPOT_N.z + 0.7 }, d1, { x: 0, z: 1 })).toBeNull();
+    expect(pick({ x: A4_SPOT_S.x, z: A4_SPOT_S.z - 0.7 }, d2, { x: 0, z: -1 })).toBeNull();
+    // the strike ends at the stand-off behind each man, on his side of the stack
+    const n = pick(A4_SPOT_N, d1, { x: 0, z: 1 })!;
+    const s = pick(A4_SPOT_S, d2, { x: 0, z: -1 })!;
+    expect(n.alignZ).toBeGreaterThan(d1.z);
+    expect(s.alignZ).toBeLessThan(d2.z);
   });
 
   it('D2 runs a timed 40 s loop (desk 17 s, kettle 5 s, away about 23 s): armed grunt route of eight points, open floor on every leg and at the kettle stop; every leave time is inside the period and rising', () => {
