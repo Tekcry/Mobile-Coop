@@ -2742,9 +2742,9 @@ export const READY_STANCE = { period: 8, lead: 0.09, tau: 0.25 } as const;
  *  captures over about three of it). */
 export const STRAFE_SIDE_TAU = 0.06;
 /** (mocap-trial-2, strafe) The mocap strafe's pose fades to the still stance over this (s, rising; `stIdle`). */
-export const STRAFE_IDLE_TAU = 0.12;
+export const STRAFE_IDLE_TAU = 0.2;
 /** (mocap-trial-2, strafe) The mocap strafe's stance spots lead along the travel by this share of a cycle's travel. */
-export const STRAFE_LEAD = { feet: 0, hips: 0.25, rate: 0.6 };
+export const STRAFE_LEAD = { feet: 0, hips: 0.25, rate: 0.3 };
 export const GLIDE = { ampMin: 0.4, full: 1.0, halfK: 0.8, halfKSide: 0.9, kneeOut: -0.05, kneeOutSide: -0.08, yawCut: 0.85 } as const;
 
 /** (G1) Move a free hand target (channels x, y, z from `ch`) toward (x, y, z) by `w`. */
