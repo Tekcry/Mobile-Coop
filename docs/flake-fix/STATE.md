@@ -7,6 +7,17 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 - RULE (orchestrator ~01:12): full runs and trains back to E2E_JOBS=3 (train 15 coop miss = the first JOBS=5 failure); stress
   proofs stay JOBS=5 by design; one JOBS=5 trial full run on master after the coop offer-wait fix merges, 5 again if clean.
 - Train 15 GREEN on code (coop solo PASS x2 56 / 72 s), released as 4.64.0.
+- PROGRESS ~01:20: load-audit 72ffda53 stress GREEN (9 suites JOBS=5, 334 s; runs/loadstress1-72ffda53). load-audit
+  5f03d938: master merged, item (3) grab token + try/finally, takedown-offer retry settle (Node poll on host g.time; the
+  train 15 coop miss), checker fixes; coop solo x2 PASS on db7b24f2. Agent now on the orchestrator's review M1-M3, L2, L3
+  (ctcourse own-clock latches, 3 re-jam tries, waitHostSim returns elapsed + asserts, grab 4.5 s, sidePace > 2.15).
+  Then: stress on the new head, PR.
+- Mediums: feature/load-latent-net 20c8602f, -ui1 2582e49a, -ui2 35bf88d1 (checker PASS WITH NOTES, note applied),
+  merged as feature/load-latent-mediums d9ef1f0d (proof branch) -> running runs/loadlatent-mediums-d9ef1f0d (12 suites
+  JOBS=5). feature/load-latent-coop c0ce5862 (#7, #9, spare #13 strike denied; on load-audit db7b24f2) -> coop solo x2
+  runs/loadlatent-coop-c0ce5862. Checker on net/ui1/coop running.
+- feature/test-chores-13 (spare #13: run-e2e KILLED line in streamed mode, role-swapped netmove pass): agent running.
+- Guard-cap agent also has the orchestrator's G1-G6.
 - schtasks creation is BLOCKED in this session (auto mode): runs are session-bound background commands and die on a swap.
   On resume check runs/<label>/summary.txt for DONE; a run without DONE died: rerun it.
 - Train 15 e1050e14: 38/39 GPU JOBS=5, 349 s; e2e-coop FAIL "client takedown offered on the host's guard (offer none)"
