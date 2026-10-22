@@ -60,7 +60,12 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   Build once both land.
 - Pacing (Michael 01:12 via the orchestrator): this window full burn to 100%. After his reset (phase B, orchestrator
   01:40): at most 3 agents at once in this session (desktop CPU at 100% with 4 sessions; keeps tsc / vitest runnable
-  locally), e2e stays on the laptop; pace each 5-hour window to ~97-99% at its reset; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
+  locally), e2e stays on the laptop; pace each 5-hour window to ~97-99% at its reset. Lean windows (Michael ~01:45,
+  ROADMAP Decided): each window to 99%, lean, no quality loss; no new agent at 97%, save at 98%, stop by 99%. Models:
+  Opus plans, writes strict slice briefs (exact files, line ranges, acceptance, tests), reviews and runs every fresh
+  checker; Sonnet builds from those briefs (greybox sets A1-A8, set data, dressing placement, props batches, e2e
+  routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
+  gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
 - ~03:00 greybox helper tests IN (77 pass). Helper fixes override SPEC numbers (fold into SPEC at the next spec pass):
   A1 leg-up mark x 10.8; A3 first hop 10.0 m, hide x 88.6; A5 drum stack >= 2.8 m off the beam line or >= 1.9 m
