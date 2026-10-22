@@ -19,6 +19,10 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   syntax-checked only. Source list: docs/load-latent/REPORT.md on feature/load-latent e1368ac6 (59 findings: 6 high, 26
   medium, 27 low); mediums left in e2e-ctcourse: #10, #11, #12, #13, #15, #35, #36, #38 (see that report). The PR body
   should list the audit failures (desktop:1 hang, move 0.00 m/s) and each fix with its proof.
+- PR #165 e2e-start-order OPEN (feature/e2e-start-order, fresh scripts/e2e-times.json from train 13 + a median default
+  for unknown suites; expected 15-22 s off each JOBS=5 full run). Orchestrator order after the swap: (1) #165 done,
+  (2) load-audit stress proof -> PR (goes into train 14 with #163 lightfield-heap), (3) guard-cap measure on 4.62.0+.
+  JOBS=6 later, measured. load-latent report c6437901 has the deferred medium fixes planned.
 - Train 13 d2be5f6c GREEN 39/39 (JOBS=5, 357 s) - reported. Lightfield #163 deb5211d loaded proof 20/20 - reported.
 - Agent branches pushed (no PRs yet): feature/slow-suites aa271739 (docs/slow-suites/REPORT.md: stale
   scripts/e2e-times.json start order costs 15-22 s per JOBS=5 run, a no-risk fix; JOBS=6 est. 30-40 s, needs measured
