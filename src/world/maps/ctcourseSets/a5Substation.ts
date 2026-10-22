@@ -19,7 +19,7 @@
  * bulkheads and the switchroom panel, switch inside the switchroom's front door: the lure), the kiosk flood 52 (a sodium cone
  * on the switchroom's south face, photocell: jam or shoot only), the kiosk panel light 53 (emergency supply). Nine lamps.
  */
-import type { CourseDevice, FlagGate, PickupGate } from '../../../game/course/courseDef';
+import type { CourseDevice, FlagGate } from '../../../game/course/courseDef';
 import type { LaserPanelDef } from '../../../game/laserPanels';
 import { KIT_BOX_COLOR, type FacilityKit } from '../../kit/facilityKit';
 import type { LevelBuilder } from '../../levelBuilder';
