@@ -5,7 +5,11 @@ Michael (2026-10-22 ~19:15): "Now, swap back once the next 5h limit is reached o
 Repeat as long as it pays. Earlier handoffs (2026-10-21, 2026-10-22 13:10, 19:25) are in git history.
 
 ## State at the switch (2026-10-22 ~22:00)
-Master v4.58.1 (#140 GPU test waits, 2016e063; v4.58.0 train 7 #137 = #132 + #134, 00d7a653). /preview/ = dev = 2016e063.
+Master v4.58.2 (#143 GPU test waits 2, ee51908f; v4.58.1 #140; v4.58.0 train 7 #137 = #132 + #134). /preview/ = dev = ee51908f.
+Ready for trains: #119 N4b e957db2f (studio reset fixed), #142 n4d, #144 R (all suites GPU green). Train 9's e2e-menus
+touch pause ("a tap on the pause button pauses ((none))") passes on P and n4c alone: T1 #141 or an interaction
+(Menu Notes / CT Core narrowing; laptop scheduled task ns-chain-1022w also narrowing). Train 10 = #142 + #144 after
+trains 8 and 9 merge.
 
 New rules today (CLAUDE.md on feature/menu, "GPU for logic e2e"): every e2e run is `E2E_GPU=1` on both machines
 (laptop full run 14 min vs 34 in software); a GPU failure counts. Desktop: `heavy.lock` (check, software) plus a

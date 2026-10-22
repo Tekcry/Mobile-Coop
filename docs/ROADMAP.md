@@ -191,6 +191,7 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
 | 2026-10-22 | #107 | 4.51.1: e2e-coop client takedown steady under load (test only) |
 | 2026-10-22 | #111 | 4.52.0: train 1: server browser (#99, public rooms, Co-op > Browse rooms), jammer fixes (#108); protocol 28 |
 | 2026-10-22 | #112 | 4.53.0: train 2: guard tuning in the tuner and Anim Studio (#105), Clip speed tab (#109) |
+| 2026-10-22 | #143 | 4.58.2: tests: GPU waits for the tuner panel's throttled reads (studio) |
 | 2026-10-22 | #140 | 4.58.1: tests: GPU-only waits fixed (studio keyed walk, lightbake plugins) |
 | 2026-10-22 | #137 | 4.58.0: train 7: Anim Studio stage lights on Wren only, pair puppets hold LOD0 (#134), the full animation audit scripts and docs (#132, anim-natural N0) |
 | 2026-10-22 | #133 | 4.57.0: train 6: Wren body recoil and wall block without the stall (#122), every tuner slider bakes (#123), Sector Ops cameras, lasers in night vision, alarm-only lasers (#127) and lights (#129), deterministic heap tests (#128), changelog fragments and the merge-train script (#131) |
