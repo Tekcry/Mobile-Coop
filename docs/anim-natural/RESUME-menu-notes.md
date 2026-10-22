@@ -1,4 +1,4 @@
-# Night Shift | Menu Notes Build - resume (updated 2026-10-22 ~15:15, before the clear for the 16:10 reset)
+# Night Shift | Menu Notes Build - resume (updated 2026-10-22 ~15:20)
 
 Every open job this session leads, with branches, heads, next steps and rules. Read CLAUDE.md and docs/ROADMAP.md
 first, then this file. Message "Night Shift | Orchestrator" at each slice and PR.
@@ -23,38 +23,27 @@ first, then this file. Message "Night Shift | Orchestrator" at each slice and PR
 ## 1. anim-natural (TOP PRIORITY) - docs branch `feature/anim-natural` (C:/NightShift/Mobile-Coop-anim-natural)
 Brief: docs/anim-natural/BRIEF.md. Menu Notes owns N0, N3 and N3b. CT Core owns N1 / N2 (+ hitReact); Course Ready owns
 N4 rows (co-op role B, mantle / drop, roll, guard-hold trunk).
-- **N3 weapons:** `feature/anim-n3`, worktree C:/NightShift/Mobile-Coop-anim-n3, head 60782562 (master 4.54.0 merged).
-  Fix round done (96134b16), fresh checker PASS WITH FIXES (no must-fix; should-fix / polish list in
-  docs/anim-natural/n3/WIP.md, "Fresh checker"). Clip speed is the only draw / holster time control; holster split per
-  gun; an old single `holster` value maps to both (tuneRows.ts ID_ALIASES). CHANGELOG / TESTING / combat.md done.
-  Side branch feature/anim-n3-merge (worktree C:/NightShift/Mobile-Coop-anim-n3-merge) is merged in; removable.
-  **Laptop on b2e2689f:** `npm run check` PASS; e2e-netmove, e2e-studio, e2e-stealth, e2e-combat, e2e-takedown PASS;
-  e2e-anim and e2e-weapons-carry failed test-side (a draw already done; the swap reach counted only parented samples),
-  fixed in 60782562 (scripts only). **Waiting:** Character Build's rerun of e2e-anim + e2e-weapons-carry on 60782562.
-  **Next:** (1) on a pass: GPU before / after sheets under the lock (`E2E_GPU=1 node scripts/anim-natural/audit.mjs
-  proving --only=draw-lowready-rifle,draw-lowready-pistol,draw-rifle,draw-pistol,swap-drawn,holster-rifle,holster-pistol,ready-to-aim`
-  from the N3 worktree after `npm run build`, port 4189; "before" = the pass 1 sheets on feature/anim-natural);
-  (2) open the PR to master (minor; body: old -> new times, the animGraph / tuneBakeTable lines, the `swapRel` carriage
-  change, the slower strike / reload / gadget windows, assumed decisions A1-A4 in WIP.md, the checker's should-fix list);
-  message the orchestrator. Merge master again if it moved.
-- **N3b** (routed pass 2 rows): `feature/anim-n3b`, worktree C:/NightShift/Mobile-Coop-anim-n3b, head 9db9d372 (from
-  master 5220f79c; merge master 4.54.0+ before its PR). Built, UNCHECKED: slide + doorway sweep deleted (Michael), Wren
-  body recoil (src/anim/recoil.ts, Gun tuner recoilMul), wall block tips the gun down with hysteresis and no stall.
-  Assumed A1 recoil bigger than CT G2's "under 0.5 deg", A2 wall block muzzle DOWN replaces G6's muzzle-up (tell the
-  orchestrator: a design change for Michael to confirm), A3 Wren only. Tests: 56 files / 614 pass, tsc / eslint clean.
-  State and next steps: docs/anim-natural/n3b/STATE.md there. **Next:** fresh checker; merge master; e2e-anim,
-  e2e-stealth-ai, e2e-coop (+ the wall suite) on the laptop or under the lock; GPU sheets wall-block, fire-rifle,
-  fire-pistol; PR (minor).
+- **N3 weapons: PR OPEN** https://github.com/Tekcry/Mobile-Coop/pull/118 (feature/anim-n3 head 9c31355c, master 4.54.0).
+  Orchestrator reviewed it; it leads merge train 5. e2e-weapons-carry ok, e2e-anim ok on 9c31355c (scripts wait out the
+  1.0 s holster); GPU after-sheets in docs/anim-natural/n3/after/ (audit.mjs `--dtmul=2.5`). Nothing to do unless master
+  moves under it (then merge master, rerun e2e-anim + e2e-weapons-carry).
+- **N3b**: `feature/anim-n3b` head 48cb9280 (master 4.54.0 merged at 40bf9c3d). Fresh checker PASS (no must-fix; notes and
+  polish in docs/anim-natural/n3b/STATE.md). A2 (wall block muzzle DOWN vs CT muzzle up) waits on Michael: ask in the PR.
+  Queued desktop run (C:/NightShift/mn-queue.sh, logs n3b-*.log): npm run check, e2e-anim / stealth-ai / coop / wall,
+  GPU sheets wall-block / fire-rifle / fire-pistol (copy them from docs/anim-natural/audit/ in the N3b worktree to
+  docs/anim-natural/n3b/after/). **Next:** on green, commit the sheets, open the PR (minor; A1-A3, the A2 question,
+  checker polish), message the orchestrator (train 5).
 - **N0 audit:** pass 1 + pass 2 done (feature/anim-natural 905e115f): AUDIT.md, PASS2.md, fixes 23-36, sheets.
   Not captured: 29 / 39 (aiming at the wall end steps her off the wall; needs anim-audit's wall driver), 49 elbow strike
   (no strike starts with a calm guard in reach; find what blocks it), 31 launcher (not in game), 80 (covered by revive B).
 
 ## 2. sector-fixes (after the N3 PR) - take L and C only (W is Character Build's)
-- **L lights:** `feature/sector-fixes` c436f677 (C:/NightShift/Mobile-Coop-sector-fixes; docs/sector-fixes/l/WIP.md):
+- **L lights:** `feature/sector-fixes` 511d589a (master 4.54.0 merged, tsc clean) (C:/NightShift/Mobile-Coop-sector-fixes; docs/sector-fixes/l/WIP.md):
   finish the S1 light test, rebake, check, the warehouse / light suites, after shots, checker.
-- **C cameras and lasers:** `feature/sector-fixes-c` abc24880 (C:/NightShift/Mobile-Coop-sector-fixes-c;
-  docs/sector-fixes/c/WIP.md): check and the camera / laser suites after the master merge, checker; protocol 27 if the
-  wire changed (J is 26).
+- **C cameras and lasers:** `feature/sector-fixes-c` 85b66ffb (master 4.54.0 merged; slice finished by the implementer,
+  docs/sector-fixes/c/WIP.md; no wire change, master protocol is 28). Fresh checker running; queued after N3b in
+  mn-queue.sh: npm run check, e2e-ctcourse / sectorops / security / coop / netmove, after shots + sheet (logs sfc-*.log).
+  Next: the checker verdict (one fix round at most), commit the shots, PR or hand to the orchestrator.
 
 ## 3. anim-skeleton (T3) - DONE apart from follow-ups held by Course Ready (docs/anim-skeleton/STATE.md).
 
@@ -63,15 +52,14 @@ N4 rows (co-op role B, mantle / drop, roll, guard-hold trunk).
 Night Shift | Menu Notes Build: RESUME (new session or account). Read CLAUDE.md and docs/ROADMAP.md (latest on
 origin/feature/menu), then C:/NightShift/Mobile-Coop-anim-natural/docs/anim-natural/RESUME-menu-notes.md (branch
 feature/anim-natural; git pull first) and follow it. Message "Night Shift | Orchestrator" that you resumed.
-Order: (1) anim-natural N3 on feature/anim-n3 (worktree C:/NightShift/Mobile-Coop-anim-n3, head 60782562): get
-Character Build's verdict on its rerun of e2e-anim + e2e-weapons-carry on 60782562 (ask "Night Shift | Character Build"
-if none arrived; everything else passed on b2e2689f). On a pass, when the orchestrator's desktop lock queue allows, take
-C:/NightShift/heavy.lock atomically, npm run build, take the GPU after-sheets (E2E_GPU=1 node scripts/anim-natural/audit.mjs
-proving --only=<the N3 draw / holster / swap rows>, port 4189), release the lock, then open the PR to master (minor;
-body per the resume file and docs/anim-natural/n3/WIP.md) and message the orchestrator. Merge master again first if it
-moved. (2) N3b on feature/anim-n3b (worktree C:/NightShift/Mobile-Coop-anim-n3b, head 9db9d372, built but unchecked): read
-docs/anim-natural/n3b/STATE.md; fresh checker, merge master, area suites (laptop or lock), GPU sheets, PR. (3) N0 pass 2 leftovers (rows 29 / 39 wall-end aim, 49
-elbow strike) only if spare. (4) sector-fixes L and C (W is Character Build's). Parallel agents allowed (full burn).
-Branch guard before every write; the atomic heavy.lock rule; check the 5-hour meter before each agent (97% no new
-agent, 98% commit / push / update the resume file, stopped by 99%). Message the orchestrator at each slice and PR.
+Order: (1) N3 PR #118 is open and in merge train 5: act only if the orchestrator asks or master moves under it.
+(2) N3b (feature/anim-n3b, checker PASS): read the results of C:/NightShift/mn-queue.sh (C:/NightShift/n3b-*.log,
+mn-queue.out); if the run did not finish, take C:/NightShift/heavy.lock atomically and rerun the N3b half. On green:
+commit the GPU sheets to docs/anim-natural/n3b/after/, open the PR (minor; ask Michael about A2 in the body), message the
+orchestrator. (3) sector-fixes C (feature/sector-fixes-c 85b66ffb): the fresh checker verdict (rerun a checker if it was
+lost), at most one fix round, the queued check / suites / shots (sfc-*.log), then PR. (4) sector-fixes L
+(feature/sector-fixes 511d589a): implementer per docs/sector-fixes/l/WIP.md, checker, suites, shots. (5) N0 pass 2
+leftovers only if spare. Parallel agents allowed (full burn). Branch guard before every write; atomic heavy.lock; check
+the 5-hour meter before each agent (97% no new agent, 98% commit / push / update this file, stopped by 99%).
+Message the orchestrator at each slice and PR.
 ```
