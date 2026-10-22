@@ -2,8 +2,8 @@
 
 2026-10-22 ~22:45, written by the job lead from Course Ready's verdict. Verdict: FIX (two required pop problems with the
 switch ON; everything else passes). Repro scripts (Course Ready's scratch):
-C:/Users/Micha/AppData/Local/Temp/claude/C--NightShift/bd9194d1-a9f6-4148-9892-797928ef4c60/scratchpad/br/tests/zzsweep.test.ts
-(+ zzana / zzdet / zzclip) and .../scratchpad/dump.test.ts (switch-off dump); copy into tests/ to run.
+C:/NightShift/scratch/mt-check/repro/zzsweep.test.ts (copied from Course Ready's scratchpad)
+(+ zzana / zzdet / zzclip) and dump.test.ts (switch-off dump) in the same folder; copy into tests/ to run.
 
 ## Required (fix round)
 1. Pelvis-drop pops and a foot stutter at the clip-feet / planner hand-offs: `FootState.clipOwn` is never cleared when
