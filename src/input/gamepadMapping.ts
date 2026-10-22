@@ -146,10 +146,10 @@ export function mapPad(p: PadSnapshot, t: PadTuning, table: ReadonlyArray<readon
 
   // Standard mapping: axis Y is +down. Our move.y is +forward.
   const ls = applyCurve(applyRadialDeadzone(ax(0), ax(1), t.deadzoneLeft), 'linear');
-  const rs = applyCurve(applyRadialDeadzone(ax(2), ax(3), t.deadzoneRight), t.curve);
+  const rsd = applyRadialDeadzone(ax(2), ax(3), t.deadzoneRight);
+  const rs = applyCurve(rsd, t.curve);
   const move = { x: ls.x, y: -ls.y };
   const look = { x: rs.x, y: t.invertY ? rs.y : -rs.y };
-  const rsd = applyRadialDeadzone(ax(2), ax(3), t.deadzoneRight);
   const stick = { x: rsd.x, y: -rsd.y };
 
   // Left stick also navigates menus.

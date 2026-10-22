@@ -183,8 +183,11 @@ export class GadgetSystem {
     if (this.wheelOpen) {
       // (sector-fixes W, Michael item 8) the pad's right stick places the cursor absolutely: let go and it is back on the
       // vision slot (no pick is held); the mouse moves it by deltas (`look`), its centre also the vision slot
-      if (this.padWheel) this.sel.place(inp.stick.x, inp.stick.y);
       this.refreshRing();
+      if (this.padWheel) {
+        this.sel.place(inp.stick.x, inp.stick.y);
+        this.sel.settle(this.ring.length, dt);
+      } else this.sel.update(this.ring.length);
       // (nv-pass slice 3, Michael) A / E on the vision slot steps the mode like a carousel; the press is the wheel's
       // (cleared here so nothing after this step reads it: the context menu stands aside while the wheel is open)
       if (inp.pressed('interact') && this.sel.cycle(this.ring)) inp.buttons.interact.pressed = false;
@@ -240,7 +243,6 @@ export class GadgetSystem {
     const kit: WheelGadget[] = [];
     for (const id of GADGET_IDS) kit.push({ id, name: GADGETS[id].name, count: w.gadgets.counts[id] });
     this.ring = buildWheel(guns, kit);
-    this.sel.update(this.ring.length);
   }
 
   openWheel(): void {

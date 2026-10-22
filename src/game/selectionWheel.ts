@@ -40,6 +40,10 @@ export const WHEEL_DEAD = 0.35;
 /** (sector-fixes W, Michael item 8) The default slot: the goggles / vision slot, lit when the wheel opens and whenever
  *  the cursor is back in the dead zone (stick let go), so hold LB + A cycles the vision modes with no stick. */
 export const WHEEL_HOME = 0;
+/** (sector-fixes W) Pad let-go grace (s): a stick back in the dead zone keeps its slot lit this long before the vision
+ *  slot, so a stick and LB let go together still pick the slot (a spring stick reaches the centre a frame or two before
+ *  the finger leaves LB). Too short to read as a held pick; 0 turns it off. A / E with the stick centred skips it. */
+export const WHEEL_LETGO_S = 0.08;
 
 /** The ring: the vision slot at the top (index 0), the guns, then the gadgets (every one the kit has, an empty one dimmed). */
 export function buildWheel(guns: readonly WheelGun[], gadgets: readonly WheelGadget[]): WheelSeg[] {
@@ -87,6 +91,8 @@ export class SelectionWheel {
   /** Highlighted segment (the vision slot by default; -1 only shut / empty) and the vision slot's mode (the carousel: A / E steps it while the slot is lit). */
   seg = -1;
   mode: WheelVision = 'night';
+  /** Seconds the pad cursor has been in the dead zone (`settle`). */
+  private idle = 0;
 
   /** Open on the selected vision mode (the carousel starts there), the vision slot lit (sector-fixes W). */
   begin(mode: WheelVision = 'night'): void {
@@ -94,10 +100,13 @@ export class SelectionWheel {
     this.cx = this.cy = 0;
     this.seg = WHEEL_HOME;
     this.mode = mode;
+    this.idle = WHEEL_LETGO_S;
   }
 
   /** (nv-pass slice 3) A / E on the lit vision slot steps the mode; true when it did (the press is the wheel's). */
   cycle(ring: readonly WheelSeg[]): boolean {
+    // (sector-fixes W) the cursor in the centre is the vision slot now, even inside the pad's let-go grace
+    if (ring.length > 0 && hyp2(this.cx, this.cy) < WHEEL_DEAD) this.seg = WHEEL_HOME;
     const s = this.seg >= 0 ? ring[this.seg] : undefined;
     if (s?.kind !== 'vision') return false;
     this.mode = nextVision(this.mode);
@@ -133,6 +142,19 @@ export class SelectionWheel {
   /** Recompute the highlight for a ring of `n` segments (the dead zone lights the vision slot, sector-fixes W). */
   update(n: number): void {
     this.seg = wheelSegment(this.cx, this.cy, n);
+  }
+
+  /** (sector-fixes W) The pad's highlight after `place`: the stick's segment, or back on the vision slot once the stick
+   *  has stayed in the dead zone `WHEEL_LETGO_S` (no pick is held). */
+  settle(n: number, dt: number): void {
+    const s = segmentAt(this.cx, this.cy, n);
+    if (s >= 0) {
+      this.seg = s;
+      this.idle = 0;
+      return;
+    }
+    this.idle += dt;
+    if (this.seg < 0 || this.idle >= WHEEL_LETGO_S) this.seg = wheelSegment(0, 0, n);
   }
 
   /** What release picks (null: nothing highlighted). */

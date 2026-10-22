@@ -107,20 +107,24 @@ try {
       t.step(0.4);
       t.step(0.1);
       const slot = g.gadgets.wheelSlot === idx ? 2 : -1;
+      const slotIdx = idx;
       const hl = document.querySelector('.sw-label-name')?.textContent ?? '';
-      // the stick let go: back on the vision slot (no pick is held), then onto the flashbang again for the release
+      // the stick let go: a frame later the slot is still lit (the let-go grace, WHEEL_LETGO_S), then back on the vision
+      // slot (no pick is held); then onto the flashbang again, and the stick and the button let go together pick it
       st.stick.x = st.stick.y = 0;
       t.step(1 / 60);
+      const grace = g.gadgets.wheelSlot;
+      t.step(0.2);
       const letGo = g.gadgets.wheelSlot;
       const letGoHl = document.querySelector('.sw-label-name')?.textContent ?? '';
       st.stick.x = Math.sin(ang);
       st.stick.y = Math.cos(ang);
       t.step(1 / 60);
       const moved = Math.hypot(g.player.position.x - p0.x, g.player.position.z - p0.z);
+      st.stick.x = st.stick.y = 0;
       st.set('t', 'gadgetWheel', false);
       t.step(0.05);
       st.setMove('t', 0, 0);
-      st.stick.x = st.stick.y = 0;
       const sel = g.weapons.gadgets.selected;
       const closed = !g.gadgets.wheelOpen && document.querySelector('.selection-wheel:not([hidden])') === null;
       const back = a.loop.timeScale;
@@ -157,14 +161,14 @@ try {
       const clickClosed = !g.gadgets.wheelOpen;
       // (back to the pad for the scenarios below; before G13 the page stayed in touch mode here)
       a.input.setMode('gamepad');
-      return { open, home, letGo, letGoHl, visHome, mOut, slow, shown, geo, slot, hl, moved, sel, closed, back, tapOpen, tapSwitched, vis0, visOpen, visSeg, visCtx, visStep, clickSel, clickClosed };
+      return { open, home, slotIdx, grace, letGo, letGoHl, visHome, mOut, slow, shown, geo, slot, hl, moved, sel, closed, back, tapOpen, tapSwitched, vis0, visOpen, visSeg, visCtx, visStep, clickSel, clickClosed };
     });
     assert(r.open && r.shown && r.slow === 1, `holding the wheel button opens the selection wheel over the live game, no time slow (x${r.slow})`);
     assert(r.geo.fits && r.geo.top >= 0 && r.geo.hintClear && r.geo.segs === r.geo.tiles && r.geo.tiles >= 3, `the wheel fits the viewport under the top HUD, clear of the hint, one segment per item (${JSON.stringify(r.geo)})`);
-    assert(r.home === 0 && r.letGo === 0 && /vision/i.test(r.letGoHl), `(sector-fixes W) the wheel opens on the vision slot (${r.home}); the stick let go returns to it (${r.letGo} ${r.letGoHl})`);
+    assert(r.home === 0 && r.grace === r.slotIdx && r.letGo === 0 && /vision/i.test(r.letGoHl), `(sector-fixes W) the wheel opens on the vision slot (${r.home}); the stick let go keeps the slot one frame (${r.grace} of ${r.slotIdx}), then returns to vision (${r.letGo} ${r.letGoHl})`);
     assert(r.visHome === 0 && r.mOut > 0 && r.visSeg === 0, `(sector-fixes W) mouse: opens on vision (${r.visHome}), out to a slot (${r.mOut}), back in the centre = vision (${r.visSeg})`);
     assert(r.slot === 2 && /flash/i.test(r.hl) && r.moved > 0.05, `the cursor picks a segment (${r.slot} ${r.hl}); the left stick still walks (${r.moved.toFixed(2)} m)`);
-    assert(r.sel === 'flash' && r.closed && r.back === 1, `releasing selects it (${r.sel}) and closes (x${r.back})`);
+    assert(r.sel === 'flash' && r.closed && r.back === 1, `releasing (stick and button let go together) selects it (${r.sel}) and closes (x${r.back})`);
     assert(!r.tapOpen && r.tapSwitched, 'a quick tap does not open the wheel: it switches weapon');
     assert(r.visOpen === r.vis0 && r.visSeg === 0 && r.visCtx !== 'active', `mouse: the wheel opens on the selected mode (${r.vis0} / ${r.visOpen}), the centre lights the vision slot (segment ${r.visSeg}), E is the wheel's (context menu ${r.visCtx})`);
     const nxt = { night: 'thermal', thermal: 'electro', electro: 'night' }[r.vis0];
