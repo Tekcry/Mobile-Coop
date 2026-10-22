@@ -97,6 +97,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   rappel and fences on the Proving CT course.
 - [ ] Light: a lit pool on the light meter is lit on screen and guards there see you; a dark corner keeps you hidden
   (light parity). Shooting a lamp or a switch darkens it for the meter and the guards at once.
+- [ ] Guard alerts (guard-ai S1-S3, Sector Ops): a thrown bottle sends one guard over while the others only turn; shoot
+  a lamp with guards near and one or two check it and go back calm. Get spotted: the spotter shouts "Contact!" (guards
+  within a few metres join at once), about 2.5 s later radios it in, then the rest of the section joins one by one,
+  nearest first. Take the spotter down before his radio line and nobody beyond shouting range comes.
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
 - [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
   glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen

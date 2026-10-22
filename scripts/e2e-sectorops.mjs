@@ -441,7 +441,7 @@ await run(PARAMS, async ({ G, sim }) => {
   assert(spot, 'a spot exists with the nearest guard\'s path between the suppressed and the loud reach, out of every guard\'s sight');
   await tp(G, spot.x, spot.y, spot.z, 0);
   await sim(0.5);
-  const s0 = await G(() => ({ stage: window.__sector.debug().stage, raised: window.__app.current.enemyMgr.alarmRaised }));
+  const s0 = await G(() => ({ stage: window.__sector.debug().stage, raised: window.__app.current.enemyMgr.alarmRaised, calm: window.__app.current.enemyMgr.enemies.filter((e) => e.alive && !e.turning && (e.level === 'unaware' || e.level === 'cooldown')).map((e) => e.id) }));
   const shot = await G(() => {
     const w = window.__app.current.weapons;
     const s = w.current;
@@ -451,7 +451,16 @@ await run(PARAMS, async ({ G, sim }) => {
     return { fired: m0 - s.mag, noise: s.stats.noise, id: s.def.id };
   });
   assert(shot.fired === 1 && shot.noise <= 0.6, `one suppressed shot fired (${JSON.stringify(shot)}) at ${JSON.stringify(spot)}`);
-  await sim(4);
+  // (guard-ai S1 check fix 3) the spot is beyond the suppressed reach of every guard's path: no guard calm before the
+  // shot even turns to it (alerting nobody is not enough: the loud shot below alerts nobody either), so this pins the
+  // suppressed reach on its own
+  await sim(0.3);
+  const turned = await G((calm) => {
+    const em = window.__app.current.enemyMgr;
+    return em.enemies.filter((e) => e.alive && calm.includes(e.id) && (e.turning || e.level === 'suspicious' || e.level === 'investigating')).map((e) => `${e.id} ${e.level}`);
+  }, s0.calm);
+  assert(turned.length === 0, `no guard turns to the suppressed shot (${JSON.stringify(turned)}; ${s0.calm.length} calm before it)`);
+  await sim(3.7);
   const after = await G(() => {
     const em = window.__app.current.enemyMgr;
     const gs = em.enemies.filter((e) => e.alive);

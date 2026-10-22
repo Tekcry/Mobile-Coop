@@ -19,11 +19,24 @@ import { hyp2, hyp3 } from '../core/mathx';
 import { ARCHETYPE, type DifficultyDef } from './archetypes';
 import { ALERT } from './alertState';
 import { ReconDrone } from './reconDrone';
-import { HEARING, ambientDb, effectiveReach, hearTier, pickNearest, wallMatters, WALL_FACTOR, type HearTier, type NoisySource } from './hearing';
+import { HEARING, ambientDb, effectiveReach, hearTier, wallMatters, WALL_FACTOR, type HearTier, type NoisySource } from './hearing';
+import { MUFFLE } from '../config/noise';
+import { CMD_ACK, CMD_SEND, GuardView, GV_BUSY, GV_DOWN, GV_HELD, GV_MELEE, GV_OFFICER, INCIDENT, IncidentBoard, LEVEL, lightInView, MODE_COVER, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT, type IncidentKind, type PathLen } from './incidents';
+import { EYE_STAND, PERCEPTION } from './perception';
+import { roomAt } from '../world/rooms';
+import { CALL_KIND, callHold, hearsVoice, RADIO, RadioNet, type CallKind, type RadioSink } from './radioNet';
+import type { P2 } from './navGrid';
 
 // Live guard cap. 12 = the Dead Line co-op peak of 10 chapter-active guards (furthest-behind and furthest-ahead
 // player, each with their next chapter) plus the two alarm reinforcements; about 2.6 ms main thread (D1 guard cost).
 export const MAX_ALIVE = 12;
+
+/** (guard-ai S3) A completed `command` call ("Command, contact. Send backup.") raises the alarm like a panel (M4).
+ *  Off until S6 starts command calls and finishes the alarm; nothing starts one yet. */
+export const RADIO_ALARM = false;
+
+/** (guard-ai S3) The radio net's tick (s): 10 Hz. */
+const RADIO_TICK = 0.1;
 
 /** Owns enemies, the shared chase flow field, cover reservations, bodies (ragdolls), alarms and flashlights. */
 export class EnemyManager {
@@ -61,7 +74,8 @@ export class EnemyManager {
   lkpValid = false;
   /** Seconds since an alerted enemy last had a player in sight. */
   sightT = 99;
-  /** Radio range for a detection call (m). */
+  /** Radio range for a detection call (m): the parked modes' call (`callAlert`) and, until S4, the body-found
+   *  call. (guard-ai S3) The live modes' contact call reaches the whole section (`radioNet`), not a circle. */
   static readonly RADIO = 22;
   /** Downed enemies lying in the world (findable, carriable). */
   readonly bodies: Body[] = [];
@@ -107,11 +121,71 @@ export class EnemyManager {
   private noisy: readonly NoisySource[] = [];
   /** The hearing table (tests / e2e read the numbers from here). */
   readonly hearingTable = HEARING;
-  /** Hearing scratch (no allocation per noise): tier-2 hearers, every guard's position and effective reach. */
-  private hearIdx = new Int16Array(32);
-  private hearX = new Float32Array(32);
-  private hearZ = new Float32Array(32);
+  /** Hearing scratch (no allocation per noise): the perceivers' ids (tier-2 hearers, guards who saw a light go) and
+   *  every guard's effective reach. */
+  private hearWho = new Int32Array(32);
   private hearR = new Float32Array(32);
+  /** (guard-ai S2) Path length over the nav grid for the board (straight when the line is clear; A* else). */
+  private readonly pathA: P2 = [0, 0];
+  private readonly pathB: P2 = [0, 0];
+  private readonly paths: PathLen = {
+    len: (ax, ay, az, bx, by, bz) => {
+      const a = this.pathA;
+      const b = this.pathB;
+      a[0] = ax;
+      a[1] = az;
+      b[0] = bx;
+      b[1] = bz;
+      const nav = this.nav;
+      if (nav.lineClear(a, b, ay, by)) return hyp3(bx - ax, by - ay, bz - az);
+      const p = nav.findPath(a, b, 3000, ay, by);
+      if (!p) return Infinity;
+      let len = 0;
+      let px = ax;
+      let pz = az;
+      for (let i = 0; i < p.length; i++) {
+        const w = p[i]!;
+        len += hyp2(w[0] - px, w[1] - pz);
+        px = w[0];
+        pz = w[1];
+      }
+      return len + hyp2(bx - px, bz - pz) + Math.abs(by - ay);
+    },
+  };
+  /** (guard-ai S2) The incident board (design 3): one incident per event, who goes, acks, escalation. Coordinated
+   *  modes only (one board: Sector Ops has one live section). */
+  readonly board = new IncidentBoard(this.paths);
+  /** The board's view of the guards (filled before each tick) and its 5 Hz clock. */
+  private readonly view = new GuardView(32);
+  private boardT = 0;
+  /** The incident table (tests / e2e read the numbers from here). */
+  readonly incidentTable = INCIDENT;
+  /**
+   * (guard-ai S3, design 5, M5) The section radio net: one per section. Sector Ops loads one section at a time, so the
+   * live section is this one net (cleared with the guards on every unload / restart: `despawnAll` -> `clear`); other
+   * maps are one section (A6). Its `section` stays 0 (the manager is not told the Sector index; only the S6 alarm call
+   * would use it). Coordinated modes only; ticked at 10 Hz with the board's view and the reaction lane.
+   */
+  readonly radioNet = new RadioNet(0);
+  /** The radio table (tests / e2e read the numbers from here). */
+  readonly radioTable = RADIO;
+  private netT = 0;
+  /** Per view index: the guard's reaction (difficulty x officer buff), the old `callAlert` factor. */
+  private rxReaction = new Float32Array(32);
+  /** The last few calls acknowledged (caller, incident, kind): one "Copy." per report, from its first receiver. */
+  private readonly ackCaller = new Int32Array(8).fill(-1);
+  private readonly ackInc = new Int32Array(8);
+  private readonly ackKind = new Int32Array(8);
+  private ackK = 0;
+  /** Where completed calls go (made once). */
+  private readonly sink: RadioSink = {
+    deliver: (gid, inc, kind, caller) => this.radioDeliver(gid, inc, kind, caller),
+    alarm: (_section, caller) => this.radioAlarm(caller),
+    completed: (caller, _inc, kind) => {
+      // the spotter's radio line, as the section hears it
+      if (kind === 'contact') this.byNum(caller)?.bark('callIn');
+    },
+  };
 
   constructor(
     private scene: Scene,
@@ -175,6 +249,7 @@ export class EnemyManager {
         return true;
       },
       stealth: () => this.stealth,
+      coordinated: () => this.coordinated,
       lkp: this.lkp,
       lkpValid: () => this.lkpValid,
       reportSighting: (p) => {
@@ -191,10 +266,21 @@ export class EnemyManager {
         }
       },
       shout: (e) => {
+        // (guard-ai S3) coordinated: the voice model (walls, masking); the parked modes: the old 8 m with jitter
+        if (this.coordinated) {
+          this.voice(e);
+          return;
+        }
         for (const o of this.enemies) {
           if (o === e || !o.alive || o.alerted) continue;
           if (hyp2(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < ALERT.shout && Math.abs(o.pos.y - e.pos.y) < 2.5) o.radio(0.3 + Math.random() * 0.3);
         }
+      },
+      radioCall: (e, inc, kind) => {
+        if (this.coordinated) this.radioNet.startCall(e.num, inc, kind, callHold(kind, this.reactionOf(e)));
+      },
+      radioCut: (e) => {
+        this.radioNet.cut(e.num);
       },
       searchSlot: (e) => {
         let n = 0;
@@ -280,9 +366,87 @@ export class EnemyManager {
     return out;
   }
 
-  /** Lights went out at a point: the nearest calm enemy comes to look (with a flashlight in the dark), others
-   *  nearby turn to look. */
-  lightsOut(x: number, z: number): void {
+  /**
+   * Lights went out at a point (a lamp shot out, a wall switch, a circuit cut; every lights-out path comes here).
+   * (x, y, z): the fixture (or the switch: where guards walk to); `lightId` the lamp that went (registry id) or
+   * `group` the circuit (-1 none: the point itself is the fixture).
+   *
+   * Coordinated (guard-ai S2, M1 goal 4): one `light` incident on the board. Its perceivers are the calm guards who SAW
+   * it go: the fixture inside their sight field and range (the peripheral range counts, it is a bright change) with
+   * one line-of-sight ray to it, or a fixture in the room they stand in (the room goes dark). No more 25 m / 14 m
+   * through walls. The board sends one, or two when a second guard who saw it is within `INCIDENT.lightPairR` of it;
+   * they check the light and its area and go back to normal (`Enemy.checkLight`); the others look a moment. The
+   * bulb's pop and the round's impact (plain noises right there) merge into it: one event, not three.
+   * Uncoordinated (Hunter, Mission): the old rule (the nearest calm guard within 25 m walks over, the rest within
+   * 14 m look).
+   */
+  lightsOut(x: number, z: number, y = Number.NaN, lightId = -1, group = -1): void {
+    if (!this.coordinated) {
+      this.lightsOutOld(x, z);
+      return;
+    }
+    const reg = this.world.level.lights;
+    const fy = y === y ? y : this.nav.heightAt(x, z) + 2.5;
+    const rooms = this.ctx.rooms;
+    const list = this.enemies;
+    this.hearRoom(list.length);
+    const who = this.hearWho;
+    let n = 0;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
+      if (!e.alive || e.alerted || e.passive || e.taken || e.def.melee) continue;
+      const er = rooms.length ? roomAt(rooms, e.pos.x, e.pos.z, e.pos.y + 0.1) : -1;
+      let saw = false;
+      if (lightId >= 0 || group >= 0) {
+        const ls = reg.lights;
+        // the room he stands in goes dark (no ray), else the first fixture in view gets the one ray
+        for (let k = 0; k < ls.length && !saw; k++) {
+          const l = ls[k]!;
+          if (lightId >= 0 ? l.id !== lightId : l.group !== group) continue;
+          if (er >= 0 && roomAt(rooms, l.x, l.z, l.y - 1.5) === er) saw = true;
+        }
+        for (let k = 0; k < ls.length && !saw; k++) {
+          const l = ls[k]!;
+          if (lightId >= 0 ? l.id !== lightId : l.group !== group) continue;
+          if (this.inSight(e, l.x, l.y, l.z)) {
+            saw = this.seesPoint(e, l.x, l.y, l.z);
+            break;
+          }
+        }
+      } else {
+        saw = (er >= 0 && roomAt(rooms, x, z, fy - 1.5) === er) || (this.inSight(e, x, fy, z) && this.seesPoint(e, x, fy, z));
+      }
+      if (saw) who[n++] = e.num;
+    }
+    // the incident sits on the floor under the light (rough storey pick: 2.5 m under the fixture), where guards walk to
+    const floor = this.nav.heightAt(x, z, fy - 2.5);
+    const key = lightId >= 0 ? lightId : group >= 0 ? 100000 + group : -1;
+    this.report('light', x, floor, z, key, n);
+  }
+
+  /** Is the point inside this guard's sight field and range (a light going out: the peripheral range counts)? */
+  private inSight(e: Enemy, x: number, y: number, z: number): boolean {
+    const P = PERCEPTION;
+    return lightInView(e.pos.x, e.pos.y + EYE_STAND * e.def.scale, e.pos.z, e.yaw, x, y, z, P.focusHalf, P.focusRange, P.periphHalf, P.periphRange);
+  }
+
+  /** One line-of-sight ray from the guard's eye to the point (static geometry; the last 0.4 m is slack: the fixture's
+   *  own fitting). */
+  private seesPoint(e: Enemy, x: number, y: number, z: number): boolean {
+    const ey = e.pos.y + EYE_STAND * e.def.scale;
+    const dx = x - e.pos.x;
+    const dy = y - ey;
+    const dz = z - e.pos.z;
+    const d = hyp3(dx, dy, dz);
+    const k = d > 0.4 ? (d - 0.4) / d : 0;
+    this.earA.set(e.pos.x, ey, e.pos.z);
+    this.earB.set(e.pos.x + dx * k, ey + dy * k, e.pos.z + dz * k);
+    return this.ballistics.clear(this.earA, this.earB, G.STATIC);
+  }
+
+  /** The old lights-out rule (uncoordinated modes): the nearest calm enemy within 25 m comes to look (with a
+   *  flashlight in the dark), others within 14 m turn to look. No walls, no line of sight. */
+  private lightsOutOld(x: number, z: number): void {
     let best: Enemy | null = null;
     let bd = 25;
     for (const e of this.enemies) {
@@ -432,6 +596,8 @@ export class EnemyManager {
       if (j >= 0) roster.splice(j, 1);
     }
     this.silent.delete(e);
+    // (guard-ai S3) gone mid-call: the call is lost (his queued receptions are skipped: he is out of the view)
+    this.radioNet.cut(e.num);
     if (this.alarmRunner === e) this.alarmRunner = null;
     if (this.flanker === e) this.flanker = null;
     for (let i = 0; i < this.torchOwner.length; i++) {
@@ -543,13 +709,144 @@ export class EnemyManager {
 
   /** Room for `n` guards in the hearing scratch (grows by doubling: no allocation once the cast is in). */
   private hearRoom(n: number): void {
-    if (n <= this.hearIdx.length) return;
-    let c = this.hearIdx.length;
+    if (n <= this.hearWho.length) return;
+    let c = this.hearWho.length;
     while (c < n) c *= 2;
-    this.hearIdx = new Int16Array(c);
-    this.hearX = new Float32Array(c);
-    this.hearZ = new Float32Array(c);
+    this.hearWho = new Int32Array(c);
     this.hearR = new Float32Array(c);
+  }
+
+  /** (guard-ai S2) The board's view of every guard in the list (no allocation once the cast is in). */
+  private fillView(): void {
+    const list = this.enemies;
+    const v = this.view;
+    v.ensure(list.length);
+    v.n = list.length;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
+      let f = 0;
+      if (e.def.kind === 'officer') f |= GV_OFFICER;
+      if (e.def.melee || e.dog) f |= GV_MELEE;
+      if (e.taken) f |= GV_HELD;
+      if (e.passive || e.runningAlarm) f |= GV_BUSY;
+      if (!e.alive) f |= GV_DOWN;
+      v.set(i, e.num, e.pos.x, e.pos.y, e.pos.z, LEVEL[e.level], f, e.incident);
+    }
+  }
+
+  /** (guard-ai S2) Report an event to the board with the `n` perceivers in `hearWho`, assign at once. */
+  private report(kind: IncidentKind, x: number, y: number, z: number, key: number, n: number): number {
+    const id = this.board.report(kind, x, z, y, key, this.hearWho, n);
+    this.boardStep(0);
+    return id;
+  }
+
+  /** (guard-ai S2) One board tick (`dt` 0: just assign / acknowledge), then its commands to the guards. */
+  private boardStep(dt: number): void {
+    this.fillView();
+    const b = this.board;
+    b.tick(dt, this.view);
+    const o = b.out;
+    for (let k = 0; k < o.n; k++) {
+      const e = this.byNum(o.guard[k]!);
+      if (!e) continue;
+      const inc = o.inc[k]!;
+      if (o.cmd[k] === CMD_SEND) {
+        const m = o.mode[k]!;
+        if (m === MODE_LIGHT) e.checkLight(o.x[k]!, o.z[k]!, inc, o.arg[k]!);
+        else if (m === MODE_LEAD || m === MODE_COVER) e.pairSearch(o.x[k]!, o.z[k]!, inc, m === MODE_LEAD);
+        // (guard-ai S3, S2 check polish 2) a plain noise or a lure that finds nothing ends calm; gunfire keeps the cooldown
+        else if (m === MODE_INVESTIGATE) e.sendTo(o.x[k]!, o.z[k]!, inc, b.kindOf(inc) !== 'shots');
+      } else if (o.cmd[k] === CMD_ACK) e.ack(o.x[k]!, o.z[k]!, o.arg[k] === 1);
+    }
+    o.n = 0;
+  }
+
+  /** (guard-ai S3) A guard's reaction factor: the difficulty's, x the officer's when one is near (the old `callAlert`
+   *  factor, no random term). */
+  private reactionOf(e: Enemy): number {
+    return this.diff.reaction * (e.buff ? ARCHETYPE.officer.reaction : 1);
+  }
+
+  /**
+   * (guard-ai S3, design 5) The spotter's shout: every calm guard who hears it at the investigate tier of a
+   * `RADIO.voice` reach (6 m in the open, ~2.7 m through one wall, less by a noisy machine) joins `RADIO.voiceDelay`
+   * s later. Voice ignores sections. One wall ray per listener, only where one wall decides it.
+   */
+  private voice(e: Enemy): void {
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const o = list[i]!;
+      if (o === e || !o.alive || o.alerted || o.taken) continue;
+      const d = hyp3(o.pos.x - e.pos.x, o.pos.y - e.pos.y, o.pos.z - e.pos.z);
+      if (d >= RADIO.voice) continue;
+      const amb = this.noisy.length ? ambientDb(this.noisy, o.pos.x, o.pos.z, o.pos.y) : 0;
+      if (!hearsVoice(d, 0, amb)) continue;
+      if (!hearsVoice(d, 1, amb)) {
+        // a wall between them would stop it: one ray, head to head
+        this.earA.set(e.pos.x, e.pos.y + 1.6, e.pos.z);
+        this.earB.set(o.pos.x, o.pos.y + 1.6, o.pos.z);
+        if (!this.ballistics.clear(this.earA, this.earB, G.STATIC)) continue;
+      }
+      o.radio(RADIO.voiceDelay);
+    }
+  }
+
+  /** (guard-ai S3) One radio net tick (10 Hz): the board's view and the reaction lane, then complete / deliver. */
+  private radioStep(dt: number): void {
+    this.fillView();
+    const v = this.view;
+    if (this.rxReaction.length < v.n) {
+      let c = this.rxReaction.length;
+      while (c < v.n) c *= 2;
+      this.rxReaction = new Float32Array(c);
+    }
+    const list = this.enemies;
+    for (let i = 0; i < v.n; i++) this.rxReaction[i] = this.reactionOf(list[i]!);
+    this.radioNet.tick(dt, v, this.sink, this.rxReaction, null);
+  }
+
+  /**
+   * (guard-ai S3) A completed call reaches guard `gid`: a contact puts him in combat on the next step (the shared last
+   * known position; he does not relay it); a report (light, stand down, missing, ...) is acknowledged by its first
+   * receiver only ("Copy.": a bark, nothing more).
+   */
+  private radioDeliver(gid: number, inc: number, kind: CallKind, caller: number): void {
+    const e = this.byNum(gid);
+    if (!e || !e.alive || e.taken) return;
+    if (kind === 'contact') {
+      e.radio(0);
+      return;
+    }
+    const k = CALL_KIND.indexOf(kind);
+    for (let j = 0; j < this.ackCaller.length; j++) if (this.ackCaller[j] === caller && this.ackInc[j] === inc && this.ackKind[j] === k) return;
+    const j = this.ackK;
+    this.ackK = (j + 1) % this.ackCaller.length;
+    this.ackCaller[j] = caller;
+    this.ackInc[j] = inc;
+    this.ackKind[j] = k;
+    e.bark('ack');
+  }
+
+  /** (guard-ai S3) A `command` call got through: the alarm (reinforcements, M4), behind `RADIO_ALARM` until S6. */
+  private radioAlarm(caller: number): void {
+    if (!RADIO_ALARM || this.alarmRaised) return;
+    const e = this.byNum(caller);
+    if (!e) return;
+    const p = nearestPanel(this.alarms, e.pos.x, e.pos.z, Infinity, e.pos.y) ?? this.alarms[0];
+    if (p) this.raiseAlarm(e, p);
+  }
+
+  /** (guard-ai S3) Seconds until this guard's open radio call gets through (0: none). Tests / e2e / debug. */
+  radioLeft(e: Enemy): number {
+    return this.radioNet.pendingFor(e.num);
+  }
+
+  /** The guard with this id (`Enemy.num`), null. */
+  private byNum(num: number): Enemy | null {
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) if (list[i]!.num === num) return list[i]!;
+    return null;
   }
 
   /**
@@ -560,7 +857,14 @@ export class EnemyManager {
   private tierOf(e: Enemy, i: number, pos: Vector3, reach: number, d: number, loud: boolean): HearTier {
     const amb = this.noisy.length ? ambientDb(this.noisy, e.pos.x, e.pos.z, e.pos.y) : 0;
     let r = effectiveReach(reach, 0, amb);
-    if (wallMatters(d, r, loud)) {
+    if (!this.coordinated) {
+      // (S1 check fix 4) the parked modes' exact old rule: the ray beyond `MUFFLE` of the reach, muffled to `MUFFLE`
+      if (d > r * MUFFLE) {
+        this.earA.set(pos.x, pos.y + 1.5, pos.z);
+        this.earB.set(e.pos.x, e.pos.y + 1.6, e.pos.z);
+        if (!this.ballistics.clear(this.earA, this.earB, G.STATIC)) r *= MUFFLE;
+      }
+    } else if (wallMatters(d, r, loud)) {
       this.earA.set(pos.x, pos.y + 1.5, pos.z);
       this.earB.set(e.pos.x, e.pos.y + 1.6, e.pos.z);
       if (!this.ballistics.clear(this.earA, this.earB, G.STATIC)) r *= WALL_FACTOR;
@@ -570,11 +874,12 @@ export class EnemyManager {
   }
 
   /**
-   * Gunfire (unsuppressed) audible to `reach` m. Coordinated (guard-ai S1): walls and masking cut the reach per
-   * listener; inside a quarter of it (tier 3) a guard goes to combat towards it; farther, the nearest guard inside half
-   * of it is sent to look (and the shot locates the shooter for him) and everyone else in reach only turns. Guards
-   * already fighting locate it from anywhere in reach. A shot behind walls far off sends nobody to combat.
-   * Uncoordinated (parked modes): everyone within `reach` goes to combat, no walls (the old rule).
+   * Gunfire (unsuppressed) audible to `reach` m. Coordinated (guard-ai S1, S2): walls and masking cut the reach per
+   * listener; inside a quarter of it (tier 3) a guard goes to combat towards it; every other guard in reach turns to
+   * look, and those inside half of it are reported to the incident board as a `shots` incident: one of them is sent to
+   * look (and the shot locates the shooter for him). Guards already fighting locate it from anywhere in reach. A shot
+   * behind walls far off sends nobody to combat. Held guards (grabbed, hostage, interrogated) hear nothing (S1 check
+   * fix 1). Uncoordinated (parked modes): everyone within `reach` goes to combat, no walls (the old rule).
    */
   noise(pos: Vector3, reach: number): void {
     const list = this.enemies;
@@ -589,11 +894,11 @@ export class EnemyManager {
       }
     } else {
       this.hearRoom(n);
-      const idx = this.hearIdx;
+      const who = this.hearWho;
       let nh = 0;
       for (let i = 0; i < n; i++) {
         const e = list[i]!;
-        if (!e.alive) continue;
+        if (!e.alive || e.taken) continue;
         const d = hyp3(e.pos.x - pos.x, e.pos.y - pos.y, e.pos.z - pos.z);
         if (d >= reach) continue;
         const tier = this.tierOf(e, i, pos, reach, d, true);
@@ -602,13 +907,15 @@ export class EnemyManager {
           e.hearGunfire(pos.x, pos.z);
           locate = true;
         } else if (e.def.melee) e.hear(pos.x, pos.z, this.hearR[i]!);
-        else if (tier === 2 && !e.passive) {
-          this.hearX[i] = e.pos.x;
-          this.hearZ[i] = e.pos.z;
-          idx[nh++] = i;
-        } else e.hearTurn(pos.x, pos.z, this.hearR[i]!);
+        else {
+          e.hearTurn(pos.x, pos.z, this.hearR[i]!);
+          if (tier === 2 && !e.passive) who[nh++] = e.num;
+        }
       }
-      if (this.sendOne(pos, nh)) locate = true;
+      if (nh > 0) {
+        this.report('shots', pos.x, pos.y, pos.z, -1, nh);
+        locate = true;
+      }
     }
     if (locate) {
       this.lkp.copyFrom(pos);
@@ -618,48 +925,34 @@ export class EnemyManager {
 
   /**
    * A noise (footsteps, landings, glass...) audible to `reach` m: unalerted guards it reaches react by hearing tier
-   * (`hearing.ts`: walls and masking near noisy things cut the reach per listener). Coordinated (guard-ai S1): the
-   * nearest guard inside half the reach is sent to investigate (`Enemy.hear`, a stub until the incident board), every
-   * other guard in reach turns to look (`Enemy.hearTurn`). Melee guards (dogs, runners) keep their own rule: in reach
-   * they hear it (and a dog close by charges). Uncoordinated (parked modes): everyone in reach hears and walks over.
+   * (`hearing.ts`: walls and masking near noisy things cut the reach per listener). Coordinated (guard-ai S1, S2):
+   * every guard in reach turns to look (`Enemy.hearTurn`), and those inside half the reach (tier 2) are reported to the
+   * incident board (`kind`: a plain noise or a lure): it sends one (`Enemy.sendTo`), the others acknowledge. A later
+   * noise close by merges into the same incident (no second investigator; a guard already sent is not re-aimed).
+   * Melee guards (dogs, runners) keep their own rule: in reach they hear it (and a dog close by charges). Held guards
+   * hear nothing (S1 check fix 1). Uncoordinated (parked modes): everyone in reach hears and walks over.
    */
-  hear(pos: Vector3, reach: number): void {
+  hear(pos: Vector3, reach: number, kind: 'noise' | 'distraction' = 'noise'): void {
     const list = this.enemies;
     const n = list.length;
     this.hearRoom(n);
-    const idx = this.hearIdx;
+    const who = this.hearWho;
     let nh = 0;
     for (let i = 0; i < n; i++) {
       const e = list[i]!;
-      if (!e.alive || e.alerted || e.passive) continue;
+      if (!e.alive || e.alerted || e.passive || e.taken) continue;
       const d = hyp3(e.pos.x - pos.x, e.pos.y - pos.y, e.pos.z - pos.z);
       // ambient and walls only shrink the reach: beyond it nothing is heard
       if (d >= reach) continue;
       const tier = this.tierOf(e, i, pos, reach, d, false);
       if (tier === 0) continue;
       if (!this.coordinated || e.def.melee) e.hear(pos.x, pos.z, this.hearR[i]!);
-      else if (tier === 2) {
-        this.hearX[i] = e.pos.x;
-        this.hearZ[i] = e.pos.z;
-        idx[nh++] = i;
-      } else e.hearTurn(pos.x, pos.z, this.hearR[i]!);
+      else {
+        e.hearTurn(pos.x, pos.z, this.hearR[i]!);
+        if (tier === 2) who[nh++] = e.num;
+      }
     }
-    this.sendOne(pos, nh);
-  }
-
-  /** Of the `nh` tier-2 hearers in the scratch, the nearest is sent to the noise (`Enemy.hear`: suspicious, then he
-   *  investigates); the rest turn to look. Returns whether anyone was sent. (Stub until the incident board, S2.) */
-  private sendOne(pos: Vector3, nh: number): boolean {
-    if (nh === 0) return false;
-    const idx = this.hearIdx;
-    const pick = pickNearest(idx, nh, this.hearX, this.hearZ, pos.x, pos.z);
-    for (let k = 0; k < nh; k++) {
-      const i = idx[k]!;
-      const e = this.enemies[i]!;
-      if (i === pick) e.hear(pos.x, pos.z, this.hearR[i]!);
-      else e.hearTurn(pos.x, pos.z, this.hearR[i]!);
-    }
-    return pick >= 0;
+    if (nh > 0) this.report(kind, pos.x, pos.y, pos.z, -1, nh);
   }
 
   /** Any enemy in combat (the operator has been detected). */
@@ -733,6 +1026,22 @@ export class EnemyManager {
       if (this.radioT <= 0) {
         this.radioT = ARCHETYPE.radio.period + (Math.random() * 2 - 1) * ARCHETYPE.radio.jitter;
         this.radioCheckNow();
+      }
+    }
+    // (guard-ai S2) the incident board at 5 Hz: assign, acknowledge, escalate, close
+    if (this.coordinated) {
+      this.boardT -= dt;
+      if (this.boardT <= 0) {
+        this.boardT += 0.2;
+        if (this.boardT <= 0) this.boardT = 0.2;
+        this.boardStep(0.2);
+      }
+      // (guard-ai S3) the section radio net at 10 Hz: calls complete, receivers hear them staggered
+      this.netT -= dt;
+      if (this.netT <= 0) {
+        this.netT += RADIO_TICK;
+        if (this.netT <= 0) this.netT = RADIO_TICK;
+        this.radioStep(RADIO_TICK);
       }
     }
     this.updateDrones(dt);
@@ -829,6 +1138,10 @@ export class EnemyManager {
     this.drones.length = 0;
     this.squads.clear();
     this.silent.clear();
+    // (guard-ai S2) nobody left to send: the incidents go too; (S3) and every call and queued reception
+    this.board.clear();
+    this.radioNet.clear();
+    this.ackCaller.fill(-1);
     for (const b of [...this.bodies]) this.removeBody(b);
     // nobody left to hold a job: the alarm run, the flank, the flashlights
     this.alarmRunner = null;

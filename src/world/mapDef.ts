@@ -11,6 +11,7 @@ import type { PassZone } from '../game/ctDevices';
 import type { ScannerDef } from '../game/scanners';
 import type { CourseLayout } from '../game/course/courseDef';
 import type { SectorDef } from '../game/sectors';
+import type { GuardAiLayout } from '../ai/guardAiData';
 import type { CamSize, CamSpace } from './camSpaces';
 
 /** 3.0 weather choice (visual only): clear, rain (wet floors under the open sky, roofs keep it out), fog (light shafts). */
@@ -69,6 +70,8 @@ export interface MapLayout {
   hideSpots?: { pos: Vector3 }[];
   /** Where reinforcement squads come in. */
   reinforce?: Vector3[];
+  /** (guard-ai) Zones, noisy things, reinforcement entries and squads; none = the whole map is one section. */
+  guardAi?: GuardAiLayout;
   /**
    * Extra nav flood seeds (feet points): parts of the level joined to the spawn only by routes the nav grid does not
    * model (ropes, locked doors, one-way drops) are kept walkable. None: the spawn's region alone.

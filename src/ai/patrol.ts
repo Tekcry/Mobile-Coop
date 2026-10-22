@@ -110,6 +110,13 @@ export class PatrolWalker {
         if (rem > lp.period / 2) rem -= lp.period;
         else if (rem < -lp.period / 2) rem += lp.period;
         this.waitT = Math.max(1e-3, rem);
+      } else if (!(this.waitT > 0)) {
+        // a wait of 0: pass straight through (no pause, no facing). It used to set waitT 0 and return null, which
+        // never reached `advance`: the guard stood there for good (Menu Notes, route waits [4, 0, 3, 0])
+        this.waitT = 0;
+        this.advance();
+        this.lookYaw = NaN;
+        return r.points[this.idx]!;
       }
       // look along the next leg while paused (or where the route says)
       const n = r.points[this.peekNext()]!;
