@@ -25,17 +25,25 @@ const err = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 // rig's own AnimGraph clock (`idleT`, started at a random phase; `breathPh`), which is not on the wire: the client's rig
 // and the host's copy of it play them at unrelated phases, so a still pose differed by the phase gap (drawn: ankleL
 // 7.8 cm alone, 10.7 cm under load). For a compare both graphs are held at the same idle phase, then released.
+// The planted feet are history too: each rig's planner leaves a still foot up to PLANNER.idleErr (7.5 cm) off its spot
+// before it re-steps, so after the same teleport the two rigs' ankles sat 2.8-7.2 cm apart with the bodies exact
+// (drawn, loaded runs). During a compare both planners re-step at the tighter RESTEP.err (2 cm), as after a crouch change.
 const PIN_IDLE = (on) => {
-  const pin = (g) => {
-    if (!g) return;
-    if (on && !Object.prototype.hasOwnProperty.call(g, 'update')) {
-      const orig = Object.getPrototypeOf(g).update;
-      g.update = function (dt, i) { this.idleT = 1; this.breathPh = 0; return orig.call(this, dt, i); };
-    } else if (!on) delete g.update;
+  const pin = (rig) => {
+    if (!rig) return;
+    if (on && !Object.prototype.hasOwnProperty.call(rig, 'animate')) {
+      const orig = Object.getPrototypeOf(rig).animate;
+      rig.animate = function (dt, s) {
+        this.graph.idleT = 1;
+        this.graph.breathPh = 0;
+        this.planner.restepT = 1.2;
+        return orig.call(this, dt, s);
+      };
+    } else if (!on) delete rig.animate;
   };
   const g = window.__app.current;
-  pin(g.player?.rig?.graph);
-  for (const r of g.net?.remotes?.values?.() ?? []) pin(r.avatar?.rig?.graph);
+  pin(g.player?.rig);
+  for (const r of g.net?.remotes?.values?.() ?? []) pin(r.avatar?.rig);
 };
 const pinIdle = (on) => Promise.all([A.evaluate(PIN_IDLE, on), B.evaluate(PIN_IDLE, on)]);
 /** (netmove-compare) the worst joint error of every compare, printed at the end (the margin under the limit) */
