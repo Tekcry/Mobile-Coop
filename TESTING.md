@@ -101,6 +101,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   a lamp with guards near and one or two check it and go back calm. Get spotted: the spotter shouts "Contact!" (guards
   within a few metres join at once), about 2.5 s later radios it in, then the rest of the section joins one by one,
   nearest first. Take the spotter down before his radio line and nobody beyond shouting range comes.
+- [ ] Cameras see bodies (guard-ai S7, Sector Ops): knock a guard out where a camera sweeps (lit or dark): the desk
+  radios "Camera N has a man down..." and the nearest guard walks over and wakes him; loop or jam the camera first and
+  nobody comes.
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
 - [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
   glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen

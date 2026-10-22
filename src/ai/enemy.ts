@@ -36,7 +36,7 @@ import type { LightField } from '../world/lightField';
 import { ARCHETYPE, carriesTorch, glint, heavyMult, shieldBlocks, smellRate, sniperRelocate, torchRule, type DifficultyDef } from './archetypes';
 import { placeTorch } from '../world/torches';
 import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
-import { INCIDENT, MODE_COVER, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT } from './incidents';
+import { INCIDENT, MODE_BODY, MODE_COVER, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT } from './incidents';
 import type { GuardInfo } from './guardInfo';
 import type { CallKind } from './radioNet';
 import { LC_DONE, LC_FACE, LightCheck, type LightCheckWalker } from './lightCheck';
@@ -241,6 +241,9 @@ export class Enemy implements Damageable {
   private incMode = 0;
   /** (guard-ai S3) Sent to a plain noise or a lure (not gunfire): an empty investigation ends calm (`calmEnd`). */
   private incCalm = false;
+  /** (guard-ai S7) The body a camera saw that the board sent him to (`checkBody`), null none; and seconds on the walk. */
+  camBody: Body | null = null;
+  private camBodyT = 0;
   /** The light check (`lightCheck.ts`, pure); `lightC` its light's floor point (the e2e reads it). */
   private readonly lc = new LightCheck();
   readonly lightC: P2 = this.lc.c;
@@ -719,6 +722,60 @@ export class Enemy implements Damageable {
     this.turnT = 0;
   }
 
+  /**
+   * (guard-ai S7, design 9, M6) A camera saw a downed guard and the board sends him to it: no pause to look first (it
+   * is an order over the radio, like the light check), straight to investigating at the investigate pace towards the
+   * body. Close to it, with a clear line to it, the body-found path takes over (`AiContext.bodyFound`: a knocked-out
+   * guard is woken, the area searched). The body gone (carried, hidden, found by someone else) or the walk over
+   * `INCIDENT.bodyWalk` s: he looks round where he is (the usual end of an investigation). A glimpse drops it.
+   */
+  checkBody(b: Body, incident: number): void {
+    if (!this.sendable) return;
+    this.incident = incident;
+    this.incMode = MODE_BODY;
+    this.turnT = 0;
+    this.camBody = b;
+    this.camBodyT = 0;
+    this.stimulus[0] = b.pos.x;
+    this.stimulus[1] = b.pos.z;
+    this.hasStimulus = true;
+    this.bark('checking');
+    const from = this.aware.level;
+    if (from !== 'investigating') {
+      this.aware.set('investigating');
+      this.onLevel(from, 'investigating');
+    }
+    this.spotSet = false;
+  }
+
+  /** (guard-ai S7) Per step on the walk to a camera's body (`checkBody`): follow it, hand over to the body-found path. */
+  private stepCamBody(dt: number): void {
+    const b = this.camBody;
+    if (!b) return;
+    this.camBodyT += dt;
+    if (this.aware.level !== 'investigating') {
+      this.camBody = null;
+      return;
+    }
+    if (this.meter >= PERCEPTION.investigate) {
+      // a glimpse: he investigates what he saw (the board sees him off its task)
+      this.camBody = null;
+      this.incident = -1;
+      return;
+    }
+    if (!b.present || b.found || b.carried || b.hidden || this.camBodyT >= INCIDENT.bodyWalk) {
+      this.camBody = null;
+      return;
+    }
+    this.stimulus[0] = b.pos.x;
+    this.stimulus[1] = b.pos.z;
+    if (hyp2(b.pos.x - this.pos.x, b.pos.z - this.pos.z) >= BODY.close) return;
+    this.tmpHips.set(b.pos.x, b.pos.y + 0.15, b.pos.z);
+    if (!this.losTo(this.eye(this.tmpEye), this.tmpHips, 0.35)) return;
+    this.camBody = null;
+    this.ctx.bodyFound(this, b);
+  }
+
   /** (guard-ai S2) Someone else is checking what he perceived: look towards it `INCIDENT.ackLook` s and carry on
    *  (`copy`: say "Copy."). Already busy (sent, investigating, searching): only the line. */
   ack(x: number, z: number, copy: boolean): void {
@@ -839,6 +896,7 @@ export class Enemy implements Damageable {
       if (!keep) this.incident = -1;
     }
     if (to !== 'investigating') this.lc.stop();
+    if (to !== 'investigating') this.camBody = null;
     if (to === 'alert') {
       this.meter = 1;
       if (this.state === 'idle') this.setState('chase');
@@ -1164,6 +1222,8 @@ export class Enemy implements Damageable {
       this.called -= dt;
       if (this.called <= 0) this.alertIn.called = true;
     }
+    // (guard-ai S7) on the walk to a body a camera saw: the body-found path takes over there (`i.search` below)
+    if (this.camBody) this.stepCamBody(dt);
     const i = this.alertIn;
     i.meter = this.meter;
     // outside stealth rules (Wave) they are sent at the target: combat never cools into a search; nor does a
@@ -1181,7 +1241,8 @@ export class Enemy implements Damageable {
       this.lc.stop();
       this.incident = -1;
     }
-    i.hold = this.lc.active;
+    // (guard-ai S7) the walk to a camera's body runs on its own clock too (`INCIDENT.bodyWalk`)
+    i.hold = this.lc.active || this.camBody !== null;
     i.turning = this.turnT > 0;
     // (guard-ai S3, S2 check polish 2) sent to a plain noise / lure: nothing found -> back to normal, no cooldown
     i.calmEnd = this.incident >= 0 && this.incMode === MODE_INVESTIGATE && this.incCalm;

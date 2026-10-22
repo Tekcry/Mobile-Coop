@@ -92,3 +92,13 @@ export class BarkVoice {
     return line;
   }
 }
+
+/**
+ * (guard-ai S7, design 10 `camBody`) The security desk's radio line when a camera sees a downed guard: the camera's
+ * label ("Camera 2"), the room it is in (`RoomRect.name`; '' drops it), and who should go (one for a knocked-out guard,
+ * two for a dead one). Original text, under 90 characters with a short room name, written to be voiced later (G82).
+ */
+export function camBodyLine(camera: string, room: string, lethal: boolean): string {
+  const where = room ? `, ${room}` : '';
+  return lethal ? `${camera} has a man down${where}. He's not moving. Two of you, go.` : `${camera} has a man down${where}. Nearest unit, check on him.`;
+}

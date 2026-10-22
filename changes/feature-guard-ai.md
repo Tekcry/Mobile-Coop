@@ -16,3 +16,9 @@
   Light checks, "nothing here" and the missing-guard call are radio calls too, answered with one "Copy.". A guard sent to
   a noise that turns out to be nothing goes back to normal instead of staying on edge for 45 s (gunfire still keeps
   them on edge). Hunter and Mission (parked) keep the old radio.
+- S7 cameras see bodies: a security camera that sees a knocked-out or dead guard (in the dark too: cameras see in
+  infrared) calls it in on the radio, for example "Camera 2 has a man down, Delivery Yard. Nearest unit, check on him."
+  The nearest calm guard within about 25 m walks straight over (two for a dead guard) and, for a knocked-out guard,
+  wakes him; then they search the area. Looped, switched-off, jammed or shot-out cameras see nothing, so hide bodies out
+  of a camera's view or take the camera down first. Dogs never answer the call. Hunter and Mission (parked) are
+  unchanged.

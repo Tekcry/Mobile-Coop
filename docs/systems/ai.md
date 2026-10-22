@@ -107,7 +107,20 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 - Bodies: `Enemy.die` / `knockOut` hand the rig to `EnemyManager.addBody` -> `ai/body.ts` `Body` (a settled `Ragdoll`, or
   laid flat when out of budget; `BODY.max` kept). Enemies not in combat look for bodies each think (`bodyNoticed`: field x
   `lightFactor(body.light)` x distance; one ray) -> `bodyFound`: the finder searches, the squad within `RADIO` searches; a
-  non-lethal body is revived (`BODY.reviveTime`). Carry (`game/stealthSystems.ts`): an unarmed rig over the shoulder, the
+  non-lethal body is revived (`BODY.reviveTime`). Cameras see bodies (guard-ai S7, design 9, M6; host only, coordinated
+  modes): `SecuritySystem`'s body pass (2 Hz per online camera, IR: no light term, G240; looped / off / jammed /
+  destroyed cameras see nothing) reads `EnemyManager.bodies` (`setBodySource`, wired in `GameState` beside the
+  security system) and its `onBody` (separate from `onEvent`, which `CtDevices` owns) calls
+  `EnemyManager.cameraReport(ev, "Camera N")`: a body already found, carried, hidden or gone is ignored; else one
+  `camBody` incident per body (`IncidentBoard.reportBody`; a second camera's report merges while it is open) sends the
+  nearest 1 (KO) or 2 (dead) calm guards within `INCIDENT.callR` 25 m by path (never dogs / melee); nobody in range:
+  the report waits `camWait` 30 s for one, then lapses (section caution is S4's). A new incident gets the desk's radio
+  line (`camBodyLine`, e.g. "Camera 2 has a man down, Delivery Yard. Nearest unit, check on him."; `onCameraLine` ->
+  the HUD bark over that camera, `cam:<id>`). The sent guard (`Enemy.checkBody`, `MODE_BODY`) goes straight to
+  investigating at the investigate pace (no 2.4 s look first), held by the task (`AlertInput.hold`, `bodyWalk` 45 s);
+  within `BODY.close` with a clear line the body-found path takes over (`bodyFound`: a KO'd guard is woken, the area
+  searched). The body gone or found first, or the walk timing out: the usual investigation end; a glimpse drops it.
+  `SectorMode.unloadSection` calls `clearBodyReports` (section load / restart). Carry (`game/stealthSystems.ts`): an unarmed rig over the shoulder, the
   player's `reachL/R` hold its knees, weapon stowed, `speedCap` `BODY.carrySpeed`, no sprint / cover / traversal; drop = a
   short `Ragdoll`; hide spots (`MapLayout.hideSpots`) remove it.
 - Lights: `PlayerWeapons.onRay` -> `StealthSystems.shotRay` -> `lightOnRay` + `LightRegistry.destroy`; `MapLayout.switches`

@@ -285,6 +285,8 @@ export class SectorMode implements GameMode {
     g.net?.releaseHolds?.();
     this.pending.length = 0;
     g.enemyMgr?.despawnAll();
+    // (guard-ai S7) the cameras forget the bodies they reported (a section load or restart reports afresh)
+    g.security?.clearBodyReports();
     this.ct?.setLive(-1);
     g.stealth?.setLiveAlarms(-1);
   }

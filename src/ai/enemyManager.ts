@@ -26,6 +26,10 @@ import { EYE_STAND, PERCEPTION } from './perception';
 import { roomAt } from '../world/rooms';
 import { CALL_KIND, callHold, hearsVoice, RADIO, RadioNet, type CallKind, type RadioSink } from './radioNet';
 import type { P2 } from './navGrid';
+// (guard-ai S7) cameras see bodies
+import { MODE_BODY } from './incidents';
+import { camBodyLine } from './barks';
+import type { CameraBodyEvent } from '../security/securitySystem';
 
 // Live guard cap. 12 = the Dead Line co-op peak of 10 chapter-active guards (furthest-behind and furthest-ahead
 // player, each with their next chapter) plus the two alarm reinforcements; about 2.6 ms main thread (D1 guard cost).
@@ -757,6 +761,11 @@ export class EnemyManager {
         else if (m === MODE_LEAD || m === MODE_COVER) e.pairSearch(o.x[k]!, o.z[k]!, inc, m === MODE_LEAD);
         // (guard-ai S3, S2 check polish 2) a plain noise or a lure that finds nothing ends calm; gunfire keeps the cooldown
         else if (m === MODE_INVESTIGATE) e.sendTo(o.x[k]!, o.z[k]!, inc, b.kindOf(inc) !== 'shots');
+        // (guard-ai S7) a body a camera saw: the one nearest the incident's spot
+        else if (m === MODE_BODY) {
+          const body = this.camBodyOf(inc, o.x[k]!, o.z[k]!);
+          if (body) e.checkBody(body, inc);
+        }
       } else if (o.cmd[k] === CMD_ACK) e.ack(o.x[k]!, o.z[k]!, o.arg[k] === 1);
     }
     o.n = 0;
@@ -840,6 +849,75 @@ export class EnemyManager {
   /** (guard-ai S3) Seconds until this guard's open radio call gets through (0: none). Tests / e2e / debug. */
   radioLeft(e: Enemy): number {
     return this.radioNet.pendingFor(e.num);
+  }
+
+  /** (guard-ai S7) The security desk's radio line for a camera's body report: the camera's id and the line (GameState
+   *  shows it at the camera, with the radio chirp). */
+  onCameraLine: ((camera: string, line: string) => void) | null = null;
+  /** (guard-ai S7) Camera body reports taken / ignored (tests / e2e). */
+  camReports = 0;
+  camIgnored = 0;
+
+  /**
+   * (guard-ai S7, design 9, M6) A camera saw a downed guard (`SecuritySystem.onBody`; IR, so dark or lit alike, G240).
+   * Coordinated modes only (the parked modes have no board): a `camBody` incident on the board, one per body (a second
+   * camera's report merges into it while it is open); the nearest 1 (knocked out) or 2 (dead) calm guards within
+   * `INCIDENT.callR` by path walk over (`Enemy.checkBody`) and the body-found path takes over there (wake him, search).
+   * A body already found by a guard, being carried, hidden or gone is ignored. A new incident gets the desk's radio
+   * line (`label`: "Camera 2"; the room the body lies in). Returns the incident id, -1 when ignored. Host only.
+   */
+  cameraReport(ev: CameraBodyEvent, label = 'Camera'): number {
+    if (!this.coordinated) return -1;
+    const bs = this.bodies;
+    let b: Body | null = null;
+    let k = -1;
+    for (let i = 0; i < bs.length; i++) {
+      if (bs[i]!.id !== ev.bodyId) continue;
+      b = bs[i]!;
+      k = i;
+      break;
+    }
+    if (!b || b.found || !b.present || b.carried || b.hidden) {
+      this.camIgnored++;
+      return -1;
+    }
+    this.camReports++;
+    const n = Number.parseInt(b.id.slice(1), 10);
+    const key = Number.isFinite(n) ? n : 1000000 + k;
+    const floor = this.nav.heightAt(b.pos.x, b.pos.z, b.pos.y);
+    const opened = this.board.opened;
+    const id = this.board.reportBody(b.pos.x, b.pos.z, floor, key, b.lethal);
+    if (this.board.opened !== opened) {
+      const rooms = this.ctx.rooms;
+      const r = rooms.length ? roomAt(rooms, b.pos.x, b.pos.z, floor + 0.1) : -1;
+      this.onCameraLine?.(ev.camera, camBodyLine(label, r >= 0 ? rooms[r]!.name : '', b.lethal));
+    }
+    this.boardStep(0);
+    return id;
+  }
+
+  /** (guard-ai S7) The body of a `camBody` incident: by its number (the incident's key), else the nearest present body
+   *  within 1.5 m of its spot; null when it is gone. Once per guard sent. */
+  private camBodyOf(inc: number, x: number, z: number): Body | null {
+    const s = this.board.slotOf(inc);
+    const key = s >= 0 ? this.board.key[s]! : -1;
+    const bs = this.bodies;
+    if (key >= 0 && key < 1000000) {
+      const want = `b${key}`;
+      for (let i = 0; i < bs.length; i++) if (bs[i]!.id === want) return bs[i]!.present ? bs[i]! : null;
+    }
+    let pick: Body | null = null;
+    let pd = 1.5;
+    for (let i = 0; i < bs.length; i++) {
+      const b = bs[i]!;
+      if (!b.present) continue;
+      const d = hyp2(b.pos.x - x, b.pos.z - z);
+      if (d < pd) {
+        pd = d;
+        pick = b;
+      }
+    }
+    return pick;
   }
 
   /** The guard with this id (`Enemy.num`), null. */

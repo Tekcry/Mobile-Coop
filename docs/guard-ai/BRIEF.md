@@ -95,3 +95,13 @@ manoeuvre beats guard count. Every map's guards are armed (Answers 3).
   to an immediate `radioCall` completion (hold 0).
 - **A11** Sector Ops tour guards that are melee-only conflict with "every map's guards are armed" (Answers 3): map data,
   passed to Course Ready, not changed here.
+- **A20** (S7) A guard sent to a body a camera saw goes straight to investigating (an order over the radio, no 2.4 s
+  look first) and, once within `BODY.close` with a clear line, the existing body-found path runs (wake a KO'd guard,
+  search; the squad within 22 m searches until S4). Undo: in `Enemy.checkBody` call `sendTo` (the look, then the walk).
+- **A21** (S7) No calm guard within `INCIDENT.callR` 25 m of the body: nobody is sent; the report waits `camWait` 30 s
+  for one to come in range, then lapses. Design 9's "section turns cautious" waits for S4's caution. Undo: raise
+  `camWait`, or send the nearest calm guard of the section at any range (drop `M.callR` in the `camBody` branch).
+- **A22** (S7) The radio line is the security desk's, once per body: "Camera N has a man down, {room}." + "Nearest
+  unit, check on him." (KO) or "He's not moving. Two of you, go." (dead); N = the camera's place in the map's security
+  list (1-based), {room} the `RoomRect.name` under the body (dropped when none); a radio bark over the camera, text
+  only (G82). Undo: `camBodyLine` (src/ai/barks.ts) and the label in `GameState`'s `onBody`.

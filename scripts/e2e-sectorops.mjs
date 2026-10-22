@@ -1797,5 +1797,132 @@ if (want(6)) {
   });
 }
 
+// (guard-ai S7, design 9, M6) A camera sees a knocked-out guard (IR: the light does not matter, G240) and the desk sends
+// the nearest calm guard: within ~5 s of the knockout a guard is on his way (`Enemy.camBody`), and he wakes the victim
+// (the body-found path: `EnemyManager.onRevived`). The player is not this check's: the cameras' player think is held
+// (no alarm) and the guards are blind to the player; the body pass and the guards' AI run. Numbers from the tables.
+if (want(1)) {
+console.log('sector ops: a camera sees a knocked-out guard, a guard is sent and wakes him (guard-ai S7)');
+await run(PARAMS, async ({ G, sim }) => {
+  await sim(0.5);
+  // a floor point a live camera sees at the middle of its sweep (probed with a stand-in body through the real pass),
+  // the victim put there (passive, no route: he stands), and a calm helper within reach (no route: he stands, facing away)
+  const set = await G(() => {
+    const g = window.__app.current;
+    const em = g.enemyMgr;
+    const sec = g.security;
+    const nav = g.nav;
+    g.target.damageMul = 0;
+    sec.think = () => {};
+    for (const e of em.enemies) Object.defineProperty(e, 'perceptionMul', { get: () => 0 });
+    const live = sec.cameras.filter((c) => c.sees && !c.frozen);
+    const prevSrc = sec.bodySrc;
+    const prevOn = sec.onBody;
+    const probe = [{ id: 'probe', pos: { x: 0, y: 0, z: 0 }, lethal: false, carried: false, hidden: false, present: true }];
+    let hit = null;
+    sec.setBodySource(() => probe);
+    sec.onBody = (ev) => { hit = ev; };
+    let pick = null;
+    for (const c of live) {
+      const mid = c.def.sweep ? ((c.def.sweep[0] + c.def.sweep[1]) / 2) * (Math.PI / 180) : c.yaw;
+      for (const d of [c.def.aim ?? 6, 4, 5, 7, 3, 8]) {
+        const x = c.x + Math.sin(mid) * d;
+        const z = c.z + Math.cos(mid) * d;
+        const cell = nav.nearestWalkable(x, z, 2, c.y - 2);
+        if (cell < 0) continue;
+        const [cx, cz] = nav.center(cell);
+        const fy = nav.height[cell];
+        probe[0].pos = { x: cx, y: fy + 0.15, z: cz };
+        const keep = c.yaw;
+        c.yaw = mid;
+        hit = null;
+        sec.bodyPass();
+        sec.clearBodyReports();
+        c.yaw = keep;
+        if (hit && hit.camera === c.def.id) {
+          pick = { cam: c.def.id, mid, x: cx, y: fy, z: cz };
+          break;
+        }
+      }
+      if (pick) break;
+    }
+    sec.setBodySource(prevSrc);
+    sec.onBody = prevOn;
+    if (!pick) return { pick: null, cams: live.map((c) => c.def.id) };
+    const alive = em.enemies.filter((e) => e.alive && !e.def.melee && !e.dog);
+    const place = (e, x, z, yaw) => {
+      e.pos.set(x, nav.heightAt(x, z, pick.y), z);
+      e['prevPos'].copyFrom(e.pos);
+      e['post'] = [x, z];
+      e.setPatrol(null);
+      e.yaw = yaw;
+    };
+    const victim = alive[0];
+    victim.passive = true;
+    place(victim, pick.x, pick.z, 0);
+    // the helper: a calm guard on a walkable spot ~10 m from it with a clear nav line, facing away
+    const helper = alive[1];
+    let hp = null;
+    for (let k = 0; k < 16 && !hp; k++) {
+      const a = (k / 16) * Math.PI * 2;
+      const cell = nav.nearestWalkable(pick.x + Math.sin(a) * 10, pick.z + Math.cos(a) * 10, 2, pick.y);
+      if (cell < 0) continue;
+      const [hx, hz] = nav.center(cell);
+      if (Math.hypot(hx - pick.x, hz - pick.z) < 6 || !nav.lineClear([hx, hz], [pick.x, pick.z], nav.height[cell], pick.y)) continue;
+      hp = [hx, hz];
+    }
+    if (!helper || !hp) return { pick, helper: !!helper, hp };
+    place(helper, hp[0], hp[1], Math.atan2(hp[0] - pick.x, hp[1] - pick.z));
+    // records: the camera's report, the revive
+    window.__s7 = { reports: [], revived: [] };
+    const on = sec.onBody;
+    sec.onBody = (ev) => { window.__s7.reports.push({ ...ev, t: g.time ?? 0 }); on(ev); };
+    const rv = em.onRevived;
+    em.onRevived = (e, b) => { window.__s7.revived.push(b.id); rv?.(e, b); };
+    return { pick, victim: victim.id, helper: helper.id, hp, callR: em.incidentTable.callR, bodyWalk: em.incidentTable.bodyWalk };
+  });
+  assert(set.pick && set.hp, `a floor point a live camera sees, a helper spot within reach (${JSON.stringify(set)})`);
+  // the camera comes round to the spot (its sweep), then the victim goes down there
+  await sim(0.3);
+  let covers = false;
+  for (let t = 0; t < 16 && !covers; t += 0.25) {
+    covers = await G(([id, x, y, z]) => window.__app.current.security.camera(id).covers(x, y + 0.15, z), [set.pick.cam, set.pick.x, set.pick.y, set.pick.z]);
+    if (!covers) await sim(0.25);
+  }
+  assert(covers, `the camera's sweep reaches the spot (${set.pick.cam})`);
+  const body = await G((vid) => {
+    const g = window.__app.current;
+    const e = g.enemyMgr.enemies.find((q) => q.id === vid);
+    e.knockOut({ amount: 9999, point: e.pos.clone(), dir: e.pos.clone().normalize(), part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: 'local', sourcePos: g.player.position.clone(), impulse: 1 });
+    const b = g.enemyMgr.bodies.find((q) => q.enemyId === vid);
+    return b ? { id: b.id, lethal: b.lethal, x: b.pos.x, z: b.pos.z } : null;
+  }, set.victim);
+  assert(body && body.lethal === false, `the victim lies knocked out on the spot (${JSON.stringify(body)})`);
+  // within ~5 s: the camera reports it and a guard is sent (no guard found it himself first)
+  const read = () =>
+    G((bid) => {
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const b = em.bodies.find((q) => q.id === bid);
+      const sent = em.enemies.filter((e) => e.alive && e.camBody && e.camBody.id === bid).map((e) => ({ id: e.id, level: e.level, d: +Math.hypot(e.pos.x - (b?.pos.x ?? 0), e.pos.z - (b?.pos.z ?? 0)).toFixed(1) }));
+      return { reports: window.__s7.reports.filter((r) => r.bodyId === bid).length, sent, found: b?.found ?? null, present: b?.present ?? null, revived: window.__s7.revived.includes(bid), camReports: em.camReports, camIgnored: em.camIgnored, opened: em.board.opened };
+    }, body.id);
+  let st = await read();
+  let t = 0;
+  for (; t < 5 && !st.sent.length; t += 0.25) {
+    await sim(0.25);
+    st = await read();
+  }
+  assert(st.reports >= 1 && st.camReports >= 1 && st.sent.length >= 1, `within 5 s the camera reports the body and a guard is sent (${t.toFixed(2)} s: ${JSON.stringify(st)})`);
+  assert(st.sent.length === 1, `a knocked-out guard: one guard goes (${JSON.stringify(st.sent)})`);
+  // he walks over and wakes him (the walk is bounded by the table; the revive takes a few seconds more)
+  for (t = 0; t < set.bodyWalk + 10 && !st.revived; t += 0.5) {
+    await sim(0.5);
+    st = await read();
+  }
+  assert(st.revived, `the sent guard wakes the victim (${t.toFixed(1)} s: ${JSON.stringify(st)})`);
+});
+}
+
 console.log(all.length ? 'console problems:\n' + all.join('\n') : 'no console errors');
 process.exit(failed || all.length ? 1 : 0);
