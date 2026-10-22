@@ -1797,5 +1797,126 @@ if (want(6)) {
   });
 }
 
+// (guard-ai S5, goal 7, M1, A10, A12) Posts. No live map has a posted guard yet (Course Ready fills K1-K4), so the test
+// hook spawns guards on an open stretch of section 1 and gives them posts with `em.placeSlot` (no map data edited). The
+// section's own guards go, the cameras are held, the player stands far off in the dark. (a) A vault-door guard (leash 3,
+// high security) hears a bottle 8 m off: he turns, walks to his leash edge (never past it), looks toward it >= 5 s
+// (sweep <= +-0.6 rad), walks back and faces his post; a free guard who heard it too is the one sent. (b) Told to search
+// a spot 15 m off (a body, a radio check), he searches only inside his leash. (c) A normal post (no high security) is
+// sent to a noise like any guard and walks out past 3 m.
+if (want(1)) {
+  console.log('posts (guard-ai S5): a vault-door guard is lured to his leash edge and back; never searches outside it; a normal post is sent');
+  await run(PARAMS, async ({ G, sim }) => {
+    await G(() => { const g = window.__app.current; g.target.damageMul = 0; if (g.security) g.security.fixedUpdate = () => {}; if (window.__ctdev) window.__ctdev.fixedUpdate = () => {}; });
+    await sim(0.5);
+    const S = await sections(G);
+    // an open stretch near section 1's objective: clear 9 m east and 5 m north of the noise point
+    const site = await G((o) => {
+      const em = window.__app.current.enemyMgr;
+      const nav = em.nav;
+      for (let r = 0; r <= 30; r += 1.5) {
+        for (let a = 0; a < 16; a++) {
+          const c = nav.nearestWalkable(o[0] + Math.sin((a * Math.PI) / 8) * r, o[2] + Math.cos((a * Math.PI) / 8) * r, 1, o[1]);
+          if (c < 0) continue;
+          const [x, z] = nav.center(c);
+          const y = nav.height[c];
+          const P = (dx, dz) => [x + dx, z + dz];
+          if (nav.lineClear([x, z], P(9, 0), y, y) && nav.lineClear([x, z], P(-3.5, 0), y, y) && nav.lineClear(P(8, 0), P(8, 5), y, y) && nav.lineClear([x, z], P(0, 3.5), y, y) && nav.lineClear([x, z], P(0, -3.5), y, y)) return [x, y, z];
+        }
+      }
+      return null;
+    }, S[0].obj);
+    assert(site !== null, 'posts: an open stretch near section 1 for the test guards');
+    const r = await G(([cx, cy, cz]) => {
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const V = g.player.position.constructor;
+      for (const e of [...em.enemies]) em.despawn(e);
+      // the player far off, in the dark
+      g['updateLight'] = () => (g.localRef.light = g.lightLevel = 0);
+      g.player.controller.teleport(new V(cx - 40, cy, cz - 40), 0);
+      const step = (s) => window.__app.loop.stepHeadless(s);
+      const out = {};
+      const rank = { unaware: 0, cooldown: 0, suspicious: 1, investigating: 2, searching: 3, alert: 4 };
+      const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+      // (a) the lure
+      const A = em.spawn('grunt', new V(cx, cy, cz), false, 0);
+      em.placeSlot(A, { yaw: 0, post: { leash: 3, highSecurity: true, guards: 'vault door' } }, 0);
+      const F = em.spawn('grunt', new V(cx + 8, cy, cz + 4), false, Math.PI);
+      step(0.6);
+      const px = A.pos.x;
+      const pz = A.pos.z;
+      const N = new V(cx + 8, cy, cz);
+      em.hear(N, 18, 'distraction');
+      step(0.1);
+      out.aSent = A.incident;
+      out.fSent = F.incident;
+      const phases = [];
+      let maxD = 0;
+      let lookT = 0;
+      let lookDev = 0;
+      let worst = 'unaware';
+      for (let k = 0; k < 400 && A.lurePhase !== 5; k++) {
+        step(0.1);
+        if (phases[phases.length - 1] !== A.lurePhase) phases.push(A.lurePhase);
+        maxD = Math.max(maxD, Math.hypot(A.pos.x - px, A.pos.z - pz));
+        if (rank[A.level] > rank[worst]) worst = A.level;
+        if (A.lurePhase === 2) {
+          lookT += 0.1;
+          const b = Math.atan2(N.x - A.lureLook[0], N.z - A.lureLook[1]);
+          // the first 0.5 s is his turn settling from the walk
+          if (lookT > 0.5) lookDev = Math.max(lookDev, Math.abs(wrap(A.yaw - b)));
+        }
+      }
+      // done: back on the post; the calm turn (60 deg/s) brings him round to his post yaw within ~2 s
+      let yawMin = Math.PI;
+      for (let k = 0; k < 25; k++) {
+        step(0.1);
+        yawMin = Math.min(yawMin, Math.abs(wrap(A.yaw)));
+      }
+      Object.assign(out, { phases, maxD, lookT, lookDev, worst, back: Math.hypot(A.pos.x - px, A.pos.z - pz), yaw: yawMin, aInc: A.incident });
+      // (b) a search 15 m off: he looks from inside his leash
+      A.searchAt(px + 15, pz, null);
+      let sMax = 0;
+      let searched = false;
+      for (let k = 0; k < 250; k++) {
+        step(0.1);
+        if (A.level === 'searching') searched = true;
+        sMax = Math.max(sMax, Math.hypot(A.pos.x - px, A.pos.z - pz));
+      }
+      Object.assign(out, { searched, sMax });
+      em.despawn(A);
+      em.despawn(F);
+      // (c) a normal post is sent like any guard
+      const B = em.spawn('grunt', new V(cx, cy, cz), false, 0);
+      em.placeSlot(B, { yaw: 0, post: { leash: 3, guards: 'gate' } }, 0);
+      step(0.6);
+      const bx = B.pos.x;
+      const bz = B.pos.z;
+      em.hear(new V(cx + 8, cy, cz), 18);
+      step(0.1);
+      out.bSent = B.incident;
+      let bMax = 0;
+      for (let k = 0; k < 200; k++) {
+        step(0.1);
+        bMax = Math.max(bMax, Math.hypot(B.pos.x - bx, B.pos.z - bz));
+      }
+      out.bMax = bMax;
+      g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
+      return out;
+    }, site);
+    const f2 = (v) => v.toFixed(2);
+    assert(r.aSent === -1 && r.fSent >= 0, `posts: the board sends the free guard, never the vault-door guard (vault ${r.aSent}, free ${r.fSent})`);
+    assert(JSON.stringify(r.phases.slice(0, 3)) === '[1,2,3]' && r.phases[r.phases.length - 1] === 5, `posts: the vault-door guard walks out, looks, walks back, done (phases ${JSON.stringify(r.phases)})`);
+    assert(r.maxD <= 3 + 0.35 && r.maxD >= 2.5, `posts: he reaches his leash edge, never past it (${f2(r.maxD)} m, leash 3)`);
+    assert(r.lookT >= 5 - 0.05, `posts: he looks toward the lure >= 5 s (A12: ${f2(r.lookT)} s)`);
+    assert(r.lookDev <= 0.6 + 0.15, `posts: his sweep stays within +-0.6 rad of the lure (A12: ${f2(r.lookDev)} rad)`);
+    assert(r.worst === 'unaware' || r.worst === 'suspicious' || r.worst === 'cooldown', `posts: a lure never makes him investigate (${r.worst})`);
+    assert(r.back < 0.6 && r.yaw < 0.2, `posts: back on his post facing it (${f2(r.back)} m, yaw off by ${f2(r.yaw)} rad)`);
+    assert(r.searched && r.sMax <= 3 + 0.4, `posts: a search 15 m off is searched from inside his leash (${r.searched}, ${f2(r.sMax)} m)`);
+    assert(r.bSent >= 0 && r.bMax > 3.5, `posts: a normal post is sent and walks out past his 3 m leash (sent ${r.bSent}, ${f2(r.bMax)} m)`);
+  });
+}
+
 console.log(all.length ? 'console problems:\n' + all.join('\n') : 'no console errors');
 process.exit(failed || all.length ? 1 : 0);

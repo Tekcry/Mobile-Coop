@@ -89,6 +89,24 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 - Noise investigations (guard-ai S3, S2 check polish 2): a guard the board sent to a plain noise or a lure who finds
   nothing goes back to unaware (`AlertInput.calmEnd`); gunfire keeps the 45 s cooldown, and so does a guard who has
   fought.
+- Posts and high security (guard-ai S5, design 6, goal 7, M1, A10, A12, A17-A19; `ai/posts.ts` and `ai/guardAiData.ts`
+  pure): `SquadSlot.post?: PostDef` (`leash` m round the guard's spawn point, `highSecurity?`, `guards?` text) and
+  `profile?`; map modes call `EnemyManager.placeSlot(e, slot, section?)` after `spawn` / `setPatrol` (Sector Ops passes
+  the `SectorDef` index; Course and Infiltration let it pick the `MapLayout.guardAi` zone, else 0) -> `Enemy.setPost`,
+  `Enemy.section`, `Enemy.profile`. A normal post is sent like any guard. A high-security post (`Enemy.secure`,
+  `mayLeave` false): the board never sends him (`GV_POSTED` in the view: no investigation, light check, missing pair);
+  a noise or gunfire at his investigate tier, or a light he sees go out, lures him instead (`Enemy.lureTo` ->
+  `PostLure`): he walks to the point of his leash nearest it (investigate pace), looks toward it `POST.lureLook` 5 s
+  sweeping +-`POST.lureSweep` 0.6 rad, walks back and faces his post yaw (`returnFace` 0.8 s, then the walker); a second
+  lure at the same leash point does not restart him; the lure counts as `turning` (the linger rule never walks him off)
+  and gives only a turn's meter floor. A search (a body, a radio check, after combat) and his investigate spot are
+  clamped into the leash; he wakes no knocked-out guard outside it; in combat `chasePoint` / strafe points are clamped,
+  cover outside the leash is skipped, and a target outside it (+1.5 m) is held from the post (the `hold` rule); he
+  never runs to an alarm panel outside it. Not yet: a revived guard loses his post (S4's `revive`); squads / handler /
+  zone / role tags (S5b). Map data: `MapLayout.guardAi` (zones, `noisy`, entries, squads) and `SectorDef.noisy` /
+  `entries`; `EnemyManager.mapNoisy` loads the map's noisy things as the masking, Sector Ops swaps in the live
+  section's (`setNoisy` on load). Checks: `validateGuardAi` / `validatePosts` run on load in dev (console warnings via
+  `reportGuardAi`, never a throw) and in `tests/postsWiring.test.ts` over every live map's sectors.
 - Tactics: from sight into cover first (85%), attack -> cover after 2.5-4.5 s, peek cycles (4.2 s, up to 5); out of sight
   an `advancing` bound to cover closer to the believed position (`pickAdvance`), a 2.5 s hold, then the next; the last
   stretch is walked (`ADVANCE_PACE`); cover is picked against `knownPt` (never the real position out of sight). One bullet

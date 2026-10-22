@@ -101,6 +101,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   a lamp with guards near and one or two check it and go back calm. Get spotted: the spotter shouts "Contact!" (guards
   within a few metres join at once), about 2.5 s later radios it in, then the rest of the section joins one by one,
   nearest first. Take the spotter down before his radio line and nobody beyond shouting range comes.
+- [ ] Posted guards (guard-ai S5; once a map has a high-security post, e.g. the campus keyholders): throw a bottle or cut
+  the light near him: he walks to the edge of his area, looks toward it ~5 s, walks back and faces his post; he never
+  follows a search or chases you out of his area.
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
 - [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
   glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen

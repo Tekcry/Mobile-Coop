@@ -21,9 +21,10 @@ import { ALERT } from './alertState';
 import { ReconDrone } from './reconDrone';
 import { HEARING, ambientDb, effectiveReach, hearTier, wallMatters, WALL_FACTOR, type HearTier, type NoisySource } from './hearing';
 import { MUFFLE } from '../config/noise';
-import { CMD_ACK, CMD_SEND, GuardView, GV_BUSY, GV_DOWN, GV_HELD, GV_MELEE, GV_OFFICER, INCIDENT, IncidentBoard, LEVEL, lightInView, MODE_COVER, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT, type IncidentKind, type PathLen } from './incidents';
+import { CMD_ACK, CMD_SEND, GuardView, GV_BUSY, GV_DOWN, GV_HELD, GV_MELEE, GV_OFFICER, GV_POSTED, INCIDENT, IncidentBoard, LEVEL, lightInView, MODE_COVER, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT, type IncidentKind, type PathLen } from './incidents';
 import { EYE_STAND, PERCEPTION } from './perception';
-import { roomAt } from '../world/rooms';
+import { roomAt, type SquadSlot } from '../world/rooms';
+import { reportGuardAi, sectionAt, validateGuardAi } from './guardAiData';
 import { CALL_KIND, callHold, hearsVoice, RADIO, RadioNet, type CallKind, type RadioSink } from './radioNet';
 import type { P2 } from './navGrid';
 
@@ -119,6 +120,9 @@ export class EnemyManager {
   coordinated = true;
   /** (guard-ai S1) The map's noisy things (machinery, generators, vents): they mask sounds for guards near them. */
   private noisy: readonly NoisySource[] = [];
+  /** (guard-ai S5) The map's own noisy things (`MapLayout.guardAi.noisy`); Sector Ops swaps in a section's
+   *  `SectorDef.noisy` on load and falls back to these. */
+  readonly mapNoisy: readonly NoisySource[];
   /** The hearing table (tests / e2e read the numbers from here). */
   readonly hearingTable = HEARING;
   /** Hearing scratch (no allocation per noise): the perceivers' ids (tier-2 hearers, guards who saw a light go) and
@@ -199,6 +203,15 @@ export class EnemyManager {
     private players: () => readonly PlayerRef[],
   ) {
     this.world = world;
+    // (guard-ai S5) the map's guard-ai data: its noisy things mask hearing; dev / tests check it (warnings only)
+    const gai = world.layout.guardAi;
+    this.mapNoisy = gai?.noisy ?? [];
+    this.noisy = this.mapNoisy;
+    if (gai && import.meta.env.DEV) {
+      const slots: SquadSlot[] = [];
+      for (const r of world.layout.rooms ?? []) for (const s of r.squad ?? []) slots.push(s);
+      reportGuardAi('map', validateGuardAi(gai, slots));
+    }
     for (const l of world.level.lights.lights) {
       if (l.kind !== 'flashlight') continue;
       this.torches.push(l);
@@ -416,7 +429,11 @@ export class EnemyManager {
       } else {
         saw = (er >= 0 && roomAt(rooms, x, z, fy - 1.5) === er) || (this.inSight(e, x, fy, z) && this.seesPoint(e, x, fy, z));
       }
-      if (saw) who[n++] = e.num;
+      // (guard-ai S5) a high-security post who saw it is lured to his leash edge, never sent by the board
+      if (saw) {
+        if (e.secure) e.lureTo(x, z, 0);
+        else who[n++] = e.num;
+      }
     }
     // the incident sits on the floor under the light (rough storey pick: 2.5 m under the fixture), where guards walk to
     const floor = this.nav.heightAt(x, z, fy - 2.5);
@@ -477,6 +494,8 @@ export class EnemyManager {
       if (!e.alive || !e.alerted || e.def.melee) continue;
       const p = nearestPanel(this.alarms, e.pos.x, e.pos.z, 2, e.pos.y);
       if (!p) continue;
+      // (guard-ai S5, A10) a high-security post never runs to a panel outside his leash
+      if (!e.inLeash(p.x, p.z, 1)) continue;
       // an officer calls it in himself
       const d = hyp2(p.x - e.pos.x, p.z - e.pos.z) * (e.def.kind === 'officer' ? 0.25 : 1);
       if (d < bd) {
@@ -649,6 +668,18 @@ export class EnemyManager {
     return e;
   }
 
+  /**
+   * (guard-ai S5) A map mode placed guard `e` from `slot` in section `section` (call right after `spawn` and
+   * `setPatrol`): his post (`slot.post`: a leash round his spawn point, facing `slot.yaw`; a high-security post never
+   * leaves it, `posts.ts`), his behaviour profile and his section (Sector Ops passes the `SectorDef` index; omitted: the
+   * `MapLayout.guardAi` zone he stands in, else 0). S5b reads the squad / handler / zone / role tags here.
+   */
+  placeSlot(e: Enemy, slot: Pick<SquadSlot, 'yaw' | 'post' | 'profile'>, section?: number): void {
+    e.section = section ?? sectionAt(this.world.layout.guardAi, e.pos.x, e.pos.z);
+    e.profile = slot.profile ?? 'standard';
+    e.setPost(slot.post ?? null, slot.yaw);
+  }
+
   /** Put an enemy on a squad's roster (radio checks; the dog's handler comes from its squad). */
   joinSquad(e: Enemy, squad: number): void {
     e.squad = squad;
@@ -730,6 +761,8 @@ export class EnemyManager {
       if (e.taken) f |= GV_HELD;
       if (e.passive || e.runningAlarm) f |= GV_BUSY;
       if (!e.alive) f |= GV_DOWN;
+      // (guard-ai S5) `mayLeave` false: the board never sends him out of his leash
+      if (e.secure) f |= GV_POSTED;
       v.set(i, e.num, e.pos.x, e.pos.y, e.pos.z, LEVEL[e.level], f, e.incident);
     }
   }
@@ -907,6 +940,8 @@ export class EnemyManager {
           e.hearGunfire(pos.x, pos.z);
           locate = true;
         } else if (e.def.melee) e.hear(pos.x, pos.z, this.hearR[i]!);
+        // (guard-ai S5) a high-security post: lured toward the shots to his leash edge (tier 2), never sent
+        else if (e.secure && tier === 2) e.lureTo(pos.x, pos.z, this.hearR[i]!);
         else {
           e.hearTurn(pos.x, pos.z, this.hearR[i]!);
           if (tier === 2 && !e.passive) who[nh++] = e.num;
@@ -947,6 +982,9 @@ export class EnemyManager {
       const tier = this.tierOf(e, i, pos, reach, d, false);
       if (tier === 0) continue;
       if (!this.coordinated || e.def.melee) e.hear(pos.x, pos.z, this.hearR[i]!);
+      // (guard-ai S5, M1) a high-security post is distracted, not sent: at tier 2 the noise lures him to his leash edge
+      // (looks, walks back); at tier 1 he turns, as anyone
+      else if (e.secure && tier === 2) e.lureTo(pos.x, pos.z, this.hearR[i]!);
       else {
         e.hearTurn(pos.x, pos.z, this.hearR[i]!);
         if (tier === 2) who[nh++] = e.num;

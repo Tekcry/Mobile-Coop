@@ -95,3 +95,16 @@ manoeuvre beats guard count. Every map's guards are armed (Answers 3).
   to an immediate `radioCall` completion (hold 0).
 - **A11** Sector Ops tour guards that are melee-only conflict with "every map's guards are armed" (Answers 3): map data,
   passed to Course Ready, not changed here.
+- **A17** (S5) A high-security post is lured (not sent) by a noise or gunfire at his investigate tier (inside half its
+  effective reach) and by a light he sees go out; at the turn tier he only turns, as anyone. He is never reported to the
+  board, so a noise only he heard opens no incident (nobody else is sent in his place). Undo: in `EnemyManager.hear` /
+  `noise` / `lightsOut` (src/ai/enemyManager.ts, the `e.secure` branches) also add him to the perceivers, so the board's
+  `callR` fallback sends a free guard.
+- **A18** (S5) A high-security post in combat fights from inside his leash: chase and strafe points are clamped into it,
+  cover outside it is skipped, and a target (or the last known position) more than 1.5 m outside it is held from his post
+  facing it, like `Enemy.hold` for a room (design 6 "radios rather than chases"). Undo: drop the `inLeash` / `leashed`
+  checks in `Enemy.decide`, `chasePoint`, `pickCover` and `pickAdvance` (he then fights and chases like anyone).
+- **A19** (S5) The post's centre is the guard's spawn point (the slot's x, z snapped to the nav cell) and the post yaw is
+  the slot's yaw; after a lure he faces the post yaw for `POST.returnFace` 0.8 s, then his normal standing post takes
+  over (the calm turn is 60 deg/s, so a turn back of more than ~50 deg finishes after the lure ends). Undo: raise
+  `POST.returnFace`, or give `PostDef` its own centre.

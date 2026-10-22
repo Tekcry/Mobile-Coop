@@ -78,6 +78,9 @@ export const GV_HELD = 4;
 export const GV_BUSY = 8;
 /** Dead or knocked out (still in the manager's list this step). */
 export const GV_DOWN = 16;
+/** (guard-ai S5) A high-security post (`posts.ts` `mayLeave` false): never sent out of his leash by the board; a
+ *  distraction reaches him as a `PostLure` instead (the manager never reports him as a perceiver). */
+export const GV_POSTED = 32;
 
 /** What the board reads per guard (struct of arrays, filled by `EnemyManager` before each tick). */
 export class GuardView {
@@ -410,7 +413,7 @@ export class IncidentBoard {
   /** May guard `i` be sent anywhere now? */
   private free(view: GuardView, i: number): boolean {
     const f = view.flags[i]!;
-    if (f & (GV_MELEE | GV_HELD | GV_BUSY | GV_DOWN)) return false;
+    if (f & (GV_MELEE | GV_HELD | GV_BUSY | GV_DOWN | GV_POSTED)) return false;
     if (view.task[i]! >= 0) return false;
     const l = view.level[i]!;
     return l === LEVEL.unaware || l === LEVEL.suspicious || l === LEVEL.cooldown;
