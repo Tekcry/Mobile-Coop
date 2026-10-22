@@ -274,9 +274,11 @@ describe('light field (3.6)', async () => {
     // had not installed the optimized loop yet, so the field's doubles were still boxed (35-42 B a query, optimized
     // 32.4), and a scavenge inside the 1.4 MB control round shrank new space (the control read 15 B). So: rounds that
     // fit in new space after a gc() (the control 2000 x 272 B, about 0.5 MB, under the 1 MB minimum semi-space), and up
-    // to 40 of them with a short yield between, so the compiler can finish. Each keeps its smallest round (the optimized
-    // code). The control runs all 40; each field query stops once its smallest meets its limit (a query that allocates
-    // an object never gets there). The method is shared: tests/helpers/allocPerCall.ts (heap-asserts).
+    // to 40 of them. Each keeps its smallest round. The control runs all 40; each field query stops once its smallest
+    // meets its limit (a query that allocates an object never gets there). Still flaky under load (4.60.0): the rounds
+    // read whatever tier a starved background compiler had reached (bodyLevel in Sparkplug 100-127 B against 128), so
+    // the helper now tiers up synchronously and every run reads the optimized code (levelAt 32.0, bodyLevel 64.8,
+    // control 272.0). The method is shared: tests/helpers/allocPerCall.ts (heap-asserts).
     const per = (fn: (n: number) => void, goal = -Infinity, n = 5000): Promise<number> => bytesPerCall(fn, goal, { n, warm: 500000 });
     // a control that makes one 3-vector per query: what a real allocation looks like (kept in a small ring so it
     // escapes: a fully optimized loop otherwise scalar-replaces part of it and the control read 63 B instead of 272)
