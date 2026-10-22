@@ -1,69 +1,77 @@
-# Resume - Night Shift | CT Core Build (track B, animation)
+# Resume - Night Shift | CT Core Build (track B, animation; overflow session)
 
-Written 2026-10-22 ~14:55 at the 5-hour pause; updated ~19:12 by the resumed CT Core session (overflow session). Every branch
-below is committed and pushed. Each job's own `docs/<job>/STATE.md` has the detail; this is the index.
+Saved 2026-10-23 ~09:45 by the CT Core session, for the ~09:50 account swap (window 91%). Every branch below is committed and
+pushed at each agent hand-back. Agents running at a cut-off are lost: the resume prompt says what to redo.
 
 ## Rules carried
-- (Michael 15:25, via the orchestrator) CT Core is the overflow session: it ignores the 97 / 98 / 99% stops and works and
-  starts agents up to 100%. Cutoff-proof: commit + push a WIP after every agent hand-back, keep this file current at each
-  step, long runs as detached scripts that release their own lock. If cut off: do nothing; resume when the orchestrator
-  messages after the reset.
-- Full burn (Michael, 13:30): parallel agents where the work splits. `mcp__ccd_session_mgmt__get_usage` before every
-  agent: at 97% (5-hour) start no new agent; at 98% commit, push and update STATE; stopped by 99%. Resume after a pause
-  only when the orchestrator messages. Weekly at 98%: the orchestrator runs `docs/orchestrator/HANDOFF.md`.
-- Desktop heavy lock `C:/NightShift/heavy.lock` (a full `npm run check`, a full `vitest run`, every e2e, anim-audit,
-  Blender, GPU sheets): create it ATOMICALLY and wait while it exists:
-  `until ( set -o noclobber; echo "CT Core Build | <job> | $(date '+%H:%M')" > /c/NightShift/heavy.lock ) 2>/dev/null; do sleep 20; done`;
-  delete it only if it still names you (`grep -q "<job>" "$L" && rm -f "$L"`). Port 4191 (logic), 4189 (GPU). Follow
-  the orchestrator's lock queue; when you free the lock, tell whoever is next. When it is held, send logic suites to
-  the laptop runner "Night Shift | Character Build" (branch, commit, named suites). Single test files need no lock.
-- Main test machine = the laptop (Michael ~17:50, CLAUDE.md "Main test machine"): full runs, npm run check, co-op suites
-  and ALL GPU work (anim-audit, anim-sheet, shots, E2E_GPU=1) go to Character Build (bridge:session_01HVFKDvRCTbTDNhJKQP1oaa)
-  with branch, commit, suites and where outputs go. The desktop runs only quick single suites at E2E_JOBS=1 under its lock.
-- Rule changes (Michael via the orchestrator, ~18:35; CLAUDE.md on feature/menu): a PR whose fresh checker passed goes
-  straight into the next merge train with CI check only (the train full run covers its suites); PRs touching src/net,
-  PROTOCOL_VERSION or the save shape still pass their area suites first. A test result stands for a later commit that only
-  changes docs / CHANGELOG / test scripts. The laptop runs two queues (ports 4191, 4192). Changelog fragments: format to come.
-- Merge trains: a PR needs CI + its area suites; the orchestrator runs one full e2e per train and sets versions at merge
-  (G183). CHANGELOG entries are "## Unreleased - <job>".
-- Every tuner slider bakes. Never loosen a metric to pass; a widened limit from Michael's tune is marked
-  `(<job>) Michael's 2026-10-22 tune: was <old>`.
-- Subagents: Opus, from `docs/systems/agent-preamble.md`; implementer + fresh checker, one fix round; they return text,
-  the job lead writes REPORT / CHECK files and commits. Tell them: no full vitest / check / e2e.
-- `git checkout -- tests/__snapshots__/visionIsolation.test.ts.snap` before every commit (vitest rewrites it). In bash
-  scripts, write PowerShell's `$_` as `\$_` inside double quotes; a port-free command can return non-zero: never chain
-  the next step with `&&` after it.
+- Pacing after the reset (Michael 01:45, ROADMAP Decided "Lean windows", CLAUDE.md "A job"): every 5-hour window to
+  99%, lean, no quality loss. No new agent at 97%, save at 98% (WIP pushed, this file current), stop by 99%; the
+  orchestrator's cron resumes us after each reset. Max 3 agents (desktop CPU). Models: Opus plans, writes strict slice
+  briefs (exact files, line ranges, acceptance numbers, tests), reviews and runs every fresh checker; most mocap code
+  (footPlanner, animGraph, rig, mocap.ts) stays Opus; Sonnet 5.5 builds data / test sweeps / e2e asserts / clip
+  conversion runs / SOURCES rows from those briefs; Haiku 5.5 for chores. A failed Sonnet slice gets its fix round
+  from Opus. Lean prompts: exact files and line ranges, never whole large docs.
+- Until the reset: FULL BURN to 100% of the 5-hour window (Michael ~01:05 via the orchestrator: "push as hard as possible"; replaces the
+  97% stop). Up to 6 parallel Opus agents. Cutoff-proof: agents push their own branch at milestones; the lead commits +
+  pushes and refreshes this file after every hand-back. If cut off: do nothing; resume when the orchestrator messages.
+- Agents: one worktree each, `C:/NightShift/Mobile-Coop-mt2-<slug>`, branch `feature/mt2-<slug>` (node_modules a
+  junction to Mobile-Coop-mocap-trial-2's), common rules `C:/NightShift/scratch/mt2/COMMON.md`. They return a report
+  (`docs/mocap-trial/MT2-<SLUG>.md` on their branch); the lead merges the branches into feature/mocap-trial-2 in order and
+  writes the changelog fragment `changes/feature-mocap-trial-2.md`. No full vitest / check / e2e inside agents.
+  `git checkout -- tests/__snapshots__/visionIsolation.test.ts.snap` before every commit.
+- e2e: ALWAYS `E2E_GPU=1`; full runs and GPU suites go to Character Build on the laptop. Desktop lanes (`heavy.lock` 4191,
+  `heavy2.lock` 4192 GPU only, `E2E_JOBS=1`, CPU < 50%) only for single quick suites. Atomic create:
+  `until ( set -o noclobber; echo "CT Core Build | <job> | $(date '+%H:%M')" > <lock> ) 2>/dev/null; do sleep 20; done`.
+- A PR enters a train only when every suite it touches passed on the GPU: e2e-anim, e2e-move, e2e-clip, e2e-studio
+  (+ e2e-coop / e2e-netmove for src/player, src/game, src/net). List them with results in the PR body.
+- Windows: TaskStop does not kill bash children; `taskkill //PID <pid> //T //F`, free the port, check the lock file.
+- Changelog: one fragment per branch, never CHANGELOG.md. Never loosen a metric to pass.
+- CMU mocap: mocap.cs.cmu.edu only, raw files in `.mocap-cache/` (gitignored, local to Mobile-Coop-mocap-trial-2; agent
+  worktrees junction it), every take in docs/mocap-trial/SOURCES.md, credited in docs/art-credits.md. M3 approval (Michael
+  00:15-00:20 "Yes, download them"): crouch walk, sprint, strafe, back-to-wall. All 21 M3 takes are already downloaded.
+- Michael M1 "Mocap, as captured" (old limits are notes; pops / slides fail); M2 no sheets, fresh checker, GPU suites,
+  PR into a train.
+- Fresh checker: CT Core runs it itself (Course Ready moved to Sector Ops, orchestrator ~01:40): a NEW Opus agent with
+  `C:/NightShift/scratch/mt-check/CHECK3-BRIEF.md`.
+- Heavy-usage throughput (Michael ~09:50, CLAUDE.md on feature/menu): CPU < ~80%, at most 3 tsc / vitest agents; heavy.lock
+  lane single GPU suites when CPU < 80%; PRs outside src/net / protocol / save -> train on CI + at most two area suites.
 
-## Open jobs (branch, folder, head, next step)
+## Resumed ~10:00 (new account)
+hostage-gait: checker PASS (docs/hostage-gait/CHECK.md), PR #194 head 6cf3ec97; waits for laptop coop + netmove on c581a9c4.
+hang-down 0578d554: desktop GPU e2e-takedown ok 22 s, e2e-anim ok 47 s; fresh checker running (-> scratch/hdc-CHECK.md).
+Running: mocap-strafe finish, traverse-fix-2 finish (Opus). Queued: strike-pops finish. Character Build has (4189, after
+Guard AI S7): hang-down coop / ctcourse / netmove, then hostage-gait coop / netmove; verdicts come to CT Core.
+This file is pushed without a worktree: scratch/ctcore/push-resume.sh <file> <msg>.
+
+## Open jobs (save ~09:45, before the account swap; every branch committed + pushed)
+Master 4.68.0 (3950f3f8). Train 20 = #185 + #186 + #188. Protocol registry: 31 master, 32 guard-ai, 33 marlow-final, 34 hang-down.
+Agents running at the save are lost: their last state is the WIP commit below. Untracked zz probes stay in the worktrees (not pushed).
+
 | Job | Branch / folder | Head | State | Next step |
 | --- | --- | --- | --- | --- |
-| anim-run-half (#110) | `feature/anim-run-half`, `C:/NightShift/Mobile-Coop-anim-run-half` | 16b1a044 | Master 4.54.0 merged, fixture re-captured; check 2682 ok, e2e-anim ok, e2e-studio ok solo (a JOBS=2 phase-sampling flake). In train 4. | Nothing unless train 4 fails. |
-| idle-shins (#120) | `feature/idle-shins`, `C:/NightShift/Mobile-Coop-idle-shins` | 741da1da | PR #120; master 4.55.1 merged. Train 5. | Nothing unless train 5 fails. |
-| anim-natural N1 (feet) | `feature/anim-natural-n1`, `C:/NightShift/Mobile-Coop-anim-natural-n1` (a separate clone: use origin/ refs) | 50acdc7e | Jog 180 fix f8e98b26 (REPORT-D) + the 4.55.1 merge branch merged (50acdc7e). After the merge footTurn's new timing test fails: run 180 at 1.067 s 6.11 m/s (<= 5). Agent (19:10) in the N1 folder: run 180 fix (task 1) + master 4.56.0 merge and fixture proof (task 2), commits locally; report -> REPORT-E.md (lost on a clear: check git log / status there). | Push; laptop: e2e-anim e2e-clip e2e-move on the head; fresh checker; CHANGELOG Unreleased section; PR (minor; checker pass -> train with CI only). GPU sheets on the laptop. |
-| anim-natural N2 (body motion) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | 77b21ea4 | Step 2 DONE: laptop on 53e6dc03 check / e2e-anim / e2e-studio / e2e-clip PASS (STATE 19:10). Step 3 (arms) implementer agent (18:30) in branch feature/anim-natural-n2-s3, folder C:/NightShift/Mobile-Coop-anim-natural-n2-merge (from 4028d386; uncommitted until its report -> REPORT-3.md; lost on a clear: check git status there). | Step 3 report -> REPORT-3, fresh checker; merge s3 + master 4.56.0 into N2 (fixture proof); steps 4-5; #128 alloc test. |
-| anim-bake-all (#123) | `feature/anim-bake-all`, `C:/NightShift/Mobile-Coop-anim-bake-all` | ad967e39 | Master 4.56.0 merged (tuneRegistry: both imports; 146 tests + tsc green). Told the orchestrator: train 6 once CI is green. | Nothing unless train 6 fails. |
-| anim-n2-runkey | `feature/anim-n2-runkey` | 038e2519 | A1 branch, merged into N2. | None (history; sheets in docs/anim-natural-n2/sheets/). |
+| mocap-on #188 | `feature/mocap-on` | ab1cb6c6 | PR, CHECK-7 PASS, six GPU suites green on 1673e924 (head docs only). Train 20. | Nothing unless the train fails. |
+| throw-ko #186 | `feature/throw-ko` | 4ff5f19e | e2e-ctcourse GREEN on the head. Train 20. | Nothing unless the train fails. |
+| traverse-fix #189 | `feature/traverse-fix` | 6ca9ef6c | PR, fresh check PASS, e2e-traverse + clip GPU ok. Train 21. | Nothing. |
+| partner-seed #190 | `feature/partner-seed` | f27268c4 | PR, fresh check PASS, coop + netmove GPU ok. Train-ready. | Nothing. |
+| spare #10 hostage-gait | `feature/hostage-gait`, `C:/NightShift/Mobile-Coop-hostage-gait` | c581a9c4 | DONE (src/net/holdFeed.ts; 30 fps jitter gait spread 0.146 -> 0.004, mean 1.12 -> 1.40 m/s; report docs/hostage-gait/REPORT.md). Fresh checker was running at the save (writes C:/NightShift/scratch/hgc-CHECK.md; if missing, rerun it: Opus, read-only scratch copy, scope = the src/net diff). Laptop queued e2e-coop + netmove on c581a9c4 (Character Build reports to CT Core + orchestrator). | Check + suites -> copy CHECK into docs/hostage-gait, PR (patch). |
+| mocap-strafe | `feature/mocap-strafe`, `C:/NightShift/Mobile-Coop-mocap-strafe` | 46333339 | WIP: mocap-on merged (9467c5c3), side-step only on carriers (6f10866a), stop pelvis <= 1.89 cm, swing foot jumps 24-29 -> <= 11 cm (c11e5455). Not yet: tests/mocapStrafe final, OFF dump vs mocap-on, MT2-STRAFE.md, A10, fragment. Probes tests/zz* untracked in the worktree. | New Opus agent finishes it (C:/NightShift/scratch/mt2/COMMON.md; brief = this row), then fresh checker, laptop GPU suites (e2e-anim, clip, move, studio, coop, netmove), PR. Then back-to-wall; then spare #7 crouch pops (orchestrator: after strafe lands). |
+| traverse-fix-2 (climb-up hands) | `feature/traverse-fix-2`, `C:/NightShift/Mobile-Coop-traverse-fix-2` | 6de30920 | WIP: CLIMB_UP trunk pitch so the palms stay on the lip until the right foot is on top (k ~0.52); tests/climbHands; edit only src/anim/clips/traverse.ts CLIMB_UP(_TEAM). Diagnosis: origin/feature/traverse-fix docs/traverse-fix/REPORT.md item 2. | Opus agent finishes, checker, laptop e2e-traverse / anim / clip, PR. |
+| spare #2 hang-down | `feature/hang-down`, `C:/NightShift/Mobile-Coop-hang-down` | 0578d554 | CODE DONE (agent hand-back ~09:50): sidearm (LT pistol inverted, RT fire, RB jammer), grab via hold-A (KO by default on pull-up / let go), neck-snap (RT tap choke / hold kill); joiner as hanger (src/net/hangHold.ts, checkShot 2.2 m origin); no wire change (31). Unit: hangDown 8, hangDownTakedown 7, hangDownNet 6 + 14 area files pass; tsc / eslint clean. Behaviour change: the settled hang hack goes through the hold-A menu. Laptop asked (~09:52) for e2e-coop (new hang-down section, never run), ctcourse, netmove, takedown, anim on 0578d554. Polish: no inverted grab / choke / snap clips (graph files owned elsewhere), host shows no limp lowering for a client hang KO. Docs: docs/hang-down/BRIEF.md (A1-A8), REPORT.md. | Fresh checker (Opus, read-only), laptop verdict (e2e-coop hang-down section may need one fix round), PR (minor). |
+| spare #5 strike-pops | `feature/strike-pops`, `C:/NightShift/Mobile-Coop-strike-pops` | 563b87f7 | WIP: n4c 1 dip reversal, n4c 9 wrist 31 cm step (spread over 2-3 frames, hit stays 80 ms), n4d 1 follow-through after a bay restart (courseMode.ts:641 / sectorMode.ts:173), n4c 7 if cheap. | Opus agent finishes, checker, laptop e2e-anim / clip / ctcourse / coop, PR. |
 
-## Test logs on the desktop
-`/c/NightShift/ctb-b.log` (master 5220f79c anim-audit: 645 / 89), `abt-aa.log` (#103: 703 / 108; selfShanks 4 -> 38 =
-idle-shins), `ctb3-n1audit.log` (N1), `ctb-d*.log` / `ctb3-studio.log` (#110), `ish-audit.log` (idle-shins),
-`ctb-a.log` (A1 rebake + sheets). If `C:/NightShift/heavy.lock` names "CT Core Build" and no node / bash process of
-ours runs, the lock is stale: delete it.
-
-## Done today
-#102 anim-goggle (4.49.1), #107 e2e-coop-takedown (4.51.1), #103 anim-bake-targets (4.54.0, train 3 with #113).
+Character Build (guard-render): S1 characterRig hook 3, 1231-1315; S5 L2 approved gated on !carrier; L3 footPlanner loops only. No clash with mocap-on / strafe.
+Scratch: C:/NightShift/scratch/mt2/COMMON.md, COMMON-SPARE.md; checks CHECK-7.md, tfc-CHECK.md, psc-CHECK.md; OFF dump scratch/mt-check/repro/dump.test.ts (compare against master's own dump).
 
 ## Resume prompt
 ```
-Night Shift | CT Core Build: RESUME (after a clear or a pause). Model Opus, effort high. Read CLAUDE.md, docs/ROADMAP.md,
-then docs/orchestrator/resume-ct-core.md on origin/feature/menu (git fetch; git show
-origin/feature/menu:docs/orchestrator/resume-ct-core.md) and follow its rules (full burn with parallel agents,
-overflow session: works to 100%, WIP pushed after each agent hand-back; the atomic heavy.lock and the
-orchestrator's lock queue; the laptop runner "Night Shift | Character Build" when the lock is held; merge trains,
-versions at merge). Work the "Open jobs" table top to bottom, each from its own docs/<job>/STATE.md:
-1. N1: the run 180 + 4.56.0 merge agent (REPORT-E) or rerun; push; laptop e2e-anim e2e-clip e2e-move; checker; PR.
-2. N2: step 3 agent (REPORT-3) or rerun; checker; merge s3 + master 4.56.0; steps 4-5.
-3. #123 in train 6 (master 4.56.0 merged).
-Desktop lock: ask the orchestrator for the current order; scripts take it atomically and free it themselves.
-Message "Night Shift | Orchestrator" at each slice, verdict and PR.
+Night Shift | CT Core Build: RESUME after the ~09:50 account swap. Model Opus, effort high. Read CLAUDE.md (on
+origin/feature/menu) and docs/ROADMAP.md (top "Decided"), then docs/orchestrator/resume-ct-core.md on origin/feature/menu
+(git fetch; git show origin/feature/menu:docs/orchestrator/resume-ct-core.md) and follow its "Rules carried" and the
+orchestrator's pacing. A heavy.lock / heavy2.lock naming CT Core Build with no node / bash process of ours is stale: tell
+the orchestrator. Message "Night Shift | Orchestrator" that you resumed. Then work "Open jobs" top down: hostage-gait
+(checker result or rerun, laptop result, PR); restart one agent per WIP row from its last commit (strafe, traverse-fix-2,
+hang-down, strike-pops: Opus for anim / co-op code and every fresh checker, Sonnet 5.5 only from strict briefs, Haiku
+chores). e2e goes to Character Build on the laptop (ListAgents name with its [ref]); desktop lanes single GPU suites
+only when CPU allows; always E2E_GPU=1. Push WIP and refresh this file after every hand-back. Michael: M1 "Mocap, as
+captured", M4 "On by default". Message the orchestrator at slice ends, PRs and blockers.
 ```
