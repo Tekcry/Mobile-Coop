@@ -35,3 +35,9 @@ fetched, one at a time.
   Undo: use the BVH conversions.
 - A2: the mocap clips use the existing keyed-clip format and path (`src/anim/clips/keyed/`, sampled like the hand-keyed
   ones), so the switch only picks which clip set the graph reads. Undo: the switch off.
+- A3: the mocap set drives the legs ("clip feet": the capture's leg motion on the gait phase, foot IK for ground contact
+  and pinning only), because the hand-keyed clips' legs are preview-only and the foot planner's steps are what Michael
+  called broken. Undo: the switch off (the planner places the feet as today).
+
+## Approval log
+- 2026-10-22 ~21:00: download approved in the CT Core session ("Yes, download"): the named takes in SOURCES.md only.
