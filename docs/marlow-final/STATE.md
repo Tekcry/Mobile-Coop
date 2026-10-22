@@ -14,6 +14,10 @@
 - Pacing (Michael 01:12 via the orchestrator): this window full burn to 100%. After his reset: pace each 5-hour
   window to ~97-99% at its reset; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- ~02:20 lighting IN (471c3a98): LIGHTING-PLAN.md, shared docs/lighting-review/PROPOSAL.md (LR1-LR12 for Michael,
+  none applied), src/world/lighting/ (levels, circuitSchedule, marlowCircuits) + 23 tests. Integration (map groups,
+  switches, zones, isolator timings, ctcourseLight rewrite) is 0d / set slices: LIGHTING-PLAN section 4. Client
+  hold-noise agent started (protocol.ts, coopHost, coopClient; slices/S0-holdnoise.md).
 - ~02:10 0c ENGINE-ANSWERS.md in. Routed: 0a also builds em.stealth true in Course mode (BRIEF A8), em.despawn in
   spawnSquad, remote players in StealthSystems.occupied(); the spec writer folds the answers into SPEC / CONSTRAINTS.
   Later small item: client holdNoise pulse (inside protocol 30), in PLAN 0d.
