@@ -3,7 +3,7 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
-**Character Build now (2026-10-22 ~16:50):**
+**Character Build now (2026-10-22 ~17:30):**
 - Verdicts sent (CT Core, Course Ready, orchestrator copied): anim-bake-all a850e103 FAIL at check
   (animSkeletonRows.test.ts:127 never-allocate, 7981152 bytes; solo fail, fail, pass; master pass 3/3: real regression).
   N4b 0a6bc567 FAIL at check (tunerLayout.test.ts: sec:cq has no tab, cq:holdTwist label 33 chars; deterministic).
@@ -13,8 +13,10 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   asserts ok; offered Menu Notes a second solo coop run. bake-all cba9e371 (JOBS=2): all 12 suites PASS, wall 283 s.
   N1 1e4556a8 and N4b 149003aa moved to the desktop (orchestrator). The a850e103 alloc "regression" was withdrawn
   (CT Core: GC timing, same on master).
-- Own job pad-wheel-wait: PR #126 open (feature/pad-wheel-wait 27a54dfd, test only, tier CI + e2e-pad solo). Proof:
-  e2e-pad solo PASS 47 s; e2e-pad + e2e-move at JOBS=2 twice PASS. Orchestrator told. Laptop idle, lock free.
+- Own job pad-wheel-wait: PR #126 open (27a54dfd, test only); the orchestrator put it on train/5 as 47fecb0b
+  (e2e-pad solo PASS 47 s there).
+- train/5 4c10c8fc full e2e (JOBS=2, ~17:20): 32 ok; e2e-lightbake load (solo PASS); e2e-clip real ("sling draw +
+  glide" legs -4.0 cm, #118 or #120); e2e-coop real (teardown pageerror, #125 fixes). Verdicts sent ~17:30. Laptop idle.
 
 ## Done
 - 2026-10-22 ~15:20: PR #117 merged (4.54.1).
