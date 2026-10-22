@@ -11,7 +11,7 @@
 - IN FLIGHT at the save (agents die with the session; WIP snapshots pushed as refs wip/sector-redesign-<x>):
   - S2 builder (Sonnet, THIS worktree, briefs/SLICE2.md): WIP wip/sector-redesign-s2 acef9dc4 (uncommitted here too).
   - S3 builder (Opus, worktree -s3, branch feature/sector-redesign-s3): WIP wip/sector-redesign-s3 5444a3e7.
-  - E5 alarm-stage extras (EW9, Opus, worktree -e5, feature/sector-redesign-e5): WIP wip/sector-redesign-e5 (little or nothing yet).
+  - E5 alarm-stage actions BUILT: feature/sector-redesign-e5 @ 417c7560 (checks/e5-stage-actions.md; 58 tests); owed: Opus checker, then merge into int.
   - Integrator DONE: feature/sector-redesign-int @ b71a9894 (pushed) = E3 + E1 + E4, one shared nav-closure helper (SectorTeamDoors.navClosure), 233 tests pass (checks/int-e1-e3-e4.md). Merge this branch (not e1 / e3 / e4 separately) into feature/sector-redesign.
   On resume: for each, check the worktree's `git status` / the branch log; if the agent's report file exists and checks
   pass, commit; else rerun that agent from its brief (S2: briefs/SLICE2.md; S3 / E5 / int: the prompts are summarised
