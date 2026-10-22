@@ -228,7 +228,7 @@ try {
   const crashed = page.waitForEvent('crash', { timeout: 60000 }).catch(() => null);
   // (the command never answers: the page is gone)
   await Promise.race([cdp.send('Page.crash').catch(() => undefined), wait(2000)]);
-  await crashed;
+  assert(!!(await crashed), 'the page crashed (Page.crash)');
   await page.close().catch(() => undefined);
   const p2 = await page.context().newPage();
   await p2.goto(url + '?gfx=min');

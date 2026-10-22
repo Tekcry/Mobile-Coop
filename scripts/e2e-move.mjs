@@ -120,6 +120,14 @@ try {
     let px = 0;
     let pz = 0;
     let path = 0;
+    // (review) a stray pause stops `g.time` (fixedUpdate returns before it moves): 30 s real-time cap, resolving 0 m/s
+    const w0 = performance.now();
+    const cap = setInterval(() => {
+      if (performance.now() - w0 < 30000) return;
+      clearInterval(cap);
+      st.fixedUpdate = orig;
+      res({ v: 0, path, el: tw < 0 ? 0 : st.time - tw, spd: c.speed, crouched: c.crouched, move: [window.__app.input.state.move.x, window.__app.input.state.move.y] });
+    }, 500);
     st.fixedUpdate = (dt) => {
       orig(dt);
       const t = st.time - t0;
@@ -131,7 +139,7 @@ try {
       px = c.pos.x;
       pz = c.pos.z;
       const el = st.time - tw;
-      if (el >= win) { st.fixedUpdate = orig; res({ v: path / el, path, el, spd: c.speed, crouched: c.crouched, move: [window.__app.input.state.move.x, window.__app.input.state.move.y] }); }
+      if (el >= win) { clearInterval(cap); st.fixedUpdate = orig; res({ v: path / el, path, el, spd: c.speed, crouched: c.crouched, move: [window.__app.input.state.move.x, window.__app.input.state.move.y] }); }
     };
     window.__ff();
   }), [0.5, 0.3]);
