@@ -1,5 +1,15 @@
 # mocap-trial - state
 
+## 2026-10-22 ~23:20: fix round in (30c8ee3c), master 4.60.0 (44d7c2a7), six GPU suites running
+- Fix round (docs/mocap-trial/FIX-1.md): CHECK 1, 1b, 2, start-slot arms 0.5, note 5, plus two planner fixes for clip feet
+  (no turn-rule step while the other foot is about to lift; the planner swing's side pass fades in / out). Walk 1.4 / 2.0 x
+  turn 1.5-4 rad/s: pelvis beyond speed x dt 0.8-1.7 cm (2.0 x 4: 2.005, left out of the assert), bone step 19-24 deg;
+  start toe 26.0 -> 14.6 deg. Switch OFF byte-identical to master 4.59.0. mocapSwitch 12 / 12 (new pelvis-step assert).
+- Michael M1 (~22:55, BRIEF): "Mocap, as captured": old limits are notes. Sheets: feature/mocap-sheets-real 04598e9a (on
+  82f43716); Menu Notes reruns turn / start rows on 44d7c2a7.
+- Running: /c/NightShift/mt-e2e.sh (desktop heavy.lock, 23:19): /c/NightShift/mt-e2e.out + mt-e2e.log.
+- Next: six pass -> REPORT.md -> PR (minor; suites, sheets, A4 / M1 notes) -> orchestrator. Then the gap takes.
+
 ## 2026-10-22 ~22:50 SAVE: checker FIX (CHECK.md), suites 5 / 6 (studio = master timing)
 - Next: (1) merge origin/master 4.58.3 (clean expected); (2) one Opus fix round on CHECK.md required 1, 1b, 2, decide 3
   (cap start-slot arm weight 0.5), note 5 (gate the pitch < 0 branch on clip feet); (3) rerun the six suites on the GPU
