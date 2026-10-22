@@ -18,7 +18,7 @@ import {
   MODE_LIGHT,
   type PathLen,
 } from '../src/ai/incidents';
-import { AlertMachine, ALERT, emptyAlertInput } from '../src/ai/alertState';
+import { AlertMachine, ALERT, emptyAlertInput, type AlertLevel } from '../src/ai/alertState';
 import { LC_DONE, LC_FACE, LightCheck, RING_WALK, type LightCheckNav, type LightCheckWalker } from '../src/ai/lightCheck';
 import { PERCEPTION } from '../src/ai/perception';
 import { EnemyManager } from '../src/ai/enemyManager';
@@ -732,5 +732,60 @@ describe('the light check (fix round: e2e light pair)', () => {
     while (g.doneAt < 0 && t < 60) g.step(0.1, (t += 0.1));
     expect(g.doneAt).toBeGreaterThan(0);
     expect(g.doneAt).toBeLessThan(2 + INCIDENT.lightLook + INCIDENT.ringN * (RING_WALK + 0.2));
+  });
+});
+
+// (guard-ai S2 fix round 2) e2e 'lkp': an alerted guard who lost sight walked on to the last known position at the calm
+// search pace (0.75) with the calm turn once the alert timed out into a search (12 s), so he no longer got there in the
+// window. A search after combat keeps the old pace and the aimed turn; only a calm search is slow.
+describe('search pace: after combat vs calm (fix round 2: e2e lkp)', () => {
+  type Probe = { searchPace: number; aimedMotion: boolean; onLevel(from: AlertLevel, to: AlertLevel): void; aware: AlertMachine };
+  async function guard(coordinated: boolean): Promise<Probe> {
+    const { Enemy: EnemyClass, PACE: P } = await import('../src/ai/enemy');
+    expect(P.search).toBeLessThan(P.oldSearch);
+    const e = Object.assign(Object.create(EnemyClass.prototype) as Enemy, {
+      aware: new AlertMachine(),
+      ctx: { coordinated: () => coordinated, stealth: () => true },
+      incident: -1,
+      lc: { stop() {} },
+      bark() {},
+      setState() {},
+      walker: { rejoin() {} },
+      alertIn: { called: true },
+      def: { kind: 'grunt' },
+      pos: { x: 0, y: 0, z: 0 },
+    });
+    return e as unknown as Probe;
+  }
+  const to = (g: Probe, from: AlertLevel, lvl: AlertLevel): void => {
+    g.aware.set(lvl);
+    g.onLevel(from, lvl);
+  };
+
+  it('alert -> searching (lost sight): the old search pace and the aimed turn, for the whole search', async () => {
+    const { PACE: P } = await import('../src/ai/enemy');
+    const g = await guard(true);
+    to(g, 'unaware', 'alert');
+    expect(g.aimedMotion).toBe(true);
+    to(g, 'alert', 'searching');
+    expect(g.searchPace).toBe(P.oldSearch);
+    expect(g.aimedMotion).toBe(true);
+    // the search ends: the next calm search (a body) is slow again
+    to(g, 'searching', 'cooldown');
+    to(g, 'cooldown', 'searching');
+    expect(g.searchPace).toBe(P.search);
+    expect(g.aimedMotion).toBe(false);
+  });
+
+  it('a calm search (a body, a call, a pair) keeps A9: 0.75 and the calm turn; parked modes the old pace', async () => {
+    const { PACE: P } = await import('../src/ai/enemy');
+    const g = await guard(true);
+    to(g, 'unaware', 'searching');
+    expect(g.searchPace).toBe(P.search);
+    expect(g.aimedMotion).toBe(false);
+    const old = await guard(false);
+    to(old, 'unaware', 'searching');
+    expect(old.searchPace).toBe(P.oldSearch);
+    expect(old.aimedMotion).toBe(true);
   });
 });

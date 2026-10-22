@@ -79,7 +79,9 @@ patrols. G190 guard pairs are the double-takedown beat. Every map's guards are a
 - **A8** Cautious music: the held caution does not hold the Cautious music (G67) for its whole length; music follows the
   existing alert levels. Undo: map caution to the music tier.
 - **A9** Paces: patrol 1.1 (unchanged, keeps the Sector pace checks), cautious patrol 0.95, investigate 0.85, search 0.75
-  x walkSpeed; runs only between covers, to a panel, or for aggressive profiles. Undo: `enemy.ts` pace table.
+  x walkSpeed; runs only between covers, to a panel, or for aggressive profiles. The slow search pace and calm turn
+  apply to calm searches only (a body, a call, a pair); a search that follows combat keeps 1.3 and the aimed turn
+  (S2 fix round 2, `Enemy.combatSearch`). Undo: `enemy.ts` pace table.
 - **A10** Posted high-security guards: a distraction pulls them to the edge of their leash circle (which map authors size
   so the edge is off the choke), they look, then return facing their post; they never join a search or run to a panel
   outside the leash. Undo: `highSecurity: false` on the slot.

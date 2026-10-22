@@ -262,6 +262,9 @@ export class Enemy implements Damageable {
   private routeT = 0;
   /** Searching round its own stimulus (a body, a light) rather than the shared last known position. */
   private searchOwn = false;
+  /** (guard-ai S2 fix 2) This search follows combat (alert -> searching: the walk on to the last known position and
+   *  the sweep round it): the old pace and the aimed turn. Only a calm search (a body, a call, a pair) is slow. */
+  private combatSearch = false;
   /** A knocked-out squadmate to wake (found body). */
   private reviving: Body | null = null;
   /** Running to an alarm panel (combat), and time spent working it. */
@@ -823,6 +826,7 @@ export class Enemy implements Damageable {
       this.spotSet = false;
       if (from === 'alert') this.searchOwn = false;
     }
+    this.combatSearch = to === 'searching' && (from === 'alert' || (from === 'searching' && this.combatSearch));
     if (to !== 'searching') this.reviving = null;
     if (to === 'investigating') this.spotSet = false;
     if (to === 'unaware' || to === 'cooldown') {
@@ -1296,8 +1300,14 @@ export class Enemy implements Damageable {
     return this.coordinated ? PACE.investigate : PACE.oldInvestigate;
   }
 
+  /** (guard-ai S2 fix 2) A search after combat keeps the old pace (A9's slow search is the calm one). */
   private get searchPace(): number {
-    return this.coordinated ? PACE.search : PACE.oldSearch;
+    return this.coordinated && !this.combatSearch ? PACE.search : PACE.oldSearch;
+  }
+
+  /** The aimed motion (fast turn): in combat, any search in the parked modes, a search after combat. */
+  private get aimedMotion(): boolean {
+    return this.alerted || (this.level === 'searching' && (!this.coordinated || this.combatSearch));
   }
 
   /** (guard-ai S2) The light check, step by step (investigating; `LightCheck`): walk to the light, look, the ring,
@@ -1804,8 +1814,8 @@ export class Enemy implements Damageable {
     mi.yaw = face ?? (dl > 0.3 ? Math.atan2(desired.x, desired.z) : this.motion.yaw);
     mi.aiming = face !== null && !this.def.melee;
     mi.sprinting = running;
-    // (guard-ai S2) coordinated guards search at the calm turn rate too (the old rules: the aimed one)
-    this.motion.step(dt, mi, this.alerted || (this.level === 'searching' && !this.coordinated) ? ENEMY_MOTION : ENEMY_CALM_MOTION);
+    // (guard-ai S2) coordinated guards on a calm search turn at the calm rate (the old rules, or after combat: aimed)
+    this.motion.step(dt, mi, this.aimedMotion ? ENEMY_MOTION : ENEMY_CALM_MOTION);
     this.vel.x = this.motion.outX;
     this.vel.z = this.motion.outZ;
     const nx = this.pos.x + this.vel.x * dt;

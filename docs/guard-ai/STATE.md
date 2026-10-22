@@ -21,10 +21,14 @@ position", closest 4.44 / 4.95 m vs < 2.5) - so 'light pair' was not reached. Bi
 'lkp' on 661c258a, so it is timing-sensitive). Suspects: search pace 0.75 / calm turn rate while searching slowing the
 alerted guard's walk to the LKP, or the scenario's `t.light(0)` opening a light incident that grabs him.
 
+S2 FIX ROUND 2 (~07:30, slices/S2.md "Fix round 2"): root cause = every coordinated search walked 0.75 with the calm
+turn, including the search after combat, so the alerted guard could not reach the LKP; fix `Enemy.combatSearch`
+(post-combat search keeps 1.3 + aimed turn; calm searches keep A9). Desktop GPU: e2e-stealth-ai PASS x2 (lkp 0.91 m,
+light pair both stand down 32.3 s), e2e-sectorops PASS. Full `npm run check` not yet run (heavy.lock was held).
+
 ## Next
-After the 06:40 reset: S2 fresh checker (review 661c258a + the fix commit, the e2e results above; it must find and fix
-the 'lkp' regression in a second fix round - broken work, so allowed - then e2e-stealth-ai solo on the desktop
-second lane until 'light pair' and 'lkp' both pass); (slices/S2.md, review the S2 commit diff), then S2 as its own PR when green; then S3 radio net, then
+S2 fresh checker (review `git diff cd37c3e8 <S2 head>`, slices/S2.md, run `npm run check` under heavy.lock), then S2
+as its own PR (feature/guard-ai-s2); (slices/S2.md, review the S2 commit diff), then S2 as its own PR when green; then S3 radio net, then
 S4-S10 in PLAN order.
 
 ## Open
