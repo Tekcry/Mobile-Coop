@@ -77,7 +77,8 @@ agents were running and are lost (their results were not in): redo them.
    wrap, frames 16 -> 17, chest peak 17.3 m/s): an implementer retimes / smooths that run key (not the A1 trunk keys,
    legs or half), Blender -b rebake under the desktop lock (node --import ./scripts/operators/ts-resolve.mjs
    scripts/anim-keys/build.mjs run), re-captures both Wren fixtures (expect keyed:run + partner:moves), pins arm
-   continuity in runKeyContinuity, appends "Run arm pop fix" to REPORT-3; then push. On CHECK-4 PASS + the pop fix:
+   continuity in runKeyContinuity (a partial test edit from the stopped agent: C:/NightShift/n2-pop-wip.patch, optional),
+   appends "Run arm pop fix" to REPORT-3; then push. On CHECK-4 PASS + the pop fix:
    open the PR (minor) and message the orchestrator; steps 4-5 after (PLAN), and the #128 alloc test (STATE 17:55).
 3. #123 anim-bake-all (ad967e39, master 4.56.0 merged): in train 6; nothing unless it fails.
 Message "Night Shift | Orchestrator" at each verdict and PR.
