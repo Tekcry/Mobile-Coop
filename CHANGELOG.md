@@ -1,5 +1,28 @@
 # Changelog
 
+## 4.53.0 - Train 2: guard tuning and clip speed in the animation tuner (2026-10-22, PR #112; #105, #109)
+
+### #109 Clip speed
+- Animation tuner, Clip speed tab (Michael: "Can I fine tune the whole animation speed in anim tuner?"): a speed slider
+  per timed clip, 1 = today's timing, 2 = twice as fast. Draw, holster, swap and throw: rifle draw (every long gun),
+  pistol draw, holster, weapon swap, grenade throw. Start, stop and landing: the start-off weight shift, the stop
+  settle, the landings. Every clip: one slider that multiplies all of them. Each slider shows today's duration.
+- The draw speed is gameplay too: the gun can fire when the faster (or slower) draw ends, and the aim camera blends in
+  with it. Not the View tab's slow motion (that slows the whole game for viewing).
+- Bakes like the other sections (`node scripts/anim-tune-bake.mjs`, section `clip`): into the draw, holster, swap and
+  throw times and a new playback rate per timed body clip (`CLIP_RATE`). Untuned, nothing changes; the save is unchanged.
+
+### #105 Guard tuning
+- Animation tuner: a "Who" list (Wren / Guard) at the head of the Body, Stepping and Weight tabs. Guard tunes every
+  guard's Joints, Stepping and Weight (lean, step load, springs, the start dip) per guard state: idle, walk (patrol and
+  alert), run, aim, crouched, wall cover. Wren's sliders never change a guard and the guard sliders never change Wren.
+- Every guard (in single player and on a co-op client) reads a guard base table the bake writes from an export's guard
+  rows (`src/anim/animBaseGuard.ts`); untuned guards look and act exactly as before.
+- Anim Studio: Who = Guard (or a "Guard: ..." loop) plays a guard puppet (a real guard, no AI) where Wren stands:
+  idle, patrol walk, alert walk, run, aim, crouched aim and wall cover, moving loops on the spot; the camera, the
+  highlight, pause and speed work on it. Who = Wren brings her back.
+- Saves, exports, imports, presets and undo carry the guard rows; older saves and exports load as before.
+
 ## 4.52.0 - Train 1: server browser and jammer fixes; protocol 28 (2026-10-22, PR #111; #99, #108)
 
 ### #108 Jammer fixes
