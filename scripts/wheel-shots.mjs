@@ -54,10 +54,10 @@ for (const [w, h] of SIZES) {
       let idx = ring.findIndex((s) => s.kind === 'gadget' && s.id === 'flash');
       if (idx < 0) idx = Math.min(1, ring.length - 1);
       const ang = (idx / ring.length) * Math.PI * 2;
-      for (let i = 0; i < 6; i++) {
-        g.gadgets.sel.place(Math.sin(ang), Math.cos(ang));
-        await new Promise((res) => setTimeout(res, 250));
-      }
+      // (sector-fixes W) the pad's stick position is the cursor (absolute; let go = the vision slot)
+      st.stick.x = Math.sin(ang);
+      st.stick.y = Math.cos(ang);
+      await new Promise((res) => setTimeout(res, 1500));
       const rr = document.querySelector('.selection-wheel .sw-ring')?.getBoundingClientRect();
       return { open: g.gadgets.wheelOpen, seg: g.gadgets.sel.seg, d: rr ? Math.round(rr.width) : 0, fps: document.querySelector('.debug-overlay pre')?.textContent ?? '' };
     });

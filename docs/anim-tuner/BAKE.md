@@ -260,6 +260,15 @@ curve minus the linear blend). Rules and tests: `src/anim/tuneKeysEdit.ts`, `tun
 (field deltas on keys with their own sliders; with the Mirror box on the mirrored half follows), so they bake exactly as
 those; no new bake format. Compare writes nothing.
 
+(anim-run-half) A clip's `half` (the planner's track half-width) is the mean of (R - L) / 2 of the ankles' lateral
+offsets turned back about the vertical through the pelvis by that frame's pelvis yaw minus the clip's mean pelvis yaw
+(its pitch and roll left out; the yaw read off the pelvis's lateral axis, since the forward axis goes vertical in a
+face-down frame), not their world x: the planner places the feet in the facing frame and the stride-locked swing of the
+pelvis yaw does not move them, so it must not leak the fore / aft stride into the half (the run's +-25.5 deg yaw baked
+-0.020 in the world frame, the feet crossing the midline; with the swing removed 0.050). A constant stance
+yaw (the ready stance's 6 deg) is kept, so such a clip and the clips with no pelvis yaw bake their world-x half; every
+clip was rebaked in anim-run-half.
+
 **Clip speed** (clip-speed, track A; `src/anim/tuneClipSpeed.ts`, its own tab): a speed per timed clip (1 = today's
 timing, 2 = half the time) and an every-clip speed (`clip.all`). A speed divides a duration or multiplies a rate:
 `clip.gun` rifleDraw / pistolDraw / holster -> `src/weapons/drawState.ts` `DRAW_TIME_PRIMARY` / `DRAW_TIME_SIDEARM` /

@@ -216,6 +216,12 @@ export class CourseState {
     return this.flags.has(flag) || this.flags.has(`${flag}@1`) || this.flags.has(`${flag}@2`);
   }
 
+  /** A flag set globally (a `perPlayer: false` gate, `setFlag`), not per player. No allocation: the per-frame device
+   *  checks (camera and laser `offFlag`) use it (sector-fixes S). */
+  hasShared(flag: string): boolean {
+    return this.flags.has(flag);
+  }
+
   /** A flag set globally or by player `p`. */
   hasFlagFor(flag: string, p: PlayerIdx): boolean {
     return this.flags.has(flag) || this.flags.has(`${flag}@${p + 1}`);
