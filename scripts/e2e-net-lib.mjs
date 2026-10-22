@@ -96,6 +96,54 @@ export async function waitHostSim(P, ms, sample) {
   }
 }
 
+/**
+ * (load-latent-net) Run `fn(g, arg, st)` on the host page after every fixed sim step (`g` = `__app.current`, `st` = a
+ * per-hook object kept across steps) until it returns a value other than undefined / null / false; that value (cloned
+ * on that step) is the result, read with `hostStepResult`. The host page is in the background and the suites' pump
+ * steps it with `stepHeadless` when its rAF did not run, so a hook on its rAF misses steps: this one wraps the loop's
+ * `fixedUpdate` hook (`__app.loop.hooks`, set per match; a new match drops the hooks), the way `watchTeam` turns
+ * `team.state` into an accessor. A host action that must land inside a game-time window of a client action (a pair
+ * press, a synced hack) or a state that lasts a few steps (a reboot) is then caught on the step it happens, not after
+ * Node polls that took seconds of host time under load. `fn` is sent as source: it sees only the page and its args.
+ * Returns the hook's key.
+ */
+const installStep = (fn, arg) => {
+  const h = window.__app.loop.hooks;
+  const S = (window.__hostStep ??= { n: 0, res: {} });
+  if (!h.__steps) {
+    const steps = (h.__steps = []);
+    const f = h.fixedUpdate;
+    h.fixedUpdate = (dt) => {
+      f(dt);
+      if (!steps.length) return;
+      const g = window.__app.current;
+      for (const s of steps.slice()) {
+        let r;
+        try {
+          r = s.fn(g, s.arg, s.st);
+        } catch (e) {
+          r = { __error: String(e?.stack ?? e) };
+        }
+        if (r === undefined || r === null || r === false) continue;
+        S.res[s.key] = JSON.parse(JSON.stringify({ v: r, t: +(g?.time ?? 0).toFixed(3) }));
+        steps.splice(steps.indexOf(s), 1);
+      }
+    };
+  }
+  const key = ++S.n;
+  h.__steps.push({ key, fn, arg, st: {} });
+  return key;
+};
+export const onHostStep = (A, fn, arg) => A.evaluate(`(${installStep})(${fn}, ${JSON.stringify(arg) ?? 'undefined'})`);
+/** Wait (the `until` clocks) for host step hook `key`'s result and return it; logs the host sim time it fired at. */
+export async function hostStepResult(A, key, timeout = 8000, what = 'host step hook') {
+  await until(A, (k) => window.__hostStep?.res[k] !== undefined, key, timeout, what);
+  const { v, t } = await A.evaluate((k) => { const r = window.__hostStep.res[k]; delete window.__hostStep.res[k]; return r; }, key);
+  if (v && typeof v === 'object' && v.__error) throw new Error(`${what}: the host step hook threw: ${v.__error}`);
+  console.log(`  (${what}: on the host step at ${t} s)`);
+  return v;
+}
+
 /** (test-speed) A match load (map build, light bake, both pages joining) runs outside the sim clock, in wall time: on a
  * loaded machine two pages build at 2-3 frames/s and took over 50 s (e2e-coop, 2026-10-20). The load waits use this
  * (ms; `E2E_LOAD_MS`); a hang still ends there. */
