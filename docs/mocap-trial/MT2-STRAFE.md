@@ -124,6 +124,34 @@ animSkeletonGuardIdentity 1 pass + 1 skip each (the capture case, skipped by des
 `npx eslint` on the branch's .ts files clean (the two scripts/mocap .mjs files are eslint-ignored). No e2e, build or full
 vitest (the lead runs them).
 
+## Fix round (fresh check of 842270f0: msc-CHECK.md), 2026-10-23
+All ON only; switch OFF dump md5 9ce3f3d1c70c299dca072d3a4f15f9ea, 31,065,812 B (unchanged). Probes: the checker's
+repro3 zzstrafe (det plans) and zzalloc2.
+1. Snap into / out of the strafe: the clock's takeover of a strafe swing (`stTake`, footPlanner) now fades its re-aim over
+   the swing left (as the switch-off takeover). E<->N 0.7 / 0.8 s: knee-ankle 40.6 -> 17.2 deg, ankle 39.1 -> 8.1 cm a
+   frame (OFF 17.5 / 18.6); W<->NE 0.7: 16.1 / 7.6 (OFF 17.6 / 10.9); NW<->E 0.9: 17.2 / 9.5 (OFF 17.5 / 17.7).
+2. Slides: the re-aim fade and the takeover fade act from a real strafe share (`STRAFE_ON` 0.05, not > 0): N<->S 0.9
+   slide 3.2 -> 0. A strafe trailing foot toes off at 0.82 of its reach (`stOff`): E<->S 0.7 slide 0.88 -> 0.
+   Snap pelvis now 1.65-2.01 cm (OFF 0.94-1.14; the 2 cm line; head before 1.11-1.87): a note, asserted <= 2.1 cm.
+3. Toggle mid-strafe: switching on resets the stale tracking (the hips hold from 0, the still share eased in both ways,
+   `stIn`): W 0.9 hip-knee 32.6 -> 18.6 deg, E 0.7 19.7 (base toggles 15.6-17.5): better, still ~1-2 deg over base.
+4. Knee outside the ankle: the captures' hips play at the procedural height (their 3.6 cm sink bent the knees out past the
+   ankles) and GLIDE_HIP stays on under the strafe (the hips over the planner's feet); the hips also stay STRAFE_HIP_IN
+   (6 cm) inside each planted foot (characterRig). Vitest crab rows (aimed strafe, standing): knee-out 7.6-8.0 -> 3.3-5.0
+   cm, track max 34.6-42.3 -> 30.9-40.0 cm, track min -1.9 -> +1.5 cm. NOT at the 3.0 cm gate yet (OFF reads 3.1-3.3 in
+   the same probe): with the feet closed both knees sit 4-5 cm outside their ankles while the hips are centred; the
+   knee pole (GLIDE.kneeOutSide) is not the lever (tried -0.3 / +0.05: worse or no better).
+5. Allocation: strafeTrack takes no double arguments (fields), the side ease / side-step written out, the captures sample
+   with the glide's own `amp` once the amplitude ease settles, the still share passes idleShare once settled, motion.ts
+   stepLength's side-step written out. Steady R ON 1520 -> 1472 B a frame (base ON 1424; OFF 1392 unchanged); flips 1551
+   -> 1503 (base 1455), start / stop 1384 -> 1349 (1282), diagonal 1660 -> 1596 (1548). 48 B a frame over base ON remain
+   (32 inside the capture sampling block, 16 outside it, by mutation): open.
+6. A11 above (e2e-anim gates). 7. art-credits.md:27 names the strafe takes and says default on.
+Tests: tests/mocapStrafe.test.ts 10/10 (new: snaps into / out of the strafe at 0.8 s with diagonals and N<->S, ON bone <=
+OFF + 0.5 deg, ankle jump <= max(OFF, 11.5 cm), slide < 0.5 cm; toggle mid-strafe W 0.9 / E 0.7 bone <= 20.5 deg; steady
+knee-out <= 5.2 cm at 0.36 / 0.7 / 0.9 L / R). Always-run files pass (mocapSwitch 13/13, mocapFix2 11/11, footPlanner
+12/12, both skeleton identity files 1 + 1 skip); tsc clean; eslint clean.
+
 ## Not done / open
 - Toggling the switch mid-strafe is covered by the rig's switch cross-fade only (A8's residual applies; not probed here).
 - The aimed strafe ON allocates 144 B a frame over OFF (two capture samples and the side-step), against 32 B for the
