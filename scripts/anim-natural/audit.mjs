@@ -132,7 +132,9 @@ function PASS2() {
   // the open-side wall drive of anim-audit (step 12b) as a timeline: enter, slide to the end, stop, peek (stick toward
   // it), release, aim (high: the lean-out; low: the stick toward the end), release
   const wallEdge = (n, end, low, row) => {
-    const segs = [{ d: 0.6, tap: 'cover' }, { d: 1.2, x: end }, { d: 0.4 }, { d: 1.0, x: end }, { d: 0.6 }, { d: 1.2, ads: true, x: low ? end : 0 }, { d: 0.8 }];
+    // (rerun) the stick toward the end is -end in this harness's frame (anim-audit's +end slid her away from it here)
+    const toEnd = -end;
+    const segs = [{ d: 0.6, tap: 'cover' }, { d: 1.2, x: toEnd }, { d: 0.4 }, { d: 1.0, x: toEnd }, { d: 0.6 }, { d: 1.2, ads: true, x: low ? toEnd : 0 }, { d: 0.8 }];
     const at = {};
     let t0 = 0;
     for (const s of segs) {
@@ -177,11 +179,14 @@ function PASS2() {
     // (row 32) the jammer: the pistol aimed, the co-op button held (no pose of its own: the pistol aim)
     { n: 'jammer', pass: 2, row: 32, ...P0, pre: 1.4, weapon: 'pistol', warm: { ads: true }, input: () => ({ ads: true, coop: true }), f: 12, dt: 0.15, cam: 'front34' },
     // (row 40) the door peek: the shed door, a context press cracks it and peeks, a second closes
-    { n: 'door-peek', pass: 2, row: 40, find: ['door'], pre: 0.5, input: () => ({}), at: { 0.3: "a.input.state.tap('cover');", 2.3: "a.input.state.tap('cover');" }, f: 18, dt: 0.17, cam: 'follow', fixCam: true },
+    // (rerun) the peek starts from the door menu's Stealth open pick (`stealthPick`, gameState.doorMenuPick), not a cover
+    // press; the stick pulled back closes it. Camera behind her (the side camera stood inside the shed wall)
+    { n: 'door-peek', pass: 2, row: 40, find: ['door'], pre: 0.5, input: (t) => (t >= 2.3 && t < 2.7 ? { y: -0.7 } : {}), at: { 0.3: 'g.stealthPick = true;' }, f: 18, dt: 0.17, cam: 'back' },
     // (row 49) the elbow strike (fire holstered): a whiff on the open yard
-    { n: 'elbow-strike', pass: 2, row: 49, ...P0, pre: 0.6, input: () => ({}), at: { 0: "a.input.state.tap('fire');" }, f: 12, dt: 0.08, cam: 'follow' },
+    // (row 49) the elbow strike: no whiff in the game (`StrikeController` starts only with a guard in reach), so only the
+    // Warehouse row below
     // (row 58) the split jump: two jumps in the corridor, braced, then the drop
-    { n: 'split-brace', pass: 2, row: 58, pos: [10, 25.05], yaw: Math.PI / 2, pre: 0.5, input: () => ({}), at: { 0: J, 0.1: J, 2.2: "a.input.state.tap('drop');" }, f: 18, dt: 0.17, cam: 'follow' },
+    { n: 'split-brace', pass: 2, row: 58, pos: [10, 25.05], yaw: Math.PI / 2, pre: 0.5, input: () => ({}), at: { 0: J, 0.1: J, 2.2: "a.input.state.tap('drop');" }, f: 18, dt: 0.17, cam: 'back' },
     // (rows 61-67) mantle (0.9 m block), step up (0.6 m), climb up (from a ledge hang), drop off a ledge and from a pipe
     // hang, hop (a running gap between the hang blocks' tops), roll (crouch held at the run), wall kick (the 3.3 m block)
     { n: 'mantle', pass: 2, row: 61, pos: [-19.9, -1.2], yaw: -Math.PI / 2, pre: 0.5, input: () => ({}), at: { 0: J }, f: 12, dt: 0.1, cam: 'follow' },
@@ -205,8 +210,8 @@ function PASS2() {
     ...[
       ['hold-still', 43, { 0.4: 'P' }, {}, {}, 0.25],
       ['knife-kill', 46, { 0.4: 'P' }, {}, { 0: 'K1' }, 0.12],
-      ['interrogate', 47, { 0.4: 'P' }, {}, { 0: 'K4' }, 0.3],
-      ['elbow-strike-guard', 49, {}, {}, { 0: "a.input.state.tap('fire');" }, 0.08],
+      ['interrogate', 47, { 0.4: 'P' }, {}, { 0: "g.takedown.menuPick = 'interrogate';" }, 0.3],
+      ['elbow-strike-guard', 49, { 1.0: 'F' }, {}, { 0: "a.input.state.tap('altFire');" }, 0.08],
     ].map(([n, row, preAt, inp, at, dt]) => ({ n, pass: 2, row, g7: true, pre: 1.8, preAt, input: () => inp, at, f: n === 'knife-kill' ? 18 : 12, dt, cam: 'follow' })),
   ];
 }
@@ -714,7 +719,13 @@ async function runStudio() {
         const lab = await page.evaluate(() => {
           const g = window.__app.current;
           const pr = window.__studio.pair();
-          if (window.__natCam?.pair) return `A ${pr.aState ?? ''} / B ${pr.bState ?? ''}`;
+          if (window.__natCam?.pair) {
+            // (rerun) each puppet's figure LOD (-1 = none drawn) and its root's distance to the camera: why they vanish
+            const ps = g.studio?.puppets ?? [];
+            const cp = g.player.cam.camera.position;
+            const lod = (op) => `${op.figure.current}@${Math.hypot(op.rig.root.position.x - cp.x, op.rig.root.position.y - cp.y, op.rig.root.position.z - cp.z).toFixed(1)}`;
+            return `A ${pr.aState ?? ''} ${ps[0] ? lod(ps[0]) : ''} / B ${pr.bState ?? ''} ${ps[1] ? lod(ps[1]) : ''}`;
+          }
           const r = g.player.rig;
           const c = g.player.controller;
           return `${c.motion?.state ?? ''} ${r.planner?.L?.contact ? 'L' : '-'}${r.planner?.R?.contact ? 'R' : '-'}`;
@@ -780,7 +791,7 @@ async function runProving() {
       const natAz = sun ? pickSide(place.yaw, [natAz0, -natAz0], sunAz) - place.yaw : natAz0;
       const natFaz = sun ? pickSide(place.yaw, [natFaz0, -natFaz0], sunAz) - place.yaw : natFaz0;
       const sideAz = sun ? pickSide(place.yaw, [-Math.PI / 2, Math.PI / 2], sunAz) - place.yaw : -Math.PI / 2;
-      const G7AT0 = "g.target.health.invulnerable = true; g.mode.pending.length = 0; g.enemyMgr.clear(); const V = g.player.position.constructor; const e = g.enemyMgr.spawn('grunt', new V(2, 0, -1), false, 0); e.passive = true; e.info = { lines: ['(audit) the line he gives'] };";
+      const G7AT0 = "g.target.health.invulnerable = true; g.mode.pending.length = 0; g.enemyMgr.clear(); const V = g.player.position.constructor; const e = g.enemyMgr.spawn('grunt', new V(2, 0, -1), false, 0); e.passive = true; e.info = { lines: ['(audit) the line he gives'] }; window.__natE = e;";
       await page.evaluate(({ pos, yaw, weapon, y0, cam, fixCam, g7, g7at0, natAz, natFaz, sideAz, keyK }) => {
         const a = window.__app;
         const g = a.current;
@@ -800,6 +811,9 @@ async function runProving() {
         p.controller.clearCrouchToggle?.();
         p.cam.yaw = yaw;
         p.cam.pitch = 0;
+        // (rerun, as anim-audit's tp) the game camera snapped to the yaw: unsnapped it eased round from the spawn view, and
+        // the stick frame (wall slide, door peek) read that old view
+        p.cam.snap?.();
         // (as anim-audit) the camera's own clock from 0: a wall entry reads the camera's view
         p.cam['t'] = 0;
         window.__natYaw0 = yaw;
@@ -858,7 +872,8 @@ async function runProving() {
             return;
           }
           const fy = fixCam ? yaw : p.controller.renderYaw;
-          const az = cam === 'front34' ? natAz : sideAz;
+          // 'back': straight behind her (corridors, doorways), a little higher
+          const az = cam === 'front34' ? natAz : cam === 'back' ? Math.PI : sideAz;
           const D = cam === 'front34' ? 2.4 : 3.1;
           c.fov = 0.7;
           c.position.set(r.x + Math.sin(fy + az) * D, r.y + 1.15, r.z + Math.cos(fy + az) * D);
@@ -867,7 +882,7 @@ async function runProving() {
         a.loop.stepHeadless(y0 > 0 ? 0.01 : 0.3);
       }, { pos: place.pos, yaw: place.yaw, weapon: sc.weapon ?? null, y0: place.y, cam: sc.cam, fixCam: !!sc.fixCam, g7: !!sc.g7, g7at0: G7AT0, natAz, natFaz, sideAz, keyK: KEY });
       const pick = (k) => `g.grabMenu.sel = ${k}; a.input.state.tap('interact');`;
-      const CODE = { P: "a.input.state.tap('interact');", K0: pick(0), K1: pick(1), K2: pick(2), K4: pick(4) };
+      const CODE = { P: "a.input.state.tap('interact');", K0: pick(0), K1: pick(1), K2: pick(2), K4: pick(4), F: 'const e = window.__natE; const q = g.player.position; g.player.cam.yaw = Math.atan2(e.pos.x - q.x, e.pos.z - q.z);' };
       const code = (c) => (c ? CODE[c] ?? c : null);
       // the stick, the held buttons (aim always; fire, crouch, co-op when the row names them), the aim yaw `cy` from the
       // start yaw, a one-off code and the row's `every` code (with `t`)
@@ -923,6 +938,8 @@ async function runProving() {
         t += 1 / 60;
       }
       const rows = await page.evaluate(() => window.__nat.rows);
+      // (rerun) NAT_DUMP=<dir>: the raw 60 Hz rows per scenario (for checking a number against the motion)
+      if (process.env.NAT_DUMP) writeFileSync(`${process.env.NAT_DUMP}/${sc.n}.json`, JSON.stringify(rows));
       const sum = summarise(rows, 1 / 60);
       const data = await compose(page, tiles, labels, `${sc.n} - ${params}, cam ${sc.cam}${sun ? ' (sun side)' : ''}${KEY > 0 ? ', audit key light on her' : ''}`, 6, sc.cam === 'fixed' ? 300 : 240, 300);
       const [file, size] = writeWebp(sc.n, data);

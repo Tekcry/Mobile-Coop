@@ -2,8 +2,7 @@
 
 Branch `feature/anim-natural` at a9c86cd4 (master 4.53.0 merged). Read-only for the game: only
 `scripts/anim-natural/audit.mjs` and `docs/anim-natural/**` changed. Desktop GPU (`E2E_GPU=1`, port 4189, headless),
-2026-10-22 13:41-14:00, under `heavy.lock`; the lock was handed back to CT Core before the fix-and-rerun round, so the
-rows marked "pending the lock" below need one more run.
+2026-10-22 13:41-14:00 and the rerun 14:09-14:16 (one fix round), under `heavy.lock`.
 
 ## What changed in the helper
 
@@ -28,6 +27,12 @@ rows marked "pending the lock" below need one more run.
   (`src/anim/motion.ts`, by design), and the pulled-back stick at the slowest speed walks backwards. The turn on the spot
   exists only aimed (strafe-locked to the aim): pass 2 swings the aim 90 / 180 deg; at low ready the body does not follow.
 
+- Rerun changes: the game camera is snapped to the start yaw (as anim-audit's `tp`); a `back` camera (corridors,
+  doorways); the door peek starts from the menu's Stealth open pick (`g.stealthPick`) and closes with the stick pulled
+  back; the interrogation is picked through `takedown.menuPick`; the strike faces the guard and taps `altFire`; the wall
+  edges push the stick the other way (`toEnd = -end`); pair labels print each puppet's figure LOD and camera distance;
+  `NAT_DUMP=<dir>` writes each proving row's raw 60 Hz samples. The proving whiff strike row is gone (no whiff exists).
+
 ## Finding about the light (not animation)
 
 The Proving and Warehouse sheets are not back-lit: Wren's suit renders as a near-flat black silhouette from the sun side
@@ -39,17 +44,19 @@ too (pass 2 checked both sides). With the audit key light the limbs read. A note
 | --- | --- | --- | --- | --- |
 | 7 | Turn on the spot (aimed) | 2 | `turn-in-place-aim90`, `-aim180` (+ `-top`), `-lowready90` | 90 deg in 0.28 s in two steps; each planted foot swivels 51 deg and slides 4.3-5.1 cm (the top plot fans about mid-foot); shoulders lead 14-46 deg, pelvis locked to the root |
 | 10 | Tense sneak | 3 | `tense-sneak` | Counter-rotation good (7.5 / 3.3 deg, corr -0.99); knife hand parked (1.1 cm), head 0 deg |
-| 12 | Crouch run | 2 | `crouch-run` (`crouch-run-keyed` half off-frame) | Jog arm swing (21.8 cm) on a crouch, trunk 5 / 6 deg, head 0 deg |
-| 16 | Low ready walk / jog / run | 2 | `lowready-walk / -jog / -run` | Arms locked to the gun (wrist range 0.6 / 1.8 / 11 cm), head 0 deg, side sway 1.2-1.7 cm; run pelvis range 50 deg not explained (sheet straight) |
+| 12 | Crouch run | 2 | `crouch-run`, `crouch-run-keyed` | In play the arms are the jog swing (21.8 cm), trunk 5 / 6 deg, head 0 deg; the studio keyed clip (rerun, framed) is better, hands low in front with a small swing (3), but play does not use it |
+| 16 | Low ready walk / jog / run | 2 | `lowready-walk / -jog / -run` | Arms locked to the gun (wrist range 0.6 / 1.8 / 11 cm), head 0 deg, side sway 1.2-1.7 cm. Run: the pelvis really swings +-25 deg (rerun raw rows -24 .. +25, shoulders against it) with ~20 deg snaps in 0.05 s at each step; not a measurement error (the side camera hides yaw) |
 | 24 | Wall block | 3 | `wall-block` | Rifle swings to muzzle-up (69 deg) at the wall, stalls 0.42 s mid-swing |
 | 25 | Fire, recoil | 1 | `fire-rifle`, `fire-pistol` | 1 s of fire: gun 0.12 m/s, wrists 1.4 cm, trunk 0 deg: no kick in the body at all |
 | 30 | Knife in hand | 3 | `knife-in-hand` | Fist closed on the knife; the walk swings it like an empty hand (22.6 cm) |
 | 32 | Jammer | 2 | `jammer` | = pistol aim still: 0 deg trunk; no pose of its own |
-| 43 | Hostage hold still | 2 | `hold-still`, `pair-hold_idle` | Trunk 0.0 deg in play and in the studio clip |
+| 40 | Door peek | 3 | `door-peek` | Rerun (the Stealth open pick, camera behind): she steps to the latch side, a hand to the frame, holds, steps back; the leaf crack is not visible from behind |
+| 43 | Hostage hold still | 2 | `hold-still`, `pair-hold_idle` | Trunk 0.0 deg in play and in the studio clip (rerun side-on: she stands behind him, still) |
 | 44 | Hostage walk back (clip) | 2 | `pair-hold_back` | Studio clip: trunk 0.1 deg, feet slide 22-32 cm on the spot |
-| 45 | Choke (clip) | 3 | `pair-hold_choke` | Kneels with him as he sags; camera blocked by the over-lit guard (rerun pending) |
+| 45 | Choke (clip) | 3 | `pair-hold_choke` | Rerun side-on: she sits back and lowers him to the floor; her trunk yaw 0.0 deg throughout, the lowering reads; the guard over-lit by the stage light |
 | 46 | Knife kill | 3 | `knife-kill`, `pair-hold_knife` | Strike and lowering read; trunk turns as a block (corr +0.81); Wren dark, the guard bright |
-| 58 | Split brace | 3 | `split-brace` (numbers) | Braced (`seen` split), trunk counter ok; the sheet is inside the corridor wall |
+| 47 | Interrogate | 2 | `interrogate` | Rerun (`takedown.menuPick`): her free hand goes to his jaw (left wrist 12 cm up and across); trunk, head and stance do not move (0.0 deg) |
+| 58 | Split brace | 2 | `split-brace` | Rerun (camera along the corridor): a clean double jump into the split, then a T-pose: both arms straight out level for 1.6 s, trunk still; the drop reads |
 | 61 | Mantle | 2 | `mantle` | 0.9 m block climbed in a squat with the hands at the sides (wrists 3-7 cm): no hand plant |
 | 62 | Step up | 3 | `step-up` | Reads; quick |
 | 63 | Climb up | 3 | `climb-up` | Hang, knee up, crouch on top: reads |
@@ -57,8 +64,8 @@ too (pass 2 checked both sides). With the audit key light the limbs read. A note
 | 65 | Hop | 3 | `hop` | Tucked hop over the 1.5 m gap between the hang blocks; arms whip (27.6 m/s) |
 | 66 | Roll | 2 | `roll` | An airborne somersault (feet overhead off the ground at 0.47-0.6 s), wrists 28 m/s, slung rifle swings 106 deg |
 | 67 | Wall kick | 3 | `wall-kick` | Foot to the wall, reach, hang: reads |
-| 70 | Dash slide | - | `dash-slide-driven` | Dead in play (`pose.slide` never set); driven it is a knee-drop lunge |
-| 72 | Doorway sweep | - | `door-sweep-driven` | Dead in play (`pose.check` never set); driven: shoulders 5.9 deg, head 14 deg |
+| 70 | Dash slide | deleted | `dash-slide-driven` | Michael 2026-10-22: "Delete them" (`pose.slide` was never set in play; driven it was a knee-drop lunge) |
+| 72 | Doorway sweep | deleted | `door-sweep-driven` | Michael 2026-10-22: "Delete them" (`pose.check` was never set in play; driven: shoulders 5.9 deg) |
 | 73 | Leg-up | 2 | `pair-boost` | B half-squats with the hands at the hips; A rises straight up 2 m in ~0.4 s with no push; B trunk 0.0 deg |
 | 74 | Ledge relay | 3 | `pair-relay` | Both hang and climb side by side; reads |
 | 75 | Partner throw | 2 | `pair-throw` | B stands still (trunk 0.0, hands 0 m/s) while A is thrown |
@@ -68,7 +75,7 @@ too (pass 2 checked both sides). With the audit key light the limbs read. A note
 | 79 | Hit flinch | 1 | `hit-flinch-2`, `hit-flinch-aim` | Invisible: shoulders 0.9 deg, torso pitch 0.2 deg (aiming 0.2 / 0.6) |
 | 80 | Downed | 3 | `pair-revive` (role B) | Solo has no pose; B lies on his side, still |
 
-## New ranked fixes (AUDIT.md fix list 23-34)
+## New ranked fixes (AUDIT.md fix list 23-36)
 
 1. Hit flinch invisible (79): a real additive hit layer (chest 6-10 deg away from the hit, head snap, shoulder drop,
    half step). **N4** (`animGraph.hitReact`, CT Core).
@@ -81,22 +88,29 @@ too (pass 2 checked both sides). With the audit key light the limbs read. A note
 8. Holds still: trunk 0.0 deg (43, 44). **N4** (closeQuarters).
 9. Crouch run = jog arms (12). **N2**.
 10. Wall block: muzzle-up swing with a 0.42 s stall (24). **N3**.
-11. Dead channels `pose.slide` / `pose.check` (70, 72): Michael's call (assumed: delete; CT has neither as a verb). **N4**.
-12. Studio pairs: puppets vanish ~0.5 s after the clock wraps; the hold pairs' guard over-lit. **N4** (studio tool).
+11. Dead channels `pose.slide` / `pose.check` (70, 72): Michael 2026-10-22 "Delete them"; another agent removes the code.
+12. Low ready run: pelvis yaw +-25 deg with ~20 deg snaps in 0.05 s at each step (16; rerun). **N2**.
+13. Split brace: a T-pose, arms level and straight, trunk still (58; rerun). **N4** (traversal).
+14. Studio: the hold pairs' guard is over-lit by the stage light; the pair puppets' vanish was not reproduced (see below).
+    **N4** (studio tool, low).
+
+## Rerun findings (14:09-14:16)
+
+- Low ready run pelvis: real. The raw 60 Hz rows (NAT_DUMP) swing the pelvis -24 .. +25 deg with the shoulders against
+  it, snapping ~20 deg in 0.05 s at each step; the free run swings 5 deg. **N2** (new fix 35).
+- Split brace: a T-pose (both arms level, straight, for the whole brace) and a still trunk. **N4** traversal (fix 36).
+- Pair puppets vanishing: not reproduced in the rerun (both puppets on LOD 1 at 7-8 m from the camera in every tile,
+  labels now print `lod@distance`). It happened only in the first runs, where the audit camera stood 9.3 m away and,
+  once, right after a seek of the pair clock. Likely cause: the figure's LOD band switch at that distance
+  (`OperatorFigure.update` -> `pickLod`, a band not yet shown) or the seek jump, not the loop wrap itself; not seen
+  at the studio's own viewing distance. Not a slice item unless Michael sees it in the studio.
 
 ## Not captured, and why
 
 | Row | Why | Next |
 | --- | --- | --- |
-| 29 Hand swap, 39 peek aim | The wall slide went the wrong way for the game camera's frame and never reached the end, so no open-side aim (mid-wall aim stepped her off the wall) | Pending the lock: flip the stick side (`wallEdge` x = -end) and rerun `wall-edge-*` |
-| 40 Door peek | The follow camera stood inside the shed wall, and no peek started (`seen` idle) | Pending the lock: camera on the open side; check the press timing against anim-audit's `door` case |
-| 47 Interrogate | The scripted pick 4 started nothing | Pending the lock: arm the pick through the context menu's own row, or read `takedown` state |
-| 49 Elbow strike | A fire tap holstered started no strike (proving and with the guard) | Pending the lock: hold `fire` a frame (the strike may read the held button), as anim-audit's `strike` case |
-| 58 Split brace (sheet) | Numbers captured; the camera is inside the corridor wall | Pending the lock: camera along the corridor |
-| 12 Crouch run (studio clip), 43-46 hold pairs (camera) | Keyed clip half off-frame; the guard blocks the camera | Pending the lock: the script now aims at the hips for keyed clips and puts the hold pairs side-on; rerun `studio --pass=2` |
+| 29 Hand swap, 39 peek aim | Both stick signs tried (one fix round): she slides along the wall but the aim at the end steps her off the wall and turns her round instead of the open-side lean-out, so the hand swap never runs | Drive it as `scripts/anim-audit.mjs`'s `wall` open rows do (its `tp` resets the gait clock, gear 3; maybe the aim must come while the stick is held toward the end) |
+| 49 Elbow strike | No whiff exists (`StrikeController` starts only with a guard in reach); with the Warehouse guard, faced, a KBM `altFire` tap still started nothing | Check what blocks it with a calm guard in reach (`takedown.offer` or the context menu may own the press) |
 | 31 Launcher | Not in the game (weapons.json has the rifle and pistol only) | When a launcher lands |
 | 80 Downed (solo) | Solo has no downed pose | Covered by the revive pair's role B |
-
-Rerun once the lock is free: `E2E_GPU=1 node scripts/anim-natural/audit.mjs studio --pass=2` and
-`... proving --only=wall-edge-left,wall-edge-right,wall-edge-low,door-peek,interrogate,elbow-strike,elbow-strike-guard,split-brace`
-(after the stick-side, camera and strike-input fixes above).
+| 70, 72 | Deleted (Michael 2026-10-22) | - |
