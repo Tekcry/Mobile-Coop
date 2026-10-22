@@ -153,9 +153,24 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   (`GuardView.setTags`): inside it he counts as a perceiver and ranks first (x `TAGS.secureFirst` 0.25); after a search
   every guard walks back to his own post / route (the walker; no new code). `role` (`roleFlags`, `ROLE_CLASS`): the
   alarm runner (`alarmRunMul`: supervisor 0.1, officer 0.25), the board's score (`roleSendMul`: supervisor sends
-  someone x1.6; a light: rover x0.8, fixed post x1.5). `reason` stored (`Enemy.reason`); `pair` stored as the S10 hook
-  (`Enemy.pairSlot`, `EnemyManager.guardAtSlot(index)`). All kept over a revive (`Enemy.inherit`). Tests:
-  `tests/sectorGuardTags.test.ts`; e2e: e2e-sectorops part 1 "sector tags (guard-ai S5b)".
+  someone x1.6; a light: rover x0.8, fixed post x1.5). `reason` stored (`Enemy.reason`); `pair` stored
+  (`Enemy.pairSlot`, `EnemyManager.guardAtSlot(index)`; read by S10, next entry). All kept over a revive
+  (`Enemy.inherit`). Tests: `tests/sectorGuardTags.test.ts`; e2e: e2e-sectorops part 1 "sector tags (guard-ai S5b)".
+- Talking pairs (guard-ai S10, GA2, the `pair` tag, A32-A34; `ai/pairs.ts` pure: `PairMeet`, `pairWindow`, `pickMeet`,
+  `PAIRS`, `PAIR_LINES`). `placeSlot` builds one `PairMeet` when the second of two guards that name each other (one tag
+  is enough) is placed (`EnemyManager.buildPair`; `pairs`, id section x 100 + the lower slot): the meet stops are the
+  nearest stops within `PAIRS.meetMax` 6 m whose timed-loop stays overlap (`pickMeet`, the slower `walkSpeed`; the
+  walkers' loop times line the clocks up); none (no timed loop, periods differ, no overlap, a dog): `pairSkips` + a
+  console warning. `pairStep` runs at the board rate (`PAIRS.tick` 0.2 s) after the guards move: each side filled from
+  `guardAtSlot` (`present` = alive, not held, in his slot; `calm` = `Enemy.pairCalm`: unaware, caution 0, no incident),
+  `interrupt()` when either is `Enemy.disturbed` (a `hearTurn` look, a lure, sight evidence above `PERCEPTION.leak`),
+  `step`, then: meeting -> `Enemy.pairFace` / `pairPt` (the calm patrol walks him onto his meet point and stands him
+  facing his partner; the walker still steps, so the schedule runs on and the next timed stop absorbs the delay, A33);
+  `sayLine` -> `Enemy.sayLine` (the bark path, spoken, no voice table: `onBark(e, line, false)`); `requested` ->
+  `pairMissing`: a `missing` incident at the partner's last route point with the one left as perceiver (lead + the
+  nearest free cover; the missing guard joins `silent`, so a radio check does not miss him again); parked modes: he
+  searches. A missing pair whose guards are both up again (a woken partner takes his slot) starts over. Host only, no
+  wire change. Tests: `tests/pairs.test.ts`, `tests/pairsWiring.test.ts`; e2e: e2e-sectorops part 1 "talking pairs".
 - Tactics: from sight into cover first (85%), attack -> cover after 2.5-4.5 s, peek cycles (4.2 s, up to 5); out of sight
   an `advancing` bound to cover closer to the believed position (`pickAdvance`), a 2.5 s hold, then the next; the last
   stretch is walked (`ADVANCE_PACE`); cover is picked against `knownPt` (never the real position out of sight). One bullet

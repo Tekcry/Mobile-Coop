@@ -2052,6 +2052,134 @@ if (want(1)) {
   });
 }
 
+// (guard-ai S10, GA2, the `pair` tag) Talking pairs, on guards built with the test hook (spawn + a timed loop + placeSlot
+// with a stand-in section list naming each other as `pair`; no map data edited). Two lanes 1.2 m apart (z and z + 1.2):
+// A walks the south lane from x + 3.2, B the north lane from x; both stop at x + 5 (their meet stops, 1.2 m apart) on a
+// 40 s master clock. (a) Both up: they meet, face each other, say two lines (one each, over the speaker on the HUD), then
+// split on their schedule. (b) B knocked out at his first stop before the window (3.4 m behind A's back, unseen): `grace`
+// s after the window opens A is sent (a `missing` incident, the lead) to B's last stop, reaches it and finds him.
+if (want(1)) {
+  console.log('talking pairs (guard-ai S10): a pair meets, talks, splits; take one before the meeting and the other searches');
+  await run(PARAMS, async ({ G, sim }) => {
+    await G(() => { const g = window.__app.current; g.target.damageMul = 0; if (g.security) g.security.fixedUpdate = () => {}; if (window.__ctdev) window.__ctdev.fixedUpdate = () => {}; });
+    await sim(0.5);
+    const S = await sections(G);
+    // two clear lanes 9 m east, 1.2 m apart, nearest section 1's objective first
+    const site = await G((o) => {
+      const nav = window.__app.current.enemyMgr.nav;
+      const cells = [];
+      for (let c = 0; c < nav.walk.length; c++) {
+        if (!nav.walk[c]) continue;
+        const [x, z] = nav.center(c);
+        const y = nav.height[c];
+        if (Math.abs(y - o[1]) > 1.5) continue;
+        cells.push([Math.hypot(x - o[0], z - o[2]), x, y, z]);
+      }
+      cells.sort((a, b) => a[0] - b[0]);
+      for (const [, x, y, z] of cells) {
+        if (nav.lineClear([x, z], [x + 9, z], y, y) && nav.lineClear([x, z + 1.2], [x + 9, z + 1.2], y, y) && nav.lineClear([x + 5, z], [x + 5, z + 1.2], y, y)) return { at: [x, y, z] };
+      }
+      return { at: null, cells: cells.length };
+    }, S[0].obj);
+    assert(site.at !== null, `talking pairs: two open lanes on section 1's storey (${site.cells} cells)`);
+    const r = await G(([cx, cy, cz]) => {
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const V = g.player.position.constructor;
+      for (const e of [...em.enemies]) em.despawn(e);
+      g['updateLight'] = () => (g.localRef.light = g.lightLevel = 0);
+      g.player.controller.teleport(new V(cx - 40, cy, cz - 40), 0);
+      // no squad radio check in the middle of it (the pair's own miss is under test)
+      em['radioT'] = 1e9;
+      const step = (s) => window.__app.loop.stepHeadless(s);
+      const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+      const hit = (e) => ({ amount: 9999, point: e.pos.clone(), dir: new V(0, 0, 1), part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: 'local', sourcePos: e.pos.clone(), impulse: 1 });
+      const said = [];
+      const prevBark = em.onBark;
+      em.onBark = (e, line, radio) => {
+        prevBark?.(e, line, radio);
+        said.push({ id: e.id, line, radio, hud: g.hud.barks.shown.includes(line) });
+      };
+      const slots = [
+        { kind: 'grunt', x: cx + 3.2, z: cz, yaw: Math.PI / 2, pair: 1, route: [[cx + 3.2, cz], [cx + 5, cz], [cx + 8, cz]], loop: { period: 40, leave: [3, 18, 30], t0: 0 } },
+        { kind: 'grunt', x: cx, z: cz + 1.2, yaw: Math.PI / 2, pair: 0, route: [[cx, cz + 1.2], [cx + 5, cz + 1.2], [cx + 8.5, cz + 1.2]], loop: { period: 40, leave: [1, 18, 30], t0: 0 } },
+      ];
+      const make = () =>
+        slots.map((s, i) => {
+          const e = em.spawn(s.kind, new V(s.x, cy, s.z), false, s.yaw);
+          e.setPatrol({ points: s.route, loop: s.loop });
+          em.placeSlot(e, s, 0, slots, i);
+          return e;
+        });
+      const out = {};
+      // (a) both up
+      const [A, B] = make();
+      const p = em.pairs[0];
+      out.built = { n: em.pairs.length, skips: em.pairSkips.slice(), open: p ? p.pm.def.open : -1, close: p ? p.pm.def.close : -1 };
+      let faceA = 9;
+      let faceB = 9;
+      let atA = 99;
+      let met = -1;
+      for (let k = 0; k < 250; k++) {
+        step(0.1);
+        if (p && p.pm.state === 'meeting') {
+          if (met < 0) met = (k + 1) * 0.1;
+          // after the calm turn has had a second
+          if ((k + 1) * 0.1 > met + 1.5) {
+            faceA = Math.min(faceA, Math.abs(wrap(A.yaw - Math.atan2(B.pos.x - A.pos.x, B.pos.z - A.pos.z))));
+            faceB = Math.min(faceB, Math.abs(wrap(B.yaw - Math.atan2(A.pos.x - B.pos.x, A.pos.z - B.pos.z))));
+            atA = Math.min(atA, Math.hypot(A.pos.x - (cx + 5), A.pos.z - cz));
+          }
+        }
+      }
+      const pairSaid = said.filter((s) => s.id === A.id || s.id === B.id);
+      out.a = { met, faceA, faceB, atA, lines: em.pairLines, said: pairSaid, levels: [A.level, B.level], state: p ? p.pm.state : null, split: Math.hypot(A.pos.x - (cx + 5), A.pos.z - cz) };
+      for (const e of [...em.enemies]) em.despawn(e);
+      // (b) B knocked out at his first stop before the window, behind A's back
+      said.length = 0;
+      const lines0 = em.pairLines;
+      const [A2, B2] = make();
+      const p2 = em.pairs[0];
+      step(0.5);
+      B2.knockOut(hit(B2));
+      const bx = B2.pos.x;
+      const bz = B2.pos.z;
+      let sentT = -1;
+      let kind = null;
+      let close = 99;
+      let found = false;
+      for (let k = 0; k < 500 && !found; k++) {
+        step(0.1);
+        const t = 0.5 + (k + 1) * 0.1;
+        if (sentT < 0 && em.pairMisses > 0) {
+          sentT = t;
+          kind = A2.incident >= 0 ? em.board.kindOf(A2.incident) : null;
+        }
+        if (sentT >= 0) close = Math.min(close, Math.hypot(A2.pos.x - bx, A2.pos.z - bz));
+        const b = em.bodies.find((q) => q.enemyId === B2.id);
+        found = !b || b.found;
+      }
+      out.b = { open: p2 ? p2.pm.def.open : -1, sentT, kind, close, found, misses: em.pairMisses, lines: em.pairLines - lines0, radioMisses: em.radioMisses, witnessed: em.lastWitnesses };
+      for (const e of [...em.enemies]) em.despawn(e);
+      em.onBark = prevBark;
+      g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
+      return out;
+    }, site.at);
+    const f2 = (v) => v.toFixed(2);
+    console.log(`  built ${JSON.stringify(r.built)}; met at ${f2(r.a.met)} s, facing off ${f2(r.a.faceA)} / ${f2(r.a.faceB)} rad, ${f2(r.a.atA)} m from his stop, lines ${r.a.lines} ${JSON.stringify(r.a.said.map((s) => s.line))}, then ${r.a.state}, ${f2(r.a.split)} m off; missing: open ${f2(r.b.open)} s, sent at ${f2(r.b.sentT)} s (${r.b.kind}), closest ${f2(r.b.close)} m, found ${r.b.found}, lines ${r.b.lines}`);
+    assert(r.built.n === 1 && r.built.skips.length === 0, `talking pairs: the pair is built (${r.built.n}, skips ${JSON.stringify(r.built.skips)})`);
+    assert(r.a.met > 0 && r.a.met < 18, `talking pairs: they meet inside the window (${f2(r.a.met)} s, window ${f2(r.built.open)}..${f2(r.built.close)})`);
+    assert(r.a.faceA < 0.35 && r.a.faceB < 0.35 && r.a.atA < 0.8, `talking pairs: they stand at their stops facing each other (${f2(r.a.faceA)} / ${f2(r.a.faceB)} rad, ${f2(r.a.atA)} m)`);
+    assert(r.a.lines === 2 && r.a.said.length === 2 && r.a.said[0].id !== r.a.said[1].id, `talking pairs: two lines, one each (${r.a.lines}, ${JSON.stringify(r.a.said)})`);
+    assert(r.a.said.every((s) => !s.radio && s.hud), `talking pairs: spoken (not radio) and shown over the speaker (${JSON.stringify(r.a.said)})`);
+    assert(r.a.levels.every((l) => l === 'unaware') && r.a.split > 2, `talking pairs: calm throughout, then they split on their schedule (${r.a.levels}, ${f2(r.a.split)} m off his stop)`);
+    assert(r.b.lines === 0 && r.b.misses === 1, `talking pairs: no talk with one down; one missing request (${r.b.lines} lines, ${r.b.misses})`);
+    assert(r.b.sentT >= r.b.open + 6 - 0.15 && r.b.sentT <= r.b.open + 6 + 0.5, `talking pairs: the request ${f2(r.b.sentT)} s, grace 6 s after the window opens (${f2(r.b.open)} s)`);
+    assert(r.b.kind === 'missing', `talking pairs: the other is sent on a missing incident (${r.b.kind})`);
+    assert(r.b.close < 2.5 && r.b.found, `talking pairs: he searches at his partner's stop and finds him (${f2(r.b.close)} m, found ${r.b.found})`);
+  });
+}
+
 // (guard-ai S7, design 9, M6) A camera sees a knocked-out guard (IR: the light does not matter, G240) and the desk sends
 // the nearest calm guard: within ~5 s of the knockout a guard is on his way (`Enemy.camBody`), and he wakes the victim
 // (the body-found path: `EnemyManager.onRevived`). The player is not this check's: the cameras' player think is held

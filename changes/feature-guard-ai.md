@@ -44,3 +44,9 @@
   wakes him; then they search the area. Looped, switched-off, jammed or shot-out cameras see nothing, so hide bodies out
   of a camera's view or take the camera down first. Dogs never answer the call. Hunter and Mission (parked) are
   unchanged.
+- S10 talking pairs: two Sector Ops guards marked as a pair now meet on their rounds. When both reach their meeting
+  spot they stop, turn to face each other and swap a couple of lines of small talk, shown over their heads, and some of
+  it is worth hearing (a door that sticks, a dead camera, a code habit). Then they carry on with their rounds. Anything
+  that catches their attention cuts the talk short. Take one of them out before they meet and the other notices he
+  never turned up: a few seconds later he goes to look for him where he was last headed, with the nearest free guard
+  behind him. The car-park pair in Saltmarsh Park is the first.

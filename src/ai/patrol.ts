@@ -94,6 +94,11 @@ export class PatrolWalker {
     return (((l.t0 + this.clock) % l.period) + l.period) % l.period;
   }
 
+  /** (guard-ai S10) Loop time now (s) of a timed loop, NaN without one (talking pairs line their clocks up with it). */
+  loopTime(): number {
+    return this.route?.loop ? this.loopNow() : Number.NaN;
+  }
+
   private get pingPong(): boolean {
     const r = this.route;
     return !!r && (r.pingPong ?? r.points.length < 3);
