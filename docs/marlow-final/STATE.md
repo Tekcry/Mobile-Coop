@@ -62,6 +62,11 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   01:40): at most 3 agents at once in this session (desktop CPU at 100% with 4 sessions; keeps tsc / vitest runnable
   locally), e2e stays on the laptop; pace each 5-hour window to ~97-99% at its reset; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- ~03:00 greybox helper tests IN (77 pass). Helper fixes override SPEC numbers (fold into SPEC at the next spec pass):
+  A1 leg-up mark x 10.8; A3 first hop 10.0 m, hide x 88.6; A5 drum stack >= 2.8 m off the beam line or >= 1.9 m
+  noLedge; A6 5 m bridge, overhang 0.4, exit release on the cabinet, panel 3 s hold; GREY_KEEP_CLEAR 4.7 m. Sent to
+  the set-doc agents. Props batch 1 committed, test not run (desktop 97% CPU): sent to Character Build with the slice 0
+  unit files. MORNING-REVIEW written. 0f props batch 2 + World props hook started.
 - ~02:45 slice 0 CODE ALL IN: 0a course (N1-N4, N8, A8 em.stealth, despawn, door occupancy), console loop sets
   'looped', client hold-noise pulse (inside protocol 30), 1949764e. SPEC rules 9-10 (Michael ~01:25: armed guard
   kinds only, no src/ai edits; cameras keep IR). Slice 0 e2e queued on Character Build 4189 (GPU): smoke,
