@@ -11,6 +11,12 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   GREEN; hang-down 0578d554 coop + ctcourse:2 FAIL (real; CT Core fixing, solo reruns dropped).
 - LESSONS: TaskStop / killing a chain's bash does NOT stop a powershell runner it already started (S8 ran). A step list
   without "build" serves whatever dist the slot worktree holds: always build.
+- CHAIN (10:40, survives the swap: PowerShell, not bash): C:/NightShift/scratch/chain-1023p.ps1, log
+  runs/chain-1023p.log (start / end per label). Order: wait marlowcap-5100141d (runner live, ALONE 4189) ->
+  4192 sectorredesign-3796700d-ops6 -> guardaichain-62884858 -> hangdown-4072e2b9 -> wait no locks -> 4189 ALONE
+  guardrender-s6cap-c181002e (guard-cap S6 sun rules on: work/guardrender-s6-on; ?guardsun=0: work/guardrender-s6-off).
+  It skips a label that is already DONE. On resume: send each DONE verdict (below); if chain-1023p.log has no "done"
+  line and no live powershell runs it, restart it (same file; DONE labels are skipped).
 - IN FLIGHT at the save (session-bound bash chains die in the swap; a runner already started keeps going). On resume
   read each summary.txt; no DONE = rerun with the same steps:
   4189 ALONE (queue-1023f.sh): guardrender-s0cap-0b4805a4 DONE (4.68.0 baseline: build; scripts/guard-cap.mjs --counts=0,12,16,24
