@@ -381,7 +381,8 @@ try {
       const V = g.player.position.constructor;
       g.explosions.explode(new V(35.1, 0.3, 4), 5, 150, 4, 'player', 'local');
     });
-    await wait(1400);
+    // (test-speed-2) was a fixed 1.4 s (wall) per blast: on until the host is down, at most 1.4 s of game time
+    await until(A, () => !window.__app.current.player.alive, null, 1400, 'the client grenade downs the host').catch(() => {});
   }
   assert(!(await GA(() => window.__app.current.player.alive)), 'a client grenade downs the host');
   assert(await GB(() => window.__app.current.player.alive), 'the thrower is not hurt by its own grenade');
