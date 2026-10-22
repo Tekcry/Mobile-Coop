@@ -1,5 +1,15 @@
 # anim-natural N2 - state
 
+## 2026-10-22 ~19:10: step 2 verified on the laptop (53e6dc03, JOBS=1, port 4192)
+check PASS (2714 passed, 8 skipped; bodyMotion alloc passed this time), e2e-anim PASS (no ASSERT), e2e-studio PASS,
+e2e-clip PASS. Rifle low ready jog elbows 5.7 / 6.0, knee-out 3.2 / 3.4; walk knee-out 3.4 / 3.5, elbows 7.5 / 8.3;
+rifle low ready walk knee-out 3.4 / 3.5, elbows 4.9; crouched low ready walk knee-out 2.1 / 3, elbows 5.9 / 6.0; run
+knee-out 8.4 / 10.7, track 2 / 18, elbows 9.5 / 11. Body motion (pelvis / shoulders deg p2p, corr, lateral cm, head
+yaw / pitch): walk 8.06 / 8.06, -1.00, 2.9, 2.82 / 1.20; jog 11.80 / 15.65, -1.00, 2.6, 5.48 / 1.27; run 25.79 / 28.78,
+-1.00, 2.2, 5.22 / 1.29; sneak 4.99 / 5.39, -0.99, 2.9; crouch walk 7.99 / 8.78, -0.99, 3.3; aim glide fwd 3.99 / 5.71,
+2.3; aim side 3.26 / 5.00, 3.8. All 8 body-motion asserts ok. Step 2 DONE. Master is now 4.56.0 (train 5): merge it
+with step 3.
+
 ## 2026-10-22 ~18:45: master 4.55.1 merged, A13, run rebaked (head 53e6dc03)
 - Master 4.55.1 merged by an agent in the temp worktree (70953f1c): CHANGELOG both kept; run.ts `half` took master's
   0.05042 (#110's measure), N2's A1 keys kept; e2e-anim crabRow (ranges 5th, pelvisFrame 6th, flag only on turn rows).
