@@ -9,6 +9,8 @@
  * ready, now WREN_READY_LOW / WREN_PISTOL_READY, an empty base) matched the 4e3cbbda fixture bit for bit: the bake changed data, not the rig code.
  * (anim-bake-targets) Re-captured after the body key and WREN_TUCK bake (10 of 39 changed); first, with the body key
  * removed and WREN_TUCK at 1 at run time, the run matched the previous fixture bit for bit.
+ * (idle-shins) Re-captured after the base table's idle track went 0.05 -> 0.3 (26 of 40 changed: every scenario that
+ * starts in or passes through the idle row); data only, no rig code changed.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';

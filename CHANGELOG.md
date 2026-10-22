@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased - idle-shins
+
+- Idle stance a little wider (Michael: "Widen just enough. They didn't clip when I viewed it though"): the base
+  table's idle track `body.idle.trackMul` 0.05 -> 0.3; walk / jog / run keep 0.05. The anim-audit's shank capsules
+  overlapped 3.18 cm (limit 2.00) at the first frame of every standing row; headless 2.42 -> 0.85 cm. The visible mesh
+  never touched: its shins sit on the figure's own wider skeleton (4.8 cm apart at 0.05), only the audit's capsules on
+  the rig's joints overlapped.
+
 ## 4.54.0 - Train 3: every tuner Body slider bakes, holds and carries (2026-10-22, PR #114; #103, #113)
 
 ### #103 Body sliders bake
