@@ -36,7 +36,8 @@ import {
   WALK_STRAFE_L,
   WALK_STRAFE_R,
 } from './clips/locomotion';
-import { DROP, GRENADE, LAND, LAND_DEEP, MANTLE, PIVOT, reloadClipFor, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions';
+import { CLIP_RATE, DROP, GRENADE, LAND, LAND_DEEP, MANTLE, PIVOT, reloadClipFor, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions'; // (clip-speed, track A) CLIP_RATE
+import { CLIP_BASE, clipSpeed } from './tuneClipSpeed'; // (clip-speed, track A)
 import { CLIMB, CLIMB_UP, CLIMB_UP_TEAM, CRAWL, CRAWL_OUT, HANG, PIPE_CLIMB, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollTumble, SPLIT_BRACE, VENT_DROP, WALL_KICK, WINDOW_VAULT } from './clips/traverse';
 import { hyp2 } from '../core/mathx';
 import { emptyActionWeights, type TuneActionWeights } from './tuneMoveRows';
@@ -594,6 +595,10 @@ const HOLSTER_TAU = 0.06;
 const GRIP_RATE = 5;
 /** Seconds the support hand takes to settle onto the wall. */
 const WALL_HAND_TIME = 0.42;
+// (clip-speed, track A) the tuner's "today" lines: each timed body clip's duration at its code rate
+CLIP_BASE.startShift = START_SHIFT.duration / CLIP_RATE.startShift;
+CLIP_BASE.stopSettle = STOP_SETTLE.duration / CLIP_RATE.stopSettle;
+CLIP_BASE.land = LAND.duration / CLIP_RATE.land;
 
 const TRAVERSE_CLIP: Record<Exclude<TraverseKind, 'none'>, Clip> = { vault: VAULT, mantle: MANTLE, step: STEP_UP, drop: DROP, hop: VAULT, roll: ROLL, hang: HANG, climb: CLIMB, pipeClimb: PIPE_CLIMB, crawl: CRAWL, crawlOut: CRAWL_OUT, climbUp: CLIMB_UP, ventDrop: VENT_DROP, windowVault: WINDOW_VAULT, split: SPLIT_BRACE, wallKick: WALL_KICK, pipeLegs: PIPE_LEGS_UP, pipeInv: PIPE_INVERTED, rappel: RAPPEL_HANG, brace: BRACE };
 
@@ -978,13 +983,13 @@ export class AnimGraph {
     if (this.startT >= 0) {
       addClip(src, START_SHIFT, this.startT, 1 - crouchK * 0.5);
       this.slot('start', 1, this.startT);
-      this.startT += dt;
+      this.startT += dt * CLIP_RATE.startShift * clipSpeed('startShift'); // (clip-speed, track A)
       if (this.startT > START_SHIFT.duration) this.startT = -1;
     }
     if (this.settleT >= 0) {
       addClip(src, STOP_SETTLE, this.settleT, 1);
       this.slot('settle', 1, this.settleT);
-      this.settleT += dt;
+      this.settleT += dt * CLIP_RATE.stopSettle * clipSpeed('stopSettle'); // (clip-speed, track A)
       if (this.settleT > STOP_SETTLE.duration) this.settleT = -1;
     }
     if (i.motion === 'pivot') {
@@ -1063,7 +1068,7 @@ export class AnimGraph {
       // (a traversal taking over, the landing roll started on the next frame: the deep landing gives way to it)
       if (i.traverse !== 'none') this.landK = 0;
       if (lk > 0 && i.traverse === 'none') addClip(src, LAND_DEEP, this.landT, lk * (1 - 0.75 * crouchK));
-      this.landT += dt;
+      this.landT += dt * CLIP_RATE.land * clipSpeed('land'); // (clip-speed, track A)
       if (this.landT > (lk > 0 ? LAND_DEEP.duration : LAND.duration)) this.landT = -1;
     }
     // dash: low, driving rush (the dash cycle is in the blend space; this adds the wind-up crouch)

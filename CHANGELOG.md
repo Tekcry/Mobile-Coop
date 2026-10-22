@@ -17,6 +17,51 @@
   hips under the load. Every slider bakes into `CQ_GAIT` (`src/anim/cqGait.ts`) with `scripts/anim-tune-bake.mjs`
   (section `cq`).
 
+## 4.53.0 - Train 2: guard tuning and clip speed in the animation tuner (2026-10-22, PR #112; #105, #109)
+
+### #109 Clip speed
+- Animation tuner, Clip speed tab (Michael: "Can I fine tune the whole animation speed in anim tuner?"): a speed slider
+  per timed clip, 1 = today's timing, 2 = twice as fast. Draw, holster, swap and throw: rifle draw (every long gun),
+  pistol draw, holster, weapon swap, grenade throw. Start, stop and landing: the start-off weight shift, the stop
+  settle, the landings. Every clip: one slider that multiplies all of them. Each slider shows today's duration.
+- The draw speed is gameplay too: the gun can fire when the faster (or slower) draw ends, and the aim camera blends in
+  with it. Not the View tab's slow motion (that slows the whole game for viewing).
+- Bakes like the other sections (`node scripts/anim-tune-bake.mjs`, section `clip`): into the draw, holster, swap and
+  throw times and a new playback rate per timed body clip (`CLIP_RATE`). Untuned, nothing changes; the save is unchanged.
+
+### #105 Guard tuning
+- Animation tuner: a "Who" list (Wren / Guard) at the head of the Body, Stepping and Weight tabs. Guard tunes every
+  guard's Joints, Stepping and Weight (lean, step load, springs, the start dip) per guard state: idle, walk (patrol and
+  alert), run, aim, crouched, wall cover. Wren's sliders never change a guard and the guard sliders never change Wren.
+- Every guard (in single player and on a co-op client) reads a guard base table the bake writes from an export's guard
+  rows (`src/anim/animBaseGuard.ts`); untuned guards look and act exactly as before.
+- Anim Studio: Who = Guard (or a "Guard: ..." loop) plays a guard puppet (a real guard, no AI) where Wren stands:
+  idle, patrol walk, alert walk, run, aim, crouched aim and wall cover, moving loops on the spot; the camera, the
+  highlight, pause and speed work on it. Who = Wren brings her back.
+- Saves, exports, imports, presets and undo carry the guard rows; older saves and exports load as before.
+
+## 4.52.0 - Train 1: server browser and jammer fixes; protocol 28 (2026-10-22, PR #111; #99, #108)
+
+### #108 Jammer fixes
+- A jammed lamp comes back in the state its wall switch, EMP or a shot gives it at the end of the jam, not the state it
+  had when the jam started: a group switched off (or EMPed) during a jam stays dark through the flicker, on the host and
+  the client alike (light parity). The light registry keeps the switches' state under the jam.
+- Jamming Course Lab's mains lamp no longer opens the mains gate, and its flicker no longer toggles it: the gates read
+  the group's switch / EMP / shot state, never the jam.
+- Co-op: `PROTOCOL_VERSION` 28: the client's `jam` claim carries its camera eye; the host checks the jam's line of sight
+  from it (taken within 1.5 m of the client's head with a clear line between them, else from the head), so a client
+  that shows JAMMER READY now jams.
+- The jam buzz no longer allocates an object every frame while a device is jammed.
+- Not changed (Michael 2026-10-22): cameras keep their IR on every camera ("Cameras should still work in the dark").
+
+### #99 Server browser (prototype)
+- Co-op: public rooms (Michael: a server browser, "prototype only, quick and fast to build"). The host lobby has a
+  Room row, Private (default: only the code brings anyone in) or Public. A public room posts a notice (code, map, mode,
+  version, players, host name) on the same relays as every room, every 30 s and to anyone who opens the list; it is
+  taken off when the room is full, goes private or closes, and a notice not refreshed for 75 s drops out.
+- Co-op > Browse rooms: the public rooms of this exact version and protocol, live, with pad, keyboard and mouse; a pick
+  joins by its code as today. No quick match, no relay server, no game server.
+
 ## 4.51.1 - e2e-coop: the client-takedown step holds steady under load (test only) (2026-10-22, PR #107)
 - The client-takedown step in `scripts/e2e-coop.mjs` calms the host's guards and holds the picked guard still until
   the takedown is done, as the grab step already does: on a slow page the guards alerted or turned between the host's

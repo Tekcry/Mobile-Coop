@@ -15,6 +15,13 @@ export type Bus = 'sfx' | 'music' | 'ui';
 
 const MAX_VOICES = 28;
 
+/** A position's distance gain, pan and distance from the listener (`AudioEngine.spatial`). */
+export interface Spatial {
+  gain: number;
+  pan: number;
+  dist: number;
+}
+
 export class AudioEngine {
   ctx: AudioContext | null = null;
   private master: GainNode | null = null;
@@ -169,8 +176,9 @@ export class AudioEngine {
     return s;
   }
 
-  /** Distance attenuation + pan for a world position relative to the listener. */
-  spatial(x: number, y: number, z: number, range = 40): { gain: number; pan: number; dist: number } {
+  /** Distance attenuation + pan for a world position relative to the listener. `out` (jammer-fixes): written and
+   *  returned in place of a new object (per-frame callers). */
+  spatial(x: number, y: number, z: number, range = 40, out?: Spatial): Spatial {
     const L = this.listener;
     const dx = x - L.x;
     const dy = y - L.y;
@@ -178,6 +186,10 @@ export class AudioEngine {
     const dist = hyp3(dx, dy, dz);
     const gain = Math.max(0, 1 / (1 + (dist / (range * 0.25)) ** 2));
     const pan = dist > 0.5 ? ((dx * L.rx + dz * L.rz) / dist) * 0.8 : 0;
-    return { gain, pan, dist };
+    if (!out) return { gain, pan, dist };
+    out.gain = gain;
+    out.pan = pan;
+    out.dist = dist;
+    return out;
   }
 }
