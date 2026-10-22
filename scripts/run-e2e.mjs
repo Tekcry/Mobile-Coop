@@ -39,9 +39,10 @@ const GPU = ['e2e-darkness', 'e2e-desktop:3', 'e2e-coop-gpu'];
 // `--quick`, for `src/anim`, `src/player`, `src/net`); animation jobs run it by name.
 const REPORT = ['anim-audit'];
 // A suite that is several independent sections (each its own browser) runs as one job per section: `e2e-desktop` =
-// `e2e-desktop:1`, `:2`, `:4` (part 3 is in GPU). `node scripts/e2e-desktop.mjs --part=N`; named alone it runs whole.
+// `e2e-desktop:1`, `:2`, `:4` (part 3 is in GPU). `node scripts/e2e-desktop.mjs --part=N`; the script run directly with no --part runs whole.
 // (test-speed) e2e-ctcourse = three station groups (1-3, 4-5, 6-8), each its own pair of pages.
-const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3'] };
+// (sector-fixes-r RE) e2e-sectorops = part 1 (sections, alarms, restarts, nav, the co-op mirror), 2 (solo: co-op lips refused, route links, team doors), 3-5 (co-op routes and team doors of sections 1-3)
+const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3'], 'e2e-sectorops': ['1', '2', '3', '4', '5'] };
 const expand = (list) => list.flatMap((s) => (PARTS[s] ? PARTS[s].map((n) => `${s}:${n}`) : [s]));
 const REQUIRED_JOBS = new Set(expand(REQUIRED));
 
@@ -90,6 +91,9 @@ const COVERS = {
   'src/game/sectors': ['e2e-sectorops'],
   'src/world/maps/warehouseOps.ts': ['e2e-sectorops'],
   'src/world/maps/warehouseSectors.ts': ['e2e-sectorops'],
+  // (sector-fixes-r RE) the Sector Ops section files (warehouseS1-S3: the co-op routes and team doors) and the usual world
+  // suites; (sector-fixes-r fix) not e2e-ctcourse: Marlow Yard never loads warehouseOps
+  'src/world/maps/warehouseS': ['e2e-sectorops', 'e2e-lightbake', 'e2e-levels', 'e2e-anchors'],
   'src/game/': ['e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-park', 'e2e-ctcourse', 'e2e-sectorops'],
   'src/physics/': ['e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-ct'],
   // the camera files (CAM): the camera bounds suite on top of what their folders run
@@ -175,7 +179,9 @@ function quickSuites() {
   return expand(REQUIRED.filter((s) => picked.has(s))).concat(expand([...picked].filter((s) => !REQUIRED.includes(s) && !GPU.includes(s) && existsSync(`scripts/${s}.mjs`))));
 }
 
-const all = named.length ? named : legacyRun ? LEGACY : audioRun ? AUDIO : gpuRun ? GPU : quick ? quickSuites() : expand(REQUIRED);
+// (sector-fixes-r e2e fix) a named suite with parts expands too (`e2e-sectorops` -> `:1`-`:5`, one job each); `name:N`
+// names one part. Before, a named list ran the suite whole as one job.
+const all = named.length ? expand(named) : legacyRun ? LEGACY : audioRun ? AUDIO : gpuRun ? GPU : quick ? quickSuites() : expand(REQUIRED);
 const fullRun = !named.length && !quick && !legacyRun && !audioRun && !gpuRun;
 // REPORT ONLY: anim-audit always; in a quick run every suite outside REQUIRED
 const report = (s) => REPORT.includes(s.split(':')[0]) || (quick && !REQUIRED_JOBS.has(s));
@@ -208,8 +214,12 @@ try {
 } catch {
   /* first run: the order below is the given one */
 }
+// a suite with no recorded time (new, renamed, newly split) sorts at the median of the known times, not 0:
+// at 0 it started last and set the tail
+const knownSecs = Object.values(known).filter((v) => typeof v === 'number').sort((a, b) => a - b);
+const unknownSec = knownSecs.length ? knownSecs[Math.floor(knownSecs.length / 2)] : 60;
 // longest first: the pool ends together instead of waiting on one slow suite started last
-const queue = jobs > 1 ? [...all].sort((a, b) => (known[b] ?? 0) - (known[a] ?? 0)) : [...all];
+const queue = jobs > 1 ? [...all].sort((a, b) => (known[b] ?? unknownSec) - (known[a] ?? unknownSec)) : [...all];
 if (process.env.E2E_HEADED === '1') {
   console.error('E2E ERROR: E2E_HEADED=1 is set. The runner never opens headed browsers (they grab the real cursor). Unset it; debug headed with a single suite run directly.');
   process.exit(1);

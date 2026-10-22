@@ -142,8 +142,8 @@ const W = (id: string): LaserPanelDef => WAREHOUSE_OPS_PANELS.find((p) => p.id =
 const PLACES: Place[] = [
   // the workshop floor, both sides of the band: the void's east wall; jammed from the catwalk through its opening
   { map: 'w', panel: W('panel-workshop'), jam: [10.5, 3.0, -9.55], hidden: [[8.4, -17.6, 23.6, -9.4, 0]] },
-  // the open deck north of the AHU, both sides of the band; jammed round the AHU from the deck's south-west corner
-  { map: 'w', panel: W('panel-deck'), jam: [-3.2, 3.3, -17.3], hidden: [[-7.5, -15.0, 4.5, -14.3, 3.3]] },
+  // the open deck north of the AHU, both sides of the band; jammed round the AHU from the deck's south-west corner (re-merge with R: moved 0.4 m west off R1's plant-room sill)
+  { map: 'w', panel: W('panel-deck'), jam: [-3.6, 3.3, -17.2], hidden: [[-7.5, -15.0, 4.5, -14.3, 3.3]] },
   // the VNA aisle and the gangway round the sensor; jammed from R1N's top across the aisle
   { map: 'w', panel: W('panel-vna'), jam: [-18.75, 4.0, 12.5], hidden: [[-19.6, 8, -12.6, 17.6, 0]] },
   // the deck strip both bands cross, and the hall floor south of the deck; jammed along the slot behind the shelving
