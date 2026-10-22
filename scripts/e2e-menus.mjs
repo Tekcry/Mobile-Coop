@@ -713,10 +713,19 @@ try {
     const moved = Math.hypot(p1.x - p0.x, p1.z - p0.z);
     assert(turned > 0.2 && moved < 0.05, `a drag on the game view looks around (${turned.toFixed(2)} rad) and never moves her (${moved.toFixed(3)} m)`);
     assert(await shown(), 'after a touch the pause button shows');
+    // (menus-tap-wait) the tap reaches the game as `state.tap('pause')`, handled on a later sim step: wait for the screen
+    // (3 s cap) instead of reading it after 4 frames (train 9 laptop run: "((none))" under the full parallel load)
+    const untilTop = async (want, more = async () => true) => {
+      const t0 = Date.now();
+      while (Date.now() - t0 < 3000 && !((await ttop()) === want && (await more()))) await frames(P, 2);
+    };
     await tapSel('.touch-pause');
+    await untilTop('pause-screen');
     assert((await ttop()) === 'pause-screen', `a tap on the pause button pauses (${await ttop()})`);
     await tapSel('.pause-screen [data-key="resume"]');
-    assert((await ttop()) === '(none)' && (await GT(() => window.__app.current.simulating)), 'a tap on Resume resumes');
+    const sim = () => GT(() => window.__app.current.simulating);
+    await untilTop('(none)', sim);
+    assert((await ttop()) === '(none)' && (await sim()), 'a tap on Resume resumes');
     await P.keyboard.press('Shift');
     await frames(P, 3);
     assert(!(await shown()), 'a key press hides the pause button');
