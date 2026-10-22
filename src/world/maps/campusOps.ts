@@ -1,7 +1,8 @@
 import { Vector3 } from '../../core/babylon';
 import type { MapDef, MapLayout } from '../mapDef';
 import type { LevelBuilder } from '../levelBuilder';
-import { buildCampusS1, C1_GAP, S1_HIDESPOTS, S1_NAV_SEEDS, S1_PICKUPS, S1_ROOMS, S1_SPAWNS, S1_SWITCHES } from './campusS1';
+import { buildCampusS1, S1_HIDESPOTS, S1_NAV_SEEDS, S1_PICKUPS, S1_ROOMS, S1_SPAWNS, S1_SWITCHES } from './campusS1';
+import { buildCampusS2, S2_HIDESPOTS, S2_NAV_SEEDS, S2_PICKUPS, S2_ROOMS, S2_SWITCHES } from './campusS2';
 import { CAMPUS_ALARMS, CAMPUS_SECTORS, CAMPUS_SECURITY } from './campusSectors';
 
 const PI = Math.PI;
@@ -85,30 +86,25 @@ function connector(b: LevelBuilder, o: { x0: number; x1: number; z0: number; z1:
 }
 
 /**
- * The four other buildings as greybox shells (SPEC "Map structure decision" footprints, heights from the storey table),
- * with the stub connector rooms between them. S2 (HQ) x -44..4, z -30..6, roof 12.3; S3 (labs) x 10..64, z -30..0, 9.5; S4
- * (data hall) x -10..40, z 16..48, 7.5; S5 (old house) x -66..-26, z 18..48, 8.4. The doorways are the connectors' near and
- * far doors (SPEC route table), at ground level in this slice.
+ * The three other buildings as greybox shells (SPEC "Map structure decision" footprints, heights from the storey table),
+ * with the stub connector rooms between them (S2, the HQ x -44..4, z -30..6, is built in full by `campusS2.ts`, and C2 is its
+ * glazed bridge on L1). S3 (labs) x 10..64, z -30..0, 9.5; S4 (data hall) x -10..40, z 16..48, 7.5; S5 (old house) x -66..-26,
+ * z 18..48, 8.4. The doorways are the connectors' near and far doors (SPEC route table), at ground level in this slice.
  */
 function otherBuildings(b: LevelBuilder): void {
-  // S2 / HQ: the south wall's gap is C1's far door (campusS1.ts builds it); the east wall's is the C2 stub's near door
-  shell(b, { x0: -44, x1: 4, z0: -30, z1: 6, h: 12.3, slabs: [4.4, 8.4, 12.3], s: [[C1_GAP[0], C1_GAP[1], true]], e: [[-14.6, -13.4]] });
-  // S3 / labs: C2's far door west, C3's near door north
+  // S3 / labs: C2's far door west (ground level: the bridge ends on its solid L1 wall until slice 3), C3's near door north
   shell(b, { x0: 10, x1: 64, z0: -30, z1: 0, h: 9.5, slabs: [4.5, 9.5], w: [[-14.6, -13.4]], n: [[23.4, 24.6]] });
   // S4 / data hall: C3's far door south, C4's near door west
   shell(b, { x0: -10, x1: 40, z0: 16, z1: 48, h: 7.5, slabs: [7.5], s: [[23.4, 24.6]], w: [[28.4, 29.6]] });
   // S5 / old house: C4's far door east
   shell(b, { x0: -66, x1: -26, z0: 18, z1: 48, h: 8.4, slabs: [4.2, 8.4], e: [[28.4, 29.6]] });
-  // the stub connectors: C2 (x 4..10, z -16..-12), C3 (x 22..26, z 0..16), C4 (x -26..-10, z 26..32)
-  connector(b, { x0: 4, x1: 10, z0: -16, z1: -12, alongX: true });
+  // the stub connectors: C3 (x 22..26, z 0..16), C4 (x -26..-10, z 26..32); C2 is S2's bridge
   connector(b, { x0: 22, x1: 26, z0: 0, z1: 16, alongX: false });
   connector(b, { x0: -26, x1: -10, z0: 26, z1: 32, alongX: true });
 }
 
 /** Extra nav flood seeds: every stub section's interior and connector (the stub run is joined by doorways, but seeds keep them kept). */
 const STUB_NAV_SEEDS: Vector3[] = [
-  new Vector3(-12, 0, -20),
-  new Vector3(7, 0, -14),
   new Vector3(24, 0, -14),
   new Vector3(24, 0, 8),
   new Vector3(24, 0, 30),
@@ -119,8 +115,8 @@ const STUB_NAV_SEEDS: Vector3[] = [
 /**
  * Saltmarsh Park (`feature/sector-redesign`, slice 1): the research campus of Orrin Systems on the estuary edge, five
  * buildings joined by quiet connectors, raided at 02:00 on key-ceremony night. One map, five sections (`campusSectors.ts`);
- * section 1 (the gatehouse, staff car park and forecourt, `campusS1.ts`) is built in full, the other four buildings are
- * greybox shells with a stub section each. Registered in `MAPS`, not listed (slice 3 lists it).
+ * section 1 (the gatehouse, staff car park and forecourt, `campusS1.ts`) and section 2 (the HQ atrium and offices,
+ * `campusS2.ts`) are built in full, the other three buildings are greybox shells with a stub section each. Registered in `MAPS`, not listed (slice 3 lists it).
  */
 export const campusOps: MapDef = {
   id: 'campusOps',
@@ -151,19 +147,20 @@ export const campusOps: MapDef = {
     b.floor(0, -7, 140, 154, GROUND, 0, 1);
     b.perimeter(CAMPUS_BOUNDS.minX, CAMPUS_BOUNDS.maxX, CAMPUS_BOUNDS.minZ, CAMPUS_BOUNDS.maxZ, 6, '#2c3033');
     buildCampusS1(b);
+    buildCampusS2(b);
     otherBuildings(b);
-    const alarms = CAMPUS_ALARMS.map((a) => ({ pos: new Vector3(a.at[0], 0, a.at[1]), yaw: a.yaw, section: a.section }));
+    const alarms = CAMPUS_ALARMS.map((a) => ({ pos: new Vector3(a.at[0], a.y ?? 0, a.at[1]), yaw: a.yaw, section: a.section }));
     return {
       playerSpawns: S1_SPAWNS,
       // the sections' guards come from the mode, not the rooms
       enemySpawns: [],
       props: [],
       objectives: [],
-      pickups: S1_PICKUPS,
-      hideSpots: S1_HIDESPOTS,
-      switches: S1_SWITCHES,
-      rooms: S1_ROOMS,
-      navSeeds: [...S1_NAV_SEEDS, ...STUB_NAV_SEEDS],
+      pickups: [...S1_PICKUPS, ...S2_PICKUPS],
+      hideSpots: [...S1_HIDESPOTS, ...S2_HIDESPOTS],
+      switches: [...S1_SWITCHES, ...S2_SWITCHES],
+      rooms: [...S1_ROOMS, ...S2_ROOMS],
+      navSeeds: [...S1_NAV_SEEDS, ...S2_NAV_SEEDS, ...STUB_NAV_SEEDS],
       alarms,
       security: CAMPUS_SECURITY,
     };

@@ -190,3 +190,7 @@ Lead, slice 1 check (2026-10-23, checks/slice1-check.md PASS; one fix round):
   each map's own bounds. A20 (load <= 2x Warehouse Ops) stays the real budget, measured on the laptop at slice 1 e2e.
 - A68 campusOps stays out of the Sector Ops op list until slice 3 (one filter in missionsScreen.ts). Guard #7 (fence
   patrol) is `dormant`-tagged and the smoking shelter's east panel is longer, for A64 margin (worst view was exactly 6).
+- A69 (slice 2) CR2's leg-up lip sits on the atrium void's EAST edge (x -10, z -11..-5) over the café, not the north edge:
+  the builder's layout put the café and the planter gap there. Undo: move the gap and the planter to the north edge.
+  At the S2 + S3 merge the campus co-op lips become one list joined in one place (S1 + S2_COOP_LIPS + S3_COOP_LIPS)
+  instead of campusS2.ts pushing into CAMPUS_COOP_LIPS at load.

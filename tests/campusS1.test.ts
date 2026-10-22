@@ -114,11 +114,11 @@ describe('Saltmarsh Park (campusOps), registration and shape', () => {
     expect(MAPS.filter((m) => m.modes.includes('sector')).map((m) => m.id)).toEqual(['warehouseOps', 'campusOps']);
   });
 
-  it('five sections chain (S2-S5 stubs: no guards), valid data, each later one starting at the previous checkpoint', () => {
+  it('five sections chain (S3-S5 stubs: no guards; S2 is slice 2), valid data, each later one starting at the previous checkpoint', () => {
     expect(CAMPUS_SECTORS.length).toBe(5);
     expect(checkSectors(CAMPUS_SECTORS)).toEqual([]);
     for (let i = 1; i < 5; i++) expect(CAMPUS_SECTORS[i]!.start).toEqual(CAMPUS_SECTORS[i - 1]!.connector!.checkpoint);
-    for (const s of CAMPUS_SECTORS.slice(1)) expect(s.guards.length, s.id).toBe(0);
+    for (const s of CAMPUS_SECTORS.slice(2)) expect(s.guards.length, s.id).toBe(0);
     expect(CAMPUS_SECTORS[4]!.extract).toBeTruthy();
     // every stub and S1 connector's near / far doorway and the objective stand on the nav grid (S1 only: the stubs are outside this rectangle)
     expect(lay.playerSpawns.length).toBe(4);
@@ -246,7 +246,7 @@ describe('S1 guards (SPEC guard table)', () => {
 
 describe('S1 cameras, alarm, objective, routes', () => {
   it('two cameras, range 8-12 with a reason, valid security data, both in section 1', () => {
-    const cams = CAMPUS_SECURITY.devices;
+    const cams = CAMPUS_SECURITY.devices.filter((c) => c.section === 0);
     expect(cams.map((c) => c.id)).toEqual(['cam-gate', 'cam-walk']);
     expect(validateSecurity(CAMPUS_SECURITY)).toEqual([]);
     for (const c of cams) {
@@ -267,8 +267,8 @@ describe('S1 cameras, alarm, objective, routes', () => {
   });
 
   it('the alarm panel is in the gatehouse by its door; the layout carries it', () => {
-    expect(CAMPUS_ALARMS.length).toBe(1);
-    const a = lay.alarms![0]!;
+    expect(CAMPUS_ALARMS.filter((q) => q.section === 0).length).toBe(1);
+    const a = lay.alarms!.filter((q) => q.section === 0)[0]!;
     expect(a.section).toBe(0);
     expect(a.pos.x).toBeGreaterThan(14);
     expect(a.pos.x).toBeLessThan(20);
@@ -319,7 +319,7 @@ describe('S1 cameras, alarm, objective, routes', () => {
 
   it('the spawns and hide spots stand on the nav grid; the ground reaches the plant roof by the ladder only', () => {
     for (const s of lay.playerSpawns) expect(onNav(s.pos.x, s.pos.z), `spawn ${s.pos.x}`).toBe(true);
-    for (const h of lay.hideSpots!) expect(onNav(h.pos.x, h.pos.z), `hide (${h.pos.x}, ${h.pos.z})`).toBe(true);
+    for (const h of lay.hideSpots!.filter((q) => q.pos.z < -32)) expect(onNav(h.pos.x, h.pos.z), `hide (${h.pos.x}, ${h.pos.z})`).toBe(true);
     const up = nav.findPath([24, -79], [-33, -37], 100000, 0, 4.4);
     expect(up).not.toBeNull();
     expect(up!.some((w) => w.link?.kind === 'ladder')).toBe(true);
@@ -409,7 +409,7 @@ describe('CR1: the canopy east lip against a solo player (SPEC Campus-wide rules
     const high = S1.routes.find((r) => r.climbs && r.climbs.length > 0)!;
     expect(high.pts.some((p) => (p[2] ?? 0) === 4.4 && p[0] > -26)).toBe(true);
     // the parapets on the plant roof's S and W edges are 1.1 and noLedge
-    const parapets = solid.filter((p) => Math.abs(p.s[1] - 1.1) < 1e-6 && Math.abs(p.c[1] - 4.95) < 1e-6);
+    const parapets = solid.filter((p) => Math.abs(p.s[1] - 1.1) < 1e-6 && Math.abs(p.c[1] - 4.95) < 1e-6 && p.c[2] < -32);
     expect(parapets.length).toBe(3);
     expect(parapets.every((p) => p.noLedge)).toBe(true);
   });
