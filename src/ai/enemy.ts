@@ -640,6 +640,7 @@ export class Enemy implements Damageable {
     this.setPost(o.postDef, o.postYaw);
     this.section = o.section;
     this.profile = o.profile;
+    this.tacticsProfile = o.tacticsProfile;
     this.walker = o.walker;
     this.walker.tick(downFor);
     this.walker.rejoin(this.pos.x, this.pos.z);
@@ -1639,10 +1640,10 @@ export class Enemy implements Damageable {
   }
 
   // ---- (guard-ai S8, design 8) squad tactics: the role the manager gives him in an engaged group ----
-  /** Behaviour profile code for the squad roles (`P_STANDARD` / `P_AGGRESSIVE` / `P_POST`, squadRoles.ts). Standard for
-   *  everyone until S5 / S6 are wired: S5's `placeSlot` sets `P_POST` for a guard with a post (and `P_AGGRESSIVE` for
-   *  `profile: 'aggressive'`), S6 reinforcements `P_AGGRESSIVE`. (A numeric code, not S5's string `profile`, so the two
-   *  fields can sit side by side when the slices merge.) */
+  /** Behaviour profile code for the squad roles (`P_STANDARD` / `P_AGGRESSIVE` / `P_POST`, squadRoles.ts):
+   *  `EnemyManager.placeSlot` sets `P_POST` for a guard with a post, `P_AGGRESSIVE` for `profile: 'aggressive'`, else
+   *  standard; a woken guard keeps it (`inherit`); S6 reinforcements `P_AGGRESSIVE`. (A numeric code beside S5's string
+   *  `profile`.) */
   tacticsProfile = P_STANDARD;
   /** Role in the engaged group (`R_*`, the manager's 2 Hz `assignRoles`); `R_NONE` outside one, or in the parked
    *  modes: today's tactics. `R_SEARCH` also keeps today's tactics. */
@@ -1673,8 +1674,19 @@ export class Enemy implements Damageable {
     return this.los;
   }
 
-  /** (manager, 2 Hz) This tick's role. No allocation. */
+  /** (manager, 2 Hz) This tick's role. No allocation. (S5 + S8, A18) A high-security post never takes a role cover
+   *  outside his leash: it is dropped (he holds where he is, inside it), and he never bounds as point or flank (his
+   *  `P_POST` weights are 0; with any other profile that role is dropped to today's leashed tactics). */
   setRole(role: number, cover: number, moving: boolean, run: boolean, mateMoving: boolean, onRadio: boolean): void {
+    if (this.secure) {
+      if (role === R_POINT || role === R_FLANK) role = R_SEARCH;
+      const cv = cover >= 0 ? this.ctx.cover[cover] : undefined;
+      if (cover >= 0 && (!cv || !this.inLeash(cv.pos.x, cv.pos.z))) {
+        cover = -1;
+        moving = false;
+        run = false;
+      }
+    }
     if (role === R_OVERWATCH && mateMoving && !this.mateMoving && this.alive && this.alerted) this.bark('covering');
     this.role = role;
     this.roleCover = cover;

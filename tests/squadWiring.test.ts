@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { EnemyManager, TACTICS } from '../src/ai/enemyManager';
 import { DIFFICULTY } from '../src/ai/archetypes';
 import { RADIO } from '../src/ai/radioNet';
-import { combatSeed, P_AGGRESSIVE, R_FLANK, R_NONE, R_OVERWATCH, R_POINT, R_REPORTER, ROLES } from '../src/ai/squadRoles';
+import { combatSeed, P_AGGRESSIVE, P_POST, P_STANDARD, R_FLANK, R_NONE, R_OVERWATCH, R_POINT, R_REPORTER, R_SEARCH, ROLES } from '../src/ai/squadRoles';
 import { Vector3, type Scene } from '../src/core/babylon';
-import type { AiContext, Enemy } from '../src/ai/enemy';
+import { Enemy, type AiContext } from '../src/ai/enemy';
 import type { World } from '../src/world/world';
 import type { NavGrid } from '../src/ai/navGrid';
 import type { DamageRegistry } from '../src/game/damage';
@@ -46,6 +46,9 @@ interface FakeGuard {
   setRole: ReturnType<typeof vi.fn>;
   radio: ReturnType<typeof vi.fn>;
   bark: ReturnType<typeof vi.fn>;
+  setPost?: ReturnType<typeof vi.fn>;
+  profile?: string;
+  section?: number;
 }
 
 let n = 0;
@@ -293,5 +296,59 @@ describe('squad roles wired (coordinated)', () => {
     for (let k = 0; k < 2000; k++) roles();
     expect([priv.roleIn, priv.roleOut, priv.roleMember]).toEqual(ids);
     expect(priv.roleMember).toBe(ids[2]);
+  });
+});
+
+// (guard-ai S8 at the S5 merge) Profiles come from the map slots; a high-security post keeps his leash in a group.
+describe('squad roles and posts (S5 wiring)', () => {
+  it('placeSlot sets the profile: a post P_POST, an aggressive slot P_AGGRESSIVE, else P_STANDARD', () => {
+    const g = guard(0, -16, { setPost: vi.fn() });
+    const { em } = manager([g]);
+    em.placeSlot(E(g), { yaw: 0, post: { leash: 3, highSecurity: true } });
+    expect(g.tacticsProfile).toBe(P_POST);
+    em.placeSlot(E(g), { yaw: 0, post: { leash: 3 }, profile: 'aggressive' });
+    expect(g.tacticsProfile).toBe(P_POST);
+    em.placeSlot(E(g), { yaw: 0, profile: 'aggressive' });
+    expect(g.tacticsProfile).toBe(P_AGGRESSIVE);
+    em.placeSlot(E(g), { yaw: 0 });
+    expect(g.tacticsProfile).toBe(P_STANDARD);
+  });
+
+  it('a woken guard keeps his profile (Enemy.inherit)', () => {
+    const old = { key: 3, squad: 1, hold: null, passive: false, info: null, post: [4, 5], postDef: { leash: 3, highSecurity: true }, postYaw: 1, section: 2, profile: 'standard', tacticsProfile: P_POST, walker: { tick: vi.fn(), rejoin: vi.fn() } };
+    const e = Object.create(Enemy.prototype) as Enemy;
+    Object.assign(e, { post: [0, 0], pos: new Vector3(4, 0, 5), tacticsProfile: P_STANDARD, setPost: vi.fn(), setCaution: vi.fn() });
+    e.inherit(old as unknown as Enemy, 0);
+    expect(e.tacticsProfile).toBe(P_POST);
+  });
+
+  it('posted guards in a group never take point or flank (P_POST weights 0)', () => {
+    const a = guard(0, -16, { tacticsProfile: P_POST });
+    const b = guard(2, -17);
+    const c = guard(-2, -17, { tacticsProfile: P_POST });
+    const d = guard(0, -19);
+    const { ctx, roles } = manager([a, b, c, d]);
+    ctx.radioCall!(E(d), -1, 'contact');
+    roles();
+    for (const g of [a, c]) expect([R_POINT, R_FLANK]).not.toContain(g.role);
+    expect(b.role).toBe(R_POINT);
+    expect(d.role).toBe(R_REPORTER);
+  });
+
+  it('a high-security post drops a role cover outside his leash and never bounds as point / flank (Enemy.setRole)', () => {
+    // posted at c1 (1, -12), leash 3: c1 inside, c3 (1, -17.5) and c0 (0, -7) outside
+    const e = Object.create(Enemy.prototype) as Enemy;
+    Object.assign(e, { postDef: { leash: 3, highSecurity: true }, post: [1, -12], ctx: { cover: COVERS }, mateMoving: false, bark: vi.fn() });
+    const p = e as unknown as { roleCover: number; roleMoving: boolean; roleRun: boolean };
+    e.setRole(R_OVERWATCH, 1, true, true, false, false);
+    expect([e.role, p.roleCover, p.roleMoving]).toEqual([R_OVERWATCH, 1, true]);
+    e.setRole(R_REPORTER, 3, true, true, false, false);
+    expect([e.role, p.roleCover, p.roleMoving, p.roleRun]).toEqual([R_REPORTER, -1, false, false]);
+    e.setRole(R_POINT, 0, true, true, false, false);
+    expect([e.role, p.roleCover, p.roleMoving]).toEqual([R_SEARCH, -1, false]);
+    // a normal post (not high security) keeps any cover
+    (e as unknown as { postDef: object }).postDef = { leash: 3 };
+    e.setRole(R_REPORTER, 3, true, false, false, false);
+    expect([e.role, p.roleCover, p.roleMoving]).toEqual([R_REPORTER, 3, true]);
   });
 });

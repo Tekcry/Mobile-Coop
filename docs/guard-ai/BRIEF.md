@@ -140,10 +140,13 @@ manoeuvre beats guard count. Every map's guards are armed (Answers 3).
   `combatSeed(matchSeed 0x5eed, engagement, num)` when he goes to combat; an engagement starts when a guard goes to
   combat with nobody else in it (the board opens no contact incidents, so this stands in for the incident id). The
   think cadence stays on `Math.random` (perception, not combat); the parked modes' `callAlert` / shout jitter stays
-  (parked, replaced by the radio net). Non-combat: reinforcements face the last known position, a revived guard spawns
-  at yaw 0, the squad radio check spread is a fixed golden-ratio sequence. Undo: `Math.random` back in those places.
-- **A25** (S8) Everyone is `P_STANDARD` until S5 / S6 are wired (S5's `placeSlot` sets `tacticsProfile` `P_POST` for a
-  guard with a post, `P_AGGRESSIVE` for `profile: 'aggressive'`; S6 reinforcements `P_AGGRESSIVE`). A guard with a role
+  (parked, replaced by the radio net). Non-combat: reinforcements face the last known position, a revived guard keeps
+  the yaw he went down with (S4, `Enemy.inherit`), the squad radio check spread is a fixed golden-ratio sequence. Undo: `Math.random` back in those places.
+- **A25** (S8) Profiles: `EnemyManager.placeSlot` sets `tacticsProfile` `P_POST` for a guard with any post (normal or
+  high security: never point or flank), `P_AGGRESSIVE` for `profile: 'aggressive'`, else `P_STANDARD`; a woken guard keeps
+  it (`Enemy.inherit`); S6 reinforcements will be `P_AGGRESSIVE`. A high-security post in a group (A18) never takes a
+  role cover outside his leash (`Enemy.setRole` drops it: he holds where he is), and a point or flank role given to him
+  (another profile) becomes search (today's leashed tactics). A guard with a role
   holds his cover and keeps peeking and firing (peek-and-report: his sightings move the shared LKP) instead of stepping
   out after 5 peeks; the point instead walks the last stretch (`closing`, out of the group, `ADVANCE_PACE`) when he has
   no cover left to bound to or after 5 peeks with no sight. The reporter stays crouched and holds his fire while his

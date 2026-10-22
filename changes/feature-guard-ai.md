@@ -42,4 +42,6 @@
   fires at that spot while a squadmate moves ("Covering!"), and with three or more one goes round the side
   ("Flanking!"). Only one of the point and the flanker moves at a time, guards run only between covers, and nobody walks
   out into the open at you. Their shooting (bursts, spread, strafes, going for cover) uses a fixed seed per guard and
-  fight, so the same fight plays the same way. A lone guard and Hunter / Mission (parked) keep the old tactics.
+  fight, so the same fight plays the same way. A guard on a post never moves up or flanks (a high-security one never
+  takes cover outside his area), and a guard from an aggressive slot moves up first. A lone guard and Hunter / Mission
+  (parked) keep the old tactics.
