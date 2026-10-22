@@ -5,3 +5,5 @@ kind: patch
   frames for up to 60 s.
 - Tests: e2e-offline's offline match and Infiltration loads and both "Wren from the cache (LOD2)" waits take up to
   120 s.
+- Tests: e2e-traverse's keyboard ledge presses (Space grabs, C lets go) wait up to 0.7 s of game time per press (30 s
+  real-time cap), not 0.7 s of host time.
