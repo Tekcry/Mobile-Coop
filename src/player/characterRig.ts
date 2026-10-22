@@ -1,5 +1,6 @@
 import { Color4, Matrix, Quaternion, TransformNode, Vector3, type Vector4, type AbstractMesh, type InstancedMesh, type Material, type Scene } from '../core/babylon';
 import { VoxelBody, type VoxelBodyOptions } from '../voxel/voxelBody';
+import { buildSmoothBody, type SmoothBody } from './smoothBody';
 import { addGlow, BEACON, GLOW_IDLE, GLOW_VISION } from './goggleGlow';
 import type { SwapReach } from '../anim/clips/actions';
 import type { PartShape } from '../world/partLibrary';
@@ -1228,7 +1229,7 @@ export class CharacterRig {
     look: AvatarLook,
     readonly height = 1.75,
     name = 'rig',
-    opts: { build?: Build; armor?: boolean; style?: AvatarStyle } = {},
+    opts: { build?: Build; armor?: boolean; style?: AvatarStyle; merge?: boolean } = {},
   ) {
     const p = proportions(opts.build ?? BUILD_OF[look.body], height);
     this.p = p;
@@ -1304,12 +1305,14 @@ export class CharacterRig {
     // voxels (3.0): the parts merged into one skinned voxel mesh (they stay, unseen, for what reads them)
     const skin = ((this.parts[0] as InstancedMesh | undefined)?.sourceMesh?.metadata as { skinMaterial?: Material } | null | undefined)?.skinMaterial;
     if (VOXEL_BODY && this.style === 'detailed' && skin) this.voxel = new VoxelBody(scene, this.root, this.parts, this.headNode, skin, name, VOXEL_BODY, name === 'player');
+    // (guard-render S1) else, opted in (guards): the parts merged into one rigidly skinned smooth mesh
+    else if (opts.merge && this.style === 'detailed' && skin) this.voxel = buildSmoothBody(scene, this.root, this.parts, name);
     DEBUG_RIGS.add(this);
     LIVE_RIGS.push(this);
   }
 
   /** The merged voxel body (3.0; null: the smooth parts render). */
-  voxel: VoxelBody | null = null;
+  voxel: VoxelBody | SmoothBody | null = null;
 
   /** What renders (shadow casters): the voxel body's meshes, else the parts. */
   get renderMeshes(): AbstractMesh[] {
