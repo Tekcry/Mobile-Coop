@@ -1,6 +1,7 @@
 import { Vector3 } from '../../core/babylon';
 import type { MapDef, MapLayout } from '../mapDef';
 import type { LaserDef } from '../../game/jammer';
+import type { LaserPanelDef } from '../../game/laserPanels';
 import type { PassZone } from '../../game/ctDevices';
 import type { ScannerDef } from '../../game/scanners';
 import type { SecurityData } from '../../security/data';
@@ -146,6 +147,16 @@ export const S4_GAP: [number, number] = [4, 10];
  * other over it (CT 1.3); the thrown one presses the release on the far side (CT's far-side release) and the band goes off.
  */
 export const S4_LASER: LaserDef = { id: 'laser-s4', x1: bayX(3) + CT_OBST, z1: S4_GAP[0], x2: bayX(3) + CT_OBST, z2: S4_GAP[1], ys: [0.35, 0.9, 1.45], label: 'Laser', offFlag: S4_FLAG };
+/**
+ * (sector-fixes P, item 6) Station 4's laser power panel: on the far side's south ("right") wall, 4 m up, 3 m past the
+ * gap (the red release is on the north wall). Round the corner and high: the wall beside the gap hides it from the near
+ * side's south half; it is seen, and jammed, only diagonally through the gap from the near side's north half, about
+ * `S4_PANEL_JAM` (12.4 m). Jamming it cuts the band for the jam and its reboot (the alternative to the throw; the throw
+ * and the release stay the taught route). Electro shows it.
+ */
+export const S4_PANEL: LaserPanelDef = { id: 'panel-s4', lasers: ['laser-s4'], x: bayX(3) + 12, y: 4.0, z: 0.15, yaw: 0, label: 'Laser power panel' };
+/** (sector-fixes P) A feet spot (x, z) on the near side the S4 panel is jammed from (the e2e and the map test use it). */
+export const S4_PANEL_JAM: readonly [number, number] = [bayX(3) + 5.5, 10.5];
 /** Station 7 (B7): the return stair's z (against the south wall, on the far side of the rope wall). */
 export const S7_STAIR_Z = 1.0;
 /** Station 5 (B5): the roof hatch (a skylight narrower than a body, 0.55 m: nobody walks or drops in, only a partner lowered
@@ -614,6 +625,7 @@ export const ctcourse: MapDef = {
       navSeeds,
       security: SECURITY,
       lasers: [S4_LASER],
+      laserPanels: [S4_PANEL],
       passZones: [S3_PASS],
       scanners: [S6_SCANNERS],
       course: { def: courseDef(), doors, devices, squads: SQUADS, consoles: [{ id: S3_CONSOLE, guard: S3_SEC_GUARD, flag: S3_CAMS_OFF }] },
