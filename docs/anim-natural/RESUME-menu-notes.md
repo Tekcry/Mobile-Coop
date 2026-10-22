@@ -28,11 +28,9 @@ can survive: kill its process tree (taskkill /T /F) and confirm.
   identical), GPU lane 2 (heavy2.lock, 4192). Then message CT Core the sha; rerun when CT Core sends the clip commit.
   On resume: git status in that worktree (uncommitted agent work), commit it, check whether heavy2.lock names
   "Menu Notes Build | mocap-sheets" with no live process (stale: remove).
-- **sector-look (orchestrator, Waiting-on-Michael item 5):** feature/sector-look in C:/NightShift/Mobile-Coop-sector-look
-  (from master cb198a91; docs / shots only). GPU shots of s1-goods-in / s1-workshop (scripts/sector-lights-shots.mjs,
-  prefix `now`, docs/sector-fixes/l/look-4.58/) and NOTE.md: is the white strip-light fog cone a bug or intended (light
-  parity vs the light field)? heavy.lock "Menu Notes Build | sector-look", port 4189. On resume: same checks, commit,
-  PR (docs only), send the verdict to the orchestrator.
+- **sector-look: PR #152** (feature/sector-look e02e5edb, docs + script switch): the strip-light fog cones are a
+  render-only bug (src/vfx/postStack.ts:475 `lamp = !l.cone`); fix proposed in docs/sector-fixes/l/look-4.58/NOTE.md, not
+  applied. Asked the orchestrator whether to build the fix as its own PR (render only, GPU before / after).
 - After n4d: ask the orchestrator for the next N4 rows (the n4c / n4d polish lists are in their STATE files).
 
 ## Update 2026-10-22 ~19:10 (after the clear)
