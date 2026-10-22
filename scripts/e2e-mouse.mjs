@@ -70,12 +70,14 @@ try {
   // (anim-rework S1) RMB is the held aim: held from holstered it draws straight to the aim (the sling draw), LMB then
   // fires; let go, the gun drops to low ready; X holsters
   await page.mouse.down({ button: 'right' });
-  let drawn = false;
-  // (a loaded VM runs the page at a few frames a second: poll up to 8 s for the draw and the aim framing)
-  for (let i = 0; i < 160 && !drawn; i++) {
-    await page.waitForTimeout(50);
-    drawn = (await page.evaluate(() => { const g = window.__app.current; return g.weapons.drawPhase === 2 && g.player.cam.ads >= 0.9; }));
-  }
+  // (load-latent-ui1) was a poll of up to 8 s wall time: under CPU load the page runs a few frames a second and the
+  // draw + aim framing took longer. Poll per frame until drawn or 4 s of the match clock have run (60 s real-time cap)
+  const tDraw = await page.evaluate(() => window.__app.current.time);
+  await page.waitForFunction((t0) => {
+    const g = window.__app.current;
+    return (g.weapons.drawPhase === 2 && g.player.cam.ads >= 0.9) || g.time - t0 >= 4;
+  }, tDraw, { timeout: 60000, polling: 'raf' }).catch(() => {});
+  const drawn = await page.evaluate(() => { const g = window.__app.current; return g.weapons.drawPhase === 2 && g.player.cam.ads >= 0.9; });
   const dbg = await page.evaluate(() => { const g = window.__app.current; return { dw: g.weapons.drawPhase, cam: +g.player.cam.ads.toFixed(2), ads: g.player.ads, st: g.player.weaponState }; });
   assert(drawn, `RMB held draws and aims (${JSON.stringify(dbg)})`);
   // (software GL frames are slow: hold until a shot lands, up to 3 s)
@@ -99,7 +101,13 @@ try {
   await page.mouse.up();
   assert((await mag()) === magD, `low ready: LMB fires nothing (A3) (${magD} -> ${await mag()})`);
   await page.keyboard.press('KeyX');
-  for (let i = 0; i < 100 && (await dwNow()) !== 0; i++) await page.waitForTimeout(50);
+  // (load-latent-ui1) was a poll of up to 5 s wall time: poll per frame until holstered or 3 s of the match clock have
+  // run (60 s real-time cap)
+  const tHol = await page.evaluate(() => window.__app.current.time);
+  await page.waitForFunction((t0) => {
+    const g = window.__app.current;
+    return g.weapons.drawPhase === 0 || g.time - t0 >= 3;
+  }, tHol, { timeout: 60000, polling: 'raf' }).catch(() => {});
   assert((await dwNow()) === 0, 'an X tap holsters');
   await page.waitForTimeout(600);
   const s0 = await st();
