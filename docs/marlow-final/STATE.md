@@ -67,6 +67,8 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- ~02:15 slice 0 CODE GREEN: e2e-ctcourse :1-:3 PASS on 5920cce5 (security room looped feed ok); with 1949764e,
+  8/8 suites green on the laptop GPU. Remaining slice 0: 0d (running), 0e (after 0d checked), 0f (running).
 - ~02:05 TRIM (orchestrator): window 11% after ~11 min; at most 2 agents until the orchestrator loosens; in-flight
   ones finish; no new agent until under 2; sets / dressing / props on Sonnet 5.5 from strict Opus briefs; checkers
   Opus. facilityProps.test.ts hangs at collection on the laptop too (12 / 13 unit files pass, 117 tests): 0f fixes.
