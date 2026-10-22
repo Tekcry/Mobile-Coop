@@ -19,8 +19,13 @@
   checker (batch it with E9's engine part). At the S4 / S5 merge: `bulletproof: true` on every S4 camera,
   `bulletproof: true, thermal: true` on every S5 camera, drop their side tables, extend the "campus armour ramp" test.
   Gap (wire change): a co-op client sees no ricochet sparks for its own shot.
-- IN FLIGHT: Sonnet checker S4 + S5 -> checks/slice45-check.md (lead worktree, uncommitted);
-  Opus E9-crate planner -> briefs/E9-CRATE.md (commits only that file). On resume: check each file / branch; rerun if
+- S4 + S5 check (checks/slice45-check.md, 4d009c4b): S4 PASS, S5 FIX (M8 exceptions beyond the 4 brief pairs),
+  merge-join J1-J4. IN FLIGHT: Opus fix + integrator: S5 M8 fix on -s5, then feature/sector-redesign-s45 off -m
+  (worktree -s45) = -e8 + -s4 + -s5, J1-J4, E8 flags on S4 / S5 cameras; report checks/merge-s45.md. Then lead:
+  GPU part 6 on -s45, PR 3 (S4 / S5 / E8) after PR 2.
+- E9-crate brief DONE: briefs/E9-CRATE.md (ce574d71, A99-A109). Needs a protocol number (NetItem kind 'crate' + event
+  'crate'); asked the orchestrator ~11:20. Build (a) Opus engine + net, then (b) Sonnet crate model / placement / tests.
+- (done) Opus E9-crate planner -> briefs/E9-CRATE.md (commits only that file). On resume: check each file / branch; rerun if
   missing.
 
 - Swap rule (Michael 10:55, via the orchestrator; CLAUDE.md "Account swap" on feature/menu): at 95% no new agents,
