@@ -71,11 +71,12 @@ try {
   // fires; let go, the gun drops to low ready; X holsters
   await page.mouse.down({ button: 'right' });
   // (load-latent-ui1) was a poll of up to 8 s wall time: under CPU load the page runs a few frames a second and the
-  // draw + aim framing took longer. Poll per frame until drawn or 4 s of the match clock have run (60 s real-time cap)
-  const tDraw = await page.evaluate(() => window.__app.current.time);
-  await page.waitForFunction((t0) => {
+  // draw + aim framing took longer. Poll per frame until drawn, or until 4 s of the match clock AND the old 8 s of wall
+  // time have both run (never shorter than before), 60 s real-time cap
+  const tDraw = await page.evaluate(() => [window.__app.current.time, performance.now()]);
+  await page.waitForFunction(([t0, w0]) => {
     const g = window.__app.current;
-    return (g.weapons.drawPhase === 2 && g.player.cam.ads >= 0.9) || g.time - t0 >= 4;
+    return (g.weapons.drawPhase === 2 && g.player.cam.ads >= 0.9) || (g.time - t0 >= 4 && performance.now() - w0 >= 8000);
   }, tDraw, { timeout: 60000, polling: 'raf' }).catch(() => {});
   const drawn = await page.evaluate(() => { const g = window.__app.current; return g.weapons.drawPhase === 2 && g.player.cam.ads >= 0.9; });
   const dbg = await page.evaluate(() => { const g = window.__app.current; return { dw: g.weapons.drawPhase, cam: +g.player.cam.ads.toFixed(2), ads: g.player.ads, st: g.player.weaponState }; });
@@ -101,12 +102,12 @@ try {
   await page.mouse.up();
   assert((await mag()) === magD, `low ready: LMB fires nothing (A3) (${magD} -> ${await mag()})`);
   await page.keyboard.press('KeyX');
-  // (load-latent-ui1) was a poll of up to 5 s wall time: poll per frame until holstered or 3 s of the match clock have
-  // run (60 s real-time cap)
-  const tHol = await page.evaluate(() => window.__app.current.time);
-  await page.waitForFunction((t0) => {
+  // (load-latent-ui1) was a poll of up to 5 s wall time: poll per frame until holstered, or until 3 s of the match
+  // clock AND the old 5 s of wall time have both run (never shorter than before), 60 s real-time cap
+  const tHol = await page.evaluate(() => [window.__app.current.time, performance.now()]);
+  await page.waitForFunction(([t0, w0]) => {
     const g = window.__app.current;
-    return g.weapons.drawPhase === 0 || g.time - t0 >= 3;
+    return g.weapons.drawPhase === 0 || (g.time - t0 >= 3 && performance.now() - w0 >= 5000);
   }, tHol, { timeout: 60000, polling: 'raf' }).catch(() => {});
   assert((await dwNow()) === 0, 'an X tap holsters');
   await page.waitForTimeout(600);
