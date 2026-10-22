@@ -19,6 +19,9 @@ const MARK = [10.8, 6];
 
 /** The wall top's yard edge: the player stands at x 12.1 (the lip is at 12.3) facing the yard. */
 const EDGE_X = 12.1;
+/** (S-switch) Inside the cabin by the yard switch (7.7, 15.15): the host only takes a client's `use` within the item's reach
+ *  + 0.75 m (`inUseReach`, 2.05 m for a switch), so the client presses from here, not from the yard. */
+const SWITCH_STAND = [7.7, 15.8];
 
 /** @param {object} t the runner's helpers (scripts/e2e-ctcourse.mjs) @param {number} n the set's number */
 export async function walk(t, n) {
@@ -184,6 +187,7 @@ export async function walk(t, n) {
   assert(y0a >= 0.4 && Math.abs(y0a - y0b) < 0.01, `A1: the yard reads lit and the same (host ${y0a.toFixed(3)}, client ${y0b.toFixed(3)})`);
   const sw = await GA(() => { const it = window.__app.current.interactables.items.find((i) => i.id === 'switch-0'); return it ? [it.pos.x, it.pos.z] : null; });
   assert(!!sw && Math.hypot(sw[0] - 7.7, sw[1] - 15.15) < 0.3, `A1: the first wall switch is the yard switch in the cabin (${JSON.stringify(sw)})`);
+  await moveClient(SWITCH_STAND[0], SWITCH_STAND[1]);
   assert((await use(B, 'switch-0')) === 'ok', 'A1: the client turns the yard switch off');
   await until(B, () => window.__course.wire.lights.groups.some(([g, on]) => g === 12 && !on), null, 15000, 'A1: the client sees the yard group off');
   await until(A, () => !window.__app.current.stealth.switchOn(12), null, 15000, 'A1: the host sees the yard group off');
@@ -193,6 +197,7 @@ export async function walk(t, n) {
   await until(A, () => window.__app.current.stealth.switchOn(12), null, 15000, 'A1: the yard group is back on');
   const [y2a, y2b] = [await level(A, 17, 11), await level(B, 17, 11)];
   assert(y2a >= 0.4 && Math.abs(y2a - y2b) < 0.01, `A1: the yard reads lit again (host ${y2a.toFixed(3)}, client ${y2b.toFixed(3)})`);
+  await moveClient(14, 9);
 
   // ---- 9. the checker survived the restart (the squad respawns): alive, passive ----
   const again = await GA(() => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.alive); return e ? { passive: !!e.passive, x: e.pos.x, z: e.pos.z } : null; });
