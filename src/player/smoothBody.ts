@@ -104,8 +104,9 @@ export class SmoothBody {
       bonePerPart.push(bi);
     }
     const merged = this.merge(parts, bonePerPart, lib);
-    const lo = this.mesh(`${name}-smooth-lod`, merged.lo, lib.skinMaterial, merged.box);
+    // (in `meshes` order: the per-mesh buffers follow it)
     const hi = this.mesh(`${name}-smooth`, merged.hi, lib.skinMaterial, merged.box);
+    const lo = this.mesh(`${name}-smooth-lod`, merged.lo, lib.skinMaterial, merged.box);
     lib.trackLod(hi, lo);
     this.meshes.push(hi, lo);
     // the smooth parts stay for what reads them, out of the scene's evaluation
