@@ -1673,7 +1673,10 @@ export class FootPlanner {
     // (mocap-trial-2, strafe) and in the mocap strafe with the other foot nearly down: the captures' long stance (duty 0.7)
     // after a closing step the lead foot blocked (a snap into the strafe on the wrong foot) dragged the trailing foot 1.6 cm
     const flight = o.contact || hyp2(i.velX, i.velZ) > 2 || (!!i.clipFeet && this.moveT >= START_TOE_OFF && o.swing >= CLIP_TOE_OFF_SWING && ((side < 0 ? i.reachNeedL : i.reachNeedR) ?? 0) > CLIP_TOE_OFF_NEED) || ((i.strafe ?? 0) > 0.5 && o.swing >= CLIP_TOE_OFF_SWING);
-    if (i.moving && flight && (turnLeft || startOff || (dl > i.reach * 0.92 * STEP[SP.replant]! && (hyp2(i.velX, i.velZ) > 2 || i.quickStop > 0)))) {
+    // (mocap-trial-2 strafe fix) and in the mocap strafe at a start's reach share: a snap onto the strafe's long side-step
+    // stretched the trailing leg past the rig's reach a frame before it toed off (planted ankle 0.8 cm)
+    const stOff = (i.strafe ?? 0) > 0.5 && dl > i.reach * 0.82;
+    if (i.moving && flight && (turnLeft || startOff || stOff || (dl > i.reach * 0.92 * STEP[SP.replant]! && (hyp2(i.velX, i.velZ) > 2 || i.quickStop > 0)))) {
       // accelerating (a sprint or a walk start): the trailing foot toes off early instead of sliding or pulling the
       // pelvis down; the clock's contact window then lands it ahead
       this.beginSwing(f, i, Math.min(0.6, (1 - i.duty) * i.cycleTime), i.liftH);
