@@ -3,6 +3,7 @@
 // times, each frame shot from three cameras (side, front, 3/4) that follow her (the turns: fixed to her start heading).
 //   E2E_GPU=1 E2E_PORT=4192 node scripts/mocap-sheets.mjs [--rows=walk,jog,...] [--views=side,front,34] [--frames=10]
 //     [--fps=30] [--out=docs/mocap-trial/sheets] [--gfx=high] [--no-video] [--keep-frames] [--note=<text>] [--url=http://127.0.0.1:4192/]
+//     [--sets=0,1] [--dump] [--boot-wait=0,4] [--no-clock-reset]   (the determinism checks: see SETS below)
 // Rows: walk (1.4 m/s), jog (2.5), run (4.0) straight over one gait cycle (the hand-keyed run's cycle, measured);
 // turn90walk, turn90jog (stick swung 90 deg right), turn180walk (stick reversed), start (standing -> walk), stop (walk ->
 // release). Writes <out>/<row>-{side,front,34}.png (the mocap=0 strip above the mocap=1 strip, same sim times),
@@ -18,7 +19,6 @@ import { launchOptions, fakePointerLock, openPage, waitOperator, frames, GPU } f
 const ARGS = Object.fromEntries(process.argv.slice(2).map((a) => { const m = /^--([^=]+)(?:=(.*))?$/.exec(a); return m ? [m[1], m[2] ?? '1'] : [a, '1']; }));
 const PORT = process.env.E2E_PORT ?? '4173';
 const url = ARGS.url ?? process.env.URL ?? `http://127.0.0.1:${PORT}/`;
-const OUT = ARGS.out ?? 'docs/mocap-trial/sheets';
 const NF = Number(ARGS.frames ?? 10);
 const FPS = Number(ARGS.fps ?? 30);
 const GFX = ARGS.gfx ?? 'high';
@@ -29,6 +29,15 @@ const FFMPEG = process.env.FFMPEG ?? [
 ].find((p) => existsSync(p)) ?? 'ffmpeg';
 const VIEWS = (ARGS.views ?? 'side,front,34').split(',');
 const STEP = 1 / 60; // the sim's fixed step (core/loop.ts FIXED_DT): every capture time is a whole number of steps
+// --sets=0,1 (default): the two `?mocap=` values of the top and bottom strips; --sets=0,0 or 1,1 is a self-diff (any
+// pixel that differs is non-determinism in the capture, not the clip set). --dump: also diff every number on the graph,
+// the planner, the controller and the root per captured frame (written to test-results/mocap-sheets/<row>-dump-<sets>.json).
+const SETS = (ARGS.sets ?? '0,1').split(',').map(Number);
+if (SETS.length !== 2 || SETS.some((s) => s !== 0 && s !== 1)) throw new Error('--sets takes two of 0 / 1, e.g. --sets=0,0');
+const SELF = SETS[0] === SETS[1];
+const DUMP = !!ARGS.dump;
+// a self-diff never writes over the proof sheets
+const OUT = ARGS.out ?? (SELF ? `test-results/mocap-sheets/self-${SETS.join('')}` : 'docs/mocap-trial/sheets');
 
 // stick magnitudes for the asked speeds (player/speedGears.ts stickMagFor, config/movement.ts GEARS / STICK_SPEED:
 // standing 1.4 = the sneak point at 0.45 of the travel, 2.5 between the walk 2.1 (0.8) and the jog 3.0 (0.9), 4.0 the run)
@@ -69,6 +78,14 @@ if (!(await up())) {
   let ok = false;
   for (let i = 0; i < 60 && !ok; i++) { await new Promise((r) => setTimeout(r, 250)); ok = await up(); }
   if (!ok) { server.kill(); console.error('mocap-sheets: preview server did not start (run `npm run build` first)'); process.exit(2); }
+} else if (!ARGS.url) {
+  // a server already on the port (another job shares the lane) may serve another worktree's build: this one's only
+  const served = await (await fetch(url)).text();
+  const local = existsSync('dist/index.html') ? readFileSync('dist/index.html', 'utf8') : '';
+  if (served.replace(/\r/g, '') !== local.replace(/\r/g, '')) {
+    console.error(`mocap-sheets: ${url} serves another build than this worktree's dist/ (free the port, or pass --url to use it)`);
+    process.exit(2);
+  }
 }
 
 /** A seeded Math.random in every page (both runs draw the same "random" numbers). */
@@ -81,7 +98,7 @@ function seededRandom() {
  * One run: boot Proving with `?mocap=<m>`, warm up, then step to each capture step (whole sim steps from t = 0) and
  * shoot every view. `period` (cycle rows, mocap=1): mocap=0's measured cycle in steps. Returns the frames and labels.
  */
-async function capture(rowName, m, captureSteps, measure) {
+async function capture(rowName, m, captureSteps, measure, run) {
   const row = ROWS[rowName];
   const lo = launchOptions();
   const browser = await chromium.launch(lo);
@@ -96,7 +113,10 @@ async function capture(rowName, m, captureSteps, measure) {
     // steady renders: no frame governor, no dynamic resolution, no TAAU (the gfx preset's AA is FXAA, no motion blur)
     await page.evaluate(() => window.__app.settings.update((s) => { s.video.adaptive = false; s.video.dynamicRes = false; s.video.upscaler = 'off'; }));
     await frames(page, 10);
-    await page.evaluate(({ pos, yaw, fix }) => {
+    // --boot-wait=a,b: real seconds of live frames before the stepping, per run (a slow boot, as on a loaded machine)
+    const bw = Number((ARGS['boot-wait'] ?? '0').split(',')[run] ?? 0);
+    if (bw > 0) await page.waitForTimeout(bw * 1000);
+    await page.evaluate(({ pos, yaw, fix, noReset }) => {
       const a = window.__app;
       const g = a.current;
       const p = g.player;
@@ -108,9 +128,12 @@ async function capture(rowName, m, captureSteps, measure) {
       p.controller.teleport(new V(pos[0], 0, pos[1]), yaw);
       p.cam.yaw = yaw;
       p.cam.pitch = 0;
-      // the graph's idle clock (the standing idle's 12 s cycle, the ready stance) counts the real-time frames of the boot
-      // too: zeroed so both runs stand in the same idle pose (the start and stop rows differed there)
-      if (p.rig.graph && 'idleT' in p.rig.graph) p.rig.graph.idleT = 0;
+      // the graph's free-running clocks count the real-time frames of the boot too (a random start and however long the
+      // boot took): zeroed so both runs stand in the same pose. idleT: the keyed standing idle's 12 s cycle (weight
+      // shifts) and the ready stance; stillT: the time stood still, which brings in the procedural idle overlay and the
+      // breath after 2 s (a slow boot under load put the start row past it); breathPh / breathW: the breath's phase
+      // and weight. (--no-clock-reset: leave them, to reproduce the first placeholder run's start / stop differences.)
+      if (!noReset) for (const k of ['idleT', 'stillT', 'breathPh', 'breathW']) if (p.rig.graph && k in p.rig.graph) p.rig.graph[k] = 0;
       window.__camHold = true;
       window.__view = 'side';
       // the sheet cameras (anim-sheet.mjs's side / front / front34 framings), following her root
@@ -144,7 +167,7 @@ async function capture(rowName, m, captureSteps, measure) {
         return ph;
       };
       a.loop.stepHeadless(0.3);
-    }, { pos: row.pos, yaw: Math.PI / 2, fix: !!row.fix });
+    }, { pos: row.pos, yaw: Math.PI / 2, fix: !!row.fix, noReset: !!ARGS['no-clock-reset'] });
     // warm-up (pre s at preIn); the phases it logs give the cycle
     const preSteps = Math.round(row.pre / STEP);
     const ph = await page.evaluate(([n, inp]) => window.__steps(n, inp), [preSteps, row.preIn]);
@@ -168,6 +191,31 @@ async function capture(rowName, m, captureSteps, measure) {
         const r = g.player.rig;
         const T = r.lastTargets;
         return { state: c.motion.state, speed: c.speed, L: !!r.planner.L.contact, R: !!r.planner.R.contact, phase: T ? T.gait.phase : -1, keyMocap: T?.keyMocap ?? 0, clipFeet: !!T?.clipFeet?.valid };
+      });
+      // --dump: every number on the graph, the planner's feet, the controller and the root (the self-diff's evidence)
+      if (DUMP) info.dump = await page.evaluate(() => {
+        const g = window.__app.current;
+        const out = {};
+        const flat = (pre, o, depth) => {
+          if (!o || depth > 2) return;
+          for (const k of Object.keys(o)) {
+            let v;
+            try { v = o[k]; } catch { continue; }
+            if (typeof v === 'number' || typeof v === 'boolean') out[`${pre}${k}`] = +v;
+            else if (v && typeof v === 'object' && !Array.isArray(v) && !ArrayBuffer.isView(v) && typeof v.x === 'number' && typeof v.z === 'number') { out[`${pre}${k}.x`] = v.x; out[`${pre}${k}.z`] = v.z; }
+            else if (v && typeof v === 'object' && depth < 1 && !Array.isArray(v) && !ArrayBuffer.isView(v) && Object.getPrototypeOf(v) === Object.prototype) flat(`${pre}${k}.`, v, depth + 1);
+          }
+        };
+        const r = g.player.rig;
+        flat('graph.', r.graph, 0);
+        flat('L.', r.planner.L, 1);
+        flat('R.', r.planner.R, 1);
+        flat('planner.', r.planner, 1);
+        flat('ctl.', g.player.controller, 1);
+        flat('motion.', g.player.controller.motion, 1);
+        const p = r.root.position;
+        out['root.x'] = p.x; out['root.y'] = p.y; out['root.z'] = p.z;
+        return out;
       });
       const views = {};
       for (const v of VIEWS) {
@@ -228,7 +276,8 @@ const diff = (a, b) => cpage.evaluate(async ([a, b]) => {
 const label = (s, m) => `t ${s.t.toFixed(2)}s  ${s.info.state} ${s.info.speed.toFixed(2)}  ${s.info.L ? 'L' : '-'}${s.info.R ? 'R' : '-'}  ph ${s.info.phase.toFixed(2)}${m ? `  mc ${s.info.keyMocap.toFixed(2)}${s.info.clipFeet ? ' cf' : ''}` : ''}`;
 
 /** The contact sheet of one view: the mocap=0 strip above the mocap=1 strip. */
-const sheet = (title, cells0, cells1, diffs) => cpage.evaluate(async ({ title, cells0, cells1, diffs }) => {
+const SET_NAME = (m) => (m ? 'mocap=1  mocap set' : 'mocap=0  hand-keyed (current)');
+const sheet = (title, cells0, cells1, diffs) => cpage.evaluate(async ({ title, cells0, cells1, diffs, n0, n1 }) => {
   const load = (s) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = s; });
   const CW = 192, CH = 256, HEAD = 26, BAND = 20;
   const n = cells0.length;
@@ -265,13 +314,13 @@ const sheet = (title, cells0, cells1, diffs) => cpage.evaluate(async ({ title, c
       }
     }
   };
-  await strip(cells0, HEAD, 'mocap=0  hand-keyed (current)', '#9cf');
-  await strip(cells1, HEAD + BAND + CH, 'mocap=1  mocap set', '#fc9');
+  await strip(cells0, HEAD, n0, '#9cf');
+  await strip(cells1, HEAD + BAND + CH, n1, '#fc9');
   return c.toDataURL('image/png');
-}, { title, cells0, cells1, diffs });
+}, { title, cells0, cells1, diffs, n0: SET_NAME(SETS[0]), n1: SET_NAME(SETS[1]) });
 
 /** One video frame: views across, mocap=0 above mocap=1. */
-const vframe = (title, s0, s1) => cpage.evaluate(async ({ title, s0, s1, views }) => {
+const vframe = (title, s0, s1) => cpage.evaluate(async ({ title, s0, s1, views, n0, n1 }) => {
   const load = (s) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = s; });
   const CW = 240, CH = 320, HEAD = 22;
   const c = document.createElement('canvas');
@@ -283,7 +332,7 @@ const vframe = (title, s0, s1) => cpage.evaluate(async ({ title, s0, s1, views }
   x.fillStyle = '#eee';
   x.font = 'bold 13px monospace';
   x.fillText(title, 6, 16);
-  for (const [j, s, name, col] of [[0, s0, 'mocap=0 hand-keyed', '#9cf'], [1, s1, 'mocap=1 mocap', '#fc9']]) {
+  for (const [j, s, name, col] of [[0, s0, n0, '#9cf'], [1, s1, n1, '#fc9']]) {
     for (let i = 0; i < views.length; i++) {
       const im = await load(s[views[i]]);
       x.drawImage(im, i * CW, HEAD + j * CH, CW, CH);
@@ -295,7 +344,7 @@ const vframe = (title, s0, s1) => cpage.evaluate(async ({ title, s0, s1, views }
     }
   }
   return c.toDataURL('image/png');
-}, { title, s0, s1, views: VIEWS });
+}, { title, s0, s1, views: VIEWS, n0: `mocap=${SETS[0]}`, n1: `mocap=${SETS[1]}` });
 
 // ---------------------------------------------------------------- run
 mkdirSync(OUT, { recursive: true });
@@ -353,20 +402,40 @@ function writeIndex() {
 }
 
 const NOTE = ARGS.note ?? null;
+
+/** --dump: the numbers that differ between the two runs (> 1e-6), each with the first frame it differs at. */
+function dumpDiff(name, r0, r1) {
+  const first = {};
+  for (let i = 0; i < r0.shots.length; i++) {
+    const a = r0.shots[i].info.dump;
+    const b = r1.shots[i].info.dump;
+    for (const k of Object.keys(a)) {
+      if (first[k] || a[k] === b[k] || (Number.isNaN(a[k]) && Number.isNaN(b[k]))) continue;
+      if (!(Math.abs(a[k] - (b[k] ?? NaN)) <= 1e-6)) first[k] = { t: +r0.shots[i].t.toFixed(3), a: a[k], b: b[k] };
+    }
+  }
+  const dir = join('test-results', 'mocap-sheets');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, `${name}-dump-${SETS.join('')}.json`), JSON.stringify({ sets: SETS, first, frames: r0.shots.map((s, i) => ({ t: s.t, a: s.info.dump, b: r1.shots[i].info.dump })) }, null, 1));
+  const keys = Object.keys(first).sort((x, y) => first[x].t - first[y].t);
+  console.log(`  ${name} dump: ${keys.length} numbers differ; the first ones:`);
+  for (const k of keys.slice(0, 40)) console.log(`    ${k} @ t ${first[k].t}: ${first[k].a} vs ${first[k].b}`);
+}
 try {
   for (const name of rowNames) {
     const row = ROWS[name];
     const t0 = Date.now();
-    console.log(`${name}: mocap=0 ...`);
+    console.log(`${name}: mocap=${SETS[0]} ...`);
     // mocap=0 first: its measured cycle sets the window for both runs
     let plan = null;
-    const r0 = await capture(name, 0, (period) => {
+    const r0 = await capture(name, SETS[0], (period) => {
       if (row.kind === 'cycle' && !period) throw new Error(`${name}: no gait cycle measured in the warm-up`);
       plan = planFor(row, period);
       return plan.all;
-    }, row.kind === 'cycle');
-    console.log(`${name}: mocap=1 ...`);
-    const r1 = await capture(name, 1, plan.all, row.kind === 'cycle');
+    }, row.kind === 'cycle', 0);
+    console.log(`${name}: mocap=${SETS[1]} ...`);
+    const r1 = await capture(name, SETS[1], plan.all, row.kind === 'cycle', 1);
+    if (DUMP) dumpDiff(name, r0, r1);
     // diffs per view per sheet frame (and the worst over every captured frame)
     const diffs = {};
     let worst = { max: -1, over: 0, where: '' };
@@ -385,9 +454,9 @@ try {
     }
     const pick = (r) => plan.sheet.map((k) => r.shots.find((s) => s.k === k));
     for (const v of VIEWS) {
-      const c0 = pick(r0).map((s) => ({ src: b64(s.views[v]), label: label(s, false) }));
-      const c1 = pick(r1).map((s) => ({ src: b64(s.views[v]), label: label(s, true) }));
-      const title = `${name} - ${v} - ${row.what} - commit ${COMMIT}${DIRTY_SRC ? '+' : ''}`;
+      const c0 = pick(r0).map((s) => ({ src: b64(s.views[v]), label: label(s, SETS[0] === 1) }));
+      const c1 = pick(r1).map((s) => ({ src: b64(s.views[v]), label: label(s, SETS[1] === 1) }));
+      const title = `${name} - ${v} - ${row.what} - commit ${COMMIT}${DIRTY_SRC ? '+' : ''}${SELF ? ` - SELF-DIFF mocap=${SETS[0]} twice` : ''}`;
       writeFileSync(join(OUT, `${name}-${v}.png`), fromData(await sheet(title, c0, c1, diffs[v])));
     }
     let video = false;
