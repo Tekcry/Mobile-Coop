@@ -3,6 +3,7 @@ import { CharacterRig } from '../player/characterRig';
 import { WeaponModel } from '../weapons/weaponModel';
 import { WEAPONS } from '../weapons/weaponDefs';
 import type { World } from '../world/world';
+import { GUARD_SUN_REACH } from '../world/sunCascadeCull';
 import type { EnemyDef } from './enemyDefs';
 import { factionLook } from './factions';
 
@@ -17,11 +18,11 @@ export function buildEnemyRig(scene: Scene, world: World, def: EnemyDef, name: s
     merge: true, // (guard-render S1) one merged smooth mesh (`?guardmerge=0`: the parts)
   });
   rig.guardRows = true; // (item 24, track A) the guard tables (tuneGuard.ts), never Wren's rows
-  for (const m of rig.renderMeshes) world.addShadowCaster(m);
+  for (const m of rig.renderMeshes) world.addShadowCaster(m, GUARD_SUN_REACH);
   let gun: WeaponModel | null = null;
   if (def.gun) {
     gun = new WeaponModel(scene, world.parts, WEAPONS[def.gun], ENEMY_GUN, rig.weaponPivot);
-    for (const m of gun.renderMeshes) world.addShadowCaster(m);
+    for (const m of gun.renderMeshes) world.addShadowCaster(m, GUARD_SUN_REACH);
     gun.hold(rig);
   }
   return { rig, gun };
