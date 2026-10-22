@@ -252,9 +252,13 @@ Course Ready's prep notes: origin/feature/marlow-bays docs/marlow-final-prep/ (M
 
 ## Resume prompt
 ```
-Night Shift | Menu Notes Build: resume marlow-final (top priority). Read CLAUDE.md, docs/ROADMAP.md (feature/menu),
-then C:/NightShift/Mobile-Coop-marlow-final/docs/marlow-final/BRIEF.md and STATE.md (git pull first). Check which
-step-1 files exist (AUDIT, COOP-INVENTORY, ROUTE-DRAFT, CONSTRAINTS, KIT); rerun any missing agent from "Agent briefs",
-then run "Next" 1 (the spec writer), commit, push, message "Night Shift | Orchestrator", and build the slices.
-Max burn: parallel Opus agents. Message the orchestrator at the spec and each slice.
+Night Shift | Menu Notes Build: resume marlow-final (Marlow Yard redesign). Read CLAUDE.md and docs/ROADMAP.md (Decided:
+Michael's marlow-final words, "Overnight" ~01:42, "Lean windows" ~01:45), then in C:/NightShift/Mobile-Coop-marlow-final
+(git fetch; branch feature/marlow-final) docs/marlow-final/BRIEF.md, STATE.md (MORNING-REVIEW, Now, Pacing), PLAN.md.
+Slice 0 is complete and green; A1 is built, dressed and checked (its e2e-ctcourse:1 rerun on 42a9b295 pending on
+Character Build); A2 greybox was the last agent (slices/S2.md). Loop per set (PLAN slices 2-8, set docs in sets/):
+Sonnet builds greybox + lights + guards + e2e from a strict brief (copy the A1 / A2 briefs' shape: owned files, set
+doc, S1 as the worked example, the e2e lessons), a fresh Opus checker, laptop e2e (E2E_GPU=1, Character Build), then
+Sonnet dressing. Lean: 1 agent, 97 / 98 / 99% rule; message the orchestrator only at slice ends, PRs or blockers.
+Before the PR: the facility GPU perf pass (STATE 03:45 PERF), slice 9 docs, then the PR to master for the next train.
 ```
