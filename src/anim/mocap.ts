@@ -201,6 +201,11 @@ export function applyMocapSwitch(url: boolean | null, setting: boolean): boolean
  *   (50 / 242 moving frames). Phase-aligning the slot to the gait clock is the later fix.
  * - (fix 2 check) A turn's pass that follows another (a spin on the spot replaying its clip, a spin reversed, a turn
  *   started while the last one still shows) eases in from that one's pose over `easeFrom` s.
+ * - (mt2-fixB, CHECK-3 item 3) A turn on the move faster than `turnPlay` rad/s plays at `turnPlay` / its fastest rate of
+ *   its weight: the clip runs at the game's turn speed, and at CT's 7.85 rad/s flick its pelvis swing (5 cm out and back,
+ *   with the last 25 % fade in 4 frames) moved the hips 2.8-3.0 cm a frame beyond the pace as the flick ended. 4: the
+ *   rate the sweeps already passed at. A turn on the move cut off (the yaw rate fell, the pace went past `walkMax`) eases
+ *   out over `turnOut` s from its weight (smoothstep), not by `tau`. A turn on the spot as before (fix 2's spin rules).
  * - (mt2-qstop) Not a slot: falling from over `walkMax`, the standing pose's pace (the graph's `mPace`: the procedural
  *   stand and the speed set) falls at most `paceFall` m/s^2 until it meets the pace (a one-frame stop or a hard brake
  *   crossed the speed set's bands in a frame or two: the pelvis 3-10 cm a frame), and a stop's fade to the idle is slower
@@ -221,6 +226,8 @@ export const MOCAP_SLOT = {
   startArms: 0.5,
   easeFrom: 0.2,
   paceFall: 4,
+  turnOut: 0.2,
+  turnPlay: 4,
 };
 
 /** The planner values the slots blend (track half-width, knee pole, duty, lift). */
@@ -281,6 +288,13 @@ export class MocapSlots {
   private fromT = 0;
   /** (fix 2) Scratch: the pose a turn's pass eases in from. */
   private readonly tail: KeyedPose = newKeyedPose();
+  /** (mt2-fixB) A turn on the move cut off: seconds into its ease out over MOCAP_SLOT.turnOut (-1: none) and its weight
+   *  at the cut. */
+  private outT = -1;
+  private outW = 0;
+  /** (mt2-fixB) The fastest yaw rate of this turn pass (rad/s): a turn on the move faster than `turnPlay` plays at
+   *  `turnPlay` / it of its weight. */
+  private turnPeak = 0;
 
   reset(): void {
     this.startT = this.stopT = this.turnT = -1;
@@ -291,6 +305,7 @@ export class MocapSlots {
     this.stopArmed = true;
     this.turnWrap = false;
     this.fc = null;
+    this.outT = -1;
   }
 
   /** One frame: the pace (m/s), the forward acceleration (m/s^2) and the yaw rate (rad/s, + to the right). */
@@ -343,9 +358,16 @@ export class MocapSlots {
       // (fix 2 check) turned the other way: the other side's pass starts this frame (a frame cut off dipped the weight)
       this.turnT = -1;
       open = true;
-    } else if (ay < M.turnRate * 0.5 || speed > M.walkMax) this.turnT = -1;
-    else {
+    } else if (ay < M.turnRate * 0.5 || speed > M.walkMax) {
+      // (mt2-fixB) a turn on the move cut off eases out over `turnOut` from its weight
+      if (!this.turnSpot) {
+        this.outT = 0;
+        this.outW = this.wTurn;
+      }
+      this.turnT = -1;
+    } else {
       this.turnT += (ay * dt) / QUARTER;
+      if (ay > this.turnPeak) this.turnPeak = ay;
       if (this.turnT >= 1) {
         // (fix 2) a spin on the spot replays the clip, the progress carried across the wrap, from the clip's end pose.
         // (fix 2 check) Only still on the spot: walked off, the pass ends and a turn on the move can start
@@ -369,6 +391,7 @@ export class MocapSlots {
       const hold = fc !== null && spot && this.turnSpot;
       if (this.pickTurn(S, spot, side)) {
         this.turnT = 0;
+        this.turnPeak = ay;
         this.turnSide = side;
         this.turnSpot = spot;
         this.turnWrap = hold;
@@ -387,7 +410,13 @@ export class MocapSlots {
     // check) While it goes on at all (over half `turnRate`, on the spot: it wraps): a slow spin (0.5-1 rad/s) faded to
     // 0.06 before each wrap
     const spinOn = this.turnSpot && speed < M.spotSpeed;
-    this.wTurn += ((this.turnT >= 0 ? envelope(this.turnT, this.turnWrap, spinOn) : 0) - this.wTurn) * k;
+    if (this.turnT >= 0) this.outT = -1;
+    if (this.outT >= 0) {
+      this.outT += dt;
+      const u = this.outT < M.turnOut ? this.outT / M.turnOut : 1;
+      this.wTurn = this.outW * (1 - u * u * (3 - 2 * u));
+      if (u >= 1) this.outT = -1;
+    } else this.wTurn += ((this.turnT >= 0 ? envelope(this.turnT, this.turnWrap, spinOn) * (this.turnSpot || this.turnPeak <= M.turnPlay ? 1 : M.turnPlay / this.turnPeak) : 0) - this.wTurn) * k;
     if (this.wStart < 1e-4 && this.startT < 0) this.wStart = 0;
     if (this.wStop < 1e-4 && this.stopT < 0) this.wStop = 0;
     if (this.wTurn < 1e-4 && this.turnT < 0) this.wTurn = 0;

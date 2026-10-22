@@ -912,6 +912,13 @@ export class FootPlanner {
             continue;
           }
         }
+        // (mt2-fixB, CHECK-3 item 3) clip feet on: a foot planted (a clip step just set down as a turn takes the feet) as its
+        // swing window is nearly over (>= 0.9) stays down: the clock lifted it for a two-frame step to its landing spot and
+        // set it down with the turn's landing yaw (the ankle-toe 25-36 deg in a frame at 2 m/s flicks)
+        if (fresh && f.contact && i.clipFeet && sinceStrike - i.duty >= 0.9 * (1 - i.duty)) {
+          this.holdOrStep(f, i, side, 0);
+          continue;
+        }
         if (fresh) {
           this.beginSwing(f, i, (1 - i.duty) * i.cycleTime, i.liftH);
           f.swBase = 0;
@@ -2000,7 +2007,15 @@ export class FootPlanner {
         const wb = wrap(i.yaw + r0 + wrap(f.toYaw - i.yaw - dr - r0) * smooth(s / SWING_YAW_BY));
         want = wrap(want + wrap(wb - want) * f.liftW);
       }
-      f.yaw = wrap(f.yaw + clampAbs(wrap(want - f.yaw), SWING_YAW_RATE * i.dt));
+      // (mt2-fixB, CHECK-3 item 3) clip feet on: the rate is at least what lands the foot on its landing yaw, the rest of
+      // the turn spread over the frames left (a turn's swing whose window shrank under it, 0.46 -> 0.18 s at a 2 m/s 180
+      // flick, lagged up to 33 deg and set down on the landing yaw in a frame)
+      let ym = SWING_YAW_RATE * i.dt;
+      if (i.clipFeet) {
+        const e = Math.abs(wrap(f.toYaw - f.yaw)) * (i.dt / (i.dt + (1 - s) * f.stepDur));
+        if (e > ym) ym = e;
+      }
+      f.yaw = wrap(f.yaw + clampAbs(wrap(want - f.yaw), ym));
     } else f.yaw = wrap(f.fromYaw + dy * h);
     // toe-off then heel strike: toe down early, toe up just before landing
     // (locomotion step 21, A80) the toe-off pitch eases in over the first tenth of the swing: it started at 0.45 rad

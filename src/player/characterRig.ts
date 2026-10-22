@@ -265,6 +265,9 @@ export const PELVIS_HOLD = 0;
  * 1.7 cm, 1.2 every turn row <= 0.01 cm; the identity fixtures move on partner:moves only.
  */
 export const KEY_PEL_RATE = 1.2;
+/** (mt2-fixB) With clip feet on hand, a knee pole's swing / stance share moves at most 1 / POLE_SWAP a second (0.5 ->
+ *  0.15 in 0.09 s). */
+const POLE_SWAP = 0.25;
 /** (G1 fix) The 3.2.0 hold for the aimed / wall gaits (stride 'velocity'). */
 export const PELVIS_HOLD_AIM = 0.7;
 /** Neck flexion at a full cheek weld (rad): the eye drops onto the sight line. */
@@ -1110,6 +1113,8 @@ export class CharacterRig {
   private footPitchR = 0;
   /** (mocap-trial, fix 2) The switch as last frame (turned off: the planner gets its feet back clean, `clipFootOff`). */
   private mocapWas = false;
+  /** (mt2-fixB) Each knee pole's eased swing / stance share [L, R] with clip feet on hand (-1: none, the share as is). */
+  private readonly poleShare = new Float64Array([-1, -1]);
   /** (locomotion step 21, A80) Per foot 0..1: how far a planted foot has eased from full leg length to the soft knee. */
   /** Soft-knee share per foot [L, R] (0..1). (operators step 11e) A Float64Array, not two fields: the fields started as
    *  the integer 1 and turned fractional mid-match, a representation change that deoptimised the rig's hot update. */
@@ -2493,6 +2498,19 @@ export class CharacterRig {
     }
     // legs first (onto the planner's world feet: ankle above the sole; heel raise and pitch from the pose),
     // so the weapon below is placed against this frame's legs
+    // (mt2-fixB, CHECK-3 item 3) clip feet on hand: each knee pole's swing / stance share moves at most 1 / POLE_SWAP a
+    // second (a landing swapped KNEE_SWING_SHARE for half way in a frame: in a 7.85 rad/s flick the knee swung round, the
+    // hip / knee rate limit held it and the landed ankle missed its spot by 2.4 cm); off: -1, exactly as before
+    for (let k = 0; k < 2; k++) {
+      if (this.pin.clipFeet === null) {
+        this.poleShare[k] = -1;
+        continue;
+      }
+      const want = this.poleWant(k === 0 ? -1 : 1);
+      const was = this.poleShare[k]!;
+      const m = dt / POLE_SWAP;
+      this.poleShare[k] = was < 0 ? want : want > was + m ? was + m : want < was - m ? was - m : want;
+    }
     this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + lYc + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1);
     this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + rYc + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1);
     // (anim-rig) the toes bend up as the planted foot rolls onto its ball (the planner's pitch), so they stay on the floor
@@ -3818,6 +3836,13 @@ export class CharacterRig {
   }
 
 
+  /** The knee pole's share toward the foot's yaw for a side (KNEE_SWING_SHARE swinging, standing holstered; else half). */
+  private poleWant(side: number): number {
+    const swinging = !(side < 0 ? this.planner.L : this.planner.R).contact;
+    const holK = this.lastTargets?.keyHol ?? 0;
+    return swinging ? 0.5 + (KNEE_SWING_SHARE - 0.5) * holK : 0.5;
+  }
+
   /** Leg IK onto a world ankle target; the foot takes its world yaw and the swing / pose pitch. */
   private solveLegWorld(hip: TransformNode, knee: TransformNode, ankle: TransformNode, x: number, y: number, z: number, footYaw: number, footPitch: number, side: number, out = this.kneeOutNow): void {
     const p = this.p;
@@ -3836,9 +3861,8 @@ export class CharacterRig {
     // (A1.2) knees forward between the hips and the toes (never backwards over a turned foot), and slightly out
     // (anim-rework S2) standing holstered, a swinging foot's knee stays nearer the pelvis' forward (KNEE_SWING_SHARE);
     // crouched and drawn as before (half way)
-    const swinging = !(side < 0 ? this.planner.L : this.planner.R).contact;
-    const holK = this.lastTargets?.keyHol ?? 0;
-    const poleYaw = kneePoleYaw(this.pelvisWorldYaw, footYaw, swinging ? 0.5 + (KNEE_SWING_SHARE - 0.5) * holK : 0.5);
+    const ps = this.poleShare[side < 0 ? 0 : 1]!;
+    const poleYaw = kneePoleYaw(this.pelvisWorldYaw, footYaw, ps >= 0 ? ps : this.poleWant(side));
     const c = Math.cos(poleYaw);
     const sn = Math.sin(poleYaw);
     // (ct-prototype E1) climbing a ladder / drainpipe the knee pole also points up (CLIMB_KNEE_UP): a raised foot's

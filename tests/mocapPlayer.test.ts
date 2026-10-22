@@ -3,8 +3,9 @@
  * quickStop 0.12 always, the stop hold's holdSpeed, flicks at CT's 7.85 rad/s, the 0.22 s eased crouch; the helper is
  * tests/helpers/mocapPlayer.ts). Each plan runs switch OFF and ON; ON must hold the rules: bone and ankle-toe steps
  * <= OFF + 2 deg or <= 24 deg, planted slide < 2 cm, the pelvis step beyond pace x dt <= max(2 cm, OFF).
- * Items 1 (pace changes while turning, pace swings) and 2 (CT starts after a short stand) are fixed here; items 3-6
- * belong to other rounds and are skipped (MOCAP_PLAYER_ALL=1 runs them; MOCAP_PLAYER_LOG=<file> appends every row).
+ * Items 1 (pace changes while turning, pace swings) and 2 (CT starts after a short stand) are fixed in fix A, items 3
+ * (walking flicks) and 5 (the switch toggled mid-move) in fix B; 4 and 6 belong to other rounds and are skipped
+ * (MOCAP_PLAYER_ALL=1 runs them; MOCAP_PLAYER_LOG=<file> appends every row).
  */
 import { appendFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
@@ -65,8 +66,8 @@ describe('mocap switch: a CT player (CHECK-3)', () => {
     ]);
   }, 120_000);
 
-  // Other rounds own items 3-6 (CHECK-3): skipped here so this file stays green; the plans are kept for those rounds.
-  itOther('3: walking flick turns at CT turn rate (other round)', async () => {
+  // Items 3 and 5: fix B. Other rounds own items 4 and 6 (CHECK-3): skipped here so this file stays green.
+  it('3: walking flick turns at CT turn rate ease the turn slot out (no pelvis lurch as the flick ends)', async () => {
     await check([flick(1.4, 90, 0), flick(1.4, 180, 0.41), flick(1.4, 180, 0.83), flick(2.0, 90, 0), flick(2.0, 180, 0), flick(2.0, 180, 0.41), flick(2.8, 180, 0), flick(2.8, 180, 0.41), flick(2.8, 180, 0.83)]);
   }, 300_000);
 
@@ -77,7 +78,7 @@ describe('mocap switch: a CT player (CHECK-3)', () => {
     ]);
   }, 300_000);
 
-  itOther('5: the switch toggled mid-move (other round)', async () => {
+  it('5: the switch toggled mid-move cross-fades (no pelvis or bone pop either way)', async () => {
     const moves: [string, Target][] = [
       ['walk 1.4', () => ({ v: 1.4, yr: 0 })],
       ['jog 2.8', () => ({ v: 2.8, yr: 0 })],
@@ -85,13 +86,13 @@ describe('mocap switch: a CT player (CHECK-3)', () => {
       ['sprint 5.0', () => ({ v: 5.0, yr: 0 })],
       ['sneak 0.8', () => ({ v: 0.8, yr: 0, crouch: 1 })],
     ];
-    await check(moves.map(([name, tg]): Case => ({
-      label: `toggle ${name}`,
-      target: (t) => ({ ...tg(t), mocap: t < 2 ? true : Math.floor((t - 2) / 1.3) % 2 === 1 }),
+    await check([0, 0.37].flatMap((off) => moves.map(([name, tg]): Case => ({
+      label: `toggle ${name}, offset ${off}`,
+      target: (t) => ({ ...tg(t), mocap: t < 2 + off ? true : Math.floor((t - 2 - off) / 1.3) % 2 === 1 }),
       steps: 540,
       recFrom: 1.5,
       tgl: true,
-    })));
+    }))));
   }, 300_000);
 
   itOther('6: smaller cases (other round)', async () => {
