@@ -70,6 +70,13 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   GUARD-RENDER job assigned (orchestrator): worktree C:/NightShift/Mobile-Coop-guard-render (feature/guard-render from
   4fb8ea80, nothing written yet); step 1 = one Opus agent, report + docs/guard-render/BRIEF/PLAN/STATE only, START AT
   ~05:30 (token pace) or when the orchestrator says. Both laptop slots idle at 03:45.
+- SESSION DROP: this session was cut off ~04:58 and came back ~07:50 (2026-10-23). Not the laptop (no sleep / restart /
+  network events, AC sleep + hibernate = never; Claude app updated 07:20, not 04:58) and not the usage cap (83% at 04:54)
+  -> likely the Remote Control link. Note the exact time of any further drop here.
+- ~07:55: train 18 0a269684 (#177 + #182) full GPU JOBS=5 on 4189 (runs/train18-0a269684) -> verdict to the orchestrator.
+  guard-render step 1 agent started (report + docs/guard-render/BRIEF, PLAN, STATE on feature/guard-render). marlow-final
+  42a9b295: restart fixed, ctcourse:1 now fails "A1: the client sees the yard group off" (reported); shots all pass.
+  Swap expected at ~97% (~08:35); save at 97%.
 - schtasks creation is BLOCKED in this session (auto mode): runs are session-bound background commands and die on a swap.
   On resume check runs/<label>/summary.txt for DONE; a run without DONE died: rerun it.
 - Train 15 e1050e14: 38/39 GPU JOBS=5, 349 s; e2e-coop FAIL "client takedown offered on the host's guard (offer none)"
