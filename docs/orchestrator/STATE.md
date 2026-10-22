@@ -108,6 +108,7 @@ Train 1 merged as #111 (#99 + #108; #105 left on a real e2e-menus failure, fixed
 (`node <it> CHANGELOG.md`, incoming block first); drop stray "Unreleased - <job>" headings a member already released.
 
 ## Known
+- 2026-10-23 ~04:58: Character Build's Remote Control bridge dropped (HTTP 409). Not the laptop (no sleep, network or restart in its System log; AC sleep never) and not the usage cap (window 83-87%). Cause unknown, app / bridge side. Each orchestrator check: if Character Build is missing from ListAgents, move test runs to the desktop lanes and tell Michael (one line) to reopen it.
 - 2026-10-22 21:30 (train 8 red): N1 #135 entered a train with a checker PASS although its e2e-anim never ran past jog 180 (the desktop run threw there) and e2e-clip read -2.9 cm. Rule from now: a PR enters a train only when every suite it touches ran to completion and passed on the GPU (a crash or timeout mid-suite is not a pass). The job lead lists them in the PR body; the orchestrator checks before each build.
 - 2026-10-22 21:00: on Windows a "stopped" background runner can survive, wait on heavy.lock and run later (CT Core's N2 rerun took the lock 30 min after its stop). Stop runners with taskkill /T /F on the PID and confirm the tree is gone.
 - 2026-10-22 ~17:30 (full burn load): the desktop sits at ~99% CPU with every session's agents; e2e-coop / e2e-netmove /
