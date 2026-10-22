@@ -61,11 +61,13 @@ export interface FootState {
   offZ: number;
   /** (fix 21-2) Time (s) since the offset was taken (-1: none). */
   offBase: number;
+  /** (mocap-trial, A3) The swing in the air is the clip's (clip feet mode), not the planner's. */
+  clipOwn: boolean;
   init: boolean;
 }
 
 function newFoot(): FootState {
-  return { x: 0, y: 0, z: 0, yaw: 0, contact: true, swing: -1, pitch: 0, fromPitch: 0, roll: 0, landed: false, slide: 0, scrub: 0, scrubPos: 0, fromX: 0, fromY: 0, fromZ: 0, fromYaw: 0, toX: 0, toY: 0, toZ: 0, toYaw: 0, stepT: 0, stepDur: 0.3, stepLift: 0.05, probeT: 0, edgeK: 1, swBase: -1, offX: 0, offY: 0, offZ: 0, offBase: -1, init: false };
+  return { x: 0, y: 0, z: 0, yaw: 0, contact: true, swing: -1, pitch: 0, fromPitch: 0, roll: 0, landed: false, slide: 0, scrub: 0, scrubPos: 0, fromX: 0, fromY: 0, fromZ: 0, fromYaw: 0, toX: 0, toY: 0, toZ: 0, toYaw: 0, stepT: 0, stepDur: 0.3, stepLift: 0.05, probeT: 0, edgeK: 1, swBase: -1, offX: 0, offY: 0, offZ: 0, offBase: -1, clipOwn: false, init: false };
 }
 
 export interface PlannerInput {
@@ -140,6 +142,20 @@ export interface PlannerInput {
   pelvisYaw: number;
   /** (G1) Crouch 0..1: crouched, a trailing foot rises onto its toes further (HEEL_RAISE.pitchCrouch), so the rear knee stays off the floor. */
   crouch: number;
+  /** (mocap-trial, A3) The clip feet this frame (mocap set clips with a `feet` channel), or absent / null: the planner's steps. */
+  clipFeet?: ClipFeetIn | null;
+}
+
+/**
+ * (mocap-trial, A3) One frame of clip feet from the graph: `f` per side L then R (5 each, `keyed.ts` KF order) the ankle
+ * in the root frame in world metres, already scaled to the body and to the game's stride (x right, y the lift over the
+ * ground, z forward), the foot pitch (rad, + heel up) and the clip's contact (0..1, information only: contacts keep the
+ * gait clock's windows); `on`: new steps and planted feet follow the clip (off: the planner's rules; a clip swing in the
+ * air still finishes under the clip).
+ */
+export interface ClipFeetIn {
+  on: boolean;
+  readonly f: Float64Array;
 }
 
 export function emptyPlannerInput(): PlannerInput {
@@ -369,6 +385,8 @@ export class FootPlanner {
     // two mid-gait (snapshot velocity), which must not restart the start window
     this.stillT = i.moving ? 0 : this.stillT + i.dt;
     this.moveT = i.moving ? this.moveT + i.dt : this.stillT > START_STILL ? 0 : this.moveT;
+    // (mocap-trial, A3) no clip feet (or still): every foot is the planner's (a clip swing in the air finishes as a rule step)
+    if (!i.clipFeet || !i.moving) this.L.clipOwn = this.R.clipOwn = false;
     if (i.moving) this.updateMoving(i);
     else this.updateIdle(i);
     if (this.L.contact && this.R.contact) this.quick = false;
@@ -376,7 +394,8 @@ export class FootPlanner {
     // (G1 fix) only while the facing turns (and just after): straight travel keeps the feet world-locked (e2e-anim foot
     // locking); a planted foot outside the band then steps back into it (holdOrStep)
     // (anim-rework S2, BRIEF 3 / 5: feet lock to the ground) standing, only a foot whose partner is in the air (`band`)
-    if (i.moving && i.stride === 'facing' && Number.isNaN(i.wallD) && this.turnT < BAND_TURN_TIME) this.band(i);
+    // (mocap-trial, A3) never in clip feet: a planted foot stays pinned
+    if (i.moving && i.stride === 'facing' && Number.isNaN(i.wallD) && this.turnT < BAND_TURN_TIME && !(i.clipFeet && i.clipFeet.on)) this.band(i);
     this.uncross(i);
   }
 
@@ -461,6 +480,8 @@ export class FootPlanner {
       const strike = side < 0 ? 0 : 0.5;
       const sinceStrike = (((i.phase - strike) % 1) + 1) % 1;
       const wantContact = sinceStrike < i.duty;
+      // (mocap-trial, A3) the clip places this foot's steps
+      if (i.clipFeet && this.clipFoot(f, i, side, sinceStrike, wantContact, i.clipFeet)) continue;
       if (!wantContact) {
         const s = (sinceStrike - i.duty) / (1 - i.duty);
         // (G1) a rule step (a turn's step round, a no-crossing step) mostly done when the clock's swing window opens, past
@@ -718,6 +739,80 @@ export class FootPlanner {
       worst.stepT = 0;
       this.aim(worst, i, worstSide, i.rootX, i.rootZ, i.goalYaw);
     }
+  }
+
+  /**
+   * (mocap-trial, A3) Clip feet: the clip places this foot's steps (`C`, from the graph), the planner only grounds and pins
+   * them. Contacts keep the gait clock's windows (the clip's duty; phase 0 the left strike, 0.5 the right). A foot lifting
+   * while the mode is on swings under the clip (`clipOwn`): from where it left the ground onto the clip's target, which
+   * moves with the root (the gap fades out over the swing), its height the ground under the target plus the clip's lift,
+   * its pitch the clip's; it lands where it is and stays pinned there (never dragged or scrubbed) until the clip lifts it.
+   * A swing the planner began finishes under the planner; with the mode off a planted foot is the planner's again (reach,
+   * turn steps, band). Returns true when it handled the foot. No allocation.
+   */
+  private clipFoot(f: FootState, i: PlannerInput, side: -1 | 1, since: number, wantContact: boolean, C: ClipFeetIn): boolean {
+    const o = side < 0 ? 0 : 5;
+    if (!wantContact) {
+      if (f.contact) {
+        if (!C.on) return false;
+        this.beginSwing(f, i, (1 - i.duty) * i.cycleTime, 0);
+        f.clipOwn = true;
+        this.clipTarget(i, C, o);
+        f.offX = f.x - this.ix;
+        f.offZ = f.z - this.iz;
+        f.toY = this.groundAt(i, this.ix, this.iz);
+        f.probeT = 0.08;
+      } else if (!f.clipOwn) return false;
+      const u = i.duty < 1 ? Math.min(1, Math.max(0, (since - i.duty) / (1 - i.duty))) : 1;
+      const h = smooth(u);
+      this.clipTarget(i, C, o);
+      f.probeT -= i.dt;
+      if (f.probeT <= 0) {
+        f.probeT = 0.08;
+        f.toY = this.groundAt(i, this.ix, this.iz);
+      }
+      f.toX = this.ix;
+      f.toZ = this.iz;
+      f.toYaw = i.yaw;
+      f.x = this.ix + f.offX * (1 - h);
+      f.z = this.iz + f.offZ * (1 - h);
+      const lift = C.f[o + 1]!;
+      f.y = f.fromY + (f.toY - f.fromY) * h + (lift > 0 ? lift : 0);
+      f.yaw = wrap(f.fromYaw + wrap(i.yaw - f.fromYaw) * h);
+      f.pitch = C.f[o + 3]!;
+      f.swing = u;
+      f.stepT = u * f.stepDur;
+      return true;
+    }
+    if (!f.contact) {
+      if (!f.clipOwn) return false;
+      // set down where it is, on the ground under it
+      f.toX = f.x;
+      f.toZ = f.z;
+      f.toY = this.groundAt(i, f.x, f.z);
+      f.toYaw = f.yaw;
+      f.offBase = -1;
+      this.land(f);
+      f.clipOwn = false;
+      f.roll = 0;
+      f.pitch = C.f[o + 3]!;
+      return true;
+    }
+    if (!C.on) return false;
+    // planted under the clip: pinned; the heel and toe from the clip
+    f.roll = 0;
+    f.pitch = C.f[o + 3]!;
+    return true;
+  }
+
+  /** (mocap-trial) The clip's ankle for one side (`o` 0 or 5) in the world, around the root (writes ix, iz). */
+  private clipTarget(i: PlannerInput, C: ClipFeetIn, o: number): void {
+    const x = C.f[o]!;
+    const z = C.f[o + 2]!;
+    const c = Math.cos(i.yaw);
+    const s = Math.sin(i.yaw);
+    this.ix = i.rootX + x * c + z * s;
+    this.iz = i.rootZ - x * s + z * c;
   }
 
   /** A planted foot stays put unless the body has moved out of reach (then it must step). */

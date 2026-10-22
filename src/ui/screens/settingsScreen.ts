@@ -152,6 +152,8 @@ export class SettingsScreen extends MenuScreen {
           rowList(
             desc(toggle('Course markers', () => s().gameplay.courseMarkers, (v) => upd((d) => void (d.gameplay.courseMarkers = v))), 'Shows the markers on training and test courses.'),
             desc(toggle('Last-guard slow motion', () => s().gameplay.slowBeat, (v) => upd((d) => void (d.gameplay.slowBeat = v))), 'A short slow-motion beat when the last guard in a room goes down.'),
+            // (mocap-trial) the rollback switch for the CMU mocap locomotion trial (default off)
+            desc(toggle('Mocap locomotion', () => s().gameplay.mocapLoco, (v) => upd((d) => void (d.gameplay.mocapLoco = v))), 'Trial: Wren walks, jogs and runs with motion-captured clips (CMU) instead of the hand-keyed ones, weapon holstered. Off is the game as before. This machine only (your partner\'s view follows their own setting); ?mocap=1 or ?mocap=0 in the address overrides it for that page.'),
           ),
       },
       {
@@ -207,6 +209,7 @@ export class SettingsScreen extends MenuScreen {
       fromDefaults((d, def) => {
         d.gameplay.courseMarkers = def.gameplay.courseMarkers;
         d.gameplay.slowBeat = def.gameplay.slowBeat;
+        d.gameplay.mocapLoco = def.gameplay.mocapLoco;
       }),
     );
     this.resets.set('video', () => st.reset('video'));

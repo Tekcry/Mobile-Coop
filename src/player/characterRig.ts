@@ -12,6 +12,7 @@ import { HOLDS, holdInto, solveHold, type HandFrame, type HoldName } from './han
 import { emptyPlannerInput, FootPlanner } from '../anim/footPlanner';
 import { CqLiftCrouch } from '../anim/cqGait'; // (anim-n4, track A)
 import { KNEE_SWING_SHARE, kneePoleYaw, PELVIS_FOLLOW_KEYED, PELVIS_FOLLOW_MAX, pelvisFollow } from '../anim/turnFollow';
+import { MOCAP_LAYERS, mocapLayerK } from '../anim/mocap'; // (mocap-trial)
 import type { MotionState } from '../anim/motion';
 import { MotionDerive } from '../anim/motionDerive';
 import { DEBUG_RIGS } from '../ui/debugVolumes';
@@ -208,7 +209,9 @@ const HEEL_BACK = 0.05;
 const HEEL_DOWN = 0.08;
 /** (G1) The ball of the foot ahead of the ankle (m): a planted foot rising onto its toes (`pitch` > 0) turns about it. */
 const TOE_BALL = 0.12;
-function heelLift(f: { contact: boolean; pitch: number; swing: number }): number {
+function heelLift(f: { contact: boolean; pitch: number; swing: number; clipOwn?: boolean }): number {
+  // (mocap-trial, A3) a clip feet swing carries the clip's own ankle lift (its pitch's rise included)
+  if (f.clipOwn === true && !f.contact) return 0;
   // (G1 fix) also in the air: the heel-first landing's toe-up (terminal swing) lifts the ankle as it will on the floor, and
   // the toe-off's raised heel fades over the first 0.3 of the swing (the ankle target jumped 1-5 cm at strike and toe-off)
   if (f.pitch < 0) return f.contact || f.swing > 0.5 ? -Math.sin(f.pitch) * HEEL_BACK + (1 - Math.cos(f.pitch)) * HEEL_DOWN : 0;
@@ -1878,6 +1881,8 @@ export class CharacterRig {
     pin.crouch = i.crouch;
     const free = !i.grounded || i.traverse !== 'none';
     pin.ground = free ? null : this.groundProbe;
+    // (mocap-trial, A3) the mocap clip's feet place the steps (graph `clipFeet`; null: the planner's, as always)
+    pin.clipFeet = t.clipFeet.valid && !free ? t.clipFeet : null;
     // airborne / traversing: the planner restarts from the clip pose when the feet are back down
     if (free) this.planner.L.init = this.planner.R.init = false;
     this.planner.update(pin);
@@ -1890,7 +1895,9 @@ export class CharacterRig {
     // (anim-rework S2) standing holstered the hips trail further (PELVIS_FOLLOW_KEYED, by this frame's keyHol); crouched and
     // drawn as before
     const holK = t.keyHol;
-    this.follow = pelvisFollow(this.follow, yaw, L.yaw, R.yaw, follows && L.contact, follows && R.contact, dt, PELVIS_FOLLOW_MAX + (PELVIS_FOLLOW_KEYED - PELVIS_FOLLOW_MAX) * holK);
+    // (mocap-trial) MOCAP_LAYERS.pelvisFollow on the mocap share (1: PELVIS_FOLLOW_KEYED exactly)
+    const folK = PELVIS_FOLLOW_KEYED * mocapLayerK(MOCAP_LAYERS.pelvisFollow, t.keyMocap);
+    this.follow = pelvisFollow(this.follow, yaw, L.yaw, R.yaw, follows && L.contact, follows && R.contact, dt, PELVIS_FOLLOW_MAX + (folK - PELVIS_FOLLOW_MAX) * holK);
 
     this.applyTargets(t, dt, free);
     this.lastTargets = t;

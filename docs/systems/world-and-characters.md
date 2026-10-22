@@ -169,6 +169,15 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   swinging leg's knee pole stays nearer the pelvis forward (`KNEE_SWING_SHARE`). The idle's head scan reaches the
   head through `RigTargets.keyScan` (added to the world-stabilised head yaw: the camera aim and look still drive it). Remotes pose the same from MoveState (speed, crouch, the graph's own
   clock); no wire change.
+- (mocap-trial) Mocap locomotion switch (`anim/mocap.ts`; Settings > Gameplay > "Mocap locomotion", the tuner's More >
+  Panel box, `?mocap=0/1`; default off, IndexedDB with the settings): `LOCO.set` picks the clip set the standing holstered
+  speed set samples (`speedSet`: the hand-keyed `HAND_KEYED_SET` or `MOCAP_SET`, `anim/clips/mocap/*` in the keyed format;
+  the drawn, crouched, idle and wall sets stay hand-keyed), plus its optional one-shot slots (`MocapSlots`: turn in place,
+  turn on the move L / R, start, stop). A mocap clip with a `feet` channel drives the planner's clip feet mode
+  (`FootPlanner.clipFoot`: the clip places the steps, the planner grounds and pins them; `MOCAP_FEET` gates it: holstered,
+  under 1 rad/s of turn, over 0.3 m/s). `MOCAP_LAYERS` scales the procedural layers on the mocap share
+  (`RigTargets.keyMocap`), all 1. One switch per machine (the co-op partner drawn here follows it; nothing on the wire).
+  Off is bit-identical (`tests/mocapSwitch.test.ts`). Format: `docs/mocap-trial/CLIP-FORMAT.md`.
 - `AnimGraph` builds a source pose per frame: locomotion 2D blend space (`FORWARD_NODES` creep / walk / jog /
   sprint, `CROUCH_NODES` sneak / crouch walk / crouch run x forward/back/strafe), start / stop / pivot clips from
   the `MotionDriver` state, a first-order stick-intent lean (visible on the first frame), acceleration lean and

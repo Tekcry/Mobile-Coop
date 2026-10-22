@@ -1,0 +1,408 @@
+/**
+ * (mocap-trial) The "Mocap locomotion" rollback switch (src/anim/mocap.ts, docs/mocap-trial/CLIP-FORMAT.md):
+ * - default off, `?mocap=1` / `?mocap=0` and the stored setting pick the set (the URL wins for the page);
+ * - with the placeholders (the mocap walk / jog / run are the hand-keyed clips, no slot filled) and the switch ON, the
+ *   anim-skeleton identity capture still equals its fixture, and a holstered free-gait walk / jog / run / stop (the path
+ *   the switch actually changes, which the fixture's scenarios do not take) is bit-identical on and off: the plumbing
+ *   changes nothing but the clip source;
+ * - a different clip in the mocap set reaches the rig only with the switch on (the switch is live);
+ * - clip feet (A3): a clip with a `feet` channel places the steps, the planner pins them (no slide) and the planted foot
+ *   stays on the clip's target through the stance (the stride scaled to the game's);
+ * - toggling at run time, the slots and the clip feet leave no allocation per frame.
+ */
+import { existsSync, readFileSync } from 'node:fs';
+import { afterEach, describe, expect, it } from 'vitest';
+import { applyMocapSwitch, hasSlots, HAND_KEYED_SET, LOCO, MOCAP_LAYERS, MOCAP_SET, MocapSlots, mocapWanted, setMocapLocomotion, type LocoClipSet } from '../src/anim/mocap';
+import { KEYED_WALK } from '../src/anim/clips/keyed/walk';
+import { KEYED_JOG } from '../src/anim/clips/keyed/jog';
+import { KEYED_RUN } from '../src/anim/clips/keyed/run';
+import { MOCAP_WALK } from '../src/anim/clips/mocap/walk';
+import { KEYED_FEET, KEYED_FEET_SIDE, KF, keyedClip, newKeyedPose, sampleKeyed, type KeyedClip } from '../src/anim/keyed';
+import { AnimGraph, defaultInput } from '../src/anim/animGraph';
+import { FootPlanner, emptyPlannerInput, type ClipFeetIn } from '../src/anim/footPlanner';
+import { proportions } from '../src/player/proportions';
+import { defaultSettings, sanitizeSettings } from '../src/core/settings';
+import { flags, onOffFlag } from '../src/core/flags';
+import { runIdentity, type IdentityFixture } from './helpers/animSkeletonIdentity';
+import { bytesPerCall, HEAP_NUMBER, inputs } from './helpers/allocPerCall';
+import type { CharacterRig, RigPose } from '../src/player/characterRig';
+
+type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+const SET = MOCAP_SET as Mutable<LocoClipSet>;
+const SAVED: LocoClipSet = { ...MOCAP_SET };
+
+/** The placeholder set: the hand-keyed walk / jog / run, no slot (the proofs below run on it even once the real clips land). */
+function placeholders(): void {
+  Object.assign(SET, { walk: KEYED_WALK, jog: KEYED_JOG, run: KEYED_RUN, turnInPlace: null, turnMoveL: null, turnMoveR: null, start: null, stop: null });
+}
+
+afterEach(() => {
+  Object.assign(SET, SAVED);
+  setMocapLocomotion(false);
+});
+
+/** A copy of a keyed clip under a new name, with a synthetic `feet` channel (stride `S`, 1.75 m units) when given. */
+function withFeet(c: KeyedClip, name: string, S: number | null): KeyedClip {
+  const N = c.frames;
+  const feet: number[] = [];
+  const sm = (t: number): number => t * t * (3 - 2 * t);
+  for (let f = 0; f < N; f++) {
+    for (let side = 0; side < 2; side++) {
+      const p = (((f / N - side * 0.5) % 1) + 1) % 1;
+      const d = c.duty;
+      const st = p < d;
+      const u = st ? 0 : (p - d) / (1 - d);
+      const z = S === null ? 0 : st ? (S * d) / 2 - S * p : (-S * d) / 2 + S * d * sm(u);
+      feet.push(side === 0 ? -0.09 : 0.09, st ? 0 : 0.08 * Math.sin(Math.PI * u), z, st ? 0.1 * (p / d) : 0, st ? 1 : 0);
+    }
+  }
+  return keyedClip({
+    name,
+    frames: N,
+    duty: c.duty,
+    liftH: c.liftH,
+    kneeOut: c.kneeOut,
+    half: c.half,
+    pel: Array.from(c.pel),
+    q: Array.from(c.q),
+    arm: Array.from(c.arm),
+    ...(S === null ? {} : { feet, stride: S }),
+  });
+}
+
+describe('mocap switch: default and selection', () => {
+  it('is off by default: the setting, the URL flag (absent in node), the live state', () => {
+    expect(defaultSettings().gameplay.mocapLoco).toBe(false);
+    // a save from before the setting (no field) and a broken value load off
+    expect(sanitizeSettings({ gameplay: { courseMarkers: false } }).gameplay.mocapLoco).toBe(false);
+    expect(sanitizeSettings({ gameplay: { mocapLoco: 'yes' } }).gameplay.mocapLoco).toBe(false);
+    expect(flags.mocap).toBeNull();
+    expect(LOCO.mocap).toBe(false);
+    expect(LOCO.set).toBe(HAND_KEYED_SET);
+    expect(applyMocapSwitch(flags.mocap, defaultSettings().gameplay.mocapLoco)).toBe(false);
+    expect(LOCO.set).toBe(HAND_KEYED_SET);
+  });
+
+  it('?mocap=1 and the stored setting select the mocap set; ?mocap=0 wins over the setting', () => {
+    const url = (q: string): boolean | null => onOffFlag(new URLSearchParams(q).get('mocap'));
+    expect(url('?mocap=1')).toBe(true);
+    expect(url('?mocap=0')).toBe(false);
+    expect(url('?mocap=yes')).toBeNull();
+    expect(url('?autostart=ctcourse')).toBeNull();
+    expect(sanitizeSettings({ gameplay: { mocapLoco: true } }).gameplay.mocapLoco).toBe(true);
+    expect(mocapWanted(true, false)).toBe(true);
+    expect(mocapWanted(null, true)).toBe(true);
+    expect(mocapWanted(false, true)).toBe(false);
+    expect(applyMocapSwitch(url('?mocap=1'), false)).toBe(true);
+    expect(LOCO.set).toBe(MOCAP_SET);
+    expect(LOCO.mocap).toBe(true);
+    expect(applyMocapSwitch(null, false)).toBe(false);
+    expect(LOCO.set).toBe(HAND_KEYED_SET);
+    expect(applyMocapSwitch(null, true)).toBe(true);
+    expect(LOCO.set).toBe(MOCAP_SET);
+    expect(applyMocapSwitch(url('?mocap=0'), true)).toBe(false);
+    expect(LOCO.set).toBe(HAND_KEYED_SET);
+  });
+
+  // (delete this case when the retarget's clips land in src/anim/clips/mocap/)
+  it('today the mocap files are placeholders: the hand-keyed clips, no slot filled, every layer scale 1', () => {
+    expect(MOCAP_SET.walk).toBe(KEYED_WALK);
+    expect(MOCAP_SET.jog).toBe(KEYED_JOG);
+    expect(MOCAP_SET.run).toBe(KEYED_RUN);
+    expect(MOCAP_WALK.feet).toBeNull();
+    expect(hasSlots(MOCAP_SET)).toBe(false);
+    expect(hasSlots(HAND_KEYED_SET)).toBe(false);
+    for (const v of Object.values(MOCAP_LAYERS)) expect(v).toBe(1);
+  });
+});
+
+/** Every pre-T3 rig joint's world matrix, every step, of a holstered free-gait sequence (the switch's own path). */
+async function holsteredRun(check?: (rig: CharacterRig, k: number) => void): Promise<number[]> {
+  const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+  const { Scene } = await import('../src/core/babylon');
+  const { PartLibrary } = await import('../src/world/partLibrary');
+  const { defaultLook } = await import('../src/cosmetics/avatarLook');
+  const { operatorRig } = await import('../src/operators/runtime/playerFigure');
+  const { rigNodes } = await import('../src/operators/runtime/figure');
+  const scene = new Scene(new NullEngine());
+  const lib = new PartLibrary(scene);
+  const random = Math.random;
+  let seed = 777;
+  Math.random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  const out: number[] = [];
+  try {
+    const op = operatorRig(scene, (shape, hex, slot) => lib.instance(shape, hex, slot), defaultLook(), 'mocap');
+    const rig = op.rig;
+    // (a carrier with nothing in hand: the player's holstered free gait, as player.ts sets it)
+    rig.carrier = true;
+    const nodes = rigNodes(rig).slice(0, 21);
+    const p: RigPose = { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0 };
+    const DT = 1 / 60;
+    for (let k = 0; k < 330; k++) {
+      // still, walk, jog, run with a turn, back to a walk, a stop
+      const speed = k < 20 ? 0 : k < 120 ? 1.4 : k < 180 ? 3.0 : k < 240 ? 4.4 : k < 290 ? 1.6 : 0;
+      const yaw = k >= 180 && k < 240 ? (k - 180) * 0.012 : k >= 240 ? 0.72 : 0;
+      rig.root.rotation.y = yaw;
+      rig.root.position.x += Math.sin(yaw) * speed * DT;
+      rig.root.position.z += Math.cos(yaw) * speed * DT;
+      p.speed = speed;
+      p.localZ = speed > 0 ? 1 : 0;
+      p.stride = 'facing';
+      rig.animate(DT, p);
+      check?.(rig, k);
+      for (const n of nodes) {
+        const m = n.computeWorldMatrix(true).m;
+        for (let i = 0; i < 16; i++) out.push(m[i]! === 0 ? 0 : m[i]!);
+      }
+    }
+    op.figure.dispose();
+    rig.dispose();
+  } finally {
+    Math.random = random;
+    scene.dispose();
+  }
+  return out;
+}
+
+describe('mocap switch: the plumbing changes nothing but the clip source', () => {
+  it('switch ON with the placeholders: the anim-skeleton identity capture equals its fixture', async () => {
+    const FIXTURE = 'tests/fixtures/anim-skeleton-identity.json';
+    expect(existsSync(FIXTURE)).toBe(true);
+    const want = JSON.parse(readFileSync(FIXTURE, 'utf8')) as IdentityFixture;
+    placeholders();
+    setMocapLocomotion(true);
+    expect(LOCO.set).toBe(MOCAP_SET);
+    const got = await runIdentity();
+    for (const id of Object.keys(want)) {
+      expect(got[id], `${id} still runs`).toBeDefined();
+      expect(got[id]!.rig, `${id} rig`).toBe(want[id]!.rig);
+      expect(got[id]!.poser, `${id} poser`).toEqual(want[id]!.poser);
+    }
+  }, 120_000);
+
+  it('switch ON with the placeholders: the holstered walk / jog / run / turn / stop is bit-identical to OFF', async () => {
+    let keyed = 0;
+    let mocapShare = 0;
+    placeholders();
+    setMocapLocomotion(false);
+    const off = await holsteredRun((rig) => {
+      if (rig.graph.out.keyHol > 0.9 && rig.graph.out.keyW > 0.9) keyed++;
+      expect(rig.graph.out.keyMocap).toBe(0);
+    });
+    setMocapLocomotion(true);
+    const on = await holsteredRun((rig) => {
+      mocapShare = Math.max(mocapShare, rig.graph.out.keyMocap);
+      expect(rig.graph.out.clipFeet.valid).toBe(false);
+    });
+    // the sequence does take the holstered keyed set (the path the switch changes), and with the switch on it is the
+    // mocap set's share
+    expect(keyed).toBeGreaterThan(200);
+    expect(mocapShare).toBeGreaterThan(0.9);
+    expect(on.length).toBe(off.length);
+    let diff = 0;
+    for (let i = 0; i < on.length; i++) if (!Object.is(on[i], off[i])) diff++;
+    expect(diff).toBe(0);
+  }, 60_000);
+
+  it('a different clip in the mocap set reaches the rig only with the switch on', async () => {
+    SET.walk = KEYED_RUN;
+    SET.jog = KEYED_RUN;
+    setMocapLocomotion(false);
+    const off = await holsteredRun();
+    Object.assign(SET, SAVED);
+    const base = await holsteredRun();
+    expect(off).toEqual(base);
+    SET.walk = KEYED_RUN;
+    SET.jog = KEYED_RUN;
+    setMocapLocomotion(true);
+    const on = await holsteredRun();
+    let diff = 0;
+    for (let i = 0; i < on.length; i++) if (Math.abs(on[i]! - off[i]!) > 1e-6) diff++;
+    expect(diff).toBeGreaterThan(1000);
+  }, 60_000);
+});
+
+describe('mocap switch: clip feet (A3)', () => {
+  it('the planner pins the clip steps: no slide, the planted foot on the clip target through its stance', () => {
+    // a straight walk at 1.4 m/s on a 1.3 m (1.75 m units) clip stride: the graph's scaling done by hand here
+    const P = new FootPlanner();
+    const i = emptyPlannerInput();
+    const clip = withFeet(KEYED_WALK, 'feet_walk', 1.3);
+    const pose = newKeyedPose();
+    const C: ClipFeetIn = { on: true, f: new Float64Array(KEYED_FEET) };
+    i.clipFeet = C;
+    i.stride = 'facing';
+    i.duty = clip.duty;
+    const v = 1.4;
+    const cycle = 1.1;
+    i.cycleTime = cycle;
+    const zk = (v * cycle) / clip.stride;
+    const dt = 1 / 120;
+    let ph = 0;
+    let owned = 0;
+    let maxOff = 0;
+    let landings = 0;
+    for (let k = 0; k < 1200; k++) {
+      i.dt = dt;
+      i.rootZ += v * dt;
+      i.velZ = v;
+      ph = (ph + dt / cycle) % 1;
+      i.phase = ph;
+      i.moving = true;
+      // (the graph's job: sample the clip through the real sampler, scale it)
+      const sp = pose;
+      sampleKeyed(clip, ph, 1, sp);
+      for (let o = 0; o < KEYED_FEET; o += KEYED_FEET_SIDE) {
+        C.f[o + KF.x] = sp.feet[o + KF.x]!;
+        C.f[o + KF.y] = sp.feet[o + KF.y]!;
+        C.f[o + KF.z] = sp.feet[o + KF.z]! * zk;
+        C.f[o + KF.pitch] = sp.feet[o + KF.pitch]!;
+        C.f[o + KF.contact] = sp.feet[o + KF.contact]!;
+      }
+      P.update(i);
+      for (let side = 0; side < 2; side++) {
+        const f = side === 0 ? P.L : P.R;
+        if (f.clipOwn) owned++;
+        if (f.landed) landings++;
+        // after the first two cycles: a planted foot is on its clip target (relative to the root) within 1.5 cm
+        if (k > 300 && f.contact) {
+          const o = side * KEYED_FEET_SIDE;
+          const tz = i.rootZ + C.f[o + KF.z]!;
+          const tx = i.rootX + C.f[o + KF.x]!;
+          maxOff = Math.max(maxOff, Math.hypot(f.x - tx, f.z - tz));
+        }
+        expect(f.slide).toBe(0);
+      }
+    }
+    expect(owned).toBeGreaterThan(300);
+    expect(landings).toBeGreaterThan(15);
+    expect(maxOff).toBeLessThan(0.015);
+  });
+
+  it('on the rig: a mocap clip with feet takes the steps (switch on), the planner keeps them (switch off)', async () => {
+    const fw = withFeet(KEYED_WALK, 'feet_walk', 1.3);
+    const fj = withFeet(KEYED_JOG, 'feet_jog', 1.9);
+    const fr = withFeet(KEYED_RUN, 'feet_run', 2.4);
+    SET.walk = fw;
+    SET.jog = fj;
+    SET.run = fr;
+    let ownedOff = 0;
+    setMocapLocomotion(false);
+    await holsteredRun((rig) => {
+      if (rig.planner.L.clipOwn || rig.planner.R.clipOwn) ownedOff++;
+    });
+    expect(ownedOff).toBe(0);
+    let owned = 0;
+    let on = 0;
+    let slide = 0;
+    setMocapLocomotion(true);
+    await holsteredRun((rig) => {
+      if (rig.planner.L.clipOwn || rig.planner.R.clipOwn) owned++;
+      if (rig.graph.out.clipFeet.on) on++;
+      slide = Math.max(slide, rig.planner.L.slide, rig.planner.R.slide);
+    });
+    expect(on).toBeGreaterThan(100);
+    expect(owned).toBeGreaterThan(50);
+    expect(slide).toBe(0);
+  }, 60_000);
+});
+
+describe('mocap switch: slots', () => {
+  it('a filled start / stop / turn plays its clip over the gait and fades back out', () => {
+    SET.start = KEYED_JOG;
+    SET.stop = KEYED_RUN;
+    SET.turnMoveR = KEYED_JOG;
+    SET.turnInPlace = KEYED_RUN;
+    setMocapLocomotion(true);
+    expect(LOCO.slots).toBe(true);
+    const m = new MocapSlots();
+    const dt = 1 / 60;
+    // a start from rest
+    m.update(dt, MOCAP_SET, 0, 0, 0);
+    for (let k = 0; k < 10; k++) m.update(dt, MOCAP_SET, 0.5, 1, 0);
+    expect(m.startT).toBeGreaterThan(0);
+    expect(m.wStart).toBeGreaterThan(0.3);
+    for (let k = 0; k < 60; k++) m.update(dt, MOCAP_SET, 1.4, 0, 0);
+    expect(m.startT).toBe(-1);
+    expect(m.wStart).toBe(0);
+    // a stop: hard braking from a walk
+    for (let k = 0; k < 10; k++) m.update(dt, MOCAP_SET, 1.2, -4, 0);
+    expect(m.stopT).toBeGreaterThan(0);
+    // a 90 deg turn to the right on the move: 90 deg of yaw is the whole clip
+    m.reset();
+    let turned = 0;
+    let peak = 0;
+    let endedAt = -1;
+    for (let k = 0; k < 60 && endedAt < 0; k++) {
+      const was = m.turnT;
+      m.update(dt, MOCAP_SET, 1.4, 0, 4);
+      if (was >= 0) turned += 4 * dt;
+      if (was >= 0 && m.turnT < 0) endedAt = turned;
+      peak = Math.max(peak, m.wTurn);
+      if (m.turnT >= 0) {
+        expect(m.turnSpot).toBe(false);
+        expect(m.turnSide).toBe(1);
+      }
+    }
+    expect(peak).toBeGreaterThan(0.5);
+    expect(Math.abs(endedAt - Math.PI / 2)).toBeLessThanOrEqual(4 * dt + 1e-9);
+    // the pose: a slot at full weight is its clip's
+    const pose = newKeyedPose();
+    const tmp = newKeyedPose();
+    const v = { half: 0.05, kneeOut: 0, duty: 0.5, lift: 0.07 };
+    m.wStart = 1;
+    m.startP = 0.5;
+    m.wStop = 0;
+    m.wTurn = 0;
+    const share = m.apply(MOCAP_SET, pose, tmp, v);
+    expect(share).toBe(1);
+    expect(v.duty).toBeCloseTo(KEYED_JOG.duty, 9);
+  });
+});
+
+describe('mocap switch: no allocation per frame', () => {
+  it('the graph with the switch off, on (placeholders), on with slots and clip feet filled, and toggled every frame', async () => {
+    const g = new AnimGraph(proportions('average', 1.68));
+    const i = defaultInput();
+    i.keyedOk = true;
+    i.ready = true;
+    i.armed = false;
+    const N = 2000;
+    const SPD = inputs(N, (k) => 1.2 + 2.5 * (0.5 + 0.5 * Math.sin(k * 0.004)));
+    const YR = inputs(N, (k) => (k % 400 < 40 ? 3 : 0));
+    const AF = inputs(N, (k) => (k % 300 < 20 ? -4 : 0.5));
+    const run = (toggle: boolean) => (n: number): void => {
+      for (let k = 0; k < n; k++) {
+        i.speed = SPD[k]!;
+        i.localZ = 1;
+        i.yawRate = YR[k]!;
+        i.accelFwd = AF[k]!;
+        if (toggle) setMocapLocomotion((k & 1) === 0);
+        g.update(1 / 120, i);
+      }
+    };
+    setMocapLocomotion(false);
+    const off = await bytesPerCall(run(false), 2 * HEAP_NUMBER);
+    placeholders();
+    setMocapLocomotion(true);
+    const on = await bytesPerCall(run(false), off + HEAP_NUMBER);
+    SET.walk = withFeet(KEYED_WALK, 'feet_walk', 1.3);
+    SET.jog = withFeet(KEYED_JOG, 'feet_jog', 1.9);
+    SET.run = withFeet(KEYED_RUN, 'feet_run', 2.4);
+    SET.start = KEYED_JOG;
+    SET.stop = KEYED_RUN;
+    SET.turnMoveL = KEYED_JOG;
+    SET.turnInPlace = KEYED_RUN;
+    setMocapLocomotion(true);
+    const filled = await bytesPerCall(run(false), off + 6 * HEAP_NUMBER);
+    const toggled = await bytesPerCall(run(true), off + 6 * HEAP_NUMBER);
+    console.info(`bytes per frame: off ${off.toFixed(1)}, on ${on.toFixed(1)}, filled ${filled.toFixed(1)}, toggled ${toggled.toFixed(1)}`);
+    expect(g.out.keyW).toBeGreaterThan(0);
+    // the placeholders: no more than a boxed double or two over the switch-off frame (one object a frame reads 48 B or
+    // more). Filled (slots and clip feet), a frame samples up to three more clips, and each sampleKeyed call leaves its two
+    // boxed doubles (32 B, tests/animSkeletonClip.test.ts): at most that over the switch-off frame
+    expect(on).toBeLessThanOrEqual(off + 2 * HEAP_NUMBER);
+    expect(filled).toBeLessThanOrEqual(off + 8 * HEAP_NUMBER);
+    expect(toggled).toBeLessThanOrEqual(off + 8 * HEAP_NUMBER);
+  }, 120_000);
+});

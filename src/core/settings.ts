@@ -90,7 +90,11 @@ export interface Settings {
   audio: { master: number; sfx: number; music: number; ui: number; musicV: number };
   gameplay: { defaultShoulder: 'right' | 'left'; crouchToggle: boolean; slowBeat: boolean; sprintHold: boolean; autoRecentre: boolean; wallToggle: boolean; /** (locomotion step 18, D7) the grab from behind: true = press grabs and keeps them, a fresh press finishes (the 3.2.0 behaviour); false = keep the button held, letting go knocks them out (A70). */ grabToggle: boolean; /** (locomotion step 17) rumble strength 0..1 (the rumble table; local only, D8). */ rumble: number;
     /** Training course: the next drill's marker (D19; default on). */
-    courseMarkers: boolean };
+    courseMarkers: boolean;
+    /** (mocap-trial) Mocap locomotion: Wren's holstered walk / jog / run (and the mocap turn / start / stop clips) from
+     *  the CMU mocap set instead of the hand-keyed one (default off; `?mocap=0/1` overrides it for a page; this machine
+     *  only: the co-op partner drawn here follows it, nothing on the wire). */
+    mocapLoco: boolean };
   /** Accessibility and HUD. */
   access: {
     /** HUD size multiplier (0.8 .. 1.4). */
@@ -144,7 +148,7 @@ export function defaultSettings(): Settings {
     camV: CAM_V,
     video: { preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 86, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, brightness: 1, brightnessSet: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.15, ui: 0.7, musicV: 3 },
-    gameplay: { defaultShoulder: 'right', crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true, grabToggle: true, rumble: 1, courseMarkers: true },
+    gameplay: { defaultShoulder: 'right', crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true, grabToggle: true, rumble: 1, courseMarkers: true, mocapLoco: false },
     access: { hudScale: 1, healthBar: true, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
   };
 }
@@ -356,6 +360,7 @@ export function sanitizeSettings(raw: unknown): Settings {
       autoRecentre: bool(gp.autoRecentre, d.gameplay.autoRecentre),
       rumble: num(gp.rumble, d.gameplay.rumble, 0, 1),
       courseMarkers: bool(gp.courseMarkers, d.gameplay.courseMarkers),
+      mocapLoco: bool(gp.mocapLoco, d.gameplay.mocapLoco),
     },
     access: {
       hudScale: num(ac.hudScale, d.access.hudScale, 0.8, 1.4),
