@@ -45,7 +45,10 @@ pushed at each agent hand-back. Agents running at a cut-off are lost: the resume
 ## Resumed ~10:00 (new account)
 hostage-gait: checker PASS (docs/hostage-gait/CHECK.md), PR #194 head 6cf3ec97; waits for laptop coop + netmove on c581a9c4.
 hang-down 0578d554: desktop GPU e2e-takedown ok 22 s, e2e-anim ok 47 s; fresh checker running (-> scratch/hdc-CHECK.md).
-Running: mocap-strafe finish, traverse-fix-2 finish (Opus). Queued: strike-pops finish. Character Build has (4189, after
+mocap-strafe DONE 842270f0 (MT2-STRAFE.md; ON stop pelvis 1.89 cm, swing jumps <= 11.3 cm, slide 0; OFF md5 match;
+open: aimed strafe ON +144 B/frame). Fresh checker running (-> scratch/msc-CHECK.md); desktop lane e2e-anim + e2e-clip
+on 842270f0 (scratch/ctcore/lane-strafe.sh, logs ms-*.log). Then PR (own PR, after #188). Back-to-wall next.
+Running: traverse-fix-2 finish (Opus). Queued: strike-pops finish. Character Build has (4189, after
 Guard AI S7): hang-down coop / ctcourse / netmove, then hostage-gait coop / netmove; verdicts come to CT Core.
 This file is pushed without a worktree: scratch/ctcore/push-resume.sh <file> <msg>.
 
