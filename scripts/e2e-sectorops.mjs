@@ -1135,6 +1135,16 @@ if (want(2)) {
           const [ax, az] = b.at;
           const [sx, sz] = b.side;
           const past = (i) => (i.x - ax) * sx + (i.z - az) * sz;
+          // (sector-fixes-r2 nav) the guards' nav grid: the bolted doorway is shut (no straight walk through, its centre
+          // cell blocked), so a guard re-routes instead of stalling at the locked door
+          const navThrough = () => G(([ax, az, sx, sz, door]) => {
+            const g = window.__app.current;
+            const n = g.nav;
+            const y = g.world.doors.list[door].anchor.hinge.y;
+            return { open: n.isWalkable(n.cellOf(ax, az, y)), line: n.lineClear([ax - sx * 1.2, az - sz * 1.2], [ax + sx * 1.2, az + sz * 1.2], y, y) };
+          }, [ax, az, sx, sz, b.door]);
+          const n0 = await navThrough();
+          assert(!n0.open && !n0.line, `${tag}: bolted, the doorway is shut on the guards' nav grid (${JSON.stringify(n0)})`);
           await put(ax - sx * 0.8, 0, az - sz * 0.8, Math.atan2(sx, sz));
           const near = await G(([sec, k, door, id]) => {
             const g = window.__app.current;
@@ -1157,6 +1167,8 @@ if (want(2)) {
           }, [b.id]);
           const ub = (await G(() => window.__sector.boltInfo())).find((q) => q.id === b.id);
           assert(far.nearest === b.id && far.label === 'Unbolt' && far.it === false && !ub.shut && ub.locked === false, `${tag}: the far side's Unbolt opens the bolt and the door's lock (${JSON.stringify(far)}, ${JSON.stringify(ub)})`);
+          const n1 = await navThrough();
+          assert(n1.open && n1.line, `${tag}: unbolted, the doorway is open on the guards' nav grid (${JSON.stringify(n1)})`);
           const op = await G((door) => { const d = window.__app.current.world.doors; return d.open(d.list[door], 'quiet'); }, b.door);
           await step(1.5);
           assert(op === true, `${tag}: the door opens now`);
@@ -1168,6 +1180,8 @@ if (want(2)) {
           const rb = (await G(() => window.__sector.boltInfo())).find((q) => q.id === b.id);
           const rs = await G(([door, id]) => { const g = window.__app.current; return { target: g.world.doors.list[door].target, it: g.interactables.items.find((q) => q.id === id)?.enabled ?? null }; }, [b.door, b.id]);
           assert(rb.shut && rb.locked === true && rs.it === true && rs.target === 0, `${tag}: the restart bolts it again, shut, its Unbolt back (${JSON.stringify(rb)}, ${JSON.stringify(rs)})`);
+          const n2 = await navThrough();
+          assert(!n2.open && !n2.line, `${tag}: re-bolted, the doorway is shut on the nav grid again (${JSON.stringify(n2)})`);
         }
         if (sec < 2) {
           // on into the next section: its objective told done, the connector cycled

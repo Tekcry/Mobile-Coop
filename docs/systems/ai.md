@@ -116,6 +116,10 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 ## Navigation
 - `buildNavGrid` (load time) -> `NavGrid` (pure). Enemies chase via the shared flow field, use A* only for cover moves,
   and are constrained to nav cells (no physics character controller per enemy).
+- Runtime closures (sector-fixes-r2): `addClosure(cx, cz, hx, hz, yaw, y)` collects a rect's walkable cells near height y
+  once; `setClosed(id, on)` toggles `walk` through a per-cell count (overlaps stay shut until all open) and bumps
+  `version`, which makes `goTo` routes and the manager's flow field replan. Sector Ops shuts each bolted team door's
+  doorway this way (`sectorMode.findBolts` / `unbolt` / `rebolt`; host and solo only, the client has no grid).
 - Multi-level: the grid is layered - up to 3 standing surfaces per column by default (`sampleLayers`; a surface needs
   `HEADROOM` 1.7 m; a map may raise `navLayers`), cell = `layer * cols + column`; columns join by height (`stepTo`). Links
   (`navLinks`): ladders both ways (`kind 'ladder'`), ledge drops 1-2.2 m one way; A* / Dijkstra take them, paths split at

@@ -61,7 +61,12 @@ interface BoltIt {
   k: number;
   it: Interactable;
   door: DoorState | null;
+  /** (sector-fixes-r2 nav) Its closure on the host's nav grid (-1: none, a client or no door). */
+  nav: number;
 }
+/** (sector-fixes-r2 nav) A bolted door's nav closure: the door width plus this along (m), and this half depth across. */
+const BOLT_NAV_ALONG = 0.5;
+const BOLT_NAV_ACROSS = 0.35;
 
 /** Co-op: the devices' state goes to the client at least this often (s), and at once on a change. */
 const SEC_SEND = 0.5;
@@ -175,6 +180,13 @@ export class SectorMode implements GameMode {
         const door = ds.nearest(b.at[0], b.at[1], DOOR_FIND);
         if (door) this.lockDoor(door, true);
         else console.warn(`[sector] ${s.id}: no door at bolt ${k} (${b.at[0]}, ${b.at[1]})`);
+        // (sector-fixes-r2 nav) guards route round a bolted door: its doorway is shut on the nav grid (host / solo)
+        let nav = -1;
+        if (door && g.nav) {
+          const a = door.anchor;
+          nav = g.nav.addClosure(b.at[0], b.at[1], BOLT_NAV_ACROSS, (a.width + BOLT_NAV_ALONG) / 2, a.yaw, a.hinge.y);
+          g.nav.setClosed(nav, true);
+        }
         if (!ints) return;
         const y = door ? door.anchor.hinge.y : 0;
         const it = ints.add(boltItemId(sec, k), 'door', new Vector3(b.at[0], y, b.at[1]), 'Unbolt', 0);
@@ -182,7 +194,7 @@ export class SectorMode implements GameMode {
         it.side = b.side;
         it.onUse = (_it, by) => this.unbolt(sec, k, by);
         ints.setEnabled(it, true);
-        this.boltIts.push({ sec, k, it, door });
+        this.boltIts.push({ sec, k, it, door, nav });
       });
     });
   }
@@ -198,6 +210,7 @@ export class SectorMode implements GameMode {
     const b = this.boltIts.find((q) => q.sec === sec && q.k === k);
     if (!b) return true;
     if (b.door) this.lockDoor(b.door, false);
+    if (b.nav >= 0) this.g.nav?.setClosed(b.nav, false);
     this.g.interactables?.setEnabled(b.it, false);
     // (sector-fixes-r fix) the client's door lock rides the next sector send: send it now, not up to SEC_SEND later
     this.secT = 0;
@@ -211,6 +224,7 @@ export class SectorMode implements GameMode {
     for (const b of this.boltIts) {
       if (b.sec !== sec) continue;
       if (b.door) this.lockDoor(b.door, true);
+      if (b.nav >= 0) this.g.nav?.setClosed(b.nav, true);
       if (!b.it.enabled) this.g.interactables?.setEnabled(b.it, true);
     }
     // (sector-fixes-r fix) the re-bolted locks reach the client on the next step's sector send
