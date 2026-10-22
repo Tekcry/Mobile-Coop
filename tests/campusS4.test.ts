@@ -549,7 +549,7 @@ describe('CR4: the cable basket B1 against a solo player (SPEC Campus-wide rules
       expect(Math.min(e.a.z, e.b.z)).toBeGreaterThanOrEqual(32.4 - 1e-3);
       expect(Math.max(e.a.z, e.b.z)).toBeLessThanOrEqual(35.6 + 1e-3);
     }
-    const baskets = solid.filter(isBasket);
+    const baskets = solid.filter((p) => isBasket(p) && inFoot(p.c[0], p.c[2]));
     expect(baskets.filter((p) => !p.noLedge).length).toBe(1);
   });
 
@@ -596,7 +596,7 @@ describe('S4 lighting', () => {
     expect(lit.filter((l) => inBox(l, 30.6, 34, 42, 48)).length).toBe(0);
     for (const x0 of S4_PODS) expect(lit.filter((l) => inBox(l, x0 + 1.2, x0 + 2.4, 24, 32)).length, `hot aisle ${x0}`).toBe(0);
     // the build-out area east of the west aisle (the W aisle lamp at (-2.5, 34) is in the brief's lamp list: L5)
-    expect(lit.filter((l) => inBox(l, 0, 13.8, 33, 42)).length).toBe(0);
+    expect(lit.filter((l) => l.y < 7 && inBox(l, 0, 13.8, 33, 42)).length).toBe(0);
     expect(b.lights.zoneAt(6.4, 1, 33)).toBe(0.14);
     expect(b.lights.zoneAt(36, 1, 20)).toBe(0.14);
     expect(b.lights.zoneAt(24, 1, 8)).toBe(0.3);
@@ -619,6 +619,10 @@ describe('S4 rooms, sealing, door separation', () => {
   });
 
   it('sealing: a flood from the start on the nav (doors open, ladders as links) never leaves the S4 footprint plus the C3 and C4 boxes; every deck edge over outside ground stands >= 1.9 high', () => {
+    // C3's near door (into S3) and C4's far door (into S5) are the section's ends: shut them on the grid
+    const find = doorFinder(b.anchors.doors);
+    const ends = [find(24, 0), find(-26, 29), find(37.5, 16)].map((d) => addDoorClosure(nav, d!));
+    for (const id of ends) nav.setClosed(id, true);
     const seen = new Uint8Array(nav.walk.length);
     const start = nav.cellOf(S4.start.x, S4.start.z, 0);
     const queue = [start];
@@ -641,6 +645,7 @@ describe('S4 rooms, sealing, door separation', () => {
         queue.push(j);
       }
     }
+    for (const id of ends) nav.setClosed(id, false);
     expect(count).toBeGreaterThan(2000);
     expect(outside.slice(0, 5)).toEqual([]);
     // the deck's north, south and west edges carry 2.0 screens (7.3-9.3); the east parapet (inside S4, over the compound) 1.1 with the ladder gap

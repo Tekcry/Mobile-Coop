@@ -42,7 +42,7 @@ export const S4_GUARDS: SectorGuard[] = [
   { kind: 'enforcer', x: -1.2, z: 44.0, yaw: -PI / 2 + 0.6, takedownSpot: [-0.8, 44.0], role: 'supervisor', zone: 'sec', squad: 2, pair: 4, reason: 'Site supervisor at the monitors' },
   // 7-8 the cold-aisle patrols: a loop each, opposite phase (west aisles, east aisles)
   { kind: 'grunt', x: 3.6, z: 23, yaw: 0, route: [[3.6, 23], [3.6, 33], [9.2, 33], [9.2, 23]], waits: [3, 0.5, 3, 0.5], faces: [0, PI / 2, PI, -PI / 2], takedownSpot: [3.6, 23], role: 'patrol', zone: 'cold-w', squad: 3, reason: 'Floor round, west aisles' },
-  { kind: 'grunt', x: 32.7, z: 33, yaw: PI, route: [[32.7, 33], [32.7, 23], [26.8, 23], [26.8, 33]], waits: [3, 0.5, 3, 0.5], takedownSpot: [32.7, 33], role: 'patrol', zone: 'cold-e', squad: 3, reason: 'Floor round, east aisles (opposite phase)' },
+  { kind: 'grunt', x: 32.7, z: 33, yaw: PI, route: [[32.7, 33], [32.7, 23], [26.8, 23], [26.8, 33]], waits: [3, 0.5, 3, 0.5], takedownSpot: [32.7, 24.0], role: 'patrol', zone: 'cold-e', squad: 3, reason: 'Floor round, east aisles (opposite phase)' },
   // 9 the cage keyholder: at the front gate, under cam-cage
   { kind: 'officer', x: 18, z: 33.0, yaw: PI, takedownSpot: [18, 33.5], role: 'keyholder', zone: 'cage', squad: 3, reason: 'Holds one of the two cage keys; under cam-cage' },
   // 10-11 the hot-aisle checkers (dormant): back and forth along P1 and P4's hot aisles, 6 s at each end
@@ -56,10 +56,10 @@ export const S4_GUARDS: SectorGuard[] = [
   { kind: 'officer', x: 1.0, y: NOC, z: 43.0, yaw: PI, takedownSpot: [1.0, 43.5], role: 'noc', zone: 'noc', squad: 2, pair: 14, reason: 'Watches the hall from the NOC window' },
   { kind: 'officer', x: 3.0, y: NOC, z: 43.0, yaw: PI, takedownSpot: [3.0, 43.5], role: 'noc', zone: 'noc', squad: 2, pair: 13, reason: 'Watches the screens and the hall' },
   // 16 the north corridor tour (dormant): the security room's side door <-> the riser door
-  { kind: 'officer', x: 11, z: 45.8, yaw: PI / 2, route: [[11, 45.8], [28, 45.8]], waits: [3, 3], takedownSpot: [11, 45.8], role: 'tour', zone: 'nc', squad: 4, dormant: true, reason: 'Clocking round: the security room side door and the riser door (A94)' },
+  { kind: 'officer', x: 11, z: 45.8, yaw: PI / 2, route: [[11, 45.8], [28, 45.8]], waits: [3, 3], takedownSpot: [20, 45.8], role: 'tour', zone: 'nc', squad: 4, dormant: true, reason: 'Clocking round: the security room side door and the riser door (A94)' },
   // 17-18 the dock pair: a timed loop of the dock (staggered, A89), opposite ends
-  { kind: 'grunt', x: 31.5, z: 18.6, yaw: -PI / 2, route: [[31.5, 18.6], [16.5, 20.4]], loop: DOCK_LOOP, takedownSpot: [31.5, 18.6], role: 'dock', zone: 'dock', squad: 1, reason: 'Unloads the 03:00 drives (staggered, A89)' },
-  { kind: 'grunt', x: 16.5, z: 18.6, yaw: PI / 2, route: [[16.5, 18.6], [31.5, 20.4]], loop: DOCK_LOOP, takedownSpot: [16.5, 18.6], role: 'dock', zone: 'dock', squad: 1, reason: 'Unloads the drives; alone at the shelf end each trip' },
+  { kind: 'grunt', x: 31.8, z: 18.6, yaw: -PI / 2, route: [[31.8, 18.6], [16.2, 20.4]], loop: DOCK_LOOP, takedownSpot: [31.8, 18.6], role: 'dock', zone: 'dock', squad: 1, reason: 'Unloads the 03:00 drives (staggered, A89)' },
+  { kind: 'grunt', x: 16.2, z: 18.6, yaw: PI / 2, route: [[16.2, 18.6], [31.8, 20.4]], loop: DOCK_LOOP, takedownSpot: [16.2, 18.6], role: 'dock', zone: 'dock', squad: 1, reason: 'Unloads the drives; alone at the shelf end each trip' },
   // 19 the colonnade sentry (K3, M12): posted at the C4 gate, facing east, the C4 door 1.5 m behind him
   { kind: 'grunt', x: -8.5, z: 29, yaw: PI / 2, takedownSpot: [-9.0, 29], role: 'posted', zone: 'c4', squad: 4, reason: 'The Old House is closed tonight: nobody goes down the colonnade' },
   // 20 the mobile supervisor: the hall's west aisle, visiting the battery, colonnade and UPS doors
