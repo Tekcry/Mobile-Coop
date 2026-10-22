@@ -134,6 +134,14 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   clock drives both bodies (`TEAM_LINK`, written by GameState; the partner's avatar reads it when the partner is ours:
   `MoveState.tid` / mode / sub / `s` / `ph` as before); an unlinked holder plays the offer pose. The rope line starts in
   the holder's hands (`ropeGripWorld`).
+- (hang-down) The hanging player's actions (`TeamController.hangActs`: hanging settled, no end asked). No wire change: the
+  hanger's MoveState stays the team mode (`boost` + `HANG_SUB`). Its takedowns (the grab, the neck snap; rules in
+  `docs/systems/takedowns.md`) go to the host as any client takedown (`td`); the host keeps a guard a hanging client
+  seized (no `TD_MAX` let-go) and holds him lifted under that client's head (`net/hangHold.ts` `hangHoldStep`, the
+  client's own `hangHoldPoint`, eased in; not solid), until the client's `td` done (the host's view shows no knockout
+  lowering: the guard drops at the finish). The pistol: `hostHandsFree` lets `boost` + `HANG_SUB` (not the rope) hold
+  it drawn, and a hanging client's shot may start `SHOT_UNDER_HANG` 2.2 m under its turned-over root (`checkShot`'s
+  `under`; 1 m otherwise). The holder's pull-up or drop ends the hang; a guard still held is knocked out there (A4).
 - Partners block each other (training D49, A49, G52: every co-op mode): each page gives each partner a
   `PartnerBlocker` (`partnerBlocker.ts`), an upright capsule at their shown (interpolated) feet in `G.PARTNER` that only
   the local controller collides with. Host: `RemotePlayer.blocker`; client: per `RemoteAvatar`. Parked while the

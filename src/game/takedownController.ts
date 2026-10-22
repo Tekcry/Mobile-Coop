@@ -5,7 +5,8 @@ import type { CharacterRig } from '../player/characterRig';
 import type { DamageResult, HitInfo } from './damage';
 import { G } from '../physics/groups';
 import { hyp2 } from '../core/mathx';
-import { approachPoint, GRAB, GRAB_KINDS, pickTakedown, TAKEDOWN, type AttackerState, type TakedownInput, type TakedownPlan } from './takedown';
+import { approachPoint, GRAB, GRAB_KINDS, HANG_GRAB, hangHoldPoint, pickTakedown, TAKEDOWN, type AttackerState, type TakedownInput, type TakedownPlan } from './takedown';
+import { HANG_HEAD } from './teamMoves';
 import { gearCap } from '../player/speedGears';
 import type { GameState } from './gameState';
 import { grabRule } from '../ai/archetypes';
@@ -165,6 +166,8 @@ export class TakedownController {
   private attackerState(): AttackerState {
     const g = this.g;
     const tr = g.traversal;
+    // (hang-down) head-first under the partner's hands (a team move, not an attach)
+    if (g.team.hangActs) return 'hangDown';
     const wc = g.wallCore;
     if (wc && wc.phase === 'on') return wc.low ? 'wallLow' : 'wall';
     if (tr.attached) {
@@ -215,13 +218,16 @@ export class TakedownController {
     const g = this.g;
     const c = g.player.controller;
     // leaving the anchor for moves that carry the attacker; hanging pulls (and an inverted choke) stay put
-    if (o.plan.kind !== 'below' && o.plan.kind !== 'window' && o.plan.kind !== 'inverted') {
+    const hangDown = o.plan.kind === 'hangDown';
+    if (o.plan.kind !== 'below' && o.plan.kind !== 'window' && o.plan.kind !== 'inverted' && !hangDown) {
       if (g.traversal.attached) g.traversal.reset();
     }
     // (3.2.0) from behind on a guard on two legs: a grab, decided by a fresh press while holding them
     const grab = GRAB_KINDS.includes(o.plan.kind) && !o.e.def.quadruped && !o.lethalOnly && lethal === undefined;
     // (G7, AUDIT-WALLS row 5) the grab steps in over 0.42 s (CT 110936: 1.5 m in 0.35-0.45 s), rising out of a crouch
-    if (grab) {
+    // (hang-down) from the hang the hands reach down to him (`HANG_GRAB.reach`), the body stays where it hangs
+    if (grab && hangDown) o.plan.approach = HANG_GRAB.reach;
+    else if (grab) {
       o.plan.approach = GRAB.approach;
       c.standUp();
     }
@@ -251,6 +257,8 @@ export class TakedownController {
     const g = this.g;
     const vs = g.takedownVictims();
     if (!vs.length) return null;
+    // (hang-down) lowered, pulled up or dropped: nothing (settled, `attackerState` 'hangDown')
+    if (g.team.hangingDown && !g.team.hangActs) return null;
     const p = g.player.position;
     const cand = this.cand;
     const cd = this.candD;
@@ -291,7 +299,8 @@ export class TakedownController {
     const i = this.inp;
     i.state = this.attackerState();
     i.ax = p.x;
-    i.ay = p.y;
+    // (hang-down) the hanging head's height (the rig root is the turned-over feet reference)
+    i.ay = i.state === 'hangDown' ? p.y - HANG_HEAD : p.y;
     i.az = p.z;
     i.vx = best.pos.x;
     i.vy = best.pos.y;
@@ -313,7 +322,10 @@ export class TakedownController {
     i.winNz = w ? Math.cos(w.yaw) : undefined;
     // line of sight chest to chest (one ray)
     // (hanging: from over the lip, where the hands are)
-    this.eye.set(p.x, p.y + (i.state === 'hang' ? 2.05 : 1.2), p.z);
+    // (hang-down: from the hanging head; no dog is taken from the hang)
+    if (i.state === 'hangDown' && best.def.quadruped) return null;
+    this.eye.set(p.x, p.y + (i.state === 'hang' ? 2.05 : i.state === 'hangDown' ? 0.05 - HANG_HEAD : 1.2), p.z);
+    // (the plan's align is the attacker's own spot; from the hang it is never used: the body stays where it hangs)
     this.head.set(best.pos.x, best.pos.y + 1.2, best.pos.z);
     const h = g.ballistics.ray(this.eye, this.head, G.STATIC);
     i.los = !h.hit || h.distance > Vector3.Distance(this.eye, this.head) - 0.2;
@@ -321,7 +333,8 @@ export class TakedownController {
     if (!plan) return null;
     // archetypes: an enforcer's shield stops a grab from the front, a heavy only falls to a strike there
     // (G155) no heavies in the missions: the heavy's frontal rule is off; the enforcer's shield still stops a frontal grab
-    const rule = best.def.kind === 'heavy' ? 'ok' : grabRule(best.def.kind, plan.kind);
+    // (hang-down) from over the head: no shield or frontal rule applies
+    const rule = best.def.kind === 'heavy' || plan.kind === 'hangDown' ? 'ok' : grabRule(best.def.kind, plan.kind);
     return rule === 'no' ? null : { e: best, plan, lethalOnly: rule === 'lethal' };
   }
 
@@ -336,6 +349,10 @@ export class TakedownController {
 
   /** The grab: approach, hold (moving slowly), a fresh press to finish it, a shove to let go. */
   private runGrab(dt: number, gr: GrabState): void {
+    if (this.active!.plan.kind === 'hangDown') {
+      this.runHangGrab(dt, gr);
+      return;
+    }
     const g = this.g;
     const a = this.active!;
     const { e, plan } = a;
@@ -416,6 +433,13 @@ export class TakedownController {
       }
       return;
     }
+    if (this.holdTalk(dt, gr, e)) return;
+    this.holdPick(gr, true);
+  }
+
+  /** (G7, PR 3) The interrogation under way (true: it ran this step), then the lines it got, said one by one. */
+  private holdTalk(dt: number, gr: GrabState, e: TakedownVictim): boolean {
+    const g = this.g;
     if (gr.interT >= 0) {
       // ("Missing entirely": interrogate, 052607 @ 7-8) the free hand at his jaw, his head turned to the operator;
       // the hold goes on (and the menu) after it
@@ -434,7 +458,7 @@ export class TakedownController {
           gr.talkT = 0;
         } else g.hud.feedItem('Interrogated: nothing new');
       }
-      return;
+      return true;
     }
     if (gr.talk) {
       gr.talkT -= dt;
@@ -444,6 +468,14 @@ export class TakedownController {
         if (++gr.talkI >= gr.talk.length) gr.talk = null;
       }
     }
+    return false;
+  }
+
+  /** (A4, G23) The held guard's pick this step: knock out, kill, carry (`carryOk`: a knockout, then the body goes on
+   *  the shoulder; from the hang-down a plain knockout), interrogate. */
+  private holdPick(gr: GrabState, carryOk: boolean): void {
+    const a = this.active!;
+    const e = a.e;
     // (A4, G23) the CT grab menu's pick: knock out, kill, or carry (a knockout, then the body goes on the shoulder)
     const pick = this.menuPick;
     this.menuPick = null;
@@ -454,12 +486,84 @@ export class TakedownController {
         if (e.holdPose) e.holdPose('seizedLethal', 0);
         else e.beginTakedown(false);
       }
-      if (pick === 'carry') {
+      if (pick === 'carry' && carryOk) {
         this.carryId = e.id;
         this.carryT = 1.5;
       }
       gr.strikeT = 0;
     } else if (pick === 'interrogate') gr.interT = 0;
+  }
+
+  /**
+   * (hang-down) The grab from the co-op hang-down: the hands reach down (`HANG_GRAB.reach`), the guard is lifted to them
+   * (`HANG_GRAB.lift`), then held in front of the chest under the hanging head (following the holder's depth). Then the
+   * held rules as on the ground (Michael 08:10-08:25; anim-rework S1): RT tap knocks him out, RT hold kills (the neck
+   * snap), interrogate when he knows something, the aim makes him a shield; no let-go. The body never moves (the team
+   * move owns it). (A4) The hang ending first (pulled up, dropped, the hold lost) knocks him out at once.
+   */
+  private runHangGrab(dt: number, gr: GrabState): void {
+    const g = this.g;
+    const a = this.active!;
+    const { e, plan } = a;
+    a.t += dt / this.handsMul;
+    if (!g.player.alive || !e.alive) {
+      if (!e.alive) this.grabs.lost++;
+      this.abort();
+      return;
+    }
+    if (!gr.hold && g.target.health.hp < a.hp - 0.5) {
+      this.abort();
+      return;
+    }
+    if (!g.team.hangActs) {
+      // (A4) KO by default: a neck snap under way ends as the kill, anything else as the knockout
+      a.lethal = a.lethal && gr.strikeT >= 0;
+      this.grabs[a.lethal ? 'killed' : 'ko']++;
+      this.finish();
+      return;
+    }
+    const p = g.player.position;
+    const at = hangHoldPoint(p.x, p.z, p.y - HANG_HEAD, plan.faceYaw, a.vFrom.y, this.pt);
+    if (!gr.hold) {
+      if (a.t < plan.approach) {
+        e.holdAt(a.vFrom.x, a.vFrom.y, a.vFrom.z, gr.vYaw0);
+        return;
+      }
+      // lifted to the hands, turned with his back to the hanging body
+      const k = ease((a.t - plan.approach) / HANG_GRAB.lift);
+      e.holdAt(a.vFrom.x + (at.x - a.vFrom.x) * k, a.vFrom.y + (at.y - a.vFrom.y) * k, a.vFrom.z + (at.z - a.vFrom.z) * k, gr.vYaw0 + wrapPi(plan.faceYaw - gr.vYaw0) * k);
+      if (k >= 1) {
+        gr.hold = true;
+        e.setSolid?.(false);
+        e.holdAsHostage?.();
+      }
+      return;
+    }
+    gr.holdT += dt;
+    if (gr.strikeT >= 0) {
+      gr.strikeT += dt / this.handsMul;
+      if (a.lethal) {
+        // the neck snap
+        e.holdAt(at.x, at.y, at.z, plan.faceYaw);
+        if (gr.strikeT >= GRAB.killTime) {
+          this.grabs.killed++;
+          this.finish();
+        }
+        return;
+      }
+      // the choke: limp, let down onto his floor
+      const ko = koCurve(Math.min(1, gr.strikeT / CQ.koTime), this.ko);
+      e.holdPose?.('ko', ko.limp, ko.lower);
+      e.holdAt(at.x, at.y + (a.vFrom.y - at.y) * ko.limp, at.z, plan.faceYaw);
+      if (gr.strikeT >= CQ.koTime) {
+        this.grabs.ko++;
+        this.finish();
+      }
+      return;
+    }
+    e.holdAt(at.x, at.y, at.z, plan.faceYaw);
+    if (this.holdTalk(dt, gr, e)) return;
+    this.holdPick(gr, false);
   }
 
   /** (anim-n4d, M1) The kill blow's follow-through and return after the kill (pose only; gameplay is done): the blow's
@@ -513,10 +617,19 @@ export class TakedownController {
       this.abort();
       return;
     }
+    const hangDown = plan.kind === 'hangDown';
+    // (hang-down, A4) the hang ended under a quick takedown (pulled up, dropped): it ends at once as decided, a knockout
+    // when not yet decided
+    if (hangDown && !g.team.hangActs) {
+      if (!a.decided) a.lethal = false;
+      a.decided = true;
+      this.finish();
+      return;
+    }
     const total = plan.approach + plan.strike;
     const kAp = plan.approach > 0 ? Math.min(1, a.t / plan.approach) : 1;
     // attacker: along the path onto the aligned spot, facing the victim
-    if (plan.kind !== 'below' && plan.kind !== 'window' && plan.kind !== 'inverted') {
+    if (plan.kind !== 'below' && plan.kind !== 'window' && plan.kind !== 'inverted' && !hangDown) {
       approachPoint(a.from.x, a.from.y, a.from.z, plan, kAp, this.pt);
       this.override(this.pt.x, this.pt.y, this.pt.z, plan.faceYaw, false);
       this.stepping = kAp < 1;
@@ -533,7 +646,8 @@ export class TakedownController {
     const pose = g.player.pose;
     this.blowPh = a.lethal && ks >= 0 ? Math.min(1, ks) : -1;
     // (anim-n4d, M1) the arc's contact on the kill (`killWarp`), the follow-through after it (`killTail`)
-    pose.melee = killWarp(this.blowPh, TAKEDOWN_BLOW);
+    // (hang-down) no elbow arc upside down: the hands on his neck (`frameUpdate`)
+    pose.melee = hangDown ? -1 : killWarp(this.blowPh, TAKEDOWN_BLOW);
     // (never finishes before the choice is made)
     if (a.t >= total && (a.decided || a.t >= TAKEDOWN.lethalHold)) this.finish();
   }
@@ -610,7 +724,8 @@ export class TakedownController {
 
   private release(): void {
     const g = this.g;
-    g.player.controller.override = null;
+    // (hang-down) only our own override: from the hang the team move's holds the body
+    if (g.player.controller.override === this.ov) g.player.controller.override = null;
     if (this.active?.grab) {
       g.player.controller.speedCap = Infinity;
       // (a dead hostage's hit volumes are gone)
@@ -629,7 +744,8 @@ export class TakedownController {
     const e = a.e;
     this.release();
     // (anim-n4d, M1) the blow's contact landed on the kill: its follow-through plays on (pose only)
-    if (a.lethal) {
+    const hangDown = a.plan.kind === 'hangDown';
+    if (a.lethal && !hangDown) {
       this.tailB = a.grab ? GRAB_KILL_BLOW : TAKEDOWN_BLOW;
       this.tailU = 1;
       g.player.pose.melee = killWarp(1, this.tailB);
@@ -641,7 +757,7 @@ export class TakedownController {
     if (a.lethal) e.applyDamage(hit);
     else e.knockOut(hit);
     this.done[a.lethal ? 'lethal' : 'nonLethal']++;
-    const kind = a.grab ? 'grab' : a.plan.kind;
+    const kind = a.grab ? (hangDown ? 'hangGrab' : 'grab') : a.plan.kind;
     this.done.byKind[kind] = (this.done.byKind[kind] ?? 0) + 1;
     const r = a.lethal ? NOISE_STRIKE : NOISE_CHOKE;
     g.enemyMgr?.hear(g.player.position, r);

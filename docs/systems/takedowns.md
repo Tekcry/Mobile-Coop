@@ -84,6 +84,37 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
   and `ref.shield` and lowers / turns him from `ph` / `sub`; `RemoteAvatar` poses the hold hands and the bend from them.
   The carry has no MoveState (a partner sees no body on the shoulder, as before).
 
+## From the co-op hang-down (hang-down job; `docs/hang-down/BRIEF.md`)
+CT 1.5 Drop Line: the hanging player can grab and neck-snap a guard below (the only grab entry while hanging) and use
+the pistol. Live only while hanging settled (`TeamController.hangActs`); lowering, the pull-up and the drop offer nothing.
+- Attacker state `hangDown` (`TakedownController.attackerState`, before the wall / attach checks); `pickTakedown` kind
+  `hangDown`: the input's `ay` is the hanging HEAD (the rig root less `HANG_HEAD`); in reach when the guard's neck
+  (`HANG_GRAB.neck` 1.5 m over his feet) is 0.75 m under to 0.35 m over the head and within 0.9 m across
+  (`TAKEDOWN.hangReach` / `hangBelow` / `hangAbove`, `hangInReach`); any awareness or facing; line of sight from the
+  head; no dog; no archetype rule (from over the head). The body never moves: the team move keeps its override (the
+  takedown's `release` clears only its own).
+- The grab (A1, A3): the hold-A menu works while hanging by a guard (rows: GRAB CHARACTER for the guard in reach, the
+  item in reach); with no guard on offer or held, A uses the item in reach directly as before (A9: press uses it, a
+  hold fills a hold item; `GameState.hangDirectA`, one consumer of A per step); `GRAB_KINDS` holds `hangDown`. `runHangGrab`: the hands reach down (`HANG_GRAB.reach` 0.3 s, his
+  struggle from there), he is lifted to them (`HANG_GRAB.lift` 0.5 s; `hangHoldPoint`: `HANG_GRAB.hold` 0.3 m out along
+  the way to him, his neck `HANG_GRAB.hands` 0.35 m under the head, at most `liftMax` 0.6 m off his floor, following the
+  holder's depth), then held with the held rules: RT tap / KBM Z knock out (`CQ.koTime`, let down limp onto his floor),
+  RT hold kills (the neck snap, `GRAB.killTime`), INTERROGATE when he knows something, LT aims the pistol (shield); no
+  let-go, no carry (a carry pick is a plain knockout). (A4) The hang ending while he is held (the holder pulls up or
+  lets go, the hold lost) knocks him out at once ("KO by default"). Event kind `hangGrab`.
+- The neck snap (A5): RT on the guard in reach, holstered (any stance while hanging) and not aiming: tap the choke
+  (knockout), held (`STANCE.rtHold`) the neck snap (lethal); KBM LMB the same, Z the choke (`GameState`, before the
+  takedown step, `grabTriggerPick`). The ordinary takedown run with kind `hangDown` (`HANG_GRAB.strike` 0.6 s; the guard
+  pulled to the hold point; no elbow arc, `pose.melee` -1, no kill tail; the hands on his neck by the takedown's reach
+  IK). The hang ending mid-way ends it as decided (a knockout when not yet decided). The elbow strike never runs from the
+  hang.
+- The pistol (A6): hanging, LT draws the sidearm one-handed (never the rifle) with the inverted pipe's aim
+  (`Player.attachAim` inverted, the `PIPE` band and spread, the aim yaw the chest's: the facing + PI) and the camera
+  frames the hanging head (`inverted` framing); RT fires; RB while aiming is the jammer (G212), so no pull-up then.
+- Co-op: `docs/systems/coop.md` (hang-down). Tests: `tests/hangDown.test.ts`, `tests/hangDownTakedown.test.ts`,
+  `tests/hangDownNet.test.ts`; e2e-coop "hang-down" (the joiner hangs: pistol, menu grab + Z, RT held neck snap, the
+  host's pull-up knocks the held guard out).
+
 ## Elbow strike (locomotion step 10)
 To be replaced by the palm strike (G42); this is the current build.
 - `fire` pressed while holstered (draw phase 0, not aiming), on the ground and not attached, traversing, in a takedown,

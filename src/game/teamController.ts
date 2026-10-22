@@ -142,6 +142,12 @@ export class TeamController {
     return HANGER_STATES.includes(this.state);
   }
 
+  /** (hang-down) Hanging settled under the partner's hands, no end asked: the hanging player's actions are live (the
+   *  hold-A menu, the grab and the neck snap, the pistol). Lowering, the pull-up and the drop are not. */
+  get hangActs(): boolean {
+    return this.state === 'hanging' && !this.hang.sent;
+  }
+
   /** Free air over the head and the four side clearances (m): the leg-up's room (G151). */
   private room(): boolean {
     const g = this.g;
@@ -541,7 +547,8 @@ export class TeamController {
     } else this.kin.set(h.x, ry, h.z);
     c.override = { kinematic: this.kin, yaw: h.yaw, turnRate: 20, crouch: false };
     g.player.pose.tumble = Math.PI;
-    this.prompt = h.sent ? null : 'Hanging: A to use what is in reach; Co-op to be pulled up';
+    // (hang-down) A the item in reach (A9), the hold-A menu by a guard (grab), RT the neck snap, LT the pistol
+    this.prompt = h.sent ? null : 'Hanging: A to use what is in reach, hold A by a guard to grab, RT takes him down, LT aims; Co-op to be pulled up';
     this.promptAt.set(c.pos.x, c.pos.y + 0.4, c.pos.z);
     const k = hangEndOf(false, coopPressed, bPressed);
     if (k && !h.sent) {

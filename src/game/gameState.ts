@@ -283,6 +283,8 @@ const TD_LABEL: Readonly<Record<TakedownKind, string>> = {
   below: 'Pull over ledge',
   window: 'Pull through window',
   inverted: 'Choke',
+  // (hang-down) the only grab row while hanging (CT); RT is the neck snap
+  hangDown: 'Grab character',
 };
 
 const TRAVERSE_LABEL: Record<string, string> = { step: 'Step up', vault: 'Vault', mantle: 'Climb', drop: 'Drop down', hop: 'Jump', none: '' };
@@ -429,9 +431,14 @@ export class GameState implements AppState {
     return this.player.adsWanted && this.weapons.current.def.class === 'pistol';
   }
   private rtRes: 'tap' | 'hold' | null = null;
+  /** (hang-down) The hanging player's inverted pistol aim band (`Player.attachAim`), reused. */
+  private hangAimRef: { yaw: number; range: number; pitchMin: number; pitchMax: number; inverted: boolean } | null = null;
   private readonly ctxIn = emptyCtxInput();
   /** The menu owns A this step (a list is up, or its press is still held): the other A readers see it up. */
   private ctxOwnsA = false;
+  /** (hang-down fix, A9) Hanging settled with no guard on offer or held: A uses the item in reach directly (tap uses it,
+   *  a hold fills a hold item, as before the menu), the menu lists nothing; set by `contextMenuStep` for the step. */
+  private hangDirectA = false;
   /** (A3, G19; G5) The door set and (A4, G23; G5) the grab set as seen from outside (tests, tools). */
   readonly doorMenu = new DoorMenuView(this.ctxMenu);
   readonly grabMenu = new GrabMenuView(this.ctxMenu);
@@ -1197,7 +1204,9 @@ export class GameState implements AppState {
     const ints = this.interactables;
     if (!ints) return;
     ints.update(dt);
-    if (!this.team.active) {
+    // (hang-down, A1) hanging settled by a guard (on offer or held), the context menu uses the items (a hold row for the
+    // hack); (A9) with no guard there, A uses the item in reach here as before the menu
+    if (!this.team.active || (this.team.hangActs && !this.hangDirectA)) {
       this.hud.setInteract(null);
       return;
     }
@@ -1222,7 +1231,8 @@ export class GameState implements AppState {
       return;
     }
     // held actions: hold the button, or (Settings > Accessibility) tap to start and tap again to stop
-    let holding = this.app.input.state.down('interact');
+    // (A9) hanging: an A still held from a menu list (a guard left reach under it) fills nothing
+    let holding = this.app.input.state.down('interact') && !(this.team.hangActs && this.ctxOwnsA);
     if (it.holdTime > 0 && this.app.settings.get().access.holdToggle) {
       if (this.app.input.state.pressed('interact')) this.holdLatch = this.holdLatch === it ? null : it;
       holding = this.holdLatch === it;
@@ -1262,7 +1272,13 @@ export class GameState implements AppState {
   private contextMenuStep(dt: number, real: InputState): void {
     const m = this.ctxMenu;
     const td = this.takedown;
-    const aside = !this.player.alive || this.team.active || this.doorPeek.active || this.gadgets.remote !== null || this.gadgets.wheelOpen || (td.active !== null && !td.menuReady) || (this.stealth?.busy ?? false);
+    // (hang-down, A1) hanging settled under the partner's hands the menu is live (a guard to grab, the hack in reach)
+    const hangActs = this.team.hangActs;
+    // (hang-down fix, A9) no guard to grab or held: the item in reach is A's own (`updateInteract`), not a menu row, so
+    // one press never runs both
+    const hangDirect = hangActs && td.offer === null && td.active === null;
+    this.hangDirectA = hangDirect;
+    const aside =!this.player.alive || (this.team.active && !hangActs) || this.doorPeek.active || this.gadgets.remote !== null || this.gadgets.wheelOpen || (td.active !== null && !td.menuReady) || (this.stealth?.busy ?? false);
     // (Michael 08:10 / 08:20; anim-rework S1, M3) a held guard: RT tap knocks him out, RT hold kills (KBM Z knocks out
     // too; not aiming: LT aims the pistol over his shoulder and RT then fires); a pick armed from outside (`grabMenu.sel`, scripts) runs on the next A press. Nothing lets him go:
     // B, Y and BACK TO GAME only close the list.
@@ -1292,7 +1308,8 @@ export class GameState implements AppState {
         }
         const dIdx = this.doorMenuCandidate();
         if (dIdx >= 0) addDoorRows(m, dIdx, this.peekOffer === dIdx, this.doorMenu.opts);
-        it = this.stealth?.carryTarget(this.player.position) ?? this.interactables?.nearest(this.player.position) ?? null;
+        // (hang-down) no body is picked up from the hang
+        it = hangDirect ? null : ((hangActs ? null : this.stealth?.carryTarget(this.player.position)) ?? this.interactables?.nearest(this.player.position) ?? null);
         let label = it ? it.label : '';
         if (it && it.kind === 'door' && it.id.startsWith('door-')) {
           // a door's own item: the door set covers the closed door faced; else it opens or closes the door
@@ -1304,7 +1321,7 @@ export class GameState implements AppState {
       }
     }
     m.end();
-    if (!this.team.active && it !== this.interactTarget) {
+    if ((!this.team.active || (hangActs && !hangDirect)) && it !== this.interactTarget) {
       if (this.interactTarget && !this.interactTarget.done) this.interactTarget.progress = 0;
       this.interactTarget = it;
     }
@@ -1612,7 +1629,8 @@ export class GameState implements AppState {
     // (no aim), or holding a guard and not aiming the pistol
     {
       const pl = this.player;
-      const free = pl.alive && !pl.ads && !pl.adsWanted && pl.stance.base === 'holstered';
+      // (hang-down, A5) hanging, RT is the neck snap whatever the stance (the gun is away for the team move)
+      const free = pl.alive && !pl.ads && !pl.adsWanted && (pl.stance.base === 'holstered' || this.team.hangActs);
       const holding = this.takedown.menuReady && !pl.ads && !pl.adsWanted;
       // (anim-natural N3 fix) pressed while holstering (X, the 0.9-1.0 s holster) it arms too: the strike waits for the
       // slot, the holster finishing as a busy move (HOLSTER_TIME_MOVE); drawing or drawn RT stays the gun's
@@ -1668,7 +1686,8 @@ export class GameState implements AppState {
     // (Michael 2026-10-20 14:55) aiming the pistol, the co-op button is the jammer: no team move then. The aim asked this
     // step counts (LT and RB can land in one poll on a slow page, before the player's step sets `ads`), else a standing RB
     // would offer the partner throw and stow the pistol
-    const pistolAsk = this.pistolAimWanted || (inp.down('ads') && this.weapons.current.def.class === 'pistol');
+    // (hang-down, A6) hanging, LT is always the pistol (the rifle is never drawn there)
+    const pistolAsk = this.pistolAimWanted || (inp.down('ads') && (this.weapons.current.def.class === 'pistol' || this.team.hangActs));
     const teamTook = this.team.fixedUpdate(dt, inp.pressed('coop') && !pistolAsk && !wallWas && !busy && !carrying, inp.pressed('drop'), inp.move.y);
     // the relay hanger holds the hang still while the partner climbs their body
     if (this.team.hangLock) {
@@ -1699,9 +1718,17 @@ export class GameState implements AppState {
     // attached (ladder, pipe, hang, duct) or carrying a body: both hands busy, the weapon goes to its slot
     // (3.2.0) braced in a split or hanging inverted: aiming (step 09: not firing) draws the sidearm one-handed
     const ac = this.traversal.attachCtl;
-    const sidearm = ac.sidearmAim && this.weapons.sidearmIndex >= 0;
+    // (hang-down, A6) head-first under the partner's hands: the pistol one-handed, aimed as from an inverted pipe (the body
+    // tumbled over: the chest faces back round from the facing)
+    const hangAim = this.team.hangActs && this.weapons.sidearmIndex >= 0;
+    const sidearm = (ac.sidearmAim || hangAim) && this.weapons.sidearmIndex >= 0;
     const pl = this.player;
-    if (sidearm) {
+    if (hangAim) {
+      // (reused: no object per step)
+      const ha = (this.hangAimRef ??= { yaw: 0, range: PIPE.aimYaw, pitchMin: PIPE.pitchMin, pitchMax: PIPE.pitchMax, inverted: true });
+      ha.yaw = pl.controller.yaw + Math.PI;
+      pl.attachAim = ha;
+    } else if (sidearm) {
       const a = ac.m.anchor!;
       const inverted = a.kind === 'pipeH';
       if (a.kind === 'rappel') pl.attachAim = { yaw: Math.atan2(a.nx, a.nz), range: RAPPEL.aimYaw, pitchMin: RAPPEL.pitchMin, pitchMax: RAPPEL.pitchMax, inverted: false };
@@ -1723,7 +1750,8 @@ export class GameState implements AppState {
     this.weapons.handsBusy = this.strike.active;
     this.weapons.attachSpread = sidearm ? (pl.attachAim?.inverted ? PIPE.spreadMul : 1) : grabHold ? GRAB.spreadMul : 1;
     this.localRef.shield = grabHold ? (this.takedown.hostage as unknown as Damageable) : null;
-    this.player.cam.attach = this.traversal.cameraPreset ?? (this.wallCore?.active ? 'wall' : null);
+    // (hang-down, A6) hanging head-first: the inverted pipe's framing, upright at the hanging head
+    this.player.cam.attach = this.traversal.cameraPreset ?? (this.wallCore?.active ? 'wall' : this.team.hangActs ? 'inverted' : null);
     this.player.cam.attachYaw = this.player.controller.yaw;
     // (G3) the explore camera frames by the space at the feet: the map's camera spaces (NaN: the camera's probes decide)
     {
@@ -1756,7 +1784,14 @@ export class GameState implements AppState {
       // takedown on offer (its GRAB CHARACTER / KNOCK OUT / KILL rows); a press starts it directly only while the menu
       // stands aside for a team move (the pre-G5 press)
       this.takedown.grabToggle = this.app.settings.get().gameplay.grabToggle;
-      this.takedown.fixedUpdate(dt, this.team.active && aFree && inp.pressed('interact') && !this.strike.active, inp.down('interact'));
+      // (hang-down, A5) hanging: RT on a guard in reach is the quick takedown (tap the choke, held the neck snap; KBM Z
+      // the choke), holstered and not aiming; the grab is the menu's row
+      const tdk = this.takedown;
+      if (this.team.hangActs && !tdk.active && tdk.offer?.plan.kind === 'hangDown' && inp === real && !this.player.ads && !this.player.adsWanted) {
+        const p = grabTriggerPick(this.rtRes, real.pressed('altFire'), false);
+        if (p) tdk.start(p === 'kill');
+      }
+      tdk.fixedUpdate(dt, this.team.active && !this.team.hangActs && aFree && inp.pressed('interact') && !this.strike.active, inp.down('interact'));
     }
     // (G7) close quarters: the bend over a held guard / a body, the hold's sway (the anim graph eases them)
     {
@@ -1781,7 +1816,7 @@ export class GameState implements AppState {
     // (anim-natural N3 fix) a strike queued through the holster starts as the gun reaches its slot
     {
       const rt = this.rtTap.strike(this.weapons.drawPhase);
-      this.strike.fixedUpdate(dt, ((inp === real && rt !== null) || inp.pressed('altFire')) && this.weapons.drawPhase === DRAW_HOLSTERED && !this.player.ads && !this.player.adsWanted, rt === 'hold');
+      this.strike.fixedUpdate(dt, ((inp === real && rt !== null) || inp.pressed('altFire')) && this.weapons.drawPhase === DRAW_HOLSTERED && !this.player.ads && !this.player.adsWanted && !this.team.hangingDown, rt === 'hold');
     }
     // (anim-rework S1, M4) a traversal or a busy move holds the weapon state (the gun away for it, back after); holding a
     // guard locks it (X does nothing, LT is the pistol shield)
@@ -3137,7 +3172,7 @@ export class GameState implements AppState {
     if (off) {
       const e = off.e;
       const ok = this.project(e.pos.x, e.pos.y + 1.95 * e.def.scale, e.pos.z);
-      const lbl = off.lethalOnly ? 'Lethal takedown' : off.plan.kind === 'behind' && !off.e.def.quadruped ? 'Grab' : off.plan.kind === 'drop' ? 'Drop attack' : 'Takedown';
+      const lbl = off.lethalOnly ? 'Lethal takedown' : (off.plan.kind === 'behind' || off.plan.kind === 'hangDown') && !off.e.def.quadruped ? 'Grab' : off.plan.kind === 'drop' ? 'Drop attack' : 'Takedown';
       w.set('takedown', ok ? lbl : null, this.scr.x, this.scr.y);
     } else if (host && this.takedown.menuReady) {
       // (3.2.0) holding a hostage: tap knocks out, hold kills
