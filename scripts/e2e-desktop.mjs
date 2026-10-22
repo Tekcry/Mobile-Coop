@@ -4,7 +4,7 @@
 // 21:9 and 32:9 windows (centred menus, the HUD inset, Hor+ up to the FOV cap).
 // (smooth-world: parts 3 and 4 test the voxel renderer - voxel world, bodies, weapons, chips, ray-traced reflections -
 // so they pass `?voxels=1`; the smooth default's baked lamps and RT fallback are checked in e2e-lightbake)
-import { launch, assert, frames } from './e2e-lib.mjs';
+import { launch, assert, frames, GPU } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -611,7 +611,17 @@ try {
   await u.page.screenshot({ path: process.env.SHOT_P5 ?? '/tmp/e2e-p5.png', timeout: 600000 });
   // 3.1 frame governor: Adaptive detail on, software GL misses every frame - it steps down (TAAU input smaller)
   await u.page.evaluate(() => window.__app.settings.update((d) => void (d.video.adaptive = true)));
-  await u.page.waitForFunction(() => window.__app.quality.governor.level >= 3, null, { timeout: 300000 });
+  if (!GPU) await u.page.waitForFunction(() => window.__app.quality.governor.level >= 3, null, { timeout: 300000 });
+  else {
+    // (load-latent-ui2) a hardware GPU rarely misses a 640x360 frame, so real misses come only under load (the wait timed
+    // out at 300 s on the 4090): up to 20 s of real frames first, then missed frames (3 x budget) fed through the quality
+    // manager's own frame path - the check is "missed frames step the detail down", governor -> applyAdaptive -> TAAU
+    await u.page.waitForFunction(() => window.__app.quality.governor.level >= 3, null, { timeout: 20000, polling: 100 }).catch(() => {});
+    await u.page.evaluate(() => {
+      const q = window.__app.quality;
+      for (let i = 0; i < 600 && q.governor.level < 3; i++) q.frame(q.budgetMs * 3, 1, true);
+    });
+  }
   await frames(u.page, 3);
   const gv = await u.page.evaluate(() => {
     const a = window.__app;

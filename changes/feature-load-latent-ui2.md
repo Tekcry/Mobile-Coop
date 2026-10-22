@@ -9,3 +9,4 @@ kind: patch
   real-time cap), not 0.7 s of host time.
 - Tests: e2e-weapons-carry's loadout and backpack match loads take up to 120 s, and the detailed-avatar-with-backpack
   step polls the stored settings and profile records (up to 30 s, asserted) before its reload instead of a fixed 600 ms.
+- e2e-desktop:4's frame governor check on a hardware GPU: up to 20 s of real frames, then missed frames fed through the quality manager's frame path (a fast GPU rarely misses; the check is now "missed frames step the detail down"); software GL keeps the real 300 s wait.
