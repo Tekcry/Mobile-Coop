@@ -3,18 +3,25 @@
  * `travel` -x / +x) behind the "Mocap locomotion" switch: the aimed glide's sideways share plays them on their own
  * side-step (motion.ts GLIDE_SIDE). Driven as player.ts drives an aiming CT player (tests/helpers/mocapStrafe.ts). M1: the
  * capture's shape is not held to the old limits; pops, slides and crossings fail: per frame the pelvis stays inside pace x
- * dt + 2 cm (or OFF's), no bone turns more than 24 deg (or OFF's + 2), no ankle jumps more than 12 cm, planted feet do not
- * slide (< 1 cm), the feet never cross (ankles >= 8 cm apart sideways), over steady strafes, CT starts / stops, L <-> R
- * flips and snaps onto forward / back. OFF never plays them; the switch never reaches a non-carrier (guard) rig.
+ * dt + 2 cm (or OFF's; a CT start / stop 1.95 cm), no bone turns more than 24 deg (or OFF's + 2), no ankle jumps more
+ * than 11.5 cm, planted feet do not slide (< 0.5 cm), the feet never cross (ankles >= 8 cm apart sideways), over steady
+ * strafes, CT starts / stops, L <-> R flips and snaps onto forward / back. OFF never plays them; the side-step reaches a
+ * carrier's gait clock only (`mside`); the switch never reaches a non-carrier (guard) rig.
  */
 import { describe, expect, it } from 'vitest';
 import { HAND_KEYED_SET, MOCAP_SET, mocapSideStep, setMocapLocomotion } from '../src/anim/mocap';
+import { stepLength } from '../src/anim/motion';
 import { plantSlide, type Rec } from './helpers/mocapMeasure';
 import { measurePlayer, playerFails } from './helpers/mocapPlayer';
 import { aimRun, ankleJump, footGap, STRAFE_PLANS, type AimTarget } from './helpers/mocapStrafe';
 
-/** A swing foot's largest move in a frame (m): ON's steady 0.9 m/s side-step peaks at 7.8 cm; a re-aim jumped 24-29 cm. */
-const ANKLE_JUMP = 0.12;
+/** A swing foot's largest move in a frame (m): ON's steady 0.9 m/s side-step peaks at 7.8 cm, a snap off the strafe at
+ *  11.3 cm (the STRAFE_REAIM fade); before the fade a re-aimed side-step jumped 24-29 cm in a frame (a pop). */
+const ANKLE_JUMP = 0.115;
+/** A CT start / stop's pelvis step beyond pace x dt (m): ON 1.51-1.89 cm (OFF 1.47-1.59); the kinked settle read 2.21. */
+const STOP_PEL = 0.0195;
+/** A planted foot's contact slide (m): 0 ON and OFF in every plan here; the wrong-foot snap dragged 1.6 cm before. */
+const SLIDE = 0.005;
 /** The feet's sideways gap floor (m): the planner's no-crossing gap holds 9 cm ON and OFF. */
 const GAP_MIN = 0.08;
 
@@ -27,13 +34,15 @@ async function both(p: [AimTarget, number, number]): Promise<{ off: Rec; on: Rec
   return { off, on, strafe };
 }
 
-function expectClean(name: string, off: Rec, on: Rec): void {
+/** The pop / slide / crossing checks on an ON run against its OFF twin; returns ON's worst pelvis step (m). */
+function expectClean(name: string, off: Rec, on: Rec): number {
   const mOff = measurePlayer(off);
   const mOn = measurePlayer(on);
   expect(playerFails(mOn, mOff), `${name}: pelvis ${(mOn.pel * 100).toFixed(2)} (OFF ${(mOff.pel * 100).toFixed(2)}) cm, bone ${mOn.bone.toFixed(1)} (OFF ${mOff.bone.toFixed(1)}) deg`).toEqual([]);
-  expect(plantSlide(on, 0.01), `${name}: planted slide`).toBeLessThan(0.01);
+  expect(plantSlide(on, 0.01), `${name}: planted slide`).toBeLessThan(SLIDE);
   expect(footGap(on), `${name}: feet crossing`).toBeGreaterThanOrEqual(GAP_MIN);
   expect(ankleJump(on), `${name}: ankle jump`).toBeLessThanOrEqual(ANKLE_JUMP);
+  return mOn.pel;
 }
 
 describe('mocap strafe (A10)', () => {
@@ -51,6 +60,19 @@ describe('mocap strafe (A10)', () => {
       expect(s).toBeLessThan(0.35);
     } finally {
       setMocapLocomotion(false);
+    }
+  });
+
+  it('the side-step reaches a carrier clock only: without `mside` the glide side-step is the same ON as OFF', () => {
+    for (const v of [0.4, 0.7, 0.9]) {
+      const off = stepLength(v, undefined, 1, 0, 0, 0, 1);
+      setMocapLocomotion(true);
+      try {
+        expect(stepLength(v, undefined, 1, 0, 0, 0, 1)).toBe(off);
+        expect(stepLength(v, undefined, 1, 0, 0, 0, 1, true)).toBeGreaterThan(off + 0.05);
+      } finally {
+        setMocapLocomotion(false);
+      }
     }
   });
 
@@ -78,7 +100,8 @@ describe('mocap strafe (A10)', () => {
     for (const v of [0.4, 0.7, 0.9]) {
       for (const sg of [-1, 1]) {
         const { off, on } = await both(STRAFE_PLANS.startStop(sg, v));
-        expectClean(`start / stop ${sg < 0 ? 'L' : 'R'} ${v}`, off, on);
+        const name = `start / stop ${sg < 0 ? 'L' : 'R'} ${v}`;
+        expect(expectClean(name, off, on), `${name}: stop pelvis`).toBeLessThanOrEqual(STOP_PEL);
       }
     }
   }, 300000);
