@@ -866,7 +866,7 @@ try {
           const eye = eyeOf ? eyeOf(new V()) : new V(gx, eyeY, gz);
           // as the guard's own test (perception losClear): a hit within the slack of the point (0.3 m chest, 0.2 m head) is clear
           const clear = (to, slack) => { const h = g.ballistics.ray(eye, to, 1); return !h.hit || h.distance > Math.hypot(to.x - eye.x, to.y - eye.y, to.z - eye.z) - slack; };
-          return { chest: clear(g.target.aimPoint(pt).clone().addInPlaceFromFloats(s.tx * m, 0, s.tz * m), 0.3), head: clear(g.target.headPoint(pt).clone(), 0.2) };
+          return { chest: clear(g.target.aimPoint(pt).clone().addInPlaceFromFloats(s.tx * m, 0, s.tz * m), 0.3), head: clear(g.target.headPoint(pt).clone().addInPlaceFromFloats(-s.tx * m, 0, -s.tz * m), 0.2) };
         };
         const place = (x, z) => {
           gx = x;
@@ -883,7 +883,7 @@ try {
         // 5 mm, so the guard's own sample (its think tick, a random phase) saw the chest whenever the sway crossed it:
         // "sees the peeking head only" (los true, head false) under load, where the run's history moves the phase. A spot
         // counts only if it sees the head and not the chest at every look over 4 s of the held peek (every 0.1 s), with a
-        // 1.5 cm margin (`see(0.01)`)
+        // 1 cm margin (`see(0.01)`)
         let only = hidden;
         let peekOn = true;
         for (let k = 0; k < 40 && only.length; k++) {

@@ -253,7 +253,7 @@ try {
       // loaded machine a long frame held it past the old fixed 5.6 s look ("the capture times out after 5 s", E2E_JOBS=2).
       // Now the page itself times it: the click, a probe at 4.5 s (still capturing), the moment the screen's own timer
       // gives up, and a 5 s probe timer armed right after the click (the same delay armed later fires after it, so the
-      // give-up must come at 5 s and no later than that probe, however late the page runs)
+      // give-up must come at 5 s (10 ms for the clock's coarse grain) and no later than that probe, however late the page runs)
       const capT = await G((s) => {
         const kbm = window.__app.input.kbm;
         const r = { cancelAt: -1, at45: null, probe: -1 };
@@ -277,7 +277,7 @@ try {
       const ct = await G(() => window.__capT);
       const ctMsg = JSON.stringify({ ...capT, ...ct, cap: v.cap, listening: pl, coop: (await keys()).coop });
       assert(capT.listening && ct.at45 === true, `the capture listens until its 5 s timeout (${ctMsg})`);
-      assert(!v.cap && !pl && (await keys()).coop.join() === 'KeyF,PageDown' && ct.cancelAt >= 5000 && ct.cancelAt <= ct.probe, `the capture times out after 5 s (${ctMsg})`);
+      assert(!v.cap && !pl && (await keys()).coop.join() === 'KeyF,PageDown' && ct.cancelAt >= 4990 && ct.cancelAt <= ct.probe, `the capture times out after 5 s (${ctMsg})`);
       await click(slot('crouch:0'));
       await P.keyboard.press('KeyU');
       await P.waitForTimeout(800);

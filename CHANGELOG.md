@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased - Flake fix (feature/flake-fix)
+- Four load-flaky e2e asserts hold under E2E_JOBS=2 (test only): e2e-stealth-ai head-only peek spot, e2e-netmove client assists, e2e-mouse capture timeout, e2e-ctcourse station 4 throw; details in `docs/backlog.md`.
+
 ## 4.51.1 - e2e-coop: the client-takedown step holds steady under load (test only) (2026-10-22, PR #107)
 - The client-takedown step in `scripts/e2e-coop.mjs` calms the host's guards and holds the picked guard still until
   the takedown is done, as the grab step already does: on a slow page the guards alerted or turned between the host's
