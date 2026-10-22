@@ -20,7 +20,7 @@ import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
-import { checkBlast, checkShot, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile } from './validate';
+import { checkBlast, checkShot, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile, SHOT_UNDER, SHOT_UNDER_HANG } from './validate';
 import { localFlags, htmlToInfo } from './netShared';
 import { keepSimInBackground } from './bgTicks';
 import { LAMP_LOS_SLACK, LampSender, lampShotOk, lampTargetId } from './lampSync';
@@ -29,6 +29,7 @@ import { localMoveState } from '../game/localMoveState';
 import { emptyMoveState, moveChanged } from '../player/moveState';
 import { hostCrackOk } from '../world/doorPeek';
 import { contactDelay, GRAB } from '../game/takedown';
+import { hangHoldStep, hangingMove, type HangSpot } from './hangHold';
 import { koCurve, type KoState } from '../game/closeQuarters';
 import { checkTeamRequest, type TeamKind, type TeamSide } from '../game/teamMoves';
 import { checkCommitted, type CKind, type CTargetView } from '../game/committedMoves';
@@ -119,7 +120,7 @@ export class CoopHost implements NetAttachment {
   /** Revive points on downed players (co-op). */
   private revives = new Map<string, Interactable>();
   /** Enemies seized by a client's takedown: enemy id -> client id and seconds held. */
-  private seized = new Map<string, { by: string; t: number; hostage?: boolean }>();
+  private seized = new Map<string, { by: string; t: number; hostage?: boolean; hang?: HangSpot }>();
   /** (G7) Scratch for a client hold's knockout pose. */
   private koTmp: KoState = { limp: 0, lower: 0, bend: 0 };
   /** Shot noise edges per client. */
@@ -919,7 +920,8 @@ export class CoopHost implements NetAttachment {
     // (3.2.0) a player's posed head / pelvis when recorded (hanging off a lip, crawling, leaning out), else by stance
     const body = posed ? this.tmpB.copyFrom(this.rwBody).addInPlaceFromFloats(0, 0.12, 0) : this.tmpB.copyFrom(feet).addInPlaceFromFloats(0, (crouch > 0.5 ? 0.7 : 1.0) * scale, 0);
     const head = posed ? this.tmpH.copyFrom(this.rwHead) : this.tmpH.copyFrom(feet).addInPlaceFromFloats(0, (crouch > 0.5 ? 1.15 : 1.62) * scale, 0);
-    const verdict = checkShot({ origin: { x: m.ox, y: m.oy, z: m.oz }, dir: { x: m.dx, y: m.dy, z: m.dz }, part: m.part }, r.feet, body, head, def.range, 1.1 * scale);
+    // (hang-down, A6) a client hanging head-first shoots from under its turned-over root
+    const verdict = checkShot({ origin: { x: m.ox, y: m.oy, z: m.oz }, dir: { x: m.dx, y: m.dy, z: m.dz }, part: m.part }, r.feet, body, head, def.range, 1.1 * scale, hangingMove(r.state?.mv) ? SHOT_UNDER_HANG : SHOT_UNDER);
     if (!verdict.ok) {
       r.violations++;
       return 0;
@@ -1183,6 +1185,11 @@ export class CoopHost implements NetAttachment {
       const by = this.remotes.get(s.by);
       // (3.2.0) a client holding the guard as a hostage: kept in front of them (and a shield) for as long as it lasts
       const mv = by?.state?.mv;
+      // (hang-down, A7) a client hanging head-first keeps the guard it took (grab or neck snap), lifted under its head
+      if (by && by.alive && hangingMove(mv) && hangHoldStep(this.g.enemyMgr?.enemies, eid, s, by.avatar.pos.x, by.avatar.pos.y, by.avatar.pos.z, dt)) {
+        s.t = 0;
+        continue;
+      }
       if (by && by.alive && mv?.m === 'grab' && mv.tid === eid) {
         const e = this.g.enemyMgr?.enemies.find((x) => x.id === eid);
         if (e && e.alive) {
