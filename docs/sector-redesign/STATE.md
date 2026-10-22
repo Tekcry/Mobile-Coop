@@ -10,7 +10,7 @@
   - E4 breaker / isolator boards (EW8): feature/sector-redesign-e4 @ 4aa0a462.
 - IN FLIGHT at the save (agents die with the session; WIP snapshots pushed as refs wip/sector-redesign-<x>):
   - S2 builder (Sonnet, THIS worktree, briefs/SLICE2.md): WIP wip/sector-redesign-s2 acef9dc4 (uncommitted here too).
-  - S3 builder (Opus, worktree -s3, branch feature/sector-redesign-s3): WIP wip/sector-redesign-s3 5444a3e7.
+  - S3 BUILT: feature/sector-redesign-s3 @ 66287baa (checks/slice3-build.md; 32 new tests, 236 related pass; e2e block written, not run). Owed: Opus checker; at merge join S3_COOP_LIPS into CAMPUS_COOP_LIPS (L1), move C2 far door to the S2 L1 bridge landing (10, 4.5, -14) (L13); A64 worst view exactly 6 at (51, 6, -29).
   - E5 alarm-stage actions BUILT: feature/sector-redesign-e5 @ 417c7560 (checks/e5-stage-actions.md; 58 tests); owed: Opus checker, then merge into int.
   - Integrator DONE: feature/sector-redesign-int @ b71a9894 (pushed) = E3 + E1 + E4, one shared nav-closure helper (SectorTeamDoors.navClosure), 233 tests pass (checks/int-e1-e3-e4.md). Merge this branch (not e1 / e3 / e4 separately) into feature/sector-redesign.
   On resume: for each, check the worktree's `git status` / the branch log; if the agent's report file exists and checks
