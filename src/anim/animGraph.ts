@@ -13,7 +13,9 @@
  * Feet are placed by the rig's world-space FootPlanner from the stance and gait values output here.
  */
 import type { Proportions } from '../player/proportions';
+import { rollRide } from '../player/traversePath';
 import { overClip, addClip, type Clip } from './clip';
+import { evalCurve } from './curves';
 import { CH, Inertializer, lerpPose, newPose, type Pose } from './pose';
 import { gaitRate, TURN_GAIT_MIN, TURN_STEP, type MotionState } from './motion';
 import { MOVEMENT, TENSE } from '../config/movement';
@@ -38,7 +40,7 @@ import {
 } from './clips/locomotion';
 import { CLIP_RATE, DROP, GRENADE, LAND, LAND_DEEP, MANTLE, PIVOT, reloadClipFor, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions'; // (clip-speed, track A) CLIP_RATE
 import { CLIP_BASE, clipSpeed } from './tuneClipSpeed'; // (clip-speed, track A)
-import { CLIMB, CLIMB_UP, CLIMB_UP_TEAM, CRAWL, CRAWL_OUT, HANG, PIPE_CLIMB, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollTumble, SPLIT_BRACE, VENT_DROP, WALL_KICK, WINDOW_VAULT } from './clips/traverse';
+import { airPoseW, CLIMB, CLIMB_UP, CLIMB_UP_TEAM, CRAWL, CRAWL_OUT, HANG, LAND_ABSORB, landDeep, landLight, mantlePlant, PIPE_CLIMB, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollBody, SPLIT_BRACE, splitBreath, VENT_DROP, WALL_KICK, WINDOW_VAULT, type MantlePlantOut, type RollBodyOut, type SplitBreathOut } from './clips/traverse';
 import { hyp2 } from '../core/mathx';
 import { emptyActionWeights, type TuneActionWeights } from './tuneMoveRows';
 import { effortSpeed } from './effort';
@@ -52,6 +54,7 @@ import { KEYED_GLIDE_FWD } from './clips/keyed/glide_fwd';
 import { KEYED_GLIDE_STRAFE } from './clips/keyed/glide_strafe';
 import { KEYED_GLIDE_BACK } from './clips/keyed/glide_back';
 import { studioDriveTargets, type StudioDrive } from './studioDrive';
+import { bodyMotionBands, bodyMotionStep, KEY_MOTION, newBodyMotion, newBodyMotionIn, scaleKeyedArms, type BodyMotion } from './bodyMotion';
 import { KEYED_SNEAK } from './clips/keyed/sneak';
 import { KEYED_CROUCH_WALK } from './clips/keyed/crouch_walk';
 import { KEYED_CROUCH_RUN } from './clips/keyed/crouch_run';
@@ -145,6 +148,10 @@ export interface AnimInput {
   traverse: TraverseKind;
   /** Traversal progress 0..1. */
   traverseT: number;
+  /** (anim-n4b) A committed move's top above its start feet and its start-to-end distance (m; 0 = unknown): the
+   *  mantle's hand plant on the edge (`mantlePlant`; travH < 0 = none: the backward mantle onto a ladder's top). */
+  travH: number;
+  travD: number;
   /** Melee swing 0..1, or < 0. */
   melee: number;
   /** (3.2.0) Whole-body tumble about the hips (rad) set by the caller (pipe legs up / inverted). */
@@ -243,6 +250,8 @@ export function defaultInput(): AnimInput {
     lean: 0,
     traverse: 'none',
     traverseT: 0,
+    travH: 0,
+    travD: 0,
     melee: -1,
     tumble: 0,
     phase: -1,
@@ -294,6 +303,11 @@ export interface RigTargets {
   gait: { phase: number; duty: number; liftH: number; cycleTime: number; moving: boolean; turning: number };
   /** Whole-body tumble about the hips (rad, forward): the landing roll. */
   tumble: number;
+  /** (anim-n4b) The roll's spin about the hips-to-feet line (rad, `rollBody`, applied before the tumble), the tumble
+   *  pivot's sink (m, the ride taken back out) and whether the feet's lifts turn with the body (a roll). */
+  tumbleSpin: number;
+  tumbleDrop: number;
+  tumbleLift: boolean;
   /** Layer weights for the debug overlay. */
   layers: Record<string, number>;
   /** Vertical weapon bob left after stabilisation (m), for tests and the debug trace. */
@@ -340,6 +354,8 @@ export interface RigTargets {
   /** (anim-rework S4) The keyed squat's share of the free arms (the crouched idle, hands on the knees): the rig moves each
    *  palm onto the top of its own posed knee by it (`kneeRest`). */
   kneeRest: number;
+  /** (anim-natural-n2) The body motion layer (`bodyMotion.ts`): Wren rigs on foot only, all 0 on every other rig. */
+  motion: BodyMotion;
 }
 
 export function emptyTargets(): RigTargets {
@@ -357,6 +373,9 @@ export function emptyTargets(): RigTargets {
     stance: { lX: -0.11, lZ: 0.04, rX: 0.11, rZ: -0.02, lY: 0, rY: 0, lPitch: 0, rPitch: 0 },
     gait: { phase: 0, duty: 0.63, liftH: 0.065, cycleTime: 1.1, moving: false, turning: 0 },
     tumble: 0,
+    tumbleSpin: 0,
+    tumbleDrop: 0,
+    tumbleLift: false,
     layers: {},
     weaponBob: 0,
     readyFollow: 0,
@@ -376,6 +395,7 @@ export function emptyTargets(): RigTargets {
     keyTrunk: 1,
     kneel: 0,
     kneeRest: 0,
+    motion: newBodyMotion(),
   };
 }
 
@@ -626,6 +646,8 @@ CLIP_BASE.startShift = START_SHIFT.duration / CLIP_RATE.startShift;
 CLIP_BASE.stopSettle = STOP_SETTLE.duration / CLIP_RATE.stopSettle;
 CLIP_BASE.land = LAND.duration / CLIP_RATE.land;
 
+/** (anim-n4b) The hand channels a traversal clip keeps over the graph's hanging hands (the roll, the ledge drop). */
+const TRAV_CLIP_HANDS: readonly number[] = [CH.hLX, CH.hLY, CH.hLZ, CH.hRX, CH.hRY, CH.hRZ];
 const TRAVERSE_CLIP: Record<Exclude<TraverseKind, 'none'>, Clip> = { vault: VAULT, mantle: MANTLE, step: STEP_UP, drop: DROP, hop: VAULT, roll: ROLL, hang: HANG, climb: CLIMB, pipeClimb: PIPE_CLIMB, crawl: CRAWL, crawlOut: CRAWL_OUT, climbUp: CLIMB_UP, ventDrop: VENT_DROP, windowVault: WINDOW_VAULT, split: SPLIT_BRACE, wallKick: WALL_KICK, pipeLegs: PIPE_LEGS_UP, pipeInv: PIPE_INVERTED, rappel: RAPPEL_HANG, brace: BRACE };
 
 /** Active-clip slots for the debug overlay timeline. */
@@ -677,6 +699,20 @@ export class AnimGraph {
   private lead = 0;
   /** (G1) The deep landing's share for the landing playing (by the fall). */
   private landK = 0;
+  /** (anim-n4b) The shallow landing's share (a light landing flexes less), the time off the ground (s), the mantle's
+   *  hand plant and the roll's body path this frame. */
+  private landL = 1;
+  private airT = 0;
+  /** (anim-n4b fix) This fall began by letting go of a hold with a wall or a hole's edge in front (`AIR_WALL_FROM`): the air
+   *  pose keeps the legs under the body (legs ahead went 30 cm into the ladder's wall, e2e-clip 'ladder down + slide'). */
+  private airWall = false;
+  /** (anim-n4b fix) Seconds braced in this split: the breath's clock (from the entry, so the owner and a remote copy
+   *  breathe in step; the per-rig idle clock put them out of phase). */
+  private splitT = 0;
+  private travHandW = 0;
+  private readonly plant: MantlePlantOut = { w: 0, x: 0, y: 0, z: 0, sink: 0 };
+  private readonly rollB: RollBodyOut = { pitch: 0, spin: 0, drop: 0 };
+  private readonly splitB: SplitBreathOut = { spPitch: 0, hdPitch: 0, pelRoll: 0, pelX: 0, spRoll: 0, hdRoll: 0 };
   private startT = -1;
   private settleT = -1;
   private landT = -1;
@@ -1075,23 +1111,66 @@ export class AnimGraph {
       // cycles (climb, crawl) wrap the cadence clock; committed moves clamp their progress
       overClip(src, tc, tc.loop ? i.traverseT - Math.floor(i.traverseT) : clamp(i.traverseT, 0, 1), 1);
       this.slot(i.traverse, 1, i.traverseT);
+      if (i.traverse === 'mantle') {
+        // (anim-n4b, PASS2 row 61) the hands plant on the top edge (`mantlePlant`, put over the hanging hands below) and
+        // the pelvis sinks so the shoulders stay within a bent-arm press of them as the feet rise (the chest's drop as
+        // the ready hands' follow below reads it)
+        const pp = src[CH.pelPitch]!;
+        const sp = src[CH.spPitch]!;
+        const h3 = (p.y.shoulder - p.y.waist) / k - CHEST_SEG;
+        const chestDrop = ((p.y.waist - p.y.hip) / k) * (1 - Math.cos(pp)) + CHEST_SEG * (1 - Math.cos(0.4 * pp + 0.45 * sp)) + h3 * (1 - Math.cos(0.4 * pp + sp));
+        mantlePlant(clamp(i.traverseT, 0, 1), i.travH, i.travD, p.y.shoulder + (src[CH.pelY]! - chestDrop) * k, this.plant);
+        src[CH.pelY] = src[CH.pelY]! - this.plant.sink / k;
+      } else this.plant.w = 0;
+      if (i.traverse === 'split') {
+        // (anim-n4b, AUDIT fix 36) braced in the split the trunk breathes and balances over the legs (it was still)
+        // (fix) on the split's own clock from the entry: the owner and the remote copy in step (0 at the entry: no pop)
+        this.splitT += dt;
+        const b = splitBreath(this.splitT, this.splitB);
+        src[CH.spPitch] = src[CH.spPitch]! + b.spPitch;
+        src[CH.hdPitch] = src[CH.hdPitch]! + b.hdPitch;
+        src[CH.pelRoll] = src[CH.pelRoll]! + b.pelRoll;
+        src[CH.pelX] = src[CH.pelX]! + b.pelX;
+        src[CH.spRoll] = src[CH.spRoll]! + b.spRoll;
+        src[CH.hdRoll] = src[CH.hdRoll]! + b.hdRoll;
+      }
       // (3.2.0) a sidearm aimed one-handed from a split / hanging inverted: the weapon hand takes the grip
       if ((i.traverse === 'split' || i.traverse === 'pipeInv' || i.traverse === 'rappel') && i.raise > 0) src[CH.grip] = Math.min(1, i.raise * 1.5);
     }
+    if (i.traverse !== 'split') this.splitT = 0;
+    this.airT = i.grounded || i.traverse !== 'none' ? 0 : this.airT + dt;
+    // (anim-n4b fix) a fall straight out of a wall-front hold (a ladder, a drainpipe, a hang, ...) keeps the legs under the
+    // body; a fall from anything else (a walk off a ledge, a jump) leads with them ('drop' keeps it: the vent drop's lower
+    // ends in it, and a walk off a ledge starts grounded)
+    if (i.traverse !== 'none' && i.traverse !== 'drop') this.airWall = AIR_WALL_FROM.includes(i.traverse);
+    else if (i.grounded) this.airWall = false;
     if (!i.grounded) {
       src[CH.fLY] = src[CH.fLY]! + 0.14;
       src[CH.fRY] = src[CH.fRY]! + 0.1;
       src[CH.pelPitch] = src[CH.pelPitch]! + 0.1;
+      // (anim-n4b, PASS2 row 64) a fall (off a ledge, let go of a hang): the legs a little ahead, the chest back (the arms
+      // out and up: freeHands, AIR_POSE)
+      const aw = airPoseW(this.airT);
+      if (aw > 0) {
+        const lw = this.airWall ? 0 : aw;
+        src[CH.fLZ] = src[CH.fLZ]! + AIR_POSE.lead * lw;
+        src[CH.fRZ] = src[CH.fRZ]! + AIR_POSE.trail * lw;
+        src[CH.fLY] = src[CH.fLY]! + AIR_POSE.lift * lw;
+        src[CH.spPitch] = src[CH.spPitch]! + AIR_POSE.chest * aw;
+      }
     }
-    if (i.landing > 0.5 && this.landT < 0) {
+    // (anim-n4b, PASS2 row 64) any landing from about half a metre flexes, by how hard it lands (`landLight` / `landDeep`):
+    // the knees and hips go deeper the longer the drop, then recover (was: 0.9 m and up, the deep one full from ~1.1 m)
+    if (i.landing > LAND_ABSORB.lightFrom && this.landT < 0) {
       this.landT = 0;
-      // (G1, audit row 18) a drop of about a metre and more (landing 0.82 at 1 m) lands deep, arms out
+      // (G1, audit row 18) a drop of about a metre and more lands deep, arms out
       // (not into a traversal: a landing roll's tumble with the deep dip put the body 12 cm into the floor, e2e-clip)
-      this.landK = i.traverse === 'none' ? smoothstep((i.landing - 0.6) / 0.25) : 0;
+      this.landK = i.traverse === 'none' ? landDeep(i.landing) : 0;
+      this.landL = landLight(i.landing);
     }
     if (this.landT >= 0) {
       const lk = this.landK;
-      if (lk < 1) addClip(src, LAND, this.landT, 1 - lk);
+      if (lk < 1) addClip(src, LAND, this.landT, (1 - lk) * this.landL);
       // (crouched already deep: the dip only takes it the rest of the way)
       // (a traversal taking over, the landing roll started on the next frame: the deep landing gives way to it)
       if (i.traverse !== 'none') this.landK = 0;
@@ -1322,8 +1401,22 @@ export class AnimGraph {
     // (G2 fix) and the neck dips onto the raised pistol at the peek (the head out past the edge with the gun, as before G2)
     this.out.stockWeld = 1 - pistolW * (1 - peekHeadK);
     this.out.aimW = raiseW;
-    // landing roll: the whole body turns over forward about the hips
-    this.out.tumble = i.traverse === 'roll' ? rollTumble(i.traverseT) : i.tumble;
+    // landing roll: (anim-n4b, PASS2 row 66) a grounded shoulder roll: the body dives forward low, spins about the
+    // hips-to-feet line across the back and comes up (`rollBody`); the pivot sinks with the dive and the path's ride
+    // comes back out of it, so the pelvis stays near the floor and the feet never rise above the hips
+    if (i.traverse === 'roll') {
+      const rt = clamp(i.traverseT, 0, 1);
+      const rb = rollBody(rt, this.rollB);
+      this.out.tumble = rb.pitch;
+      this.out.tumbleSpin = rb.spin;
+      this.out.tumbleDrop = rb.drop * k + rollRide(rt);
+      this.out.tumbleLift = true;
+    } else {
+      this.out.tumble = i.tumble;
+      this.out.tumbleSpin = 0;
+      this.out.tumbleDrop = 0;
+      this.out.tumbleLift = false;
+    }
     // leaning out at an edge the tucked muzzle comes up towards level (the lean would roll it onto the leg)
     const crPitch = cr.pitch * (1 - 0.6 * Math.min(1, Math.abs(bd)));
     src[CH.wpPitch] = ready * (rl.pitch * cl + rh.pitch * chh + rc.pitch * cc + crPitch * cw) - rcFlip;
@@ -1440,6 +1533,24 @@ export class AnimGraph {
       src[CH.hRY] = src[CH.hRY]! + (wy - src[CH.hRY]!) * wallHang;
       src[CH.hRZ] = src[CH.hRZ]! + (WALL_ARMS.z - src[CH.hRZ]!) * wallHang;
     }
+    // (anim-n4b, PASS2 rows 61, 64, 66) the roll's and the ledge drop's own hands over the hanging defaults (the hands above
+    // overwrite every clip's), and the mantle's hands planted on the edge (from the defaults, by the plant's weight)
+    const clipHands = i.traverse === 'roll' || i.traverse === 'drop';
+    this.travHandW = approach(this.travHandW, clipHands ? 1 : this.plant.w, 0.04, dt);
+    if (clipHands) {
+      const tc = i.traverse === 'roll' ? ROLL : DROP;
+      const tt = clamp(i.traverseT, 0, 1);
+      const hw = this.travHandW; // (anim-n4b fix) eased in from the hands before (it overwrote at full weight: a pop)
+      for (let h = 0; h < TRAV_CLIP_HANDS.length; h++) {
+        const ch = TRAV_CLIP_HANDS[h]!;
+        const cv = tc.curves[ch];
+        if (cv) src[ch] = src[ch]! + (evalCurve(cv, tt) - src[ch]!) * hw;
+      }
+    } else if (this.plant.w > 0) {
+      const pl = this.plant;
+      blendHand(src, CH.hLX, -pl.x / k, pl.y / k, pl.z / k, pl.w);
+      blendHand(src, CH.hRX, pl.x / k, pl.y / k, pl.z / k, pl.w);
+    }
     // reload / swap / grenade clips over the weapon layer
     this.reloadW = approach(this.reloadW, i.reload >= 0 ? 1 : 0, 0.08 * mass, dt);
     if (i.reload >= 0 || this.reloadW > 0.01) {
@@ -1548,7 +1659,10 @@ export class AnimGraph {
       src[CH.pelY] = src[CH.pelY]! - this.bendDropS;
       src[CH.pelX] = src[CH.pelX]! + this.swayS;
     }
-    this.cqGait.apply(src, i.bend > 0 || i.bendDrop > 0, i.cqBody, i.cqCarry, this.phase, this.moveW, dt); // (anim-n4, track A)
+    // (anim-n4b fix) a team holder's brace bends too (team pose `applyB`, traverse 'brace'): not a hold or a carry, so no
+    // close-quarters walk or hostage brace on it
+    const cqOn = (i.bend > 0 || i.bendDrop > 0) && i.traverse !== 'brace';
+    this.cqGait.apply(src, cqOn, i.cqBody, i.cqCarry, this.phase, this.moveW, dt, this.swayS); // (anim-n4, track A; anim-n4b, track A: the hold sway drives the still brace)
 
     // --- additive: hit flinch, heel-strike compression, weight over the support foot
     const hx = this.hit.step(0, 9, dt);
@@ -1574,7 +1688,8 @@ export class AnimGraph {
     // while they move with it (a stance or state switch mid-crouch would carry their velocity on top of the
     // body's own and overshoot). Weighted by the share of the ready hands the clips above left in place.
     this.handClipW = approach(this.handClipW, i.grenade >= 0 ? 1 : 0, 0.05, dt);
-    const fw = this.readyW * (1 - this.reloadW) * (1 - this.swapW) * (1 - this.handClipW);
+    // (anim-n4b) less the share a traversal's own hands hold (the mantle's plant, the roll's and the drop's keys)
+    const fw = this.readyW * (1 - this.reloadW) * (1 - this.swapW) * (1 - this.handClipW) * (1 - this.travHandW);
     this.writeRowW(i, hx);
     // (the hands hang a touch behind the shoulders, READY_HANDS.lag: a fast crouch folds the chest and drops the
     // pelvis together, and the hands ease through it instead of taking the sum of both at full speed)
@@ -1670,7 +1785,47 @@ export class AnimGraph {
     o.readyShoulder.y = p.y.shoulder + this.readyFy * fw * k;
     o.readyShoulder.z = -0.01 + this.readyFz * fw * k;
     if (this.drive !== null) studioDriveTargets(this.drive, o, dt); // (anim-studio) the loop player's clip; null outside the studio
+    this.bodyMotion(i, o, dt);
     return o;
+  }
+
+  /** (anim-natural-n2) The body motion layer's inputs and eased gate (preallocated). */
+  private readonly motionIn = newBodyMotionIn();
+  private motionGate = 0;
+
+  /**
+   * (anim-natural-n2 step 2) The body motion layer into `o.motion` (`bodyMotion.ts`), on this frame's gait phase: a Wren
+   * rig (`wrenReady`) on foot (no wall, traversal, air, close-quarters hold / bend, melee, dash, tense sneak or
+   * kneel), the gate eased over KEYED_WALK_BAND.tau. Graph-internal inputs only (co-op parity). No allocation.
+   */
+  private bodyMotion(i: AnimInput, o: RigTargets, dt: number): void {
+    const onFoot = this.wrenReady && (i.keyedOk || i.keyedDrawn) && i.grounded && i.traverse === 'none' && !i.wall && i.melee < 0 ? 1 : 0;
+    const target = onFoot * (1 - this.wallW) * (1 - this.dashS) * (1 - this.tenseW) * (1 - smoothstep(this.kneelW));
+    this.motionGate = approach(this.motionGate, target, KEYED_WALK_BAND.tau, dt);
+    if (this.motionGate < 1e-4) this.motionGate = 0;
+    const m = this.motionIn;
+    m.gate = this.motionGate;
+    if (m.gate > 0) {
+      m.phase = o.gait.phase;
+      m.move = this.moveW;
+      m.crouch = clamp(i.crouch, 0, 1);
+      m.drawn = o.keyDrawn;
+      m.aim = this.raiseS;
+      bodyMotionBands(m, effortSpeed(this.locoSpeed, false), this.cPace, KEYED_GAITS, KEYED_CROUCH);
+    }
+    bodyMotionStep(m, o.motion);
+    // (CHECK-4 should-fix 2) the studio's loop player shows Michael's keys as keyed: no arm speed cap while it drives
+    // (the drive bypasses the pace bands, so the cap would read the walk's)
+    if (this.drive !== null) o.motion.armSpeed = Infinity;
+  }
+
+  /**
+   * (anim-natural-n2 step 3) A keyed gait clip's arm gain (KEY_MOTION, A7): the speed set's walk / jog / run and the
+   * crouched set's sneak / crouch walk / crouch run; 1 for any other clip.
+   */
+  private armGain(c: KeyedClip): number {
+    const K = KEY_MOTION;
+    return c === KEYED_WALK ? K.walk.armGain : c === KEYED_JOG ? K.jog.armGain : c === KEYED_RUN ? K.run.armGain : c === KEYED_SNEAK ? K.sneak.armGain : c === KEYED_CROUCH_WALK ? K.crouchWalk.armGain : c === KEYED_CROUCH_RUN ? K.crouchRun.armGain : 1;
   }
 
   /**
@@ -1744,8 +1899,10 @@ export class AnimGraph {
     const out = this.kCr;
     if (idleShare < 1) {
       sampleKeyed(c0, ph, c0 === KEYED_SNEAK ? C.ampMin + (1 - C.ampMin) * clamp(es / C.full, 0, 1) : 1, out);
+      scaleKeyedArms(out.arm, c0.meanArm, this.armGain(c0)); // (anim-natural-n2 step 3) KEY_MOTION's arm gain per clip
       if (t > 0) {
         sampleKeyed(c1, ph, 1, this.kF);
+        scaleKeyedArms(this.kF.arm, c1.meanArm, this.armGain(c1));
         mixKeyed(out, this.kF, t, out);
       }
       // the game's extra lean and drop (KEYED_CROUCH_POSE), the arms turned back by the lean
@@ -1844,8 +2001,10 @@ export class AnimGraph {
     this.sLift = c0.liftH + (c1.liftH - c0.liftH) * t;
     if (!sample) return;
     sampleKeyed(c0, ph, c0 === KEYED_WALK ? B.ampMin + (1 - B.ampMin) * clamp(es / B.full, 0, 1) : 1, out);
+    scaleKeyedArms(out.arm, c0.meanArm, this.armGain(c0)); // (anim-natural-n2 step 3) KEY_MOTION's arm gain per clip
     if (t > 0) {
       sampleKeyed(c1, ph, 1, tmp);
+      scaleKeyedArms(tmp.arm, c1.meanArm, this.armGain(c1));
       mixKeyed(out, tmp, t, out);
     }
   }
@@ -1999,6 +2158,12 @@ export class AnimGraph {
       pose[CH.hRX] = pose[CH.hRX]! + LAND_ARMS.out * w;
       pose[CH.hLY] = pose[CH.hLY]! + LAND_ARMS.up * w;
       pose[CH.hRY] = pose[CH.hRY]! + LAND_ARMS.up * w;
+    }
+    // (anim-n4b, PASS2 row 64) falling, the free arms go out and up for balance (AIR_POSE)
+    const aw = airPoseW(this.airT) * fw;
+    if (aw > 0.001) {
+      blendHand(pose, CH.hLX, -AIR_POSE.armX, AIR_POSE.armY, AIR_POSE.armZ, aw);
+      blendHand(pose, CH.hRX, AIR_POSE.armX, AIR_POSE.armY, AIR_POSE.armZ, aw);
     }
   }
 
@@ -2277,6 +2442,13 @@ export const KNEEL_HANDS = { lx: -0.1, ly: 0.58, lz: 0.42, rx: 0.24, ry: 0.42, r
 export const TENSE_HANDS = { outX: 0.12, outY: 0.04, outZ: 0.22, sway: 0.03, knifeX: -0.03, knifeY: 0.06, knifeZ: 0.12, knifeOff: 0.06, knifeRate: 2.1 } as const;
 /** (G1, audit row 18) A deep landing throws the arms out (m sideways, m up) for `hold` s. */
 export const LAND_ARMS = { out: 0.3, up: 0.3, hold: 0.3 } as const;
+/** (anim-n4b, PASS2 row 64) The air pose by `airPoseW` (a drop, a fall, a let-go from a hang): the left foot `lead` and the
+ *  right `trail` ahead (pose m), a little more knee (`lift`), the chest back (`chest` rad); free hands out to the sides
+ *  and up for balance (`arm*`, root frame, pose m: about chest height, well out from the shoulders). */
+export const AIR_POSE = { lead: 0.14, trail: 0.06, lift: 0.04, chest: -0.06, armX: 0.55, armY: 1.2, armZ: 0.1 } as const;
+/** (anim-n4b fix) The holds with a wall or a hole's edge in front: a fall straight out of one (let go, slid off) keeps the
+ *  air pose's legs under the body (no `lead` / `trail` / `lift`); the arms and chest still take it. */
+export const AIR_WALL_FROM: readonly TraverseKind[] = ['hang', 'climb', 'pipeClimb', 'rappel', 'pipeLegs', 'pipeInv', 'wallKick', 'ventDrop', 'crawl', 'crawlOut'];
 
 /** Sideways share of the local movement direction (0 forward/back .. 1 pure strafe). */
 function lateralShare(i: AnimInput): number {

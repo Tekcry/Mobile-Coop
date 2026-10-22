@@ -42,6 +42,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Sector Ops restart: get spotted (alarm, alert music), use some ammo and a gadget, go down. After "Restarting from
   checkpoint" the music fades to silence, the guards are back on their routes unaware, the guns are full (the rifle
   suppressed), the gadgets are back and health is full; a suppressed shot away from the guards alerts nobody.
+- [ ] (sector-fixes R) Co-op Sector Ops, each section: leg-up your partner onto a 4.4 m lip (section 1 the high door
+  in the yard facade and the hoist rail in goods-in; section 2 the high-bay rack R3S from the east gangway and the landing high on the east wall over the gangway; section 3 the valve platform
+  in the east bay and the crane drive over the CNC cell, each climbable onto under its roof hood); they relay or drop the
+  rope for you; alone, the lip cannot be reached. Each team door is locked from your side; your partner unbolts it from the other side; a restart bolts it again.
 - [ ] Co-op: Host a room starts on Campaign (Marlow Yard); the Mode row offers Campaign and Sector Ops only.
 - [ ] Co-op guard torches (coop-torches): on a dark map, when a guard searching in the dark switches his flashlight on,
   the joiner sees the same beam from his head, aimed where he faces, and it goes off when the host's does; standing in
@@ -82,6 +86,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   Y over a wall at low ready or aiming: the gun goes away for the climb and comes back after. A opens doors and uses
   things at low ready and aiming too. Aim the pistol at a camera, a light or a laser's power panel and hold RB (keyboard F) to jam it; aiming
   alone does not jam, and RB not aiming the pistol is still the co-op action.
+- [ ] Body motion (anim-natural-n2): walk, jog, sneak and crouch walk holstered: the hips and shoulders turn against each
+  other with each step, the hips sway over the standing foot, the head turns a little with the chest and nods; aiming
+  and side-stepping, the hips swing under a steady chest and the gun and head stay on the aim. No pop speeding up,
+  slowing down or crouching. Guards walk as before.
 - [ ] A at a wall puts your back to it; slide along it, stop at the edge, A to leave (CT prototype).
 - [ ] (G6) Crouched on a wall: side-on, a hand on the knee, turning through facing out on a reversal; Open from the door
   menu steps to the latch side and pushes the door with a hand; the edge peek puts the head just past the frame.

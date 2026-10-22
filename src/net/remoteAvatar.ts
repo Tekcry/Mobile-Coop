@@ -6,7 +6,8 @@ import { WALL, WALL_LOOK_PITCH, WALL_SUB, WALL_TURN, wallHandPoint, wallHeadYaw,
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { muzzleBlock } from '../player/wallBlock';
 import { PhysicsRaycastResult, Vector3, type PhysicsEngine } from '../core/babylon';
-import type { CharacterRig } from '../player/characterRig';
+import type { CharacterRig, RigPose } from '../player/characterRig';
+import { newTeamPoseIn, teamPoseOfWire, TeamPoser } from '../anim/clips/team'; // (anim-n4b, track A)
 import type { OperatorFigure } from '../operators/runtime/figure';
 import { loadPlayLods, operatorRig, partnerFigureFrame } from '../operators/runtime/playerFigure';
 import { avatarFactory } from '../cosmetics/avatarFactory';
@@ -24,7 +25,7 @@ import { PF, type PlayerInfo, type PlayerState } from './protocol';
 import { hyp2 } from '../core/mathx';
 import { AttachGrips } from '../player/attachGrips';
 import { wrapPi } from '../anim/motion';
-import { strikeWarp } from '../anim/strikeBody';
+import { GRAB_KILL_BLOW, KILL_SEEN, KILL_TAIL_END, killWarp, strikeWarp, TAKEDOWN_BLOW, type KillBlow } from '../anim/strikeBody';
 import { RAPPEL } from '../config/movement';
 import { attachGripWeight, climbUpFootWeight, emptyMovePose, isAttachedMode, poseFromMoveState, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
 import { traversePath, type PathKind } from '../player/traversePath';
@@ -64,6 +65,11 @@ export class RemoteAvatar {
   private hhL = { x: 0, y: 0, z: 0 };
   private hhR = { x: 0, y: 0, z: 0 };
   private koTmp: KoState = { limp: 0, lower: 0, bend: 0 };
+  /** (anim-n4d, M1) The last kill blow seen (null none), its last phase, and its follow-through after the kill (the
+   *  blow's phase past 1; -1 not started): as the owner's `TakedownController` tail, pose only. */
+  private blowB: KillBlow | null = null;
+  private blowU = 0;
+  private tailU = -1;
   readonly buf = new SnapshotBuffer<PlayerState>(40, 0.25);
   readonly pos = new Vector3();
   yaw = 0;
@@ -132,6 +138,9 @@ export class RemoteAvatar {
   /** Seconds the remote has held still on its anchor (settling onto the owner's grips waits for it). */
   private stillT = 0;
   private carryW = { low: 1, high: 0, compressed: 0 };
+  /** (anim-n4b, track A) The co-op team pose from its MoveState (and our side of the move, `TEAM_LINK`), as the owner's. */
+  private readonly teamPose = new TeamPoser();
+  private readonly teamIn = newTeamPoseIn();
   /** Fire sound hook. */
   onFire: ((cls: string, at: Vector3) => void) | null = null;
 
@@ -389,6 +398,21 @@ export class RemoteAvatar {
       wallHandPoint(this.pos.x, this.pos.y, this.pos.z, wseg.nx, wseg.nz, wseg.tx, wseg.tz, this.wallFace, this.rig.weaponHand, this.crouch, this.wallHandPt);
       this.rig.wallHand = this.wallHandPt;
     } else this.rig.wallHand = null;
+    // (anim-n4d, M1) a kill blow's follow-through: the owner's takedown ended on the kill (the wire moved on), the arc
+    // plays on from contact as the owner's (a strike below takes it over)
+    const blowB = mv && !rp ? (mv.m === 'takedown' ? TAKEDOWN_BLOW : mv.m === 'grab' && mv.sub & 1 ? GRAB_KILL_BLOW : null) : null;
+    if (blowB) {
+      this.blowB = blowB;
+      this.blowU = mv!.ph;
+      this.tailU = -1;
+    } else if (this.blowB) {
+      this.tailU = this.tailU >= 0 ? this.tailU + dt / this.blowB.dur : this.blowU >= KILL_SEEN ? 1 : KILL_TAIL_END;
+      if (this.tailU < KILL_TAIL_END) mp.melee = killWarp(this.tailU, this.blowB);
+      else {
+        this.blowB = null;
+        this.tailU = -1;
+      }
+    }
     // (locomotion step 10) the strike's phase eased between the two states around the render time (the sampled state is
     // the older one: a 20 Hz step in `ph` would jerk the elbow arc); a strike starting eases in from phase 0
     const sa = s.from.mv;
@@ -475,7 +499,7 @@ export class RemoteAvatar {
       this.airTop = Number.NaN;
     }
     this.landT = Math.max(0, this.landT - dt);
-    this.rig.animate(dt, {
+    const rpose: RigPose = {
       speed: this.speed,
       kneel: this.kneelT > KNEEL_STILL && !tense,
       tense,
@@ -512,12 +536,23 @@ export class RemoteAvatar {
       lean: mp.lean,
       traverse: mp.traverse,
       traverseT: mp.traverseT,
+      // (anim-n4b) the replayed move's geometry: the mantle's hand plant on the edge
+      traverseH: rp ? rp.c.top - rp.c.y0 : 0,
+      traverseD: rp ? hyp2(rp.c.x1 - rp.c.x0, rp.c.z1 - rp.c.z0) : 0,
       // (anim-joints J2, A6) the partner's own team role (its move mode and sub on the wire): the tuner's team rows
       tuneTeam: mv ? teamRowOfWire(mv.m, mv.sub) : '',
       melee: mp.melee,
       bend: this.cqBend,
       bendDrop: this.cqDrop,
-    });
+    };
+    // (anim-n4b, track A) a team move: the holder's working body / the leg-up's push, from the same state as the owner's
+    teamPoseOfWire(mv && !rp ? mv.m : '', mv ? mv.sub : 0, mv ? mv.s : 0, mv ? mv.ph : 0, this.info.id, this.teamIn);
+    this.teamPose.begin(dt, this.teamIn, rpose, this.rig);
+    try {
+      this.rig.animate(dt, rpose);
+    } finally {
+      this.teamPose.end(this.rig);
+    }
     // (3.2.0 phase 3) on a rope: draw it from the anchor to the harness
     const ra = mv?.m === 'rappel' ? this.world.level.anchors.all[mv.a] : null;
     if (ra && ra.kind === 'rappel') {

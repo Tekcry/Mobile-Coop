@@ -657,7 +657,8 @@ Implementation: `docs/systems/ui.md`; the menu plan: `docs/menu-ui/SPEC.md`.
 - **Keyframed core clips (G208):** walk, jog, run, crouch walk, crouch idle and the wall-knee hand are keyframed clips
   authored headless in Blender, never traced from footage (G5, G209); the procedural layer blends, turns, plants feet.
 - All other animation is generated in code (clips as curves, IK, `FootPlanner`, `AnimGraph`, `Inertializer`). No motion
-  matching, no captured data, no root motion driving control.
+  matching, no captured data, no root motion driving control. Note 2026-10-23: CMU mocap locomotion behind a toggle
+  (G264), kept as captured over the limits and feel notes below (G271), more clips without sheets (G273).
 - **Every animation looks realistic and believable**: no instant or unrealistic motion, no clipping (G199), no awkward
   poses. The reference is a real-world trained operator, not the CT footage (G210, replaces loco M20 Q9).
 - **Michael's feel notes (G207):** legs and elbows in, never crab-like, also crouched; a slower crouch idle; the
@@ -833,7 +834,8 @@ what survives of D5 is G30 (5.3).
 Starting limits, frozen in config with unit tests (`src/anim/audit/limits.ts`):
 
 - Pelvis vertical travel, peak to peak per stride: crouched speeds 2.5 cm or less, walk 4 cm, run 6 cm. Exactly one low
-  and one high point per step; no double bounce. (The old sprint value is void: there is no sprint.)
+  and one high point per step; no double bounce. (The old sprint value is void: there is no sprint.) Note 2026-10-23:
+  mocap clips behind the G264 toggle keep their captured bob (walk 5.5-6.6 cm); checkers note it, not fail (G271).
 - Head: vertical travel no more than the pelvis; pitch and roll oscillation 2 deg or less.
 - Lateral pelvis sway at walk: 3 cm or less.
 - Camera: no camera bob; the camera follows the capsule, never the head or pelvis; vertical oscillation 0.5 cm or less in
@@ -928,6 +930,7 @@ spec template) and the standard's phases and gates.
 - **Marlow Yard** (the co-op training bunker): ready for a two-player walkthrough, with a light pass wherever spaces
   need light (G200).
 - Marlow Yard has one guard who can be interrogated (G206).
+- Note 2026-10-23: the final Marlow Yard pass rebuilds freely around co-op scenarios, one co-op run 15-20 min (G272).
 - The Marlow Yard bunker pass takes the full shortlist of the Marlow Yard audit (ceilings, lamp fittings, airlocks,
   dressing, walls to ceilings, paint, lifts, fiction) and keeps the open floor's light level at 0.30, just over the 0.28 shadow line (G225).
 - **Order (G224):** the co-op training bunker, then the first campaign level.

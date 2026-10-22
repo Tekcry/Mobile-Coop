@@ -175,6 +175,9 @@ describe('anim tuner state selection', () => {
       [{ grounded: false, traverse: 'climb' }, false, false, 'ladder'],
       [{ grounded: true }, false, false, 'idle'],
       [{ bend: 0.3, speed: 0.5 }, false, true, 'hold'],
+      // (N4b train-8 fix) a team holder's brace (the bend from the team pose) is not a hold or a carry
+      [{ bend: 0.22, bendDrop: -0.05, crouch: 1, traverse: 'brace' }, false, false, null],
+      [{ bend: 0.3, traverse: 'brace', carryBody: true }, false, false, null],
     ];
     for (const [p, ledge, armed, want] of cases) expect([p, selectBodyGroup(pose(p), ledge, armed)]).toEqual([p, want]);
   });

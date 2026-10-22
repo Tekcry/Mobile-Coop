@@ -28,6 +28,7 @@ const SECTION_TAB: Readonly<Record<string, string>> = {
   joint: 'body',
   ik: 'body',
   trav: 'body',
+  cq: 'body', // (anim-n4, track A) Holds and carries
   hand: 'hands',
   gun: 'weapon',
   weapon: 'weapon',
@@ -429,6 +430,12 @@ const PLAIN: Readonly<Record<string, string>> = {
   toeOff: 'Toe push',
   heel: 'Heel roll',
   replant: 'Re-step distance',
+  // (anim-natural N1) the feet in turns
+  'step:turnTwist': 'Turn step twist',
+  'step:turnRate': 'Turn step trigger speed',
+  'step:pivot': 'Ball pivot amount',
+  'step:pivotHeel': 'Ball pivot heel lift',
+  'step:landTurn': 'Landing turn lead',
   // weight
   startMul: 'Speed-up time',
   stopMul: 'Stop time',

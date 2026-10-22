@@ -1,5 +1,164 @@
 # Changelog
 
+## 4.63.1 - Train 14: Load-proof heap check, faster e2e start order (2026-10-23, PR #166; #163, #165)
+
+### E2E start order
+- Tests: `scripts/e2e-times.json` refreshed from a full laptop GPU run (adds e2e-sectorops and its parts, e2e-studio,
+  e2e-tuner-phone; e2e-anim 5 s -> 37 s), and a suite with no recorded time now sorts at the median known time instead
+  of 0, so a new or renamed suite no longer starts last at E2E_JOBS=5 and sets the tail.
+
+### lightField allocation check holds under load
+- Tests only: the shared allocation helper (`tests/helpers/allocPerCall.ts`) tiers code up synchronously
+  (`--no-concurrent-recompilation`, `--no-concurrent-osr`), so every heap check reads the optimized code on any machine
+  instead of whatever tier a starved background compiler had reached. lightField "allocation-free under a loop" now
+  reads levelAt 32.0, bodyLevel 64.8 (was 100-127 B in Sparkplug against its 128 B limit), control 272.0 B every run;
+  same asserts and limits. `ALLOC_TRACE=1` logs each round with its optimization tier.
+
+## 4.63.0 - Train 13: Sector Ops co-op routes and team doors, fence rattle test, decisions G270-G275 (2026-10-23, PR #164; #144, #161, #162)
+
+### e2e-ct: the fence rattle check latches its noise samples
+- Tests: e2e-ct's fence rattle checks no longer read the noise once after the climb. The noise model re-samples
+  every 0.25 s of sim time and holds the value in between; with the sampler's phase set by the real-time steps before
+  the suite takes the loop over, the one read could land on a sample taken in the step after the stick was released
+  (0.00 m in train 11 at `E2E_JOBS=3`). A new `runNoise` steps the window one 60 Hz step at a time and latches every
+  sample taken inside it: gear 4's loudest sample must reach 3.9 m and gear 3's loudest must stay under 0.5 m, each
+  with at least one (gear 3: two) samples. The limits and the climb-rise check are unchanged.
+
+### Decisions fold G270-G275
+- docs/DECISIONS.md: roadmap decisions of 2026-10-22 ~22:32 to 2026-10-23 ~00:10 folded in as G270-G275.
+- docs/design-bible.md: dated notes at D2 (pelvis bob), 5.12 (captured data) and Marlow Yard pointing at G271-G273.
+
+### sector-fixes R: co-op-only routes and team doors (track A)
+- Sector Ops Warehouse: co-op-only routes, each a 4.4 m lip (out of solo reach, inside the leg-up) with the partner
+  following by relay or the two-person rope. Section 1: the AHU service door high in the yard facade onto the plant
+  deck, and the goods-in hoist monorail over the checker (the two east-lane loads by it are now 2.0 m stacks you cannot
+  climb alone). Section 2: rack row R3 rebuilt as high-bay (4.4 m tops, its rolling ladder gone), R3S reached from the
+  east gangway: a vantage over the lane, A3 and the picker; (Michael, "Add another") the old dispatch landing on the x -4
+  wall over the east gangway, a second leg-up route (a vantage and a hang-drop onto the picker). Section 3: the sprinkler zone-valve platform (a way onto the
+  5.0 m main) and the crane drive platform over the CNC supervisor (hang-drop).
+- Team doors: one door per section bolted from one side (section 1 the mess back door, section 2 the VNA aisle escape
+  gate, section 3 the plant room's lobby door). Only a player on the far side gets "Unbolt"; it opens for both; a
+  checkpoint restart bolts it again. Host-authoritative, no wire change (protocol stays 28).
+- A player downed on a co-op-only top cannot be revived there; the checkpoint respawn takes over (PLAN A3).
+- (e2e fix) Section 3's two platforms sit under raised roof hoods, so you can climb up onto them (the roof left too little
+  room). Section 1's single east-lane pallet is now an empty pallet: a running jump or a mantle off the old one got a
+  player alone onto the stacks by the monorail. `run-e2e.mjs`: a named suite with parts (`e2e-sectorops`) now runs as its
+  parts.
+
+## 4.62.0 - Train 12: Co-op holders, mantle drop roll and brace, holds that breathe, co-op offer test fix (2026-10-23, PR #160; #119, #158)
+
+### anim-natural N4b (track A: co-op holders, traversal, holds)
+- Co-op team moves: the partner who helps is no longer a statue. Leg-up: cupped hands take her foot, he dips, then drives
+  up with legs and arms while she pushes off his hands. Throw: he loads and throws with his whole body. Hang-down: his
+  hands hold her ankles, leaning back or bending over the edge with the depth. Rope: both hands on the rope, leaning
+  back against her weight. Animation only (no timing, position or protocol change).
+- Mantle: both hands plant on the top edge and she presses over them. Drops: a step off with the arms up for balance, the
+  legs ahead in the air, and a landing that bends more for a longer drop. Roll: a grounded shoulder roll instead of an
+  airborne somersault (slower hands, the slung rifle swings far less). Split brace: hands braced on the walls instead of
+  arms straight out.
+- Holding a guard still: she braces, breathes and shifts her weight against him (the trunk no longer stays at 0 deg).
+  Animation tuner (Holds and carries): brace, brace roll and breath sliders; they bake. Anim Studio: the hold walks
+  travel with planted feet instead of sliding on the spot.
+- (PR fix) Letting go of a ladder, a drainpipe or a hang, the legs stay under her in the fall (the legs-ahead air pose is
+  for walking off a ledge or a jump; off a ladder it went into the wall). The split brace's breath runs from the moment
+  she braces, so the partner's copy breathes in step with her.
+- (PR fix 2) Stepping onto a ladder from its top no longer sinks her legs 30 cm through the rim (the mantle's hand plant
+  is off for that backward climb-on). A landing or forward roll needs 0.9 m clear past its end (was 0.4): the shoulder
+  roll's dive put her head 30 cm into the wall after the vent drop; with less room she lands without the roll.
+- (Train 8 fix) A co-op holder's braced pose (boost, throw, hang-down, rope) no longer counts as a hostage hold: the hold
+  Body rows and the hold camera stay off it, as before the team pose. In the Anim Studio, a paused scrub of a team pair
+  shows that phase's team pose at once (it kept the weight it was paused at).
+
+### Coop offer under load
+- Tests: e2e-coop's client takedown holds under load. The host keeps the picked guard pinned (calm, still, the client
+  unspotted) on every frame until the takedown starts, and the client starts it in the frame its offer comes up
+  within 6 s of its own match clock (was 40 polls 150 ms apart in real time, which a loaded page spent in a fraction
+  of that game time). The assert is unchanged.
+
+## 4.61.0 - Train 8: Wren's body moves with the gait, feet in turns, Sector Ops strip-light fog fix (2026-10-22, PR #157; #138, #156)
+
+### Wren's feet in turns (anim-natural N1)
+- Wren's feet in turns: a turn step lifts the planted foot before the legs wind up (the body's yaw rate and the
+  foot's twist decide it), the planted foot pivots on the ball with the heel coming up first, and no foot sticks to the
+  floor and snaps round late. Jog and run turns first, then walk turns, turns on the spot, starts, stops, strafes and
+  crouch turns. A foot left behind in a fast turn now lifts early instead of launching at 6 m/s (rule A2). Guards share
+  the turn rules. New Stepping sliders for the rule, identity by default, and they bake.
+- Tests: e2e-anim's foot locking, crab slide and turn block read the contact point (heel / ball while down); the turn
+  block asserts plant time <= 0.25 s and the first swing frames <= 5 m/s; e2e-move's stop check reads the contact
+  point (2 cm bar kept).
+
+### Wren's whole body moves with the gait (anim-natural N2)
+- Wren's walk, jog, run, sneak, crouch walk, crouch run and the aimed glides now move the whole body (Michael: "All
+  movements must move naturally with twisting/swaying/balancing"): the hips and shoulders turn against each other with
+  each step, the hips sway over the standing foot, and the head lets a little of the chest's turn through and nods with
+  the steps. Aiming, the hips swing under a steady chest and the head stays on the aim.
+- Added on top of the keyed clips and Michael's key edits (never rescaling them), timed onto the gait phase: no pops at
+  speed or stance changes, the same at every frame rate. Measured headless (pelvis / shoulders deg peak to peak): walk
+  3 / 3 -> 8 / 8, jog 5 / 7 -> 12 / 16, sneak 2 / 2.4 -> 5 / 5.4, crouch walk 4 / 4.8 -> 8 / 8.8; walk hip sway 1.7 ->
+  4.4 cm; aimed side-step counter-rotation -0.47 -> -0.99.
+- The run no longer pops at each foot strike. The trunk keys (A1) no longer snap the hips ~21 deg twice a stride, and
+  the arms no longer jump back to front in one frame (wrist 23.5 -> 6.5 cm per clip frame, peak 17.6 -> 5.5 m/s): Michael's
+  2026-10-22 run tune moved the key timings but kept arm values keyed for the old spacing. Only the arm keys were
+  retimed: his swing range and elbow bend are kept; the arms now ease out of each extreme and pass mid-swing about 3/48
+  of a cycle later than his tune.
+- Every Wren rig (the player, the co-op partner, the studio puppets walking a loop); guards are unchanged bit for bit.
+  The amounts are per tuner body row (`BODY_MOTION` in `src/anim/bodyMotion.ts`); the stills come in a later step.
+- The animation audit's walk sway limit for Wren is 5 cm (Michael approved ~5 cm; guards keep 3 cm).
+- With the gun out (low ready walk / jog) the chest stays on the gun: the hips still swing under it, but the layer no
+  longer turns the shoulders, which carried the gun arms out (low ready jog elbows 6.0 -> 5.7 cm outside the shoulder,
+  limit 6; master's own reading). The low-ready head then follows only the keyed carry (1.1 deg peak to peak).
+- Arms (step 3): Wren's walking arms swing wider (wrist range about 23 -> 30 cm), and turns and strafe starts no longer
+  whip the hands (the jog 180 turn 14 -> 7 m/s): a per-gait arm gain and a wrist / elbow speed cap in the chest frame
+  (the run's cap, 18 m/s, does not engage on its keys). Drawn (low ready) arms are unchanged. Anim Studio's loop player
+  is never capped: its keyed loops play exactly as keyed.
+- The walk's side-to-side weight shift peaks a little later in each step, with the same size (about 2.9 cm). The stance
+  knee no longer bows out past the foot as the hip reaches its widest point (walk knee-out 3.4 -> 3.2 cm, limit 3.5).
+- Crouched and still with the gun holstered, each palm now rests on the kneecap, slightly further forward than before. The
+  right wrist no longer sinks into the right thigh (up to 2.5 -> 1.9 cm of overlap, limit 3).
+
+### Volumetric cones under fixed spots
+- Fix (render only): the Sector Ops LED strips and bulkheads with a beam optic no longer draw full ceiling-to-floor
+  white fog cones at High / Ultra / Epic. In the volumetric pass the LED fittings (strips, panels, bulkheads) scatter under their shade like a lamp
+  (march at most 3.2 m, no wider than the lamp cone, gain 1), along their own beam direction; torches and the floods with a
+  plain housing (base Warehouse, parked maps) keep their beams. The floor light, the meter and the guards (`LightField`) are unchanged.
+  `src/vfx/volLights.ts` (pure, `tests/volLights.test.ts`); shots and notes in `docs/vol-cone-fix/`.
+
+## 4.60.1 - Train 11: GPU test waits, netmove compare on sim time, touch fling note (2026-10-22, PR #155; #150, #154, #149)
+
+### Tests: condition waits before UI-state asserts (GPU)
+- e2e-studio: waits (up to 3 s) for the studio bar's throttled readouts (the Keyed box, the playback readout) and the
+  Keys readouts (the fixed first key, Add key) before asserting on them; hardware-GPU frames pass inside one refresh.
+- e2e-menus: the touch pass waits (up to 3 s) for the Settings / main menu screens and the hidden pause button
+  before asserting, instead of a fixed few frames after the tap or key press (the pause / Resume taps already wait, #148).
+
+### e2e-netmove pose compares hold under load
+- Tests (netmove-compare): e2e-netmove's pose compares hold the client's rig and the host's copy of it at the same idle
+  phase (the drawn ready stance, the keyed idle and the breath run on each rig's own random clock, not on the wire) and
+  re-step both foot planners at the tight 2 cm rest tolerance while comparing. The "drawn" ankle read 7.8 cm alone and
+  10.7 cm under load; it now reads 0.3-3.6 cm, under the same 10 cm limit. Every compare logs its worst joint, and the
+  suite prints the maximum.
+
+### Touch fling note
+- Docs: backlog 31, a fast look-drag may eat the next tap on a real touch device (to check on a phone).
+
+## 4.60.0 - Train 10: Takedown blow and grab kill land on the kill, baked lamp material fix (2026-10-22, PR #153; #142, #145)
+
+### anim-natural N4d: takedown blow and grab kill on the kill moment
+- Lethal takedown blow and grab kill (Michael M1 "Faster arm", applied to the kills): the elbow arc's contact now lands
+  on the kill instead of well before it (takedown: contact 0.39 s into the 0.7 s blow -> 0.68 s, kill at 0.7 s; grab
+  kill: 0.28 s -> 0.48 s, kill at `GRAB.killTime` 0.5 s). The kill timing is unchanged. The follow-through and return
+  play on after the kill (0.31 s / 0.22 s, pose only: the operator is free as before). Same on a co-op partner (the
+  wire keeps the blow's own phase; both sides warp, the partner plays the follow-through itself). `killWarp`,
+  `TAKEDOWN_BLOW`, `GRAB_KILL_BLOW` in `src/anim/strikeBody.ts`. Guards unchanged.
+- Co-op client elbow strike: the host's accept no longer steps the strike's pose back (a one-frame hitch at RTT
+  80-100 ms, the arc stepped back 0.13-0.21); the pose keeps its place and the clock catches up at half pace. Gameplay
+  timing unchanged.
+
+### Baked lamps: a material added in the frame another is disposed gets the lamp plugin
+- Fix (backlog 30): `BakedLamps` now also attaches the baked-lamp plugin on the frame after the scene's new-material
+  event, not only when `scene.materials.length` changes, so a material made in the same frame another is disposed
+  is lit by the baked lamps (light parity). The observer is removed on dispose. Test: `tests/lampPluginGap.test.ts`.
+
 ## 4.59.0 - Train 9: Sector Ops laser panels, hand swap and elbow strike, vent kick, touch and GPU test fixes (2026-10-22, PR #151; #136, #139, #141, #148, #147)
 
 ### anim-natural N4c: hand swap and elbow strike

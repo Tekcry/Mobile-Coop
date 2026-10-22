@@ -10,6 +10,7 @@ import { GripStepper, type GripLimb } from './gripStepper';
 import type { PipeMode } from './splitJump';
 import { RAPPEL, SPLIT } from '../config/movement';
 import { proportions } from './proportions';
+import { SPLIT_HANDS } from '../anim/clips/traverse'; // (anim-n4b) the split brace's palms
 
 const RAPPEL_STANDOFF = RAPPEL.standoff;
 
@@ -696,13 +697,16 @@ export class AttachGrips {
         fr.x = cx + wx * sd * half - fx * 0.04;
         fr.z = cz + wz * sd * half - fz * 0.04;
         fr.y = fy;
-        // (pressed against the walls a little under the shoulders)
-        const hy = fy + 0.5 * (rig.height / 1.75);
-        L.x = cx - wx * sd * (half + 0.02) + fx * 0.12;
-        L.z = cz - wz * sd * (half + 0.02) + fz * 0.12;
+        // (pressed against the walls under the shoulders: (anim-n4b, AUDIT fix 36) SPLIT_HANDS, the arms angled down onto
+        // the walls, not straight out level)
+        const sc = rig.height / 1.75;
+        const hy = fy + SPLIT_HANDS.up * sc;
+        const hf = SPLIT_HANDS.fwd * sc;
+        L.x = cx - wx * sd * (half + 0.02) + fx * hf;
+        L.z = cz - wz * sd * (half + 0.02) + fz * hf;
         L.y = hy;
-        R.x = cx + wx * sd * (half + 0.02) + fx * 0.12;
-        R.z = cz + wz * sd * (half + 0.02) + fz * 0.12;
+        R.x = cx + wx * sd * (half + 0.02) + fx * hf;
+        R.z = cz + wz * sd * (half + 0.02) + fz * hf;
         R.y = hy;
         R.w = w * (1 - this.aimFree);
         return;

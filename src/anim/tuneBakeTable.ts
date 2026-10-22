@@ -246,12 +246,29 @@ rules.push(
 // ------------------------------------------------------------------------------------------
 
 rules.push(
-  rule('step', 'lift', ['step.idle'], [e(PLAN, 'PLANNER.idleLift', 'mul')], 'the idle and stop-close steps'),
-  rule('step', 'lock', STEP_MOVING, [e(PLAN, 'TURN_FOLLOW.twistFree', 'mul'), e(PLAN, 'TURN_FOLLOW.twistMax', 'mul'), e(PLAN, 'TURN_FOLLOW.scrubSpeed', 'div')], 'close: the touchdown twist cap reads twistFree too'),
+  rule('step', 'lift', ['step.idle'], [e(PLAN, 'PLANNER.idleLift', 'mul')], 'the idle and stop-close steps; close: the aimed turn on the spot (anim-natural N1) reads the idle row on its gait liftH too'),
+  // (anim-natural N1) the aimed turn on the spot reads the idle row: its pivot allowance and twist cap read twistFree / twistMax
+  rule('step', 'lock', [...STEP_MOVING, 'step.idle'], [e(PLAN, 'TURN_FOLLOW.twistFree', 'mul'), e(PLAN, 'TURN_FOLLOW.twistMax', 'mul'), e(PLAN, 'TURN_FOLLOW.scrubSpeed', 'div')], 'close: twistFree is also the ball pivot\'s allowance and the turn rules\' cap floor; without the turn rules (an opt-out) the touchdown lead reads it too'),
 );
-// (anim-bake-all) the moving gaits' lift, the idle lock, dur, slide, stride0..2, toeOff, heel and replant (clip data,
+// (anim-natural N1) the turn rules' per gait tables: each gait's slider bakes into its own entry (the idle entry is the
+// aimed turn on the spot)
+{
+  const STEP_ROW = ['step.idle', 'step.walk', 'step.jog', 'step.run', 'step.crouchWalk', 'step.crouchRun'];
+  STEP_ROW.forEach((g, k) => {
+    rules.push(
+      rule('step', 'turnTwist', [g], [e(PLAN, `FOOT_TURN_STEP.twist[${k}]`, 'mul')], 'also the twist cap\'s backstop (TURN_CAP x it)'),
+      rule('step', 'turnRate', [g], [e(PLAN, `FOOT_TURN_STEP.rate[${k}]`, 'mul')]),
+      rule('step', 'pivot', [g], [e(PLAN, `TURN_PIVOT.max[${k}]`, 'mul')]),
+      rule('step', 'pivotHeel', [g], [e(PLAN, `TURN_PIVOT.heel[${k}]`, 'mul')]),
+    );
+    if (k > 0) rules.push(rule('step', 'landTurn', [g], [e(PLAN, `LAND_TURN[${k}]`, 'mul')]));
+  });
+}
+// (anim-bake-all) the moving gaits' lift, the idle landTurn, dur, slide, stride0..2, toeOff, heel and replant (clip data,
 // inline literals, no per-pace constant): the generic table (`sections.step.step.<gait>.<id>`, which tuneStep.ts composes
-// into the rows Wren's planners read; never the guards' or the identity table)
+// into the rows Wren's planners read; never the guards' or the identity table). (anim-natural N1) the idle lock has its
+// rule above (the aimed turn on the spot); the idle landTurn bakes but has no effect (that turn lands along its own yaw
+// prediction, stride velocity)
 
 // ------------------------------------------------------------------------------------------
 // Weight (weight.ts / weightTune.ts)
@@ -278,7 +295,7 @@ rules.push(
 // ------------------------------------------------------------------------------------------
 
 for (const [walk, ids] of [
-  ['hold', [['holdTwist', 'pelvis'], ['holdCounter', 'counter'], ['holdDip', 'dip'], ['holdStride', 'stride']]],
+  ['hold', [['holdTwist', 'pelvis'], ['holdCounter', 'counter'], ['holdDip', 'dip'], ['holdStride', 'stride'], ['holdBrace', 'brace'], ['holdBraceRoll', 'braceRoll'], ['holdBreath', 'breath']]], // (anim-n4b) the hold still
   ['carry', [['carryTwist', 'pelvis'], ['carryCounter', 'counter'], ['carryShift', 'shift'], ['carryDip', 'dip'], ['carryStride', 'stride']]],
 ] as const) {
   for (const [id, f] of ids) rules.push(rule('cq', id, [`cq.${walk}`], [e(CQG, `CQ_GAIT.${walk}.${f}`, 'mul')], f === 'stride' ? 'the local player gait clock only (remote copies run their own)' : undefined));

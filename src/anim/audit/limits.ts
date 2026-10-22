@@ -130,6 +130,10 @@ export function gaitBand(stance: 'stand' | 'crouch', gear: number): GaitBand {
 export const HEAD_ANGLE_P2P = 2;
 /** :1255 - walk (stand gears 1-3) lateral pelvis sway <= 3 cm. */
 export const WALK_SWAY = 0.03;
+/** (anim-natural-n2, A2) Wren's walk sway limit (the audit records the local player and its remote copy: both Wren): the
+ *  body motion layer adds ~1.4 cm a side to the keyed walk (4.4 cm p2p headless). (anim-natural-n2) Michael approved
+ *  ~5 cm sway 2026-10-22: was 0.03. WALK_SWAY stays 0.03 for guards and the generic check. */
+export const WALK_SWAY_WREN = 0.05;
 /** :1256 - camera vertical oscillation p2p <= 0.5 cm steady; landing: one dip, rebound <= 2 mm. */
 export const CAMERA_P2P = 0.005;
 export const LANDING_REBOUND = 0.002;

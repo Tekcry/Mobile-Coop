@@ -6,6 +6,7 @@ import type { PartShape } from '../world/partLibrary';
 import type { AvatarLook } from '../cosmetics/avatarLook';
 import { proportions, type Build, type Proportions } from './proportions';
 import { AIM_ELBOW_TUCK, AnimGraph, defaultInput, meleePoleW, wrenTuckMul, type AnimInput, type TraverseKind } from '../anim/animGraph';
+import { ROLL_BODY, rollTurn } from '../anim/clips/traverse'; // (anim-n4b) the grounded roll's body turn
 import { gripClose, smoothInv } from '../anim/drawMotion';
 import { elbowSwivelClear, solveTwoBone } from '../anim/rigMath';
 import { HOLDS, holdInto, solveHold, type HandFrame, type HoldName } from './handHold';
@@ -20,6 +21,7 @@ import { hyp2 } from '../core/mathx';
 import { KA, KD, KE, KEYED_LEG_SIDE, KEYED_LEGD_SIDE, KL, KQ, KW, type KeyedPose } from '../anim/keyed';
 import { LEGD_OPT, legdContactW, plantKnee } from '../anim/legDelta';
 import { toePitch } from '../anim/toeRoll';
+import { heelLift } from '../anim/footGeom';
 import { TUNE_CUR } from '../anim/tune';
 import { HAND_SWAP, handSwapK } from '../anim/handSwapPath'; // (anim-n4c)
 import { studioFeet } from '../anim/studioDrive';
@@ -105,6 +107,9 @@ export interface RigPose {
   intent?: number;
   traverse?: TraverseKind;
   traverseT?: number;
+  /** (anim-n4b) A committed move's top above its start feet and its start-to-end distance (m): the mantle's hand plant. */
+  traverseH?: number;
+  traverseD?: number;
   /** (anim-joints J2) This rig's co-op team role row (`team.<move>.<a|b>`, '' / unset none): the tuner's team rows. */
   tuneTeam?: string;
   melee?: number;
@@ -148,6 +153,8 @@ export interface RigPose {
    * 'velocity' (aiming, wall, cover; the default): the stride follows the velocity.
    */
   stride?: 'facing' | 'velocity';
+  /** (anim-natural N1) The foot planner's turn rules (turn step, ball pivot, held contact): 1 on (absent), 0 off (an opt-out). */
+  turnRule?: number;
   /** (A1.2) Where a free turn is heading (the stick, rad); absent: the planner caps its turn prediction at +-90 deg. */
   faceGoal?: number;
   /** Predicted rest position while stopping (the last steps land there). */
@@ -201,26 +208,8 @@ export function avatarStyle(): AvatarStyle {
 /** Build -> look body type (and enemies can override with their own build). */
 const BUILD_OF: Record<AvatarLook['body'], Build> = { average: 'average', lean: 'lean', athletic: 'athletic', broad: 'broad' };
 
-/**
- * (locomotion step 22, A79) A planted foot rolling heel to toe (toe up, `pitch` < 0) turns about its heel, not the
- * ankle: the ankle rises by the heel's lever behind it so the heel stays on the floor.
- */
-const HEEL_BACK = 0.05;
-/** (step 22) The sole's depth under the ankle: turning about the ankle drops the heel by it times (1 - cos pitch) too. */
-const HEEL_DOWN = 0.08;
-/** (G1) The ball of the foot ahead of the ankle (m): a planted foot rising onto its toes (`pitch` > 0) turns about it. */
-const TOE_BALL = 0.12;
-function heelLift(f: { contact: boolean; pitch: number; swing: number }): number {
-  // (G1 fix) also in the air: the heel-first landing's toe-up (terminal swing) lifts the ankle as it will on the floor, and
-  // the toe-off's raised heel fades over the first 0.3 of the swing (the ankle target jumped 1-5 cm at strike and toe-off)
-  if (f.pitch < 0) return f.contact || f.swing > 0.5 ? -Math.sin(f.pitch) * HEEL_BACK + (1 - Math.cos(f.pitch)) * HEEL_DOWN : 0;
-  if (f.pitch <= 0) return 0;
-  // (G1, footPlanner HEEL_RAISE) heel up, toe on the floor: the ankle rises by the ball's lever
-  const toe = Math.sin(f.pitch) * TOE_BALL - (1 - Math.cos(f.pitch)) * HEEL_DOWN;
-  if (f.contact) return toe;
-  const u = f.swing < 0 ? 1 : Math.min(1, f.swing / 0.3);
-  return toe * (1 - u * u * (3 - 2 * u));
-}
+// (anim-natural N1) the foot's contact geometry (HEEL_BACK, HEEL_DOWN, TOE_BALL) and the raised heel's ankle lift
+// (`heelLift`) moved to the pure `anim/footGeom.ts`: the foot planner's ball pivot turns about the same ball.
 
 /**
  * Max joint angular speeds (rad/s) by joint name suffix: realistic limits, also blend continuity. (locomotion step 21)
@@ -250,6 +239,16 @@ export const AIM_POCKET = { x: 0.3, y: -0.1, z: 0.27 };
  *  audit rows 5 / 6) 0.7 -> 0.06: the held drop kept the walk on 30-60 deg knees all cycle; the toe raise (HEEL_RAISE) now
  *  keeps the dip small instead. Starting value. */
 export const PELVIS_HOLD = 0;
+/**
+ * (anim-natural N2, n138 fix 2) The keyed pelvis offset's top speed (m/s, height and forward each). The keyed run's pelvis
+ * sits 21 cm higher and 10 cm further forward than the jog's (run.ts / jog.ts means), cross-faded over 3.2-3.8 m/s
+ * (KEYED_GAITS): a run's 180 brake (~22 m/s2) crossed most of that band in one frame, the hips dropped 10 cm, the planted
+ * knee needed 44 deg in a frame, its joint rate (25 rad/s) held it and the planted foot slid 14 cm (e2e-anim run 180,
+ * 16.5 cm headless); the re-acceleration's rise slid the next plant 6.9 cm. A clip's own bob stays under ~0.6 m/s (the
+ * run's ~1 cm a frame), so only a band crossing is eased. Headless (tests/turnCrossRig.test.ts): 1.8 left 7.0 cm, 1.5
+ * 1.7 cm, 1.2 every turn row <= 0.01 cm; the identity fixtures move on partner:moves only.
+ */
+export const KEY_PEL_RATE = 1.2;
 /** (G1 fix) The 3.2.0 hold for the aimed / wall gaits (stride 'velocity'). */
 export const PELVIS_HOLD_AIM = 0.7;
 /** Neck flexion at a full cheek weld (rad): the eye drops onto the sight line. */
@@ -389,8 +388,14 @@ const readyShTmp = { x: 0, y: 0, z: 0 };
  *  `shinFwd` m in front of the shin. Starting values (to check on the contact sheets). */
 const KNEE_HAND = { up: 0.09, fwd: 0.03, shin: 0.45, shinFwd: 0.12 };
 /** (anim-rework S4, BRIEF 3 "The crouched idle") The keyed squat's hands: each palm centre this far (m) over its knee
- *  joint (the kneecap's top) and ahead of it along the body (fingers over the front of the knee). */
-export const KNEE_REST = { up: 0.06, fwd: 0.01 } as const;
+ *  joint (the kneecap's top) and ahead of it along the body (fingers over the front of the knee).
+ *  (anim-natural N2, #138 fix round 4) fwd 0.01 -> 0.03 (the wall's KNEE_HAND.fwd): the palm on the kneecap, which sits
+ *  ahead of the joint, not on the thigh just behind it. At 0.01 the right wrist sat over the end of the right thigh, and
+ *  the crouch entry's re-step with N1's planner (left foot first: train 8, -3.2 cm) took e2e-clip "crouched holstered"
+ *  to -3.0 cm on the GPU run (limit -3; master -2.7). Headless (the e2e sequence on a driven rig, 60 Hz sim / 120 Hz
+ *  render, from 90 / 180 deg): squat -2.43 / -2.54 -> -1.87 / -1.92 cm, sneak -2.21 -> -1.73, the stop -1.79 -> -1.50,
+ *  standing up -1.73 -> -1.44; e2e-anim's knee hand (palm within 7 cm of the knee top) ~1.4 -> ~3 cm. Undo: 0.01. */
+export const KNEE_REST = { up: 0.06, fwd: 0.03 } as const;
 const khS = new Vector3();
 const khE = new Vector3();
 const khW = new Vector3();
@@ -491,6 +496,9 @@ const HEAD_CAP_MAX = 0.3;
 const CLEAR_MARGIN = 0.015;
 const tmpQ2 = new Quaternion();
 const tmpQ3 = new Quaternion();
+/** (anim-n4b) The roll's spin axis and a turned foot point (applyTargets; reused). */
+const rollAxisV = new Vector3();
+const rollV = { x: 0, y: 0, z: 0 };
 /** (21w) Weapon glide scratch. */
 /** (anim-gear) `gearPlace`'s result (position, rotation). */
 const gearRes = new Float64Array(7);
@@ -1096,6 +1104,10 @@ export class CharacterRig {
   private kneeLift = 0;
   /** (G1 fix) The hips' fore-aft shift over the still feet (m, body frame). */
   private restShift = 0;
+  /** (n138 fix 2) The keyed pelvis offset applied last frame (m: height, forward; KEY_PEL_RATE). */
+  private keyPelY = 0;
+  private keyPelZ = 0;
+  private keyPelOn = false;
   /** (anim-rework S3) The glide's lateral hip shift over the feet (m, eased; GLIDE_HIP). */
   private glideShift = 0;
   /** (locomotion step 21, M14) The ready-hands share this frame and the graph's shoulder for it (RigTargets). */
@@ -1143,6 +1155,8 @@ export class CharacterRig {
   private pelvisWorldYaw = 0;
   /** (G6 fix) The legs' yaw override this frame (side-on at a wall: the body's), NaN = the planner's foot yaws. */
   private legYaw = Number.NaN;
+  /** (anim-n4b fix) A grounded roll this frame (the body spun / tumbled with `tumbleLift`): the knee poles turn with the body. */
+  private rollPole = false;
 
   constructor(
     scene: Scene,
@@ -1721,6 +1735,8 @@ export class CharacterRig {
     else if (trav !== 'climbUp') i.ledgeClimb = false;
     i.traverse = trav;
     i.traverseT = s.traverseT ?? 0;
+    i.travH = s.traverseH ?? 0;
+    i.travD = s.traverseD ?? 0;
     i.melee = s.melee ?? -1;
     i.bend = s.bend ?? 0;
     i.bendDrop = s.bendDrop ?? 0;
@@ -1882,6 +1898,7 @@ export class CharacterRig {
     pin.glide = i.keyedDrawn && i.raise > 0.5;
     pin.pelvisYaw = yaw + this.follow;
     pin.crouch = i.crouch;
+    pin.turnRule = s.turnRule ?? 1;
     const free = !i.grounded || i.traverse !== 'none';
     pin.ground = free ? null : this.groundProbe;
     // airborne / traversing: the planner restarts from the clip pose when the feet are back down
@@ -2148,7 +2165,15 @@ export class CharacterRig {
 
   private applyTargets(t: ReturnType<AnimGraph['update']>, dt: number, free: boolean): void {
     const p = this.p;
-    this.body.rotationQuaternion!.copyFrom(Quaternion.RotationAxisToRef(Vector3.RightReadOnly, t.tumble, tmpQ));
+    this.rollPole = t.tumbleLift || t.tumbleSpin !== 0;
+    // (anim-n4b, PASS2 row 66) a roll: the spin about the hips-to-feet line first, then the tumble's pitch (as `rollTurn`),
+    // and the pivot sunk toward the floor (`tumbleDrop`)
+    if (t.tumbleSpin !== 0) {
+      rollAxisV.set(0, Math.cos(ROLL_BODY.tilt), -Math.sin(ROLL_BODY.tilt));
+      Quaternion.RotationAxisToRef(Vector3.RightReadOnly, t.tumble, tmpQ);
+      tmpQ.multiplyToRef(Quaternion.RotationAxisToRef(rollAxisV, t.tumbleSpin, tmpQ2), this.body.rotationQuaternion!);
+    } else this.body.rotationQuaternion!.copyFrom(Quaternion.RotationAxisToRef(Vector3.RightReadOnly, t.tumble, tmpQ));
+    this.body.position.y = this.bodyPivot - t.tumbleDrop;
     // root (moved by the caller) and body: the one forced update per frame; everything below is
     // refreshed top-down with `fresh`
     this.body.computeWorldMatrix(true);
@@ -2170,7 +2195,23 @@ export class CharacterRig {
       L.yaw = R.yaw = yaw;
       L.pitch = R.pitch = 0;
       // tumbling (landing roll): the feet turn over with the body about the hip pivot
-      if (Math.abs(t.tumble) > 1e-3) {
+      // (anim-n4b) a roll: with the spin and the sunk pivot, the clip's lifts turning with the body (the IK adds the lift
+      // back on top: the sole lands on the turned point)
+      if (t.tumbleLift) {
+        // (the soles in the body frame: they sink with the pivot)
+        const py = rp.y + this.bodyPivot - t.tumbleDrop;
+        for (let k = 0; k < 2; k++) {
+          const f = k === 0 ? L : R;
+          const lift = k === 0 ? st.lY : st.rY;
+          const dx = f.x - rp.x;
+          const dz = f.z - rp.z;
+          rollTurn(t.tumble, t.tumbleSpin, dx * c - dz * s, f.y + p.y.ankle + lift - rp.y - this.bodyPivot, dx * s + dz * c, rollV);
+          f.x = rp.x + rollV.x * c + rollV.z * s;
+          f.z = rp.z - rollV.x * s + rollV.z * c;
+          f.y = py + rollV.y - p.y.ankle - lift;
+          f.pitch = t.tumble;
+        }
+      } else if (Math.abs(t.tumble) > 1e-3) {
         const tc = Math.cos(t.tumble);
         const ts = Math.sin(t.tumble);
         const py = rp.y + this.bodyPivot;
@@ -2229,8 +2270,21 @@ export class CharacterRig {
     const kk = p.height / 1.75;
     let pex = pe.x + (kq.pel[0]! * kk - pe.x) * kw;
     // (the height adds to the procedural one: the posture's knee bend and the legs' reach stay; the clip shapes the step)
-    const pey = pe.y + kq.pel[1]! * kk * kw;
-    const pez = pe.z + (kq.pel[2]! * kk - pe.z) * kw;
+    // (n138 fix 2) the keyed offsets (height, forward) change at most KEY_PEL_RATE m/s (unchanged when under it)
+    const kpm = KEY_PEL_RATE * dt;
+    let kpy = kq.pel[1]! * kk * kw;
+    let kpz = (kq.pel[2]! * kk - pe.z) * kw;
+    if (this.keyPelOn) {
+      if (kpy > this.keyPelY + kpm) kpy = this.keyPelY + kpm;
+      else if (kpy < this.keyPelY - kpm) kpy = this.keyPelY - kpm;
+      if (kpz > this.keyPelZ + kpm) kpz = this.keyPelZ + kpm;
+      else if (kpz < this.keyPelZ - kpm) kpz = this.keyPelZ - kpm;
+    }
+    this.keyPelOn = true;
+    this.keyPelY = kpy;
+    this.keyPelZ = kpz;
+    const pey = pe.y + kpy;
+    const pez = pe.z + kpz;
     // (anim-rework S4) the free kneel's knees over the toes (KNEEL_KNEE_OUT)
     const kneeOut0 = KNEE_OUT + (KNEEL_KNEE_OUT - KNEE_OUT) * t.kneel;
     this.kneeOutNow = (kneeOut0 + (t.keyKneeOut - kneeOut0) * kw) * TUNE_CUR.kneeOutMul;
@@ -2256,6 +2310,8 @@ export class CharacterRig {
       this.glideShift = approachTo(this.glideShift, want, dt, GLIDE_HIP.tau);
       pex += this.glideShift;
     }
+    // (anim-natural-n2) the body motion layer's pelvis sway, before the feet's reach (a Wren rig on foot; 0 on any other)
+    if (t.motion.pelX !== 0) pex += t.motion.pelX * kk;
     // (anim-natural N4c, AUDIT row 49) a Wren rig's elbow strike: the hips and trunk drive it (strikeBody.ts); the weight
     // shifts back over the rear foot on the wind-up and onto the lead foot driving, on the feet only (attached, a takedown
     // blow from a hang or a pipe, the turn alone); the turn goes on after the keyed trunk
@@ -2323,7 +2379,7 @@ export class CharacterRig {
     need = Math.max(0, Math.min(0.4, need));
     hard = Math.max(0, Math.min(0.4, hard));
     // (3.2.0) turned over on a pipe (legs up / inverted) "down" is not the floor: no drop for the feet's reach
-    const turned = Math.abs(this.input.tumble) > 0.3;
+    const turned = Math.abs(this.input.tumble) > 0.3 || t.tumbleLift; // (anim-n4b) and a roll (its feet turn with the body)
     if (turned) need = 0;
     // (BC note 6) walking, the drop is held near its per-step peak (slow release) so the chest does not bob with every
     // step: a growing need is still met at once (no overstretched leg), only the easing back up slows with speed
@@ -2352,6 +2408,11 @@ export class CharacterRig {
     // (marlow-bays T1a, COVERAGE gap 4) aiming, the keyed trunk is not applied (the gun platform): the glide's and the
     // ready stance's per-key trunk edits go on over it by the share the keyed trunk leaves
     if (kq.edOn && kw * (1 - t.keyTrunk) > 0) this.keyedTrunkEdit(kq, kw * (1 - t.keyTrunk));
+    // (anim-natural-n2) the body motion layer's pelvis / shoulder counter-rotation over the keyed trunk and its edits
+    if (t.motion.hipYaw !== 0 || t.motion.chestYaw !== 0) this.motionTrunk(t.motion.hipYaw, t.motion.chestYaw);
+    // (anim-natural-n2 step 3, A8) this frame's keyed arm speed cap (m per frame; Infinity: none) and the frame count
+    this.armStep = dt > 0 ? t.motion.armSpeed * dt : Infinity;
+    this.armTick++;
     if (sb.pel !== 0 || sb.chest !== 0) this.strikeTrunk(sb); // (anim-natural N4c) after the keyed trunk, which wiped it
     if (JOINTS_CUR.on) this.jointOffsets(0); // (tuner-v2) per-joint offsets on the trunk, before the leg and arm IK
     this.limitJoint(this.hips, dt);
@@ -2480,12 +2541,19 @@ export class CharacterRig {
     // head: world-stabilised (eyes level): looks along the aim plus the head channel
     // (anim-rework S2) plus the keyed idle's head scan (standing holstered and still only; the keyed neck alone was
     // undone by this stabilisation)
-    Quaternion.RotationYawPitchRollToRef(
-      yaw + this.input.aimYaw * 0.85 + this.lookYaw + t.head.yaw * 0.25 + (freeGait && !free ? t.keyScan : 0),
-      -this.input.aimPitch * 0.8 - this.lookPitch + t.head.pitch * 0.4,
-      t.head.roll * 0.6,
-      tmpQ,
-    );
+    // (anim-natural-n2) the body motion layer: the head lets a share of the chest's yaw off the facing through (not
+    // aiming) and nods with the steps; added only when non-zero (every other rig is unchanged bit for bit)
+    let hdYaw = yaw + this.input.aimYaw * 0.85 + this.lookYaw + t.head.yaw * 0.25 + (freeGait && !free ? t.keyScan : 0);
+    let hdPitch = -this.input.aimPitch * 0.8 - this.lookPitch + t.head.pitch * 0.4;
+    const mo = t.motion;
+    if (mo.headFollow > 0 && t.aimW < 1) {
+      const tm = this.torso.getWorldMatrix().m;
+      const d = Math.atan2(tm[8]!, tm[10]!) - yaw;
+      const f = mo.headFollow * Math.atan2(Math.sin(d), Math.cos(d)) * (1 - t.aimW);
+      if (f !== 0) hdYaw += f;
+    }
+    if (mo.headPitch !== 0) hdPitch += mo.headPitch;
+    Quaternion.RotationYawPitchRollToRef(hdYaw, hdPitch, t.head.roll * 0.6, tmpQ);
     this.setWorldRot(this.headNode, this.neck, tmpQ);
     // (marlow-bays T1a, item 17) a keyed head turn (local, on the look)
     if (kq.hasHead && kw > 0) {
@@ -2517,7 +2585,7 @@ export class CharacterRig {
     // the graph's compressed carry at the mid-point), so aimed low the butt never rises past the face
     const aimPitch = this.input.aimPitch * (0.35 + 0.65 * t.aimW) * (1 - swapK);
     Quaternion.RotationYawPitchRollToRef(aimYaw + (w.yaw + TUNE_CUR.gunYaw) * mirror, -aimPitch + w.pitch + TUNE_CUR.gunPitch, (w.roll + TUNE_CUR.gunCant) * mirror, tmpQ);
-    if (Math.abs(t.tumble) > 1e-3) tmpQ.multiplyToRef(this.body.rotationQuaternion!, tmpQ);
+    if (Math.abs(t.tumble) > 1e-3 || t.tumbleSpin !== 0) tmpQ.multiplyToRef(this.body.rotationQuaternion!, tmpQ);
     // (3.2.0) upside down the raised weapon aims in world space
     if (this.aimWorldYaw !== null && t.aimW > 0) {
       Quaternion.RotationYawPitchRollToRef(this.aimWorldYaw, -this.aimWorldPitch, 0, tmpQ3);
@@ -2740,6 +2808,95 @@ export class CharacterRig {
   }
 
   /**
+   * (anim-natural-n2) The body motion layer's trunk (`bodyMotion.ts`): the pelvis turns `hip` rad about the vertical
+   * (root frame) and the spine takes back `hip - chest`, so the shoulders turn `chest` rad (0: the chest stays where the
+   * keyed / procedural trunk put it, the aim's gun platform). No allocation.
+   */
+  private motionTrunk(hip: number, chest: number): void {
+    const h = this.hips.rotationQuaternion!;
+    const s = this.spine.rotationQuaternion!;
+    kP.copyFrom(h);
+    Quaternion.RotationYawPitchRollToRef(hip, 0, 0, kF);
+    kF.multiplyToRef(kP, h);
+    Quaternion.RotationYawPitchRollToRef(chest - hip, 0, 0, kF);
+    Quaternion.InverseToRef(kP, kT);
+    kT.multiplyToRef(kF, kT);
+    kT.multiplyToRef(kP, kT);
+    kT.multiplyToRef(s, s);
+  }
+
+  /**
+   * (anim-natural-n2 step 3, A8) The keyed arms as posed last frame (chest frame, from the shoulder joint, m): elbow L,
+   * wrist L, elbow R, wrist R; this call's elbow and wrist targets (`armCapO`); the frame (`armTick`) each side last
+   * ran (L, R; -2 never); the frame count and this frame's cap (m per frame), set in `applyTargets` from the layer.
+   */
+  private readonly armCapP = new Float64Array(12);
+  private readonly armCapO = new Float64Array(6);
+  private readonly armCapTick = new Float64Array([-2, -2]);
+  private armTick = 0;
+  private armStep = Infinity;
+
+  /**
+   * (anim-natural-n2 step 3, A8) One keyed arm's elbow and wrist targets (chest frame, m, from the shoulder joint) into
+   * `armCapO`, capped in speed: where the arm will pose them (the upper arm along the elbow target, the forearm from there
+   * toward the wrist target) may move at most `armStep` from where it posed them last frame (`cont`: this side ran last
+   * frame), both by the same share so the arm keeps its shape. Under the cap the targets are the keyed points exactly
+   * (bit for bit). The caller writes the targets into `armCapO` first: six computed doubles passed as arguments to this
+   * non-inlined call boxed (~208 B a frame a rig, CHECK-4 should-fix 1). No allocation.
+   */
+  private armCap(si: number, cont: boolean): void {
+    const O = this.armCapO;
+    const ex = O[0]!;
+    const ey = O[1]!;
+    const ez = O[2]!;
+    const wx = O[3]!;
+    const wy = O[4]!;
+    const wz = O[5]!;
+    const lu = this.p.upperArm.len;
+    const lf = this.p.forearm.len;
+    const le = Math.sqrt(ex * ex + ey * ey + ez * ez) || 1;
+    let px = (ex * lu) / le;
+    let py = (ey * lu) / le;
+    let pz = (ez * lu) / le;
+    const fx = wx - px;
+    const fy = wy - py;
+    const fz = wz - pz;
+    const lw = Math.sqrt(fx * fx + fy * fy + fz * fz) || 1;
+    let qx = px + (fx * lf) / lw;
+    let qy = py + (fy * lf) / lw;
+    let qz = pz + (fz * lf) / lw;
+    const P = this.armCapP;
+    const o = si * 6;
+    const step = this.armStep;
+    if (cont && step < Infinity) {
+      const de = (px - P[o]!) ** 2 + (py - P[o + 1]!) ** 2 + (pz - P[o + 2]!) ** 2;
+      const dw = (qx - P[o + 3]!) ** 2 + (qy - P[o + 4]!) ** 2 + (qz - P[o + 5]!) ** 2;
+      const d2 = de > dw ? de : dw;
+      if (d2 > step * step) {
+        const k = step / Math.sqrt(d2);
+        px = P[o]! + (px - P[o]!) * k;
+        py = P[o + 1]! + (py - P[o + 1]!) * k;
+        pz = P[o + 2]! + (pz - P[o + 2]!) * k;
+        qx = P[o + 3]! + (qx - P[o + 3]!) * k;
+        qy = P[o + 4]! + (qy - P[o + 4]!) * k;
+        qz = P[o + 5]! + (qz - P[o + 5]!) * k;
+        O[0] = px;
+        O[1] = py;
+        O[2] = pz;
+        O[3] = qx;
+        O[4] = qy;
+        O[5] = qz;
+      }
+    }
+    P[o] = px;
+    P[o + 1] = py;
+    P[o + 2] = pz;
+    P[o + 3] = qx;
+    P[o + 4] = qy;
+    P[o + 5] = qz;
+  }
+
+  /**
    * (CT prototype G8) One keyed arm over the solved one by `w`: the upper arm turned onto the keyed elbow point and the
    * forearm onto the keyed wrist point (both from the shoulder joint in the chest frame), with the rig's own bone frames
    * (+Z toward the body's front), so the free hand keeps its orientation. No allocation.
@@ -2753,12 +2910,24 @@ export class CharacterRig {
     const kk = this.p.height / 1.75;
     const eo = side > 0 ? KA.elbowR : KA.elbowL;
     const wo = side > 0 ? KA.wristR : KA.wristL;
+    // (anim-natural-n2 step 3, A8) the speed cap's slots (elbow, wrist) and whether this side ran last frame
+    const si = side > 0 ? 1 : 0;
+    const cont = this.armCapTick[si] === this.armTick - 1;
+    this.armCapTick[si] = this.armTick;
     fresh(sh);
     const S = sh.getAbsolutePosition();
     const Rc = this.torso.absoluteRotationQuaternion;
     this.dirToWorld(0, 0, 1, kH);
+    const O = this.armCapO;
+    O[0] = a[eo]! * kk + side * TUNE_CUR.elbowOutAdd;
+    O[1] = a[eo + 1]! * kk;
+    O[2] = a[eo + 2]! * kk;
+    O[3] = a[wo]! * kk;
+    O[4] = a[wo + 1]! * kk;
+    O[5] = a[wo + 2]! * kk;
+    this.armCap(si, cont);
     // upper arm onto the keyed elbow
-    kV.set(a[eo]! * kk + side * TUNE_CUR.elbowOutAdd, a[eo + 1]! * kk, a[eo + 2]! * kk);
+    kV.set(O[0]!, O[1]!, O[2]!);
     kV.rotateByQuaternionToRef(Rc, kV);
     kSave.copyFrom(sh.rotationQuaternion!);
     boneRotation(kV, kH, tmpQ3);
@@ -2767,7 +2936,7 @@ export class CharacterRig {
     fresh(sh);
     fresh(el);
     // forearm from where the elbow is now onto the keyed wrist
-    kV.set(a[wo]! * kk, a[wo + 1]! * kk, a[wo + 2]! * kk);
+    kV.set(O[3]!, O[4]!, O[5]!);
     kV.rotateByQuaternionToRef(Rc, kV);
     kV.addInPlace(S).subtractInPlace(el.getAbsolutePosition());
     kSave.copyFrom(el.rotationQuaternion!);
@@ -3601,6 +3770,14 @@ export class CharacterRig {
     const climbK = this.input.traverse === 'climb' || this.input.traverse === 'pipeClimb';
     const o = climbK ? Math.max(out, CLIMB_KNEE_OUT * TUNE_CUR.kneeOutMul) : out;
     tmpPole.set(sn + side * o * c, climbK ? CLIMB_KNEE_UP * TUNE_CUR.kneeLiftMul : 0, c - side * o * sn);
+    if (this.rollPole) {
+      // (anim-n4b fix) in a roll the pole turns with the body (into the root frame, then the body's world rotation): a
+      // level world pole lay along the pitched, spun hip-to-ankle line and the knees bent through the floor (-0.21 m)
+      const ry = this.root.rotation.y;
+      const rc = Math.cos(ry);
+      const rs = Math.sin(ry);
+      Vector3.TransformNormalFromFloatsToRef(tmpPole.x * rc - tmpPole.z * rs, tmpPole.y, tmpPole.x * rs + tmpPole.z * rc, this.body.getWorldMatrix(), tmpPole);
+    }
     solveTwoBone(H, tmpA, p.thigh.len, p.calf.len, tmpPole, tmpC, tmpD);
     // twist references that stay defined at any hip flexion (deep sneak, kneel): the kneecap faces away
     // from the shin, the shin faces along the thigh; the pole only steers them when the leg is straight

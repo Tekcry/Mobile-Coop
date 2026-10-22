@@ -1,5 +1,15 @@
 // Character controller test on Proving Grounds via the fake gamepad.
+import { execFileSync } from 'node:child_process';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { launch, frames, press, BTN, assert } from './e2e-lib.mjs';
+
+// (anim-natural-n1, decision 5) the audit metrics and the foot's contact geometry for node (bundled as e2e-anim does)
+const LIB = resolve('test-results/e2e-move/lib');
+execFileSync(process.execPath, ['node_modules/esbuild/bin/esbuild', 'src/anim/audit/metrics.ts', 'src/anim/footGeom.ts', '--bundle', '--format=esm', '--entry-names=[name]', `--outdir=${LIB}`, '--log-level=warning'], { windowsHide: true, stdio: 'inherit' });
+const M = await import(pathToFileURL(`${LIB}/metrics.js`).href);
+const FG = await import(pathToFileURL(`${LIB}/footGeom.js`).href);
+const FOOT = { back: FG.HEEL_BACK, down: FG.HEEL_DOWN, ball: FG.TOE_BALL };
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 // (gear=none: the real spawn cap, 5 = none; anim-rework S1)
@@ -115,11 +125,15 @@ try {
 
   // (step 22, M14 N6) a weighted stop: the pace eases to rest within CT.stopTime (0.25 s, + 2 steps); planted feet
   // stay put (< 2 cm)
+  // (anim-natural-n1, decision 5) read at the contact points (metrics.ts contactSlide: the heel while the heel is down, the
+  // ball while the ball is down), as e2e-anim's foot lock and turn block do: the planner holds a planted foot's contact
+  // point (HOLD_CONTACT) and the heel-first roll moves the ankle round it (0.3 rad: 2.6 cm), which the planner's foot
+  // (the ankle) read as slide. Limit unchanged (2 cm); stricter than before (master's planner reads 2.6 cm here).
   await tp(-10, 0, -14, Math.PI / 2);
   await settle(0.3);
   await page.evaluate(() => { window.__pad.axis(0, 0); window.__pad.axis(1, -1); });
   await sim(0.83);
-  const stop = await page.evaluate(() => new Promise((res) => {
+  const stop = await page.evaluate((F) => new Promise((res) => {
     const a = window.__app;
     const st = a.current;
     const c = st.player.controller;
@@ -137,6 +151,9 @@ try {
     const pin = feet.map((f) => ({ x: f.x, z: f.z, c: f.contact }));
     let slide = 0;
     let raf = 0;
+    // the rendered heel / ball per frame and foot (footGeom's points under the ankle, along its own axes) and contact
+    const pts = [0, 1].map(() => ({ heel: [], ball: [], contact: [] }));
+    const ankles = [st.player.rig.ankleL, st.player.rig.ankleR];
     const watch = () => {
       for (let k = 0; k < 2; k++) {
         const f = feet[k];
@@ -144,6 +161,15 @@ try {
         if (p.c && f.contact) slide = Math.max(slide, Math.hypot(f.x - p.x, f.z - p.z));
         if (!f.contact || !p.c) { p.x = f.x; p.z = f.z; }
         p.c = f.contact;
+        const n = ankles[k];
+        n.computeWorldMatrix(true);
+        const m = n.getWorldMatrix().m;
+        const ly = Math.hypot(m[4], m[5], m[6]) || 1;
+        const lz = Math.hypot(m[8], m[9], m[10]) || 1;
+        const pt = (y, z) => [m[12] + (m[4] / ly) * y + (m[8] / lz) * z, m[13] + (m[5] / ly) * y + (m[9] / lz) * z, m[14] + (m[6] / ly) * y + (m[10] / lz) * z];
+        pts[k].heel.push(...pt(-F.down, -F.back));
+        pts[k].ball.push(...pt(-F.down, F.ball));
+        pts[k].contact.push(f.contact ? 1 : 0);
       }
       raf = requestAnimationFrame(watch);
     };
@@ -162,11 +188,13 @@ try {
         relT += dt;
         if (restT < 0 && c.speed < 1e-3) restT = relT;
       }
-      if (released && ++n > 36) { st.fixedUpdate = orig; cancelAnimationFrame(raf); res({ before, after, motion, slide, restT }); }
+      if (released && ++n > 36) { st.fixedUpdate = orig; cancelAnimationFrame(raf); res({ before, after, motion, slide, restT, pts }); }
     };
-  }));
+  }), FOOT);
   assert(stop.before > 1.9 && stop.after < stop.before && stop.restT > 0.1 && stop.restT <= 0.25 + 2 / 60 + 1e-6, `weighted stop: ${stop.before.toFixed(2)} m/s eases to rest in ${stop.restT.toFixed(3)} s (${stop.after.toFixed(2)} m/s after the release step)`);
-  assert(stop.slide < 0.02, `stopping: planted feet stay planted (${(stop.slide * 100).toFixed(2)} cm)`);
+  const cs = stop.pts.map((q) => M.contactSlide(q.heel, q.ball, q.contact, 0.02));
+  const cSlide = Math.max(cs[0].worst, cs[1].worst);
+  assert(cs[0].plants + cs[1].plants >= 2 && cSlide < 0.02, `stopping: planted feet stay planted at the contact (${(cSlide * 100).toFixed(2)} cm, ankle ${(stop.slide * 100).toFixed(2)} cm, ${cs[0].plants + cs[1].plants} plants)`);
   // (step 22) after a stop the feet square up with at most a closing step, then stay put (the 3.2.0 stride hold is gone)
   const held = await page.evaluate(() => new Promise((res) => {
     const st = window.__app.current;

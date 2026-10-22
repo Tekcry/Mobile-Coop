@@ -435,6 +435,18 @@ export const LEAP = {
   climbReach: 0.75,
 } as const;
 
+/**
+ * (sector-fixes-r fix) Falling past a lip or a horizontal pipe (`AttachController.fallProbe`): it is in the hands' path
+ * when it sits `minAbove`-`maxAbove` m over the falling feet, within `plan` m (horizontal) of the body. After a manual
+ * jump (`LEAP`) the hands take it on their own; otherwise the traverse button does. The co-op tests' solo-reach check
+ * (`tests/helpers/soloJumpReach.ts`) reads these.
+ */
+export const FALL_GRAB = {
+  minAbove: 1.5,
+  maxAbove: 2.35,
+  plan: 0.7,
+} as const;
+
 export const TEAM = {
   /** Hold Y this long (s) to brace; a team-mate within `mateRange` (m) and a wall within `wallBehind` (m) behind. */
   braceHold: 0.4,

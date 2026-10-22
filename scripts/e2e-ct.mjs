@@ -33,6 +33,34 @@ await page.evaluate(() => {
       pad.axis(1, 0);
       for (const b of btns) pad.set(b, 0);
     },
+    /**
+     * `run`, one 60 Hz step at a time, latching the noise model's samples taken inside the window. GameState
+     * re-samples `noise` every 0.25 s of sim time (`noiseT` resets to 0.25 on a sample) and holds it in between, so a
+     * single read after a run can land on a sample taken outside the window (the stick already released, or the last
+     * one before it). Returns the loudest sample and how many were taken.
+     */
+    runNoise(s, sx = 0, sy = 0, btns = []) {
+      const st = H.st();
+      if (typeof st.noiseT !== 'number') throw new Error('GameState.noiseT missing: the noise sampler moved');
+      const pad = window.__pad;
+      pad.axis(0, sx);
+      pad.axis(1, -sy);
+      for (const b of btns) pad.set(b, 1);
+      let max = 0;
+      let samples = 0;
+      const n = Math.round(s * 60);
+      for (let k = 0; k < n; k++) {
+        window.__app.loop.stepHeadless(1 / 60, 120);
+        if (st.noiseT === 0.25) {
+          samples++;
+          max = Math.max(max, st.noise);
+        }
+      }
+      pad.axis(0, 0);
+      pad.axis(1, 0);
+      for (const b of btns) pad.set(b, 0);
+      return { max, samples };
+    },
     tap(b) {
       window.__pad.set(b, 1);
       window.__app.loop.stepHeadless(2 / 60, 120);
@@ -70,6 +98,7 @@ const I = async () => {
   return page.evaluate(() => window.__ct.info());
 };
 const run = (s, sx = 0, sy = 0, btns = []) => page.evaluate(([s, sx, sy, b]) => window.__ct.run(s, sx, sy, b), [s, sx, sy, btns]);
+const runNoise = (s, sx = 0, sy = 0, btns = []) => page.evaluate(([s, sx, sy, b]) => window.__ct.runNoise(s, sx, sy, b), [s, sx, sy, btns]);
 const tap = (b) => page.evaluate((b) => window.__ct.tap(b), b);
 const tp = (x, y, z, yaw) => page.evaluate(([x, y, z, yaw]) => window.__ct.tp(x, y, z, yaw), [x, y, z, yaw]);
 const f2 = (v) => (+v).toFixed(2);
@@ -438,15 +467,20 @@ try {
   i = await I();
   assert(i.attached && i.kind === 'fence', 'Y grabs the fence');
   // gear 4 (above the quiet gears) rattles
+  // (ct-rattle-sample) the noise model samples every 0.25 s of sim time: latch the samples taken inside each window
+  // instead of one read after it (a read after the stick is released can land on a sample with the fence still)
   y0 = i.y;
-  await run(0.5, 0, 1);
+  const climbN = await runNoise(0.5, 0, 1);
   i = await I();
-  assert(i.noise >= 3.9 && i.y - y0 > 0.35, `climbing at gear ${i.gear} rattles (${f2(i.noise)} m), ~0.9 m/s (${f2(i.y - y0)} m in 0.5 s)`);
+  console.log(`  rattle latch: gear 4 climb max ${f2(climbN.max)} m over ${climbN.samples} samples`);
+  assert(climbN.samples >= 1 && climbN.max >= 3.9 && i.y - y0 > 0.35, `climbing at gear ${i.gear} rattles (${f2(climbN.max)} m, ${climbN.samples} samples), ~0.9 m/s (${f2(i.y - y0)} m in 0.5 s)`);
   await page.evaluate(() => { window.__app.current.player.controller.gears.gear = 3; });
-  await run(0.25, 0, -1);
-  await run(0.3, 0, -0.5);
+  const quietA = await runNoise(0.25, 0, -1);
+  const quietB = await runNoise(0.3, 0, -0.5);
   i = await I();
-  assert(i.attached && i.noise < 0.5, `gear 3: quiet (${f2(i.noise)} m, still on it ${i.attached})`);
+  const quietN = { max: Math.max(quietA.max, quietB.max), samples: quietA.samples + quietB.samples };
+  console.log(`  rattle latch: gear 3 climb max ${f2(quietN.max)} m over ${quietN.samples} samples`);
+  assert(i.attached && quietN.samples >= 2 && quietN.max < 0.5, `gear 3: quiet (${f2(quietN.max)} m, ${quietN.samples} samples, still on it ${i.attached})`);
   const fx0 = i.x;
   await run(1.0, 1, 0);
   i = await I();
