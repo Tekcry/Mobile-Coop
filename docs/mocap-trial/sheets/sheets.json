@@ -159,7 +159,7 @@
   "start": {
    "what": "start from standing to a walk (stick to 1.4 m/s at t = 0)",
    "kind": "event",
-   "commit": "e90ddad3",
+   "commit": "0cef46ce",
    "dirtySrc": false,
    "views": [
     "side",
@@ -169,23 +169,23 @@
    "video": true,
    "period0": null,
    "period1": null,
-   "winSteps": 72,
+   "winSteps": 132,
    "sheetFrames": 10,
-   "videoFrames": 37,
-   "mcMax": 0.999999516400842,
-   "clipFeet": false,
+   "videoFrames": 67,
+   "mcMax": 0.999999999999993,
+   "clipFeet": true,
    "diff": {
-    "max": 140,
-    "over": 330,
-    "worst": "34 t 0.00s"
+    "max": 238,
+    "over": 13637,
+    "worst": "front t 0.70s"
    },
-   "note": "Placeholder proof run (at e90ddad3 mocap=1 plays the hand-keyed placeholders, so the two strips must match; the training dummies are hidden): the worst per-channel diff (0-255) and pixels over 8 per row are below.",
-   "at": "2026-10-22T11:32:43.083Z"
+   "note": "Real clips (mocap-trial 82f43716 merged, script with the clock reset): the start and stop rows show the hand-keyed set above the real CMU clips; the other rows are still the placeholder proof (e90ddad3) until the full rerun.",
+   "at": "2026-10-22T13:15:05.709Z"
   },
   "stop": {
    "what": "stop from a walk (1.4 m/s; stick released at t = 0)",
    "kind": "event",
-   "commit": "e90ddad3",
+   "commit": "0cef46ce",
    "dirtySrc": false,
    "views": [
     "side",
@@ -195,18 +195,18 @@
    "video": true,
    "period0": null,
    "period1": null,
-   "winSteps": 84,
+   "winSteps": 144,
    "sheetFrames": 10,
-   "videoFrames": 43,
-   "mcMax": 0.9999999999999916,
-   "clipFeet": false,
+   "videoFrames": 73,
+   "mcMax": 0.9999999999999946,
+   "clipFeet": true,
    "diff": {
-    "max": 201,
-    "over": 1718,
-    "worst": "front t 0.43s"
+    "max": 239,
+    "over": 13761,
+    "worst": "front t 0.03s"
    },
-   "note": "Placeholder proof run (at e90ddad3 mocap=1 plays the hand-keyed placeholders, so the two strips must match; the training dummies are hidden): the worst per-channel diff (0-255) and pixels over 8 per row are below.",
-   "at": "2026-10-22T11:34:20.138Z"
+   "note": "Real clips (mocap-trial 82f43716 merged, script with the clock reset): the start and stop rows show the hand-keyed set above the real CMU clips; the other rows are still the placeholder proof (e90ddad3) until the full rerun.",
+   "at": "2026-10-22T13:20:39.455Z"
   }
  }
 }

@@ -19,8 +19,8 @@ Rerun (desktop GPU, port 4192, after `npm run build`): `E2E_GPU=1 E2E_PORT=4192 
 | turn90walk | 90 deg turn right at a walk (1.4 m/s; stick swung 90 deg at t = 0) | [side](turn90walk-side.png) [front](turn90walk-front.png) [34](turn90walk-34.png) | [webm](turn90walk.webm) | e90ddad3 | 83 / 5 px |
 | turn90jog | 90 deg turn right at a jog (2.5 m/s; stick swung 90 deg at t = 0) | [side](turn90jog-side.png) [front](turn90jog-front.png) [34](turn90jog-34.png) | [webm](turn90jog.webm) | e90ddad3 | 75 / 5 px |
 | turn180walk | 180 deg turn at a walk (1.4 m/s; stick reversed at t = 0) | [side](turn180walk-side.png) [front](turn180walk-front.png) [34](turn180walk-34.png) | [webm](turn180walk.webm) | e90ddad3 | 29 / 1 px |
-| start | start from standing to a walk (stick to 1.4 m/s at t = 0) | [side](start-side.png) [front](start-front.png) [34](start-34.png) | [webm](start.webm) | e90ddad3 | 140 / 330 px |
-| stop | stop from a walk (1.4 m/s; stick released at t = 0) | [side](stop-side.png) [front](stop-front.png) [34](stop-34.png) | [webm](stop.webm) | e90ddad3 | 201 / 1718 px |
+| start | start from standing to a walk (stick to 1.4 m/s at t = 0) | [side](start-side.png) [front](start-front.png) [34](start-34.png) | [webm](start.webm) | 0cef46ce | 238 / 13637 px |
+| stop | stop from a walk (1.4 m/s; stick released at t = 0) | [side](stop-side.png) [front](stop-front.png) [34](stop-34.png) | [webm](stop.webm) | 0cef46ce | 239 / 13761 px |
 
 ## Capture vs old limit (for Michael to judge by eye)
 
@@ -32,6 +32,7 @@ CT Core (2026-10-22): the capture is not bent to the old limits; keeping or bend
 
 ## Identity check
 Placeholder proof run (at e90ddad3 mocap=1 plays the hand-keyed placeholders, so the two strips must match; the training dummies are hidden): the worst per-channel diff (0-255) and pixels over 8 per row are below.
+Real clips (mocap-trial 82f43716 merged, script with the clock reset): the start and stop rows show the hand-keyed set above the real CMU clips; the other rows are still the placeholder proof (e90ddad3) until the full rerun.
 
 Per row: the cycle (mocap=0 measured / mocap=1 measured, sim steps of 1/60 s) and the mocap share seen in the
 mocap=1 run (max `mc`).
@@ -42,5 +43,5 @@ mocap=1 run (max `mc`).
 - turn90walk: window 1.50 s, 10 sheet frames, 46 video frames; mc max 1.00; worst pixel diff 83 (front t 0.87s)
 - turn90jog: window 1.20 s, 10 sheet frames, 37 video frames; mc max 1.00; worst pixel diff 75 (front t 0.10s)
 - turn180walk: window 1.80 s, 10 sheet frames, 55 video frames; mc max 1.00; worst pixel diff 29 (side t 0.33s)
-- start: window 1.20 s, 10 sheet frames, 37 video frames; mc max 1.00; worst pixel diff 140 (34 t 0.00s)
-- stop: window 1.40 s, 10 sheet frames, 43 video frames; mc max 1.00; worst pixel diff 201 (front t 0.43s)
+- start: window 2.20 s, 10 sheet frames, 67 video frames; mc max 1.00, clip feet on; worst pixel diff 238 (front t 0.70s)
+- stop: window 2.40 s, 10 sheet frames, 73 video frames; mc max 1.00, clip feet on; worst pixel diff 239 (front t 0.03s)

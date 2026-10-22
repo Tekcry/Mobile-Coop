@@ -8,7 +8,8 @@
 // turn90walk, turn90jog (stick swung 90 deg right), turn180walk (stick reversed), start (standing -> walk), stop (walk ->
 // release). Writes <out>/<row>-{side,front,34}.png (the mocap=0 strip above the mocap=1 strip, same sim times),
 // <out>/<row>.webm (3 views x 2 sets, looped / held), <out>/sheets.json (per row: the commit, the per-frame pixel diff
-// mocap=1 vs mocap=0) and <out>/index.md (generated from sheets.json; a partial --rows run keeps the other rows).
+// mocap=1 vs mocap=0) and <out>/index.md (generated from sheets.json; a partial --rows run keeps the other rows; the
+// hand-written <out>/notes.md goes in as it is; --index-only rewrites index.md alone).
 // Serves dist/ itself (vite preview on E2E_PORT) when nothing answers: run `npm run build` first. Headless only.
 import { chromium } from 'playwright-core';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
@@ -48,7 +49,8 @@ const J = mag(0.8 + 0.1 * ((2.5 - 2.1) / (3.0 - 2.1)));
 const R = 1;
 
 /** Rows: `cycle` rows capture one gait cycle (mocap=0's, measured in the warm-up) at a steady stick; `event` rows switch
- *  the stick from `preIn` to `ev` at t = 0 and capture `win` s. `fix`: the cameras keep the start heading. */
+ *  the stick from `preIn` to `ev` at t = 0 and capture `win` s. `fix`: the cameras keep the start heading. The start and
+ *  stop windows cover the real one-shot clips (start 1.95 s, stop 2.1 s, MOCAP_*_SECONDS) and the hand-back after them. */
 const ROWS = {
   walk: { what: 'walk 1.4 m/s straight, one cycle', kind: 'cycle', pos: [0, -14], pre: 2.5, preIn: { y: W } },
   jog: { what: 'jog 2.5 m/s straight, one cycle', kind: 'cycle', pos: [-8, -14], pre: 2.0, preIn: { y: J } },
@@ -56,8 +58,8 @@ const ROWS = {
   turn90walk: { what: '90 deg turn right at a walk (1.4 m/s; stick swung 90 deg at t = 0)', kind: 'event', pos: [0, -14], pre: 2.0, preIn: { y: W }, ev: { x: W }, win: 1.5, fix: true },
   turn90jog: { what: '90 deg turn right at a jog (2.5 m/s; stick swung 90 deg at t = 0)', kind: 'event', pos: [-8, -14], pre: 1.5, preIn: { y: J }, ev: { x: J }, win: 1.2, fix: true },
   turn180walk: { what: '180 deg turn at a walk (1.4 m/s; stick reversed at t = 0)', kind: 'event', pos: [0, -14], pre: 2.0, preIn: { y: W }, ev: { y: -W }, win: 1.8, fix: true },
-  start: { what: 'start from standing to a walk (stick to 1.4 m/s at t = 0)', kind: 'event', pos: [0, -14], pre: 1.0, preIn: {}, ev: { y: W }, win: 1.2 },
-  stop: { what: 'stop from a walk (1.4 m/s; stick released at t = 0)', kind: 'event', pos: [0, -14], pre: 2.5, preIn: { y: W }, ev: {}, win: 1.4 },
+  start: { what: 'start from standing to a walk (stick to 1.4 m/s at t = 0)', kind: 'event', pos: [0, -14], pre: 1.0, preIn: {}, ev: { y: W }, win: 2.2 },
+  stop: { what: 'stop from a walk (1.4 m/s; stick released at t = 0)', kind: 'event', pos: [0, -14], pre: 2.5, preIn: { y: W }, ev: {}, win: 2.4 },
 };
 const rowNames = (ARGS.rows ?? Object.keys(ROWS).join(',')).split(',');
 for (const r of rowNames) if (!ROWS[r]) throw new Error(`unknown row ${r} (rows: ${Object.keys(ROWS).join(', ')})`);
@@ -71,7 +73,10 @@ const DIRTY_SRC = git('status', '--porcelain', '--', 'src') !== '';
 // ---------------------------------------------------------------- server (only when nothing answers)
 let server = null;
 const up = async () => { try { return (await fetch(url)).ok; } catch { return false; } };
-if (!(await up())) {
+const INDEX_ONLY = !!ARGS['index-only'];
+if (INDEX_ONLY) {
+  // no server, no browser
+} else if (!(await up())) {
   if (ARGS.url) throw new Error(`${url} is not reachable`);
   server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', PORT, '--strictPort', '--host', '127.0.0.1'], { windowsHide: true, stdio: 'ignore' });
   process.on('exit', () => server?.kill());
@@ -248,9 +253,9 @@ function planFor(row, periodSteps) {
 }
 
 // ---------------------------------------------------------------- composing (canvas in a blank page)
-const composer = await chromium.launch(launchOptions());
-const cpage = await composer.newPage();
-await cpage.setContent('<body></body>');
+const composer = INDEX_ONLY ? null : await chromium.launch(launchOptions());
+const cpage = composer ? await composer.newPage() : null;
+await cpage?.setContent('<body></body>');
 const b64 = (buf) => `data:image/png;base64,${buf.toString('base64')}`;
 const fromData = (d) => Buffer.from(d.split(',')[1], 'base64');
 
@@ -384,6 +389,12 @@ function writeIndex() {
   L.push('- walk: knee-out, capture 3.5 cm vs the 3.5 cm line.');
   L.push('- run: wrist swing, capture 24 cm vs Michael\'s hand-keyed tune 85 cm.');
   L.push('');
+  // hand-written notes (what the eye sees per row): <out>/notes.md, carried into the index as it is
+  const notesPath = join(OUT, 'notes.md');
+  if (existsSync(notesPath)) {
+    L.push(readFileSync(notesPath, 'utf8').trim());
+    L.push('');
+  }
   L.push('## Identity check');
   const runs = Object.values(db.rows);
   const notes = [...new Set(runs.map((r) => r.note).filter(Boolean))];
@@ -402,6 +413,11 @@ function writeIndex() {
 }
 
 const NOTE = ARGS.note ?? null;
+// --index-only: rewrite index.md from sheets.json and notes.md, no capture
+if (INDEX_ONLY) {
+  writeIndex();
+  process.exit(0);
+}
 
 /** --dump: the numbers that differ between the two runs (> 1e-6), each with the first frame it differs at. */
 function dumpDiff(name, r0, r1) {
