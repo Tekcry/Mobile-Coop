@@ -1,22 +1,8 @@
 # Changelog
 
-## Unreleased - local-transport-closed
+## 4.56.0 - Train 5: believable weapon draws, idle stance clears the shins, co-op channel closed guard (2026-10-22, PR #130; #118, #120, #125, #126)
 
-- Co-op over the local (same-device) transport: a message sent after leaving the room is dropped instead of throwing
-  "BroadcastChannel is closed" (`src/net/localTransport.ts`; a teardown race that failed e2e-coop console checks).
-  Test: `tests/localTransport.test.ts`.
-
-## Unreleased - idle-shins
-
-- A teleport (spawn, respawn, checkpoint, the anim-audit's `tp`) plants Wren's feet no closer to the midline than the
-  standing stance band's floor (3 cm, `TURN_FOLLOW.standMinLateral`), as every free-movement landing already does.
-  `FootPlanner.reset` skipped the band, so Michael's idle track 0.05 (kept) put the feet 0.4 cm off the midline and
-  the audit's shank capsules sat 3.18 cm into each other (limit 2.00) from the teleport to the first step, the first
-  frame of every standing row. Michael: "Widen just enough. They didn't clip when I viewed it though": the mesh never
-  clipped (its knees sit wider than the rig's proxy knees); only the capsules overlapped. Wren rigs only (guard and
-  dog rigs unchanged, bit-identical). Headless 2.36 -> 0.3 cm. The 0.3 idle track tried first is reverted.
-
-## Unreleased - anim-n3 (anim-natural N3: believable draws, holsters and swaps)
+### #118 Believable draws, holsters and swaps (anim-natural N3)
 
 - Draw, holster and swap are one continuous move per gun (reach, grip, lift / clear, present, settle;
   `anim/drawMotion.ts`): the "random stop" when taking a gun out is gone (the swap clip held the gun level at its
@@ -33,6 +19,25 @@
 - Tuner: a Draw section per gun (reach, grip, hand-over, settle, lift and present paths; bakes into `DRAW_MOTION`). The
   times are Clip speed's: the holster row is now one per gun (Rifle / Pistol holster speed) and the draw / holster rows
   go up to 7x so the old times stay reachable; an older save, preset or export with the single holster value sets both.
+
+### #120 Idle stance: the shins clear at a teleport
+
+- A teleport (spawn, respawn, checkpoint, the anim-audit's `tp`) plants Wren's feet no closer to the midline than the
+  standing stance band's floor (3 cm, `TURN_FOLLOW.standMinLateral`), as every free-movement landing already does.
+  `FootPlanner.reset` skipped the band, so Michael's idle track 0.05 (kept) put the feet 0.4 cm off the midline and
+  the audit's shank capsules sat 3.18 cm into each other (limit 2.00) from the teleport to the first step, the first
+  frame of every standing row. Michael: "Widen just enough. They didn't clip when I viewed it though": the mesh never
+  clipped (its knees sit wider than the rig's proxy knees); only the capsules overlapped. Wren rigs only (guard and
+  dog rigs unchanged, bit-identical). Headless 2.36 -> 0.3 cm. The 0.3 idle track tried first is reverted.
+
+### #125 Co-op: the local channel ignores sends after close
+
+- Co-op over the local (same-device) transport: a message sent after leaving the room is dropped instead of throwing
+  "BroadcastChannel is closed" (`src/net/localTransport.ts`; a teardown race that failed e2e-coop console checks).
+  Test: `tests/localTransport.test.ts`.
+
+### #126 e2e-pad wheel let-go waits sim time (test only)
+- `scripts/e2e-pad.mjs`: the sector-fixes W let-go step waits 0.3 s of sim time instead of 300 ms of wall time, so the 5-step let-go grace has always passed under load.
 
 ## 4.55.1 - Master CI green again: the guardInfo test admits station 3's security guard (test only) (2026-10-22, PR #124)
 - `tests/guardInfo.test.ts` expects both passive guards with information: `s1-guard` (bay 1) and `s3-sec-guard` (bay 3, the security room from #115, which has an INTERROGATE line by plan). Train 4 merged with this unit test red.
