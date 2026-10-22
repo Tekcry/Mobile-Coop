@@ -77,6 +77,20 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   guard-render step 1 agent started (report + docs/guard-render/BRIEF, PLAN, STATE on feature/guard-render). marlow-final
   42a9b295: restart fixed, ctcourse:1 now fails "A1: the client sees the yard group off" (reported); shots all pass.
   Swap expected at ~97% (~08:35); save at 97%.
+- SAVE ~08:15 (window ~80%+, swap ~08:20): train 18 0a269684 GREEN 39/39 (JOBS=5 alone, 403 s; reported). TRAIN 19 51a084f9
+  (#180 guard-cap + #184 sector-redesign part 1) RUNNING on 4189 since ~08:10 (runs/train19-51a084f9): if summary.txt
+  has no DONE, rerun it first (build;full, GPU, JOBS=5 if 4192 idle) and send the verdict to the orchestrator.
+  GUARD-RENDER: step 1 done (4d964e85: BRIEF / PLAN / STATE). Orchestrator answers: target 60 Hz Epic on the 4090,
+  frame CPU p95 <= 12 ms, GPU p95 <= 15 ms at 24 facing (+ desktop default preset report); S3a (hit volumes from the
+  sim); Marlow headroom at 12, alive cap per map (Marlow 12, campusOps 24); #180 merges first (train 19); partLibrary.ts
+  ours, world.ts hunks go to Menu Notes. S1 (merge each guard into one rigidly skinned mesh, src/player/smoothBody*.ts,
+  ?guardmerge=0 to A/B) implementer stopped at the save: WIP on feature/guard-render (see docs/guard-render/STATE.md).
+  CT Core agreed the characterRig hook: own private method (build at rig creation + one per-frame skin update after the
+  final pose), outside ~1850-2010 and ~2600-2700, no per-frame allocation, nothing in src/anim; first PR ready merges
+  first; send CT Core the hook line range + diff. Then measure S1 with guard-cap (alone, 4189; ?guardmerge=0 vs default)
+  + e2e (stealth-ai sectorops ctcourse coop netmove anim takedown smoke), then S3a, S4, S5.
+  Open with job leads: marlow-final A1 "client sees the yard group off" (42a9b295), guard-ai S2 light pair, both await
+  fixed commits.
 - schtasks creation is BLOCKED in this session (auto mode): runs are session-bound background commands and die on a swap.
   On resume check runs/<label>/summary.txt for DONE; a run without DONE died: rerun it.
 - Train 15 e1050e14: 38/39 GPU JOBS=5, 349 s; e2e-coop FAIL "client takedown offered on the host's guard (offer none)"
