@@ -1,5 +1,17 @@
 # anim-natural N2 - state
 
+## 2026-10-22 ~19:45 (new account): master 4.57.0 merged (02187841), pre-PR round running
+- Merge of master 4.57.0 (train 6): CHANGELOG.md is master's; N2's entries moved into
+  `changes/feature-anim-natural-n2.md` (fragments, G183). Master's #122 removed `AnimInput.slide`, which switched the body
+  motion gate off (walk pelvis 3.1 deg); the gate drops it. Both identity fixtures unchanged; bodyMotion, crabFacing,
+  keyedWalk, runKeyContinuity green; the full unit run (accidental, unlocked) 2812 passed, 1 failed: bodyMotion's alloc
+  check (3.2 MB, CHECK-3 should-fix 1).
+- Running (two Opus implementers, same folder, disjoint files): (A) CHECK-4 should-fix 1 (armCap boxing) + 2 (no cap
+  under the studio drive) + the alloc test on #128's allocPerCall helper; (B) the run arm pop: run.json arm keys only,
+  Blender -b rebake under the desktop lock, runKeyContinuity arm pin (n2-pop-wip.patch). Then: the job lead re-captures
+  both Wren fixtures (expect keyed:run + partner:moves), writes "Run arm pop fix" + the should-fix notes into REPORT-3,
+  a fresh checker, the PR (minor; no pre-run), laptop area suites e2e-anim e2e-studio e2e-clip via Character Build.
+
 ## 2026-10-22 ~20:15: step 3 + master 4.56.0 merged (b69e1a26)
 - fd9a9c1a: merge of feature/anim-natural-n2-s3 (step 3 arms, 4e974ea1, REPORT-3), clean. b69e1a26: merge of master
   4.56.0 (train 5: #118 N3 draws, #120 idle-shins, #125, #126); only CHANGELOG conflicted. keyedArm: N3's call site is
