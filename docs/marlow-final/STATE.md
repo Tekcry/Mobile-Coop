@@ -64,6 +64,13 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   ON RESUME: if a report is missing, rerun that agent (same brief: owned files above). Then: dressing checkers (Opus,
   A3-A4 and A5-A7), A8 fix round, A8 dressing (Sonnet), Character Build ctcourse :1-:4 / coop / netmove / course on
   the head, slice 9.
+  ~10:05: A4-A6 dressing DONE (ea111da9; voxelFit fixed: A5 towers visual only). A8 check FAIL -> must-fix done by
+  the job lead (2e58f265: other gates on a door all open, an egress gate releases alone; Fallow L9 safe). Running:
+  e2e fixer (Opus), facility perf pass (Opus, slices/S9-perf.md; laptop guard-cap baseline on 5100141d queued),
+  A3-A7 dressing checker (Sonnet, slices/S3-7-dress-check.md), A8 dressing + its 2 e2e should-fix (Sonnet).
+  Token rules (orchestrator 10:05): message it only at the PR / blocked / Michael needed; one checker per batch
+  (Sonnet for greybox / dressing, Opus for ctcourse / net fixes); save at ~25-30% context; merge master only right
+  before the train.
 - ~09:55 SAVED FOR THE ACCOUNT SWAP (window 91%). Commit "WIP A3-A6 dressing" holds the A3-A6 dressers' files as they
   were mid-work (A3 dressing then FINISHED in the next commit; A4-A6 UNCHECKED, may not compile or pass; tests/ctcourse/a5Substation.scratch.test.ts left out, untracked,
   delete it). A7 dressing complete (3ea78569, unchecked). A8 greybox complete (3dfc6e9a + d3ec16c3, unchecked). The
