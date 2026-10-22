@@ -19,6 +19,48 @@
   is off for that backward climb-on). A landing or forward roll needs 0.9 m clear past its end (was 0.4): the shoulder
   roll's dive put her head 30 cm into the wall after the vent drop; with less room she lands without the roll.
 
+## 4.56.0 - Train 5: believable weapon draws, idle stance clears the shins, co-op channel closed guard (2026-10-22, PR #130; #118, #120, #125, #126)
+
+### #118 Believable draws, holsters and swaps (anim-natural N3)
+
+- Draw, holster and swap are one continuous move per gun (reach, grip, lift / clear, present, settle;
+  `anim/drawMotion.ts`): the "random stop" when taking a gun out is gone (the swap clip held the gun level at its
+  pocket for 0.08-0.17 s, then pitched it 34-53 deg into the low ready), and so are the 28 / 11 / 7 cm one-frame jumps at
+  the swap press, the hand-off and the pistol LT draw.
+- Real-world times (Michael: "Research what is believable and realistic"; sources in docs/anim-natural/n3/DRAW-TIMES.md):
+  rifle draw 0.3 -> 1.1 s, pistol draw 0.5 -> 0.75 s, rifle holster 0.15 -> 1.0 s, pistol holster 0.15 -> 0.9 s. A
+  traversal or busy move still holsters in 0.15 s (`HOLSTER_TIME_MOVE`); the aim camera from low ready keeps the old
+  0.3 / 0.5 s blend (`AIM_IN_*`). Gameplay: the gun can fire, strike, reload or use a gadget only when the longer draw
+  ends; the LT sling draw is about 1.5 / 1.2 s.
+- A holster or a traversal mid-draw runs the draw backwards from where the gun is (no snap to the slot: 4.7-39 cm
+  one-frame jumps -> 0.4-2.3 cm); RT pressed during a holster queues the strike (tap / hold from the press) and the
+  holster speeds up to finish first; a re-draw just after the seat starts from the hand still on the gun.
+- Tuner: a Draw section per gun (reach, grip, hand-over, settle, lift and present paths; bakes into `DRAW_MOTION`). The
+  times are Clip speed's: the holster row is now one per gun (Rifle / Pistol holster speed) and the draw / holster rows
+  go up to 7x so the old times stay reachable; an older save, preset or export with the single holster value sets both.
+
+### #120 Idle stance: the shins clear at a teleport
+
+- A teleport (spawn, respawn, checkpoint, the anim-audit's `tp`) plants Wren's feet no closer to the midline than the
+  standing stance band's floor (3 cm, `TURN_FOLLOW.standMinLateral`), as every free-movement landing already does.
+  `FootPlanner.reset` skipped the band, so Michael's idle track 0.05 (kept) put the feet 0.4 cm off the midline and
+  the audit's shank capsules sat 3.18 cm into each other (limit 2.00) from the teleport to the first step, the first
+  frame of every standing row. Michael: "Widen just enough. They didn't clip when I viewed it though": the mesh never
+  clipped (its knees sit wider than the rig's proxy knees); only the capsules overlapped. Wren rigs only (guard and
+  dog rigs unchanged, bit-identical). Headless 2.36 -> 0.3 cm. The 0.3 idle track tried first is reverted.
+
+### #125 Co-op: the local channel ignores sends after close
+
+- Co-op over the local (same-device) transport: a message sent after leaving the room is dropped instead of throwing
+  "BroadcastChannel is closed" (`src/net/localTransport.ts`; a teardown race that failed e2e-coop console checks).
+  Test: `tests/localTransport.test.ts`.
+
+### #126 e2e-pad wheel let-go waits sim time (test only)
+- `scripts/e2e-pad.mjs`: the sector-fixes W let-go step waits 0.3 s of sim time instead of 300 ms of wall time, so the 5-step let-go grace has always passed under load.
+
+## 4.55.1 - Master CI green again: the guardInfo test admits station 3's security guard (test only) (2026-10-22, PR #124)
+- `tests/guardInfo.test.ts` expects both passive guards with information: `s1-guard` (bay 1) and `s3-sec-guard` (bay 3, the security room from #115, which has an INTERROGATE line by plan). Train 4 merged with this unit test red.
+
 ## 4.55.0 - Train 4: Marlow Yard security room, wheel opens on goggles, run feet no longer cross (2026-10-22, PR #121; #110, #115, #116)
 
 ### #110 The run's feet no longer cross
