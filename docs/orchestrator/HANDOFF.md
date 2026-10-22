@@ -27,6 +27,7 @@ moved). JOBS back to 3 after train 15's JOBS=5 coop miss (fixed test-only in #17
 - mocap-trial-2 (CT Core): 6 agents (pops 1-3, run turn, fix2, crouch clip 136_09); sprint / strafe / wall next; CT Core
   runs the fresh checker (C:/NightShift/scratch/mt-check/CHECK3-BRIEF.md).
 - Character Build: guard-cap on the laptop GPU next (Course Ready needs it for 24 guards), then train 16.
+- At 99% (~01:52): CT Core mocap-trial-2 a72668c7 (pop2 in, five agents finishing); Course Ready sector-redesign slice 0 b0b7bc24 (checker + laptop suites owed), slice L + camera-range agents pushing; Menu Notes marlow-final slice 0 1949764e on the laptop; train 16 waits on CI of #170-#176 (background watch died with the window: re-check gh pr checks). Rules after the reset: Lean windows (ROADMAP Decided 01:45), unavoidable guards (01:50). Clear Course Ready after the reset (Michael has its prompt).
 - Orchestrator docs: docs/orchestrator/spare-jobs.md (ranked), marlow-coop-gaps.md, MORNING-WALK.md (refresh before
   Michael wakes).
 Master v4.63.0 (train 13 #164 = #144 + #161 + #162, 102e6f41; /preview/ = dev = 102e6f41). 4.62.0 = train 12 #160 (#119 N4b + #158). Tonight: 4.60.0 #153 (train 10),
