@@ -7,3 +7,5 @@ kind: patch
   120 s.
 - Tests: e2e-traverse's keyboard ledge presses (Space grabs, C lets go) wait up to 0.7 s of game time per press (30 s
   real-time cap), not 0.7 s of host time.
+- Tests: e2e-weapons-carry's loadout and backpack match loads take up to 120 s, and the detailed-avatar-with-backpack
+  step polls the stored settings and profile records (up to 30 s, asserted) before its reload instead of a fixed 600 ms.
