@@ -28,6 +28,8 @@ Last updated: 2026-10-22 20:05 Sydney (master 4.58.0, train 7; train 8 next: #11
 5. Sector Ops lights (#129): s1-goods-in / s1-workshop show strong white volumetric cones under the new strip lights (fog only; meter and guards read the light field): look on the next walk.
 
 ## Decided (Michael, 2026-10-22 ~11:15 unless dated)
+- Mocap trial (2026-10-22 ~20:45, after walking 4.58.0): walk / jog / run, turns and starts / stops, and weapons look broken; "everything else doesn't look convincing". On free mocap: "Are there free mocap animations available? I don't want to record anything, and I don't want to impact releasing game in future commercially"; then "Trial and cmu animations first. I want to be able to roll back if they aren't good." Job mocap-trial (CT Core, top priority): CMU mocap only (free incl. commercial; an approved exception to the "no external art" hard rule for CMU mocap), raw BVH kept out of the public repo, locomotion retargeted onto Wren behind a toggle (default off), side-by-side proof for Michael. Weapons stay hand-keyed for now; Mixamo only if he asks later.
+- GPU tests (2026-10-22 ~20:30): "use gpu on any tests that would benefit" (CLAUDE.md "GPU for logic e2e"). "Make sure you question rules and ask me if needed, you should be picking up these things earlier".
 - Elbow strike timing (2026-10-22 ~20:05, Menu Notes N4c: knockout at STRIKE.hitAt 0.08 s, arm contact ~0.38 s): chose "Faster arm": the knockout timing stays, the strike animation reaches contact then.
 - Laptop (2026-10-22 ~19:30 / ~19:45): "Finish train 7 only" (the laptop was slow while he used it); then, asked whether it may run the job area suites after train 7, chose "Yes, queue them" (P, R, N2 one at a time). Other laptop experiments stay off until he frees it.
 - Machines and rules (2026-10-22 ~17:50-18:00): the laptop's CPU / GPU are far stronger: "Laptop main", "Yes, laptop GPU" (CLAUDE.md "Main test machine"). Rule review: chose "Your picks": (1) checker-passed PRs go straight into trains, src/net / protocol / save PRs keep their area suites; (2) a docs / CHANGELOG / fragments / test-script delta keeps a test result; (3) the laptop runs two queues (4191, 4192); (4) test-speed round 2 (full run ~27 -> ~15 min); (5) changelog fragments per PR, assembled at the version step; (6) one merge-train script that merges only on a passing check; (8) refresh stale roadmap and dashboard. (7) lock queue file skipped. Michael also: "if the desktop is a problem, why haven't you mentioned it? ... you should take initiative to identify bottlenecks and make recommendations to increase the speed and quality of the results."
@@ -126,7 +128,7 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
 | Character Build | laptop: MAIN test machine, two logic slots (4191, 4192) + GPU (4189) | run requests, trains, GPU runs; gap job test-speed-2 | full run ~15 min |
 
 ## Next (in order)
-1. **Train 6** (above), then N1 + N2 (train 7): the base for Michael's full anim tune.
+1. **Animation**: train 8 (train/8 4cc73665: #119 N4b, #135 N1, #138 N2) on the laptop GPU; the CMU **mocap-trial** (CT Core, top priority) with a side-by-side for Michael; N4c (Menu Notes). Michael calls the current animations broken (2026-10-22 ~20:45).
 2. **Sector Ops complete**: sector-fixes P (laser panels), R (co-op routes), then S2 polish from the walk.
 3. **Marlow Yard complete**: Michael's end-to-end co-op walk of the training course; fixes from it.
 4. **Visual pass** on the training level (last, per the goal).
