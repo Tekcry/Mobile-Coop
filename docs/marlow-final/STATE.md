@@ -1,5 +1,52 @@
 # marlow-final - STATE
 
+## MORNING-REVIEW (for Michael)
+Michael ~01:42 (ROADMAP Decided "Overnight"): rule loosenings proposed tonight are "Apply, logged and undoable": the
+build uses them as assumed decisions, each listed here with its undo. The text of `docs/level-design.md`, the template,
+the bible and DECISIONS is NOT edited: the wording for each LR item is in `docs/lighting-review/PROPOSAL.md` section 3,
+ready to fold in if you keep it. Finished and green: the PR goes to the next train for /preview/.
+
+Marlow Yard (SPEC section 15; full rows there with the reason):
+| Item | Built as | Undo |
+| --- | --- | --- |
+| P1 entry vantage / checkpoints dark | Vantages concealed by occlusion; holding rooms lit 0.30, out of guard view | A dark mixed-zone pocket at each vantage |
+| P2 G225 open floor 0.30 | Sets at 0.14 standby fill; 0.30 in lounge, holding rooms, dock | Zone ambient back to 0.30 (isolations become lures only) |
+| P3 no timers in stealth | Player-started device windows (A2 15 s, A4 / A8 60 s loop, A8 25 s lights, jam 5 s); never a fail | Held isolators (`timedHold`), permanent console off |
+| P4 new LD 5.5 lit by default | Every set lit, players make the dark | Lower fitting intensities per set |
+| P5 alarm resets the set | Not used | - |
+| P6 guard total 9 | 12 role-players, max 3 alive per set | Drop `a4-dock2`, `a8-night2`, move the A1 slot |
+| P7 / A8 Course guards em.stealth | `em.stealth = true` (BRIEF A8) | One line in `courseMode.ts` |
+| P8 guards do not look up | Occluders on every high route | Build G44's look-up penalty |
+| P9 existing systems only | New code N1-N4, N6, N8, N9 | Per item fallback in SPEC P9 |
+| P10 one new mechanic per space | A4 console + optional dual takedown; A6 hang-down + one untimed rope | Move A6's rope to A8 |
+| P11 three routes + a secret | Two or three ways per set, secrets in A2, A3, A5 | Add a secret per guarded set at dressing |
+| P12 walls to ceilings | Set flats stop under the 10 m hall roof | Charcoal panel wall above each set wall |
+| P13 1.1 m rails at height | Co-op lip spans are open loading edges with a drop chain | Full rails; lips move to a hoist bay |
+| P14 one interrogation guard | Info on the A1 checker, A4 and A8 officers | Info on the A1 checker only |
+| P15 bunker fiction | Luxury rehearsal centre (M5, your word) | - |
+| P16 no co-op markers | Striped leg-up squares at A1, A2, A6, A8 | No marks; the objective line names the spot |
+| P17 G45 clear glass passes sight | All glass stops sight, camera sight and jam lines; light passes | Build G45's clear-glass sight |
+
+All maps (`docs/lighting-review/PROPOSAL.md`; undo per item in its section 6):
+| Item | Change | Undo |
+| --- | --- | --- |
+| LR1 | New LD 5.5 "Lit by default; the players make the dark", mixed zones allowed (= P4) | Lower fittings to the old dark read |
+| LR2 | LD 3.1 entry vantage "concealed" (occlusion or dark) (= P1) | Back to "dark" |
+| LR3 | LD 3.9 checkpoint may sit in a quiet connector no guard enters | Back to "dark" |
+| LR4 | LD 4.4 isolation moment "dark, or darkenable by the players from cover" | Back to "dark" |
+| LR5 | LD 5.2 / bible L8 drop the EMP (G152); one way to darken must not be a shot | Restore the EMP wording |
+| LR6 | LD 6.3 / bible 6 allow player-started device windows, never a fail clock (= P3) | Held isolators |
+| LR7 | G225 0.30 stays for transit and rest; encounter spaces 0.14 standby (= P2) | 0.30 everywhere |
+| LR8 | LD 15 darkness acceptance test reworded to match | Old test text |
+| LR9 | Bible L7: darkness is the exception, not the default | Remove the note |
+| LR10 | Template Theme line and space-sheet Lights field describe the lit default and circuits | Old fields |
+| LR11 | Bible 7: light plan per space names what cuts each circuit and for how long | Remove the line |
+| LR12 | LD 12.1 engine fact: light sync is Course mode only, named groups only | Remove the fact |
+
+Rejected by you (~01:25): anything that assumes a dark camera is blind (G240 stands, cameras keep IR). Also your
+~01:25 rule: every guard armed (SPEC rule 9).
+Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN section 6; slice reports S0-*.md.
+
 ## Now (2026-10-23 ~01:20, new account; FULL BURN to 100% per Michael ~01:05 via the orchestrator)
 - Art kit CHECKED: tsc clean, eslint clean, tests/facilityKit.test.ts 17/17, neighbouring world tests 8 files green
   (dfff5877). Master a71c8c02 (train 14) merged clean, tsc clean after.

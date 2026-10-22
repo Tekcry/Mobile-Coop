@@ -1,6 +1,6 @@
 # Lighting rule review - proposal for Michael (every map)
 
-Status: PROPOSAL, nothing applied. Written 2026-10-23 ~01:45 by the marlow-final lighting agent (job lead: Night Shift |
+Status: APPLIED AS ASSUMED DECISIONS (Michael ~01:42 "Apply, logged and undoable"; builders use them, each listed for his morning review in docs/marlow-final/STATE.md MORNING-REVIEW). The standard's text is not edited yet. Originally: PROPOSAL, nothing applied. Written 2026-10-23 ~01:45 by the marlow-final lighting agent (job lead: Night Shift |
 Menu Notes Build). Every wording below is a proposed change; `docs/level-design.md`, `docs/templates/map-spec.md`, the
 bible and DECISIONS stay as they are until Michael says yes, item by item (CLAUDE.md "Hard rules": the standard changes
 only with his approval). This file stands on its own: Course Ready's Sector Ops spec and any campaign map spec can cite

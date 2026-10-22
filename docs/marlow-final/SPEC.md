@@ -947,7 +947,7 @@ Build state (ENGINE-ANSWERS, ~02:00): N6 and `PassZone.any` are DONE (34cb5b52, 
 slices 0d / 0g (PLAN.md).
 
 ## 15. Proposals for Michael (never applied)
-Every loosening of `docs/level-design.md`, the template, the bible or DECISIONS that the design uses. None is applied
+(Michael ~01:42: "Apply, logged and undoable": built as assumed decisions, listed in STATE.md MORNING-REVIEW with the fallback below as the undo.) Every loosening of `docs/level-design.md`, the template, the bible or DECISIONS that the design uses. None is applied
 to the standard's text; the map is built to the "design uses" column so Michael can test it, and each has a fallback
 the builders can switch to in under a slice. Numbers T1-T18 are CONSTRAINTS section 4; "CR 6" is SCENARIOS section 6.
 
