@@ -37,6 +37,7 @@ import { dropBadWallMove, emptyMoveState, moveChanged } from '../player/moveStat
 import { CrackPrediction } from '../world/doorPeek';
 import { markCompleted } from '../save/sectorRecord';
 import { BOLT_DEPTH, SECTOR_RESTART_TITLE, boltById, boltHalfSpan } from '../game/sectors';
+import { DESK_NONE, deskItemId, deskModeOf } from '../game/sectorDesks';
 
 const SEND_HZ = 20;
 const INTERP_DELAY = 0.12;
@@ -338,7 +339,10 @@ export class CoopClient implements NetAttachment {
     }
     this.puppetList = [...this.puppets.values()];
     g.pickups?.setMask(m.pk);
-    if (m.items) this.syncItems(m.items);
+    if (m.items) {
+      this.syncItems(m.items);
+      this.deskSync();
+    }
     if (m.doors) this.syncDoors(m.doors, m.dcr ?? []);
     if (m.bodies) {
       // carried off, hidden or revived on the host (snaps and events arrive in order, so a kept body is listed)
@@ -360,6 +364,20 @@ export class CoopClient implements NetAttachment {
   /** Mirror the host's usable things: create / move / enable; gone from the list = removed. */
   /** (step 15) Sandbox: mirror only this item kind into the client's own interactables. */
   private mirrorOnly: NetItem['k'] | null = null;
+
+  /**
+   * (sector-redesign E6, EW10) Sector Ops: each security desk's mode (looped, off) read back from its mirrored console
+   * label (`deskModeOf`) onto our cameras, from our own map data's desk list (no wire change). Per snapshot, not per frame.
+   */
+  private deskSync(): void {
+    const ct = this.sec;
+    const desks = this.g.world.layout.security?.desks;
+    if (!ct || !desks) return;
+    for (let i = 0; i < desks.length; i++) {
+      const it = this.items.get(deskItemId(i));
+      ct.setDesk(desks[i]!.cameras, it ? deskModeOf(it.label) : DESK_NONE);
+    }
+  }
 
   private syncItems(list: NetItem[]): void {
     const ints = this.ints;
