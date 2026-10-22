@@ -247,12 +247,14 @@ try {
     await page.waitForFunction(() => window.__app.current.gadgets.wheelOpen, null, { timeout: 6000 });
     const ts = await G(() => window.__app.loop.timeScale);
     // (sector-fixes W, item 8) the stick right lights another slot; let go and it is back on the vision slot, so A
-    // cycles the mode with no stick
+    // cycles the mode with no stick. (pad-wheel-wait) 0.3 s of the match's own clock, not 300 ms of wall time: under
+    // load (E2E_JOBS=2) the game had not polled the stick yet when the wall wait ran out
+    const simWait = (sec) => page.evaluate((sec) => new Promise((r) => window.__afterSim(sec, r)), sec);
     await page.evaluate(() => window.__pad.axis(2, 1));
-    await page.waitForTimeout(300);
+    await simWait(0.3);
     const segOut = await G(() => window.__app.current.gadgets.sel.seg);
     await page.evaluate(() => window.__pad.axis(2, 0));
-    await page.waitForTimeout(300);
+    await simWait(0.3);
     const segBack = await G(() => window.__app.current.gadgets.sel.seg);
     const m0 = await G(() => window.__app.current.gadgets.sel.mode);
     await press(page, BTN.A);
