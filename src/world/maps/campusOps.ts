@@ -3,6 +3,7 @@ import type { MapDef, MapLayout } from '../mapDef';
 import type { LevelBuilder } from '../levelBuilder';
 import { buildCampusS1, C1_GAP, S1_HIDESPOTS, S1_NAV_SEEDS, S1_PICKUPS, S1_ROOMS, S1_SPAWNS, S1_SWITCHES } from './campusS1';
 import { CAMPUS_ALARMS, CAMPUS_SECTORS, CAMPUS_SECURITY } from './campusSectors';
+import { buildCampusS3, S3_HIDESPOTS, S3_LASERS, S3_NAV_SEEDS, S3_PANELS, S3_PICKUPS, S3_ROOMS, S3_SWITCHES } from './campusS3';
 
 const PI = Math.PI;
 const T = 0.3;
@@ -93,8 +94,7 @@ function connector(b: LevelBuilder, o: { x0: number; x1: number; z0: number; z1:
 function otherBuildings(b: LevelBuilder): void {
   // S2 / HQ: the south wall's gap is C1's far door (campusS1.ts builds it); the east wall's is the C2 stub's near door
   shell(b, { x0: -44, x1: 4, z0: -30, z1: 6, h: 12.3, slabs: [4.4, 8.4, 12.3], s: [[C1_GAP[0], C1_GAP[1], true]], e: [[-14.6, -13.4]] });
-  // S3 / labs: C2's far door west, C3's near door north
-  shell(b, { x0: 10, x1: 64, z0: -30, z1: 0, h: 9.5, slabs: [4.5, 9.5], w: [[-14.6, -13.4]], n: [[23.4, 24.6]] });
+  // S3 / labs (slice 3): built in full by `campusS3.ts` (`buildCampusS3`, called from `build`)
   // S4 / data hall: C3's far door south, C4's near door west
   shell(b, { x0: -10, x1: 40, z0: 16, z1: 48, h: 7.5, slabs: [7.5], s: [[23.4, 24.6]], w: [[28.4, 29.6]] });
   // S5 / old house: C4's far door east
@@ -152,20 +152,23 @@ export const campusOps: MapDef = {
     b.perimeter(CAMPUS_BOUNDS.minX, CAMPUS_BOUNDS.maxX, CAMPUS_BOUNDS.minZ, CAMPUS_BOUNDS.maxZ, 6, '#2c3033');
     buildCampusS1(b);
     otherBuildings(b);
-    const alarms = CAMPUS_ALARMS.map((a) => ({ pos: new Vector3(a.at[0], 0, a.at[1]), yaw: a.yaw, section: a.section }));
+    buildCampusS3(b);
+    const alarms = CAMPUS_ALARMS.map((a) => ({ pos: new Vector3(a.at[0], a.y ?? 0, a.at[1]), yaw: a.yaw, section: a.section }));
     return {
       playerSpawns: S1_SPAWNS,
       // the sections' guards come from the mode, not the rooms
       enemySpawns: [],
       props: [],
       objectives: [],
-      pickups: S1_PICKUPS,
-      hideSpots: S1_HIDESPOTS,
-      switches: S1_SWITCHES,
-      rooms: S1_ROOMS,
-      navSeeds: [...S1_NAV_SEEDS, ...STUB_NAV_SEEDS],
+      pickups: [...S1_PICKUPS, ...S3_PICKUPS],
+      hideSpots: [...S1_HIDESPOTS, ...S3_HIDESPOTS],
+      switches: [...S1_SWITCHES, ...S3_SWITCHES],
+      rooms: [...S1_ROOMS, ...S3_ROOMS],
+      navSeeds: [...S1_NAV_SEEDS, ...STUB_NAV_SEEDS, ...S3_NAV_SEEDS],
       alarms,
       security: CAMPUS_SECURITY,
+      lasers: S3_LASERS,
+      laserPanels: S3_PANELS,
     };
   },
 };
