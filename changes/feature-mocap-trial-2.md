@@ -11,3 +11,7 @@ kind: minor
   set's 57-59).
 - Mocap locomotion (switch on): a start after a short stand no longer pops: the leftover idle step lands first, a late
   clip lift goes to the planner and a foot left behind steps off (worst bone step 37 -> 22 deg, no pelvis sink).
+- Mocap locomotion (switch on): a spin on the spot that reverses, slows or walks off plays on smoothly; the clip's short
+  jog / run stance eases in and out at every clip-feet edge (switch on mid-jog, a crouch or a draw); the switch turned
+  off mid-stop no longer leaves a foot toe up; the switch turned on mid-walk, or a partner first seen walking, plays no
+  start.
