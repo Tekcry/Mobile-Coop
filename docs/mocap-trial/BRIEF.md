@@ -63,6 +63,14 @@ fetched, one at a time.
   (mocap-trial-3); this PR ships the pop fixes, the crouch walk and the sprint, and (M4) the ON-by-default flip once its
   checker and GPU suites pass. Undo: hold the flip until batch 2.
 
+- A8 (orchestrator 2026-10-23 ~06:05, accepted): switching the mocap setting off mid-run / mid-sprint leaves a residual
+  pelvis step of 2.1-2.6 cm and ~33 deg bone steps for 0.5-0.7 s (the switch-off gait inherits the mocap stride; fixB's
+  0.25 s cross-fade covers the walk / jog). A deliberate Settings toggle: polish list, not fixed (needs a one-cycle stride
+  hand-over); in the PR body with the numbers. tests/mocapPlayer item 5 stays it.skip for it.
+
+## Polish list
+- Switch toggle at run / sprint (A8): one-cycle stride hand-over after a toggle.
+
 ## Approval log
 - 2026-10-22 ~21:00: download approved in the CT Core session ("Yes, download"): the named takes in SOURCES.md only.
 - 2026-10-22 ~21:45: standing OK for further named CMU takes for this trial (Michael "Yes, CMU only" ~21:40, relayed by
