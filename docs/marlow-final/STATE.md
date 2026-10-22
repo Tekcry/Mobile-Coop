@@ -67,6 +67,9 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- ~02:05 TRIM (orchestrator): window 11% after ~11 min; at most 2 agents until the orchestrator loosens; in-flight
+  ones finish; no new agent until under 2; sets / dressing / props on Sonnet 5.5 from strict Opus briefs; checkers
+  Opus. facilityProps.test.ts hangs at collection on the laptop too (12 / 13 unit files pass, 117 tests): 0f fixes.
 - ~02:00 slice 0 e2e on 1949764e (Character Build, GPU, JOBS=3): smoke, e2e-ctcourse:2, :3, e2e-course, e2e-coop,
   e2e-netmove, e2e-stealth-ai PASS; e2e-ctcourse:1 FAIL at the security room 'off' assert (the by-design failure
   fixed in 5920cce5, test script only). Rerun of e2e-ctcourse on 5920cce5 and the 13 unit files on f315434f running.
