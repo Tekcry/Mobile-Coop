@@ -51,7 +51,7 @@ import { bakeLevelLight, lightBakeHash, type LightBake } from './lightBake';
 import { LightField } from './lightField';
 import { moonLight } from './lampMath';
 import { roofAt, roofGrid, type RoofGrid } from './roofGrid';
-import { SunCascadeLists } from './sunCascadeCull';
+import { SunCascadeLists, keepNearCamera } from './sunCascadeCull';
 
 /** Flashlight slots on dark maps (enemies searching / investigating in the dark): `torches.ts`. */
 export { FLASHLIGHTS } from './torches';
@@ -329,6 +329,8 @@ export class World {
   /** Low: the moon shades only the level (`ShadowSpec.staticSun`). */
   private staticSun = false;
   private readonly cascadeLists = new SunCascadeLists();
+  private readonly sunReach: number[] = [];
+  private readonly sunNear: boolean[] = [];
   /** (guard-render S6) Each cascade draws only the casters over its square (`sunCascadeCull.ts`; exact). */
   private readonly cascadeList = (layer: number): AbstractMesh[] | null => {
     const g = this.shadow;
@@ -344,10 +346,22 @@ export class World {
     tmp.length = 0;
     for (let i = 0; i < this.sunStatic.length; i++) tmp.push(this.sunStatic[i]!);
     const vx = this.voxels;
+    const cp = this.scene.activeCamera?.globalPosition;
     for (let i = 0; i < this.sunMoving.length && !this.staticSun; i++) {
       const m = this.sunMoving[i]!;
       // (small things - pickups, switches, mags - cast nothing worth a draw per cascade; lamps still take them)
       if (m.getBoundingInfo().boundingSphere.radiusWorld < 0.3) continue;
+      // (guard-render S6) guards: in the moon's list only near the camera (`GUARD_SUN_REACH`, hysteresis)
+      const reach = this.sunReach[i]!;
+      if (reach !== Infinity && cp) {
+        const c = m.getBoundingInfo().boundingSphere.centerWorld;
+        const dx = c.x - cp.x;
+        const dy = c.y - cp.y;
+        const dz = c.z - cp.z;
+        const near = keepNearCamera(this.sunNear[i]!, dx * dx + dy * dy + dz * dz, reach);
+        this.sunNear[i] = near;
+        if (!near) continue;
+      }
       if (vx?.sky && m.isEnabled()) {
         const b = m.getBoundingInfo().boundingBox;
         const x = (b.minimumWorld.x + b.maximumWorld.x) / 2;
@@ -474,15 +488,22 @@ export class World {
     this.sunStatic.push(m);
   }
 
-  /** Characters, weapons and props cast shadows (one shared list for the sun and every lamp). */
-  addShadowCaster(m: AbstractMesh): void {
+  /** Characters, weapons and props cast shadows (one shared list for the sun and every lamp). `sunReach`: the moon's
+   *  cascades drop it beyond this distance from the camera (guards, `sunCascadeCull.ts`); lamps and flashlights always take it. */
+  addShadowCaster(m: AbstractMesh, sunReach = Infinity): void {
     this.lightRig.addCaster(m);
     if (!this.sunMoving.includes(m)) {
       this.sunMoving.push(m);
+      this.sunReach.push(flags.guardSun ? sunReach : Infinity);
+      this.sunNear.push(true);
       this.sunT = 0;
       m.onDisposeObservable.addOnce(() => {
         const i = this.sunMoving.indexOf(m);
-        if (i >= 0) this.sunMoving.splice(i, 1);
+        if (i >= 0) {
+          this.sunMoving.splice(i, 1);
+          this.sunReach.splice(i, 1);
+          this.sunNear.splice(i, 1);
+        }
         const j = this.sunCasters.indexOf(m);
         if (j >= 0) this.sunCasters.splice(j, 1);
       });
