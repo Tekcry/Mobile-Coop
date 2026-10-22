@@ -78,7 +78,7 @@ export interface CoopLip {
   solo: string;
 }
 
-export const CAMPUS_COOP_LIPS: readonly CoopLip[] = [
+export const S1_COOP_LIPS: readonly CoopLip[] = [
   {
     id: 'CR1',
     section: 0,

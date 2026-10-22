@@ -8,7 +8,8 @@
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder, type BoxPiece } from '../src/world/levelBuilder';
 import { campusOps } from '../src/world/maps/campusOps';
-import { CAMPUS_COOP_LIPS, S1_GROUPS } from '../src/world/maps/campusS1';
+import { S1_GROUPS } from '../src/world/maps/campusS1';
+import { CAMPUS_COOP_LIPS } from '../src/world/maps/campusLips';
 import { BALCONY_LAMPS, BULKHEAD_TOP, C2_BOX, C2_FLOOR, CR2, FEATURE_STAIR, PENDANTS, S2_COOP_LIPS, S2_CORES, S2_DOORS, S2_FLIGHTS, S2_FLOORS, S2_GROUPS, S2_ROOMS, S2_VOID, SW_CORE, NE_CORE, coreFlights, type Flight } from '../src/world/maps/campusS2';
 import { CAMPUS_ALARMS, CAMPUS_POSTS, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
 import { SECTOR, checkSectorGuards, checkSectors, exitZone, inZone, type SectorGuard } from '../src/game/sectors';
