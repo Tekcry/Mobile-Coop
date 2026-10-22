@@ -165,6 +165,14 @@ describe('mocap fix 2: a spin on the spot plays the turn clip on (item 4)', () =
     expect(rev.m.turnSide).toBe(-1);
   });
 
+  it('(fix 2 check) a slow spin (0.8 rad/s, under the start rate, over the end rate) wraps at full weight too', () => {
+    const slow = spin((t) => [0, t < 0.3 ? 3 : 0.8]);
+    console.info(`spin slowing to 0.8 rad/s: lowest turn weight over its first wrap ${slow.low.toFixed(3)}, largest joint step ${slow.step.toFixed(2)} deg`);
+    // (before: faded to 0.06 over each pass's last 22 deg, back to full after the wrap)
+    expect(slow.low).toBeGreaterThan(0.9);
+    expect(slow.m.turnSpot).toBe(true);
+  });
+
   it('(fix 2 check) a spin that walks off the spot ends its pass and hands over to a turn on the move', () => {
     const r = spin((t) => [t < 1.5 ? 0 : Math.min(1.4, (t - 1.5) * 3), 3]);
     const walk = spin(() => [1.4, 3]);

@@ -365,8 +365,10 @@ export class MocapSlots {
     this.wStart += ((this.startT >= 0 ? envelope(this.startT) : 0) - this.wStart) * k;
     this.wStop += ((this.stopT >= 0 ? envelope(this.stopT) : 0) - this.wStop) * k;
     // (fix 2) a spin on the spot keeps its full weight: no fade in after a wrap, no fade out while it still spins (a turn
-    // that stops is cut off and eases out by `tau`, about as fast as the fade over its last 22 deg at a spin's rate)
-    const spinOn = this.turnSpot && ay > M.turnRate && speed < M.spotSpeed;
+    // that stops is cut off and eases out by `tau`, about as fast as the fade over its last 22 deg at a spin's rate). (fix 2
+    // check) While it goes on at all (over half `turnRate`, on the spot: it wraps): a slow spin (0.5-1 rad/s) faded to
+    // 0.06 before each wrap
+    const spinOn = this.turnSpot && speed < M.spotSpeed;
     this.wTurn += ((this.turnT >= 0 ? envelope(this.turnT, this.turnWrap, spinOn) : 0) - this.wTurn) * k;
     if (this.wStart < 1e-4 && this.startT < 0) this.wStart = 0;
     if (this.wStop < 1e-4 && this.stopT < 0) this.wStop = 0;
