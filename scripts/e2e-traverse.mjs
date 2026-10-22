@@ -556,12 +556,17 @@ try {
   await page.evaluate(() => window.__pad.connect());
   await tp(21.75, 3.2, -5, Math.PI / 2);
   await run(0.4);
-  // keyboard: holding E at the vent prompt unscrews (progress shows), letting go early stops it (was the touch action button)
+  // keyboard: Space starts the vent and E held unscrews it (progress shows); letting go early stops it, no kick
   await page.evaluate(() => { window.__app.loop.manual = false; window.__pad.disconnect(); });
   await frames(page, 6);
   assert(await page.evaluate(() => !!document.querySelector('.wp-vault.show')), 'keyboard: the vent prompt is on screen');
-  // (A3 / F1a) Space (jump) starts the vent, E held unscrews it
+  // (vent-kick) Space (jump) starts the vent; while Space is still down it is no kick, so E, pressed a few frames later
+  // (>= 3 frames and >= 0.1 s of match time: past the old 33 ms kick window, so a return of that bug kicks and fails
+  // the asserts below), carries the hold on
   await page.keyboard.down('Space');
+  const spaceAt = await page.evaluate(() => window.__app.current.time);
+  await frames(page, 3);
+  for (let k = 0; k < 30 && (await page.evaluate(() => window.__app.current.time)) - spaceAt < 0.1; k++) await frames(page, 1);
   await page.keyboard.down('KeyE');
   await frames(page, 2);
   await page.keyboard.up('Space');
@@ -572,16 +577,11 @@ try {
   }
   await page.keyboard.up('KeyE');
   await frames(page, 4);
-  const after = await page.evaluate(() => ({ vent: window.__tr.st().traversal.attachCtl.vent, open: window.__tr.st().world.breakables.isOpen(`grate:${window.__tr.st().world.level.anchors.ducts[0].id}:entry`) }));
-  // prototype: revisit - Space then E held does not start the vent on the keyboard in this harness (the pad path passes); skipped, see T1-TESTS.md
-  void held; void after;
-  // The keyboard section runs on real frames and sometimes opens the grate itself (Space starts the vent; when E's
-  // hold is not seen, the release is a kick). An open grate is entered without a kick, silently, so the kick check
-  // below would read noise 0: give it a closed grate again.
-  if (await grateOpen()) {
-    console.log('  (the keyboard vent opened the grate: fresh match for the kick)');
-    await freshMatch();
-  }
+  const after = await page.evaluate(() => ({ vent: !!window.__tr.st().traversal.attachCtl.vent, att: window.__tr.st().traversal.attachCtl.active }));
+  assert(held > 0.2 && held < 1, `keyboard: Space then E held unscrews the grate (progress ${f2(held)})`);
+  assert(!after.vent && !after.att && !(await grateOpen()), `keyboard: letting E go early stops the unscrew, no kick (vent ${after.vent}, attached ${after.att})`);
+  // (vent-kick) the keyboard section leaves the grate closed now (asserted above), so #22's fresh match before the kick
+  // is gone
   await page.evaluate(() => { window.__app.loop.manual = true; window.__pad.connect(); });
   await tp(21.75, 3.2, -5, Math.PI / 2);
   await run(0.4);

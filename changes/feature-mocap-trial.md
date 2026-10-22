@@ -6,4 +6,13 @@ kind: minor
   clip format) instead of the hand-keyed one; a mocap clip with foot data places her steps itself ("clip feet": the foot
   planner only grounds and pins them). Off is the game exactly as before (the anim-skeleton identity fixtures pass). This
   machine only: the co-op partner drawn here follows it, nothing goes on the wire. The procedural layers stay on, with a
-  per-layer scale for the mocap set (`MOCAP_LAYERS`, all 1 for now). docs/mocap-trial/CLIP-FORMAT.md.
+  per-layer scale for the mocap set (`MOCAP_LAYERS`). docs/mocap-trial/CLIP-FORMAT.md.
+- Mocap locomotion now shows the real CMU captures (mocap.cs.cmu.edu, converted onto Wren; docs/mocap-trial/SOURCES.md):
+  the holstered walk / jog / run from one performer (subject 16: takes 16_15, 16_36, 16_46) placing her own steps, the
+  90 degree turns while walking (16_18 / 16_19), the start from standing (16_31) and the stop (16_34), all at a walking
+  pace, and a 90 degree turn on the spot (subject 69, 69_13). Planted feet stay locked, the stride is the game's at every
+  speed, the head looks ahead (the performers' look at the floor is taken out), and the procedural layers that would
+  double the capture (the Body tune's arm swing gain and elbow-out, the trunk twist and lean sliders, the hips following
+  the feet, the Weight plant drop, the stop settle) are off on it. Fast turns, starts and stops hand the steps to the foot
+  planner as before. Weapons, crouch, walls and guards stay hand-keyed; jog / run turns, the jog stop and the run start
+  are converted but not in the game yet.

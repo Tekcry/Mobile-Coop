@@ -16,7 +16,27 @@ const BODY_H = 1.75;
 const K_BODY = 1.68 / BODY_H;
 const CYCLE_FRAMES = 48;
 const ONESHOT_FPS = 40;
+/** The knee pole's out-share per gait (the hand-keyed walk -0.03, jog / run -0.045; the cycles: integration, below). */
 const KNEE_OUT = { walk: -0.03, jog: -0.045, run: -0.045 };
+/**
+ * (integration) The cycles' track and knee pole on Wren (1.75 m units): each side's clip-feet x shifted so the track
+ * half-width is TRACK_HALF (the takes' jog / run land on the midline, 1.8-3.5 cm, and their pelvis turns with the arms,
+ * so the knees passed within the rig's knee-gap rule, which bowed the swing knee out 13 cm for a frame, and the hip-frame
+ * crab metrics read crossed knees), with the knee pole KNEE_OUT_CYCLE: measured on the headless rig against e2e-anim's
+ * walk / jog / run ranges (tests/mocapSwitch.test.ts; the jog and walk knee-out sits at Michael's tuned limit).
+ */
+const TRACK_HALF = { walk: 0.0425, jog: 0.08, run: 0.07 };
+const KNEE_OUT_CYCLE = { walk: -0.055, jog: -0.09, run: -0.03 };
+/**
+ * (integration) `liftH` is the foot planner's own swing lift (animGraph `g.liftH` -> `FootPlanner.beginSwing` stepLift),
+ * read only for the steps the PLANNER places (clip feet off: turns over MOCAP_FEET.turnMax, under minSpeed, the slots);
+ * the rig adds the toe-off / heel-strike rise on top (`heelLift`). In clip feet mode the clip's own `feet` y is the whole
+ * lift and liftH is not read. So every clip writes the hand-keyed gait's value (src/anim/clips/keyed/*.ts), keeping the
+ * planner's steps exactly as they are; the capture's measured peak ankle lift goes to the report only.
+ */
+const PLANNER_LIFT = { walk: 0.075, jog: 0.17, run: 0.22 };
+/** (integration) The foot pitch (rad, heel up) past which a planted foot's ankle leaves its pin (the stance window's end). */
+const PIN_PITCH = 0.15;
 /** The game's stride per cycle (m) at its speeds (CLIP-FORMAT.md), for the per-clip scale report. */
 const GAME_STRIDE = [[1.4, 1.16], [2.1, 1.44], [3.0, 2.04], [3.8, 2.42], [4.4, 2.6]];
 const BANDS = { walk: [1.4, 2.1], jog: [2.6, 3.3], run: [4.2, 4.4] };
@@ -28,8 +48,11 @@ const gameStride = (v) => {
 };
 
 /** Which intermediate fills which clip file. */
+// (integration) one performer for the walk / jog / run speed blend: subject 16 (walk 16_15, jog 16_36, run 16_46), so the
+// walk -> jog -> run cross-fade never blends two bodies' carriage; 35_01 (subject 35, the analysis' best walk score)
+// becomes the runner-up. 16_15's left-arm dropout (frames 0-7) is outside its cycle (frames 63-201).
 export const FILES = [
-  { file: 'walk.ts', slot: 'walk_loop', name: 'walk', kind: 'cycle', gait: 'walk' },
+  { file: 'walk.ts', slot: 'walk_loop_alt', name: 'walk', kind: 'cycle', gait: 'walk' },
   { file: 'jog.ts', slot: 'jog_loop', name: 'jog', kind: 'cycle', gait: 'jog' },
   { file: 'run.ts', slot: 'run_loop', name: 'run', kind: 'cycle', gait: 'run' },
   { file: 'turn_in_place.ts', slot: 'pivot180_R', name: 'turn_in_place', kind: 'turn', turnDeg: 90, typed: true },
@@ -38,18 +61,18 @@ export const FILES = [
   { file: 'start.ts', slot: 'walk_start', name: 'start', kind: 'start', typed: true, seconds: 'MOCAP_START_SECONDS' },
   { file: 'stop.ts', slot: 'walk_stop', name: 'stop', kind: 'stop', typed: true, seconds: 'MOCAP_STOP_SECONDS' },
   // runner-up loops and the slots the format has no file for yet
-  { file: 'alt/walk.ts', slot: 'walk_loop_alt', name: 'walk', kind: 'cycle', gait: 'walk' },
+  { file: 'alt/walk.ts', slot: 'walk_loop', name: 'walk', kind: 'cycle', gait: 'walk' },
   { file: 'alt/jog.ts', slot: 'jog_loop_alt', name: 'jog', kind: 'cycle', gait: 'jog' },
   { file: 'alt/run.ts', slot: 'run_loop_alt', name: 'run', kind: 'cycle', gait: 'run' },
-  { file: 'extra/turn_jog_l.ts', slot: 'jog_turn90_L', name: 'turn_jog_l', kind: 'turn', typed: true },
-  { file: 'extra/turn_jog_r.ts', slot: 'jog_turn90_R', name: 'turn_jog_r', kind: 'turn', typed: true },
-  { file: 'extra/turn_run_l.ts', slot: 'run_turn90_L', name: 'turn_run_l', kind: 'turn', typed: true },
-  { file: 'extra/turn_run_r.ts', slot: 'run_turn90_R', name: 'turn_run_r', kind: 'turn', typed: true },
+  { file: 'extra/turn_jog_l.ts', slot: 'jog_turn90_L', name: 'turn_jog_l', kind: 'turn', typed: true, gait: 'jog' },
+  { file: 'extra/turn_jog_r.ts', slot: 'jog_turn90_R', name: 'turn_jog_r', kind: 'turn', typed: true, gait: 'jog' },
+  { file: 'extra/turn_run_l.ts', slot: 'run_turn90_L', name: 'turn_run_l', kind: 'turn', typed: true, gait: 'jog' },
+  { file: 'extra/turn_run_r.ts', slot: 'run_turn90_R', name: 'turn_run_r', kind: 'turn', typed: true, gait: 'jog' },
   { file: 'extra/turn_in_place_l.ts', slot: 'pivot180_L', name: 'turn_in_place_l', kind: 'turn', turnDeg: -90, typed: true },
   { file: 'extra/turnaround_r.ts', slot: 'pivot180_R', name: 'turnaround_r', kind: 'turn', typed: true },
   { file: 'extra/turnaround_l.ts', slot: 'pivot180_L', name: 'turnaround_l', kind: 'turn', typed: true },
-  { file: 'extra/stop_jog.ts', slot: 'jog_stop', name: 'stop_jog', kind: 'stop', typed: true, seconds: 'MOCAP_STOP_JOG_SECONDS' },
-  { file: 'extra/start_run.ts', slot: 'run_start_from_walk', name: 'start_run', kind: 'start', typed: true, seconds: 'MOCAP_START_RUN_SECONDS' },
+  { file: 'extra/stop_jog.ts', slot: 'jog_stop', name: 'stop_jog', kind: 'stop', typed: true, gait: 'jog', seconds: 'MOCAP_STOP_JOG_SECONDS' },
+  { file: 'extra/start_run.ts', slot: 'run_start_from_walk', name: 'start_run', kind: 'start', typed: true, gait: 'run', seconds: 'MOCAP_START_RUN_SECONDS' },
 ];
 
 /** Sampler over an intermediate: fractional frame -> pelvis, local rotations, root (cyclic for loops). */
@@ -90,7 +113,12 @@ function frameOut(rig, K, pel, loc, prev) {
   const pos = fkWren(rig, pel, qw);
   const keepHemi = (key, q) => (prev?.[key] ? q4.align(q, prev[key]) : q);
   const q = {};
-  for (const nm of ['pelvis', 'spine', 'chest', 'neck', 'head']) q[nm] = keepHemi(nm, q4.norm(loc[nm]));
+  for (const nm of ['pelvis', 'spine', 'chest', 'neck']) q[nm] = keepHemi(nm, q4.norm(loc[nm]));
+  // (integration) the rig turns the head by the `head` channel ON THE LOOK (its head is held level along the facing first:
+  // characterRig "a keyed head turn (local, on the look)"), so the channel is the head's turn from upright-forward in the
+  // root frame (the gaze's own nod and turn), not its turn on the neck (the neck's forward lean, compensated in the take,
+  // tipped Wren's gaze 17-21 deg down)
+  q.head = keepHemi('head', q4.norm(qw.head));
   const cinv = q4.conj(qw.chest);
   const arm = [];
   for (const s of ['L', 'R']) for (const j of ['el', 'wr']) arm.push(...v3.scale(q4.rotate(cinv, v3.sub(pos[j + s], pos['sh' + s])), 1 / K));
@@ -118,6 +146,21 @@ function halfOf(frames, K) {
   return h / frames.length;
 }
 
+/**
+ * (integration) The head channel without the take's mean look-down: the clip's mean head pitch (its swing about the
+ * lateral axis) is taken out of every frame, its nod, turn and roll kept. The performers looked at the floor of the
+ * capture volume (16_15's walk 18 deg down, the jog / run 7-9): Wren keeps the game's level look.
+ */
+function levelHead(frames) {
+  let m = [0, 0, 0, 0];
+  for (const f of frames) { const q = q4.align(f.q.head, frames[0].q.head); m = [m[0] + q[0], m[1] + q[1], m[2] + q[2], m[3] + q[3]]; }
+  m = q4.norm(m);
+  // the mean's pitch: its twist about x
+  const tl = Math.hypot(m[0], m[3]) || 1;
+  const un = q4.conj([m[0] / tl, 0, 0, m[3] / tl]);
+  return frames.flatMap((f) => q4.norm(q4.mul(un, f.q.head)));
+}
+
 /** A walk / jog / run cycle: phase-warped halves, root linear in phase, clip feet. */
 export function emitCycle(d, rig, spec) {
   const K = rig.height / BODY_H;
@@ -133,10 +176,6 @@ export function emitCycle(d, rig, spec) {
   // contact shares from the take (frame flags), then the runtime's duty windows
   let cl = 0, cr = 0;
   for (let k = 0; k < n; k++) { cl += d.contact[k][0]; cr += d.contact[k][1]; }
-  // the share after the warp: count on the warped samples
-  let wl = 0, wr = 0;
-  for (let i = 0; i < N; i++) { const s = at(warp(i / N)); wl += s.contact[0]; wr += s.contact[1]; }
-  const duty = (wl + wr) / (2 * N);
   let prev = null;
   for (let i = 0; i < N; i++) {
     const p = i / N;
@@ -146,9 +185,25 @@ export function emitCycle(d, rig, spec) {
     const fr = frameOut(rig, K, pel, s.loc, prev);
     prev = fr.q;
     fr.p = p;
-    fr.contact = { L: p < duty ? 1 : 0, R: ((p - 0.5 + 1) % 1) < duty ? 1 : 0 };
+    fr.take = { L: s.contact[0], R: s.contact[1] };
     frames.push(fr);
   }
+  // (integration) the runtime pins the ANKLE for the whole stance window (FootPlanner.clipFoot), so the window is the
+  // take's contact only while the ankle is pinned: from the strike until the heel rises past PIN_PITCH (the push-off
+  // over the ball, where the take's ankle rolls forward 6-13 cm, plays as the start of the clip swing on the clip's own
+  // ankle path; pinned, the trailing leg could not reach it: the run's planted ankle 3 cm off its pin)
+  const pinned = (side, i0) => {
+    let k = 0;
+    while (k < N) {
+      const fr = frames[(i0 + k) % N];
+      if (!fr.take[side] || fr.foot[side].pitch > PIN_PITCH) break;
+      k++;
+    }
+    return k;
+  };
+  const takeDuty = frames.reduce((a, fr) => a + fr.take.L + fr.take.R, 0) / (2 * N);
+  const duty = (pinned('L', 0) + pinned('R', N / 2)) / (2 * N);
+  for (const fr of frames) fr.contact = { L: fr.p < duty ? 1 : 0, R: ((fr.p - 0.5 + 1) % 1) < duty ? 1 : 0 };
   const ankleRest = rig.bind.anL[1];
   let liftH = 0;
   const feet = [];
@@ -160,19 +215,25 @@ export function emitCycle(d, rig, spec) {
       feet.push(a[0] / K, fr.contact[s] ? 0 : lift / K, a[2] / K, fr.foot[s].pitch, fr.contact[s]);
     }
   }
+  const takeHalf = halfOf(frames, K);
+  const dh = TRACK_HALF[spec.gait] - takeHalf;
+  for (let i = 0; i < feet.length; i += 10) {
+    feet[i] -= dh;
+    feet[i + 5] += dh;
+  }
   const T = n / d.fps;
   const speed = S / T;
   const band = BANDS[spec.gait];
   const scales = band.map((v) => gameStride(v) / S);
   return {
     def: {
-      name: `mocap_${spec.name}`, frames: N, duty, liftH: liftH / K, kneeOut: KNEE_OUT[spec.gait], half: halfOf(frames, K),
+      name: `mocap_${spec.name}`, frames: N, duty, liftH: PLANNER_LIFT[spec.gait], kneeOut: KNEE_OUT_CYCLE[spec.gait], half: TRACK_HALF[spec.gait],
       pel: frames.flatMap((f) => f.pel), q: frames.flatMap((f) => [...f.q.pelvis, ...f.q.spine, ...f.q.chest, ...f.q.neck]),
-      arm: frames.flatMap((f) => f.arm), head: frames.flatMap((f) => f.q.head), feet, stride: S / K,
+      arm: frames.flatMap((f) => f.arm), head: levelHead(frames), feet, stride: S / K,
     },
     report: {
       take: d.source.take, seconds: d.source.seconds, cycle: T, speed, stride: S, rStrikePhaseTake: rStrike / n,
-      takeDuty: [cl / n, cr / n], strideScale: scales, liftH, pelvisYawMeanDeg: Math.atan2(frames.reduce((s, f) => s + Math.sin(f.yaw), 0), frames.reduce((s, f) => s + Math.cos(f.yaw), 0)) * R2D,
+      takeDuty: [cl / n, cr / n], warpedDuty: takeDuty, takeHalf, strideScale: scales, liftH, pelvisYawMeanDeg: Math.atan2(frames.reduce((s, f) => s + Math.sin(f.yaw), 0), frames.reduce((s, f) => s + Math.cos(f.yaw), 0)) * R2D,
     },
     frames,
   };
@@ -235,13 +296,13 @@ export function emitOneShot(d, rig, spec, an) {
   for (const fr of frames) for (const s of ['L', 'R']) { c += fr.contact[s]; if (!fr.contact[s]) liftH = Math.max(liftH, fr.foot[s].an[1] - ankleRest); }
   return {
     def: {
-      name: `mocap_${spec.name}`, frames: frames.length, duty: c / (2 * frames.length), liftH: Math.max(0, liftH) / K,
-      kneeOut: KNEE_OUT.walk, half: halfOf(frames, K),
+      name: `mocap_${spec.name}`, frames: frames.length, duty: c / (2 * frames.length), liftH: PLANNER_LIFT[spec.gait ?? 'walk'],
+      kneeOut: KNEE_OUT[spec.gait ?? 'walk'], half: halfOf(frames, K),
       pel: frames.flatMap((f) => f.pel), q: frames.flatMap((f) => [...f.q.pelvis, ...f.q.spine, ...f.q.chest, ...f.q.neck]),
-      arm: frames.flatMap((f) => f.arm), head: frames.flatMap((f) => f.q.head),
+      arm: frames.flatMap((f) => f.arm), head: levelHead(frames),
     },
     seconds,
-    report: { take: d.source.take, seconds: d.source.seconds, ...(spec._turn ?? {}), clipSeconds: seconds },
+    report: { take: d.source.take, seconds: d.source.seconds, ...(spec._turn ?? {}), clipSeconds: seconds, liftH: Math.max(0, liftH) },
     frames,
   };
 }
@@ -331,7 +392,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
     if (spec.kind === 'cycle') notes.push(...checkCycle(out));
     const r = out.report;
     const line = spec.kind === 'cycle'
-      ? `${spec.file}: ${d.slot} ${r.take} ${r.seconds.join('-')} s, Wren ${r.speed.toFixed(2)} m/s, stride ${r.stride.toFixed(2)} m, cycle ${r.cycle.toFixed(3)} s, R strike at ${r.rStrikePhaseTake.toFixed(3)} of the take cycle (warped to 0.5), duty ${out.def.duty.toFixed(3)}, liftH ${(r.liftH * 100).toFixed(1)} cm, half ${out.def.half.toFixed(3)}, game/clip stride ${r.strideScale.map((x) => x.toFixed(2)).join('-')} over the band, mean pelvis yaw ${r.pelvisYawMeanDeg.toFixed(1)} deg`
+      ? `${spec.file}: ${d.slot} ${r.take} ${r.seconds.join('-')} s, Wren ${r.speed.toFixed(2)} m/s, stride ${r.stride.toFixed(2)} m, cycle ${r.cycle.toFixed(3)} s, R strike at ${r.rStrikePhaseTake.toFixed(3)} of the take cycle (warped to 0.5), duty ${out.def.duty.toFixed(3)} (ankle pinned; the take's contact ${r.warpedDuty.toFixed(3)}), capture lift ${(r.liftH * 100).toFixed(1)} cm (liftH written ${out.def.liftH}: the planner's), half ${out.def.half.toFixed(3)} (the take's ${r.takeHalf.toFixed(3)}), knee pole ${out.def.kneeOut}, game/clip stride ${r.strideScale.map((x) => x.toFixed(2)).join('-')} over the band, mean pelvis yaw ${r.pelvisYawMeanDeg.toFixed(1)} deg`
       : `${spec.file}: ${d.slot} ${r.take} ${r.seconds.join('-')} s, ${out.def.frames} frames${r.turnedDeg !== undefined ? `, turned ${r.turnedDeg.toFixed(1)} deg over ${r.takeSeconds.toFixed(2)} s of the take` : ''}${out.seconds ? `, ${out.seconds.toFixed(2)} s` : ''}`;
     report.push({ file: spec.file, line, notes });
     console.log(line);

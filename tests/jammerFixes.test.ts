@@ -202,8 +202,8 @@ describe('jammer-fixes 2: jamming courselab\'s mains lamp never opens g-mains; t
 });
 
 describe('jammer-fixes 3: the jam claim carries the client\'s camera eye (protocol 27)', () => {
-  it('PROTOCOL_VERSION is 27', () => {
-    expect(PROTOCOL_VERSION).toBe(28);
+  it('PROTOCOL_VERSION is 29', () => {
+    expect(PROTOCOL_VERSION).toBe(29);
   });
 
   it('the eye round-trips, is clamped to the world, and a malformed one is dropped; a release carries none', () => {

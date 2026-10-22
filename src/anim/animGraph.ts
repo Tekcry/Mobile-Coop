@@ -1541,10 +1541,14 @@ export class AnimGraph {
       // the left hand comes up as a guard (forward first, down last)
       src[CH.hLY] = src[CH.hLY]! + 0.15 * wHand;
       src[CH.hLZ] = src[CH.hLZ]! + 0.3 * wFwd;
-      const turn = 0.22 * wWind - 0.4 * wStrike;
-      src[CH.pelYaw] = src[CH.pelYaw]! + turn * 0.4;
-      src[CH.spYaw] = src[CH.spYaw]! + turn * 0.6;
-      src[CH.hdYaw] = src[CH.hdYaw]! - turn * 0.5;
+      // (anim-natural N4c, AUDIT row 49) a Wren rig's hip and trunk turn is the rig's strike body layer (strikeBody.ts,
+      // after the keyed trunk, which wiped this turn: 0.8 deg of shoulder turn); every other rig keeps this one
+      if (!this.wrenReady) {
+        const turn = 0.22 * wWind - 0.4 * wStrike;
+        src[CH.pelYaw] = src[CH.pelYaw]! + turn * 0.4;
+        src[CH.spYaw] = src[CH.spYaw]! + turn * 0.6;
+        src[CH.hdYaw] = src[CH.hdYaw]! - turn * 0.5;
+      }
       src[CH.pelY] = src[CH.pelY]! - 0.015 * wStrike;
     }
 
@@ -2205,8 +2209,16 @@ export class AnimGraph {
       CF.f[s + KF.contact] = src[s + KF.contact]!;
     }
     const M = MOCAP_FEET;
-    CF.on = o.keyMocap >= M.share && Math.abs(i.yawRate) < M.turnMax && speed > M.minSpeed;
-    if (CF.on) o.gait.duty = this.mDuty;
+    // (integration) a turn hands the steps to the planner past `turnMax`, or past what turns the body `twistMax` over one
+    // of the clip's stances (a run's short stance keeps its clip feet through steering)
+    const st = this.mDuty * o.gait.cycleTime;
+    const turnMax = st > 0 && M.twistMax / st > M.turnMax ? M.twistMax / st : M.turnMax;
+    CF.on = o.keyMocap >= M.share && Math.abs(i.yawRate) < turnMax && speed > M.minSpeed;
+    // (integration) the gait clock keeps the clip's stance window whenever clip feet are on hand (by the mocap share), on
+    // or handed to the planner: a hand-off never moves the windows under a foot in the air (it landed mid-swing, 18 cm
+    // down in a frame, or jumped half its swing)
+    const w = o.keyMocap >= M.share ? 1 : o.keyMocap / M.share;
+    o.gait.duty += (this.mDuty - o.gait.duty) * w;
   }
 
   /** (anim-bake-1022) This rig's rifle low ready and pistol low ready (`wrenReady` swaps the references, set once). */
