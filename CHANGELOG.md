@@ -1,5 +1,8 @@
 # Changelog
 
+## 4.54.1 - Load-flaky e2e asserts hold under E2E_JOBS=2 (test only) (2026-10-22, PR #117)
+- Four load-flaky e2e asserts hold under E2E_JOBS=2 (test only): e2e-stealth-ai head-only peek spot, e2e-netmove client assists, e2e-mouse capture timeout, e2e-ctcourse station 4 throw; details in `docs/backlog.md`.
+
 ## 4.54.0 - Train 3: every tuner Body slider bakes, holds and carries (2026-10-22, PR #114; #103, #113)
 
 ### #103 Body sliders bake
