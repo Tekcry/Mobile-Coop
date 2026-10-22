@@ -6,6 +6,7 @@
 - Slice 1 BUILT (Sonnet 5.5, uncommitted -> committed after this line; report checks/slice1-build.md): campusOps registered
   (not listed), S1 full, S2-S5 stubs, 43 unit tests, e2e part 6 (`e2e-sectorops:6`). Checks: tsc 0, 77 vitest, eslint.
   camera-range PR #177 open (checker PASS); slice L checker PASS (checks/sliceL-check.md).
+- LAPTOP d9a27c4f (GPU): vitest 3047 PASS; e2e-sectorops parts 1/3/4/5 PASS, **part 2 FAIL** (Warehouse solo team doors: "section 1 team door 0 (8,-10): unbolted, the doorway is open on the guards' nav grid {open:true,line:false}", then sections 2 and 3 "is live and has a team door" fail); coop, netmove, lightbake, levels, anchors PASS. Logs C:/NightShift/scratch/runs/sectorredesign-d9a27c4f/ (laptop). Suspect slice 0 (327ed8be / 4d09bcf2: restart reset of doors or sectors.ts) vs the r2-nav bolt nav-line closure: an Opus fix agent (first job when unpaused), then e2e-sectorops:2 solo rerun on the laptop.
 - PAUSED by the orchestrator (TRIM 3, 02:11): no checker, no agent until it messages (~04:00).
 - Slice 1 open items for the checker / fix round (Opus): (1) objective moved to (19.3, -76) for the 1.8 m reach;
   (2) CR1 drop takedown impossible (doorman 5-6 m inside the canopy lips under a solid slab): design call, likely move
