@@ -20,6 +20,10 @@ below is committed and pushed. Each job's own `docs/<job>/STATE.md` has the deta
 - Main test machine = the laptop (Michael ~17:50, CLAUDE.md "Main test machine"): full runs, npm run check, co-op suites
   and ALL GPU work (anim-audit, anim-sheet, shots, E2E_GPU=1) go to Character Build (bridge:session_01HVFKDvRCTbTDNhJKQP1oaa)
   with branch, commit, suites and where outputs go. The desktop runs only quick single suites at E2E_JOBS=1 under its lock.
+- Rule changes (Michael via the orchestrator, ~18:35; CLAUDE.md on feature/menu): a PR whose fresh checker passed goes
+  straight into the next merge train with CI check only (the train full run covers its suites); PRs touching src/net,
+  PROTOCOL_VERSION or the save shape still pass their area suites first. A test result stands for a later commit that only
+  changes docs / CHANGELOG / test scripts. The laptop runs two queues (ports 4191, 4192). Changelog fragments: format to come.
 - Merge trains: a PR needs CI + its area suites; the orchestrator runs one full e2e per train and sets versions at merge
   (G183). CHANGELOG entries are "## Unreleased - <job>".
 - Every tuner slider bakes. Never loosen a metric to pass; a widened limit from Michael's tune is marked
