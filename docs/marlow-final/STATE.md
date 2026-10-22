@@ -56,6 +56,16 @@ Rejected by you (~01:25): anything that assumes a dark camera is blind (G240 sta
 Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN section 6; slice reports S0-*.md.
 
 ## Now (2026-10-23 ~01:20, new account; FULL BURN to 100% per Michael ~01:05 via the orchestrator)
+- ~10:50 RESUMED after the second swap (fresh session). The 10:45 agents died at ~10:44; their files committed as WIP
+  63e3e892 (tsc clean, map tests 554 / 554 + 1 skipped). e2e fixer's work is in 45a74383 + the A4 client-refusal e2e
+  fix (a4GoodsShed.mjs, in 63e3e892). No heavy.lock, no zz scratch tests. Running (Sonnet, continue from the WIP):
+  (a) A8 dresser (DRESS-BRIEF N 8 + A8 prop groups 80-89), (b) prop emissives S1 finish (world.ts registry, A5 lens
+  setDevice hook, groups A1-A7, report appended to S3-7-dress-check.md), (c) slice 9 docs (TESTING, testing-tools,
+  coop.md N1-N9, WALKTHROUGH, changes/feature-marlow-final.md, report slices/S9-docs.md).
+  ON RESUME: rerun any of (a)-(c) whose report section is missing; then ONE Sonnet checker on A8 dressing + S1
+  (slices/S8-dress-check.md), one fix round; then ONE Character Build request (bridge in docs/orchestrator/STATE.md)
+  on the head: e2e-ctcourse :1-:4, e2e-coop, e2e-netmove, e2e-course (E2E_GPU=1), guard-cap after (S9-perf.md),
+  shots-ctcourse; then merge master, full e2e, PR.
 - ~10:45 kept working past the save (orchestrator: to 99%). Running: e2e fixer (told to hand back), A8 dresser,
   prop emissives on circuits A1-A7 (Sonnet, appends to S3-7-dress-check.md), slice 9 docs draft (Sonnet,
   slices/S9-docs.md). Laptop queue (survives the swap): guard-cap after on cc24e992, shots before / after.
