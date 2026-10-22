@@ -53,3 +53,12 @@ No e2e covers `puppets()` (`scripts/e2e-studio.mjs` has no LOD assertion).
   Wren's slung rifle dark, in every frame. Frame 0.00 s of the first hold row may still miss the guard's body (its
   first compile); from 0.33 s it is drawn with room light.
 - pair-boost (and the other team pairs): labels stay `1@...` on both puppets every tile (1 = LOD0); they look as before.
+
+## GPU rerun on 63ec33ec (laptop, 2026-10-22 ~18:55; shots/studio-pairs-63ec33ec 00d66c1d)
+Verdict: fixed. Hold rows: the guard in grey-blue cloth with normal skin, Wren's rifle dark in every frame; team pairs
+at LOD0 (`1@`), no puppet vanishes. Polish list (cosmetic, not blocking):
+- A thin orange rim on the guard's hands / forearm edges in some frames (hold_idle 2.00-3.67 s, hold_choke 0.46 s,
+  4.13-4.58 s): bloom on skin under the audit's x2 pair stage light.
+- The first hold row on a fresh page draws the guard's body only from ~2.0 s (helmet from 1.0 s): his part shaders
+  compile on first use. The audit should wait on `__studioStage.puppets()` readiness before its first tile; a warm-up
+  compile of the guard parts when the studio opens would hide it in play.
