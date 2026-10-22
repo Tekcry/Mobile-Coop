@@ -27,6 +27,7 @@ Last updated: 2026-10-22 20:05 Sydney (master 4.58.0, train 7; train 8 next: #11
 6. #119 (holds, traversal): a landing roll now needs about 1.5 m of room, otherwise she lands without it (ROLL_CLEAR 0.9 m): look on the walk.
 7. Vents (T1, feature/vent-kick): tap jump = kick, holding jump alone unscrews quietly (A1), pad matches keyboard: review on the walk.
 8. Mocap locomotion trial (CT Core): Settings > Gameplay > "Mocap locomotion" (off by default) once it merges; the side-by-side comes first.
+9. Sector Ops team doors (#144, train 13): one player can reach each bolt side alone by an ordinary path, so the three team doors gate nothing (planned as extras, PLAN A2). Make them true two-player doors, or keep them as extras? Ask on the next walk. Follow-up fixes (guards stalling at bolted doors, an unbolt through a wall, a possible solo jump onto R3S) are in feature/sector-fixes-r2 (Course Ready).
 5. Sector Ops lights: the strip-light fog cones are fixed in 4.61.0 (#156; before / after sheet sent 2026-10-22 ~23:30): S1 goods-in, workshop and girder read darker now; look on the next walk.
 
 ## Decided (Michael, 2026-10-22 ~11:15 unless dated)
