@@ -60,6 +60,7 @@ Format: `N. Item - destination - status`.
     lamps (a light parity break). Not seen in a run: found while fixing e2e-lightbake's GPU-only timing failure. Fix:
     track a material-added flag (the scene's new-material event, read next frame) instead of the count. Destination:
     unscheduled (the light parity work).
+    **Fixed (lamp-plugin-gap, 2026-10-22):** the new-material event marks the next frame beside the count check (`tests/lampPluginGap.test.ts`).
 
 ## Flaky e2e suites
 

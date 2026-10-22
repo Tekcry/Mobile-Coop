@@ -8,7 +8,7 @@
  */
 import type { TraverseKind } from '../anim/animGraph';
 import { CLIMB_UP_CROUCH_K } from '../anim/clips/traverse';
-import { strikeWarp } from '../anim/strikeBody';
+import { GRAB_KILL_BLOW, killWarp, strikeWarp, TAKEDOWN_BLOW } from '../anim/strikeBody';
 import { WALL } from './wallController';
 
 /** Every mode on the wire, in a fixed order (an index is a u8). Later phases append, never reorder. */
@@ -385,11 +385,12 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
       out.traverseT = mv.ph;
       return out;
     case 'takedown':
-      out.melee = mv.ph;
+      // (anim-n4d, M1) the wire carries the blow's own phase, posed warped onto the kill as the local player's (killWarp)
+      out.melee = killWarp(mv.ph, TAKEDOWN_BLOW);
       return out;
     case 'grab':
-      // (G7) the kill from the hold (sub bit 1): the blow's arc at the finisher's progress
-      if (mv.sub & 1) out.melee = mv.ph;
+      // (G7) the kill from the hold (sub bit 1): the blow's arc at the finisher's progress; (anim-n4d) warped onto the kill
+      if (mv.sub & 1) out.melee = killWarp(mv.ph, GRAB_KILL_BLOW);
       return out;
     case 'strike':
       // (step 10) the elbow arc with the hip turn (animGraph melee), the hands free (holstered); (anim-n4c M1) the wire

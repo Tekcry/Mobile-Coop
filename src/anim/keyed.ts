@@ -903,6 +903,22 @@ export function mixKeyed(a: KeyedPose, b: KeyedPose, t: number, out: KeyedPose, 
 }
 
 /**
+ * (mocap-trial) Only the arm channels of `b` toward `a` by `t` into `out` (`out` may be `b`): `t` = 0 is `a`'s arms, 1
+ * `b`'s. The arm points and finger offsets lerp, the wrist, forearm, shoulder and clavicle quaternions nlerp; the flags,
+ * trunk, head, legs and feet are left as `out` has them. A slot mixed at weight w after this plays its arms at t x w (the
+ * walking start's arms capped, MocapSlots). No allocation.
+ */
+export function mixKeyedArms(a: KeyedPose, b: KeyedPose, t: number, out: KeyedPose): void {
+  const u = t < 0 ? 0 : t > 1 ? 1 : t;
+  for (let c = 0; c < KEYED_ARM; c++) out.arm[c] = a.arm[c]! + (b.arm[c]! - a.arm[c]!) * u;
+  for (let c = 0; c < KEYED_FING; c++) out.fing[c] = a.fing[c]! + (b.fing[c]! - a.fing[c]!) * u;
+  nlerpInto(a.wrist, b.wrist, KEYED_WRIST, u, out.wrist);
+  nlerpInto(a.fore, b.fore, KEYED_FORE, u, out.fore);
+  nlerpInto(a.sh, b.sh, KEYED_SH, u, out.sh);
+  nlerpInto(a.clav, b.clav, KEYED_CLAV, u, out.clav);
+}
+
+/**
  * (anim-skeleton S3) The leg channels blended (always, with the legs): both keyed, the quaternions nlerp and the knee,
  * toe and weight lerp; one keyed, its leg is kept and only its weight fades (toward the other's 0), so a blend never
  * bends an FK leg toward the straight rest. No allocation; `out` may be `a` or `b`.

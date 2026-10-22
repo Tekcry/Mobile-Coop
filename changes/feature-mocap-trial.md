@@ -16,3 +16,6 @@ kind: minor
   the feet, the Weight plant drop, the stop settle) are off on it. Fast turns, starts and stops hand the steps to the foot
   planner as before. Weapons, crouch, walls and guards stay hand-keyed; jog / run turns, the jog stop and the run start
   are converted but not in the game yet.
+- Mocap locomotion: no more pelvis dips or foot pops where a turn hands Wren's steps between the capture and the foot
+  planner (walking turns at 1-4 rad/s), no toe snap on the first step after starting from standing, and the start's
+  arms swing at half strength (they ran out of step with the legs). Switch off unchanged.

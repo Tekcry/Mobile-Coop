@@ -16,7 +16,7 @@
  */
 import { TURN_GAIT_MIN } from './motion';
 import type { ClipFeetIn } from './footPlanner';
-import { layerMul, mirrorKeyed, mixKeyed, sampleKeyed, type KeyedClip, type KeyedLayerScale, type KeyedPose } from './keyed';
+import { layerMul, mirrorKeyed, mixKeyed, mixKeyedArms, sampleKeyed, type KeyedClip, type KeyedLayerScale, type KeyedPose } from './keyed';
 import { KEYED_WALK } from './clips/keyed/walk';
 import { KEYED_JOG } from './clips/keyed/jog';
 import { KEYED_RUN } from './clips/keyed/run';
@@ -164,6 +164,9 @@ export function applyMocapSwitch(url: boolean | null, setting: boolean): boolean
  * - (integration) The filled slots are walking takes (start, stop, the 90 deg turns on the move): they play only at a
  *   walking pace, up to `walkMax` m/s (a start or a turn on the move cut off past it; a stop braking from over it never
  *   starts). The jog / run turns, the jog stop and the run start are not wired yet (build/mocap/clips/extra).
+ * - (fix 1, CHECK decide 3) The start's arms play at most `startArms` of its weight: the take's upper body runs on its
+ *   own clock (MOCAP_START_SECONDS), not the gait's, so at full weight the same-side arm and leg swung forward together
+ *   (50 / 242 moving frames). Phase-aligning the slot to the gait clock is the later fix.
  */
 export const MOCAP_SLOT = {
   restSpeed: 0.05,
@@ -176,6 +179,7 @@ export const MOCAP_SLOT = {
   fadeOut: 0.25,
   tau: 0.06,
   walkMax: 2.2,
+  startArms: 0.5,
 };
 
 /** The planner values the slots blend (track half-width, knee pole, duty, lift). */
@@ -295,9 +299,9 @@ export class MocapSlots {
    * planner values `v` blend toward each clip's. Returns the slots' share (0..1) of the result. No allocation.
    */
   apply(S: LocoClipSet, pose: KeyedPose, tmp: KeyedPose, v: SlotLegValues): number {
-    let share = this.mix(S.start, false, this.wStart, this.startP, S.layers, pose, tmp, v, 0);
-    share = this.mix(S.stop, false, this.wStop, this.stopP, S.layers, pose, tmp, v, share);
-    if (this.wTurn > 0 && this.pickTurn(S, this.turnSpot, this.turnSide)) share = this.mix(this.tc, this.tm, this.wTurn, this.turnP, S.layers, pose, tmp, v, share);
+    let share = this.mix(S.start, false, this.wStart, this.startP, S.layers, pose, tmp, v, 0, MOCAP_SLOT.startArms);
+    share = this.mix(S.stop, false, this.wStop, this.stopP, S.layers, pose, tmp, v, share, 1);
+    if (this.wTurn > 0 && this.pickTurn(S, this.turnSpot, this.turnSide)) share = this.mix(this.tc, this.tm, this.wTurn, this.turnP, S.layers, pose, tmp, v, share, 1);
     return share;
   }
 
@@ -316,12 +320,14 @@ export class MocapSlots {
     return this.tc !== null;
   }
 
-  private mix(c: KeyedClip | null, mirror: boolean, w: number, p: number, L: KeyedLayerScale | null, pose: KeyedPose, tmp: KeyedPose, v: SlotLegValues, share: number): number {
+  private mix(c: KeyedClip | null, mirror: boolean, w: number, p: number, L: KeyedLayerScale | null, pose: KeyedPose, tmp: KeyedPose, v: SlotLegValues, share: number, armMax: number): number {
     if (c === null || w <= 0) return share;
     // a one-shot: progress 0..1 over its frames, the last frame held (never wrapping back to the first)
     const q = p <= 0 ? 0 : p >= 1 ? 1 : p;
     sampleKeyed(c, (q * (c.frames - 1)) / c.frames, 1, tmp, L);
     if (mirror) mirrorKeyed(tmp);
+    // (fix 1) its arms at most `armMax` of the weight: the clip's arms drawn back toward the pose's first
+    if (w > armMax) mixKeyedArms(pose, tmp, armMax / w, tmp);
     mixKeyed(pose, tmp, w, pose);
     v.half += (c.half - v.half) * w;
     v.kneeOut += (c.kneeOut - v.kneeOut) * w;

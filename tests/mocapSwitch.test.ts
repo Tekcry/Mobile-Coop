@@ -25,7 +25,7 @@ import { KEYED_RUN } from '../src/anim/clips/keyed/run';
 import { MOCAP_WALK } from '../src/anim/clips/mocap/walk';
 import { MOCAP_JOG } from '../src/anim/clips/mocap/jog';
 import { MOCAP_RUN } from '../src/anim/clips/mocap/run';
-import { driveRig, gaitNumbers, GAIT_RANGES, pops, POP_DEG, steady, type GaitName, type Plan } from './helpers/mocapMeasure';
+import { driveRig, gaitNumbers, GAIT_RANGES, pops, POP_DEG, steady, type GaitName, type Plan, type Rec } from './helpers/mocapMeasure';
 import { KEYED_FEET, KEYED_FEET_SIDE, KF, keyedClip, newKeyedPose, sampleKeyed, type KeyedClip } from '../src/anim/keyed';
 import { AnimGraph, defaultInput } from '../src/anim/animGraph';
 import { FootPlanner, emptyPlannerInput, type ClipFeetIn } from '../src/anim/footPlanner';
@@ -354,6 +354,18 @@ describe('mocap switch: clip feet (A3)', () => {
 /** The integration's paces: the brief's walk / jog / run, then e2e-anim's own (walk gear 4 at half stick, jog gear 4). */
 const GAITS: [GaitName, number][] = [['walk', 1.4], ['jog', 2.5], ['run', 4.0], ['walk', 1.5], ['jog', 3.0]];
 const f1 = (v: number, d = 1): string => v.toFixed(d);
+/** (fix 1) Walking at `v` m/s, turning `yr` rad/s for 1.2 s left then right every 2.5 s (Course Ready's sweep). */
+const sweepTurn = (v: number, yr: number): Plan => (_k, t) => ({ speed: v, yawRate: t > 2 && t % 2.5 < 1.2 ? (t % 5 < 2.5 ? yr : -yr) : 0, rec: t > 1.5 });
+/** (fix 1) The pelvis's largest move in one frame beyond what the pace carries it (m). */
+function pelvisStep(R: Rec): number {
+  const h = R.pos.hips;
+  let m = 0;
+  for (let f = 1; f < R.n; f++) {
+    const d = Math.hypot(h[f * 3]! - h[(f - 1) * 3]!, h[f * 3 + 1]! - h[(f - 1) * 3 + 1]!, h[f * 3 + 2]! - h[(f - 1) * 3 + 2]!);
+    m = Math.max(m, d - R.speed[f]! / 60);
+  }
+  return m;
+}
 
 describe('mocap switch: the CMU clips on the rig (integration)', () => {
   it('walk / jog / run: feet locked, inside the e2e-anim crab ranges, the game stride, a level gaze, no pops', async () => {
@@ -400,6 +412,14 @@ describe('mocap switch: the CMU clips on the rig (integration)', () => {
       ['starts and stops', 60 * 12, (_k, t) => ({ speed: t % 4 < 1.5 ? 0 : 1.4, yawRate: 0, rec: t > 1 })],
       // 90 deg turns on the spot (the turn-in-place slot)
       ['spot turns', 60 * 8, (_k, t) => ({ speed: 0, yawRate: t > 1.5 && t % 1 < 0.26 ? 6 : 0, rec: t > 1 })],
+      // (fix 1, CHECK required 1 / 1b) walking turns past turnMax: the clip feet hand the steps to the planner and back
+      // (the planner's lift re-planted by clipFoot, the raised heel snapped down at the hand-back: pelvis 4-8 cm a frame)
+      ['walk 1.4 turning 2.5 rad/s', 60 * 12, sweepTurn(1.4, 2.5)],
+      ['walk 1.4 turning 4 rad/s', 60 * 12, sweepTurn(1.4, 4)],
+      ['walk 2.0 turning 1.5 rad/s', 60 * 12, sweepTurn(2.0, 1.5)],
+      ['walk 2.0 turning 2.5 rad/s', 60 * 12, sweepTurn(2.0, 2.5)],
+      // (fix 1, CHECK required 2) a start's first clip swing lifted from the planner's pitch (the ankle-toe bone 26 deg)
+      ['starts, the first clip swing', 60 * 16, (_k, t) => ({ speed: t % 4 < 1.5 ? 0 : 1.4, yawRate: 0, rec: t > 1 })],
     ];
     const rows: string[] = [];
     for (const [name, n, plan] of PLANS) {
@@ -412,11 +432,17 @@ describe('mocap switch: the CMU clips on the rig (integration)', () => {
       });
       const on = pops(R);
       const ankleSlide = gaitNumbers(R, GAIT_RANGES.run).slide;
-      rows.push(`${name}: largest bone turn a frame off ${f1(off.maxStepDeg)} deg (${off.bone}), on ${f1(on.maxStepDeg)} deg (${on.bone}); joint jerk off ${f1(off.maxJerk * 100)}, on ${f1(on.maxJerk * 100)} cm/frame2; planted ankle slide on ${f1(ankleSlide * 100, 2)} cm`);
+      const pel = pelvisStep(R);
+      rows.push(`${name}: largest bone turn a frame off ${f1(off.maxStepDeg)} deg (${off.bone}), on ${f1(on.maxStepDeg)} deg (${on.bone}); joint jerk off ${f1(off.maxJerk * 100)}, on ${f1(on.maxJerk * 100)} cm/frame2; planted ankle slide on ${f1(ankleSlide * 100, 2)} cm; pelvis beyond pace x dt on ${f1(pel * 100, 2)} cm`);
       expect(on.maxStepDeg, `${name}: bone step`).toBeLessThan(POP_DEG);
-      expect(on.maxJerk, `${name}: jerk no worse than the hand-keyed set`).toBeLessThanOrEqual(off.maxJerk + 0.005);
+      // (fix 1) the pelvis moves no more than the pace carries it plus 2 cm a frame (bible 5.12.2)
+      expect(pel, `${name}: pelvis step beyond pace x dt`).toBeLessThanOrEqual(0.02);
+      // (the sustained turns: 1 cm, the clip's swing knee after a hand-back; walk 2.0 turning 1.5 on 16.9 vs off 16.4 cm,
+      // 30.1 before fix 1)
+      expect(on.maxJerk, `${name}: jerk no worse than the hand-keyed set`).toBeLessThanOrEqual(off.maxJerk + (name.includes(' turning ') ? 0.01 : 0.005));
       expect(slide, `${name}: planner slide`).toBe(0);
-      expect(ankleSlide, `${name}: planted ankle slide`).toBeLessThan(0.01);
+      // (the sustained turns scrub the planted feet round with the hips by design, G1's stance band: OFF scrubs 7-49 cm there)
+      if (!name.includes(' turning ')) expect(ankleSlide, `${name}: planted ankle slide`).toBeLessThan(0.01);
     }
     console.info(rows.join(String.fromCharCode(10)));
   }, 120_000);

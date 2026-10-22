@@ -25,10 +25,15 @@
  * for the arm's lag, `STRIKE_ARM_LAG`), a one-frame load and the drive in ~4 frames, the follow-through and the return
  * in the rest of the strike. Its producers apply it (the local `StrikeController`, a remote's `poseFromMoveState` and
  * `RemoteAvatar`'s eased phase; the wire keeps the strike's own phase), so every consumer of `melee` (the graph's hand
- * arc and weights, the rig's elbow pole, this layer, the tuner's row weight) stays in step. The lethal takedown blow and
- * the grab kill play the arc unwarped (their kill lands at the arc's end, not at a contact time).
+ * arc and weights, the rig's elbow pole, this layer, the tuner's row weight) stays in step.
+ *
+ * (anim-n4d, M1 applied to the kills) The lethal takedown blow and the grab kill play the same arc through `killWarp`:
+ * their kill lands at the blow's end (unchanged: approach + `TAKEDOWN.strike`, `GRAB.killTime`), so the arc's contact
+ * lands there (a frame early, `STRIKE_ARM_LAG`) and the follow-through and the return run on after the kill
+ * (`KillBlow.tail`, pose only: `TakedownController`'s tail, `RemoteAvatar`'s). The wire keeps the blow's own phase.
  */
 import { STRIKE, STRIKE_DUR } from '../game/elbowStrike';
+import { GRAB, TAKEDOWN } from '../game/takedown';
 import { registerTuneSection, TUNE_FLAGS, type TuneTunable } from './tuneRegistry';
 
 /** The arc's contact phase: the elbow at its forward extreme (`meleeSweep` peaks at 0.556), the shoulders driven
@@ -54,6 +59,43 @@ export function strikeWarp(ph: number, hitPh = STRIKE_WARP_PH): number {
   if (!(hitPh > 0 && hitPh < 1)) return ph;
   const C = STRIKE_ARC_CONTACT;
   return ph <= hitPh ? (C * ph) / hitPh : C + ((1 - C) * (ph - hitPh)) / (1 - hitPh);
+}
+
+/**
+ * (anim-n4d, M1) A kill blow (the lethal takedown blow, the grab kill): its kill lands at the end of its own phase
+ * (`dur` s, the nominal length). The arc's contact is put a frame before the kill (`STRIKE_ARM_LAG`) and the arc's
+ * follow-through and return (after contact) run on after the kill for `tail` s, at the arc's own pace
+ * (`1 - STRIKE_ARC_CONTACT` of `dur`, as unwarped). `hit`: the contact's place on the whole posed timeline
+ * (`dur + tail`), the `strikeWarp` hit phase (above the arc's contact: the wind-up and drive slow to land on the kill).
+ */
+export interface KillBlow {
+  readonly dur: number;
+  readonly tail: number;
+  readonly hit: number;
+}
+
+function killBlow(dur: number): KillBlow {
+  const tail = (1 - STRIKE_ARC_CONTACT) * dur;
+  return { dur, tail, hit: (dur - STRIKE_ARM_LAG) / (dur + tail) };
+}
+
+/** The lethal takedown blow (the ground takedowns' 0.7 s; the other kinds' blows share it, their kill at phase 1). */
+export const TAKEDOWN_BLOW = killBlow(TAKEDOWN.strike);
+/** The grab kill (`GRAB.killTime`). */
+export const GRAB_KILL_BLOW = killBlow(GRAB.killTime);
+/** The blow phase the follow-through ends at (past the kill at 1: `1 + tail / dur`, the same for both). */
+export const KILL_TAIL_END = 1 + (1 - STRIKE_ARC_CONTACT);
+/** A remote whose last blow phase reached this saw the kill (an abort ends it earlier): it plays the tail. */
+export const KILL_SEEN = 0.85;
+
+/**
+ * (anim-n4d, M1) A kill blow's phase `u` (0..1 the blow, the kill at 1; 1..`KILL_TAIL_END` the follow-through after
+ * the kill; < 0 none) -> the arc's phase (the `melee` pose input): `strikeWarp` on the whole posed timeline with the
+ * blow's own hit phase. Monotonic and continuous, 0 -> 0, `KILL_TAIL_END` -> 1, < 0 passes through. Pure.
+ */
+export function killWarp(u: number, b: KillBlow): number {
+  if (u < 0) return u;
+  return strikeWarp((u * b.dur) / (b.dur + b.tail), b.hit);
 }
 
 /** The strike's body amounts (Wren). Yaw + is a turn to the right (Babylon yaw), x + right, z + forward. */
