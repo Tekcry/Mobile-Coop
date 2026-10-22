@@ -509,7 +509,25 @@ try {
     for (let i = 0; i < 20 && !knocked; i++) {
       await wait(400);
       knocked = await GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || (!e.alive && e.ko); }, tdv);
-      if (!knocked && (await GB(() => !window.__app.current.takedown.active))) break;
+      if (!knocked && (await GB(() => !window.__app.current.takedown.active))) {
+        // (load-audit) the client's takedown ended, but its 'done' can still be on its way to the host: under load the
+        // next attempt started first, the late knock-out removed the guard, and the retry found no guard (host
+        // found:false, client offer null) and overwrote the start. Before a retry the host settles on its match clock:
+        // the knock-out, or the guard free (not held) for 1.5 s of host time (a denied start); 30 s real-time cap
+        knocked = await GA((id) => new Promise((res) => {
+          const g = window.__app.current;
+          const t0 = g.time;
+          const w0 = performance.now();
+          const tick = () => {
+            const e = g.enemyMgr.enemies.find((x) => x.id === id);
+            if (!e || (!e.alive && e.ko)) res(true);
+            else if ((!e.taken && g.time - t0 > 1.5) || performance.now() - w0 > 30000) res(false);
+            else requestAnimationFrame(tick);
+          };
+          tick();
+        }), tdv);
+        break;
+      }
     }
   }
   if (tdStarted !== true) {
