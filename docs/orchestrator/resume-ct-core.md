@@ -45,7 +45,10 @@ pushed at each agent hand-back. Agents running at a cut-off are lost: the resume
 ## Resumed ~10:00 (new account)
 hostage-gait: checker PASS (docs/hostage-gait/CHECK.md), PR #194 head 6cf3ec97; waits for laptop coop + netmove on c581a9c4.
 hang-down 0578d554: desktop GPU e2e-takedown ok 22 s, e2e-anim ok 47 s; fresh checker PASS (docs/hang-down/CHECK.md, head
-8b748164 docs only); waits for laptop coop / ctcourse / netmove, then into the batch branch. strike-pops agent running.
+8b748164 docs only). Laptop GPU on 0578d554: ctcourse:1/:3 + netmove PASS; FAIL e2e-coop hang-down section ("timed out
+waiting for hang-down: the second guard offered", client hanging, offer null, td false) and e2e-ctcourse:2 station 5
+(e2e-ctcourse.mjs:681 taps A to hack; the hack moved into the hold-A menu). Log C:/NightShift/scratch/runs/hangdown-0578d554/
+(laptop). Next: Opus fix round (queued for a free slot), then laptop coop + ctcourse. strike-pops agent running.
 mocap-strafe DONE 842270f0 (MT2-STRAFE.md; ON stop pelvis 1.89 cm, swing jumps <= 11.3 cm, slide 0; OFF md5 match;
 open: aimed strafe ON +144 B/frame). Fresh checker running (-> scratch/msc-CHECK.md); desktop lane e2e-anim + e2e-clip
 on 842270f0 (scratch/ctcore/lane-strafe.sh, logs ms-*.log). Then PR (own PR, after #188). Back-to-wall next.
