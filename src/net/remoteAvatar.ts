@@ -33,6 +33,7 @@ import type { TraverseKind } from '../anim/animGraph';
 import { teamRowOfWire } from '../anim/tuneMoveRows';
 import { clearGripAxis } from '../player/attachGrips';
 import { GRAB } from '../game/takedown';
+import { easeRemoteSpeed, isShownTeleport, seedHeading } from './remoteSeed';
 import { bodyPoint, CQ, ease, holdHandsLocal, koCurve, type KoState } from '../game/closeQuarters';
 
 /** Rope slots per remote (`Ropes` keys). */
@@ -92,6 +93,9 @@ export class RemoteAvatar {
   private tmpA = new Vector3();
   private tmpB = new Vector3();
   private placed = false;
+  /** (partner-seed) True for the frame the rig is first placed: its eased state is seeded from the owner's. */
+  private justPlaced = false;
+  private seedH = { x: 0, z: 0 };
   /** Movement state posing: the grips on the anchor in use, the pose families, a committed move replaying. */
   private grips = new AttachGrips();
   private gripAnchor = -1;
@@ -222,6 +226,7 @@ export class RemoteAvatar {
     if (!s) return;
     if (!this.placed) {
       this.placed = true;
+      this.justPlaced = true;
       this.rig.setEnabled(true);
       this.prev.set(s.x, s.y, s.z);
       this.lastCommit = s.state.mv?.c?.n ?? -1;
@@ -346,13 +351,23 @@ export class RemoteAvatar {
     // 3 (holstering) through it, so the remote keeps the gun in hand that long and stows it in step with the owner
     // (the owner's own draw / holster motion is local; the remote holds and glides, as before)
     this.setWeapon(st.w, mv ? mv.dw === 0 || this.buf.latest()?.mv?.dw === 0 : false);
-    const moved = hyp2(this.pos.x - this.prev.x, this.pos.z - this.prev.z);
+    let moved = hyp2(this.pos.x - this.prev.x, this.pos.z - this.prev.z);
+    // (partner-seed) first placed, or teleported (bay start, checkpoint reset, respawn): the eased speed and the heading
+    // come from the owner's state, not 0 / the jump (a partner first seen already walking slowly played a start)
+    const reseed = !!mv && (this.justPlaced || isShownTeleport(moved, dt));
+    this.justPlaced = false;
     const inst = dt > 0 ? moved / dt : 0;
     // (3.2.0) the owner's own speed when it sends a move state (interpolation jitter is not a gait)
     const want = mv && !rp ? st.speed : inst;
-    this.speed += (Math.min(want, 12) - this.speed) * Math.min(1, dt * 10);
-    const lx = this.pos.x - this.prev.x;
-    const lz = this.pos.z - this.prev.z;
+    this.speed = easeRemoteSpeed(this.speed, reseed ? st.speed : want, dt, reseed);
+    let lx = this.pos.x - this.prev.x;
+    let lz = this.pos.z - this.prev.z;
+    if (reseed) {
+      seedHeading(s.from.x, s.from.z, s.to.x, s.to.z, this.speed, dt, this.seedH);
+      lx = this.seedH.x;
+      lz = this.seedH.z;
+      moved = hyp2(lx, lz);
+    }
     this.prev.copyFrom(this.pos);
     const f = this.flags;
     this.crouch += ((f & PF.crouch ? 1 : 0) - this.crouch) * Math.min(1, dt * 10);
