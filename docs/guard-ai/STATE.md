@@ -16,8 +16,11 @@ S4 PR based on feature/guard-ai, each PR retargeted to master after train 21.
 - Character Build solo e2e (laptop GPU): S7 084e373c ALL 10 PASS (log C:/NightShift/scratch/runs/guardais7-084e373c/).
   S5 80efb8b4 9/10: FAIL e2e-sectorops:1 setup assert "posts: an open stretch near section 1 for the test guards"
   (the new S5 posts block never ran before; its site search returns null) -> S5 fix round after the chain merge.
-- S8 implementer RUNNING (Opus) in ...-guard-ai-s8 on the WIP 2d3dfc51; writes slices/S8.md. Then: merge s7 into s8,
-  fresh checker, PR stacked on S7.
+- S8 BUILT 42d9b447 (slices/S8.md; tsc, lint, 169 unit tests; `Enemy.tacticsProfile` numeric, S5's string `profile`
+  kept; 4-guard roles e2e scenario NOT added, sketch in S8.md). Merge agent RUNNING: s8 merges origin/feature/guard-ai-s7
+  + placeSlot sets tacticsProfile (post -> P_POST, 'aggressive' -> P_AGGRESSIVE), posted guards keep the leash in
+  combat. Then fresh Opus checker, e2e (e2e-stealth-ai 'radio' / 'radio stagger' / 'shots' / 'alarm' at risk: role
+  guards wait out of sight; plus e2e-ct-warehouse, e2e-sectorops, e2e-wall), PR stacked on #196.
 - S5b and S6 implementers RUNNING (Opus, ~10:20) in worktrees ...-guard-ai-s5b / -s6, branches off the chain tip
   ae1f1895 (pushed empty). A-numbers reserved: S8 A23-A25, S5b A26-A28, S6 A29-A31, S10 from A32. Each writes
   slices/S<n>.md; then commit, one checker for S5b + S6 (batch), PRs stacked on #196 after S8. S10 next when CPU allows.
