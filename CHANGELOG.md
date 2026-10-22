@@ -1,5 +1,28 @@
 # Changelog
 
+## 4.68.0 - Train 19: Sector Ops part 1: armed guards, reinforcements, dogs, co-op light sync; guard-cap report (2026-10-23, PR #187; #180, #184)
+
+### Guard cap measure
+- Tools: `scripts/guard-cap.mjs` measures what each awake guard costs per frame (sim split: AI brain, perception, rays, nav, physics; render: frame, GPU, draws, shadow passes) at 12 / 16 / 24 guards on Sector Ops and Marlow Yard, for the guard cap decision (`docs/guard-cap/REPORT.md`).
+
+### Unreleased - sector-fixes-r2
+- Sector Ops nav: a bolted team door shuts its doorway on the guards' nav grid (a runtime closure, `NavGrid.addClosure`
+  / `setClosed`), so guards route round it instead of stalling at the locked door; unbolting opens it, a restart's
+  re-bolt shuts it again, and guards mid-route and the flow field replan at once.
+- Sector Ops team doors: "Unbolt" now reaches only across the door itself (half its width + 0.3 m, up to 1.2 m out),
+  so the S1 mess back door can no longer be unbolted through the wall from the corridor; host and client prompts agree.
+
+### Unreleased - sector-redesign
+- Sector Ops guards are all armed: the Warehouse Ops runners are rifle guards, alarm reinforcements are rifle guards (no
+  heavies), and the section data check rejects melee-only guards and heavies.
+- Sector Ops dog rules: a section allows dogs only by its `dogs` count, and every dog names its handler; the palm strike
+  never knocks out a dog (every mode).
+- Sector Ops restart: a section restart also puts the lights (switched off, shot out, jammed) and the doors back as they
+  were when the section began.
+- Camera limit: 12 cameras live per Sector section (was 12 per map), at most 16 per map.
+- Sector Ops co-op: the host's lights (switched circuits, shot lamps; jams as before) now match on the client's screen, light meter and guard reads; a client can shoot lamps out through the host (protocol 31, slice L).
+- Sector Ops: new map campusOps (Saltmarsh Park), S1 greybox playable; not yet listed.
+
 ## 4.67.0 - Train 18: Mocap batch 1 (pops, crouch walk, sprint; default off), shorter camera range on all maps (2026-10-23, PR #183; #177, #182)
 
 ### Unreleased - camera-range
