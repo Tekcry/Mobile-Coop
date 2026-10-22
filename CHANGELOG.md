@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased - sector-fixes R (track A)
+- Sector Ops Warehouse: co-op-only routes, two per section, each a 4.4 m lip (out of solo reach, inside the leg-up)
+  with the partner following by relay or the two-person rope. Section 1: the AHU service door high in the yard facade
+  onto the plant deck, and the goods-in hoist monorail over the checker. Section 2: rack row R3 rebuilt as high-bay
+  (4.4 m tops, its rolling ladder gone): vantages over the lane, A3 and the goods-out corner. Section 3: the sprinkler
+  zone-valve platform (a way onto the 5.0 m main) and the crane drive platform over the CNC supervisor (hang-drop).
+- Team doors: one door per section bolted from one side (section 1 the mess back door, section 2 the VNA aisle escape
+  gate, section 3 the plant room's lobby door). Only a player on the far side gets "Unbolt"; it opens for both; a
+  checkpoint restart bolts it again. Host-authoritative, no wire change (protocol stays 28).
+- A player downed on a co-op-only top cannot be revived there; the checkpoint respawn takes over (PLAN A3).
+
 ## 4.55.1 - Master CI green again: the guardInfo test admits station 3's security guard (test only) (2026-10-22, PR #124)
 - `tests/guardInfo.test.ts` expects both passive guards with information: `s1-guard` (bay 1) and `s3-sec-guard` (bay 3, the security room from #115, which has an INTERROGATE line by plan). Train 4 merged with this unit test red.
 

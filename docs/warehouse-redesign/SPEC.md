@@ -204,7 +204,8 @@ counter. The high-value cage holds the case.
 
 **Stealth tools.**
 - Pipes: the riser (solo way up to 5.0), the cross main and the north branch (5.0, over open floor only).
-- Rack tops (4.0): reached solo by two rolling ladders (`ladder` 0 to 4.0, fixed in the greybox) at R3's south end
+- (sector-fixes R, 2026-10-22: R3 is now a high-bay row, tops 4.4, co-op only, its rolling ladder removed;
+  docs/sector-fixes/r/R2.md.) Rack tops (4.0): reached solo by two rolling ladders (`ladder` 0 to 4.0, fixed in the greybox) at R3's south end
   (-9.35, -3.25) and R2's north block in the cross aisle (-14.65, 6.75), the riser, or the cage ladder. Co-op: a boost
   anywhere.
 - Split jump: A2, along its whole length. It is a hide over the VNA beam and a drop on the cage officer.
@@ -413,6 +414,7 @@ Each one is optional, and each surface also has a solo way (LD 11.4).
 - The trailer is marked `noLedge`, so co-op cannot reach a surface solo cannot.
 
 **Section 2**
+- (sector-fixes R: co-op-only routes per section and team doors: docs/sector-fixes/r/PLAN.md, R1-R3.md.)
 - Boost or human ladder onto any rack-end top (4.0, within `boostMax` 4.5 and `ladderGrab` 4.1). Solo: the two
   rolling ladders, the riser, the cage ladder.
 - Boost over the cage fence (2.4). Solo: the fence climb.
