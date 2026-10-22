@@ -208,8 +208,9 @@ export interface NetAttachment {
   /** (camera-cue fix) Client: the other living players' bodies for the camera cue's own sight test, written into
    *  `out` from index `from` (entries added when missing); returns how many. */
   partnerBodies?(out: SeenBody[], from: number): number;
-  /** Client, course mode (CT prototype B3): the held jammer's target ('' = released). */
-  sendJam?(tgt: string): void;
+  /** Client, course mode (CT prototype B3): the held jammer's target ('' = released) and (jammer-fixes) the camera eye
+   *  the aim was checked from. */
+  sendJam?(tgt: string, eye: { x: number; y: number; z: number }): void;
   /** (marlow-jammer fix round 1) Host, course mode: move player `who` to (x, y, z) facing `yaw` (the camera hallway's
    *  send-back; a `back` event, the client moves itself). */
   sendBack?(who: string, x: number, y: number, z: number, yaw: number): void;
@@ -224,6 +225,8 @@ export interface NetAttachment {
 
 export interface NetHooks {
   role: 'host' | 'client';
+  /** (marlow-bays R1) The room code, shown in the pause menu so either player can rejoin on it. */
+  code?: string;
   attach(g: GameState): NetAttachment;
 }
 
@@ -1159,6 +1162,7 @@ export class GameState implements AppState {
           host: !this.puppet,
           restartCheckpoint: CHECKPOINT_MODES.has(this.opts.mode) ? () => this.restartCheckpoint() : undefined,
           lobby: this.net && this.cb.lobby ? () => this.cb.lobby?.() : undefined,
+          roomCode: this.opts.net?.code,
         },
       ),
     );

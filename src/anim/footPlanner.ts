@@ -1,5 +1,5 @@
 import { hyp2 } from '../core/mathx';
-import { SP, STEP, stepGaitNow, stepSelect, stepStride } from './tuneStep';
+import { SP, STEP, stepGaitNow, stepSelect, stepSelectRows, stepStride } from './tuneStep';
 import { ankleToBall, HEEL_BACK, TOE_BALL } from './footGeom';
 /** (anim-natural N1) Heel to ball along the foot (m): toe up, the heel's spot is this far behind the ball's flat spot. */
 const HEEL_BALL = HEEL_BACK + TOE_BALL;
@@ -333,6 +333,9 @@ const TURN_ON = { toe: 0.05, lift: 0.04, heel: 0.1 } as const;
 export class FootPlanner {
   readonly L = newFoot();
   readonly R = newFoot();
+  /** (item 24, track A) The stepping table this planner reads (null: the shared one, Wren's rows; a guard: the guards';
+   *  any other rig: the identity table, set by `CharacterRig`). */
+  stepRows: Float64Array | null = null;
   /** Moving on the last update (a quick stop acts on the change to still). */
   private wasMoving = false;
   /** (step 22, A79) Landings this frame roll heel to toe. */
@@ -429,7 +432,8 @@ export class FootPlanner {
     // start or stop under SPOT_SPEED is not a spot turn, and turnRule 0 selects the stepping rows as before
     const v0 = hyp2(i.velX, i.velZ);
     this.spot = i.turnRule > 0 && i.stride === 'velocity' && Number.isNaN(i.wallD) && v0 < SPOT_SPEED && (Math.abs(i.yawRate) > 1 || this.turnT < BAND_TURN_TIME);
-    stepSelect(i.moving && !this.spot, v0, i.crouch); // (tuner-v2 item 3) this gait's stepping row (tuneStep)
+    // (tuner-v2 item 3) this gait's stepping row; (item 24, track A) a guard's planner reads the guards' table (one line: the stepping test strips it)
+    if (this.stepRows) stepSelectRows(this.stepRows, i.moving && !this.spot, v0, i.crouch); else stepSelect(i.moving && !this.spot, v0, i.crouch);
     {
       // (anim-natural N1) the turn rules: free movement and the aimed spot turn, off a wall, unless the planner opts out
       const g = stepGaitNow;

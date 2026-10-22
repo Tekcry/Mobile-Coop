@@ -23,6 +23,9 @@ import { studioFeet } from '../anim/studioDrive';
 import { J, JOINTS_CUR, jointApply, mulInto } from '../anim/tuneJoints';
 import { HANDS_CUR, HANDS_GUN, HP, gunVisualPoint, handsRotApply, ikStrength, type GunVisual } from '../anim/tuneHands';
 import { tuneRigBegin, tuneRigEnd, tuneRigState, type TuneRigState } from '../anim/tuneJointsRig';
+import { guardRigBegin, guardRigEnd, guardRigState, type GuardRigState } from '../anim/tuneGuardRig';
+import { GUARD_STEP_ROWS } from '../anim/tuneGuard';
+import { STEP_IDENTITY_ROWS } from '../anim/tuneStep';
 import { gearCompose, GS } from '../anim/tuneGear';
 import { FING_L, FING_LEN, FING_R, FINGER_N, handGripShape, SPREAD_MAX_DEG } from '../anim/fingers';
 import { CLAV_L, CLAV_LEN, CLAV_R, clavActive, clavCompose, clavPoint, clavQuat } from '../anim/clavicle';
@@ -656,6 +659,23 @@ export class CharacterRig {
     else if (!on) this.tuneSt = null;
     // (anim-bake-1022) a Wren rig holds Wren's low ready / pistol ready, every other rig the guards' (a reference swap)
     this.graph.wrenReady = on;
+    // (item 24, track A) a Wren rig's planner reads Wren's Stepping rows (the shared table), any other the identity table
+    if (!this.guardSt) this.planner.stepRows = on ? null : STEP_IDENTITY_ROWS;
+  }
+  /** (item 24, track A) This guard rig's window state on the guard tables (`guardRows`); null: not a guard rig. */
+  guardSt: GuardRigState | null = null;
+  /**
+   * (item 24, track A) A guard rig reads the guard base table and the tuner's guard rows (Guard joints, Guard stepping,
+   * Guard weight; `tuneGuard.ts`), never Wren's: set where a guard's rig is made (`buildEnemyRig`: the host's guards
+   * and the co-op client's puppets). Its planner reads the guards' stepping table. Off for every other rig.
+   */
+  get guardRows(): boolean {
+    return this.guardSt !== null;
+  }
+  set guardRows(on: boolean) {
+    if (on && !this.guardSt) this.guardSt = guardRigState();
+    else if (!on) this.guardSt = null;
+    this.planner.stepRows = on ? GUARD_STEP_ROWS : this.tuneSt ? null : STEP_IDENTITY_ROWS;
   }
   /**
    * (anim-gear, marlow-bays item 22) The version of this rig's gear offsets (`tuneGear.ts`; 0 on a rig without
@@ -1064,6 +1084,8 @@ export class CharacterRig {
     const p = proportions(opts.build ?? BUILD_OF[look.body], height);
     this.p = p;
     this.graph = new AnimGraph(p);
+    // (item 24, track A) neither Wren's nor a guard's until `tuneRows` / `guardRows` says so: the identity stepping table
+    this.planner.stepRows = STEP_IDENTITY_ROWS;
     const n = (nm: string, parent: TransformNode | null, x = 0, y = 0, z = 0): TransformNode => {
       const t = new TransformNode(`${name}-${nm}`, scene);
       t.parent = parent;
@@ -1543,7 +1565,17 @@ export class CharacterRig {
     // (anim-joints J1) a Wren rig (`tuneRows`) opens its own tuner window: its rows of the base table + the tuner deltas
     const ts = this.tuneSt;
     if (ts === null) {
-      this.animateFrame(dt, s);
+      // (item 24, track A) a guard rig (`guardRows`) opens its own window on the guard tables; nothing live: untouched
+      const gs = this.guardSt;
+      if (gs === null || !guardRigBegin(gs, s, this, dt)) {
+        this.animateFrame(dt, s);
+        return;
+      }
+      try {
+        this.animateFrame(dt, s);
+      } finally {
+        guardRigEnd(gs, this);
+      }
       return;
     }
     tuneRigBegin(ts, s, this, dt);

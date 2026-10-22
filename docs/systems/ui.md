@@ -181,6 +181,26 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     timing control moves an added key's `at` and keeps every key between its live neighbours. Undo, reset, presets,
     export and import work as for every slider. The bake writes the key file with the new key list (phase order),
     regenerates `tuneKeysMeta.ts` and prints the rebake; buttons `k:add` / `k:del` (pad focus, no new binding).
+  - Key tools (marlow-bays item 30; `ui/tunerKeyTools.ts`, pure parts `anim/tuneKeysTools.ts`, registry glue
+    `tuneKeysWave` / `tuneKeysApply` / `tuneKeysSmooth` / `tuneKeysDiff` / `tuneKeysToolKeys` in `anim/tuneKeys.ts`),
+    under the key buttons. The Compare row (always shown): "Compare" (off by default) with "Previous key" or a picked
+    key; on, the studio overlay draws a light ghost of that key's skeleton over her (`STUDIO.compare`,
+    `STUDIO.comparePhase`; recorded root-local while she stands on that key: paused, the tools visit the key once and
+    come back, the picker waits) and a line "Key 2 vs key 1: Right forearm twist, palm in +12°, Chest turn -3°" (the bake's
+    poses, the key file's values plus the deltas; the four largest, "+N more"). The "Key tools" fold holds one tool at
+    a time: Wave (Channel: any key slider by its plain name, a newly selected Keys slider by default; Amount; Timing, a
+    share of the cycle; "Fill keys" sets that slider on every key with its own sliders to amount x sin(2 pi (phase +
+    timing)), Mirror on: the mirrored half follows the mirror rule), Apply to keys (the selected slider's value on this
+    key given to the ticked keys; a tick per key, All / None) and Smooth between (From / to keys, every slider or the
+    selected one: the keys between, going forward, on a smoothstep blend of the two keys' poses; loads the key file
+    first). Each tool closes the undo run before and after (one undo step) and writes only key sliders (bakes as
+    them). Pad keys `kt:*` (ranges by left / right, drop-downs, ticks, buttons), no new binding; hooks
+    `__animTune.keyTools()`, `keyToolsSet(o)`, `keyToolsRun(tool)`.
+  - Exact preview (marlow-bays item 30e, `anim/tuneKeys.ts` `build`, `anim/tuneKeysCurve.ts`): a clip's key file loads
+    on its first edit; then the Bezier-keyed fields spread on Blender's curve (`keyCurve.ts`), the trunk re-keyed in
+    the bake's channel frames and the arms composed as the bake's FK, against the baked keys' curve read where the
+    sampler reads the clip (retimed: warped). Retimed, added and deleted keys re-key the curve. Allocation: the curve
+    tables once per clip (on its first edit), the baked keys' curves once per clip (on its file load).
   - New key fields (item 17; `anim/tuneKeysFile.ts` `KEY_FIELDS`, plain names in `tunerLayout.plainLabel`): head pitch /
     yaw / roll (`head.*`), pelvis shift (`pelvis.dx / dy / dz`, cm, now a slider), per arm the shoulder
     (`armX.sh.{pitch,yaw,roll}`, "shoulder forward / turn / out"), the upper arm twist (`armX.twistUpper`) and the
@@ -279,6 +299,27 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   (`CharacterRig.tuneRows`, set in `operatorRig`: the player, the co-op partner, the studio's pair puppets), each picking
   its own row from its own pose inside its `animate` (`anim/tuneJointsRig.ts`); guards and other rigs never. `tuneV2Frame`
   copies the panel's rows into the tables (the active row, plus a few background rows a frame). Hook: `__animBase`.
+- (marlow-bays item 24, track A) Guard tuning (`anim/tuneGuard.ts`, the per-guard window `anim/tuneGuardRig.ts`; tests
+  `tests/guardTune.test.ts`, e2e-studio): a "Who" list (Wren / Guard) heads the what-row of the Body, Stepping and Weight
+  tabs (`AnimTunePanel.setWho`, `tunerLayout.whoSections`). Guard shows the guard sections in place of hers: Guard
+  joints `guard.joint.<row>` (Body tab), Guard stepping `guard.step.<gait>` (Stepping), Guard weight
+  `guard.weight.<row>` (Weight: lean, step load, springs, the start dip; no momentum, landing, jump, gear or camera
+  slider), rows idle, walk (patrol and alert), run, aim, crouch, cover (`guardRowOf`); plain labels and targets as
+  the Wren section each mirrors (`GUARD_BASE_SECTION`). A tab with no guard rows keeps hers under a grey line. Every
+  guard rig (`CharacterRig.guardRows`, set in `buildEnemyRig`) picks its own row in its own `animate`, eases its joint
+  offsets and opens the joints window on the guard table only (`tuneJoints.jointsOpen`), steps its own Weight layers
+  (`WEIGHT_POSE` for its frame only, the camera signal put back) and its planner reads `GUARD_STEP_ROWS`
+  (`FootPlanner.stepRows`); no Wren rig reads them, and Wren's Joints / Stepping rows never reach a guard; the plain rigs
+  (the VIP, the training dummy, a carried body) read a fixed identity stepping table (`tuneStep.STEP_IDENTITY_ROWS`),
+  so Wren's Stepping rows reach Wren only. The guard loops' Stepping gait is the planner's own pick for the loop's pace
+  (`tunerLayout.GUARD_LOOP_GAIT` from `stepGaitIndex`: the run at 3.2 m/s steps in the jog gait). `tuneGuardFrame` (player.ts) copies the rows in once a
+  frame. Deltas on the generated guard base table `anim/animBaseGuard.ts` (BAKE.md). Saves, exports, imports, presets
+  and undo carry them through the registry (additive group ids; old records load with the guard rows at identity).
+  Anim Studio: Who = Guard (or a `guard:<loop>` pick) plays the guard puppet (`studioStage` `makePuppet`: a grunt from
+  `buildEnemyRig`, its gun, no AI) where Wren stands (she is hidden; the camera, the highlight via the panel's rig
+  getter, the view aids and pause / speed work on it): loops idle, patrol walk, alert walk, run, aim, crouched aim,
+  wall cover (`anim/studio.ts` `GuardLoop`), moving ones on the spot (`shiftWorld` treadmill); the guard sections
+  follow the puppet's row. Who = Wren plays her idle again. Hooks: `__animTune.who(w)`, `whoState()`, `__guardTune`.
 - (anim-bake-1022) Reset baked (`anim/tuneBakedReset.ts`): when the tuner's save loads, the sliders at a value the
   bundled bake ledger (`anim/tuneBakeLog.json`) says is now in the code reset to their defaults, once per bake (hashes in
   the save, `TuneSnapshot.baked`); the info line gives the count (on the next open when closed). Y menu "Reset baked"

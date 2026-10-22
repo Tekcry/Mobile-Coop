@@ -17,7 +17,11 @@ import { MOVE_TUNE_TEAM, moveTuneBegin, moveTuneEnd, moveTuneRoot, moveTuneSelec
 import { newStudioDrive } from '../anim/studioDrive';
 import { newPairRole, pairFrames, pairPose, ropeLine, type PairRole } from '../anim/studioPairs';
 import { newTravOut, newTravState, PAIR_STATION, STUDIO_MID, travTick, type TravButton, type TravEntry } from '../anim/studioTraversal';
-import { STAGE_LIGHTS, STUDIO, STUDIO_LIGHT, STUDIO_PAIR, STUDIO_RIGS, STUDIO_TARGET, studioAdvance, studioEntry, studioInput, studioKeyInfo, studioKeyPhase, studioBodyPin, studioReset, studioScrub, studioSpot, studioStepPhase, studioWeaponFor, spotShift, stageLightPlace, stageViewYaw, type StudioEntry, type StudioInputOut } from '../anim/studio';
+import { STAGE_LIGHTS, STUDIO, STUDIO_LIGHT, STUDIO_PAIR, STUDIO_RIGS, STUDIO_TARGET, studioAdvance, studioEntry, studioInput, studioKeyInfo, studioKeyPhase, studioBodyPin, studioReset, studioScrub, studioSpot, studioStepPhase, studioWeaponFor, spotShift, stageLightPlace, stageViewYaw, type GuardLoop, type StudioEntry, type StudioInputOut } from '../anim/studio';
+import { buildEnemyRig } from '../ai/enemyRig';
+import { ENEMIES } from '../ai/enemyDefs';
+import { TUNE_WHO } from '../anim/tuneGuard';
+import type { WeaponModel } from '../weapons/weaponModel';
 
 /** What the stage needs from the match (GameState). */
 export interface StudioHost {
@@ -122,6 +126,10 @@ export class StudioStage {
   private readonly stageP = { x: 0, y: 0, z: 0 };
   /** Her meshes the stage lights take (the source of an instance). */
   private stageSrc: AbstractMesh[] = [];
+  // (marlow-bays item 24, track A) the guard puppet: a real guard rig (`buildEnemyRig`, guard rows on), no AI
+  private puppet: CharacterRig | null = null;
+  private puppetGun: WeaponModel | null = null;
+  private readonly puppetPose: RigPose = newPose();
 
   constructor(private readonly host: StudioHost) {
     studioReset();
@@ -296,6 +304,7 @@ export class StudioStage {
     if (d.clip || e.kind !== 'keyed') STUDIO.seekKey = -1;
     STUDIO.keyStep = 0;
     if (this.guard) this.guardFrame(dt, e.kind === 'pair');
+    if (this.puppet && e.gloop) this.puppetFrame(dt, e.gloop);
     if (e.team) this.pairFrame(dt, e);
     STUDIO.phase = e.kind === 'pair' ? this.pairPhase : d.clip ? d.phase : 0;
     STUDIO.frames = e.team ? pairFrames(e.cycle) : d.clip ? d.clip.frames : 0;
@@ -407,7 +416,11 @@ export class StudioStage {
     }
     // a team pair: the puppets, Wren hidden at the viewing spot
     this.showPuppets(!!e.team);
-    this.hideWren(!!e.team);
+    // (item 24, track A) a guard loop: the guard puppet stands where she stands (she is hidden, the camera stays on her)
+    const gl = e.kind === 'guard';
+    if (gl && !this.puppet) this.makePuppet();
+    else if (!gl && this.puppet) this.dropPuppet();
+    this.hideWren(!!e.team || gl);
     if (e.team && clipChanged) {
       this.host.teleport(PAIR_VIEW.x, 0, PAIR_VIEW.z, PAIR_VIEW.yaw);
       this.away = true;
@@ -454,9 +467,68 @@ export class StudioStage {
         this.guard.planner.L.init = this.guard.planner.R.init = false;
       }
     }
-    STUDIO_TARGET.rig = this.target;
+    STUDIO_TARGET.rig = this.target ?? this.puppet;
     STUDIO_TARGET.clip = this.target ? e.clip : null;
     STUDIO_TARGET.drive = this.target ? d : null;
+  }
+
+  /** (item 24, track A) The guard puppet: a grunt's rig as every guard gets it (its guard rows on, its gun in hand). */
+  private makePuppet(): void {
+    const w = this.host.world;
+    const { rig, gun } = buildEnemyRig(this.host.scene, w, ENEMIES.grunt, 'studio-guard-puppet');
+    this.puppet = rig;
+    this.puppetGun = gun;
+    STUDIO_RIGS.push(rig);
+    TUNE_WHO.rig = rig;
+    const r = this.host.player.rig.root;
+    rig.root.position.copyFrom(r.position);
+    rig.root.rotation.y = r.rotation.y;
+  }
+
+  private dropPuppet(): void {
+    const g = this.puppet;
+    if (!g) return;
+    const i = STUDIO_RIGS.indexOf(g);
+    if (i >= 0) STUDIO_RIGS.splice(i, 1);
+    if (TUNE_WHO.rig === g) TUNE_WHO.rig = null;
+    if (STUDIO_TARGET.rig === g) STUDIO_TARGET.rig = null;
+    TUNE_STATE_BAG.guardJoint = TUNE_STATE_BAG.guardStep = TUNE_STATE_BAG.guardWeight = '';
+    this.puppetGun?.dispose();
+    g.dispose();
+    this.puppet = null;
+    this.puppetGun = null;
+  }
+
+  /**
+   * (item 24, track A) The guard puppet's frame: where Wren stands (her rendered root, her facing), posed as
+   * `Enemy.frame` poses a guard (pace, aim raise, crouch, cover, dash); a moving loop runs on the spot (a treadmill:
+   * the world slides back under its planted feet, `shiftWorld`). The guard rig's own window reads the guard rows.
+   */
+  private puppetFrame(dt: number, gl: GuardLoop): void {
+    const g = this.puppet!;
+    const r = this.host.player.rig.root;
+    const root = g.root;
+    if (hyp2(root.position.x - r.position.x, root.position.z - r.position.z) > 1) g.planner.L.init = g.planner.R.init = false;
+    root.position.copyFrom(r.position);
+    root.rotation.y = r.rotation.y;
+    const s = Math.sin(root.rotation.y);
+    const c = Math.cos(root.rotation.y);
+    const v = gl.speed;
+    if (v > 0 && dt > 0) g.shiftWorld(-s * v * dt, -c * v * dt);
+    const p = this.puppetPose;
+    p.speed = v;
+    p.localX = 0;
+    p.localZ = v > 0 ? 1 : 0;
+    p.velX = s * v;
+    p.velZ = c * v;
+    p.crouch = gl.crouch ? 1 : 0;
+    p.aim = gl.aim;
+    p.aimPitch = 0;
+    p.wall = gl.wall;
+    p.wallSide = gl.wall ? 1 : 0;
+    p.dash = gl.dash ? 1 : 0;
+    p.stride = !gl.wall && gl.aim < 0.5 && v > 0 ? 'facing' : 'velocity';
+    g.animate(dt, p);
   }
 
   private detach(): void {
@@ -643,6 +715,7 @@ export class StudioStage {
     delete (window as unknown as { __studioStage?: unknown }).__studioStage;
     this.detach();
     this.dropGuard();
+    this.dropPuppet();
     this.hideWren(false);
     if (this.puppets) {
       for (const op of this.puppets) {

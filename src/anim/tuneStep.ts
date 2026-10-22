@@ -7,7 +7,8 @@
  * The gaits are the ones the planner tells apart: standing still (idle stepping; (anim-natural N1) also the aimed turn
  * on the spot, stride 'velocity' under 0.3 m/s), standing walk / jog / run by pace
  * (split halfway between the `GEARS.stand` walk, jog and run speeds), crouched walk / run (halfway between the crouched
- * jog and run speeds). Every planner (the player, remotes, enemies) reads the same table.
+ * jog and run speeds). (item 24, track A) Wren's planners (the player, the partner, the studio puppets) read this table;
+ * a guard's reads the guards' (`tuneGuard.ts`), any other rig's the identity table `STEP_IDENTITY_ROWS`.
  */
 import { GEARS } from '../config/movement';
 
@@ -42,6 +43,11 @@ export const STEP_PARAMS: readonly { id: StepParam; label: string; min: number; 
 const G = STEP_GAITS.length;
 /** `[gait * STEP_N + param]`, all 1 (identity). */
 const ROWS = new Float64Array(G * STEP_N).fill(1);
+/**
+ * (item 24, track A) A fixed identity table (never written): the planners of rigs that are neither Wren's nor a guard's
+ * (the VIP, the training dummy, a carried body) read it, so Wren's Stepping rows reach Wren only. Shared, allocated once.
+ */
+export const STEP_IDENTITY_ROWS = new Float64Array(G * STEP_N).fill(1);
 /** The selected gait's row: what the planner's hooks read. */
 export const STEP = new Float64Array(STEP_N).fill(1);
 /** The gait `stepSelect` chose last (index into STEP_GAITS). */
@@ -65,10 +71,18 @@ export function stepGaitIndex(moving: boolean, speed: number, crouch: number): n
 
 /** Top of each planner update: copy the gait's row into `STEP`. */
 export function stepSelect(moving: boolean, speed: number, crouch: number): void {
+  stepSelectRows(ROWS, moving, speed, crouch);
+}
+
+/**
+ * (item 24, track A) `stepSelect` from another table of the same layout (`[gait * STEP_N + param]`): a guard's planner
+ * reads the guards' table (`tuneGuard.ts` GUARD_STEP_ROWS), never Wren's rows. No allocation.
+ */
+export function stepSelectRows(rows: Float64Array, moving: boolean, speed: number, crouch: number): void {
   const g = stepGaitIndex(moving, speed, crouch);
   stepGaitNow = g;
   const o = g * STEP_N;
-  for (let k = 0; k < STEP_N; k++) STEP[k] = ROWS[o + k]!;
+  for (let k = 0; k < STEP_N; k++) STEP[k] = rows[o + k]!;
 }
 
 /** The selected gait's stride multiplier at a pace: piecewise linear through its three points (exactly 1 at identity). */
