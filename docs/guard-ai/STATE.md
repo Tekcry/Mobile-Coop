@@ -45,6 +45,9 @@ S4 PR based on feature/guard-ai, each PR retargeted to master after train 21.
   sectorMode.fill S5b's placeSlot(.., gs, gs.indexOf(slot)) first, then S6's joinReinforcement; barks union.
   e2e fixes: e2e-sectorops panel scenario (~208-258) assert alarmBy === 'panel'; S6 'alarm' part 1 panel beats the
   radio by ~2.5 s. New e2e blocks never run: S5b sectorops, S6 'alarm call' + sectorops.
+- S10 BUILT b8104ecf (slices/S10.md, A32-A34; tsc, lint, 118 unit tests; e2e block "talking pairs (guard-ai S10)"
+  in e2e-sectorops part 1 never run). Needs a fresh Opus checker (none yet) and the `role` -> `job` rename at the S8
+  merge. Open: pair lines have no earshot range; PairDef.lines needs a data field agreed with Course Ready.
 - Planned order after checks: s8 <- s7; then S5b, S6, S10 stacked on S8 (merge each into the next), one laptop GPU
   run on that tip (e2e-stealth-ai, e2e-sectorops, e2e-levels, e2e-enemies, e2e-wall, e2e-takedown), one PR each.
 - (done) S5b and S6 implementers (Opus, ~10:20) in worktrees ...-guard-ai-s5b / -s6, branches off the chain tip
