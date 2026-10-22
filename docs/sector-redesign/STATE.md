@@ -13,6 +13,9 @@
   RAN at 4def7d24 (verdict below): e2e-coop, e2e-netmove, e2e-ctcourse, e2e-sectorops:6 (first run of the S2 / S3
   campus routes); QUEUED e2e-coop + e2e-netmove at 22e755bf (E6 touches src/net/coopClient.ts) after guard-render S1
   and guard-ai-s5. Verdicts go to this session + the orchestrator: on resume ask Character Build for them.
+- LAPTOP VERDICT 22e755bf (GPU, 4192, 10:0x after the swap): e2e-coop PASS 66 s, e2e-netmove PASS 171 s (log
+  C:/NightShift/scratch/runs/sectorredesign-22e755bf on the laptop). After the swap: Opus part-6 fixer and Opus S4 / S5
+  brief planner running in this worktree (checks/part6-fix.md, briefs/SLICE4.md + SLICE5.md).
 - LAPTOP VERDICT 4def7d24 (GPU, 4192): e2e-coop PASS 133 s, e2e-netmove PASS 182 s, e2e-ctcourse 1-3 PASS; e2e-sectorops:6
   FAIL (93 s, log C:/NightShift/scratch/runs/sectorredesign-4def7d24 on the laptop), two asserts, both stale e2e
   expectations / the S3 merge, not S1-S2 play: (a) "five sections ... the other stubs none" expects s3 = 0 guards; S3
