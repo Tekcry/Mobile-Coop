@@ -64,6 +64,11 @@ Open PRs: #92, #99, #103, #105, #106 (#67 parked for Michael). Protocol: #92, #9
 - Phones: tuner and Anim Studio only (exception to M21); game touch = menus + camera.
 
 ## Merge procedure
+From train 6 (2026-10-22): use `scripts/merge-train.mjs` (PR #131; until it is on master, run it from
+C:/NightShift/Mobile-Coop-merge-tools): `build <n> <branch>...` (src conflicts leave a branch out), the laptop's full
+run, then `release <n> <version> "<title>"` (assembles changes/ fragments and legacy Unreleased blocks, versions,
+opens the train PR, waits for CI, merges ONLY on a pass, tags, moves dev; exit 2 = CI failed, nothing merged).
+`single <branch> <version> "<title>"` for a lone PR. `--dry-run` first when unsure. The manual steps below are the fallback.
 Check the PR head equals the tested commit (or the delta is docs only). In the scratch worktree: checkout --detach the
 branch, merge origin/master resolving only CHANGELOG / package conflicts (on any src conflict abort and send it back to
 the job lead), npm version <v> --no-git-tag-version, rename the top "## Unreleased - <job>" heading to
