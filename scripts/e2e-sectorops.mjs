@@ -1914,7 +1914,7 @@ if (want(1)) {
       out.bMax = bMax;
       g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
       return out;
-    }, site);
+    }, site.at);
     const f2 = (v) => v.toFixed(2);
     assert(r.aSent === -1 && r.fSent >= 0, `posts: the board sends the free guard, never the vault-door guard (vault ${r.aSent}, free ${r.fSent})`);
     assert(JSON.stringify(r.phases.slice(0, 3)) === '[1,2,3]' && r.phases[r.phases.length - 1] === 5, `posts: the vault-door guard walks out, looks, walks back, done (phases ${JSON.stringify(r.phases)})`);
