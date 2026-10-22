@@ -1,6 +1,6 @@
 # Track A (Night Shift | Course Ready Build) - resume
 
-Written 2026-10-22 ~09:10, updated ~10:30 after the resume. Read CLAUDE.md, docs/ROADMAP.md, docs/marlow-bays/BRIEF.md (items
+Written 2026-10-22 ~09:10, updated ~12:40 (paused for the 5-hour window, resume on the orchestrator's message after 14:10). Read CLAUDE.md, docs/ROADMAP.md, docs/marlow-bays/BRIEF.md (items
 24, 29, 30 and "Tracks") and this file. Report to "Night Shift | Orchestrator".
 
 ## Open jobs
@@ -8,10 +8,11 @@ Written 2026-10-22 ~09:10, updated ~10:30 after the resume. Read CLAUDE.md, docs
 | Job | Branch / worktree | Head | State | Next |
 | --- | --- | --- | --- | --- |
 | Item 29 tuner v3 | `feature/tuner-v3` | merged | #97 merged as 4.49.0 (c38feca2). The JOBS=2 e2e-lightbake 16/17 was a timing race (solo 20/20, 26/26); v3 adds no materials | Done. Backlog: e2e-lightbake PBR-plugin assert should wait for the scene to settle |
-| Item 24 guard tuning | `feature/guard-tune`, `C:/NightShift/Mobile-Coop-guard-tune` | 555a6a57 (master 4.49.0 merged) | PR Tekcry/Mobile-Coop#105 open; Character Build check + full e2e queued (~11:00-11:35) | On green: tell the orchestrator (he merges) |
-| Item 30 key tools + exact preview | `feature/key-tools`, `C:/NightShift/Mobile-Coop-key-tools` | 0d25265c (master 4.49.0 merged) | PR Tekcry/Mobile-Coop#106 open. Checker FIX (Add key moved the trunk on multi-axis edits), fixed in the fix round 65da90cf; midpoint test tightened. vitest 2606. Menu Notes told. Character Build full e2e queued after #105 | On green: tell the orchestrator; when it merges, tell Menu Notes. Known, unmeasured: Add with the key file loaded and no edit live reads the per-field Euler trunk |
+| Item 24 guard tuning | `feature/guard-tune` | e8cdba4e | PR Tekcry/Mobile-Coop#105; e2e-menus focus fix (part picker keeps first focus, Who one D-pad up); green inside #109 f92747c4 | In train/2 (orchestrator merges) |
+| Item 30 key tools | - | merged | #106 merged as 4.51.0 (d52d37a5); Menu Notes told | Done |
+| clip-speed | `feature/clip-speed`, `C:/NightShift/Mobile-Coop-clip-speed` | f92747c4 (train/1 + #105 merged) | PR Tekcry/Mobile-Coop#109; checker PASS; laptop check + e2e-menus / studio / anim / weapons-carry ok | In train/2. Menu Notes N3 splits holster per gun after it merges (agreed) |
+| anim-natural N4 holds and carries | `feature/anim-n4`, `C:/NightShift/Mobile-Coop-anim-n4` | 082be068 (from master 71ce1bff) | Built: src/anim/cqGait.ts, tuner section `cq` (10 sliders, bake); counterCorr hold +0.85 -> -0.76, carry +0.95 -> -0.91; lift slide 20.9 -> 0 cm; carry-walk 8.7 cm slide left for N1 (slow-walk late-stance toe slide; start-turn pivot). Hooks in animGraph.ts / characterRig.ts marked (anim-n4, track A). tsc, vitest, lint, e2e-anim, e2e-studio pass | After reset: fresh Opus checker, one fix round, merge master, PR, laptop suites; tell CT Core the N1 items |
 
-Next (orchestrator, 10:30): stay idle (usage tight) until Menu Notes N0 audit (docs/anim-natural/AUDIT.md) lands; then the N4 rows in track A files (tuner / studio UI for the new sliders, studio loops).
 Merged tonight (track A): #81 coop-torches 4.34.0, #82 T 4.35.0, #83 T1a 4.36.0, #86 T2 4.39.0, #87 item 23 4.40.0,
 #89 items 26 / 26b 4.41.0, #91 item 25 4.43.0.
 
