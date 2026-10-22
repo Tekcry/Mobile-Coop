@@ -1,6 +1,18 @@
 # anim-natural N2 - state
 
-## Now (2026-10-22 ~14:50 save point, 5-hour pause)
+## Now (2026-10-22 ~16:00: merged master 4.54.1 at 14cbecc2)
+Merged master 4.54.1 (#103 body base, #113 anim-n4, #117 flake fix) at 14cbecc2. Conflicts: CHANGELOG, e2e-anim crab
+state rows (master's BODY_STATE ranges 5th, N2's turn pelvis-frame flag 6th), identity test header, the Wren identity
+fixture. Proof: BODY_MOTION amounts 0 + master's run clip at run time = master's fixture on all 40 entries; with N2's
+run clip keyed:run and partner:moves move (A1); the layer moves partner:moves. Both Wren fixtures re-captured; guard
+fixture unchanged. The #103 body base composes with the layer (no shared field: the layer is not scaled by
+trunkTwistMul / headTurnMul, the base sets neither). OPEN: tests/crabFacing.test.ts fails (facing knee-out, L limit 3
+cm): base + layer walk 3.6, walk 2.1 3.7, low ready walk 3.5, jog / low ready jog 3.1, idle 3.4; base alone walk 3.1,
+walk 2.1 3.2, idle 3.4; layer alone all <= 2.9. Master's e2e-anim widened its own limits for the base (walk 3.5, jog
+3.4, straight 3.7, idle 9.3), so e2e-anim's walk / jog rows may fail too. Decide: cut the walk / jog sway, read
+crabFacing with the base off, or re-widen on a desktop measure. master has since moved to 4.55.0 (#121).
+
+## Before (2026-10-22 ~14:50 save point, 5-hour pause)
 Step 2 done: built (0004b057, REPORT-2.md), checker FAIL (CHECK-2.md: gated crab track / knee-out), the one fix round
 (9756a8ee): A11 (the gated crab track and knee-out read in the facing frame, `src/anim/audit/crabFacing.ts`, e2e-anim
 crabRow; turn and wall rows keep the pelvis frame), sway 0.7x (walk 0.98, jog / sneak / crouch rows 0.56, run 0.6 cm),
@@ -20,8 +32,9 @@ head 0/0; aim side 3.2/4.2, -0.99; aim back 3.8/3.9; crouch aim moving 2.8/3.8, 
 1. Step 2 verification under the lock (or the laptop for logic): npm run check, e2e-anim (the new body motion block's
    first desktop run: walk lateral 3.2-4.2 cm, head yaw 2-6 incl. the run; bands may need review; the gated crab rows
    in the facing frame), e2e-studio, e2e-netmove, e2e-clip. Then the step's checker sign-off note in CHECK-2.md.
-2. Master 4.54.0 merge (and after #110 merges: rebake run once more, since #110 changed key_clip.py's half; then
-   re-capture the Wren identity fixture).
+2. Master 4.54.1 merge: done (14cbecc2; crabFacing knee-out open, see Now). Still pending: after #110 merges, rebake
+   run once more (#110 changed key_clip.py's half), then re-capture the Wren identity fixture; master 4.55.0 (#121,
+   keyed clip and fixture changes) not merged yet.
 3. Step 3 (arms): KEY_MOTION.armGain, the wrist speed cap (A8; the run wrist 12-14 m/s comes from Michael's retimed
    arm keys), PASS2 (docs/anim-natural/PASS2.md on feature/anim-natural) item 7 (low-ready gaits: arms and head locked
    to the gun) and item 9 (crouch run uses the jog's arm swing); AUDIT fix 35 (low-ready run pelvis +-25 deg with 20
