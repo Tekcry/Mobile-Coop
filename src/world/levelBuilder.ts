@@ -58,6 +58,8 @@ export interface BoxPiece {
   overhead?: boolean;
   /** Visual-only dressing from the detail pass (never collides; the minimap skips it). */
   detail?: boolean;
+  /** (guard-ai) Glass: 'clear' lets a guard's sight through, 'frosted' blocks it; hearing treats both as a wall. */
+  glass?: 'clear' | 'frosted';
 }
 
 export interface CylPiece {

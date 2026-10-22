@@ -1,5 +1,6 @@
 import type { SquadSlot } from '../world/rooms';
 import type { DifficultyPreset } from '../ai/archetypes';
+import type { NoisySource, ReinforceEntry } from '../ai/guardAiData';
 import { AIRLOCK_DOORWAY_CLEAR } from '../config/course';
 
 /**
@@ -87,6 +88,10 @@ export interface SectorDef {
   guards: SectorGuard[];
   /** Where alarm reinforcements come in (x, z; taken in turn), inside the section. */
   reinforce: [number, number][];
+  /** (guard-ai) Noisy things that mask hearing in this section. */
+  noisy?: NoisySource[];
+  /** (guard-ai) Reinforcement entry points and run-in routes; none = `reinforce`. */
+  entries?: ReinforceEntry[];
   /** Guards each alarm stage sends in here (A3). */
   perStage: number;
   /** The ways to the objective and on to the exit (M8: at least 2). */
