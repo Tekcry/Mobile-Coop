@@ -48,6 +48,14 @@ lighting where players make their own shadows. Prototype first (CLAUDE.md curren
 - M10 (Q5 security tools): "Include guard dogs": cameras, lasers, alarm panels, keypads, then dogs and armed response.
 - M11 (~01:25, through the orchestrator): "Keep both": the Warehouse stays selectable as a second Sector Ops map,
   never delisted.
+- M12 (~01:50, verbatim): "regarding new sector ops map also, make sure there are sections where at least one guard is
+  unavoidable to reach the objective/exit. they must be distracted, knocked out, or killed. flexible to your suggestions
+  with that also." Orchestrator's suggestions, to log as assumed (undoable): at least 3 of 5 sections have a choke
+  where the only route passes a posted guard with sight of it (e.g. a staffed checkpoint door, a lab airlock with two
+  facing guards (co-op sync takedown, or one distracts while the other slips), a vault door guard who never leaves
+  post); each choke clearable solo (distraction or a single takedown), co-op gives an easier option; an e2e assert per
+  choke (no nav route from the entry to the objective with that guard's view cone as a blocker); tell Guard AI Build
+  which guards are posted and which distractions must still pull them (data shape).
 
 ## Questions sent to Michael (~01:50, through the orchestrator)
 Q1 setting, Q2 run length, Q3 guards per section, Q4 lighting default, Q5 security tools. Answers land here as M6+;
