@@ -1,5 +1,12 @@
 # sector-redesign - state
 
+## Resumed (2026-10-23 ~08:40, new account)
+- #184 part 1 MERGED (master 4.68.0, train 19). Every in-flight item was committed and pushed before the swap: S2 f5422070
+  (this branch), S3 66287baa (-s3), E5 417c7560 (-e5), int b71a9894 (-int). No reruns needed.
+- Running: 3 Opus checkers (S2 -> checks/slice2-check.md here, S3 -> -s3 checks/slice3-check.md, E5 -> -e5 checks/e5-check.md).
+  Cap 3 agents (orchestrator). Window: 0% at 08:35, resets 13:30, pace to ~99%.
+- Laptop runs go to "Night Shift | Character Build [06fe56]" ([d57b71] is stale); its queue: #186 ctcourse, train 20, then ours.
+
 ## Now (2026-10-23 ~08:15, SAVED at ~80% for Michael's account swap)
 - PR #184 (part 1 = slices 0 + L + 1) open from feature/sector-redesign-p1 @ d21399f5, in train 19 with #180 (orchestrator).
   All checkers PASS; GPU e2e green on 267b299f. campusOps registered, not listed.
