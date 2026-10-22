@@ -11,8 +11,8 @@ SAVED at the account swap (~09:45, 2026-10-23; orchestrator: window 91%). Branch
   keys, held caution clearing). e2e (desktop 4192, E2E_GPU=1: e2e-stealth-ai, e2e-takedown, e2e-sectorops) was
   RUNNING at the swap: log C:/NightShift/scratch/runs/guardai-s4-fd3a0018/e2e.log; if no run is alive and
   C:/NightShift/heavy2.lock still says "guard-ai S4 e2e", delete the lock and rerun.
-- feature/guard-ai-s5 (S5 posts + map data) 80efb8b4, worktree ...-guard-ai-s5. Built (slices/S5.md with the note for
-  the map teams; A17-A19). Checker was RUNNING at the swap (S5-CHECK.md; rerun if missing). e2e queued with Character
+- feature/guard-ai-s5 (S5 posts + map data) 63047d27 (code 80efb8b4), worktree ...-guard-ai-s5. Built (slices/S5.md with the note for
+  the map teams; A17-A19). Checker PASS (S5-CHECK.md, head 63047d27; polish: no time limit on the walk back, edge point behind a wall, K4 two-keyholder e2e once Course Ready data lands). e2e queued with Character
   Build [06fe56] on the laptop (4192, GPU: e2e-sectorops all, e2e-ctcourse, e2e-stealth-ai, e2e-ct-warehouse).
   Known: a revived guard loses his post (Enemy.inherit from S4 must carry postDef / postYaw / section / profile; fix it
   at the chain merge below).
