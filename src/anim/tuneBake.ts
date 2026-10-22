@@ -16,7 +16,7 @@
 import { applyKeyEdits, editedClips, KEY_FIELDS, keyEditPlan, keyEditRow, keyFileText, keyMetaText, keyMirrorOn, keyWrittenFull, parseKeyGroup, parseKeyMirror, type KeyFile } from './tuneKeysFile'; // (item 25, track A) keyEditPlan, keyEditRow, keyWrittenFull
 import { KEY_TIME_ID, KEY_TIME_MAX } from './tuneKeysTime';
 import { KEY_AT_ID, KEY_DEL_ID, parseKeyAdded } from './tuneKeysEdit'; // (item 25, track A)
-import { migrateTuneChanged } from './tuneRows';
+import { aliasTuneChanged, migrateTuneChanged } from './tuneRows';
 import { BODY_BASE_FIELDS } from './tune';
 import { applyBaseEntries, BAKE_BASE_FILE, BAKE_BASE_SECTIONS, baseTarget, bakeFmt, parseAnimBase, spliceAnimBase } from './tuneBakeBase';
 import { applyGuardBaseEntries, BAKE_GUARD_FILE, BAKE_GUARD_SECTIONS, guardBaseTarget, parseAnimBaseGuard, spliceAnimBaseGuard } from './tuneBakeGuard'; // (item 24, track A)
@@ -497,7 +497,8 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
   // as the tuner's import does
   const raw = exp.changed as unknown[];
   const valid = raw.filter((c): c is { group: string } => !!c && typeof c === 'object' && typeof (c as { group?: unknown }).group === 'string');
-  const list = exp.version === 1 ? [...raw, ...migrateTuneChanged(valid).slice(valid.length)] : raw;
+  // (anim-natural N3) a split slider's old id (clip.gun holster) fills its new ids, at any version
+  const list = aliasTuneChanged(exp.version === 1 ? [...raw, ...migrateTuneChanged(valid).slice(valid.length)] : raw);
   for (const c of list) {
     const x = (c ?? {}) as { group?: unknown; id?: unknown; value?: unknown; kind?: unknown };
     if (typeof x.group !== 'string' || typeof x.id !== 'string' || typeof x.value !== 'number' || !Number.isFinite(x.value)) return fail(`malformed entry ${JSON.stringify(c)}`);
