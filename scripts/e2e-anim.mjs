@@ -409,7 +409,7 @@ try {
         t.run(plan.pre ?? 1.0, plan.from ?? { y: 1 });
         if (plan.aimTurn) p.cam.yaw += plan.aimTurn;
         const res = { lift: 0, plantTurn: 0, snap: 0, gap: Infinity, plants: 0, lifts: 0, speed: c.speed, pts: [0, 1].map(() => ({ heel: [], ball: [], contact: [] })) };
-        const st = [0, 1].map(() => ({ on: false, turnT: 0, tw: 0, n: 0, px: 0, pz: 0 }));
+        const st = [0, 1].map(() => ({ on: false, turnT: 0, tw: 0, n: 0, px: 0, pz: 0, lifted: false }));
         const inp = { ...plan.to };
         let tt = 0;
         t.run(plan.sec ?? 1.2, inp, () => {
@@ -445,10 +445,13 @@ try {
               if (s.on) {
                 res.lift = Math.max(res.lift, s.tw);
                 res.lifts++;
+                s.lifted = true;
               }
               s.on = false;
               s.n++;
-              if (s.n <= 3) res.snap = Math.max(res.snap, Math.hypot(f.x - s.px, f.z - s.pz) * 60);
+              // (anim-natural-n1) only a swing that left a plant in this window: a foot already in the air on the first frame
+              // (the planner re-initialised) read its distance from the origin (1032 m/s)
+              if (s.lifted && s.n <= 3) res.snap = Math.max(res.snap, Math.hypot(f.x - s.px, f.z - s.pz) * 60);
             }
             s.px = f.x;
             s.pz = f.z;
