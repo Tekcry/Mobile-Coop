@@ -37,6 +37,14 @@ fetched, one at a time.
   not fails (ROADMAP Decided; replaces A4's "until Michael decides"). Pops (walk-turn pelvis, start toe) and any foot
   slide are still fixed. The bible D2 line is updated at the merge.
 
+- M2 (2026-10-23 ~00:10, relayed by the orchestrator): "i dont need sheets for mocap. you can audit them and add to the
+  game when ready." Overnight: more mocap clips behind the same toggle (crouch walk, sprint, strafe, back-to-wall), each
+  batch OFF byte-identical, a fresh checker (pops / slides fail, old limits are notes), GPU suites, a PR into the next
+  train. No sheets.
+- M3 (2026-10-23 ~00:20, asked in the CT Core session, native question): "Yes, download them" - named CMU takes for
+  crouch walk / sneak, sprint, strafe and back-to-wall moves from mocap.cs.cmu.edu, ASF/AMC, one at a time, ~20 takes /
+  under 40 MB, `.mocap-cache/` (gitignored), each in SOURCES.md, converted clips bundled offline, no runtime fetch.
+
 ## Assumed decisions
 - A1: ASF/AMC from the official site (not the third-party BVH conversions); an in-repo Blender-headless importer.
   Undo: use the BVH conversions.
