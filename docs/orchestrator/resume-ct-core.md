@@ -4,9 +4,13 @@ Saved 2026-10-23 ~02:00 (5-hour 88%) by the CT Core session (new account, after 
 pushed at each agent hand-back. Agents running at a cut-off are lost: the resume prompt says what to redo.
 
 ## Rules carried
-- Pacing (Michael 01:12 via the orchestrator): after the reset (phase B) pace each 5-hour window to ~97-99% at its
-  reset, save at 97% (WIP pushed, this file current) and idle; the orchestrator's cron messages first after each reset.
-  Phase B: at most 3 agents (desktop CPU at 100% blocked unit tests ~01:55); e2e stays on the laptop.
+- Pacing after the reset (Michael 01:45, ROADMAP Decided "Lean windows", CLAUDE.md "A job"): every 5-hour window to
+  99%, lean, no quality loss. No new agent at 97%, save at 98% (WIP pushed, this file current), stop by 99%; the
+  orchestrator's cron resumes us after each reset. Max 3 agents (desktop CPU). Models: Opus plans, writes strict slice
+  briefs (exact files, line ranges, acceptance numbers, tests), reviews and runs every fresh checker; most mocap code
+  (footPlanner, animGraph, rig, mocap.ts) stays Opus; Sonnet 5.5 builds data / test sweeps / e2e asserts / clip
+  conversion runs / SOURCES rows from those briefs; Haiku 5.5 for chores. A failed Sonnet slice gets its fix round
+  from Opus. Lean prompts: exact files and line ranges, never whole large docs.
 - Until the reset: FULL BURN to 100% of the 5-hour window (Michael ~01:05 via the orchestrator: "push as hard as possible"; replaces the
   97% stop). Up to 6 parallel Opus agents. Cutoff-proof: agents push their own branch at milestones; the lead commits +
   pushes and refreshes this file after every hand-back. If cut off: do nothing; resume when the orchestrator messages.
