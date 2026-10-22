@@ -88,14 +88,14 @@
         "roll": 0
       },
       "armL": {
-        "flex": 5,
+        "flex": -5,
         "abd": 19,
-        "elbow": 92,
-        "inward": 16,
-        "twist": 37
+        "elbow": 68,
+        "inward": 3,
+        "twist": -2
       },
       "armR": {
-        "flex": 42,
+        "flex": 51.5,
         "abd": 19,
         "elbow": 84,
         "inward": 18,
@@ -140,14 +140,14 @@
         "roll": 0
       },
       "armL": {
-        "flex": 23,
+        "flex": 3,
         "abd": 19,
-        "elbow": 80,
-        "inward": 16,
+        "elbow": 74,
+        "inward": 7,
         "twist": -7
       },
       "armR": {
-        "flex": 23,
+        "flex": 44,
         "abd": 19,
         "elbow": 88,
         "inward": 18,
@@ -192,7 +192,7 @@
         "roll": 0
       },
       "armL": {
-        "flex": 42,
+        "flex": 34,
         "abd": 19,
         "elbow": 84,
         "inward": 16,

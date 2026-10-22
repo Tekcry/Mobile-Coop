@@ -76,3 +76,37 @@ go through the drive, partner:moves is armed): 0 rows move. Guard and layer-off 
 Walk arms swing wider (wrist range 23 -> ~30 cm); turns and the strafe start no longer whip the hands (jog 180 turn 14
 -> 7 m/s); his jog and run arm keys kept as tuned. His call: the run's back-to-front arm snap at the half wrap (22 cm in
 one clip frame) looks like a key pop to retime.
+
+## Run arm pop fix (2026-10-22 ~19:50, after the step 3 check)
+The step 3 table above is the step's own measure; these rows supersede its run and sprint lines.
+- Cause: Michael's 2026-10-22 tune (dbd466c7) moved the run keys from phases 0 / 6 / 12 / 18 (of 48) to 0 / 1 / 3 / 13;
+  the arm values stayed as keyed for the old spacing, so each arm left its back extreme (flex -7, elbow 66) for flex 5,
+  elbow 92 in 1/48 of a cycle (and the front reversal 53 -> 42 likewise): wrist 23.5 cm and elbow 9.2 cm in one clip
+  frame (left at frames 0 -> 1, the mirrored right at 16 -> 17). Not an interpolation overshoot.
+- Fix (`scripts/anim-keys/keys/run.json`, arms only; trunk, legs, half, duty, liftH untouched), old -> new:
+  key 1 armL flex 5 -> -5, elbow 92 -> 68, inward 16 -> 3, twist 37 -> -2 (a one-frame palm flick between 0 and -7);
+  key 2 armL flex 23 -> 3, elbow 80 -> 74, inward 16 -> 7; key 3 armL flex 42 -> 34; key 1 armR flex 42 -> 51.5; key 2
+  armR flex 23 -> 44. Extremes (key 0), range (flex -7..53, abd 19) and armR key 3 unchanged; the hand passes mid-swing
+  ~3/48 later than in the tune and eases out of both extremes. Rebaked headless (Blender -b, under the desktop lock,
+  19:49-19:50): only the arm / fore lines of `src/anim/clips/keyed/run.ts` moved.
+- Before -> after: max step per clip frame wrist 23.5 -> 6.5 cm, elbow 9.2 -> 3.4 cm; run 4 m/s wrist peak root 17.57 ->
+  5.53 m/s (chest 17.29 -> 4.75); sprint 5 m/s 18.92 -> 6.66 (chest 18.56 -> 5.70); wrist fore-aft range root 75.6 ->
+  75.0 cm, clip chest 25.4 -> 24.7; elbow bend 61.4..93.4 -> 61.6..93.5 deg; elbow wing 9.6 -> 9.4 cm. Trunk, pelvis,
+  shoulders, knees identical.
+- Pinned: tests/runKeyContinuity.test.ts "the arms swing without a pop" (no elbow / wrist step over 8 cm per clip frame).
+- Identity: both Wren fixtures and the guard fixture pass unchanged (studio clips go through the drive; partner:moves is
+  armed), so no re-capture.
+- KEY_MOTION.run.armSpeed 18 no longer engages at 4 or 5 m/s (kept: a safety net for Michael's later key edits).
+- Open (polish): the right forearm twist at the front reversal rolls -161 -> -109.5 over 3/48 (hand only; Michael's).
+
+## CHECK-4 should-fixes (2026-10-22 ~19:45, 15921223)
+1. `armCap(si, cont)` reads its targets from `armCapO`: per-frame new_space 3588.16 -> 3380.16 B (the no-cap baseline
+   3396.16), poses bit-identical on the checker's 20-scenario hash harness.
+2. No arm speed cap while the studio drive plays (`AnimGraph.bodyMotion`): keyed:run / hold_knife / hold_choke loops
+   equal the cap-off rig at 0.0 cm (were 7.74 / 27.49 / 1.95 cm); test "the studio loop player is never capped".
+3. (CHECK-3 should-fix 1) bodyMotion's allocation test on #128's `allocPerCall` helper: 0.00 B per call (limit 8 B), 7
+   runs.
+
+## For Michael (added)
+The run arms no longer snap back-to-front at each foot strike: they ease out of each extreme (his range and elbow bend
+kept; the mid-swing comes about 3/48 of a cycle later than his tune).

@@ -68,6 +68,45 @@ function clipYaw(clip: KeyedClip): ClipYaw {
   return out;
 }
 
+/** (run arm pop) The arm points' jump per clip frame (cm, the clip's chest frame from the shoulder joint, 1.75 m body):
+ *  for elbow L, wrist L, elbow R, wrist R the largest step between consecutive frames (cyclic) and the frame it ends on. */
+const ARM_POINTS = ['elbowL', 'wristL', 'elbowR', 'wristR'] as const;
+function clipArmSteps(clip: KeyedClip): { step: number[]; at: number[]; fwd: number[]; per: number[][]; bend: number[][] } {
+  const o = newKeyedPose();
+  const pts: number[][] = [];
+  for (let f = 0; f < clip.frames; f++) {
+    sampleKeyed(clip, f / clip.frames, 1, o);
+    pts.push(Array.from(o.arm));
+  }
+  const step = [0, 0, 0, 0];
+  const at = [0, 0, 0, 0];
+  const fwd = [0, 0, 0, 0];
+  const per: number[][] = [[], [], [], []];
+  // the elbow bend per side and frame (deg, 0 = straight): the upper arm (shoulder -> elbow) against the forearm
+  const bend: number[][] = [0, 6].map((e) =>
+    pts.map((p) => {
+      const u = [p[e]!, p[e + 1]!, p[e + 2]!];
+      const v = [p[e + 3]! - u[0]!, p[e + 4]! - u[1]!, p[e + 5]! - u[2]!];
+      return Math.acos((u[0]! * v[0]! + u[1]! * v[1]! + u[2]! * v[2]!) / Math.hypot(...u) / Math.hypot(...v)) * D;
+    }),
+  );
+  for (let j = 0; j < 4; j++) {
+    const z = pts.map((p) => p[j * 3 + 2]!);
+    fwd[j] = p2p(z) * 100;
+    for (let f = 0; f < clip.frames; f++) {
+      const a = pts[(f + clip.frames - 1) % clip.frames]!;
+      const b = pts[f]!;
+      const d = Math.hypot(b[j * 3]! - a[j * 3]!, b[j * 3 + 1]! - a[j * 3 + 1]!, b[j * 3 + 2]! - a[j * 3 + 2]!) * 100;
+      per[j]!.push(d);
+      if (d > step[j]!) {
+        step[j] = d;
+        at[j] = f;
+      }
+    }
+  }
+  return { step, at, fwd, per, bend };
+}
+
 interface RigRow {
   speed: number;
   pelvisP2p: number;
@@ -193,6 +232,25 @@ describe('anim-natural N2 A1: the run trunk is continuous through its keys', () 
       expect(maxStep(c.shoulders, true)).toBeLessThan(16);
       // counter-rotation: the shoulders turn against the pelvis at the strike (key 0)
       expect(Math.sign(c.pelvis[0]!)).toBe(-Math.sign(c.shoulders[0]!));
+    });
+  });
+
+  it('the clip: the arms swing without a pop (no elbow / wrist jump over 8 cm in one clip frame)', () => {
+    const a = clipArmSteps(KEYED_RUN);
+    if (PRINT) console.info(`clip arms: ${ARM_POINTS.map((n, j) => `${n} max step ${f1(a.step[j]!)} cm (frame ${a.at[j]! - 1 < 0 ? KEYED_RUN.frames - 1 : a.at[j]! - 1} -> ${a.at[j]}), fwd range ${f1(a.fwd[j]!)} cm`).join('; ')}`);
+    if (PRINT) {
+      const bendL = a.bend[0]!;
+      const bendR = a.bend[1]!;
+      console.info(
+        `  elbow bend L ${f1(Math.min(...bendL))}..${f1(Math.max(...bendL))}, R ${f1(Math.min(...bendR))}..${f1(Math.max(...bendR))} deg\n` +
+          `  elbowL steps ${a.per[0]!.map(f1).join(' ')}\n  wristL steps ${a.per[1]!.map(f1).join(' ')}\n  bendL ${bendL.map((v) => v.toFixed(0)).join(' ')}`,
+      );
+    }
+    check(() => {
+      // was wrist 23.5 / elbow 9.2 cm in one clip frame at the half wrap (run frames 16 -> 17, and the left at 0 -> 1):
+      // Michael's arm values kept their old key spacing (0, 6, 12, 18 / 48) after the keys moved to 0, 1, 3, 13 / 48;
+      // the arm keys retimed (n2 run arm pop) bake to wrist 6.5 / elbow 3.4 cm
+      for (let j = 0; j < 4; j++) expect(a.step[j], ARM_POINTS[j]).toBeLessThan(8);
     });
   });
 
