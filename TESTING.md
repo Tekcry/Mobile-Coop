@@ -92,6 +92,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   fingers wrap the grips, the support hand is under the launcher (rifle) or cups the trigger hand (pistol, arms out).
 - [ ] Draw and holster: the current gun goes away (rifle over the right shoulder onto the back stud, pistol into the thigh
   holster) before the next comes out; no gun passes through the head, chest or legs.
+- [ ] Draws and holsters (anim-natural N3): X draws the rifle in about 1.1 s, the pistol in 0.75 s, in one smooth move
+  with no stop or flick; X again holsters slower (1.0 / 0.9 s). Tap X twice fast, or vault mid-draw: the gun goes back
+  the way it came, no snap into the slot. RT while holstering: the holster hurries and the strike follows.
 - [ ] Reload (hold X with the gun out; A no longer reloads): the magazine comes out in the support hand, goes to its pouch (rifle chest, pistol left hip) and a fresh
   one goes in; on an empty gun she works the charging handle / racks the slide. Swapping mid-reload leaves no magazine in
   the hand.
@@ -137,7 +140,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   the lean / bank / plant / spring / anticipation sliders change the pose only (docs/anim-tuner/WEIGHT.md).
 - [ ] Animation tuner Clip speed (clip-speed): the Clip speed tab works by pad like the others; each slider shows
   "today: ... s at 1". Rifle draw speed 2: LT draws the rifle in half the time and it fires as soon as it is up; 0.5:
-  twice as slow and it cannot fire until it is up. Holster, swap (LB), grenade throw and Every clip speed change their
+  twice as slow and it cannot fire until it is up. Rifle / Pistol holster (one row each), swap (LB), grenade throw and Every clip speed change their
   clip the same way; Start / Stop / Landing speed change the start-off shift, stop settle and landing dip. All at 1:
   exactly as before. Export, bake (`--only clip`), reset: same timing.
 - [ ] Animation tuner Camera (tuner-camera): the Camera section's picker follows explore / crouched / low ready / aim
