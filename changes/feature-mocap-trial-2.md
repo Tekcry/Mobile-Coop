@@ -15,3 +15,5 @@ kind: minor
   jog / run stance eases in and out at every clip-feet edge (switch on mid-jog, a crouch or a draw); the switch turned
   off mid-stop no longer leaves a foot toe up; the switch turned on mid-walk, or a partner first seen walking, plays no
   start.
+- Mocap locomotion (switch on): the crouched sneak plays the CMU crouch walk (136_09) as Wren's body over the usual
+  steps; the faster crouch walk / run stay hand-keyed and are blended into. Crouched spins no longer hold the keyed pose.
