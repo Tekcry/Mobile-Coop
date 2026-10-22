@@ -13,10 +13,18 @@ S2 FIX ROUND done (~03:45, slices/S2.md "Fix round"): light-check ring point beh
 detour while the hold flag froze his alert timer -> new pure src/ai/lightCheck.ts (nav-line test per ring point, halfway
 fallback, timeout fires mid-path, RING_WALK 12 s, every stage bounded, 86 s worst case); patrol wait 0 = pass-through
 (src/ai/patrol.ts:113; side effect: warehouse Sector runner / officer no longer freeze at their 0-wait points). check
-green; e2e queued on the laptop.
+green. Laptop bridge down (Character Build gone ~03:50), so e2e ran on the desktop second lane (heavy2.lock, 4192,
+GPU, JOBS=1; logs C:/NightShift/scratch/runs/guardai-*): 977cf0f5 e2e-sectorops, e2e-ct-warehouse, e2e-ctcourse,
+e2e-coop, e2e-netmove PASS; e2e-stealth-ai FAIL in the OLD 'lkp' scenario (:444 "they converge on the last known
+position", closest 4.44 / 4.95 m vs < 2.5) - so 'light pair' was not reached. Bisect on the desktop: S1 cd37c3e8 PASS
+(closest 0.91 m), S2 661c258a FAIL (4.43 m), fix 977cf0f5 FAIL: an S2 regression on the desktop (the laptop passed
+'lkp' on 661c258a, so it is timing-sensitive). Suspects: search pace 0.75 / calm turn rate while searching slowing the
+alerted guard's walk to the LKP, or the scenario's `t.light(0)` opening a light incident that grabs him.
 
 ## Next
-After the 06:40 reset: S2 fresh checker (review 661c258a + the fix commit, the e2e result); (slices/S2.md, review the S2 commit diff), then S2 as its own PR when green; then S3 radio net, then
+After the 06:40 reset: S2 fresh checker (review 661c258a + the fix commit, the e2e results above; it must find and fix
+the 'lkp' regression in a second fix round - broken work, so allowed - then e2e-stealth-ai solo on the desktop
+second lane until 'light pair' and 'lkp' both pass); (slices/S2.md, review the S2 commit diff), then S2 as its own PR when green; then S3 radio net, then
 S4-S10 in PLAN order.
 
 ## Open
