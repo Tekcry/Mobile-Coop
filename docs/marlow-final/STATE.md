@@ -11,7 +11,13 @@
   code split by file: N1-N4 + N8 (course files, report slices/S0-course.md) and N6 + PassZone.any (ctDevices,
   scanners, protocol bump; report slices/S0-devices.md). Slice 0 e2e (coop, netmove, ctcourse) goes to Character
   Build once both land.
-- Waiting: the orchestrator's Marlow co-op engine gap list (fold into SPEC / slice 0 when it lands).
+- Gap list landed (COOP-GAPS.md), routed to the spec, slice 0 course and lighting agents (~01:40).
+- Michael 01:40 (via the orchestrator): Course Ready leads the Sector Ops redesign and is NO LONGER our second builder;
+  marlow-final builds every slice (up to 6 agents). Lighting for ALL maps: "review lighting also, i think the rules
+  may be too strict and the levels are very dark and unrealistic. there shouldnt always be shadows, the player may
+  have to make shadows (disabling lights etc)": the lighting agent writes the shared docs/lighting-review/PROPOSAL.md
+  (proposals only, never applied). Course Ready's camera-range cut (feature/camera-range) stays off ctDevices.ts /
+  securityRoom.ts or sends us the hunk. Their greybox worktree (scratch/marlow-final-greybox) was empty: dropped.
 - After the spec: slice 0 (scaffold + section 14 code), then sets in parallel with Course Ready, dressing after each.
 
 ### At the swap (~01:10, history)
