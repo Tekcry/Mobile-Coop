@@ -103,12 +103,12 @@ const nav = analyticNav([-42, -82, 28, -28]);
 const onNav = (x: number, z: number, y = 0): boolean => nav.isWalkable(nav.cellOf(x, z, y)) && Math.abs(nav.heightAt(x, z, y) - y) < 0.6;
 
 describe('Saltmarsh Park (campusOps), registration and shape', () => {
-  it('is registered, sector only, five nav layers, the SPEC bounds, not listed', () => {
+  it('is registered, sector only, five nav layers, the SPEC bounds, listed (slice 3)', () => {
     expect(MAPS.some((m) => m.id === 'campusOps')).toBe(true);
     expect(getMap('campusOps')).toBe(campusOps);
     expect(campusOps.modes).toEqual(['sector']);
     expect(campusOps.navLayers).toBe(5);
-    expect(isListedMap('campusOps')).toBe(false);
+    expect(isListedMap('campusOps')).toBe(true);
     expect(b.bounds).toEqual({ minX: -70, maxX: 70, minZ: -84, maxZ: 70 });
     expect(CAMPUS_BOUNDS.maxX - CAMPUS_BOUNDS.minX).toBe(140);
     // Warehouse Ops stays as it is: the first sector map (the default)
