@@ -7,7 +7,12 @@ S4 PR based on feature/guard-ai, each PR retargeted to master after train 21.
 - PRs: S4 #193 (base feature/guard-ai, 0cb0db2c); S5 #195 (base feature/guard-ai-s4; b2d170de merge S4, 4d78a92a
   revived guard keeps his post, 47347f4c fix round: posts e2e site search over the whole nav grid); S7 #196 (base
   feature/guard-ai-s5; 958838a0 merge S5, ae1f1895 merge S5 fix = CHAIN TIP). Orchestrator told (one message).
-- Chain tip ae1f1895 E2E_GPU=1 queued with Character Build (laptop): e2e-sectorops all, e2e-stealth-ai, e2e-takedown,
+- Chain tip ae1f1895 laptop GPU result: 9/11. FAIL e2e-sectorops:1 posts block (my fix passed `site` not `site.at`;
+  fixed 39853abf in s5, merged e4af7da5 in s7; S7 camera block PASSED). FAIL e2e-stealth-ai 'bodies' "the finder
+  searches (unaware)" (passes on S4 alone and S7 alone: an S4 x S5 / S7 interaction). Chain fix agent RUNNING (Opus)
+  in s7: diagnose on the desktop lane (heavy.lock, 4191), fix, rerun stealth-ai + sectorops:1; report in S7.md. S8 e2e
+  request to Character Build dropped until then. S8 fresh checker RUNNING (writes slices/S8-CHECK.md).
+- (old) Chain tip ae1f1895 E2E_GPU=1 queued with Character Build (laptop): e2e-sectorops all, e2e-stealth-ai, e2e-takedown,
   e2e-ctcourse, e2e-ct-warehouse. Green -> one message to the orchestrator "train-ready" (train 22). Open note: A20 /
   S7.md still say "the squad within 22 m searches until S4" (wording only).
 - Orchestrator token rules (10:05, origin/feature/menu CLAUDE.md "Token rules"): message only at PRs open /
