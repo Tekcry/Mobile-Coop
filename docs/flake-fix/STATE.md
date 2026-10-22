@@ -4,7 +4,13 @@
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
 **Character Build SAVE 6 (2026-10-23 ~10:55, new account; wins over all below):**
-- SENT: hang-down 4072e2b9 GREEN (netmove + takedown, 161 s) -> CT Core.
+- SENT: hang-down 4072e2b9 GREEN (netmove + takedown, 161 s) -> CT Core. Guard AI S7 4052c434 GREEN (stealth-ai x2,
+  sectorops) -> Guard AI + PR #196. marlow-final 45a74383 4/7 (ctcourse :2 A3 cleaner, :3 A6 pass 2 cage, :4 A7) -> Menu
+  Notes. PR #198 changelog-dedupe open (train 22 with #194).
+- LESSON: the old account's chains p / q "ran" s6cap, marlowcap-cc24e992 and s9 shots in 0 s (runner never started,
+  no run folder): a chain from a dead session cannot start child powershell. Restart every chain in the new session.
+  Re-queued: chain-1023s (s1look-2198d0da, 4189: work/s1-look.mjs, shots runs/s1-look) -> chain-1023t (marlowcap-cc24e992,
+  s9shots before / after, guardrender-s6cap-c181002e), both ALONE on 4189.
 - RUNNING: chain-1023p.ps1 (waits for no locks, then 4189 ALONE guardrender-s6cap-c181002e), chain-1023q.ps1 (after p),
   chain-1023r.ps1 marlowfinal-45a74383 on 4189 (JOBS=3; verdict per suite to Menu Notes). 4192: guardais7-4052c434
   (Guard AI S7 test fix: build; e2e-stealth-ai x2; e2e-sectorops, JOBS=2; replaces the 62884858 2x rerun) -> verdict
