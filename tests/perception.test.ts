@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fieldFactor, instantDetect, lightFactor, motionFactor, noiseSuspicion, PERCEPTION, sightRate, stepMeter, type SightInput } from '../src/ai/perception';
+import { fieldFactor, instantDetect, lightFactor, motionFactor, noiseSuspicion, PERCEPTION, pitchFactor, seenAt, sightRate, stepMeter, type SightInput } from '../src/ai/perception';
 import { AlertMachine, ALERT, emptyAlertInput, SENSITIVITY } from '../src/ai/alertState';
 import { PatrolWalker, searchPoint, PATROL, type Pt } from '../src/ai/patrol';
 import { LightRegistry } from '../src/world/lights';
@@ -66,6 +66,34 @@ describe('perception: sight rate', () => {
     // fairness: outside point blank, even searching at 3 m a lit runner takes > 0.25 s to fill
     expect(fillTime(base({ dist: 3, speed: 5, sensitivity: SENSITIVITY.searching }))).toBeGreaterThan(0.25);
     expect(fillTime(base({ dist: 0.5, speed: 5, sensitivity: SENSITIVITY.alert }))).toBeGreaterThan(0.25);
+  });
+  it('(G44) vertical view: level and slightly raised targets unchanged; well above is hard to spot, not invisible', () => {
+    const deg = Math.PI / 180;
+    // level, a little above (a low ledge) and below: exactly as before
+    expect(sightRate(base({ pitch: 0 }))).toBe(sightRate(base()));
+    expect(sightRate(base({ pitch: 15 * deg }))).toBe(sightRate(base()));
+    expect(sightRate(base({ pitch: -30 * deg }))).toBe(sightRate(base()));
+    expect(pitchFactor(PERCEPTION.upFull)).toBe(1);
+    expect(pitchFactor(PERCEPTION.upEnd)).toBeCloseTo(PERCEPTION.upFloor, 5);
+    expect(pitchFactor(35 * deg)).toBeLessThan(1);
+    expect(pitchFactor(35 * deg)).toBeGreaterThan(PERCEPTION.upFloor);
+    // a lit walker at 10 m, 60 deg above: a calm guard does not see him at all (below the leak) ...
+    expect(sightRate(base({ pitch: 60 * deg }))).toBeLessThan(sightRate(base()) * 0.25);
+    expect(seenAt(sightRate(base({ pitch: 60 * deg })))).toBe(false);
+    // ... nor a still body hanging there
+    expect(seenAt(sightRate(base({ pitch: 60 * deg, speed: 0 })))).toBe(false);
+    // close and obvious overhead (2 m, lit, moving): still seen, but far slower than level
+    const close = base({ dist: 2, pitch: 60 * deg });
+    expect(seenAt(sightRate(close))).toBe(true);
+    expect(fillTime(close)).toBeGreaterThan(fillTime(base({ dist: 2 })) * 3);
+    // a searching guard looks harder: seen there sooner than a calm one
+    expect(sightRate(base({ dist: 2, pitch: 60 * deg, sensitivity: SENSITIVITY.searching }))).toBeGreaterThan(sightRate(close));
+    // point blank overhead is not instant; point blank level still is
+    expect(instantDetect(base({ dist: 1.2, pitch: 60 * deg }))).toBe(false);
+    expect(instantDetect(base({ dist: 1.2, pitch: 0 }))).toBe(true);
+    // looking down is less limited than looking up
+    expect(pitchFactor(-60 * deg)).toBeGreaterThan(pitchFactor(60 * deg));
+    expect(pitchFactor(-90 * deg)).toBeCloseTo(PERCEPTION.downFloor, 5);
   });
   it('the meter holds after losing sight, then drains', () => {
     let m = stepMeter(0, 2 + PERCEPTION.leak, 0.25, 0);
