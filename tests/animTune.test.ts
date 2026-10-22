@@ -170,6 +170,10 @@ describe('anim tuner state selection', () => {
       [{ traverse: 'ventDrop' }, false, false, 'vent'],
       [{ traverse: 'crawlOut' }, false, false, 'vent'],
       [{ traverse: 'vault' }, false, false, null],
+      [{ grounded: false }, false, false, null],
+      [{ grounded: false, speed: 4.5 }, false, false, null],
+      [{ grounded: false, traverse: 'climb' }, false, false, 'ladder'],
+      [{ grounded: true }, false, false, 'idle'],
       [{ bend: 0.3, speed: 0.5 }, false, true, 'hold'],
     ];
     for (const [p, ledge, armed, want] of cases) expect([p, selectBodyGroup(pose(p), ledge, armed)]).toEqual([p, want]);
