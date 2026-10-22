@@ -3,6 +3,18 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Character Build SAVE 4 (2026-10-23 ~09:50, new account; wins over all below):**
+- SENT: train 20 cbff3050 GREEN (lightbake solo x2 PASS 129 / 127 s) -> orchestrator releases 4.69.0, train 21 full run
+  comes next (jumps the 4189 queue). marlow-final 45458bbc ct2 solo FAIL (A3 relay jam 1 timeout; Menu Notes fixing
+  :1-:3, one request on the fixed commit: ctcourse :1-:4 coop netmove course).
+- RUNNING (chain scratch/queue-1023e.sh, log runs/queue-1023e.log; guardais5/7 runners outside it): 4192 guardais5-80efb8b4
+  -> sectorredesign-22e755bf (coop netmove) -> guardrender-s1-668d623d (smoke stealth-ai). 4189 guardais7-084e373c
+  (rerun, died in the swap) -> hangdown-0578d554 (coop ctcourse netmove; takedown/anim on the desktop lane) ->
+  hostagegait-c581a9c4 (coop netmove). Guard AI S5/S7 verdicts go to the NEW Guard AI session (bridge
+  session_01EgR14anUWaNAFhnNEsPs71); results count for 63047d27 / 38345438 (docs-only diff).
+- GUARD-RENDER: Sonnet builders restarted on S5 (from 8d32c718 + WIP) and S3a (push the local guard-ai merge 8f33e44c,
+  finish guardHead.ts WIP). Then Opus checkers. guard-cap S1 on/off ALONE on 4189 after the queue, then S1 PR.
+
 **Character Build SAVE 3 (2026-10-23 ~09:30, account swap at ~91-98%; wins over all below):**
 - Runs are session-bound background chains; on resume, read each C:/NightShift/scratch/runs/<label>/summary.txt: DONE =
   finished (send the verdict if not yet sent, below); no DONE = died in the swap (rerun it, same slot / JOBS / steps).
@@ -339,7 +351,7 @@ puts it in CLAUDE.md on feature/menu). Laptop full runs: `RUN_GPU=1` (E2E_GPU=1)
 
 ## Resume prompt
 ```
-Night Shift | Character Build (laptop, the MAIN test machine, GPU for every e2e run). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop"), then the newest "Character Build SAVE" block (SAVE 3 at the time of writing) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). It names the runs (C:/NightShift/scratch/runs/<label>/summary.txt; no DONE line = it died in the swap, rerun it) and the agent branches (check each branch's newest commit to see what landed; restart unfinished work from there). Message "Night Shift | Orchestrator" that you are back with any results, then continue the SAVE block's list: send any finished verdicts (train 20 lightbake solo first, to the orchestrator), keep both slots busy with the queue, and run the guard-render job (S1 e2e + guard-cap ALONE + PR; S3a / S5 Sonnet builders, Opus checkers; docs/guard-render/STATE.md). Sonnet 5.5 builds from strict Opus briefs, Opus checks. At most one full run at a time (4189), singles on 4192; a lock with no live node process is stale (taskkill /T /F).
+Night Shift | Character Build (laptop, the MAIN test machine, GPU for every e2e run). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop"), then the newest "Character Build SAVE" block (SAVE 4 at the time of writing) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). It names the runs (C:/NightShift/scratch/runs/<label>/summary.txt; no DONE line = it died in the swap, rerun it) and the agent branches (check each branch's newest commit to see what landed; restart unfinished work from there). Message "Night Shift | Orchestrator" that you are back with any results, then continue the SAVE block's list: send any finished verdicts (train 20 lightbake solo first, to the orchestrator), keep both slots busy with the queue, and run the guard-render job (S1 e2e + guard-cap ALONE + PR; S3a / S5 Sonnet builders, Opus checkers; docs/guard-render/STATE.md). Sonnet 5.5 builds from strict Opus briefs, Opus checks. At most one full run at a time (4189), singles on 4192; a lock with no live node process is stale (taskkill /T /F).
 
 Runner: C:/NightShift/scratch/laptop-runner.ps1 (header explains; results C:/NightShift/scratch/runs/<label>/summary.txt, DONE at the end). Every run RUN_GPU=1. Slots: full runs RUN_JOBS=3 on -Slot 4189 (the trial in STATE: keep the load sampler C:/NightShift/scratch/load-sampler.ps1 on and check the pass criteria); single suites RUN_JOBS=1 on -Slot 4192. Fetch in the slot's worktree before a new commit. Launch hidden; a run that may outlive the session goes through a scheduled task (schtasks, see STATE), never only Start-Process. Chain several runs in one script (C:/NightShift/scratch/chain-*.ps1 are examples). Reply to the requester with pass / fail per suite, the failing assert lines, times and commit; copy the orchestrator. Order: orchestrator, CT Core, Menu Notes, Course Ready, then own jobs (gpu-tests-2 PR, test-speed-2).
 
