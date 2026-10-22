@@ -186,6 +186,7 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
 | 2026-10-22 | #107 | 4.51.1: e2e-coop client takedown steady under load (test only) |
 | 2026-10-22 | #111 | 4.52.0: train 1: server browser (#99, public rooms, Co-op > Browse rooms), jammer fixes (#108); protocol 28 |
 | 2026-10-22 | #112 | 4.53.0: train 2: guard tuning in the tuner and Anim Studio (#105), Clip speed tab (#109) |
+| 2026-10-22 | #130 | 4.56.0: train 5: believable weapon draws, holsters and swaps (#118, anim-natural N3), idle stance clears the shins (#120), co-op local channel closed guard (#125), e2e-pad wheel wait (#126) |
 | 2026-10-22 | #124 | 4.55.1: tests: guardInfo admits the station 3 security guard (master CI green again) |
 | 2026-10-22 | #121 | 4.55.0: train 4: Marlow Yard security room (#115), wheel opens on goggles (#116), run feet no longer cross (#110) |
 | 2026-10-22 | #117 | 4.54.1: tests: four load-flaky e2e asserts hold at E2E_JOBS=2 (stealth-ai head-only peek, netmove client assists, mouse capture, ctcourse station 4) |
