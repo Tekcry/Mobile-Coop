@@ -14,8 +14,8 @@ import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 import type { SecWire } from '../game/ctDevices';
 import type { SectorNetExtra } from '../game/sectors';
 
-/** 29: the lasers' jam point is their power panel (sector-fixes P): the `jam` claim and `sec.dv` name panel ids (`panel-*`), never laser ids (a 28 peer would jam a laser the other side does not know); 28: the `jam` claim carries the client's camera eye `e` (jammer-fixes: the host checks the jam's line of sight from it); 27: rejoin (marlow-bays R): `hello.tok`, `PlayerInfo.away`, the `you` message, the `restore` event; 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
-export const PROTOCOL_VERSION = 29;
+/** 30: `sec.sc` is one entry per scanner pair (marlow-final N6: a map with several pairs; a 29 peer sent one flat entry); 29: the lasers' jam point is their power panel (sector-fixes P): the `jam` claim and `sec.dv` name panel ids (`panel-*`), never laser ids (a 28 peer would jam a laser the other side does not know); 28: the `jam` claim carries the client's camera eye `e` (jammer-fixes: the host checks the jam's line of sight from it); 27: rejoin (marlow-bays R): `hello.tok`, `PlayerInfo.away`, the `you` message, the `restore` event; 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
+export const PROTOCOL_VERSION = 30;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -432,6 +432,14 @@ const mission = (v: unknown): string => (typeof v === 'string' && /^[a-z0-9-]{0,
 /** Cameras a `sec` field carries clocks for (SN60 caps a map at 12) and jammed / recovering devices it lists. */
 const SEC_CAMS = 16;
 const SEC_DEVS = 64;
+/** (30 marlow-final N6) Scanner pairs a `sec` field carries. */
+const SEC_SCANS = 8;
+
+/** (B6; 30 marlow-final N6) One scanner pair's `sec.sc` entry: phases 0-3, occupied bits 0-3, progress in tenths of a s. */
+function scanEntry(e: unknown): number[] {
+  const a: unknown[] = Array.isArray(e) ? e : [];
+  return [0, 1, 2, 3, 4].map((i) => Math.round(num(a[i], 0, i < 3 ? 3 : 100) ?? 0));
+}
 
 /** (CT prototype B3; 26 marlow-jammer) The `sec` field of a course / sector message: the jam list, each jammer's use and
  *  cooldown, the devices' jam timelines and the camera clocks, clamped. */
@@ -440,7 +448,8 @@ function secWire(v: unknown): { sec?: SecWire } {
   const j = Array.isArray(v.j) ? v.j : [];
   const ch = Array.isArray(v.ch) ? v.ch : [];
   const cd = Array.isArray(v.cd) ? v.cd : [];
-  const sc: unknown[] | null = Array.isArray(v.sc) ? v.sc : null;
+  // (30) one entry per scanner pair, in the map's order; an entry that is no array reads as idle (the order is kept)
+  const sc: number[][] | null = Array.isArray(v.sc) ? v.sc.slice(0, SEC_SCANS).map(scanEntry) : null;
   const ck: number[] = [];
   if (Array.isArray(v.ck)) for (const x of v.ck.slice(0, SEC_CAMS)) ck.push(num(x, 0, 1e6) ?? 0);
   const dv: [string, number, number][] = [];
@@ -462,8 +471,7 @@ function secWire(v: unknown): { sec?: SecWire } {
       cd: [num(cd[0], 0, 10) ?? 0, num(cd[1], 0, 10) ?? 0],
       dv,
       al: Math.round(num(v.al, 0, 9) ?? 0),
-      // (B6) the scanner pair: phases 0-3, occupied bits 0-3, progress in tenths of a second
-      ...(sc ? { sc: [0, 1, 2, 3, 4].map((i) => Math.round(num(sc[i], 0, i < 3 ? 3 : 100) ?? 0)) } : {}),
+      ...(sc ? { sc } : {}),
     },
   };
 }

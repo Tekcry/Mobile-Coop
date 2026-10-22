@@ -160,3 +160,38 @@ export interface ScannerDef {
   b: string;
   flag: string;
 }
+
+/**
+ * (marlow-final N6) Where a panel's glows sit, from its course device: the state glow `state` m and the ready glow
+ * `ready` m above the device's floor (`y`), on the panel face `back` m behind the device point along its facing
+ * (sin yaw, cos yaw; yaw 0 faces +z, the `buildPanel` convention). Marlow's station 6 (devices at z 0.4 yaw 0 and
+ * z 13.6 yaw pi) gives the old hard-coded z 0.3 / 13.7.
+ */
+export const SCAN_GLOW = { back: 0.1, state: 1.95, ready: 2.25 } as const;
+
+/** (N6) The panel face point (floor level) of a scanner device into `out`. No allocation. */
+export function scanGlowAt(x: number, y: number, z: number, yaw: number, out: { x: number; y: number; z: number }): { x: number; y: number; z: number } {
+  out.x = x - Math.sin(yaw) * SCAN_GLOW.back;
+  out.y = y;
+  out.z = z - Math.cos(yaw) * SCAN_GLOW.back;
+  return out;
+}
+
+/** (N6) Numbers per pair in `SecWire.sc`: [phase A, phase B, occupied bits (1 A, 2 B), progress A, B (tenths of s)]. */
+export const SCAN_WIRE_LEN = 5;
+
+/** (N6) One pair's `SecWire.sc` entry (the host's `wire`, which builds the message: allocates once per send). */
+export function packScan(pr: ScanPair, occ: number): number[] {
+  return [pr.ph[0], pr.ph[1], occ, Math.round(pr.t[0] * 10), Math.round(pr.t[1] * 10)];
+}
+
+/** (N6) Client: put one `SecWire.sc` entry on the mirrored pair; returns the occupied bits. No allocation. */
+export function unpackScan(e: readonly number[], pr: ScanPair): number {
+  for (let k = 0; k < 2; k++) {
+    const ph = e[k] ?? 0;
+    pr.ph[k] = (ph >= SC_IDLE && ph <= SC_DONE ? ph : SC_IDLE) as ScanPhase;
+    pr.t[k] = (e[3 + k] ?? 0) / 10;
+  }
+  pr.open = pr.ph[0] === SC_DONE && pr.ph[1] === SC_DONE;
+  return e[2] ?? 0;
+}
