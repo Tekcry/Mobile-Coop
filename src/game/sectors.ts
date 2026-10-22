@@ -4,6 +4,8 @@ import { AIRLOCK_DOORWAY_CLEAR, PAIR_WINDOW } from '../config/course';
 import { clearPairHalves, pairHalves, pressPairHalf, type PairHalves } from './pairPress';
 import { ENEMIES } from '../ai/enemyDefs';
 import { checkStageActions, type SectorStageAction, type StageNavCheck } from './sectorStage';
+import { checkDesks } from './sectorDesks';
+import type { SecurityData } from '../security/data';
 
 /**
  * Sector Ops (feature/sector-ops): a map split into sections played in order. Each section has one objective (a hack,
@@ -519,8 +521,9 @@ export function exitZone(def: SectorDef): SectorZone | null {
 /**
  * Problems with a run's data (empty when fine): every section but the last has a connector, the last an extraction.
  * (E5) With `nav` (the map's nav grid and doors), a stage lockdown that leaves no way through is rejected too.
+ * (E6) With `security` (the map's security data), its desks are checked against the sections and cameras (`checkDesks`).
  */
-export function checkSectors(defs: readonly SectorDef[], nav?: StageNavCheck): string[] {
+export function checkSectors(defs: readonly SectorDef[], nav?: StageNavCheck, security?: SecurityData): string[] {
   const out: string[] = [];
   for (let i = 0; i < defs.length; i++) {
     const d = defs[i]!;
@@ -540,6 +543,8 @@ export function checkSectors(defs: readonly SectorDef[], nav?: StageNavCheck): s
   }
   out.push(...checkSectorCodes(defs));
   out.push(...checkStageActions(defs, nav));
+  // (E6, EW10) the map's security desks: cameras that exist, in the desk's section; an operator of that section
+  out.push(...checkDesks(defs, security));
   return out;
 }
 

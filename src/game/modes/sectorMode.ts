@@ -43,6 +43,24 @@ import { SectorTeamDoors } from '../sectorTeamDoors';
 import { SectorCodes, inOverhear } from '../sectorKeypads';
 import { SectorStageRun, addDoorClosure, doorwayClear, reinforceSlot } from '../sectorStage';
 import { markCompleted } from '../../save/sectorRecord';
+import {
+  DESK_HOLD,
+  DESK_ITEM_Y,
+  DESK_LOOP_END_LINE,
+  DESK_LOOP_LINE,
+  DESK_MANNED_LINE,
+  DESK_OFF,
+  DESK_OFF_LINE,
+  DESK_REACH,
+  DESK_REFUSE_BAD,
+  DESK_REFUSE_MANNED,
+  DESK_USED_LOOP,
+  SectorDesks,
+  deskItemId,
+  deskLabel,
+  operatorAtPost,
+  type SecurityDesk,
+} from '../sectorDesks';
 
 /** Squads never pop in this close to a player (Hunter's rule). */
 const SPAWN_MIN_DIST = 7;
@@ -122,6 +140,9 @@ export class SectorMode implements GameMode {
   private readonly keyIts: KeyIt[] = [];
   private readonly boardIts: { sec: number; k: number; it: Interactable }[] = [];
   private readonly granted: number[] = [];
+  /** (sector-redesign E6, EW10) The map's security desks (host / solo) and their console items (by desk index). */
+  readonly desks: SectorDesks;
+  private readonly deskIts: (Interactable | null)[] = [];
   /** Run time (s) for the result. */
   private t = 0;
   private secT = 0;
@@ -144,6 +165,7 @@ export class SectorMode implements GameMode {
   constructor(private g: GameState) {
     this.run = new SectorRun(g.world.map.sectors ?? []);
     this.codes = new SectorCodes(this.run.defs);
+    this.desks = new SectorDesks(g.world.layout?.security?.desks ?? []);
     // getters: the interactables and the nav grid are read when the mode starts (`team.build`), not now
     this.team = new SectorTeamDoors(this.run.defs, {
       get doors() {
@@ -191,6 +213,7 @@ export class SectorMode implements GameMode {
     this.findDoors();
     this.team.build();
     this.findKeypads();
+    this.findDesks();
     this.findStageDoors();
     const s = this.run.current;
     if (s) {
@@ -373,6 +396,78 @@ export class SectorMode implements GameMode {
     if (r?.doors) this.secT = 0;
   }
 
+  /**
+   * (sector-redesign E6, EW10) Each security desk's console item ("Loop cameras", then "Switch cameras off", then
+   * "Cameras off"), usable only while its section is live (`deskApply`). Host / solo; the client mirrors the item and
+   * reads the desk's mode back from its label (`deskModeOf`, no wire change).
+   */
+  private findDesks(): void {
+    const ints = this.g.interactables;
+    const defs = this.desks.defs;
+    for (let i = 0; i < defs.length; i++) {
+      const d = defs[i]!;
+      if (!ints) {
+        this.deskIts.push(null);
+        continue;
+      }
+      const it = ints.add(deskItemId(i), 'switch', new Vector3(d.at[0], (d.y ?? 0) + DESK_ITEM_Y, d.at[1]), deskLabel(0), DESK_HOLD, d.yaw);
+      it.reach = DESK_REACH;
+      it.onUse = (_u, by) => {
+        this.useDesk(i, by);
+      };
+      this.deskIts.push(it);
+    }
+  }
+
+  /** (E6) Desk `d`'s operator is alive, awake and at his post. Not spawned yet (pending) counts as at his post. */
+  private deskManned(d: SecurityDesk): boolean {
+    const op = d.operator;
+    if (op === undefined) return false;
+    const e = this.slotEnemy[op];
+    if (e) return operatorAtPost(d, e.alive, e.ko, e.pos.x, e.pos.z);
+    for (let k = 0; k < this.pending.length; k++) if (this.pending[k]!.k === op) return true;
+    return false;
+  }
+
+  /**
+   * (E6) A player uses desk `i` (`by`: 'local' / undefined this machine, else the client's id). Returns the
+   * `SectorDesks.use` result (`DESK_USED_*` or a refusal). Also the e2e test hook.
+   */
+  useDesk(i: number, by?: string): number {
+    const d = this.desks.defs[i];
+    const it = this.deskIts[i] ?? null;
+    const local = by === undefined || by === 'local';
+    if (!d || d.section !== this.run.index) return DESK_REFUSE_BAD;
+    const r = this.desks.use(i, this.deskManned(d));
+    if (r < 0) {
+      if (it) it.progress = 0;
+      if (local && r === DESK_REFUSE_MANNED) this.g.hud.feedItem(DESK_MANNED_LINE, 'warn');
+      return r;
+    }
+    this.deskApply();
+    const line = r === DESK_USED_LOOP ? DESK_LOOP_LINE : DESK_OFF_LINE;
+    if (local) this.g.hud.feedItem(line);
+    else this.g.net?.radioLine?.(line);
+    return r;
+  }
+
+  /** (E6) Every desk's mode onto its cameras and its console item (label, usable while its section is live). */
+  private deskApply(): void {
+    const defs = this.desks.defs;
+    for (let i = 0; i < defs.length; i++) {
+      const d = defs[i]!;
+      const m = this.desks.mode[i]!;
+      this.ct?.setDesk(d.cameras, m);
+      const it = this.deskIts[i];
+      if (!it) continue;
+      it.label = deskLabel(m);
+      const on = d.section === this.run.index && m !== DESK_OFF;
+      if (it.enabled !== on) this.g.interactables?.setEnabled(it, on);
+      if (!on) it.progress = 0;
+    }
+    this.secT = 0;
+  }
+
   /** Test hook (e2e): this machine's player uses section `sec`'s keypad `k`. True when its door unlocked. */
   useKeypad(sec: number, k: number): boolean {
     const q = this.keyIts.find((x) => x.sec === sec && x.k === k);
@@ -417,6 +512,9 @@ export class SectorMode implements GameMode {
     // alarm panels: only this section's work, armed again; a panel alarm can be raised again (once per section load)
     this.g.stealth?.setLiveAlarms(s ? i : -1);
     this.g.enemyMgr?.resetAlarm();
+    // (E6) a section load (a change or a restart) puts every desk's cameras back; only the live section's desks work
+    this.desks.reset();
+    this.deskApply();
     if (!s) return;
     this.slotEnemy.length = 0;
     const n = flags.sectorGuards ?? s.guards.length;
@@ -437,6 +535,9 @@ export class SectorMode implements GameMode {
     if (this.stageRun?.release()) this.secT = 0;
     this.ct?.setLive(-1);
     g.stealth?.setLiveAlarms(-1);
+    // (E6) the desks' loops and offs end with the section
+    this.desks.reset();
+    this.deskApply();
   }
 
   /**
@@ -747,6 +848,12 @@ export class SectorMode implements GameMode {
     }
     // (E5 fix) a lockdown door waiting on a player in its doorway shuts once they step clear (no allocation; idle at 0)
     if (this.stageRun?.step()) this.secT = 0;
+    // (E6) a desk's loop window ran out: its cameras report again
+    if (this.desks.step(dt) > 0) {
+      this.deskApply();
+      g.hud.feedItem(DESK_LOOP_END_LINE);
+      g.net?.radioLine?.(DESK_LOOP_END_LINE);
+    }
     const s = this.run.current;
     if (!s) return;
     this.overhearStep(dt, this.run.index, s);
@@ -843,6 +950,7 @@ export class SectorMode implements GameMode {
       keypads: this.codes.open.map((row) => row.slice()),
       keypadLocked: this.keyIts.map((q) => (q.door ? q.door.anchor.locked : null)),
       lockdown: this.stageRun?.lockedCount() ?? 0,
+      desks: Array.from(this.desks.mode),
       ...this.result(),
     };
   }
