@@ -210,7 +210,7 @@ try {
 }
 // a suite with no recorded time (new, renamed, newly split) sorts at the median of the known times, not 0:
 // at 0 it started last and set the tail
-const knownSecs = Object.values(known).filter((v) => typeof v === "number").sort((a, b) => a - b);
+const knownSecs = Object.values(known).filter((v) => typeof v === 'number').sort((a, b) => a - b);
 const unknownSec = knownSecs.length ? knownSecs[Math.floor(knownSecs.length / 2)] : 60;
 // longest first: the pool ends together instead of waiting on one slow suite started last
 const queue = jobs > 1 ? [...all].sort((a, b) => (known[b] ?? unknownSec) - (known[a] ?? unknownSec)) : [...all];
