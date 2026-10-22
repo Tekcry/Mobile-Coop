@@ -66,11 +66,11 @@ self-check OK). Analysis: TAKES.md "M3 takes".
 | 127_03 | Run (from standing) | 261 | sprint start |
 | 127_04 | Walk to Run | 350 | sprint start (from a walk) |
 | 143_42 | Run (subject 143 "General Subject Capture") | 418 | sprint (second performer) |
-| 143_40 | Walk Sideways | 751 | strafe (walk, left then right) |
-| 69_56 | walk sideways and turn (opposite direction) (subject 69 "walking") | 600 | strafe (walk) |
-| 69_59 | walk sideways and turn | 546 | strafe (walk) |
-| 127_13, 127_14 | Run Side Step Left / Right | 144, 118 | strafe (run) |
-| 139_14, 139_15 | Sneak Sideways | 773, 842 | back-to-wall side-step |
+| 143_40 | Walk Sideways | 751 | strafe (walk, left then right; crosses the feet) |
+| 69_56 | walk sideways and turn (opposite direction) (subject 69 "walking") | 600 | strafe right; standing wall side-step right |
+| 69_59 | walk sideways and turn | 546 | strafe left; standing wall side-step left |
+| 127_13, 127_14 | Run Side Step Left / Right | 144, 118 | fetched for a run strafe; a forward run with a sidestep dodge (TAKES.md) |
+| 139_14, 139_15 | Sneak Sideways | 773, 842 | crouched back-to-wall side-step |
 | 139_01, 139_04 | Looking Around | 849, 689 | back-to-wall peek (stand-in) |
 
 Not on the site: no "sprint" (the fastest named runs stand in), no back-to-wall, wall slide or corner peek ("wall" and
