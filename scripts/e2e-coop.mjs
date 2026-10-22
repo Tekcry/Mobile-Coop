@@ -639,18 +639,18 @@ try {
     for (let attempt = 0; attempt < 6 && !grabbed; attempt++) {
       // (load-audit, as coop-offer-load's takedown fix) the pin holds on every host frame until the grab starts, not once
       // per attempt: under load the host ran frames between the pin and the client's read in which the guard alerted or
-      // turned again
+      // turned again. (load-audit review) The teleport window is granted once per attempt, before the client moves (a
+      // grant every frame kept the host's reach check open for the whole wait); each attempt's pin carries its own
+      // generation, so a pin from an earlier attempt stops when the next one starts, and the finally below always ends it
+      await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(2); });
       await GA((id) => {
         const g = window.__app.current;
         const v = g.enemyMgr.enemies.find((e) => e.id === id);
-        window.__grabPinOn = true;
+        const gen = (window.__grabPinGen = (window.__grabPinGen ?? 0) + 1);
         const pin = () => {
           // (stops once the guard is taken: his brain is back on as soon as the grab is held)
-          if (!window.__grabPinOn || v?.taken) return;
-          for (const r of g.net.remotes.values()) {
-            r.allowTeleport(2);
-            r.ref.spotted = false;
-          }
+          if (window.__grabPinGen !== gen || v?.taken) return;
+          for (const r of g.net.remotes.values()) r.ref.spotted = false;
           // (3.6: the checks above - a gas cloud - can leave guards in combat having spotted the client, and a
           // guard in combat who knows an operator is there cannot be taken by surprise (by design): calm the host first)
           for (const e of g.enemyMgr.enemies) e.aware.set('unaware');
@@ -667,24 +667,27 @@ try {
         };
         pin();
       }, gg);
-      await moveClient(B, 6, 0.1, -7.1, 0);
-      // (load-audit) the client starts the grab in the frame its offer from behind comes up (latched: the offer can come and go
-      // between two polls), then waits for the hostage, within 6 s of the client's match clock (was 30 polls 150 ms apart in
-      // real time, which a loaded page spent in a fraction of that game time); 90 s real-time cap
-      grabbed = await GB((id) => new Promise((res) => {
-        const g = window.__app.current;
-        const t0 = g.time;
-        const w0 = performance.now();
-        const tick = () => {
-          // (only the offer from behind is taken: a guard who turned round in the instant before offers the front takedown, a knock-out, not a grab)
-          if (g.takedown.offer?.e.id === id && g.takedown.offer.plan.kind === 'behind' && !g.takedown.active) g.takedown.start();
-          if (g.takedown.hostage?.id === id) res(true);
-          else if (g.time - t0 > 6 || performance.now() - w0 > 90000) res(false);
-          else requestAnimationFrame(tick);
-        };
-        tick();
-      }), gg);
-      await GA(() => { window.__grabPinOn = false; });
+      try {
+        await moveClient(B, 6, 0.1, -7.1, 0);
+        // (load-audit) the client starts the grab in the frame its offer from behind comes up (latched: the offer can come and go
+        // between two polls), then waits for the hostage, within 6 s of the client's match clock (was 30 polls 150 ms apart in
+        // real time, which a loaded page spent in a fraction of that game time); 90 s real-time cap
+        grabbed = await GB((id) => new Promise((res) => {
+          const g = window.__app.current;
+          const t0 = g.time;
+          const w0 = performance.now();
+          const tick = () => {
+            // (only the offer from behind is taken: a guard who turned round in the instant before offers the front takedown, a knock-out, not a grab)
+            if (g.takedown.offer?.e.id === id && g.takedown.offer.plan.kind === 'behind' && !g.takedown.active) g.takedown.start();
+            if (g.takedown.hostage?.id === id) res(true);
+            else if (g.time - t0 > 6 || performance.now() - w0 > 90000) res(false);
+            else requestAnimationFrame(tick);
+          };
+          tick();
+        }), gg);
+      } finally {
+        await GA(() => { window.__grabPinGen = (window.__grabPinGen ?? 0) + 1; });
+      }
     }
     if (!grabbed) {
       console.log('    host:', await GA((id) => { const g = window.__app.current; const e = g.enemyMgr.enemies.find((x) => x.id === id); const r = g.net.remotes.values().next().value; return JSON.stringify({ found: !!e, alive: e?.alive, taken: e?.taken, ko: e?.ko, level: e?.level, gas: e?.gas, stagger: e?.['stagger'], pos: e && [e.pos.x, e.pos.z], yaw: e?.yaw, client: [r.feet.x, r.feet.z], mv: r.state?.mv?.m }); }, gg));
