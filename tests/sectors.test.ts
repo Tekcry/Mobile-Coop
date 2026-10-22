@@ -11,6 +11,7 @@ import {
   alarmStep,
   checkSectors,
   checkSectorGuards,
+  SECTOR_REINFORCE_KIND,
   exitZone,
   fmtTime,
   inDoorway,
@@ -238,6 +239,30 @@ describe('sector rules', () => {
     expect(checkSectors(three())).toEqual([]);
     expect(checkSectors([def('a', 0, true), def('b', 1, true)])).toEqual(['a: no connector', 'a: an extraction before the last section']);
     expect(checkSectors([def('a', 0, false)])).toEqual(['a: the last section has no extraction', 'a: a connector after the last section']);
+  });
+
+  it('(sector-redesign G3 / G20) guards: everyone armed, no heavies, dogs only by the section allowance and with a handler', () => {
+    const g = (kind: SectorDef['guards'][number]['kind'], handler?: number): SectorDef['guards'][number] => ({ kind, x: 0, z: 0, yaw: 0, takedownSpot: [0, 0], ...(handler !== undefined ? { handler } : {}) });
+    const sec = (guards: SectorDef['guards'], dogs?: number): SectorDef => ({ ...def('s', 0, true), guards, ...(dogs !== undefined ? { dogs } : {}) });
+    // every armed kind passes
+    for (const k of ['grunt', 'officer', 'enforcer', 'sniper', 'droneOp'] as const) expect(checkSectorGuards(sec([g(k)])), k).toEqual([]);
+    // M1: no melee-only guards; G155: no heavies
+    expect(checkSectorGuards(sec([g('runner')]))).toEqual(['s: guard 0 (runner) carries no gun (M1)']);
+    expect(checkSectorGuards(sec([g('heavy')]))).toEqual(['s: guard 0 is a heavy (G155)']);
+    // dogs: none by default; allowed by `dogs`, each with an armed human handler of the section
+    expect(checkSectorGuards(sec([g('grunt'), g('dog', 0)]))).toEqual(['s: 1 dogs, the section allows 0']);
+    expect(checkSectorGuards(sec([g('grunt'), g('dog', 0)], 1))).toEqual([]);
+    expect(checkSectorGuards(sec([g('grunt'), g('dog', 0), g('dog', 0)], 1))).toEqual(['s: 2 dogs, the section allows 1']);
+    expect(checkSectorGuards(sec([g('grunt'), g('dog')], 1))).toEqual(['s: dog 1 has no handler']);
+    expect(checkSectorGuards(sec([g('grunt'), g('dog', 5)], 1))).toEqual(['s: dog 1 has no handler']);
+    expect(checkSectorGuards(sec([g('dog', 1), g('dog', 0)], 2))).toEqual(["s: dog 0's handler 1 is not an armed human guard", "s: dog 1's handler 0 is not an armed human guard"]);
+    expect(checkSectorGuards(sec([g('runner'), g('dog', 0)], 1))).toEqual(['s: guard 0 (runner) carries no gun (M1)', "s: dog 1's handler 0 is not an armed human guard"]);
+    // checkSectors runs it on every section
+    expect(checkSectors([sec([g('runner')])])).toContain('s: guard 0 (runner) carries no gun (M1)');
+    // the reinforcements are armed guards, not heavies (G155)
+    expect(SECTOR_REINFORCE_KIND).toBe('grunt');
+    expect(ENEMIES[SECTOR_REINFORCE_KIND].weapon).toBeTruthy();
+    expect(ENEMIES[SECTOR_REINFORCE_KIND].melee).toBeNull();
   });
 
   it('alarm stages cap and send reinforcements per stage (the section perStage)', () => {

@@ -109,7 +109,7 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
       // 5 the picker: the 06:00 trade orders from R3's east face to the goods-out corner
       { kind: 'grunt', x: -7.4, z: 14.6, yaw: Math.PI, route: [[-7.4, 14.6], [-7.4, 0.5]], wait: 4, waits: [4, 4], faces: [Math.PI / 2, -Math.PI / 2], takedownSpot: [-7.4, 0.5] },
       // 6 the tour guard (a loop): clocks the west fire exit and the C2 lobby door, checks the VNA barrier; paused at (-14.6, 5.5) facing A2
-      { kind: 'grunt', x: -23.2, z: 5.5, yaw: -Math.PI / 2, route: [[-23.2, 5.5], [-12.6, 5.5], [-12.6, -3.2], [-12.6, 5.5], [-14.6, 5.5]], wait: 4, waits: [4, 0, 2, 0, 7], faces: [-Math.PI / 2, 0, -2.4, 0, -Math.PI / 2], takedownSpot: [-14.6, 5.5] },
+      { kind: 'grunt', x: -23.2, z: 5.5, yaw: -Math.PI / 2, route: [[-23.2, 5.5], [-12.6, 5.5], [-12.6, -3.2], [-12.6, 5.5], [-14.6, 5.5]], wait: 4, waits: [4, 0, 2, 0, 12], faces: [-Math.PI / 2, 0, -2.4, 0, -Math.PI / 2], takedownSpot: [-14.6, 5.5] },
       // 7 the charge hand: night battery change for the reach and picking trucks (static)
       { kind: 'grunt', x: -5.3, z: -5.2, yaw: Math.PI / 2, takedownSpot: [-5.3, -5.2] },
       // 8 the loader: wraps and labels the picked orders for C3, facing the wrapper (static)
