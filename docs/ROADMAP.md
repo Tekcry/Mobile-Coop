@@ -20,6 +20,10 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 1. Walk slice F on /ct/ in the morning (CT Core, overnight).
 2. Prune old branches and worktrees when convenient (docs/process-audit/REPORT.md section 5). feature/ct-research is deleted.
 3. #67 S2b walk (step length vs the wall peek): Michael fixes it himself in animation dev (2026-10-21 13:20); stays parked.
+4. Review on the next walk (Menu Notes N3b, feature/anim-n3b): A2 wall block tips the gun muzzle-DOWN about the butt
+   (replaces G6's CT muzzle-up; real-world standard per the 2026-10-20 13:30 "ignore CT movement references"); A1 body
+   recoil above CT G2's "under 0.5 deg" (rifle grip 2.8 cm, chest 1.5 deg; Gun tuner recoilMul). Undo: constants /
+   recoilMul 0. W (#116): 0.08 s wheel let-go grace (WHEEL_LETGO_S).
 
 ## Decided (Michael, 2026-10-22 ~11:15 unless dated)
 - Campaign rules (2026-10-22 ~14:45): solo first vs co-op only: chose "Co-op only" (level-design section 11's solo rules do not bind campaign maps; open item 1 there). Guard count, story 16 vs SQUAD_CAP 9: "Maximum amount of guards allowable. If there are ways to increase this cap (for example moving to webgpu) then let me know and make suggestions." Campaign spec: "Ignore campaign spec until Marlow yard and sector ops warehouse are fully completed".
