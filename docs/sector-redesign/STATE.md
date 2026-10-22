@@ -29,3 +29,10 @@ docs/marlow-bays/RESUME-trackA.md on origin/feature/marlow-bays for the other op
 camera-range). Carry on from "Next". Full burn to 100%; WIP pushed after every hand-back. Report to
 "Night Shift | Orchestrator".
 ```
+
+## MORNING-REVIEW (Michael ~01:42: "Apply, logged and undoable")
+Every loosening and assumed decision built tonight, with its undo. Filled in as the spec and slices land.
+- Lighting review LR1-LR12 (docs/lighting-review/PROPOSAL.md, origin/feature/marlow-final since 471c3a98): applied to
+  this map as assumed decisions; docs/level-design.md itself is not edited. Undo: per item, see the BRIEF A-number.
+- Concept loosenings P1-P10 (research/CONCEPT.md): applied likewise. Undo: per item, see the BRIEF A-number.
+- Finished and green slices merge to master in the next train (/preview/).

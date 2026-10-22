@@ -10,6 +10,7 @@ import {
   SectorRun,
   alarmStep,
   checkSectors,
+  checkSectorGuards,
   exitZone,
   fmtTime,
   inDoorway,
@@ -404,9 +405,12 @@ describe('the Warehouse sections (A12, M8)', () => {
     expect(world.blocked(s.objective.x + 0.9, 0, s.objective.z, 0.3)).toBe(false);
     expect(0.9).toBeLessThan(SECTOR.downloadRange);
     expect(s.guards.length).toBe(8);
-    // ?sectorGuards=4 takes the first four: the gate officer, the yard patrol, the checker and the CCTV operator (no heavies, G155)
-    expect(s.guards.slice(0, 4).map((g) => g.kind)).toEqual(['officer', 'runner', 'officer', 'officer']);
-    expect(s.guards.some((g) => g.kind === 'heavy' || g.kind === 'sniper' || g.kind === 'dog')).toBe(false);
+    // ?sectorGuards=4 takes the first four: the gate officer, the yard patrol, the checker and the CCTV operator (no heavies, G155;
+    // the yard patrol was a melee runner, armed as a grunt by sector-redesign G3)
+    expect(s.guards.slice(0, 4).map((g) => g.kind)).toEqual(['officer', 'grunt', 'officer', 'officer']);
+    // (sector-redesign G3 / G20) everyone armed, no heavies (G155), no sniper here, dogs only where the section allows them
+    expect(s.guards.some((g) => g.kind === 'sniper')).toBe(false);
+    expect(checkSectorGuards(s)).toEqual([]);
     // the rooms: none of the old south band's, none overlapping the section 3 floor
     const ids = (lay.rooms ?? []).map((r) => r.id);
     for (const gone of ['dock', 'dispatch', 'corridor']) expect(ids).not.toContain(gone);
@@ -422,7 +426,9 @@ describe('the Warehouse sections (A12, M8)', () => {
     expect(s.guards.length).toBe(8);
     // ?sectorGuards=4 takes the checker, the reach driver, the stocktaker and the cage officer (no heavies, G155)
     expect(s.guards.slice(0, 4).map((g) => g.kind)).toEqual(['enforcer', 'grunt', 'officer', 'officer']);
-    expect(s.guards.some((g) => g.kind === 'heavy' || g.kind === 'sniper' || g.kind === 'dog')).toBe(false);
+    // (sector-redesign G3 / G20) everyone armed, no heavies (G155), no sniper here, dogs only where the section allows them
+    expect(s.guards.some((g) => g.kind === 'sniper')).toBe(false);
+    expect(checkSectorGuards(s)).toEqual([]);
     // the e2e stands 0.9 m east of the case: free floor, no door within 1.6 m (the context menu), no first-four guard within 1.8 m
     const sx = s.objective.x + 0.9;
     expect(world.blocked(sx, 0, s.objective.z, 0.3)).toBe(false);
@@ -448,9 +454,11 @@ describe('the Warehouse sections (A12, M8)', () => {
     expect(s.extract?.label).toBe('Extract by the east fire exit');
     expect(s.extract?.box).toEqual([21.4, -8.5, 23.7, -5.9]);
     expect(s.guards.length).toBe(9);
-    // ?sectorGuards=4 takes the porter, the loader, the clerk and the tour guard (no heavies, G155)
-    expect(s.guards.slice(0, 4).map((g) => g.kind)).toEqual(['enforcer', 'grunt', 'officer', 'runner']);
-    expect(s.guards.some((g) => g.kind === 'heavy' || g.kind === 'sniper' || g.kind === 'dog')).toBe(false);
+    // ?sectorGuards=4 takes the porter, the loader, the clerk and the tour guard (no heavies, G155; the tour guard armed, G3)
+    expect(s.guards.slice(0, 4).map((g) => g.kind)).toEqual(['enforcer', 'grunt', 'officer', 'grunt']);
+    // (sector-redesign G3 / G20) everyone armed, no heavies (G155), no sniper here, dogs only where the section allows them
+    expect(s.guards.some((g) => g.kind === 'sniper')).toBe(false);
+    expect(checkSectorGuards(s)).toEqual([]);
     // the e2e stands 0.9 m east of the terminal, on the deck: free, no door within 1.6 m, no first-four guard within 1.8 m
     const sx = s.objective.x + 0.9;
     expect(world.blocked(sx, 3.3, s.objective.z, 0.3)).toBe(false);
