@@ -14,6 +14,12 @@
 - Fix 1e4556a8 (assumed decision 6, undo: IDLE_TIE 0): with the turn rules on, idle errors within 10% (IDLE_TIE) -> the
   foot planted longer steps first (plantT); turnRule 0 unchanged; unit test in tests/footPlanner.test.ts. Headless
   -3.0 -> -2.7. Laptop asked (16:15) for check + e2e-clip e2e-anim e2e-move on 1e4556a8.
+- Desktop 16:26-16:31 on 7955f883 (= 1e4556a8 + docs; /c/NightShift/ctb8.out, ctb8.log): check 2684 ok; e2e-move ok;
+  e2e-clip ok (crouched holstered -2.9 cm, was -3.2); e2e-anim FAIL: N1's own turn feet block "jog 180: no snap at
+  lift, the first swing frames under 5 m/s (5.29 m/s)" (ctb8.log:156: slide 0.0, twist 14.3, gap 6.1, plant 0.22 s;
+  straight 1.35). jog 90 ok at 4.08. NEXT: find why the jog 180 first swing frames reach 5.29 m/s (the turn step on the
+  clock strike / ball pivot launch) and fix in the planner (not the limit), headless first (footTurnHarness), then
+  e2e-anim on the desktop.
 - Side issue (polish list): after a teleport visYaw is not snapped, so the body spins to the new yaw and the ball pivot
   sweeps the inside foot across the midline (three steps to undo).
 
