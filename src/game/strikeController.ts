@@ -8,6 +8,7 @@
 import { Vector3 } from '../core/babylon';
 import { gearCap } from '../player/speedGears';
 import { STRIKE, STRIKE_DUR, STRIKE_WHIFF_DUR, strikePhase, strikeReach } from './elbowStrike';
+import { strikeSimSet } from '../anim/strikeBody';
 import type { CDenyReason } from './committedMoves';
 import type { GameState } from './gameState';
 
@@ -144,6 +145,9 @@ export class StrikeController {
   /** Fixed step (before the player's movement). */
   fixedUpdate(dt: number, pressed: boolean, lethal = false): void {
     const g = this.g;
+    // (anim-natural N4c) the tuner's Elbow strike follow: the local player's elbow arc (this strike or a takedown's
+    // blow, both posed by `melee`) as it stood after the last step
+    strikeSimSet(g.player.pose.melee >= 0);
     if (pressed) this.lethal = lethal;
     if (!this.active) {
       // (F1b) no swing at nothing: the press only starts a strike when a guard is in reach
