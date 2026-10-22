@@ -35,15 +35,15 @@ taken as a difference of two measured times, never a raw "draw to shot" figure.
    Idea"](https://shootingillustrated.com/content/speed-holstering-why-it-s-a-bad-idea)).
 
 ## Defaults
-| Value | Old | New | Derivation |
+| Value | Old (master 4.51.0) | New | Derivation |
 | --- | --- | --- | --- |
 | Pistol draw, X (holster to low ready) | 0.5 s | **0.75 s** | Source 1: 1.90 - 1.15 s. A thigh retention holster sits between Level II and III (source 3). |
-| Rifle draw, X (back to low ready) | 0.55 s (0.3 s before N3) | **1.1 s** | Source 5: ~2.0 s on target, minus the raise to fire (0.59 s, source 2) and a ~0.3 s reaction. |
+| Rifle draw, X (back to low ready) | 0.3 s | **1.1 s** | Source 5: ~2.0 s on target, minus the raise to fire (0.59 s, source 2) and a ~0.3 s reaction. |
 | Pistol LT sling draw (holster to aimed) | 0.8 s | 1.2 s | `slingDrawMult` 1.6 kept: draw plus the raise to the eye. |
 | Rifle LT sling draw (back to aimed) | 0.75 s | 1.5 s | `slingDrawLong` 1.36 kept: draw plus the raise to the shoulder. |
-| Pistol holster | 0.35 s | **0.9 s** | Source 7: slower than the draw; reverse path, seat, retention. |
-| Rifle holster (to the back) | 0.4 s | **1.0 s** | Source 7, same reasoning; the sling guides it. |
+| Pistol holster | 0.15 s | **0.9 s** | Source 7: slower than the draw; reverse path, seat, retention. |
+| Rifle holster (to the back) | 0.15 s | **1.0 s** | Source 7, same reasoning; the sling guides it. |
 
 All new raise times are at or above the bible's minimums (G103: 0.6 s pistol, 0.75 s rifle). The holster times exceed
 the bible's "0.5-0.6 s to lower" (G103) and replace G2's 0.15 s: Michael's 2026-10-22 instruction outranks both; the
-orchestrator updates the bible line. Undo: the "Old" column (drawState.ts), or the tuner multipliers.
+bible G103 line is updated on this branch. Undo: the "Old" column (drawState.ts), or the tuner multipliers.

@@ -40,3 +40,40 @@ and the settle, no one-frame grip / wrist jump over 3.5 cm, nothing moving after
 The times are DRAW-TIMES.md's. The scaffolds (n3Dbg / n3Trace / n3Capture / n3Hol) are deleted; the trace lives in the
 real test. Open: the GPU proving run (`scripts/anim-natural/audit.mjs`, rows `draw-*`, `swap-drawn`, `holster-*`,
 `ready-to-aim`) and the full e2e, both on the job lead's desktop lock.
+
+## Paused 2026-10-22 ~12:45 (orchestrator: 5-hour window; resume on its message after the 14:10 reset)
+Implemented and committed (0134e11e; master 4.52.0 merged 25dfd5c4). Fresh checker: **PASS WITH FIXES** (mutation
+runs: dropping `drawRelease` fails 8 / 11 rig scenarios, travel ending at 0.8 fails 5). Targeted tests, tsc, eslint
+clean. Full vitest pending (heavy lock). Resume with ONE fix round (implementer), then the steps below.
+
+Must-fix:
+1. RT strike pressed during the 1.0 s holster is dropped, not delayed (gameState.ts ~1608 / ~1761, strikeController.ts
+   ~65: `TriggerTapHold` arms only at the press with `drawPhase === 0`). Arm it while HOLSTERING too, treat a pending
+   strike as a busy move (holster at `HOLSTER_TIME_MOVE`), start the strike at phase 0.
+2. A holster or traversal mid-draw snaps the gun to its slot (`setStowed(true)` with `swapPhase >= 2` ->
+   `holsterAll(-1)`, playerWeapons.ts ~256-260): 20-39 cm grip, 1.2 m muzzle in one frame. Reverse from where the gun is
+   (`beginTravel(rig, slot, false)`, `swapT = SWAP_TIME * TRAVEL_OUT`, `swapPhase = 0`); add holster-mid-draw and
+   traverse-mid-draw scenarios.
+Should-fix:
+3. Re-draw within 0.4 s of seating (`RELEASE_TIME`): characterRig.ts ~2492 zeroes `relW` while `travelReach` restarts
+   at 0: 7-14 cm wrist jump. Start the reach from `relK` (`travelReach = max(reachWeight, relK)`) or decay it.
+4. n3DrawMotion.test.ts ~211: the stop threshold 0.15 m/s is absolute; make it relative (< 10 % of the move's peak for
+   3+ frames) and add a muzzle angular-jerk check.
+Nice-to-have: 6. `adsInTime` jumps 0.99 -> 0.27 s at DRAWN mid-dolly (playerWeapons.ts ~395): use `AIM_IN_*` whenever
+`!slingDraw`, or `max(AIM_IN, remaining)`. 7. Gadgets refused for the whole 1.1 s draw (playerWeapons.ts ~763): record
+in the PR. 8. e2e-combat.mjs ~38 margin vs the 1.5 s sling draw: include combat / takedown / stealth suites in the lock
+run. 9. e2e-anim.mjs ~236 add a lower bound (`drawnT >= 1.3`); e2e-netmove.mjs ~246 stale "own 0.4 s" comment.
+10. drawMotion.ts:3 cites tests/drawMotion.test.ts (is n3DrawMotion); animGraph picks the draw class from the slot,
+weaponModel from `def.class` (fine while only rifle / pistol exist).
+
+Then:
+- Merge master once #109 (clip-speed, train/2) lands. Agreed with Course Ready: split its holster row into
+  `clip.gun.holsterPrimary` / `holsterSidearm` ("Rifle / Pistol holster speed"); `holsterTimeFor(cls)` divides by its
+  own row x `clip.all`; CLIP_BASE gets both; two bake rules (HOLSTER_TIME_PRIMARY / _SIDEARM); an old export's single
+  `holster` row applies to both. Expected conflicts: drawState constants / update / remaining, `HOLSTER_TIME` alias,
+  BAKE_CATALOGUE_MODULES, playerWeapons drawTime / holsterTime. `AIM_IN_*` and `HOLSTER_TIME_MOVE` stay unscaled.
+- Tests (merge trains, orchestrator): CI + area suites e2e-anim, e2e-weapons-carry, e2e-studio, plus combat / takedown
+  / stealth (finding 8), under heavy.lock, E2E_PORT 4199, E2E_JOBS=1; full vitest under the lock or on the laptop.
+- GPU before / after sheets (port 4189 under the lock), then the PR (minor version; CHANGELOG, TESTING, systems docs;
+  old -> new times in the body; name the animGraph / tuneBakeTable lines, the `swapRel` carriage change, the slower
+  strike / reload / gadget windows). CT Core: no clash with N1 / N2 (2026-10-22).
