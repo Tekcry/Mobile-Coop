@@ -20,7 +20,7 @@ import { LEAP, MOVEMENT, TEAM } from '../../src/config/movement';
 import { COURSE_TEXT_MAX } from '../../src/config/course';
 import { hyp2, hyp3 } from '../../src/core/mathx';
 import { DOOR } from '../../src/world/doors';
-import { kitTriangles } from '../../src/world/kit/facilityKit';
+import { KIT_BOX_COLOR, kitTriangles } from '../../src/world/kit/facilityKit';
 import { FacilityProps, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_HUNG, PROP_SET_BUDGET, type PropPlacement, type PropReport } from '../../src/world/props/facilityProps';
 import { CANON_MIN_THICK } from '../../src/voxel/lightShapes';
 import { layoutKnownIds, validateCourse } from '../../src/game/course/courseDef';
@@ -29,7 +29,7 @@ import { applyJamLight, DEV_IDLE, DEV_JAMMED, DEV_RECOVER, JAM_LIGHT, JAMMER, LA
 import { laserLive, panelFor, panelTarget } from '../../src/game/laserPanels';
 import { throwArc, throwLanding, throwLandingOk, throwRoom } from '../../src/game/teamMoves';
 import { GRAVITY } from '../../src/physics/havok';
-import { generateLedges, LEDGE } from '../../src/world/anchors';
+import { generateLedges, LEDGE, type Door } from '../../src/world/anchors';
 import { LevelBuilder, type BoxPiece } from '../../src/world/levelBuilder';
 import { contribution } from '../../src/world/lights';
 import { MARLOW_LEVEL } from '../../src/world/lighting/levels';
@@ -920,5 +920,409 @@ describe('A5 the Substation: the switchroom, the routes and map data', () => {
     expect(part.scanners).toEqual([]);
     expect(part.consoles).toEqual([]);
     expect(part.hideSpots).toEqual([]);
+  });
+});
+
+describe('A5 the Substation: dressing (slice 5 step 5)', () => {
+  const kitReport = JSON.parse(readFileSync('src/world/kit/assets/facility-kit.json', 'utf8')) as { pieces: Record<string, { meshes: Record<string, number> }> };
+  const propReport = JSON.parse(readFileSync('src/world/props/assets/facility-props.json', 'utf8')) as PropReport;
+  const area = { x0: box[0], z0: box[1], x1: box[2], z1: box[3] };
+  const own = part.props;
+  /** The props' own boxes as written (matched by centre and size). */
+  const propBoxes = own.flatMap((p) => propCollisionBox(p) ?? []);
+  const written = propBoxes.map((w) => mine.find((p) => p.collide && p.c.every((v, k) => Math.abs(v - w.c[k]!) < 1e-6) && p.s.every((v, k) => Math.abs(v - w.s[k]!) < 1e-6) && Math.abs(p.yaw - w.yaw) < 1e-6)!);
+  const filler = dressing.filter((p) => p.collide && !written.includes(p));
+  const skins = dressing.filter((p) => !p.collide);
+  const doorOf = (id: string): Door => b.anchors.doors.find((d) => d.id === course.doors[id])!;
+  const lo = (p: BoxPiece, k: 0 | 1 | 2): number => p.c[k] - p.s[k] / 2;
+  const hi = (p: BoxPiece, k: 0 | 1 | 2): number => p.c[k] + p.s[k] / 2;
+  /** The skins whose box overlaps [x0, x1] x [y0, y1] x [z0, z1] (touching faces do not count). */
+  const skinsIn = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number): string[] =>
+    skins
+      .filter((p) => lo(p, 0) < x1 - 1e-6 && hi(p, 0) > x0 + 1e-6 && lo(p, 1) < y1 - 1e-6 && hi(p, 1) > y0 + 1e-6 && lo(p, 2) < z1 - 1e-6 && hi(p, 2) > z0 + 1e-6)
+      .map((p) => `skin (${p.c.map((v) => v.toFixed(3)).join(', ')}) size (${p.s.map((v) => v.toFixed(3)).join(', ')})`);
+  /** The visible pieces a hinged door's leaf touches in plan at any point of its swing (the leaf is `DOOR.thickness` thick, from 0.02 m off the hinge to 0.02 m short of
+   *  the far jamb, as `Doors` draws it; the kit's charcoal walls and the floor paint are not counted: the leaf stands in the wall's gap, over the paint). */
+  const leafHits = (d: Door, pieces: readonly BoxPiece[]): string[] => {
+    const out = new Set<string>();
+    const cand = pieces.filter((p) => p.visible !== false && top(p) > 0.03 && bottom(p) < d.height - 1e-3 && p.color !== KIT_BOX_COLOR && Math.abs(p.yaw) < 1e-3 && Math.abs(p.pitch) < 1e-3);
+    for (let f = 0.05; f <= 1.0001; f += 0.05) {
+      const yaw = d.yaw + d.swing * DOOR.openAngle * f;
+      const dx = Math.sin(yaw);
+      const dz = Math.cos(yaw);
+      for (let t = 0.02; t <= d.width - 0.02 + 1e-9; t += 0.05) {
+        for (const side of [-1, 0, 1]) {
+          const x = d.hinge.x + dx * t + dz * side * (DOOR.thickness / 2);
+          const z = d.hinge.z + dz * t - dx * side * (DOOR.thickness / 2);
+          for (const p of cand) if (Math.abs(x - p.c[0]) < p.s[0] / 2 - 1e-4 && Math.abs(z - p.c[2]) < p.s[2] / 2 - 1e-4) out.add(`piece (${p.c.map((v) => v.toFixed(2)).join(', ')}) size (${p.s.map((v) => v.toFixed(2)).join(', ')}) at swing ${f.toFixed(2)}`);
+        }
+      }
+    }
+    return [...out];
+  };
+
+  it("the greybox is as S5 built it (25 boxes by checksum, 9 lamps, 2 doors, no anchor) bar the switchgear run's end; the only new collision is the two beam towers' poles and the end filler", () => {
+    let sum = 0;
+    for (const p of grey) sum += (p.c[0] + 2 * p.c[1] + 3 * p.c[2] + 5 * p.s[0] + 7 * p.s[1] + 11 * p.s[2] + p.yaw) * (p.collide ? 1 : 1.5) * (p.visible === false ? 1.25 : 1) * (p.overhead ? 1.1 : 1);
+    expect(sum).toBeCloseTo(GREY.checksum, 3);
+    expect(grey.filter((p) => p.collide)).toHaveLength(GREY.solids);
+    expect(propBoxes).toHaveLength(2);
+    expect(written.every((p) => p !== undefined)).toBe(true);
+    expect(filler).toHaveLength(1);
+    expect(built.counts.sets.a5Substation).toEqual({ lights: GREY.lights, solids: GREY.solids + propBoxes.length + filler.length, doors: GREY.doors, anchors: GREY.anchors });
+    // after the greybox: the poles, the filler and visual skins; nothing else collides
+    expect(dressing.filter((p) => p.collide)).toHaveLength(propBoxes.length + filler.length);
+    expect(lamps).toHaveLength(GREY.lights);
+    expect(part.register.map((r) => r.id)).toEqual(expect.arrayContaining(Array.from({ length: 10 }, (_, i) => `A5-${13 + i}`)));
+    expect(part.doors).toEqual({ [A5_FRONT_DOOR]: expect.any(Number), [A5_BACK_DOOR]: expect.any(Number) });
+    // per row: only A5-21 (two poles) and A5-22 (the filler) hold dressing solids; no new lamp, door or anchor
+    for (const r of part.register.filter((x) => Number(x.id.slice(3)) >= 13)) expect([r.id, r.solids, r.lights, r.doors, r.anchors]).toEqual([r.id, r.id === 'A5-21' ? 2 : r.id === 'A5-22' ? 1 : 0, 0, 0, 0]);
+  });
+
+  it("every hand-built dressing box is a visual skin: no collision, noLedge, a side under 5 cm (out of the canonical light shapes, so the light is the greybox's); the towers' poles are the only visible box over 5 cm, the filler is invisible", () => {
+    expect(skins.length).toBeGreaterThan(600);
+    for (const p of skins) {
+      expect(p.noLedge, `skin at (${p.c.join(', ')})`).toBe(true);
+      expect(Math.min(...p.s), `skin at (${p.c.join(', ')}) size (${p.s.join(', ')})`).toBeLessThan(CANON_MIN_THICK);
+      expect(p.visible).not.toBe(false);
+      expect(p.overhead).toBeFalsy();
+    }
+    expect(dressing.filter((p) => p.visible !== false && Math.min(...p.s) >= CANON_MIN_THICK)).toEqual(written);
+    for (const p of filler) {
+      expect(p.visible).toBe(false);
+      expect(p.noLedge).toBe(true);
+    }
+    for (const p of [...written, ...filler]) expect(p.noLedge, `collider at (${p.c.join(', ')})`).toBe(true);
+  });
+
+  it("S567-check polish 3: the switchgear run ends at z 44.6, so the back door's open leaf clears every visible piece (the front door's too); the old footprint to z 45 keeps its collision as an invisible filler (teeth: the old end clips the leaf)", () => {
+    const g0 = A5_GEAR;
+    const gear = grey.find((p) => p.collide && Math.abs(p.s[1] - g0.h) < 1e-9 && Math.abs(p.c[0] - (g0.x0 + g0.x1) / 2) < 1e-9)!;
+    expect([lo(gear, 0), hi(gear, 0), lo(gear, 2), hi(gear, 2), top(gear)].map((v) => Number(v.toFixed(3)))).toEqual([40.3, 41.1, 37, 44.6, 2.3]);
+    expect(gear.noLedge).toBe(true);
+    const f = filler[0]!;
+    expect([lo(f, 0), hi(f, 0), lo(f, 2), hi(f, 2), top(f)].map((v) => Number(v.toFixed(3)))).toEqual([40.3, 41.1, 44.6, 45, 2.3]);
+    expect(f.visible).toBe(false);
+    // run and filler together are the old run (x 40.3-41.1, z 37-45, 2.3 m): a body stands where it stood
+    expect(hi(gear, 2)).toBeCloseTo(lo(f, 2), 9);
+    const back = doorOf(A5_BACK_DOOR);
+    const front = doorOf(A5_FRONT_DOOR);
+    const pieces = [...grey, ...dressing];
+    expect(leafHits(back, pieces)).toEqual([]);
+    expect(leafHits(front, pieces)).toEqual([]);
+    // the open back leaf lies along x 41.0 down to z 44.8: the visible run stops 0.2 m short of it
+    const openYaw = back.yaw + back.swing * DOOR.openAngle;
+    const tip = { x: back.hinge.x + Math.sin(openYaw) * (back.width - 0.02), z: back.hinge.z + Math.cos(openYaw) * (back.width - 0.02) };
+    expect(tip.x).toBeCloseTo(41.0, 1);
+    expect(tip.z).toBeCloseTo(44.84, 1);
+    expect(tip.z - hi(gear, 2)).toBeGreaterThan(0.2);
+    // teeth: the run as S5 built it (to z 45) is hit by the open leaf, and so is a skin dropped on its line
+    const oldRun: BoxPiece = { ...gear, c: [gear.c[0], gear.c[1], (37 + 45) / 2], s: [gear.s[0], gear.s[1], 8] };
+    expect(leafHits(back, [oldRun]).length).toBeGreaterThan(0);
+    const clip: BoxPiece = { c: [41.0, 1, 45.2], s: [0.1, 2, 0.1], yaw: 0, pitch: 0, color: '#888', collide: false, visible: true };
+    expect(leafHits(back, [clip]).length).toBeGreaterThan(0);
+  });
+
+  it("the openings and fixtures stay clear of skins: the L4 far door, its glass slot and the sign plate over it, the L5 near door, the beam panel's face, the flood's fixture box, the kiosk lamp's fixture", () => {
+    expect(skinsIn(69.6, 69.76, 0.05, 2.45, 32.0, 34.0)).toEqual([]);
+    expect(skinsIn(69.6, 69.76, 1.0, 2.2, 34.9, 35.5)).toEqual([]);
+    expect(skinsIn(69.65, 69.76, 2.5, 2.9, 32.3, 33.7)).toEqual([]);
+    expect(skinsIn(52.0, 54.0, 0.05, 2.45, 47.6, 47.76)).toEqual([]);
+    // (the render's own skin lies on the wall face, 3 cm: the panel's back sinks into it, its face stands clear)
+    expect(skinsIn(42.79, 43.21, 2.92, 3.48, 35.7, 35.82)).toEqual([]);
+    // the flood's fixture (x 44.3-44.7, y 4.18-4.34, z 35.45-35.75): the outrigger carries it, nothing sits inside it
+    expect(skinsIn(44.3, 44.7, 4.19, 4.33, 35.46, 35.74)).toEqual([]);
+    // the kiosk lamp's fixture (x 47.47-47.53, y 1.41-1.49, z 32.9-33.1) is reached by the gooseneck, not covered
+    expect(skinsIn(47.48, 47.52, 1.42, 1.48, 32.91, 33.09)).toEqual([]);
+    const neck = skins.find((p) => Math.abs(hi(p, 0) - (A5_KIOSK_LAMP.x - 0.03)) < 1e-6 && p.c[1] > 1.43 && p.c[1] < 1.48 && Math.abs(p.c[2] - 33) < 0.02)!;
+    expect(neck).toBeDefined();
+    expect(lo(neck, 0)).toBeGreaterThan(A5_KIOSK.x1);
+  });
+
+  it("budgets (computed): kit triangles <= 60 k in the set box; the props pass FacilityProps.check against the set box at 60 k triangles and 12 draws, the facility's set-side plates in the box counted", () => {
+    const kitIn = lay.kit!.instances.filter((i) => inBox(box, i.x, i.z));
+    const kitTris = kitTriangles({ instances: kitIn, doors: [] }, kitReport);
+    expect(kitIn.filter((i) => i.piece === 'wallPanel').length).toBeGreaterThan(60);
+    expect(kitTris, `${kitTris} kit triangles`).toBeLessThanOrEqual(60_000);
+    const facilityIn = built.facility.props.filter((p) => inBox(box, p.x, p.z));
+    expect(facilityIn.some((p) => p.prop === 'signPlate')).toBe(true);
+    const counted = [...own, ...facilityIn];
+    const checker = new FacilityProps();
+    checker.placements.push(...counted);
+    expect(checker.check(area, propReport)).toEqual([]);
+    expect(propTriangles(counted, propReport)).toBeLessThanOrEqual(PROP_SET_BUDGET.tris);
+    expect(propDraws(counted, propReport)).toBeLessThanOrEqual(PROP_SET_BUDGET.draws);
+    expect(propDraws(counted, propReport)).toBeGreaterThan(4);
+    expect(own.map((p) => p.prop).sort()).toEqual([...Array<string>(2).fill('beamTower'), ...Array<string>(11).fill('cableTray')].sort());
+  });
+
+  it("every kit glow in A5 carries a circuit: the hall panels are on the plan's A5 rows (inner zone 51 west of the security wall and on the west wall, apron 50 east of it and on the east wall); never 52 or 53, no lamp added", () => {
+    const plan = new Set(Object.values(marlowCourseGroups()));
+    const [g0, g1] = setGroups('a5Substation');
+    const kitIn = lay.kit!.instances.filter((i) => inBox(box, i.x, i.z));
+    // (the facility's own L4 / L5 door panels, outside the walls' faces, are the facility's)
+    const glowing = kitIn.filter((i) => ['wallPanel', 'skirting', 'column', 'handrail'].includes(i.piece) && Math.abs(i.x - 70.25) > 0.1 && Math.abs(i.z - 48.25) > 0.1);
+    expect(glowing.length).toBeGreaterThan(60);
+    for (const i of glowing) {
+      expect(i.group, `${i.piece} at ${i.x}, ${i.y}, ${i.z}`).toBeDefined();
+      expect(plan.has(i.group!), `${i.piece} group ${i.group}`).toBe(true);
+      expect(i.group!).toBeGreaterThanOrEqual(g0);
+      expect(i.group!).toBeLessThanOrEqual(g1);
+      expect([50, 51]).toContain(i.group);
+    }
+    const panels = glowing.filter((i) => i.piece === 'wallPanel');
+    // the south and north walls over the glazing (7.5 m up): 51 west of x 58, 50 east of it; the east wall 50; the west wall from 4.4 m, 51
+    for (const i of panels) {
+      if (Math.abs(i.x - A5_SHELL.west) < 0.1) {
+        expect(i.y).toBeCloseTo(4.4, 9);
+        expect(i.group).toBe(51);
+      } else if (Math.abs(i.x - A5_SHELL.east) < 0.1) {
+        expect(i.y).toBeCloseTo(GAL_TOP, 9);
+        expect(i.group).toBe(50);
+      } else {
+        expect(Math.abs(i.z - A5_SHELL.south) < 0.1 || Math.abs(i.z - A5_SHELL.north) < 0.1, `panel at ${i.x}, ${i.z}`).toBe(true);
+        expect(i.y).toBeCloseTo(GAL_TOP, 9);
+        expect(i.group, `panel at x ${i.x}`).toBe(i.x < A5_WALL.x ? 51 : 50);
+      }
+    }
+    for (const g of [50, 51]) expect(panels.some((i) => i.group === g)).toBe(true);
+    // all four walls are covered, corner to corner
+    expect(panels.filter((i) => Math.abs(i.z - A5_SHELL.south) < 0.1).length).toBeGreaterThan(20);
+    expect(panels.filter((i) => Math.abs(i.z - A5_SHELL.north) < 0.1).length).toBeGreaterThan(20);
+    expect(panels.filter((i) => Math.abs(i.x - A5_SHELL.east) < 0.1).length).toBeGreaterThan(15);
+    expect(panels.filter((i) => Math.abs(i.x - A5_SHELL.west) < 0.1).length).toBeGreaterThan(15);
+    // no lamp was added: the nine of the plan, each on its row
+    expect(lamps).toHaveLength(9);
+    for (const l of lamps) expect(l.group).toBeGreaterThanOrEqual(g0);
+    expect(HALL_H).toBe(10);
+  });
+
+  it("the two beam towers (props): thin noLedge poles on the gateway posts, facing each other across the opening, each 0.18 m into the 6 m gap; the throw, the jam lines and the gap's clearance are the greybox's", () => {
+    const towers = own.filter((p) => p.prop === 'beamTower');
+    expect(towers).toHaveLength(2);
+    towers.forEach((p, i) => {
+      expect(p.x).toBeCloseTo(A5_TOWERS[i]!.x, 9);
+      expect(p.z).toBeCloseTo(A5_TOWERS[i]!.z, 9);
+    });
+    // each tower's front (+z) looks across the gap: the first north, the second south
+    for (const t of towers) {
+      const front = propToWorld(t, 0, 0, 1);
+      expect(Math.sign(front[2] - t.z)).toBe(Math.sign(A5_GATEWAY.at.z - t.z));
+    }
+    expect(written).toHaveLength(2);
+    for (const w of written) {
+      expect(w.noLedge).toBe(true);
+      expect(Math.min(w.s[0], w.s[2])).toBeLessThan(LEDGE.climbDepth);
+      expect(top(w)).toBeLessThan(2.4);
+      // the pole stands on the wall's centre line, beside the beams' ends (z 33 and 39)
+      expect(Math.abs(w.c[0] - A5_WALL.x)).toBeLessThan(1e-6);
+    }
+    const zs = written.map((w) => [lo(w, 2), hi(w, 2)] as const).sort((p, q) => p[0] - q[0]);
+    expect(zs[0]![1] - 33).toBeGreaterThan(0.1);
+    expect(zs[0]![1] - 33).toBeLessThan(0.25);
+    expect(39 - zs[1]![0]).toBeGreaterThan(0.1);
+    // the open width between the poles stays over 5.6 m, and the beam line's ends are still the wall's
+    expect(zs[1]![0] - zs[0]![1]).toBeGreaterThan(5.6);
+    expect(laser).toMatchObject({ z1: 33, z2: 39 });
+    // a pole is no threat to the beams and no top to stand on
+    expect(beamThreats(solid)).toEqual([]);
+    expect(anchors.ledges.filter((l) => Math.abs((l.a.x + l.b.x) / 2 - A5_WALL.x) < 0.5 && inBox(box, (l.a.x + l.b.x) / 2, (l.a.z + l.b.z) / 2))).toEqual([]);
+    // the throw's arc from every start passes the poles by over 0.5 m (the arc tests above read the same solids)
+    const o = { x: 0, y: 0, z: 0 };
+    const land = { x: 0, z: 0, dx: 0, dz: 0 };
+    for (let d = 0.3; d <= 1.6 + 1e-9; d += 0.1) {
+      throwLanding(A5_THROW.x + d, A5_THROW.z, A5_THROW.x, A5_THROW.z, -Math.PI / 2, land);
+      for (let k = 0; k <= 100; k++) {
+        throwArc((TEAM.throwTime * k) / 100, A5_THROW.x + d, 0, A5_THROW.z, land.x, 0, land.z, o);
+        for (const w of written) expect(hyp2(Math.max(Math.abs(o.x - w.c[0]) - w.s[0] / 2, 0), Math.max(Math.abs(o.z - w.c[2]) - w.s[2] / 2, 0)), `d ${d.toFixed(1)} k ${k}`).toBeGreaterThan(0.5);
+      }
+    }
+  });
+
+  it('the cable trays (props): eleven 1 m modules hung 3.0 m up on the north wall over the trench, no collision, above head height, inside the set box', () => {
+    const trays = own.filter((p) => p.prop === 'cableTray');
+    expect(trays).toHaveLength(11);
+    expect(PROP_HUNG).toContain('cableTray');
+    for (const t of trays) {
+      expect(propCollisionBox(t)).toBeNull();
+      expect(t.y).toBeCloseTo(A5_TRAY.y, 9);
+      expect(t.z).toBeCloseTo(A5_TRAY.z, 9);
+      expect(t.x).toBeGreaterThan(A5_TRENCH[0]);
+      expect(t.x).toBeLessThan(A5_TRENCH[2]);
+      const f = PROP_FOOTPRINT.cableTray;
+      for (const [lx, lz] of [[f[0], f[1]], [f[2], f[3]]] as const) {
+        const w = propToWorld(t, lx, 0, lz);
+        expect(inBox(box, w[0], w[2], 1e-6), `tray at ${t.x}`).toBe(true);
+        // over the trench path (z 46.6-47.75), against the north wall
+        expect(w[2]).toBeGreaterThan(A5_TRENCH[1] - 0.3);
+        expect(w[2]).toBeLessThan(A5_SHELL.north + 1e-6);
+      }
+    }
+    expect(trays[0]!.y).toBeGreaterThan(2.6);
+  });
+
+  it("the hall's walls are dressed on every run: plinth, blockwork, pilasters under the 4.4 m cap; the L4 and L5 door gaps and the glass slot are left clear, the lintels filled", () => {
+    const cover = (x: number, y: number, z: number, side: 'x' | 'z'): boolean => skins.some((p) => Math.abs(p.c[0] - x) <= p.s[0] / 2 + 1e-6 && Math.abs(p.c[1] - y) <= p.s[1] / 2 + 1e-6 && Math.abs(p.c[2] - z) <= p.s[2] / 2 + 1e-6 && (side === 'x' ? p.s[0] < 0.1 : p.s[2] < 0.1));
+    // east wall (x 69.75), coverage at 2.0 m up: the runs round the door and the slot
+    for (const z of [25, 28, 31.5, 34.3, 36, 40, 44, 47]) expect(cover(69.74, 2.0, z, 'x'), `east wall at z ${z}`).toBe(true);
+    for (const z of [32.5, 33.5, 35.2]) expect(cover(69.74, 2.0, z, 'x'), `east wall gap at z ${z}`).toBe(false);
+    // over the door (above the 2.9 m sill of the plate) the wall is filled
+    expect(cover(69.74, 3.5, 33.0, 'x')).toBe(true);
+    // south and north walls and the west wall's outer runs
+    for (const x of [42, 45, 50, 55, 60, 66, 69]) {
+      expect(cover(x, 2.0, 24.27, 'z'), `south wall at x ${x}`).toBe(true);
+      expect(cover(x, 2.0, 47.73, 'z'), `north wall at x ${x}`).toBe(true);
+    }
+    // the L5 near door's gap (x 52.1-53.9) is left clear up to the frame's 2.42 m, the lintel over it is filled
+    for (const x of [52.5, 53, 53.5]) expect(cover(x, 2.0, 47.73, 'z'), `north wall gap at x ${x}`).toBe(false);
+    expect(cover(53, 3.5, 47.73, 'z')).toBe(true);
+    for (const z of [25, 30, 35, 46.6, 47.5]) expect(cover(40.26, 2.0, z, 'x'), `west wall at z ${z}`).toBe(true);
+    // every dressing wall skin on the south and east walls stays under the 4.4 m cap (the hall's panels take it above)
+    for (const p of skins.filter((q) => Math.abs(q.c[0] - 69.735) < 0.03 || Math.abs(q.c[2] - 24.265) < 0.03)) expect(top(p)).toBeLessThanOrEqual(4.4 + 1e-6);
+  });
+
+  it('each of the six wall bulkheads has its bracket (a plate on the wall and two arms to the fixture 0.1 m off it), the switchroom panel light its four hangers, the flood its outrigger on the roof edge', () => {
+    const fixtures = lamps.filter((l) => l.kind !== 'spot' && Math.abs(l.y - 3.5) < 1e-6);
+    expect(fixtures).toHaveLength(6);
+    for (const bh of A5_BULKHEADS) {
+      const alongX = bh.side === 'n' || bh.side === 's';
+      const lamp = fixtures.find((l) => (alongX ? Math.abs(l.x - bh.c) < 1e-6 && Math.abs(l.z - bh.at) < 0.4 : Math.abs(l.z - bh.c) < 1e-6 && Math.abs(l.x - bh.at) < 0.4));
+      expect(lamp, `bulkhead on ${bh.side} ${bh.at}, ${bh.c}`).toBeDefined();
+      // the plate and the arms: skins on the wall side of the fixture, within its y band, between the wall's paint and the fixture's back
+      const near = skins.filter((p) => Math.abs((alongX ? p.c[0] : p.c[2]) - bh.c) < 0.2 && p.c[1] > 3.3 && p.c[1] < 3.75 && Math.abs((alongX ? p.c[2] : p.c[0]) - bh.at) < 0.13);
+      expect(near.length, `bracket skins at ${bh.at}, ${bh.c}`).toBeGreaterThanOrEqual(3);
+    }
+    // the panel light (43.1, 3.7, 41.0, 0.6 x 0.05 x 0.6) hangs on four rods from the roof's underside (3.9)
+    const rods = skins.filter((p) => p.s[1] > 0.1 && p.s[1] < 0.2 && Math.abs(top(p) - A5_ROOM.wallH) < 1e-6 && p.s[0] < 0.05 && p.s[2] < 0.05 && Math.abs(p.c[0] - 43.1) < 0.4 && Math.abs(p.c[2] - 41) < 0.4);
+    expect(rods).toHaveLength(4);
+    // the flood's outrigger: two uprights from the roof (4.0) to arms at 4.14-4.18 that run under its fixture
+    const arms = skins.filter((p) => Math.abs(bottom(p) - 4.14) < 1e-6 && Math.abs(top(p) - 4.18) < 1e-6 && lo(p, 2) < A5_FLOOD.z && hi(p, 2) > A5_FLOOD.z);
+    expect(arms).toHaveLength(2);
+    for (const a of arms) expect(a.c[0]).toBeGreaterThan(A5_FLOOD.x - 0.3);
+    const uprights = skins.filter((p) => Math.abs(bottom(p) - 4.0) < 1e-6 && Math.abs(top(p) - 4.14) < 1e-6);
+    expect(uprights).toHaveLength(2);
+  });
+
+  it("the drum stack: four drums with octagonal flanges on the two end faces (bars turned in steps of 45 degrees), lagging and cable lines on the sides; the stack's box is the greybox's and keeps its 4.0 m off the beam line", () => {
+    const turned = skins.filter((p) => Math.abs(p.pitch) > 1e-6);
+    // two end faces x two rows x (four flange bars + four cable bars) = 32 minus the bars at 0 degrees (pitch 0 is no pitch): 24
+    expect(turned.length).toBeGreaterThanOrEqual(24);
+    for (const p of turned) {
+      const k = p.pitch / (Math.PI / 4);
+      expect(Math.abs(k - Math.round(k)), `pitch ${p.pitch}`).toBeLessThan(1e-9);
+      expect(p.s[0]).toBeLessThan(0.05);
+    }
+    const bars = skins.filter((p) => A5_DRUM_ROWS.some((zc) => Math.abs(p.c[2] - zc) < 1e-6 && Math.abs(p.c[1] - 0.9) < 1e-6) && (Math.abs(p.c[0] - (A5_DRUMS.x1 + 0.015)) < 1e-6 || Math.abs(p.c[0] - (A5_DRUMS.x0 - 0.015)) < 1e-6));
+    // four flange bars at each of the 4 discs
+    expect(bars.filter((p) => p.color === '#8d6e47')).toHaveLength(16);
+    expect(bars.filter((p) => p.color === '#8d6e47').every((p) => Math.abs(p.s[2] - 1.8) < 1e-9 && Math.abs(p.s[2] / 2) <= 0.9 + 1e-9)).toBe(true);
+    // the stack's own box and the keep-clear are unchanged
+    const drums = grey.find((p) => p.collide && Math.abs(top(p) - A5_DRUMS.h) < 1e-6)!;
+    expect(drums.c[0] - drums.s[0] / 2).toBeCloseTo(A5_DRUMS.x0, 9);
+    expect(A5_DRUMS.x0 - A5_WALL.x).toBeGreaterThanOrEqual(BEAM_KEEP_CLEAR);
+    // the cable: floor-level strips from the stack's west face through the gateway into the landing pocket (4 cm, never over a beam height)
+    expect(A5_CABLE[0]).toEqual([A5_DRUMS.x0, 32.1]);
+    const end = A5_CABLE[A5_CABLE.length - 1]!;
+    expect(inBox([53.5, 34, 57.7, 39.5], end[0], end[1])).toBe(true);
+    const run = skins.filter((p) => Math.abs(p.yaw) > 1e-6 && Math.abs(p.s[0] - 0.04) < 1e-9 && Math.abs(p.s[1] - 0.04) < 1e-9);
+    expect(run).toHaveLength(A5_CABLE.length - 1);
+    for (const p of run) expect(top(p)).toBeLessThan(0.05);
+    // it crosses the wall's line inside the gateway, clear of the beam ends (z 33 and 39)
+    const cross = A5_CABLE.findIndex((c, i) => i > 0 && (A5_CABLE[i - 1]![0] - 58) * (c[0] - 58) < 0);
+    expect(cross).toBeGreaterThan(0);
+    expect(A5_CABLE[cross]![1]).toBeGreaterThan(33.5);
+    expect(A5_CABLE[cross]![1]).toBeLessThan(38.5);
+  });
+
+  it("both transformer units are dressed: tank paint and plinth on four faces, twelve-fin radiator banks on the long faces, six porcelain bushings, a conservator, lifting lugs; the bunds get copings, bitumen and a band; pen 1's sump gauge is on the bund's west end in the patrol's view from R2", () => {
+    for (const { unit, bund } of A5_PENS) {
+      const [ux0, uz0, ux1, uz1] = unit;
+      const onUnit = skins.filter((p) => p.c[0] > ux0 - 0.15 && p.c[0] < ux1 + 0.15 && p.c[2] > uz0 - 0.15 && p.c[2] < uz1 + 0.15 && p.c[1] > 0.1);
+      expect(onUnit.length, `unit at ${ux0}, ${uz0}`).toBeGreaterThan(80);
+      expect(onUnit.filter((p) => p.color === '#7b4b2a')).toHaveLength(6);
+      expect(onUnit.filter((p) => p.color === '#71806a')).toHaveLength(24);
+      expect(Math.max(...onUnit.map(top))).toBeCloseTo(4.35, 2);
+      // the bund's four copings stand on the 1.2 m walls
+      const copings = skins.filter((p) => p.color === '#9a9a92' && p.c[0] > bund[0] - 0.01 && p.c[0] < bund[2] + 0.01 && p.c[2] > bund[1] - 0.01 && p.c[2] < bund[3] + 0.01);
+      expect(copings).toHaveLength(4);
+      for (const p of copings) expect(bottom(p)).toBeCloseTo(A5_BUND.h, 9);
+    }
+    // the sump gauge on the west face (x 42.0), seen from R2 (41.3, 31.0) at 1.6 m
+    const gauge = skins.filter((p) => p.c[0] > 41.85 && p.c[0] < 42.0 && p.c[2] > 28.4 && p.c[2] < 29.0 && p.c[1] > 0.5 && p.c[1] < 1.2);
+    expect(gauge.length).toBeGreaterThanOrEqual(3);
+    const r2 = A5_PATROL_ROUTE[1]!;
+    expect(hitDistance(solid, [r2[0], 1.6, r2[1]], [41.95, 0.9, 28.7])).toBeGreaterThanOrEqual(hyp3(41.95 - r2[0], 0.9 - 1.6, 28.7 - r2[1]) - 0.05);
+  });
+
+  it("the switchroom: nine switchgear fronts on the run's east face (three doors, a relay window, three lamps, a mimic line, a nameplate each), a blank end cubicle, an end panel at z 44.6, a rubber mat 1.0 m deep in front with a yellow edge, door trims off the open leaves' lines, a felt roof with upstands and a finial", () => {
+    const gx = A5_GEAR.x1;
+    const fronts = skins.filter((p) => p.c[0] > gx && p.c[0] < gx + 0.2 && p.c[2] > A5_GEAR.z0 && p.c[2] < A5_GEAR.z1 && p.c[1] > 0.04);
+    expect(fronts.filter((p) => p.color === '#78808a')).toHaveLength(27);
+    expect(fronts.filter((p) => p.color === '#1c3a4a')).toHaveLength(9);
+    expect(fronts.filter((p) => p.color === '#3f9b5a' || p.color === '#d99a2b' || p.color === '#c4393a')).toHaveLength(27);
+    expect(fronts.filter((p) => p.color === '#b5282d')).toHaveLength(9);
+    expect(fronts.filter((p) => p.color === '#4c535a')).toHaveLength(1);
+    const endPanel = skins.filter((p) => lo(p, 2) > A5_GEAR.z1 - 1e-6 && lo(p, 2) < A5_GEAR.z1 + 0.1 && p.c[0] > A5_GEAR.x0 && p.c[0] < A5_GEAR.x1 && p.c[1] > 0.04);
+    expect(endPanel.length).toBeGreaterThanOrEqual(3);
+    // the mat: the floor skin 1.0 m deep in front of the run
+    const mat = skins.find((p) => p.color === '#222527' && Math.abs(lo(p, 0) - gx) < 1e-6 && Math.abs(p.s[0] - 1.0) < 1e-6)!;
+    expect(mat).toBeDefined();
+    expect(top(mat)).toBeLessThan(0.02);
+    expect(lo(mat, 2)).toBeCloseTo(A5_GEAR.z0, 9);
+    expect(hi(mat, 2)).toBeCloseTo(A5_GEAR.z1, 9);
+    // the roof: felt over the slab, four upstand pieces (the flood's span open on the south edge), a finial over 1 m tall
+    const roofTop = A5_ROOM.wallH + A5_ROOM.roofT;
+    expect(skins.some((p) => Math.abs(bottom(p) - roofTop) < 1e-6 && Math.abs(p.s[0] - (A5_ROOM.x1 + A5_ROOM.t / 2 - A5_ROOM.x0)) < 1e-6)).toBe(true);
+    expect(skins.filter((p) => Math.abs(bottom(p) - roofTop) < 1e-6 && Math.abs(p.s[1] - 0.2) < 1e-6)).toHaveLength(4);
+    expect(Math.max(...skins.filter((p) => p.c[0] < 41 && p.c[2] > 45).map(top))).toBeGreaterThan(5);
+    // nothing of the dressing stands in the doorways: the front door gap (x 45.85-46.15, z 41.0-42.2) and the back door gap (x 41.0-42.2, z 45.85-46.15) above the sills
+    expect(skinsIn(45.85, 46.15, 0.05, 2.1, 41.0, 42.2)).toEqual([]);
+    expect(skinsIn(41.0, 42.2, 0.05, 2.1, 45.85, 46.15)).toEqual([]);
+  });
+
+  it("the kiosk: plinth, cap, keypad, display, lamps, label on the body; the operator's mat holds the press spot with a yellow outline; none of it is collision, so the 1.0 m clear in front is the greybox's", () => {
+    const onKiosk = skins.filter((p) => p.c[0] > A5_KIOSK.x0 - 0.05 && p.c[0] < A5_KIOSK.x1 + 0.1 && p.c[2] > A5_KIOSK.z0 - 0.05 && p.c[2] < A5_KIOSK.z1 + 0.05 && p.c[1] > 0.05);
+    expect(onKiosk.length).toBeGreaterThan(20);
+    expect(onKiosk.filter((p) => p.color === '#1c3a4a')).toHaveLength(1);
+    expect(onKiosk.filter((p) => p.color === '#3f9b5a' || p.color === '#d99a2b' || p.color === '#c4393a')).toHaveLength(3);
+    const mat = skins.find((p) => Math.abs(lo(p, 0) - A5_MAT.x0) < 1e-6 && Math.abs(hi(p, 0) - A5_MAT.x1) < 1e-6 && Math.abs(lo(p, 2) - A5_MAT.z0) < 1e-6)!;
+    expect(mat).toBeDefined();
+    expect(top(mat)).toBeLessThan(0.02);
+    expect(A5_PRESS.x).toBeGreaterThan(lo(mat, 0));
+    expect(A5_PRESS.x).toBeLessThan(hi(mat, 0));
+    expect(A5_PRESS.z).toBeGreaterThan(lo(mat, 2));
+    expect(A5_PRESS.z).toBeLessThan(hi(mat, 2));
+    expect(blockedAt(A5_PRESS.x, A5_PRESS.z, MOVEMENT.radius)).toEqual([]);
+    expect(blockedAt(A5_KIOSK.x1 + 0.5, 33.0, 0.45)).toEqual([]);
+  });
+
+  it('the trench has ten chequer-plate lids between angle frames, flush (under 2 cm), in the metal strip along the north wall; the floor seams and stains are paint', () => {
+    const lids = skins.filter((p) => p.c[0] > A5_TRENCH[0] && p.c[0] < A5_TRENCH[2] && p.c[2] > A5_TRENCH[1] + 0.05 && p.c[2] < A5_SHELL.north - 0.05 && Math.abs(p.s[1] - 0.01) < 1e-9 && p.s[0] > 1.0);
+    expect(lids).toHaveLength(10);
+    expect(new Set(lids.map((p) => p.color)).size).toBe(2);
+    const floor = skins.filter((p) => p.c[0] > A5_TRENCH[0] && p.c[0] < A5_TRENCH[2] && p.c[2] > A5_TRENCH[1] && p.c[2] < A5_SHELL.north - 0.02 && p.c[1] < 0.1);
+    expect(floor.length).toBeGreaterThan(60);
+    for (const p of floor) expect(top(p)).toBeLessThanOrEqual(0.02);
+    expect(surfaceAt(b.surfaces, 52, 0, 47.2, 'concrete')).toBe('metal');
+    // every floor skin in the set is under 2 cm: paint, never a step
+    for (const p of skins.filter((q) => bottom(q) < 0.001 && q.s[1] < 0.03)) expect(top(p)).toBeLessThanOrEqual(0.02);
+  });
+
+  it("the e2e polish (S567-check): the variant's kiosk press waits for the patrol on his K -> R2 leg and the client is damage-proof; the throw arc assert needs a sample in the beam band", () => {
+    const src = readFileSync('scripts/e2e-ctcourse/a5Substation.mjs', 'utf8');
+    // 2: before the variant's press, the walker index 1 wait and the client's damage switch
+    const press = src.indexOf("A5 variant: the client keys the release'");
+    const from = src.indexOf('A5 variant: the client in the inner zone sets a5-in1');
+    expect(press).toBeGreaterThan(from);
+    expect(src.lastIndexOf("await leftKiosk('A5 variant: the patrol is on his K -> R2 leg before the press')", press)).toBeGreaterThan(from);
+    expect(src.lastIndexOf('await noDamageClient();', press)).toBeGreaterThan(from);
+    expect(src).toContain('const noDamageClient = async');
+    expect(src).toContain('window.__app.current.target.damageMul = 0');
+    expect(src).toContain('r.damageMul = 0');
+    expect(src).toMatch(/net\.remotes\.values\(\)/);
+    // 3: the arc samples inside the band are counted and the assert fails on none
+    expect(src).toContain('bandSamples');
+    expect(src).toMatch(/assert\(bandSamples > 0,/);
+    expect(src).not.toContain('ownMax === 0');
   });
 });

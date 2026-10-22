@@ -68,6 +68,11 @@ export async function walk(t, n) {
       return i === 1 || (i === 0 && Math.hypot(e.pos.x - kx, e.pos.z - kz) > 3 && Math.hypot(e.pos.x - rx, e.pos.z - rz) > 1);
     }, [K[0], K[1], R4[0], R4[1]], 90000, what);
   const noDamage = () => GA(() => { window.__app.current.target.damageMul = 0; });
+  /** The client damage-proof: its own target on its page and its remote on the host (the host's guard shoots the remote; `scripts/e2e-coop.mjs`). */
+  const noDamageClient = async () => {
+    await GB(() => { window.__app.current.target.damageMul = 0; });
+    await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
+  };
   /** Both pages see the beams `on` (true / false). */
   async function beamsAre(on, what) {
     await until(A, ([id, on]) => window.__ctdev.debug().lasers.find((l) => l.id === id)?.on === on, [LASER_ID, on], 10000, `${what} (host)`);
@@ -104,13 +109,21 @@ export async function walk(t, n) {
     }, host, 8000, `${what}: the client's view of the offering host has settled`).catch(dump);
     assert((await GA(() => window.__app.current.team.state)) === 'throwOffer', `${what}: the host still offers the throw at the press`);
     await holdUntil(B, RB, () => window.__app.current.team.count.throws >= 1, `${what}: the client is thrown`).catch(dump);
-    // the client's own arc over the beam line (feet over the top beam while within its touch band), to the landing
+    // the client's own arc over the beam line (feet over the top beam while within its touch band), to the landing: the samples inside
+    // the band are counted (an arc that was never sampled there must fail, not pass), and the height at the crossing is interpolated
     let ownMax = 0;
+    let bandSamples = 0;
+    let prev = null;
     const t0 = Date.now();
     const s0 = await GB(() => window.__app.current.time);
     for (;;) {
       const [own, st] = await GB(() => { const g = window.__app.current; const c = g.player.controller; return [[c.pos.x, c.pos.y], g.team.state]; });
-      if (Math.abs(own[0] - BEAM_X) < 0.3) ownMax = Math.max(ownMax, own[1]);
+      if (Math.abs(own[0] - BEAM_X) < 0.3) {
+        bandSamples++;
+        ownMax = Math.max(ownMax, own[1]);
+      }
+      if (prev && (prev[0] - BEAM_X) * (own[0] - BEAM_X) < 0 && prev[0] !== own[0]) ownMax = Math.max(ownMax, prev[1] + ((own[1] - prev[1]) * (prev[0] - BEAM_X)) / (prev[0] - own[0]));
+      prev = own;
       if (st === 'none' && own[0] < BEAM_X - 1) break;
       if ((await GB(() => window.__app.current.time)) - s0 > 20 || Date.now() - t0 > 200000) throw new Error(`${what}: the throw did not land (${st}, ${own})`);
       await waitSim(30);
@@ -118,7 +131,8 @@ export async function walk(t, n) {
     await until(B, () => window.__app.current.player.controller.grounded, null, 8000, `${what}: the client lands on its feet`);
     const land = await GB(() => { const c = window.__app.current.player.controller; return { x: c.pos.x, y: c.pos.y, z: c.pos.z, crouched: c.crouched }; });
     assert(Math.hypot(land.x - LANDING[0], land.z - LANDING[1]) <= 0.5 && Math.abs(land.y) < 0.3, `${what}: the client lands within 0.5 m of the landing (${JSON.stringify(land)})`);
-    assert(ownMax > 1.45 || ownMax === 0, `${what}: the client's arc clears the top beam at the line (${ownMax.toFixed(2)})`);
+    assert(bandSamples > 0, `${what}: the arc was sampled inside the beam band (${bandSamples} samples within 0.3 m of the line)`);
+    assert(ownMax > 1.45, `${what}: the client's arc clears the top beam at the line (${ownMax.toFixed(2)} over ${bandSamples} samples)`);
     await waitSim(600);
     const d1 = await dev(A);
     assert(d1.hits === d0.hits && d1.alarm === d0.alarm, `${what}: the thrown client touched no beam (hits ${d0.hits} -> ${d1.hits}, alarm ${d0.alarm} -> ${d1.alarm})`);
@@ -262,7 +276,11 @@ export async function walk(t, n) {
   assert(v1.hits === v0.hits && v1.alarm === v0.alarm, `A5 variant: the client walks the beam line with no break (hits ${v0.hits} -> ${v1.hits}, alarm ${v0.alarm} -> ${v1.alarm})`);
   await until(A, (f) => window.__course.state.hasFlag(f), IN1, 10000, 'A5 variant: the client in the inner zone sets a5-in1');
   assert((await roleOf(1)) === 'b', 'A5 variant: the client who walked through has claimed B');
-  // the client keys the kiosk while he walks to pen 1 (his back to it); the host lets go, the beams would come back after the reboot
+  // the client keys the kiosk while he walks to pen 1 (his back to it): wait for his K -> R2 leg (walker index 1, not yet off it: if he has
+  // walked on, the client waits at the landing for the next cycle) and make the client damage-proof, so a sighting under load cannot down it;
+  // the host lets go, the beams would come back after the reboot
+  await noDamageClient();
+  await leftKiosk('A5 variant: the patrol is on his K -> R2 leg before the press');
   await moveClient(PRESS[0], PRESS[1], 0.1, WEST);
   assert((await use(B, RELEASE)) === 'ok', 'A5 variant: the client keys the release');
   await until(A, (f) => window.__course.state.hasFlag(f), FLAG, 10000, 'A5 variant: the release sets a5-release');

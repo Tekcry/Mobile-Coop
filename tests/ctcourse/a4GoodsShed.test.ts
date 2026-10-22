@@ -6,7 +6,9 @@
  * officer is reached from behind unseen, the talking pair cover each other and D2 walks his kettle loop; nothing in A4 can be
  * climbed alone (racking and mezzanine are `noLedge`, no co-op lip, no solo jump reaches the deck). The map-wide frames
  * (`tests/ctcourse.test.ts`, `tests/ctcourseLight.test.ts`) run the contract, the register and the light bands over this part
- * too.
+ * too. The last block is the dressing (slice 4 step 5): the greybox pinned, hand-built skins out of the light shapes, the budgets (kit, and props per
+ * area: the security room and the warehouse floor apart), every kit glow on its circuit, the props' boxes (four written, the rest over greybox
+ * solids), the keep-clear points, sight and jam lines, the switches' plates, the rails, the brackets.
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';

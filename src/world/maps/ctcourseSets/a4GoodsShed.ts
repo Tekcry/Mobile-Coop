@@ -636,8 +636,8 @@ export function buildA4GoodsShed(b: LevelBuilder, kit: FacilityKit): SetPart {
           for (const y of [1.5, 3.0, 4.5]) face(side, at, z0, z1, y, y + 0.14, LOOK.rackOrange, 1);
           face(side, at, z0 + 0.1, z1 - 0.1, 0, 0.45, LOOK.yellow, 2);
           for (let k = 0; k < 4; k++) face(side, at, z0 + 0.3 + k * 0.5, z0 + 0.42 + k * 0.5, 0.05, 0.4, LOOK.black, 3);
-          sign(side, at, (z0 + z1) / 2 - 0.45, (z0 + z1) / 2 + 0.45, 2.55, 3.05, LOOK.black, 2);
-          digit((i + 1) as 1 | 2, side, at, (z0 + z1) / 2, 2.63, dir, LOOK.black, 4);
+          face(side, at, (z0 + z1) / 2 - 0.45, (z0 + z1) / 2 + 0.45, 2.55, 3.05, LOOK.white, 2);
+          digit((i + 1) as 1 | 2, side, at, (z0 + z1) / 2, 2.63, dir, LOOK.black, 3);
         }
       }
     }

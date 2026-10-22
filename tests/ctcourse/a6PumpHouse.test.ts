@@ -820,7 +820,7 @@ describe('A6 the Pump House: dressing (slice 6 step 5)', () => {
     expect((from - to) / seg).toBeCloseTo(12, 9);
     expect(to).toBeCloseTo(56.0, 9);
     const sorted = [...railFlat].sort((p, q) => q.c[0] - p.c[0]);
-    let x = from;
+    let x: number = from;
     for (const p of sorted) {
       // a 0.1 m box on the line z 70.5 (its face stops 0.025 m short of the flight's open edge), one segment long, from the low end's floor line
       expect(p.s[0]).toBeCloseTo(seg, 6);
