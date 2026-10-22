@@ -1,6 +1,6 @@
 # Track A (Night Shift | Course Ready Build) - resume
 
-Written 2026-10-22 ~09:10, updated ~12:40 (paused for the 5-hour window, resume on the orchestrator's message after 14:10). Read CLAUDE.md, docs/ROADMAP.md, docs/marlow-bays/BRIEF.md (items
+Written 2026-10-22 ~09:10, updated ~13:50 (new account; full burn per the orchestrator). Read CLAUDE.md, docs/ROADMAP.md, docs/marlow-bays/BRIEF.md (items
 24, 29, 30 and "Tracks") and this file. Report to "Night Shift | Orchestrator".
 
 ## Open jobs
@@ -8,10 +8,11 @@ Written 2026-10-22 ~09:10, updated ~12:40 (paused for the 5-hour window, resume 
 | Job | Branch / worktree | Head | State | Next |
 | --- | --- | --- | --- | --- |
 | Item 29 tuner v3 | `feature/tuner-v3` | merged | #97 merged as 4.49.0 (c38feca2). The JOBS=2 e2e-lightbake 16/17 was a timing race (solo 20/20, 26/26); v3 adds no materials | Done. Backlog: e2e-lightbake PBR-plugin assert should wait for the scene to settle |
-| Item 24 guard tuning | `feature/guard-tune` | e8cdba4e | PR Tekcry/Mobile-Coop#105; e2e-menus focus fix (part picker keeps first focus, Who one D-pad up); green inside #109 f92747c4 | In train/2 (orchestrator merges) |
+| Item 24 guard tuning | `feature/guard-tune` | merged | #105 merged in train/2 #112 as 4.53.0 (5220f79c) | Done |
 | Item 30 key tools | - | merged | #106 merged as 4.51.0 (d52d37a5); Menu Notes told | Done |
-| clip-speed | `feature/clip-speed`, `C:/NightShift/Mobile-Coop-clip-speed` | f92747c4 (train/1 + #105 merged) | PR Tekcry/Mobile-Coop#109; checker PASS; laptop check + e2e-menus / studio / anim / weapons-carry ok | In train/2. Menu Notes N3 splits holster per gun after it merges (agreed) |
-| anim-natural N4 holds and carries | `feature/anim-n4`, `C:/NightShift/Mobile-Coop-anim-n4` | 082be068 (from master 71ce1bff) | Built: src/anim/cqGait.ts, tuner section `cq` (10 sliders, bake); counterCorr hold +0.85 -> -0.76, carry +0.95 -> -0.91; lift slide 20.9 -> 0 cm; carry-walk 8.7 cm slide left for N1 (slow-walk late-stance toe slide; start-turn pivot). Hooks in animGraph.ts / characterRig.ts marked (anim-n4, track A). tsc, vitest, lint, e2e-anim, e2e-studio pass | After reset: fresh Opus checker, one fix round, merge master, PR, laptop suites; tell CT Core the N1 items |
+| clip-speed | `feature/clip-speed` | merged | #109 merged in train/2 #112 as 4.53.0 (5220f79c) | Done. Menu Notes N3 splits holster per gun (agreed) |
+| anim-natural N4 holds and carries | `feature/anim-n4`, `C:/NightShift/Mobile-Coop-anim-n4` | e3f63c4f (fix a65a9496 + master 5220f79c) | PR Tekcry/Mobile-Coop#113. Fix round done (load share, crouch on sim timeline, tuner note); tsc, lint, cqGait / g7 / bake tests pass. Desktop full vitest + build + e2e-anim + e2e-studio running (an4-run.sh, logs C:/NightShift/an4-*.log); laptop asked for check + full e2e. N1 items sent to CT Core | Orchestrator merges when green. Re-measure lift slide / counterCorr in the next desktop GPU slot |
+| sector-fixes slice S (security room) | `feature/sector-fixes-s`, `C:/NightShift/Mobile-Coop-sector-fixes-s` | - | Assigned 13:50: a security room with a guard at monitors on every map with cameras except Sector Ops (Marlow Yard). Brief docs/sector-fixes/BRIEF.md slice S (origin/feature/sector-fixes); own STATE in docs/sector-fixes/s/. Menu Notes owns L and C, Character Build W: stay out of lasers / camera cue | Start |
 
 Merged tonight (track A): #81 coop-torches 4.34.0, #82 T 4.35.0, #83 T1a 4.36.0, #86 T2 4.39.0, #87 item 23 4.40.0,
 #89 items 26 / 26b 4.41.0, #91 item 25 4.43.0.
@@ -39,7 +40,7 @@ characterRig.ts, tuneStep.ts, footPlanner.ts, player.ts. Checker's two findings 
   no search / recent / pins / body map, plain-English labels, subtle highlight with an off switch.
 - Tell Menu Notes (track C) when key-file / tuneKeys PRs open and land.
 
-## N4 checker (2026-10-22 ~12:55, verdict FIX) - fix round after the 14:10 reset
+## N4 checker (2026-10-22 ~12:55, verdict FIX) - fixed in a65a9496 (13:40)
 1. (required) Carry lean / hip shift applied with nothing on the shoulder: `src/game/gameState.ts:1754` sets `carryBody`
    from `st.bend > 0 || st.bendDrop > 0` (true for the whole lift and put-down), so `src/anim/cqGait.ts:166-168` eases
    `carryK` / `side` to 1 within ~0.3 s of the lift start: she rolls 6 deg toward an empty shoulder while kneeling
@@ -63,23 +64,10 @@ sections). Report to "Night Shift | Orchestrator" at each PR; one agent at a tim
 take C:/NightShift/heavy.lock atomically `( set -o noclobber; echo "<session> | <job> | <time>" > C:/NightShift/heavy.lock )`,
 delete only if it still names you; the laptop (Character Build) runs train / full suites.
 
-State at handoff (2026-10-22 ~13:00):
-- PR Tekcry/Mobile-Coop#105 (item 24 guard tuning, feature/guard-tune e8cdba4e, worktree C:/NightShift/Mobile-Coop-guard-tune)
-  and PR #109 (clip-speed, feature/clip-speed f92747c4, worktree C:/NightShift/Mobile-Coop-clip-speed, contains #105):
-  both green on the laptop, in merge train/2 (the orchestrator merges). Nothing to do unless the train fails.
-- anim-natural N4 holds and carries: feature/anim-n4 082be068 (from master 71ce1bff), worktree
-  C:/NightShift/Mobile-Coop-anim-n4, pushed, no PR. Checker verdict FIX. Next:
-  1. One fix round (one fresh Opus agent) on N4 checker items 1 and 2 in RESUME-trackA.md: (1) scale the carry lean
-     and hip shift by a load share (0 until the hoist, 1 carrying, easing out over dropHand on the drop) + a test that
-     lift t = 0.4 shows no lean; (2) keep the controller crouch on the sim's fixed lift timeline (no rig.planner read in
-     src/game/stealthSystems.ts) and make "stay down until a foot lands" animation-only; also reword the tuner note
-     (item 3). Then tsc, the cqGait test file, and under the heavy lock full vitest, build, e2e-anim and e2e-studio.
-  2. Merge origin/master into feature/anim-n4 (CHANGELOG / TESTING / tuneBakeTable / anim-tune-bake.mjs / tunerLayout
-     conflicts: keep both sides), push.
-  3. Open the PR to master (body: what changed, before/after counterCorr hold +0.85 -> -0.76, carry +0.95 -> -0.91,
-     lift slide 20.9 -> 0 cm, hooks in animGraph.ts / characterRig.ts marked "(anim-n4, track A)", carry-walk 8.7 cm
-     slide left for N1, remote carries get no N4 effect), ask Character Build for check + e2e-anim + e2e-studio +
-     e2e-menus, report the PR to the orchestrator, and tell CT Core the two N1 items (slow-walk late-stance toe slide;
-     start-turn pivot) if the orchestrator has not.
-  4. Update RESUME-trackA.md and wait for the orchestrator's next job (N4 rows in track A files after the N0 audit).
+State (2026-10-22 ~13:50):
+- #105 and #109 merged (4.53.0). Full burn: parallel agents where work splits (orchestrator 13:30).
+- PR Tekcry/Mobile-Coop#113 anim-n4 (e3f63c4f): fix round done; desktop and laptop suites were running. If no result
+  is recorded here, rerun under the heavy lock: full vitest, build, e2e-anim, e2e-studio (bash C:/NightShift/an4-run.sh),
+  post results on the PR, message the orchestrator. Then re-measure lift slide / counterCorr in a desktop GPU slot.
+- sector-fixes slice S (security room): see the Open jobs row and docs/sector-fixes/s/STATE.md on feature/sector-fixes-s.
 ```
