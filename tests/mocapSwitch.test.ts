@@ -48,6 +48,7 @@ const SAVED_FEET = { ...MOCAP_FEET };
  */
 function placeholders(): void {
   Object.assign(SET, { walk: KEYED_WALK, jog: KEYED_JOG, run: KEYED_RUN, turnInPlace: null, turnMoveL: null, turnMoveR: null, start: null, stop: null });
+  Object.assign(SET, { crouchWalk: null }); // (mocap-trial-2, crouch) the crouched sneak stays hand-keyed
   for (const k of Object.keys(MOCAP_LAYERS) as (keyof typeof MOCAP_LAYERS)[]) MOCAP_LAYERS[k] = 1;
   MOCAP_FEET.pitchRate = Number.POSITIVE_INFINITY;
 }

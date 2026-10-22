@@ -28,6 +28,7 @@ import { MOCAP_TURN_MOVE_L } from './clips/mocap/turn_move_l';
 import { MOCAP_TURN_MOVE_R } from './clips/mocap/turn_move_r';
 import { MOCAP_START, MOCAP_START_SECONDS } from './clips/mocap/start';
 import { MOCAP_STOP, MOCAP_STOP_SECONDS } from './clips/mocap/stop';
+import { MOCAP_CROUCH_WALK } from './clips/mocap/crouch_walk';
 
 /**
  * Per-layer scales for the mocap set (one table; the job lead tunes them once the real clips land). Each scales a
@@ -108,6 +109,9 @@ export interface LocoClipSet {
   readonly stopSeconds: number;
   /** The layer scales this set's clips are sampled with (null: the layers as they are). */
   readonly layers: MocapLayers | null;
+  /** (mocap-trial-2, crouch) The crouched sneak's cycle in place of the hand-keyed sneak (animGraph `crouchSet`; null: the
+   *  hand-keyed sneak). The faster crouched bands stay hand-keyed (BRIEF A5). */
+  readonly crouchWalk: KeyedClip | null;
 }
 
 /** The hand-keyed set: the game as it was (no slots: starts, stops and turns stay procedural). */
@@ -124,6 +128,7 @@ export const HAND_KEYED_SET: LocoClipSet = {
   startSeconds: 0.6,
   stopSeconds: 0.6,
   layers: null,
+  crouchWalk: null,
 };
 
 /** The mocap set (`clips/mocap/*`). */
@@ -140,6 +145,7 @@ export const MOCAP_SET: LocoClipSet = {
   startSeconds: MOCAP_START_SECONDS,
   stopSeconds: MOCAP_STOP_SECONDS,
   layers: MOCAP_LAYERS,
+  crouchWalk: MOCAP_CROUCH_WALK,
 };
 
 /** Any slot filled (the graph runs `MocapSlots` only then). */
