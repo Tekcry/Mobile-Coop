@@ -24,6 +24,7 @@ before jobs 2, 3, 9.
 | 12 | Report: gameplay reads the rig pose (backlog 28): guard eye from rig.headNode, mocap bob moves it | rule risk | docs | docs | M | CT Core |
 | 13 | Test chores: e2e-coop "client strike denied" (wait until the strike can start, assert begin()); role-swapped co-op pass with the client as lead; run-e2e.mjs KILLED line in streamed mode | flake / coverage | tests, scripts | the suite | S | Character Build |
 | 14 | Co-op body carry on the client (bodies not in the item mirror, coopHost.ts:998) | co-op move | net | slice, protocol bump | M-L | Course Ready |
+| 16 | Partner rig first seen walking under ~0.3 m/s plays a start (remoteAvatar.ts seeds speed 0; CT Core note 02:10) | co-op read | src/net/remoteAvatar.ts | e2e-coop + e2e-netmove | S | CT Core after mocap-trial-2 |
 | 15 | Optic cable (ct-toolkit 3.2, stub in the door menu) | CT tool | gadgets, net | slice, protocol bump | L | CT Core |
 
 Could block a co-op run of Marlow Yard: job 1; e2e-coop "client strike denied" (never diagnosed, may be a real
