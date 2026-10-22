@@ -39,6 +39,8 @@
  * is bit-identical, so nothing else can move.
  * (anim-natural N2, #138 fix round 2: the keyed pelvis offsets change at most 1.2 m/s, KEY_PEL_RATE) Re-captured:
  * partner:moves only (both fixtures); under the rate the rig is unchanged (the guard fixture never moves).
+ * (anim-natural N2, #138 fix round 4: the walk sway 0.6 at 0.75 -> 1.2 at 0.98, A14; KNEE_REST.fwd 0.03) Re-captured:
+ * partner:moves only (1 of 40); the motion-off and guard fixtures unchanged (the squat's knee rest is in no entry).
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';

@@ -58,10 +58,16 @@ export const BODY_MOTION_FIELDS = ['hipTurn', 'hipTime', 'chestTurn', 'chestTime
  * the feet near one line) alone reads walk knee-out 3.1 cm; with 0.98 the walk read 3.6 cm against e2e-anim's widened
  * walk limit 3.5 (BODY_GAIT). At 0.6 headless (facing frame): walk 3.41, walk 2.1 m/s 3.47, low ready walk 3.33 cm;
  * walk lateral 3.6 -> 2.9 cm. Undo: 0.98.
+ * (A14, #138 fix round 4) The walk's sway 0.6 at 0.75 -> 1.2 at 0.98: the same lateral, its peak later in the stance.
+ * At 0.75 the layer's sway peaked with the keyed one, the stance hip furthest out just as the stance knee bows most:
+ * with N1's planner in, the GPU e2e-anim walk read knee-out 3.5+ cm (limit 3.5; headless 3.44). Twice the amount a
+ * fifth of a cycle later keeps the visible weight shift (headless walk lateral 2.88 -> 2.93 cm; e2e band 2.5-3.5) and
+ * moves the stance hip's peak off the knee's: headless facing-frame knee-out walk 1.45 m/s 3.44 -> 3.22, walk 2.1 m/s
+ * 3.51 -> 3.23, low ready walk 3.37 -> 3.10 cm; pelvis / shoulder yaw unchanged. Undo: sway 0.6, swayTime 0.75.
  */
 export const BODY_MOTION: Record<BodyMotionRowId, BodyMotionRow> = {
   idle: { hipTurn: 0, hipTime: 0, chestTurn: 0, chestTime: 0, sway: 0, swayTime: 0, headFollow: 0, headNod: 0 },
-  walk: { hipTurn: 2.5, hipTime: 0.01, chestTurn: 2.5, chestTime: 0.51, sway: 0.6, swayTime: 0.75, headFollow: 0.35, headNod: 0.6 },
+  walk: { hipTurn: 2.5, hipTime: 0.01, chestTurn: 2.5, chestTime: 0.51, sway: 1.2, swayTime: 0.98, headFollow: 0.35, headNod: 0.6 },
   jog: { hipTurn: 3.5, hipTime: 0.96, chestTurn: 4.5, chestTime: 0.45, sway: 0.56, swayTime: 0.74, headFollow: 0.35, headNod: 0.6 },
   run: { hipTurn: 3, hipTime: 0.91, chestTurn: 4, chestTime: 0.38, sway: 0.6, swayTime: 0.69, headFollow: 0.18, headNod: 0.6 },
   crouchIdle: { hipTurn: 0, hipTime: 0, chestTurn: 0, chestTime: 0, sway: 0, swayTime: 0, headFollow: 0, headNod: 0 },

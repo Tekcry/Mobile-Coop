@@ -384,8 +384,14 @@ const readyShTmp = { x: 0, y: 0, z: 0 };
  *  `shinFwd` m in front of the shin. Starting values (to check on the contact sheets). */
 const KNEE_HAND = { up: 0.09, fwd: 0.03, shin: 0.45, shinFwd: 0.12 };
 /** (anim-rework S4, BRIEF 3 "The crouched idle") The keyed squat's hands: each palm centre this far (m) over its knee
- *  joint (the kneecap's top) and ahead of it along the body (fingers over the front of the knee). */
-export const KNEE_REST = { up: 0.06, fwd: 0.01 } as const;
+ *  joint (the kneecap's top) and ahead of it along the body (fingers over the front of the knee).
+ *  (anim-natural N2, #138 fix round 4) fwd 0.01 -> 0.03 (the wall's KNEE_HAND.fwd): the palm on the kneecap, which sits
+ *  ahead of the joint, not on the thigh just behind it. At 0.01 the right wrist sat over the end of the right thigh, and
+ *  the crouch entry's re-step with N1's planner (left foot first: train 8, -3.2 cm) took e2e-clip "crouched holstered"
+ *  to -3.0 cm on the GPU run (limit -3; master -2.7). Headless (the e2e sequence on a driven rig, 60 Hz sim / 120 Hz
+ *  render, from 90 / 180 deg): squat -2.43 / -2.54 -> -1.87 / -1.92 cm, sneak -2.21 -> -1.73, the stop -1.79 -> -1.50,
+ *  standing up -1.73 -> -1.44; e2e-anim's knee hand (palm within 7 cm of the knee top) ~1.4 -> ~3 cm. Undo: 0.01. */
+export const KNEE_REST = { up: 0.06, fwd: 0.03 } as const;
 const khS = new Vector3();
 const khE = new Vector3();
 const khW = new Vector3();

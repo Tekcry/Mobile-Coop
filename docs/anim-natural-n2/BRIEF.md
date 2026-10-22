@@ -67,3 +67,8 @@ Feet / footPlanner / tuneStep / turnFollow (N1), draws / swap overlay / armed ar
   4.89; low ready walk shoulders = layer off (2.7 deg), head yaw 1.08 deg p2p (bodyMotion.test band 2-6 -> <= 2).
   tests/crabFacing.test.ts gates the elbow wing on low ready walk / jog at e2e's 6 cm. Undo: drop the (1 - drawn) factor
   (416184da).
+- A14 (#138 fix round 4, 2026-10-22 ~23:30, after the GPU run of 362359a4: e2e-anim walk knee-out 3.5+ cm, e2e-clip
+  crouched holstered -3.0 cm): the walk's sway 0.6 cm at 0.75 -> 1.2 cm at 0.98 (the same lateral, its peak a fifth of a
+  cycle later, off the stance knee's widest bow; headless walk knee-out 3.44 -> 3.22 cm, lateral 2.88 -> 2.93 cm), and
+  the keyed squat's palm on the kneecap (`KNEE_REST.fwd` 0.01 -> 0.03 m, the wall knee hand's value; headless crouched
+  holstered -2.43 / -2.54 -> -1.87 / -1.92 cm). Undo: sway 0.6 / swayTime 0.75; KNEE_REST.fwd 0.01.

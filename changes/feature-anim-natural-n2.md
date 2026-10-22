@@ -23,3 +23,7 @@ kind: minor
   whip the hands (the jog 180 turn 14 -> 7 m/s): a per-gait arm gain and a wrist / elbow speed cap in the chest frame
   (the run's cap, 18 m/s, does not engage on its keys). Drawn (low ready) arms are unchanged. Anim Studio's loop player
   is never capped: its keyed loops play exactly as keyed.
+- The walk's side-to-side weight shift peaks a little later in each step, with the same size (about 2.9 cm). The stance
+  knee no longer bows out past the foot as the hip reaches its widest point (walk knee-out 3.4 -> 3.2 cm, limit 3.5).
+- Crouched and still with the gun holstered, each palm now rests on the kneecap, slightly further forward than before. The
+  right wrist no longer sinks into the right thigh (up to 2.5 -> 1.9 cm of overlap, limit 3).

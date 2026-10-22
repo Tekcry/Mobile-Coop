@@ -6,6 +6,8 @@
  * forearm (tapered) against both thighs and the trunk. Train 8: "crouched holstered ... min -3.2 cm" (limit -3); headless
  * on e6274d36 the left foot re-stepped first and the right wrist went 2.83 cm into the right thigh (2.4 with the right
  * foot first).
+ * (#138 fix round 4) KNEE_REST.fwd 0.01 -> 0.03 (the palm on the kneecap, ahead of the joint): the GPU e2e-clip run read -3.0
+ * cm on 362359a4; headless every facing -2.42 to -2.56 -> -1.87 to -1.93 cm. Pinned at 2.1 cm (was 2.6).
  */
 import { describe, expect, it } from 'vitest';
 import type { CharacterRig, RigPose } from '../src/player/characterRig';
@@ -24,7 +26,7 @@ const taper = (P: P3, A: P3, B: P3, r0: number, r1: number): number => {
 };
 
 describe('(anim-natural N1, n138 fix) crouching down holstered: the arms clear the thighs', () => {
-  it('the squat entry from any facing: the arms never more than 2.6 cm into a thigh or the trunk (e2e-clip limit 3)', async () => {
+  it('the squat entry from any facing: the arms never more than 2.1 cm into a thigh or the trunk (e2e-clip limit 3)', async () => {
     const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
     const { Scene, Vector3 } = await import('../src/core/babylon');
     const { PartLibrary } = await import('../src/world/partLibrary');
@@ -108,6 +110,6 @@ describe('(anim-natural N1, n138 fix) crouching down holstered: the arms clear t
       scene.dispose();
     }
     if (process.env.CROUCH_ENTRY_PRINT) console.info(rows.join('\n'));
-    expect(worst, rows.join(', ')).toBeGreaterThan(-0.026);
+    expect(worst, rows.join(', ')).toBeGreaterThan(-0.021);
   });
 });
