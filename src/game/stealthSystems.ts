@@ -453,8 +453,14 @@ export class StealthSystems {
   /** A hitscan ray: shoot out the first bulb along it. */
   shotRay(from: Vector3, to: Vector3): void {
     const reg = this.g.world.level.lights;
-    const id = lightOnRay(reg, from.x, from.y, from.z, to.x, to.y, to.z);
-    if (id < 0 || !reg.destroy(id)) return;
+    this.shootLight(lightOnRay(reg, from.x, from.y, from.z, to.x, to.y, to.z));
+  }
+
+  /** Shoot out light `id` (the host's own round, or a co-op client's checked lamp shot, sector-redesign slice L):
+   *  sparks, the shot noise and a guard sent to look. False when it cannot be (none, already out, not destructible). */
+  shootLight(id: number): boolean {
+    const reg = this.g.world.level.lights;
+    if (id < 0 || !reg.destroy(id)) return false;
     const l = reg.lights[id]!;
     this.lightsShot++;
     const at = new Vector3(l.x, l.y, l.z);
@@ -462,6 +468,7 @@ export class StealthSystems {
     this.g.events.emit('lightOut', { x: l.x, y: l.y, z: l.z, shot: true });
     this.noise(SHOT_LIGHT_NOISE, at);
     this.em.lightsOut(l.x, l.z);
+    return true;
   }
 
   /**

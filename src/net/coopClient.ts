@@ -5,6 +5,8 @@ import type { BlobShadows } from '../vfx/blobShadows';
 import { Ragdoll } from '../ai/ragdoll';
 import { BUDGET, G } from '../physics/groups';
 import { TorchMirror } from './torchMirror';
+import { LAMP_TARGET, LampMirror } from './lampSync';
+import { lightOnRay, type LightDef } from '../world/lights';
 import { BODY } from '../ai/bodies';
 import type { HitInfo } from '../game/damage';
 import { Interactables, type Interactable } from '../game/interactables';
@@ -80,6 +82,11 @@ export class CoopClient implements NetAttachment {
   readonly torches: TorchMirror;
   private readonly torchA = new Vector3();
   private readonly torchB = new Vector3();
+  /** (sector-redesign slice L, protocol 31) Sector Ops: the host's fixed lights (switched, shot) on this page's registry,
+   *  so the picture, the meter and the guards' torch reads match the host's; null elsewhere. */
+  lamps: LampMirror | null = null;
+  /** The cue for a lamp the host reports newly shot out (the host's own sparks). */
+  private readonly lampSparks = (l: LightDef): void => this.g.vfx.sparks(new Vector3(l.x, l.y, l.z), Vector3.Down(), 10, '#fff1c8');
 
   constructor(
     private g: GameState,
@@ -110,6 +117,10 @@ export class CoopClient implements NetAttachment {
       g.ctDev = ct;
       // (sector-restart, M9) our loadout as section 1 begins: a checkpoint restart gives it back
       g.weapons.markCheckpoint();
+      // (slice L) the host's lamps; our round through a lamp asks the host to shoot it out (host-authoritative)
+      this.lamps = new LampMirror();
+      g.weapons.onRay = (a, b) => this.lampRay(a, b);
+      this.offs.push(() => (g.weapons.onRay = null));
       this.offs.push(() => {
         ct.dispose();
         g.ctDev = null;
@@ -160,6 +171,9 @@ export class CoopClient implements NetAttachment {
         break;
       case 'sector':
         this.onSector(msg);
+        break;
+      case 'lamps':
+        this.lamps?.apply(this.g.world.level.lights, msg, this.lampSparks);
         break;
       case 'end':
         this.onEndMsg(msg.stats);
@@ -432,6 +446,20 @@ export class CoopClient implements NetAttachment {
       g.player.alive = false;
       g.hud.banner('DOWN', g.opts.mode === 'sandbox' ? 'Respawning…' : 'A team-mate can revive you', 2500);
     }
+  }
+
+  /** (slice L) Our round's segment: the first lamp along it that can be shot goes to the host as a `shot` at `lt-<id>`
+   *  (the host checks it and shoots it out; we see it dark from its next `lamps`). Nothing is shot out here. */
+  private lampRay(a: Vector3, b: Vector3): void {
+    const reg = this.g.world.level.lights;
+    const id = lightOnRay(reg, a.x, a.y, a.z, b.x, b.y, b.z);
+    const l = id >= 0 ? reg.lights[id] : undefined;
+    if (!l || !l.destructible || l.destroyed) return;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const dz = b.z - a.z;
+    const len = hyp3(dx, dy, dz) || 1;
+    this.s.toHost({ t: 'shot', w: this.g.weapons.current.def.id, ox: a.x, oy: a.y, oz: a.z, dx: dx / len, dy: dy / len, dz: dz / len, target: LAMP_TARGET + id, part: 'body', rt: Math.max(0, this.renderTime), dist: len, dmg: 0 });
   }
 
   private sendShot(target: string, h: HitInfo): void {
