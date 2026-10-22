@@ -1,4 +1,4 @@
-# Night Shift | Menu Notes Build - resume (updated 2026-10-22 ~18:10)
+# Night Shift | Menu Notes Build - resume (updated 2026-10-22 ~18:20, before a clear)
 
 Every open job this session leads, with branches, heads, next steps and rules. Read CLAUDE.md and docs/ROADMAP.md
 first, then this file. Message "Night Shift | Orchestrator" at each slice and PR.
@@ -30,32 +30,47 @@ first, then this file. Message "Night Shift | Orchestrator" at each slice and PR
 ## 1. anim-natural (TOP PRIORITY) - docs branch `feature/anim-natural` (C:/NightShift/Mobile-Coop-anim-natural)
 Brief: docs/anim-natural/BRIEF.md. Menu Notes owns N0, N3 and N3b. CT Core owns N1 / N2 (+ hitReact); Course Ready owns
 N4 rows (co-op role B, mantle / drop, roll, guard-hold trunk).
-- **N3: PR #118** (feature/anim-n3 4d90926e) in merge train 5. e2e-clip sling draw fixed test-side (waits out the
-  holster / draw); the real LT-mid-holster clip (gun through the trunk ~8 cm) is in the PR body and WIP polish list.
-- **N3b: PR #122** (feature/anim-n3b b5de90f8, N3 merged in) for train 6: e2e-anim / stealth-ai / coop / wall all ok on
-  b5de90f8 (desktop). A2 "Muzzle down" answered (DECISIONS at the merge).
+- **N3: PR #118** (feature/anim-n3 4d90926e) in train 5, releasing as 4.56.0 (#130) if CI passes. Nothing to do.
+  (The real LT-mid-holster clip is on the PR body / WIP polish list.)
+- **N3b: PR #122** (feature/anim-n3b b5de90f8, N3 merged in) for train 6: area suites ok on b5de90f8. After 4.56.0
+  lands: merge master in (expect CHANGELOG conflicts; N3 is already in), tsc + the anim / tuner unit tests, push.
 - **#125 fix/local-transport-closed** (c19b28fe): coop + netmove PASS (laptop and desktop solo); in train 5.
 - **N0 audit:** pass 1 + pass 2 done (feature/anim-natural 905e115f): AUDIT.md, PASS2.md, fixes 23-36, sheets.
   Not captured: 29 / 39 (aiming at the wall end steps her off the wall; needs anim-audit's wall driver), 49 elbow strike
   (no strike starts with a calm guard in reach; find what blocks it), 31 launcher (not in game), 80 (covered by revive B).
 
 ## 2. sector-fixes (after the N3 PR) - take L and C only (W is Character Build's)
-- **L lights: PR #129** (feature/sector-fixes f21cc2b1, master 4.55.1 merged). Checker PASS; lossless lampGrid proof
-  (tests/lampGridLossless.test.ts). GPU after-shots + e2e-darkness requested from Character Build (outputs to
-  docs/sector-fixes/l/).
-- **C cameras and lasers: PR #127** (feature/sector-fixes-c 705786d6, master 4.55.1 merged). Checker PASS, check PASS,
-  sectorops / security ok, laptop solo ctcourse / netmove PASS, coop only the pageerror #125 fixes. Waits for a train.
+- **L lights: PR #129** (feature/sector-fixes f21cc2b1) for train 6 once the GPU after-shots are back: requested from
+  Character Build (sector-lights-shots.mjs after + --sheet, e2e-darkness; it pushes them to feature/sector-fixes or
+  says where they are). After 4.56.0 lands: merge master in.
+- **C cameras and lasers: PR #127** (feature/sector-fixes-c 705786d6) for train 6 (checker PASS; coop pageerror fixed by
+  #125 in train 5). After 4.56.0 lands: merge master in.
+- **N0 pass 2 leftovers** (rows 29 / 39 wall-end aim, 49 elbow strike): an implementer agent was running at the clear,
+  editing feature/anim-natural UNCOMMITTED (scripts/anim-natural/audit.mjs, docs/anim-natural/PASS2.md / AUDIT.md).
+  On resume: `git -C C:/NightShift/Mobile-Coop-anim-natural status` / `diff`; if its work is there and coherent, commit
+  it; if row 49 turned out to be a game bug, report it to the orchestrator (no src change on this branch). GPU sheets for
+  the rows go to the laptop.
+- **Next job: sector-fixes P (laser panels, BRIEF item 6)**, unblocked by C: each laser group gets a power panel nearby,
+  out of plain sight and hard to reach, the jammer interrupts it, electro vision highlights panels (BRIEF lines 35-37 on
+  feature/sector-fixes). Branch it from master after 4.56.0 (feature/sector-fixes-p, worktree
+  C:/NightShift/Mobile-Coop-sector-fixes-p); a wire change takes the next PROTOCOL_VERSION (master is 28).
 
 ## 3. anim-skeleton (T3) - DONE apart from follow-ups held by Course Ready (docs/anim-skeleton/STATE.md).
 
 ## Resume prompt
 ```
-Night Shift | Menu Notes Build: RESUME (new session or account). Read CLAUDE.md and docs/ROADMAP.md (latest on
-origin/feature/menu), then C:/NightShift/Mobile-Coop-anim-natural/docs/anim-natural/RESUME-menu-notes.md (branch
-feature/anim-natural; git pull first) and follow it. Message "Night Shift | Orchestrator" that you resumed.
-Order: (1) PRs #118 (train 5), #122 (train 6), #125 (train 5), #127, #129: act on laptop verdicts / orchestrator asks;
-merge master into them when it moves. (2) N0 pass 2 leftovers (rows 29 / 39 wall-end aim, 49 elbow strike) if spare.
-(3) The N3 / N3b polish lists for Michael's walk. Parallel agents allowed (full burn). Branch guard before every write; atomic heavy.lock; check
-the 5-hour meter before each agent (97% no new agent, 98% commit / push / update this file, stopped by 99%).
-Message the orchestrator at each slice and PR.
+Night Shift | Menu Notes Build: RESUME (new session or after a clear). Read CLAUDE.md and docs/ROADMAP.md (latest on
+origin/feature/menu, including the new "Machines" rules: the laptop is the main test machine, GPU included), then
+C:/NightShift/Mobile-Coop-anim-natural/docs/anim-natural/RESUME-menu-notes.md (branch feature/anim-natural; git pull
+first) and follow it. Message "Night Shift | Orchestrator" that you resumed.
+Order: (1) Check the N0 leftovers agent's uncommitted work in C:/NightShift/Mobile-Coop-anim-natural (git status / diff):
+commit if coherent, report any game bug it found (row 49 elbow strike) to the orchestrator. (2) When 4.56.0 (#130, train
+5 with #118 and #125) has landed: merge master into feature/anim-n3b (#122), feature/sector-fixes-c (#127) and
+feature/sector-fixes (#129); tsc + the related unit tests; push; tell the orchestrator (train 6). (3) #129 waits for
+Character Build's GPU after-shots (docs/sector-fixes/l/); ask if none arrived. (4) Start sector-fixes P (laser panels,
+BRIEF item 6 in docs/sector-fixes/BRIEF.md): branch feature/sector-fixes-p from master in
+C:/NightShift/Mobile-Coop-sector-fixes-p, write its WIP / plan, implementer, fresh checker, PR. Full burn: parallel
+agents allowed; check the 5-hour meter before each agent (97% none, 98% save, 99% stop). Full runs, co-op suites and GPU
+work go to Character Build; the desktop runs quick single suites at E2E_JOBS=1 under the atomic heavy.lock. Branch guard
+before every write. Message the orchestrator at each slice and PR.
 ```
