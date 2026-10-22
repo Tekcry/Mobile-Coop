@@ -31,6 +31,15 @@ fresh bodies (`body.ts`) opt in; `?guardmerge=0` gives the old instanced parts f
 - Checks run: `tsc --noEmit -p .`, eslint on every changed file, vitest single files: smoothBodyMerge, smoothBody,
   voxel, animGear, coopTorches, enemyManagerDespawn, hearing, sectorRestart (all pass). No full check, no e2e.
 
+## S1 checker (2026-10-23 ~09:10, fresh Opus): PASS WITH NOTES
+- Applied: `LIVE` entry deleted on `scene.onDisposeObservable` (an undisposed body kept a disposed scene alive).
+- Known pixel difference (accepted, more correct): `lightRig.ts:456` and `world.ts:342` skip casters with
+  `radiusWorld < 0.3`; that used to drop heads, hands, forearms and feet, and the merged body is over 0.3 m, so those
+  now cast moon / lamp / flashlight shadows. Note it in the look check and the on / off GPU comparison.
+- Later (S7): GPU buffers are per body (CACHE shares only CPU arrays); share VertexBuffers per cache entry.
+- GPU run: first-draw compile of the BONES + VERTEXCOLOR + SMOOTHBODY variant may hide the first guard for a few
+  frames; the box has only 0.3 m headroom (raised hands poke out).
+
 ## S1 doubts (for the checker / the GPU run)
 - Not rendered on a GPU yet: the plugin's shader (PBR + SURF_OBJECT + BONES + VERTEXCOLOR) compiles only in the e2e /
   GPU run; a compile error would show as missing guards in smoke.

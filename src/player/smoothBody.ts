@@ -116,6 +116,8 @@ export class SmoothBody {
     if (!live) {
       const bodies: SmoothBody[] = [];
       LIVE.set(scene, (live = { bodies, obs: scene.onBeforeRenderObservable.add(() => SmoothBody.frame(bodies)) }));
+      // (checker S1) a body left undisposed must not keep a disposed scene alive
+      scene.onDisposeObservable.addOnce(() => LIVE.delete(scene));
     }
     live.bodies.push(this);
   }
