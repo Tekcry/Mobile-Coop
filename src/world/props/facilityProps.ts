@@ -1,7 +1,8 @@
 /**
  * The props kit (marlow-final M5 / A6; pure, no Babylon at run time): the set dressing that makes each mock-up read as
  * a real site (security consoles and video walls, server racks, pallet racking, a goods van, a transformer, a pump set,
- * mesh cages, a banking counter and a strongroom door). Design and rules: docs/marlow-final/PROPS.md.
+ * mesh cages, a banking counter and a strongroom door; batch 2: the gallery, lounge and holding-room furniture, the set
+ * signs, and every remaining set prop of PROPS.md section 3). Design and rules: docs/marlow-final/PROPS.md.
  *
  * Meshes: one GLB built offline by `npm run props:build` (scripts/facility-props/build.py, Blender 5.2.2 headless) into
  * src/world/props/assets/facility-props.glb, drawn by `propRender.ts`, one thin-instanced mesh per (prop, material).
@@ -29,6 +30,49 @@ export const PROP_IDS = [
   'vaultDoor',
   'vaultLeaf',
   'beamTower',
+  // batch 2 (0f)
+  'galleryConsole',
+  'galleryChair',
+  'galleryScreen',
+  'receptionDesk',
+  'loungeSeat',
+  'greenWall',
+  'modelVitrine',
+  'holdingBench',
+  'kitCaseWall',
+  'signPlate',
+  'barrierPost',
+  'checkerDesk',
+  'bollard',
+  'wicketBolt',
+  'trackPanel',
+  'bufferStop',
+  'pushStation',
+  'permitGate',
+  'officeDesk',
+  'officeChair',
+  'filingCabinet',
+  'cleanerTrolley',
+  'palletLoad',
+  'palletLoadLow',
+  'dispatchDesk',
+  'reachTruck',
+  'zoneKiosk',
+  'switchgearPanel',
+  'cableDrum',
+  'driveCabinet',
+  'davitBox',
+  'glandPlate',
+  'pipeRun',
+  'coolingUnit',
+  'cableTray',
+  'trenchGrating',
+  'bankGrille',
+  'timeLockPanel',
+  'lightingBoard',
+  'depositWall',
+  'nightDesk',
+  'cashCart',
 ] as const;
 export type PropId = (typeof PROP_IDS)[number];
 
@@ -56,6 +100,12 @@ export const PROP_MATERIALS = [
   'brass',
   'plastic',
   'fabric',
+  'glass',
+  'leather',
+  'foliage',
+  'ballast',
+  'red',
+  'white',
   'screen',
   'lamp',
 ] as const;
@@ -86,6 +136,12 @@ export const PROP_LOOK: Record<PropMaterial, { color: string; roughness: number;
   brass: { color: '#c19a50', roughness: 0.3, metallic: 1 },
   plastic: { color: '#1b1b1c', roughness: 0.6, metallic: 0 },
   fabric: { color: '#2b2d31', roughness: 0.95, metallic: 0 },
+  glass: { color: '#cfd8da', roughness: 0.05, metallic: 0, alpha: 0.2 },
+  leather: { color: '#55311e', roughness: 0.55, metallic: 0 },
+  foliage: { color: '#2f5a22', roughness: 0.8, metallic: 0 },
+  ballast: { color: '#5d5a56', roughness: 0.95, metallic: 0 },
+  red: { color: '#c0262b', roughness: 0.5, metallic: 0.1 },
+  white: { color: '#e8e8e4', roughness: 0.5, metallic: 0 },
   screen: { color: '#ffffff', roughness: 1, metallic: 0, emissive: true },
   lamp: { color: '#ffffff', roughness: 1, metallic: 0, emissive: true },
 };
@@ -105,6 +161,48 @@ export const PROP_TRI_BUDGET: Record<PropId, number> = {
   vaultDoor: 400,
   vaultLeaf: 600,
   beamTower: 200,
+  galleryConsole: 500,
+  galleryChair: 350,
+  galleryScreen: 60,
+  receptionDesk: 300,
+  loungeSeat: 400,
+  greenWall: 300,
+  modelVitrine: 600,
+  holdingBench: 120,
+  kitCaseWall: 400,
+  signPlate: 60,
+  barrierPost: 250,
+  checkerDesk: 250,
+  bollard: 80,
+  wicketBolt: 100,
+  trackPanel: 300,
+  bufferStop: 300,
+  pushStation: 150,
+  permitGate: 160,
+  officeDesk: 250,
+  officeChair: 350,
+  filingCabinet: 120,
+  cleanerTrolley: 300,
+  palletLoad: 120,
+  palletLoadLow: 120,
+  dispatchDesk: 250,
+  reachTruck: 900,
+  zoneKiosk: 150,
+  switchgearPanel: 200,
+  cableDrum: 250,
+  driveCabinet: 200,
+  davitBox: 100,
+  glandPlate: 80,
+  pipeRun: 160,
+  coolingUnit: 200,
+  cableTray: 120,
+  trenchGrating: 80,
+  bankGrille: 200,
+  timeLockPanel: 160,
+  lightingBoard: 150,
+  depositWall: 250,
+  nightDesk: 400,
+  cashCart: 200,
 };
 
 /** A set's prop dressing budget (PROPS.md section 1): triangles drawn and draws (one per (prop, material) placed). */
@@ -170,6 +268,88 @@ export const PROP_COLLISION: Record<PropId, readonly PropBox[] | null> = {
   vaultLeaf: null,
   // a thin pole: sight passes beside it
   beamTower: [{ lo: [-0.08, 0, -0.08], hi: [0.08, 2.39, 0.08], noLedge: true }],
+  // batch 2 (0f). The gallery is out of bounds (sight only); hung and floor-flush props have no footprint
+  galleryConsole: null,
+  galleryChair: null,
+  galleryScreen: null,
+  // the tall visitor front under the transaction top, and the low staff side
+  receptionDesk: [
+    { lo: [-1.79, 0, 0.16], hi: [1.79, 1.09, 0.54] },
+    { lo: [-1.79, 0, -0.54], hi: [1.79, 0.74, 0.16] },
+  ],
+  // base, the two arms and the back (the seat stays open above the cushion)
+  loungeSeat: [
+    { lo: [-0.415, 0, -0.415], hi: [0.415, 0.4, 0.415] },
+    { lo: [-0.405, 0.4, -0.405], hi: [-0.31, 0.59, 0.405] },
+    { lo: [0.31, 0.4, -0.405], hi: [0.405, 0.59, 0.405] },
+    { lo: [-0.29, 0.4, -0.405], hi: [0.29, 0.77, -0.26] },
+  ],
+  greenWall: null,
+  // the plinth, and the glass hood (light and the eye pass glass)
+  modelVitrine: [
+    { lo: [-0.99, 0, -0.59], hi: [0.99, 0.74, 0.59], noLedge: true },
+    { lo: [-0.98, 0.75, -0.58], hi: [0.98, 1.1, 0.58], see: true, noLedge: true },
+  ],
+  // slab on two plate legs: collision only
+  holdingBench: [{ lo: [-0.9, 0, -0.225], hi: [0.9, 0.45, 0.225], see: true }],
+  // glass-fronted: a solid box would show through the glass
+  kitCaseWall: [{ lo: [-0.6, 0, 0], hi: [0.6, 2.4, 0.5], see: true, noLedge: true }],
+  signPlate: null,
+  // the motor post only; the arm is visual (PROP_OVERHANG)
+  barrierPost: [{ lo: [-0.19, 0, -0.19], hi: [0.19, 1.09, 0.19], noLedge: true }],
+  // a closed block (the knee space reads as a modesty panel, PA5)
+  checkerDesk: [{ lo: [-0.69, 0, -0.34], hi: [0.69, 0.74, 0.34] }],
+  // inside the octagonal post
+  bollard: [{ lo: [-0.06, 0, -0.06], hi: [0.06, 0.99, 0.06], noLedge: true }],
+  wicketBolt: null,
+  trackPanel: null,
+  // an open frame of rail: collision only
+  bufferStop: [{ lo: [-1.3, 0, -0.7], hi: [1.3, 1.25, 0.7], see: true, noLedge: true }],
+  pushStation: null,
+  // tube gate: the stair's block, collision only
+  permitGate: [{ lo: [-0.5, 0, -0.05], hi: [0.5, 1.1, 0.05], see: true }],
+  officeDesk: [{ lo: [-0.77, 0, -0.37], hi: [0.77, 0.74, 0.37] }],
+  officeChair: null,
+  filingCabinet: [{ lo: [-0.225, 0, -0.3], hi: [0.225, 1.31, 0.29] }],
+  cleanerTrolley: [{ lo: [-0.55, 0, -0.25], hi: [0.55, 1, 0.25], see: true }],
+  palletLoad: [{ lo: [-0.59, 0, -0.49], hi: [0.59, 1.39, 0.49] }],
+  // 1.2 m: low cover
+  palletLoadLow: [{ lo: [-0.59, 0, -0.49], hi: [0.59, 1.19, 0.49] }],
+  dispatchDesk: [{ lo: [-0.89, 0, -0.34], hi: [0.89, 0.89, 0.34] }],
+  // the chassis (solid) and the whole truck's envelope (mast, guard, reach legs, forks)
+  reachTruck: [
+    { lo: [-1.29, 0, -0.64], hi: [0.19, 0.99, 0.64], noLedge: true },
+    { lo: [-1.3, 0, -0.65], hi: [1.3, 2.3, 0.65], see: true, noLedge: true },
+  ],
+  zoneKiosk: null,
+  // a line-up module: 5 mm in at each side so neighbours' boxes never touch faces
+  switchgearPanel: [{ lo: [-0.395, 0, -0.79], hi: [0.395, 2.29, 0.77], noLedge: true }],
+  // inside the wound cable (solid), and the drum's envelope round the round flanges
+  cableDrum: [
+    { lo: [-0.42, 0.48, -0.54], hi: [0.42, 1.32, 0.54], noLedge: true },
+    { lo: [-0.9, 0, -0.55], hi: [0.9, 1.8, 0.55], see: true, noLedge: true },
+  ],
+  driveCabinet: null,
+  davitBox: null,
+  glandPlate: null,
+  // inside the pipe (solid), and the flanges' envelope
+  pipeRun: [
+    { lo: [-0.49, 0.15, -0.2], hi: [0.49, 0.55, 0.2], noLedge: true },
+    { lo: [-0.5, 0, -0.35], hi: [0.5, 0.7, 0.35], see: true, noLedge: true },
+  ],
+  coolingUnit: [{ lo: [-0.89, 0, -0.44], hi: [0.89, 1.99, 0.42], noLedge: true }],
+  cableTray: null,
+  trenchGrating: null,
+  bankGrille: null,
+  timeLockPanel: null,
+  lightingBoard: null,
+  depositWall: [{ lo: [-0.595, 0, -0.29], hi: [0.595, 2.39, 0.27], noLedge: true }],
+  nightDesk: [{ lo: [-1.19, 0, -0.44], hi: [1.19, 0.74, 0.44] }],
+  // the cash box (solid) over its chassis and castors
+  cashCart: [
+    { lo: [-0.41, 0.15, -0.29], hi: [0.49, 1.09, 0.29] },
+    { lo: [-0.5, 0, -0.3], hi: [0.5, 0.15, 0.3], see: true },
+  ],
 };
 
 /** How far a prop's skin may stand off its box hull (m): the kit's skin rule. */
@@ -181,7 +361,19 @@ export const PROP_OVERHANG: Partial<Record<PropId, { by: number; what: string }>
   boxVan: { by: 0.36, what: 'buffers at both ends and the curved roof' },
   bankCounter: { by: 0.14, what: 'the brass foot rail at the floor' },
   vaultDoor: { by: 0.17, what: 'hinge knuckles on the face' },
+  barrierPost: { by: 6.1, what: 'the 6 m arm (down, 1.0-1.08 m up, visual only) and its hub' },
+  checkerDesk: { by: 0.4, what: 'the monitor and logbook on the worktop' },
+  officeDesk: { by: 0.5, what: 'the monitor, keyboard and mouse on the worktop' },
+  dispatchDesk: { by: 0.3, what: 'the label printer, kettle and mugs on the top' },
+  nightDesk: { by: 0.51, what: 'desk monitors, keyboard and phone on the worktop' },
 };
+
+/** Hung props: the origin is the bottom edge on the mounting face (the cable tray: under its trapeze strut); the
+ *  placement's `y` is the mount height. Every other prop stands on its floor (PROPS.md section 1). */
+export const PROP_HUNG: readonly PropId[] = ['galleryScreen', 'signPlate', 'pushStation', 'timeLockPanel', 'wicketBolt', 'cableTray'];
+
+/** The rail head height of `trackPanel` (build.py TRACK_RAIL_TOP): a `boxVan` on the track stands at this `y`. */
+export const TRACK_RAIL_TOP = 0.02;
 
 /** Greybox colour of each prop's solid boxes (the `?gfx=min` path, and the colour seen if a skin gap shows one). */
 export const PROP_BOX_COLOR: Record<PropId, string> = {
@@ -198,6 +390,48 @@ export const PROP_BOX_COLOR: Record<PropId, string> = {
   vaultDoor: '#262422',
   vaultLeaf: '#262422',
   beamTower: '#adafb1',
+  galleryConsole: '#2c2e30',
+  galleryChair: '#2c2e30',
+  galleryScreen: '#1b1b1c',
+  receptionDesk: '#e4e0d8',
+  loungeSeat: '#55311e',
+  greenWall: '#2f5a22',
+  modelVitrine: '#2c2e30',
+  holdingBench: '#6b4423',
+  kitCaseWall: '#2c2e30',
+  signPlate: '#2c2e30',
+  barrierPost: '#7c7f82',
+  checkerDesk: '#7c7f82',
+  bollard: '#2c2e30',
+  wicketBolt: '#262422',
+  trackPanel: '#5d5a56',
+  bufferStop: '#c0262b',
+  pushStation: '#7c7f82',
+  permitGate: '#f2b705',
+  officeDesk: '#7c7f82',
+  officeChair: '#2c2e30',
+  filingCabinet: '#7c7f82',
+  cleanerTrolley: '#1b1b1c',
+  palletLoad: '#d9dcdc',
+  palletLoadLow: '#d9dcdc',
+  dispatchDesk: '#7c7f82',
+  reachTruck: '#f2b705',
+  zoneKiosk: '#7c7f82',
+  switchgearPanel: '#7c7f82',
+  cableDrum: '#1b1b1c',
+  driveCabinet: '#7c7f82',
+  davitBox: '#c0262b',
+  glandPlate: '#adafb1',
+  pipeRun: '#2f6b4f',
+  coolingUnit: '#e8e8e4',
+  cableTray: '#adafb1',
+  trenchGrating: '#adafb1',
+  bankGrille: '#c19a50',
+  timeLockPanel: '#262422',
+  lightingBoard: '#7c7f82',
+  depositWall: '#262422',
+  nightDesk: '#6b4423',
+  cashCart: '#7c7f82',
 };
 
 /** Each prop's drawn footprint in its frame (m, x0 z0 x1 z1; the build report's bounds): the layout check keeps it in
@@ -216,6 +450,48 @@ export const PROP_FOOTPRINT: Record<PropId, readonly [number, number, number, nu
   vaultDoor: [-1.2, -0.35, 1.2, 0.5],
   vaultLeaf: [-0.05, -0.81, 1.53, 0.05],
   beamTower: [-0.13, -0.13, 0.13, 0.13],
+  galleryConsole: [-1.2, -0.45, 1.2, 0.45],
+  galleryChair: [-0.3, -0.38, 0.3, 0.31],
+  galleryScreen: [-0.98, 0, 0.98, 0.07],
+  receptionDesk: [-1.8, -0.57, 1.8, 0.58],
+  loungeSeat: [-0.43, -0.43, 0.43, 0.43],
+  greenWall: [-0.6, 0, 0.6, 0.2],
+  modelVitrine: [-1, -0.6, 1, 0.6],
+  holdingBench: [-0.9, -0.23, 0.9, 0.23],
+  kitCaseWall: [-0.6, 0, 0.6, 0.5],
+  signPlate: [-0.6, 0, 0.6, 0.05],
+  barrierPost: [-0.2, -0.2, 6.24, 0.2],
+  checkerDesk: [-0.7, -0.35, 0.7, 0.36],
+  bollard: [-0.11, -0.11, 0.11, 0.11],
+  wicketBolt: [-0.21, 0, 0.2, 0.06],
+  trackPanel: [-5, -1.3, 5, 1.3],
+  bufferStop: [-1.3, -0.7, 1.3, 0.7],
+  pushStation: [-0.3, 0, 0.3, 0.34],
+  permitGate: [-0.5, -0.03, 0.5, 0.05],
+  officeDesk: [-0.8, -0.4, 0.8, 0.4],
+  officeChair: [-0.3, -0.35, 0.3, 0.31],
+  filingCabinet: [-0.24, -0.31, 0.24, 0.32],
+  cleanerTrolley: [-0.55, -0.25, 0.55, 0.25],
+  palletLoad: [-0.6, -0.5, 0.6, 0.5],
+  palletLoadLow: [-0.6, -0.5, 0.6, 0.5],
+  dispatchDesk: [-0.9, -0.35, 0.9, 0.37],
+  reachTruck: [-1.3, -0.65, 1.3, 0.65],
+  zoneKiosk: [-0.4, -0.25, 0.4, 0.27],
+  switchgearPanel: [-0.4, -0.8, 0.4, 0.82],
+  cableDrum: [-0.9, -0.55, 0.9, 0.55],
+  driveCabinet: [-0.6, -0.3, 0.6, 0.33],
+  davitBox: [-0.41, -0.26, 0.41, 0.27],
+  glandPlate: [-0.3, -0.3, 0.3, 0.3],
+  pipeRun: [-0.5, -0.35, 0.5, 0.35],
+  coolingUnit: [-0.9, -0.45, 0.9, 0.45],
+  cableTray: [-0.5, -0.19, 0.5, 0.19],
+  trenchGrating: [-0.5, -0.5, 0.5, 0.5],
+  bankGrille: [-0.75, -0.04, 0.75, 0.04],
+  timeLockPanel: [-0.25, 0, 0.25, 0.15],
+  lightingBoard: [-0.6, 0, 0.6, 0.33],
+  depositWall: [-0.6, -0.3, 0.6, 0.3],
+  nightDesk: [-1.2, -0.45, 1.2, 0.45],
+  cashCart: [-0.5, -0.3, 0.5, 0.3],
 };
 
 /** Module pitch of a row of repeated props (m along local x): bays and panels share their end frames / half posts,
@@ -234,6 +510,48 @@ export const PROP_PITCH: Record<PropId, number> = {
   vaultDoor: 2.4,
   vaultLeaf: 1.4,
   beamTower: 0.26,
+  galleryConsole: 2.4,
+  galleryChair: 0.8,
+  galleryScreen: 2,
+  receptionDesk: 3.6,
+  loungeSeat: 0.85,
+  greenWall: 1.2,
+  modelVitrine: 2,
+  holdingBench: 1.8,
+  kitCaseWall: 1.2,
+  signPlate: 1.2,
+  barrierPost: 6.5,
+  checkerDesk: 1.4,
+  bollard: 1.5,
+  wicketBolt: 0.4,
+  trackPanel: 10,
+  bufferStop: 2.6,
+  pushStation: 0.6,
+  permitGate: 1,
+  officeDesk: 1.6,
+  officeChair: 0.8,
+  filingCabinet: 0.47,
+  cleanerTrolley: 1.1,
+  palletLoad: 1.2,
+  palletLoadLow: 1.2,
+  dispatchDesk: 1.8,
+  reachTruck: 2.6,
+  zoneKiosk: 0.8,
+  switchgearPanel: 0.8,
+  cableDrum: 2,
+  driveCabinet: 1.2,
+  davitBox: 0.8,
+  glandPlate: 0.6,
+  pipeRun: 1,
+  coolingUnit: 1.8,
+  cableTray: 1,
+  trenchGrating: 1,
+  bankGrille: 1.5,
+  timeLockPanel: 0.5,
+  lightingBoard: 1.2,
+  depositWall: 1.2,
+  nightDesk: 2.4,
+  cashCart: 1,
 };
 
 /** Default per-instance colours (linear-ish, before the gain) of the screens and lamps. */
@@ -242,6 +560,12 @@ export const PROP_LAMP_TINT: Partial<Record<PropId, Rgb>> & { default: Rgb } = {
   default: [0.25, 1.0, 0.4],
   beamTower: [1.0, 0.12, 0.08],
   vaultLeaf: [1.0, 0.55, 0.1],
+  // warm LED lines, the sign's backlit face, the truck's beacon and the time lock's ready lamp
+  receptionDesk: [1.0, 0.78, 0.5],
+  kitCaseWall: [1.0, 0.78, 0.5],
+  signPlate: [0.95, 0.92, 0.85],
+  reachTruck: [1.0, 0.55, 0.1],
+  timeLockPanel: [1.0, 0.55, 0.1],
 };
 /** Emissive gains: accents only, never brighter than the baked lamps (light parity). */
 export const PROP_SCREEN_GAIN = 1.0;
@@ -414,10 +738,13 @@ export function propRow(
   }
   if (prop === 'palletRackBay') {
     // each bay's frame is at its local -x end: the bay whose +x end meets no other bay's frame gets the closing frame
+    // (iterate the bays only: each closing frame pushed into `out` would itself find no frame past it and add another,
+    // forever - the batch 1 hang)
     const half = pitch / 2;
-    for (const b of out) {
+    const bays = out.slice();
+    for (const b of bays) {
       const [ex, , ez] = propToWorld(b, half, 0, 0);
-      const covered = out.some((o) => {
+      const covered = bays.some((o) => {
         const [fx, , fz] = propToWorld(o, -half, 0, 0);
         return Math.abs(fx - ex) < 1e-3 && Math.abs(fz - ez) < 1e-3;
       });

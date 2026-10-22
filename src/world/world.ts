@@ -52,6 +52,7 @@ import { LightField } from './lightField';
 import { moonLight } from './lampMath';
 import { roofAt, roofGrid, type RoofGrid } from './roofGrid';
 import { KitRender } from './kit/kitRender';
+import { PropRender } from './props/propRender';
 
 /** Flashlight slots on dark maps (enemies searching / investigating in the dark): `torches.ts`. */
 export { FLASHLIGHTS } from './torches';
@@ -128,6 +129,9 @@ export class World {
   /** (marlow-final M5) The facility kit's meshes over the level (null: the map places none, `?gfx=min`, or the GLB
    *  failed to load - the greybox boxes under it then show). Render only. */
   kit: KitRender | null = null;
+  /** (marlow-final M5) The props kit's meshes (null: the map places none, `?gfx=min`, or the GLB failed to load - the
+   *  prop boxes under them then show). Render only: gameplay reads the boxes `props.write(b)` put in the level. */
+  facilityProps: PropRender | null = null;
   private _ropes: Ropes | null = null;
   /** (3.2.0) Rappel ropes (the local player's and remotes'), created on first use. */
   get ropes(): Ropes {
@@ -251,6 +255,14 @@ export class World {
         w.kit = await KitRender.create(scene, layout.kit, w.doors.list, level.lights, (m) => w.lightRig.addCaster(m));
       } catch (e) {
         console.warn('[kit] the facility kit failed to load; the greybox shows', e);
+      }
+    }
+    // (marlow-final M5) the props kit: drawn over the boxes the map builder wrote for them (the kit's rules)
+    if (layout.facilityProps?.length && atlas && !opts.cheap) {
+      try {
+        w.facilityProps = await PropRender.create(scene, layout.facilityProps, w.doors.list);
+      } catch (e) {
+        console.warn('[props] the props kit failed to load; the greybox shows', e);
       }
     }
     // 3.2 baked lamps: drawn from the bake on every PBR path - the smooth default and `?voxels=1` - so the picture
@@ -656,6 +668,7 @@ export class World {
 
   dispose(): void {
     this.kit?.dispose();
+    this.facilityProps?.dispose();
     this.shadow?.dispose();
     this.surfaces?.dispose();
     this.probe?.dispose();

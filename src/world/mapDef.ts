@@ -13,6 +13,7 @@ import type { CourseLayout } from '../game/course/courseDef';
 import type { SectorDef } from '../game/sectors';
 import type { CamSize, CamSpace } from './camSpaces';
 import type { KitLayout } from './kit/facilityKit';
+import type { PropPlacement as FacilityPropPlacement } from './props/facilityProps';
 
 /** 3.0 weather choice (visual only): clear, rain (wet floors under the open sky, roofs keep it out), fog (light shafts). */
 export type WeatherChoice = 'clear' | 'rain' | 'fog';
@@ -97,6 +98,10 @@ export interface MapLayout {
   /** (marlow-final M5) The facility kit's drawn pieces (`world/kit/facilityKit.ts` `FacilityKit.layout`): visual only,
    *  the kit wrote their gameplay boxes into the builder itself. */
   kit?: KitLayout;
+  /** (marlow-final M5) The props kit's placements (`world/props/facilityProps.ts` `FacilityProps.placements`): visual
+   *  only, drawn by `PropRender`; the map builder wrote their gameplay boxes with `props.write(b)`. (`props` above is
+   *  the dynamic prop system's.) */
+  facilityProps?: FacilityPropPlacement[];
 }
 
 export interface MapDef {

@@ -13,6 +13,7 @@ import {
   FacilityProps,
   PROP_COLLISION,
   PROP_FOOTPRINT,
+  PROP_HUNG,
   PROP_IDS,
   PROP_LOOK,
   PROP_MATERIALS,
@@ -20,6 +21,7 @@ import {
   PROP_PROUD,
   PROP_SET_BUDGET,
   PROP_TRI_BUDGET,
+  TRACK_RAIL_TOP,
   VAULT_HINGE,
   checkPropLayout,
   propCollisionBox,
@@ -139,7 +141,7 @@ describe('props placement (the gameplay boxes)', () => {
       expect(ends.length).toBe(1);
       // every bay's frame end and the closing frame: 4 frames at 0, 2.7, 5.4, 8.1
       const frames = [...bays.map((b) => propToWorld(b, -1.35, 0, 0)[0]), ends[0]!.x].sort((a, b) => a - b);
-      expect(frames.map((x) => Math.round(x * 100) / 100)).toEqual([0, 2.7, 5.4, 8.1]);
+      expect(frames.map((x) => Math.round(x * 100) / 100 + 0)).toEqual([0, 2.7, 5.4, 8.1]);
       expect(checkPropLayout(row, { x0: -0.1, z0: 0, x1: 8.2, z1: 4 })).toEqual([]);
     }
     // the fronts face left of the walk (+z for a walk along +x), right when flipped
@@ -208,6 +210,21 @@ describe('props build (facility-props.glb and its report)', () => {
     }
     // the video wall hangs on its wall: nothing behind the face
     expect(report.pieces.monitorWall!.bounds.min[2]).toBeGreaterThanOrEqual(0);
+  });
+
+  it('batch 2: hung props sit on their mounting face, the van stands on the track rail, sets stay in their draw budget', () => {
+    // (the cable tray hangs from the ceiling, centred on its run)
+    for (const id of PROP_HUNG.filter((h) => h !== 'cableTray')) expect(report.pieces[id]!.bounds.min[2], `${id} back on the wall`).toBeGreaterThanOrEqual(0);
+    expect(report.pieces.trackPanel!.bounds.max[1]).toBeCloseTo(TRACK_RAIL_TOP, 4);
+    // every prop draws at most 6 materials, so a set of a few kinds stays near the 12-draw budget
+    for (const id of PROP_IDS) expect(Object.keys(report.pieces[id]!.meshes).length, id).toBeLessThanOrEqual(6);
+    // a dressed office range (A3): desks, chairs, cabinets, a trolley
+    const office = new FacilityProps();
+    office.row('officeDesk', 0, 0, 6.4, 0);
+    for (let i = 0; i < 4; i++) office.add('officeChair', 0.8 + i * 1.6, 0.9, Math.PI);
+    office.row('filingCabinet', 0, 4, 1.9, 4, { flip: true });
+    office.add('cleanerTrolley', 5, 3, 0);
+    expect(office.check({ x0: -0.5, z0: -1, x1: 7, z1: 4.5 }, report)).toEqual([]);
   });
 
   it('reads with the game GLB reader: one mesh per (prop, material), the same winding as the weapon meshes', () => {
