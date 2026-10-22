@@ -67,6 +67,13 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- ~02:55 0d scaffold IN (3e41b859; slices/S0d.md): ctcourse merges set parts, facility greybox, 8 stub sets walk end
+  to end, test / e2e frames (4 parts), registerCourse at load, map tests (scanner pairs <= 8, objective id <= 40).
+  tsc clean, 34 test files green, npm run build ok. Decisions: facility groups 90-98 (SPEC says 1 / 2: fix in SPEC),
+  walls 0.5 m, voxelFit allowance for the 160 x 78 site. e2e (ctcourse :1-:4, coop, course, netmove) sent to Character
+  Build. Fresh Opus checker on 0d running (the one agent). Old shot scripts with stale ids (nv-shots,
+  sector-lights-shots, sector-fixes-c-shots, camera-cue-shots, wheel-shots): slice 9. Next: 0e facility dressing
+  (Sonnet brief) after the 0d check.
 - ~02:40 set docs A1-A8 + plan SVGs IN (sets/*.md, plans/*.svg). Spec contradictions logged per doc (section 13,
   ids A<n>-C<k>); the set docs win over SPEC for their set. Follow-ups for set slices: MARLOW_POCKETS /
   MARLOW_CIRCUITS rows for A5 / A6 / A8 (lighting file, src/world/lighting/marlowCircuits.ts); coopDeck `gaps` and
