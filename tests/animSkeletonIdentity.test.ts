@@ -29,6 +29,11 @@
  * (anim-natural N1, master 4.56.0 merge + rule A2) Not re-captured: the capture equals both fixtures. With the planner
  * forced to turnRule 0 the run matched master's (79216e49) on 40 of 40 (guards 64 of 64); with the turn rules on
  * partner:moves (1 of 40) and the guards' 24 walk / dash / aimWalk rows differ from master, as before.
+ * (anim-natural N2, merge of N1 08023227 on master 4.58.0) Re-captured on the combined code: with every BODY_MOTION amount
+ * 0, KEY_MOTION at its identity and master's / N1's run clip at run time, the run matched N1's fixture on 40 of 40
+ * entries; with the planner forced to turnRule 0 it matched N2's on 40 of 40. Only partner:moves moved from N2's (1 of
+ * 40: the turn rules on the layer); from N1's keyed:run (N2's A1 run keys) and partner:moves (2 of 40). The motion-off
+ * fixture re-captured too (N2's but partner:moves); the guard fixture is N1's, unchanged.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';

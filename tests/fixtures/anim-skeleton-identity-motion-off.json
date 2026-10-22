@@ -391,12 +391,12 @@
  },
  "partner:moves": {
   "steps": 180,
-  "rig": "d1ebf4e0f9ff6e58",
+  "rig": "20f98135bf93859c",
   "poser": {
-   "hero": "f8836e705d51df35",
-   "lod0": "68871310dde7253b",
-   "lod1": "68871310dde7253b",
-   "lod2": "68871310dde7253b"
+   "hero": "f64f214c0b839419",
+   "lod0": "6a8ee8026bca004b",
+   "lod1": "6a8ee8026bca004b",
+   "lod2": "6a8ee8026bca004b"
   }
  }
 }

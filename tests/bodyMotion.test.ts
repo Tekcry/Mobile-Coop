@@ -226,7 +226,8 @@ describe('body motion: amounts 0 are the pre-layer Wren rig bit for bit', () => 
   // the off fixture is the Wren identity fixture before the layer (master 5220f79c; keyed:run and partner:moves re-captured
   // after the A1 merge, equal on all 40 entries to feature/anim-n2-runkey 038e2519's fixture; re-captured after the master
   // 4.54.1 merge, equal to master's fixture but for keyed:run and partner:moves, the A1 rebake; re-captured after the master
-  // 4.55.1 merge, equal to master's fixture but for partner:moves, the run taking #110's half): with every amount 0 the rig's
+  // 4.55.1 merge, equal to master's fixture but for partner:moves, the run taking #110's half; re-captured after the N1
+  // merge, the previous one but for partner:moves, N1's turn rules): with every amount 0 the rig's
   // world matrices, local TRS and the poser output on every LOD match it, so the layer adds only its own swings. (step 3)
   // The keyed arms at their identity too (KEY_MOTION armGain 1, armSpeed ARM_SPEED_MAX): unchanged, not re-captured
   it.skipIf(CAPTURE)('every clip, state and the partner path hash as before the layer', async () => {
