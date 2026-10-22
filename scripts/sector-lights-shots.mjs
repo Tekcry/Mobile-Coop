@@ -6,6 +6,10 @@
 // Serves dist/ with `vite preview` (needs a prior `npm run build`). GPU: E2E_GPU=1 on port 4189. Never headed.
 // Usage: E2E_GPU=1 E2E_PORT=4189 timeout 1200 node scripts/sector-lights-shots.mjs docs/sector-fixes/l before
 //        E2E_GPU=1 E2E_PORT=4189 timeout 600 node scripts/sector-lights-shots.mjs docs/sector-fixes/l --sheet
+// Optional env (defaults unchanged): ONLY=a,b just those views; GFX=high another preset; VOL=off the volumetric light
+// shafts off (the post stack scatters no lights, the height fog stays); SUFFIX=-high appended to each file name;
+// PROBE=1 logs the light field (meter / guards) under the camera's view and the volumetric pass's lights; VOLFIX=1
+// previews the look-4.58 NOTE's proposed volumetric fix in the page (src unchanged).
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { launch } from './e2e-lib.mjs';
@@ -13,7 +17,11 @@ import { launch } from './e2e-lib.mjs';
 const [dir = 'docs/sector-fixes/l', prefix = 'before'] = process.argv.slice(2);
 const PORT = Number(process.env.E2E_PORT ?? 4189);
 const URL = `http://127.0.0.1:${PORT}/`;
-const GFX = 'epic';
+const GFX = process.env.GFX ?? 'epic';
+const VOL_OFF = process.env.VOL === 'off';
+const VOL_FIX = process.env.VOLFIX === '1';
+const SUFFIX = process.env.SUFFIX ?? '';
+const PROBE = process.env.PROBE === '1';
 // The whole warehouse is built at once (a section change only moves guards and doors), so every view is a teleport.
 const QUERY = 'autostart=warehouseOps&mode=sector&sectorGuards=4';
 const WIDTH = 960;
@@ -103,8 +111,28 @@ try {
   // ONLY=a,b: just those views (a retry)
   const only = (process.env.ONLY ?? '').split(',').filter(Boolean);
   for (const [name, p, c, t] of ROWS.filter(([n]) => !only.length || only.includes(n))) {
-    const draws = await page.evaluate(async ([p, c, t]) => {
+    const draws = await page.evaluate(async ([p, c, t, volOff, volFix]) => {
       const g = globalThis.__app.current;
+      // VOL=off: the post stack scatters no lights (the height fog stays)
+      if (volOff) g.stack.setAdaptive(1, 0);
+      // VOLFIX=1 (a preview of a proposed fix, docs/sector-fixes/l/look-4.58/NOTE.md; nothing in src changes): every
+      // fixed light, spots included, scatters under its shade like a lamp; only flashlights keep the long beam
+      if (volFix && !g.stack.volFixed) {
+        const st = g.stack;
+        const frame = st.frame.bind(st);
+        st.volFixed = true;
+        st.frame = (dt) => {
+          frame(dt);
+          const ls = st.opts.lights?.lights ?? [];
+          for (let i = 0; i < st.volCount; i++) {
+            const l = ls[st.ids[i]];
+            if (!l || l.kind === 'flashlight' || !l.cone) continue;
+            st.lPos[i * 4 + 3] = Math.min(3.2, l.radius * 0.5, Math.max(0.8, l.y));
+            st.lDir[i * 4 + 3] = Math.max(l.cone.cosOuter, 0.88);
+            for (let c = 0; c < 3; c++) st.lCol[i * 4 + c] = l.color[c] * l.intensity;
+          }
+        };
+      }
       const V = g.player.position.constructor;
       g.photoFreeze(false);
       document.body.classList.remove('photo-mode');
@@ -131,10 +159,31 @@ try {
       }
       n.sort((a, b) => a - b);
       return n[3];
-    }, [p, c, t]);
+    }, [p, c, t, VOL_OFF, VOL_FIX]);
     const png = await page.screenshot({ timeout: 120_000 });
-    writeFileSync(`${dir}/${prefix}-${name}.webp`, await toWebp(conv, png));
-    console.log(`${name} draws=${draws}`);
+    writeFileSync(`${dir}/${prefix}-${name}${SUFFIX}.webp`, await toWebp(conv, png));
+    console.log(`${name}${SUFFIX} draws=${draws}`);
+    if (PROBE) {
+      // the light field (what the meter and the guards read) under each lit ceiling light within 9 m of the player,
+      // beside what the volumetric pass scatters for it this frame
+      const probe = await page.evaluate(([p]) => {
+        const g = globalThis.__app.current;
+        const st = g.stack;
+        const f = g.world.lightField;
+        const out = [`player light ${g.lightLevel.toFixed(2)} vol lights ${st.volCount}`];
+        for (let i = 0; i < st.volCount; i++) {
+          const q = (a) => [0, 1, 2, 3].map((k) => st[a][i * 4 + k].toFixed(2)).join(',');
+          out.push(`  vol[${i}] pos,r ${q('lPos')} dir,cosOuter ${q('lDir')} col ${q('lCol')}`);
+        }
+        for (const l of st.opts.lights.lights) {
+          if (!l.on || l.kind === 'flashlight' || l.y < 3 || Math.sqrt((l.x - p[0]) ** 2 + (l.z - p[2]) ** 2) > 9) continue;
+          const lv = (x, y, z) => f.levelAt(x, y, z).toFixed(2);
+          out.push(`  ${l.kind} ${l.fixture?.model ?? 'box'} (${l.x}, ${l.y}, ${l.z}) r ${l.radius} i ${l.intensity} cosOuter ${l.cone ? l.cone.cosOuter.toFixed(3) : '-'}: field under it y0.05 ${lv(l.x, 0.05, l.z)} y1 ${lv(l.x, 1, l.z)} y1.7 ${lv(l.x, 1.7, l.z)} y3 ${lv(l.x, 3, l.z)} y4.5 ${lv(l.x, 4.5, l.z)}; 2 m off at y1 ${lv(l.x + 2, 1, l.z)}, 3.5 m off ${lv(l.x + 3.5, 1, l.z)}`);
+        }
+        return out.join('\n');
+      }, [p]);
+      console.log(probe);
+    }
   }
   if (l.errors.length) console.log(l.errors.slice(0, 5).join('\n'));
 } catch (e) {

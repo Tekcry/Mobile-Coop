@@ -1,0 +1,48 @@
+sector-lights-shots: served build verified
+s1-goods-in draws=126
+player light 0.55 vol lights 12
+  vol[0] pos,r -22.00,5.58,-15.40,7.02 dir,cosOuter 0.00,-1.00,0.00,0.71 col 1.01,1.06,1.12,1.00
+  vol[1] pos,r -18.00,5.58,-15.40,6.78 dir,cosOuter 0.00,-1.00,0.00,0.71 col 1.01,1.06,1.12,1.00
+  vol[2] pos,r -19.00,5.00,-18.45,5.09 dir,cosOuter 0.00,-0.97,-0.24,0.76 col 0.57,0.60,0.67,1.00
+  vol[3] pos,r -21.40,3.00,-18.45,2.27 dir,cosOuter 0.00,-0.82,-0.57,0.57 col 2.10,2.00,1.85,1.00
+  vol[4] pos,r -22.00,5.58,-11.60,5.40 dir,cosOuter 0.00,-1.00,0.00,0.71 col 1.01,1.06,1.12,1.00
+  vol[5] pos,r -14.00,5.58,-15.40,5.51 dir,cosOuter 0.00,-1.00,0.00,0.71 col 1.23,1.30,1.36,1.00
+  vol[6] pos,r -18.00,5.58,-11.60,4.80 dir,cosOuter 0.00,-1.00,0.00,0.71 col 1.01,1.06,1.12,1.00
+  vol[7] pos,r -10.00,5.58,-11.60,8.80 dir,cosOuter 0.00,-1.00,0.00,0.71 col 0.83,0.88,0.93,1.00
+  vol[8] pos,r -14.00,5.58,-11.60,5.55 dir,cosOuter 0.00,-1.00,0.00,0.71 col 1.94,2.04,2.15,1.00
+  vol[9] pos,r -22.00,5.58,-7.40,3.05 dir,cosOuter 0.00,-1.00,0.00,0.88 col 0.51,0.54,0.57,1.00
+  vol[10] pos,r -17.00,5.58,-7.40,3.20 dir,cosOuter 0.00,-1.00,0.00,0.88 col 0.55,0.58,0.61,1.00
+  vol[11] pos,r -21.50,5.80,-4.60,8.10 dir,cosOuter 0.00,-1.00,0.00,0.87 col 0.98,1.03,1.09,1.00
+  spot bulkhead (-19, 5, -18.45) r 5.09 i 0.418 cosOuter 0.765: field under it y0.05 0.32 y1 0.40 y1.7 0.47 y3 0.59 y4.5 0.73; 2 m off at y1 0.31, 3.5 m off 0.25
+  spot bulkhead (-21.4, 3, -18.45) r 2.27 i 1.315 cosOuter 0.574: field under it y0.05 0.20 y1 0.46 y1.7 0.81 y3 1.00 y4.5 0.30; 2 m off at y1 0.40, 3.5 m off 0.38
+  spot strip (-22, 5.58, -15.4) r 7.02 i 0.7 cosOuter 0.707: field under it y0.05 0.29 y1 0.46 y1.7 0.50 y3 0.65 y4.5 0.83; 2 m off at y1 0.51, 3.5 m off 0.48
+  spot strip (-18, 5.58, -15.4) r 6.78 i 0.7 cosOuter 0.707: field under it y0.05 0.25 y1 0.46 y1.7 0.48 y3 0.64 y4.5 0.83; 2 m off at y1 0.39, 3.5 m off 0.37
+  spot strip (-14, 5.58, -15.4) r 5.51 i 0.852 cosOuter 0.707: field under it y0.05 0.15 y1 0.34 y1.7 0.44 y3 0.67 y4.5 0.94; 2 m off at y1 0.32, 3.5 m off 0.36
+  spot strip (-22, 5.58, -11.6) r 5.4 i 0.7 cosOuter 0.707: field under it y0.05 0.15 y1 0.32 y1.7 0.48 y3 0.63 y4.5 0.84; 2 m off at y1 0.25, 3.5 m off 0.22
+  spot strip (-18, 5.58, -11.6) r 4.8 i 0.7 cosOuter 0.707: field under it y0.05 0.13 y1 0.24 y1.7 0.42 y3 0.59 y4.5 0.83; 2 m off at y1 0.31, 3.5 m off 0.49
+  spot strip (-14, 5.58, -11.6) r 5.55 i 1.345 cosOuter 0.707: field under it y0.05 0.20 y1 0.53 y1.7 0.62 y3 1.00 y4.5 1.00; 2 m off at y1 0.30, 3.5 m off 0.45
+s1-workshop draws=90
+player light 0.45 vol lights 12
+  vol[0] pos,r 11.00,3.00,-18.45,5.97 dir,cosOuter 0.00,-0.82,-0.57,0.57 col 0.32,0.30,0.28,1.00
+  vol[1] pos,r 10.70,5.58,-15.80,5.51 dir,cosOuter 0.00,-1.00,0.00,0.71 col 1.39,1.47,1.55,1.00
+  vol[2] pos,r 11.00,2.40,-17.76,1.57 dir,cosOuter 0.00,-1.00,0.00,0.88 col 0.03,0.06,0.04,1.00
+  vol[3] pos,r 16.00,5.58,-15.80,6.70 dir,cosOuter 0.00,-1.00,0.00,0.71 col 1.33,1.40,1.47,1.00
+  vol[4] pos,r 10.70,5.58,-11.80,5.43 dir,cosOuter 0.00,-1.00,0.00,0.71 col 1.33,1.40,1.47,1.00
+  vol[5] pos,r 11.25,2.30,-22.30,2.30 dir,cosOuter 0.00,-1.00,0.00,0.88 col 0.24,0.23,0.21,1.00
+  vol[6] pos,r 16.00,5.58,-11.80,6.83 dir,cosOuter 0.00,-1.00,0.00,0.71 col 1.98,2.09,2.20,1.00
+  vol[7] pos,r 6.70,2.95,-15.90,1.09 dir,cosOuter 0.00,-1.00,0.00,0.88 col 0.45,0.43,0.40,1.00
+  vol[8] pos,r 4.30,2.95,-15.90,2.21 dir,cosOuter 0.00,-1.00,0.00,0.88 col 0.71,0.67,0.62,1.00
+  vol[9] pos,r 13.00,5.00,-8.35,5.68 dir,cosOuter 0.00,-0.82,0.57,0.57 col 0.93,0.89,0.82,1.00
+  vol[10] pos,r 3.00,5.58,-14.60,2.60 dir,cosOuter 0.00,-1.00,0.00,0.88 col 0.88,0.93,0.98,1.00
+  vol[11] pos,r 7.00,5.58,-14.60,0.75 dir,cosOuter 0.00,-1.00,0.00,0.88 col 0.65,0.69,0.73,1.00
+  spot bulkhead (11, 3, -18.45) r 5.97 i 0.197 cosOuter 0.574: field under it y0.05 0.39 y1 0.43 y1.7 0.44 y3 0.54 y4.5 0.30; 2 m off at y1 0.36, 3.5 m off 0.20
+  lamp strip (3, 5.58, -14.6) r 5.19 i 0.976 cosOuter -: field under it y0.05 0.12 y1 0.14 y1.7 0.15 y3 0.12 y4.5 1.00; 2 m off at y1 0.42, 3.5 m off 0.26
+  lamp strip (7, 5.58, -14.6) r 1.5 i 0.726 cosOuter -: field under it y0.05 0.15 y1 0.21 y1.7 0.27 y3 0.12 y4.5 0.40; 2 m off at y1 0.21, 3.5 m off 0.28
+  spot bulkhead (8.6, 5, -9.25) r 2.12 i 0.365 cosOuter 0.574: field under it y0.05 0.12 y1 0.12 y1.7 0.12 y3 0.14 y4.5 0.35; 2 m off at y1 0.14, 3.5 m off 0.12
+  spot bulkhead (15.6, 5, -9.25) r 2.31 i 0.303 cosOuter 0.574: field under it y0.05 0.19 y1 0.22 y1.7 0.12 y3 0.15 y4.5 0.31; 2 m off at y1 0.20, 3.5 m off 0.15
+  spot strip (10.7, 5.58, -15.8) r 5.51 i 0.967 cosOuter 0.707: field under it y0.05 0.12 y1 0.33 y1.7 0.47 y3 0.74 y4.5 1.00; 2 m off at y1 0.27, 3.5 m off 0.28
+  spot strip (16, 5.58, -15.8) r 6.7 i 0.921 cosOuter 0.707: field under it y0.05 0.12 y1 0.14 y1.7 0.12 y3 0.12 y4.5 0.12; 2 m off at y1 0.45, 3.5 m off 0.50
+  spot strip (10.7, 5.58, -11.8) r 5.43 i 0.921 cosOuter 0.707: field under it y0.05 0.12 y1 0.29 y1.7 0.44 y3 0.70 y4.5 1.00; 2 m off at y1 0.35, 3.5 m off 0.32
+  spot strip (16, 5.58, -11.8) r 6.83 i 1.376 cosOuter 0.707: field under it y0.05 0.12 y1 0.22 y1.7 0.25 y3 0.12 y4.5 0.37; 2 m off at y1 0.26, 3.5 m off 0.47
+  lamp panel (7.3, 4.55, -10) r 2 i 0.732 cosOuter -: field under it y0.05 0.16 y1 0.19 y1.7 0.12 y3 0.20 y4.5 0.91; 2 m off at y1 0.12, 3.5 m off 0.12
+  spot bulkhead (13, 5, -8.35) r 5.68 i 0.584 cosOuter 0.574: field under it y0.05 0.12 y1 0.15 y1.7 0.18 y3 0.48 y4.5 0.61; 2 m off at y1 0.12, 3.5 m off 0.12
