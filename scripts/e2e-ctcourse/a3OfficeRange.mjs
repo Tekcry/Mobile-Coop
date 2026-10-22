@@ -1,12 +1,249 @@
-// A3 the Office Range: the set's e2e steps for e2e-ctcourse (part 2). STUB (marlow-final slice 0d): the set is not built yet, so the
-// walk is the runner's stub walk (the step line on both pages, in at A3-entry, on to A3-mid, the same lit level on both
-// pages there). The set slice replaces `walk` with its co-op route on two pages (SPEC 9 and the set doc's e2e rows);
-// the runner then moves both onto the exit holding room's pad.
-// To re-add from the old bunker run (git 5920cce5, scripts/e2e-ctcourse.mjs `station3`): the camera's send-back, the
-// jam handoff (5 s cap, reboot refusal), the cue on both pages, a jammed lamp's flicker.
+// A3 the Office Range: the set's e2e steps for e2e-ctcourse (part 2; set doc `docs/marlow-final/sets/a3OfficeRange.md` section 11).
+// Two pages: A = the host (P1, the lead of the odd set: before any claim it reads the A lines), B = the client (P2). The client takes the B
+// job by walking into the corridor first (the zone claim); a jam is the pistol's RB held while aiming (LT), see `t.lt` / `t.aimAt`.
+//   1. the start: both step lines, the cleaner alive and armed, the camera online, the corridor and the offices lit and the same on both pages;
+//   2. the send-back: the client stands in the corridor unjammed: the camera has it (stage 2), the host sends it back to (77.8, 10.75) on both
+//      pages, LANTERN's line reaches the client, the claim made the client B (the host A, the lines swap);
+//   3. the dark case: the host switches the corridor off (a3-sw-corr): the corridor reads dark on both pages and the client is sent back again
+//      (the camera sees in the dark, G240); the switch back on;
+//   4. the window miss: the host jams from the west post; the camera is blind and frozen on both pages, the client in the corridor in plain view
+//      is not seen (meter and stage 0, no send-back) for as long as the window lasts; when the jam ends and the camera reboots it has the client:
+//      sent back (the third send-back);
+//   5. the relay (steps 5-7 of the doc): the host jams from (78.5, 10.75), the client goes to the recess (88.6, 8.5), the 5 s cap ends the jam, the
+//      camera is back online and does not see the client in the recess (nobody sent back, meters empty), the host's cooldown ends, the second jam,
+//      the client to the east lobby: `a3-far1` and `a3-in` tick, the lines swap to the swap step;
+//   6. the swap: the client jams from the east post (98.0, 10.75) (the host is the one who walks): the host to the recess, the second jam, the host
+//      to the east lobby: `a3-far` and `a3-swap` tick, both read the closing line;
+//   7. the lure (LIGHTING-PLAN 5): with the cleaner calm in office 2 the host turns office 1's switch off: office 1 reads dark on both pages and he
+//      walks toward the switch; the switch back on;
+//   8. both to the L3 door, nobody hanging, the pistols holstered.
+// Teleport legs are allowed on the open floor (the walks are proved by the unit tests: every hop is inside one blind window); a door the route
+// opens is opened by `use(P, 'door-<anchor id>')`. The offices route (one jam, the cleaner's loop) and the takedown at the far desk are not
+// walked here: the door-to-lobby exposure and the geometry are `tests/ctcourse/a3OfficeRange.test.ts`'s.
 export const SET = 'a3OfficeRange';
+
+const CAM_ID = 'cam-a3-hall';
+/** The lens (the jam target) and the two posts (feet, facing along the corridor), the hide spot and the send-back spot. */
+const CAM = [96.6, 2.8, 10.75];
+const POST_W = [78.5, 10.75];
+const POST_E = [98.0, 10.75];
+const HIDE = [88.6, 8.5];
+const BACK = [77.8, 10.75];
+/** A corridor spot in the camera's plain view (12.6 m from the lens) and the corridor's middle (the light spot). */
+const SEEN = [84.0, 10.75];
+const MID = [88.25, 10.75];
+/** The office middles the light checks read, office 1's switch and the cleaner's lure target by it. */
+const OFFICE1 = [82.5, 4.3];
+const OFFICE2 = [88.3, 4.3];
+const SW_CORR = [78.6, 12.7];
+const SW_OFF1 = [79.7, 6.0];
 
 /** @param {object} t the runner's helpers (scripts/e2e-ctcourse.mjs) @param {number} n the set's number */
 export async function walk(t, n) {
-  await t.stubWalk(n);
+  const { A, B, GA, GB, until, assert, waitSim, use, moveHost, moveClient, doorIndex, stepLine, dev, drawPistol, holster, aimAt, lt } = t;
+
+  // ---- helpers local to the set ----
+  const sees = (P, re, what) => until(P, ([src]) => new RegExp(src).test(document.querySelector('.course-hud .ch-step')?.textContent ?? ''), [re.source], 15000, what);
+  const ticked = (P, id) => P.evaluate((id) => !!document.querySelector(`.course-hud tr[data-step="${id}"] td.done`), id);
+  const lockedOnClient = async (cid) => GB((i) => window.__course.wire.locks.includes(i), await doorIndex(cid));
+  /** A page's baked light level for a standing body at (x, z) (the same field the meter and the guards read). */
+  const level = (P, x, z) => P.evaluate(([x, z]) => window.__app.current.world.lightField?.bodyLevel(x, 0, z, 1.7) ?? -1, [x, z]);
+  const hasFlag = (f) => GA((f) => window.__course.state.hasFlag(f), f);
+  const roleOf = (p) => GA((p) => window.__course.state.roleOf(p), p);
+  const claimed = () => GA(() => window.__course.state.roleClaimed());
+  const noDamage = (P) => P.evaluate(() => { window.__app.current.target.damageMul = 0; });
+  const backs = () => GA(() => window.__ctdev.debug().sendBacks);
+  const cam = async (P) => (await dev(P)).cams.find((c) => c.id === CAM_ID);
+  const cleaner = () => GA(() => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.alive); return e ? { x: e.pos.x, z: e.pos.z, alerted: !!e.alerted, passive: !!e.passive } : null; });
+  /** The wall switch item near (x, z): `switch-<n>` in the map's order, found by where it is. */
+  const switchId = (x, z) => GA(([x, z]) => window.__app.current.interactables.items.find((i) => /^switch-/.test(i.id) && Math.hypot(i.pos.x - x, i.pos.z - z) < 0.7)?.id ?? null, [x, z]);
+  const groupOn = (P, g) => P.evaluate((g) => window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g).every((x) => x.on), g);
+  /** The client is back at the send-back spot on both pages. */
+  async function sentBack(what, n0) {
+    await until(A, (n0) => window.__ctdev.debug().sendBacks > n0, n0, 90000, `${what}: the camera has the client and it is sent back`);
+    await until(B, ([x, z]) => { const p = window.__app.current.player.position; return Math.hypot(p.x - x, p.z - z) < 0.6; }, BACK, 15000, `${what}: the client page stands at the send-back spot`);
+    await until(A, ([x, z]) => { const r = window.__app.current.net.remotes.values().next().value; return Math.hypot(r.feet.x - x, r.feet.z - z) < 0.8; }, BACK, 15000, `${what}: the host sees the client at the send-back spot`);
+  }
+  /** The host or the client holds the jammer on the camera from its post (the pistol is drawn). `who` 0 = the host, 1 = the client. */
+  async function jamOn(who, what) {
+    const P = who === 0 ? A : B;
+    await lt(P, true);
+    await aimAt(P, ...CAM);
+    await until(A, (w) => window.__ctdev.debug().jam[w] === 'cam-a3-hall', who, 25000, `${what}: the ${who === 0 ? 'host' : 'client'} jams the camera`);
+    for (const [Q, tag] of [[A, 'host'], [B, 'client']]) await until(Q, () => { const c = window.__ctdev.debug().cams.find((x) => x.id === 'cam-a3-hall'); return !!c && c.mode === 'off' && c.frozen; }, null, 20000, `${what}: the ${tag} page sees the camera blind and frozen`);
+  }
+  /** Let go of the jammer: RB off first, then LT. */
+  const unjam = (who) => lt(who === 0 ? A : B, false);
+  /** Wait until the camera is back online (the jam ended, the 1.5 s reboot over) on the host. */
+  const cameraBack = (what) => until(A, () => { const c = window.__ctdev.debug().cams.find((x) => x.id === 'cam-a3-hall'); return !!c && c.mode === 'online'; }, null, 30000, `${what}: the camera is back online`);
+  /** No camera meter holds anything (nobody is seen), and the send-back count is `n0`. */
+  async function unseen(what, n0) {
+    const c = await cam(A);
+    assert(c.meter.every((m) => m === 0) && c.stage.every((s) => s === 0), `${what}: the camera holds nothing on either player (meters ${JSON.stringify(c.meter)}, stages ${JSON.stringify(c.stage)})`);
+    assert((await backs()) === n0, `${what}: nobody was sent back (${await backs()} of ${n0})`);
+  }
+
+  // ---- 1. the start: the step lines, the cleaner, the camera, the light ----
+  console.log('  A3: the lobby, the step lines, the camera, the cleaner');
+  await moveHost(77.2, 9.6, 0.1, Math.PI / 2);
+  await moveClient(77.2, 11.6, 0.1, Math.PI / 2);
+  assert(!(await lockedOnClient('L2-far')), 'A3: the L2 far door is open to the client');
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
+    await until(P, () => /Jam the camera for each other/.test(document.querySelector('.course-hud')?.textContent ?? ''), null, 15000, `the ${tag} sees the shared step line`);
+    assert(!!(await cam(P)), `A3: the ${tag} has the corridor camera ${CAM_ID}`);
+  }
+  // nobody has claimed: the lead of the odd set (the host) reads the A line, the client the B line
+  await sees(A, /Hold the jammer on the camera/, 'A3: the host (the lead) reads the A line');
+  await sees(B, /Move on the jam/, 'A3: the client reads the B line');
+  assert(!(await claimed()), 'A3: nobody has claimed a job yet');
+  const c0 = await cleaner();
+  assert(!!c0 && !c0.passive && c0.z < 8.7 && c0.x > 79.6 && c0.x < 97, `A3: the cleaner is alive, armed and in the offices (${JSON.stringify(c0)})`);
+  const cam0 = await cam(A);
+  assert(cam0.mode === 'online' && cam0.range === 17, `A3: the camera is online with its 17 m range (${cam0.mode}, ${cam0.range})`);
+  for (const [x, z, floor, what] of [[MID[0], MID[1], 0.6, 'the corridor'], [OFFICE1[0], OFFICE1[1], 0.4, 'office 1'], [OFFICE2[0], OFFICE2[1], 0.4, 'office 2'], [BACK[0], BACK[1], 0.4, 'the west lobby']]) {
+    const [la, lb] = [await level(A, x, z), await level(B, x, z)];
+    assert(la >= floor && Math.abs(la - lb) < 0.01, `A3: ${what} reads lit and the same on both pages (host ${la.toFixed(3)}, client ${lb.toFixed(3)})`);
+  }
+  await drawPistol(A);
+  await drawPistol(B);
+
+  // ---- 2. the send-back: the client unjammed in the corridor ----
+  console.log('  A3: the camera sends an unjammed player back');
+  let n0 = await backs();
+  await moveClient(SEEN[0], SEEN[1], 0.1, Math.PI / 2);
+  await sentBack('A3 send-back', n0);
+  await until(B, () => /The camera had you/.test(window.__course.wire.rl ?? ''), null, 90000, "A3: LANTERN's send-back line reaches the client");
+  assert(await claimed(), 'A3: walking into the corridor first claimed a job');
+  assert((await roleOf(1)) === 'b' && (await roleOf(0)) === 'a', 'A3: the client is B (the first into the corridor), the host A');
+  await sees(B, /Move on the jam/, 'A3: the client reads the B line');
+  await sees(A, /Hold the jammer on the camera/, 'A3: the host reads the A line');
+
+  // ---- 3. the dark case: the corridor off, the camera still sees ----
+  console.log('  A3: the dark corridor does not hide a player from the camera');
+  const swCorr = await switchId(SW_CORR[0], SW_CORR[1]);
+  assert(!!swCorr, `A3: the corridor switch is a map switch item (${swCorr})`);
+  assert((await use(A, swCorr)) === 'ok', 'A3: the host turns the corridor switch off');
+  await until(A, () => !window.__app.current.stealth.switchOn(30), null, 15000, 'A3: the host sees group 30 off');
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
+    await until(P, (g) => window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g).every((x) => !x.on), 30, 15000, `A3: the ${tag} sees the corridor lamps off`);
+    const l = await level(P, MID[0], MID[1]);
+    assert(l <= 0.24, `A3: the corridor reads dark on the ${tag} page (${l.toFixed(3)})`);
+  }
+  n0 = await backs();
+  await waitSim(3500);
+  await moveClient(SEEN[0], SEEN[1], 0.1, Math.PI / 2);
+  await sentBack('A3 dark send-back', n0);
+  assert((await level(B, SEEN[0], SEEN[1])) <= 0.24, 'A3: the client was sent back from a dark corridor (the camera sees in the dark)');
+  assert((await use(A, swCorr)) === 'ok', 'A3: the host turns the corridor switch on again');
+  await until(A, () => window.__app.current.stealth.switchOn(30), null, 15000, 'A3: group 30 is back on');
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, (g) => window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g).every((x) => x.on), 30, 15000, `A3: the ${tag} sees the corridor lamps on`);
+
+  // ---- 4. the window miss: blind while jammed, seen once the camera is back ----
+  console.log('  A3: a jam window that runs out');
+  await waitSim(3500);
+  await moveHost(POST_W[0], POST_W[1], 0.1, Math.PI / 2);
+  await waitSim(500);
+  n0 = await backs();
+  await jamOn(0, 'A3 window miss');
+  await moveClient(MID[0], MID[1], 0.1, Math.PI / 2);
+  await waitSim(600);
+  const dj = await cam(A);
+  assert(dj.mode === 'off' && dj.frozen && dj.jam >= 1, `A3: the jam blinds and freezes the camera (${dj.mode}, jam phase ${dj.jam})`);
+  await unseen('A3 jammed', n0);
+  assert((await cam(B)).mode === 'off', 'A3: the client page sees the blind camera too');
+  // the cap ends the held jam, the camera reboots and then has the client standing in the corridor
+  await until(A, () => window.__ctdev.debug().jam[0] === '', null, 12000, "A3: the 5 s cap ends the host's held jam");
+  await unjam(0);
+  await cameraBack('A3 window miss');
+  await sentBack('A3 window miss', n0);
+
+  // ---- 5. the relay: jam, the client to the recess, jam again, the client to the far lobby ----
+  console.log('  A3: the relay');
+  await until(A, () => window.__ctdev.debug().cool[0] === 0, null, 20000, "A3: the host's cooldown is over");
+  await waitSim(500);
+  n0 = await backs();
+  await jamOn(0, 'A3 relay jam 1');
+  await moveClient(HIDE[0], HIDE[1], 0.1, Math.PI);
+  await waitSim(400);
+  await unseen('A3 relay jam 1', n0);
+  await until(A, () => window.__ctdev.debug().jam[0] === '', null, 12000, "A3: the 5 s cap ends the host's jam");
+  await unjam(0);
+  await cameraBack('A3 relay');
+  // the camera is live again with the client in the recess and the host cooling down: it holds nothing on either player
+  await waitSim(2000);
+  await unseen('A3 relay recess', n0);
+  assert((await cam(A)).mode === 'online', 'A3: the camera is live while the client waits in the recess');
+  await until(A, () => window.__ctdev.debug().cool[0] === 0, null, 20000, "A3: the host's cooldown ends");
+  await jamOn(0, 'A3 relay jam 2');
+  await moveClient(POST_E[0] + 0.5, 8.5, 0.1, -Math.PI / 2);
+  await until(A, (f) => window.__course.state.hasFlag(f), 'a3-far1', 15000, 'A3: the pass zone sets a3-far1 (one player in the east lobby)');
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => !!document.querySelector('.course-hud tr[data-step="a3-in"] td.done'), null, 15000, `A3: the ${tag} sees the relay step ticked`);
+  assert((await backs()) === n0, 'A3: the relay cost no send-back');
+  await until(B, () => /Good\. Now the other way round/.test(window.__course.wire.rl ?? ''), null, 90000, "A3: LANTERN's 'the other way round' line reaches the client");
+  await sees(B, /Jam the camera from the far lobby/, 'A3: the client (B) reads the swap line');
+  await sees(A, /Move on your partner's jam/, 'A3: the host (A) reads the swap line');
+  assert(!(await ticked(A, 'a3-swap')), 'A3: the swap is not done yet');
+  await until(A, () => window.__ctdev.debug().jam[0] === '', null, 12000, "A3: the host's second jam ends");
+  await unjam(0);
+  await cameraBack('A3 relay end');
+
+  // ---- 6. the swap: the client jams from the east post, the host walks ----
+  console.log('  A3: the swap');
+  await moveHost(POST_W[0], POST_W[1], 0.1, Math.PI / 2);
+  await moveClient(POST_E[0], POST_E[1], 0.1, -Math.PI / 2);
+  await until(A, () => window.__ctdev.debug().cool[1] === 0, null, 30000, "A3: the client's cooldown is clear");
+  n0 = await backs();
+  await jamOn(1, 'A3 swap jam 1');
+  await moveHost(HIDE[0], HIDE[1], 0.1, Math.PI);
+  await waitSim(400);
+  await unseen('A3 swap jam 1', n0);
+  await until(A, () => window.__ctdev.debug().jam[1] === '', null, 12000, "A3: the 5 s cap ends the client's jam");
+  await unjam(1);
+  await cameraBack('A3 swap');
+  await waitSim(2000);
+  await unseen('A3 swap recess', n0);
+  await until(A, () => window.__ctdev.debug().cool[1] === 0, null, 20000, "A3: the client's cooldown ends");
+  await jamOn(1, 'A3 swap jam 2');
+  await moveHost(POST_E[0] + 0.5, 6.0, 0.1, -Math.PI / 2);
+  await until(A, (f) => window.__course.state.hasFlag(f), 'a3-far', 15000, 'A3: the pass zone sets a3-far (both in the east lobby)');
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
+    await until(P, () => !!document.querySelector('.course-hud tr[data-step="a3-swap"] td.done'), null, 15000, `A3: the ${tag} sees the swap step ticked`);
+    await sees(P, /holding room three/, `A3: the ${tag} reads the closing line`);
+  }
+  assert((await backs()) === n0, 'A3: the swap cost no send-back');
+  assert((await hasFlag('a3-far1')) && (await hasFlag('a3-far')), 'A3: both pass flags are set');
+  await until(A, () => window.__ctdev.debug().jam[1] === '', null, 12000, "A3: the client's second jam ends");
+  await unjam(1);
+  await holster(A);
+  await holster(B);
+
+  // ---- 7. the lure: office 1's switch off with the cleaner calm in office 2 ----
+  console.log('  A3: the office switch lures the cleaner');
+  const sw1 = await switchId(SW_OFF1[0], SW_OFF1[1]);
+  assert(!!sw1, `A3: office 1's switch is a map switch item (${sw1})`);
+  await until(A, () => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return !!e && !e.alerted && e.pos.x > 85.8 && e.pos.x < 90.8 && e.pos.z < 8.5; }, null, 90000, 'A3: the cleaner is calm in office 2');
+  const d0 = await cleaner();
+  const dist = (e) => Math.hypot(e.x - SW_OFF1[0], e.z - SW_OFF1[1]);
+  assert((await use(A, sw1)) === 'ok', 'A3: the host turns office 1\'s switch off');
+  await until(A, () => !window.__app.current.stealth.switchOn(31), null, 15000, 'A3: group 31 is off on the host');
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
+    await until(P, (g) => window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g).every((x) => !x.on), 31, 15000, `A3: the ${tag} sees office 1's lamps off`);
+    const l = await level(P, OFFICE1[0], OFFICE1[1]);
+    assert(l <= 0.24, `A3: office 1 reads dark on the ${tag} page (${l.toFixed(3)})`);
+  }
+  const lit2 = [await level(A, OFFICE2[0], OFFICE2[1]), await level(B, OFFICE2[0], OFFICE2[1])];
+  assert(lit2.every((l) => l >= 0.4), `A3: office 2 stays lit on both pages (${lit2.map((l) => l.toFixed(2))})`);
+  await until(A, ([x, z, d]) => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return !!e && (Math.hypot(e.pos.x - x, e.pos.z - z) < d - 3 || Math.hypot(e.pos.x - x, e.pos.z - z) < 3); }, [SW_OFF1[0], SW_OFF1[1], dist(d0)], 30000, `A3: the cleaner walks toward office 1's switch (from ${dist(d0).toFixed(1)} m)`);
+  assert((await use(A, sw1)) === 'ok', 'A3: the host turns office 1\'s switch on again');
+  await until(A, () => window.__app.current.stealth.switchOn(31), null, 15000, 'A3: group 31 is back on');
+  await until(B, (g) => window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g).every((x) => x.on), 31, 15000, "A3: the client sees office 1's lamps on");
+
+  // ---- 8. to the L3 door (the runner then puts both on the pad) ----
+  console.log('  A3: to the L3 door');
+  await noDamage(A);
+  await moveHost(98.6, 9.0, 0.1, Math.PI / 2);
+  await moveClient(98.6, 11.0, 0.1, Math.PI / 2);
+  assert(!(await lockedOnClient('L3-near')), 'A3: the L3 near door is open to the client');
+  for (const P of [A, B]) await until(P, () => !window.__app.current.traversal.attached, null, 10000, 'A3: nobody is hanging');
+  assert(/holding room three/.test(await stepLine(A)), 'A3: the host still reads the closing line');
 }

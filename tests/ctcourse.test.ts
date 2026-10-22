@@ -178,7 +178,9 @@ describe('Marlow Yard: every lamp grouped (N12, LIGHTING-PLAN 4)', () => {
       if (set) {
         const [g0, g1] = setGroups(set);
         if (l.group < g0 || l.group > g1) bad.push(`${at}: in ${set}, outside its groups ${g0}-${g1}`);
-        if (row.kind === 'house' && !(set === 'a1Gate' && inBox(LOUNGE_BOX, l.x, l.z))) bad.push(`${at}: a house lamp inside a set (only the lounge's)`);
+        // (S3) house lamps only in the lounge and A3's two lobbies (group 34: transit spaces kept at the house light, as
+        // LIGHTING-PLAN's own A3 rows place them; the set doc's A3-C4 lists the table change as the undo)
+        if (row.kind === 'house' && !(set === 'a1Gate' && inBox(LOUNGE_BOX, l.x, l.z)) && !(set === 'a3OfficeRange' && l.group === 34)) bad.push(`${at}: a house lamp inside a set (only the lounge's and A3's lobbies)`);
       } else if (l.group < 90) bad.push(`${at}: a set circuit outside every set box`);
     }
     expect(bad).toEqual([]);
