@@ -310,6 +310,8 @@ const CLIP_PITCH_SWING = 0.3;
  * the other foot landed (ankle-toe 81 deg in a frame, OFF 58).
  */
 const CLIP_CARRY = 0.15;
+/** (mocap-trial-2, runturn) Progress over which that swing's turned landing spot (`swingTo`) fades back onto the spot: it sets down at rest (a clock swing lands from 0.9). */
+const CLIP_SET = { from: 0.55, to: 0.85 } as const;
 /** (step 22) A fresh swing the clock starts further into its window than this fades in from the foot (`OFF_FADE`). */
 const FRESH_LATE = 0.2;
 /** (step 22) Shares of a step tried, in turn, when its landing spot has no ground under it (0: back where it left). */
@@ -752,6 +754,10 @@ export class FootPlanner {
    */
   private uncross(i: PlannerInput): void {
     if (this.L.contact && this.R.contact) return;
+    // (mocap-trial-2, runturn) with clip feet on hand the push fades in over a further nearAlong outside the window, and
+    // with both feet in the air it is shared by how far each is from the ground: at the window's edge, or as the other
+    // foot landed or lifted, a fast jog / run turn's planner swing moved 13-50 cm sideways in a frame (ankle-toe 45-57 deg)
+    this.ucFade = !!i.clipFeet;
     this.ucYaw = this.pelvis(i);
     this.uncrossIn();
     // (anim-natural N1, n138 fix) with the turn rules the body frame too: a turn's crossing swing (a left foot swung into
@@ -767,6 +773,8 @@ export class FootPlanner {
   /** (n138 fix) The frame `uncrossIn` measures in (yaw, rad): a field, not an argument (a double passed to a call that
    *  is not inlined is boxed). */
   private ucYaw = 0;
+  /** (mocap-trial-2, runturn) This update's `uncrossIn` fades its push in outside the window (`uncross`). */
+  private ucFade = false;
 
   /** One no-crossing push (the A1.2 rule) in the frame of yaw `ucYaw`. No allocation. */
   private uncrossIn(): void {
@@ -775,12 +783,22 @@ export class FootPlanner {
     const L = this.L;
     const R = this.R;
     const along = (L.x - R.x) * s + (L.z - R.z) * c;
-    if (along > TURN_FOLLOW.nearAlong || along < -TURN_FOLLOW.nearAlong) return;
+    const near = TURN_FOLLOW.nearAlong;
+    const far = this.ucFade ? 2 * near : near;
+    if (along > far || along < -far) return;
     const gap = (R.x - L.x) * c - (R.z - L.z) * s;
-    const bad = TURN_FOLLOW.minGapAny - gap;
+    let bad = TURN_FOLLOW.minGapAny - gap;
     if (bad <= 0) return;
+    if (along > near || along < -near) bad *= 1 - smooth(((along < 0 ? -along : along) - near) / near);
     // the airborne foot moves (both airborne: each half)
-    const kL = L.contact ? 0 : R.contact ? 1 : 0.5;
+    let kL = L.contact ? 0 : R.contact ? 1 : 0.5;
+    if (this.ucFade && !L.contact && !R.contact) {
+      // (mocap-trial-2, runturn) by each foot's height in its swing (sin of its progress): one just lifted or nearly
+      // down is moved as little as a planted one, so the share runs on through a landing or a lift
+      const mL = Math.sin(Math.PI * (L.swing < 0 ? 0 : L.swing > 1 ? 1 : L.swing));
+      const mR = Math.sin(Math.PI * (R.swing < 0 ? 0 : R.swing > 1 ? 1 : R.swing));
+      kL = mL + mR > 1e-6 ? mL / (mL + mR) : 0.5;
+    }
     const kR = 1 - kL;
     L.x -= bad * kL * c;
     L.z += bad * kL * s;
@@ -1721,6 +1739,8 @@ export class FootPlanner {
     const h = smooth(s);
     let fx = f.fromX;
     let fz = f.fromZ;
+    let tx = f.toX;
+    let tz = f.toZ;
     if (i.clipFeet) {
       // (mocap-trial-2, runturn) with clip feet on hand the lift point turns with the body: the root's travel since the
       // lift is taken along its chord (the frame half way round the turn), the lift point's offset from the lifting root
@@ -1738,9 +1758,30 @@ export class FootPlanner {
       const vz = i.rootZ - f.liftZ;
       fx += (i.rootX + ax * c1 + az * s1 - (vx * c2 + vz * s2) - f.fromX) * k;
       fz += (i.rootZ - ax * s1 + az * c1 - (-vx * s2 + vz * c2) - f.fromZ) * k;
+      // and the landing spot the other way: its offset from where the root lands (on the turn's arc, as `clockRoot`)
+      // turned back by the turn still to come, the root's travel there straightened onto the facing. The swing then
+      // runs between the two in the body's frame, not along the world chord across the turn (a long swing's chord passed
+      // up to 26 cm inside the body's path: a jog turn's outside foot crossed the planted one, the knees knocked and
+      // bowed apart, ankle-toe 31 deg). Faded out over CLIP_SET of the swing: it sets down at rest on its spot.
+      // Straight on it is the landing spot itself
+      const kT = s < CLIP_SET.from ? 1 : 1 - smooth((s - CLIP_SET.from) / (CLIP_SET.to - CLIP_SET.from));
+      if (kT > 0) {
+        const rem = (1 - s) * f.stepDur;
+        const dr = clampAbs(i.yawRate * rem, Number.isNaN(i.faceGoal) ? Math.PI / 2 : Math.abs(wrap(i.faceGoal - i.yaw)));
+        const sy = Math.sin(i.yaw);
+        const cy = Math.cos(i.yaw);
+        const vf = i.velX * sy + i.velZ * cy;
+        const d = vf > 0 ? vf * rem : 0;
+        const bx = f.toX - i.rootX - Math.sin(i.yaw + 0.5 * dr) * d;
+        const bz = f.toZ - i.rootZ - Math.cos(i.yaw + 0.5 * dr) * d;
+        const c3 = Math.cos(dr);
+        const s3 = Math.sin(dr);
+        tx += (i.rootX + bx * c3 - bz * s3 + sy * d - f.toX) * kT;
+        tz += (i.rootZ + bx * s3 + bz * c3 + cy * d - f.toZ) * kT;
+      }
     }
-    f.x = fx + (f.toX - fx) * h;
-    f.z = fz + (f.toZ - fz) * h;
+    f.x = fx + (tx - fx) * h;
+    f.z = fz + (tz - fz) * h;
     // lift peaks early (heel comes up first), sets down gently
     const arc = Math.sin(Math.PI * Math.min(1, s * 1.08)) * (1 - 0.25 * s);
     f.y = f.fromY + (f.toY - f.fromY) * h + f.stepLift * Math.max(0, arc);
@@ -1757,7 +1798,11 @@ export class FootPlanner {
     // passing the planted foot (a side-step back across, a reversal) the swing bows out sideways to `swingGap` from
     // it, so the feet never brush; the ends of the swing stay where they are
     const o = f === this.L ? this.R : this.L;
-    if (o.contact) {
+    // (mocap-trial-2, runturn) with clip feet on hand the bow also runs against the other foot in the air, by how near
+    // the ground it is (1 - sin of its progress): it switched on in full the frame that foot landed (13 cm sideways in a
+    // frame in a jog turn) and off as it lifted
+    const wo = o.contact ? 1 : i.clipFeet && o.swing >= 0 ? 1 - Math.sin(Math.PI * (o.swing > 1 ? 1 : o.swing)) : 0;
+    if (wo > 0) {
       // (A1.2) in the current pelvis frame, and a window that widens with the turn rate
       const py = this.pelvis(i);
       const c = Math.cos(py);
@@ -1779,7 +1824,7 @@ export class FootPlanner {
           // (measured on the clip's narrow track); without them exactly N1's
           const ad = along < 0 ? -along : along;
           const w = i.clipFeet ? (ad <= near ? 1 : 1 - smooth((ad - near) / near)) : this.turnOn ? smooth((near - ad) / (0.5 * near)) : 1;
-          const shift = (f === this.L ? -bad : bad) * Math.sin(Math.PI * s) * w;
+          const shift = (f === this.L ? -bad : bad) * Math.sin(Math.PI * s) * w * wo;
           f.x += shift * c;
           f.z -= shift * sn;
         }
