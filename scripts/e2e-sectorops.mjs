@@ -1811,22 +1811,32 @@ if (want(1)) {
     await sim(0.5);
     const S = await sections(G);
     // an open stretch near section 1's objective: clear 9 m east and 5 m north of the noise point
+    // (fix round: the ring search within 30 m of the objective found none on the laptop; scan every walkable cell on
+    // the grid instead, nearest to the objective first, and print what each check rejected)
     const site = await G((o) => {
       const em = window.__app.current.enemyMgr;
       const nav = em.nav;
-      for (let r = 0; r <= 30; r += 1.5) {
-        for (let a = 0; a < 16; a++) {
-          const c = nav.nearestWalkable(o[0] + Math.sin((a * Math.PI) / 8) * r, o[2] + Math.cos((a * Math.PI) / 8) * r, 1, o[1]);
-          if (c < 0) continue;
-          const [x, z] = nav.center(c);
-          const y = nav.height[c];
-          const P = (dx, dz) => [x + dx, z + dz];
-          if (nav.lineClear([x, z], P(9, 0), y, y) && nav.lineClear([x, z], P(-3.5, 0), y, y) && nav.lineClear(P(8, 0), P(8, 5), y, y) && nav.lineClear([x, z], P(0, 3.5), y, y) && nav.lineClear([x, z], P(0, -3.5), y, y)) return [x, y, z];
-        }
+      const cells = [];
+      for (let c = 0; c < nav.walk.length; c++) {
+        if (!nav.walk[c]) continue;
+        const [x, z] = nav.center(c);
+        const y = nav.height[c];
+        if (Math.abs(y - o[1]) > 1.5) continue;
+        cells.push([Math.hypot(x - o[0], z - o[2]), x, y, z]);
       }
-      return null;
+      cells.sort((a, b) => a[0] - b[0]);
+      const fail = [0, 0, 0, 0, 0];
+      for (const [, x, y, z] of cells) {
+        const P = (dx, dz) => [x + dx, z + dz];
+        const ok = [nav.lineClear([x, z], P(9, 0), y, y), nav.lineClear([x, z], P(-3.5, 0), y, y), nav.lineClear(P(8, 0), P(8, 5), y, y), nav.lineClear([x, z], P(0, 3.5), y, y), nav.lineClear([x, z], P(0, -3.5), y, y)];
+        const k = ok.indexOf(false);
+        if (k < 0) return { at: [x, y, z], cells: cells.length };
+        fail[k]++;
+      }
+      return { at: null, cells: cells.length, fail };
     }, S[0].obj);
-    assert(site !== null, 'posts: an open stretch near section 1 for the test guards');
+    assert(site.at !== null, `posts: an open stretch on section 1's storey for the test guards (${site.cells} cells, rejected by east / west / north lane / north / south: ${site.fail})`);
+    console.log(`  posts site ${site.at.map((v) => v.toFixed(1))} (${site.cells} cells on the storey)`);
     const r = await G(([cx, cy, cz]) => {
       const g = window.__app.current;
       const em = g.enemyMgr;
