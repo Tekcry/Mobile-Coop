@@ -11,6 +11,8 @@
  * removed and WREN_TUCK at 1 at run time, the run matched the previous fixture bit for bit.
  * (anim-natural N1) Re-captured for the foot planner's turn rules: 2 of 39 moved (state:aimRifle, the aimed spot
  * turn's rules; partner:moves). With the planner forced to turnRule 0 the old fixture matched bit for bit.
+ * (anim-natural N1, master 4.55.1 merge) Re-captured on the merge: with the planner forced to turnRule 0 the run matched
+ * master's fixture (170ee701) on 40 of 40 entries; with the turn rules on only partner:moves moved (1 of 40).
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';

@@ -8,6 +8,8 @@
  * (anim-natural N1) Re-captured for the foot planner's turn rules (the turn step, the ball pivot, the held contact),
  * which guards share (turnRule 1): 24 of 64 moved, every kind's walk, dash and aimWalk. Before the re-capture the run with
  * the planner forced to turnRule 0 matched the old fixture bit for bit: only the turn rules moved them.
+ * (anim-natural N1, master 4.55.1 merge) Re-captured on the merge: with turnRule 0 the run matched master's fixture
+ * (170ee701, its GUARD_STEP_ROWS kept by stepSelectRows) on 64 of 64; with the turn rules on the same 24 moved.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
