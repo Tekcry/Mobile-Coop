@@ -14,6 +14,7 @@ import { stepLength } from '../src/anim/motion';
 import { plantSlide, type Rec } from './helpers/mocapMeasure';
 import { measurePlayer, playerFails } from './helpers/mocapPlayer';
 import { aimRun, ankleJump, footGap, STRAFE_PLANS, type AimTarget } from './helpers/mocapStrafe';
+import { kneeBow } from '../src/anim/audit/metrics';
 
 /** A swing foot's largest move in a frame (m): ON's steady 0.9 m/s side-step peaks at 7.8 cm, a snap off the strafe at
  *  11.3 cm (the STRAFE_REAIM fade); before the fade a re-aimed side-step jumped 24-29 cm in a frame (a pop). */
@@ -22,6 +23,13 @@ const ANKLE_JUMP = 0.115;
 const STOP_PEL = 0.0195;
 /** A planted foot's contact slide (m): 0 ON and OFF in every plan here; the wrong-foot snap dragged 1.6 cm before. */
 const SLIDE = 0.005;
+/** A snap's pelvis step beyond pace x dt (m), or OFF's: ON 1.65-2.01 (OFF 0.94-1.14). */
+const SNAP_PEL = 0.021;
+/** A toggle mid-strafe's worst bone turn a frame (deg): ON 18.6-19.7 after the fix (the base's toggles 15.6-17.5; 32.6 before). */
+const TOGGLE_BONE = 20.5;
+/** The steady strafe's knee outside its ankle across the body (m): ON 3.3-5.0 after the fix (7.6-8.0 before; OFF 3.1-3.3).
+ *  Open: the e2e-anim gate is 3.0 cm. */
+const KNEE_OUT = 0.052;
 /** The feet's sideways gap floor (m): the planner's no-crossing gap holds 9 cm ON and OFF. */
 const GAP_MIN = 0.08;
 
@@ -120,6 +128,56 @@ describe('mocap strafe (A10)', () => {
     for (const [name, p] of plans) {
       const { off, on } = await both(p);
       expectClean(name, off, on);
+    }
+  }, 300000);
+
+  it('snaps into and out of the strafe (0.8 s, diagonals) and N <-> S: no pop over OFF, no planted slide', async () => {
+    // (fresh check of 842270f0) the clock's takeover of an early strafe swing re-aimed it in a frame (E <-> N 0.7: ankle
+    // 39.1 cm a frame, knee-ankle 40.6 deg; OFF 18.6 / 17.5); a ~1e-6 strafe share on N <-> S left the re-aim fade's offset
+    // past the touchdown (planted slide 3.2 cm); E <-> S stretched the trailing leg past its reach (0.88 cm)
+    const d = (a: number): number => a * Math.SQRT1_2;
+    const sn = (a: [number, number], b: [number, number]): [AimTarget, number, number] => [(t) => (Math.floor(t / 0.8) % 2 ? { x: b[0], z: b[1] } : { x: a[0], z: a[1] }), 480, 1];
+    const plans: [string, [AimTarget, number, number]][] = [
+      ['E <-> N 0.7', sn([0.7, 0], [0, 0.7])],
+      ['W <-> NE 0.7', sn([-0.7, 0], [d(0.7), d(0.7)])],
+      ['NW <-> E 0.9', sn([-d(0.9), d(0.9)], [0.9, 0])],
+      ['E <-> S 0.7', sn([0.7, 0], [0, -0.7])],
+      ['N <-> S 0.9', sn([0, 0.9], [0, -0.9])],
+    ];
+    for (const [name, p] of plans) {
+      const { off, on } = await both(p);
+      const mOff = measurePlayer(off);
+      const mOn = measurePlayer(on);
+      expect(mOn.bone, `${name}: bone ON ${mOn.bone.toFixed(1)} vs OFF ${mOff.bone.toFixed(1)} deg`).toBeLessThanOrEqual(mOff.bone + 0.5);
+      expect(ankleJump(on), `${name}: ankle jump (OFF ${(ankleJump(off) * 100).toFixed(1)} cm)`).toBeLessThanOrEqual(Math.max(ankleJump(off) + 0.005, ANKLE_JUMP));
+      expect(mOn.pel, `${name}: pelvis`).toBeLessThanOrEqual(Math.max(SNAP_PEL, mOff.pel));
+      expect(plantSlide(on, 0.01), `${name}: planted slide`).toBeLessThan(SLIDE);
+      expect(footGap(on), `${name}: feet crossing`).toBeGreaterThanOrEqual(GAP_MIN);
+    }
+  }, 300000);
+
+  it('the switch toggled mid-strafe: no planted-knee pop as the rig switch fade ends', async () => {
+    // (fresh check) the strafe tracking was stale while the switch was off: on, keyStrafe jumped 0 -> 1 and the planted
+    // knee jumped as the fade ended (hip-knee 29.9-32.6 deg in a frame; a toggle on the base 15.6-17.5)
+    for (const [sg, sp] of [[-1, 0.9], [1, 0.7]] as const) {
+      const tg: AimTarget = (t) => ({ x: sg * sp, z: 0, mocap: t < 2 || (t > 3.5 && t < 5) });
+      const on = await aimRun(tg, 480, 1, 'on');
+      const mOn = measurePlayer(on);
+      expect(mOn.bone, `toggle ${sg < 0 ? 'W' : 'E'} ${sp}: bone ${mOn.bone.toFixed(1)} deg (${mOn.boneN})`).toBeLessThanOrEqual(TOGGLE_BONE);
+      expect(plantSlide(on, 0.01), 'toggle: planted slide').toBeLessThan(SLIDE);
+    }
+  }, 300000);
+
+  it('the knees stay near their ankles across the body in a steady strafe (knee-out)', async () => {
+    // (fresh check, the GPU e2e-anim fail) the captures' 3.6 cm hips sink and a fixed 13 cm hips hold bowed the planted
+    // trailing knee 7.6-8.0 cm outside its ankle in the closed stance (the capture keeps its pelvis 4.4 cm inside)
+    for (const v of [0.36, 0.7, 0.9]) {
+      for (const sg of [-1, 1]) {
+        const on = await aimRun(() => ({ x: sg * v, z: 0 }), Math.round(2.7 * 60), 1.2, 'on');
+        const P = on.pos;
+        const b = kneeBow(P.hipL, P.hipR, P.kneeL, P.kneeR, P.ankleL, P.ankleR, KNEE_OUT);
+        expect(b.max, `knee-out ${sg < 0 ? 'L' : 'R'} ${v}`).toBeLessThanOrEqual(KNEE_OUT);
+      }
     }
   }, 300000);
 

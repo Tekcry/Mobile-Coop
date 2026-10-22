@@ -16,7 +16,8 @@ import type { Mode } from './mocapPlayer';
 const DT = 1 / 60;
 
 /** The stick at time t: the wanted velocity in the body's frame (m/s; x right, z forward); `aim` the raise (default 1). */
-export interface AimStick { x: number; z: number; aim?: number }
+/** `mocap` (mode 'on' only): the switch this frame (a toggle mid-run; the carrier's driver follows it). */
+export interface AimStick { x: number; z: number; aim?: number; mocap?: boolean }
 export type AimTarget = (t: number) => AimStick;
 
 function contactPts(n: CharacterRig['ankleL'], heel: number[], ball: number[]): void {
@@ -62,6 +63,10 @@ export async function aimRun(target: AimTarget, steps: number, recFrom: number, 
     for (let k = 0; k < steps; k++) {
       const t = k * DT;
       const s = target(t);
+      if (mode === 'on' && s.mocap !== undefined) {
+        setMocapLocomotion(s.mocap);
+        mi.mocapSide = s.mocap && carrier;
+      }
       mi.vx = s.x;
       mi.vz = s.z;
       mi.yaw = 0;
