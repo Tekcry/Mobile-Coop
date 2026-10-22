@@ -10,7 +10,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { AIRLOCK_LAMP_Y, ANNEX_LAMP_Y, bayX, ctcourse, CT_BAY, CT_CEIL, CT_OBST, HIGH_LAMP_Y, S3_CAMERA, S3_CAMERA_AIM, S3_HALL, S3_PANEL_X, S3_SEC_POST, S3_SEC_ROOM, S5_PANEL } from '../src/world/maps/ctcourse';
-import { cameraRate, newMeter, stepCamMeter } from '../src/security/camera';
+import { camRange, cameraRate, newMeter, stepCamMeter } from '../src/security/camera';
 import { sightRate } from '../src/ai/perception';
 import { SENSITIVITY } from '../src/ai/alertState';
 import { CAMERA } from '../src/config/security';
@@ -293,7 +293,7 @@ describe('Marlow Yard light pass (course-ready S2)', () => {
         const light = body(open, x, 0, S3_CAMERA.z);
         darkest = Math.min(darkest, light);
         const inView = S3_CAMERA.x - x > blind;
-        const rate = !inView ? 0 : guard ? sightRate({ dist, angle: 0, light, crouched, speed, exposure: 1, sensitivity: SENSITIVITY.unaware }) : cameraRate(dist, crouched, speed);
+        const rate = !inView ? 0 : guard ? sightRate({ dist, angle: 0, light, crouched, speed, exposure: 1, sensitivity: SENSITIVITY.unaware }) : cameraRate(dist, crouched, speed, camRange({ aim: S3_CAMERA_AIM }));
         stepCamMeter(m, rate, dt);
         if (m.stage === 2) return x - x0;
       }

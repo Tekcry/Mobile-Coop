@@ -177,7 +177,7 @@ describe('(sector-fixes C) the camera aim', () => {
     expect(pt).toBeCloseTo(Math.atan2(3, 5), 9);
     expect(camPitch(fixed)).toBe(0);
     expect(camRange(fixed)).toBe(CAMERA.range);
-    expect(camRange({ range: 99 })).toBe(CAMERA.range);
+    expect(camRange({ range: 99 })).toBe(CAMERA.rangeMax);
     const u = new CameraUnit(aimed, 0);
     // the floor point straight ahead at aim, and a head there, are in frame; a point 1 m over the lens 5 m out is not
     expect(u.covers(0, 0.01, 5)).toBe(true);
@@ -194,7 +194,9 @@ describe('(sector-fixes C) the camera aim', () => {
     const levels = WAREHOUSE_OPS_SECURITY.levels ?? {};
     for (const d of WAREHOUSE_OPS_SECURITY.devices) {
       expect(d.aim, d.id).toBeGreaterThan(0);
-      expect(d.range, d.id).toBeLessThan(CAMERA.range);
+      expect(d.range, d.id).toBeLessThanOrEqual(CAMERA.rangeMax);
+      // (camera-range) every Sector Ops range is the aim rule's: 2 x aim
+      expect(d.range, d.id).toBe(CAMERA.aimReach * d.aim!);
       const fy = levels[d.level] ?? 0;
       const u = new CameraUnit(d, fy);
       // at its sweep centre (the frame there faces the facing the data names)
@@ -210,7 +212,7 @@ describe('(sector-fixes C) the camera aim', () => {
   it('the map data rule: aim and range within their limits', () => {
     const bad = (x: Partial<CameraDevice>): string[] => validateSecurity({ devices: [{ ...aimed, ...x }] });
     expect(bad({})).toEqual([]);
-    expect(bad({ range: CAMERA.range + 1 }).length).toBe(1);
+    expect(bad({ range: CAMERA.rangeMax + 1 }).length).toBe(1);
     expect(bad({ range: CAMERA.rangeMin - 1, aim: 2 }).length).toBe(1);
     expect(bad({ aim: 11 }).length).toBe(1);
     expect(bad({ aim: 1 }).length).toBe(1);

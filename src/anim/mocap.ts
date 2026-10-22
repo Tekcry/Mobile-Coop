@@ -12,11 +12,12 @@
  * One switch per machine: every rig drawn here follows it, the local player and the co-op partner alike (a visual
  * choice; nothing goes on the wire, the partner's machine draws by its own setting). Guards never play the keyed sets
  * (`AnimInput.keyedOk` is off for them). The drawn set (gun out), the crouched set, the standing idle and the wall set
- * stay hand-keyed; so do the guards, the studio's keyed loops and every weapon clip.
+ * stay hand-keyed; so do the guards, the studio's keyed loops and every weapon clip. (mocap-trial-2) Except the holstered
+ * crouched sneak band's body: the set's `crouchWalk` (CMU 136_09) over the planner's feet (animGraph `crouchSet`, BRIEF A5).
  */
 import { TURN_GAIT_MIN } from './motion';
 import type { ClipFeetIn } from './footPlanner';
-import { layerMul, mirrorKeyed, mixKeyed, mixKeyedArms, sampleKeyed, type KeyedClip, type KeyedLayerScale, type KeyedPose } from './keyed';
+import { layerMul, mirrorKeyed, mixKeyed, mixKeyedArms, newKeyedPose, sampleKeyed, type KeyedClip, type KeyedLayerScale, type KeyedPose } from './keyed';
 import { KEYED_WALK } from './clips/keyed/walk';
 import { KEYED_JOG } from './clips/keyed/jog';
 import { KEYED_RUN } from './clips/keyed/run';
@@ -28,6 +29,8 @@ import { MOCAP_TURN_MOVE_L } from './clips/mocap/turn_move_l';
 import { MOCAP_TURN_MOVE_R } from './clips/mocap/turn_move_r';
 import { MOCAP_START, MOCAP_START_SECONDS } from './clips/mocap/start';
 import { MOCAP_STOP, MOCAP_STOP_SECONDS } from './clips/mocap/stop';
+import { MOCAP_CROUCH_WALK } from './clips/mocap/crouch_walk';
+import { MOCAP_SPRINT } from './clips/mocap/sprint';
 
 /**
  * Per-layer scales for the mocap set (one table; the job lead tunes them once the real clips land). Each scales a
@@ -96,6 +99,8 @@ export interface LocoClipSet {
   readonly walk: KeyedClip;
   readonly jog: KeyedClip;
   readonly run: KeyedClip;
+  /** (mocap-trial-2, sprint) The sprint cycle crossed into past the run (animGraph `speedSet`, BRIEF A6; null: the run is the top). */
+  readonly sprint: KeyedClip | null;
   /** A 90 deg turn on the spot to the right (the left plays it mirrored), by the yaw turned. */
   readonly turnInPlace: KeyedClip | null;
   /** 90 deg turns while walking, left and right (an empty side plays the other mirrored), by the yaw turned. */
@@ -108,6 +113,9 @@ export interface LocoClipSet {
   readonly stopSeconds: number;
   /** The layer scales this set's clips are sampled with (null: the layers as they are). */
   readonly layers: MocapLayers | null;
+  /** (mocap-trial-2, crouch) The crouched sneak's cycle in place of the hand-keyed sneak (animGraph `crouchSet`; null: the
+   *  hand-keyed sneak). The faster crouched bands stay hand-keyed (BRIEF A5). */
+  readonly crouchWalk: KeyedClip | null;
 }
 
 /** The hand-keyed set: the game as it was (no slots: starts, stops and turns stay procedural). */
@@ -116,6 +124,7 @@ export const HAND_KEYED_SET: LocoClipSet = {
   walk: KEYED_WALK,
   jog: KEYED_JOG,
   run: KEYED_RUN,
+  sprint: null,
   turnInPlace: null,
   turnMoveL: null,
   turnMoveR: null,
@@ -124,6 +133,7 @@ export const HAND_KEYED_SET: LocoClipSet = {
   startSeconds: 0.6,
   stopSeconds: 0.6,
   layers: null,
+  crouchWalk: null,
 };
 
 /** The mocap set (`clips/mocap/*`). */
@@ -132,6 +142,7 @@ export const MOCAP_SET: LocoClipSet = {
   walk: MOCAP_WALK,
   jog: MOCAP_JOG,
   run: MOCAP_RUN,
+  sprint: MOCAP_SPRINT,
   turnInPlace: MOCAP_TURN_IN_PLACE,
   turnMoveL: MOCAP_TURN_MOVE_L,
   turnMoveR: MOCAP_TURN_MOVE_R,
@@ -140,6 +151,7 @@ export const MOCAP_SET: LocoClipSet = {
   startSeconds: MOCAP_START_SECONDS,
   stopSeconds: MOCAP_STOP_SECONDS,
   layers: MOCAP_LAYERS,
+  crouchWalk: MOCAP_CROUCH_WALK,
 };
 
 /** Any slot filled (the graph runs `MocapSlots` only then). */
@@ -187,6 +199,18 @@ export function applyMocapSwitch(url: boolean | null, setting: boolean): boolean
  * - (fix 1, CHECK decide 3) The start's arms play at most `startArms` of its weight: the take's upper body runs on its
  *   own clock (MOCAP_START_SECONDS), not the gait's, so at full weight the same-side arm and leg swung forward together
  *   (50 / 242 moving frames). Phase-aligning the slot to the gait clock is the later fix.
+ * - (fix 2 check) A turn's pass that follows another (a spin on the spot replaying its clip, a spin reversed, a turn
+ *   started while the last one still shows) eases in from that one's pose over `easeFrom` s.
+ * - (mt2-fixB, CHECK-3 item 3) A turn on the move faster than `turnPlay` rad/s plays at `turnPlay` / its fastest rate of
+ *   its weight: the clip runs at the game's turn speed, and at CT's 7.85 rad/s flick its pelvis swing (5 cm out and back,
+ *   with the last 25 % fade in 4 frames) moved the hips 2.8-3.0 cm a frame beyond the pace as the flick ended. 4: the
+ *   rate the sweeps already passed at. A turn on the move cut off (the yaw rate fell, the pace went past `walkMax`) eases
+ *   out over `turnOut` s from its weight (smoothstep), not by `tau`. A turn on the spot as before (fix 2's spin rules).
+ * - (mt2-qstop) Not a slot: falling from over `walkMax`, the standing pose's pace (the graph's `mPace`: the procedural
+ *   stand and the speed set) falls at most `paceFall` m/s^2 until it meets the pace (a one-frame stop or a hard brake
+ *   crossed the speed set's bands in a frame or two: the pelvis 3-10 cm a frame), and a stop's fade to the idle is slower
+ *   from over `walkMax` (0.08 s x the pose's pace / walkMax). 4: about the rate of a 5 -> 3 m/s ramp over 0.5 s (effort
+ *   pace); 6 left a braked stop from 4 m/s at 2.9 cm a frame. A walking stop poses its own pace (as the hand-keyed set).
  */
 export const MOCAP_SLOT = {
   restSpeed: 0.05,
@@ -200,6 +224,10 @@ export const MOCAP_SLOT = {
   tau: 0.06,
   walkMax: 2.2,
   startArms: 0.5,
+  easeFrom: 0.2,
+  paceFall: 4,
+  turnOut: 0.2,
+  turnPlay: 4,
 };
 
 /** The planner values the slots blend (track half-width, knee pole, duty, lift). */
@@ -212,10 +240,11 @@ export interface SlotLegValues {
 
 const QUARTER = Math.PI / 2;
 
-function envelope(p: number): number {
+/** A one-shot's weight at progress `p`; `holdIn` / `holdOut` skip its fade in / out (a spin on the spot playing on). */
+function envelope(p: number, holdIn = false, holdOut = false): number {
   const M = MOCAP_SLOT;
-  const a = p <= 0 ? 0 : p >= M.fadeIn ? 1 : p / M.fadeIn;
-  const b = p >= 1 ? 0 : p <= 1 - M.fadeOut ? 1 : (1 - p) / M.fadeOut;
+  const a = holdIn ? 1 : p <= 0 ? 0 : p >= M.fadeIn ? 1 : p / M.fadeIn;
+  const b = holdOut ? 1 : p >= 1 ? 0 : p <= 1 - M.fadeOut ? 1 : (1 - p) / M.fadeOut;
   const u = a < b ? a : b;
   return u * u * (3 - 2 * u);
 }
@@ -240,22 +269,53 @@ export class MocapSlots {
   wStop = 0;
   wTurn = 0;
   private still = true;
+  /** (fix 2) `still` is seeded from the pace on the first update after a reset (the switch turned on mid-walk, a partner
+   *  rig first seen already walking): only a rig that really starts from standing plays the start. */
+  private seeded = false;
   private stopArmed = true;
+  /** (fix 2) A spin on the spot has passed 90 deg and replays the turn clip (its next pass eases in from the last one's
+   *  end pose, at full weight: no dip every 90 deg). */
+  private turnWrap = false;
   /** The turn clip `pickTurn` chose and whether it plays mirrored. */
   private tc: KeyedClip | null = null;
   private tm = false;
+  /** (fix 2 check) The pose a turn's pass eases in from over `easeFrom` s: clip (null: none), mirrored, progress (a
+   *  wrapped spin: the same clip's end; a turn started while the last one still shows, a spin reversed: where it was). */
+  private fc: KeyedClip | null = null;
+  private fm = false;
+  private fp = 0;
+  /** (fix 2 check) Seconds since that pass began (it eases in over MOCAP_SLOT.easeFrom). */
+  private fromT = 0;
+  /** (fix 2) Scratch: the pose a turn's pass eases in from. */
+  private readonly tail: KeyedPose = newKeyedPose();
+  /** (mt2-fixB) A turn on the move cut off: seconds into its ease out over MOCAP_SLOT.turnOut (-1: none) and its weight
+   *  at the cut. */
+  private outT = -1;
+  private outW = 0;
+  /** (mt2-fixB) The fastest yaw rate of this turn pass (rad/s): a turn on the move faster than `turnPlay` plays at
+   *  `turnPlay` / it of its weight. */
+  private turnPeak = 0;
 
   reset(): void {
     this.startT = this.stopT = this.turnT = -1;
     this.startP = this.stopP = this.turnP = 0;
     this.wStart = this.wStop = this.wTurn = 0;
     this.still = true;
+    this.seeded = false;
     this.stopArmed = true;
+    this.turnWrap = false;
+    this.fc = null;
+    this.outT = -1;
   }
 
   /** One frame: the pace (m/s), the forward acceleration (m/s^2) and the yaw rate (rad/s, + to the right). */
   update(dt: number, S: LocoClipSet, speed: number, accelFwd: number, yawRate: number): void {
     const M = MOCAP_SLOT;
+    // (fix 2) the first frame after a reset: standing only if the pace is at rest now (already walking: no start)
+    if (!this.seeded) {
+      this.seeded = true;
+      this.still = speed < M.restSpeed;
+    }
     // a start from standing
     if (speed < M.restSpeed) this.still = true;
     else if (this.still && speed > M.moveSpeed) {
@@ -290,25 +350,73 @@ export class MocapSlots {
     // a turn: by the yaw turned, 90 deg a clip
     const ay = yawRate < 0 ? -yawRate : yawRate;
     const side = yawRate < 0 ? -1 : 1;
-    if (this.turnT < 0) {
-      if (ay > M.turnRate && speed <= M.walkMax) {
-        const spot = speed < M.spotSpeed;
-        if (this.pickTurn(S, spot, side)) {
-          this.turnT = 0;
-          this.turnSide = side;
-          this.turnSpot = spot;
+    if (this.fromT < M.easeFrom) this.fromT += dt;
+    let open = this.turnT < 0;
+    if (open) {
+      // (none playing)
+    } else if (side !== this.turnSide && ay > M.turnRate) {
+      // (fix 2 check) turned the other way: the other side's pass starts this frame (a frame cut off dipped the weight)
+      this.turnT = -1;
+      open = true;
+    } else if (ay < M.turnRate * 0.5 || speed > M.walkMax) {
+      // (mt2-fixB) a turn on the move cut off eases out over `turnOut` from its weight
+      if (!this.turnSpot) {
+        this.outT = 0;
+        this.outW = this.wTurn;
+      }
+      this.turnT = -1;
+    } else {
+      this.turnT += (ay * dt) / QUARTER;
+      if (ay > this.turnPeak) this.turnPeak = ay;
+      if (this.turnT >= 1) {
+        // (fix 2) a spin on the spot replays the clip, the progress carried across the wrap, from the clip's end pose.
+        // (fix 2 check) Only still on the spot: walked off, the pass ends and a turn on the move can start
+        this.turnWrap = this.turnSpot && speed < M.spotSpeed;
+        this.turnT = this.turnWrap ? this.turnT - 1 : -1;
+        if (this.turnWrap) {
+          this.fc = this.tc;
+          this.fm = this.tm;
+          this.fp = 1;
+          this.fromT = 0;
         }
       }
-    } else if ((side !== this.turnSide && ay > M.turnRate) || ay < M.turnRate * 0.5 || speed > M.walkMax) this.turnT = -1;
-    else {
-      this.turnT += (ay * dt) / QUARTER;
-      if (this.turnT >= 1) this.turnT = this.turnSpot ? this.turnT - 1 : -1;
+    }
+    if (open && ay > M.turnRate && speed <= M.walkMax) {
+      const spot = speed < M.spotSpeed;
+      // (fix 2 check) a turn still showing (a spin reversed, one cut off and started again): the new pass eases in from
+      // where it was (the clip and side `apply` last posed); a spin reversed on the spot keeps its weight (15.8 deg a
+      // frame at 3 rad/s reversed, with a dip to 0.49)
+      const fc = this.wTurn > 0 ? this.tc : null;
+      const fm = this.tm;
+      const hold = fc !== null && spot && this.turnSpot;
+      if (this.pickTurn(S, spot, side)) {
+        this.turnT = 0;
+        this.turnPeak = ay;
+        this.turnSide = side;
+        this.turnSpot = spot;
+        this.turnWrap = hold;
+        this.fc = fc;
+        this.fm = fm;
+        this.fp = this.turnP;
+        this.fromT = 0;
+      }
     }
     if (this.turnT >= 0) this.turnP = this.turnT;
     const k = 1 - Math.exp(-dt / M.tau);
     this.wStart += ((this.startT >= 0 ? envelope(this.startT) : 0) - this.wStart) * k;
     this.wStop += ((this.stopT >= 0 ? envelope(this.stopT) : 0) - this.wStop) * k;
-    this.wTurn += ((this.turnT >= 0 ? envelope(this.turnT) : 0) - this.wTurn) * k;
+    // (fix 2) a spin on the spot keeps its full weight: no fade in after a wrap, no fade out while it still spins (a turn
+    // that stops is cut off and eases out by `tau`, about as fast as the fade over its last 22 deg at a spin's rate). (fix 2
+    // check) While it goes on at all (over half `turnRate`, on the spot: it wraps): a slow spin (0.5-1 rad/s) faded to
+    // 0.06 before each wrap
+    const spinOn = this.turnSpot && speed < M.spotSpeed;
+    if (this.turnT >= 0) this.outT = -1;
+    if (this.outT >= 0) {
+      this.outT += dt;
+      const u = this.outT < M.turnOut ? this.outT / M.turnOut : 1;
+      this.wTurn = this.outW * (1 - u * u * (3 - 2 * u));
+      if (u >= 1) this.outT = -1;
+    } else this.wTurn += ((this.turnT >= 0 ? envelope(this.turnT, this.turnWrap, spinOn) * (this.turnSpot || this.turnPeak <= M.turnPlay ? 1 : M.turnPlay / this.turnPeak) : 0) - this.wTurn) * k;
     if (this.wStart < 1e-4 && this.startT < 0) this.wStart = 0;
     if (this.wStop < 1e-4 && this.stopT < 0) this.wStop = 0;
     if (this.wTurn < 1e-4 && this.turnT < 0) this.wTurn = 0;
@@ -321,7 +429,12 @@ export class MocapSlots {
   apply(S: LocoClipSet, pose: KeyedPose, tmp: KeyedPose, v: SlotLegValues): number {
     let share = this.mix(S.start, false, this.wStart, this.startP, S.layers, pose, tmp, v, 0, MOCAP_SLOT.startArms);
     share = this.mix(S.stop, false, this.wStop, this.stopP, S.layers, pose, tmp, v, share, 1);
-    if (this.wTurn > 0 && this.pickTurn(S, this.turnSpot, this.turnSide)) share = this.mix(this.tc, this.tm, this.wTurn, this.turnP, S.layers, pose, tmp, v, share, 1);
+    if (this.wTurn > 0 && this.pickTurn(S, this.turnSpot, this.turnSide)) {
+      // (fix 2) a wrapped spin's new pass eases in from the clip's end pose (fix 2 check: over `easeFrom` s, and
+      // any pass with a pose to ease from, `fc`)
+      const u = this.fc !== null && this.fromT < MOCAP_SLOT.easeFrom ? this.fromT / MOCAP_SLOT.easeFrom : 1;
+      share = this.mix(this.tc, this.tm, this.wTurn, this.turnP, S.layers, pose, tmp, v, share, 1, 1 - u * u * (3 - 2 * u));
+    }
     return share;
   }
 
@@ -340,11 +453,14 @@ export class MocapSlots {
     return this.tc !== null;
   }
 
-  private mix(c: KeyedClip | null, mirror: boolean, w: number, p: number, L: KeyedLayerScale | null, pose: KeyedPose, tmp: KeyedPose, v: SlotLegValues, share: number, armMax: number): number {
+  private mix(c: KeyedClip | null, mirror: boolean, w: number, p: number, L: KeyedLayerScale | null, pose: KeyedPose, tmp: KeyedPose, v: SlotLegValues, share: number, armMax: number, fromEnd = 0): number {
     if (c === null || w <= 0) return share;
     // a one-shot: progress 0..1 over its frames, the last frame held (never wrapping back to the first)
     const q = p <= 0 ? 0 : p >= 1 ? 1 : p;
     sampleKeyed(c, (q * (c.frames - 1)) / c.frames, 1, tmp, L);
+    // (fix 2) `fromEnd` of the way back toward its end pose (a wrapped spin's replay easing in; fix 2 check: the pose the
+    // turn's pass eases from)
+    if (fromEnd > 0) this.easeFrom(tmp, mirror, L, fromEnd);
     if (mirror) mirrorKeyed(tmp);
     // (fix 1) its arms at most `armMax` of the weight: the clip's arms drawn back toward the pose's first
     if (w > armMax) mixKeyedArms(pose, tmp, armMax / w, tmp);
@@ -354,6 +470,16 @@ export class MocapSlots {
     v.duty += (c.duty - v.duty) * w;
     v.lift += (c.liftH - v.lift) * w;
     return share + (1 - share) * w;
+  }
+
+  /** (fix 2 check) `tmp` `k` of the way toward the pose the turn's pass eases from (`fc` at `fp`), on `mirror`'s side. Its
+   *  own method: inline, `mix` grew past what V8 inlines into `apply` and its doubles boxed (+16 B a frame, mocapSwitch). */
+  private easeFrom(tmp: KeyedPose, mirror: boolean, L: KeyedLayerScale | null, k: number): void {
+    const F = this.fc;
+    if (F === null) return;
+    sampleKeyed(F, (this.fp * (F.frames - 1)) / F.frames, 1, this.tail, L);
+    if (this.fm !== mirror) mirrorKeyed(this.tail);
+    mixKeyed(tmp, this.tail, k, tmp);
   }
 }
 
