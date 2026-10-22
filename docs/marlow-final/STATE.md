@@ -7,6 +7,10 @@
   lighting (LIGHTING-PLAN.md + pure modules src/world/lighting/ + tests/marlowLighting*.test.ts), props (build.py
   fixed, facility-props.glb, src/world/props/ helper + renderer, tests/facilityProps.test.ts). If cut off, rerun the
   same agent; each owns only its files.
+- Also running (~01:30, 6 agents total): Phase 0 engine answers (SPEC 19 -> ENGINE-ANSWERS.md, read-only); slice 0
+  code split by file: N1-N4 + N8 (course files, report slices/S0-course.md) and N6 + PassZone.any (ctDevices,
+  scanners, protocol bump; report slices/S0-devices.md). Slice 0 e2e (coop, netmove, ctcourse) goes to Character
+  Build once both land.
 - Waiting: the orchestrator's Marlow co-op engine gap list (fold into SPEC / slice 0 when it lands).
 - After the spec: slice 0 (scaffold + section 14 code), then sets in parallel with Course Ready, dressing after each.
 
