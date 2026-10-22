@@ -131,11 +131,31 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   and gives only a turn's meter floor. A search (a body, a radio check, after combat) and his investigate spot are
   clamped into the leash; he wakes no knocked-out guard outside it; in combat `chasePoint` / strafe points are clamped,
   cover outside the leash is skipped, and a target outside it (+1.5 m) is held from the post (the `hold` rule); he
-  never runs to an alarm panel outside it. A revived guard keeps his post (`Enemy.inherit`). Not yet: squads / handler /
-  zone / role tags (S5b). Map data: `MapLayout.guardAi` (zones, `noisy`, entries, squads) and `SectorDef.noisy` /
+  never runs to an alarm panel outside it. A revived guard keeps his post (`Enemy.inherit`). The sector tags: next
+  entry (S5b). Map data: `MapLayout.guardAi` (zones, `noisy`, entries, squads) and `SectorDef.noisy` /
   `entries`; `EnemyManager.mapNoisy` loads the map's noisy things as the masking, Sector Ops swaps in the live
   section's (`setNoisy` on load). Checks: `validateGuardAi` / `validatePosts` run on load in dev (console warnings via
   `reportGuardAi`, never a throw) and in `tests/postsWiring.test.ts` over every live map's sectors.
+- Sector tags (guard-ai S5b, ENGINE.md section 7 on sector-redesign, A26-A28; `ai/sectorTags.ts` pure, the type
+  `GuardSlotTags` in `ai/guardAiData.ts`): `SectorGuard`'s `squad` / `handler` / `zone` / `role` / `reason` / `pair` are
+  read by `EnemyManager.placeSlot(e, slot, section, slots?, index?)` (`sectorMode.fill` passes the section's `guards` and
+  the slot's index; a reinforcement -1). `squad`: `joinSquad(squadId(section, squad))`, none = the default cluster of
+  posts within 12 m (`slotSquads` / `defaultSquads`), a dog its handler's; so squad radio checks (`radioCheckNow`,
+  `ARCHETYPE.radio` ~40 s) run in Sector Ops. The check's caller: a desk role (`ROLE_DESK`: desk / cctv / operator;
+  calm, the lowest key) for every squad of his section, else the squad's own (supervisor > officer > first; a squad of
+  one has none). A member down and not found is missed once (`silent`): coordinated, a `missing` incident at where he
+  went down with his squad's calm members as perceivers, so the board sends two of them (lead + cover; the K_MISSING
+  assign takes perceivers first); parked modes, the caller searches (old rule). `handler`: the dog is bound
+  (`Enemy.handler`, set when both are placed, either order) and heels on him only (`findLeader`); he goes down: the dog
+  searches round him, barks (`TAGS.dogBark` 14 m noise via `hear`, the dog skipped) and keeps its heel spot by him; a
+  woken handler takes it back (`swapSlot`), a despawned one frees it. `zone`: a secure zone (`isSecureZone`: 'secure'
+  or a word 'sec') gives the guard a circle (`zoneRadius`: post leash, else 8 m / route reach + 2) in the board's view
+  (`GuardView.setTags`): inside it he counts as a perceiver and ranks first (x `TAGS.secureFirst` 0.25); after a search
+  every guard walks back to his own post / route (the walker; no new code). `role` (`roleFlags`, `ROLE_CLASS`): the
+  alarm runner (`alarmRunMul`: supervisor 0.1, officer 0.25), the board's score (`roleSendMul`: supervisor sends
+  someone x1.6; a light: rover x0.8, fixed post x1.5). `reason` stored (`Enemy.reason`); `pair` stored as the S10 hook
+  (`Enemy.pairSlot`, `EnemyManager.guardAtSlot(index)`). All kept over a revive (`Enemy.inherit`). Tests:
+  `tests/sectorGuardTags.test.ts`; e2e: e2e-sectorops part 1 "sector tags (guard-ai S5b)".
 - Tactics: from sight into cover first (85%), attack -> cover after 2.5-4.5 s, peek cycles (4.2 s, up to 5); out of sight
   an `advancing` bound to cover closer to the believed position (`pickAdvance`), a 2.5 s hold, then the next; the last
   stretch is walked (`ADVANCE_PACE`); cover is picked against `knownPt` (never the real position out of sight). One bullet

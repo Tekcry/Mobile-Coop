@@ -131,3 +131,23 @@ manoeuvre beats guard count. Every map's guards are armed (Answers 3).
   unit, check on him." (KO) or "He's not moving. Two of you, go." (dead); N = the camera's place in the map's security
   list (1-based), {room} the `RoomRect.name` under the body (dropped when none); a radio bark over the camera, text
   only (G82). Undo: `camBodyLine` (src/ai/barks.ts) and the label in `GameState`'s `onBody`.
+- **A26** (S5b) Squads and radio checks in Sector Ops: every section guard joins a squad in `placeSlot` (`squad` tag ->
+  section x 100 + squad; none -> the cluster of posts within 12 m; a dog -> its handler's). A member down and not yet
+  found is missed at the next check (every ~40 s) and, in the coordinated modes, opens a `missing` incident at where he
+  went down whose perceivers are his squad's calm members, so two of them go (lead + cover, the S2 pair; one free: the
+  nearest other guard covers); a body already found, or a dog, is not missed; a squad of one has no check of its own
+  (nobody to answer; a desk's check covers him); own caller supervisor > officer > first. No caution from a miss (the
+  `missing` hold stays unwired, A16). Undo: `EnemyManager.radioCheckNow` (src/ai/enemyManager.ts): `caller.searchAt`
+  in place of `reportMissing`, drop the `men < 2` skip; the K_MISSING perceiver pass in `IncidentBoard.assign`.
+- **A27** (S5b) Zone and role: a secure zone is a `zone` tag 'secure' or with a word 'sec' / 'secure' ('s3-sec'); its
+  guard counts as a perceiver of any disturbance inside his zone circle (his post leash, else 8 m or his route's reach
+  + 2 m round his post) and ranks first there (score and distance x 0.25). Roles by class (`ROLE_CLASS`): desk / cctv /
+  operator call every squad's radio check of their section (the lowest key of them, calm); supervisor runs to the alarm
+  first (distance x 0.1; officer 0.25) and sends someone (x 1.6, as an officer); patrol / tour / response check a light
+  first (x 0.8), gate / posted / post / sentry / keyholder / bridge / reception / desk last (x 1.5); other words: none.
+  "Where a guard returns after a search" needs no new code: the walker takes every guard back to his own post / route
+  (his zone). Undo: `TAGS`, `ROLE_CLASS`, `isSecureZone` (src/ai/sectorTags.ts).
+- **A28** (S5b) A dog with a `handler` tag heels on him only (not the nearest squad mate); he goes down (knocked out or
+  dead): the dog searches round him, barks (a 14 m noise at the dog: the board sends one guard who hears it), then
+  keeps its heel spot by where he fell; a woken handler takes his dog back; a despawned one frees it (the old rule).
+  Undo: the `handler` branch of `Enemy.findLeader` (src/ai/enemy.ts) and `EnemyManager.handlerDown`.

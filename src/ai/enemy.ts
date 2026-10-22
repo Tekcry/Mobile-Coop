@@ -569,6 +569,12 @@ export class Enemy implements Damageable {
 
   /** The dog's handler: the nearest living, calm-or-not humanoid of its squad (or anyone close) - kept once found. */
   private findLeader(): Enemy | null {
+    // (guard-ai S5b) a dog with a handler (the `handler` tag) heels on him only; down, it stays by him
+    const hd = this.handler;
+    if (hd) {
+      this.leader = hd;
+      return hd;
+    }
     const l = this.leader;
     if (l && l.alive) return l;
     this.leader = null;
@@ -631,6 +637,18 @@ export class Enemy implements Damageable {
     this.setPost(o.postDef, o.postYaw);
     this.section = o.section;
     this.profile = o.profile;
+    // (guard-ai S5b) and his sector tags
+    this.slotIdx = o.slotIdx;
+    this.zone = o.zone;
+    this.zoneX = o.zoneX;
+    this.zoneZ = o.zoneZ;
+    this.zoneR = o.zoneR;
+    this.role = o.role;
+    this.roleFlags = o.roleFlags;
+    this.reason = o.reason;
+    this.pairSlot = o.pairSlot;
+    this.handlerSlot = o.handlerSlot;
+    this.handler = o.handler;
     this.walker = o.walker;
     this.walker.tick(downFor);
     this.walker.rejoin(this.pos.x, this.pos.z);
@@ -907,6 +925,25 @@ export class Enemy implements Damageable {
    *  (read by S5b / S6; nothing acts on them yet). */
   section = 0;
   profile: BehaviourProfile = 'standard';
+  // (guard-ai S5b) the sector tags `EnemyManager.placeSlot` read (sectorTags.ts); kept by a woken guard (`inherit`)
+  /** His slot's index in his section's guard list (-1: not a section slot, e.g. a reinforcement). */
+  slotIdx = -1;
+  /** His `zone` tag; a secure zone's circle (round his post) he answers first inside (`zoneR` 0: not secure). */
+  zone = '';
+  zoneX = 0;
+  zoneZ = 0;
+  zoneR = 0;
+  /** His `role` tag and its class flags (`ROLE_DESK`, `ROLE_SUPERVISOR`, `ROLE_ROVER`, `ROLE_FIXED`). */
+  role = '';
+  roleFlags = 0;
+  /** His `reason` tag (design text; a later bark). */
+  reason = '';
+  /** (S10 hook) His talking-pair partner's slot index (the `pair` tag; -1 none); `EnemyManager.guardAtSlot` finds him. */
+  pairSlot = -1;
+  /** A dog's `handler` tag (slot index, -1 none) and the guard it is bound to once he is placed: it heels on him only,
+   *  and stays by him when he goes down (`findLeader`). */
+  handlerSlot = -1;
+  handler: Enemy | null = null;
   private readonly lure = new PostLure();
   private readonly lureOut: PostLureOut = { x: 0, z: 0, yaw: 0, moving: false, phase: LURE.idle };
   private readonly lureP: P2 = [0, 0];

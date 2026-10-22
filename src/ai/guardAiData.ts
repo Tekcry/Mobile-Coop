@@ -71,6 +71,26 @@ export type GuardSlot = Pick<SquadSlot, 'x' | 'z' | 'y' | 'route' | 'free'> & {
   squad?: number;
 };
 
+/**
+ * (guard-ai S5b) The Sector Ops guard tags `EnemyManager.placeSlot` reads (ENGINE.md section 7; `SectorGuard` in
+ * src/game/sectors.ts carries them as they are; `sectorTags.ts` says what each drives). All optional.
+ */
+export interface GuardSlotTags {
+  /** Squad number in the section (0..`DEFAULT_SQUAD_BASE - 1`): radio checks, the missed-member search. */
+  squad?: number;
+  /** A dog's handler: the index, in the section's guard list, of the guard it heels on. */
+  handler?: number;
+  /** Area / post label ('lobby', 's3-hall', 'secure', 's3-sec'): a secure one answers first inside its circle. */
+  zone?: string;
+  /** The job ('patrol', 'desk', 'supervisor', 'gate', ...): radio-check caller, alarm runner, light checker. */
+  role?: string;
+  /** Why he is there (design text; a later bark). */
+  reason?: string;
+  /** Talking-pair partner (index in the section's guards); stored for S10. */
+  pair?: number;
+  post?: PostDef;
+}
+
 /** A plan box (map bounds for `validateGuardAi`). */
 export type PlanBounds = Pick<RoomRect, 'minX' | 'maxX' | 'minZ' | 'maxZ'>;
 

@@ -108,6 +108,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Posted guards (guard-ai S5; once a map has a high-security post, e.g. the campus keyholders): throw a bottle or cut
   the light near him: he walks to the edge of his area, looks toward it ~5 s, walks back and faces his post; he never
   follows a search or chases you out of his area.
+- [ ] Squads and dogs (guard-ai S5b, Sector Ops): knock a guard out unseen and wait up to ~40 s: his squad's radio
+  check misses him and two squad mates walk to where he went down and wake him. A dog stays with its handler; drop the
+  handler and the dog stays by him and barks.
 - [ ] Cameras see bodies (guard-ai S7, Sector Ops): knock a guard out where a camera sweeps (lit or dark): the desk
   radios "Camera N has a man down..." and the nearest guard walks over and wakes him; loop or jam the camera first and
   nobody comes.

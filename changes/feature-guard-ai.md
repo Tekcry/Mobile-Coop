@@ -30,6 +30,14 @@
   item or a light going out near him draws him to the edge of his area, where he looks toward it for about 5 seconds
   before walking back and facing his post again. Guards on an ordinary post are sent to check things like anyone else.
   Maps can also mark noisy machinery that makes guards near it hear less. No map uses posts yet; the map teams add them.
+- S5b sector squads and jobs: Sector Ops guards now work in squads and check in on the radio about every 40 seconds.
+  Take a guard out and hide nothing: at the next check his squad notices he is not answering, and two of them go to
+  where he went down to look for him (a knocked-out guard they find is woken). A body they already found is not
+  missed again. A desk guard (security desk, CCTV, operator) calls the checks for the whole section, so taking him out
+  first means the lone posts go unchecked. A supervisor is the first to run for the alarm, a patrolling guard checks a
+  light that went out before a guard on a fixed post, and guards in a secure area deal with anything inside it first.
+  A guard dog sticks to its own handler; take the handler down and the dog stays by him, sniffing round and barking,
+  which brings a guard over.
 - S7 cameras see bodies: a security camera that sees a knocked-out or dead guard (in the dark too: cameras see in
   infrared) calls it in on the radio, for example "Camera 2 has a man down, Delivery Yard. Nearest unit, check on him."
   The nearest calm guard within about 25 m walks straight over (two for a dead guard) and, for a knocked-out guard,

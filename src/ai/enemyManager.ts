@@ -24,7 +24,9 @@ import { MUFFLE } from '../config/noise';
 import { CMD_ACK, CMD_SEND, GuardView, GV_BUSY, GV_DOWN, GV_HELD, GV_MELEE, GV_OFFICER, GV_POSTED, INCIDENT, IncidentBoard, LEVEL, lightInView, MODE_COVER, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT, type IncidentKind, type PathLen } from './incidents';
 import { EYE_STAND, PERCEPTION } from './perception';
 import { roomAt, type SquadSlot } from '../world/rooms';
-import { reportGuardAi, sectionAt, validateGuardAi } from './guardAiData';
+import { reportGuardAi, sectionAt, squadId, validateGuardAi, type GuardSlotTags } from './guardAiData';
+// (guard-ai S5b) the sector tags
+import { alarmRunMul, callerRank, isSecureZone, ROLE_DESK, roleFlags, slotSquads, TAGS, zoneRadius } from './sectorTags';
 import { CALL_KIND, callHold, hearsVoice, RADIO, RadioNet, type CallKind, type RadioSink } from './radioNet';
 import type { P2 } from './navGrid';
 // (guard-ai S7) cameras see bodies
@@ -120,6 +122,13 @@ export class EnemyManager {
   /** Radio checks run / members found silent (tests). */
   radioChecks = 0;
   radioMisses = 0;
+  /** (guard-ai S5b) The section slot list `placeSlot` last read the tags of, each slot's squad id, and the guard each
+   *  slot index holds now (a woken guard replaces his old self; cleared with the guards). */
+  private tagSlots: readonly unknown[] | null = null;
+  private tagSquad = new Int32Array(32);
+  private readonly slotGuard: (Enemy | null)[] = [];
+  /** (guard-ai S5b) Who called the last radio check (tests / e2e; null none). */
+  lastCheckCaller: Enemy | null = null;
   private buffT = 0;
   /** Callouts (GameState shows them). */
   onBark: ((e: Enemy, line: string, radio: boolean) => void) | null = null;
@@ -276,6 +285,8 @@ export class EnemyManager {
         this.releaseCover(e);
         // (guard-ai S4) the awareness roster, and who saw it
         if (this.coordinated) this.downed(e);
+        // (guard-ai S5b) his dog stays by him, searches round him and barks
+        this.handlerDown(e);
         this.onKilled?.(e, h);
       },
       onShot: (e, a, b) => this.onEnemyShot?.(e, a, b),
@@ -554,8 +565,8 @@ export class EnemyManager {
       if (!p) continue;
       // (guard-ai S5, A10) a high-security post never runs to a panel outside his leash
       if (!e.inLeash(p.x, p.z, 1)) continue;
-      // an officer calls it in himself
-      const d = hyp2(p.x - e.pos.x, p.z - e.pos.z) * (e.def.kind === 'officer' ? 0.25 : 1);
+      // an officer calls it in himself; (guard-ai S5b) a supervisor (role) before an officer
+      const d = hyp2(p.x - e.pos.x, p.z - e.pos.z) * alarmRunMul(e.roleFlags, e.def.kind === 'officer');
       if (d < bd) {
         bd = d;
         best = e;
@@ -637,6 +648,7 @@ export class EnemyManager {
     if (old) {
       e.inherit(old, b.age);
       this.swapSquad(old, e);
+      this.swapSlot(old, e);
     }
     this.enemies.push(e);
     this.removeBody(b);
@@ -654,6 +666,35 @@ export class EnemyManager {
     const k = r.indexOf(old);
     if (k >= 0) r[k] = e;
     else if (!r.includes(e)) r.push(e);
+  }
+
+  /** (guard-ai S5b) A woken guard takes his old self's slot (`guardAtSlot`) and his dog (it heels on him again). */
+  private swapSlot(old: Enemy, e: Enemy): void {
+    const k = e.slotIdx;
+    if (k >= 0 && k < this.slotGuard.length && this.slotGuard[k] === old) this.slotGuard[k] = e;
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const d = list[i]!;
+      if (d.handler !== old) continue;
+      d.handler = e;
+      d.leader = e;
+    }
+  }
+
+  /**
+   * (guard-ai S5b, ENGINE.md section 7 `handler`) A guard went down: a dog bound to him (alive, calm, not held) stays by
+   * him (`Enemy.findLeader` keeps him), searches round him and barks: a noise of `TAGS.dogBark` m at the dog, which the
+   * guards in reach hear (the board sends one; the dog itself is skipped).
+   */
+  private handlerDown(h: Enemy): void {
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const d = list[i]!;
+      if (d.handler !== h || !d.alive || d.alerted || d.taken) continue;
+      d.searchAt(h.pos.x, h.pos.z, null);
+      d.bark('dog');
+      this.hear(d.pos, TAGS.dogBark, 'noise', d);
+    }
   }
 
   /**
@@ -792,6 +833,15 @@ export class EnemyManager {
       if (j >= 0) roster.splice(j, 1);
     }
     this.silent.delete(e);
+    // (guard-ai S5b) out of his slot; his dog finds a squad mate again
+    if (e.slotIdx >= 0 && this.slotGuard[e.slotIdx] === e) this.slotGuard[e.slotIdx] = null;
+    for (let i = 0; i < this.enemies.length; i++) {
+      const d = this.enemies[i]!;
+      if (d.handler !== e) continue;
+      d.handler = null;
+      d.leader = null;
+    }
+    if (this.lastCheckCaller === e) this.lastCheckCaller = null;
     // (guard-ai S3) gone mid-call: the call is lost (his queued receptions are skipped: he is out of the view)
     this.radioNet.cut(e.num);
     // (guard-ai S4) gone for good: out of every hold, as if dead
@@ -854,12 +904,73 @@ export class EnemyManager {
    * (guard-ai S5) A map mode placed guard `e` from `slot` in section `section` (call right after `spawn` and
    * `setPatrol`): his post (`slot.post`: a leash round his spawn point, facing `slot.yaw`; a high-security post never
    * leaves it, `posts.ts`), his behaviour profile and his section (Sector Ops passes the `SectorDef` index; omitted: the
-   * `MapLayout.guardAi` zone he stands in, else 0). S5b reads the squad / handler / zone / role tags here.
+   * `MapLayout.guardAi` zone he stands in, else 0).
+   *
+   * (guard-ai S5b) The sector tags (`sectorTags.ts`; ENGINE.md section 7), read as they are. `slots` (the section's
+   * guard list, `SectorDef.guards`) and `index` (this slot's place in it) let the tags that name other slots work:
+   * `squad` (none: the default cluster of posts within 12 m), a dog's `handler`, and `pair` (stored for S10). Without
+   * `slots` only a hand-set `squad` joins. `zone`: a secure zone answers first inside its circle. `role`: radio-check
+   * caller (desk), alarm runner (supervisor), light checker (rover first). `reason` is stored.
    */
-  placeSlot(e: Enemy, slot: Pick<SquadSlot, 'yaw' | 'post' | 'profile'>, section?: number): void {
+  placeSlot(
+    e: Enemy,
+    slot: Pick<SquadSlot, 'yaw' | 'post' | 'profile'> & GuardSlotTags & { x?: number; z?: number; route?: [number, number][] },
+    section?: number,
+    slots?: readonly (GuardSlotTags & { x: number; z: number; y?: number })[],
+    index = -1,
+  ): void {
     e.section = section ?? sectionAt(this.world.layout.guardAi, e.pos.x, e.pos.z);
     e.profile = slot.profile ?? 'standard';
     e.setPost(slot.post ?? null, slot.yaw);
+    // (guard-ai S5b) the tags
+    e.zone = slot.zone ?? '';
+    e.role = slot.role ?? '';
+    e.roleFlags = roleFlags(slot.role);
+    e.reason = slot.reason ?? '';
+    e.pairSlot = slot.pair ?? -1;
+    e.zoneX = e.pos.x;
+    e.zoneZ = e.pos.z;
+    e.zoneR = isSecureZone(slot.zone) ? zoneRadius({ zone: slot.zone, post: slot.post, x: slot.x ?? e.pos.x, z: slot.z ?? e.pos.z, route: slot.route }) : 0;
+    const inList = slots !== undefined && index >= 0 && index < slots.length;
+    let sq = -1;
+    if (inList) {
+      if (slots !== this.tagSlots) {
+        if (this.tagSquad.length < slots.length) this.tagSquad = new Int32Array(slots.length);
+        slotSquads(slots, e.section, this.tagSquad);
+        this.tagSlots = slots;
+        this.slotGuard.length = 0;
+      }
+      sq = this.tagSquad[index]!;
+      e.slotIdx = index;
+      while (this.slotGuard.length < slots.length) this.slotGuard.push(null);
+      this.slotGuard[index] = e;
+    } else if (slot.squad !== undefined) sq = squadId(e.section, slot.squad);
+    // a dog with a handler: bound to him once he is placed (his squad then); else the slot's squad
+    e.handlerSlot = e.dog && inList && slot.handler !== undefined ? slot.handler : -1;
+    const h = e.handlerSlot >= 0 ? (this.slotGuard[e.handlerSlot] ?? null) : null;
+    if (h && h !== e) this.bindDog(e, h);
+    else if (sq >= 0) this.joinSquad(e, sq);
+    // a handler placed after his dog
+    if (inList && !e.dog) {
+      const list = this.enemies;
+      for (let i = 0; i < list.length; i++) {
+        const d = list[i]!;
+        if (d.dog && d.handlerSlot === index && d.handler === null) this.bindDog(d, e);
+      }
+    }
+  }
+
+  /** (guard-ai S5b) Bind a dog to its handler: it heels on him only and joins his squad. */
+  private bindDog(d: Enemy, h: Enemy): void {
+    d.handler = h;
+    d.leader = h;
+    if (h.squad >= 0) this.joinSquad(d, h.squad);
+  }
+
+  /** (guard-ai S5b) The guard that holds slot `index` of the section `placeSlot` read last (null none / down for good);
+   *  S10's talking pairs find a partner with it. */
+  guardAtSlot(index: number): Enemy | null {
+    return index >= 0 && index < this.slotGuard.length ? this.slotGuard[index]! : null;
   }
 
   /** Put an enemy on a squad's roster (radio checks; the dog's handler comes from its squad). */
@@ -873,33 +984,94 @@ export class EnemyManager {
     if (!r.includes(e)) r.push(e);
   }
 
-  /** Squad radio checks (stealth rules): a calm caller checks in; a silent member gets looked for. */
+  /**
+   * Squad radio checks (stealth rules): a calm caller checks in; a silent member gets looked for.
+   * (guard-ai S5b) The caller: a desk role of the squad's section (`ROLE_DESK`, calm, the lowest key) calls every squad
+   * of it; else the squad's own (a supervisor, else an officer, else the first). A silent member is a down guard nobody
+   * has found (a dog is not on the radio). Coordinated modes: a `missing` incident at where he went down, the squad's
+   * calm members its perceivers, so the board sends two of them (a lead, and a cover `INCIDENT.pairBack` short); the
+   * parked modes: the caller searches there (the old rule).
+   */
   radioCheckNow(): void {
     this.radioChecks++;
+    const desk = this.deskCaller();
+    this.lastCheckCaller = desk;
+    if (desk) desk.bark('radioCheck');
     for (const [, roster] of this.squads) {
       let caller: Enemy | null = null;
-      for (const m of roster) {
-        if (!m.alive || m.alerted || m.dog) continue;
-        if (!caller || m.def.kind === 'officer') caller = m;
+      let rank = -1;
+      let men = 0;
+      for (let i = 0; i < roster.length; i++) {
+        const m = roster[i]!;
+        if (!m.dog) men++;
+        if (!m.alive || m.alerted || m.dog || m.taken) continue;
+        const r = callerRank(m.roleFlags, m.def.kind === 'officer');
+        if (r > rank) {
+          rank = r;
+          caller = m;
+        }
       }
-      if (!caller || caller.level !== 'unaware') continue;
-      caller.bark('radioCheck');
+      const r0 = roster[0];
+      if (desk && r0 && r0.section === desk.section) caller = desk;
+      // (S5b) a squad of one has nobody to answer him: no check of its own (a desk's covers him)
+      else if (!caller || caller.level !== 'unaware' || men < 2) continue;
+      else {
+        caller.bark('radioCheck');
+        this.lastCheckCaller ??= caller;
+      }
       let missed = false;
-      for (const m of roster) {
-        if (m.alive || this.silent.has(m)) continue;
+      for (let i = 0; i < roster.length; i++) {
+        const m = roster[i]!;
+        if (m.alive || m.dog || this.silent.has(m) || this.bodyFoundOf(m)) continue;
         this.silent.add(m);
         this.radioMisses++;
         missed = true;
-        caller.searchAt(m.pos.x, m.pos.z, null);
+        if (this.coordinated) this.reportMissing(m, roster);
+        else caller.searchAt(m.pos.x, m.pos.z, null);
       }
       if (missed) caller.bark('missed');
       else
-        for (const m of roster)
+        for (let i = 0; i < roster.length; i++) {
+          const m = roster[i]!;
           if (m !== caller && m.alive && !m.dog) {
             m.bark('radioOk');
             break;
           }
+        }
     }
+  }
+
+  /** (guard-ai S5b) The section's radio-check caller: a calm desk-role guard (unaware, not held), the lowest key. */
+  private deskCaller(): Enemy | null {
+    let best: Enemy | null = null;
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
+      if (!(e.roleFlags & ROLE_DESK) || !e.alive || e.alerted || e.taken || e.passive || e.level !== 'unaware') continue;
+      if (!best || e.key < best.key) best = e;
+    }
+    return best;
+  }
+
+  /** (guard-ai S5b) Has his body been found already (the section knows; nobody misses him on the radio)? */
+  private bodyFoundOf(m: Enemy): boolean {
+    const bs = this.bodies;
+    for (let i = 0; i < bs.length; i++) if (bs[i]!.enemyId === m.id && bs[i]!.found) return true;
+    return false;
+  }
+
+  /** (guard-ai S5b) A squad member missed on a radio check: a `missing` incident at where he went down; his squad's
+   *  calm, free members perceived it (the board sends two of them; none free: any two of the section). */
+  private reportMissing(m: Enemy, roster: readonly Enemy[]): void {
+    this.hearRoom(roster.length);
+    const who = this.hearWho;
+    let n = 0;
+    for (let i = 0; i < roster.length; i++) {
+      const o = roster[i]!;
+      if (o === m || !o.alive || o.alerted || o.dog || o.taken || o.passive) continue;
+      who[n++] = o.num;
+    }
+    this.report('missing', m.pos.x, m.pos.y, m.pos.z, m.num, n);
   }
 
   /** EMP at a point: recon drones in range drop. */
@@ -946,6 +1118,8 @@ export class EnemyManager {
       // (guard-ai S5) `mayLeave` false: the board never sends him out of his leash
       if (e.secure) f |= GV_POSTED;
       v.set(i, e.num, e.pos.x, e.pos.y, e.pos.z, LEVEL[e.level], f, e.incident);
+      // (guard-ai S5b) his role class and secure zone
+      v.setTags(i, e.roleFlags | 0, e.zoneX, e.zoneZ, e.zoneR > 0 ? e.zoneR : 0);
     }
   }
 
@@ -1252,7 +1426,7 @@ export class EnemyManager {
    * Melee guards (dogs, runners) keep their own rule: in reach they hear it (and a dog close by charges). Held guards
    * hear nothing (S1 check fix 1). Uncoordinated (parked modes): everyone in reach hears and walks over.
    */
-  hear(pos: Vector3, reach: number, kind: 'noise' | 'distraction' = 'noise'): void {
+  hear(pos: Vector3, reach: number, kind: 'noise' | 'distraction' = 'noise', skip: Enemy | null = null): void {
     const list = this.enemies;
     const n = list.length;
     this.hearRoom(n);
@@ -1260,7 +1434,7 @@ export class EnemyManager {
     let nh = 0;
     for (let i = 0; i < n; i++) {
       const e = list[i]!;
-      if (!e.alive || e.alerted || e.passive || e.taken) continue;
+      if (e === skip || !e.alive || e.alerted || e.passive || e.taken) continue;
       const d = hyp3(e.pos.x - pos.x, e.pos.y - pos.y, e.pos.z - pos.z);
       // ambient and walls only shrink the reach: beyond it nothing is heard
       if (d >= reach) continue;
@@ -1464,6 +1638,10 @@ export class EnemyManager {
     this.drones.length = 0;
     this.squads.clear();
     this.silent.clear();
+    // (guard-ai S5b) the slot tags are read afresh on the next load
+    this.tagSlots = null;
+    this.slotGuard.length = 0;
+    this.lastCheckCaller = null;
     // (guard-ai S2) nobody left to send: the incidents go too; (S3) and every call and queued reception
     this.board.clear();
     this.radioNet.clear();

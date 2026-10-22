@@ -35,6 +35,7 @@ import {
   type ConnectorInput,
   type SectorNetExtra,
   type SectorDef,
+  type SectorGuard,
 } from '../sectors';
 import { killScore } from './score';
 import { SectionStartState } from '../sectorReset';
@@ -434,8 +435,10 @@ export class SectorMode implements GameMode {
       const e = em.spawn(p.slot.kind, this.tmp, p.alerted, p.slot.yaw);
       if (!e) break;
       if (p.slot.route) e.setPatrol({ points: p.slot.route, wait: p.slot.wait, waits: p.slot.waits, faces: p.slot.faces, start: p.slot.start, loop: p.slot.loop });
-      // (guard-ai S5) post, profile, section (the live SectorDef's index)
-      em.placeSlot(e, p.slot, this.run.index);
+      // (guard-ai S5) post, profile, section (the live SectorDef's index); (S5b) the sector tags (squad, handler,
+      // zone, role, pair) with the section's guard list and this slot's place in it (a reinforcement: -1, none)
+      const gs = this.run.defs[this.run.index]?.guards;
+      em.placeSlot(e, p.slot, this.run.index, gs, gs ? gs.indexOf(p.slot as SectorGuard) : -1);
       this.pending.splice(i, 1);
     }
   }
