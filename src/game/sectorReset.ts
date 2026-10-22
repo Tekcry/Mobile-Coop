@@ -5,8 +5,8 @@ import type { LightRegistry } from '../world/lights';
  * fixed light (switched, shot, jammed) and every unlocked door (open or shut) as they were when the section began. Pure
  * state (no Babylon): the mode takes it when a section begins and applies it on a restart. Flashlights are left out
  * (the guards' torches belong to the guards). Locked doors are left to the mode (connector doors and team doors have
- * their own rules). Host and solo only: the co-op client mirrors doors from the snapshot; lamps in Sector co-op are
- * not mirrored yet (ENGINE G8).
+ * their own rules). Host and solo only: the co-op client mirrors doors from the snapshot; (slice L) the client then
+ * takes the restored lamps from the host's `lamps` message (`net/lampSync.ts`).
  */
 
 /** The door fields the snapshot reads and the door calls it needs (`Doors`, stubbed in tests). */

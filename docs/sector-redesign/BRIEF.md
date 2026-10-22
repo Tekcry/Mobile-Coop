@@ -89,3 +89,7 @@ Spec writer, 2026-10-23 ~03:00 (SPEC.md / PLAN.md; A1-A7 adopt CONCEPT.md sectio
 - A21 Plain `SectorBolt` team doors are not used (one player unbolts them); only pair bolts / pair gates. Undo: n/a.
 - A22 The lighting proposal is read from origin/feature/marlow-final (it exists there: LR1-LR12); the SPEC's P1-P6 and
   P11 cite LR items; nothing applied. Undo: n/a.
+- A52 (slice L) Sector co-op lamp jams keep riding `sector.sec.dv` (protocol 26); the new `lamps` message carries only
+  the base state (switched off, shot out), so a jam is never sent twice. A client's lamp shot is host-authoritative (no
+  local prediction: dark after about a round trip) and travels as a `shot` at `lt-<id>`, not a new message. Lights past
+  registry id 1023 are not synced (`LAMP_MAX`). Undo: add jam timers to `lamps`, predict the shot, raise `LAMP_MAX`.
