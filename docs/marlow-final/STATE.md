@@ -11,6 +11,9 @@
   code split by file: N1-N4 + N8 (course files, report slices/S0-course.md) and N6 + PassZone.any (ctDevices,
   scanners, protocol bump; report slices/S0-devices.md). Slice 0 e2e (coop, netmove, ctcourse) goes to Character
   Build once both land.
+- Pacing (Michael 01:12 via the orchestrator): this window full burn to 100%. After his reset: pace each 5-hour
+  window to ~97-99% at its reset; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
+  orchestrator's cron resumes this session after each reset.
 - Gap list landed (COOP-GAPS.md), routed to the spec, slice 0 course and lighting agents (~01:40).
 - Michael 01:40 (via the orchestrator): Course Ready leads the Sector Ops redesign and is NO LONGER our second builder;
   marlow-final builds every slice (up to 6 agents). Lighting for ALL maps: "review lighting also, i think the rules
