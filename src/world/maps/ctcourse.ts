@@ -152,8 +152,33 @@ export const S7_STAIR_Z = 1.0;
  *  head-first fits) over the annex's back room [x0, z0, x1, z1], and the hack panel under it (y = its reach height). */
 export const S5_HATCH: [number, number, number, number] = [bayX(4) + 14.125, 1.0, bayX(4) + 14.675, 1.55];
 export const S5_PANEL = { x: bayX(4) + 14.4, y: 1.2, z: 0.4 };
+/**
+ * (sector-fixes S, Michael 2026-10-22: "a security room with a guard watching the cameras. You can take him out and shut
+ * off cameras") Station 3's security room in the void's north-east corner, entered from the far lobby through a plain
+ * door in the cross wall `S3_HALL.x1` (z `door`), so the first runner still needs the partner's jam (A2). The duty
+ * guard stands at the monitors (a passive training guard, A3); once he is down (knocked out or killed), the console on
+ * the desk sets `S3_CAMS_OFF`, which switches off every camera whose `offFlag` it is (`cam-s3`) until the bay restarts.
+ * An alternative to the second jam, not a replacement: both jams work unchanged (A11). `docs/sector-fixes/s/PLAN.md`.
+ */
+export const S3_SEC_GUARD = 's3-sec-guard';
+export const S3_CONSOLE = 'sw-s3-console';
+export const S3_CAMS_OFF = 'cams-off-s3';
+/** The room's door gap in the far cross wall: its start z and an exact 1.2 m width (no float drift in the builder);
+ *  `S3_SEC_ROOM.door` is the same gap as [start, end], its end written out (9.2 + 1.2 in floats is 10.399...). */
+const S3_DOOR_Z = 9.2;
+const S3_DOOR_W = 1.2;
+export const S3_SEC_ROOM = { x0: bayX(2) + 7.6, x1: S3_HALL.x1, z0: 8, z1: CT_W, door: [S3_DOOR_Z, 10.4] as const } as const;
+/** The duty guard's post: at the desk, facing -x (the monitors on the west wall), his back to the door. On a nav cell
+ *  centre (cell 0.5 m, origin -1: a spawn snaps there), so he stands exactly on it. */
+export const S3_SEC_POST = { x: bayX(2) + 9.25, z: 10.75, yaw: -Math.PI / 2 } as const;
+/** LANTERN's second line as station 3 starts (A10): it names the room (<= 90 characters). */
+export const S3_ROOM_RADIO = 'Security room off the far lobby: down its guard, and his console turns the camera off.';
+const S3_SEC_INFO: GuardInfo = { lines: ['All right! The desk console switches the hallway camera off.'] };
+/** The room's ceiling panel (on the cell's circuit: electric, destructible, as the other station 3 lamps). */
+const S3_ROOM_LAMP = { x: bayX(2) + 10.6, z: 11.0, intensity: 0.8, radius: 6 };
+
 const SECURITY: SecurityData = {
-  devices: [{ id: 'cam-s3', kind: 'camera', level: 'ground', at: [S3_CAMERA.x, S3_CAMERA.z], y: S3_CAMERA.y, aim: S3_CAMERA_AIM, facing: S3_CAMERA.facing, sweep: S3_CAMERA.sweep, reason: 'Training camera for the jam handoff hallway' }],
+  devices: [{ id: 'cam-s3', kind: 'camera', level: 'ground', at: [S3_CAMERA.x, S3_CAMERA.z], y: S3_CAMERA.y, aim: S3_CAMERA_AIM, facing: S3_CAMERA.facing, sweep: S3_CAMERA.sweep, reason: 'Training camera for the jam handoff hallway', offFlag: S3_CAMS_OFF }],
 };
 
 /**
@@ -168,10 +193,12 @@ export const GUARD_SLOT = 's1-guard';
 export const GUARD_INFO: GuardInfo = {
   lines: ['Easy! There is a medkit on the north wall of the annex.', 'And one on the north side, before the last wall. That is all I know.'],
 };
-if (GUARD_INFO.lines.some((l) => l.length > GUARD_INFO_LINE_MAX)) throw new Error('ctcourse: a guard line is over the radio length');
-/** The training guard's post (bay 1, x 10.5, z 3.2), facing +x (yaw pi / 2: 0 is +z). */
+if ([...GUARD_INFO.lines, ...S3_SEC_INFO.lines].some((l) => l.length > GUARD_INFO_LINE_MAX)) throw new Error('ctcourse: a guard line is over the radio length');
+/** The training guard's post (bay 1, x 10.5, z 3.2), facing +x (yaw pi / 2: 0 is +z). (sector-fixes S) Station 3's duty
+ *  guard in the security room, passive too (A3): he stands his post until he is taken. */
 export const SQUADS: Record<string, SquadSlot> = {
   [GUARD_SLOT]: { kind: 'grunt', x: 10.5, z: 3.2, yaw: Math.PI / 2, passive: true, info: GUARD_INFO },
+  [S3_SEC_GUARD]: { kind: 'grunt', x: S3_SEC_POST.x, z: S3_SEC_POST.z, yaw: S3_SEC_POST.yaw, passive: true, info: S3_SEC_INFO },
 };
 
 /** The exit zone (G138, last bay): both players inside ends the course. */
@@ -225,6 +252,7 @@ export const RADIO_ENTER: readonly string[] = [
 export const GATE_RADIO: Readonly<Record<string, string>> = {
   'g-s2': 'Unbolted. Open the door for your partner.',
   'g-s3': 'Both through. Airlock door unlocked. Open it (A / E).',
+  'g-s3-cams': 'Cameras off. Your partner can walk the hallway.',
   'g-s4': 'Laser down. Both of you through, then onto the airlock pad.',
   'g-s5': 'Plates done. Crouch at the hatch, face it, Co-op (RB / F): lower your partner to hack.',
   'g-s5-grid': 'Grid open. Off the roof, in the front door, through the grid to the airlock.',
@@ -255,7 +283,12 @@ function courseDef(): CourseDef {
       case 3:
         // (marlow-jammer) the airlock's door unlocks once BOTH stand in the far lobby (the pass zone): each one ran the
         // hallway under the other's jam
-        return [{ kind: 'flag', id: 'g-s3', flag: S3_FLAG, doorId: 'A3-near' }];
+        // (sector-fixes S) the security console: a pickup that gates nothing (as the panels); its flag switches the camera
+        // off (`cam-s3.offFlag`). CourseMode refuses it while the duty guard is up (`course.consoles`)
+        return [
+          { kind: 'flag', id: 'g-s3', flag: S3_FLAG, doorId: 'A3-near' },
+          { kind: 'pickup', id: 'g-s3-cams', switchId: S3_CONSOLE, flag: S3_CAMS_OFF, perPlayer: false },
+        ];
       case 4:
         // B4: the partner throw over the laser band; the thrown player's far-side release switches the band off
         return [{ kind: 'pickup', id: 'g-s4', switchId: 'sw-s4-release', flag: S4_FLAG, perPlayer: false }];
@@ -285,12 +318,13 @@ function courseDef(): CourseDef {
       id: `S${n}`,
       entry: n === 1 ? 'start' : `A${n - 1}`,
       exit: n === 8 ? 'end' : `A${n}`,
-      // (PR 3) station 1: the training guard with information
-      squad: n === 1 ? [GUARD_SLOT] : [],
+      // (PR 3) station 1: the training guard with information; (sector-fixes S) station 3: the security room's duty guard
+      squad: n === 1 ? [GUARD_SLOT] : n === 3 ? [S3_SEC_GUARD] : [],
       // one optional panel per station (F1b, Michael's pick): it only says what to do, no gate waits on it
       gates: [...own, { kind: 'pickup', id: `g-p${n}`, switchId: `sw-p${n}`, flag: `panel-${n}`, perPlayer: false }],
       radio: [
         { at: 'enter', text: RADIO_ENTER[n - 1]! },
+        ...(n === 3 ? [{ at: 'enter', text: S3_ROOM_RADIO }] : []),
         ...own.flatMap((g) => (GATE_RADIO[g.id] ? [{ at: g.id, text: GATE_RADIO[g.id]! }] : [])),
       ],
       drills: [],
@@ -386,6 +420,9 @@ export const ctcourse: MapDef = {
         // (M3), so these light the hallway for the players and the meter, not for the camera
         for (const [dx, z, r] of S3_LAMPS) flush(x0 + dx, ceil, LAMP_LOW.intensity, r, z);
         for (const [dx] of S3_LAMPS) ceilingLamps.push(x0 + dx);
+        // (sector-fixes S) the security room's ceiling panel (jammable and shootable like the rest)
+        flush(S3_ROOM_LAMP.x, ceil, S3_ROOM_LAMP.intensity, S3_ROOM_LAMP.radius, S3_ROOM_LAMP.z, PANEL);
+        ceilingLamps.push(S3_ROOM_LAMP.x);
       } else {
         const k = n === 4 ? LAMP_S4 : LAMP_LOW;
         for (const dx of [4, 12.5]) flush(x0 + dx, ceil, k.intensity, k.radius, MID, STRIP, n === 4 ? LASER_RED : WHITE);
@@ -432,8 +469,17 @@ export const ctcourse: MapDef = {
         from = b.boxes.length;
         b.wallX(S3_HALL.wallZ, S3_HALL.x0, S3_HALL.x1, [], ceil, WALL, 0.3);
         b.wallZ(S3_HALL.x0, S3_HALL.wallZ, CT_W, [], ceil, WALL, 0.3);
-        b.wallZ(S3_HALL.x1, S3_HALL.wallZ, CT_W, [], ceil, WALL, 0.3);
+        // (sector-fixes S) the far cross wall has the security room's door; the room's west and south walls close it off
+        // from the rest of the void (to the ceiling, no lip), a lintel over the door to the ceiling
+        const R = S3_SEC_ROOM;
+        b.wallZ(S3_HALL.x1, S3_HALL.wallZ, CT_W, [R.door], ceil, WALL, 0.3);
+        b.box(R.x1, (2.1 + ceil) / 2, S3_DOOR_Z + S3_DOOR_W / 2, 0.3, ceil - 2.1, S3_DOOR_W, WALL);
+        b.wallZ(R.x0, R.z0, R.z1, [], ceil, WALL, 0.3);
+        b.wallX(R.z0, R.x0, R.x1, [], ceil, WALL, 0.3);
         b.mark(from, { noLedge: true });
+        doorFrame(b, R.x1, 0.3, S3_DOOR_Z, S3_DOOR_W);
+        // a plain unlocked door (not a course door: nothing gates it)
+        b.door(R.x1, 0, S3_DOOR_Z, S3_DOOR_W, 0);
       } else if (n === 7) {
         // B7: the 4.4 m wall, 1 m thick (a top to stand on and hold the rope), full width, no door
         b.wallZ(x0 + CT_OBST, 0, CT_W, [], OBST_H[7]!, WALL, 1.0);
@@ -481,6 +527,8 @@ export const ctcourse: MapDef = {
     // 3 Camera hallway (marlow-jammer): the camera device (layout.security) at the hallway's far end; the far lobby (the
     // pass zone) is marked pale blue-grey, not the airlock pads' green (course-ready F5). The old sweep lines are gone.
     mark(b, (S3_PASS.box[0] + S3_PASS.box[2]) / 2, MID, S3_PASS.box[2] - S3_PASS.box[0], 4, S3_PASS_COLOR);
+    // (sector-fixes S) the security console on the room's desk (`ctcourseVariety.securityDesk`), facing the room (+x)
+    devices[S3_CONSOLE] = dev(bayX(2) + 8.55, 11.6, Math.PI / 2, 'Security console: cameras off', 0.9);
 
     // 4 Laser line (B4): the laser band (layout.lasers) across the wall's gap; the release switch is on the far side
     x0 = bayX(3);
@@ -568,13 +616,15 @@ export const ctcourse: MapDef = {
       lasers: [S4_LASER],
       passZones: [S3_PASS],
       scanners: [S6_SCANNERS],
-      course: { def: courseDef(), doors, devices, squads: SQUADS },
+      course: { def: courseDef(), doors, devices, squads: SQUADS, consoles: [{ id: S3_CONSOLE, guard: S3_SEC_GUARD, flag: S3_CAMS_OFF }] },
       // (G3, AUDIT-CAMERA row 1) the yard reads as open (the 2.8 m camera, the whole body in frame); the 6 m airlocks and
       // the roofed annex (under its 4.2 m slab) are tight (1.8 m). Its roof is open again (feet at 4.4).
       camSize: 'open',
       camSpaces: [
         ...Array.from({ length: 7 }, (_, i) => ({ box: [bayX(i) + CT_BAY, 4, bayX(i) + CT_PITCH, 10] as const, size: 'tight' as const })),
         { box: [bayX(4) + CT_OBST, 0, bayX(4) + CT_BAY, CT_W], y: [-1, 3.9], size: 'tight' },
+        // (sector-fixes S) the 5.7 m security room
+        { box: [S3_SEC_ROOM.x0, S3_SEC_ROOM.z0, S3_SEC_ROOM.x1, S3_SEC_ROOM.z1], size: 'tight' },
       ],
     };
   },

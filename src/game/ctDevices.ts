@@ -66,6 +66,7 @@ import {
   type ScanResult,
   type ScannerDef,
 } from './scanners';
+import { cameraOff } from './course/securityRoom';
 
 /** The host's device state for the clients (a field of the `course` / `sector` message): camera clocks, who jams what,
  *  each jammer's use and cooldown, the devices' jam timelines, alarm stage. */
@@ -162,6 +163,9 @@ export interface CtHooks {
   solo?(): boolean;
   /** (B4) Is a course flag set (a laser's release)? */
   has?(flag: string): boolean;
+  /** (sector-fixes S) Is a shared (not per-player) course flag set? Non-allocating: the camera and laser `offFlag`
+   *  checks run it every step / frame (falls back to `has`). */
+  hasShared?(flag: string): boolean;
 }
 
 /**
@@ -185,6 +189,8 @@ export class CtDevices {
   private hudKey = -1;
   /** Aim at a light that is switched off (not jammed): not a target. */
   private readonly skipPick = (t: JamTarget): boolean => {
+    // (sector-fixes S) a camera its security console switched off is no target; an online camera is as before
+    if (t.kind === 'camera') return this.flagOff.has(t.id);
     if (t.kind !== 'light') return false;
     const dv = this.devOf.get(t.id);
     const l = dv?.light;
@@ -230,6 +236,8 @@ export class CtDevices {
   private sentId = '';
   private sentT = 0;
   private camOff = new Set<string>();
+  /** (sector-fixes S) Cameras off by their `offFlag` (a security console), refreshed in `applyJam`. */
+  private readonly flagOff = new Set<string>();
   private cool: { t: number }[] = [{ t: 0 }, { t: 0 }];
   private alarmT = -99;
   private radioT = -99;
@@ -650,7 +658,7 @@ export class CtDevices {
       const dv = tgt !== '' ? this.devOf.get(tgt) : undefined;
       const s = this.jam[i]!;
       // a device that reboots cannot be jammed (A3); a jam keeps its own target (aiming at another one ends it)
-      const ok = !!dv && !this.dead.has(tgt) && dv.d.ph !== DEV_RECOVER && this.inReach(dv.t, r) && (!s.active || tgt === this.jamId[i]);
+      const ok = !!dv && !this.dead.has(tgt) && !this.flagOff.has(tgt) && dv.d.ph !== DEV_RECOVER && this.inReach(dv.t, r) && (!s.active || tgt === this.jamId[i]);
       const on = stepJam(s, ok, r.speed, dt);
       const id = on ? tgt : '';
       if (id !== this.jamId[i]) {
@@ -767,6 +775,7 @@ export class CtDevices {
    * light follows `lightLit` in the registry, which the bake, the light meter and the guards read (light parity).
    */
   private applyJam(): void {
+    const shared = this.hooks.hasShared ?? this.hooks.has;
     for (let k = 0; k < this.devs.length; k++) {
       const dv = this.devs[k]!;
       const c = dv.cam;
@@ -776,7 +785,11 @@ export class CtDevices {
       c.frozen = ph !== DEV_IDLE;
       c.jam = ph;
       c.jamT = dv.d.t;
-      if (ph !== DEV_IDLE || this.dead.has(id)) {
+      // (sector-fixes S) switched off at its security console: off like a dead device until the bay restart clears it
+      const fOff = cameraOff(c.def, shared);
+      if (fOff) this.flagOff.add(id);
+      else this.flagOff.delete(id);
+      if (ph !== DEV_IDLE || this.dead.has(id) || fOff) {
         if (c.mode === 'online') {
           c.setMode('off');
           this.camOff.add(id);
@@ -788,7 +801,7 @@ export class CtDevices {
     }
     for (let i = 0; i < this.lasers.length; i++) {
       const l = this.lasers[i]!;
-      const off = l.def.offFlag !== undefined && !!this.hooks.has?.(l.def.offFlag);
+      const off = l.def.offFlag !== undefined && !!shared?.(l.def.offFlag);
       const on = !off && this.devOf.get(l.def.id)?.d.ph === DEV_IDLE && !this.dead.has(l.def.id);
       if (on === l.on) continue;
       l.on = on;

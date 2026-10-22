@@ -55,8 +55,13 @@ Design authority: docs/DECISIONS.md (G76, G99-G102), then docs/design-bible.md (
 - `game/gadgetSystem.ts` (`GameState.gadgets`): runs first each fixed step with the real input and returns true while the
   wheel or a remote view has it (the rest of the step then gets `blankInp`); `look()` takes the frame's look;
   `frameUpdate` after the player's camera (the remote view owns the camera; arc dots and landing ring).
-- Wheel: hold `gadgetWheel` past `WHEEL_HOLD` (pad D-pad left, KBM Tab); the stick or look picks, release selects; with the vision slot lit, A (pad) / E (keys) is a carousel (night -> thermal -> electro -> night, `VISION_WHEEL`, `SelectionWheel.cycle`), the wheel opens on the current mode, no cursor-length pick;
-  `loop.timeScale` `WHEEL_SLOW` 0.3 unless co-op. Overlay: `ui/hud/gadgetWheel.ts` (wheel-ui: SVG ring segments, the
+- Wheel: hold `gadgetWheel` past `WHEEL_HOLD` (pad LB, KBM Tab), over the live game with no time slow (G181); the stick or look picks, release selects; with the vision slot lit, A (pad) / E (keys) is a carousel (night -> thermal -> electro -> night, `VISION_WHEEL`, `SelectionWheel.cycle`), the wheel opens on the current mode, no cursor-length pick.
+  (sector-fixes W, Michael item 8) The vision slot (`WHEEL_HOME` 0) is the default: lit on open and whenever the cursor
+  is in the dead zone (`wheelSegment`), so LB + A cycles the modes with no stick and no other pick is held. Under the
+  pad the right stick's position is the cursor (`InputState.stick`, dead zone only, no curve or invert;
+  `SelectionWheel.place` + `settle`), not its look rate; a stick back in the centre keeps its slot `WHEEL_LETGO_S`
+  0.08 s (stick and LB let go together still pick it), and A / E with the stick centred is the vision slot at once.
+  The mouse moves the cursor by deltas (`look`); back in the centre it is the vision slot. Overlay: `ui/hud/gadgetWheel.ts` (wheel-ui: SVG ring segments, the
   highlighted one lit and lifted, an inner bar on the current ones, icon + count per item, the vision slot shows the
   mode with an NV / TH / EM row, the item name in the centre disc); its size from `ui/hud/wheelLayout.ts` `fitWheel`
   (130 + 0.36 x height px, centred in the safe area, clear of `.hud-top` and the hint box, which moves under the ring

@@ -56,20 +56,36 @@ function liftBlastFrame(b: LevelBuilder): void {
   for (const z of [4.8, 9.2]) for (let y = 0.3; y < 2.9; y += 0.5) b.box(fx + 0.055, y, z, 0.01, 0.08, 0.6, WHITE, 0, Math.PI / 4, false);
 }
 
-/** S3: the security cell's monitor wall on the south wall (face at z 0.15): six screens showing the camera's feed. */
+/** S3: the security room's west wall (sector-fixes S; face at bay x 7.75, the room east of it). */
+const SEC_FX = bayX(2) + 7.75;
+
+/** S3: the security room's monitor wall (sector-fixes S, A8: moved from the south wall) on its west wall, z 9 - 13: six
+ *  screens showing the camera's feed, the duty guard facing them. */
 function monitorWall(b: LevelBuilder): void {
-  const x0 = bayX(2);
-  const fz = 0.15;
-  onZ(b, fz, 1, x0 + 1.4, x0 + 6.6, 1.0, 2.7, DARK, 0.02);
+  onX(b, SEC_FX, 1, 9.0, 13.0, 1.0, 2.7, DARK, 0.02);
   for (let c = 0; c < 3; c++) {
     for (let r = 0; r < 2; r++) {
-      const sx = x0 + 1.6 + c * 1.7;
+      const sz = 9.15 + c * 1.3;
       const sy = 1.1 + r * 0.8;
-      onZ(b, fz, 1, sx, sx + 1.5, sy, sy + 0.7, SCREEN, 0.05, 0.02);
-      onZ(b, fz, 1, sx + 0.15, sx + 0.15 + 0.4 + 0.3 * ((c + r) % 3), sy + 0.45, sy + 0.5, GLOW, 0.07, 0.005);
-      onZ(b, fz, 1, sx + 0.15, sx + 0.9, sy + 0.2, sy + 0.24, GLOW, 0.07, 0.005);
+      onX(b, SEC_FX, 1, sz, sz + 1.2, sy, sy + 0.7, SCREEN, 0.05, 0.02);
+      onX(b, SEC_FX, 1, sz + 0.1, sz + 0.1 + 0.4 + 0.3 * ((c + r) % 3), sy + 0.45, sy + 0.5, GLOW, 0.07, 0.005);
+      onX(b, SEC_FX, 1, sz + 0.1, sz + 0.85, sy + 0.2, sy + 0.24, GLOW, 0.07, 0.005);
     }
   }
+}
+
+/**
+ * S3: the security room's desk under the monitors (sector-fixes S, A9: collide = false, as the S1 sentry desk), x 52.05 -
+ * 52.65, z 9.9 - 12.1, top 0.73, and the console on it at z 11.6 (the course device `sw-s3-console`), its face to the room.
+ */
+function securityDesk(b: LevelBuilder): void {
+  const x = SEC_FX + 0.6;
+  b.box(x, 0.73, 11.0, 0.6, 0.04, 2.2, '#4a4f55', 0, 0, false);
+  for (const dz of [-1.05, 1.05]) b.box(x, 0.36, 11.0 + dz, 0.56, 0.71, 0.04, '#2f3338', 0, 0, false);
+  // the console: a sloped key panel with a lit strip, and the duty log
+  b.box(x + 0.15, 0.8, 11.6, 0.22, 0.1, 0.5, '#2f3338', 0, 0, false);
+  b.box(x + 0.265, 0.8, 11.6, 0.005, 0.05, 0.4, GLOW, 0, 0, false);
+  b.box(x + 0.05, 0.76, 10.5, 0.22, 0.02, 0.3, WHITE, 0, 0, false);
 }
 
 /**
@@ -187,6 +203,7 @@ export function buildVariety(b: LevelBuilder, ceil: readonly number[], stairZ: n
   sentryDesk(b);
   liftBlastFrame(b);
   monitorWall(b);
+  securityDesk(b);
   for (let i = 0; i < 7; i++) {
     const x0 = bayX(i);
     // the south pockets are plant rooms: their faces in the cell before (not S5's: that face is inside the kill-house's

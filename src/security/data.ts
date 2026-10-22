@@ -23,6 +23,8 @@ export interface CameraDevice {
   /** (sector-fixes C, item 3) Its detection range (m, at most `CAMERA.range`; none = `CAMERA.range`): the section in
    *  front of it that it monitors. Detection and the cue both read `camRange`. */
   range?: number;
+  /** (sector-fixes S) A course flag that switches the camera off until the bay restarts (a security room's console). */
+  offFlag?: string;
 }
 
 export type SecurityDevice = CameraDevice;

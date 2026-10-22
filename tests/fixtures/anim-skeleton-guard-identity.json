@@ -5,7 +5,7 @@
  },
  "grunt:walk": {
   "steps": 90,
-  "rig": "f409abdfae5c48b4"
+  "rig": "560d1a3bc446d411"
  },
  "grunt:dash": {
   "steps": 90,
@@ -17,7 +17,7 @@
  },
  "grunt:aimWalk": {
   "steps": 90,
-  "rig": "e40f58e0524488a7"
+  "rig": "1920567d81140d58"
  },
  "grunt:climb": {
   "steps": 120,
@@ -37,7 +37,7 @@
  },
  "runner:walk": {
   "steps": 90,
-  "rig": "870e65310f86915b"
+  "rig": "d6a9454abf62fe00"
  },
  "runner:dash": {
   "steps": 90,
@@ -49,7 +49,7 @@
  },
  "runner:aimWalk": {
   "steps": 90,
-  "rig": "65118533c8182775"
+  "rig": "6f70a107541788ba"
  },
  "runner:climb": {
   "steps": 120,
@@ -69,7 +69,7 @@
  },
  "heavy:walk": {
   "steps": 90,
-  "rig": "d7aa1b10a6d1fcef"
+  "rig": "78931b58c54c7089"
  },
  "heavy:dash": {
   "steps": 90,
@@ -81,7 +81,7 @@
  },
  "heavy:aimWalk": {
   "steps": 90,
-  "rig": "8997568663da7683"
+  "rig": "2ccd3a2a39b60bdb"
  },
  "heavy:climb": {
   "steps": 120,
@@ -101,7 +101,7 @@
  },
  "sniper:walk": {
   "steps": 90,
-  "rig": "9041bd8166482fb1"
+  "rig": "617ea89c46c00d60"
  },
  "sniper:dash": {
   "steps": 90,
@@ -113,7 +113,7 @@
  },
  "sniper:aimWalk": {
   "steps": 90,
-  "rig": "522dedda5a8d49f5"
+  "rig": "f6dc4419cdad8620"
  },
  "sniper:climb": {
   "steps": 120,
@@ -133,7 +133,7 @@
  },
  "enforcer:walk": {
   "steps": 90,
-  "rig": "6714643272f55d3e"
+  "rig": "9afafd53f96ee28c"
  },
  "enforcer:dash": {
   "steps": 90,
@@ -145,7 +145,7 @@
  },
  "enforcer:aimWalk": {
   "steps": 90,
-  "rig": "5095f29cf54af281"
+  "rig": "9519c69c1c0f7e9f"
  },
  "enforcer:climb": {
   "steps": 120,
@@ -165,7 +165,7 @@
  },
  "dog:walk": {
   "steps": 90,
-  "rig": "87cfb1edaae8bdb8"
+  "rig": "36f3bb8cb08d128e"
  },
  "dog:dash": {
   "steps": 90,
@@ -177,7 +177,7 @@
  },
  "dog:aimWalk": {
   "steps": 90,
-  "rig": "a9086d9195884828"
+  "rig": "d5f627de3245d3ec"
  },
  "dog:climb": {
   "steps": 120,
@@ -197,7 +197,7 @@
  },
  "droneOp:walk": {
   "steps": 90,
-  "rig": "0bfea9443fbb41aa"
+  "rig": "ded1e35617eaa9ff"
  },
  "droneOp:dash": {
   "steps": 90,
@@ -209,7 +209,7 @@
  },
  "droneOp:aimWalk": {
   "steps": 90,
-  "rig": "0e312d9dcdef422e"
+  "rig": "884a130278b97323"
  },
  "droneOp:climb": {
   "steps": 120,
@@ -229,7 +229,7 @@
  },
  "officer:walk": {
   "steps": 90,
-  "rig": "f387f83884137796"
+  "rig": "6dfe52861ce4aca2"
  },
  "officer:dash": {
   "steps": 90,
@@ -241,7 +241,7 @@
  },
  "officer:aimWalk": {
   "steps": 90,
-  "rig": "1e6a2cbe8665643e"
+  "rig": "78df955755321f14"
  },
  "officer:climb": {
   "steps": 120,
