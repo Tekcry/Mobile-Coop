@@ -1,11 +1,28 @@
 # sector-redesign - state
 
-## Resumed (2026-10-23 ~08:40, new account)
-- #184 part 1 MERGED (master 4.68.0, train 19). Every in-flight item was committed and pushed before the swap: S2 f5422070
-  (this branch), S3 66287baa (-s3), E5 417c7560 (-e5), int b71a9894 (-int). No reruns needed.
-- Running: 3 Opus checkers (S2 -> checks/slice2-check.md here, S3 -> -s3 checks/slice3-check.md, E5 -> -e5 checks/e5-check.md).
-  Cap 3 agents (orchestrator). Window: 0% at 08:35, resets 13:30, pace to ~99%.
-- Laptop runs go to "Night Shift | Character Build [06fe56]" ([d57b71] is stale); its queue: #186 ctcourse, train 20, then ours.
+## Now (2026-10-23 ~09:35, window ~70%+, resets 13:30)
+- feature/sector-redesign @ 4def7d24+ holds master 4.68.0 + S2 + S3 + int (E1/E3/E4) + E5 + lips join. Checkers: S2 PASS;
+  S3 FIX -> fixed (A70 spandrel 6.2, A64 test rewritten, worst 6); E5 FIX -> fixed (door-side legs, doorway-clear wait);
+  merges per checks/merge-e5.md and the S3 checker's merge notes (C2 far door on S3's L1 wall, routes via S3_ENTRY).
+  tsc + 191 campus / sector tests pass. BRIEF A71-A77 added (S2 L-numbers). Lips: one list in campusLips.ts.
+- e2e: e2e-sectorops 1-5 PASS (desktop GPU, b550cc2a, 322 s). run-e2e.mjs PARTS never listed sectorops part 6 (campus):
+  fixed 4def7d24. Laptop (Character Build [06fe56], 4192, GPU): e2e-coop, e2e-netmove, e2e-ctcourse, e2e-sectorops:6
+  at 4def7d24, queued after guard-ai; verdict to us + orchestrator.
+- E6 security desk BUILT: feature/sector-redesign-e6 @ bdd8b23b (checks/e6-desk.md, S1-S9; 17 new tests; touches
+  src/net/coopClient.ts: client reads desk mode from the mirrored console label, no protocol change). Owed: Opus checker,
+  then merge + coop / netmove e2e.
+- S4 / S5 briefs: Opus planner writing briefs/SLICE4.md + SLICE5.md (in this worktree, uncommitted until it hands back).
+  Then Sonnet builders on feature/sector-redesign-s4 / -s5 (worktrees off this branch, node_modules junction).
+- Polish adds: A77 kp-fac can now be built (E1 merged); S3 R1-R4 (CR3 payoff, clean-room reason, #1 soft choke, CR3 /
+  leg-up e2e probes); S2 checker polish 1-7; K2 landing downlight; lamp 58 switch.
+- Orchestrator rules now: as many agents as the work splits into, unless desktop CPU > 90%; push WIP + refresh this file
+  after every hand-back; single GPU suites on the desktop lanes only when CPU allows; coop / netmove / ctcourse on the laptop.
+
+## Next (in order)
+1. S4 / S5 briefs land -> commit; start Sonnet builders S4 (-s4) and S5 (-s5) in parallel; Opus checker on E6.
+2. Laptop verdict -> if green: list campusOps (remove the A68 filter in missionsScreen.ts, add to LISTED_MAP_IDS), PR 2
+   (slices 2-3 + E1/E3/E4/E5 + lips) to master; message the orchestrator. E6 joins PR 2 if its checker + coop e2e pass in time.
+3. S4 / S5 checkers (Opus), fix rounds, merge (guard-render gates the 20 / 24 awake budget; A64 + dormant tags until then).
 
 ## Now (2026-10-23 ~08:15, SAVED at ~80% for Michael's account swap)
 - PR #184 (part 1 = slices 0 + L + 1) open from feature/sector-redesign-p1 @ d21399f5, in train 19 with #180 (orchestrator).
