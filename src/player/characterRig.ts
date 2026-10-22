@@ -2033,8 +2033,11 @@ export class CharacterRig {
     if (this.emoteW === 0) this.lastFk = null;
     this.switchFade(dt);
     // (anim-skeleton S2) the hands' fingers and this window's goggle offsets, for the figure
-    this.fingerFrame();
-    this.goggleFrame();
+    // (guard-render S5 L6) only the operator figure reads them; a guard rig (`guardRows`, no tuner rows) has none
+    if (this.guardSt === null || this.tuneSt !== null) {
+      this.fingerFrame();
+      this.goggleFrame();
+    }
     for (let k = 0; k < this.onPosed.length; k++) this.onPosed[k]!();
   }
 
