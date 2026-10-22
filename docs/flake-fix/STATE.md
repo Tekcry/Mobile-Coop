@@ -31,6 +31,13 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   takedown ct-warehouse coop); verdicts to Course Ready + orchestrator.
 - Guard-cap c707f7e4 (G1-G6 in): queued alone on 4189 when both slots idle (queue-1023b.sh) -> outputs copied to
   scratch/work/guardcap-c707f7e4; then fill docs/guard-cap/REPORT.md on feature/guard-cap and PR.
+- PROGRESS ~01:45: PRs OPEN #171 net, #172 ui1, #173 ui2 (+ GPU governor check, orchestrator-approved, 3d48eafc),
+  #174 coop, #175 chores 13 (net / coop / chores merge after #170). Mediums proof da58a7f5 17/17 JOBS=5 370 s.
+  g44-above d004c53d GREEN (reported). sw-reload 890e8a05 = baseline only (Course Ready is fixing pwa.ts; rerun the same 4
+  suites on their fixed commit). Guard-cap rebased on 4.64.0 -> e2123367, runs on 4189 when both slots idle
+  (runs/guardcap-e2123367, outputs scratch/work/guardcap-e2123367) -> numbers to orchestrator + Course Ready (Sector Ops
+  redesign, up to 24 guards per section), then REPORT.md + PR. Train 16 (#168 + #169 + #170) next: full JOBS=3, then the
+  JOBS=5 trial on the next master.
 - schtasks creation is BLOCKED in this session (auto mode): runs are session-bound background commands and die on a swap.
   On resume check runs/<label>/summary.txt for DONE; a run without DONE died: rerun it.
 - Train 15 e1050e14: 38/39 GPU JOBS=5, 349 s; e2e-coop FAIL "client takedown offered on the host's guard (offer none)"
