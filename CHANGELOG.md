@@ -1,5 +1,80 @@
 # Changelog
 
+## 4.63.1 - Train 14: Load-proof heap check, faster e2e start order (2026-10-23, PR #166; #163, #165)
+
+### E2E start order
+- Tests: `scripts/e2e-times.json` refreshed from a full laptop GPU run (adds e2e-sectorops and its parts, e2e-studio,
+  e2e-tuner-phone; e2e-anim 5 s -> 37 s), and a suite with no recorded time now sorts at the median known time instead
+  of 0, so a new or renamed suite no longer starts last at E2E_JOBS=5 and sets the tail.
+
+### lightField allocation check holds under load
+- Tests only: the shared allocation helper (`tests/helpers/allocPerCall.ts`) tiers code up synchronously
+  (`--no-concurrent-recompilation`, `--no-concurrent-osr`), so every heap check reads the optimized code on any machine
+  instead of whatever tier a starved background compiler had reached. lightField "allocation-free under a loop" now
+  reads levelAt 32.0, bodyLevel 64.8 (was 100-127 B in Sparkplug against its 128 B limit), control 272.0 B every run;
+  same asserts and limits. `ALLOC_TRACE=1` logs each round with its optimization tier.
+
+## 4.63.0 - Train 13: Sector Ops co-op routes and team doors, fence rattle test, decisions G270-G275 (2026-10-23, PR #164; #144, #161, #162)
+
+### e2e-ct: the fence rattle check latches its noise samples
+- Tests: e2e-ct's fence rattle checks no longer read the noise once after the climb. The noise model re-samples
+  every 0.25 s of sim time and holds the value in between; with the sampler's phase set by the real-time steps before
+  the suite takes the loop over, the one read could land on a sample taken in the step after the stick was released
+  (0.00 m in train 11 at `E2E_JOBS=3`). A new `runNoise` steps the window one 60 Hz step at a time and latches every
+  sample taken inside it: gear 4's loudest sample must reach 3.9 m and gear 3's loudest must stay under 0.5 m, each
+  with at least one (gear 3: two) samples. The limits and the climb-rise check are unchanged.
+
+### Decisions fold G270-G275
+- docs/DECISIONS.md: roadmap decisions of 2026-10-22 ~22:32 to 2026-10-23 ~00:10 folded in as G270-G275.
+- docs/design-bible.md: dated notes at D2 (pelvis bob), 5.12 (captured data) and Marlow Yard pointing at G271-G273.
+
+### sector-fixes R: co-op-only routes and team doors (track A)
+- Sector Ops Warehouse: co-op-only routes, each a 4.4 m lip (out of solo reach, inside the leg-up) with the partner
+  following by relay or the two-person rope. Section 1: the AHU service door high in the yard facade onto the plant
+  deck, and the goods-in hoist monorail over the checker (the two east-lane loads by it are now 2.0 m stacks you cannot
+  climb alone). Section 2: rack row R3 rebuilt as high-bay (4.4 m tops, its rolling ladder gone), R3S reached from the
+  east gangway: a vantage over the lane, A3 and the picker; (Michael, "Add another") the old dispatch landing on the x -4
+  wall over the east gangway, a second leg-up route (a vantage and a hang-drop onto the picker). Section 3: the sprinkler zone-valve platform (a way onto the
+  5.0 m main) and the crane drive platform over the CNC supervisor (hang-drop).
+- Team doors: one door per section bolted from one side (section 1 the mess back door, section 2 the VNA aisle escape
+  gate, section 3 the plant room's lobby door). Only a player on the far side gets "Unbolt"; it opens for both; a
+  checkpoint restart bolts it again. Host-authoritative, no wire change (protocol stays 28).
+- A player downed on a co-op-only top cannot be revived there; the checkpoint respawn takes over (PLAN A3).
+- (e2e fix) Section 3's two platforms sit under raised roof hoods, so you can climb up onto them (the roof left too little
+  room). Section 1's single east-lane pallet is now an empty pallet: a running jump or a mantle off the old one got a
+  player alone onto the stacks by the monorail. `run-e2e.mjs`: a named suite with parts (`e2e-sectorops`) now runs as its
+  parts.
+
+## 4.62.0 - Train 12: Co-op holders, mantle drop roll and brace, holds that breathe, co-op offer test fix (2026-10-23, PR #160; #119, #158)
+
+### anim-natural N4b (track A: co-op holders, traversal, holds)
+- Co-op team moves: the partner who helps is no longer a statue. Leg-up: cupped hands take her foot, he dips, then drives
+  up with legs and arms while she pushes off his hands. Throw: he loads and throws with his whole body. Hang-down: his
+  hands hold her ankles, leaning back or bending over the edge with the depth. Rope: both hands on the rope, leaning
+  back against her weight. Animation only (no timing, position or protocol change).
+- Mantle: both hands plant on the top edge and she presses over them. Drops: a step off with the arms up for balance, the
+  legs ahead in the air, and a landing that bends more for a longer drop. Roll: a grounded shoulder roll instead of an
+  airborne somersault (slower hands, the slung rifle swings far less). Split brace: hands braced on the walls instead of
+  arms straight out.
+- Holding a guard still: she braces, breathes and shifts her weight against him (the trunk no longer stays at 0 deg).
+  Animation tuner (Holds and carries): brace, brace roll and breath sliders; they bake. Anim Studio: the hold walks
+  travel with planted feet instead of sliding on the spot.
+- (PR fix) Letting go of a ladder, a drainpipe or a hang, the legs stay under her in the fall (the legs-ahead air pose is
+  for walking off a ledge or a jump; off a ladder it went into the wall). The split brace's breath runs from the moment
+  she braces, so the partner's copy breathes in step with her.
+- (PR fix 2) Stepping onto a ladder from its top no longer sinks her legs 30 cm through the rim (the mantle's hand plant
+  is off for that backward climb-on). A landing or forward roll needs 0.9 m clear past its end (was 0.4): the shoulder
+  roll's dive put her head 30 cm into the wall after the vent drop; with less room she lands without the roll.
+- (Train 8 fix) A co-op holder's braced pose (boost, throw, hang-down, rope) no longer counts as a hostage hold: the hold
+  Body rows and the hold camera stay off it, as before the team pose. In the Anim Studio, a paused scrub of a team pair
+  shows that phase's team pose at once (it kept the weight it was paused at).
+
+### Coop offer under load
+- Tests: e2e-coop's client takedown holds under load. The host keeps the picked guard pinned (calm, still, the client
+  unspotted) on every frame until the takedown starts, and the client starts it in the frame its offer comes up
+  within 6 s of its own match clock (was 40 polls 150 ms apart in real time, which a loaded page spent in a fraction
+  of that game time). The assert is unchanged.
+
 ## 4.61.0 - Train 8: Wren's body moves with the gait, feet in turns, Sector Ops strip-light fog fix (2026-10-22, PR #157; #138, #156)
 
 ### Wren's feet in turns (anim-natural N1)

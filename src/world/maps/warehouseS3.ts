@@ -55,6 +55,47 @@ export const S3_SWITCHES: NonNullable<MapLayout['switches']> = [
 
 export const S3_PICKUPS: NonNullable<MapLayout['pickups']> = [{ pos: new Vector3(-3.4, 0, 3.0), kind: 'ammo' }];
 
+/**
+ * (sector-fixes R3, docs/sector-fixes/r/R3.md) Section 3's co-op-only routes. Plan boxes [x0, x1] x [z0, z1], slab tops (m).
+ * - `valve`: the hall main's zone-valve platform in the east bay, hung from the roof beside the main; its fixed ladder is
+ *   gone (the bay is the forklift lane; fitters bring the scissor lift). Leg-up from the bay floor onto its 4.4 m lip, the
+ *   partner by the relay or the rope; from its west lip a jump up to the main (0.4 m across, 0.6 m up), then north to the
+ *   deck strip by the production office window. Railed on the south (the lamp under it).
+ * - `drive`: the crane bridge's drive platform at mid-span (motor and gearbox), hung on the bridge's east side over the
+ *   CNC cell, no ladder (scissor lift). Leg-up from the floor; the supervisor's CNC post is under its east lip (a hang-drop);
+ *   the CNC cell's sprinkler `branch` off the main ends over that lip (a jump up, then east to the main). Railed on the
+ *   west (the lamp under it).
+ * Both are co-op-only from the hall floor (nothing a player alone stands on within reach) and reached alone only along the
+ * main (the plant-room roof or the deck's north end): the way back for a reviver, and down: let go of any lip (4.4).
+ * (sector-fixes-r e2e fix) The hall roof is at 6.03: 1.63 m over a 4.4 top, and a climb-up off a lip needs a standing
+ * body's room over the top (`AttachController.climbRoom`, `MOVEMENT.standHeight` 1.75; the e2e hung on the lip with
+ * `canClimb` false). So the roof over each platform is cut open and closed by a raised hood (`S3_ROOF_HOODS`, underside
+ * `hoodUnder` 6.3: 1.9 m of room), the roof-ventilator upstand the fitters reach the valve and the drive under, as section
+ * 1's weather hood over the plant-room door.
+ */
+export const S3_COOP = {
+  valve: { x0: 17.4, x1: 18.6, z0: 4.0, z1: 5.5, top: 4.4 },
+  drive: { x0: 11.3, x1: 12.3, z0: 4.4, z1: 6.0, top: 4.4 },
+  branch: { x0: 12.45, x1: 17.0, z: 5.3, y: 5.0 },
+  /** The team door: the plant room's service door into the fire-exit lobby (a 1.2 gap in the z -5.6 wall). */
+  lobbyDoor: { x0: 22.6, x1: 23.8, z: -5.6, w: 1.1 },
+  /** (sector-fixes-r e2e fix) The underside of the hoods over the two platforms (m). */
+  hoodUnder: 6.3,
+} as const;
+
+/** (sector-fixes-r e2e fix) The holes in the hall roof [x0, x1, z0, z1] under the hoods: each platform's footprint. */
+export const S3_ROOF_HOODS: readonly (readonly [number, number, number, number])[] = [S3_COOP.valve, S3_COOP.drive].map((p) => [p.x0, p.x1, p.z0, p.z1] as const);
+
+/**
+ * (sector-fixes R3, the team-door contract in docs/sector-fixes/r/PLAN.md) The plant room's service door into the fire-exit
+ * lobby, barrel-bolted on the lobby side (the exit lobby is never a way into the plant; the engineer uses the hall doors).
+ * `at` the door's plan centre, `side` toward the lobby (the side that unbolts it). One drops in by the lobby roof hatch or
+ * comes by the fire door and unbolts it for the partner in the plant room (the duct route's way out past the tour guard).
+ */
+export const S3_BOLTS: readonly { at: [number, number]; side: [number, number] }[] = [
+  { at: [(S3_COOP.lobbyDoor.x0 + S3_COOP.lobbyDoor.x1) / 2, S3_COOP.lobbyDoor.z], side: [0, -1] },
+];
+
 /** Nav seeds: the deck, the office, the deck strip, the walkway, the lobby and plant roofs, the plant room, the lobby, the cage, the parts store, the press and forklift tops. */
 export const S3_NAV_SEEDS: Vector3[] = [
   new Vector3(10, 3.3, 14.0),
@@ -221,11 +262,16 @@ export function buildAssemblyS3(b: LevelBuilder): void {
   // ---- 2.5 the plant room
   b.wallZ(16, -5.6, -1.0, [[-3.85, -2.75]], 3.6, WALL, T);
   b.wallX(-1.0, 15.85, 24, [[19.4, 20.6]], 3.6, WALL, T); // (a 1.2 gap round the 1.1 leaf: a nav cell fits, see the production office door)
-  b.wallX(-5.6, 15.85, 24, [], 3.6, WALL, T);
+  // (R3) the south wall's service door into the lobby (the team door, S3_BOLTS): a 1.2 gap round the 1.1 leaf
+  const ld = S3_COOP.lobbyDoor;
+  b.wallX(ld.z, 15.85, 24, [[ld.x0, ld.x1]], 3.6, WALL, T);
   lintel(b, 16, 2.85, -3.3, T, 1.5, 1.1);
   lintel(b, 20.0, 2.85, -1.0, 1.2, 1.5, T);
+  lintel(b, (ld.x0 + ld.x1) / 2, 2.85, ld.z, ld.x1 - ld.x0, 1.5, T);
   b.door(16, 0, -3.85, 1.1, 0, { swing: 1 });
   b.door(19.45, 0, -1.0, 1.1, PI / 2, { swing: -1 });
+  // bolted on the lobby side; swings into the plant room's empty south-east corner
+  b.door((ld.x0 + ld.x1) / 2 - ld.w / 2, 0, ld.z, ld.w, PI / 2, { swing: -1, locked: true, breachable: false });
   p0 = b.boxes.length;
   plate(b, 15.85, 24, -5.75, -0.85, 3.8, 0.2, [[20.55, 21.45, -2.45, -1.55]], ROOF);
   ov(p0);
@@ -318,6 +364,55 @@ export function buildAssemblyS3(b: LevelBuilder): void {
   ];
   b.duct(path, inGrate, outGrate);
   b.duct([...path].reverse(), outGrate, inGrate);
+
+  // ---- (sector-fixes R3) co-op-only routes (S3_COOP): two hung platforms with 4.4 m lips over open floor and the branch line.
+  // The slabs are overhead (the floor under them stays open to the nav grid and every guard walks under); the rails are
+  // solid (they cut the lip on that side) and carry no lips; the rods, valve, motor and brackets are visual.
+  const hung = (p: { x0: number; x1: number; z0: number; z1: number; top: number }): void => {
+    const cx = (p.x0 + p.x1) / 2;
+    const cz = (p.z0 + p.z1) / 2;
+    p0 = b.boxes.length;
+    b.box(cx, p.top - 0.15, cz, p.x1 - p.x0, 0.3, p.z1 - p.z0, GRATE);
+    ov(p0);
+    const hu = S3_COOP.hoodUnder;
+    for (const [x, z] of [[p.x0 + 0.1, p.z0 + 0.1], [p.x1 - 0.1, p.z0 + 0.1], [p.x0 + 0.1, p.z1 - 0.1], [p.x1 - 0.1, p.z1 - 0.1]] as const) b.box(x, (p.top + hu) / 2, z, 0.04, hu - p.top, 0.04, STEEL, 0, 0, false);
+    // (sector-fixes-r e2e fix) the hood over the roof's hole (S3_ROOF_HOODS; the roof panels and sheets are cut round it):
+    // upstands from the roof line (6.03) to the lid, the lid's underside at `hoodUnder` 6.3 (a standing body's room over
+    // the 4.4 top, for the climb-up); solid and drawn, so it closes the hole for the light bake as the roof did
+    const W = 0.1;
+    p0 = b.boxes.length;
+    b.box(p.x0 - W / 2, (6.03 + hu) / 2, cz, W, hu - 6.03, p.z1 - p.z0 + 2 * W, ROOF);
+    b.box(p.x1 + W / 2, (6.03 + hu) / 2, cz, W, hu - 6.03, p.z1 - p.z0 + 2 * W, ROOF);
+    b.box(cx, (6.03 + hu) / 2, p.z0 - W / 2, p.x1 - p.x0, hu - 6.03, W, ROOF);
+    b.box(cx, (6.03 + hu) / 2, p.z1 + W / 2, p.x1 - p.x0, hu - 6.03, W, ROOF);
+    b.box(cx, hu + 0.1, cz, p.x1 - p.x0 + 2 * W, 0.2, p.z1 - p.z0 + 2 * W, ROOF);
+    b.mark(p0, { overhead: true, noLedge: true });
+  };
+  // (sector-fixes-r CI fix, train 11 voxelFit) a rail is an undrawn blocker (it cuts the lip and stops a body) plus the
+  // drawn rail: no cover faces up there (no guard reaches a co-op-only top), and the 4 cm blocker stays out of the voxel fit
+  const rail = (cx: number, cz: number, sx: number, sz: number, y: number): void => {
+    p0 = b.boxes.length;
+    b.box(cx, y + 0.5, cz, sx, 1.0, sz, HAZARD, 0, 0, true, false);
+    b.mark(p0, { noLedge: true, overhead: true });
+    b.box(cx, y + 0.5, cz, sx, 1.0, sz, HAZARD, 0, 0, false);
+  };
+  // the zone-valve platform beside the main (east bay): rail on the south (the lamp at (18.0, 4.0, 3.5) is under that edge)
+  const vp = S3_COOP.valve;
+  hung(vp);
+  rail((vp.x0 + vp.x1) / 2, vp.z0 + 0.04, vp.x1 - vp.x0, 0.04, vp.top);
+  b.box(17.35, 5.0, 4.75, 0.7, 0.1, 0.1, PIPE, 0, 0, false); // the valve's tee off the main
+  b.box(17.7, 4.75, 4.75, 0.12, 0.5, 0.12, PIPE, 0, 0, false);
+  b.box(17.7, 4.7, 4.75, 0.3, 0.04, 0.3, BEAM, 0, 0, false); // the handwheel
+  // the crane bridge's drive platform (mid-span, east of the girder at x 11): rail on the west (the lamp at (11.0, 3.6, 5.5))
+  const dp = S3_COOP.drive;
+  hung(dp);
+  rail(dp.x0 + 0.04, (dp.z0 + dp.z1) / 2, 0.04, dp.z1 - dp.z0, dp.top);
+  b.box(11.75, 4.75, 5.6, 0.6, 0.7, 0.5, BEAM, 0, 0, false); // the drive motor and gearbox
+  for (const z of [dp.z0 + 0.3, dp.z1 - 0.3]) b.box(11.25, 4.7, z, 0.1, 0.6, 0.08, BEAM, 0, 0, false); // the brackets off the girder
+  // the CNC cell's sprinkler branch off the main, ending over the drive platform's east lip
+  const br = S3_COOP.branch;
+  b.pipeH(br.x1, br.z, br.x0, br.z, br.y, PIPE);
+  b.box(12.6, 4.85, br.z, 0.04, 0.3, 0.04, PIPE, 0, 0, false); // its end drop and sprinkler head
 
   // ---- lights (sector-fixes L: by room, `S3_LAMPS`)
   addLampRooms(b, S3_LAMPS);

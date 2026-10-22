@@ -6,7 +6,8 @@ import { WALL, WALL_LOOK_PITCH, WALL_SUB, WALL_TURN, wallHandPoint, wallHeadYaw,
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { muzzleBlock } from '../player/wallBlock';
 import { PhysicsRaycastResult, Vector3, type PhysicsEngine } from '../core/babylon';
-import type { CharacterRig } from '../player/characterRig';
+import type { CharacterRig, RigPose } from '../player/characterRig';
+import { newTeamPoseIn, teamPoseOfWire, TeamPoser } from '../anim/clips/team'; // (anim-n4b, track A)
 import type { OperatorFigure } from '../operators/runtime/figure';
 import { loadPlayLods, operatorRig, partnerFigureFrame } from '../operators/runtime/playerFigure';
 import { avatarFactory } from '../cosmetics/avatarFactory';
@@ -137,6 +138,9 @@ export class RemoteAvatar {
   /** Seconds the remote has held still on its anchor (settling onto the owner's grips waits for it). */
   private stillT = 0;
   private carryW = { low: 1, high: 0, compressed: 0 };
+  /** (anim-n4b, track A) The co-op team pose from its MoveState (and our side of the move, `TEAM_LINK`), as the owner's. */
+  private readonly teamPose = new TeamPoser();
+  private readonly teamIn = newTeamPoseIn();
   /** Fire sound hook. */
   onFire: ((cls: string, at: Vector3) => void) | null = null;
 
@@ -495,7 +499,7 @@ export class RemoteAvatar {
       this.airTop = Number.NaN;
     }
     this.landT = Math.max(0, this.landT - dt);
-    this.rig.animate(dt, {
+    const rpose: RigPose = {
       speed: this.speed,
       kneel: this.kneelT > KNEEL_STILL && !tense,
       tense,
@@ -532,12 +536,23 @@ export class RemoteAvatar {
       lean: mp.lean,
       traverse: mp.traverse,
       traverseT: mp.traverseT,
+      // (anim-n4b) the replayed move's geometry: the mantle's hand plant on the edge
+      traverseH: rp ? rp.c.top - rp.c.y0 : 0,
+      traverseD: rp ? hyp2(rp.c.x1 - rp.c.x0, rp.c.z1 - rp.c.z0) : 0,
       // (anim-joints J2, A6) the partner's own team role (its move mode and sub on the wire): the tuner's team rows
       tuneTeam: mv ? teamRowOfWire(mv.m, mv.sub) : '',
       melee: mp.melee,
       bend: this.cqBend,
       bendDrop: this.cqDrop,
-    });
+    };
+    // (anim-n4b, track A) a team move: the holder's working body / the leg-up's push, from the same state as the owner's
+    teamPoseOfWire(mv && !rp ? mv.m : '', mv ? mv.sub : 0, mv ? mv.s : 0, mv ? mv.ph : 0, this.info.id, this.teamIn);
+    this.teamPose.begin(dt, this.teamIn, rpose, this.rig);
+    try {
+      this.rig.animate(dt, rpose);
+    } finally {
+      this.teamPose.end(this.rig);
+    }
     // (3.2.0 phase 3) on a rope: draw it from the anchor to the harness
     const ra = mv?.m === 'rappel' ? this.world.level.anchors.all[mv.a] : null;
     if (ra && ra.kind === 'rappel') {

@@ -1,6 +1,7 @@
 import { Color3, CreateBox, StandardMaterial, Vector3, type Mesh, type Scene } from '../core/babylon';
 import { hyp2, hyp3 } from '../core/mathx';
 import type { TeamController } from './teamController';
+import { ropeGripWorld } from '../anim/clips/team';
 
 /** Rope thickness (m) and the holder's hand height above its feet (render only, starting values). */
 const ROPE_W = 0.035;
@@ -32,8 +33,10 @@ export class RopeLine {
     }
   }
 
-  /** Each frame: follow the team controller's rope (hidden when no rope is out on this page). */
-  update(team: TeamController, selfFeet: Vector3): void {
+  /** Each frame: follow the team controller's rope (hidden when no rope is out on this page). (anim-n4b, track A) With
+   *  the holder's facing (`selfYaw` on the holder's page, `partnerYaw` on the climber's) the rope starts in the holder's
+   *  hands as its pose holds them (clips/team.ts `ropeGripWorld`), else at the old hand height over the feet. */
+  update(team: TeamController, selfFeet: Vector3, selfYaw = NaN, partnerYaw = NaN, height = 1.75): void {
     const st = team.state;
     const holder = st === 'ropeOffer' || st === 'ropeHold';
     const climber = st === 'ropeClimb' || st === 'ropeTop' || st === 'ropeSlide';
@@ -46,7 +49,9 @@ export class RopeLine {
       return;
     }
     const r = team.rope;
-    this.from.set(hands.x, hands.y + HAND_Y, hands.z);
+    const yaw = holder ? selfYaw : partnerYaw;
+    if (Number.isFinite(yaw)) ropeGripWorld(hands.x, hands.y, hands.z, yaw, st === 'ropeHold' || st === 'ropeClimb' ? 1 : 0.25, height, this.from);
+    else this.from.set(hands.x, hands.y + HAND_Y, hands.z);
     this.lip.set(r.x, r.edgeY + 0.05, r.z);
     this.foot.set(r.x, r.floorY + 0.02, r.z);
     this.place(this.a, this.from, this.lip);
