@@ -383,12 +383,12 @@ async function securityRoom(x0) {
     e.knockOut({ amount: 100, point: e.pos.clone(), dir: new V(-1, 0, 0), part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: 'local', sourcePos: g.player.position.clone(), impulse: 0, nonLethal: true });
   }, GUARD);
   assert(await GA((s) => !window.__course.squadOf(s).alive, GUARD), 'security room: the guard is down');
-  // pressed again: the cameras go off on both pages, the cue hides, LANTERN's line reaches the client
+  // pressed again: the cameras loop their feed (blind, 'looped', marlow-final N3) on both pages, the cue hides, LANTERN's line reaches the client
   assert((await use(B, CONSOLE)) === 'ok', 'security room: the client presses the console again');
   await until(A, (f) => window.__course.state.hasFlag(f) && window.__course.debug().gates['g-s3-cams'], FLAG, 8000, 'security room: the console sets the flag');
   await until(B, (f) => window.__course.wire.s.flags.includes(f), FLAG, 8000, 'security room: the client has the flag');
-  await until(A, () => window.__ctdev.debug().cams[0].mode === 'off', null, 8000, 'security room: the camera is off (host)');
-  await until(B, () => window.__ctdev.debug().cams[0].mode === 'off', null, 8000, 'security room: the camera is off (client)');
+  await until(A, () => window.__ctdev.debug().cams[0].mode === 'looped', null, 8000, 'security room: the camera feed is looped (host)');
+  await until(B, () => window.__ctdev.debug().cams[0].mode === 'looped', null, 8000, 'security room: the camera feed is looped (client)');
   // the cue fades out over `CUE.fadeOut` (0.35 s): wait past it, then it must be hidden on both pages
   await sleep(600);
   await until(A, cueHidden, null, 3000, 'security room: the camera cue is hidden (host)');
@@ -403,7 +403,7 @@ async function securityRoom(x0) {
     await sleep(300);
     const [a, b] = [await dev(A), await dev(B)];
     if (a.cue[0]?.seen || b.cue[0]?.seen) seen = true;
-    if (a.cams[0].mode !== 'off' || b.cams[0].mode !== 'off') on = true;
+    if (a.cams[0].mode !== 'looped' || b.cams[0].mode !== 'looped') on = true;
   }
   const d1 = await dev(A);
   assert(!seen && !on, `security room: the switched-off camera never sees the client in the hallway (seen ${seen}, back on ${on})`);
