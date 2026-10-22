@@ -37,6 +37,7 @@ import { ARCHETYPE, carriesTorch, glint, heavyMult, shieldBlocks, smellRate, sni
 import { placeTorch } from '../world/torches';
 import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
 import { INCIDENT, MODE_COVER, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT } from './incidents';
+import { P_AGGRESSIVE, P_STANDARD, profileOf, R_FLANK, R_NONE, R_OVERWATCH, R_POINT, R_REPORTER, R_SEARCH, ROLES, Rng, type Role } from './squadRoles';
 import type { GuardInfo } from './guardInfo';
 import type { CallKind } from './radioNet';
 import { LC_DONE, LC_FACE, LightCheck, type LightCheckWalker } from './lightCheck';
@@ -107,6 +108,10 @@ export interface AiContext {
   throwGrenade?(e: Enemy, from: Vector3, to: Vector3): boolean;
   /** This enemy is the one assigned to flank a player holding cover. */
   isFlanker?(e: Enemy): boolean;
+  /** (guard-ai S8) Seed of his combat RNG for the engagement he has just joined (`combatSeed` in squadRoles.ts). */
+  combatSeed?(e: Enemy): number;
+  /** (guard-ai S8) No path to this cover: the role picks skip it for a few seconds. */
+  blockCover?(idx: number): void;
   /** Down (killed or knocked out): the rig becomes a body in the world. */
   addBody(e: Enemy, rig: CharacterRig, impulse: Vector3, lethal: boolean): void;
   bodies(): readonly Body[];
@@ -840,6 +845,8 @@ export class Enemy implements Damageable {
     }
     if (to !== 'investigating') this.lc.stop();
     if (to === 'alert') {
+      // (guard-ai S8) his combat dice for this engagement (seeded per guard per engagement, replayable)
+      this.rng.reseed(this.ctx.combatSeed?.(this) ?? Math.imul(this.num, 2654435761));
       this.meter = 1;
       if (this.state === 'idle') this.setState('chase');
       // a radioed alert is not relayed (no chain across the map). A loud alert (gunfire, a hit) is called in at
@@ -920,7 +927,7 @@ export class Enemy implements Damageable {
     this.alert();
     if (dealt > 35) this.stagger = 0.35;
     // getting shot in the open pushes cover users to find cover
-    if (this.def.usesCover && this.state === 'attack' && Math.random() < 0.5) this.setState('seekCover');
+    if (this.def.usesCover && this.state === 'attack' && this.rng.next() < 0.5) this.setState('seekCover');
     if (!this.health.alive) this.die(h);
     return { dealt, killed: !this.health.alive };
   }
@@ -1387,6 +1394,109 @@ export class Enemy implements Damageable {
     this.onLevel('investigating', to);
   }
 
+  // ---- (guard-ai S8, design 8) squad tactics: the role the manager gives him in an engaged group ----
+  /** Behaviour profile (`P_STANDARD` / `P_AGGRESSIVE` / `P_POST`, squadRoles.ts). Standard by default; S5 posts and S6
+   *  reinforcements set it. */
+  profile = P_STANDARD;
+  /** Role in the engaged group (`R_*`, the manager's 2 Hz `assignRoles`); `R_NONE` outside one, or in the parked
+   *  modes: today's tactics. `R_SEARCH` also keeps today's tactics. */
+  role = R_NONE;
+  /** The cover the role wants (index into `ctx.cover`), -1 none. */
+  private roleCover = -1;
+  /** The group lets him leave cover for it now (one point and one flanker moving at a time). */
+  private roleMoving = false;
+  /** May run (between covers, or aggressive): the e2e / debug read it. */
+  roleRun = false;
+  /** A squadmate (point or flank) is moving: the overwatch suppresses the last known position. */
+  private mateMoving = false;
+  /** The reporter's contact call is still open: he stays down and holds his fire. */
+  private onRadio = false;
+  /** Point with no cover left to bound to: walking the last stretch to the last known position (out of the group;
+   *  the manager clears it when he leaves combat). */
+  closing = false;
+  /** Seeded combat RNG (bursts, strafes, cover-first, spread): reseeded per guard per engagement (`combatSeed`). */
+  readonly rng = new Rng(Math.imul(this.num, 2654435761));
+
+  /** The role's name (tests, e2e, debug). */
+  get roleName(): Role {
+    return ROLES[this.role] ?? 'none';
+  }
+
+  /** The target was in line of sight at the last think (the manager's role input). */
+  get seesTarget(): boolean {
+    return this.los;
+  }
+
+  /** (manager, 2 Hz) This tick's role. No allocation. */
+  setRole(role: number, cover: number, moving: boolean, run: boolean, mateMoving: boolean, onRadio: boolean): void {
+    if (role === R_OVERWATCH && mateMoving && !this.mateMoving && this.alive && this.alerted) this.bark('covering');
+    this.role = role;
+    this.roleCover = cover;
+    this.roleMoving = moving;
+    this.roleRun = run;
+    this.mateMoving = mateMoving;
+    this.onRadio = onRadio && role === R_REPORTER;
+  }
+
+  /**
+   * The role's moves before today's state machine: go to the role's cover when the group lets him (a trip once
+   * started is finished; a standard point bounds only out of sight and after `advanceHold` in cover), and out of sight
+   * in the open wait for the group (no walk-up into the open). Null: today's state machine carries on.
+   */
+  private roleStep(dt: number, toTarget: number): { point: P2 | null; speed: number; face: number | null } | null {
+    if (this.closing) return null;
+    const role = this.role;
+    const c = this.roleCover;
+    const aggressive = this.profile === P_AGGRESSIVE;
+    const there = c >= 0 && c === this.coverIdx && (this.state === 'inCover' || this.state === 'seekCover');
+    const travelling = this.state === 'seekCover' && this.coverPicked;
+    if (c >= 0 && !there && !travelling && this.roleMoving && this.stagger <= 0) {
+      const go = role !== R_POINT || aggressive || (!this.los && (this.state !== 'inCover' || this.stateT >= profileOf(this.profile).advanceHold));
+      if (go && this.boundTo(c, role === R_POINT)) {
+        if (role === R_POINT) this.bark('moving');
+        else if (role === R_FLANK) this.bark('flanking');
+        return { point: null, speed: 0, face: toTarget };
+      }
+    }
+    if (this.los || (this.state !== 'chase' && this.state !== 'idle')) return null;
+    // out of sight in the open: an aggressive point with no cover runs it down; the rest wait for the group
+    if (role === R_POINT && c < 0) {
+      this.closing = true;
+      return null;
+    }
+    this.wantCrouch = this.onRadio;
+    if (role === R_OVERWATCH && this.mateMoving && profileOf(this.profile).suppress) this.suppressLkp(dt);
+    return { point: null, speed: 0, face: toTarget };
+  }
+
+  /** Path to cover `idx`, reserve it and go (`seekCover`); a point's bound is an advance. False: no path (blocked for
+   *  a while) or taken. */
+  private boundTo(idx: number, advance: boolean): boolean {
+    const c = this.ctx.cover[idx];
+    if (!c) return false;
+    const path = this.ctx.nav.findPath([this.pos.x, this.pos.z], [c.pos.x, c.pos.z], 3000, this.pos.y, c.pos.y);
+    if (!path) {
+      this.ctx.blockCover?.(idx);
+      return false;
+    }
+    this.setState('seekCover');
+    if (!this.ctx.reserveCover(this, idx)) return false;
+    this.coverPicked = true;
+    this.advancing = advance;
+    this.coverIdx = idx;
+    this.path = path;
+    return true;
+  }
+
+  /** Overwatch: suppressive fire at the shared last known position while a squadmate moves (his own fresher sight
+   *  is today's suppress). */
+  private suppressLkp(dt: number): void {
+    if (!this.ctx.lkpValid() || this.lastSeenT < 2.5) return;
+    const k = this.ctx.lkp;
+    this.lastKnown.set(k.x, k.y + 1.1, k.z);
+    this.tryFire(dt, 'suppress');
+  }
+
   private decide(dt: number): { point: P2 | null; speed: number; face: number | null } {
     const def = this.def;
     const t = this.target;
@@ -1466,13 +1576,18 @@ export class Enemy implements Damageable {
       const close = this.dist <= def.engageMin + 0.5;
       return { point: close ? null : this.chasePoint(tp, false), speed: ARCHETYPE.enforcer.pushSpeed, face: toTarget };
     }
+    // (guard-ai S8) a role in the engaged group: bounds, holds and waits by role (else today's tactics below)
+    if (this.role !== R_NONE && this.role !== R_SEARCH && def.usesCover) {
+      const g = this.roleStep(dt, toTarget);
+      if (g) return g;
+    }
     switch (this.state) {
       case 'idle':
       case 'chase': {
         if (this.los && this.dist <= def.engageMax) {
-          // in a fight they get behind something first
+          // in a fight they get behind something first (guard-ai S8: the profile's weight against the seeded dice)
           this.advancing = false;
-          this.setState(def.usesCover && Math.random() < 0.85 ? 'seekCover' : 'attack');
+          this.setState(def.usesCover && this.rng.next() < profileOf(this.profile).coverFirst ? 'seekCover' : 'attack');
           return { point: null, speed: 0, face: toTarget };
         }
         if (outside) {
@@ -1494,7 +1609,8 @@ export class Enemy implements Damageable {
             }
             this.advanceCd = 1.5;
           }
-          return { point: this.chasePoint(tp, false), speed: def.walkSpeed * ADVANCE_PACE, face: null };
+          // (guard-ai S8) an aggressive guard (reinforcements) closes at a jog
+          return { point: this.chasePoint(tp, false), speed: this.profile === P_AGGRESSIVE ? def.runSpeed * 0.75 : def.walkSpeed * ADVANCE_PACE, face: null };
         }
         return { point: this.chasePoint(tp, false), speed: this.los ? def.walkSpeed : def.runSpeed, face: null };
       }
@@ -1507,15 +1623,15 @@ export class Enemy implements Damageable {
           this.setState('chase');
         } else if (this.dist > def.engageMax + 3) {
           this.setState('chase');
-        } else if (def.usesCover && this.stateT > rand(2.5, 4.5)) {
+        } else if (def.usesCover && this.stateT > this.rng.range(2.5, 4.5)) {
           this.setState('seekCover');
         }
-        // strafe / keep range
+        // strafe / keep range (guard-ai S8: an aggressive guard presses in to close range)
         if (this.strafeT <= 0) {
-          this.strafeT = rand(2, 4);
-          this.strafe = Math.random() < 0.5 ? 1 : -1;
+          this.strafeT = this.rng.range(2, 4);
+          this.strafe = this.rng.next() < 0.5 ? 1 : -1;
         }
-        const away = this.dist < def.engageMin ? -1 : 0;
+        const away = this.dist < def.engageMin ? -1 : this.profile === P_AGGRESSIVE && this.dist > def.engageMin + 3 ? 1 : 0;
         const dx = t.feet.x - this.pos.x;
         const dz = t.feet.z - this.pos.z;
         const len = hyp2(dx, dz) || 1;
@@ -1534,7 +1650,8 @@ export class Enemy implements Damageable {
           }
         }
         if (this.stateT > 6) this.setState(this.advancing && !this.los ? 'chase' : 'attack');
-        if (this.los && this.stateT > 0.5 && def.kind !== 'sniper') this.tryFire(dt);
+        // (guard-ai S8) the reporter holds his fire while he is on the radio
+        if (this.los && this.stateT > 0.5 && def.kind !== 'sniper' && !this.onRadio) this.tryFire(dt);
         const wp = this.path[0];
         if (!wp) {
           this.setState('inCover');
@@ -1550,29 +1667,47 @@ export class Enemy implements Damageable {
           return { point: null, speed: 0, face: toTarget };
         }
         // a bound done: hold here a moment covering the way ahead, then the next
+        // (guard-ai S8) a point holds `advanceHold` and bounds again when the manager gives it a cover (`roleStep`); with
+        // none left to bound to it walks the last stretch (`closing`: out of the group)
         if (this.advancing && !this.los) {
           this.coverPose = cp.low ? 'low' : 'high';
           this.wantCrouch = cp.low;
-          if (this.stateT > ADVANCE_HOLD) this.setState('chase');
+          const roled = this.role === R_POINT;
+          if (this.stateT > (roled ? profileOf(this.profile).advanceHold : ADVANCE_HOLD)) {
+            if (!roled) this.setState('chase');
+            else if (this.roleCover < 0 || this.roleCover === this.coverIdx) {
+              this.closing = true;
+              this.setState('chase');
+            }
+          }
           return { point: [cp.pos.x, cp.pos.z], speed: def.walkSpeed, face: toTarget };
         }
         this.advancing = false;
-        // flanked? leave
+        // flanked? leave (guard-ai S8: a guard with a role does not step out after 5 peeks: he holds and reports)
         const dirX = t.feet.x - cp.pos.x;
         const dirZ = t.feet.z - cp.pos.z;
         const l = hyp2(dirX, dirZ) || 1;
         const protects = (cp.normal.x * dirX + cp.normal.z * dirZ) / l;
-        if (protects < 0.2 || this.peekCycles >= 5 || this.dist < def.engageMin * 0.7) {
+        const holds = this.role !== R_NONE && this.role !== R_SEARCH;
+        if (protects < 0.2 || (this.peekCycles >= 5 && !holds) || this.dist < def.engageMin * 0.7) {
           this.peekCycles = 0;
           this.setState('attack');
           return { point: null, speed: 0, face: toTarget };
         }
         if (this.tactics(t)) return { point: null, speed: 0, face: toTarget };
+        // (guard-ai S8) the reporter stays down while he calls it in; the overwatch suppresses while a squadmate moves
+        if (this.onRadio) {
+          this.coverPose = cp.low ? 'low' : 'high';
+          this.wantCrouch = true;
+          this.coverPeek = 0;
+          return { point: [cp.pos.x, cp.pos.z], speed: def.walkSpeed, face: toTarget };
+        }
+        if (this.role === R_OVERWATCH && this.mateMoving && !this.los && profileOf(this.profile).suppress) this.suppressLkp(dt);
         // hide / peek cycle; some hide phases blind-fire over/around the cover at the last position
         const cycle = this.stateT % 4.2;
         const peeking = cycle > 2.4;
         this.wantCrouch = cp.low ? !peeking : false;
-        if (cycle < dt * 1.5) this.blindPlan = Math.random() < 0.3;
+        if (cycle < dt * 1.5) this.blindPlan = this.rng.next() < 0.3;
         if (peeking) {
           this.tryFire(dt);
           if (cycle > 4.15) this.peekCycles++;
@@ -1615,7 +1750,7 @@ export class Enemy implements Damageable {
       return false;
     }
     if (this.grenadeCd <= 0 && (t.coverT ?? 0) > 6 && this.dist > 7 && this.dist < 22 && this.lastSeenT < 8 && this.ctx.throwGrenade) {
-      this.grenadeCd = rand(12, 18);
+      this.grenadeCd = this.rng.range(12, 18);
       const from = this.eye(new Vector3());
       if (this.ctx.throwGrenade(this, from, t.feet)) {
         this.kick = 1;
@@ -1757,13 +1892,13 @@ export class Enemy implements Damageable {
         this.windup += dt;
         return;
       }
-      this.burstLeft = Math.round(rand(w.burstMin, w.burstMax));
+      this.burstLeft = Math.round(this.rng.range(w.burstMin, w.burstMax));
     }
     if (this.fireT > 0) return;
     this.fireT = 60 / w.rpm;
     this.burstLeft--;
     if (this.burstLeft <= 0) {
-      this.pauseT = rand(w.pauseMin, w.pauseMax);
+      this.pauseT = this.rng.range(w.pauseMin, w.pauseMax);
       this.windup = 0;
     }
     this.shoot(t, w, mode);
@@ -1785,7 +1920,7 @@ export class Enemy implements Damageable {
     const moving = Math.min(1, t.speed / 5);
     const modeMul = mode === 'blind' ? 3 : mode === 'suppress' ? 1.6 : 1;
     const spread = (w.spreadDeg * (1 + moving * 0.8) * (t.crouched ? 0.9 : 1) * modeMul) / (d.accuracy * settle * (this.buff ? ARCHETYPE.officer.accuracy : 1));
-    const off = sampleSpread(spread, Math.random(), Math.random());
+    const off = sampleSpread(spread, this.rng.next(), this.rng.next());
     spreadDir(dir, off.x, off.y, dir);
     const end = origin.add(dir.scale(w.range));
     // (3.2.0) shooting at a player holding a hostage: the hostage's hit volumes are in the way

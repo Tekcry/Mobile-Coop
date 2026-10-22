@@ -26,7 +26,11 @@ export type BarkEvent =
   | 'standDown'
   | 'missing'
   // (guard-ai S3, design 5) a guard joining on a shout or a radio call
-  | 'joining';
+  | 'joining'
+  // (guard-ai S8, design 8) squad tactics: the point bounds, the overwatch covers it, the flanker goes round
+  | 'moving'
+  | 'covering'
+  | 'flanking';
 
 export const BARKS: Record<BarkEvent, readonly string[]> = {
   suspicious: ['Huh?', 'What was that?', 'Hello?', 'Something there...'],
@@ -52,6 +56,9 @@ export const BARKS: Record<BarkEvent, readonly string[]> = {
   standDown: ['Nothing here. Back to it.'],
   missing: ["He's not answering. Two of us, go."],
   joining: ['Copy, moving!', 'On my way!', 'Coming to you!'],
+  moving: ['Moving up!', 'Moving!', 'Cover me!'],
+  covering: ['Covering!', 'Got you covered!', 'Go, go!'],
+  flanking: ['Flanking!', 'Going round!', 'Taking the side!'],
 };
 
 /** Radio lines (a chirp plays with them). */
