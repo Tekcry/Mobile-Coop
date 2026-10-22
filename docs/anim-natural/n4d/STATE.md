@@ -3,7 +3,7 @@
 Job lead: Night Shift | Menu Notes Build. Branch `feature/anim-n4d` (C:/NightShift/Mobile-Coop-anim-n4d, from
 feature/anim-n4c). Updated 2026-10-22 ~21:45.
 
-Now (~21:40, before the account swap): built at 74cb0634 (n4d on n4c 5f6a0d9d); fresh checker PASS. Desktop run
+Now (~21:55): built at 74cb0634; fresh checker PASS; desktop run on 74cb0634 COMPLETE and green (below); PR open.
 `npm run check` + GPU e2e (takedown, netmove, coop, anim, ctcourse) was running under heavy.lock ("Menu Notes Build |
 n4d-e2e") at the save; its logs: C:/NightShift/n4d-check.log, n4d-build.log, n4d-e2e.log.
 Next: read those logs (complete runs only count: every suite ran to the end and passed, on the GPU); if the run did not
@@ -32,3 +32,8 @@ Night Shift | Menu Notes Build: anim-n4d RESUME. Read CLAUDE.md and docs/ROADMAP
 and STATE.md in C:/NightShift/Mobile-Coop-anim-n4d (branch feature/anim-n4d). Resume at STATE "Next". Message
 "Night Shift | Orchestrator" at each slice and PR.
 ```
+
+## Desktop run on 74cb0634 (GPU, complete)
+`npm run check` PASS 233 s (2825 tests). e2e (`E2E_GPU=1`, JOBS=2, 406 s, all ran to the end): e2e-takedown PASS 17 s,
+e2e-anim PASS 39 s, e2e-coop PASS 84 s, e2e-netmove PASS 142 s, e2e-ctcourse PASS 266 s. Later commits: docs and the
+master 4.58.1 merge (test scripts only).
