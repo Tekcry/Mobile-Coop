@@ -23,9 +23,14 @@ Roadmap "Later > Test fixes" (orchestrator, 2026-10-22 ~20:05: a parallel spare 
    grate is not kicked), and keep the #22 fresh-match guard only if still needed.
 
 ## Limits
-Prototype rules (CLAUDE.md "Current goal"). No change to the pad path. No wire change expected (the vent state already
+Prototype rules (CLAUDE.md "Current goal"). No change to the pad path (lifted by M1 below). No wire change expected (the vent state already
 syncs; check). Single test files in agents; e2e-traverse (+ e2e-mouse / e2e-pad if input code changes) under the desktop
 lock at E2E_JOBS=1 or on the laptop.
 
 ## Assumed decisions
 (none yet)
+
+## Michael's answers
+- M1 (2026-10-22 ~21:00, relayed by the orchestrator; REPORT open item 1, the pad's 33 ms window): "Yes, match
+  keyboard": holding Y does not kick, the hold carries into A, and a Y tap still kicks. Built in the fix round, with an
+  e2e-pad vent assert. (This replaces the "No change to the pad path" limit above.)
