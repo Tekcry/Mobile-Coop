@@ -17,11 +17,13 @@ import {
   CONN_UNLOAD,
   CONN_UNLOCK_FAR,
   CONN_UNLOCK_NEAR,
+  BOLT_DEPTH,
   BOLT_REACH,
   SECTOR,
   SECTOR_RESTART_TITLE,
   SectorBolts,
   SectorRun,
+  boltHalfSpan,
   boltItemId,
   exitZone,
   inDoorway,
@@ -180,6 +182,9 @@ export class SectorMode implements GameMode {
         const it = ints.add(boltItemId(sec, k), 'door', new Vector3(b.at[0], y, b.at[1]), 'Unbolt', 0);
         it.reach = BOLT_REACH;
         it.side = b.side;
+        // (sector-fixes-r2) the door's span only, not through the wall beside it (inBoltReach, the host's test)
+        it.sideHalf = boltHalfSpan(b);
+        it.sideDepth = BOLT_DEPTH;
         it.onUse = (_it, by) => this.unbolt(sec, k, by);
         ints.setEnabled(it, true);
         this.boltIts.push({ sec, k, it, door });

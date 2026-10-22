@@ -1,10 +1,13 @@
-import type { SectorDef } from '../../game/sectors';
+import type { SectorBolt, SectorDef } from '../../game/sectors';
 import type { SecurityData } from '../../security/data';
 import type { LaserDef } from '../../game/jammer';
 import { S1_BOLTS } from './warehouseS1';
-import { S2_BOLTS } from './warehouseS2';
-import { S3_BOLTS } from './warehouseS3';
+import { S2_BOLTS, S2_THROUGH_BAY } from './warehouseS2';
+import { S3_BOLTS, S3_COOP } from './warehouseS3';
 import type { LaserPanelDef } from '../../game/laserPanels';
+
+/** (sector-fixes-r2) A section file's team doors with their door width (the unbolt reach spans the door, `inBoltReach`). */
+const withW = (bolts: readonly { at: readonly [number, number]; side: readonly [number, number] }[], w: number): SectorBolt[] => bolts.map((b) => ({ ...b, w }));
 
 /**
  * Sector Ops on the Warehouse (feature/sector-ops A12, M7, M8): three sections in a row from the Warehouse's own
@@ -53,7 +56,7 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
     // alarm reinforcements come in at the vehicle gate
     reinforce: [[5.0, -25.0], [8.0, -25.0]],
     // (sector-fixes-r RT) team doors: bolted from one side (warehouseS1.ts builds the doors locked)
-    bolts: S1_BOLTS,
+    bolts: withW(S1_BOLTS, 1.2), // the mess back door (warehouseS1.ts MESS_DOOR.w)
     perStage: 2,
     routes: [
       {
@@ -115,7 +118,7 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
     // alarm reinforcements: the west fire exit and the charge bay
     reinforce: [[-22.5, 5.5], [-6.2, -5.0]],
     // (sector-fixes-r RT) team doors (warehouseS2.ts)
-    bolts: S2_BOLTS,
+    bolts: withW(S2_BOLTS, S2_THROUGH_BAY.z1 - S2_THROUGH_BAY.z0),
     perStage: 2,
     routes: [
       {
@@ -171,7 +174,7 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
     ],
     reinforce: [[-2.5, 10.5], [20.8, 6.5], [13, -7.0]],
     // (sector-fixes-r RT) team doors (warehouseS3.ts)
-    bolts: S3_BOLTS,
+    bolts: withW(S3_BOLTS, S3_COOP.lobbyDoor.w),
     perStage: 3,
     routes: [
       {

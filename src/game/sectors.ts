@@ -105,6 +105,8 @@ export interface SectorDef {
 export interface SectorBolt {
   readonly at: readonly [number, number];
   readonly side: readonly [number, number];
+  /** (sector-fixes-r2) The door's width (m) along its plane; `BOLT_DOOR_W` when absent. */
+  readonly w?: number;
 }
 
 /** Reach (m) of a team door's "Unbolt" item (the course bolt's). */
@@ -113,6 +115,32 @@ export const BOLT_REACH = 1.6;
 /** Is (x, z) on a bolt's unbolting side: past the door plane through `at` along `side` (course F7)? */
 export function onBoltSide(b: SectorBolt, x: number, z: number): boolean {
   return (x - b.at[0]) * b.side[0] + (z - b.at[1]) * b.side[1] > 0;
+}
+
+/** (sector-fixes-r2) A team door's width (m) when its bolt gives none (the Warehouse's 1.2 doors). */
+export const BOLT_DOOR_W = 1.2;
+/** (sector-fixes-r2) How far (m) past the door's edge, along its plane, the "Unbolt" still reaches. */
+export const BOLT_SIDE_MARGIN = 0.3;
+/** (sector-fixes-r2) How far (m) out from the door plane, on the bolt side, the "Unbolt" reaches. */
+export const BOLT_DEPTH = 1.2;
+
+/** (sector-fixes-r2) Half the span (m) along the door plane from which a bolt can be worked: half the door plus the margin. */
+export function boltHalfSpan(b: SectorBolt): number {
+  return (b.w ?? BOLT_DOOR_W) / 2 + BOLT_SIDE_MARGIN;
+}
+
+/**
+ * (sector-fixes-r2) Can feet at (x, z) work the bolt: on its side (`onBoltSide`), within `BOLT_DEPTH` of the door
+ * plane and within `boltHalfSpan` of the door centre along the plane (so nobody unbolts it through the wall beside
+ * the door, from a corridor running past its end). `Interactables.nearest` applies the same test (`sideHalf`,
+ * `sideDepth`), so the prompt and the host agree.
+ */
+export function inBoltReach(b: SectorBolt, x: number, z: number): boolean {
+  const dx = x - b.at[0];
+  const dz = z - b.at[1];
+  const depth = dx * b.side[0] + dz * b.side[1];
+  const along = dz * b.side[0] - dx * b.side[1];
+  return depth > 0 && depth <= BOLT_DEPTH && Math.abs(along) <= boltHalfSpan(b);
 }
 
 const BOLT_ID = /^c-sbolt-(\d+)-(\d+)$/;
@@ -152,10 +180,10 @@ export class SectorBolts {
     return this.shut[sec]?.[k] === true;
   }
 
-  /** A player at (x, z) used bolt `k` of section `sec`: true when it unbolts (shut, and the feet on its side). */
+  /** A player at (x, z) used bolt `k` of section `sec`: true when it unbolts (shut, and the feet in reach, `inBoltReach`). */
   use(sec: number, k: number, x: number, z: number): boolean {
     const b = this.defs[sec]?.bolts?.[k];
-    if (!b || !this.isShut(sec, k) || !onBoltSide(b, x, z)) return false;
+    if (!b || !this.isShut(sec, k) || !inBoltReach(b, x, z)) return false;
     this.shut[sec]![k] = false;
     return true;
   }
