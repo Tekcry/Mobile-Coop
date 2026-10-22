@@ -4265,7 +4265,6 @@ export class CharacterRig {
     freshBelow(this.heldWeapon!, this.weaponPivot);
   }
 
-  /** Blend an FK pose (scripted poses) over the procedural result. */
   /** (guard-render S5 L4) the FK joint names, in `fkNodes` order. */
   private static readonly FK_JOINTS: readonly JointName[] = [
     'pelvis', 'spine', 'chest', 'neck', 'head', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'hipL', 'hipR', 'kneeL', 'kneeR',
@@ -4273,6 +4272,7 @@ export class CharacterRig {
   /** The nodes of `FK_JOINTS`, built on the first emote (no per-frame map / entries allocation). */
   private fkNodes: TransformNode[] | null = null;
 
+  /** Blend an FK pose (scripted poses) over the procedural result. */
   private applyFk(fk: FkPose, w: number): void {
     let nodes = this.fkNodes;
     if (nodes === null) {
