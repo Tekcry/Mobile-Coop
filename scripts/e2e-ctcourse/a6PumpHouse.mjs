@@ -268,6 +268,9 @@ export async function walk(t, n) {
   if (s0 && !s0.alerted) await waitAttendant({ near: [GAL_SWITCH[0], GAL_SWITCH[1], Math.max(2, toSwitch(s0) - 2)] }, 20000, `A6: the attendant is lured toward the gallery switch (from ${toSwitch(s0).toFixed(1)} m)`);
   assert((await use(B, swId)) === 'ok', 'A6: the client turns the gallery switch on again');
   await until(A, (g) => window.__app.current.stealth.switchOn(g), GALLERY_GROUP, 15000, 'A6: the gallery group is back on');
+  // (S-e2e-fix) the client's lamps follow the host's next `course` message (sent on the host's next fixed step after the
+  // switch): read the levels once the client has it, as the off case above does (the host's switch state alone races it)
+  await until(B, (g) => window.__course.wire.lights.groups.some(([q, on]) => q === g && on), GALLERY_GROUP, 15000, 'A6: the client sees the gallery group on again');
   const [h2a, h2b] = [await level(A, HOLDER[0], DECK_Y, HOLDER[1]), await level(B, HOLDER[0], DECK_Y, HOLDER[1])];
   assert(h2a >= 0.4 && Math.abs(h2a - h2b) < 0.02, `A6: the holder's spot reads lit again (host ${h2a.toFixed(3)}, client ${h2b.toFixed(3)})`);
 

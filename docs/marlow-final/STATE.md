@@ -56,6 +56,27 @@ Rejected by you (~01:25): anything that assumes a dark camera is blind (G240 sta
 Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN section 6; slice reports S0-*.md.
 
 ## Now (2026-10-23 ~01:20, new account; FULL BURN to 100% per Michael ~01:05 via the orchestrator)
+- 10:30 SAVED FOR THE ACCOUNT SWAP (orchestrator: 80% at 10:28). Done this window: A4-A6 dressing (ea111da9), A3-A7
+  dressing check PASS (S3-7-dress-check.md; should-fix 2 done d6c68cc6), A8 greybox check (S8-check.md) + its
+  must-fix (2e58f265), facility perf pass (cc24e992, S9-perf.md: skins drawn before level boxes, static merge 126 -> 59
+  draws, glass culled; estimates only). Commit "WIP e2e fixes + A8 dressing" holds two agents' files mid-work, UNCHECKED:
+  (a) the e2e fixer (Opus): scripts/e2e-ctcourse/a1Gate / a3OfficeRange / a6PumpHouse.mjs, src/player/playerController.ts,
+  tests/marlowStaleSupport.test.ts, report slices/S-e2e-fix.md (draft; it was running e2e on the desktop lock);
+  (b) the A8 dresser (Sonnet, DRESS-BRIEF.md slots N 8 / a8Strongroom / S8-check.md, EXTRA = S8-check "Polish" D
+  items, stale request-to-exit text, the two e2e should-fix in a8Strongroom.mjs, S8's C2 pier text): a8Strongroom.ts,
+  its test, a8Strongroom.mjs, S8.md (no Dressing section yet).
+  Laptop (Character Build): guard-cap baseline on 5100141d queued (A8 + A7 hall cells); no ctcourse rerun sent yet.
+  ON RESUME: (0) if C:/NightShift/heavy.lock still says "Menu Notes Build | marlow-final e2e-fix", delete it (the agent
+  died with the swap); delete tests/ctcourse/zz*.test.ts scratch files. (1) Read S-e2e-fix.md: rerun the e2e fixer
+  (Opus) to finish from the WIP if it is not final (playerController.ts touched: tier adds e2e-coop / e2e-netmove);
+  (2) rerun the A8 dresser (Sonnet) from the WIP if S8.md has no Dressing section; (3) tsc + vitest map files
+  (tests/ctcourse/ ctcourse ctcourseLight voxelFit facilityProps facilityKit levelFillParity marlowN1Objectives), commit,
+  push; (4) ONE Character Build request on the head: e2e-ctcourse :1-:4, e2e-coop, e2e-netmove, e2e-course (E2E_GPU=1),
+  guard-cap "after" (S9-perf.md command) and shots-ctcourse before / after (S9-perf.md vantages; glass now single
+  layer, clearer); (5) A8 dressing checker (Sonnet) + prop emissives on circuits (S3-7-dress-check should-fix 1:
+  PropPlacement.group + dim in propRender.ts, groups set in A1-A8; A5 tower lenses follow the beams) one Sonnet agent;
+  (6) slice 9 docs (PLAN slice 9: TESTING.md, testing-tools.md, coop.md N1-N9, WALKTHROUGH.md,
+  changes/feature-marlow-final.md), merge master right before the train, full e2e, PR, message the orchestrator.
 - 09:40 (clock) RESUMED after the swap (fresh session; throughput rules origin/feature/menu CLAUDE.md "Heavy-usage
   throughput": desktop CPU < ~80%, <= 3 tsc / vitest agents). The dressers' last edits committed (927ecabe), tsc
   clean (5e7cc587); map tests 496 / 497, the fail is voxelFit: A5's dressing beam-tower poles (cover in air at x 58,
@@ -394,7 +415,7 @@ Course Ready's prep notes: origin/feature/marlow-bays docs/marlow-final-prep/ (M
 
 ## Resume prompt
 ```
-Night Shift | Menu Notes Build: resume marlow-final (Marlow Yard redesign). Read CLAUDE.md and docs/ROADMAP.md on origin/feature/menu (Decided: marlow-final M1-M6, "Overnight" ~01:42, "Lean windows" ~01:45, Michael 09:00 "Aim to hit the cap ASAP, but be efficient"), then in C:/NightShift/Mobile-Coop-marlow-final (git fetch; branch feature/marlow-final) docs/marlow-final/BRIEF.md, STATE.md (MORNING-REVIEW, the newest Now entry: its ON RESUME list), PLAN.md.
-State: master 4.68.0 merged (protocol 33); A1-A2 built, dressed, checked; A3-A7 greybox checked and fixed, dressing in flight or done (S3-S7.md Dressing); A8 greybox in flight (S8.md). Loop: Sonnet builds / dresses from strict briefs, Opus checks (one fix round), Character Build [06fe56] runs every e2e (E2E_GPU=1; ctcourse :1-:4 as one request, coop, netmove, course). Desktop: tsc and single vitest files only; agents within the orchestrator's cap. Push WIP and refresh STATE after every hand-back; message "Night Shift | Orchestrator" at each slice end and the PR.
-Before the PR: A8 check + dressing, dressing checks, the facility GPU perf pass (STATE 03:45 PERF; scripts/guard-cap.mjs), slice 9 docs, full e2e, then the PR to master (Michael: "Merge to master").
+Night Shift | Menu Notes Build: resume marlow-final (Marlow Yard redesign). Read CLAUDE.md, and on origin/feature/menu CLAUDE.md "Heavy-usage throughput" + "Token rules" and docs/ROADMAP.md (Decided: marlow-final M1-M6, "Overnight" ~01:42, Pacing 09:00, Throughput 09:50), then in C:/NightShift/Mobile-Coop-marlow-final (git fetch; branch feature/marlow-final) docs/marlow-final/STATE.md: the newest Now entry (10:30) and its ON RESUME list.
+State: master 4.68.0 merged (protocol 33); A1-A7 built, dressed, checked; A8 greybox checked + must-fix done, A8 dressing and the three e2e fixes mid-work in the WIP commit; facility perf pass in (unmeasured). Loop: Sonnet builds / dresses / checks greybox and dressing from strict briefs, Opus checks ctcourse / net fixes (one fix round), Character Build runs every e2e (E2E_GPU=1; one batched request). Desktop: tsc and single vitest files, at most 3 such agents, CPU under ~80%. Push WIP and refresh STATE after every hand-back; message "Night Shift | Orchestrator" only at the PR, when blocked or when Michael is needed.
+Before the PR: A8 dressing + its check, prop emissives on circuits, Character Build e2e + perf after + shots, slice 9 docs, merge master, full e2e, then the PR to master (Michael: "Merge to master").
 ```

@@ -53,11 +53,35 @@ export async function walk(t, n) {
     await until(P, () => window.__app.current.traversal.attach.phase === 'on', null, 10000, `${what}: the hang has settled`);
     await waitSim(300);
     await holdUntil(P, 1, () => !window.__app.current.traversal.attached, `${what}: lets go`, null, 10000);
-    await until(P, () => window.__app.current.player.controller.grounded, null, 20000, `${what}: lands in the yard`);
+    const t0 = await P.evaluate(() => window.__app.current.time);
+    // (S-e2e-fix) the landing, not the first `grounded`: the hang's kinematic override reads grounded, and a read on the
+    // let-go's own step or a body caught on the way down both show the hang height; a 2.5 m fall takes about 0.7 s
+    const landed = () => { const c = window.__app.current.player.controller; return !window.__app.current.traversal.attached && c.grounded && c.pos.y < 0.3; };
+    await until(P, landed, null, 6000, `${what}: lands in the yard`).catch(async (e) => {
+      console.error(`${what}: drop diag ${await dropDiag(P)}`);
+      throw e;
+    });
+    const t1 = await P.evaluate(() => window.__app.current.time);
     const at = await P.evaluate(() => { const p = window.__app.current.player.controller.pos; return [p.x, p.y, p.z]; });
     // (the pass zone starts at x 12.6, A1-C1: a body just off the 12.3 face is in the yard but not yet in the zone)
     assert(at[0] > 12.3 && at[1] < 0.3, `${what}: feet on the yard floor past the wall (${at.map((v) => v.toFixed(2))})`);
+    assert(t1 - t0 < 2, `${what}: the drop lands within 2 s of the let-go (${(t1 - t0).toFixed(2)} s of game time)`);
   }
+
+  /** (S-e2e-fix) Why a let-go did not land: the body, its support, the attach and team state, the partner on this page. */
+  const dropDiag = (P) =>
+    P.evaluate(() => {
+      const g = window.__app.current;
+      const c = g.player.controller;
+      const r = g.net?.remotes ? [...g.net.remotes.values()][0] : null;
+      const av = g.net?.avatars ? [...g.net.avatars.values()][0] : null;
+      const f = (v) => (v ? [v.x, v.y, v.z].map((n) => +n.toFixed(2)) : null);
+      return JSON.stringify({
+        pos: f(c.pos), grounded: c.grounded, crouched: c.crouched, override: c.override ? Object.keys(c.override) : null, support: c.support?.supportedState ?? null,
+        attached: g.traversal.attached, phase: g.traversal.attach.phase, kind: g.traversal.kind, team: g.team.state,
+        partner: f(r?.feet ?? av?.feet ?? null), time: +g.time.toFixed(2),
+      });
+    });
 
   /** The host crouches on the mark and offers, the client takes the leg-up and hangs on the apron-face lip (the booster's own helper is the client's). */
   async function hostBoostsClient(what) {
@@ -195,6 +219,8 @@ export async function walk(t, n) {
   assert(y1a <= 0.28 && y1b <= 0.28 && Math.abs(y1a - y1b) < 0.02, `A1: the yard reads dark and the same on both pages (host ${y1a.toFixed(3)}, client ${y1b.toFixed(3)})`);
   assert((await use(B, 'switch-0')) === 'ok', 'A1: the client turns the yard switch on again');
   await until(A, () => window.__app.current.stealth.switchOn(12), null, 15000, 'A1: the yard group is back on');
+  // (S-e2e-fix) the client's lamps follow the host's next `course` message: read once the client has it (as the off case)
+  await until(B, () => window.__course.wire.lights.groups.some(([g, on]) => g === 12 && on), null, 15000, 'A1: the client sees the yard group on again');
   const [y2a, y2b] = [await level(A, 17, 11), await level(B, 17, 11)];
   assert(y2a >= 0.4 && Math.abs(y2a - y2b) < 0.01, `A1: the yard reads lit again (host ${y2a.toFixed(3)}, client ${y2b.toFixed(3)})`);
   await moveClient(14, 9);

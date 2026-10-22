@@ -32,6 +32,9 @@ import { camPitch, camRange, inFrame, sweepYaw } from '../../src/security/camera
 import { validateSecurity, type CameraDevice } from '../../src/security/data';
 import { remoteHeadY } from '../../src/security/securitySystem';
 import { findJumpTarget, generateLedges, LEDGE, type Ledge } from '../../src/world/anchors';
+import { kitTriangles } from '../../src/world/kit/facilityKit';
+import { FacilityProps, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_HUNG, PROP_SET_BUDGET, type PropPlacement, type PropReport } from '../../src/world/props/facilityProps';
+import { CANON_MIN_THICK } from '../../src/voxel/lightShapes';
 import { LevelBuilder, type BoxPiece } from '../../src/world/levelBuilder';
 import { MARLOW_LEVEL } from '../../src/world/lighting/levels';
 import { circuitOf, LURE_RANGE, marlowCourseGroups, SILENT_PACE } from '../../src/world/lighting/marlowCircuits';
@@ -40,18 +43,29 @@ import { buildCtcourse, COOP_LIPS, LIGHT_SPOTS } from '../../src/world/maps/ctco
 import { BEAM_KEEP_CLEAR, COOP_BAND, GREY_KEEP_CLEAR, JAM_WINDOW, LEGUP_STANDOFF, SILENT_CROUCH, syncMinGap, syncStation, throwGateway } from '../../src/world/maps/ctcourseGreybox';
 import {
   A8_BOARD,
+  A8_BAYS,
   A8_BOARD_WEST,
   A8_CAMERAS,
+  A8_CEIL_TOP,
+  A8_CHECKER,
   A8_COLUMNS_N,
   A8_COLUMNS_W,
   A8_CONSOLE,
   A8_CONSOLE_GATE,
   A8_COUNTER_MAIN,
+  A8_COUNTER_MAIN_X,
+  A8_COUNTER_MAIN_Z,
   A8_COUNTER_RETURN,
+  A8_COUNTER_RETURN_X,
+  A8_COUNTER_RETURN_Z,
+  A8_CORNICE,
   A8_DESK,
+  A8_DEPOSIT_X,
+  A8_DESK_PROP,
   A8_GALLERY_LEVEL,
   A8_GAL_FLAG,
   A8_GAL_ZONE,
+  A8_EAST_P,
   A8_GATEWAY,
   A8_GRILLE,
   A8_GRILLE_GATE,
@@ -69,6 +83,7 @@ import {
   A8_LOBBY_ZONE,
   A8_LOOP,
   A8_LOOP_FLAG,
+  A8_MARKS,
   A8_N1,
   A8_N1_FACES,
   A8_N1_POST,
@@ -80,6 +95,7 @@ import {
   A8_N2_WAITS,
   A8_NIGHT_GATE,
   A8_NIGHT_GROUP,
+  A8_NORTH_P,
   A8_OFFICE_DOOR,
   A8_OFFICE_STAIR,
   A8_OFFICER,
@@ -90,7 +106,9 @@ import {
   A8_PANEL_Y,
   A8_PASS_WAIT,
   A8_PIER,
+  A8_PROP_LIFT,
   A8_PUBLIC_STAIR,
+  A8_RAIL_LIFT,
   A8_RETURN,
 
   A8_RTE,
@@ -100,6 +118,8 @@ import {
   A8_RUNNER,
   A8_SCANNER,
   A8_SHELL,
+  A8_SIGNS,
+  A8_SOUTH_P,
   A8_STAIR_BAR,
   A8_STAIR_BLOCK_X0,
   A8_STAIR_FOOT,
@@ -115,8 +135,12 @@ import {
   A8_THROW,
   A8_VAULT,
   A8_VAULT_GATE,
+  A8_WEST_P,
+  A8_WINDOW_N,
+  A8_WINDOW_S,
+  A8_WINDOW_Y,
 } from '../../src/world/maps/ctcourseSets/a8Strongroom';
-import { checkSetPart, inBox, OBJECTIVE_ID_MAX, registerSum, SET_BOX, EXIT_ZONE } from '../../src/world/maps/ctcourseSets/types';
+import { checkSetPart, HALL_H, inBox, OBJECTIVE_ID_MAX, registerSum, SET_BOX, EXIT_ZONE } from '../../src/world/maps/ctcourseSets/types';
 import { lastTimeAtOrOver, LEAP_APEX, MANTLE, SOLO_TOP_SPEED, soloJumpThreats } from '../helpers/soloJumpReach';
 
 const b = new LevelBuilder();
@@ -126,7 +150,11 @@ const lay = built.layout;
 const course = lay.course!;
 const def = course.def;
 const range = built.ranges.a8Strongroom;
-const mine = b.boxes.slice(range.boxes[0], range.boxes[1]);
+const mineAll = b.boxes.slice(range.boxes[0], range.boxes[1]);
+/** The greybox as S8 built it (slice 8 steps 2-4): its 138 boxes (81 solids), 16 lamps, 5 doors, one manual ledge. The dressing (step 5) is appended after. */
+const GREY = { boxes: 138, solids: 81, lights: 16, doors: 5, anchors: 1, checksum: 69168.01343550302 };
+const mine = mineAll.slice(0, GREY.boxes);
+const dressing = mineAll.slice(GREY.boxes);
 const box = SET_BOX.a8Strongroom[0]!;
 const lamps = b.lights.lights.filter((l) => l.kind !== 'flashlight' && inBox(box, l.x, l.z) && l.group >= 80 && l.group < 90);
 const top = (p: BoxPiece): number => p.c[1] + p.s[1] / 2;
@@ -223,14 +251,15 @@ describe('A8 the Strongroom: the part', () => {
     expect(sum.lights).toBe(16);
     expect(sum.doors).toBe(5);
     expect(sum.anchors).toBe(1);
-    expect(sum.solids).toBe(mine.filter((p) => p.collide).length);
+    expect(sum.solids).toBe(mineAll.filter((p) => p.collide).length);
     for (const r of part.register) expect(/[–—]/.test(r.element), r.id).toBe(false);
   });
 
   it('everything built lies inside the set box (0.3 m of wall slack) and under the hall roof', () => {
     const [x0, z0, x1, z1] = box;
-    expect(mine.length).toBeGreaterThan(80);
-    for (const p of mine.filter((q) => Math.abs(q.yaw) < 1e-3 && Math.abs(q.pitch) < 1e-3)) {
+    expect(mineAll.length).toBeGreaterThan(80);
+    expect(mine).toHaveLength(GREY.boxes);
+    for (const p of mineAll.filter((q) => Math.abs(q.yaw) < 1e-3 && Math.abs(q.pitch) < 1e-3)) {
       expect(p.c[0] - p.s[0] / 2, 'west').toBeGreaterThanOrEqual(x0 - 0.3);
       expect(p.c[0] + p.s[0] / 2, 'east').toBeLessThanOrEqual(x1 + 0.3);
       expect(p.c[2] - p.s[2] / 2, 'south').toBeGreaterThanOrEqual(z0 - 0.3);
@@ -430,7 +459,7 @@ describe('A8 the Strongroom: the doors, the night circuit and the grille', () =>
 
   it("the gates are the doc's: isolator on the night group (25 s, re-arm 5 s from the circuit table), the mains grille, the grille's request-to-exit, the stair foot's push bar, the vault's flag gate, the console's pickup; validated with the course", () => {
     expect(part.bay.gates.map((g) => g.id)).toEqual([A8_RTE_GATE, A8_NIGHT_GATE, A8_GRILLE_GATE, A8_STAIR_GATE, A8_VAULT_GATE, A8_CONSOLE_GATE]);
-    // the grille has two gates: `CourseState.locked` holds a door only while none of its gates is open (S8 request 1), so the board and the request-to-exit each open it
+    // the grille has two gates: `CourseState.locked` (2e58f265) wants every other gate on a door open and lets an open egress gate release it on its own, so the board (the mains gate) and the request-to-exit each open it
     expect(A8_RTE_GATE_ON).toBe(true);
     expect(part.bay.gates.filter((g) => (g.kind === "egress" && g.doorIds.includes(A8_GRILLE)) || (g.kind === "mains" && g.doorId === A8_GRILLE))).toHaveLength(2);
     expect(gateOf<IsolatorGate>(A8_NIGHT_GATE)).toEqual({ kind: 'isolator', id: A8_NIGHT_GATE, switchIds: [A8_BOARD], group: A8_NIGHT_GROUP, seconds: 25, rearm: 5 });
@@ -1375,5 +1404,576 @@ describe('A8 the Strongroom: map data the e2e and the modes read', () => {
     expect(part.consoles).toHaveLength(1);
     expect(def.exitZone!.box).toEqual([...EXIT_ZONE]);
     expect(part.lips).toHaveLength(1);
+  });
+});
+
+describe('A8 the Strongroom: dressing (slice 8 step 5)', () => {
+  const LIP = part.lips[0]!;
+  const kitReport = JSON.parse(readFileSync('src/world/kit/assets/facility-kit.json', 'utf8')) as { pieces: Record<string, { meshes: Record<string, number> }> };
+  const propReport = JSON.parse(readFileSync('src/world/props/assets/facility-props.json', 'utf8')) as PropReport;
+  const area = { x0: box[0], z0: box[1], x1: box[2], z1: box[3] };
+  const own = part.props;
+  const skins = dressing.filter((p) => !p.collide);
+  const written = dressing.filter((p) => p.collide);
+  const kitIn = lay.kit!.instances.filter((i) => inBox(box, i.x, i.z));
+  /** A skin box's extent as [x0, x1, y0, y1, z0, z1] (pitched skins are listed apart: their extent is not their box's). */
+  const ext = (p: BoxPiece): [number, number, number, number, number, number] => [p.c[0] - p.s[0] / 2, p.c[0] + p.s[0] / 2, p.c[1] - p.s[1] / 2, p.c[1] + p.s[1] / 2, p.c[2] - p.s[2] / 2, p.c[2] + p.s[2] / 2];
+  const flat = skins.filter((p) => Math.abs(p.pitch) < 1e-6);
+  const pitched = skins.filter((p) => Math.abs(p.pitch) >= 1e-6);
+  /** The flat skins whose box overlaps the volume [x0, x1] x [y0, y1] x [z0, z1] (1 mm in). */
+  const skinsIn = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number): BoxPiece[] =>
+    flat.filter((p) => {
+      const [a, e, c, d, f, g] = ext(p);
+      return a < x1 - 1e-3 && e > x0 + 1e-3 && c < y1 - 1e-3 && d > y0 + 1e-3 && f < z1 - 1e-3 && g > z0 + 1e-3;
+    });
+  /** The flat skins of a size (any order of the two thin axes: a skin on an x face is (0.03, h, w), on a z face (w, h, 0.03)). */
+  const sized = (w: number, h: number, thick = 0.03): BoxPiece[] =>
+    flat.filter((p) => Math.abs(p.s[1] - h) < 1e-6 && ((Math.abs(p.s[0] - w) < 1e-6 && Math.abs(p.s[2] - thick) < 1e-6) || (Math.abs(p.s[2] - w) < 1e-6 && Math.abs(p.s[0] - thick) < 1e-6)));
+
+  it('the greybox is as S8 built it: its 138 boxes (checksum), 81 solids, 16 lamps, 5 doors, 1 anchor; the dressing adds six solid boxes (the deposit walls, all noLedge) and nothing else collides', () => {
+    let sum = 0;
+    for (const p of mine) sum += (p.c[0] + 2 * p.c[1] + 3 * p.c[2] + 5 * p.s[0] + 7 * p.s[1] + 11 * p.s[2] + p.yaw) * (p.collide ? 1 : 1.5) * (p.visible === false ? 1.25 : 1) * (p.overhead ? 1.1 : 1);
+    expect(sum).toBeCloseTo(GREY.checksum, 3);
+    expect(mine.filter((p) => p.collide)).toHaveLength(GREY.solids);
+    expect(dressing.length).toBeGreaterThan(1000);
+    expect(written).toHaveLength(6);
+    for (const w of written) {
+      expect(w.noLedge).toBe(true);
+      expect(w.visible).toBe(true);
+      expect(w.c[0] - w.s[0] / 2).toBeGreaterThanOrEqual(146.15 - 1e-6);
+      expect(w.c[0] + w.s[0] / 2).toBeLessThanOrEqual(149.75 + 1e-6);
+    }
+    expect(built.counts.sets.a8Strongroom).toEqual({ lights: GREY.lights, solids: GREY.solids + 6, doors: GREY.doors, anchors: GREY.anchors });
+    expect(lamps).toHaveLength(GREY.lights);
+    expect(part.register.map((r) => r.id)).toEqual(expect.arrayContaining(['A8-16', 'A8-17', 'A8-18', 'A8-19', 'A8-20', 'A8-21', 'A8-22', 'A8-23', 'A8-24', 'A8-25', 'A8-26', 'A8-27', 'A8-28', 'A8-29', 'A8-30', 'A8-31']));
+    expect(Object.keys(part.doors)).toHaveLength(GREY.doors);
+    expect(part.bay.gates).toHaveLength(6);
+    for (const r of part.register) expect(/[–—]/.test(r.element), r.id).toBe(false);
+  });
+
+  it('every other dressing box is a visual skin: no collision, noLedge, a side under 5 cm (out of the canonical light shapes: the bake, the meter, the guards and the cameras see the greybox as built); the game still generates no ledge, lip or split gap in the set beyond the planned one', () => {
+    for (const p of skins) {
+      expect(p.noLedge, `skin at (${p.c.join(', ')})`).toBe(true);
+      expect(Math.min(...p.s), `skin at (${p.c.join(', ')}) size (${p.s.join(', ')})`).toBeLessThan(CANON_MIN_THICK);
+      expect(p.visible).not.toBe(false);
+      expect(p.overhead).toBeFalsy();
+    }
+    // the only visible box of 5 cm or more is a deposit wall's
+    expect(dressing.filter((p) => p.visible !== false && Math.min(...p.s) >= CANON_MIN_THICK)).toEqual(written);
+    const inSetBox = (x: number, z: number): boolean => inBox(box, x, z, 0.3);
+    expect(anchors.ledges.filter((l) => inSetBox((l.a.x + l.b.x) / 2, (l.a.z + l.b.z) / 2) && l.piece !== 0 && l.top >= 0.5)).toEqual([]);
+    expect(anchors.ledges.filter((l) => inSetBox((l.a.x + l.b.x) / 2, (l.a.z + l.b.z) / 2) && l.piece === 0)).toHaveLength(1);
+    expect(anchors.splits.filter((q) => inSetBox(q.a.x, q.a.z))).toEqual([]);
+  });
+
+  it("every skin lies inside the set box (0.3 m of wall slack) and under its own room's ceiling (hall 9.0, under the gallery 4.0, office and stairwell 7.4, lobby 5.5, vault 3.0)", () => {
+    const [x0, z0, x1, z1] = box;
+    for (const p of skins) {
+      const [a, e, , d, f, g] = ext(p);
+      expect(a, `skin (${p.c.join(', ')})`).toBeGreaterThanOrEqual(x0 - 0.3);
+      expect(e).toBeLessThanOrEqual(x1 + 0.3);
+      expect(f).toBeGreaterThanOrEqual(z0 - 0.3);
+      expect(g).toBeLessThanOrEqual(z1 + 0.3);
+      const [cx, cy, cz] = p.c;
+      const inVault = cx > 146.15 && cz > 58.15 && cz < 65.85;
+      const inLobby = cx > 134.15 && cx < 145.85 && cz > 56.15 && cz < 67.85 && cy < 5.6;
+      const inStairwell = cx > 134.15 && cx < 144.15 && cz > 68.15 && cz < 71.3;
+      const inOffice = cx > 134.15 && cx < 143.85 && cz > 71.3 && cy > 4.3;
+      const under = cy < 4.2 && cx < 134 && (cz > 74.9 || (cx < 109 && cz > 56));
+      const roof = inVault ? A8_H.vault : inLobby ? A8_H.lobby : inStairwell || inOffice ? A8_H.office : under ? A8_H.slab : A8_H.hall;
+      expect(d, `skin (${p.c.join(', ')}) top`).toBeLessThanOrEqual(roof + 1e-6);
+    }
+    for (const p of pitched) expect(p.c[1] + 0.05, `pitched skin (${p.c.join(', ')})`).toBeLessThan(A8_H.hall);
+  });
+
+  it("the props over the greybox boxes: 5 + 3 bank counters (2 / 3 cm proud on the front, the back flush or inside, lifted 1 cm), the night desk (5 cm proud on its front, its back 5 cm inside), no box written for them; the written boxes are the deposit walls' only", () => {
+    const counters = own.filter((q) => q.prop === 'bankCounter');
+    const desks = own.filter((q) => q.prop === 'nightDesk');
+    expect(counters).toHaveLength(8);
+    expect(desks).toHaveLength(1);
+    expect(A8_PROP_LIFT).toBeLessThanOrEqual(0.05);
+    for (const c of counters) expect(c.y).toBeCloseTo(A8_PROP_LIFT, 9);
+    const hull = (q: PropPlacement): { x0: number; x1: number; z0: number; z1: number } => {
+      const f = PROP_FOOTPRINT[q.prop];
+      const ws = [[f[0], f[1]], [f[2], f[1]], [f[2], f[3]], [f[0], f[3]]].map(([lx, lz]) => propToWorld(q, lx!, 0, lz!));
+      return { x0: Math.min(...ws.map((w) => w[0])), x1: Math.max(...ws.map((w) => w[0])), z0: Math.min(...ws.map((w) => w[2])), z1: Math.max(...ws.map((w) => w[2])) };
+    };
+    // main run: the box x 114-126, z 65.5-66.24; the prop's solid box (1.19 x 0.74 x 1.19) sits within 5 cm of it, the front (-z) 3 cm out at most
+    const mainBox = { x0: A8_COUNTER_MAIN.x0, x1: A8_COUNTER_MAIN.x1, z0: A8_COUNTER_MAIN.z0, z1: A8_COUNTER_MAIN.z1 };
+    const retBox = { x0: A8_COUNTER_RETURN.x0, x1: A8_COUNTER_RETURN.x1, z0: A8_COUNTER_RETURN.z0, z1: A8_COUNTER_RETURN.z1 };
+    for (const [list, cover] of [[counters.filter((c) => Math.abs(c.z - A8_COUNTER_MAIN_Z) < 1e-6), mainBox], [counters.filter((c) => Math.abs(c.x - A8_COUNTER_RETURN_X) < 1e-6), retBox]] as const) {
+      for (const c of list) {
+        const w = propCollisionBox(c)![0]!;
+        expect(w.c[0] - w.s[0] / 2).toBeGreaterThanOrEqual(cover.x0 - 0.05 - 1e-6);
+        expect(w.c[0] + w.s[0] / 2).toBeLessThanOrEqual(cover.x1 + 0.05 + 1e-6);
+        expect(w.c[2] - w.s[2] / 2).toBeGreaterThanOrEqual(cover.z0 - 0.05 - 1e-6);
+        expect(w.c[2] + w.s[2] / 2).toBeLessThanOrEqual(cover.z1 + 0.05 + 1e-6);
+        expect(w.s[1]).toBeCloseTo(1.19, 9);
+        const h = hull(c);
+        expect(h.x0).toBeGreaterThanOrEqual(cover.x0 - 0.05 - 1e-6);
+        expect(h.x1).toBeLessThanOrEqual(cover.x1 + 0.05 + 1e-6);
+      }
+    }
+    expect(counters.filter((c) => Math.abs(c.z - A8_COUNTER_MAIN_Z) < 1e-6).map((c) => c.x)).toEqual([...A8_COUNTER_MAIN_X]);
+    expect(counters.filter((c) => Math.abs(c.x - A8_COUNTER_RETURN_X) < 1e-6).map((c) => c.z)).toEqual([...A8_COUNTER_RETURN_Z]);
+    // the five modules tile the main run's 12 m, the three the return's 7.2 m (2.4 m pitch), the fronts to the public side (main -z, return -x)
+    expect(counters.filter((c) => Math.abs(c.z - A8_COUNTER_MAIN_Z) < 1e-6).every((c) => Math.abs(c.yaw - Math.PI) < 1e-9)).toBe(true);
+    expect(counters.filter((c) => Math.abs(c.x - A8_COUNTER_RETURN_X) < 1e-6).every((c) => Math.abs(c.yaw - (3 * Math.PI) / 2) < 1e-9)).toBe(true);
+    // the desk
+    const d = desks[0]!;
+    const dh = hull(d);
+    expect([d.x, d.z]).toEqual([A8_DESK_PROP.x, A8_DESK_PROP.z]);
+    expect(dh.x0).toBeCloseTo(A8_DESK.x0, 9);
+    expect(dh.x1).toBeCloseTo(A8_DESK.x1, 9);
+    expect(dh.z1 - A8_DESK.z1).toBeCloseTo(0.05, 9);
+    expect(A8_DESK.z0 - dh.z0).toBeCloseTo(-0.05, 9);
+    expect(d.y).toBeCloseTo(A8_PROP_LIFT, 9);
+    // the greybox boxes under them are unchanged and still the collision: the counters' and the desk's solid boxes exist exactly once
+    for (const c of [A8_COUNTER_MAIN, A8_COUNTER_RETURN]) expect(mine.filter((q) => q.collide && Math.abs(q.c[0] - (c.x0 + c.x1) / 2) < 1e-6 && Math.abs(q.c[2] - (c.z0 + c.z1) / 2) < 1e-6)).toHaveLength(1);
+    expect(mine.filter((q) => q.collide && Math.abs(q.c[0] - (A8_DESK.x0 + A8_DESK.x1) / 2) < 1e-6 && Math.abs(q.c[2] - (A8_DESK.z0 + A8_DESK.z1) / 2) < 1e-6)).toHaveLength(1);
+    // their faces are covered by skins: the counters' back panels (north face z 66.24 and east face x 126.0), the desk's back panel and end caps
+    expect(skinsIn(114.0, 126.0, 0.2, 1.1, 66.241, 66.27)).not.toHaveLength(0);
+    expect(skinsIn(126.001, 126.03, 0.2, 1.1, 58.4, 66.2)).not.toHaveLength(0);
+    expect(skinsIn(A8_DESK.x0, A8_DESK.x1, 0.1, 0.7, A8_DESK.z0 - 0.03, A8_DESK.z0 - 0.001).some((q) => q.s[0] > 2.3)).toBe(true);
+    for (const x of [A8_DESK.x0, A8_DESK.x1]) expect(skinsIn(x - 0.03, x + 0.03, 0.1, 0.7, A8_DESK.z0 + 0.1, A8_DESK.z1).some((q) => q.s[2] > 0.9)).toBe(true);
+  });
+
+  it('the deposit walls: six modules on the vault flanks, backs on the walls (z 58.15 and 65.85), six noLedge solids 1.19 x 2.39 x 0.56; the vault stays 6.5 m wide and the door axis clear: no new top, no narrowed door, no jam or camera line touched', () => {
+    const walls = own.filter((q) => q.prop === 'depositWall');
+    expect(walls).toHaveLength(6);
+    expect(walls.filter((q) => q.z < 62)).toHaveLength(3);
+    expect([...new Set(walls.map((q) => q.x))].sort((a, c) => a - c)).toEqual([...A8_DEPOSIT_X]);
+    expect(walls.filter((q) => q.z > 62)).toHaveLength(3);
+    for (const q of walls) {
+      const w = propCollisionBox(q)![0]!;
+      expect(w.noLedge).toBe(true);
+      expect(w.s[1]).toBeCloseTo(2.39, 9);
+      expect(w.s[2]).toBeCloseTo(0.56, 9);
+      expect(w.c[0] - w.s[0] / 2).toBeGreaterThanOrEqual(146.15 - 1e-6);
+      expect(w.c[0] + w.s[0] / 2).toBeLessThanOrEqual(149.75 + 1e-6);
+      // inside the flank's face (z 58.15 / 65.85) by 1 cm, not beyond
+      if (q.z < 62) expect(w.c[2] - w.s[2] / 2).toBeGreaterThanOrEqual(58.15);
+      else expect(w.c[2] + w.s[2] / 2).toBeLessThanOrEqual(65.85);
+      // the box is a written box of the builder, once
+      expect(written.filter((q2) => Math.abs(q2.c[0] - w.c[0]) < 1e-6 && Math.abs(q2.c[2] - w.c[2]) < 1e-6)).toHaveLength(1);
+    }
+    const south = Math.max(...written.filter((q) => q.c[2] < 62).map((q) => q.c[2] + q.s[2] / 2));
+    const north = Math.min(...written.filter((q) => q.c[2] > 62).map((q) => q.c[2] - q.s[2] / 2));
+    expect(north - south).toBeGreaterThanOrEqual(6.5);
+    // the door's swing (hinge (146, 61.3), leaf 1.4 m into the vault) and the walk to the exit zone stay clear
+    expect(north - 61.3).toBeGreaterThan(1.4 + MOVEMENT.radius);
+    expect(61.3 - south).toBeGreaterThan(MOVEMENT.radius);
+    expect(walkBlocked(147, 62, 154, 62)).toBeNull();
+    expect(walkBlocked(147, 60, 150.5, 60.2)).toBeNull();
+    expect(Math.max(...written.map(top))).toBeLessThan(2.4);
+    expect(soloJumpThreats(solid, LIP)).toEqual([]);
+  });
+
+  it("budgets (computed): kit triangles <= 60 k; the props pass FacilityProps.check against the set box at 60 k triangles and 12 draws, with the facility's set-side plate in the box counted", () => {
+    expect(kitIn.some((i) => i.piece === 'wallPanel')).toBe(true);
+    const kitTris = kitTriangles({ instances: kitIn, doors: [] }, kitReport);
+    expect(kitTris).toBeGreaterThan(0);
+    expect(kitTris, `${kitTris} kit triangles`).toBeLessThanOrEqual(60_000);
+    const facilityIn = built.facility.props.filter((q) => inBox(box, q.x, q.z));
+    expect(facilityIn.some((q) => q.prop === 'signPlate')).toBe(true);
+    const counted = [...own, ...facilityIn];
+    const checker = (list: readonly PropPlacement[]): FacilityProps => {
+      const f = new FacilityProps();
+      f.placements.push(...list);
+      return f;
+    };
+    expect(checker(counted).check(area, propReport)).toEqual([]);
+    expect(propTriangles(counted, propReport)).toBeLessThanOrEqual(PROP_SET_BUDGET.tris);
+    expect(propDraws(counted, propReport)).toBeLessThanOrEqual(PROP_SET_BUDGET.draws);
+    expect(new Set(own.map((q) => q.prop))).toEqual(new Set(['bankCounter', 'nightDesk', 'depositWall', 'signPlate']));
+    // the skins are thin instances of the level's box shapes, not draws of their own: the count is recorded (S8 Dressing), the budget is the kit's and the props'
+    expect(skins.length).toBeLessThan(2500);
+  });
+
+  it('sign plates hang on wall faces (their back inside a solid wall, 2.15 m or more up, no gameplay box); five of them, one over each of the grille, the vault door, the stair foot door, the stair-top door and the office door', () => {
+    const plates = own.filter((q) => q.prop === 'signPlate');
+    expect(plates).toHaveLength(5);
+    expect(PROP_HUNG).toContain('signPlate');
+    for (const q of plates) {
+      expect(propCollisionBox(q)).toBeNull();
+      expect(q.y).toBeGreaterThanOrEqual(2.15);
+      // 2 cm behind its mounting face is inside a collidable wall at the plate's height
+      const bx = q.x - Math.sin(q.yaw) * 0.02;
+      const bz = q.z - Math.cos(q.yaw) * 0.02;
+      expect(
+        solid.some((w) => Math.abs(bx - w.c[0]) < w.s[0] / 2 && Math.abs(bz - w.c[2]) < w.s[2] / 2 && q.y + 0.15 > w.c[1] - w.s[1] / 2 && q.y + 0.15 < w.c[1] + w.s[1] / 2),
+        `plate at (${q.x}, ${q.y}, ${q.z})`,
+      ).toBe(true);
+    }
+    expect(plates.map((q) => [q.x, q.z])).toEqual(A8_SIGNS.map(([x, z]) => [x, z]));
+    // over their doors: the sign is above the door's head
+    for (const [id, [sx, sz]] of [[A8_GRILLE, [133.85, 62.0]], [A8_VAULT, [145.85, 62.0]], [A8_STAIR_FOOT, [135.0, 67.85]], [A8_STAIR_TOP, [143.2, 71.55]], [A8_OFFICE_DOOR, [133.85, 76.6]]] as const) {
+      const d = doorAt(id);
+      const q = plates.find((p2) => Math.abs(p2.x - sx) < 1e-6 && Math.abs(p2.z - sz) < 1e-6)!;
+      expect(q.y).toBeGreaterThanOrEqual(d.hinge.y + d.height);
+    }
+  });
+
+  it("every kit glow in A8 carries a circuit of the plan's A8 rows: the hall's panels above the 9.2 slab top on 81 (south, north and west) and 83 / 84 over the office, plant and lobby side, the accent slots on 82 (under the gallery's front), 83, 84 (no light); no lamp was added", () => {
+    const plan = new Set(Object.values(marlowCourseGroups()));
+    const glowing = kitIn.filter((i) => ['wallPanel', 'skirting', 'column', 'handrail'].includes(i.piece) || (i.piece === 'ledSlot' && !i.noLed));
+    expect(glowing.length).toBeGreaterThan(40);
+    for (const i of glowing) {
+      expect(i.group, `${i.piece} at ${i.x}, ${i.y}, ${i.z}`).toBeDefined();
+      expect(plan.has(i.group!), `${i.piece} group ${i.group}`).toBe(true);
+      expect(i.group!).toBeGreaterThanOrEqual(81);
+      expect(i.group!).toBeLessThanOrEqual(84);
+    }
+    const panels = glowing.filter((i) => i.piece === 'wallPanel');
+    for (const i of panels) expect(i.y, `panel at ${i.x}, ${i.z}`).toBeCloseTo(A8_CEIL_TOP, 9);
+    expect(panels.filter((i) => i.group === 81 && Math.abs(i.z - 50.25) < 0.1).length).toBeGreaterThan(15);
+    expect(panels.filter((i) => i.group === 81 && Math.abs(i.z - 77.75) < 0.1).length).toBeGreaterThan(15);
+    expect(panels.filter((i) => i.group === 81 && Math.abs(i.x - 106.25) < 0.1).length).toBeGreaterThan(15);
+    expect(panels.filter((i) => i.group === 83 && Math.abs(i.z - 77.75) < 0.1).length).toBeGreaterThan(5);
+    expect(panels.filter((i) => i.group === 84 && Math.abs(i.x - 149.75) < 0.1).length).toBeGreaterThan(15);
+    // no panel stands over a group it does not belong to: the hall's (81) are all west of the east wall's face, the lobby side's (84) all east of it
+    for (const i of panels.filter((q) => q.group === 81 && Math.abs(q.x - 106.25) > 0.1)) expect(i.x).toBeLessThan(134);
+    for (const i of panels.filter((q) => q.group === 84 && Math.abs(q.x - 149.75) > 0.1)) expect(i.x).toBeGreaterThan(144);
+    const slots = kitIn.filter((i) => i.piece === 'ledSlot');
+    expect(slots.filter((i) => i.group === 82)).toHaveLength(4);
+    expect(slots.filter((i) => i.group === 83)).toHaveLength(2);
+    expect(slots.filter((i) => i.group === 84)).toHaveLength(3);
+    expect(slots.every((i) => !i.noLed)).toBe(true);
+    for (const i of slots.filter((q) => q.group === 82)) expect(i.y).toBeCloseTo(A8_H.slab, 9);
+    expect(lamps).toHaveLength(GREY.lights);
+    expect(HALL_H).toBeGreaterThan(A8_CEIL_TOP);
+  });
+
+  it("no skin touches a lamp's fixture, a course device's place, a camera's lens, a switch or the doors' clear openings (the through-wall box of each door, from 5 cm up to its height)", () => {
+    for (const l of lamps) {
+      const f = l.fixture!;
+      expect(skinsIn(l.x - f.sx / 2, l.x + f.sx / 2, l.y + f.oy - f.sy / 2, l.y + f.oy + f.sy / 2, l.z - f.sz / 2, l.z + f.sz / 2).map((q) => q.c), `lamp ${l.id} at ${l.x}, ${l.y}, ${l.z}`).toEqual([]);
+    }
+    // the board (127, 0.9, 77.6): nothing in front of the wall face's 9 cm; the console, the push bar: their holes bare; the request-to-exit: nothing past the plate
+    expect(skinsIn(126.4, 127.6, 0.05, 1.9, 77.2, 77.659)).toEqual([]);
+    expect(skinsIn(143.4, 143.8, 5.3, 5.9, 74.3, 75.1).map((q) => q.c)).toEqual([]);
+    expect(skinsIn(135.6, 136.0, 0.9, 1.3, 71.1, 71.24).map((q) => q.c)).toEqual([]);
+    expect(skinsIn(136.0, 136.6, 0.7, 1.5, 56.21, 56.5)).toEqual([]);
+    // the time locks' ready lamps: the wall-face column above 1.75 m (x +-0.1 at T1; z +-0.1 at T2) is bare, nothing hangs in front of it but the greybox's status lamps
+    expect(skinsIn(A8_T1_AT.x - 0.1, A8_T1_AT.x + 0.1, 1.75, 2.45, 67.6, 67.84).map((q) => q.c)).toEqual([]);
+    expect(skinsIn(145.6, 145.84, 1.75, 2.45, A8_T2_AT.z - 0.1, A8_T2_AT.z + 0.1).map((q) => q.c)).toEqual([]);
+    expect(skinsIn(A8_T1_SPOT[0] - 0.5, A8_T1_SPOT[0] + 0.5, 0.05, 3, A8_T1_SPOT[1] - 0.5, A8_T1_SPOT[1] + 0.5).filter((q) => ext(q)[5] < 67.74)).toEqual([]);
+    expect(skinsIn(A8_T2_SPOT[0] - 0.5, A8_T2_SPOT[0] + 0.5, 0.05, 3, A8_T2_SPOT[1] - 0.5, A8_T2_SPOT[1] + 0.5).filter((q) => ext(q)[0] < 145.75 + 0.001 && ext(q)[1] > 145.0)).toEqual([]);
+    for (const c of part.cameras) {
+      const y = c.y + (A8_LEVELS[c.level] ?? 0);
+      expect(skinsIn(c.at[0] - 0.1, c.at[0] + 0.1, y - 0.15, y + 0.15, c.at[1] - 0.1, c.at[1] + 0.1).map((q) => q.c), c.id).toEqual([]);
+    }
+    for (const s of part.switches) expect(skinsIn(s.pos.x - 0.05, s.pos.x + 0.04, s.pos.y - 0.06, s.pos.y + 0.06, s.pos.z - 0.06, s.pos.z + 0.06).map((q) => q.c), s.id).toEqual([]);
+    for (const id of [A8_GRILLE, A8_VAULT, A8_OFFICE_DOOR, A8_STAIR_TOP, A8_STAIR_FOOT]) {
+      const q = doorAt(id);
+      const alongZ = Math.abs(Math.sin(q.yaw)) < 0.5;
+      const x0 = alongZ ? q.hinge.x - 0.14 : q.hinge.x;
+      const x1 = alongZ ? q.hinge.x + 0.14 : q.hinge.x + q.width;
+      const z0 = alongZ ? q.hinge.z : q.hinge.z - 0.14;
+      const z1 = alongZ ? q.hinge.z + q.width : q.hinge.z + 0.14;
+      expect(skinsIn(x0, x1, q.hinge.y + 0.05, q.hinge.y + q.height, z0, z1).map((p2) => p2.c), id).toEqual([]);
+    }
+    // the L7 sliding door (frames to 2.42) on the set box's west edge
+    expect(skinsIn(106.2, 106.3, 0.05, 2.45, 59.0, 61.0)).toEqual([]);
+  });
+
+  it("the routes and lanes are as the greybox left them: no skin in the body's way (0.3 m round each route point, 5 cm to 2.1 m over the floor) at N1's post, N2's five points, the jam spot, the leg-up mark, the vestibule, the east lane, the pier and the board, the time lock and throw spots, the vault walk; the decks and the stair lanes are open", () => {
+    const pts: [number, number, number][] = [
+      [A8_N1_POST.x, A8_N1_POST.z, 0],
+      ...A8_N2_ROUTE.map(([x, z]) => [x, z, 0] as [number, number, number]),
+      [A8_JAM.x, A8_JAM.z, 0],
+      [A8_LEGUP.x, A8_LEGUP.z, 0],
+      [107.6, 64.5, 0],
+      [132.25, 66.0, 0],
+      [132.25, 70.0, 0],
+      [A8_GRILLE_SPOT.x, A8_GRILLE_SPOT.z, 0],
+      [A8_BOARD_WEST.x, A8_BOARD_WEST.z, 0],
+      [A8_PIER.x, A8_PIER.z, A8_H.gallery],
+      [133.2, 76.6, A8_H.gallery],
+      [A8_OFFICER_POST.x, A8_OFFICER_POST.z, A8_H.gallery],
+      [A8_THROW.x, A8_THROW.z, 0],
+      [A8_RUNNER.x, A8_RUNNER.z, 0],
+      [A8_LANDING.x, A8_LANDING.z, 0],
+      [A8_T1_SPOT[0], A8_T1_SPOT[1], 0],
+      [A8_T2_SPOT[0], A8_T2_SPOT[1], 0],
+      [148, 62, 0],
+      [135.4, 62, 0],
+    ];
+    for (const [x, z, y] of pts) expect(skinsIn(x - 0.3, x + 0.3, y + 0.05, y + 2.1, z - 0.3, z + 0.3).map((q) => q.c), `point (${x}, ${z})`).toEqual([]);
+    // the gallery's decks: the return (x 106.5-108.7) and the north run (z 75.3-77.6), the stair head's gap
+    expect(skinsIn(106.5, 108.7, A8_H.gallery + 0.05, 6.4, 56.3, 74.9).map((q) => q.c)).toEqual([]);
+    expect(skinsIn(107, 133.2, A8_H.gallery + 0.05, 6.4, 75.3, 77.6).map((q) => q.c)).toEqual([]);
+    expect(skinsIn(130.5, 131.7, A8_H.gallery + 0.05, 6.4, 74.9, 75.2).map((q) => q.c)).toEqual([]);
+    // the public stair's lane (the body's 0.6 m within 130.5-131.7: the rails stand outside) and the office stair's (z 70.1-71.1)
+    expect(skinsIn(130.8, 131.4, 0.05, 6.4, 67.3, 75.0).map((q) => q.c)).toEqual([]);
+    expect(skinsIn(134.5, 142.2, 0.05, 7.4, 70.1, 71.1).map((q) => q.c)).toEqual([]);
+    // the stairwell's landings: the foot (x 134.4-135.2, z 68.5-70.9) and the head (x 142.3-143.9, y 4.4 up)
+    expect(skinsIn(134.4, 135.2, 0.05, 2.1, 68.5, 70.9).map((q) => q.c)).toEqual([]);
+    expect(skinsIn(142.3, 143.9, A8_H.gallery + 0.05, 6.5, 68.5, 70.9).map((q) => q.c)).toEqual([]);
+    // the hall floor's open ground: nothing stands above 5 cm in the middle of the public floor (x 108-133, z 52-65.4) except the counters' return end
+    expect(skinsIn(109.5, 125.0, 0.05, 2.1, 52, 65.4).map((q) => q.c)).toEqual([]);
+  });
+
+  it('the hall walls: oak dado and plaster on the four faces, 6 + 6 + 7 + 6 pilaster lines, five tall windows on the south wall (x 110.8-129.2, sill 3.5, clear of C1) and four over the gallery on the north wall, a stepped cornice under the 9.0 ceiling, the grille bays, the L7 door, the glazed end bay, the board and the office door left bare', () => {
+    // pilaster shafts: a 0.36 m skin along the whole shaft
+    const shaftS = flat.filter((q) => Math.abs(q.s[0] - 0.36) < 1e-6 && Math.abs(q.s[2] - 0.03) < 1e-6 && q.s[1] > 7.9 && q.c[2] < 50.5);
+    expect(shaftS.map((q) => q.c[0]).sort((a, c) => a - c)).toEqual([...A8_SOUTH_P]);
+    for (const q of shaftS) expect(top(q)).toBeLessThanOrEqual(A8_CORNICE);
+    const shaftN = flat.filter((q) => Math.abs(q.s[0] - 0.36) < 1e-6 && Math.abs(q.s[2] - 0.03) < 1e-6 && q.c[2] > 77.5);
+    expect(new Set(shaftN.map((q) => q.c[0]))).toEqual(new Set(A8_NORTH_P));
+    const shaftE = flat.filter((q) => Math.abs(q.s[2] - 0.36) < 1e-6 && Math.abs(q.s[0] - 0.03) < 1e-6 && q.c[0] > 133 && q.c[0] < 134 && q.s[1] > 8);
+    expect(shaftE.map((q) => q.c[2]).sort((a, c) => a - c)).toEqual([...A8_EAST_P]);
+    const shaftW = flat.filter((q) => Math.abs(q.s[2] - 0.36) < 1e-6 && Math.abs(q.s[0] - 0.03) < 1e-6 && q.c[0] < 107);
+    expect(new Set(shaftW.map((q) => q.c[2]))).toEqual(new Set(A8_WEST_P));
+    // windows: dark glass 1.8 wide, 4.0 tall (south) and 2.1 tall (north)
+    expect(sized(1.8, 4.0).filter((q) => q.c[2] < 51).map((q) => q.c[0]).sort((a, c) => a - c)).toEqual([...A8_WINDOW_S]);
+    expect(sized(1.8, 2.1).filter((q) => q.c[2] > 77).map((q) => q.c[0]).sort((a, c) => a - c)).toEqual([...A8_WINDOW_N]);
+    // C1's mount (120, 3.2) sits below the middle window's sill (3.42): the clear zone above is the test above; the window's glass is above 3.5
+    for (const q of sized(1.8, 4.0)) expect(q.c[1] - q.s[1] / 2).toBeCloseTo(A8_WINDOW_Y.south[0], 9);
+    // cornices: a stone band 0.22 m high (8.78-9.0) along each of the four walls (the south wall's is 27.6 m)
+    const corn = flat.filter((q) => Math.abs(q.s[1] - 0.22) < 1e-6 && top(q) === A8_H.hall && Math.max(q.s[0], q.s[2]) > 20);
+    expect(corn.length).toBeGreaterThanOrEqual(4);
+    // the panelled dado: oak up to 2.4 on the hall floor, 1.2 over the gallery's boards
+    expect(flat.some((q) => Math.abs(q.s[1] - 2.4) < 1e-6 && q.s[0] > 27 && q.c[2] < 50.5)).toBe(true);
+    expect(flat.some((q) => Math.abs(q.c[1] - (A8_H.gallery + 0.6)) < 1e-6 && q.c[2] > 77.5 && q.s[0] > 27)).toBe(true);
+    // bare places: the grille's opening on the east face (below the lintel at 3.0 nothing in z 61.1-62.9 above 5 cm but the threshold's paint), the board's place, the L7 door and slot
+    expect(skinsIn(133.7, 133.85, 0.05, 3.0, 61.15, 62.85)).toEqual([]);
+    expect(skinsIn(106.2, 106.5, 0.05, 3.9, 58.6, 63.0)).toEqual([]);
+    expect(skinsIn(106.2, 106.5, 4.5, 7.5, 50.25, 52.0)).toEqual([]);
+    expect(skinsIn(133.7, 133.85, A8_H.gallery + 0.05, 6.5, 76.0, 77.2)).toEqual([]);
+  });
+
+  it("the floors: a cream marble skin over the whole hall (x 106.25-133.85, z 50.25-77.75), a black chequer of 105 cells of 1.6 m inside a brass line, plank seams on both decks, a yellow-black edge band on the open loading edge, plate seams in the lobby and the vault, carpet seams in the office, and the two striped 1 m marks at the leg-up mark and the jam spot (SPEC P16); every floor skin is flush (under 2 cm)", () => {
+    const floor = flat.filter((q) => top(q) <= 0.02);
+    expect(floor.length).toBeGreaterThan(150);
+    const cells = flat.filter((q) => Math.abs(q.s[0] - A8_CHECKER.cell) < 1e-6 && Math.abs(q.s[2] - A8_CHECKER.cell) < 1e-6 && Math.abs(q.s[1] - 0.008) < 1e-9);
+    expect(cells).toHaveLength(105);
+    for (const q of cells) {
+      expect(q.c[0] - q.s[0] / 2).toBeGreaterThanOrEqual(109.25 - 1e-6);
+      expect(q.c[0] + q.s[0] / 2).toBeLessThanOrEqual(133.25 + 1e-6);
+    }
+    const base = flat.find((q) => q.s[0] > 27.5 && q.s[2] > 27.4 && top(q) < 0.01)!;
+    expect(base).toBeDefined();
+    expect(base.c[0] - base.s[0] / 2).toBeCloseTo(106.25, 6);
+    expect(base.c[2] + base.s[2] / 2).toBeCloseTo(77.75, 6);
+    // the game's surfaces are the greybox's (a skin changes no footstep)
+    expect(surfaceAt(b.surfaces, 120, 0, 62, 'concrete')).toBe('concrete');
+    expect(surfaceAt(b.surfaces, 140, 0, 62, 'concrete')).toBe('metal');
+    expect(surfaceAt(b.surfaces, 148, 0, 62, 'concrete')).toBe('metal');
+    expect(surfaceAt(b.surfaces, 120, 4.4, 76.4, 'concrete')).toBe('wood');
+    expect(surfaceAt(b.surfaces, 139, 4.4, 74.7, 'concrete')).toBe('carpet');
+    // plank seams on the north run (z 75.3-77.4, every 0.3) and the return (x 106.55-108.55)
+    expect(flat.filter((q) => Math.abs(q.c[1] - (A8_H.gallery + 0.003)) < 1e-6 && q.s[0] > 27 && q.s[2] < 0.03).length).toBeGreaterThanOrEqual(8);
+    expect(flat.filter((q) => Math.abs(q.c[1] - (A8_H.gallery + 0.003)) < 1e-6 && q.s[2] > 18 && q.s[0] < 0.03).length).toBeGreaterThanOrEqual(8);
+    // the open loading edge's band (x 108.7-109.0, z 66-70.5) with its black dashes
+    const band = flat.find((q) => Math.abs(q.c[0] - 108.85) < 1e-6 && Math.abs(q.s[2] - 4.5) < 1e-6)!;
+    expect(band).toBeDefined();
+    expect(top(band)).toBeLessThan(A8_H.gallery + 0.02);
+    expect(flat.filter((q) => Math.abs(q.s[0] - 0.3) < 1e-6 && Math.abs(q.s[2] - 0.2) < 1e-6 && q.c[1] > A8_H.gallery && q.c[1] < A8_H.gallery + 0.02).length).toBeGreaterThanOrEqual(10);
+    // the striped marks: five 1 m x 0.2 m strips each, centred on the marks
+    for (const m of A8_MARKS) {
+      const strips = flat.filter((q) => Math.abs(q.s[0] - 1.0) < 1e-6 && Math.abs(q.s[2] - 0.2) < 1e-6 && Math.abs(q.s[1] - 0.015) < 1e-9 && Math.abs(q.c[0] - m.x) < 1e-6 && Math.abs(q.c[2] - m.z) < 0.5);
+      expect(strips, `mark at ${m.x}, ${m.z}`).toHaveLength(5);
+    }
+    expect(A8_MARKS[0]).toEqual({ x: A8_LEGUP.x, z: A8_LEGUP.z });
+    expect(A8_MARKS[1]).toEqual({ x: A8_JAM.x, z: A8_JAM.z });
+    // the marks' floors: the leg-up mark is open floor at the lip's foot, the jam spot clear of the counter's north face (z 66.24) by its half width
+    expect(A8_JAM.z - 0.5).toBeGreaterThan(A8_COUNTER_MAIN.z1);
+    expect(A8_LEGUP.x - 0.5).toBeGreaterThanOrEqual(A8_RETURN.x1);
+  });
+
+  it('the gallery: a stone coping 4 cm proud each side on the 1.2 m balustrade and raised panels on both faces, the slab front frieze with a brass line (not across the stair head or the open edge), bases and capitals on all eight columns, newels on both ends of the stair head, the drop chain (24 links, two eye plates) across the open loading edge, an accent line on circuit 82 under the front', () => {
+    const topY = A8_H.gallery + A8_H.balustrade;
+    const coping = flat.filter((q) => Math.abs(q.c[1] - (topY + 0.015)) < 1e-6 && Math.abs(q.s[1] - 0.03) < 1e-9 && Math.max(q.s[0], q.s[2]) > 2);
+    expect(coping.length).toBeGreaterThanOrEqual(5);
+    for (const q of coping) {
+      // the coping is wider than the balustrade (0.2 m) by 8 cm over the slab's own thickness at most
+      expect(Math.min(q.s[0], q.s[2])).toBeLessThanOrEqual(0.28 + 1e-6);
+      expect(Math.min(q.s[0], q.s[2])).toBeGreaterThanOrEqual(0.2);
+    }
+    // raised panels: a darker block 0.7 m high with a lighter inset on both faces of every run
+    expect(flat.filter((q) => Math.abs(q.s[1] - 0.7) < 1e-6 && Math.abs(q.c[1] - 5.0) < 1e-6).length).toBeGreaterThanOrEqual(20);
+    // 8 columns x 4 faces x (a base, two capital blocks)
+    expect(flat.filter((q) => Math.abs(q.s[1] - 0.35) < 1e-9 && q.c[1] < 0.2 && Math.max(q.s[0], q.s[2]) > 0.39 && Math.max(q.s[0], q.s[2]) < 0.41)).toHaveLength(32);
+    expect(flat.filter((q) => Math.abs(q.s[1] - 0.38) < 1e-9 && top(q) === A8_H.slab)).toHaveLength(32);
+    expect(flat.filter((q) => Math.abs(q.s[1] - 0.18) < 1e-9 && top(q) === A8_H.slab)).toHaveLength(32);
+    // the newels: 0.35 m posts of four plates on the balustrade tops at x 130.3-130.5 and 131.7-131.9 (the switch stands at x 131.65, the post's west face is 131.7)
+    for (const x of [130.4, 131.8]) expect(flat.filter((q) => Math.abs(q.c[0] - x) < 0.12 && Math.abs(q.s[1] - 0.35) < 1e-9 && Math.abs(q.c[1] - (topY + 0.175)) < 1e-6)).toHaveLength(4);
+    // the drop chain (P13): 24 links 0.14 m long 0.75-0.95 m over the deck, in a swag lowest at its middle, no collision
+    const links = flat.filter((q) => Math.abs(q.s[0] - 0.04) < 1e-9 && Math.abs(q.s[1] - 0.04) < 1e-9 && Math.abs(q.s[2] - 0.14) < 1e-9 && Math.abs(q.c[0] - 108.9) < 1e-6);
+    expect(links).toHaveLength(24);
+    for (const q of links) {
+      expect(q.c[2]).toBeGreaterThan(A8_OPEN_EDGE[0]);
+      expect(q.c[2]).toBeLessThan(A8_OPEN_EDGE[1]);
+      expect(q.c[1] - 0.02 - A8_H.gallery).toBeGreaterThanOrEqual(0.75 - 0.03);
+      expect(q.c[1] - 0.02 - A8_H.gallery).toBeLessThanOrEqual(0.95 + 1e-6);
+    }
+    const lowest = links.reduce((m, q) => (q.c[1] < m.c[1] ? q : m));
+    expect(Math.abs(lowest.c[2] - (A8_OPEN_EDGE[0] + A8_OPEN_EDGE[1]) / 2)).toBeLessThan(0.3);
+    // the lip is untouched: the one manual ledge stays the only grip and the leg-up still finds it
+    expect(anchors.ledges.filter((l) => inBox(box, (l.a.x + l.b.x) / 2, (l.a.z + l.b.z) / 2, 0.3) && l.piece === 0)).toHaveLength(1);
+    // the accent slots (82) under the slab's front: along the north front and the return's
+    const accent = kitIn.filter((i) => i.piece === 'ledSlot' && i.group === 82);
+    expect(accent.map((i) => i.yaw === 0)).toEqual([true, true, false, false]);
+  });
+
+  it("the stairs' rails (visual: the open sides stay open): the public flight has a brass top rail 1.0 m and a steel mid rail 0.5 m over the nosing line on both sides, pitched like the ramp, a stringer, balusters and posts; the office flight a brass rail 0.9 m on both walls", () => {
+    const pitch = -Math.atan2(A8_H.gallery, 27 * 0.285);
+    const pub = pitched.filter((q) => Math.abs(q.yaw) < 1e-9);
+    // per side: top rail, mid rail, stringer
+    expect(pub).toHaveLength(6);
+    for (const q of pub) {
+      expect(q.pitch).toBeCloseTo(pitch, 6);
+      expect(q.s[2]).toBeCloseTo(hyp2(27 * 0.285, A8_H.gallery), 6);
+      expect([130.47, 131.73].some((x) => Math.abs(q.c[0] - x) < 1e-6)).toBe(true);
+      expect(q.c[2]).toBeCloseTo(A8_PUBLIC_STAIR.foot + (27 * 0.285) / 2, 6);
+    }
+    // heights over the nosing line at the flight's middle (the line is at half the rise there)
+    const above = pub.map((q) => Math.round((q.c[1] - A8_H.gallery / 2) * 100) / 100).sort((a, c) => a - c);
+    expect(above).toEqual([-0.1, -0.1, A8_RAIL_LIFT.mid, A8_RAIL_LIFT.mid, A8_RAIL_LIFT.top, A8_RAIL_LIFT.top]);
+    // balusters and posts: thin vertical skins on the two edges
+    const verticals = flat.filter((q) => (q.c[0] < 130.6 || q.c[0] > 131.6) && q.c[0] > 130.4 && q.c[0] < 131.8 && q.c[2] > 67.3 && q.c[2] < 75 && q.s[1] > 0.5 && q.s[1] < 1.2 && q.s[0] < 0.05 && q.s[2] < 0.05);
+    expect(verticals.length).toBeGreaterThanOrEqual(2 * 18);
+    // the office flight: the wall rails (x 134.5-142.2 along z 71.2, x 135.2-142.2 along z 70.03)
+    const off = pitched.filter((q) => Math.abs(q.yaw - Math.PI / 2) < 1e-9);
+    expect(off).toHaveLength(2);
+    for (const q of off) expect(q.pitch).toBeCloseTo(pitch, 6);
+    const offZ = off.map((q) => q.c[2]).sort((a, c) => a - c);
+    expect(offZ[0]).toBeCloseTo(A8_OFFICE_STAIR.z0 + 0.03, 6);
+    expect(offZ[1]).toBeCloseTo(71.2, 6);
+    const longRail = off.find((q) => Math.abs(q.c[2] - 71.2) < 1e-6)!;
+    expect(longRail.c[1] - A8_H.gallery / 2).toBeCloseTo(A8_RAIL_LIFT.wall, 6);
+    // the rails stand outside the 1.2 m stair: the body's 0.6 m keeps its clearance each side (the public flight's rails 3 cm off its edge, the walls' 2-5 cm)
+    expect(131.73 - 131.7).toBeLessThanOrEqual(0.05);
+    expect(130.5 - 130.47).toBeLessThanOrEqual(0.05);
+  });
+
+  it("the counters and the night desk dressing: oak back panels over the boxes' backs, end caps, brass stems carrying the three counter lamps (1.21 to 1.4) and the desk lamp (0.76 to 1.0)", () => {
+    for (const [x, z] of [[121.0, 65.9], [124.8, 65.9], [125.6, 61.5]] as const) {
+      const stem = flat.find((q) => Math.abs(q.c[0] - x) < 1e-6 && Math.abs(q.c[2] - z) < 1e-6 && Math.abs(q.s[0] - 0.04) < 1e-9 && Math.abs(q.s[1] - 0.17) < 1e-9)!;
+      expect(stem, `stem at ${x}, ${z}`).toBeDefined();
+      expect(top(stem)).toBeCloseTo(1.4, 9);
+      expect(stem.c[1] - stem.s[1] / 2).toBeCloseTo(1.23, 9);
+    }
+    const stemD = flat.find((q) => Math.abs(q.c[0] - 128.5) < 1e-6 && Math.abs(q.c[2] - 70.4) < 1e-6 && Math.abs(q.s[1] - 0.22) < 1e-9)!;
+    expect(stemD).toBeDefined();
+    expect(top(stemD)).toBeCloseTo(1.0, 9);
+    // the lamps the stems carry are the greybox's (their fixtures' feet are the stems' tops)
+    for (const [x, z, y] of [[121.0, 65.9, 1.4], [124.8, 65.9, 1.4], [125.6, 61.5, 1.4], [128.5, 70.4, 1.0]] as const) expect(lamps.some((l) => Math.abs(l.x - x) < 1e-6 && Math.abs(l.z - z) < 1e-6 && Math.abs(l.y - y) < 1e-6)).toBe(true);
+    // the counter tops: the stems start over the 1.2 m solid
+    expect(top(mine.find((q) => q.collide && Math.abs(q.c[0] - 120) < 1e-6 && Math.abs(q.c[2] - 65.87) < 1e-6)!)).toBeCloseTo(1.2, 9);
+  });
+
+  it("the grille wall: a stepped stone surround (0.3 m) round the opening with a keystone and a cornice shelf over the sign, two brass bar panels (nine bars each between stiles, three rails, over black) either side, a brass threshold in the opening; the lobby face a steel surround 0.25 m with a hazard strip; the gate's own leaf and lock are the door system's", () => {
+    // jambs: 0.3 m stone from the floor to 3.3
+    expect(flat.filter((q) => Math.abs(q.s[2] - 0.3) < 1e-6 && Math.abs(q.s[1] - 3.3) < 1e-6 && Math.abs(q.c[0] - 133.805) < 1e-6)).toHaveLength(2);
+    // bars: 2 bays x 9 bars (0.025 x 2.78) and the frames
+    const bars = flat.filter((q) => Math.abs(q.s[2] - 0.025) < 1e-9 && Math.abs(q.s[1] - 2.78) < 1e-9 && q.c[0] > 133.7 && q.c[0] < 133.8);
+    expect(bars).toHaveLength(18);
+    for (const { bars: [a, e] } of A8_BAYS) expect(bars.filter((q) => q.c[2] > a && q.c[2] < e)).toHaveLength(9);
+    for (const q of bars) expect(q.c[2] > 59.5 && q.c[2] < 64.5 && !(q.c[2] > 60.8 && q.c[2] < 63.2)).toBe(true);
+    // the bay's backing is black and fills z 59.55-61.1 / 62.9-64.45 (the dado's stiles are cut out there)
+    for (const { fill } of A8_BAYS) expect(flat.filter((q) => Math.abs(q.s[2] - (fill[1] - fill[0])) < 1e-6 && Math.abs(q.s[1] - 2.95) < 1e-9 && Math.abs(q.s[0] - 0.03) < 1e-9 && q.c[0] > 133.8)).toHaveLength(1);
+    // a threshold in the opening, a few mm proud
+    const thresh = flat.find((q) => Math.abs(q.c[2] - 62.0) < 1e-6 && Math.abs(q.s[2] - 1.8) < 1e-9 && top(q) < 0.02 && q.s[0] > 0.29)!;
+    expect(thresh).toBeDefined();
+    // the lobby surround
+    expect(flat.filter((q) => Math.abs(q.s[2] - 0.25) < 1e-6 && Math.abs(q.s[1] - 3.25) < 1e-6 && q.c[0] > 134.1 && q.c[0] < 134.3)).toHaveLength(2);
+    expect(flat.filter((q) => Math.abs(q.s[0] - 0.03) < 1e-9 && Math.abs(q.s[2] - 0.15) < 1e-9 && Math.abs(q.s[1] - 0.08) < 1e-9 && q.c[0] > 134.2 && q.c[0] < 134.3).length).toBeGreaterThanOrEqual(5);
+    // the gate stays a locked mains-and-egress door of the same size
+    const gd = doorAt(A8_GRILLE);
+    expect([gd.width, gd.height, gd.locked]).toEqual([1.8, 3.0, true]);
+  });
+
+  it("the lighting board and the strip: a steel cabinet 1.2 x 1.8 m on the north wall with two doors, hinges, twelve vent slats, a yellow plate with the red rotary at x 127, three indicator squares, a label, a hazard square and a conduit; beams under the gallery's soffit; nothing within 9 cm of the wall's face stands in the board's way", () => {
+    const cabinet = flat.find((q) => Math.abs(q.s[0] - 1.2) < 1e-6 && Math.abs(q.s[1] - 1.8) < 1e-6 && Math.abs(q.s[2] - 0.03) < 1e-9 && q.c[2] > 77.7)!;
+    expect(cabinet).toBeDefined();
+    expect(cabinet.c[0]).toBeCloseTo(127.0, 6);
+    expect(flat.filter((q) => Math.abs(q.s[0] - 0.4) < 1e-9 && Math.abs(q.s[1] - 0.03) < 1e-9 && q.c[2] > 77.6 && q.c[2] < 77.7 && q.c[1] < 0.7)).toHaveLength(12);
+    const rotary = flat.find((q) => Math.abs(q.s[0] - 0.12) < 1e-9 && Math.abs(q.s[1] - 0.12) < 1e-9 && q.c[2] > 77.6)!;
+    expect(rotary).toBeDefined();
+    expect(rotary.c[0]).toBeCloseTo(127.0, 9);
+    expect(rotary.c[1]).toBeCloseTo(0.9, 9);
+    // the rotary stays 6 cm behind the device (z 77.6): its front face is at z 77.66
+    expect(rotary.c[2] - rotary.s[2] / 2).toBeGreaterThanOrEqual(77.6 + 0.05);
+    // the board's device is the greybox's, at the cabinet's centre
+    expect(part.devices[A8_BOARD]).toMatchObject({ x: 127.0, y: 0.9, z: 77.6 });
+    // the hide spot west of it (126.4, 76.5) and the walk beside the strip are clear (above)
+    expect(flat.filter((q) => Math.abs(q.s[1] - 0.04) < 1e-9 && Math.abs(top(q) - A8_H.slab) < 1e-9 && q.s[2] > 2.5).length).toBeGreaterThanOrEqual(8);
+  });
+
+  it("the security office: painted walls on a dark dado with a rail and a black skirting, a cove, a ceiling grid with eight hangers for the two panels, eleven screens round the console (the device's place bare), the console desk's worktop, front and ends, a notice board with notes, a clock; the officer's post and the console's reach are unchanged", () => {
+    // eleven bezels: eight 0.55 x 0.32 and three 0.6 x 0.35 on the east wall
+    expect(flat.filter((q) => Math.abs(q.s[2] - 0.55) < 1e-9 && Math.abs(q.s[1] - 0.32) < 1e-9 && Math.abs(q.s[0] - 0.03) < 1e-9)).toHaveLength(8);
+    expect(flat.filter((q) => Math.abs(q.s[2] - 0.6) < 1e-9 && Math.abs(q.s[1] - 0.35) < 1e-9 && Math.abs(q.s[0] - 0.03) < 1e-9)).toHaveLength(3);
+    // hangers: 8 rods 0.02 x 0.12 (7.25 to 7.37) at the panels' corners
+    expect(flat.filter((q) => Math.abs(q.s[0] - 0.02) < 1e-9 && Math.abs(q.s[2] - 0.02) < 1e-9 && Math.abs(q.s[1] - (A8_H.office - 0.03 - 7.25)) < 1e-9)).toHaveLength(8);
+    // the desk: a worktop skin 1 cm over the 0.75 m box, the officer's feet at 4.4 and the console device 0.4 m from the desk's front
+    const work = flat.find((q) => Math.abs(q.c[1] - (A8_H.gallery + 0.755)) < 1e-6 && Math.abs(q.s[0] - 0.55) < 1e-9 && Math.abs(q.s[2] - 2.0) < 1e-9)!;
+    expect(work).toBeDefined();
+    expect(part.devices[A8_CONSOLE]).toMatchObject({ x: 143.7, y: 5.6, z: 74.7 });
+    expect(A8_OFFICER_POST.y).toBe(A8_H.gallery);
+    // the screens stay out of the console's hole (z 74.2-75.2 from the desk top to 5.9) and the medkit's (x 137.85-139.15)
+    expect(skinsIn(143.8, 143.85, 5.2, 5.9, 74.2, 75.2)).toEqual([]);
+    expect(skinsIn(137.85, 139.15, A8_H.gallery + 0.05, 6.9, 77.5, 77.75)).toEqual([]);
+    // the door architraves: the office door's (west face) and the stair-top door's (south face), 0.12 m
+    expect(flat.filter((q) => q.c[0] > 134.15 && q.c[0] < 134.2 && Math.abs(q.s[2] - 0.1) < 1e-9 && Math.abs(q.s[1] - 2.2) < 1e-9)).toHaveLength(2);
+  });
+
+  it('the office stair and its stairwell: painted walls (the flight, the block, the landings), the foot and stair-top doors\' architraves, a brass handrail 0.9 m over the nosing line on each wall with a bracket every 1.3 m; the push bar and the stair-top door\'s places are bare', () => {
+    expect(flat.filter((q) => Math.abs(q.s[0] - 0.04) < 1e-9 && Math.abs(q.s[1] - 0.08) < 1e-9 && Math.abs(q.s[2] - 0.05) < 1e-9).length).toBeGreaterThanOrEqual(0);
+    const brackets = flat.filter((q) => Math.abs(q.s[0] - 0.04) < 1e-9 && Math.abs(q.s[1] - 0.08) < 1e-9 && q.c[0] > 134.5 && q.c[0] < 142.5 && q.c[2] > 69.9 && q.c[2] < 71.3);
+    expect(brackets.length).toBeGreaterThanOrEqual(7);
+    // the push bar (135.8, 1.1, 71.2) and the door: bare
+    expect(skinsIn(135.5, 136.1, 0.85, 1.35, 71.1, 71.24).map((q) => q.c)).toEqual([]);
+    expect(skinsIn(142.6, 143.8, A8_H.gallery + 0.05, 6.5, 71.2, 71.3).map((q) => q.c)).toEqual([]);
+    // the stairwell is still a closed block south of the flight and the flight's walls: the greybox boxes are the same
+    expect(mine.filter((q) => q.collide && q.c[2] > 68 && q.c[2] < 70 && q.s[1] > 7 && q.c[0] > 135 && q.c[0] < 143)).toHaveLength(1);
+  });
+
+  it("the vault lobby: steel plate walls with seams every 1.2 m, a surround and a maker's plate on the vault door (jambs 0.3 m, six bolts a jamb), ceiling ribs clear of the beam header, hangers for both panels, two yellow lines at the beam line; the beam curtain's piers and header carry plates, a hazard band and 36 chevrons; the time locks carry cases, dials and keypads", () => {
+    // the vault door's jambs on the lobby face: two 0.3 x 2.5 plates
+    expect(flat.filter((q) => Math.abs(q.s[2] - 0.3) < 1e-6 && Math.abs(q.s[1] - 2.5) < 1e-6 && Math.abs(q.c[0] - 145.805) < 1e-6)).toHaveLength(2);
+    expect(flat.filter((q) => Math.abs(q.s[0] - 0.03) < 1e-9 && Math.abs(q.s[2] - 0.08) < 1e-9 && Math.abs(q.s[1] - 0.08) < 1e-9 && q.c[0] > 145.7 && q.c[0] < 145.8)).toHaveLength(12);
+    // the ribs: none across the header (x 139.55-140.45)
+    const ribs = flat.filter((q) => Math.abs(q.s[0] - 0.14) < 1e-9 && Math.abs(q.s[1] - 0.04) < 1e-9 && Math.abs(q.s[2] - 11.7) < 1e-9);
+    expect(ribs.length).toBeGreaterThanOrEqual(6);
+    for (const q of ribs) expect(Math.abs(q.c[0] - 140)).toBeGreaterThan(0.4);
+    // the beam curtain: 36 chevrons, plates on the piers (four broad faces) and the header's two faces
+    expect(flat.filter((q) => Math.abs(q.s[0] - 0.03) < 1e-9 && Math.abs(q.s[1] - 0.15) < 1e-9 && Math.abs(q.s[2] - 0.3) < 1e-9 && Math.abs(q.c[0] - 140) < 0.2)).toHaveLength(36);
+    expect(flat.filter((q) => Math.abs(q.s[1] - 4.5) < 1e-9 && Math.abs(q.s[0] - 0.03) < 1e-9 && Math.abs(q.c[0] - 140) < 0.2)).toHaveLength(4);
+    expect(flat.filter((q) => Math.abs(q.s[2] - 11.0) < 1e-9 && Math.abs(q.s[0] - 0.03) < 1e-9 && Math.abs(q.c[0] - 140) < 0.2 && Math.abs(q.s[1] - 0.6) < 1e-9)).toHaveLength(2);
+    // the beams, their panel and the throw are the greybox's: nothing within the beam gaps' lens heads (x 139.7-140.3, the pier faces z 56.5 and 67.5, y 0.2-1.6)
+    expect(skinsIn(139.7, 140.3, 0.2, 1.6, 56.3, 56.505).filter((q) => ext(q)[4] < 56.499 && ext(q)[5] > 56.5 - 1e-6)).toEqual([]);
+    expect(skinsIn(139.7, 140.3, 0.2, 1.6, 67.495, 67.7).filter((q) => ext(q)[5] > 67.501 && ext(q)[4] < 67.5 + 1e-6)).toEqual([]);
+    // the time locks: a dial and a case at each (the dial 0.4 square at y 1.0-1.4)
+    expect(sized(0.4, 0.4)).toHaveLength(2);
+    expect(sized(0.6, 1.05)).toHaveLength(2);
+  });
+
+  it("the vault: plate on its west wall with the door's inner surround, four ribs under the roof, end caps on the deposit walls' open ends (x 149.75)", () => {
+    expect(flat.filter((q) => Math.abs(q.s[0] - 0.14) < 1e-9 && Math.abs(q.s[1] - 0.04) < 1e-9 && Math.abs(q.s[2] - 7.7) < 1e-9)).toHaveLength(3);
+    expect(flat.filter((q) => Math.abs(q.s[2] - 0.6) < 1e-9 && Math.abs(q.s[1] - 2.4) < 1e-9 && Math.abs(q.c[0] - 149.765) < 1e-6)).toHaveLength(2);
+    expect(flat.filter((q) => Math.abs(q.s[2] - 0.3) < 1e-6 && Math.abs(q.s[1] - 2.5) < 1e-6 && Math.abs(q.c[0] - 146.165) < 1e-6)).toHaveLength(2);
+  });
+
+  it('the lamp fittings: three chandeliers on twelve rods to brass roses at 9.0 with rings and finials, a plate behind each gallery wall light, coffer beams on the hall ceiling every 3 m / 3.45 m; no lamp added, none moved (the tuned bands and the light frame hold)', () => {
+    expect(flat.filter((q) => Math.abs(q.s[0] - 0.02) < 1e-9 && Math.abs(q.s[2] - 0.02) < 1e-9 && Math.abs(q.s[1] - 1.1) < 1e-9 && Math.abs(top(q) - A8_H.hall) < 1e-9)).toHaveLength(12);
+    expect(flat.filter((q) => Math.abs(q.s[0] - 0.4) < 1e-9 && Math.abs(q.s[2] - 0.4) < 1e-9 && Math.abs(q.s[1] - 0.03) < 1e-9 && Math.abs(top(q) - A8_H.hall) < 1e-9)).toHaveLength(3);
+    expect(flat.filter((q) => Math.abs(q.s[0] - 0.28) < 1e-9 && Math.abs(q.s[1] - 0.58) < 1e-9 && Math.abs(q.c[2] - 77.735) < 1e-6)).toHaveLength(3);
+    expect(flat.filter((q) => Math.abs(q.s[1] - 0.04) < 1e-9 && Math.abs(top(q) - A8_H.hall) < 1e-9 && Math.max(q.s[0], q.s[2]) > 27)).toHaveLength(9 + 7);
+    // the 16 greybox lamps, by group: 7 / 3 / 2 / 4, each still at the tuned point and grouped
+    expect(lamps.filter((l) => l.group === 81)).toHaveLength(7);
+    expect(lamps.filter((l) => l.group === 82)).toHaveLength(3);
+    expect(lamps.filter((l) => l.group === 83)).toHaveLength(2);
+    expect(lamps.filter((l) => l.group === 84)).toHaveLength(4);
+    for (const l of lamps) {
+      expect(l.electric).toBe(true);
+      expect(l.destructible).toBe(true);
+    }
+    // the light frame's levels (ctcourseLight runs them too): the front and the grille approach lit, dark when 81 is cut, the pockets dark
+    expect(tuned['A8 front']).toBeGreaterThanOrEqual(0.6);
+    expect(tuned['A8 front cut']).toBeLessThanOrEqual(0.24);
+    expect(tuned['A8 vestibule']).toBeLessThanOrEqual(0.22);
   });
 });

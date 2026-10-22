@@ -12,18 +12,19 @@
 //   4. the console: refused with the officer up (and claims nothing), the host takes the officer, presses it: `a8-loop` set, the three cameras
 //      'looped' on both pages, the timer line, `a8-office` ticks; a press while it loops does nothing;
 //   5. the board: at N2's grille stop (route index 2, read on the host) the client presses the board: group 81 off on both pages (the lamps, the
-//      front and the grille approach dark), the grille unlocked, N1 walks towards the board, a second press does nothing;
-//   6. the grille: the client opens it, steps in and closes it; the host (stair door, push bar on the stair side, foot door) comes down: `a8-lobby`
-//      set, `a8-grille` ticks;
+//      front and the grille approach dark), the grille unlocked, a second press does nothing (the window never rises), the client goes to the lane
+//      (132.25, 66.0) while N1 walks towards the board;
+//   6. the grille: once N2 walks away from it (route index 4) the client opens it, steps in and closes it; the host (stair door, push bar on the
+//      stair side, foot door) comes down: `a8-lobby` set, `a8-grille` ticks;
 //   7. the throw: the host on the mark, the client on the runner's spot; the client lands within 0.5 m of (142, 62) over the beams: no beam
 //      touched, no alarm stage, `a8-inner1`, `a8-beams` ticks;
 //   8. the sync: both at their time locks; the host starts, the client starts 0.5 s on: `a8-sync`, `laser-a8` off and the vault door unlocked on both
 //      pages, `a8-sync` ticks, the loop still running (the HUD seconds above 0); a late client fails (10 HP) first;
 //   9. both through the vault door into the vault (the runner's finale then walks the dock's exit zone);
 //  10. pass 2 (the checkpoint restart): the claim and the gates reset; the client takes the boost first and is A on both pages; the host (B) presses
-//      the board, opens the grille, steps through and leaves it open: after the 25 s the group is lit again, the gate locked, the door still open
-//      (the relock never shuts a door); it is closed by hand, shut and locked; the request-to-exit (when the build has it) opens it from inside and
-//      not from the hall side.
+//      the board (once N2 walks away from the grille), opens the grille, steps through and leaves it open: after the 25 s the group is lit again, the
+//      gate locked, the door still open (the relock never shuts a door); it is closed by hand, shut and locked; the request-to-exit does nothing from
+//      the hall side (a client press at (133.4, 57.0), over the host's reach) and opens the grille for good from the lobby side.
 // Teleport legs are allowed (the open floor); a door the route opens is opened by `use(P, 'door-<anchor id>')` with that player next to it and
 // asserted open on both pages before anyone is moved through it; a client's press is made within the item's reach (1.4 m) + 0.75 m. The guards
 // stay awake (the lure, N2's stops and the officer's takedown need them); the host takes no damage (`damageMul` 0).
@@ -294,6 +295,15 @@ export async function walk(t, n) {
   const d0 = Math.hypot(n1a.x - board[0], n1a.z - board[1]);
   assert((await use(B, BOARD)) === 'ok', 'A8: the client presses the lighting board');
   await until(A, (g) => window.__course.debug().gates[g], NIGHT_GATE, 8000, 'A8: the isolator opens (the circuit is cut)');
+  // a second press at once, still at the board: the window keeps running (it must not rise back to 25 s)
+  const left0 = await gateTimer(NIGHT_GATE);
+  assert((await use(B, BOARD)) === 'ok', 'A8: the client presses the lighting board a second time');
+  await waitSim(500);
+  const left1 = await gateTimer(NIGHT_GATE);
+  assert(left1 > 10 && left1 <= left0 + 0.05, `A8: a second press does nothing (the window ${left0.toFixed(1)} s -> ${left1.toFixed(1)} s, it never rises)`);
+  // off the board at once, to the lane between the column and the stair (dark in the cut, behind N2 at the grille and out of N1's walk): the client is
+  // not left at the board while N1 walks at it, and not put at the grille while N2 stands there (he waits 5 s facing the gate)
+  await moveClient(132.25, 66.0, 0.1, EAST);
   await until(A, (g) => !window.__app.current.stealth.switchOn(g), NIGHT_GROUP, 10000, 'A8: the night circuit is off on the host');
   await until(B, (g) => window.__course.wire.lights.groups.some(([k, on]) => k === g && !on), NIGHT_GROUP, 15000, "A8: the client's course message has group 81 off");
   assert((await lampsOn(A, NIGHT_GROUP, false)) && (await lampsOn(B, NIGHT_GROUP, false)), 'A8: the seven night lamps are off on both pages');
@@ -303,8 +313,9 @@ export async function walk(t, n) {
   }
   await until(A, (cid) => !window.__course.state.locked(cid), DOORS.grille, 5000, 'A8: the grille is unlocked on the host (the mains gate reads the circuit)');
   await until(B, (i) => !window.__course.wire.locks.includes(i), await doorIndex(DOORS.grille), 15000, 'A8: the client sees the grille unlocked');
-  assert((await use(B, BOARD)) === 'ok' && (await gateTimer(NIGHT_GATE)) > 15, 'A8: a second press does nothing (the window keeps running)');
   await until(A, ([bx, bz, d0]) => { const e = window.__course.squadOf('a8-night1'); if (!e || !e.alive) return false; const d = Math.hypot(e.pos.x - bx, e.pos.z - bz); return d < 1.8 || d < d0 - 1.2; }, [board[0], board[1], d0], 30000, 'A8: N1 walks towards the board');
+  // N2 leaves the grille: his target is the south-east point, then W2 (route index 4: the SE -> W2 leg with his back to the gate), about 10 s after the press
+  await until(A, () => { const e = window.__course.squadOf('a8-night2'); return !!e && !e.alerted && e.walker?.idx === 4; }, null, 30000, 'A8: N2 walks away from the grille (route index 4)');
 
   // ---- 6. the grille and the office stair: the client slips through and shuts it; the host comes down ----
   console.log('  A8: through the grille, down the office stair');
@@ -430,6 +441,8 @@ export async function walk(t, n) {
   await sees(B, /Reach the office on your partner's jam/, 'A8 pass 2: the client (A) reads the office line');
   // the host (B) presses the board, slips through the grille and leaves it open; 25 s later the circuit is back, the gate locked, the door still open
   await moveHost(BOARD_WEST[0], BOARD_WEST[1], 0.1, 0);
+  // the board goes in once N2 walks away from the grille (route index 4), so the host reaches the gate behind his back
+  await until(A, () => { const e = window.__course.squadOf('a8-night2'); return !!e && !e.alerted && e.walker?.idx === 4; }, null, 60000, 'A8 pass 2: N2 walks away from the grille (route index 4)');
   assert((await use(A, BOARD)) === 'ok', 'A8 pass 2: the host presses the board');
   await until(A, (g) => window.__course.debug().gates[g], NIGHT_GATE, 8000, 'A8 pass 2: the isolator opens');
   await moveHost(GRILLE_AT[0], GRILLE_AT[1], 0.1, EAST);
@@ -444,14 +457,18 @@ export async function walk(t, n) {
   await closeDoor(A, DOORS.grille, 'A8 pass 2 grille');
   const aid = await doorAid(DOORS.grille);
   assert((await use(A, `door-${aid}`)) === 'disabled', 'A8 pass 2: shut and locked, the grille cannot be opened from inside by hand');
-  // the request-to-exit (when the build has it): not from the hall side, from inside it opens the grille for good
-  const hasRte = await A.evaluate((id) => !!window.__app.current.interactables?.items.find((i) => i.id === id), RTE);
-  if (hasRte) {
-    await moveHost(INSIDE[0], 66.5, 0.1, 0);
-    assert((await use(A, RTE)) === 'ok', 'A8 pass 2: the host presses the request-to-exit from the lobby side');
-    await until(A, (cid) => !window.__course.state.locked(cid), DOORS.grille, 5000, 'A8 pass 2: the request-to-exit unlocks the grille for good');
-  } else console.log('  A8: the request-to-exit is not in this build (A8_RTE_GATE_ON false, S8 request 1): the grille stays locked');
-  assert(hasRte || (await lockedOnHost(DOORS.grille)), 'A8 pass 2: without the request-to-exit the grille stays locked');
+  // the request-to-exit (A8_RTE_GATE_ON, on since 2e58f265: an open egress gate releases the door on its own): the device stands on the lobby's south
+  // wall (136.3, 1.1, 56.15). A client press from the hall side (133.4, 57.0), 3.0 m off and over the host's reach (the host's own `use` skips reach),
+  // must leave the grille locked; from the lobby side (136.3, 57.0) the host's press opens it for good
+  assert(await A.evaluate((id) => !!window.__app.current.interactables?.items.find((i) => i.id === id), RTE), 'A8 pass 2: the request-to-exit is in the build');
+  await moveClient(133.4, 57.0, 0.1, EAST);
+  assert((await use(B, RTE)) === 'ok', 'A8 pass 2: the client presses the request-to-exit from the hall side');
+  await waitSim(1000);
+  assert(await lockedOnHost(DOORS.grille), 'A8 pass 2: a press from the hall side leaves the grille locked (out of reach)');
+  await moveHost(136.3, 57.0, 0.1, 0);
+  assert((await use(A, RTE)) === 'ok', 'A8 pass 2: the host presses the request-to-exit from the lobby side');
+  await until(A, (cid) => !window.__course.state.locked(cid), DOORS.grille, 5000, 'A8 pass 2: the request-to-exit unlocks the grille for good');
+  await until(B, (i) => !window.__course.wire.locks.includes(i), await doorIndex(DOORS.grille), 15000, 'A8 pass 2: the client sees the grille unlocked');
   for (const P of [A, B]) await until(P, () => !window.__app.current.traversal.attached, null, 10000, 'A8: nobody is hanging');
   // the runner's finale then puts both in the cash dock (teleports: no door is in the way)
 }

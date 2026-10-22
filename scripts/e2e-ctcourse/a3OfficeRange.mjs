@@ -64,12 +64,69 @@ export async function walk(t, n) {
     await until(B, ([x, z]) => { const p = window.__app.current.player.position; return Math.hypot(p.x - x, p.z - z) < 0.6; }, BACK, 15000, `${what}: the client page stands at the send-back spot`);
     await until(A, ([x, z]) => { const r = window.__app.current.net.remotes.values().next().value; return Math.hypot(r.feet.x - x, r.feet.z - z) < 0.8; }, BACK, 15000, `${what}: the host sees the client at the send-back spot`);
   }
+  /**
+   * (S-e2e-fix) Settle the aim on the camera itself: every fixed electric lamp is a jam target too and the pick is the target
+   * nearest the aim, and from the west post the corridor panel at x 96 (0.6 m in front of the lens, 0.15 m higher) is 0.6 deg
+   * from the lens. Aim from the game camera's own eye (what the pick reads) a few thousandths of a radian under the lens (the
+   * panel is above it; 0.003 rad is 5 cm at the west post), lower on each retry, until this page's pick is the camera.
+   */
+  async function aimPick(P, what) {
+    let pick = '';
+    for (let k = 0; k < 10; k++) {
+      const under = 0.003 * (1 + Math.min(k, 4));
+      await P.evaluate(([x, y, z, under]) => {
+        const c = window.__app.current.player.cam;
+        const p = c.gamePos;
+        const dx = x - p.x, dy = y - p.y, dz = z - p.z;
+        c.yaw = Math.atan2(dx, dz);
+        c.pitch = Math.atan2(dy, Math.hypot(dx, dz)) - under;
+      }, [...CAM, under]);
+      await waitSim(120);
+      pick = await P.evaluate(() => window.__ctdev?.localPick ?? '');
+      if (pick === CAM_ID) return;
+    }
+    throw new Error(`${what}: the aim settles on the camera (pick ${pick || 'none'}; ${await jamDiag(P, P === A ? 0 : 1)})`);
+  }
+  /** (S-e2e-fix) The jam state for a timeout: the host's jam / cooldown / device phase, the page's pick, eye and aim. */
+  const jamDiag = (P, who) =>
+    Promise.all([
+      GA((w) => { const g = window.__app.current; const d = window.__ctdev.debug(); const c = d.cams.find((x) => x.id === 'cam-a3-hall'); const e = g.enemyMgr?.enemies.find((q) => q.alive); return { jam: d.jam, cool: d.cool, cam: c ? { mode: c.mode, jam: c.jam, frozen: c.frozen } : null, who: w, restarts: g.mode?.restarts ?? null, hp: g.playerRefs().map((r) => r.target.health?.hp ?? null), cleaner: e ? { x: +e.pos.x.toFixed(2), z: +e.pos.z.toFixed(2), alerted: !!e.alerted } : null }; }, who),
+      P.evaluate(() => {
+        const g = window.__app.current;
+        const c = g.player.cam;
+        const f = (v) => [v.x, v.y, v.z].map((n) => +n.toFixed(3));
+        const st = g.player.stance;
+        const pad = navigator.getGamepads?.()?.[0];
+        return {
+          pick: window.__ctdev?.localPick ?? null, eye: f(c.gamePos), fwd: f(c.forward), feet: f(g.player.controller.pos), ads: g.player.ads, adsWanted: g.player.adsWanted, draw: g.weapons.drawPhase, team: g.team.state,
+          stance: st ? { state: st.state, base: st.base, latch: st.aimLatch, block: st.aimBlock, susp: st.suspended } : null, adsDown: window.__app.input?.state?.down?.('ads') ?? null,
+          lt: pad?.buttons?.[6]?.value ?? null, rb: pad?.buttons?.[5]?.value ?? null, wheel: g.gadgets?.wheelOpen ?? null, ctx: g.ctxMenu?.state ?? null, blank: g.player.inputBlank, landT: g.player.controller.landT, traverse: g.player.pose.traverse, susp: g.player.weaponSuspend, time: +g.time.toFixed(2),
+        };
+      }),
+    ]).then((x) => JSON.stringify(x));
+  /** (S-e2e-fix) The pass zones' state for a timeout: each A3 zone's hallway state per player, both players' feet on the host, the flags, the camera. */
+  const zoneDiag = () =>
+    GA(() => {
+      const g = window.__app.current;
+      const d = window.__ctdev.debug();
+      const zs = window.__ctdev.zones ?? [];
+      const f = (v) => [v.x, v.y, v.z].map((n) => +n.toFixed(2));
+      const refs = g.playerRefs();
+      const c = d.cams.find((x) => x.id === 'cam-a3-hall');
+      const zones = zs.map((z, i) => ({ z, i })).filter(({ z }) => z.id.startsWith('a3-')).map(({ z, i }) => ({ id: z.id, hall: [d.hall[i * 2], d.hall[i * 2 + 1]], hold: [d.hallHold[i * 2], d.hallHold[i * 2 + 1]], set: window.__course.state.hasFlag(z.flag) }));
+      const e = g.enemyMgr?.enemies.find((q) => q.alive);
+      return JSON.stringify({ zones, feet: refs.map((r) => f(r.feet)), alive: refs.map((r) => r.target.alive), hp: refs.map((r) => r.target.health?.hp ?? null), restarts: g.mode?.restarts ?? null, cleaner: e ? { at: f(e.pos), alerted: !!e.alerted, meter: e.meter } : null, cam: c ? { mode: c.mode, stage: c.stage, meter: c.meter } : null, jam: d.jam, backs: d.sendBacks, t: +g.time.toFixed(2) });
+    });
   /** The host or the client holds the jammer on the camera from its post (the pistol is drawn). `who` 0 = the host, 1 = the client. */
   async function jamOn(who, what) {
     const P = who === 0 ? A : B;
     await lt(P, true);
     await aimAt(P, ...CAM);
-    await until(A, (w) => window.__ctdev.debug().jam[w] === 'cam-a3-hall', who, 25000, `${what}: the ${who === 0 ? 'host' : 'client'} jams the camera`);
+    await aimPick(P, what);
+    await until(A, (w) => window.__ctdev.debug().jam[w] === 'cam-a3-hall', who, 25000, `${what}: the ${who === 0 ? 'host' : 'client'} jams the camera`).catch(async (e) => {
+      console.error(`${what}: jam diag ${await jamDiag(P, who)}`);
+      throw e;
+    });
     for (const [Q, tag] of [[A, 'host'], [B, 'client']]) await until(Q, () => { const c = window.__ctdev.debug().cams.find((x) => x.id === 'cam-a3-hall'); return !!c && c.mode === 'off' && c.frozen; }, null, 20000, `${what}: the ${tag} page sees the camera blind and frozen`);
   }
   /** Let go of the jammer: RB off first, then LT. */
@@ -104,6 +161,25 @@ export async function walk(t, n) {
     const [la, lb] = [await level(A, x, z), await level(B, x, z)];
     assert(la >= floor && Math.abs(la - lb) < 0.01, `A3: ${what} reads lit and the same on both pages (host ${la.toFixed(3)}, client ${lb.toFixed(3)})`);
   }
+  // (S-e2e-fix) both players unhurt for the set. The runner's `damageMul = 0` at the match start does not hold for a part
+  // that starts at set 3: the bay-N start respawns the host after it, and the respawn's 2 s spawn protection ends on a
+  // wall-clock timer at damageMul 1 (`gameState.ts` respawn). Step 3's corridor switch is a lights-out lure: the armed
+  // cleaner walks through office 1's lobby door to the switch in the west lobby, meets the host at the west post and
+  // shoots; the downed host cannot aim (relay jam 1 timed out), and once out of revive time the bay restarts at L2
+  // (desktop runs: both players back in the L2 room, every A3 flag cleared, at "the pass zone sets a3-far"). The client's
+  // copy on the host is kept unhurt as in A6.
+  await noDamage(A);
+  await GA(() => { for (const r of window.__app.current.net.remotes.values()) { r.damageMul = 0; r.protectT = 0; } });
+  // (S-e2e-fix) a host-step watch for the first hurt / downed player in the set (read at a pass-zone timeout)
+  const hurtKey = await t.onHostStep(A, (g) => {
+    const refs = g.playerRefs();
+    const i = refs.findIndex((r) => !r.target.alive || (r.target.health?.hp ?? 100) < 100);
+    if (i < 0) return null;
+    const e = g.enemyMgr?.enemies.find((q) => q.alive);
+    const f = (v) => [v.x, v.y, v.z].map((n) => +n.toFixed(2));
+    return { who: i, hp: refs.map((r) => r.target.health?.hp ?? null), alive: refs.map((r) => r.target.alive), feet: refs.map((r) => f(r.feet)), cleaner: e ? { at: f(e.pos), alerted: !!e.alerted } : null, t: +g.time.toFixed(2) };
+  });
+  const hurt = () => GA((k) => JSON.stringify(window.__hostStep?.res?.[k] ?? 'nobody hurt'), hurtKey);
   await drawPistol(A);
   await drawPistol(B);
 
@@ -141,6 +217,12 @@ export async function walk(t, n) {
   // ---- 4. the window miss: blind while jammed, seen once the camera is back ----
   console.log('  A3: a jam window that runs out');
   await waitSim(3500);
+  // (S-e2e-fix) the corridor switch lured the cleaner to the west lobby (lights out): the jam posts wait until he is calm and
+  // back on his office loop
+  await until(A, () => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return !e || (!e.alerted && e.pos.x > 79.6 && e.pos.z < 8.7); }, null, 120000, 'A3: the cleaner is calm and back in the offices after the corridor lure');
+  // (the start's damage-off can be undone by the bay-N respawn's wall-clock 2 s timer: set again, seconds later)
+  await noDamage(A);
+  assert((await GA(() => window.__app.current.target.health.hp)) === 100, 'A3: the host is unhurt before the jam posts');
   await moveHost(POST_W[0], POST_W[1], 0.1, Math.PI / 2);
   await waitSim(500);
   n0 = await backs();
@@ -177,7 +259,10 @@ export async function walk(t, n) {
   await until(A, () => window.__ctdev.debug().cool[0] === 0, null, 20000, "A3: the host's cooldown ends");
   await jamOn(0, 'A3 relay jam 2');
   await moveClient(POST_E[0] + 0.5, 8.5, 0.1, -Math.PI / 2);
-  await until(A, (f) => window.__course.state.hasFlag(f), 'a3-far1', 15000, 'A3: the pass zone sets a3-far1 (one player in the east lobby)');
+  await until(A, (f) => window.__course.state.hasFlag(f), 'a3-far1', 15000, 'A3: the pass zone sets a3-far1 (one player in the east lobby)').catch(async (e) => {
+    console.error(`A3 a3-far1: zone diag ${await zoneDiag()}; hurt ${await hurt()}`);
+    throw e;
+  });
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => !!document.querySelector('.course-hud tr[data-step="a3-in"] td.done'), null, 15000, `A3: the ${tag} sees the relay step ticked`);
   assert((await backs()) === n0, 'A3: the relay cost no send-back');
   await until(B, () => /Good\. Now the other way round/.test(window.__course.wire.rl ?? ''), null, 90000, "A3: LANTERN's 'the other way round' line reaches the client");
@@ -206,7 +291,10 @@ export async function walk(t, n) {
   await until(A, () => window.__ctdev.debug().cool[1] === 0, null, 20000, "A3: the client's cooldown ends");
   await jamOn(1, 'A3 swap jam 2');
   await moveHost(POST_E[0] + 0.5, 6.0, 0.1, -Math.PI / 2);
-  await until(A, (f) => window.__course.state.hasFlag(f), 'a3-far', 15000, 'A3: the pass zone sets a3-far (both in the east lobby)');
+  await until(A, (f) => window.__course.state.hasFlag(f), 'a3-far', 15000, 'A3: the pass zone sets a3-far (both in the east lobby)').catch(async (e) => {
+    console.error(`A3 a3-far: zone diag ${await zoneDiag()}; hurt ${await hurt()}`);
+    throw e;
+  });
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
     await until(P, () => !!document.querySelector('.course-hud tr[data-step="a3-swap"] td.done'), null, 15000, `A3: the ${tag} sees the swap step ticked`);
     await sees(P, /holding room three/, `A3: the ${tag} reads the closing line`);
@@ -247,4 +335,5 @@ export async function walk(t, n) {
   assert(!(await lockedOnClient('L3-near')), 'A3: the L3 near door is open to the client');
   for (const P of [A, B]) await until(P, () => !window.__app.current.traversal.attached, null, 10000, 'A3: nobody is hanging');
   assert(/holding room three/.test(await stepLine(A)), 'A3: the host still reads the closing line');
+  await t.offHostStep(A, hurtKey);
 }
