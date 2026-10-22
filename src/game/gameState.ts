@@ -116,6 +116,7 @@ import { InfiltrationMode } from './modes/infiltrationMode';
 import { CourseMode } from './modes/courseMode';
 import { SectorMode } from './modes/sectorMode';
 import type { CourseWire } from './course/courseWire';
+import { PANEL_PART } from './laserPanels';
 import { StealthRating } from './playstyle';
 import { defaultHq, defaultSuit, hqStats, suitStats, type HqLevels, type HqStats, type SuitLoadout, type SuitStats } from '../progression/suit';
 import { GADGET_IDS, GADGETS, type GadgetId } from './gadgets';
@@ -2434,7 +2435,7 @@ export class GameState implements AppState {
     }
   }
 
-  /** (Step 14) electro's live devices: security cameras, alarm panels, switches, terminals, laser sights. */
+  /** (Step 14) electro's live devices: security cameras, alarm panels, switches, terminals, laser sights, laser power panels. */
   private paintElectro(k: number): void {
     if (k > 0 && this.electroK === 0) {
       // gathered on each switch to electro (not per frame): devices built since are included
@@ -2443,7 +2444,8 @@ export class GameState implements AppState {
       for (const m of this.scene.meshes) {
         if (!(m instanceof InstancedMesh)) continue;
         const pn = m.parent?.name ?? '';
-        if (m.name === 'laser' || m.name === 'stickycam-lens' || pn.startsWith('sec-cam-')) list.push(m);
+        // (sector-fixes P) the lasers' power panels' housings too (`PANEL_PART`; their LED keeps its own glow)
+        if (m.name === 'laser' || m.name === PANEL_PART || m.name === 'stickycam-lens' || pn.startsWith('sec-cam-')) list.push(m);
       }
       // interactables by kind: only the powered ones (no intel folders, cache crates, beacons or hide spots)
       const its = this.interactables?.items;
