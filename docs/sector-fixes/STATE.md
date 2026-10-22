@@ -10,15 +10,16 @@ Now:
   Vitest files / 279 tests pass; NOT checked, no e2e yet): docs/sector-fixes/p/WIP.md (A1-A5, placements). A1: the panel
   is the lasers' only jam point. PROTOCOL_VERSION 28 -> 29 (A2: jam ids now name panels). 4 warehouse panels + Marlow
   station 4 panel-s4.
-Next (P): send `npm run check` plus e2e-ctcourse,
-e2e-sectorops, e2e-coop, e2e-netmove (src/net touched) to Character Build on the laptop; fresh checker; PR with
-`changes/feature-sector-fixes-p.md` (no CHANGELOG.md edit).
+  Fresh checker PASS on 66995a22 (polish list in p/WIP.md). PR open (see Done).
+Next (P): the laptop runs `npm run check` + e2e-ctcourse, e2e-sectorops, e2e-coop, e2e-netmove on 66995a22 (queued
+after train 7, ~20:15; a docs-only later head keeps the result); then the PR joins the next train.
 Then S (security room, maps with cameras except Sector Ops) and R (Course Ready has R).
 Open: none.
 
 ## Done
 - 2026-10-22: BRIEF.md (Michael's Sector Ops list). W merged (4.55.0, #116). L (#129) and C (#127) in train 6.
 - 2026-10-22 ~19:00: P started (implementer pass 1, WIP).
+- 2026-10-22 ~19:50: P master 4.57.0 merged in, fresh checker PASS, PR opened.
 
 ## Resume prompt
 ```

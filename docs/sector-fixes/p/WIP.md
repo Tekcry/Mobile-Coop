@@ -54,6 +54,20 @@ updated.
 - Not done: e2e runs, the GPU look of the panel mesh.
 - Next: the job lead commits; the laptop runs e2e-ctcourse, e2e-sectorops, e2e-coop, e2e-netmove; desktop GPU look.
 
+## Checker (fresh Opus, 2026-10-22 ~19:50, on 66995a22): PASS
+tsc clean; eslint 0 errors on the 16 changed src / tests files; Vitest 10 related files / 240 tests pass. e2e on the
+laptop (queued after train 7).
+
+## Polish list (checker, non-blocking)
+1. A panel whose bands are all released for good (station 4 after the release) stays a jam target that does nothing;
+   drop it from the targets as `flagOff` does for cameras (`src/game/ctDevices.ts` ~754).
+2. The four Sector Ops vantages are traced with a 1.6 m eye, not the aim camera, and e2e-sectorops forces the host's
+   jam intent (skips the LOS check): confirm each vantage picks its panel in the first playtest.
+3. e2e-ctcourse station 4 adds two waits inside the 5 s jam cap: watch it under load.
+4. panel-s4 is the least hidden panel (seen from the near side's north half, by design: it is the vantage).
+5. Look (GPU pending): LED glow, proportions, the conduit by the mezzanine shelf, dressing overlap (A5).
+6. Older text: TESTING.md says the jammer is RB / F, WALKTHROUGH.md says LT / Z.
+
 ## Open items
 - The panel look (proportions, LED glow strength, the conduit poking over the mezzanine shelf) is a prototype: polish list.
 - The vantage spots are traced statically (eye 1.6 m); the real third-person aim camera sits about 0.5 m off the head;
