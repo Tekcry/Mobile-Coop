@@ -158,7 +158,8 @@ describe('body motion: amounts 0 are the pre-layer Wren rig bit for bit', () => 
   }, 600000);
 
   // the off fixture is the Wren identity fixture before the layer (master 5220f79c; keyed:run and partner:moves re-captured
-  // after the A1 merge, equal on all 40 entries to feature/anim-n2-runkey 038e2519's fixture): with every amount 0 the rig's
+  // after the A1 merge, equal on all 40 entries to feature/anim-n2-runkey 038e2519's fixture; re-captured after the master
+  // 4.54.1 merge, equal to master's fixture but for keyed:run and partner:moves, the A1 rebake): with every amount 0 the rig's
   // world matrices, local TRS and the poser output on every LOD match it, so the layer adds only its own swings
   it.skipIf(CAPTURE)('every clip, state and the partner path hash as before the layer', async () => {
     expect(existsSync(OFF_FIXTURE)).toBe(true);
