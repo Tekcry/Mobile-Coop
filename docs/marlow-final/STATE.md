@@ -56,6 +56,14 @@ Rejected by you (~01:25): anything that assumes a dark camera is blind (G240 sta
 Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN section 6; slice reports S0-*.md.
 
 ## Now (2026-10-23 ~01:20, new account; FULL BURN to 100% per Michael ~01:05 via the orchestrator)
+- 09:40 (clock) RESUMED after the swap (fresh session; throughput rules origin/feature/menu CLAUDE.md "Heavy-usage
+  throughput": desktop CPU < ~80%, <= 3 tsc / vitest agents). The dressers' last edits committed (927ecabe), tsc
+  clean (5e7cc587); map tests 496 / 497, the fail is voxelFit: A5's dressing beam-tower poles (cover in air at x 58,
+  z 33 / 39). Running: (1) Sonnet finishes A4-A6 dressing (A5 voxelFit fix, Dressing sections S4 / S5 / S6);
+  (2) Opus fixes the three e2e fails (report slices/S-e2e-fix.md); (3) Opus A8 greybox checker (slices/S8-check.md).
+  ON RESUME: if a report is missing, rerun that agent (same brief: owned files above). Then: dressing checkers (Opus,
+  A3-A4 and A5-A7), A8 fix round, A8 dressing (Sonnet), Character Build ctcourse :1-:4 / coop / netmove / course on
+  the head, slice 9.
 - ~09:55 SAVED FOR THE ACCOUNT SWAP (window 91%). Commit "WIP A3-A6 dressing" holds the A3-A6 dressers' files as they
   were mid-work (A3 dressing then FINISHED in the next commit; A4-A6 UNCHECKED, may not compile or pass; tests/ctcourse/a5Substation.scratch.test.ts left out, untracked,
   delete it). A7 dressing complete (3ea78569, unchecked). A8 greybox complete (3dfc6e9a + d3ec16c3, unchecked). The
