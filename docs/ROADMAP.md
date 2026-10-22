@@ -178,6 +178,7 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
 | 2026-10-22 | #107 | 4.51.1: e2e-coop client takedown steady under load (test only) |
 | 2026-10-22 | #111 | 4.52.0: train 1: server browser (#99, public rooms, Co-op > Browse rooms), jammer fixes (#108); protocol 28 |
 | 2026-10-22 | #112 | 4.53.0: train 2: guard tuning in the tuner and Anim Studio (#105), Clip speed tab (#109) |
+| 2026-10-22 | #114 | 4.54.0: train 3: every tuner Body slider and the gun tuck bake, Michael's 13 values built in (#103); holds and carries counter-rotation and load lean (#113, anim-natural N4) |
 | 2026-10-21 | #77 | 4.32.2: the last of pad aim assist removed (G16): the dead setting and test toggles |
 | 2026-10-21 | #75 | 4.32.1: GPU shot rows for Marlow low cells, airlock lids, dressing; warehouse s1 view re-aimed (scripts) |
 | 2026-10-21 | #62 | 4.32.0: Marlow Yard as an underground bunker (ceilings, lamp fittings, airlocks, lifts) plus the variety pass (station dressing, plant rooms, booths, coffer); GPU look green |
