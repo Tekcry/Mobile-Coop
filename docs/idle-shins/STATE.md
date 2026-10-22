@@ -15,7 +15,17 @@ fix only the frame-0 overlap the audit sees." Done:
 - Fix: `reset` lifts a foot to the band's floor (widen only, never narrows) on Wren rigs only
   (`FootPlanner.resetBand`, set by `CharacterRig.tuneRows`): the first try (whole band, every rig) changed the guard and
   dog identity hashes. Headless 2.36 -> 0.3 cm. tests/idleShins.test.ts rewritten; footPlanner, both identity tests pass.
-- Desktop anim-audit on the final code: running 15:20 (/c/NightShift/ish2-audit.log).
+- Desktop anim-audit on 4b2fe50f (15:40, /c/NightShift/ish2-audit.log): every frame-0 selfShanks row gone; selfShanks
+  local 38 -> 8, remote 8 -> 3; fails local 659 / remote 80 (#103 703 / 108, the 0.3 try 689 / 89). Per metric vs #103:
+  footSlideR 20 -> 14, jointRate 51 -> 42, remote footSink 11 -> 0; worse: local selfThighs 64 -> 65 (raise 60 Hz, 2.52
+  cm at frame 0), remote pelvisJump / pelvisP2P +1 each (remote rows vary run to run).
+- Why raise gained a thigh read (DUMP=1 --only=raise, test-results/aa-raise vs aa-raise-pre on #103's dist): before the
+  fix the teleport left the feet CROSSED in-game (ankleL 1.1 cm right of the midline, ankleR 1.1 cm left: the 0.05 track
+  plus IDLE_STANCE.extra -1.5 cm); now ±3.0. The knees move 0.5 cm in (±6.45 -> ±6.0) and bend 1.8 cm more
+  forward, so the thigh capsules read 2.52 (were ~1.55). Accepted as the trade (shank 3.18 fail gone, feet uncrossed,
+  the mesh never clipped); listed in the PR. stance 60 Hz selfThighs was already failing (2.65 -> 3.12 in the full run,
+  2.52 at frame 0 solo).
+- Running 15:45: /c/NightShift/ctb6.sh (check + e2e-anim e2e-move e2e-clip e2e-netmove; then N1 / master e2e-clip --log).
 
 Not fixed (not frame 0, out of scope by Michael's rule): turn180 120 Hz 2.36 cm at frame 134 (a turn's re-step onto the
 narrow ideal), stance / drop24 / wall / slope35-stand4 rows (on master or #103 already).
@@ -36,10 +46,8 @@ teleport leaves (the walk / run rows' trackMul 0.05 easing over BODY_TAU, or the
 the narrow track before the idle row takes over), not the settled idle stance.
 
 ## Next
-1. Read /c/NightShift/ish2-audit.log + test-results/anim-audit/fails.txt: selfShanks frame-0 rows gone (local and
-   remote), no new fails vs #103 (703 / 108) and master (645 / 89).
-2. npm run check + e2e-anim e2e-move e2e-clip e2e-netmove (src/player changed), then commit, push, PR (patch) for
-   train 4; message the orchestrator.
+1. /c/NightShift/ctb6.out: check + the 4 suites green -> PR (patch) for train 4 with the audit numbers above; message
+   the orchestrator.
 
 ## Resume prompt
 ```
