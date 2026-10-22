@@ -34,8 +34,18 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   (`updateAwareness`), `calmDecide` drives patrol (`PatrolWalker`: `SquadSlot.route` / post with glances; per-point
   `waits`), looks at the stimulus, walks to it (`goTo`: straight or A*), search sweeps (`searchPoint`, `searchSlot`).
   Inputs: `hear(x, z, radius)`, `hearGunfire`, `radio(delay)`, `searchAt` (bodies / lights), `alert()`.
-- Hearing: `EnemyManager.hear` muffles a noise to `MUFFLE` (0.45) of its reach when a wall is between it and the listener
-  (one ray at head height; low cover does not muffle). `noiseSuspicion` rises with the square of closeness.
+- Hearing (guard-ai S1, `ai/hearing.ts`, pure): a noise's reach becomes an effective reach per listener,
+  `reach x 10^(-(walls x 6.9 + ambientDb) / 20)`: one wall (head-height ray, cast only where it could change the tier;
+  low cover does not muffle) keeps 0.45 of it (the old `MUFFLE`), and a noisy thing near the guard (`NoisySource`,
+  `EnemyManager.setNoisy`; no map sets any yet) masks it (6 dB halves, 12 dB quarters). Tiers (`HEARING`): inside the
+  effective reach he turns to look (`Enemy.hearTurn`: stands facing it `hearLook`, meter floor `noiseSuspicion` capped
+  at 0.45, no `heard`); inside half of it he may be sent; loud gunfire (`EnemyManager.noise`) is combat only inside a
+  quarter of it. Coordinated managers (default) send one guard per noise, the nearest tier-2 hearer (`pickNearest`, a
+  stub until the incident board): `Enemy.hear` sets `heard` (suspicious, investigates after `hearLook`); the rest only
+  turn. A gunfire investigator (or any tier-3 / already fighting hearer) sets the shared LKP; turning guards do not.
+  Melee kinds (dogs, runners) keep `Enemy.hear` anywhere in reach. Hunter and Mission (parked) set
+  `coordinated = false`: everyone in reach hears and walks over, gunfire sends everyone in reach to combat.
+  `noiseSuspicion` rises with the square of closeness.
 - Pace and patience: `PATROL.wait` 5.5 s, glances every 10 s, `searchLook` 3 s, `hearLook` 2.4 s; `ENEMY_CALM_MOTION` (60
   deg/s turns while not in combat / searching). Combat: `ALERT.lostSight` 12 s, `searchTime` 60 s; after combat a guard
   never returns to unaware (`AlertMachine.fought`).
