@@ -439,6 +439,8 @@ export function checkSetPart(p: SetPart): string[] {
     own(k, 'device');
     inside(d.x, d.z, `device '${k}'`);
   }
+  for (const k of Object.keys(p.anchors)) own(k, 'anchor');
+  for (const d of p.bay.drills) own(d.id, 'drill');
   for (const k of Object.keys(p.doors)) if (!k.startsWith(dpre)) bad.push(at(`door '${k}' does not start '${dpre}'`));
   for (const g of p.bay.gates) own(g.id, 'gate');
   for (const f of p.externalFlags) own(f, 'flag');

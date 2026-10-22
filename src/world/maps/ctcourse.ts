@@ -48,6 +48,8 @@ export interface CtcourseBuild {
   parts: SetPart[];
   /** Builder pieces each part added (the element register count, SPEC 18). */
   counts: { facility: PieceCount; sets: Record<SetId, PieceCount> };
+  /** Index ranges [start, end) each set added to `b.boxes` and `b.anchors.all` (the set-box geometry test reads them). */
+  ranges: Record<SetId, { boxes: [number, number]; anchors: [number, number] }>;
 }
 
 const v3 = (p: Pt): Vector3 => new Vector3(p.x, p.y, p.z);
@@ -68,11 +70,15 @@ export function buildCtcourse(b: LevelBuilder): CtcourseBuild {
   const cf = pieceDelta(c0, pieceCount(b));
   const parts: SetPart[] = [];
   const sets = {} as Record<SetId, PieceCount>;
+  const ranges = {} as CtcourseBuild['ranges'];
   for (const id of SET_IDS) {
     const a = pieceCount(b);
+    const nb = b.boxes.length;
+    const na = b.anchors.all.length;
     const p = SET_BUILDERS[id](b, kit);
     if (p.id !== id) throw new Error(`ctcourse: the ${id} builder returned part '${p.id}'`);
     sets[id] = pieceDelta(a, pieceCount(b));
+    ranges[id] = { boxes: [nb, b.boxes.length], anchors: [na, b.anchors.all.length] };
     parts.push(p);
   }
   // light: each set's standby zone (and its upper levels), the facility's (SPEC 7); the holding rooms, the gallery and
@@ -141,7 +147,7 @@ export function buildCtcourse(b: LevelBuilder): CtcourseBuild {
     kit: kit.layout,
     facilityProps: [...facility.props, ...all((p) => p.props)],
   };
-  return { layout, facility, parts, counts: { facility: cf, sets } };
+  return { layout, facility, parts, counts: { facility: cf, sets }, ranges };
 }
 
 export const ctcourse: MapDef = {

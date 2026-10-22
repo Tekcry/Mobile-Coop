@@ -16,12 +16,12 @@ import { COURSE_TEXT_MAX, AIRLOCK_SIZE } from '../src/config/course';
 import { GUARD_INFO_LINE_MAX } from '../src/ai/guardInfo';
 import { checkPanels } from '../src/game/laserPanels';
 import { validateSecurity } from '../src/security/data';
-import { generateLedges } from '../src/world/anchors';
+import { generateLedges, type Anchor } from '../src/world/anchors';
 import { TEAM, WALL_JUMP } from '../src/config/movement';
 import { camSpaceAt } from '../src/world/camSpaces';
 import { COOP_BAND } from '../src/world/maps/ctcourseGreybox';
 import { MARLOW_CIRCUITS, marlowCourseGroups, validateMarlowCircuits } from '../src/world/lighting/marlowCircuits';
-import { DOCK_BOX, EXIT_ZONE, HOLD_BOX, HOLD_DOOR_W, HOLD_DOORS, HOLD_H, HOLD_IDS, holdDoorId, inBox, inSet, LOUNGE_BOX, MAP_CAMERAS, OBJECTIVE_ID_MAX, registerSum, SET_BOX, SET_IDS, SET_LINKS, setBay, setEntryDoor, setExitDoor, setGroups, checkSetPart, type Box } from '../src/world/maps/ctcourseSets/types';
+import { DOCK_BOX, EXIT_ZONE, HOLD_BOX, HOLD_DOOR_W, HOLD_DOORS, HOLD_H, HOLD_IDS, holdDoorId, HALL_H, boxInSet, inBox, inSet, LOUNGE_BOX, MAP_CAMERAS, OBJECTIVE_ID_MAX, registerSum, SET_BOX, SET_IDS, SET_LINKS, setBay, setEntryDoor, setExitDoor, setGroups, checkSetPart, type Box } from '../src/world/maps/ctcourseSets/types';
 import { GALLERY_BOX, GAL_FLOOR, GALLERY_GROUP, SLOT } from '../src/world/maps/ctcourseSets/facility';
 
 const b = new LevelBuilder();
@@ -302,6 +302,54 @@ describe('Marlow Yard: set boxes', () => {
     const over = (p: Box, q: Box): boolean => Math.min(p[2], q[2]) - Math.max(p[0], q[0]) > 0.01 && Math.min(p[3], q[3]) - Math.max(p[1], q[1]) > 0.01;
     const bad: string[] = [];
     for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) if (over(boxes[i]![1], boxes[j]![1])) bad.push(`${boxes[i]![0]} x ${boxes[j]![0]}`);
+    expect(bad).toEqual([]);
+  });
+  it('every box and anchor a set built lies inside its own set box (0.3 m pad, the boundary walls\' half thickness) and under the hall roof', () => {
+    // plan points an anchor occupies (door: the hinge and the closed leaf's far end)
+    const pts = (a: Anchor): { x: number; z: number }[] => {
+      switch (a.kind) {
+        case 'ladder':
+        case 'pipeV':
+          return [a.base, a.top];
+        case 'pipeH':
+        case 'ledge':
+        case 'zipline':
+        case 'split':
+        case 'fence':
+          return [a.a, a.b];
+        case 'duct':
+          return a.path;
+        case 'window':
+          return [a.c];
+        case 'door':
+          return [a.hinge, { x: a.hinge.x + Math.sin(a.yaw) * a.width, z: a.hinge.z + Math.cos(a.yaw) * a.width }];
+        case 'rappel':
+          return [a.top];
+      }
+    };
+    const bad: string[] = [];
+    for (const id of SET_IDS) {
+      const r = built.ranges[id];
+      for (let i = r.boxes[0]; i < r.boxes[1]; i++) {
+        const bx = b.boxes[i]!;
+        // plan half extents of the yawed (and pitched about its local x) box, and its top
+        const hx = bx.s[0] / 2;
+        const hz = (bx.s[2] / 2) * Math.cos(bx.pitch);
+        const sn = Math.abs(Math.sin(bx.yaw));
+        const cs = Math.abs(Math.cos(bx.yaw));
+        const ex = hx * cs + hz * sn;
+        const ez = hx * sn + hz * cs;
+        const top = bx.c[1] + (bx.s[1] / 2) * Math.cos(bx.pitch) + (bx.s[2] / 2) * Math.abs(Math.sin(bx.pitch));
+        const foot: Box = [bx.c[0] - ex, bx.c[2] - ez, bx.c[0] + ex, bx.c[2] + ez];
+        const at = `${id}: box #${i} c (${bx.c.map((v) => v.toFixed(2)).join(', ')}) s (${bx.s.map((v) => v.toFixed(2)).join(', ')}) yaw ${bx.yaw.toFixed(2)}`;
+        if (!boxInSet(id, foot, 0.3)) bad.push(`${at} leaves the set box (footprint ${foot.map((v) => v.toFixed(2)).join(', ')})`);
+        if (top > HALL_H + 0.01) bad.push(`${at} tops ${top.toFixed(2)} m, over HALL_H ${HALL_H}`);
+      }
+      for (let i = r.anchors[0]; i < r.anchors[1]; i++) {
+        const a = b.anchors.all[i]!;
+        for (const p of pts(a)) if (!inSet(id, p.x, p.z, 0.3)) bad.push(`${id}: anchor #${i} (${a.kind}) at (${p.x.toFixed(2)}, ${p.z.toFixed(2)}) leaves the set box`);
+      }
+    }
     expect(bad).toEqual([]);
   });
 });
