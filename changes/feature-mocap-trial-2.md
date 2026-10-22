@@ -20,3 +20,5 @@ kind: minor
 - Mocap locomotion (switch on): crouching, standing up or drawing while walking no longer snaps a foot as the clip's feet
   hand the steps to the planner (ankle-toe 57 -> 17 deg a frame at worst, switch off 16.5).
 - Mocap locomotion (switch on): a CMU sprint cycle (127_07) fades in over the run between 4.2 and 5.0 m/s.
+- Mocap locomotion (switch on): a sudden stop from a jog, run or sprint eases the body down to the walk instead of
+  dropping the pelvis in a frame (5 m/s one-frame stop 10.5 -> 2.1 cm, switch off 8.9).
