@@ -1,212 +1,212 @@
 {
- "rows": {
-  "walk": {
-   "what": "walk 1.4 m/s straight, one cycle",
-   "kind": "cycle",
-   "commit": "e90ddad3",
-   "dirtySrc": false,
-   "views": [
-    "side",
-    "front",
-    "34"
-   ],
-   "video": true,
-   "period0": 50,
-   "period1": 50,
-   "winSteps": 50,
-   "sheetFrames": 10,
-   "videoFrames": 25,
-   "mcMax": 0.9999999999999989,
-   "clipFeet": false,
-   "diff": {
-    "max": 55,
-    "over": 1,
-    "worst": "34 t 0.33s"
-   },
-   "note": "Placeholder proof run (at e90ddad3 mocap=1 plays the hand-keyed placeholders, so the two strips must match; the training dummies are hidden): the worst per-channel diff (0-255) and pixels over 8 per row are below.",
-   "at": "2026-10-22T11:25:17.818Z"
-  },
-  "jog": {
-   "what": "jog 2.5 m/s straight, one cycle",
-   "kind": "cycle",
-   "commit": "e90ddad3",
-   "dirtySrc": false,
-   "views": [
-    "side",
-    "front",
-    "34"
-   ],
-   "video": true,
-   "period0": 41,
-   "period1": 41,
-   "winSteps": 41,
-   "sheetFrames": 10,
-   "videoFrames": 21,
-   "mcMax": 0.9999998472092905,
-   "clipFeet": false,
-   "diff": {
-    "max": 71,
-    "over": 5,
-    "worst": "34 t 0.27s"
-   },
-   "note": "Placeholder proof run (at e90ddad3 mocap=1 plays the hand-keyed placeholders, so the two strips must match; the training dummies are hidden): the worst per-channel diff (0-255) and pixels over 8 per row are below.",
-   "at": "2026-10-22T11:26:09.805Z"
-  },
-  "run": {
-   "what": "run 4.0 m/s straight, one cycle",
-   "kind": "cycle",
-   "commit": "e90ddad3",
-   "dirtySrc": false,
-   "views": [
-    "side",
-    "front",
-    "34"
-   ],
-   "video": true,
-   "period0": 41,
-   "period1": 41,
-   "winSteps": 41,
-   "sheetFrames": 10,
-   "videoFrames": 21,
-   "mcMax": 0.99999677902903,
-   "clipFeet": false,
-   "diff": {
-    "max": 89,
-    "over": 5,
-    "worst": "34 t 0.62s"
-   },
-   "note": "Placeholder proof run (at e90ddad3 mocap=1 plays the hand-keyed placeholders, so the two strips must match; the training dummies are hidden): the worst per-channel diff (0-255) and pixels over 8 per row are below.",
-   "at": "2026-10-22T11:27:09.804Z"
-  },
-  "turn90walk": {
-   "what": "90 deg turn right at a walk (1.4 m/s; stick swung 90 deg at t = 0)",
-   "kind": "event",
-   "commit": "e90ddad3",
-   "dirtySrc": false,
-   "views": [
-    "side",
-    "front",
-    "34"
-   ],
-   "video": true,
-   "period0": null,
-   "period1": null,
-   "winSteps": 90,
-   "sheetFrames": 10,
-   "videoFrames": 46,
-   "mcMax": 0.9999999999999989,
-   "clipFeet": false,
-   "diff": {
-    "max": 83,
-    "over": 5,
-    "worst": "front t 0.87s"
-   },
-   "note": "Placeholder proof run (at e90ddad3 mocap=1 plays the hand-keyed placeholders, so the two strips must match; the training dummies are hidden): the worst per-channel diff (0-255) and pixels over 8 per row are below.",
-   "at": "2026-10-22T11:28:57.817Z"
-  },
-  "turn90jog": {
-   "what": "90 deg turn right at a jog (2.5 m/s; stick swung 90 deg at t = 0)",
-   "kind": "event",
-   "commit": "e90ddad3",
-   "dirtySrc": false,
-   "views": [
-    "side",
-    "front",
-    "34"
-   ],
-   "video": true,
-   "period0": null,
-   "period1": null,
-   "winSteps": 72,
-   "sheetFrames": 10,
-   "videoFrames": 37,
-   "mcMax": 0.9999999121973792,
-   "clipFeet": false,
-   "diff": {
-    "max": 75,
-    "over": 5,
-    "worst": "front t 0.10s"
-   },
-   "note": "Placeholder proof run (at e90ddad3 mocap=1 plays the hand-keyed placeholders, so the two strips must match; the training dummies are hidden): the worst per-channel diff (0-255) and pixels over 8 per row are below.",
-   "at": "2026-10-22T11:30:05.212Z"
-  },
-  "turn180walk": {
-   "what": "180 deg turn at a walk (1.4 m/s; stick reversed at t = 0)",
-   "kind": "event",
-   "commit": "e90ddad3",
-   "dirtySrc": false,
-   "views": [
-    "side",
-    "front",
-    "34"
-   ],
-   "video": true,
-   "period0": null,
-   "period1": null,
-   "winSteps": 108,
-   "sheetFrames": 10,
-   "videoFrames": 55,
-   "mcMax": 0.9999999999999989,
-   "clipFeet": false,
-   "diff": {
-    "max": 29,
-    "over": 1,
-    "worst": "side t 0.33s"
-   },
-   "note": "Placeholder proof run (at e90ddad3 mocap=1 plays the hand-keyed placeholders, so the two strips must match; the training dummies are hidden): the worst per-channel diff (0-255) and pixels over 8 per row are below.",
-   "at": "2026-10-22T11:31:27.988Z"
-  },
-  "start": {
-   "what": "start from standing to a walk (stick to 1.4 m/s at t = 0)",
-   "kind": "event",
-   "commit": "e90ddad3",
-   "dirtySrc": false,
-   "views": [
-    "side",
-    "front",
-    "34"
-   ],
-   "video": true,
-   "period0": null,
-   "period1": null,
-   "winSteps": 72,
-   "sheetFrames": 10,
-   "videoFrames": 37,
-   "mcMax": 0.999999516400842,
-   "clipFeet": false,
-   "diff": {
-    "max": 140,
-    "over": 330,
-    "worst": "34 t 0.00s"
-   },
-   "note": "Placeholder proof run (at e90ddad3 mocap=1 plays the hand-keyed placeholders, so the two strips must match; the training dummies are hidden): the worst per-channel diff (0-255) and pixels over 8 per row are below.",
-   "at": "2026-10-22T11:32:43.083Z"
-  },
-  "stop": {
-   "what": "stop from a walk (1.4 m/s; stick released at t = 0)",
-   "kind": "event",
-   "commit": "e90ddad3",
-   "dirtySrc": false,
-   "views": [
-    "side",
-    "front",
-    "34"
-   ],
-   "video": true,
-   "period0": null,
-   "period1": null,
-   "winSteps": 84,
-   "sheetFrames": 10,
-   "videoFrames": 43,
-   "mcMax": 0.9999999999999916,
-   "clipFeet": false,
-   "diff": {
-    "max": 201,
-    "over": 1718,
-    "worst": "front t 0.43s"
-   },
-   "note": "Placeholder proof run (at e90ddad3 mocap=1 plays the hand-keyed placeholders, so the two strips must match; the training dummies are hidden): the worst per-channel diff (0-255) and pixels over 8 per row are below.",
-   "at": "2026-10-22T11:34:20.138Z"
+  "rows": {
+    "walk": {
+      "what": "walk 1.4 m/s straight, one cycle",
+      "kind": "cycle",
+      "commit": "8cb4d26c",
+      "dirtySrc": false,
+      "views": [
+        "side",
+        "front",
+        "34"
+      ],
+      "video": true,
+      "period0": 50,
+      "period1": 50,
+      "winSteps": 50,
+      "sheetFrames": 10,
+      "videoFrames": 25,
+      "mcMax": 0.9999999999999989,
+      "clipFeet": true,
+      "diff": {
+        "max": 244,
+        "over": 14923,
+        "worst": "front t 0.13s"
+      },
+      "note": null,
+      "at": "2026-10-22T11:45:43.029Z"
+    },
+    "jog": {
+      "what": "jog 2.5 m/s straight, one cycle",
+      "kind": "cycle",
+      "commit": "8cb4d26c",
+      "dirtySrc": false,
+      "views": [
+        "side",
+        "front",
+        "34"
+      ],
+      "video": true,
+      "period0": 41,
+      "period1": 41,
+      "winSteps": 41,
+      "sheetFrames": 10,
+      "videoFrames": 21,
+      "mcMax": 0.9999993726723011,
+      "clipFeet": true,
+      "diff": {
+        "max": 244,
+        "over": 13061,
+        "worst": "front t 0.00s"
+      },
+      "note": null,
+      "at": "2026-10-22T11:46:14.839Z"
+    },
+    "run": {
+      "what": "run 4.0 m/s straight, one cycle",
+      "kind": "cycle",
+      "commit": "8cb4d26c",
+      "dirtySrc": false,
+      "views": [
+        "side",
+        "front",
+        "34"
+      ],
+      "video": true,
+      "period0": 41,
+      "period1": 41,
+      "winSteps": 41,
+      "sheetFrames": 10,
+      "videoFrames": 21,
+      "mcMax": 0.9999887306943566,
+      "clipFeet": true,
+      "diff": {
+        "max": 243,
+        "over": 15756,
+        "worst": "front t 0.10s"
+      },
+      "note": null,
+      "at": "2026-10-22T11:46:46.706Z"
+    },
+    "turn90walk": {
+      "what": "90 deg turn right at a walk (1.4 m/s; stick swung 90 deg at t = 0)",
+      "kind": "event",
+      "commit": "8cb4d26c",
+      "dirtySrc": false,
+      "views": [
+        "side",
+        "front",
+        "34"
+      ],
+      "video": true,
+      "period0": null,
+      "period1": null,
+      "winSteps": 90,
+      "sheetFrames": 10,
+      "videoFrames": 46,
+      "mcMax": 0.9999999999999989,
+      "clipFeet": true,
+      "diff": {
+        "max": 232,
+        "over": 12834,
+        "worst": "side t 0.30s"
+      },
+      "note": null,
+      "at": "2026-10-22T11:47:39.066Z"
+    },
+    "turn90jog": {
+      "what": "90 deg turn right at a jog (2.5 m/s; stick swung 90 deg at t = 0)",
+      "kind": "event",
+      "commit": "8cb4d26c",
+      "dirtySrc": false,
+      "views": [
+        "side",
+        "front",
+        "34"
+      ],
+      "video": true,
+      "period0": null,
+      "period1": null,
+      "winSteps": 72,
+      "sheetFrames": 10,
+      "videoFrames": 37,
+      "mcMax": 0.9999994056363691,
+      "clipFeet": true,
+      "diff": {
+        "max": 244,
+        "over": 16342,
+        "worst": "front t 1.00s"
+      },
+      "note": null,
+      "at": "2026-10-22T11:48:27.661Z"
+    },
+    "turn180walk": {
+      "what": "180 deg turn at a walk (1.4 m/s; stick reversed at t = 0)",
+      "kind": "event",
+      "commit": "8cb4d26c",
+      "dirtySrc": false,
+      "views": [
+        "side",
+        "front",
+        "34"
+      ],
+      "video": true,
+      "period0": null,
+      "period1": null,
+      "winSteps": 108,
+      "sheetFrames": 10,
+      "videoFrames": 55,
+      "mcMax": 0.9999999999999989,
+      "clipFeet": true,
+      "diff": {
+        "max": 246,
+        "over": 15013,
+        "worst": "front t 1.03s"
+      },
+      "note": null,
+      "at": "2026-10-22T11:49:30.147Z"
+    },
+    "start": {
+      "what": "start from standing to a walk (stick to 1.4 m/s at t = 0)",
+      "kind": "event",
+      "commit": "8cb4d26c",
+      "dirtySrc": false,
+      "views": [
+        "side",
+        "front",
+        "34"
+      ],
+      "video": true,
+      "period0": null,
+      "period1": null,
+      "winSteps": 72,
+      "sheetFrames": 10,
+      "videoFrames": 37,
+      "mcMax": 0.9999999977960923,
+      "clipFeet": true,
+      "diff": {
+        "max": 238,
+        "over": 13598,
+        "worst": "front t 0.63s"
+      },
+      "note": null,
+      "at": "2026-10-22T11:50:16.289Z"
+    },
+    "stop": {
+      "what": "stop from a walk (1.4 m/s; stick released at t = 0)",
+      "kind": "event",
+      "commit": "8cb4d26c",
+      "dirtySrc": false,
+      "views": [
+        "side",
+        "front",
+        "34"
+      ],
+      "video": true,
+      "period0": null,
+      "period1": null,
+      "winSteps": 84,
+      "sheetFrames": 10,
+      "videoFrames": 43,
+      "mcMax": 0.9999999999999926,
+      "clipFeet": true,
+      "diff": {
+        "max": 239,
+        "over": 13764,
+        "worst": "front t 0.03s"
+      },
+      "note": null,
+      "at": "2026-10-22T11:50:59.151Z"
+    }
   }
- }
 }
