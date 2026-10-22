@@ -81,6 +81,11 @@ only while desktop CPU is under 50% at the start. Full `npm run check` and any s
   - No polling turns: start long runs in the background and wait for the notification or the reply; Character Build sends one verdict message per batch, not per suite.
   - Merge master into a job branch only when it is about to enter a train (or to fix a real conflict), not after every release.
 - Account swap at 99% (Michael 2026-10-23 ~09:40): every session saves at 98% (WIP pushed, STATE and resume prompt current); the orchestrator refreshes HANDOFF.md.
+- Progress through the burn (Michael 2026-10-23 ~10:45: "the 100% top priority is making progress through the burn periods with efficient use of tokens"):
+  - Machines never idle across a swap: at ~95% every lead makes sure its next long runs are queued (laptop requests sent, desktop runs started in the background), so the laptop and desktop keep testing headless through the 98% save and the swap. Character Build keeps a chain script with the next ~2 hours of queued runs, so the laptop runs without a live session.
+  - Desktop locks are taken per suite run and released at once, never held across a fix loop.
+  - Laptop order: trains first, then PR / area suites, then measurements that need a slot alone (guard-cap, perf) only while no train is queued.
+  - A suite that fails then passes on the same commit is a flake: its owner fixes the test in the next batch PR instead of rerunning it again.
 
 **Machines** (Michael, 2026-10-19; 2026-10-21 16:40: "i dont care about usage on the desktop, i use the laptop": the desktop is the main test machine at full power, full e2e there with E2E_JOBS=2; the laptop is overflow only, BelowNormal, E2E_JOBS=1). Two heavy slots. CPU or GPU heavy work (e2e, full test runs, builds in loops, GPU
 shots, Blender, heavy subagents) runs on the desktop (orchestrator, CT Core and the other desktop job leads), the main
