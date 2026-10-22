@@ -127,6 +127,11 @@ export async function walk(t, n) {
 
   // ---- 6. through the wicket, on to the L1 door (the runner puts both on the pad) ----
   console.log('  A1: through the wicket to L1');
+  // (S1 check) the wicket really opens: the host, who unbolted it, opens it by hand; both pages see it swing
+  const wi = await doorIndex(WICKET_DOOR);
+  assert((await use(A, `door-${await GA((cid) => window.__app.current.world.layout.course.doors[cid], WICKET_DOOR)}`)) === 'ok', 'A1: the host opens the unbolted wicket');
+  await until(A, (i) => window.__app.current.world.doors.list[i].open > 0.5, wi, 8000, 'A1: the wicket opens (host)');
+  await until(B, (i) => window.__app.current.world.doors.list[i].open > 0.5, wi, 15000, 'A1: the client sees the wicket open');
   await moveClient(13.2, 11.4, 0.1, Math.PI / 2);
   await moveHost(20.6, 10.4, 0.1, Math.PI / 2);
   await moveClient(20.6, 11.6, 0.1, Math.PI / 2);
