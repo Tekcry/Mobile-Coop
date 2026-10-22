@@ -1,10 +1,17 @@
 # anim-bake-all - state
 
-## Now
-Checker PASS (09:35, read-only: composition once per consumer, untuned eff == values, the every-slider bake test real). PR waits on #103 (cut from it): merge master after #103 lands, laptop full e2e, PR.
+## Now (2026-10-22 ~14:50 save point)
+#103 merged in (86694475: master 4.53.0 via #103; guard tuning and clip speed: the guard sections and clip are refused
+by the generic table, ; tsc + 12 unit files green; identity bake dry-run no diff). #103 is now on master
+(4.54.0, #114).
 
 ## Next
-1. Checker, one fix round; merge master once #103 lands; laptop full e2e; PR (name the Speed glideFwdMul gameplay change).
+1. Merge master 4.54.0 (origin/master 99f3e488), tsc + the bake test files; then npm run check + the area suites
+   (smoke e2e-move e2e-traverse e2e-anchors e2e-stealth e2e-weapons-carry e2e-anim e2e-clip e2e-wall e2e-coop e2e-ct
+   e2e-studio anim-audit) under the lock or on the laptop runner; PR (minor) naming the gameplay values (Speed
+   glideFwdMul, Weight startMul / stopMul / turnMul / turnRunMul, stopSettle).
+2. After N1's PR: route the Stepping code rules step.idle lift -> PLANNER.idleLift and lock -> TURN_FOLLOW to Wren's
+   generic sections.step (since item 24 the tuner applies them to Wren only, but a bake moves guards too; N1 STATE item 5).
 
 ## Open
 - The partner does not read the move sections (needs the role on the wire); the Body root offsets do not reach the partner / puppets; the generic table applies only where each slider applies today.
