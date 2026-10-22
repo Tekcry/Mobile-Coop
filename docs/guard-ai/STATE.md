@@ -31,9 +31,15 @@ modules (new files only, no wiring): S3 radioNet.ts, S4 awareness.ts, S5 posts.t
 (+ coverGrid.ts), each with tests/ and a slices/S<n>-module.md report. Integration of each stays sequential (S3, S4,
 S5/S5b, S6, S7, S8) because they share enemy.ts / enemyManager.ts.
 
+S2 fresh check PASS (~08:30, slices/S2-CHECK.md; npm run check green, 3199 tests); 9 polish items, top: a new
+`missing` incident can evict the one being followed when all 16 slots are open (incidents.ts:599/:607); noise
+investigators still end in the 45 s cooldown. Pure modules built and pushed, unwired: S3 radioNet (ccb249eb), S4
+awareness (095b0451), S5 posts + guardAiData (e57a30b5), S7 security body pass (027ca979), S8 squadRoles + coverGrid
+(851eba39), S10 pairs (f10dcaf8); each has slices/S<n>-module.md with its wiring list.
+
 ## Next
-S2 fresh checker (review `git diff cd37c3e8 <S2 head>`, slices/S2.md, run `npm run check` under heavy.lock), then S2
-as its own PR (feature/guard-ai-s2); (slices/S2.md, review the S2 commit diff), then S2 as its own PR when green; then S3 radio net, then
+S2 PR (feature/guard-ai-s2 at the S2-CHECK commit; carries the unwired modules too); then S3 integration (radio net
+wiring + the 2 S2 polish items above), then S4, S5/S5b (+ glass hook), S6, S7, S8, S10 wiring in order; (slices/S2.md, review the S2 commit diff), then S2 as its own PR when green; then S3 radio net, then
 S4-S10 in PLAN order.
 
 ## Open
