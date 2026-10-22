@@ -58,6 +58,12 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   files + sheet on 72102b7e. Round-1 untracked shots from the 4189 worktree: scratch/work/vol-cone-fix-4189-untracked.
   Runner note: a shot script with a different version than the commit runs as an untracked copy (the runner reverts
   tracked files); an untracked file that the target commit tracks blocks the checkout (move it aside first).
+- ~23:15-23:45: vol-cone-fix round 2 (LED-only 72102b7e) pushed 3135a783 (first pass spoiled: tracked after files reverted by
+  a later runner invocation; redone as ONE runner step via the untracked scripts/vc-round.mjs in -4189). CT Core #138
+  fix round 4 7667b681: 6 suites PASS (run 90 feet 8.0 cm, crouched holstered -2.0, walk knees 3.4 of 3.5). Mocap 4-row
+  rerun f027fc98 pushed ce76361a (webms from the script). #119 N4b 560752d1: studio + anim PASS. Train 8 fc2e8bd3
+  (#138 + #156) GREEN 35/35 (JOBS=3, 490 s). Gap job: PR #158 coop-offer-load (e2e-coop takedown offer on the client's
+  match clock + per-frame host pin), green solo x2 and at JOBS=3 with netmove + menus. Both slots free.
 - MONITOR RULE: never `tail -F` a file a chain appends to (it locks chain-1022.log; Add-Content fails and the chain
   dies; expired monitors leave the tail running). Poll summary.txt files instead.
 - NEXT (ask the orchestrator first): train 8 rebuild once the #119 / #135 fixes land (full GPU JOBS=3 on 4189,
