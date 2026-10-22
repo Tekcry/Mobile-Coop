@@ -7,6 +7,8 @@ Repeat as long as it pays. Earlier handoffs (2026-10-21, 2026-10-22 13:10, 19:25
 
 ## State at the switch (refreshed 2026-10-23 ~07:58 for the next swap; newest update block first)
 
+**~11:08: protocol registry: 31 master, 32 guard-ai S9, 33 marlow-final, 34 hang-down, 35 sector-redesign E9-crate. #198 changelog-dedupe ready (train 22 with #194). Sessions renamed from the next swap (CLAUDE.md "Session titles"); clears at swaps only; Gmail / Drive / Fergus connectors off.**
+
 **~10:50: swap live (5-hour 1%, resets 13:30; weekly 76%, resets 2026-10-28 04:00). Both desktop locks stale (old account, no node). Cron 7/27/47 recreated. 10:35 fixes applied: CLAUDE.md lock per suite run + laptop trains first + fix timing tests; prompts updated (Guard AI bodies test, Character Build duplicate and fragment chore). Train 22: #194 ready alone (CI green); guard-ai #193 / #195 / #196 CI green, held for the bodies test; build at 3+ ready or ~12:06.**
 
 New account live 2026-10-23 ~00:57 (5-hour 0%, resets 05:50); all four sessions resumed ~01:05; full burn to 100% (Michael 01:05). See STATE "Now" top entry for the live state.
