@@ -176,7 +176,7 @@ export const S5_SECTOR: SectorDef = {
   intel: [{ kind: 'board', grants: 's5-arch', line: 'Rota board: archive keypad 1960 until Monday.', at: [-26.15, 1.5, 37.0], yaw: -PI / 2 }],
   pairGates: [{ door: [-41, 38.6], a: { at: [-40.0, 34.45], y: Y1, yaw: PI }, b: { at: [-45.85, 42.0], y: Y1, yaw: PI / 2 }, window: 1.0 }],
   stageActions: [
-    { stage: 1, responseRoute: [[-53, 24], [-47, 27], [-43, 30.5]], releaseDogs: true },
+    { stage: 1, responseRoute: [[-51.6, 24], [-47, 27], [-43, 30.5]], releaseDogs: true },
     { stage: 2, lightsFull: [81, 84], lockDoors: [[-56, 40]] },
     { stage: 3, lightsFull: [80, 88], lockDoors: [[-38, 33.5]] },
   ],
