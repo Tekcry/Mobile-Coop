@@ -855,7 +855,7 @@ export class AnimGraph {
   /** (mocap-trial-2, strafe) The hips' shift back over the planner's side-steps (m, + right; rate-limited, STRAFE_LEAD). */
   private stHip = 0;
   /** (mocap-trial-2, strafe) The captures' cycle amplitude (the glide's `amp`, eased: STRAFE_AMP_TAU). */
-  private stAmp = GLIDE.ampMin;
+  private stAmp: number = GLIDE.ampMin;
   private mcK = 0;
   private cHalf = KEYED_CROUCH_WALK.half;
   private cKneeOut = 0;
