@@ -302,7 +302,8 @@ async function station3(x0) {
     left3 = dr.left[0];
     assert(left3 * 1000 >= 800 + 300, `station 3: a fresh jam leaves room for the 800 ms freeze check (${left3} s left)`);
   }
-  await waitHostSim(A, 800);
+  const fz = await waitHostSim(A, 800);
+  assert(fz >= 800, `station 3: the freeze window ran 800 ms on the host's clock (${fz.toFixed(0)} ms)`);
   const [fA, fB] = [await dev(A), await dev(B)];
   assert(fA.cams[0].jam === 1 && Math.abs(fA.cams[0].yaw - yA) < 1e-6 && Math.abs(fB.cams[0].yaw - yB) < 1e-6 && fB.cams[0].frozen, `station 3: the jammed camera stops sweeping on both pages (${yA} -> ${fA.cams[0].yaw}; client ${yB} -> ${fB.cams[0].yaw})`);
   const buzz = (P) => P.evaluate(() => window.__ctdev.nearestJammed(0, 0, 0, { x: 0, y: 0, z: 0 }));
@@ -362,7 +363,8 @@ async function station3(x0) {
   await until(A, () => window.__ctdev.debug().jam[0] === '', null, 8000, 'station 3: the host lets go of the lamp');
   // (load-audit) 2 s of the HOST's clock (JAM_LIGHT.offHold 4 s runs there), the host's lamp latched every poll
   let litSeen = false;
-  await waitHostSim(A, 2000, async () => { if (await lit(A)) litSeen = true; });
+  const off = await waitHostSim(A, 2000, async () => { if (await lit(A)) litSeen = true; });
+  assert(off >= 2000, `station 3: the lamp-off window ran 2 s on the host's clock (${off.toFixed(0)} ms)`);
   assert(!litSeen && !(await lit(A)) && !(await lit(B)), `station 3: the lamp stays off after the release (lit seen on the host: ${litSeen})`);
   await until(A, (i) => window.__app.current.world.level.lights.get(i).on && window.__ctdev.debug().devs.length === 0, reg, 10000, 'station 3: the lamp flickers back on after its 4 s');
   await until(B, (i) => window.__app.current.world.level.lights.get(i).on, reg, 10000, 'station 3: the client page sees the lamp on again');
@@ -501,7 +503,8 @@ async function laserTest(x0) {
     assert(left4 * 1000 >= 2000 + 300, `station 4: a fresh jam leaves room for the 2 s check on the beam line (${left4} s left)`);
   }
   let bandOn = false;
-  await waitHostSim(A, 2000, async () => { if ((await dev(A)).lasers[0].on) bandOn = true; });
+  const bw = await waitHostSim(A, 2000, async () => { if ((await dev(A)).lasers[0].on) bandOn = true; });
+  assert(bw >= 2000, `station 4: the beam-line window ran 2 s on the host's clock (${bw.toFixed(0)} ms)`);
   assert(!bandOn, 'station 4: the band stays off over the check window (host)');
   assert((await hp()) === hp2 && (await dev(A)).hits === hj, 'station 4: no break while the laser is jammed');
   await lt(A, false);
