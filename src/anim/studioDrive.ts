@@ -94,6 +94,8 @@ export interface StudioFoot {
   pitch: number;
   landed: boolean;
   init: boolean;
+  /** (anim-natural N1) The planner holds this foot at its contact (its ball pivot's anchor); the treadmill lets it go. */
+  anchored?: boolean;
 }
 
 /** One foot of the treadmill in the body frame (x right, z forward, lift up), for `side` -1 left / 1 right. */
@@ -162,5 +164,8 @@ export function studioFeet(d: StudioDrive, pl: { L: StudioFoot; R: StudioFoot },
     f.contact = TL.contact;
     f.swing = TL.swing;
     f.init = true;
+    // (anim-natural N1 fix round, CHECK finding 9) the treadmill owns the feet: the planner's anchor is let go, or the
+    // planner put the foot back on its stale ball spot each frame before this ran (and on the frame the drive goes off)
+    f.anchored = false;
   }
 }

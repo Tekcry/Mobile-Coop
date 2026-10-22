@@ -1060,6 +1060,104 @@ export function plantedSlide(ankle: Arr, contact: Arr, limit: number): Result & 
   return { ...result(worst, frame, worst < limit), plants };
 }
 
+/** (anim-natural N1) A contact point is down while it is within this (m) of the foot's lower point (the floor). */
+export const CONTACT_UP = 0.005;
+
+/**
+ * (anim-natural N1, decision 1; fix round finding 1a) Contact-point slide: per plant, how far each contact point travels
+ * on the floor over the frames it is actually down (m, the largest over every plant): the heel while the heel is down,
+ * the ball while the ball is down, both while the foot is flat. A point is down while it is within `up` m of the lower of
+ * the two (the floor under the foot); a point that lifts and comes down again starts over (it was in the air). No
+ * projection along the foot (the round before read a toe-up foot as its heel + 17 cm, a virtual ball that hid the heel
+ * sweeping round it). The ankle's own travel (`plantedSlide`) reads a foot rolling on its heel or ball as slide; this
+ * reads what moves on the floor. `heel` / `ball`: world points per frame (stride 3). `plants` counts the plants seen;
+ * `heelWorst` / `ballWorst` are each point's own worst.
+ */
+export function contactSlide(heel: Arr, ball: Arr, contact: Arr, limit: number, up = CONTACT_UP): Result & { plants: number; heelWorst: number; ballWorst: number } {
+  let worst = 0;
+  let frame = -1;
+  let plants = 0;
+  let heelWorst = 0;
+  let ballWorst = 0;
+  let hx0 = NaN;
+  let hz0 = NaN;
+  let bx0 = NaN;
+  let bz0 = NaN;
+  let on = false;
+  const n = Math.floor(Math.min(heel.length, ball.length) / 3);
+  for (let i = 0; i < n; i++) {
+    if (!contact[i]) {
+      on = false;
+      hx0 = bx0 = NaN;
+      continue;
+    }
+    if (!on) {
+      on = true;
+      plants++;
+    }
+    const hy = at(heel, i * 3 + 1);
+    const by = at(ball, i * 3 + 1);
+    const lo = hy < by ? hy : by;
+    // the heel
+    if (hy - lo > up) hx0 = NaN;
+    else if (Number.isNaN(hx0)) {
+      hx0 = at(heel, i * 3);
+      hz0 = at(heel, i * 3 + 2);
+    } else {
+      const d = Math.sqrt(sq(at(heel, i * 3) - hx0) + sq(at(heel, i * 3 + 2) - hz0));
+      if (d > heelWorst) heelWorst = d;
+      if (d > worst) {
+        worst = d;
+        frame = i;
+      }
+    }
+    // the ball
+    if (by - lo > up) bx0 = NaN;
+    else if (Number.isNaN(bx0)) {
+      bx0 = at(ball, i * 3);
+      bz0 = at(ball, i * 3 + 2);
+    } else {
+      const d = Math.sqrt(sq(at(ball, i * 3) - bx0) + sq(at(ball, i * 3 + 2) - bz0));
+      if (d > ballWorst) ballWorst = d;
+      if (d > worst) {
+        worst = d;
+        frame = i;
+      }
+    }
+  }
+  return { ...result(worst, frame, worst < limit), plants, heelWorst, ballWorst };
+}
+
+/**
+ * (anim-natural N1, decisions 1 / 2) A planted foot's slide, per plant by how the planner holds it: a plant the planner
+ * anchors (`anchored` on its first frame: the foot keeps its heel or ball on the floor while the ankle rolls round it)
+ * reads its contact points (`contactSlide`: the heel while it is down, the ball while it is down), any other the ankle
+ * (`plantedSlide`, as before). Worst over the plants (m).
+ */
+export function footSlide(ankle: Arr, heel: Arr, ball: Arr, contact: Arr, anchored: Arr, limit: number): Result & { plants: number; contactPlants: number } {
+  let worst = 0;
+  let frame = -1;
+  let plants = 0;
+  let contactPlants = 0;
+  const n = contact.length;
+  for (let i = 0; i < n; i++) {
+    if (!contact[i] || (i > 0 && contact[i - 1])) continue;
+    let j = i;
+    while (j < n && contact[j]) j++;
+    plants++;
+    const useContact = !!anchored[i];
+    if (useContact) contactPlants++;
+    const r = useContact
+      ? contactSlide(Array.prototype.slice.call(heel, i * 3, j * 3) as number[], Array.prototype.slice.call(ball, i * 3, j * 3) as number[], new Array<number>(j - i).fill(1), limit)
+      : plantedSlide(Array.prototype.slice.call(ankle, i * 3, j * 3) as number[], new Array<number>(j - i).fill(1), limit);
+    if (r.worst > worst) {
+      worst = r.worst;
+      frame = i + r.frame;
+    }
+  }
+  return { ...result(worst, frame, worst < limit), plants, contactPlants };
+}
+
 /** Elbow wing: how far each elbow sits outside its own shoulder along the shoulder line (m, + = out), per frame. Pass
  *  when no elbow is more than `limit` (CRAB.elbowWing) outside. */
 export function elbowWing(shoulderL: Arr, shoulderR: Arr, elbowL: Arr, elbowR: Arr, limit: number, exempt?: Arr): Range {

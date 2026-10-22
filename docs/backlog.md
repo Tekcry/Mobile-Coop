@@ -61,6 +61,14 @@ Format: `N. Item - destination - status`.
     track a material-added flag (the scene's new-material event, read next frame) instead of the count. Destination:
     unscheduled (the light parity work).
     **Fixed (lamp-plugin-gap, 2026-10-22):** the new-material event marks the next frame beside the count check (`tests/lampPluginGap.test.ts`).
+31. **A fast look-drag may eat the next tap on a real touch device (low priority; phones are for testing only, G182;
+    gpu-tests-3 2026-10-22).** In headless Chrome a 200 px CDP drag in ~80 ms became a fling, and the next touch only
+    cancelled it: the on-screen pause button's first tap did nothing (#148 fixed the test by holding still before the
+    lift). The game already sets `touch-action: none` on html / body and `#game` (`src/styles.css`, and the canvas's
+    `touch-action` attribute in `index.html`), yet the fling still happened, so check on a real phone whether a quick
+    look-swipe then a tap on the pause button (`.touch-pause`, a DOM button in `#ui-root`, its own `touch-action` not
+    set) needs two taps. If it does: act on `pointerdown` / `pointerup` instead of `click`, or give the button
+    `touch-action: none`. Destination: unscheduled.
 
 ## Flaky e2e suites
 

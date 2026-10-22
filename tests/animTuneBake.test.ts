@@ -93,6 +93,7 @@ const SAMPLE = exportOf([
   entry('ik.walk', 'handL', 'mul', 0.5), // IK: the base table
   entry('weapon.rifle.aim', 'gunScale', 'mul', 1.1), // weapon: the base table
   entry('step.idle', 'lift', 'mul', 1.4), // stepping
+  entry('step.jog', 'turnTwist', 'mul', 1.2), // (anim-natural N1) stepping: a per gait table entry
   entry('key.walk.0', 'spine_pitch', 'add', 2), // keys
   ...WEIGHT5.map((g) => entry(g, 'startMul', 'mul', 1.2)), // weight: shared by every group, equal
   entry('weight.walk', 'chestHzMul', 'mul', 1.3), // weight: shared, one group: manual
@@ -270,6 +271,10 @@ describe('anim-bake on a sample export (temp copies)', () => {
     expect(locate(old('src/player/attach.ts'), 'ATTACH.ladder.speed').text).toBe('LADDER_RUNG_RATE * 0.36');
     // stepping, weight (all five groups equal: once, not five times)
     close(num(old('src/anim/footPlanner.ts'), 'PLANNER.idleLift'), num(before['src/anim/footPlanner.ts']!, 'PLANNER.idleLift') * 1.4);
+    // (anim-natural N1) the jog's turn step allowance: its own entry of the per gait table, the other gaits' kept
+    close(num(old('src/anim/footPlanner.ts'), 'FOOT_TURN_STEP.twist[2]'), num(before['src/anim/footPlanner.ts']!, 'FOOT_TURN_STEP.twist[2]') * 1.2);
+    expect(num(old('src/anim/footPlanner.ts'), 'FOOT_TURN_STEP.twist[3]')).toBe(num(before['src/anim/footPlanner.ts']!, 'FOOT_TURN_STEP.twist[3]'));
+    expect(res('step.jog', 'turnTwist')).toBe('baked');
     close(num(old(M), 'CT.startTime'), num(before[M]!, 'CT.startTime') * 1.2);
     expect(num(old('src/anim/weight.ts'), 'WEIGHT_BASE.chestHz')).toBe(num(before['src/anim/weight.ts']!, 'WEIGHT_BASE.chestHz'));
     // results per section
@@ -604,7 +609,8 @@ describe('anim-bake-all: every slider of every section bakes (0 manual, pure opt
         ['cam', 'cam.aimPistol', 'camBlendMul'],
         ['speed', 'spd.aim', 'glideFwdMul'],
         ['step', 'step.walk', 'lift'],
-        ['step', 'step.idle', 'lock'],
+        // (anim-natural N1) the idle lock has a code rule now (the aimed turn on the spot); the idle landTurn is generic
+        ['step', 'step.idle', 'landTurn'],
         ['step', 'step.run', 'replant'],
         ['weight', 'weight.jog', 'chestDampMul'],
         ['weight', 'weight.drawn', 'camDip'],
