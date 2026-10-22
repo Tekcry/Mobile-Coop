@@ -279,11 +279,11 @@ describe('A3 the Office Range: the corridor, the recess and the jam relay', () =
     expect(hyp2(A3_POST_EAST.x - cam.at[0], A3_POST_EAST.z - cam.at[1])).toBeCloseTo(1.4, 1);
     expect(part.cameras).toHaveLength(1);
     expect(cam).toMatchObject({ id: A3_CAMERA, kind: 'camera', level: 'ground', y: 2.8, facing: 270, sweep: [262, 278], aim: 8.75, range: A3_CAMERA_RANGE });
-    expect(A3_CAMERA_RANGE).toBe(17);
+    expect(A3_CAMERA_RANGE).toBe(14);
     expect(g.cameras[0]!.range).toBeUndefined();
     expect(cam.y).toBeGreaterThanOrEqual(CAMERA.mountMin);
     expect(cam.y).toBeLessThanOrEqual(CAMERA.mountMax);
-    expect(camR).toBe(17);
+    expect(camR).toBe(14);
     expect(validateSecurity({ devices: part.cameras })).toEqual([]);
     expect(lay.security!.devices.filter((d) => d.id === A3_CAMERA)).toHaveLength(1);
   });
@@ -300,7 +300,7 @@ describe('A3 the Office Range: the corridor, the recess and the jam relay', () =
         expect(clearLine(mx, MOVEMENT.crouchHeight - 0.1, mz), `line to (${mx}, ${mz})`).toBe(true);
       }
     }
-    for (const x of [81, 84, 87, 90, 93]) expect(seenAt(x, A3_CORRIDOR.at.z), `corridor centre x ${x}`).toBe(true);
+    for (const x of [84, 87, 90, 93]) expect(seenAt(x, A3_CORRIDOR.at.z), `corridor centre x ${x}`).toBe(true);
     // the near zone under the mount is blind to the frame (it looks down 17.7 deg +- 22.5): x past about 95 is not seen, which is why office 3's door is where it is
     expect(seenAt(96, A3_CORRIDOR.at.z)).toBe(false);
   });
@@ -422,26 +422,27 @@ describe('A3 the Office Range: no way past the camera without the jam (the corri
     // and the flood that cares about the camera has a seen region to be blocked by: a long run of it along the corridor and across office 3's door
     let seenCells = 0;
     for (let n = 0; n < seen.length; n++) seenCells += seen[n]!;
-    expect(seenCells * STEP * STEP).toBeGreaterThan(40);
+    expect(seenCells * STEP * STEP).toBeGreaterThan(30);
     expect(seen[cellOf(A3_CORR_DOOR_X[0] + 0.6, 8.9)]).toBe(1);
   });
 
   it('no floor inside the corridor box west of x 94 is hidden from the camera; the recess (outside it) is reached unseen only through office 2\'s door, never along the corridor', () => {
-    const [x0, z0, , z1] = A3_HALL.box;
+    const [, z0, , z1] = A3_HALL.box;
     const unseenInBox: [number, number][] = [];
     for (let k = 0; k < NZ; k++) {
       for (let i = 0; i < NX; i++) {
         if (!free[idx(i, k)] || seen[idx(i, k)]) continue;
         const x = cx(i);
         const z = cz(k);
-        if (x > x0 + 0.4 && x < 94.0 && z > z0 && z < z1) unseenInBox.push([x, z]);
+        if (x > 83.5 && x < 94.0 && z > z0 && z < z1) unseenInBox.push([x, z]);
       }
     }
     expect(unseenInBox).toEqual([]);
     // the recess floor (z 8.0-9.0) is unseen floor outside the box, joined to the lobby only through the offices
     const recess = flood(A3_HIDE.x, A3_HIDE.z, (i, k) => !seen[idx(i, k)]);
     expect(recess[cellOf(88.25, 8.4)]).toBe(1);
-    expect(recess[cellOf(80, A3_CORRIDOR.at.z)]).toBe(0);
+    // (14 m range cut) the corridor west of x 83.5 is past the camera's range (the jam post's floor), so the probe is the first seen metre
+    expect(recess[cellOf(84, A3_CORRIDOR.at.z)]).toBe(0);
   });
 
   it('office 3\'s corridor door is placed so an unjammed player leaving it is caught (A3-D2 moved it to x 91.4-92.6): at every sweep phase a standing mover reaches stage 2, a crouched creep too, and a crouched run still reaches the camera\'s investigate level', () => {
@@ -463,7 +464,7 @@ describe('A3 the Office Range: no way past the camera without the jam (the corri
           const z = az + (bz - az) * f;
           const head = crouched ? 1.05 : 1.6;
           const sees = inFrame(sweepYaw(cam, t), cam.at[0], cam.y, cam.at[1], x, head, z, pitch, camR);
-          stepCamMeter(m, sees ? cameraRate(Math.hypot(x - cam.at[0], head - cam.y, z - cam.at[1]), crouched, v) : 0, L / v / n);
+          stepCamMeter(m, sees ? cameraRate(Math.hypot(x - cam.at[0], head - cam.y, z - cam.at[1]), crouched, v, camR) : 0, L / v / n);
           peak = Math.max(peak, m.meter);
           t += L / v / n;
         }
@@ -523,7 +524,7 @@ describe('A3 the Office Range: the send-back (the one hard rule), run against A3
     for (let t = 0; t < 12 && !back; t += 0.25) {
       x += 0.75;
       const sees = inFrame(sweepYaw(cam, t), cam.at[0], cam.y, cam.at[1], x, 1.6, A3_CORRIDOR.at.z, pitch, camR);
-      stepCamMeter(m, sees ? cameraRate(Math.hypot(x - cam.at[0], 1.6 - cam.y), false, 3.0) : 0, 0.25);
+      stepCamMeter(m, sees ? cameraRate(Math.hypot(x - cam.at[0], 1.6 - cam.y), false, 3.0, camR) : 0, 0.25);
       const n = hallStep(state, inLobby(x, A3_CORRIDOR.at.z), inHall(x, A3_CORRIDOR.at.z), inFar(x, A3_CORRIDOR.at.z), m.stage, false);
       if (n === HALL_BACK) back = true;
       else state = n;

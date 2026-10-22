@@ -451,7 +451,7 @@ describe('A7 the Data Hall: the cameras', () => {
     expect(validateSecurity({ devices: part.cameras })).toEqual([]);
     expect(A7_CAM1).toMatchObject({ at: [86.5, 71.5], y: 3.2, facing: 195, aim: 4, range: 12 });
     expect(A7_CAM1.sweep).toBeUndefined();
-    expect(A7_CAM2).toMatchObject({ at: [99.6, 54.0], y: 3.0, facing: 270, sweep: [220, 320], aim: 9, range: 18 });
+    expect(A7_CAM2).toMatchObject({ at: [99.6, 54.0], y: 3.0, facing: 270, sweep: [220, 320], aim: 9, range: 14 });
     // under their ceilings, within a wall's slack of the shell
     expect(A7_CAM1.y).toBeLessThan(A7_H.slab);
     expect(A7_CAM2.y).toBeLessThan(A7_H.corridor);
@@ -475,7 +475,7 @@ describe('A7 the Data Hall: the cameras', () => {
   it('cam2 frames the corridor while its axis is near west and leaves it in two blind windows of about 4 s a cycle (17.3 s)', () => {
     const cyc = sweepCycle(A7_CAM2.sweep);
     expect(cyc).toBeCloseTo(17.33, 1);
-    const pts: [number, number][] = [[83, 53.9], [88, 53.9], [94, 53.9]];
+    const pts: [number, number][] = [[86.5, 53.9], [88, 53.9], [94, 53.9]];
     for (const [x, z] of pts) expect(framed(A7_CAM2, x, z, true, 2 + (50 / 15)), `axis ${x}`).toBe(true);
     // the windows: the grating's middle (89, 53.9) out of frame (crouched head), over one cycle from a framed moment (the axis
     // at west) in 0.05 s steps, so every window starts and ends inside the cycle
@@ -504,7 +504,9 @@ describe('A7 the Data Hall: the cameras', () => {
     expect(units).toHaveLength(3);
     for (const [x, z] of A7_LEES) {
       expect(blockedAt(x, z), `lee ${x}`).toEqual([]);
-      expect(hyp2(x - A7_CAM2.at[0], z - A7_CAM2.at[1])).toBeLessThan(camRange(A7_CAM2));
+      // (14 m range cut) the x 85 lee is past cam2's range as well: hidden twice
+      if (x > 90) expect(hyp2(x - A7_CAM2.at[0], z - A7_CAM2.at[1])).toBeLessThan(camRange(A7_CAM2));
+      else expect(hyp2(x - A7_CAM2.at[0], z - A7_CAM2.at[1])).toBeGreaterThanOrEqual(camRange(A7_CAM2));
       for (const c of [false, true]) {
         const head: V3 = [x, remoteHeadY(0, c), z];
         expect(blockers(lens(A7_CAM2), head, units).length, `lee ${x} crouched ${c}`).toBeGreaterThan(0);

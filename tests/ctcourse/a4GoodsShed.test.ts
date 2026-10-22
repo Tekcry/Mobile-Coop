@@ -917,7 +917,7 @@ describe('A4 the Goods Shed: the cameras and the map data the e2e and the modes 
       expect(c.y).toBe(3.0);
       expect(c.y).toBeLessThan(A4_MEZZ.deck);
       expect(c.sweep).toBeDefined();
-      expect(c.range).toBeLessThanOrEqual(18);
+      expect(c.range).toBeLessThanOrEqual(14);
       expect(c.offFlag).toBe(A4_LOOP_FLAG);
     }
     expect([c1.at, c1.facing]).toEqual([[111.5, 39.8], 270]);

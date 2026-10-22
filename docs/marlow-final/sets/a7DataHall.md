@@ -44,7 +44,7 @@ camera facings in degrees with 0 = +z, 90 = +x. Decisions and contradictions: se
 | Containment pod | 96.0-100, 55.95-68 | roof 2.6 | Solid containment panels on its west wall except the cage's mesh face (z 60-66) and on its north wall; roof box `noLedge`. South door `A7-pod-s` (z 55.8, x 97.4-98.6), unlocked. East door = `A7-east` (facility) |
 | Hall north-east | 86-100, 66-71.775 | - | Open floor north of the cage and the pod (the cage's north apron) |
 | Camera `a7-cam1` | (86.5, 3.2, 71.5) on the north wall over the front aisle | - | Fixed, facing 195 deg, `aim` 4.0, `range` 12 (A7-C2) |
-| Camera `a7-cam2` | (99.6, 3.0, 54.0) on the corridor's east end wall | - | Sweeping `[220, 320]`, facing 270 deg, `aim` 9, `range` 18 |
+| Camera `a7-cam2` | (99.6, 3.0, 54.0) on the corridor's east end wall | - | Sweeping `[220, 320]`, facing 270 deg, `aim` 9, `range` 14 (master camera-range cut, was 18) |
 
 Doors and spacing: L6 door (70, 62) -> hall door (76, 61.6): 6.0 m; L6 door -> plant door (72.8, 56): 6.6 m; hall door
 -> plant door: 6.3 m; plant door -> pod door: 25 m. Every pair 5 m or more (SPEC: the lobby 6 m deep for this).
@@ -98,7 +98,7 @@ near door), the pass zone `a7-pod`, the two cameras.
 | Camera | Mount | Watches | Beaten by |
 | --- | --- | --- | --- |
 | `a7-cam1` | (86.5, 3.2, 71.5), fixed, facing 195 deg, `aim` 4, `range` 12 | The front aisle's north mouth (x 83-86, z 64-70) and the cage's north apron: a head is in frame from about 1 to 5.5 m out (the frame's top edge); T1's hack spot (10.2 m) is above the frame (A7-C2) | Time (it is fixed: never); the jam (5 s held + 1.5 s reboot: a lone jammer hops on the reboot only); the aisle-B route avoids it |
-| `a7-cam2` | (99.6, 3.0, 54.0), sweeping 220-320 deg (15 deg/s, 2 s pauses), `aim` 9, `range` 18 | The corridor east of x 81.6 while its axis is within 35 deg of west (4.7 s per pass); out of frame for about 4 s at each end of the sweep (two blind windows per 17.3 s) | The blind windows (the taught answer); a jam from the x 85 unit's lee (15.6 m), then a hop on the reboot; the units' west lees (a crouched body against the wall behind a unit is out of its line) |
+| `a7-cam2` | (99.6, 3.0, 54.0), sweeping 220-320 deg (15 deg/s, 2 s pauses), `aim` 9, `range` 14 (was 18; master camera-range cut) | The corridor east of x 86 while its axis is within 35 deg of west (4.7 s per pass); out of frame for about 4 s at each end of the sweep (two blind windows per 17.3 s) | The blind windows (the taught answer); a jam from the x 85 unit's lee (15.6 m), then a hop on the reboot; the units' west lees (a crouched body against the wall behind a unit is out of its line) |
 
 ## 3. Beat chart rows
 

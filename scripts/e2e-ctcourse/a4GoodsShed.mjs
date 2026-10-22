@@ -30,6 +30,7 @@ const GATE = 'g-a4-console';
 const WICKET = 'g-a4-wicket';
 const FLAG = 'a4-loop';
 const L4_DOOR = 'L4-near';
+const PASSAGE_DOOR = 'A4-passage';
 const FLOOR_GROUP = 41;
 /** The players' spots (the debug points of the set): behind the officer, the console's standing point, the crouch spots against the two stacks, the push bar. */
 const BEHIND = [104.8, 15.8];
@@ -73,9 +74,19 @@ export async function walk(t, n) {
         if (e) e.passive = on;
       }
     }, [slots, on]);
-  /** The three cameras' modes on page P, in the map's order. */
-  const camModes = (P) => P.evaluate(() => window.__ctdev.debug().cams.map((c) => c.mode));
-  const allCams = (P, mode) => until(P, ([m]) => window.__ctdev.debug().cams.length === 3 && window.__ctdev.debug().cams.every((c) => c.mode === m), [mode], 15000, `all three cameras are ${mode}`);
+  /** A4's three cameras' modes on page P, in the map's order (the debug list holds every camera on the map). */
+  const camModes = (P) => P.evaluate(() => window.__ctdev.debug().cams.filter((c) => c.id.startsWith('cam-a4-')).map((c) => c.mode));
+  const allCams = (P, mode) => until(P, ([m]) => { const cs = window.__ctdev.debug().cams.filter((c) => c.id.startsWith('cam-a4-')); return cs.length === 3 && cs.every((c) => c.mode === m); }, [mode], 15000, `all three cameras are ${mode}`);
+  /** Open a course door by hand on the host (as a player would) and see it open on both pages. */
+  async function openDoor(cid, what) {
+    const i = await doorIndex(cid);
+    const aid = await GA((cid) => window.__app.current.world.layout.course.doors[cid], cid);
+    if (!(await A.evaluate((i) => window.__app.current.world.doors.list[i].open > 0.5, i))) {
+      assert((await use(A, `door-${aid}`)) === 'ok', `${what}: the host opens ${cid}`);
+      await until(A, (i) => window.__app.current.world.doors.list[i].open > 0.5, i, 8000, `${what}: ${cid} opens (host)`);
+    }
+    await until(B, (i) => window.__app.current.world.doors.list[i].open > 0.5, i, 15000, `${what}: the client sees ${cid} open`);
+  }
   const cueHidden = () => window.__ctdev.debug().cue.every((c) => c.a === 0 && !c.shown && !c.seen);
   /** The lamps of circuit g are all on / all off on page P's registry (the host's own, the client's from the course message). */
   const lampsOn = (P, g, on) => P.evaluate(([g, on]) => { const l = window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g); return l.length > 0 && l.every((x) => x.on === on); }, [g, on]);
@@ -154,6 +165,7 @@ export async function walk(t, n) {
   // ---- 3. the console: refused while the officer is up (claims nothing), then he goes down and the client loops the cameras ----
   console.log('  A4: the console, the officer, the loop');
   await setPassive([OFFICER, DOCK1, DOCK2], true);
+  await openDoor(PASSAGE_DOOR, 'A4 passage');
   await moveHost(BEHIND[0], BEHIND[1], 0.1, 0);
   await moveClient(AT_CONSOLE[0], AT_CONSOLE[1], 0.1, 0);
   assert((await use(B, CONSOLE)) === 'ok', 'A4: the client presses the console with the officer up');
@@ -236,6 +248,7 @@ export async function walk(t, n) {
   assert((await use(B, PUSHBAR)) === 'ok', 'A4: the client pushes the bar');
   await until(A, (g) => window.__course.debug().gates[g], WICKET, 8000, 'A4: the egress gate opens');
   await until(B, (i) => !window.__course.wire.locks.includes(i), await doorIndex(L4_DOOR), 15000, "A4: the client sees L4's east door unlocked");
+  await until(A, (i) => !window.__app.current.world.doors.list[i].anchor.locked, await doorIndex(L4_DOOR), 8000, "A4: the host sees L4's east door unlocked");
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => !!document.querySelector('.course-hud tr[data-step="a4-dock"] td.done'), null, 15000, `A4: the ${tag} sees the dock step ticked`);
   await sees(A, /holding room four/, 'A4: the host reads the closing line');
   await sees(B, /holding room four/, 'A4: the client reads the closing line');

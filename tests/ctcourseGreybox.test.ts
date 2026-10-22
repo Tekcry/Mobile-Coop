@@ -621,7 +621,7 @@ function segHitsBox(px: number, pz: number, qx: number, qz: number, b: BoxPiece)
 }
 
 describe('jamRelay (A3 E2, C4)', () => {
-  for (const [facing, length] of [['+x', 17.5], ['-z', 19]] as [Facing, number][]) {
+  for (const [facing, length] of [['+x', 17.5], ['-z', 17.5]] as [Facing, number][]) {
     describe(`facing ${facing}, ${length} m`, () => {
       const g = jamRelay({ id: 'a3', at: AT, facing, length });
       const f = greyFrame(AT, facing);

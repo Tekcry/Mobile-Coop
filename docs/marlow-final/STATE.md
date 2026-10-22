@@ -48,6 +48,9 @@ Open for you (found while building; built as below, each undoable):
 | --- | --- | --- |
 | A5 solo laser crossing (slices/S5.md) | The beams stay off for the laser panel's 1.5 s reboot after a jam, so one player can jam the panel, let go and walk through: the throw is then optional. Accepted for the prototype (walking the beams stays the loud route) | (a) beams back on the moment the jam is released (`src/game/laserPanels.ts`; changes Sector Ops panels and A8's curtain too), (b) move A5's panel to the inner wall's far face (drops the jam route) |
 
+| A3 solo relay crossing (slices/S34-check.md should-fix 1) | One player can get past the hall camera alone (a self-jam from office 3's door then a run inside the 1.5 s reboot, or a crouched sprint at 14 m), so the relay is optional for a crossing; the set still needs both players in the east lobby. Accepted for the prototype | (a) send back at camera stage 1 in the hall (a rule change), (b) lock office 3's corridor door (cuts one way only; the corridor stays soloable) |
+| Camera range 14 m (master camera-range cut, all maps) | A3's camera 17 -> 14 m, A4's three 18 -> 14 m, A7's cam2 18 -> 14 m; each exercise re-checked at 14 m (S34 / S567 checks). A3's corridor floor west of x 83.5 is now out of range (the jam post's floor) | Per-map `rangeMax` (your call) |
+
 Rejected by you (~01:25): anything that assumes a dark camera is blind (G240 stands, cameras keep IR). Also your
 ~01:25 rule: every guard armed (SPEC rule 9).
 Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN section 6; slice reports S0-*.md.

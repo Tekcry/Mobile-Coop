@@ -40,7 +40,7 @@ Decisions and contradictions: section 13 (`A3-D<n>` / `A3-C<n>`).
 | Office 3 | 91.2-97, 0-8.7 | 3.0 | Desks, the far desk (95.5, 1.5); corridor door x 93.4-94.6 cut in the helper's wall (A3-D2); no door to the east lobby (A3-D3) |
 | Frosted partitions | x 85.4 and x 91.2, z 0-8.7 | 3.0 | `kit.glass` frosted (stops sight, jam lines, bullets; passes baked light); a 1.2 m communicating door in each at z 1.8-3.0 |
 | East lift lobby | 97-100, 0-13 | 3.0 | Under and behind the camera; L3 door at x 100, z 9.1-10.9; lift doors (dressing) on its south part |
-| Camera `cam-a3-hall` | (96.6, y 2.8, 10.75), facing 270 deg (west), sweep 262-278, aim 8.75 m, `range` 17 | - | From the helper; the builder sets `range: 17` (the helper leaves the 18 m default) (A3-D4) |
+| Camera `cam-a3-hall` | (96.6, y 2.8, 10.75), facing 270 deg (west), sweep 262-278, aim 8.75 m, `range` 14 (was 17; master camera-range cut 2026-10-23: sees the corridor from x 83.5 east) | - | From the helper; the builder sets `range: 17` (the helper leaves the 18 m default) (A3-D4) |
 
 Doors and spacing: L2 door (76, 10) -> archway (79.5): an archway, not a door (scale sheet 5); office doors 3 m+ apart on
 the corridor wall (recess door at x 88.25, office 3 door at x 94.0: 5.75 m); communicating doors 1.8 m from the south
@@ -137,7 +137,7 @@ and jam it properly this time.' }` (say 69 characters).
 | Recess spacing | 8.75 m | `JAM_HOP` 8.84 m | Yes |
 | Jam posts to camera | 18.1 m (west), 1.4 m (east) | `JAMMER.range` 20 | Yes |
 | Camera mount / range | 2.8 m / 17 m | `CAMERA.mountMin` 2.4-3.5; range <= 18 | Yes |
-| West lobby out of range | archway 17.1 m from the camera | range 17 | Yes (unit test "no lobby point seen") |
+| West lobby out of range | archway 17.1 m from the camera | range 14 (was 17) | Yes (unit test "no lobby point seen") |
 | Cooldown between one player's jams | 5 s | `JAMMER.cooldown` 5 | The partner waits in the recess 5-6 s |
 | Cleaner cycle / stops | about 41 s; 5 s | LD 4.3: 25-45 s; 3-6 s | Yes |
 | Offices | 5.9, 5.8, 5.8 m wide x 8.7 m | Play space >= 6 m (A3-C3) | Near (offices on the 6 m grid shifted by the lobby) |

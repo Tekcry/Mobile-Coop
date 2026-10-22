@@ -45,7 +45,7 @@ export const A3_CLEANER_FACES = [Math.PI, Number.NaN, Math.PI, Number.NaN, Math.
 /** The corridor helper's id, the camera it makes and its range (A3-D4: the helper leaves the 18 m default). */
 export const A3_HALL_ID = 'a3-hall';
 export const A3_CAMERA = 'cam-a3-hall';
-export const A3_CAMERA_RANGE = 17;
+export const A3_CAMERA_RANGE = 14;
 /** The corridor (the helper's call): its mouth on the centre line, length, width and height. */
 export const A3_CORRIDOR = { at: { x: 79.5, z: 10.75 }, length: 17.5, width: 3.5, height: 3.0, recessDepth: 1.0, recessW: 1.4, camY: 2.8 } as const;
 /** The recess (centre line x 88.25 on the south wall) and the hide spot against its camera-side cheek (A3-D1). */

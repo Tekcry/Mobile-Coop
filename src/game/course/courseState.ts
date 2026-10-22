@@ -79,6 +79,8 @@ export const AIR_CYCLING = 'Airlock sealed - cycling';
 export const REFUSE_ISO_REARM = 'The isolator is re-arming';
 /** (N3) A press on a timed console inside its re-arm time. */
 export const REFUSE_CONSOLE_REARM = 'The console is rebooting';
+/** (marlow-final) Seconds the claim zones stay shut after a bay restart (as the pass zones' `holdZones` 2 s). */
+export const ROLE_HOLD = 2;
 
 /** The `course` message body: plain JSON (state, locks, flags; T1b sends it). */
 export interface PackedCourse {
@@ -198,6 +200,9 @@ export class CourseState {
   private readonly flagBay = new Map<string, number>();
   private readonly groupsOff = new Set<string>();
   private downT = 0;
+  /** (marlow-final) Seconds the claim zones stay shut after a bay restart: the players' old feet sit in the zone until the
+   *  respawn moves them, which re-claimed the job at once (e2e A5 / A7 restart). */
+  private roleHoldT = 0;
   /** Bumped whenever drill ticks may change (drillRefusal cache key, with the bay). */
   private tickGen = 0;
   private refusalGen = -1;
@@ -579,6 +584,7 @@ export class CourseState {
       a.t = 0;
     }
     this.downT = 0;
+    this.roleHoldT = ROLE_HOLD;
     this.tickGen++;
     const squad = this.currentBay.squad.slice();
     this.events.push({ t: 'bayRestart', bay: this.currentBay.id, squad });
@@ -608,7 +614,8 @@ export class CourseState {
         this.setOpen(g, false);
       }
     }
-    this.stepRoles();
+    if (this.roleHoldT > 0) this.roleHoldT -= dt;
+    else this.stepRoles();
     this.latchSteps();
     const a = this.airById.get(this.currentBay.exit);
     if (a && a.phase !== 'sealed') this.stepAirlock(a, dt);

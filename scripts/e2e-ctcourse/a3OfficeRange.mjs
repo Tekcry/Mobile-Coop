@@ -29,8 +29,8 @@ const POST_W = [78.5, 10.75];
 const POST_E = [98.0, 10.75];
 const HIDE = [88.6, 8.5];
 const BACK = [77.8, 10.75];
-/** A corridor spot in the camera's plain view (12.6 m from the lens) and the corridor's middle (the light spot). */
-const SEEN = [84.0, 10.75];
+/** A corridor spot in the camera's plain view (9.6 m from the lens, inside its 14 m range) and the corridor's middle (the light spot). */
+const SEEN = [87.0, 10.75];
 const MID = [88.25, 10.75];
 /** The office middles the light checks read, office 1's switch and the cleaner's lure target by it. */
 const OFFICE1 = [82.5, 4.3];
@@ -99,7 +99,7 @@ export async function walk(t, n) {
   const c0 = await cleaner();
   assert(!!c0 && !c0.passive && c0.z < 8.7 && c0.x > 79.6 && c0.x < 97, `A3: the cleaner is alive, armed and in the offices (${JSON.stringify(c0)})`);
   const cam0 = await cam(A);
-  assert(cam0.mode === 'online' && cam0.range === 17, `A3: the camera is online with its 17 m range (${cam0.mode}, ${cam0.range})`);
+  assert(cam0.mode === 'online' && cam0.range === 14, `A3: the camera is online with its 14 m range (${cam0.mode}, ${cam0.range})`);
   for (const [x, z, floor, what] of [[MID[0], MID[1], 0.6, 'the corridor'], [OFFICE1[0], OFFICE1[1], 0.4, 'office 1'], [OFFICE2[0], OFFICE2[1], 0.4, 'office 2'], [BACK[0], BACK[1], 0.4, 'the west lobby']]) {
     const [la, lb] = [await level(A, x, z), await level(B, x, z)];
     assert(la >= floor && Math.abs(la - lb) < 0.01, `A3: ${what} reads lit and the same on both pages (host ${la.toFixed(3)}, client ${lb.toFixed(3)})`);
@@ -160,7 +160,8 @@ export async function walk(t, n) {
   // ---- 5. the relay: jam, the client to the recess, jam again, the client to the far lobby ----
   console.log('  A3: the relay');
   await until(A, () => window.__ctdev.debug().cool[0] === 0, null, 20000, "A3: the host's cooldown is over");
-  await waitSim(500);
+  // the client's 3 s send-back hold from step 4 ends before the relay moves it (S34-check should-fix 2)
+  await waitSim(3500);
   n0 = await backs();
   await jamOn(0, 'A3 relay jam 1');
   await moveClient(HIDE[0], HIDE[1], 0.1, Math.PI);

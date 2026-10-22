@@ -240,7 +240,7 @@ export function buildA4GoodsShed(b: LevelBuilder, kit: FacilityKit): SetPart {
     facing,
     sweep: [facing - half, facing + half],
     aim,
-    range: 18,
+    range: 14,
     room: 'A4',
     reason,
     offFlag: A4_LOOP_FLAG,

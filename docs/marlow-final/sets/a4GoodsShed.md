@@ -133,9 +133,9 @@ No greybox helper (SPEC 12: A4 has no co-op piece). Hand data:
 
 | Camera | Mount (x, y, z), facing | Sees | Beaten by |
 | --- | --- | --- | --- |
-| `cam-a4-c1` | (111.5, 3.0, 39.8), 270 deg (west), sweep +-15, range 18 | The main aisle x 93.5-111.5 and the east lane's north end | The loop, a jam (from the cross aisle, 15 m), a shot |
-| `cam-a4-c2` | (96.75, 3.0, 43.6) on the mezzanine's south face, 180 deg (south), sweep +-10, aim 12, range 18 | The cross aisle z 25.6-41 and its crossing of the back aisle and aisle 2 | As above (jam from the back aisle's west end is 18+ m: from x 92 in the back aisle) |
-| `cam-a4-c3` | (76.4, 3.0, 33.0) over the wicket, 90 deg (east), sweep +-20, aim 8, range 18 | The dock x 79.5-94 (the pair, the stacks, the main aisle's west end); under the mount (x 76-79.3) out of frame | As above (jam from the main aisle at x 88-94) |
+| `cam-a4-c1` | (111.5, 3.0, 39.8), 270 deg (west), sweep +-15, range 14 (was 18; master camera-range cut) | The main aisle x 93.5-111.5 and the east lane's north end | The loop, a jam (from the cross aisle, 15 m), a shot |
+| `cam-a4-c2` | (96.75, 3.0, 43.6) on the mezzanine's south face, 180 deg (south), sweep +-10, aim 12, range 14 (was 18; master camera-range cut) | The cross aisle z 25.6-41 and its crossing of the back aisle and aisle 2 | As above (jam from the back aisle's west end is 18+ m: from x 92 in the back aisle) |
+| `cam-a4-c3` | (76.4, 3.0, 33.0) over the wicket, 90 deg (east), sweep +-20, aim 8, range 14 (was 18; master camera-range cut) | The dock x 79.5-94 (the pair, the stacks, the main aisle's west end); under the mount (x 76-79.3) out of frame | As above (jam from the main aisle at x 88-94) |
 
 All share `offFlag: 'a4-loop'`: the console loops them for 60 s (N3: the `looped` mode, view fade and LED), then they
 come back on both pages; the console re-arms 20 s later. Mounts at 3.0 m keep the 3.3 m mezzanine deck out of every

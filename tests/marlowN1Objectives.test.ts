@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { bayObjective, leadOf, registerCourse, registeredBayCount, validateCourse, type AirlockDef, type BayDef, type CourseDef, type CourseKnownIds, type CourseObjective } from '../src/game/course/courseDef';
-import { CourseState, type PackedCourse } from '../src/game/course/courseState';
+import { CourseState, ROLE_HOLD, type PackedCourse } from '../src/game/course/courseState';
 
 function airlock(k: number): AirlockDef {
   return { id: `L${k}`, box: [100 * k, 0, 100 * k + 6, 6], floorY: 0, nearDoor: `L${k}-near`, farDoor: `L${k}-far` };
@@ -192,6 +192,18 @@ describe('gap list 6b: role claims', () => {
     expect(st.roleClaimed()).toBe(true);
     expect(st.lead).toBe(1);
     expect(st.events.some((e) => e.t === 'roleClaimed' && e.a === 1)).toBe(true);
+  });
+  it('a restart clears a zone claim and holds the zone ROLE_HOLD s, so feet still in it before the respawn do not re-claim', () => {
+    const st = new CourseState(def(STEPS, { roles: [{ role: 'a', zone: { box: [10, 0, 14, 4] } }] }));
+    at(st, 1, 12, 0, 2);
+    st.update(1 / 60);
+    expect(st.lead).toBe(1);
+    st.restart();
+    expect(st.roleClaimed()).toBe(false);
+    for (let t = 0; t < ROLE_HOLD - 0.1; t += 1 / 60) st.update(1 / 60);
+    expect(st.roleClaimed()).toBe(false);
+    for (let t = 0; t < 0.2; t += 1 / 60) st.update(1 / 60);
+    expect(st.roleClaimed()).toBe(true);
   });
   it('a claim moves lead / second drills with it', () => {
     const st = new CourseState(def([], { roles: [{ role: 'a', press: ['sw-1'] }], drills: [{ id: 'd-lead', verb: 'boost', who: 'lead', text: 'Boost.', marker: { x: 0, y: 0, z: 0 } }] }));

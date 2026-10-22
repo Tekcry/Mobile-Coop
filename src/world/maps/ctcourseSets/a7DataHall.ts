@@ -106,7 +106,7 @@ export const A7_H = { lobby: 3.0, corridor: 3.5, pod: 2.6, slab: 4.0 } as const;
 
 /** The cameras (set doc section 2; C2). */
 export const A7_CAM1: CameraDevice = { id: 'a7-cam1', kind: 'camera', level: 'ground', at: [86.5, 71.5], y: 3.2, facing: 195, aim: 4.0, range: 12, reason: "Data hall CCTV over the front aisle's north mouth and the cage's north apron (fixed, short aim: T1's spot is above its frame)" };
-export const A7_CAM2: CameraDevice = { id: 'a7-cam2', kind: 'camera', level: 'ground', at: [99.6, 54.0], y: 3.0, facing: 270, sweep: [220, 320], aim: 9, range: 18, reason: 'Plant corridor CCTV at its east end, sweeping the corridor and the pod door' };
+export const A7_CAM2: CameraDevice = { id: 'a7-cam2', kind: 'camera', level: 'ground', at: [99.6, 54.0], y: 3.0, facing: 270, sweep: [220, 320], aim: 9, range: 14, reason: 'Plant corridor CCTV at its east end, sweeping the corridor and the pod door' };
 
 /** The shell's faces (`facility.ts`, 0.5 m walls on the set box's edges). */
 const SHELL = { west: 70.25, east: 99.75, south: 52.25, north: 71.75 } as const;
