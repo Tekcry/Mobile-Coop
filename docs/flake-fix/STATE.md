@@ -23,6 +23,8 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   4192 after marlowcap: sectorredesign-3796700d-ops6 (Course Ready PR 2 head: build;e2e-sectorops:6, JOBS=1) ->
   guardaichain-62884858 (Guard AI posts + bodies fix: build;e2e-stealth-ai e2e-sectorops, JOBS=2; send the pass / fail
   and the "posts site" line, to the Guard AI session AND as a comment on PR #196).
+  -> hangdown-4072e2b9 (CT Core fix: build;e2e-netmove e2e-takedown, JOBS=2; verdict to CT Core Build, copy the
+  orchestrator; coop + ctcourse already pass on the desktop).
 - GUARD-RENDER:
   S1 668d623d DONE + measured (f1bdb3ba docs/guard-render/run-s1, run-s1-off): 24 facing sectorops frame 9.7 -> 7.1 ms,
   render CPU 7.6 -> 4.9, GPU 6.7 -> 5.5, active 1429 -> 493; ctcourse 9.2 -> 6.3. Next: compare with s0 base, look
