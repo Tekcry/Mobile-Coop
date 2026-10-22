@@ -404,7 +404,9 @@ async function throwOver(x0) {
   const prompt = await GB(() => window.__app.current.team.prompt);
   assert(/throw/i.test(prompt ?? ''), `station 4: the prompt names the move (${prompt})`);
   // (flake-fix) the press goes in once the client's view has settled: the host's copy on the client is where the host
-  // stands (its yaw too: the landing is measured from it), the host still offers, and the client stands free
+  // stands (its yaw too: requestThrow measures the landing from it), the host still offers, and the client stands free.
+  // A stabiliser: the failure's cause is suspected only (docs/backlog.md "Four load flakes"); the dump's `gates` say
+  // whether the press was swallowed before the team code
   const host = await GA(() => { const c = window.__app.current.player.controller; return [c.pos.x, c.pos.z, c.yaw]; });
   await until(B, ([hx, hz, hy]) => {
     const g = window.__app.current;

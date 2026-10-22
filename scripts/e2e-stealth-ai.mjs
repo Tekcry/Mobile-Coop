@@ -848,33 +848,49 @@ try {
         // a spot round the corner (past the end, behind the face plane) that sees the peeking head and not the chest
         const pt = new V();
         let gx = 0;
+        let gy = 0;
         let gz = 0;
         // a guard's eye at (gx, gz): clear static lines to the chest (aim point) and the head. (stealth-peek-wait) Once a
         // guard stands there, its own eye (`eyeOf`): the 1.55 m guess is 4 cm below a grunt's eye, and a spot picked by
         // the guess could show the real guard the chest too ("sees the peeking head only" failed, #65 / #71)
         let eyeOf = null;
-        // (flake-fix) the spot search uses a real grunt's eye height (one spawned on the floor here and cleared at once)
-        let eyeY = s.y + 1.55;
+        // (flake-fix) the spot search uses a real grunt's eye: its offset above the guard's feet (`eye` is pos + a
+        // constant), read from one spawned on the floor here and cleared at once
+        let eyeUp = 1.55;
         {
           const probe = g.enemyMgr.spawn('grunt', new V(s.bx - s.nx * 2, s.y, s.bz - s.nz * 2), false, 0);
-          if (probe) eyeY = probe['eye'](new V()).y;
+          if (probe) eyeUp = probe['eye'](new V()).y - probe.pos.y;
           g.enemyMgr.clear();
         }
         // (flake-fix) `m`: a margin (m) for the spot search: the chest is looked at `m` further out past the edge and the
         // head `m` further in, so a spot that only just hides the chest (or only just sees the head) does not count
         const see = (m = 0) => {
-          const eye = eyeOf ? eyeOf(new V()) : new V(gx, eyeY, gz);
+          const eye = eyeOf ? eyeOf(new V()) : new V(gx, gy + eyeUp, gz);
           // as the guard's own test (perception losClear): a hit within the slack of the point (0.3 m chest, 0.2 m head) is clear
           const clear = (to, slack) => { const h = g.ballistics.ray(eye, to, 1); return !h.hit || h.distance > Math.hypot(to.x - eye.x, to.y - eye.y, to.z - eye.z) - slack; };
           return { chest: clear(g.target.aimPoint(pt).clone().addInPlaceFromFloats(s.tx * m, 0, s.tz * m), 0.3), head: clear(g.target.headPoint(pt).clone().addInPlaceFromFloats(-s.tx * m, 0, -s.tz * m), 0.2) };
         };
-        const place = (x, z) => {
+        const place = (x, y, z) => {
           gx = x;
+          gy = y;
           gz = z;
         };
+        // (flake-fix, fix round) a spawned guard stands where the spawn snaps it (enemyMgr.spawn: the nearest walkable
+        // nav cell's centre and height), not on the 0.125 m grid spot: each grid spot becomes that standing point (one
+        // per nav cell), so the checks below judge the guard's real eye
+        const nav = g.enemyMgr.nav;
+        const cells = new Set();
         const spots = [];
-        for (let a = 1; a <= 7; a += 0.125) for (let b = 0.5; b <= 4; b += 0.125) spots.push([s.bx + s.tx * a - s.nx * b, s.bz + s.tz * a - s.nz * b]);
-        const hidden = spots.filter(([x, z]) => { place(x, z); const v = see(); return !v.chest && !v.head; });
+        for (let a = 1; a <= 7; a += 0.125) {
+          for (let b = 0.5; b <= 4; b += 0.125) {
+            const c = nav.nearestWalkable(s.bx + s.tx * a - s.nx * b, s.bz + s.tz * a - s.nz * b, 8, s.y);
+            if (c < 0 || cells.has(c)) continue;
+            cells.add(c);
+            const [cx, cz] = nav.center(c);
+            spots.push([cx, nav.height[c], cz]);
+          }
+        }
+        const hidden = spots.filter(([x, y, z]) => { place(x, y, z); const v = see(); return !v.chest && !v.head; });
         P.axis(0, 1);
         // (A3, G36) the peek is at once; the rig's hand switch and lean ease the head out past the edge over about 0.6 s
         t.step(0.9);
@@ -887,7 +903,7 @@ try {
         let only = hidden;
         let peekOn = true;
         for (let k = 0; k < 40 && only.length; k++) {
-          only = only.filter(([x, z]) => { place(x, z); const v = see(0.01); return !v.chest && v.head; });
+          only = only.filter(([x, y, z]) => { place(x, y, z); const v = see(0.01); return !v.chest && v.head; });
           peekOn &&= g.wallCore.peekOn;
           t.step(0.1);
         }
@@ -899,11 +915,11 @@ try {
         // the guard's own perception there: head only
         g.enemyMgr.clear();
         let e = null;
-        // the spawn settles the guard on the nav grid: keep one whose own eye (where it stands) sees the head only
-        for (const [x, z] of only) {
-          e = g.enemyMgr.spawn('grunt', new V(x, s.y, z), false, Math.atan2(g.player.position.x - x, g.player.position.z - z));
+        // the spot is already a nav cell's standing point (the spawn snaps to the same cell); keep one whose own eye
+        // (where it stands) still sees the head only
+        for (const [x, y, z] of only) {
+          e = g.enemyMgr.spawn('grunt', new V(x, y, z), false, Math.atan2(g.player.position.x - x, g.player.position.z - z));
           if (!e) continue;
-          place(e.pos.x, e.pos.z);
           eyeOf = (o) => e['eye'](o);
           const v = see(0.01);
           eyeOf = null;

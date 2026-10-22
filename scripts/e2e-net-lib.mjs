@@ -173,7 +173,11 @@ export const watchTeam = (P) =>
     t.__log.length = 0;
     t.__log.push([+(g.time ?? 0).toFixed(2), t.state]);
   });
-/** The page's team-move view for a failure message: the state log, counts, the last refusal and the offer it sees. */
+/**
+ * The page's team-move view for a failure message: the state log, counts, the last refusal and the offer it sees, and
+ * (flake-fix) the gates that swallow the co-op press before `team.fixedUpdate` (GameState: `pistolAsk`, `wallWas`,
+ * `busy`, `carrying`), so a press that never reached the team code says why.
+ */
 export const teamLog = (P) =>
   P.evaluate(() => {
     const g = window.__app.current;
@@ -193,5 +197,13 @@ export const teamLog = (P) =>
       me: { pos: [c.pos.x, c.pos.y, c.pos.z].map((v) => +v.toFixed(2)), yaw: +c.yaw.toFixed(2), grounded: c.grounded, crouched: c.crouched, ov: !!c.override },
       mates: mates.map((m) => ({ mode: m.mode, sub: m.sub, pos: [m.pos.x, m.pos.y, m.pos.z].map((v) => +v.toFixed(2)), yaw: +m.yaw.toFixed(2) })),
       busy: { td: !!g.takedown.active, strike: !!g.strike.active, attached: !!g.traversal.attached },
+      gates: {
+        wall: g.wallCore?.active ?? null,
+        doorPeek: g.doorPeek?.active ?? null,
+        doorOpen: g.doorOpen?.active ?? null,
+        pistolAim: g.pistolAimWanted ?? null,
+        weapon: g.weapons?.current?.def?.class ?? null,
+        carrying: g.stealth?.carrying ?? null,
+      },
     });
   });

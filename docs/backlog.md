@@ -46,19 +46,25 @@ e2e-netmove and e2e-ctcourse passed 3 solo rounds and 2 full runs on the laptop.
   `E2E_JOBS=2` on the laptop. Not on `KNOWN_FLAKY`.
   - e2e-stealth-ai "the guard there sees the peeking head only" (los true, head false): the spot was picked from one
     look at the held peek, but the pose sways a few mm and the picked spot cleared the chest by about 5 mm, so the
-    guard's think tick (a random phase) caught the chest. Fix: the spot search uses a real grunt's eye height and keeps
-    a spot only if it sees the head and not the chest at every 0.1 s look over 4 s of the held peek, with a 1 cm margin
-    (chest further out, head further in); a failure prints the guard's lines and the chest point.
+    guard's think tick (a random phase) caught the chest. Fix: each grid spot becomes the point a spawned guard really
+    stands at (the nav cell's centre and height, as `enemyMgr.spawn` snaps it), judged with a real grunt's eye offset;
+    a point counts only if it hides chest and head before the peek and sees the head and not the chest at every 0.1 s
+    look over 4 s of the held peek, with a 1 cm margin (chest further out, head further in); the spawned guard's own eye
+    must pass the same margin; a failure prints the guard's lines and the chest point.
   - e2e-netmove "timed out waiting for client assists": the client's `assist` lasts the boost's 0.9 s of game time and
     began and ended between two polls on a slow page. Fix: `watchTeam` (e2e-net-lib) logs every team state with sim
     time; the check reads whether the client went through `assist`; a failure prints both views (`teamLog`).
   - e2e-mouse "the capture times out after 5 s": the screen's wall-clock 5 s timer fired after the test's fixed 5.6 s
     look on a slow page. Fix: the page times it (click, a 4.5 s probe that must still be capturing, the moment
     `cancelCapture` runs, a 5 s probe armed after the click); the give-up must come at 5 s and before that probe.
-  - e2e-ctcourse "station 4: the client is thrown": at 6 fps the client pressed before its copy of the offering host
-    had settled (the landing is measured from the host's position and yaw), so the press never became a throw. Fix:
-    the press waits until the client's view of the host matches the host (10 cm, 0.05 rad), the host still offers and
-    the client stands free; both pages' team logs print on a failure.
+  - e2e-ctcourse "station 4: the client is thrown": the cause is suspected, not proven. The old failure dump showed no
+    `lastThrowRoom` and no refusal, so `requestThrow` (teamController) never ran and the landing was never measured:
+    the press most likely never reached it, either because the offer dropped out at the press frame (and the client
+    began its own `throwOffer`) or because GameState's gates swallowed the press (`pistolAsk`, `wallWas`, `busy`).
+    Kept as a sound stabiliser: the press waits until the client's view of the host matches the host (10 cm, 0.05 rad),
+    the host still offers and the client stands free. Diagnosis: both pages' team logs print on a failure, and
+    `teamLog` (e2e-net-lib) now adds those gates (wall core, door peek and door open active, pistol aim asked, the
+    current weapon class, carrying), so the next failure says why.
 
 - **e2e-menus "stall" at (tuner-camera) on the desktop (fixed in the test, havok-stall 2026-10-21; `docs/havok-stall/REPORT.md`)** -
   the full suite failed 5 of 5 on the desktop (i7-7700K, software GL) right after "tuner: Menu closes it and the game
