@@ -2270,25 +2270,35 @@ export class AnimGraph {
     const CF = o.clipFeet;
     CF.valid = LOCO.mocap && this.mFeet && this.mStride > 0 && o.keyMocap > 0 && o.gait.moving;
     CF.on = false;
-    if (!CF.valid) {
+    // (fix 2 check) clip feet gone with the switch on while the gait moves (a crouch, a draw or a wall taking the share to
+    // 0): the duty goes on easing from the clip's window to the planner's at the same rate below (it jumped 0.18-0.30 in
+    // the frame they went, a foot in the air back in its stance window). Else nothing is carried (the switch off: as before)
+    if (!CF.valid && (!LOCO.mocap || this.mDutyGait < 0 || !o.gait.moving)) {
       this.mDutyGait = -1;
+      this.mPh = LOCO.mocap ? o.gait.phase : -1;
       return;
     }
-    const zk = (speed * o.gait.cycleTime) / this.mStride;
-    const src = this.kA.feet;
-    for (let s = 0; s < KEYED_FEET; s += KEYED_FEET_SIDE) {
-      CF.f[s + KF.x] = src[s + KF.x]! * k;
-      CF.f[s + KF.y] = src[s + KF.y]! * k;
-      CF.f[s + KF.z] = src[s + KF.z]! * zk;
-      CF.f[s + KF.pitch] = src[s + KF.pitch]!;
-      CF.f[s + KF.contact] = src[s + KF.contact]!;
-    }
     const M = MOCAP_FEET;
-    // (integration) a turn hands the steps to the planner past `turnMax`, or past what turns the body `twistMax` over one
-    // of the clip's stances (a run's short stance keeps its clip feet through steering)
-    const st = this.mDuty * o.gait.cycleTime;
-    const turnMax = st > 0 && M.twistMax / st > M.turnMax ? M.twistMax / st : M.turnMax;
-    CF.on = o.keyMocap >= M.share && Math.abs(i.yawRate) < turnMax && speed > M.minSpeed;
+    let want = o.gait.duty;
+    if (CF.valid) {
+      const zk = (speed * o.gait.cycleTime) / this.mStride;
+      const src = this.kA.feet;
+      for (let s = 0; s < KEYED_FEET; s += KEYED_FEET_SIDE) {
+        CF.f[s + KF.x] = src[s + KF.x]! * k;
+        CF.f[s + KF.y] = src[s + KF.y]! * k;
+        CF.f[s + KF.z] = src[s + KF.z]! * zk;
+        CF.f[s + KF.pitch] = src[s + KF.pitch]!;
+        CF.f[s + KF.contact] = src[s + KF.contact]!;
+      }
+      // (integration) a turn hands the steps to the planner past `turnMax`, or past what turns the body `twistMax` over
+      // one of the clip's stances (a run's short stance keeps its clip feet through steering)
+      const st = this.mDuty * o.gait.cycleTime;
+      const turnMax = st > 0 && M.twistMax / st > M.turnMax ? M.twistMax / st : M.turnMax;
+      CF.on = o.keyMocap >= M.share && Math.abs(i.yawRate) < turnMax && speed > M.minSpeed;
+      const w = o.keyMocap >= M.share ? 1 : o.keyMocap / M.share;
+      const duty = o.gait.duty + (this.mDuty - o.gait.duty) * w;
+      want = o.keyMocap >= M.share && speed > M.minSpeed ? duty : duty < 0.4 ? 0.4 : duty > 0.75 ? 0.75 : duty;
+    }
     // (integration) the gait clock keeps the clip's stance window whenever clip feet are on hand (by the mocap share), on
     // or handed to the planner: a hand-off never moves the windows under a foot in the air (it landed mid-swing, 18 cm
     // down in a frame, or jumped half its swing)
@@ -2297,16 +2307,18 @@ export class AnimGraph {
     // window: clamped there, the jog / run turns' planner steps popped worse, jog 2.8 m/s x 2.5-4 rad/s ankle-toe 24-32 ->
     // 37-44 deg, run 4.0 x 4 48 -> 70 deg; the walk's 0.56 is inside the clamp either way.) The duty moves at most half
     // the gait clock's advance a frame, so a foot in its swing window never falls back into its stance window (the jog's
-    // 0.21 -> 0.40 in one frame set the swing down mid-air)
-    const w = o.keyMocap >= M.share ? 1 : o.keyMocap / M.share;
-    const duty = o.gait.duty + (this.mDuty - o.gait.duty) * w;
-    const want = o.keyMocap >= M.share && speed > M.minSpeed ? duty : duty < 0.4 ? 0.4 : duty > 0.75 ? 0.75 : duty;
-    let dPh = o.gait.phase - this.mPh;
+    // 0.21 -> 0.40 in one frame set the swing down mid-air). (fix 2 check) Also from the planner's own duty in the first
+    // frame clip feet are on hand (the switch turned on mid-jog: 0.44 -> 0.21 in a frame, every swing jumped 20 % on), and
+    // held through a clock that stepped (no last phase, or over a quarter cycle a frame: a step back read as a whole cycle)
+    let dPh = this.mPh < 0 ? 0 : o.gait.phase - this.mPh;
     if (dPh < 0) dPh += 1;
-    const dd = want - this.mDutyGait;
+    if (dPh > 0.25) dPh = 0;
+    const from = this.mDutyGait < 0 ? o.gait.duty : this.mDutyGait;
+    const dd = want - from;
     const dm = 0.5 * dPh;
-    o.gait.duty = this.mDutyGait < 0 ? want : this.mDutyGait + (dd < -dm ? -dm : dd > dm ? dm : dd);
-    this.mDutyGait = o.gait.duty;
+    o.gait.duty = from + (dd < -dm ? -dm : dd > dm ? dm : dd);
+    // (clip feet gone: carried until the planner's duty is met)
+    this.mDutyGait = CF.valid || o.gait.duty !== want ? o.gait.duty : -1;
     this.mPh = o.gait.phase;
   }
 
