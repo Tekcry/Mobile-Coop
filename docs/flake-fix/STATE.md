@@ -3,7 +3,20 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
-**Character Build SAVE (2026-10-23 ~00:45, account swap at ~97%; this block wins over everything below):**
+**Character Build SAVE 2 (2026-10-23 ~01:15; FULL BURN to 100% per orchestrator 01:05, no early stop; wins over all below):**
+- schtasks creation is BLOCKED in this session (auto mode): runs are session-bound background commands and die on a swap.
+  On resume check runs/<label>/summary.txt for DONE; a run without DONE died: rerun it.
+- Train 15 e1050e14: 38/39 GPU JOBS=5, 349 s; e2e-coop FAIL "client takedown offered on the host's guard (offer none)"
+  (host found:false spotted:false). Sent to the orchestrator. Solo x2 on 4192: runs/train15-e1050e14-coop (verdict pending).
+- loadstress1/2-0067b5f5 GREEN. loadaudit-full-0067b5f5 VOID (chain ap ran it on train 15's dist, no build step; stopped).
+- Running on 4189: loadstress1-72ffda53 (build + 9-suite stress set JOBS=5, no burner).
+- Agents (Opus, background; each pushes its branch): (a) load-audit item (3) coop grab token + merge master + look at the
+  takedown-offer miss -> feature/load-audit; (b) guard-cap rebase on master + dry review of scripts/guard-cap.mjs ->
+  feature/guard-cap (then run it on 4189); (c) load-latent mediums from docs/orchestrator/load-latent-mediums.md
+  (origin/feature/menu), split from 72ffda53: feature/load-latent-net (#10-#15 + onHostStep), feature/load-latent-ui1
+  (#17-#24), feature/load-latent-ui2 (#25-#31); coop #7/#9 after (a). Then prove each under load (JOBS=5) and PR.
+
+**Character Build SAVE (2026-10-23 ~00:45, account swap at ~97%):**
 - RUNNING through the swap: scheduled task ns-chain-1022ao = load-audit stress proof on feature/load-audit 0067b5f5
   (GPU, 4189): loadstress1-0067b5f5 and loadstress2-0067b5f5 (JOBS=5 over e2e-desktop:1 e2e-move e2e-coop e2e-mouse
   e2e-ctcourse e2e-netmove e2e-course e2e-menus smoke, a 4-core burner), then loadaudit-full-0067b5f5 (clean full run
@@ -204,7 +217,7 @@ puts it in CLAUDE.md on feature/menu). Laptop full runs: `RUN_GPU=1` (E2E_GPU=1)
 
 ## Resume prompt
 ```
-Night Shift | Character Build (laptop, the MAIN test machine, GPU for every e2e run). Read CLAUDE.md "Sessions" on origin/feature/menu, then the "Character Build SAVE" block at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Follow the "Character Build SAVE" block at the top first: read the results of the scheduled runs it names in C:/NightShift/scratch/runs (chain-1022.log, newest folders) before starting anything, then message "Night Shift | Orchestrator" that you are back, with any results, and ask for the queue.
+Night Shift | Character Build (laptop, the MAIN test machine, GPU for every e2e run). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop"), then the newest "Character Build SAVE" block at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). It names the runs (C:/NightShift/scratch/runs/<label>/summary.txt; no DONE line = it died in the swap, rerun it) and the agent branches (check each branch's newest commit to see what landed; restart unfinished work from there). Message "Night Shift | Orchestrator" that you are back with any results, then continue the SAVE block's list: load-audit PR, load-latent mediums proofs + PRs, guard-cap measure. At most one full run at a time (4189), singles on 4192; a lock with no live node process is stale (taskkill /T /F).
 
 Runner: C:/NightShift/scratch/laptop-runner.ps1 (header explains; results C:/NightShift/scratch/runs/<label>/summary.txt, DONE at the end). Every run RUN_GPU=1. Slots: full runs RUN_JOBS=3 on -Slot 4189 (the trial in STATE: keep the load sampler C:/NightShift/scratch/load-sampler.ps1 on and check the pass criteria); single suites RUN_JOBS=1 on -Slot 4192. Fetch in the slot's worktree before a new commit. Launch hidden; a run that may outlive the session goes through a scheduled task (schtasks, see STATE), never only Start-Process. Chain several runs in one script (C:/NightShift/scratch/chain-*.ps1 are examples). Reply to the requester with pass / fail per suite, the failing assert lines, times and commit; copy the orchestrator. Order: orchestrator, CT Core, Menu Notes, Course Ready, then own jobs (gpu-tests-2 PR, test-speed-2).
 
