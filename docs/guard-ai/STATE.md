@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+TRAIN-READY sent (~11:20): laptop GPU on s7 4052c434 GREEN (e2e-stealth-ai x2, e2e-sectorops all). s7 then merged
+s5 (master 4.70.0, clean) = 12911d86 (tsc, 200 AI / security unit tests); #193 / #195 / #196 told to the orchestrator
+as one stacked series. Stack merge agent told to take s7 12911d86 into s8 too.
+
 RESUMED ~11:05 (new account, session Night Shift | Guard AI Build [3f221b]). Swap rule (orchestrator 10:55): at 95%
 no new agents, save by 98%, small work to 100%; Michael swaps at 100%.
 - 'lkp' FIX (test only) s7 4052c434: Math.random seeded (4242) in the 'lkp' scenario, detection window 900 frames,
