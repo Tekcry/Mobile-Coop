@@ -8,7 +8,8 @@ Character Build (branch + commit + named suites); unit tests run locally. EW / G
 Common to every map slice: unit `tests/campusS<n>.test.ts` (guard count, every human armed, routes on the nav grid,
 cycles 25-45 s, every camera `range` 8-12 with a `reason`, every laser with one panel, every co-op lip in
 `CAMPUS_COOP_LIPS` passes `soloJumpThreats` + `soloTopLandingThreats` with 0.5 m, the headroom ray, rule 2 (no solo top
->= 1.2 m within 4 m), the M8 isolation-in-time check `sectorCheck`; for a section with an M12 choke (SPEC "Unavoidable posted
+>= 1.2 m within 4 m), the M8 isolation-in-time check `sectorCheck`; the A64 screen count (no player point sees more than 6
+awake guards unoccluded) and `dormant` only on allowed guards; for a section with an M12 choke (SPEC "Unavoidable posted
 guards": K1 S1, K2 S2, K3 S4, K4 S5) the K guard's `post` block and the choke assert: with his view cone as a nav
 blocker no route joins entry and objective / exit, without it one does); e2e `scripts/e2e-sectorops.mjs` gains a campus
 part per section (`?autostart=campusOps&mode=sector`, section start flag). Done-when always includes: `npm run check`

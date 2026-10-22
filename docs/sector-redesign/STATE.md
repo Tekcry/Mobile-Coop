@@ -11,7 +11,7 @@
 - PAUSED by the orchestrator (TRIM 3, 02:11): no checker, no agent until it messages (~04:00).
 - Slice 1 open items for the checker / fix round (Opus): (1) objective moved to (19.3, -76) for the 1.8 m reach;
   (2) CR1 drop takedown impossible (doorman 5-6 m inside the canopy lips under a solid slab): design call, likely move
-  the post to the canopy's east edge or open a soffit gap (log as A64); (3) builder edited rooms / detailPass / voxelFit
+  the post to the canopy's east edge or open a soffit gap (log as A65); (3) builder edited rooms / detailPass / voxelFit
   tests to pass a 154 x 154 m voxel grid vs a 110 limit: check it is not a real budget break (A20 load budget);
   (4) campusOps shows in the Sector op list now (sectorOps() filters MAPS, ignores LISTED_MAP_IDS): must hide until
   slice 3; (5) part 6 only as `e2e-sectorops:6`; (6) M8 isolation exceptions for pairs #1/#2, #3/#4; (7) wallX/wallZ

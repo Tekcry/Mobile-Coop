@@ -171,3 +171,11 @@ Lead, M12 chokes (2026-10-23, after the clear; A52-A59 are left for the slice L 
   the base state (switched off, shot out), so a jam is never sent twice. A client's lamp shot is host-authoritative (no
   local prediction: dark after about a round trip) and travels as a `shot` at `lt-<id>`, not a new message. Lights past
   registry id 1023 are not synced (`LAMP_MAX`). Undo: add jam timers to `lamps`, predict the shot, raise `LAMP_MAX`.
+Lead, guard render budget (2026-10-23, orchestrator from guard-cap #180: render-bound, ~4-6 visible awake guards fit
+60 Hz at Epic; Character Build builds guard-render: mesh merge, LOD, dormant + culled off-screen guards):
+- A64 Counts stay (M8: 8 / 12 / 16 / 20 / 24), but every section is laid out so no more than 6 awake guards are on
+  screen at once from any player position (walls, floors, sight lines break the view); each slice's build sheet lists
+  its worst view and its count, and a unit test samples player points and counts guards in an unoccluded frustum.
+  Guards that may sleep when far from both players carry `dormant: true` as data (posts and patrols away from the
+  live route; never a K choke guard, a talking pair mid-cycle or a dog's handler); guard-render reads it. Undo: drop
+  the field and the screen-count rule.

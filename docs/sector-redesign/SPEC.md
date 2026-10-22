@@ -157,7 +157,9 @@ heel (A2). Every guard has an employer (Larchmont), a job, a reason at each stop
 an isolation moment (LS 4.4: spot and second, written in the slice's guard sheet) and an overlap partner (LS 4.5).
 Data tags per guard (our data, guard-ai reads them): `post | zone | squad | reason`. Counts 8 / 12 / 16 / 20 / 24 with
 `perStage` 2 and `alarmMax` 3: S5 peaks at 24 + 6 = 30 <= `SECTOR.maxAlive` 32 and `MAX_ENEMIES` 32 (EF2). Dogs count.
-Perf: 24 awake is unmeasured (EF2): the guard-cap run (EG23) is a gate before S4 (PLAN slice 4).
+Perf (guard-cap #180, A64): render-bound, ~4-6 visible awake guards fit 60 Hz at Epic. Counts stay; no more than 6
+awake guards on screen at once from any player position (layout breaks the view); far guards tagged `dormant: true`
+(never a K choke guard, a mid-cycle pair or a handler). Guard-render (Character Build) provides LOD and dormancy.
 
 **Interactions (R7).** Built today: shouts (8 m), radio call-ins, a shared last known position, body discovery and KO
 revival, door shutting, lights-out investigation. From guard-ai (dependencies, not our slices): GA1 squads and radio
