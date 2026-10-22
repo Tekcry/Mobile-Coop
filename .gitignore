@@ -23,3 +23,6 @@ src/assets/music/orch/
 
 # movement foley: downloaded CC0 packs and the intermediate WAV (scripts/sfx)
 .sfx-cache
+
+# mocap-trial: raw CMU motion capture (ASF/AMC) stays out of git (public repo; the licence bans redistributing the raw data). Only the converted Wren clips are committed.
+.mocap-cache

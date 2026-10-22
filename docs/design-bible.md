@@ -581,6 +581,7 @@ playground for movement and gunplay; prototype effort, below the co-op training 
   warehouse stays (G224).
 - Warehouse lamps snap to ceilings; the open sections get translucent corrugated roof sheets that let light in but
   cannot be passed through (G221).
+- Note 2026-10-23: team doors are true two-player pathways that cannot be used solo, without breaking solo play (G280).
 
 ### 5.9 Co-op (P6)
 
@@ -911,6 +912,8 @@ Every feature works smoothly in 2-player co-op, to 5.9 C11:
 - Reference-game names (G6, G114), story, characters, logos, UI art or art assets (G5).
 - External art files, except CC0 textures (5.16); the operators pipeline's sources are decided on `feature/operators`
   (G75): a CC0 base human body, built into each operator offline by in-repo Blender scripts and bundled. Audio may use CC0 recordings for any sound (S7).
+  Note 2026-10-23: CMU motion-capture takes for the mocap set are allowed (converted clips bundled, raw files not
+  committed, credited in `docs/art-credits.md`; G264, G268, G276).
 - Random patrols that defeat planning; forced timers in stealth sections; world waypoints; kill cams; monetisation.
 - Voiced story lines now: they are a later idea (G82). Voice chat is not out of scope: it comes after the prototype
   (G156, 5.2 S10).
@@ -931,6 +934,9 @@ spec template) and the standard's phases and gates.
   need light (G200).
 - Marlow Yard has one guard who can be interrogated (G206).
 - Note 2026-10-23: the final Marlow Yard pass rebuilds freely around co-op scenarios, one co-op run 15-20 min (G272).
+- Note 2026-10-23 (marlow-final): no explainer pads, the objective list guides both players (G277); a believable,
+  luxurious training facility, dressed straight after each greybox (G278); lit by default, the players cut the light,
+  mixed zones where they play better, a view-only instructor gallery, normal guards (G279).
 - The Marlow Yard bunker pass takes the full shortlist of the Marlow Yard audit (ceilings, lamp fittings, airlocks,
   dressing, walls to ceilings, paint, lifts, fiction) and keeps the open floor's light level at 0.30, just over the 0.28 shadow line (G225).
 - **Order (G224):** the co-op training bunker, then the first campaign level.

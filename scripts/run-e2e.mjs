@@ -258,9 +258,11 @@ async function runOne(s) {
   clearTimeout(timer);
   if (timedOut) {
     code = 124;
-    log += `
-KILLED: ${s} ran past ${SUITE_TIMEOUT / 1000}s
-`;
+    const killed = `KILLED: ${s} ran past ${SUITE_TIMEOUT / 1000}s`;
+    // (test-chores-13) streamed (--serial / --jobs=1): the output went straight to the console, so the KILLED line
+    // goes there too (before, a timed-out suite there ended silently, with only FAIL in the times table)
+    if (streamed) console.log(`\n${killed}`);
+    else log += `\n${killed}\n`;
   }
   const sec = (Date.now() - t0) / 1000;
   results.push({ s, code, sec });

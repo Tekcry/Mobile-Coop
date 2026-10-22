@@ -457,6 +457,8 @@ export class GameState implements AppState {
   readonly events = new EventBus<GameEvents>();
   private audio: { frame(dt: number): void; dispose(): void } | null = null;
   private localRef: PlayerRef;
+  /** (guard-ai S1) The guards' and cameras' per-step player list, refilled in place (`playerRefsInto`, no allocation). */
+  private readonly aiRefs: PlayerRef[] = [];
   /** The local operator has been seen by a guard in combat (no takedowns on guards in combat). */
   get spottedLocal(): boolean {
     return this.localRef.spotted === true || this.net?.spotted?.() === true;
@@ -577,8 +579,9 @@ export class GameState implements AppState {
         this.stats.weaponKills[weapon] = (this.stats.weaponKills[weapon] ?? 0) + 1;
       }
     };
-    // shots: a loud report puts everyone in earshot into combat; a suppressed one (noise x0.6 or less) only
-    // makes them suspicious of where it came from
+    // shots: a loud report puts guards close by into combat (guard-ai S1: inside a quarter of its reach, walls
+    // counted; farther, one is sent to look and the rest turn); a suppressed one (noise x0.6 or less) is an ordinary
+    // noise (one sent, the rest turn)
     this.weapons.events.onShot = () => {
       const n = this.weapons.current.stats.noise;
       const r = SHOT_NOISE * n;
@@ -629,7 +632,7 @@ export class GameState implements AppState {
     } else if (opts.mode !== 'sandbox') {
       const w = this as { -readonly [K in keyof GameState]: GameState[K] };
       w.nav = buildNavGrid(this.scene, world.level, spawn.pos, world.map.navLayers, world.layout.navSeeds);
-      w.enemyMgr = new EnemyManager(this.scene, world, w.nav, this.registry, this.ballistics, this.vfx, this.diff, () => this.playerRefs());
+      w.enemyMgr = new EnemyManager(this.scene, world, w.nav, this.registry, this.ballistics, this.vfx, this.diff, () => this.playerRefsInto(this.aiRefs));
       w.enemyMgr.onKilled = (e, h) => {
         // own kills only (coop teammates are credited by the net layer); barrels count for whoever is local
         if (h.attackerId === 'local' || h.attackerId === '') {
@@ -699,7 +702,7 @@ export class GameState implements AppState {
       const w = this as { -readonly [K in keyof GameState]: GameState[K] };
       w.security = new SecuritySystem(
         world.layout.security,
-        { ballistics: this.ballistics, players: () => this.playerRefs() },
+        { ballistics: this.ballistics, players: () => this.playerRefsInto(this.aiRefs) },
         new SecurityView(this.scene, world.parts),
       );
       const prevRay = this.weapons.onRay;

@@ -18,7 +18,7 @@
 // stations' steps (camera hallway, security room, laser and panel, throw, hang-down, scanners, rope) are in git at
 // 5920cce5 (scripts/e2e-ctcourse.mjs) for the set slices to adapt.
 import { launch, openPage, assert } from './e2e-lib.mjs';
-import { until, waitSim, setSimPages, NET_VIEWPORT, LOAD_MS } from './e2e-net-lib.mjs';
+import { until, waitSim, waitHostSim, setSimPages, NET_VIEWPORT, LOAD_MS, onHostStep, offHostStep, hostStepResult } from './e2e-net-lib.mjs';
 import * as a1Gate from './e2e-ctcourse/a1Gate.mjs';
 import * as a2CarriageShed from './e2e-ctcourse/a2CarriageShed.mjs';
 import * as a3OfficeRange from './e2e-ctcourse/a3OfficeRange.mjs';
@@ -253,6 +253,8 @@ const t = {
   },
   GA, GB, until, assert, waitSim, sleep: waitSim, use, hostDebug, moveHost, moveClient, doorIndex, point, stepLine,
   RB, holdUntil, padReady, P5, crouch, legUp, pullUp, dev, drawPistol, holster, aimAt, lt, avatarDrawn, stubWalk,
+  // (load-audit, load-latent-net) host-clock windows and presses on the host's own fixed step (synced pairs)
+  waitHostSim, onHostStep, offHostStep, hostStepResult,
 };
 
 /** (B8, G126) The finale in the cash dock: the client goes down and the host revives it inside the 30 s window. */
@@ -269,10 +271,16 @@ async function reviveInDock() {
     r.protectT = 0;
     r.applyDamage({ amount: 1000, point: r.feet.clone(), sourcePos: r.feet.clone(), dir: new V(0, 0, 1), part: 'body', kind: 'explosion', attackerTeam: 'enemy', attackerId: '' });
   }, clientId);
+  const hostT = () => GA(() => window.__app.current.time);
+  const tDown = await hostT();
   await until(B, () => !window.__app.current.player.alive, null, 5000, 'finale: the client is down');
   await until(B, () => /DOWN - revive in \d+ s/.test(document.querySelector('.hud-down-timer')?.textContent ?? ''), null, 8000, 'finale: the downed client sees the revive countdown');
-  await waitSim(2500);
+  // (load-latent-net) 2.5 s of the host's clock (the window runs there; `waitSim` counts the slower client clock, and
+  // under load 3-5x more host time passed)
+  const w8 = await waitHostSim(A, 2500);
+  assert(w8 >= 2500, `finale: the pause ran 2.5 s on the host's clock (${w8.toFixed(0)} ms)`);
   const left = await GA((id) => window.__app.current.net.reviveClock.remaining(id), clientId);
+  console.log(`  (finale: ${((await hostT()) - tDown).toFixed(2)} s of host time from the downing to the read)`);
   assert(left > 15 && left < 30, `finale: the 30 s window runs on the host (sim time) (${left.toFixed(1)} s left)`);
   await GA((id) => { const it = window.__app.current.interactables.items.find((i) => i.id === `revive-${id}`); it.onUse(it); }, clientId);
   await until(B, () => window.__app.current.player.alive, null, 8000, 'finale: the host revives the client inside 30 s');

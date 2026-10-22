@@ -24,6 +24,7 @@ import { checkBlast, checkShot, hostShotAllowed, hostShotWeapon, maxHitDamage, p
 import { localFlags, htmlToInfo } from './netShared';
 import { keepSimInBackground } from './bgTicks';
 import { hostHoldPulse, inUseReach } from './holdPulse';
+import { LAMP_LOS_SLACK, LampSender, lampShotOk, lampTargetId } from './lampSync';
 import { hyp2 } from '../core/mathx';
 import { localMoveState } from '../game/localMoveState';
 import { emptyMoveState, moveChanged } from '../player/moveState';
@@ -138,6 +139,16 @@ export class CoopHost implements NetAttachment {
   private readonly expired: string[] = [];
   /** Whole seconds last written into each revive label (the label carries the countdown to every page). */
   private reviveSec = new Map<string, number>();
+  /** (sector-redesign slice L, protocol 31) Sector Ops: the fixed lights' state to the client (`lamps`), null elsewhere. */
+  private readonly lampTx: LampSender | null;
+  /** A `lamps` message goes on the next step whatever changed (a join, a rejoin, a section restart). */
+  private lampForce = true;
+  /** The mode's restart count last seen (a section restart forces a `lamps` send). */
+  private lampRestarts = 0;
+  /** A client's lamp shots: rate limit per client (a lamp shot is a second message for a round). */
+  private lampLim = new Map<string, TickLimiter>();
+  private readonly lampA = new Vector3();
+  private readonly lampB = new Vector3();
 
   constructor(
     private g: GameState,
@@ -149,13 +160,18 @@ export class CoopHost implements NetAttachment {
     this.reviveTime = REVIVE_TIME / hqStats(g.opts.hq ?? defaultHq()).reviveSpeed;
     // (sector-ops step 3, M7, A10) Sector Ops: the revives are the op's syringes, per difficulty
     if (mode === 'sector') this.reviveClock.cap = syringesFor(g.opts.difficulty);
+    this.lampTx = mode === 'sector' ? new LampSender() : null;
     this.soloRemotes = g.remotePlayers;
     g.remotePlayers = () => this.remoteRefs;
     for (const p of s.players.values()) if (p.id !== s.selfId) this.addRemote(p);
     this.recolour();
     this.offs.push(
       s.events.on('lobby', ({ players }) => {
-        for (const p of players) if (p.id !== s.selfId && !this.remotes.has(p.id)) this.addRemote(p);
+        for (const p of players) {
+          if (p.id === s.selfId || this.remotes.has(p.id)) continue;
+          this.addRemote(p);
+          this.lampForce = true;
+        }
         for (const id of [...this.remotes.keys()]) if (!players.some((p) => p.id === id)) this.removeRemote(id);
         this.recolour();
       }),
@@ -167,7 +183,10 @@ export class CoopHost implements NetAttachment {
       s.events.on('game', ({ msg, from }) => this.receive(msg, from)),
       // (marlow-bays R2) a joiner dropped mid-match: held where it stood until it rejoins
       s.events.on('away', ({ id, name }) => this.hold(id, name)),
-      s.events.on('rejoin', ({ id, name }) => this.unhold(id, name)),
+      s.events.on('rejoin', ({ id, name }) => {
+        this.unhold(id, name);
+        this.lampForce = true;
+      }),
     );
     this.hookHud();
     this.hookCombat();
@@ -512,7 +531,9 @@ export class CoopHost implements NetAttachment {
         this.restoreStep(r);
         break;
       case 'shot':
-        if (this.ff && (msg.target === this.s.selfId || this.remotes.has(msg.target))) this.onPlayerShot(r, msg);
+        // (31, slice L) a client's round through a lamp: the host checks it and shoots the lamp out
+        if (msg.target.startsWith('lt-')) this.onLampShot(r, msg);
+        else if (this.ff && (msg.target === this.s.selfId || this.remotes.has(msg.target))) this.onPlayerShot(r, msg);
         else this.onShot(r, msg);
         break;
       case 'blast':
@@ -945,6 +966,32 @@ export class CoopHost implements NetAttachment {
     enemy.applyDamage({ amount: dmg, point: aim, dir: new Vector3(m.dx, m.dy, m.dz), part: m.part, kind: 'bullet', attackerTeam: 'player', attackerId: r.id, weapon: m.w, sourcePos: new Vector3(m.ox, m.oy, m.oz), impulse: WEAPONS[m.w].impulse });
   }
 
+  /**
+   * (sector-redesign slice L, protocol 31) Sector Ops: a client's round through a lamp (`shot` target `lt-<id>`). The
+   * host checks the draw, the weapon, a rate (4 a second), the round's origin at the shooter's body, the lamp first
+   * along the claimed ray in its own registry (`lampShotOk`) and a clear static line to it; then shoots it out as its
+   * own round would (sparks, noise, a guard comes to look). The client sees it dark from the next `lamps` message.
+   */
+  private onLampShot(r: RemotePlayer, m: Extract<Msg, { t: 'shot' }>): void {
+    if (!this.lampTx || !r.alive || !this.g.stealth) return;
+    const id = lampTargetId(m.target);
+    if (id < 0 || !hostShotAllowed(r.state?.mv?.dw) || !hostShotWeapon(m.w, r.state?.w, r.loadout)) return;
+    let lim = this.lampLim.get(r.id);
+    if (!lim) this.lampLim.set(r.id, (lim = new TickLimiter()));
+    if (!lim.take(this.time)) return;
+    const reg = this.g.world.level.lights;
+    const o = { x: m.ox, y: m.oy, z: m.oz };
+    if (!lampShotOk(reg, id, o, { x: m.dx, y: m.dy, z: m.dz }, m.dist, r.feet, WEAPONS[m.w].range)) {
+      r.violations++;
+      return;
+    }
+    const l = reg.lights[id]!;
+    const a = this.lampA.set(m.ox, m.oy, m.oz);
+    const b = this.lampB.set(l.x, l.y, l.z);
+    if (this.g.ballistics.hitDistance(a, b, G.STATIC) < Vector3.Distance(a, b) - LAMP_LOS_SLACK) return;
+    this.g.stealth.shootLight(id);
+  }
+
   /** Course mode: a client's hit on another player (the host or a client), judged at the target's current place. */
   private onPlayerShot(r: RemotePlayer, m: Extract<Msg, { t: 'shot' }>): void {
     if (!r.alive || !this.hostile(r.id, m.target)) return;
@@ -1215,6 +1262,22 @@ export class CoopHost implements NetAttachment {
       this.tracerBudget = 10;
       this.snapshot();
     }
+    this.sendLamps(dt);
+  }
+
+  /** (sector-redesign slice L, protocol 31) Sector Ops: the fixed lights' state on a change, a join / rejoin, a section
+   *  restart and every `LAMP_KEEPALIVE` s. Allocation-free unless it sends. */
+  private sendLamps(dt: number): void {
+    const tx = this.lampTx;
+    if (!tx) return;
+    const rs = (this.g.mode as { restarts?: number } | null)?.restarts ?? 0;
+    if (rs !== this.lampRestarts) {
+      this.lampRestarts = rs;
+      this.lampForce = true;
+    }
+    const w = tx.step(this.g.world.level.lights, dt, this.lampForce);
+    this.lampForce = false;
+    if (w) this.s.send({ t: 'lamps', n: w.n, of: w.of, sh: w.sh });
   }
 
   /** (B8) The revive windows: countdown labels (whole seconds), the host's own HUD timer, the out rule. */

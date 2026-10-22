@@ -361,7 +361,8 @@ await run(PARAMS, async ({ G, sim }) => {
   assert(k1.music === 'calm', `the music is Calm again (${k1.music})`);
   // (check fix, polish 2 and 3) the shot spot discriminates: every guard's whole path (its post, its route's segments
   // and where it stands now) stays beyond a suppressed shot's reach, and the nearest guard's whole path inside a loud
-  // shot's reach, so a loud gun here would alert it; no point of any guard's path has a line of sight to the spot.
+  // shot's reach (guard-ai S1: within earshot, but beyond the loud shot's combat reach, so it alerts nobody either; the
+  // control below fires it close to the guard); no point of any guard's path has a line of sight to the spot.
   // The reaches come from the game's table (`GameState.NOISE`): suppressed at most shot x suppressed (16.8 m), loud
   // shot x 1 (28 m); the band keeps a margin each side.
   const spot = await G(() => {
@@ -459,8 +460,9 @@ await run(PARAMS, async ({ G, sim }) => {
   assert(after.alerted === 0 && !after.lkp, `no guard is alerted by the suppressed shot (${JSON.stringify(after.levels)})`);
   assert(after.stage === s0.stage && after.raised === s0.raised, `the alarm stage is unchanged (${s0.stage} -> ${after.stage})`);
   assert(after.music !== 'alert', `the music stays out of Alert (${after.music})`);
-  // the control: the same gun at the same spot with its suppression off (noise 1, the loud path) does alert the nearest
-  // guard, so the check above could fail
+  // (guard-ai S1) hearing tiers: loud gunfire is combat only inside a quarter of its reach (`HEARING.combatDb`, 28 m ->
+  // ~7 m), farther it sends one guard to look or only turns heads. So the same gun unsuppressed at this spot (every
+  // guard's path beyond the suppressed reach, out of sight) alerts nobody either...
   const loud = await G(() => {
     const w = window.__app.current.weapons;
     const s = w.current;
@@ -471,13 +473,48 @@ await run(PARAMS, async ({ G, sim }) => {
     return n0;
   });
   await sim(0.5);
+  const farShot = await G(() => {
+    const em = window.__app.current.enemyMgr;
+    const gs = em.enemies.filter((q) => q.alive);
+    return { alerted: gs.filter((q) => q.alerted).length, levels: gs.map((q) => q.level) };
+  });
+  assert(farShot.alerted === 0, `a loud shot this far off (>= ${spot.lo.toFixed(1)} m) alerts nobody: it is out of combat reach (${JSON.stringify(farShot.levels)}, noise back to ${loud})`);
+  // ...and the control: the loud report from just behind the nearest guard (0.35 of the combat reach: combat even
+  // through a wall) puts him in combat, so the suppressed check above could fail
+  const near = await G((id) => {
+    const g = window.__app.current;
+    const em = g.enemyMgr;
+    const e = em.enemies.find((q) => q.id === id);
+    if (!e) return null;
+    const q = g.constructor.NOISE.shot * Math.pow(10, -em.hearingTable.combatDb / 20);
+    const d = 0.35 * q;
+    const x = e.pos.x - Math.sin(e.yaw) * d;
+    const z = e.pos.z - Math.cos(e.yaw) * d;
+    const c = g.nav.nearestWalkable(x, z, 2, e.pos.y);
+    const cx = c >= 0 ? g.nav.center(c)[0] : x;
+    const cz = c >= 0 ? g.nav.center(c)[1] : z;
+    return { x: cx, y: c >= 0 ? g.nav.height[c] : e.pos.y, z: cz, yaw: e.yaw, d: Math.hypot(cx - e.pos.x, cz - e.pos.z), q };
+  }, spot.nearest);
+  assert(near && near.d < near.q * 0.45, `a spot just behind the nearest guard, inside the combat reach through a wall (${JSON.stringify(near)})`);
+  // facing the way he faces: away from him
+  await tp(G, near.x, near.y, near.z, near.yaw);
+  await sim(0.3);
+  await G(() => {
+    const g = window.__app.current;
+    const s = g.weapons.current.stats;
+    const n0 = s.noise;
+    s.noise = 1;
+    // the report only (no round towards him: a hit would alert him without hearing anything)
+    g.weapons.events.onShot(g.weapons.current.def);
+    s.noise = n0;
+  });
+  await sim(0.5);
   const ctl = await G((id) => {
     const em = window.__app.current.enemyMgr;
     const e = em.enemies.find((q) => q.id === id);
-    return { nearest: e ? e.alerted : null, alerted: em.enemies.filter((q) => q.alive && q.alerted).length, lkp: em.lkpValid };
+    return { nearest: e ? e.alerted : null, level: e ? e.level : null, alerted: em.enemies.filter((q) => q.alive && q.alerted).length };
   }, spot.nearest);
-  // (not lkp: with no sighting since the restart and nobody hunting yet, EnemyManager.update forgets it on the next tick)
-  assert(ctl.nearest === true, `control: the same shot unsuppressed alerts the nearest guard (${JSON.stringify(ctl)}, noise back to ${loud})`);
+  assert(ctl.nearest === true, `control: a loud shot inside the combat reach alerts the nearest guard (${JSON.stringify(ctl)})`);
 });
 
 console.log('sector ops: nav (M8 routes, sealed sections)');
@@ -649,6 +686,24 @@ console.log('sector ops: co-op client mirrors the live section');
     await GA(() => { window.__ctdev.__forceJam = ''; });
     await until(A, () => window.__ctdev.debug().lasers.find((l) => l.id === 'laser-workshop').on, null, 10000, 'after the reboot the workshop band is back (host)');
     await until(B, () => window.__ctdev.debug().lasers.find((l) => l.id === 'laser-workshop').on, null, 10000, 'after the reboot the workshop band is back (client)');
+    // (sector-redesign slice L, protocol 31) light state: the host throws a wall switch; that circuit's lamps go dark on
+    // the client too (the `lamps` message), and both pages' light fields read the same level under a lamp (the meter
+    // and the guards read that field); switched back on, they come back on the client
+    const sw = await GA(() => {
+      const g = window.__app.current;
+      const it = g.interactables.items.find((x) => x.id === 'switch-0');
+      const grp = g.world.layout.switches[0].group;
+      const l = g.world.level.lights.lights.find((q) => q.group === grp && q.kind !== 'flashlight');
+      it.onUse(it, 'local');
+      return { id: l.id, x: l.x, y: l.y, z: l.z, on: l.on };
+    });
+    assert(sw.on === false, 'the host switch puts its circuit out (host)');
+    await until(B, (id) => { const l = window.__app.current.world.level.lights.lights[id]; return !l.on && !l.destroyed; }, sw.id, 8000, 'the host-switched lamp is dark on the client');
+    const lvl = (P) => P.evaluate((p) => window.__app.current.world.lightField.levelAt(p.x, p.y - 2, p.z), sw);
+    const [la, lb] = [await lvl(A), await lvl(B)];
+    assert(Math.abs(la - lb) < 1e-3, `the light under the switched lamp agrees on both pages (host ${la}, client ${lb})`);
+    await GA(() => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === 'switch-0'); it.onUse(it, 'local'); });
+    await until(B, (id) => window.__app.current.world.level.lights.lights[id].on, sw.id, 8000, 'switched back on, the lamp is lit on the client');
     const locks = () => GA(() => window.__app.current.world.doors.list.filter((d) => d.anchor.locked).map((d) => d.index).join(','));
     const lk0 = await locks();
     await until(B, (k) => window.__app.current.world.doors.list.filter((d) => d.anchor.locked).map((d) => d.index).join(',') === k, lk0, 15000, 'the client mirrors the locked doors');
@@ -1135,6 +1190,26 @@ if (want(2)) {
           const [ax, az] = b.at;
           const [sx, sz] = b.side;
           const past = (i) => (i.x - ax) * sx + (i.z - az) * sz;
+          // (sector-fixes-r2 nav) the guards' nav grid: the bolted doorway is shut (its centre cell blocked, no short
+          // path through), so a guard re-routes instead of stalling at the locked door. (sector-redesign fix) `line` is
+          // the guards' own path from 1.2 m in front to 1.2 m behind (findPath, as a guard plans it), through the doorway
+          // when it is no longer than the straight 2.4 m + 1 m: a straight lineClear there is no measure, its ends land in
+          // furniture-blocked cells (the mess worktop, door 0; the lobby side, door 2) and the door centre sits on a cell
+          // boundary, so it was false with the doorway open
+          const navThrough = () => G(([ax, az, sx, sz, door]) => {
+            const g = window.__app.current;
+            const n = g.nav;
+            const y = g.world.doors.list[door].anchor.hinge.y;
+            const a = [ax - sx * 1.2, az - sz * 1.2];
+            const p = n.findPath(a, [ax + sx * 1.2, az + sz * 1.2], 20000, y, y);
+            let len = p ? 0 : -1;
+            let px = a[0];
+            let pz = a[1];
+            for (const w of p ?? []) { const wx = w.x ?? w[0]; const wz = w.z ?? w[1]; len += Math.hypot(wx - px, wz - pz); px = wx; pz = wz; }
+            return { open: n.isWalkable(n.cellOf(ax, az, y)), line: len >= 0 && len <= 3.4, len: +len.toFixed(2) };
+          }, [ax, az, sx, sz, b.door]);
+          const n0 = await navThrough();
+          assert(!n0.open && !n0.line, `${tag}: bolted, the doorway is shut on the guards' nav grid (${JSON.stringify(n0)})`);
           await put(ax - sx * 0.8, 0, az - sz * 0.8, Math.atan2(sx, sz));
           const near = await G(([sec, k, door, id]) => {
             const g = window.__app.current;
@@ -1157,6 +1232,8 @@ if (want(2)) {
           }, [b.id]);
           const ub = (await G(() => window.__sector.boltInfo())).find((q) => q.id === b.id);
           assert(far.nearest === b.id && far.label === 'Unbolt' && far.it === false && !ub.shut && ub.locked === false, `${tag}: the far side's Unbolt opens the bolt and the door's lock (${JSON.stringify(far)}, ${JSON.stringify(ub)})`);
+          const n1 = await navThrough();
+          assert(n1.open && n1.line, `${tag}: unbolted, the doorway is open on the guards' nav grid (${JSON.stringify(n1)})`);
           const op = await G((door) => { const d = window.__app.current.world.doors; return d.open(d.list[door], 'quiet'); }, b.door);
           await step(1.5);
           assert(op === true, `${tag}: the door opens now`);
@@ -1168,6 +1245,8 @@ if (want(2)) {
           const rb = (await G(() => window.__sector.boltInfo())).find((q) => q.id === b.id);
           const rs = await G(([door, id]) => { const g = window.__app.current; return { target: g.world.doors.list[door].target, it: g.interactables.items.find((q) => q.id === id)?.enabled ?? null }; }, [b.door, b.id]);
           assert(rb.shut && rb.locked === true && rs.it === true && rs.target === 0, `${tag}: the restart bolts it again, shut, its Unbolt back (${JSON.stringify(rb)}, ${JSON.stringify(rs)})`);
+          const n2 = await navThrough();
+          assert(!n2.open && !n2.line, `${tag}: re-bolted, the doorway is shut on the nav grid again (${JSON.stringify(n2)})`);
         }
         if (sec < 2) {
           // on into the next section: its objective told done, the connector cycled
@@ -1503,6 +1582,209 @@ if (want(5)) {
       await bothOnTop(c);
     });
     await leg('S3 team door', () => teamDoor(2));
+  });
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// (sector-redesign slice 1, `--part=6`) Saltmarsh Park (campusOps), part 1: section 1, the gatehouse, car park and
+// forecourt (docs/sector-redesign/SPEC.md "S1", PLAN slice 1). Solo: (a) the map boots with eight guards and no console
+// errors, (b) a scripted nav walk verge -> rear window -> download -> C1 -> the connector seals -> the S2 stub loads, (c)
+// the feeder board cuts s1-park-w and the meter at a west-row point reads under the shadow line, (d) two CR1 solo probes
+// (a running jump at the canopy's east lip from the kerb, a wall jump from the bin-store / plant-room walls) never stand on
+// the canopy or the plant roof. Skipped (PLAN's bonus list, logged in docs/sector-redesign/checks/slice1-build.md): the
+// co-op legs (leg-up onto the canopy, the drop takedown), the verge vantage and cam-walk coverage, the revive on the roof.
+const CAMPUS = 'autostart=campusOps&mode=sector';
+
+if (want(6)) {
+  console.log('campus ops (S1): boots with eight guards; a nav walk verge -> rear window -> download -> C1 -> the S2 stub');
+  await run(CAMPUS, async ({ page, G, sim }) => {
+    await sim(0.6);
+    // (a) the map boots: eight guards in, five sections, the run starts on section 1's download, every door into a later section locked
+    const alive = await G(() => window.__app.current.enemyMgr.alive);
+    assert(alive === 8, `campusOps section 1 has 8 guards in (${alive})`);
+    await G(() => { const g = window.__app.current; g.target.damageMul = 0; g.enemyMgr.update = () => {}; if (g.security) g.security.fixedUpdate = () => {}; });
+    const S = await sections(G);
+    assert(S.length === 5 && S[0].id === 's1' && S[0].kind === 'download' && S[0].guards === 8 && S.slice(1).every((s) => s.guards === 0), `five sections, section 1 a download with 8 guards, the stubs none (${JSON.stringify(S.map((s) => [s.id, s.guards]))})`);
+    const d0 = await G(() => window.__sector.debug());
+    assert(d0.index === 0 && d0.phase === 'objective' && d0.nearLocked === true && d0.farLocked === true && d0.live === 0, `the run starts on section 1's objective, C1 locked (${JSON.stringify([d0.index, d0.phase, d0.nearLocked, d0.farLocked, d0.live])})`);
+    const cams = await G(() => window.__ctdev.debug().cams.map((c) => [c.id, c.live]));
+    assert(cams.length === 2 && cams.every((c) => c[1] === true), `cam-gate and cam-walk are live in section 1 (${JSON.stringify(cams)})`);
+    // nav: every walked leg of the three routes has a path on the guards' real grid (the climbs are the ladder and the drop)
+    const nv = await G(() => {
+      const g = window.__app.current;
+      const fails = [];
+      let legs = 0;
+      for (const r of g.world.map.sectors[0].routes) {
+        for (let i = 0; i + 1 < r.pts.length; i++) {
+          if ((r.climbs ?? []).includes(i)) continue;
+          const a = r.pts[i];
+          const c = r.pts[i + 1];
+          legs++;
+          if (!g.nav.findPath([a[0], a[1]], [c[0], c[1]], 60000, a[2] ?? 0, c[2] ?? 0)) fails.push(`${r.name} leg ${i}`);
+        }
+      }
+      return { legs, fails };
+    });
+    console.log(`  ${nv.legs} route legs checked`);
+    assert(nv.fails.length === 0, `every walked route leg has a nav path (${nv.fails.join('; ')})`);
+    // (b) the walk: the stealth route to the rear window, the download from outside it, then C1
+    const route = await G(() => window.__app.current.world.map.sectors[0].routes[0].pts);
+    await tp(G, route[1][0], 0, route[1][1], -Math.PI / 2);
+    await sim(0.3);
+    // at the open window: 1.15 m from the PC
+    await tp(G, 20.6, 0, -76, -Math.PI / 2);
+    await sim(0.4);
+    const near = await G(() => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === 's1-obj'); return it ? Math.hypot(it.pos.x - g.player.position.x, it.pos.z - g.player.position.z) : -1; });
+    assert(near > 0 && near < 1.8, `the PC is inside the interact reach from the open window (${near.toFixed(2)} m)`);
+    await press(page, BTN.A);
+    await sim(10.8);
+    const dl = await G(() => window.__sector.debug());
+    assert(dl.phase === 'connector' && dl.nearLocked === false && dl.farLocked === true, `the 10 s download from the verge opens C1 (${JSON.stringify([dl.phase, dl.nearLocked, dl.farLocked])})`);
+    // the rest of the stealth route to the door (teleported leg by leg, the legs themselves are the nav check above), then into C1
+    for (let i = 2; i < route.length - 2; i++) {
+      await tp(G, route[i][0], 0, route[i][1], 0);
+      await sim(0.1);
+    }
+    await tp(G, S[0].cp.x, S[0].cp.y, S[0].cp.z, S[0].cp.yaw);
+    await sim(1.3);
+    const cyc = await G(() => ({ d: window.__sector.debug(), n: window.__app.current.enemyMgr.enemies.length }));
+    assert(cyc.d.conn === 'cycling' && cyc.d.nearLocked === true && cyc.n === 0 && cyc.d.live === -1, `C1 cycles: the near door locks, section 1 unloads (${JSON.stringify([cyc.d.conn, cyc.d.nearLocked, cyc.n, cyc.d.live])})`);
+    await sim(3.2);
+    const nx = await G(() => ({ d: window.__sector.debug(), obj: !!window.__app.current.interactables.items.find((x) => x.id === 's2-obj'), alive: window.__app.current.enemyMgr.alive }));
+    assert(nx.d.index === 1 && nx.d.id === 's2' && nx.d.phase === 'objective' && nx.d.live === 1, `the S2 stub loads behind the far door (${JSON.stringify([nx.d.index, nx.d.id, nx.d.phase, nx.d.live])})`);
+    assert(nx.d.doors[0].far === false && nx.d.doors[0].seal.length === 1 && nx.d.doors[0].seal.every((x) => x === false), `C1's far door and the dock door unlocked (${JSON.stringify(nx.d.doors[0])})`);
+    assert(nx.obj && nx.alive === 0, `the stub has its objective and no guards (${JSON.stringify([nx.obj, nx.alive])})`);
+    assert(Math.abs(nx.d.checkpoint.x - S[0].cp.x) < 0.01 && Math.abs(nx.d.checkpoint.z - S[0].cp.z) < 0.01, 'C1 is the checkpoint');
+    // the stub chains on: its objective, then the C2 connector (ground-level stub) into the S3 stub
+    await G(() => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === 's2-obj'); const p = it.pos.clone(); p.x += 0.9; g.player.controller.teleport(p, 0); });
+    await sim(0.4);
+    await press(page, BTN.A);
+    await sim(0.3);
+    assert((await G(() => window.__sector.debug().phase)) === 'connector', 'the S2 stub objective opens its connector');
+  });
+
+  console.log('campus ops (S1): the feeder pillar board cuts s1-park-w; the west half goes dark');
+  await run(CAMPUS, async ({ G, sim }) => {
+    await G(() => { const g = window.__app.current; g.target.damageMul = 0; g.enemyMgr.update = () => {}; if (g.security) g.security.fixedUpdate = () => {}; });
+    // the light field bakes after the load: wait for it
+    for (let k = 0; k < 120 && !(await G(() => !!window.__app.current.world.lightField)); k++) await sim(0.5);
+    await sim(0.5);
+    const W = [-28, -58.75];
+    const meter = () => G(([x, z]) => window.__app.current.world.lightField.bodyLevel(x, 0, z, 1.7), W);
+    const lit = await meter();
+    const sw = await G(() => {
+      const g = window.__app.current;
+      const sws = g.world.layout.switches;
+      const k = sws.findIndex((s) => s.group === 40);
+      return { k, group: sws[k]?.group ?? -1, n: g.world.level.lights.lights.filter((l) => l.group === 40).length, e: g.world.level.lights.lights.filter((l) => l.group === 41 && l.on).length };
+    });
+    assert(sw.k >= 0 && sw.n === 8 && sw.e === 6, `the feeder board has the west (8 columns) and east (6) breakers (${JSON.stringify(sw)})`);
+    await G((k) => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === `switch-${k}`); it.onUse(it, 'local'); }, sw.k);
+    await sim(0.5);
+    const dark = await meter();
+    const st = await G(() => ({ w: window.__app.current.world.level.lights.lights.filter((l) => l.group === 40 && l.on).length, e: window.__app.current.world.level.lights.lights.filter((l) => l.group === 41 && l.on).length }));
+    assert(st.w === 0 && st.e === 6, `the west breaker cuts only s1-park-w (${JSON.stringify(st)})`);
+    assert(dark < 0.28, `the light meter at the west row (${W}) reads under the shadow line 0.28 once the circuit is cut (${dark.toFixed(3)}, lit ${lit.toFixed(3)})`);
+    assert(lit > dark + 0.08, `the same point reads brighter with the columns on (${lit.toFixed(3)} against ${dark.toFixed(3)})`);
+  });
+
+  console.log('campus ops (S1, CR1): solo probes at the canopy lip and the plant room never stand on the canopy');
+  await run(CAMPUS, async ({ G }) => {
+    await G(() => {
+      const g = window.__app.current;
+      g.target.damageMul = 0;
+      g.enemyMgr.update = () => {};
+      if (g.security) g.security.fixedUpdate = () => {};
+      if (window.__ctdev) window.__ctdev.fixedUpdate = () => {};
+      window.__app.settings.update((d) => { d.gamepad.curve = 'linear'; d.gamepad.deadzoneLeft = 0; });
+      const H = {
+        st: () => window.__app.current,
+        step(s, sx = 0, sy = 0, btns = []) {
+          const pad = window.__pad;
+          pad.axis(0, sx);
+          pad.axis(1, -sy);
+          for (const b of btns) pad.set(b, 1);
+          window.__app.loop.stepHeadless(s, 120);
+          pad.axis(0, 0);
+          pad.axis(1, 0);
+          for (const b of btns) pad.set(b, 0);
+        },
+        tap(b) {
+          window.__pad.set(b, 1);
+          window.__app.loop.stepHeadless(2 / 60, 120);
+          window.__pad.set(b, 0);
+          window.__app.loop.stepHeadless(2 / 60, 120);
+        },
+        tp(x, y, z, yaw) {
+          const st = H.st();
+          st.team.end(true);
+          st.traversal.reset();
+          const c = st.player.controller;
+          c.clearCrouchToggle();
+          c.teleport(new c.pos.constructor(x, y, z), yaw);
+          st.player.cam.yaw = yaw;
+          st.player.cam.pitch = 0;
+          H.step(0.3);
+        },
+        info() {
+          const st = H.st();
+          const c = st.player.controller;
+          const ac = st.traversal.attachCtl;
+          const a = ac.active ? ac.m.anchor : null;
+          const grip = !a ? null : a.kind === 'ledge' ? a.top : a.kind === 'pipeH' ? a.hangHeight : null;
+          const r = (v) => Math.round(v * 100) / 100;
+          return { x: r(c.pos.x), y: r(c.pos.y), z: r(c.pos.z), grounded: c.grounded, attached: ac.active, grip };
+        },
+      };
+      window.__re = H;
+      window.__app.loop.manual = true;
+    });
+    const step = (s, sx = 0, sy = 0, btns = []) => G(([s, sx, sy, b]) => window.__re.step(s, sx, sy, b), [s, sx, sy, btns]);
+    const tap = (b) => G((b) => window.__re.tap(b), b);
+    const put = (x, y, z, yaw) => G(([x, y, z, w]) => window.__re.tp(x, y, z, w), [x, y, z, yaw]);
+    const info = () => G(() => window.__re.info());
+    await step(0.5);
+    /** One solo try: standing at `spot` facing `yaw` (the traverse button there), then a run-up from `runFrom` at the top gear with the button pressed at the face and through the flight. */
+    const probe = async (name, spot, yaw, runFrom) => {
+      let max = 0;
+      let topY = 0;
+      const track = (i) => {
+        if (i.attached && i.grip !== null) max = Math.max(max, i.grip);
+        if (i.grounded) topY = Math.max(topY, i.y);
+      };
+      await put(spot[0], 0, spot[1], yaw);
+      await step(0.4);
+      await tap(BTN.Y);
+      for (let k = 0; k < 15; k++) {
+        await step(0.1);
+        track(await info());
+      }
+      const [rx, rz] = runFrom;
+      const ry = Math.atan2(spot[0] - rx, spot[1] - rz);
+      const fx = Math.sin(ry);
+      const fz = Math.cos(ry);
+      await put(rx, 0, rz, ry);
+      await G(() => { const gs = window.__app.current.player.controller.gears; if (gs) gs.gear = 5; });
+      let jumped = -1;
+      for (let k = 0; k < 60; k++) {
+        const i = await info();
+        const d = (spot[0] - i.x) * fx + (spot[1] - i.z) * fz;
+        if (jumped < 0 && (d < 0.3 || k === 40)) jumped = k;
+        await step(0.05, 0, 1, jumped >= 0 && (k - jumped) % 2 === 0 ? [BTN.Y] : []);
+        track(await info());
+      }
+      await step(1.0);
+      track(await info());
+      const fin = await info();
+      assert(max < BAND_LO && topY < BAND_LO && fin.y < BAND_LO, `${name}: alone, never holds a 4.25+ grip nor stands that high (held ${max}, stood ${topY}, ends y ${fin.y})`);
+    };
+    // CR1: the kerb at the canopy's east lip (x -14, z -40..-34), a running jump from 5 m out; and the south lip from the forecourt
+    await probe('CR1 east lip from the kerb', [-13.5, -38], -PI / 2, [-8.5, -38]);
+    await probe('CR1 south lip from the forecourt', [-20, -40.6], 0, [-20, -45]);
+    // the wall jump: the plant room's south wall (4.2, a 1.1 parapet over its 4.4 roof) from the delivery yard, off the bin store's north wall side
+    await probe('plant room south wall (parapet) from the yard', [-34, -40.6], 0, [-34, -44.4]);
+    // the bin store's north wall (3.0, the wall-jump corner) from inside the store, run north at it: alone it gets the wall top at most, never the plant roof 4.4 beyond the yard (5 m)
+    await probe('bin store north wall corner towards the plant roof', [-38.4, -45.6], PI / 2, [-38.4, -49]);
   });
 }
 

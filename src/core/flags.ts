@@ -51,6 +51,14 @@ export interface Flags {
   weaponLab: boolean;
   /** Sector Ops, dev and tests (`?sectorGuards=N`): at most N guards per section spawn (alarm reinforcements on top). */
   sectorGuards: number | null;
+  /** (mocap-trial) `?mocap=1` / `?mocap=0`: the mocap locomotion clips on / off for this page, over the stored setting
+   *  (Settings > Gameplay > "Mocap locomotion"); null when the page names none. */
+  mocap: boolean | null;
+}
+
+/** (mocap-trial) An on / off URL value: "1" true, "0" false, anything else (or absent) null. */
+export function onOffFlag(v: string | null): boolean | null {
+  return v === '1' ? true : v === '0' ? false : null;
 }
 
 function readParams(): URLSearchParams {
@@ -109,4 +117,5 @@ export const flags: Flags = {
   foleyLab: params.get('foleylab') === '1',
   weaponLab: params.get('weaponlab') === '1',
   sectorGuards: /^\d{1,2}$/.test(params.get('sectorGuards') ?? '') ? Number(params.get('sectorGuards')) : null,
+  mocap: onOffFlag(params.get('mocap')),
 };

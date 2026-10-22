@@ -16,6 +16,19 @@ proportions) is listed under "Reference data" and kept out of the repo.
 | `build/operators/cache/mpfb2/` via `MPFB2_ZIP` (the same data files from the official extension zip, `docs/operators/MPFB2.md`) | Same data as above, MPFB 2.0.18 | extensions.blender.org `add-on-mpfb-v2.0.18.zip` (linked from makehumancommunity.org), its `data/` folder | Data Collection AB, Joel Palmius, Jonas Hauquier (MakeHuman community) | CC0 1.0 Universal (data; the add-on code is GPL and not used) | 2026-10-20 | The anim-rig rebake of Wren's LODs; never shipped as is |
 | `node_modules/@babylonjs/ktx2decoder/` (npm devDependency 9.29.0; `wasm/*.wasm` and `msc_basis_transcoder.js` bundled into the Operator Lab via `?url`) | Babylon.js KTX2 decoder and its UASTC / Zstd / Basis transcoders (code, not art) | https://www.npmjs.com/package/@babylonjs/ktx2decoder | Babylon.js contributors | Apache 2.0 | 2026-10-17 | Operator Lab KTX2 textures (`src/operators/lab/ktx2.ts`, D27); not in the game bundle |
 
+## Motion capture (CMU exception, mocap-trial)
+
+The one non-CC0 data source: Michael's exception for CMU motion capture only (docs/mocap-trial/BRIEF.md, 2026-10-22).
+Raw takes stay out of git (`.mocap-cache/`, gitignored); only clips converted onto Wren are committed and bundled.
+Every take used, with its seconds: `docs/mocap-trial/SOURCES.md`.
+
+| Files (repo path) | What it is | Source (URL) | Terms | Date added | Used by |
+| --- | --- | --- | --- | --- | --- |
+| `src/anim/clips/mocap/` (converted by `scripts/mocap/` from ASF/AMC takes of subjects 16, 69, 127 and 136) | Locomotion clips: walk, jog, run, walking 90 deg turns, start, stop, turn on the spot; the crouched sneak (136_09, mocap-trial-2); the sprint (127_07, mocap-trial-2) | http://mocap.cs.cmu.edu/ (CMU Graphics Lab Motion Capture Database) | "This data is free for use in research projects. You may include this data in commercially-sold products, but you may not resell this data directly, even in converted form." | 2026-10-22 | The "Mocap locomotion" switch (default off) |
+
+Acknowledgement (as the database asks): "The data used in this project was obtained from mocap.cs.cmu.edu. The database
+was created with funding from NSF EIA-0196217."
+
 ## Fonts
 
 | Font | Author | Licence | Files | Source |

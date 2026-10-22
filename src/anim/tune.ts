@@ -843,10 +843,11 @@ export function tuneRoot(pos: { x: number; y: number; z: number }, yaw: number):
 
 /**
  * The forward lean on a sampled keyed pose's spine (local quaternion at offset 4 of `q`, x y z w): times a pitch of
- * `TUNE_CUR.leanAdd` about its x axis (positive leans forward, as the graph's spine pitch). No allocation.
+ * `TUNE_CUR.leanAdd` about its x axis (positive leans forward, as the graph's spine pitch). (mocap-trial) `scale` scales
+ * it for the mocap set (MOCAP_LAYERS.keyLean; 1: exactly the slider's). No allocation.
  */
-export function tuneKeyedLean(q: Float64Array): void {
-  const a = TUNE_CUR.leanAdd;
+export function tuneKeyedLean(q: Float64Array, scale = 1): void {
+  const a = scale === 1 ? TUNE_CUR.leanAdd : TUNE_CUR.leanAdd * scale;
   if (a === 0) return;
   const rx = Math.sin(a * 0.5);
   const rw = Math.cos(a * 0.5);
@@ -895,10 +896,12 @@ function twistAbout(q: Float64Array, m: Float32Array, s: number, k: number): voi
 
 /**
  * The trunk counter-rotation on a sampled keyed pose: the spine (offset 4) and chest (offset 8) yaw about the clip's mean
- * (`mean`, KeyedClip.meanQ) times `TUNE_CUR.trunkTwistMul`. Identity at 1. No allocation.
+ * (`mean`, KeyedClip.meanQ) times `TUNE_CUR.trunkTwistMul`. Identity at 1. (mocap-trial) `scale` moves the multiplier
+ * toward 1 for the mocap set (MOCAP_LAYERS.trunkTwist; 1: exactly the slider's). No allocation.
  */
-export function tuneKeyedTwist(q: Float64Array, mean: Float32Array): void {
-  const k = TUNE_CUR.trunkTwistMul;
+export function tuneKeyedTwist(q: Float64Array, mean: Float32Array, scale = 1): void {
+  const k0 = TUNE_CUR.trunkTwistMul;
+  const k = scale === 1 ? k0 : 1 + (k0 - 1) * scale;
   if (k === 1) return;
   twistAbout(q, mean, 4, k);
   twistAbout(q, mean, 8, k);
