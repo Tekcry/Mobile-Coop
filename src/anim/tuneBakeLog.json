@@ -68,6 +68,26 @@
         "key.run.3|armR_abd=15",
         "key.run.3|time=-5"
       ]
+    },
+    {
+      "hash": "20383670bf49817f",
+      "exported": "2026-10-21T14:01:52.215Z",
+      "at": "2026-10-21T15:59:38.629Z",
+      "baked": [
+        "idle|trackMul=0.05",
+        "idle|elbowOutAdd=0.03",
+        "walk|trackMul=0.05",
+        "walk|elbowOutAdd=0.03",
+        "jog|armSwingMul=1.7",
+        "jog|trackMul=0.05",
+        "jog|elbowOutAdd=0.03",
+        "run|armSwingMul=1.6",
+        "run|trackMul=0.05",
+        "run|kneeLiftMul=1.55",
+        "lowReady|elbowPoleMul=2.25",
+        "rifle.lowReady|tuckMul=0.75",
+        "pistol.lowReady|tuckMul=0"
+      ]
     }
   ]
 }

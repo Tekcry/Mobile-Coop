@@ -37,7 +37,7 @@ describe('G7 close quarters: timelines (pure)', () => {
     expect(k.limp).toBeGreaterThan(k.lower);
   });
   it('body lift 2.0 s: at the body to 0.8 s, on the shoulder by 1.6 s (110936 @ 39.5-42.6)', () => {
-    const l: LiftState = { atBody: true, hoist: 0, bend: 0, drop: 0, crouch: true, hands: 0, step: 0 };
+    const l: LiftState = { atBody: true, hoist: 0, bend: 0, drop: 0, crouch: true, hands: 0, step: 0, load: 0 };
     expect(CQ.lift).toBeCloseTo(2.0);
     liftCurve(0.5, l);
     expect(l.atBody && l.crouch).toBe(true);
@@ -52,7 +52,7 @@ describe('G7 close quarters: timelines (pure)', () => {
     expect(l.crouch).toBe(false);
   });
   it('put down 0.8 s: the ragdoll takes it at 0.4 s (it falls the rest), the hands off by 0.8 s, a small push', () => {
-    const d: DropState = { slide: 0, bend: 0, drop: 0, hands: 1 };
+    const d: DropState = { slide: 0, bend: 0, drop: 0, hands: 1, load: 1 };
     dropCurve(CQ.dropHand, d);
     expect(d.slide).toBe(1);
     expect(d.hands).toBe(1);
@@ -298,7 +298,7 @@ describe('G7 close quarters: the real rigs (NullEngine), no clipping', () => {
       socketLocal(body, sx, sy, s);
       sock.rotation.set(s.th, SOCKET_YAW, 0);
       sock.position.set(s.x, s.y, s.z);
-      const lc: LiftState = { atBody: true, hoist: 0, bend: 0, drop: 0, crouch: true, hands: 0, step: 0 };
+      const lc: LiftState = { atBody: true, hoist: 0, bend: 0, drop: 0, crouch: true, hands: 0, step: 0, load: 0 };
       const dt = 1 / 60;
       let crouch = 1;
       const r: Record<string, unknown> & { head: number; floor: number; torso: number; legsUp: number; heroLegs: number } = { head: 9, floor: 9, torso: 9, legsUp: -9, heroLegs: 9 };

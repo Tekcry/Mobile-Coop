@@ -12,6 +12,7 @@ import type { CourseWire } from '../course/courseWire';
 import { COURSE_CALLSIGNS, COURSE_SEND, RESTART_DELAY } from '../../config/course';
 import { hyp2 } from '../../core/mathx';
 import { CtDevices } from '../ctDevices';
+import { consoleFor, consoleRefusal } from '../course/securityRoom';
 import { CourseFeed } from '../course/courseFeed';
 import { DrillDetect, emptySnap, VERBS } from '../course/drillDetect';
 import { summarise } from '../course/courseRating';
@@ -124,6 +125,10 @@ export class CourseMode implements GameMode {
   private airSeen: string | null = null;
   private doorOf = new Map<string, DoorState>();
   private squad: Enemy[] = [];
+  /** (sector-fixes S) The squad slot id of each `squad` guard (same order). */
+  private squadIds: string[] = [];
+  /** (sector-fixes S) Squad slots already warned about (a failed spawn is logged once per slot). */
+  private readonly squadWarned = new Set<string>();
   private radioQ: string[] = [];
   private radioT = 0;
   private sendT = 0;
@@ -214,6 +219,7 @@ export class CourseMode implements GameMode {
       flag: (f) => this.state?.setFlag(f),
       solo: () => !!this.state?.solo,
       has: (f) => !!this.state?.hasFlag(f),
+      hasShared: (f) => !!this.state?.hasShared(f),
     });
     g.ctDev = this.ct;
     this.handle();
@@ -317,6 +323,16 @@ export class CourseMode implements GameMode {
     if (isPanelId(cid)) {
       this.refuse(this.layout?.devices[cid]?.label ?? null, p);
       return;
+    }
+    // (sector-fixes S) a security console: refused while its guard is up (alive, held or not) or the cameras are off
+    const con = consoleFor(this.layout?.consoles, cid);
+    if (con) {
+      const guard = this.squadOf(con.guard);
+      const no = consoleRefusal(!!guard && guard.alive, !!this.state?.hasFlag(con.flag));
+      if (no) {
+        this.refuse(no, p);
+        return;
+      }
     }
     // (B6) a scanner panel: the host's scanner pair checks the player and starts the hack
     const sw = this.ct?.scanPress(cid, p);
@@ -631,17 +647,32 @@ export class CourseMode implements GameMode {
       e.dispose();
     }
     this.squad.length = 0;
+    this.squadIds.length = 0;
     for (const id of ids) {
       const s = this.layout!.squads[id];
       if (!s) continue;
       const e = em.spawn(s.kind, new Vector3(s.x, s.y ?? Number.NaN, s.z), false, s.yaw);
-      if (!e) break;
+      if (!e) {
+        // (sector-fixes S) say so once, so a null `squadOf` is obvious (no walkable cell near the post, or the cap)
+        if (!this.squadWarned.has(id)) {
+          this.squadWarned.add(id);
+          console.warn(`course: squad slot '${id}' failed to spawn (the rest of this bay's squad is skipped)`);
+        }
+        break;
+      }
       // (PR 3) a training guard: sees and hears nothing, and may know something INTERROGATE can get out of him
       if (s.passive) e.passive = true;
       if (s.info) e.info = s.info;
       if (s.route) e.setPatrol({ points: s.route, wait: s.wait, waits: s.waits, faces: s.faces, start: s.start, loop: s.loop });
       this.squad.push(e);
+      this.squadIds.push(id);
     }
+  }
+
+  /** (sector-fixes S) The current bay's guard spawned from squad slot `slot` (alive or down), or null. */
+  squadOf(slot: string): Enemy | null {
+    const k = this.squadIds.indexOf(slot);
+    return k >= 0 ? (this.squad[k] ?? null) : null;
   }
 
   /** Restart: the course's light groups back on and its shot-out lamps restored. */
@@ -792,7 +823,7 @@ function mirrorOf(g: GameState): ClientCourse | null {
   const lay = g.world.layout.course;
   if (!lay) return null;
   const st = new CourseState(lay.def);
-  const ct = new CtDevices(g, 'client', { say: () => undefined, record: () => undefined, dirty: () => undefined, has: (f) => st.hasFlag(f) });
+  const ct = new CtDevices(g, 'client', { say: () => undefined, record: () => undefined, dirty: () => undefined, has: (f) => st.hasFlag(f), hasShared: (f) => st.hasShared(f) });
   g.ctDev = ct;
   m = { st, lay, hud: new CourseHud(g.hud.el), open: [], startBay: -1, radioN: 0, pads: buildAirlockPads(g, lay), ct, rear: rearDoorAnchors(lay) };
   mirrors.set(g, m);

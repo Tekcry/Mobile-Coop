@@ -7,6 +7,8 @@
  * pistol low ready, the base table's idle / walk / jog upperArm roll), which changed 33 of the 39 hashes. Before the
  * re-capture, the run with the pre-bake data restored at run time (the old jog / run clips, the low ready and pistol
  * ready, now WREN_READY_LOW / WREN_PISTOL_READY, an empty base) matched the 4e3cbbda fixture bit for bit: the bake changed data, not the rig code.
+ * (anim-bake-targets) Re-captured after the body key and WREN_TUCK bake (10 of 39 changed); first, with the body key
+ * removed and WREN_TUCK at 1 at run time, the run matched the previous fixture bit for bit.
  * (anim-natural N1) Re-captured for the foot planner's turn rules: 2 of 39 moved (state:aimRifle, the aimed spot
  * turn's rules; partner:moves). With the planner forced to turnRule 0 the old fixture matched bit for bit.
  */

@@ -612,19 +612,45 @@ try {
   const RUN_STAND = L.crabRanges(false);
   const RUN_TUNE = {
     ...RUN_STAND,
-    // (anim-bake-1022) Michael's 2026-10-22 run tune: was 0.5-1.1 (measured 0.55 / 1.2 / 1.93)
-    kneeSep: { min: RUN_STAND.kneeSep.min, max: 2.15 },
-    // (anim-bake-1022) Michael's 2026-10-22 run tune: was 0.07 (measured max 14.6 cm)
-    trackHalf: 0.16,
+    // (anim-bake-1022) Michael's 2026-10-22 run tune: was 0.5-1.1 (measured 0.55 / 1.2 / 1.93); (anim-run-half) the
+    // half in the pelvis yaw frame: measured 0.67 / 1.27 / 2.01, kept
+    // (anim-bake-targets) Michael's 2026-10-22 tune: was min 0.5 (measured 0.49, the body.run row)
+    kneeSep: { min: 0.44, max: 2.15 },
+    // (anim-bake-1022) Michael's 2026-10-22 run tune: was 0.07 (measured max 14.6 cm); (anim-run-half) the half in the
+    // pelvis yaw frame (+0.050, was -0.020): measured 4.2 / 7.3 / 16.4 cm (the metric reads the yawed hips): was 0.16
+    trackHalf: 0.18,
     // (anim-bake-1022) Michael's 2026-10-22 run tune: was 0.03 (measured 8.2 cm)
-    kneeBow: 0.09,
-    // (anim-bake-1022) Michael's 2026-10-22 run tune: was 0.06 (measured 9.9 cm)
+    // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.09 (measured 9.7 cm, the body.run row); (anim-run-half) the
+    // half in the pelvis yaw frame measured 4.4 cm before the body.run bake: re-measured after the merge
+    kneeBow: 0.107,
+    // (anim-bake-1022) Michael's 2026-10-22 run tune: was 0.06 (measured 9.9 cm); (anim-run-half) measured 9.9 cm, kept
     elbowWing: 0.11,
+  };
+  // (anim-bake-targets) Michael's 2026-10-22 Body tune (animBase.ts body rows: idle / walk / jog / run trackMul 0.05, the
+  // feet near one line; idle / walk / jog elbowOutAdd 0.03; jog / run armSwingMul; run kneeLiftMul; lowReady elbowPoleMul):
+  // the knees read outside the ankles and the elbows out. Only the limits that failed read widened, per gait and state,
+  // to the measured value (the max of 3 runs) plus ~10%; every other limit keeps L's (a run with the body key off at the
+  // anti-crab start passes them all). Restore: drop BODY_GAIT, BODY_STATE, BODY_DRAWN, BODY_CROUCH and the two pops.
+  const BODY_GAIT = {
+    walk: {
+      ...RUN_STAND,
+      // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.03 (measured 3.2 cm)
+      kneeBow: 0.035,
+      // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.06 (measured 7.5 cm)
+      elbowWing: 0.083,
+    },
+    jog: {
+      ...RUN_STAND,
+      // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.03 (measured 3.1 cm)
+      kneeBow: 0.034,
+      // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.06 (measured 7.3 cm)
+      elbowWing: 0.08,
+    },
   };
   const crabRows = [];
   for (const [name, inp, mode, gear] of crabGaits) {
     const rec = await crabRecord(gear ?? 4, mode === 'crouch', [{ sec: 1.0, inp }, { sec: 2.0, inp, rec: true }]);
-    const r = crabRow(name, rec, mode === 'crouch', false, name === 'run' ? RUN_TUNE : undefined);
+    const r = crabRow(name, rec, mode === 'crouch', false, name === 'run' ? RUN_TUNE : BODY_GAIT[name]);
     crabRows.push(r.row);
     const gated = !!L.CRAB_GATES[name];
     console.log(crabLine(r, rec) + (gated ? '' : ' [report-only]'));
@@ -658,6 +684,43 @@ try {
       ['backwards (aiming)', [{ sec: 0.6, inp: { y: -1, ads: true } }, { sec: 1.5, inp: { y: -1, ads: true }, rec: true }]],
     ];
     const stateKey = { idle: 'idle', start: 'start', straight: 'straight', stop: 'stop', 'turn round (standstill)': 'turn', '90 deg change': 'change90', '180 deg change': 'change180' };
+    // (anim-bake-targets) the Body tune (BODY_GAIT above): the failing limits per sub-state, the max over speeds 1-3
+    const BODY_STATE = {
+      idle: {
+        // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.03 (measured 8.4 cm)
+        kneeBow: 0.093,
+        // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.06 (measured 7.2 cm)
+        elbowWing: 0.08,
+      },
+      start: {
+        // (anim-bake-targets) Michael's 2026-10-22 tune: was min 0.5 (measured 0.48, speed 3)
+        kneeSep: { min: 0.43, max: L.CRAB_IDLE.kneeSep.max },
+        // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.03 (measured 8.1 cm)
+        kneeBow: 0.089,
+        // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.01 (measured 1.4 cm speed 1, 0.5-1.8 cm speed 3 over 5 runs)
+        slide: 0.02,
+        // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.06 (measured 7.5 cm)
+        elbowWing: 0.083,
+      },
+      straight: {
+        // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.03 (measured 3.3 cm)
+        kneeBow: 0.037,
+        // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.06 (measured 7.5 cm)
+        elbowWing: 0.083,
+      },
+      stop: {
+        // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.03 (measured 3.4 cm)
+        kneeBow: 0.038,
+        // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.06 (measured 7.5 cm)
+        elbowWing: 0.083,
+      },
+      turn: {
+        // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.03 (measured 8.5 cm)
+        kneeBow: 0.094,
+        // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.06 (measured 7.3 cm)
+        elbowWing: 0.08,
+      },
+    };
     const stateRows = [];
     for (const gear of [1, 2, 3]) {
       for (const [name, segs] of states) {
@@ -665,7 +728,9 @@ try {
         const gated = !!(key && L.CRAB_STATE_GATES[key]);
         if (!all && !gated) continue;
         const rec = await crabRecord(gear, false, segs);
-        const r = crabRow(`speed ${gear} ${name}`, rec, false, L.CRAB_IDLE_TRACK.includes(key));
+        const idleTrack = L.CRAB_IDLE_TRACK.includes(key);
+        const tuned = BODY_STATE[key] ? { ...(idleTrack ? L.CRAB_IDLE : L.crabRanges(false)), ...BODY_STATE[key] } : undefined;
+        const r = crabRow(`speed ${gear} ${name}`, rec, false, idleTrack, tuned);
         stateRows.push({ gear, ...r.row });
         console.log(crabLine(r, rec) + (gated ? '' : ' [report-only]'));
         if (!gated) continue;
@@ -834,6 +899,19 @@ try {
       ['low ready walk', 'readyWalk', [4], [{ sec: 1.0, inp: { ...R, y: 0.5 } }, { sec: 2.0, inp: { ...R, y: 0.5 }, rec: true }]],
       ['low ready jog', 'readyJog', [4], [{ sec: 1.0, inp: { ...R, y: 1 } }, { sec: 2.0, inp: { ...R, y: 1 }, rec: true }]],
     ];
+    // (anim-bake-targets) the Body tune (BODY_GAIT above): the failing limits per weapon and drawn state
+    const BODY_DRAWN = {
+      // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.06 (measured 9.2 cm; the lowReady elbowPoleMul row; the pistol keeps it)
+      'rifle readyIdle': { elbowWing: 0.101 },
+      // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.03 (measured 3.2 cm)
+      'rifle readyWalk': { kneeBow: 0.035 },
+      // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.03 (measured 3.2 cm)
+      'pistol readyWalk': { kneeBow: 0.035 },
+      // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.03 (measured 3.1 cm)
+      'rifle readyJog': { kneeBow: 0.034 },
+      // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.03 (measured 3.1 cm)
+      'pistol readyJog': { kneeBow: 0.034 },
+    };
     const drawnRows = [];
     // (the gun current before, restored after: the checks below keep their conditions)
     const orig = await G(() => ({ cls: window.__app.current.weapons.current.def.class, mul: window.__app.current.player.controller.speedMul }));
@@ -843,7 +921,7 @@ try {
         if (!all && !gated) continue;
         for (const gear of gears) {
           const rec = await crabRecord(gear || 4, false, segs, weapon);
-          const C = L.crabDrawnRanges(key);
+          const C = { ...L.crabDrawnRanges(key), ...BODY_DRAWN[`${weapon} ${key}`] };
           const r = crabRow(`${weapon} ${name}${gear ? ` speed ${gear}` : ''}`, rec, false, false, C);
           drawnRows.push({ weapon, key, gear, ...r.row });
           console.log(crabLine(r, rec) + (gated ? '' : ' [report-only]'));
@@ -943,6 +1021,14 @@ try {
       ['crouched aimed idle', 'aimIdle', [0], [{ sec: 1.2, inp: A }, { sec: 1.0, inp: A, rec: true }], 'rifle'],
       ['crouched aimed strafe', 'aimStrafe', [1, 2], [{ sec: 1.2, inp: { ...A, x: 1 } }, { sec: 1.5, inp: { ...A, x: 1 }, rec: true }], 'rifle'],
     ];
+    // (anim-bake-targets) the Body tune (BODY_GAIT above): the standing idle's narrow feet (body.idle trackMul 0.05) are
+    // where a crouched recording starts from (it stands first), so the crouched idle and start read a wider track
+    const BODY_CROUCH = {
+      // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.105 (measured 10.7 cm)
+      idle: { trackHalf: 0.118 },
+      // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.105 (measured 11.7 cm)
+      start: { trackHalf: 0.129 },
+    };
     const crouchRows = [];
     const orig = await G(() => ({ cls: window.__app.current.weapons.current.def.class, mul: window.__app.current.player.controller.speedMul }));
     for (const [name, key, gears, segs, weapon] of crouched) {
@@ -950,7 +1036,7 @@ try {
       if (!all && !gated) continue;
       for (const gear of gears) {
         const rec = await crabRecord(gear || 4, true, segs, weapon);
-        const C = L.crabCrouchRanges(key);
+        const C = { ...L.crabCrouchRanges(key), ...(weapon ? undefined : BODY_CROUCH[key]) };
         const r = crabRow(`${name}${gear ? ` speed ${gear}` : ''}`, rec, true, false, C);
         crouchRows.push({ key, gear, ...r.row });
         console.log(crabLine(r, rec) + (gated ? '' : ' [report-only]'));
@@ -1120,7 +1206,15 @@ try {
     });
     // (anim-bake-1022) Michael's 2026-10-22 tune: was 0.075 (L.CROUCH_POP; measured 10.5 cm wristR); the player's low ready
     // still crouch -> stand only, every other transition keeps L.CROUCH_POP
-    const popMax = (name) => (name === 'low ready still: crouch -> stand' ? 0.115 : L.CROUCH_POP);
+    // (anim-bake-targets) the Body tune (BODY_GAIT above): the stance width changes between the idle / run rows
+    // (trackMul 0.05) and the crouched rows (1) over the body ease (BODY_TAU), the tuner's own blend
+    const BODY_POP = {
+      // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.075 (L.CROUCH_POP; measured 8.7 cm kneeL)
+      'holstered still: stand -> crouch -> stand': 0.096,
+      // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.075 (L.CROUCH_POP; measured 7.5 cm wristL, over by rounding)
+      'holstered running: crouch -> stand': 0.083,
+    };
+    const popMax = (name) => (name === 'low ready still: crouch -> stand' ? 0.115 : BODY_POP[name] ?? L.CROUCH_POP);
     for (const r of pops) {
       const lim = popMax(r.name);
       console.log(`  ${r.name}: worst velocity change ${cm(r.worst)} cm per 60 Hz frame (${r.where}; <= ${cm(lim)})${L.CROUCH_POP_GATE ? '' : ' [report-only]'}`);

@@ -6,16 +6,20 @@
  * one row per line, about 4 significant digits, identity values dropped), so a re-bake of identity gives the same text.
  * (anim-gear) The Gear section (`gear.<socket>`, `gear.<socket>.crouch`) bakes into the table's `gear` key (offsets
  * add, angles wrapped), printed only when a row has an offset: a table without gear prints exactly as before.
+ * (anim-bake-targets, BT-A1 / A3) The Body section's sliders without a code value of their own (`tune.ts`
+ * BODY_BASE_FIELDS; every Body slider and group no rule in `tuneBakeTable.ts` covers) bake into the `body` key: row = the
+ * Body group id, param = the slider id, mul sliders multiply, add sliders add; printed only when a row is set.
  */
 import type { AnimBaseData } from './animBase';
 import { HAND_PARAMS, HP, IK_LIMBS, handCompose } from './tuneHands';
 import { JOINTS, wrapDeg } from './tuneJoints';
 import { GEAR_PARAMS, GEAR_ROWS, GP } from './tuneGear';
+import { BODY_BASE_FIELDS, BODY_GROUPS, bodyCompose, tunable, type BodyField } from './tune';
 
 /** The generated file. */
 export const BAKE_BASE_FILE = 'src/anim/animBase.ts';
 /** The sections that bake into it (`joint.options`, the mirror lock, stays manual). */
-export const BAKE_BASE_SECTIONS: readonly string[] = ['joint', 'hand', 'ik', 'weapon', 'gear'];
+export const BAKE_BASE_SECTIONS: readonly string[] = ['joint', 'hand', 'ik', 'weapon', 'gear', 'body'];
 export const BASE_BEGIN = '// @anim-base-begin';
 export const BASE_END = '// @anim-base-end';
 
@@ -47,6 +51,8 @@ export function parseAnimBase(text: string): AnimBaseData {
   const b: AnimBaseData = { version: 1, joints: j.joints ?? {}, hands: j.hands ?? {}, ik: j.ik ?? {} };
   // (anim-gear) a table without the key (every one before anim-gear) has no gear offsets
   if (j.gear) b.gear = j.gear;
+  // (anim-bake-targets) likewise the Body base
+  if (j.body) b.body = j.body;
   return b;
 }
 
@@ -103,8 +109,21 @@ export function printAnimBase(b: AnimBaseData): string {
     }
     if (parts.length) gear.push(`    ${q(r)}: { ${parts.join(', ')} }`);
   }
+  // (anim-bake-targets) row -> Body slider id -> value (identity dropped); the key only when a row is set
+  const body: string[] = [];
+  const bd = b.body ?? {};
+  for (const r of keys(bd)) {
+    const row = bd[r]!;
+    const parts: string[] = [];
+    for (const id of keys(row)) {
+      const v = round(row[id]!);
+      if (v === bodyDef(id)) continue;
+      parts.push(`${q(id)}: ${bakeFmt(v)}`);
+    }
+    if (parts.length) body.push(`    ${q(r)}: { ${parts.join(', ')} }`);
+  }
   const block = (name: string, lines: string[]): string => (lines.length ? `  ${q(name)}: {\n${lines.join(',\n')}\n  }` : `  ${q(name)}: {}`);
-  const tail = gear.length ? `,\n${block('gear', gear)}` : '';
+  const tail = (gear.length ? `,\n${block('gear', gear)}` : '') + (body.length ? `,\n${block('body', body)}` : '');
   return `{\n  "version": 1,\n${block('joints', joints)},\n${block('hands', weapons)},\n${block('ik', ik)}${tail}\n}\n`;
 }
 
@@ -117,6 +136,8 @@ export function spliceAnimBase(text: string, b: AnimBaseData): string {
 }
 
 export interface BaseEntry {
+  /** The registry section (the Body section's groups have no prefix). */
+  readonly section?: string;
   readonly group: string;
   readonly id: string;
   readonly value: number;
@@ -125,9 +146,17 @@ export interface BaseEntry {
 const AXIS: Readonly<Record<string, number>> = { x: 0, y: 1, z: 2 };
 const JOINT_SET = new Set<string>(JOINTS);
 const GEAR_ROW_SET = new Set<string>(GEAR_ROWS);
+const BODY_ROW_SET = new Set<string>(BODY_GROUPS);
+const BODY_FIELD_SET = new Set<string>(BODY_BASE_FIELDS);
+/** A Body base param's identity (1 for mul, 0 for add; an unknown id 0). */
+const bodyDef = (id: string): number => (BODY_FIELD_SET.has(id) ? tunable(id as BodyField).def : 0);
 
 /** Where an entry goes in the base table and how (the bake's target column). Throws for an entry it cannot place. */
-export function baseTarget(e: { group: string; id: string }): string {
+export function baseTarget(e: { section?: string; group: string; id: string }): string {
+  if (e.section === 'body') {
+    if (!BODY_ROW_SET.has(e.group) || !BODY_FIELD_SET.has(e.id)) throw new Error(`${e.group} ${e.id}: not a Body base param (it has a code rule or is unknown)`);
+    return `${BAKE_BASE_FILE}: body.${e.group}.${e.id} ${tunable(e.id as BodyField).kind === 'mul' ? 'x' : '+'}`;
+  }
   const [sec, ...rest] = e.group.split('.');
   if (sec === 'joint') {
     const m = /^(.+)_([xyz])$/.exec(e.id);
@@ -165,7 +194,12 @@ export function applyBaseEntries(base: AnimBaseData, entries: readonly BaseEntry
   for (const e of entries) {
     baseTarget(e); // validates
     const [sec, ...rest] = e.group.split('.');
-    if (sec === 'joint') {
+    if (e.section === 'body') {
+      // (anim-bake-targets) mul sliders multiply, add sliders add (as bodyRigBegin composes base and tuner)
+      const row = ((b.body ??= {})[e.group] ??= {});
+      const id = e.id as BodyField;
+      row[id] = round(bodyCompose(id, row[id] ?? tunable(id).def, e.value));
+    } else if (sec === 'joint') {
       const m = /^(.+)_([xyz])$/.exec(e.id)!;
       const row = (b.joints[rest.join('.')] ??= {});
       const t = (row[m[1]!] ??= [0, 0, 0]);

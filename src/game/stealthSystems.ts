@@ -195,8 +195,8 @@ export class StealthSystems {
   private liftT = -1;
   private dropT = -1;
   private hoisting = false;
-  private lc: LiftState = { atBody: true, hoist: 0, bend: 0, drop: 0, crouch: true, hands: 0, step: 0 };
-  private dc: DropState = { slide: 0, bend: 0, drop: 0, hands: 0 };
+  private lc: LiftState = { atBody: true, hoist: 0, bend: 0, drop: 0, crouch: true, hands: 0, step: 0, load: 0 };
+  private dc: DropState = { slide: 0, bend: 0, drop: 0, hands: 0, load: 0 };
   private liftFrom = new Vector3();
   private liftTo = new Vector3();
   private liftYaw = 0;
@@ -214,10 +214,19 @@ export class StealthSystems {
   bendDrop = 0;
   /** (G7) Stepping in to the body under the override this step. */
   stepping = false;
+  /** (anim-n4 fix) The body's weight on the shoulder this step, 0..1: the hoist in the lift, 1 carrying, easing out to the
+   *  hand-over in the put down (the carry's lean and hip shift scale by it). */
+  loadShare = 0;
+  /** (anim-n4 fix) The lift's step-in to the body 0..1 this step, -1 no lift (the rig's lift crouch pose, cqGait.ts). */
+  liftStepK = -1;
 
   /** (G7) The shoulder the body goes on: 1 right (CT 110936, 052704), -1 left when it lies head to his left (a hoist
    *  over the right shoulder swung the head through his back: tests/g7CloseQuarters). */
   private carrySide = 1;
+  /** (anim-n4) The shoulder the body is on (1 right, -1 left): the carry walk leans away from it. */
+  get loadSide(): number {
+    return this.carrySide;
+  }
 
   /** The carry socket's shoulder point in the operator's chest frame (x out to the right, y up from the chest node). */
   private shoulderX(): number {
@@ -350,8 +359,12 @@ export class StealthSystems {
     }
     const f = this.liftFrom;
     const to = this.liftTo;
+    // (anim-n4 fix) the controller crouch stays on this fixed timeline (from t = 0); the standing step-in and "down until a
+    // foot lands" are the rig's (cqGait.ts CqLiftCrouch, from `liftStepK`): gameplay never reads the animation
     this.holdStill(f.x + (to.x - f.x) * lc.step, f.y, f.z + (to.z - f.z) * lc.step, this.liftYaw, lc.crouch);
     this.stepping = lc.step < 1;
+    this.liftStepK = lc.step;
+    this.loadShare = lc.load;
     this.bend = lc.bend;
     this.bendDrop = lc.drop;
     if (!lc.atBody && !this.hoisting && !b.carried) {
@@ -373,6 +386,7 @@ export class StealthSystems {
     this.holdStill(c.pos.x, c.pos.y, c.pos.z, c.yaw, false);
     this.bend = dc.bend;
     this.bendDrop = dc.drop;
+    this.loadShare = this.carry ? dc.load : 0;
     if (this.carry && t >= CQ.dropHand) this.handOver();
     if (t >= CQ.drop) {
       this.endMotion();
@@ -534,6 +548,8 @@ export class StealthSystems {
   fixedUpdate(crouchPressed = false): void {
     this.bend = this.bendDrop = 0;
     this.stepping = false;
+    this.loadShare = 0;
+    this.liftStepK = -1;
     for (const { d, it } of this.doorIts) it.label = d.target === 0 ? 'Open door' : 'Close door';
     if (this.playerOpened.size) this.noticeOpenDoors(1 / 60);
     // (A3, G97) running into a door does nothing special: bashing is the door menu's (CT)
@@ -581,6 +597,7 @@ export class StealthSystems {
     c.speedCap = Math.min(c.speedCap, BODY.carrySpeed);
     this.bend = CQ.carryBend;
     this.bendDrop = CQ.carryDrop;
+    this.loadShare = 1;
   }
 
   /** Render frame (before the player animates): the hands on the body (its shoulders as he reaches for it, then its

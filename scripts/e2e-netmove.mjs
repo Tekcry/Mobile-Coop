@@ -3,7 +3,7 @@
 // duct, rides a zipline and rolls; team moves (phase 5: brace + boost, the human ladder, a denial); the host's copy of the client is in the same mode with the hands, feet and head
 // within 10 cm of the client's own pose.
 import { assert } from './e2e-lib.mjs';
-import { until, waitSim, hostAndJoin, localJoints as lj, remoteJoints as rj, allowTeleport, JOINTS } from './e2e-net-lib.mjs';
+import { until, waitSim, hostAndJoin, localJoints as lj, remoteJoints as rj, allowTeleport, JOINTS, watchTeam, teamLog } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 // (co-op test fix) pauses are game time: the sim runs slower than real time on software GL (e2e-net-lib `waitSim`)
@@ -345,8 +345,16 @@ try {
   await GA(() => window.__animBase.reset());
   await until(A, () => !!window.__app.current.team.offer?.boost, null, 4000, 'host is offered the leg-up');
   assert(/leg-up/i.test(await GA(() => window.__app.current.team.prompt ?? '')), 'the partner prompt names the leg-up');
+  // (flake-fix) the client's `assist` lasts the boost's 0.9 s of game time: on a loaded page it began and ended before
+  // the poll after the host's boost (both pages 4+ s on, "timed out waiting for client assists"). Its states are recorded
+  // from here, so the check reads whether it went through `assist`, not whether it is in it at the moment of a poll
+  await watchTeam(B);
   await holdUntil(A, RB, () => window.__app.current.team.count.boosts === 1, 'host boosted').catch(async (e) => { console.log(await GA(() => { const g = window.__app.current; const t = g.team; return JSON.stringify({ c: t.count, why: t.lastDenied, st: t.state, offer: !!t.offer, boost: !!t.offer?.boost }); })); throw e; });
-  await until(B, () => window.__app.current.team.state === 'assist', null, 4000, 'client assists');
+  await until(B, () => !!window.__app.current.team.__log?.some((e) => e[1] === 'assist'), null, 4000, 'client assists').catch(async (e) => {
+    console.log('    host:', await teamLog(A));
+    console.log('    client:', await teamLog(B));
+    throw e;
+  });
   await until(A, () => window.__app.current.traversal.attach.phase === 'on' && window.__app.current.traversal.attach.anchor?.kind === 'ledge', null, 20000, 'host on the 4.2 m lip').catch(async (e) => { console.log(await GA(() => { const g = window.__app.current; const c = g.player.controller; return JSON.stringify({ st: g.team.state, cnt: g.team.count, why: g.team.endWhy, att: g.traversal.attach.phase, ak: g.traversal.attach.anchor?.kind, ov: !!c.override, pos: [c.pos.x, c.pos.y, c.pos.z] }); })); throw e; });
   const lipY = await GA(() => window.__app.current.traversal.attach.anchor.top);
   assert(Math.abs(lipY - 4.2) < 0.1, `the leg-up puts the host on the 4.2 m lip (${lipY})`);
