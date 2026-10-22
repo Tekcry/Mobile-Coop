@@ -54,6 +54,12 @@ Format: `N. Item - destination - status`.
       antJump, camLag, camDip (no code value: the layer's amount is the slider; needs a per-state default table).
     - Co-op moves (team_boost, team_relay, team_throw, team_hang, team_rope, team_revive) and Traversal (trav, every
       slider): visual offsets on the local rig only, no code value; needs per-move base offsets every rig reads.
+30. **Baked lamps can miss a material made in the same frame one is disposed (possible real bug, gpu-tests
+    2026-10-22).** `BakedLamps.frame` (`src/world/bakedLamps.ts`) attaches the lamp plugin to new materials only when
+    `scene.materials.length` changes, so an add and a dispose in one frame leave the new material unlit by the baked
+    lamps (a light parity break). Not seen in a run: found while fixing e2e-lightbake's GPU-only timing failure. Fix:
+    track a material-added flag (the scene's new-material event, read next frame) instead of the count. Destination:
+    unscheduled (the light parity work).
 
 ## Flaky e2e suites
 
