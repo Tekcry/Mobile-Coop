@@ -61,7 +61,7 @@ const ROWS = [
   ['s1-girder', [22.5, 0, -13.6], [22.5, 1.5, -13.6], [16, 3.0, -13.6]],
   // (vol-cone-fix) Marlow Yard (ctcourse): S2 high hall pendants and the S7 high hall (lamps only, no cone light on the map)
   ['marlow-s2-wall', [29.4, 0, 7], [26, 2.4, 2.5], [31, 2.6, 7], 'marlow'],
-  ['marlow-s7-hall', [141, 4.5, 7], [137, 3.6, 3.2], [141, 4.6, 7], 'marlow'],
+  ['marlow-s7-hall', [145, 0, 1], [146, 2.6, 5], [142.5, 1.6, 1], 'marlow'], // the shots-ctcourse s7-stair framing
   // (vol-cone-fix) base Warehouse (sandbox) yard: the facade floods over the dock doors (-18.5 / -10.5, 5.6, -18.6) and
   // the workshop door (11.5, 4.6, -18.6), FLOOD cones 0.7 rad tilted out to the yard (warehouse.ts ~:408)
   // cameras inside the yard (the perimeter south wall is z -27 to -26) and east of the container (x 6-12)
