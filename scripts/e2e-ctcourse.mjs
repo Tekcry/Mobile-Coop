@@ -286,9 +286,11 @@ async function station3(x0) {
   let yA = dj.cams[0].yaw;
   let yB = (await dev(B)).cams[0].yaw;
   // (load-audit) the full 800 ms, timed on the host's clock (the client clock runs x0.2-0.3 under load); when less than
-  // 800 ms + 0.3 s of the jam is left, the host lets go, waits for the camera back and jams it afresh first
+  // 800 ms + 0.3 s of the jam is left, the host lets go, waits for the camera back and jams it afresh first (up to 3
+  // tries: the slow steps that ate the first jam can eat a fresh one; asserted after the last). The release starts
+  // JAMMER.cooldown (5 s); the held LT re-jams once it is over (stepJam is level-triggered), inside the 20 s wait
   let left3 = (await dev(A)).left[0];
-  if (left3 * 1000 < 800 + 300) {
+  for (let tries = 0; tries < 3 && left3 * 1000 < 800 + 300; tries++) {
     await lt(A, false);
     await until(A, () => window.__ctdev.debug().jam[0] === '', null, 8000, 'station 3: the host lets go of the camera (re-jam)');
     await until(A, () => window.__ctdev.debug().cams[0].mode !== 'off', null, 20000, 'station 3: the camera is back before the re-jam');
@@ -300,8 +302,8 @@ async function station3(x0) {
     yA = dr.cams[0].yaw;
     yB = (await dev(B)).cams[0].yaw;
     left3 = dr.left[0];
-    assert(left3 * 1000 >= 800 + 300, `station 3: a fresh jam leaves room for the 800 ms freeze check (${left3} s left)`);
   }
+  assert(left3 * 1000 >= 800 + 300, `station 3: the jam leaves room for the 800 ms freeze check (${left3} s left)`);
   const fz = await waitHostSim(A, 800);
   assert(fz >= 800, `station 3: the freeze window ran 800 ms on the host's clock (${fz.toFixed(0)} ms)`);
   const [fA, fB] = [await dev(A), await dev(B)];
@@ -484,9 +486,10 @@ async function laserTest(x0) {
   // (load-audit) the full 2 s, timed on the HOST's clock (the client clock runs x0.2-0.3 under load, so a client-timed
   // 2 s let the host's jam and reboot end); when less than 2 s + 0.3 s of the jam is left, the client steps off the beam
   // line, the host lets go, waits for the band back and jams the panel afresh, then the client returns; the band latched
-  // off every poll
+  // off every poll. Up to 3 re-jams (the slow steps that ate the first jam can eat a fresh one), asserted after the
+  // last; the release starts JAMMER.cooldown (5 s) and the held LT re-jams once it is over (stepJam is level-triggered)
   let left4 = (await dev(A)).left[0];
-  if (left4 * 1000 < 2000 + 300) {
+  for (let tries = 0; tries < 3 && left4 * 1000 < 2000 + 300; tries++) {
     await moveClient(x0 + 5, 12.6);
     await lt(A, false);
     await until(A, () => window.__ctdev.debug().jam[0] === '', null, 8000, 'station 4: the host lets go of the panel (re-jam)');
@@ -500,8 +503,8 @@ async function laserTest(x0) {
     hj = (await dev(A)).hits;
     await moveClient(x0 + 9 - 0.2, 7);
     left4 = (await dev(A)).left[0];
-    assert(left4 * 1000 >= 2000 + 300, `station 4: a fresh jam leaves room for the 2 s check on the beam line (${left4} s left)`);
   }
+  assert(left4 * 1000 >= 2000 + 300, `station 4: the jam leaves room for the 2 s check on the beam line (${left4} s left)`);
   let bandOn = false;
   const bw = await waitHostSim(A, 2000, async () => { if ((await dev(A)).lasers[0].on) bandOn = true; });
   assert(bw >= 2000, `station 4: the beam-line window ran 2 s on the host's clock (${bw.toFixed(0)} ms)`);
