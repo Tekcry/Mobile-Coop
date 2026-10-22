@@ -228,6 +228,68 @@ try {
   console.log('cinematic background');
   const shotOf = (P) => P.evaluate(() => ({ id: window.__app.current?.shotId, n: window.__app.current?.shotChanges ?? -1, fade: window.__app.current?.shotFade ?? 0 }));
   assert(/^(T2|H[1-6]|W[1-3])$/.test((await shotOf(page)).id), `the main menu runs a cinematic shot (${(await shotOf(page)).id})`);
+  // (test-speed-2) the cinematic block's own pages (?menuShot=H3, ?menuClock=fast, the two title runs) run after this
+  // page is blanked (below, before the match): the 1920 x 1080 backdrop here no longer shares the CPU with them
+
+  // slice 4 (sector-ops slice 1): Sector Ops and its briefing, the issued kit; Missions, Training and Free roam only
+  // with ?legacy=1 (e2e-park)
+  await key('Escape');
+  assert((await top()) === 'main-menu', 'Esc: Settings back to the main menu');
+  const menuKeys = await G(() => [...document.querySelectorAll('.main-menu .ms-item')].map((b) => b.dataset.key).join(','));
+  // (anim-studio) the developer row Anim Studio (dev) last
+  assert(menuKeys === 'sectorops,coop,loadout,settings,feedback,anim-studio', `the main menu is Sector Ops, Co-op, Loadout, Settings, Feedback, Anim Studio (dev) (${menuKeys})`);
+  // (marlow-bays R1) no rejoin row without a room; a room left in the last 10 minutes shows "Rejoin <code>" after Co-op
+  const rj = await G(() => {
+    sessionStorage.setItem('ns-rejoin', JSON.stringify({ code: 'ABCDE', role: 'client', at: Date.now(), mode: 'course', map: 'ctcourse', difficulty: 'normal', mission: '', weather: 'clear', bay: 2 }));
+    window.__app.screens.top.onShow();
+    const keys = [...document.querySelectorAll('.main-menu .ms-item')].map((b) => b.dataset.key).join(',');
+    const label = document.querySelector('.main-menu [data-key="rejoin"] .btn-label')?.textContent ?? '';
+    return { keys, label };
+  });
+  assert(rj.keys === 'sectorops,rejoin,coop,loadout,settings,feedback,anim-studio' && rj.label === 'Rejoin ABCDE', `a left room shows Rejoin <code> on the main menu (${JSON.stringify(rj)})`);
+  await G(() => {
+    sessionStorage.removeItem('ns-rejoin');
+  });
+  await G(() => window.__app.nav.focus(document.querySelector('.main-menu [data-key="sectorops"]')));
+  await key('Enter');
+  // (sector-ops M7) Sector Ops opens the op list: the Warehouse with its four difficulty stars
+  assert((await top()) === 'sectorops-screen' && (await fk()) === 'op-warehouseOps', `Enter opens the op list on the Warehouse (${await top()}, ${await fk()})`);
+  const opStars = await G(() => document.querySelector('.sectorops-screen [data-op="warehouseOps"] .ms-ctr')?.textContent ?? '');
+  assert(/^[★☆]{4}$/.test(opStars), `the op shows four difficulty stars (${opStars})`);
+  await key('Enter');
+  assert((await top()) === 'briefing-screen' && (await fk()) === 'deploy', `the op opens the Sector Ops briefing on Start (${await fk()})`);
+  const nSec = await G(() => document.querySelectorAll('.briefing-screen .br-obj li').length);
+  assert(nSec >= 3, `the briefing lists the sectors (${nSec})`);
+  const diff0 = await G(() => document.querySelector('.briefing-screen [data-diff="choice"] .choice-val').textContent);
+  await key('ArrowUp');
+  await key('ArrowUp');
+  assert((await fk()) === 'difficulty', `Up reaches Difficulty (${await fk()})`);
+  await key('ArrowRight');
+  const diff1 = await G(() => document.querySelector('.briefing-screen [data-diff="choice"] .choice-val').textContent);
+  assert(diff0 === 'Normal' && diff1 === 'Realistic' && (await G(() => document.querySelectorAll('.briefing-screen [data-diff]:not([data-diff="choice"])').length)) === 0, `four fixed levels, no Custom (${diff0} -> ${diff1})`);
+  await key('ArrowLeft');
+  await G(() => window.__app.input.setMode('gamepad'));
+  await press(page, BTN.B);
+  await frames(page, 3);
+  assert((await top()) === 'sectorops-screen', 'B: Briefing back to the op list');
+  await press(page, BTN.B);
+  await frames(page, 3);
+  assert((await top()) === 'main-menu', 'B: the op list back to the main menu');
+  await G(() => window.__app.input.setMode('kbm'));
+  await G(() => window.__app.nav.focus(document.querySelector('.main-menu [data-key="loadout"]')));
+  await key('Enter');
+  assert((await top()) === 'kit-screen', 'Loadout opens the issued kit');
+  const kitCtx = await G(() => document.querySelector('.kit-screen .ms-ctx')?.textContent ?? '');
+  assert(/Power/.test(kitCtx) && /Not selectable/.test(kitCtx), 'the kit context shows stat bars and says it is fixed');
+  await key('Escape');
+  assert((await top()) === 'main-menu', 'Esc: kit back to the main menu');
+  // slice 5: the field terminal pause, objectives, quit confirm, controller disconnect, results
+  console.log('pause (slice 5)');
+  // (havok-stall) the menu page is done: it leaves its 1920 x 1080 backdrop for a blank page, so on software GL its
+  // renderer no longer shares the CPU with the match page's (which ran at about 1.5 frames a second beside it on the
+  // desktop, 2.5-4 alone; the suite then ran past the runner's 600 s limit inside the tuner-camera block)
+  await page.goto('about:blank');
+  console.log('cinematic background: its own pages');
   {
     const F = await launch({ url, params: 'menuShot=H3', viewport: { width: 1280, height: 720 } });
     try {
@@ -339,65 +401,6 @@ try {
       await F.browser.close();
     }
   }
-
-  // slice 4 (sector-ops slice 1): Sector Ops and its briefing, the issued kit; Missions, Training and Free roam only
-  // with ?legacy=1 (e2e-park)
-  await key('Escape');
-  assert((await top()) === 'main-menu', 'Esc: Settings back to the main menu');
-  const menuKeys = await G(() => [...document.querySelectorAll('.main-menu .ms-item')].map((b) => b.dataset.key).join(','));
-  // (anim-studio) the developer row Anim Studio (dev) last
-  assert(menuKeys === 'sectorops,coop,loadout,settings,feedback,anim-studio', `the main menu is Sector Ops, Co-op, Loadout, Settings, Feedback, Anim Studio (dev) (${menuKeys})`);
-  // (marlow-bays R1) no rejoin row without a room; a room left in the last 10 minutes shows "Rejoin <code>" after Co-op
-  const rj = await G(() => {
-    sessionStorage.setItem('ns-rejoin', JSON.stringify({ code: 'ABCDE', role: 'client', at: Date.now(), mode: 'course', map: 'ctcourse', difficulty: 'normal', mission: '', weather: 'clear', bay: 2 }));
-    window.__app.screens.top.onShow();
-    const keys = [...document.querySelectorAll('.main-menu .ms-item')].map((b) => b.dataset.key).join(',');
-    const label = document.querySelector('.main-menu [data-key="rejoin"] .btn-label')?.textContent ?? '';
-    return { keys, label };
-  });
-  assert(rj.keys === 'sectorops,rejoin,coop,loadout,settings,feedback,anim-studio' && rj.label === 'Rejoin ABCDE', `a left room shows Rejoin <code> on the main menu (${JSON.stringify(rj)})`);
-  await G(() => {
-    sessionStorage.removeItem('ns-rejoin');
-  });
-  await G(() => window.__app.nav.focus(document.querySelector('.main-menu [data-key="sectorops"]')));
-  await key('Enter');
-  // (sector-ops M7) Sector Ops opens the op list: the Warehouse with its four difficulty stars
-  assert((await top()) === 'sectorops-screen' && (await fk()) === 'op-warehouseOps', `Enter opens the op list on the Warehouse (${await top()}, ${await fk()})`);
-  const opStars = await G(() => document.querySelector('.sectorops-screen [data-op="warehouseOps"] .ms-ctr')?.textContent ?? '');
-  assert(/^[★☆]{4}$/.test(opStars), `the op shows four difficulty stars (${opStars})`);
-  await key('Enter');
-  assert((await top()) === 'briefing-screen' && (await fk()) === 'deploy', `the op opens the Sector Ops briefing on Start (${await fk()})`);
-  const nSec = await G(() => document.querySelectorAll('.briefing-screen .br-obj li').length);
-  assert(nSec >= 3, `the briefing lists the sectors (${nSec})`);
-  const diff0 = await G(() => document.querySelector('.briefing-screen [data-diff="choice"] .choice-val').textContent);
-  await key('ArrowUp');
-  await key('ArrowUp');
-  assert((await fk()) === 'difficulty', `Up reaches Difficulty (${await fk()})`);
-  await key('ArrowRight');
-  const diff1 = await G(() => document.querySelector('.briefing-screen [data-diff="choice"] .choice-val').textContent);
-  assert(diff0 === 'Normal' && diff1 === 'Realistic' && (await G(() => document.querySelectorAll('.briefing-screen [data-diff]:not([data-diff="choice"])').length)) === 0, `four fixed levels, no Custom (${diff0} -> ${diff1})`);
-  await key('ArrowLeft');
-  await G(() => window.__app.input.setMode('gamepad'));
-  await press(page, BTN.B);
-  await frames(page, 3);
-  assert((await top()) === 'sectorops-screen', 'B: Briefing back to the op list');
-  await press(page, BTN.B);
-  await frames(page, 3);
-  assert((await top()) === 'main-menu', 'B: the op list back to the main menu');
-  await G(() => window.__app.input.setMode('kbm'));
-  await G(() => window.__app.nav.focus(document.querySelector('.main-menu [data-key="loadout"]')));
-  await key('Enter');
-  assert((await top()) === 'kit-screen', 'Loadout opens the issued kit');
-  const kitCtx = await G(() => document.querySelector('.kit-screen .ms-ctx')?.textContent ?? '');
-  assert(/Power/.test(kitCtx) && /Not selectable/.test(kitCtx), 'the kit context shows stat bars and says it is fixed');
-  await key('Escape');
-  assert((await top()) === 'main-menu', 'Esc: kit back to the main menu');
-  // slice 5: the field terminal pause, objectives, quit confirm, controller disconnect, results
-  console.log('pause (slice 5)');
-  // (havok-stall) the menu page is done: it leaves its 1920 x 1080 backdrop for a blank page, so on software GL its
-  // renderer no longer shares the CPU with the match page's (which ran at about 1.5 frames a second beside it on the
-  // desktop, 2.5-4 alone; the suite then ran past the runner's 600 s limit inside the tuner-camera block)
-  await page.goto('about:blank');
   const M = await launch({ url, params: 'autostart=warehouse&mode=infiltration&mission=warehouse-courier&insertion=lot' });
   try {
     const P = M.page;
