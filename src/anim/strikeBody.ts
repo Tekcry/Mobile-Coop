@@ -95,8 +95,8 @@ const G: readonly string[] = STRIKE_GROUPS;
 
 export const STRIKE_TUNABLES: readonly TuneTunable[] = [
   { id: 'turn', label: 'Strike: hip and shoulder turn', kind: 'mul', def: 1, min: 0, max: 2, step: 0.05, unit: 'x', groups: G, hook: 'strikeBody.ts STRIKE_BODY.pelWind / pelDrive / chestWind / chestDrive (the wind-up and the drive)' },
-  { id: 'hipLead', label: 'Strike: hips lead the shoulders', kind: 'mul', def: 1, min: 0, max: 3, step: 0.05, unit: 'x', groups: G, hook: 'strikeBody.ts STRIKE_BODY.lead (phase the hips turn ahead of the shoulders)' },
-  { id: 'shift', label: 'Strike: weight onto the front foot', kind: 'mul', def: 1, min: 0, max: 3, step: 0.05, unit: 'x', groups: G, hook: 'strikeBody.ts STRIKE_BODY.fwd / side (the pelvis forward and over the lead foot)' },
+  { id: 'hipLead', label: 'Strike: hips lead', kind: 'mul', def: 1, min: 0, max: 3, step: 0.05, unit: 'x', groups: G, hook: 'strikeBody.ts STRIKE_BODY.lead (phase the hips turn ahead of the shoulders)' },
+  { id: 'shift', label: 'Strike: weight to front foot', kind: 'mul', def: 1, min: 0, max: 3, step: 0.05, unit: 'x', groups: G, hook: 'strikeBody.ts STRIKE_BODY.fwd / side (the pelvis forward and over the lead foot)' },
 ];
 
 /** The local player is striking (StrikeController sets it each step; the tuner's follow). */
