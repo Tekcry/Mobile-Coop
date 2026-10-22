@@ -15,6 +15,9 @@
 - (PR fix) Letting go of a ladder, a drainpipe or a hang, the legs stay under her in the fall (the legs-ahead air pose is
   for walking off a ledge or a jump; off a ladder it went into the wall). The split brace's breath runs from the moment
   she braces, so the partner's copy breathes in step with her.
+- (PR fix 2) Stepping onto a ladder from its top no longer sinks her legs 30 cm through the rim (the mantle's hand plant
+  is off for that backward climb-on). A landing or forward roll needs 0.9 m clear past its end (was 0.4): the shoulder
+  roll's dive put her head 30 cm into the wall after the vent drop; with less room she lands without the roll.
 
 ## 4.55.0 - Train 4: Marlow Yard security room, wheel opens on goggles, run feet no longer cross (2026-10-22, PR #121; #110, #115, #116)
 

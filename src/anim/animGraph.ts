@@ -147,7 +147,7 @@ export interface AnimInput {
   /** Traversal progress 0..1. */
   traverseT: number;
   /** (anim-n4b) A committed move's top above its start feet and its start-to-end distance (m; 0 = unknown): the
-   *  mantle's hand plant on the edge (`mantlePlant`). */
+   *  mantle's hand plant on the edge (`mantlePlant`; travH < 0 = none: the backward mantle onto a ladder's top). */
   travH: number;
   travD: number;
   /** Melee swing 0..1, or < 0. */

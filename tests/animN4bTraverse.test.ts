@@ -8,7 +8,7 @@ import { Matrix, Quaternion, Vector3 } from '../src/core/babylon';
 import { AIR_POSE, AnimGraph, defaultInput, type AnimInput } from '../src/anim/animGraph';
 import { DROP } from '../src/anim/clips/actions';
 import { sample } from '../src/anim/clip';
-import { LAND_GRAVITY, MANTLE_PLANT, ROLL_BODY, rollTurn, SPLIT_HANDS, splitBreath, type SplitBreathOut } from '../src/anim/clips/traverse';
+import { LAND_GRAVITY, MANTLE_PLANT, mantlePlant, ROLL_BODY, rollTurn, SPLIT_HANDS, splitBreath, type SplitBreathOut } from '../src/anim/clips/traverse';
 import { MANTLE_PATH, mantleAlong, mantleRise, rollRide, traversePath } from '../src/player/traversePath';
 import { proportions } from '../src/player/proportions';
 import { AttachGrips } from '../src/player/attachGrips';
@@ -84,6 +84,16 @@ describe('anim-n4b: the mantle plants both hands on the top edge (row 61)', () =
       expect(maxW).toBe(1);
     });
   }
+
+  it('(fix) the backward mantle onto a ladder top (travH < 0): no plant and no sink at any progress', () => {
+    const o = { w: 1, x: 0, y: 0, z: 0, sink: 1 };
+    expect(mantlePlant(0.3, 0, 0, 1.4, o).sink).toBeGreaterThan(0); // the nominal block sinks mid-plant
+    for (const t of [0.1, 0.3, 0.5, 0.7]) {
+      mantlePlant(t, -1, 0, 1.4, o);
+      expect(o.w).toBe(0);
+      expect(o.sink).toBe(0);
+    }
+  });
 });
 
 describe('anim-n4b: the drop has an air pose and a landing that flexes by the drop (row 64)', () => {

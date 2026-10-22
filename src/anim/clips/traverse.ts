@@ -295,6 +295,13 @@ export interface MantlePlantOut {
 
 export function mantlePlant(k: number, H: number, D: number, shoulderY: number, out: MantlePlantOut): MantlePlantOut {
   const P = MANTLE_PLANT;
+  // (anim-n4b fix) H < 0: the mantle played backwards onto a ladder from its top (attachController `topIn`): no plant, no
+  // sink (the nominal block's sink lowered the body through the rim: e2e-clip 'ladder down + slide', 30 cm)
+  if (H < 0) {
+    out.w = 0;
+    out.sink = 0;
+    return out;
+  }
   const h = H > 0.05 ? H : P.nominalH;
   const d = D > 0.05 ? D : P.nominalD;
   const on = smooth01((k - P.on) / P.onT);
