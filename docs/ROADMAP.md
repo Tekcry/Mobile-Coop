@@ -161,6 +161,7 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
 | 2026-10-22 | #107 | 4.51.1: e2e-coop client takedown steady under load (test only) |
 | 2026-10-22 | #111 | 4.52.0: train 1: server browser (#99, public rooms, Co-op > Browse rooms), jammer fixes (#108); protocol 28 |
 | 2026-10-22 | #112 | 4.53.0: train 2: guard tuning in the tuner and Anim Studio (#105), Clip speed tab (#109) |
+| 2026-10-22 | #153 | 4.60.0: train 10: takedown blow and grab kill land on the kill, co-op strike accept never steps back (#142 n4d), baked lamps get the plugin on a material added the frame another is disposed (#145) |
 | 2026-10-22 | #151 | 4.59.0: train 9: Sector Ops laser power panels (#136, protocol 29), hand swap low across the chest and an elbow strike that turns the body and lands on the hit (#139), vent unscrew on keyboard and pad (#141), touch and GPU test fixes (#147, #148) |
 | 2026-10-22 | #146 | 4.58.3: decisions G229-G269 folded from the roadmap |
 | 2026-10-22 | #143 | 4.58.2: tests: GPU waits for the tuner panel's throttled reads (studio) |
