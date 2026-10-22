@@ -53,6 +53,8 @@ const RESTART_DELAY = 2.5;
 const DOOR_FIND = 1.2;
 
 interface Pending {
+  /** Index in the section's `guards`; -1 for a reinforcement. */
+  k: number;
   slot: SquadSlot;
   alerted: boolean;
 }
@@ -119,6 +121,8 @@ export class SectorMode implements GameMode {
   lastReset = { lights: 0, doors: 0 };
   private its: Interactable[] = [];
   private pending: Pending[] = [];
+  /** The live guard of each `guards` index of the loaded section (null: not spawned yet); the overhear talkers. */
+  private readonly slotEnemy: (Enemy | null)[] = [];
   private fillT = 0;
   private endT = -1;
   private restartT = -1;
@@ -374,6 +378,17 @@ export class SectorMode implements GameMode {
     for (let k = 0; k < list.length; k++) {
       const n = list[k]!;
       if (n.kind !== 'overhear' || this.codes.got[sec]![k]) continue;
+      if (n.talkers) {
+        let ok = true;
+        for (let i = 0; i < n.talkers.length && ok; i++) {
+          const e = this.slotEnemy[n.talkers[i]!];
+          ok = !!e && e.alive && !e.ko;
+        }
+        if (!ok) {
+          this.codes.hear(sec, k, dt, false);
+          continue;
+        }
+      }
       let inside = false;
       for (let i = 0; i < refs.length && !inside; i++) {
         const r = refs[i]!;
@@ -421,8 +436,9 @@ export class SectorMode implements GameMode {
     this.g.stealth?.setLiveAlarms(s ? i : -1);
     this.g.enemyMgr?.resetAlarm();
     if (!s) return;
+    this.slotEnemy.length = 0;
     const n = flags.sectorGuards ?? s.guards.length;
-    for (let k = 0; k < s.guards.length && k < n; k++) this.pending.push({ slot: s.guards[k]!, alerted: false });
+    for (let k = 0; k < s.guards.length && k < n; k++) this.pending.push({ k, slot: s.guards[k]!, alerted: false });
     this.fill();
   }
 
@@ -433,6 +449,7 @@ export class SectorMode implements GameMode {
     // co-op: guards a client holds (grab, hostage) are let go and the client told, before they despawn
     g.net?.releaseHolds?.();
     this.pending.length = 0;
+    this.slotEnemy.length = 0;
     g.enemyMgr?.despawnAll();
     this.ct?.setLive(-1);
     g.stealth?.setLiveAlarms(-1);
@@ -578,6 +595,7 @@ export class SectorMode implements GameMode {
       const e = em.spawn(p.slot.kind, this.tmp, p.alerted, p.slot.yaw);
       if (!e) break;
       if (p.slot.route) e.setPatrol({ points: p.slot.route, wait: p.slot.wait, waits: p.slot.waits, faces: p.slot.faces, start: p.slot.start, loop: p.slot.loop });
+      if (p.k >= 0) this.slotEnemy[p.k] = e;
       this.pending.splice(i, 1);
     }
   }
@@ -610,7 +628,7 @@ export class SectorMode implements GameMode {
     for (let i = 0; i < send; i++) {
       const at = s.reinforce[this.reinforceK++ % s.reinforce.length]!;
       // (sector-redesign G3) armed guards, never heavies (G155); the count is the section's `perStage`
-      this.pending.push({ slot: { kind: SECTOR_REINFORCE_KIND, x: at[0] + (i % 2) * 1.3, z: at[1], yaw: 0 }, alerted: true });
+      this.pending.push({ k: -1, slot: { kind: SECTOR_REINFORCE_KIND, x: at[0] + (i % 2) * 1.3, z: at[1], yaw: 0 }, alerted: true });
     }
     this.reinforced += send;
     this.fill();

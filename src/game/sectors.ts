@@ -140,12 +140,13 @@ export interface SectorKeypad {
  * (sector-redesign EW5, A4) A place a code is found; using it gives the team the flag `grants` and shows `line` once as
  * a radio subtitle (written to be voiced later, G82; at most `INTEL_LINE_MAX` characters so it fits the co-op feed).
  * - `overhear`: a player stands in the plan box `box` (feet on `floorY`, default 0) for `hold` s (default
- *   `OVERHEAR_HOLD`) in a row while a talking pair is in earshot (the pair is the map's guard data, not checked here).
+ *   `OVERHEAR_HOLD`) in a row. `talkers` (indices into this section's `guards`): the time runs only while every one is
+ *   alive and not knocked out (one not spawned yet counts as not talking); omitted: the zone alone.
  * - `board`: a readable board at `at` [x, y, z] (a "Read" item, held `BOARD_READ` s).
  * - `objective`: the section's own objective is done (the S2 BMS hack gives the lab block's codes).
  */
 export type SectorIntel =
-  | { readonly kind: 'overhear'; readonly grants: string; readonly line: string; readonly box: PlanBox; readonly floorY?: number; readonly hold?: number }
+  | { readonly kind: 'overhear'; readonly grants: string; readonly line: string; readonly box: PlanBox; readonly floorY?: number; readonly hold?: number; readonly talkers?: readonly number[] }
   | { readonly kind: 'board'; readonly grants: string; readonly line: string; readonly at: readonly [number, number, number]; readonly yaw?: number }
   | { readonly kind: 'objective'; readonly grants: string; readonly line: string };
 
@@ -183,6 +184,7 @@ export function checkSectorCodes(defs: readonly SectorDef[]): string[] {
       if (n.kind !== 'objective') here.add(n.grants);
       if (n.line.length > INTEL_LINE_MAX) out.push(`${d.id}: intel ${k} line is over ${INTEL_LINE_MAX} characters`);
       if (n.kind === 'overhear' && !((n.hold ?? OVERHEAR_HOLD) > 0)) out.push(`${d.id}: intel ${k} overhear hold is not above 0`);
+      if (n.kind === 'overhear') for (const t of n.talkers ?? []) if (!Number.isInteger(t) || t < 0 || t >= d.guards.length) out.push(`${d.id}: intel ${k} talker ${t} is not a guard index`);
     });
     d.keypads?.forEach((p, k) => {
       if (!earlier.has(p.code) && !here.has(p.code)) out.push(`${d.id}: keypad ${k} code '${p.code}' is not found before it`);

@@ -156,6 +156,11 @@ describe('checkSectorCodes (solo can get every code)', () => {
     expect(checkSectorCodes(d)).toEqual(["a: keypad 0 code 'k' is not found before it", `b: intel 0 line is over ${INTEL_LINE_MAX} characters`, "b: intel 0 overhear hold is not above 0"]);
   });
 
+  it('an overhear talker outside the section guards is refused', () => {
+    const d = [sec('a', { guards: [{}] as unknown as SectorDef['guards'], intel: [{ kind: 'overhear', grants: 'k', line: 'l', box: [0, 0, 1, 1], talkers: [0, 1] }] }, true)];
+    expect(checkSectorCodes(d)).toEqual(['a: intel 0 talker 1 is not a guard index']);
+  });
+
   it('every line in the example fits the co-op feed', () => {
     for (const d of DEFS) for (const n of d.intel ?? []) expect(n.line.length).toBeLessThanOrEqual(INTEL_LINE_MAX);
   });
@@ -282,6 +287,47 @@ describe('SectorMode keypads (stub game)', () => {
     expect(m.codes.has('labs')).toBe(true);
     expect(list[1]!.anchor.locked).toBe(false);
     expect(list[2]!.anchor.locked).toBe(true);
+  });
+
+  it('overhear with talkers: a knocked-out talker gives no grant; both alive grant after the hold', () => {
+    const talkDefs = [sec('t', { guards: [{}, {}] as unknown as SectorDef['guards'], keypads: [{ at: [10, 0], code: 'fac' }], intel: [{ kind: 'overhear', grants: 'fac', line: 'Talk.', box: [0, 0, 4, 4], hold: 2, talkers: [0, 1] }] }, true)];
+    const mk = () => {
+      const s = stubGame(talkDefs, [[10, 0]]);
+      const refs = [{ alive: true }].map(() => ({ target: { alive: true }, feet: { x: 2, y: 0, z: 2 } }));
+      (s.g as unknown as { playerRefsInto: (o: unknown[]) => unknown[] }).playerRefsInto = (out) => {
+        out.length = 0;
+        out.push(...refs);
+        return out;
+      };
+      const m = new SectorMode(s.g);
+      (m as unknown as ModeInternals).findKeypads();
+      const mm = m as unknown as { slotEnemy: unknown[]; overhearStep(dt: number, sec: number, s: SectorDef): void };
+      return { m, mm, def: talkDefs[0]! };
+    };
+    // one talker knocked out: no time builds, no grant
+    const a = mk();
+    const e0 = { alive: true, ko: false };
+    const e1 = { alive: true, ko: false };
+    a.mm.slotEnemy[0] = e0;
+    a.mm.slotEnemy[1] = e1;
+    a.mm.overhearStep(1, 0, a.def);
+    e1.alive = false;
+    e1.ko = true;
+    for (let i = 0; i < 10; i++) a.mm.overhearStep(1, 0, a.def);
+    expect(a.m.codes.has('fac')).toBe(false);
+    // a talker not spawned yet counts as not talking
+    const c = mk();
+    c.mm.slotEnemy[0] = { alive: true, ko: false };
+    for (let i = 0; i < 10; i++) c.mm.overhearStep(1, 0, c.def);
+    expect(c.m.codes.has('fac')).toBe(false);
+    // both alive: grant after the hold
+    const b = mk();
+    b.mm.slotEnemy[0] = { alive: true, ko: false };
+    b.mm.slotEnemy[1] = { alive: true, ko: false };
+    b.mm.overhearStep(1, 0, b.def);
+    expect(b.m.codes.has('fac')).toBe(false);
+    b.mm.overhearStep(1, 0, b.def);
+    expect(b.m.codes.has('fac')).toBe(true);
   });
 
   it('a section with no keypads or intel adds nothing', () => {

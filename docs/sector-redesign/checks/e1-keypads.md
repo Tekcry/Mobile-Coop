@@ -73,3 +73,15 @@ the client, unlock, restart re-locks and puts the board back, a section without 
 ## Not done / for the lead
 - No e2e (the e2e suite owner adds a keypad part with the campus data).
 - `docs/systems/*` and `TESTING.md` not updated (engine only, no playable map data yet).
+
+## Fix round (checker K3, K5)
+- K3 fixed: overhear intel takes an optional `talkers?: number[]` (indices into the section's `guards`). `SectorMode`
+  keeps `slotEnemy` (guard index -> enemy, filled when the guard spawns, cleared on load / unload); the hold only runs
+  while every talker is alive and not knocked out (not spawned yet counts as not talking), and resets otherwise.
+  `checkSectorCodes` refuses a talker index outside `guards`. Reinforcements are never talkers. Omitting `talkers`
+  keeps the zone-only behaviour. Paste-ready example (the coffee pair is guards 5 and 6 of the section):
+  `{ kind: 'overhear', grants: 'fac', line: 'Kitchen talk: facilities code is still the old one.', box: [20, 20, 24, 24], floorY: 4.4, talkers: [5, 6] }`
+- K5 fixed: `coopClient` `feed` case now calls `g.hud.barks.say('lantern', e.text, true)`, so the client sees the radio
+  subtitle like the host. `radioLine` (coopHost) is the only sender of `feed`.
+- Tests: `tests/sectorKeypad.test.ts` adds the talker range check and the mode-level overhear (KO talker no grant, missing
+  talker no grant, both alive grant after `hold`).
