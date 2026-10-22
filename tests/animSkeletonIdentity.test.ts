@@ -13,6 +13,9 @@
  * turn's rules; partner:moves). With the planner forced to turnRule 0 the old fixture matched bit for bit.
  * (anim-natural N1, master 4.55.1 merge) Re-captured on the merge: with the planner forced to turnRule 0 the run matched
  * master's fixture (170ee701) on 40 of 40 entries; with the turn rules on only partner:moves moved (1 of 40).
+ * (anim-natural N1, master 4.56.0 merge + rule A2) Not re-captured: the capture equals both fixtures. With the planner
+ * forced to turnRule 0 the run matched master's (79216e49) on 40 of 40 (guards 64 of 64); with the turn rules on
+ * partner:moves (1 of 40) and the guards' 24 walk / dash / aimWalk rows differ from master, as before.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
