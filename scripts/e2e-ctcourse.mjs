@@ -283,13 +283,26 @@ async function station3(x0) {
   assert(dj.cams[0].mode === 'off' && dj.cams[0].frozen && dj.cams[0].jam === 1 && dj.left[0] < 5, `station 3: the jam blinds and freezes the camera and counts down (${dj.left[0]})`);
   assert(/JAMMING/.test(dj.hud), `station 3: the host's HUD shows the jam (${dj.hud})`);
   // frozen: the sweep stands still on both pages; the LED flashes (jam phase 1), the buzz plays at it on both pages
-  const yA = dj.cams[0].yaw;
-  const yB = (await dev(B)).cams[0].yaw;
-  // (load-audit) timed on the host's clock, inside the jam's 5 s cap (the client clock runs x0.2-0.3 under load)
-  const left3 = (await dev(A)).left[0];
-  const win3 = Math.min(800, left3 * 1000 - 300);
-  assert(win3 >= 200, `station 3: the freeze check runs inside the jam (${left3} s of it left)`);
-  await waitHostSim(A, win3);
+  let yA = dj.cams[0].yaw;
+  let yB = (await dev(B)).cams[0].yaw;
+  // (load-audit) the full 800 ms, timed on the host's clock (the client clock runs x0.2-0.3 under load); when less than
+  // 800 ms + 0.3 s of the jam is left, the host lets go, waits for the camera back and jams it afresh first
+  let left3 = (await dev(A)).left[0];
+  if (left3 * 1000 < 800 + 300) {
+    await lt(A, false);
+    await until(A, () => window.__ctdev.debug().jam[0] === '', null, 8000, 'station 3: the host lets go of the camera (re-jam)');
+    await until(A, () => window.__ctdev.debug().cams[0].mode !== 'off', null, 20000, 'station 3: the camera is back before the re-jam');
+    await lt(A, true);
+    await aimAt(A, ...CAM);
+    await until(A, () => window.__ctdev.debug().jam[0] === 'cam-s3', null, 20000, 'station 3: the host jams the camera again');
+    await until(B, () => window.__ctdev.debug().cams[0].mode === 'off', null, 20000, 'station 3: the client page sees the camera blind again');
+    const dr = await dev(A);
+    yA = dr.cams[0].yaw;
+    yB = (await dev(B)).cams[0].yaw;
+    left3 = dr.left[0];
+    assert(left3 * 1000 >= 800 + 300, `station 3: a fresh jam leaves room for the 800 ms freeze check (${left3} s left)`);
+  }
+  await waitHostSim(A, 800);
   const [fA, fB] = [await dev(A), await dev(B)];
   assert(fA.cams[0].jam === 1 && Math.abs(fA.cams[0].yaw - yA) < 1e-6 && Math.abs(fB.cams[0].yaw - yB) < 1e-6 && fB.cams[0].frozen, `station 3: the jammed camera stops sweeping on both pages (${yA} -> ${fA.cams[0].yaw}; client ${yB} -> ${fB.cams[0].yaw})`);
   const buzz = (P) => P.evaluate(() => window.__ctdev.nearestJammed(0, 0, 0, { x: 0, y: 0, z: 0 }));
@@ -462,17 +475,33 @@ async function laserTest(x0) {
   await until(A, () => window.__ctdev.debug().lasers[0].on === false, null, 8000, 'station 4: the panel jam cuts the band (host)');
   await until(B, () => window.__ctdev.debug().lasers[0].on === false, null, 8000, 'station 4: the client page sees the laser off');
   await until(B, () => window.__ctdev.debug().panels[0].ph === 1, null, 8000, 'station 4: the client page sees the panel jammed');
-  const hp2 = await hp();
-  const hj = (await dev(A)).hits;
+  let hp2 = await hp();
+  let hj = (await dev(A)).hits;
   await moveClient(x0 + 9 - 0.2, 7);
   // (marlow-jammer) inside the 5 s jam (it then reboots 1.5 s): 2 s on the beam line, no break (sector-fixes C: no alarm, no cost)
-  // (load-audit) the window is timed on the HOST's clock and kept inside what is left of the jam (the client clock runs
-  // x0.2-0.3 under load, so a client-timed 2 s let the host's jam and reboot end); the band latched off every poll
-  const left4 = (await dev(A)).left[0];
-  const win4 = Math.min(2000, left4 * 1000 - 300);
-  assert(win4 >= 500, `station 4: the client is on the beam line inside the jam (${left4} s of it left)`);
+  // (load-audit) the full 2 s, timed on the HOST's clock (the client clock runs x0.2-0.3 under load, so a client-timed
+  // 2 s let the host's jam and reboot end); when less than 2 s + 0.3 s of the jam is left, the client steps off the beam
+  // line, the host lets go, waits for the band back and jams the panel afresh, then the client returns; the band latched
+  // off every poll
+  let left4 = (await dev(A)).left[0];
+  if (left4 * 1000 < 2000 + 300) {
+    await moveClient(x0 + 5, 12.6);
+    await lt(A, false);
+    await until(A, () => window.__ctdev.debug().jam[0] === '', null, 8000, 'station 4: the host lets go of the panel (re-jam)');
+    await until(A, () => window.__ctdev.debug().lasers[0].on === true, null, 20000, 'station 4: the laser is on again before the re-jam');
+    await lt(A, true);
+    await aimAt(A, panel.at[0], panel.at[1], panel.at[2]);
+    await until(A, () => window.__ctdev.debug().jam[0] === 'panel-s4', null, 20000, 'station 4: the host jams the power panel again');
+    await until(A, () => window.__ctdev.debug().lasers[0].on === false, null, 8000, 'station 4: the fresh panel jam cuts the band (host)');
+    await until(B, () => window.__ctdev.debug().lasers[0].on === false, null, 8000, 'station 4: the client page sees the laser off again');
+    hp2 = await hp();
+    hj = (await dev(A)).hits;
+    await moveClient(x0 + 9 - 0.2, 7);
+    left4 = (await dev(A)).left[0];
+    assert(left4 * 1000 >= 2000 + 300, `station 4: a fresh jam leaves room for the 2 s check on the beam line (${left4} s left)`);
+  }
   let bandOn = false;
-  await waitHostSim(A, win4, async () => { if ((await dev(A)).lasers[0].on) bandOn = true; });
+  await waitHostSim(A, 2000, async () => { if ((await dev(A)).lasers[0].on) bandOn = true; });
   assert(!bandOn, 'station 4: the band stays off over the check window (host)');
   assert((await hp()) === hp2 && (await dev(A)).hits === hj, 'station 4: no break while the laser is jammed');
   await lt(A, false);
