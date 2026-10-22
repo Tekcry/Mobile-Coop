@@ -209,10 +209,14 @@ const BUILD_OF: Record<AvatarLook['body'], Build> = { average: 'average', lean: 
 // (`heelLift`) moved to the pure `anim/footGeom.ts`: the foot planner's ball pivot turns about the same ball.
 // (mocap-trial) with it the clip feet swing's branch (`clipOwn`).
 
-/** (mocap-trial, fix 2) A foot's clip feet state back to the planner's (`newFoot`'s values). */
+/**
+ * (mocap-trial, fix 2) A foot's clip feet state back to the planner's (`newFoot`'s values). (fix 2 check) Except a planted
+ * foot still on the clip's heel strike (toe up): it keeps `clipPlant` until it lifts, the one thing the flag does with the
+ * switch off, so a stop flattens it (cleared, the switch turned off mid-stop left it 6 deg toe up for good at idle).
+ */
 function clipFootOff(f: FootState): void {
   f.clipOwn = false;
-  f.clipPlant = false;
+  f.clipPlant = f.clipPlant && f.contact && f.pitch < 0;
   f.clipPitchT = -1;
   f.clipPitchOff = 0;
 }
@@ -1910,7 +1914,7 @@ export class CharacterRig {
     // (mocap-trial, A3) the mocap clip's feet place the steps (graph `clipFeet`; null: the planner's, as always)
     pin.clipFeet = t.clipFeet.valid && !free ? t.clipFeet : null;
     // (mocap-trial, fix 2) the switch turned off mid-game: no clip feet state is left on the feet (a clip-planted foot kept
-    // its flag, read at a stop), so the planner has them as if the switch had never been on
+    // its flag, read at a stop), so the planner has them as if the switch had never been on (but a toe-up plant's flag)
     if (LOCO.mocap !== this.mocapWas) {
       this.mocapWas = LOCO.mocap;
       if (!LOCO.mocap) {

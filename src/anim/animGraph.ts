@@ -807,9 +807,12 @@ export class AnimGraph {
   private mFeet = false;
   private mStride = 0;
   private mDuty = 0;
-  /** (fix 2) The duty the gait clock took last frame with clip feet on hand (-1: none) and that frame's gait phase. */
+  /** (fix 2) The duty the gait clock took last frame with clip feet on hand (-1: none) and that frame's gait phase. (fix 2
+   *  check) Also without them with the switch on and the gait moving (-1 none); `mCarry`: clip feet on hand last frame,
+   *  or gone and the duty still easing back to the planner's. */
   private mDutyGait = -1;
   private mPh = 0;
+  private mCarry = false;
   private kCk = 0;
   /** (anim-rework S5) The eased wall share of the keyed weight and the wall keyed set (wallKeyed.ts). */
   private keyWallS = 0;
@@ -2273,9 +2276,12 @@ export class AnimGraph {
     // (fix 2 check) clip feet gone with the switch on while the gait moves (a crouch, a draw or a wall taking the share to
     // 0): the duty goes on easing from the clip's window to the planner's at the same rate below (it jumped 0.18-0.30 in
     // the frame they went, a foot in the air back in its stance window). Else nothing is carried (the switch off: as before)
-    if (!CF.valid && (!LOCO.mocap || this.mDutyGait < 0 || !o.gait.moving)) {
-      this.mDutyGait = -1;
-      this.mPh = LOCO.mocap ? o.gait.phase : -1;
+    if (!CF.valid && (!LOCO.mocap || !this.mCarry || !o.gait.moving)) {
+      // (and the switch on, moving: this frame's duty, the next clip feet frame moves on from it)
+      const on = LOCO.mocap && o.gait.moving;
+      this.mCarry = false;
+      this.mDutyGait = on ? o.gait.duty : -1;
+      this.mPh = on ? o.gait.phase : -1;
       return;
     }
     const M = MOCAP_FEET;
@@ -2307,9 +2313,10 @@ export class AnimGraph {
     // window: clamped there, the jog / run turns' planner steps popped worse, jog 2.8 m/s x 2.5-4 rad/s ankle-toe 24-32 ->
     // 37-44 deg, run 4.0 x 4 48 -> 70 deg; the walk's 0.56 is inside the clamp either way.) The duty moves at most half
     // the gait clock's advance a frame, so a foot in its swing window never falls back into its stance window (the jog's
-    // 0.21 -> 0.40 in one frame set the swing down mid-air). (fix 2 check) Also from the planner's own duty in the first
-    // frame clip feet are on hand (the switch turned on mid-jog: 0.44 -> 0.21 in a frame, every swing jumped 20 % on), and
-    // held through a clock that stepped (no last phase, or over a quarter cycle a frame: a step back read as a whole cycle)
+    // 0.21 -> 0.40 in one frame set the swing down mid-air). (fix 2 check) Also from last frame's duty (the planner's) in
+    // the first frame clip feet are on hand (the switch turned on mid-jog: 0.44 -> 0.21 in a frame, every swing jumped 20 %
+    // on), and held through a clock that stepped (no last phase, or over a quarter cycle a frame: a step back read as a
+    // whole cycle)
     let dPh = this.mPh < 0 ? 0 : o.gait.phase - this.mPh;
     if (dPh < 0) dPh += 1;
     if (dPh > 0.25) dPh = 0;
@@ -2318,7 +2325,8 @@ export class AnimGraph {
     const dm = 0.5 * dPh;
     o.gait.duty = from + (dd < -dm ? -dm : dd > dm ? dm : dd);
     // (clip feet gone: carried until the planner's duty is met)
-    this.mDutyGait = CF.valid || o.gait.duty !== want ? o.gait.duty : -1;
+    this.mCarry = CF.valid || o.gait.duty !== want;
+    this.mDutyGait = o.gait.duty;
     this.mPh = o.gait.phase;
   }
 
