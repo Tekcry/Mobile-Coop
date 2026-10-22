@@ -45,6 +45,10 @@ fetched, one at a time.
   crouch walk / sneak, sprint, strafe and back-to-wall moves from mocap.cs.cmu.edu, ASF/AMC, one at a time, ~20 takes /
   under 40 MB, `.mocap-cache/` (gitignored), each in SOURCES.md, converted clips bundled offline, no runtime fetch.
 
+- M4 (2026-10-23 ~01:25, relayed by the orchestrator): mocap "On by default" once mocap-trial-2 and the new clips pass
+  their fresh checker; the hand-keyed set stays behind the switch. The Settings default (and its settings / e2e asserts
+  and label) flips in mocap-trial-2's last step, after the checker passes; the PR body says so.
+
 ## Assumed decisions
 - A1: ASF/AMC from the official site (not the third-party BVH conversions); an in-repo Blender-headless importer.
   Undo: use the BVH conversions.
