@@ -1,15 +1,16 @@
 # anim-bake-all - state
 
-## Now (2026-10-22 ~14:50 save point)
-#103 merged in (86694475: master 4.53.0 via #103; guard tuning and clip speed: the guard sections and clip are refused
-by the generic table, `GENERIC_REFUSED`; tsc + 12 unit files green; identity bake dry-run no diff). #103 is now on master
-(4.54.0, #114).
+## Now (2026-10-22 ~15:20)
+Merged master 4.54.1 (origin/master 6c2d50a4: 4.54.0 train 3 #103 + #113, and the #117 flake fix) at df512ab5.
+Conflicts: CHANGELOG (Unreleased - anim-bake-all kept on top, #103's entries now under 4.54.0) and
+`scripts/anim-tune-bake.mjs` (kept the catalogue-derived section list; cq arrives via cqGait.ts). `cq` (holds and
+carries, CQ_GAIT code rules, `cqRows` reads the tuner values) added to `GENERIC_REFUSED` with the coverage test. tsc,
+lint (0 errors) and 9 unit files (the bake files, cqGait, the two skeleton identity files) green.
 
 ## Next
-1. Merge master 4.54.0 (origin/master 99f3e488), tsc + the bake test files; then npm run check + the area suites
-   (smoke e2e-move e2e-traverse e2e-anchors e2e-stealth e2e-weapons-carry e2e-anim e2e-clip e2e-wall e2e-coop e2e-ct
-   e2e-studio anim-audit) under the lock or on the laptop runner; PR (minor) naming the gameplay values (Speed
-   glideFwdMul, Weight startMul / stopMul / turnMul / turnRunMul, stopSettle).
+1. npm run check + the area suites (smoke e2e-move e2e-traverse e2e-anchors e2e-stealth e2e-weapons-carry e2e-anim
+   e2e-clip e2e-wall e2e-coop e2e-ct e2e-studio anim-audit) under the lock or on the laptop runner; then the PR (minor)
+   naming the gameplay values (Speed glideFwdMul, Weight startMul / stopMul / turnMul / turnRunMul, stopSettle).
 2. After N1's PR: route the Stepping code rules step.idle lift -> PLANNER.idleLift and lock -> TURN_FOLLOW to Wren's
    generic sections.step (since item 24 the tuner applies them to Wren only, but a bake moves guards too; N1 STATE item 5).
 
