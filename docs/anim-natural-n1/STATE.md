@@ -1,6 +1,24 @@
 # anim-natural N1 - state
 
-## Now (paused for the 5-hour reset, 2026-10-22 ~12:45)
+## Now (2026-10-22 ~14:30, new account)
+Fix round done (e3be8b36, REPORT-C.md: all 10 CHECK findings + Course Ready's two N4 inputs); master 4.53.0 merged
+(49c4eca4: footPlanner keeps a guard's GUARD_STEP_ROWS via stepSelectRows under the turn rules; tsc + 12 test files
+pass). Running at the save point: a fresh re-checker (finding 1 + REPORT-C's open items + PASS2 item 5, its verdict
+comes back as text: write it to CHECK-2.md); the laptop runs check + 14 logic suites on 49c4eca4 (verdict by message
+from Character Build); the desktop runs N1's anim-audit (/c/NightShift/ctb-c.log, compare with master's
+/c/NightShift/ctb-b.log).
+
+## Next (from ~14:30)
+1. CHECK-2.md from the re-checker. Blockers only get one targeted fix (the current goal); the rest go on the polish list.
+2. Master 4.54.0 (#103 body base, #113) merge; the laptop / desktop results on the exact head.
+3. GPU sheets before (master) / after on the desktop (E2E_GPU=1, port 4189): jog / run 90 / 180, sweeps, crouch 90,
+   standstill and aimed spot turns (REPORT-B rows).
+4. PR (minor), body from REPORT-C "Metrics switched" + harness tables; tell Course Ready (#113's re-measure).
+5. After N1: route the Stepping code rules `step.idle lift` -> PLANNER.idleLift and `lock` -> TURN_FOLLOW to Wren's
+   generic `sections.step` (anim-bake-all's table): since item 24 the tuner applies them to Wren only but a bake moves
+   guards too (orchestrator OK, 14:05).
+
+## Earlier (paused for the 5-hour reset, 2026-10-22 ~12:45)
 Implementer A: REPORT-A.md (harness, master table, causes, rule, decisions). Implementer B built N1 (REPORT-B.md):
 aimClock, the turn step on the clock strike, the ball pivot, no band scrub, the aimed spot turn, turnRule, 5 Stepping
 sliders that bake, HOLD_CONTACT (cause 6), the e2e-anim turn feet block, contact-point metrics. Harness: contact slide
@@ -34,3 +52,12 @@ Undo for each: revert the named part of the N1 PR.
 2. The straight-gait heel-raise ball slip (cause 6, 2.8 cm) is N1's last step.
 3. The run pelvis lag (keyed trunk) is N2's.
 4. Guards get the turn rule (shared planner), with `PlannerInput.turnRule` to opt out only if their rows get worse.
+
+## Resume prompt
+```
+anim-natural N1: RESUME. Night Shift | CT Core Build, Opus, effort high. Folder C:/NightShift/Mobile-Coop-anim-natural-n1,
+branch feature/anim-natural-n1. Read CLAUDE.md, docs/ROADMAP.md, then docs/anim-natural-n1/BRIEF.md, STATE.md (Now /
+Next), CHECK.md, REPORT-C.md (and CHECK-2.md if present). Carry on from "Next": heavy runs only under the atomic
+C:/NightShift/heavy.lock (or the laptop runner "Night Shift | Character Build" when it is held); subagents Opus, no
+full vitest / check / e2e in them; message "Night Shift | Orchestrator" at the PR.
+```
