@@ -227,7 +227,8 @@ try {
   await Promise.race([cdp.send('Page.crash').catch(() => undefined), wait(2000)]);
   const p2 = await page.context().newPage();
   await p2.goto(url + '?gfx=min');
-  await p2.waitForSelector('.main-menu');
+  // (load-audit) the crash-log page's menu waits (after the load and the reload): 60 s, as smoke's boot wait
+  await p2.waitForSelector('.main-menu', { timeout: 60000 });
   const crashes = async () => p2.evaluate(async () => (await window.__app.feedback.all()).filter((e) => /^Crash report/.test(e.text)).map((e) => e.text));
   let cr = [];
   for (let i = 0; i < 40 && !cr.length; i++) {
@@ -236,7 +237,7 @@ try {
   }
   assert(cr.length === 1 && /crash test: run 2\/9/.test(cr[0]), `a crash leaves a report naming what was running (${cr[0]?.slice(0, 160)})`);
   await p2.reload();
-  await p2.waitForSelector('.main-menu');
+  await p2.waitForSelector('.main-menu', { timeout: 60000 });
   await wait(800);
   assert((await crashes()).length === 1, 'a reload is not reported as a crash');
   await browser.close();
