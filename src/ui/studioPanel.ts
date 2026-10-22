@@ -336,6 +336,8 @@ export class StudioPanel {
       }
       return `${name} | frame ${studioKey(STUDIO.phase, n) + 1}/${n}${moving}`;
     }
+    // (marlow-bays item 24, track A) a guard loop: the guard puppet's live gait (with its own gun)
+    if (e.kind === 'guard') return `${name} | live gait, guard puppet`;
     return e.kind === 'state' ? `${name} | live gait${e.drawn ? `, ${STUDIO.weapon}` : ''}` : name;
   }
 

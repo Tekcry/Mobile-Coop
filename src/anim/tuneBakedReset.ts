@@ -4,8 +4,11 @@
  * ledger entry (`src/anim/tuneBakeLog.json`, `group|id=value` as `tuneBake.ts` writes it) and resets them to their
  * defaults through the registry (the save and the change log follow); every other change is kept.
  *
- * Automatic once per bake: the ledger hashes applied are kept in the tuner's save (`TuneSnapshot.baked`), so a bake
+ * Automatic once per bake: the ids of the bakes applied are kept in the tuner's save (`TuneSnapshot.baked`), so a bake
  * resets its sliders on the first load after its merge and a later deliberate re-tune to the same value is never wiped.
+ * A bake's id is `hash@at` (`bakeAppliedIds`): the hash is the export's, so two bakes of one export (a re-bake after new
+ * code targets) share it and only the time tells them apart. A bare hash (saves from 4.46.x, before the ids) counts as
+ * applied for the first ledger bake with that hash only, so a later bake of the same export still resets once.
  * The panel's Y menu "Reset baked" runs it again ignoring that record. Not hot (a load-time step).
  * Docs: `docs/anim-tuner/BAKE.md` step 7.
  */
@@ -33,6 +36,34 @@ export function readBakedLedger(raw: unknown): BakedLedgerEntry[] {
   return out;
 }
 
+/**
+ * Each bake's applied id, in ledger order: `hash@at` (unique per bake run; the ledger files are never edited), with
+ * `#n` (the entry's index) added only if two entries would share one (a hand-made ledger with equal or missing times).
+ */
+export function bakeAppliedIds(bakes: readonly BakedLedgerEntry[]): string[] {
+  const seen = new Set<string>();
+  return bakes.map((b, i) => {
+    let id = `${b.hash}@${b.at}`;
+    if (seen.has(id)) id = `${id}#${i}`;
+    seen.add(id);
+    return id;
+  });
+}
+
+/**
+ * Which bakes `applied` covers: a bake's own id, or (a save from before the ids) its bare hash, which stands for the
+ * first ledger bake with that hash only.
+ */
+export function bakesApplied(bakes: readonly BakedLedgerEntry[], ids: readonly string[], applied: readonly string[]): boolean[] {
+  const done = new Set(applied);
+  const firstOfHash = new Set<string>();
+  return bakes.map((b, i) => {
+    const first = !firstOfHash.has(b.hash);
+    firstOfHash.add(b.hash);
+    return done.has(ids[i]!) || (first && done.has(b.hash));
+  });
+}
+
 /** The ledger's key for a value: exactly as `tuneBake.ts` formats it (`${group}|${id}=${value}`). */
 export function bakedKey(group: string, id: string, value: number): string {
   return `${group}|${id}=${value}`;
@@ -50,29 +81,52 @@ export interface BakedResetPlan {
   reset: BakedResetSlider[];
   /** The other values off their default (kept). */
   kept: number;
-  /** The bakes compared (the ledger's, less the applied ones). */
+  /** The ids of the bakes compared (the ledger's, less the applied ones). */
   fresh: string[];
-  /** Every ledger hash (recorded as applied after a run). */
-  hashes: string[];
+  /** Every ledger bake's id (`bakeAppliedIds`; recorded as applied after a run). */
+  ids: string[];
 }
 
 /**
  * The plan for a saved tuner record (`{ version, values: group -> slider -> value }`, as the store saves it): a version
  * 1 (or unversioned) record has its old rows migrated first (`tuneRows.ts`), as `tuneLoad` does. `defaultOf` gives a
  * slider's default (undefined: not a registered slider, e.g. a section not registered yet: never reset, counted kept).
- * Values at their default are left out. Bakes whose hash is in `applied` are not compared.
+ * Values at their default are left out. Bakes `applied` covers (`bakesApplied`: their id, or a bare hash for the first
+ * bake with it) are not compared.
  */
-export function bakedResetPlan(ledger: unknown, saved: unknown, defaultOf: (group: string, id: string) => number | undefined, applied: readonly string[] = []): BakedResetPlan {
+export function bakedResetPlan(
+  ledger: unknown,
+  saved: unknown,
+  defaultOf: (group: string, id: string) => number | undefined,
+  applied: readonly string[] = [],
+  rangeOf?: (group: string, id: string) => readonly [number, number] | undefined,
+): BakedResetPlan {
   const bakes = readBakedLedger(ledger);
-  const done = new Set(applied);
+  const ids = bakeAppliedIds(bakes);
+  const done = bakesApplied(bakes, ids, applied);
   const keys = new Set<string>();
   const fresh: string[] = [];
-  for (const b of bakes) {
-    if (done.has(b.hash)) continue;
-    fresh.push(b.hash);
-    for (const k of b.baked) keys.add(k);
-  }
-  const plan: BakedResetPlan = { reset: [], kept: 0, fresh, hashes: bakes.map((b) => b.hash) };
+  bakes.forEach((b, i) => {
+    if (done[i]) return;
+    fresh.push(ids[i]!);
+    for (const k of b.baked) {
+      keys.add(k);
+      // (anim-bake-targets) a baked value past its slider's normal range (tuned with the wide ranges on) is stored
+      // clamped once the tuner re-saves (`tuneLoad` clamps; 4.46.x re-saved after its own reset): match that too
+      if (!rangeOf) continue;
+      const bar = k.indexOf('|');
+      const eq = k.lastIndexOf('=');
+      if (bar <= 0 || eq <= bar) continue;
+      const group = k.slice(0, bar);
+      const id = k.slice(bar + 1, eq);
+      const v = Number(k.slice(eq + 1));
+      const r = rangeOf(group, id);
+      if (!r || !Number.isFinite(v)) continue;
+      if (v < r[0]) keys.add(bakedKey(group, id, r[0]));
+      else if (v > r[1]) keys.add(bakedKey(group, id, r[1]));
+    }
+  });
+  const plan: BakedResetPlan = { reset: [], kept: 0, fresh, ids };
   const snap = saved && typeof saved === 'object' ? (saved as { version?: unknown; values?: unknown }) : {};
   const raw = snap.values && typeof snap.values === 'object' ? (snap.values as Record<string, Record<string, number>>) : {};
   const values = snap.version === TUNE_ROWS_VERSION ? raw : migrateTuneRows(raw);
@@ -115,6 +169,12 @@ function registryDefault(group: string, id: string): number | undefined {
   return t && t.groups.includes(group) ? t.def : undefined;
 }
 
+/** A registered slider's normal range (the one `tuneLoad` clamps to), undefined: not a slider of a registered group. */
+function registryRange(group: string, id: string): readonly [number, number] | undefined {
+  const t = sectionOf(group)?.byId.get(id);
+  return t && t.groups.includes(group) ? [t.min, t.max] : undefined;
+}
+
 export interface BakedResetOptions {
   /** The panel's "Reset baked": compare every bake, applied or not. */
   force?: boolean;
@@ -129,16 +189,16 @@ export interface BakedResetOptions {
 
 /**
  * Run it: resets the planned sliders through `tuneReset` (the change log and the panel's save hook follow) and records
- * every ledger hash as applied (saved with the next snapshot).
+ * every ledger bake's id as applied (saved with the next snapshot; a bare hash already there stays, harmless).
  */
 export function tuneBakedReset(ledger: unknown, opts: BakedResetOptions = {}): BakedResetResult {
   const force = !!opts.force;
   const now = opts.now ?? Date.now();
   const applied = tuneBakedApplied();
-  const plan = bakedResetPlan(ledger, opts.saved !== undefined ? opts.saved : tuneSnapshot(), registryDefault, force ? [] : applied);
+  const plan = bakedResetPlan(ledger, opts.saved !== undefined ? opts.saved : tuneSnapshot(), registryDefault, force ? [] : applied, registryRange);
   for (const r of plan.reset) tuneReset(r.group, r.id, now);
   const all = applied.slice();
-  for (const h of plan.hashes) if (!all.includes(h)) all.push(h);
+  for (const id of plan.ids) if (!all.includes(id)) all.push(id);
   tuneSetBakedApplied(all);
   const ran = plan.fresh.length > 0;
   return { reset: plan.reset.length, kept: plan.kept, ran, notice: ran || force ? bakedResetNotice(plan.reset.length, plan.kept) : '' };

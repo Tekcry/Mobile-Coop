@@ -26,6 +26,8 @@
 // (marlow-bays item 30) The key tools: Wave fills a channel with the sine (one undo step), Apply to keys reaches the
 // ticked keys only, Smooth between eases the keys between two keys, Compare shows the ghost and the values line.
 // (anim-bake-1022) Reset baked: a slider at a bundled ledger value resets, another change stays, the info line says so.
+// (marlow-bays item 24) Guard tuning: Who = Guard plays the guard puppet, a guard loop runs on the spot, a guard Joints
+// slider turns the guard's elbow and not Wren's, Who = Wren brings her back.
 import { readFileSync } from 'node:fs';
 import { launch, assert, frames, press, stick, BTN } from './e2e-lib.mjs';
 
@@ -374,6 +376,20 @@ try {
   await frames(page, 4);
   const gog3 = await gogOf();
   assert(gog3.every((v) => v === 0), `reset: Wren's goggle offset is identity again (${gog3.join(', ')})`);
+  // (clip-speed, track A) the Clip speed tab; a draw speed of 2 halves the held gun's draw time (the aim camera's blend-in
+  // reads it: drawTime x 0.9), a reset puts it back exactly
+  const clipTab = await G(() => ({ tabs: window.__animTune.tabs(), rows: !!document.querySelector('.anim-tune-rows-clip') }));
+  assert(clipTab.tabs.includes('sec:clip') && clipTab.rows, `the tuner panel lists the Clip speed section in its own tab (${clipTab.tabs.join(', ')})`);
+  const adsIn = () => G(() => window.__app.current.player.cam.adsInTime);
+  const draw0 = await adsIn();
+  await G(() => { window.__animTune.set('clip.gun', 'rifleDraw', 2); window.__animTune.set('clip.gun', 'pistolDraw', 2); });
+  await frames(page, 4);
+  const draw1 = await adsIn();
+  assert(draw0 > 0 && Math.abs(draw1 - draw0 / 2) < 1e-9, `a draw speed of 2 halves the draw time (aim blend-in ${draw0.toFixed(3)} -> ${draw1.toFixed(3)} s)`);
+  await G(() => { window.__animTune.set('clip.gun', 'rifleDraw', 1); window.__animTune.set('clip.gun', 'pistolDraw', 1); });
+  await frames(page, 4);
+  const draw2 = await adsIn();
+  assert(draw2 === draw0, `reset: the draw time is back exactly (${draw2} s)`);
   // the pair puppet (role B of the boost)
   await G(() => window.__studio.pick('pair:boost'));
   await frames(page, 6);
@@ -396,6 +412,74 @@ try {
   const gearP2 = await gearPupOf();
   assert(gearP2.live === 0 && gearP2.sh.every((v, i) => v === gearP0.sh[i]), "reset: the puppet's sling node is back exactly");
   assert(gearP2.gg.every((v) => v === 0), "(anim-goggle) reset: the puppet's goggle offset is identity again");
+
+  // (anim-bake-targets) the Body base key: `body` rows set through the dev hook (the tuner at identity) on role B's own
+  // stance row (paused in the boost pair) change the puppet's pose (leanAdd: its spine; pelvisYAdd: its hips; paused, its
+  // planted feet do not re-step, so a trackMul row would not show), and a reset puts the base and the pose back exactly; in
+  // the hold pair the same rows on Wren's row move her spine and leave the guard (not a Wren rig) as it was
+  const bodyPup = () => G(() => {
+    const r = window.__app.current.studio.puppets[1].rig;
+    const st = r.tuneSt;
+    const a = r.ankleL.getAbsolutePosition();
+    const b = r.ankleR.getAbsolutePosition();
+    const y = r.root.rotation.y;
+    // the feet's spread along the puppet's own right axis
+    const w = Math.abs((b.x - a.x) * Math.cos(y) - (b.z - a.z) * Math.sin(y));
+    const q = (n) => { const x = r[n].rotationQuaternion; return [x.x, x.y, x.z, x.w]; };
+    return { body: st?.body ?? null, w, hy: r.hips.getAbsolutePosition().y - r.root.position.y, sp: q('spine'), bones: ['spine', 'neck', 'shoulderR', 'shoulderL', 'elbowR', 'hipL', 'hipR', 'kneeL', 'kneeR'].map(q), applied: st ? Array.from(st.bodyBase.applied) : null, live: st ? st.bodyBase.live : null };
+  });
+  const BODY_SET = [['leanAdd', 0.3], ['pelvisYAdd', -0.06]];
+  await G(() => window.__animBase.reset());
+  await G(() => window.__studio.pick('pair:boost'));
+  await frames(page, 4);
+  await G(() => window.__studio.pause());
+  // role B's stance rows over the cycle (a standing row preferred)
+  const bodySeen = [];
+  for (let k = 0; k < 10; k++) {
+    await G((v) => window.__studio.seek(v), k / 10);
+    await frames(page, 6);
+    const p = await bodyPup();
+    if (p.body) bodySeen.push([k / 10, p.body]);
+  }
+  const bodyPick = bodySeen.find(([, r]) => !/^crouch/.test(r)) ?? bodySeen[0];
+  assert(!!bodyPick, `the boost pair's role B picks a Body row (${bodySeen.map(([t, r]) => `${t}: ${r}`).join(', ')})`);
+  const [bodyT, bodyRow] = bodyPick;
+  await G((v) => window.__studio.seek(v), bodyT);
+  await frames(page, 6);
+  const bodyBaked = await G((row) => window.__animBase.get().body?.[row] ?? {}, bodyRow);
+  const bp0 = await bodyPup();
+  for (const [id, v] of BODY_SET) await G(([row, i, x]) => window.__animBase.setBody(row, i, x), [bodyRow, id, v]);
+  await frames(page, 30);
+  const bp1 = await bodyPup();
+  console.log(`  (role B's body row ${bodyRow} at ${bodyT}: baked ${JSON.stringify(bodyBaked)}; spine ${jang(bp0.sp, bp1.sp).toFixed(2)} deg, hips ${(bp1.hy - bp0.hy).toFixed(4)} m, track ${bp0.w.toFixed(4)} -> ${bp1.w.toFixed(4)} m)`);
+  assert(bp1.live === true && bp1.body === bodyRow, `role B's puppet takes the body rows (${bodyRow}: live ${bp1.live})`);
+  assert(jang(bp0.sp, bp1.sp) > 4, `a body.${bodyRow}.leanAdd row (0.3 rad) leans role B's spine (${jang(bp0.sp, bp1.sp).toFixed(1)} deg)`);
+  assert(bp1.hy - bp0.hy < -0.03, `a body.${bodyRow}.pelvisYAdd row (-6 cm) lowers role B's hips (${((bp1.hy - bp0.hy) * 100).toFixed(1)} cm)`);
+  await G(() => window.__animBase.reset());
+  await frames(page, 30);
+  const bp2 = await bodyPup();
+  // (the bones within 0.1 deg: a paused rig's own smoothing drifts a few hundredths, as the guard's ~0.02 deg in J1)
+  const bpMax = Math.max(...bp0.bones.map((q, i) => jang(q, bp2.bones[i])));
+  assert(bp2.applied.every((v, i) => v === bp0.applied[i]) && bp2.live === bp0.live, `reset: the puppet's Body base is back exactly (live ${bp2.live})`);
+  assert(Math.abs(bp2.w - bp0.w) < 1e-6 && Math.abs(bp2.hy - bp0.hy) < 1e-6 && bpMax < 0.1, `reset: the puppet's pose is back (track ${Math.abs(bp2.w - bp0.w).toExponential(1)} m, hips ${Math.abs(bp2.hy - bp0.hy).toExponential(1)} m, bones ${bpMax.toExponential(1)} deg)`);
+  await G(() => window.__studio.play());
+  // the guard: the same rows on Wren's own row in the hold pair
+  const spineOf = () => G(() => { const x = window.__app.current.player.rig.spine.rotationQuaternion; return [x.x, x.y, x.z, x.w]; });
+  await G(() => window.__studio.pick('pair:hold_idle'));
+  await frames(page, 6);
+  await G(() => window.__studio.pause());
+  await frames(page, 6);
+  const bg1 = await jbones();
+  const bs1 = await spineOf();
+  for (const [id, v] of BODY_SET) await G(([row, i, x]) => window.__animBase.setBody(row, i, x), [bg1.body, id, v]);
+  await frames(page, 30);
+  const bg2 = await jbones();
+  const bs2 = await spineOf();
+  const bgMax = Math.max(...bg1.guard.map((q, i) => jang(q, bg2.guard[i])));
+  assert(jang(bs1, bs2) > 4, `the hold pair: a body.${bg1.body}.leanAdd row leans Wren's spine (${jang(bs1, bs2).toFixed(1)} deg)`);
+  assert(bgMax < 1, `and leaves the guard untouched (${bgMax.toFixed(3)} deg)`);
+  await G(() => window.__animBase.reset());
+  await G(() => window.__studio.play());
   await G(() => window.__studio.pick('state:idle'));
   await frames(page, 4);
 
@@ -1172,6 +1256,45 @@ try {
     rb.applied.length > 0 && rb.r.reset === 1 && rb.pitch === 0 && rb.knee === 1.2 && rb.info.startsWith('1 value is now built in; your other'),
     `Reset baked resets the baked slider and keeps the other (${JSON.stringify(rb)})`,
   );
+
+  // (marlow-bays item 24, track A) guard tuning: Who = Guard plays the guard puppet (a real guard rig, no AI) where she
+  // stands, the Body tab shows the Guard joints (plain labels), a guard loop runs on the spot; a guard Joints slider turns
+  // the puppet's elbow and not hers; Who = Wren brings her back and the puppet goes
+  {
+    await G(() => window.__animTune.tab('body'));
+    await G(() => window.__animTune.who('guard'));
+    await frames(page, 10);
+    const gw = await G(() => ({ who: window.__animTune.whoState(), puppet: !!window.__guardTune.puppet(), wrenShown: window.__app.current.player.figure.enabled, label: document.querySelector('.anim-tune-rows-guardJoint')?.textContent ?? '' }));
+    assert(gw.who.who === 'guard' && gw.who.entry === 'guard:idle' && gw.puppet && !gw.wrenShown && gw.who.section === 'guardJoint' && gw.who.shown, `Who = Guard: the guard puppet plays idle, the Body tab shows the Guard joints (${JSON.stringify(gw.who)}, puppet ${gw.puppet}, Wren shown ${gw.wrenShown})`);
+    assert(/Right elbow bend/.test(gw.label) && !/elbowR_x/.test(gw.label), 'the Guard joints rows have plain labels');
+    await G(() => window.__studio.pick('guard:patrol'));
+    const gk = () => G(() => { const q = window.__guardTune.puppet().kneeL.rotationQuaternion; const r = window.__guardTune.puppet().root.position; return [q.x, q.y, q.z, q.w, r.x, r.z]; });
+    await frames(page, 20);
+    const p0 = await gk();
+    await frames(page, 25);
+    const p1 = await gk();
+    const gs = await G(() => ({ joint: window.__animTune.state.guardJoint, step: window.__animTune.state.guardStep, entry: window.__studio.state().entry, read: window.__studio.readout().text }));
+    const kneeMoved = Math.max(...[0, 1, 2, 3].map((i) => Math.abs(p0[i] - p1[i])));
+    const rootMoved = Math.hypot(p0[4] - p1[4], p0[5] - p1[5]);
+    assert(gs.entry === 'guard:patrol' && gs.joint === 'guard.joint.walk' && gs.step === 'guard.step.walk' && kneeMoved > 0.01 && rootMoved < 0.05, `a guard loop on the spot: the patrol walk's gait runs (knee ${kneeMoved.toFixed(3)}), the root holds (${rootMoved.toFixed(3)} m), the guard rows follow (${JSON.stringify(gs)})`);
+    // paused at one pose: a guard Joints slider turns the puppet's elbow, Wren's stays
+    const elbows = () => G(() => { const a = window.__guardTune.puppet().elbowR.rotationQuaternion; const b = window.__app.current.player.rig.elbowR.rotationQuaternion; return [a.x, a.y, a.z, a.w, b.x, b.y, b.z, b.w]; });
+    await G(() => window.__studio.pause());
+    await frames(page, 4);
+    const q0 = await elbows();
+    await G(() => window.__animTune.set('guard.joint.walk', 'elbowR_x', 30));
+    await frames(page, 6);
+    const q1 = await elbows();
+    const tab = await G(() => ({ eff: window.__guardTune.jointEffective('walk', 'elbowR', 0), wren: window.__tuneV2.jointsGet('walk', window.__tuneV2.J.elbowR, 0) }));
+    const gTurn = Math.max(...[0, 1, 2, 3].map((i) => Math.abs(q0[i] - q1[i])));
+    const wTurn = Math.max(...[4, 5, 6, 7].map((i) => Math.abs(q0[i] - q1[i])));
+    assert(gTurn > 0.05 && wTurn < 1e-9 && tab.eff === 30 && tab.wren === 0, `a guard Joints slider turns the guard's elbow (${gTurn.toFixed(3)}) and not Wren's (${wTurn}; tables ${JSON.stringify(tab)})`);
+    await G(() => { window.__animTune.set('guard.joint.walk', 'elbowR_x', 0); window.__studio.play(); });
+    await G(() => window.__animTune.who('wren'));
+    await frames(page, 10);
+    const gb = await G(() => ({ who: window.__animTune.whoState(), puppet: !!window.__guardTune.puppet(), wrenShown: window.__app.current.player.figure.enabled }));
+    assert(gb.who.who === 'wren' && gb.who.entry === 'state:idle' && !gb.puppet && gb.wrenShown && gb.who.section !== 'guardJoint', `Who = Wren: she is back, the puppet gone, the Body tab shows her parts (${JSON.stringify(gb.who)})`);
+  }
 
   // pause: no studio row inside the studio; quit to the main menu
   await G(() => window.__app.current.pause());

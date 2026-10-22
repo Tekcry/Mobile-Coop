@@ -299,6 +299,30 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   (`CharacterRig.tuneRows`, set in `operatorRig`: the player, the co-op partner, the studio's pair puppets), each picking
   its own row from its own pose inside its `animate` (`anim/tuneJointsRig.ts`); guards and other rigs never. `tuneV2Frame`
   copies the panel's rows into the tables (the active row, plus a few background rows a frame). Hook: `__animBase`.
+- (anim-bake-targets) Every tuner slider bakes. The Body sliders without a code value are deltas on the base table's
+  `body` key (each Wren rig composes its own row, `tune.ts` bodyRigBegin); the gun tuck bakes per gun state into
+  `WREN_TUCK` (`animGraph.ts`). Hook: `__animBase.setBody(row, id, v)`.
+- (marlow-bays item 24, track A) Guard tuning (`anim/tuneGuard.ts`, the per-guard window `anim/tuneGuardRig.ts`; tests
+  `tests/guardTune.test.ts`, e2e-studio): a "Who" list (Wren / Guard) heads the what-row of the Body, Stepping and Weight
+  tabs (`AnimTunePanel.setWho`, `tunerLayout.whoSections`). Guard shows the guard sections in place of hers: Guard
+  joints `guard.joint.<row>` (Body tab), Guard stepping `guard.step.<gait>` (Stepping), Guard weight
+  `guard.weight.<row>` (Weight: lean, step load, springs, the start dip; no momentum, landing, jump, gear or camera
+  slider), rows idle, walk (patrol and alert), run, aim, crouch, cover (`guardRowOf`); plain labels and targets as
+  the Wren section each mirrors (`GUARD_BASE_SECTION`). A tab with no guard rows keeps hers under a grey line. Every
+  guard rig (`CharacterRig.guardRows`, set in `buildEnemyRig`) picks its own row in its own `animate`, eases its joint
+  offsets and opens the joints window on the guard table only (`tuneJoints.jointsOpen`), steps its own Weight layers
+  (`WEIGHT_POSE` for its frame only, the camera signal put back) and its planner reads `GUARD_STEP_ROWS`
+  (`FootPlanner.stepRows`); no Wren rig reads them, and Wren's Joints / Stepping rows never reach a guard; the plain rigs
+  (the VIP, the training dummy, a carried body) read a fixed identity stepping table (`tuneStep.STEP_IDENTITY_ROWS`),
+  so Wren's Stepping rows reach Wren only. The guard loops' Stepping gait is the planner's own pick for the loop's pace
+  (`tunerLayout.GUARD_LOOP_GAIT` from `stepGaitIndex`: the run at 3.2 m/s steps in the jog gait). `tuneGuardFrame` (player.ts) copies the rows in once a
+  frame. Deltas on the generated guard base table `anim/animBaseGuard.ts` (BAKE.md). Saves, exports, imports, presets
+  and undo carry them through the registry (additive group ids; old records load with the guard rows at identity).
+  Anim Studio: Who = Guard (or a `guard:<loop>` pick) plays the guard puppet (`studioStage` `makePuppet`: a grunt from
+  `buildEnemyRig`, its gun, no AI) where Wren stands (she is hidden; the camera, the highlight via the panel's rig
+  getter, the view aids and pause / speed work on it): loops idle, patrol walk, alert walk, run, aim, crouched aim,
+  wall cover (`anim/studio.ts` `GuardLoop`), moving ones on the spot (`shiftWorld` treadmill); the guard sections
+  follow the puppet's row. Who = Wren plays her idle again. Hooks: `__animTune.who(w)`, `whoState()`, `__guardTune`.
 - (anim-bake-1022) Reset baked (`anim/tuneBakedReset.ts`): when the tuner's save loads, the sliders at a value the
   bundled bake ledger (`anim/tuneBakeLog.json`) says is now in the code reset to their defaults, once per bake (hashes in
   the save, `TuneSnapshot.baked`); the info line gives the count (on the next open when closed). Y menu "Reset baked"

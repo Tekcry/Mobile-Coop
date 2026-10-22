@@ -5,10 +5,11 @@ import type { SwapReach } from '../anim/clips/actions';
 import type { PartShape } from '../world/partLibrary';
 import type { AvatarLook } from '../cosmetics/avatarLook';
 import { proportions, type Build, type Proportions } from './proportions';
-import { AIM_ELBOW_TUCK, AnimGraph, defaultInput, meleePoleW, type AnimInput, type TraverseKind } from '../anim/animGraph';
+import { AIM_ELBOW_TUCK, AnimGraph, defaultInput, meleePoleW, wrenTuckMul, type AnimInput, type TraverseKind } from '../anim/animGraph';
 import { elbowSwivelClear, solveTwoBone } from '../anim/rigMath';
 import { HOLDS, holdInto, solveHold, type HandFrame, type HoldName } from './handHold';
 import { emptyPlannerInput, FootPlanner } from '../anim/footPlanner';
+import { CqLiftCrouch } from '../anim/cqGait'; // (anim-n4, track A)
 import { KNEE_SWING_SHARE, kneePoleYaw, PELVIS_FOLLOW_KEYED, PELVIS_FOLLOW_MAX, pelvisFollow } from '../anim/turnFollow';
 import type { MotionState } from '../anim/motion';
 import { MotionDerive } from '../anim/motionDerive';
@@ -22,6 +23,9 @@ import { studioFeet } from '../anim/studioDrive';
 import { J, JOINTS_CUR, jointApply, mulInto } from '../anim/tuneJoints';
 import { HANDS_CUR, HANDS_GUN, HP, gunVisualPoint, handsRotApply, ikStrength, type GunVisual } from '../anim/tuneHands';
 import { tuneRigBegin, tuneRigEnd, tuneRigState, type TuneRigState } from '../anim/tuneJointsRig';
+import { guardRigBegin, guardRigEnd, guardRigState, type GuardRigState } from '../anim/tuneGuardRig';
+import { GUARD_STEP_ROWS } from '../anim/tuneGuard';
+import { STEP_IDENTITY_ROWS } from '../anim/tuneStep';
 import { gearCompose, GS } from '../anim/tuneGear';
 import { FING_L, FING_LEN, FING_R, FINGER_N, handGripShape, SPREAD_MAX_DEG } from '../anim/fingers';
 import { CLAV_L, CLAV_LEN, CLAV_R, clavActive, clavCompose, clavPoint, clavQuat } from '../anim/clavicle';
@@ -108,6 +112,11 @@ export interface RigPose {
   bendDrop?: number;
   /** (marlow-bays T1a) The bend is over a body (lift, carry, put down), not a held guard: the tuner's `carry` row. */
   carryBody?: boolean;
+  /** (anim-n4, track A) The carried body's load: its shoulder (1 right, -1 left) x its weight on it (0..1): the carry's
+   *  lean away from the load and the hips under it scale by it (none kneeling at the body). Absent: no load. */
+  carrySide?: number;
+  /** (anim-n4, track A) The body lift's step-in 0..1 (absent / -1: no lift): the rig's lift crouch pose (`CqLiftCrouch`). */
+  liftStep?: number;
   sway?: number;
   /** (3.2.0) Whole-body tumble about the hips (rad): hanging legs up / inverted on a pipe. */
   tumble?: number;
@@ -336,6 +345,9 @@ export const READY_ELBOW_TUCK = 0.5;
 /** (anim-rework S4) Crouched the low ready elbows tuck this much (the crouched trunk leans the shoulders over the gun:
  *  READY_ELBOW_TUCK left them 6.7 cm out in the crouched low ready walk, the leaning trunk 5.9 at 0.7). */
 export const READY_ELBOW_TUCK_CROUCH = 0.8;
+/** (anim-bake-targets) The arm IK pole's outward share (was the inline 0.55 in solveArm); the Body slider elbowPoleMul
+ *  scales it, per state through the base table's `body` key. */
+export const ELBOW_POLE_OUT = 0.55;
 /** (anim-rework S4) The knee pole's outward share in the free kneel (KNEE_OUT 0.12 put the front knee 4.7 cm outside its
  *  ankle): the knees track over the toes. */
 export const KNEEL_KNEE_OUT = 0.03;
@@ -671,6 +683,23 @@ export class CharacterRig {
     else if (!on) this.tuneSt = null;
     // (anim-bake-1022) a Wren rig holds Wren's low ready / pistol ready, every other rig the guards' (a reference swap)
     this.graph.wrenReady = on;
+    // (item 24, track A) a Wren rig's planner reads Wren's Stepping rows (the shared table), any other the identity table
+    if (!this.guardSt) this.planner.stepRows = on ? null : STEP_IDENTITY_ROWS;
+  }
+  /** (item 24, track A) This guard rig's window state on the guard tables (`guardRows`); null: not a guard rig. */
+  guardSt: GuardRigState | null = null;
+  /**
+   * (item 24, track A) A guard rig reads the guard base table and the tuner's guard rows (Guard joints, Guard stepping,
+   * Guard weight; `tuneGuard.ts`), never Wren's: set where a guard's rig is made (`buildEnemyRig`: the host's guards
+   * and the co-op client's puppets). Its planner reads the guards' stepping table. Off for every other rig.
+   */
+  get guardRows(): boolean {
+    return this.guardSt !== null;
+  }
+  set guardRows(on: boolean) {
+    if (on && !this.guardSt) this.guardSt = guardRigState();
+    else if (!on) this.guardSt = null;
+    this.planner.stepRows = on ? GUARD_STEP_ROWS : this.tuneSt ? null : STEP_IDENTITY_ROWS;
   }
   /**
    * (anim-gear, marlow-bays item 22) The version of this rig's gear offsets (`tuneGear.ts`; 0 on a rig without
@@ -987,6 +1016,8 @@ export class CharacterRig {
   groundProbe: ((x: number, z: number, yFrom: number) => number | null) | null = null;
   /** World-space foot placement (contacts, locking, swing arcs, idle stepping). */
   readonly planner = new FootPlanner();
+  /** (anim-n4, track A) The body lift's crouch pose (cqGait.ts). */
+  private readonly liftCrouch = new CqLiftCrouch();
   /** (3.2.0) Pinned feet (world x / z, left then right; NaN = free): a remote's feet on the owner's (`FootPlanner`). */
   readonly footPins = [NaN, NaN, NaN, NaN];
   private pin = emptyPlannerInput();
@@ -1079,6 +1110,8 @@ export class CharacterRig {
     const p = proportions(opts.build ?? BUILD_OF[look.body], height);
     this.p = p;
     this.graph = new AnimGraph(p);
+    // (item 24, track A) neither Wren's nor a guard's until `tuneRows` / `guardRows` says so: the identity stepping table
+    this.planner.stepRows = STEP_IDENTITY_ROWS;
     const n = (nm: string, parent: TransformNode | null, x = 0, y = 0, z = 0): TransformNode => {
       const t = new TransformNode(`${name}-${nm}`, scene);
       t.parent = parent;
@@ -1558,7 +1591,17 @@ export class CharacterRig {
     // (anim-joints J1) a Wren rig (`tuneRows`) opens its own tuner window: its rows of the base table + the tuner deltas
     const ts = this.tuneSt;
     if (ts === null) {
-      this.animateFrame(dt, s);
+      // (item 24, track A) a guard rig (`guardRows`) opens its own window on the guard tables; nothing live: untouched
+      const gs = this.guardSt;
+      if (gs === null || !guardRigBegin(gs, s, this, dt)) {
+        this.animateFrame(dt, s);
+        return;
+      }
+      try {
+        this.animateFrame(dt, s);
+      } finally {
+        guardRigEnd(gs, this);
+      }
       return;
     }
     tuneRigBegin(ts, s, this, dt);
@@ -1585,7 +1628,9 @@ export class CharacterRig {
       i.localZ = back ? -1 : 1;
     }
     i.grounded = s.grounded;
-    i.crouch = s.crouch;
+    // (anim-n4, track A) the body lift: the step-in posed standing, kneeling once it is done, standing up only once both
+    // feet are planted (the planner's last frame; animation only)
+    i.crouch = this.liftCrouch.step(s.crouch, s.liftStep ?? -1, this.planner.L.contact && this.planner.R.contact, dt);
     i.kneel = s.kneel ?? false;
     i.tense = s.tense ?? false;
     // (G8) the keyed walk: free movement along the facing, not holding / carrying / lowering a body (the hostage walk
@@ -1635,6 +1680,8 @@ export class CharacterRig {
     i.melee = s.melee ?? -1;
     i.bend = s.bend ?? 0;
     i.bendDrop = s.bendDrop ?? 0;
+    i.cqBody = s.carryBody === true; // (anim-n4, track A)
+    i.cqCarry = s.carryBody ? (s.carrySide ?? 0) : 0;
     i.sway = s.sway ?? 0;
     i.tumble = s.tumble ?? 0;
     i.check = s.check ?? -1;
@@ -3184,8 +3231,8 @@ export class CharacterRig {
     // (anim-rework S3) the gun in the hands tucks the elbows at low ready too (READY_ELBOW_TUCK)
     // (anim-rework S4) crouched more (READY_ELBOW_TUCK_CROUCH)
     const cr = Math.max(0, Math.min(1, this.input.crouch));
-    const tuck = Math.max(AIM_ELBOW_TUCK * this.aimK, this.heldWeapon ? READY_ELBOW_TUCK + (READY_ELBOW_TUCK_CROUCH - READY_ELBOW_TUCK) * cr : 0) * TUNE_CUR.tuckMul;
-    this.dirToWorld(side * (0.55 * TUNE_CUR.elbowPoleMul * (1 - tuck) + 0.65 * mw + holsterOut), -1 + 0.9 * mw, -0.35 + 0.35 * mw, tmpPole);
+    const tuck = Math.max(AIM_ELBOW_TUCK * this.aimK, this.heldWeapon ? READY_ELBOW_TUCK + (READY_ELBOW_TUCK_CROUCH - READY_ELBOW_TUCK) * cr : 0) * TUNE_CUR.tuckMul * (this.tuneSt ? wrenTuckMul(this.supportStyle === 'cup', this.aimK, cr) : 1); // (anim-bake-targets) Wren's tuck per gun state
+    this.dirToWorld(side * (ELBOW_POLE_OUT * TUNE_CUR.elbowPoleMul * (1 - tuck) + 0.65 * mw + holsterOut), -1 + 0.9 * mw, -0.35 + 0.35 * mw, tmpPole);
     // (feature/weapons) shoulder protraction towards a weapon hand point out of reach (in the torso frame; the shoulder's
     // height stays the weld's)
     {

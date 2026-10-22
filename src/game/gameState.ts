@@ -3,6 +3,7 @@ import type { App, AppState } from '../core/app';
 import { Color3, type FreeCamera, InstancedMesh, PhysicsRaycastResult, Vector3, type Vector4, type PhysicsEngine, type Scene } from '../core/babylon';
 import { VOXEL_LOD, World } from '../world/world';
 import { flags } from '../core/flags';
+import { cqSimSet } from '../anim/cqGait';
 import { showEconomy } from '../core/legacy';
 import { shownResolution } from '../core/display';
 import { LIVE_RIGS } from '../player/characterRig';
@@ -208,8 +209,9 @@ export interface NetAttachment {
   /** (camera-cue fix) Client: the other living players' bodies for the camera cue's own sight test, written into
    *  `out` from index `from` (entries added when missing); returns how many. */
   partnerBodies?(out: SeenBody[], from: number): number;
-  /** Client, course mode (CT prototype B3): the held jammer's target ('' = released). */
-  sendJam?(tgt: string): void;
+  /** Client, course mode (CT prototype B3): the held jammer's target ('' = released) and (jammer-fixes) the camera eye
+   *  the aim was checked from. */
+  sendJam?(tgt: string, eye: { x: number; y: number; z: number }): void;
   /** (marlow-jammer fix round 1) Host, course mode: move player `who` to (x, y, z) facing `yaw` (the camera hallway's
    *  send-back; a `back` event, the client moves itself). */
   sendBack?(who: string, x: number, y: number, z: number, yaw: number): void;
@@ -1751,6 +1753,12 @@ export class GameState implements AppState {
       pz.bendDrop = this.takedown.bendDrop + (st ? st.bendDrop : 0);
       // (marlow-bays T1a) the tuner's carry row: the bend is the body's, not a held guard's
       pz.carryBody = !!st && (st.bend > 0 || st.bendDrop > 0);
+      // (anim-n4) the carry leans away from the loaded shoulder, by the body's weight on it (none kneeling at the body or
+      // once the ragdoll has it); the lift's step-in for the rig's crouch pose; the walk's step length (cqGait.ts) on the
+      // local gait clock
+      pz.carrySide = st ? st.loadSide * st.loadShare : 0;
+      pz.liftStep = st ? st.liftStepK : -1;
+      cqSimSet(pz.carryBody ? 'cq.carry' : pz.bend > 0 || pz.bendDrop > 0 ? 'cq.hold' : '');
       pz.sway = this.takedown.sway;
       pz.freeGait = this.takedown.stepping || (st ? st.stepping : false) || this.doorOpen.phase === 'step';
     }
