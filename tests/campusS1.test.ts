@@ -20,6 +20,7 @@ import { PERCEPTION } from '../src/ai/perception';
 import { NavGrid, type NavBlocker, type NavSample } from '../src/ai/navGrid';
 import { HANG, LEDGE } from '../src/world/anchors';
 import { hyp2 } from '../src/core/mathx';
+import { LIGHT, contribution } from '../src/world/lights';
 import { soloJumpThreats, soloTopLandingThreats, MANTLE } from './helpers/soloJumpReach';
 import { SightWorld, isolatedInTime, longestIsolation, CHECK_ISOLATION, CHECK_PATROL_PACE, CHECK_SPOT, distToGuard, type CheckGuard } from '../src/game/sectorCheck';
 
@@ -333,7 +334,7 @@ describe('CR1: the canopy east lip against a solo player (SPEC Campus-wide rules
     expect(cr1.lip).toMatchObject({ x: -14, z0: -40, z1: -34, y: 4.4 });
     expect(cr1.boost).toEqual({ floor: 0, x: -13.5, z: -38 });
     // the canopy slab: top 4.4 (rule 1: 4.3-4.5 over the floor it is boosted from)
-    const slab = solid.find((p) => Math.abs(p.c[1] + p.s[1] / 2 - 4.4) < 1e-6 && Math.abs(p.c[0] + 20) < 1e-6 && Math.abs(p.c[2] + 37) < 1e-6)!;
+    const slab = solid.find((p) => Math.abs(p.c[1] + p.s[1] / 2 - 4.4) < 1e-6 && Math.abs(p.c[0] + 16.7) < 1e-6 && Math.abs(p.c[2] + 37) < 1e-6)!; // (A65) the east piece of the slab around the hatch
     expect(slab).toBeTruthy();
     expect(slab.c[1] + slab.s[1] / 2 - cr1.boost.floor).toBeGreaterThanOrEqual(4.3);
     expect(slab.c[1] + slab.s[1] / 2 - cr1.boost.floor).toBeLessThanOrEqual(4.5);
@@ -517,7 +518,7 @@ describe('S1 element register E1-E12 (SPEC)', () => {
     }
   });
   it('E8 the entrance canopy: a free-standing top 4.4 (soffit 4.2) on four columns', () => {
-    const slab = solid.find((p) => Math.abs(p.c[0] + 20) < 1e-6 && Math.abs(p.c[2] + 37) < 1e-6 && Math.abs(p.s[0] - 12) < 1e-6)!;
+    const slab = solid.find((p) => Math.abs(p.c[0] + 16.7) < 1e-6 && Math.abs(p.c[2] + 37) < 1e-6 && Math.abs(p.s[0] - 5.4) < 1e-6)!; // (A65) a slab piece beside the hatch
     expect(slab.c[1] + slab.s[1] / 2).toBeCloseTo(4.4);
     expect(slab.c[1] - slab.s[1] / 2).toBeCloseTo(4.2);
     expect(b.cylinders.filter((c) => c.h === 4.2 && c.r === 0.15).length).toBe(4);
@@ -629,5 +630,51 @@ describe('K1 (M12): the doorman is an unavoidable posted guard at the C1 near do
       for (const i of blocked) nav.walk[i] = 1;
     }
     expect(nav.findPath(from, to, 1e6, 0, 0)).not.toBeNull();
+  });
+});
+
+describe('CR1 hatch and A68 margin (sector-redesign fix round)', () => {
+  const post = S1.guards[4]!;
+  const covers = (p: BoxPiece, x: number, y: number, z: number): boolean => Math.abs(x - p.c[0]) <= p.s[0] / 2 && Math.abs(y - p.c[1]) <= p.s[1] / 2 && Math.abs(z - p.c[2]) <= p.s[2] / 2;
+
+  it('(A65) the canopy hatch x -20.6..-19.4, z -36.4..-35.3 is open: no collision box covers its centre or corners at slab height', () => {
+    for (const [x, z] of [[-20, -35.85], [-20.5, -36.3], [-19.5, -36.3], [-20.5, -35.4], [-19.5, -35.4]] as const)
+      expect(solid.some((p) => covers(p, x, 4.3, z)), `hatch point ${x}, ${z}`).toBe(false);
+    // the slab is still there around it
+    expect(solid.some((p) => covers(p, -21, 4.3, -35.85))).toBe(true);
+    expect(solid.some((p) => covers(p, -20, 4.3, -37.5))).toBe(true);
+    expect(solid.some((p) => covers(p, -20, 4.3, -34.8))).toBe(true);
+  });
+
+  it('(A65) the takedown spot (-20, 4.4, -36.7) is on the canopy top, within 2.2 m of the doorman (plan), a 1.1-4.6 m drop, with a clear eye ray through the hatch', () => {
+    const [sx, sy, sz] = [-20, 4.4, -36.7];
+    expect(solid.some((p) => covers(p, sx, 4.3, sz))).toBe(true);
+    expect(hyp2(sx - post.x, sz - post.z)).toBeLessThanOrEqual(2.2);
+    expect(sy - 0).toBeGreaterThanOrEqual(1.1);
+    expect(sy - 0).toBeLessThanOrEqual(4.6);
+    // eye (1.6 m up) to the guard's chest (1.2 m): sample the ray against the collision boxes
+    const [ey, gy] = [sy + 1.6, 1.2];
+    for (let i = 0; i <= 40; i++) {
+      const t = i / 40;
+      const [x, y, z] = [sx + (post.x - sx) * t, ey + (gy - ey) * t, sz + (post.z - sz) * t];
+      expect(solid.some((p) => covers(p, x, y, z)), `ray at t=${t}`).toBe(false);
+    }
+  });
+
+  it('(A65) the east downlights moved to x -18.5, radius 4.5: the boost point (-13.5, -38) reads under the shadow line', () => {
+    expect(CANOPY_LAMPS.map((l) => l[0]).sort((p, q) => p - q)).toEqual([-23, -23, -18.5, -18.5]);
+    const [bx, bz] = [CAMPUS_COOP_LIPS[0]!.boost.x, CAMPUS_COOP_LIPS[0]!.boost.z];
+    let level = b.lights.ambientAt(bx, 0.9, bz);
+    for (const l of b.lights.lights) level += contribution(l, bx, 0.9, bz);
+    expect(level).toBeLessThan(LIGHT.shadow);
+  });
+
+  it('(A68) no K choke guard, pair member or dog handler is dormant; the fence patrol (#7) is', () => {
+    const handlers = new Set(S1.guards.map((g) => g.handler).filter((h): h is number => h !== undefined));
+    S1.guards.forEach((g, i) => {
+      if (g.pair !== undefined || handlers.has(i) || g.role === 'posted' || g.kind === 'dog') expect(g.dormant, `guard #${i + 1}`).not.toBe(true);
+    });
+    expect(S1.guards[4]!.dormant).not.toBe(true);
+    expect(S1.guards[6]!.dormant).toBe(true);
   });
 });

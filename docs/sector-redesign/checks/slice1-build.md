@@ -123,3 +123,11 @@ Unsure until run: the lit reading margin in (c) (+0.08), and the probes' run-up 
 Co-op legs (leg-up onto the canopy, the drop takedown, both pass C1), the revive on the roof, the verge-vantage and cam-walk
 coverage e2e, the fence patrol drawn to the cut board, the S2-S5 stub seal / nav check, a real walk (pad-driven) through the
 badge door, the in-browser EW16 timings, a lit-level table for the S1 light pass (no `tests/campusS1Light` bake test).
+
+## Fix round (A64-A68)
+- A68 list: `sectorOps()` filters `m.id !== 'campusOps'` (`LISTED_MAP_IDS` has no `warehouseOps`, so no set to reuse). No test or script asserts `sectorOps`.
+- A65 hatch: canopy slab is four boxes around x -20.6..-19.4, z -36.4..-35.3 (west, east, south strip, north strip; the north strip's edge is a normal slab ledge). Doorman post (-20, -35) kept. East downlights now x -18.5, radius 4.5. Tests: hatch open, takedown spot (-20, 4.4, -36.7) on the slab 1.7 m from the post with a clear eye ray, boost point (-13.5, -38) under `LIGHT.shadow` (ambient + `contribution()` sum, no occlusion: conservative). CR1 and E8 tests now find the slab by its east piece (centre x -16.7).
+- A66: objective was already (19.3, -76); SPEC S1 text changed from (18.5, -76).
+- A67: `voxelFit` limit is max(110 x 110, (map span + 16)^2) from `b.bounds`, bunker excepted; the `campusOps` exception is gone. `rooms` (the map id list) and `detailPass` (the dressing-off id list) assert which maps exist, not a limit: left as they are.
+- A68 margin: guard #7 tagged `dormant: true` (`SectorGuard.dormant?` added in `src/game/sectors.ts`); smoking shelter east panel now z -51.5..-47 (1.5 m longer toward the car park/verge side). Unit assert: no posted, pair, handler or dog guard is dormant.
+- Checks: tsc 0 errors; vitest campusS1, rooms, detailPass, voxelFit, sectors, soloJumpReach: 6 files, 98 tests pass; eslint clean on changed files. No e2e, no build.

@@ -152,7 +152,7 @@ export const PARK_COLUMNS_E: readonly (readonly [number, number])[] = [[-10, -62
 /** The forecourt bollards (x at z -45.5). */
 export const BOLLARD_XS: readonly number[] = [-28, -24, -20, -16, -12, -8, -4, 0];
 /** The canopy downlights. */
-export const CANOPY_LAMPS: readonly (readonly [number, number])[] = [[-23, -38], [-17, -38], [-23, -35.6], [-17, -35.6]];
+export const CANOPY_LAMPS: readonly (readonly [number, number])[] = [[-23, -38], [-18.5, -38], [-23, -35.6], [-18.5, -35.6]];
 
 /** A visible lamp fitting (no model: the glowing box), a real registry light. */
 function lamp(b: LevelBuilder, x: number, y: number, z: number, o: { r: number; i: number; group: number; colour: [number, number, number]; cone?: ReturnType<typeof makeCone> | null; w?: number }): void {
@@ -261,7 +261,7 @@ export function buildCampusS1(b: LevelBuilder): void {
   b.box(8, 2.3, -48.5, 4, 0.2, 3, ROOF);
   b.box(8, 1.1, -47.05, 4, 2.2, 0.1, STEEL);
   b.box(6.05, 1.1, -48.5, 0.1, 2.2, 3, STEEL);
-  b.box(9.95, 1.1, -48.5, 0.1, 2.2, 3, STEEL);
+  b.box(9.95, 1.1, -49.25, 0.1, 2.2, 4.5, STEEL); // (A68) the east panel runs 1.5 m longer to the south (z -51.5), hiding #6 from the verge
   b.mark(k0, { noLedge: true });
 
   // ---- the forecourt (-26..6, -46..-34): the drop-off kerb, planters along the facade (E10), bollards on the s1-fore circuit (E11)
@@ -288,10 +288,11 @@ export function buildCampusS1(b: LevelBuilder): void {
 
   // ---- the entrance canopy (-26..-14, -40..-34): a free-standing 4.4 top (soffit 4.2) on four 0.3 columns; nothing under its S / E / W edges (E8)
   const c0 = b.boxes.length;
-  b.box(-20, 4.3, -37, 12, 0.2, 6, '#9aa3a8');
+  // (sector-redesign A65) a hatch x -20.6..-19.4, z -36.4..-35.3 above the doorman's post (-20, -35): the slab is four boxes around the opening
+  for (const [x, z, w, d] of [[-23.3, -37, 5.4, 6], [-16.7, -37, 5.4, 6], [-20, -38.2, 1.2, 3.6], [-20, -34.65, 1.2, 1.3]] as const) b.box(x, 4.3, z, w, 0.2, d, '#9aa3a8');
   b.mark(c0, { overhead: true });
   for (const [x, z] of [[-25.5, -39.5], [-14.5, -39.5], [-25.5, -34.6], [-14.5, -34.6]] as const) b.pillar(x, z, 0.15, 4.2, STEEL);
-  for (const [x, z] of CANOPY_LAMPS) lamp(b, x, 4.1, z, { r: 6.5, i: 0.85, group: S1_GROUPS.canopy, colour: WHITE, cone: makeCone(0, -1, 0, 1.0), w: 0.5 });
+  for (const [x, z] of CANOPY_LAMPS) lamp(b, x, 4.1, z, { r: 4.5, i: 0.85, group: S1_GROUPS.canopy, colour: WHITE, cone: makeCone(0, -1, 0, 1.0), w: 0.5 });
 
   // ---- the HQ ground-floor plant room (-40..-26, -40..-34) and its roof 4.4 (E9): walls 4.2, parapets 1.1 on its S and W edges
   const r0 = b.boxes.length;
