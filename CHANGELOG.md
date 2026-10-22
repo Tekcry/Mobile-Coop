@@ -8,8 +8,6 @@
 - Co-op > Browse rooms: the public rooms of this exact version and protocol, live, with pad, keyboard and mouse; a pick
   joins by its code as today. No quick match, no relay server, no game server.
 
-## Unreleased - marlow-bays R (rejoin)
-
 ## Unreleased - marlow-bays item 24 (guard tuning)
 - Animation tuner: a "Who" list (Wren / Guard) at the head of the Body, Stepping and Weight tabs. Guard tunes every
   guard's Joints, Stepping and Weight (lean, step load, springs, the start dip) per guard state: idle, walk (patrol and
