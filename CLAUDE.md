@@ -54,7 +54,7 @@ means this session only; the session running a job is its **job lead**.
 GPU are far stronger, and the desktop sits near 99% CPU running every session's agents). This overrides the older
 machine wording below: full runs, merge trains, `e2e-coop` / `e2e-netmove` / `e2e-ctcourse` and GPU or visual work
 (anim-audit, anim-sheet, shots, `E2E_GPU=1` suites, port 4189) go to Character Build on the laptop (Normal priority,
-`E2E_JOBS=3`, its own `heavy.lock`). The desktop runs only quick single suites at `E2E_JOBS=1` under its lock, and the
+`E2E_JOBS=5` for full runs and trains (Michael 2026-10-23 ~00:10 "Yes, if clean": 316 s vs ~490 s at 3; back to 3 the first time 5 causes a failure), its own `heavy.lock`). The desktop runs only quick single suites at `E2E_JOBS=1` under its lock, and the
 sessions' agents. Job leads send run requests (branch, commit, suites) to Character Build, not the desktop lock.
 
 **GPU for logic e2e** (Michael, 2026-10-22 ~20:30: "use gpu on any tests that would benefit"; overrides the
