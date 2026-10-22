@@ -18,6 +18,10 @@ leftovers (docs/anim-natural/PASS2.md on feature/anim-natural, "N0 leftovers"; A
 - No wire change expected (the remote rigs pose from `MoveState` / `melee`).
 - Overlap: open PR #119 (feature/anim-n4b) also edits `characterRig.ts`, `player.ts`, `gameState.ts`: keep hunks small.
 
+## Michael's answers
+- **M1** (~20:05, via the orchestrator; strike timing): chose "Faster arm": keep the 0.08-0.1 s knockout (`STRIKE.hitAt`
+  unchanged, feel unchanged) and speed up the elbow strike so the arm reaches contact then. Built in the fix round.
+
 ## Assumed decisions
 - **A1** Strike body on Wren rigs only (local and co-op partner); guards keep the graph's old turn. Undo: drop the
   `wrenReady` gate in the melee block (`animGraph.ts`) and in `CharacterRig.strikeTrunk`.
