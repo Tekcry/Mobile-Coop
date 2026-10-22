@@ -67,6 +67,9 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- ~02:35 (clock) bounds test IN (stubs add no geometry yet, so it bites from the first real set). 0e facility
+  dressing started on Sonnet (facility.ts + tests/ctcourse/facility.test.ts; report slices/S0e.md). Usage 43% at
+  02:32, 4 h 08 left: one agent at a time.
 - ~03:05 0d fresh checker PASS (S0d-check.md). Its should-fix (no test that a set's geometry stays in its SET_BOX) is
   being built by a Sonnet agent (ctcourse.ts ranges + tests/ctcourse.test.ts + checkSetPart tag checks). Then 0e.
 - ~02:55 0d scaffold IN (3e41b859; slices/S0d.md): ctcourse merges set parts, facility greybox, 8 stub sets walk end
