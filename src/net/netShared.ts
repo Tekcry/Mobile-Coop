@@ -16,6 +16,9 @@ export function localFlags(g: GameState): number {
   if (c.steps === 'silent') f |= PF.silent;
   // (3.2.0) traversal drives the step: the host's speed check allows their paces (glides, runs, vaults)
   if (c.override) f |= PF.driven;
+  // (pose-parity) the left-shoulder aim (the shoulder swap) off the wall, by the owner's own rule (gameState.ts openLeft):
+  // the partner's rig mirrors the weapon hand in every mode, not only on the ground
+  if (!g.wallCore?.active && p.cam.shoulder < 0 && g.weapons.handSwitchOk) f |= PF.aimLeft;
   return f;
 }
 

@@ -58,6 +58,10 @@ export type MoveMode = (typeof MOVE_MODES)[number];
 export const ATTACHED_MODES: readonly MoveMode[] = ['ladder', 'pipeV', 'pipeH', 'ledge', 'duct', 'zipline', 'split', 'wallJump', 'rappel', 'fence'];
 export const COMMITTED_MODES: readonly MoveMode[] = ['step', 'vault', 'mantle', 'drop', 'hop', 'roll', 'windowVault', 'landing'];
 
+/** (pose-parity, protocol 36) `takedown` `sub` bit: the blow is running (`ph` its phase); clear = a choke or the lethal
+ *  approach (the owner's `blowPh` -1: no arc). */
+export const TAKEDOWN_SUB_BLOW = 1;
+
 export const isAttachedMode = (m: MoveMode): boolean => ATTACHED_MODES.includes(m);
 export const isCommittedMode = (m: MoveMode): boolean => COMMITTED_MODES.includes(m);
 
@@ -286,8 +290,8 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
   out.tumble = 0;
   out.drawn = mv.dw !== 0;
   out.settle = false;
-  // (anim-cleanup) on the ground the left-shoulder aim (the shoulder swap) sets the same bit as the wall's left hand
-  out.leftHand = mv.m === 'ground' && (mv.sub & 128) !== 0;
+  // (pose-parity) the left-shoulder aim off the wall is the player flag `PF.aimLeft` (every mode), read by the remote
+  out.leftHand = false;
   switch (mv.m) {
     case 'wall':
       // (step 11) the flat-back stance, facing along the slide (WALL_SUB.faceRight = 2)
@@ -386,7 +390,9 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
       return out;
     case 'takedown':
       // (anim-n4d, M1) the wire carries the blow's own phase, posed warped onto the kill as the local player's (killWarp)
-      out.melee = killWarp(mv.ph, TAKEDOWN_BLOW);
+      // (pose-parity) only while the blow runs (TAKEDOWN_SUB_BLOW): a choke and the lethal approach pose no arc (-1), as
+      // the owner's `blowPh` -1 (the wire's `ph` is 0..1)
+      out.melee = mv.sub & TAKEDOWN_SUB_BLOW ? killWarp(mv.ph, TAKEDOWN_BLOW) : -1;
       return out;
     case 'grab':
       // (G7) the kill from the hold (sub bit 1): the blow's arc at the finisher's progress; (anim-n4d) warped onto the kill

@@ -112,8 +112,8 @@ describe('move state (3.2.0 phase 1)', () => {
     expect(out.wallSide).toBe(1);
   });
 
-  it('PROTOCOL_VERSION is 31 (the Sector lamps; 29 the laser panels; 28 the jam claim eye; 27 rejoin; 26 the jammer rules; 25 the guard torch bit; 24 sector extras; 23 Sector Ops; 22 B7 rope; 21 scanners; 20 hang-down; 19 throw; 18 anim-cleanup: the left-shoulder weapon bit; 17 B3: the held jammer message; 16 was B2: the relay offer bit; 15 dropped the SWAT turn and the lean kind)', () => {
-    expect(PROTOCOL_VERSION).toBe(31);
+  it('PROTOCOL_VERSION is 36 (36 pose-parity; the Sector lamps; 29 the laser panels; 28 the jam claim eye; 27 rejoin; 26 the jammer rules; 25 the guard torch bit; 24 sector extras; 23 Sector Ops; 22 B7 rope; 21 scanners; 20 hang-down; 19 throw; 18 anim-cleanup: the left-shoulder weapon bit; 17 B3: the held jammer message; 16 was B2: the relay offer bit; 15 dropped the SWAT turn and the lean kind)', () => {
+    expect(PROTOCOL_VERSION).toBe(36);
   });
 
   it('poses: attached families and exits, committed moves and takedowns', () => {
@@ -128,7 +128,7 @@ describe('move state (3.2.0 phase 1)', () => {
     expect(out.traverse).toBe('crawl');
     poseFromMoveState({ ...emptyMoveState(), m: 'roll', ph: 0.5 }, 0, out);
     expect(out).toMatchObject({ traverse: 'roll', traverseT: 0.5 });
-    poseFromMoveState({ ...emptyMoveState(), m: 'takedown', ph: 0.7, tid: 'e1' }, 0, out);
+    poseFromMoveState({ ...emptyMoveState(), m: 'takedown', ph: 0.7, sub: 1, tid: 'e1' }, 0, out); // (pose-parity) sub 1: the blow runs
     expect(out).toMatchObject({ traverse: 'none' });
     expect(out.melee).toBeCloseTo(killWarp(0.7, TAKEDOWN_BLOW), 12); // (anim-n4d) the blow's phase posed warped onto the kill
     poseFromMoveState(emptyMoveState(), 0, out);
@@ -275,13 +275,11 @@ describe('shared posing code (3.2.0 phase 1)', () => {
   });
 });
 
-describe('the shoulder swap on the wire (anim-cleanup)', () => {
-  it('a ground state with the left-shoulder bit puts the partner weapon in the left hand; without it, the right', () => {
+describe('the shoulder swap on the wire (anim-cleanup; pose-parity: now PF.aimLeft)', () => {
+  it('a ground state no longer reads sub bit 128 (the player flag carries the aim side in every mode, tests/poseParity)', () => {
     const mv = emptyMoveState();
     mv.m = 'ground';
     mv.sub = 128;
-    expect(poseFromMoveState(mv, 1, emptyMovePose()).leftHand).toBe(true);
-    mv.sub = 0;
     expect(poseFromMoveState(mv, 1, emptyMovePose()).leftHand).toBe(false);
   });
 });

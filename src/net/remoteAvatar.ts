@@ -29,10 +29,12 @@ import { GRAB_KILL_BLOW, KILL_SEEN, KILL_TAIL_END, killWarp, strikeWarp, TAKEDOW
 import { RAPPEL, TEAM } from '../config/movement';
 import { GAMEPLAY_HEIGHT } from '../player/attach';
 import { findRopeLip, newRopeLip, ROPE_SUB, ropeLipHands, ropeSeenStep, type RopeSeen } from '../game/teamMoves';
-import { attachGripWeight, climbUpFootWeight, emptyMovePose, isAttachedMode, poseFromMoveState, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
+import { attachGripWeight, climbUpFootWeight, emptyMovePose, isAttachedMode, poseFromMoveState, TAKEDOWN_SUB_BLOW, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
 import { traversePath, type PathKind } from '../player/traversePath';
 import type { TraverseKind } from '../anim/animGraph';
 import { teamRowOfWire } from '../anim/tuneMoveRows';
+import { moveTuneBegin, moveTuneEnd, moveTuneRoot, moveTuneSelectBase, teamContactKOfWire } from '../anim/moveTune';
+import { bodyRigRoot, bodyRigWallGap } from '../anim/tune';
 import { clearGripAxis } from '../player/attachGrips';
 import { GRAB } from '../game/takedown';
 import { easeRemoteSpeed, isShownTeleport, seedHeading } from './remoteSeed';
@@ -452,6 +454,10 @@ export class RemoteAvatar {
     const r = this.rig.root;
     r.position.copyFrom(this.pos);
     r.rotation.y = this.yaw;
+    // (pose-parity) the baked Body root offset (body fwd / up, the hold's guard gap / side), as the owner's `tuneRoot`, from
+    // this rig's own applied base (identity until a bake sets one)
+    const bb = this.rig.tuneSt?.bodyBase;
+    if (bb) bodyRigRoot(bb, r.position, this.yaw);
     // the pose families from the movement state; on an anchor the hands and feet grip it like the player's
     const pk = wseg && mv!.sub & WALL_SUB.peek ? 1 : 0;
     this.peekK = wseg ? (pk ? Math.min(1, this.peekK + dt / WALL.peekBlend) : Math.max(0, this.peekK - dt / WALL.peekBlend)) : 0;
@@ -465,7 +471,7 @@ export class RemoteAvatar {
     const wk = this.wallK * this.wallK * (3 - 2 * this.wallK);
     if (wk > 0) {
       // (G6) as the owner (Player.frameUpdate)
-      const push = wallRootPush(COVER_STANDOFF, this.rig.p.bodyDepthHalf, Math.max(Math.abs(Math.sin(this.yaw - Math.atan2(this.wallNx, this.wallNz))), Math.abs(this.rig.shoulderTurnSin(this.wallNx, this.wallNz))), this.rig.p.shoulderHalf, this.crouch) * wk;
+      const push = (wallRootPush(COVER_STANDOFF, this.rig.p.bodyDepthHalf, Math.max(Math.abs(Math.sin(this.yaw - Math.atan2(this.wallNx, this.wallNz))), Math.abs(this.rig.shoulderTurnSin(this.wallNx, this.wallNz))), this.rig.p.shoulderHalf, this.crouch) - (bb ? bodyRigWallGap(bb) : 0)) * wk;
       r.position.x -= this.wallNx * push;
       r.position.z -= this.wallNz * push;
       // (G6, AUDIT-WALLS row 9) the peek's step toward the edge, as the owner's rig (the MoveState peek bit, eased)
@@ -483,7 +489,7 @@ export class RemoteAvatar {
     } else this.rig.wallHand = null;
     // (anim-n4d, M1) a kill blow's follow-through: the owner's takedown ended on the kill (the wire moved on), the arc
     // plays on from contact as the owner's (a strike below takes it over)
-    const blowB = mv && !rp ? (mv.m === 'takedown' ? TAKEDOWN_BLOW : mv.m === 'grab' && mv.sub & 1 ? GRAB_KILL_BLOW : null) : null;
+    const blowB = mv && !rp ? (mv.m === 'takedown' && mv.sub & TAKEDOWN_SUB_BLOW ? TAKEDOWN_BLOW : mv.m === 'grab' && mv.sub & 1 ? GRAB_KILL_BLOW : null) : null;
     if (blowB) {
       this.blowB = blowB;
       this.blowU = mv!.ph;
@@ -562,9 +568,15 @@ export class RemoteAvatar {
     }
     // (team-climb) on a partner's rope: the top-out on the team clip and the hands on the lip, as the owner's
     this.ropeFrame(dt, !!mv && !rp && mv.m === 'boost' && mv.sub === ROPE_SUB, mv ? mv.ph : 0, mp);
+    // (pose-parity) the baked co-op role / traversal move sections, as the owner's (`player.ts` moveTuneSelect): the
+    // partner's role from the wire, the base table only (identity until a bake sets one)
+    const tuneTeam = mv && !rp ? teamRowOfWire(mv.m, mv.sub) : '';
+    moveTuneSelectBase(tuneTeam, teamContactKOfWire(tuneTeam, mv ? mv.ph : 0), mp.traverse);
+    moveTuneRoot(r.position, r.rotation);
     // (step 12b, D9) weapon hand from WALL_SUB.leftHand (the open side at a left edge): the rig blends the switch
     // over EDGE_HAND_TIME as the owner's did
-    this.rig.openLeft = !!mv && !rp && mp.leftHand && (mv.sub & WALL_SUB.leftHand) !== 0;
+    // (pose-parity) and off the wall the owner's left-shoulder aim (`PF.aimLeft`, every mode), as the owner's openLeft
+    this.rig.openLeft = (!!mv && !rp && mp.leftHand && (mv.sub & WALL_SUB.leftHand) !== 0) || (f & PF.aimLeft) !== 0;
     const sy = Math.sin(this.yaw);
     const cy = Math.cos(this.yaw);
     const inv = moved > 1e-4 ? 1 / moved : 0;
@@ -633,9 +645,11 @@ export class RemoteAvatar {
     // (anim-n4b, track A) a team move: the holder's working body / the leg-up's push, from the same state as the owner's
     teamPoseOfWire(mv && !rp ? mv.m : '', mv ? mv.sub : 0, mv ? mv.s : 0, mv ? mv.ph : 0, this.info.id, this.teamIn);
     this.teamPose.begin(dt, this.teamIn, rpose, this.rig);
+    moveTuneBegin(rpose, this.rig); // (pose-parity) the move sections selected above
     try {
       this.rig.animate(dt, rpose);
     } finally {
+      moveTuneEnd(this.rig);
       this.teamPose.end(this.rig);
     }
     // (3.2.0 phase 3) on a rope: draw it from the anchor to the harness

@@ -21,7 +21,7 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 ## Protocol (`protocol.ts`)
 - Every inbound message goes through `parseMessage` (shape, clamps, string sanitising, caps); anything unknown is
   dropped. Add a message: type in `Msg`, case in `parseMessage`, a test in `tests/net.test.ts`.
-- `PROTOCOL_VERSION` 31 (31: the Sector Ops lamps, sector-redesign slice L, below; 30: marlow-final's Menu Notes; 29: the lasers are jammed at their power panels, sector-fixes P: `jam` and `sec.dv` name panel ids; 28: the `jam` claim's camera eye `e`, jammer-fixes; 26: the jammer rules in `sec`, marlow-jammer: per-camera clocks `ck`, jam left `ch`, cooldown `cd`, jammed / recovering devices `dv`; 25: the guard torch bit in enemy `al`, below; 24: the `sector` message extras, below). A `hello` with another version is ignored by the host. History: 11 = the training course and
+- `PROTOCOL_VERSION` 36 (36: partner pose parity, pose-parity: `PF.aimLeft` 64, the left-shoulder aim in every mode (the ground MoveState `sub` bit 128 dropped), and the `takedown` `sub` bit 1 = the blow is running (a choke and the lethal approach pose no arc on the partner); 32-35 taken by open branches (guard-ai, marlow-final, section-rating, sector-redesign); 31: the Sector Ops lamps, sector-redesign slice L, below; 30: marlow-final's Menu Notes; 29: the lasers are jammed at their power panels, sector-fixes P: `jam` and `sec.dv` name panel ids; 28: the `jam` claim's camera eye `e`, jammer-fixes; 26: the jammer rules in `sec`, marlow-jammer: per-camera clocks `ck`, jam left `ch`, cooldown `cd`, jammed / recovering devices `dv`; 25: the guard torch bit in enemy `al`, below; 24: the `sector` message extras, below). A `hello` with another version is ignored by the host. History: 11 = the training course and
   locomotion 10 together (G52); 12 = Wave, team deathmatch, free-for-all and PvP removed (`NetMode`, `team`, `ptd`,
   `frag`, snapshot `score` / `tl`, end `waves` / `winner`); 13 = emotes removed (`emote` message and event), then in the
   same version the custom difficulty (`dc`) and carried medkits (`PlayerState.mk`, MoveState `medkit`, `cmove` kind
@@ -130,7 +130,7 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   hang-down (`boost`) gives only the guard's own lines (gap). No wire change.
 - (anim-studio-2) Team-move animation tuning: the tuner's Co-op sections (`anim/moveTune.ts`, one per move: role A, role
   B, contact) apply to the LOCAL player's own role only (`GameState` writes `MOVE_TUNE_TEAM` from `TeamController`).
-  `RemoteAvatar` never reads them: the partner always plays the shared defaults until an export is folded into the
+  `RemoteAvatar` never reads the live values: the partner plays the BASE table (pose-parity: `moveTuneSelectBase` with its role from the wire, `teamRowOfWire`, and its posed traversal; the Body root offsets and wall gap from its own applied base, `bodyRigRoot`), i.e. the shared defaults until an export is folded into the
   code. Nothing goes on the wire; visual only (the paths, timing and capsule are the game's). The Anim Studio plays both
   roles of each move on one clock with two local puppets (`anim/studioPairs.ts`).
 - (anim-n4b, track A) Team-move poses (`anim/clips/team.ts`, `TeamPoser`, one per rig: the local player, each

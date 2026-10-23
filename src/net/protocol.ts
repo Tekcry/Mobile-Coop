@@ -15,8 +15,8 @@ import type { SecWire } from '../game/ctDevices';
 import type { SectorNetExtra } from '../game/sectors';
 import { LAMP_BITS, LAMP_CHARS, LAMP_MAX, type LampWire } from './lampSync';
 
-/** 31: Sector Ops light state (sector-redesign slice L): the `lamps` message (host -> all: switched-off and shot-out bitsets, `lampSync.ts`) and a client's lamp shot as a `shot` whose target is `lt-<light id>`; 30: taken by marlow-final (Menu Notes); 29: the lasers' jam point is their power panel (sector-fixes P): the `jam` claim and `sec.dv` name panel ids (`panel-*`), never laser ids (a 28 peer would jam a laser the other side does not know); 28: the `jam` claim carries the client's camera eye `e` (jammer-fixes: the host checks the jam's line of sight from it); 27: rejoin (marlow-bays R): `hello.tok`, `PlayerInfo.away`, the `you` message, the `restore` event; 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
-export const PROTOCOL_VERSION = 31;
+/** 36: partner pose parity (pose-parity): `PF.aimLeft` 64 (the left-shoulder aim, every mode; the ground MoveState `sub` bit 128 is no longer written) and the MoveState `takedown` `sub` bit 1 (`TAKEDOWN_SUB_BLOW`: the blow is running; a choke / the lethal approach poses no arc); 32-35 taken by open branches (guard-ai 32, marlow-final 33, section-rating 34, sector-redesign 35); 31: Sector Ops light state (sector-redesign slice L): the `lamps` message (host -> all: switched-off and shot-out bitsets, `lampSync.ts`) and a client's lamp shot as a `shot` whose target is `lt-<light id>`; 30: taken by marlow-final (Menu Notes); 29: the lasers' jam point is their power panel (sector-fixes P): the `jam` claim and `sec.dv` name panel ids (`panel-*`), never laser ids (a 28 peer would jam a laser the other side does not know); 28: the `jam` claim carries the client's camera eye `e` (jammer-fixes: the host checks the jam's line of sight from it); 27: rejoin (marlow-bays R): `hello.tok`, `PlayerInfo.away`, the `you` message, the `restore` event; 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
+export const PROTOCOL_VERSION = 36;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -55,8 +55,10 @@ export interface PlayerInfo {
 
 /** Bit flags in player state. */
 /** Player flags; `silent`: footsteps make no noise this moment (climbing, vaults);
- *  `spotted` (host -> client): guards in combat know this player is there (no takedowns on them). */
-export const PF = { crouch: 1, ads: 2, firing: 4, roll: 8, grounded: 16, dead: 32, /* 64 was the sprint (removed, protocol 14) */ quiet: 128, silent: 256, spotted: 512, driven: 1024 } as const;
+ *  `spotted` (host -> client): guards in combat know this player is there (no takedowns on them);
+ *  `aimLeft` (pose-parity, 36; the old sprint bit, removed in 14): the weapon on the left shoulder off the wall (the
+ *  shoulder swap), the owner's own rule (`gameState.ts` openLeft), so the partner's rig mirrors the hand in every mode. */
+export const PF = { crouch: 1, ads: 2, firing: 4, roll: 8, grounded: 16, dead: 32, aimLeft: 64, quiet: 128, silent: 256, spotted: 512, driven: 1024 } as const;
 
 export interface PlayerState {
   id: string;
