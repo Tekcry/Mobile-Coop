@@ -212,6 +212,56 @@ export function vitestVerdict(status, out) {
   return { ok: false, kind: status === -1 ? 'timeout' : 'fail', tail };
 }
 
+/** Output with ANSI colour / cursor escape codes removed. */
+export const stripAnsi = (text) => String(text ?? '').replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, '');
+
+const FAIL_LINE = /^\s*FAIL\s+(\S+?\.(?:test|spec)\.[cm]?[jt]sx?)(?:\s|$)/;
+
+/**
+ * The failed tests in a vitest run's output: [{ file, key, timedOut }], each distinct failure once.
+ * Reads the " FAIL  tests/foo.test.ts > suite > test" lines (ANSI codes stripped; vitest prints each in the progress
+ * and again in the summary; a line with no " > " is a file-level failure). timedOut: a block under that line (up to
+ * the next FAIL line) holds "Test timed out in".
+ */
+export function failedTests(out) {
+  const byKey = new Map();
+  let cur = null;
+  for (const line of stripAnsi(out).split(/\r?\n/)) {
+    const m = FAIL_LINE.exec(line);
+    if (m) {
+      const key = line.trim().replace(/\s+/g, ' ');
+      cur = byKey.get(key) ?? { file: m[1], key, timedOut: false };
+      byKey.set(key, cur);
+    } else if (cur && line.includes('Test timed out in')) cur.timedOut = true;
+  }
+  return [...byKey.values()];
+}
+
+/** The failed test files in a vitest run's output (first-seen order, each once). */
+export const failedTestFiles = (out) => [...new Set(failedTests(out).map((t) => t.file))];
+
+/** Failed files above this count (when not all timeouts) are not rerun. */
+export const RERUN_MAX_FILES = 3;
+
+/**
+ * Whether a failed full vitest run is rerun on its failed files only: { rerun, files, reason }.
+ * Rerun when files failed and either every failure is a timeout ("Test timed out in") or at most 3 files failed.
+ * Never after a pass or a killed run (status -1).
+ */
+export function vitestRerunPlan(status, out) {
+  if (status === 0) return { rerun: false, files: [], reason: 'passed' };
+  if (status === -1) return { rerun: false, files: [], reason: 'timed out or killed' };
+  const tests = failedTests(out);
+  const files = [...new Set(tests.map((t) => t.file))];
+  if (!files.length) return { rerun: false, files, reason: 'no failed test files in the output' };
+  if (tests.every((t) => t.timedOut)) return { rerun: true, files, reason: 'every failure is a timeout' };
+  if (files.length <= RERUN_MAX_FILES) return { rerun: true, files, reason: `${files.length} failed file(s)` };
+  return { rerun: false, files, reason: `${files.length} failed files, not all timeouts` };
+}
+
+/** The isolated rerun command for failed files (no file parallelism: one file at a time). */
+export const vitestRerunCmd = (files) => `npx vitest run --no-file-parallelism ${files.join(' ')}`;
+
 /** True when the heavy lock's text names merge-train (so merge-train may remove it). */
 export const lockIsOurs = (text) => /^merge-train\s*\|/.test(text.trim());
 
@@ -506,6 +556,7 @@ async function runVitest(n, head, prev) {
   if (DRY) {
     console.log('  [dry-run] would run npm ci when package-lock.json (version fields ignored) differs from the previous HEAD or node_modules is missing');
     console.log(`  [dry-run] would take ${lock} (wx, stale pid broken, retry 30 s up to 30 min), run npx vitest run (20 min timeout, tree killed), release it`);
+    console.log(`  [dry-run] when it fails: if every failure is a timeout or at most ${RERUN_MAX_FILES} test files failed, would rerun only those files once (${vitestRerunCmd(['<failed files>'])}, 20 min timeout); a pass there counts as ok`);
     return { ok: true, message: '' };
   }
   const root = run(['git', 'rev-parse', '--show-toplevel']);
@@ -521,8 +572,24 @@ async function runVitest(n, head, prev) {
     } else console.log(`  no heavy lock folder (${path.dirname(lock)}): running without it`);
     console.log('  > npx vitest run');
     const r = await execTree('npx vitest run', { timeout: 20 * 60_000 });
-    const v = vitestVerdict(r.status, `${r.out}\n${r.err}`);
+    const full = `${r.out}\n${r.err}`;
+    const v = vitestVerdict(r.status, full);
     if (v.ok) { console.log('vitest passed'); return { ok: true, message: '' }; }
+    const plan = vitestRerunPlan(r.status, full);
+    if (plan.rerun) {
+      console.error(`vitest failed (${plan.reason}); rerunning once in isolation: ${plan.files.join(' ')}`);
+      const cmd = vitestRerunCmd(plan.files);
+      console.log(`  > ${cmd}`);
+      const rr = await execTree(cmd, { timeout: 20 * 60_000 });
+      const rv = vitestVerdict(rr.status, `${rr.out}\n${rr.err}`);
+      if (rv.ok) {
+        console.log(`vitest passed on isolated rerun: ${plan.files.join(' ')}`);
+        return { ok: true, message: `passed on isolated rerun: ${plan.files.join(' ')}` };
+      }
+      console.error(`isolated rerun ${rv.kind === 'timeout' ? 'TIMED OUT or was killed' : 'failed'}; last lines:\n${rv.tail}`);
+      return { ok: false, message: `vitest FAILED on ${head.slice(0, 8)} (isolated rerun of ${plan.files.join(' ')} also failed): fix on train/${n} then release --resume, or drop the member and rebuild` };
+    }
+    if (plan.files.length) console.error(`no isolated rerun: ${plan.reason}`);
     console.error(`vitest ${v.kind === 'timeout' ? 'TIMED OUT or was killed' : 'failed'}; last lines:\n${v.tail}`);
     return { ok: false, message: `vitest FAILED on ${head.slice(0, 8)}: fix on train/${n} then release --resume, or drop the member and rebuild` };
   } catch (e) {

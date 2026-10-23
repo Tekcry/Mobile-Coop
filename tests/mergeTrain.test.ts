@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   bumpProtocol, classifyConflicts, closeComment, cmpVersion, findTrainVersionCommit, headPinCheck, heldByParent, mergeCmd, trainLockPath, versionRace,
+  failedTestFiles, vitestRerunPlan, vitestRerunCmd,
   findVersionCommit, keepStopMessage, killTreeCmd, lockfilesDiffer,
   lockIsOurs, wireCandidates, membersFromLog, parseArgs, protocolValue, releaseHeavyLock,
   resolveKeepBoth, resumeCheck, tailLines, takeHeavyLock, touchesWire, trainPrBody, trainPrTitle, versionSubject, vitestVerdict, wirePaths,
@@ -195,6 +196,38 @@ describe('merge-train vitest verdict and heavy lock', () => {
     expect(v.tail.split('\n')).toHaveLength(60);
     expect(v.tail.split('\n')[59]).toBe('line 99');
     expect(tailLines('a\nb\n', 5)).toBe('a\nb');
+  });
+
+  it('failedTestFiles: reads FAIL lines through ANSI codes, each file once', () => {
+    const out = [
+      '\u001b[31m FAIL \u001b[39m tests/cameraReach.test.ts > reach > far',
+      '\u001b[31mError: Test timed out in 120000ms.\u001b[39m',
+      ' \u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m  tests/cameraReach.test.ts > reach > near',
+      'Error: Test timed out in 120000ms.',
+      ' FAIL  tests/mocapShortStart.test.ts > start',
+      'Error: Test timed out in 120000ms.',
+      ' FAIL  tests/cameraReach.test.ts > reach > far',
+      'Error: Test timed out in 120000ms.',
+      ' \u001b[2m✓ tests/ok.test.ts (3 tests)\u001b[22m',
+    ].join('\n');
+    expect(failedTestFiles(out)).toEqual(['tests/cameraReach.test.ts', 'tests/mocapShortStart.test.ts']);
+    expect(failedTestFiles('all good')).toEqual([]);
+  });
+
+  it('vitestRerunPlan: timeouts only, at most 3 files, more than 3 non-timeout files = no rerun', () => {
+    const timeout = (f: string) => ` FAIL  ${f} > t\nError: Test timed out in 120000ms.\n`;
+    const assertion = (f: string) => ` FAIL  ${f} > t\nAssertionError: expected 1 to be 2\n`;
+    const many = (fn: (f: string) => string, n: number) => Array.from({ length: n }, (_, i) => fn(`tests/f${i}.test.ts`)).join('\n');
+    const t5 = vitestRerunPlan(1, many(timeout, 5));
+    expect([t5.rerun, t5.files.length, t5.reason]).toEqual([true, 5, 'every failure is a timeout']);
+    expect(vitestRerunPlan(1, many(assertion, 3))).toMatchObject({ rerun: true, files: ['tests/f0.test.ts', 'tests/f1.test.ts', 'tests/f2.test.ts'] });
+    expect(vitestRerunPlan(1, many(assertion, 4)).rerun).toBe(false);
+    // 4 files, one a real assertion failure: not all timeouts, over 3 files
+    expect(vitestRerunPlan(1, `${many(timeout, 3)}\n${assertion('tests/real.test.ts')}`).rerun).toBe(false);
+    expect(vitestRerunPlan(0, many(timeout, 1)).rerun).toBe(false);
+    expect(vitestRerunPlan(-1, many(timeout, 1)).rerun).toBe(false);
+    expect(vitestRerunPlan(1, 'boom, no FAIL lines').rerun).toBe(false);
+    expect(vitestRerunCmd(['a.test.ts', 'b.test.ts'])).toBe('npx vitest run --no-file-parallelism a.test.ts b.test.ts');
   });
 
   it('lockIsOurs: only a lock naming merge-train', () => {

@@ -269,7 +269,14 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   `light` incident at the switch; the same cut noticed again later (`cutSeq` / `faultCut`) keeps what it was first
   taken for. A cut nobody saw opens nothing. A course mains gate's circuit is never a fault (`StealthSystems.mainsGroups`,
   A63): the S2 incident, nobody relights it. Shot lamps keep the S2 check and stay dark (`setGroup`
-  skips destroyed lamps). Late discovery (`EnemyManager.lateStep`, every 0.1 s over a round-robin share of the guards,
+  skips destroyed lamps). (guard-ai LR16-4, relight) The Sector Ops boards ride the same walk: a breaker board (no
+  `window`) cut calls `lightsOut` on its first circuit with a live lamp (`IsolatorBoards.liveGroup`) at the board, and
+  the `BreakerHost` (`StealthSystems.breakerHost`) answers for boards too: `switchOf` the nearest cut board holding the
+  circuit (`cutBoard`; else the nearest wall switch), `isOff` true while it is cut and dark, `reset` the board's
+  `switchBack` (every circuit of it, its wall switches follow) before a wall switch's toggle. A timed isolator's running
+  window is the player's (`holding`): `isOff` / `reset` are false for its circuits, even through a wall switch, and
+  `switchBack` refuses, so its cut stays the S2 look at the board (the lure) and the timer relights it; a walk already
+  going on that circuit ends (S15's isolator rule). Late discovery (`EnemyManager.lateStep`, every 0.1 s over a round-robin share of the guards,
   ~3 Hz each): `DarkList` holds the dark fixtures (shot, or cut at a switch that is off) no guard has reacted to
   (rebuilt only on a registry `version` change or a mark); a calm free guard with one in his focused cone within
   `LATE.range` 12 m and a clear ray reports it as its witness (shot: the S2 light check, one; cut: the breaker walk at
