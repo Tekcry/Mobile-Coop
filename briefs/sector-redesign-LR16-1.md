@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-23T08:26Z
+status: open
 
 Lead note (Sector Ops Build ~20:20): a fix round is landing on lr16int (torch SpotLight feather, char-shadow cone fit, lights.contribution). Build from c7a26ca7 as written; the lead merges. Do not edit src/world/lightRig.ts torch code, src/world/charShadows.ts or src/world/lights.ts. Desktop-free: unit tests only, vitest --maxWorkers=2.
 
@@ -133,3 +133,6 @@ same bytes", "only the touched box is re-quantised", "sync is free when the vers
 
 ## Model
 Opus. Estimate ~1.5 windows; ~500-700 lines incl. tests.
+
+
+Reopened 2026-10-23 ~20:05 (orchestrator): Cloud Builder 1 stopped at the account swap with this claimed. Resume from the head of its feature branch on origin if it is ahead of the brief base (WIP), else start from the base.
