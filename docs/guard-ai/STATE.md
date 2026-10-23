@@ -14,7 +14,15 @@
   validator rejects bad gear and `enforcer`, SectorDef gear / sweep. Heads-up: warehouseSectors.ts has 3 enforcers in
   section lists (S13 swaps them when it wires the validator over sections). One Opus checker for S11 + S12 later.
   NEXT: S12 (Opus) in a new worktree off the stack tip (s10 after s10 <- s6), merging s11 first.
-- Stack merge agent still RUNNING (s8 <- s7 12911d86 + patrolRoute, s5b, s6).
+- Stack merge DONE (~12:10; each slice report has a "Stack merge" section): s8 caa59027 (S7 tip + master 4.70.0 +
+  `Enemy.patrolRoute` at enemy.ts:546), s5b 29020c5a (S5b `role` -> `job`), s6 74095d47 (must-dos 2-4; e2e edits:
+  e2e-sectorops:261 `alarmBy === 'panel'`, e2e-stealth-ai:851 'alarm' part 1 panel first). tsc / eslint / ~826 unit
+  tests green. Laptop GPU run REQUESTED on s6 74095d47 (stealth-ai, sectorops all, ct-warehouse, levels, enemies, wall,
+  takedown). Risk: panel scenario fails if the guard needs > ~6.5 s to the panel (radio wins).
+- NEXT (waiting for desktop CPU < 75%, it sat at 100%): s10 <- s6 (Opus merge agent; S10 check fix ac4cf9a0), and
+  S12 (Opus) in C:/NightShift/Mobile-Coop-guard-ai-s12 (branch feature/guard-ai-s12 = s6 74095d47, pushed): merge
+  s11 first, then items 2 + 13; S12 merges s10 before its PR. PRs: S8 (base s7 #196), S5b (base s8), S6 (base s5b),
+  S10 (base s6) once the laptop run is green; then S11 + S12 with one Opus checker.
 
 TRAIN-READY sent (~11:20): laptop GPU on s7 4052c434 GREEN (e2e-stealth-ai x2, e2e-sectorops all). s7 then merged
 s5 (master 4.70.0, clean) = 12911d86 (tsc, 200 AI / security unit tests); #193 / #195 / #196 told to the orchestrator
