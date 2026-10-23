@@ -1,0 +1,18 @@
+{
+  "id": "20261023T104259-night-shift-sector-o-bb47a985-c170",
+  "sha": "bb47a9851b72c084431243f5cf49d1f85aa11749",
+  "branch": "feature/sector-redesign-lr16-5",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-lightbake",
+    "e2e-darkness",
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-ctcourse",
+    "e2e-sectorops:6",
+    "e2e-stealth-ai"
+  ],
+  "note": "LR16-5 flicker + stutter (src/net simTime); compare vs lr16int 6eb6a863 known reds"
+}
