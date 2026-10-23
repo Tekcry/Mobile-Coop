@@ -284,7 +284,8 @@ Heads: art 2276483a (#226), lampx eb45b0af (LR15 + lighting polish + atlas fix),
    S5 16.9 / S3 13.3; artpol 1d34c348 start 13.4 / S4 12.1 / S5 13.1 / S3 10.6 (freeze saves 4-6 ms at S5 / S3; start
    view = art draws, 401). guard-cap alert cpu 18.1. Results: scratch/work/artpol-1d34c348/guard-cap; 1d34c348 e2e-coop PASS.
    RUNNING (Opus, both off -artpol): -perfg = campus-perf-fix.md proposals 1-3 (frozen anim tier, merged guard gun,
-   dog rig skip; enemy.ts / enemyRig.ts / animTier.ts - other branches edit them too, keep minimal; perfg-build.md);
+   dog rig skip; perfg-build.md); perfa DONE 3f87166e (S1 start art in view 160 -> 85; indoor cull 60 m).
+   RUNNING: Opus checker perf-batch-check.md, on PASS merges perfg + perfa into -artpol and pushes.
    -perfa = campusArt static merge / caster trim (perfa-build.md). perfg DONE 057403f5 (animFrozen.ts new: master animTier.ts
    is not on -artpol - fold into it at the master merge; merged gun enemyGunMerge.ts, ?guardmerge=0 A/B; dogs already skipped). Then: one Opus checker, merge both into -artpol,
    laptop perf rerun same 4 views + guard-cap; in budget -> #226 = -artpol head (push -art to it), train-ready.
