@@ -166,6 +166,10 @@ export interface BayDef {
   elements: ElementFlag[];
   /** (gap list row 6b) Role claims (first wins); none: the swap rule gives A (the lead) and B. */
   roles?: RoleClaim[];
+  /** (section-rating S6, A5) A set with guards: rated on the four stealth marks at its exit (drill bays stay unrated, D31). */
+  rated?: boolean;
+  /** (section-rating S6) The name the rating card and the results line show (default the bay id). */
+  title?: string;
 }
 
 /**

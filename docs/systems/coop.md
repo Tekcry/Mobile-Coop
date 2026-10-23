@@ -166,7 +166,9 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   `sprint` verb goes with the sprint in the CT prototype (M20).
 - The client mirrors the course (HUD, markers, toasts, results) and LANTERN's radio from `rl` / `rln`. The host sends a
   final `course` before `end`. (protocol 37) The per-player bay stats gain `synced` (whole 0-1e4, missing 0; synced
-  takedowns, section-rating). `start` carries `bay` ("Start at bay N", D20); both players start in that bay's entry
+  takedowns, section-rating) and the message gains `rt`, the last rated Marlow set (S6: the sector `rt` shape, `sec` its
+  bay index; the finish's rating has its grant zeroed). The client mirror takes each new bay once: the results line, its
+  own gadget top-up and the card (not for the last set); the first message after a join or rejoin only records it. `start` carries `bay` ("Start at bay N", D20); both players start in that bay's entry
   airlock (`courseStartPos`).
 - Friendly fire in the course (D38, G49 pending the research): `playersHostile(friendlyFire, a, b)` (pure, `validate.ts`)
   makes partners hostile in course mode; host `Hitboxes` + `RemotePlayer.shootable`, client `PartnerTarget`, `blast`

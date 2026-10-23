@@ -245,5 +245,59 @@ console.log('section rating: co-op (a synced pair, the client top-up, the host s
   }
 }
 
+// ---------------------------------------------------------------- Marlow Yard (S6)
+// Solo `?autostart=ctcourse&mode=course`: A1 (a passive checker) is unrated, A2-A8 are rated. The test jumps to A2
+// (`startAt`), seals its exit airlock through the state (what both players on the pad do) -> the card with 4 ticks and
+// the gadget grant on the emptied kit; in A3 a kill then a restart -> the set starts again and is rated clean.
+console.log('section rating: Marlow Yard solo (a rated set, a restart)');
+{
+  const { browser, page, errors } = await launch({ url, params: 'autostart=ctcourse&mode=course' });
+  const G = (f, a) => page.evaluate(f, a);
+  const sim = async (s) => { for (let t = 0; t < s; t += 0.5) await G((d) => window.__app.loop.stepHeadless(d), Math.min(0.5, s - t)); await frames(page, 1); };
+  // the exit airlock of the current set seals (the cycle done), and the mode acts on the events at once
+  const seal = () => G(() => { const m = window.__course; const st = m.state; st.seal(st.airById.get(st.currentBay.exit)); m.handle(); return st.bay; });
+  try {
+    await poll(() => G(() => !!window.__course?.state && !!window.__app?.current), 60000, 'the Marlow course mode');
+    await G(() => { const g = window.__app.current; g.target.damageMul = 0; g.enemyMgr.update = () => {}; if (g.security) g.security.fixedUpdate = () => {}; });
+    await sim(0.5);
+    const rated = await G(() => window.__course.state.def.bays.map((b) => !!b.rated));
+    assert(rated.join() === 'false,true,true,true,true,true,true,true', `A1 unrated, A2-A8 rated (${rated.join()})`);
+    assert(await G(() => !!window.__sectionRating && window.__sectionRating.last === null), 'the course rating hook exists, nothing rated yet');
+    await G(() => { const m = window.__course; m.state.startAt(2); m.handle(); });
+    await emptyGadgets(page);
+    await sim(0.5);
+    assert((await seal()) === 2, 'A2 sealed: A3 is the set now');
+    await poll(async () => (await cardState(page))?.shown, 8000, 'the rating card after A2');
+    const c = await cardState(page);
+    assert(c.ok === 4 && c.miss === 0, `a clean A2: four ticks (${JSON.stringify(c.rows)})`);
+    assert(/charge/.test(c.grant) && !c.grantHidden, `the card names the gadget charges ("${c.grant}")`);
+    const r1 = await G(() => ({ last: window.__sectionRating.last, given: window.__sectionRating.lastGrant, title: document.querySelector('.rating-card .rc-title')?.textContent ?? '' }));
+    assert(r1.last && r1.last.sectionId === 'A2' && r1.last.marks === 15, `A2 rated 15 (${JSON.stringify(r1.last)})`);
+    assert(/Carriage Shed/.test(r1.title), `the card names the set ("${r1.title}")`);
+    const gs = await gadgetSum(page);
+    assert(gs > 0 && gs === r1.given.gadget, `the grant topped the kit up at once (${gs}, given ${JSON.stringify(r1.given)})`);
+    // A3: a kill counts, then a restart starts the set's rating again (never re-rates A2)
+    await G(() => window.__course.state.record('kills', 1));
+    await sim(0.2);
+    assert((await G(() => window.__sectionRating.stats.kills)) === 1, 'the kill is in A3\'s live stats');
+    await G(() => window.__course.restartCheckpoint());
+    await sim(1);
+    assert((await G(() => window.__course.restarts)) === 1, 'A3 restarted');
+    assert((await G(() => window.__sectionRating.stats.kills)) === 0, 'the restart reset A3\'s rating stats');
+    assert((await seal()) === 3, 'A3 sealed');
+    const r2 = await G(() => window.__sectionRating.last);
+    assert(r2 && r2.sectionId === 'A3' && r2.marks === 15, `A3 rated clean after the restart (${JSON.stringify(r2)})`);
+    const rt = await G(() => window.__course.wire().rt);
+    assert(rt && rt.sec === 2 && rt.marks === 15, `the course wire carries the last rating (${JSON.stringify(rt)})`);
+  } catch (e) {
+    failed = true;
+    console.error(String(e));
+    await page.screenshot({ path: process.env.SHOT ?? '/tmp/e2e-section-rating-marlow-fail.png' }).catch(() => {});
+  } finally {
+    all.push(...errors);
+    await browser.close();
+  }
+}
+
 console.log(all.length ? 'console problems:\n' + all.join('\n') : 'no console errors');
 process.exit(failed || all.length ? 1 : 0);

@@ -5,6 +5,7 @@
  */
 import type { PackedCourse } from './courseState';
 import type { SecWire } from '../ctDevices';
+import type { SectorRatingWire } from '../sectors';
 
 /** (marlow-final S10, M2) The host's set-restart banner: the co-op client runs its own `checkpointReset` on it (an
  *  existing `banner` event: no wire change). */
@@ -25,6 +26,9 @@ export interface CourseWire {
   rln?: number;
   /** (CT prototype B3) The cameras' clock, who jams what, the charges and the alarm stage. */
   sec?: SecWire;
+  /** (section-rating S6, protocol 37) The last rated set: `sec` its bay index (-1 none yet), the marks, synced and the
+   *  grant the client's own kit takes (zero for the course's last set, rated at the finish). */
+  rt?: SectorRatingWire;
 }
 
 /**

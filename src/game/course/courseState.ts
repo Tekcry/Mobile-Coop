@@ -64,6 +64,8 @@ export interface BayStats {
   teamMoves: number;
   /** Bodies the guards found. */
   bodies: number;
+  /** (section-rating S6) Synced takedowns: two knock-outs by the two players within SYNC_WINDOW (team stat). */
+  synced: number;
 }
 export type StatKind = Exclude<keyof BayStats, 'time'>;
 
@@ -164,7 +166,7 @@ interface AirRt {
 const NO_STEPS: readonly CourseObjective[] = [];
 const NO_STEP_RT: StepRt[] = [];
 
-export const newStats = (): BayStats => ({ time: 0, detections: 0, alarms: 0, knockouts: 0, kills: 0, revives: 0, teamMoves: 0, bodies: 0 });
+export const newStats = (): BayStats => ({ time: 0, detections: 0, alarms: 0, knockouts: 0, kills: 0, revives: 0, teamMoves: 0, bodies: 0, synced: 0 });
 
 export class CourseState {
   /** Current bay index (0-based). */
@@ -816,6 +818,7 @@ export class CourseState {
       t.revives += s.revives;
       t.teamMoves += s.teamMoves;
       t.bodies += s.bodies;
+      t.synced += s.synced;
     }
     return t;
   }

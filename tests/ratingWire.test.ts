@@ -92,6 +92,18 @@ describe('rating wire (protocol 37)', () => {
     expect((m.s.pstats ?? []).map(synced)).toEqual([1, 0]);
   });
 
+  it('(S6) the course message carries the last rated Marlow set as rt, clamped; a bad one is dropped, the rest kept', () => {
+    const base = { t: 'course', s: { stats: [] }, lights: {} };
+    const ok = parseMessage({ ...base, rt: { ...RT, sec: 3, marks: 99, gadget: 1e6 } });
+    if (!ok || ok.t !== 'course') throw new Error('course');
+    expect(ok.rt).toEqual({ ...RT, sec: 3, marks: 15, gadget: RT_COUNT });
+    const bad = parseMessage({ ...base, rt: { marks: 15 } });
+    if (!bad || bad.t !== 'course') throw new Error('course');
+    expect(bad.rt).toBeUndefined();
+    const none = parseMessage(base);
+    expect(none && none.t === 'course' && 'rt' in none).toBe(false);
+  });
+
   it('the client view: section id and title from the map, null before a rating or for an index the map lacks', () => {
     const defs = [
       { id: 'dock', name: 'Dock' },
