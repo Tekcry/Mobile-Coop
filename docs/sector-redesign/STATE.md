@@ -299,8 +299,10 @@ LATEST 16:25 Test Runner verdict: #226 perf CPU OVER at 24 guards (S5 15.6 / S3 
    laptop GPU request sent (falloff on / off suites, perf, shots). LR15 PR opens after #232 lands (stacked on it).
 17:25: sectorops:1 = same live-loop test timing bug; fixed test-only on -art 08af0e9f (checks/s1-shot-fix.md);
    laptop rerun of :1 asked. LR15 run commit e60730c4 (+ charshadow, perf.mjs MODE env) queued after train 28.
-4. Polish batch 2 (-polish2 off -art, Opus, 16:45): walk-472-check 1-4 + art-check P3 / P4 / P7 (checks/polish2-build.md);
-   rides #226 after a checker. Still open: lr-check 1-6, lr14-check 1-7 (after LR15), art P1 / P2 / P5 / P6.
+4. Polish batch 2 -polish2 cca3ccb7: checker PASS (polish2-check.md; touches src/net lamp checks, no wire change).
+   Merge into -art together with the -perf fix, then one laptop batch at the new -art head: e2e-coop, e2e-sectorops 1-6,
+   e2e-stealth-ai, e2e-stealth + perf rerun (MAP=campusOps MODE=sector). Still open: lr-check 1-6, lr14-check 1-7,
+   art P1 / P2 / P5 / P6, polish2-check polish 1-3.
 Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
 Sonnet builds from strict briefs; one checker per batch; tsc / vitest slot locks C:/NightShift/scratch/sr-slot-{1,2,3}.lock
 while desktop CPU > 80%; every e2e E2E_GPU=1; never two agents on the same files.
