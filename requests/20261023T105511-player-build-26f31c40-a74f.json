@@ -1,0 +1,14 @@
+{
+  "id": "20261023T105511-player-build-26f31c40-a74f",
+  "sha": "26f31c4014c95e60aaa37f220b732f2fb65a47fa",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Player Build",
+  "steps": [
+    "node scripts/operators/guard-bake.mjs --stage heads --kit scripts/operators/data/guards.json --push && node scripts/operators/guardHeadCheck.mjs --out C:/NightShift/scratch/guard-bake --kit scripts/operators/data/guards.json"
+  ],
+  "env": {},
+  "set": "guard-bake-heads",
+  "note": "guard-models G1h heads bake (11 jobs incl. haircaps-average / -lean) + head check"
+}
