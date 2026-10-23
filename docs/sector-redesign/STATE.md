@@ -297,6 +297,8 @@ LATEST 16:25 Test Runner verdict: #226 perf CPU OVER at 24 guards (S5 15.6 / S3 
 17:05: #226 eb6d63c4 laptop 5/6: sectorops:1 FAIL "a loud shot ... alerts the nearest guard" (nearest stays suspicious)
    -> Opus fixer on -art (checks/s1-shot-fix.md). LR15 checker PASS (lr15-check.md), lampx 13ec8df4 (fragment + lighting.md);
    laptop GPU request sent (falloff on / off suites, perf, shots). LR15 PR opens after #232 lands (stacked on it).
+17:25: sectorops:1 = same live-loop test timing bug; fixed test-only on -art 08af0e9f (checks/s1-shot-fix.md);
+   laptop rerun of :1 asked. LR15 run commit e60730c4 (+ charshadow, perf.mjs MODE env) queued after train 28.
 4. Polish batch 2 (-polish2 off -art, Opus, 16:45): walk-472-check 1-4 + art-check P3 / P4 / P7 (checks/polish2-build.md);
    rides #226 after a checker. Still open: lr-check 1-6, lr14-check 1-7 (after LR15), art P1 / P2 / P5 / P6.
 Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
