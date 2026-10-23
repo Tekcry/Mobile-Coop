@@ -13,14 +13,20 @@
 // prints under --dry-run. Contract and states: docs/systems/auto-train.md.
 // Usage: node scripts/auto-train.mjs tick [--dry-run] [--worktree <dir>] [--min-interval <min>] [--max-per-day <n>]
 // --preview-next (with --dry-run only): ignore an open train and show the build the next tick without one would make.
+// Release is `merge-train release ... --head <the tested head> --no-fallback` (pinned; never the old-style path); a
+// train without a version commit is state "error" ("rebuild"). merge-train build exit 4 (vitest not run) is pending.
+// A failed rebuild after release exit 3 is recorded (`rebuildFailed`) and skipped until the train head or master moves.
 // Files: lock C:/NightShift/scratch/auto-train.lock (wx, stale when untouched 30 min; a heartbeat keeps a long build's
-// lock fresh), log C:/NightShift/scratch/runs/auto-train.log, status C:/NightShift/scratch/auto-train-status.json
-// (one line: state, train, version, head, reason, time, ...). AUTO_TRAIN_SCRATCH env moves all three.
+// lock fresh; merge-train takes the same lock for a hand run), log C:/NightShift/scratch/runs/auto-train.log, status
+// C:/NightShift/scratch/auto-train-status.json (one line: state, train, version, head, reason, time, ...); --dry-run
+// uses auto-train.dryrun.lock, runs/auto-train.dryrun.log and auto-train-status.dryrun.json. AUTO_TRAIN_SCRATCH env
+// moves them all.
 // Exit: 0 tick done (the outcome is the status state; also when another tick holds the lock), 1 usage or error.
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { takeTouchLock } from './heavy-lock.mjs';
 
 export const LABEL = 'train-ready';
 export const LAPTOP_CONTEXT = 'laptop-e2e';
@@ -199,6 +205,8 @@ export function decide({ train, candidates = [], paceReason = null }) {
   if (train) {
     const t = `train ${train.n}`;
     if (!train.version) return { state: 'error', action: 'none', reason: `${t}: no version in its version commit, title or CHANGELOG` };
+    // A train whose build died before the version commit must never release (the old-style path merges untested work).
+    if (!train.versionCommit) return { state: 'error', action: 'none', reason: `train ${train.n} has no version commit: rebuild` };
     if (train.vitest === 'failure') return { state: 'failed', action: 'none', reason: `${t}: vitest failed at build on ${short(train.head)}` };
     if (train.ci === 'failure') return { state: 'failed', action: 'none', reason: `${t}: CI check failed on ${short(train.head)}` };
     if (train.laptop.state === 'failure') {
@@ -223,6 +231,29 @@ export function planBuild(masterVersion, members) {
   return { version: bumpVersion(masterVersion, kind), kind, title: joinTitles(titles) || 'docs', branches: members.filter((m) => m.build !== false).map((m) => m.branch) };
 }
 
+/**
+ * The exit-3 loop guard: true when the last status recorded a failed rebuild for this train head and master has not
+ * moved since (release would exit 3 and the rebuild fail again).
+ */
+export function rebuildSkip(prev, head, master) {
+  const r = prev?.rebuildFailed;
+  return !!r && !!head && !!master && r.head === head && r.master === master;
+}
+
+/** The release argv for an open train: pinned to its tested head, never the old-style fallback. */
+export const releaseArgs = (t) => ['release', String(t.n), t.version, t.title, '--head', t.head, '--no-fallback', ...(t.resume ? ['--resume'] : [])];
+
+/** Status, log and lock file paths in `scratch`; a dry run gets its own (*.dryrun.*), so it never touches the real ones. */
+export function scratchFiles(scratch, dry) {
+  const x = dry ? '.dryrun' : '';
+  return {
+    lock: path.join(scratch, `auto-train${x}.lock`),
+    log: path.join(scratch, 'runs', `auto-train${x}.log`),
+    status: path.join(scratch, `auto-train-status${x}.json`),
+    realStatus: path.join(scratch, 'auto-train-status.json'),
+  };
+}
+
 /** True when every path is documentation (Markdown anywhere or under docs/). */
 export const docsOnly = (files) => files.length > 0 && files.every((f) => /\.md$/i.test(f) || f.startsWith('docs/'));
 
@@ -233,11 +264,13 @@ const short = (sha) => String(sha ?? '').slice(0, 8);
 const ARGV = process.argv.slice(2);
 const DRY = ARGV.includes('--dry-run');
 const SCRATCH = process.env.AUTO_TRAIN_SCRATCH || 'C:/NightShift/scratch';
-const LOCK = path.join(SCRATCH, 'auto-train.lock');
-const LOG = path.join(SCRATCH, 'runs', 'auto-train.log');
-const STATUS = path.join(SCRATCH, 'auto-train-status.json');
+const FILES = scratchFiles(SCRATCH, DRY);
+const LOCK = FILES.lock;
+const LOG = FILES.log;
+const STATUS = FILES.status;
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 let CWD = 'C:/NightShift/Mobile-Coop-train';
+let LOCK_TEXT = null; // our tick lock's text, handed to merge-train (AUTO_TRAIN_LOCK_TEXT) so it runs under it
 
 function log(msg) {
   const line = `${new Date().toISOString()} ${DRY ? '[dry] ' : ''}${msg}`;
@@ -276,7 +309,8 @@ function mergeTrain(args) {
   if (DRY) { log(`  [dry-run] would run (cwd ${CWD}): ${show(cmd)}`); return Promise.resolve({ code: 0, out: '', dry: true }); }
   log(`  > (cwd ${CWD}) ${show(cmd)}`);
   return new Promise((resolve) => {
-    const p = spawn(cmd[0], cmd.slice(1), { cwd: CWD, windowsHide: true });
+    const env = { ...process.env, AUTO_TRAIN_LOCK: LOCK, AUTO_TRAIN_LOCK_TEXT: LOCK_TEXT ?? '' };
+    const p = spawn(cmd[0], cmd.slice(1), { cwd: CWD, windowsHide: true, env });
     let out = '';
     const take = (d) => { const s = d.toString(); out += s; process.stdout.write(s); try { fs.appendFileSync(LOG, s); } catch { /* best effort */ } };
     p.stdout.on('data', take); p.stderr.on('data', take);
@@ -361,6 +395,7 @@ function openTrain() {
   const since = Math.max(Date.parse(p.createdAt) || 0, headTime);
   return {
     pr: p.number, n, head: p.headRefOid, version, title: title || `train ${n}`,
+    versionCommit: !!vc,
     resume: !!vc && vc.index < subjects.length - 1,
     members: membersFromSubjects(subjects, n),
     ci: ciState(p.statusCheckRollup, 'check'),
@@ -465,6 +500,10 @@ async function build(n, cands, { rebuildOf } = {}) {
     return { ...base, head, state: 'failed', reason: `train ${n}: vitest failed at build (merge-train exit 2)`, leftOut };
   }
   if (r.code === 3) return { ...base, head, state: 'failed', reason: `train ${n}: every member left out on conflicts (merge-train exit 3)`, leftOut };
+  if (r.code === 4) {
+    // vitest not run (heavy lock busy): the train is pushed and CI's check runs the unit tests; the next tick goes on.
+    return { ...base, head, state: 'pending', reason: `train ${n} built; vitest not run at build (heavy lock busy, merge-train exit 4): retry next tick`, leftOut };
+  }
   return { ...base, head, state: 'error', reason: `merge-train build exit ${r.code}: ${r.out.trim().split('\n').slice(-3).join(' | ')}`, leftOut };
 }
 
@@ -487,7 +526,13 @@ async function step(o) {
   log(`train ${t.n} #${t.pr} ${short(t.head)} ${t.version ?? '?'}: CI ${t.ci}, laptop ${t.laptop.state}${t.laptop.description ? ` (${t.laptop.description})` : ''}, age ${Math.round(t.ageMin)} min -> ${d.state}: ${d.reason}`);
   const base = { train: t.n, version: t.version, head: t.head, pr: t.pr };
   if (d.action !== 'release') return { ...base, state: d.state, reason: d.reason };
-  const r = await mergeTrain(['release', String(t.n), t.version, t.title, ...(t.resume ? ['--resume'] : [])]);
+  const master = exec(['git', 'ls-remote', 'origin', 'refs/heads/master']).out.split('\t')[0].trim() || null;
+  const prev = readStatus(FILES.realStatus);
+  if (rebuildSkip(prev, t.head, master)) {
+    log(`skip: ${prev.reason} (train head and master unchanged)`);
+    return { ...base, state: 'failed', reason: prev.reason, rebuildFailed: prev.rebuildFailed };
+  }
+  const r = await mergeTrain(releaseArgs(t));
   if (r.dry) return { ...base, state: 'releasing', reason: `${d.reason}; release would run (dry run)` };
   if (r.code === 0) {
     log(`RELEASED train ${t.n} as ${t.version}`);
@@ -498,31 +543,34 @@ async function step(o) {
     log(`master moved since train ${t.n} was built: rebuilding ${t.members.join(', ')} with the next version`);
     const prs = readJson(['gh', 'pr', 'list', '--state', 'open', '--base', 'master', '--limit', '100', '--json', 'number,headRefName,headRefOid,title']);
     const members = t.members.map((b) => { const p = prs.find((x) => x.headRefName === b); return { pr: p?.number ?? null, branch: b, head: p?.headRefOid, title: p?.title ?? null }; });
-    if (!members.length) return { ...base, state: 'error', reason: `train ${t.n}: master moved and no members found to rebuild` };
-    return build(t.n, members, { rebuildOf: t.version });
+    // A failed rebuild is recorded so the next ticks skip (no release -> exit 3 -> rebuild loop every 5 min) until the
+    // train head or master changes.
+    const failed = (s) => ({ ...s, state: s.state === 'error' ? 'error' : 'failed', reason: `rebuild failed for ${t.head}: ${s.reason}`, rebuildFailed: { head: t.head, master } });
+    if (!members.length) return failed({ ...base, state: 'failed', reason: `train ${t.n}: master moved and no members found to rebuild` });
+    const b = await build(t.n, members, { rebuildOf: t.version });
+    if (b.state === 'failed' || b.state === 'error') return failed({ pr: t.pr, ...b, head: b.head ?? t.head });
+    return b;
   }
   if (r.code === 2) return { ...base, state: 'failed', reason: `train ${t.n}: CI failed at release (merge-train exit 2)` };
+  if (/not the tested head/.test(r.out)) return { ...base, state: 'pending', reason: `train ${t.n}: its head moved after the check (release --head STOP): re-read next tick` };
   return { ...base, state: 'error', reason: `merge-train release exit ${r.code}: ${r.out.trim().split('\n').slice(-3).join(' | ')}` };
 }
 
-/** Takes the tick lock (wx); a lock untouched for 30 min is stale and replaced. Returns a release function or null. */
+/** The last status line (JSON) or null. */
+function readStatus(file) {
+  try { return JSON.parse(fs.readFileSync(file, 'utf8').trim().split('\n').pop()); } catch { return null; }
+}
+
+/**
+ * Takes the tick lock (scripts/heavy-lock.mjs takeTouchLock: wx, stale when untouched 30 min, heartbeat every minute);
+ * merge-train build / release / single take the same lock, so a hand run and a tick never overlap. A dry run uses its
+ * own lock file. Returns a release function or null (held: skip this tick).
+ */
 function takeLock() {
-  fs.mkdirSync(SCRATCH, { recursive: true });
-  const text = `auto-train | pid ${process.pid} | ${new Date().toISOString()}${DRY ? ' | dry-run' : ''}`;
-  for (let i = 0; i < 2; i++) {
-    try { fs.writeFileSync(LOCK, text, { flag: 'wx' }); break; } catch (e) {
-      if (e?.code !== 'EEXIST') throw e;
-      const age = (Date.now() - fs.statSync(LOCK).mtimeMs) / 60_000;
-      if (age < LOCK_STALE_MIN || i) { log(`lock held (${fs.readFileSync(LOCK, 'utf8').trim()}, ${Math.round(age)} min): skipping this tick`); return null; }
-      log(`stale lock (${Math.round(age)} min) removed`);
-      fs.rmSync(LOCK, { force: true });
-    }
-  }
-  const beat = setInterval(() => { try { const t = new Date(); fs.utimesSync(LOCK, t, t); } catch { /* gone */ } }, 60_000);
-  return () => {
-    clearInterval(beat);
-    try { if (fs.readFileSync(LOCK, 'utf8') === text) fs.rmSync(LOCK, { force: true }); } catch { /* gone */ }
-  };
+  const t = takeTouchLock(LOCK, `auto-train${DRY ? ' dry-run' : ''}`, { staleMin: LOCK_STALE_MIN, log });
+  if (!t.release) { log(`lock held (${t.holder}, ${Math.round(t.ageMin)} min): skipping this tick`); return null; }
+  LOCK_TEXT = t.text;
+  return t.release;
 }
 
 async function main(argv) {
