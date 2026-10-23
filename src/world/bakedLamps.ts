@@ -4,11 +4,11 @@ import { BOX_STRIDE, fillLampAtlas, fitLampAtlas, LAMP_CELL, LAMP_GRID, LAMP_STR
 import { LAMP_VOL_MAX, lampVolumeGrid, lampVolumeRegion, unionRegion, type LampVolumeGrid } from '../voxel/lampVolume';
 import type { LightRegistry } from './lights';
 import { bakedLights, type MoonGrid } from './lightBake';
-import { LAMP_CONE_COS, LAMP_EXP, LAMP_MATH_GLSL, LIGHT_GAIN, lampFalloffMode, lampMathGlsl, SPOT_EXP } from './lampMath';
+import { LAMP_CONE_COS, LAMP_EXP, LAMP_MATH_GLSL, LIGHT_GAIN, SPOT_EXP } from './lampMath';
 import { DARK_DESKTOP, DARK_GLSL, DARK_STANDARD, LEVEL_TO_RENDER, VISION_GAIN, visionAmount, visionDark, type DarkParams } from './darkCurve';
 import { AMBIENT_CELL, type AmbientGrid } from './ambientGrid';
-import { bakeVisSampler, DOOR_SHUT, DOORS_PER_LAMP, lampDoorLists, lampDoorSlots, type FieldDoor } from './lightField';
-import { shadowAccuracyOn, TORCH_DRAW_GLSL, TORCH_DRAW_SLOTS, TORCH_DRAW_STRIDE } from './shadowAccuracy';
+import { bakeVisSampler, DOOR_SHUT, DOORS_PER_LAMP, DOORS_PER_LAMP_ACCURATE, lampDoorLists, type FieldDoor } from './lightField';
+import { TORCH_DRAW_GLSL, TORCH_DRAW_SLOTS, TORCH_DRAW_STRIDE } from './shadowAccuracy';
 import { LEVEL_FILL_GLSL as LF, type Rgb } from './levelFill';
 import { CHAR_SHADOW_GLSL, type CharShadowLamps, type CharShadowLink } from './charShadows';
 
@@ -18,7 +18,7 @@ export { bakedLights };
  *  atlas tile + nx / nz, character capsule ids, door ids (3.6), (LR14) its character shadow slot + 1 (0: none). */
 const LAMP_TEXELS = 8;
 /** Per door two texels after the capsules: hinge + width, (sin yaw, cos yaw, height, shut). (LR15) With 8 door slots per
- *  lamp (`lampDoorSlots`, the shadow-accuracy fixes on) one texel per lamp sits between the capsules and the doors: the
+ *  lamp (`DOORS_PER_LAMP_ACCURATE`, the shadow-accuracy fixes) one texel per lamp sits between the capsules and the doors: the
  *  lamp's doors 5-8 (ids + 1), at `capBase + MAX_CAPSULES * 2 + lamp`. */
 const DOOR_TEXELS = 2;
 
@@ -169,11 +169,10 @@ export class BakedLamps implements CharShadowLamps {
     this.dark = { ...(this.standard ? DARK_STANDARD : DARK_DESKTOP) };
     this.doors = extra.doors ?? [];
     this.doorShut = new Uint8Array(this.doors.length).fill(2);
-    // (shadow audit) the light field's own list: with the fixes on, doorways the lamp cannot see take no slot
-    const accurate = shadowAccuracyOn();
-    this.doorSlots = lampDoorSlots(accurate);
-    this.lampDoors = lampDoorLists(baked.lights, this.doors, accurate ? bakeVisSampler(r) : undefined, this.doorSlots);
-    this.torchDraw = accurate && !volume && !this.standard ? new Float32Array(TORCH_DRAW_SLOTS * TORCH_DRAW_STRIDE) : null;
+    // (shadow audit) the light field's own list: doorways the lamp cannot see take no slot
+    this.doorSlots = DOORS_PER_LAMP_ACCURATE;
+    this.lampDoors = lampDoorLists(baked.lights, this.doors, bakeVisSampler(r), this.doorSlots);
+    this.torchDraw = !volume && !this.standard ? new Float32Array(TORCH_DRAW_SLOTS * TORCH_DRAW_STRIDE) : null;
     this.ids = new Set(baked.ids);
     this.boxes = r.boxes;
     this.lastColors = new Float32Array(baked.ids.length * 3).fill(-1);
@@ -454,7 +453,7 @@ bool nsDoorBlocks(vec3 a, vec3 b, vec4 d0, vec4 d1) {
 `;
 
 /** The volume mix (GLSL): per cell, the lamps in its 2 m column as the per-lamp loop lights them, without N.L.
- *  Exported for the guard test that it holds `LAMP_MATH_GLSL` (the photometric `.replace`). */
+ *  Exported for the guard test that it holds `LAMP_MATH_GLSL`. */
 export const MIX_GLSL = `
 precision highp float;
 precision highp sampler3D;
@@ -586,7 +585,7 @@ class LampVolume {
     this.a = wrap(this.rtA);
     this.b = wrap(this.rtB);
     this.renderer = new EffectRenderer(engine);
-    this.wrapper = new EffectWrapper({ engine, name: 'lampVolumeMix', fragmentShader: MIX_GLSL.replace(LAMP_MATH_GLSL, lampMathGlsl()), defines: mixDefines(lamps), uniformNames: ['lampInfo', 'lampGridO', 'lampAtlas', 'volO', 'slice', 'outB', 'volMax', 'lampMore'], samplerNames: ['lampVis', 'lampData'] });
+    this.wrapper = new EffectWrapper({ engine, name: 'lampVolumeMix', fragmentShader: MIX_GLSL, defines: mixDefines(lamps), uniformNames: ['lampInfo', 'lampGridO', 'lampAtlas', 'volO', 'slice', 'outB', 'volMax', 'lampMore'], samplerNames: ['lampVis', 'lampData'] });
   }
 
   /** Mix a region of cells (i0, j0, k0, i1, j1, k1) into both targets. */
@@ -671,7 +670,7 @@ class LampVolume {
 }
 
 /** The lamp loop (GLSL), shared by every material the plugin is on. Exported for the guard test that it holds
- *  `LAMP_MATH_GLSL` (the photometric `.replace`). */
+ *  `LAMP_MATH_GLSL`. */
 export const LAMP_GLSL = `${LAMP_MATH_GLSL}
 uniform highp sampler3D lampVis;
 uniform highp sampler2D lampData;
@@ -719,7 +718,7 @@ float lampCapsule(vec3 p, vec3 l, vec3 a, vec3 b, float r) {
 
 /**
  * Baked lamp light on a PBR material (3.2): for the lamps listed in the pixel's 2 m column, the lamp's diffuse light
- * (range falloff, cone, N.L - as Babylon's lights gave it) x its baked visibility at a point a cell off the surface
+ * (photometric falloff, cone, N.L: `LAMP_MATH_GLSL`) x its baked visibility at a point a cell off the surface
  * x the characters' capsule shadows; added to the material's diffuse.
  */
 /** The lamp volume mix's defines (LR15 door slots, lr-tex3d atlas pages). */
@@ -735,17 +734,13 @@ export class LampPlugin extends MaterialPluginBase {
     material: Material,
     private lamps: BakedLamps,
   ) {
-    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false, LAMP_LEVEL: false, LAMP_SKY: false, LAMP_PHOTO: false, LAMP_CSHADOW: false, LAMP_DOORS8: false, LAMP_TORCH: false, LAMP_PAGES: false });
+    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false, LAMP_LEVEL: false, LAMP_SKY: false, LAMP_CSHADOW: false, LAMP_DOORS8: false, LAMP_TORCH: false, LAMP_PAGES: false });
     // (coop-fix) a clone must not carry it: Babylon rebuilds a cloned plugin by class name (`Tools.Instantiate`), which
     // fails for this unregistered class and aborted every figure loaded after the attach (the joiner's partner); the
     // clone is a new material, so `BakedLamps.frame` gives it its own plugin
     this.doNotSerialize = true;
     this._enable(true);
   }
-
-  /** (lightrev LR13) The falloff mode when this plugin's code was collected (the base constructor reads
-   *  `getCustomCode`, so `lampMathGlsl()` of the same moment). */
-  private readonly photo = lampFalloffMode() === 'photometric';
 
   /** On a standard material (the editor's light view): the light goes into `diffuseBase`. (Read from the material, not a
    *  field: Babylon collects the injection points inside the base constructor, before a field could be set.) */
@@ -771,9 +766,6 @@ export class LampPlugin extends MaterialPluginBase {
     defines.LAMP_LEVEL = !!mesh && isLampLevel(this._material);
     // (fix round 2) the level's fill and image-based light by sky visibility, as the voxel walls
     defines.LAMP_SKY = !!mesh && isLampLevel(this._material) && !!this.lamps.level && !!this.lamps.skyTex;
-    // (lightrev LR13) the falloff the lamp loop was written with (`lampMathGlsl`): its own effect-cache key, so a match
-    // after one in the other mode never reuses the engine's compiled effect with the old formula
-    defines.LAMP_PHOTO = !!mesh && this.photo;
     // (LR14) the character shadow atlas: one texture more while it is on (the per-lamp loop only)
     defines.LAMP_CSHADOW = !!mesh && !this.lamps.volume && !!this.lamps.charShadows?.on;
     // (LR15) 8 door slots per lamp (the shadow-accuracy fixes): the second door texel
@@ -902,7 +894,7 @@ float nsR = nsDarkRatio(nsS, lampDark.x, lampDarkP);`;
     const code: { [pointName: string]: string } = {
       CUSTOM_FRAGMENT_DEFINITIONS: `
 #ifdef BAKED_LAMPS
-${LAMP_GLSL.replace(LAMP_MATH_GLSL, lampMathGlsl())}
+${LAMP_GLSL}
 ${CHAR_SHADOW_GLSL}
 ${DARK_GLSL}
 #ifdef LAMP_TORCH

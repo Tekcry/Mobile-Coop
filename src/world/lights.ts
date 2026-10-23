@@ -135,7 +135,7 @@ export class LightRegistry {
       x: init.x,
       y: init.y,
       z: init.z,
-      // (lightrev prototype) the fixed lamps' reach under the falloff mode (`lampReach`: the radius itself by default)
+      // (lightrev LR13) the fixed lamps' photometric reach (`lampReach`: radius x `PHOTO.reach`)
       radius: (init.kind ?? 'lamp') === 'flashlight' ? (init.radius ?? 8) : lampReach(init.radius ?? 8),
       intensity: init.intensity ?? 0.9,
       color: init.color ?? [1, 0.9, 0.75],

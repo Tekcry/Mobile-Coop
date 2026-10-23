@@ -4,7 +4,7 @@ import type { ShadowSpec } from '../core/quality';
 import { nearestLights, type FittingModel, type LightDef, type LightRegistry } from './lights';
 import { fittingMesh, type MeshArrays } from './fixtureModels';
 import { mountLinks } from './lampMount';
-import { gameLightFalloff, shadowAccuracyOn, TORCH_DRAW_SLOTS, torchShadowPass, writeTorchDraw } from './shadowAccuracy';
+import { gameLightFalloff, TORCH_DRAW_SLOTS, torchShadowPass, writeTorchDraw } from './shadowAccuracy';
 
 /** (warehouse-lamps) One fitting model's draws: the body (shared dark material) and the glowing face, and the lights they show. */
 interface FittingDraw {
@@ -108,19 +108,17 @@ export class LightRig {
   private shadowEvery = 1;
   /** 3.2: lights drawn by `BakedLamps` (every fixed one): the pools only take the rest (flashlights). */
   private baked: Set<number> | null = null;
-  /** (shadow audit, `shadowAccuracy.ts`; read once) figures and weapons take the field's falloff; cut beams shadowed first. */
-  private readonly accurate = shadowAccuracyOn();
   setBaked(ids: Set<number>): void {
     this.baked = ids;
     this.pickT = 0;
   }
-  /** (LR15, fixes on) The baked lamps' torch uniforms (`BakedLamps.torchDraw`): the flashlights that get no shadow map
+  /** (LR15) The baked lamps' torch uniforms (`BakedLamps.torchDraw`): the flashlights that get no shadow map
    *  are drawn there with the light field's formula x their beam's cut, not as the pool's Babylon lights. */
   private torchBuf: Float32Array | null = null;
   /** Registry ids in the drawn torch slots (-1: empty). */
   private readonly torchIds = new Int32Array(TORCH_DRAW_SLOTS).fill(-1);
   setTorchDraw(buf: Float32Array | null): void {
-    this.torchBuf = this.accurate ? buf : null;
+    this.torchBuf = buf;
     this.pickT = 0;
   }
   /** Flashlights drawn by the baked lamps now (tests / debug). */
@@ -296,12 +294,12 @@ export class LightRig {
     if (typeof lit.maxSimultaneousLights !== 'number' || lit.disableLighting) return;
     const want = this.materialLights;
     // (shadow audit) the flashlights light a figure or a weapon with the field's falloff, as they light the level
-    const physical = this.accurate && lit.usePhysicalLightFalloff === true;
+    const physical = lit.usePhysicalLightFalloff === true;
     if (lit.maxSimultaneousLights >= want && !physical) return;
     const frozen = m.isFrozen;
     if (frozen) m.unfreeze();
     if (lit.maxSimultaneousLights < want) lit.maxSimultaneousLights = want;
-    gameLightFalloff(lit, this.accurate);
+    gameLightFalloff(lit);
     if (frozen) m.freeze();
   }
 
@@ -409,13 +407,12 @@ export class LightRig {
     let sh = 0;
     const taken = this.dist; // (reused as a flag array: 1 = placed)
     for (let i = 0; i < use; i++) taken[i] = 0;
-    // (shadow audit, `torchShadowPass`: with the fixes on, the flashlights whose beam a wall cuts come first)
-    const passes = this.accurate ? 3 : 2;
-    for (let pass = 0; pass < passes && sh < this.shadowPool.length; pass++) {
+    // (shadow audit, `torchShadowPass`: the flashlights whose beam a wall cuts come first)
+    for (let pass = 0; pass < 3 && sh < this.shadowPool.length; pass++) {
       for (let i = 0; i < use && sh < this.shadowPool.length; i++) {
         if (taken[i]) continue;
         const l = this.reg.lights[ids[i]!]!;
-        if (torchShadowPass(l, this.accurate) > pass) continue;
+        if (torchShadowPass(l) > pass) continue;
         if (this.baked?.has(l.id)) continue;
         this.put(this.shadowPool[sh++]!, l);
         taken[i] = 1;

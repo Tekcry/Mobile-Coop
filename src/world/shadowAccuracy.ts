@@ -1,10 +1,9 @@
 /**
- * (sector-redesign shadow audit, Michael 2026-10-23 ~14:45; PROTOTYPE, default off) The shadow-accuracy fixes ride the
- * LR13 toggle: on when the baked lamps run the photometric falloff (`lampMath.lampFalloffMode`), unless a test or the
- * boot code sets it explicitly. Read once when a light field, the baked lamps or the light rig is built (like the falloff
- * mode): set it before a map builds. Findings and numbers: `docs/sector-redesign/checks/shadow-audit.md`.
+ * (sector-redesign shadow audit, Michael 2026-10-23 ~14:45) The shadow-accuracy fixes. They rode the LR13 Realistic
+ * toggle; since LR16a (one light model, Michael ~18:12) they are always on and the old paths are gone. Findings and
+ * numbers: `docs/sector-redesign/checks/shadow-audit.md`.
  *
- * What it switches (light parity, bible 5.1: the picture, the meter and guard perception agree):
+ * What they do (light parity, bible 5.1: the picture, the meter and guard perception agree):
  * - the ambient fill is read trilinearly by the light field, as the shaders' bilinear `lampAmb` texture reads it
  *   (`LightField`; today the field takes the nearest 1 m cell);
  * - each baked lamp's door list skips the doors whose leaf the lamp cannot see (`lampDoorLists` with a bake sampler), so
@@ -18,26 +17,8 @@
  *   (`lampMath.lampTerm`: linear falloff over the torch's radius, cos^2 cone) x a cut at the beam's reach
  *   (`torchDrawTerm`), not as Babylon lights whose range is the reach (the beam dimmed towards the wall it lands on).
  */
-import { LAMP_CONE_COS, LAMP_EXP, lampFalloffMode, lampTerm, LIGHT_GAIN, SPOT_EXP, type LampFalloff } from './lampMath';
+import { LAMP_CONE_COS, LAMP_EXP, lampTerm, LIGHT_GAIN, SPOT_EXP } from './lampMath';
 import { hyp3 } from '../core/mathx';
-
-let override: boolean | null = null;
-
-/** Force the fixes on or off (`null`: follow the LR13 falloff toggle). Tests and the boot code. */
-export function setShadowAccuracy(on: boolean | null): void {
-  override = on;
-}
-
-/** The match's switch from its resolved falloff (`lampMath.matchLampFalloff`: host, URL, setting): on exactly in
- *  Realistic. `GameState.create` sets it with `setLampFalloff`, before the map builds; never mid-match. */
-export function matchShadowAccuracy(mode: LampFalloff): boolean {
-  return mode === 'photometric';
-}
-
-/** Are the shadow-accuracy fixes on? */
-export function shadowAccuracyOn(): boolean {
-  return override ?? lampFalloffMode() === 'photometric';
-}
 
 /** A material as `gameLightFalloff` reads it (Babylon's PBR materials have the flag; standard materials do not). */
 export interface FalloffMaterial {
@@ -50,8 +31,8 @@ export interface FalloffMaterial {
  * ignore the range (so the beam-reach cut never applied to them). True when it changed the material (the caller
  * unfreezes it). Level, voxel, prop and door materials already set it; the operator figures and weapons did not.
  */
-export function gameLightFalloff(m: FalloffMaterial, on = shadowAccuracyOn()): boolean {
-  if (!on || m.usePhysicalLightFalloff !== true) return false;
+export function gameLightFalloff(m: FalloffMaterial): boolean {
+  if (m.usePhysicalLightFalloff !== true) return false;
   m.usePhysicalLightFalloff = false;
   return true;
 }
@@ -65,13 +46,12 @@ export interface PoolLight {
 
 /**
  * Which pass of the light rig's shadow-map pick a moving light belongs to (lower first, nearest first within a pass).
- * Today: flashlights (0), then the rest (1). With the fixes on: flashlights whose beam a wall cuts short (`reach` under
+ * Flashlights whose beam a wall cuts short (`reach` under
  * the radius: only a shadow map stops their light at the wall without shortening the falloff) (0), the other
  * flashlights (1), the rest (2). An unshadowed light keeps its range at `reach`.
  */
-export function torchShadowPass(l: PoolLight, on = shadowAccuracyOn()): number {
-  if (l.kind !== 'flashlight') return on ? 2 : 1;
-  if (!on) return 0;
+export function torchShadowPass(l: PoolLight): number {
+  if (l.kind !== 'flashlight') return 2;
   return l.reach !== undefined && l.reach < l.radius - 0.01 ? 0 : 1;
 }
 
@@ -163,7 +143,7 @@ export function writeTorchDraw(out: Float32Array, slot: number, l: (DrawTorch & 
 
 /**
  * `torchDrawTerm` in GLSL x colour x N.L, summed over the slots (uniform `lampTorch`, three vec4 a slot). The torch's
- * falloff is the linear `lampTerm` in either LR13 mode (the photometric falloff is the baked lamps' only), its cone
+ * falloff is the linear `lampTerm` (the photometric falloff is the baked lamps' only), its cone
  * cos^2 cut at the outer angle (flashlights are cone lights: `SPOT_EXP`; a cone-less light is never drawn here).
  */
 export const TORCH_DRAW_GLSL = `
