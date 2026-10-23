@@ -17,6 +17,11 @@ Accounts are labelled by their weekly reset (no emails in git). Each orchestrato
 
 ## State at the switch (refreshed 2026-10-23 ~07:58 for the next swap; newest update block first)
 
+**~22:31: SWAP LIVE (5-hour 0%, resets 03:30; weekly 0%, resets 2026-10-25 16:00: the 5-hour meter binds; 11% by 22:40, ~1.1%/min: 92% ~23:55, 100% ~00:00 at that rate). heavy.lock live (desktop queue worker pid 8396, Sector Ops e2e); heavy2 absent. 4 tail / grep watchers from 21:36 / 21:41 stopped. Cron 7/17/.../57 recreated. No Cloud Builder 1 claims to reopen. All six up in ListAgents ~22:38 (Cloud Builder 1 included).**
+- TRAIN 36 BUILT #263 0348a091 (4.83.0: #262 train-vitest-retry + #259 snap-eol + #255 relight + feature/menu; #252 laptop-queue NOT in it this time); build vitest skipped (lock wait, exit 4), CI green 22:40; laptop-e2e waits for both laptop slots idle (queue service auto-picks open train heads; no preemption of running PR jobs). Test Runner asked to start it next.
+- #267 train-lock-wait (aaf2b728, train-ready): build waits 5 min for heavy.lock (TRAIN_LOCK_WAIT_MIN overrides), mergeTrain 40/40, tsc clean. Fixes the ~22:18 bottleneck.
+- Desktop CPU 97-100% at 22:41 (queue worker GPU e2e + session tsc / vitest + Defender msmpeng ~12%): desktop leads told to hold their agent counts until under 80%.
+
 **~22:08 SAVE (5-hour 77% at 22:08, ~1.5%/min: 92% ~22:18, 100% ~22:23; weekly 62%, resets 2026-10-29 23:00). All five told to save.**
 - Master 4.82.0 (train 33 #256). Train 34 #260 closed (build vitest load timeout; laptop 42/43: e2e-ctcourse:4 A7 technician never leaves R0 = #254 S23 sees the client through the A7 cage, by design: map fix). Train 35 #261 closed (S23 dropped; build vitest load timeouts cameraReach + mocapShortStart).
 - TRAIN 36 BUILDING (auto-train, 11:02Z): #262 train-vitest-retry (isolated rerun of failed files at build; after it releases `git -C C:/NightShift/Mobile-Coop-autotrain pull`) + #259 snap-eol (ends the visionIsolation.snap dirt; until then on that error `git -C C:/NightShift/Mobile-Coop-train checkout -- tests/__snapshots__`) + #255 relight + feature/menu. Waiting on heavy.lock (desktop queue worker). #252 laptop-queue had a missing check at the tick (head moved to 1c1f8451: open-PR train gate; the laptop service self-updates from the branch).
