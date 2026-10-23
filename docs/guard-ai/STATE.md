@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~00:40: s24-coop-fix, s27-sec1-fix, walk482-fix PASS -> #264, #270, #272 train-ready (labels, orchestrator told).
+s25-sai-fix b384befc FAIL stealth-ai, s26-fix2 97da4fdf FAIL coop + stealth-ai: both on the DESKTOP worker (logs
+desktop-only; asked the orchestrator for the asserts) -> Opus triage when they arrive.
+
 ~23:55 (laptop, swap; overnight mode, no swap: orchestrator wakes us after the 04:40 reset). Train 38 #275 building
 (4.84.0 incl. #258 S22 game + #254 S23 + #265). Laptop verdicts, all deterministic (rerun same):
 s24-coop 7fe4f6a2 FAIL e2e-coop S24 hide; s25-sai 8bd13e0c FAIL e2e-stealth-ai "near: the search starts and asks
