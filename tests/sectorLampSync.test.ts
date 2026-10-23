@@ -259,4 +259,26 @@ describe('Sector Ops lamp sync (slice L, protocol 31)', () => {
     reg.destroy(0);
     expect(lampShotOk(reg, 0, o, d, 10, feet, 60)).toBe(false);
   });
+
+  it("(walk 4.72 S2) the host takes a client's round that lands on a street lamp pole just under its head", () => {
+    const reg = new LightRegistry();
+    const id = reg.add({ x: 9, y: 6, z: -66, destructible: true, fixture: { sx: 0.6, sy: 0.1, sz: 0.3, oy: 0 } }).id;
+    // the client's real `shot` (e2e probe on the 4.72 build): muzzle, direction to where it landed, that distance
+    const o = { x: 11.74, y: 1.56, z: -65.93 };
+    const b = { x: 9.15, y: 5.73, z: -65.99 };
+    const len = Math.hypot(b.x - o.x, b.y - o.y, b.z - o.z);
+    const d = { x: (b.x - o.x) / len, y: (b.y - o.y) / len, z: (b.z - o.z) / len };
+    expect(lampShotOk(reg, id, o, d, len, { x: 12, y: 0.02, z: -66 }, 60)).toBe(true);
+  });
+
+  it("(walk 4.72 check) the host takes a client's round that lands on the wall just under a wall lamp", () => {
+    const reg = new LightRegistry();
+    // a wall pack on the wall face z = 0, its head 3 m up; the round lands on the face 0.2 m under the head
+    const id = reg.add({ x: 0, y: 3, z: 0, destructible: true, fixture: { sx: 0.3, sy: 0.2, sz: 0.1, oy: 0 } }).id;
+    const o = { x: 0, y: 1.5, z: 4 };
+    const b = { x: 0, y: 2.8, z: 0 };
+    const len = Math.hypot(b.x - o.x, b.y - o.y, b.z - o.z);
+    const d = { x: (b.x - o.x) / len, y: (b.y - o.y) / len, z: (b.z - o.z) / len };
+    expect(lampShotOk(reg, id, o, d, len, { x: 0, y: 0.3, z: 4 }, 60)).toBe(true);
+  });
 });
