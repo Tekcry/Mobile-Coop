@@ -643,7 +643,7 @@ export class RemoteAvatar {
       this.airTop = Number.NaN;
     }
     this.landT = Math.max(0, this.landT - dt);
-    // (38, afp AF6) the owner's gait clock between the two states around the render time (forward, wrapping), as the
+    // (39, afp AF6) the owner's gait clock between the two states around the render time (forward, wrapping), as the
     // owner's rig plays it (player.ts: none side-on on a wall); the CT stop's blend and held pace from the state
     const wallTurn = mp.wall ? Math.abs(Math.sin(this.yaw - Math.atan2(this.wallNx, this.wallNz))) : 0;
     const ga = s.from.gph;
@@ -653,7 +653,7 @@ export class RemoteAvatar {
       const d = (((gb - ga) % 1) + 1) % 1;
       gaitPh = d < 0.5 ? (ga + d * Math.max(0, s.k)) % 1 : s.k >= 1 ? gb : ga;
     }
-    // (38, afp AF6) the owner's motion state at the render time: the newer state's from the moment it began (its time in
+    // (39, afp AF6) the owner's motion state at the render time: the newer state's from the moment it began (its time in
     // it back from its stamp), else the older one's, timed on (start / stop / turn / pivot as the owner's)
     let motion: MotionState | undefined;
     let motionT = 0;
@@ -670,7 +670,7 @@ export class RemoteAvatar {
         motionT = (s.from.mt ?? 0) + el;
       }
     }
-    // (38) the owner's acceleration across the span, in this body's frame (the lean, the mocap stop slot), as its rig
+    // (39) the owner's acceleration across the span, in this body's frame (the lean, the mocap stop slot), as its rig
     let accelFwd: number | undefined;
     let accelSide: number | undefined;
     const axA = s.from.ax;

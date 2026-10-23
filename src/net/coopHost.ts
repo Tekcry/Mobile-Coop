@@ -537,10 +537,10 @@ export class CoopHost implements NetAttachment {
 
   // --- incoming ---
 
-  /** (38, afp AF6) Per joiner: its send clock against ours (ClockSync), and the last stamp. */
+  /** (39, afp AF6) Per joiner: its send clock against ours (ClockSync), and the last stamp. */
   private readonly sendClocks = new Map<string, { c: ClockSync; last: number }>();
   /**
-   * (38, afp AF6) The local time (s) a joiner's state stands for: its send clock `t` mapped through a ClockSync (the
+   * (39, afp AF6) The local time (s) a joiner's state stands for: its send clock `t` mapped through a ClockSync (the
    * lowest latency seen wins quickly, slower arrivals nudge it back gently), so the network's jitter and a retransmit's
    * bunched states no longer bend the interpolation spans (arrival stamps did: up to ~0.4 m a frame off the pace under
    * netsim typical). No `t`: the arrival time. Kept increasing.
@@ -1142,7 +1142,7 @@ export class CoopHost implements NetAttachment {
     const p = g.player;
     const c = p.controller;
     const th = g.target.health;
-    // (38, afp AF6) the gait clock / CT stop for the partner's stride (the snapshot's `time` times it)
+    // (39, afp AF6) the gait clock / CT stop for the partner's stride (the snapshot's `time` times it)
     const gw: { gph?: number; qs?: number; hs?: number; mo?: number; mt?: number; ax?: number; az?: number } = {};
     gaitWire(c.motion.phase, c.ct, c.stopEaseT, c.stopHold, c.holdSpeed, CT.stopEase, CT.stopBlend, gw);
     motionWire(c.override?.kinematic ? null : c.motion.state, c.motion.stateT, c.motion.ax, c.motion.az, gw);

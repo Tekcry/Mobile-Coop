@@ -702,7 +702,7 @@ export class CoopClient implements NetAttachment {
     const g = this.g;
     const p = g.player;
     const c = p.controller;
-    // (38, afp AF6) the send clock (the host times the state by it) and the gait clock / CT stop (the partner's stride)
+    // (39, afp AF6) the send clock (the host times the state by it) and the gait clock / CT stop (the partner's stride)
     const sentAt = sendClock(this.sentWall, this.sentSim, performance.now() / 1000, this.time);
     this.sentWall = sentAt;
     this.sentSim = this.time;
@@ -730,7 +730,7 @@ export class CoopClient implements NetAttachment {
     });
   }
 
-  /** (38, afp AF6) The last state's send clock and sim time (`sendClock`). */
+  /** (39, afp AF6) The last state's send clock and sim time (`sendClock`). */
   private sentWall = -Infinity;
   private sentSim = 0;
 

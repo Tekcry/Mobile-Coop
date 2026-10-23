@@ -286,7 +286,7 @@ function set<T extends Pose>(o: Sampled<T>, a: T, b: T, k: number): Sampled<T> {
 }
 
 /**
- * (38, afp AF6) A joiner's state's send clock (s): the wall clock, but never closer to the last state's than the sim time
+ * (39, afp AF6) A joiner's state's send clock (s): the wall clock, but never closer to the last state's than the sim time
  * between them (two catch-up steps in one frame shared the frame's clock and bent the host's span: 6 cm in 1 ms; the sim
  * time alone drifted from the wall clock when a slow page dropped its backlog, and the host's ClockSync lagged it).
  */

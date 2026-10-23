@@ -16,8 +16,8 @@ import type { SectorNetExtra } from '../game/sectors';
 import { LAMP_BITS, LAMP_CHARS, LAMP_MAX, type LampWire } from './lampSync';
 import type { MotionState } from '../anim/motion';
 
-/** 38: the partner's gait on the wire (afp AF6, Michael P5): `PlayerState.t` (the joiner's send clock, s: the host times its states by it through a ClockSync, not by arrival), `gph` (the owner's gait clock 0..1, the partner plays its stride in step), `qs` / `hs` (the Chaos Theory stop's blend time and held pace, as the owner's RigPose), `mo` / `mt` (the owner's motion driver state and its time: start / stop / turn / pivot), `ax` / `az` (its acceleration: the lean and the mocap stop slot); 37: the partner's rounds (coop-walk-fixes P7): `PlayerState.sc`, the player's rounds fired mod 256, so a remote plays each round once with its weapon's own (suppressed when `PF.quiet`) sound; the `PF.firing` 0.2 s window replayed one shot twice; also (P6) the team takedown on a partner's hostage is a `td` with kind `assist` (the field existed); 36: partner pose parity (pose-parity): `PF.aimLeft` 64 (the left-shoulder aim, every mode; the ground MoveState `sub` bit 128 is no longer written) and the MoveState `takedown` `sub` bit 1 (`TAKEDOWN_SUB_BLOW`: the blow is running; a choke / the lethal approach poses no arc); 32-35 taken by open branches (guard-ai 32, marlow-final 33, section-rating 34, sector-redesign 35); 31: Sector Ops light state (sector-redesign slice L): the `lamps` message (host -> all: switched-off and shot-out bitsets, `lampSync.ts`) and a client's lamp shot as a `shot` whose target is `lt-<light id>`; 30: taken by marlow-final (Menu Notes); 29: the lasers' jam point is their power panel (sector-fixes P): the `jam` claim and `sec.dv` name panel ids (`panel-*`), never laser ids (a 28 peer would jam a laser the other side does not know); 28: the `jam` claim carries the client's camera eye `e` (jammer-fixes: the host checks the jam's line of sight from it); 27: rejoin (marlow-bays R): `hello.tok`, `PlayerInfo.away`, the `you` message, the `restore` event; 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
-export const PROTOCOL_VERSION = 38;
+/** 39 = AF6 (38 taken by guard-ai S9). 39: the partner's gait on the wire (afp AF6, Michael P5): `PlayerState.t` (the joiner's send clock, s: the host times its states by it through a ClockSync, not by arrival), `gph` (the owner's gait clock 0..1, the partner plays its stride in step), `qs` / `hs` (the Chaos Theory stop's blend time and held pace, as the owner's RigPose), `mo` / `mt` (the owner's motion driver state and its time: start / stop / turn / pivot), `ax` / `az` (its acceleration: the lean and the mocap stop slot); 37: the partner's rounds (coop-walk-fixes P7): `PlayerState.sc`, the player's rounds fired mod 256, so a remote plays each round once with its weapon's own (suppressed when `PF.quiet`) sound; the `PF.firing` 0.2 s window replayed one shot twice; also (P6) the team takedown on a partner's hostage is a `td` with kind `assist` (the field existed); 36: partner pose parity (pose-parity): `PF.aimLeft` 64 (the left-shoulder aim, every mode; the ground MoveState `sub` bit 128 is no longer written) and the MoveState `takedown` `sub` bit 1 (`TAKEDOWN_SUB_BLOW`: the blow is running; a choke / the lethal approach poses no arc); 32-35 taken by open branches (guard-ai 32, marlow-final 33, section-rating 34, sector-redesign 35); 31: Sector Ops light state (sector-redesign slice L): the `lamps` message (host -> all: switched-off and shot-out bitsets, `lampSync.ts`) and a client's lamp shot as a `shot` whose target is `lt-<light id>`; 30: taken by marlow-final (Menu Notes); 29: the lasers' jam point is their power panel (sector-fixes P): the `jam` claim and `sec.dv` name panel ids (`panel-*`), never laser ids (a 28 peer would jam a laser the other side does not know); 28: the `jam` claim carries the client's camera eye `e` (jammer-fixes: the host checks the jam's line of sight from it); 27: rejoin (marlow-bays R): `hello.tok`, `PlayerInfo.away`, the `you` message, the `restore` event; 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
+export const PROTOCOL_VERSION = 39;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -76,28 +76,28 @@ export interface PlayerState {
   sc?: number;
   /** Movement state (3.2.0): back to a wall, attached, committed moves, takedowns (`player/moveState.ts`). */
   mv?: MoveState;
-  /** (38, afp AF6) The sender's clock when it sent the state (s; a joiner's `pstate` only: the host's snapshots carry
+  /** (39, afp AF6) The sender's clock when it sent the state (s; a joiner's `pstate` only: the host's snapshots carry
    *  `time`). */
   t?: number;
-  /** (38) The owner's gait clock (cycle 0..1, its MotionDriver phase at the state): the partner's stride in step. */
+  /** (39) The owner's gait clock (cycle 0..1, its MotionDriver phase at the state): the partner's stride in step. */
   gph?: number;
-  /** (38) The owner's Chaos Theory stop: the blend to idle (s, 0 none) and the held stride's pace (m/s, 0 none). */
+  /** (39) The owner's Chaos Theory stop: the blend to idle (s, 0 none) and the held stride's pace (m/s, 0 none). */
   qs?: number;
   hs?: number;
-  /** (38) The owner's motion driver state (`MOTION_WIRE` index) and its time in it (s): the partner plays the same start /
+  /** (39) The owner's motion driver state (`MOTION_WIRE` index) and its time in it (s): the partner plays the same start /
    *  stop / turn / pivot moments (it derived them from the measured velocity, at other moments). */
   mo?: number;
   mt?: number;
-  /** (38) The owner's acceleration (world x / z, m/s^2, its motion driver's): the partner's lean and its mocap stop slot
+  /** (39) The owner's acceleration (world x / z, m/s^2, its motion driver's): the partner's lean and its mocap stop slot
    *  fire as the owner's (derived from the measured velocity they came ~0.1 s late, or not at all). */
   ax?: number;
   az?: number;
 }
 
-/** (38, afp AF6) `PlayerState.mo`: the motion driver states by index. */
+/** (39, afp AF6) `PlayerState.mo`: the motion driver states by index. */
 export const MOTION_WIRE: readonly MotionState[] = ['idle', 'start', 'move', 'stop', 'turn', 'pivot'];
 
-/** (38, afp AF6) The owner's motion state for the wire (pure); null (a scripted override drives the body): none. */
+/** (39, afp AF6) The owner's motion state for the wire (pure); null (a scripted override drives the body): none. */
 export function motionWire(state: MotionState | null, stateT: number, ax: number, az: number, out: { mo?: number; mt?: number; ax?: number; az?: number }): void {
   const i = state ? MOTION_WIRE.indexOf(state) : -1;
   if (i < 0) return;
@@ -107,7 +107,7 @@ export function motionWire(state: MotionState | null, stateT: number, ax: number
   out.az = Number.isFinite(az) ? Math.max(-100, Math.min(100, az)) : 0;
 }
 
-/** (38, afp AF6) The owner's gait fields for the wire from its controller (pure): the gait clock, the CT stop. */
+/** (39, afp AF6) The owner's gait fields for the wire from its controller (pure): the gait clock, the CT stop. */
 export function gaitWire(phase: number, ct: boolean, stopEaseT: number, stopHold: boolean, holdSpeed: number, stopEase: number, stopBlend: number, out: { gph?: number; qs?: number; hs?: number }): void {
   out.gph = Number.isFinite(phase) ? ((phase % 1) + 1) % 1 : 0;
   const qs = ct ? (stopEaseT >= 0 ? stopEase : stopBlend) : 0;
