@@ -3,6 +3,8 @@ import type { App, AppState } from '../core/app';
 import { Color3, type FreeCamera, InstancedMesh, PhysicsRaycastResult, Vector3, type Vector4, type PhysicsEngine, type Scene } from '../core/babylon';
 import { World } from '../world/world';
 import { flags } from '../core/flags';
+import { lampFalloffMode, matchLampFalloff, setLampFalloff, type LampFalloff } from '../world/lampMath';
+import { matchShadowAccuracy, setShadowAccuracy } from '../world/shadowAccuracy';
 import { cqSimSet } from '../anim/cqGait';
 import { showEconomy } from '../core/legacy';
 import { shownResolution } from '../core/display';
@@ -159,6 +161,9 @@ export interface GameOptions {
   courseBay?: number;
   /** 3.0 weather (visual only; the map's `weathers`). */
   weather?: WeatherChoice;
+  /** (lightrev LR13) Co-op: the host's lamp falloff (the `start` message's `lf`); it overrides this machine's setting
+   *  and URL. Unset (single player): `?falloff=photo`, else Settings > Gameplay > Lamp falloff. */
+  lampFalloff?: LampFalloff;
 }
 
 /** What the coop layer plugs into a session. */
@@ -479,6 +484,9 @@ export class GameState implements AppState {
   }
   /** Coop attachment (null in single player). */
   net: NetAttachment | null = null;
+  /** (lightrev LR13) The lamp falloff this match runs (set before its map built; the meter, the guards and the shaders
+   *  all read it, `lampMath`). */
+  readonly lampFalloff: LampFalloff = lampFalloffMode();
   /** Coop client: enemies, waves and objectives are driven by the host. */
   readonly puppet: boolean;
   /** Who a takedown can be done on (enemies; co-op clients: the host's enemies as puppets). */
@@ -831,6 +839,12 @@ export class GameState implements AppState {
     // (`?gfx=min`: the blockout's boxes in standard materials; every other preset draws them smooth - PBR with the
     // surface atlas and baked lamps)
     const plain = q.minimal;
+    // (lightrev LR13) the lamp falloff, before the level adds its lights (`LightRegistry.add` scales the reach), bakes and
+    // builds its field and shaders: the host's in co-op, else the URL override, else the setting (never mid-match)
+    const lampFalloff = matchLampFalloff(app.settings.get().gameplay.lampFalloff, flags.photoLamps, opts.lampFalloff);
+    setLampFalloff(lampFalloff);
+    // (shadow audit) the shadow-accuracy fixes ride the same resolved mode, at the same point: on exactly in Realistic
+    setShadowAccuracy(matchShadowAccuracy(lampFalloff));
     const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, cheap: plain });
     const g = new GameState(app, world, opts, cb);
     if (opts.net) g.net = opts.net.attach(g);

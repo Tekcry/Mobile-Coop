@@ -36,6 +36,11 @@ Budgets: performance.md.
   frames last whole refresh periods), `FrameStats` and, only with dynamic resolution, the
   `ResolutionScaler` (0.5-1.0 against the cap or display budget). `?gfx=min|low|medium|high|ultra|epic` overrides for a page;
   `QualityManager.setOverride({ preset, scale })` is the benchmark's per-run override (never saved; ignored under `?gfx=`).
+- Character shadows (LR14, `ShadowSpec.charLamps` / `charTile` from `CHAR_SHADOW_PRESET`): Low 0, Medium 0 (capsule
+  shadows), High 2 lamps x 512 px, Ultra 3 x 1024, Epic 4 x 1024 - the nearest lamps' silhouette maps in one atlas, one
+  texture per lit shader (`docs/systems/lighting.md`, Character silhouette shadows). `qualityLevel(.., charMode)` takes
+  the override (Settings > Graphics > Character shadows: Auto / On / Off; On below High = High's); `?gfx=min` and the
+  voxel micro-detail path never take them. The governor's `shadowEvery` slows their refresh too.
 - Auto graphics (3.1, `core/deviceTier.ts` pure): `tierFromRenderer(renderer)` (the desktop GPU table, confident or
   not; a hidden GPU name is not), `deviceKey` (its `|desktop|` part keeps old saved keys valid), `Calibration` (the ladder top down on the menu stage, each at
   its render scale x `CALIBRATION.load` 1.4, warm-up 0.6 s + 1.2 s measured, p90 interval <= budget x 1.12; <= 6 s).

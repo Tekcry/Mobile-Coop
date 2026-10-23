@@ -31,6 +31,25 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   below them, exponent 1; spots: squared, cut at the outer angle). `bakedLamps.ts` builds its GLSL from `LAMP_MATH_GLSL` and
   the same constants (`LAMP_CONE_COS`, `LAMP_EXP`, `SPOT_EXP`; `LIGHT_GAIN` 1.6 is rendering only, `LAMP_LEVEL_GAIN` 1.2
   gameplay only). `moonLight(theme)`: the moon's gameplay share of `lightLevel`.
+- Lamp falloff (lightrev LR13, prototype, default off): Settings > Gameplay > "Lamp falloff" (`gameplay.lampFalloff`: Classic
+  `linear`, the default / Realistic (test) `photometric`; `?falloff=photo` a dev override, `flags.photoLamps`). In
+  photometric the baked lamps fall off with the inverse square from 3 m (`PHOTO`), windowed to 0 at 1.6 x the radius
+  (`LightRegistry.add` scales fixed lamps' radius once; flashlights unchanged). A light-model rule, not a graphics
+  setting (no preset, governor or quality reads or writes it): `GameState.create` sets the mode once per map load
+  (`lampMath.matchLampFalloff`: the co-op host's `start.lf`, else the URL, else the setting; `GameState.lampFalloff`),
+  before the level adds its lights, so the registry, the bake, the field (meter and guards) and the shaders
+  (`lampMathGlsl()`; the `LAMP_PHOTO` define keeps the two modes' compiled effects apart) all read one mode; never
+  mid-match. Co-op: protocol 38 `start.lf`, the client's row locked to the host's. `?gfx=min` keeps Babylon's linear real
+  lights for the picture (the field is photometric). Not adopted: `docs/lighting-review/PROPOSAL.md` section 7 (LR13),
+  numbers in `docs/sector-redesign/checks/light-measure.md`; tests `tests/lampFalloff.test.ts`.
+- (shadow audit, PROTOTYPE, rides the LR13 toggle) `world/shadowAccuracy.ts`: on exactly when the match runs Realistic
+  (`GameState.create` calls `setShadowAccuracy(matchShadowAccuracy(mode))` with the resolved mode, next to `setLampFalloff`:
+  the host's `start.lf` in co-op, `?falloff=photo`, the setting; never mid-match; read once per field / rig / bake / guards).
+  The field reads the ambient fill trilinearly as the shaders do; each lamp's door list skips doorways the lamp cannot see
+  (`doorSeen`, `bakeVisSampler`; field and shaders build the one list); the light rig sets the game's PBR materials (figures,
+  weapons) to the standard falloff so flashlights light them as they light the level (`gameLightFalloff`) and gives shadow
+  maps to cut beams first (`torchShadowPass`); guards' body-light samples test flashlights against static geometry
+  (`rayOccluder`). Findings: `docs/sector-redesign/checks/light-measure.md` (shadow audit); test `tests/shadowAccuracy.test.ts`.
 - `world/lightField.ts` (pure) `LightField` (`World.lightField`): `levelAt` = ambient grid + moon x moon visibility + the
   lamps listed for the 2 m column x `LAMP_LEVEL_GAIN` x intensity x formula x trilinear baked visibility, closed doors
   (`Doors.list`, `DOOR_SHUT`) cutting a lamp by one segment-leaf test; `dynamicAt` = non-baked lights (flashlights);
@@ -94,13 +113,46 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   formula is 0 outside the outer angle; sector-fixes L). `voxel/lampJobs.ts` `bakeLevelLamps` splits the lights across the `WorkerPool`
   and caches (`lamps:` keys, `LAMP_VERSION`).
 - `world/bakedLamps.ts` `BakedLamps` (`World.lamps`; built on every path but `cheap` (`?gfx=min`), `?baked=0` off): an R8 3D
-  atlas + one RGBA32F data texture (per lamp 6 texels; `MAX_CAPSULES` 16 character capsules from `GameState.rtCapsules`, 4
-  per lamp, re-written each frame). `LampPlugin` (priority 250, on every `PBRMaterial` via `attachAll`): per pixel the lamps
+  atlas + one RGBA32F data texture (per lamp 8 texels, the 8th its character shadow slot; `MAX_CAPSULES` 16 character
+  capsules from `GameState.rtCapsules`, 4 per lamp, re-written each frame). `LampPlugin` (priority 250, on every `PBRMaterial` via `attachAll`): per pixel the lamps
   in its 2 m column - range falloff, cone, N.L - x the atlas x `lampCapsule` soft shadows, added to `finalDiffuse`.
   `LightRig.setBaked(ids)`: the pools skip baked lights and hold <= 4 (`BAKED_POOL`) lights, <= 2 shadowed (`BAKED_SHADOWS`;
   1 with micro detail): the flashlights. GLSL names must not clash with Babylon's macros (`E` is one).
 - A material made after load gets the lamp plugin on the next frame (`BakedLamps.frame` re-scans when the material count
   changes).
+
+## Character silhouette shadows (LR14, sector-redesign charshadow)
+Rendering only (plan and budget: `docs/lighting-review/LR14-PLAN.md`; build report:
+`docs/sector-redesign/checks/lr14-build.md`). As in CT, the lamps nearest the player throw the real shape of a guard,
+the partner, a body or a held weapon; static geometry stays in the baked visibility atlas; every other lamp keeps the
+capsules.
+- `world/charShadowSet.ts` (pure): `CHAR_SHADOW_PRESET` (per shadow tier: off / Low / Medium 0 lamps, High 2 x 512 px,
+  Ultra 3 x 1024, Epic 4 x 1024) into `ShadowSpec.charLamps` / `charTile`; `charShadowSpec(tier, mode)` with the settings
+  override (`'auto' | 'on' | 'off'`; on below High = High's set). `LampSlotPicker`: lit baked lamps whose radius + 3 m
+  reaches the nearest focus point (the local player, the camera), nearest first, re-picked at 10 Hz; a held lamp
+  competes at 0.75 x its distance, holds its slot 0.5 s at least and stays a candidate 1 m further; a lamp going dark
+  lets go on the next frame; slots (atlas tiles) stay with their lamp. `fitCone`: each slot's spot frustum around the
+  casters' bounding spheres (+ 0.3 m), half-angle capped at 1.25 rad (`partial`); `coneCovers`. Allocation-free.
+- `world/charShadows.ts` `CharShadows` (`World.charShadows`, made with the baked lamps; `BakedLamps.charShadows`): per
+  slot a `SpotLight` kept off every mesh (`includeOnlyWithLayerMask`: no light, no sampler) and a `ShadowGenerator` (float
+  red target, no filter, back faces only) drawing `World.charCasters` in the lamp's reach (`addShadowCaster` minus props,
+  through `getCustomRenderList`); after each render (`onAfterUnbindObservable`) an `EffectWrapper` copies the map into its
+  tile of ONE float atlas (2 x 2 tiles) and snapshots its view-projection and depth range. Far slots (> 8 m) refresh
+  every 2nd frame, x the governor's `shadowEvery`; a slot with no character in reach draws nothing.
+- `LampPlugin` `LAMP_CSHADOW` (one sampler `lampCsAtlas`, UBO `lampCsM` / `lampCsP` / `lampCsI`): in the lamp loop after
+  N.L, a lamp whose t7 names a slot multiplies `nsCharShadow` (normal offset 2 cm + 0.4% of the distance, Babylon's shadow
+  metric, 2 x 2 bilinear PCF on texelFetch, bias 3 cm, floor 0.15 as the capsules'); its capsule list keeps only the
+  characters its map does not hold (a partial fit). A fresh pick draws capsules until its map has been copied once.
+- Budget: one texture per lit shader while on. The voxel level's micro-detail shader (`?voxels=1`) is full at 16 with
+  its one flashlight shadow, so that path keeps the capsules (`World.applyQuality`). Without WebGL2 float or half-float
+  targets the capsules stay.
+- Parity: the meter and guard perception never had character shadows (capsules were render-only too) and still have
+  none. The darkness curve's input (`nsLampRaw`) is unchanged. On screen a mapped lamp's term drops to 0.15 inside a
+  silhouette, now also from casters the capsules lacked (partner, bodies, weapons, poses) and on a body's own limbs;
+  the meter reads that lamp in full there (`lr14-build.md`, parity note).
+- Co-op: each machine uses its own setting and its own nearest lamps; no wire change.
+- Tests: `tests/charShadowSet.test.ts`; `scripts/e2e-lightbake.mjs` (smooth Epic: on, 4 slots, `LAMP_CSHADOW`
+  compiled, maps copied, every shader <= 16 textures with the guards alerted).
 
 ## Lamp light volume (Kestrel editor only)
 The game never builds it; the level editor's light view does (`src/editor/lightView.ts`, G15). Removing it needs an editor
