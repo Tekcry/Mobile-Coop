@@ -141,3 +141,15 @@ Status 16:15: W1 = LR13 + shadow audit + LR14 in #232 (default off; Michael deci
 ## LR15 (after LR14; shadow-audit.md proposals)
 8 door slots per lamp (shut doors past the 4-door cap leak) + exact torch drawing in LampPlugin (lampMath falloff, cos^2
 cone, per-torch beam cut), both behind the LR13 toggle. Branch -lampx off #232; Opus build, Opus checker, laptop GPU.
+
+## LR16 - realistic lighting on every map (Michael ~18:08, ROADMAP Decided top entry on origin/feature/menu 2bcc984c)
+"Character shadows and new lighting is a huge improvement. Approve updating lighting throughout maps, however light
+positioning needs to be improved to prevent all the sharp light bleeding on the walls, the edge of lights should diffuse
+against walls/floors/etc unless something directly cuts off the light ray, depending on how far away it is. Must be
+realistic depiction of light." Screenshot: C:/NightShift/scratch/lighting/michael-4.78-wall-arcs.png (4.78.0 Sector Ops
+Workshop, hard bright arcs on the walls behind the lamps).
+Scope: (1) Realistic falloff + character shadows the default on every map, Classic kept as a setting; (2) fix lamp
+placement / wall offsets that paint hard arcs; (3) soft cone and beam edges on walls and floors; (4) hard shadow edges only
+where an occluder cuts the ray, softer with occluder-to-surface distance (contact-hardening penumbra); (5) light parity:
+meter and guards follow the picture. Base: -lampx (LR15 + atlas fix). One Opus checker; GPU + perf run and contact sheets
+of every map before the train. Detailed slices: checks/lr16-plan.md (Opus planner, ~18:10).
