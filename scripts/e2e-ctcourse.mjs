@@ -1028,6 +1028,20 @@ try {
     if (n < 8) await throughAirlock(i);
   }
 
+  // (stealth-pays S1) an interrogation's code flag reaches the course state through the mode hook `revealIntel` calls
+  // (`g.mode.onIntelCode`); the real grab-and-interrogate chain is e2e-takedown's `grab-interrogate-intel`
+  {
+    const r = await GA(() => {
+      const m = window.__app.current.mode;
+      const s = window.__course.state;
+      const before = s.hasFlag('e2e-course-code');
+      m.onIntelCode('e2e-course-code');
+      m.onIntelCode('e2e-course-code');
+      return { before, after: s.hasFlag('e2e-course-code') };
+    });
+    assert(!r.before && r.after, `stealth-pays: an interrogation code sets the course flag (${JSON.stringify(r)})`);
+  }
+
   if (LAST === 8) {
     console.log('exit zone: both must be in it');
     const zx = PITCH * 7 + 13.5;

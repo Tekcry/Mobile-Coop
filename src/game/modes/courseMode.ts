@@ -415,6 +415,11 @@ export class CourseMode implements GameMode {
     this.stepRemote();
   }
 
+  /** (stealth-pays S1, spare 9 part B) host / solo: an interrogation's code flag, like a keypad code from a camera or a hack. */
+  onIntelCode(flag: string): void {
+    this.state?.setFlag(flag);
+  }
+
   onRemoteTakedown(_id: string, kind: string): void {
     this.remoteSnap.takedowns++;
     this.remoteSnap.takedownKind = kind;
