@@ -346,8 +346,9 @@ export function jobsFor(stage, kit, opts = {}) {
       })),
     ],
     // the review sheet is a Playwright run, not a Blender one: GPU page, own port, runs alone as the last step
+    // (G4s: guard-sheet.mjs; the driver's `--out <bake dir>` is its input, the PNG goes to <out>/sheet/guard-sheet.png)
     sheet: () => [make('sheet', {
-      runner: 'node', script: 'scripts/operator-sheet.mjs', args: ['--guards'], gpuBound: true,
+      runner: 'node', script: SHEET_SCRIPT, args: common('sheet'), gpuBound: true,
       env: { E2E_GPU: '1', E2E_PORT: '4189' }, needs: [...baseIds.map((b) => idOf('check', b)), ...nk.ownGlb.map((p) => idOf('check', p.id))],
       kit: { shared: nk.shared, bases: baseIds, heads: nk.heads.map((h) => h.id) },
       outputs: ['sheet/guard-sheet.png'], files: SHEET_FILES,
@@ -376,6 +377,7 @@ export function jobsFor(stage, kit, opts = {}) {
 /** G4: the lods / check / sheet jobs' scripts and the files their hashes cover (repo-relative). */
 export const LODS_SCRIPT = 'scripts/operators/guard-lods.mjs';
 export const CHECK_SCRIPT = 'scripts/operators/guard-check.mjs';
+export const SHEET_SCRIPT = 'scripts/operators/guard-sheet.mjs';
 const G4_JS = ['scripts/operators/guardAtlas.mjs', 'scripts/operators/guardGlb.mjs', 'scripts/operators/guardLodReport.mjs', 'scripts/operators/guardBakePlan.mjs'];
 const LODS_FILES = [...G4_JS, 'scripts/operators/ktx2.mjs', 'scripts/operators/blender.mjs',
   ...['bake_lods.py', 'bake_guard.py', 'guard_lod_util.py', 'guard_skin.py', 'materials.py', 'common.py'].map((f) => `${PY_REL}/${f}`)];

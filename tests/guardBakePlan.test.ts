@@ -96,7 +96,7 @@ describe('guard bake plan: job split', () => {
     for (const j of all) {
       expect(j.id.startsWith(['sheet', 'prep'].includes(j.stage) ? j.stage : `${j.stage}-`)).toBe(true);
       expect(j.script).toMatch(/\.(py|mjs)$/);
-      expect(j.args).toContain(j.stage === 'sheet' ? '--guards' : j.id);
+      expect(j.args).toContain(j.id);
       expect(j.outputs.length).toBeGreaterThan(0);
       expect(j.inputs).toEqual(expect.arrayContaining([...j.needs, ...j.files]));
     }
