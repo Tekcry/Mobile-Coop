@@ -217,9 +217,14 @@ export async function walk(t, n) {
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) assert(await ticked(P, 'a4-room'), `A4: the ${tag} sees the room step ticked`);
   // a press while it loops: "already off", the window is not reset
   const t0 = await GA((id) => window.__course.state.gateTimer(id), GATE);
+  // (S-e2e-fix3) as in the refusal above: the host's refusal is the host's own (`CourseMode.refuse`), so the client gets "already off" for its
+  // own press, made from CLIENT_PRESS (in the console's reach)
+  const rnB1 = await GB(() => window.__course.wire.rn);
   assert((await use(A, CONSOLE)) === 'ok', 'A4: the host presses the console while it loops');
   await until(A, () => /already off/.test(window.__course.debug().refusal ?? ''), null, 8000, 'A4: the console says the cameras are already off (host)');
-  await until(B, () => /already off/.test(window.__course.debug().refusal ?? ''), null, 8000, 'A4: the client gets "already off"');
+  await moveClient(CLIENT_PRESS[0], CLIENT_PRESS[1], 0.1, 0);
+  assert((await use(B, CONSOLE)) === 'ok', 'A4: the client presses the console while it loops');
+  await until(B, (n0) => window.__course.wire.rn > n0 && /already off/.test(window.__course.debug().refusal ?? ''), rnB1, 8000, 'A4: the client gets "already off" for its own press');
   const t1 = await GA((id) => window.__course.state.gateTimer(id), GATE);
   assert(t1 <= t0 && t1 > 0 && t0 <= LOOP_S, `A4: a press while it loops does not reset the window (${t0.toFixed(1)} -> ${t1.toFixed(1)} s)`);
   // the client stands in C1's frame on the lit main aisle for 3 s: nothing sees it, the cameras stay looped, the alarm is unchanged
