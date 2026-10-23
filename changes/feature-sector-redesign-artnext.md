@@ -8,3 +8,4 @@ kind: minor
 - Campus dressing: S4 battery rows use the real battery rack piece, the raised-floor tile grid now covers the hall (72 tiles), and the genset exhaust stack is listed as an overhang part.
 - Campus dressing: S5 kitchen counter run and wall cupboards are placed. The two hall portraits sit at the hall floor's height.
 - Freeze polish C4-C6 (C1-C3 were already on the base; C7-C9 at the master merge).
+- Guard render freeze: the frozen tier is now part of the guard anim tiers (one system). A guard thawed from the freeze is posed in the same frame, so he never shows his pose from before the freeze; if he walked more than 0.3 m while hidden his feet re-plant instead of stretching; a guard killed while hidden falls from his current pose (C7-C9).
