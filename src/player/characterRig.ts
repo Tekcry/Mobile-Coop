@@ -1696,13 +1696,17 @@ export class CharacterRig {
   // Animation
   // ------------------------------------------------------------------------------------------
 
-  /** Animation (clip graph + foot planner + IK). Call every render frame. */
-  animate(dt: number, s: RigPose): void {
+  /** Animation (clip graph + foot planner + IK). Call every render frame. `solveDt` (guard-render S4, guards'
+   *  `animTier.ts`): the caller's anim tier, the time to solve this frame (it carries the skipped time) or -1 to skip;
+   *  omitted: the camera-distance LOD below. */
+  animate(dt: number, s: RigPose, solveDt?: number): void {
     if (this.disposed) return;
     // (21w) a re-parented weapon eases onto its new place (every frame, LOD or not)
     this.stepGlide(dt);
+    if (solveDt !== undefined && solveDt < 0) return;
+    if (solveDt !== undefined) dt = solveDt;
     // animation LOD: rigs far from the camera solve every other frame
-    const cam = this.root.getScene().activeCamera;
+    const cam = solveDt === undefined ? this.root.getScene().activeCamera : null;
     if (cam) {
       const p = this.root.position;
       const c = cam.globalPosition;
