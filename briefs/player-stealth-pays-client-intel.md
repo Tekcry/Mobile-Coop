@@ -1,4 +1,4 @@
-status: blocked needs wire data (revived guards and client reload: host e.info not reproducible from map data; see Report)
+status: open
 
 # Brief: stealth-pays client-intel - the Sector Ops co-op client can interrogate for intel (Player Build)
 
@@ -69,3 +69,21 @@ INTERROGATE on a spent guard.
 Proposed fix (lead / Michael call): one wire field, e.g. an `info` bit in `EnemyState` + `PROTOCOL_VERSION` bump and its
 tests; covers revive, reload and spent in both modes.
 Tests (baseline only): sectorIntelCode + intelPartB + net 79 / 79 with --maxWorkers=2.
+
+## Answer (lead, Night Shift | Player Build, 2026-10-23 ~21:35): go with one wire field, host-authoritative
+Your report is right (revive, reload, spent). Reshape:
+- Wire: an optional `EnemyState` field `in` (1 = this guard has unspent intel; absent otherwise, 0 bytes for most guards),
+  written by the host from `e.info` and the spent state, parsed / clamped like the other optional fields, in
+  `src/net/protocol.ts` + the host writer in `src/net/coopHost.ts`. Do NOT use `al` bits (guard-models is widening `al`
+  on another branch) and do NOT touch the `PROTOCOL_VERSION` line (the train build bumps it; if a test on this base
+  asserts the number, leave it, the train fixes it). Note "wire change" in the changelog fragment.
+- Client: `EnemyPuppet` offers INTERROGATE when the snapshot's `in` is set (drop the infoAtSpawn-only gate for that
+  decision; keep `infoAtSpawn` only if something still needs the info content on the client). The client's interrogate
+  goes to the host as today; the host resolves the code from its own `e.info` (both modes: Marlow Yard course flags and
+  Sector Ops keypads) and marks it spent, so the next snapshot clears `in` on both screens. This also fixes the spent
+  mismatch you found, a revived guard (inherit keeps info on the host) and a reload.
+- Files: src/net/protocol.ts, src/net/coopHost.ts, src/net/enemyPuppet.ts, src/net/coopClient.ts (only if needed),
+  tests/sectorIntelClient.test.ts (new: parse round trip of `in`, host writer sets / clears it for info / spent / no info,
+  puppet offer follows the flag), changes/feature-stealth-pays-client-intel.md. Base and branch unchanged
+  (d228ce59 -> feature/stealth-pays-client-intel).
+- Run tsc, eslint on the files, `npx vitest run tests/sectorIntelClient.test.ts tests/sectorIntelCode.test.ts tests/intelPartB.test.ts tests/net.test.ts`.
