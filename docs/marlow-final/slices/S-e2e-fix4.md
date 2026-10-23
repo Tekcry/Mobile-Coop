@@ -29,3 +29,16 @@ Branch `feature/marlow-final-fix4` (off 058156cc + fix 3c a48aae2b). One test ch
 
 ## Open
 - None for these two. Any branch that runs A2 must contain 3d6aa95b's `isolate` group (feature/marlow-final does).
+
+## e2e-lightbake (laptop full run 64e64ef0)
+- **Failure:** `gfx=epic: the lamp plugin is on every PBR material (10 / 11)` on the Warehouse (`autostart=warehouse&mode=clear`).
+- **Cause: a test race, not a game miss.** No marlow-final material reaches the Warehouse: the only new PBR materials are the
+  facility kit's and props' (`kitRender.ts:100`, `propRender.ts:118`), drawn only on maps with `layout.kit` / `facilityProps`
+  (ctcourse, bunkerDeep), and `BakedLamps.attach` (`bakedLamps.ts:226`) plugs every PBR material on the next frame anyway.
+  The laptop read 11 materials mid-load (a settled scene has 20 / 26): the wait saw all plugged, a loader made one more
+  material, the read came before its next frame. Desktop GPU on HEAD: 20 / 20 and 26 / 26 before the fix.
+- **Fix (test only):** `scripts/e2e-lightbake.mjs:29-49`: wait until every PBR material is plugged AND the PBR count is unchanged
+  over 4 polls (~1 s); if the read still finds one unplugged, read again after 6 frames (up to 3 times; a real miss stays
+  unplugged). The assert (`:118`) now names the unplugged materials.
+- **Result (desktop, E2E_GPU=1, E2E_JOBS=1, port 4191):** `npx tsc --noEmit` pass; e2e-lightbake pass, 137 s (20 / 20, 26 / 26).
+  e2e-ctcourse not run (no Marlow code touched).
