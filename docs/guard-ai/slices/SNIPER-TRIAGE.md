@@ -45,7 +45,7 @@ game), `scripts/e2e-enemies.mjs` (sniper brain trace on failure), `changes/featu
   armourFire, armour, polishBatch, sectorGuardFreezeSeeThrough, warehouseCoopS2, changesFragments: all pass.
 - `npx tsc --noEmit -p .`: clean. eslint on the changed files: clean.
 - No local e2e (rule). Queued: set `sniper-fix`, suites e2e-enemies, e2e-stealth-ai, e2e-combat (combat added: player
-  penetration through plain walls comes back). Request id: see the report's last line / STATE.
+  penetration through plain walls comes back). Request id: 20261023T225704-night-shift-guard-ai-63c7a676-b450 (on 63c7a676).
 
 ## Open
 - Timing risk: if the sniper's seeded dice still leave the second round late, the e2e window (9 s + walk) could still
