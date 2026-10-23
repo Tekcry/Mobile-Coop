@@ -2,8 +2,10 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
-#269: laptop-e2e/coop-rejoin running on 327e73f4 (head f13b91e7 docs only): on pass label train-ready + message orchestrator.
-guard-models: G2 Opus builder resumed on gm-g2 (tests, one desktop smoke, report); G4 parked; see STATE "RESUMED ~23:55".
+#269 ~00:30: laptop 11/12; e2e-ctcourse:4 A8 grille flake (Opus triage: pre-existing, test fix fa95bc8c in #257) ->
+train-ready label + orchestrator told (train 39 with #247, ideally #257). Solo ct:4 rerun 20261023T131134-player-build-f13b91e7-b2c2.
+guard-models: G2 done d51b5f14 (smoke ok), Opus checker running -> G2-CHECK.md on gm-g2; then merge, LIBS.garments fix,
+G4 builder resume (gm-g4 99fee789). Then coop-rejoin follow-up batch (RECHECK polish 1, 2, 5).
 ~23:35: #247 laptop afp RUNNING on fd34263e (CI green): on pass -> train-ready label + message orchestrator.
 #269 coop-rejoin (feature/coop-rejoin, worktree coop-rejoin): checker A FAIL (B1 rejoin race) -> Opus fix round
 327e73f4 (JoinWatch) -> re-check PASS (f13b91e7, docs/coop-rejoin/RECHECK.md). Laptop coop netmove ctcourse sectorops
