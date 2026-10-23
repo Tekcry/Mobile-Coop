@@ -1,6 +1,13 @@
 # Guard AI - state
 
 ## Now
+~14:30: train 31 PASSED (666 s + guard-carry on 5ee209d8); 4.80.0 releasing (#229 S9, #234 S22 AI, #240 carry fix
+0bdfa95b; the orchestrator closes #240 by hand). Forced guard-carry: master 4f6db420 FAILS as it should; the fix tripped
+the "fault fired" assert (recovery beat the poll timeout) -> bdfe97ee on feature/guard-ai-carry-fix (assert accepts a
+recovery drop); it rides the next train in carry-fix2 (merge after its checker ends, then Test Runner reruns
+e2e-guard-carry, then PR + train-ready label). #240 alone leaves a recovered body CPU skinned (influencers 0): carry-fix2
+fixes it. A3 on s22-game: train 31 (master + S22 AI) passes ctcourse:2, so the A3 fail comes from marlow-final.
+
 ~13:55: forced guard-carry check 0bdfa95b on #240 (script only: a body compile is made to time out; master must
 fail). It showed a fix gap: Babylon's fallback leaves the recovered body CPU skinned -> feature/guard-ai-carry-fix2
 d7a3b887 (bodyEffectRecovery.ts recompileEffect turns computeBonesUsingShaders back on; unit 4/4; the forced pass
@@ -558,7 +565,7 @@ Guard AI Build resume (laptop; the stable prompt in docs/orchestrator/PROMPTS.md
 rules). Read this file's "Now" top entry only. Laptop worktrees (npm ci'd), branch guard before every write:
 C:/NightShift/Mobile-Coop-guard-ai (feature/guard-ai: STATE / PLAN / BRIEF / slices), -s9, -s22, -carry-fix,
 -carry-fix2, -s22-game. Never merge master into a branch (the train does).
-Released: S1-S8 + S5b / S6 / S10 (4.66-4.74), S11-S15 in master, #218-#220 (4.76.0), #230 walk (4.77.0), #228 S16 (4.78.0). Master 4.79.0, PROTOCOL 40.
+Released: S1-S8 + S5b / S6 / S10 (4.66-4.74), S11-S15 in master, train 31 = #240 / #229 S9 / #234 S22 AI (4.80.0), #218-#220 (4.76.0), #230 walk (4.77.0), #228 S16 (4.78.0). Master 4.79.0, PROTOCOL 40.
 Open:
 1. Train 31 (orchestrator, head 5ee209d8, full run on the laptop): #240 carry-fix 0bdfa95b (PROTOCOL 40; the
    body-compile recovery src/player/bodyEffectRecovery.ts + scripts/e2e-guard-carry.mjs with its forced timeout pass),
