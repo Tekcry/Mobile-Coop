@@ -1,9 +1,9 @@
 # section-rating - STATE
 
 ## Now
-Planned, nothing built (2026-10-23 ~12:15). BRIEF.md and PLAN.md written by a planning subagent on
-`feature/section-rating` (cut from master 3c460923). Not committed yet: the lead commits these three files first.
-Defaults A1-A8 (BRIEF.md) apply until Michael answers M-a to M-h.
+- ~13:55 (Marlow Build): S1-S5, integration, S7 built; check PASS (slices/S1-5-check.md); fix round done (6fa5768a: A10
+  camera alarms break No alarms, card shows only rewards that land). Green: tsc, 9 vitest files, desktop GPU e2e-section-rating
+  41 s + e2e-sectorops 220 s. Protocol 34 provisional (marlow-final holds 33). Not merged with master yet.
 
 ## Next
 1. Lead commits the docs, checks master for guard-ai / sector-redesign / CT Core changes to the files in PLAN.md
@@ -21,7 +21,8 @@ Defaults A1-A8 (BRIEF.md) apply until Michael answers M-a to M-h.
 
 ## Resume prompt
 ```
-Night Shift | Menu Notes Build: start section-rating. Work only in C:/NightShift/Mobile-Coop-section-rating on branch feature/section-rating (branch guard from CLAUDE.md "A job" before every write). Read CLAUDE.md, then docs/section-rating/STATE.md, BRIEF.md and PLAN.md. Commit the three docs first. Then run PLAN.md slice order (S1, then S2-S5 in parallel, then S6 and S7) with the session-method loop: Opus for src/net, save and mode code, Sonnet for UI, data and tests from strict Opus briefs, one fresh checker per batch, at most 1 fix round. Use assumed decisions A1-A8 until Michael answers M-a to M-h. Update STATE.md after every slice. Finish with one PR to master.
+Night Shift | Marlow Build: resume section-rating (after marlow-final). Read CLAUDE.md on origin/master ("Sessions", "Heavy-usage throughput"), ROADMAP "Next: stealth over shooting" by grep, then this STATE (worktree C:/NightShift/Mobile-Coop-section-rating, feature/section-rating; git fetch).
+State: S1-S5 + integration + S7 + fix round done and green (6fa5768a). Left: S6 Marlow Yard rated sets (Opus; PLAN S6; courseMode.ts / courseState.ts / courseRating.ts) - start only after marlow-final's PR merges to master, then merge master here first. Then one Opus checker on S6, e2e-course + e2e-ctcourse + e2e-section-rating + e2e-sectorops on the laptop, add e2e-section-rating to run-e2e.mjs, changes/feature-section-rating.md, full e2e, PR, message "Night Shift | Orchestrator".
 ```
 
 ## S1 report (2026-10-23 12:30)
