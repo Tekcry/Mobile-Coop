@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~18:10: GREEN at protocol 39: #229 S9 0d1bdffc 4/4 (coop, netmove, stealth-ai, takedown), #234 S22 18a08619 (stealth-ai,
+ctcourse:1). Train 30 built (7e8b8c51, PROTOCOL 40). RUNNING (Opus): merge train/30 into s9 (PROTOCOL 41, A142) + merge
+feature/guard-ai-carry-fix (e2e-guard-carry suite) into s9, then s9 into s22; then TRAIN-READY train 31 (orchestrator:
+the train run covers the merge). Invisible-guard split (f16600f5: player far / no photo) running on Test Runner.
+
 ~18:25: e2e-guard-carry fe910585 (sheet URL, guards under lamp (0,-3), same light defines incl. CLUSTLIGHT4 LIGHTCOUNT 5)
 PASSES on master f16600f5 and 4.78.0: no repro. Left between the failing sheet and the suite: photoFreeze + photo
 camera, 1920x1080, the player 1.5 m behind (his body + shadow copies). Test Runner splits it on f16600f5 (A: player far,
