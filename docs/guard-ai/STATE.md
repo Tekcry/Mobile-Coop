@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~05:50: train 41 #283 FAILED e2e-levels ladder runner (spawned-alerted runner stays idle). Bisect: master + S23 PASS,
+S24 1ae5e211 FAIL (+ s27, walk482). train-ready REMOVED from #264, #270, #272; #281 + #254 stay. Opus S24 triage
+RUNNING in -s24 (S24-LEVELS-TRIAGE.md; likely src: alerted guard with no per-player LKP has nothing to hunt; set
+s24-levels-fix). Then merge the fix up s25 -> s26, s27, walk482 and requeue.
+
 ~05:30: round 4 failed on the 'wall' premise (spot seen at 2.2 s from his cover route through the x -4 gap). S25 round 5
 3a762da9 (player waits out the fight at (0,-20), moved to the walled spot when the search starts) -> laptop
 s25-sai-fix5; s26 2581b794 -> s26-sai3. Both green -> label #266 + #271.
