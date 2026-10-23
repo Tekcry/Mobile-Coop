@@ -1,0 +1,17 @@
+{
+  "id": "20261023T093904-night-shift-player-b-e70951e3-26bc",
+  "sha": "e70951e344adc42681cf632349e1300368a7aee1",
+  "branch": "",
+  "pr": 247,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-anim",
+    "e2e-clip",
+    "e2e-menus"
+  ],
+  "set": "afp-train33",
+  "note": "anim-fix-pass train 33 entry (master 4.81.0 merged)"
+}
