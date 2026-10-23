@@ -197,8 +197,9 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   swinging leg's knee pole stays nearer the pelvis forward (`KNEE_SWING_SHARE`). The idle's head scan reaches the
   head through `RigTargets.keyScan` (added to the world-stabilised head yaw: the camera aim and look still drive it). Remotes pose the same from MoveState (speed, crouch, the graph's own
   clock); no wire change.
-- (mocap-trial) Mocap locomotion switch (`anim/mocap.ts`; Settings > Gameplay > "Mocap locomotion", the tuner's More >
-  Panel box, `?mocap=0/1`; default off, IndexedDB with the settings): `LOCO.set` picks the clip set the standing holstered
+- (mocap-trial) Mocap locomotion switch (`anim/mocap.ts`; `?mocap=0/1`, then the tuner's More > Panel box for that page;
+  ON otherwise: anim-fix-pass AF5 removed the Settings row and a stored `gameplay.mocapLoco: false` no longer sticks,
+  core/app.ts; the switch is per machine and drives the co-op partner's copy on this machine too): `LOCO.set` picks the clip set the standing holstered
   speed set samples (`speedSet`: the hand-keyed `HAND_KEYED_SET` or `MOCAP_SET`, `anim/clips/mocap/*` in the keyed format;
   the drawn, crouched, idle and wall sets stay hand-keyed), plus its optional one-shot slots (`MocapSlots`: turn in place,
   turn on the move L / R, start, stop). A mocap clip with a `feet` channel drives the planner's clip feet mode

@@ -1,0 +1,4 @@
+remote              Hz   speed  pelvisP2P  head   sway   cam    jump   slideMax  settle  pose   lower  phase  pops  lod  fails
+flat-stand4         60    2.91     11.74!  12.69!      -      -  9.85!      0.01       -  25.90!  53.69!   0.23    13    0  14
+flat-crouch3        60    1.64      2.19!   2.33      -      -  22.82!      0.01       -  31.95!  45.12!   0.30     5    0  10
+remote: client 51.5-57 frames/s, host 56.5 fps; 120 Hz pump not run; placement settle 326-1781 ms

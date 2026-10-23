@@ -13,8 +13,9 @@ import type { HitInfo } from '../game/damage';
 import { Interactables, KIND_COLOR, type Interactable } from '../game/interactables';
 import { CRATE_DARK, applyCrateEvent } from '../game/crateLedger';
 import type { NetSession } from './session';
-import { BARK_CAM, BARK_TEXT, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
-import { ClockSync } from './interp';
+import { BARK_CAM, BARK_TEXT, gaitWire, motionWire, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
+import { CT } from '../config/movement';
+import { CLIENT_INTERP_DELAY, ClockSync, sendClock } from './interp';
 import type { CKind } from '../game/committedMoves';
 import { RemoteAvatar } from './remoteAvatar';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
@@ -50,7 +51,8 @@ import { DeflectLedger } from './puppetGear';
 import { DESK_NONE, deskItemId, deskModeOf } from '../game/sectorDesks';
 
 const SEND_HZ = 20;
-const INTERP_DELAY = 0.12;
+/** (afp AF6) `CLIENT_INTERP_DELAY` (interp.ts; was 0.12). */
+const INTERP_DELAY = CLIENT_INTERP_DELAY;
 
 /**
  * Client side of a match. Only the local player is simulated (predicted); enemies, modes, pickups, objectives, doors
@@ -938,9 +940,18 @@ export class CoopClient implements NetAttachment {
     const g = this.g;
     const p = g.player;
     const c = p.controller;
+    // (afp AF6) the send clock (the host times the state by it) and the gait clock / CT stop (the partner's stride)
+    const sentAt = sendClock(this.sentWall, this.sentSim, performance.now() / 1000, this.time);
+    this.sentWall = sentAt;
+    this.sentSim = this.time;
+    const gw: { gph?: number; qs?: number; hs?: number; mo?: number; mt?: number; ax?: number; az?: number } = {};
+    gaitWire(c.motion.phase, c.ct, c.stopEaseT, c.stopHold, c.holdSpeed, CT.stopEase, CT.stopBlend, gw);
+    motionWire(c.override?.kinematic ? null : c.motion.state, c.motion.stateT, c.motion.ax, c.motion.az, gw);
     this.s.toHost({
       t: 'pstate',
       s: wirePlayerState({
+        ...gw,
+        t: sentAt,
         id: this.s.selfId,
         x: p.position.x,
         y: p.position.y,
@@ -956,6 +967,10 @@ export class CoopClient implements NetAttachment {
       }),
     });
   }
+
+  /** (afp AF6) The last state's send clock and sim time (`sendClock`). */
+  private sentWall = -Infinity;
+  private sentSim = 0;
 
   /** The movement state this step and the last one sent (change detection). */
   private mvNow = emptyMoveState();

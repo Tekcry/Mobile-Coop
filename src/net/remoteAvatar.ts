@@ -2,7 +2,7 @@ import { crackedHandle } from '../world/doorPeek';
 import { DOOR } from '../world/doors';
 import { KNEEL_STILL } from '../player/playerController';
 import { tenseNear } from '../player/tenseSneak';
-import { WALL, WALL_LOOK_PITCH, WALL_SUB, WALL_TURN, wallHandPoint, wallHeadYaw, wallMoveK, wallPeekOffset, wallPoint, wallRootPush, wallSideFromSub, wallTurnRate, wallYawOffset } from '../player/wallController';
+import { WALL, WALL_LOOK_PITCH, WALL_SUB, WALL_TURN, WALL_TURN_RATE, wallHandPoint, wallHeadYaw, wallMoveK, wallPeekOffset, wallPoint, wallRootPush, wallSideFromSub, wallTurnRate, wallYawOffset } from '../player/wallController';
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { muzzleBlock } from '../player/wallBlock';
 import { PhysicsRaycastResult, Vector3, type PhysicsEngine } from '../core/babylon';
@@ -20,13 +20,13 @@ import { G, MASK } from '../physics/groups';
 import type { World } from '../world/world';
 import type { Vfx } from '../vfx/vfx';
 import type { Ballistics } from '../weapons/ballistics';
-import { SnapshotBuffer } from './interp';
-import { PF, type PlayerInfo, type PlayerState } from './protocol';
+import { ExtrapBlend, sampleSpeed, SnapshotBuffer } from './interp';
+import { MOTION_WIRE, PF, type PlayerInfo, type PlayerState } from './protocol';
 import { hyp2 } from '../core/mathx';
 import { AttachGrips } from '../player/attachGrips';
-import { wrapPi } from '../anim/motion';
+import { easeInOut, wrapPi, type MotionState } from '../anim/motion';
 import { GRAB_KILL_BLOW, KILL_SEEN, KILL_TAIL_END, killWarp, strikeWarp, TAKEDOWN_BLOW, type KillBlow } from '../anim/strikeBody';
-import { RAPPEL, TEAM } from '../config/movement';
+import { MOVEMENT, RAPPEL, TEAM } from '../config/movement';
 import { GAMEPLAY_HEIGHT } from '../player/attach';
 import { findRopeLip, newRopeLip, ROPE_SUB, ropeLipHands, ropeSeenStep, type RopeSeen } from '../game/teamMoves';
 import { attachGripWeight, climbUpFootWeight, emptyMovePose, isAttachedMode, poseFromMoveState, TAKEDOWN_SUB_BLOW, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
@@ -37,7 +37,7 @@ import { moveTuneBegin, moveTuneEnd, moveTuneRoot, moveTuneSelectBase, teamConta
 import { bodyRigRoot, bodyRigWallGap } from '../anim/tune';
 import { clearGripAxis } from '../player/attachGrips';
 import { GRAB } from '../game/takedown';
-import { easeRemoteSpeed, isShownTeleport, seedHeading } from './remoteSeed';
+import { easeRemoteSpeed, isShownTeleport, REMOTE_SPEED_MAX, seedHeading } from './remoteSeed';
 import { RemoteShots } from './remoteShots';
 import { bodyPoint, CQ, ease, holdHandsLocal, koCurve, type KoState } from '../game/closeQuarters';
 
@@ -77,6 +77,17 @@ export class RemoteAvatar {
   private blowU = 0;
   private tailU = -1;
   readonly buf = new SnapshotBuffer<PlayerState>(40, 0.25);
+  /** (afp AF6) The step back from an extrapolation, blended out (`ExtrapBlend`). */
+  private readonly xb = new ExtrapBlend();
+  /** (afp AF6) The shown body yaw off the wall: rate-limited after a wall until it meets the owner's, as the owner's
+   *  `visYaw` (player.ts: WALL_TURN.out while the wall eases out, then WALL_TURN_RATE until the gap is under 0.05). */
+  private visYaw = 0;
+  /** (afp AF6) The stance transition's linear clock (0 standing .. 1 crouched), as the owner's `crouchK`. */
+  private crouchK = 0;
+  private visLimit = false;
+  /** (afp AF6) The owner's velocity at the render time (the buffer's span-middle blend, lightly smoothed; m/s). */
+  private vx = 0;
+  private vz = 0;
   readonly pos = new Vector3();
   yaw = 0;
   pitch = 0;
@@ -302,7 +313,12 @@ export class RemoteAvatar {
       this.rig.setEnabled(true);
       this.prev.set(s.x, s.y, s.z);
       this.lastCommit = s.state.mv?.c?.n ?? -1;
+      this.xb.reset();
+      this.visYaw = s.yaw;
+      this.visLimit = false;
     }
+    // (afp AF6) a new state after an extrapolation: the step back blends out instead of showing in one frame
+    this.xb.apply(s, dt);
     this.pos.set(s.x, s.y, s.z);
     this.yaw = s.yaw;
     const st = s.state;
@@ -361,7 +377,20 @@ export class RemoteAvatar {
       this.yaw = this.wallYaw;
       this.wallYawOn = true;
       this.wallS = sv;
-    } else this.wallYawOn = false;
+      this.visYaw = this.wallYaw;
+      this.visLimit = true;
+    } else {
+      this.wallYawOn = false;
+      // (afp AF6) off the wall the turn back to the owner's yaw is rate-limited, as the owner's (it snapped in a frame)
+      if (this.visLimit || this.wallK > 0) {
+        const d = wrapPi(s.yaw - this.visYaw);
+        const mx = (this.wallK > 0 ? wallTurnRate(Math.abs(d), false, false, this.crouch) : WALL_TURN_RATE) * dt;
+        this.visYaw = wrapPi(this.visYaw + Math.max(-mx, Math.min(mx, d)));
+        this.visLimit = Math.abs(wrapPi(s.yaw - this.visYaw)) > 0.05;
+        if (!this.visLimit) this.visYaw = s.yaw;
+      } else this.visYaw = s.yaw;
+      this.yaw = this.visYaw;
+    }
     // (locomotion step 13, D8) a door peek: the hand away from the hinge on the handle of the leaf as cracked (`ph`),
     // the side from where the body stands
     const pd = mv?.m === 'doorPeek' && !rp ? this.world.doors.list[mv.a] : undefined;
@@ -430,11 +459,19 @@ export class RemoteAvatar {
     const reseed = !!mv && (this.justPlaced || isShownTeleport(moved, dt));
     this.justPlaced = false;
     const inst = dt > 0 ? moved / dt : 0;
-    // (3.2.0) the owner's own speed when it sends a move state (interpolation jitter is not a gait)
-    const want = mv && !rp ? st.speed : inst;
-    this.speed = easeRemoteSpeed(this.speed, reseed ? st.speed : want, dt, reseed);
-    let lx = this.pos.x - this.prev.x;
-    let lz = this.pos.z - this.prev.z;
+    // (3.2.0) the owner's own speed when it sends a move state (interpolation jitter is not a gait); (afp AF6) blended
+    // across the span at render rate, as the owner's pace (the older state's pace stepped at 15-20 Hz, then eased at 10 / s)
+    if (mv && !rp) this.speed = Math.min(Math.max(sampleSpeed(s), 0), REMOTE_SPEED_MAX);
+    else this.speed = easeRemoteSpeed(this.speed, reseed ? st.speed : inst, dt, reseed);
+    // (afp AF6) the owner's velocity (the buffer's continuous span blend), smoothed over 0.04 s: the stride heading, the
+    // planner's velocity and the derived lean / stop (MotionDerive) read it instead of per-frame position deltas
+    const vk = reseed ? 1 : 1 - Math.exp(-dt / 0.04);
+    this.vx += (s.vx - this.vx) * vk;
+    this.vz += (s.vz - this.vz) * vk;
+    const free = !!mv && !rp && !isAttachedMode(mv.m);
+    let lx = free ? this.vx * dt : this.pos.x - this.prev.x;
+    let lz = free ? this.vz * dt : this.pos.z - this.prev.z;
+    if (free) moved = hyp2(lx, lz);
     if (reseed) {
       seedHeading(s.from.x, s.from.z, s.to.x, s.to.z, this.speed, dt, this.seedH);
       lx = this.seedH.x;
@@ -443,7 +480,14 @@ export class RemoteAvatar {
     }
     this.prev.copyFrom(this.pos);
     const f = this.flags;
-    this.crouch += ((f & PF.crouch ? 1 : 0) - this.crouch) * Math.min(1, dt * 10);
+    // (afp AF6) the owner's stance curve (playerController.updateStance: linear over crouchTime / standTime, eased in and
+    // out), the bit from the state nearer the render time (an exponential ease at 10 / s led the owner's crouch by ~0.1 s
+    // and stood up late)
+    const cWant = ((s.k >= 0.5 ? s.to.f : s.from.f) & PF.crouch) !== 0 ? 1 : 0;
+    if (reseed) this.crouchK = cWant;
+    else if (cWant > this.crouchK) this.crouchK = Math.min(cWant, this.crouchK + dt / MOVEMENT.crouchTime);
+    else this.crouchK = Math.max(cWant, this.crouchK - dt / MOVEMENT.standTime);
+    this.crouch = easeInOut(this.crouchK);
     const aimTarget = mv ? mv.r : f & (PF.ads | PF.firing) ? 1 : 0.15;
     this.aim += (aimTarget - this.aim) * Math.min(1, dt * 10);
     // ready position weights eased to the owner's (`MoveState.rd`)
@@ -599,6 +643,45 @@ export class RemoteAvatar {
       this.airTop = Number.NaN;
     }
     this.landT = Math.max(0, this.landT - dt);
+    // (afp AF6) the owner's gait clock between the two states around the render time (forward, wrapping), as the
+    // owner's rig plays it (player.ts: none side-on on a wall); the CT stop's blend and held pace from the state
+    const wallTurn = mp.wall ? Math.abs(Math.sin(this.yaw - Math.atan2(this.wallNx, this.wallNz))) : 0;
+    const ga = s.from.gph;
+    const gb = s.to.gph;
+    let gaitPh = -1;
+    if (free && ga !== undefined && gb !== undefined && (mv.m === 'ground' || (mv.m === 'wall' && wallTurn <= 0.5))) {
+      const d = (((gb - ga) % 1) + 1) % 1;
+      gaitPh = d < 0.5 ? (ga + d * Math.max(0, s.k)) % 1 : s.k >= 1 ? gb : ga;
+    }
+    // (afp AF6) the owner's motion state at the render time: the newer state's from the moment it began (its time in
+    // it back from its stamp), else the older one's, timed on (start / stop / turn / pivot as the owner's)
+    let motion: MotionState | undefined;
+    let motionT = 0;
+    const moA = s.from.mo;
+    const moB = s.to.mo;
+    if (free && moA !== undefined && moB !== undefined) {
+      const el = Math.max(0, s.k) * s.span;
+      const bAt = s.span - (s.to.mt ?? 0);
+      if (moB !== moA && el >= bAt) {
+        motion = MOTION_WIRE[moB];
+        motionT = el - bAt;
+      } else {
+        motion = MOTION_WIRE[moA];
+        motionT = (s.from.mt ?? 0) + el;
+      }
+    }
+    // (afp AF6) the owner's acceleration across the span, in this body's frame (the lean, the mocap stop slot), as its rig
+    let accelFwd: number | undefined;
+    let accelSide: number | undefined;
+    const axA = s.from.ax;
+    const axB = s.to.ax;
+    if (motion !== undefined && axA !== undefined && axB !== undefined) {
+      const ka = s.k < 0 ? 0 : s.k > 1 ? 1 : s.k;
+      const ax = axA + (axB - axA) * ka;
+      const az = (s.from.az ?? 0) + ((s.to.az ?? 0) - (s.from.az ?? 0)) * ka;
+      accelFwd = ax * sy + az * cy;
+      accelSide = ax * cy - az * sy;
+    }
     const rpose: RigPose = {
       speed: this.speed,
       kneel: this.kneelT > KNEEL_STILL && !tense,
@@ -607,6 +690,18 @@ export class RemoteAvatar {
       localX: (lx * cy - lz * sy) * inv,
       localZ: (lx * sy + lz * cy) * inv,
       grounded: (f & PF.grounded) !== 0 || mp.traverse !== 'none',
+      // (afp AF6) free on foot: the owner's velocity and turn rate at the render time (the rig measured both from the
+      // interpolated root, whose 15-20 Hz corners stepped the gait clock and the derived stop)
+      velX: free ? this.vx : undefined,
+      velZ: free ? this.vz : undefined,
+      yawRate: free && !this.visLimit && !this.wallYawOn ? s.vyaw : undefined,
+      phase: gaitPh >= 0 ? gaitPh : undefined,
+      quickStop: free ? (st.qs ?? 0) : 0,
+      holdSpeed: free ? (st.hs ?? 0) : 0,
+      motion,
+      motionT,
+      accelFwd,
+      accelSide,
       crouch: this.crouch,
       aimPitch: (upside ? -this.pitch : this.pitch) * this.aim,
       aimYaw: mv ? (upside ? -wrapPi(mv.ay + Math.PI) : mv.ay) * this.aim : 0,
@@ -628,7 +723,7 @@ export class RemoteAvatar {
       // (A1.2) as the owner: free movement strides along the facing (no faceGoal: the planner caps its turn guess)
       stride: this.aim > 0.5 || mp.wall || mp.settle ? 'velocity' : 'facing',
       wallSide: mp.wallSide,
-      wallTurn: mp.wall ? Math.abs(Math.sin(this.yaw - Math.atan2(this.wallNx, this.wallNz))) : 0,
+      wallTurn,
       wallBlock: this.aim > 0.05 && mv && !upside ? muzzleBlock(this.ballistics, this.pos.x, this.pos.y, this.pos.z, this.yaw + mv.ay, this.pitch, this.crouch, this.blockA, this.blockB) : 0,
       wallNx: this.wallNx,
       wallNz: this.wallNz,
