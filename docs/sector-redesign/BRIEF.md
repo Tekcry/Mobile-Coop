@@ -56,6 +56,8 @@ lighting where players make their own shadows. Prototype first (CLAUDE.md curren
   post); each choke clearable solo (distraction or a single takedown), co-op gives an easier option; an e2e assert per
   choke (no nav route from the entry to the objective with that guard's view cone as a blocker); tell Guard AI Build
   which guards are posted and which distractions must still pull them (data shape).
+- M13 (2026-10-23 ~21:08, LR16-5 moving lights, through the orchestrator): "Flicker + stutter". Fires flicker, one
+  failing tube stutters per main map, meter and guards follow through the registry. No sway, no lightning.
 
 ## Questions sent to Michael (~01:50, through the orchestrator)
 Q1 setting, Q2 run length, Q3 guards per section, Q4 lighting default, Q5 security tools. Answers land here as M6+;
