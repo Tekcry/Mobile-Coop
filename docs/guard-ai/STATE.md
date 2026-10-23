@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~04:55 (window reset; 4.84.0 released, train 41 #283 building): S25 round 4 cf3e013d ('wall' asked for a floor spot
+the warehouse lacks; now the spot most round a wall, 4-9 m straight; S25-SAI-TRIAGE.md) -> laptop s25-sai-fix4; merged
+into s26 8e794f6c -> laptop s26-sai2 (stealth-ai; s26 coop + netmove already PASS on 531a65e9). Both green -> label
+#266 + #271.
+
 ~04:35: s25-sai-fix3 1eb5644d FAIL (laptop, run + rerun): every 'near' assert now PASSES; next scenario fails on
 staging: "wall: no spot 4-9 m straight and > 23 m by path from the last known position" (log runs/20261023T170434-
 ...-1eb5644d-9b03/4189.log:74). FIRST at the wake: resume the S25 agent (or a fresh Opus) on the 'wall' spot picker
