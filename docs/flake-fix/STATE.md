@@ -3,7 +3,31 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
-**Test Runner SAVE 13 (2026-10-23 ~14:40; wins over all below):**
+**Test Runner SAVE 14 (2026-10-23 ~15:15, swap ~15:30; wins over all below):**
+- SENT: Guard AI S15 fc249f3f GREEN 9/9 (runs/guardais15-fc249f3f). Sector Ops art 5504e2e3 PART 1: logic 8/9
+  (sectorops:6 = the guard panel-walker assert S15 rewrites, not the art), shots + sheets
+  (work/campusart-5504e2e3/sheet-s1..5.webp), meter parity ok. Answered Guard AI S21 (rig armed/ready path exists).
+- RUNNING / QUEUED (scheduled tasks, run through the swap; logs runs/chain-1023<x>.log):
+  - 4189 chain-1023r89: coopwalk-c6b4f4a3 (Player Build: coop netmove; verdict -> Player Build + orchestrator) ->
+    waits for chain-1023r92 done + both locks free -> sectorart-perf-5504e2e3 (Sector Ops PART 2: perf MAP=campusOps
+    MODE=sector, guard-cap campus -> work/campusart-5504e2e3/guard-cap, view probe -> work/campusart-5504e2e3/views.json;
+    perf numbers are in runs/sectorart-perf-5504e2e3/cmd2.log). Verdict -> Sector Ops Build (budget p95 CPU < 12,
+    GPU < 15 ms at the S3 / S4 / S5 worst views).
+  - 4192 chain-1023r92: guardais9-1ad04058 (coop netmove stealth-ai takedown; verdict -> Guard AI Build) ->
+    guardaiwalk-2082f96b (S17-S21: stealth-ai sectorops ctcourse course ct-warehouse stealth tactics takedown coop;
+    verdict -> Guard AI Build; lowest).
+  - 4189 chain-1023m1 (after r89 + r92): guardrender-m1-f5912402 = guard-render M1 check on master 4.75.0
+    (work/guardrender-m1-f5912402; load sample runs/guardrender-m1-load.csv). Judge vs BRIEF M1 (24 facing: CPU p95
+    <= 12, GPU p95 <= 15), write into docs/guard-render/STATE.md on feature/guard-render-close (PR #225), then close
+    the job or re-plan.
+- NOT DONE: Guard AI's calm-guard contact sheet (rifle slung, officer pistol on thigh, draw at guard speed) at
+  2082f96b: needs a small shot script (start from scripts/campus-art-shots.mjs: teleport + photo camera on a calm
+  guard); after the queue above.
+- LESSONS: a queue script whose runner calls used `$r[0]` from an ArrayList ran NOTHING (14:41): use literal runner
+  calls. In a step for cmd /c, `node -e "..."` must have no spaces inside the JS. A chain re-gated mid-run: stop only
+  the waiting chain powershell (Stop-Process its PID), never the runner or node under it.
+
+**Test Runner SAVE 13 (2026-10-23 ~14:40):**
 - SENT: train 26 a63e6f4b GREEN 40/40 (466 s, JOBS=5) -> merged 4.75.0. Guard-render PR #225 open (docs only:
   run-s4-on|off + STATE; branch feature/guard-render-close, worktree Mobile-Coop-guard-render-close). Orchestrator told.
 - RUNNING (scheduled tasks; logs runs/chain-1023<x>.log):
