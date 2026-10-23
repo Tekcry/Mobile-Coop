@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~01:00 TOP: train 38 FAILED e2e-ctcourse:2 A3 swap line (a3OfficeRange.mjs:363) on every train with #254 S23
+(35, 37, 38). Orchestrator pulled train-ready from #254, #264, #270, #272: relabel after ctcourse:2 passes on the fix.
+Opus triage RUNNING in -s23 (slices/S23-A3-TRIAGE.md; sets s23-a3fix / s23-a3probe). Then merge the fix up s24 -> s25
+-> s26, s27, walk482.
+
 ~00:55: S25 'near' round 2 923be420 (tp harness leak: frameUpdate after tp; S25-SAI-TRIAGE.md) -> laptop
 s25-sai-fix2. S26 coop block 79f0de67 (copied S24's old seen hide spots; dark yard lane + leg picked at the look;
 S26-COOP-TRIAGE.md); s25 merged -> s26 c42e38f1, laptop s26-fix3 (stealth-ai, coop, netmove). Green -> label #266 + #271.
