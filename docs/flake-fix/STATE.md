@@ -34,6 +34,11 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   the baked moon, reach from the player, body rigs reach, run-s6-on|off in docs); runner guardrender-s6-ec859eeb waits on
   4192 (smoke stealth-ai sectorops ctcourse). Next S6: one Opus checker batch with S3a fix 2, then PR WITHOUT S6d
   unless Michael OKs the ground-shadow look (gain small).
+- 12:00 GREEN: guardrender-s3a-e704d5f3 (6 suites, 308 s), guardrender-s6-c181002e (4 suites, 407 s). S3a fix round 2
+  DONE 3dcbb662 (free fit mode + crouch sweep, shared emote fns, walked hostage HELD_MOVE, steady bounds 0.09 / 0.11).
+  Opus checker running on S3a r2 (e704d5f3..3dcbb662) + S6 fixes (c181002e..ec859eeb). Runners: 4189
+  guardrender-s3a-3dcbb662 (same 6 suites), 4192 guardrender-s6-ec859eeb (running) -> guardrender-s5-9fc1e66a (waiting).
+  On checker PASS + green: S3a PR (diff to Guard AI first: S3a carries the guard-ai merge 8f33e44c), S6 PR without S6d.
 - 11:30 CHECKER (Opus) S3a e704d5f3 PASS WITH NOTES: (1, blocks job PR) fit script has no `free` mode for MOVE + no
   crouch sweep; (2) harness re-implements syncHitboxes emote logic (move to a pure fn, test beginTakedown blindPose clear);
   (3) hostage walk untested (mSx survives held blend, frozen phase); exceptions OK, peek cycle 29 cm = follow-up (smaller
