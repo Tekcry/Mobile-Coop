@@ -640,9 +640,11 @@ Open:
    a verdict). Laptop set s24 on ef44eea5 (coop, stealth-ai, sectorops, tactics, stealth, takedown, ctcourse,
    netmove) PENDING. Then: add the e2e-coop "two intruders" block (slices/S24.md "e2e", Opus agent, commit+push,
    request e2e-coop + netmove on it), PR (stacked on #254), train-ready.
-5. S25a pure searchArea.ts: cloud-built feature/guard-ai-s25a 39420159. Checker RUNNING (slices/S25A-CHECK.md in
+5. S25a pure searchArea.ts: feature/guard-ai-s25a (39420159 + check). Check PASS (slices/S25A-CHECK.md in
    -s25a). Not a PR alone: S25b = the wiring (slices/S25.md Build 2-4, tests, e2e) on S24's tip with S25a merged:
    brief it to cloud-queue (Opus only) once S24's checks pass.
+   S25b brief MUST add (S25A-CHECK polish 2): offer candidates best score first; searchDone finds the guard's point
+   by claim === num (a finishBy(num) helper), never a saved index; buildPlan never rebuilds a plan with live claims.
 Questions for Michael (non-blocking, decision packs): S23 client arcs / LKP ghost; S25 searchers' flares.
 Polish lists only: WALK-CHECK 1-6, S16-CHECK, A126-CHECK, S22-CHECK 1-5, S22-GAME-CHECK(2), CARRY-FIX2-CHECK,
 S23-CHECK-A/B, LR16-4-POLISH. A-numbers: S23 A143-A145, S24 A146-A150, S25 A151-A154 accepted (move into BRIEF.md).
