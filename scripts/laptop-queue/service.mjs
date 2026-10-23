@@ -324,13 +324,13 @@ async function e2e(port, suites, jobs, logFile) {
 // ---------- results ----------
 
 /** Reruns each failed (non-known-flaky) suite once alone; a pass is a flake. Mutates result.suites, returns flake names. */
-async function rerunFlakes(result, slotOf, job, runDir) {
+async function rerunFlakes(result, slotOf, job, runDir, fallback = PORTS[0]) {
   const flakes = [];
   const now = Date.now();
   for (const x of result.suites.filter((s) => !s.ok && !s.flaky && !s.report)) {
     if (state.flakes.some((f) => f.suite === x.s && now - Date.parse(f.date) < FLAKE_WINDOW_MS)) { log(`${x.s} flaked within 24 h, failure stands`); continue; }
     if (DRY) continue;
-    const port = slotOf[x.s] ?? PORTS[0];
+    const port = slotOf[x.s] ?? fallback;
     log(`rerun ${x.s} alone on ${port}`);
     const run = await e2e(port, [x.s], 1, path.join(runDir, `rerun-${x.s.replace(/\W/g, '_')}.log`));
     if (runComplete(run, 1) && run.suites.every((s) => s.ok)) {
@@ -484,7 +484,8 @@ async function runRequest(r, port) {
       return;
     }
     const result = { suites: run.suites, wall: 0, flakes: [] };
-    result.flakes = await rerunFlakes(result, {}, job, runDir);
+    // a request reruns on its own locked slot and worktree (its sha), never on another slot
+    result.flakes = await rerunFlakes(result, {}, job, runDir, port);
     result.wall = (Date.now() - t0) / 1000;
     const ok = finish(job, ctx, result, runDir, r.pr);
     state.done[r.id] = { result: ok ? 'success' : 'failure', wall: result.wall, date: new Date().toISOString() };
