@@ -15,7 +15,7 @@ scratch/ctcore/push-resume.sh <abs file> <msg>. Message the orchestrator only at
 | #223 batch 24 pose-parity | feature/pose-parity | 19248c01 | PROTOCOL 36. Green; stacked on #214: merge batch-23 in when green, train-ready. |
 | spare 7 crouch-pops #227 | feature/crouch-pops (crouch-pops) | 642ad971 | Checker PASS, e2e-anim / clip PASS. PR #227 open, train-ready sent (stacks on #221). Polish: docs/crouch-pops/CHECK.md 1-3 (OFF running crouch-down wristR 9.47 cm). |
 | walk P1-P5 anim fix pass | feature/anim-fix-pass (anim-fix-pass) | dba5b6a9 | AF0 merged. WIP-pushed agents: AF1 afp-af1 29a50ae3, AF2 afp-af2 9e281b46, AF5 afp-af5 13045007 (off 69662cf2), AF6 afp-af6 c9f1a67b (off coop-walk-fixes; PROTOCOL 38 if wire). If lost: restart each from its head with PLAN.md's slice. Next: group 2 AF3 + AF4a after AF1 / AF2 merge, then AF4b; one checker. |
-| walk P6-P7 co-op | feature/coop-walk-fixes (coop-walk-fixes) | a4e1fe64 | Checker PASS (docs/coop-walk-fixes/CHECK.md, polish 1-8). PROTOCOL 37. Laptop e2e-coop / netmove requested on c6b4f4a3 (docs-only since). Then PR (stacked on #223) + train-ready. |
+| walk P6-P7 co-op | feature/coop-walk-fixes (coop-walk-fixes) | a4e1fe64 | Checker PASS, PROTOCOL 37. Laptop c6b4f4a3: netmove ok, e2e-coop FAIL at the old dual-takedown step right after the new hostage step (new step passes). Opus fix round 1 running; then laptop e2e-coop rerun, PR, train-ready; AF6 merges the fix. |
 
 ## Next
 1. As each agent hands back: one Opus checker per batch, laptop request to Test Runner (coop / netmove / ctcourse + clip), train-ready to the orchestrator.
