@@ -27,8 +27,8 @@ LOOK = [
     ('steel', '#7c7f82', 0.55, 0.6), ('steelDark', '#2c2e30', 0.5, 0.5), ('galv', '#adafb1', 0.45, 0.9),
     ('plastic', '#1b1b1c', 0.6, 0.0), ('white', '#e8e8e4', 0.5, 0.0), ('whiteGloss', '#e9e9e4', 0.25, 0.0),
     ('laminate', '#b9b3a6', 0.5, 0.0), ('oak', '#6b4423', 0.45, 0.0), ('marble', '#e4e0d8', 0.15, 0.0),
-    ('timber', '#a8875c', 0.85, 0.0), ('cardboard', '#a67b4f', 0.9, 0.0), ('glass', '#cfd8da', 0.05, 0.0),
-    ('concrete', '#a5a29b', 0.9, 0.0), ('foliage', '#2f5a22', 0.8, 0.0), ('chrome', '#c9cdd0', 0.15, 1.0),
+    ('timber', '#a8875c', 0.85, 0.0), ('glass', '#cfd8da', 0.05, 0.0),
+    ('foliage', '#2f5a22', 0.8, 0.0), ('chrome', '#c9cdd0', 0.15, 1.0),
 ]
 EMISSIVE = {'screen': (0.35, 0.55, 0.7), 'lamp': (1.0, 1.0, 1.0)}
 TABLE = {n: (lin(h), r, m, (0, 0, 0)) for n, h, r, m in LOOK}
@@ -110,8 +110,8 @@ def mail_cage():
         box(p, 'galv', (-x, y, -z), (0.05, y + 0.02, z))
     box(p, 'galv', (-x, 1.8, -z), (x, 1.8 + E, z))                                    # top
     for i, y in enumerate((0.04, 0.39, 0.74, 1.09)):                                   # parcels in the pigeon-holes
-        box(p, 'cardboard', (-1.0 + 0.1 * (i % 2), y + 0.02, -0.38), (-0.2 + 0.1 * (i % 2), y + 0.28, 0.3))
-    box(p, 'cardboard', (0.15, 0.1, -0.4), (1.0, 0.85, 0.4))                          # roll cage 1: mail sacks stacked
+        box(p, 'timber', (-1.0 + 0.1 * (i % 2), y + 0.02, -0.38), (-0.2 + 0.1 * (i % 2), y + 0.28, 0.3))
+    box(p, 'timber', (0.15, 0.1, -0.4), (1.0, 0.85, 0.4))                          # roll cage 1: mail sacks stacked
     box(p, 'white', (0.15, 0.9, -0.4), (1.0, 1.6, 0.4))                               # roll cage 2: bagged post
     box(p, 'steel', (0.1, 0.86, -z), (x - 0.04, 0.89, z))                             # the cage shelf
     for s in (0.2, 0.9):
@@ -146,8 +146,8 @@ def sorting_table():
         cx = -1.05 + i * 0.7
         box(p, 'plastic', (cx - 0.3, 0.91, -0.35), (cx + 0.3, 1.0, 0.0))
         if i % 2 == 0:
-            box(p, 'cardboard', (cx - 0.25, 1.0, -0.3), (cx + 0.25, 1.06, -0.05))
-    box(p, 'cardboard', (-1.3, 0.22, -0.4), (-0.4, 0.6, 0.4))                          # parcels on the shelf
+            box(p, 'timber', (cx - 0.25, 1.0, -0.3), (cx + 0.25, 1.06, -0.05))
+    box(p, 'timber', (-1.3, 0.22, -0.4), (-0.4, 0.6, 0.4))                          # parcels on the shelf
 
 
 def stock_shelf():
@@ -162,8 +162,8 @@ def stock_shelf():
             box(p, 'galv', (xa, 0.0, za), (xb, 1.8 + E, zb))
     box(p, 'steel', (-x, 1.8, -z), (x, 1.8 + E, z))
     for k, y in enumerate((0.06, 0.62, 1.22)):
-        box(p, 'cardboard', (-0.55, y, 0.05), (0.55, y + 0.5, 0.65))
-        box(p, 'white' if k == 1 else 'cardboard', (-0.55, y, -0.65), (0.55, y + 0.5, -0.05))
+        box(p, 'timber', (-0.55, y, 0.05), (0.55, y + 0.5, 0.65))
+        box(p, 'white' if k == 1 else 'timber', (-0.55, y, -0.65), (0.55, y + 0.5, -0.05))
 
 
 def bms_desk():
@@ -181,7 +181,7 @@ def bms_desk():
     box(p, 'steelDark', (-1.45, 0.75, -0.35), (-1.4, 1.1, -0.05))                      # plotter roll holder: end plate
     box(p, 'steelDark', (-1.1, 0.75, -0.35), (-1.05, 1.1, -0.05))
     cyl(p, 'white', (-1.25, 0.95, -0.2), 0.08, 0.35, axis='x', segs=8)               # the drawing rolls
-    cyl(p, 'cardboard', (-1.25, 0.8, -0.2), 0.04, 0.35, axis='x', segs=6)
+    cyl(p, 'timber', (-1.25, 0.8, -0.2), 0.04, 0.35, axis='x', segs=6)
 
 
 def lift_door():
@@ -198,9 +198,9 @@ def lift_door():
 
 
 def balcony_planter():
-    """2.0 x 0.45 x 0.6 fit (row 2.0): a concrete trough with clipped box planting flush with the top (exact in plan and height)."""
+    """2.0 x 0.45 x 0.6 fit (row 2.0): a dark steel trough with clipped box planting flush with the top (exact in plan and height)."""
     p = 'balconyPlanter'
-    box(p, 'concrete', (-1.0, 0.0, -0.3), (1.0, 0.35, 0.3))
+    box(p, 'steelDark', (-1.0, 0.0, -0.3), (1.0, 0.35, 0.3))
     for i in range(3):
         cx = -0.667 + i * 0.667
         box(p, 'foliage', (cx - 0.31, 0.3, -0.26), (cx + 0.31, 0.45, 0.26), 0.04)

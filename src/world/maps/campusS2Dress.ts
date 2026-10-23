@@ -6,9 +6,10 @@
  * must not break the game.
  */
 import type { ArtTag } from '../campusArt/artTags';
-import type { ArtBox, ArtPlacement, PropCatalogue, V3 } from '../campusArt/catalogue';
+import { hullObb, type ArtBox, type ArtPlacement, type PropCatalogue, type V3 } from '../campusArt/catalogue';
 import type { CampusDresser } from '../campusArt/dresser';
 import { boxAt, boxesIn, pointSegDist } from '../campusArt/geometry';
+import { overlapsGreybox } from '../campusArt/keepouts';
 import heroReport from '../campusArt/assets/hero-s2.json';
 import { CAMPUS_LOOK } from '../campusArt/campusKit';
 import { PROP_LOOK } from '../props/facilityProps';
@@ -105,15 +106,28 @@ function routeDist(d: CampusDresser, x: number, z: number): number {
 const L1_DESKS: readonly (readonly [number, number])[] = [[-31.5, -4.5], [-31.5, 0.5], [-12, 3], [-12, 5]];
 const L2_DESKS: readonly (readonly [number, number])[] = [[-34, 3], [-36, 1], [-16, 3.5], [-12, 3.5], [-33, -25.5]];
 
-/** An office desk skin (the user's side away from the nearest route leg) and its chair, dropped when it throws. */
+/** One chair at a desk (on the `side` of it), logged and dropped when a keepout or a greybox box refuses it. */
+function chairAt(d: CampusDresser, x: number, floor: number, z: number, side: 1 | -1): boolean {
+  const n0 = d.placements.length;
+  const ok = attempt(`chair ${x},${z},${floor} side ${side}`, () => {
+    d.add('F:officeChair', x, floor, z + side * 0.7, side > 0 ? PI : 0, { cls: 'see', why: 'chair at the desk' });
+    const i = overlapsGreybox(d.keepouts, d.ctx.boxes, d.cats.F!, d.placements[n0]!);
+    if (i >= 0) throw new Error(`B: overlaps greybox box ${i}`);
+  });
+  if (!ok && d.placements.length > n0) {
+    d.placements.pop();
+    d.report.placed['F:officeChair'] = (d.report.placed['F:officeChair'] ?? 1) - 1;
+  }
+  return ok;
+}
+
+/** An office desk skin and its chair: the user's side is the one away from the nearest route leg whose chair clears every
+ *  keepout; a desk with no chair spot keeps the side away from the route. */
 function desk(d: CampusDresser, x: number, z: number, floor: number): void {
   const i = boxAt(d.ctx.boxes, x, floor + 0.375, z);
-  // the user sits at the desk's +z (yaw 0) or -z (yaw PI): the side away from the route
-  const side = routeDist(d, x, z + 1.2) >= routeDist(d, x, z - 1.2) ? 1 : -1;
-  if (!attempt(`desk ${x},${z},${floor}`, () => void d.skin('F:officeDesk', i, side > 0 ? 0 : PI, { why: 'office desk skin' }))) return;
-  for (const s of [side, -side]) {
-    if (attempt(`chair ${x},${z},${floor} side ${s}`, () => void d.add('F:officeChair', x, floor, z + s * 0.7, s > 0 ? PI : 0, { cls: 'see', why: 'chair at the desk' }))) return;
-  }
+  const pref = routeDist(d, x, z + 1.2) >= routeDist(d, x, z - 1.2) ? 1 : -1;
+  const side = chairAt(d, x, floor, z, pref) ? pref : chairAt(d, x, floor, z, pref > 0 ? -1 : 1) ? (pref > 0 ? -1 : 1) : pref;
+  attempt(`desk ${x},${z},${floor}`, () => void d.skin('F:officeDesk', i, side > 0 ? 0 : PI, { why: 'office desk skin' }));
 }
 
 /** The four turnstile barrier segments (steel, 1.1 high, 0.3 thick, centred on z -23): found, not indexed. */
@@ -131,6 +145,32 @@ function place(d: CampusDresser, label: string, piece: string, spots: readonly (
   return false;
 }
 
+/** The seating group's spots: the low table (x, z, yaw) and its two lounge seats (at +-1.0 across the table's long axis, facing it). */
+const SEATING: readonly (readonly [number, number, number])[] = [
+  [-27.4, -19.5, 0],
+  [-28, -21.5, 0],
+  [-28.5, -20, PI / 2],
+];
+
+/** The table and both seats at one spot, all or none (a placement that throws rolls the group back). */
+function seatingGroup(d: CampusDresser, [x, z, yaw]: readonly [number, number, number]): boolean {
+  const alongX = yaw === 0;
+  const seats: readonly (readonly [number, number, number])[] = alongX ? [[x - 1, z, PI / 2], [x + 1, z, -PI / 2]] : [[x, z - 1, 0], [x, z + 1, PI]];
+  const n0 = d.placements.length;
+  const ok = attempt(`seating group at ${x},${z}`, () => {
+    d.add('H2:lowTable', x, 0, z, yaw, { cls: 'solid', why: "visitors' low table" });
+    for (const [sx, sz, sy] of seats) d.add('F:loungeSeat', sx, 0, sz, sy, { cls: 'solid', why: "visitors' seating" });
+  });
+  if (!ok) {
+    while (d.placements.length > n0) {
+      const p = d.placements.pop()!;
+      const key = `${p.cat}:${p.prop}`;
+      d.report.placed[key] = (d.report.placed[key] ?? 1) - 1;
+    }
+  }
+  return ok;
+}
+
 export function dressS2(d: CampusDresser): void {
   S2_DRESS_LOG.length = 0;
   const bx = d.ctx.boxes;
@@ -141,10 +181,17 @@ export function dressS2(d: CampusDresser): void {
   attempt('reception desk', () => void d.skinRow('H2:receptionCounter', at(-20, 0.55, -27.1), true, 1, { why: 'reception counter skin (visitors on the turnstile side)' }));
   attempt('turnstile barriers', () => {
     for (const i of barrierSegments(d)) {
-      for (const k of d.skinRow('H2:speedGate', i, true, -1, { why: 'speed gate cabinets (the gates stay open gaps)' })) {
+      const ks = d.skinRow('H2:speedGate', i, true, -1, { why: 'speed gate cabinets (the gates stay open gaps)' });
+      const box = d.ctx.boxes[i]!;
+      const lo = box.c[0] - box.s[0] / 2;
+      const hi = box.c[0] + box.s[0] / 2;
+      for (const k of ks) {
         const p = d.placements[k]!;
         p.group = S2_GROUPS.atrium;
         p.lamp = [0.1, 1, 0.3];
+        // the skin stands 1 cm proud: slide the end modules in so nothing enters the 1.2 gates (or the walls)
+        const o = hullObb(d.cats.H2!, p);
+        p.x += Math.max(0, lo - (o.cx - o.hx)) - Math.max(0, o.cx + o.hx - hi);
       }
     }
   });
@@ -176,10 +223,9 @@ export function dressS2(d: CampusDresser): void {
   // ---- heroes: the atrium and reception
   place(d, 'logoWall', 'H2:logoWall', [[-25.5, F0, -29.84, 0]], 'visual', 'the brand wall behind reception');
   place(d, 'greenWall', 'F:greenWall', [[-29.84, F0, -15, PI / 2], [-29.84, F0, -2, PI / 2]], 'visual', "the atrium's planted wall");
-  place(d, 'modelVitrine', 'F:modelVitrine', [[-10.6, F0, -27.4, -PI / 2], [-28.6, F0, -27.4, -PI / 2]], 'solid', 'the Tidewater product display');
-  place(d, 'seat west', 'F:loungeSeat', [[-28.4, F0, -19.5, PI / 2]], 'solid', "visitors' seating");
-  place(d, 'seat east', 'F:loungeSeat', [[-26.4, F0, -19.5, -PI / 2]], 'solid', "visitors' seating");
-  place(d, 'low table', 'H2:lowTable', [[-27.4, F0, -19.5, 0]], 'solid', "visitors' low table");
+  place(d, 'modelVitrine', 'F:modelVitrine', [[-10.6, F0, -27.4, -PI / 2], [-28.6, F0, -27.4, -PI / 2], [-11, F0, -27.5, -PI / 2], [-11, F0, -24.5, -PI / 2]], 'solid', 'the Tidewater product display');
+  // the seating group: the brief's spot first (guard 2's patrol leg crosses it: K2), then two clear spots beside it (L5)
+  for (const g of SEATING) if (seatingGroup(d, g)) break;
 
   d.base();
 }

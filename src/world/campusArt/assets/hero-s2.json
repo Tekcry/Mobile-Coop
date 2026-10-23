@@ -72,7 +72,7 @@
   "mailCage": {
    "meshes": {
     "galv": 108,
-    "cardboard": 60,
+    "timber": 60,
     "white": 12,
     "steel": 12,
     "plastic": 24
@@ -117,7 +117,7 @@
     "laminate": 12,
     "steel": 36,
     "plastic": 48,
-    "cardboard": 36
+    "timber": 36
    },
    "triangles": 132,
    "bounds": {
@@ -137,7 +137,7 @@
    "meshes": {
     "galv": 48,
     "steel": 12,
-    "cardboard": 60,
+    "timber": 60,
     "white": 12
    },
    "triangles": 132,
@@ -162,7 +162,7 @@
     "plastic": 48,
     "screen": 36,
     "white": 28,
-    "cardboard": 20
+    "timber": 20
    },
    "triangles": 276,
    "bounds": {
@@ -201,7 +201,7 @@
   },
   "balconyPlanter": {
    "meshes": {
-    "concrete": 12,
+    "steelDark": 12,
     "foliage": 132
    },
    "triangles": 144,
@@ -289,9 +289,7 @@
   "oak",
   "marble",
   "timber",
-  "cardboard",
   "glass",
-  "concrete",
   "foliage",
   "chrome",
   "screen",
@@ -299,6 +297,6 @@
  ],
  "blender": "5.2.2 LTS",
  "seed": 1015,
- "bytes": 157932,
+ "bytes": 157588,
  "triangles": 1944
 }
