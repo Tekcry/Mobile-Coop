@@ -209,7 +209,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   clipping; pick `goggles` > `crouch`, crouch: it follows. Vision off: the stowed goggle does not move (no stowed
   socket yet). Zoom out to LOD1 / LOD2: only the lens moves there (the housing is fused into the head), a known limit.
   Bake and reset as above: the same look; a guard never takes it (the partner and the studio puppets carry it but show the stowed goggle).
-- [ ] Anim Studio (anim-studio): Main menu > Anim Studio (dev) (or Pause > Anim Studio (dev)): a dark stage with a floor
+- [ ] Pause menu: Animation Tuner (DEV) only; Anim Studio from the main menu.
+- [ ] Anim Studio (anim-studio): Main menu > Anim Studio (dev) (not from the Pause menu): a dark stage with a floor
   grid, the tuner docked on its View tab with the Loop player on top, the crab readout top left, the pad on the loop
   list. Pick "Walk clip": she walks in place, the feet stepping (green dots planted, orange rings swinging, short
   trails), and the Body tab shows Walk; Pause, "Key ▶" / "◀ Key" and the time slider move one key / any point; speed 2x;

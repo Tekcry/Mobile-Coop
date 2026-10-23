@@ -75,7 +75,7 @@ export class App {
   bootHold = false;
   /** Settings > Graphics > Run benchmark (set by main); a session goes on to its next run in a new match. */
   benchmark: ((kind?: BenchKind | BenchSession) => void) | null = null;
-  /** (anim-studio) Main menu / Pause > Anim Studio (dev): start the studio stage (set by main). */
+  /** (anim-studio) Main menu > Anim Studio (dev): start the studio stage (set by main; batch-23: not on the pause menu). */
   studio: (() => void) | null = null;
 
   constructor(readonly canvas: HTMLCanvasElement) {

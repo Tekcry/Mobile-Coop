@@ -463,8 +463,9 @@ try {
     const keys = await GM(() => [...document.querySelectorAll('.pause-screen .ms-item')].map((b) => b.dataset.key).join(','));
     // (menu-notes A2) no separate Controls item: controls live in Settings > Controls
     // (anim-tuner pass 3) the dev row "Animation tuner (dev)" before Quit (Up from Resume still wraps to Quit)
-    // (anim-studio) then Anim Studio (dev) before Quit (single player only)
-    assert(keys === 'resume,objectives,settings,report-feedback,anim-tuner,anim-studio,quit', `pause items (${keys})`);
+    // (batch-23) no Anim Studio row in the pause menu: the studio opens from the main menu only
+    assert(keys === 'resume,objectives,settings,report-feedback,anim-tuner,quit', `pause items (${keys})`);
+    assert(!keys.includes('anim-studio') && keys.includes('anim-tuner'), `the pause menu has Animation tuner (dev) and no Anim Studio row (${keys})`);
     await GM(() => { const b = document.querySelector('.pause-screen [data-key="objectives"]'); window.__app.nav.focus(b); b.click(); });
     await frames(P, 3);
     const objs = await GM(() => [...document.querySelectorAll('.objectives-screen .ms-item')].map((b) => b.textContent));

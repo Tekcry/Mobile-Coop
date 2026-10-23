@@ -1192,7 +1192,6 @@ export class GameState implements AppState {
           objectives: () => this.objectiveLines(),
           dof: this.stack.hasDof,
           notice,
-          inStudio: !!this.studio,
           // (marlow-bays items 3-4, A1) host actions in co-op: the client sees them disabled, "Host only"
           host: !this.puppet,
           restartCheckpoint: CHECKPOINT_MODES.has(this.opts.mode) ? () => this.restartCheckpoint() : undefined,
