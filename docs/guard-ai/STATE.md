@@ -635,6 +635,9 @@ Open:
 3. #255 LR16-4 relight (feature/guard-ai-relight f08c448c): checks A+B PASS (polish slices/LR16-4-POLISH.md on that
    branch). Laptop set relight on fbf32636 (sectorops + stealth-ai) PENDING -> on green add train-ready label + tell
    orchestrator. Sector Ops told (no map has an untimed board yet).
+4. ~21:25 S24 checker A FAIL (slices/S24-CHECK-A.md in -s24, untracked: commit it): solo no-hunt joiners never rebind
+   to slot 0 after a later sighting. Opus FIX ROUND started (writes slices/S24-FIX.md, commits + pushes WIP): if cut
+   off, check the -s24 branch tip / working tree and finish it, then re-check (fresh Opus) + laptop set s24 again.
 4. S24 two intruders: cloud-built feature/guard-ai-s24 ef44eea5 (contains S23 dc964d15). Checkers A+B RUNNING at
    the save (docs/guard-ai/slices/S24-CHECK-A.md / -B.md in the -s24 worktree, drafts; rerun any that did not reach
    a verdict). Laptop set s24 on ef44eea5 (coop, stealth-ai, sectorops, tactics, stealth, takedown, ctcourse,
