@@ -51,7 +51,11 @@
   done 1bb9516c). Polish P1-P7 (e.g. the client re-sends `use` every frame while held). At the s45 join: S4 / S5
   crates from S4_AMMO_CRATE / S5_AMMO_CRATE, weaponsCrate campus count 5, drop the stub filter. Crate e2e legs unrun.
 - S45 part 6 GPU at 3fc36d79: S4 / S5 blocks run, FAIL only on the interactable cap (196 > 128, S4 + S5 asserts).
-  IN FLIGHT: Opus cap fixer on -s45 (checks/s45-cap-fix.md; likely live-section-only registration / sync).
+  CAP FIX DONE 5bee8eff (checks/s45-cap-fix.md): 128 = MAX_ITEMS (src/net/protocol.ts; client cuts at 128 too).
+  Items carry their section; the host sends only the live section + untagged (objective, connector doors, revives,
+  c- items): worst 64 incl. crate headroom; no wire change. tests/sectorItemScope.test.ts. Risk: a switch / board
+  reachable from another section than its builder file loses its client prompt (only doors are tested).
+  RUNNING: build + e2e-sectorops:6 + e2e-coop + e2e-netmove GPU at 5bee8eff (scratch/runs/sectorredesign-5bee8eff).
   Then ONE Opus checker for E8 + E9 (engine + net). Was: needs a number (NetItem kind 'crate' + event
   'crate'); asked the orchestrator ~11:20. Build (a) Opus engine + net, then (b) Sonnet crate model / placement / tests.
 - (done) Opus E9-crate planner -> briefs/E9-CRATE.md (commits only that file). On resume: check each file / branch; rerun if
