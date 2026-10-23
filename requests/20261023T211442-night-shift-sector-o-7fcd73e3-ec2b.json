@@ -1,0 +1,15 @@
+{
+  "id": "20261023T211442-night-shift-sector-o-7fcd73e3-ec2b",
+  "sha": "7fcd73e3a908fc33b83d0659a652eca854e94f1f",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Sector Ops Build",
+  "steps": [
+    "set \"BC_RUNS=3\" && set \"BC_OUT=C:/NightShift/scratch/work/bodycompile/lr16-7fcd73e3-cold3.json\" && node C:/NightShift/scratch/work/bodycompile/measure.mjs",
+    "set \"BC_PARALLEL=3\" && set \"BC_OUT=C:/NightShift/scratch/work/bodycompile/lr16-7fcd73e3-parallel3.json\" && node C:/NightShift/scratch/work/bodycompile/measure.mjs"
+  ],
+  "env": {},
+  "set": "bodycompile-lr16",
+  "note": "cold Epic body compile, LR16 (#291 head): 3 cold runs + 3 browsers at once"
+}
