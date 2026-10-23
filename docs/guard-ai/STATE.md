@@ -1,6 +1,9 @@
 # Guard AI - state
 
 ## Now
+~14:30: S9 check PASS 59c35d7f (slices/S9-CHECK.md; 437 tests; e2e-coop block fixes: maxAlive for the team spawn,
+deflect loop waits for the host; polish list there). Waiting on the S15 laptop fix, then s9 <- s15, laptop run, PR S9.
+
 ~14:15: train 25 GREEN (our stack -> 4.74.0). Flake ours: e2e-levels:62 ladder climb (wall-clock wait, 0.02 m in 30 s
 under load): FIXED on s13 82ef72bd (test only: the wait was already sim time; manual clock now taken at the first poll
 + 2 s settle, condition wait, budget from run / climb speeds ~48 s; slices/S13.md note). Rides train 26 (needs a run:
