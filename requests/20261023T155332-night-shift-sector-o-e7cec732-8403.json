@@ -1,0 +1,17 @@
+{
+  "id": "20261023T155332-night-shift-sector-o-e7cec732-8403",
+  "sha": "e7cec732d7596e47bcae38aa91242efebaa7f1b1",
+  "branch": "feature/sector-redesign-lr16int",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-sectorops",
+    "e2e-ctcourse",
+    "e2e-lightbake",
+    "e2e-darkness",
+    "e2e-desktop:3"
+  ],
+  "set": "lr16w",
+  "note": "LR16 batch + render polish B/E + LR16-L B (supersedes 85b7ff10)"
+}
