@@ -1,6 +1,9 @@
 # Guard AI - state
 
 ## Now
+~23:30 SAVE (orchestrator 90%): every guard-ai worktree clean and pushed. s24-coop 7fe4f6a2 e2e-coop FAILED (deterministic,
+S24 hide block): Opus triage running in -s24. s25 7a7725ef PASS. Watcher on the other laptop sets (scratchpad watch.sh).
+
 ~23:00: S27 checks A + B PASS (0ae92fd4) -> PR #270 OPEN (stacked on #264), orchestrator told; laptop s27 (fe567fd6) +
 s27-e2e (0ae92fd4, test-only: new stealth-ai 'squad roles' + sectorops S13 draw asserts, c990fa07) queued. S26 checks
 A + B PASS (4df6b4ba; e2e scenarios 64e0dda6) -> Opus FIX ROUND running (B polish 2 promoted: co-op client step
@@ -683,8 +686,12 @@ JSON, commit, push. Green on a set -> `gh pr edit <n> --add-label train-ready` +
 1. #254 S23 (dc964d15) + Marlow #265 A7 cage: train-ready, same train. Backlog: path through a locked door (A7-cage-w)
    stalls ~15 s (S20 door gate never opens a locked leaf).
 2. #258 S22 game (a7e9b33a): train-ready, CI green. #255 LR16-4 relight MERGED (train 36, 4.83.0).
-3. #264 S24 (7fe4f6a2, on #254): laptop s24 on e31edd54 (stealth-ai, netmove, ctcourse) + s24-coop on 7fe4f6a2.
-4. #266 S25 (8bd13e0c, on #264): laptop s25 on 7a7725ef (ctcourse) + s25-sai on 8bd13e0c (stealth-ai).
+3. #264 S24 (7fe4f6a2, on #254): s24-coop FAILED (desktop worker, run + rerun): e2e-coop S24 "no pair guard sees a
+   player during the hide": guard idx 2 (pair 2) reaches 0.74 m from the hidden client, seen [0,0,474,0]. Opus triage
+   RUNNING in -s24 (slices/S24-COOP-TRIAGE.md, WIP pushed per step): fix -> requeue e2e-coop on the fix (+ merge the
+   fix up into s25 / s26 / s27 / walk482 if src). Laptop s24 on e31edd54 (stealth-ai, netmove, ctcourse) pending.
+4. #266 S25 (8bd13e0c, on #264): laptop s25 7a7725ef PASS 3/3; s25-sai on 8bd13e0c (stealth-ai) pending; train-ready
+   only with #264.
 5. #271 S26 (feature/guard-ai-s26, on #266; worktree -s26): checks A + B PASS, fix round d30601a2 (client step noise
    from sent speed, blind guard deaf) re-check PASS; laptop s26-fix on d30601a2 (stealth-ai, coop, netmove).
 6. #270 S27 (0ae92fd4, on #264; worktree -s27): checks A + B PASS; laptop s27-e2e on 0ae92fd4 (stealth-ai, sectorops).
