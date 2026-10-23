@@ -14,6 +14,9 @@
 // effect never finished compiling (Babylon's poll then times out, "Operation timed out after maximum retries. -
 // Effect: pbr") and the guard stayed invisible; the fix (src/player/bodyEffectRecovery.ts) recompiles a stuck body
 // effect and logs "smooth body ... recompiling" (printed here). Then the 1 s-step pass as before.
+// (forced) Before that, as the stall rarely times out in this lighter scene (master passed it), the same stall with the
+// timeout forced: the body's first compile never completes and Babylon's poll gives up after 1 s (hooks in the setup);
+// without the recovery the guard is never drawn ("material ready for its mesh (Error: Operation timed out ...)").
 import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
@@ -36,6 +39,60 @@ try {
     // a failed compile prints its error line, not ~400 kB of shader source (the GPU logs cut it)
     const eff = g.scene.meshes.map((m) => m.subMeshes?.[0]?.effect).find((e) => e);
     if (eff) eff.constructor.LogShaderCodeOnCompilationError = false;
+    // (forced) The laptop's failure made deterministic. While armed, a guard body's pbr effect (SMOOTHBODY) that starts a
+    // parallel compile gets a program that never reports done (`engine._isRenderingStateCompiled` false for its pipeline
+    // contexts: no COMPLETION_STATUS_KHR) and Babylon's own poll (`Effect._checkIsReady`: 16 ms steps, onError on
+    // timeout) is copied with its 120 s cut to FAULT_MS, then calls `_processCompilationErrors` with Babylon's timeout
+    // error. So the effect runs Babylon's real failure path: its fallbacks (the first one switches the mesh to CPU
+    // skinning, whose new variant compiles in the same stall and fails too) until all are used, the material keeping the
+    // effect. The stall ends (disarmed) when a faulted effect is disposed (the fix's recompile); later compiles are normal.
+    const Effect = eff?.constructor;
+    const engine = g.scene.getEngine();
+    const FAULT_MS = 1000;
+    const fault = { armed: false, effects: new Set(), contexts: new WeakSet(), polls: new Set(), faulted: 0, timeouts: 0, disposed: 0, names: [] };
+    const hooked = !!(Effect?.prototype?._checkIsReady && Effect.prototype._processCompilationErrors && Effect.prototype._isReadyInternal && Effect.prototype.dispose && engine._isRenderingStateCompiled);
+    if (hooked) {
+      const checkIsReady = Effect.prototype._checkIsReady;
+      Effect.prototype._checkIsReady = function (prev) {
+        if (fault.armed && !fault.effects.has(this) && /#define SMOOTHBODY\b/.test(this.defines ?? '')) {
+          fault.effects.add(this);
+          fault.faulted++;
+          fault.names.push(/#define NUM_BONE_INFLUENCERS (\d+)/.exec(this.defines)?.[0].slice(8) ?? 'NUM_BONE_INFLUENCERS 0');
+        }
+        if (!fault.effects.has(this)) return checkIsReady.call(this, prev);
+        if (this._pipelineContext) fault.contexts.add(this._pipelineContext);
+        if (fault.polls.has(this)) return;
+        fault.polls.add(this);
+        let left = FAULT_MS;
+        const int = setInterval(() => {
+          if (this._pipelineContext) fault.contexts.add(this._pipelineContext);
+          if (this._isReadyInternal() || this._isDisposed) {
+            clearInterval(int);
+            fault.polls.delete(this);
+            return;
+          }
+          left -= 16;
+          if (left >= 0) return;
+          clearInterval(int);
+          fault.polls.delete(this);
+          fault.timeouts++;
+          this._processCompilationErrors(new Error('Operation timed out after maximum retries. ' + ` - Effect: ${typeof this.name === 'string' ? this.name : this.key}`), prev);
+        }, 16);
+      };
+      const compiled = engine._isRenderingStateCompiled;
+      engine._isRenderingStateCompiled = function (pc) {
+        return fault.contexts.has(pc) ? false : compiled.call(this, pc);
+      };
+      const dispose = Effect.prototype.dispose;
+      Effect.prototype.dispose = function (force) {
+        const r = dispose.call(this, force);
+        if (this._isDisposed && fault.effects.delete(this)) {
+          fault.disposed++;
+          fault.armed = false;
+        }
+        return r;
+      };
+    }
     g.vision?.set?.('off');
     const em = g.enemyMgr;
     em.clear();
@@ -59,6 +116,32 @@ try {
       return out;
     };
     window.__gc = {
+      /** (forced) Flush the cached body effects no live mesh holds (the next body compiles afresh, a new variant), then arm. */
+      arm() {
+        const held = new Set();
+        for (const m of g.scene.meshes) for (const sm of m.subMeshes ?? []) if (sm.effect) held.add(sm.effect);
+        let flushed = 0;
+        let kept = 0;
+        for (const [k, e] of Object.entries(engine._compiledEffects ?? {})) {
+          if (!/#define SMOOTHBODY\b/.test(k)) continue;
+          if (held.has(e)) kept++;
+          else {
+            e.dispose(true);
+            flushed++;
+          }
+        }
+        fault.armed = hooked;
+        return { hooked, flushed, kept };
+      },
+      /** (forced) Disarm; faulted effects no mesh holds any more are dropped (none left to fail a later pass). */
+      disarm() {
+        fault.armed = false;
+        const held = new Set();
+        for (const m of g.scene.meshes) for (const sm of m.subMeshes ?? []) if (sm.effect) held.add(sm.effect);
+        const { faulted, timeouts, disposed, names } = fault;
+        for (const e of [...fault.effects]) if (!held.has(e)) e.dispose(true);
+        return { faulted, timeouts, disposed, names: names.join(', '), left: fault.effects.size };
+      },
       reset() {
         g.photoFreeze(false);
         em.clear();
@@ -183,9 +266,50 @@ try {
       }
       assert(e.drawn, `${label}: ${e.kind}'s body is among the camera's active meshes`);
     }
+    return b;
   };
 
+  // (forced) the one-block stall with the body's first compile timing out as on the laptop (the hook in the setup):
+  // without the recovery the material keeps the timed-out effect and the body is never ready
+  const FAULT_LOG = /Unable to compile effect:|Uniforms: |Attributes: |Defines:|Operation timed out after maximum retries|Trying next fallback/;
+  const forcedLog = new Set();
+  {
+    const kind = 'grunt';
+    console.log(`${kind} (forced): ${CALM_SEC} s calm in ONE block, his body's first compile forced to time out`);
+    await G(() => window.__gc.reset());
+    // (the cleared guards' effects are released at a frame's end)
+    await frames(page, 3);
+    const armed = await G(() => window.__gc.arm());
+    assert(armed.hooked, "the forced fault's hooks are in place (Effect._checkIsReady, _processCompilationErrors, _isReadyInternal, dispose, engine._isRenderingStateCompiled)");
+    console.log(`  forced: armed, ${armed.flushed} cached body effects flushed, ${armed.kept} held by live meshes`);
+    const e0 = errors.length;
+    assert(await G(([k, x, z]) => window.__gc.spawn(k, x, z), [kind, x, z]), `${kind} spawned (forced pass)`);
+    await G((s) => window.__gc.step(s), CALM_SEC);
+    let fail = null;
+    let b = [];
+    try {
+      b = await check(`${kind} calm after the forced compile timeout`, true, STALL_WAIT_MS);
+    } catch (e) {
+      fail = e;
+    }
+    const f = await G(() => window.__gc.disarm());
+    const recompiled = errors.slice(e0).filter((e) => /smooth body .*recompiling/.test(e));
+    console.log(`  forced fault: injected into ${f.faulted} body effect(s) [${f.names}], ${f.timeouts} poll timeout(s), ${f.disposed} dropped by the recovery; recovery logged "recompiling": ${recompiled.length ? `yes (${recompiled.length})` : 'no'}`);
+    for (const r of recompiled.slice(0, 4)) console.log(`    ${r}`);
+    assert(f.faulted >= 1 && f.timeouts >= 1, `the forced fault fired (${f.faulted} effects faulted, ${f.timeouts} timeouts): else Babylon's compile path changed (or no KHR_parallel_shader_compile) and this pass tests nothing`);
+    if (fail) {
+      console.log('  forced: the timed-out body effect was never recompiled, the guard stays invisible');
+      throw fail;
+    }
+    assert(recompiled.length > 0 && f.disposed >= 1, `forced: the body recovered through the recompile (${recompiled.length} log lines, ${f.disposed} faulted effects dropped)`);
+    // (Babylon's first fallback switched the mesh to CPU skinning before the recompile; the recovery keeps that)
+    for (const e of b) for (const m of e.meshes) if (!m.gpuSkin) console.log(`  NOTE forced: ${m.name} recovered CPU skinned (Babylon's skinning fallback ran before the recompile)`);
+    await G(() => window.__gc.reset());
+    for (let i = e0; i < errors.length; i++) if (FAULT_LOG.test(errors[i])) forcedLog.add(i);
+  }
+
   // (stall) as the sheet: the whole calm in one block, no frame rendered before the first check
+  const eStall = errors.length;
   for (const kind of ['grunt', 'officer']) {
     console.log(`${kind}: ${CALM_SEC} s calm in ONE block at ${x.toFixed(2)},${z.toFixed(2)}, no render before the check`);
     await G(() => window.__gc.reset());
@@ -193,7 +317,7 @@ try {
     await G((s) => window.__gc.step(s), CALM_SEC);
     await check(`${kind} calm after the one-block stall`, true, STALL_WAIT_MS);
   }
-  const recovered = errors.filter((e) => /smooth body .*(recompil|left to Babylon)/.test(e));
+  const recovered = errors.slice(eStall).filter((e) => /smooth body .*(recompil|left to Babylon)/.test(e));
   if (recovered.length) console.log(`  body effect recoveries:\n  ${recovered.slice(0, 8).join('\n  ')}`);
   else console.log('  body effect recoveries: none');
 
@@ -214,10 +338,12 @@ try {
     await check(`${kind} drawn`, false);
   }
 
-  const compile = errors.filter((e) => /Unable to compile effect|^\[error\].*Error: /i.test(e));
+  // (the forced pass's own compile-failure lines do not count)
+  const kept = errors.filter((_, i) => !forcedLog.has(i));
+  const compile = kept.filter((e) => /Unable to compile effect|^\[error\].*Error: /i.test(e));
   if (compile.length) console.log(compile.slice(0, 8).join('\n').slice(0, 6000));
   assert(compile.length === 0, `no effect failed to compile (${compile.length})`);
-  const real = errors.filter((e) => e.startsWith('[error]') || e.startsWith('[pageerror]'));
+  const real = kept.filter((e) => e.startsWith('[error]') || e.startsWith('[pageerror]'));
   assert(real.length === 0, `no console errors (${real.slice(0, 3).join(' | ').slice(0, 600)})`);
   console.log('guard carry: calm and drawn guards are drawn');
 } catch (e) {
