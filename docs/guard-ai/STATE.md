@@ -1,6 +1,12 @@
 # Guard AI - state
 
 ## Now
+~13:30: S22 game side: A4 e2e 08586783 (a4GoodsShed.mjs: refused while the officer watches, a distraction lets it
+through, he walks back and turns it on), fresh check PASS 2665b622 (slices/S22-GAME-CHECK.md, 6 polish). Test Runner
+asked: e2e-ctcourse --part=2 + e2e-coop on 08586783 (GPU). #240 Test Runner PASS on 23cf567c, but the suite also passes
+on master f16600f5 (no natural compile timeout): an Opus agent makes scripts/e2e-guard-carry.mjs force the first body
+compile to time out (script only), then it goes into S9 / S22 and Test Runner runs it on #240 + master (expect fail).
+
 ~13:00 2026-10-23 (laptop, account swap): train 31 rebuilt on master 4.79.0 (PROTOCOL 40). carry-fix 74c352a7 (#240,
 merge master, PROTOCOL 40, holds the calm-guard body GPU check: scripts/e2e-guard-carry.mjs compile-error / effect-ready /
 GPU-skinned / drawn asserts + the one-block stall), S9 4731c869 (#229, merge master + carry-fix, PROTOCOL 41), S22
