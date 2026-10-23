@@ -103,6 +103,18 @@ export default defineConfig({
               cacheableResponse: { statuses: [200] },
             },
           },
+          // (guard-models G7) the guard figures (three bases x LOD0-2 + the shield's three, `guard-*.glb`) in a cache of
+          // their own, so they never push Wren's LODs out of hers (24 entries = two builds of twelve files); warmed
+          // like hers (`warmPlayLods`, guardBody.ts: LOD2 first)
+          {
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && /\/assets\/guard-[^/]+\.glb$/.test(url.pathname),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'guards',
+              expiration: { maxEntries: 24 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
           {
             urlPattern: ({ url, sameOrigin }) => sameOrigin && /\/assets\/[^/]+\.glb$/.test(url.pathname),
             handler: 'CacheFirst',
