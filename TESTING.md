@@ -111,9 +111,25 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Posted guards (guard-ai S5; once a map has a high-security post, e.g. the campus keyholders): throw a bottle or cut
   the light near him: he walks to the edge of his area, looks toward it ~5 s, walks back and faces his post; he never
   follows a search or chases you out of his area.
+- [ ] Alarm by radio (guard-ai S6, Sector Ops): get spotted and let the radio calls through: "Command, contact. Send
+  backup.", ALARM STAGE about 6.5 s after the spotter saw you, and reinforcements run in hunting. Take the spotter down
+  before his first radio line: no alarm, nobody comes.
+- [ ] Squads and dogs (guard-ai S5b, Sector Ops): knock a guard out unseen and wait up to ~40 s: his squad's radio
+  check misses him and two squad mates walk to where he went down and wake him. A dog stays with its handler; drop the
+  handler and the dog stays by him and barks.
 - [ ] Cameras see bodies (guard-ai S7, Sector Ops): knock a guard out where a camera sweeps (lit or dark): the desk
   radios "Camera N has a man down..." and the nearest guard walks over and wakes him; loop or jam the camera first and
   nobody comes.
+- [ ] Guard tactics (guard-ai S8): get spotted by 4 guards and break line of sight: the caller drops back into cover,
+  one moves up cover to cover ("Moving up!"), one covers from cover ("Covering!"), one goes round the side
+  ("Flanking!"); never more than one of them moving up at once, nobody runs at you in the open.
+- [ ] Helmets and armour (guard-ai S12; once a section has `gear`, or set one with `e.setGear` in the console): shoot a
+  helmeted guard in the head: steel-blue hit marker and a ping, the helmet falls to the floor and stays, he reels and
+  comes up shooting; a second head shot kills. An armoured guard shrugs off chest rounds (a short stagger, not every
+  round); a takedown drops either in one move.
+- [ ] Talking pairs (guard-ai S10, Saltmarsh Park car park): watch the pair from cover: at their stop by the aisle end
+  they face each other and swap two lines, then walk on; knock one out before they meet and ~6 s later the other walks
+  to where his partner was headed.
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
 - [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
   glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen
