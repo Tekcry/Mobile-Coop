@@ -304,7 +304,8 @@ LR16 (one lighting system; plan checks/lr16-plan.md, audit lr16-0-ct-audit.md)
 - LR16-1 FIX ROUND DONE 666b2a17 (wall bits, behind-wall bounce 0.000 at all offsets; LAMP_VERSION 4; reds 13 same).
   RUNNING: Opus recheck (detached -lr16-1-chk, lr16-1-recheck.md there) + Opus integrator merging it into lr16int
   (checks/lr16int-merge-1.md). Both done -> laptop full LR16 set on the merged lr16int, then LR16-5 merge, then LR16g.
-- LR16-5 checker B PASS (2ac1fa87, on the branch). LR16-5 BUILT bb47a985 (no wire change; lr16-5-build.md). RUNNING: two Opus checkers A (parity / render) and B
+- LR16-5 checkers A + B PASS (da69b884; A polish 4: e2e-darkness may pick a probe during a warehouse tube burst -
+  freeze flicker in that suite if it flakes). LR16-5 BUILT bb47a985 (no wire change; lr16-5-build.md). RUNNING: two Opus checkers A (parity / render) and B
   (net / determinism) in detached worktrees -lr16-5-chka / -chkb (reports lr16-5-check-A.md / -B.md there, untracked;
   remove junctions with `cmd //c rmdir` before deleting the worktree). Laptop on bb47a985 queued (...bb47a985-c170:
   lightbake darkness coop netmove ctcourse sectorops:6 stealth-ai). Merge into lr16int AFTER LR16-1.
