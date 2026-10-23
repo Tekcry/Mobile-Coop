@@ -6,12 +6,20 @@ E2E_GPU=1: laptop (Test Runner) for coop / netmove / ctcourse and batches, one v
 / heavy2.lock (4192) for single suites. Agent rules: scratch/ctcore/COMMON-27.md. Push this file with
 scratch/ctcore/push-resume.sh <abs file> <msg>. Message the orchestrator only at PR open / train-ready / blocked / Michael.
 
+Orchestrator 19:15 ("Pipeline speed-ups"): NO e2e on the desktop (heavy.lock = build / check only); every suite to the
+laptop queue; fresh checker + laptop request on the same commit in parallel; fix round reruns only what failed;
+train-ready = message + `gh pr edit <n> --add-label train-ready` (auto mode denied the label 19:2x: Michael adds it or
+allows it); use `node scripts/run-e2e.mjs --affected origin/master --list` once it lands. Prompts are stateless from the
+next swap: this block carries all state.
+Released: #227 (4.76.0), #207 batch 22 (4.77.0), #214 -> #223 -> #231 stack (4.79.0, train 30, PROTOCOL 40).
+
 ## Open (master 4f6db420 = 4.79.0, train 30, PROTOCOL 40; PROTOCOL asserts 11 files 210/210 + tsc green on it, 18:38)
 | Job | Branch (folder C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
 | #239 optic cable (doors, no wire) | feature/optic-cable (optic-cable) | 193724a3 | Train 31, TRAIN-READY sent. Merges clean onto master 4f6db420. |
 | anim-fix-pass (walk P1-P5; PLAN.md:7 maps P1-P7, P6-P7 = #231 released) | feature/anim-fix-pass | e1cafbe1 | AF0-AF3, AF4a, AF5, AF6 merged, all checker PASS. Waits on AF4b. |
-| AF4b | feature/afp-af4b (afp-af4b) | 3b61826e + WIP | e2e-anim fail: low ready crouch->stand wristL 14.5 > 11.5 (afp-af4b-e2e-anim.log). Opus agent fixing (18:36), then e2e-anim + e2e-clip. |
+| AF4b | feature/afp-af4b (afp-af4b) | 3b61826e + WIP | e2e-anim fail: low ready crouch->stand wristL 14.5 > 11.5 (afp-af4b-e2e-anim.log). Opus agent fixing (18:36); e2e-anim + e2e-clip go to the laptop. |
+| stealth-pays (ROADMAP stealth over shooting 9 / 12 / 7; docs/stealth-pays/PLAN.md) | feature/stealth-pays (stealth-pays) | 956c1243 | 7 and 12 already on master; S1 (feature/stealth-pays-s1 53e89d69, done) + S2 (feature/stealth-pays-s2, building) -> merge into stealth-pays -> one checker + laptop e2e-ctcourse / e2e-sectorops in parallel -> S3 docs -> one batch PR. P1 (hang-down intel, wire) parked. |
 
 ## Next
 1. AF4b fixed -> fresh Opus checker -> merge into anim-fix-pass -> PR to master.
