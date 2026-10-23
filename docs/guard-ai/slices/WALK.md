@@ -176,3 +176,60 @@ and keypad doors, posts, pair gates), `e2e-ctcourse` and `e2e-course` (course do
 `e2e-ct-warehouse`, `e2e-stealth`, `e2e-tactics` (combat movement in groups), `e2e-takedown` (a held guard among
 others), `e2e-coop` (host guards and the door sync). No e2e assert added (a crossing pair or a guard at a locked door
 needs a staged scene; the unit tests run the real walker).
+## S21 (G5) Weapon carry: calm guards walk holstered
+Michael: "they also dont always have to be low-ready, then can walk around holstered if they are in a calm area."
+Branch `feature/guard-ai-s21` off `feature/guard-ai-walk` d24453a7 (S20 runs beside it on `feature/guard-ai-walk`: the
+`enemy.ts` edits here are kept to a field, the constructor's three lines, one line after `updateAwareness`, the `tryFire`
+gate and the rig-pose block; no movement, nav or door code). Every guard stays armed (2026-10-23 ~01:25). A120-A126.
+
+Cause: guards never set the rig's carry fields (`RigPose` armed / ready / swap), so every guard held his gun at low
+ready all the time.
+
+Built:
+- `src/ai/carryState.ts` (new, pure): `GUARD_CARRY` (enabled, `calmHold` 15 s, draw rifle 0.7 / pistol 0.5 s, holster
+  1.0 / 0.9 s, `never` sniper and enforcer); `calmArea` (`:46`, the rule, A120); `mayHolster` (`:51`, A121);
+  `carrySlotOf` (`:57`: rifle `backC` across the back, pistol `thigh`, compact `sling`, A124); `carryRaise` (`:65`: no
+  raise while holstered, A125); `GuardCarry` (`:70`): holstered / drawing / drawn / holstering, `step(dt, calm)` (the
+  first step takes the start state with no clip; holsters only after the calm hold; a stir mid-holster draws straight
+  back; the end of each travel shows for a step before the hand-over), `swapClip` (the swap clip time: holster 0 ..
+  `DRAW_BEAT`, draw `DRAW_BEAT` .. 1), `seq` (phase changes for the render side). No allocation.
+- `src/ai/enemyRig.ts` `GuardGunCarry` (`:39`): the gun follows the carry with the player's `WeaponModel` calls:
+  `holster(rig, slot)` (re-parented to the torso / right hip; the pistol sets `thighGear`), `beginTravel` / `travel` (the
+  trigger hand carries it along the travel path; the sling hands off with `inHand`), `hold` (the aim pocket). A travel
+  cut by a takedown restarts from where the gun is. Render rate, before the rig animates.
+- `src/ai/enemy.ts`: `carry` / `gunCarry` (`:201`, built in the constructor `:388`); `carryCalm` (`:1255`);
+  `carry.step` after the awareness in `update` (`:1844`); `tryFire` waits for `carry.drawn` (`:2790`, A123); the rig-pose
+  block in `frame` (`:3079`) sets `rp.ready`, `rp.swap` / `swapFrom` / `swapTo` and `rp.aim` (`carryRaise`) and applies
+  `GuardGunCarry` (not while held in a takedown).
+- `src/player/characterRig.ts`: `RigPose.ready?` (`:83`), read as `s.ready ?? (carrier && !heldWeapon)` (the player and
+  remotes unchanged; A125).
+
+Rig fields a guard drives (for Player Build / Test Runner): `RigPose.ready` (new, optional), `swap`, `swapFrom`,
+`swapTo` (always the gun's one slot), `aim`; `armed` is left to the rig's default (`!!heldWeapon`), `thighGear` and
+`weaponTravel` follow the `WeaponModel`.
+
+Tests: `tests/carryState.test.ts` (17): the calm-area rule (each condition), who holsters across `enemies.json` and the
+slots; holstered from the start with no clip, suspicious draws (the clip from the holstered beat, rising), combat raised
+once drawn, rifle drawn within 0.7 s and pistol 0.5 s, an alarm or a high-security post keeps him drawn, the calm hold
+(and a stir restarting it), a stir mid-holster draws back quicker than a full draw, calm mid-draw finishes the draw, a
+never-holster kind always drawn, no allocation per step; on the real `Enemy` code: `carryCalm` for every condition and no
+shot (no windup) until the draw ends, then a shot. `tests/guardGunCarry.test.ts` (2, NullEngine, the real guard rig): the
+rifle on the torso (`backC`) holstered, the travel during the draw, held in the weapon pivot once drawn, back on the torso
+after the calm hold; the pistol on the right hip with `thighGear`, drawn, a reversal mid-holster; the gun never moves more
+than 12 cm in a frame (rifle worst 5.6 cm, pistol 10.4 cm: the raise to full aim after the hand-over). AI and rig test
+set (70 files incl. readyHands / backDiagTravel / net; 1108 passed, 2 skipped as before) green.
+
+Open items:
+- Co-op (A126): client puppets (`src/net/enemyPuppet.ts`) stay at low ready. The wire's alert level (`EnemyState.al`
+  bits 0-1) cannot carry caution, a raised alarm, a post or a response team, so the client cannot derive the holster.
+  It needs one bit on the wire (e.g. a carry bit in `al`, as `AL_TORCH`; a `PROTOCOL_VERSION` bump) with the puppet
+  driving `GuardGunCarry` from it; not done here (no protocol change in this slice).
+- A guard seized while holstered hides his gun as before (`beginTakedown`), so the slung rifle disappears while held;
+  polish: keep a holstered gun shown.
+- Visual (GPU lane, Test Runner): the guard's ready-hands carry and armed carriage with the gun slung (`guardRows`
+  tables), the rifle across the back and the pistol on the thigh clear of the guard bodies (no clipping), and the draw /
+  holster clip at the guard draw times.
+
+E2e to run: `e2e-stealth-ai`, `e2e-sectorops` (all parts), `e2e-ctcourse`, `e2e-ct-warehouse`, `e2e-tactics`,
+`e2e-stealth` (the fire gate on every combat path), `e2e-coop` (`src/net` imports `enemyRig.ts`; puppets unchanged); GPU
+lane: a guard shot / contact sheet of a calm patrol (rifle slung, an officer's pistol on the thigh) and the draw.

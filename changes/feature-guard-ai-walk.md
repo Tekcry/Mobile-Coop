@@ -17,3 +17,8 @@
   on the floor is not in anyone's way. Guards no longer walk through doors: a guard opens a closed door the way he
   always pushed it, waits for it to swing, then goes through; a locked door stays shut and a guard who reaches it stops
   there instead of walking through it. Host only.
+- Weapon carry (G5): calm guards in a calm area now walk with their gun put away, the rifle slung across the back and
+  the pistol on the thigh, hands empty. Anything that stirs them (suspicion, a search, caution, combat) makes them draw
+  it, quickly (under a second), and they cannot fire until it is out; they put it away again after about 15 calm
+  seconds. Guards on a high-security post, a response team or any guard once the alarm is raised stay at low ready, as
+  do snipers and shield guards. Host only: in co-op the joining player still sees every guard at low ready.

@@ -2,9 +2,11 @@ import type { Scene } from '../core/babylon';
 import { CharacterRig } from '../player/characterRig';
 import { WeaponModel } from '../weapons/weaponModel';
 import { WEAPONS } from '../weapons/weaponDefs';
+import type { CarrySlot } from '../weapons/carrySlots';
 import type { World } from '../world/world';
 import type { EnemyDef } from './enemyDefs';
 import { factionLook } from './factions';
+import { CARRY_DRAWING, CARRY_DRAWN, CARRY_HOLSTERED, type GuardCarry } from './carryState';
 
 const ENEMY_GUN = { body: '#2a2d31', grip: '#17191c', accent: '#3a3f45' };
 
@@ -25,4 +27,43 @@ export function buildEnemyRig(scene: Scene, world: World, def: EnemyDef, name: s
     gun.hold(rig);
   }
   return { rig, gun };
+}
+
+/**
+ * (guard-ai S21) A guard's gun follows his carry (`carryState.ts` GuardCarry, stepped by the brain): holstered it rides
+ * in its slot (`WeaponModel.holster`: the rifle slung across the back, the pistol on the right thigh, which sets the rig's
+ * `thighGear`); a draw / holster carries it along the player's travel path in the trigger hand (`beginTravel` /
+ * `travel`; the sling hands off), then it is held again (`hold`: the aim pocket). Render rate, before the rig animates;
+ * no allocation. Host only: co-op puppets stay at low ready (open item, WALK.md S21).
+ */
+export class GuardGunCarry {
+  private seq = -1;
+
+  constructor(
+    private readonly rig: CharacterRig,
+    private readonly gun: WeaponModel,
+    readonly slot: CarrySlot,
+  ) {}
+
+  /** Pose the gun for the carry's phase now. */
+  apply(c: GuardCarry): void {
+    const g = this.gun;
+    const r = this.rig;
+    const fresh = c.seq !== this.seq;
+    this.seq = c.seq;
+    const ph = c.phase;
+    if (ph === CARRY_HOLSTERED) {
+      if (fresh || g.slot !== this.slot) g.holster(r, this.slot);
+    } else if (ph === CARRY_DRAWN) {
+      if (fresh || r.heldWeapon !== g.node) g.hold(r);
+    } else {
+      const travel = g.canTravel(this.slot);
+      // a new draw / holster, or a travel cut short meanwhile (a takedown hid the gun): it starts from where the gun is
+      if (fresh || (travel && !g.travelling)) {
+        if (travel) g.beginTravel(r, this.slot, ph === CARRY_DRAWING);
+        else if (ph === CARRY_DRAWING) g.inHand(r);
+      }
+      if (travel) g.travel(r, c.u);
+    }
+  }
 }
