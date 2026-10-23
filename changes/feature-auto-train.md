@@ -5,3 +5,6 @@ kind: patch
   `laptop-e2e` status are green; failures, stale trains and conflicts are reported in
   `C:/NightShift/scratch/auto-train-status.json` for the orchestrator (`docs/systems/auto-train.md`).
 - Trains are paced: the next one is built once the last release is 60 min old, or earlier when the laptop queue is idle.
+- A release is pinned to the tested head (`merge-train release --head <sha>`, `gh pr merge --match-head-commit`), a
+  train with no version commit is never released, and a hand-run merge-train and a tick share one lock, so they never
+  overlap.
