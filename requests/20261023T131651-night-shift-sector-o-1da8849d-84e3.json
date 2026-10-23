@@ -1,0 +1,14 @@
+{
+  "id": "20261023T131651-night-shift-sector-o-1da8849d-84e3",
+  "sha": "1da8849d8215eb89283bbca515e3622b443ec370",
+  "branch": "feature/sector-redesign-art",
+  "pr": 226,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-sectorops",
+    "e2e-coop"
+  ],
+  "set": "art-entry",
+  "note": "#226 train-entry: master merged, animFrozen folded into animTier, C7-C9"
+}
