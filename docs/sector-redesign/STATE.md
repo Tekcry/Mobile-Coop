@@ -301,6 +301,9 @@ LR16 (one lighting system; plan checks/lr16-plan.md, audit lr16-0-ct-audit.md)
   when the build starts; pendants matched by position, A2 / A4 ones depend on #257). If dead on resume: rerun
   from these lines. Laptop: lr16int 6eb6a863 full LR16 set queued (...6eb6a863-f2e8); queue at 21:28 = 27 requests,
   laptop service not claiming yet (old service; Michael restarts it).
+- lr16int 961ca660 = 72ad3d4a (LR16-1 merged, LAMP_VERSION 5, reds 13, lr16int-merge-1.md) + LR16-5 (clean merge, 167
+  tests). Laptop full LR16 set on 961ca660 queued (...961ca660-9185; supersedes the 6eb6a863 set). LR16g BUILDING (Opus,
+  -lr16g worktree off 961ca660, lr16g-build.md). LR16-1 recheck still running on 666b2a17: a FIX lands on lr16int.
 - LR16-1 FIX ROUND DONE 666b2a17 (wall bits, behind-wall bounce 0.000 at all offsets; LAMP_VERSION 4; reds 13 same).
   RUNNING: Opus recheck (detached -lr16-1-chk, lr16-1-recheck.md there) + Opus integrator merging it into lr16int
   (checks/lr16int-merge-1.md). Both done -> laptop full LR16 set on the merged lr16int, then LR16-5 merge, then LR16g.
