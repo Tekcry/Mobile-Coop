@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -395,5 +395,15 @@ describe('staleTasks', () => {
     expect(staleTasks([t('Other', 'Ready', [{ execute: 'C:/NightShift/scratch/x.cmd', args: '' }])], allow).map((x: { why: string }) => x.why)).toEqual(['runs from C:\\NightShift\\scratch']);
     expect(staleTasks([t('MyRunner', 'Disabled', ps('-File laptop-runner.ps1'))], allow)).toEqual([]);
     expect(staleTasks([t('OneDrive Standalone Update Task', 'Ready', [{ execute: 'OneDriveSetup.exe', args: '/reporting' }])], allow)).toEqual([]);
+  });
+});
+
+describe('trainHold', () => {
+  it('holds alone requests while any open train lacks a laptop-e2e success', () => {
+    expect(trainHold([])).toBe(null);
+    expect(trainHold([{ n: '46', sha: 'a', laptop: 'success' }])).toBe(null);
+    expect(trainHold([{ n: '46', sha: 'a', laptop: 'success' }, { n: '47', sha: 'b', laptop: '' }])).toEqual({ n: '47', sha: 'b', laptop: '' });
+    expect(trainHold([{ n: '46', sha: 'a', laptop: 'failure' }])?.n).toBe('46'); // failed, still open: rerun or release pending
+    expect(trainHold([{ n: '46', sha: 'a', laptop: 'pending' }])?.n).toBe('46');
   });
 });

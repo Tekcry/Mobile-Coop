@@ -25,7 +25,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { assertKey, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity } from './lib.mjs';
+import { assertKey, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -299,13 +299,28 @@ function syncDone() {
  * the other worker runs is `pending` too.
  */
 const buildFailLogged = new Set();
+/** The open train holding alone requests back this pass (lib trainHold), or null; a failed PR list holds them too. */
+let aloneHold = null;
+let aloneHoldLogged = '';
 function pendingTrains() {
   const out = [];
   const maxAge = Number(process.env.LQ_TRAIN_MAX_AGE_H ?? 24) * 3600;
   let open;
+  let openPrs;
   try {
-    open = new Set(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--limit', '200', '--json', 'headRefName,headRefOid', '--jq', '.[] | select(.headRefName | startswith("train/")) | .headRefOid']).split('\n').filter(Boolean));
-  } catch (e) { log(`train PR list failed, trains skipped this pass: ${String(e.message).split('\n')[0]}`); return out; }
+    openPrs = JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--limit', '200', '--json', 'number,headRefName,headRefOid', '--jq', '[.[] | select(.headRefName | startswith("train/")) | {n: (.headRefName | ltrimstr("train/")), sha: .headRefOid, pr: .number}]']) || '[]');
+    open = new Set(openPrs.map((p) => p.sha));
+  } catch (e) {
+    log(`train PR list failed, trains skipped this pass: ${String(e.message).split('\n')[0]}`);
+    aloneHold = { n: '?', sha: '', laptop: 'unknown' };
+    return out;
+  }
+  // every open train PR head without a laptop-e2e success holds alone requests (a status read error counts as none)
+  aloneHold = trainHold(openPrs.map((p) => {
+    let laptop = '';
+    try { laptop = gh(['api', `repos/${REPO}/commits/${p.sha}/status`, '--jq', '[.statuses[] | select(.context == "laptop-e2e") | .state] | first // ""']); } catch { /* unknown: holds */ }
+    return { ...p, laptop };
+  }));
   git(['fetch', '-q', 'origin', '+refs/heads/train/*:refs/remotes/origin/train/*'], { soft: true });
   for (const line of git(['ls-remote', 'origin', 'refs/heads/train/*'], { soft: true }).split('\n')) {
     const m = /^([0-9a-f]{40})\trefs\/heads\/train\/(\S+)$/.exec(line);
@@ -751,6 +766,12 @@ async function pass() {
   const requests = listRequests().filter((r) => !claimed.has(r.id));
   const dt = DESKTOP ? desktopTrains() : null;
   const queue = { trains: DESKTOP ? dt.trains : pendingTrains().filter((t) => !claimed.has(t.sha)), requests };
+  // alone runs wait while any open train lacks a laptop-e2e success (trains and their reruns first; CLAUDE.md laptop order)
+  if (!DESKTOP && aloneHold && queue.requests.some((r) => r.kind === 'alone')) {
+    const key = `${aloneHold.n} ${aloneHold.sha} ${aloneHold.laptop}`;
+    if (key !== aloneHoldLogged) { aloneHoldLogged = key; log(`alone requests held: train ${aloneHold.n} ${String(aloneHold.sha).slice(0, 8)} open, laptop-e2e ${aloneHold.laptop || 'none'}`); }
+    queue.requests = queue.requests.filter((r) => r.kind !== 'alone');
+  } else if (!aloneHold) aloneHoldLogged = '';
   // done marks first: a claim (which tells the desktop the laptop is on claims) never lands before them
   if (!syncDone() && !DRY) { log('done claims not pushed: no new requests this pass (trains need a claim push too)'); queue.requests = []; }
   // supersede on the full list (before the desktop's pr filter); the desktop waits for claims on the branch like its gate does

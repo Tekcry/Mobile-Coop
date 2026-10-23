@@ -257,6 +257,16 @@ export function failureExcerpt(sectionText) {
 }
 
 /**
+ * The open train that holds alone requests back, or null: the first open train PR head (heads = [{ n, sha, laptop }],
+ * laptop = its laptop-e2e state, '' for none) without a laptop-e2e success. A failed train still open waits for a rerun
+ * or a release decision, and a head still building has no status yet: both hold (CLAUDE.md "measurements that need a
+ * slot alone only while no train is queued"; train 46 waited 30 min behind the LR16-8 sheets, 2026-10-24).
+ */
+export function trainHold(heads) {
+  return (heads ?? []).find((h) => h.laptop !== 'success') ?? null;
+}
+
+/**
  * An assert line reduced to what names it: bracketed parts ([host: sim 90.30 s ...] timing and state dumps) dropped,
  * numbers as #, spaces collapsed. '' for no assert.
  */
