@@ -23,7 +23,13 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   touches it every minute; untouched for 30 min = stale and replaced; a held lock skips the tick), log
   `C:/NightShift/scratch/runs/auto-train.log` (merge-train output included), status
   `C:/NightShift/scratch/auto-train-status.json`: one JSON line `{ state, train, version, head, reason, time, ... }`
-  (extra keys: `pr`, `members`, `leftOut`, `candidates`, `released`, `dryRun`).
+  (extra keys: `pr`, `members`, `leftOut`, `candidates`, `released`, `rebuildFailed`, `dryRun`). A `--dry-run` tick
+  uses `auto-train.dryrun.lock`, `runs/auto-train.dryrun.log` and `auto-train-status.dryrun.json` and never touches
+  the real three.
+- The train lock is shared: `merge-train build / release / single` (not `--dry-run`) take the same
+  `auto-train.lock` (same format and staleness; `AUTO_TRAIN_LOCK` overrides the path), so a hand run in the train
+  worktree and a tick never overlap: a held lock stops merge-train with exit 1. A tick hands its lock text to the
+  merge-train it calls (`AUTO_TRAIN_LOCK_TEXT`), which then runs under it.
 
 ## State machine (one tick)
 | Situation | State | Action |
@@ -31,12 +37,13 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 | Open train PR (head `train/<n>`), `auto-train/vitest` failure on its head | failed | none |
 | CI `check` failed on the head | failed | none |
 | `laptop-e2e` failure or error on the head | failed | none (the orchestrator decides which member leaves) |
-| `check` success and `laptop-e2e` success | releasing | `merge-train release <n> <version> "<title>"` (`--resume` when commits follow the version commit); exit 0 -> released, then the no-train path in the same tick; exit 3 (master moved) -> `build` the same members with the next version on the same `<n>` and retitle the PR; exit 2 -> failed |
+| Open train with no `"<version>: version at merge, train <n> (G183)"` commit (its build died before it) | error | none ("train <n> has no version commit: rebuild"); it is never released |
+| `check` success and `laptop-e2e` success | releasing | `merge-train release <n> <version> "<title>" --head <tested head> --no-fallback` (`--resume` when commits follow the version commit); release STOPs unless `origin/train/<n>` is still that head, merges with `gh pr merge --match-head-commit <head>`, and never takes the old-style path; exit 0 -> released, then the no-train path in the same tick; exit 3 (master moved) -> `build` the same members with the next version on the same `<n>` and retitle the PR; a failed rebuild is recorded (`rebuildFailed: { head, master }`, reason "rebuild failed for <head>") and later ticks skip the release (state failed) until the train head or master changes; exit 2 -> failed; head moved (the `--head` STOP) -> pending |
 | No `laptop-e2e` status 3 h after the head was pushed | stale | none (orchestrator alert) |
 | Anything else (CI or laptop pending / missing) | pending | wait |
 | No open train, no `train-ready` PR with a green `check` | idle | none |
 | Candidates, but the last release is under `--min-interval` min old and the laptop queue is not idle (or `--max-per-day` reached) | waiting | none |
-| Candidates, paced to go | building / built | `merge-train build <n+1> <version> "<title>" <branches...>`; exit 2 -> failed (and an `auto-train/vitest` failure status on the head); exit 3 -> failed (every member left out) |
+| Candidates, paced to go | building / built | `merge-train build <n+1> <version> "<title>" <branches...>`; exit 2 -> failed (and an `auto-train/vitest` failure status on the head); exit 3 -> failed (every member left out); exit 4 (vitest not run: the heavy-lock wait timed out; the train is pushed and CI's `check` runs the unit tests) -> pending, the next tick goes on |
 | Any command error, or no version for the open train | error | none |
 
 - Version of an open train: its newest `"<version>: version at merge, train <n> (G183)"` commit, else its PR title
@@ -77,3 +84,11 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   directly (merge-train's `release` merges the PR, tags and moves dev), never removes labels or closes PRs.
 - Every gh or git write goes through one `act()` (and merge-train calls through `mergeTrain()`); both only print under
   `--dry-run`.
+
+## Known limits (later polish)
+- Assembler bump reuse: auto-train works out minor / patch from the fragments itself (`releaseKind`) instead of reusing
+  scripts/changelog-assemble.mjs, so the two rules can drift.
+- `gh pr view --json commits` returns at most 250 commits: a train PR with more loses its oldest subjects (members and
+  the version commit search work on what is returned).
+- Wire candidates of a deleted member branch: `planWire` skips a member whose `origin/<b>` no longer exists, so its
+  wire change does not count toward the `PROTOCOL_VERSION` bump.
