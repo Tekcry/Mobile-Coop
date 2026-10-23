@@ -1,0 +1,14 @@
+{
+  "id": "20261023T231257-night-shift-orchestr-a4019984-5dbd",
+  "sha": "a4019984f240717355f5de26051efcee3a687e55",
+  "branch": "",
+  "pr": 297,
+  "kind": "pr",
+  "requester": "Night Shift | Orchestrator",
+  "suites": [
+    "e2e-ctcourse:1"
+  ],
+  "jobs": 1,
+  "set": "t46-ctc1-solo",
+  "note": "train 46 desktop fail A2 crossing line host 1.000 client 0.141: laptop solo"
+}
