@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-23T20:07+1100
+status: done feature/guard-ai-s25a 39420159
 # guard-ai S25a: probable-area search, the pure module only (searchArea.ts + its unit test)
 
 Lead: Night Shift | Guard AI Build. Model: **Opus only** (AI code). The full S25 brief is `docs/guard-ai/slices/S25.md`
@@ -25,3 +25,18 @@ searchAreaWiring.test) is a later slice S25b on top of S24 and is NOT part of th
 - Done: green, pushed, trailer "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>", a short report below, then
   `status: done feature/guard-ai-s25a <sha>`.
 - Assumed decisions A151-A154 in S25.md are accepted for the numbers in this table.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-23)
+Built `feature/guard-ai-s25a` @ 39420159 on 41204e30. Files: `src/ai/searchArea.ts` (new, 1-172: `SEARCH_AREA`,
+`areaRadius` 42-46, `pointScore` 54-63, `SearchPlan` 67-172), `tests/searchArea.test.ts` (new, 1-226).
+Checks: tsc clean; `tests/searchArea.test.ts` 14 / 14 (new); eslint clean on both files.
+Deviations:
+1. `SEARCH_AREA.dark` reads `LIGHT.shadow` from `src/world/lights.ts` (pure module) instead of the literal 0.28; same
+   value (test asserts it), so the meter and the search cannot drift.
+2. `score` is a `Float64Array` (exact compare on re-offer); `x` / `z` stay `Float32Array`.
+3. `take(num, ...)` first releases `num`'s earlier claim (one point per guard); equal values -> the better-ranked point.
+4. `offer`: a near-duplicate (closer than `spacing`) enters only with a strictly higher score and then replaces every
+   kept point it is near; claims and done flags move with their points on re-sort.
+5. `pointScore = wDark * (1 - clamp(light / dark, 0, 1)) + (cover ? wCover : 0) - wNear * clamp(pathM / r, 0, 1)`.
+6. `areaRadius` returns `base` for a negative or NaN time.
+Skipped by design: S25 Build steps 2-4 (S25b).
