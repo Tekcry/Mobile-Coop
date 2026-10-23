@@ -11,7 +11,8 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   area, last ~40 lines). The 4189 alone chains (lr15c photo only now, then ap5, then l16g at f8008542) wait for that
   status line in the service log, then resume by themselves.
 - SENT: Player #249 stealth-pays bf9445d6 PASS (ctcourse 1-3, sectorops 1-6). Marlow 91b587f2 train32-entry 6/6 PASS
-  (685 s); polish 1bde5328 ctcourse:2 flake rerun (service) still running -> then ONE Marlow verdict.
+  (685 s); polish 1bde5328 ctcourse:2 FAIL 3/3 (A3 cleaner never calms after the corridor lure; real, not a flake) -
+  ONE Marlow verdict SENT ~19:50.
 - LR15 classic perf (campusOps) done: runs/lr15c-perf-classic-eb45b0af; photo pending.
 
 **Test Runner SAVE 22 (2026-10-23 ~19:30, swap save):**
