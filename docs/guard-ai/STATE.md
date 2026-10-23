@@ -1,6 +1,12 @@
 # Guard AI - state
 
 ## Now
+~11:10: sniper = GAME BUG in S16's fire gate: Ballistics.armouredFirst / ray().armoured read armour from shape filter
+bits, Havok level-container hits read -1 -> every wall armour. Fix 63c7a676 (feature/guard-ai-sniper, worktree -sniper):
+armour is a body mark (groups.ts markArmoured / isArmouredBody; LevelBuilder glass + Doors). Side effect: player rounds
+penetrate thin plain walls again (E10). Opus check RUNNING (SNIPER-CHECK.md), laptop sniper-fix (enemies, stealth-ai,
+combat). Then PR (patch). S13 / S28: s13-* runs still queued.
+
 ~10:30: train 45 FAILED e2e-sectorops:1 S13 "team moves between sweep points (looked at 0)" with S28 (#294 unlabelled,
 train closed; next train #295 + #272 + #293). S28 triage (S28.md "Train 45"): no src bug found; sweep points all
 reachable; S28 reroutes team 1 through team 0's doors -> likely two stacks crowding doorways (S13 / S20, unconfirmed).
