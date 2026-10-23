@@ -10,6 +10,7 @@ import { LOCO } from './anim/mocap';
 import { loadHavok } from './physics/havok';
 import { setupServiceWorker, suppressBrowserGestures } from './pwa/pwa';
 import { flags } from './core/flags';
+import { setLampFalloff } from './world/lampMath';
 import { campaignUnlocked, showEconomy } from './core/legacy';
 import { loadRejoin } from './core/rejoin';
 import { MenuState } from './world/menuScene';
@@ -46,6 +47,8 @@ import { applySession, autoGrant, loadoutEntries, lobbyLoadout, type SessionRepo
 import { camoById } from './cosmetics/catalog';
 
 /** menu-ui MD2: the title screen shows once per launch; `?autostart` skips it, `?title=1` shows it under automation. */
+// (lightrev prototype, default off) `?falloff=photo`: the baked lamps' photometric falloff, set before any map builds
+if (flags.photoLamps) setLampFalloff('photometric');
 let titleShown = !!flags.autostart;
 const titleFlag = new URLSearchParams(location.search).get('title') === '1';
 

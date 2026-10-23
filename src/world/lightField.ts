@@ -12,7 +12,7 @@
  * that are not baked (flashlights) come from `dynamicAt` with the caller's ray test. Everything is allocation-free.
  */
 import { AMBIENT_CELL } from './ambientGrid';
-import { LAMP_CONE_COS, LAMP_EXP, LAMP_LEVEL_GAIN, lampTerm, SPOT_EXP } from './lampMath';
+import { LAMP_CONE_COS, LAMP_EXP, LAMP_LEVEL_GAIN, lampFalloffMode, lampTerm, PHOTO, SPOT_EXP } from './lampMath';
 import type { LightBake } from './lightBake';
 import type { LightRegistry, Occluder } from './lights';
 import { BOX_STRIDE, LAMP_CELL, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE, lampGrid } from '../voxel/lampBake';
@@ -70,6 +70,8 @@ export class LightField {
   private readonly gz: number;
   /** `lampDoorLists` for the baked lamps. */
   private readonly lampDoors: Int16Array;
+  /** (lightrev prototype) the baked lamps' falloff is photometric (`lampMath.photoFalloff`), read once at construction. */
+  private readonly photo = lampFalloffMode() === 'photometric';
 
   constructor(
     readonly bake: LightBake | null,
@@ -238,6 +240,13 @@ export class LightField {
     const d = Math.sqrt(vx * vx + vy * vy + vz * vz);
     if (d >= rr) return;
     let t = 1 - d / rr;
+    if (this.photo) {
+      // `lampMath.photoFalloff` written out (as above)
+      const q = (d * d) / (rr * rr);
+      const w = 1 - q * q;
+      const nd = d > PHOTO.near ? d : PHOTO.near;
+      t = ((PHOTO.ref * PHOTO.ref) / (nd * nd)) * w * w;
+    }
     if (d >= 1e-4) {
       const ca = (vx * P[o + 4]! + vy * P[o + 5]! + vz * P[o + 6]!) / d;
       if (ca < P[o + 7]!) return;

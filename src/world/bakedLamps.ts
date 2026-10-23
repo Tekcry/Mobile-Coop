@@ -4,7 +4,7 @@ import { BOX_STRIDE, fillLampAtlas, LAMP_CELL, LAMP_GRID, LAMP_STRIDE, lampGrid,
 import { LAMP_VOL_MAX, lampVolumeGrid, lampVolumeRegion, unionRegion, type LampVolumeGrid } from '../voxel/lampVolume';
 import type { LightRegistry } from './lights';
 import { bakedLights, type MoonGrid } from './lightBake';
-import { LAMP_CONE_COS, LAMP_EXP, LAMP_MATH_GLSL, LIGHT_GAIN, SPOT_EXP } from './lampMath';
+import { LAMP_CONE_COS, LAMP_EXP, LAMP_MATH_GLSL, LIGHT_GAIN, lampMathGlsl, SPOT_EXP } from './lampMath';
 import { DARK_DESKTOP, DARK_GLSL, DARK_STANDARD, LEVEL_TO_RENDER, VISION_GAIN, visionAmount, visionDark, type DarkParams } from './darkCurve';
 import { AMBIENT_CELL, type AmbientGrid } from './ambientGrid';
 import { DOOR_SHUT, DOORS_PER_LAMP, lampDoorLists, type FieldDoor } from './lightField';
@@ -512,7 +512,7 @@ class LampVolume {
     this.a = wrap(this.rtA);
     this.b = wrap(this.rtB);
     this.renderer = new EffectRenderer(engine);
-    this.wrapper = new EffectWrapper({ engine, name: 'lampVolumeMix', fragmentShader: MIX_GLSL, uniformNames: ['lampInfo', 'lampGridO', 'lampAtlas', 'volO', 'slice', 'outB', 'volMax', 'lampMore'], samplerNames: ['lampVis', 'lampData'] });
+    this.wrapper = new EffectWrapper({ engine, name: 'lampVolumeMix', fragmentShader: MIX_GLSL.replace(LAMP_MATH_GLSL, lampMathGlsl()), uniformNames: ['lampInfo', 'lampGridO', 'lampAtlas', 'volO', 'slice', 'outB', 'volMax', 'lampMore'], samplerNames: ['lampVis', 'lampData'] });
   }
 
   /** Mix a region of cells (i0, j0, k0, i1, j1, k1) into both targets. */
@@ -788,7 +788,7 @@ float nsR = nsDarkRatio(nsS, lampDark.x, lampDarkP);`;
     const code: { [pointName: string]: string } = {
       CUSTOM_FRAGMENT_DEFINITIONS: `
 #ifdef BAKED_LAMPS
-${LAMP_GLSL}
+${LAMP_GLSL.replace(LAMP_MATH_GLSL, lampMathGlsl())}
 ${DARK_GLSL}
 #ifdef LAMP_VOLUME
 uniform highp sampler3D lampVolA;

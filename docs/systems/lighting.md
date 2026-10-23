@@ -31,6 +31,10 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   below them, exponent 1; spots: squared, cut at the outer angle). `bakedLamps.ts` builds its GLSL from `LAMP_MATH_GLSL` and
   the same constants (`LAMP_CONE_COS`, `LAMP_EXP`, `SPOT_EXP`; `LIGHT_GAIN` 1.6 is rendering only, `LAMP_LEVEL_GAIN` 1.2
   gameplay only). `moonLight(theme)`: the moon's gameplay share of `lightLevel`.
+- (lightrev, PROTOTYPE, default off) `?falloff=photo` (`flags.photoLamps`, `lampMath.setLampFalloff`): the baked lamps fall off
+  with the inverse square from 3 m (`PHOTO`), windowed to 0 at 1.6 x the radius (`LightRegistry.add` scales fixed lamps'
+  radius once; flashlights unchanged); the field and the shaders (`lampMathGlsl()`) switch together. Not adopted:
+  `docs/lighting-review/PROPOSAL.md` section 7 (LR13), numbers in `docs/sector-redesign/checks/light-measure.md`.
 - `world/lightField.ts` (pure) `LightField` (`World.lightField`): `levelAt` = ambient grid + moon x moon visibility + the
   lamps listed for the 2 m column x `LAMP_LEVEL_GAIN` x intensity x formula x trilinear baked visibility, closed doors
   (`Doors.list`, `DOOR_SHUT`) cutting a lamp by one segment-leaf test; `dynamicAt` = non-baked lights (flashlights);

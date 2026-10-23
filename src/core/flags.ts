@@ -58,6 +58,8 @@ export interface Flags {
   guardMerge: boolean;
   /** (guard-render S6) Per-cascade sun caster lists and the guards' sun reach; `?guardsun=0`: off, for comparisons. */
   guardSun: boolean;
+  /** (lightrev prototype, PROPOSAL "Walk 4.72 S1") `?falloff=photo`: the baked lamps' photometric falloff (`lampMath.setLampFalloff`). Default off. */
+  photoLamps: boolean;
 }
 
 /** (mocap-trial) An on / off URL value: "1" true, "0" false, anything else (or absent) null. */
@@ -124,4 +126,5 @@ export const flags: Flags = {
   mocap: onOffFlag(params.get('mocap')),
   guardMerge: params.get('guardmerge') !== '0',
   guardSun: params.get('guardsun') !== '0',
+  photoLamps: params.get('falloff') === 'photo',
 };
