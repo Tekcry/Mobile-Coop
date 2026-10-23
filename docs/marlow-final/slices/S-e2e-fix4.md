@@ -39,6 +39,6 @@ Branch `feature/marlow-final-fix4` (off 058156cc + fix 3c a48aae2b). One test ch
   material, the read came before its next frame. Desktop GPU on HEAD: 20 / 20 and 26 / 26 before the fix.
 - **Fix (test only):** `scripts/e2e-lightbake.mjs:29-49`: wait until every PBR material is plugged AND the PBR count is unchanged
   over 4 polls (~1 s); if the read still finds one unplugged, read again after 6 frames (up to 3 times; a real miss stays
-  unplugged). The assert (`:118`) now names the unplugged materials.
+  unplugged). The assert (`:120`) now names the unplugged materials.
 - **Result (desktop, E2E_GPU=1, E2E_JOBS=1, port 4191):** `npx tsc --noEmit` pass; e2e-lightbake pass, 137 s (20 / 20, 26 / 26).
   e2e-ctcourse not run (no Marlow code touched).
