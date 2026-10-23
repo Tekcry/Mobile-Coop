@@ -26,11 +26,11 @@ const LOOP = { period: 44, leave: [3, 25], t0: 0 };
  */
 export const S5_GUARDS: SectorGuard[] = [
   // 1-3 the response team's standing force in the control room, for the ceremony
-  { kind: 'enforcer', x: -55, z: 19.5, yaw: PI / 2, takedownSpot: [-55.5, 19.5], role: 'response', zone: 'ctl', squad: 0, dormant: true, reason: 'Standing reaction force for the ceremony' },
-  { kind: 'enforcer', x: -55, z: 22.4, yaw: PI / 2, takedownSpot: [-55.5, 22.4], role: 'response', zone: 'ctl', squad: 0, dormant: true, reason: 'Standing reaction force for the ceremony' },
-  { kind: 'enforcer', x: -55, z: 25.4, yaw: PI / 2, takedownSpot: [-55.5, 25.4], role: 'response', zone: 'ctl', squad: 0, dormant: true, reason: 'Standing reaction force for the ceremony' },
+  { kind: 'grunt', x: -55, z: 19.5, yaw: PI / 2, takedownSpot: [-55.5, 19.5], role: 'response', zone: 'ctl', squad: 0, dormant: true, reason: 'Standing reaction force for the ceremony' },
+  { kind: 'grunt', x: -55, z: 22.4, yaw: PI / 2, takedownSpot: [-55.5, 22.4], role: 'response', zone: 'ctl', squad: 0, dormant: true, reason: 'Standing reaction force for the ceremony' },
+  { kind: 'grunt', x: -55, z: 25.4, yaw: PI / 2, takedownSpot: [-55.5, 25.4], role: 'response', zone: 'ctl', squad: 0, dormant: true, reason: 'Standing reaction force for the ceremony' },
   // 4 the team's hall walk
-  { kind: 'enforcer', x: -53, z: 28.4, yaw: 1.9, route: [[-53, 28.4], [-41.5, 23.5]], waits: [6, 6], takedownSpot: [-53.5, 28.6], role: 'response', zone: 'hall', squad: 0, reason: "The response team's hall walk" },
+  { kind: 'grunt', x: -53, z: 28.4, yaw: 1.9, route: [[-53, 28.4], [-41.5, 23.5]], waits: [6, 6], takedownSpot: [-53.5, 28.6], role: 'response', zone: 'hall', squad: 0, reason: "The response team's hall walk" },
   // 5-8 the grounds: the garden team and the lake-side team (a handler and a dog each, on one clock)
   { kind: 'grunt', x: -63, z: 23.5, yaw: 0, route: [[-63, 23.5], [-63, 40.5]], faces: [0, PI], loop: LOOP, takedownSpot: [-63, 23.0], role: 'handler', zone: 'garden', squad: 1, reason: 'Grounds patrol for the ceremony' },
   { kind: 'dog', x: -62, z: 23.5, yaw: 0, route: [[-62, 23.5], [-62, 40.5]], faces: [0, PI], loop: LOOP, takedownSpot: [-62, 23.0], role: 'dog', zone: 'garden', squad: 1, handler: 4, reason: 'At heel with the garden handler' },
@@ -137,8 +137,8 @@ export const S5_ARMOURED: { id: string; kind: 'door'; at: [number, number]; bypa
   { id: 'arm-front', kind: 'door', at: [-44, 18], bypass: 'The back corridor, the anteroom side door and the garden' },
 ];
 
-/** No ammo inside the section: one crate slot at the section start, inside C4 by its north wall (crate engine pending E9-crate). */
-export const S5_AMMO_CRATE = { x: -18, y: 0, z: 31.4, yaw: PI, section: 4 };
+/** No ammo inside the section: the weapons crate at the section start (E9-crate, `S5_SECTOR.crate`), inside C4 by its south wall, strip facing north. */
+export const S5_AMMO_CRATE = { x: -17.2, y: 0, z: 27.0, yaw: 0, section: 4 };
 
 /** The alarm panels of section 5: alarm-ctl (control room west wall), alarm-ante (the anteroom's east wall), alarm-ter (the terrace, by the house's north wall). */
 export const S5_ALARMS: { at: [number, number]; yaw: number; section: number; y?: number }[] = [
@@ -156,6 +156,8 @@ export const S5_SECTOR: SectorDef = {
   id: 's5',
   name: 'The Old House',
   start: { x: -18, y: 0, z: 29, yaw: -PI / 2 },
+  // weapons crate (E9): the colonnade south wall, strip to the colonnade
+  crate: { at: [S5_AMMO_CRATE.x, S5_AMMO_CRATE.y, S5_AMMO_CRATE.z], yaw: S5_AMMO_CRATE.yaw },
   objective: { kind: 'grab', label: 'Take the signing key token', x: -43, y: 0, z: 43.4, yaw: 0 },
   extract: { label: 'Extract at the boathouse jetty', box: [-50, 60, -40, 66] },
   guards: S5_GUARDS,

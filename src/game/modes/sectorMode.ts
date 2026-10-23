@@ -440,13 +440,17 @@ export class SectorMode implements GameMode {
     }
   }
 
-  /** (E9-crate, A100) Each section's weapons crate (host / solo; disabled until its section begins). */
+  /**
+   * (E9-crate, A100) Each section's weapons crate (host / solo; disabled until its section begins). (PR 3) Tagged with its
+   * section, so a co-op host mirrors only the live section's crate (`Interactables.scope`).
+   */
   private findCrates(): void {
     const cr = this.g.crates;
     if (!cr) return;
-    for (const s of this.run.defs) {
+    for (let i = 0; i < this.run.defs.length; i++) {
+      const s = this.run.defs[i]!;
       const c = s.crate;
-      if (c) cr.add(crateItemId(s.id), new Vector3(c.at[0], c.at[1], c.at[2]), c.yaw);
+      if (c) cr.add(crateItemId(s.id), new Vector3(c.at[0], c.at[1], c.at[2]), c.yaw).section = i;
     }
   }
 

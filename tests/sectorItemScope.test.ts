@@ -73,6 +73,52 @@ describe('campus item sections', () => {
     expect(bad).toEqual([]);
   });
 
+  it('every section-tagged switch, board, hide spot, alarm, desk, keypad, intel board, bolt, pair switch and crate stands in its own section\'s rooms only (PR 3: the s45-cap-fix item-scope risk)', () => {
+    const rooms = [S1_ROOMS, S2_ROOMS, S3_ROOMS, S4_ROOMS, S5_ROOMS];
+    const pts: { what: string; sec: number; x: number; z: number }[] = [];
+    const put = (what: string, sec: number | undefined, x: number, z: number): void => {
+      if (sec !== undefined) pts.push({ what, sec, x, z });
+    };
+    for (const v of lay.switches ?? []) put('switch', v.section, v.pos.x, v.pos.z);
+    for (const v of lay.boards ?? []) put('board', v.section, v.pos.x, v.pos.z);
+    for (const v of lay.hideSpots ?? []) put('hide', v.section, v.pos.x, v.pos.z);
+    for (const v of lay.alarms ?? []) put('alarm', v.section, v.pos.x, v.pos.z);
+    for (const d of CAMPUS_SECURITY.desks ?? []) put(`desk ${d.id}`, d.section, d.at[0], d.at[1]);
+    CAMPUS_SECTORS.forEach((s, i) => {
+      s.keypads?.forEach((k, j) => put(`keypad ${j}`, i, k.at[0], k.at[1]));
+      s.intel?.forEach((n, j) => {
+        if (n.kind === 'board') put(`intel board ${j}`, i, n.at[0], n.at[2]);
+      });
+      s.bolts?.forEach((b, j) => put(`bolt ${j}`, i, b.at[0], b.at[1]));
+      s.pairGates?.forEach((g, j) => {
+        put(`pair ${j} a`, i, g.a.at[0], g.a.at[1]);
+        put(`pair ${j} b`, i, g.b.at[0], g.b.at[1]);
+      });
+    });
+    // the crates (tagged with their section by sectorMode.findCrates) stand at the section start, which from section 2 on
+    // is the previous section's connector: enabled and mirrored only while their section is live (WeaponCrates.setLive)
+    const crateBad: string[] = [];
+    CAMPUS_SECTORS.forEach((s, i) => {
+      const c = s.crate;
+      if (!c) return;
+      if (hyp2(c.at[0] - s.start.x, c.at[2] - s.start.z) > 3) crateBad.push(`${s.id} crate not at its start`);
+      const box = i > 0 ? CAMPUS_SECTORS[i - 1]!.connector?.box : undefined;
+      if (i === 0) put('crate', 0, c.at[0], c.at[2]);
+      else if (!box || c.at[0] < Math.min(box[0], box[2]) || c.at[0] > Math.max(box[0], box[2]) || c.at[2] < Math.min(box[1], box[3]) || c.at[2] > Math.max(box[1], box[3])) crateBad.push(`${s.id} crate (${c.at[0]}, ${c.at[2]}) outside the connector into it`);
+    });
+    expect(crateBad).toEqual([]);
+    expect(pts.length).toBeGreaterThan(50);
+    const bad: string[] = [];
+    for (const q of pts) {
+      const hit = new Set<number>();
+      rooms.forEach((rs, j) => {
+        for (const r of rs) if (q.x >= r.minX - 1 && q.x <= r.maxX + 1 && q.z >= r.minZ - 1 && q.z <= r.maxZ + 1) hit.add(j);
+      });
+      if (hit.size !== 1 || !hit.has(q.sec)) bad.push(`${q.what} (${q.x.toFixed(1)}, ${q.z.toFixed(1)}) S${q.sec + 1} in rooms of ${[...hit].map((j) => `S${j + 1}`).join(',')}`);
+    }
+    expect(bad).toEqual([]);
+  });
+
   it('each live section\'s mirrored set stays under MAX_ITEMS with headroom (crates, revives)', () => {
     const conn = doors.filter(isConn).length;
     const sizes = CAMPUS_SECTORS.map((s, i) => {

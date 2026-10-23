@@ -39,7 +39,7 @@ export const S4_GUARDS: SectorGuard[] = [
   { kind: 'officer', x: 6.0, z: 20.2, yaw: PI / 2, takedownSpot: [5.5, 20.2], role: 'mantrap', zone: 'lobby', squad: 1, reason: 'Admits one at a time; answers the hall panel' },
   // 5-6 the security room pair: the operator at the console, the supervisor beside him
   { kind: 'officer', x: -2.5, z: 44.6, yaw: -PI / 2, takedownSpot: [-2.1, 44.6], role: 'operator', zone: 'sec', squad: 2, pair: 5, reason: 'Watches the hall cameras (desk operator)' },
-  { kind: 'enforcer', x: -1.2, z: 44.0, yaw: -PI / 2 + 0.6, takedownSpot: [-0.8, 44.0], role: 'supervisor', zone: 'sec', squad: 2, pair: 4, reason: 'Site supervisor at the monitors' },
+  { kind: 'officer', x: -1.2, z: 44.0, yaw: -PI / 2 + 0.6, takedownSpot: [-0.8, 44.0], role: 'supervisor', zone: 'sec', squad: 2, pair: 4, reason: 'Site supervisor at the monitors' },
   // 7-8 the cold-aisle patrols: a loop each, opposite phase (west aisles, east aisles)
   { kind: 'grunt', x: 3.6, z: 23, yaw: 0, route: [[3.6, 23], [3.6, 33], [9.2, 33], [9.2, 23]], waits: [3, 0.5, 3, 0.5], faces: [0, PI / 2, PI, -PI / 2], takedownSpot: [3.6, 23], role: 'patrol', zone: 'cold-w', squad: 3, reason: 'Floor round, west aisles' },
   { kind: 'grunt', x: 32.7, z: 33, yaw: PI, route: [[32.7, 33], [32.7, 23], [26.8, 23], [26.8, 33]], waits: [3, 0.5, 3, 0.5], takedownSpot: [32.7, 24.0], role: 'patrol', zone: 'cold-e', squad: 3, reason: 'Floor round, east aisles (opposite phase)' },
@@ -63,7 +63,7 @@ export const S4_GUARDS: SectorGuard[] = [
   // 19 the colonnade sentry (K3, M12): posted at the C4 gate, facing east, the C4 door 1.5 m behind him
   { kind: 'grunt', x: -8.5, z: 29, yaw: PI / 2, takedownSpot: [-9.0, 29], role: 'posted', zone: 'c4', squad: 4, reason: 'The Old House is closed tonight: nobody goes down the colonnade' },
   // 20 the mobile supervisor: the hall's west aisle, visiting the battery, colonnade and UPS doors
-  { kind: 'enforcer', x: -2.5, z: 23.0, yaw: 0, route: [[-2.5, 23.0], [-2.5, 39.5]], waits: [3, 3], takedownSpot: [-2.5, 23.0], role: 'supervisor', zone: 'hall-w', squad: 3, reason: 'Mobile supervisor: visits the battery, colonnade and UPS doors' },
+  { kind: 'officer', x: -2.5, z: 23.0, yaw: 0, route: [[-2.5, 23.0], [-2.5, 39.5]], waits: [3, 3], takedownSpot: [-2.5, 23.0], role: 'supervisor', zone: 'hall-w', squad: 3, reason: 'Mobile supervisor: visits the battery, colonnade and UPS doors' },
 ];
 
 /**
@@ -120,10 +120,10 @@ export const S4_ARMOURED: { id: string; kind: 'door' | 'glass'; at: readonly [nu
 ];
 
 /**
- * The section-start weapons crate slot (data only): inside C3 by its east wall. Crate engine pending E9-crate: once per
- * player per section, tops up to the starting loadout, never above, a restart resets it.
+ * The section-start weapons crate (E9-crate, `S4_SECTOR.crate`): inside C3 by its east wall, 1.7 m from the checkpoint,
+ * strip facing west. Once per player per section, tops up to the starting loadout, never above, a restart resets it.
  */
-export const S4_AMMO_CRATE = { x: 25.4, y: 0, z: 9.0, yaw: -PI / 2, section: 3 } as const;
+export const S4_AMMO_CRATE = { x: 25.2, y: 0, z: 6.8, yaw: -PI / 2, section: 3 } as const;
 
 /** Section 4's alarm panels: alarm-sec4 (security room, west wall), alarm-mt (the lobby, on the hall's south wall), alarm-dk (the dock, west wall). */
 export const S4_ALARMS: { at: [number, number]; yaw: number; section: number; y?: number }[] = [
@@ -146,6 +146,8 @@ export const S4_SECTOR: SectorDef = {
   name: 'Data hall',
   // C3's checkpoint
   start: { x: 24, y: 0, z: 8, yaw: 0 },
+  // weapons crate (E9): the dock link east wall, strip to the link
+  crate: { at: [S4_AMMO_CRATE.x, S4_AMMO_CRATE.y, S4_AMMO_CRATE.z], yaw: S4_AMMO_CRATE.yaw },
   // download (10 s, within 4 m) the build and signing logs at the cage terminal: opens C4
   objective: { kind: 'download', label: 'Download the build and signing logs', x: 18, y: 0, z: 38.3, yaw: PI },
   connector: {

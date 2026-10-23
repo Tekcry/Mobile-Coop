@@ -196,7 +196,7 @@ describe('S4 shape and registration', () => {
 
 describe('S4 guards (brief table)', () => {
   it('twenty guards: kinds as listed, one dog with handler 0, checkSectorGuards passes', () => {
-    expect(G.map((g) => g.kind)).toEqual(['grunt', 'dog', 'officer', 'officer', 'officer', 'enforcer', 'grunt', 'grunt', 'officer', 'grunt', 'grunt', 'grunt', 'grunt', 'officer', 'officer', 'officer', 'grunt', 'grunt', 'grunt', 'enforcer']);
+    expect(G.map((g) => g.kind)).toEqual(['grunt', 'dog', 'officer', 'officer', 'officer', 'officer', 'grunt', 'grunt', 'officer', 'grunt', 'grunt', 'grunt', 'grunt', 'officer', 'officer', 'officer', 'grunt', 'grunt', 'grunt', 'officer']);
     expect(checkSectorGuards(S4)).toEqual([]);
     expect(G.filter((g) => ENEMIES[g.kind].quadruped).length).toBe(1);
     expect(G[1]!.handler).toBe(0);

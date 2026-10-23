@@ -81,15 +81,14 @@ type SecMap = { id: string; sectors?: SectorDef[]; navLayers?: number; build: (b
 
 describe('placement data (A100, A109)', () => {
   const cases: [SecMap, number][] = [
-    [campusOps as unknown as SecMap, 3],
+    [campusOps as unknown as SecMap, 5],
     [warehouseOps as unknown as SecMap, 3],
   ];
   for (const [map, count] of cases) {
     it(`${map.id}: ${count} crates, one per section start, the rule passes, ids distinct, cells walkable`, () => {
       const b = new LevelBuilder();
       const lay = map.build(b, 0);
-      // the S4 / S5 stubs live on another branch and get their crates at that merge
-      const secs = (map.sectors ?? []).filter((s) => !s.name.endsWith('(stub)'));
+      const secs = map.sectors ?? [];
       expect(checkSectorCrates(map.id, secs)).toEqual([]);
       const withCrate = secs.filter((s) => s.crate);
       expect(withCrate.length).toBe(count);

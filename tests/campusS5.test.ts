@@ -223,7 +223,7 @@ describe('S5 registration, shape and the shared blocks', () => {
 describe('S5 guards (brief table)', () => {
   it('24 guards: kinds as listed, `checkSectorGuards` clean, two dogs with handlers #5 and #7, every guard role / zone / reason / squad', () => {
     expect(G.map((g) => g.kind)).toEqual([
-      'enforcer', 'enforcer', 'enforcer', 'enforcer', 'grunt', 'dog', 'grunt', 'dog', 'officer', 'officer', 'officer', 'officer',
+      'grunt', 'grunt', 'grunt', 'grunt', 'grunt', 'dog', 'grunt', 'dog', 'officer', 'officer', 'officer', 'officer',
       'grunt', 'grunt', 'officer', 'officer', 'grunt', 'grunt', 'grunt', 'grunt', 'grunt', 'officer', 'grunt', 'officer',
     ]);
     expect(checkSectorGuards(S5)).toEqual([]);
