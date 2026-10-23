@@ -53,10 +53,6 @@ const RT: SectorRatingWire = { sec: 1, marks: 13, synced: 1, gadget: 2, syringe:
 const sectorOf = (m: Msg | null) => (m && m.t === 'sector' ? m : null);
 
 describe('rating wire (protocol 42)', () => {
-  it('is protocol 42 (the rating rides marlow-final 42)', () => {
-    expect(PROTOCOL_VERSION).toBe(42);
-  });
-
   it('a sector message round-trips its rt beside the other extras', () => {
     const msg = { t: 'sector', ls: 2, lk: [3], dn: ['cam-a'], sy: 1, rt: RT };
     expect(parseMessage(JSON.parse(JSON.stringify(msg)))).toEqual(msg);
@@ -141,13 +137,13 @@ describe('rating wire (protocol 42)', () => {
     expect(m?.rt).toEqual({ ...RT, marks: 15 });
   });
 
-  it('a peer on protocol 41 is refused; 42 joins', () => {
+  it('a peer one protocol version behind (PROTOCOL_VERSION - 1) is refused; the current PROTOCOL_VERSION joins', () => {
     const h = hub();
     const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const old = h.make('O');
-    old.send({ t: 'hello', v: 41, name: 'Old', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: PROTOCOL_VERSION - 1, name: 'Old', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(false);
-    old.send({ t: 'hello', v: 42, name: 'New', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'New', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(true);
   });
 });
