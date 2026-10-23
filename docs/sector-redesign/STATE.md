@@ -293,9 +293,12 @@ NEXT:
    re-level + tests/ctcourseLight.tuned.json; ctcourseLight S7 stair red disappears), run master's ctcourseLight on the
    merged tree, PROTOCOL = master's + the train's renumber (lr16int carries 39 from LR16-5b). Label train-ready, message
    the orchestrator (C2-style Marlow overlap note). Red -> Opus triage at once.
-2. LR16-P F1-F3 on -lr16p (Opus, base 2798e57d; F1 4ec09ab2, F2 f48780fb pushed; F3 was running at the save): check the
-   branch + checks/lr16p-build.md; rerun from briefs/LR16-P.md for what is missing. Then one Opus checker, then the A1 / A2
-   perf request (laptop, alone).
+2. LR16-P DONE -lr16p 3306bdf5 (base 2798e57d; F1 lamp texture dynamic rows 560 -> 27 KB / frame, F2 char-shadow reach
+   minLevel 0.04 with far plane kept at the light reach (deviation, reasoned), F3 bounce read without local arrays; 164
+   tests; checks/lr16p-build.md). Next: one Opus checker (render / GLSL), add a changelog fragment line, then the perf
+   request (laptop alone, 4189): campusOps start + S5-worst (-50.25, 3.0, 62.25) yaw 158, Epic + Medium, 3 samples;
+   A1 1c22b913 default + A2 same sha EXTRA=falloff=photo (perf.mjs from f8008542), C' 2798e57d, D 3306bdf5; full spec in
+   checks/lr16p-build.md. Merge -lr16p into lr16int after the LR16 PR head is settled (or ride the PR if still open).
 3. Then: LR16-8 sheets (briefs/LR16h-and-8.md part 2 to Test Runner), LR16-4 board (briefs/LR16-4-board.md).
 For Michael: Realistic dimmer (S2 atrium 0.47); S3 hall-lit white fog; R2N ladder foot 0.44 (layout cannot fix); warehouse
 fittings at 0.1-0.3x (GPU sheet judges); lamp-loop cost.
