@@ -689,7 +689,7 @@ export class RemoteAvatar {
     const muzzle = m.muzzleWorld(this.tmpA);
     const cp = Math.cos(this.pitch);
     const end = this.tmpB.set(muzzle.x + Math.sin(this.yaw) * cp * 60, muzzle.y + Math.sin(this.pitch) * 60, muzzle.z + Math.cos(this.yaw) * cp * 60);
-    const hit = this.ballistics.ray(muzzle, end, MASK.WORLD);
+    const hit = this.ballistics.ray(muzzle, end, MASK.WORLD | G.GLASS_ARMOURED);
     this.vfx.tracer(muzzle, hit.point, def.tracer, def.pellets > 1 ? 0.012 : 0.02);
     // (P7) a suppressed round's flash is small, as the owner's own (`PlayerWeapons.shoot`)
     this.vfx.muzzleFlash(muzzle, (def.pellets > 1 ? 0.3 : 0.2) * (quiet ? 0.35 : 1));

@@ -4,7 +4,7 @@ import type { PropSystem } from '../world/props';
 import { PROP_DEFS } from '../world/props';
 import type { Vfx } from '../vfx/vfx';
 import type { Ballistics } from './ballistics';
-import { G } from '../physics/groups';
+import { MASK } from '../physics/groups';
 
 interface Pending {
   pos: Vector3;
@@ -60,7 +60,7 @@ export class Explosions {
       const d = Vector3.Distance(c, e.pos);
       if (d > e.radius) continue;
       // Line of sight against level geometry only.
-      const los = this.ballistics.ray(e.pos.add(new Vector3(0, 0.25, 0)), c, G.STATIC);
+      const los = this.ballistics.ray(e.pos.add(new Vector3(0, 0.25, 0)), c, MASK.BLAST);
       if (los.hit && los.distance < d - 0.3) continue;
       const falloff = Math.pow(1 - d / e.radius, 0.7);
       const dir = c.subtract(e.pos).normalize();

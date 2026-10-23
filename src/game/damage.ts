@@ -27,6 +27,8 @@ export interface HitInfo {
 export interface DamageResult {
   dealt: number;
   killed: boolean;
+  /** (guard-ai S12) Stopped by a guard's helmet or body armour (no damage dealt): the hit marker shows a deflect. */
+  deflect?: boolean;
 }
 
 export interface Damageable {

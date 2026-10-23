@@ -111,7 +111,7 @@ export function packAlert(level: number, seized: boolean, torch: boolean): numbe
 /** A usable thing on the host (mirrored on clients, used through `use`). */
 export interface NetItem {
   id: string;
-  k: 'terminal' | 'cache' | 'switch' | 'alarm' | 'door' | 'intel' | 'charge' | 'revive' | 'medkitWall';
+  k: 'terminal' | 'cache' | 'switch' | 'alarm' | 'door' | 'intel' | 'charge' | 'revive' | 'medkitWall' | 'crate';
   x: number;
   y: number;
   z: number;
@@ -121,7 +121,13 @@ export interface NetItem {
   reach: number;
   on: boolean;
 }
-export const ITEM_KINDS: readonly NetItem['k'][] = ['terminal', 'cache', 'switch', 'alarm', 'door', 'intel', 'charge', 'revive', 'medkitWall'];
+export const ITEM_KINDS: readonly NetItem['k'][] = ['terminal', 'cache', 'switch', 'alarm', 'door', 'intel', 'charge', 'revive', 'medkitWall', 'crate'];
+
+/** (polish 8) The host's event queue holds `MAX_EVENTS * 2`; a `crate` fill is never dropped (a dropped one left that
+ *  client's use recorded but never filled until a restart). Crate events are bounded by crates x players. */
+export function eventQueueKeeps(len: number, e: NetEvent): boolean {
+  return len < MAX_EVENTS * 2 || e.e === 'crate';
+}
 
 export type NetEvent =
   | { e: 'tracer'; ax: number; ay: number; az: number; bx: number; by: number; bz: number; c: string }
@@ -130,6 +136,9 @@ export type NetEvent =
   | { e: 'banner'; title: string; sub: string }
   | { e: 'feed'; text: string }
   | { e: 'pickup'; player: string; kind: 'ammo' }
+  /** (35, E9-crate) `player` used weapons crate `id`: `fill` true = the use itself (that player tops up), false = a
+   *  re-send after a rejoin (hide the prompt only, never top up). */
+  | { e: 'crate'; player: string; id: string; fill: boolean }
   | { e: 'hitConfirm'; player: string; kind: 'hit' | 'head' | 'kill' }
   /** A player took damage from a source at (x, z). */
   | { e: 'hurt'; player: string; x: number; z: number; boom: boolean }
@@ -333,6 +342,11 @@ function netEvent(v: unknown): NetEvent | null {
       const player = id(v.player);
       const kind = oneOf(v.kind, ['ammo'] as const);
       return player && kind ? { e: 'pickup', player, kind } : null;
+    }
+    case 'crate': {
+      const player = id(v.player);
+      const cid = id(v.id);
+      return player && cid ? { e: 'crate', player, id: cid, fill: v.fill === true } : null;
     }
     case 'hitConfirm': {
       const player = id(v.player);

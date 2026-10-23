@@ -342,7 +342,7 @@ export class TakedownController {
     this.eye.set(p.x, p.y + (i.state === 'hang' ? 2.05 : i.state === 'hangDown' ? 0.05 - HANG_HEAD : 1.2), p.z);
     // (the plan's align is the attacker's own spot; from the hang it is never used: the body stays where it hangs)
     this.head.set(best.pos.x, best.pos.y + 1.2, best.pos.z);
-    const h = g.ballistics.ray(this.eye, this.head, G.STATIC);
+    const h = g.ballistics.ray(this.eye, this.head, G.STATIC | G.GLASS);
     i.los = !h.hit || h.distance > Vector3.Distance(this.eye, this.head) - 0.2;
     const plan = pickTakedown(i);
     if (!plan) return null;

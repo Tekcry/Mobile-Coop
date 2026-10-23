@@ -9,8 +9,9 @@ import { LevelBuilder, type BoxPiece } from '../src/world/levelBuilder';
 import { MAPS, getMap } from '../src/world/maps';
 import { isListedMap } from '../src/world/maps/listed';
 import { campusOps, CAMPUS_BOUNDS } from '../src/world/maps/campusOps';
-import { C1_BOX, CAMPUS_COOP_LIPS, S1_DOORS, S1_GROUPS, S1_ROOMS, BOLLARD_XS, CANOPY_LAMPS, PARK_COLUMNS_E, PARK_COLUMNS_W } from '../src/world/maps/campusS1';
-import { CAMPUS_ALARMS, CAMPUS_POSTS, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
+import { CAMPUS_COOP_LIPS } from '../src/world/maps/campusLips';
+import { C1_BOX, S1_DOORS, S1_GROUPS, S1_ROOMS, BOLLARD_XS, CANOPY_LAMPS, PARK_COLUMNS_E, PARK_COLUMNS_W } from '../src/world/maps/campusS1';
+import { CAMPUS_ALARMS, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
 import { SECTOR, checkSectorGuards, checkSectors, exitZone, inZone, type SectorGuard } from '../src/game/sectors';
 import { validateSecurity } from '../src/security/data';
 import { CAMERA } from '../src/config/security';
@@ -102,23 +103,24 @@ const nav = analyticNav([-42, -82, 28, -28]);
 const onNav = (x: number, z: number, y = 0): boolean => nav.isWalkable(nav.cellOf(x, z, y)) && Math.abs(nav.heightAt(x, z, y) - y) < 0.6;
 
 describe('Saltmarsh Park (campusOps), registration and shape', () => {
-  it('is registered, sector only, five nav layers, the SPEC bounds, not listed', () => {
+  it('is registered, sector only, five nav layers, the SPEC bounds, listed (slice 3)', () => {
     expect(MAPS.some((m) => m.id === 'campusOps')).toBe(true);
     expect(getMap('campusOps')).toBe(campusOps);
     expect(campusOps.modes).toEqual(['sector']);
     expect(campusOps.navLayers).toBe(5);
-    expect(isListedMap('campusOps')).toBe(false);
+    expect(isListedMap('campusOps')).toBe(true);
     expect(b.bounds).toEqual({ minX: -70, maxX: 70, minZ: -84, maxZ: 70 });
     expect(CAMPUS_BOUNDS.maxX - CAMPUS_BOUNDS.minX).toBe(140);
     // Warehouse Ops stays as it is: the first sector map (the default)
     expect(MAPS.filter((m) => m.modes.includes('sector')).map((m) => m.id)).toEqual(['warehouseOps', 'campusOps']);
   });
 
-  it('five sections chain (S2-S5 stubs: no guards), valid data, each later one starting at the previous checkpoint', () => {
+  it('five sections chain (S3-S5 stubs: no guards; S2 is slice 2), valid data, each later one starting at the previous checkpoint', () => {
     expect(CAMPUS_SECTORS.length).toBe(5);
     expect(checkSectors(CAMPUS_SECTORS)).toEqual([]);
     for (let i = 1; i < 5; i++) expect(CAMPUS_SECTORS[i]!.start).toEqual(CAMPUS_SECTORS[i - 1]!.connector!.checkpoint);
-    for (const s of CAMPUS_SECTORS.slice(1)) expect(s.guards.length, s.id).toBe(0);
+    // (slice 3) the stubs have none; S3 is built in full (tests/campusS3.test.ts)
+    for (const s of CAMPUS_SECTORS.filter((q) => q.name.endsWith('(stub)'))) expect(s.guards.length, s.id).toBe(0);
     expect(CAMPUS_SECTORS[4]!.extract).toBeTruthy();
     // every stub and S1 connector's near / far doorway and the objective stand on the nav grid (S1 only: the stubs are outside this rectangle)
     expect(lay.playerSpawns.length).toBe(4);
@@ -246,7 +248,7 @@ describe('S1 guards (SPEC guard table)', () => {
 
 describe('S1 cameras, alarm, objective, routes', () => {
   it('two cameras, range 8-12 with a reason, valid security data, both in section 1', () => {
-    const cams = CAMPUS_SECURITY.devices;
+    const cams = CAMPUS_SECURITY.devices.filter((c) => c.section === 0);
     expect(cams.map((c) => c.id)).toEqual(['cam-gate', 'cam-walk']);
     expect(validateSecurity(CAMPUS_SECURITY)).toEqual([]);
     for (const c of cams) {
@@ -267,8 +269,8 @@ describe('S1 cameras, alarm, objective, routes', () => {
   });
 
   it('the alarm panel is in the gatehouse by its door; the layout carries it', () => {
-    expect(CAMPUS_ALARMS.length).toBe(1);
-    const a = lay.alarms![0]!;
+    expect(CAMPUS_ALARMS.filter((q) => q.section === 0).length).toBe(1);
+    const a = lay.alarms!.filter((q) => q.section === 0)[0]!;
     expect(a.section).toBe(0);
     expect(a.pos.x).toBeGreaterThan(14);
     expect(a.pos.x).toBeLessThan(20);
@@ -319,7 +321,7 @@ describe('S1 cameras, alarm, objective, routes', () => {
 
   it('the spawns and hide spots stand on the nav grid; the ground reaches the plant roof by the ladder only', () => {
     for (const s of lay.playerSpawns) expect(onNav(s.pos.x, s.pos.z), `spawn ${s.pos.x}`).toBe(true);
-    for (const h of lay.hideSpots!) expect(onNav(h.pos.x, h.pos.z), `hide (${h.pos.x}, ${h.pos.z})`).toBe(true);
+    for (const h of lay.hideSpots!.filter((q) => q.pos.z < -32)) expect(onNav(h.pos.x, h.pos.z), `hide (${h.pos.x}, ${h.pos.z})`).toBe(true);
     const up = nav.findPath([24, -79], [-33, -37], 100000, 0, 4.4);
     expect(up).not.toBeNull();
     expect(up!.some((w) => w.link?.kind === 'ladder')).toBe(true);
@@ -409,7 +411,7 @@ describe('CR1: the canopy east lip against a solo player (SPEC Campus-wide rules
     const high = S1.routes.find((r) => r.climbs && r.climbs.length > 0)!;
     expect(high.pts.some((p) => (p[2] ?? 0) === 4.4 && p[0] > -26)).toBe(true);
     // the parapets on the plant roof's S and W edges are 1.1 and noLedge
-    const parapets = solid.filter((p) => Math.abs(p.s[1] - 1.1) < 1e-6 && Math.abs(p.c[1] - 4.95) < 1e-6);
+    const parapets = solid.filter((p) => Math.abs(p.s[1] - 1.1) < 1e-6 && Math.abs(p.c[1] - 4.95) < 1e-6 && p.c[2] < -32);
     expect(parapets.length).toBe(3);
     expect(parapets.every((p) => p.noLedge)).toBe(true);
   });
@@ -489,7 +491,7 @@ describe('S1 element register E1-E12 (SPEC)', () => {
   });
   it('E3 weldmesh fences 2.4 round the site', () => {
     expect(b.anchors.fences.length).toBeGreaterThanOrEqual(7);
-    expect(b.anchors.fences.every((f) => f.height === 2.4)).toBe(true);
+    expect(b.anchors.fences.filter((f) => f.a.z < -30).every((f) => f.height === 2.4)).toBe(true);
   });
   it('E4 the bin-store walls 3.0 (west, north, east; open south)', () => {
     const walls = solid.filter((p) => Math.abs(p.s[1] - 3.0) < 1e-6 && p.c[0] > -40.2 && p.c[0] < -29.8 && p.c[2] > -52.2 && p.c[2] < -44.8);
@@ -577,14 +579,14 @@ describe('M8: isolation in time at each takedown spot (sectorCheck, the Warehous
 
 describe('K1 (M12): the doorman is an unavoidable posted guard at the C1 near door', () => {
   const post = S1.guards[4]!;
-  it('the data: role posted, zone c1, leash 5, guards c1-door (`CAMPUS_POSTS` until guard-ai\'s `post` block exists)', () => {
+  it('the data: role posted, zone c1, leash 5, guards c1-door (`SquadSlot.post`)', () => {
     expect(post.role).toBe('posted');
     expect(post.zone).toBe('c1');
-    expect(CAMPUS_POSTS['s1#5']).toEqual({ leash: 5, guards: 'c1-door' });
+    expect(post.post).toEqual({ leash: 5, guards: 'c1-door' });
   });
 
   it('the leash edge is at least 1 m off the near door\'s nav cell, so a lure opens the way', () => {
-    const leash = CAMPUS_POSTS['s1#5']!.leash;
+    const leash = post.post!.leash;
     const door = S1_DOORS.c1Near;
     const cell = nav.center(nav.cellOf(door[0], door[1], 0));
     const dPost = hyp2(cell[0] - post.x, cell[1] - post.z);

@@ -190,3 +190,59 @@ Lead, slice 1 check (2026-10-23, checks/slice1-check.md PASS; one fix round):
   each map's own bounds. A20 (load <= 2x Warehouse Ops) stays the real budget, measured on the laptop at slice 1 e2e.
 - A68 campusOps stays out of the Sector Ops op list until slice 3 (one filter in missionsScreen.ts). Guard #7 (fence
   patrol) is `dormant`-tagged and the smoking shelter's east panel is longer, for A64 margin (worst view was exactly 6).
+- A69 (slice 2) CR2's leg-up lip sits on the atrium void's EAST edge (x -10, z -11..-5) over the café, not the north edge:
+  the builder's layout put the café and the planter gap there. Undo: move the gap and the planter to the north edge.
+  At the S2 + S3 merge the campus co-op lips become one list joined in one place (S1 + S2_COOP_LIPS + S3_COOP_LIPS)
+  instead of campusS2.ts pushing into CAMPUS_COOP_LIPS at load.
+- A70 S3's viewing-corridor spandrel (the hall's north wall on L1, x 22..52) is 6.2, not 5.8 (`S3_VIEW_SPANDREL_TOP`;
+  the landing glass at x 22 stays 5.8), so the crane walkway cannot see the corridor guards over it (A64: the walkway
+  saw 8 awake guards with 5.8; 6.0 left it at exactly 6 on the walkway, no margin). Corridor guards lose their look-down to the hall's far half. The
+  A64 test now samples every 0.5 m nav cell, 32 facings, every 1 m of each route, the gallery door leaf shut. Undo: set
+  `S3_VIEW_SPANDREL_TOP` back to `S3_SPANDREL_TOP` (or shorten the walkway's west end past x ~31, losing the SW ladder).
+- A71 (slice 2, L3) The goods door is in the west wall (locked, unbreachable): the HQ south face is the solid S1
+  pavilion, so S1's dock door cannot lead in. It opens on S1's fenced west side, no way out.
+  Undo: change the value in campusS2.ts back to the SPEC value.
+- A72 (slice 2, L4) `reinforce` has no `y`: the L2 lift lobby point (-36, -7) spawns on the lowest surface there,
+  the G lift lobby under the L2 lobby; guards climb the SW stair.
+  Undo: change the value in campusS2.ts back to the SPEC value.
+- A73 (slice 2, L5) C2 is built as the SPEC says (L1, x 4..10, floor slab at 4.4, walls 3.0, roof, card door in the
+  east wall); the ground stub room is gone from `campusOps.ts`. The stub S3 starts at the new checkpoint (y 4.4) and
+  its nav seed is (7, 4.4, -14), not (7, 0, -14).
+  Undo: change the value in campusS2.ts back to the SPEC value.
+- A74 (slice 2, L7) The kitchen is in the SW part of the south band (door onto the SW lobby), not over the foyer:
+  guards spawn only 7 m (plan) from every player, and the C1 checkpoint is 4.5 m from the foyer's north half.
+  Pair #5-#6 is the recorded M8 exception, as the S1 car-park pair.
+  Undo: change the value in campusS2.ts back to the SPEC value.
+- A75 (slice 2, L8) The facilities glass is on the office's south wall (onto the wing corridor), not its west wall:
+  with the glass on the west wall the L1 north ring saw 8 awake guards (A64). #7 is seen from the wing corridor.
+  Undo: change the value in campusS2.ts back to the SPEC value.
+- A76 (slice 2, L12) The atrium roof light has a 0.9 rim (noLedge) round the void on the roof, the lid a visual box
+  with no collision. A player vaulting the rim falls 13 m (the void is open).
+  Undo: change the value in campusS2.ts back to the SPEC value.
+- A77 (slice 2, L15) `kp-fac` is not built (EW5): the facilities door is a plain door. The code beat is cut.
+  Undo: change the value in campusS2.ts back to the SPEC value.
+- A78-A98 (2026-10-23 ~10:15, Opus S4 / S5 planner; detail and undo in briefs/SLICE4.md, SLICE5.md): A78 S4 hall z 22..42
+  (SPEC 20..44), pods z 24..32, cage x 14..22 z 34..40; A79 S4 no fire-stair core (riser caged ladders, compound plant
+  ladder, NOC straight flight; kp-deck on the riser door); A80 no NOC roof light (hall window); A81 keypad codes from a
+  board in the same section (S4 dock, S5 kitchen); A82 kp-ctl dropped; A83 cage walls solid 3.0 m open top; A84 sections
+  sealed (2.8 m solid boundary walls, roof edges over outside ground >= 1.9 m; no fall damage); A85 CR7 co-op-quiet (4.2 m
+  rope, TEAM.ropeMax 6.0; a solo drop is heard by #9) - ask Michael at the playtest; A86 S5 keyholders face the hall door,
+  token behind; A87 dogs heel by a shared loop clock with the handler (M8 exception each); A88 stage reinforcements stay
+  grunts (SECTOR_REINFORCE_KIND global); A89 S4 dock pair staggered; A90 S4 compound board a 20 s isolator in the dock;
+  A91 one laser each in S4 / S5 (totals ramp); A92 S5 terrace gate = balustrade gap with #20; A93 guard routes stay on one
+  floor (S5 #24, S4 #16); A94 S5 #22 faces into the house; A95 camera armour ramp (stealth over shooting, Michael ~10:10):
+  S1-S2 shootable, S3 cam-view bulletproof / cam-dock not, all S4-S5 bulletproof; A96 S5 cameras flagged thermal (data;
+  cameras already ignore lamps); A97 armoured routes with a named quiet bypass (S4 mantrap door + NOC glass, S5 anteroom
+  hall door + front door); A98 no ammo inside sections, one weapons crate slot at each section start (Michael ~10:20),
+  data only until E9-crate. Engine items for Opus: E8 bulletproof + thermal camera flags, E9-crate, E10 armoured glass /
+  door pieces (glass needs E2).
+- E10 (armoured routes, A97; checks/e10-armour.md): A-E10-1 armour = one collision bit `G.GLASS_ARMOURED` (1 << 14) on
+  armoured panes and armoured door leaves, in `MASK.PLAYER_SHOT` / `ENEMY_SHOT`, not in `SIGHT` / `WORLD`; undo: drop the
+  bit from the shot masks. A-E10-2 doors cannot be shot open today (no runtime reads `breachable`), so an armoured door
+  only stops penetration (a plain 0.1 leaf is thinner than a rifle's 0.2 penetration); open, lock and bash unchanged;
+  undo: `armoured` off the door. A-E10-3 a round on armour gives sparks only (no chip / decal), the E8 ricochet look, the
+  generic impact sound. A-E10-4 only the mantrap's inner door is armoured (the outer door stays plain; the table lists
+  one door). A-E10-5 bypasses: arm-mantrap -> kp-batt keypad (stealth route), arm-noc -> the basket hang-down into the
+  cage (high route), arm-ante -> the anteroom side door (stealth), arm-front -> the north parapet rappel (high); undo:
+  edit `bypass` in `S4_ARMOURED` / `S5_ARMOURED`. A-E10-6 the armoured NOC window also stops the NOC pair's rounds (they
+  see the hall, cannot shoot it) - Guard AI must test the fire line on `MASK.ENEMY_SHOT`.

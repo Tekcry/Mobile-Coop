@@ -34,12 +34,22 @@ const KNEE_OUT_CYCLE = { walk: -0.055, jog: -0.09, run: -0.03 };
  * lift and liftH is not read. So every clip writes the hand-keyed gait's value (src/anim/clips/keyed/*.ts), keeping the
  * planner's steps exactly as they are; the capture's measured peak ankle lift goes to the report only.
  */
-const PLANNER_LIFT = { walk: 0.075, jog: 0.17, run: 0.22 };
+const PLANNER_LIFT = { walk: 0.075, jog: 0.17, run: 0.22, strafe: 0.05 };
+/**
+ * (mocap-trial-2, strafe) The cycle's travel direction in the root frame (CLIP-FORMAT.md `travel`): 'z' (forward, the
+ * walk / jog / run / crouch walk / sprint: no `travel` written, the files as before) or a sideways cycle along +x (right)
+ * / -x (left). A sideways intermediate (m3.mjs faceRoot: the root faces where the body faces, travelling at the take's
+ * heading, about +-90 deg) is turned so its travel lies exactly along the axis; the body keeps the rest of the heading
+ * (a few degrees) as its own yaw. The aimed strafe's planner values (the hand-keyed glide strafe's liftH / kneeOut): the
+ * runtime places the strafe's steps with the planner (BRIEF A10).
+ */
+const TRAVEL_AXIS = { z: [0, 1], '+x': [1, 0], '-x': [-1, 0] };
+const KNEE_OUT_SIDE = 0;
 /** (integration) The foot pitch (rad, heel up) past which a planted foot's ankle leaves its pin (the stance window's end). */
 const PIN_PITCH = 0.15;
 /** The game's stride per cycle (m) at its speeds (CLIP-FORMAT.md), for the per-clip scale report. */
 const GAME_STRIDE = [[1.4, 1.16], [2.1, 1.44], [3.0, 2.04], [3.8, 2.42], [4.4, 2.6]];
-const BANDS = { walk: [1.4, 2.1], jog: [2.6, 3.3], run: [4.2, 4.4] };
+const BANDS = { walk: [1.4, 2.1], jog: [2.6, 3.3], run: [4.2, 4.4], strafe: [0.4, 0.9] };
 const gameStride = (v) => {
   const t = GAME_STRIDE;
   if (v <= t[0][0]) return t[0][1] * v / t[0][0];
@@ -161,8 +171,33 @@ function levelHead(frames) {
   return frames.flatMap((f) => q4.norm(q4.mul(un, f.q.head)));
 }
 
-/** A walk / jog / run cycle: phase-warped halves, root linear in phase, clip feet. */
-export function emitCycle(d, rig, spec) {
+/**
+ * (mocap-trial-2, strafe) A sideways loop (faceRoot's facing root) turned so its root travels exactly along `travel`
+ * (+x / -x): the pelvis position and its root-frame rotation turned by the gap between the take's travel heading and
+ * the axis (the loop root moves along its heading, `cycleDistance` per loop). Returns a turned copy; `d` is not touched.
+ */
+function alignTravel(d, travel) {
+  const last = d.root[d.frames - 1];
+  const heading = Math.atan2(last[0], last[1]);
+  const [ux, uz] = TRAVEL_AXIS[travel];
+  const turn = wrapPi(Math.atan2(ux, uz) - heading);
+  const R = q4.yaw(turn);
+  const pi = d.joints.indexOf('pelvis');
+  return {
+    ...d,
+    pel: d.pel.map((p) => q4.rotate(R, p)),
+    rot: d.rot.map((f) => f.map((q, j) => (j === pi ? q4.norm(q4.mul(R, q)) : q))),
+    travelTurnDeg: turn * R2D,
+  };
+}
+
+/** A walk / jog / run cycle: phase-warped halves, root linear in phase, clip feet. (mocap-trial-2) `spec.travel` +x / -x: a
+ *  sideways cycle (the strafe), the root travelling along that axis. */
+export function emitCycle(d0, rig, spec) {
+  const travel = spec.travel ?? 'z';
+  const lateral = travel !== 'z';
+  const d = lateral ? alignTravel(d0, travel) : d0;
+  const [ux, uz] = TRAVEL_AXIS[travel];
   const K = rig.height / BODY_H;
   const n = d.frames;
   const rStrike = d.events.find((e) => e.foot === 'R' && e.type === 'strike')?.frame;
@@ -181,7 +216,8 @@ export function emitCycle(d, rig, spec) {
     const p = i / N;
     const f = warp(p);
     const s = at(f);
-    const pel = [s.pel[0] - P0[0], s.pel[1], s.pel[2] + S * (f / n - p) - P0[2]];
+    // the pelvis from the root at frame f to the root at phase p (the root linear in phase), along the travel
+    const pel = lateral ? [s.pel[0] + ux * S * (f / n - p) - P0[0], s.pel[1], s.pel[2] + uz * S * (f / n - p) - P0[2]] : [s.pel[0] - P0[0], s.pel[1], s.pel[2] + S * (f / n - p) - P0[2]];
     const fr = frameOut(rig, K, pel, s.loc, prev);
     prev = fr.q;
     fr.p = p;
@@ -216,7 +252,9 @@ export function emitCycle(d, rig, spec) {
     }
   }
   const takeHalf = halfOf(frames, K);
-  const dh = TRACK_HALF[spec.gait] - takeHalf;
+  // (mocap-trial-2, strafe) a sideways cycle keeps the take's own track (its feet open and close along x)
+  const half = lateral ? takeHalf : TRACK_HALF[spec.gait];
+  const dh = half - takeHalf;
   for (let i = 0; i < feet.length; i += 10) {
     feet[i] -= dh;
     feet[i + 5] += dh;
@@ -224,16 +262,16 @@ export function emitCycle(d, rig, spec) {
   const T = n / d.fps;
   const speed = S / T;
   const band = BANDS[spec.gait];
-  const scales = band.map((v) => gameStride(v) / S);
+  const scales = band.map((v) => (spec.gameStride ?? gameStride)(v) / S);
   return {
     def: {
-      name: `mocap_${spec.name}`, frames: N, duty, liftH: PLANNER_LIFT[spec.gait], kneeOut: KNEE_OUT_CYCLE[spec.gait], half: TRACK_HALF[spec.gait],
+      name: `mocap_${spec.name}`, frames: N, duty, liftH: PLANNER_LIFT[spec.gait], kneeOut: lateral ? KNEE_OUT_SIDE : KNEE_OUT_CYCLE[spec.gait], half,
       pel: frames.flatMap((f) => f.pel), q: frames.flatMap((f) => [...f.q.pelvis, ...f.q.spine, ...f.q.chest, ...f.q.neck]),
-      arm: frames.flatMap((f) => f.arm), head: levelHead(frames), feet, stride: S / K,
+      arm: frames.flatMap((f) => f.arm), head: levelHead(frames), feet, stride: S / K, ...(lateral ? { travel } : {}),
     },
     report: {
       take: d.source.take, seconds: d.source.seconds, cycle: T, speed, stride: S, rStrikePhaseTake: rStrike / n,
-      takeDuty: [cl / n, cr / n], warpedDuty: takeDuty, takeHalf, strideScale: scales, liftH, pelvisYawMeanDeg: Math.atan2(frames.reduce((s, f) => s + Math.sin(f.yaw), 0), frames.reduce((s, f) => s + Math.cos(f.yaw), 0)) * R2D,
+      takeDuty: [cl / n, cr / n], warpedDuty: takeDuty, travelTurnDeg: d.travelTurnDeg ?? 0, takeHalf, strideScale: scales, liftH, pelvisYawMeanDeg: Math.atan2(frames.reduce((s, f) => s + Math.sin(f.yaw), 0), frames.reduce((s, f) => s + Math.cos(f.yaw), 0)) * R2D,
     },
     frames,
   };
@@ -336,7 +374,9 @@ ${def.feet ? `  // clip feet L then R: ankle x, lift y, z (root frame), foot pit
   feet: [${flat(def.feet)}],
   // the root's travel over one cycle
   stride: ${r5(def.stride)},
-` : ''}`;
+${def.travel ? `  // (mocap-trial-2) the root travels sideways: +x right, -x left (CLIP-FORMAT.md travel)
+  travel: '${def.travel}',
+` : ''}` : ''}`;
   if (!spec.typed) return `${head}import { keyedClip } from '../../keyed';\n\nexport const ${constName} = keyedClip({\n${body}});\n`;
   const secs = spec.seconds ? `/** The take's length (s): the clip plays over it from ${spec.kind === 'start' ? 'the first push' : 'the braking'}. */\nexport const ${spec.seconds} = ${r5(out.seconds)};\n` : '';
   return `${head}import { keyedClip } from '../../keyed';\nimport type { KeyedClip } from '../../keyed';\n\nexport const ${constName}: KeyedClip | null = keyedClip({\n${body}});\n${secs}`;
@@ -360,7 +400,9 @@ function checkCycle(out) {
     // the clip is periodic in the root frame: a foot planted across the seam keeps falling back through it
     const dz = F[j * 10 + s * 5 + 2] - F[i * 10 + s * 5 + 2];
     const dx = F[j * 10 + s * 5] - F[i * 10 + s * 5];
-    errs.push(Math.hypot(dz + def.stride / N, dx) * K_BODY * 100);
+    // (mocap-trial-2) a sideways cycle's planted foot falls back along its travel axis
+    const [ux, uz] = TRAVEL_AXIS[def.travel ?? 'z'];
+    errs.push(def.travel ? Math.hypot(dz + (uz * def.stride) / N, dx + (ux * def.stride) / N) * K_BODY * 100 : Math.hypot(dz + def.stride / N, dx) * K_BODY * 100);
   }
   errs.sort((x, y) => x - y);
   notes.push(`planted foot vs the moving root: median ${errs[errs.length >> 1].toFixed(2)} / max ${errs[errs.length - 1].toFixed(2)} cm per frame over ${errs.length} planted frame pairs`);

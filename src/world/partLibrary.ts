@@ -18,6 +18,8 @@ import { PATTERN_ID, type PatternName } from '../cosmetics/patterns';
 import { SURFACE_ID, type SurfaceAtlas } from './surfaceAtlas';
 import { SurfacePlugin } from './surfacePlugin';
 import { VoxelBodyPlugin } from '../voxel/voxelBodyPlugin';
+import { SmoothBodyPlugin } from '../player/smoothBodyPlugin';
+import type { SmoothBodyLibrary } from '../player/smoothBody';
 import { hsv, pieceKind } from './surfaceKinds';
 
 /** Hard-edged shapes are for world props only; characters, gear and weapons use the smooth set. */
@@ -60,9 +62,14 @@ export function partSurface(name: string, hex: string): number {
  * Unit-sized base meshes shared by every character/prop part. Parts are InstancedMesh
  * with a per-instance colour, so N enemies of any mix cost one draw call per shape.
  */
-export class PartLibrary {
+export class PartLibrary implements SmoothBodyLibrary {
   private bases = new Map<PartShape, Mesh>();
   private lods: Mesh[] = [];
+  /** Each smooth base's low-LOD mesh. */
+  private lowOf = new Map<Mesh, Mesh>();
+  /** (guard-render S1) Merged smooth bodies' [full, low] pairs: they move with the Detail scale too. */
+  private tracked: [Mesh, Mesh][] = [];
+  private lodK = 1;
   readonly material: StandardMaterial | PBRMaterial;
   readonly skinMaterial: StandardMaterial | PBRMaterial;
   /** PBR with procedural surfaces (3.0; an atlas given): colours go in linear. */
@@ -99,12 +106,14 @@ export class PartLibrary {
     // voxel characters (3.0): merged skinned meshes with per-vertex colour, pattern and voxel grid (not frozen)
     this.skinMaterial = make('partSkinMat');
     new VoxelBodyPlugin(this.skinMaterial);
+    // (guard-render S1) merged smooth bodies: the instances' pattern / surface space per vertex
+    new SmoothBodyPlugin(this.skinMaterial);
     // (frozen too: an unfrozen material re-checks its defines on every mesh, every frame - garbage and CPU)
     this.skinMaterial.freeze();
     this.pbr = !!atlas;
     const prep = (mesh: Mesh): Mesh => {
       mesh.material = m;
-      mesh.metadata = { skinMaterial: this.skinMaterial };
+      mesh.metadata = { skinMaterial: this.skinMaterial, library: this };
       mesh.registerInstancedBuffer('color', 4);
       mesh.instancedBuffers.color = new Color4(1, 1, 1, 1);
       mesh.registerInstancedBuffer('pattern', 4);
@@ -166,17 +175,39 @@ export class PartLibrary {
       hi.addLODLevel(LOD_DISTANCE, lo);
       this.bases.set(s, hi);
       this.lods.push(lo);
+      this.lowOf.set(hi, lo);
     }
   }
 
   /** Detail setting (3.0): the smooth shapes switch to their low LOD at `LOD_DISTANCE` x k. */
   setLodScale(k: number): void {
+    this.lodK = k;
     for (let i = 0; i < SMOOTH_SHAPES.length; i++) {
       const hi = this.bases.get(SMOOTH_SHAPES[i]!)!;
       const lo = this.lods[i]!;
       hi.removeLODLevel(lo);
       hi.addLODLevel(LOD_DISTANCE * k, lo);
     }
+    for (const [hi, lo] of this.tracked) {
+      hi.removeLODLevel(lo);
+      hi.addLODLevel(LOD_DISTANCE * k, lo);
+    }
+  }
+
+  /** (guard-render S1) A base's low-LOD mesh (hard shapes have none: the base itself). */
+  low(base: Mesh): Mesh {
+    return this.lowOf.get(base) ?? base;
+  }
+
+  /** (guard-render S1) `lo` becomes `hi`'s LOD at the parts' distance x the Detail scale, until `hi` is disposed. */
+  trackLod(hi: Mesh, lo: Mesh): void {
+    hi.addLODLevel(LOD_DISTANCE * this.lodK, lo);
+    const pair: [Mesh, Mesh] = [hi, lo];
+    this.tracked.push(pair);
+    hi.onDisposeObservable.addOnce(() => {
+      const i = this.tracked.indexOf(pair);
+      if (i >= 0) this.tracked.splice(i, 1);
+    });
   }
 
   base(shape: PartShape): Mesh {

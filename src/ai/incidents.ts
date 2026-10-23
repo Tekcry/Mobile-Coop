@@ -22,6 +22,7 @@
  * grows only when a bigger view arrives).
  */
 import { hyp2, hyp3 } from '../core/mathx';
+import { roleSendMul, TAGS } from './sectorTags';
 
 export type IncidentKind = 'noise' | 'shots' | 'light' | 'distraction' | 'missing' | 'bodyDead' | 'bodyKo' | 'camBody' | 'witnessKill' | 'contact';
 
@@ -101,6 +102,12 @@ export class GuardView {
   flags: Uint8Array;
   /** The incident id the guard works (`Enemy.incident`), -1 none. */
   task: Int32Array;
+  /** (guard-ai S5b) Role class flags (`sectorTags.ts` `ROLE_*`), and a secure zone's circle (centre, radius; 0 none):
+   *  he answers a disturbance inside it first. 0 unless `setTags` writes them. */
+  role: Uint8Array;
+  zx: Float32Array;
+  zz: Float32Array;
+  zr: Float32Array;
 
   constructor(cap = 32) {
     this.id = new Int32Array(cap);
@@ -110,6 +117,10 @@ export class GuardView {
     this.level = new Uint8Array(cap);
     this.flags = new Uint8Array(cap);
     this.task = new Int32Array(cap);
+    this.role = new Uint8Array(cap);
+    this.zx = new Float32Array(cap);
+    this.zz = new Float32Array(cap);
+    this.zr = new Float32Array(cap);
   }
 
   get cap(): number {
@@ -128,6 +139,10 @@ export class GuardView {
     this.level = new Uint8Array(c);
     this.flags = new Uint8Array(c);
     this.task = new Int32Array(c);
+    this.role = new Uint8Array(c);
+    this.zx = new Float32Array(c);
+    this.zz = new Float32Array(c);
+    this.zr = new Float32Array(c);
   }
 
   /** Write guard `i` (tests and the manager). */
@@ -139,6 +154,14 @@ export class GuardView {
     this.level[i] = level;
     this.flags[i] = flags;
     this.task[i] = task;
+  }
+
+  /** (guard-ai S5b) Write guard `i`'s sector tags: role class flags and his secure zone's circle (`r` 0: none). */
+  setTags(i: number, role: number, x: number, z: number, r: number): void {
+    this.role[i] = role;
+    this.zx[i] = x;
+    this.zz[i] = z;
+    this.zr[i] = r;
   }
 }
 
@@ -458,10 +481,12 @@ export class IncidentBoard {
     for (let i = 0; i < view.n; i++) {
       this.cand[i] = 0;
       if (view.id[i] === skip || !this.free(view, i)) continue;
-      if (mode === 0 && !this.isPerceiver(s, view.id[i]!, sawOnly)) continue;
+      // (guard-ai S5b) a secure-zone guard answers a disturbance inside his zone first (perceived or not)
+      const zone = inZone(view, i, x, z);
+      if (mode === 0 && !zone && !this.isPerceiver(s, view.id[i]!, sawOnly)) continue;
       const d = hyp3(view.x[i]! - x, view.y[i]! - y, view.z[i]! - z);
       if (d >= within) continue;
-      this.dist[i] = d;
+      this.dist[i] = zone ? d * TAGS.secureFirst : d;
       this.cand[i] = 1;
       c++;
     }
@@ -493,7 +518,10 @@ export class IncidentBoard {
       const len = this.paths.len(view.x[bi]!, view.y[bi]!, view.z[bi]!, this.x[s]!, this.y[s]!, this.z[s]!);
       if (!(len < Infinity)) continue;
       const f = view.flags[bi]!;
-      const score = len * (f & GV_OFFICER ? M.officerMul : 1) * (view.level[bi] === LEVEL.cooldown ? M.cautiousMul : 1);
+      let score = len * (f & GV_OFFICER ? M.officerMul : 1) * (view.level[bi] === LEVEL.cooldown ? M.cautiousMul : 1);
+      // (guard-ai S5b) the role (a supervisor sends someone; a rover checks a light first) and a secure zone
+      score *= roleSendMul(view.role[bi]!, this.kind[s] === K_LIGHT);
+      if (inZone(view, bi, this.x[s]!, this.z[s]!)) score *= TAGS.secureFirst;
       if (score < pickScore || (score === pickScore && bi < pick)) {
         pickScore = score;
         pick = bi;
@@ -524,10 +552,15 @@ export class IncidentBoard {
     const y = this.y[s]!;
     const z = this.z[s]!;
     if (k === K_MISSING) {
-      if (this.mark(s, view, 2, false, Infinity, -1) === 0) return this.giveUp(s);
+      // (guard-ai S5b) the squad that missed him on a radio check (its perceivers) goes first; else every free guard
+      let c = this.mark(s, view, 0, false, Infinity, -1);
+      if (c === 0) c = this.mark(s, view, 2, false, Infinity, -1);
+      if (c === 0) return this.giveUp(s);
       const lead = this.best(s, view);
       this.send(s, view, lead, MODE_LEAD, 0, x, y, z);
       this.cand[lead] = 0;
+      // the cover: another of them, else any free guard
+      if (c === 1) this.mark(s, view, 2, false, Infinity, view.id[lead]!);
       const cover = this.best(s, view);
       if (cover >= 0) {
         // the cover holds `pairBack` short of the spot, on his side of it
@@ -663,6 +696,12 @@ export class IncidentBoard {
 }
 
 const NO_ONE = new Int32Array(0);
+
+/** (guard-ai S5b) Is (x, z) inside guard `i`'s secure zone circle? */
+function inZone(view: GuardView, i: number, x: number, z: number): boolean {
+  const r = view.zr[i]!;
+  return r > 0 && hyp2(view.zx[i]! - x, view.zz[i]! - z) <= r;
+}
 
 /** View index of guard `gid`, -1. */
 function indexOf(view: GuardView, gid: number): number {

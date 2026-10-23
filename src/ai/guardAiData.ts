@@ -15,9 +15,11 @@
  * `DEFAULT_SQUAD_BASE + cluster`.
  */
 import type { RoomRect, SquadSlot } from '../world/rooms';
+import type { GearTag } from './gear';
 import type { NoisySource } from './hearing';
 import { POST, type PostDef } from './posts';
 
+export type { GearTag } from './gear';
 export type { NoisySource } from './hearing';
 export type { PostDef } from './posts';
 
@@ -69,7 +71,33 @@ export type GuardSlot = Pick<SquadSlot, 'x' | 'z' | 'y' | 'route' | 'free'> & {
   key?: number;
   /** Hand-set squad number in its section (`SectorGuard.squad`). */
   squad?: number;
+  /** Gear tag (`GuardSlotTags.gear`); `validateGuardAi` rejects any other value. */
+  gear?: GearTag;
+  /** The guard's kind (`SquadSlot.kind`); `validateGuardAi` rejects 'enforcer' (shield guards come in response teams only). */
+  kind?: SquadSlot['kind'];
 };
+
+/**
+ * (guard-ai S5b) The Sector Ops guard tags `EnemyManager.placeSlot` reads (ENGINE.md section 7; `SectorGuard` in
+ * src/game/sectors.ts carries them as they are; `sectorTags.ts` says what each drives). All optional.
+ */
+export interface GuardSlotTags {
+  /** Squad number in the section (0..`DEFAULT_SQUAD_BASE - 1`): radio checks, the missed-member search. */
+  squad?: number;
+  /** A dog's handler: the index, in the section's guard list, of the guard it heels on. */
+  handler?: number;
+  /** Area / post label ('lobby', 's3-hall', 'secure', 's3-sec'): a secure one answers first inside its circle. */
+  zone?: string;
+  /** The job ('patrol', 'desk', 'supervisor', 'gate', ...): radio-check caller, alarm runner, light checker. */
+  role?: string;
+  /** Why he is there (design text; a later bark). */
+  reason?: string;
+  /** Talking-pair partner (index in the section's guards); stored for S10. */
+  pair?: number;
+  /** Gear he wears from the start: helmet / armour / both (read by `placeSlot` in S12; none = no gear). */
+  gear?: GearTag;
+  post?: PostDef;
+}
 
 /** A plan box (map bounds for `validateGuardAi`). */
 export type PlanBounds = Pick<RoomRect, 'minX' | 'maxX' | 'minZ' | 'maxZ'>;
@@ -161,6 +189,9 @@ export function sectionAt(layout: GuardAiLayout | undefined, x: number, z: numbe
   return fallback;
 }
 
+/** The values a `gear` tag may take. */
+const GEAR_TAGS: readonly string[] = ['helmet', 'armour', 'both'];
+
 const isInt = (v: number): boolean => Number.isInteger(v);
 const finite = (v: number): boolean => Number.isFinite(v);
 
@@ -221,7 +252,8 @@ export interface ValidateGuardAiOpts {
  * Check a layout and its slots: zones (unique ids, sections >= 0, rects with min < max), noisy sources (`db` 0..30,
  * `radius` 1..20, unique ids, inside bounds, known section), entries (known section, inside bounds with their routes),
  * squads (unique id per section, known section), guard keys (`slot.key` or the index in its section: integers
- * 0..31, unique per section), hand-set squads (integers 0..`DEFAULT_SQUAD_BASE - 1`) and `validatePosts`.
+ * 0..31, unique per section), hand-set squads (integers 0..`DEFAULT_SQUAD_BASE - 1`), gear tags (helmet / armour / both),
+ * no `enforcer` kind (shield guards only come in response teams, S11) and `validatePosts`.
  * Returns the errors (empty when fine).
  */
 export function validateGuardAi(layout: GuardAiLayout, slots: readonly GuardSlot[], opts: ValidateGuardAiOpts = {}): string[] {
@@ -301,6 +333,8 @@ export function validateGuardAi(layout: GuardAiLayout, slots: readonly GuardSlot
     if (s.squad !== undefined && (!isInt(s.squad) || s.squad < 0 || s.squad >= DEFAULT_SQUAD_BASE)) {
       errs.push(`slot ${i}: squad ${s.squad} must be an integer 0..${DEFAULT_SQUAD_BASE - 1}`);
     }
+    if (s.gear !== undefined && !GEAR_TAGS.includes(s.gear)) errs.push(`slot ${i}: gear '${String(s.gear)}' must be one of ${GEAR_TAGS.join(', ')}`);
+    if (s.kind === 'enforcer') errs.push(`slot ${i}: kind 'enforcer' is not allowed in a section guard list (shield guards only come in response teams)`);
   }
 
   errs.push(...validatePosts(slots));
