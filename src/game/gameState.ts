@@ -715,9 +715,10 @@ export class GameState implements AppState {
       };
       // (marlow-final S10) a round off an armoured camera: sparks at the housing and the impact sound there (no break)
       const ric = new Vector3();
+      const down = Vector3.Down();
       w.security.onRicochet = (x, y, z) => {
         ric.set(x, y, z);
-        this.vfx.sparks(ric, Vector3.Down(), 8, '#fff1c8');
+        this.vfx.sparks(ric, down, 8, '#fff1c8');
         this.ballistics.onImpact?.(ric, false);
       };
       // (guard-ai S7, M6) the cameras see downed guards (IR, G240): the body pass reads the manager's bodies (a kept
