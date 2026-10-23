@@ -17,6 +17,9 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   triage: culprit guard-ai S23 #254 (fails in every train with it: 35, 37, 38; train 36 without it passed). LANTERN
   holds lines while anyAlerted (courseMode.ts:621); S23 sticky target targetPick.ts:63-74 likely re-alerts the A3
   cleaner. Sent to Orchestrator (drop #254, rebuild; Guard AI diag steps). Service on 64a00d1a since 14:10Z.
+- ~02:40: train 40 6e9632d1 claimed 15:22Z, holds 4189, waits on 4192 (stale chain playerstack-d86007b5). Pushed
+  cf6f674b + e52b4a79 (Opus checker PASS): a train holding some slots LQ_TRAIN_SOLO_MIN (10) min while the rest stay
+  manually locked runs unsharded on them; the live service loads it only at its next idle pass (restart = Michael).
 
 **Test Runner SAVE 29 (2026-10-23 ~23:58, new account; wins over SAVE 28 where they differ):**
 - Service live: pid 45828 (started 23:18), holds heavy-4189 / heavy-4192 locks (live). No stale runs or locks; old
