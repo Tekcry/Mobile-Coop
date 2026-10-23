@@ -29,13 +29,13 @@ const TRACK_HALF = { walk: 0.0425, jog: 0.08, run: 0.07 };
 /**
  * (anim-fix-pass AF1, Michael P1 "legs sticking and overlapping eachother") The forward cycles' track is now measured on
  * the PLANTED frames only (the clip feet's stance window) and re-centred per side: each side's mean planted ankle x goes to
- * -/+ STANCE_HALF. TRACK_HALF was a mean over the whole cycle, swing arc
+ * -/+ STANCE_HALF (null: the old whole-cycle TRACK_HALF shift, below). TRACK_HALF was a mean over the whole cycle, swing arc
  * included, and never re-centred, so the planted track sat narrow and off the midline (run L -5.8 / R +1.7 cm, sprint
- * -1.7 / +5.2; jog -6.0 / +5.0): the ~8 cm stance gap at the rig's uncross / knee-gap rules. The walk keeps the width it had
- * (3 cm a side: its turns go to the planner from 1 rad/s and Michael called them fine), centred. Not for `ownTrack` cycles (m3's
+ * -1.7 / +5.2; jog -6.0 / +5.0): the ~8 cm stance gap at the rig's uncross / knee-gap rules. The walk keeps its old track
+ * exactly (Michael called its turns fine; centred, its planted feet left e2e-anim's walk track / knee-out ranges). Not for `ownTrack` cycles (m3's
  * crouch walk puts the take's track back as captured: the old symmetric shift, below) or sideways cycles.
  */
-const STANCE_HALF = { walk: 0.03, jog: 0.06, run: 0.055 };
+const STANCE_HALF = { walk: null, jog: 0.06, run: 0.055 };
 const KNEE_OUT_CYCLE = { walk: -0.055, jog: -0.09, run: -0.03 };
 /**
  * (integration) `liftH` is the foot planner's own swing lift (animGraph `g.liftH` -> `FootPlanner.beginSwing` stepLift),
@@ -273,9 +273,9 @@ export function emitCycle(d0, rig, spec) {
   };
   const stanceTake = [planted(0), planted(5)];
   let half;
-  if (lateral || spec.ownTrack) {
+  if (lateral || spec.ownTrack || STANCE_HALF[spec.gait] === null) {
     // (mocap-trial-2, strafe) a sideways cycle keeps the take's own track (its feet open and close along x); an ownTrack
-    // cycle gets the old symmetric shift to TRACK_HALF (m3.mjs puts the take's half back)
+    // cycle and the walk get the old symmetric shift to TRACK_HALF (m3.mjs puts an ownTrack take's half back)
     half = lateral ? takeHalf : TRACK_HALF[spec.gait];
     const dh = half - takeHalf;
     for (let i = 0; i < feet.length; i += 10) {
@@ -284,7 +284,7 @@ export function emitCycle(d0, rig, spec) {
     }
   } else {
     // (AF1) the planted track re-centred, each side at -/+ the stance half
-    half = STANCE_HALF[spec.gait] ?? (stanceTake[1] - stanceTake[0]) / 2;
+    half = STANCE_HALF[spec.gait];
     const dl = -half - stanceTake[0];
     const dr = half - stanceTake[1];
     for (let i = 0; i < feet.length; i += 10) {

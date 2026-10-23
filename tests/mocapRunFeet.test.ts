@@ -6,21 +6,23 @@
  * - `gap`: the ankles' lateral gap (R - L) where they pass fore and aft, worst passing (m);
  * - `over`: the longest plant past the gait clock's stance time (duty x cycle), s;
  * - `slide`: the worst planted-foot slide (m, mocapMeasure `plantSlide`);
- * - `flipDt`: the shortest time between two clip feet ownership changes (s; Infinity: none or one).
+ * - `per250`: the most clip feet ownership changes in any 0.25 s;
+ * - `twist`: the largest planted foot's twist from the body as it lifts (rad).
  * Bars (docs/anim-fix-pass/PLAN.md AF1): track >= +2 cm each side; gap >= 7 cm; over <= 0.1 s while turning > 1 rad/s;
- * slide <= 1.5 cm; flipDt >= 0.25 s. The walk's turns (1.4 m/s, the control) stay within 10 % of the before numbers.
+ * slide <= 1.5 cm; per250 <= 1. The walk's turns (1.4 m/s, the control) stay within 10 % of the before numbers.
  * `AFP_REPORT=1` prints the table (docs/anim-fix-pass/AF1-REPORT.md).
  */
 import { afterAll, describe, expect, it } from 'vitest';
 import { setMocapLocomotion } from '../src/anim/mocap';
-import { plantSlide, type Rec } from './helpers/mocapMeasure';
+import type { Rec } from './helpers/mocapMeasure';
+import { contactSlideWorst, ownershipFlips, passingGap, plantedTrack } from './helpers/afpMeasure';
 import { ctRun, flickPlan, type Target } from './helpers/mocapPlayer';
 
 const DT = 1 / 60;
 const WARM = 2;
 const SEC = 3;
 
-export interface FeetM { trackL: number; trackR: number; gap: number; over: number; slide: number; flipDt: number; flips: number; clipShare: number; twist: number }
+export interface FeetM { trackL: number; trackR: number; gap: number; over: number; slide: number; flips: number; per250: number; clipShare: number; twist: number }
 
 /** A CT-driven gait (mocapPlayer ctRun: CT's pace springs) from a stick target, recorded after WARM s for SEC s (switch ON).
  *  Also the largest twist of a planted foot from the body as it lifts (rad; mocapPlayer turnFeet's `lift`). */
@@ -46,38 +48,13 @@ async function feetRun(target: Target, sec = SEC): Promise<FeetM> {
   });
   return { ...measure(R, stance), twist };
 }
-/** Steady: v m/s, turning yr rad/s (+ right) from 1 s. */
-const steadyTurn = (v: number, yr: number): Target => (t) => ({ v, yr: t >= 1 ? yr : 0 });
+/** Steady: v m/s, turning yr rad/s (+ right) from 0.5 s (afpMeasure runGait's plan). */
+const steadyTurn = (v: number, yr: number): Target => (t) => ({ v, yr: t >= 0.5 ? yr : 0 });
 
-function lat(R: Rec, a: number[], f: number): number {
-  const hx = (R.pos.hipL[f * 3]! + R.pos.hipR[f * 3]!) / 2;
-  const hz = (R.pos.hipL[f * 3 + 2]! + R.pos.hipR[f * 3 + 2]!) / 2;
-  const c = Math.cos(R.yaw[f]!);
-  const s = Math.sin(R.yaw[f]!);
-  return (a[f * 3]! - hx) * c - (a[f * 3 + 2]! - hz) * s;
-}
-function along(R: Rec, a: number[], f: number): number {
-  const c = Math.cos(R.yaw[f]!);
-  const s = Math.sin(R.yaw[f]!);
-  return a[f * 3]! * s + a[f * 3 + 2]! * c;
-}
-
+/** The AF1 measures (tests/helpers/afpMeasure.ts) plus the longest plant past the gait clock's stance (duty x cycle). */
 function measure(R: Rec, stance: number[]): Omit<FeetM, 'twist'> {
-  let trackL = Infinity;
-  let trackR = Infinity;
-  for (let f = 0; f < R.n; f++) {
-    if (R.contactL[f]) trackL = Math.min(trackL, -lat(R, R.pos.ankleL, f));
-    if (R.contactR[f]) trackR = Math.min(trackR, lat(R, R.pos.ankleR, f));
-  }
-  // passing: the ankles' fore-aft order changes
-  let gap = Infinity;
-  let prev = NaN;
-  for (let f = 0; f < R.n; f++) {
-    const d = along(R, R.pos.ankleR, f) - along(R, R.pos.ankleL, f);
-    if (f > 0 && Math.sign(d) !== Math.sign(prev)) gap = Math.min(gap, lat(R, R.pos.ankleR, f) - lat(R, R.pos.ankleL, f), lat(R, R.pos.ankleR, f - 1) - lat(R, R.pos.ankleL, f - 1));
-    prev = d;
-  }
-  // plants that start and end inside the record, past the clock's stance time
+  const t = plantedTrack(R);
+  // plants that start and end inside the record, past the clock's stance time over the plant
   let over = -Infinity;
   for (const c of [R.contactL, R.contactR]) {
     for (let f = 1; f < R.n; f++) {
@@ -89,25 +66,16 @@ function measure(R: Rec, stance: number[]): Omit<FeetM, 'twist'> {
       over = Math.max(over, (g - f) * DT - st / (g - f));
     }
   }
-  let last = -1;
-  let flipDt = Infinity;
-  let flips = 0;
   let on = 0;
-  for (let f = 0; f < R.n; f++) {
-    on += R.clipOn[f]!;
-    if (f > 0 && R.clipOn[f] !== R.clipOn[f - 1]) {
-      flips++;
-      if (last >= 0) flipDt = Math.min(flipDt, (f - last) * DT);
-      last = f;
-    }
-  }
-  return { trackL, trackR, gap, over, slide: plantSlide(R, 0.01), flipDt, flips, clipShare: on / R.n };
+  for (let f = 0; f < R.n; f++) on += R.clipOn[f]!;
+  const fl = ownershipFlips(R);
+  return { trackL: t.minL, trackR: t.minR, gap: passingGap(R).passing, over, slide: contactSlideWorst(R), flips: fl.flips, per250: fl.maxPer250ms, clipShare: on / R.n };
 }
 
 const cm = (m: number): string => (Number.isFinite(m) ? (m * 100).toFixed(1) : '-');
 const DEG = 180 / Math.PI;
 const fmt = (v: number, what: string, m: FeetM): string =>
-  `| ${v} | ${what} | ${cm(m.trackL)} | ${cm(m.trackR)} | ${cm(m.gap)} | ${Number.isFinite(m.over) ? m.over.toFixed(3) : '-'} | ${cm(m.slide)} | ${Number.isFinite(m.flipDt) ? m.flipDt.toFixed(2) : '-'} (${m.flips}) | ${(m.clipShare * 100).toFixed(0)} % | ${(m.twist * DEG).toFixed(0)} |`;
+  `| ${v} | ${what} | ${cm(m.trackL)} | ${cm(m.trackR)} | ${cm(m.gap)} | ${Number.isFinite(m.over) ? m.over.toFixed(3) : '-'} | ${cm(m.slide)} | ${m.per250} (${m.flips}) | ${(m.clipShare * 100).toFixed(0)} % | ${(m.twist * DEG).toFixed(0)} |`;
 
 /** The bars a fast-gait run is judged by (PLAN.md AF1); `turning`: the plant-length bar applies. */
 function fails(tag: string, m: FeetM, turning: boolean): string[] {
@@ -116,15 +84,15 @@ function fails(tag: string, m: FeetM, turning: boolean): string[] {
   if (m.gap < 0.07) f.push(`${tag}: passing gap ${cm(m.gap)} cm < 7`);
   if (turning && m.over > 0.1) f.push(`${tag}: plant ${m.over.toFixed(3)} s past stance > 0.1`);
   if (m.slide > 0.015) f.push(`${tag}: slide ${cm(m.slide)} cm > 1.5`);
-  if (m.flipDt < 0.25) f.push(`${tag}: ownership flips ${m.flipDt.toFixed(2)} s apart < 0.25`);
+  if (m.per250 > 1) f.push(`${tag}: ${m.per250} ownership flips in 0.25 s`);
   return f;
 }
 
 const FAST = [3.0, 4.0, 5.0];
 const RATES = [0, 1.5, -1.5, 2.5, -2.5, 4, -4];
 const REPORT = !!process.env.AFP_REPORT;
-/** The walk's turns before AF1 (1.4 m/s, 191c3565 + the AF0 plan, this file's measure): track L / R, gap (m). */
-const WALK_BEFORE: Record<number, [number, number, number]> = {};
+/** The walk's turns before AF1 (docs/anim-fix-pass/before/numbers.md, walk-1.4-turn*): track L / R, passing gap (m). */
+const WALK_BEFORE: Record<number, [number, number, number]> = { 1.5: [-0.039, 0.09, 0.099], [-1.5]: [0.062, -0.069, 0.099], 2.5: [-0.061, 0.067, 0.096], [-2.5]: [0.043, -0.098, 0.094] };
 
 describe('AF1 fast-gait feet (mocap ON, 60 Hz)', () => {
   afterAll(() => setMocapLocomotion(false));
@@ -145,7 +113,7 @@ describe('AF1 fast-gait feet (mocap ON, 60 Hz)', () => {
     for (const v of FAST) {
       const m = await feetRun((t) => ({ v, yr: t >= 1 ? 1.8 * Math.sin((2 * Math.PI * t) / 1.2) : 0 }), 4);
       rows.push(fmt(v, 'weave 1.8', m));
-      if (m.flipDt < 0.25) bad.push(`${v} m/s weave: ownership flips ${m.flipDt.toFixed(2)} s apart`);
+      if (m.per250 > 1) bad.push(`${v} m/s weave: ${m.per250} ownership flips in 0.25 s`);
       if (m.slide > 0.015) bad.push(`${v} m/s weave: slide ${cm(m.slide)} cm`);
     }
     if (!REPORT) expect(bad).toEqual([]);
@@ -166,6 +134,6 @@ describe('AF1 fast-gait feet (mocap ON, 60 Hz)', () => {
     if (!REPORT) expect(bad).toEqual([]);
   }, 300_000);
   it.runIf(REPORT)('report (AFP_REPORT=1)', () => {
-    process.stdout.write(['', '| v m/s | run | trackL cm | trackR cm | passing gap cm | plant past stance s | slide cm | flip dt s (n) | clip feet on | twist at lift deg |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |', ...rows, ''].join('\n'));
+    process.stdout.write(['', '| v m/s | run | trackL cm | trackR cm | passing gap cm | plant past stance s | slide cm | flips in 0.25 s (total) | clip feet on | twist at lift deg |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |', ...rows, ''].join('\n'));
   });
 });
