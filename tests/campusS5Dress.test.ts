@@ -16,7 +16,7 @@ import { boxAt } from '../src/world/campusArt/geometry';
 import { CAMPUS_LOOK } from '../src/world/campusArt/campusKit';
 import { PROP_LOOK } from '../src/world/props/facilityProps';
 import { S5_BOX, S5_L1, S5_ROOF, S5_ROOMS } from '../src/world/maps/campusS5';
-import { dressS5, HERO_S5, S5_ART_TAGS, S5_HERO_LOG } from '../src/world/maps/campusS5Dress';
+import { dressS5, HERO_S5, S5_ART_TAGS, S5_HERO_LOG, S5_OMITTED } from '../src/world/maps/campusS5Dress';
 
 const ASSETS = path.resolve(__dirname, '../src/world/campusArt/assets');
 const rd = (f: string): CatReport => JSON.parse(readFileSync(f, 'utf8')) as CatReport;
@@ -82,12 +82,15 @@ describe('ART-S5 heroes (A149)', () => {
     expect(tl[0]!.z).toBeCloseTo(37.1, 1);
   });
 
-  it('the refusals are logged fallbacks: deposit rows (rule C), the vault leaf (K1), the CCTV wall (K2)', () => {
+  it('the refusals are logged fallbacks: deposit rows (rule C), the vault leaf (K1), the CCTV wall (S, a face skin whose back passes through the wall)', () => {
     const rules = (piece: string): string[] => Object.keys(d.report.dropped[piece] ?? {});
     expect(rules('F:depositWall').every((r) => r === 'C' || r === 'K4')).toBe(true);
     expect(rules('F:vaultLeaf')).toEqual(['K1']);
-    expect(rules('F:monitorWall')).toEqual(['K2']);
+    expect(rules('F:monitorWall')).toEqual(['S']);
     expect(S5_HERO_LOG.length).toBeGreaterThan(0);
+    // the explicit omitted list (artnext A9): nothing else of the heroes may be missing, and each omission is logged
+    expect([...S5_OMITTED].sort()).toEqual(['F:depositWall', 'F:monitorWall', 'F:vaultLeaf', 'vaultFrame']);
+    expect(S5_HERO_LOG.some((l) => l.startsWith('vaultFrame: needs catalogue frame entry'))).toBe(true);
     expect(at('F:depositWall').length + at('F:vaultLeaf').length + at('F:monitorWall').length).toBe(0);
     // the base pass still dressed the Old House (fireplaces under the stacks, the hall clock)
     expect(at('K:fireplace').length).toBeGreaterThan(0);
@@ -113,6 +116,40 @@ describe('ART-S5 heroes (A149)', () => {
     expect(statSync(path.join(ASSETS, 'hero-s5.glb')).size).toBeLessThanOrEqual(500_000);
     for (const m of cat.materials) expect(CAMPUS_LOOK[m] ?? PROP_LOOK[m as keyof typeof PROP_LOOK], `look ${m}`).toBeDefined();
     expect(existsSync(path.join(ASSETS, 'hero-s5.glb'))).toBe(true);
+  });
+});
+
+describe('ART-S5 artnext B6 / B7 / B8', () => {
+  it('the kitchen counter is skinned by the fit kitchenRun, the wall cupboards hang over it', () => {
+    const counter = boxAt(b.boxes, -31.2, 0.45, 36);
+    const run = at('K:kitchenRun');
+    expect(run.length).toBe(3);
+    expect(run.every((p) => p.skinOf === counter && p.cls === 'skin')).toBe(true);
+    const cup = at('K:wallCupboards');
+    expect(cup.length).toBe(3);
+    // backs on the west wall's face, over the counter (z 34..38), above the counter's top
+    expect(cup.every((p) => Math.abs(p.x + 31.85) < 0.01 && p.z > 34 && p.z < 38 && p.cls === 'visual')).toBe(true);
+  });
+
+  it('the vault frame and the CCTV wall are logged drops with their rule ids', () => {
+    expect(S5_HERO_LOG.some((l) => l.startsWith('vaultFrame: needs catalogue frame entry'))).toBe(true);
+    expect(d.report.dropped['F:monitorWall']).toEqual({ S: 2 });
+    expect(at('F:monitorWall').length).toBe(0);
+  });
+
+  it('every skinRow module carries its group (B7: no post-call writes)', () => {
+    const racks = at('H5:radioRackRow');
+    expect(racks.length).toBe(12);
+    expect(racks.every((p) => p.group === 85)).toBe(true);
+  });
+
+  it('the two hall portraits hang at the hall floor, flush on the front wall (B8)', () => {
+    const hall = ps.filter((p) => p.prop === 'portraitFrame' && Math.abs(p.z - 18.15) < 0.01 && p.x > -50 && p.x < -38);
+    expect(hall.length).toBe(2);
+    for (const p of hall) expect(p.y).toBe(0);
+    expect(hall.map((p) => p.x).sort((a, b2) => a - b2)[0]).toBeCloseTo(-46.4, 1);
+    // none is left at the door-wall piece's 1.93
+    expect(ps.some((p) => p.prop === 'portraitFrame' && Math.abs(p.y - 1.93) < 0.01)).toBe(false);
   });
 });
 

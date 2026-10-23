@@ -6,8 +6,8 @@
  * heroes the keepouts allow (each tried, each failure logged in `S5_HERO_LOG`), then runs `d.base()` last.
  */
 import type { ArtTag } from '../campusArt/artTags';
-import type { PropCatalogue } from '../campusArt/catalogue';
-import type { CampusDresser } from '../campusArt/dresser';
+import type { ArtPlacement, PropCatalogue } from '../campusArt/catalogue';
+import { ArtRuleError, type CampusDresser, type BoxFace } from '../campusArt/dresser';
 import { boxAt, cylAt } from '../campusArt/geometry';
 import heroReport from '../campusArt/assets/hero-s5.json';
 import { CAMPUS_LOOK } from '../campusArt/campusKit';
@@ -87,19 +87,23 @@ export const HERO_S5: PropCatalogue | null = {
 /** What `dressS5` could not place (one line each: piece, position, the keepout's words); cleared at each run. */
 export const S5_HERO_LOG: string[] = [];
 
-/** One exact hero placement that may be refused: logs the refusal and the rule in the dresser's drop counts. */
-function tryAdd(d: CampusDresser, piece: string, x: number, y: number, z: number, yaw: number, o: Parameters<CampusDresser['add']>[5]): boolean {
+/**
+ * The pieces this section may lose (artnext A4 / A9: an explicit list, asserted by the test). Each is tried on every spot
+ * its brief names; a refusal is logged in `S5_HERO_LOG` and counted in `d.report.dropped` by rule id.
+ */
+export const S5_OMITTED = ['F:depositWall', 'F:vaultLeaf', 'F:monitorWall', 'vaultFrame'] as const;
+
+/** One face skin that may be refused (an `ArtRuleError`; anything else is a programming error and throws): logs the rule
+ *  in `S5_HERO_LOG` and the dresser's drop counts, returns the placements' count (0: refused). */
+function tryFace(d: CampusDresser, piece: string, box: number, face: BoxFace, o: Parameters<CampusDresser['skinFace']>[3]): number {
   try {
-    d.add(piece, x, y, z, yaw, o);
-    return true;
+    return d.skinFace(piece, box, face, o).length;
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    const m = /: (K\d+|C|W|V|S|B|F): /.exec(msg);
-    const rule = m?.[1] ?? 'err';
+    if (!(e instanceof ArtRuleError)) throw e;
     const drops = (d.report.dropped[piece] ??= {});
-    drops[rule] = (drops[rule] ?? 0) + 1;
-    S5_HERO_LOG.push(msg);
-    return false;
+    drops[e.rule] = (drops[e.rule] ?? 0) + 1;
+    S5_HERO_LOG.push(e.message);
+    return 0;
   }
 }
 
@@ -111,7 +115,7 @@ export function dressS5(d: CampusDresser): void {
   // ---- skins of greybox objects (ART-S5 section 2; each target skinned once)
   // the control room's rack rows (x -56..-51.6, three rows): the lamps ride the control-room circuit
   for (const z of S5_BOX.racks) {
-    for (const i of d.skinRow('H5:radioRackRow', boxAt(bs, -53.8, 1.1, z), true, 1, { why: 'the control room racks: radio and CCTV recorders, a skin of the rack row box' })) d.placements[i]!.group = S5_GROUPS.ctl;
+    d.skinRow('H5:radioRackRow', boxAt(bs, -53.8, 1.1, z), true, 1, { why: 'the control room racks: radio and CCTV recorders, a skin of the rack row box', group: S5_GROUPS.ctl });
   }
   // the gallery's two display screens (L1, 2.2 high), rows along z
   for (const [x0, x1, z0, z1] of S5_BOX.screens) d.skinRow('H5:displayScreen', boxAt(bs, (x0 + x1) / 2, ys(S5_L1, 2.2), (z0 + z1) / 2), false, 1, { why: 'gallery display screens hung with framed plans of the house' });
@@ -134,23 +138,58 @@ export function dressS5(d: CampusDresser): void {
   // the terrace balustrade: three runs, the gate and the boathouse path left open
   for (const [x0, x1] of [[-70, -64.6], [-63.4, -44.6], [-43.4, -26]] as const) d.skinRow('H5:balustrade', boxAt(bs, (x0 + x1) / 2, 0.5, 50.0), true, 1, { why: 'the terrace balustrade, stone balusters under a coping' });
 
-  // ---- hero placements (each tried: a keepout refusal is logged, never fatal)
+  // the kitchen counter (z 34..38, 0.8 x 4.0 x 0.9, artnext B6): the fit kitchenRun along z, fronts to the room (east), and the
+  // wall cupboards over it on the kitchen's west wall (3 fit modules, backs on the wall face x -31.85)
+  {
+    const counter = boxAt(bs, -31.2, 0.45, 36);
+    d.skinRow('K:kitchenRun', counter, false, 1, { why: 'the kitchen counter: fit kitchen run modules along the counter box' });
+    const n = 3;
+    const len = 4.0;
+    const spots = Array.from({ length: n }, (_, i) => ({ x: -31.85, y: 0, z: 34 + (len / n) * (i + 0.5), yaw: Math.PI / 2 }));
+    for (const sp of spots) d.tryAdd('K:wallCupboards', [sp], { cls: 'visual', s: [len / n / 1.2, 1, 1], why: 'wall cupboards over the kitchen counter' });
+  }
+
+  // ---- hero placements (each tried: a keepout refusal is logged by rule id, never fatal)
   // the strongroom's safe-deposit walls, west and east inner faces
   for (let k = 0; k < 4; k++) {
-    tryAdd(d, 'F:depositWall', -45.6, 0, 38.6 + 1.2 * k, Math.PI / 2, { cls: 'solid', why: 'strongroom safe-deposit wall, west face' });
-    tryAdd(d, 'F:depositWall', -40.4, 0, 38.6 + 1.2 * k, (3 * Math.PI) / 2, { cls: 'solid', why: 'strongroom safe-deposit wall, east face' });
+    d.tryAdd('F:depositWall', [{ x: -45.6, y: 0, z: 38.6 + 1.2 * k, yaw: Math.PI / 2 }], { cls: 'solid', why: 'strongroom safe-deposit wall, west face' });
+    d.tryAdd('F:depositWall', [{ x: -40.4, y: 0, z: 38.6 + 1.2 * k, yaw: (3 * Math.PI) / 2 }], { cls: 'solid', why: 'strongroom safe-deposit wall, east face' });
   }
   // flush safe-deposit fronts on the same walls (visual only, 0.11 deep: floor-mounted rows cannot stand, rule C)
   for (let k = 0; k < 4; k++) {
-    tryAdd(d, 'H5:depositFace', -45.9, 0, 38.6 + 1.2 * k, Math.PI / 2, { cls: 'visual', why: 'strongroom safe-deposit fronts, west wall' });
-    tryAdd(d, 'H5:depositFace', -40.1, 0, 38.6 + 1.2 * k, (3 * Math.PI) / 2, { cls: 'visual', why: 'strongroom safe-deposit fronts, east wall' });
+    d.tryAdd('H5:depositFace', [{ x: -45.9, y: 0, z: 38.6 + 1.2 * k, yaw: Math.PI / 2 }], { cls: 'visual', why: 'strongroom safe-deposit fronts, west wall' });
+    d.tryAdd('H5:depositFace', [{ x: -40.1, y: 0, z: 38.6 + 1.2 * k, yaw: (3 * Math.PI) / 2 }], { cls: 'visual', why: 'strongroom safe-deposit fronts, east wall' });
   }
   // the time lock beside the opening
-  tryAdd(d, 'F:timeLockPanel', -41.45, 1.4, 37.1, 0, { cls: 'visual', why: 'the strongroom time lock' });
+  d.tryAdd('F:timeLockPanel', [{ x: -41.45, y: 1.4, z: 37.1, yaw: 0 }], { cls: 'visual', why: 'the strongroom time lock' });
   // the open vault leaf, flat against the strongroom's south wall inner face, hinge on the opening's west edge
-  tryAdd(d, 'F:vaultLeaf', -43.6, 0, 37.15, Math.PI, { cls: 'see', why: 'the vault leaf stands open tonight (AS8)' });
-  // the control room's CCTV wall on the east wall
-  tryAdd(d, 'F:monitorWall', -50.1, 0, 24, -Math.PI / 2, { cls: 'solid', why: 'the house CCTV wall' });
+  d.tryAdd('F:vaultLeaf', [{ x: -43.6, y: 0, z: 37.15, yaw: Math.PI }], { cls: 'see', why: 'the vault leaf stands open tonight (AS8)' });
+  // the vault frame (artnext B6, A7): dropped, "needs catalogue frame entry" (no catalogue lists a `frame` piece, and lane A's
+  // catalogue files are not this dresser's to edit; the leaf above is refused by K1 the same way)
+  S5_HERO_LOG.push('vaultFrame: needs catalogue frame entry (no piece is listed in a catalogue `frame`)');
+  // the control room's CCTV wall as a face skin (artnext B6): the east wall's west face, then the south wall's north face
+  // (both refused by rule S: the 0.36 m console's back would pass through a 0.2 / 0.3 m wall; the piece is not fit)
+  for (const [wx, wy, wz, face, at] of [[-50, 2, 22.2, 'w', undefined], [-50.3, 2.1, 18, 'n', -53.2]] as const) {
+    if (tryFace(d, 'F:monitorWall', boxAt(bs, wx, wy, wz), face, { why: 'the house CCTV wall, flush on the control room wall', ...(at === undefined ? {} : { at: [at] }) }) > 0) break;
+  }
+
+  // every refusal `tryAdd` logged joins the section's log
+  for (const r of d.refusals) S5_HERO_LOG.push(`${r.piece} spot ${r.spot}: ${r.msg}`);
+  const logged = d.refusals.length;
 
   d.base();
+
+  // the hall's two front-wall portraits (artnext B8): base() mounts them at y 1.93 (the floor it finds at the door-wall piece),
+  // so they hang above the front-door lintel's neighbours. Re-mounted flush at the hall floor's y: the base two come out, and
+  // `tryAdd` puts them back on the same wall at the first spot K3 allows (the second one 0.4 m off the door's edge)
+  const hallY = d.ctx.rooms.find((r) => r.id === 's5-hall')?.minY ?? 0;
+  const hallRoom = d.ctx.rooms.find((r) => r.id === 's5-hall');
+  const stale = (p: ArtPlacement): boolean => p.cat === 'K' && p.prop === 'portraitFrame' && hallRoom !== undefined && Math.abs(p.z - 18.15) < 0.01 && p.x > hallRoom.minX && p.x < hallRoom.maxX && p.y > hallY + 0.05;
+  for (let i = d.placements.length - 1; i >= 0; i--) {
+    if (!stale(d.placements[i]!)) continue;
+    d.placements.splice(i, 1);
+    d.report.placed['K:portraitFrame'] = (d.report.placed['K:portraitFrame'] ?? 1) - 1;
+  }
+  for (const xs of [[-46.4], [-43.0, -42.6, -42.4, -42.2]]) d.tryAdd('K:portraitFrame', xs.map((x) => ({ x, y: hallY, z: 18.15, yaw: 0 })), { cls: 'visual', why: 'the hall portraits, mounted at the hall floor' });
+  for (const r of d.refusals.slice(logged)) S5_HERO_LOG.push(`${r.piece} spot ${r.spot}: ${r.msg}`);
 }

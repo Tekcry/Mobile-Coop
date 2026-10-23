@@ -103,8 +103,8 @@ export const HERO_S1: PropCatalogue | null = {
 };
 
 const PI = Math.PI;
-/** Two of the four car colours: a skin-hide car costs one draw per mesh material per colour (7 each), so four colours alone were 28 of the 40 draws (L4). */
-const CAR_PIECES = ['K:carSilver', 'K:carBlack'] as const;
+/** The four car colours, cycled over the 14 cars (artnext B1: perfa's merged casters key a car's paint by material, so four colours cost 35 of the 40 draws, not the 53 of art-join L4). */
+const CAR_PIECES = ['K:carSilver', 'K:carBlack', 'K:carBlue', 'K:carWhite'] as const;
 /** The 14 parked cars of `buildCampusS1`: bay centre x, row z (the greybox boxes are 1.8 x 1.5 x 4.2 at y 0.75). */
 const ROW_Z = [-73.75, -69.25, -58.75, -54.25] as const;
 const bayX = (i: number): number => -34.6 + 2.8 * i;
@@ -115,8 +115,24 @@ const CARS: readonly (readonly [number, number])[] = [
   [3, 4], [3, 8], [3, 12],
 ];
 
-/** Hero placements the kit refused (a brief error: reported, not moved); rebuilt by every `dressS1` call. */
-export const S1_OMITTED: string[] = [];
+/** One hero spot (piece, x, z) the kit may refuse, with the rule it refuses it by. */
+export interface S1Omit {
+  piece: string;
+  x: number;
+  z: number;
+  rule: string;
+}
+/**
+ * The hero placements the brief allows the kit to refuse (art-join S1 L2 / L3; artnext B2, the A9 contract): the second
+ * bike stand (K6) and the shelter bench (K1). Left out, never moved. Every other hero is exact: `dressS1` throws if one is
+ * refused, or if a listed one is not (a stale list). The test asserts `S1_REFUSED` equals this list.
+ */
+export const S1_OMITTED: readonly S1Omit[] = [
+  { piece: 'K:bikeRack', x: -5, z: -46.8, rule: 'K6' },
+  { piece: 'K:parkBench', x: 8, z: -47.6, rule: 'K1' },
+];
+/** What the last `dressS1` call had refused (rebuilt every call). */
+export const S1_REFUSED: S1Omit[] = [];
 
 export function dressS1(d: CampusDresser): void {
   const bx = (x: number, y: number, z: number): number => boxAt(d.ctx.boxes, x, y, z);
@@ -141,16 +157,15 @@ export function dressS1(d: CampusDresser): void {
   lit(d.skin('H1:barrierArm', bx(12.75, 1.0, -77), 0, { why: 'the barrier arm (visual box), pivot at x 11.5' }), S1_GROUPS.lane);
   for (const x of BOLLARD_XS) lit(d.skinCyl('H1:lightBollard', cy(x, -45.5), { why: 'a forecourt light bollard post (the lamp stays the rig\'s)' }), S1_GROUPS.fore);
 
-  // ---- 2. hero placements (exact). A throw is a brief error (the kit's keepout / rule V / W said no): the piece is left out,
-  // never moved, and the message is kept in `S1_OMITTED` for the report and the test. The three gatehouse wall pieces sit on
-  // the inner wall faces (z -73.15, x 14.15: the walls are 0.3 thick on -73 and 14; art-join, S1 L1).
-  S1_OMITTED.length = 0;
-  const hero = (piece: string, x: number, y: number, z: number, yaw: number, o: Parameters<CampusDresser['add']>[5]): void => {
-    try {
-      d.add(piece, x, y, z, yaw, o);
-    } catch (e) {
-      S1_OMITTED.push((e as Error).message);
-    }
+  // ---- 2. hero placements (exact, through `tryAdd`: one spot each). A refusal is a brief error unless the piece is in
+  // `S1_OMITTED`: then it is left out, never moved, and logged in `S1_REFUSED`. The three gatehouse wall pieces sit on the
+  // inner wall faces (z -73.15, x 14.15: the walls are 0.3 thick on -73 and 14; art-join, S1 L1).
+  S1_REFUSED.length = 0;
+  const hero = (piece: string, x: number, y: number, z: number, yaw: number, o: Parameters<CampusDresser['tryAdd']>[2]): void => {
+    if (d.tryAdd(piece, [{ x, y, z, yaw }], o) >= 0) return;
+    const rule = d.refusals[d.refusals.length - 1]!.rule;
+    if (!S1_OMITTED.some((m) => m.piece === piece && m.x === x && m.z === z)) throw new Error(`campus art S1: hero ${piece} at (${x}, ${z}) refused by ${rule} and not in S1_OMITTED`);
+    S1_REFUSED.push({ piece, x, z, rule });
   };
   hero('H1:monitorBank', 18.8, 0, -73.15, PI, { cls: 'visual', group: S1_GROUPS.gate, why: 'the CCTV officer cam-gate / cam-walk monitors on the north wall' });
   hero('H1:keyCabinet', 15.2, 0, -73.15, PI, { cls: 'visual', why: 'the site keys by the door' });
@@ -160,6 +175,8 @@ export function dressS1(d: CampusDresser): void {
   hero('K:siteSign', 6.8, 0, -79.0, PI, { cls: 'solid', why: 'the Orrin site sign at the gate' });
   for (const x of [-8, -5, -2]) hero('K:bikeRack', x, 0, -46.8, PI, { cls: 'see', why: 'the bike shelter stands' });
   hero('K:parkBench', 8, 0, -47.6, PI, { cls: 'see', why: 'the smoking shelter bench' });
+
+  if (S1_REFUSED.length !== S1_OMITTED.length) throw new Error(`campus art S1: S1_OMITTED lists ${S1_OMITTED.length} refusals, ${S1_REFUSED.length} happened`);
 
   d.base();
 }

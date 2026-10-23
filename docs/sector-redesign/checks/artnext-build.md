@@ -112,4 +112,54 @@ Example calls:
 
 ## Lane B
 
+Built by five section builders (Sonnet) on lane A's API, then the batch checked together (Cloud Builder 1).
+
+| # | Section | Status |
+|---|---|---|
+| B1 | S1 | Done. The brief's 39-40 draws were stale: S1 measured 31 (perfa merged caster keys cost one draw per car paint material). `CAR_PIECES` = carSilver, carBlack, carBlue, carWhite cycled over the 14 cars (4 colours, not 2). Per-instance colour not used: `skinHide` takes no `tint` and casters have no tint (lane A files). Test asserts all 4 colours. |
+| B2 | S1 | Done. Every hero goes through `d.tryAdd(piece, [spot], o)`. `S1_OMITTED` is an exported `readonly S1Omit[]` `{piece, x, z, rule}`: `K:bikeRack` (-5, -46.8) K6, `K:parkBench` (8, -47.6) K1. `dressS1` throws on a refused hero not listed and on a stale list; `S1_REFUSED` (rebuilt each call) is asserted equal to `S1_OMITTED`. Placements unchanged. |
+| B3 | S2 | Done. `d.skinFace('F:greenWall', box, 'e', { at: [c], group: S2_GROUPS.atrium })` on the atrium (+x) face of the two x = -30 west-wall boxes: north bay box 389 at z -12, south bay box 391 at z -3.5 (fallback centres tried in order; the old z -15 / -2 hung off box 389). Origin x -30.05: back sinks into the 0.2 m wall, front 0.05 proud. No refusals. Deviation: spots moved to the box centres. |
+| B4 | S3 | Dropped. Lockers (`F:kitCaseWall`) as `skinFace` on the gowning partitions (box 770 face e, boxes 773 / 771 face w): all refused rule S, the 0.5 m deep locker's back passes through the 0.3 m wall (0.150 m); `K:lockerBank` the same (0.156 m). Floor spots still refused (K5 / K2 / K9 las-gown / K3 door 61). Bench (`F:holdingBench`) dropped: all nine spots K5 (guard 1 / 3 takedown) or K2 (guard 3 leg 0). Per-piece fit lets no skipped S3 item in (the only 2 m box is the `H3:logDesk` hero). Logging + one test only. |
+| B5 | S4 | Battery racks done: both rows skinned with `K:batteryRack` (7 modules, scale 1.275 within 0.8-1.3) replacing `batteryString`. Floor tile grid already done by A6 (72 / 72; stale comment fixed, test >= 60). `meshPanel` on the cage faces DROPPED, rule FIT: `skinRow` stretches depth 2.4x (0.05 panel on 0.1 boxes); `skinFace` would leave the inner half greybox, so the 16 `H4:cagePanel` stay. Undo needs lane A: no depth stretch for thin panels in `skinRow`, or a `meshPanel` depth. |
+| B6 | S5 | Kitchen counter done (`d.skinRow('K:kitchenRun', counter box, false, +1)`, 3 fit modules, no box). Cupboards done: 3 `K:wallCupboards` via `tryAdd` per module (scale x 1.111, backs on the kitchen west wall x -31.85, z 34-38, visual; `skinFace` would refuse S: 0.35 deep on a 0.3 wall). Vault frame DROPPED "needs catalogue frame entry" (no catalogue sets `frame`). Monitor wall DROPPED rule S (0.36 deep, not fit: east wall 0.104 m through, south wall 0.004 m through; west wall 2.7 m free < 3.7 m); needs a per-call `proud` in lane A or a thicker wall. Deposit wall stays refused (C x7, K4 x1; the 8 `H5:depositFace` fronts stay). Vault leaf DROPPED K1 (within 1.2 m of route leg 9). `S5_OMITTED = ['F:depositWall', 'F:vaultLeaf', 'F:monitorWall', 'vaultFrame']` asserted; every refusal in `S5_HERO_LOG`. |
+| B7 | S4 / S5 | Done. S4: CRAC (`S4_GROUPS.cold1`) and UPS (`S4_GROUPS.ups`) rows pass `group` in `skinRow`, `place()` passes it to `add`; the `group()` helper and every `placements[i].group` write removed. S5: racks pass `S5_GROUPS.ctl`. |
+| B9 | S4 | Done. `HERO_S4.overhang.genset.parts` lists the exhaust stack (0.3 m dia, y 2.6-3.6 at local (-1.0, -2.4)) and its flange (0.5 m dia, y 2.6-2.8), read from `hero_s4.py` `genset()` (the Blender source of `hero-s4.glb`), not the GLB vertices. K9 skin reach measures the stack by them; `by: 1.05` unchanged. |
+| B8 | S5 | Done, one deviation: `base()` ignores earlier placements, so the two stale portraits (y 1.93, z 18.15) are removed after `base()` (`report.placed` decremented) and re-added with `tryAdd` at hall floor y 0, flush on z 18.15. First at x -46.4 as before; second moved -43.0 -> -42.2 (-43.0, -42.6, -42.4 refused K3: front door 99 opening margin). |
+
+### artCounts (draws / tris / placements; limits 40 / 150 k / 2500)
+| Section | Before (after lane A) | After lane B |
+|---|---|---|
+| S1 | 31 / 13104 / 76 | 35 / 13104 / 76 |
+| S2 | 33 / 50924 / 778 | 33 / 51428 / 780 |
+| S3 | 27 / 16016 / 189 | 27 / 16016 / 189 |
+| S4 | 19 / 79532 / 632 | 19 / 79532 / 632 |
+| S5 | 28 / 25092 / 247 | 29 / 25452 / 253 |
+
+### Boxes and light
+Lane B moved or added no solid art box and no collide box (face skins, skin rows and visual pieces write no box; group
+changes are metadata). The campus light hash moves only by lane A's S2 switchgear shift (1mqg481 -> vnqe3i, above).
+
+### Tests (whole batch, this worktree, `--maxWorkers=2`)
+- `npx tsc --noEmit -p .` clean; `npx eslint` clean on every changed source and test file.
+- Section files before -> after: campusS1Dress 13 -> 13 (asserts changed), campusS2Dress 12 -> 13, campusS3Dress
+  12 -> 13, campusS4Dress 13 -> 14, campusS5Dress 6 -> 10.
+- Batch run, 13 files: campusArtGameplay (all sections), campusS1-S5Dress, campusArtKit, campusDressRules,
+  campusArtRender, campusArtLight, campusS2, campusS4, campusRuntimeNav: **256 / 256 pass**.
+
+### Open for the lead
+- S4 `meshPanel` cage faces (FIT: depth stretch) and S5 `monitorWall` (S: depth > ART_PROUD) need a lane A option
+  (thin panels skip depth stretch / a per-call `proud`).
+- S5 vault frame needs a `frame` entry in the hero catalogue (no catalogue lists one yet).
+- S3 lockers need a piece <= 0.35 m deep (only `wallCupboards`, not a locker).
+
 ## Lane D
+
+Built by a Haiku docs builder, fragment corrected by Cloud Builder 1.
+- `TESTING.md:472-481` new "Campus art (artnext)" checklist (load, views s1-a..s5-g, no greybox showing, draws, gate test).
+- `docs/systems/world-and-characters.md` "Campus art kit" (already existed at :58, edited, not duplicated): dressers
+  :74-100 (`add` / `ArtRuleError`, `tryAdd` / `refusals`, `skin`, `skinFace`, `skinHide`, `skinCyl`, `skinRow` with group,
+  `fitRange`, floor decals `DECAL_H`, door frames `FRAME_WRAP` / `frameDoor`), keepouts :101-111 (K1-K13 plus C, V, S,
+  W, B, FIT; the brief's "K1-K12" is K1-K13 in `keepouts.ts`), gameplay gate :112-115, status :121-123.
+- `changes/feature-sector-redesign-artnext.md` (new, minor): lanes A, B (as built, drops left out), C (pointer to
+  artnext-c). The art-check P7 A99 line is already done: `changes/feature-sector-redesign-art.md:17` carries it, so it
+  is not repeated.

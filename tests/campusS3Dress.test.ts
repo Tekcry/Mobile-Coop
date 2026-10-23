@@ -160,8 +160,18 @@ describe('A139 the hero placements', () => {
     const dropped = log.filter((l) => l.includes('dropped'));
     const placed = log.filter((l) => l.includes(': placed'));
     expect(placed.length + dropped.length).toBeGreaterThanOrEqual(10);
-    for (const l of dropped) expect(l).toMatch(/\b(K\d+|C|W|V):/);
+    for (const l of dropped) expect(l).toMatch(/\b(K\d+|C|W|V|S):/);
     expect(log.some((l) => l.startsWith('dock desk'))).toBe(true);
+  });
+
+  it('(artnext B4) the gown lockers: tried as face skins on the partition faces, refused by rule S (0.5 deep on a 0.3 wall), then dropped by the floor rules; the bench stays dropped', () => {
+    expect(count('F', 'kitCaseWall')).toBe(0);
+    expect(count('F', 'holdingBench')).toBe(0);
+    const face = log.filter((l) => l.startsWith('kitCaseWall face skin'));
+    expect(face).toHaveLength(3);
+    for (const l of face) expect(l).toMatch(/dropped, S: .*back passes through the box/);
+    for (const z of [-0.8, -2, -3.2, -4.4]) expect(log.some((l) => l.startsWith(`kitCaseWall z ${z}: dropped`) && /\b(K\d+):/.test(l)), `z ${z}`).toBe(true);
+    expect(log.some((l) => l.startsWith('holdingBench: dropped') && /\bK[25]:/.test(l))).toBe(true);
   });
 
   it('no wall piece is mounted on a glazed wall (the clean room / write-up glass line z -6, the viewing corridor z -8, the landing x 22)', () => {

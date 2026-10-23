@@ -222,7 +222,17 @@ export function dressS2(d: CampusDresser): void {
 
   // ---- heroes: the atrium and reception
   place(d, 'logoWall', 'H2:logoWall', [[-25.5, F0, -29.84, 0]], 'visual', 'the brand wall behind reception');
-  place(d, 'greenWall', 'F:greenWall', [[-29.84, F0, -15, PI / 2], [-29.84, F0, -2, PI / 2]], 'visual', "the atrium's planted wall");
+  // (artnext B3) the planted wall as a flush face skin on the atrium side (+x) of the x -30 west wall's two boxes (rule V no
+  // longer applies: a skin writes no box and the greybox face stays the collision); the first centre that passes each box wins
+  for (const [label, z, centres] of [['north bay', -12, [-12, -13, -11, -14]], ['south bay', -3.5, [-3.5, -4.5, -2.5, -5.5]]] as const) {
+    const i = boxAt(bx, -30, 2, z);
+    let done = false;
+    for (const c of centres) {
+      if (done) break;
+      done = attempt(`greenWall ${label} at ${c}`, () => void d.skinFace('F:greenWall', i, 'e', { why: "the atrium's planted wall", at: [c], group: S2_GROUPS.atrium }));
+    }
+    if (!done) S2_DRESS_LOG.push(`greenWall ${label}: omitted`);
+  }
   place(d, 'modelVitrine', 'F:modelVitrine', [[-10.6, F0, -27.4, -PI / 2], [-28.6, F0, -27.4, -PI / 2], [-11, F0, -27.5, -PI / 2], [-11, F0, -24.5, -PI / 2]], 'solid', 'the Tidewater product display');
   // the seating group: the brief's spot first (guard 2's patrol leg crosses it: K2), then two clear spots beside it (L5)
   for (const g of SEATING) if (seatingGroup(d, g)) break;

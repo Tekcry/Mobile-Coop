@@ -11,7 +11,7 @@ import { LevelBuilder } from '../src/world/levelBuilder';
 import { buildCampus, campusOps } from '../src/world/maps/campusOps';
 import { sectionCatalogues, sectionContext } from '../src/world/maps/campusDress';
 import { S1_ROOMS } from '../src/world/maps/campusS1';
-import { HERO_S1, S1_ART_TAGS, S1_OMITTED } from '../src/world/maps/campusS1Dress';
+import { HERO_S1, S1_ART_TAGS, S1_OMITTED, S1_REFUSED } from '../src/world/maps/campusS1Dress';
 import { artCounts, skinFit, type ArtPlacement, type CatReport } from '../src/world/campusArt/catalogue';
 import { CAMPUS_LOOK } from '../src/world/campusArt/campusKit';
 import { PROP_LOOK } from '../src/world/props/facilityProps';
@@ -57,6 +57,7 @@ describe('A128 skins', () => {
     const cars = skins().filter((p) => p.cls === 'skin-hide');
     expect(cars.length).toBe(14);
     expect(cars.every((p) => ['carSilver', 'carBlack', 'carBlue', 'carWhite'].includes(p.prop))).toBe(true);
+    expect(new Set(cars.map((p) => p.prop)).size).toBe(4); // B1: all four colours (35 of 40 draws)
     expect(skins().filter((p) => p.cls === 'skin').length).toBe(23);
     expect(skins().filter((p) => p.skinCyl !== undefined).length).toBe(10);
     const count = (prop: string): number => skins().filter((p) => p.prop === prop).length;
@@ -137,7 +138,8 @@ describe('A129 H1', () => {
     expect(h1('monitorBank').map(at)).toEqual([[18.8, 0, -73.15]]);
     expect(h1('keyCabinet').map(at)).toEqual([[15.2, 0, -73.15]]);
     expect(h1('visitorBoard').map(at)).toEqual([[14.15, 0, -78]]);
-    expect(S1_OMITTED.map((m) => /(?:H1|K):\w+/.exec(m)![0] + ' ' + /: (V|K\d+):/.exec(m)![1])).toEqual(['K:bikeRack K6', 'K:parkBench K1']);
+    expect(S1_REFUSED).toEqual([...S1_OMITTED]);
+    expect(S1_OMITTED.map((m) => `${m.piece} ${m.rule}`)).toEqual(['K:bikeRack K6', 'K:parkBench K1']);
   });
 });
 

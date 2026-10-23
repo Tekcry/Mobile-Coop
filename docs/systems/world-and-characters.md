@@ -73,27 +73,54 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   S4 data hall, S5 Old House strongroom. Placed by hand at exact positions before the base pass.
 - **Dressers.** `src/world/maps/campusS<N>Dress.ts` exports `S<N>_ART_TAGS`, `HERO_S<N>` and `dressS<N>(d)`; the registry
   is `maps/campusDress.ts` (do not edit). API in `campusArt/dresser.ts`: skins, then heroes, then `d.base()` last.
-  - `d.add(piece, x, y, z, yaw, { cls, why, s?, group?, tint?, free? })`: exact placement; throws on any keepout.
-  - `d.skin(piece, boxIndex, yaw, { why, dy?, group? })`: skins one greybox box (fit pieces scale 0.8-1.25).
+  - `d.add(piece, x, y, z, yaw, { cls, why, s?, group?, tint?, free? })`: exact placement. Throws `ArtRuleError`
+    (`rule`: 'K1'..'K13', 'C', 'V', 'S', 'W', 'B', 'FIT'; `msg`) on any keepout, skin-rule, overlap or fit failure.
+  - `d.tryAdd(piece, spots, { cls, why, ... })`: the first `{ x, y, z, yaw }` spot that passes, or -1. Each refusal goes
+    to `d.refusals` (`{ piece, spot, rule, msg }`) and to `report.dropped`. A hero with fallback spots uses it; a hero
+    that may be lost goes in an explicit omitted list the test asserts, never a bare `try / catch`.
+  - `d.skin(piece, boxIndex, yaw, { why, dy?, group? })`: skins one greybox box, scaled within the piece's own fit range.
+  - `d.skinFace(piece, boxIndex, face, { why, group?, tint?, dy?, at?, from?, to?, fitY? })`: a visual panel flush on one
+    face of a box (`'n'` +z, `'e'` +x, `'s'` -z, `'w'` -x), at most `ART_PROUD` (0.05) off it. It writes no box: the
+    greybox face stays the collision, light and sight. Modules go at `at` (one per centre), along `from`..`to`, or at
+    the piece's pitch. All modules or none.
   - `d.skinHide(...)`: as `skin`, and hides the box's own drawn instance (cars, the S5 van).
   - `d.skinCyl(piece, cylIndex, { why, group? })`: cylinders (tree trunks).
-  - `d.skinRow(piece, boxIndex, alongX, faceSign, { why, group? })`: tiles a long box with whole modules.
+  - `d.skinRow(piece, boxIndex, alongX, faceSign, { why, group? })`: tiles a long box with whole modules; `group` goes on
+    every module.
   - `group` is optional on all skin calls and ties a piece to a circuit group.
+  - Fit: `PropCatalogue.fitRange` gives a piece its own scale range (`fitRange()`; default 0.8-1.25; `batteryRack`
+    0.8-1.3, `labBench` 0.65-1.25, `F:meshPanel` 0.8-1.3, now also fit in height, so a 3.0 m cage wall fits; `kitchenRun` 0.8-1.4).
+  - Floor decals: a visual piece under `DECAL_H` (0.05 m) tall on a floor (`K:floorTileGrid`, `F:glandPlate`) is exempt
+    from K1-K6, K13 and the greybox overlap; its y snaps to 1 mm. K7-K12 still apply.
+  - Door frames: a piece in the catalogue's `frame` list, placed visual, whose hull spans one door's opening (width to
+    width + `FRAME_WRAP` 0.2) and reaches the door head. It passes K1 and K2 for legs through that opening and K3 and K13
+    for that door. It is checked as its jambs and head, so camera rays through the opening stay clear. Check it with
+    `frameDoor`.
   - Pieces are named `'K:whiteboard'`, `'F:filingCabinet'`, `'H2:atriumModel'`. Find boxes with `boxAt` / `cylAt`
     (`geometry.ts`).
-- **Keepouts.** `keepouts.ts` holds K1-K13 (routes, doors, cover, nav, cameras, lasers, ledges, switches, vents) and
-  rule ids `C`, `W`, `V`, `S`, `F`, `B`. A prop never lands on one. Every art box is `noLedge`. Light class and the three
-  prop classes: ART-PLAN section 2.
+- **Keepouts.** `keepouts.ts` builds the shapes once per section (`buildKeepouts`); `blocked` returns the first rule a
+  placement breaks. A prop never lands on one:
+  - K1 player route legs (climbs included); K2 guard patrol legs, entry run-ins, reinforce and sweep points, stage
+    response legs; K3 doors (zone, swing, wall edges); K4 items and the wall round them; K5 takedown spots; K6 hide,
+    spawn, nav seed and checkpoint spots, the extract zone; K7 co-op lips (headroom and the box and wall rules); K8
+    camera sight rays; K9 laser tubes; K10 lamps; K11 traversal anchors; K12 glass boxes; K13 escape doors.
+  - Other rule ids: `C` cover (a new box tall enough to hide behind stays 3.0 m off route and patrol legs), `V` rule V
+    (`ruleV` in `catalogue.ts`), `S` the skin rule, `W` no wall, `B` a box over another box, `FIT` a scale outside the
+    piece's range.
+  - A visual piece that writes no box (a skin, a decal, a frame) keeps the rules its mount gives it, as above.
+  - Every art box is `noLedge`. Light class and the three prop classes: ART-PLAN section 2.
 - **Gameplay gate.** `tests/campusArtGameplay.test.ts` (`-t S<N>`): legs, protected nav cells, patrols, cover, lips,
-  cameras, lasers, reach, ledges, split gaps, `checkDressing`, budgets. `tests/campusArtLight.test.ts` bakes and checks
-  every protected point within 0.02. Others: `campusArtKit`, `campusDressRules`, `campusArtRender`, `campusS<N>Dress`.
+  cameras, lasers, reach, ledges, split gaps (computed from the greybox, whatever the dressing order), `checkDressing`,
+  budgets. `tests/campusArtLight.test.ts` bakes and checks every protected point within 0.02. Others: `campusArtKit`
+  (the API above, one case per kit item), `campusDressRules`, `campusArtRender`, `campusS<N>Dress`.
 - **Render.** `campusArtRender.ts` draws one instanced mesh per (section, material); the World hook and
   `BuiltLevel.hidePieces` (`levelBuilder.ts`) hide the boxes a skin replaces.
 - **Budget.** At most 40 draws, 150 k triangles and 2500 placements per section. Now: S1 39 / S2 39 / S3 29 / S4 25 /
   S5 30 draws; the campus is 162 draws and 183 k triangles (1852 placements). S1 and S2 sit at 39 of 40: adding a
   material there needs a draw back first. Perf budgets: `docs/systems/performance.md`; shots: `scripts/campus-art-shots.mjs`.
-- **Not built yet:** see "Not applied" in `art-join.md` (cars in 2 of 4 colours, S2 green wall, `skinFace`, a few S4 and S5
-  kit gaps).
+- **Not built yet:** the kit API above is in (artnext lane A). The dressing that uses it (artnext lane B: S1 cars, S2
+  green wall, S3 lockers, S4 racks and floor, S5 vault frame, kitchen and monitor wall) and its status are in
+  `docs/sector-redesign/checks/artnext-build.md`. Older gaps: "Not applied" in `art-join.md`.
 
 ## Characters (one rig for player, enemies, coop remotes, dummies and the menu operator)
 - (anim-natural-n2) Wren's body motion layer (`src/anim/bodyMotion.ts`, pure): per tuner body row (`BODY_MOTION`,

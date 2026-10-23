@@ -119,7 +119,16 @@ export const HERO_S4: PropCatalogue | null = {
         { a: [0, 0.4, 0.48], b: [0, 3.0, 0.48], r: 0.015 },
       ],
     },
-    genset: { by: 1.05, what: 'the exhaust stack (0.3 dia) above the container roof' },
+    // (artnext B9) the exhaust stack as hero-s4.glb's steelDark / steel meshes have it (hero_s4.py genset()): a 0.3 dia stack
+    // from the container roof (2.6) to the hull top (3.6) at local (-1.0, -2.4), and its 0.5 dia flange (2.6 .. 2.8)
+    genset: {
+      by: 1.05,
+      what: 'the exhaust stack (0.3 dia) above the container roof',
+      parts: [
+        { a: [-1.0, 2.6, -2.4], b: [-1.0, 3.6, -2.4], r: 0.15 },
+        { a: [-1.0, 2.6, -2.4], b: [-1.0, 2.8, -2.4], r: 0.25 },
+      ],
+    },
   },
   emissive: { cracUnit: ['screen'], upsCabinet: ['lamp'] },
   pitch: { containPanel: 1.2, podRoof: 1.2, basketRun: 1.0, cracUnit: 2.0, upsCabinet: 0.8, batteryString: 2.0, chiller: 4.0, genset: 3.0, fuelTank: 3.0, crateStack: 1.2, cagePanel: 1.5, suppressionBank: 1.2 },
@@ -193,8 +202,7 @@ function place(d: CampusDresser, piece: string, cands: readonly Cand[], o: { cls
       });
       if (clash) continue;
     }
-    const idx = d.add(piece, c.x, c.y, c.z, c.yaw, { cls: o.cls, why: o.why });
-    if (o.group !== undefined) d.placements[idx]!.group = o.group;
+    const idx = d.add(piece, c.x, c.y, c.z, c.yaw, { cls: o.cls, why: o.why, group: o.group });
     if (!o.quiet) S4_HERO_LOG.push(`${o.label}: ${piece} at (${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)}) yaw ${p.yaw.toFixed(2)}`);
     return idx;
   }
@@ -205,9 +213,6 @@ function place(d: CampusDresser, piece: string, cands: readonly Cand[], o: { cls
 export function dressS4(d: CampusDresser): void {
   S4_HERO_LOG.length = 0;
   const bx = d.ctx.boxes;
-  const group = (idx: number[], g: number): void => {
-    for (const i of idx) d.placements[i]!.group = g;
-  };
 
   // ---- the pods P1-P5: two rack rows (cold aisles outside: row 1 fronts -x, row 2 fronts +x), containment panels, the roof
   const [pz0, pz1] = S4_BOX.podZ;
@@ -238,16 +243,14 @@ export function dressS4(d: CampusDresser): void {
   const [sx0, sz0, sx1, sz1] = S4_BOX.spareRack;
   d.skinRow('F:serverRack', boxAt(bx, (sx0 + sx1) / 2, 1.1, (sz0 + sz1) / 2), true, -1, { why: 'spare rack row in the build-out area' });
   const [cx0, cz0, cx1, cz1] = S4_BOX.crac;
-  const crac = d.skinRow('H4:cracUnit', boxAt(bx, (cx0 + cx1) / 2, 1.0, (cz0 + cz1) / 2), true, -1, { why: 'CRAC units, fronts to the cage side; the status displays are on the cold-aisle circuit' });
-  group(crac, S4_GROUPS.cold1);
+  d.skinRow('H4:cracUnit', boxAt(bx, (cx0 + cx1) / 2, 1.0, (cz0 + cz1) / 2), true, -1, { why: 'CRAC units, fronts to the cage side; the status displays are on the cold-aisle circuit', group: S4_GROUPS.cold1 });
 
   // ---- the battery room racks and the UPS cabinets
   const batt = S4_BOX.batteryRacks;
-  d.skinRow('H4:batteryString', boxAt(bx, (batt[0][0] + batt[0][2]) / 2, 0.6, (batt[0][1] + batt[0][3]) / 2), false, 1, { why: 'battery rack string, west row' });
-  d.skinRow('H4:batteryString', boxAt(bx, (batt[1][0] + batt[1][2]) / 2, 0.6, (batt[1][1] + batt[1][3]) / 2), false, -1, { why: 'battery rack string, east row' });
+  d.skinRow('K:batteryRack', boxAt(bx, (batt[0][0] + batt[0][2]) / 2, 0.6, (batt[0][1] + batt[0][3]) / 2), false, 1, { why: 'battery rack string, west row' });
+  d.skinRow('K:batteryRack', boxAt(bx, (batt[1][0] + batt[1][2]) / 2, 0.6, (batt[1][1] + batt[1][3]) / 2), false, -1, { why: 'battery rack string, east row' });
   const [ux0, uz0, ux1, uz1] = S4_BOX.upsCabinets;
-  const ups = d.skinRow('H4:upsCabinet', boxAt(bx, (ux0 + ux1) / 2, 1.0, (uz0 + uz1) / 2), false, 1, { why: 'UPS cabinet line-up, fronts the room; the mimic LEDs are on the UPS circuit' });
-  group(ups, S4_GROUPS.ups);
+  d.skinRow('H4:upsCabinet', boxAt(bx, (ux0 + ux1) / 2, 1.0, (uz0 + uz1) / 2), false, 1, { why: 'UPS cabinet line-up, fronts the room; the mimic LEDs are on the UPS circuit', group: S4_GROUPS.ups });
 
   // ---- the plant deck chillers, the generator and the fuel tank (the tank is 2.0 high on the parallel branches, 1.6 here: both fit)
   for (const [x0, z0, x1, z1] of S4_BOX.chillers) d.skin('H4:chiller', boxAt(bx, (x0 + x1) / 2, S4_DECK + 1.0, (z0 + z1) / 2), 0, { why: 'air-cooled chiller on the plant deck' });
@@ -311,8 +314,8 @@ function heroes(d: CampusDresser): void {
     place(d, 'K:pduStrip', [{ x: x0 + 3.3, y: 0, z: S4_BOX.podZ[1], yaw: 0 }, { x: x0 + 2.7, y: 0, z: S4_BOX.podZ[1], yaw: 0 }], { cls: 'visual', why: `pod P${n + 1} PDU, north end beside the door`, label: `pod P${n + 1} PDU north` });
   });
 
-  // the raised floor: 3 m tiles over the hall floor (a 1 cm decal), greedy on a 1 m lattice: a tile goes where it clears the routes,
-  // patrol legs, door zones and every box (the hall's aisles are 2 m wide, so only the open floor takes one: kit gap L3)
+  // the raised floor: 3 m tiles over the hall floor (a 1 cm decal), greedy on a 1 m lattice. A decal is exempt from the floor
+  // keepouts and the greybox overlap (artnext A6), so the grid now runs under the racks' aisles and the pods' ends alike
   const tiles: Cand[] = [];
   let tried = 0;
   for (let x = -2.5; x <= 32.5 + 1e-9; x += 1) {
@@ -323,5 +326,5 @@ function heroes(d: CampusDresser): void {
       if (place(d, 'K:floorTileGrid', [c], { cls: 'visual', why: 'raised-floor tile lines of the data hall', label: 'floor grid', quiet: true }) !== null) tiles.push(c);
     }
   }
-  S4_HERO_LOG.push(`floor grid: ${tiles.length} 3 m tiles placed (${tried} lattice points tried; the rest cross a route, a patrol leg, a door zone or a box)`);
+  S4_HERO_LOG.push(`floor grid: ${tiles.length} 3 m tiles placed (${tried} lattice points tried)`);
 }

@@ -13,7 +13,7 @@
  */
 import type { ArtTag } from '../campusArt/artTags';
 import type { PropCatalogue, V3 } from '../campusArt/catalogue';
-import type { CampusDresser } from '../campusArt/dresser';
+import { ArtRuleError, type BoxFace, type CampusDresser } from '../campusArt/dresser';
 import { boxAt } from '../campusArt/geometry';
 import { CAMPUS_LOOK } from '../campusArt/campusKit';
 import { PROP_LOOK } from '../props/facilityProps';
@@ -138,7 +138,7 @@ export function dressS3(d: CampusDresser): void {
   S3_BOX.racks.forEach(([x0, z0, x1, z1]) => {
     d.skinRow('F:serverRack', boxAt(bx, (x0 + x1) / 2, S3_BOX.racksTop / 2, (z0 + z1) / 2), false, -1, { why: 'a burn-in rack row against the east wall, fronts to the hall' });
   });
-  // benches: two lab benches (K labBench) and the burn-in log desk (the third box is 2 m long: a labBench cannot stretch to it)
+  // benches: two lab benches (K labBench) and the burn-in log desk (the third box is 2 m long: with the artnext per-piece fit a labBench could stretch to it, 0.673, but the log desk hero stays: it is the purpose-made piece)
   d.skin('K:labBench', boxAt(bx, 25.5, S3_BOX.benchTop / 2, -24.5), 0, { why: 'lab bench (south side of the hall)' });
   d.skin('K:labBench', boxAt(bx, 25.5, S3_BOX.benchTop / 2, -11.2), PI, { why: 'lab bench (north side of the hall)' });
   d.skin('H3:logDesk', boxAt(bx, 47.5, S3_BOX.benchTop / 2, -12.4), 0, { why: 'the burn-in log desk by the task-light switch' });
@@ -161,7 +161,27 @@ export function dressS3(d: CampusDresser): void {
   place(d, 'stickyMat (door)', 'H3:stickyMat', L1, [[31.2, -4.1, 0], [31.2, -3.9, 0], [31.2, -3.5, 0]], { cls: 'visual', why: 'tacky mat inside the gowning room door' });
   place(d, 'stickyMat (clean)', 'H3:stickyMat', L1, [[32.3, -3.0, PI / 2], [32.3, -3.2, PI / 2], [32.2, -2.8, PI / 2]], { cls: 'visual', why: 'tacky mat at the pass-through to the clean room' });
   place(d, 'holdingBench', 'F:holdingBench', L1, [[31.5, -5.4, 0], [30.4, -2.0, PI / 2], [30.4, -3.0, PI / 2], [31.5, -0.4, PI], [32.4, -2.0, PI / 2], [32.6, -1.2, (3 * PI) / 2], [32.6, -1.5, (3 * PI) / 2], [30.4, -1.0, PI / 2], [30.4, -5.0, PI / 2]], { cls: 'see', why: 'the gowning bench' });
-  for (const z of [-0.8, -2.0, -3.2, -4.4]) place(d, `kitCaseWall z ${z}`, 'F:kitCaseWall', L1, [[30.15, z, PI / 2], [32.85, z, (3 * PI) / 2]], { cls: 'see', why: 'a gown locker module on the gowning room west wall' });
+  // (artnext B4) the gown lockers first as face skins on the gowning room's partition faces (no box, so the floor rules K2 / K5
+  // that dropped them do not apply, only the wall-mounted visual rules). The skin rule refuses all of them (rule S: the
+  // 0.5 m deep kitCaseWall sinks 0.45 m into a 0.3 m partition, 0.15 m through its far face), so the floor spots follow: they
+  // stay dropped by K2 / K5 / K9 / K3. Every outcome is logged with its rule id.
+  const faceTry = (label: string, boxIndex: number, face: BoxFace, at: number[]): boolean => {
+    try {
+      d.skinFace('F:kitCaseWall', boxIndex, face, { why: 'gown lockers on the gowning room partition', at, dy: 0 });
+      S3_HERO_LOG.push(`${label}: placed as a face skin on box ${boxIndex} face ${face}`);
+      return true;
+    } catch (e) {
+      if (!(e instanceof ArtRuleError)) throw e;
+      S3_HERO_LOG.push(`${label}: dropped, ${e.msg}`);
+      return false;
+    }
+  };
+  const faced = [
+    faceTry('kitCaseWall face skin (west partition, 4 modules)', boxAt(bx, 30, L1 + 2.25, -3.075), 'e', [-4.4, -3.2, -2.0, -0.8]),
+    faceTry('kitCaseWall face skin (east partition, north)', boxAt(bx, 33, L1 + 2.25, -1.275), 'w', [-1.2]),
+    faceTry('kitCaseWall face skin (east partition, south)', boxAt(bx, 33, L1 + 2.25, -4.8), 'w', [-4.8]),
+  ];
+  if (!faced.some(Boolean)) for (const z of [-0.8, -2.0, -3.2, -4.4]) place(d, `kitCaseWall z ${z}`, 'F:kitCaseWall', L1, [[30.15, z, PI / 2], [32.85, z, (3 * PI) / 2]], { cls: 'see', why: 'a gown locker module on the gowning room west wall' });
   // hazard plates: the gas cage's blockwork wall (the cage has no door box; the plate faces the dock), the las-gown panel's wall
   // 0.85 m beside it, las-store's partition run beside the beam gap, the EMC door
   place(d, 'hazardPlate gas', 'H3:hazardPlate', 0, [[35.85, -2.0, (3 * PI) / 2], [35.85, -3.0, (3 * PI) / 2], [35.85, -1.0, (3 * PI) / 2]], { cls: 'visual', why: 'gas store warning on the cage blockwork wall' });

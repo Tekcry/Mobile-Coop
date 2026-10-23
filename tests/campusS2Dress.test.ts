@@ -176,10 +176,22 @@ describe('A134 the H2 hero set', () => {
     expect(count('F:modelVitrine')).toBe(1);
     expect(count('H2:lowTable')).toBe(1);
     expect(count('F:loungeSeat')).toBe(2);
-    // the only things the dresser logs are the known drops: two desks' chairs, the green wall (rule V), the vitrine / seating fallbacks
-    const known = /^(chair |greenWall|modelVitrine|seating group)/;
+    // the only things the dresser logs are the known drops: two desks' chairs, the vitrine / seating fallbacks
+    const known = /^(chair |modelVitrine|seating group)/;
     for (const l of log) expect(l, l).toMatch(known);
-    expect(log.some((l) => l.startsWith('greenWall: omitted'))).toBe(true);
+  });
+
+  it('(artnext B3) the green wall is two flush face skins on the atrium (+x) side of the x -30 wall, visual, no box', () => {
+    const g = ps.filter((p) => `${p.cat}:${p.prop}` === 'F:greenWall');
+    expect(g.length).toBe(2);
+    expect(log.filter((l) => l.startsWith('greenWall'))).toEqual([]);
+    for (const p of g) {
+      expect(p.cls).toBe('skin');
+      expect(p.skinFace).toBe('e');
+      expect(p.skinOf).toBeDefined();
+      expect(ctx.boxes[p.skinOf!]!.c[0]).toBeCloseTo(-30, 6);
+      expect(p.x).toBeLessThan(-29.9); // its back sinks into the 0.2 m wall, its front <= ART_PROUD off the face
+    }
   });
 });
 

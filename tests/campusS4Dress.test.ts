@@ -10,7 +10,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { campusOps } from '../src/world/maps/campusOps';
 import { sectionCatalogues } from '../src/world/maps/campusDress';
-import { S4_BOX, S4_PODS, S4_ROOMS } from '../src/world/maps/campusS4';
+import { S4_BOX, S4_GROUPS, S4_PODS, S4_ROOMS } from '../src/world/maps/campusS4';
 import { HERO_S4, S4_ART_TAGS, S4_HERO_LOG } from '../src/world/maps/campusS4Dress';
 import { ART_TAGS } from '../src/world/campusArt/artTags';
 import { artCounts, type ArtPlacement, type CatReport } from '../src/world/campusArt/catalogue';
@@ -101,7 +101,9 @@ describe('S4 skins (A143)', () => {
   it('the baskets, CRAC, batteries, UPS, chillers, generator, tank, crates and cage faces are skinned', () => {
     expect(count('H4', 'basketRun')).toBeGreaterThan(60);
     expect(count('H4', 'cracUnit')).toBe(4);
-    expect(count('H4', 'batteryString')).toBeGreaterThan(5);
+    // (artnext B5) the battery strings are the kit's `batteryRack` now (1.0 deep: its own fit range 0.8-1.3)
+    expect(count('K', 'batteryRack')).toBe(7);
+    expect(count('H4', 'batteryString')).toBe(0);
     expect(count('H4', 'upsCabinet')).toBe(18);
     expect(count('H4', 'chiller')).toBe(4);
     expect(count('H4', 'genset')).toBe(1);
@@ -139,7 +141,16 @@ describe('S4 heroes (A144)', () => {
   });
   it('a PDU on every pod end (10) and the raised-floor tiles (few: the aisles are 2 m, kit gap L3)', () => {
     expect(count('K', 'pduStrip')).toBeGreaterThanOrEqual(S4_PODS.length * 2);
-    expect(count('K', 'floorTileGrid')).toBeGreaterThanOrEqual(3);
+    // (artnext B5 / A6) a floor tile is a decal: exempt from the keepouts and the greybox overlap, so the grid covers the hall (72 tiles)
+    expect(count('K', 'floorTileGrid')).toBeGreaterThanOrEqual(60);
+  });
+  it('(artnext B7) the emissive skins carry their circuit from skinRow itself; the genset stack is a listed overhang part (B9)', () => {
+    for (const p of ps.filter((q) => q.cat === 'H4' && q.prop === 'cracUnit')) expect(p.group, 'crac').toBe(S4_GROUPS.cold1);
+    for (const p of ps.filter((q) => q.cat === 'H4' && q.prop === 'upsCabinet')) expect(p.group, 'ups').toBe(S4_GROUPS.ups);
+    expect(HERO_S4!.overhang.genset!.parts?.length).toBeGreaterThanOrEqual(1);
+    // the stack part ends at the hull top (3.6) and stands on the container roof (2.6)
+    const stack = HERO_S4!.overhang.genset!.parts![0]!;
+    expect([stack.a[1], stack.b[1]]).toEqual([2.6, heroRep.pieces.genset!.bounds.max[1]]);
   });
 });
 
