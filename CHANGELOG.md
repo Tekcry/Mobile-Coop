@@ -1,5 +1,18 @@
 # Changelog
 
+## 4.73.0 - Train 24: Guard render moon shadow caster lists and head hit volume (2026-10-23, PR #216; #209, #211)
+
+### Guard render S3a: guard head hit volume from the sim
+- Guards: the head hit volume now comes from the guard's simulation (stance, gait, cover lean / peek, emotes, held
+  hostage), not from the rendered skeleton, so headshots and takedowns no longer depend on the animation's frame rate
+  or the Detail setting. Within 8-11 cm of the rendered head (exceptions in docs/guard-render/STATE.md).
+
+### Guard render S6: per-cascade moon shadow lists
+- Moon / sun shadows: each shadow cascade now draws only the moving casters inside it (exact per-cascade lists under
+  the baked moon), so fewer shadow draws with many guards. No look change. `?guardsun=0` turns it off.
+- (dev) `World.addShadowCaster` takes an optional sun reach (casters drop out of the moon's cascades beyond it, with
+  hysteresis); nothing passes one yet.
+
 ## 4.72.0 - Train 23: Guard render merged bodies and anim cuts; Sector Ops campus sections 2-3 (2026-10-23, PR #210; #205, #206)
 
 ### Guard animation cost cuts (S5)
