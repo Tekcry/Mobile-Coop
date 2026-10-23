@@ -1,0 +1,13 @@
+{
+  "id": "20261023T202045-player-build-a8ff2d45-5437",
+  "sha": "a8ff2d45d5054c0da3492d100771aecc3e4531af",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "player-build",
+  "suites": [
+    "e2e-enemies"
+  ],
+  "set": "gm-enemies-off",
+  "note": "guard-models head, flag off: A/B for the flag-on sniper relocate failure on b8ca0a2e"
+}
