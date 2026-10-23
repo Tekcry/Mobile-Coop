@@ -25,8 +25,8 @@ const DOCK_LOOP = { period: 42, leave: [4, 25], t0: 0 };
 
 /**
  * Section 4's guards (20; officer = pistolSd, grunt = rifle, enforcer = pistolSd + shield, dog = melee at the handler's heel).
- * The 0-based index in this list is the guard's number minus one. Dormant (A64): #10, #11 (the hot-aisle checkers) and #16
- * (the north corridor tour); none is posted, paired, a handler or a dog.
+ * The 0-based index in this list is the guard's number minus one. Dormant (A64 / A99, data only): #10, #11 (the hot-aisle checkers)
+ * and #16 (the north corridor tour); none is posted, paired, a handler or a dog.
  */
 export const S4_GUARDS: SectorGuard[] = [
   // 1 the yard handler (L1: the lane is the compound's west side, x 35.3, because the tanks and the generator stand on x 36..39)

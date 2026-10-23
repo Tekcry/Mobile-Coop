@@ -3,7 +3,7 @@
  * only (the pure `LevelBuilder`): the 20 guards incl. the first dog, the three cameras and the security desk, the dock board
  * and the keypads, the cage's pair gate, las-tray and its panel, the routes on an analytic nav grid (the NOC flight as the one
  * ramp), CR4 (the cable basket) against a solo player, the light circuits, the M8 isolation check, the K3 choke, the dormant
- * rule and the A64 screen count.
+ * rule and the A99 screen count (lifts A64).
  */
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder, type BoxPiece } from '../src/world/levelBuilder';
@@ -12,7 +12,7 @@ import { CAMPUS_COOP_LIPS } from '../src/world/maps/campusLips';
 import { S3_DOORS } from '../src/world/maps/campusS3';
 import { S4_BASKET, S4_BOX, S4_DECK, S4_DOORS, S4_FLIGHT, S4_GROUPS, S4_NOC, S4_PANEL_NEAR, S4_PANELS, S4_LASERS, S4_ROOMS, S4_COOP_LIPS, S4_PODS, S4_BOARDS } from '../src/world/maps/campusS4';
 import { S4_AMMO_CRATE, S4_ARMOURED } from '../src/world/maps/campusS4Data';
-import { CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
+import { CAMPUS_SCREEN_CAP, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
 import { SECTOR, checkSectorGuards, checkSectors, exitZone, inZone, type SectorGuard } from '../src/game/sectors';
 import { checkStageActions, doorFinder, addDoorClosure } from '../src/game/sectorStage';
 import { DESK_POST_RADIUS } from '../src/game/sectorDesks';
@@ -752,10 +752,10 @@ describe('K3 (M12): the colonnade sentry is an unavoidable posted guard at the C
   });
 });
 
-describe('A64: the screen count (no player point sees more than 6 awake guards)', () => {
+describe('A99: the screen count (no player point sees more than CAMPUS_SCREEN_CAP guards, every guard counted)', () => {
   const near = (p: BoxPiece): boolean => p.c[0] + p.s[0] > FOOT.x0 - 2 && p.c[0] - p.s[0] < FOOT.x1 + 2 && p.c[2] + p.s[2] > FOOT.z0 - 2 && p.c[2] - p.s[2] < FOOT.z1 + 2;
-  const awake = G.map((g, i) => ({ g, i })).filter((q) => !q.g.dormant);
-  /** A shut leaf for every door no awake guard route passes (the pod end doors of P1 and P4 and the doors (-7, 30.2) / (-7, 27.8) stay open). */
+  const awake = G.map((g, i) => ({ g, i }));
+  /** A shut leaf for every door no guard route passes (the pod end doors of P1 and P4 and the doors (-7, 30.2) / (-7, 27.8) stay open). */
   const leaves: BoxPiece[] = [];
   for (const d of b.anchors.doors) {
     const cx = d.hinge.x + (Math.sin(d.yaw) * d.width) / 2;
@@ -771,7 +771,7 @@ describe('A64: the screen count (no player point sees more than 6 awake guards)'
   const world = new SightWorld([...b.boxes.filter(near), ...leaves], b.cylinders);
   const HALF = ((PLAYER_CAMERA.fov / 2) * PI) / 180;
   const YAWS = Array.from({ length: 32 }, (_, k) => (k * PI) / 16);
-  it('at every walkable nav cell centre (0.5 m) of the section, 32 facings: at most 6 awake guards on their routes in the view with a clear line within 40 m', () => {
+  it('at every walkable nav cell centre (0.5 m) of the section, 32 facings: at most CAMPUS_SCREEN_CAP guards (dormant too) on their routes in the view with a clear line within 40 m', () => {
     const pts = awake.map(({ g }) => guardPoints({ x: g.x, z: g.z, y: g.y, route: g.route as readonly (readonly [number, number])[] | undefined }).map(([px, py, pz]) => [px, py + 1.2, pz] as const));
     let worst = { n: -1, at: '', who: [] as number[] };
     let samples = 0;
@@ -802,14 +802,14 @@ describe('A64: the screen count (no player point sees more than 6 awake guards)'
           if (who.length > worst.n) worst = { n: who.length, at: `(${x}, ${h.toFixed(2)}, ${z}) facing ${((yaw * 180) / PI).toFixed(0)}`, who };
         }
         hist.set(best, (hist.get(best) ?? 0) + 1);
-        if (best > 6) over++;
+        if (best > CAMPUS_SCREEN_CAP) over++;
       }
     }
     // eslint-disable-next-line no-console
-    if (process.env.CAMPUS_PRINT) console.log(`A64 worst ${worst.n} at ${worst.at}: #${worst.who.join(', #')} (${samples} points, ${baskets} on the baskets, ${deck} on the deck, ${over} over 6); histogram ${JSON.stringify([...hist.entries()].sort((p, q) => p[0] - q[0]))}`);
+    if (process.env.CAMPUS_PRINT) console.log(`A99 worst ${worst.n} at ${worst.at}: #${worst.who.join(', #')} (${samples} points, ${baskets} on the baskets, ${deck} on the deck, ${over} over ${CAMPUS_SCREEN_CAP}); histogram ${JSON.stringify([...hist.entries()].sort((p, q) => p[0] - q[0]))}`);
     expect(samples).toBeGreaterThan(4000);
     expect(baskets).toBeGreaterThan(50);
     expect(deck).toBeGreaterThan(200);
-    expect(worst.n, `worst ${worst.at}: #${worst.who.join(', #')}`).toBeLessThanOrEqual(6);
+    expect(worst.n, `worst ${worst.at}: #${worst.who.join(', #')}`).toBeLessThanOrEqual(CAMPUS_SCREEN_CAP);
   }, 600_000);
 });

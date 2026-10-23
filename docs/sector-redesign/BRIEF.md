@@ -246,3 +246,14 @@ Lead, slice 1 check (2026-10-23, checks/slice1-check.md PASS; one fix round):
   cage (high route), arm-ante -> the anteroom side door (stealth), arm-front -> the north parapet rappel (high); undo:
   edit `bypass` in `S4_ARMOURED` / `S5_ARMOURED`. A-E10-6 the armoured NOC window also stops the NOC pair's rounds (they
   see the hall, cannot shoot it) - Guard AI must test the fire line on `MASK.ENEMY_SHOT`.
+Lead, A64 lift (2026-10-23, guard-render S1 / S3a / S5 / S6 / S7 in; checks/a64-lift.md):
+- A99 The A64 screen cap goes from 6 awake guards to 12 guards, every guard counted (`CAMPUS_SCREEN_CAP` in
+  `campusSectors.ts`; the S2-S5 screen-count tests assert it, same sampling as A64 / A70). Basis: guard-render's merged
+  body run (`docs/guard-render/run-s1`, laptop 4090, Epic 1920x1080) holds Sector Ops 24 alive / 12 in sight alert at
+  frame CPU p95 11.1 ms, GPU p95 7.2 ms (60 Hz line 12 / 15), and Marlow 24 in sight at 8.6 / 5.6; 12 in sight is the
+  densest cell measured on a sector map, and the campus scene (with the detail art) is not measured yet, so the cap stays
+  at the measured cell, not 24. `dormant` is not read by any code (guard-render shipped no sleep; its S4 anim tiers, in
+  train 26, use off-screen / far, not the tag), so the count no longer skips dormant guards. The tags stay as data on the
+  far guards (S2 #10 #12, S3 #12 #14, S4 #10 #11 #16, S5 #1-#3 #15) for a later far-guard sleep step; S1 #7's tag goes
+  (A68 put it there for A64 margin only). Layout compromises made for A64 stay this slice (polish list in the check).
+  Undo: `CAMPUS_SCREEN_CAP` back to 6, the tests' awake filter (`!g.dormant`) back, `dormant: true` back on S1 #7.

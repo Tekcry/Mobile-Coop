@@ -23,7 +23,7 @@ const LOOP = { period: 44, leave: [3, 25], t0: 0 };
 
 /**
  * Section 5's guards (24; the brief's table: officer = pistolSd, grunt = rifle, enforcer = pistolSd + shield, dog). Dormant
- * (A64): the response team's standing three (#1-#3) and the boardroom officer (#15). The values the brief left open (the
+ * (A64 / A99, data only): the response team's standing three (#1-#3) and the boardroom officer (#15). The values the brief left open (the
  * takedown spots, the facings of route guards) are in `docs/sector-redesign/checks/slice5-build.md`.
  */
 export const S5_GUARDS: SectorGuard[] = [
