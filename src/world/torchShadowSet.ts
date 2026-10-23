@@ -119,14 +119,44 @@ export function casterInTorchCone(lx: number, ly: number, lz: number, ax: number
   return a < torchShadowFov(cosOuter) * 0.5;
 }
 
-/** True when a character caster's sphere (+ `sphereMargin`) holds the torch: the guard holding it (his body, his
- *  weapon) casts nothing into his own beam. */
+/** True when a character caster's sphere (+ `sphereMargin`) holds the torch (a candidate for its holder,
+ *  `torchHoldDepth`). */
 export function holdsTorch(lx: number, ly: number, lz: number, x: number, y: number, z: number, r: number): boolean {
+  return torchHoldDepth(lx, ly, lz, x, y, z, r) >= 0;
+}
+
+/**
+ * (lr16pol B, lr16t check A 5) How deep the torch sits in a character caster's sphere (+ `sphereMargin`): (distance to
+ * the centre / that radius)^2 in [0, 1], or -1 when the sphere does not hold the torch. The holder is the ONE character
+ * whose caster scores lowest (`pickTorchHolder`): his body (the torch 0.35 m ahead of his feet, well inside his sphere)
+ * casts nothing into his own beam, while a second guard or the player shoulder to shoulder casts again. Scaled by the
+ * sphere, not the bare centre distance: a character is several casters (body, gun, helmet, armour), and a neighbour's
+ * small shoulder cap can sit nearer the torch than the holder's own body centre. Allocation-free.
+ */
+export function torchHoldDepth(lx: number, ly: number, lz: number, x: number, y: number, z: number, r: number): number {
   const rr = r + TORCH_SHADOW.sphereMargin;
   const dx = x - lx;
   const dy = y - ly;
   const dz = z - lz;
-  return dx * dx + dy * dy + dz * dz <= rr * rr;
+  const d2 = dx * dx + dy * dy + dz * dz;
+  const r2 = rr * rr;
+  return d2 <= r2 ? d2 / Math.max(r2, 1e-6) : -1;
+}
+
+/** The holder among `n` character casters' spheres (x, y, z, r packed in `spheres`): the index of the lowest
+ *  `torchHoldDepth`, -1 when none holds the torch. `TorchShadows.gather` runs the same rule over its casters. */
+export function pickTorchHolder(lx: number, ly: number, lz: number, spheres: Float32Array, n: number): number {
+  let best = -1;
+  let bd = 2;
+  for (let i = 0; i < n; i++) {
+    const o = i * 4;
+    const d = torchHoldDepth(lx, ly, lz, spheres[o]!, spheres[o + 1]!, spheres[o + 2]!, spheres[o + 3]!);
+    if (d >= 0 && d < bd) {
+      bd = d;
+      best = i;
+    }
+  }
+  return best;
 }
 
 /** A door as the pick reads it (`Doors.list` / `FieldDoor` fit). */
@@ -218,11 +248,36 @@ export function writeTorchPose(out: Float32Array, o: number, x: number, y: numbe
  * past the frustum's pad in one frame). Allocation-free.
  */
 export function torchPoseStale(pose: Float32Array, o: number, x: number, y: number, z: number, ax: number, ay: number, az: number): boolean {
+  return torchPoseMoved(pose, o, x, y, z) || torchPoseTurned(pose, o, ax, ay, az);
+}
+
+/** (lr16pol B, lr16t recheck 1) The move part of `torchPoseStale`: the torch is more than `poseMove` from the pose's
+ *  position (a blocker's edge in the map is off by about as much). Allocation-free. */
+export function torchPoseMoved(pose: Float32Array, o: number, x: number, y: number, z: number): boolean {
   const dx = x - pose[o]!;
   const dy = y - pose[o + 1]!;
   const dz = z - pose[o + 2]!;
-  if (dx * dx + dy * dy + dz * dz > POSE_MOVE2) return true;
+  return dx * dx + dy * dy + dz * dz > POSE_MOVE2;
+}
+
+/** (lr16pol B, lr16t recheck 1) The turn part of `torchPoseStale`: the axis is more than `poseTurn` off the pose's
+ *  (the map still holds every depth it held, in the same place; only its frustum no longer covers the whole new cone).
+ *  Allocation-free. */
+export function torchPoseTurned(pose: Float32Array, o: number, ax: number, ay: number, az: number): boolean {
   return ax * pose[o + 3]! + ay * pose[o + 4]! + az * pose[o + 5]! < POSE_COS;
+}
+
+/**
+ * (lr16pol B, lr16t recheck 1) A slot's map renders this frame instead of at its interval: a tile with no map of this
+ * torch (`valid` - the slot's params w - not 1: a new torch in the slot, a restore, "nothing to cast") or one made
+ * from a pose the torch has moved from, always; one it has only turned from, only at governor 1. While the frame
+ * governor stretches the refresh (`governorEvery` > 1) a turning guard would otherwise render every frame; his turned
+ * beam waits for its interval, its rim past the old frustum reading dark (`TORCH_SHADOW_GLSL`: off-frustum 0), never
+ * light through a wall. Pure.
+ */
+export function torchForceRender(valid: number, moved: boolean, turned: boolean, governorEvery: number): boolean {
+  if (valid !== 1 || moved) return true;
+  return turned && Math.max(1, governorEvery | 0) <= 1;
 }
 
 /** Frames between a slot's refreshes: the torch nearest the camera every frame, the rest every 2nd, x the governor's. */

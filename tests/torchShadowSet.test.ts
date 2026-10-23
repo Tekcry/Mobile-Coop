@@ -3,7 +3,8 @@
  * the caster cull, the door pick, the penumbra, the kernel, and the GLSL the lamp plugin's torch loop runs.
  */
 import { describe, expect, it } from 'vitest';
-import { FLASHLIGHTS, TORCH } from '../src/world/torches';
+import { FLASHLIGHTS, placeTorch, TORCH } from '../src/world/torches';
+import { makeCone, type LightDef } from '../src/world/lights';
 import { TORCH_CUT_SOFT, TORCH_DRAW_GLSL, TORCH_DRAW_SLOTS, TORCH_DRAW_STRIDE } from '../src/world/shadowAccuracy';
 import { CHAR_SHADOW_DISK, CHAR_SHADOW_KERNEL } from '../src/world/charShadowSet';
 import { DOOR_SHUT } from '../src/world/lightField';
@@ -14,6 +15,7 @@ import {
   casterInTorchCone,
   holdsTorch,
   pickTorchDoors,
+  pickTorchHolder,
   sphereInFrustum,
   TORCH_DOOR_TEXELS,
   TORCH_SHADOW,
@@ -24,6 +26,7 @@ import {
   TORCH_SHADOW_TAPS,
   torchAtlasSize,
   torchFilterTexels,
+  torchHoldDepth,
   torchLitSphere,
   torchPenumbra,
   torchPoseStale,
@@ -135,6 +138,44 @@ describe('torch shadow set (LR16t)', () => {
     // the guard holding it: his body's sphere holds the torch
     expect(holdsTorch(0, 1.45, 0.35, 0, 0.9, 0, 0.95)).toBe(true);
     expect(holdsTorch(0, 1.45, 0.35, 0, 0.9, 3, 0.95)).toBe(false);
+  });
+
+  it('holder drop (lr16pol B, check A 5): only the guard holding the torch, not the one shoulder to shoulder', async () => {
+    // two guards side by side, 0.55 m apart, both facing +z: body spheres (centre 0.9 m up, r 0.95) as the merged rig
+    const sph = new Float32Array([0, 0.9, 0, 0.95, 0.55, 0.9, 0, 0.95]);
+    const l = { x: 0, y: 0, z: 0, cone: makeCone(0, 0, 1, TORCH.outer, TORCH.inner) } as LightDef;
+    // A holds it: the torch sits inside both spheres (+ margin), only A is the holder
+    placeTorch(l, 0, 0, 0, 0, false, 1);
+    expect(holdsTorch(l.x, l.y, l.z, 0, 0.9, 0, 0.95)).toBe(true);
+    expect(holdsTorch(l.x, l.y, l.z, 0.55, 0.9, 0, 0.95)).toBe(true);
+    expect(pickTorchHolder(l.x, l.y, l.z, sph, 2)).toBe(0);
+    // B holds it: B
+    placeTorch(l, 0.55, 0, 0, 0, false, 1);
+    expect(pickTorchHolder(l.x, l.y, l.z, sph, 2)).toBe(1);
+    // listed in the other order, B on A's torch side (the torch 0.15 m to A's side): still A
+    const sw = new Float32Array([0.55, 0.9, 0, 0.95, 0, 0.9, 0, 0.95]);
+    placeTorch(l, 0, 0, 0, 0, false, 1);
+    expect(pickTorchHolder(l.x, l.y, l.z, sw, 2)).toBe(1);
+    const sw2 = new Float32Array([-0.55, 0.9, 0, 0.95, 0, 0.9, 0, 0.95]);
+    expect(pickTorchHolder(l.x, l.y, l.z, sw2, 2)).toBe(1);
+    // crouched (the torch 1.0 m up) and turned away from B (yaw -PI / 2): still the holder
+    placeTorch(l, 0, 0, 0, -Math.PI / 2, true, 1);
+    expect(pickTorchHolder(l.x, l.y, l.z, sph, 2)).toBe(0);
+    // a neighbour's small gear sphere nearer the torch than A's body centre does not win: depth is scaled by the sphere
+    placeTorch(l, 0, 0, 0, 0, false, 1);
+    const gear = new Float32Array([0, 0.9, 0, 0.95, 0.4, 1.4, 0.2, 0.12]);
+    expect(hyp3(l.x - 0.4, l.y - 1.4, l.z - 0.2)).toBeLessThan(hyp3(l.x, l.y - 0.9, l.z));
+    expect(torchHoldDepth(l.x, l.y, l.z, 0.4, 1.4, 0.2, 0.12)).toBeGreaterThan(torchHoldDepth(l.x, l.y, l.z, 0, 0.9, 0, 0.95));
+    expect(pickTorchHolder(l.x, l.y, l.z, gear, 2)).toBe(0);
+    // nobody near: -1; a sphere that does not hold the torch scores -1; the torch at the centre scores 0
+    expect(pickTorchHolder(l.x, l.y, l.z, new Float32Array([0, 0.9, 3, 0.95]), 1)).toBe(-1);
+    expect(torchHoldDepth(0, 1.45, 0.35, 0, 0.9, 3, 0.95)).toBe(-1);
+    expect(torchHoldDepth(0, 0.9, 0, 0, 0.9, 0, 0.95)).toBe(0);
+    // allocation-free (per caster per slot per frame)
+    const bytes = await bytesPerCall((n) => {
+      for (let k = 0; k < n; k++) sink[0] = sink[0]! + pickTorchHolder(l.x, l.y + k * 1e-7, l.z, sph, 2) + torchHoldDepth(l.x, l.y, l.z, 0, 0.9, 0, 0.95);
+    }, 16, { n: 2000 });
+    expect(bytes).toBeLessThanOrEqual(16);
   });
 
   it('door pick: shut only, nearest first, at most 4, open leaves skipped, allocation-free', async () => {
