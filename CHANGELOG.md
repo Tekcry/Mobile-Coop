@@ -1,5 +1,35 @@
 # Changelog
 
+## 4.82.0 - Train 33: Sector Ops lamp door slots and torch drawing; interrogation codes open course flags and keypads; laptop test queue service (2026-10-23, PR #256; #242, #249, #252)
+
+### Laptop queue service
+- Tooling: `scripts/laptop-queue/` (queue service, `request.mjs` CLI, `serve.mjs`, `install-task.ps1`) runs requests from the
+  `laptop-queue` branch and `train/*` heads on the two laptop slots, shards train runs across 4189 + 4192 and posts
+  `laptop-e2e` / `laptop-e2e/<set>` commit statuses. Docs: `docs/systems/testing-tools.md` "Laptop queue".
+
+### Lamp door slots and exact torch light (LR15)
+- With Realistic lamp falloff on (prototype, default off), a lamp now stops at up to 8 shut doors instead of 4, so light
+  no longer leaks past a long row of doors, and a guard's flashlight that has no shadow map lights you exactly as the
+  light meter and the guards read it, cut where its beam meets a wall. Classic falloff is unchanged.
+
+# Realistic lamps light large maps again (lr-tex3d)
+kind: patch
+- With Realistic lamp falloff on, the lamps on large maps (Saltmarsh Park) no longer go dark on screen: their light data
+  was too big for the graphics card and failed to load, so the picture showed only the fittings while the light meter
+  and the guards still saw the light. The data now packs to fit the card's limit. Classic falloff is unchanged.
+
+### Lighting polish (LR13 / LR14 / LR15 checker lists)
+- Character shadows: a guard right beside a lamp, in a dense crowd, or just stepping into a lamp's reach keeps its soft
+  shadow instead of briefly losing it; after the graphics context is lost and restored there is no brief dark cone.
+- Realistic lighting (test): a guard's torch through glass is no longer about 3x too bright.
+- Co-op: "Resume hosting" runs the same lamp falloff the dropped match ran.
+
+### Stealth pays: interrogation door codes
+- Interrogation door codes now open Course gates and Sector Ops keypads. Course: the code is set as a course flag, so a gate
+  that lists it in `externalFlags` opens (stealth-pays S1). Sector Ops: a guard's slot `info` is copied onto him at spawn and
+  the code is held by the team for that section, opening the matching keypad (dropped by the section's restart; S2). Play is
+  unchanged until map owners author guard `info` codes.
+
 ## 4.81.0 - Train 32: Marlow Yard final and section rating; guard body GPU skinning after recovery; release speed-ups and automatic trains (scheduled task not yet registered); faster agent tests (2026-10-23, PR #253; #244, #246, #250, #248)
 
 ### Agent CPU: cached vitest transforms and incremental typecheck
