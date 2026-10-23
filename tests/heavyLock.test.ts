@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  checkLock, formatLock, isStale, lockHasLabel, parseArgs, parseLock, pidAlive, releaseLock, takeLockText, tryTake,
+  checkLock, formatLock, isStale, lockHasLabel, parseArgs, parseLock, pidAlive, releaseLock, staleName, takeLockText, takeTouchLock, tryTake,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/heavy-lock.mjs';
 
@@ -53,13 +53,23 @@ describe('heavy-lock take, release, check', () => {
     expect(fs.readFileSync(lock, 'utf8')).toBe('Marlow Build | marlow-final | 18:48');
   }));
 
-  it('breaks a stale lock: logs, renames it to .stale, creates its own', () => withDir((lock) => {
+  it('breaks a stale lock: logs, renames it to a unique <lock>.stale.<pid>, creates its own, removes the renamed file', () => withDir((lock) => {
     fs.writeFileSync(lock, 'old | t | pid 77 | host desk');
     const logs: string[] = [];
+    expect(staleName(lock, 123)).toBe(`${lock}.stale.123`);
+    expect(staleName(lock)).toBe(`${lock}.stale.${process.pid}`);
     expect(tryTake(lock, 'new | t | pid 1 | host desk', { host: HOST, alive: () => false, log: (m: string) => logs.push(m) }).taken).toBe(true);
     expect(fs.readFileSync(lock, 'utf8')).toBe('new | t | pid 1 | host desk');
-    expect(fs.readFileSync(`${lock}.stale`, 'utf8')).toBe('old | t | pid 77 | host desk');
+    expect(fs.existsSync(`${lock}.stale`)).toBe(false);
+    expect(fs.existsSync(staleName(lock))).toBe(false);
     expect(logs[0]).toMatch(/stale.*pid 77/);
+  }));
+
+  it('a fixed .stale file left by an old breaker does not block a break', () => withDir((lock) => {
+    fs.writeFileSync(`${lock}.stale`, 'leftover');
+    fs.writeFileSync(lock, 'old | t | pid 77 | host desk');
+    expect(tryTake(lock, 'new', { host: HOST, alive: () => false, log: quiet }).taken).toBe(true);
+    expect(fs.readFileSync(lock, 'utf8')).toBe('new');
   }));
 
   it('a lock from another host is not broken', () => withDir((lock) => {
@@ -113,4 +123,35 @@ describe('heavy-lock parseArgs', () => {
     expect(() => parseArgs(['check', 'l', 'extra'], env)).toThrow(/unexpected argument/);
     expect(() => parseArgs(['take', 'l', 'S', '--force'], env)).toThrow(/usage:/);
   });
+});
+
+describe('touch lock (auto-train tick lock, shared with merge-train)', () => {
+  it('takes with wx, refuses while fresh, releases only its own text', () => withDir((lock) => {
+    const a = takeTouchLock(lock, 'auto-train', { pid: 11, beatMs: 0, log: quiet });
+    expect(a.release).toBeTypeOf('function');
+    expect(fs.readFileSync(lock, 'utf8')).toMatch(/^auto-train \| pid 11 \| \d{4}-/);
+    const b = takeTouchLock(lock, 'merge-train build', { pid: 12, beatMs: 0, log: quiet });
+    expect(b.release).toBeNull();
+    expect(b.holder).toMatch(/^auto-train \| pid 11/);
+    fs.writeFileSync(lock, 'someone else');
+    a.release();
+    expect(fs.readFileSync(lock, 'utf8')).toBe('someone else');
+    fs.rmSync(lock);
+    const c = takeTouchLock(lock, 'auto-train', { pid: 13, beatMs: 0, log: quiet });
+    c.release();
+    expect(fs.existsSync(lock)).toBe(false);
+  }));
+
+  it('replaces a lock untouched for staleMin minutes', () => withDir((lock) => {
+    fs.writeFileSync(lock, 'auto-train | pid 9 | old');
+    const old = new Date(Date.now() - 31 * 60_000);
+    fs.utimesSync(lock, old, old);
+    const logs: string[] = [];
+    const t = takeTouchLock(lock, 'merge-train release', { pid: 5, beatMs: 0, log: (m: string) => logs.push(m) });
+    expect(t.release).toBeTypeOf('function');
+    expect(fs.readFileSync(lock, 'utf8')).toMatch(/^merge-train release \| pid 5 \|/);
+    expect(logs[0]).toMatch(/stale lock \(31 min/);
+    t.release();
+    expect(fs.existsSync(lock)).toBe(false);
+  }));
 });

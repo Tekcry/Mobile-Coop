@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  bumpProtocol, classifyConflicts, closeComment, findTrainVersionCommit, findVersionCommit, keepStopMessage, killTreeCmd, lockfilesDiffer,
+  bumpProtocol, classifyConflicts, closeComment, cmpVersion, findTrainVersionCommit, headPinCheck, heldByParent, mergeCmd, trainLockPath, versionRace,
+  findVersionCommit, keepStopMessage, killTreeCmd, lockfilesDiffer,
   lockIsOurs, wireCandidates, membersFromLog, parseArgs, protocolValue, releaseHeavyLock,
   resolveKeepBoth, resumeCheck, tailLines, takeHeavyLock, touchesWire, trainPrBody, trainPrTitle, versionSubject, vitestVerdict, wirePaths,
   // @ts-expect-error plain .mjs process script without types
@@ -262,10 +263,21 @@ describe('merge-train parseArgs', () => {
 
   it('release: number, version, title, --resume, --dry-run', () => {
     expect(parseArgs(['release', '31', '4.80.0', 'Lamps'])).toEqual({
-      cmd: 'release', n: '31', version: '4.80.0', title: 'Lamps', resume: false, dry: false });
+      cmd: 'release', n: '31', version: '4.80.0', title: 'Lamps', resume: false, head: null, noFallback: false, dry: false });
     const r = parseArgs(['release', '31', '4.80.0', 'Lamps', '--resume', '--dry-run']);
     expect([r.resume, r.dry]).toEqual([true, true]);
     expect(parseArgs(['--resume', 'release', '31', '4.80.0', 'Lamps']).resume).toBe(true);
+  });
+
+  it('release: --head <sha> and --no-fallback', () => {
+    const sha = 'ABCDEF0123456789abcdef0123456789abcdef01';
+    const r = parseArgs(['release', '31', '4.80.0', 'Lamps', '--head', sha, '--no-fallback', '--resume']);
+    expect([r.head, r.noFallback, r.resume, r.title]).toEqual([sha.toLowerCase(), true, true, 'Lamps']);
+    expect(parseArgs(['release', '--head', 'abc1234', '31', '4.80.0', 'Lamps']).head).toBe('abc1234');
+    expect(() => parseArgs(['release', '31', '4.80.0', 'Lamps', '--head'])).toThrow(/--head needs a commit sha/);
+    expect(() => parseArgs(['release', '31', '4.80.0', 'Lamps', '--head', 'Lamps2'])).toThrow(/--head needs a commit sha/);
+    expect(() => parseArgs(['build', '31', '4.80.0', 'Lamps', 'a', '--head', 'abc1234'])).toThrow(/--head does not apply/);
+    expect(() => parseArgs(['single', 'a', '4.80.1', 'Fix', '--no-fallback'])).toThrow(/--no-fallback does not apply/);
   });
 
   it('release: rejects missing title, extra argument, --keep, --no-test', () => {
@@ -287,5 +299,42 @@ describe('merge-train parseArgs', () => {
     expect(() => parseArgs(['merge', '1'])).toThrow(/unknown command/);
     expect(() => parseArgs(['release', '31', '4.80.0', 'Lamps', '--force'])).toThrow(/unknown flag/);
     expect(() => parseArgs(['release', '31', '4.80.0', 'Lamps', '--force'])).toThrow(/usage:/);
+  });
+});
+
+describe('merge-train release pin, version race, train lock', () => {
+  const head = '0123456789abcdef0123456789abcdef01234567';
+
+  it('headPinCheck: STOP unless origin/train/<n> is the tested sha (full or short)', () => {
+    expect(headPinCheck(head, null, 'train/31')).toBeNull();
+    expect(headPinCheck(head, head, 'train/31')).toBeNull();
+    expect(headPinCheck(head, '0123456', 'train/31')).toBeNull();
+    expect(headPinCheck(head, 'fedcba9876543210', 'train/31')).toMatch(/^STOP: origin\/train\/31 is 01234567, not the tested head fedcba98: nothing merged$/);
+  });
+
+  it('mergeCmd always pins the merge with --match-head-commit', () => {
+    expect(mergeCmd(244, head)).toEqual(['gh', 'pr', 'merge', '244', '--merge', '--match-head-commit', head]);
+    expect(mergeCmd(null, null)).toEqual(['gh', 'pr', 'merge', 'NEW', '--merge', '--match-head-commit', '<tested head>']);
+  });
+
+  it('cmpVersion and versionRace: the version must be above master', () => {
+    expect(cmpVersion('4.80.0', '4.79.9')).toBe(1);
+    expect(cmpVersion('4.80.0', '4.80.0')).toBe(0);
+    expect(cmpVersion('4.9.0', '4.10.0')).toBe(-1);
+    expect(versionRace('4.81.0', '4.80.0')).toBeNull();
+    expect(versionRace('4.80.0', '4.80.0')).toMatch(/STOP: version 4.80.0 is not above master's package.json 4.80.0/);
+    expect(versionRace('4.9.0', '4.10.0')).toMatch(/^STOP/);
+  });
+
+  it('trainLockPath and heldByParent: the auto-train tick lock, skipped only under the tick that holds it', () => {
+    expect(trainLockPath({})).toBe(path.join('C:/NightShift/scratch', 'auto-train.lock'));
+    expect(trainLockPath({ AUTO_TRAIN_SCRATCH: 'D:/s' })).toBe(path.join('D:/s', 'auto-train.lock'));
+    expect(trainLockPath({ AUTO_TRAIN_LOCK: 'X:/a.lock', AUTO_TRAIN_SCRATCH: 'D:/s' })).toBe('X:/a.lock');
+    const t = 'auto-train | pid 5 | 2026-10-23T09:00:00.000Z';
+    expect(heldByParent(t, t)).toBe(true);
+    expect(heldByParent(`${t}\n`, t)).toBe(true);
+    expect(heldByParent(t, '')).toBe(false);
+    expect(heldByParent(null, t)).toBe(false);
+    expect(heldByParent('merge-train build | pid 7 | x', t)).toBe(false);
   });
 });

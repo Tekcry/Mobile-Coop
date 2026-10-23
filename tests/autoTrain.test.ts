@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   bumpVersion, ciState, contextStatus, decide, docsOnly, fragmentInfo, fragmentPath, joinTitles, laptopQueueState, membersFromSubjects,
-  nextTrainNumber, pacing, parseChangelogHeading, parseLeftOut, parseTrainTitle, planBuild, releaseKind, stackedTips, versionFromSubjects,
+  nextTrainNumber, pacing, parseChangelogHeading, parseLeftOut, parseTrainTitle, planBuild, rebuildSkip, releaseArgs, releaseKind, scratchFiles,
+  stackedTips, versionFromSubjects,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/auto-train.mjs';
 
@@ -160,7 +161,7 @@ describe('auto-train: pacing', () => {
 
 describe('auto-train: decision', () => {
   const train = (o: Record<string, unknown> = {}) => ({ n: 31, head: 'abcdef1234', version: '4.80.0', ci: 'success',
-    laptop: { state: 'success', description: '39/39' }, vitest: 'missing', ageMin: 30, ...o });
+    laptop: { state: 'success', description: '39/39' }, vitest: 'missing', ageMin: 30, versionCommit: true, ...o });
   const pr = (branch: string) => ({ pr: 1, branch, head: 'x' });
 
   it('releases when CI and the laptop are both green', () => {
@@ -182,10 +183,47 @@ describe('auto-train: decision', () => {
     expect(decide({ train: train({ version: null }) }).state).toBe('error');
   });
 
+  it('never releases a train without a version commit (build died before it): error, rebuild', () => {
+    expect(decide({ train: train({ versionCommit: false }) })).toEqual({ state: 'error', action: 'none', reason: 'train 31 has no version commit: rebuild' });
+    expect(decide({ train: train({ versionCommit: undefined }) })).toMatchObject({ state: 'error', action: 'none' });
+  });
+
   it('with no train: idle, waiting on pacing, or build', () => {
     expect(decide({ train: null, candidates: [] }).state).toBe('idle');
     expect(decide({ train: null, candidates: [{ pr: null, branch: 'feature/menu' }] }).state).toBe('idle');
     expect(decide({ train: null, candidates: [pr('feature/a')], paceReason: 'last release 5 min ago' })).toMatchObject({ state: 'waiting', action: 'none' });
     expect(decide({ train: null, candidates: [pr('feature/a'), { pr: null, branch: 'feature/menu' }] })).toMatchObject({ state: 'building', action: 'build' });
+  });
+});
+
+describe('auto-train: release pin, rebuild loop guard, dry-run files', () => {
+  const head = '0123456789abcdef0123456789abcdef01234567';
+
+  it('release is pinned to the tested head and never takes the old-style fallback', () => {
+    expect(releaseArgs({ n: 31, version: '4.80.0', title: 'Lamps', head, resume: false }))
+      .toEqual(['release', '31', '4.80.0', 'Lamps', '--head', head, '--no-fallback']);
+    expect(releaseArgs({ n: 31, version: '4.80.0', title: 'Lamps', head, resume: true }).slice(-1)).toEqual(['--resume']);
+  });
+
+  it('rebuildSkip: skips only while the train head and master are both unchanged', () => {
+    const prev = { state: 'failed', reason: `rebuild failed for ${head}: x`, rebuildFailed: { head, master: 'm1' } };
+    expect(rebuildSkip(prev, head, 'm1')).toBe(true);
+    expect(rebuildSkip(prev, head, 'm2')).toBe(false);
+    expect(rebuildSkip(prev, 'other', 'm1')).toBe(false);
+    expect(rebuildSkip(prev, head, null)).toBe(false);
+    expect(rebuildSkip({ state: 'pending' }, head, 'm1')).toBe(false);
+    expect(rebuildSkip(null, head, 'm1')).toBe(false);
+  });
+
+  it('a dry run gets its own lock, log and status files', () => {
+    const real = scratchFiles('S', false), dry = scratchFiles('S', true);
+    expect(real.lock).toMatch(/auto-train\.lock$/);
+    expect(real.status).toMatch(/auto-train-status\.json$/);
+    expect(real.log).toMatch(/auto-train\.log$/);
+    expect(dry.lock).toMatch(/auto-train\.dryrun\.lock$/);
+    expect(dry.status).toMatch(/auto-train-status\.dryrun\.json$/);
+    expect(dry.log).toMatch(/auto-train\.dryrun\.log$/);
+    expect(dry.realStatus).toBe(real.status);
+    expect(new Set([real.lock, real.log, real.status, dry.lock, dry.log, dry.status]).size).toBe(6);
   });
 });
