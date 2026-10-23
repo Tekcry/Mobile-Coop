@@ -65,6 +65,15 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Co-op guard torches (coop-torches): on a dark map, when a guard searching in the dark switches his flashlight on,
   the joiner sees the same beam from his head, aimed where he faces, and it goes off when the host's does; standing in
   it raises the joiner's light meter as it raises the host's.
+- [ ] Search after combat (guard-ai S25): get seen, break contact and crouch in a dark corner or behind cover a few
+  metres from where you were seen: the first searcher comes to it and looks into it. Hide farther, in light or behind
+  a wall: they search the near dark spots first; a body or a device search still walks its ring.
+- [ ] Heard in a search (guard-ai S26): get seen, break contact, then run (standing) behind a searching guard in the
+  dark: he turns and comes to where you were, looks round there, then carries on searching. Crouch-walk past him
+  instead: he does not. In a fight out of his sight, run a few metres to his side: he turns to where he heard you.
+- [ ] Co-op two intruders (guard-ai S24): split up and get seen apart (host in one room, joiner in another): each
+  fight stays on its own player (the guards who saw the host hunt the host's last seen spot, the joiner's hunt his);
+  out of sight, nobody walks to where a player really is without having seen or heard him. Solo is unchanged.
 - [ ] Co-op guard AI (guard-ai S9): on the joiner, guards' lines and radio calls show as on the host; a cautious guard
   carries his weapon at low ready on both screens; after an alarm stage 2 / 3 the joiner sees the vests and helmets and
   a response team's shield; the joiner's headshot on a helmeted guard pings as a deflect and the helmet falls on both.
@@ -180,6 +189,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Guard tactics (guard-ai S8): get spotted by 4 guards and break line of sight: the caller drops back into cover,
   one moves up cover to cover ("Moving up!"), one covers from cover ("Covering!"), one goes round the side
   ("Flanking!"); never more than one of them moving up at once, nobody runs at you in the open.
+- [ ] Guard cover and fire (guard-ai S27, Sector Ops): break sight on a group of 3-4: nobody stands upright and still in
+  the open (they crouch, then take cover within ~3 s); the covering guard fires at your last spot only where he has a
+  clear line (no rounds into a wall); the caller throws no grenade while he is on the radio. Trip a camera or a laser:
+  every guard in the section draws his gun and none holsters while the alarm stage holds.
 - [ ] Helmets and armour (guard-ai S12; once a section has `gear`, or set one with `e.setGear` in the console): shoot a
   helmeted guard in the head: steel-blue hit marker and a ping, the helmet falls to the floor and stays, he reels and
   comes up shooting; a second head shot kills. An armoured guard shrugs off chest rounds (a short stagger, not every

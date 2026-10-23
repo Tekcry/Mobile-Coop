@@ -3,6 +3,7 @@ import { Enemy, type PlayerRef } from '../src/ai/enemy';
 import { instantDetect, losClear, sightRate, type SightInput } from '../src/ai/perception';
 import { smellRate } from '../src/ai/archetypes';
 import { mayBeSeen, TARGETS } from '../src/ai/targetPick';
+import { INTRUDERS } from '../src/ai/intruders';
 import { wrapAngle } from '../src/player/playerController';
 import { Vector3 } from '../src/core/babylon';
 import { hyp2 } from '../src/core/mathx';
@@ -308,5 +309,64 @@ describe('guard-ai S23: every player is seen', () => {
     hot.p.perceive();
     expect(hot.ray).toHaveBeenCalledTimes(2);
     expect(hot.p.los).toBe(true);
+  });
+});
+
+// (guard-ai S24, A148, G139) An alerted guard out of sight goes where he knows his intruder to be: his intruder's last
+// known position; with none, his own last sighting (else his stimulus); never the player's real feet.
+describe('guard-ai S24: no walk to the real feet', () => {
+  type Known = { knownSpot(t: PlayerRef): Vector3; faceTarget(): number; hunt: number; sawOnce: boolean; knownV: Vector3 };
+  function hunter(pls: Pl[], lkp: Vector3 | null) {
+    const g = guard(pls, { alerted: true });
+    Object.assign(g.ctx, { stealth: () => true, lkpOf: vi.fn((s: number) => (s === 1 ? lkp : null)), intruderId: (s: number) => (s === 1 ? 'b' : '') });
+    Object.assign(g.e, { hunt: 1, sawOnce: false, knownV: new Vector3() });
+    return { ...g, k: g.e as unknown as Known };
+  }
+
+  it('alerted, no line, no valid slot for his hunt: his own lastKnown, not the feet; noFeet false: the old feet', () => {
+    const B = player('b', 4, 12, { hidden: true });
+    const { p, k } = hunter([B], null);
+    p.target = B.ref;
+    // he saw him once at (2, 1.25, 5) (the aim point): he goes there, at floor height
+    k.sawOnce = true;
+    p.lastKnown.set(2, 1.25, 5);
+    const at = k.knownSpot(B.ref);
+    expect([at.x, at.z]).toEqual([2, 5]);
+    expect(at).not.toBe(B.ref.feet);
+    expect(k.faceTarget()).toBeCloseTo(Math.atan2(2, 5), 9);
+    // never saw anyone: what drew him (his stimulus), else where he stands (his own facing)
+    k.sawOnce = false;
+    Object.assign(p, { hasStimulus: true, stimulus: [-3, 7] });
+    expect([k.knownSpot(B.ref).x, k.knownSpot(B.ref).z]).toEqual([-3, 7]);
+    Object.assign(p, { hasStimulus: false });
+    expect([k.knownSpot(B.ref).x, k.knownSpot(B.ref).z]).toEqual([0, 0]);
+    (p as unknown as { yaw: number }).yaw = 0.4;
+    expect(k.faceTarget()).toBe(0.4);
+    // the undo (A148): the old feet
+    (INTRUDERS as { noFeet: boolean }).noFeet = false;
+    try {
+      expect(k.knownSpot(B.ref)).toBe(B.ref.feet);
+    } finally {
+      (INTRUDERS as { noFeet: boolean }).noFeet = true;
+    }
+  });
+
+  it("his intruder's last known position when it is valid (noFeet or not)", () => {
+    const B = player('b', 4, 12, { hidden: true });
+    const lkp = new Vector3(6, 0, 8);
+    const { k } = hunter([B], lkp);
+    expect(k.knownSpot(B.ref)).toBe(lkp);
+    k.hunt = -1;
+    k.sawOnce = true;
+    expect(k.knownSpot(B.ref)).not.toBe(lkp);
+  });
+
+  it("alerted, no line to either player: the target is his intruder's player (pickTarget's hunt), not the nearer one", () => {
+    const A = player('a', 1, 3, { hidden: true });
+    const B = player('b', 0, 14, { hidden: true });
+    const { p } = hunter([A, B], new Vector3(0, 0, 14));
+    p.perceive();
+    expect(p.target).toBe(B.ref);
+    expect(p.los).toBe(false);
   });
 });

@@ -136,4 +136,60 @@ export class CoverGrid {
     }
     return k;
   }
+
+  /**
+   * (guard-ai S25b fix, check B1) The up to `min(out.length, d2.length)` NEAREST points within `r` (XZ, inclusive) of
+   * (x, z) into `out`; returns the count. Unlike `query`, a full `out` never drops one side of the disk: a max-heap on
+   * the squared distance (`d2`, the caller's scratch) keeps the nearest. The order in `out` is the heap's (not sorted);
+   * ties keep the point met first (cells row by row). No allocation.
+   */
+  queryNearest(x: number, z: number, r: number, out: Int32Array, d2: Float64Array): number {
+    const cell = this.cell;
+    const c0 = Math.max(0, Math.floor((x - r - this.minX) / cell));
+    const c1 = Math.min(this.cols - 1, Math.floor((x + r - this.minX) / cell));
+    const r0 = Math.max(0, Math.floor((z - r - this.minZ) / cell));
+    const r1 = Math.min(this.rows - 1, Math.floor((z + r - this.minZ) / cell));
+    const r2 = r * r;
+    const cap = Math.min(out.length, d2.length);
+    if (cap <= 0) return 0;
+    let k = 0;
+    for (let row = r0; row <= r1; row++) {
+      for (let col = c0; col <= c1; col++) {
+        for (let i = this.heads[row * this.cols + col]!; i >= 0; i = this.next[i]!) {
+          const dx = this.px[i]! - x;
+          const dz = this.pz[i]! - z;
+          const dd = dx * dx + dz * dz;
+          if (dd > r2) continue;
+          if (k < cap) {
+            // room: sift up
+            let j = k++;
+            while (j > 0) {
+              const p = (j - 1) >> 1;
+              if (d2[p]! >= dd) break;
+              out[j] = out[p]!;
+              d2[j] = d2[p]!;
+              j = p;
+            }
+            out[j] = i;
+            d2[j] = dd;
+          } else if (dd < d2[0]!) {
+            // full: nearer than the farthest kept, which goes; sift down
+            let j = 0;
+            for (;;) {
+              let c = 2 * j + 1;
+              if (c >= cap) break;
+              if (c + 1 < cap && d2[c + 1]! > d2[c]!) c++;
+              if (d2[c]! <= dd) break;
+              out[j] = out[c]!;
+              d2[j] = d2[c]!;
+              j = c;
+            }
+            out[j] = i;
+            d2[j] = dd;
+          }
+        }
+      }
+    }
+    return k;
+  }
 }

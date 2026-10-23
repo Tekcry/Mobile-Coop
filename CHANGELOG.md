@@ -1,5 +1,49 @@
 # Changelog
 
+## 4.86.0 - Train 43: e2e-ctcourse A3: calm wait after the step-4 send-back (pairs with #254 S23); Guard AI: guards hear you in a fight and a search; Guard AI: cover, clear lines and the alarm draw; +2 more (2026-10-24, PR #289; #271, #270, #264)
+
+### Guard AI: two intruders
+- Co-op: guards keep one last known position per player. When you split up and are seen apart, the guards who saw
+  the host keep hunting the host's last seen spot and the ones who saw (or were told of) the partner hunt his; a new
+  sighting of one player no longer turns every hunter round. Each fight has its own reporter, point, overwatch and
+  flank, and two fights never take the same cover.
+- A radio contact call or a shout tells the section only of the player the caller saw; a shot locates its shooter.
+  Reinforcements hunt the player of the guard who raised the alarm. The host's last-known-position ghost shows only
+  the host's own spot.
+- Solo and co-op: an alerted guard who has no last known position for his player goes to where he last saw someone
+  (or what drew him), never to the player's real position. Otherwise solo is unchanged. Host only: no protocol or save
+  change.
+- Guards called in by a squadmate who had not seen anyone (shot from the dark) close on the player once any of them sees him: that first sighting is radioed again, naming him.
+- A guard sent in already alerted (parked modes' reinforcements, scripted spawns) now hunts what his squad already
+  knows of the players, instead of standing at his spawn.
+
+### Guard AI: search where a player could be
+- After a fight, the searchers check where you could have gone in the time since they last saw you: dark corners and
+  cover near your last seen spot, by the way you could walk there, best first, one searcher per spot. A spot behind a
+  wall is as far as the way round; lit open floor is left for later. When those run out they sweep round your last
+  seen spot as before. A search for a body, a device, a radio call or a noise is unchanged. Host only: no protocol or
+  save change.
+
+### Guard AI: guards hear you in a fight and a search
+- Once a guard is searching or fighting he still listens. Run, land, roll, rattle a fence or fire a suppressed shot
+  within his hearing (walls and nearby machinery still muffle it) and a searcher turns and walks to where he heard you
+  ("I heard something."), looks round, then goes on searching; a guard in combat who cannot see you turns his hunt to
+  the noise, and the search after it starts from there. Crouch-walking stays silent. A bottle or noise maker still pulls
+  searchers but never a guard in a fight. In co-op a noise only gives away the player who made it. Host only: no
+  protocol or save change.
+
+### Guard AI: cover, clear lines and the alarm draw
+- Guards working together no longer stand upright and still in the open when they lose sight of you: they crouch while
+  they wait for the group and take the nearest cover within about 3 s (with no cover near, they stay crouched).
+- The covering guard's suppressive fire at your last known spot now needs a clear line from his gun: no more bursts
+  into a wall. Suppressing no longer moves where he thinks you are.
+- The guard calling in the contact throws no grenade and starts no flank while his call is open; caught in the open he
+  still fires back.
+- After any alarm stage (Sector Ops: a panel, a camera or a laser) every guard of the section keeps his gun drawn; a
+  restart from a checkpoint before the alarm holsters them again after the calm time.
+- Closes guard-ai S8 checker polish items 3, 5 and 7 and walk checker polish item 4. Host only: no protocol or save
+  change.
+
 ## 4.85.0 - Train 42: Changelog fragment check in CI; anim-fix-pass before numbers: written only on request; e2e-ctcourse A8 relock wait; Co-op rejoin follow-ups; +5 more (2026-10-24, PR #288; #286, #285, #284, #282, #280, #254, #252)
 
 ### e2e-ctcourse A8 relock wait
