@@ -125,6 +125,30 @@ describe('gearMask', () => {
     expect(out[11]).toBe(0); // hidden stays hidden whatever the heat
   });
 
+  it('a head variant swap and a hair cap toggle change only those pieces\' vertices', () => {
+    const { piece, tint } = mesh();
+    const out = new Uint8Array(piece.length * 4);
+    const alphaOf = (id: string): number[] => {
+      const p = PIECES.indexOf(id as (typeof PIECES)[number]);
+      return [out[p * 2 * 4 + 3]!, out[(p * 2 + 1) * 4 + 3]!];
+    };
+    gearMask(PIECES, piece, tint, ['average-1', 'buzz', 'cap'], 3, TINTS, out);
+    expect([alphaOf('average-1'), alphaOf('average-2'), alphaOf('buzz'), alphaOf('cap')]).toEqual([[255, 255], [0, 0], [255, 255], [255, 255]]);
+    const before = out.slice();
+    // head 1 -> 2, hair cap off (a helmet or a beanie hides it, A5): exactly those vertices change
+    expect(gearMask(PIECES, piece, tint, ['average-2', 'cap'], 2, TINTS, out)).toBe(true);
+    for (let i = 0; i < out.length; i++) {
+      const v = i >> 2;
+      const p = PIECES[piece[v]!]!;
+      if ((i & 3) === 3 && (p === 'average-1' || p === 'average-2' || p === 'buzz')) expect(out[i], `alpha of ${p}`).toBe(p === 'average-2' ? 255 : 0);
+      else expect(out[i], `byte ${i}`).toBe(before[i]);
+    }
+    // nothing named for the head: no head vertex is visible (the body piece alone is forced on)
+    gearMask(PIECES, piece, tint, [], 0, TINTS, out);
+    for (const h of ['average-1', 'average-2']) expect(alphaOf(h)).toEqual([0, 0]);
+    expect(alphaOf('average')).toEqual([255, 255]);
+  });
+
   it('an out-of-range tint slot falls back to slot 0', () => {
     const piece = new Uint8Array([0]);
     const tint = new Uint8Array([9]);

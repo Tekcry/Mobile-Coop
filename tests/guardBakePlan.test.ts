@@ -49,7 +49,7 @@ describe('guard bake plan: stage graph', () => {
     expect(STAGES.map((s) => s.name)).toEqual(['prep', 'bodies', 'heads', 'garments', 'gear', 'lods', 'check', 'sheet']);
     const deps = Object.fromEntries(STAGES.map((s) => [s.name, s.deps]));
     expect(deps).toEqual({
-      prep: [], bodies: ['prep'], heads: [], garments: ['bodies'], gear: ['bodies'], lods: ['bodies', 'heads', 'garments', 'gear'], check: ['lods'], sheet: ['check'],
+      prep: [], bodies: ['prep'], heads: ['prep'], garments: ['bodies'], gear: ['bodies', 'heads'], lods: ['bodies', 'heads', 'garments', 'gear'], check: ['lods'], sheet: ['check'],
     });
     const seen = new Set<string>();
     for (const s of STAGES) { for (const d of s.deps) expect(seen.has(d)).toBe(true); seen.add(s.name); }
@@ -58,7 +58,8 @@ describe('guard bake plan: stage graph', () => {
   it('stagesBefore gives the transitive deps in run order', () => {
     expect(plan.stagesBefore('prep')).toEqual([]);
     expect(plan.stagesBefore('bodies')).toEqual(['prep']);
-    expect(plan.stagesBefore('heads')).toEqual([]);
+    expect(plan.stagesBefore('heads')).toEqual(['prep']);
+    expect(plan.stagesBefore('gear')).toEqual(['prep', 'bodies', 'heads']);
     expect(plan.stagesBefore('garments')).toEqual(['prep', 'bodies']);
     expect(plan.stagesBefore('check')).toEqual(['prep', 'bodies', 'heads', 'garments', 'gear', 'lods']);
     expect(plan.stagesBefore('sheet')).toEqual(['prep', 'bodies', 'heads', 'garments', 'gear', 'lods', 'check']);
@@ -129,9 +130,12 @@ describe('guard bake plan: job split', () => {
     expect(jobsFor('lods', kit).find((j) => j.id === 'lods-shield_riot')?.needs[0]).toBe('gear-shield_riot');
     expect(jobsFor('check', kit).find((j) => j.id === 'check-lean')?.needs).toEqual(['lods-lean']);
     expect(jobsFor('sheet', kit)[0]?.needs).toHaveLength(4);
-    expect(jobsFor('heads', kit).every((j) => j.needs.length === 0)).toBe(true);
-    // per-base gear fits its base's body (G3 gear/fit.py load_body): a rebuilt body rebakes it; the shield needs nothing
-    for (const j of jobsFor('gear', kit)) expect(j.needs).toEqual(j.tags.length === 2 ? [`bodies-${j.tags[0]}`] : []);
+    expect(jobsFor('heads', kit).every((j) => j.needs.join() === 'prep')).toBe(true);
+    // per-base gear fits its base's body (G3 gear/fit.py load_body): a rebuilt body rebakes it; the shield is built on
+    // broad's body (gear/pieces.py SHIELD_BASE; a kit without kinds falls back to it)
+    for (const j of jobsFor('gear', kit)) expect(j.needs).toEqual(j.tags.length === 2 ? [`bodies-${j.tags[0]}`] : ['bodies-broad']);
+    expect(jobsFor('gear', realKit).find((j) => j.id === 'gear-shield_riot')?.needs).toEqual(['bodies-broad']);
+    expect(jobsFor('gear', realKit).find((j) => j.id === 'gear-shield_riot')?.inputs).toContain('bodies-broad');
     expect(jobsFor('bodies', kit).every((j) => j.needs.join() === 'prep')).toBe(true);
   });
 
@@ -148,6 +152,16 @@ describe('guard bake plan: job split', () => {
     const fb = hashesFor([b!]);
     expect(inputHash(b!, fb, { prep: 'p1' })).not.toBe(inputHash(b!, fb, { prep: 'p2' }));
     expect(b?.files).toContain('scripts/operators/py/guard_body.py');
+    // the prep hash takes only what the joints read per base (id, refHeight, build): mounts, kinds, face tiles do not
+    const rk = JSON.parse(JSON.stringify(realKit)) as { bases: Record<string, unknown>[] };
+    const [rp] = jobsFor('prep', rk);
+    expect(rp?.kit).toEqual({ bases: rk.bases.map((x) => ({ id: x.id, refHeight: x.refHeight, build: x.build })) });
+    const fr = hashesFor([rp!]);
+    rk.bases[0]!.mounts = { pistolHolster: [0.1, 0, 0] };
+    rk.bases[0]!.faceTiles = ['x'];
+    expect(inputHash(jobsFor('prep', rk)[0]!, fr)).toBe(inputHash(rp!, fr));
+    rk.bases[0]!.refHeight = 1.8;
+    expect(inputHash(jobsFor('prep', rk)[0]!, fr)).not.toBe(inputHash(rp!, fr));
   });
 
   it('marks only the Cycles stages gpuBound: heads, lods, sheet', () => {
@@ -390,7 +404,7 @@ describe('guard bake plan: the real guards.json', () => {
       expect(j.script).toBe('build_head.py');
       expect(j.args).toEqual(['--stage', 'heads', '--job', j.id, '--haircaps', '--base', j.tags[0]]);
       expect(j.gpuBound).toBe(true);
-      expect(j.needs).toEqual([]);
+      expect(j.needs).toEqual(['prep']);
     }
   });
 
@@ -409,6 +423,63 @@ describe('guard bake plan: the real guards.json', () => {
     expect(jobsFor('lods', kit).find((j) => j.id === 'lods-average')?.needs).toContain('haircaps-average');
     expect(jobsFor('lods', kit).find((j) => j.id === 'lods-broad')?.needs.some((n) => n.startsWith('haircaps-'))).toBe(false);
     expect(jobsFor('lods', kit).find((j) => j.id === 'lods-shield_riot')?.needs).toEqual(['gear-shield_riot', 'bodies-broad']); // G4: skinned on the enforcer's rig
+  });
+});
+
+describe('guard bake plan: heads on G1\'s fit (G1h fix round)', () => {
+  const kit = realKit as unknown as { bases: { id: string; macro: Record<string, number>; refHeight: number }[]; pieces: { id: string; fit?: string }[] };
+  const heads = () => jobsFor('heads', kit);
+  const byId = (jobs: Job[], id: string) => jobs.find((j) => j.id === id) as Job;
+
+  it('heads and hair caps need prep, hash guard_body.py and guard_skin.py, and carry their base entry', () => {
+    for (const j of heads()) {
+      expect(j.needs).toEqual(['prep']);
+      expect(j.files).toEqual(expect.arrayContaining(['scripts/operators/py/guard_body.py', 'scripts/operators/py/guard_skin.py']));
+      const k = j.kit as { base: { id: string; macro: unknown; refHeight: number } };
+      expect(k.base.id).toBe(j.tags[j.tags.includes('haircaps') ? 0 : 1]);
+      expect(k.base.macro).toBeDefined();
+      expect(k.base.refHeight).toBeGreaterThan(1.7);
+    }
+    const caps = byId(heads(), 'haircaps-lean').kit as { entry: { heads: { id: string }[] } };
+    expect(caps.entry.heads.map((h) => h.id)).toEqual(['lean-1', 'lean-2', 'lean-3', 'lean-4']);
+  });
+
+  it('a base macro change rebakes that base\'s heads and caps only; a head recipe change its own head and its base\'s caps', () => {
+    const f = hashesFor(heads());
+    const hash = (k: unknown) => Object.fromEntries(jobsFor('heads', k).map((j) => [j.id, inputHash(j, f, upstreamFor(j))]));
+    const h0 = hash(kit);
+    const k1 = structuredClone(kit);
+    (k1.bases.find((b) => b.id === 'lean') as { macro: Record<string, number> }).macro.weight = 0.4;
+    const h1 = hash(k1);
+    const changed = (h: Record<string, string>) => Object.keys(h0).filter((id) => h[id] !== h0[id]);
+    expect(changed(h1)).toEqual(['heads-lean-1', 'heads-lean-2', 'heads-lean-3', 'heads-lean-4', 'haircaps-lean']);
+    const k2 = structuredClone(realKit) as unknown as { heads: { id: string; targets: Record<string, number> }[] };
+    const t = (k2.heads.find((h) => h.id === 'average-2') as { targets: Record<string, number> }).targets;
+    t[Object.keys(t)[0] as string] = 0.123;
+    expect(changed(hash(k2))).toEqual(['heads-average-2', 'haircaps-average']);
+    expect(inputHash(byId(heads(), 'heads-lean-1'), f, { prep: 'rebuilt' })).not.toBe(h0['heads-lean-1']);
+  });
+
+  it('declares the face PNGs and the envelope + eye block on the job that writes them (= guardHeadCheck headJobOutputs)', () => {
+    const j = byId(heads(), 'heads-average-3');
+    expect(j.outputs).toEqual(['heads/guard-average-3-head.blend', 'heads/guard-average-3-head.json',
+      'heads/guard-average-3-face-albedo.png', 'heads/guard-average-3-face-normal.png', 'heads/guard-average-3-face-orm.png']);
+    expect(byId(heads(), 'heads-broad-1').outputs).toEqual(expect.arrayContaining(['heads/broad/envelope.json', 'heads/guard-broad-eyes-albedo.png']));
+    const c = byId(heads(), 'haircaps-average').outputs;
+    expect(c).toEqual(expect.arrayContaining(['heads/average/envelope.json', 'heads/guard-average-cap-sidepart-normal.png', 'heads/guard-average-eyes-orm.png']));
+    expect(c.filter((o) => o.includes('envelope'))).toEqual(['heads/average/envelope.json']);
+  });
+
+  it('gear fitted on the head envelope needs the job that writes its base\'s envelope; other gear does not', () => {
+    const fit = Object.fromEntries(kit.pieces.map((p) => [p.id, p.fit]));
+    const gear = jobsFor('gear', kit).filter((j) => j.tags.length === 2);
+    const env = { average: 'haircaps-average', lean: 'haircaps-lean', broad: 'heads-broad-1' } as Record<string, string>;
+    for (const j of gear) {
+      const [b, p] = j.tags as [string, string];
+      expect(j.needs, j.id).toEqual(fit[p] === 'headEnvelope' ? [`bodies-${b}`, env[b]] : [`bodies-${b}`]);
+    }
+    expect(byId(jobsFor('gear', kit), 'gear-broad-helmet_heavy').needs).toEqual(['bodies-broad', 'heads-broad-1']);
+    expect(gear.filter((j) => j.needs.length === 2).length).toBeGreaterThan(5);
   });
 });
 

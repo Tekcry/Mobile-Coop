@@ -40,26 +40,33 @@ export class GuardFigurePlugin extends MaterialPluginBase {
         CUSTOM_VERTEX_DEFINITIONS: `
 #ifdef GUARDFIG
 attribute vec4 gvis;
-varying vec3 vGvis;
-varying vec2 vGfx;
+varying vec4 vGfig;
 #endif`,
-        // a = 255 - (heat level x 16 + flash level), levels 0..15 (gearMask visibleAlpha); 0 = hidden
+        // a = 255 - (heat level x 16 + flash level), levels 0..15 (gearMask visibleAlpha); 0 = hidden.
+        // (G7b) ONE vec4 varying (the PBR shader sits near the varying limit on mobile GPUs): rgb the tint, w the heat
+        // level plus the flash level / 16 (the fragment splits it again: `guardFx`)
         CUSTOM_VERTEX_MAIN_END: `
 #ifdef GUARDFIG
-vGvis = gvis.rgb;
 float gFx = floor((1.0 - gvis.a) * 255.0 + 0.5);
 float gHeat = floor(gFx / 16.0);
-vGfx = vec2(gFx - gHeat * 16.0, gHeat) / 15.0;
+vGfig = vec4(gvis.rgb, gHeat + (gFx - gHeat * 16.0) / 16.0);
 gl_Position *= step(0.5 / 255.0, gvis.a);
 #endif`,
       };
     }
     if (shaderType === 'fragment') {
       return {
+        // (G7b) the packed varying split again: vGvis the tint (rgb), vGfx (flash, heat) 0..1 as before. Flash and heat
+        // are the same on every vertex of a figure, so the interpolated w is exact; the 0.5 / 16 margins absorb rounding.
         CUSTOM_FRAGMENT_DEFINITIONS: `
 #ifdef GUARDFIG
-varying vec3 vGvis;
-varying vec2 vGfx;
+varying vec4 vGfig;
+vec2 guardFx(float w) {
+  float h = floor(w + 0.5 / 16.0);
+  return vec2(floor((w - h) * 16.0 + 0.5), h) / 15.0;
+}
+#define vGvis vGfig.rgb
+#define vGfx guardFx(vGfig.w)
 #endif`,
         CUSTOM_FRAGMENT_UPDATE_ALPHA: `
 #ifdef GUARDFIG

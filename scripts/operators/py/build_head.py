@@ -17,11 +17,15 @@ block (2 x 2 iris cells, SPEC 7 `face.irises` order), fixed (A15). LOD1 / LOD2 m
 second material slot.
 Hair caps (A13): offset scalp shells over the base's shared cranium (the union of its head variants, so no variant pokes
 through), thickness tapering to ~0.4 mm at the hairline, strand normals baked into a 256 tile per cap, LOD0 / LOD1.
-Coordinates: metres, Blender frame (common.game_to_blender: Z up, the face toward -Y, the head's left on +X), the whole
-MakeHuman body uniformly scaled from its stature at the base's sliders to the base's `refHeight`, feet at z = 0.
-The body (G1) retargets its own copy of the hm08 body to the game skeleton; the head joins it by hm08 vertex index on
-the seam loop (`seam.mhIndex` in the JSON, `mh_index` attribute on every LOD0 vertex) - G4 fits the head onto the
-body's seam (or applies the body's head-bone transform, G1's report).
+Coordinates (G1h fix round, lead ruling Fix A): metres, Blender frame (common.game_to_blender: Z up, the face toward -Y,
+the head's left on +X), in G1's body frame. Each job runs G1's own fit (guard_body.GuardFit, numpy only; reads
+joints/guard-<base>.json and mpfb2/ from the prep stage) and builds the head at G1's head-part positions, so the seam
+loop is G1's `neckSeam.mhVerts` at the body's own positions (the weld is exact by hm08 index; `seam.mhIndex` in the JSON,
+`mh_index` on every LOD0 vertex). A recipe's face-target offsets go through the same skin as the body (G1's bone maps:
+fit.K and the head bone's breadth / depth scale). The analysis code (landmarks, masks, hairline) works in a
+"pseudo-MakeHuman" frame: G1's positions pulled back through the head bone's affine map (`Frame`), which for the
+head-bone vertices is G1's MakeHuman shape itself. Seam lock: no recipe moves the seam or the 2 rings above it (fading out
+over rings 3-4), so every head of a base has the same seam positions as the body.
 Faces are generated from CC0 targets, never modelled on a real person (BRIEF Limits, SPEC 11).
 """
 import json
@@ -36,8 +40,8 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(__file__))
 import common  # noqa: E402
+import guard_body as gb  # noqa: E402
 import guard_skin  # noqa: E402
-import mh  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 FILES_LIST = os.path.join(ROOT, 'scripts', 'operators', 'data', 'mpfb2-files.txt')
@@ -68,6 +72,8 @@ SRC_SUBDIV = 2           # Catmull-Clark levels of the bake source / the cap sou
 # Cranium lock (SPEC 7 "every head of a base keeps the base's cranium"): face-target offsets fade out from LOCK[0] to
 # LOCK[1] head units below the lowest hairline of any cap style, ears excepted (some face targets move the crown).
 LOCK = (-0.15, -0.05)
+# Seam lock (fix round): recipe offsets are 0 on the seam and rings 1-2 above it, fading in over rings 2..4 (edge rings)
+SEAM_LOCK = (2, 4)
 log_t0 = time.time()
 
 
@@ -89,13 +95,14 @@ def listed_files():
 
 
 def mpfb_dir(out, need):
-    """A folder holding every needed data file: MPFB2_DIR, the pipeline cache, else extracted from the pinned zip into
-    <out>/cache/mpfb2 (listed files only; written atomically so parallel jobs can share the cache)."""
+    """A folder holding every needed data file: MPFB2_DIR, the prep stage's <out>/mpfb2, the pipeline cache, else
+    extracted from the pinned zip into <out>/cache/mpfb2 (listed files only; written atomically so parallel jobs can
+    share the cache)."""
     listed = set(listed_files())
     missing = [r for r in need if r not in listed]
     if missing:
         raise SystemExit(f'not in mpfb2-files.txt (face targets come only from the pinned zip, listed): {missing[:5]}')
-    cands = [os.environ.get('MPFB2_DIR'), os.path.join(ROOT, 'build', 'operators', 'cache', 'mpfb2')]
+    cands = [os.environ.get('MPFB2_DIR'), os.path.join(out, 'mpfb2'), os.path.join(ROOT, 'build', 'operators', 'cache', 'mpfb2')]
     for c in cands:
         if c and all(os.path.exists(os.path.join(c, r)) for r in need):
             return c
@@ -125,83 +132,7 @@ def strip_targets(rel):
     return rel[len('targets/'):] if rel.startswith('targets/') else rel
 
 
-# ---------------------------------------------------------------- hm08 topology: neck seam loop and head region
-class Topo:
-    def __init__(self, body):
-        self.faces = [f for f, g in zip(body.faces, body.face_group) if g == 'body']
-        self.edge_faces = {}
-        self.vert_edges = {}
-        for fi, f in enumerate(self.faces):
-            n = len(f)
-            for k in range(n):
-                e = (min(f[k], f[(k + 1) % n]), max(f[k], f[(k + 1) % n]))
-                self.edge_faces.setdefault(e, []).append(fi)
-                self.vert_edges.setdefault(e[0], set()).add(e)
-                self.vert_edges.setdefault(e[1], set()).add(e)
-        self.verts = np.array(sorted(self.vert_edges), dtype=np.int64)
-
-    def walk_loop(self, e0, v0, limit=400):
-        """The edge loop through quads from v0 along e0 (valence-4 vertices only); None if it does not close."""
-        loop, e, v = [v0], e0, v0
-        for _ in range(limit):
-            w = e[0] if e[1] == v else e[1]
-            if w == v0:
-                return loop
-            loop.append(w)
-            fs = set(self.edge_faces[e])
-            cand = [x for x in self.vert_edges[w] if x != e and not (set(self.edge_faces[x]) & fs)]
-            if len(cand) != 1:
-                return None
-            e, v = cand[0], w
-        return None
-
-
-def neck_seam(body, co, topo, at):
-    """SPEC 7: the hm08 neck edge loop whose mean height is nearest `at` of the way from the neck joint to the head
-    joint. Loops are walked sideways from the back midline vertices. Returns the ordered hm08 vertex indices."""
-    yn = body.joint(co, 'joint-neck')[1]
-    yh = body.joint(co, 'joint-head')[1]
-    ys = yn + at * (yh - yn)
-    bv = topo.verts
-    mid = bv[np.abs(co[bv, 0]) < 1e-4]
-    back = mid[(co[mid, 2] < body.joint(co, 'joint-neck')[2] + 0.2) & (np.abs(co[mid, 1] - ys) < 0.6)]
-    best = None
-    for v in back:
-        es = sorted(topo.vert_edges[v], key=lambda e: -abs(co[e[0], 0] - co[e[1], 0]))
-        loop = topo.walk_loop(es[0], int(v))
-        if loop is None or len(loop) < 16:
-            continue
-        d = abs(co[loop, 1].mean() - ys)
-        if best is None or d < best[0]:
-            best = (d, loop)
-    if best is None:
-        raise SystemExit('neck seam: no closed edge loop found near the neck')
-    return best[1], ys
-
-
-def head_region(co, topo, seam):
-    """Faces above the seam loop: flood fill from the crown without crossing the loop's edges."""
-    n = len(seam)
-    cut = {(min(seam[i], seam[(i + 1) % n]), max(seam[i], seam[(i + 1) % n])) for i in range(n)}
-    top = int(topo.verts[np.argmax(co[topo.verts, 1])])
-    start = topo.edge_faces[next(iter(topo.vert_edges[top]))][0]
-    seen, stack = {start}, [start]
-    while stack:
-        f = topo.faces[stack.pop()]
-        for k in range(len(f)):
-            e = (min(f[k], f[(k + 1) % len(f)]), max(f[k], f[(k + 1) % len(f)]))
-            if e in cut:
-                continue
-            for g in topo.edge_faces[e]:
-                if g not in seen:
-                    seen.add(g)
-                    stack.append(g)
-    faces = [topo.faces[i] for i in sorted(seen)]
-    if len(faces) > len(topo.faces) // 2:
-        raise SystemExit('neck seam: the flood fill leaked past the loop')
-    return faces
-
-
+# ---------------------------------------------------------------- hm08 topology round the seam (G1's seam and head faces)
 def ring_distance(faces, seam):
     """Edge-ring distance of every head vertex from the seam loop (0 on the loop)."""
     adj = {}
@@ -699,18 +630,23 @@ def by_id(items, i, what):
     raise SystemExit(f'{what} "{i}" not in the kit')
 
 
-def shaped(body, base, recipe=None, lock=None):
-    """The base's macro shape plus the head recipe's face targets; `lock` (per hm08 vertex, 0..1) holds the cranium."""
-    m = base['macro']
-    co0 = body.macro(m['gender'], m['muscle'], m['weight'], proportions=m['proportions'])
-    co = co0.copy()
+def recipe_delta(body, recipe):
+    """The head recipe's face-target offsets per hm08 vertex (MakeHuman dm; targets add, so the base shape is moot)."""
+    d = np.zeros_like(body.base)
     for rel, w in (recipe or {}).items():
         if rel.startswith('targets/head/'):
             raise SystemExit(f'{rel}: head recipes use face-region targets only (SPEC 7)')
-        body.apply(co, strip_targets(rel), float(w))
+        body.apply(d, strip_targets(rel), float(w))
+    return d
+
+
+def shaped(body, frame, recipe=None, lock=None):
+    """The base head (G1's fit) plus the recipe's face targets, in the pseudo-MakeHuman frame (`Frame.place`); `lock`
+    (per hm08 vertex, 0..1) holds the cranium and the seam."""
+    d = recipe_delta(body, recipe)
     if lock is not None:
-        co = co0 + (co - co0) * (1.0 - lock)[:, None]
-    return co
+        d = d * (1.0 - lock)[:, None]
+    return frame.place(d)
 
 
 def cranium_lock(body, co_base, hv):
@@ -726,25 +662,74 @@ def cranium_lock(body, co_base, hv):
     return out
 
 
-class Frame:
-    """MakeHuman (dm, +Y up, faces +Z, left +X) -> Blender metres for the base: uniform scale to refHeight."""
+def g2b(g):
+    """common.game_to_blender on arrays (..., 3)."""
+    g = np.asarray(g, dtype=np.float64)
+    return np.stack([-g[..., 0], -g[..., 2], g[..., 1]], -1)
 
-    def __init__(self, body, co_base, ref_height):
-        bidx = body.group_indices('body')
-        self.floor = float(co_base[bidx, 1].min())
-        self.stature = float(co_base[bidx, 1].max() - self.floor) / 10.0
-        self.k = ref_height / self.stature
+
+def b2g(b):
+    b = np.asarray(b, dtype=np.float64)
+    return np.stack([-b[..., 0], b[..., 2], -b[..., 1]], -1)
+
+
+class Frame:
+    """G1's body frame for one base (guard_body.GuardFit after solve()).
+    `bl` / `mh`: the head bone's affine map (G1: MakeHuman dm -> game metres x fit.K, the head bone's breadth / depth
+    scale, the floor lift) -> Blender metres, and its inverse. Exact for the vertices the head bone carries; round the
+    neck the body's own skin differs, so `place` pulls G1's skinned positions back through `mh` (the pseudo-MakeHuman
+    frame the landmark / mask code reads), and `bl` of those is G1's body position exactly."""
+
+    def __init__(self, fit, hv):
+        r = fit.result
+        self.fit, self.hv = fit, hv
+        S, t = r['M']['head']
+        self.K = self.k = float(fit.K)         # nominal dm -> mm uses: 100 * k (the head bone keeps the height scale)
+        D = np.diag([-0.1 * fit.K, 0.1 * fit.K, 0.1 * fit.K])
+        self.A = S @ D
+        self.b = S @ np.array([0.0, -fit.floor_y * 0.1 * fit.K, 0.0]) + t + np.array([0.0, r['lift'], 0.0])
+        self.Ainv = np.linalg.inv(self.A)
+        self.head_scale = [float(S[0, 0]), float(S[1, 1]), float(S[2, 2])]
+        self.co_fit = r['co']
+        self.V = r['V']
+        self.M = r['M']
+        self.skin0 = fit.skin(fit.to_game(self.co_fit), self.M)
+        self.torso_w_max = float(fit.torso_w[hv].max())   # the torso field leaves the head alone when this is ~0
 
     def bl(self, p):
+        """Pseudo-MakeHuman dm -> Blender metres (the head bone's map)."""
         p = np.asarray(p, dtype=np.float64)
-        g = np.stack([-p[..., 0] * 0.1 * self.k, (p[..., 1] - self.floor) * 0.1 * self.k, p[..., 2] * 0.1 * self.k], -1)
-        return np.stack([-g[..., 0], -g[..., 2], g[..., 1]], -1)  # common.game_to_blender
+        return g2b(p @ self.A.T + self.b)
 
     def mh(self, b):
-        """Inverse of bl: Blender metres -> MakeHuman decimetres."""
-        b = np.asarray(b, dtype=np.float64)
-        s = 0.1 * self.k
-        return np.stack([b[..., 0] / s, b[..., 2] / s + self.floor, -b[..., 1] / s], -1)
+        """Inverse of bl: Blender metres -> pseudo-MakeHuman dm."""
+        return (b2g(b) - self.b) @ self.Ainv.T
+
+    def body_game(self, d):
+        """Game-frame positions of the head part with MakeHuman offsets `d` (per hm08 vertex, dm) added: G1's body
+        positions plus the change of G1's own skin (bone maps over the default-rig weights) for the offset."""
+        hv = self.hv
+        moved = self.fit.skin(self.fit.to_game(self.co_fit + d), self.M)
+        return self.V[hv] + (moved[hv] - self.skin0[hv])
+
+    def place(self, d):
+        """Pseudo-MakeHuman positions for offsets `d`: G1's MakeHuman shape + d, the head part pulled back from its
+        body positions (so `bl(place(0)[hv])` is G1's body head part, `bl(place(d)[seam])` the body seam when d = 0)."""
+        co = self.co_fit + d
+        co[self.hv] = self.mh(g2b(self.body_game(d)))
+        return co
+
+
+def blender_eyes(body, co, frame):
+    """Eyeballs in Blender metres from the hm08 eye helpers (radius from the side and vertical extents, the centre set
+    back from the cornea apex by radius x (1 + bulge), so the generated eye fills the socket)."""
+    out = []
+    for g in ('helper-l-eye', 'helper-r-eye'):
+        p = frame.bl(co[body.group_indices(g)])
+        lo, hi = p.min(axis=0), p.max(axis=0)
+        r = float((hi[0] - lo[0]) + (hi[2] - lo[2])) / 4.0
+        out.append((np.array([(lo[0] + hi[0]) / 2.0, lo[1] + r * (1.0 + CORNEA_BULGE), (lo[2] + hi[2]) / 2.0]), r))
+    return out
 
 
 def subdivided(obj, levels):
@@ -785,26 +770,62 @@ def resample(src_pts, src_vals, pts, k=4):
     return out
 
 
+class Setup:
+    """What both job modes share: G1's fit of the base, its seam and head faces, the frame, the base head, the locks."""
+
+
+def fit_need(listed):
+    """MPFB2 files G1's fit reads beyond the base mesh and macros: the default rig weights and G1's own targets."""
+    need = ['rigs/standard/weights.default.json']
+    for name in list(gb.FIXED_TARGETS) + [t for ts in gb.SOLVED_TARGETS.values() for t in ts]:
+        need += [r for r in (f'targets/{name}-incr.target.gz', f'targets/{name}-decr.target.gz') if r in listed]
+    return need
+
+
 def setup(args, kit, base, recipes):
+    """G1's fit of the base (guard_body.GuardFit: the bodies job's own code, numpy only) and the head built on it."""
+    t0 = time.time()
+    listed = set(listed_files())
     need = ['3dobjs/base.obj', 'mesh_metadata/basemesh_vertex_groups.json']
-    need += [r for r in listed_files() if r.startswith('targets/macrodetails/')]
+    need += [r for r in sorted(listed) if r.startswith('targets/macrodetails/')]
+    need += fit_need(listed)
     for rec in recipes:
         need += list(rec.keys())
     for rels in MASK_TARGETS.values():
         need += rels
     need = list(dict.fromkeys(need))
     data = mpfb_dir(args.out, need)
-    body = mh.BaseBody(data)
-    co_base = shaped(body, base)
-    topo = Topo(body)
-    seam, seam_y = neck_seam(body, co_base, topo, kit['face']['neckSeam']['at'])
-    faces = head_region(co_base, topo, seam)
+    joints = os.path.join(args.out, 'joints', f'guard-{base["id"]}.json')
+    if not os.path.exists(joints):
+        raise SystemExit(f'{joints} missing: run the prep stage first (guard-bake.mjs --stage prep)')
+    op = common.load_operator(joints, f'guard-{base["id"]}')
+    fit = gb.GuardFit(data, op, base['macro'])
+    fit.solve()
+    seam_cfg = kit['face']['neckSeam']
+    g1 = fit.neck_seam(seam_cfg['at'])
+    seam = [int(v) for v in g1['seam']]
+    faces = [fit.topo.faces[fi] for fi in sorted(g1['head_faces'])]
     hv = np.array(sorted({v for f in faces for v in f}), dtype=np.int64)
-    frame = Frame(body, co_base, base['refHeight'])
-    lock = cranium_lock(body, co_base, hv)
-    log(f'hm08 head: {len(faces)} quads, {len(hv)} verts, seam {len(seam)} verts at MH y {co_base[seam, 1].mean():.3f} '
-        f'(target {seam_y:.3f}), scale {frame.k:.4f}, cranium lock on {int((lock > 0.99).sum())} verts')
-    return body, co_base, topo, seam, faces, hv, frame, lock
+    frame = Frame(fit, hv)
+    body = fit.body
+    co_base = frame.place(np.zeros_like(body.base))
+    dist = ring_distance(faces, seam)
+    dist_hv = np.array([dist[int(v)] for v in hv], dtype=np.float64)
+    for k in (1, 2):   # G1's rings above the seam are this edge-ring distance
+        if {int(v) for v in hv[dist_hv == k]} != {int(v) for v in g1['rings'][k]}:
+            raise SystemExit(f'seam ring {k}: not G1\'s ring (guard_body.neck_seam)')
+    cran = cranium_lock(body, co_base, hv)
+    seam_lock = np.zeros(len(co_base))
+    seam_lock[hv] = 1.0 - smooth(SEAM_LOCK[0], SEAM_LOCK[1], dist_hv)
+    lock = np.maximum(cran, seam_lock)
+    s = Setup()
+    s.body, s.fit, s.frame, s.g1seam, s.seam, s.faces, s.hv = body, fit, frame, g1, seam, faces, hv
+    s.co_base, s.lock, s.cranium, s.dist = co_base, lock, cran, dist
+    log(f'G1 fit {base["id"]} in {time.time() - t0:.1f}s: K {fit.K:.4f}, head scale {frame.head_scale}, neck scale '
+        f'{fit.scale["neck"].tolist()}, torso field on the head {frame.torso_w_max:.3g}; hm08 head {len(faces)} quads, '
+        f'{len(hv)} verts, seam {len(seam)} verts (G1 perimeter {g1["perimeter"]:.4f}, mean y {g1["meanY"]:.4f}), '
+        f'lock: cranium {int((cran[hv] > 0.99).sum())}, seam rings {int((seam_lock[hv] > 0.99).sum())} verts')
+    return s
 
 
 def eye_tris(lod):
@@ -837,10 +858,11 @@ def push_report(co_base, cos, hv, nrm, frame, inside=None):
 
 def make_envelope(name, co_u, faces, hv, frame, off):
     """SPEC 7 head envelope: the union head (ears included) offset outward by `off` metres, ~2,000 triangles."""
-    nrm_u = vertex_normals(co_u, faces)
+    pb = np.zeros_like(co_u)
+    pb[hv] = frame.bl(co_u[hv])      # offset in Blender metres (the head bone's breadth / depth scale is not uniform)
+    pos = pb + vertex_normals(pb, faces) * off
     remap = {int(v): i for i, v in enumerate(hv)}
-    pos = co_u + nrm_u * (off * 10.0 / frame.k)
-    env = new_mesh_obj(name, frame.bl(pos[hv]), [[remap[v] for v in f] for f in faces])
+    env = new_mesh_obj(name, pos[hv], [[remap[v] for v in f] for f in faces])
     tris = decimate(env, ENVELOPE_TRIS)
     pe = np.array([v.co[:] for v in env.data.vertices])
     env['piece'] = 'envelope'
@@ -921,6 +943,46 @@ def gain_island(obj, lab, which, gain, margin):
     bpy.ops.object.mode_set(mode='OBJECT')
 
 
+def face_island_albedo(obj, frame, face, img):
+    """Linear albedo mean over the texels of the face island (the obj's polygons in front of FACE_AZ and below the
+    hairline): the skin the tone tints read on, without the scalp's shave shadow that pulls the whole-tile mean down."""
+    me = obj.data
+    P = np.empty(len(me.vertices) * 3)
+    me.vertices.foreach_get('co', P)
+    az, h = face.frame(frame.mh(P.reshape(-1, 3)))
+    front = (az < FACE_AZ) & (h < hairline(az))
+    uv = np.empty(len(me.loops) * 2, dtype=np.float32)
+    me.uv_layers.active.data.foreach_get('uv', uv)
+    uv = uv.reshape(-1, 2).astype(np.float64)
+    W, H = img.size
+    mask = np.zeros((H, W), dtype=bool)
+    for p in me.polygons:
+        if not front[list(p.vertices)].all():
+            continue
+        ls = list(p.loop_indices)
+        for k in range(1, len(ls) - 1):
+            t = uv[[ls[0], ls[k], ls[k + 1]]] * (W, H)
+            x0, y0 = np.maximum(np.floor(t.min(axis=0)).astype(int), 0)
+            x1, y1 = np.minimum(np.ceil(t.max(axis=0)).astype(int), (W, H))
+            if x1 <= x0 or y1 <= y0:
+                continue
+            gx, gy = np.meshgrid(np.arange(x0, x1) + 0.5, np.arange(y0, y1) + 0.5)
+            a, b, c = t
+            area = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+            if abs(area) < 1e-12:
+                continue
+            w0 = ((b[0] - gx) * (c[1] - gy) - (b[1] - gy) * (c[0] - gx)) / area
+            w1 = ((c[0] - gx) * (a[1] - gy) - (c[1] - gy) * (a[0] - gx)) / area
+            inside = (w0 >= 0) & (w1 >= 0) & (w0 + w1 <= 1)
+            mask[y0:y1, x0:x1] |= inside
+    alb = px(img)[:, :3]
+    alb = np.where(alb <= 0.04045, alb / 12.92, np.power((np.clip(alb, 0, 1) + 0.055) / 1.055, 2.4))
+    m = mask.ravel()
+    if not m.any():
+        return None, 0
+    return [round(float(x), 4) for x in alb[m].mean(axis=0)], int(m.sum())
+
+
 # ---------------------------------------------------------------- mode: one head variant
 def run_head(args, kit):
     t_start = time.time()
@@ -932,11 +994,12 @@ def run_head(args, kit):
     # LOD1 / LOD2 budgets hold the merged eyes (PLAN 5: "in head"); LOD0's eyes are their own budget (kit face.eyes)
     head_target = {'lod0': tris['lod0'], 'lod1': tris['lod1'] - 2 * eye_tris('lod1'),
                    'lod2': tris['lod2'] - 2 * eye_tris('lod2')}
-    body, co_base, topo, seam, faces, hv, frame, lock = setup(args, kit, base, [head['targets']])
-    co = shaped(body, base, head['targets'], lock)
+    su = setup(args, kit, base, [head['targets']])
+    body, co_base, seam, faces, hv, frame, lock, dist = su.body, su.co_base, su.seam, su.faces, su.hv, su.frame, su.lock, su.dist
+    co = shaped(body, frame, head['targets'], lock)
     face = Face(body, co, hv)
     reg, marks = region_masks(face)
-    dist = ring_distance(faces, seam)
+    eyes_bl = blender_eyes(body, co, frame)
     tile = int(kit.get('atlas', {}).get('faceTile', [1024])[0])
     scene = bpy.context.scene
     device = use_gpu(scene)
@@ -945,7 +1008,10 @@ def run_head(args, kit):
     # full-resolution source (the bake's high mesh): masks, skin weights, hm08 indices
     src, remap = build_head_mesh(f'guard-{head["id"]}-head-src', co, faces, hv, frame)
     blend_loops = kit['face']['neckSeam'].get('blendLoops', 2)
-    w_head = np.array([min(1.0, 0.5 + 0.5 * dist[int(v)] / blend_loops) for v in hv])
+    if blend_loops != 2:
+        raise SystemExit(f'neck seam blendLoops {blend_loops}: G1 (guard_body.SEAM_BLEND) blends 2 loops each side')
+    # G1's head share per ring (seam 0.5, rings 1 / 2 above it 0.7 / 0.9), so the weld matches the body's weights
+    w_head = np.array([gb.SEAM_BLEND.get(dist[int(v)], 1.0) for v in hv])
     vg_h = src.vertex_groups.new(name='head')
     vg_n = src.vertex_groups.new(name='neck')
     keep = src.vertex_groups.new(name='decimate')
@@ -989,8 +1055,8 @@ def run_head(args, kit):
     cell = irises.index(head.get('iris', irises[0]))
     eye_objs = {}
     for lod in ('lod0', 'lod1', 'lod2'):
-        for side, (c, r) in zip(('L', 'R'), face.eyes):
-            eye_objs[(lod, side)] = eye_mesh(f'guard-{head["id"]}-eye{side}-{lod}', frame.bl(c), r * 0.1 * frame.k, lod, cell)
+        for side, (c, r) in zip(('L', 'R'), eyes_bl):
+            eye_objs[(lod, side)] = eye_mesh(f'guard-{head["id"]}-eye{side}-{lod}', c, r, lod, cell)
     eye_counts = {lod: sum(tri_count(eye_objs[(lod, s)].data) for s in 'LR') for lod in ('lod0', 'lod1', 'lod2')}
 
     # bake source: the full mesh subdivided (SRC_SUBDIV), masks evaluated at its own vertices (brows, lashes and the
@@ -1021,6 +1087,7 @@ def run_head(args, kit):
     scene.world.light_settings.distance = 0.03
     lod0.data.uv_layers.active = lod0.data.uv_layers['face']
     imgs, stats = bake_tile(scene, lod0, [hi], [sockets], tile, f'guard-{head["id"]}-face', 0.004, 0.012)
+    stats['faceIslandAlbedoMeanLinear'], stats['faceIslandTexels'] = face_island_albedo(lod0, frame, face, imgs['albedo'])
     out_dir = os.path.join(args.out, 'heads')
     os.makedirs(out_dir, exist_ok=True)
     pngs = {}
@@ -1083,6 +1150,9 @@ def run_head(args, kit):
     bpy.ops.wm.save_as_mainfile(filepath=blend, compress=True)
     lod_counts = {k: tri_count(o.data) for k, o in lods.items()}
     p0 = np.array([v.co[:] for v in lods['lod0'].data.vertices])
+    seam_perimeter = float(np.linalg.norm(seam_pos - np.roll(seam_pos, -1, axis=0), axis=1).sum())
+    seam_gap_mm = float(np.linalg.norm(seam_pos - g2b(su.fit.result['V'][seam]), axis=1).max() * 1000.0)
+    shift_mm = np.linalg.norm(frame.bl(co[hv]) - frame.bl(co_base[hv]), axis=1) * 1000.0
     report = {
         'head': head['id'], 'base': args.base, 'seed': args.seed, 'blender': bpy.app.version_string,
         'source': 'MakeHuman hm08 base mesh and CC0 face targets, MPFB2 data from the pinned zip (docs/art-credits.md); '
@@ -1094,19 +1164,31 @@ def run_head(args, kit):
         'materialSlots': {'0': 'face tile (UV "face")', '1': 'eye block (UV "face" in eye-block space; LOD1/LOD2)'},
         'seam': {'loopVerts': len(seam), 'mhIndex': [int(v) for v in seam],
                  'keptVerts': {k: seam_kept(o) for k, o in lods.items()},
-                 'centre': [round(float(x), 5) for x in seam_pos.mean(axis=0)]},
+                 'centre': [round(float(x), 5) for x in seam_pos.mean(axis=0)],
+                 # Blender metres in mhIndex order: G1's body seam (bodies/guard-<base>-body.json neckSeam), the same
+                 # for every head of the base
+                 'positions': [[round(float(x), 6) for x in v] for v in seam_pos],
+                 'perimeter': round(seam_perimeter, 6), 'meanZ': round(float(seam_pos[:, 2].mean()), 6),
+                 'bodyGapMaxMm': round(seam_gap_mm, 4),
+                 'g1': {'perimeter': round(float(su.g1seam['perimeter']), 6), 'meanY': round(float(su.g1seam['meanY']), 6)}},
         'frame': {'units': 'm', 'axes': 'Blender (Z up, face -Y, left +X)', 'refHeight': base['refHeight'],
-                  'mhStatureAtSliders': frame.stature, 'uniformScale': frame.k},
+                  'body': 'G1 body frame (guard_body.GuardFit, solved in this job)', 'K': frame.K,
+                  'mhStatureAtSliders': su.fit.mh_stature, 'headBoneScale': frame.head_scale,
+                  'neckBoneScale': su.fit.scale['neck'].tolist(), 'floorLift': float(su.fit.result['lift']),
+                  'torsoFieldOnHeadMax': frame.torso_w_max,
+                  'headJoint': [round(float(x), 5) for x in g2b(su.fit.result['tgt']['head'])],
+                  'neckJoint': [round(float(x), 5) for x in g2b(su.fit.result['tgt']['neck'])]},
         'bounds': {'min': [round(float(x), 4) for x in p0.min(axis=0)], 'max': [round(float(x), 4) for x in p0.max(axis=0)]},
-        'eyes': [{'centre': [round(float(x), 5) for x in frame.bl(c)], 'radius': round(r * 0.1 * frame.k, 5)}
-                 for c, r in face.eyes],
+        'eyes': [{'centre': [round(float(x), 5) for x in c], 'radius': round(r, 5)} for c, r in eyes_bl],
         'landmarks': {'eyeMid': [round(float(x), 5) for x in frame.bl(face.E)], 'noseBaseMhY': marks['noseBase']},
         'faceTile': {'size': tile, 'png': pngs, **stats, 'uv': uv_stats(lods['lod0'].data), 'uvFull': uvs_full},
         'maskCoverage': {k: round(float(v.mean()), 4) for k, v in mk.items()},   # over the bake source's vertices
-        'craniumLock': {'band': LOCK, 'lockedVerts': int((lock[hv] > 0.99).sum()),
-                        'shiftMaxMm': round(float(np.linalg.norm(co[hv] - co_base[hv], axis=1)[lock[hv] > 0.99].max(initial=0)
-                                                  * 100.0 * frame.k), 3)},
-        'skinWeights': {'bones': ['neck', 'head'], 'blendLoops': blend_loops},
+        'craniumLock': {'band': LOCK, 'lockedVerts': int((su.cranium[hv] > 0.99).sum()),
+                        'shiftMaxMm': round(float(shift_mm[su.cranium[hv] > 0.99].max(initial=0)), 3)},
+        'seamLock': {'rings': SEAM_LOCK, 'lockedVerts': int(sum(1 for v in hv if su.dist[int(v)] <= SEAM_LOCK[0])),
+                     'shiftMaxMm': round(float(shift_mm[np.array([su.dist[int(v)] <= SEAM_LOCK[0] for v in hv])].max(initial=0)), 4)},
+        'skinWeights': {'bones': ['neck', 'head'], 'blendLoops': blend_loops,
+                        'headShare': {str(k): gb.SEAM_BLEND[k] for k in (0, 1, 2)}, 'note': 'ring 3 and up: head 1.0'},
         'device': device, 'seconds': round(time.time() - t_start, 1), **extra,
     }
     with open(os.path.join(out_dir, f'guard-{head["id"]}-head.json'), 'w', encoding='utf-8') as f:
@@ -1129,16 +1211,20 @@ def union_shape(co_base, cos, hv, nrm):
 
 
 def envelope_landmarks(body, co_base, hv, frame, face, ears):
-    """Blender-frame landmarks G3 fits headwear by: joints, eye mid, brow line, ears, scalp crown."""
+    """Blender-frame landmarks G3 fits headwear by: joints (G1's bind joints: the rig the headwear rides), eye mid, brow
+    line, ears, scalp crown. `mhHeadJoint`: hm08's own head joint cube in this frame (information only)."""
     p = frame.bl(co_base[hv])
     ear_pts = frame.bl(co_base[ears > 0.5])
     eye = frame.bl(face.E)
+    tgt = frame.fit.result['tgt']
 
     def r(v):
         return [round(float(x), 5) for x in v]
     return {
-        'neckJoint': r(frame.bl(body.joint(co_base, 'joint-neck'))),
-        'headJoint': r(frame.bl(body.joint(co_base, 'joint-head'))),
+        'neckJoint': r(g2b(tgt['neck'])),
+        'headJoint': r(g2b(tgt['head'])),
+        'jointsFrom': 'G1 bindJoints (bodies/guard-<base>-body.json), Blender frame',
+        'mhHeadJoint': r(frame.bl(body.joint(co_base, 'joint-head'))),
         'eyeMid': r(eye),
         'browZ': round(float(eye[2] + 0.022 * frame.k), 5),   # the brow arc's centre line (geometric_masks)
         'scalpCrownZ': round(float(p[:, 2].max()), 5),
@@ -1243,9 +1329,13 @@ def run_haircaps(args, kit):
     base = by_id(kit['bases'], args.base, 'base')
     heads = [h for h in kit['heads'] if h.get('base') == args.base]
     caps = cap_styles(kit, args.base)
-    body, co_base, topo, seam, faces, hv, frame, lock = setup(args, kit, base, [h['targets'] for h in heads])
+    su = setup(args, kit, base, [h['targets'] for h in heads])
+    body, co_base, seam, faces, hv, frame, lock = su.body, su.co_base, su.seam, su.faces, su.hv, su.frame, su.lock
     nrm = vertex_normals(co_base, faces)
-    cos = {h['id']: shaped(body, base, h['targets'], lock) for h in heads}
+    cos = {h['id']: shaped(body, frame, h['targets'], lock) for h in heads}
+    seam_bl = {hid: frame.bl(co[seam]) for hid, co in cos.items()}
+    body_seam = g2b(su.fit.result['V'][seam])
+    seam_gap_mm = max(float(np.linalg.norm(p - body_seam, axis=1).max()) for p in seam_bl.values()) * 1000.0
     co_u, push = union_shape(co_base, list(cos.values()), hv, nrm)
     face = Face(body, co_base, hv)
     ears = target_region(body, MASK_TARGETS['ears'], len(co_base))
@@ -1329,7 +1419,10 @@ def run_haircaps(args, kit):
         'variantPush': pushes, 'unionPushMaxMm': round(float(push[hv].max() * 100.0 * frame.k), 2),
         'envelope': env_info, 'eyeBlock': eye_block,
         'hairline': {'knots': HAIRLINE, 'styles': CAP_STYLE},
-        'frame': {'units': 'm', 'axes': 'Blender (Z up, face -Y, left +X)', 'uniformScale': frame.k},
+        'frame': {'units': 'm', 'axes': 'Blender (Z up, face -Y, left +X)', 'body': 'G1 body frame (guard_body.GuardFit)',
+                  'K': frame.K, 'headBoneScale': frame.head_scale},
+        'seam': {'loopVerts': len(seam), 'bodyGapMaxMm': round(seam_gap_mm, 4),
+                 'note': 'every head of the base (and the union head the caps / envelope are cut from) at the body seam'},
         'device': device, 'seconds': round(time.time() - t_start, 1),
     }
     with open(os.path.join(out_dir, f'guard-{args.base}-haircaps.json'), 'w', encoding='utf-8') as f:
@@ -1356,11 +1449,6 @@ def main():
         run_haircaps(args, kit)
     elif args.head:
         run_head(args, kit)
-        if os.environ.get('GUARD_HEAD_ALSO_CAPS') and cap_styles(kit, args.base):
-            # smoke hook: a driver older than the haircaps-<base> job can still exercise the cap path in one head job
-            common.empty_scene()
-            common.seed_everything(args.seed)
-            run_haircaps(args, kit)
     else:
         raise SystemExit('build_head.py: --head <variant> or --haircaps')
 

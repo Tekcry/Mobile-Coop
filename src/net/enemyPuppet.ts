@@ -16,6 +16,9 @@ import type { TorchHolder } from './torchMirror';
 import type { GuardInfo } from '../ai/guardInfo';
 import { hyp2 } from '../core/mathx';
 import { buildArmourParts, buildHelmetPart, buildShieldPart, gearColour, HELMET_FIT } from '../ai/gearParts';
+import type { GuardBody } from '../ai/guardBody';
+import { guardHelmetDrop } from '../ai/helmetDrops';
+import { guardShieldFor } from '../ai/guardShield';
 import { wireGuardAim } from '../ai/guardStance';
 import { shieldBlocks } from '../ai/archetypes';
 import { PG_ARMOUR, PG_DROP, PG_HELMET, predictDeflect, puppetGear } from './puppetGear';
@@ -45,6 +48,9 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
   readonly pos = new Vector3();
   yaw = 0;
   rig: CharacterRig | null;
+  /** (guard-models G7) The host guard's figure over the rig (`flags.guardModels`; null: the merged S1 body, the dog):
+   *  its look from the wire seed (`AL_LOOK`), its pieces from the gear bits; it goes on with the rig after `die`. */
+  private gbody: GuardBody | null = null;
   /** (G7 fix) His rifle (hidden while held, as the host's `Enemy`). */
   private gun: WeaponModel | null = null;
   private dog: DogModel | null = null;
@@ -118,13 +124,19 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     const built = buildEnemyRig(scene, world, this.def, `p${id}`);
     this.rig = built.rig;
     this.gun = built.gun;
+    this.gbody = built.figure;
     this.rig.setEnabled(false);
     if (this.def.quadruped) {
       this.dog = new DogModel(scene, world.parts, this.def.look.colors.torso, this.def.look.colors.accent);
       this.dog.setVisible(false);
     }
     // (guard-ai S9, S13) the response team's lead and every enforcer: the shield on his root (shown with the rig)
-    if (this.def.kind === 'enforcer') this.shield = buildShieldPart(world, this.rig.root, this.def.scale);
+    if (this.def.kind === 'enforcer') {
+      // (guard-models G7) with the figures: shield_riot's own GLB on his skeleton once its files are in, as the host
+      const gs = this.gbody ? guardShieldFor(scene, this.gbody, (m) => world.addShadowCaster(m)) : null;
+      if (gs) this.gbody!.shield = gs;
+      else this.shield = buildShieldPart(world, this.rig.root, this.def.scale);
+    }
     // (guard-ai A126) the carry as the host's `Enemy` builds it: a kind that ever holsters gets the gun's slot
     if (built.gun && mayHolster(this.def.kind, this.def.gun, !!this.def.melee, this.def.quadruped)) {
       const cls = built.gun.def.class;
@@ -136,7 +148,14 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
 
   /** (guard-ai S9) Shown wearing (tests / e2e): the helmet, the armour, the shield. */
   get gearShown(): { helmet: boolean; armour: boolean; shield: boolean } {
+    const gb = this.gbody;
+    if (gb) return { helmet: gb.helmetOn, armour: gb.armourOn, shield: (!!this.shield || !!gb.shield) && !this.dead };
     return { helmet: !!this.helmetPart?.isVisible, armour: !!this.armourParts?.[0]?.isVisible, shield: !!this.shield && !this.dead };
+  }
+
+  /** (guard-models G7, tests / e2e) The figure's visible piece ids (null: no figure). Allocates. */
+  get shownPieces(): string[] | null {
+    return this.gbody ? this.gbody.shownPieces() : null;
   }
 
   /** (guard-models G6n) His look seed from the host (`AL_LOOK`), for the guard figure's variant. */
@@ -157,6 +176,18 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     const rig = this.rig;
     if (!rig || this.dog) return;
     const bits = puppetGear(prev, al, jumped);
+    // (guard-models G7, A5 / A6) the figure's pieces, and helmet_std's drop box; the placeholder parts only without it
+    const gb = this.gbody;
+    if (gb) {
+      gb.setGear((bits & PG_HELMET) !== 0, (bits & PG_ARMOUR) !== 0);
+      if (bits & PG_DROP) {
+        if (!this.gearHex) this.gearHex = gearColour(this.def, this.world, 'helmet');
+        const ours = this.clock - this.dropT < 1;
+        const d = guardHelmetDrop(this.def.height, this.dropBox);
+        this.onDropHelmet?.(this.pos.x, this.pos.y, this.pos.z, 1.65 * this.def.scale, ours ? this.dropDx : -Math.sin(this.yaw), ours ? this.dropDz : -Math.cos(this.yaw), this.gearHex, d[0]!, d[1]!, d[2]!);
+      }
+      return;
+    }
     if (bits & PG_HELMET && !this.helmetPart) {
       this.gearHex = gearColour(this.def, this.world, 'helmet');
       this.helmetPart = buildHelmetPart(this.world, rig, this.gearHex);
@@ -174,6 +205,9 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
       this.onDropHelmet?.(this.pos.x, this.pos.y, this.pos.z, 1.65 * this.def.scale, dx, dz, this.gearHex || '#22262b', H.w * HELMET_FIT.w, H.h * HELMET_FIT.h, H.d * HELMET_FIT.d);
     }
   }
+
+  /** (guard-models G7) The figure's dropped-helmet box (w, h, d; m), reused. */
+  private readonly dropBox = [0, 0, 0];
 
   get alive(): boolean {
     return !this.dead;
@@ -415,6 +449,12 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     r.position.copyFrom(this.pos);
     r.rotation.y = this.yaw;
     this.rig.setFlash(this.flash * 0.75);
+    const gb = this.gbody;
+    if (gb) {
+      // (guard-models G7, M3) the host's seed (read from the state shown: before the rig first shows), the flash
+      gb.setLook(this.lookSeed);
+      gb.flash = this.flash * 0.75;
+    }
     const sy = Math.sin(this.yaw);
     const cy = Math.cos(this.yaw);
     const inv = moved > 1e-4 ? 1 / moved : 0;
@@ -467,6 +507,9 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
       rig.heldWeapon = null;
       rig.emote = null;
     }
+    // (guard-models G7) the figure rides the rig on into its ragdoll, unflashed (freed with the rig)
+    if (this.gbody) this.gbody.flash = 0;
+    this.gbody = null;
     return rig;
   }
 
@@ -482,6 +525,8 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     this.hitboxes?.dispose();
     this.hitboxes = null;
     this.registry.removeTarget(this);
+    this.gbody?.dispose();
+    this.gbody = null;
     this.rig?.dispose();
     this.rig = null;
     this.dog?.dispose();

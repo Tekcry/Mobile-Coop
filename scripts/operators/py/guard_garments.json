@@ -1,0 +1,27 @@
+{
+  "$comment": "Guard garment parts (PLAN G2, SPEC 4): the module each part's job drafts with, its variant, sewn (build_garment + garment_details) or fitted (build_fitted), and the layer chain each job rebuilds under its part so independent parallel jobs compose without one layer cutting through another (guard_garment.py). 'outfits' mirrors OUTFIT_GARMENTS in scripts/operators/guardBakePlan.mjs; 'chains' per base are checked against the kit by tests/guardGarments.test.ts. A chain lists the parts built before this part in the same job, inner first; each sewn chain part's own chain is the prefix before it, so it comes out the same as its own job.",
+  "frames": 120,
+  "order": ["shirt", "shirt_rolled", "gloves", "work_gloves", "boots", "trousers", "work_trousers", "jacket", "work_jacket"],
+  "outfits": {
+    "uniform": ["shirt", "trousers", "boots", "gloves"],
+    "uniform_rolled": ["shirt_rolled", "trousers", "boots", "gloves"],
+    "work": ["work_jacket", "work_trousers", "boots", "work_gloves"],
+    "uniform_jacket": ["shirt", "jacket", "trousers", "boots", "gloves"]
+  },
+  "parts": {
+    "shirt": { "module": "combat_shirt", "method": "sewn", "layer": 1, "tint": "uniform", "under": [] },
+    "shirt_rolled": { "module": "combat_shirt", "variant": "rolled", "method": "sewn", "layer": 1, "tint": "uniform", "under": [] },
+    "gloves": { "module": "gloves", "method": "fitted", "layer": 1, "tint": "none", "under": [] },
+    "work_gloves": { "module": "gloves", "variant": "work", "method": "fitted", "layer": 1, "tint": "none", "under": [] },
+    "boots": { "module": "boots", "method": "fitted", "layer": 1, "tint": "none", "under": [] },
+    "trousers": { "module": "trousers", "method": "sewn", "layer": 2, "tint": "uniform", "under": ["shirt", "shirt_rolled", "boots"] },
+    "work_trousers": { "module": "trousers", "variant": "work", "method": "sewn", "layer": 2, "tint": "uniform", "under": ["boots"] },
+    "jacket": { "module": "field_jacket", "method": "sewn", "layer": 3, "tint": "uniform", "under": ["shirt", "boots", "trousers"] },
+    "work_jacket": { "module": "field_jacket", "variant": "work", "method": "sewn", "layer": 3, "tint": "uniform", "under": ["boots", "work_trousers"] }
+  },
+  "chains": {
+    "average": { "trousers": ["shirt", "boots"], "jacket": ["shirt", "boots", "trousers"] },
+    "lean": { "trousers": ["shirt_rolled", "boots"], "work_trousers": ["boots"], "work_jacket": ["boots", "work_trousers"] },
+    "broad": { "trousers": ["shirt", "boots"] }
+  }
+}

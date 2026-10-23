@@ -131,8 +131,16 @@ pick from each headwear and eyewear pool, every fixed and gameplay piece and the
 ## 6. Bones
 - LOD0: 33 bones, the 23 rig joints of `RIG_JOINTS` (`src/operators/runtime/pose.ts`, tested equal) plus 10 fingers.
   The rig joints are `root body pelvis spine chest neck head shL elL wrL shR elR wrR hipL knL anL hipR knR anR toeL toeR
-  clavL clavR`. The fingers are `fingerL_1..5` and `fingerR_1..5`: one bone per finger (1 = thumb, Wren's hero
-  numbering), curl only, parent `wrL` / `wrR`.
+  clavL clavR`. The fingers use Wren's joint names `finger<S>_<f>_<seg>` (`src/anim/fingers.ts` `FINGER_RE`) with one
+  segment each: `fingerL_1_1..fingerL_5_1` and `fingerR_1_1..fingerR_5_1` (f 1 = thumb .. 5 little), MCP (thumb: CMC)
+  to the fingertip, parent `wrL` / `wrR`.
+- Finger axes are Wren's, so `fingers.ts` and the runtime's `fingerRig` drive them unchanged: local +Y along the bone;
+  local Z is the curl axis, a turn about +Z (right hand) or -Z (left hand) in the game frame closes the finger toward
+  the palm; the splay axis is local X. The thumb is rolled so `THUMB_AXES[0]` (its base, opposition across the palm) is
+  Wren's (G1 bake: dot 0.995). In Blender's bone frame the game frame is mirrored: a curl there is about -Z on the right
+  hand and +Z on the left (axis (lx, -ly, -lz) for a game-local axis l). The bodies job checks both and the report's
+  `fingerAxes` and `deformCheck.fingerCurl` record it. One segment per finger: `fingers.ts` turns only segment 1 (MCP
+  80 deg, thumb 35 deg at curl 1); a one-segment fallback there is G5 / G7's (G1-REPORT "Fix round").
 - LOD1 and LOD2: the 23 rig joints; finger weights fold into the wrist.
 - Influences 4 / 4 / 2. No face bones (A15).
 
@@ -164,11 +172,27 @@ iris colour picks a cell of the shared eye block.
 toward the `head` joint (`face.neckSeam`). The topology is shared, so every head of a base welds to that base's body by
 vertex index. Skin weights blend `neck` to `head` over 2 loops each side. The seam sits under the collar of every
 outfit; the balaclava covers it on `broad`.
+- Frame: heads are built in the base body's frame (G1's fit, `guard_body.GuardFit`: the head part's vertices `V[hv]`,
+  the same 42 seam vertices as the body, hm08 index `_mh`). The body report's `seamTransforms` gives the map from the
+  MakeHuman frame (`makeHuman`: x negated, x 0.1 K, y from the hm08 floor) to the body frame: the `neck` and `head` bone
+  maps (3x3 + translation, floor lift folded in), and the best uniform scale + translation over the seam and over the
+  head part with residuals. The body blend's `guard-<base>-headref` is the head part in the body frame.
+- The crown (top of the head, feet on y = 0) is the body report's `crownY`; the head joint is `bindJoints.head`. Both
+  include the bind floor lift (about -5 mm).
+- Body frame (G1h fix round, lead ruling Fix A): each heads job runs G1's own fit (`guard_body.GuardFit`, from prep's
+  joints and MakeHuman data) and builds the head at G1's head-part positions, so the seam loop is G1's
+  `neckSeam.mhVerts` at the body's own seam positions (gap 0 mm, same perimeter). A recipe's face-target offsets go
+  through G1's skin (fit.K and the head bone's breadth / depth scale, e.g. width x 0.912).
+- Seam lock: recipes never move the seam or the 2 edge rings above it (lock = max(cranium lock, 1 - smooth(2, 4, ring))),
+  so every head of a base has the same seam positions. Head share of the neck + head weight: seam 0.5, rings 1 / 2
+  above it 0.7 / 0.9 (G1's `headShare`), 1.0 from ring 3.
 
 **Head envelope.** Per base: the shared cranium plus the union of the base's head variants (ears included), offset
 outward by `face.envelopeOffset` = 15 mm. The thickest hair cap is `sidepart` at 12 mm, plus 3 mm clearance. G1h exports
 the envelope mesh. G3 fits cap, cap_officer, beanie, boonie, headset, helmet_std and helmet_heavy over it, so G3 does
-not wait for the heads. Helmets stop at the brow line and over the ears.
+not wait for the heads. Helmets stop at the brow line and over the ears. The envelope (`heads/<base>/envelope.json`) is in
+G1's body frame; its `landmarks.headJoint` / `neckJoint` are G1's bind joints (the rig the headwear rides). The gear jobs
+of the `headEnvelope` pieces need the job that writes it (`haircaps-<b>`, or `heads-broad-1`).
 
 **Hair caps (A13).** Opaque offset scalp shells with strand normals, one hair tint slot. The data gives the triangles
 and the offset for each:
@@ -188,7 +212,9 @@ Brows, lashes and stubble are painted into the face tile. LOD2 hair is in the al
 | 1 | 0.76, 0.36, 0.20 | medium |
 | 2 | 0.42, 0.17, 0.08 | brown |
 | 3 | 0.17, 0.07, 0.035 | dark |
-The neutral albedo carries redness (nose, cheeks, ears) as relative variation. PLAN 8 lists the risk that the darkest
+The neutral albedo carries redness (nose, cheeks, ears) as relative variation. The head report's
+`faceTile.faceIslandAlbedoMeanLinear` is the face skin's mean; the whole-tile mean (~0.69) is lower only because the
+scalp's shave shadow is in it, so G4 does not divide the tints by it. PLAN 8 lists the risk that the darkest
 tone reads flat; G4's 1.5 m crops are the check.
 
 **Hair colours** (linear RGB tints over a neutral hair albedo with mean 0.6, slot `hair`):

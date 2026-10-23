@@ -53,6 +53,10 @@ export interface GlbMesh {
    * has it. Absent in the step 11 assets: the goggle is then always in its in-use position.
    */
   goggle?: Uint8Array;
+  /** (guard-models G7) A guard base file's static piece index (`_PIECE`, into its manifest's `pieces`) and tint slot
+   *  (`_TINT`) per vertex (G4's bake; `guardFigure.ts` reads them), when the file has them. */
+  piece?: Uint8Array;
+  tint?: Uint8Array;
   /**
    * (feature/weapons) Morph targets: per-vertex position and normal deltas (game frame), e.g. the finger grips
    * (`gripR`, `gripL`, scripts/operators/py/grip_morphs.py). Absent in files without targets.
@@ -194,6 +198,8 @@ export function parseGlb(buf: ArrayBuffer): GlbModel {
       const jn = at.JOINTS_0 !== undefined ? read(at.JOINTS_0) : null;
       const wt = at.WEIGHTS_0 !== undefined ? read(at.WEIGHTS_0) : null;
       const gg = at._GOGGLE !== undefined ? read(at._GOGGLE) : null;
+      const pc = at._PIECE !== undefined ? read(at._PIECE) : null;
+      const tc = at._TINT !== undefined ? read(at._TINT) : null;
       const idx = read(prim.indices!);
       const positions = new Float32Array(pos.data.length);
       const normals = new Float32Array(pos.data.length);
@@ -235,12 +241,14 @@ export function parseGlb(buf: ArrayBuffer): GlbModel {
         goggle = new Uint8Array(pos.n);
         for (let i = 0; i < pos.n; i++) goggle[i] = Math.round(gg.data[i]!);
       }
+      const piece = pc ? Uint8Array.from(pc.data.subarray(0, pos.n), (v) => Math.round(v)) : undefined;
+      const tint = tc ? Uint8Array.from(tc.data.subarray(0, pos.n), (v) => Math.round(v)) : undefined;
       const targets = prim.targets?.map((t, k) => ({
         name: m.extras?.targetNames?.[k] ?? `target${k}`,
         positions: readDelta(t.POSITION!),
         normals: t.NORMAL !== undefined ? readDelta(t.NORMAL) : null,
       }));
-      meshes.push({ name: m.name ?? `mesh${meshes.length}`, material: prim.material ?? 0, positions, normals, uvs, tangents, goggle, targets, joints, weights, indices });
+      meshes.push({ name: m.name ?? `mesh${meshes.length}`, material: prim.material ?? 0, positions, normals, uvs, tangents, goggle, piece, tint, targets, joints, weights, indices });
     }
   }
   return { nodes, joints: json.skins?.[0]?.joints ?? [], materials, meshes };
