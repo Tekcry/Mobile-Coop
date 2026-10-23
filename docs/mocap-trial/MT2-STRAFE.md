@@ -202,7 +202,12 @@ GPU lane (desktop, E2E_GPU=1): see below.
 Found by the checker's probe on the head, present at d504af7c too (the same numbers with either file reverted), not in
 this round's goals, for the lead:
 - `C restart E 0.9 stand 0.3 +0` (strafe 1.2 s, stand 0.3 s, again): planted slide 3.87 cm, pelvis 2.32 cm (842270f0: 0 /
-  1.80). Likely round 1's footPlanner strafe toe-off / takeover rules (stOff, stTake).
+  1.80). Frame detail (t 3.65-3.68 s): the planted trailing left foot (target 90.8 cm) is dragged to 94.6 cm by the rig's
+  reach (the leg out of reach as the hips travel at 0.9 m/s) while the right foot's long side-step (re-aimed 155.8 -> 185.4
+  cm mid-swing) is at swing 0.66-0.76; the left toes off only at f162, when the strafe toe-off (`stOff`, planner reach x
+  0.82) fires. The planner's reach estimate misses the rig's stretch here; a fix belongs to footPlanner's strafe toe-off
+  (read the rig's `reachNeed` in the mocap strafe, as the clip-feet rule does) or to the rig keeping the hips over the
+  trailing foot. Not changed this round.
 - `B snap 0.9 W->E /1.37` (flip every 1.37 s): pelvis 3.34 cm (OFF 1.11; 842270f0 1.29). `D tgl flip 0.7` ON baseline
   (flip every 1.3 s): pelvis 2.36 (OFF 0.93).
 - `B snap 0.9 NW->SE /1.37`: planted slide 1.21 cm (as at 842270f0).
