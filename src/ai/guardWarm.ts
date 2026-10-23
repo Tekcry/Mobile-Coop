@@ -109,9 +109,10 @@ function untilWarm(scene: Scene, meshes: readonly Mesh[]): Promise<void> {
   return new Promise((resolve) => {
     const tick = (): void => {
       // (every mesh asked each tick: their programs compile in parallel)
+      if (scene.isDisposed) return resolve();
       let all = true;
       for (let i = 0; i < meshes.length; i++) if (!warmReady(meshes[i]!)) all = false;
-      if (scene.isDisposed || all) return resolve();
+      if (all) return resolve();
       if (Date.now() > until) {
         console.warn('[guards] the guard shader did not compile on the loading screen (it compiles at the first draw)');
         return resolve();
@@ -149,7 +150,13 @@ export async function warmGuardModels(scene: Scene, mapId = '', kinds: readonly 
           if (scene.isDisposed) return false;
           if (!warmed.has(a.key)) {
             warmed.add(a.key);
-            await untilWarm(scene, warmMeshes(scene, a));
+            // (G7b check polish 1) a throw while building the warm meshes must not reject the level load
+            try {
+              await untilWarm(scene, warmMeshes(scene, a));
+            } catch (e: unknown) {
+              console.warn(`[guards] ${m.id} shader warm failed (it compiles at the first draw)`, e);
+              return false;
+            }
           }
           return true;
         },
