@@ -396,8 +396,9 @@ State at the save (~14:00): train 25 GREEN = #200-#203 + #208 releasing as 4.74.
    first). Green -> train-ready #218-#220 (train 26).
 2. S9 co-op: checker PASS 59c35d7f (slices/S9-CHECK.md). Laptop run on 59c35d7f queued (coop, netmove, stealth-ai,
    takedown). Then s9 <- fixed s15, rerun coop + netmove, PR S9 (base s15), message the orchestrator.
-3. S16 armoured fire check (s16 WIP 179ff630, off feature/sector-redesign-e10 36124a39): done = slices/S16.md; else a
-   fresh Opus agent finishes (Sector Ops' ask: STATE ~13:05 entry). Then one Opus checker, PR base
+3. S16 BUILT d6b43740 (slices/S16.md, A80-A87; armourFire.ts gate before every round, reposition via pickCover / chase;
+   19 + 183 tests; ballistics.ts one added method `armouredFirst`: tell Sector Ops). Checker: done = slices/S16-CHECK.md;
+   else a fresh Opus checker. Then laptop e2e-sectorops part 6, stealth-ai, ct-warehouse, ctcourse; PR base
    feature/sector-redesign-e10 (retarget to master when E10 lands), tell Night Shift | Sector Ops Build.
 4. Queued laptop runs (Test Runner): s9 59c35d7f; s13 82ef72bd e2e-levels. Verdicts arrive as messages / PR comments.
 Rules: AI code and checkers Opus, Sonnet 5.5 tests / data from strict briefs, Haiku chores. Never two agents on the
