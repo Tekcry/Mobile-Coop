@@ -1721,8 +1721,9 @@ try {
       try {
         t.light(0);
         t.tp(0, -5, Math.PI);
-        // ~20 m from the shot (tier 1: a turn), and one ~30 m off (out of its 28 m reach)
-        const ear = t.spawn('grunt', -7, 14, 0);
+        // 19 m from the shot along the factory floor, a clear line (tier 1: a turn; the old spot at (-7, 14) was behind
+        // the x -4 wall: 0.45 x 28 = 12.6 m reach, never heard), and one ~30 m off (out of its 28 m reach)
+        const ear = t.spawn('grunt', 19, -5, 0);
         const far = t.spawn('grunt', -21, 17, Math.PI);
         t.step(0.3);
         const c0 = em.sectionCounts.shotsCalls;
