@@ -1,5 +1,30 @@
 # Resume - Night Shift | Player Build (updated 2026-10-23 ~21:40 after the swap; live state in docs/guard-models/STATE.md "RESUMED" line)
 
+~23:35: #247 laptop afp RUNNING on fd34263e (CI green): on pass -> train-ready label + message orchestrator.
+#269 coop-rejoin (feature/coop-rejoin, worktree coop-rejoin): checker A FAIL (B1 rejoin race) -> Opus fix round
+327e73f4 (JoinWatch) -> re-check PASS (f13b91e7, docs/coop-rejoin/RECHECK.md). Laptop coop netmove ctcourse sectorops
+20261023T122212-player-build-327e73f4-35c5 (set coop-rejoin): on pass -> train-ready + message orchestrator.
+Follow-up batch (not in #269, keeps the laptop verdict): RECHECK polish 1 (joinWatch.ts:128/134 load-gap state
+bypasses the in-flight skip: closes the rare restart-during-reload way back into item 7) + 2 (hold ends an open watch)
++ 5 (coop.md:83 wording). guard-models: STATE "~23:30" (G1 fix, G1h fix, G7, G7b, G9 merged; one bake 816419f7 queued,
+needs MPFB2 on the laptop; flag-on run b8ca0a2e queued; G2 / G4 building).
+RESUMED ~22:35 (new account): #247 fd34263e CI GREEN; laptop request 20261023T112112-...-fd34263e-d9aa still queued
+(queue backed up ~20 deep): on green -> label train-ready + message orchestrator. coop-rejoin: builder cut off with
+uncommitted work, saved as WIP d9fcb6be; Opus builder resumed (report docs/coop-rejoin/REPORT.md). guard-models: see
+docs/guard-models/STATE.md "RESUMED ~22:35" (G1 fix merged 0356bd58; laptop MPFB2 missing, Michael copies the zip;
+bodies rebake queued; G1h / G7 checkers, G2 / G4 builders running). Orchestrator 22:41: CPU 97-100%, no new agents
+until it says < 80%.
+#247 ~22:25: head fd34263e = real per-frame alloc fixed (AF1 / AF3 non-inlined approach / clamp / smoothstep calls written
+inline, bit-identical; mocapStrafe matches master). CI pending on fd34263e; laptop 20261023T112112-player-build-fd34263e-d9aa
+(anim clip coop netmove menus, set afp). Both green -> gh pr edit 247 --add-label train-ready + message orchestrator.
+HIGH ~22:15 (orchestrator, WALK-4.82-REPORT.md items 7 + 4): coop-rejoin = rejoining / reconnecting client spawns at
+the host's current checkpoint or beside the host with section state; two-slot spawn points (Marlow places them). Opus
+builder in C:/NightShift/Mobile-Coop-coop-rejoin (feature/coop-rejoin off master 33fff449; docs/coop-rejoin/REPORT.md).
+Then 2 Opus checkers (src/net) + laptop coop netmove ctcourse on the same commit, PR, train-ready label, message orchestrator.
+SAVE ~22:10 (92%): #247 checker PASS on afea69d3; CI red only on tests/mocapStrafe.test.ts alloc (1930.9 vs 1916.9):
+CI rerun 39942525621 + an Opus agent making the measurement robust (no threshold change) on feature/anim-fix-pass; if
+it changes only the test file the laptop request on afea69d3 still counts. guard-models live state: STATE.md "SAVE ~22:10"
+line (WIP branches gm-g2, gm-g4, gm-g7, gm-g1fix, gm-g1hfix; resume each builder from its head).
 ~22:40: #247 CI fix afea69d3 (AF3 / AF4b gated to Wren rigs, guards back to master; CI-FIX-REPORT.md): Opus checker
 + laptop request 20261023T105631-player-build-afea69d3-fd4f (anim clip coop netmove menus, set afp) in parallel. On
 both green + CI green: gh pr edit 247 --add-label train-ready + message orchestrator. guard-models: P1, G3, G1, G1h, G5
