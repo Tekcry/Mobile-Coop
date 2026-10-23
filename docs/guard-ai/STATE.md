@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~07:35 FULL BURN (orchestrator; swap at the 5-hour cap, likely before 09:40). Train 42 #288 merged (#281 + #254 on
+master 79a527aa). S28 locked-door re-path APPROVED (orchestrator ~07:30; known bug A7-cage-w): worktree
+C:/NightShift/Mobile-Coop-guard-ai-s28, feature/guard-ai-s28 off master 79a527aa (npm ci'd). Opus builder RUNNING
+(slices/S28.md on that branch, WIP pushed per step). Then Opus check + laptop stealth-ai + ctcourse, one PR.
+
 ~06:45: s26-levels, s27-levels, w482-levels PASS (desktop) -> #264, #266, #270, #271, #272 TRAIN-READY again,
 orchestrator told. Nothing running. Resume block current.
 
@@ -773,9 +778,10 @@ orchestrator). Green -> `gh pr edit <n> --add-label train-ready` + tell orchestr
    and each stack head (as for train 41), Opus triage at once, merge the fix up s24 -> s25 -> s26, s27, walk482.
 2. Triage docs (this window): S23-A3-TRIAGE, S24-COOP-TRIAGE, S24-LEVELS-TRIAGE/-CHECK, S25-SAI-TRIAGE (5 rounds),
    S26-COOP-TRIAGE, S27-SEC1-TRIAGE, WALK482.md "Laptop triage". All test-only except S24 ladder (src).
-3. Polish (S24-LEVELS-CHECK): redundant tell(alarmHunt) after spawn in reinforce (enemyManager.ts:979) and parked
+3. S28 locked-door re-path: feature/guard-ai-s28 (worktree -s28), builder running; then check + laptop + PR.
+4. Polish (S24-LEVELS-CHECK): redundant tell(alarmHunt) after spawn in reinforce (enemyManager.ts:979) and parked
    joinReinforcement (:811). Mission reinforcements with nothing known stand at spawn (A148): Michael's call.
-4. Backlog: path through a locked door (A7-cage-w) stalls ~15 s (S20 door gate never opens a locked leaf); cover
+5. Backlog: cover
    picked by straight-line distance can send a guard behind a full wall (S24-COOP-TRIAGE.md; polish list).
 5. PLAN has no slice after S27 (S28 none). Next work: walk reports from Michael, polish lists only after his playtest.
 Questions for Michael (non-blocking, decision packs): S23 client arcs / LKP ghost; S25 searchers' flares.
