@@ -59,7 +59,12 @@ row are the same to the 0.1 (after-af2/numbers.md vs before/numbers.md).
 - tests/mocapRunPose.test.ts 4/4; mocapSwitch 13/13; mocapPlayer 10 (1 skipped); mocapSprint 10/10; posture 9/9;
   mocapRunTurn 4/4; footTurn 14/14; footPlanner 12/12; mocapCrouch 6/6; mocapStrafe 12/12; animSkeletonIdentity 1 (1
   skipped); bodyMotion 13 (1 skipped); animFixPass 1/1. `npx tsc --noEmit -p .` clean; eslint clean on the touched files.
-- e2e: PENDING (filled below).
+- e2e (desktop lane 2, `E2E_GPU=1`, port 4192, `npm run build` fresh at 8798ba63 src): e2e-anim pass 317 ok, 35 s ("leans
+  into turns, <= 8 deg": jog 6.54 in, sprint max 6.55); e2e-clip pass, 15 s.
+- After sheets (before/README.md commands, port 4189, same lane): after-af2/on-{walkturn,jog,run,run-back,sprint}.png.
+  on-run vs before/on-run: the stance leg is near straight under the hips with a light forward trunk (was hips low over
+  bent knees, upright trunk); arms compact. The sheet `sprint` scenario moves at ~2.9 m/s (the jog band, below the AF2
+  lift band), so it does not show the 5 m/s sprint; the walk-turn sheet is unchanged in character (AF2 is off below 2 m/s).
 
 ## Open items
 1. Wrist jerk bar (<= 1.0) not met: improved 30-35 % at the run / sprint, flat in the walk -> jog blend (1.68 -> 1.73). What is left:
