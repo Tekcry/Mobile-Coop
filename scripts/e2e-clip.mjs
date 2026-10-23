@@ -95,13 +95,14 @@ const res = await page.evaluate(([only, log]) => {
     if (hh.hit) { const d = V.Distance(hh.point, hc); if (d > pen) { pen = d; where = 'head'; } }
     for (const n of [rig.kneeL, rig.kneeR, rig.ankleL, rig.ankleR]) n.computeWorldMatrix(true);
     const kd = V.Distance(rig.kneeL.getAbsolutePosition(), rig.kneeR.getAbsolutePosition());
-    if (window.__dbg && kd < 0.09) acc.log.push(`t ${acc.n} KNEES ${(kd * 100).toFixed(1)} feet ${c.pos.y.toFixed(2)} trav ${g.traversal.attachCtl.m.kind}/${g.traversal.attachCtl.m.phase} v ${g.traversal.attachCtl.m.v.toFixed(2)} pose ${p.pose.traverse}`);
+    if (window.__dbg && (kd < 0.09 || p.pose.traverse === "climbUp")) acc.log.push(`t ${acc.n} KNEES ${(kd * 100).toFixed(1)} T ${p.pose.traverseT?.toFixed(3)} kL ${[rig.kneeL, rig.kneeR, rig.hips, rig.ankleL, rig.ankleR].map((n) => { const q = n.getAbsolutePosition(); return q.x.toFixed(2) + "," + q.y.toFixed(2) + "," + q.z.toFixed(2); }).join(" ")} feet ${c.pos.y.toFixed(2)} trav ${g.traversal.attachCtl.m.kind}/${g.traversal.attachCtl.m.phase} v ${g.traversal.attachCtl.m.v.toFixed(2)} pose ${p.pose.traverse}`);
     acc.minKnees = Math.min(acc.minKnees, kd);
     // (anim-bake-targets) Michael's 2026-10-22 tune (idle trackMul 0.05): the first frame after a teleport still shows the
     // standing stance of the scenario before (ankles ~3 cm apart), not the climb: the feet count from the second frame
     if (acc.n > 0) acc.minFeet = Math.min(acc.minFeet, V.Distance(rig.ankleL.getAbsolutePosition(), rig.ankleR.getAbsolutePosition()));
     acc.n++;
     acc.maxBody = Math.max(acc.maxBody ?? 0, pen);
+    if (window.__dbg && pen > 0.01) acc.log.push(`PEN ${(pen * 100).toFixed(1)} at ${where} t ${acc.n}`);
     if (pen > 0.03) { acc.body = (acc.body ?? 0) + 1; if (window.__dbg) acc.log.push(`t ${acc.n} BODY ${(pen * 100).toFixed(1)} at ${where} feet ${c.pos.x.toFixed(2)},${c.pos.y.toFixed(2)},${c.pos.z.toFixed(2)} trav ${g.traversal.attachCtl.m.kind}/${g.traversal.attachCtl.m.phase} kind ${g.traversal.kind} wall ${g.wallCore?.phase ?? '-'}`); }
   };
   const runBody = (sec, f) => { const acc = { n: 0, wall: 0, maxPen: 0, leg: 0, minLeg: 9, minHead: 9, minChest: 9, minElbow: 9, minKnees: 9, minFeet: 9, body: 0, maxBody: 0, log: [] }; let t = 0; while (t < sec) { f?.(t); a.loop.stepHeadless(1 / 30, 120); t += 1 / 30; bodyCheck(acc); check(acc); } return acc; };
