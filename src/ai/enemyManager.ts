@@ -2664,7 +2664,8 @@ export class EnemyManager {
     let bd = Infinity;
     for (const e of this.enemies) {
       if (!e.alive || !e.alerted || e.def.melee || !e.def.usesCover || e.hold) continue;
-      const d = this.players()[0] ? Vector3.Distance(e.pos, this.players()[0]!.feet) : 0;
+      // (guard-ai S23) his own distance to his target (co-op: not the host's player)
+      const d = e.targetDist;
       if (d < bd) {
         bd = d;
         best = e;
