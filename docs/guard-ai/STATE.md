@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~13:00: sweep fix round 55592902 (honest S13 assert looked = visited - skipped; stall = no route progress; unstick
+stays on his side of a thin wall; S13-SWEEP-CHECK PASS on round 1) -> laptop sweep-fix2. If looked 0 again: next is a
+replan routed clear of the other team (not built). Green -> PR for feature/guard-ai-sweep (stacked on #294) + relabel
+#294; both one train.
+
 ~12:05: #298 sniper armour TRAIN-READY (laptop 3/3, Opus check PASS). S13 bisect: master PASS, S28 alone PASS,
 master + S28 FAIL (diag: 3 response teams share 6 sweep points; team 1 stands on team 0's point, team 0's leader never
 arrives). Fix in src on feature/guard-ai-sweep (worktree -sweep = master cacd0c7e + S28 merged; stacked with #294,
