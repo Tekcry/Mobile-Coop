@@ -5,6 +5,16 @@ save tokens, i will reset usage as soon as you hit 100%": sessions run to 100% (
 (the swap back to the first account) and pastes the orchestrator prompt below.
 Repeat as long as it pays. Earlier handoffs (2026-10-21, 2026-10-22 13:10, 19:25) are in git history.
 
+## Account ledger (Michael ~11:25: "note each accounts usage and resets, and tell me which account to swap to based off the reset times and usage")
+Accounts are labelled by their weekly reset (no emails in git). Each orchestrator records the live account's meters on arrival and at the 95% step (get_usage), and at the 95% step names the account to swap to: one whose 5-hour has reset (or resets first) with weekly left; between those, the one whose weekly resets soonest (use it or lose it); a weekly-low account goes last in its window (CLAUDE.md "Account swap"). If no account is free at the cutoff, say when the first one frees up.
+
+| Account (weekly reset) | Last seen | 5-hour then | 5-hour resets | Weekly then | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Wed 04:00 (next 2026-10-28 04:00) | 2026-10-23 11:10 | 31% | 13:30 | 81% | live from 10:47; ends this window ~93% weekly (~40% of a window left) |
+| Sat 15:00 (next 2026-10-24 15:00) | 2026-10-23 ~10:47 | ~95-100% | 14:30 | unknown (0% at 09:30, ~15-20% after one window) | live 09:30-10:47 |
+| Thu 23:00? (2026-10-29 23:00 at 00:57) | 2026-10-23 00:57 | - | - | 0% then | seen once; may be the same as another row |
+| Thu 04:00? (2026-10-30 04:00 at 08:35) | 2026-10-23 08:35 | - | 13:30 then | 0% then | seen once; may be the same as another row |
+
 ## State at the switch (refreshed 2026-10-23 ~07:58 for the next swap; newest update block first)
 
 **~11:15 weekly (Michael: stop earlier relative to the weekly left, still hit 100% safely; CLAUDE.md "Account swap"): this account (live from 10:47, weekly resets 2026-10-28 04:00) was weekly 76% at 10:47, 81% at 11:10, ends this window ~93%: next time it has ~7% weekly, about 40% of a 5-hour window, so its 95% step goes out at weekly ~95-96%. Check the other account's weekly at the swap and record it here.**
