@@ -235,10 +235,10 @@ describe('S5 guards (brief table)', () => {
       expect(g.reason && g.reason.length > 8, `#${i + 1} reason`).toBe(true);
       expect(g.squad, `#${i + 1} squad`).not.toBeUndefined();
     }
-    expect(G[8]!.pair).toBe(9);
-    expect(G[9]!.pair).toBe(8);
-    expect(G[15]!.pair).toBe(16);
-    expect(G[16]!.pair).toBe(15);
+    expect(G[8]!.pair).toBeUndefined(); // a standing pair, not a guard-ai S10 talking pair (needs timed loops)
+    expect(G[9]!.pair).toBeUndefined(); // a standing pair, not a guard-ai S10 talking pair (needs timed loops)
+    expect(G[15]!.pair).toBeUndefined(); // a standing pair, not a guard-ai S10 talking pair (needs timed loops)
+    expect(G[16]!.pair).toBeUndefined(); // a standing pair, not a guard-ai S10 talking pair (needs timed loops)
     expect(G[8]!.role).toBe('posted');
     expect(G[9]!.role).toBe('posted');
     expect(G[8]!.post).toEqual({ leash: 3, highSecurity: true, guards: 'token' });
