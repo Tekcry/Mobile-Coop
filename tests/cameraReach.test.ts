@@ -136,7 +136,8 @@ describe('camera reach on every live map (camera-range)', () => {
     expect(rs.filter((r) => r.map !== 'ctcourse').length).toBe(9);
     expect(rs.some((r) => r.map === 'ctcourse')).toBe(true);
     if (process.env.CAMERA_REACH_WRITE === '1') writeFileSync('docs/camera-range/MEASURE.md', report(rs));
-  });
+    // (train build) all live maps; ~140 s on a loaded desktop
+  }, 360_000);
 
   it('every camera: reach never longer than before, always inside its range, and nothing picked up outside its zone that was not before', () => {
     for (const r of all()) {
