@@ -3,8 +3,24 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
-**Test Runner SAVE 20 (2026-10-23 ~19:25; wins over all below; prompts carry no state from the next swap, so this
-block is the whole queue):**
+**Test Runner SAVE 21 (2026-10-23 ~19:20 laptop clock; wins over all below; this block is the whole queue):**
+- SENT since SAVE 20: TRAIN 31 PASS (f1864d3f full 666 s + 5ee209d8 guard-carry) -> 4.80.0; Guard AI d7a3b887 /
+  master pair, 93bd9db1 PASS; Player afp-af4b 4fe5b3ab PASS.
+- Chains running / queued (rerun a chain's .ps1 if its log has no "done" line):
+  - 4192 mb2/mb3: section-rating 16caeacd ctcourse:2 + marlow-polish 1bde5328 coop netmove sectorops ctcourse:2 ->
+    ONE verdict to Marlow Build (fail: assert + log path + last ~40 lines, Michael ~19:25 rule).
+  - 4192 ap4 (after mb2): #226 artpol 4f66a5f8 sectorops 1-6 coop stealth-ai.
+  - 4189 lr15c (after mb2): LR15 perf -> LR15 verdict to Sector Ops (with #242 suites PASS, lr15b PASS, sheet clean).
+  - 4189 ap5 (after lr15c + ap4, alone): #226 cvp (guards / guardfreeze=0 / guardmerge=0) + guard-cap + campus-sheet2
+    (breaker / cars / window pop, ART_FAR 60 m, 58 m back on) -> ONE #226 verdict with ap4 (budget CPU p95 < 12).
+  - 4191 l16: LR16 c7a26ca7 sectorops coop netmove ctcourse lightbake darkness menus desktop stealth-ai.
+  - 4189 l16g (after ap5 + l16, alone): LR16 cvp start + S5-worst Epic / Medium, warehouseOps perf Epic,
+    lr16-sheet.mjs (agent writing it) -> ONE LR16 verdict with l16 (each failing assert verbatim; Michael's
+    wall-arcs reference png is NOT on the laptop).
+- laptop-queue: S1 + spec change pushed (22342b90); Opus checker FIX (4 blocking: partial-train success, stale
+  pending, own stale locks, task settings) -> Opus fix round running. Then live overlap, PR.
+
+**Test Runner SAVE 20 (2026-10-23 ~19:25):**
 - Chains (scheduled tasks NightShift-chain-1023<x>-<slot>; logs runs/chain-1023<x>.log, results runs/<label>/summary.txt;
   a chain whose log has no "done" line died: rerun its script C:/NightShift/scratch/chain-1023<x>.ps1):
   - 4189 t31: TRAIN 31 f1864d3f full (JOBS=3) -> then t31b: e2e-guard-carry on train head 5ee209d8 -> ONE verdict to
