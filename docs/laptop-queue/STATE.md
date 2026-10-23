@@ -1,6 +1,14 @@
 # laptop-queue - state
 
-## Now (2026-10-23 ~20:10, LIVE OVERLAP DONE -> PR)
+## Now (2026-10-23 ~21:00, PR #252 + desktop worker)
+Desktop overflow lane (Michael ~20:45 via Orchestrator): `LQ_WORKER=desktop` (a49cee57, fix round a1fc57ac + 6a658738
+after an Opus checker FIX: done sync every pass, claim refresh at lock / drop when taken over, release on give-up, desktop
+waits for claims and heavy.lock, 140-char status), 032b8969 self-update before a pass. Claims `claims/<id>.json` on
+the laptop-queue branch. Start commands sent to the Orchestrator (~20:58): svc worktree + testrun-4191 worktree +
+`install-task.ps1 -Worker desktop -Follow origin/feature/laptop-queue`. Open: the live laptop service (old code)
+updates only when idle; until then the desktop waits ("no claims yet"). Check the laptop log for "done claim(s) pushed".
+
+## Earlier (2026-10-23 ~20:10, LIVE OVERLAP DONE -> PR)
 First sharded train through the service: train 32 25c712c9, 43/43 PASS, status `laptop-e2e` success posted by the
 service. Shards 4189 / 4192 at JOBS=3 each (bins 22 / 21 suites, weight 1391 s each): wall 564 s / 560 s, vs 666 s
 for train 31 on one slot at JOBS=3 (~15% faster). Total 873 s incl. a 309 s alone rerun of the flake e2e-ctcourse:4
