@@ -9,8 +9,8 @@ import { WorkerPool } from './workerPool';
 
 const KEEP = 2;
 const INDEX = 'lamp-cache-index';
-/** Bump when the bake changes (old entries are never read again). */
-export const LAMP_VERSION = 1;
+/** Bump when the bake changes (old entries are never read again). (LR16e) 2: the contact-hardening penumbra. */
+export const LAMP_VERSION = 2;
 
 export async function bakeLevelLamps(shapes: Float32Array, lights: Float32Array, lo: [number, number, number], hi: [number, number, number], key: string | null): Promise<LampResult> {
   if (key) {
