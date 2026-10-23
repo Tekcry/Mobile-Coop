@@ -168,6 +168,26 @@ try {
     assert(r.sideCalm === 'side' && r.sideAlert === null, `from the side only while he is calm (${r.sideCalm} / ${r.sideAlert})`);
   });
 
+  // (guard-ai S12, item 2 "takedowns still one move") a helmeted, armoured guard falls to one takedown
+  await scen('gear: one takedown', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      t.tp(2, 0, -2.2, 0);
+      const e = t.spawn(2, -1, Math.PI);
+      e.setGear({ helmet: true, armour: true });
+      e.passive = true;
+      t.step(0.4);
+      const offer = g.takedown.offer?.plan.kind ?? null;
+      t.press();
+      t.run(1.4);
+      return { offer, down: !e.alive, ko: em.bodies.find((b) => !b.lethal) !== undefined, helmet: e.helmet, armour: e.armour };
+    });
+    assert(r.offer === 'front' && r.down && r.ko, `one takedown knocks out a helmeted, armoured guard (${JSON.stringify(r)})`);
+    assert(r.helmet && r.armour, `the takedown never touches his gear (${JSON.stringify(r)})`);
+  });
+
   await scen('grab', async () => {
     const r = await G(() => {
       const t = window.__t;
@@ -254,6 +274,13 @@ try {
       const e = t.spawn(2, -1, 0);
       e.info = { lines: ['Lab door is 4471.'], codes: [{ flag: 'e2e-code', label: 'Lab door 4471' }] };
       g.mode.onIntelCode = (f) => (window.__intelCodes ??= []).push(f);
+      // (batch-23) patrol timing: a second guard walking a route away from the hold; the intel reads it through the
+      // Guard AI getter `Enemy.patrolRoute` (ping-pong 6 m, 5 s waits: 12 m / (walkSpeed x PACE.patrol 1.1) + 10 s)
+      const route = { points: [[10, -2], [16, -2]], wait: 5 };
+      const p = t.spawn(10, -2, Math.PI / 2);
+      p.setPatrol(route);
+      const getter = p.patrolRoute === route;
+      const loop = Math.round(12 / (p.def.walkSpeed * 1.1) + 10);
       const n0 = g.takedown.grabs.interrogated;
       t.step(0.4);
       t.press();
@@ -262,9 +289,11 @@ try {
       t.pick('interrogate');
       t.step(1.8);
       const feed = [...document.querySelectorAll('.hud-feed')].map((x) => x.textContent).join(' | ');
-      return { held, codes: window.__intelCodes ?? null, feed, info: e.info, n: g.takedown.grabs.interrogated - n0 };
+      return { held, codes: window.__intelCodes ?? null, feed, info: e.info, n: g.takedown.grabs.interrogated - n0, getter, loop };
     });
     assert(r.held, 'the guard is held');
+    assert(r.getter, 'Enemy.patrolRoute returns the route set by setPatrol');
+    assert(r.feed.includes(`Patrols near: 1, loop ${r.loop} s`), `the feed shows the patrol timing (loop ${r.loop} s) (${r.feed})`);
     assert(JSON.stringify(r.codes) === JSON.stringify(['e2e-code']), `the code flag reaches the mode (${JSON.stringify(r.codes)})`);
     assert(r.feed.includes('Code: Lab door 4471'), `the feed shows the code (${r.feed})`);
     assert(r.info === null && r.n === 1, 'his information is spent, one interrogation');

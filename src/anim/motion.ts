@@ -49,6 +49,9 @@ export interface MotionInput {
   tense?: boolean;
   /** (G8, A4) The stance's crouch blend 0..1 (the rig's): the standing walk's shorter steps fade with it (WALK_STEP). */
   crouch?: number;
+  /** (mocap-trial-2, strafe) The mocap strafe's side-step on this gait clock (`GLIDE_SIDE`): the player's driver sets it
+   *  with the switch (a carrier); enemies and the VIP never do (their aimed glide keeps its shuffle). */
+  mocapSide?: boolean;
 }
 
 export function emptyMotionInput(): MotionInput {
@@ -107,11 +110,26 @@ export const WALK_STEP = { k: 0.2, to: 2.1, blend: 3.0 } as const;
 export const GLIDE_STEP = { lat0: 0.075, latK: 0.05, back: 0.35, fwd0: 0.25, fwdK: 0.15 } as const;
 
 /**
+ * (mocap-trial-2, strafe, BRIEF A10) The mocap strafe's side-step, standing, in place of the glide's (`GLIDE_STEP.lat0 +
+ * latK x speed`): half a cycle's travel, the captures' `stride` (m, a cycle at their pace `stride` / `cycle`) scaled
+ * by (v / that pace)^`exp` (`sideStepAt`). `mocap.ts` sets them from the mocap set's strafe captures (stride NaN: none).
+ * Read only when the caller passes `mside` (a carrier's clock with the strafes in its set: the graph's `mSide`, the
+ * player's driver `mocapSide`). The crouched aimed glide keeps its shuffle (blended by the crouch).
+ */
+export const GLIDE_SIDE = { stride: Number.NaN, cycle: 1, exp: 0.25 };
+
+/** (mocap-trial-2, strafe) GLIDE_SIDE's side-step (m) at pace v, or NaN (no strafe captures, or not moving). No allocation. */
+export function sideStepAt(v: number): number {
+  const s = GLIDE_SIDE.stride;
+  return s > 0 && v > 0 ? 0.5 * s * Math.pow(v / (s / GLIDE_SIDE.cycle), GLIDE_SIDE.exp) : Number.NaN;
+}
+
+/**
  * Step length (m) at a ground speed; a gait cycle is two steps. Side-steps are shorter (feet cannot
  * pass each other sideways, so a full-length stride would spread them ~1 m): `lateral` = |sideways
  * share of the velocity| (0..1) shortens steps to 60% at a pure strafe, with a higher cadence.
  */
-export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 0, tense = 0, crouch = 0, back = 0, glide = 0): number {
+export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 0, tense = 0, crouch = 0, back = 0, glide = 0, mside = false): number {
   const v = Math.max(0, speed);
   // (G1, audit row 7) capped at `stepLenMax`: faster than that the cadence rises instead
   let s = Math.min(M.stepLenMax, M.stepLen0 + M.stepLenK * v);
@@ -133,7 +151,12 @@ export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 
   if (g <= 0) return old * TUNE_CUR.strideMul;
   const fwd = base + (Math.min(base, GLIDE_STEP.fwd0 + GLIDE_STEP.fwdK * v) - base) * g;
   const l2 = lateral * lateral;
-  const side = Math.min(fwd, GLIDE_STEP.lat0 + GLIDE_STEP.latK * v);
+  // (mocap-trial-2, strafe) a carrier's mocap strafe side-step standing (GLIDE_SIDE; NaN or not `mside`: the glide's, as before)
+  const sideG = GLIDE_STEP.lat0 + GLIDE_STEP.latK * v;
+  // (sideStepAt written out: a call with a double boxes it, 16 B a frame per gaitRate)
+  const gs = GLIDE_SIDE.stride;
+  const sideM = mside && gs > 0 && v > 0 ? 0.5 * gs * Math.pow(v / (gs / GLIDE_SIDE.cycle), GLIDE_SIDE.exp) : Number.NaN;
+  const side = Math.min(fwd, !Number.isNaN(sideM) ? sideG + (sideM - sideG) * (1 - Math.max(0, Math.min(1, crouch))) : sideG);
   const step = (fwd + (side - fwd) * l2) * (1 - GLIDE_STEP.back * back * back);
   return (old + (step - old) * g) * TUNE_CUR.strideMul;
 }
@@ -154,8 +177,8 @@ export const TURN_GAIT_MIN = 1.0;
  * cycle) and one step per `TURN_STEP` of yaw. Straight walking is unchanged; a 450 deg/s spin is 2.5 cycles/s (a step
  * per 0.2 s). `max`, not a sum: a run turn keeps its cadence.
  */
-export function gaitRate(speed: number, yawRate: number, M: MotionTuning = MOVEMENT, lateral = 0, tense = 0, crouch = 0, back = 0, glide = 0): number {
-  const lin = speed > 0.02 ? speed / (2 * stepLength(speed, M, lateral, tense, crouch, back, glide)) : 0;
+export function gaitRate(speed: number, yawRate: number, M: MotionTuning = MOVEMENT, lateral = 0, tense = 0, crouch = 0, back = 0, glide = 0, mside = false): number {
+  const lin = speed > 0.02 ? speed / (2 * stepLength(speed, M, lateral, tense, crouch, back, glide, mside)) : 0;
   const ang = Math.abs(yawRate) > TURN_GAIT_MIN ? Math.abs(yawRate) / (2 * TURN_STEP) : 0;
   return lin > ang ? lin : ang;
 }
@@ -501,7 +524,7 @@ export class MotionDriver {
       const bk = sp > 0.02 ? Math.min(1, Math.max(0, -(this.vx * Math.sin(this.yaw) + this.vz * Math.cos(this.yaw)) / sp)) : 0;
       // (G1 fix) in a start the clock runs START_CLOCK.share of the way to the target pace (the first step lands at ~0.25 s)
       const spc = this.startT >= 0 && this.wantPace > sp ? sp + (this.wantPace - sp) * START_CLOCK.share : sp;
-      this.phase = (this.phase + gaitRate(spc, this.yawRate, M, lat, this.tense, i.crouch ?? 0, bk, i.aiming ? 1 : 0) * dt) % 1;
+      this.phase = (this.phase + gaitRate(spc, this.yawRate, M, lat, this.tense, i.crouch ?? 0, bk, i.aiming ? 1 : 0, i.mocapSide === true) * dt) % 1;
     }
     const mod = sp > 0.1 ? rootModulation(this.phase, M) : 1;
     this.outX = this.vx * mod;

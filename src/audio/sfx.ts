@@ -111,13 +111,14 @@ export class Sfx {
     this.burst('sfx', 0.18 * gain, pan, 'bandpass', 2600 + Math.random() * 1200, 3, 0.05);
   }
 
-  hitMarker(kind: 'hit' | 'head' | 'kill'): void {
+  hitMarker(kind: 'hit' | 'head' | 'kill' | 'deflect'): void {
     if (!this.a.allow(`hm-${kind}`, 0.04)) return;
     if (kind === 'kill') {
       this.tone('ui', 0.28, 0, 'sine', 880, 870, 0.08);
       this.tone('ui', 0.28, 0, 'sine', 1320, 1310, 0.14, 0.07);
     } else {
-      this.tone('ui', kind === 'head' ? 0.3 : 0.18, 0, 'sine', kind === 'head' ? 1600 : 1150, 1000, 0.05);
+      // (guard-ai S12) a deflect (helmet / vest): a sharp high ping
+      this.tone('ui', kind === 'head' ? 0.3 : 0.18, 0, 'sine', kind === 'head' ? 1600 : kind === 'deflect' ? 2600 : 1150, 1000, 0.05);
     }
   }
 

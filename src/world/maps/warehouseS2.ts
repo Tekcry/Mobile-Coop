@@ -39,7 +39,7 @@ export const S2_SWITCHES: NonNullable<MapLayout['switches']> = [
   { pos: new Vector3(-15.9, 0, 17.85), yaw: PI, group: 41 },
 ];
 
-export const S2_PICKUPS: NonNullable<MapLayout['pickups']> = [{ pos: new Vector3(-4.7, 0, 9.0), kind: 'ammo' }];
+export const S2_PICKUPS: NonNullable<MapLayout['pickups']> = [];
 
 /**
  * (sector-fixes-r R2) The high-bay row: R3's two blocks are the reach truck's high put-away locations, tops 4.4 (the co-op

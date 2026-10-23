@@ -755,6 +755,8 @@ describe('search pace: after combat vs calm (fix round 2: e2e lkp)', () => {
       alertIn: { called: true },
       def: { kind: 'grunt' },
       pos: { x: 0, y: 0, z: 0 },
+      // (guard-ai S8) going to combat reseeds his combat dice
+      rng: { reseed() {} },
     });
     return e as unknown as Probe;
   }

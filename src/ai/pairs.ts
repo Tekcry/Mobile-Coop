@@ -32,6 +32,12 @@ export const PAIRS = {
   grace: 6,
   /** Each line at most this many characters (story.md radio rule). */
   maxChars: 90,
+  /** (S10 wiring) Meeting stops further apart than this (m) are not a meeting (`pickMeet`). */
+  meetMax: 6,
+  /** (S10 wiring) Two stop pairs within this (m) of the same distance tie: the longer window wins (`pickMeet`). */
+  meetTie: 0.05,
+  /** (S10 wiring) The manager steps every pair at the incident board's rate (s). */
+  tick: 0.2,
 } as const;
 
 /** A two-line exchange: [opener, reply]. */
@@ -146,6 +152,50 @@ export function pairWindow(
     return true;
   }
   return false;
+}
+
+/** The meeting `pickMeet` chose: each guard's stop and the window (A's loop time). */
+export interface MeetPick {
+  stopA: number;
+  stopB: number;
+  open: number;
+  close: number;
+  /** Distance between the two stops (m). */
+  d: number;
+}
+
+/**
+ * (S10 wiring) Where two guards on timed loops meet: of every pair of stops (one per route) at most `maxD` apart whose
+ * stays overlap (`pairWindow`), the nearest; a tie (within `PAIRS.meetTie`) goes to the longer window, then the lower
+ * stops. Writes `out`; false when none. Load time only (allocates through `pairWindow`).
+ */
+export function pickMeet(ra: PatrolRoute, rb: PatrolRoute, speed: number, maxD: number, out: MeetPick): boolean {
+  const la = ra.loop;
+  if (!la || !rb.loop) return false;
+  const w: LoopWindow = { open: 0, close: 0 };
+  let found = false;
+  let bestLen = -1;
+  out.d = Infinity;
+  for (let i = 0; i < ra.points.length; i++) {
+    const p = ra.points[i]!;
+    for (let j = 0; j < rb.points.length; j++) {
+      const q = rb.points[j]!;
+      const d = hyp2(p[0] - q[0], p[1] - q[1]);
+      if (d > maxD || d > out.d + PAIRS.meetTie) continue;
+      if (!pairWindow(ra, i, rb, j, speed, w)) continue;
+      const len = mod(w.close - w.open, la.period);
+      // a clearly nearer pair wins; a tie goes to the longer window (the lower stops on a full tie)
+      if (found && d >= out.d - PAIRS.meetTie && len <= bestLen) continue;
+      found = true;
+      bestLen = len;
+      out.stopA = i;
+      out.stopB = j;
+      out.open = w.open;
+      out.close = w.close;
+      out.d = d;
+    }
+  }
+  return found;
 }
 
 const newGuard = (pt: Pt): PairGuard => ({ present: true, calm: true, x: pt[0], z: pt[1], routeX: pt[0], routeZ: pt[1] });

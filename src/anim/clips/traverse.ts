@@ -391,8 +391,10 @@ export const CLIMB_UP = makeClip({
     fLZ: [0, -0.1, 0.27, -0.12, 0.42, -0.13, 0.46, -0.268, 0.5, -0.461, 0.54, -0.461, 0.58, -0.328, 0.63, 0, 1, 0],
     fLPitch: [0, 0, 0.3, 0.6, 0.36, 1.2, 0.52, 1.2, 0.58, 0.3, 0.63, 0, 1, 0],
     // the right foot pushes low on the face (0.4 - 0.44), its knee swung out (fRX) past the arm, then the foot steps onto
-    // the top in front (0.44 - 0.47: on it by 0.474, before the hands let go)
-    fRX: [0, 0, 0.26, 0, 0.34, 0.116, 0.37, 0.164, 0.42, 0.163, 0.46, 0.022, 0.52, 0, 1, 0],
+    // the top in front (0.44 - 0.47: on it by 0.474, before the hands let go), set down under its hip (fRX -0.08 at 0.49;
+    // b22-ladder-knees): both legs folded there, a foot set wide tips the hip-ankle line out and the knee in, onto the
+    // left knee beside it (8.9 cm apart over a ladder's top with fRX 0.022 -> 0; 14.4 cm now, e2e-clip > 9)
+    fRX: [0, 0, 0.26, 0, 0.34, 0.116, 0.37, 0.164, 0.42, 0.163, 0.46, -0.02, 0.49, -0.08, 0.56, 0, 1, 0],
     fRY: [0, 0.05, 0.22, 0.15, 0.3, 0.15, 0.36, 0.139, 0.4, -0.283, 0.42, -0.283, 0.44, -0.271, 0.46, -0.08, 0.48, -0.071, 0.52, -0.064, 0.56, -0.06, 0.6, 0, 1, 0],
     fRZ: [0, -0.12, 0.3, -0.16, 0.335, -0.1, 0.37, -0.131, 0.4, -0.09, 0.42, -0.01, 0.44, 0.003, 0.46, 0.067, 0.48, 0.097, 0.52, 0.098, 0.56, 0, 0.654, 0.06, 1, 0],
     // (the grips hold the hands on the lip until the right foot is on the top, then let go 0.475 - 0.64 (CLIMB_UP_HANDS).
