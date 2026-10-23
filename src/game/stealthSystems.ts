@@ -602,7 +602,13 @@ export class StealthSystems {
     this.stepping = false;
     this.loadShare = 0;
     this.liftStepK = -1;
-    for (const { d, it } of this.doorIts) it.label = d.target === 0 ? 'Open door' : 'Close door';
+    for (const { d, it } of this.doorIts) {
+      it.label = d.target === 0 ? 'Open door' : 'Close door';
+      // (S-e2e-fix3b, ENGINE-ANSWERS Q9) a lock only stops a door opening: a door left open when it relocks can still be
+      // shut by hand (the A8 grille after its 25 s window); shut and locked, its item goes off
+      const use = !d.anchor.locked || d.target !== 0;
+      if (it.enabled !== use) this.ints.setEnabled(it, use);
+    }
     if (this.playerOpened.size) this.noticeOpenDoors(1 / 60);
     // (A3, G97) running into a door does nothing special: bashing is the door menu's (CT)
     // (A3, G41) a door a guard opened is shut behind him on a calm patrol, once he is clear of it
