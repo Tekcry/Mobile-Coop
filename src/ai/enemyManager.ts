@@ -849,7 +849,7 @@ export class EnemyManager {
     // (guard-ai S15, A42) a circuit switched off at its switch: a fault (one goes to turn it back on), or tampering
     // (a circuit cut some other way, its switches still on: the S2 light incident as before)
     if (group >= 0 && lightId < 0 && BREAKER.reset && this.breakers?.isOff(group)) {
-      this.circuitOut(group, x, floor, z, n, true);
+      this.circuitOut(group, x, this.switchFloor(x, z, fy - 2.5), z, n, true);
       return;
     }
     const key = lightId >= 0 ? lightId : group >= 0 ? CIRCUIT_KEY + group : -1;
@@ -933,7 +933,16 @@ export class EnemyManager {
     this.dark.markGroup(reg, l.group);
     const s = this.swP;
     if (!this.breakers || !this.breakers.switchOf(l.group, e.pos.x, e.pos.z, s)) return;
-    this.circuitOut(l.group, s[0]!, this.nav.heightAt(s[0]!, s[2]!, s[1]! - 1), s[2]!, 1, false);
+    this.circuitOut(l.group, s[0]!, this.switchFloor(s[0]!, s[2]!, s[1]!), s[2]!, 1, false);
+  }
+
+  /** (guard-ai S15 laptop fix) The floor a guard stands on to work the switch at (x, z) whose floor is about `y`: the
+   *  nearest walkable cell's height. `heightAt` there reads the wall's own column, whose surface is the wall's top (the
+   *  Warehouse floor switch: 3.2 m), and the walker never counted as at the switch. */
+  private switchFloor(x: number, z: number, y: number): number {
+    const nav = this.nav;
+    const c = nav.nearestWalkable(x, z, 4, y);
+    return c >= 0 ? nav.cellHeight(c) : nav.heightAt(x, z, y);
   }
 
   /** Is the point inside this guard's sight field and range (a light going out: the peripheral range counts)? */

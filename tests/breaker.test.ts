@@ -390,7 +390,7 @@ describe('DarkList and darkState (pure)', () => {
 // ----- the reset walk on an Enemy (prototype stand-in: the walk's own code) -----
 
 describe('Enemy.resetBreaker: the walk at patrol pace, the reset, calm after', () => {
-  async function walker(off: { v: boolean }) {
+  async function walker(off: { v: boolean }, nav: unknown = { nearestWalkable: () => -1, center: () => [0, 0] }) {
     const { Enemy: EnemyClass, PACE } = await import('../src/ai/enemy');
     const reset = vi.fn();
     const barks: string[] = [];
@@ -414,7 +414,7 @@ describe('Enemy.resetBreaker: the walk at patrol pace, the reset, calm after', (
       pos: new Vector3(0, 0, 0),
       def: { walkSpeed: 1.4, kind: 'grunt', scale: 1 },
       ctx: {
-        nav: { nearestWalkable: () => -1, center: () => [0, 0] },
+        nav,
         breakerOff: () => off.v,
         breakerReset: reset,
         coordinated: () => true,
@@ -529,6 +529,64 @@ describe('Enemy.resetBreaker: the walk at patrol pace, the reset, calm after', (
     e.resetBreaker(0, 7, 0, 5, 4);
     expect(e.breakerGroup).toBe(-1);
     expect(e.incident).toBe(-1);
+  });
+
+  // (laptop fix, 884b89c0: e2e-stealth-ai 'breaker' "at -1.00 s, 0.29 m from it, all lit false") the Warehouse floor
+  // switch (switch-4, group 5) is on the z -8.8 wall: on the guards' runtime nav grid the switch's own column is the
+  // wall, whose one surface is its top (3.2 m), so `heightAt` gave the incident a 3.2 m floor; the walker got to the
+  // switch but never counted as at it (|3.2 - 0| > 1.2) and gave up after 30 s with the circuit still off
+  it('a switch on a wall (the Warehouse floor switch): he stands on the floor cell beside it, works it and the circuit comes back on', async () => {
+    const { LevelBuilder } = await import('../src/world/levelBuilder');
+    const { warehouse } = await import('../src/world/maps/warehouse');
+    const { runtimeNav } = await import('./helpers/runtimeNav');
+    const b = new LevelBuilder();
+    const lay = warehouse.build(b, 0);
+    const nav = runtimeNav(b, lay.playerSpawns[0]!.pos, warehouse.navLayers ?? 3, lay.navSeeds ?? []);
+    const sw = lay.switches![4]!;
+    expect(sw.group).toBe(5);
+    // the cause: the wall column's surface is the wall's top, far above the floor the switch stands on
+    const wallTop = nav.heightAt(sw.pos.x, sw.pos.z, sw.pos.y);
+    expect(wallTop - sw.pos.y).toBeGreaterThan(1.2);
+    // the stand cell beside it is the floor
+    const c = nav.nearestWalkable(sw.pos.x, sw.pos.z, 4, sw.pos.y);
+    expect(c).toBeGreaterThanOrEqual(0);
+    expect(Math.abs(nav.cellHeight(c) - sw.pos.y)).toBeLessThan(0.1);
+    // the walk with the old (wall top) floor still ends at the switch: the stand height is the cell's
+    const { e, reset } = await walker({ v: true }, nav);
+    e.pos.set(4, 0, 1);
+    e.resetBreaker(sw.pos.x, sw.pos.z, wallTop, 5, sw.group);
+    const t = run(e, 60, []);
+    expect(reset).toHaveBeenCalledTimes(1);
+    expect(reset.mock.calls[0]![1]).toBe(5);
+    expect(t).toBeLessThan(BREAKER_WALK.giveUp);
+    expect(Math.hypot(e.pos.x - sw.pos.x, e.pos.z - sw.pos.z)).toBeLessThan(1.6);
+  });
+});
+
+describe('EnemyManager: the breaker incident sits on the floor by the switch (laptop fix)', () => {
+  it('a switch on a wall: the walker is sent with the stand cell floor, not the wall top', () => {
+    const reg = new LightRegistry();
+    reg.add({ x: 0, y: 3, z: 0, group: 4 });
+    const h = host(reg, { 4: [0, 0, 4] });
+    const world = { level: { lights: reg, cover: [], coverSegments: [] }, layout: { rooms: [] }, doors: { list: [] } };
+    // the switch's own column (0, 4) is the wall (top 3.2); the walkable cell beside it, 7, is the floor (0.02)
+    const nav = {
+      walk: new Uint8Array(8),
+      nearestWalkable: vi.fn(() => 7),
+      cellHeight: vi.fn((i: number) => (i === 7 ? 0.02 : 0)),
+      center: vi.fn(() => [0, 3.5]),
+      lineClear: vi.fn(() => true),
+      findPath: vi.fn(() => null),
+      heightAt: vi.fn((_x: number, z: number) => (z > 3.5 ? 3.2 : 0)),
+    };
+    const em = new EnemyManager({} as Scene, world as unknown as World, nav as unknown as NavGrid, {} as DamageRegistry, { clear: vi.fn(() => true) } as unknown as Ballistics, {} as Vfx, DIFFICULTY.normal, () => []);
+    em.breakers = h;
+    const a = guard(1, 0, -3, 0);
+    em.enemies.push(a as unknown as Enemy);
+    h.cut(4);
+    em.lightsOut(0, 4, 0 + 2.5, -1, 4);
+    expect(a.resetBreaker).toHaveBeenCalledTimes(1);
+    expect(a.resetBreaker.mock.calls[0]![2]).toBeCloseTo(0.02, 5);
   });
 });
 

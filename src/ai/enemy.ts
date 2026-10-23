@@ -1025,6 +1025,9 @@ export class Enemy implements Damageable {
       const cc = nav.center(c);
       this.brkAt[0] = cc[0];
       this.brkAt[1] = cc[1];
+      // (laptop fix) he stands on that cell: its height, not the point's (a wall column's surface is the wall's top,
+      // and the "at the switch" test below would never pass: he walked up to it and gave up after 30 s)
+      this.brkY = nav.cellHeight(c);
     }
     this.brkT = 0;
     this.brkWalkT = 0;
