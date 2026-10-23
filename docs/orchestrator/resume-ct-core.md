@@ -25,3 +25,14 @@ scratch/ctcore/push-resume.sh <file> <msg>. Message the orchestrator only at PR 
    spare 9, one Opus checker, laptop coop / netmove / ctcourse.
 4. Later spares (docs/orchestrator/spare-jobs.md on feature/menu): 7 crouch pops after mocap-strafe; 16 partner rig start
    (remoteAvatar, after team-climb); 6 partner pose parity (protocol bump, M-L).
+
+## Resume prompt
+```
+Night Shift | CT Core Build: RESUME after the ~12:20 account swap. Model Opus, effort high. Read CLAUDE.md
+("Sessions": "Heavy-usage throughput", "Token rules", "Account swap"; on origin/feature/menu if newer than master), then
+docs/orchestrator/resume-ct-core.md on origin/feature/menu (git fetch; git show
+origin/feature/menu:docs/orchestrator/resume-ct-core.md). Copy it to C:/NightShift/scratch/ctcore/resume-ct-core.md and
+push updates with scratch/ctcore/push-resume.sh. A heavy.lock / heavy2.lock naming CT Core Build with no node / bash
+process of ours is stale: delete it. Message "Night Shift | Orchestrator" once that you resumed, then only at PR open /
+train-ready / blocked / Michael needed. Work "Next window" top down. e2e always E2E_GPU=1.
+```
