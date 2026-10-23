@@ -1,6 +1,14 @@
 # Guard AI - state
 
 ## Now
+22:40 (laptop clock; swap, new account): walk482 builder had died at the swap: its work saved as WIP 659b7642
+(item 2 lone-guard engage, tests/loneGuardEngage.test.ts); Opus finisher RUNNING (items 2 + 6, writes
+slices/WALK482.md). S26 c195408e + S27 fe567fd6 DONE by Cloud Builder 1. S26: merged s25 8bd13e0c -> 1fcab6e3
+(doc-comment conflict only; tsc 0, unit 89/89). RUNNING: S26 checkers A + B, S27 checkers A + B (Opus; slices/
+S2x-CHECK-A/B.md, uncommitted: lead commits), S26 + S27 e2e scenario writers (Sonnet, commit scripts only). Laptop
+queued: s26 on 1fcab6e3 (20261023T113930), s27 on fe567fd6 (20261023T113941); s24 / s24-coop / s25 / s25-sai still
+pending (queue 20 deep); Test Runner asked to drop stale ef44eea5. -guard-ai node_modules = junction to -s24's.
+
 ~23:35: #254 re-labelled train-ready (Marlow #265 A7 cabinet train-ready; same train). #258 S22 game: master merged
 a7e9b33a (master's side; PROTOCOL 43; 142/142), CI running, label kept. Walk 4.82 (WALK-4.82-REPORT.md on
 feature/menu) items 2 (S2 guard hides + forgets -> report then attack, keep LKP) and 6 (S3 camera detection in a
@@ -659,7 +667,7 @@ cd C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/reque
 Cloud builder briefs: orphan branch cloud-queue, briefs/guard-ai-<slice>.md (README there).
 Master 4.82.0 (train 33); train 34 (4.83.0, #260) carries #254 S23. PROTOCOL 42; asserts read the constant.
 Laptop worktrees (npm ci'd): C:/NightShift/Mobile-Coop-guard-ai (feature/guard-ai: STATE/PLAN/BRIEF/slices),
--s22-game, -s23, -s24, -s25a, -relight, -carry-flake (node_modules junction to -s24's).
+-s22-game, -s23, -s24, -s25, -s25a, -s26, -s27, -walk482, -relight, -carry-flake (some node_modules = junction to -s24's).
 Open:
 1. #254 S23: pulled from train 34 on e2e-ctcourse:4 A7. Triage: S23 is right (fence mesh passes sight,
    levelBuilder.ts:318; R0 technician really sees the client at SPOT2). Map fix by Marlow Build (cabinet
@@ -668,8 +676,9 @@ Open:
    (A7-cage-w) stalls ~15 s (S20 door gate never opens a locked leaf).
 2. #258 S22 game (feature/guard-ai-s22-game a7e9b33a): master merged (master's side), train-ready label kept; CI must
    go green (auto-train skips a PR with a missing / red check). Red -> fix on the branch.
-9. Walk 4.82 items 2 + 6: feature/guard-ai-walk482 (off s24), Opus builder -> 2 Opus checkers + laptop, PR stacked on
-   #264; send Marlow the item 6 hook line. If cut off: read slices/WALK482.md / branch tip and finish.
+9. Walk 4.82 items 2 + 6: feature/guard-ai-walk482 (off s24; WIP 659b7642 saved at the swap), Opus finisher -> 2
+   Opus checkers + laptop, PR stacked on #264; send Marlow the item 6 hook line. If cut off: read slices/WALK482.md /
+   branch tip and finish.
 3. #255 LR16-4 relight f08c448c: train-ready (label set ~21:45, laptop 7/7, orchestrator told).
 4. S24 two intruders: PR #264 (feature/guard-ai-s24 7fe4f6a2, stacked on #254). Fix round + re-checks A + B PASS
    (slices/S24-FIX.md, S24-RECHECK-A/B.md). Laptop set s24 on e31edd54 (all suites; ctcourse:4 A7 red until the cage
@@ -677,7 +686,9 @@ Open:
 5. S25: PR #266 (feature/guard-ai-s25 8bd13e0c, stacked on #264). Fix round + re-check PASS (S25B-FIX.md,
    S25B-RECHECK.md). Laptop set s25 on 7a7725ef (20261023T111941) + e2e-stealth-ai on 8bd13e0c (test-only diff,
    20261023T112553) PENDING: red -> Opus triage. Green -> train-ready (with #264, #254, #265).
-6. S26 (off s25) + S27 (off s24) cloud briefs OPEN on cloud-queue (ad9d59cf), A155-A164 accepted.
+6. S26 (feature/guard-ai-s26 1fcab6e3 = cloud c195408e + s25 8bd13e0c merged; worktree -s26) and S27
+   (feature/guard-ai-s27 fe567fd6 off s24; worktree -s27): checkers A + B each + e2e scenario writers running;
+   laptop sets s26 / s27 queued. PASS + green -> PRs (S26 stacked on #266, S27 on #264) + train-ready.
 7. Done this window: guard-carry flake (test race, e7d70c62 merged into s24); planner S26 + S27 (299d6265; S28 none).
 Questions for Michael (non-blocking, decision packs): S23 client arcs / LKP ghost; S25 searchers' flares.
 Polish lists only: WALK-CHECK 1-6, S16-CHECK, A126-CHECK, S22-CHECK 1-5, S22-GAME-CHECK(2), CARRY-FIX2-CHECK,
