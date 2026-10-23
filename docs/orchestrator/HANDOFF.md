@@ -151,6 +151,8 @@ Open work (each job's resume file has the detail):
 Michael's answers tonight: ROADMAP "Decided" (top entries) and DECISIONS G270-G275 (#162, in train 13).
 
 ## In the new account
+**From 2026-10-23 ~19:20 (Michael: "Fixed swap prompts"): use docs/orchestrator/PROMPTS.md. Michael pastes all six at once; the prompts carry no state and are not rewritten at swaps. The per-session prompts below are history.**
+
 Michael (2026-10-23 ~10:45: "all at once. also tell me when its safe to log out of the desktop/laptop accounts without distrupting work. must hit 99% usage on each"): (replaced ~10:55, Michael: "slow down at 95% and ensure you give me the correct orchestrator prompt early enough so i can copy it. must still utilise 100% tokens before swapping") at 95% the old orchestrator gives ONLY the orchestrator prompt and sessions slow down; at 100% with every session saved it says "Safe to log out"; the new orchestrator then gives the other five in one message (Michael ~10:50: "send only orcehstrator prompt, then once in the new account send all at once"). Michael signs in to the other account in the desktop app (and on the laptop for Character Build), then pastes the
 orchestrator prompt, then the other five back to back from the new orchestrator's one message. (Old rule, replaced: the new orchestrator gave each next prompt with its session title, model and
 effort, one per message, as the last thing in that message. Sessions are new: each prompt stands alone. Swapping back
