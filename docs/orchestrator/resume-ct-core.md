@@ -2,6 +2,10 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+~01:55: #269 left out of train 39 (conflicts with train members, not master: courseMode.ts vs guard-ai-s22-game /
+marlow-polish6 SPOT_HOLD; coopHost.ts imports vs anim-fix-pass / sector-redesign-art ClockSync, CT). Orchestrator agreed:
+when train 39 releases, merge master into feature/coop-rejoin (keep both; drop unused P2_START_DZ), tests joinWatch /
+coopRejoin / spawnSlots + tsc, push, label stays -> train 40. Then merge feature/coop-rejoin into coop-rejoin-2.
 ~01:45: guard-models G2, G4 (fix round, re-check PASS), G4s sheet + polish all MERGED (feature/guard-models a8ff2d45).
 Pipeline code complete; blocked on ONE laptop alone bake (all stages + sheet) until the MPFB2 zip is on the laptop (Michael).
 #269 ct:4 rerun PASS (flake confirmed). coop-rejoin-2 (worktree coop-rejoin-2, stacked on #269): Opus builder on RECHECK
