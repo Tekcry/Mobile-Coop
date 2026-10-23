@@ -13,3 +13,4 @@ kind: patch
 - Sector Ops: the per-section synced-takedowns list for `rh` is built with the run, so the two always reset together.
 - Co-op results: each section's rating line goes into the op-end results list at most once (`putRating` replaces by section id); e2e-section-rating's rejoin parts now check the client's list equals the host's (Marlow: A2 from `rh`, A3 from `rt`).
 - Tests: e2e-ctcourse A3 1b asserts the client's own round off the bulletproof hall camera sparks on the client only (host camera online, host ricochet count unchanged, a ray under the housing does not spark); A3 also asserts the L2 far and L3 near doors unlocked on the host.
+- Marlow Yard: A4's two mezzanine stairs (open south side) and A8's public stair (both sides) take an invisible noLedge collision rail from the third tread to the head (A6's staff stair idiom), so a player can no longer step off the flights.
