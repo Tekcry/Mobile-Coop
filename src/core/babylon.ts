@@ -200,3 +200,18 @@ ThinEngine.prototype._deletePipelineContext = function (this: ThinEngine, pipeli
   };
   release();
 };
+
+/** WebGL2's guaranteed floor for MAX_3D_TEXTURE_SIZE is 256; nearly every GPU (ANGLE D3D11 included) reports 2048. */
+const MAX_3D_TEXTURE_SIZE = 0x8073;
+/**
+ * (lr-tex3d) The GPU's largest 3D texture edge (texels), read from the context: a 3D upload past it fails ("texImage3D:
+ * width, height or depth out of range") and the texture samples 0. 2048 when there is no WebGL2 context (NullEngine in
+ * tests, where nothing uploads). Rendering only: gameplay never reads it.
+ */
+export function max3DTextureSize(engine: object): number {
+  const e = engine as { _gl?: WebGL2RenderingContext | null; webGLVersion?: number };
+  const gl = e._gl;
+  if (!gl || (e.webGLVersion ?? 0) < 2 || typeof gl.getParameter !== 'function') return 2048;
+  const v = Number(gl.getParameter(MAX_3D_TEXTURE_SIZE));
+  return v > 0 ? v : 2048;
+}

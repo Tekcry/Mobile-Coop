@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WeaponId } from '../src/weapons/weaponDefs';
 import { NetSession } from '../src/net/session';
 import type { Transport } from '../src/net/transport';
@@ -232,6 +232,21 @@ describe('rejoin record (R1)', () => {
     expect(loadRejoin(Date.now() + (REJOIN_HOLD_S + 1) * 1000)).toBeNull();
     clearRejoin();
     expect(loadRejoin()).toBeNull();
+  });
+  it('(lrpolish) keeps the match lamp falloff through the tab storage; an older record or junk reads as none', () => {
+    const m = new Map<string, string>();
+    vi.stubGlobal('sessionStorage', { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) });
+    try {
+      saveRejoin({ ...rec(Date.now()), role: 'host', lf: 'photometric' });
+      expect(loadRejoin()?.lf).toBe('photometric');
+      saveRejoin(rec(Date.now()));
+      expect(loadRejoin()?.lf).toBeUndefined();
+      m.set('ns-rejoin', JSON.stringify({ ...rec(Date.now()), lf: 'bogus' }));
+      expect(loadRejoin()?.lf).toBeUndefined();
+      clearRejoin();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
   it('keeps one token per room for the tab', () => {
     const a = rejoinToken('ABCDE');

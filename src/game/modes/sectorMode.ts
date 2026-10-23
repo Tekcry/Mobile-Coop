@@ -856,6 +856,7 @@ export class SectorMode implements GameMode {
       // (guard-ai S6) a reinforcement is told by command (`joinReinforcement`), not spawned alerted (no contact call)
       const e = em.spawn(p.slot.kind, this.tmp, p.alerted && !(p.reinforce && em.coordinated), p.slot.yaw);
       if (!e) break;
+      if (p.slot.info) e.info = p.slot.info; // (stealth-pays S2) what INTERROGATE gets out of him
       if (p.slot.route) e.setPatrol({ points: p.slot.route, wait: p.slot.wait, waits: p.slot.waits, faces: p.slot.faces, start: p.slot.start, loop: p.slot.loop });
       if (p.k >= 0) this.slotEnemy[p.k] = e;
       // (guard-ai S5) post, profile, section (the live SectorDef's index); (S5b) the sector tags (squad, handler,
@@ -870,6 +871,11 @@ export class SectorMode implements GameMode {
       if (p.team) em.joinTeam(e, p.team);
       this.pending.splice(i, 1);
     }
+  }
+
+  /** (stealth-pays S2, spare 9 part B) An interrogation's code flag: the team holds it for this section; keypad prompts refresh. */
+  onIntelCode(flag: string): void {
+    if (this.codes.grantCode(flag, this.run.index)) this.keypadLabels();
   }
 
   /** A guard's alarm: up one stage, and guards come in hunting (A3). The mode brings its own reinforcements. */
