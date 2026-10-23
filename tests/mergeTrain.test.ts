@@ -8,8 +8,8 @@ import {
   failedTestFiles, vitestRerunPlan, vitestRerunCmd,
   lockIsOurs, wireCandidates, membersFromLog, parseArgs, protocolValue, releaseHeavyLock,
   resolveKeepBoth, resumeCheck, tailLines, takeHeavyLock, touchesWire, trainPrBody, trainPrTitle, versionSubject, vitestVerdict, wirePaths,
-  // @ts-expect-error plain .mjs process script without types
   hasTrainMember,
+  // @ts-expect-error plain .mjs process script without types
 } from '../scripts/merge-train.mjs';
 
 describe('merge-train', () => {
