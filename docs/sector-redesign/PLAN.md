@@ -136,3 +136,8 @@ W2 / W3 ride the campus-art PR (or their own if src/net changes and art is late)
   on the laptop -> PR 5.
 - A64 lift (-cap, Opus): guard-render S1-S7 are in; the 6-awake screen cap and dormant tags follow the measured budget
   (checks/a64-lift.md); joins PR 5; the perf pass measures S4 / S5 at 20 / 24.
+Status 16:15: W1 = LR13 + shadow audit + LR14 in #232 (default off; Michael decides); W2 / W3 in #226.
+
+## LR15 (after LR14; shadow-audit.md proposals)
+8 door slots per lamp (shut doors past the 4-door cap leak) + exact torch drawing in LampPlugin (lampMath falloff, cos^2
+cone, per-torch beam cut), both behind the LR13 toggle. Branch -lampx off #232; Opus build, Opus checker, laptop GPU.
