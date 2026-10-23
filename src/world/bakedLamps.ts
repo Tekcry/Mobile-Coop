@@ -1,6 +1,6 @@
-import { BaseTexture, Constants, EffectRenderer, EffectWrapper, MaterialPluginBase, RawTexture, RawTexture3D, Texture, Viewport, type AbstractMesh, type Material, type MaterialDefines, type Observer, type RenderTargetWrapper, type Scene, type SubMesh, type UniformBuffer } from '../core/babylon';
+import { BaseTexture, Constants, max3DTextureSize, EffectRenderer, EffectWrapper, MaterialPluginBase, RawTexture, RawTexture3D, Texture, Viewport, type AbstractMesh, type Material, type MaterialDefines, type Observer, type RenderTargetWrapper, type Scene, type SubMesh, type UniformBuffer } from '../core/babylon';
 import { dropCpuCopy } from '../voxel/voxelWorld';
-import { BOX_STRIDE, fillLampAtlas, LAMP_CELL, LAMP_GRID, LAMP_STRIDE, lampGrid, packLampAtlas, type LampResult } from '../voxel/lampBake';
+import { BOX_STRIDE, fillLampAtlas, fitLampAtlas, LAMP_CELL, LAMP_GRID, LAMP_STRIDE, lampGrid, type LampResult } from '../voxel/lampBake';
 import { LAMP_VOL_MAX, lampVolumeGrid, lampVolumeRegion, unionRegion, type LampVolumeGrid } from '../voxel/lampVolume';
 import type { LightRegistry } from './lights';
 import { bakedLights, type MoonGrid } from './lightBake';
@@ -72,6 +72,9 @@ export class BakedLamps implements CharShadowLamps {
   /** Registry ids of the baked lights (the light rig leaves them out). */
   readonly ids: Set<number>;
   readonly atlasDims: [number, number, number];
+  /** (lr-tex3d) Atlas pages stacked along y (`fitLampAtlas`): 1 unless the rows pass the GPU's 3D texture size; more
+   *  pages put each lamp's y offset in its t7.y and define `LAMP_PAGES`. */
+  readonly atlasPages: number;
   readonly gridInfo: { lox: number; loz: number; cols: number; rows: number };
   readonly width: number;
   /** Texel index where the lamps / the capsules / the doors start. */
@@ -174,8 +177,11 @@ export class BakedLamps implements CharShadowLamps {
     this.ids = new Set(baked.ids);
     this.boxes = r.boxes;
     this.lastColors = new Float32Array(baked.ids.length * 3).fill(-1);
-    const atlas = packLampAtlas(r.boxes);
+    // (lr-tex3d) within the GPU's real 3D texture size: past it the upload fails and every lamp reads 0 on screen
+    const atlas = fitLampAtlas(r.boxes, max3DTextureSize(scene.getEngine()));
+    if (!atlas.fits) console.warn(`BakedLamps: lamp atlas ${atlas.dims.join('x')} passes this GPU's 3D texture size`);
     this.atlasDims = atlas.dims;
+    this.atlasPages = atlas.pages;
     const [ax, ay, az] = atlas.dims;
     this.vis = new RawTexture3D(fillLampAtlas(r, atlas), ax, ay, az, Constants.TEXTUREFORMAT_R, scene, false, false, Texture.BILINEAR_SAMPLINGMODE, Constants.TEXTURETYPE_UNSIGNED_BYTE);
     this.vis.wrapU = this.vis.wrapV = this.vis.wrapR = Texture.CLAMP_ADDRESSMODE;
@@ -210,6 +216,8 @@ export class BakedLamps implements CharShadowLamps {
       const b = i * BOX_STRIDE;
       buf.set([r.boxes[b]!, r.boxes[b + 1]!, r.boxes[b + 2]!, r.boxes[b + 4]!], o + 12);
       buf.set([atlas.offsets[i * 2]!, atlas.offsets[i * 2 + 1]!, r.boxes[b + 3]!, r.boxes[b + 5]!], o + 16);
+      // (lr-tex3d: t7.y, the tile's page along y; t7.x is the character shadow slot, written by `update`)
+      buf[o + 29] = atlas.ys[i]!;
       // (t6: the doors this lamp tests, ids + 1)
       const ns = this.doorSlots;
       for (let k = 0; k < DOORS_PER_LAMP; k++) buf[o + 24 + k] = this.lampDoors[i * ns + k]! + 1;
@@ -494,7 +502,11 @@ void main(void) {
       vec4 t3 = lampTexel(lb + 3);
       vec4 t4 = lampTexel(lb + 4);
       vec3 q = clamp((p - t3.xyz) / lampAtlas.w, vec3(0.5), vec3(t4.z, t3.w, t4.w) - 0.5);
+#ifdef LAMP_PAGES
+      k *= texture(lampVis, (q + vec3(t4.x, lampTexel(lb + 7).y, t4.y)) / lampAtlas.xyz).r;
+#else
       k *= texture(lampVis, (q + vec3(t4.x, 0.0, t4.y)) / lampAtlas.xyz).r;
+#endif
       if (k <= 0.0) continue;
       // (3.6) closed doors near the lamp
       vec4 t6 = lampTexel(lb + 6);
@@ -574,7 +586,7 @@ class LampVolume {
     this.a = wrap(this.rtA);
     this.b = wrap(this.rtB);
     this.renderer = new EffectRenderer(engine);
-    this.wrapper = new EffectWrapper({ engine, name: 'lampVolumeMix', fragmentShader: MIX_GLSL.replace(LAMP_MATH_GLSL, lampMathGlsl()), defines: lamps.doorSlots > DOORS_PER_LAMP ? ['#define LAMP_DOORS8'] : null, uniformNames: ['lampInfo', 'lampGridO', 'lampAtlas', 'volO', 'slice', 'outB', 'volMax', 'lampMore'], samplerNames: ['lampVis', 'lampData'] });
+    this.wrapper = new EffectWrapper({ engine, name: 'lampVolumeMix', fragmentShader: MIX_GLSL.replace(LAMP_MATH_GLSL, lampMathGlsl()), defines: mixDefines(lamps), uniformNames: ['lampInfo', 'lampGridO', 'lampAtlas', 'volO', 'slice', 'outB', 'volMax', 'lampMore'], samplerNames: ['lampVis', 'lampData'] });
   }
 
   /** Mix a region of cells (i0, j0, k0, i1, j1, k1) into both targets. */
@@ -710,12 +722,20 @@ float lampCapsule(vec3 p, vec3 l, vec3 a, vec3 b, float r) {
  * (range falloff, cone, N.L - as Babylon's lights gave it) x its baked visibility at a point a cell off the surface
  * x the characters' capsule shadows; added to the material's diffuse.
  */
+/** The lamp volume mix's defines (LR15 door slots, lr-tex3d atlas pages). */
+function mixDefines(l: BakedLamps): string[] | null {
+  const d: string[] = [];
+  if (l.doorSlots > DOORS_PER_LAMP) d.push('#define LAMP_DOORS8');
+  if (l.atlasPages > 1) d.push('#define LAMP_PAGES');
+  return d.length ? d : null;
+}
+
 export class LampPlugin extends MaterialPluginBase {
   constructor(
     material: Material,
     private lamps: BakedLamps,
   ) {
-    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false, LAMP_LEVEL: false, LAMP_SKY: false, LAMP_PHOTO: false, LAMP_CSHADOW: false, LAMP_DOORS8: false, LAMP_TORCH: false });
+    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false, LAMP_LEVEL: false, LAMP_SKY: false, LAMP_PHOTO: false, LAMP_CSHADOW: false, LAMP_DOORS8: false, LAMP_TORCH: false, LAMP_PAGES: false });
     // (coop-fix) a clone must not carry it: Babylon rebuilds a cloned plugin by class name (`Tools.Instantiate`), which
     // fails for this unregistered class and aborted every figure loaded after the attach (the joiner's partner); the
     // clone is a new material, so `BakedLamps.frame` gives it its own plugin
@@ -760,6 +780,8 @@ export class LampPlugin extends MaterialPluginBase {
     defines.LAMP_DOORS8 = !!mesh && this.lamps.doorSlots > DOORS_PER_LAMP;
     // (LR15) the unshadowed flashlights drawn here (the per-lamp loop on PBR materials only)
     defines.LAMP_TORCH = !!mesh && !this.lamps.volume && !!this.lamps.torchDraw && !this.std;
+    // (lr-tex3d) a paged lamp atlas: each lamp's page offset from its t7.y
+    defines.LAMP_PAGES = !!mesh && this.lamps.atlasPages > 1;
   }
 
   override getSamplers(samplers: string[]): void {
@@ -986,7 +1008,11 @@ ${settle}
       vec4 t4 = lampTexel(lb + 4);
       vec3 dq = lp + lgn * lampAtlas.w;
       vec3 q = clamp((dq - t3.xyz) / lampAtlas.w, vec3(0.5), vec3(t4.z, t3.w, t4.w) - 0.5);
+#ifdef LAMP_PAGES
+      k *= texture(lampVis, (q + vec3(t4.x, lampTexel(lb + 7).y, t4.y)) / lampAtlas.xyz).r;
+#else
       k *= texture(lampVis, (q + vec3(t4.x, 0.0, t4.y)) / lampAtlas.xyz).r;
+#endif
       if (k <= 0.0) continue;
       // (3.6) closed doors near the lamp, tested from the same point as the visibility
       vec4 t6 = lampTexel(lb + 6);
