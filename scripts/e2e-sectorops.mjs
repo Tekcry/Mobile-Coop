@@ -505,6 +505,18 @@ await run(PARAMS, async ({ G, sim }) => {
     return { x: cx, y: c >= 0 ? g.nav.height[c] : e.pos.y, z: cz, yaw: e.yaw, d: Math.hypot(cx - e.pos.x, cz - e.pos.z), q };
   }, spot.nearest);
   assert(near && near.d < near.q * 0.45, `a spot just behind the nearest guard, inside the combat reach through a wall (${JSON.stringify(near)})`);
+  // (deflake) seeded Math.random from here to the read: the think cadence and the reaction draw on it, and real-time
+  // frames before this left it anywhere; restored in the read below so later blocks are unaffected
+  await G(() => {
+    window.__rnd0 = Math.random;
+    let sd = 0x5eed1;
+    Math.random = () => {
+      sd = (sd + 0x6d2b79f5) | 0;
+      let q = Math.imul(sd ^ (sd >>> 15), 1 | sd);
+      q = (q + Math.imul(q ^ (q >>> 7), 61 | q)) ^ q;
+      return ((q ^ (q >>> 14)) >>> 0) / 4294967296;
+    };
+  });
   // facing the way he faces: away from him
   await tp(G, near.x, near.y, near.z, near.yaw);
   await sim(0.3);
@@ -517,8 +529,10 @@ await run(PARAMS, async ({ G, sim }) => {
     g.weapons.events.onShot(g.weapons.current.def);
     s.noise = n0;
   });
-  await sim(0.5);
+  // read after ~1 s (think cadence 0.22-0.3 s plus his reaction), not 0.5 s
+  await sim(1.0);
   const ctl = await G((id) => {
+    if (window.__rnd0) { Math.random = window.__rnd0; delete window.__rnd0; }
     const em = window.__app.current.enemyMgr;
     const e = em.enemies.find((q) => q.id === id);
     return { nearest: e ? e.alerted : null, level: e ? e.level : null, alerted: em.enemies.filter((q) => q.alive && q.alerted).length };
