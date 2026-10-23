@@ -10,11 +10,13 @@ export const KIT_FILE = 'scripts/operators/data/guards.json';
 const HASH_VERSION = 1;
 
 /**
- * The stage graph in run order. `deps` are the stages whose outputs the stage reads; heads, gear and bodies need only
- * the kit data (guards.json).
+ * The stage graph in run order. `deps` are the stages whose outputs the stage reads; heads and gear need only the kit
+ * data (guards.json). `prep` (G1) is one node job: each base's skeleton from the game rig (`joints/guard-<base>.json`)
+ * and the MakeHuman data (`mpfb2/`) under the out dir, which the bodies read.
  */
 export const STAGES = [
-  { name: 'bodies', deps: [] },
+  { name: 'prep', deps: [] },
+  { name: 'bodies', deps: ['prep'] },
   { name: 'heads', deps: [] },
   { name: 'garments', deps: ['bodies'] },
   { name: 'gear', deps: [] },
@@ -43,7 +45,8 @@ export const GPU_STAGES = new Set(['heads', 'lods']);
 
 /** Shared library files (repo-relative, under py/) whose content joins the hash of every job of a stage. */
 const LIBS = {
-  bodies: ['common.py', 'mh.py', 'build_skeleton.py'],
+  prep: [],
+  bodies: ['common.py', 'mh.py', 'guard_body.py'],
   heads: ['common.py', 'mh.py', 'materials.py'],
   garments: ['common.py', 'pattern.py', 'build_garment.py', 'garment_details.py', 'fitted.py', 'materials.py', 'garments/torso_common.py'],
   gear: ['common.py', 'rigid_skin.py', 'materials.py', 'garments/kit_common.py'],
@@ -74,6 +77,15 @@ const DEFAULT_GARMENTS = [
   { id: 'boots', script: 'garments/boots.py' },
   { id: 'gloves', script: 'garments/gloves.py' },
   { id: 'jacket', script: 'garments/field_jacket.py', bases: ['average'] },
+];
+
+/** G1: the guard body script (Wren's build_body.py is untouched), the prep job's script and its hashed sources. */
+export const BODY_SCRIPT = 'build_guard_body.py';
+export const PREP_SCRIPT = 'scripts/operators/guard-prep.mjs';
+const PREP_FILES = [
+  'scripts/operators/guardJoints.mjs', 'scripts/operators/fetch-base-body.mjs', 'scripts/operators/data/mpfb2-files.txt',
+  'scripts/operators/paths.mjs', 'scripts/anim-skeleton/skeleton.json', 'src/player/proportions.ts',
+  'src/operators/operatorBody.ts', 'src/anim/clavicle.ts',
 ];
 
 /** Pieces with their own GLB, rigid and the same for every base (G3, G4): one job, not one per base. */
@@ -145,7 +157,7 @@ const slice = (nk, entry) => ({ entry, shared: nk.shared });
 
 /**
  * The jobs of a stage for a kit. One job per base (bodies, lods, check), per head variant (heads), per (base, garment)
- * (garments), per (base, piece) (gear), one for sheet. A piece with its own GLB (shield_riot) is one gear job, one lods
+ * (garments), per (base, piece) (gear), one for prep and one for sheet. A piece with its own GLB (shield_riot) is one gear job, one lods
  * job and one check job, not three. `opts.only` (array or comma list) keeps the jobs whose id, id without the stage
  * prefix, or any tag (base, variant, garment, piece) is named.
  *
@@ -168,8 +180,13 @@ export function jobsFor(stage, kit, opts = {}) {
   const common = (j) => ['--stage', stage, '--job', j];
   const gearIds = (b) => nk.pieces.map((p) => idOf('gear', b, p.id));
   const out = {
+    // the joints come from the game's TypeScript (proportions, the rig layout, the clavicle point): those files join the hash
+    prep: () => [make('prep', {
+      runner: 'node', script: PREP_SCRIPT, args: common('prep'), files: PREP_FILES, kit: { bases: nk.bases },
+      outputs: [...baseIds.map((b) => `joints/guard-${b}.json`), 'mpfb2/3dobjs/base.obj', 'prep/prep.json'],
+    })],
     bodies: () => nk.bases.map((b) => make(idOf('bodies', b.id), {
-      script: 'build_body.py', args: [...common(idOf('bodies', b.id)), '--base', b.id], tags: [b.id],
+      script: BODY_SCRIPT, args: [...common(idOf('bodies', b.id)), '--base', b.id], tags: [b.id], needs: ['prep'],
       kit: slice(nk, b), outputs: [`bodies/guard-${b.id}-body.blend`, `bodies/guard-${b.id}-body.json`],
     })),
     heads: () => nk.heads.map((h) => make(idOf('heads', h.id), {
