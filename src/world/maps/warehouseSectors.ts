@@ -133,16 +133,16 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
         climbs: [4, 7],
       },
       {
-        // high: the R2N ladder, the rack tops into the cage, out along the sprinkler mains
+        // high: the R2N ladder, the rack tops into the cage, out along the sprinkler mains (LR16-W S2: the A3 corner on the strip's rim, the A2 jump from nearer the rack edges, the drop 1 m south along the main)
         name: 'Rack tops into the cage, out along the sprinkler mains',
-        pts: [[-14.5, -7.2], [-14.5, -5.4], [-12.0, -5.4], [-12.0, 5.8], [-14.65, 6.3], [-14.65, 7.6, 4.0], [-14.9, 10.0, 4.0], [-18.3, 10.0, 4.0], [-18.75, 13.5, 4.0], [-20.4, 13.5], [-22.1, 15.0], [-22.6, 12.8], [-23.45, 12.7], [-23.45, 11.4, 4.0], [-23.45, 7.4, 4.0], [-23.45, 6.4, 5.0], [-6.2, 6.4, 5.0], [-6.0, 15.2, 5.0], [-6.0, 15.2], [-4.8, 14.55], [-1.0, 15.0]],
+        pts: [[-14.5, -7.2], [-14.5, -5.4], [-12.0, -5.4], [-12.6, 5.4], [-14.65, 6.3], [-14.65, 7.6, 4.0], [-15.2, 10.0, 4.0], [-18.6, 10.0, 4.0], [-18.75, 13.5, 4.0], [-20.4, 13.5], [-22.1, 15.0], [-22.6, 12.8], [-23.45, 12.7], [-23.45, 11.4, 4.0], [-23.45, 7.4, 4.0], [-23.45, 6.4, 5.0], [-6.2, 6.4, 5.0], [-6.0, 14.2, 5.0], [-6.0, 14.2], [-4.8, 14.55], [-1.0, 15.0]],
         obj: 10,
         climbs: [4, 6, 8, 12, 13, 14, 15, 16, 17],
       },
       {
-        // service (VNA): up the VNA aisle, the A2 ladder over the beam, R1N's top, the hang-drop and in at the issue gate
+        // service (VNA): up the VNA aisle, the A2 ladder over the beam, R1N's top, the hang-drop and in at the issue gate (LR16-W S2: the ladder foot at the ladder, R1N's top walked on its centre line, the drop off its north end nearer A2, back past the desk on the pool's rim)
         name: 'Up the VNA aisle, over the beam and in at the issue gate',
-        pts: [[-14.5, -7.2], [-14.5, -5.4], [-16.7, -4.0], [-16.9, 13.4], [-18.2, 13.4, 4.0], [-18.75, 14.6, 4.0], [-18.75, 15.5], [-19.2, 16.5], [-20.6, 16.5], [-22.1, 15.0], [-20.6, 16.5], [-19.2, 16.5], [-17.0, 15.6], [-12.0, 15.5], [-5.2, 15.5], [-4.8, 14.55], [-1.0, 15.0]],
+        pts: [[-14.5, -7.2], [-14.5, -5.4], [-16.7, -4.0], [-17.1, 13.4], [-18.75, 13.4, 4.0], [-18.75, 14.6, 4.0], [-18.0, 15.5], [-19.2, 16.5], [-20.6, 16.5], [-22.1, 15.0], [-20.6, 16.5], [-19.2, 16.5], [-17.0, 14.9], [-12.0, 15.5], [-5.2, 15.5], [-4.8, 14.55], [-1.0, 15.0]],
         obj: 9,
         climbs: [3, 5],
       },
