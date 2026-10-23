@@ -1,6 +1,18 @@
 # Guard AI - state
 
 ## Now
+~22:30: #254 S23 OUT of train 34 (orchestrator): e2e-ctcourse:4 A7 "technician leaves R0" fails: since S23 the R0
+technician picks the client at SPOT2 (96.65, 61.5) in the data-hall cage through two mesh faces (pickTarget,
+enemy.ts:1991) and investigates. Marlow ruling: SPOT2 must be hidden from R0; fix ours (fallback: Marlow makes the
+cage east face opaque). Opus A7 triage RUNNING (s23 worktree, slices/S23-A7-TRIAGE.md). Then: laptop ctcourse:4 on the
+fix, re-add train-ready, merge the fix into s24 / s25 before their laptop sets.
+S24 fix round DONE 086655a2 (slices/S24-FIX.md: re-call on first sighting, contactHunt for reinforcements, S6 (b) +
+guard-cap retunes, e2e-coop "two intruders" block); carry-flake e7d70c62 (test bug) merged -> s24 e31edd54. S25b DONE
+by Cloud Builder: feature/guard-ai-s25 73038a40 (worktree -s25, junction to -s24 node_modules). Planner S26 + S27 DONE
+299d6265 (S28 none); cloud briefs guard-ai-S26 (off s25) + S27 (off s24) OPEN ad9d59cf, A155-A164 accepted.
+RUNNING (Opus): S24 re-checks A + B (slices/S24-RECHECK-A/B.md, uncommitted: lead commits), S25b checks A + B
+(slices/S25B-CHECK-A/B.md in -s25). Laptop set s24 waits for the A7 fix merge (ctcourse:4 must count).
+
 ~21:45 (swap, laptop, session [1adb22]): laptop s23-coop 2/2 GREEN 01b107b5 (#254 in train 34, 4.83.0); relight 7/7
 GREEN fbf32636 -> #255 train-ready label + orchestrator told. The ~21:20 agents (S24 fix round, e2e-coop two
 intruders, guard-carry flake, S26-S28 planner) died at the swap with no output. S24 check A + B drafts committed
