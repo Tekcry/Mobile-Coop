@@ -28,8 +28,28 @@ export function pageLeaving(): boolean {
 
 /** The last warm run (runs queue behind it, one at a time). */
 let warm: Promise<number> = Promise.resolve(0);
-/** Urls warmed or being warmed this page (a failed run forgets its own, so a later call tries them again). */
-const asked = new Set<string>();
+/**
+ * Urls warmed or being warmed this page, each with the run that holds it (a failed run forgets its own, so a later
+ * call tries them again). (G7b) A call with nothing new waits for the runs holding ITS urls, never for the last run
+ * queued: the menu's load screen (`loadMenuLods`) does not wait behind the guards' LODs.
+ */
+const asked = new Map<string, Run>();
+interface Run {
+  p: Promise<number>;
+  /** Queue order (runs go one at a time, so the latest-queued run settles last). */
+  seq: number;
+}
+let seq = 0;
+
+/** The latest-queued run holding any of `urls` (every one already asked), else a settled 0. */
+function heldBy(urls: readonly string[]): Promise<number> {
+  let best: Run | undefined;
+  for (const u of urls) {
+    const r = u ? asked.get(u) : undefined;
+    if (r && (!best || r.seq > best.seq)) best = r;
+  }
+  return best ? best.p : Promise.resolve(0);
+}
 /** Urls asked for before a worker controlled the page: warmed at its `controllerchange`. */
 const pending = new Set<string>();
 let waiting = false;
@@ -57,9 +77,8 @@ export function warmPlayLods(urls: readonly string[]): Promise<number> {
     return Promise.resolve(0);
   }
   const fresh = urls.filter((u) => u && !asked.has(u));
-  if (!fresh.length) return warm;
-  for (const u of fresh) asked.add(u);
-  warm = warm.then(async () => {
+  if (!fresh.length) return heldBy(urls);
+  const run = warm.then(async () => {
     let n = 0;
     for (const u of fresh) {
       if (await caches.match(u)) continue;
@@ -70,11 +89,14 @@ export function warmPlayLods(urls: readonly string[]): Promise<number> {
     }
     return n;
   }).catch((e: unknown) => {
-    for (const u of fresh) asked.delete(u);
+    for (const u of fresh) if (asked.get(u) === held) asked.delete(u);
     // not an error: the loads themselves report a real failure; this only means the cache is not warm yet (offline,
     // or cut off), and the next start tries again
     if (!leaving) console.info('[operators] offline cache not warmed yet', e);
     return 0;
   });
-  return warm;
+  const held: Run = { p: run, seq: ++seq };
+  for (const u of fresh) asked.set(u, held);
+  warm = run;
+  return run;
 }
