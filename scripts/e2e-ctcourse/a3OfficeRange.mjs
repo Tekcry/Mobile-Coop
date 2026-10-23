@@ -5,8 +5,9 @@
 //   2. the send-back: the client stands in the corridor unjammed: the camera has it (stage 2), the host sends it back to (77.8, 10.75) on both
 //      pages, LANTERN's line reaches the client, the claim made the client B (the host A, the lines swap);
 //   3. the dark case: the host switches the corridor off (a3-sw-corr): the corridor reads dark on both pages and the client is sent back again
-//      (the camera sees in the dark, G240); the switch back on. The switch is a lights-out lure: both players wait in the L2
-//      holding room behind its shut far door before the cut (the client out only for the send-back) until he is back on his loop;
+//      (the camera sees in the dark, G240); the switch back on. Both players wait in the L2 holding room behind its shut far door
+//      (the client out only for the send-back) until the cleaner is back on his loop, before the cut (step 2's camera alarm sent
+//      him to search the corridor) and again after the switch is back on (the dark send-back's alarm);
 //   4. the window miss: the host jams from the west post; the camera is blind and frozen on both pages, the client in the corridor in plain view
 //      is not seen (meter and stage 0, no send-back) for as long as the window lasts; when the jam ends and the camera reboots it has the client:
 //      sent back (the third send-back);
@@ -98,6 +99,10 @@ export async function walk(t, n) {
     }
     await sampler;
   }
+  /** (S-e2e-fix2) Wait (150 s, traced) until the cleaner is calm and back on his office loop: unaware or cooldown (`alerted` is
+   *  the combat level only) and inside the offices (x > 79.6, z < 8.7), or no live guard. */
+  const calmOnLoop = (what, msg) =>
+    traced(what, until(A, () => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return !e || ((e.aware.level === 'unaware' || e.aware.level === 'cooldown') && e.pos.x > 79.6 && e.pos.z < 8.7); }, null, 150000, msg));
   /** The wall switch item near (x, z): `switch-<n>` in the map's order, found by where it is. */
   const switchId = (x, z) => GA(([x, z]) => window.__app.current.interactables.items.find((i) => /^switch-/.test(i.id) && Math.hypot(i.pos.x - x, i.pos.z - z) < 0.7)?.id ?? null, [x, z]);
   const groupOn = (P, g) => P.evaluate((g) => window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g).every((x) => x.on), g);
@@ -327,6 +332,18 @@ export async function walk(t, n) {
   });
   // the client's send-back hold from step 2 ends before the cut (was the wait between the cut and the send-back)
   await waitSim(3500);
+  // (marlow-polish A3 triage, docs/marlow-final/slices/A3-ctcourse2-triage.md) the cut and the dark send-back wait until the
+  // cleaner is back on his loop. Step 2's send-back is a camera alarm: `CtDevices.onCamera` -> `EnemyManager.deviceAlert`
+  // sends him at a run to search round (87, 10.75) (guard-ai S17/S19, `searchAt` with `SEARCH_DEVICE`, 60 s); the map has no
+  // rooms, so the search is a ring out to 11 m from the corridor's middle. The cut and the dark send-back came about 6-9 s
+  // after it, while he stood looking round in the corridor 9-10 m from the send-back spot on its centre line (searching:
+  // sight x 1.6): he saw the client there, went to combat, and his search round that last known position (77.8, 10.75)
+  // routes its 4th and 5th points through the L2 far door into the room (the runtime nav grid, triage doc); a shut door that
+  // is not locked is opened on his way (guard-ai S20 `doorStep`), he found both players inside and fought / searched through
+  // the whole 150 s step-4 wait (mf-fix4-2b's trace: in combat at x 75, inside the room). From his office loop the corridor and the
+  // lobby are out of sight (walls, shut doors), so the cut lures nobody and the dark send-back's alarm sends him from the
+  // offices: the client is back in the L2 room before he reaches the corridor.
+  await calmOnLoop('A3 calm before the cut', 'A3: the cleaner is calm and back in the offices after the first send-back');
   assert((await use(A, swCorr)) === 'ok', 'A3: the host turns the corridor switch off');
   await until(A, () => !window.__app.current.stealth.switchOn(30), null, 15000, 'A3: the host sees group 30 off');
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
@@ -350,7 +367,8 @@ export async function walk(t, n) {
   // back on his office loop
   // (S-e2e-fix2) calm = back on his loop (unaware or cooldown): `alerted` is the combat level only, so a guard still searching
   // (60 s, ALERT.searchTime) or investigating read as calm
-  await traced('A3 calm', until(A, () => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return !e || ((e.aware.level === 'unaware' || e.aware.level === 'cooldown') && e.pos.x > 79.6 && e.pos.z < 8.7); }, null, 150000, 'A3: the cleaner is calm and back in the offices after the corridor lure'));
+  // (marlow-polish A3 triage) now the dark send-back's camera alarm (his device search round the corridor's middle)
+  await calmOnLoop('A3 calm', 'A3: the cleaner is calm and back in the offices after the corridor lure');
   // (the start's damage-off can be undone by the bay-N respawn's wall-clock 2 s timer: set again, seconds later)
   await noDamage(A);
   assert((await GA(() => window.__app.current.target.health.hp)) === 100, 'A3: the host is unhurt before the jam posts');
