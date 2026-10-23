@@ -287,6 +287,10 @@ Heads: art 8521bcbf (#226), charshadow 93546cd6 (#232 = LR13 + shadow + LR14), l
 3. LR15 (-lampx off #232, Opus agent): 8 door slots per lamp + exact torch drawing in LampPlugin, behind the LR13
    toggle (shadow-audit.md s2 :76, s3b :101). Then a fresh Opus checker (checks/lr15-check.md), laptop GPU checks
    listed in checks/lr15-build.md; rides #232 if it is not yet merged, else its own PR.
+LATEST 16:25 Test Runner verdict: #226 perf CPU OVER at 24 guards (S5 15.6 / S3 14.5 / S4 12.4 vs 12;
+   0 guards 6.7-7.4; ~0.28 ms per guard) -> Opus fix on -perf (checks/campus-perf-fix.md). #232 f03bb0ea 6/7, sectorops:6
+   FAIL "C1 cycles: near door locks, section 1 unloads" -> Opus fix on -charshadow (checks/s6-c1-fix.md). Asked the
+   laptop for #226 8521bcbf suites + Realistic darkness / lightbake / Epic smoke; torch / preset sheets wait for LR15.
 4. Polish lists (not blocking): lr-check 1-6, lr14-check 1-7, walk-472-check 1-4, art-check.
 Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
 Sonnet builds from strict briefs; one checker per batch; tsc / vitest slot locks C:/NightShift/scratch/sr-slot-{1,2,3}.lock
