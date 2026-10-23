@@ -137,6 +137,34 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Talking pairs (guard-ai S10, Saltmarsh Park car park): watch the pair from cover: at their stop by the aisle end
   they face each other and swap two lines, then walk on; knock one out before they meet and ~6 s later the other walks
   to where his partner was headed.
+- [ ] Response teams (guard-ai S13, Sector Ops): raise the alarm twice: every guard now wears armour; a third time:
+  helmets too. Each alarm's team comes in behind a shield guard; hide: after about a minute at your last spot the team
+  walks the section point to point (shield first, the rest close behind, a look round at each, torches in the dark),
+  still hunting minutes later; the cameras are as before. A restart drops the gear with the stage.
+- [ ] Section alert (guard-ai S14, Sector Ops): knock a squad guard out unseen and wait for the radio check: "Unit N,
+  report... Nothing.", then "a unit's not answering" on the radio; the section's guards walk slower and look longer for
+  a few minutes (cautious), two search the spot. Do it again but take the caller down while he is still on the radio:
+  nobody turns cautious. Fire an unsuppressed shot ~20 m from a guard: "Shots fired! Calling it in.", then a far guard
+  who never heard it turns cautious and two guards come to the spot; no alarm. A suppressed shot: no call. In co-op
+  the client's suppressed shot is heard as close as the host's (about 10 m).
+- [ ] Breakers and dark lamps (guard-ai S15, Sector Ops): switch a room's lights off with two guards watching: one says
+  "Breaker's gone again.", walks over at his normal pace and the lights come back about 2 s later, both stay calm;
+  switch it off again at once: a full light check at the switch. Shoot a lamp out while no guard looks: the next guard
+  who walks into view of it (within ~12 m) comes to check it; it stays dark for good.
+- [ ] Lasers (guard-ai S17, Sector Ops campus S3 or the warehouse): break a beam near guards, then climb out of the room
+  unseen: two guards come to the middle of the beam and search that room only; the reinforcements search there too and
+  never head for where you went unless one sees you.
+- [ ] Dead bodies (guard-ai S18): leave a body where a patrol finds it and watch from cover: the finder and the guard who
+  heard him search round it for about 3 minutes, spreading out to ~15 m, before going back on edge.
+- [ ] Urgency (guard-ai S19): break a laser or let a camera alarm: the guards sent jog there; let a finder's "man down"
+  report get through: a calm guard nearby jogs over to help search; throw a bottle: the one sent still walks over.
+- [ ] Guards and doors (guard-ai S20): watch two patrols cross in a corridor and a guard pass a talking pair: they step
+  round, never through each other; close a door on a patrol route: the guard opens it and waits for the swing, never
+  walks through the leaf; a locked door is never crossed (he stops at it).
+- [ ] Weapon carry (guard-ai S21): a calm patrol walks with his rifle slung on his back (an officer's pistol on his thigh),
+  hands empty; make a noise: he draws (the rifle off the back in the right hand, under a second) and walks at low ready;
+  seen, he fires only once drawn; calm again, he holsters after about 15 s. A high-security post, and every guard once
+  the alarm is up, stays at low ready.
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
 - [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
   glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen

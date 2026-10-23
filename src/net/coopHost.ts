@@ -11,7 +11,7 @@ import { MASK } from '../physics/groups';
 import { Hitboxes } from '../ai/hitboxes';
 import { noiseRadius } from '../player/movement';
 import { defaultHq, hqStats } from '../progression/suit';
-import { sdOpenNoise } from '../weapons/sdRounds';
+import { SD_OPEN_NOISE } from '../weapons/sdRounds';
 import type { NetSession } from './session';
 import { TickLimiter, type CourseWire } from '../game/course/courseWire';
 import type { SecWire } from '../game/ctDevices';
@@ -1281,8 +1281,10 @@ export class CoopHost implements NetAttachment {
       if (st.f & PF.firing && t <= 0) {
         this.firing.set(r.id, 0.4);
         const quiet = (st.f & PF.quiet) !== 0;
-        if (quiet) em.hear(r.feet, SHOT_NOISE * 0.5);
-        else em.noise(r.feet, SHOT_NOISE * sdOpenNoise(st.w));
+        // (guard-ai S14, A46) as in solo: SHOT_NOISE x the weapon's noise (9.8 m for the CT guns), at most the quiet cap;
+        // (spare 7) a suppressed gun out of quiet rounds fires open at its open noise
+        if (quiet) em.hear(r.feet, SHOT_NOISE * Math.min(WEAPONS[st.w].noise ?? 1, 0.6));
+        else em.noise(r.feet, SHOT_NOISE * (SD_OPEN_NOISE[st.w] ?? WEAPONS[st.w].noise ?? 1));
       } else this.firing.set(r.id, t);
     }
   }

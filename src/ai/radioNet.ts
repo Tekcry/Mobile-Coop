@@ -11,6 +11,7 @@
  * - `startCall(caller, inc, kind, holdS, now?)` -> call id (> 0), or -1 when refused: a second `command` call while one
  *   is open in this section, or the call pool (`RADIO_CALLS`) is full. The same caller, incident and kind already open
  *   returns the open call's id (no duplicate). Nothing is sent until the call completes `holdS` s later (`callHold`).
+ * - `isOpen(id)` (guard-ai S14): the call is still open (neither completed nor cut).
  * - `cut(caller)` -> number of calls lost: every open call of that caller is dropped (nothing sent, no alarm). Calls that
  *   already completed (receivers queued) are not recalled: they got through.
  * - `tick(dt, view, sink, reaction?, section?)` at 10 Hz:
@@ -62,10 +63,12 @@ export const RADIO = {
 /** Open calls per section (fixed pool). */
 export const RADIO_CALLS = 16;
 
-export type CallKind = 'contact' | 'body' | 'ko' | 'light' | 'standDown' | 'missing' | 'command';
+/** (guard-ai S14) `shots`: a calm guard who heard a loud shot calls it in (section caution on delivery). Appended, so
+ *  the older kind codes keep their numbers. */
+export type CallKind = 'contact' | 'body' | 'ko' | 'light' | 'standDown' | 'missing' | 'command' | 'shots';
 
 /** Kind codes (the net's typed arrays). */
-export const CALL_KIND: readonly CallKind[] = ['contact', 'body', 'ko', 'light', 'standDown', 'missing', 'command'];
+export const CALL_KIND: readonly CallKind[] = ['contact', 'body', 'ko', 'light', 'standDown', 'missing', 'command', 'shots'];
 const C_COMMAND = 6;
 
 /** Where completed calls go (one object kept by the manager, not a closure per tick). */
@@ -163,6 +166,13 @@ export class RadioNet {
   /** Is a `command` call open in this section? */
   get commandOpen(): boolean {
     for (let c = 0; c < NC; c++) if (this.callOpen[c] && this.callKind[c] === C_COMMAND) return true;
+    return false;
+  }
+
+  /** (guard-ai S14) Is call `id` (a `startCall` id) still open: not yet completed, not cut? */
+  isOpen(id: number): boolean {
+    if (id <= 0) return false;
+    for (let c = 0; c < NC; c++) if (this.callOpen[c] && this.callId[c] === id) return true;
     return false;
   }
 

@@ -368,3 +368,51 @@ describe('radio net: integration hooks (S3)', () => {
     expect(net.pendingFor(1)).toBe(0);
   });
 });
+
+describe('radio net: section alert calls (guard-ai S14)', () => {
+  it("'shots' is appended: the older kind codes keep their numbers; it holds RADIO.callIn x reaction", () => {
+    expect(CALL_KIND.slice(0, 7)).toEqual(['contact', 'body', 'ko', 'light', 'standDown', 'missing', 'command']);
+    expect(CALL_KIND.indexOf('shots')).toBe(7);
+    expect(callHold('shots')).toBe(RADIO.callIn);
+    expect(callHold('shots', 1.4)).toBeCloseTo(RADIO.callIn * 1.4, 6);
+  });
+  it('isOpen(): true while the call goes out; false once it completes, once it is cut, and for a bad id', () => {
+    const { net, v, s } = setup(EIGHT);
+    const a = net.startCall(1, -2, 'shots', RADIO.callIn);
+    const b = net.startCall(20, -3, 'missing', RADIO.callIn);
+    expect(net.isOpen(a)).toBe(true);
+    expect(net.isOpen(b)).toBe(true);
+    expect(net.isOpen(-1)).toBe(false);
+    expect(net.isOpen(0)).toBe(false);
+    net.cut(20);
+    expect(net.isOpen(b)).toBe(false);
+    run(net, v, s, RADIO.callIn + 0.05);
+    expect(net.isOpen(a)).toBe(false);
+  });
+  it('a shots call reaches the section staggered, nearest first; cut, nobody hears it', () => {
+    const { net, v, s } = setup(EIGHT);
+    net.startCall(1, -2, 'shots', RADIO.callIn);
+    run(net, v, s, RADIO.callIn + RADIO.staggerMax + 0.5);
+    const got = s.got.filter((r) => r.kind === 'shots');
+    expect(got).toHaveLength(EIGHT.length - 1);
+    expect(got.every((r) => r.inc === -2 && r.caller === 1 && r.t >= RADIO.callIn)).toBe(true);
+    expect(got[0]!.guard).toBe(10);
+    const c = setup(EIGHT);
+    c.net.startCall(1, -2, 'shots', RADIO.callIn);
+    c.net.tick(1, c.v, c.s);
+    c.net.cut(1);
+    run(c.net, c.v, c.s, RADIO.callIn + RADIO.staggerMax + 0.5);
+    expect(c.s.got).toHaveLength(0);
+  });
+  it('two missing calls about the same guard under different incident ids (the S2 lead report, the alert) both reach every receiver', () => {
+    const { net, v, s } = setup(EIGHT);
+    net.startCall(20, 5, 'missing', RADIO.callIn);
+    net.startCall(1, -2, 'missing', RADIO.callIn);
+    run(net, v, s, RADIO.callIn + RADIO.staggerMax + 0.5);
+    const alert = s.got.filter((r) => r.inc === -2);
+    const lead = s.got.filter((r) => r.inc === 5);
+    expect(alert).toHaveLength(EIGHT.length - 1);
+    expect(alert.every((r) => r.caller === 1)).toBe(true);
+    expect(lead).toHaveLength(EIGHT.length - 1);
+  });
+});
