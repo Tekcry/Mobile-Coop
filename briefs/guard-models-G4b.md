@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-23T10:29Z
 
 # Brief: guard-models G4b - the guard budget check (pure JS, unit tests only) (Player Build)
 

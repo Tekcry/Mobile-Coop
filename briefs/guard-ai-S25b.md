@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-23T10:29Z
 # guard-ai S25b: probable-area search, the wiring (searchers check where a player could be)
 
 Lead: Night Shift | Guard AI Build. Model: **Opus only** (AI code; no Sonnet / Haiku builders). The full strict brief is

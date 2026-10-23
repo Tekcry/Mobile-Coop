@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-23T10:29Z
 
 # Brief: stealth-pays client-intel - the Sector Ops co-op client can interrogate for intel (Player Build)
 
