@@ -115,7 +115,17 @@
    renumbers protocol at train build). Red -> one Opus fix round per failing suite (likeliest: the co-op crate prompt,
    the crate stands in the previous connector but is tagged with its own section and items are scoped to the live
    section), rerun only the failing suites. After #206 lands in master: merge master into -p3 only when PR 3 enters a train.
-PARALLEL lanes (each its own branch off -p3 + worktree with a node_modules junction; push WIP per step):
+PARALLEL lanes (each its own branch off -p3 + worktree with a node_modules junction; push WIP per step). STARTED ~12:15
+(Michael ~12:10 "do it faster"): lane B E2 glass (Opus, feature/sector-redesign-e2, checks/e2-glass.md) and lane C posts
+move (Sonnet, feature/sector-redesign-posts, checks/posts-move.md). On resume: check each branch log + report; rerun
+from this text if unfinished. Lane A: briefs DONE (2b349d4b, 87496dcc: ART-PLAN, ART-KIT A110-A126, ART-S1..S5 A127-A152,
+batch 3 A153-A157; assumptions AS1-AS10 for Michael in ART-PLAN, none blocking). ART-KIT (Opus, branch off -p3) is
+STARTED ~12:25 (Opus, feature/sector-redesign-art-kit, worktree -art-kit, checks/art-kit-build.md); rerun from
+briefs/ART-KIT.md if unfinished. Then one Opus checker, then ART-S1..S5
+(Sonnet, parallel, cut from the ART-KIT head). Note: ART-S3..S5 hero coordinates come from -s45, re-check on -p3.
+Lane C DONE: feature/sector-redesign-posts @ e20103d6 (5 posts onto slot `post`, CAMPUS_POSTS / S4_POSTS / S5_POSTS gone,
+tests/campusPosts.test.ts, 425 tests; checks/posts-move.md). Owes a Sonnet checker (batch with lane D / E data); merge
+into -p3 after PR 3 opens (or ride PR 3 if it is still unopened and green).
 A. Detail art: briefs/ART-PLAN.md + ART-KIT.md + ART-S1..S5.md (Opus planner, ~12:00; check -p3 for them; rerun the
    planner from ROADMAP "Next: campus detail art" if missing). Opus builds ART-KIT first (kit + rules engine + tests);
    then Sonnet dressers S1-S5 in parallel (each only campusS<N>Dress.ts + one registration line); one Opus checker per
@@ -264,19 +274,36 @@ Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md pol
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build (was Course Ready Build): RESUME (cleared session / new account). Job: sector-redesign (lead), branch
-feature/sector-redesign-p3 (feature/sector-redesign is frozen in train 23 as #206), worktree
-C:/NightShift/Mobile-Coop-sector-redesign-p3. git fetch, then read: CLAUDE.md; docs/ROADMAP.md
-(the live "Decided" is on origin/feature/menu: Sector Ops redesign 01:08-01:25, unavoidable guards 01:50, lean windows
-01:45); docs/sector-redesign/BRIEF.md (M1-M12, A1-A77), STATE.md ("Now" and "Next" at the top), PLAN.md, SPEC.md,
-briefs/, all on origin/feature/sector-redesign; CLAUDE.md "Heavy-usage throughput" + token rules on origin/feature/menu
-until they reach master. In flight at the save: Sonnet S4 / S5 builders on feature/sector-redesign-s4 / -s5 (worktrees
--s4 / -s5, WIP pushed per step; check their logs and checks/slice4-build.md / slice5-build.md, rerun from the brief if
-unfinished). Ask "Night Shift | Character Build" for the e2e-sectorops:6 verdict at 3796700d if STATE has none. Message
-the orchestrator only at PR open / train-ready / blocked / needs Michael. Then follow "Next". Opus plans, writes
-strict briefs, runs every checker and engine work; Sonnet 5.5 builds sections from the briefs; Haiku chores; one fix
-round per slice. Agent count / pacing as the orchestrator says. Michael may be asleep: log assumptions, no question
-dialogs. Every e2e is E2E_GPU=1: coop / netmove / ctcourse on Character Build (laptop); single suites on a desktop lane
-(heavy.lock 4191 / heavy2.lock 4192) only when CPU allows. Push WIP and refresh STATE after every hand-back. Report to
-"Night Shift | Orchestrator" at each slice end, PR or blocker.
+Night Shift | Sector Ops Build: RESUME (new account). Job: sector-redesign (lead). Lead branch now
+feature/sector-redesign-polish (worktree C:/NightShift/Mobile-Coop-sector-redesign-polish; -p3 = PR 3 #215, frozen unless the
+train asks). git fetch; read CLAUDE.md, ROADMAP "Decided" (grep only), this file's "Now" sections. Briefs docs/sector-redesign/briefs/.
+State at the ~90% save (~13:55):
+- PR 3 #215 (-p3 @ 19e05b1a) + PR 4 #217 (-polish, contains #215) were left out of train 25 (e2e-sectorops.mjs conflict).
+  train/25 a8bb27ab merged into -polish (b3fd1fa3, both e2e blocks kept). Laptop GPU at b3fd1fa3: sectorops 1-5 + coop PASS;
+  sectorops:6 failed only on guard-ai S10 pairs warnings -> fixed e57dac61 (S4 / S5 standing pairs drop `pair`, tests updated).
+  Asked Test Runner for sectorops:6 (+5) at e57dac61. Green -> message the orchestrator "train-ready: train 26 (#217 with #215)".
+- Lane A detail art: ART-KIT -art-kit @ 31b72d65 (kit check PASS, checks/art-kit-check.md; ledge gate P1 + split gaps P4 added
+  in tests/campusArtGameplay.test.ts). Dressers feature/sector-redesign-art-s1..s5 (worktrees -art-s<N>, from 26670151;
+  reports checks/art-s<N>-build.md): S5 DONE 1a588f84 (30 draws; kit gaps in its report); S1-S4 were running, WIP pushed at
+  the save. Next: finish/rerun S1-S4 from briefs/ART-S<N>.md + checks/art-kit-build.md "What the dressers must know";
+  join -art-kit (31b72d65+) + art-s1..s5 + -polish on a new branch -art (merge each, rerun campusArtGameplay: the new
+  ledge gate must pass for every section), drop any committed __pycache__ .pyc, one Sonnet checker for the dressing batch
+  (Opus for kit code), GPU perf pass (perf.mjs MODE, scripts/campus-art-shots.mjs --sheet, port 4189) + sectorops:6 + coop,
+  fragment changes/feature-sector-redesign-art.md, PR 5.
+- Lane D gear / sweep: Sonnet on feature/sector-redesign-gear (worktree -gear, off e57dac61): S4 / S5 helmet defaults,
+  'both' for NOC / supervisor / response / token guards, sweep points; checks/gear-sweep.md, tests/campusGear.test.ts.
+  Then one Sonnet checker, merge into the PR 4 follow-up (or -art).
+- Train 26: #217 sent train-ready ~14:00 (e57dac61 sectorops 5 + 6 green on the laptop).
+- Dressers: S1 DONE b66c35aa (37 draws; L1: move monitorBank / keyCabinet / visitorBoard onto the gatehouse wall faces z -73.15 /
+  x 14.15 at the join), S4 DONE ddc8e6a1 (25 draws), S5 DONE 1a588f84; S2 / S3 running at ~14:00. Gear DONE 8b135170
+  (Sonnet checker running -> checks/gear-check.md; per-slot gear sits on a local alias type: may be a no-op).
+- Walk 4.72 (Michael, docs/orchestrator/WALK-4.72-REPORT.md on feature/menu, "Sector Ops Build"): S2 co-op client lamp shots
+  do nothing on either screen + S3 client unbolt untested -> Opus fix on feature/sector-redesign-walk (worktree -walk,
+  checks/walk-472-fix.md, e2e legs + GPU). S1 lamp output too low -> Opus measure + one engine proposal on
+  feature/sector-redesign-lightrev (docs/lighting-review/PROPOSAL.md "Walk 4.72 S1", checks/light-measure.md): Michael decides.
+- Guard AI builds S16 (no firing into armour) once E10 is on master. Polish: hostCrackOk floor gap (doorPeek.ts:146).
+Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
+Sonnet builds from strict briefs; one fix round per slice; parallel lanes up to desktop CPU ~80%; never two agents on the
+same files; tsc / vitest agents take C:/NightShift/scratch/sr-slot-{1,2,3}.lock; e2e GPU on the laptop (Test Runner) or
+the desktop heavy.lock 4191; push WIP + refresh STATE after every hand-back; Michael may be asleep: log assumptions.
 ```

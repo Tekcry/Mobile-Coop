@@ -465,7 +465,8 @@ export function buildCampusS4(b: LevelBuilder): void {
   const [gx0, gz0, gx1, gz1] = S4_BOX.generator;
   bx(b, gx0, gx1, 0, 2.6, gz0, gz1, PLANT, { noLedge: true });
   const [tx0, tz0, tx1, tz1] = S4_BOX.tanks;
-  bx(b, tx0, tx1, 0, 1.6, tz0, tz1, CAGE);
+  // (polish 1, L6) 2.0 noLedge: no tank-top step to the 2.8 east wall 0.85 m away
+  bx(b, tx0, tx1, 0, 2.0, tz0, tz1, CAGE, { noLedge: true });
   // the plant ladder on the building's east wall up to the deck
   b.ladder(34.6, 23, 0, D, -PI / 2);
 

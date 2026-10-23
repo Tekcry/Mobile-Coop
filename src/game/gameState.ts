@@ -2666,7 +2666,7 @@ export class GameState implements AppState {
     let offer = -1;
     if (!was && !other && doors.list.length) {
       const d = doors.nearest(p.x, p.z, 2);
-      if (d && doorPeekEligible(d, d.cracked && this.peekedByOther(d.cx, d.cz), p.x, p.z, pl.cam.yaw, c.grounded, false)) offer = d.index;
+      if (d && doorPeekEligible(d, d.cracked && this.peekedByOther(d.cx, d.cz), p.x, p.z, pl.cam.yaw, c.grounded, false, p.y)) offer = d.index;
     }
     this.peekOffer = offer;
     if (ctx) cand = offer;
@@ -2962,7 +2962,7 @@ export class GameState implements AppState {
     this.exposure = exposureFraction(this.expPts, eyes, (a, b) => {
       this.rayA.set(a.x, a.y, a.z);
       this.rayB.set(b.x, b.y, b.z);
-      const h = this.ballistics.ray(this.rayA, this.rayB, G.STATIC);
+      const h = this.ballistics.ray(this.rayA, this.rayB, MASK.SIGHT);
       return h.hit && h.distance < Vector3.Distance(this.rayA, this.rayB) - 0.15;
     });
     this.coverQ = this.localRef.cover ? coverQuality(this.localRef.cover, eyes) : 1;

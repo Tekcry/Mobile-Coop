@@ -136,17 +136,29 @@ describe('guard-ai S16: the gate in Enemy (src/ai/enemy.ts)', () => {
 
   it('sight stays on MASK.SIGHT (losClear), the timers step, combat over resets the gate', () => {
     expect(src).toContain('return losClear(this.ctx.ballistics, eye, to, slack);');
-    expect(src).toContain('this.armour.step(dt);');
-    expect(src).toMatch(/this\.armour\.reset\(\);\n\s+this\.armourPick = false;/);
+    expect(src).toContain('this.fireGate.step(dt);');
+    expect(src).toMatch(/this\.fireGate\.reset\(\);\n\s+this\.armourPick = false;/);
   });
 
   it('a held guard repositions through the cover pick (clear-line spots only) or the nav, never while held to a room / post', () => {
     const d = body('decide');
-    expect(d).toContain("this.armour.plan(!outside) === 'move'");
+    expect(d).toContain("this.fireGate.plan(!outside) === 'move'");
     expect(d).toContain('this.armourPick = true;');
     expect(d).toContain("this.setState('seekCover');");
     const p = body('pickCover');
     expect(p).toContain('this.ctx.ballistics.armouredFirst(this.fireFrom, t.target.aimPoint(this.fireTo), MASK.ENEMY_SHOT)');
     expect(p).toContain('casts >= ARMOUR_FIRE.coverCasts');
+  });
+
+  it('(merge with S8) the role step runs before the armour check; a reposition blocks the cover it leaves for the role picks', () => {
+    const d = body('decide');
+    const role = d.indexOf('const g = this.roleStep(dt, toTarget);');
+    const arm = d.indexOf("this.fireGate.plan(!outside) === 'move'");
+    expect(role).toBeGreaterThan(0);
+    expect(arm).toBeGreaterThan(role);
+    const block = d.slice(arm, d.indexOf("this.setState('seekCover');", arm));
+    expect(block).toContain('this.ctx.blockCover?.(this.coverIdx);');
+    expect(block).toContain('this.roleCover = -1;');
+    expect(body('boundTo')).toContain('this.armourPick = false;');
   });
 });

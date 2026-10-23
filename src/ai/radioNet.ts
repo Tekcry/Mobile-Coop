@@ -262,8 +262,13 @@ export class RadioNet {
       return;
     }
     this.completed++;
+    // (guard-ai S6 stack-tip fix) read the call's slot before `sink.completed`: the slot is already free, and the
+    // command call S6 starts from that callback (`contactThrough`) takes it, so reading `callDue` / `callInc` after it
+    // queued the section RADIO.report s late (the S3 "call + staggerMax" rule broken)
     const k = this.callKind[c]!;
-    sink.completed?.(caller, this.callInc[c]!, CALL_KIND[k]!);
+    const t0 = this.callDue[c]!;
+    const inc = this.callInc[c]!;
+    sink.completed?.(caller, inc, CALL_KIND[k]!);
     if (k === C_COMMAND) {
       this.alarms++;
       sink.alarm(this.section, caller);
@@ -289,8 +294,6 @@ export class RadioNet {
       this.order[j] = i;
       n++;
     }
-    const t0 = this.callDue[c]!;
-    const inc = this.callInc[c]!;
     for (let r = 0; r < n; r++) {
       const i = this.order[r]!;
       const delay = staggerDelay(r, this.dist[r]!, reaction ? reaction[i]! : 1);

@@ -450,7 +450,7 @@ describe('the Warehouse sections (A12, M8)', () => {
     expect(s.start).toEqual(S[0]!.connector!.checkpoint);
     expect(s.guards.length).toBe(8);
     // ?sectorGuards=4 takes the checker, the reach driver, the stocktaker and the cage officer (no heavies, G155)
-    expect(s.guards.slice(0, 4).map((g) => g.kind)).toEqual(['enforcer', 'grunt', 'officer', 'officer']);
+    expect(s.guards.slice(0, 4).map((g) => g.kind)).toEqual(['grunt', 'grunt', 'officer', 'officer']);
     // (sector-redesign G3 / G20) everyone armed, no heavies (G155), no sniper here, dogs only where the section allows them
     expect(s.guards.some((g) => g.kind === 'sniper')).toBe(false);
     expect(checkSectorGuards(s)).toEqual([]);
@@ -480,7 +480,7 @@ describe('the Warehouse sections (A12, M8)', () => {
     expect(s.extract?.box).toEqual([21.4, -8.5, 23.7, -5.9]);
     expect(s.guards.length).toBe(9);
     // ?sectorGuards=4 takes the porter, the loader, the clerk and the tour guard (no heavies, G155; the tour guard armed, G3)
-    expect(s.guards.slice(0, 4).map((g) => g.kind)).toEqual(['enforcer', 'grunt', 'officer', 'grunt']);
+    expect(s.guards.slice(0, 4).map((g) => g.kind)).toEqual(['grunt', 'grunt', 'officer', 'grunt']);
     // (sector-redesign G3 / G20) everyone armed, no heavies (G155), no sniper here, dogs only where the section allows them
     expect(s.guards.some((g) => g.kind === 'sniper')).toBe(false);
     expect(checkSectorGuards(s)).toEqual([]);
