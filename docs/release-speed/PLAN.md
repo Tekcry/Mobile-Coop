@@ -75,7 +75,7 @@ The lead writes the one fragment `changes/feature-release-speed.md`. Line number
 - In `build`, after `versionCommit`, before the push: unless `--no-test` / `--dry-run`, `npm ci` when
   `package-lock.json` differs from the worktree's previous HEAD or `node_modules` is missing; take the heavy lock
   atomically (`fs.writeFileSync(lock, 'merge-train | train <n> | <iso>', { flag: 'wx' })`, retry every 30 s up to
-  30 min; path `HEAVY_LOCK` env, default `C:/NightShift/heavy.lock`, skipped when its folder is absent);
+  5 min (`TRAIN_LOCK_WAIT_MIN`); path `HEAVY_LOCK` env, default `C:/NightShift/heavy.lock`, skipped when its folder is absent);
   `exec('npx vitest run', { timeout: 20 * 60_000 })`; release the lock in `finally` only while it names merge-train.
   On a failure print the last 60 lines, still push (so a fix can go on train/<n>), exit 2: "vitest FAILED on <sha>:
   fix on train/<n> then release --resume, or drop the member and rebuild".
