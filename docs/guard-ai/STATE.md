@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~18:35 SAVE (orchestrator, 5-hour 85%): all worktrees clean and pushed; carry-fix WIP d704098e (bodyEffectRecovery.ts,
+smoothBody.ts, babylon.ts, its test) pushed, agent still finishing. Test Runner queued: e2e-guard-carry (+ on f16600f5)
+and stealth-ai on the carry-fix commit "guard-ai carry fix: recover guard bodies ...".
+
 ~18:25: TRAIN-READY train 31 sent: #229 S9 71498e16 (train/30 7e8b8c51 merged, PROTOCOL 41, A142, + e2e-guard-carry
 fe910585) and #234 S22 c51f1b30 (contains #229). Unit 361/361 and 172/172.
 
@@ -527,7 +531,7 @@ e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep lapto
 2. feature/guard-ai-carry-fix: invisible guard bodies (Babylon async effect compile times out in a long stall,
    "Operation timed out after maximum retries. - Effect: pbr"; partSkinMat keeps the failed effect; 4.78.0 only masks
    it). Opus agent: recompile a timed-out body effect + unit test + e2e-guard-carry one-block 16.5 s stall. If it did
-   not finish, its WIP is pushed: check the branch, finish it. Then Test Runner: e2e-guard-carry on the sha (pass) and
+   not finish, its WIP is pushed (d704098e+): check the branch, finish it (Test Runner already queued on the final commit). Then Test Runner: e2e-guard-carry on the sha (pass) and
    on f16600f5 (fail); fresh Opus check; own small PR to master (orchestrator), TRAIN-READY.
 3. S22 game side (slices/S22.md: CourseState.consoleBack, CourseMode consoleHost / watchesConsole / consoleEdge) once
    marlow-final #237 merges; fix e2e-ctcourse A4 step 3 (passive officer no longer refuses) in the same branch.
