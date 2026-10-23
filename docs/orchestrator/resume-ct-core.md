@@ -4,6 +4,19 @@ Saved 2026-10-23 ~10:30 by the CT Core session, for the ~10:45 account swap (win
 agent milestone. Agents running at a cut-off are lost: their last pushed commit is the resume point (table below).
 
 ## Live (resumed 10:48 on the new account; newest first, overrides the table)
+- 11:40 traverse-fix-2 DONE a7425bfe (lead wrote REPORT.md from the hand-back; CLIMB_UP palms 0.0 cm, release 2.8 cm,
+  lip-grip continuous pivot in characterRig solveWorldGrip; e2e-move 17 s + e2e-traverse 16 s desktop GPU PASS). Merged
+  into batch-22 + traverseFix item-2 todo -> comment (f75db56c). Batch = strike-pops, hang-down, dual-reward,
+  traverse-fix-2. ONE Opus fresh checker RUNNING on f75db56c -> scratch/ctcore/b22-CHECK.md (sd-rounds sent to the same
+  checker as a follow-up when done). Then: GPU suites e2e-anim, e2e-move, e2e-takedown (desktop lane) + laptop
+  coop / netmove / ctcourse (src/net), CI, ONE PR, orchestrator.
+  New spare (open item from traverse-fix-2): CLIMB_UP_TEAM - rope top has no lip grips (teamController ropeTop reachL /
+  reachR hook targets, remoteAvatar too) and a 5.7 cm whole-body pop (teamController.ts ~347 `Math.min(1, e*1.7)` and
+  `across` jump at e 0.4). Co-op path: laptop coop / netmove. Not started.
+- 11:25 Guard AI heads-up: S12 (armour) adds a `deflect` hit-confirm kind (~2 lines in playerWeapons.ts, diff sent
+  before its PR: check vs sd-rounds' playerWeapons edits); an empty suppressor's loud shot reaches guards through
+  em.noise (S14 reacts) - sd-rounds A2 uses open noise rifle 1.0 / pistolSd 0.8 (> 0.6 = loud), consistent. Offered
+  `patrolTiming(e)` for spare 9: not needed (spare 9 computes the period from the route).
 - 11:20 dual-reward DONE d262b5e7 (REPORT.md; e2e-coop desktop GPU PASS 183 s after a test fix: dualClock.reset()
   before the pair, the client's earlier takedowns had left a stale note). Merged into batch-22 (e74faae7). Spare 7
   sd-rounds Sonnet builder RUNNING in C:/NightShift/Mobile-Coop-sd-rounds (feature/sd-rounds off 8e5dbd83).
