@@ -154,8 +154,12 @@ export class BakedLamps implements CharShadowLamps {
   torchShadows: TorchShadowLink | null = null;
   /** Texels per lamp (tests read the data texture). */
   readonly lampTexels = LAMP_TEXELS;
-  /** Per baked lamp x, y, z, radius (`CharShadowLamps`). */
+  /** Per baked lamp x, y, z, radius (`CharShadowLamps`). (LR16-5b) A swinging pendant's x, y, z follow its swing. */
   readonly spheres: Float32Array;
+  /** (LR16-5b) Per baked lamp its baked (rest) x, y, z: a pendant's t0 and sphere are rest + its live offset. */
+  private readonly rest: Float32Array;
+  /** (LR16-5b) Per baked lamp: 1 while it swings (`CharShadowLamps.moving`: it keeps its shadow slot, refreshed every frame). */
+  readonly moving: Uint8Array;
   get count(): number {
     return this.order.length;
   }
@@ -190,6 +194,9 @@ export class BakedLamps implements CharShadowLamps {
     this.order = baked.ids;
     this.spheres = new Float32Array(baked.ids.length * 4);
     for (let i = 0; i < baked.ids.length; i++) for (let k = 0; k < 4; k++) this.spheres[i * 4 + k] = baked.lights[i * LAMP_STRIDE + k]!;
+    this.rest = new Float32Array(baked.ids.length * 3);
+    for (let i = 0; i < baked.ids.length; i++) for (let k = 0; k < 3; k++) this.rest[i * 3 + k] = baked.lights[i * LAMP_STRIDE + k]!;
+    this.moving = new Uint8Array(baked.ids.length);
     this.moon = extra.moon ?? null;
     this.fill = extra.fill ?? null;
     this.bounce = extra.bounce ?? null;
@@ -390,6 +397,11 @@ export class BakedLamps implements CharShadowLamps {
       dirty = true;
     }
     if (this.flickV !== this.reg.flickerVersion && this.writeFlicker()) dirty = true;
+    // (LR16-5b) the pendants' t0, written by `writeSway` earlier this frame: folded into the one upload
+    if (this.swayDirty) {
+      this.swayDirty = false;
+      dirty = true;
+    }
     if (dirty) this.data.update(this.buf);
   }
 
@@ -464,11 +476,7 @@ export class BakedLamps implements CharShadowLamps {
     this.flickV = reg.flickerVersion;
     const ids = reg.flickering;
     if (!ids.length) return false;
-    let idx = this.bakeIndex;
-    if (!idx || idx.length < reg.lights.length) {
-      idx = this.bakeIndex = new Int32Array(reg.lights.length).fill(-1);
-      for (let i = 0; i < this.order.length; i++) idx[this.order[i]!] = i;
-    }
+    const idx = this.indexOfIds();
     const buf = this.buf;
     let wrote = false;
     for (let k = 0; k < ids.length; k++) {
@@ -484,6 +492,56 @@ export class BakedLamps implements CharShadowLamps {
       wrote = true;
     }
     return wrote;
+  }
+
+  /** (LR16-5) Registry id -> bake index (-1: not baked); made on first use. */
+  private indexOfIds(): Int32Array {
+    const n = this.reg.lights.length;
+    let idx = this.bakeIndex;
+    if (!idx || idx.length < n) {
+      idx = this.bakeIndex = new Int32Array(n).fill(-1);
+      for (let i = 0; i < this.order.length; i++) idx[this.order[i]!] = i;
+    }
+    return idx;
+  }
+
+  /** (LR16-5b) The registry's `swayVersion` at the last `writeSway`, and t0 texels written since the last upload. */
+  private swayV = -1;
+  private swayDirty = false;
+
+  /**
+   * (LR16-5b) Per render frame, before the character shadows pick (`World.frame`): when a pendant moved
+   * (`swayVersion`), its t0 xyz in the data texture and its sphere = rest + the live offset, and `moving` while its
+   * envelope is over `SWAY.still`. The texels go up with `frame`'s one upload (never a second one a frame); the
+   * capsules (`writeCapsules`) and the shader read t0, so they follow. No GLSL change. No allocation after the first.
+   */
+  writeSway(): void {
+    const reg = this.reg;
+    const s = reg.sway;
+    if (!s || this.swayV === reg.swayVersion) return;
+    this.swayV = reg.swayVersion;
+    const idx = this.indexOfIds();
+    const buf = this.buf;
+    const R = this.rest;
+    const S = this.spheres;
+    for (let k = 0; k < s.n; k++) {
+      const id = s.ids[k]!;
+      const i = id < idx.length ? idx[id]! : -1;
+      if (i < 0) continue;
+      const l = reg.lights[id]!;
+      const x = R[i * 3]! + l.swx;
+      const y = R[i * 3 + 1]! + l.swy;
+      const z = R[i * 3 + 2]! + l.swz;
+      const o = (this.lampBase + i * LAMP_TEXELS) * 4;
+      buf[o] = x;
+      buf[o + 1] = y;
+      buf[o + 2] = z;
+      S[i * 4] = x;
+      S[i * 4 + 1] = y;
+      S[i * 4 + 2] = z;
+      this.moving[i] = s.moving(k) ? 1 : 0;
+    }
+    this.swayDirty = true;
   }
 
   /** (LR14) Character shadows were on at the last write (their slots are cleared once they go off). */

@@ -42,6 +42,8 @@ export interface CharShadowLamps {
   /** x, y, z, radius per lamp (stride 4). */
   readonly spheres: Float32Array;
   lampLit(i: number): boolean;
+  /** (LR16-5b) Per lamp: non-zero while it swings (it keeps its slot and its map is re-rendered every frame). */
+  readonly moving?: Uint8Array;
 }
 
 /** (LR16-3) The door registry's side `CharShadows` reads (`Doors`): the leaves' one thin-instanced mesh and each door. */
@@ -305,7 +307,7 @@ export class CharShadows implements CharShadowLink {
     f[3] = cx;
     f[4] = cy;
     f[5] = cz;
-    this.picker.update(L.spheres, this.lit, n, f, 2, dt);
+    this.picker.update(L.spheres, this.lit, n, f, 2, dt, L.moving ?? null);
     const ls = this.lampSlot;
     ls.fill(-1);
     for (let s = 0; s < slots.length; s++) {
