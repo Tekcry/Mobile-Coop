@@ -702,14 +702,15 @@ export class CoopClient implements NetAttachment {
     const g = this.g;
     const p = g.player;
     const c = p.controller;
-    // (38, afp AF6) the send clock (the host times the state by it) and the gait clock / CT stop (the partner's stride)
+    // (38, afp AF6) the sim clock (`time`, the fixed steps summed: the host times the state by it; the frame's wall clock
+    // is not the state's, two catch-up steps in one frame shared it and bent the host's spans) and the gait clock / CT stop
     const gw: { gph?: number; qs?: number; hs?: number } = {};
     gaitWire(c.motion.phase, c.ct, c.stopEaseT, c.stopHold, c.holdSpeed, CT.stopEase, CT.stopBlend, gw);
     this.s.toHost({
       t: 'pstate',
       s: wirePlayerState({
         ...gw,
-        t: performance.now() / 1000,
+        t: this.time,
         id: this.s.selfId,
         x: p.position.x,
         y: p.position.y,
