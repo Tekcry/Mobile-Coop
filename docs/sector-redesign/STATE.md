@@ -294,6 +294,9 @@ LATEST 16:25 Test Runner verdict: #226 perf CPU OVER at 24 guards (S5 15.6 / S3 
 16:40: C1 = test timing bug (live rAF loop), fixed 00fd3392 + E2E_FALLOFF 273539ec on -charshadow; cherry-picked
    to -art eb6d63c4. Laptop asked: #232 sectorops:6 + falloff=photo darkness / lightbake / desktop at 273539ec; #226
    suites at eb6d63c4 after train 27.
+17:05: #226 eb6d63c4 laptop 5/6: sectorops:1 FAIL "a loud shot ... alerts the nearest guard" (nearest stays suspicious)
+   -> Opus fixer on -art (checks/s1-shot-fix.md). LR15 checker PASS (lr15-check.md), lampx 13ec8df4 (fragment + lighting.md);
+   laptop GPU request sent (falloff on / off suites, perf, shots). LR15 PR opens after #232 lands (stacked on it).
 4. Polish batch 2 (-polish2 off -art, Opus, 16:45): walk-472-check 1-4 + art-check P3 / P4 / P7 (checks/polish2-build.md);
    rides #226 after a checker. Still open: lr-check 1-6, lr14-check 1-7 (after LR15), art P1 / P2 / P5 / P6.
 Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
