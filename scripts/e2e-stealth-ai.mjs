@@ -772,6 +772,286 @@ try {
     assert(apart >= 3, `three: their first plan points are three different spots, >= 3 m apart (closest pair ${apart.toFixed(1)} m; ${sc})`);
   });
 
+  // (guard-ai S26, A155-A158, CT rule 8) Guards hear in a search and in a fight (S26.md "e2e"; the 'lkp' pattern: one
+  // grunt sees the lit player, seeded Math.random, sim-time steps, the other guards passive). The player then goes dark
+  // and far (the 'lkp' hide spot behind the dispatch wall, 35 m by path), so nothing but the noise reaches the guard;
+  // the noise is fired through the public API as the game does for a footstep: `em.hear(feet, reach, 'noise', null,
+  // localId)`. There is no sprint (CT prototype M1): the loudest step on foot is the full-stick jog, so its reach is
+  // MEASURED from the game first (`g.noise` over a real full-stick walk, no guards yet, on the surface `g.surface`
+  // names) and the step spot is picked (nav cells round the guard; the game's own `tierOf` for walls and masking; the
+  // floor surface read from the level's surface areas) inside that reach. 'search': he is `searching` after combat, the
+  // step is 1.5 m - reach away, outside his search spot: within 3 s his `searchSpot` is within 1.5 m of it, within 15 s
+  // he comes within 2 m of it, slot 0 `locT` < 0.5 and `seenT` > 1 right after (located, not seen), the board's last
+  // known position is the step. 'wall': a spot behind a wall that is inside the open reach but outside the wall's
+  // (`tierOf` 0, its ratio to the open reach is the wall factor): no re-aim in 5 s, the board unmoved. 'combat': he is in
+  // combat and has lost his target: `em.lkp` is the step within 1 s, `sightT` not reset (heard, not seen).
+  await scen('heard in a search (guard-ai S26)', async () => {
+    const run = (which) =>
+      G((which) => {
+        const t = window.__t;
+        const g = window.__app.current;
+        const em = g.enemyMgr;
+        const nav = em.nav;
+        const H = em.hearingTable;
+        const st = window.__app.input.state;
+        const rnd = Math.random;
+        let seed = which === 'search' ? 4242 : which === 'wall' ? 4343 : 4444;
+        Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+        const r1 = (v) => (Number.isFinite(v) ? +v.toFixed(1) : String(v));
+        const r2 = (v) => (Number.isFinite(v) ? +v.toFixed(2) : String(v));
+        try {
+          // --- the step's reach, from the game: a real full-stick walk, no guards yet ---
+          t.reset();
+          t.light(0);
+          t.tp(-0.5, 0, 0);
+          t.step(1);
+          g.noise = 0;
+          st.setMove('t', 0, 1);
+          let n = 0;
+          for (let i = 0; i < 12; i++) {
+            t.step(0.1);
+            n = Math.max(n, g.noise);
+          }
+          const calibSurf = g.surface;
+          st.setMove('t', 0, 0);
+          t.step(0.5);
+          if (!(n > 1.5)) return { err: `the full-stick step is not audible (noise ${n}, surface ${calibSurf})` };
+          // --- the 'lkp' sighting ---
+          t.reset();
+          t.light(1);
+          // no alarm run (Hunter's reinforcements would find him)
+          em.alarmRaised = true;
+          const e = t.spawn('grunt', 0, 5, Math.PI);
+          if (!e) return { err: 'the guard did not spawn' };
+          t.tp(-0.5, 0, 0);
+          let k = 0;
+          while (!(e.alerted && em.sightT < 0.1) && k++ < 900) {
+            t.step(1 / 60);
+            g.frameUpdate(1 / 60, 1);
+          }
+          for (let i = 0; i < 10; i++) {
+            t.step(1 / 60);
+            g.frameUpdate(1 / 60, 1);
+          }
+          const id = g.localRef.id;
+          const b = em.intruders;
+          const slot = b.slotFor(id);
+          const seen = { alerted: e.alerted, level: e.level, stealth: em.stealth, coordinated: em.coordinated, sightT: r1(em.sightT), frames: k, slot, valid: slot >= 0 ? b.valid[slot] : -1, n: r2(n), surf: calibSurf };
+          if (!(e.alerted && slot >= 0 && b.valid[slot] === 1)) return { seen, err: 'the guard did not detect the lit player (no intruder slot)' };
+          // he vanishes: dark, crouched, far behind the dispatch wall (nothing but the noise reaches the guard)
+          t.light(0);
+          t.crouch(true);
+          t.tp(0, -20, 0);
+          const tick = () => {
+            // (the mode's later squads stay out of it: this is about the one guard)
+            for (const x of em.enemies) if (x !== e) x.passive = true;
+            t.step(0.05);
+            g.frameUpdate(0.05, 1);
+          };
+          // --- spots: nav cells round the guard, inside the step's reach, picked with the game's own hearing ---
+          const floor = g.world.map.theme.floor ?? 'concrete';
+          const surfAt = (x, y, z) => {
+            let best = floor;
+            let top = -Infinity;
+            for (const a of g.world.level.surfaces) {
+              if (x < a.minX || x > a.maxX || z < a.minZ || z > a.maxZ || Math.abs(y - a.top) > 0.35 || a.top <= top) continue;
+              top = a.top;
+              best = a.kind;
+            }
+            return best;
+          };
+          const idx = () => em.enemies.indexOf(e);
+          const probe = (x, y, z, reach) => {
+            em['hearRoom'](em.enemies.length);
+            const i = idx();
+            const d = Math.hypot(e.pos.x - x, e.pos.y - y, e.pos.z - z);
+            const tier = em['tierOf'](e, i, new t.V(x, y, z), reach, d, false);
+            return { tier, d, r: em['hearR'][i] };
+          };
+          const segD = (px, pz, ax, az, bx, bz) => {
+            const sx = bx - ax;
+            const sz = bz - az;
+            const u = Math.max(0, Math.min(1, ((px - ax) * sx + (pz - az) * sz) / Math.max(1e-6, sx * sx + sz * sz)));
+            return Math.hypot(px - ax - u * sx, pz - az - u * sz);
+          };
+          // 'step': the farthest cell the step is heard at (tier >= 1: anywhere inside the effective reach, A156);
+          // 'wall': a cell inside the open reach (the same noise with no wall) that a wall takes it out of (tier 0)
+          const pick = (mode, S, lk) => {
+            let best = null;
+            let cands = 0;
+            const R = n + 0.6;
+            const y0 = e.pos.y;
+            for (let dx = -R; dx <= R; dx += nav.cell) {
+              for (let dz = -R; dz <= R; dz += nav.cell) {
+                const c = nav.cellOf(e.pos.x + dx, e.pos.z + dz, y0);
+                if (c < 0 || !nav.isWalkable(c) || Math.abs(nav.cellHeight(c) - y0) > 1) continue;
+                const [x, z] = nav.center(c);
+                const d = Math.hypot(x - e.pos.x, z - e.pos.z);
+                if (d < 1.5 || d > n + 0.3) continue;
+                // (the reach was measured on this surface)
+                if (surfAt(x, nav.cellHeight(c), z) !== calibSurf) continue;
+                // (outside his search spot, and not on his way to it: walking there must not pass the step)
+                if (S && (Math.hypot(x - S[0], z - S[1]) < 3 || segD(x, z, e.pos.x, e.pos.z, S[0], S[1]) < 2)) continue;
+                if (lk && Math.hypot(x - lk.x, z - lk.z) < 1.5) continue;
+                let ok = false;
+                if (mode === 'step') {
+                  const p = probe(x, y0, z, n);
+                  ok = p.tier >= 1 && d <= p.r - 0.25;
+                } else {
+                  // masking at him only (no ray: the reach is far beyond the distance), then the real reach
+                  const open = n * (probe(x, y0, z, 1000).r / 1000);
+                  const p = probe(x, y0, z, n);
+                  ok = p.tier === 0 && p.r < open * 0.7 && d < open - 0.25;
+                }
+                if (!ok) continue;
+                cands++;
+                if (!best || d > best.d) best = { x, z, d };
+              }
+            }
+            return best ? { ...best, cands } : null;
+          };
+          const fire = (P) => {
+            em.hear(new t.V(P.x, e.pos.y, P.z), n, 'noise', null, id);
+          };
+          const spot = [0, 0];
+
+          if (which === 'combat') {
+            // in combat, his target gone from his sight (a think tick later)
+            for (let i = 0; i < 40 && e.alerted && e.seesTarget; i++) tick();
+            if (!e.alerted || e.seesTarget) return { seen, err: `combat: not in combat without a line to his target (alerted ${e.alerted}, sees ${e.seesTarget}, level ${e.level})` };
+            const L = em.lkpOf(slot);
+            const lk = { x: L.x, z: L.z };
+            const P = pick('step', null, lk);
+            if (!P) return { seen, err: `combat: no spot the step is heard at (reach ${r2(n)} m, guard ${r1(e.pos.x)},${r1(e.pos.z)})` };
+            const sight0 = em.sightT;
+            fire(P);
+            let lkpMin = Math.hypot(em.lkp.x - P.x, em.lkp.z - P.z);
+            for (let i = 0; i < 20; i++) {
+              tick();
+              lkpMin = Math.min(lkpMin, Math.hypot(em.lkp.x - P.x, em.lkp.z - P.z));
+            }
+            return { seen, P, lk, lkpMin: r2(lkpMin), lkpFrom: r2(Math.hypot(P.x - lk.x, P.z - lk.z)), sight0: r2(sight0), sight1: r2(em.sightT), seenT: r2(b.seenT[slot]), locT: r2(b.locT[slot]), heardAt: r2(e.heardAt), alerted: e.alerted, level: e.level, valid: em.lkpValid };
+          }
+
+          // --- searching: after combat, the walk on to the last known position and the sweep round it ---
+          let tS = -1;
+          for (let i = 0; i < 600; i++) {
+            tick();
+            if (e.level === 'searching') {
+              tS = (i + 1) * 0.05;
+              break;
+            }
+          }
+          if (tS < 0) return { seen, err: `he never searched within 30 s (level ${e.level})` };
+          // a second on: he is walking to a spot
+          for (let i = 0; i < 20; i++) tick();
+          if (e.level !== 'searching') return { seen, err: `searching: he stopped searching within a second (level ${e.level})` };
+          const S = e.searchSpot([0, 0]);
+          const info = { tS: r1(tS), combatSearch: e.inCombatSearch, guard: [r1(e.pos.x), r1(e.pos.z)], spot: [r1(S[0]), r1(S[1])] };
+          const L0 = em.lkpOf(slot);
+          const lkp0 = { x: L0.x, z: L0.z };
+          const locBefore = r2(b.locT[slot]);
+          let P = null;
+          let moved = false;
+          if (which === 'search') {
+            P = pick('step', S, null);
+            if (!P) return { seen, info, err: `search: no spot outside his search spot the step is heard at (reach ${r2(n)} m)` };
+          } else {
+            P = pick('wall', S, null);
+            if (!P) {
+              // none by where he stands: stand him (searching, his spot kept) at a cell with a wall near, in the open
+              const home = { x: e.pos.x, y: e.pos.y, z: e.pos.z };
+              outer: for (let dx = -8; dx <= 8; dx += 1.5) {
+                for (let dz = -8; dz <= 8; dz += 1.5) {
+                  const c = nav.cellOf(home.x + dx, home.z + dz, home.y);
+                  if (c < 0 || !nav.isWalkable(c) || Math.abs(nav.cellHeight(c) - home.y) > 1) continue;
+                  const [x, z] = nav.center(c);
+                  e.pos.set(x, nav.heightAt(x, z, home.y), z);
+                  P = pick('wall', S, null);
+                  if (P) {
+                    moved = true;
+                    break outer;
+                  }
+                }
+              }
+              if (!P) {
+                e.pos.set(home.x, home.y, home.z);
+                return { seen, info, err: `wall: no spot behind a wall inside the open reach (${r2(n)} m) round him or within 8 m of him` };
+              }
+              e['prevPos'].copyFrom(e.pos);
+            }
+          }
+          const d0 = Math.hypot(e.pos.x - P.x, e.pos.z - P.z);
+          const lvl0 = e.level;
+          fire(P);
+          const after = { locT: r2(b.locT[slot]), seenT: r1(b.seenT[slot]), heardAt: r2(e.heardAt), lkpAt: r2(Math.hypot(em.lkp.x - P.x, em.lkp.z - P.z)), lkpMoved: r2(Math.hypot(em.lkp.x - lkp0.x, em.lkp.z - lkp0.z)) };
+          let spotMin = 99;
+          let spotT = -1;
+          let closest = d0;
+          let closestT = 0;
+          const watch = (tt, spotWindow) => {
+            if (tt <= spotWindow) {
+              e.searchSpot(spot);
+              const ds = Math.hypot(spot[0] - P.x, spot[1] - P.z);
+              spotMin = Math.min(spotMin, ds);
+              if (spotT < 0 && ds <= 1.5) spotT = tt;
+            }
+            const dd = Math.hypot(e.pos.x - P.x, e.pos.z - P.z);
+            if (dd < closest) {
+              closest = dd;
+              closestT = tt;
+            }
+          };
+          watch(0, 3);
+          const secs = which === 'search' ? 15 : 5;
+          for (let i = 1; i <= secs * 20; i++) {
+            tick();
+            watch(i * 0.05, which === 'search' ? 3 : secs);
+          }
+          const end = { locT: r2(b.locT[slot]), seenT: r1(b.seenT[slot]), heardAt: r2(e.heardAt), lkpMoved: r2(Math.hypot(em.lkp.x - lkp0.x, em.lkp.z - lkp0.z)), level: e.level };
+          return { seen, info, P: { x: r1(P.x), z: r1(P.z), d: r2(P.d ?? d0), cands: P.cands }, d0: r2(d0), moved, lvl0, locBefore, after, end, spotMin: r2(spotMin), spotT: r2(spotT), closest: r2(closest), closestT: r1(closestT) };
+        } finally {
+          Math.random = rnd;
+          st.setMove('t', 0, 0);
+          t.crouch(false);
+          t.light(null);
+        }
+      }, which);
+
+    // --- search: he walks to the step ---
+    const a = await run('search');
+    const sa = JSON.stringify({ seen: a.seen, info: a.info, P: a.P, d0: a.d0, locBefore: a.locBefore, after: a.after });
+    assert(!a.err, `search: ${a.err} (${JSON.stringify(a)})`);
+    assert(a.seen.stealth && a.seen.coordinated, `search: the stealth, coordinated brain (${sa})`);
+    assert(a.info.combatSearch, `search: his search follows combat (${sa})`);
+    assert(a.locBefore > 1, `search: before the step his intruder was last located more than a second ago (${sa})`);
+    assert(a.spotT >= 0 && a.spotMin <= 1.5 && a.spotT <= 3, `search: within 3 s his search spot is within 1.5 m of the step (closest ${a.spotMin} m, at ${a.spotT} s; ${sa})`);
+    assert(a.after.heardAt < 3, `search: he re-aimed on the noise (his own re-aim clock ${a.after.heardAt}; ${sa})`);
+    assert(a.closest < 2, `search: within 15 s he comes within 2 m of the step (closest ${a.closest} m at ${a.closestT} s; ${sa})`);
+    assert(a.after.locT < 0.5, `search: the noise locates its maker: locT ${a.after.locT} s (${sa})`);
+    assert(a.after.seenT > 1, `search: heard, not seen: seenT ${a.after.seenT} s (${sa})`);
+    assert(a.after.lkpAt <= 0.5, `search: his last known position is the step (${a.after.lkpAt} m off; ${sa})`);
+    console.log(`    (search: step ${a.P.d} m off, his spot on it after ${a.spotT} s, closest ${a.closest} m at ${a.closestT} s; reach ${a.seen.n} m on ${a.seen.surf})`);
+
+    // --- wall: behind a wall, inside the open reach, he does not turn ---
+    const w = await run('wall');
+    const sw = JSON.stringify({ seen: w.seen, info: w.info, P: w.P, d0: w.d0, moved: w.moved, locBefore: w.locBefore, after: w.after, end: w.end });
+    assert(!w.err, `wall: ${w.err} (${JSON.stringify(w)})`);
+    assert(w.lvl0 === 'searching', `wall: he is searching when it sounds (${sw})`);
+    assert(w.after.heardAt > 50 && w.end.heardAt > 50, `wall: no re-aim in 5 s (his re-aim clock ${w.after.heardAt} / ${w.end.heardAt}; ${sw})`);
+    assert(w.spotMin > 1.5, `wall: his search spot never goes to the step (closest ${w.spotMin} m; ${sw})`);
+    assert(w.end.locT > 1 && w.end.lkpMoved < 0.05, `wall: the board did not move (locT ${w.end.locT}, last known position moved ${w.end.lkpMoved} m; ${sw})`);
+
+    // --- combat: he has lost his target and hears him: his last known position is the step ---
+    const c = await run('combat');
+    const sc = JSON.stringify({ seen: c.seen, P: c.P, lk: c.lk, lkpFrom: c.lkpFrom, lkpMin: c.lkpMin, sight0: c.sight0, sight1: c.sight1, seenT: c.seenT, locT: c.locT, heardAt: c.heardAt, level: c.level });
+    assert(!c.err, `combat: ${c.err} (${JSON.stringify(c)})`);
+    assert(c.lkpFrom > 1, `combat: the step is away from the old last known position (${c.lkpFrom} m; ${sc})`);
+    assert(c.lkpMin <= 0.5, `combat: within 1 s the last known position is the step (${c.lkpMin} m off; ${sc})`);
+    assert(c.sight1 >= c.sight0 - 0.05 && c.seenT >= c.sight0 - 0.05, `combat: heard, not seen: sightT not reset (${c.sight0} -> ${c.sight1}, seenT ${c.seenT}; ${sc})`);
+    assert(c.locT < 1.1, `combat: the noise located him (locT ${c.locT}; ${sc})`);
+  });
+
   await scen('patrol', async () => {
     const r = await G(() => {
       const t = window.__t;
