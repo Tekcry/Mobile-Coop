@@ -2542,7 +2542,18 @@ export class AnimGraph {
     // (CT prototype G8) the keyed walk's narrow track (the feet under the body, the soles just clear)
     // (anim-rework S2) the keyed set's blended track (walk, jog, run, the idle's hip width)
     // (anim-rework S4) the free kneel's feet a little under the hips (KNEEL_NARROW: its front foot planted 10.5 cm out)
-    const half = (half0 + (this.kHalf - half0) * o.keyW) * (1 - KNEEL_NARROW * o.kneel) * TUNE_CUR.trackMul;
+    let half = (half0 + (this.kHalf - half0) * o.keyW) * (1 - KNEEL_NARROW * o.kneel) * TUNE_CUR.trackMul;
+    // (anim-fix-pass AF1, P1 "legs ... overlapping eachother") on the mocap share at a jog and faster the planner's stance
+    // half is floored at the clips' planted half (kHalf: the mocap set's, emit.mjs STANCE_HALF), not trackMul's: the
+    // planner's steps (a turn past MOCAP_FEET_TURN, a hand-off) landed 0.35 cm off the midline (Body trackMul 0.05) and its
+    // uncross gap (FREE_GAP of the stance) was ~0.6 cm, so in a turn the outside foot came in across the inside one (jog
+    // 3 m/s x 2.5 rad/s planted ankle -0.3 cm, run 4 x 4 0.5 cm). The walk keeps trackMul's (its turns are fine); off the
+    // switch keyMocap is 0: unchanged
+    const hF = o.keyMocap * smoothstep((Math.max(0, i.speed) - MOCAP_FEET_TRACK.from) / (MOCAP_FEET_TRACK.full - MOCAP_FEET_TRACK.from));
+    if (hF > 0) {
+      const hc = this.kHalf * (1 - KNEEL_NARROW * o.kneel);
+      if (hc > half) half += (hc - half) * hF;
+    }
     const st = o.stance;
     // (G1 fix, audit row 20) standing still on foot the feet sit IDLE_STANCE apart (anim-rework S2: about hip width)
     const wide = i.traverse === 'none' && !i.wall && i.grounded ? IDLE_STANCE.extra * o.keyHol * (1 - this.moveW) * (1 - clamp(i.crouch, 0, 1)) : 0;
@@ -2914,3 +2925,15 @@ function fwdNode(nodes: readonly { speed: number }[], s: number): number {
   while (a < nodes.length - 2 && s > nodes[a + 1]!.speed) a++;
   return a;
 }
+
+/**
+ * (anim-fix-pass AF1) The mocap fast gaits' feet (Michael P1: "anything faster is bad, legs sticking and overlapping
+ * eachother"). `MOCAP_FEET_TRACK`: from `from` m/s, in full at `full` (the walk -> jog blend), the planner's stance half on
+ * the mocap share is floored at the clips' planted half (writeTargets). `MOCAP_FEET_TURN`: at a jog and faster (eased in
+ * over the same speeds) the clip feet hand a turn to the planner past `off` rad/s and take it back under `on` (hysteresis),
+ * at least `hold` s after the last hand-over either way except a hand-off past `off` (clipFeet): the clip's stance kept a
+ * planted foot pinned while the body yawed up to 2.3 (jog), 3.7 (run) and 4.7 (sprint) rad/s over it (MOCAP_FEET.twistMax /
+ * the stance), and with no hysteresis the owner changed frame to frame near the limit. The walk keeps MOCAP_FEET.turnMax.
+ */
+const MOCAP_FEET_TRACK = { from: 2.1, full: 2.6 } as const;
+const MOCAP_FEET_TURN = { off: 1.5, on: 1.0, hold: 0.3 } as const;
