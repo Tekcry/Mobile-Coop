@@ -3,7 +3,8 @@
 //   open train (an open PR whose head is train/<n>): CI `check` + the laptop's commit status `laptop-e2e` on its head
 //     both success -> `merge-train release` (exit 3, master moved -> `merge-train build` the same members, next version);
 //     any failure -> state "failed" (nothing destructive: the orchestrator decides which member leaves); pending ->
-//     wait; no laptop status 3 h after the head was pushed -> state "stale".
+//     wait; no laptop status 3 h after the head was pushed -> state "stale"; CI green but no laptop status 10 min
+//     after (AUTO_TRAIN_LAPTOP_MISSING_MIN) -> state "laptop-missing" (waitingMin in the status).
 //   no open train: open PRs to master labelled `train-ready` with a green `check` on their head (plus feature/menu
 //     when it differs from master in docs only, riding along) -> `merge-train build <n+1> <version> "<title>" ...`,
 //     paced: only once the last release is --min-interval min old (default 60) or the laptop queue is idle.
@@ -34,6 +35,7 @@ export const VITEST_CONTEXT = 'auto-train/vitest';
 export const MENU_BRANCH = 'feature/menu';
 export const STALE_HOURS = 3;
 export const LOCK_STALE_MIN = 30;
+export const LAPTOP_MISSING_MIN = 10;
 
 // ---- pure helpers (tests/autoTrain.test.ts) -----------------------------------------------------------------------
 
@@ -164,6 +166,30 @@ export function contextStatus(combined, context) {
   return { state: s === 'error' ? 'failure' : s, description: list[0].description ?? '' };
 }
 
+/**
+ * When CI `name` turned green on a head (ms) or null: the newest successful check run's completedAt in the gh
+ * statusCheckRollup, or the newest successful commit status' updated_at in the combined status.
+ */
+export function ciGreenAt(rollup, combined, name = 'check') {
+  const runs = (rollup ?? []).filter((r) => r.__typename !== 'StatusContext' && r.name === name
+    && String(r.status).toUpperCase() === 'COMPLETED' && String(r.conclusion).toUpperCase() === 'SUCCESS')
+    .map((r) => Date.parse(r.completedAt || '') || 0);
+  const statuses = (combined?.statuses ?? []).filter((s) => s.context === name && String(s.state).toLowerCase() === 'success')
+    .map((s) => Date.parse(s.updated_at || s.created_at || '') || 0);
+  const t = Math.max(0, ...runs, ...statuses);
+  return t > 0 ? t : null;
+}
+
+/**
+ * Laptop missing: minutes the train has waited for a `laptop-e2e` status since CI turned green (floored), or null
+ * when CI is not green, the laptop has posted any status, the green time is unknown or under `thresholdMin` ago.
+ */
+export function laptopMissing({ ci, laptop, ciGreenAt: greenAt, now, thresholdMin = LAPTOP_MISSING_MIN }) {
+  if (ci !== 'success' || laptop?.state !== 'missing' || !greenAt) return null;
+  const waitMin = (now - greenAt) / 60_000;
+  return waitMin >= thresholdMin ? Math.floor(waitMin) : null;
+}
+
 /** Laptop queue tree paths (origin/laptop-queue) -> 'idle' | 'busy': busy while any pending request JSON or running marker exists. */
 export function laptopQueueState(paths) {
   const busy = paths.some((p) => {
@@ -198,10 +224,11 @@ export function pacing({ now, releases = [], minIntervalMin = 60, maxPerDay = 0,
 
 /**
  * The state machine. `train` = null or { n, head, version, ci, laptop: { state, description }, vitest: state,
- * ageMin }; `candidates` = the build members after filtering (tips, docs-only menu included); `paceReason` = pacing().
- * -> { state, action: 'release' | 'build' | 'none', reason }.
+ * ageMin, ciGreenAt (ms or null) }; `candidates` = the build members after filtering (tips, docs-only menu included);
+ * `paceReason` = pacing(); `now` and `laptopMissingMin` feed laptopMissing().
+ * -> { state, action: 'release' | 'build' | 'none', reason } (+ waitingMin on 'laptop-missing').
  */
-export function decide({ train, candidates = [], paceReason = null }) {
+export function decide({ train, candidates = [], paceReason = null, now = Date.now(), laptopMissingMin = LAPTOP_MISSING_MIN }) {
   if (train) {
     const t = `train ${train.n}`;
     if (!train.version) return { state: 'error', action: 'none', reason: `${t}: no version in its version commit, title or CHANGELOG` };
@@ -215,6 +242,10 @@ export function decide({ train, candidates = [], paceReason = null }) {
     if (train.ci === 'success' && train.laptop.state === 'success') return { state: 'releasing', action: 'release', reason: `${t}: CI and laptop green (${train.laptop.description || 'pass'})` };
     if (train.laptop.state === 'missing' && train.ageMin >= STALE_HOURS * 60) {
       return { state: 'stale', action: 'none', reason: `${t}: no ${LAPTOP_CONTEXT} status ${Math.round(train.ageMin)} min after ${short(train.head)} was pushed` };
+    }
+    const waitingMin = laptopMissing({ ci: train.ci, laptop: train.laptop, ciGreenAt: train.ciGreenAt, now, thresholdMin: laptopMissingMin });
+    if (waitingMin != null) {
+      return { state: 'laptop-missing', action: 'none', waitingMin, reason: `${t}: no ${LAPTOP_CONTEXT} status ${waitingMin} min after CI went green on ${short(train.head)}` };
     }
     return { state: 'pending', action: 'none', reason: `${t}: CI ${train.ci}, laptop ${train.laptop.state}${train.laptop.description ? ` (${train.laptop.description})` : ''}` };
   }
@@ -269,6 +300,7 @@ const LOCK = FILES.lock;
 const LOG = FILES.log;
 const STATUS = FILES.status;
 const HERE = path.dirname(fileURLToPath(import.meta.url));
+const LAPTOP_MISSING = (() => { const v = Number(process.env.AUTO_TRAIN_LAPTOP_MISSING_MIN); return process.env.AUTO_TRAIN_LAPTOP_MISSING_MIN && Number.isFinite(v) && v >= 0 ? v : LAPTOP_MISSING_MIN; })();
 let CWD = 'C:/NightShift/Mobile-Coop-train';
 let LOCK_TEXT = null; // our tick lock's text, handed to merge-train (AUTO_TRAIN_LOCK_TEXT) so it runs under it
 
@@ -399,6 +431,7 @@ function openTrain() {
     resume: !!vc && vc.index < subjects.length - 1,
     members: membersFromSubjects(subjects, n),
     ci: ciState(p.statusCheckRollup, 'check'),
+    ciGreenAt: ciGreenAt(p.statusCheckRollup, combined, 'check'),
     laptop: contextStatus(combined, LAPTOP_CONTEXT),
     vitest: contextStatus(combined, VITEST_CONTEXT).state,
     ageMin: (Date.now() - since) / 60_000,
@@ -522,10 +555,10 @@ async function step(o) {
   const labelExists = ensureLabel();
   const t = o.previewNext ? null : openTrain();
   if (!t) return noTrain(o, labelExists);
-  const d = decide({ train: t });
+  const d = decide({ train: t, laptopMissingMin: LAPTOP_MISSING });
   log(`train ${t.n} #${t.pr} ${short(t.head)} ${t.version ?? '?'}: CI ${t.ci}, laptop ${t.laptop.state}${t.laptop.description ? ` (${t.laptop.description})` : ''}, age ${Math.round(t.ageMin)} min -> ${d.state}: ${d.reason}`);
   const base = { train: t.n, version: t.version, head: t.head, pr: t.pr };
-  if (d.action !== 'release') return { ...base, state: d.state, reason: d.reason };
+  if (d.action !== 'release') return { ...base, state: d.state, reason: d.reason, ...(d.waitingMin != null ? { waitingMin: d.waitingMin } : {}) };
   const master = exec(['git', 'ls-remote', 'origin', 'refs/heads/master']).out.split('\t')[0].trim() || null;
   const prev = readStatus(FILES.realStatus);
   if (rebuildSkip(prev, t.head, master)) {
