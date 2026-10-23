@@ -279,16 +279,14 @@ feature/sector-redesign-p3 (feature/sector-redesign is FROZEN at f29a43da in tra
 C:/NightShift/Mobile-Coop-sector-redesign-p3. git fetch; read CLAUDE.md (+ token / swap / session-title rules on
 origin/feature/menu until master), docs/ROADMAP.md "Decided", then STATE.md on -p3 top to "## Next at ~10:20": "Now"
 and "Next window" hold everything (PR 3, lanes A-E). Briefs: docs/sector-redesign/briefs/ (ART-*.md, E9-CRATE.md).
-At the save (~12:25) in flight:
-- PR 3 GPU RESULT at f96924e5: sectorops 2-6 + coop 83 s + netmove PASS, vitest 3740 pass; sectorops:1 FAIL once at
-  e2e-sectorops.mjs:526 "a loud shot inside the combat reach alerts the nearest guard" (nearest suspicious, 2 others
-  alerted; guard-ai hearing; passed at 6e118977). Rerun x2 queued (e2e-p1-1.log / -2.log in the run dir): both pass ->
-  flaky, open PR 3 and tell Guard AI; fails -> compare with master / ask Guard AI. Earlier logs: read
-  C:/NightShift/scratch/runs/sectorredesign-f96924e5/{e2e,vitest,build}.log; green -> open PR 3 from -p3, message
-  the orchestrator; red -> one Opus fix round per failing suite.
-- Lane A ART-KIT (Opus): feature/sector-redesign-art-kit @ e8fad392+ (worktree -art-kit, checks/art-kit-build.md).
-- Lane B E2 glass (Opus): feature/sector-redesign-e2 @ ed420072+ (worktree -e2, checks/e2-glass.md).
-- Lane C posts DONE: feature/sector-redesign-posts @ e20103d6 (needs a Sonnet checker, then merge into -p3).
+In flight (window 4, ~13:00):
+- PR 3 at f96924e5: GPU green except sectorops:1. The co-op crate leg fails 2/2 at e2e-sectorops.mjs:822 "the client's
+  prompt is gone" (real bug; the :526 hearing assert passed in rerun 1). Opus crate-fix on -p3 -> checks/crate-client-fix.md,
+  then it runs part 1 + coop GPU. Part-1 reruns 2 / 3 at f96924e5 (worktree -run detached, C:/NightShift/scratch/sr-p1.sh,
+  run dir e2e-p1-2/-3.log) decide whether :526 is a flake (flake -> tell Guard AI). Green after the fix -> open PR 3.
+- Lane A ART-KIT (Opus) resumed on -art-kit (WIP catalogue committed at the swap; checks/art-kit-build.md).
+- Lane B E2 glass (Opus) resumed on -e2 (WIP S2-S4 glass data committed; checks/e2-glass.md).
+- Lane C posts: Sonnet checker on -posts -> checks/posts-check.md; PASS -> merge into -p3.
 For each lane: branch log + report; finished -> one checker per batch; unfinished -> rerun from its brief / STATE text.
 Worktrees made with `worktree add -b X origin/Y` track Y: push lane branches with `git push -u origin <branch>`.
 Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
