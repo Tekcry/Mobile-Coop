@@ -32,13 +32,64 @@ import {
   inZone,
   sectorInfoHtml,
   sectorResult,
+  syringesFor,
   type ConnectorInput,
+  type SectorRatingWire,
   type SectorNetExtra,
   type SectorDef,
 } from '../sectors';
 import { killScore } from './score';
 import { SectionStartState } from '../sectorReset';
 import { markCompleted } from '../../save/sectorRecord';
+import { updateRatingRecord } from '../../save/ratingRecord';
+import { GADGETS, type GadgetId } from '../gadgets';
+import { stationHeal } from '../medkit';
+import {
+  DEFAULT_RULES,
+  SyncedDetector,
+  emptyGrant,
+  newSectionStats,
+  rateSection,
+  resetSectionStats,
+  rewardsFor,
+  type Grant,
+  type SectionStats,
+} from '../rating/sectionRating';
+
+/**
+ * (section-rating S2) The gadgets a rating's charges top up, in order: the noisemaker first, then sleeping gas (the
+ * stealth tools; the pistol jammer's charge is per use, not carried). Each is capped at its starting carry.
+ */
+const GRANT_GADGETS: readonly GadgetId[] = ['noise', 'gas'];
+
+/** (section-rating S2) The last rated section, as the rating card reads it (S4's `RatingView` shape). */
+export interface SectionRatingView {
+  sectionId: string;
+  title: string;
+  marks: number;
+  synced: number;
+  /** What the rating granted the next section (A9: Bodies hidden's alarm step is already a gadget charge here). */
+  grant: Grant;
+}
+
+/** (section-rating S2) The dev / test hook `window.__sectionRating`. */
+export interface SectionRatingHook {
+  /** The current section's live counters (host). */
+  stats: SectionStats;
+  last: SectionRatingView | null;
+  /** What the last section load actually gave (after the carry caps), or null before any. */
+  lastGrant: Grant | null;
+}
+
+/**
+ * (section-rating S2) Called on every rating (host / solo), after the best-rating record write. The rating card (S4) or
+ * other listeners hook in here; null by default.
+ */
+export let onRated: ((mapId: string, sectionId: string, marks: number, synced: number) => void) | null = null;
+/** Set the `onRated` listener (null clears it). */
+export function setOnRated(fn: typeof onRated): void {
+  onRated = fn;
+}
 
 /** Squads never pop in this close to a player (Hunter's rule). */
 const SPAWN_MIN_DIST = 7;
@@ -119,6 +170,19 @@ export class SectorMode implements GameMode {
   /** Players, reused every tick (no allocation). */
   private readonly refs: PlayerRef[] = [];
 
+  /** (section-rating S2) The current section's counters (host / solo): reset in place after a rating and on a restart. */
+  readonly secStats: SectionStats = newSectionStats();
+  /** (section-rating S2) Knock-outs by two different players within SYNC_WINDOW (A6). */
+  private readonly syncDet = new SyncedDetector();
+  /** The detections tally (`g.style.detections`) last read: the section counts each rise. */
+  private detSeen = 0;
+  /** The grant the last rating earned, given as the next section begins (null: nothing owed). */
+  private owed: Grant | null = null;
+  /** The last rating on the wire (`rt`, copied per send). */
+  private readonly rt: SectorRatingWire = { sec: -1, marks: 0, synced: 0, gadget: 0, syringe: 0, medkit: 0, alarmStep: 0 };
+  private readonly hook: SectionRatingHook = { stats: this.secStats, last: null, lastGrant: null };
+  private readonly offs: (() => void)[] = [];
+
   /** (sector-redesign G22) The lamps and doors as the current section began (a restart puts them back). */
   readonly startState = new SectionStartState();
 
@@ -144,6 +208,17 @@ export class SectorMode implements GameMode {
     });
     g.ctDev = this.ct;
     (window as unknown as { __sector?: SectorMode }).__sector = this;
+    // (section-rating S2) the section's alarms and found bodies; the dev / test view of the rating
+    this.offs.push(
+      g.events.on('alarm', () => {
+        this.secStats.alarms++;
+      }),
+      g.events.on('bodyFound', () => {
+        this.secStats.bodiesFound++;
+      }),
+    );
+    this.detSeen = g.style.detections;
+    (window as unknown as { __sectionRating?: SectionRatingHook }).__sectionRating = this.hook;
     this.findDoors();
     this.findBolts();
     const s = this.run.current;
@@ -397,6 +472,8 @@ export class SectorMode implements GameMode {
     if (ev & CONN_UNLOCK_NEAR && d?.near) this.lockDoor(d.near, false);
     if (ev & CONN_LOCK_NEAR && d?.near) this.lockDoor(d.near, true);
     if (ev & CONN_UNLOAD) {
+      // (section-rating S2) the section is rated as its connector unloads it; its grant waits for the next section
+      this.rate(prev, true);
       this.unloadSection();
       g.hud.banner('SECTION CLEAR', 'Next section loading', 2000);
     }
@@ -410,6 +487,8 @@ export class SectorMode implements GameMode {
       if (d) for (const k of d.seal) this.lockDoor(k, false);
       const s = this.run.defs[prev];
       if (s) g.events.emit('objective', { id: `${s.id}-exit` });
+      // (section-rating S2, A8) the grant lands before the loadout is recorded: a restart of this section keeps it
+      this.giveGrant();
       this.beginSection();
     }
   }
@@ -451,6 +530,7 @@ export class SectorMode implements GameMode {
   /** A camera has someone at full awareness, or a laser was broken (sector-fixes C): `CtDevices` already raised its own stage and showed the banner. */
   private cameraAlarm(): void {
     this.camAlarms++;
+    this.secStats.camAlarms++;
     const ct = this.ct;
     const up = this.run.alarm;
     const send = ct && ct.alarm > up ? this.run.raiseAlarm() : 0;
@@ -481,6 +561,8 @@ export class SectorMode implements GameMode {
     for (const it of this.its) g.interactables?.remove(it);
     this.its.length = 0;
     g.hud.setObjective('');
+    // (section-rating S2) the last section is rated at the extraction (nothing follows it to grant)
+    this.rate(this.run.index, false);
     g.events.emit('operationComplete', {});
     // M7: the op's star for this difficulty (and the best time), solo or the co-op host
     void markCompleted(g.world.map.id, g.opts.difficulty ?? 'normal', this.t);
@@ -493,7 +575,101 @@ export class SectorMode implements GameMode {
   /** Lethal kills (knock-outs are not kills, A4) and times spotted (guard detections plus camera alarms). */
   result(): ReturnType<typeof sectorResult> {
     const g = this.g;
-    return sectorResult({ time: this.t, kills: Math.max(0, g.stats.kills - g.stats.knockouts), spotted: g.style.detections + this.camAlarms });
+    return sectorResult({ time: this.t, kills: Math.max(0, g.stats.kills - g.stats.knockouts), spotted: g.style.detections + this.camAlarms, marks: this.run.marks });
+  }
+
+  /**
+   * (section-rating S2) Rate section `i` from the live counters (once: a section is never re-rated), record the best
+   * (S5), and with `grant` owe the next section its reward (given as it begins). The counters then start afresh.
+   */
+  private rate(i: number, grant: boolean): void {
+    const s = this.run.defs[i];
+    if (!s || (this.run.marks[i] ?? 0) >= 0) return;
+    const g = this.g;
+    const st = this.secStats;
+    const marks = rateSection(st, DEFAULT_RULES);
+    const synced = st.synced;
+    this.run.marks[i] = marks;
+    let gadgetsAtStart = 0;
+    for (const id of GRANT_GADGETS) gadgetsAtStart += GADGETS[id].carry;
+    const preset = syringesFor(g.opts.difficulty);
+    const r = rewardsFor(marks, synced, {
+      coop: g.net !== null,
+      preset,
+      gadgetsAtStart,
+      syringesAtStart: g.net?.revivesLeft?.() ?? preset,
+    });
+    // A9 (for the lead): until guard-ai's alarm stage API is on master, Bodies hidden's alarm step is +1 gadget charge
+    r.gadget = Math.min(gadgetsAtStart, r.gadget + r.alarmStep);
+    r.alarmStep = 0;
+    if (grant) this.owed = r;
+    this.hook.last = { sectionId: s.id, title: s.name, marks, synced, grant: r };
+    const w = this.rt;
+    w.sec = i;
+    w.marks = marks;
+    w.synced = synced;
+    w.gadget = r.gadget;
+    w.syringe = r.syringe;
+    w.medkit = r.medkit;
+    w.alarmStep = r.alarmStep;
+    this.secT = 0;
+    const mapId = g.world.map.id;
+    void updateRatingRecord(mapId, s.id, marks, synced);
+    onRated?.(mapId, s.id, marks, synced);
+    this.freshCounters();
+  }
+
+  /** (section-rating S2) The section's counters back to zero (in place), the synced pairs forgotten. */
+  private freshCounters(): void {
+    resetSectionStats(this.secStats);
+    this.syncDet.reset();
+    this.detSeen = this.g.style.detections;
+  }
+
+  /**
+   * (section-rating S2) The owed grant, given once: gadget charges (noisemaker, then gas, each up to its starting carry),
+   * syringes (co-op: the op's revive cap, through the net layer's `addSyringes` when it has one; counted in the run),
+   * medkits (a station's heal for each player). `lastGrant` shows what actually landed.
+   */
+  private giveGrant(): void {
+    const r = this.owed;
+    if (!r) return;
+    this.owed = null;
+    const g = this.g;
+    const given = emptyGrant();
+    let n = r.gadget;
+    for (const id of GRANT_GADGETS) {
+      if (n <= 0) break;
+      const k = g.gadgets.topUp(id, n, GADGETS[id].carry);
+      given.gadget += k;
+      n -= k;
+    }
+    if (r.syringe > 0) {
+      this.run.syringeBonus += r.syringe;
+      const net = g.net as unknown as { addSyringes?: (n: number) => void } | null;
+      if (net?.addSyringes) {
+        net.addSyringes(r.syringe);
+        given.syringe = r.syringe;
+      }
+    }
+    for (let k = 0; k < r.medkit; k++) if (this.healAll()) given.medkit++;
+    this.hook.lastGrant = given;
+    if (given.gadget > 0) g.hud.feedItem(`Section rating: +${given.gadget} gadget`, 'xp');
+  }
+
+  /** (section-rating S2) A medkit reward: a station's heal for every player (the host's own, and each client's). */
+  private healAll(): boolean {
+    const g = this.g;
+    let any = false;
+    const h = g.target.health;
+    const hp = stationHeal(h.hp, h.maxHp, g.player.alive, g.opts.difficulty ?? 'normal');
+    if (hp !== null) {
+      h.heal(hp - h.hp);
+      any = true;
+    }
+    const refs = g.playerRefsInto(this.refs);
+    for (let i = 1; i < refs.length; i++) if (g.net?.healAtStation?.(refs[i]!.id)) any = true;
+    return any;
   }
 
   /**
@@ -521,6 +697,14 @@ export class SectorMode implements GameMode {
     // the stealth leftovers cleared, the music calmed (`GameState.checkpointReset`)
     g.enemyMgr?.resetMemory();
     g.checkpointReset();
+    // (section-rating S2, A8) the section's counters start again (a restart never re-rates; a grant already given stays,
+    // being in the recorded loadout). A restart during a cycle is of the next section: its owed grant lands now, on top
+    // of the loadout just put back, and that becomes the loadout a later restart gives back.
+    this.freshCounters();
+    if (ev & CONN_UNLOCK_FAR && this.owed) {
+      this.giveGrant();
+      g.weapons.markCheckpoint();
+    }
     this.loadSection(this.run.index);
     // a camera shot out in the section comes back: the restart is a clean retry (step 3)
     this.ct?.repair(this.run.index);
@@ -561,6 +745,10 @@ export class SectorMode implements GameMode {
     }
     if (this.endT === 0) return;
     this.t += dt;
+    // (section-rating S2) guard detections count in the current section (the stealth tally's rise)
+    const det = g.style.detections;
+    if (det > this.detSeen) this.secStats.detections += det - this.detSeen;
+    this.detSeen = det;
     const ct = this.ct;
     if (ct) {
       ct.fixedUpdate(dt);
@@ -612,6 +800,16 @@ export class SectorMode implements GameMode {
 
   onEnemyKilled(e: Enemy, h: HitInfo): void {
     this.g.stats.score += killScore(e.def.kind, h.part === 'head', 2);
+    // (section-rating S2) a knock-out is not a kill (A2); two by two players within SYNC_WINDOW are synced (A6)
+    const st = this.secStats;
+    st.bodiesMade++;
+    if (!e.ko) {
+      st.kills++;
+      return;
+    }
+    st.knockouts++;
+    const p = h.attackerId === 'local' || h.attackerId === '' ? 0 : 1;
+    if (this.syncDet.onTakedown(p, this.t)) st.synced = this.syncDet.synced;
   }
 
   onPlayerDeath(): void {
@@ -635,7 +833,7 @@ export class SectorMode implements GameMode {
   private netExtra(ct: CtDevices): SectorNetExtra {
     const lk: number[] = [];
     for (const d of this.g.world.doors.list) if (d.anchor.locked) lk.push(d.index);
-    return { ls: ct.liveSection, lk, dn: ct.destroyedIds([]), sy: this.g.net?.revivesLeft?.() ?? 0 };
+    return { ls: ct.liveSection, lk, dn: ct.destroyedIds([]), sy: this.g.net?.revivesLeft?.() ?? 0, rt: { ...this.rt } };
   }
 
   /** Co-op host: the client's held jammer target. */
@@ -672,6 +870,7 @@ export class SectorMode implements GameMode {
       doors: this.doors.map((k) => ({ near: locked(k.near), far: locked(k.far), seal: k.seal.map((x) => x.anchor.locked) })),
       live: this.ct?.liveSection ?? null,
       bolts: this.bolts.shut.map((row) => row.slice()),
+      rating: { stats: { ...this.secStats }, marks: this.run.marks.slice(), syringeBonus: this.run.syringeBonus, owed: this.owed ? { ...this.owed } : null },
       ...this.result(),
     };
   }
@@ -683,7 +882,10 @@ export class SectorMode implements GameMode {
     this.pending.length = 0;
     const em = this.g.enemyMgr;
     if (em && this.prevMaxAlive >= 0) em.maxAlive = this.prevMaxAlive;
-    const w = window as unknown as { __sector?: SectorMode };
+    const w = window as unknown as { __sector?: SectorMode; __sectionRating?: SectionRatingHook };
     if (w.__sector === this) delete w.__sector;
+    if (w.__sectionRating === this.hook) delete w.__sectionRating;
+    for (const off of this.offs) off();
+    this.offs.length = 0;
   }
 }

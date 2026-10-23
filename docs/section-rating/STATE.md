@@ -49,3 +49,18 @@ Built `src/save/ratingRecord.ts`, `tests/ratingRecord.test.ts` (3 tests, pass), 
 - Save version: no bump (kv key outside the profile schema, as `course:fallow`; saves.md rule).
 - Select screen: Sector Ops op context panel lists each section with its best marks as four pips (filled/empty), nothing when unrecorded. `marksPips` exported. Marlow Yard has no select screen in missionsScreen.ts, so not covered here.
 - tsc: only errors are in sectorMode.ts (S2 in progress, not mine). eslint clean on my files.
+
+## S2 report (2026-10-23 13:20)
+Built (host / solo only; tsc clean, eslint clean on the 3 files + test; vitest single files: sectorRatingHost 3, sectors 27, sectorRestart 8, sectorStep3 7, sectorBolt 12, campusS1 47, animTunePass2 11, all pass).
+- `sectorMode.ts`: `secStats` (one `SectionStats`, reset in place), `SyncedDetector`; counts guard detections (rise of `g.style.detections` per tick), `camAlarms` (cameraAlarm), `alarm` / `bodyFound` events, `onEnemyKilled` (kill or knock-out, every down is `bodiesMade`; knock-outs feed the detector, player 0 = 'local' / '' attacker, else 1).
+- Rated at CONN_UNLOAD (and the last section at the extraction, no grant); `run.marks[i]` set once, never re-rated. `rewardsFor` ctx: coop = `g.net !== null`, preset = `syringesFor(difficulty)`, syringesAtStart = `revivesLeft()`, gadgetsAtStart = noise + gas starting carry (4).
+- A9 (lead to log in BRIEF): until guard-ai's alarm stage API lands, Bodies hidden's `alarmStep` becomes +1 gadget charge (folded into `grant.gadget`, `alarmStep` 0).
+- Grant given at the next section's begin (CONN_UNLOCK_FAR, just before `markCheckpoint`), so a restart of that section keeps it (A8). Restart mid-cycle: the owed grant lands after `checkpointReset`, then `markCheckpoint`. Restart resets the counters only.
+- Gadgets: new `GadgetSystem.topUp(id, n, cap)` (never above cap or max, never lowers); charges go to noisemaker then gas, each capped at its starting carry. Host's own player only: the client's gadgets need a wire message (not done).
+- Syringes: `run.syringeBonus` (sectors.ts) counts them; applied through a duck-typed `g.net.addSyringes(n)` that does NOT exist yet. Lead / S3: add to coopHost `addSyringes(n: number): void { this.reviveClock.cap += n; }`.
+- Medkit: a station heal (`stationHeal`) for the host's player and each client via `net.healAtStation` (no carried kits exist, G20).
+- Wire: `SectorNetExtra.rt: SectorRatingWire` `{ sec, marks, synced, gadget, syringe, medkit, alarmStep }` (sec -1 none), copied per send; `secT` zeroed on a rating so it goes at once. No src/net edit, no version bump.
+- `sectorResult` takes optional `marks` and returns them; the line gains "  ·  Marks 4/4 2/4 -" (unchanged without marks). `result()` passes `run.marks`.
+- Record: `updateRatingRecord(mapId, sectionId, marks, synced)` imported statically from S5's `src/save/ratingRecord.ts` (it existed) and called on every rating. Also exported `onRated` / `setOnRated` listener (null by default) for the card wiring.
+- Hook `window.__sectionRating = { stats, last: { sectionId, title, marks, synced, grant } | null, lastGrant }` (`last` matches S4's `RatingView`); `__sector.debug().rating` adds marks, owed grant, syringeBonus.
+- Not done: the rating card is not wired (lead: on `onRated` / `hook.last` change, `card.show(view)` and `card.update(dt)` in frameUpdate). "No alarms" counts only panel `alarm` events, not camera stage raises (PLAN's table).
