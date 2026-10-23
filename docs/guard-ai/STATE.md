@@ -1,6 +1,19 @@
 # Guard AI - state
 
 ## Now
+~11:45: S4 / S5 / S7 in train 22 (origin/train/22, with #194, #198; laptop full run, 4.71.0 on a pass).
+- Planner DONE (d693ae73): research/stealth-over-shooting.md, PLAN rows S11-S15 + S9 widened (protocol 32 now
+  needed), BRIEF A35-A46 (morning review: A36 armour body shots deal no damage; A40 "raise alert" = section caution).
+  Order S11 (data, Sonnet) -> S12 helmets / armour -> S13 response teams -> S14 section alert (missed check-in,
+  shots call; edits coopHost: e2e-coop) -> S15 breaker / late discovery -> S9; S12-S15 and S9 Opus.
+  Course Ready (sector-redesign data: gear / sweep / no enforcer) and CT Core (deflect hit kind, patrolTiming on
+  request) told.
+- S10 check PASS ac4cf9a0 (slices/S10-CHECK.md; fix: buildPair rebuilt from the live walkers on a re-place, pairFace
+  cleared; e2e lower bound open+6-0.45). Ready for s10 <- s6 once the stack merge hands back.
+- S11 implementer RUNNING (Sonnet) in C:/NightShift/Mobile-Coop-guard-ai-s11 (branch feature/guard-ai-s11 off S5b
+  2d363f3e; gear.ts, guardAiData tags, validator, 3 new test files; no enemy.ts). Then one Opus checker for S11 + S12.
+- Stack merge agent still RUNNING (s8 <- s7 12911d86 + patrolRoute, s5b, s6).
+
 TRAIN-READY sent (~11:20): laptop GPU on s7 4052c434 GREEN (e2e-stealth-ai x2, e2e-sectorops all). s7 then merged
 s5 (master 4.70.0, clean) = 12911d86 (tsc, 200 AI / security unit tests); #193 / #195 / #196 told to the orchestrator
 as one stacked series. Stack merge agent told to take s7 12911d86 into s8 too.
