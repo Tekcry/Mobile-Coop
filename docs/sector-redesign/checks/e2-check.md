@@ -58,3 +58,6 @@ The core of E2 is sound: bits, light, nav, sight / hearing masks, campus data. T
   mostly vertical, so the risk is low. Review when the balustrades become glass (open item in the report).
 - `stealthSystems.ts:311` (lift eye) and `vfx/doorGhosts.ts`: `G.STATIC`, visual / minor.
 - Owed at the slice (as the report says): the `e2-sectorops` S2 / S3 route parts, and a GPU look at the pane materials.
+
+## Fix round (lead, 12:40)
+Both FIX items done: takedownController.ts:318 LOS and teamController.ts:787 throw-arc legs cast `G.STATIC | G.GLASS` (fences left as before: a throw over a fence stays legal). tsc clean; glass, campusGlass, takedown*, team* 5 files 71 pass.
