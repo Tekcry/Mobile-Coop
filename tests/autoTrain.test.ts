@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  bumpVersion, ciState, contextStatus, decide, docsOnly, fragmentInfo, fragmentPath, joinTitles, laptopQueueState, membersFromSubjects,
+  bumpVersion, ciGreenAt, ciState, contextStatus, decide, docsOnly, fragmentInfo, fragmentPath, joinTitles, laptopMissing, laptopQueueState, membersFromSubjects,
   nextTrainNumber, pacing, parseChangelogHeading, parseLeftOut, parseTrainTitle, planBuild, rebuildSkip, releaseArgs, releaseKind, scratchFiles,
   stackedTips, versionFromSubjects,
   // @ts-expect-error plain .mjs process script without types
@@ -130,6 +130,32 @@ describe('auto-train: parsing', () => {
   });
 });
 
+describe('auto-train: laptop missing', () => {
+  const now = Date.parse('2026-10-24T10:00:00Z');
+  const missing = { state: 'missing', description: '' };
+
+  it('reads the CI green time from the check run completedAt or the status updated_at', () => {
+    const run = (conclusion: string, at: string, status = 'COMPLETED') => ({ __typename: 'CheckRun', name: 'check', status, conclusion, completedAt: at });
+    expect(ciGreenAt([run('SUCCESS', '2026-10-24T09:40:00Z'), run('FAILURE', '2026-10-24T09:50:00Z')], null)).toBe(Date.parse('2026-10-24T09:40:00Z'));
+    expect(ciGreenAt([run('SUCCESS', '2026-10-24T09:40:00Z'), run('SUCCESS', '2026-10-24T09:45:00Z')], null)).toBe(Date.parse('2026-10-24T09:45:00Z'));
+    expect(ciGreenAt([{ ...run('SUCCESS', '2026-10-24T09:40:00Z'), name: 'lint' }], null)).toBeNull();
+    expect(ciGreenAt([run('', '', 'IN_PROGRESS')], null)).toBeNull();
+    const combined = { statuses: [{ context: 'check', state: 'success', updated_at: '2026-10-24T09:30:00Z' }, { context: 'laptop-e2e', state: 'success', updated_at: '2026-10-24T09:55:00Z' }] };
+    expect(ciGreenAt([{ __typename: 'StatusContext', context: 'check', state: 'SUCCESS' }], combined)).toBe(Date.parse('2026-10-24T09:30:00Z'));
+    expect(ciGreenAt(undefined, undefined)).toBeNull();
+  });
+
+  it('counts minutes after CI green with no laptop-e2e status, from the threshold on', () => {
+    expect(laptopMissing({ ci: 'success', laptop: missing, ciGreenAt: now - 9 * MIN, now })).toBeNull();
+    expect(laptopMissing({ ci: 'success', laptop: missing, ciGreenAt: now - 10 * MIN, now })).toBe(10);
+    expect(laptopMissing({ ci: 'success', laptop: missing, ciGreenAt: now - 47.9 * MIN, now })).toBe(47);
+    expect(laptopMissing({ ci: 'success', laptop: missing, ciGreenAt: now - 3 * MIN, now, thresholdMin: 2 })).toBe(3);
+    expect(laptopMissing({ ci: 'pending', laptop: missing, ciGreenAt: now - 30 * MIN, now })).toBeNull();
+    expect(laptopMissing({ ci: 'success', laptop: { state: 'pending', description: 'queued' }, ciGreenAt: now - 30 * MIN, now })).toBeNull();
+    expect(laptopMissing({ ci: 'success', laptop: missing, ciGreenAt: null, now })).toBeNull();
+  });
+});
+
 describe('auto-train: pacing', () => {
   const now = Date.parse('2026-10-23T20:00:00');
 
@@ -186,6 +212,18 @@ describe('auto-train: decision', () => {
   it('never releases a train without a version commit (build died before it): error, rebuild', () => {
     expect(decide({ train: train({ versionCommit: false }) })).toEqual({ state: 'error', action: 'none', reason: 'train 31 has no version commit: rebuild' });
     expect(decide({ train: train({ versionCommit: undefined }) })).toMatchObject({ state: 'error', action: 'none' });
+  });
+
+  it('flags a laptop missing 10 min after CI went green (train, head, minutes)', () => {
+    const now = Date.parse('2026-10-24T10:00:00Z');
+    const missing = { state: 'missing', description: '' };
+    expect(decide({ train: train({ laptop: missing, ciGreenAt: now - 9 * MIN }), now }).state).toBe('pending');
+    expect(decide({ train: train({ laptop: missing, ciGreenAt: now - 12.5 * MIN }), now })).toEqual({ state: 'laptop-missing', action: 'none', waitingMin: 12,
+      reason: 'train 31: no laptop-e2e status 12 min after CI went green on abcdef12' });
+    expect(decide({ train: train({ laptop: missing, ciGreenAt: now - 6 * MIN }), now, laptopMissingMin: 5 }).state).toBe('laptop-missing');
+    expect(decide({ train: train({ laptop: missing, ciGreenAt: now - 60 * MIN, ci: 'pending' }), now }).state).toBe('pending');
+    expect(decide({ train: train({ laptop: { state: 'pending', description: 'queued' }, ciGreenAt: now - 60 * MIN }), now }).state).toBe('pending');
+    expect(decide({ train: train({ laptop: missing, ciGreenAt: now - 60 * MIN, ageMin: 181 }), now }).state).toBe('stale');
   });
 
   it('with no train: idle, waiting on pacing, or build', () => {
