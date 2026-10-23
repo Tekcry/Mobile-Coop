@@ -1,6 +1,9 @@
 # Guard AI - state
 
 ## Now
+~16:20 SAVE (orchestrator, 5-hour 82%): heads s15 fc249f3f, s9 1ad04058, walk 2082f96b, s21 00d6d3b9, s16 d6b43740
+(+ WIP 46ca998d on feature/guard-ai-s16-wip). Walk checker and S16 merge / check agents still running.
+
 ~16:15: S20 spacing + doors BUILT 3fa4c271 (separation.ts, doorGate.ts; A114-A117; A116: no nav closure per locked
 door, a guard waits at it). walk <- s21 = 2082f96b (S17-S21; 208/208 on the batch files). RUNNING (Opus): walk batch
 checker (WALK-CHECK.md); S16 merge master 4.75.0 + fresh check (#217 landed in 4.75.0 via train 26; S16 now a
@@ -434,7 +437,9 @@ e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep lapto
    master` (auto mode blocked it here). Red -> one Opus fix agent from the failing assert.
 2. S9 co-op (protocol 32) = 1ad04058 (s9 <- fixed s15), verdict pending (coop, netmove, stealth-ai, takedown). Green ->
    PR S9 base s15; add A126's holster bit to `al` while protocol 32 is unreleased (after walk lands).
-3. S16 (armour fire gate): agent merging master 4.75.0 + fresh check. Done = slices/S16-CHECK.md on feature/guard-ai-s16.
+3. S16 (armour fire gate): agent merging master 4.75.0 + fresh check. Done = slices/S16-CHECK.md on feature/guard-ai-s16;
+   else its mid-merge WIP is origin/feature/guard-ai-s16-wip 46ca998d (conflicts: enemy.ts ~229 rng, ~2178 S16 armour
+   block vs S8 roleStep; BRIEF / TESTING keep both): a fresh Opus agent finishes from there.
    Then Test Runner: sectorops 6, stealth-ai, ct-warehouse, ctcourse, tactics; PR to master; tell Sector Ops Build
    (ballistics.ts armouredFirst).
 4. Walk batch S17-S21 = 2082f96b on feature/guard-ai-walk (WALK.md; A100-A126). Checker RUNNING: done =
