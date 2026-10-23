@@ -49,7 +49,7 @@ fragment (now `kind: minor`).
   as JS equals the TS formula; in each mode the field's `lampAt` / `levelAt` (what the meter's `bodyLevel` and the guards'
   `levelAt` read) = gain x intensity x the active GLSL formula on the shaders' lamp data (`bakedLights` reach) x cone x
   baked visibility; the same floor point reads 0 Classic, > 0.1 Realistic.
-- e2e (`e2e-menus`, desktop, `E2E_GPU=1 E2E_JOBS=1`, port 4191): RESULT_E2E
+- e2e (`e2e-menus`, desktop, `E2E_GPU=1 E2E_JOBS=1`, port 4191): PASS, 76 s (15:16-15:18). The new leg: Classic by default at a lamp-lit fixed point (warehouse lamp 0, level 0.511); Pause > Settings > Gameplay row on Classic with its help text; a click picks Realistic (test) while the running match stays Classic; Retry loads Realistic, the lamp reach 4.00 -> 6.40 (1.6 x), the field at the fixed point 0.511 -> 0.485. Lock and port released.
 
 ## For the laptop (lead's request)
 - Logic: `e2e-menus` (the new leg), `e2e-coop`, `e2e-netmove` (protocol 38), `e2e-sectorops`, `e2e-lightbake`.
