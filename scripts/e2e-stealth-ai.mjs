@@ -571,6 +571,8 @@ try {
           for (const x of xs) gs.push(t.spawn('grunt', x, 5, Math.PI));
           if (gs.some((x) => !x)) return { err: 'a guard did not spawn' };
           const e = gs[0];
+          // his eye over his feet, standing (enemy.ts `eye`), for the 'near' sight test below
+          const eyeUp = e['eye'](new t.V()).y - e.pos.y;
           t.tp(-0.5, 0, 0);
           let k = 0;
           while (!(gs.every((x) => x.alerted) && em.sightT < 0.1) && k++ < 900) {
@@ -601,6 +603,27 @@ try {
           if (which === 'near') {
             // the plan's own candidates in the band (cover at its position, dark cells), scored by its own table
             let best = -Infinity;
+            // (S25-SAI-TRIAGE) out of his sight from his walk (post (0, 5) -> last known position) and round the last
+            // known position: an alerted guard sees by line of sight alone, light or not (enemy.ts `updateAwareness`),
+            // so a spot he can see from there is no vanish: he sees him again and the last known position moves onto
+            // him (the 8bd13e0c pick (-4.75, -2.25) was in view through the 1.1 m gap in the x -4 wall). Eyes on
+            // walkable cells only; a static ray to the crouched hips, chest and head, clear as the guard's own losClear
+            const eyes = [];
+            const ne = Math.max(1, Math.ceil(Math.hypot(Lx, Lz - 5) / 0.5));
+            for (let q = 0; q <= ne; q++) eyes.push([(Lx * q) / ne, 5 + ((Lz - 5) * q) / ne]);
+            for (let q = 0; q < 8; q++) eyes.push([Lx + 1.5 * Math.cos((q * Math.PI) / 4), Lz + 1.5 * Math.sin((q * Math.PI) / 4)]);
+            const eyeV = eyes.filter(([x, z]) => nav.isWalkable(nav.cellOf(x, z, Ly))).map(([x, z]) => new t.V(x, Ly + eyeUp, z));
+            const toV = new t.V();
+            const inSight = (x, y, z) => {
+              for (const ev of eyeV) {
+                for (const h of [0.6, 0.95, 1.2]) {
+                  toV.set(x, y + h, z);
+                  const r = g.ballistics.ray(ev, toV, 1);
+                  if (!r.hit || r.distance > Math.hypot(toV.x - ev.x, toV.y - ev.y, toV.z - ev.z) - 0.3) return true;
+                }
+              }
+              return false;
+            };
             const consider = (c, cover, lx, lz) => {
               if (c < 0 || !nav.isWalkable(c) || !storey(c)) return;
               const p = f[c] * cell;
@@ -616,6 +639,7 @@ try {
               const sx = Lx, sz = Lz - 5;
               const u = Math.max(0, Math.min(1, ((x - 0) * sx + (z - 5) * sz) / Math.max(1e-6, sx * sx + sz * sz)));
               if (Math.hypot(x - u * sx, z - 5 - u * sz) < 3) return;
+              if (inSight(x, nav.cellHeight(c), z)) return;
               best = sc;
               hide = { x, z, path: r1(p), straight: r1(Math.hypot(x - Lx, z - Lz)), light: +l.toFixed(3), cover, score: +sc.toFixed(2) };
             };
@@ -659,6 +683,9 @@ try {
           let maxPath = 0;
           let maxPathAt = null;
           let builtAt = -2;
+          // (S25-SAI-TRIAGE) he sees him again after the tp (alerted: line of sight alone), and his walk, once a second
+          let resight = -1;
+          const trace = [];
           const plans = [];
           const claims = gs.map(() => []);
           for (let i = 0; i < 1600; i++) {
@@ -667,6 +694,11 @@ try {
             g.frameUpdate(0.05, 1);
             time += 0.05;
             if (tS < 0 && e.level === 'searching') tS = time;
+            if (resight < 0 && time > 0.5 && e.alerted && e.sinceSeen < 0.1) resight = r1(time);
+            if (i % 20 === 0) {
+              const lk = em.lkpOf(s);
+              trace.push([r1(time), e.level, r1(e.pos.x), r1(e.pos.z), lk ? [r1(lk.x), r1(lk.z)] : null, e.onPlan]);
+            }
             const p0 = em.plans[s];
             if (p0.builtAt !== builtAt && p0.builtAt >= 0) {
               builtAt = p0.builtAt;
@@ -727,6 +759,8 @@ try {
             level,
             guard: [r1(e.pos.x), r1(e.pos.z)],
             onPlan: gs.map((x) => x.onPlan),
+            resight,
+            trace,
           };
         } finally {
           Math.random = rnd;
@@ -740,10 +774,12 @@ try {
     assert(!a.err, `near: ${a.err} (${JSON.stringify(a)})`);
     assert(a.seen.stealth && a.seen.alerted[0] && a.seen.hunt[0] >= 0, `near: the guard detects the lit player and hunts his intruder (${sa})`);
     assert(a.ownField, `near: his intruder has his own chase field (${sa})`);
-    assert(a.tS > 0 && a.plans.length > 0 && a.plans[0].pts.length > 0, `near: the search starts and asks the plan, built (${sa}; plans ${JSON.stringify(a.plans)})`);
+    // (S25-SAI-TRIAGE) the vanish holds: out of his sight after the tp (else the last known position moves onto him)
+    assert(a.resight < 0, `near: after the tp he never sees him again (seen at ${a.resight} s; ${sa}; walk ${JSON.stringify(a.trace)})`);
+    assert(a.tS > 0 && a.plans.length > 0 && a.plans[0].pts.length > 0, `near: the search starts and asks the plan, built (${sa}; plans ${JSON.stringify(a.plans)}; walk ${JSON.stringify(a.trace)})`);
     const nearA = Math.min(...a.plans.map((p) => near2(p.pts, a.hide.x, a.hide.z)));
     assert(nearA <= 3, `near: a plan point within 3 m of the dark spot (nearest ${nearA.toFixed(1)} m; ${sa}; plans ${JSON.stringify(a.plans)})`);
-    assert(a.closest <= 1.5 || a.found >= 0, `near: a searcher comes to the dark spot within 20 s of the search (closest ${a.closest} m at ${a.closestT} s, found ${a.found}; ${sa}; plans ${JSON.stringify(a.plans)})`);
+    assert(a.closest <= 1.5 || a.found >= 0, `near: a searcher comes to the dark spot within 20 s of the search (closest ${a.closest} m at ${a.closestT} s, found ${a.found}; ${sa}; plans ${JSON.stringify(a.plans)}; walk ${JSON.stringify(a.trace)})`);
     assert(!a.homing, `near: before the search he never homes in on the hidden player (${sa})`);
 
     // --- wall: the room behind a wall is not searched first ---
