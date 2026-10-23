@@ -285,7 +285,8 @@ Heads: art 2276483a (#226), lampx eb45b0af (LR15 + lighting polish + atlas fix),
    view = art draws, 401). guard-cap alert cpu 18.1. Results: scratch/work/artpol-1d34c348/guard-cap; 1d34c348 e2e-coop PASS.
    RUNNING (Opus, both off -artpol): -perfg = campus-perf-fix.md proposals 1-3 (frozen anim tier, merged guard gun,
    dog rig skip; enemy.ts / enemyRig.ts / animTier.ts - other branches edit them too, keep minimal; perfg-build.md);
-   -perfa = campusArt static merge / caster trim (perfa-build.md). Then: one Opus checker, merge both into -artpol,
+   -perfa = campusArt static merge / caster trim (perfa-build.md). perfg DONE 057403f5 (animFrozen.ts new: master animTier.ts
+   is not on -artpol - fold into it at the master merge; merged gun enemyGunMerge.ts, ?guardmerge=0 A/B; dogs already skipped). Then: one Opus checker, merge both into -artpol,
    laptop perf rerun same 4 views + guard-cap; in budget -> #226 = -artpol head (push -art to it), train-ready.
 2. LR15 PR #242 OPEN (~18:50, -lampx @ 1c22b913; orchestrator told). Laptop GPU rerun at eb45b0af re-sent to Test
    Runner (sectorops 1-6 + coop, campusOps Realistic: no texImage3D warning, LAMP_PAGES compiles, perf + VRAM, S2 / S3
