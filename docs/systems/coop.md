@@ -112,7 +112,8 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   `ui/hud/pings.ts` (follows a pinged guard, edge arrows off screen).
 - Gadgets: `GadgetSystem.onLocal` reports gas / flash / EMP / noise effects; the host relays them (`gadget`, 1 s rate,
   <= 40 m) and runs `remoteEffect` on its guards.
-- Team moves: brace and boost, human ladder, dual takedown (two finishes within `DUAL_WINDOW` 1.5 s -> banner). These
+- Team moves: brace and boost, human ladder, dual takedown (two finishes within `DUAL_WINDOW` 1.5 s -> banner; counted in `StealthRating.duals` and the `dualTakedown` event for
+  section-rating (spare 12), no extra knockout). These
   are the moves that exist; the other four of loco D8 wait for the co-op phase (G52).
 - (throw-ko) Partner throw onto a guard (CT: landing on a guard knocks him out): at a throw's `tstart` the host records
   the flight (`net/throwKo.ts`, `ThrowKo`: `throwArc` from the thrown player's feet as the host has them to the bounded
