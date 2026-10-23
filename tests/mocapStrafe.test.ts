@@ -15,6 +15,11 @@ import { plantSlide, type Rec } from './helpers/mocapMeasure';
 import { measurePlayer, playerFails } from './helpers/mocapPlayer';
 import { aimRun, ankleJump, footGap, STRAFE_PLANS, type AimTarget } from './helpers/mocapStrafe';
 import { kneeBow } from '../src/anim/audit/metrics';
+import { facingHips } from '../src/anim/audit/crabFacing';
+import { CRAB } from '../src/anim/audit/limits';
+import { AnimGraph, defaultInput } from '../src/anim/animGraph';
+import { proportions } from '../src/player/proportions';
+import { bytesPerCall, HEAP_NUMBER, inputs } from './helpers/allocPerCall';
 
 /** A swing foot's largest move in a frame (m): ON's steady 0.9 m/s side-step peaks at 7.8 cm, a snap off the strafe at
  *  11.3 cm (the STRAFE_REAIM fade); before the fade a re-aimed side-step jumped 24-29 cm in a frame (a pop). */
@@ -27,9 +32,10 @@ const SLIDE = 0.005;
 const SNAP_PEL = 0.021;
 /** A toggle mid-strafe's worst bone turn a frame (deg): ON 18.6-19.7 after the fix (the base's toggles 15.6-17.5; 32.6 before). */
 const TOGGLE_BONE = 20.5;
-/** The steady strafe's knee outside its ankle across the body (m): ON 3.3-5.0 after the fix (7.6-8.0 before; OFF 3.1-3.3).
- *  Open: the e2e-anim gate is 3.0 cm. */
-const KNEE_OUT = 0.052;
+/** The steady strafe's knee outside its ankle across the body (m), read as e2e-anim reads it (the facing frame through the
+ *  hip midpoint, src/anim/audit/crabFacing.ts) against its gate, CRAB.kneeBow 3 cm: ON 1.5-2.7 after fix round 2 (the
+ *  strafe's gentler knee bow, characterRig STRAFE_KNEE_BOW; round 1 2.5-3.5, before it 7.6-8.0; OFF 2.7-2.9). */
+const KNEE_OUT = CRAB.kneeBow;
 /** The feet's sideways gap floor (m): the planner's no-crossing gap holds 9 cm ON and OFF. */
 const GAP_MIN = 0.08;
 
@@ -168,16 +174,65 @@ describe('mocap strafe (A10)', () => {
     }
   }, 300000);
 
-  it('the knees stay near their ankles across the body in a steady strafe (knee-out)', async () => {
+  it('the knees stay over the toes in a steady strafe (knee-out <= 3 cm, the e2e-anim gate)', async () => {
     // (fresh check, the GPU e2e-anim fail) the captures' 3.6 cm hips sink and a fixed 13 cm hips hold bowed the planted
-    // trailing knee 7.6-8.0 cm outside its ankle in the closed stance (the capture keeps its pelvis 4.4 cm inside)
-    for (const v of [0.36, 0.7, 0.9]) {
+    // trailing knee 7.6-8.0 cm outside its ankle in the closed stance (the capture keeps its pelvis 4.4 cm inside); then
+    // (fix round 2) the knee-gap rule's bow pushed both knees 2 cm past the gap in the captures' long closed stance
+    for (const v of [0.36, 0.5, 0.7, 0.9]) {
       for (const sg of [-1, 1]) {
         const on = await aimRun(() => ({ x: sg * v, z: 0 }), Math.round(2.7 * 60), 1.2, 'on');
         const P = on.pos;
-        const b = kneeBow(P.hipL, P.hipR, P.kneeL, P.kneeR, P.ankleL, P.ankleR, KNEE_OUT);
+        const fh = facingHips(P.hipL, P.hipR, on.yaw);
+        const b = kneeBow(fh.hipL, fh.hipR, P.kneeL, P.kneeR, P.ankleL, P.ankleR, KNEE_OUT);
         expect(b.max, `knee-out ${sg < 0 ? 'L' : 'R'} ${v}`).toBeLessThanOrEqual(KNEE_OUT);
       }
+    }
+  }, 300000);
+
+  it('the aimed strafe allocates no more a frame than the hand-keyed glide strafe (base ON)', async () => {
+    // (fix round 2) bare graph, aimed (the drawn keyed set's glide), switch off then on, as the fresh check's zzalloc2. At
+    // mocap-on ab1cb6c6 (the hand-keyed glide strafe with the switch on) a steady strafe read OFF + 2 boxed doubles (1424 vs
+    // 1392 B); round 1 read OFF + 5 (the side ease stuck one ulp short of 1 sampled and blended both captures every frame;
+    // the still share's merge boxed a double). A flip's cross-fade samples both captures for ~0.2 s (each sampleKeyed call
+    // leaves its two boxed doubles, mocapSwitch's note): at most 2 more averaged over the plan.
+    const N = 2000;
+    const plans: [string, Float64Array, Float64Array, number][] = [
+      ['steady R', inputs(N, () => 0.7), inputs(N, () => 1), 2],
+      ['steady L', inputs(N, () => 0.7), inputs(N, () => -1), 2],
+      ['diagonal', inputs(N, () => 0.8), inputs(N, (k) => 0.5 + 0.5 * Math.sin(k * 0.01)), 2],
+      ['flips', inputs(N, () => 0.7), inputs(N, (k) => (k % 300 < 150 ? 1 : -1)), 4],
+    ];
+    const rows: string[] = [];
+    try {
+      for (const [name, SP, LX, boxes] of plans) {
+        const b: number[] = [];
+        for (const on of [false, true]) {
+          setMocapLocomotion(on);
+          const g = new AnimGraph(proportions('average', 1.68));
+          const i = defaultInput();
+          i.keyedOk = true;
+          i.ready = true;
+          i.armed = true;
+          i.keyedDrawn = true;
+          i.raise = 1;
+          const run = (n: number): void => {
+            for (let k = 0; k < n; k++) {
+              const lx = LX[k]!;
+              i.speed = SP[k]!;
+              i.localX = lx;
+              i.localZ = lx > 0.99 || lx < -0.99 ? 0 : 1 - lx;
+              g.update(1 / 60, i);
+            }
+          };
+          b.push(await bytesPerCall(run, on ? b[0]! + boxes * HEAP_NUMBER : 2 * HEAP_NUMBER));
+          if (on) expect(g.out.keyStrafe, `${name}: the captures play`).toBeGreaterThan(0.5);
+        }
+        rows.push(`${name} off ${b[0]!.toFixed(1)} on ${b[1]!.toFixed(1)}`);
+        expect(b[1]!, `${name}: on ${b[1]!.toFixed(1)} vs off ${b[0]!.toFixed(1)} B a frame`).toBeLessThanOrEqual(b[0]! + boxes * HEAP_NUMBER);
+      }
+    } finally {
+      setMocapLocomotion(false);
+      console.info(`aimed strafe bytes per frame: ${rows.join('; ')}`);
     }
   }, 300000);
 

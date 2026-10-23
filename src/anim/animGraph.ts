@@ -2294,8 +2294,9 @@ export class AnimGraph {
       const mDuty = zc.duty + (sDuty - zc.duty) * sk;
       const mLift = zc.liftH + (S.liftH - zc.liftH) * sk;
       // (mocap-trial-2, strafe) the pose's still share with the mocap strafe: eased (stIdle); the planner's values keep idleShare
-      const pIdle = SL !== null && SR !== null ? this.stIdle : idleShare;
-      const loco = pIdle < 1;
+      // (strafe fix 2) as two tests, not a merged share: the merge of the field and the argument boxed a double, 16 B a frame
+      const loco = SL !== null && SR !== null ? this.stIdle < 1 : idleShare < 1;
+      const still = SL !== null && SR !== null ? this.stIdle > 0 : idleShare > 0;
       if (loco) {
         sampleKeyed(zc, ph, amp, this.kE);
         this.dynPel(this.kE, zc, pose);
@@ -2333,7 +2334,7 @@ export class AnimGraph {
           mixKeyed(this.kE, this.kD, sk, this.kE);
         }
       }
-      if (pIdle > 0) {
+      if (still) {
         sampleKeyed(R, rph, 1, this.kD);
         this.dynPel(this.kD, R, pose);
         // (the glide's share passed as it came: a merged double is boxed for the call, an allocation the switch off)
@@ -2394,7 +2395,10 @@ export class AnimGraph {
     // never crosses 0), eased so a flip cross-fades the left and right captures
     if (dl > 0.1 && i.speed > 0.05 && (i.localX > 0.1 * dl || i.localX < -0.1 * dl)) {
       const sw = i.localX > 0 ? 1 : 0;
-      this.stSide = sw + (this.stSide - sw) * Math.exp(-dt / STRAFE_SIDE_TAU);
+      const ss = sw + (this.stSide - sw) * Math.exp(-dt / STRAFE_SIDE_TAU);
+      // (strafe fix 2) settled within 1e-4: exactly the side (the ease stuck one ulp short of 1, so a steady strafe sampled
+      // both captures and blended them every frame: two calls and a boxed double, 32 B a frame)
+      this.stSide = ss - sw < 1e-4 && ss - sw > -1e-4 ? sw : ss;
     }
     // the hips' shift against the travel: a quarter of the side-step's cycle travel, at most STRAFE_LEAD.rate m/s; aimed only
     // (the captures play under the raise): holstered it eases back to 0 at the rate

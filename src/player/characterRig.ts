@@ -366,6 +366,12 @@ export const KNEE_GAP = 0.15;
 export const KEYED_KNEE_GAP = 0.11;
 /** (anim-rework S2) The bow-out rule's pole share per unit of closing under the keyed gaits (6 otherwise). */
 export const KEYED_KNEE_BOW = 2.5;
+/** (mocap-trial-2 strafe fix 2, the e2e-anim knee-out) In the mocap strafe (by its share, keyStrafe) the bow-out rule's pole
+ *  share per unit of closing: just enough to part the knees. The captures' closed stance (ankles 9 cm apart, both feet down
+ *  for 8 frames, OFF 1) brought the knees inside KEYED_KNEE_GAP, and 2.5 bowed both 2 cm past the gap (15 cm apart): the
+ *  knees 3.4-3.5 cm outside their ankles. One unit of pole moves each bent knee about 0.2 m across the body (0.4 m of gap),
+ *  so 0.11 m of gap per unit of closing needs 0.28: 0.5 keeps a margin. */
+export const STRAFE_KNEE_BOW = 0.5;
 /** A knee's centre never goes lower than this above the floor (m): the kneecap rests on it. */
 export const KNEE_FLOOR = 0.05;
 /** (CT prototype G1, audit rows 16 / 27) Moving crouched (sneak, crouch walk, crouch run) the rear knee stays this high
@@ -2652,7 +2658,9 @@ export class CharacterRig {
       // stays over its toes and the passing knee clears it (both bowed 6 x had both knees 9-17 cm outside the ankles in
       // a direction change)
       const need = 1 - kneeGap / gapMin;
-      const bow = this.kneeOutNow + need * (6 + (KEYED_KNEE_BOW - 6) * kw);
+      // (mocap-trial-2 strafe fix 2) in the mocap strafe a bow that only parts them (STRAFE_KNEE_BOW); never with the switch off
+      const bowK = 6 + (KEYED_KNEE_BOW - 6) * kw;
+      const bow = this.kneeOutNow + need * (t.keyStrafe > 0 ? bowK + (STRAFE_KNEE_BOW - bowK) * t.keyStrafe : bowK);
       const oneSwings = kw > 0.5 && L.contact !== R.contact;
       if (!oneSwings || !L.contact) this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + lYc + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1, bow);
       if (!oneSwings || !R.contact) this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + rYc + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1, bow);
