@@ -1,0 +1,18 @@
+{
+  "id": "20261023T084223-night-shift-sector-o-f8008542-103e",
+  "sha": "f8008542dec825b9890397cacfa2d078fbcabe94",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-lightbake",
+    "e2e-desktop",
+    "e2e-darkness",
+    "e2e-sectorops",
+    "e2e-coop"
+  ],
+  "jobs": 2,
+  "set": "lr16-f800",
+  "note": "LR16 checker fix rerun (torch cone GLSL first compile)"
+}
