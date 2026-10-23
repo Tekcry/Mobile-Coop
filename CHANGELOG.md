@@ -1,5 +1,48 @@
 # Changelog
 
+## 4.85.0 - Train 42: Changelog fragment check in CI; anim-fix-pass before numbers: written only on request; e2e-ctcourse A8 relock wait; Co-op rejoin follow-ups; +5 more (2026-10-24, PR #288; #286, #285, #284, #282, #280, #254, #252)
+
+### e2e-ctcourse A8 relock wait
+- Tests: e2e-ctcourse:4 waits up to 5 s for the A8 grille to relock on the host after the night circuit returns (it relocks one host step later; train 40 flake).
+
+### anim-fix-pass before numbers: written only on request
+- `tests/animFixPass.test.ts` (the AF0 before-numbers report) runs only with `AFP_WRITE_NUMBERS=1`, so a normal or train
+  test run no longer rewrites the tracked `docs/anim-fix-pass/before/numbers.md` (it stopped the 4.84.0 release).
+
+### Co-op rejoin follow-ups
+- (coop-rejoin-2) A co-op client whose page reloads while the host restarts the checkpoint (or sends it back from a
+  camera hallway) is still placed at the checkpoint, not left at the level start; a client that drops a second time
+  before reaching its placed spot is placed again on its next rejoin. No wire change.
+
+### Co-op rejoin at the checkpoint, two spawn slots
+- (coop-rejoin, walk item 7) A co-op client that joins, rejoins or reconnects while a run is in progress is placed by
+  the host: in Course mode (Marlow Yard) and Sector Ops at the current checkpoint on its own slot, or beside the host
+  when that checkpoint cannot reach the host (no path, or a locked door on it); never back at the level start. A
+  course client's match loads at the current bay, and the host sends the course / sector state, items, doors and lamps
+  at once. Other modes: back where its slot was held, else beside the host. No wire change (the existing `restore`
+  event and the `start` message's `bay`).
+- (coop-rejoin, walk item 4) Two spawn slots per spawn area: the host takes slot 0, the partner slot 1, at the match
+  start, a "Start at" bay, a checkpoint respawn and a set or section restart. Map data may place slot 1 (Marlow
+  airlocks `spawns`, Sector Ops `start2` / `checkpoint2`); without it the partner gets a spot beside slot 0 that is clear
+  of the level, on a floor and in an open line from it (`game/spawnSlots.ts`).
+
+### Changelog fragment check in CI
+- Tests: CI parses every `changes/*.md` fragment with the train build parser (`tests/changesFragments.test.ts`), so a fragment without its "# <title>" line or entries fails the PR instead of the train build (train 39).
+
+### Guard AI: every player is seen
+- Co-op: a guard now looks at both players, not just the nearer one. Hiding behind a wall close to a guard no longer
+  makes your partner invisible while he stands in the guard's light in front of him: the guard notices whichever of you
+  he sees best (one meter, filled at that player's rate; two in view do not add up) and goes after him. In a firefight
+  he keeps shooting at the player he is fighting while he still sees him; a nearer hidden player no longer blinds him.
+  Out of sight of him, he turns on the nearest player he does see.
+- Co-op: the host's awareness arcs show only guards that see the host's own player (or stand close by), not guards
+  filling up on the partner. The flanker is picked by each guard's distance to his own target, not to the host.
+- A calm guard casts no sight ray for a player he cannot see at all (behind him beyond arm's reach, or past his view
+  range). Solo play is otherwise unchanged. Host only: no protocol or save change.
+
+### Auto-train: big trains keep their version commit
+- Auto-train read only the first 100 commits of a train PR, so a train with more lost its version commit and stopped with "no version commit: rebuild" (trains 39 and 40). It now also reads the head commit.
+
 ## 4.84.0 - Train 40: Auto-train laptop missing alert; Marlow Yard A2: woken guards and the spotted rule; Camera reach and mocap timeouts; Marlow Yard: Michael's 4.82 walk fixes; +7 more (2026-10-24, PR #279; #277, #276, #274, #267, #265, #258, #252, #247, #226)
 
 ### Fast-gait feet (anim-fix-pass AF1)
