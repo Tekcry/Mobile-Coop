@@ -19,7 +19,9 @@ collects results and sends ONE verdict per batch (fail: assert, log path, last ~
     stealth-ai ALL PASS (937 s, JOBS=2; sectorops:6 297 s slowest) -> into the LR16 verdict. Then sp2: Player #249 stealth-pays bf9445d6 ctcourse + sectorops -> verdict to Player.
   - 4192 ap4: #226 4f66a5f8 sectorops coop stealth-ai.
   - 4189 lr15c (LR15 perf, alone) -> ap5 (#226 perf / guard-cap / campus-sheet2, alone) -> l16g (LR16 perf Epic /
-    Medium + warehouseOps + lr16-sheet.mjs, alone). Verdicts to Sector Ops: LR15 (with #242 1c22b913 sectorops 1-6 +
+    Medium + warehouseOps + lr16-sheet.mjs, alone; MOVED to f8008542 at ~19:42, Sector Ops update) + service request
+    "laptop-e2e/lr16-f800" (f8008542 lightbake desktop darkness sectorops coop). LR16 verdict = c7a26ca7 suites PASS +
+    f8008542 suites + GPU batch; report any torch-cone shader compile error verbatim (sheet JSON console list). Verdicts to Sector Ops: LR15 (with #242 1c22b913 sectorops 1-6 +
     coop PASS 227 s, lr15b PASS, sheet clean), #226 (ap4 + ap5; budget CPU p95 < 12), LR16 (l16 + l16g, each failing
     assert verbatim; wall-arcs reference png not on the laptop).
 - laptop-queue job: see docs/laptop-queue/STATE.md on feature/laptop-queue (live overlap; next: a sharded train, PR).
