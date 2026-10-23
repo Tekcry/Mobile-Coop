@@ -17,7 +17,7 @@ import { rollRide } from '../player/traversePath';
 import { overClip, addClip, type Clip } from './clip';
 import { evalCurve } from './curves';
 import { CH, Inertializer, lerpPose, newPose, type Pose } from './pose';
-import { GLIDE_SIDE, gaitRate, TURN_GAIT_MIN, TURN_STEP, type MotionState } from './motion';
+import { CROUCH_STEP, CROUCH_STEP_GUARD, GLIDE_SIDE, gaitRate, TURN_GAIT_MIN, TURN_STEP, type MotionState } from './motion';
 import { MOVEMENT, TENSE } from '../config/movement';
 import { approach, clamp, smoothstep, Spring, type V3 } from './rigMath';
 import { TUNE_CUR, tuneMoveTwist } from './tune';
@@ -897,6 +897,10 @@ export class AnimGraph {
   /** (mt2-guardgate) This frame's switch for this rig (`LOCO.mocap && i.mocapOk`), its clip set (LOCO.set, or the hand-keyed
    *  set off) and slots (LOCO.slots, or none off): every mocap read in the graph goes through these. */
   private mOn = false;
+  /** (afp CI fix) The anim-fix-pass rows apply this frame: a Wren rig (`wrenReady`: the player, the partner, the studio and
+   *  menu puppets) or a carrier (`i.mocapOk`; a bare graph). The crouch carriage and step line (AF3) and the crouched gun
+   *  (AF4b) are Wren's: guards and every other rig keep theirs (mt2-guardgate; guardPoseGolden "never re-capture"). */
+  private afRig = true;
   private mS: LocoClipSet = HAND_KEYED_SET;
   private mSl = false;
   /** (mocap-trial-2, strafe) The switch with the strafe captures in its set: the mocap side-step on the gait clock. */
@@ -1040,6 +1044,7 @@ export class AnimGraph {
     const mass = clamp(i.weight, 0.5, 1.6);
     this.nSlots = 0;
     this.mOn = LOCO.mocap && i.mocapOk;
+    this.afRig = i.mocapOk || this.wrenReady;
     this.mS = this.mOn ? LOCO.set : HAND_KEYED_SET;
     this.mSl = this.mOn && LOCO.slots;
     this.mSide = this.mOn && this.mS.strafeL !== null && this.mS.strafeR !== null;
@@ -1064,7 +1069,7 @@ export class AnimGraph {
     } else {
       this.phRate = 0;
       // (A1.2) no driver (remotes, enemies): the same clock from distance and turning
-      if ((i.speed > 0.02 || Math.abs(i.yawRate) > TURN_GAIT_MIN) && i.grounded) this.phase = (this.phase + gaitRate(i.speed, i.yawRate, undefined, lateralShare(i), this.tenseW, clamp(i.crouch, 0, 1), backShare(i), this.glideK(i), this.mSide) * dt) % 1;
+      if ((i.speed > 0.02 || Math.abs(i.yawRate) > TURN_GAIT_MIN) && i.grounded) this.phase = (this.phase + gaitRate(i.speed, i.yawRate, undefined, lateralShare(i), this.tenseW, clamp(i.crouch, 0, 1), backShare(i), this.glideK(i), this.mSide, this.afRig ? CROUCH_STEP : CROUCH_STEP_GUARD) * dt) % 1;
     }
     const ph = this.phase;
     // (a Chaos Theory stop blends the frozen stride out to idle over `quickStop`: 95% within it)
@@ -1168,7 +1173,8 @@ export class AnimGraph {
     // (afp AF4b, Michael P4 "pistol shifts between knees") off the wall: not from the lead (crouched the stance lead is zeroed,
     // so after a sideways stop it was arbitrary and the knee changed between stops): armed, the gun hand's knee (a right hand
     // kneels on the right knee); holstered (free movement squats instead, KEYED_CROUCH.squat) the planted lead foot as before
-    if (wantKneel && this.kneelW <= 0) this.kneelSide = i.wall ? (i.wallSide < 0 ? -1 : 1) : i.armed ? (i.hand < 0 ? -1 : 1) : this.lead < -0.05 ? -1 : 1;
+    // (afp CI fix) Wren's rule only (afRig): guards kneel by the lead as before
+    if (wantKneel && this.kneelW <= 0) this.kneelSide = i.wall ? (i.wallSide < 0 ? -1 : 1) : i.armed && this.afRig ? (i.hand < 0 ? -1 : 1) : this.lead < -0.05 ? -1 : 1;
     this.kneelW = clamp(this.kneelW + (wantKneel ? kStep : -kStep), 0, 1);
     const kw = smoothstep(this.kneelW);
     overClip(src, this.kneelSide > 0 ? KNEEL : KNEEL_M, this.idleT * KNEEL_RATE, kw);
@@ -1220,7 +1226,7 @@ export class AnimGraph {
       // (G6, row 1) side-on: bent well over the knees, deeper than the free crouch's lean
       // (afp AF4b) not with a weapon in the hands: the extra lean put the lowered muzzle into the thighs (the free crouch's
       // lean is kept, ~40 deg)
-      src[CH.spPitch] = src[CH.spPitch]! + WALL_SIDE_POSE.spine * sideK * wallW * wkOff * (i.armed ? 0 : 1);
+      src[CH.spPitch] = src[CH.spPitch]! + WALL_SIDE_POSE.spine * sideK * wallW * wkOff * (i.armed && this.afRig ? 0 : 1);
       // reloading, swapping or throwing at the wall: tuck in closer to it, a little lower
       this.tuckW = approach(this.tuckW, atWall && (i.reload >= 0 || i.swap >= 0 || i.grenade >= 0) ? 1 : 0, 0.12, dt);
       src[CH.pelX] = src[CH.pelX]! + this.wallS * 0.035 * this.tuckW;
@@ -1498,7 +1504,8 @@ export class AnimGraph {
     // travel: the open-ground carry, not the tuck (muzzle down along the wall, which side-on and bent over put the muzzle
     // into the thighs). By the crouch, not the body's turn, so a reversal (the body turning through square) keeps the carry
     // and never swings the gun into the tuck and back.
-    const gs = smoothstep((crouchK - 0.35) / 0.5);
+    // (afp CI fix) Wren's only (afRig; gs 0 on a guard: the wall tuck, no CROUCH_GUN.wall, as before)
+    const gs = this.afRig ? smoothstep((crouchK - 0.35) / 0.5) : 0;
     const cw = this.wallReadyW * (1 - gs);
     const nw = 1 - cw;
     const awayYaw = (this.wallS === 0 ? 1 : -Math.sign(this.wallS)) * (i.hand < 0 ? -1 : 1);
@@ -1521,7 +1528,7 @@ export class AnimGraph {
       src[CH.wpY] = src[CH.wpY]! + pistolK * PISTOL_REACH.y;
       // (afp AF4b) crouched the raised pistol is held further out (PISTOL_REACH_CROUCH): close in, the rig's body clearance
       // pushed it 0-3.6 cm in and out each step of the crouched gait (grip 1.01 cm a frame)
-      src[CH.wpZ] = src[CH.wpZ]! + pistolK * (PISTOL_REACH.z + PISTOL_REACH_CROUCH * crouchK);
+      src[CH.wpZ] = src[CH.wpZ]! + pistolK * (PISTOL_REACH.z + (this.afRig ? PISTOL_REACH_CROUCH * crouchK : 0));
       // (G2, AUDIT-AIM row 5) the chest forward over the raised pistol (it leaned back with the hips forward)
       src[CH.spPitch] = src[CH.spPitch]! + pistolK * PISTOL_REACH.lean;
     }
@@ -1588,7 +1595,8 @@ export class AnimGraph {
     // (by the crouch or the kneel, whichever is more: standing up from the kneel the crouch runs out in standTime while the
     // knees are still up (the kneel eases out over kneelTime); by the crouch alone the hang dropped into the rising thighs
     // and the body clearance threw it 11 cm sideways (e2e-anim low ready still crouch -> stand, pistol: 14.5 cm a frame))
-    const pck = pistolW * Math.max(crouchK, smoothstep(this.kneelW)) * ready * cl;
+    // (afp CI fix: 0 on a guard; `sk` is through `gs`)
+    const pck = this.afRig ? pistolW * Math.max(crouchK, smoothstep(this.kneelW)) * ready * cl : 0;
     const sk = gs * wallW * ready * nw * (1 - 0.5 * this.raiseS);
     // (and through a kneel going down or coming up the body folds over the gun: the hang rises with it, CROUCH_GUN.pistol.kneel)
     const kq = 4 * this.kneelW * (1 - this.kneelW);
@@ -2153,7 +2161,8 @@ export class AnimGraph {
       // the game's extra lean and drop (KEYED_CROUCH_POSE), the arms turned back by the lean
       // (afp AF3) the drawn crouched legs (`kCrD`, under the procedural gun upper body) keep the lean they had (`leanD`) and no
       // hips-back offset: their carriage is the drawn crouch's (AF4b), and the extra lean put the low-ready elbows 6.5 cm out
-      const dw = out === this.kCrD;
+      // (afp CI fix) a guard (not afRig) likewise: leanD (the old leans), no hips-back (guards keep their rig)
+      const dw = out === this.kCrD || !this.afRig;
       const lean = dw ? p0.leanD + (p1.leanD - p0.leanD) * t : p0.lean + (p1.lean - p0.lean) * t;
       out.pel[1] = out.pel[1]! - (p0.drop + (p1.drop - p0.drop) * t);
       out.pel[2] = out.pel[2]! - (p0.back + (p1.back - p0.back) * t) * (dw ? 0 : this.cBackK);
@@ -2630,9 +2639,13 @@ export class AnimGraph {
     const tense = i.crouch > 0.5 ? this.tenseW : 0;
     // (G1 fix) moving on a driver's clock that runs ahead of the pace (a start), the swings keep to the clock
     const ckw = clamp(i.crouch, 0, 1);
-    const rate = Math.max(gaitRate(s > 0.05 ? s : 0, yr, undefined, lat, tense, ckw, bk, gl, this.mSide), i.motion === 'move' ? this.phRate : 0);
+    const rate = Math.max(gaitRate(s > 0.05 ? s : 0, yr, undefined, lat, tense, ckw, bk, gl, this.mSide, this.afRig ? CROUCH_STEP : CROUCH_STEP_GUARD), i.motion === 'move' ? this.phRate : 0);
     g.cycleTime = rate > 1e-3 ? 1 / rate : 1.2;
-    const linRate = s > 0.05 ? gaitRate(s, 0, undefined, lat, tense, ckw, bk, gl, this.mSide) : 0;
+    // (afp CI fix) the turn share is measured against the pre-AF3 crouched step line (CROUCH_STEP_GUARD) on every rig: AF3's
+    // shorter crouched steps raised the linear rate, so a crouched spin no longer read as a full turn (2.1 m/s x 7 rad/s:
+    // turning 0.90, was 1) and its longer stance wound a planted foot past PLANTED_TWIST (turnFollow 0.52 rad) and into the
+    // twist cap (footTurn crouch spin 0.85: 7.5 deg). The clock (cycleTime, phase) keeps AF3's cadence; straight, unchanged.
+    const linRate = s > 0.05 ? gaitRate(s, 0, undefined, lat, tense, ckw, bk, gl, this.mSide, CROUCH_STEP_GUARD) : 0;
     const angRate = yr > TURN_GAIT_MIN ? yr / (2 * TURN_STEP) : 0;
     g.turning = smoothstep((linRate > 1e-3 ? angRate / linRate : angRate > 0 ? 10 : 0) - 0.5);
     const nodes = i.crouch > 0.5 ? CROUCH_NODES : FORWARD_NODES;

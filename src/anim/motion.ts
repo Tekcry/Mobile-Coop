@@ -100,6 +100,11 @@ const TURN_SETTLE = 0.12;
  * more, so the crouch run keeps a longer stride (0.76 m at 2.6 m/s, was 0.82: at 0.6 m its arms swung over 2 m/s).
  */
 export const CROUCH_STEP = { k: 0.115, max: 0.95, runFrom: 1.9, runK: 0.35 } as const;
+/** A crouched step line (CROUCH_STEP's shape). */
+export type CrouchStepLine = { readonly k: number; readonly max: number; readonly runFrom: number; readonly runK: number };
+/** (afp CI fix) The pre-AF3 crouched step line: a guard's graph clock (not AnimGraph afRig: guards keep their rig, mt2-guardgate)
+ *  and every graph's turn share (`turning`, animGraph writeTargets). */
+export const CROUCH_STEP_GUARD: CrouchStepLine = { k: 0.2, max: 0.95, runFrom: 1.9, runK: 0 };
 export const WALK_STEP = { k: 0.2, to: 2.1, blend: 3.0 } as const;
 /**
  * (anim-rework S3, BRIEF 3 "the glide") The aimed glide's steps (`glide` 1: a carrier aiming; MOVEMENT only; standing and
@@ -134,13 +139,13 @@ export function sideStepAt(v: number): number {
  * pass each other sideways, so a full-length stride would spread them ~1 m): `lateral` = |sideways
  * share of the velocity| (0..1) shortens steps to 60% at a pure strafe, with a higher cadence.
  */
-export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 0, tense = 0, crouch = 0, back = 0, glide = 0, mside = false): number {
+export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 0, tense = 0, crouch = 0, back = 0, glide = 0, mside = false, cs: CrouchStepLine = CROUCH_STEP): number {
   const v = Math.max(0, speed);
   // (G1, audit row 7) capped at `stepLenMax`: faster than that the cadence rises instead
   let s = Math.min(M.stepLenMax, M.stepLen0 + M.stepLenK * v);
   // (anim-rework S2, M6) the player's crouched gaits take their own step line (CROUCH_STEP; afp AF3: short at the low gears,
-  // lengthening again into the crouch run)
-  if (M === MOVEMENT && crouch > 0) s += (Math.min(CROUCH_STEP.max, M.stepLen0 + CROUCH_STEP.k * v + CROUCH_STEP.runK * Math.max(0, v - CROUCH_STEP.runFrom)) - s) * Math.min(1, crouch);
+  // lengthening again into the crouch run; `cs` CROUCH_STEP_GUARD on a guard's graph)
+  if (M === MOVEMENT && crouch > 0) s += (Math.min(cs.max, M.stepLen0 + cs.k * v + cs.runK * Math.max(0, v - cs.runFrom)) - s) * Math.min(1, crouch);
   // (CT prototype G8, A4) the player's standing walk steps shorter (WALK_STEP), blended back to the line by the jog
   if (M === MOVEMENT && crouch < 1 && v < WALK_STEP.blend) {
     const u = v <= WALK_STEP.to ? 0 : (v - WALK_STEP.to) / (WALK_STEP.blend - WALK_STEP.to);
@@ -183,8 +188,8 @@ export const TURN_GAIT_MIN = 1.0;
  * cycle) and one step per `TURN_STEP` of yaw. Straight walking is unchanged; a 450 deg/s spin is 2.5 cycles/s (a step
  * per 0.2 s). `max`, not a sum: a run turn keeps its cadence.
  */
-export function gaitRate(speed: number, yawRate: number, M: MotionTuning = MOVEMENT, lateral = 0, tense = 0, crouch = 0, back = 0, glide = 0, mside = false): number {
-  const lin = speed > 0.02 ? speed / (2 * stepLength(speed, M, lateral, tense, crouch, back, glide, mside)) : 0;
+export function gaitRate(speed: number, yawRate: number, M: MotionTuning = MOVEMENT, lateral = 0, tense = 0, crouch = 0, back = 0, glide = 0, mside = false, cs: CrouchStepLine = CROUCH_STEP): number {
+  const lin = speed > 0.02 ? speed / (2 * stepLength(speed, M, lateral, tense, crouch, back, glide, mside, cs)) : 0;
   const ang = Math.abs(yawRate) > TURN_GAIT_MIN ? Math.abs(yawRate) / (2 * TURN_STEP) : 0;
   return lin > ang ? lin : ang;
 }
