@@ -1,0 +1,15 @@
+{
+  "id": "20261023T091932-night-shift-guard-ai-fbf32636-1319",
+  "sha": "fbf3263663b8490c9373fabdf31f366451823f18",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-sectorops",
+    "e2e-stealth-ai"
+  ],
+  "jobs": 2,
+  "set": "relight",
+  "note": "guard-ai LR16-4 guards relight isolator boards (breaker host); S5 timed garden board must be unchanged"
+}
