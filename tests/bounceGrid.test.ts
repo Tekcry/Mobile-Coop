@@ -215,14 +215,18 @@ describe('(LR16-1) nsGrid2 green channel = field bounce', () => {
       'texture(t, clamp(q, 0.0, 1.0)).r;',
       'vec3 u = clamp((p - o.xyz) / o.w - 0.5, vec3(0.0), n.xyz - 1.0);',
       'ivec3 i1 = min(i0 + 1, ivec3(n.xyz) - 1);',
-      'e[k] = int(s.b * 255.0 + 0.5) + int(s.a * 255.0 + 0.5) * 256;',
+      // (LR16-P F3: no local arrays; the corners in two vec4 / ivec4, the reach set a bit mask)
+      'ivec4 ea = ivec4(vec4(s0.b, s1.b, s2.b, s3.b) * 255.0 + 0.5) + ivec4(vec4(s0.a, s1.a, s2.a, s3.a) * 255.0 + 0.5) * 256;',
       'ivec3 hb = ivec3(step(vec3(0.5), f));',
       `int tx = (eh >> (hb.x == 1 ? ${BOUNCE_T_SHIFT[1]} : ${BOUNCE_T_SHIFT[0]})) & 3;`,
       `if (tx > 0 && d.x >= float(tx) * ${BOUNCE_T_STEP}) h ^= 1;`,
       'for (int r = 0; r < 7; r++) {',
-      'if (!grew) break;',
-      'return vec2(amb, sw > 0.0 ? sv / sw : v[h]);',
+      'if (g == c) break;',
+      'return vec2(amb, sw > 0.0 ? sv / sw : vh);',
     ]) expect(NS_GRID2_GLSL).toContain(line);
+    // (LR16-P F3) no local arrays: dynamically indexed ones spill to local memory on NVIDIA
+    expect(NS_GRID2_GLSL).not.toMatch(/\b(float|int|bool)\s+\w+\[8\]/);
+    expect(NS_GRID2_GLSL).not.toMatch(/\b(float|int|bool|[biu]?vec[234])\s+\w+\s*\[/);
 
     // the bytes: each fixture's grid packed as the fill texture (R ambient, G bounce, B + A x 256 the wall bits) and
     // read by the GLSL written out in JS (`helpers/bounceRead.ts`) equals the field's bounceAt: the acceptance room, a
