@@ -1,0 +1,375 @@
+{
+ "version": 1,
+ "base": "broad",
+ "lods": [
+  {
+   "lod": 0,
+   "file": "lods/guard-broad-lod0.glb",
+   "bufferTris": 11148,
+   "draws": 1,
+   "bones": [
+    "root",
+    "body",
+    "pelvis",
+    "hipL",
+    "knL",
+    "anL",
+    "toeL",
+    "hipR",
+    "knR",
+    "anR",
+    "toeR",
+    "spine",
+    "chest",
+    "clavL",
+    "shL",
+    "elL",
+    "wrL",
+    "fingerL_1_1",
+    "fingerL_2_1",
+    "fingerL_3_1",
+    "fingerL_4_1",
+    "fingerL_5_1",
+    "clavR",
+    "shR",
+    "elR",
+    "wrR",
+    "fingerR_1_1",
+    "fingerR_2_1",
+    "fingerR_3_1",
+    "fingerR_4_1",
+    "fingerR_5_1",
+    "neck",
+    "head"
+   ],
+   "influences": 4,
+   "attributes": [
+    "_TINT",
+    "_PIECE",
+    "POSITION",
+    "NORMAL",
+    "TEXCOORD_0",
+    "TANGENT",
+    "JOINTS_0",
+    "WEIGHTS_0"
+   ],
+   "textures": [
+    {
+     "role": "albedo",
+     "width": 4096,
+     "height": 2048,
+     "format": "ktx2"
+    },
+    {
+     "role": "normal",
+     "width": 2048,
+     "height": 1024,
+     "format": "ktx2"
+    },
+    {
+     "role": "orm",
+     "width": 2048,
+     "height": 1024,
+     "format": "ktx2"
+    }
+   ],
+   "vertices": 10570,
+   "mixedTris": 0,
+   "pieceAttrUint8": true,
+   "shownTris": {
+    "heavy": 11148,
+    "enforcer": 11948
+   },
+   "bodyTris": 1193,
+   "headTris": {
+    "broad-1": 4000
+   },
+   "eyeTris": 448,
+   "hairCapTris": {},
+   "pieceTris": {
+    "uniform": 1939,
+    "balaclava": 532,
+    "helmet_heavy": 936,
+    "plate_heavy": 1768,
+    "pouch_belt": 332
+   }
+  },
+  {
+   "lod": 1,
+   "file": "lods/guard-broad-lod1.glb",
+   "bufferTris": 4929,
+   "draws": 1,
+   "bones": [
+    "root",
+    "body",
+    "pelvis",
+    "hipL",
+    "knL",
+    "anL",
+    "toeL",
+    "hipR",
+    "knR",
+    "anR",
+    "toeR",
+    "spine",
+    "chest",
+    "clavL",
+    "shL",
+    "elL",
+    "wrL",
+    "clavR",
+    "shR",
+    "elR",
+    "wrR",
+    "neck",
+    "head"
+   ],
+   "influences": 4,
+   "attributes": [
+    "_TINT",
+    "_PIECE",
+    "POSITION",
+    "NORMAL",
+    "TEXCOORD_0",
+    "TANGENT",
+    "JOINTS_0",
+    "WEIGHTS_0"
+   ],
+   "textures": [
+    {
+     "role": "albedo",
+     "width": 2048,
+     "height": 1024,
+     "format": "ktx2"
+    },
+    {
+     "role": "normal",
+     "width": 1024,
+     "height": 512,
+     "format": "ktx2"
+    },
+    {
+     "role": "orm",
+     "width": 1024,
+     "height": 512,
+     "format": "ktx2"
+    }
+   ],
+   "vertices": 6222,
+   "mixedTris": 0,
+   "pieceAttrUint8": true,
+   "shownTris": {
+    "heavy": 4929,
+    "enforcer": 5229
+   },
+   "bodyTris": 398,
+   "headTris": {
+    "broad-1": 1200
+   },
+   "eyeTris": 0,
+   "hairCapTris": {},
+   "pieceTris": {
+    "uniform": 1693,
+    "balaclava": 198,
+    "helmet_heavy": 398,
+    "plate_heavy": 894,
+    "pouch_belt": 148
+   }
+  },
+  {
+   "lod": 2,
+   "file": "lods/guard-broad-lod2.glb",
+   "bufferTris": 1596,
+   "draws": 1,
+   "bones": [
+    "root",
+    "body",
+    "pelvis",
+    "hipL",
+    "knL",
+    "anL",
+    "toeL",
+    "hipR",
+    "knR",
+    "anR",
+    "toeR",
+    "spine",
+    "chest",
+    "clavL",
+    "shL",
+    "elL",
+    "wrL",
+    "clavR",
+    "shR",
+    "elR",
+    "wrR",
+    "neck",
+    "head"
+   ],
+   "influences": 2,
+   "attributes": [
+    "_TINT",
+    "_PIECE",
+    "POSITION",
+    "NORMAL",
+    "TEXCOORD_0",
+    "TANGENT",
+    "JOINTS_0",
+    "WEIGHTS_0"
+   ],
+   "textures": [
+    {
+     "role": "albedo",
+     "width": 512,
+     "height": 256,
+     "format": "ktx2"
+    },
+    {
+     "role": "normal",
+     "width": 256,
+     "height": 128,
+     "format": "ktx2"
+    },
+    {
+     "role": "orm",
+     "width": 256,
+     "height": 128,
+     "format": "ktx2"
+    }
+   ],
+   "vertices": 2369,
+   "mixedTris": 0,
+   "pieceAttrUint8": true,
+   "shownTris": {
+    "heavy": 1596,
+    "enforcer": 1716
+   },
+   "bodyTris": 149,
+   "headTris": {
+    "broad-1": 398
+   },
+   "eyeTris": 0,
+   "hairCapTris": {},
+   "pieceTris": {
+    "uniform": 462,
+    "balaclava": 79,
+    "helmet_heavy": 146,
+    "plate_heavy": 345,
+    "pouch_belt": 17
+   }
+  }
+ ],
+ "manifest": {
+  "id": "guard-broad",
+  "base": "broad",
+  "pieces": [
+   "broad",
+   "broad-1",
+   "uniform",
+   "balaclava",
+   "helmet_heavy",
+   "plate_heavy",
+   "pouch_belt"
+  ],
+  "tintSlots": 6,
+  "refHeight": 1.825,
+  "tintSlotNames": [
+   "uniform",
+   "kit",
+   "headwear",
+   "hair",
+   "skin",
+   "none"
+  ]
+ },
+ "notes": [],
+ "bake": {
+  "leftScale": 1,
+  "seconds": 704.4,
+  "device": "OPTIX: NVIDIA GeForce RTX 4090 Laptop GPU",
+  "seamKept": [
+   {
+    "body": 42,
+    "broad-1": 42
+   },
+   {
+    "body": 42,
+    "broad-1": 42
+   },
+   {
+    "body": 42,
+    "broad-1": 42
+   }
+  ],
+  "seamSnapMm": [
+   {
+    "broad-1": 0
+   },
+   {
+    "broad-1": 0
+   },
+   {
+    "broad-1": 0
+   }
+  ],
+  "seamBy": [
+   {
+    "body": "mh",
+    "head": "mh"
+   },
+   {
+    "body": "mh",
+    "head": "mh"
+   },
+   {
+    "body": "mh",
+    "head": "mh"
+   }
+  ],
+  "lodBonesFrom": "body report",
+  "coverage": {
+   "lod0.body": 0.869,
+   "lod1.body": 0.837,
+   "lod2.body": 0.949,
+   "lod0.garment:shirt": 0.579,
+   "lod1.garment:shirt": 0.594,
+   "lod2.garment:shirt": 0.881,
+   "lod0.garment:trousers": 0.518,
+   "lod1.garment:trousers": 0.639,
+   "lod2.garment:trousers": 0.949,
+   "lod0.garment:boots": 0.649,
+   "lod1.garment:boots": 0.794,
+   "lod2.garment:boots": 0.993,
+   "lod0.garment:gloves": 0.577,
+   "lod1.garment:gloves": 0.845,
+   "lod2.garment:gloves": 0.965,
+   "lod0.piece:balaclava": 0.678,
+   "lod1.piece:balaclava": 0.752,
+   "lod2.piece:balaclava": 0.719,
+   "lod0.piece:helmet_heavy": 0.881,
+   "lod1.piece:helmet_heavy": 0.753,
+   "lod2.piece:helmet_heavy": 0.915,
+   "lod0.piece:plate_heavy": 0.841,
+   "lod1.piece:plate_heavy": 0.819,
+   "lod2.piece:plate_heavy": 0.9,
+   "lod0.piece:pouch_belt": 0.811,
+   "lod1.piece:pouch_belt": 0.861,
+   "lod2.piece:pouch_belt": 0.852
+  },
+  "garmentsBuilt": [
+   "boots",
+   "gloves",
+   "shirt",
+   "trousers"
+  ],
+  "gearBuilt": [
+   "balaclava",
+   "helmet_heavy",
+   "plate_heavy",
+   "pouch_belt"
+  ],
+  "headsBuilt": [
+   "broad-1"
+  ]
+ }
+}
