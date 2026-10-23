@@ -292,14 +292,15 @@ Open PRs:
    coop + campus perf on 1c22b913 pending -> train-ready. Conflicts with master: fix only at train entry.
 Running / next - LR16 (Michael ~18:08-18:20; slices checks/lr16-plan.md + lr16-0-ct-audit.md):
 - -lr16: LR16a DONE 59c8bfdd (one photometric path; PROTOCOL left at branch value, train sets it; 22 Classic-tuned
-  map light tests red until LR16d / LR16g). LR16b soft cone / near term / torch beam + lamp slot overflow (>8 lamps
-  per column vanish) RUNNING (lr16b-build.md). Then LR16t torch occlusion (walls + shut doors, all 4 torches), then
+  map light tests red until LR16d / LR16g). LR16b DONE fe23ef4c (feathered cone, smooth near term, torch
+  same cone, 24 slots per column; 15 map-light tests still red for LR16g; shadow-mapped torch spotlight lightRig.ts:541 still hard -> LR16t). Then LR16t torch occlusion (walls + shut doors, all 4 torches), then
   LR16e penumbra, LR16-1 bounce fill, LR16g re-level, LR16h docs - all on -lr16 in order (same files).
 - -lr16c: LR16c DONE f80e11fc (lr16-lamp-audit.md: campusOps 26 / warehouseOps 28 / warehouse 2 flagged; bunker /
   embassy parked, skipped). LR16d: -lr16d campus DONE 5811ed95 (26 moved, audit 0 flags); -lr16dw warehouse RUNNING (lr16d-*-build.md).
 - -lr16f: LR16f PCSS char shadows 8501a0c7, LR16-7 Low/Medium slots 0561be15, LR16-3 door / prop casters f16591bf. DONE.
 - -lr16v: LR16-6 vision polish 5ee3a270 DONE (G100 instant cut, G102 door ghosts).
-- One Opus checker for -lr16f + -lr16v + -lr16 (a, b) batch, laptop GPU request on the same commits in parallel;
+- BATCH 1 = -lr16int c7a26ca7 (-lr16 + -lr16f + -lr16v + -lr16d): two Opus checkers RUNNING (lr16-batch-check-A/B.md),
+  laptop GPU request SENT ~20:00 (suites + wall-arc / torch / char-shadow / door / thermal sheets + perf). -lr16dw joins on done.
   then LR16-8 showcase sheets (laptop) on every map. LR16-4 guard relight -> offer to Guard AI; LR16-5 moving lights
   needs Michael's scope.
 3. Polish batch (-artpol): becomes #226's new head (see 1).
