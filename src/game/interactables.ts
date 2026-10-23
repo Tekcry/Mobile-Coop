@@ -2,11 +2,13 @@ import type { Vector3} from '../core/babylon';
 import { TransformNode, type AbstractMesh, type InstancedMesh, type Scene } from '../core/babylon';
 import type { PartLibrary } from '../world/partLibrary';
 import { hyp2 } from '../core/mathx';
+import { ITEM_SCOPE_OFF, itemInScope } from './itemScope';
 
 /** Objectives (terminal, cache, extract), light switches, alarm panels, body hiding spots, bodies, doors. */
-export type InteractKind = 'terminal' | 'cache' | 'extract' | 'switch' | 'alarm' | 'hide' | 'body' | 'door' | 'vip' | 'intel' | 'charge' | 'revive' | 'medkitWall';
+export type InteractKind = 'terminal' | 'cache' | 'extract' | 'switch' | 'alarm' | 'hide' | 'body' | 'door' | 'vip' | 'intel' | 'charge' | 'revive' | 'medkitWall' | 'crate';
 
-const KIND_COLOR: Record<InteractKind, string> = {
+/** Each kind's lit indicator colour (exported for the weapons crate's reset, E9-crate). */
+export const KIND_COLOR: Record<InteractKind, string> = {
   terminal: '#3fc1ff',
   cache: '#ffd23f',
   extract: '#4fdc7c',
@@ -20,6 +22,7 @@ const KIND_COLOR: Record<InteractKind, string> = {
   charge: '#ff6b5a',
   revive: '#4fdc7c',
   medkitWall: '#d9363e',
+  crate: '#f2c230',
 };
 
 export interface Interactable {
@@ -50,6 +53,13 @@ export interface Interactable {
   sideDepth?: number;
   /** Noise radius (m) the hold makes while it runs (a manhole cover, a padlock); none = silent. */
   holdNoise?: number;
+  /**
+   * (sector-redesign cap fix) The Sector Ops section the item belongs to: a co-op host mirrors it only while that section
+   * is live (`Interactables.scope`, `itemScope.ts`). None: always mirrored.
+   */
+  section?: number;
+  /** (E9-crate) used by this machine's player: `nearest` skips it; `enabled` stays (the others still use it). */
+  spent?: boolean;
   /** Called when used (else the mode handles it). */
   onUse?: (it: Interactable, who?: string) => void;
 }
@@ -61,6 +71,11 @@ export interface Interactable {
  */
 export class Interactables {
   readonly items: Interactable[] = [];
+  /**
+   * (sector-redesign cap fix) The section whose items a co-op host mirrors (`ITEM_SCOPE_OFF`: every item; Sector Ops
+   * sets the live section, -1 between sections). Local prompts are not affected.
+   */
+  scope = ITEM_SCOPE_OFF;
   private t = 0;
 
   constructor(
@@ -111,6 +126,11 @@ export class Interactables {
     } else if (kind === 'cache') {
       add('box', '#59636b', [0.9, 0.5, 0.6], [0, 0.25, 0]);
       light = add('box', '#ffd23f', [0.92, 0.08, 0.62], [0, 0.45, 0]);
+    } else if (kind === 'crate') {
+      // (E9-crate) a non-solid greybox: olive body, darker lid band, an amber strip on the +z face (the indicator)
+      add('box', '#4b5a3a', [0.9, 0.45, 0.55], [0, 0.225, 0]);
+      add('box', '#3a4433', [0.92, 0.06, 0.57], [0, 0.45, 0]);
+      light = add('box', KIND_COLOR.crate, [0.5, 0.08, 0.02], [0, 0.3, 0.28]);
     } else {
       add('cyl', '#3a4048', [2.6, 0.08, 2.6], [0, 0.04, 0]);
       light = add('cyl', '#4fdc7c', [0.12, 3.2, 0.12], [0, 1.6, 0]);
@@ -139,7 +159,7 @@ export class Interactables {
     let best: Interactable | null = null;
     let bd = Infinity;
     for (const it of this.items) {
-      if (!it.enabled || it.done || it.kind === 'extract') continue;
+      if (!it.enabled || it.done || it.spent || it.kind === 'extract') continue;
       if (only ? it.kind !== only : it.kind === 'hide') continue;
       if (it.side) {
         const dx = feet.x - it.pos.x;
@@ -156,6 +176,18 @@ export class Interactables {
       }
     }
     return best;
+  }
+
+  /** Is `it` in the mirrored set (`scope`)? */
+  inScope(it: Interactable): boolean {
+    return itemInScope(it.section, this.scope);
+  }
+
+  /** How many items are in the mirrored set (debug / e2e: the wire cap holds for the live set). */
+  scopedCount(): number {
+    let n = 0;
+    for (let i = 0; i < this.items.length; i++) if (this.inScope(this.items[i]!)) n++;
+    return n;
   }
 
   remove(it: Interactable): void {

@@ -40,3 +40,15 @@ export function bodyNotice(dist: number, angle: number, light: number): number {
 export function bodyNoticed(dist: number, angle: number, light: number): boolean {
   return bodyNotice(dist, angle, light) >= BODY.threshold;
 }
+
+/**
+ * (guard-ai stack-tip e2e fix) The furthest a body at `light` straight ahead is noticed (m): where `bodyNotice` falls to
+ * `BODY.threshold` in focus, never under `BODY.close` (found whatever the light). Tests and e2e bounds read it.
+ */
+export function bodyNoticeRange(light: number): number {
+  const field = fieldFactor(0, rangeOut);
+  const k = field * lightFactor(light);
+  if (k < BODY.threshold) return BODY.close;
+  const d = BODY.range * (1 - Math.pow(BODY.threshold / k, 1 / 1.2));
+  return Math.max(BODY.close, Math.min(d, rangeOut[0]!, BODY.range));
+}

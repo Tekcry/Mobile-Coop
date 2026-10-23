@@ -791,7 +791,7 @@ export class TeamController {
         this.a.set(this.pt.x, this.pt.y + off, this.pt.z);
         throwArc(((i + 1) / 8) * TEAM.throwTime, c.pos.x, c.pos.y, c.pos.z, l.x, y1, l.z, this.pt);
         this.b.set(this.pt.x, this.pt.y + off, this.pt.z);
-        if (g.ballistics.ray(this.a, this.b, G.STATIC).hit) clear = false;
+        if (g.ballistics.ray(this.a, this.b, G.STATIC | G.GLASS).hit) clear = false;
       }
     }
     const room = throwRoom(clear, floorY - by, head);
