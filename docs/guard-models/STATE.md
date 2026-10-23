@@ -1,12 +1,16 @@
 # Guard models: state
 
 ## Resume
-- Now (2026-10-23 ~21:00, lead: Night Shift | Player Build, taken over from Marlow Build): P1 running. Slice worktrees
-  C:/NightShift/Mobile-Coop-gm-<s> on branches feature/gm-<s> off 6b5c4319 (node_modules junction to
-  Mobile-Coop-anim-fix-pass): g0 (Opus SPEC + kit data + validateGuardKit), gb (Sonnet bake driver), g5 (Opus
-  GuardFigure on the Wren stand-in), g6 (Sonnet guardVariant), g6n (Opus look seed on the wire). Shared rules and the id
-  contract: C:/NightShift/scratch/ctcore/briefs/gm-common.md. L0 probe queued on the laptop: request
-  20261023T094854-...-7d0b, set guard-bake-probe (step 1 Blender, 2 toktx, 3 MPFB2 zip; status laptop-e2e/alone-guard-bake-probe).
+- Now (2026-10-23 ~21:10, lead Player Build): P1 G0 / GB / G6 DONE and merged here (a63e82ca; tsc 0, vitest 3 files 65);
+  P1 checker (Opus) running on a63e82ca. G6n done on feature/gm-g6n f9ce1015 (look seed: src/ai/guardLook.ts, al bits 9-15,
+  AL_MAX 65535); two independent Opus checkers running; merge after both PASS. G5 GuardFigure (Opus) running in
+  Mobile-Coop-gm-g5. P2/P3 started early on GB's driver: G1 bodies (gm-g1), G1h heads (gm-g1h), G3 gear (gm-g3), Opus,
+  worktrees off feature/gm-gb 5da3600c; rules C:/NightShift/scratch/ctcore/briefs/gm-common.md + gm-blender.md (desktop
+  smoke runs of ONE job under heavy.lock until L0 lands; full stages = laptop alone requests).
+  Lead rulings: enforcer shows plate_heavy (plated); helmets drawn only with the gameplay helmet bit (strict A5, G0 open
+  item); droneOp headwear2 cap; one cranium / hair cap / head envelope per base (G0).
+  L0 probe queued: request 20261023T094854-...-7d0b, status laptop-e2e/alone-guard-bake-probe on bbd49206 (the desktop
+  has all three tools: GB --probe).
 - Started 2026-10-23 ~20:45 on the orchestrator's word (Michael gave Player the build).
 - Next: as each P1 slice lands: merge feature/gm-<s> into feature/guard-models; one fresh Opus checker for P1 (G0, GB, G5,
   G6) and two independent Opus checkers on G6n; then P2 (G1 bodies + G1h heads as laptop alone bakes via GB).
