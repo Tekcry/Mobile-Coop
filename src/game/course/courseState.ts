@@ -895,6 +895,16 @@ export class CourseState {
     return g && g.tb > this.clock ? g.tb - this.clock : 0;
   }
 
+  /** (guard-ai S22, G6, A133) A guard turned console gate `gateId` back on: as its loop running out (the flag clears,
+   *  the cameras come back, the gate closes, a timed console's re-arm starts). False: not a pickup gate or its flag was
+   *  not set. Host only. */
+  consoleBack(gateId: string): boolean {
+    const g = this.gateRt(gateId);
+    if (!g || g.def.kind !== 'pickup' || !this.flags.has(g.def.flag)) return false;
+    this.endWindow(g);
+    return true;
+  }
+
   /**
    * Client mirror, per frame: run the timed windows down between two `course` messages (display only: nothing opens or
    * closes here; the next message corrects it). No allocation.
