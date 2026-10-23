@@ -20,7 +20,16 @@ import { CourseHud } from '../../ui/hud/courseHud';
 import { recordBay, recordRun, updateCourseRecord } from '../../save/courseRecord';
 import { groupBaseOn } from '../../world/lights';
 import { SectionStartState } from '../sectorReset';
-import { COURSE_RESTART_TITLE } from '../course/courseWire';
+import { COURSE_RESTART_TITLE, packRated, unpackRated } from '../course/courseWire';
+import type { PlayerRef } from '../../ai/enemy';
+import { CourseMarks, bayTitle, courseGrant } from '../course/courseMarks';
+import { GRANT_GADGETS, coopRating, emptyGrant, type Grant, type SectionStats } from '../rating/sectionRating';
+import { GADGETS } from '../gadgets';
+import { stationHeal } from '../medkit';
+import { REVIVES_PER_MISSION } from '../reviveClock';
+import type { SectorRatingWire } from '../sectors';
+import { updateRatingRecord } from '../../save/ratingRecord';
+import { RatingCard, type RatingView } from '../../ui/hud/ratingCard';
 
 /** Seconds between two LANTERN radio lines. */
 const RADIO_GAP = 3;
@@ -184,6 +193,17 @@ export class CourseMode implements GameMode {
   restarts = 0;
   /** (S10) Doors the last restart put back (tests). */
   lastDoors = 0;
+  /** (section-rating S6) The rated sets' marks (host / solo): each set with guards rated at its exit (A5). */
+  private rating: CourseMarks | null = null;
+  /** (S6) The last rated set on the wire (`course.rt`, copied per send). */
+  private readonly rt: SectorRatingWire = { sec: -1, marks: 0, synced: 0, gadget: 0, syringe: 0, medkit: 0, alarmStep: 0 };
+  /** (S6) The test hook `window.__sectionRating` (Sector Ops' shape: live stats, last rating, what the last grant gave). */
+  private readonly hook: { stats: SectionStats | null; last: RatingView | null; lastGrant: Grant | null } = { stats: null, last: null, lastGrant: null };
+  /** (S6) The rating card on the host's HUD (the client's lives in its course mirror). */
+  private card: RatingCard | null = null;
+  /** (S6) The card's copy of a rating, its grant what landed on this machine (reused, no allocation). */
+  private readonly cardView: RatingView = { sectionId: '', title: '', marks: 0, synced: 0, grant: emptyGrant() };
+  private readonly refs: PlayerRef[] = [];
 
   constructor(private g: GameState) {}
 
@@ -199,6 +219,12 @@ export class CourseMode implements GameMode {
     st.solo = courseSoloFlag();
     this.state = st;
     if (g.enemyMgr) courseGuardRules(g.enemyMgr);
+    // (section-rating S6) the rated sets: counted from each set's start (the `bayStarted` events `handle` acts on)
+    const rating = new CourseMarks(lay.def.bays.length);
+    this.rating = rating;
+    this.hook.stats = rating.stats;
+    (window as unknown as { __sectionRating?: unknown }).__sectionRating = this.hook;
+    this.card = new RatingCard(g.hud.el);
     // (N8) the lobby's "Start at" counts this course's bays
     registerCourse(g.world.map.id, lay.def);
     for (const b of lay.def.bays) for (const gate of b.gates) this.gateDefs.set(gate.id, gate);
@@ -256,7 +282,11 @@ export class CourseMode implements GameMode {
     // (CT prototype B3) the jammer, camera and laser devices (host authority)
     this.ct = new CtDevices(g, 'host', {
       say: (t) => this.say(t),
-      record: (s) => this.state?.record(s),
+      record: (s) => {
+        this.state?.record(s);
+        // (section-rating S6, A3) a camera / laser alarm breaks the set's Undetected mark too
+        this.rating?.camera();
+      },
       dirty: () => (this.dirty = true),
       // (guard-ai S17, G1) a laser broken / a camera's alarm: the guards search the device's spot, never the player's
       alertAt: (x, y, z, key) => g.enemyMgr?.deviceAlert(x, y, z, key),
@@ -474,6 +504,11 @@ export class CourseMode implements GameMode {
     this.stepRemote();
   }
 
+  /** (stealth-pays S1, spare 9 part B) host / solo: an interrogation's code flag, like a keypad code from a camera or a hack. */
+  onIntelCode(flag: string): void {
+    this.state?.setFlag(flag);
+  }
+
   onRemoteTakedown(_id: string, kind: string): void {
     this.remoteSnap.takedowns++;
     this.remoteSnap.takedownKind = kind;
@@ -537,6 +572,12 @@ export class CourseMode implements GameMode {
     const det = g.style.detections;
     if (det > this.detSeen) st.record('detections', det - this.detSeen);
     this.detSeen = det;
+    // (section-rating S6) the set's live rating stats (the test hook)
+    const rs = this.rating;
+    if (rs && rs.current >= 0) {
+      const bs = st.stats[rs.current];
+      if (bs) rs.live(bs);
+    }
     // holds: released when the holder walks off or goes down
     for (let i = 0; i < this.holds.length; i++) {
       const h = this.holds[i]!;
@@ -621,12 +662,17 @@ export class CourseMode implements GameMode {
       case 'bayStarted':
         this.spawnSquad(e.squad);
         this.radio('enter');
+        // (section-rating S6) the set's rating counts from here
+        this.rating?.begin(st.bay, st.stats[st.bay]!);
         // (S10, M3) the doors as the set begins, recorded once this step's locks are on (`handle`)
         this.doorStep = 1;
         break;
       case 'bayRestart':
         this.restartT = -1;
         this.restarts++;
+        // (section-rating S6, A8) the set's rating stats start again; a set already rated is never re-rated, and a grant
+        // already given stays (the course has no checkpoint loadout to put back)
+        this.rating?.begin(st.bay, st.stats[st.bay]!);
         // (S10, M2) a full reset, as Sector Ops' section restart: every guard, body (carried ones too) and incident
         // goes with the guards' shared memory, so the set's guards come back fresh and nobody finds the old bodies
         this.dropSquad(true);
@@ -686,14 +732,105 @@ export class CourseMode implements GameMode {
         const bi = def.bays.findIndex((b) => b.exit === e.airlock);
         const b = def.bays[bi];
         if (b) void updateCourseRecord(this.g.world.map.id, (r) => recordBay(r, def.bays.map((x) => x.id), b.id, st.stats[bi]!.time));
+        // (section-rating S6) a rated set is rated as its airlock seals; its grant lands now, as the next set begins
+        this.rateSet(bi, true);
         break;
       }
       case 'courseDone':
+        // (section-rating S6) the last set is rated at the finish (nothing follows it to grant: the results show it)
+        this.rateSet(st.bay, false);
         this.finishCourse();
         break;
       default:
         break;
     }
+  }
+
+  /**
+   * (section-rating S6) Rate set `bi` once (a rated set only, A5), record the best (S5), put it on the wire and in the
+   * results, and with `grant` give its reward now (the next set is beginning).
+   */
+  private rateSet(bi: number, grant: boolean): void {
+    const st = this.state;
+    const r = this.rating;
+    if (!st || !r) return;
+    const b = st.def.bays[bi];
+    const s = st.stats[bi];
+    if (!b || !s) return;
+    const marks = r.rate(bi, b, s);
+    if (marks < 0) return;
+    const g = this.g;
+    const synced = r.synced[bi] ?? 0;
+    let carry = 0;
+    for (const id of GRANT_GADGETS) carry += GADGETS[id].carry;
+    const gr = courseGrant(marks, synced, coopRating(g.net !== null, g.playerRefsInto(this.refs).length), REVIVES_PER_MISSION, g.net?.revivesLeft?.() ?? REVIVES_PER_MISSION, carry);
+    const view: RatingView = { sectionId: b.id, title: bayTitle(b), marks, synced, grant: gr };
+    this.hook.last = view;
+    g.sectionRatings.push(view);
+    // an ungranted rating (the finish's) carries no grant on the wire: the client tops up nothing
+    const w = this.rt;
+    w.sec = bi;
+    w.marks = marks;
+    w.synced = synced;
+    w.gadget = grant ? gr.gadget : 0;
+    w.syringe = grant ? gr.syringe : 0;
+    w.medkit = grant ? gr.medkit : 0;
+    w.alarmStep = 0;
+    this.dirty = true;
+    void updateRatingRecord(g.world.map.id, b.id, marks, synced);
+    if (grant) this.giveGrant(gr, view);
+  }
+
+  /**
+   * (section-rating S6) A set's grant, as Sector Ops gives it: gadget charges on the host's own kit (noisemaker, then
+   * gas, each up to its starting carry; the client tops up its own from `rt`), syringes (co-op: the revive cap, through
+   * the net layer), medkits (a station's heal for each player). The card shows what landed on this machine.
+   */
+  private giveGrant(r: Grant, v: RatingView): void {
+    const g = this.g;
+    const given = emptyGrant();
+    let n = r.gadget;
+    let name: string | undefined;
+    let ids = 0;
+    for (const id of GRANT_GADGETS) {
+      if (n <= 0) break;
+      const k = g.gadgets.topUp(id, n, GADGETS[id].carry);
+      if (k <= 0) continue;
+      given.gadget += k;
+      n -= k;
+      ids++;
+      name = GADGETS[id].name.toLowerCase();
+    }
+    const net = g.net;
+    if (r.syringe > 0 && net?.addSyringes) {
+      net.addSyringes(r.syringe);
+      given.syringe = r.syringe;
+    }
+    let ownMed = 0;
+    for (let k = 0; k < r.medkit; k++) {
+      const h = g.target.health;
+      const hp = stationHeal(h.hp, h.maxHp, g.player.alive, g.opts.difficulty ?? 'normal');
+      let any = false;
+      if (hp !== null) {
+        h.heal(hp - h.hp);
+        ownMed++;
+        any = true;
+      }
+      const refs = g.playerRefsInto(this.refs);
+      for (let i = 1; i < refs.length; i++) if (net?.healAtStation?.(refs[i]!.id)) any = true;
+      if (any) given.medkit++;
+    }
+    this.hook.lastGrant = given;
+    const c = this.cardView;
+    c.sectionId = v.sectionId;
+    c.title = v.title;
+    c.marks = v.marks;
+    c.synced = v.synced;
+    c.grant.gadget = given.gadget;
+    c.grant.syringe = given.syringe;
+    c.grant.medkit = ownMed;
+    c.grant.alarmStep = 0;
+    this.card?.show(c, ids === 1 ? name : undefined);
   }
 
   /** The end: the course record, then the results with the course panel (D31, D32). */
@@ -889,7 +1026,7 @@ export class CourseMode implements GameMode {
     for (const gid of Object.values(this.layout!.groups ?? {})) groups.push([gid, this.groupOn(gid)]);
     const dead: number[] = [];
     for (const l of g.world.level.lights.lights) if (l.destroyed) dead.push(l.id);
-    return { s: this.state!.pack(), locks, anchors: [...g.traversal.attachCtl.disabled], lights: { groups, dead }, ref: this.ref2, rn: this.refN, rl: this.radioLine, rln: this.radioN, ...(this.ct ? { sec: this.ct.wire() } : {}) };
+    return { s: this.state!.pack(), locks, anchors: [...g.traversal.attachCtl.disabled], lights: { groups, dead }, ref: this.ref2, rn: this.refN, rl: this.radioLine, rln: this.radioN, ...(this.ct ? { sec: this.ct.wire() } : {}), rt: { ...this.rt }, ...(this.rating ? { rh: packRated(this.rating.marks, this.rating.synced) } : {}) };
   }
 
   /** Test view (`window.__course.debug()`). */
@@ -915,6 +1052,8 @@ export class CourseMode implements GameMode {
     if (!this.state) return;
     const p: PlayerIdx | undefined = h.attackerId === 'local' || h.attackerId === '' ? 0 : h.attackerId ? 1 : undefined;
     this.state.record(e.ko ? 'knockouts' : 'kills', 1, p);
+    // (section-rating S6, A6) two knock-outs by the two players within SYNC_WINDOW are one synced takedown
+    if (e.ko && p !== undefined && this.rating?.takedown(p, this.state.clock)) this.state.record('synced', 1);
   }
 
   onPlayerDeath(): void {
@@ -926,7 +1065,8 @@ export class CourseMode implements GameMode {
     else this.g.hud.banner('DOWN', 'Restarting the bay', 2000);
   }
 
-  frameUpdate(): void {
+  frameUpdate(dt: number): void {
+    this.card?.update(dt);
     const st = this.state;
     if (!st || !this.hud) return;
     this.hud.update(st, 0);
@@ -950,8 +1090,11 @@ export class CourseMode implements GameMode {
     for (const m of this.pads) m.dispose();
     this.pads.length = 0;
     this.g.hud.pings.hideMarker();
-    const w = window as unknown as { __course?: unknown };
+    this.card?.el.remove();
+    this.card = null;
+    const w = window as unknown as { __course?: unknown; __sectionRating?: unknown };
     if (w.__course === this) delete w.__course;
+    if (w.__sectionRating === this.hook) delete w.__sectionRating;
   }
 }
 
@@ -973,6 +1116,11 @@ interface ClientCourse {
   ct: CtDevices;
   /** Anchor ids of the airlocks' rear doors (the only doors a lock shuts by force, as on the host). */
   rear: Set<number>;
+  /** (section-rating S6) The host's last rated bay taken (-2 before the first message, -1 none yet). */
+  ratedBay: number;
+  /** (S6) The client's rating card and its reused view. */
+  card: RatingCard;
+  cardView: RatingView;
 }
 const mirrors = new WeakMap<GameState, ClientCourse>();
 
@@ -984,7 +1132,7 @@ function mirrorOf(g: GameState): ClientCourse | null {
   const st = new CourseState(lay.def, lay.consoles);
   const ct = new CtDevices(g, 'client', { say: () => undefined, record: () => undefined, dirty: () => undefined, has: (f) => st.hasFlag(f), hasShared: (f) => st.hasShared(f) });
   g.ctDev = ct;
-  m = { st, lay, hud: new CourseHud(g.hud.el), open: [], startBay: -1, radioN: 0, pads: buildAirlockPads(g, lay), ct, rear: rearDoorAnchors(lay) };
+  m = { st, lay, hud: new CourseHud(g.hud.el), open: [], startBay: -1, radioN: 0, pads: buildAirlockPads(g, lay), ct, rear: rearDoorAnchors(lay), ratedBay: -2, card: new RatingCard(g.hud.el), cardView: { sectionId: '', title: '', marks: 0, synced: 0, grant: emptyGrant() } };
   mirrors.set(g, m);
   return m;
 }
@@ -994,6 +1142,7 @@ export function clientCourseFrame(g: GameState, dt: number): void {
   const m = mirrors.get(g);
   if (!m) return;
   m.ct.frame(dt);
+  m.card.update(dt);
   // (N1) timed windows run down between two messages (the HUD's "Lights back in 9 s")
   m.st.advanceMirror(dt);
   m.hud.update(m.st, 1);
@@ -1012,11 +1161,71 @@ export function disposeClientCourse(g: GameState): void {
   const m = mirrors.get(g);
   if (!m) return;
   m.hud.dispose();
+  m.card.el.remove();
   m.ct.dispose();
   g.ctDev = null;
   for (const p of m.pads) p.dispose();
   g.hud.pings.hideMarker();
   mirrors.delete(g);
+}
+
+/**
+ * (section-rating S6) Client: a new rated set on the host's `rt` (a new bay index): the results line, the gadget part of
+ * the grant on our own kit (noisemaker, then gas, each up to its starting carry, as the host's), and the card. The first
+ * message only records what is already rated (a late join or rejoin: results only, no top-up); the course's last set,
+ * rated at the finish, goes to the results only.
+ */
+function mirrorRating(g: GameState, m: ClientCourse, rt: SectorRatingWire | undefined, rh?: readonly number[]): void {
+  const first = m.ratedBay === -2;
+  if (!rt) {
+    if (first) m.ratedBay = -1;
+    return;
+  }
+  if (rt.sec === m.ratedBay) return;
+  m.ratedBay = rt.sec;
+  const bays = m.st.def.bays;
+  const b = bays[rt.sec];
+  if (!b) return;
+  const v: RatingView = { sectionId: b.id, title: bayTitle(b), marks: rt.marks, synced: rt.synced, grant: { gadget: rt.gadget, syringe: rt.syringe, medkit: rt.medkit, alarmStep: rt.alarmStep } };
+  // (S6 fix) a late join / rejoin: every set rated before we came from `rh` (results lines only), the last as on `rt`
+  if (first && rh) {
+    for (let i = 0; i < rh.length && i < bays.length; i++) {
+      const r = i === rt.sec ? null : unpackRated(rh[i]!);
+      if (r) g.sectionRatings.push({ sectionId: bays[i]!.id, title: bayTitle(bays[i]!), marks: r.marks, synced: r.synced, grant: emptyGrant() });
+    }
+  }
+  g.sectionRatings.push(v);
+  const w = window as unknown as { __sectionRating?: { stats: unknown; last: RatingView | null; lastGrant: unknown; seq?: number } };
+  if (w.__sectionRating) w.__sectionRating.last = v;
+  else w.__sectionRating = { stats: null, last: v, lastGrant: null, seq: 0 };
+  if (first) return;
+  w.__sectionRating.seq = (w.__sectionRating.seq ?? 0) + 1;
+  let n = rt.gadget;
+  let name: string | undefined;
+  let ids = 0;
+  let added = 0;
+  for (const id of GRANT_GADGETS) {
+    if (n <= 0) break;
+    const k = g.gadgets.topUp(id, n, GADGETS[id].carry);
+    if (k <= 0) continue;
+    n -= k;
+    added += k;
+    ids++;
+    name = GADGETS[id].name.toLowerCase();
+  }
+  if (rt.sec >= bays.length - 1) return;
+  // the card names only what lands here: the charges added, a medkit only when the host's heal heals us now
+  const c = m.cardView;
+  c.sectionId = v.sectionId;
+  c.title = v.title;
+  c.marks = v.marks;
+  c.synced = v.synced;
+  const h = g.target.health;
+  c.grant.gadget = added;
+  c.grant.syringe = rt.syringe;
+  c.grant.medkit = stationHeal(h.hp, h.maxHp, g.player.alive, g.opts.difficulty ?? 'normal') !== null ? rt.medkit : 0;
+  c.grant.alarmStep = 0;
+  m.card.show(c, ids === 1 ? name : undefined);
 }
 
 /** Client: mirror the packed state; a drill newly done shows the toast (both players' drills). */
@@ -1075,7 +1284,9 @@ export function applyCourseWire(g: GameState, w: CourseWire): void {
     g.stealth?.syncGroup(gid, on);
   }
   mirrorApply(g, w);
-  if (w.sec) mirrorOf(g)?.ct.apply(w.sec);
+  const mm = mirrorOf(g);
+  if (mm) mirrorRating(g, mm, w.rt, w.rh);
+  if (w.sec) mm?.ct.apply(w.sec);
   (window as unknown as { __course?: unknown }).__course = { wire: w, hud: () => mirrors.get(g)?.hud.el, debug: () => ({ bay: w.s.bay, locks: w.locks, anchors: w.anchors, lights: w.lights, ticks: w.s.ticks, refusal: w.ref, rn: w.rn, air: w.s.air }) };
 }
 

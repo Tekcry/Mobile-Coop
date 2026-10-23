@@ -16,7 +16,7 @@ import { buildA5Substation } from './ctcourseSets/a5Substation';
 import { buildA6PumpHouse } from './ctcourseSets/a6PumpHouse';
 import { buildA7DataHall } from './ctcourseSets/a7DataHall';
 import { buildA8Strongroom } from './ctcourseSets/a8Strongroom';
-import { armourCameras, pieceCount, pieceDelta, SET_IDS, SET_LINKS, setBay, SPAWNS, type LightSpot, type PieceCount, type Pt, type SetId, type SetPart, type ShotVantage } from './ctcourseSets/types';
+import { armourCameras, pieceCount, pieceDelta, SET_IDS, SET_LINKS, SET_NAME, setBay, SPAWNS, type LightSpot, type PieceCount, type Pt, type SetId, type SetPart, type ShotVantage } from './ctcourseSets/types';
 
 /**
  * Marlow Yard (map `ctcourse`, Course mode; marlow-final, `docs/marlow-final/SPEC.md`): Vellan & Rook's rehearsal centre,
@@ -95,6 +95,9 @@ export function buildCtcourse(b: LevelBuilder): CtcourseBuild {
     drills: p.bay.drills,
     elements: [],
     ...(p.bay.roles?.length ? { roles: p.bay.roles } : {}),
+    // (section-rating S6, A5) a set with a guard who can see is rated (A1's passive checker is not)
+    rated: p.bay.squad.some((s) => !p.squads[s]?.passive),
+    title: `${setBay(p.id)} ${SET_NAME[p.id].replace(/^the /, '')}`,
   }));
   const def: CourseDef = {
     id: 'ctcourse',

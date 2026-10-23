@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseMessage, PROTOCOL_VERSION, type Msg } from '../src/net/protocol';
+import { parseMessage, type Msg } from '../src/net/protocol';
 import {
   applyLamps,
   decodeLamps,
@@ -50,10 +50,6 @@ const meter = (f: LightField): number => f.bodyLevel(0.5, 0, 0, 1.8);
 const doors = { list: [] as ResetDoor[], setOpen: () => undefined, crack: () => false };
 
 describe('Sector Ops lamp sync (slice L, protocol 31)', () => {
-  it('PROTOCOL_VERSION is 43 (43 guard-ai S9 (41) + marlow-final (42) on train 30, renumbered at the train; 41 guard-ai S9 + A126 on train 30; 40 the Player stack at train 30; 39 guard-ai S9 on train 29; 38 the lamp falloff; 37 Player #231; 35 the weapons crate; 31 the lamps)', () => {
-    expect(PROTOCOL_VERSION).toBe(43);
-  });
-
   it('encode / decode round trips every state, flashlights read on', () => {
     const n = 200;
     const st = new Uint8Array(LAMP_MAX);

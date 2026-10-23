@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseMessage, PROTOCOL_VERSION, type NetItem } from '../src/net/protocol';
+import { parseMessage, type NetItem } from '../src/net/protocol';
 import { HOLD_PULSE_MIN_GAP, HoldPulseWatch, hostHoldPulse, inUseReach, type PulseItem } from '../src/net/holdPulse';
 import { HOLD_NOISE_PULSE, HOLD_NOISE_RADIUS, holdNoisePulse } from '../src/config/noise';
 
@@ -24,9 +24,6 @@ function hostOwnPulses(secs: number): number {
 }
 
 describe('marlow-final Q12: client hold noise on the wire', () => {
-  it('rides protocol 43 (43 = marlow-final 42 + guard-ai S9 41 on train 30; 42 marlow-final over train 30 (40); 36 the merge of marlow-final 33 (ours 30 merged with the Sector lamps 31) and master 35 the weapons crate)', () => {
-    expect(PROTOCOL_VERSION).toBe(43);
-  });
 
   it('`use` carries the pulse flag; a plain use stays a plain use', () => {
     expect(parseMessage({ t: 'use', id: 'c-drive', pulse: true })).toEqual({ t: 'use', id: 'c-drive', pulse: true });

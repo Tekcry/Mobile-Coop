@@ -682,6 +682,12 @@ export class CoopHost implements NetAttachment {
     return Math.max(0, this.reviveClock.cap - this.reviveClock.used);
   }
 
+  /** (section-rating S3) A rating's syringe reward: `n` (a whole 0-9) more revives this op. */
+  addSyringes(n: number): void {
+    const k = Number.isFinite(n) ? Math.max(0, Math.min(9, Math.floor(n))) : 0;
+    this.reviveClock.cap += k;
+  }
+
   /** Sector Ops (step 3): every guard a client holds is let go and the client told (`tdDenied` aborts its takedown or
    *  grab), before the section's guards are despawned. */
   releaseHolds(): void {

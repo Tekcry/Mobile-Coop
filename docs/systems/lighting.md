@@ -39,7 +39,7 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   (`lampMath.matchLampFalloff`: the co-op host's `start.lf`, else the URL, else the setting; `GameState.lampFalloff`),
   before the level adds its lights, so the registry, the bake, the field (meter and guards) and the shaders
   (`lampMathGlsl()`; the `LAMP_PHOTO` define keeps the two modes' compiled effects apart) all read one mode; never
-  mid-match. Co-op: protocol 38 `start.lf`, the client's row locked to the host's. `?gfx=min` keeps Babylon's linear real
+  mid-match. Co-op: protocol 38 `start.lf`; in a match the row is locked to the match's mode (host and client); "Resume hosting" runs the dropped match's mode (`RejoinRecord.lf`). `?gfx=min` keeps Babylon's linear real
   lights for the picture (the field is photometric). Not adopted: `docs/lighting-review/PROPOSAL.md` section 7 (LR13),
   numbers in `docs/sector-redesign/checks/light-measure.md`; tests `tests/lampFalloff.test.ts`.
 - (shadow audit, PROTOTYPE, rides the LR13 toggle) `world/shadowAccuracy.ts`: on exactly when the match runs Realistic
@@ -50,6 +50,10 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   weapons) to the standard falloff so flashlights light them as they light the level (`gameLightFalloff`) and gives shadow
   maps to cut beams first (`torchShadowPass`); guards' body-light samples test flashlights against static geometry
   (`rayOccluder`). Findings: `docs/sector-redesign/checks/light-measure.md` (shadow audit); test `tests/shadowAccuracy.test.ts`.
+  LR15 (same toggle): 8 door slots per lamp (doors 5-8 in one extra texel per lamp, field and shaders share the list;
+  `LAMP_DOORS8`) and torches without a shadow map drawn in `LampPlugin` with the field's `lampTerm` x a cut at the beam's
+  reach (`LAMP_TORCH`, `lampTorch` UBO); non-PBR lit materials (fences, ropes, decals) then get no unshadowed torch light.
+  Build and check: `docs/sector-redesign/checks/lr15-build.md`, `lr15-check.md`.
 - `world/lightField.ts` (pure) `LightField` (`World.lightField`): `levelAt` = ambient grid + moon x moon visibility + the
   lamps listed for the 2 m column x `LAMP_LEVEL_GAIN` x intensity x formula x trilinear baked visibility, closed doors
   (`Doors.list`, `DOOR_SHUT`) cutting a lamp by one segment-leaf test; `dynamicAt` = non-baked lights (flashlights);

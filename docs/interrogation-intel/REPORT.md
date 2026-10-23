@@ -17,8 +17,9 @@ No wire, save or src/ai change.
 
 ## Open items
 - Done (batch-23, PATROL-TIMING.md): Guard AI added `Enemy.patrolRoute` (master 4.74.0); patrol lines now read it.
-- Part B (A5): modes implement `onIntelCode` (courseMode `this.state?.setFlag(flag)` + `externalFlags`; sectorMode copy `slot.info` to `e.info` at spawn, `SectorCodes.grantCode(flag, sec)`); map owners author `codes`.
-- A client interrogating from the hang-down gives only the guard's own lines.
+- Part B (A5): done (stealth-pays S1, S2; `docs/stealth-pays/`). `courseMode.onIntelCode` sets the course flag (`externalFlags` for a gate); sectorMode copies `slot.info` to `e.info` at spawn and `onIntelCode` calls `SectorCodes.grantCode(flag, sec)`. Play is unchanged until map owners author `GuardIntel.codes` (no Sector map has `info` yet).
+- A client interrogating from the hang-down gives only the guard's own lines (stealth-pays P1, parked: needs a wire change and a PROTOCOL number).
+- Sector co-op client: its puppet reads guard info only from `layout.course?.squads` (`coopClient.ts:326`), so once a Sector map authors `info` the client never sees INTERROGATE on that guard (host / solo only; `src/net`, polish).
 
 ## Changelog line
 Interrogation now gives door codes, nearby camera sweep times and patrol loop times as feed lines.

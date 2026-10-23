@@ -53,6 +53,7 @@ import { roomAt } from '../world/rooms';
 import { camSpaceAt, doorPassing } from '../world/camSpaces';
 import { CAMERA } from '../config/camera';
 import { ResultsScreen, type ResultsNav } from '../ui/screens/resultsScreen';
+import type { RatingView } from '../ui/hud/ratingCard';
 import { EventBus } from '../core/events';
 import type { GameEvents } from './gameEvents';
 import { attachGameAudio } from '../audio/gameAudio';
@@ -112,6 +113,7 @@ import { lightSampleHeight, STANDARD_BODY } from './bodyHeight';
 import type { SeenBody } from '../security/securitySystem';
 import { hyp2 } from '../core/mathx';
 import { GadgetSystem } from './gadgetSystem';
+import { OpticSystem } from './opticSystem';
 import { InfiltrationMode } from './modes/infiltrationMode';
 import { CourseMode } from './modes/courseMode';
 import { SectorMode } from './modes/sectorMode';
@@ -215,6 +217,8 @@ export interface NetAttachment {
   radioLine?(text: string): void;
   /** Host, Sector Ops: revive syringes left this op (co-op only). */
   revivesLeft?(): number;
+  /** (section-rating) Host: a rating's syringe grant, added to the op's revive cap. */
+  addSyringes?(n: number): void;
   /** Host, Sector Ops: every guard a client holds (takedown grab, hostage) is let go, before a section unloads. */
   releaseHolds?(): void;
   /** (coop-walk-fixes P6) Co-op: another player holds guard `v` as a hostage now (the team takedown on him is on
@@ -408,6 +412,8 @@ export class GameState implements AppState {
   detected = false;
   /** Gadgets: the wheel, throws, remote views, effects (phase 5). */
   readonly gadgets: GadgetSystem;
+  /** (ct-toolkit 3.2) The optic cable under a door (the door menu's OPTIC CABLE). */
+  readonly optic: OpticSystem;
   /** Input the operator gets while the wheel or a remote view has the real one (nothing held). */
   private readonly blankInp = new InputState();
   /** (tuner-ui) The input while the pause menu is open: never written (no move, no button). */
@@ -495,6 +501,8 @@ export class GameState implements AppState {
   }
   /** Coop attachment (null in single player). */
   net: NetAttachment | null = null;
+  /** (section-rating) The op's rated sections in order (Sector Ops: the host's mode, or the co-op client's mirror), for the results lines. */
+  readonly sectionRatings: RatingView[] = [];
   /** (lightrev LR13) The lamp falloff this match runs (set before its map built; the meter, the guards and the shaders
    *  all read it, `lampMath`). */
   readonly lampFalloff: LampFalloff = lampFalloffMode();
@@ -587,6 +595,7 @@ export class GameState implements AppState {
     this.diff = resolveDifficulty(opts.difficulty ?? 'normal');
     this.team = new TeamController(this);
     this.gadgets = new GadgetSystem(this);
+    this.optic = new OpticSystem(this);
     // suit and HQ: armour, hands, gadget carry
     this.suit = suitStats(opts.suit ?? defaultSuit());
     this.hq = hqStats(opts.hq ?? defaultHq());
@@ -1056,6 +1065,7 @@ export class GameState implements AppState {
     if (gid && GADGETS[gid]) names.push(GADGETS[gid].name);
     const nav: ResultsNav = { coop: !!this.net };
     if (names.length) nav.kit = names.join(', ');
+    if (this.sectionRatings.length) nav.ratings = this.sectionRatings;
     const cb = this.cb;
     const id = this.stats.missionId;
     if (!this.net && id && cb.missions) {
@@ -1320,7 +1330,7 @@ export class GameState implements AppState {
     // one press never runs both
     const hangDirect = hangActs && td.offer === null && td.active === null;
     this.hangDirectA = hangDirect;
-    const aside =!this.player.alive || (this.team.active && !hangActs) || this.doorPeek.active || this.gadgets.remote !== null || this.gadgets.wheelOpen || (td.active !== null && !td.menuReady) || (this.stealth?.busy ?? false);
+    const aside =!this.player.alive || (this.team.active && !hangActs) || this.doorPeek.active || this.optic.active || this.gadgets.remote !== null || this.gadgets.wheelOpen || (td.active !== null && !td.menuReady) || (this.stealth?.busy ?? false);
     // (Michael 08:10 / 08:20; anim-rework S1, M3) a held guard: RT tap knocks him out, RT hold kills (KBM Z knocks out
     // too; not aiming: LT aims the pistol over his shoulder and RT then fires); a pick armed from outside (`grabMenu.sel`, scripts) runs on the next A press. Nothing lets him go:
     // B, Y and BACK TO GAME only close the list.
@@ -1433,7 +1443,7 @@ export class GameState implements AppState {
   /** (A3) The closed, unlocked door in reach (1.6 m) the operator faces (within 90 deg of the camera), else -1. */
   private doorMenuCandidate(): number {
     const doors = this.world.doors;
-    if (!doors.list.length || !this.player.alive || this.doorPeek.active || this.doorOpen.active || (this.wallCore?.active ?? false) || this.traversal.attached || !!this.traversal.committed || this.team.active || this.stealth?.carrying) return -1;
+    if (!doors.list.length || !this.player.alive || this.doorPeek.active || this.optic.active || this.doorOpen.active || (this.wallCore?.active ?? false) || this.traversal.attached || !!this.traversal.committed || this.team.active || this.stealth?.carrying) return -1;
     const p = this.player.position;
     const d = doors.nearest(p.x, p.z, 1.6);
     if (!d || d.target !== 0 || d.anchor.locked || Math.abs(d.anchor.hinge.y - p.y) > 1.2) return -1;
@@ -1485,7 +1495,7 @@ export class GameState implements AppState {
         break;
       }
       case 'optic':
-        this.hud.feedItem('Optic cable: not built yet', 'warn');
+        this.optic.pick(di);
         break;
     }
   }
@@ -1690,7 +1700,9 @@ export class GameState implements AppState {
     // actions pass through, everything else stays blank
     const holdingGuard = this.grabMenu.open;
     if (holdingGuard && !ctxHeld) this.mirrorGrabInput(real);
-    const takes = this.gadgets.fixedUpdate(dt, ctxHeld || holdingGuard ? this.blankInp : real);
+    // (ct-toolkit 3.2) the optic cable takes the input like a remote view (the operator kneels, still)
+    const opticTakes = this.optic.fixedUpdate(dt, real);
+    const takes = this.gadgets.fixedUpdate(dt, ctxHeld || holdingGuard || opticTakes ? this.blankInp : real) || opticTakes;
     // the gadget wheel / a remote view / the held list takes the input: the operator stands still (F1a: except under
     // the selection wheel, which runs over the live game: the left stick still walks, G181)
     const wheelWalk = this.gadgets.wheelOpen && !this.gadgets.remote && !ctxHeld && !holdingGuard;
@@ -1699,7 +1711,8 @@ export class GameState implements AppState {
     // (G5) A belongs to the menu while a list is up (or its press is still held): the other A readers see it up
     const aFree = !this.ctxOwnsA;
     // (CT prototype B2) RB / F is the co-op action (team moves); pings are unbound for now
-    if (inp.pressed('ping') && this.net && this.player.alive) this.sendPing();
+    // (ct-toolkit 3.2) a ping from the optic view goes to the team (the view's ray: `OpticSystem.frameUpdate`)
+    if ((this.optic.viewing ? real : inp).pressed('ping') && this.net && this.player.alive) this.sendPing();
     // (anim-rework S1) blank input under a held context menu or the wheel is not an X release (a held X keeps its press)
     this.player.inputBlank = inp === this.blankInp;
     // a body on the shoulder: no traversal, weapon stowed, slow
@@ -1932,6 +1945,7 @@ export class GameState implements AppState {
         this.traversal.reset();
         this.wallCore?.reset();
         this.doorPeek.reset();
+        this.optic.reset();
         this.strike.reset();
         // (step 14) goggles up on respawn
         this.vision.reset();
@@ -2368,9 +2382,10 @@ export class GameState implements AppState {
     MOVE_TUNE_TEAM.k = MOVE_TUNE_TEAM.group === '' ? 0 : teamContactK(ts, this.team.partT, TEAM);
     this.teamPoseFrame(dt); // (anim-n4b, track A) the co-op holder's working body and the leg-up's push
     // the wheel cursor / remote view takes the look
-    const gadgetInput = this.gadgets.takesInput;
+    const gadgetInput = this.gadgets.takesInput || this.optic.active;
     if (gadgetInput) {
-      this.gadgets.look(look.x, look.y);
+      if (this.optic.active) this.optic.look(look.x, look.y);
+      else this.gadgets.look(look.x, look.y);
       look.x = look.y = 0;
     }
     this.app.input.setAds(this.player.ads);
@@ -2396,6 +2411,7 @@ export class GameState implements AppState {
     // (anim-studio) the stage lights onto this frame's root and camera (after the player and the camera moved)
     this.studio?.lightsFrame();
     this.gadgets.frameUpdate(dt);
+    this.optic.frameUpdate();
     this.updateGadgetHud();
     this.hud.barks.update(dt, this.placeBark);
     this.updateCinematic(dt);
@@ -2797,6 +2813,7 @@ export class GameState implements AppState {
     this.wallCore?.reset();
     this.doorPeek.reset();
     this.doorOpen.reset();
+    this.optic.reset();
     const pose = this.player.pose;
     pose.traverse = 'none';
     pose.traverseT = 0;
@@ -3087,7 +3104,7 @@ export class GameState implements AppState {
       wv.hint = pad ? 'Hold LB for the selection wheel (it opens on vision: A cycles the mode), right stick to pick, release to select. Tap LB to switch weapon. D-pad left toggles the vision, D-pad right uses the gadget.' : `Hold [${keyLabels.wheel}] for the selection wheel (it opens on vision: [${keyLabels.interact}] cycles the mode), move the mouse to pick, release to select. Tap [${keyLabels.wheel}] to switch weapon.`;
     }
     this.hud.gadgets.update(wv);
-    this.hud.gadgets.setFeed(gs.feedText(this.app.input.mode));
+    this.hud.gadgets.setFeed(gs.feedText(this.app.input.mode) ?? this.optic.feedText(this.app.input.mode));
   }
 
   private updateCinematic(dt: number): void {

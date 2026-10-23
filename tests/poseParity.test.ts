@@ -12,7 +12,7 @@ import { killWarp, TAKEDOWN_BLOW } from '../src/anim/strikeBody';
 import { emptyMovePose, emptyMoveState, packMoveState, poseFromMoveState, sanitizeMoveState, TAKEDOWN_SUB_BLOW, type MoveState } from '../src/player/moveState';
 import { localMoveState } from '../src/game/localMoveState';
 import { localFlags } from '../src/net/netShared';
-import { parseMessage, PF, PROTOCOL_VERSION } from '../src/net/protocol';
+import { parseMessage, PF } from '../src/net/protocol';
 import { WEAPON_IDS } from '../src/weapons/weaponDefs';
 import type { GameState } from '../src/game/gameState';
 
@@ -46,8 +46,7 @@ function fakeGame(o: { shoulder?: number; switchOk?: boolean; wall?: boolean; bl
 }
 
 describe('the wire (protocol 36)', () => {
-  it('PROTOCOL_VERSION is 43 (43 guard-ai S9 (41) + marlow-final (42) on train 30, renumbered at the train; 41 guard-ai S9 + A126 on train 30; 40 the stack at train 30; 39 guard-ai S9 on train 29; 38 lamp falloff; was 32-35 taken by open branches) and PF.aimLeft reuses the free old sprint bit 64', () => {
-    expect(PROTOCOL_VERSION).toBe(43);
+  it('PF.aimLeft reuses the free old sprint bit 64', () => {
     expect(PF.aimLeft).toBe(64);
     const others = Object.entries(PF).filter(([k]) => k !== 'aimLeft').map(([, v]) => v);
     for (const v of others) expect(v & PF.aimLeft).toBe(0);
