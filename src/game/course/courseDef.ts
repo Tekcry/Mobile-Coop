@@ -337,11 +337,13 @@ export function validateCourse(def: CourseDef, known: CourseKnownIds): CourseDef
     if (Math.abs(w - AIRLOCK_SIZE) > AIRLOCK_SIZE_TOL || Math.abs(d - AIRLOCK_SIZE) > AIRLOCK_SIZE_TOL) {
       fail(a.id, `airlock is ${w} x ${d}, not ${AIRLOCK_SIZE} x ${AIRLOCK_SIZE}`);
     }
-    // (coop-rejoin) the slot points: at most two, inside the box, two bodies apart
+    // (coop-rejoin) the slot points: at most two, inside the box by a body radius (a point on its edge stands in the
+    // wall), two bodies apart
     const sp = a.spawns ?? [];
     if (sp.length > 2) fail(a.id, `airlock has ${sp.length} spawns, at most 2 (slot 0, slot 1)`);
+    const m = 0.3;
     for (const p of sp) {
-      if (p.x < Math.min(a.box[0], a.box[2]) || p.x > Math.max(a.box[0], a.box[2]) || p.z < Math.min(a.box[1], a.box[3]) || p.z > Math.max(a.box[1], a.box[3])) fail(a.id, `airlock spawn (${p.x}, ${p.z}) is outside its box`);
+      if (p.x < Math.min(a.box[0], a.box[2]) + m || p.x > Math.max(a.box[0], a.box[2]) - m || p.z < Math.min(a.box[1], a.box[3]) + m || p.z > Math.max(a.box[1], a.box[3]) - m) fail(a.id, `airlock spawn (${p.x}, ${p.z}) is outside its box (${m} m in from its walls)`);
     }
     if (sp[0] && sp[1] && hyp2(sp[0].x - sp[1].x, sp[0].z - sp[1].z) < 0.9) fail(a.id, 'airlock spawns overlap (slot 0 and slot 1 under 0.9 m apart)');
   }

@@ -50,7 +50,7 @@ export const SPAWN = {
 
 /**
  * Directions round a point, as angles from its facing: right, left, back, front, then the four diagonals (back ones
- * first). Slot 1 starts on the right (the courseStartPos side), slot 2 on the left, and so on.
+ * first). Slot 1 starts on the right, slot 2 on the left, and so on.
  */
 const DIRS = [Math.PI / 2, -Math.PI / 2, Math.PI, 0, (3 * Math.PI) / 4, (-3 * Math.PI) / 4, Math.PI / 4, -Math.PI / 4] as const;
 
@@ -99,9 +99,9 @@ export type SlotSpawnKind = 'slot' | 'beside' | 'base' | 'none';
 /**
  * Player slot `slot`'s spawn in an area with `points` (slot 0, slot 1 from map data; one is fine): its own point when the
  * map gives one and it is free, else a safe spot beside the area's first point (`besideSpot`), else its own point (the
- * map's, so out of the level; the partner blocker parts two bodies), else a spot beside clear of the level pieces only
- * (`besideLoose`), else the first point itself. `others` are the players already placed. 'none' when the area has no
- * point.
+ * map's, so out of the level; the partner blocker parts two bodies), else, only while the physics is not up (no floor
+ * found under the area's first point), a spot beside clear of the level pieces only (`besideLoose`), else the first
+ * point itself. `others` are the players already placed. 'none' when the area has no point.
  */
 export function slotSpawn(points: readonly SlotPoint[], slot: number, others: readonly SpawnBody[], probe: SpawnProbe, out: SlotPoint): SlotSpawnKind {
   const base = points[0];
@@ -116,7 +116,9 @@ export function slotSpawn(points: readonly SlotPoint[], slot: number, others: re
     copyPoint(out, own);
     return 'base';
   }
-  if (besideLoose(base, Math.max(1, slot), others, probe, out)) return 'beside';
+  // (fix round, check B polish 1) the loose try only covers a match still loading: with the physics up, a spot that
+  // failed the floor or line check is never used (it could be over a ledge or past a thin wall)
+  if (!probe.floor(base.x, base.y, base.z) && besideLoose(base, Math.max(1, slot), others, probe, out)) return 'beside';
   copyPoint(out, base);
   return 'base';
 }
@@ -253,15 +255,37 @@ export function areaSlotPoints(a: SpawnArea, yaw = 0): SlotPoint[] {
   return [{ x: (a.box[0] + a.box[2]) / 2, y, z: (a.box[1] + a.box[3]) / 2, yaw }];
 }
 
-/** (coop-rejoin) A client the match went to again whose first state is within this of where it stood (m) kept its
- *  match up (it ignored the start): it plays on where it is. */
+/** (coop-rejoin) A client's state within this of its previous one (m) is the same match going on: no walk, vault or
+ *  fall moves a body this far in one state (20 a second); only a teleport or a reloaded match does. */
 export const JOIN_SAME_M = 3;
+/** (coop-rejoin fix round) A reloaded match's first state stands within this of a point of its start area (m): the
+ *  client's slot spot there is a map point or at most a ring (`SPAWN.rings`, 2.3 m) beside the first one. */
+export const JOIN_START_M = 4;
+/** (coop-rejoin fix round) A jump landing within this of a restore the host sent the client (m) is that restore. */
+export const JOIN_RESTORE_M = 1.5;
 
 /**
- * (coop-rejoin) Does the host place a client the match went to again (`late`), from its first state at (x, z)? Yes when
- * it had no state before (a late join) or its state jumped (its match reloaded at the course start, a bay airlock or
- * Sector Ops' first section); no when it stands where it stood (a reconnect that kept the match up).
+ * (coop-rejoin, walk item 7; fix round B1) Is a state at (x, z), from a client the match went to again (`late`), its
+ * (re)loaded match? `prev` is its previous accepted state (null: none, a late join or a new host: yes). Otherwise only
+ * a jump of `JOIN_SAME_M` or more counts, and only when it lands in the client's start area (`start`, the slot points
+ * its match loads at: the current bay's airlock, Sector Ops' first section, the map spawns; empty: anywhere) and not on
+ * a restore the host sent it (`restore`). States from its old match (its page stayed open while it waited for the host)
+ * and a kept-up match that moved in a gap the host did not see are not reloads.
  */
-export function joinNeedsPlacing(prev: { x: number; z: number } | null, x: number, z: number): boolean {
-  return !prev || hyp2(x - prev.x, z - prev.z) >= JOIN_SAME_M;
+export function joinIsReload(
+  prev: { x: number; z: number } | null,
+  x: number,
+  z: number,
+  start: readonly SlotPoint[],
+  restore: { x: number; z: number } | null,
+): boolean {
+  if (!prev) return true;
+  if (hyp2(x - prev.x, z - prev.z) < JOIN_SAME_M) return false;
+  if (restore && hyp2(x - restore.x, z - restore.z) < JOIN_RESTORE_M) return false;
+  if (start.length === 0) return true;
+  for (let i = 0; i < start.length; i++) {
+    const p = start[i]!;
+    if (hyp2(x - p.x, z - p.z) < JOIN_START_M) return true;
+  }
+  return false;
 }

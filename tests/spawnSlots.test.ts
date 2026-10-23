@@ -4,9 +4,11 @@ import {
   besideLoose,
   besideSpot,
   clearOfBodies,
-  joinNeedsPlacing,
+  joinIsReload,
   joinSpawn,
+  JOIN_RESTORE_M,
   JOIN_SAME_M,
+  JOIN_START_M,
   segsCross,
   slotSpawn,
   SPAWN,
@@ -111,6 +113,19 @@ describe('slot spawns (walk item 4)', () => {
     expect(besideLoose(pt(0, 0), 1, [pt(0, 0)], probeOf([[-5, -5, 5, 5]]), o)).toBe(false);
   });
 
+  it('(check B polish 1) physics up (a floor under the point): a spot that failed the floor or line check is never used', () => {
+    // a 1 m platform: no floor round the point (a ledge), nothing in the way
+    const ledge = probeOf([], (x, z) => hyp2(x, z) < 0.5);
+    const o = out();
+    expect(slotSpawn([pt(0, 0)], 1, [pt(0, 0)], ledge, o)).toBe('base');
+    expect(o).toEqual(pt(0, 0));
+    // a wall all round from 0.6 m: the line check shuts every ring, the loose try would cross it
+    const ring = probeOf([[-3, 0.6, 3, 0.9], [-3, -0.9, 3, -0.6], [0.6, -3, 0.9, 3], [-0.9, -3, -0.6, 3]]);
+    expect(besideLoose(pt(0, 0), 1, [pt(0, 0)], ring, out())).toBe(true);
+    expect(slotSpawn([pt(0, 0)], 1, [pt(0, 0)], ring, o)).toBe('base');
+    expect(o).toEqual(pt(0, 0));
+  });
+
   it('nothing free round a single point: that point (the partner blocker parts the bodies); no point: none', () => {
     const o = out();
     expect(slotSpawn([pt(0, 0)], 1, [], probeOf([[-5, -5, -0.4, 5], [0.4, -5, 5, 5], [-5, -5, 5, -0.4], [-5, 0.4, 5, 5]]), o)).toBe('base');
@@ -173,11 +188,19 @@ describe('join spawn (walk item 7): where the host puts a client joining or reco
     expect(joinSpawn(world({ sectioned: false }), 1, null, o)).toBe('beside');
   });
 
-  it('placed only when its match (re)loaded: no state before, or a jump from where it stood', () => {
-    expect(joinNeedsPlacing(null, 0, 0)).toBe(true);
-    expect(joinNeedsPlacing({ x: 140, z: 20 }, 2, 10)).toBe(true);
-    expect(joinNeedsPlacing({ x: 140, z: 20 }, 141, 21)).toBe(false);
-    expect(joinNeedsPlacing({ x: 0, z: 0 }, JOIN_SAME_M, 0)).toBe(true);
+  it('placed only when its match (re)loaded: no state before, or a jump into its start area that is not a restore', () => {
+    const start = [pt(2, 10), pt(2, 12)];
+    expect(joinIsReload(null, 0, 0, start, null)).toBe(true);
+    // a jump from where it stood to its start area: its reload
+    expect(joinIsReload({ x: 140, z: 20 }, 2, 12, start, null)).toBe(true);
+    expect(joinIsReload({ x: 140, z: 20 }, 2 + JOIN_START_M - 0.1, 10, start, null)).toBe(true);
+    // the same match going on (under 3 m)
+    expect(joinIsReload({ x: 140, z: 20 }, 141, 21, start, null)).toBe(false);
+    expect(joinIsReload({ x: 0, z: 0 }, JOIN_SAME_M, 0, [], null)).toBe(true);
+    // (check A P1) a kept-up match that moved 3 m or more in a gap, away from its start area: not a reload
+    expect(joinIsReload({ x: 140, z: 20 }, 145, 20, start, null)).toBe(false);
+    // a jump onto a restore the host sent: that restore, not a reload (even inside the start area)
+    expect(joinIsReload({ x: 140, z: 20 }, 2, 12, start, { x: 2 + JOIN_RESTORE_M - 0.2, z: 12 })).toBe(false);
   });
 
   it('nothing free round the host: the host spot itself', () => {

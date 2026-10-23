@@ -93,10 +93,11 @@ export function canWalk(g: GameState, from: SlotPoint, to: { x: number; y: numbe
 /**
  * (coop-rejoin, walk item 4) The slot points of the area a match starts in: a course's start checkpoint (bay 1: the
  * map's spawns; a bay-N start: that bay's entry airlock), Sector Ops' first section start (`start`, `start2`), else the
- * map's first two player spawns. Slot 0 is the host's, slot 1 the partner's.
+ * map's first two player spawns. Slot 0 is the host's, slot 1 the partner's. `bay`: the course bay the match starts at
+ * (default this match's; the host passes the bay a late `start` sent the client, `NetSession.lateBay`).
  */
-export function startSlotPoints(g: GameState): SlotPoint[] {
-  if (g.opts.mode === 'course' && g.world.layout.course) return courseSlotPoints(g, courseStartCheckpoint(g, g.opts.courseBay ?? 1));
+export function startSlotPoints(g: GameState, bay = g.opts.courseBay ?? 1): SlotPoint[] {
+  if (g.opts.mode === 'course' && g.world.layout.course) return courseSlotPoints(g, courseStartCheckpoint(g, bay));
   const s = g.opts.mode === 'sector' ? g.world.map.sectors?.[0] : undefined;
   if (s) return s.start2 ? [{ ...s.start }, { ...s.start2 }] : [{ ...s.start }];
   return g.world.layout.playerSpawns.slice(0, 2).map((p) => ({ x: p.pos.x, y: p.pos.y, z: p.pos.z, yaw: p.yaw }));

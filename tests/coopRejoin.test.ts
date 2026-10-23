@@ -168,6 +168,11 @@ describe('which checkpoint a (re)joining client gets', () => {
     const k = layoutKnownIds(lay.course!);
     expect(() => validateCourse(bad([{ x: cx, z: cz }, { x: cx + 1, z: cz }, { x: cx - 1, z: cz }]), k)).toThrow(/at most 2/);
     expect(() => validateCourse(bad([{ x: cx + 50, z: cz }]), k)).toThrow(/outside its box/);
+    // (fix round, check B polish 3) a point on the box edge (or under a body radius in) stands in the wall
+    const hi = Math.max(a.box[0], a.box[2]);
+    expect(() => validateCourse(bad([{ x: hi, z: cz }]), k)).toThrow(/outside its box/);
+    expect(() => validateCourse(bad([{ x: hi - 0.1, z: cz }]), k)).toThrow(/outside its box/);
+    expect(() => validateCourse(bad([{ x: hi - 0.35, z: cz }]), k)).not.toThrow();
     expect(() => validateCourse(bad([{ x: cx, z: cz }, { x: cx + 0.3, z: cz }]), k)).toThrow(/overlap/);
   });
 
