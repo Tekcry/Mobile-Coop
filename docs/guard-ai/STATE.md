@@ -674,10 +674,10 @@ Open:
 4. S24 two intruders: PR #264 (feature/guard-ai-s24 7fe4f6a2, stacked on #254). Fix round + re-checks A + B PASS
    (slices/S24-FIX.md, S24-RECHECK-A/B.md). Laptop set s24 on e31edd54 (all suites; ctcourse:4 A7 red until the cage
    fix) + s24-coop on 7fe4f6a2 (test-only diff) PENDING: red -> Opus triage at once. Green + cage fix -> train-ready.
-5. S25b (feature/guard-ai-s25, worktree -s25): check A PASS, B FAIL (B1 cover cap). Opus FIX ROUND running (merges
-   s24 7fe4f6a2; writes slices/S25B-FIX.md). If cut off: read the branch tip / FIX.md, finish. Then one fresh Opus
-   re-check + laptop set s25 (stealth-ai, sectorops, tactics, stealth, takedown, ctcourse, coop, netmove), PR stacked
-   on #264.
+5. S25b (feature/guard-ai-s25 7a7725ef, worktree -s25): fix round DONE (B1 queryNearest + PLAN_COVER 1024, A1/A2,
+   contactHunt validity, e2e-stealth-ai 'lkp' (0,-20) + new 'search area'; slices/S25B-FIX.md). RUNNING: fresh Opus
+   re-check (slices/S25B-RECHECK.md, uncommitted: lead commits); laptop set s25 on 7a7725ef (20261023T111941). Both
+   green -> PR stacked on #264, train-ready after #264.
 6. S26 (off s25) + S27 (off s24) cloud briefs OPEN on cloud-queue (ad9d59cf), A155-A164 accepted.
 7. Done this window: guard-carry flake (test race, e7d70c62 merged into s24); planner S26 + S27 (299d6265; S28 none).
 Questions for Michael (non-blocking, decision packs): S23 client arcs / LKP ghost; S25 searchers' flares.
