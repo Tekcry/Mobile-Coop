@@ -11,7 +11,7 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   locked again on the host" = test race at a8Strongroom.mjs:459 (bare assert, the game relocks one host step later);
   no member caused it. Triage comment on #279, Orchestrator told, fix for Marlow: until(..., 5000) at :459.
   Solo rerun request 20261023T165342-...-6e9632d1-a69e running on 4189 since 17:01Z: verdict = status
-  laptop-e2e/t40-ctc4-solo on 6e9632d1. ON RESUME: read it; if it FAILED, tell the Orchestrator (not a flake).
+  laptop-e2e/t40-ctc4-solo on 6e9632d1: PASS 336 s (17:28Z) = flake, Orchestrator told.
 - Pushed: feature/laptop-queue 8279a48f..e52b4a79 (a, b, d, solo fallback; checkers PASS); PR #277 (c, train-ready).
 - Queue service flaw found: the 24 h flake rule (service.mjs rerunFlakes) matches the suite name only, so a NEW assert
   on a suite that flaked earlier gets no alone rerun. Next laptop-queue slice: match on the assert text too.
