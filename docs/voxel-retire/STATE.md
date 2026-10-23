@@ -1,14 +1,22 @@
 # voxel-retire - state
 
 ## Now
-PLAN steps 1-7 built by the Sonnet 5.5 implementer (2026-10-23) and committed on `feature/voxel-retire`: tsc, eslint,
-the 20 named vitest files, the PLAN grep and `npm run build` all clean. Not yet run: any e2e.
+Built c8d1b5da (Sonnet 5.5): tsc, eslint, 20 vitest files, PLAN grep, build clean. Fresh Opus checker PASS
+(2026-10-23 ~17:10; bake hashes unchanged, SKY_GRID / dropCpuCopy identical, saved 'rt' -> SSR, no net / save change;
+the skipped ctcourseLight / warehouseS1Light tests are print-only `it.runIf`, same on master).
+Laptop batch queued (runs/voxelretire-c8d1b5da, 4191 after Guard AI S9).
 
 ## Next
-1. Test Runner (laptop, `E2E_GPU=1`, the pushed commit): e2e-desktop (all 4 parts), e2e-lightbake (must), then smoke,
-   e2e-ctcourse, e2e-levels, e2e-anchors, e2e-combat, e2e-weapons-carry, e2e-enemies, e2e-gadgets, e2e-sectorops,
-   e2e-menus. The e2e-desktop / e2e-lightbake edits were never run (script-only changes).
-2. Fresh Opus checker (render / world code), then the PR to master; the next train's full run covers the rest.
+1. Laptop batch result (e2e-desktop, e2e-lightbake, smoke, e2e-ctcourse, e2e-levels, e2e-anchors, e2e-combat,
+   e2e-weapons-carry, e2e-enemies, e2e-gadgets, e2e-sectorops, e2e-menus; `E2E_GPU=1`).
+2. On green: merge origin/master, add the guard-render M1 result to docs/guard-render/STATE.md (rides in this batch PR),
+   open the PR, tell the orchestrator train-ready.
+
+## Polish list (checker, not blocking)
+- smoothWorldLight now compares Epic vs Low smooth (two dressing tiers), not voxels on / off.
+- `rtRes`, the RtRes type and the `gi` flag are dead (quality.ts:30, 53-57); Settings may still show them (A3).
+- Stale voxel comments: perf.mjs:9, :248; e2e-desktop.mjs:358, :433; bakedLamps.ts:855, :901; quality.ts:41.
+- e2e-desktop part 3 collects `wp.hidden` with no assert; governor `voxelLod` unused (A4).
 
 ## Open
 - Not touched by design: `src/net`, `PROTOCOL_VERSION`, save shape, settings shape (A3).
