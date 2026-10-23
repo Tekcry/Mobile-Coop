@@ -413,7 +413,9 @@ export function buildCampusS4(b: LevelBuilder): void {
   basket(b, b1x0, 32.4, b1x1, 35.6, true);
   basket(b, b1x0, 35.6, b1x1, b1z1);
   for (const q of [S4_BOX.b2, S4_BOX.b3, S4_BOX.bN, S4_BOX.bCage, S4_BOX.stub]) basket(b, q[0], q[1], q[2], q[3]);
-  for (const [x, z] of [[3.6, 26], [3.6, 38], [9.2, 26], [9.2, 38], [26.8, 26], [26.8, 38], [18, 37], [8, 41.3], [14, 41.3], [24, 41.3], [30, 41.3]] as const) b.box(x, S4_BASKET / 2 - 0.2, z, 0.1, S4_BASKET - 0.4, 0.1, STEEL, 0, 0, false);
+  // (LR16-W) B-cage's support hangs from the basket's west rail at z 38.5: clear of the cage downlight (18, 2.8, 37) and
+  // its beam (it stood through the lamp at (18, 37)), and of the rear gate's swing (hinge (17.4, 40), 1.2 m leaf)
+  for (const [x, z] of [[3.6, 26], [3.6, 38], [9.2, 26], [9.2, 38], [26.8, 26], [26.8, 38], [17.55, 38.5], [8, 41.3], [14, 41.3], [24, 41.3], [30, 41.3]] as const) b.box(x, S4_BASKET / 2 - 0.2, z, 0.1, S4_BASKET - 0.4, 0.1, STEEL, 0, 0, false);
 
   // ---- the cage (x 14..22, z 34..40): solid 3.0 walls 0.1 thick, open top (A83); the front gate south, the rear gate north (pg-cage)
   const [kx0, kz0, kx1, kz1] = S4_BOX.cage;
