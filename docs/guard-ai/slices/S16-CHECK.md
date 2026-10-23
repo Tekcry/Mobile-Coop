@@ -90,3 +90,18 @@ No blocking finding. The merge itself needed three fixes (below, made in 58691dc
 - `e2e-ct-warehouse` (combat and cover off armour unchanged)
 - `e2e-ctcourse`
 - `e2e-tactics` (S8 roles with the new `decide` order)
+
+## Fix round (2026-10-23, after Test Runner's GPU run on fb192d45)
+- Failure: `e2e-sectorops:6` "a NOC guard sees the player on the hall floor through the armoured window"; the five
+  other suites passed. Root cause in the test (`scripts/e2e-sectorops.mjs`, the old spot loop): spots (2, 31), (0, 30)
+  and (2, 27) are inside pod P1 (racks under its 3.0 roof), (4, 29) is under basket B1 for #15, and the pair were
+  alerted before the search, so with no sight they left the window for the stairs while the first spots ran; by the
+  one clear spot (-1.5, 32) the sill (4.6) hid the floor from where they stood. The game is right: `MASK.SIGHT` omits
+  the armour bit, the pane is built with `glassMembership('clear', true)`, `los` is the raw ray (`Enemy.perceive`).
+- Fix (A88): the spot is picked with the AI frozen by each NOC guard's own `perceive`, at hall west-aisle spots clear
+  of the pods and baskets; then the AI goes on, the pair are alerted and the same `los` assert runs through the update
+  path. The rest of the block (fire gate, no round into the glass, stay alerted) is unchanged.
+- New `tests/campusS4NocSight.test.ts` (3 tests): the spots are clear from both posts +-0.3 m at chest / head 0.9-1.6,
+  each line is blocked when arm-noc is made solid (the pane is on the line), the old in-pod spots have no line.
+- `npx tsc --noEmit -p .`: clean. vitest `tests/campusS4NocSight.test.ts`: 3 / 3. `node --check scripts/e2e-sectorops.mjs`: OK.
+- Rerun: `e2e-sectorops:6` (`E2E_GPU=1`). No `src/` change, so stealth-ai / tactics / ct-warehouse / ctcourse stand.

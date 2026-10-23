@@ -3003,8 +3003,25 @@ if (want(6)) {
     await G(() => { window.__s16noc = (e) => e.pos.y > 3 && e.pos.z > 41.8 && e.pos.z < 48 && e.pos.x > -4 && e.pos.x < 8; });
     const noc = await G(() => window.__app.current.enemyMgr.enemies.filter((e) => e.alive && window.__s16noc(e)).map((e) => e.id));
     assert(noc.length >= 1, `the NOC pair stand in the NOC (${JSON.stringify(noc)})`);
-    // the AI on, the pair straight to combat; the player on the hall floor in front of the window (the first spot one
-    // of them sees him from)
+    // (S16 fix round, A88) the player on the hall floor in front of the window, picked with the AI still frozen so the pair
+    // stay at the window while spots are tried (alerted without sight they head for the stairs, and from the back of the NOC
+    // the sill hides the floor): each NOC guard runs his own sight pass (Enemy.perceive, the one update calls) and the first
+    // spot either sees him from is kept. The spots are the west aisle of the hall, clear of pod P1's roof (x -1..2.6, z
+    // 24..32, top 3.0) and the baskets B1 / B-N, far enough out that the sill (4.6) does not hide them; every line from the
+    // NOC to the hall floor crosses arm-noc, the only opening (tests/campusS4NocSight.test.ts pins the spots and the pane).
+    let spot = null;
+    for (const [x, z] of [[-2.5, 30], [-2, 31], [-1.5, 32], [-2.5, 29]]) {
+      await tp(G, x, 0, z, 0);
+      await sim(0.4);
+      const seen = await G((ids) => window.__app.current.enemyMgr.enemies.filter((e) => e.alive && ids.includes(e.id) && window.__s16noc(e)).map((e) => { e.perceive(); return e.los; }), noc);
+      if (seen.some(Boolean)) {
+        spot = [x, z];
+        break;
+      }
+    }
+    const me = await G(() => { const p = window.__app.current.player.position; return { x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2) }; });
+    assert(spot && me.y < 0.5 && me.z < 41, `a NOC guard at the window has a sight line to the player on the hall floor (Enemy.perceive; ${JSON.stringify([spot, me.x, me.y, me.z])})`);
+    // the AI on, the pair straight to combat
     await G((ids) => { const g = window.__app.current; delete g.enemyMgr.update; for (const e of g.enemyMgr.enemies) if (ids.includes(e.id)) e.alert(); }, noc);
     const look = (ids) =>
       G((ids) =>
@@ -3012,16 +3029,13 @@ if (want(6)) {
           .filter((e) => ids.includes(e.id))
           .map((e) => ({ id: e.id, alive: e.alive, alerted: e.alerted, los: e.los, blocked: e.fireGate.blocked, casts: e.fireGate.casts, held: e.fireGate.heldTicks, rounds: e.roundsFired, noc: window.__s16noc(e), x: e.pos.x, z: e.pos.z, y: e.pos.y, state: e.state })),
       ids);
-    let spot = null;
-    for (const [x, z] of [[2, 31], [0, 30], [-1.5, 32], [4, 29], [2, 27]]) {
-      await tp(G, x, 0, z, 0);
-      for (let k = 0; k < 15 && !spot; k++) {
-        await G(() => window.__app.loop.stepHeadless(0.1));
-        if ((await look(noc)).some((s) => s.noc && s.los)) spot = [x, z];
-      }
-      if (spot) break;
+    // alerted, through the update path: a guard still in the NOC sees him through the pane within 1.5 s
+    let sees = false;
+    for (let k = 0; k < 15 && !sees; k++) {
+      await G(() => window.__app.loop.stepHeadless(0.1));
+      sees = (await look(noc)).some((s) => s.noc && s.los);
     }
-    assert(spot, 'a NOC guard sees the player on the hall floor through the armoured window (sight passes clear armour)');
+    assert(sees, `a NOC guard sees the player on the hall floor through the armoured window (sight passes clear armour; from ${spot})`);
     const start = await look(noc);
     const prev = Object.fromEntries(start.map((s) => [s.id, s.rounds]));
     const at0 = Object.fromEntries(start.map((s) => [s.id, [s.x, s.z, s.y]]));

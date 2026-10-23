@@ -282,3 +282,11 @@ doesnt make sense". A32-A34 are S10's (on `feature/guard-ai-s10`).
 - **A87** (S16) The ray is `Ballistics.armouredFirst` (src/weapons/ballistics.ts, a combat file): an additive,
   allocation-free method in `ray`'s order (a hit volume or prop first is not armour). Sector Ops are told. Undo: remove
   it with the gate.
+- **A88** (S16 fix round) The e2e block "guards hold fire at armour" (`e2e-sectorops.mjs` part 6) picks the player's
+  hall floor spot with the AI still frozen, by each NOC guard's own `Enemy.perceive` at his window post, then turns the
+  AI on and asserts `los` through the update path. The first run (fb192d45) failed in the test, not the game: three of
+  its five spots were inside pod P1 (racks under the 3.0 roof), and the pair, alerted without sight, walked off the
+  window toward the stairs before the one visible spot (-1.5, 32) came up; from the back of the NOC the 4.6 sill hides
+  the floor. New spots: the hall's west aisle (-2.5, 30), (-2, 31), (-1.5, 32), (-2.5, 29), pinned by
+  `tests/campusS4NocSight.test.ts` (clear from both posts +-0.3 m at chest / head 0.9-1.6, each line crosses arm-noc).
+  No game change. Undo: the old spot loop (alert first, then try spots).
