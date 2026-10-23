@@ -1,0 +1,18 @@
+{
+  "id": "20261023T094348-night-shift-sector-o-5700dff5-8673",
+  "sha": "5700dff5c852b8513a1a9ca4e6b690dea124b0ef",
+  "branch": "feature/sector-redesign-lr16t",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-desktop",
+    "e2e-lightbake",
+    "e2e-darkness",
+    "e2e-sectorops",
+    "e2e-stealth-ai",
+    "e2e-coop"
+  ],
+  "set": "lr16t-fix",
+  "note": "LR16t after fix round (supersedes the 7e4c8b8e request; skip that one if not started). e2e-desktop part 3 asserts the new torch atlas contract."
+}
