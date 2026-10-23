@@ -279,16 +279,16 @@ feature/sector-redesign-p3 (feature/sector-redesign is FROZEN at f29a43da in tra
 C:/NightShift/Mobile-Coop-sector-redesign-p3. git fetch; read CLAUDE.md (+ token / swap / session-title rules on
 origin/feature/menu until master), docs/ROADMAP.md "Decided", then STATE.md on -p3 top to "## Next at ~10:20": "Now"
 and "Next window" hold everything (PR 3, lanes A-E). Briefs: docs/sector-redesign/briefs/ (ART-*.md, E9-CRATE.md).
-In flight (window 4, ~13:05):
-- PR 3: crate leg fixed f7a3a042 (test stood in the C2 door's reach; client no longer re-sends `use`; checks/crate-client-fix.md):
-  part 1 108 s + coop 71 s GPU PASS. sectorops 2-6 / netmove / vitest green at f96924e5. RUNNING: netmove GPU on the -p3
-  head (src/net changed; worktree -run, scratch/sr-netmove.sh). Opus deflake of :526 (seed Math.random + read ~1 s later,
-  Guard AI's advice; scripts only). Both green -> open PR 3 from -p3, bind, message the orchestrator.
-- E2 glass DONE -e2 06d24d67 (check PASS after 2 one-line fixes, checks/e2-check.md). E10 DONE -e10 16442ee1 (= e2 + posts +
-  armour; checks/e10-armour.md); Opus checker running -> checks/e10-check.md. Laptop Test Runner asked for sectorops 6 / 1 +
-  coop GPU at 16442ee1. Guard AI builds S16 (fire check vs armour) once E10 is on master; item 1 (groups, flags) is ours.
-  -e10 is the PR 4 base (posts + E2 + E10); posts check PASS (checks/posts-check.md).
+In flight (window 4, ~13:15):
+- PR 3 OPEN: Tekcry/Mobile-Coop#215 from -p3 @ 19e05b1a (orchestrator told, train-ready). All GPU green (crate fix f7a3a042,
+  :526 deflake 941dee7d, netmove 5d7eb6dd). Fragment changes/feature-sector-redesign-p3.md. Merge master only at the train.
+- PR 4 = feature/sector-redesign-polish @ ed256ccf (worktree -polish) = PR 3 + posts + E2 glass + E10 armour + polish batch
+  (checks posts-check / e2-check / e10-check / polish-check all PASS; fragment changes/feature-sector-redesign-polish.md).
+  Laptop Test Runner runs sectorops 1 + 6, coop, netmove GPU at ed256ccf -> green: open PR 4 (base master; it stacks on #215).
+  -e10 at 16442ee1 was green on the laptop except the then-unfixed crate leg. Guard AI builds S16 (fire check vs armour) once
+  E10 is on master. Polish follow-ups: ART-S4.md:39 / SLICE4.md:98 tank height 1.6 -> 2.0; hostCrackOk floor gap.
 - Lane A ART-KIT (Opus) running on -art-kit (checks/art-kit-build.md); then one Opus checker, then ART-S1..S5 Sonnet dressers.
+- Lane D (gear / sweep): still blocked, guard-ai SquadSlot gear types not on master (checked 13:10).
 For each lane: branch log + report; finished -> one checker per batch; unfinished -> rerun from its brief / STATE text.
 Worktrees made with `worktree add -b X origin/Y` track Y: push lane branches with `git push -u origin <branch>`.
 Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
