@@ -12,6 +12,7 @@
  * guard stops) are hints from the set sheets: builders may move them up to 1 m (SPEC 9) and the light tests use the
  * built positions.
  */
+import { LAMP_GRID_SLOTS } from '../../voxel/lampBake';
 import { MARLOW_LEVEL } from './levels';
 
 export type MarlowRoom = 'A1' | 'A2' | 'A3' | 'A4' | 'A5' | 'A6' | 'A7' | 'A8' | 'F';
@@ -76,8 +77,9 @@ export const LURE_RANGE = 25;
 /** The silent crouched pace the set timings use (m/s; `GEARS.crouch[2]`, the crouched walk, SPEC 9 A2). */
 export const SILENT_PACE = 1.7;
 
-/** Per-set planning budget: baked lamps per set, per 2 m bake column (`LAMP_GRID_SLOTS`), and in the whole map. */
-export const MARLOW_LAMP_BUDGET = { perSet: 24, perColumn: 8, map: 200 } as const;
+/** Per-set planning budget: baked lamps per set, per 2 m bake column (the shaders' `LAMP_GRID_SLOTS`: 24 since LR16b, was
+ *  8), and in the whole map. */
+export const MARLOW_LAMP_BUDGET = { perSet: 24, perColumn: LAMP_GRID_SLOTS, map: 200 } as const;
 
 /** Set and facility room plan boxes [x0, z0, x1, z1] (SPEC 5). */
 export const MARLOW_ROOMS: Record<Exclude<MarlowRoom, 'F'>, [number, number, number, number]> = {

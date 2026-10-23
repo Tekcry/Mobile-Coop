@@ -25,7 +25,7 @@ import { checkBlast, checkShot, clientStepNoise, hostShotAllowed, hostShotWeapon
 import { localFlags, htmlToInfo } from './netShared';
 import { keepSimInBackground } from './bgTicks';
 import { hostHoldPulse, inUseReach } from './holdPulse';
-import { LAMP_LOS_SLACK, LampSender, lampShotOk, lampTargetId } from './lampSync';
+import { LAMP_LOS_SLACK, LampSender, lampShotOk, lampTargetId, SWAY_TARGET, swayShotOk, swayTargetId } from './lampSync';
 import { lampReachProbe } from '../world/lights';
 import { hyp2 } from '../core/mathx';
 import { barkIndex } from '../ai/barks';
@@ -178,6 +178,8 @@ export class CoopHost implements NetAttachment {
   private lampLim = new Map<string, TickLimiter>();
   private readonly lampA = new Vector3();
   private readonly lampB = new Vector3();
+  /** (39, LR16-5b) A client's pendant shots (`sw-<id>`): rate limit per client (a second message for a round). */
+  private swayLim = new Map<string, TickLimiter>();
 
   constructor(
     private g: GameState,
@@ -224,6 +226,13 @@ export class CoopHost implements NetAttachment {
     if (mode === 'course') s.lateBay = () => g.mode?.resumeBay?.() ?? 1;
     this.hookHud();
     this.hookCombat();
+    // (39, LR16-5b) every kick the host accepts (our rounds, the guards' rounds, blasts, bumps, a client's checked
+    // round: `GameState` and `onSwayShot` make them on the shared clock) goes to the clients, applied verbatim there
+    const sway = g.world.level.lights.sway;
+    if (sway) {
+      sway.onKick = (id, t, a, h) => this.push({ e: 'sway', id, t, a, h });
+      this.offs.push(() => (sway.onKick = null));
+    }
     // (coop-fix, bug 1) a hidden host page (the joiner's window over it) keeps simulating and sending snapshots
     this.offs.push(keepSimInBackground(g));
   }
@@ -669,6 +678,8 @@ export class CoopHost implements NetAttachment {
       case 'shot':
         // (31, slice L) a client's round through a lamp: the host checks it and shoots the lamp out
         if (msg.target.startsWith('lt-')) this.onLampShot(r, msg);
+        // (39, LR16-5b) a client's round past a swinging pendant: the host checks it and kicks it
+        else if (msg.target.startsWith(SWAY_TARGET)) this.onSwayShot(r, msg);
         else if (this.ff && (msg.target === this.s.selfId || this.remotes.has(msg.target))) this.onPlayerShot(r, msg);
         else this.onShot(r, msg);
         break;
@@ -1239,6 +1250,32 @@ export class CoopHost implements NetAttachment {
     this.g.stealth.shootLight(id);
   }
 
+  /**
+   * (39, LR16-5b) A client's round past a swinging pendant (`shot` target `sw-<id>`). The host checks the draw, the
+   * weapon, a rate (4 a second), the round's origin at the shooter's body (`swayShotOk`) and that nothing static stops
+   * the claimed segment short (its end within `LAMP_LOS_SLACK`); then its own kick test on that segment
+   * (`SwaySet.shotKickOne`, on the shared clock) decides, and an accepted kick goes to everyone as a `sway` event.
+   */
+  private onSwayShot(r: RemotePlayer, m: Extract<Msg, { t: 'shot' }>): void {
+    const sway = this.g.world.level.lights.sway;
+    if (!sway || !r.alive) return;
+    const id = swayTargetId(m.target);
+    if (id < 0 || !hostShotAllowed(r.state?.mv?.dw) || !hostShotWeapon(m.w, r.state?.w, r.loadout)) return;
+    let lim = this.swayLim.get(r.id);
+    if (!lim) this.swayLim.set(r.id, (lim = new TickLimiter()));
+    if (!lim.take(this.time)) return;
+    const k = swayShotOk(this.g.world.level.lights, id, { x: m.ox, y: m.oy, z: m.oz }, r.feet);
+    if (k < 0) {
+      r.violations++;
+      return;
+    }
+    const len = Math.min(m.dist, WEAPONS[m.w].range);
+    const a = this.lampA.set(m.ox, m.oy, m.oz);
+    const b = this.lampB.set(m.ox + m.dx * len, m.oy + m.dy * len, m.oz + m.dz * len);
+    if (this.g.ballistics.hitDistance(a, b, MASK.HOST_LOS) < len - LAMP_LOS_SLACK) return;
+    sway.shotKickOne(k, a.x, a.y, a.z, b.x, b.y, b.z, this.time);
+  }
+
   /** Course mode: a client's hit on another player (the host or a client), judged at the target's current place. */
   private onPlayerShot(r: RemotePlayer, m: Extract<Msg, { t: 'shot' }>): void {
     if (!r.alive || !this.hostile(r.id, m.target)) return;
@@ -1448,6 +1485,11 @@ export class CoopHost implements NetAttachment {
         else em.noise(r.feet, SHOT_NOISE * (SD_OPEN_NOISE[st.w] ?? WEAPONS[st.w].noise ?? 1), r.ref.id);
       } else this.firing.set(r.id, t);
     }
+  }
+
+  /** (LR16-5) The shared sim clock: the time the snapshots carry (the client's `ClockSync` tracks it). */
+  simTime(): number {
+    return this.time;
   }
 
   fixedUpdate(dt: number): void {

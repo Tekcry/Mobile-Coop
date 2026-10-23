@@ -32,6 +32,7 @@ import { GRAVITY } from '../../src/physics/havok';
 import { generateLedges, LEDGE, type Door } from '../../src/world/anchors';
 import { LevelBuilder, type BoxPiece } from '../../src/world/levelBuilder';
 import { contribution } from '../../src/world/lights';
+import { lampReach } from '../../src/world/lampMath';
 import { MARLOW_LEVEL } from '../../src/world/lighting/levels';
 import { circuitOf, LURE_RANGE, marlowCourseGroups, SILENT_PACE } from '../../src/world/lighting/marlowCircuits';
 import { surfaceAt } from '../../src/world/surfaces';
@@ -607,7 +608,8 @@ describe('A5 the Substation: the lights (LIGHTING-PLAN 3, A5)', () => {
     expect(panel.y).toBeLessThan(A5_ROOM.wallH);
     // the kiosk light is a small fitting by its keypad (a body beside it stays in the cut band)
     const k = by(53)[0]!;
-    expect(k.radius).toBeLessThanOrEqual(1.2);
+    // (LR16 train entry) the registry holds the photometric reach (`lampReach`: the authored 1.2 m x `PHOTO.reach`)
+    expect(k.radius).toBeLessThanOrEqual(lampReach(1.2) + 1e-9);
     expect(hyp2(k.x - 47, k.z - 33)).toBeLessThan(0.6);
   });
 

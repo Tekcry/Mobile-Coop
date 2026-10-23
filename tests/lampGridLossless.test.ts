@@ -17,7 +17,7 @@ import { warehouse } from '../src/world/maps/warehouse';
 import { warehouseOps } from '../src/world/maps/warehouseOps';
 import { dressingOn } from '../src/world/detailPass';
 import { canonicalLightSet } from '../src/voxel/lightShapes';
-import { bakeLamps, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE, lampColumnDist, lampGrid, lampPlanReach } from '../src/voxel/lampBake';
+import { bakeLamps, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE, lampColumnDist, lampGrid, lampGridBase, lampPlanReach } from '../src/voxel/lampBake';
 import { bakedLights, type LightBake } from '../src/world/lightBake';
 import { buildAmbientGrid } from '../src/world/ambientGrid';
 import { LightField } from '../src/world/lightField';
@@ -100,7 +100,7 @@ function check(map: MapDef, id: string): Result {
       const k = rr * grid.cols + q;
       const refList = ref.lists[k]!;
       const oldList = old.lists[k]!;
-      const base = (rr * grid.cols * 2 + q * 2) * 4;
+      const base = lampGridBase(grid.cols, q, rr);
       for (const y of ys) {
         let sNew = 0;
         for (let s = 0; s < LAMP_GRID_SLOTS; s++) {
@@ -117,9 +117,9 @@ function check(map: MapDef, id: string): Result {
         const dOld = Math.abs(sNew - sOld);
         if (dOld > maxOldVsNew) maxOldVsNew = dOld;
         if (dOld > 1e-9) oldChanged++;
-        // the field reads the same listing: its level (lamps only here) is the new sum, clamped
+        // the field reads the same listing: its level (lamps and, LR16-1, their bounce here) is the new sum, clamped
         const lv = field.levelAt(x, y, z);
-        const want = Math.min(1, sNew);
+        const want = Math.min(1, sNew + field.bounceAt(x, y, z));
         if (Math.abs(lv - want) > 1e-9) expect.fail(`${id}: levelAt ${lv} != listed sum ${want} at ${x}, ${y}, ${z}`);
         samples++;
       }

@@ -3,7 +3,6 @@
  * numbers, caps strings/arrays and drops anything unknown. Pure (no DOM/Babylon) and unit-tested.
  */
 import { WEATHER_CHOICES, type WeatherChoice } from '../world/mapDef';
-import { LAMP_FALLOFFS, type LampFalloff } from '../world/lampMath';
 import { sanitizeLook, type AvatarLook } from '../cosmetics/avatarLook';
 import { WEAPON_IDS, type WeaponId } from '../weapons/weaponDefs';
 import { emptyKinds, ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
@@ -15,6 +14,7 @@ import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 import type { SecWire } from '../game/ctDevices';
 import type { SectorNetExtra, SectorRatingWire } from '../game/sectors';
 import { LAMP_BITS, LAMP_CHARS, LAMP_MAX, type LampWire } from './lampSync';
+import { SWAY } from '../world/lampSway';
 import type { MotionState } from '../anim/motion';
 
 /** The wire version. Only this line holds it; tests read it. `scripts/merge-train.mjs build` bumps it once per train with a wire change (history: CHANGELOG, docs/systems/coop.md). */
@@ -236,7 +236,10 @@ export type NetEvent =
   /** A ping by `player` at a spot or on an enemy (`target`, '' = the spot). */
   | { e: 'ping'; player: string; x: number; y: number; z: number; target: string }
   /** A player's gadget went off / stuck there (gas, flashbang, EMP, noisemaker): everyone sees it. */
-  | { e: 'gadget'; player: string; kind: NetGadget; x: number; y: number; z: number };
+  | { e: 'gadget'; player: string; kind: NetGadget; x: number; y: number; z: number }
+  /** (39, LR16-5b) A swinging pendant's kick (`lampSway.ts`): light `id`, the host's sim time `t`, amplitude `a` (m) and
+   *  heading `h` (rad), applied verbatim (`LightRegistry.swayImpulse`). */
+  | { e: 'sway'; id: number; t: number; a: number; h: number };
 
 export interface EndStats {
   won: boolean;
@@ -253,7 +256,7 @@ export type Msg =
   | { t: 'you'; id: string }
   | { t: 'lobby'; players: PlayerInfo[]; mode: NetMode; map: string; difficulty: Difficulty; phase: 'lobby' | 'playing'; mission: string; weather: WeatherChoice }
   | { t: 'ready'; ready: boolean }
-  | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; mission: string; weather: WeatherChoice; bay?: number; /** (38, LR13) the host's lamp falloff: the match's for everyone */ lf: LampFalloff }
+  | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; mission: string; weather: WeatherChoice; bay?: number }
   | { t: 'pstate'; s: PlayerState }
   | { t: 'shot'; w: WeaponId; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; target: string; part: 'head' | 'body'; rt: number; dist: number; dmg: number }
   /** `pk` is a bitmask of available pickups (bit i = pickup i). `info` is plain text, segments split by '|'. */
@@ -422,6 +425,15 @@ function netEvent(v: unknown): NetEvent | null {
       const z = num(v.z, -WORLD, WORLD);
       if (x === null || y === null || z === null) return null;
       return { e: 'boom', x, y, z, r: num(v.r, 0.5, 12) ?? 4 };
+    }
+    case 'sway': {
+      // (39) a light id (an integer in the lamp range), the host's sim time, an amplitude up to the cap, a heading
+      if (typeof v.id !== 'number' || !Number.isInteger(v.id) || v.id < 0 || v.id >= LAMP_MAX) return null;
+      const t = num(v.t, 0, 1e7);
+      const a = num(v.a, 0, SWAY.maxAmp);
+      const h = num(v.h, -Math.PI, Math.PI);
+      if (t === null || a === null || h === null) return null;
+      return { e: 'sway', id: v.id, t, a, h };
     }
     case 'kill': {
       const enemy = id(v.enemy);
@@ -891,7 +903,7 @@ export function parseMessage(raw: unknown): Msg | null {
       const map = id(raw.map);
       const seed = num(raw.seed, 0, 2 ** 31);
       if (!mode || !difficulty || !map || seed === null) return null;
-      return { t: 'start', mode, map, difficulty, seed: Math.floor(seed), time: num(raw.time, 0, 1e7) ?? 0, mission: mission(raw.mission), weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear', bay: Math.round(num(raw.bay, 1, 64) ?? 1), lf: oneOf(raw.lf, LAMP_FALLOFFS) ?? 'linear' };
+      return { t: 'start', mode, map, difficulty, seed: Math.floor(seed), time: num(raw.time, 0, 1e7) ?? 0, mission: mission(raw.mission), weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear', bay: Math.round(num(raw.bay, 1, 64) ?? 1) };
     }
     case 'pstate': {
       const s = playerState(raw.s);

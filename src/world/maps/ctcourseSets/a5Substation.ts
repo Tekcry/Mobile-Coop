@@ -130,10 +130,14 @@ const GEAR = A5_GEAR;
 /** The cable trench's lids (flush, `metal`): along the north wall behind pen 2. */
 export const A5_TRENCH: [number, number, number, number] = [46.15, 46.6, 57.85, 47.75];
 
-/** The kiosk flood (group 52): a cone on a bracket 0.25 m off the switchroom's south face, aimed at the strip. */
-export const A5_FLOOD = { x: 44.5, y: 4.2, z: 35.6, aim: [51.5, 0, 34] as const, outer: 0.55, radius: 10.5, intensity: 1.5 } as const;
-/** The kiosk's panel light (group 53): in front of its keypad, small, so a body beside it stays under the cut band. */
-export const A5_KIOSK_LAMP = { x: 47.5, y: 1.45, z: 33.0, radius: 1.2, intensity: 0.1 } as const;
+/** The kiosk flood (group 52): a cone on a bracket 0.25 m off the switchroom's south face, aimed at the strip. Its reach stops short of
+ *  the landing (the A5 sheet: "the flood's cone and radius stop short"; LR16-M: radius 6.9, the registry's reach 11.0 m, the landing mark
+ *  11.9 m out and closer to the axis than the kiosk, so only the reach separates them), brighter to light the strip at that reach. */
+export const A5_FLOOD = { x: 44.5, y: 4.2, z: 35.6, aim: [51.5, 0, 34] as const, outer: 0.55, radius: 6.9, intensity: 3.0 } as const;
+/** The kiosk's panel light (group 53): a hooded gooseneck task light in front of its keypad (LR16-M), its cone aimed down and back at the
+ *  keypad on the kiosk's east face (`aim` is the cone's direction); the operator stands behind the hood, outside the cone, so a body
+ *  beside it stays under the cut band. */
+export const A5_KIOSK_LAMP = { x: 47.5, y: 1.45, z: 33.0, aim: [-0.3, -0.35, 0] as const, outer: 0.5, radius: 1.2, intensity: 0.1 } as const;
 
 const SODIUM: [number, number, number] = [1.0, 0.72, 0.36];
 const WHITE: [number, number, number] = [0.96, 0.97, 1.0];
@@ -331,9 +335,9 @@ export function buildA5Substation(b: LevelBuilder, kit: FacilityKit): SetPart {
     bulkhead(57.65, 27.0, 51, false, 9, 1.0);
     bulkhead(51.0, 24.45, 51, true, 9, 1.2);
     bulkhead(46.35, 44.5, 51, false, 7, 1.0);
-    b.light({ x: 43.1, y: 3.7, z: 41.0, radius: 5, intensity: 0.8, color: WHITE, group: 51, electric: true, destructible: true, fixture: { sx: 0.6, sy: 0.05, sz: 0.6, oy: 0.025 } });
+    b.light({ x: 43.1, y: 3.7, z: 41.0, radius: 5, intensity: 0.23, color: WHITE, group: 51, electric: true, destructible: true, fixture: { sx: 0.6, sy: 0.05, sz: 0.6, oy: 0.025 } });
     const k = A5_KIOSK_LAMP;
-    b.light({ x: k.x, y: k.y, z: k.z, radius: k.radius, intensity: k.intensity, color: WHITE, group: 53, electric: true, destructible: true, fixture: { sx: 0.06, sy: 0.08, sz: 0.2, oy: 0 } });
+    b.light({ kind: 'spot', x: k.x, y: k.y, z: k.z, radius: k.radius, intensity: k.intensity, color: WHITE, cone: makeCone(k.aim[0], k.aim[1], k.aim[2], k.outer), group: 53, electric: true, destructible: true, fixture: { sx: 0.06, sy: 0.08, sz: 0.2, oy: 0 } });
   });
   for (const [k, gr] of Object.entries(marlowCourseGroups())) if (k.startsWith('a5-')) p.groups[k] = gr;
   // wall switches: the apron's on the L4 wall north of the door's glass slot, the inner zone's inside the front door (the lure)

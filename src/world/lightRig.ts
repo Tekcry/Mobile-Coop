@@ -1,10 +1,12 @@
 import { ClusteredLightContainer, Color3, CreateBox, CreateSphere, Matrix, Mesh, PBRMaterial, Quaternion, ShadowGenerator, SpotLight, StandardMaterial, Vector3, VertexData, type AbstractMesh, type Material, type Scene } from '../core/babylon';
-import { LAMP_CONE as LAMP_CONE_MATH, LIGHT_GAIN } from './lampMath';
+import { LAMP_CONE as LAMP_CONE_MATH, LAMP_EXP, LIGHT_GAIN, SPOT_EXP } from './lampMath';
 import type { ShadowSpec } from '../core/quality';
 import { nearestLights, type FittingModel, type LightDef, type LightRegistry } from './lights';
 import { fittingMesh, type MeshArrays } from './fixtureModels';
 import { mountLinks } from './lampMount';
-import { gameLightFalloff, shadowAccuracyOn, TORCH_DRAW_SLOTS, torchShadowPass, writeTorchDraw } from './shadowAccuracy';
+import { HANGER_STRIDE } from './lampSway';
+import { gameLightFalloff, TORCH_DRAW_SLOTS, torchShadowPass, writeTorchDraw } from './shadowAccuracy';
+import { registryHasTorch } from './torchShadows';
 
 /** (warehouse-lamps) One fitting model's draws: the body (shared dark material) and the glowing face, and the lights they show. */
 interface FittingDraw {
@@ -48,6 +50,9 @@ const LAMP_CONE = LAMP_CONE_MATH;
 const NV_BULB = 8;
 /** (nv-pass slice 1) Electro's boost on the fixtures, as a share of night vision's: kept at the old x2.5. */
 export const ELECTRO_BULB = (2.5 - 1) / (NV_BULB - 1);
+/** (lr16pol E) `LightRig.drawBits`: a light's texel is drawn by the bulb spheres / the fixture boxes. */
+const DRAW_BULB = 1;
+const DRAW_BOX = 2;
 
 /** What the rig is asked to render (from the graphics settings). */
 export interface LightRigConfig {
@@ -103,24 +108,25 @@ export class LightRig {
   private dist = new Float32Array(MAX_REAL_LIGHTS + 16);
   private pickT = 0;
   private version = -1;
+  /** (LR16-5) The registry's `flickerVersion` the bulbs were painted at (a stuttering tube's fitting goes dark with it). */
+  private flickV = -1;
   /** 3.1 frame governor: the share of the light pool lit, shadow maps re-rendered every N frames. */
   private litScale = 1;
   private shadowEvery = 1;
   /** 3.2: lights drawn by `BakedLamps` (every fixed one): the pools only take the rest (flashlights). */
   private baked: Set<number> | null = null;
-  /** (shadow audit, `shadowAccuracy.ts`; read once) figures and weapons take the field's falloff; cut beams shadowed first. */
-  private readonly accurate = shadowAccuracyOn();
   setBaked(ids: Set<number>): void {
     this.baked = ids;
     this.pickT = 0;
   }
-  /** (LR15, fixes on) The baked lamps' torch uniforms (`BakedLamps.torchDraw`): the flashlights that get no shadow map
+  /** (LR15) The baked lamps' torch uniforms (`BakedLamps.torchDraw`): the flashlights that get no shadow map
    *  are drawn there with the light field's formula x their beam's cut, not as the pool's Babylon lights. */
   private torchBuf: Float32Array | null = null;
   /** Registry ids in the drawn torch slots (-1: empty). */
   private readonly torchIds = new Int32Array(TORCH_DRAW_SLOTS).fill(-1);
+  private readonly torchKeep = new Uint8Array(TORCH_DRAW_SLOTS);
   setTorchDraw(buf: Float32Array | null): void {
-    this.torchBuf = this.accurate ? buf : null;
+    this.torchBuf = buf;
     this.pickT = 0;
   }
   /** Flashlights drawn by the baked lamps now (tests / debug). */
@@ -129,12 +135,43 @@ export class LightRig {
     for (let k = 0; k < TORCH_DRAW_SLOTS; k++) if (this.torchIds[k]! >= 0) n++;
     return n;
   }
+  /** (LR16t) Registry id per drawn torch slot (-1: empty); `TorchShadows` gives slot k atlas tile k. Read only. */
+  get torchSlotIds(): Int32Array {
+    return this.torchIds;
+  }
+  /** (LR16t) The torch shadow atlas is on (`TorchShadows`): no flashlight gets a Babylon light - the shadow pool holds
+   *  none (its casters capped at 0) and the clustered pool skips them; every torch is drawn by the baked lamps. */
+  private tsOn = false;
+  /** The last `configure` input, before the caps (a `setTorchShadows` change re-applies it). */
+  private cfgIn: LightRigConfig | null = null;
+  setTorchShadows(on: boolean): void {
+    if (on === this.tsOn) return;
+    this.tsOn = on;
+    this.pickT = 0;
+    if (this.cfgIn) this.configure(this.cfgIn);
+  }
+  get torchShadowsOn(): boolean {
+    return this.tsOn;
+  }
+  /** Shadow-mapped spot lights in the pool (tests: 0 while the torch atlas is on). */
+  get shadowSlots(): number {
+    return this.shadowPool.length;
+  }
 
   /** Real lights in use (clustered + shadowed). */
   get active(): number {
     return this.pool.length + this.shadowPool.length;
   }
   private bulbCount = 0;
+  /** (lr16pol E, lr16-5 A5) Per registry id, which meshes draw its colour texel, made at load: `DRAW_BULB` the bulb
+   *  spheres, `DRAW_BOX` the fixture boxes (both read `bulbColors`); its fitting (index into `fittings`, -1 none) and
+   *  instance there; its swinging pendant (index into `reg.sway`, -1 none). `paintFlicker` writes only these. */
+  private drawBits = new Uint8Array(0);
+  private fitOf = new Int32Array(0);
+  private fitK = new Int32Array(0);
+  private swayOf = new Int32Array(0);
+  /** Scratch: per fitting model, a flickering lamp's texel was written this move (re-upload that face only). */
+  private readonly fitDirty = new Uint8Array(MODELS.length);
 
   constructor(
     scene: Scene,
@@ -159,10 +196,16 @@ export class LightRig {
     const fmtx = new Float32Array(n * 16);
     const m = new Matrix();
     let fixtures = 0;
+    this.drawBits = new Uint8Array(n);
+    this.fitOf = new Int32Array(n).fill(-1);
+    this.fitK = new Int32Array(n);
+    this.swayOf = new Int32Array(n).fill(-1);
     for (let i = 0; i < n; i++) {
       const l = reg.lights[i]!;
       // moving lights (enemy flashlights) have no fixed bulb
       if (l.kind === 'flashlight') continue;
+      // (LR16-5b) a swinging pendant's fitting is drawn by `buildSway` (a zero matrix here)
+      if (reg.sway && reg.sway.indexOf(i) >= 0) continue;
       const f = l.fixture;
       // a fitting model (drawn by `buildFittings`) has no bulb and no box
       if (f?.model) continue;
@@ -171,10 +214,12 @@ export class LightRig {
         Matrix.ComposeToRef(new Vector3(f.sx, f.sy, f.sz), Quaternion.Identity(), new Vector3(l.x, l.y + f.oy, l.z), m);
         m.copyToArray(fmtx, i * 16);
         fixtures++;
+        this.drawBits[i] = DRAW_BOX;
         continue;
       }
       Matrix.TranslationToRef(l.x, l.y, l.z, m);
       m.copyToArray(mtx, i * 16);
+      this.drawBits[i] = DRAW_BULB;
     }
     this.bulbCount = n;
     this.bulbColors = new Float32Array(n * 4);
@@ -194,6 +239,99 @@ export class LightRig {
     mesh.freezeWorldMatrix();
     this.bulbs = mesh;
     this.buildFittings(scene, mat);
+    this.buildSway(scene, mat);
+  }
+
+  /** (LR16-5b) The swinging pendants: their fitting boxes (glowing, as `lightFixtures`) and their hangers (the fittings'
+   *  body material), each one thin-instanced box mesh with dynamic matrices. */
+  private swayBodies: Mesh | null = null;
+  private swayLinks: Mesh | null = null;
+  private swayBodyMtx: Float32Array | null = null;
+  private swayLinkMtx: Float32Array | null = null;
+  private swayColors: Float32Array | null = null;
+  private swayV = -1;
+  private readonly swM = new Matrix();
+  private readonly swQ = new Quaternion();
+  private readonly swS = new Vector3();
+  private readonly swP = new Vector3();
+
+  /** (LR16-5b) Load time: the pendants' two meshes (at most 9 bodies, 18 hangers on Marlow Yard). */
+  private buildSway(scene: Scene, faceMat: StandardMaterial): void {
+    const s = this.reg.sway;
+    if (!s || !s.n) return;
+    const bodies = CreateBox('swayFittings', { size: 1 }, scene);
+    bodies.material = faceMat;
+    bodies.isPickable = false;
+    this.swayBodyMtx = new Float32Array(s.n * 16);
+    this.swayColors = new Float32Array(s.n * 4);
+    bodies.thinInstanceSetBuffer('matrix', this.swayBodyMtx, 16, false);
+    bodies.thinInstanceSetBuffer('color', this.swayColors, 4, false);
+    bodies.alwaysSelectAsActiveMesh = true;
+    bodies.freezeWorldMatrix();
+    this.swayBodies = bodies;
+    for (let k = 0; k < s.n; k++) {
+      const id = s.ids[k]!;
+      if (id < this.swayOf.length) this.swayOf[id] = k;
+    }
+    if (s.hangerCount) {
+      const links = CreateBox('swayHangers', { size: 1 }, scene);
+      links.material = this.bodyMaterial(scene);
+      links.isPickable = false;
+      this.swayLinkMtx = new Float32Array(s.hangerCount * 16);
+      links.thinInstanceSetBuffer('matrix', this.swayLinkMtx, 16, false);
+      links.alwaysSelectAsActiveMesh = true;
+      links.freezeWorldMatrix();
+      this.swayLinks = links;
+    }
+    this.drawSway();
+  }
+
+  /** (LR16-5b) The pendants where they hang now: each body at rest + its offset, each hanger from its fixed top to its
+   *  bottom + the offset (the links' maths in `buildFittings`). On a `swayVersion` move only. No allocation. */
+  private drawSway(): void {
+    const s = this.reg.sway;
+    const bm = this.swayBodyMtx;
+    if (!s || !bm || !this.swayBodies) return;
+    this.swayV = this.reg.swayVersion;
+    const ls = this.reg.lights;
+    const m = this.swM;
+    const q = this.swQ;
+    const sc = this.swS;
+    const pos = this.swP;
+    for (let k = 0; k < s.n; k++) {
+      const l = ls[s.ids[k]!]!;
+      const f = l.fixture!;
+      sc.set(f.sx, f.sy, f.sz);
+      q.set(0, 0, 0, 1);
+      pos.set(l.x + l.swx, l.y + f.oy + l.swy, l.z + l.swz);
+      Matrix.ComposeToRef(sc, q, pos, m);
+      m.copyToArray(bm, k * 16);
+    }
+    this.swayBodies.thinInstanceBufferUpdated('matrix');
+    const lm = this.swayLinkMtx;
+    if (!lm || !this.swayLinks) return;
+    const H = s.hangers;
+    for (let j = 0; j < s.hangerCount; j++) {
+      const o = j * HANGER_STRIDE;
+      const k = H[o]!;
+      const ox = s.off[k * 3]!;
+      const oy = s.off[k * 3 + 1]!;
+      const oz = s.off[k * 3 + 2]!;
+      const ax = H[o + 1]!;
+      const az = H[o + 2]!;
+      const ay = H[o + 3]!;
+      const dx = ox;
+      const dy = H[o + 4]! + oy - ay;
+      const dz = oz;
+      const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      // local +z along the hanger: yaw about y, then pitch about x (as the strip wires)
+      Quaternion.RotationYawPitchRollToRef(Math.atan2(dx, dz), -Math.asin(len > 1e-6 ? dy / len : 0), 0, q);
+      sc.set(H[o + 5]!, H[o + 6]!, len);
+      pos.set(ax + dx / 2, ay + dy / 2, az + dz / 2);
+      Matrix.ComposeToRef(sc, q, pos, m);
+      m.copyToArray(lm, j * 16);
+    }
+    this.swayLinks.thinInstanceBufferUpdated('matrix');
   }
 
   /** (warehouse-lamps; the LED family since sector-fixes L) The three fitting models, merged per type and thin-instanced, and every mount's links (strip wires, bulkhead stand-offs) as one box mesh. Load time only. */
@@ -225,6 +363,10 @@ export class LightRig {
       const colors = new Float32Array(ids.length * 4);
       const face = this.meshOf('lampFace-' + model, geo.face, scene, faceMat, mtx);
       face.thinInstanceSetBuffer('color', colors, 4, false);
+      for (let k = 0; k < ids.length; k++) {
+        this.fitOf[ids[k]!] = this.fittings.length;
+        this.fitK[ids[k]!] = k;
+      }
       this.fittings.push({ body, face, ids: Int32Array.from(ids), colors });
     }
     const n = segs.length / 7;
@@ -296,12 +438,12 @@ export class LightRig {
     if (typeof lit.maxSimultaneousLights !== 'number' || lit.disableLighting) return;
     const want = this.materialLights;
     // (shadow audit) the flashlights light a figure or a weapon with the field's falloff, as they light the level
-    const physical = this.accurate && lit.usePhysicalLightFalloff === true;
+    const physical = lit.usePhysicalLightFalloff === true;
     if (lit.maxSimultaneousLights >= want && !physical) return;
     const frozen = m.isFrozen;
     if (frozen) m.unfreeze();
     if (lit.maxSimultaneousLights < want) lit.maxSimultaneousLights = want;
-    gameLightFalloff(lit, this.accurate);
+    gameLightFalloff(lit);
     if (frozen) m.freeze();
   }
 
@@ -332,8 +474,13 @@ export class LightRig {
    * shadow maps take the flashlights and the nearest lamps.
    */
   configure(cfg: LightRigConfig, force = false): void {
+    this.cfgIn = cfg;
     // (baked lamps: the pools only hold the moving lights - flashlights - and at most two of them cast shadows)
     if (this.baked) cfg = { ...cfg, lights: Math.min(cfg.lights, BAKED_POOL), shadow: { ...cfg.shadow, casters: Math.min(cfg.shadow.casters, BAKED_SHADOWS) } };
+    // (LR16t) the torch shadow atlas shadows every torch: no Babylon shadow map (2 samplers less in every lit shader)
+    // (lr16pol E, lr16t check A 6) baked lamps on a map with no torch slot (a bright map: every light is baked, nothing
+    // moves): no shadow map either - the torch atlas is off there (`TorchShadows`), and no spot sampler takes its place
+    if (this.tsOn || (this.baked && !registryHasTorch(this.reg))) cfg = { ...cfg, shadow: { ...cfg.shadow, casters: 0 } };
     // (every shadowed spot is a texture unit in every lit shader, used or idle: the largest one sets the pool)
     if (cfg.micro) cfg = { ...cfg, shadow: { ...cfg.shadow, casters: Math.min(cfg.shadow.casters, MICRO_SHADOWS) } };
     const same = !force && cfg.minimal === this.cfg.minimal && cfg.lights === this.cfg.lights && cfg.shadow.casters === this.cfg.shadow.casters && cfg.shadow.size === this.cfg.shadow.size && cfg.shadow.soft === this.cfg.shadow.soft;
@@ -386,8 +533,16 @@ export class LightRig {
   /** Per render frame: re-pick the nearest lights to the camera a few times a second, and on any change. */
   update(dt: number, cx: number, cy: number, cz: number): void {
     if (!this.bulbs) return;
+    // (LR16-5b) the swinging pendants' fittings and hangers follow their light on the frames it moves
+    if (this.swayV !== this.reg.swayVersion) this.drawSway();
     this.pickT -= dt;
     const changed = this.version !== this.reg.version;
+    // (LR16-5) a flickering lamp's fitting follows its light on the frames it moves (no re-pick); (lr16pol E) only the
+    // flickering lamps' texels are written - a `version` move below repaints every bulb
+    if (this.flickV !== this.reg.flickerVersion) {
+      this.flickV = this.reg.flickerVersion;
+      if (!changed) this.paintFlicker();
+    }
     if (!changed && this.pickT > 0) {
       // moving lights follow every frame between picks
       this.follow(this.pool);
@@ -409,13 +564,12 @@ export class LightRig {
     let sh = 0;
     const taken = this.dist; // (reused as a flag array: 1 = placed)
     for (let i = 0; i < use; i++) taken[i] = 0;
-    // (shadow audit, `torchShadowPass`: with the fixes on, the flashlights whose beam a wall cuts come first)
-    const passes = this.accurate ? 3 : 2;
-    for (let pass = 0; pass < passes && sh < this.shadowPool.length; pass++) {
+    // (shadow audit, `torchShadowPass`: the flashlights whose beam a wall cuts come first)
+    for (let pass = 0; pass < 3 && sh < this.shadowPool.length; pass++) {
       for (let i = 0; i < use && sh < this.shadowPool.length; i++) {
         if (taken[i]) continue;
         const l = this.reg.lights[ids[i]!]!;
-        if (torchShadowPass(l, this.accurate) > pass) continue;
+        if (torchShadowPass(l) > pass) continue;
         if (this.baked?.has(l.id)) continue;
         this.put(this.shadowPool[sh++]!, l);
         taken[i] = 1;
@@ -425,25 +579,48 @@ export class LightRig {
     // (LR15) the flashlights left without a shadow map: drawn by the baked lamps (`writeTorchDraw`), not the pool
     const tb = this.torchBuf;
     if (tb) {
-      let tk = 0;
-      for (let i = 0; i < use && tk < TORCH_DRAW_SLOTS; i++) {
+      // (LR16t) a torch still drawn keeps its slot (its shadow atlas tile stays valid); the rest fill the free slots,
+      // nearest first. Allocation-free: `torchKeep` marks the kept slots.
+      const keep = this.torchKeep;
+      keep.fill(0);
+      for (let i = 0; i < use; i++) {
         if (taken[i]) continue;
         const l = this.reg.lights[ids[i]!]!;
         if (l.kind !== 'flashlight' || this.baked?.has(l.id)) continue;
+        for (let k = 0; k < TORCH_DRAW_SLOTS; k++) {
+          if (this.torchIds[k] !== l.id) continue;
+          keep[k] = 1;
+          taken[i] = 1;
+          writeTorchDraw(tb, k, l);
+          break;
+        }
+      }
+      for (let k = 0; k < TORCH_DRAW_SLOTS; k++) if (!keep[k]) this.torchIds[k] = -1;
+      let tk = 0;
+      for (let i = 0; i < use; i++) {
+        if (taken[i]) continue;
+        const l = this.reg.lights[ids[i]!]!;
+        if (l.kind !== 'flashlight' || this.baked?.has(l.id)) continue;
+        while (tk < TORCH_DRAW_SLOTS && keep[tk]) tk++;
+        if (tk >= TORCH_DRAW_SLOTS) break;
         this.torchIds[tk] = l.id;
+        keep[tk] = 1;
         writeTorchDraw(tb, tk++, l);
         taken[i] = 1;
       }
-      for (; tk < TORCH_DRAW_SLOTS; tk++) {
-        this.torchIds[tk] = -1;
-        writeTorchDraw(tb, tk, null);
+      for (let k = 0; k < TORCH_DRAW_SLOTS; k++) {
+        if (keep[k]) continue;
+        writeTorchDraw(tb, k, null);
       }
     }
     let k = 0;
     const lit = Math.max(1, Math.ceil(this.pool.length * this.litScale));
     for (let i = 0; i < use && k < lit; i++) {
       if (taken[i] || this.baked?.has(ids[i]!)) continue;
-      this.put(this.pool[k++]!, this.reg.lights[ids[i]!]!);
+      const l = this.reg.lights[ids[i]!]!;
+      // (LR16t) with the torch atlas no flashlight is a Babylon light (one torch formula, no hard cone)
+      if (this.tsOn && l.kind === 'flashlight') continue;
+      this.put(this.pool[k++]!, l);
     }
     for (let i = k; i < this.pool.length; i++) this.idle(this.pool[i]!);
   }
@@ -464,6 +641,8 @@ export class LightRig {
       if (s.id < 0) continue;
       const l = this.reg.lights[s.id]!;
       if (l.kind === 'flashlight') this.place(s, l);
+      // (LR16-5) a pooled fire / failing tube follows its live flicker between picks (as `place`)
+      else s.light.intensity = l.intensity * l.flicker * LIGHT_GAIN;
     }
   }
 
@@ -533,20 +712,23 @@ export class LightRig {
 
   private place(s: Slot, l: LightDef): void {
     const sp = s.light;
-    sp.position.set(l.x, l.y, l.z);
+    // (LR16-5b: + a swinging pendant's offset, 0 for every other light)
+    sp.position.set(l.x + l.swx, l.y + l.swy, l.z + l.swz);
     // (3.6: a shadowed light draws its whole radius - its shadow map stops it at the wall, and the falloff stays the
     // light field's; an unshadowed one still ends at the first wall, `reach`)
     sp.range = s.sg ? l.radius : (l.reach ?? l.radius);
-    sp.intensity = l.intensity * LIGHT_GAIN;
+    sp.intensity = l.intensity * l.flicker * LIGHT_GAIN;
     sp.diffuse.set(l.color[0], l.color[1], l.color[2]);
     if (l.cone) {
       sp.direction.set(l.cone.dx, l.cone.dy, l.cone.dz);
+      // (the cut at the meter's cos outer, cos^SPOT_EXP; the lamp plugin swaps Babylon's hard cut for the meter's
+      // feathered `nsLampCone`: `bakedLamps.SPOT_FALLOFF_GLSL`, LR16 fix)
       sp.angle = Math.acos(l.cone.cosOuter) * 2;
-      sp.exponent = 2;
+      sp.exponent = SPOT_EXP;
     } else {
       sp.direction.set(0, -1, 0);
       sp.angle = s.sg ? SHADOW_LAMP_CONE : LAMP_CONE;
-      sp.exponent = 1;
+      sp.exponent = LAMP_EXP;
     }
   }
 
@@ -588,21 +770,80 @@ export class LightRig {
     this.paintBulbs();
   }
 
+  /** (lr16pol E) Light `i`'s colour texel in `bulbColors`: off / shot out 0.08, else x night vision's gain x (LR16-5) the
+   *  live flicker, so a stuttering tube's fitting goes dark with its light. */
+  private bulbTexel(c: Float32Array, i: number): void {
+    const l = this.reg.lights[i]!;
+    const k = l.on && !l.destroyed ? Math.max(0.08, (1 + (NV_BULB - 1) * this.vision) * l.flicker) : 0.08;
+    c[i * 4] = l.color[0] * k;
+    c[i * 4 + 1] = l.color[1] * k;
+    c[i * 4 + 2] = l.color[2] * k;
+    c[i * 4 + 3] = 1;
+  }
+
+  /** (lr16pol E) `flickering.length` at the last paint: a light leaving the list (`setFlicker` NONE, load time) is back
+   *  at 1 but no longer listed, so a length change repaints every bulb. */
+  private flickLen = -1;
+
+  /**
+   * (lr16pol E, lr16-5 A5) A `flickerVersion`-only move: the flickering lamps' texels only (`LightRegistry.flickering`,
+   * as `BakedLamps.writeFlicker`), copied to their fitting / pendant instance; only the meshes holding one re-upload.
+   * Indexed loops, no allocation. Every other change (`version`, night vision) takes `paintBulbs`.
+   */
+  private paintFlicker(): void {
+    const c = this.bulbColors;
+    if (!c || !this.bulbs) return;
+    const ids = this.reg.flickering;
+    if (ids.length !== this.flickLen) {
+      this.paintBulbs();
+      return;
+    }
+    const fd = this.fitDirty;
+    fd.fill(0);
+    let draw = 0;
+    let sway = false;
+    const sc = this.swayColors;
+    for (let k = 0; k < ids.length; k++) {
+      const i = ids[k]!;
+      if (i >= this.bulbCount) continue;
+      this.bulbTexel(c, i);
+      draw |= this.drawBits[i]!;
+      const f = this.fitOf[i]!;
+      if (f >= 0) {
+        const fc = this.fittings[f]!.colors;
+        const o = this.fitK[i]! * 4;
+        fc[o] = c[i * 4]!;
+        fc[o + 1] = c[i * 4 + 1]!;
+        fc[o + 2] = c[i * 4 + 2]!;
+        fc[o + 3] = 1;
+        fd[f] = 1;
+      }
+      const s = this.swayOf[i]!;
+      if (s >= 0 && sc) {
+        sc[s * 4] = c[i * 4]!;
+        sc[s * 4 + 1] = c[i * 4 + 1]!;
+        sc[s * 4 + 2] = c[i * 4 + 2]!;
+        sc[s * 4 + 3] = 1;
+        sway = true;
+      }
+    }
+    if (draw & DRAW_BULB) this.bulbs.thinInstanceBufferUpdated('color');
+    if (draw & DRAW_BOX) this.fixtures?.thinInstanceBufferUpdated('color');
+    const fs = this.fittings;
+    for (let f = 0; f < fs.length; f++) if (fd[f]) fs[f]!.face.thinInstanceBufferUpdated('color');
+    if (sway) this.swayBodies?.thinInstanceBufferUpdated('color');
+  }
+
   private paintBulbs(): void {
     const c = this.bulbColors;
     if (!c || !this.bulbs) return;
-    const bulbNv = 1 + (NV_BULB - 1) * this.vision;
-    for (let i = 0; i < this.bulbCount; i++) {
-      const l = this.reg.lights[i]!;
-      const k = l.on && !l.destroyed ? bulbNv : 0.08;
-      c[i * 4] = l.color[0] * k;
-      c[i * 4 + 1] = l.color[1] * k;
-      c[i * 4 + 2] = l.color[2] * k;
-      c[i * 4 + 3] = 1;
-    }
+    this.flickLen = this.reg.flickering.length;
+    for (let i = 0; i < this.bulbCount; i++) this.bulbTexel(c, i);
     this.bulbs.thinInstanceBufferUpdated('color');
     this.fixtures?.thinInstanceBufferUpdated('color');
-    for (const fd of this.fittings) {
+    const fs = this.fittings;
+    for (let f = 0; f < fs.length; f++) {
+      const fd = fs[f]!;
       const fc = fd.colors;
       for (let k = 0; k < fd.ids.length; k++) {
         const i = fd.ids[k]!;
@@ -612,6 +853,19 @@ export class LightRig {
         fc[k * 4 + 3] = 1;
       }
       fd.face.thinInstanceBufferUpdated('color');
+    }
+    // (LR16-5b) the swinging pendants' fittings: dark with their light, as the static ones
+    const sc = this.swayColors;
+    const sw = this.reg.sway;
+    if (sc && sw && this.swayBodies) {
+      for (let k = 0; k < sw.n; k++) {
+        const i = sw.ids[k]!;
+        sc[k * 4] = c[i * 4]!;
+        sc[k * 4 + 1] = c[i * 4 + 1]!;
+        sc[k * 4 + 2] = c[i * 4 + 2]!;
+        sc[k * 4 + 3] = 1;
+      }
+      this.swayBodies.thinInstanceBufferUpdated('color');
     }
   }
 
@@ -628,6 +882,10 @@ export class LightRig {
     this.fittings = [];
     this.links?.dispose();
     this.links = null;
+    this.swayBodies?.dispose();
+    this.swayBodies = null;
+    this.swayLinks?.dispose();
+    this.swayLinks = null;
     this.bodyMat?.dispose();
     this.bodyMat = null;
     this.bulbs = null;

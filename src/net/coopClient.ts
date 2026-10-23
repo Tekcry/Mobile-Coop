@@ -6,7 +6,8 @@ import type { BlobShadows } from '../vfx/blobShadows';
 import { Ragdoll } from '../ai/ragdoll';
 import { BUDGET, G } from '../physics/groups';
 import { TorchMirror } from './torchMirror';
-import { LAMP_TARGET, LampMirror } from './lampSync';
+import { LAMP_TARGET, LampMirror, SWAY_TARGET } from './lampSync';
+import { SWAY } from '../world/lampSway';
 import { lampReachProbe, lightOnRay, type LightDef } from '../world/lights';
 import { BODY } from '../ai/bodies';
 import type { HitInfo } from '../game/damage';
@@ -188,6 +189,18 @@ export class CoopClient implements NetAttachment {
         this.card = null;
         this.onRating = null;
       });
+    }
+    // (39, LR16-5b) Marlow Yard's swinging pendants: our round past one asks the host to kick it (no local kick: the
+    // host's `sway` event swings it on both pages alike)
+    const sway = g.world.level.lights.sway;
+    if (sway) {
+      this.swaySent = new Float64Array(sway.n).fill(-Infinity);
+      const prevRay = g.weapons.onRay;
+      g.weapons.onRay = (a, b) => {
+        prevRay?.(a, b);
+        this.swayRay(a, b);
+      };
+      this.offs.push(() => (g.weapons.onRay = null));
     }
     g.explosions.onLocalBlast = (p) => {
       this.lastBlast = { p: p.clone(), t: this.time };
@@ -588,6 +601,13 @@ export class CoopClient implements NetAttachment {
     return this.selfSpotted;
   }
 
+  /** (LR16-5) The shared sim clock: the host's time from the snapshots (`ClockSync`; before the first one the local
+   *  clock). Moving lights run on it. (lr16pol E) The client trails the host by its one-way latency, as every host
+   *  state; snapping to the step (`tickFlicker`, `tickSway`) absorbs jitter only. */
+  simTime(): number {
+    return this.clock.now(performance.now() / 1000);
+  }
+
   /** (coop-walk-fixes P6) A partner (the host or another client) holds guard `v` as a hostage: his puppet is posed from
    *  that partner's `grab` MoveState (`remoteHeld`). The team takedown on him is on offer here. */
   partnerHolds(v: TakedownVictim): boolean {
@@ -631,6 +651,27 @@ export class CoopClient implements NetAttachment {
     const dz = b.z - a.z;
     const len = hyp3(dx, dy, dz) || 1;
     this.s.toHost({ t: 'shot', w: this.g.weapons.current.def.id, ox: a.x, oy: a.y, oz: a.z, dx: dx / len, dy: dy / len, dz: dz / len, target: LAMP_TARGET + id, part: 'body', rt: Math.max(0, this.renderTime), dist: len, dmg: 0 });
+  }
+
+  /** (39, LR16-5b) Per pendant: when we last asked the host to kick it (this page's clock; `SWAY.minGap` apart). */
+  private swaySent: Float64Array | null = null;
+
+  /** (39, LR16-5b) Our round's segment: each pendant it would kick (`SwaySet.shotKicks`, where it hangs here) goes to the
+   *  host as a `shot` at `sw-<id>`; the host re-tests the claimed segment and sends the kick to everyone. */
+  private swayRay(a: Vector3, b: Vector3): void {
+    const sway = this.g.world.level.lights.sway;
+    const sent = this.swaySent;
+    if (!sway || !sent) return;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const dz = b.z - a.z;
+    const len = hyp3(dx, dy, dz);
+    if (len < 1e-3) return;
+    for (let k = 0; k < sway.n; k++) {
+      if (this.time - sent[k]! < SWAY.minGap || !sway.shotKicks(k, a.x, a.y, a.z, b.x, b.y, b.z)) continue;
+      sent[k] = this.time;
+      this.s.toHost({ t: 'shot', w: this.g.weapons.current.def.id, ox: a.x, oy: a.y, oz: a.z, dx: dx / len, dy: dy / len, dz: dz / len, target: SWAY_TARGET + sway.ids[k]!, part: 'body', rt: Math.max(0, this.renderTime), dist: len, dmg: 0 });
+    }
   }
 
   private sendShot(target: string, h: HitInfo): void {
@@ -834,6 +875,10 @@ export class CoopClient implements NetAttachment {
       }
       case 'gadget':
         if (e.player !== me) g.gadgets.remoteEffect(e.kind, new Vector3(e.x, e.y, e.z));
+        break;
+      case 'sway':
+        // (39, LR16-5b) the host's pendant kick, verbatim: both pages then swing it alike on the shared clock
+        g.world.level.lights.swayImpulse(e.id, e.t, e.a, e.h);
         break;
       case 'ping':
         if (e.player !== me) g.addPing(e.player, e.x, e.y, e.z, e.target, this.s.players.get(e.player)?.tag.color ?? '#4fdc7c');

@@ -1,43 +1,28 @@
 /**
- * (sector-redesign shadow audit, Michael 2026-10-23 ~14:45; PROTOTYPE, default off) The shadow-accuracy fixes ride the
- * LR13 toggle: on when the baked lamps run the photometric falloff (`lampMath.lampFalloffMode`), unless a test or the
- * boot code sets it explicitly. Read once when a light field, the baked lamps or the light rig is built (like the falloff
- * mode): set it before a map builds. Findings and numbers: `docs/sector-redesign/checks/shadow-audit.md`.
+ * (sector-redesign shadow audit, Michael 2026-10-23 ~14:45) The shadow-accuracy fixes. They rode the LR13 Realistic
+ * toggle; since LR16a (one light model, Michael ~18:12) they are always on and the old paths are gone. Findings and
+ * numbers: `docs/sector-redesign/checks/shadow-audit.md`.
  *
- * What it switches (light parity, bible 5.1: the picture, the meter and guard perception agree):
+ * What they do (light parity, bible 5.1: the picture, the meter and guard perception agree):
  * - the ambient fill is read trilinearly by the light field, as the shaders' bilinear `lampAmb` texture reads it
- *   (`LightField`; today the field takes the nearest 1 m cell);
+ *   (`LightField`; before the audit it took the nearest 1 m cell);
  * - each baked lamp's door list skips the doors whose leaf the lamp cannot see (`lampDoorLists` with a bake sampler), so
- *   the `DOORS_PER_LAMP` slots go to the doors that can cut its light (field and shaders build the one list);
+ *   the door slots go to the doors that can cut its light (field and shaders build the one list);
  * - the game's PBR materials (the operator figures, weapons) take the flashlights with the game's range falloff and
  *   cosine cone (`gameLightFalloff`), not Babylon's inverse square and Gaussian cone, which ignore the range;
  * - the light rig gives its shadow maps to the flashlights whose beam a wall cuts first (`torchShadowOrder`);
  * - a body's light for the guards (`EnemyManager`) tests the flashlights against static geometry, as the player's does;
- * - (LR15) each baked lamp tests 8 doors, not 4 (`lightField.lampDoorSlots`: a second door texel in the shaders);
+ * - (LR15) each baked lamp tests 8 doors, not 4 (`lightField.DOORS_PER_LAMP_ACCURATE`: a second door texel in the shaders);
  * - (LR15) the flashlights without a shadow map are drawn by the baked lamps' shader with the light field's own formula
  *   (`lampMath.lampTerm`: linear falloff over the torch's radius, cos^2 cone) x a cut at the beam's reach
  *   (`torchDrawTerm`), not as Babylon lights whose range is the reach (the beam dimmed towards the wall it lands on).
+ * - (LR16t) with the torch shadow atlas on (`torchShadows.ts`, every tier on WebGL2) every guard torch is drawn here with
+ *   its own shadow map and an exact shut-door test instead of the reach cut (`TORCH_DRAW_GLSL` under `LAMP_TSHADOW`);
+ *   no torch is a Babylon light then. Parity notes: `torchShadowSet.ts`.
  */
-import { LAMP_CONE_COS, LAMP_EXP, lampFalloffMode, lampTerm, LIGHT_GAIN, SPOT_EXP, type LampFalloff } from './lampMath';
+import { LAMP_CONE_COS, LAMP_EXP, lampTerm, LIGHT_GAIN, SPOT_EXP } from './lampMath';
 import { hyp3 } from '../core/mathx';
-
-let override: boolean | null = null;
-
-/** Force the fixes on or off (`null`: follow the LR13 falloff toggle). Tests and the boot code. */
-export function setShadowAccuracy(on: boolean | null): void {
-  override = on;
-}
-
-/** The match's switch from its resolved falloff (`lampMath.matchLampFalloff`: host, URL, setting): on exactly in
- *  Realistic. `GameState.create` sets it with `setLampFalloff`, before the map builds; never mid-match. */
-export function matchShadowAccuracy(mode: LampFalloff): boolean {
-  return mode === 'photometric';
-}
-
-/** Are the shadow-accuracy fixes on? */
-export function shadowAccuracyOn(): boolean {
-  return override ?? lampFalloffMode() === 'photometric';
-}
+import { TORCH_SHADOW_GLSL } from './torchShadowSet';
 
 /** A material as `gameLightFalloff` reads it (Babylon's PBR materials have the flag; standard materials do not). */
 export interface FalloffMaterial {
@@ -50,8 +35,8 @@ export interface FalloffMaterial {
  * ignore the range (so the beam-reach cut never applied to them). True when it changed the material (the caller
  * unfreezes it). Level, voxel, prop and door materials already set it; the operator figures and weapons did not.
  */
-export function gameLightFalloff(m: FalloffMaterial, on = shadowAccuracyOn()): boolean {
-  if (!on || m.usePhysicalLightFalloff !== true) return false;
+export function gameLightFalloff(m: FalloffMaterial): boolean {
+  if (m.usePhysicalLightFalloff !== true) return false;
   m.usePhysicalLightFalloff = false;
   return true;
 }
@@ -65,13 +50,12 @@ export interface PoolLight {
 
 /**
  * Which pass of the light rig's shadow-map pick a moving light belongs to (lower first, nearest first within a pass).
- * Today: flashlights (0), then the rest (1). With the fixes on: flashlights whose beam a wall cuts short (`reach` under
+ * Flashlights whose beam a wall cuts short (`reach` under
  * the radius: only a shadow map stops their light at the wall without shortening the falloff) (0), the other
  * flashlights (1), the rest (2). An unshadowed light keeps its range at `reach`.
  */
-export function torchShadowPass(l: PoolLight, on = shadowAccuracyOn()): number {
-  if (l.kind !== 'flashlight') return on ? 2 : 1;
-  if (!on) return 0;
+export function torchShadowPass(l: PoolLight): number {
+  if (l.kind !== 'flashlight') return 2;
   return l.reach !== undefined && l.reach < l.radius - 0.01 ? 0 : 1;
 }
 
@@ -97,9 +81,10 @@ export function rayOccluder(hit: StaticHit): (l: { x: number; y: number; z: numb
 
 /** (LR15) Flashlights the baked lamps' shader can draw itself (`torches.FLASHLIGHTS`). */
 export const TORCH_DRAW_SLOTS = 4;
-/** Floats per drawn torch (three vec4): position + cut (the beam's reach; 0: slot empty), axis + cos cut, colour x
- *  intensity x `LIGHT_GAIN` + radius. */
-export const TORCH_DRAW_STRIDE = 12;
+/** Floats per drawn torch (four vec4): position + cut (the beam's reach; 0: slot empty), axis + cos cut, colour x
+ *  intensity x `LIGHT_GAIN` + radius, (LR16t) the shut doors the torch tests (ids + 1, 0: none; `TorchShadows` writes
+ *  them, `writeTorchDraw` leaves them on a write and clears them with the slot). */
+export const TORCH_DRAW_STRIDE = 16;
 /** The cut ramps to 0 over this much (m) before the reach: past the wall the beam lands on (`beamReach` adds 0.4 m). */
 export const TORCH_CUT_SOFT = 0.2;
 
@@ -126,19 +111,22 @@ export function torchCut(d: number, cut: number): number {
 /**
  * A drawn torch's light at a point, without colour and N.L: the light field's per-torch term (`lampMath.lampTerm` over
  * the torch's radius, as `LightField.dynamicInto` sums it) x the cut at its beam's reach. What `TORCH_DRAW_GLSL` draws.
- * Allocation-free.
+ * (LR16t) `cut` false: the atlas path (`LAMP_TSHADOW`) - no reach cut; its shadow map and door test stop the light
+ * (shadow and doors are not in this term). Allocation-free.
  */
-export function torchDrawTerm(l: DrawTorch, x: number, y: number, z: number): number {
+export function torchDrawTerm(l: DrawTorch, x: number, y: number, z: number, cut = true): number {
   const c = l.cone;
   const vx = x - l.x;
   const vy = y - l.y;
   const vz = z - l.z;
   const t = lampTerm(vx, vy, vz, l.radius, c ? c.dx : 0, c ? c.dy : -1, c ? c.dz : 0, c ? c.cosOuter : LAMP_CONE_COS, c ? SPOT_EXP : LAMP_EXP);
   if (t <= 0) return 0;
+  if (!cut) return t;
   return t * torchCut(hyp3(vx, vy, vz), Math.min(l.reach ?? l.radius, l.radius));
 }
 
-/** Write torch slot `slot` of the shader's torch uniforms (`null`, off or shot out: the slot empty). Allocation-free. */
+/** Write torch slot `slot` of the shader's torch uniforms (`null`, off or shot out: the slot empty, its door ids
+ *  included; a torch: the first three vec4, the door vec4 is left to `TorchShadows`). Allocation-free. */
 export function writeTorchDraw(out: Float32Array, slot: number, l: (DrawTorch & { on?: boolean; destroyed?: boolean }) | null): void {
   const o = slot * TORCH_DRAW_STRIDE;
   if (!l || l.on === false || l.destroyed) {
@@ -161,30 +149,62 @@ export function writeTorchDraw(out: Float32Array, slot: number, l: (DrawTorch & 
   out[o + 11] = l.radius;
 }
 
+/** vec4 per drawn torch in the shader's `lampTorch` array. */
+const TV = TORCH_DRAW_STRIDE / 4;
+
 /**
- * `torchDrawTerm` in GLSL x colour x N.L, summed over the slots (uniform `lampTorch`, three vec4 a slot). The torch's
- * falloff is the linear `lampTerm` in either LR13 mode (the photometric falloff is the baked lamps' only), its cone
- * cos^2 cut at the outer angle (flashlights are cone lights: `SPOT_EXP`; a cone-less light is never drawn here).
+ * `torchDrawTerm` in GLSL x colour x N.L, summed over the slots (uniform `lampTorch`, four vec4 a slot). The torch's
+ * falloff is the linear `lampTerm` (the photometric falloff is the baked lamps' only), its cone `nsLampCone`
+ * (`lampMath.LAMP_MATH_GLSL`, defined before this in the lamp shader): cos^2 with the feathered edge (LR16b,
+ * `SPOT_FEATHER`: soft beam edges, Michael 2026-10-23 ~18:20), 0 at the outer angle (flashlights are cone lights:
+ * `SPOT_EXP`; a cone-less light is never drawn here). (p: the point, n: the shading normal, gn: the geometric normal.)
+ * (LR16t) `LAMP_TSHADOW` (the torch shadow atlas): x the slot's shadow map (`nsTorchShadow`, soft with distance, sharp
+ * at contact) and 0 behind one of its shut doors (`nsTorchDoors`: the light field's door test); no reach cut. Else
+ * (WebGL1 / no float target: the fallback) today's reach cut.
  */
-export const TORCH_DRAW_GLSL = `
-vec3 nsTorches(vec3 p, vec3 n) {
+export const TORCH_DRAW_GLSL = `${TORCH_SHADOW_GLSL}
+#ifdef LAMP_TSHADOW
+vec3 nsTorches(vec3 p, vec3 n, vec3 gn) {
   vec3 s = vec3(0.0);
   for (int c = 0; c < ${TORCH_DRAW_SLOTS}; c++) {
-    vec4 ta = lampTorch[c * 3];
+    vec4 ta = lampTorch[c * ${TV}];
     if (ta.w <= 0.0) continue;
-    vec4 tc = lampTorch[c * 3 + 2];
+    vec4 tc = lampTorch[c * ${TV} + 2];
+    vec3 L = ta.xyz - p;
+    float d = length(L);
+    if (d >= tc.w) continue;
+    L /= max(d, 1e-4);
+    vec4 tb = lampTorch[c * ${TV} + 1];
+    float ca = d < 1e-4 ? 1.0 : dot(-L, tb.xyz);
+    if (ca <= tb.w) continue;
+    float ndl = dot(n, L);
+    if (ndl <= 0.0) continue;
+    if (nsTorchDoors(ta.xyz, p, lampTorch[c * ${TV} + 3])) continue;
+    float sh = nsTorchShadow(c, p, gn, ta.xyz);
+    if (sh <= 0.0) continue;
+    s += tc.rgb * ((1.0 - d / tc.w) * nsLampCone(ca, tb.w, ${SPOT_EXP.toFixed(1)}) * sh * ndl);
+  }
+  return s;
+}
+#else
+vec3 nsTorches(vec3 p, vec3 n, vec3 gn) {
+  vec3 s = vec3(0.0);
+  for (int c = 0; c < ${TORCH_DRAW_SLOTS}; c++) {
+    vec4 ta = lampTorch[c * ${TV}];
+    if (ta.w <= 0.0) continue;
+    vec4 tc = lampTorch[c * ${TV} + 2];
     vec3 L = ta.xyz - p;
     float d = length(L);
     if (d >= ta.w || d >= tc.w) continue;
     L /= max(d, 1e-4);
-    vec4 tb = lampTorch[c * 3 + 1];
+    vec4 tb = lampTorch[c * ${TV} + 1];
     float ca = d < 1e-4 ? 1.0 : dot(-L, tb.xyz);
-    if (ca < tb.w) continue;
+    if (ca <= tb.w) continue;
     float ndl = dot(n, L);
     if (ndl <= 0.0) continue;
-    ca = max(ca, 1e-4);
-    s += tc.rgb * ((1.0 - d / tc.w) * ca * ca * min(1.0, (ta.w - d) / ${TORCH_CUT_SOFT.toFixed(2)}) * ndl);
+    s += tc.rgb * ((1.0 - d / tc.w) * nsLampCone(ca, tb.w, ${SPOT_EXP.toFixed(1)}) * min(1.0, (ta.w - d) / ${TORCH_CUT_SOFT.toFixed(2)}) * ndl);
   }
   return s;
 }
+#endif
 `;

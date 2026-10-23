@@ -78,24 +78,24 @@ describe('electro devices (step 14, A53)', () => {
   });
 });
 
-describe('goggle flip (F1b, gog-1)', () => {
-  it('plays only for turning on / off, never between modes', () => {
+describe('instant vision cut (G100)', () => {
+  it('every change shows the chosen mode at once: no flip, no timer', () => {
     const v = new VisionState();
-    expect(Number.isNaN(v.flipCentre)).toBe(true);
+    expect('flipT' in v).toBe(false);
     v.toggle();
-    expect(v.flipT).toBe(0);
-    expect(v.flipCentre).toBeCloseTo(0.5);
-    v.stepFlip(0.1);
-    expect(v.flipCentre).toBeLessThan(0.5); // on: the band sweeps down
-    v.stepFlip(1);
-    expect(v.flipT).toBe(-1);
+    expect(v.shown).toBe(v.mode);
+    expect(v.change).toBe('on');
     v.select('thermal'); // a switch between modes
     expect(v.change).toBe('switch');
-    expect(v.flipT).toBe(-1);
-    expect(Number.isNaN(v.flipCentre)).toBe(true);
+    expect(v.shown).toBe('thermal');
+    expect(v.kind).toBe(1);
     v.toggle();
     expect(v.change).toBe('off');
-    v.stepFlip(0.1);
-    expect(v.flipCentre).toBeGreaterThan(0.5); // off: up
+    expect(v.shown).toBe('off');
+  });
+
+  it('cycles in CT order: thermal, electro, night, off', () => {
+    const v = new VisionState();
+    expect([v.cycle(), v.cycle(), v.cycle(), v.cycle()]).toEqual(['thermal', 'electro', 'night', 'off']);
   });
 });

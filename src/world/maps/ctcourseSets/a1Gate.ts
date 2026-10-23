@@ -168,7 +168,7 @@ export function buildA1Gate(b: LevelBuilder, kit: FacilityKit): SetPart {
     b.mark(from, { noLedge: true });
   });
   tally(b, p.register, 'A1-10', 'Lounge warm cove slots, group 10 (the instructors\' house circuit, no switch)', () => {
-    for (const [x, z] of [[1.5, 9.5], [4.5, 9.5], [1.5, 12.5], [4.5, 12.5]] as const) kit.ledSlot(x, 3.2, z, 2.4, 0, { tone: 'warm', light: { radius: 4.6, intensity: 0.4, group: 10 } });
+    for (const [x, z] of [[1.5, 9.5], [4.5, 9.5], [1.5, 12.5], [4.5, 12.5]] as const) kit.ledSlot(x, 3.2, z, 2.4, 0, { tone: 'warm', light: { radius: 4.6, intensity: 0.12, group: 10 } });
   });
 
   // ---- A1-4: the gate checker's cabin: every piece noLedge (inside the 4.7 m keep-clear of the wall's lip) ----
@@ -195,11 +195,11 @@ export function buildA1Gate(b: LevelBuilder, kit: FacilityKit): SetPart {
 
   // ---- A1-5 / A1-6: the lights (LIGHTING-PLAN 3, A1; the circuits are `MARLOW_CIRCUITS` 11-13) ----
   tally(b, p.register, 'A1-5', 'Apron security light, group 11 (photocell, no switch): sodium flood on the cabin\'s south-east corner, aimed south along the wall', () => {
-    b.light({ kind: 'spot', x: 10.25, y: 2.8, z: 14.75, radius: 13, intensity: 1.5, color: SODIUM, cone: makeCone(0.05, -0.3, -1, 0.85), group: 11, electric: true, destructible: true, fixture: { sx: 0.4, sy: 0.16, sz: 0.3, oy: 0.06 } });
+    b.light({ kind: 'spot', x: 10.25, y: 2.8, z: 14.75, radius: 13, intensity: 3.5, color: SODIUM, cone: makeCone(0.05, -0.3, -1, 0.85), group: 11, electric: true, destructible: true, fixture: { sx: 0.4, sy: 0.16, sz: 0.3, oy: 0.06 } });
   });
   tally(b, p.register, 'A1-6', 'Yard lamps group 12 (switch in the cabin by its door) and the cabin panel group 13 (switch by the door)', () => {
     for (const z of [5, 11, 17]) b.light({ x: A1_WALL.far + 0.25, y: 3.6, z, radius: 9, intensity: 1.25, color: SODIUM, group: 12, electric: true, destructible: true, fixture: { sx: 0.2, sy: 0.16, sz: 0.34, oy: 0.06 } });
-    b.light({ x: 8.5, y: 2.45, z: 16.5, radius: 3.2, intensity: 0.6, color: PANEL_WHITE, group: 13, electric: true, destructible: true, fixture: { sx: 0.6, sy: 0.05, sz: 0.6, oy: 0.025 } });
+    b.light({ x: 8.5, y: 2.45, z: 16.5, radius: 3.2, intensity: 0.065, color: PANEL_WHITE, group: 13, electric: true, destructible: true, fixture: { sx: 0.6, sy: 0.05, sz: 0.6, oy: 0.025 } });
   });
   p.register.push({ id: 'A1-7', element: 'Striped leg-up mark (paint, no collision): A1-1\'s helper spot' });
   p.groups['a1-lounge'] = 10;

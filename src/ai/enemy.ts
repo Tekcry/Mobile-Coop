@@ -36,7 +36,7 @@ import { SEPARATION, steerFrom, stepApart, tooClose, type SepOut } from './separ
 import { BODY, bodyNoticed } from './bodies';
 import type { Body } from './body';
 import { alarmStandPoint, raiseTime, type AlarmPanel } from './alarm';
-import type { LightDef } from '../world/lights';
+import type { LightDef, Occluder } from '../world/lights';
 import type { LightField } from '../world/lightField';
 import { ARCHETYPE, carriesTorch, glint, heavyMult, shieldBlocks, smellRate, sniperRelocate, torchRule, type DifficultyDef } from './archetypes';
 import { placeTorch } from '../world/torches';
@@ -173,6 +173,9 @@ export interface AiContext {
   /** Stealth rules: enemies only know where the target is from what they see and hear (else they are
    *  sent at it, as in Wave). */
   stealth(): boolean;
+  /** (LR16t) Static geometry for the light field's flashlights (`EnemyManager.bodyOccluder`): the light on a target
+   *  without its own sample is tested as a body's is, so a torch behind a wall does not light it. */
+  lightOccluder?: Occluder;
   /** (guard-ai S2) Coordinated guards (the incident board): the new paces (A9) and the calm turn when searching.
    *  Absent / false (Hunter, Mission): the old paces. */
   coordinated?(): boolean;
@@ -219,6 +222,12 @@ export interface AiContext {
 }
 
 let nextId = 1;
+/** (LR16t) The light field at a point for a guard's perception, its flashlights tested with the context's occluder
+ *  (`AiContext.lightOccluder`), as a body's light is. */
+export function fieldLight(ctx: Pick<AiContext, 'world' | 'lightOccluder'>, x: number, y: number, z: number): number {
+  return ctx.world.lightField.totalAt(x, y, z, ctx.lightOccluder);
+}
+
 /** The paces table lives in `response.ts` (pure; guard-ai S19 added the rush), re-exported here for its readers. */
 export { PACE };
 const PATROL_PACE = PACE.patrol;
@@ -2149,7 +2158,7 @@ export class Enemy implements Damageable {
       const los = chest || head;
       const expo = alerted ? (los ? 1 : 0) : seen / (t.headPoint ? 3 : 2);
       // light on him (perception reads it): the owner's sample, else the light field at the aim point
-      const light = p.light ?? this.ctx.world.lightField.totalAt(this.tmp.x, this.tmp.y, this.tmp.z);
+      const light = p.light ?? fieldLight(this.ctx, this.tmp.x, this.tmp.y, this.tmp.z);
       // awareness: sight fill rate from distance, field of view, light, stance, motion and exposure
       const si = P_SIGHT;
       si.dist = d;
@@ -2201,7 +2210,7 @@ export class Enemy implements Damageable {
       this.sawOnce = true;
     }
     let light = P_LIGHT[k]!;
-    if (Number.isNaN(light)) light = best.light ?? this.ctx.world.lightField.totalAt(this.tmp.x, this.tmp.y, this.tmp.z);
+    if (Number.isNaN(light)) light = best.light ?? fieldLight(this.ctx, this.tmp.x, this.tmp.y, this.tmp.z);
     this.targetLight = light;
     const si = this.sight;
     si.dist = this.dist;

@@ -233,16 +233,15 @@ describe('rejoin record (R1)', () => {
     clearRejoin();
     expect(loadRejoin()).toBeNull();
   });
-  it('(lrpolish) keeps the match lamp falloff through the tab storage; an older record or junk reads as none', () => {
+  it('(LR16a) a record from before it with the lamp falloff `lf` still parses; the field is dropped', () => {
     const m = new Map<string, string>();
     vi.stubGlobal('sessionStorage', { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) });
     try {
-      saveRejoin({ ...rec(Date.now()), role: 'host', lf: 'photometric' });
-      expect(loadRejoin()?.lf).toBe('photometric');
-      saveRejoin(rec(Date.now()));
-      expect(loadRejoin()?.lf).toBeUndefined();
-      m.set('ns-rejoin', JSON.stringify({ ...rec(Date.now()), lf: 'bogus' }));
-      expect(loadRejoin()?.lf).toBeUndefined();
+      m.set('ns-rejoin', JSON.stringify({ ...rec(Date.now()), role: 'host', lf: 'photometric' }));
+      const r = loadRejoin();
+      expect(r).not.toBeNull();
+      expect(r!.code).toBe(rec(Date.now()).code);
+      expect('lf' in r!).toBe(false);
       clearRejoin();
     } finally {
       vi.unstubAllGlobals();

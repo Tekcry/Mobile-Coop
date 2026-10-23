@@ -28,6 +28,7 @@ import {
 import { G, glassMembership, markArmoured } from '../physics/groups';
 import { LevelMaterialPlugin } from './levelMaterialPlugin';
 import { markLampLevel } from './bakedLamps';
+import { levelIsPbr, levelPbrMaterial } from './levelLitMaterial';
 import { buildCoverSegments, coverPointsFromSegments, coverStandoff, type CoverSegment } from '../cover/coverData';
 import { findSplitGaps } from '../player/splitJump';
 import { MOVEMENT } from '../config/movement';
@@ -450,12 +451,23 @@ export class LevelBuilder {
     }
     tex.hasAlpha = true;
     tex.update();
-    const mat = new StandardMaterial(`fenceMat-${name}`, scene);
-    mat.diffuseTexture = tex;
-    mat.useAlphaFromDiffuseTexture = true;
+    // (lr16pol B) PBR where the level is (its material is made before the fences): the guard torches light the wire
+    // as the floor beside it (`levelLitMaterial.ts`); the standard path keeps the standard material
+    let mat: StandardMaterial | PBRMaterial;
+    if (levelIsPbr(scene)) {
+      const pm = levelPbrMaterial(`fenceMat-${name}`, scene, Color3.White());
+      pm.albedoTexture = tex;
+      pm.useAlphaFromAlbedoTexture = true;
+      mat = pm;
+    } else {
+      const sm = new StandardMaterial(`fenceMat-${name}`, scene);
+      sm.diffuseTexture = tex;
+      sm.useAlphaFromDiffuseTexture = true;
+      sm.specularColor = Color3.Black();
+      mat = sm;
+    }
     mat.transparencyMode = 1;
     mat.backFaceCulling = false;
-    mat.specularColor = Color3.Black();
     mat.freeze();
     for (const f of this.anchors.fences) {
       const yaw = Math.atan2(f.tx, f.tz);

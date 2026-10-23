@@ -1,5 +1,7 @@
 import { hyp3 } from '../core/mathx';
-import { LAMP_CONE_COS, LAMP_EXP, LAMP_LEVEL_GAIN, lampReach, lampTerm, SPOT_EXP } from './lampMath';
+import { FLICKER_FIRE, FLICKER_NONE, FLICKER_OUT, FLICKER_STEP_HZ, FLICKER_T, flickerAt, lampSeed } from './lampFlicker';
+import { LAMP_CONE_COS, LAMP_EXP, LAMP_LEVEL_GAIN, lampReach, lampTerm, photoTerm, SPOT_EXP } from './lampMath';
+import type { SwaySet } from './lampSway';
 /**
  * Light model (pure: no Babylon/DOM), unit-tested.
  *
@@ -46,6 +48,17 @@ export interface LightDef {
   fixture: LightFixture | null;
   /** Rendering only: how far the beam reaches before geometry stops it (a flashlight on a wall); unset = radius. */
   reach?: number;
+  /** (LR16-5) The live flicker multiplier (a fire's flicker, a failing tube's stutter; `lampFlicker.ts`): 1 steady. The
+   *  light field, the baked lamps' data texture and the fixture glow all scale the lamp by it (light parity). Written by
+   *  `LightRegistry.tickFlicker` only; never bumps `version` (the bounce and the caches must not re-sum every frame). */
+  flicker: number;
+  /** (LR16-5b) A swinging pendant's live offset from its rest position (m; `lampSway.ts`): 0 for every other light. The
+   *  light field, the baked lamps' data texture, the fitting and its hangers read rest + offset (light parity); the
+   *  visibility stays the rest-pose bake, and a shot is tested at rest (`lightOnRay`). Written by
+   *  `LightRegistry.tickSway` only; never bumps `version`. */
+  swx: number;
+  swy: number;
+  swz: number;
 }
 
 /** (sector-fixes L) The LED fitting family (`fixtureModels.ts`): a flush ceiling panel, a hung linear strip, a wall bulkhead. */
@@ -68,7 +81,7 @@ export interface LightFixture {
   mount?: number;
 }
 
-export type LightInit = Partial<Omit<LightDef, 'id' | 'x' | 'y' | 'z'>> & { x: number; y: number; z: number };
+export type LightInit = Partial<Omit<LightDef, 'id' | 'x' | 'y' | 'z' | 'flicker' | 'swx' | 'swy' | 'swz'>> & { x: number; y: number; z: number };
 
 /** Gameplay thresholds for the light meter and perception. */
 export const LIGHT = {
@@ -80,12 +93,32 @@ export const LIGHT = {
   playerHz: 10,
 } as const;
 
-/** One light's gameplay contribution at a point (gain x intensity x the lamp formula, `lampMath.ts`; ignores
- *  visibility). */
+/**
+ * One light's gameplay contribution at a point (gain x intensity x the lamp formula, `lampMath.ts`; ignores
+ * visibility). (LR16 fix) The formula the game draws and the baked field reads: a fixed lamp the photometric
+ * `photoTerm` over its reach (`radius`, already `lampReach`), a flashlight the linear `lampTerm` (as the meter's
+ * torch term). Before, every light took the linear term over the 1.6x photometric reach: Classic falloff on the
+ * photometric reach, far too bright at range.
+ */
 export function contribution(l: LightDef, x: number, y: number, z: number): number {
   if (!l.on || l.destroyed) return 0;
+  return LAMP_LEVEL_GAIN * l.intensity * l.flicker * lightTerm(l, x, y, z);
+}
+
+/** (LR16 fix) A light's falloff x cone at a point, unoccluded (no gain, intensity or on / off): `contribution` and the
+ *  light field's unbaked lights (`LightField.dynamicInto`) read it. Allocation-free. */
+export function lightTerm(l: LightDef, x: number, y: number, z: number): number {
   const c = l.cone;
-  return LAMP_LEVEL_GAIN * l.intensity * lampTerm(x - l.x, y - l.y, z - l.z, l.radius, c ? c.dx : 0, c ? c.dy : -1, c ? c.dz : 0, c ? c.cosOuter : LAMP_CONE_COS, c ? SPOT_EXP : LAMP_EXP);
+  // (LR16-5b) from where it hangs now (a swinging pendant's offset; 0 for every other light)
+  const vx = x - (l.x + l.swx);
+  const vy = y - (l.y + l.swy);
+  const vz = z - (l.z + l.swz);
+  const dx = c ? c.dx : 0;
+  const dy = c ? c.dy : -1;
+  const dz = c ? c.dz : 0;
+  const cut = c ? c.cosOuter : LAMP_CONE_COS;
+  const e = c ? SPOT_EXP : LAMP_EXP;
+  return l.kind === 'flashlight' ? lampTerm(vx, vy, vz, l.radius, dx, dy, dz, cut, e) : photoTerm(vx, vy, vz, l.radius, dx, dy, dz, cut, e);
 }
 
 /** Make a cone from a direction and half-angles (rad). */
@@ -127,6 +160,18 @@ export class LightRegistry {
    *  the jam's own flicker). Its `on` is both; the switches and the EMP move the base, the jam only the lit bit, so a
    *  lamp switched off during a jam stays off after it (light parity: host and client run the same rule). */
   private jamBits = new Map<number, number>();
+  /** (LR16-5) The flickering lights (`lampFlicker.ts`): registry ids and their modes, in step. Their state lives here,
+   *  apart from on / off / jam (and from any later sway): it moves `flicker` and `flickerVersion`, never `version`. */
+  private readonly flickIds: number[] = [];
+  private readonly flickModes: number[] = [];
+  /** (LR16-5) The map's flicker seed (`applyMapFlicker`: map id + match seed; host and client build the same). */
+  flickerSeed = 0;
+  /** (LR16-5) Bumped when a flickering light's multiplier moves (renderers re-write those lights only). */
+  flickerVersion = 0;
+  /** (LR16-5b) The swinging pendants (`applyMapSway`, Marlow Yard only; null on every other map). */
+  sway: SwaySet | null = null;
+  /** (LR16-5b) Bumped when a pendant's offset moves (renderers re-write those lights only); never `version`. */
+  swayVersion = 0;
 
   add(init: LightInit): LightDef {
     const l: LightDef = {
@@ -135,7 +180,7 @@ export class LightRegistry {
       x: init.x,
       y: init.y,
       z: init.z,
-      // (lightrev prototype) the fixed lamps' reach under the falloff mode (`lampReach`: the radius itself by default)
+      // (lightrev LR13) the fixed lamps' photometric reach (`lampReach`: radius x `PHOTO.reach`)
       radius: (init.kind ?? 'lamp') === 'flashlight' ? (init.radius ?? 8) : lampReach(init.radius ?? 8),
       intensity: init.intensity ?? 0.9,
       color: init.color ?? [1, 0.9, 0.75],
@@ -146,9 +191,15 @@ export class LightRegistry {
       electric: init.electric ?? true,
       group: init.group ?? -1,
       fixture: init.fixture ?? null,
+      flicker: 1,
+      swx: 0,
+      swy: 0,
+      swz: 0,
     };
     this.lights.push(l);
     this.version++;
+    // (LR16-5) a fire flickers wherever it is
+    if (l.kind === 'fire') this.setFlicker(l.id, FLICKER_FIRE);
     return l;
   }
 
@@ -189,6 +240,76 @@ export class LightRegistry {
     if (!l || l.on === on) return;
     l.on = on;
     this.version++;
+  }
+
+  /** (LR16-5) The flickering lights' registry ids (renderers walk this; do not mutate). */
+  get flickering(): readonly number[] {
+    return this.flickIds;
+  }
+
+  /** (LR16-5) A light's flicker mode (`FLICKER_NONE` when it has none). */
+  flickerMode(id: number): number {
+    const k = this.flickIds.indexOf(id);
+    return k < 0 ? FLICKER_NONE : this.flickModes[k]!;
+  }
+
+  /** (LR16-5) Give a light a flicker mode (`FLICKER_NONE` takes it off and leaves the light steady). Load time. */
+  setFlicker(id: number, mode: number): void {
+    const l = this.lights[id];
+    if (!l) return;
+    const k = this.flickIds.indexOf(id);
+    if (mode === FLICKER_NONE) {
+      if (k < 0) return;
+      this.flickIds.splice(k, 1);
+      this.flickModes.splice(k, 1);
+      l.flicker = 1;
+    } else if (k < 0) {
+      this.flickIds.push(id);
+      this.flickModes.push(mode);
+    } else this.flickModes[k] = mode;
+    this.flickerVersion++;
+  }
+
+  /**
+   * (LR16-5) The flickering lights at sim time `t` (s; the host's clock in co-op, `NetAttachment.simTime`): each one's
+   * `flicker` from its mode, the map's seed and its id, a pure function, so host and client agree with no wire change.
+   * Bumps `flickerVersion` when one moved (never `version`). Once per fixed step (`GameState.updateLight`). No allocation.
+   */
+  tickFlicker(t: number): void {
+    const ids = this.flickIds;
+    if (!ids.length) return;
+    // on the fixed step's grid. (lr16pol E) In co-op the client trails the host by its one-way latency, as every host
+    // state; snapping to the step absorbs jitter only
+    FLICKER_T[0] = Math.round(t * FLICKER_STEP_HZ) / FLICKER_STEP_HZ;
+    let moved = false;
+    for (let k = 0; k < ids.length; k++) {
+      const id = ids[k]!;
+      const l = this.lights[id]!;
+      flickerAt(this.flickModes[k]!, lampSeed(this.flickerSeed, id));
+      const v = FLICKER_OUT[0]!;
+      if (v !== l.flicker) {
+        l.flicker = v;
+        moved = true;
+      }
+    }
+    if (moved) this.flickerVersion++;
+  }
+
+  /**
+   * (LR16-5b) The swinging pendants at sim time `t` (s; the shared clock, as `tickFlicker`, snapped to the fixed step):
+   * each one's `swx, swy, swz` from its kicks, a pure function, so host and client agree with only the kicks on the wire.
+   * Bumps `swayVersion` when one moved (never `version`). Once per fixed step (`GameState.updateLight`). No allocation.
+   */
+  tickSway(t: number): void {
+    const s = this.sway;
+    if (!s) return;
+    s.time[0] = Math.round(t * FLICKER_STEP_HZ) / FLICKER_STEP_HZ;
+    if (s.tick(this.lights)) this.swayVersion++;
+  }
+
+  /** (LR16-5b) A kick the host sent (co-op client: the `sway` event), applied verbatim. */
+  swayImpulse(id: number, t: number, a: number, h: number): void {
+    this.sway?.apply(id, t, a, h);
   }
 
   /** (jammer-fixes) A jam starts on a light: its present on state becomes the base the switches and the EMP own. */

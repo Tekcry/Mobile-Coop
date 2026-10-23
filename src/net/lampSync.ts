@@ -122,6 +122,18 @@ export function lampTargetId(target: string): number {
   return id < LAMP_MAX ? id : -1;
 }
 
+/** (39, LR16-5b) The `shot` target naming a swinging pendant a client's round passed (`sw-<registry id>`). */
+export const SWAY_TARGET = 'sw-';
+
+/** The pendant light id of a `shot` target, or -1 when it names none. */
+export function swayTargetId(target: string): number {
+  if (!target.startsWith(SWAY_TARGET)) return -1;
+  const s = target.slice(SWAY_TARGET.length);
+  if (!/^[0-9]{1,4}$/.test(s)) return -1;
+  const id = Number(s);
+  return id < LAMP_MAX ? id : -1;
+}
+
 interface P3 {
   x: number;
   y: number;
@@ -143,6 +155,20 @@ export function lampShotOk(reg: LightRegistry, id: number, o: P3, d: P3, dist: n
   if (lightOnRay(reg, o.x, o.y, o.z, o.x + d.x * end, o.y + d.y * end, o.z + d.z * end) === id) return true;
   const len = end + 0.3;
   return lightOnRay(reg, o.x, o.y, o.z, o.x + d.x * len, o.y + d.y * len, o.z + d.z * len) === id;
+}
+
+/**
+ * (39, LR16-5b) Host: is a client's pendant shot (`sw-<id>`) worth testing? The light is a swinging pendant on this map
+ * and the round left from the shooter's body (`LAMP_SHOT_ORIGIN` of the chest). Returns the pendant index, or -1. The
+ * kick itself is the host's own test on the claimed segment (`SwaySet.shotKickOne`); the wall check is the caller's
+ * (physics). Pure, no allocation.
+ */
+export function swayShotOk(reg: LightRegistry, id: number, o: P3, feet: P3): number {
+  const s = reg.sway;
+  if (!s) return -1;
+  const k = s.indexOf(id);
+  if (k < 0) return -1;
+  return hyp3(o.x - feet.x, o.y - (feet.y + 1.2), o.z - feet.z) > LAMP_SHOT_ORIGIN ? -1 : k;
 }
 
 /** Host: decides when a `lamps` message goes (a change, a forced send, the keepalive). */

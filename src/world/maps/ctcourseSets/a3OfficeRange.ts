@@ -294,9 +294,9 @@ export function buildA3OfficeRange(b: LevelBuilder, kit: FacilityKit): SetPart {
     b.light({ x, y: CEIL - 0.05, z, radius, intensity, color, group, electric: true, destructible: true, fixture: { sx, sy: 0.05, sz, oy: 0.025 } });
   };
   tally(b, p.register, 'A3-6', 'Corridor group 30 (six recessed panels at x 81-96, switch in the west lobby), office groups 31-33 (two panels each, a switch inside each door), lobby downlights group 34 (the landlord\'s timer circuit, no switch)', () => {
-    for (const x of [81, 84, 87, 90, 93, 96]) panel(x, A3_CORRIDOR.at.z, 30, 3.8, 0.9, 1.2, 0.3);
-    for (const [x, g] of [[81.5, 31], [84.0, 31], [87.3, 32], [89.6, 32], [93.2, 33], [95.5, 33]] as const) panel(x, 4.3, g, 4.3, 0.85, 0.6, 0.6);
-    for (const [x, z, r, i] of [[77.75, 8.0, 6.0, 1.5], [98.5, 6.5, 5.5, 0.9]] as const) panel(x, z, 34, r, i, 0.3, 0.3, WARM);
+    for (const x of [81, 84, 87, 90, 93, 96]) panel(x, A3_CORRIDOR.at.z, 30, 3.8, 0.16, 1.2, 0.3);
+    for (const [x, g] of [[81.5, 31], [84.0, 31], [87.3, 32], [89.6, 32], [93.2, 33], [95.5, 33]] as const) panel(x, 4.3, g, 4.3, ({ 31: 0.3, 32: 0.52, 33: 0.2 } as const)[g], 0.6, 0.6);
+    for (const [x, z, r, i] of [[77.75, 8.0, 6.0, 0.5], [98.5, 6.5, 5.5, 0.2]] as const) panel(x, z, 34, r, i, 0.3, 0.3, WARM);
   });
   for (const [k, g] of Object.entries(marlowCourseGroups())) if (k.startsWith('a3-')) p.groups[k] = g;
   // wall switches: the corridor's in the west lobby on the shell's north wall, each office's inside by its door (office 2's on the recess back's jamb)

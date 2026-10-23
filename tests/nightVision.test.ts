@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BLOOM, BRIGHT_GLSL, GLARE, NV_GLSL, NV_TONE, abcWeight, bloomInput, brightShare, easeGlare, easeVeil, luma709, nvColor, nvDrive, pickGlare, type GlareLamp } from '../src/vfx/nightVision';
 import { VISION_TARGETS } from '../src/world/darkCurve';
 
-const lamp = (x: number, z: number, o: Partial<GlareLamp> = {}): GlareLamp => ({ x, y: 3, z, kind: 'lamp', on: true, destroyed: false, intensity: 1, fixture: null, ...o });
+const lamp = (x: number, z: number, o: Partial<GlareLamp> = {}): GlareLamp => ({ x, y: 3, z, kind: 'lamp', on: true, destroyed: false, intensity: 1, flicker: 1, fixture: null, ...o });
 
 describe('night vision tube (Step 4b fix, nv-pass slice 1)', () => {
   it('the phosphor rises with the drive and clips to near white', () => {

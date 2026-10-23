@@ -3,8 +3,6 @@ import type { App, AppState } from '../core/app';
 import { Color3, type FreeCamera, InstancedMesh, PhysicsRaycastResult, Vector3, type Vector4, type PhysicsEngine, type Scene } from '../core/babylon';
 import { World } from '../world/world';
 import { flags } from '../core/flags';
-import { lampFalloffMode, matchLampFalloff, setLampFalloff, type LampFalloff } from '../world/lampMath';
-import { matchShadowAccuracy, setShadowAccuracy } from '../world/shadowAccuracy';
 import { cqSimSet } from '../anim/cqGait';
 import { showEconomy } from '../core/legacy';
 import { shownResolution } from '../core/display';
@@ -69,6 +67,7 @@ import { RopeLine } from './ropeLine';
 import type { TeamKind } from './teamMoves';
 import type { Ledge } from '../world/anchors';
 import { LIGHT, type LightDef } from '../world/lights';
+import type { SwaySet } from '../world/lampSway';
 import { landingNoise, noiseRadius } from '../player/movement';
 import { CinematicPost } from '../vfx/cinematicPost';
 import { NightAutoGain } from '../vfx/nightAutoGain';
@@ -164,15 +163,15 @@ export interface GameOptions {
   courseBay?: number;
   /** 3.0 weather (visual only; the map's `weathers`). */
   weather?: WeatherChoice;
-  /** (lightrev LR13) Co-op: the host's lamp falloff (the `start` message's `lf`); it overrides this machine's setting
-   *  and URL. Unset (single player): `?falloff=photo`, else Settings > Gameplay > Lamp falloff. */
-  lampFalloff?: LampFalloff;
 }
 
 /** What the coop layer plugs into a session. */
 export interface NetAttachment {
   /** Client: the host reports guards in combat know this operator is there. */
   spotted?(): boolean;
+  /** (LR16-5) The shared sim clock (s): the host's own, the client's estimate of the host's (`ClockSync`, from the
+   *  snapshots' `time`). Moving lights (`LightRegistry.tickFlicker`) run on it, so both pages light alike. */
+  simTime?(): number;
   /** After the local simulation, every fixed step. */
   fixedUpdate(dt: number): void;
   frameUpdate(dt: number): void;
@@ -276,6 +275,8 @@ export type RewardHook = (stats: SessionStats, opts: GameOptions) => Promise<HTM
 const NO_REMOTES: readonly PlayerRef[] = Object.freeze([]);
 /** Gunshot noise radius (m) x the weapon's noise stat; at or below `SUPPRESSED_NOISE` a shot only raises
  *  suspicion; a bullet impact is heard within `IMPACT_NOISE`. */
+/** (LR16-5b) Head points a pendant-bump pass takes (the players and the live guards). */
+const MAX_SWAY_HEADS = 40;
 const SHOT_NOISE = 28;
 /** Awareness arcs: shown for enemies in line of sight or within `ARC_NEAR` m, once the meter passes `ARC_MIN`. */
 const ARC_NEAR = 2.5;
@@ -507,9 +508,6 @@ export class GameState implements AppState {
   net: NetAttachment | null = null;
   /** (section-rating) The op's rated sections in order (Sector Ops: the host's mode, or the co-op client's mirror), for the results lines. */
   readonly sectionRatings: RatingView[] = [];
-  /** (lightrev LR13) The lamp falloff this match runs (set before its map built; the meter, the guards and the shaders
-   *  all read it, `lampMath`). */
-  readonly lampFalloff: LampFalloff = lampFalloffMode();
   /** Coop client: enemies, waves and objectives are driven by the host. */
   readonly puppet: boolean;
   /** Who a takedown can be done on (enemies; co-op clients: the host's enemies as puppets). */
@@ -738,6 +736,30 @@ export class GameState implements AppState {
     if (this.puppet || opts.mode === 'sandbox') {
       this.extraBlips = () => [...(this.pickups?.blips() ?? []), ...(this.net?.blips?.() ?? [])];
     }
+    // (LR16-5b) Marlow Yard's swinging pendants (solo and host; a co-op client asks the host, `CoopClient.swayRay`): our
+    // rounds, the guards' rounds and blasts kick them on the shared clock; the host sends each accepted kick
+    // (`CoopHost`: `onKick`). Head bumps: `updateLight`. The hooks are made once here, not per frame.
+    const sway = world.level.lights.sway;
+    if (sway && !this.puppet) {
+      const prevRay = this.weapons.onRay;
+      this.weapons.onRay = (a, b) => {
+        prevRay?.(a, b);
+        sway.shotKick(a.x, a.y, a.z, b.x, b.y, b.z, this.simNow());
+      };
+      const em = this.enemyMgr;
+      if (em) {
+        const prevShot = em.onEnemyShot;
+        em.onEnemyShot = (e, from, to) => {
+          prevShot?.(e, from, to);
+          sway.shotKick(from.x, from.y, from.z, to.x, to.y, to.z, this.simNow());
+        };
+      }
+      const prevBoom = this.explosions.onExplode;
+      this.explosions.onExplode = (pos, r) => {
+        prevBoom?.(pos, r);
+        sway.blastKick(pos.x, pos.y, pos.z, this.simNow());
+      };
+    }
     // doors collide from now on (the nav grid, built above, walks through doorways); co-op clients follow the
     // host's door states (snapshots)
     world.doors.arm();
@@ -866,12 +888,6 @@ export class GameState implements AppState {
     // (`?gfx=min`: the blockout's boxes in standard materials; every other preset draws them smooth - PBR with the
     // surface atlas and baked lamps)
     const plain = q.minimal;
-    // (lightrev LR13) the lamp falloff, before the level adds its lights (`LightRegistry.add` scales the reach), bakes and
-    // builds its field and shaders: the host's in co-op, else the URL override, else the setting (never mid-match)
-    const lampFalloff = matchLampFalloff(app.settings.get().gameplay.lampFalloff, flags.photoLamps, opts.lampFalloff);
-    setLampFalloff(lampFalloff);
-    // (shadow audit) the shadow-accuracy fixes ride the same resolved mode, at the same point: on exactly in Realistic
-    setShadowAccuracy(matchShadowAccuracy(lampFalloff));
     const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, cheap: plain });
     const g = new GameState(app, world, opts, cb);
     if (opts.net) g.net = opts.net.attach(g);
@@ -1548,9 +1564,14 @@ export class GameState implements AppState {
   private updateLight(dt: number): void {
     const reg = this.world.level.lights;
     reg.update(dt);
+    // (LR16-5) fires flicker, a failing tube stutters: on the shared clock (co-op: the host's), before the meter samples
+    reg.tickFlicker(this.net?.simTime?.() ?? this.time);
+    // (LR16-5b) the swinging pendants, on the same clock, before the meter samples (light parity)
+    reg.tickSway(this.net?.simTime?.() ?? this.time);
     this.lightT -= dt;
     if (this.lightT > 0) return;
     this.lightT = 1 / LIGHT.playerHz;
+    if (reg.sway && !this.puppet) this.swayBumps(reg.sway);
     const f = this.world.lightField;
     const p = this.player.position;
     // (operators 11e r1, G166) the body's real height (the rig's: Wren 1.68 m), so light hits the body you see
@@ -1584,6 +1605,51 @@ export class GameState implements AppState {
     }
   }
   private readonly headSample = { ox: 0, oz: 0, h: 0 };
+
+  /** (LR16-5b) The shared sim clock (co-op: the host's; `NetAttachment.simTime`), the swinging pendants' kicks' time. */
+  private simNow(): number {
+    return this.net?.simTime?.() ?? this.time;
+  }
+
+  /** (LR16-5b) Head points for the pendants' bumps: the players' and the guards' (x, y, z each; preallocated). */
+  private readonly swayHeads = new Float32Array((MAX_SWAY_HEADS + 1) * 3);
+
+  /**
+   * (LR16-5b) A head that touches a swinging pendant's fitting bumps it (solo and host, at `LIGHT.playerHz`): the local
+   * player, the remotes and the live guards, each head at the feet + its standing height (less when crouched). No
+   * allocation.
+   */
+  private swayBumps(sway: SwaySet): void {
+    const P = this.swayHeads;
+    const p = this.player.position;
+    const hh = this.player.rig.height * (1 - 0.35 * this.player.controller.crouchBlend);
+    P[0] = p.x;
+    P[1] = p.y + hh;
+    P[2] = p.z;
+    let n = 1;
+    const rs = this.remotePlayers();
+    for (let i = 0; i < rs.length && n < MAX_SWAY_HEADS; i++) {
+      const r = rs[i]!;
+      const rh = r.head;
+      P[n * 3] = rh ? rh.x : r.feet.x;
+      P[n * 3 + 1] = rh ? rh.y : r.feet.y + (r.height ?? STANDARD_BODY) * (r.crouched ? 0.65 : 1);
+      P[n * 3 + 2] = rh ? rh.z : r.feet.z;
+      n++;
+    }
+    const es = this.enemyMgr?.enemies;
+    if (es) {
+      for (let i = 0; i < es.length && n < MAX_SWAY_HEADS; i++) {
+        const e = es[i]!;
+        if (!e.alive) continue;
+        P[n * 3] = e.pos.x;
+        P[n * 3 + 1] = e.pos.y + e.def.height;
+        P[n * 3 + 2] = e.pos.z;
+        n++;
+      }
+    }
+    // (at the tick's time: `tickSway` ran just before, on the shared clock)
+    sway.bumpKick(P, n);
+  }
 
   private lightFrom = new Vector3();
   private readonly posedHead = new Vector3();
@@ -2478,12 +2544,9 @@ export class GameState implements AppState {
     }
   }
 
-  /** Goggles per render frame: night vision blend, flip, lens glow. */
+  /** Goggles per render frame: night vision blend, lens glow. */
   private renderVision(dt: number): void {
     const v = this.vision;
-    // (F1b, gog-1) the goggle flip plays only when turning vision on / off (a switch between modes has none)
-    v.stepFlip(dt);
-    this.post.setFlip(v.flipCentre);
     this.post.setNightVision(v.night);
     // (Step 4b fix) the lamps glare in the tube; their fixtures and beams brighten with the gain (rendering only)
     this.nightGain.set(v.night, dt);
@@ -2504,7 +2567,7 @@ export class GameState implements AppState {
     this.paintElectro(kind === 2 ? 1 : 0);
     // (A5, G102) thermal: a dim silhouette of a guard behind a closed door (render only)
     const gh = (this.doorGhosts ??= new DoorGhosts(this.scene, this.world.doors, (a, b, m) => this.ballistics.ray(a, b, m)));
-    gh.update(kind === 1, this.player.cam.camera.position, this.enemyMgr?.enemies);
+    gh.update(kind === 1, this.player.cam.camera.position, this.enemyMgr?.enemies, this.remotePlayers());
     this.world.lightRig.setVisionBoost(Math.max(v.night, kind === 2 ? ELECTRO_BULB : 0));
     this.visionLabelT += dt;
     this.hud.setVision(this.visionLabelT < VISION_LABEL_TIME ? visionLabel(v.mode) : '', v.mode);

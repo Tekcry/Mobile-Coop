@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { contribution, LIGHT, LightRegistry, makeCone, nearestLights, visibilityFromLight, type Occluder } from '../src/world/lights';
 import { LightField } from '../src/world/lightField';
-import { LAMP_CONE_COS, LAMP_EXP, lampCone, lampFalloff, lampTerm, moonLight, SPOT_EXP } from '../src/world/lampMath';
+import { LAMP_CONE_COS, LAMP_EXP, lampCone, lampFalloff, lampTerm, moonLight, SPOT_EXP, SPOT_FEATHER } from '../src/world/lampMath';
 
 // (3.6: falloff and cones come from `lampMath`; a field without a bake sums every light with the caller's ray test)
 const lightLevelAt = (r: LightRegistry, x: number, y: number, z: number, occ?: Occluder): number => new LightField(null, r).totalAt(x, y, z, occ);
@@ -23,7 +23,12 @@ describe('light model', () => {
 
   it('cones: a spot is the squared cosine inside its outer angle and nothing outside; a lamp lights the hemisphere below by the cosine', () => {
     expect(lampCone(1, Math.cos(0.6), SPOT_EXP)).toBe(1);
-    expect(lampCone(Math.cos(0.5), Math.cos(0.6), SPOT_EXP)).toBeCloseTo(Math.cos(0.5) ** 2);
+    expect(lampCone(Math.cos(0.2), Math.cos(0.6), SPOT_EXP)).toBeCloseTo(Math.cos(0.2) ** 2);
+    // (LR16b) inside the feather band (SPOT_FEATHER x (1 - cut) inside the cut) the smoothstep: half way, half the cosine
+    const cut = Math.cos(0.6);
+    const mid = cut + (SPOT_FEATHER * (1 - cut)) / 2;
+    expect(lampCone(mid, cut, SPOT_EXP)).toBeCloseTo(0.5 * mid * mid, 9);
+    expect(lampCone(cut, cut, SPOT_EXP)).toBe(0);
     expect(lampCone(Math.cos(0.7), Math.cos(0.6), SPOT_EXP)).toBe(0);
     expect(lampCone(0.5, LAMP_CONE_COS, LAMP_EXP)).toBeCloseTo(0.5);
     // (above a lamp: nothing)
@@ -35,9 +40,9 @@ describe('light model', () => {
     expect(lampTerm(0, -3, 0, 6, 0, -1, 0, LAMP_CONE_COS, LAMP_EXP)).toBeCloseTo(0.5, 6);
     // 3 m out and 4 m down from a lamp of reach 10: falloff 0.5, cosine 0.8
     expect(lampTerm(3, -4, 0, 10, 0, -1, 0, LAMP_CONE_COS, LAMP_EXP)).toBeCloseTo(0.4, 6);
-    // a spot pointing down, 30 degrees off its axis at 2 m of 8 m: 0.75 x cos(30)^2
+    // a spot pointing down, 30 degrees off its axis at 2 m of 8 m (outer 57 degrees: inside its feather): 0.75 x cos(30)^2
     const c = Math.cos(Math.PI / 6);
-    expect(lampTerm(2 * Math.sin(Math.PI / 6), -2 * c, 0, 8, 0, -1, 0, Math.cos(0.7), SPOT_EXP)).toBeCloseTo(0.75 * c * c, 6);
+    expect(lampTerm(2 * Math.sin(Math.PI / 6), -2 * c, 0, 8, 0, -1, 0, Math.cos(1.0), SPOT_EXP)).toBeCloseTo(0.75 * c * c, 6);
     // beyond the reach and level with an omni lamp: nothing
     expect(lampTerm(0, -8.1, 0, 8, 0, -1, 0, LAMP_CONE_COS, LAMP_EXP)).toBe(0);
     expect(lampTerm(2, 0.5, 0, 8, 0, -1, 0, LAMP_CONE_COS, LAMP_EXP)).toBe(0);
@@ -92,7 +97,9 @@ describe('light model', () => {
     const r = new LightRegistry();
     r.ambient = 0.05;
     // a low, short-range lamp above head height: a standing head is in it, a crouch is not
-    r.add({ x: 0, y: 1.9, z: 0, radius: 0.6, intensity: 1 });
+    // (LR16 fix: the unbaked field reads the photometric term over the reach, radius x 1.6 = 0.72 m; a crouched head
+    // 0.81 m below the lamp is out of it)
+    r.add({ x: 0, y: 1.9, z: 0, radius: 0.45, intensity: 1 });
     const stand = bodyLightLevel(r, 0, 0, 0, 1.75);
     const crouch = bodyLightLevel(r, 0, 0, 0, 1.15);
     expect(stand).toBeGreaterThan(0.5);

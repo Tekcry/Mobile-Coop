@@ -204,12 +204,12 @@ const STEEL = '#8d949b';
 const PLATE = '#585d61';
 const DESK = '#3a3226';
 
-/** Lamp radius and intensity per circuit (prototype values, tuned with `CTLIGHT_WRITE=a4GoodsShed`). */
+/** Lamp radius and intensity per circuit (night levels re-tuned under the LR16 light model in LR16-M to the levels tuned with `CTLIGHT_WRITE=a4GoodsShed`). */
 const LAMP = {
-  room: { radius: 5, intensity: 0.8 },
-  bay: { radius: 9, intensity: 1.15 },
-  aisle: { radius: 5, intensity: 1.25 },
-  mezz: { radius: 5.5, intensity: 0.9 },
+  room: { radius: 5, intensity: 0.21 },
+  bay: { radius: 9, intensity: 1.05 },
+  aisle: { radius: 5, intensity: 0.22 },
+  mezz: { radius: 5.5, intensity: 0.33 },
 } as const;
 
 export function buildA4GoodsShed(b: LevelBuilder, kit: FacilityKit): SetPart {

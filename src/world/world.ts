@@ -30,6 +30,8 @@ import { Breakables } from './breakables';
 import { Doors } from './doors';
 import { Ropes } from './ropes';
 import { addTorchSlots } from './torches';
+import { applyMapFlicker } from './lampFlicker';
+import { applyMapSway } from './lampSway';
 import { TEXTURE_ANISO, TEXTURE_SIZE, type QualityLevel, type ShadowSpec, type TierQuality } from '../core/quality';
 import type { Adaptive } from '../core/governor';
 import { SurfaceAtlas } from './surfaceAtlas';
@@ -40,6 +42,8 @@ import { SKY_CELL, SKY_GRID, skyGridFor, skyShapes } from './levelFill';
 import { flags } from '../core/flags';
 import { BakedLamps } from './bakedLamps';
 import { CharShadows } from './charShadows';
+import { TorchShadows } from './torchShadows';
+import { torchShadowSpec } from './torchShadowSet';
 import { bakeLevelLight, lightBakeHash, type LightBake } from './lightBake';
 import { LightField } from './lightField';
 import { moonLight } from './lampMath';
@@ -75,6 +79,8 @@ export class World {
   lamps: BakedLamps | null = null;
   /** (LR14) Character silhouette shadow maps from the nearest baked lamps (null without baked lamps). Rendering only. */
   charShadows: CharShadows | null = null;
+  /** (LR16t) Guard torch shadow maps, one atlas (null without baked lamps or drawn torches). Rendering only. */
+  torchShadows: TorchShadows | null = null;
   /** (LR14) The character casters (players, guards, bodies, weapons and gear: `addShadowCaster` without props). */
   readonly charCasters: AbstractMesh[] = [];
   private readonly charSet = new Set<AbstractMesh>();
@@ -169,6 +175,11 @@ export class World {
     await enablePhysics(scene);
     const b = new LevelBuilder();
     const layout = map.build(b, opts.seed);
+    // (LR16-5) the map's flicker seed and its stutter tube (fires enrolled themselves)
+    applyMapFlicker(b.lights, map.id, opts.seed);
+    // (LR16-5b) Marlow Yard's swinging pendants: before the build, so the hangers they claim (now drawn by the light
+    // rig, with the swing) never mesh
+    applyMapSway(b, map.id);
     // procedural surfaces: drawn small here, sized by the Textures setting in applyQuality
     const atlas = opts.cheap ? null : new SurfaceAtlas(scene, 256, 4);
     const level = b.build(scene, map.id, { atlas: atlas ?? undefined, floor: map.theme.floor ?? 'concrete', detail: opts.detail, dressing: dressingOn(map) });
@@ -210,14 +221,22 @@ export class World {
       const k = w.hemi.intensity * Math.PI;
       const sk = w.hemi.diffuse;
       const lvl = sky ? { sky: [sk.r * k, sk.g * k, sk.b * k] as [number, number, number], ground: [gr.r * k, gr.g * k, gr.b * k] as [number, number, number], vis: sky } : null;
-      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, null, { moon: bake.moon, doors: w.doors.list, fill, moonLight: bake.moonLight, level: lvl });
+      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, null, { moon: bake.moon, doors: w.doors.list, fill, bounce: w.lightField.bounce, moonLight: bake.moonLight, level: lvl });
       w.lamps.bakeMs = bake.ms;
       w.lamps.attachAll();
       w.lightRig.setBaked(w.lamps.ids);
       // (LR15, shadow-accuracy fixes on) the unshadowed flashlights drawn by the baked lamps
       w.lightRig.setTorchDraw(w.lamps.torchDraw);
+      // (LR16t) every drawn torch shadowed from one atlas, its shut doors tested exactly (configured in `applyQuality`)
+      if (w.lamps.torchDraw) {
+        const charSet = w.charSet;
+        w.torchShadows = new TorchShadows(scene, level.lights, w.lightRig, w.lamps.torchDraw, w.doors.list, (m) => charSet.has(m));
+        w.lamps.torchShadows = w.torchShadows;
+      }
       w.charShadows = new CharShadows(scene, w.lamps, w.charCasters);
       w.lamps.charShadows = w.charShadows;
+      // (LR16-3) open door leaves and props (a pushed or carried crate) cast into the lamps' character shadow maps
+      w.charShadows.setDynamic(w.doors, w.props);
       w.useBakedMoon();
     }
     // (sector-redesign ART-KIT) the campus art over the greybox: PBR path only; a failed load leaves the boxes drawn
@@ -417,6 +436,15 @@ export class World {
     const shadowKey = JSON.stringify(q.shadow);
     const shadowChanged = rebuildShadows || (this.shadowKey !== '' && shadowKey !== this.shadowKey);
     this.shadowKey = shadowKey;
+    // (LR16t) the torch shadow atlas, every tier (`q.minimal` none); before the rig, whose shadow pool then takes no
+    // flashlight (its spot shadow samplers go). The plugin's LAMP_TSHADOW define follows the on-state (`tsChanged`)
+    const tsWas = !!this.torchShadows?.on;
+    if (this.torchShadows) {
+      const ts = torchShadowSpec(q.features.shadows, !!q.minimal);
+      this.torchShadows.configure(ts.tile, ts.taps);
+    }
+    const tsChanged = !!this.torchShadows && this.torchShadows.on !== tsWas;
+    this.lightRig.setTorchShadows(!!this.torchShadows?.on);
     this.lightRig.configure({ lights: q.realLights, shadow: q.shadow, volumetric: q.features.volumetrics, minimal: q.minimal }, rebuildShadows);
     // (LR14) the nearest lamps' character shadow maps (the shadow key above re-reads the materials' defines on a change).
     // Their atlas is one more texture in every lit shader (`?gfx=min` keeps the capsules)
@@ -435,7 +463,7 @@ export class World {
     this.setSunShadows(q.shadow);
     // (frozen materials keep the shader built for the old shadow maps - a stale light setup draws with unbound
     // uniform buffers: let every one re-read its lights once, then freeze it again)
-    if (shadowChanged || csChanged) this.refreshMaterials();
+    if (shadowChanged || csChanged || tsChanged) this.refreshMaterials();
   }
 
   private shadowKey = '';
@@ -468,6 +496,7 @@ export class World {
   applyAdaptive(a: Readonly<Adaptive>, q: QualityLevel): void {
     this.lightRig.setAdaptive(a.lights, a.shadowEvery);
     this.charShadows?.setAdaptive(a.shadowEvery);
+    this.torchShadows?.setAdaptive(a.shadowEvery);
     const sm = this.shadow?.getShadowMap();
     if (sm) sm.refreshRate = a.shadowEvery;
     const k = (q.minimal ? 1 : q.detailScale) * a.partLod;
@@ -511,6 +540,8 @@ export class World {
   /** Keep the sun's shadow frustum centred on the player. */
   frame(focus: Vector3, dt = 0): void {
     const cam = this.scene.activeCamera;
+    // (LR16-5b) the swinging pendants' positions first: the shadow slots below fit and render from where they hang now
+    this.lamps?.writeSway();
     // (LR14) the character shadow slots before the lamps write their texels (which lamp reads which tile)
     if (this.charShadows) {
       const c = cam ? cam.globalPosition : focus;
@@ -520,6 +551,8 @@ export class World {
     this.updateSunCasters(dt, focus);
     if (cam) {
       this.lightRig.update(dt, cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);
+      // (LR16t) after the rig fills the torch slots: each slot's map follows its torch, its shut doors picked
+      this.torchShadows?.frame(cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);
     }
     this.sun.position.copyFrom(focus).subtractInPlace(this.sun.direction.scale(40));
   }
@@ -532,6 +565,7 @@ export class World {
     this.probe?.dispose();
     this.lightRig.dispose();
     this.charShadows?.dispose();
+    this.torchShadows?.dispose();
     this.lamps?.dispose();
     this.breakables.dispose();
     this.campusArt?.dispose();

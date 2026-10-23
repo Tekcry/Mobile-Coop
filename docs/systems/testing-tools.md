@@ -367,9 +367,6 @@ behind a VPN adapter).
 - `npm run e2e:editor` (`scripts/e2e-editor.mjs`, not required): the Kestrel editor by a fake controller alone; starts
   its own Vite dev server on a free port; never saves.
 
-## Lamp falloff (lightrev LR13)
-- `E2E_FALLOFF=photo` (any script on `e2e-lib`'s `launch` / `openPage`, and `smoke.mjs`): appends `&falloff=photo` to every game URL (realistic falloff, `flags.photoLamps` -> `lampMath.matchLampFalloff`, read when a map loads); unset: unchanged; a suite that names `falloff=` keeps its own.
-
 ## Network conditions (D11)
 - `E2E_NETSIM=typical node scripts/run-e2e.mjs e2e-netmove e2e-coop` (or one suite): `e2e-lib` adds `&netsim=typical`
   to every `?net=local` page (coop.md). Report mode, never a gate: `assert` prints `NETSIM FAIL - <check>` and carries

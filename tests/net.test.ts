@@ -115,8 +115,6 @@ describe('room codes', () => {
 import { SnapshotBuffer, ClockSync, lerpAngle } from '../src/net/interp';
 import { RateLimiter, checkShot, checkBlast, clampEnd, coopSessionStats, maxHitDamage, playersHostile, shotLimiter, rayPointDistance } from '../src/net/validate';
 import { NetSession, type StartInfo } from '../src/net/session';
-import { matchLampFalloff } from '../src/world/lampMath';
-import { defaultSettings } from '../src/core/settings';
 import type { Transport } from '../src/net/transport';
 import { WEAPONS } from '../src/weapons/weaponDefs';
 import { emptyStats } from '../src/game/modes/gameMode';
@@ -406,38 +404,18 @@ describe('net session', () => {
     old.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'New', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(true);
   });
-  it("(38, lightrev LR13) the host's lamp falloff reaches the client's match over its own setting; junk or a missing lf reads Classic", () => {
+  it("(LR16a, one light model) the start message carries no lamp falloff; an old peer's lf is dropped", () => {
     const h = hub();
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const cli = new NetSession(h.make('C'), 'client', 'ABCDE', prof('Cli'));
-    // the host's choice (coopUi: its setting or ?falloff=photo); the client's own setting is Classic
-    host.hostLampFalloff = () => matchLampFalloff('photometric', false);
     let started = null as StartInfo | null;
     cli.events.on('start', (s) => (started = s));
     host.startMatch();
-    expect(started).toMatchObject({ lampFalloff: 'photometric' });
-    // the client's sim (GameState.create) runs the host's, never its own
-    const clientSetting = defaultSettings().gameplay.lampFalloff;
-    expect(clientSetting).toBe('linear');
-    expect(matchLampFalloff(clientSetting, false, started!.lampFalloff)).toBe('photometric');
-    expect(matchLampFalloff('photometric', true, 'linear')).toBe('linear');
-    // a reconnect / rejoin gets the same start re-sent, lf kept (a re-hello triggers it again)
-    let again = null as StartInfo | null;
-    cli.events.on('start', (s) => (again = s));
-    cli.transport.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'Cli', tag: {}, look: {} });
-    expect(again).toMatchObject({ lampFalloff: 'photometric' });
-    // the wire: lf round-trips; junk and a missing field read Classic
-    expect(parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'normal', lf: 'photometric' })).toMatchObject({ lf: 'photometric' });
-    expect(parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'normal', lf: 'bright' })).toMatchObject({ lf: 'linear' });
-    expect(parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'normal' })).toMatchObject({ lf: 'linear' });
-    // a host left on the default starts Classic
-    const h2 = hub();
-    const host2 = new NetSession(h2.make('H'), 'host', 'ABCDE', prof('Host'));
-    const cli2 = new NetSession(h2.make('C'), 'client', 'ABCDE', prof('Cli'));
-    let s2 = null as StartInfo | null;
-    cli2.events.on('start', (s) => (s2 = s));
-    host2.startMatch();
-    expect(s2).toMatchObject({ lampFalloff: 'linear' });
+    expect(started).not.toBeNull();
+    expect('lampFalloff' in started!).toBe(false);
+    const msg = parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'normal', lf: 'linear' });
+    expect(msg).not.toBeNull();
+    expect('lf' in msg!).toBe(false);
   });
   it('clients ignore authority claims from non-hosts and handle the host leaving', async () => {
     const h = hub();

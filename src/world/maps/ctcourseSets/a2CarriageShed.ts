@@ -43,6 +43,7 @@ import { hyp2 } from '../../../core/mathx';
 import type { CourseDevice, IsolatorGate } from '../../../game/course/courseDef';
 import { KIT_BOX_COLOR, type FacilityKit } from '../../kit/facilityKit';
 import type { LevelBuilder } from '../../levelBuilder';
+import { makeCone } from '../../lights';
 import { MARLOW_LEVEL } from '../../lighting/levels';
 import { circuitOf, marlowCourseGroups } from '../../lighting/marlowCircuits';
 import { FacilityProps } from '../../props/facilityProps';
@@ -272,13 +273,16 @@ export function buildA2CarriageShed(b: LevelBuilder, kit: FacilityKit): SetPart 
   };
   tally(b, p.register, 'A2-3', 'Neck high-bays, group 21 (two isolators, 15 s dark, 3 s re-arm): four on the roof tie over the neck', () => {
     for (const [x, z] of [[48.5, 6], [53.5, 6], [48.5, 14], [53.5, 14]] as const) {
-      b.light({ x, y: 6.8, z, radius: 11, intensity: 1.0, color: WHITE, group: 21, electric: true, destructible: true, fixture: { sx: 0.6, sy: 0.3, sz: 0.6, oy: 0.15 } });
+      b.light({ x, y: 6.8, z, radius: 11, intensity: 1.1, color: WHITE, group: 21, electric: true, destructible: true, fixture: { sx: 0.6, sy: 0.3, sz: 0.6, oy: 0.15 } });
     }
   });
   tally(b, p.register, 'A2-9', 'Shed general 20 (six strips under the tie, short of the neck, switch by the west door), cabin panel 22 (switch by the cabin door), staging strips 23 (switch at the stair head)', () => {
-    for (const [x, z] of [[34, 11], [41, 7.5], [41, 12.5], [61, 7.5], [61, 12.5], [68, 11]] as const) strip(x, 6.5, z, 20, 7.5, 1.1);
-    b.light({ x: 30.6, y: 2.45, z: 2.5, radius: 3.2, intensity: 0.6, color: WHITE, group: 22, electric: true, destructible: true, fixture: { sx: 0.6, sy: 0.05, sz: 0.6, oy: 0.025 } });
-    for (const x of [36, 44, 52, 60]) strip(x, 7, 19, 23, 5, 0.8);
+    // group 20 on a high-bay optic (LR16-M): the strips light the rakes under them, the neck cut points sit outside the cone
+    for (const [x, z, i] of [[34, 11, 0.8], [41, 7.5, 0.8], [41, 12.5, 0.8], [61, 7.5, 0.8], [61, 12.5, 0.8], [68, 11, 0.95]] as const) {
+      b.light({ kind: 'spot', x, y: 6.5, z, radius: 7.5, intensity: i, color: WHITE, cone: makeCone(0, -1, 0, 0.9), group: 20, electric: true, destructible: true, fixture: { sx: 1.6, sy: 0.12, sz: 0.2, oy: 0.06 } });
+    }
+    b.light({ x: 30.6, y: 2.45, z: 2.5, radius: 3.2, intensity: 0.075, color: WHITE, group: 22, electric: true, destructible: true, fixture: { sx: 0.6, sy: 0.05, sz: 0.6, oy: 0.025 } });
+    for (const x of [36, 44, 52, 60]) strip(x, 7, 19, 23, 5, 0.27);
   });
   for (const [k, g] of Object.entries(marlowCourseGroups())) if (k.startsWith('a2-')) p.groups[k] = g;
   // wall switches: the shed's on the L1 wall by the west door, the cabin's inside by its door, the staging's on the stair head's wall
