@@ -268,6 +268,8 @@ export class World {
       w.lightRig.setTorchDraw(w.lamps.torchDraw);
       w.charShadows = new CharShadows(scene, w.lamps, w.charCasters);
       w.lamps.charShadows = w.charShadows;
+      // (LR16-3) open door leaves and props (a pushed or carried crate) cast into the lamps' character shadow maps
+      w.charShadows.setDynamic(w.doors, w.props);
       w.useBakedMoon();
     }
     if (voxels?.giGroups) w.giSlotOf = giLights(level.lights).slotOf;
