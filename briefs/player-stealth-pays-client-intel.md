@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-23T20:14+1100
+status: blocked needs wire data (revived guards and client reload: host e.info not reproducible from map data; see Report)
 
 # Brief: stealth-pays client-intel - the Sector Ops co-op client can interrogate for intel (Player Build)
 
@@ -45,3 +45,27 @@ import Babylon only through `src/core/babylon.ts` (not needed here); `src/net` i
 tsc / eslint clean, the 4 vitest files pass, `git diff --stat d228ce59` = only the files above. Report at the end of
 this brief (where the slots come from, what changed, test counts, deviations), commit trailer
 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`, then `status: done feature/stealth-pays-client-intel <sha>`.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-23): BLOCKED, needs wire data (brief step 3)
+Nothing built; `feature/stealth-pays-client-intel` not pushed (no commit past d228ce59).
+Where the slots come from: `g.world.map.sectors[i].guards` (`MapDef.sectors`, `src/world/mapDef.ts:114`), handed to
+`SectorRun` at `src/game/modes/sectorMode.ts:180`, queued per section at `:578`. Reachable on the client (same map).
+Why the host's `e.info` cannot be rebuilt from map data alone:
+1. Revived guards: a guard waking a KO'd guard with info (`enemy.ts:2190` -> `enemyManager.ts:1203-1209`) builds a new
+   `Enemy` at the body's position (`b.pos.clone()`) with a new id (`enemy.ts:193,199`); `inherit` copies `info`
+   (`enemy.ts:809`). Nothing on the wire links old id to new (`onRevived`, `stealthSystems.ts:198`, only calls
+   `mode.onEnemyJoined`), so the client builds a fresh puppet where the body lay (often carried, rarely within
+   `GUARD_INFO_NEAR` 1.5 m of the slot) -> null while the host keeps the info. Sector Ops is coordinated
+   (`enemyManager.ts:207`), so revives happen. Marlow Yard has the same hole today.
+2. Client reload mid-section: puppets are rebuilt at current positions (`coopClient.ts:322-326`), so a patrolling guard
+   with info is far from his slot -> null. Rejoin is supported (`session.ts:185`, `coopHost.ts:390`).
+Checked fine: reinforcements carry no info (`sectorMode.ts:822`, `sectorStage.ts:204`); fresh spawns snap to the nearest
+nav cell (`enemyManager.ts:1475-1477`, computable); late `fill()` spawns are seen within one send (`coopHost.ts:1205-1212`).
+If built later anyway: limit the client lookup to the live section (two sections' info slots within 1.5 m would mismatch).
+Side findings: (a) no Sector slot on this base has `info` yet (grep campus*.ts, warehouse*.ts, campusSectors.ts,
+campusS4/S5Data.ts), so the "real campusOps slot" test has nothing to test; (b) existing mismatch in both modes: when the
+host interrogates a guard (or a solo spend on the host), the client's puppet is never told and can still offer
+INTERROGATE on a spent guard.
+Proposed fix (lead / Michael call): one wire field, e.g. an `info` bit in `EnemyState` + `PROTOCOL_VERSION` bump and its
+tests; covers revive, reload and spent in both modes.
+Tests (baseline only): sectorIntelCode + intelPartB + net 79 / 79 with --maxWorkers=2.
