@@ -49,13 +49,15 @@ import { revealIntel } from '../game/intelReveal';
 import { interrogationEnded } from '../game/intel';
 import type { TeamMate } from '../game/teamController';
 import type { PlayerRef } from '../ai/enemy';
+import { HOST_INTERP_DELAY } from './interp';
 
 import type { CharacterRig } from '../player/characterRig';
 
 const SNAP_HZ = 15;
 const HISTORY_HZ = 20;
 const MAX_REWIND = 0.6;
-const INTERP_DELAY = 0.1;
+/** (afp AF6) `HOST_INTERP_DELAY` (interp.ts; was 0.1). */
+const INTERP_DELAY = HOST_INTERP_DELAY;
 /** Items and door states are re-sent at least this often (s), else only when they change. */
 const ITEMS_EVERY = 2;
 /** Seconds to revive a downed team-mate (HQ medic training divides it). */
