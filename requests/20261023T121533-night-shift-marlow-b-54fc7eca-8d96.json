@@ -1,0 +1,13 @@
+{
+  "id": "20261023T121533-night-shift-marlow-b-54fc7eca-8d96",
+  "sha": "54fc7ecaef9e1fa1025911d53b45a1ef848c20a8",
+  "branch": "feature/marlow-walk482",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Marlow Build",
+  "suites": [
+    "e2e-ctcourse:1",
+    "e2e-ctcourse:2"
+  ],
+  "set": "walk482"
+}
