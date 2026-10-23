@@ -6,9 +6,13 @@
  * must not break the game.
  */
 import type { ArtTag } from '../campusArt/artTags';
-import type { PropCatalogue } from '../campusArt/catalogue';
+import type { ArtBox, ArtPlacement, PropCatalogue, V3 } from '../campusArt/catalogue';
 import type { CampusDresser } from '../campusArt/dresser';
-import { boxAt, pointSegDist } from '../campusArt/geometry';
+import { boxAt, boxesIn, pointSegDist } from '../campusArt/geometry';
+import heroReport from '../campusArt/assets/hero-s2.json';
+import { CAMPUS_LOOK } from '../campusArt/campusKit';
+import { PROP_LOOK } from '../props/facilityProps';
+import { S2_GROUPS } from './campusS2';
 
 export const S2_ART_TAGS: Record<string, ArtTag> = {
   post: 'mailroom',
@@ -30,7 +34,43 @@ export const S2_ART_TAGS: Record<string, ArtTag> = {
   l2wing: 'office-open',
 };
 
-export const HERO_S2: PropCatalogue | null = null;
+/** The H2 piece ids (hero_s2.py, `BUILDERS` order). */
+const H2_IDS = ['receptionCounter', 'speedGate', 'cafeCounter', 'mailCage', 'switchBoard', 'sortingTable', 'stockShelf', 'bmsDesk', 'liftDoor', 'balconyPlanter', 'logoWall', 'lowTable', 'kitchenCounter'] as const;
+
+const report = heroReport as unknown as { materials: string[]; pieces: Record<string, { bounds: { min: number[]; max: number[] } }> };
+const bounds: Record<string, { lo: V3; hi: V3 }> = Object.fromEntries(
+  Object.entries(report.pieces).map(([id, p]) => [id, { lo: [p.bounds.min[0]!, p.bounds.min[1]!, p.bounds.min[2]!] as const, hi: [p.bounds.max[0]!, p.bounds.max[1]!, p.bounds.max[2]!] as const }]),
+);
+const rec = <T>(v: Record<string, T>): Readonly<Record<string, T>> => v;
+const LOW_TABLE_BOX: ArtBox = { lo: [-0.59, 0, -0.29], hi: [0.59, 0.39, 0.29] };
+
+/**
+ * Section 2's hero set H2 (briefs/ART-S2.md section 3, `hero-s2.glb`): skins of the greybox's counters, desks, cages and
+ * doors, the foyer logo wall (visual, flush) and the visitors' low table (solid). Hulls are the greybox size + 1 cm a side
+ * (the balcony planter exactly), so the skin rule holds with no scale where the module matches.
+ */
+export const HERO_S2: PropCatalogue | null = {
+  id: 'H2',
+  glb: 'hero-s2.glb',
+  ids: H2_IDS,
+  materials: report.materials,
+  looks: { ...PROP_LOOK, ...CAMPUS_LOOK },
+  collision: rec(Object.fromEntries(H2_IDS.map((id) => [id, id === 'lowTable' ? [LOW_TABLE_BOX] : null]))),
+  footprint: rec(Object.fromEntries(H2_IDS.map((id) => [id, [bounds[id]!.lo[0], bounds[id]!.lo[2], bounds[id]!.hi[0], bounds[id]!.hi[2]] as [number, number, number, number]]))),
+  triBudget: { receptionCounter: 350, speedGate: 160, cafeCounter: 350, mailCage: 300, switchBoard: 200, sortingTable: 150, stockShelf: 150, bmsDesk: 450, liftDoor: 80, balconyPlanter: 200, logoWall: 60, lowTable: 60, kitchenCounter: 150 },
+  hung: [],
+  fit: ['receptionCounter', 'speedGate', 'cafeCounter', 'mailCage', 'switchBoard', 'sortingTable', 'stockShelf', 'bmsDesk', 'liftDoor', 'balconyPlanter', 'kitchenCounter'],
+  overhang: {
+    receptionCounter: { by: 0.2, what: 'the two staff monitors on the worktop behind the transaction top' },
+    cafeCounter: { by: 0.4, what: 'the coffee machine and the cake cabinet on the quartz top' },
+    sortingTable: { by: 0.2, what: 'the sorting trays on the bench' },
+    bmsDesk: { by: 0.5, what: 'the three monitors and the plotter roll holder on the desk' },
+  },
+  emissive: { speedGate: ['lamp'], receptionCounter: ['screen'], bmsDesk: ['screen'] },
+  pitch: { receptionCounter: 3.0, speedGate: 1.0, cafeCounter: 3.0, mailCage: 2.2, switchBoard: 2.2, sortingTable: 3.0, stockShelf: 1.2, bmsDesk: 3.0, liftDoor: 1.2, balconyPlanter: 2.0, logoWall: 4.0, lowTable: 1.2, kitchenCounter: 1.2 },
+  bounds,
+  classOf: { receptionCounter: 'skin', speedGate: 'skin', cafeCounter: 'skin', mailCage: 'skin', switchBoard: 'skin', sortingTable: 'skin', stockShelf: 'skin', bmsDesk: 'skin', liftDoor: 'skin', balconyPlanter: 'skin', logoWall: 'visual', lowTable: 'solid', kitchenCounter: 'skin' },
+};
 
 /** What the last `dressS2` run skipped (a skin or hero that failed its rule), one line each. */
 export const S2_DRESS_LOG: string[] = [];
@@ -76,21 +116,70 @@ function desk(d: CampusDresser, x: number, z: number, floor: number): void {
   }
 }
 
+/** The four turnstile barrier segments (steel, 1.1 high, 0.3 thick, centred on z -23): found, not indexed. */
+function barrierSegments(d: CampusDresser): number[] {
+  return boxesIn(d.ctx.boxes, -30, -23.2, -8, -22.8, 0, 1.2).filter((i) => {
+    const b = d.ctx.boxes[i]!;
+    return Math.abs(b.s[1] - 1.1) < 0.01 && Math.abs(b.s[2] - 0.3) < 0.01 && Math.abs(b.c[1] - 0.55) < 0.01 && Math.abs(b.c[2] + 23) < 0.01;
+  });
+}
+
+/** One exact hero placement; the first position that clears every keepout wins, the rest are logged (a fallback list). */
+function place(d: CampusDresser, label: string, piece: string, spots: readonly (readonly [number, number, number, number])[], cls: ArtPlacement['cls'], why: string): boolean {
+  for (const [x, y, z, yaw] of spots) if (attempt(`${label} at ${x},${z}`, () => void d.add(piece, x, y, z, yaw, { cls, why }))) return true;
+  S2_DRESS_LOG.push(`${label}: omitted`);
+  return false;
+}
+
 export function dressS2(d: CampusDresser): void {
   S2_DRESS_LOG.length = 0;
   const bx = d.ctx.boxes;
-  const [F1, F2] = [4.4, 8.4];
+  const [F0, F1, F2] = [0, 4.4, 8.4];
+  const at = (x: number, y: number, z: number): number => boxAt(bx, x, y, z);
 
-  // ---- the G floor
+  // ---- skins: the G floor
+  attempt('reception desk', () => void d.skinRow('H2:receptionCounter', at(-20, 0.55, -27.1), true, 1, { why: 'reception counter skin (visitors on the turnstile side)' }));
+  attempt('turnstile barriers', () => {
+    for (const i of barrierSegments(d)) {
+      for (const k of d.skinRow('H2:speedGate', i, true, -1, { why: 'speed gate cabinets (the gates stay open gaps)' })) {
+        const p = d.placements[k]!;
+        p.group = S2_GROUPS.atrium;
+        p.lamp = [0.1, 1, 0.3];
+      }
+    }
+  });
+  attempt('cafe counter', () => void d.skinRow('H2:cafeCounter', at(-19, 0.55, -5.6), true, -1, { why: 'cafe counter skin (the cafe side)' }));
   attempt('cafe tables', () => {
-    for (const [x, z] of [[-13, -9], [-13, -6.5], [-22.5, -9.5]] as const) d.skin('K:cafeTable', boxAt(bx, x, 0.375, z), 0, { why: 'cafe table skin' });
+    for (const [x, z] of [[-13, -9], [-13, -6.5], [-22.5, -9.5]] as const) d.skin('K:cafeTable', at(x, 0.375, z), 0, { why: 'cafe table skin' });
+  });
+  attempt('mail cages', () => {
+    for (const [x, z] of [[-41.5, -13.5], [-38, -13.5], [-41.5, -18.5]] as const) d.skin('H2:mailCage', at(x, 0.9, z), 0, { why: 'mail cage skin' });
+  });
+  attempt('plant switchgear', () => {
+    for (const z of [-10, -22]) d.skin('H2:switchBoard', at(1.5, 0.9, z), 0, { why: 'switchgear line-up skin (the F panel is 2.3 high and 1.6 deep: no fit, L1)' });
+  });
+  attempt('NW store block', () => void d.skinRow('H2:stockShelf', at(-42.5, 0.9, 3), false, 1, { why: 'stationery stock bay skin (K shelving is 0.5 deep: no fit, L2)' }));
+  attempt('post sorting table', () => void d.skin('H2:sortingTable', at(-35, 0.45, -26), 0, { why: 'post-room sorting table skin' }));
+  attempt('lift doors', () => {
+    for (const f of [F0, F1, F2]) for (const z of [-10.5, -8, -5.5]) d.skin('H2:liftDoor', at(-40.93, f + 1.05, z), PI / 2, { why: 'lift door skin' });
   });
 
-  // ---- offices
+  // ---- skins: the offices (desks, then one chair each) and L1 / L2 furniture
   for (const [x, z] of L1_DESKS) attempt(`L1 desk ${x},${z}`, () => desk(d, x, z, F1));
   for (const [x, z] of L2_DESKS) attempt(`L2 desk ${x},${z}`, () => desk(d, x, z, F2));
+  attempt('L1 kitchen counter', () => void d.skinRow('H2:kitchenCounter', at(-25, 4.95, -29.4), true, 1, { why: 'breakout kitchen run skin (K kitchenRun is 0.9 high, the counter 1.1: L3)' }));
+  attempt('L1 BMS desk', () => void d.skin('H2:bmsDesk', at(-6.5, 4.775, 4.3), PI, { why: 'facilities desk skin (operator side south)' }));
+  attempt('L2 board table', () => void d.skin('K:boardTable', at(-38, 8.775, 3), 0, { why: 'L2 board table skin' }));
+  // the CR2 planter: 0 cm proud on its -x face (the lip's headroom side), planting no higher than the box top
+  attempt('CR2 planter', () => void d.skinRow('H2:balconyPlanter', at(-9.0, 4.625, -8), false, 1, { why: 'balcony planter skin, flush with the box (the CR2 lip headroom)' }));
 
-  attempt('L2 board table', () => void d.skin('K:boardTable', boxAt(bx, -38, 8.775, 3), 0, { why: 'L2 board table skin' }));
+  // ---- heroes: the atrium and reception
+  place(d, 'logoWall', 'H2:logoWall', [[-25.5, F0, -29.84, 0]], 'visual', 'the brand wall behind reception');
+  place(d, 'greenWall', 'F:greenWall', [[-29.84, F0, -15, PI / 2], [-29.84, F0, -2, PI / 2]], 'visual', "the atrium's planted wall");
+  place(d, 'modelVitrine', 'F:modelVitrine', [[-10.6, F0, -27.4, -PI / 2], [-28.6, F0, -27.4, -PI / 2]], 'solid', 'the Tidewater product display');
+  place(d, 'seat west', 'F:loungeSeat', [[-28.4, F0, -19.5, PI / 2]], 'solid', "visitors' seating");
+  place(d, 'seat east', 'F:loungeSeat', [[-26.4, F0, -19.5, -PI / 2]], 'solid', "visitors' seating");
+  place(d, 'low table', 'H2:lowTable', [[-27.4, F0, -19.5, 0]], 'solid', "visitors' low table");
 
   d.base();
 }
