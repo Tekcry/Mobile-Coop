@@ -1,6 +1,9 @@
 # Guard AI - state
 
 ## Now
+~17:50: GREEN: #229 S9 3c49981e 4/4 (coop, netmove, stealth-ai, takedown); #228 S16 7f91bf3a sectorops:6; train 28
+(#230 walk) 39/39. TRAIN-READY #229 + #228 sent for train 29. S22 301ade39 running on 4192.
+
 ~17:30: S9 on train 28 = 3c49981e (protocol 38, A140; s9 + a126 branches there). A126 267553bf GREEN 3/3 (coop, netmove,
 stealth-ai). S22 check PASS (c2aac435, slices/S22-CHECK.md); PR #234 OPEN to master. Test Runner queue: 4191 S9 3c49981e
 (gates #229); 4192 S16 7f91bf3a sectorops:6, S22 301ade39 (stealth-ai, ct-warehouse, ctcourse, sectorops:6).
@@ -469,7 +472,7 @@ git fetch. Laptop worktrees (all npm ci'd): C:/NightShift/Mobile-Coop-guard-ai (
 Read CLAUDE.md ("Sessions", "Heavy-usage throughput" incl. "Token rules"), ROADMAP "Decided" by grep only (Guard AI,
 unavoidable guards, stealth over shooting), then this file's "Now" (top entry).
 e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep laptop CPU under ~80%.
-1. Train 28 (origin/train/28) has #230 walk: fix any failure Test Runner reports at once.
+1. Train 28 (#230 walk) GREEN 39/39; train 29 gets #229 + #228 (TRAIN-READY sent): fix any failure reported at once.
 2. #229 S9 = 3c49981e (S9 + walk + A126 + train 28 merge 70279266, PROTOCOL 38, A140; s9 and a126 branches both there);
    Test Runner asked: coop, netmove, stealth-ai, takedown on 3c49981e; green -> TRAIN-READY
    (train 29) for #229 (A126 rides inside it; never ship S9 without A126).
