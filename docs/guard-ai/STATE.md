@@ -697,17 +697,18 @@ JSON, commit, push. Green on a set -> `gh pr edit <n> --add-label train-ready` +
 1. #254 S23 (dc964d15) + Marlow #265 A7 cage: train-ready, same train. Backlog: path through a locked door (A7-cage-w)
    stalls ~15 s (S20 door gate never opens a locked leaf).
 2. #258 S22 game (a7e9b33a): train-ready, CI green. #255 LR16-4 relight MERGED (train 36, 4.83.0).
-3. #264 S24 (7fe4f6a2, on #254): s24-coop FAILED (desktop worker, run + rerun): e2e-coop S24 "no pair guard sees a
-   player during the hide": guard idx 2 (pair 2) reaches 0.74 m from the hidden client, seen [0,0,474,0]. Opus triage
-   RUNNING in -s24 (slices/S24-COOP-TRIAGE.md, WIP pushed per step): fix -> requeue e2e-coop on the fix (+ merge the
-   fix up into s25 / s26 / s27 / walk482 if src). Laptop s24 on e31edd54 (stealth-ai, netmove, ctcourse) pending.
-4. #266 S25 (8bd13e0c, on #264): laptop s25 7a7725ef PASS 3/3; s25-sai on 8bd13e0c (stealth-ai) pending; train-ready
-   only with #264.
-5. #271 S26 (feature/guard-ai-s26, on #266; worktree -s26): checks A + B PASS, fix round d30601a2 (client step noise
-   from sent speed, blind guard deaf) re-check PASS; laptop s26-fix on d30601a2 (stealth-ai, coop, netmove).
-6. #270 S27 (0ae92fd4, on #264; worktree -s27): checks A + B PASS; laptop s27-e2e on 0ae92fd4 (stealth-ai, sectorops).
-7. #272 walk 4.82 items 2 + 6 (feature/guard-ai-walk482, on #264; worktree -walk482): checks A + B PASS; laptop
-   walk482 on e67614c0 (stealth-ai, ctcourse). Marlow does Marlow Yard item 6 itself (feature/marlow-walk482).
+   (2026-10-24 ~00:10: every red set below was triaged as a TEST bug, scripts-only fixes; reruns queued. Green ->
+   label; #264 + #266 + #271 + #270 + #272 enter one train together with #254.)
+3. #264 S24: s24 e31edd54 PASS 5/5. e2e-coop hide fix 0a42c6b5 (hides moved to the dark yard lane; pair 2's own cover
+   saw the corridor; slices/S24-COOP-TRIAGE.md); laptop s24-coop-fix (e2e-coop) queued.
+4. #266 S25: s25 7a7725ef PASS. 'near' fix b384befc (hide spot was visible through the x -4 wall gap;
+   S25-SAI-TRIAGE.md); laptop s25-sai-fix (stealth-ai) queued; head f0738296 = + S24 fix merged (scripts only).
+5. #271 S26: head 97da4fdf = d30601a2 + s25 (+ s24) fixes merged; laptop s26-fix2 (stealth-ai, coop, netmove) queued.
+6. #270 S27: sectorops:1 fix 1e8d1b6c (another guard's radio call beat the panel since S24 A149 + S27 A161: hush every
+   guard's calls in panelAlarm; S27-SEC1-TRIAGE.md); laptop s27-sec1-fix (sectorops:1) queued; s27-e2e other 6 PASS.
+7. #272 walk482: lkp fix d0968052 (search starts later under item 2: wait for the search's own length; WALK482.md
+   "Laptop triage"); laptop walk482-fix (stealth-ai) queued; first run of the 'report then engage' scenario.
+   Marlow does Marlow Yard item 6 itself (feature/marlow-walk482).
    Train conflicts: s27 (enemy.ts import + inCover order onRadio -> tactics -> closeFromCover), s25 (e2e-stealth-ai
    scenarios after lkp); rerun s25 search area + lkp after the merge.
 8. PLAN has no slice after S27 (S28 none). Next work: walk reports from Michael, polish lists only after his playtest.
