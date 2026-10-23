@@ -88,7 +88,8 @@ try {
 
   // reload, then dry fire on an empty gun with nothing in reserve
   // (X held 0.4 s with the gun out reloads; A never does: anim-rework S1)
-  // (the first X down after the shots is not read as a hold: hold it twice, the second starts the reload)
+  // (forceAds aims without drawing, so the stance base is still 'holstered': the first X press is spent as the draw
+  // (weaponStance.ts), the second hold reloads. A player-drawn gun reloads on the first hold.)
   await sim(0.55, [[BTN.X, 1]]);
   await sim(0.2);
   await sim(0.55, [[BTN.X, 1]]);
