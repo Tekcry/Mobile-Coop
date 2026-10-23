@@ -401,6 +401,11 @@ State at the save (~14:00): train 25 GREEN = #200-#203 + #208 releasing as 4.74.
    else a fresh Opus checker. Then laptop e2e-sectorops part 6, stealth-ai, ct-warehouse, ctcourse; PR base
    feature/sector-redesign-e10 (retarget to master when E10 lands), tell Night Shift | Sector Ops Build.
 4. Queued laptop runs (Test Runner): s9 59c35d7f; s13 82ef72bd e2e-levels. Verdicts arrive as messages / PR comments.
+5. Michael's walk fixes G1-G6 = PLAN.md "Walk 4.72 fixes" S17-S22 (lasers search the beam and room, not his position;
+   longer body searches; urgency to alarms / reported bodies; guards through each other / doors; holstered when calm;
+   console switched back on). TOP PRIORITY after step 1: branch feature/guard-ai-walk off the s15 tip, in parallel
+   (S17, S18 + S19 together, S20, S22 with Marlow Build; S21 with Test Runner for the rig), never two agents on one
+   file region; one batch PR, one Opus checker.
 Rules: AI code and checkers Opus, Sonnet 5.5 tests / data from strict briefs, Haiku chores. Never two agents on the
 same files; keep the laptop CPU in step with Test Runner's queue (trains first). Every e2e E2E_GPU=1. Message the
 orchestrator only at PR open / train-ready / blocked / needs Michael; progress in this file. A-numbers: S13 A52-A59,

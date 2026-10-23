@@ -40,6 +40,19 @@ slice end (desktop lock), e2e by Character Build on the laptop (`E2E_GPU=1`, nam
 S1-S3 first: the "not everyone hears, one goes, alerts spread over seconds" fixes Michael named first. Smaller slices
 may go to master as their own PRs into trains once green; the rest in one PR at the end.
 
+## Walk 4.72 fixes (S17-S22; Michael's walk, docs/orchestrator/WALK-4.72-REPORT.md "Guard AI Build" on feature/menu)
+Top priority after S15's laptop fix; branch off the s15 tip (S13-S15 on it), one branch feature/guard-ai-walk, one
+batch PR, one Opus checker. Opus for AI code (S17-S20, S22), S21 with the guard-render owner (Test Runner) for the rig.
+| Slice | Michael's words | Build |
+| --- | --- | --- |
+| S16 | (Sector Ops E10) | Armoured fire gate: built on feature/guard-ai-s16 off sector-redesign-e10 (see STATE). |
+| S17 (G1) | "when guards alerted when i cross laser, they somehow know ive climbed elsewhere... they come to look where the laser is and search the room." | A laser trip is a noise / device incident at the beam (the beam's midpoint or the crossing point), never the player's live position: no LKP from the player, investigators search the beam spot then the room (S2 board, search points in that room); grep the laser / security trip path into the AI (src/security, src/game) and every place that reads player.pos on a device alert. |
+| S18 (G2) | "guards investigating dead bodies give up too easily." | Body investigation lasts longer: a found body (S4 / S7) gives the finders a longer search (ALERT.searchTime x a body factor, more search points, wider radius around the body) before the held caution; data in gear.ts / guardAiData tables. |
+| S19 (G3) | "guards should rush to any triggered alarms or bodies reported, they need a sense of urgency when it makes logical sense." | Urgent pace: alarm responders, reinforcements, a reported body (radio or camera), a shots call and the S14 missing call move at run / jog (PACE table), not patrol pace; calm investigations (noise, light, breaker) keep their pace. |
+| S20 (G4) | "guards seem to walk through eachother and sometimes doors." | Guard-guard separation (allocation-free steering against near guards, nav occupancy) and doors: guards path through doors only when open (open them like the player does, or wait), never through a closed door's collider; check the door state in nav and the walker. |
+| S21 (G5) | "they also dont always have to be low-ready, then can walk around holstered if they are in a calm area." | A calm guard in a calm area carries the weapon holstered / slung (every guard still armed); low ready from suspicious / cautious (S9 A91 0.4), raised in combat. Pose weight and the rig's carry clip; with the guard-render owner. |
+| S22 (G6) | "if i turn it off while hes distracted, he should notice when he sees it and turn it back on also." | Security console (Marlow S3, with Marlow Build): a guard who sees his console switched off walks to it and turns it back on (as the S15 breaker walk: calm, one guard, a bark), through the console's own toggle path. |
+
 ## Stealth over shooting (S11-S15, SoS; Michael 2026-10-23 ~10:10)
 Design and per-item gaps: `research/stealth-over-shooting.md`; assumed decisions A35-A46 (`BRIEF.md`). Items 1, 5, 9,
 10, 12, 14, suppressor ammo and the ammo crate belong to other jobs (that file's hand-off table).
