@@ -1,4 +1,4 @@
-# Resume - Night Shift | Player Build (formerly CT Core Build; saved 2026-10-23 ~13:45 at the orchestrator's 90% save)
+# Resume - Night Shift | Player Build (saved 2026-10-23 at the 100% swap; agent worktrees WIP-pushed: afp-af1, afp-af4a, afp-af6, b22-fix - restart each from its branch head with its PLAN slice / row goal)
 
 Rules: CLAUDE.md on origin/feature/menu "Heavy-usage throughput", "Token rules", "Account swap". No mid-window clears.
 Opus plans / checks / anim + net code; Sonnet builds from strict briefs; desktop CPU < 80%. e2e always E2E_GPU=1:
@@ -7,31 +7,21 @@ batch; desktop heavy.lock (4191) / heavy2.lock (4192) for single suites. Agent r
 COMMON-SPARE.md (subagents are refused REPORT.md: the lead writes it from the hand-back). Push this file with
 scratch/ctcore/push-resume.sh <abs file> <msg>. Message the orchestrator only at PR open / train-ready / blocked / Michael.
 
-## Open (master 4.74.0 after train 25). All four PRs go in train 26 together, once #207 is fixed.
+## Open (master f5912402 after train 26, PROTOCOL 35; #221 merged). Train 27: #207 + #214 + #223 + #227 once green.
 | Job | Branch (folder C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
-| #207 batch 22 | feature/ctcore-batch-22 (folder b22-fix) | 99c37251 + WIP | Out of train 24: e2e-clip "ladder climb: knees never knock" 8.9 vs > 9.0 cm (scripts/e2e-clip.mjs:250; master passes). Opus fix agent's WIP: src/anim/clips/traverse.ts:389 CLIMB_UP `fLX` holds -0.12 over 0.36-0.5 (plus debug-only logs in e2e-clip.mjs, drop before commit); saved at refs/heads/wip/b22-ladder-knees (7a56088d). Finish: e2e-clip / traverse / anim green, commit, push. |
-| #214 batch 23 | feature/ctcore-batch-23 (folder ctcore-batch) | 92ba8c94 | sd-rounds + team-climb + interrogation-intel + ipad-fit. Checker PASS (scratch/ctcore/b23-CHECK.md). Laptop 10/10 GREEN on dc8919cd; ipad-fit e2e-menus / desktop PASS. After #207's fix: merge batch-22 in, laptop e2e-clip (+ the batch's suites if src changed), train-ready message. |
-| #221 mocap-strafe | feature/mocap-strafe | ebdd882f | CI red fixed (alloc compare + 1 B/frame noise, test only); train-ready re-sent. Recheck PASS, e2e-anim / clip PASS. Polish list: docs/mocap-trial/MT2-STRAFE.md "Recheck after round 3". |
-| #223 batch 24 pose-parity | feature/pose-parity | 19248c01 | PROTOCOL 36 (renumber at train if taken). Check PASS, laptop coop / netmove / takedown GREEN; train-ready sent. Stacked on #214. |
+| #207 batch 22 | feature/ctcore-batch-22 (b22-fix) | 59d69a76 WIP | Opus agent on ladder knees (e2e-clip 8.9 vs > 9.0, src/anim/clips/traverse.ts:389 fLX); told to merge master f5912402 and set tests/hangDownNet.test.ts:15 to 35 (CI red). If lost: restart from 59d69a76 with that goal. |
+| #214 batch 23 | feature/ctcore-batch-23 (ctcore-batch) | 0eaba0f8 | Recheck PASS. Merged master f5912402 (train 26, protocol 35); hangDownNet asserts 35 (CI was red on 31). Waiting on #207: merge batch-22 in, laptop batch (coop, netmove, ctcourse, clip, pad), train-ready. |
+| #223 batch 24 pose-parity | feature/pose-parity | 19248c01 | PROTOCOL 36. Green; stacked on #214: merge batch-23 in when green, train-ready. |
+| spare 7 crouch-pops #227 | feature/crouch-pops (crouch-pops) | 642ad971 | Checker PASS, e2e-anim / clip PASS. PR #227 open, train-ready sent (stacks on #221). Polish: docs/crouch-pops/CHECK.md 1-3 (OFF running crouch-down wristR 9.47 cm). |
+| walk P1-P5 anim fix pass | feature/anim-fix-pass (anim-fix-pass) | 0c886207 | Merged AF0, AF5, AF2 (run pelvis / lean / bank PASS; wrist jerk 1.44-2.45 vs bar 1.0 and sprint knee 45 deg not met - remeasure after AF1, polish). Running: AF1 afp-af1, AF4a afp-af4a (off 0c886207), AF6 afp-af6 (off coop-walk-fixes). Next: AF3 after AF1 merges (animGraph), then AF4b; one checker; flag M4 narrowing (AF5) at PR. |
+| walk P6-P7 co-op #231 | feature/coop-walk-fixes (coop-walk-fixes) | c98005de | PR #231 open, train-ready sent. Checker PASS; laptop e2e-coop GREEN c98005de, netmove ok c6b4f4a3. PROTOCOL 37 (renumber at train). Stacked on #223 -> #214. |
 
-## Next, at once (parallel)
-1. If the b22-fix agent was lost: restart an Opus agent in folder b22-fix from the WIP above with the table's goal.
-2. When #207 is green: steps in the #214 row; message the orchestrator train-ready for #207 + #214 (+ #221 + #223).
-3. Spare 7 crouch-pops (Opus) STARTED ~13:50: feature/crouch-pops off mocap-strafe 191c3565 (stacks on #221), folder
-   crouch-pops. Goal: stand -> crouch -> stand 9.6 cm and running crouch -> stand 8.3 cm pops <= 0.5 (docs/anim-bake-targets/
-   STATE.md:19), baked trackMul 0.05 kept; BRIEF first, tests/crouchPops.test.ts, e2e-anim + clip. If lost: restart from
-   its pushed head with this goal.
-4. Michael's walk 4.72 (docs/orchestrator/WALK-4.72-REPORT.md on feature/menu, "Player Build" P1-P7; started ~14:00):
-   - Anim Studio out of the pause menu (Michael 14:00; main menu keeps it, pause keeps the Animation Tuner): Sonnet agent
-     in folder ctcore-batch on batch-23 (#214), e2e-menus. Then the batch-23 laptop request covers it.
-   - P1-P5 animation fix pass: Opus PLANNER, feature/anim-fix-pass off mocap-strafe 191c3565, folder anim-fix-pass ->
-     docs/anim-fix-pass/BRIEF.md + PLAN.md (slices, files, parallel groups) + before sheets. Then build the slices in
-     parallel (Opus for rig / planner / graph / net, Sonnet from strict briefs), after-sheets, one checker per batch.
-   - P6 co-op hostage takedown both ways + P7 co-op shot audio doubled / unsuppressed: Opus builder,
-     feature/coop-walk-fixes off pose-parity 19248c01, folder coop-walk-fixes; laptop e2e-coop / netmove after. Next batch.
-5. Follow-ups noted: Guard AI `Enemy.patrolRoute` getter (forwarded by the orchestrator); intel part B (modes'
-   onIntelCode) after marlow-final / sector-redesign; relay climber sub bit (pose-parity open item); Michael's iPad look.
+## Next
+1. As each agent hands back: one Opus checker per batch, laptop request to Test Runner (coop / netmove / ctcourse + clip), train-ready to the orchestrator.
+2. AF6 worktree ready (Mobile-Coop-afp-af6, feature/afp-af6 off coop-walk-fixes a4e1fe64; wire change -> PROTOCOL 38): start when desktop CPU < 80% (97% at 14:5x). Anim-fix-pass: launch the PLAN's parallel groups as soon as it lands (CPU < 80%).
+3. Agent rules: scratch/ctcore/COMMON-27.md. Walk report copy: scratch/ctcore/walk472.md.
+4. Follow-ups: intel part B (modes' onIntelCode) after marlow-final / sector-redesign; relay climber sub bit (pose-parity open item).
 
 ## Resume prompt
 ```
