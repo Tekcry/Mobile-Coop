@@ -55,15 +55,15 @@ fresh bodies (`body.ts`) opt in; `?guardmerge=0` gives the old instanced parts f
 S1 is checked (PASS WITH NOTES), master merged in (4.68.0 + later), the GPU runs are in (`run-s1`, `run-s1-off`,
 `run-s0-base`: 24 guards facing, sectorops frame 9.7 -> 7.1 ms), the changelog fragment (`changes/feature-guard-render.md`),
 TESTING.md line and `docs/systems/world-and-characters.md` section are written.
-1. Look-check shots on port 4189 (merge on and `?guardmerge=0`, normal / thermal / night vision, one guard close up),
-   output `C:/NightShift/scratch/runs/s1-look/`; the snippet is `docs/guard-render/look-shot.js` (untested: camera and
-   guard spot on Marlow Yard bay S1 are a guess), run through `scripts/shot.mjs`. Needs `npm run build` and a
-   `vite preview` on 4189 (shot.mjs does not serve `dist/`). Compare the pairs by eye (shadows of heads, hands, feet are
-   the accepted change).
-2. Then the PR to master (no e2e / GPU suites run yet on the pushed head: smoke, stealth-ai, sectorops, ctcourse, coop,
-   netmove, anim, takedown go before the PR).
-3. Send CT Core the hook (item d above) for `characterRig.ts`.
-4. Then re-plan after S1's numbers (PLAN section 4); S2 / S3 next.
+1. DONE 2026-10-23 ~11:35: look check `look-s1/` (laptop GPU, 2198d0da, `look-s1/s1-look.mjs` + `look-shot.js`): merge on
+   vs `?guardmerge=0` in normal / thermal / night vision read the same by eye (same silhouette, colours, thermal
+   pattern, NV shading); no missing guard, no console errors.
+2. PR to master (2026-10-23): checker PASS WITH NOTES, nothing in `src/net` / protocol / save, so it rides the next
+   train on CI `check` (heavy-usage rule); e2e at 70470c30 was GREEN 14/14 (smoke stealth-ai sectorops ctcourse coop
+   netmove anim takedown; 668d623d adds only the dispose cleanup), the train's full run covers the final head.
+3. DONE: CT Core OK'd the characterRig hook (item d).
+4. Next slices: S5 PR (stacked on S1), S3a after its fix round 2 + e2e, S6 after its fix round + e2e (S6d look change
+   waits for Michael); then re-plan from PLAN section 4.
 
 ## Open
 1-5: answered (BRIEF.md M1-M6).
