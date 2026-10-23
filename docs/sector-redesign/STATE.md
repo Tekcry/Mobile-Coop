@@ -292,7 +292,7 @@ LR16 (one lighting system; Michael ~18:08-18:20; plan checks/lr16-plan.md, audit
   (-lr16d 5811ed95), merged c7a26ca7. Checker B PASS 3223fefe; checker A FIX da773613 (torch SpotLight hard cut vs
   feathered meter, lightRig.ts:539 / bakedLamps.ts:175; door/prop casters outside cone fit charShadows.ts:357;
   lights.contribution linear). FIX DONE f8008542 (lr16-batch-fix.md; torch cone feathered on every PBR torch path,
-  meter vs picture < 1e-6). Recheck RUNNING (lr16-batch-recheck.md). Laptop: batch 1 redirected to f8008542 (~20:40).
+  meter vs picture < 1e-6). Recheck PASS aec88a70 (polish: far open door can widen the fit past max -> capsules). Laptop: batch 1 redirected to f8008542 (~20:40).
   Known reds after fix: exactly 15 (ctcourseLight 4, warehouseS1Light 4, S2 3, S3 4) -> LR16g. PROTOCOL stays 38: train bumps.
 - -lr16dx = lr16int c7a26ca7 + -lr16dw 0cdee9f1 (22 warehouse moves). Opus FIX ROUND was running (lr16dx-build.md):
   ids 20 / 71, wrong 75 / 11 / 120+123, audit rule, none rows, full audit rerun. Resume from that doc; then 1 checker.
