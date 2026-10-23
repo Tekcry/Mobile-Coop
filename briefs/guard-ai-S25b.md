@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-23T10:29Z
+status: done feature/guard-ai-s25 73038a40
 # guard-ai S25b: probable-area search, the wiring (searchers check where a player could be)
 
 Lead: Night Shift | Guard AI Build. Model: **Opus only** (AI code; no Sonnet / Haiku builders). The full strict brief is
@@ -37,3 +37,38 @@ rules" and docs/systems/agent-preamble.md on master.
   "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>". Then a report below (files with line ranges, tests before
   -> after with counts, deviations, e2e blocks that change by design) and `status: done feature/guard-ai-s25 <sha>`.
 - Assumed decisions A151-A154 in S25.md are accepted as written. The flares question for Michael does not block.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-23 ~21:55): done, feature/guard-ai-s25 73038a40
+Base: origin/feature/guard-ai-s24 96d565e5 (re-fetched before done: not moved) + clean merge of origin/feature/guard-ai-s25a
+(2f04b4bd). S24 code untouched; its check A FAIL (hunt -1 joiners never rebind) is still open.
+Files (line ranges at 73038a40; diff vs S24 = S25a's files + these):
+- `src/ai/searchArea.ts`: `orderByScore` 66-86 (in-place shell sort, no allocation); `SearchPlan.claimOf` / `finishBy` /
+  `anyClaim` 176-195.
+- `src/ai/enemy.ts`: import 34; `AiContext.searchPoint?` / `searchDone?` 194-199; `planPoint` / `planN` 380-383; `onPlan`
+  401-405; `planOver` 1275-1280; plan resets in koSearch / bodySearch 871-872, 890-891, onLevel 1785, 1794-1795; search
+  branch 2371-2379 (point 0 the LKP, then `ctx.searchPoint`, else `ringPoint` at `searchK-1-planN`); `searchDone` at look
+  end 2406 and unreachable skip 2417.
+- `src/ai/enemyManager.ts`: import 67; `PLAN_*` 109-114; plans / scratch 173-189; claim release onKilled 543-544, despawn
+  1664-1665; ctx hooks 631-633; reset on forgotten slot 2644-2645; `searchPointFor` / `searchDoneFor` / `releasePlans` /
+  `planSweep` / `buildPlan` 2687-2823; update plan clock + planSweep 3069-3071; clear 3299-3300.
+- Tests: `tests/searchAreaWiring.test.ts` new (10), `tests/searchArea.test.ts` +4. Docs: `changes/feature-guard-ai-s25.md`
+  (minor), `docs/systems/ai.md` 415-431, `TESTING.md` 58-60.
+Required S25a polish: (1) buildPlan collects into fixed scratch, `orderByScore`, offers best first; (2) searchDone by
+`finishBy(num)`, never a saved index; (3) rebuild only when due (never built / older than rebuild s / centre moved > 1 m)
+AND no live claim AND a current chase field for that position.
+Tests: before (merged base) 26 files 385 / 385 (searchArea, bodySearch, urgency, sweep + the 22 files that build an Enemy
+or EnemyManager, incl. deviceTrip, responseWiring, twoIntruders, squadWiring, postsWiring, incidents) -> after 27 files
+399 / 399 (searchArea 14 -> 18). Wiring (a)-(g) + no rebuild with a live claim + unreachable -> searchDone(false).
+(g) passes: `SEARCH_AREA.enabled = false` gives exactly LKP then ringPoint k 0-6, hook never called. tsc, eslint clean.
+Deviations / choices: when the plan runs out the ring starts at its own first point (`searchK-1-planN`), so with no plan
+points the index is exactly today's; a rebuild round the same centre (<= 1 m) keeps done points (matched within the 3 m
+spacing; else a lone searcher got his own finished point back after 2 s); `planSweep` each update frees claims of guards
+gone / down / not searching / off plan / on another intruder (no third ctx hook); cover candidates use
+`nav.nearestWalkable(x, z, 2, y)` (cover can sit on a wall column); no plan while the intruder's chase field is missing,
+stale or built round another position (then the ring point).
+'lkp' path distance (warehouse runtime nav, doors open): LKP ~(-0.5, 0) -> hide spot (-2, -15) = 19.5 m (from (0,0)
+19.3 m, from (-1, 0.5) 20.2 m; straight 15.1 m). Under `SEARCH_AREA.max` + 3 = 23 m, so per the brief the hide spot must
+move farther or into light behind the wall. Baked light at (-2, -15) not readable from the unit helpers.
+e2e blocks that may change by design (none edited): e2e-sectorops search and ghost blocks; any e2e-tactics / e2e-stealth
+check asserting a combat searcher's ring points or keeping him near the LKP. The e2e-stealth-ai 'search area' scenario is
+the lead's.
