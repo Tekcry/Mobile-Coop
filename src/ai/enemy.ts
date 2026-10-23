@@ -48,6 +48,7 @@ import { CAUTION } from './awareness';
 import type { InstancedMesh } from '../core/babylon';
 import { gearHit, type GearHit, type GuardGear } from './gear';
 import { factionLook } from './factions';
+import { SWEEP_NEAR, type SweepTeam } from './sweepTeam';
 
 /** (guard-ai S12) Scratch for `gearHit` (one hit at a time; the damage path allocates nothing for gear). */
 const GEAR_OUT: GearHit = { mult: 1, knockOff: false, stagger: 0 };
@@ -1107,6 +1108,71 @@ export class Enemy implements Damageable {
     this.entryT = 0;
     this.radio(0);
   }
+
+  /** (guard-ai S13, item 11) His response team (its sweep after the search; null: none; `team` is the damage side) and
+   *  his rank in it (written by `SweepTeam.tick`: 0 the leader, 1.. the stack behind him, -1 down or held). */
+  crew: SweepTeam<Enemy> | null = null;
+  teamRank = -1;
+  private readonly sweepP: P2 = [0, 0];
+  private readonly sweepGoal: { point: P2 | null; speed: number; face: number | null } = { point: null, speed: 0, face: null };
+
+  /** (guard-ai S13) His patrol route's points (null: none), for a response team's sweep source (alarm time only). */
+  get routePoints(): readonly (readonly [number, number])[] | null {
+    return this.walker.route?.points ?? null;
+  }
+
+  /** (guard-ai S13) His post centre (his spawn point), for a response team's sweep source. */
+  get postPoint(): readonly [number, number] {
+    return this.post;
+  }
+
+  /**
+   * (guard-ai S13, item 11, A39) The sweep, one step (searching, his team sweeping). The leader walks to the team's
+   * current point at the search pace and looks round it `SWEEP.dwell` s (an unreachable point is skipped); a follower
+   * keeps his place in the stack behind the leader (`SweepTeam.follow`), jogging when he is well behind, and looks the
+   * way the leader looks once there. The torch follows the searching rule (`torchWanted`). No allocation.
+   */
+  private sweepStep(dt: number, tm: SweepTeam<Enemy>): { point: P2 | null; speed: number; face: number | null } {
+    const out = this.sweepGoal;
+    const pace = this.def.walkSpeed * this.searchPace;
+    const p = this.sweepP;
+    const L = tm.leader;
+    if (L === this || L === null) {
+      const i = tm.point;
+      p[0] = tm.pts[2 * i]!;
+      p[1] = tm.pts[2 * i + 1]!;
+      const d = hyp2(p[0] - this.pos.x, p[1] - this.pos.z);
+      if (d <= SWEEP_NEAR) {
+        if (tm.dwellT === 0) this.lookBase = this.yaw;
+        tm.lead(dt, this.pos.x, this.pos.z);
+        this.spotArrived = true;
+        out.point = null;
+        out.speed = 0;
+        out.face = this.lookBase + Math.sin(tm.dwellT * 1.6) * 1.0;
+        return out;
+      }
+      tm.lead(dt, this.pos.x, this.pos.z);
+      const wp = this.goTo(p, dt);
+      // unreachable: on to the next one
+      if (!wp && this.routePath.length === 0) tm.next();
+      out.point = wp;
+      out.speed = pace;
+      out.face = null;
+      return out;
+    }
+    tm.follow(this.teamRank, L.pos.x, L.pos.z, p);
+    const d = hyp2(p[0] - this.pos.x, p[1] - this.pos.z);
+    if (d < 0.8) {
+      out.point = null;
+      out.speed = 0;
+      out.face = L.yaw;
+      return out;
+    }
+    out.point = this.goTo(p, dt, 0.8);
+    out.speed = d > SWEEP_NEAR + 3 ? this.def.runSpeed * 0.6 : pace;
+    out.face = null;
+    return out;
+  }
   private readonly lure = new PostLure();
   private readonly lureOut: PostLureOut = { x: 0, z: 0, yaw: 0, moving: false, phase: LURE.idle };
   private readonly lureP: P2 = [0, 0];
@@ -1763,6 +1829,9 @@ export class Enemy implements Damageable {
             return { point: this.goTo(this.spot, dt, 0.9), speed: def.walkSpeed * PACE.revive, face: null };
           }
         }
+        // (guard-ai S13) a response team past its search of the last known position sweeps the section
+        const crew = this.crew;
+        if (lvl === 'searching' && crew && crew.sweeping) return this.sweepStep(dt, crew);
         if (lvl === 'investigating' && this.lc.active) return this.lightStep(dt);
         if (lvl === 'investigating') {
           // the latest stimulus is the spot
