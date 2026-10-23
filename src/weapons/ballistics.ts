@@ -87,6 +87,17 @@ export class Ballistics {
     return this.res.hasHit ? Vector3.Distance(from, this.res.hitPoint) : Vector3.Distance(from, to);
   }
 
+  /**
+   * (sector-redesign perf) A render-only cast (the guard freeze's occlusion rays): the first hit in `collideWith`, as the
+   * shared result (`hasHit`, `body`, `hitPoint`; read it before the next cast). No allocation, nothing resolved.
+   */
+  cast(from: Vector3, to: Vector3, collideWith: number): PhysicsRaycastResult {
+    this.res.reset();
+    this.q.collideWith = collideWith;
+    this.eng.raycastToRef(from, to, this.res, this.q);
+    return this.res;
+  }
+
   /** (guard-ai S16) The first hit in `collideWith` along the segment carries the armour bit (an armoured pane or door
    *  leaf), resolved in `ray`'s order (a hit volume or a prop first is not armour); no allocation (the fire gate). */
   armouredFirst(from: Vector3, to: Vector3, collideWith: number): boolean {

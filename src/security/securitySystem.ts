@@ -4,7 +4,7 @@ import type { Ballistics } from '../weapons/ballistics';
 import { MASK } from '../physics/groups';
 import { CAMERA } from '../config/security';
 import { hyp3 } from '../core/mathx';
-import { CameraUnit, cameraRate, segmentHousingT, stepCamMeter, type CamMeter } from './camera';
+import { CameraUnit, cameraRate, nearestHousing, stepCamMeter, type CamMeter } from './camera';
 import type { SecurityData } from './data';
 import type { SecurityView } from './securityView';
 
@@ -250,17 +250,7 @@ export class SecuritySystem {
   shotRay(from: Vector3, to: Vector3): string | null {
     // (polish 11) the housing nearest along the round, not the first in the list (a far bulletproof camera listed first
     // no longer shields a near shootable one)
-    let c: CameraUnit | null = null;
-    let best = 2;
-    for (let i = 0; i < this.cameras.length; i++) {
-      const k = this.cameras[i]!;
-      if (k.mode === 'destroyed') continue;
-      const t = segmentHousingT(k, from.x, from.y, from.z, to.x, to.y, to.z);
-      if (t >= 0 && t < best) {
-        best = t;
-        c = k;
-      }
-    }
+    const c = nearestHousing(this.cameras, from.x, from.y, from.z, to.x, to.y, to.z);
     if (!c) return null;
     if (c.def.bulletproof) {
       this.ricochets++;

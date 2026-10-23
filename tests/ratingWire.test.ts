@@ -4,7 +4,7 @@ import { NetSession } from '../src/net/session';
 import type { Transport } from '../src/net/transport';
 import { defaultLook } from '../src/cosmetics/avatarLook';
 import { parseMessage, PROTOCOL_VERSION, RT_COUNT, ratingWire, type Msg } from '../src/net/protocol';
-import { ratingViewFromWire } from '../src/net/validate';
+import { ratingViewFromWire, ratingViewsFromRh } from '../src/net/validate';
 import type { SectorRatingWire } from '../src/game/sectors';
 import { RH_HI, RH_MAX, packRated, unpackRated } from '../src/game/course/courseWire';
 
@@ -113,6 +113,38 @@ describe('rating wire (protocol 42)', () => {
     expect(long && long.t === 'course' ? long.rh?.length : 0).toBe(RH_MAX);
     const none = parseMessage(base);
     expect(none && none.t === 'course' && 'rh' in none).toBe(false);
+  });
+
+  it('(marlow-polish) the sector message carries every section rated so far as rh (clamped, capped, index kept); none: dropped', () => {
+    const rh = packRated([7, 15, -1, 3], [0, 2, 0, 1]);
+    const ok = sectorOf(parseMessage({ t: 'sector', ls: 3, rt: { ...RT, sec: 3 }, rh: [...rh, 'x', RH_HI + 5, -7] }));
+    expect(ok?.rh).toEqual([...rh, -1, RH_HI, -1]);
+    expect(ok?.ls).toBe(3);
+    const long = sectorOf(parseMessage({ t: 'sector', rh: new Array(RH_MAX + 10).fill(3) }));
+    expect(long?.rh?.length).toBe(RH_MAX);
+    for (const bad of [undefined, null, 5, 'rh', { 0: 3 }]) {
+      const m = sectorOf(parseMessage({ t: 'sector', ls: 1, rh: bad }));
+      expect(m?.ls).toBe(1);
+      expect(m && 'rh' in m).toBe(false);
+    }
+  });
+
+  it('(marlow-polish) a late joiner rebuilds every rated section from rh: map titles, index order, rt section skipped, no grant', () => {
+    const defs = [
+      { id: 'dock', name: 'Dock' },
+      { id: 'labs', name: 'Labs' },
+      { id: 'yard', name: 'Yard' },
+      { id: 'roof', name: 'Roof' },
+    ];
+    const rh = packRated([7, 15, -1, 3, 9], [0, 2, 0, 1, 0]);
+    const nil = { gadget: 0, syringe: 0, medkit: 0, alarmStep: 0 };
+    expect(ratingViewsFromRh(rh, 3, defs)).toEqual([
+      { sectionId: 'dock', title: 'Dock', marks: 7, synced: 0, grant: nil },
+      { sectionId: 'labs', title: 'Labs', marks: 15, synced: 2, grant: nil },
+    ]);
+    // no rt (-1): every rated section; an index the map lacks (4) is not listed
+    expect(ratingViewsFromRh(rh, -1, defs).map((v) => v.sectionId)).toEqual(['dock', 'labs', 'roof']);
+    expect(ratingViewsFromRh([], -1, defs)).toEqual([]);
   });
 
   it('the client view: section id and title from the map, null before a rating or for an index the map lacks', () => {

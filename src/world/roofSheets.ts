@@ -14,6 +14,25 @@ export interface SheetPiece {
   z1: number;
   /** The sheet's mid height (m). */
   y: number;
+  /** Its collision box's bottom and top (m). */
+  y0: number;
+  y1: number;
+}
+
+/** Margin (m) round a sheet's box for the see-through test (a ray's hit point sits on the box face). */
+const SHEET_PAD = 0.05;
+
+/**
+ * (sector-redesign perf, render only: the guard freeze's occlusion rays) Is the point on / in a roof sheet's collision
+ * box? The sheets are collision-only boxes in the level's static container (one body), so a hit is told by its point.
+ * Allocation-free.
+ */
+export function inSheet(sheets: readonly SheetPiece[], x: number, y: number, z: number): boolean {
+  for (let i = 0; i < sheets.length; i++) {
+    const s = sheets[i]!;
+    if (x >= s.x0 - SHEET_PAD && x <= s.x1 + SHEET_PAD && z >= s.z0 - SHEET_PAD && z <= s.z1 + SHEET_PAD && y >= s.y0 - SHEET_PAD && y <= s.y1 + SHEET_PAD) return true;
+  }
+  return false;
 }
 
 /** Ridge pitch and height (m): a deep-profile sheet, simplified. */

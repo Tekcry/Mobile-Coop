@@ -1,4 +1,5 @@
 import type { Scene } from '../core/babylon';
+import { mergeGun } from './enemyGunMerge';
 import { CharacterRig } from '../player/characterRig';
 import { WeaponModel } from '../weapons/weaponModel';
 import { WEAPONS } from '../weapons/weaponDefs';
@@ -23,7 +24,10 @@ export function buildEnemyRig(scene: Scene, world: World, def: EnemyDef, name: s
   let gun: WeaponModel | null = null;
   if (def.gun) {
     gun = new WeaponModel(scene, world.parts, WEAPONS[def.gun], ENEMY_GUN, rig.weaponPivot);
-    for (const m of gun.renderMeshes) world.addShadowCaster(m);
+    // (perfg) one instance of the gun type's merged mesh instead of its parts (same colours; `?guardmerge=0`: parts)
+    const merged = mergeGun(scene, gun, name);
+    if (merged) world.addShadowCaster(merged);
+    else for (const m of gun.renderMeshes) world.addShadowCaster(m);
     gun.hold(rig);
   }
   return { rig, gun };

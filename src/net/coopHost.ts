@@ -16,7 +16,7 @@ import type { NetSession } from './session';
 import { TickLimiter, type CourseWire } from '../game/course/courseWire';
 import type { SecWire } from '../game/ctDevices';
 import { syringesFor, type SectorNetExtra } from '../game/sectors';
-import { eventQueueKeeps, ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, BARK_CAM, BARK_TEXT, hitConfirmKind, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
+import { eventQueueKeeps, gaitWire, motionWire, ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, BARK_CAM, BARK_TEXT, hitConfirmKind, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
 import { HoldClock, holdFeed, stepHoldFeed, type HoldFeed } from './holdFeed';
@@ -27,6 +27,7 @@ import { localFlags, htmlToInfo } from './netShared';
 import { keepSimInBackground } from './bgTicks';
 import { hostHoldPulse, inUseReach } from './holdPulse';
 import { LAMP_LOS_SLACK, LampSender, lampShotOk, lampTargetId } from './lampSync';
+import { lampReachProbe } from '../world/lights';
 import { hyp2 } from '../core/mathx';
 import { barkIndex } from '../ai/barks';
 import { wireCarry } from './puppetCarry';
@@ -52,13 +53,16 @@ import { revealIntel } from '../game/intelReveal';
 import { interrogationEnded } from '../game/intel';
 import type { TeamMate } from '../game/teamController';
 import type { PlayerRef } from '../ai/enemy';
+import { ClockSync, HOST_INTERP_DELAY } from './interp';
+import { CT } from '../config/movement';
 
 import type { CharacterRig } from '../player/characterRig';
 
 const SNAP_HZ = 15;
 const HISTORY_HZ = 20;
 const MAX_REWIND = 0.6;
-const INTERP_DELAY = 0.1;
+/** (afp AF6) `HOST_INTERP_DELAY` (interp.ts; was 0.1). */
+const INTERP_DELAY = HOST_INTERP_DELAY;
 /** Items and door states are re-sent at least this often (s), else only when they change. */
 const ITEMS_EVERY = 2;
 /** Seconds to revive a downed team-mate (HQ medic training divides it). */
@@ -554,6 +558,28 @@ export class CoopHost implements NetAttachment {
 
   // --- incoming ---
 
+  /** (afp AF6) Per joiner: its send clock against ours (ClockSync), and the last stamp. */
+  private readonly sendClocks = new Map<string, { c: ClockSync; last: number }>();
+  /**
+   * (afp AF6) The local time (s) a joiner's state stands for: its send clock `t` mapped through a ClockSync (the
+   * lowest latency seen wins quickly, slower arrivals nudge it back gently), so the network's jitter and a retransmit's
+   * bunched states no longer bend the interpolation spans (arrival stamps did: up to ~0.4 m a frame off the pace under
+   * netsim typical). No `t`: the arrival time. Kept increasing.
+   */
+  private stateTime(id: string, t: number | undefined): number {
+    const now = performance.now() / 1000;
+    let e = this.sendClocks.get(id);
+    if (!e) this.sendClocks.set(id, (e = { c: new ClockSync(), last: -Infinity }));
+    let at = now;
+    if (t !== undefined) {
+      e.c.observe(t, now);
+      at = e.c.toLocal(t);
+    }
+    at = Math.max(at, e.last + 1e-3);
+    e.last = at;
+    return at;
+  }
+
   private receive(msg: Msg, from: string): void {
     const r = this.remotes.get(from);
     if (!r) return;
@@ -564,7 +590,7 @@ export class CoopHost implements NetAttachment {
         if (this.rejoining.has(from)) this.resume(r);
         if (this.restoreFor.has(from)) r.allowTeleport(3);
         r.accept({ ...msg.s, id: from }, this.time, this.g.world.level.anchors, this.g.world.level.coverSegments, this.g.world.doors.list.length);
-        r.avatar.buf.push(performance.now() / 1000, r.state!);
+        r.avatar.buf.push(this.stateTime(r.id, msg.s.t), r.state!);
         if (msg.s.mv) this.g.mode?.onRemoteMove?.(r.id, msg.s.mv.m);
         this.restoreStep(r);
         break;
@@ -1128,6 +1154,12 @@ export class CoopHost implements NetAttachment {
       r.violations++;
       return;
     }
+    // (polish2) a hit only through the mount reach at the claimed landing needs a clear static line up to the head, as
+    // our own rounds (`StealthSystems.shotRay`) and the client's `lampRay` test it
+    const end = Math.min(m.dist, WEAPONS[m.w].range);
+    const p = this.lampA;
+    const h = lampReachProbe(reg, id, m.ox, m.oy, m.oz, m.ox + m.dx * end, m.oy + m.dy * end, m.oz + m.dz * end, p);
+    if (h > 0 && !this.g.ballistics.clear(p, this.lampB.set(p.x, p.y + h, p.z), MASK.WORLD)) return;
     const l = reg.lights[id]!;
     const a = this.lampA.set(m.ox, m.oy, m.oz);
     const b = this.lampB.set(l.x, l.y, l.z);
@@ -1175,7 +1207,12 @@ export class CoopHost implements NetAttachment {
     const p = g.player;
     const c = p.controller;
     const th = g.target.health;
+    // (afp AF6) the gait clock / CT stop for the partner's stride (the snapshot's `time` times it)
+    const gw: { gph?: number; qs?: number; hs?: number; mo?: number; mt?: number; ax?: number; az?: number } = {};
+    gaitWire(c.motion.phase, c.ct, c.stopEaseT, c.stopHold, c.holdSpeed, CT.stopEase, CT.stopBlend, gw);
+    motionWire(c.override?.kinematic ? null : c.motion.state, c.motion.stateT, c.motion.ax, c.motion.az, gw);
     return {
+      ...gw,
       mv: localMoveState(g, this.mvNow),
       id: this.s.selfId,
       x: p.position.x,

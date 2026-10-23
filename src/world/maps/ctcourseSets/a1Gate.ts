@@ -4,8 +4,8 @@
  * the unguarded teach set for the leg-up, the ledge relay and the bolt (the handshake).
  *
  * Ground, set box x 0-22, z 2-20, open to the 10 m hall roof (the walls on the box edges are `facility.ts`'s):
- * - the arrival lounge x 0-6, z 8-14 (3.2 m ceiling, 0.3 m flats to the roof, all `noLedge`; the reception desk, green wall,
- *   seats and kit case are the facility dresser's props on its west wall) with its 1.8 m sliding door at x 6, z 11 and the
+ * - the arrival armoury (lounge) x 0-6, z 8-14 (3.2 m ceiling, 0.3 m flats to the roof, all `noLedge`; the weapons display cabinet,
+ *   two locker banks and benches are the facility dresser's on its west wall and flats) with its 1.8 m sliding door at x 6, z 11 and the
  *   four warm cove lamps on the house circuit 10;
  * - the lorry apron x 6-11.7 and the yard x 12.3-22, divided by the 4.4 m boundary wall (`boostWall`: the co-op lip on both
  *   faces, the wicket bolted on the yard side, the striped leg-up mark 0.9 m off the apron face);

@@ -161,7 +161,8 @@ describe('mocap switch: default and selection', () => {
     expect(hasSlots(HAND_KEYED_SET)).toBe(false);
     // every layer that doubles the capture off on the mocap share (N2's arm gain, trunk swing, sway, head follow and nod
     // too); N2's two limiters (arm speed cap, keyed pelvis rate) and N1's turn steps kept
-    expect(MOCAP_LAYERS).toEqual({ armSwing: 0, trunkTwist: 0, keyLean: 0, pelvisFollow: 0, weightLoad: 0, elbowOut: 0, stopSettle: 0, motionArmGain: 0, motionTrunk: 0, motionSway: 0, motionHead: 0, motionNod: 0, motionArmCap: 1, keyPelRate: 1, turnStep: 1 });
+    // (afp-af2) the run carriage layers on (pelvis height, trunk means, the turn bank, the arm follower)
+    expect(MOCAP_LAYERS).toEqual({ armSwing: 0, trunkTwist: 0, keyLean: 0, pelvisFollow: 0, weightLoad: 0, elbowOut: 0, stopSettle: 0, motionArmGain: 0, motionTrunk: 0, motionSway: 0, motionHead: 0, motionNod: 0, motionArmCap: 1, keyPelRate: 1, turnStep: 1, pelHeight: 0, trunkMean: 0, bankWipe: 0, armSmooth: 0 });
   });
 });
 

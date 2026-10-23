@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   ANIM_TIER_FAR,
   ANIM_TIER_FAR_PERIOD,
+  ANIM_TIER_FROZEN,
+  ANIM_TIER_FROZEN_CARRY_MAX,
   ANIM_TIER_NEAR_PLAYER,
   ANIM_TIER_OFFSCREEN,
   animTierPeriod,
   animTierStep,
+  animTierThaw,
   newAnimTierIn,
   newAnimTierState,
   type AnimTierIn,
@@ -133,5 +136,73 @@ describe('animTierStep', () => {
     expect(animTierStep(st, 4, 0.02)).toBe(-1);
     expect(animTierStep(st, 1, 0.03)).toBeCloseTo(0.06, 12);
     expect(st.carry).toBe(0);
+  });
+});
+
+// (sector-redesign perfg, folded in from `animFrozen.ts` at the #226 master merge) The FROZEN tier: a render-frozen
+// guard skips the solve, the skipped time is carried (capped) into the thaw solve, which comes at once.
+describe('animTier FROZEN (perfg fold)', () => {
+  it('frozen is the first rule: over pinned, a near player and the tiers being off', () => {
+    expect(ANIM_TIER_FROZEN).toBe(0);
+    const near = (ANIM_TIER_NEAR_PLAYER - 1) ** 2;
+    expect(animTierPeriod(base({ frozen: true }))).toBe(ANIM_TIER_FROZEN);
+    expect(animTierPeriod(base({ frozen: true, pinned: true, playerDist2: near }))).toBe(ANIM_TIER_FROZEN);
+    expect(animTierPeriod(base({ frozen: true, on: false }))).toBe(ANIM_TIER_FROZEN);
+    expect(newAnimTierIn().frozen).toBe(false);
+  });
+
+  it('drawn: solves every frame with its own dt (period 1)', () => {
+    const st = newAnimTierState(0);
+    for (let i = 0; i < 5; i++) expect(animTierStep(st, 1, 1 / 60)).toBeCloseTo(1 / 60, 9);
+    expect(st.carry).toBe(0);
+  });
+
+  it('frozen: skips and carries; the thaw solve gets dt plus the carry, then the carry is cleared', () => {
+    const st = newAnimTierState(0);
+    animTierStep(st, 1, 0);
+    for (let i = 0; i < 3; i++) expect(animTierStep(st, ANIM_TIER_FROZEN, 0.02)).toBe(-1);
+    expect(st.carry).toBeCloseTo(0.06, 9);
+    expect(st.thaw).toBe(true);
+    expect(animTierStep(st, 1, 0.01)).toBeCloseTo(0.07, 9);
+    expect(st.carry).toBe(0);
+    expect(st.thaw).toBe(false);
+    expect(animTierStep(st, 1, 0.01)).toBeCloseTo(0.01, 9);
+  });
+
+  it('a long freeze caps the carry at ANIM_TIER_FROZEN_CARRY_MAX; one big frame is capped too', () => {
+    expect(ANIM_TIER_FROZEN_CARRY_MAX).toBeCloseTo(0.1, 9);
+    const st = newAnimTierState(0);
+    animTierStep(st, 1, 0);
+    for (let i = 0; i < 600; i++) expect(animTierStep(st, ANIM_TIER_FROZEN, 1 / 60)).toBe(-1);
+    expect(st.carry).toBe(ANIM_TIER_FROZEN_CARRY_MAX);
+    expect(animTierStep(st, 1, 1 / 60)).toBeCloseTo(1 / 60 + ANIM_TIER_FROZEN_CARRY_MAX, 9);
+    const big = newAnimTierState(0);
+    animTierStep(big, ANIM_TIER_FROZEN, 0.5);
+    expect(big.carry).toBe(ANIM_TIER_FROZEN_CARRY_MAX);
+  });
+
+  it('the thaw frame is never skipped by the far or off-screen tier, whatever the stagger', () => {
+    for (const period of [ANIM_TIER_FAR_PERIOD, ANIM_TIER_OFFSCREEN]) {
+      for (let slot = 0; slot < 4; slot++) {
+        for (let frozenFrames = 1; frozenFrames <= 4; frozenFrames++) {
+          const st = newAnimTierState(slot);
+          animTierStep(st, 1, 0);
+          for (let i = 0; i < frozenFrames; i++) animTierStep(st, ANIM_TIER_FROZEN, 0.01);
+          expect(animTierStep(st, period, 0.01)).toBeCloseTo(0.01 * (frozenFrames + 1), 9);
+        }
+      }
+    }
+  });
+
+  it('(artnext C7 / C9) animTierThaw: a forced solve takes dt plus the carry and ends the thaw', () => {
+    const st = newAnimTierState(2);
+    animTierStep(st, 1, 0);
+    animTierStep(st, ANIM_TIER_FROZEN, 0.03);
+    animTierStep(st, ANIM_TIER_FROZEN, 0.03);
+    expect(animTierThaw(st, 0)).toBeCloseTo(0.06, 9);
+    expect(st.carry).toBe(0);
+    expect(st.thaw).toBe(false);
+    // the next frame is a plain tier step again (period 1: its own dt)
+    expect(animTierStep(st, 1, 0.02)).toBeCloseTo(0.02, 9);
   });
 });

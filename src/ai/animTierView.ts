@@ -1,6 +1,7 @@
 import type { AbstractMesh, Observer, Scene, Vector3 } from '../core/babylon';
 import { flags } from '../core/flags';
-import { animTierPeriod, animTierStep, newAnimTierIn, newAnimTierState, type AnimTierIn, type AnimTierState } from './animTier';
+import type { CharacterRig, RigPose } from '../player/characterRig';
+import { THAW_REPLANT, animTierPeriod, animTierStep, animTierThaw, newAnimTierIn, newAnimTierState, type AnimTierIn, type AnimTierState } from './animTier';
 
 /**
  * (guard-render S4) The scene side of a guard's anim tier (`animTier.ts` has the rules): whether its merged body was
@@ -59,10 +60,12 @@ export class GuardAnimTier {
     this.st = newAnimTierState(slot);
   }
 
-  /** The time to solve this frame, or -1 to skip (`CharacterRig.animate`'s `solveDt`). */
-  dt(dt: number, pos: Vector3, players: readonly { feet: Vector3 }[], pinned: boolean): number {
+  /** The time to solve this frame, or -1 to skip (`CharacterRig.animate`'s `solveDt`). `frozen` (perfg): the render
+   *  freeze has his rig root disabled (the FROZEN tier: skip, carry capped; the caller skips `animate` entirely). */
+  dt(dt: number, pos: Vector3, players: readonly { feet: Vector3 }[], pinned: boolean, frozen = false): number {
     const s = this.scene;
     const i = this.inp;
+    i.frozen = frozen;
     i.on = flags.animTier;
     i.pinned = pinned;
     const f = s.getFrameId();
@@ -90,5 +93,32 @@ export class GuardAnimTier {
     }
     i.camDist2 = cd;
     return animTierStep(this.st, animTierPeriod(i), dt);
+  }
+
+  /**
+   * The guard's render-frame pose update (`Enemy.frame`). (perfg, the FROZEN tier) A rig whose root the render freeze
+   * disabled is not animated at all (no solve, no weapon glide; the time carried, capped); (artnext C8) the first solve
+   * after a freeze re-plants the feet when he moved more than `THAW_REPLANT` (the C7 thaw normally takes it first).
+   */
+  animate(rig: CharacterRig, dt: number, s: RigPose, players: readonly { feet: Vector3 }[], pinned: boolean): void {
+    const frozen = !rig.root.isEnabled(false);
+    const thawing = this.st.thaw;
+    const sd = this.dt(dt, rig.root.position, players, pinned, frozen);
+    if (frozen) return;
+    if (thawing) rig.replantIfMoved(THAW_REPLANT);
+    rig.animate(dt, s, sd);
+  }
+
+  /** (perfg) Frozen at the last update: the next solve is the thaw's. */
+  get thawing(): boolean {
+    return this.st.thaw;
+  }
+
+  /** (artnext C7 / C9) A solve forced outside the frame (the freeze's thaw, a death while frozen): `dt` plus the carried
+   *  time, the feet re-planted if he moved (C8); the weapon glide gets the same time. */
+  solveNow(rig: CharacterRig, dt: number, s: RigPose): void {
+    const sd = animTierThaw(this.st, dt);
+    rig.replantIfMoved(THAW_REPLANT);
+    rig.animate(sd, s, sd);
   }
 }

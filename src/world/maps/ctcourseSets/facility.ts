@@ -14,9 +14,10 @@
  *
  * Dressing (slice 0e, SPEC 6, M5): the shell is clad over its existing boxes (`kit.wallPanel` / `kit.skirting`: visual
  * only, no box moves and none is added), so every collision box and door is as 0d built it; the only new collision is
- * the props' own boxes (`FacilityProps.write`: the reception desk, the lounge seats, the benches, the L7 vitrine, the
- * kit cases). Holding rooms: cool panels, skirting and accent strips on their circuit (91-97), a bench, door plates. Lounge:
- * the reception desk, green wall, kit cases and seats on the west shell wall (accent lines on circuit 10). Dock: warm
+ * the props' own boxes (`FacilityProps.write`: the benches, the L7 vitrine, the kit cases) and the armoury's two locker
+ * banks (`dressLounge`: one solid box each plus thin skins). Holding rooms: cool panels, skirting and accent strips on their
+ * circuit (91-97), a bench, door plates. Armoury (the arrival lounge): a weapons display cabinet of kit cases on the west
+ * shell wall (accent lines on circuit 10), a locker bank on each flat and two benches. Dock: warm
  * panels on circuit 98 and a plate board. Gallery (out of bounds, sight only): console runs, chairs and screens (no
  * collision, drawn only), back-wall panels, a visual-only balustrade on the bridge and ceiling strips, all on circuit 90.
  * Every glowing kit piece carries its circuit's group (N11); no lamp was added. Prototype starting values (G10).
@@ -535,16 +536,58 @@ function dressHold(kit: FacilityKit, props: FacilityProps, h: HoldId): void {
   }
 }
 
-/** The arrival lounge's pieces on the west shell wall (A1 builds the lounge's other walls and its sliding doors): the reception desk with the
- *  green wall behind it, the kit cases, two seats, and the hall's upper panels with their cove on circuit 10. */
-function dressLounge(kit: FacilityKit, props: FacilityProps): void {
+/** The armoury's two locker banks on the lounge's south and north flats (plan boxes [x0, z0, x1, z1]: 8 doors of 0.45 m, 0.5 m deep, 1.9 m tall). */
+export const LOUNGE_LOCKER_BANKS: readonly Box[] = [
+  [1.0, 8.25, 4.6, 8.75],
+  [1.0, 13.25, 4.6, 13.75],
+];
+/** One locker bank's height (m) and door count, and what `dressLounge` writes for the two banks: 2 solid boxes (`noLedge`) and every thin skin (doors, vents, handles, number plates). */
+export const LOUNGE_LOCKER_H = 1.9;
+export const LOUNGE_LOCKER_DOORS = 8;
+export const LOUNGE_LOCKERS = { solids: 2, boxes: 2 * (1 + 4 * LOUNGE_LOCKER_DOORS) } as const;
+/** The lounge benches (free along x, 0.5 m clear of the lockers' faces; the spawns' aisle to the door stays open). */
+const LOUNGE_BENCHES: readonly (readonly [number, number])[] = [
+  [3.4, 9.5],
+  [3.4, 12.5],
+];
+/** A locker skin's depth (m): one side under `CANON_MIN_THICK` (0.05), so the bake, the meter and the guards see only the solid box. */
+const LOCKER_SKIN = 0.02;
+
+/**
+ * One locker bank (the armoury, Michael's walk of 4.82): a single solid `noLedge` box with thin visual skins on its front
+ * (doors, vent slots, handles, number plates; no collision). `front` is +1 when the doors face +z (the south flat), -1 when -z.
+ */
+function lockerBank(b: LevelBuilder, bank: Box, front: 1 | -1): void {
+  const [x0, z0, x1, z1] = bank;
+  const zf = front > 0 ? z1 : z0;
+  b.box((x0 + x1) / 2, LOUNGE_LOCKER_H / 2, (z0 + z1) / 2, x1 - x0, LOUNGE_LOCKER_H, z1 - z0, '#262a2e');
+  b.mark(b.boxes.length - 1, { noLedge: true });
+  /** A skin on the bank's front: x [a, e], y [y0, y1], `layer` skins out from the face (each LOCKER_SKIN deep). */
+  const skin = (a: number, e: number, y0: number, y1: number, layer: number, color: string): void => {
+    const zIn = zf + front * layer * LOCKER_SKIN;
+    b.box((a + e) / 2, (y0 + y1) / 2, zIn + (front * LOCKER_SKIN) / 2, e - a, y1 - y0, LOCKER_SKIN, color, 0, 0, false);
+    b.mark(b.boxes.length - 1, { noLedge: true });
+  };
+  const w = (x1 - x0) / LOUNGE_LOCKER_DOORS;
+  for (let i = 0; i < LOUNGE_LOCKER_DOORS; i++) {
+    const a = x0 + i * w;
+    skin(a + 0.01, a + w - 0.01, 0.08, 1.8, 0, i % 2 === 0 ? '#3a4752' : '#33404a');
+    skin(a + 0.08, a + w - 0.08, 1.6, 1.72, 1, '#15181b');
+    skin(a + w - 0.1, a + w - 0.07, 0.95, 1.12, 1, '#c2c5c9');
+    skin(a + 0.15, a + w - 0.15, 1.42, 1.5, 1, '#dcd8cc');
+  }
+}
+
+/** The arrival lounge as an armoury / locker room (Michael's walk of 4.82: it read as a reception): a weapons display cabinet of four
+ *  `kitCaseWall` modules on the west shell wall, a locker bank on each of the south and north flats, two free benches between them
+ *  and the hall's upper panels with their cove on circuit 10. The aisle from the spawns to the east door (z 9.7-12.3) stays open. */
+function dressLounge(b: LevelBuilder, kit: FacilityKit, props: FacilityProps): void {
   const face = FAC_T / 2;
-  // (S3-7 S1) the desk's and the cases' LED lines are on the lounge coves' circuit (10)
-  props.add('receptionDesk', 1.0, 10.2, Math.PI / 2, { group: LOUNGE_GROUP });
-  props.row('greenWall', face, 12.0, face, 8.4);
-  props.add('kitCaseWall', face, 12.75, Math.PI / 2, { group: LOUNGE_GROUP });
-  props.add('loungeSeat', 4.2, 9.1, -Math.PI / 2);
-  props.add('loungeSeat', 4.2, 12.9, -Math.PI / 2);
+  // (S3-7 S1) the cabinet's LED lines are on the lounge coves' circuit (10)
+  props.row('kitCaseWall', face, 8.6, face, 13.4, { flip: true, group: LOUNGE_GROUP });
+  lockerBank(b, LOUNGE_LOCKER_BANKS[0]!, 1);
+  lockerBank(b, LOUNGE_LOCKER_BANKS[1]!, -1);
+  for (const [x, z] of LOUNGE_BENCHES) props.add('holdingBench', x, z, 0);
   kit.wallPanel(face, 11.0, 5.6, Math.PI / 2, { h: HALL_H - 3.2, y: 3.2, tone: 'warm', group: LOUNGE_GROUP });
 }
 
@@ -658,9 +701,9 @@ export function buildFacility(b: LevelBuilder, kit: FacilityKit): FacilityPart {
   const dress = new FacilityProps();
   const gal = new FacilityProps();
   const visual = new FacilityKit(NO_COLLISION);
-  tally(b, rows, 'F8', 'Dressing: the walk-in props\' own boxes (reception desk, lounge seats, kit cases, benches, the L7 vitrine); kit panels and strips add none', () => {
+  tally(b, rows, 'F8', 'Dressing: the walk-in props\' own boxes (armoury kit cases, benches, the L7 vitrine) and the armoury lockers (2 solid boxes, thin door skins); kit panels and strips add none', () => {
     for (const h of HOLD_IDS) dressHold(kit, dress, h);
-    dressLounge(kit, dress);
+    dressLounge(b, kit, dress);
     dressDock(kit, dress);
     dress.write(b);
   });

@@ -13,6 +13,9 @@ import { flags } from '../../core/flags';
 import { reportGuardAi, validatePosts } from '../../ai/guardAiData';
 import { hyp2 } from '../../core/mathx';
 import { CtDevices } from '../ctDevices';
+import { SectorGuardFreeze, seeThroughRay } from '../sectorGuardFreezeView';
+import { inSheet } from '../../world/roofSheets';
+import { G } from '../../physics/groups';
 import { responseTeam } from '../../ai/gear';
 import type { SweepTeam } from '../../ai/sweepTeam';
 import type { EnemyKind } from '../../ai/enemyDefs';
@@ -60,12 +63,14 @@ import {
   coopRating,
   emptyGrant,
   newSectionStats,
+  putRating,
   rateSection,
   resetSectionStats,
   rewardsFor,
   type Grant,
   type SectionStats,
 } from '../rating/sectionRating';
+import { packRated } from '../course/courseWire';
 import { RatingCard } from '../../ui/hud/ratingCard';
 
 /** (section-rating S2) The last rated section, as the rating card reads it (S4's `RatingView` shape). */
@@ -226,6 +231,8 @@ export class SectorMode implements GameMode {
   private owed: Grant | null = null;
   /** The last rating on the wire (`rt`, copied per send). */
   private readonly rt: SectorRatingWire = { sec: -1, marks: 0, synced: 0, gadget: 0, syringe: 0, medkit: 0, alarmStep: 0 };
+  /** (marlow-polish) Each rated section's synced takedowns, by index (with `run.marks`, the wire's `rh`); built with `run`, so the two reset together. */
+  private readonly ratedSynced: number[];
   private readonly hook: SectionRatingHook = { stats: this.secStats, last: null, lastGrant: null };
   private readonly offs: (() => void)[] = [];
   /** (section-rating integration) The rating card on this machine's HUD (host / solo; the client has its own). */
@@ -261,9 +268,12 @@ export class SectorMode implements GameMode {
 
   private readonly checkpoint = new Vector3();
   private readonly tmp = new Vector3();
+  /** (sector-redesign perf) Guards whose body and shadows cannot reach the screen skip the render (`?guardfreeze=0`: off). */
+  private freeze: SectorGuardFreeze | null = null;
 
   constructor(private g: GameState) {
     this.run = new SectorRun(g.world.map.sectors ?? []);
+    this.ratedSynced = this.run.marks.map(() => 0);
     this.codes = new SectorCodes(this.run.defs);
     this.desks = new SectorDesks(g.world.layout?.security?.desks ?? []);
     // getters: the interactables and the nav grid are read when the mode starts (`team.build`), not now
@@ -311,6 +321,18 @@ export class SectorMode implements GameMode {
       alertAt: (x, y, z, key) => g.enemyMgr?.deviceAlert(x, y, z, key),
     });
     g.ctDev = this.ct;
+    // (the occlusion rays: static geometry only, so glass and fences never hide a guard; fix round: the static bodies the
+    // camera sees through - a door leaf not shut, an unbroken breakable pane, a roof sheet - are stepped past. Render
+    // only: gameplay rays keep G.STATIC whole; frzpol: a door that stops hiding the view or a pane that opens re-tests
+    // the hidden guards at the next evaluation)
+    if (flags.guardFreeze) {
+      const w = g.world;
+      const sheets = w.level.sheets;
+      const see = (body: unknown, x: number, y: number, z: number): boolean =>
+        w.doors.seeThrough(body) || w.breakables.seeThrough(body) || inSheet(sheets, x, y, z);
+      const views = (): number => w.doors.viewVersion() + w.breakables.viewVersion();
+      this.freeze = new SectorGuardFreeze(g.scene, em, seeThroughRay((a, b) => g.ballistics.cast(a, b, G.STATIC), see), views);
+    }
     (window as unknown as { __sector?: SectorMode }).__sector = this;
     // (section-rating S2) the section's alarms and found bodies; the dev / test view of the rating
     this.offs.push(
@@ -1001,6 +1023,7 @@ export class SectorMode implements GameMode {
     const marks = rateSection(st, DEFAULT_RULES);
     const synced = st.synced;
     this.run.marks[i] = marks;
+    this.ratedSynced[i] = synced;
     let gadgetsAtStart = 0;
     for (const id of GRANT_GADGETS) gadgetsAtStart += GADGETS[id].carry;
     const preset = syringesFor(g.opts.difficulty);
@@ -1017,7 +1040,7 @@ export class SectorMode implements GameMode {
     const view: SectionRatingView = { sectionId: s.id, title: s.name, marks, synced, grant: r };
     this.hook.last = view;
     // (integration) every section's rating, for the op-end results lines
-    g.sectionRatings.push(view);
+    putRating(g.sectionRatings, view);
     // (integration) an ungranted rating (the extraction's) carries no grant on the wire: the client tops up nothing
     const w = this.rt;
     w.sec = i;
@@ -1295,7 +1318,8 @@ export class SectorMode implements GameMode {
   private netExtra(ct: CtDevices): SectorNetExtra {
     const lk: number[] = [];
     for (const d of this.g.world.doors.list) if (d.anchor.locked) lk.push(d.index);
-    return { ls: ct.liveSection, lk, dn: ct.destroyedIds([]), sy: this.g.net?.revivesLeft?.() ?? 0, rt: { ...this.rt } };
+    const rh = this.rt.sec >= 0 ? packRated(this.run.marks, this.ratedSynced) : undefined;
+    return { ls: ct.liveSection, lk, dn: ct.destroyedIds([]), sy: this.g.net?.revivesLeft?.() ?? 0, rt: { ...this.rt }, ...(rh ? { rh } : {}) };
   }
 
   /** Co-op host: the client's held jammer target. */
@@ -1324,6 +1348,10 @@ export class SectorMode implements GameMode {
       camAlarms: this.camAlarms,
       pending: this.pending.length,
       restarts: this.restarts,
+      // (sector-redesign perf) guards render-frozen at the last camera evaluation (-1: the freeze is off)
+      guardFreeze: this.freeze ? this.freeze.count : -1,
+      guardFreezeOccluded: this.freeze ? this.freeze.occluded : -1,
+      guardFreezeRays: this.freeze ? this.freeze.rays : -1,
       lastReset: { ...this.lastReset },
       restarting: this.restartT >= 0,
       checkpoint: { ...this.run.checkpoint },
@@ -1345,6 +1373,8 @@ export class SectorMode implements GameMode {
   }
 
   dispose(): void {
+    this.freeze?.dispose();
+    this.freeze = null;
     this.ct?.dispose();
     this.ct = null;
     this.g.ctDev = null;

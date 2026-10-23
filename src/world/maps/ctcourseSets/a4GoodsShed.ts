@@ -29,8 +29,10 @@
  *   greybox is the mezzanine rails' circuit: their LED line now sits on group 43, no box moved);
  * - everything built by hand is a thin visual skin (no collision, `noLedge`, one side under `CANON_MIN_THICK`, so it is out of the canonical light
  *   shapes: the bake, the meter and the guards see the greybox as built): the room's, the passage's and the hut's linings, floor paint, the racking's
- *   backing, end guards and aisle boards, the deck's plate, the stairs' rails, the stacks' pallets and wrap, the dock desk, the roller shutter, the push
+ *   backing, end guards and aisle boards, the deck's plate, the stairs' rails (visual; the open south side also has a collision rail, below), the stacks' pallets and wrap, the dock desk, the roller shutter, the push
  *   bar's housing, the walls' sheeting and stanchions, roof ties and cables, the dead bulk-store fittings, camera brackets, oil stains;
+ * - the one collision the stairs' rails add: the open south side's collision rail (kit.handrail, invisible noLedge, nine 0.55 m segments a flight from the
+ *   third tread to the deck face, S34-check polish 4), so a body cannot step off the flights; the foot, the flights and the strip south of them stay open;
  * - the props kit's two areas are budgeted apart (the security room, the warehouse floor): the room takes the CCTV wall and the console desk, the floor
  *   takes 24 racking bays with their 8 closing frames and one parked reach truck. The racking and the desk stand over greybox solids (their boxes are
  *   the greybox's: nothing written); the video wall and the truck have their own boxes, written `noLedge` and kept off every tested line;
@@ -91,6 +93,11 @@ export const A4_RACK_H = 5.4;
 export const A4_MEZZ = { x0: 86, x1: 106, z0: 44, z1: 47.75, deck: 3.3, rail: 1.1, inset: 0.2 } as const;
 /** The two stairs: width, the strip along the north wall they stand in, their feet and the direction each rises (+1 east, -1 west). */
 export const A4_STAIR = { w: 1.2, z0: 46.55, z1: 47.75, westFoot: 80.3, eastFoot: 111.7 } as const;
+/** The stairs' open-side rail (S34-check polish 4; A6's `A6_STAIR_RAIL` idiom): `kit.handrail` in stepped segments of `seg` m along x at z `z` (0.05 m outside
+ *  the flights' open south edge z0, so it never narrows the 1.2 m flight), from each flight's third tread (x `west.from` / `east.from`: the foot stays open to
+ *  step on) to the deck face (x `west.to` / `east.to`, where the deck's rail ends); each segment's collision box starts at the floor line at its low end and
+ *  stands `h` m over the line at its high end. Nine segments a flight. */
+export const A4_STAIR_RAIL = { z: A4_STAIR.z0 - 0.05, seg: 0.55, h: 1.1, west: { from: 81.05, to: 86 }, east: { from: 110.95, to: 106 } } as const;
 /** The dispatch office (wall centre lines, 0.2 m walls, 2.9 m clear), its door, glazing band and the kettle counter and standing point. */
 export const A4_OFFICE = { x0: 76, z0: 38, x1: 82.6, z1: 44, t: 0.2, wallH: 2.9, roofT: 0.1, sill: 0.9, head: 2.5 } as const;
 export const A4_OFFICE_DOOR_X: [number, number] = [77.7, 78.9];
@@ -655,7 +662,7 @@ export function buildA4GoodsShed(b: LevelBuilder, kit: FacilityKit): SetPart {
   // ---- A4-17: the pick mezzanine: plate sheet, fascia, the closed store below, the stairs' rails, the two switches' posts ----
   const stN = fl.z1;
   const stS = A4_STAIR.z0;
-  tally(b, p.register, 'A4-17', "Mezzanine dressing (visual skins, no collision): the deck's chequer-plate sheet with 1.2 m seams and a yellow edge band inside the rail, the fascia with a yellow stripe, the closed store below (plinth, sheeting, posts, a roller door and a steel door with keypad), its west and east faces, the stairs' rails (posts and a top and mid rail on the open south side, a wall rail) pitched with the flights, the C2 bracket, the switches' conduit posts", () => {
+  tally(b, p.register, 'A4-17', "Mezzanine dressing (visual skins; the one collision is the open side's rail): the deck's chequer-plate sheet with 1.2 m seams and a yellow edge band inside the rail, the fascia with a yellow stripe, the closed store below (plinth, sheeting, posts, a roller door and a steel door with keypad), its west and east faces, the stairs' rails (posts and a top and mid rail on the open south side, a wall rail) pitched with the flights, and the open side's 1.1 m collision rail (kit.handrail, invisible noLedge, nine stepped segments of 0.55 m a flight 0.05 m outside the flight, from the third tread to the deck face; the foot stays open to step on; accent on the mezzanine strip 43), the C2 bracket, the switches' conduit posts", () => {
     const deck = mz.deck;
     skin(mz.x0, mz.x1, deck, deck + 0.005, mz.z0, mz.z1, LOOK.plate);
     for (let x = mz.x0 + 1.2; x < mz.x1 - 0.1; x += 1.2) skin(x - 0.01, x + 0.01, deck + 0.005, deck + 0.01, mz.z0, mz.z1, LOOK.seam);
@@ -709,6 +716,15 @@ export function buildA4GoodsShed(b: LevelBuilder, kit: FacilityKit): SetPart {
       slopeRail(ramp, stS + 0.02, stS + 0.06, 1.0, LOOK.steel);
       slopeRail(ramp, stS + 0.02, stS + 0.06, 0.5, LOOK.steel);
       slopeRail(ramp, stN - 0.04, stN, 0.9, LOOK.steel);
+      // the open side's collision rail: the kit's balustrade and its invisible noLedge box per segment, `h` over the walking line at the high end
+      const { z, seg, h } = A4_STAIR_RAIL;
+      const { from, to } = f.up === 1 ? A4_STAIR_RAIL.west : A4_STAIR_RAIL.east;
+      const n = Math.round(Math.abs(to - from) / seg);
+      for (let k = 0; k < n; k++) {
+        const xa = from + f.up * k * seg;
+        const xb = xa + f.up * seg;
+        kit.handrail(xa, z, xb, z, { y: lineAt(xa), h: h + (lineAt(xb) - lineAt(xa)), group: G_MEZZ });
+      }
     }
     // the mezzanine switches float 5 cm off the north wall at 4.5 m: a conduit post from the deck and a back plate each
     for (const x of [87.0, 105.0]) {

@@ -15,6 +15,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { ENEMIES } from '../../src/ai/enemyDefs';
+import { EYE_STAND } from '../../src/ai/perception';
 import { PatrolWalker } from '../../src/ai/patrol';
 import { generateLedges } from '../../src/world/anchors';
 import { LevelBuilder, type BoxPiece } from '../../src/world/levelBuilder';
@@ -30,12 +31,13 @@ import { camPitch, camRange, inFrame, sweepCycle, sweepYaw } from '../../src/sec
 import { validateSecurity, type CameraDevice } from '../../src/security/data';
 import { remoteHeadY } from '../../src/security/securitySystem';
 import { hyp2 } from '../../src/core/mathx';
-import { buildCtcourse, LIGHT_SPOTS } from '../../src/world/maps/ctcourse';
+import { buildCtcourse, ctcourse, LIGHT_SPOTS } from '../../src/world/maps/ctcourse';
 import { SILENT_CROUCH, syncMinGap, syncStation } from '../../src/world/maps/ctcourseGreybox';
 import { kitTriangles } from '../../src/world/kit/facilityKit';
 import { FacilityProps, propGlows, PROP_OWN_SUPPLY, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_HUNG, PROP_SET_BUDGET, type PropPlacement, type PropReport } from '../../src/world/props/facilityProps';
 import { CANON_MIN_THICK } from '../../src/voxel/lightShapes';
 import {
+  A7_CABINET,
   A7_CAGE,
   A7_CAGE_E,
   A7_CAGE_W,
@@ -87,6 +89,7 @@ import { checkSetPart, HALL_H, holdDoorId, inBox, OBJECTIVE_ID_MAX, registerSum,
 import { circuitOf, LURE_RANGE, marlowCourseGroups } from '../../src/world/lighting/marlowCircuits';
 import { MARLOW_LEVEL } from '../../src/world/lighting/levels';
 import { MANTLE, soloJumpThreats } from '../helpers/soloJumpReach';
+import { runtimeNav } from '../helpers/runtimeNav';
 
 const b = new LevelBuilder();
 const built = buildCtcourse(b);
@@ -96,8 +99,9 @@ const course = lay.course!;
 const def = course.def;
 const range = built.ranges.a7DataHall;
 const mine = b.boxes.slice(range.boxes[0], range.boxes[1]);
-/** The greybox as S7 built it (slice 7 steps 2-4): its 46 boxes (36 solids), 15 lamps, 5 doors, 6 anchors. The dressing is appended after. */
-const GREY = { boxes: 46, solids: 36, lights: 15, doors: 5, anchors: 6, checksum: 17438.80738438888 };
+/** The greybox as S7 built it (slice 7 steps 2-4): its 47 boxes (37 solids), 15 lamps, 5 doors, 6 anchors. The dressing is appended after.
+ *  (marlow-a7-cabinet) Was 46 boxes, 36 solids: + the cage's equipment cabinet, one solid box (the checksum moved with it). */
+const GREY = { boxes: 47, solids: 37, lights: 15, doors: 5, anchors: 6, checksum: 17774.157384388884 };
 const grey = mine.slice(0, GREY.boxes);
 const dressing = mine.slice(GREY.boxes);
 const box = SET_BOX.a7DataHall[0]!;
@@ -461,6 +465,89 @@ describe('A7 the Data Hall: the terminals (scanner pair sc-a7, N6)', () => {
       // teeth: the same line in the kick band hits a kick panel
       expect(blockers([from[0], 0.6, from[1]], [g.x, 0.6, g.z]).length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("A7 the Data Hall: the cage's equipment cabinet (marlow-a7-cabinet: T2's spot hidden from the technician)", () => {
+  const C = A7_CABINET;
+  const cab = solid.find((p) => Math.abs(p.c[0] - (C.x0 + C.x1) / 2) < 1e-6 && Math.abs(p.c[2] - (C.z0 + C.z1) / 2) < 1e-6 && Math.abs(top(p) - C.h) < 1e-6)!;
+  const others = solid.filter((p) => p !== cab);
+  /** The technician's standing eye (`Enemy.eye`: EYE_STAND x the grunt's scale). */
+  const EYE = EYE_STAND * ENEMIES.grunt.scale;
+  /** The body samples perception rays go to (`Enemy` exposure: hips, the chest aim point, the head; `remoteHeadY` standing) and a tall head. */
+  const BODY = [0.85, 1.35, remoteHeadY(0, false), 1.7];
+  /** A player waiting at T2: the hack spot and 0.3 m round it. */
+  const T2_FEET: [number, number][] = [];
+  for (const dx of [-0.3, 0, 0.3]) for (const dz of [-0.3, 0, 0.3]) T2_FEET.push([A7_T2_SPOT[0] + dx, A7_T2_SPOT[1] + dz]);
+  const R0 = A7_TECH_ROUTE[0]!;
+  /** Where he looks from: R0, aisle B (z 61.5, x 78.5 to T1's spot), the front aisle x 84.4 from his south turn (57.4) to aisle C's east end (65.7). */
+  const EYES: [number, number][] = [R0, A7_TECH_ROUTE[1]!, A7_TECH_ROUTE[4]!];
+  for (let x = 78.5; x <= A7_T1_SPOT[0] + 1e-9; x += 0.25) EYES.push([x, 61.5]);
+  for (let z = 57.4; z <= 65.7 + 1e-9; z += 0.25) EYES.push([84.4, z]);
+  /** The eye -> body lines that no box in `among` stops (the mesh is no box: `b.fence` passes sight). */
+  const openLines = (eyes: readonly [number, number][], among: readonly BoxPiece[]): string[] => {
+    const out: string[] = [];
+    for (const [ex, ez] of eyes) for (const [fx, fz] of T2_FEET) for (const y of BODY) if (blockers([ex, EYE, ez], [fx, y, fz], among).length === 0) out.push(`(${ex.toFixed(2)}, ${ez.toFixed(2)}) -> (${fx.toFixed(2)}, ${y}, ${fz.toFixed(2)})`);
+    return out;
+  };
+
+  it('one solid noLedge box in the cage between the terminals, 1.75 m, thick enough for the light shapes, clear of the kick panels, the door span and both hack spots', () => {
+    expect(cab).toBeDefined();
+    expect(grey).toContain(cab);
+    expect(cab.noLedge).toBe(true);
+    expect(cab.c[1] - cab.s[1] / 2).toBeCloseTo(0, 9);
+    expect(Math.min(...cab.s)).toBeGreaterThanOrEqual(CANON_MIN_THICK);
+    expect(C.x0).toBeGreaterThan(A7_T1_SPOT[0] + 4);
+    expect(C.x1).toBeLessThan(A7_T2_SPOT[0] - 4);
+    expect(C.z0 - (cage.z0 + cage.panelT / 2)).toBeGreaterThanOrEqual(0.1);
+    expect(cage.door[0] - C.z1).toBeGreaterThan(0.19);
+    // under the auto-lip line and the mantle: nothing to climb onto the lid from
+    expect(soloJumpThreats(solid, { y: cage.mesh + cage.lidT, a: { x: cage.x0, z: cage.z1 }, b: { x: cage.x1, z: cage.z1 }, n: { x: 0, z: 1 } })).toEqual([]);
+  });
+
+  it("blocks every line from his eye (R0, aisle B, the front aisle, aisle C's east end) to the hips, chest and head of a body at T2's spot (0.3 m round it)", () => {
+    expect(EYES.length).toBeGreaterThan(60);
+    expect(openLines(EYES, solid)).toEqual([]);
+  });
+
+  it('the check has teeth: without the cabinet his R0 eye sees the chest and head at T2 through both mesh faces', () => {
+    for (const y of [1.35, remoteHeadY(0, false)]) expect(blockers([R0[0], EYE, R0[1]], [A7_T2_SPOT[0], y, A7_T2_SPOT[1]], others), `y ${y}`).toEqual([]);
+    expect(openLines([R0], others).length).toBeGreaterThan(0);
+    // and the R0 lines it closes are the cabinet's own (the rack row and the kick panels do not do it)
+    for (const y of BODY.slice(1)) expect(blockers([R0[0], EYE, R0[1]], [A7_T2_SPOT[0], y, A7_T2_SPOT[1]])).toEqual([cab]);
+  });
+
+  it("keeps the synced hack readable: each standing hacker's line to the other terminal's ready and state lamps passes over its top", () => {
+    const g = { x: 0, y: 0, z: 0 };
+    for (const [from, d] of [[A7_T2_SPOT, part.devices[A7_T1]!], [A7_T1_SPOT, part.devices[A7_T2]!]] as const) {
+      scanGlowAt(d.x, d.y, d.z, d.yaw, g);
+      for (const lamp of [SCAN_GLOW.ready, SCAN_GLOW.state]) {
+        expect(blockers([from[0], 1.6, from[1]], [g.x, d.y + lamp, g.z], [cab]), `${d.label} lamp ${lamp}`).toEqual([]);
+        // the line's lowest point over the cabinet (its near edge) and the margin it keeps
+        const near = Math.abs(from[0] - C.x0) < Math.abs(from[0] - C.x1) ? C.x0 : C.x1;
+        const y = 1.6 + (lamp - 1.6) * ((near - from[0]) / (g.x - from[0]));
+        expect(y - C.h, `${d.label} lamp ${lamp}`).toBeGreaterThan(0.01);
+      }
+    }
+  });
+
+  it("the crossing after the sync: door to door at z 64.5 a body passes with 0.3 m spare; the e2e's step-7 teleports land clear of it", () => {
+    const mid = (cage.door[0] + cage.door[1]) / 2;
+    expect(walkBlocked(cage.x0 - 0.6, mid, cage.x1 + 0.6, mid)).toBeNull();
+    expect(walkBlocked(cage.x0 + 0.7, mid, cage.x1 - 0.7, mid, MOVEMENT.radius + 0.3)).toBeNull();
+    // scripts/e2e-ctcourse/a7DataHall.mjs step 7: moveHost (85.2, 63.3), (87.0, 64.5), (95.2, 63.3), (97.2, 64.5), (99.0, 59.4)
+    for (const [x, z] of [[85.2, 63.3], [87.0, 64.5], [95.2, 63.3], [97.2, 64.5], [99.0, 59.4]] as const) {
+      expect(blockedAt(x, z), `${x}, ${z}`).toEqual([]);
+      expect(hyp2(Math.max(Math.abs(x - cab.c[0]) - cab.s[0] / 2, 0), Math.max(Math.abs(z - cab.c[2]) - cab.s[2] / 2, 0)), `${x}, ${z}`).toBeGreaterThanOrEqual(MOVEMENT.radius + 0.3);
+    }
+  });
+
+  it("the guards' nav grid: the cabinet's cells are blocked, the cage's two halves join round its north end, every A7 seed and the hack spots are on the grid", () => {
+    const nav = runtimeNav(b, lay.playerSpawns[0]!.pos, ctcourse.navLayers ?? 3, lay.navSeeds ?? []);
+    expect(nav.isWalkable(nav.cellOf((C.x0 + C.x1) / 2, (C.z0 + C.z1) / 2))).toBe(false);
+    expect(nav.findPath([88, 61], [94.5, 61])).not.toBeNull();
+    for (const s of part.navSeeds) expect(nav.isWalkable(nav.cellOf(s.x, s.z)), `seed ${s.x}, ${s.z}`).toBe(true);
+    for (const [x, z] of [A7_T1_SPOT, A7_T2_SPOT, R0]) expect(nav.isWalkable(nav.cellOf(x, z)), `${x}, ${z}`).toBe(true);
   });
 });
 
@@ -835,13 +922,23 @@ describe('A7 the Data Hall: dressing (slice 7 step 5)', () => {
   /** A skin box's extent as [x0, x1, y0, y1, z0, z1]. */
   const ext = (p: BoxPiece): [number, number, number, number, number, number] => [p.c[0] - p.s[0] / 2, p.c[0] + p.s[0] / 2, p.c[1] - p.s[1] / 2, p.c[1] + p.s[1] / 2, p.c[2] - p.s[2] / 2, p.c[2] + p.s[2] / 2];
   /** The skins whose box overlaps the volume [x0, x1] x [y0, y1] x [z0, z1] (1 mm in). */
-  const skinsIn = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number): BoxPiece[] =>
-    skins.filter((p) => {
+  const skinsInOf = (list: readonly BoxPiece[], x0: number, x1: number, y0: number, y1: number, z0: number, z1: number): BoxPiece[] =>
+    list.filter((p) => {
       const [a, e, c, d, f, g] = ext(p);
       return a < x1 - 1e-3 && e > x0 + 1e-3 && c < y1 - 1e-3 && d > y0 + 1e-3 && f < z1 - 1e-3 && g > z0 + 1e-3;
     });
+  const skinsIn = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number): BoxPiece[] => skinsInOf(skins, x0, x1, y0, y1, z0, z1);
+  /** A planted 0.03 m skin (a cube) at the middle of a window [x0, x1, y0, y1, z0, z1]: the test's own piece, never in the set. */
+  const plantIn = (w: readonly [number, number, number, number, number, number]): BoxPiece => ({
+    c: [(w[0] + w[1]) / 2, (w[2] + w[3]) / 2, (w[4] + w[5]) / 2],
+    s: [0.03, 0.03, 0.03],
+    yaw: 0,
+    pitch: 0,
+    color: '#ff00ff',
+    collide: false,
+  });
 
-  it('the greybox is as S7 built it: its 46 boxes (checksum), 36 solids, 15 lamps, 5 doors, 6 anchors; the dressing adds NO collision (every dressing box is a skin)', () => {
+  it('the greybox is as S7 built it: its 47 boxes (checksum; the cabinet included), 37 solids, 15 lamps, 5 doors, 6 anchors; the dressing adds NO collision (every dressing box is a skin)', () => {
     let sum = 0;
     for (const p of grey) sum += (p.c[0] + 2 * p.c[1] + 3 * p.c[2] + 5 * p.s[0] + 7 * p.s[1] + 11 * p.s[2] + p.yaw) * (p.collide ? 1 : 1.5) * (p.visible === false ? 1.25 : 1) * (p.overhead ? 1.1 : 1);
     expect(sum).toBeCloseTo(GREY.checksum, 3);
@@ -1057,11 +1154,12 @@ describe('A7 the Data Hall: dressing (slice 7 step 5)', () => {
     for (const l of lamps) expect(l.group).toBeGreaterThanOrEqual(g0);
   });
 
-  it("the cage keeps its clearances: no skin on the ready lamps' line (fence x 86 and 96, z 61.4-61.6, y 1.9-2.3), none within 0.5 m of either hack spot above the floor, the doors' clear openings and the cameras' lenses bare", () => {
-    for (const x of [cage.x0, cage.x1]) expect(skinsIn(x - 0.15, x + 0.15, 1.9, 2.3, 61.4, 61.6).map((p) => p.c), `fence ${x}`).toEqual([]);
-    for (const [sx, sz] of [A7_T1_SPOT, A7_T2_SPOT]) {
-      expect(skinsIn(sx - 0.5, sx + 0.5, 0.05, 3.0, sz - 0.5, sz + 0.5).map((p) => p.c), `spot ${sx}, ${sz}`).toEqual([]);
-    }
+  /** The clearance windows the cage test expects bare, as [x0, x1, y0, y1, z0, z1] (the planted-skin test below runs the same list). */
+  type ClearWindow = { name: string; w: [number, number, number, number, number, number] };
+  const clearWindows = (): ClearWindow[] => {
+    const out: ClearWindow[] = [];
+    for (const x of [cage.x0, cage.x1]) out.push({ name: `fence ${x}`, w: [x - 0.15, x + 0.15, 1.9, 2.3, 61.4, 61.6] });
+    for (const [sx, sz] of [A7_T1_SPOT, A7_T2_SPOT]) out.push({ name: `spot ${sx}, ${sz}`, w: [sx - 0.5, sx + 0.5, 0.05, 3.0, sz - 0.5, sz + 0.5] });
     // the doors' clear openings (1.2 x 2.1, through the wall's thickness): the hall door, the plant door, the pod door, both cage doors
     const d = (id: string) => b.anchors.doors.find((q) => q.id === course.doors[id])!;
     for (const id of [A7_HALL_DOOR, A7_PLANT_DOOR, A7_POD_DOOR, A7_CAGE_W, A7_CAGE_E]) {
@@ -1071,15 +1169,32 @@ describe('A7 the Data Hall: dressing (slice 7 step 5)', () => {
       const x1 = alongZ ? q.hinge.x + 0.14 : q.hinge.x + q.width;
       const z0 = alongZ ? q.hinge.z : q.hinge.z - 0.14;
       const z1 = alongZ ? q.hinge.z + q.width : q.hinge.z + 0.14;
-      expect(skinsIn(x0, x1, 0.05, 2.1, z0, z1).map((p) => p.c), id).toEqual([]);
+      out.push({ name: id, w: [x0, x1, 0.05, 2.1, z0, z1] });
     }
     // the L6 far and L7 near sliding doors (1.8 m, frames to 2.42 m) on the set box's edges
-    expect(skinsIn(70.2, 70.3, 0.05, 2.45, 61.0, 63.0)).toEqual([]);
-    expect(skinsIn(99.7, 99.8, 0.05, 2.45, 59.0, 61.0)).toEqual([]);
+    out.push({ name: 'L6 far sliding door', w: [70.2, 70.3, 0.05, 2.45, 61.0, 63.0] });
+    out.push({ name: 'L7 near sliding door', w: [99.7, 99.8, 0.05, 2.45, 59.0, 61.0] });
     // the cameras lenses (the 0.2 m round the mount point) are free of skins
-    for (const c of [A7_CAM1, A7_CAM2]) expect(skinsIn(c.at[0] - 0.1, c.at[0] + 0.1, c.y - 0.15, c.y + 0.15, c.at[1] - 0.1, c.at[1] + 0.1).map((p) => p.c), c.id).toEqual([]);
+    for (const c of [A7_CAM1, A7_CAM2]) out.push({ name: c.id, w: [c.at[0] - 0.1, c.at[0] + 0.1, c.y - 0.15, c.y + 0.15, c.at[1] - 0.1, c.at[1] + 0.1] });
     // the units west lees: no skin above the floor within 0.25 m of the lee foot (the body is 0.3: a skin stands at most 5 cm off a box face, inside the capsule standoff)
-    for (const [x, z] of A7_LEES) expect(skinsIn(x - 0.25, x + 0.25, 0.05, 1.8, z - 0.25, z + 0.25).map((p) => p.c), `lee ${x}`).toEqual([]);
+    for (const [x, z] of A7_LEES) out.push({ name: `lee ${x}`, w: [x - 0.25, x + 0.25, 0.05, 1.8, z - 0.25, z + 0.25] });
+    return out;
+  };
+
+  it("the cage keeps its clearances: no skin on the ready lamps' line (fence x 86 and 96, z 61.4-61.6, y 1.9-2.3), none within 0.5 m of either hack spot above the floor, the doors' clear openings and the cameras' lenses bare", () => {
+    for (const { name, w } of clearWindows()) expect(skinsIn(...w).map((p) => p.c), name).toEqual([]);
+  });
+
+  it('the clearance windows have teeth: the same query over the dressing plus one planted 0.03 m skin inside each window (the ready-lamp line, the hack spots, the door openings, the sliding doors, the lenses, the lees) finds exactly that skin', () => {
+    const wins = clearWindows();
+    expect(wins).toHaveLength(2 + 2 + 5 + 2 + 2 + A7_LEES.length);
+    for (const { name, w } of wins) {
+      const skin = plantIn(w);
+      expect(skinsInOf(skins, ...w), `${name} bare without the plant`).toEqual([]);
+      const found = skinsInOf([...skins, skin], ...w);
+      expect(found, `${name} planted skin`).toHaveLength(1);
+      expect(found[0], `${name} planted skin`).toBe(skin);
+    }
   });
 
   it('the raised floor and the grating: 0.6 m tile seams across the lobby and hall (60 or more), 14 perforated tiles in aisle B, every floor skin flush (under 4 cm), the grating 60 bars across x 86-92 over a dark pit', () => {

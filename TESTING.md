@@ -117,6 +117,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Settings > Controller: vibration on / off and strength. Settings > Controls is the only Controls place (Pause has
   no Controls item): Remap controls rebinds a verb (A), clears a slot (Y), a conflict shows a warning, reset restores
   the defaults.
+- [ ] Settings > Gameplay has no "Mocap locomotion" row; Wren walks / runs with the mocap clips even on an old save that
+  had it off (only `?mocap=0` or the tuner's Mocap box shows the hand-keyed set).
 - [ ] Unplug the pad mid-match: no stuck movement or firing, keyboard and mouse take over; plug it back in and press a
   button: the pad works again without a reload.
 
@@ -535,6 +537,36 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   Carry a body (grab menu Carry): she leans away from the shoulder the body is on and each step dips a little; she
   walks in to the body standing, crouches, and her feet step (no slide) before she stands with it. F3 tuner, "Holds
   and carries": each slider moves only its walk; reset puts it back.
+
+### Campus detail art (Sector Ops, campusOps)
+- [ ] Sector Ops, campus, `?gfx=min` first: the plain boxes show (no props) and every route below still plays. Then Epic.
+- [ ] S1 (gatehouse, car park, grounds): walk the gate route, the verge and the car park. No prop stops you, blocks a
+  hiding spot, a ledge, a vent or a door. The gatehouse desk, monitors and key cabinet stand on the inner walls. Cars,
+  planters and trees look finished, nothing floats.
+- [ ] S2 (HQ offices round the atrium): the atrium shows its hero set (the model on the reception desk, green wall,
+  seating) and the offices their desks, boards and ceiling tiles. Both stair and lift routes stay open; no desk in a
+  doorway or on a patrol line.
+- [ ] S3 (lab block): lab hall, clean room and stores show their benches, hoods and shelving. Cover stays where it was;
+  walk the gown room and the airlock doors free.
+- [ ] S4 (data hall, plant, dock): racks, pods, UPS and battery racks, ducts and the dock fit their boxes. Climb every
+  ledge and vent you used before; no rack edge blocks the lip. Raised-floor and pallets do not sink or float.
+- [ ] S5 (Old House, strongroom): oak panel, bookcases, the fireplace and the strongroom vault set read as 1960s. The
+  vault door, deposit wall and time-lock stay usable; the objective prompts still show.
+- [ ] In each section: every lamp you see is a lamp the light meter reacts to. Stand in a shadow beside a prop: the
+  meter stays dark; stand in light: it lights. Props never change what a guard or camera sees.
+- [ ] No prop floats, sinks into a wall or clips another prop; no flicker or z-fighting up close.
+- [ ] Frame rate holds steady in the busiest views (S2 atrium, S1 car park, S4 data hall) with 20 and with 24 guards
+  (laptop GPU; the draw and triangle numbers are in `docs/systems/world-and-characters.md`, "Campus art kit").
+
+### Campus art (artnext)
+- [ ] Load: Sector Ops campus loads with no console error on `?gfx=min`, then Epic; the props show, and the load is no
+  slower than the #226 build.
+- [ ] Views s1-a to s5-g (`scripts/campus-art-shots.mjs`, laptop GPU): each shot reads as finished dressing; nothing
+  floats, sinks or blocks a door, route, hiding spot or light.
+- [ ] No greybox showing: no bare grey box where a skin or hero belongs (S2 green wall, S5 kitchen run).
+- [ ] Draws: each section within 40 draws, 150 k triangles and 2500 placements (`world-and-characters.md`, "Campus art
+  kit"); S1 35, S2 33 of 40, and the GPU draw count matches the `artCounts` in the dump.
+- [ ] Gate: `tests/campusArtGameplay.test.ts` passes on the build (routes, cover, nav, lips, ledges, split gaps).
 
 ### Co-op (two browser tabs)
 - [ ] Two tabs with `?net=local` (or two PCs with a room code): Co-op > Host in one, Join in the other. The lobby shows

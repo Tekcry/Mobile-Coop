@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { buildCtcourse, COOP_LIPS, ctcourse } from '../src/world/maps/ctcourse';
+import { buildCtcourse, COOP_LIPS, ctcourse, SPOT_FAIL } from '../src/world/maps/ctcourse';
 import { getMap, MAPS } from '../src/world/maps';
 import { isListedMap } from '../src/world/maps/listed';
 import { inExitZone, isPanelId, layoutKnownIds, registeredBayCount, validateCourse } from '../src/game/course/courseDef';
@@ -126,6 +126,7 @@ describe('Marlow Yard: text (90 characters, British, no dashes)', () => {
   const lines: [string, string][] = [];
   for (const bay of def.bays) for (const r of bay.radio) lines.push([`${bay.id} radio ${r.at}`, r.text]);
   for (const bay of def.bays) for (const d of bay.drills) lines.push([`${bay.id} drill ${d.id}`, d.text]);
+  for (const bay of def.bays) if (bay.spotFail !== undefined) lines.push([`${bay.id} spotted`, bay.spotFail]);
   for (const o of def.objectives ?? []) {
     lines.push([`step ${o.id}`, o.text]);
     if (o.a) lines.push([`step ${o.id} A`, o.a]);
@@ -137,6 +138,16 @@ describe('Marlow Yard: text (90 characters, British, no dashes)', () => {
       expect(t.length, k).toBeLessThanOrEqual(COURSE_TEXT_MAX);
       expect(/[\u2013\u2014]/.test(t), k).toBe(false);
     }
+  });
+  it('(walk482 X2a) only A2 fails on being spotted; its line fits COURSE_TEXT_MAX and validateCourse checks the length', () => {
+    const withRule = def.bays.filter((bay) => bay.spotFail !== undefined);
+    expect(withRule.map((bay) => bay.id)).toEqual(['A2']);
+    const line = withRule[0]!.spotFail!;
+    expect(line).toBe(SPOT_FAIL.a2CarriageShed);
+    expect(line.length).toBeGreaterThan(0);
+    expect(line.length).toBeLessThanOrEqual(COURSE_TEXT_MAX);
+    const long = { ...def, bays: def.bays.map((bay) => (bay.spotFail ? { ...bay, spotFail: 'x'.repeat(COURSE_TEXT_MAX + 1) } : bay)) };
+    expect(() => validateCourse(long, layoutKnownIds(c))).toThrow(/spotted line/);
   });
   it('every bay has an entry radio line and a closing objective line', () => {
     for (const bay of def.bays) {

@@ -37,6 +37,10 @@ import {
   type JamTarget,
   type LaserDef,
 } from '../src/game/jammer';
+import { hallCameras, type PassZone } from '../src/game/passZones';
+import { LevelBuilder } from '../src/world/levelBuilder';
+import { buildCtcourse } from '../src/world/maps/ctcourse';
+import { A3_CAMERA, A3_HALL } from '../src/world/maps/ctcourseSets/a3OfficeRange';
 
 const DT = 1 / 60;
 
@@ -410,3 +414,18 @@ describe('jam wire', () => {
 // cover, the view kept inside the bay, one jam per runner, the pass-zone gate and the send-back) pinned the old bunker
 // bays. They return with A3 (the jam relay corridor, `A3_HALL`) and A5 (the laser, `A5_LASER`) in their set tests
 // (tests/ctcourse/<set>.test.ts, SPEC 16).
+
+describe('marlow-walk482 X6: a hallway rule camera only sends back (no guard alert, no alarm)', () => {
+  it("over Marlow Yard's pass zones the set is A3's hall camera alone", () => {
+    const zones = buildCtcourse(new LevelBuilder()).layout.passZones ?? [];
+    expect(zones.some((z) => z.hall === A3_HALL)).toBe(true);
+    expect([...hallCameras(zones)]).toEqual(['cam-a3-hall']);
+    expect(A3_CAMERA).toBe('cam-a3-hall');
+  });
+  it('a zone without a hall adds nothing', () => {
+    const plain: PassZone = { id: 'p', box: [0, 0, 1, 1], flag: 'f' };
+    expect(hallCameras([]).size).toBe(0);
+    expect(hallCameras([plain]).size).toBe(0);
+    expect([...hallCameras([plain, { id: 'h', box: [0, 0, 1, 1], flag: 'g', hall: A3_HALL }])]).toEqual([A3_CAMERA]);
+  });
+});

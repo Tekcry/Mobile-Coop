@@ -11,7 +11,7 @@ import { isListedMap } from '../src/world/maps/listed';
 import { campusOps, CAMPUS_BOUNDS } from '../src/world/maps/campusOps';
 import { CAMPUS_COOP_LIPS } from '../src/world/maps/campusLips';
 import { C1_BOX, S1_DOORS, S1_GROUPS, S1_ROOMS, BOLLARD_XS, CANOPY_LAMPS, PARK_COLUMNS_E, PARK_COLUMNS_W } from '../src/world/maps/campusS1';
-import { CAMPUS_ALARMS, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
+import { CAMPUS_ALARMS, CAMPUS_SCREEN_CAP, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
 import { SECTOR, checkSectorGuards, checkSectors, exitZone, inZone, type SectorGuard } from '../src/game/sectors';
 import { validateSecurity } from '../src/security/data';
 import { CAMERA } from '../src/config/security';
@@ -671,12 +671,8 @@ describe('CR1 hatch and A68 margin (sector-redesign fix round)', () => {
     expect(level).toBeLessThan(LIGHT.shadow);
   });
 
-  it('(A68) no K choke guard, pair member or dog handler is dormant; the fence patrol (#7) is', () => {
-    const handlers = new Set(S1.guards.map((g) => g.handler).filter((h): h is number => h !== undefined));
-    S1.guards.forEach((g, i) => {
-      if (g.pair !== undefined || handlers.has(i) || g.role === 'posted' || g.kind === 'dog') expect(g.dormant, `guard #${i + 1}`).not.toBe(true);
-    });
-    expect(S1.guards[4]!.dormant).not.toBe(true);
-    expect(S1.guards[6]!.dormant).toBe(true);
+  it('(A99) no S1 guard is dormant: the fence patrol (#7) was tagged only for A64 margin (A68), and S1 has 8 guards (under the screen cap)', () => {
+    expect(S1.guards.map((g, i) => (g.dormant ? i + 1 : 0)).filter((n) => n > 0)).toEqual([]);
+    expect(S1.guards.length).toBeLessThanOrEqual(CAMPUS_SCREEN_CAP);
   });
 });

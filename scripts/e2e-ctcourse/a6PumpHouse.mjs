@@ -161,6 +161,11 @@ export async function walk(t, n) {
   await sees(A, /Drop the rescue line/, 'A6: the host reads the B line');
   assert(!(await claimed()), 'A6: nobody has claimed a job yet');
   assert(await lockedOnClient(OUTFALL), 'A6: the outfall door (L6 near) starts locked on the client');
+  // (marlow-polish P3-1) the interlock lamp beside the L6 door starts red (its device off) on both pages
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
+    const fl = await P.evaluate(() => JSON.stringify(window.__ctdev.debug().flagLamps));
+    assert(fl === JSON.stringify([{ id: 'a6-interlock', on: false }]), `A6: the ${tag}'s interlock lamp starts red (${fl})`);
+  }
   assert(await lockedOnClient(CAGE_DOOR), 'A6: the cage door starts locked on the client');
   const g0 = await attendant();
   assert(!!g0 && !g0.passive && !g0.alerted, `A6: the attendant is alive, armed and calm (${JSON.stringify(g0)})`);
@@ -254,6 +259,8 @@ export async function walk(t, n) {
   assert(!!g1 && !g1.alerted && g1.meter < 0.1 && Math.hypot(g1.x - PANEL_AT[0], g1.z - PANEL_AT[1]) > 6, `A6: the attendant, over 6 m off, stays calm (${JSON.stringify(g1)})`);
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await seesTicked(P, 'a6-hang', `A6: the ${tag} sees the hang ticked`);
   await until(B, (i) => !window.__course.wire.locks.includes(i), await doorIndex(OUTFALL), 15000, 'A6: the client sees the outfall door unlocked');
+  // (P3-1) the interlock lamp turns green on both pages
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => JSON.stringify(window.__ctdev.debug().flagLamps) === JSON.stringify([{ id: 'a6-interlock', on: true }]), null, 15000, `A6: the ${tag}'s interlock lamp turns green`);
   await sees(A, /interlock is green/i, 'A6: the host reads the closing line');
   await sees(B, /interlock is green/i, 'A6: the client reads the closing line');
   const pulls0 = await GB(() => window.__app.current.team.count.pulls);

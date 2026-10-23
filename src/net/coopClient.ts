@@ -7,14 +7,15 @@ import { Ragdoll } from '../ai/ragdoll';
 import { BUDGET, G } from '../physics/groups';
 import { TorchMirror } from './torchMirror';
 import { LAMP_TARGET, LampMirror } from './lampSync';
-import { lightOnRay, type LightDef } from '../world/lights';
+import { lampReachProbe, lightOnRay, type LightDef } from '../world/lights';
 import { BODY } from '../ai/bodies';
 import type { HitInfo } from '../game/damage';
 import { Interactables, KIND_COLOR, type Interactable } from '../game/interactables';
 import { CRATE_DARK, applyCrateEvent } from '../game/crateLedger';
 import type { NetSession } from './session';
-import { BARK_CAM, BARK_TEXT, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
-import { ClockSync } from './interp';
+import { BARK_CAM, BARK_TEXT, gaitWire, motionWire, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
+import { CT } from '../config/movement';
+import { CLIENT_INTERP_DELAY, ClockSync, sendClock } from './interp';
 import type { CKind } from '../game/committedMoves';
 import { RemoteAvatar } from './remoteAvatar';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
@@ -24,10 +25,10 @@ import { PartnerTarget } from './partnerTarget';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
 import type { TeamMate } from '../game/teamController';
 import type { TeamKind } from '../game/teamMoves';
-import { clampEnd, clientForcedHolster, coopSessionStats, ratingViewFromWire } from './validate';
+import { clampEnd, clientForcedHolster, coopSessionStats, ratingViewFromWire, ratingViewsFromRh } from './validate';
 import { RatingCard, type RatingView } from '../ui/hud/ratingCard';
 import { GADGETS } from '../game/gadgets';
-import { GRANT_GADGETS } from '../game/rating/sectionRating';
+import { GRANT_GADGETS, putRating } from '../game/rating/sectionRating';
 import { stationHeal } from '../game/medkit';
 import { applyCourseWire, clientCourseFrame, clientCourseSummary, courseStartPos, disposeClientCourse } from '../game/modes/courseMode';
 import { COURSE_RESTART_TITLE, isClientVerb, type ClientVerb } from '../game/course/courseWire';
@@ -50,7 +51,8 @@ import { DeflectLedger } from './puppetGear';
 import { DESK_NONE, deskItemId, deskModeOf } from '../game/sectorDesks';
 
 const SEND_HZ = 20;
-const INTERP_DELAY = 0.12;
+/** (afp AF6) `CLIENT_INTERP_DELAY` (interp.ts; was 0.12). */
+const INTERP_DELAY = CLIENT_INTERP_DELAY;
 
 /**
  * Client side of a match. Only the local player is simulated (predicted); enemies, modes, pickups, objectives, doors
@@ -122,6 +124,9 @@ export class CoopClient implements NetAttachment {
   readonly torches: TorchMirror;
   private readonly torchA = new Vector3();
   private readonly torchB = new Vector3();
+  /** (polish2) The mount-reach probe's ends (`lampReachProbe`). */
+  private readonly reachA = new Vector3();
+  private readonly reachB = new Vector3();
   /** (sector-redesign slice L, protocol 31) Sector Ops: the host's fixed lights (switched, shot) on this page's registry,
    *  so the picture, the meter and the guards' torch reads match the host's; null elsewhere. */
   lamps: LampMirror | null = null;
@@ -207,6 +212,14 @@ export class CoopClient implements NetAttachment {
     g.hud.setObjective(this.obj);
     // (coop-fix, bug 1) a hidden client page keeps simulating and sending its states
     this.offs.push(keepSimInBackground(g));
+    // (marlow-polish) our own round off a bulletproof camera (Sector Ops, Marlow Yard): the host's ricochet sparks and
+    // impact sound on our screen too (local only; the mirror's CtDevices is read per shot, the course one comes later)
+    const prevRay = g.weapons.onRay;
+    g.weapons.onRay = (a, b) => {
+      prevRay?.(a, b);
+      g.ctDev?.ricochetRay(a, b);
+    };
+    this.offs.push(() => (g.weapons.onRay = null));
   }
 
   private get renderTime(): number {
@@ -584,6 +597,10 @@ export class CoopClient implements NetAttachment {
     const id = lightOnRay(reg, a.x, a.y, a.z, b.x, b.y, b.z);
     const l = id >= 0 ? reg.lights[id] : undefined;
     if (!l || !l.destructible || l.destroyed) return;
+    // (polish2) the host's mount-reach probe (`StealthSystems.shotRay`, `onLampShot`): never ask for a lamp it refuses
+    const p = this.reachA;
+    const h = lampReachProbe(reg, id, a.x, a.y, a.z, b.x, b.y, b.z, p);
+    if (h > 0 && !this.g.ballistics.clear(p, this.reachB.set(p.x, p.y + h, p.z), G.STATIC)) return;
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     const dz = b.z - a.z;
@@ -810,12 +827,14 @@ export class CoopClient implements NetAttachment {
       // (integration) a late join / rejoin: a rating already on the wire was shown and granted before we came; it
       // only goes to the results list (no card, no top-up)
       this.sawSector = true;
+      // (marlow-polish) every section rated before the last one, from `rh` (results lines only)
+      if (msg.rh) for (const v of ratingViewsFromRh(msg.rh, msg.rt?.sec ?? -1, this.g.world.map.sectors ?? [])) putRating(this.g.sectionRatings, v);
       if (msg.rt) {
         this.ratedSec = msg.rt.sec;
         const v = ratingViewFromWire(msg.rt, this.g.world.map.sectors ?? []);
         if (v) {
           this.rating = v;
-          this.g.sectionRatings.push(v);
+          putRating(this.g.sectionRatings, v);
         }
       }
     } else if (msg.rt && msg.rt.sec !== this.ratedSec) this.takeRating(msg.rt);
@@ -848,7 +867,7 @@ export class CoopClient implements NetAttachment {
     this.rating = v;
     this.ratingSeq++;
     // (integration) every rating for the op-end results lines
-    this.g.sectionRatings.push(v);
+    putRating(this.g.sectionRatings, v);
     // the gadget part of the grant on our own kit (the host tops up only its own player): noisemaker first, then gas,
     // each up to its starting carry, as the host's grant does; once per rating (a new `sec`). The extraction's rating
     // carries no grant (the host zeroes it).
@@ -928,9 +947,18 @@ export class CoopClient implements NetAttachment {
     const g = this.g;
     const p = g.player;
     const c = p.controller;
+    // (afp AF6) the send clock (the host times the state by it) and the gait clock / CT stop (the partner's stride)
+    const sentAt = sendClock(this.sentWall, this.sentSim, performance.now() / 1000, this.time);
+    this.sentWall = sentAt;
+    this.sentSim = this.time;
+    const gw: { gph?: number; qs?: number; hs?: number; mo?: number; mt?: number; ax?: number; az?: number } = {};
+    gaitWire(c.motion.phase, c.ct, c.stopEaseT, c.stopHold, c.holdSpeed, CT.stopEase, CT.stopBlend, gw);
+    motionWire(c.override?.kinematic ? null : c.motion.state, c.motion.stateT, c.motion.ax, c.motion.az, gw);
     this.s.toHost({
       t: 'pstate',
       s: wirePlayerState({
+        ...gw,
+        t: sentAt,
         id: this.s.selfId,
         x: p.position.x,
         y: p.position.y,
@@ -946,6 +974,10 @@ export class CoopClient implements NetAttachment {
       }),
     });
   }
+
+  /** (afp AF6) The last state's send clock and sim time (`sendClock`). */
+  private sentWall = -Infinity;
+  private sentSim = 0;
 
   /** The movement state this step and the last one sent (change detection). */
   private mvNow = emptyMoveState();

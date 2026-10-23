@@ -17,6 +17,8 @@ import {
   PROP_FOOTPRINT,
   PROP_HUNG,
   PROP_IDS,
+  PROP_LAMP_GAIN,
+  PROP_LAMP_TINT,
   PROP_LOOK,
   PROP_MATERIALS,
   PROP_OVERHANG,
@@ -401,6 +403,51 @@ describe('props build (facility-props.glb and its report)', () => {
     const scene = new Scene(engine);
     const r = PropRender.fromModel(scene, parseGlb(glb(path.join(ASSETS, 'facility-props.glb'))), props.placements);
     expect(r.colorsOf('prop-serverRack.lamp')![1]!).toBeGreaterThan(0.3);
+    r.dispose();
+    scene.dispose();
+    engine.dispose();
+  });
+
+  it('(P3-1) a status lamp with lampOff: green while its device is on, its off colour lit at full gain (not PROP_DARK) while off, still dimmed by its circuit; a plain device lamp still dims', async () => {
+    const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+    const { Scene } = await import('../src/core/babylon');
+    const { PropRender } = await import('../src/world/props/propRender');
+    const { LightRegistry } = await import('../src/world/lights');
+    const reg = new LightRegistry();
+    reg.add({ x: 0, y: 3, z: 0, group: 72 });
+    const green = PROP_LAMP_TINT.default;
+    const red: [number, number, number] = [1.0, 0.12, 0.08];
+    const props = new FacilityProps();
+    props.add('pushStation', 0, 0, 0, { y: 1.41, device: 'lamp-a', flag: 'f-a', lamp: green, lampOff: red });
+    props.add('pushStation', 2, 0, 0, { y: 1.41, device: 'plain' });
+    props.add('pushStation', 4, 0, 0, { y: 1.41, device: 'lamp-b', lamp: green, lampOff: red, group: 72 });
+    expect(props.placements[0]!.flag).toBe('f-a');
+    expect(props.placements[0]!.lampOff).toEqual(red);
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    const r = PropRender.fromModel(scene, parseGlb(glb(path.join(ASSETS, 'facility-props.glb'))), props.placements, [], reg);
+    const c = (): Float32Array => r.colorsOf('prop-pushStation.lamp')!;
+    const rgb = (n: number): number[] => [c()[n * 4]!, c()[n * 4 + 1]!, c()[n * 4 + 2]!];
+    const near = (a: number[], b: readonly number[], k: number): void => a.forEach((v, i) => expect(v).toBeCloseTo(b[i]! * k, 6));
+    // at the start every device is on: green at full gain
+    near(rgb(0), green, PROP_LAMP_GAIN);
+    near(rgb(2), green, PROP_LAMP_GAIN);
+    const plainLit = rgb(1);
+    // off: the status lamp shows red, lit (not PROP_DARK); the plain device lamp dims as before (bites)
+    r.setDevice('lamp-a', false);
+    near(rgb(0), red, PROP_LAMP_GAIN);
+    expect(rgb(0)[0]!).toBeGreaterThan(green[0]! * PROP_LAMP_GAIN * PROP_DARK * 10);
+    r.setDevice('plain', false);
+    near(rgb(1), plainLit, PROP_DARK);
+    // on again: green
+    r.setDevice('lamp-a', true);
+    near(rgb(0), green, PROP_LAMP_GAIN);
+    // red follows its circuit as the green does: dim while the group is cut
+    r.setDevice('lamp-b', false);
+    near(rgb(2), red, PROP_LAMP_GAIN);
+    reg.setGroup(72, false);
+    r.frame();
+    near(rgb(2), red, PROP_LAMP_GAIN * PROP_DARK);
     r.dispose();
     scene.dispose();
     engine.dispose();
