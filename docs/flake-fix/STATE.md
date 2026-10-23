@@ -3,6 +3,21 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 32 (2026-10-24 ~07:45, full burn; wins over SAVE 31 where they differ):**
+- Chains GONE: Michael ran the stop / disable (~07:10), then confirmed the delete here: all 87 NightShift-chain-* tasks
+  unregistered. One orphan laptop-runner.ps1 (pid 20544, guard-cap on 4189) may still run once (stop needs Michael).
+- Pushed to feature/laptop-queue (#252, train-ready, CI to recheck): f0b9ea20 one-shot-task.ps1 (expiring ad-hoc
+  tasks), 34c1e6fe + 3f13e816 task guard (laptop on, desktop off until dry-run checked; disables 18 ns-chain-1022* /
+  ns-cpu-burner on first run; alerts/<ts>-<worker>-tasks.json). Opus checker FIX fixed (PS 5.1 array loop). Vitest 48/48.
+- Earlier today: e9363533 flake rule by assert, cf6f674b + e52b4a79 train solo fallback (all on #252).
+- Train 41 closed (S24 #264 levels); t41-solo: lightbake PASS, levels FAIL. Train 42 runs first when opened.
+- RUNNING: Opus agent writes C:/NightShift/scratch/work/lr16-8/sheets.mjs (LR16-8 showcase, 110 shots, Sector Ops
+  request on feature/marlow-lr16m 606630ed). Next: queue it as an alone request (--alone --step "node
+  C:/NightShift/scratch/work/lr16-8/sheets.mjs", 4189 GPU), then ONE reply to Sector Ops (flags, probe table, perf,
+  folder C:/NightShift/scratch/lighting/lr16-8/).
+- Sent Sector Ops the lr16w e7cec732 excerpts (desktop:3 hang after the 16-texture check, darkness flat 9.7%,
+  lightbake D3D11 pixel shader compile error on smooth Epic).
+
 **Test Runner SAVE 31 (2026-10-24 ~04:15, 90% save before the 04:40 reset; wins over SAVE 30 where they differ):**
 - Service (task NightShift-laptop-queue) runs headless; it self-updates to e52b4a79 (solo fallback) at its next idle pass.
 - CLOSED ~07:10 (Michael ran it): all 87 NightShift-chain-* tasks stopped and DISABLED; NightShift-laptop-queue runs.
@@ -911,7 +926,7 @@ puts it in CLAUDE.md on feature/menu). Laptop full runs: `RUN_GPU=1` (E2E_GPU=1)
 
 ## Resume prompt
 ```
-Night Shift | Test Runner (laptop, the MAIN test machine). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Test Runner" (ToolSearch if deferred). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop", "Heavy-usage throughput" incl. "Token rules"), then the newest "Test Runner SAVE" block (SAVE 31 or later) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Do what it lists, in order. If two Test Runner sessions show in ListAgents, close the older one.
+Night Shift | Test Runner (laptop, the MAIN test machine). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Test Runner" (ToolSearch if deferred). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop", "Heavy-usage throughput" incl. "Token rules"), then the newest "Test Runner SAVE" block (SAVE 32 or later) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Do what it lists, in order. If two Test Runner sessions show in ListAgents, close the older one.
 
 The queue is the SERVICE now (no hand-run chains, Orchestrator 20:26): task NightShift-laptop-queue runs scripts/laptop-queue/service.mjs from C:/NightShift/Mobile-Coop-laptop-queue-svc (follows origin/feature/laptop-queue, self-updates when idle); log + state C:/NightShift/scratch/laptop-queue/ (log.txt, runs/<id>/); verdicts are GitHub statuses laptop-e2e[/<set>] + PR comments on failure. Requests: node scripts/laptop-queue/request.mjs --sha <ref> (--suites "a b" | --full | --alone --step "<cmd>" [--env K=V]) --requester "<title>" (alone = perf / sheets, after trains and PR suites). Desktop overflow worker NightShift-desktop-queue (LQ_WORKER=desktop, pr only) claims via claims/<id>.json on the laptop-queue branch. Locks C:/NightShift/heavy-4189.lock / heavy-4192.lock (service lines "laptop-queue | ..."; a lock with no live node is stale). Restarting the service: Stop-ScheduledTask leaves the node child alive, so a restart also needs that node pid killed (needs Michael's OK).
 
