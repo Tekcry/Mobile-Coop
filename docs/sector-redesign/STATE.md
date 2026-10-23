@@ -297,7 +297,8 @@ LR16 (one lighting system; plan checks/lr16-plan.md, audit lr16-0-ct-audit.md)
   -lr16-1 cc273698 (face-bit fix mid-way), -lr16-5 fa676c57 (lampFlicker.ts + tests mid-way). RUNNING (Opus): LR16-1 fix
   round from cc273698 (report lr16-1-build.md "Fix round"); LR16-5 builder from fa676c57 (lr16-5-build.md); artnext
   checker (ABD 3ebc5e1e + C 56557b58, cloud-built, done) in worktree -artnext-chk (artnext-check.md there, untracked);
-  LR16-5b brief planner (briefs/LR16-5b.md, uncommitted in -polish until the lead commits). If dead on resume: rerun
+  LR16-5b brief DONE (briefs/LR16-5b.md: wire event sway + shot target, needs a PROTOCOL number from the orchestrator
+  when the build starts; pendants matched by position, A2 / A4 ones depend on #257). If dead on resume: rerun
   from these lines. Laptop: lr16int 6eb6a863 full LR16 set queued (...6eb6a863-f2e8); queue at 21:28 = 27 requests,
   laptop service not claiming yet (old service; Michael restarts it).
 - artnext check PASS (checks/artnext-check.md, 436 tests, polish 1-9): merged into -artpol b5e93548 = #226 target head.
