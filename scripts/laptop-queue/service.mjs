@@ -13,6 +13,9 @@
 // silent: no claim / done push by 'laptop' on the branch for LQ_LAPTOP_SILENT_MIN (10) min, the laptop service claims
 // trains itself and the head is over 2 min old; then the backlog gate is dropped (lock, dir and CPU gates stay) and the
 // train runs sharded on the desktop slots whose dir exists (4191+4192), E2E_JOBS=LQ_TRAIN_JOBS (desktop default 1).
+// Build marker (desktop): while C:/NightShift/scratch/auto-train-building.json (auto-train writes it during
+// `merge-train build`; LQ_BUILD_MARKER overrides the path) exists and is younger than LQ_BUILD_MARKER_MAX_MIN (30) min,
+// the desktop starts no new request or train; runs already going continue. An older marker is ignored (logged once).
 // Every request and train is claimed (claims/<id>.json, a train: claims/<sha>.json, on the laptop-queue branch, an
 // atomic push) before it runs and marked done after, so the two workers never run the same request or train.
 // Train reruns (request.mjs --train-rerun, from auto-train): kind pr, picked right after trains on one slot at E2E_JOBS=1
@@ -32,7 +35,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { assertKey, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo } from './lib.mjs';
+import { assertKey, buildMarker, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -833,6 +836,24 @@ function desktopTrains() {
   return { trains, why: all.length && !trains.length ? 'train head too new' : '' };
 }
 
+const BUILD_MARKER = process.env.LQ_BUILD_MARKER ?? 'C:/NightShift/scratch/auto-train-building.json';
+const BUILD_MARKER_MAX_MS = Number(process.env.LQ_BUILD_MARKER_MAX_MIN ?? 30) * 60_000;
+let markerLogged = '';
+/** Desktop: auto-train's build marker when it blocks new starts (lib buildMarker), else null; logged once per marker. */
+function trainBuilding() {
+  let text = null;
+  let mtime = NaN;
+  try { text = fs.readFileSync(BUILD_MARKER, 'utf8'); mtime = fs.statSync(BUILD_MARKER).mtimeMs; } catch { /* no marker */ }
+  const m = buildMarker(text, mtime, Date.now(), BUILD_MARKER_MAX_MS);
+  if (!m) { markerLogged = ''; return null; }
+  const key = `${m.key} ${m.stale}`;
+  if (key !== markerLogged) {
+    markerLogged = key;
+    log(m.stale ? `train ${m.train} build marker ${Math.round(m.ageMs / 60_000)} min old: ignored as stale` : `train ${m.train} building: no new claims`);
+  }
+  return m.stale ? null : m;
+}
+
 async function pass() {
   // requests first: listRequests fetches origin/laptop-queue, which the train claim checks read
   const requests = listRequests().filter((r) => !claimed.has(r.id));
@@ -852,6 +873,8 @@ async function pass() {
   } else if (!aloneHold) aloneHoldLogged = '';
   const desktopWait = {};
   if (DESKTOP) {
+    // auto-train's build (its vitest waits on heavy.lock) goes first: no new request or train while it builds
+    if (trainBuilding()) return;
     const backlog = queue.requests.length;
     queue.requests = queue.requests.filter((r) => r.kind === 'pr' && !r.trainRerun); // a train rerun is the laptop's (desktop failed)
     const why = {};

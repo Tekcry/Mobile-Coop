@@ -157,6 +157,20 @@ export function superseded(requests, isAncestor) {
 }
 
 /**
+ * auto-train's build marker (auto-train-building.json, { train, version, pid, at }, written while `merge-train build`
+ * runs): null when absent (text null), else { train, key, ageMs, stale }. Its age is from `at` (the file's mtime when
+ * unreadable); stale = not younger than maxMs (a marker left by a killed auto-train never blocks for good).
+ */
+export function buildMarker(text, mtimeMs, now, maxMs) {
+  if (text === null || text === undefined) return null;
+  let m = {};
+  try { m = JSON.parse(text) ?? {}; } catch { /* unreadable: mtime only */ }
+  const at = Date.parse(m.at);
+  const ageMs = now - (Number.isFinite(at) ? at : mtimeMs);
+  return { train: m.train ?? '?', key: [m.train, m.version, m.pid, Number.isFinite(at) ? m.at : mtimeMs].join('|'), ageMs, stale: !(ageMs < maxMs) };
+}
+
+/**
  * What a request runs, as one string: sha, kind, train-rerun flag, suites (sorted) or steps (in order), env (sorted).
  * Requester, set, note, jobs and pr do not count (two sessions asking for the same run on the same sha).
  */

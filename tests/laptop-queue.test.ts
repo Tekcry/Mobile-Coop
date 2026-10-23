@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -506,5 +506,26 @@ describe('train reruns', () => {
     const rr = { ...rerun(10), sha: 'a'.repeat(40) };
     expect(superseded([plain, rr], () => true).size).toBe(0);
     expect(duplicates([plain, rr], [], NOW, 3600_000).size).toBe(0);
+  });
+});
+
+describe('buildMarker', () => {
+  const MAX = 30 * 60_000;
+  const at = (min: number) => new Date(NOW - min * 60_000).toISOString();
+  const text = (min: number) => JSON.stringify({ train: '48', version: '4.80.0', pid: 123, at: at(min) });
+  it('no file, no marker', () => {
+    expect(buildMarker(null, NaN, NOW, MAX)).toBeNull();
+  });
+  it('a fresh marker blocks, one over the limit is stale', () => {
+    expect(buildMarker(text(5), NaN, NOW, MAX)).toMatchObject({ train: '48', stale: false, ageMs: 5 * 60_000 });
+    expect(buildMarker(text(30), NaN, NOW, MAX)?.stale).toBe(true);
+  });
+  it('an unreadable marker ages from the file time', () => {
+    expect(buildMarker('{oops', NOW - 60_000, NOW, MAX)).toMatchObject({ train: '?', stale: false });
+    expect(buildMarker('', NOW - 31 * 60_000, NOW, MAX)?.stale).toBe(true);
+  });
+  it('the key changes per marker (logged once each)', () => {
+    expect(buildMarker(text(5), NaN, NOW, MAX)?.key).not.toBe(buildMarker(text(4), NaN, NOW, MAX)?.key);
+    expect(buildMarker(text(5), NaN, NOW + 1000, MAX)?.key).toBe(buildMarker(text(5), NaN, NOW, MAX)?.key);
   });
 });
