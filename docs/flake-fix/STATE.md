@@ -10,6 +10,13 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 - Still queued: 4192 chain-1023mr Marlow section-rating 053ff212 -> Marlow Build; 4189 chain-1023ap3 #226 perf alone
   (after gs5 done + all locks free; build first) -> Sector Ops. Guard AI carry-fix sha pending (see SAVE 17).
 - SENT: invisible-guard split verdict (compile timeout, all 3 passes) to Guard AI.
+- 4191 chain-1023gf (watcher): polls origin/feature/guard-ai-carry-fix every 2 min for a commit "guard-ai carry fix:
+  recover guard bodies..." (d704098e is WIP, skipped), then guardcarryfix-<sha> (e2e-guard-carry + e2e-stealth-ai,
+  expect PASS) and guardcarryfix-master-f16600f5 (same suite file, expect FAIL) -> ONE verdict to Guard AI Build.
+- 4189 chain-1023sx (after #226 perf DONE): Sector Ops (1) LR15 eb45b0af lamp-atlas fix: lr15b-photo (photo darkness
+  lightbake desktop sectorops:2), lr15b-classic (lightbake), lr15b-perf-classic / -photo (campusOps Epic, alone),
+  lr15b-sheet (work/lr15b-eb45b0af/sheet: confirm the texImage3D warning is gone, guards / atrium lit) -> verdict;
+  (2) artpol-1d34c348 e2e-coop + artpol-perf (views freeze on / off + guard-cap campus 24, alone) -> verdict.
 
 **Test Runner SAVE 17 (2026-10-23 ~18:00, 92% save):**
 - RUNNING / QUEUED (scheduled tasks, survive the swap; logs runs/chain-1023<x>.log, results runs/<label>/summary.txt):
