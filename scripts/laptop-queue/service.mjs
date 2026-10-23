@@ -601,6 +601,8 @@ async function main() {
   }
   for (;;) {
     try {
+      // update before taking new work too, so a busy queue still picks up new service code between runs
+      if (!Object.values(busy).some(Boolean)) selfUpdate();
       await pass();
       if (!Object.values(busy).some(Boolean)) selfUpdate();
     } catch (e) { log(`pass failed: ${e.message}`); }
