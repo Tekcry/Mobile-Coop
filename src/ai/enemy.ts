@@ -1266,10 +1266,18 @@ export class Enemy implements Damageable {
     return this.knownV.copyFrom(this.pos);
   }
 
-  /** (guard-ai S24) An alerted guard sees `p`: that player's last known position, and he hunts him. */
-  private takeSighting(p: PlayerRef): void {
+  /**
+   * (guard-ai S24) An alerted guard sees `p`: that player's last known position, and he hunts him. (S24 fix) His first
+   * intruder of this fight (he went to combat with none: shot from the dark, told by a call that named nobody) and
+   * `recall`: he calls the contact again, naming him (shout + section call, A149), so the squadmates his slotless call
+   * or anyone's joined (in combat with `hunt` -1) learn of that player by voice / radio (G139) and close on his spot.
+   */
+  private takeSighting(p: PlayerRef, recall = true): void {
     const s = this.ctx.reportSighting(p);
-    if (s >= 0) this.hunt = s;
+    if (s < 0) return;
+    const had = this.hunt;
+    this.hunt = s;
+    if (had < 0 && recall && this.netOn) this.callContact();
   }
 
   /** (guard-ai S25) His plan point is over (looked into, or unreachable): the manager marks it done. */
@@ -1746,7 +1754,9 @@ export class Enemy implements Damageable {
     if (to === 'alert') {
       // (guard-ai S24, A146) his intruder: the one he sees (his own sight wins; reported now, so his contact call carries
       // it), else the one the call / shout / located shot named, else the one he had
-      if (this.target && this.los) this.takeSighting(this.target);
+      // (S24 fix) not told of anyone (a call / shout that named nobody, or none): he names him himself; his own call
+      // (not told) goes out below with the slot anyway
+      if (this.target && this.los) this.takeSighting(this.target, this.alertIn.called && this.hunt < 0 && this.pendingHunt < 0);
       else if (this.pendingHunt >= 0) this.hunt = this.pendingHunt;
       this.pendingHunt = -1;
       // (guard-ai S8) his combat dice for this engagement (seeded per guard per engagement, replayable)

@@ -7,6 +7,7 @@
 // state. (guard-ai S9) The guard-ai state on the client: alarm stage gear, a bark, caution, a shield-led response team
 // and a client deflect (helmet off on both screens). (guard-ai S23) Every player is seen: a calm guard spots the client
 // in his light while the host hides nearer behind a wall, and in combat keeps his target and line on the client.
+// (guard-ai S24) Two intruders: two guard pairs each hunt the player they saw, and close on his last known position only.
 // (co-op test fix, process audit section 2) The pages open legacy-off: the matches are Infiltration (the Ledger
 // mission on the Warehouse: guards, and detection costs only a bonus) and Free Roam, no Hunter. Two players only (G2).
 // Waits are e2e-net-lib's, on both pages' sim clocks: the sim runs slower than real time on software GL.
@@ -1196,6 +1197,167 @@ try {
         if (e) em.despawn(e);
         if (em['s23Cap'] !== undefined) em.maxAlive = em['s23Cap'];
       }, gid).catch(() => {});
+    }
+    await toLobby();
+  }
+
+  // (guard-ai S24, G139, A146-A148) two intruders: four calm grunts in two pairs ~23 m apart, a wall and the racks
+  // between them (the S9 team-spawn pattern: `em.maxAlive` raised and restored; both players invulnerable). Pair 1 in the
+  // racking hall's aisle (x -14.5) faces the host 7.7 m north in the cross aisle; pair 2 on the factory floor faces the
+  // client 9 m north under the lamp strip (S23's spot). Both players are lit by a pinned light (the host's sampler is
+  // replaced for the block, as e2e-stealth-ai's `t.light`); the mission's own guards and the drone are statues with their
+  // hitboxes parked (no ray stops on them), the alarm panels off. Once both pairs are in combat: two valid intruder
+  // slots, pair 1 hunts the host's and pair 2 the client's. Then both players go dark and leave (the host to the dock
+  // behind the z -6 wall, the client to the corridor behind the z -8.8 wall): within 10 s of the host's sim each pair's
+  // closest approach is to its own player's last known position (< 3 m), never to the other's, and no guard of either
+  // pair ever hunts the other pair's player.
+  console.log('guard-ai S24: two intruders (each pair hunts the player it saw, never the other)');
+  {
+    await startMode(...MISSION);
+    await GA(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
+    const S24 = { pair1: [[-15, -2.5], [-14, -2.5]], host: [-14.5, 5.2], pair2: [[8, -6], [9.2, -6]], client: [9, 3], hostHide: [-11, -14.5], clientHide: [9, -10.3] };
+    const cid = await GB(() => window.__coop.session.selfId);
+    const hostSpot = await GA(([x, z]) => { const g = window.__app.current; const nav = g.enemyMgr.nav; const c = nav.nearestWalkable(x, z, 2, 0); const [cx, cz] = c >= 0 ? nav.center(c) : [x, z]; g.player.controller.teleport(new g.player.position.constructor(cx, 0.05, cz), Math.PI); g.player.cam.pitch = 0; return [cx, cz]; }, S24.host);
+    await moveClient(B, S24.client[0], 0.1, S24.client[1], Math.PI);
+    await until(A, ([x, z]) => { const r = window.__app.current.remotePlayers()[0]; return !!r && Math.hypot(r.feet.x - x, r.feet.z - z) < 0.6 && r.speed < 0.15; }, S24.client, 15000, 'S24: the host has the client still under the lamp');
+    let ids = [];
+    try {
+      const setup = await GA(([S, hs, cid]) => {
+        const g = window.__app.current;
+        const em = g.enemyMgr;
+        const V = g.player.position.constructor;
+        // (S9 pattern) room for four more guards; restored below
+        em['s24Cap'] = em.maxAlive;
+        em.maxAlive = Math.max(em.maxAlive, em.alive + 4);
+        // the mission's guards statues, calm, out of every ray; the drone a statue; no alarm panel
+        for (const x of em.enemies) {
+          x.update = () => {};
+          if (x.alive && !x.taken) x.aware.set('unaware');
+          if (x.alive) {
+            x['hitboxes']?.setEnabled(false);
+            x['s24Parked'] = true;
+          }
+        }
+        for (const d of em.drones) d.update = () => true;
+        window.__s24Panels = em.alarms.map((p) => p.disabled);
+        for (const p of em.alarms) p.disabled = true;
+        // both players lit (a pinned level) until they hide; the light sampler restored below
+        window.__s24Light = 1;
+        g['updateLight'] = () => {
+          g.localRef.light = g.lightLevel = window.__s24Light;
+          for (const r of g.remotePlayers()) r.light = window.__s24Light;
+        };
+        const out = [];
+        const face = (p, t) => Math.atan2(t[0] - p[0], t[1] - p[1]);
+        for (const p of S.pair1) out.push(em.spawn('grunt', new V(p[0], 0, p[1]), false, face(p, hs)));
+        for (const p of S.pair2) out.push(em.spawn('grunt', new V(p[0], 0, p[1]), false, face(p, S.client)));
+        if (out.some((e) => !e)) return null;
+        for (const e of out) e.meter = 0;
+        const sHost = em.intruders.slotFor(g.localRef.id);
+        const sClient = em.intruders.slotFor(cid);
+        const gen = (window.__s24Gen = (window.__s24Gen ?? 0) + 1);
+        // per guard (pair 1 then pair 2): his own pair's slot, the other's, closest approaches once hiding
+        const s = (window.__s24 = { phase: 'seen', t0: g.time, t: 0, hideT: -1, sHost, sClient, own: [Infinity, Infinity, Infinity, Infinity], other: [Infinity, Infinity, Infinity, Infinity], wrong: [0, 0, 0, 0], hunts: [], levels: [], spots: null });
+        const hooks = window.__app.loop['hooks'];
+        const orig = hooks.fixedUpdate;
+        const step = (dt) => {
+          if (window.__s24Gen !== gen || window.__app.current !== g) {
+            if (hooks.fixedUpdate === step) hooks.fixedUpdate = orig;
+            orig(dt);
+            return;
+          }
+          orig(dt);
+          s.t = g.time - s.t0;
+          s.hunts = out.map((e) => e.hunt);
+          s.levels = out.map((e) => (e.alive ? e.level : 'down'));
+          if (s.phase !== 'hide') return;
+          for (let i = 0; i < out.length; i++) {
+            const e = out[i];
+            const mine = i < 2 ? sHost : sClient;
+            const theirs = i < 2 ? sClient : sHost;
+            if (e.hunt === theirs) s.wrong[i]++;
+            const a = em.lkpOf(mine);
+            if (a) s.own[i] = Math.min(s.own[i], Math.hypot(e.pos.x - a.x, e.pos.z - a.z));
+            const b = s.spots[i < 2 ? 1 : 0];
+            s.other[i] = Math.min(s.other[i], Math.hypot(e.pos.x - b[0], e.pos.z - b[1]));
+          }
+        };
+        hooks.fixedUpdate = step;
+        return { ids: out.map((e) => e.id), sHost, sClient, ref: g.playerRefs().map((r) => r.id) };
+      }, [S24, hostSpot, cid]);
+      assert(!!setup, 'S24: four calm grunts spawn in two pairs');
+      ids = setup?.ids ?? [];
+      assert(setup.sHost >= 0 && setup.sClient >= 0 && setup.sHost !== setup.sClient, `S24: one intruder slot per player (host ${setup.sHost}, client ${setup.sClient}; refs ${setup.ref.join(',')}, client ${cid})`);
+
+      // both pairs in combat on their own player (their own sight; by hand after 12 s: they see him then)
+      const ready = () => { const s = window.__s24; return s.levels.length === 4 && s.levels.every((l) => l === 'alert') && s.hunts[0] === s.sHost && s.hunts[1] === s.sHost && s.hunts[2] === s.sClient && s.hunts[3] === s.sClient; };
+      const self = await until(A, ready, null, 30000, 'S24: both pairs in combat on their own player').then(() => true, () => false);
+      if (!self) {
+        console.log(`    (S24: not both pairs in combat by themselves: ${JSON.stringify(await GA(() => ({ lv: window.__s24.levels, h: window.__s24.hunts, t: window.__s24.t })))}; alerted by hand)`);
+        await GA((ids) => { for (const e of window.__app.current.enemyMgr.enemies) if (ids.includes(e.id) && !e.alerted) e.alert(); }, ids);
+        await until(A, ready, null, 15000, 'S24: both pairs in combat on their own player (by hand)').catch(() => {});
+      }
+      const c0 = await GA(() => {
+        const em = window.__app.current.enemyMgr;
+        const s = window.__s24;
+        const b = em.intruders;
+        const at = (k) => { const v = em.lkpOf(k); return v ? [v.x, v.z] : null; };
+        return { levels: s.levels, hunts: s.hunts, valid: [b.valid[s.sHost], b.valid[s.sClient]], nValid: [...b.valid].filter((v) => v === 1).length, spots: [at(s.sHost), at(s.sClient)], t: s.t };
+      });
+      const why0 = JSON.stringify(c0);
+      assert(c0.levels.every((l) => l === 'alert'), `S24: both pairs in combat (${why0})`);
+      assert(c0.valid[0] === 1 && c0.valid[1] === 1 && c0.nValid === 2, `S24: two valid last known positions, one per player (${why0})`);
+      assert(c0.hunts[0] === setup.sHost && c0.hunts[1] === setup.sHost, `S24: pair 1 hunts the host's slot (${why0})`);
+      assert(c0.hunts[2] === setup.sClient && c0.hunts[3] === setup.sClient, `S24: pair 2 hunts the client's slot (${why0})`);
+
+      // both go dark and leave: the host to the dock, the client into the corridor (snapped to the nav)
+      const hide = await GA(([hh, ch]) => {
+        const g = window.__app.current;
+        const em = g.enemyMgr;
+        const nav = em.nav;
+        const snap = (p) => { const c = nav.nearestWalkable(p[0], p[1], 2, 0); return c >= 0 ? nav.center(c) : p; };
+        const s = window.__s24;
+        const at = (k) => { const v = em.lkpOf(k); return v ? [v.x, v.z] : null; };
+        s.spots = [at(s.sHost), at(s.sClient)];
+        window.__s24Light = 0;
+        const h = snap(hh);
+        g.player.controller.teleport(new g.player.position.constructor(h[0], 0.05, h[1]), 0);
+        return { spots: s.spots, client: snap(ch) };
+      }, [S24.hostHide, S24.clientHide]);
+      assert(!!hide.spots[0] && !!hide.spots[1], `S24: both last known positions held when they hide (${JSON.stringify(hide)})`);
+      await moveClient(B, hide.client[0], 0.1, hide.client[1], 0);
+      await GA(() => { const s = window.__s24; s.hideT = s.t; s.phase = 'hide'; });
+      const hid = await waitHostSim(A, 10000);
+      const c1 = await GA(() => ({ ...window.__s24 }));
+      const f2 = (v) => (Number.isFinite(v) ? v.toFixed(2) : String(v));
+      const why1 = JSON.stringify({ hid: Math.round(hid), own: c1.own.map(f2), other: c1.other.map(f2), wrong: c1.wrong, hunts: c1.hunts, levels: c1.levels, spots: c1.spots });
+      assert(hid >= 10000, `S24: 10 s of the host's sim with both players hidden (${why1})`);
+      const own1 = Math.min(c1.own[0], c1.own[1]);
+      const own2 = Math.min(c1.own[2], c1.own[3]);
+      const oth1 = Math.min(c1.other[0], c1.other[1]);
+      const oth2 = Math.min(c1.other[2], c1.other[3]);
+      assert(own1 < 3 && oth1 > own1 + 5, `S24: pair 1 closes on the host's last known position (${f2(own1)} m), never on the client's (${f2(oth1)} m) (${why1})`);
+      assert(own2 < 3 && oth2 > own2 + 5, `S24: pair 2 closes on the client's last known position (${f2(own2)} m), never on the host's (${f2(oth2)} m) (${why1})`);
+      assert(c1.wrong.every((n) => n === 0), `S24: no guard of either pair ever hunts the other pair's player (G139) (${why1})`);
+    } finally {
+      await GA((ids) => {
+        window.__s24Gen = (window.__s24Gen ?? 0) + 1;
+        const g = window.__app.current;
+        if (g) g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
+        const em = g?.enemyMgr;
+        if (!em) return;
+        for (const x of em.enemies) {
+          delete x.update;
+          if (x['s24Parked']) {
+            x['hitboxes']?.setEnabled(true);
+            delete x['s24Parked'];
+          }
+        }
+        for (const d of em.drones) delete d.update;
+        if (window.__s24Panels) em.alarms.forEach((p, i) => (p.disabled = window.__s24Panels[i] ?? p.disabled));
+        for (const id of ids) { const e = em.enemies.find((x) => x.id === id); if (e) em.despawn(e); }
+        if (em['s24Cap'] !== undefined) em.maxAlive = em['s24Cap'];
+      }, ids).catch(() => {});
     }
     await toLobby();
   }
