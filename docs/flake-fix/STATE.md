@@ -17,6 +17,10 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 - SENT: #226 2276483a + polish 1d34c348 perf / guard-cap / coop verdict to Sector Ops (CPU p95 < 12 missed).
 - OWN: PR #243 settings-rt-hide opened (master merged, ad2c6c06), orchestrator told; train-ready for train 31.
 - Next: trains 31 / 32 from the orchestrator on 4189 first (JOBS=5 only if 4192 idle).
+- UPDATE ~18:52: #240 23cf567c guard-carry + stealth-ai PASS (SENT Orchestrator + Guard AI; fix's test also passes on
+  master f16600f5 3/3 = does not reproduce). #242 1c22b913 sectorops 1-6 + coop PASS (227 s; held for the LR15 verdict).
+  #243 ad2c6c06 e2e-menus + e2e-desktop PASS (71 s). lr15c perf task STOPPED to keep 4189 free: rerun
+  chain-1023lr15c.ps1 (drop its wait line) after train 31 = #240 #229 #234 #239 #243 (+#244), then send LR15 verdict.
 
 **Test Runner SAVE 18 (2026-10-23 ~18:08, swap ~18:22):**
 - TRAIN 30 7e8b8c51: 38/39, e2e-stealth-ai FAIL ("a suppressed shot 10 m off only makes a guard turn to look"; SENT).
