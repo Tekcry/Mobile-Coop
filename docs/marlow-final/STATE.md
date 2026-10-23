@@ -56,6 +56,15 @@ Rejected by you (~01:25): anything that assumes a dark camera is blind (G240 sta
 Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN section 6; slice reports S0-*.md.
 
 ## Now (2026-10-23 ~01:20, new account; FULL BURN to 100% per Michael ~01:05 via the orchestrator)
+- ~11:15 Done since the resume: S1 prop emissives (0aa53f12), slice 9 docs (15fb489a), A8 dressing (75d70466), revive
+  per co-op surface e2e (041eee07, not run yet). Assumed (A9, undo: build it): the ghost-run e2e stays a design
+  (S9-e2e.md: needs a `t.ghost` switch in all eight set modules; prototype first), listed for Michael in the PR.
+  Doc / code mismatch: SPEC revive reach 1.8 m, code 1.6 m (polish list). Character Build on 45a74383 (GPU, laptop):
+  :1 / netmove / course / coop PASS; FAIL :2 "A3 cleaner walks toward office 1's switch", :3 "A6 pass 2 exit release:
+  cage door unlocks", :4 "A7 technician leaves R0" (sims x1.00, not load). Running: Opus e2e fixer 2 (A3 / A6 / A7 +
+  doors / ai; report slices/S-e2e-fix2.md; scratch tests/zz-scratch-nav.test.ts is its file), Sonnet checker on A8
+  dressing + S1 (slices/S8-dress-check.md). Laptop: perf after (cc24e992) + s9 shots queued alone (chain-1023t).
+  NEXT: both reports -> one fix round -> ONE Character Build request on the head (:1-:4, coop, netmove, course).
 - ~10:50 RESUMED after the second swap (fresh session). The 10:45 agents died at ~10:44; their files committed as WIP
   63e3e892 (tsc clean, map tests 554 / 554 + 1 skipped). e2e fixer's work is in 45a74383 + the A4 client-refusal e2e
   fix (a4GoodsShed.mjs, in 63e3e892). No heavy.lock, no zz scratch tests. Running (Sonnet, continue from the WIP):
