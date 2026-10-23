@@ -3,7 +3,26 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
-**Test Runner SAVE 21 (2026-10-23 ~19:20 laptop clock; wins over all below; this block is the whole queue):**
+**Test Runner SAVE 22 (2026-10-23 ~19:30, swap save; wins over all below; this block is the whole queue):**
+Everything below runs headless through the swap (scheduled tasks + the laptop-queue service). A new session only
+collects results and sends ONE verdict per batch (fail: assert, log path, last ~40 lines - Michael ~19:25 rule).
+- laptop-queue SERVICE (task NightShift-laptop-queue; log C:/NightShift/scratch/laptop-queue/log.txt, results as
+  GitHub statuses): (a) Guard AI d82f9b6f ctcourse:2+:4 "laptop-e2e/s22game-a3a8" -> verdict to Guard AI (a4GoodsShed /
+  a8Strongroom fail: assert + 20 lines; marlow step-3/4 flake = not theirs); (b) Marlow #248/#237 91b587f2 coop netmove
+  ctcourse:1-3 section-rating "laptop-e2e/train32-entry"; (c) Marlow polish 1bde5328 ctcourse:2 flake rerun
+  "laptop-e2e/polish-ctc2-rerun" -> ONE verdict to Marlow for (b)+(c)+polish 1bde5328 (coop netmove sectorops 1-6 PASS;
+  ctcourse:2 FAIL "timed out waiting for A3: the cleaner is calm and back in the offices after the corridor lure",
+  runs/marlowpolish-1bde5328, cleaner cycles alert attack / cover). Rerun pass = flake for Marlow to fix.
+- Manual chains (rerun a chain .ps1 whose log lacks "done"):
+  - 4191 l16 (LR16 c7a26ca7 suites) -> sp2: Player #249 stealth-pays bf9445d6 ctcourse + sectorops -> verdict to Player.
+  - 4192 ap4: #226 4f66a5f8 sectorops coop stealth-ai.
+  - 4189 lr15c (LR15 perf, alone) -> ap5 (#226 perf / guard-cap / campus-sheet2, alone) -> l16g (LR16 perf Epic /
+    Medium + warehouseOps + lr16-sheet.mjs, alone). Verdicts to Sector Ops: LR15 (with #242 1c22b913 sectorops 1-6 +
+    coop PASS 227 s, lr15b PASS, sheet clean), #226 (ap4 + ap5; budget CPU p95 < 12), LR16 (l16 + l16g, each failing
+    assert verbatim; wall-arcs reference png not on the laptop).
+- laptop-queue job: see docs/laptop-queue/STATE.md on feature/laptop-queue (live overlap; next: a sharded train, PR).
+
+**Test Runner SAVE 21 (2026-10-23 ~19:20 laptop clock):**
 - SENT since SAVE 20: TRAIN 31 PASS (f1864d3f full 666 s + 5ee209d8 guard-carry) -> 4.80.0; Guard AI d7a3b887 /
   master pair, 93bd9db1 PASS; Player afp-af4b 4fe5b3ab PASS.
 - Chains running / queued (rerun a chain's .ps1 if its log has no "done" line):
