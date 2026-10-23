@@ -10,3 +10,5 @@ kind: minor
 - Ammo pickups removed from inside sections (a between-section weapons crate refill follows; Michael, 2026-10-23).
 - Sector Ops campusOps: S4 data hall greybox (first dog, security desk, pair gate, keypads).
 - Sector Ops campusOps: S5 the Old House greybox and the jetty extraction (two dogs, response team, pair gate, light well).
+- Sector Ops: weapons crate engine and protocol 35 (crate item kind, crate event; per-player use on the host).
+- Sector Ops campusOps / warehouseOps: a weapons crate at every section start (once per player, tops up to the loadout).

@@ -45,6 +45,7 @@ import { SectorTeamDoors } from '../sectorTeamDoors';
 import { SectorCodes, inOverhear } from '../sectorKeypads';
 import { SectorStageRun, addDoorClosure, doorwayClear, reinforceSlot } from '../sectorStage';
 import { markCompleted } from '../../save/sectorRecord';
+import { crateItemId } from '../crateLedger';
 import {
   DESK_HOLD,
   DESK_ITEM_Y,
@@ -219,6 +220,7 @@ export class SectorMode implements GameMode {
     this.team.build();
     this.findKeypads();
     this.findDesks();
+    this.findCrates();
     this.findStageDoors();
     const s = this.run.current;
     if (s) {
@@ -438,6 +440,16 @@ export class SectorMode implements GameMode {
     }
   }
 
+  /** (E9-crate, A100) Each section's weapons crate (host / solo; disabled until its section begins). */
+  private findCrates(): void {
+    const cr = this.g.crates;
+    if (!cr) return;
+    for (const s of this.run.defs) {
+      const c = s.crate;
+      if (c) cr.add(crateItemId(s.id), new Vector3(c.at[0], c.at[1], c.at[2]), c.yaw);
+    }
+  }
+
   /** (E6) Desk `d`'s operator is alive, awake and at his post. Not spawned yet (pending) counts as at his post. */
   private deskManned(d: SecurityDesk): boolean {
     const op = d.operator;
@@ -597,6 +609,8 @@ export class SectorMode implements GameMode {
     }
     this.g.hud.banner(`SECTION ${this.run.index + 1}  ·  ${s.name.toUpperCase()}`, s.objective.label, 2600);
     this.setup(s);
+    // (E9-crate, A100) only this section's crate is live
+    this.g.crates?.setLive(s.crate ? crateItemId(s.id) : null);
   }
 
   /** Put down the current step's interactable: the objective, or the exit marker once it is done. */
@@ -816,6 +830,8 @@ export class SectorMode implements GameMode {
     // the stealth leftovers cleared, the music calmed (`GameState.checkpointReset`)
     g.enemyMgr?.resetMemory();
     g.checkpointReset();
+    // (E9-crate, A105) every crate usable again by everyone
+    g.crates?.resetAll();
     this.loadSection(this.run.index);
     // a camera shot out in the section comes back: the restart is a clean retry (step 3)
     this.ct?.repair(this.run.index);
@@ -983,6 +999,7 @@ export class SectorMode implements GameMode {
       keypadLocked: this.keyIts.map((q) => (q.door ? q.door.anchor.locked : null)),
       lockdown: this.stageRun?.lockedCount() ?? 0,
       desks: Array.from(this.desks.mode),
+      crates: this.g.crates?.debug() ?? [],
       ...this.result(),
     };
   }

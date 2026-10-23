@@ -308,6 +308,8 @@ export const CAMPUS_SECTORS: SectorDef[] = [
     id: 's1',
     name: 'Gatehouse and car park',
     start: { x: 24, y: 0, z: -79, yaw: 0 },
+    // weapons crate (E9): the verge east fence, strip to the lane
+    crate: { at: [25, 0, -78], yaw: -PI / 2 },
     // download (10 s, within 4 m) at the gatehouse PC, through the open rear window from the dark verge: opens C1 (the cloned courier badge).
     // (builder L2) The SPEC's (18.5, -76) is 1.95 m from where a player stands at the window (the wall face x 20.15 + the 0.3 body):
     // the default interact reach is 1.8 (`Interactables.nearest`), so the download could not be started from the verge. The PC sits
@@ -354,6 +356,8 @@ export const CAMPUS_SECTORS: SectorDef[] = [
     id: 's2',
     name: 'HQ atrium and offices',
     start: { x: -20, y: 0, z: -32, yaw: 0 },
+    // weapons crate (E9): C1 west wall, strip into the room
+    crate: { at: [-22.2, 0, -32], yaw: PI / 2 },
     // hack (3 s) the BMS terminal on the desk in the facilities office (L1 NE): the lab block's door codes and the lighting schedule; opens C2.
     // (EW5 keypads are not built: the office door, kp-fac, is a plain door, and the code beat is cut.)
     objective: { kind: 'hack', label: 'Hack the BMS terminal in the facilities office', x: -6.5, y: 4.4, z: 4.3, yaw: 0 },
@@ -398,6 +402,8 @@ export const CAMPUS_SECTORS: SectorDef[] = [
     name: 'Lab block',
     // C2's checkpoint: S2's glazed bridge on L1 (L13: its far door is S3's L1 door at (10, -14.6))
     start: { x: 7, y: C2_FLOOR, z: -14, yaw: PI / 2 },
+    // weapons crate (E9): the glazed bridge south wall, strip to the walkway
+    crate: { at: [7, C2_FLOOR, -15.3], yaw: 0 },
     // grab the Tidewater prototype board off the shelf at the store's east end (L1), past las-store: opens C3
     objective: { kind: 'grab', label: 'Take the Tidewater prototype board', x: 51.0, y: S3_L1, z: -3.8, yaw: PI / 2 },
     connector: {

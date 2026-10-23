@@ -5,9 +5,10 @@ import { hyp2 } from '../core/mathx';
 import { ITEM_SCOPE_OFF, itemInScope } from './itemScope';
 
 /** Objectives (terminal, cache, extract), light switches, alarm panels, body hiding spots, bodies, doors. */
-export type InteractKind = 'terminal' | 'cache' | 'extract' | 'switch' | 'alarm' | 'hide' | 'body' | 'door' | 'vip' | 'intel' | 'charge' | 'revive' | 'medkitWall';
+export type InteractKind = 'terminal' | 'cache' | 'extract' | 'switch' | 'alarm' | 'hide' | 'body' | 'door' | 'vip' | 'intel' | 'charge' | 'revive' | 'medkitWall' | 'crate';
 
-const KIND_COLOR: Record<InteractKind, string> = {
+/** Each kind's lit indicator colour (exported for the weapons crate's reset, E9-crate). */
+export const KIND_COLOR: Record<InteractKind, string> = {
   terminal: '#3fc1ff',
   cache: '#ffd23f',
   extract: '#4fdc7c',
@@ -21,6 +22,7 @@ const KIND_COLOR: Record<InteractKind, string> = {
   charge: '#ff6b5a',
   revive: '#4fdc7c',
   medkitWall: '#d9363e',
+  crate: '#f2c230',
 };
 
 export interface Interactable {
@@ -56,6 +58,8 @@ export interface Interactable {
    * is live (`Interactables.scope`, `itemScope.ts`). None: always mirrored.
    */
   section?: number;
+  /** (E9-crate) used by this machine's player: `nearest` skips it; `enabled` stays (the others still use it). */
+  spent?: boolean;
   /** Called when used (else the mode handles it). */
   onUse?: (it: Interactable, who?: string) => void;
 }
@@ -122,6 +126,11 @@ export class Interactables {
     } else if (kind === 'cache') {
       add('box', '#59636b', [0.9, 0.5, 0.6], [0, 0.25, 0]);
       light = add('box', '#ffd23f', [0.92, 0.08, 0.62], [0, 0.45, 0]);
+    } else if (kind === 'crate') {
+      // (E9-crate) a non-solid greybox: olive body, darker lid band, an amber strip on the +z face (the indicator)
+      add('box', '#4b5a3a', [0.9, 0.45, 0.55], [0, 0.225, 0]);
+      add('box', '#3a4433', [0.92, 0.06, 0.57], [0, 0.45, 0]);
+      light = add('box', KIND_COLOR.crate, [0.5, 0.08, 0.02], [0, 0.3, 0.28]);
     } else {
       add('cyl', '#3a4048', [2.6, 0.08, 2.6], [0, 0.04, 0]);
       light = add('cyl', '#4fdc7c', [0.12, 3.2, 0.12], [0, 1.6, 0]);
@@ -150,7 +159,7 @@ export class Interactables {
     let best: Interactable | null = null;
     let bd = Infinity;
     for (const it of this.items) {
-      if (!it.enabled || it.done || it.kind === 'extract') continue;
+      if (!it.enabled || it.done || it.spent || it.kind === 'extract') continue;
       if (only ? it.kind !== only : it.kind === 'hide') continue;
       if (it.side) {
         const dx = feet.x - it.pos.x;

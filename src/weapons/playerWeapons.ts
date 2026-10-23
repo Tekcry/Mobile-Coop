@@ -18,6 +18,7 @@ import { reloadClipFor } from '../anim/clips/actions';
 import { WREN_HANDS } from '../operators/handFrame';
 import { GADGETS, GadgetInventory, type GadgetId } from '../game/gadgets';
 import type { SwapReach } from '../anim/clips/actions';
+import { crateReserve } from '../game/crateLedger';
 import { LoadoutSnapshot } from './loadoutSnapshot';
 
 const modelLength = (d: WeaponDef): number => {
@@ -556,6 +557,31 @@ export class PlayerWeapons {
   addAmmo(fraction: number): void {
     for (const s of this.slots) s.reserve = Math.min(s.def.reserve * 2, s.reserve + Math.ceil(s.def.reserve * fraction));
     this.gadgets.add('frag');
+  }
+
+  /**
+   * (E9-crate, A102) The weapons crate: every gun's reserve rises so that mag + reserve reaches its starting loadout
+   * (`stats.magSize + def.reserve`); never lowers, never touches the magazine, gadgets or grenades. True when any reserve
+   * changed; false with `infiniteAmmo`.
+   */
+  crateTopUp(): boolean {
+    if (this.infiniteAmmo) return false;
+    let changed = false;
+    for (const s of this.slots) {
+      const r = crateReserve(s.mag, s.reserve, s.stats.magSize, s.def.reserve);
+      if (r !== s.reserve) {
+        s.reserve = r;
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  /** (E9-crate, A103) Every gun at (or above) its starting loadout, or `infiniteAmmo`: a crate use would do nothing. */
+  atLoadout(): boolean {
+    if (this.infiniteAmmo) return true;
+    for (const s of this.slots) if (s.mag + s.reserve < s.stats.magSize + s.def.reserve) return false;
+    return true;
   }
 
   fixedUpdate(dt: number, inp: InputState): void {

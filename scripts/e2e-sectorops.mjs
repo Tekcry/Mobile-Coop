@@ -526,6 +526,69 @@ await run(PARAMS, async ({ G, sim }) => {
   assert(ctl.nearest === true, `control: a loud shot inside the combat reach alerts the nearest guard (${JSON.stringify(ctl)})`);
 });
 
+// (E9-crate, A101-A105) the between-section weapons crate, solo, on the Warehouse: one per section, only the current
+// section's live; a use tops every gun up to the starting loadout (guns only), once; a restart gives it back.
+console.log('sector ops: the weapons crate (solo)');
+await run(PARAMS, async ({ page, G, sim }) => {
+  await G(() => { const g = window.__app.current; g.target.damageMul = 0; g.enemyMgr.update = () => {}; if (g.security) g.security.fixedUpdate = () => {}; });
+  await sim(0.5);
+  const crates = () => G(() => window.__sector.debug().crates);
+  const c0 = await crates();
+  assert(c0.length === 3 && c0.filter((c) => c.live).map((c) => c.id).join() === 'service-crate', `three crates, only service-crate live (${JSON.stringify(c0)})`);
+  const kit = () => G(() => {
+    const w = window.__app.current.weapons;
+    return { slots: w.slots.map((s) => ({ mag: s.mag, res: s.reserve, size: s.stats.magSize, start: s.stats.magSize + s.def.reserve })), gad: JSON.stringify(w.gadgets.counts) };
+  });
+  const k0 = await kit();
+  const drain = () => G(() => { for (const s of window.__app.current.weapons.slots) { s.mag = Math.min(3, s.stats.magSize); s.reserve = 0; } });
+  const stand = (id) => G((id) => {
+    const g = window.__app.current;
+    const it = g.interactables.items.find((x) => x.id === id);
+    const y = it.node.rotation.y;
+    const P = g.player.position.constructor;
+    g.player.controller.teleport(new P(it.pos.x + Math.sin(y) * 0.9, it.pos.y, it.pos.z + Math.cos(y) * 0.9), y + Math.PI);
+  }, id);
+  const near = () => G(() => window.__app.current.interactables.nearest(window.__app.current.player.position)?.id ?? null);
+  const use = (id) => G((id) => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === id); it.onUse(it, 'local'); }, id);
+  await drain();
+  await stand('service-crate');
+  await sim(0.3);
+  assert((await near()) === 'service-crate', 'the crate is offered at its start');
+  await use('service-crate');
+  const k1 = await kit();
+  assert(k1.slots.every((s) => s.mag + s.res === s.start), `every gun is topped up to the starting loadout (${JSON.stringify(k1.slots)})`);
+  assert(k1.slots.every((s, i) => s.mag === Math.min(3, k0.slots[i].size)), 'the magazines are not touched');
+  assert(k1.gad === k0.gad, `the gadgets are unchanged (${k1.gad} / ${k0.gad})`);
+  assert((await near()) === null, 'after the use the prompt is gone');
+  await drain();
+  await use('service-crate');
+  const k2 = await kit();
+  assert(k2.slots.every((s) => s.res === 0), `a second use does nothing (${JSON.stringify(k2.slots)})`);
+  // the restart: the crate is offered again; the guns are the kit the section began with
+  assert(await G(() => window.__sector.restartCheckpoint()), 'the checkpoint restart runs');
+  await sim(1.5);
+  const k3 = await kit();
+  assert(k3.slots.every((s, i) => s.mag === k0.slots[i].mag && s.res === k0.slots[i].res), `the restart gives back the checkpoint kit (${JSON.stringify(k3.slots)})`);
+  assert((await crates())[0].used.length === 0, 'the restart clears the crate ledger');
+  await stand('service-crate');
+  await sim(0.3);
+  assert((await near()) === 'service-crate', 'after the restart the crate is offered again');
+  // through section 1's objective and connector: section 2's crate goes live, section 1's off
+  await G(() => { const m = window.__sector; m.run.downloading = true; m.run.download(999); });
+  await sim(0.3);
+  const S = await sections(G);
+  await tp(G, S[0].cp.x, S[0].cp.y, S[0].cp.z, S[0].cp.yaw);
+  await sim(4.6);
+  const c1 = await crates();
+  assert(c1.filter((c) => c.live).map((c) => c.id).join() === 'racking-crate', `after connector 1 only racking-crate is live (${JSON.stringify(c1)})`);
+  await drain();
+  await stand('racking-crate');
+  await sim(0.3);
+  assert((await near()) === 'racking-crate', 'section 2: its crate is offered at the checkpoint');
+  await use('racking-crate');
+  assert((await kit()).slots.every((s) => s.mag + s.res === s.start), 'section 2: one use tops up');
+});
+
 console.log('sector ops: nav (M8 routes, sealed sections)');
 await run(PARAMS, async ({ G, sim }) => {
   await sim(0.3);
@@ -731,6 +794,43 @@ console.log('sector ops: co-op client mirrors the live section');
     const lk1 = await locks();
     assert(lk1 !== lk0, `the cycle changed the host's door locks (${lk0} -> ${lk1})`);
     await until(B, (k) => window.__app.current.world.doors.list.filter((d) => d.anchor.locked).map((d) => d.index).join(',') === k, lk1, 15000, 'the client mirrors the unlocked far door');
+    // (E9-crate, A101-A106) the weapons crate on two pages: section 2's crate is live; the client mirrors it, drains and
+    // uses it (topped up to its loadout, its prompt gone); the host's prompt stays; a second use after a drain does
+    // nothing; the host's ledger lists the client; the host's restart brings the client's prompt back.
+    {
+      const cr = await GA(() => {
+        const g = window.__app.current;
+        const it = g.interactables.items.find((x) => x.id === 'racking-crate');
+        return { live: it.enabled, x: it.pos.x, y: it.pos.y, z: it.pos.z, yaw: it.node.rotation.y, who: [...g.net.remotes.keys()][0] };
+      });
+      assert(cr.live, 'the host has section 2\'s crate live');
+      await until(B, () => { const it = window.__app.current.interactables.items.find((x) => x.id === 'racking-crate'); return !!it && it.enabled && it.kind === 'crate'; }, null, 15000, 'the client mirrors the live weapons crate');
+      const at = (P, dz) => P.evaluate((c) => { const g = window.__app.current; const k = g.player.position.constructor; g.player.controller.teleport(new k(c.x + Math.sin(c.yaw) * 0.9, c.y, c.z + Math.cos(c.yaw) * 0.9 + c.dz), c.yaw + Math.PI); }, { ...cr, dz });
+      await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
+      await at(B, 0);
+      await at(A, 0.8);
+      await until(A, (c) => { const r = [...window.__app.current.net.remotes.values()][0]; return Math.hypot(r.feet.x - c.x, r.feet.z - c.z) < 1.6; }, cr, 15000, 'the host sees the client at the crate');
+      const drain = (P) => P.evaluate(() => { for (const s of window.__app.current.weapons.slots) { s.mag = Math.min(3, s.stats.magSize); s.reserve = 0; } });
+      const tot = (P) => P.evaluate(() => { const w = window.__app.current.weapons; return { eq: w.slots.every((s) => s.mag + s.reserve === s.stats.magSize + s.def.reserve), dry: w.slots.every((s) => s.reserve === 0), full: w.atLoadout() }; });
+      const nearId = (P) => P.evaluate(() => window.__app.current.interactables.nearest(window.__app.current.player.position)?.id ?? null);
+      const useB = () => GB(() => { const it = window.__app.current.interactables.items.find((x) => x.id === 'racking-crate'); it.onUse(it); });
+      await drain(B);
+      assert((await nearId(B)) === 'racking-crate', 'the client is offered the crate');
+      await useB();
+      await until(B, () => window.__app.current.weapons.atLoadout(), null, 10000, 'the client\'s guns are topped up to its loadout');
+      assert((await tot(B)).eq, 'the client totals equal its loadout');
+      await until(B, () => window.__app.current.interactables.nearest(window.__app.current.player.position) === null, null, 5000, 'the client\'s prompt is gone');
+      assert((await nearId(A)) === 'racking-crate', 'the host is still offered the crate');
+      const dbg = await GA(() => window.__sector.debug().crates.find((c) => c.id === 'racking-crate'));
+      assert(dbg.used.includes(cr.who) && !dbg.used.includes('local') && dbg.live, `the host ledger lists the client (${JSON.stringify(dbg)})`);
+      await drain(B);
+      await useB();
+      await new Promise((r) => setTimeout(r, 1500));
+      const again = await tot(B);
+      assert(again.dry && !again.full, `a second use after a drain does nothing (${JSON.stringify(again)})`);
+      await GA(() => window.__sector.restartCheckpoint());
+      await until(B, () => { const it = window.__app.current.interactables.items.find((x) => x.id === 'racking-crate'); return !!it && !it.spent; }, null, 15000, 'after the host\'s restart the client\'s crate prompt is back');
+    }
   } catch (e) {
     failed = true;
     console.error(String(e));
@@ -1621,6 +1721,9 @@ if (want(6)) {
     assert(S.length === 5 && S[0].id === 's1' && S[0].kind === 'download' && S[0].guards === 8 && S[1].id === 's2' && S[1].kind === 'hack' && S[1].guards === 12 && S[2].id === 's3' && S[2].guards === 16 && S[3].id === 's4' && S[3].guards === 20 && S[4].id === 's5' && S[4].guards === 24, `five sections, section 1 a download with 8 guards, section 2 a hack with 12, section 3 built with 16, section 4 built with 20, section 5 built with 24 (${JSON.stringify(S.map((s) => [s.id, s.guards]))})`);
     const d0 = await G(() => window.__sector.debug());
     assert(d0.index === 0 && d0.phase === 'objective' && d0.nearLocked === true && d0.farLocked === true && d0.live === 0, `the run starts on section 1's objective, C1 locked (${JSON.stringify([d0.index, d0.phase, d0.nearLocked, d0.farLocked, d0.live])})`);
+    // (E9-crate) section 1's weapons crate is the only live one at the start
+    const cr0 = await G(() => window.__sector.debug().crates);
+    assert(cr0.filter((c) => c.live).map((c) => c.id).join() === 's1-crate', `S1's weapons crate is live at the start, no other (${JSON.stringify(cr0)})`);
     const cams = await G(() => window.__ctdev.debug().cams.map((c) => [c.id, c.live]));
     assert(cams.length === 13 && JSON.stringify(cams.filter((c) => c[1]).map((c) => c[0])) === '["cam-gate","cam-walk"]', `13 cameras on the map (S1 2, S2 3, S3 2, S4 3, S5 3), cam-gate and cam-walk live in section 1 (${JSON.stringify(cams)})`);
     // nav: every walked leg of the three routes has a path on the guards' real grid (the climbs are the ladder and the drop)
@@ -1669,6 +1772,23 @@ if (want(6)) {
     assert(nx.d.doors[0].far === false && nx.d.doors[0].seal.length === 1 && nx.d.doors[0].seal.every((x) => x === false), `C1's far door and the dock door unlocked (${JSON.stringify(nx.d.doors[0])})`);
     assert(nx.obj && nx.alive === 12, `section 2 loads with its objective and its 12 guards (${JSON.stringify([nx.obj, nx.alive])})`);
     assert(Math.abs(nx.d.checkpoint.x - S[0].cp.x) < 0.01 && Math.abs(nx.d.checkpoint.z - S[0].cp.z) < 0.01, 'C1 is the checkpoint');
+    // (E9-crate) after C1 the S2 crate is live (S1's is off); one use tops the guns up to the loadout
+    const cr1 = await G(() => window.__sector.debug().crates);
+    assert(cr1.filter((c) => c.live).map((c) => c.id).join() === 's2-crate', `after C1 only S2's weapons crate is live (${JSON.stringify(cr1)})`);
+    const cu = await G(() => {
+      const g = window.__app.current;
+      const w = g.weapons;
+      const gad = JSON.stringify(w.gadgets.counts);
+      for (const s of w.slots) { s.mag = Math.min(3, s.stats.magSize); s.reserve = 0; }
+      const it = g.interactables.items.find((x) => x.id === 's2-crate');
+      const y = it.node.rotation.y;
+      const P = g.player.position.constructor;
+      g.player.controller.teleport(new P(it.pos.x + Math.sin(y) * 0.9, it.pos.y, it.pos.z + Math.cos(y) * 0.9), y + Math.PI);
+      const offered = g.interactables.nearest(g.player.position)?.id ?? null;
+      it.onUse(it, 'local');
+      return { offered, eq: w.slots.every((s) => s.mag + s.reserve === s.stats.magSize + s.def.reserve), gad: JSON.stringify(w.gadgets.counts) === gad, gone: g.interactables.nearest(g.player.position) === null };
+    });
+    assert(cu.offered === 's2-crate' && cu.eq && cu.gad && cu.gone, `S2's crate tops the guns up to the loadout once and the prompt goes (${JSON.stringify(cu)})`);
     // ---- (slice 2) section 2, the HQ atrium and offices (docs/sector-redesign/SPEC.md "S2"): 12 armed guards over three floors, cam-turnstile / cam-lift / cam-bridge live, C2 locked
     const s2 = await G(() => {
       const g = window.__app.current;
