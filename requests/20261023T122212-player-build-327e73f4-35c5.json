@@ -1,0 +1,16 @@
+{
+  "id": "20261023T122212-player-build-327e73f4-35c5",
+  "sha": "327e73f4594241a68ee93d748d596d952dc00c62",
+  "branch": "",
+  "pr": 269,
+  "kind": "pr",
+  "requester": "Player Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-ctcourse",
+    "e2e-sectorops"
+  ],
+  "set": "coop-rejoin",
+  "note": "#269 coop-rejoin after fix round (B1 JoinWatch)"
+}
