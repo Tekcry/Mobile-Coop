@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { CMD_ACK, CMD_SEND, GuardView, IncidentBoard, INCIDENT, LEVEL, MODE_BREAKER, type PathLen } from '../src/ai/incidents';
+import { CMD_ACK, CMD_SEND, GuardView, GV_OFFICER, IncidentBoard, INCIDENT, LEVEL, MODE_BREAKER, MODE_LIGHT, type PathLen } from '../src/ai/incidents';
 import { BREAKER, LATE } from '../src/ai/gear';
+import { roleFlags } from '../src/ai/sectorTags';
 import { BREAKER_WALK, CIRCUIT_KEY, DARK_CUT, DARK_NONE, DARK_SHOT, DarkList, darkState, type BreakerHost } from '../src/ai/breaker';
 import { BARKS } from '../src/ai/barks';
 import { AlertMachine, type AlertLevel } from '../src/ai/alertState';
@@ -587,6 +588,123 @@ describe('EnemyManager: the breaker incident sits on the floor by the switch (la
     em.lightsOut(0, 4, 0 + 2.5, -1, 4);
     expect(a.resetBreaker).toHaveBeenCalledTimes(1);
     expect(a.resetBreaker.mock.calls[0]![2]).toBeCloseTo(0.02, 5);
+  });
+
+  it("the Warehouse floor switch (switch-4) on the guards' runtime nav: the incident and the walk sit on the floor (0.02), not the wall top (3.2)", async () => {
+    const { LevelBuilder } = await import('../src/world/levelBuilder');
+    const { warehouse } = await import('../src/world/maps/warehouse');
+    const { runtimeNav } = await import('./helpers/runtimeNav');
+    const b = new LevelBuilder();
+    const lay = warehouse.build(b, 0);
+    const nav = runtimeNav(b, lay.playerSpawns[0]!.pos, warehouse.navLayers ?? 3, lay.navSeeds ?? []);
+    const sw = lay.switches![4]!;
+    // the failing condition (884b89c0): the switch's own column is the wall, its one surface the wall's top
+    expect(nav.heightAt(sw.pos.x, sw.pos.z, sw.pos.y) - sw.pos.y).toBeGreaterThan(1.2);
+    const reg = new LightRegistry();
+    reg.add({ x: sw.pos.x, y: 3, z: sw.pos.z + 3, group: sw.group });
+    const h = host(reg, { [sw.group]: [sw.pos.x, sw.pos.y, sw.pos.z] });
+    const world = { level: { lights: reg, cover: [], coverSegments: [] }, layout: { rooms: [] }, doors: { list: [] } };
+    const em = new EnemyManager({} as Scene, world as unknown as World, nav, {} as DamageRegistry, { clear: vi.fn(() => true) } as unknown as Ballistics, {} as Vfx, DIFFICULTY.normal, () => []);
+    em.breakers = h;
+    // on the floor in front of the lamp, facing it (yaw 0 looks along +z)
+    const a = guard(1, sw.pos.x, sw.pos.z + 0.5, 0);
+    em.enemies.push(a as unknown as Enemy);
+    h.cut(sw.group);
+    em.lightsOut(sw.pos.x, sw.pos.z, sw.pos.y + 2.5, -1, sw.group);
+    expect(a.resetBreaker).toHaveBeenCalledTimes(1);
+    expect(Math.abs((a.resetBreaker.mock.calls[0]![2] as number) - sw.pos.y)).toBeLessThan(0.1);
+  });
+});
+
+// ----- (laptop fix, 884b89c0: e2e-sectorops:6) who walks to a cut switch: the witness nearest it by path -----
+
+describe('the board: the breaker walker is the witness nearest the switch by path (laptop fix)', () => {
+  /** Run one incident of `kind` at (x, y, z) with witnesses `ws` ([num, x, y, z, officer, role]); the sends in order. */
+  function sends(paths: PathLen, kind: 'light' | 'breaker', at: readonly [number, number, number], ws: readonly (readonly [number, number, number, number, boolean, string])[]) {
+    const b = new IncidentBoard(paths);
+    const v = new GuardView(8);
+    v.n = ws.length;
+    const who = new Int32Array(ws.length);
+    ws.forEach(([num, x, y, z, off, role], i) => {
+      v.set(i, num, x, y, z, LEVEL.unaware, off ? GV_OFFICER : 0, -1);
+      v.setTags(i, roleFlags(role), 0, 0, 0);
+      who[i] = num;
+    });
+    b.report(kind, at[0], at[2], at[1], CIRCUIT_KEY + 50, who, ws.length);
+    b.tick(0, v);
+    const o = b.out;
+    const out: [number, number][] = [];
+    for (let k = 0; k < o.n; k++) if (o.cmd[k] === CMD_SEND) out.push([o.guard[k]!, o.mode[k]!]);
+    return out;
+  }
+
+  it('a fixed-post officer 12 m off and a rover 16 m off: the light check sends the rover first (the officer as its pair); the fault sends the officer alone', () => {
+    const ws = [
+      [1, -12, 0, 0, true, 'reception'],
+      [2, -16, 0, 0, false, 'patrol'],
+    ] as const;
+    expect(sends(straight, 'light', [0, 0, 0], ws)).toEqual([
+      [2, MODE_LIGHT],
+      [1, MODE_LIGHT],
+    ]);
+    expect(sends(straight, 'breaker', [0, 0, 0], ws)).toEqual([[1, MODE_BREAKER]]);
+  });
+
+  it("Sector Ops campus on the guards' runtime nav: the S2 reception panel sends #1, the S3 switch bank #16 (the maps' lures)", async () => {
+    const { LevelBuilder } = await import('../src/world/levelBuilder');
+    const { campusOps } = await import('../src/world/maps/campusOps');
+    const { runtimeNav } = await import('./helpers/runtimeNav');
+    const b = new LevelBuilder();
+    const lay = campusOps.build(b, 0);
+    const nav = runtimeNav(b, lay.playerSpawns[0]!.pos, campusOps.navLayers ?? 3, lay.navSeeds ?? []);
+    // the manager's own path length over the real grid (what the board scores with in the game)
+    const world = { level: { lights: new LightRegistry(), cover: [], coverSegments: [] }, layout: { rooms: [] }, doors: { list: [] } };
+    const em = new EnemyManager({} as Scene, world as unknown as World, nav, {} as DamageRegistry, { clear: vi.fn(() => true) } as unknown as Ballistics, {} as Vfx, DIFFICULTY.normal, () => []);
+    const paths = (em as unknown as { paths: PathLen }).paths;
+    const secs = campusOps.sectors!;
+    const sws = lay.switches!;
+    // guard `n` of section `sec` where `EnemyManager.spawn` puts him (the walkable cell centre by his slot), or at (x, z)
+    const w = (sec: number, n: number, x?: number, z?: number) => {
+      const g = secs[sec]!.guards[n - 1]!;
+      const c = nav.nearestWalkable(x ?? g.x, z ?? g.z, 8, g.y ?? 0);
+      const [cx, cz] = nav.center(c);
+      return [n, cx, nav.height[c]!, cz, g.kind === 'officer', g.role ?? ''] as const;
+    };
+    const dist = (g: readonly (number | boolean | string)[], p: readonly number[]) => Math.hypot((g[1] as number) - p[0]!, (g[3] as number) - p[2]!);
+    // S2: the reception panel (s2-atrium); #1 the reception officer at his desk (the e2e's 11.95 m), #2 the lobby patrol
+    // at his first stop. On master (the light check) #2 went first and #1 as the pair's second (the e2e: #1 walked
+    // 12 m -> 3 m); the one walker of the weighted pick was #2 (officer x fixed post 2.4 against rover 0.8) and #1
+    // stayed put, while #2 turned the circuit back on (884b89c0: "12.0 m -> 12.0 m, lamps on 4")
+    const pn = sws.find((s) => s.group === 50)!;
+    const p2: [number, number, number] = [pn.pos.x, nav.heightAt(pn.pos.x, pn.pos.z, pn.pos.y), pn.pos.z];
+    const s2 = [w(1, 1), w(1, 2)];
+    expect(dist(s2[0]!, p2)).toBeCloseTo(11.95, 1);
+    expect(sends(paths, 'light', p2, s2)).toEqual([
+      [2, MODE_LIGHT],
+      [1, MODE_LIGHT],
+    ]);
+    expect(sends(paths, 'breaker', p2, s2)).toEqual([[1, MODE_BREAKER]]);
+    // S3: the switch bank's row-1 breaker (s3-hb-1); #16 the crane-bay sentry at his sweep post (the e2e's 3.87 m), #6
+    // the hall patrol at his first stop: weighted, #6 (path 9.9 x rover 0.8) just beat #16 (5.3 x fixed 1.5), so #16
+    // only acked (884b89c0: "3.9 m -> 3.9 m"); on master he went as the pair's second
+    const bk = sws.find((s) => s.group === 60)!;
+    const p3: [number, number, number] = [bk.pos.x, nav.heightAt(bk.pos.x, bk.pos.z, bk.pos.y), bk.pos.z];
+    const s3 = [w(2, 16), w(2, 6)];
+    expect(dist(s3[0]!, p3)).toBeCloseTo(3.87, 1);
+    expect(sends(paths, 'light', p3, s3)).toEqual([
+      [6, MODE_LIGHT],
+      [16, MODE_LIGHT],
+    ]);
+    expect(sends(paths, 'breaker', p3, s3)).toEqual([[16, MODE_BREAKER]]);
+    // and from anywhere on #6's round
+    const round = secs[2]!.guards[5]!.route!;
+    for (let i = 0; i < round.length; i++) {
+      const a = round[i]!;
+      const c = round[(i + 1) % round.length]!;
+      for (let t = 0; t < 1; t += 0.25) {
+        expect(sends(paths, 'breaker', p3, [w(2, 16), w(2, 6, a[0] + (c[0] - a[0]) * t, a[1] + (c[1] - a[1]) * t)])).toEqual([[16, MODE_BREAKER]]);
+      }
+    }
   });
 });
 

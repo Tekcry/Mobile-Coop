@@ -1752,14 +1752,29 @@ if (want(6)) {
     });
     assert(pn.k >= 0 && pn.on === 4 && pn.d0 > 9, `the reception panel is a switch on s2-atrium (3 pendants and the reception downlight lit), #1 stands ${pn.d0.toFixed(1)} m off it (${JSON.stringify(pn)})`);
     await G((k) => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === `switch-${k}`); it.onUse(it, 'local'); }, pn.k);
-    await sim(20);
+    // (guard-ai S15, A42; laptop fix 884b89c0) the cut is a breaker fault: #1, the witness nearest the panel by path, walks
+    // to it at his patrol pace and turns s2-atrium back on (master's light check sent a pair and left it dark): his
+    // nearest approach and the relight over 25 s of sim, half-second steps
     const pa = await G(([k, idx]) => {
       const g = window.__app.current;
       const sw = g.world.layout.switches[k];
       const e = g.enemyMgr.enemies[idx];
-      return { d: Math.hypot(e.pos.x - sw.pos.x, e.pos.z - sw.pos.z), alive: e.alive, on: g.world.level.lights.lights.filter((l) => l.group === 50 && l.on).length };
+      const lit = () => g.world.level.lights.lights.filter((l) => l.group === 50 && l.on).length;
+      const off = lit();
+      let task = -1;
+      let dMin = 1e9;
+      let back = -1;
+      for (let t = 0.5; t <= 25; t += 0.5) {
+        window.__app.loop.stepHeadless(0.5);
+        if (t === 0.5) task = e.breakerGroup;
+        dMin = Math.min(dMin, Math.hypot(e.pos.x - sw.pos.x, e.pos.z - sw.pos.z));
+        if (back < 0 && lit() === 4) back = t;
+      }
+      return { off, task, dMin, back, alive: e.alive, on: lit() };
     }, [pn.k, pn.idx]);
-    assert(pa.on === 0 && pa.alive && pa.d < pn.d0 - 6, `the panel cut s2-atrium and #1 walked to it (${pn.d0.toFixed(1)} m -> ${pa.d.toFixed(1)} m, lamps on ${pa.on})`);
+    await sim(0.1);
+    assert(pa.off === 0 && pa.task === 50, `the panel cut s2-atrium (lamps on ${pa.off}) and sends #1 to reset it (breaker task, circuit ${pa.task})`);
+    assert(pa.alive && pa.dMin < 2 && pa.back > 0 && pa.on === 4, `#1 walked to the panel and turned s2-atrium back on (${pn.d0.toFixed(1)} m -> ${pa.dMin.toFixed(1)} m, relit at ${pa.back} s, lamps on ${pa.on})`);
   });
 
   console.log('campus ops (S1): the feeder pillar board cuts s1-park-w; the west half goes dark');
@@ -1947,6 +1962,7 @@ async function campusS3Part(page) {
   assert(nv.fails.length === 0, `every walked S3 route leg has a nav path (${nv.fails.join('; ')})`);
 
   // (b) the lure: the player out of sight in the closed east annex, the AI on, the switch bank's row-1 breaker thrown
+  // ((guard-ai S15) a breaker fault: #16, the witness nearest the switch by path, walks to it and turns it back on)
   await tp(G, 58, 0, -20, 0);
   const lure = await G(() => {
     const g = window.__app.current;

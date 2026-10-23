@@ -1,5 +1,5 @@
 # Guard AI: breakers and dark lamps
-- S15 breakers and dark lamps: a room's lights switched off at the wall now read as a fault, not an attack. One guard who
+- S15 breakers and dark lamps: a room's lights switched off at the wall now read as a fault, not an attack. The nearest guard who
   saw it go (never two) says "Breaker's gone again.", walks over at his normal patrol pace, works the switch for 2 s and
   the lights come back on; nobody checks the area and he goes back to his route calm. Cut the same circuit again within
   a minute and the guards treat it as tampering: the full light check at the switch. A lamp shot out still draws the

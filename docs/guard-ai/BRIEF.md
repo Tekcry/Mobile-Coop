@@ -333,6 +333,9 @@ doesnt make sense". A32-A34 are S10's (on `feature/guard-ai-s10`).
 - **A64** (S15) The walk ends at the walkable cell nearest the switch (`nearestWalkable`, 4 cells); he works it within
   0.7 m and gives up after 30 s without getting there (`BREAKER_WALK` in `ai/breaker.ts`); his pace is `PACE.patrol`
   (`PACE.cautious` while cautious). Undo: change `BREAKER_WALK`.
+- **A65** (S15 laptop fix) The breaker walker is the witness nearest the switch by path: no officer, cautious, role or
+  zone weight (a chore, not a check), so a map's lure guard by the panel / switch bank walks (`IncidentBoard.best`,
+  `incidents.ts:561`). Undo: drop the `K_BREAKER` branch there.
 
 ## Walk 4.72 fixes (PLAN "Walk 4.72 fixes" S17-S19; Michael's walk of 4.72, G1-G3)
 Michael, verbatim: G1 "when guards alerted when i cross laser, they somehow know ive climbed elsewhere. theres no way
