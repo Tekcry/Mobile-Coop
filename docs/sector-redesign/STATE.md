@@ -306,7 +306,7 @@ Running / next - LR16 (Michael ~18:08-18:20; slices checks/lr16-plan.md + lr16-0
 For Michael: Realistic dimmer after atlas fix (S2 atrium 0.28 vs Classic 0.48, LR16g); S3 hall-lit white fog.
 Open polish: lr15-check 1/2/4, lrpolish-check 1-6, freeze checker polish, art P6, LR16-3 door instancing.
 Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
-Sonnet builds from strict briefs; one checker per batch; tsc / vitest slot locks C:/NightShift/scratch/sr-slot-{1,2,3,4}.lock;
+Sonnet builds from strict briefs; one checker per batch; tsc / vitest slot locks C:/NightShift/scratch/sr-slot-{1,2,3,4}.lock, vitest always --maxWorkers=2 (desktop 97% ~19:50); heavy builds -> cloud-queue;
 every e2e E2E_GPU=1 on the LAPTOP only (Michael ~19:15: no desktop e2e; heavy.lock = builds / check only); start the checker
 and the laptop request on the same commit in parallel; train-ready = message + `gh pr edit <n> --add-label train-ready`.
 Never two agents on one file. Agents push with explicit refs (`git push origin <branch>`). Michael ~19:25 (high effort):
