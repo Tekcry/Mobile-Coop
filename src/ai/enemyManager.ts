@@ -61,6 +61,8 @@ import { ALERT_MISSING, ALERT_SHOTS, AlertCallLog, SectionCounters, unitOf, type
 import { DoorGate } from './doorGate';
 // (guard-ai S22, G6) security consoles switched off: noticed when seen, turned back on (the breaker walk)
 import { CONSOLE_FAULT, CONSOLE_GROUP, ConsoleFaults, consoleInView, isConsoleGroup, V_TAMPER, type ConsoleHost } from './consoleFault';
+// (guard-models G6n) each guard's look seed from his spawn slot
+import { LOOK_MAX, posLook, slotLook, teamLook } from './guardLook';
 
 /** (guard-ai S10) A talking pair: its meeting clock, and the two slot indices (`guardAtSlot`; A the lower). */
 export interface TalkPair {
@@ -883,6 +885,10 @@ export class EnemyManager {
   joinTeam(e: Enemy, t: SweepTeam<Enemy>): void {
     t.add(e);
     e.crew = t;
+    // (guard-models G6n) his look is his team slot's (section, the team's order in it: its alarm, his place in the
+    // team; distinct within the team), set in the step he spawns (every caller joins him straight after `spawn`),
+    // before he is drawn or sent
+    e.look = teamLook(this.lookMap, t.section, t.index, t.members.indexOf(e));
     if (e.def.kind === 'enforcer' && RESPONSE.shieldHelmet && !e.helmet) {
       this.gearB.helmet = true;
       this.gearB.armour = e.armour;
@@ -1618,12 +1624,26 @@ export class EnemyManager {
     this.consoles.clear();
   }
 
-  spawn(kind: EnemyKind, pos: Vector3, alerted = true, yaw = 0): Enemy | null {
+  /** (guard-models G6n) The map id the look seeds hash ('' for a world without a map: unit-test stubs). */
+  private get lookMap(): string {
+    return (this.world.map as { id?: string } | undefined)?.id ?? '';
+  }
+
+  /** (guard-models G6n) The look seed of authored slot `slot` of section `section` (its id) on this map (`slotLook`),
+   *  for `spawn`'s `look`. */
+  lookOfSlot(section: string, slot: number): number {
+    return slotLook(this.lookMap, section, slot);
+  }
+
+  /** (guard-models G6n) `look`: his look seed from the caller's slot key (`guardLook.ts`, 0-127); omitted (-1): from
+   *  the authored point `pos` (`posLook`), the same on every load of the map. */
+  spawn(kind: EnemyKind, pos: Vector3, alerted = true, yaw = 0, look = -1): Enemy | null {
     if (this.alive >= this.maxAlive) return null;
     const c = this.nav.nearestWalkable(pos.x, pos.z, 8, pos.y);
     if (c < 0) return null;
     const [x, z] = this.nav.center(c);
     const e = new Enemy(this.ctx, ENEMIES[kind], new Vector3(x, this.nav.height[c]!, z), yaw);
+    e.look = look >= 0 ? look & LOOK_MAX : posLook(this.lookMap, pos.x, pos.z);
     // (guard-ai S4) his stable key: a clean slate in the awareness roster
     e.key = this.freeKey();
     if (e.key >= 0) this.awareness.resetKey(e.key);
