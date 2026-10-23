@@ -59,7 +59,10 @@ export async function walk(t, n) {
       await new Promise((r) => setTimeout(r, 200));
     }
     const why = await GA(([x, z]) => { const f = window.__app.current.world.lightField; return { baked: f?.levelAt(x, 1.02, z), dynamic: f?.dynamicAt(x, 1.02, z), torches: window.__app.current.enemyMgr?.torchesOn }; }, [x, z]);
-    assert(false, `${what} (host ${ca.toFixed(3)}, client ${cb.toFixed(3)}; host ${JSON.stringify(why)})`);
+    // a lit guard torch on the host but not the client is the known parity gap (torch state is not on the wire; ROADMAP
+    // Later: "Co-op client never draws guards' flashlights"): name it rather than a bare timeout
+    const gap = why.torches > 0 && why.dynamic > 0 ? " - KNOWN PARITY GAP: a guard torch lights the host only (co-op client never draws guards' flashlights, ROADMAP Later)" : "";
+    assert(false, `${what} (host ${ca.toFixed(3)}, client ${cb.toFixed(3)}; host ${JSON.stringify(why)})${gap}`);
   }
   /** Every lamp of the neck circuit is on, on this page's registry (the host's own, the client's from the course message). */
   const neckLit = (P) => P.evaluate((g) => { const l = window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g); return l.length === 4 && l.every((x) => x.on); }, NECK_GROUP);
