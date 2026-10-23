@@ -78,6 +78,8 @@ export interface Sc {
 }
 
 const FAR = 200;
+/** (S3a fix 2) The driver's acceleration (m/s^2, before the stride swing) under which a walk counts as settled. */
+const ACCEL_SETTLED = 0.2;
 
 /** Walk along the local direction `deg` (0 ahead, 90 right, 180 back) at `speed`, facing held when `face`. */
 export function walk(c: Ctl, deg: number, speed: number, face: boolean): void {
@@ -334,8 +336,10 @@ export function run(kind: Kind, yaw0: number, sc: Sc, env: Env, onFrame?: (fr: F
       pz += vz * DT;
       yaw = motion.yaw;
     }
-    // a start, stop, stepped turn or pivot is a transition while it lasts (the steady bound holds 0.3 s after it ends)
-    if (motion.state !== prevState || (motion.state !== 'idle' && motion.state !== 'move')) {
+    // a start, stop, stepped turn or pivot is a transition while it lasts (the steady bound holds 0.3 s after it ends);
+    // (S3a fix 2) so is the driver still getting up to (or down from) pace: the rig leans on its acceleration
+    // (`accelFwd` / `accelSide`), which the sim head has no term for (`ACCEL_SETTLED`)
+    if (motion.state !== prevState || (motion.state !== 'idle' && motion.state !== 'move') || Math.hypot(motion.ax, motion.az) > ACCEL_SETTLED) {
       lastChange = tt;
       prevState = motion.state;
     }

@@ -114,7 +114,60 @@ Open doubts (for the checker):
    `PEEK_HIP` / lean for guards) or a sim foot model; neither is in this slice.
 2. The backpedal from rest: the rig's head dips 12 cm 0.6-1.6 s in and settles by ~2.5 s (the T1 back walks use a 3 s
    settle). Not modelled.
-3. The `MOVE` tables are the WIP's; its sweep script was not kept. The new harness holds them (T1 passes), but only the
-   wall tables can be regenerated (`scripts/guard-head-fit.mjs wall`).
+3. (Fixed in round 2.) The `MOVE` tables were the WIP's, its sweep script not kept.
 4. `WALL_*` pitch terms are the WIP's (the sweep runs at pitch 0).
 5. GPU / e2e not run (laptop): e2e-stealth-ai, e2e-takedown, e2e-sectorops, e2e-enemies, e2e-coop, e2e-ctcourse.
+
+### Fix round 2 (2026-10-23)
+The fresh checker returned PASS WITH NOTES; three items and one test bound fixed. Commits ad4f6ead (emote step, walked
+hostage), 5c0fa9cc (free / hostage fit modes, `MOVE` regenerated), then the steady bounds and this STATE.
+- Item 1 (blocked the job PR: `MOVE` could not be regenerated): `scripts/guard-head-fit.mjs free` fits every `MOVE`
+  class (AF0 / AF1 / AV0 / AV1 / DF / DV / NF0 / NF1 / NV0 / NV1) at once, one least-squares system per axis, each
+  frame weighted by the stride class, dash share and crouch `guardHead` blends; `--write` replaces the block between the
+  `<guard-head-fit free>` markers. The free sweep (`GUARD_HEAD_CASES=free`) now has crouch 0 / 1, all six armed kinds
+  at aim 0.2 / 0.4 / 0.7 / 1 (aim 1 also at pitch -0.3 / 0.3) and the runner, 14 directions, the standing / crouched
+  speed knots capped at the run speed. It runs in 8 parts (one vitest each: a single process runs out of heap).
+  Regenerate (also in the `guardHead.ts` header):
+  `for i in 0 1 2 3 4 5 6 7; do GUARD_HEAD_SWEEP=1 GUARD_HEAD_CASES=free GUARD_HEAD_EVERY=3 GUARD_HEAD_PART=$i/8 GUARD_HEAD_OUT=free-$i.tsv npx vitest run tests/guardHeadSweep.test.ts; done`
+  then `node scripts/guard-head-fit.mjs free free-*.tsv --write`. The output is deterministic (refit = the committed
+  block). The regenerated tables differ from the WIP's mostly in cells the game barely reaches (AF0 above the dash
+  speed, the dash's new aim terms); fit residual p95 1-3 cm per group, worst 7.5 cm (sniper aim 0.2 near the dash).
+- Item 2 (the harness re-implemented the emote logic): `GuardEmoteState` + `emoteBlind` / `emoteSeize` /
+  `emoteBlindEnd` / `emoteStep` in `src/ai/guardHead.ts`, called by `Enemy` and the harness. Unit tests: blind, seize,
+  release with the flash on (fails if `emoteSeize` keeps the flashbang's emote; checked by deleting the line), the
+  flash end, the knockout limp. The old `this.blindPose = false` in `beginTakedown` is now `emoteSeize`.
+- Item 3 (walked hostage): the held pose now also replaces the free-move side offset, and `HELD_MOVE` (fitted by
+  `guard-head-fit.mjs hostage` from `GUARD_HEAD_CASES=hostage`: 8 directions, 0.15-1.6 m/s) adds the rig's own gait
+  under the pose (`rp.phase` -1 when held, so the frozen motion clock is not read). Parity cases (T2): hostage walked
+  1.2 and 0.6 m/s ahead, 0.6 m/s sideways (the game caps the hold at 0.7 m/s): worst 0.024 m (was 0.085-0.111).
+- Peek walk cycle steady bound: T3 "steady" also waits for the driver to reach its pace (acceleration under
+  0.2 m/s^2: the rig leans on `accelFwd` / `accelSide`, the sim has no term). Settled frames measured 0.050-0.087 m:
+  steady bound 0.09 (was 0.29, off). Backpedal start settled 0.083-0.105 m: steady bound 0.11 (was 0.13).
+
+Worst parity errors after round 2 (m; 3D, both yaws; every frame / steady for T3):
+| Case | Worst |
+| --- | --- |
+| T1 idle / walk / run | 0.028 (run) |
+| T1 aim, crouch | 0.042 (aim -0.3, crouch aim) |
+| T1 strafe / backpedal / diag / look walks | 0.034 (look walk R) |
+| T2 wall still / lean | 0.033 |
+| T2 wall walk lean 0 | 0.041 |
+| T2 wall walk leaning out (exception 0.17) | 0.167 |
+| T2 held poses | 0.036 (ko) |
+| T2 hostage walked (new) | 0.024 |
+| T2 blind, blind + seized, climb | 0.033 |
+| T3 crouch, lean, seize, release, strafe | 0.108 / 0.041 |
+| T3 walk start-stop | 0.104 / 0.016 |
+| T3 peek walk cycle (exception 0.29, steady 0.09) | 0.289 / 0.087 |
+| T3 backpedal start (exception 0.13, steady 0.11) | 0.129 / 0.105 |
+The refit moved some T1 cases by up to 1.2 cm (look walk back 0.014 -> 0.026, crouch walk 0.014 -> 0.016), all within
+the unchanged bounds.
+
+Follow-ups (not in this slice):
+1. The peek walk cycle: the first leaning step from rest leaves the sim head up to 29 cm off the drawn head for up to
+   ~0.2 s (a headshot there can miss or hit air). Needs a smaller `PEEK_HIP` / lean for guards in the rig, or a sim
+   foot model.
+2. The checker's unverified notes: wall walks are tested only at +-90 deg and pitch 0 (the `WALL_*` pitch terms are
+   unchecked); kick / melee (`rp.kick`, `rp.melee`) are not modelled; the sim head is computed in the fixed step and
+   leads the drawn (interpolated) head by up to one step.
+3. Hostage walk crouched (the knockout lowering) fades `HELD_MOVE` with crouch, not fitted.

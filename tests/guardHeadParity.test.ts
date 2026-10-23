@@ -9,8 +9,8 @@
  * weight copy `poseW`).
  *
  * Bounds (3D distance, m): T1 steady upright <= 0.05, T2 steady posed <= 0.08, T3 transitions every frame <= 0.12 and
- * back under the steady bound 0.3 s after the last change (an input change, or the end of a start, stop, stepped turn or
- * pivot of the driver).
+ * back under the steady bound 0.3 s after the last change (an input change, the end of a start, stop, stepped turn or
+ * pivot of the driver, or (S3a fix 2) the driver reaching its pace: acceleration under 0.2 m/s^2).
  * Only combinations the game produces are tested (S3a fix, finding 4):
  * - a high-cover lean is always away from the wall side (`Enemy.decide` 'inCover': `coverWallSide` is the side away
  *   from the nearest edge, `coverPeek = -edge.side`), and the guard walks towards the edge he leans past;
@@ -39,11 +39,13 @@ const frames: string[] = [];
  *  harmonic (`WALL_LEAN_MOVE`): measured 0.054-0.167 m. */
 const LEAN_WALK = 'moving lean: foot-planner sawtooth, measured 0.054-0.167 m';
 /** The whole peek walk: as above, and the first step of the leaning walk from rest dips the rig's head up to 25 cm
- *  below the steady fit (~0.5 s after the start). Measured 0.111-0.289 m every frame. */
-const PEEK_START = 'first leaning step dips 25 cm, measured 0.111-0.289 m';
+ *  below the steady fit (~0.5 s after the start, while the driver still gets up to pace). Measured 0.111-0.289 m every
+ *  frame; (S3a fix 2) settled (0.3 s after the walk reaches its pace, the leaning walk's sawtooth): 0.050-0.087 m. */
+const PEEK_START = 'first leaning step dips 25 cm, measured 0.111-0.289 m; settled 0.050-0.087 m';
 /** A walk backwards from rest: the rig's head dips 12 cm 0.6-1.6 s into the walk and settles by ~2.5 s (the T1 back
- *  walks pass after a 3 s settle). Measured 0.119-0.127 m. */
-const BACK_START = 'backpedal start dip, measured 0.119-0.127 m';
+ *  walks pass after a 3 s settle). Measured 0.118-0.129 m (S3a fix 2, the refitted `MOVE`); settled (at pace)
+ *  0.083-0.105 m. */
+const BACK_START = 'backpedal start dip, measured 0.118-0.129 m; settled 0.083-0.105 m';
 
 const SCENARIOS: Sc[] = [
   // T1: steady upright
@@ -109,13 +111,13 @@ const SCENARIOS: Sc[] = [
       c.peek = t >= 0.5 && t < 1.5 ? -1 : 0;
     },
   },
-  { ...peekCycle('peek walk cycle (ws -1)', -1), except: { bound: 0.29, steady: 0.29, why: PEEK_START } },
-  { ...peekCycle('peek walk cycle (ws 1)', 1), except: { bound: 0.29, steady: 0.29, why: PEEK_START } },
+  { ...peekCycle('peek walk cycle (ws -1)', -1), except: { bound: 0.29, steady: 0.09, why: PEEK_START } },
+  { ...peekCycle('peek walk cycle (ws 1)', 1), except: { bound: 0.29, steady: 0.09, why: PEEK_START } },
   { id: 'seize start', tier: 3, kinds: FREE, settle: 0.5, len: 1.5, held: 'seized', holdAt: 0.3, delay: 0.25, steady: T2, step: () => {} },
   { id: 'blind then seize', tier: 3, kinds: FREE, settle: 0.5, len: 1.5, blind: true, held: 'seized', holdAt: 0.3, delay: 0.25, steady: T2, step: (c) => { c.aim = 0.2; } },
   { id: 'release', tier: 3, kinds: FREE, settle: 1, len: 1.5, held: 'hostage', releaseAt: 0.3, steady: T1, step: (c) => { c.aim = 0.2; } },
   { id: 'walk start-stop', tier: 3, kinds: FREE, settle: 1, len: 3.5, steady: T1, step: (c, t, d) => { c.aim = 0.2; if (t >= 0.3 && t < 2) walk(c, 0, d.walkSpeed, false); } },
-  { id: 'backpedal start', tier: 3, kinds: ARMED, settle: 0.5, len: 3.5, steady: T1, except: { bound: 0.13, steady: 0.13, why: BACK_START }, step: (c, t, d) => { c.aim = 1; if (t >= 0.3) walk(c, 180, d.walkSpeed, true); } },
+  { id: 'backpedal start', tier: 3, kinds: ARMED, settle: 0.5, len: 3.5, steady: T1, except: { bound: 0.13, steady: 0.11, why: BACK_START }, step: (c, t, d) => { c.aim = 1; if (t >= 0.3) walk(c, 180, d.walkSpeed, true); } },
   { id: 'strafe start-stop', tier: 3, kinds: ARMED, settle: 1, len: 3.5, steady: T1, step: (c, t, d) => { c.aim = 1; if (t >= 0.3 && t < 2) walk(c, 90, d.walkSpeed, true); } },
 ];
 describe('guard head: sim against the rig head node (NullEngine)', () => {
