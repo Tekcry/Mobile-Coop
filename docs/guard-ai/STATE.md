@@ -1,6 +1,9 @@
 # Guard AI - state
 
 ## Now
+~13:30: #302 (S28 + sweep) TRAIN-READY, #294 closed; ready from me: #272, #295, #298, #302. Nothing running.
+PLAN has no slices left; next: train failures, Michael's walk reports.
+
 ~13:00: sweep fix round 55592902 (honest S13 assert looked = visited - skipped; stall = no route progress; unstick
 stays on his side of a thin wall; S13-SWEEP-CHECK PASS on round 1) -> laptop sweep-fix2. If looked 0 again: next is a
 replan routed clear of the other team (not built). Green -> PR for feature/guard-ai-sweep (stacked on #294) + relabel
@@ -814,12 +817,17 @@ Laptop worktrees (npm ci'd): C:/NightShift/Mobile-Coop-guard-ai (feature/guard-a
 Open (requests on branch laptop-queue, no cancel CLI: delete the JSON, commit, push. Verdict = GitHub status
 laptop-e2e/<set> on the sha; logs C:/NightShift/scratch/laptop-queue/runs/<id>/ (desktop-worker runs: ask the
 orchestrator). Green -> `gh pr edit <n> --add-label train-ready` + tell orchestrator; red -> Opus triage at once):
-1. MERGED: #254 S23 (train 42), #264 S24 / #266 S25 / #271 S26 / #270 S27 (train 43, master cacd0c7e). #281 closed.
-2. #272 walk482 TRAIN-READY (0dbadad0): master merged for conflicts 5a3dd588; 'near' staging fix 2258ae7b (move-up saw
-   the near spot: wait out the fight far away, WALK482.md "Laptop triage 2"); laptop w482-sai PASS.
-3. #294 S28 locked-door re-path TRAIN-READY (5d0b2c38; laptop s28-fix 10/10; re-check PASS).
-   #295 body watchdog TRAIN-READY (8ada677d; laptop lightbake + guard-carry PASS; Opus check PASS). Follow-ups: LR16 Epic compile time on the laptop (> 45 s still
-   warns); glWarningFix.test.ts to pin the Babylon internals the unlink uses.
+1. MERGED: S23 (train 42), S24-S27 (train 43, master cacd0c7e). Closed: #281 (superseded), #294 (-> #302).
+2. TRAIN-READY (labels set, orchestrator told):
+   - #272 walk482 0dbadad0 (master merged for conflicts; 'near' staging fix; laptop w482-sai PASS).
+   - #295 body watchdog 8ada677d (unblocks LR16 #291; recover on failure only, 45 s cap from first poll of the
+     effect, bodyEffectRecovery.ts:59-61; laptop lightbake + guard-carry PASS; Opus check PASS).
+   - #298 sniper armour 338b4263 (armour = body mark, groups.ts; Havok container filter read -1; restores E10 thin-wall
+     penetration + impact effects; laptop enemies / stealth-ai / combat PASS; Opus check PASS).
+   - #302 S28 + sweep 55592902 (feature/guard-ai-sweep = master + S28 + sweep stall fix; S28.md, S13-SWEEP-FIX/-CHECK;
+     laptop sweep-fix2 PASS, looked 1 skipped 0). CI was running at label time.
+3. On a train failure: bisect with single-suite laptop sets on master and the branch head (+ a test-only merge if the
+   branch is on an older master), Opus triage at once. Desktop-worker logs: ask the orchestrator for the asserts.
 4. Polish (S24-LEVELS-CHECK): redundant tell(alarmHunt) after spawn in reinforce (enemyManager.ts:979) and parked
    joinReinforcement (:811). Mission reinforcements with nothing known stand at spawn (A148): Michael's call.
 5. After S28 (low, legacy suite, not in the full run; orchestrator ~07:45): e2e-enemies "sniper relocates after its
