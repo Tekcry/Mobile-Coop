@@ -107,7 +107,7 @@ export class CampusDresser {
     return { s, x: box.c[0] - (lx * cosY + lz * sinY), y: box.c[1] - by / 2 - h.lo[1] * s[1], z: box.c[2] - (-lx * sinY + lz * cosY) };
   }
 
-  private skinOf(piece: string, boxIndex: number, yaw: number, cls: 'skin' | 'skin-hide', why: string, dy = 0): number {
+  private skinOf(piece: string, boxIndex: number, yaw: number, cls: 'skin' | 'skin-hide', why: string, dy = 0, group?: number): number {
     const { cat, prop } = this.piece(piece);
     const box = this.ctx.boxes[boxIndex];
     if (!box) throw new Error(`campus art: ${piece} skins box ${boxIndex}, which does not exist`);
@@ -116,23 +116,25 @@ export class CampusDresser {
     this.checkScale(cat, prop, f.s);
     const p: ArtPlacement = { cat: cat.id, prop, x: f.x, y: f.y + dy, z: f.z, yaw: y0, section: this.ctx.section, cls, skinOf: boxIndex, why };
     if (f.s.some((v) => Math.abs(v - 1) > 1e-6)) p.s = f.s;
+    if (group !== undefined) p.group = group;
     const e = skinFit(cat, p, box);
     if (e) throw new Error(`campus art S${this.ctx.section + 1}: ${piece} on box ${boxIndex}: ${e}`);
     return this.push(p, piece);
   }
 
-  /** A skin over greybox box `boxIndex` (fit scale from the box; throws on a skinFit failure). */
-  skin(piece: string, boxIndex: number, yaw: number, o: { why: string; dy?: number }): number {
-    return this.skinOf(piece, boxIndex, yaw, 'skin', o.why, o.dy ?? 0);
+  /** A skin over greybox box `boxIndex` (fit scale from the box; throws on a skinFit failure). `group`: the emissive
+   *  parts' light circuit (art-join: the dressers' S1 L5 / S4 / S5 kit gap; optional, as `add`'s). */
+  skin(piece: string, boxIndex: number, yaw: number, o: { why: string; dy?: number; group?: number }): number {
+    return this.skinOf(piece, boxIndex, yaw, 'skin', o.why, o.dy ?? 0, o.group);
   }
 
   /** A box-hidden skin (ART-PLAN AS10: the cars, the S5 van; or a hero brief line): the renderer hides the box's instance. */
-  skinHide(piece: string, boxIndex: number, yaw: number, o: { why: string }): number {
-    return this.skinOf(piece, boxIndex, yaw, 'skin-hide', o.why);
+  skinHide(piece: string, boxIndex: number, yaw: number, o: { why: string; group?: number }): number {
+    return this.skinOf(piece, boxIndex, yaw, 'skin-hide', o.why, 0, o.group);
   }
 
   /** A skin over greybox cylinder `cylIndex` (trunks, posts): scaled by the cylinder over the piece's `cylFit`. */
-  skinCyl(piece: string, cylIndex: number, o: { why: string }): number {
+  skinCyl(piece: string, cylIndex: number, o: { why: string; group?: number }): number {
     const { cat, prop } = this.piece(piece);
     const c = this.ctx.cylinders?.[cylIndex];
     if (!c) throw new Error(`campus art: ${piece} skins cylinder ${cylIndex}, which does not exist (no cylinders in the context?)`);
@@ -141,6 +143,7 @@ export class CampusDresser {
     this.checkScale(cat, prop, s);
     const p: ArtPlacement = { cat: cat.id, prop, x: c.c[0], y: c.c[1] - c.h / 2, z: c.c[2], yaw: 0, section: this.ctx.section, cls: 'skin', skinCyl: cylIndex, why: o.why };
     if (s.some((v) => Math.abs(v - 1) > 1e-6)) p.s = s;
+    if (o.group !== undefined) p.group = o.group;
     const e = skinFit(cat, p, c);
     if (e) throw new Error(`campus art S${this.ctx.section + 1}: ${piece} on cylinder ${cylIndex}: ${e}`);
     return this.push(p, piece);
@@ -151,7 +154,7 @@ export class CampusDresser {
    * axis is world x (else z), the modules' fronts face `faceSign` along the other axis. A fit piece stretches its modules
    * to the box (0.8-1.25); each module must skin its slice of the box. Returns the placement indices.
    */
-  skinRow(piece: string, boxIndex: number, alongX: boolean, faceSign: 1 | -1, o: { why: string }): number[] {
+  skinRow(piece: string, boxIndex: number, alongX: boolean, faceSign: 1 | -1, o: { why: string; group?: number }): number[] {
     const { cat, prop } = this.piece(piece);
     const box = this.ctx.boxes[boxIndex];
     if (!box) throw new Error(`campus art: ${piece} skins box ${boxIndex}, which does not exist`);
@@ -169,6 +172,7 @@ export class CampusDresser {
       this.checkScale(cat, prop, f.s);
       const p: ArtPlacement = { ...proto, x: f.x, y: f.y, z: f.z, skinPart: [i, n] };
       if (f.s.some((v) => Math.abs(v - 1) > 1e-6)) p.s = f.s;
+      if (o.group !== undefined) p.group = o.group;
       const e = skinFit(cat, p, slice);
       if (e) throw new Error(`campus art S${this.ctx.section + 1}: ${piece} row module ${i}/${n} on box ${boxIndex}: ${e}`);
       out.push(this.push(p, piece));

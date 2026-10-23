@@ -333,6 +333,8 @@ export function buildKeepouts(ctx: DressContext): Keepouts {
     cap(g.takedownSpot[0], g.takedownSpot[1], g.takedownSpot[0], g.takedownSpot[1], g.y ?? 0, g.y ?? 0, KEEP.takedown, 'K5', `guard ${gi} takedown spot`);
   });
   for (const [x, z] of sec.reinforce) cap(x, z, x, z, undefined, undefined, KEEP.patrol, 'K2', 'reinforce point');
+  // K2 response-team sweep points (gear / sweep lane: ground storey, ART-PLAN 4.3 K2; art-join)
+  for (const [x, z] of sec.sweep ?? []) cap(x, z, x, z, 0, 0, KEEP.patrol, 'K2', 'sweep point');
   for (const e of sec.entries ?? []) {
     const pts: [number, number][] = [e.at, ...(e.route ?? [])];
     for (let i = 0; i + 1 < pts.length; i++) cap(pts[i]![0], pts[i]![1], pts[i + 1]![0], pts[i + 1]![1], e.y, e.y, KEEP.patrol, 'K2', `entry run-in ${i}`);
