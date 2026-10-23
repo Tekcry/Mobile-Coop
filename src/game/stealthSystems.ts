@@ -808,7 +808,9 @@ export class StealthSystems {
     this.g.world.level.lights.setGroup(group, on);
     this.syncGroup(group, on);
     this.g.events.emit('lightSwitch', { on });
-    if (!on) this.em.lightsOut(x, z);
+    // (S-e2e-fix3b) the circuit's group, as a wall switch passes it (guard-ai's coordinated lights-out): a guard who sees
+    // one of its lamps go out (or stands in a room it lights) is a witness; without it only the cabinet point was tested
+    if (!on) this.em.lightsOut(x, z, Number.NaN, -1, group);
   }
 
   /** Set every switch on a circuit to the registry's state (label and indicator too); no event, no noise. */

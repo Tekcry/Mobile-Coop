@@ -276,6 +276,10 @@ export async function walk(t, n) {
   assert(await GA(() => !window.__course.squadOf('a8-officer').alive), 'A8: the officer is down');
   // the press goes in as N2 leaves the talk for the grille (route index 0 -> 1): the board is then about 11 s off (the doc's step 7)
   await until(A, () => { const e = window.__course.squadOf('a8-night2'); return !!e && !e.alerted && e.walker?.idx === 1; }, null, 60000, 'A8: N2 leaves the talk (route index 0 -> 1)');
+  /*PROBE*/ await GA(() => { const L = (window.__pr = []); const t0 = performance.now(); const f = (v) => Math.round(v * 10) / 10;
+    const snap = (why) => { const out = { t: f((performance.now() - t0) / 1000), why }; for (const k of ['a8-night1', 'a8-night2']) { const e = window.__course.squadOf(k); if (!e) continue; out[k.slice(-6)] = { st: e.state, lv: e.aware.level, m: f(e.meter), tg: e.target?.id ?? null, los: e.los, d: f(e.dist), rate: f(e.rate ?? 0), stim: e.hasStimulus ? e.stimulus.map(f) : null, p: [f(e.pos.x), f(e.pos.y), f(e.pos.z)], yaw: f(e.yaw), idx: e.walker?.idx, inc: e.incMode }; } const e2 = window.__course.squadOf('a8-night2'); out.pl = e2 ? e2.ctx.players().map((q) => [q.id, f(q.feet.x), f(q.feet.y), f(q.feet.z), q.crouched, f(q.speed), f(q.light ?? -1)]) : null; L.push(out); };
+    for (const k of ['a8-night1', 'a8-night2']) { const e = window.__course.squadOf(k); if (!e) continue; const a = e.aware; const o = a.set.bind(a); a.set = (lv) => { if (a.level !== lv) snap(k + ' ' + a.level + '->' + lv + ' ' + (new Error().stack || '').split(String.fromCharCode(10)).slice(2, 7).join(' | ')); return o(lv); }; }
+    window.__prI = setInterval(() => { snap('tick'); }, 500); return true; });
   assert((await use(A, CONSOLE)) === 'ok', 'A8: the host presses the console again');
   await until(A, ([f, g]) => window.__course.state.hasFlag(f) && window.__course.debug().gates[g], [LOOP_FLAG, CONSOLE_GATE], 8000, 'A8: the console sets the flag and opens its gate');
   await until(B, (f) => window.__course.wire.s.flags.includes(f), LOOP_FLAG, 8000, 'A8: the client has the flag');
@@ -289,7 +293,9 @@ export async function walk(t, n) {
   // ---- 5. the board: at N2's grille stop the client presses it; the hall goes dark, the grille unlocks, N1 walks to the board ----
   console.log('  A8: the lighting board, the lure');
   await moveClient(BOARD_WEST[0], BOARD_WEST[1], 0.1, 0);
+  /*PROBE*/ try {
   await until(A, ([gx, gz]) => { const e = window.__course.squadOf('a8-night2'); return !!e && !e.alerted && e.walker?.idx === 2 && Math.hypot(e.pos.x - gx, e.pos.z - gz) < 1.3; }, [133.2, 62.0], 40000, 'A8: N2 is at the grille stop (route index 2)');
+  } finally { const L = await GA(() => { clearInterval(window.__prI); return window.__pr; }); for (const r of L) console.log('PROBE ' + JSON.stringify(r)); }
   const n1a = await guard(N1);
   const board = await GA(() => { const d = window.__app.current.world.layout.course.devices['a8-board']; return [d.x, d.z]; });
   const d0 = Math.hypot(n1a.x - board[0], n1a.z - board[1]);
@@ -301,9 +307,10 @@ export async function walk(t, n) {
   await waitSim(500);
   const left1 = await gateTimer(NIGHT_GATE);
   assert(left1 > 10 && left1 <= left0 + 0.05, `A8: a second press does nothing (the window ${left0.toFixed(1)} s -> ${left1.toFixed(1)} s, it never rises)`);
-  // off the board at once, to the lane between the column and the stair (dark in the cut, behind N2 at the grille and out of N1's walk): the client is
-  // not left at the board while N1 walks at it, and not put at the grille while N2 stands there (he waits 5 s facing the gate)
-  await moveClient(132.25, 66.0, 0.1, EAST);
+  // off the board at once, back to the jam spot behind the main counter (dark, `a8-west`): the client is not left at the board while N1 walks
+  // at it, and not put at the grille while N2 stands there (he waits 5 s facing the gate). (S-e2e-fix3c) Not the lane at (132.25, 66): N2 saw
+  // the lamps go out and turns to look at the board (the light incident's look), straight over that lane 3.4 m away while the circuit fades
+  await moveClient(JAM[0], JAM[1], 0.1, EAST);
   // (S-e2e-fix3) the host's registry, not `stealth.switchOn`: that reads the wall switches, and circuit 81 has none (the board is its only
   // control: an isolator, `CourseMode.isolatorEdge` -> `StealthSystems.isolate`), so `switchOn(81)` is true whatever the lamps do
   await until(A, ([g, on]) => { const l = window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g); return l.length > 0 && l.every((x) => x.on === on); }, [NIGHT_GROUP, false], 10000, 'A8: the night circuit is off on the host');
@@ -457,6 +464,7 @@ export async function walk(t, n) {
   assert(await lockedOnHost(DOORS.grille), 'A8 pass 2: the grille is locked again on the host');
   await until(B, (i) => window.__course.wire.locks.includes(i), await doorIndex(DOORS.grille), 15000, 'A8 pass 2: the client sees the grille locked');
   assert((await doorOpen(A, DOORS.grille)) > 0.5, 'A8 pass 2: the relock never shuts the door: it stays open (ENGINE-ANSWERS Q9)');
+  /*PROBE*/ for (let k = 0; k < 4; k++) { console.log('PROBE2 ' + JSON.stringify(await GA(([cid, aid]) => { const g = window.__app.current; const d = g.world.doors.list.find((x) => x.anchor.id === aid); const it = g.interactables.items.find((i) => i.id === 'door-' + aid); return { t: d.target, o: d.open, lk: d.anchor.locked, en: it?.enabled, st: window.__course.state.locked(cid), hp: [g.player.position.x, g.player.position.z] }; }, [DOORS.grille, await doorAid(DOORS.grille)]))); await waitSim(100); }
   await closeDoor(A, DOORS.grille, 'A8 pass 2 grille');
   const aid = await doorAid(DOORS.grille);
   assert((await use(A, `door-${aid}`)) === 'disabled', 'A8 pass 2: shut and locked, the grille cannot be opened from inside by hand');
