@@ -11,6 +11,9 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   no run folder): a chain from a dead session cannot start child powershell. Restart every chain in the new session.
   Re-queued: chain-1023s (s1look-2198d0da, 4189: work/s1-look.mjs, shots runs/s1-look) -> chain-1023t (marlowcap-cc24e992,
   s9shots before / after, guardrender-s6cap-c181002e), both ALONE on 4189.
+- 11:05 TRAIN 22 a39d688f (menu docs + #198 + #194 + guard-ai #193 -> #195 -> #196): chain-1023u.ps1 runs it on 4189
+  (build;full, JOBS=5, 4192 kept idle), then calls chain-1023t (measures, then s1look2-2198d0da: the s1look shots had
+  vision off in all 6 (MODE replace bug, fixed); merged guard renders fine). Verdict -> orchestrator (4.71.0 on pass).
 - RUNNING: chain-1023p.ps1 (waits for no locks, then 4189 ALONE guardrender-s6cap-c181002e), chain-1023q.ps1 (after p),
   chain-1023r.ps1 marlowfinal-45a74383 on 4189 (JOBS=3; verdict per suite to Menu Notes). 4192: guardais7-4052c434
   (Guard AI S7 test fix: build; e2e-stealth-ai x2; e2e-sectorops, JOBS=2; replaces the 62884858 2x rerun) -> verdict
