@@ -384,6 +384,44 @@ describe('guard figure on a NullEngine', () => {
     forgetModels();
   });
 
+  it('a head variant swap hides exactly the old head\'s vertices and shows exactly the new one\'s (body, gear and tints untouched)', async () => {
+    const { B, G, M, scene, rig, forgetModels } = await setup();
+    const lib = new G.GuardLibrary(scene);
+    // the fixture's pieces 1 and 2 stand for two head variants of the base (same vertices, other ids)
+    const HEADS: GuardManifest = { ...MANIFEST, pieces: ['average', 'average-1', 'average-2'] };
+    const a = new G.GuardFigure(lib, rig('ga'), HEADS, 'ga', { pieces: ['average-1'] });
+    await a.loadGameLods();
+    const cam = new B.FreeCamera('cam', new B.Vector3(0, 1.6, -3), scene);
+    a.update(cam);
+    const m0 = a.lodMeshes(M.LOD_0)[0]!;
+    expect(alphas(m0)).toEqual([255, 255, 255, 255, 255, 255, 0, 0, 0]);
+    const before = gvisOf(m0).slice();
+    const ib = vi.spyOn(scene.getEngine(), 'createIndexBuffer');
+    a.setPieces(['average-2']);
+    const after = gvisOf(m0);
+    for (let i = 0; i < after.length; i++) {
+      const v = i >> 2;
+      if ((i & 3) === 3 && (PIECE[v] === 1 || PIECE[v] === 2)) expect(after[i], `alpha of vertex ${v}`).toBe(PIECE[v] === 2 ? 255 : 0);
+      else expect(after[i], `byte ${i}`).toBe(before[i]);
+    }
+    expect(a.pieceShown('average-1')).toBe(false);
+    expect(a.pieceShown('average-2')).toBe(true);
+    // still two triangles: the body and the new head; the old head's triangle is gone from every pass
+    expect(m0.getTotalIndices()).toBe(6);
+    expect(Array.from(ib.mock.calls.at(-1)![0] as Uint16Array).sort()).toEqual([0, 1, 2, 6, 7, 8]);
+    // the same head again: no rewrite
+    const n = ib.mock.calls.length;
+    a.setPieces(['average-2']);
+    expect(ib.mock.calls.length).toBe(n);
+    // two heads listed (a bad caller) are both shown: the mask is the list, never a guess
+    a.setPieces(['average-1', 'average-2']);
+    expect(alphas(m0)).toEqual([255, 255, 255, 255, 255, 255, 255, 255, 255]);
+    ib.mockRestore();
+    a.dispose();
+    scene.dispose();
+    forgetModels();
+  });
+
   it('flash and heat fold into the visible alpha (no overlay, one draw per guard in thermal); neither throws', async () => {
     const { B, G, M, scene, rig, forgetModels } = await setup();
     const lib = new G.GuardLibrary(scene);

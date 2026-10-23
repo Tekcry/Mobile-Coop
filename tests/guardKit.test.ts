@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import raw from '../scripts/operators/data/guards.json';
 import enemies from '../src/config/enemies.json';
 import { RIG_JOINTS } from '../src/operators/runtime/pose';
-import { bufferTris, GUARD_KINDS, GUARD_LIMITS, shownTris, validateGuardKit, type GuardKit } from '../src/operators/guards/guardKit';
+import { bufferTris, GUARD_BASES, GUARD_CONTRACT, GUARD_KINDS, GUARD_LIMITS, HEADS_PER_BASE, shownTris, validateGuardKit, type GuardKit } from '../src/operators/guards/guardKit';
 
 const KIT = raw as unknown as GuardKit;
 const copy = (): GuardKit => structuredClone(KIT);
@@ -34,6 +34,45 @@ describe('guard kit data (guard-models G0)', () => {
   it('shown and buffer totals stay inside PLAN section 5', () => {
     for (const k of KIT.kinds) expect(shownTris(KIT, k, 0)).toBeLessThanOrEqual(GUARD_LIMITS.shown[0]);
     for (const b of KIT.bases) expect(bufferTris(KIT, b.id, 0)).toBeLessThanOrEqual(GUARD_LIMITS.buffer[0]);
+  });
+
+  it('PLAN section 5 limits: the numbers the checks enforce', () => {
+    expect(GUARD_LIMITS.shown).toEqual([20000, 7000, 2800]);
+    expect(GUARD_LIMITS.buffer).toEqual([45000, 14000, 5000]);
+    expect(GUARD_LIMITS.head).toEqual([4000, 1200, 400]);
+    expect(GUARD_LIMITS.eyesLod0).toBe(500);
+    expect([GUARD_LIMITS.hairCapLod0, GUARD_LIMITS.hairCapLod1]).toEqual([1000, 300]);
+    expect(GUARD_LIMITS.rigBones + GUARD_LIMITS.fingerBones).toBe(33);
+    expect(GUARD_LIMITS.pieceLod0).toEqual({ headwear: 600, helmet: 1200, vest_soft: 1800, plate_heavy: 2600, shield: 800 });
+    expect(KIT.bones.influences).toEqual([4, 4, 2]);
+  });
+
+  it('every kind stays inside the shown budget and every base inside the buffer budget at all three LODs', () => {
+    for (const lod of [0, 1, 2] as const) {
+      for (const k of KIT.kinds) expect(shownTris(KIT, k, lod), `${k.id} LOD${lod}`).toBeLessThanOrEqual(GUARD_LIMITS.shown[lod]);
+      for (const b of KIT.bases) expect(bufferTris(KIT, b.id, lod), `${b.id} LOD${lod}`).toBeLessThanOrEqual(GUARD_LIMITS.buffer[lod]);
+    }
+  });
+
+  it('head, hair cap and piece triangles stay inside their per-piece ceilings', () => {
+    for (const lod of [0, 1, 2] as const) for (const h of KIT.heads) expect(h.tris[lod], `${h.id} LOD${lod}`).toBeLessThanOrEqual(GUARD_LIMITS.head[lod]);
+    for (const c of KIT.hairCaps) {
+      expect(c.tris[0], `${c.id} LOD0`).toBeLessThanOrEqual(GUARD_LIMITS.hairCapLod0);
+      expect(c.tris[1], `${c.id} LOD1`).toBeLessThanOrEqual(GUARD_LIMITS.hairCapLod1);
+    }
+    const L = GUARD_LIMITS.pieceLod0;
+    for (const p of KIT.pieces) {
+      const ceil = p.kind === 'headwear' ? L.headwear : p.kind === 'shield' ? L.shield : p.id.startsWith('helmet_') ? L.helmet
+        : p.id === 'vest_soft' ? L.vest_soft : p.id === 'plate_heavy' ? L.plate_heavy : null;
+      if (ceil !== null) expect(p.tris[0], `${p.id} LOD0`).toBeLessThanOrEqual(ceil);
+    }
+  });
+
+  it('head variants per base are average 4, lean 4, broad 1, and the id lists are the shared contract', () => {
+    for (const b of GUARD_BASES) expect(KIT.heads.filter((h) => h.base === b).length, b).toBe(HEADS_PER_BASE[b]);
+    expect(KIT.hairCaps.map((c) => c.id).sort()).toEqual([...GUARD_CONTRACT.hairCaps].sort());
+    expect(KIT.hairColours.map((c) => String(c.id)).sort()).toEqual([...GUARD_CONTRACT.hairColours].sort());
+    expect(KIT.skinTones.map((c) => c.id)).toEqual([...GUARD_CONTRACT.skinTones]);
   });
 
   it('a dangling id reference is reported', () => {
