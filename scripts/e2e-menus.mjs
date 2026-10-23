@@ -156,6 +156,9 @@ try {
   // tab clicks: the RB glyph, a header, the LB legend item
   await clickAt('.settings-screen .ms-bump[data-bump="rb"]');
   assert((await tab()) === 'Gameplay', 'clicking the RB glyph: next tab');
+  // (anim-fix-pass AF5, BRIEF A1) mocap is the only player path: no "Mocap locomotion" row
+  const gp = await G(() => [...document.querySelectorAll('.settings-screen .tab-panel [data-focus]')].filter((e) => e.offsetParent).map((e) => e.textContent ?? ''));
+  assert(gp.length >= 2 && !gp.some((t) => /mocap/i.test(t)), `Gameplay has no Mocap locomotion row (${gp.length} rows: ${gp.map((t) => t.slice(0, 20)).join(' | ')})`);
   await clickAt('.settings-screen .tab[data-tab="access"]');
   assert((await tab()) === 'Accessibility' && (await fk()) === 'subtitles', `clicking a header opens that tab, first row focused (${await fk()})`);
   await key('Enter');

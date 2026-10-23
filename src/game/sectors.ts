@@ -97,7 +97,7 @@ export interface SectorGuard extends SquadSlot {
   reason?: string;
   /** A talking-pair partner: the index in this section's `guards` of the guard he meets on his route. */
   pair?: number;
-  /** A far guard that may sleep; read by guard-render (A64). */
+  /** A far guard that may sleep (sector-redesign A64). Data only: guard-render shipped no reader (A99). */
   dormant?: boolean;
 }
 
@@ -898,6 +898,9 @@ export interface SectorNetExtra {
   sy: number;
   /** (section-rating S2) The last section's rating (plain numbers; `sec` -1: none yet). S3 parses and clamps it. */
   rt: SectorRatingWire;
+  /** (marlow-polish, inside protocol 42) Every section's rating so far, by index (`packRated`, the course's `rh`): a late
+   *  joiner or a reloaded rejoiner rebuilds its results lines from it (no card, no top-up, no grant). */
+  rh?: number[];
 }
 
 /**

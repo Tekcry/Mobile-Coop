@@ -25,6 +25,7 @@ import type { MapDef, MapLayout } from './mapDef';
 import { PartLibrary } from './partLibrary';
 import { PropSystem } from './props';
 import { LightRig } from './lightRig';
+import { CampusArtRender } from './campusArt/campusArtRender';
 import { Breakables } from './breakables';
 import { Doors } from './doors';
 import { Ropes } from './ropes';
@@ -83,6 +84,8 @@ export class World {
   readonly breakables: Breakables;
   /** Hinged doors (collision while closed, armed once the nav grid is built). */
   readonly doors: Doors;
+  /** (sector-redesign ART-KIT) The campus art (render only; null: no art, `?gfx=min`, or a failed load: the greybox shows). */
+  campusArt: CampusArtRender | null = null;
   /** (marlow-final M5) The facility kit's meshes over the level (null: the map places none, `?gfx=min`, or the GLB
    *  failed to load - the greybox boxes under it then show). Render only. */
   kit: KitRender | null = null;
@@ -216,6 +219,14 @@ export class World {
       w.charShadows = new CharShadows(scene, w.lamps, w.charCasters);
       w.lamps.charShadows = w.charShadows;
       w.useBakedMoon();
+    }
+    // (sector-redesign ART-KIT) the campus art over the greybox: PBR path only; a failed load leaves the boxes drawn
+    if (layout.campusArt?.placements.length && atlas && !opts.cheap) {
+      try {
+        w.campusArt = await CampusArtRender.create(scene, layout.campusArt, level.lights, level, (m) => w.lightRig.addCaster(m));
+      } catch (e) {
+        console.warn('[campus-art] failed to load; the greybox shows', e);
+      }
     }
     return w;
   }
@@ -523,6 +534,7 @@ export class World {
     this.charShadows?.dispose();
     this.lamps?.dispose();
     this.breakables.dispose();
+    this.campusArt?.dispose();
     this.doors.dispose();
     this.props.dispose();
     this.level.dispose();

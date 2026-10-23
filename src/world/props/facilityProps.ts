@@ -643,6 +643,12 @@ export interface PropPlacement {
   /** (S3-7 S1) A powered device (a laser id: the beam tower's lens) whose state the emissives follow: dark while it is
    *  off (`PropRender.setDevice`; render side, gameplay never reads it). Unset: no device. */
   device?: string;
+  /** (marlow-polish P3-1) The shared course flag the `device` follows (on = set): `CtDevices` reads it and calls
+   *  `setDevice`; the renderer never reads it. Unset: the device is driven some other way (a laser id). */
+  flag?: string;
+  /** (P3-1) The `lamp` colour shown, lit, while the `device` is off (a red / green status lamp). Unset: the lamp dims
+   *  while off (`PROP_DARK`), as before. */
+  lampOff?: Rgb;
 }
 
 /** A world-space gameplay box (`LevelBuilder.box` arguments). */
@@ -729,7 +735,7 @@ export function propCollisionBox(p: PropPlacement): PropWorldBox[] | null {
 export interface PropBoxBuilder {
   readonly boxes: readonly unknown[];
   box(cx: number, cy: number, cz: number, sx: number, sy: number, sz: number, color: string, yaw?: number, pitch?: number, collide?: boolean, visible?: boolean): unknown;
-  mark(from: number, flags: { overhead?: boolean; noLedge?: boolean }): unknown;
+  mark(from: number, flags: { overhead?: boolean; noLedge?: boolean; art?: boolean }): unknown;
 }
 
 /** Writes every placement's gameplay boxes into the level builder (the map builder's one call per set). */
@@ -943,13 +949,21 @@ export class FacilityProps {
   readonly placements: PropPlacement[] = [];
 
   /** One prop; returns its index (the renderer's handle for `setTint`). */
-  add(prop: PropId, x: number, z: number, yaw: number, opts: { y?: number; free?: boolean; tint?: Rgb; lamp?: Rgb; door?: number; group?: number; device?: string } = {}): number {
+  add(
+    prop: PropId,
+    x: number,
+    z: number,
+    yaw: number,
+    opts: { y?: number; free?: boolean; tint?: Rgb; lamp?: Rgb; door?: number; group?: number; device?: string; flag?: string; lampOff?: Rgb } = {},
+  ): number {
     const p: PropPlacement = snapPlacement({ prop, x, y: opts.y ?? 0, z, yaw, free: opts.free });
     if (opts.tint) p.tint = opts.tint;
     if (opts.lamp) p.lamp = opts.lamp;
     if (opts.door !== undefined) p.door = opts.door;
     if (opts.group !== undefined) p.group = opts.group;
     if (opts.device !== undefined) p.device = opts.device;
+    if (opts.flag !== undefined) p.flag = opts.flag;
+    if (opts.lampOff) p.lampOff = opts.lampOff;
     this.placements.push(p);
     return this.placements.length - 1;
   }

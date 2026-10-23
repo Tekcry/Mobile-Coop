@@ -162,8 +162,8 @@ export class SettingsScreen extends MenuScreen {
           rowList(
             desc(toggle('Course markers', () => s().gameplay.courseMarkers, (v) => upd((d) => void (d.gameplay.courseMarkers = v))), 'Shows the markers on training and test courses.'),
             desc(toggle('Last-guard slow motion', () => s().gameplay.slowBeat, (v) => upd((d) => void (d.gameplay.slowBeat = v))), 'A short slow-motion beat when the last guard in a room goes down.'),
-            // (mocap-trial) the switch for the CMU mocap locomotion (default on since mocap-trial-2, M4; off: the hand-keyed set)
-            desc(toggle('Mocap locomotion', () => s().gameplay.mocapLoco, (v) => upd((d) => void (d.gameplay.mocapLoco = v))), 'Wren walks, jogs, runs, sprints and sneaks crouched with motion-captured clips (CMU), weapon holstered. On by default; off uses the hand-keyed animations. This machine only (your partner\'s view follows their own setting); ?mocap=1 or ?mocap=0 in the address overrides it for that page.'),
+            // (anim-fix-pass AF5, BRIEF A1) no "Mocap locomotion" row: mocap is the only player path (app.ts; `?mocap=0`
+            // or the tuner box turn it off for one page)
             this.lampFalloffRow(),
           ),
       },
@@ -220,7 +220,6 @@ export class SettingsScreen extends MenuScreen {
       fromDefaults((d, def) => {
         d.gameplay.courseMarkers = def.gameplay.courseMarkers;
         d.gameplay.slowBeat = def.gameplay.slowBeat;
-        d.gameplay.mocapLoco = def.gameplay.mocapLoco;
         d.gameplay.lampFalloff = def.gameplay.lampFalloff;
       }),
     );

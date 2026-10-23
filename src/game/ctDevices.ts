@@ -1,7 +1,7 @@
 import { Color4, TransformNode, Vector3, type InstancedMesh, type Vector4 } from '../core/babylon';
 import { CAMERA } from '../config/security';
 import { hyp2, hyp3 } from '../core/mathx';
-import { CameraUnit, sweepYaw } from '../security/camera';
+import { CameraUnit, nearestHousing, sweepYaw } from '../security/camera';
 import { SecurityView } from '../security/securityView';
 import { CameraCueView } from '../vfx/cameraCueView';
 import { cameraSight, newSeenBody, remoteHeadY, type SecurityEvent, type SeenBody } from '../security/securitySystem';
@@ -69,7 +69,7 @@ import {
   type ScanResult,
   type ScannerDef,
 } from './scanners';
-import { passZoneNeed, type PassZone } from './passZones';
+import { hallCameras, passZoneNeed, type PassZone } from './passZones';
 import type { CourseDevice } from './course/courseDef';
 import { cameraOff, consoleCamMode } from './course/securityRoom';
 import { deskCamMode } from './sectorDesks';
@@ -172,6 +172,14 @@ const LED_COL: readonly Color4[] = [new Color4(0.06, 0.06, 0.06, 1), new Color4(
 /** The LED's glow (`pattern.w`, render only) by state: lit states glow, dark and the blink's dim half do not. */
 const LED_GLOW: readonly number[] = [0, 0.55, 0.8, 0, 0.6];
 
+/** (marlow-polish P3-1) A prop status lamp that follows a shared course flag (`PropPlacement.flag`, A6's interlock): render
+ *  only, nothing in gameplay reads it. `on`: the state last put on the prop (-1 none yet, 0 off, 1 on). */
+interface FlagLampRt {
+  id: string;
+  flag: string;
+  on: number;
+}
+
 /** (marlow-jammer) One jam target: its pick record, its jam timeline and the device it drives. */
 interface DevRt {
   t: JamTarget;
@@ -225,6 +233,8 @@ export class CtDevices {
   readonly lasers: LaserRt[] = [];
   /** (sector-fixes P) The lasers' power panels (the lasers' jam targets). */
   private readonly panels: PanelRt[] = [];
+  /** (P3-1) The props' flag lamps (`PropPlacement.device` + `flag`), one per device id. */
+  private readonly flagLamps: FlagLampRt[] = [];
   /** The jam targets that are live (Sector Ops: only the live section's devices). */
   readonly targets: JamTarget[] = [];
   private readonly allTargets: JamTarget[] = [];
@@ -308,6 +318,8 @@ export class CtDevices {
   /** (fix round 2) Per zone and player: seconds left of the sent-back hold (`HALL_BACK_HOLD`, the client only). */
   private hallHold = new Float32Array(0);
   private hallCam: (CameraUnit | null)[] = [];
+  /** (marlow-walk482 X6) Host: the hallway rules' cameras (`hallCameras`): the send-back is their only cost (`onCamera`). */
+  private hallCamIds: ReadonlySet<string> = new Set<string>();
   private readonly backAt = new Vector3();
   /** (fix round 1) Players the hallway camera sent back (tests). */
   sendBacks = 0;
@@ -320,6 +332,27 @@ export class CtDevices {
   scanFails = 0;
   scanLast = '';
   private readonly glowAt = { x: 0, y: 0, z: 0 };
+  /** (marlow-polish) The client's own ricochet spot and the sparks' direction (as the host's `ricoAt` / `ricoDown`). */
+  private readonly ricoAt = new Vector3();
+  private readonly ricoDown = new Vector3(0, -1, 0);
+  /** (marlow-polish) The client's own rounds that sparked off a bulletproof housing (tests). */
+  ricochets = 0;
+
+  /**
+   * (marlow-polish) Client: our own round from `a` to `b` through the mirrored cameras. When the nearest housing along
+   * it is bulletproof, the host's ricochet (SecuritySystem.shotRay, GameState's `onRicochet`) plays here too: the sparks
+   * and the impact sound at the lens. Local cosmetic only (the host still resolves the shot); no allocation.
+   */
+  ricochetRay(a: Vector3, b: Vector3): boolean {
+    if (this.role !== 'client') return false;
+    const c = nearestHousing(this.cams, a.x, a.y, a.z, b.x, b.y, b.z);
+    if (!c || !c.def.bulletproof) return false;
+    this.ricochets++;
+    const at = this.ricoAt.set(c.x, c.y, c.z);
+    this.g.vfx.sparks(at, this.ricoDown, 8);
+    this.g.ballistics.onImpact?.(at, false);
+    return true;
+  }
 
   constructor(
     private g: GameState,
@@ -345,6 +378,7 @@ export class CtDevices {
     this.hallRun = new Uint8Array(this.zones.length * 2);
     this.hallHold = new Float32Array(this.zones.length * 2);
     this.hallCam = this.zones.map((z) => (z.hall && role === 'host' ? (this.cams.find((c) => c.def.id === z.hall!.camera) ?? null) : null));
+    if (role === 'host') this.hallCamIds = hallCameras(this.zones);
     this.cueSeen = new Uint8Array(this.cams.length);
     if (this.cams.length > 0) {
       const b = g.ballistics;
@@ -365,6 +399,11 @@ export class CtDevices {
       }
       this.buildPanel(p);
       this.panels.push(p);
+    }
+    // (marlow-polish P3-1) the props' status lamps on a shared course flag (A6's interlock): `applyJam` puts the flag on them
+    for (const p of lay.facilityProps ?? []) {
+      if (p.device === undefined || p.flag === undefined || this.flagLamps.some((f) => f.id === p.device)) continue;
+      this.flagLamps.push({ id: p.device, flag: p.flag, on: -1 });
     }
     // (marlow-jammer, item 8) the map's fixed electric lamps are jam targets too (id `lt-<registry id>`, the same on both
     // pages: both build the level's lights in the same order)
@@ -868,8 +907,8 @@ export class CtDevices {
   /**
    * (marlow-jammer fix round 1, Michael item 5) The camera hallway's hard rule (`hallStep`): a player its camera has
    * while in the hallway (or still running in the far lobby) goes back to the entry lobby's spot. The host moves its
-   * own player; the client's goes through the co-op layer (`sendBack`: a `back` event). Being seen also raises the
-   * alarm stage as everywhere (both kept: the simpler choice).
+   * own player; the client's goes through the co-op layer (`sendBack`: a `back` event). A hall camera raises no alarm
+   * stage and no guard alert (marlow-walk482 X6, `onCamera`): the send-back is the only cost.
    */
   private stepHall(z: number, zone: PassZone, hall: HallRule, refs: PlayerRef[], n: number, dt: number): void {
     const cam = this.hallCam[z] ?? null;
@@ -973,6 +1012,15 @@ export class CtDevices {
       // (S3-7 S1, light parity) the beam towers' lenses follow their laser (dark while jammed, rebooting, off or dead); render only
       this.g.world.facilityProps?.setDevice(l.def.id, on);
     }
+    // (marlow-polish P3-1) a flag lamp shows its shared flag (on = set), on both roles from the same course flags; only on
+    // a change (the first pass always); render only
+    for (let i = 0; i < this.flagLamps.length; i++) {
+      const f = this.flagLamps[i]!;
+      const on = shared?.(f.flag) ? 1 : 0;
+      if (on === f.on) continue;
+      f.on = on;
+      this.g.world.facilityProps?.setDevice(f.id, on === 1);
+    }
     for (let i = 0; i < this.panels.length; i++) this.showPanel(this.panels[i]!);
     const reg = this.g.world.level.lights;
     for (let k = 0; k < this.devs.length; k++) {
@@ -1066,6 +1114,9 @@ export class CtDevices {
       }
       return;
     }
+    // (marlow-walk482 X6, Michael: "It's a training exercise, the guard should be non hostile and not respond to you being
+    // detected on the camera") a hallway rule's camera only sends the player back (`stepHall`): no device alert, no alarm
+    if (this.hallCamIds.has(e.camera)) return;
     // (guard-ai S17, G3) the guards hear of where the camera saw someone (a sighting then, not his live position):
     // first, so the alarm's reinforcements know the spot
     if (this.hooks.alertAt) {
@@ -1218,6 +1269,8 @@ export class CtDevices {
       lasers: this.lasers.map((l) => ({ id: l.def.id, on: l.on, live: this.live(l.def.id), panel: l.panel?.def.id ?? '' })),
       // (sector-fixes P) each power panel: its jam phase (0 idle, 1 jammed, 2 rebooting), LED (laserPanels LED_*), lasers
       panels: this.panels.map((p) => ({ id: p.def.id, ph: p.dv.d.ph, t: p.dv.d.t, led: p.ledK, live: this.live(p.def.id), lasers: p.lasers.map((l) => l.def.id), at: [p.dv.t.x, p.dv.t.y, p.dv.t.z] })),
+      // (P3-1) each flag lamp's state last put on its prop
+      flagLamps: this.flagLamps.map((f) => ({ id: f.id, on: f.on === 1 })),
       live: this.liveSection,
       range: CAMERA.range,
       cue: this.cue?.debug() ?? [],

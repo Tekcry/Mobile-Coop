@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Vector3 } from '../src/core/babylon';
 import type { CameraDevice } from '../src/security/data';
 import { SecuritySystem, type SecurityHost } from '../src/security/securitySystem';
+import { CameraUnit, nearestHousing } from '../src/security/camera';
 import { SectionStartState, type ResetDoor, type ResetDoors } from '../src/game/sectorReset';
 import { ARMOURED_FROM_SET, armourCameras } from '../src/world/maps/ctcourseSets/types';
 import { LevelBuilder } from '../src/world/levelBuilder';
@@ -85,5 +86,21 @@ describe('set restart doors (M3)', () => {
     // the course's restart (`locked`): the locked door shuts as it began too
     expect(s.applyDoors(doors, true)).toBe(1);
     expect(list[3]!.target).toBe(0);
+  });
+});
+
+describe('(marlow-polish) the client sparks its own round off a bulletproof housing', () => {
+  it('nearestHousing (the host shotRay and the client ricochetRay pick): the first housing along the round, destroyed skipped', () => {
+    const far = new CameraUnit({ ...cam('far', true), at: [0, -4] }, 0);
+    const near = new CameraUnit({ ...cam('near'), at: [0, 4] }, 0);
+    const list = [far, near];
+    // along -z from z = 10: the near (z 4, shootable) housing first, though the far one is listed first
+    expect(nearestHousing(list, near.x, near.y, 10, near.x, near.y, -10)).toBe(near);
+    // from the other end: the bulletproof one first (the client sparks)
+    expect(nearestHousing(list, far.x, far.y, -10, far.x, far.y, 10)?.def.bulletproof).toBe(true);
+    near.destroy();
+    expect(nearestHousing(list, near.x, near.y, 10, near.x, near.y, -10)).toBe(far);
+    // a round past both housings: none
+    expect(nearestHousing(list, 5, 3, 10, 5, 3, -10)).toBeNull();
   });
 });

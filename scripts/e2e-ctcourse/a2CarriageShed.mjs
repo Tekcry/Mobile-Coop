@@ -3,15 +3,19 @@
 // before any press the client reads the A lines); the client presses cabinet one and so takes A (the claim).
 //   1. the start: both step lines, both cabinets and the cabin door exist, the neck and the vantage read lit and the same on both pages;
 //   2. the restart check: the client presses cabinet one mid-run (the neck dark, the timer line on both pages, the shunter lured),
-//      then the host's checkpoint restart: the neck lit again and the gate ready on both pages, the claim cleared, the shunter respawned at his post;
-//   3. the taught route: the host opens the cabin door; the client at cabinet one, the host behind road 3's van; with the shunter within
-//      25 m the client presses cabinet one: the neck group dark on both pages, "Lights back in" on both, the claim (client A), a host press on
-//      cabinet two does nothing (the timer is not reset), the crossing line reads dark;
-//   4. the crossing in the dark: the host crosses the neck along the walkway to x 57 inside the window: `a2-neck` ticks on both pages and the
-//      step lines swap to the way back;
+//      then the host's checkpoint restart: the neck lit again and the gate ready on both pages, the claim cleared, three fresh calm guards
+//      (the shunter at his post, the two overwatch guards on the staging deck, high-security posts);
+//   2b. spotted (walk482 X2): the client stands in the lit neck at (51, 12.5): a guard alerts, the set restarts (host `mode.restarts` + 1,
+//      the "Spotted" line on both pages, the client back at the set start on both pages, three fresh calm guards again);
+//   3. the taught route: the host opens the cabin door; the client at cabinet one, the host waiting in the west gap 2/3 (x 41, z 12.5, out of the
+//      watchers' sight); with the shunter within 25 m the client presses cabinet one: the neck group dark on both pages, "Lights back in" on
+//      both, the claim (client A), a host press on cabinet two does nothing (the timer is not reset), the crossing line (z 12.5) reads dark;
+//   4. the crossing in the dark: the host crosses the neck along gap 2/3 to x 57 inside the window: `a2-neck` ticks on both pages and the
+//      step lines swap to the way back; no set restart and no watcher alerted;
 //   5. the light comes back on both pages when the window ends; a press during the re-arm is refused ("The isolator is re-arming") and the
 //      lights stay on; once it re-arms the host presses cabinet two (the mirror): dark again on both pages, the calm shunter heads for it;
-//   6. the client crosses the dark neck behind: `a2-east` and `a2-back` tick on both pages, the closing line shows, both go to L2's door.
+//   6. the client crosses the dark neck behind (gap 2/3 again): `a2-east` and `a2-back` tick on both pages, the closing line shows, restarts
+//      still unchanged and the watchers calm, both go to L2's door.
 // The takedown at cabinet one and the staging leg-up (Route 2) are not walked here: the lip, the boost search and the solo-jump check are the
 // unit tests' (`tests/ctcourse/a2CarriageShed.test.ts`). Teleport legs are allowed on the open floor; a door the route opens is opened by
 // `use(P, 'door-<anchor id>')` and asserted open on both pages before anyone is moved through it.
@@ -24,9 +28,13 @@ const CAB1 = [30.6, 1.6];
 const CAB2 = [69.4, 13.4];
 const CABIN_DOOR = 'A2-cabin';
 const NECK_GROUP = 21;
-/** The neck's crossing line (the north walkway behind road 3's van) and its middle. */
-const CROSS = [51, 16.9];
+/** The neck's crossing line (gap 2/3, z 12.5, the taught crossing under the two watchers' lit view; the cess and the north walkway are closed) and its middle. */
+const CROSS = [51, 12.5];
 const MID = [51, 10];
+/** The taught wait in the west gap 2/3 (B's spot while A isolates): the vans hide it from both watchers. */
+const WAIT = [41, 12.5];
+/** The overwatch guards' posts on the staging deck (y 4.4). */
+const WATCH = [[48, 17.9], [54, 17.9]];
 /** The lure reaches 25 m (`EnemyManager.lightsOut`): press with him inside 24.5. */
 const LURE = 24.5;
 
@@ -50,6 +58,23 @@ export async function walk(t, n) {
   const claimed = () => GA(() => window.__course.state.roleClaimed());
   const shunter = () => GA(() => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.alive); return e ? { x: e.pos.x, z: e.pos.z, alerted: !!e.alerted, passive: !!e.passive } : null; });
   const noDamage = () => GA(() => { window.__app.current.target.damageMul = 0; });
+  /** Every live guard on the host in squad order (the shunter first): where, calm or alerted, posted (`secure`), and the squad's shared caution. */
+  const guards = () => GA(() => { const em = window.__app.current.enemyMgr; return { bodies: em.bodies.length, list: em.enemies.filter((q) => q.alive).map((e) => ({ x: e.pos.x, y: e.pos.y, z: e.pos.z, alerted: !!e.alerted, passive: !!e.passive, secure: !!e.secure, caution: em.cautionOf(e) })) }; });
+  const restarts = () => GA(() => window.__app.current.mode.restarts);
+  /** Three fresh calm guards: the shunter at his post, the two watchers posted on the staging deck, no body. */
+  async function assertFreshGuards(what) {
+    const gs = await guards();
+    const [s, w1, w2] = gs.list;
+    const calm = gs.list.every((e) => !e.alerted && !e.passive && e.caution === 0);
+    assert(gs.list.length === 3 && gs.bodies === 0 && calm, `${what}: three fresh calm armed guards and no body (${JSON.stringify(gs)})`);
+    assert(!s.secure && Math.hypot(s.x - 51, s.z - 10) < 2.5 && s.y < 1, `${what}: the shunter first, back at his post (${JSON.stringify(s)})`);
+    for (const [e, [x, z]] of [[w1, WATCH[0]], [w2, WATCH[1]]]) assert(e.secure && e.y > 4 && Math.hypot(e.x - x, e.z - z) < 1.0, `${what}: a posted watcher on the staging deck at (${x}, ${z}) (${JSON.stringify(e)})`);
+  }
+  /** After a dark crossing: the set was not restarted (`restarts` as at `r0`) and no watcher is alerted. */
+  async function assertNotSpotted(what, r0) {
+    const [r, gs] = [await restarts(), await guards()];
+    assert(r === r0 && gs.list.slice(1).every((e) => e.secure && !e.alerted), `${what}: the dark crossing was not seen (restarts ${r0} -> ${r}, ${JSON.stringify(gs.list.slice(1))})`);
+  }
   /** Open the cabin door by hand on the host (as a player would) and see it open on both pages. */
   async function openCabinDoor(what) {
     const i = await doorIndex(CABIN_DOOR);
@@ -110,7 +135,7 @@ export async function walk(t, n) {
   await moveHost(33, 7.5, 0.1, Math.PI / 2);
   await openCabinDoor('A2');
   await moveClient(30.6, 2.6, 0.1, Math.PI);
-  await moveHost(44.5, CROSS[1], 0.1, Math.PI / 2);
+  await moveHost(WAIT[0], WAIT[1], 0.1, Math.PI / 2);
   await waitForLure('A2 restart check');
   const d0 = await cutFromClient('A2 restart check');
   await until(A, ([x, z, d0]) => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return !!e && Math.hypot(e.pos.x - x, e.pos.z - z) < d0 - 3; }, [CAB1[0], CAB1[1], Math.hypot(d0.x - CAB1[0], d0.z - CAB1[1])], 20000, 'A2: the lured shunter walks toward cabinet one');
@@ -130,8 +155,27 @@ export async function walk(t, n) {
   // fresh (calm, not cautious) and no body or old guard left
   const ci = await doorIndex(CABIN_DOOR);
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, (i) => window.__app.current.world.doors.list[i].open < 0.05, ci, 15000, `A2: the restart shuts the cabin door again (${tag})`);
-  const fresh = await GA(() => { const em = window.__app.current.enemyMgr; const e = em.enemies.find((q) => q.alive); return { n: em.enemies.length, bodies: em.bodies.length, alerted: !!e?.alerted, caution: e ? em.cautionOf(e) : -1, doors: window.__course.lastDoors }; });
-  assert(fresh.n === 1 && fresh.bodies === 0 && !fresh.alerted && fresh.caution === 0 && fresh.doors >= 1, `A2: the restart leaves one fresh shunter and puts the doors back (${JSON.stringify(fresh)})`);
+  const doors = await GA(() => window.__course.lastDoors);
+  assert(doors >= 1, `A2: the restart puts the doors back (${doors})`);
+  await assertFreshGuards('A2 restart');
+
+  // ---- 2b. spotted (walk482 X2): a guard sees the client standing in the lit neck: the set restarts, both back at the set start ----
+  console.log('  A2: spotted in the lit neck');
+  await noDamage();
+  const spot0 = await restarts();
+  await moveHost(WAIT[0], WAIT[1], 0.1, Math.PI / 2);
+  await moveClient(CROSS[0], CROSS[1], 0.1, Math.PI);
+  await until(A, (r0) => window.__app.current.mode.restarts === r0 + 1, spot0, 45000, 'A2: being spotted in the lit neck restarts the set (host restarts + 1)');
+  assert((await restarts()) === spot0 + 1, 'A2: exactly one set restart for the spot');
+  const cp2 = await GA(() => { const p = window.__course.checkpointPos(); return [p.x, p.z]; });
+  await until(B, ([x, z]) => { const p = window.__app.current.player.position; return Math.hypot(p.x - x, p.z - z) < 2.5; }, cp2, 15000, 'A2: the spot sends the client back to the set start (client page)');
+  await until(A, ([x, z]) => { const r = window.__app.current.net.remotes.values().next().value; return !!r && Math.hypot(r.feet.x - x, r.feet.z - z) < 3.5; }, cp2, 15000, 'A2: the spot sends the client back to the set start (host page)');
+  await until(A, () => /Spotted/.test(window.__course.radioLine ?? ''), null, 15000, "A2: LANTERN's 'Spotted' line on the host");
+  await until(B, () => /Spotted/.test(window.__course.wire.rl ?? ''), null, 15000, "A2: LANTERN's 'Spotted' line reaches the client");
+  await waitSim(2200);
+  await noDamage();
+  await assertFreshGuards('A2 after the spot');
+  assert((await restarts()) === spot0 + 1, 'A2: the fresh guards did not spot anyone again');
 
   // ---- 3. the taught route: the press at cabinet one with the shunter near, the host crosses the dark neck ----
   console.log('  A2: cabinet one, the dark neck');
@@ -139,23 +183,26 @@ export async function walk(t, n) {
   await moveHost(33, 7.5, 0.1, Math.PI / 2);
   await openCabinDoor('A2 route');
   await moveClient(30.6, 2.6, 0.1, Math.PI);
-  await moveHost(44.5, CROSS[1], 0.1, Math.PI / 2);
+  await moveHost(WAIT[0], WAIT[1], 0.1, Math.PI / 2);
   await waitForLure('A2 route');
   await cutFromClient('A2');
   // the client read the A line from the press on; the host (B) reads its line
   await sees(B, /Isolate the neck lights at cabinet one/, 'A2: the client has the A job (cabinet one)');
   await sees(A, /Wait at the van ends/, 'A2: the host has the B job');
   // a press at the other cabinet while the circuit is cut does nothing: the window keeps running (it is not reset)
+  const r0 = await restarts();
   const t0 = await gateTimer();
   assert((await use(A, ISO2)) === 'ok', 'A2: the host tries cabinet two while the neck is dark');
   await waitSim(400);
   const t1 = await gateTimer();
   assert((await gateOpen()) && t1 <= t0 && t1 > 0, `A2: a press while dark does nothing (the window ${t0.toFixed(1)} -> ${t1.toFixed(1)} s)`);
-  // the host crosses the dark neck along the walkway behind road 3's van, inside the window
+  // the host crosses the dark neck along gap 2/3 (under the watchers, who cannot see in the dark), inside the window
   await moveHost(CROSS[0], CROSS[1], 0.1, Math.PI / 2);
+  await waitSim(500);
   await moveHost(57, CROSS[1], 0.1, Math.PI / 2);
   await until(A, () => window.__course.state.hasFlag('a2-east1'), null, 10000, 'A2: the pass zone sets a2-east1');
   assert((await gateOpen()) && (await gateTimer()) > 0, `A2: the crossing was inside the window (${(await gateTimer()).toFixed(1)} s left)`);
+  await assertNotSpotted('A2 host crossing', r0);
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => !!document.querySelector('.course-hud tr[data-step="a2-neck"] td.done'), null, 15000, `A2: the ${tag} sees the neck step ticked`);
   // the way back: the A job crosses behind, the B job isolates at cabinet two
   await sees(B, /Cross behind the shunter while your partner isolates/, 'A2: the client (A) reads the way-back line');
@@ -213,9 +260,11 @@ export async function walk(t, n) {
   // ---- 5. the client crosses the dark neck: both east, the way back ticks, the closing line ----
   console.log('  A2: the mirror crossing, both east');
   await moveClient(CROSS[0], CROSS[1], 0.1, Math.PI / 2);
+  await waitSim(500);
   await moveClient(57, CROSS[1], 0.1, Math.PI / 2);
   await until(A, () => window.__course.state.hasFlag('a2-east'), null, 10000, 'A2: the pass zone sets a2-east (both east of x 56)');
   assert(await gateOpen(), 'A2: the second crossing was inside the window');
+  await assertNotSpotted('A2 client crossing', r0);
   // route 1b: cabinet two lures the calm shunter from anywhere on his loop (all within 25 m): he walks toward it
   // (S2 check) only when the 25 m lure reaches him from where he stood (still lured to cabinet one he may be ~36 m off)
   if (!s0.alerted && toCab2(s0) < 24.5) await until(A, ([x, z, d]) => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return !!e && (Math.hypot(e.pos.x - x, e.pos.z - z) < d - 2 || Math.hypot(e.pos.x - x, e.pos.z - z) < 4); }, [CAB2[0], CAB2[1], toCab2(s0)], 15000, `A2: the shunter heads for cabinet two (from ${toCab2(s0).toFixed(1)} m)`);

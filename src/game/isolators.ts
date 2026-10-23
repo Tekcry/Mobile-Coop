@@ -1,4 +1,5 @@
 import type { Vector3 } from '../core/babylon';
+import { hyp2 } from '../core/mathx';
 import { groupBaseOn, type LightRegistry } from '../world/lights';
 
 /**
@@ -8,8 +9,9 @@ import { groupBaseOn, type LightRegistry } from '../world/lights';
  * click, the board's indicator lit again, a feed line). A player-started window, never an area clock (A38).
  *
  * It drives the lamps only through `LightRegistry.setGroup`, the same path a wall switch takes, so the light field,
- * the meter and the guards read the cut alike (light parity), a cut calls the sink's `cut` (the game sends the
- * nearest calm armed guard via `EnemyManager.lightsOut`, as a wall switch does), and the co-op client's lamps follow
+ * the meter and the guards read the cut alike (light parity), a cut calls the sink's `cut` (the game reports it through
+ * `EnemyManager.lightsOut`; guard-ai LR16-4: a breaker board's cut is a fault as a wall switch's, a witness walks over
+ * and `switchBack`s it; a timed window is the player's, the S2 look only), and the co-op client's lamps follow
  * through slice L's `lamps` message (the registry's base state; no wire change). Host / solo only: the client never
  * builds boards (it mirrors the board items and sends `use`). Pure (no Babylon at runtime); `update` allocates nothing.
  */
@@ -94,14 +96,50 @@ export class IsolatorBoards {
   }
 
   /**
-   * GA4 hook point: guard-ai calls this when a guard who reached a cut board switches it back (the circuits on, a
-   * running window dropped). Nothing calls it yet: guards do not relight lamps until guard-ai provides it (SPEC
-   * "Lighting rules"); this slice adds no guard behaviour. False when the board is not cut.
+   * (guard-ai LR16-4) A guard who reached a cut board switches it back: its circuits on (`setGroup` skips shot lamps),
+   * the sink's `back(i, BACK_HAND)` as for a player's switch-back. Called by `StealthSystems`' breaker host at the end of
+   * the S15 reset walk. A running timed window is the player's (the board is off-use for everyone until it runs out),
+   * so the guard never fights the timer: false then, and false when the board is not cut.
    */
   switchBack(i: number): boolean {
-    if (!this.cut[i]) return false;
+    if (!this.cut[i] || this.left[i]! > 0) return false;
     this.restore(i, BACK_HAND);
     return true;
+  }
+
+  /** (guard-ai LR16-4) A running timed window holds circuit `group` (the player's: no guard turns it back on). */
+  holding(group: number): boolean {
+    if (this.running === 0) return false;
+    for (let i = 0; i < this.defs.length; i++) {
+      if (this.left[i]! > 0 && this.defs[i]!.groups.includes(group)) return true;
+    }
+    return false;
+  }
+
+  /** (guard-ai LR16-4) The cut board with no running window that holds circuit `group`, nearest (x, z); -1 none. A
+   *  guard's reset walk goes to it and `switchBack` puts every circuit of it back. No allocation. */
+  cutBoard(group: number, x: number, z: number): number {
+    let best = -1;
+    let bd = Infinity;
+    for (let i = 0; i < this.defs.length; i++) {
+      if (!this.cut[i] || this.left[i]! > 0) continue;
+      const d = this.defs[i]!;
+      if (!d.groups.includes(group)) continue;
+      const dd = hyp2(d.pos.x - x, d.pos.z - z);
+      if (dd < bd) {
+        bd = dd;
+        best = i;
+      }
+    }
+    return best;
+  }
+
+  /** (guard-ai LR16-4) Board `i`'s first circuit with a lamp not shot out (the circuit its cut is reported on); -1 none. */
+  liveGroup(i: number): number {
+    const gs = this.defs[i]?.groups;
+    if (!gs) return -1;
+    for (let k = 0; k < gs.length; k++) if (groupHasLive(this.reg, gs[k]!)) return gs[k]!;
+    return -1;
   }
 
   /** Fixed step: running windows count down; one that runs out brings its circuits back exactly once. Returns how many

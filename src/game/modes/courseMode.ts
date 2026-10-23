@@ -14,6 +14,7 @@ import { hyp2 } from '../../core/mathx';
 import { CtDevices } from '../ctDevices';
 import { consoleFor, consoleRefusal } from '../course/securityRoom';
 import { CourseFeed } from '../course/courseFeed';
+import { spotFailed } from '../course/spotFail';
 import { DrillDetect, emptySnap, VERBS } from '../course/drillDetect';
 import { summarise } from '../course/courseRating';
 import { CourseHud } from '../../ui/hud/courseHud';
@@ -23,7 +24,7 @@ import { SectionStartState } from '../sectorReset';
 import { COURSE_RESTART_TITLE, packRated, unpackRated } from '../course/courseWire';
 import type { PlayerRef } from '../../ai/enemy';
 import { CourseMarks, bayTitle, courseGrant } from '../course/courseMarks';
-import { GRANT_GADGETS, coopRating, emptyGrant, type Grant, type SectionStats } from '../rating/sectionRating';
+import { GRANT_GADGETS, coopRating, emptyGrant, putRating, type Grant, type SectionStats } from '../rating/sectionRating';
 import { GADGETS } from '../gadgets';
 import { stationHeal } from '../medkit';
 import { REVIVES_PER_MISSION } from '../reviveClock';
@@ -96,6 +97,9 @@ function drawMarker(g: GameState, st: CourseState, lay: CourseLayout, me: Player
   else v.marker(Math.sin(Math.atan2(pt.x - p.x, pt.z - p.z) - g.player.cam.yaw) >= 0 ? 96 : 4, 45, dist, true);
 }
 
+/** (marlow-walk482 X2a) s after a set restart before the spotted rule can fire again (0.5 s respawn + co-op lag). */
+const SPOT_HOLD = 1.5;
+
 /**
  * (coop-rejoin, walk items 4 and 7) The slot points (slot 0 the host, slot 1 the partner) of the course checkpoint `cp`
  * (`CourseState.checkpoint`: 'start' or an airlock id): the map's player spawns at the start, else the airlock's
@@ -158,6 +162,8 @@ export class CourseMode implements GameMode {
   private sendT = 0;
   private dirty = true;
   private restartT = -1;
+  /** (marlow-walk482 X2a) seconds left in which the spotted rule cannot fire again after a set restart */
+  private spotHold = 0;
   private lightsVer = -1;
   private feed: CourseFeed | null = null;
   /** The remote's host-visible verbs (its MoveState mode, C10). */
@@ -300,6 +306,8 @@ export class CourseMode implements GameMode {
       hasShared: (f) => !!this.state?.hasShared(f),
     });
     g.ctDev = this.ct;
+    // (guard-ai S22, G6) the guards turn a console back on through its own gate; they hear of every toggle (`consoleEdge`)
+    if (g.enemyMgr && lay.consoles?.length) g.enemyMgr.consoleHost = { reset: (id) => this.consoleBack(id) };
     this.handle();
     this.applyLocks();
   }
@@ -413,13 +421,15 @@ export class CourseMode implements GameMode {
       return;
     }
     this.lastPress = cid;
-    // (sector-fixes S) a security console: refused while its guard is up (alive, held or not), the cameras are off or
-    // (N3) a timed console re-arms
+    // (sector-fixes S) a security console: refused while its guard watches it (guard-ai S22 A134: calm, free, the screens
+    // in view; drawn off by a distraction he does not), the cameras are off or (N3) a timed console re-arms
     const con = consoleFor(this.layout?.consoles, cid);
     if (con) {
       const guard = this.squadOf(con.guard);
       const gid = this.consoleGate.get(cid);
-      const no = consoleRefusal(!!guard && guard.alive, !!this.state?.hasFlag(con.flag), gid !== undefined && (this.state?.gateRearm(gid) ?? 0) > 0);
+      const dv = this.layout!.devices[cid];
+      const watching = !!guard && !!dv && !!this.g.enemyMgr?.watchesConsole(guard, dv.x, dv.y, dv.z);
+      const no = consoleRefusal(watching, !!this.state?.hasFlag(con.flag), gid !== undefined && (this.state?.gateRearm(gid) ?? 0) > 0);
       if (no) {
         this.refuse(no, p);
         return;
@@ -572,6 +582,21 @@ export class CourseMode implements GameMode {
     const det = g.style.detections;
     if (det > this.detSeen) st.record('detections', det - this.detSeen);
     this.detSeen = det;
+    // (marlow-walk482 X2a) spotted fails the set: a squad guard in combat restarts it from its start (the full reset,
+    // both players back to the checkpoint; the client hears the line through `rl`). Once: the restart drops the squad
+    // this step (`handle`), and never over a pending everyone-down restart. The line goes first in the queue so a
+    // full queue of lines held while the guard was alerted never drops it.
+    // A hold after any set restart covers the respawn wait (players still where they were seen) and co-op lag, so a
+    // fresh guard cannot fail the set again before both players are back (W482 check should-fix 1).
+    if (this.spotHold > 0) this.spotHold -= dt;
+    const sf = st.currentBay.spotFail;
+    // The manager's list, not `squad`: Course mode spawns only this set's squad, and a knocked-out guard a squadmate wakes is a new
+    // `Enemy` (`EnemyManager.revive`) that `squad` never holds (W482 check should-fix 2).
+    if (sf && !st.over && this.restartT < 0 && this.spotHold <= 0 && spotFailed(st.currentBay, g.enemyMgr?.enemies ?? this.squad)) {
+      this.radioQ.unshift(sf);
+      if (this.radioQ.length > 4) this.radioQ.length = 4;
+      this.restartCheckpoint();
+    }
     // (section-rating S6) the set's live rating stats (the test hook)
     const rs = this.rating;
     if (rs && rs.current >= 0) {
@@ -670,6 +695,7 @@ export class CourseMode implements GameMode {
       case 'bayRestart':
         this.restartT = -1;
         this.restarts++;
+        this.spotHold = SPOT_HOLD;
         // (section-rating S6, A8) the set's rating stats start again; a set already rated is never re-rated, and a grant
         // already given stays (the course has no checkpoint loadout to put back)
         this.rating?.begin(st.bay, st.stats[st.bay]!);
@@ -710,6 +736,10 @@ export class CourseMode implements GameMode {
         // (course-ready F2) a flag gate (the camera pocket, the scanners) never fires gateOpened: its radio line is keyed
         // by the gate id and spoken when its flag is set
         for (const gt of bay.gates) if (gt.kind === 'flag' && gt.flag === e.flag) this.radio(gt.id);
+        this.consoleEdge(e.flag, false);
+        break;
+      case 'flagCleared':
+        this.consoleEdge(e.flag, true);
         break;
       case 'drillDone': {
         const d = bay.drills.find((x) => x.id === e.drill);
@@ -762,7 +792,7 @@ export class CourseMode implements GameMode {
     const gr = courseGrant(marks, synced, coopRating(g.net !== null, g.playerRefsInto(this.refs).length), REVIVES_PER_MISSION, g.net?.revivesLeft?.() ?? REVIVES_PER_MISSION, carry);
     const view: RatingView = { sectionId: b.id, title: bayTitle(b), marks, synced, grant: gr };
     this.hook.last = view;
-    g.sectionRatings.push(view);
+    putRating(g.sectionRatings, view);
     // an ungranted rating (the finish's) carries no grant on the wire: the client tops up nothing
     const w = this.rt;
     w.sec = bi;
@@ -889,8 +919,13 @@ export class CourseMode implements GameMode {
     }
     if (full) em.resetMemory();
     // (ENGINE-ANSWERS Q4) `despawn`, not a splice and dispose: the old squad's knocked-out or dead bodies go too, so the
-    // next set's guards never find them
-    else for (const e of this.squad) em.despawn(e);
+    // next set's guards never find them. Then whatever the manager still holds (a guard a squadmate woke is a new `Enemy`
+    // that `squad` never held): Course mode only spawns the current set's guards, so none carries into the next set
+    // (polish6 check should-fix).
+    else {
+      for (const e of this.squad) em.despawn(e);
+      for (let i = em.enemies.length - 1; i >= 0; i--) em.despawn(em.enemies[i]!);
+    }
     this.squad.length = 0;
     this.squadIds.length = 0;
   }
@@ -919,6 +954,28 @@ export class CourseMode implements GameMode {
       this.squad.push(e);
       this.squadIds.push(id);
     }
+  }
+
+  /** (guard-ai S22, G6) A console's flag set (its cameras looped: off) or cleared (on): the guards hear of the toggle. */
+  private consoleEdge(flag: string, on: boolean): void {
+    const lay = this.layout;
+    const em = this.g.enemyMgr;
+    if (!lay?.consoles || !em) return;
+    for (const c of lay.consoles) {
+      if (c.flag !== flag) continue;
+      const dv = lay.devices[c.id];
+      if (dv) em.consoleState(c.id, dv.x, dv.y, dv.z, on);
+    }
+  }
+
+  /** (guard-ai S22, G6, A133) A guard worked console `id`: its loop ends (`CourseState.consoleBack`); the next `handle`
+   *  sends `flagCleared` on (the guards, the cameras, the client). Not reentrant: no `handle` from inside the guards'
+   *  update. */
+  private consoleBack(id: string): boolean {
+    const gid = this.consoleGate.get(id);
+    if (gid === undefined || !this.state?.consoleBack(gid)) return false;
+    this.dirty = true;
+    return true;
   }
 
   /** (sector-fixes S) The current bay's guard spawned from squad slot `slot` (alive or down), or null. */
@@ -1074,6 +1131,7 @@ export class CourseMode implements GameMode {
     this.ct?.dispose();
     this.ct = null;
     this.g.ctDev = null;
+    if (this.g.enemyMgr) this.g.enemyMgr.consoleHost = null;
     for (const m of this.pads) m.dispose();
     this.pads.length = 0;
     this.g.hud.pings.hideMarker();
@@ -1178,10 +1236,10 @@ function mirrorRating(g: GameState, m: ClientCourse, rt: SectorRatingWire | unde
   if (first && rh) {
     for (let i = 0; i < rh.length && i < bays.length; i++) {
       const r = i === rt.sec ? null : unpackRated(rh[i]!);
-      if (r) g.sectionRatings.push({ sectionId: bays[i]!.id, title: bayTitle(bays[i]!), marks: r.marks, synced: r.synced, grant: emptyGrant() });
+      if (r) putRating(g.sectionRatings, { sectionId: bays[i]!.id, title: bayTitle(bays[i]!), marks: r.marks, synced: r.synced, grant: emptyGrant() });
     }
   }
-  g.sectionRatings.push(v);
+  putRating(g.sectionRatings, v);
   const w = window as unknown as { __sectionRating?: { stats: unknown; last: RatingView | null; lastGrant: unknown; seq?: number } };
   if (w.__sectionRating) w.__sectionRating.last = v;
   else w.__sectionRating = { stats: null, last: v, lastGrant: null, seq: 0 };

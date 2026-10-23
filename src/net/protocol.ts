@@ -15,9 +15,10 @@ import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 import type { SecWire } from '../game/ctDevices';
 import type { SectorNetExtra, SectorRatingWire } from '../game/sectors';
 import { LAMP_BITS, LAMP_CHARS, LAMP_MAX, type LampWire } from './lampSync';
+import type { MotionState } from '../anim/motion';
 
 /** The wire version. Only this line holds it; tests read it. `scripts/merge-train.mjs build` bumps it once per train with a wire change (history: CHANGELOG, docs/systems/coop.md). */
-export const PROTOCOL_VERSION = 43;
+export const PROTOCOL_VERSION = 44;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -76,6 +77,43 @@ export interface PlayerState {
   sc?: number;
   /** Movement state (3.2.0): back to a wall, attached, committed moves, takedowns (`player/moveState.ts`). */
   mv?: MoveState;
+  /** (afp AF6) The sender's clock when it sent the state (s; a joiner's `pstate` only: the host's snapshots carry
+   *  `time`). */
+  t?: number;
+  /** (afp AF6) The owner's gait clock (cycle 0..1, its MotionDriver phase at the state): the partner's stride in step. */
+  gph?: number;
+  /** (afp AF6) The owner's Chaos Theory stop: the blend to idle (s, 0 none) and the held stride's pace (m/s, 0 none). */
+  qs?: number;
+  hs?: number;
+  /** (afp AF6) The owner's motion driver state (`MOTION_WIRE` index) and its time in it (s): the partner plays the same start /
+   *  stop / turn / pivot moments (it derived them from the measured velocity, at other moments). */
+  mo?: number;
+  mt?: number;
+  /** (afp AF6) The owner's acceleration (world x / z, m/s^2, its motion driver's): the partner's lean and its mocap stop slot
+   *  fire as the owner's (derived from the measured velocity they came ~0.1 s late, or not at all). */
+  ax?: number;
+  az?: number;
+}
+
+/** (afp AF6) `PlayerState.mo`: the motion driver states by index. */
+export const MOTION_WIRE: readonly MotionState[] = ['idle', 'start', 'move', 'stop', 'turn', 'pivot'];
+
+/** (afp AF6) The owner's motion state for the wire (pure); null (a scripted override drives the body): none. */
+export function motionWire(state: MotionState | null, stateT: number, ax: number, az: number, out: { mo?: number; mt?: number; ax?: number; az?: number }): void {
+  const i = state ? MOTION_WIRE.indexOf(state) : -1;
+  if (i < 0) return;
+  out.mo = i;
+  out.mt = Number.isFinite(stateT) ? Math.max(0, Math.min(60, stateT)) : 0;
+  out.ax = Number.isFinite(ax) ? Math.max(-100, Math.min(100, ax)) : 0;
+  out.az = Number.isFinite(az) ? Math.max(-100, Math.min(100, az)) : 0;
+}
+
+/** (afp AF6) The owner's gait fields for the wire from its controller (pure): the gait clock, the CT stop. */
+export function gaitWire(phase: number, ct: boolean, stopEaseT: number, stopHold: boolean, holdSpeed: number, stopEase: number, stopBlend: number, out: { gph?: number; qs?: number; hs?: number }): void {
+  out.gph = Number.isFinite(phase) ? ((phase % 1) + 1) % 1 : 0;
+  const qs = ct ? (stopEaseT >= 0 ? stopEase : stopBlend) : 0;
+  if (qs > 0) out.qs = qs;
+  if (stopHold && holdSpeed > 0) out.hs = holdSpeed;
 }
 
 /** A player state for the wire (the move state packed: its mode as an index). */
@@ -325,6 +363,12 @@ function playerState(v: unknown): PlayerState | null {
     w,
     hp: num(v.hp, 0, 100) ?? 100,
     ...(typeof v.sc === 'number' && Number.isFinite(v.sc) ? { sc: Math.floor(Math.max(0, Math.min(255, v.sc))) } : {}),
+    ...(num(v.t, 0, 1e9) !== null ? { t: num(v.t, 0, 1e9)! } : {}),
+    ...(num(v.gph, 0, 1) !== null ? { gph: num(v.gph, 0, 1)! } : {}),
+    ...(num(v.qs, 0, 2) !== null ? { qs: num(v.qs, 0, 2)! } : {}),
+    ...(num(v.hs, 0, 20) !== null ? { hs: num(v.hs, 0, 20)! } : {}),
+    ...(num(v.mo, 0, MOTION_WIRE.length - 1) !== null && num(v.mt, 0, 60) !== null ? { mo: Math.floor(num(v.mo, 0, MOTION_WIRE.length - 1)!), mt: num(v.mt, 0, 60)! } : {}),
+    ...(num(v.ax, -100, 100) !== null && num(v.az, -100, 100) !== null ? { ax: num(v.ax, -100, 100)!, az: num(v.az, -100, 100)! } : {}),
     ...(v.mv !== undefined && sanitizeMoveState(v.mv) ? { mv: sanitizeMoveState(v.mv)! } : {}),
   };
 }
@@ -580,6 +624,9 @@ function sectorExtra(raw: Record<string, unknown>): Partial<SectorNetExtra> {
   if (sy !== null) out.sy = Math.round(sy);
   const rt = ratingWire(raw.rt);
   if (rt) out.rt = rt;
+  // (marlow-polish, inside 42) every section rated so far, as the course message's `rh`
+  const rh = courseRh(raw.rh).rh;
+  if (rh) out.rh = rh;
   return out;
 }
 

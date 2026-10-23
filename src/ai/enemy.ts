@@ -54,6 +54,7 @@ import { emoteBlind, emoteBlindEnd, emoteSeize, emoteStep, guardHead, guardHeadR
 import { CAUTION } from './awareness';
 import type { InstancedMesh } from '../core/babylon';
 import { GuardAnimTier } from './animTierView';
+import { ANIM_TIER_FROZEN_CARRY_MAX } from './animTier';
 import { BREAKER, gearHit, type GearHit, type GuardGear } from './gear';
 import { buildArmourParts, buildHelmetPart, buildShieldPart, gearColour, HELMET_FIT } from './gearParts';
 import { guardAim } from './guardStance';
@@ -1763,6 +1764,10 @@ export class Enemy implements Damageable {
       return;
     }
     this.rig.heldWeapon = null;
+    // (artnext C9) killed while render-frozen (a partner's shot, a grenade out of view): the rig still holds the pose at
+    // the freeze, so solve it once at his current place first; the ragdoll and `Body.pos` then never depend on whether
+    // this page's camera saw him
+    if (!this.rig.root.isEnabled(false)) this.animTier.solveNow(this.rig, ANIM_TIER_FROZEN_CARRY_MAX, this.rp);
     const imp = h.dir.scale(Math.min(80, 8 + h.impulse * 3) * (h.kind === 'explosion' ? 2.5 : 1));
     imp.y += h.kind === 'explosion' ? 25 : 3;
     // the rig stays in the world as a body (ragdoll when one can be spared)
@@ -3232,10 +3237,21 @@ export class Enemy implements Damageable {
       this.dog.update(dt, r.position.x, r.position.y, r.position.z, r.rotation.y, sp, alertK, this.kick);
       this.head.copyFrom(this.dog.head);
     } else {
-      // (guard-render S4) full rate in a takedown / held, a scripted emote or a climb (and near any player: the tier)
-      this.rig.animate(dt, rp, this.animTier.dt(dt, r.position, this.ctx.players(), this.taken || this.climbing || this.rig.emote !== null));
+      // (guard-render S4) full rate in a takedown / held, a scripted emote or a climb (and near any player: the tier);
+      // (perfg, folded into `animTier.ts`) the FROZEN tier: a rig the render freeze disabled is not animated (C8 at its thaw)
+      this.animTier.animate(this.rig, dt, rp, this.ctx.players(), this.taken || this.climbing || this.rig.emote !== null);
     }
     if (this.laser) this.sniperFx();
+  }
+
+  /**
+   * (artnext C7) The render freeze re-enabled his rig root (`SectorGuardFreeze.thaw`, in the camera evaluation after this
+   * frame's `frame`, which skipped the solve): solve the pose now with the carried time, so the first frame drawn is
+   * current, not the pose at the freeze. Render only (gameplay reads none of the pose). No allocation.
+   */
+  thawPose(): void {
+    if (!this.alive || this.dog || this.rig.root.isDisposed()) return;
+    this.animTier.solveNow(this.rig, 0, this.rp);
   }
 
   /** Sniper: the laser from the scope along the aim while it aims, and the glint (sized for the local view). */
