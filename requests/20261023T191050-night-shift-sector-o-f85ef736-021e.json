@@ -1,0 +1,17 @@
+{
+  "id": "20261023T191050-night-shift-sector-o-f85ef736-021e",
+  "sha": "f85ef7362161a67bd69da356ba63c02cc4f0d526",
+  "branch": "feature/sector-redesign-lr16-entry",
+  "pr": 287,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-lightbake",
+    "e2e-darkness",
+    "e2e-sectorops"
+  ],
+  "set": "lr16entry",
+  "note": "LR16 + master 5d1e8e3e merged (train-entry resolution, protocol 45); ctcourse left out: Marlow re-tune pending"
+}
