@@ -2785,39 +2785,22 @@ async function campusS4Part(page) {
   // ones (MAX_ITEMS 128 holds for that set, with headroom for E9's crates and the revives)
   assert(d4.scope === 3 && d4.live < d4.items && d4.live <= 100, `the mirrored (live) interactables stay under the cap (${d4.live} of ${d4.items}, scope ${d4.scope})`);
 
-  // (a2) (stealth-pays S2) interrogation gives a code: a guard whose slot info carries the keypad's code, held and
-  // interrogated, opens kp-batt with no board read (the section's guards stay frozen)
-  const ic = await G((cp) => {
-    const a = window.__app;
-    const g = a.current;
+  // (a2) (stealth-pays S2) an interrogation's code flag reaches the team's codes through the mode hook `revealIntel`
+  // calls (`g.mode.onIntelCode`): kp-batt's prompt turns to "Enter code" and it opens with no board read. The real
+  // grab-and-interrogate chain is e2e-takedown's `grab-interrogate-intel`.
+  const ic = await G(() => {
     const m = window.__sector;
-    const st = a.input.state;
-    const V = g.player.position.constructor;
-    const sy = Math.sin(cp.yaw);
-    const cy = Math.cos(cp.yaw);
-    g.player.controller.teleport(new V(cp.x, cp.y, cp.z), cp.yaw);
-    g.player.cam.yaw = cp.yaw;
-    g.player.cam.pitch = 0;
-    const e = g.enemyMgr.spawn('grunt', new V(cp.x + sy * 1.2, cp.y, cp.z + cy * 1.2), false, cp.yaw);
-    if (!e) return { spawned: false };
-    e.info = { lines: ['Plant doors are 2208.'], codes: [{ flag: 's4-codes', label: 'Plant doors 2208' }] };
-    const before = m.codes.has('s4-codes');
-    const step = (s) => a.loop.stepHeadless(s, 120);
-    step(0.4);
-    st.set('t', 'interact', true);
-    step(1 / 60);
-    step(1.2);
-    st.set('t', 'interact', false);
-    const held = g.takedown.hostage === e;
-    step(1 / 60);
-    g.grabMenu.sel = g.grabMenu.opts.indexOf('interrogate');
-    st.set('t', 'interact', true);
-    step(1 / 60);
-    st.set('t', 'interact', false);
-    step(1.8);
-    return { spawned: true, held, before, after: m.codes.has('s4-codes'), open: m.useKeypad(3, 0) };
-  }, S[2].cp);
-  assert(ic.spawned && ic.held && ic.before === false && ic.after === true && ic.open === true, `S2: an interrogated guard's code opens kp-batt (${JSON.stringify(ic)})`);
+    const q = m.keyIts.find((x) => x.sec === 3 && x.k === 0);
+    const before = { has: m.codes.has('s4-codes'), label: q?.it.label ?? null };
+    m.onIntelCode('s4-codes');
+    m.onIntelCode('s4-codes');
+    const after = { has: m.codes.has('s4-codes'), label: q?.it.label ?? null };
+    return { before, after, open: m.useKeypad(3, 0) };
+  });
+  assert(
+    ic.before.has === false && ic.before.label === 'Keypad - code needed' && ic.after.has === true && ic.after.label === 'Enter code' && ic.open === true,
+    `S2: an interrogation code opens kp-batt (${JSON.stringify(ic)})`,
+  );
 
   // (b) the dock board gives the codes: both keypads open
   const codes = await G(() => {
