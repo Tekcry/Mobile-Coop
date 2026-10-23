@@ -464,13 +464,16 @@ async function pageRender([secs, counted]) {
 function pageAlert() {
   const g = window.__app.current;
   const em = g.enemyMgr;
+  // (guard-ai S24, A146/A148) one last known position per player, and no walk to the real feet without one: the
+  // player is reported seen where he stands (his slot, the mirrored lkp) and every guard is told of him before combat,
+  // so they chase as before S24 (the old direct `em.lkp` write gave no guard an intruder: they stood still)
+  const slot = em.ctx.reportSighting({ id: g.localRef.id, feet: g.player.position.clone(), spotted: false });
   for (const e of em.enemies) {
     if (!e.alive) continue;
     e.passive = false;
+    e.tell(slot);
     e.alert();
   }
-  em.lkp.copyFrom(g.player.position);
-  em.lkpValid = true;
   return em.alive;
 }
 

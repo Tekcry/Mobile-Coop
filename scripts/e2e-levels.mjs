@@ -65,7 +65,14 @@ try {
         const top = new V(L.top.x + fx * 1.2, L.top.y + 0.05, L.top.z + fz * 1.2);
         const floor = new V(L.base.x - fx * 6, 0.05, L.base.z - fz * 6);
         g.player.controller.teleport(up ? top : floor, up ? L.facing + Math.PI : L.facing);
+        // (guard-ai S24, A146/A148) one last known position per player, and an alerted guard with none for his intruder
+        // never walks to the real feet: the player was seen where he stands (his slot; a stand-in ref, so the real one
+        // is not marked spotted), and the runner spawned alerted is sent in by command on that intruder
+        // (`EnemyManager.sendIn`); he chases its last known position across the ladder on its own flow field
+        const p0 = up ? top : floor;
+        const slot = em.ctx.reportSighting({ id: g.localRef.id, feet: new V(p0.x, p0.y, p0.z), spotted: false });
         const e = em.spawn('runner', up ? floor : new V(top.x + fx * 0.4, L.top.y, top.z + fz * 0.4), true, 0);
+        const hunt = [slot, e.hunt];
         const y0 = e.pos.y;
         // the budget (sim s): the flat run to the ladder and across the top at the runner's run speed + the rise at the climb speed
         const run = e.def?.runSpeed ?? 4.2;
@@ -82,13 +89,13 @@ try {
             break;
           }
         }
-        return { y0, y: e.pos.y, links: e.linksTaken, t, py: g.player.position.y, budget, ideal, done, wallMs: performance.now() - wall0, linking: !!e['link'], state: String(e.state) };
+        return { y0, y: e.pos.y, links: e.linksTaken, t, py: g.player.position.y, budget, ideal, done, wallMs: performance.now() - wall0, linking: !!e['link'], state: String(e.state), hunt };
       } finally {
         Math.random = rnd;
       }
     }, [up, seed, up ? CLIMB_UP : CLIMB_DOWN, BUDGET_MARGIN, BUDGET_EXTRA_S, WALL_CAP_MS]);
   /** A chase's sim time and budget for an assert message (sim seconds, and the wall time it took). */
-  const took = (r) => `${r.t.toFixed(2)} sim s of ${r.budget} s budget (ideal ${r.ideal.toFixed(1)} s), ${(r.wallMs / 1000).toFixed(0)} s wall${r.done ? '' : `, not done: state ${r.state}, links ${r.links}, linking ${r.linking}, player y ${r.py.toFixed(2)}`}`;
+  const took = (r) => `${r.t.toFixed(2)} sim s of ${r.budget} s budget (ideal ${r.ideal.toFixed(1)} s), ${(r.wallMs / 1000).toFixed(0)} s wall${r.done ? '' : `, not done: state ${r.state}, links ${r.links}, linking ${r.linking}, player y ${r.py.toFixed(2)}, slot / hunt ${r.hunt.join(' / ')}`}`;
 
   console.log('up a ladder');
   const u = await chase(true, LADDER_SEED);

@@ -9,7 +9,6 @@ import type { BlobShadows } from '../vfx/blobShadows';
 import { WEAPONS, GRENADE } from '../weapons/weaponDefs';
 import { MASK } from '../physics/groups';
 import { Hitboxes } from '../ai/hitboxes';
-import { noiseRadius } from '../player/movement';
 import { defaultHq, hqStats } from '../progression/suit';
 import { SD_OPEN_NOISE } from '../weapons/sdRounds';
 import type { NetSession } from './session';
@@ -22,7 +21,7 @@ import { RemotePlayer } from './remotePlayer';
 import { HoldClock, holdFeed, stepHoldFeed, type HoldFeed } from './holdFeed';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
-import { checkBlast, checkShot, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile, SHOT_UNDER, SHOT_UNDER_HANG } from './validate';
+import { checkBlast, checkShot, clientStepNoise, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile, SHOT_UNDER, SHOT_UNDER_HANG } from './validate';
 import { localFlags, htmlToInfo } from './netShared';
 import { keepSimInBackground } from './bgTicks';
 import { hostHoldPulse, inUseReach } from './holdPulse';
@@ -53,6 +52,10 @@ import { revealIntel } from '../game/intelReveal';
 import { interrogationEnded } from '../game/intel';
 import type { TeamMate } from '../game/teamController';
 import type { PlayerRef } from '../ai/enemy';
+import { joinSpawn, slotSpawn, type SlotPoint, type SpawnBody } from '../game/spawnSlots';
+import { canWalk, spawnProbe, startSlotPoints } from '../game/spawnPlace';
+import { HALL_BACK_HOLD } from '../game/jammer';
+import { JOIN_PLACE, JOIN_RESYNC, JOIN_REVIVE_QUIET_S, JoinWatch } from './joinWatch';
 import { ClockSync, HOST_INTERP_DELAY } from './interp';
 import { CT } from '../config/movement';
 
@@ -215,7 +218,12 @@ export class CoopHost implements NetAttachment {
         this.unhold(id, name);
         this.lampForce = true;
       }),
+      // (coop-rejoin, walk item 7) the running match went to one client again (a late join, a rejoin, a reconnect):
+      // the host places it on its first state
+      s.events.on('late', ({ id }) => this.late(id)),
     );
+    // (coop-rejoin) a course match going to one client starts at the current bay (its load lands by the checkpoint)
+    if (mode === 'course') s.lateBay = () => g.mode?.resumeBay?.() ?? 1;
     this.hookHud();
     this.hookCombat();
     // (39, LR16-5b) every kick the host accepts (our rounds, the guards' rounds, blasts, bumps, a client's checked
@@ -372,10 +380,77 @@ export class CoopHost implements NetAttachment {
     if (!this.tallies.has(p.id)) this.tallies.set(p.id, emptyTally());
   }
 
-  /** (R2) Held joiners: where each stood (restored on its rejoin) and when the last restore went out. */
-  private readonly restoreFor = new Map<string, { x: number; y: number; z: number; yaw: number; sent: number; until: number }>();
+  /** (R2) Held joiners' spots (restored on the rejoin) and (coop-rejoin) the watch over a client the match went to
+   *  again, placed on its reload (fix round B1); the restores it repeats. */
+  private readonly joins = new JoinWatch();
   /** (R2) Rejoined joiners still loading: held until their first state arrives. */
   private readonly rejoining = new Set<string>();
+
+  /** (coop-rejoin) The match went to client `id` again (`start` sent to it alone): watched for its reload, which loads
+   *  at the start area of the bay that `start` carried. */
+  private late(id: string): void {
+    this.joins.late(id, startSlotPoints(this.g, this.s.lateBay?.()), this.time);
+  }
+
+  /** (coop-rejoin) Player slot of remote `id`: 1 + its place among the joiners (the host is slot 0). */
+  private slotOf(id: string): number {
+    let i = 1;
+    for (const k of this.remotes.keys()) {
+      if (k === id) return i;
+      i++;
+    }
+    return 1;
+  }
+
+  /** (coop-rejoin) The host's feet and facing (a spawn beside the host starts from it). */
+  private hostPoint(): SlotPoint {
+    const p = this.g.player.position;
+    return { x: p.x, y: p.y, z: p.z, yaw: this.g.player.cam.yaw };
+  }
+
+  /**
+   * (coop-rejoin, walk item 7) A state from a client the match went to again (`JoinWatch.state`): on the first, the
+   * section state goes at once (items, doors, lamps, the course / sector message); on its reload (no state before, or
+   * a jump into its start area; fix round B1: its first states can still be its old match's) it is put where the host
+   * decides (`joinSpawn`): Course and Sector Ops, the current checkpoint at its slot point, or beside the host when the
+   * checkpoint cannot reach the host; other modes, where its slot was held, else beside the host. It goes as the
+   * `restore` event, repeated until the client stands there.
+   */
+  private joinStep(r: RemotePlayer, x: number, z: number): void {
+    const j = this.joins.state(r.id, r.state ? r.feet : null, x, z, this.time);
+    if (j & JOIN_RESYNC) {
+      this.itemsT = 0;
+      this.lampForce = true;
+      this.g.mode?.resync?.();
+    }
+    if (!(j & JOIN_PLACE)) return;
+    this.joins.place(r.id, this.joinSpot(r, this.joins.heldSpot(r.id)), this.time);
+    r.allowTeleport(3);
+  }
+
+  /** (coop-rejoin) Where the host puts remote `r` as it (re)joins mid-run (`joinSpawn`, `held`: its held spot). */
+  private joinSpot(r: RemotePlayer, held: SlotPoint | null): SlotPoint {
+    const g = this.g;
+    const mode = g.mode;
+    const host = this.hostPoint();
+    const others: SpawnBody[] = [host];
+    for (const o of this.remotes.values()) if (o !== r && !o.held) others.push(o.feet);
+    const out: SlotPoint = { x: 0, y: 0, z: 0, yaw: 0 };
+    joinSpawn(
+      {
+        sectioned: mode?.id === 'course' || mode?.id === 'sector',
+        checkpoint: mode?.checkpointSpawns?.() ?? [],
+        reachable: (from) => canWalk(g, from, host),
+        host,
+        others,
+        probe: spawnProbe(g),
+      },
+      this.slotOf(r.id),
+      held,
+      out,
+    );
+    return out;
+  }
 
   /**
    * (marlow-bays R2) A joiner dropped mid-match: its body stays where it stood (frozen: no states arrive), takes no
@@ -395,7 +470,7 @@ export class CoopHost implements NetAttachment {
       this.release(eid);
     }
     if (this.teamPairs.has(id)) this.onTeamMove(id, 'end', '', 0, 0, 0);
-    this.restoreFor.set(id, { x: r.feet.x, y: r.feet.y, z: r.feet.z, yaw: r.state?.yaw ?? 0, sent: -1, until: 0 });
+    this.joins.hold(id, { x: r.feet.x, y: r.feet.y, z: r.feet.z, yaw: r.state?.yaw ?? 0 });
     this.g.hud.setNetNotice(`${name} disconnected - reconnecting... (room ${this.s.code})`);
     this.g.app.toasts.show(`${name} disconnected. Their place is held for 10 minutes (room ${this.s.code}).`, 'warn');
   }
@@ -413,26 +488,20 @@ export class CoopHost implements NetAttachment {
     this.rejoining.delete(r.id);
     r.held = false;
     if (!this.remoteRefs.includes(r.ref)) this.remoteRefs.push(r.ref);
-    const at = this.restoreFor.get(r.id);
-    if (at) at.until = this.time + 30;
+    this.joins.resume(r.id, this.time);
     // (E9-crate, A106) the crates it used: its prompt stays gone (`fill` false: no top-up)
     for (const id of this.g.crates?.usedBy(r.id) ?? []) this.push({ e: 'crate', player: r.id, id, fill: false });
     this.g.hud.setNetNotice(null);
     this.g.app.toasts.show(`${r.avatar.info.name} rejoined`);
   }
 
-  /** (R2) Each state from a rejoined joiner: until it stands where it was held, the restore goes out every 0.5 s. */
+  /** (R2) Each state from a rejoined joiner: until it stands where it was held (or placed), the restore goes out
+   *  every 0.5 s (`JoinWatch.restoreStep`). */
   private restoreStep(r: RemotePlayer): void {
-    const at = this.restoreFor.get(r.id);
-    if (!at || r.held) return;
-    if (this.time > at.until || hyp2(r.feet.x - at.x, r.feet.z - at.z) < 1) {
-      this.restoreFor.delete(r.id);
-      return;
-    }
-    r.allowTeleport(3);
-    if (at.sent >= 0 && this.time - at.sent < 0.5) return;
-    at.sent = this.time;
-    this.push({ e: 'restore', player: r.id, x: at.x, y: at.y, z: at.z, yaw: at.yaw });
+    if (r.held) return;
+    const at = this.joins.restoreStep(r.id, r.feet.x, r.feet.z, this.time);
+    if (this.joins.restoring(r.id)) r.allowTeleport(3);
+    if (at) this.push({ e: 'restore', player: r.id, x: at.x, y: at.y, z: at.z, yaw: at.yaw });
   }
 
   private removeRemote(id: string): void {
@@ -440,7 +509,7 @@ export class CoopHost implements NetAttachment {
     if (!r) return;
     this.partnerBoxes.get(id)?.dispose();
     this.partnerBoxes.delete(id);
-    this.restoreFor.delete(id);
+    this.joins.drop(id);
     this.rejoining.delete(id);
     if (r.held) this.g.hud.setNetNotice(null);
     this.dropRevive(id);
@@ -542,6 +611,7 @@ export class CoopHost implements NetAttachment {
     if (!r || r.alive) return;
     const p = at ?? r.feet.clone();
     r.revive(p, 2);
+    if (at) this.joins.moved(id, this.time, JOIN_REVIVE_QUIET_S);
     this.push({ e: 'revive', player: id, x: p.x, y: p.y, z: p.z });
     this.g.hud.feedItem(`${r.avatar.info.name} is back in`);
   }
@@ -597,7 +667,9 @@ export class CoopHost implements NetAttachment {
         // (R2) a rejoined joiner's first state: back in play; its first states come from its fresh spawn (the jump back
         // is allowed)
         if (this.rejoining.has(from)) this.resume(r);
-        if (this.restoreFor.has(from)) r.allowTeleport(3);
+        // (coop-rejoin) a client the match went to again: watched for its reload (its old match may still send first)
+        if (this.joins.watching(from)) this.joinStep(r, msg.s.x, msg.s.z);
+        if (this.joins.restoring(from)) r.allowTeleport(3);
         r.accept({ ...msg.s, id: from }, this.time, this.g.world.level.anchors, this.g.world.level.coverSegments, this.g.world.doors.list.length);
         r.avatar.buf.push(this.stateTime(r.id, msg.s.t), r.state!);
         if (msg.s.mv) this.g.mode?.onRemoteMove?.(r.id, msg.s.mv.m);
@@ -783,7 +855,7 @@ export class CoopHost implements NetAttachment {
     const hit = { amount: 9999, point: e.pos.clone(), dir, part: 'body' as const, kind: 'melee' as const, attackerTeam: 'player' as const, attackerId: r.id, sourcePos: r.feet.clone(), impulse: 1 };
     if (m.lethal) e.applyDamage(hit);
     else e.knockOut(hit);
-    this.g.enemyMgr?.hear(r.feet, m.lethal ? 3 : 1.2);
+    this.g.enemyMgr?.hear(r.feet, m.lethal ? 3 : 1.2, 'noise', null, r.ref.id);
     this.takedownDone(r.id);
     this.g.mode?.onRemoteTakedown?.(r.id, m.kind ?? '');
   }
@@ -1396,10 +1468,12 @@ export class CoopHost implements NetAttachment {
     for (const r of this.remotes.values()) {
       const st = r.state;
       if (!r.alive || !st) continue;
-      if (steps && (st.f & PF.silent) === 0 && (st.f & PF.grounded) !== 0) {
-        // (step 11) a back-to-wall slide is heard at the crouch band (bible 5.3)
-        const n = noiseRadius(r.ref.speed, (st.f & PF.crouch) !== 0 || st.mv?.m === 'wall');
-        if (n > 0) em.hear(r.feet, n);
+      if (steps) {
+        // (guard-ai S26 fix) the host player's rule on the client's own sent speed and stance (never the snapshot-delta
+        // estimate: a crouch-walk is silent, a teleport makes no step); (step 11) a back-to-wall slide is heard at the
+        // crouch band (bible 5.3)
+        const n = clientStepNoise(st, r.stepOk);
+        if (n > 0) em.hear(r.feet, n, 'noise', null, r.ref.id);
       }
       const t = (this.firing.get(r.id) ?? 0) - dt;
       if (st.f & PF.firing && t <= 0) {
@@ -1407,8 +1481,8 @@ export class CoopHost implements NetAttachment {
         const quiet = (st.f & PF.quiet) !== 0;
         // (guard-ai S14, A46) as in solo: SHOT_NOISE x the weapon's noise (9.8 m for the CT guns), at most the quiet cap;
         // (spare 7) a suppressed gun out of quiet rounds fires open at its open noise
-        if (quiet) em.hear(r.feet, SHOT_NOISE * Math.min(WEAPONS[st.w].noise ?? 1, 0.6));
-        else em.noise(r.feet, SHOT_NOISE * (SD_OPEN_NOISE[st.w] ?? WEAPONS[st.w].noise ?? 1));
+        if (quiet) em.hear(r.feet, SHOT_NOISE * Math.min(WEAPONS[st.w].noise ?? 1, 0.6), 'noise', null, r.ref.id);
+        else em.noise(r.feet, SHOT_NOISE * (SD_OPEN_NOISE[st.w] ?? WEAPONS[st.w].noise ?? 1), r.ref.id);
       } else this.firing.set(r.id, t);
     }
   }
@@ -1603,17 +1677,29 @@ export class CoopHost implements NetAttachment {
     const r = this.remotes.get(who);
     if (!r || !r.alive) return;
     r.moveTo(x, y, z);
+    this.joins.moved(who, this.time, HALL_BACK_HOLD);
     this.push({ e: 'back', player: who, x, y, z, yaw });
   }
 
-  /** The host respawned at a checkpoint (co-op): everyone down comes back beside it. */
+  /** The host respawned at a checkpoint (co-op): everyone down comes back beside it, (coop-rejoin, walk item 4) each
+   *  on its own slot of the checkpoint (the map's slot point, else a safe spot beside the host's). */
   onRespawn(at: Vector3): void {
     this.reviveClock.checkpoint();
     this.g.hud.setDownTimer(null);
+    const cps = this.g.mode?.checkpointSpawns?.() ?? [];
+    const c0 = cps[0];
+    const area: SlotPoint[] = c0 && hyp2(c0.x - at.x, c0.z - at.z) < 1 ? cps : [{ x: at.x, y: at.y, z: at.z, yaw: this.g.player.cam.yaw }];
+    const others: SpawnBody[] = [{ x: at.x, y: at.y, z: at.z }];
+    const probe = spawnProbe(this.g);
     let i = 1;
     for (const r of this.remotes.values()) {
-      const p = at.add(new Vector3(Math.sin(i * 2.1) * 1.2, 0, Math.cos(i * 2.1) * 1.2));
+      const o: SlotPoint = { x: 0, y: 0, z: 0, yaw: 0 };
+      slotSpawn(area, i, others, probe, o);
       i++;
+      const p = new Vector3(o.x, o.y, o.z);
+      others.push(p);
+      // (fix round, check A P2) a restore still repeating (join or held spot) stops: it would pull the partner back
+      if (!r.alive || this.g.mode?.id === 'sector' || this.g.mode?.id === 'course') this.joins.respawned(r.id, this.time);
       if (!r.alive) this.reviveOne(r.id, p);
       else if (this.g.mode?.id === 'sector' || this.g.mode?.id === 'course') {
         // (sector-ops step 3) a section restart is a clean retry: a partner still up comes back to the checkpoint too;
@@ -1671,5 +1757,6 @@ export class CoopHost implements NetAttachment {
     this.remoteRefs.length = 0;
     this.g.remotePlayers = this.soloRemotes;
     this.g.gadgets.onLocal = null;
+    this.s.lateBay = null;
   }
 }

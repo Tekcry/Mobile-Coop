@@ -34,6 +34,12 @@ export interface SessionEvents {
   away: { id: string; name: string };
   /** (marlow-bays R2, host) A held joiner is back (same player id, new connection). */
   rejoin: { id: string; name: string };
+  /**
+   * (coop-rejoin, host) The running match went to one player (`start` sent to it alone): a late join, a rejoin, or a
+   * reconnect of a player the host never saw drop (a transport that replaced its connection, so no `away`). Its match
+   * (re)loads at the course start, so the host decides where it spawns (`CoopHost`).
+   */
+  late: { id: string };
   hostLeft: Record<string, never>;
   full: Record<string, never>;
 }
@@ -61,6 +67,9 @@ export class NetSession {
   weather: WeatherChoice = 'clear';
   /** Course mode: "Start at bay N" (host, 1-based; D20). */
   courseBay = 1;
+  /** (coop-rejoin, host) The course bay a match going to one player starts it at: the current bay, so its load lands
+   *  near the checkpoint (`CoopHost` sets it); null: the match's start bay. */
+  lateBay: (() => number) | null = null;
   phase: 'lobby' | 'playing' = 'lobby';
   private start: StartInfo | null = null;
   private closed = false;
@@ -179,7 +188,11 @@ export class NetSession {
       this.send({ t: 'you', id: pid }, pid);
       if (prev?.away) this.events.emit('rejoin', { id: pid, name: msg.name });
       // late join / reconnect during a match
-      if (this.phase === 'playing' && this.start) this.send(startMsg(this.start), pid);
+      if (this.phase === 'playing' && this.start) {
+        const bay = this.start.mode === 'course' ? this.lateBay?.() : undefined;
+        this.send(startMsg(bay ? { ...this.start, bay } : this.start), pid);
+        this.events.emit('late', { id: pid });
+      }
       return;
     }
     if (!this.players.has(from) || this.players.get(from)!.away) return;
