@@ -21,7 +21,7 @@ const HAZARD = '#e8b923';
 const DESK = '#8a6a4c';
 const SHRINK = '#c4c0b0';
 const PIPE = '#6d7378';
-/** The art program dresses this colour as racking bays (`warehouseArt.ts`). */
+/** Racking bays. */
 const RACK = '#3f6f9a';
 const BEAM = '#e07b22';
 const T = 0.3;

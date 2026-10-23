@@ -79,15 +79,14 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   skips `detail` pieces); collision-only boxes (`visible: false`) are too. Neither changes the bake.
 
 ## Baked lamps (3.2)
-- `voxel/lampBake.ts` (pure, in the voxel workers): per fixed light (`bakedLights(reg)`: every kind but flashlight) a box
+- `voxel/lampBake.ts` (pure, in the bake workers): per fixed light (`bakedLights(reg)`: every kind but flashlight) a box
   over its reach of `LAMP_CELL` 0.2 m cells: the share of the fixture's sample points each air cell sees through
   conservative occupancy; solid cells take their brightest air neighbour. `packLampAtlas` / `fillLampAtlas`, `lampGrid` (2 m
   columns, <= 8 lights each, nearest first; a cone light only in the columns its beam reaches, `lampPlanReach` /
   `lampColumnDist`: radius x sin(its widest angle from straight down) and the cone's plan box, lossless since the
   formula is 0 outside the outer angle; sector-fixes L). `voxel/lampJobs.ts` `bakeLevelLamps` splits the lights across the `WorkerPool`
   and caches (`lamps:` keys, `LAMP_VERSION`).
-- `world/bakedLamps.ts` `BakedLamps` (`World.lamps`; built on every path but `cheap` (`?gfx=min`), smooth default and
-  `?voxels=1` alike (smooth-world), `?baked=0` off): an R8 3D
+- `world/bakedLamps.ts` `BakedLamps` (`World.lamps`; built on every path but `cheap` (`?gfx=min`), `?baked=0` off): an R8 3D
   atlas + one RGBA32F data texture (per lamp 6 texels; `MAX_CAPSULES` 16 character capsules from `GameState.rtCapsules`, 4
   per lamp, re-written each frame). `LampPlugin` (priority 250, on every `PBRMaterial` via `attachAll`): per pixel the lamps
   in its 2 m column - range falloff, cone, N.L - x the atlas x `lampCapsule` soft shadows, added to `finalDiffuse`.
@@ -115,9 +114,9 @@ change.
   directional = the moon, static; hemisphere = replaced by the ambient grid where the grid fills; the rest = flashlights
   and moving lights, added after the curve) on `finalDiffuse`, `finalIrradiance`, `finalRadianceScaled` and `finalAmbient`.
   Uniforms `lampDark`, `lampDarkP`.
-- Non-voxel surfaces (characters, props, weapons, and the level's own boxes on the smooth default) take the ambient grid
-  as their fill in place of the hemisphere; the voxels (`?voxels=1`) keep the sky bake's fill. `tests/smoothWorldLight.test.ts`
-  proves the light shapes and the light field are the same with voxels on or off.
+- Surfaces (characters, props, weapons, and the level's own boxes) take the ambient grid
+  as their fill in place of the hemisphere. `tests/smoothWorldLight.test.ts`
+  proves the light shapes and the light field are the same on every smooth path (Epic, Low, `?gfx=min`).
 - No light cones: a beam is not seen in clean air, only where it lands. The volumetric haze (post stack) stays. Research:
   `docs/research/night-vision-and-lamps.md`.
 - Volumetric beams (post stack, `src/vfx/volLights.ts`, vol-cone-fix): torches (`kind: 'flashlight'`) and cone lights
@@ -128,7 +127,7 @@ change.
 
 ## Night vision
 - Gain: `VISION_GAIN` 6, the darkness curve's floor eased up to `VISION_FLOOR` 1.0 under the goggles (`visionDark`);
-  `GameState` eases `BakedLamps.visionGain` with the goggles. Bodies: the flat ambient fill on non-voxel surfaces is
+  `GameState` eases `BakedLamps.visionGain` with the goggles. Bodies: the flat ambient fill on surfaces is
   scaled by `BODY_FILL` (nv 0.35, render path only; lamp light untouched).
 - The tube (`vfx/nightVision.ts`, pure; GLSL `NV_GLSL`): `CinematicPost` maps luma through `nvDrive` (contrast `gamma` 1.3)
   and `nvColor` (a green phosphor, tint 0.35 / 0.85 / 0.30, that clips to pale white from drive 0.85), adds intensifier
@@ -157,7 +156,7 @@ change.
 ## Thermal and electro (locomotion step 14)
 - `vfx/visionLook.ts` (pure, GLSL `VISION_GLSL`): a `vk` branch in the cinematic post pass (1 thermal, 2 electro). No new
   render target or material. Warm bodies and live devices set the free `pattern.w` channel of the PatternPlugin (per
-  instance, or per vertex on voxel bodies), a white emissive added to the lit colour; the ramp then colours by luma.
+  instance, or per vertex on merged guard bodies), a white emissive added to the lit colour; the ramp then colours by luma.
   Thermal softens with 4 taps in the same pass. Sensor grain and softening on all three modes (A87). Render-only: the light
   meter, the light bake and guard perception never read it.
 - What glows in each mode: `docs/systems/gadgets.md`.

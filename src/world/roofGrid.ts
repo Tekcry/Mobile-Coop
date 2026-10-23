@@ -1,7 +1,7 @@
 /**
  * Roof heights without voxels (smooth-world, pure, rendering only): per 0.5 m column the top of the highest canonical
  * light shape over it (`level.light.shapes`), from each shape's bounds. The rain stops there (`Weather.occluder`), as
- * the voxel sky bake's `roofAt` does with `?voxels=1`. Gameplay never reads it.
+ * the old voxel sky bake's `roofAt` did. Gameplay never reads it.
  */
 import { SHAPE_STRIDE, shapeBounds } from '../voxel/shapes';
 

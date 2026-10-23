@@ -1,15 +1,14 @@
 # voxel-retire - state
 
 ## Now
-Inventory and plan done (Opus planner, 2026-10-23). No code removed yet. `BRIEF.md` (ask, A1..A10) and `PLAN.md`
-(strict build brief) committed on `feature/voxel-retire`.
+PLAN steps 1-7 built by the Sonnet 5.5 implementer (2026-10-23) and committed on `feature/voxel-retire`: tsc, eslint,
+the 20 named vitest files, the PLAN grep and `npm run build` all clean. Not yet run: any e2e.
 
 ## Next
-1. Sonnet 5.5 implementer builds `PLAN.md` steps 1-7 in `C:/NightShift/Mobile-Coop-voxel-retire` (no commit).
-2. Verification from PLAN (tsc, eslint on touched files, the listed vitest files, the grep, one `npm run build`).
-3. Job lead commits, pushes, asks Test Runner (laptop) for: e2e-desktop, e2e-lightbake (must), then smoke,
+1. Test Runner (laptop, `E2E_GPU=1`, the pushed commit): e2e-desktop (all 4 parts), e2e-lightbake (must), then smoke,
    e2e-ctcourse, e2e-levels, e2e-anchors, e2e-combat, e2e-weapons-carry, e2e-enemies, e2e-gadgets, e2e-sectorops,
-   e2e-menus. Fresh Opus checker (render / world code). PR to master; the next train's full run covers the rest.
+   e2e-menus. The e2e-desktop / e2e-lightbake edits were never run (script-only changes).
+2. Fresh Opus checker (render / world code), then the PR to master; the next train's full run covers the rest.
 
 ## Open
 - Not touched by design: `src/net`, `PROTOCOL_VERSION`, save shape, settings shape (A3).
@@ -22,6 +21,7 @@ Inventory and plan done (Opus planner, 2026-10-23). No code removed yet. `BRIEF.
 
 ## Done
 - 2026-10-23: inventory (every importer of each removed file checked), BRIEF, PLAN, STATE.
+- 2026-10-23: implementation (PLAN steps 1-7); changelog fragment `changes/feature-voxel-retire.md`.
 
 ## Resume prompt
 ```

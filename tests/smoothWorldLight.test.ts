@@ -1,7 +1,7 @@
 /**
- * Smooth world light parity (smooth-world scope 3): the gameplay light bake is the same with voxels on (`?voxels=1`)
- * or off (the smooth default). Each map is prepared both ways through `LevelBuilder.prepare` - the Babylon-free part of
- * `build` that `World.create` runs (the dressing pass, the voxel split, the canonical light shapes) - and the light
+ * Smooth world light parity (smooth-world scope 3): the gameplay light bake is the same on every smooth path (Epic, Low,
+ * `?gfx=min`). Each map is prepared each way through `LevelBuilder.prepare` - the Babylon-free part of
+ * `build` that `World.create` runs (the dressing pass, the canonical light shapes) - and the light
  * shapes, their bounds and hash, and the light registry must match. Marlow Yard (ctcourse) is then baked in node twice, once
  * from each path's builder, as `World.create` + `bakeLevelLight` do: the bake hashes match, and the `LightField` built
  * from each path's own bake, registry and doors reads the same
@@ -16,7 +16,6 @@ import { bayX, ctcourse, CT_BAY, CT_CEIL } from '../src/world/maps/ctcourse';
 import { warehouse } from '../src/world/maps/warehouse';
 import type { MapDef } from '../src/world/mapDef';
 import { dressingOn } from '../src/world/detailPass';
-import { VOXEL_TIER } from '../src/core/quality';
 import { bakeLamps } from '../src/voxel/lampBake';
 import { bakeMoon, MOON_CELL } from '../src/voxel/skyBake';
 import { bakedLights, lightBakeHash, type LightBake } from '../src/world/lightBake';
@@ -26,36 +25,32 @@ import { moonLight } from '../src/world/lampMath';
 import { LIGHT } from '../src/world/lights';
 import { roofAt, roofGrid } from '../src/world/roofGrid';
 
-type Mode = 'voxels' | 'smooth' | 'smoothLow' | 'cheap';
+type Mode = 'smooth' | 'smoothLow' | 'cheap';
 
-/** The options `World.create` passes for each path (`GameState.create`: Epic with and without `?voxels=1`, a Low
- *  smooth match, and `?gfx=min` - no dressing, no voxels). */
+/** The options `World.create` passes for each path (`GameState.create`: Epic, a Low
+ *  match, and `?gfx=min` - no dressing). */
 function opts(map: MapDef, mode: Mode): LevelBuildOptions {
-  const t = VOXEL_TIER.epic;
-  const base: LevelBuildOptions = { floor: map.theme.floor ?? 'concrete', dressing: dressingOn(map), art: map.art ?? null };
-  if (mode === 'voxels') return { ...base, detail: 'epic', voxelSize: t.size, fineSize: t.fine };
+  const base: LevelBuildOptions = { floor: map.theme.floor ?? 'concrete', dressing: dressingOn(map) };
   if (mode === 'smooth') return { ...base, detail: 'epic' };
   if (mode === 'smoothLow') return { ...base, detail: 'low' };
   return base;
 }
 
-function prepared(map: MapDef, mode: Mode): { b: LevelBuilder; light: ReturnType<LevelBuilder['prepare']>['light']; voxels: boolean } {
+function prepared(map: MapDef, mode: Mode): { b: LevelBuilder; light: ReturnType<LevelBuilder['prepare']>['light'] } {
   const b = new LevelBuilder();
   map.build(b, 0);
   const r = b.prepare(map.id, opts(map, mode));
-  return { b, light: r.light, voxels: !!r.voxels };
+  return { b, light: r.light };
 }
 
-const MODES: Mode[] = ['voxels', 'smooth', 'smoothLow', 'cheap'];
+const MODES: Mode[] = ['smooth', 'smoothLow', 'cheap'];
 
-describe('smooth world: the light shapes are the same with voxels on or off', () => {
+describe('smooth world: the light shapes are the same on every path', () => {
   for (const map of [ctcourse, warehouse]) {
     it(`${map.id}: shapes, bounds, hash and lights match on every path`, () => {
-      const ref = prepared(map, 'voxels');
-      expect(ref.voxels).toBe(true);
+      const ref = prepared(map, 'smooth');
       for (const mode of MODES) {
         const p = prepared(map, mode);
-        expect(p.voxels, `${map.id} ${mode} voxels`).toBe(mode === 'voxels');
         expect(p.light.hash, `${map.id} ${mode} hash`).toBe(ref.light.hash);
         expect(p.light.lo, `${map.id} ${mode} lo`).toEqual(ref.light.lo);
         expect(p.light.hi, `${map.id} ${mode} hi`).toEqual(ref.light.hi);
@@ -65,19 +60,11 @@ describe('smooth world: the light shapes are the same with voxels on or off', ()
       }
     });
   }
-
-  it('the Warehouse (an art layer) draws the box dressing on the smooth path only (the light shapes ignore it)', () => {
-    const on = prepared(warehouse, 'voxels');
-    const off = prepared(warehouse, 'smooth');
-    expect(on.b.boxes.some((x) => x.detail)).toBe(false);
-    expect(off.b.boxes.some((x) => x.detail)).toBe(true);
-    expect(off.light.hash).toBe(on.light.hash);
-  });
 });
 
-describe('smooth world: Marlow Yard light field, voxels on vs off', () => {
-  const on = prepared(ctcourse, 'voxels');
-  const off = prepared(ctcourse, 'smooth');
+describe('smooth world: Marlow Yard light field, Epic vs Low smooth', () => {
+  const on = prepared(ctcourse, 'smooth');
+  const off = prepared(ctcourse, 'smoothLow');
   const fields: Record<'on' | 'off', { open: LightField; shut: LightField }> = {} as never;
 
   /** The bake as `World.create` + `bakeLevelLight` make it, from one prepared builder's own shapes and registry. */
@@ -108,7 +95,7 @@ describe('smooth world: Marlow Yard light field, voxels on vs off', () => {
     }
   }, 120_000);
 
-  it('the two bakes (voxels on, voxels off) are byte-identical (lamps, moon, ambient grid)', () => {
+  it('the two bakes (Epic, Low) are byte-identical (lamps, moon, ambient grid)', () => {
     expect(bakes.on === bakes.off).toBe(false);
     expect(lightBakeHash(bakes.off)).toBe(lightBakeHash(bakes.on));
     expect(bakes.off.lamps!.baked.ids).toEqual(bakes.on.lamps!.baked.ids);
@@ -133,7 +120,7 @@ describe('smooth world: Marlow Yard light field, voxels on vs off', () => {
     return p.body ? lf.bodyLevel(p.x, p.y, p.z, 1.7) : lf.levelAt(p.x, p.y, p.z);
   };
 
-  /** The sweep's readings with voxels off (the coverage check below). */
+  /** The sweep's readings (Low) (the coverage check below). */
   const sweep: number[] = [];
 
   it('the light field reads the same level at every point', () => {
