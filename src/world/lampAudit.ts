@@ -535,7 +535,7 @@ export function auditLamp(sc: Scene, l: AuditLamp, others: readonly AuditLamp[] 
   const check = (x: number, z: number, step: number): { ok: boolean; after: number; ceil: number; why: string } => {
     const after = measure(sc, l, x, l.y, z, skip).dist;
     const ceil = ceilingGap(sc, x, l.y, z);
-    if (step > mid + 1e-3) return { ok: false, after, ceil, why: 'past the centre line' };
+    if (mid > 0 && step > mid + 1e-3) return { ok: false, after, ceil, why: 'past the centre line' };
     const blocked = cast(sc, l.x, l.y, l.z, px * Math.sign(step), 0, pz * Math.sign(step), Math.abs(step));
     if (blocked) return { ok: false, after, ceil, why: 'a solid in the way' };
     if (clearance(sc, x, l.y, z, 1) < clear0) return { ok: false, after, ceil, why: 'lands in a solid' };
