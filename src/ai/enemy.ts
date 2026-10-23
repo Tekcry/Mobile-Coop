@@ -31,7 +31,7 @@ import { PatrolWalker, searchPoint, PATROL, type PatrolRoute } from './patrol';
 import { BODY, bodyNoticed } from './bodies';
 import type { Body } from './body';
 import { alarmStandPoint, raiseTime, type AlarmPanel } from './alarm';
-import type { LightDef } from '../world/lights';
+import type { LightDef, Occluder } from '../world/lights';
 import type { LightField } from '../world/lightField';
 import { ARCHETYPE, carriesTorch, glint, heavyMult, shieldBlocks, smellRate, sniperRelocate, torchRule, type DifficultyDef } from './archetypes';
 import { placeTorch } from '../world/torches';
@@ -133,6 +133,9 @@ export interface AiContext {
   /** Stealth rules: enemies only know where the target is from what they see and hear (else they are
    *  sent at it, as in Wave). */
   stealth(): boolean;
+  /** (LR16t) Static geometry for the light field's flashlights (`EnemyManager.bodyOccluder`): the light on a target
+   *  without its own sample is tested as a body's is, so a torch behind a wall does not light it. */
+  lightOccluder?: Occluder;
   /** (guard-ai S2) Coordinated guards (the incident board): the new paces (A9) and the calm turn when searching.
    *  Absent / false (Hunter, Mission): the old paces. */
   coordinated?(): boolean;
@@ -168,6 +171,12 @@ let nextId = 1;
  * squadmate keeps 1.3 (he hurries to a man down). (guard-ai S4, A9) A cautious guard patrols at 0.95 (not on a timed
  * loop: its schedule is the map's).
  */
+/** (LR16t) The light field at a point for a guard's perception, its flashlights tested with the context's occluder
+ *  (`AiContext.lightOccluder`), as a body's light is. */
+export function fieldLight(ctx: Pick<AiContext, 'world' | 'lightOccluder'>, x: number, y: number, z: number): number {
+  return ctx.world.lightField.totalAt(x, y, z, ctx.lightOccluder);
+}
+
 export const PACE = {
   patrol: 1.1,
   cautious: 0.95,
@@ -1612,7 +1621,7 @@ export class Enemy implements Damageable {
     const samples = best.target.headPoint ? 3 : 2;
     if (this.los) this.lastSeenT = 0;
     // light on the target (perception reads it): the owner's sample, else the light field at the aim point
-    this.targetLight = best.light ?? this.ctx.world.lightField.totalAt(this.tmp.x, this.tmp.y, this.tmp.z);
+    this.targetLight = best.light ?? fieldLight(this.ctx, this.tmp.x, this.tmp.y, this.tmp.z);
     // awareness: sight fill rate from distance, field of view, light, stance, motion and exposure
     const si = this.sight;
     si.dist = bd;
