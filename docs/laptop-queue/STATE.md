@@ -1,6 +1,16 @@
 # laptop-queue - state
 
-## Now (2026-10-23 ~19:55)
+## Now (2026-10-23 ~19:30, LIVE OVERLAP)
+Fix round face1711 (Opus): shard completeness gate, stale own `pending` re-picked, own stale locks cleared, task via
+Register-ScheduledTask (no time limit, battery ok, Normal). 20/20 vitest. LIVE since ~19:19: task
+NightShift-laptop-queue (every 5 min, LQ_FOLLOW=origin/feature/laptop-queue) runs service.mjs from the svc worktree
+C:/NightShift/Mobile-Coop-laptop-queue-svc (detached face1711); state / log C:/NightShift/scratch/laptop-queue/.
+Requests pushed so far (origin/laptop-queue): Guard AI d82f9b6f ctcourse:2+:4 (running 4189), Marlow 91b587f2 train32-entry
+(#237), Marlow 1bde5328 ctcourse:2 flake rerun. Next: watch their statuses / comments; the next train/<n> goes through
+the service sharded (measure wall vs 666 s at JOBS=3 one slot); then PR (train-ready) + tell the leads:
+`node scripts/laptop-queue/request.mjs --sha <ref> --suites "a b" [--pr N] [--set name] --requester "<title>"`.
+
+## Earlier (2026-10-23 ~19:55 draft)
 S1 built (Sonnet) ad0196cc: lib / service / request / serve / install-task, 16 vitest, tsc clean, dry runs ok (train 31
 bins 895 / 894 s). Follow-up in progress: failure comments carry assert + log path + last ~40 lines (Michael ~19:25).
 Builder deviations to check: old train heads skipped (ancestor of master or > 24 h, LQ_TRAIN_MAX_AGE_H); weights seeded
