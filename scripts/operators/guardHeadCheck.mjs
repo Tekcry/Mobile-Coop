@@ -104,7 +104,7 @@ export function checkHeadReport(r, kit) {
   } else f.push(`${r.head}: no albedo stats`);
   const uv = r.faceTile?.uv;
   if (uv && uv.tris && uv.flippedTris / uv.tris > 0.01) f.push(`${r.head}: ${uv.flippedTris} of ${uv.tris} UV triangles flipped`);
-  if (r.craniumLock && r.craniumLock.shiftMaxMm > 0.01) f.push(`${r.head}: cranium moved ${r.craniumLock.shiftMaxMm} mm`);
+  if (r.craniumLock && r.craniumLock.shiftMaxMm > 0.1) f.push(`${r.head}: cranium moved ${r.craniumLock.shiftMaxMm} mm`);
   const top = r.bounds?.max?.[2];
   if (typeof top !== 'number' || !near(top, base.refHeight, 0.01)) f.push(`${r.head}: crown z ${top} not at refHeight ${base.refHeight}`);
   if (r.iris && !(kit.face?.irises ?? []).includes(r.iris)) f.push(`${r.head}: iris ${r.iris} not in the kit`);

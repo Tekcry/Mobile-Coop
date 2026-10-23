@@ -384,8 +384,10 @@ def tri_count(me):
 
 
 def activate(obj):
+    bpy.context.view_layer.update()   # objects removed or joined earlier can leave stale entries in the layer
     for o in bpy.context.view_layer.objects:
-        o.select_set(False)
+        if o is not None:
+            o.select_set(False)
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj
 
@@ -866,20 +868,57 @@ def back_seam_edges(obj, co, hv, face):
     return sel
 
 
-def ear_seam_edges(obj, ears):
-    """UV cut around each ear's root: the edges between faces on the ear (mean mask > 0.5) and faces off it."""
+def region_seam_edges(obj, label):
+    """UV cuts between face regions: the edges whose two faces carry different labels (`label[i]`: polygon i)."""
     me = obj.data
-    ears = np.asarray(ears)
     side = {}
     for p in me.polygons:
-        on = bool(ears[list(p.vertices)].mean() > 0.5)
         for ek in p.edge_keys:
-            side.setdefault(ek, set()).add(on)
+            side.setdefault(ek, set()).add(int(label[p.index]))
     sel = np.zeros(len(me.edges), dtype=bool)
     for e in me.edges:
-        if len(side.get(e.key, ())) == 2:
+        if len(side.get(e.key, ())) > 1:
             sel[e.index] = True
     return sel
+
+
+FACE_AZ = 72.0           # the face island: in front of this azimuth (deg) and below the hairline
+FACE_UV_GAIN = 1.9       # its texel density over the rest of the head (the face reads; the back of the head is hair)
+
+
+def face_labels(obj, co, hv, face, ears):
+    """Per polygon of the hm08 head object: 2 ear, 1 face (front, below the hairline), 0 the rest."""
+    az, h = face.frame(co[hv])
+    front = (az < FACE_AZ) & (h < hairline(az))
+    ear = np.asarray(ears) > 0.5
+    lab = np.zeros(len(obj.data.polygons), dtype=np.int64)
+    for p in obj.data.polygons:
+        vs = list(p.vertices)
+        if ear[vs].mean() > 0.5:
+            lab[p.index] = 2
+        elif front[vs].mean() > 0.5:
+            lab[p.index] = 1
+    return lab
+
+
+def gain_island(obj, lab, which, gain, margin):
+    """Scale the UVs of polygons labelled `which` by `gain` about their centre, then repack keeping relative sizes."""
+    me = obj.data
+    uv = np.empty(len(me.loops) * 2, dtype=np.float32)
+    me.uv_layers.active.data.foreach_get('uv', uv)
+    uv = uv.reshape(-1, 2)
+    loops = np.array([li for p in me.polygons if lab[p.index] == which for li in p.loop_indices], dtype=np.int64)
+    if not len(loops):
+        return
+    c = (uv[loops].min(axis=0) + uv[loops].max(axis=0)) / 2.0
+    uv[loops] = c + (uv[loops] - c) * gain
+    me.uv_layers.active.data.foreach_set('uv', uv.ravel())
+    activate(obj)
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.uv.select_all(action='SELECT')
+    bpy.ops.uv.pack_islands(rotate=True, scale=True, margin_method='FRACTION', margin=margin)
+    bpy.ops.object.mode_set(mode='OBJECT')
 
 
 # ---------------------------------------------------------------- mode: one head variant
@@ -916,10 +955,13 @@ def run_head(args, kit):
         if w_head[i] < 1.0:
             vg_n.add([i], float(1.0 - w_head[i]), 'REPLACE')
         keep.add([i], 0.0 if int(v) in seam_set else 1.0, 'REPLACE')
-    # UV on the full mesh (cut up the back of the head, ears their own islands), carried through the decimation
+    # UV on the full mesh, carried through the decimation: the face its own island at FACE_UV_GAIN x the density, the
+    # rest cut up the back of the head, the ears their own islands
     src.data.uv_layers.new(name='face')
-    seams = back_seam_edges(src, co, hv, face) | ear_seam_edges(src, reg['ears'][hv])
+    labels = face_labels(src, co, hv, face, reg['ears'][hv])
+    seams = back_seam_edges(src, co, hv, face) | region_seam_edges(src, labels)
     unwrap(src, seams=seams, margin=0.006)
+    gain_island(src, labels, 1, FACE_UV_GAIN, 0.006)
     uvs_full = uv_stats(src.data)
 
     # LODs
@@ -949,7 +991,7 @@ def run_head(args, kit):
     for lod in ('lod0', 'lod1', 'lod2'):
         for side, (c, r) in zip(('L', 'R'), face.eyes):
             eye_objs[(lod, side)] = eye_mesh(f'guard-{head["id"]}-eye{side}-{lod}', frame.bl(c), r * 0.1 * frame.k, lod, cell)
-    eye_tris = {lod: sum(tri_count(eye_objs[(lod, s)].data) for s in 'LR') for lod in ('lod0', 'lod1', 'lod2')}
+    eye_counts = {lod: sum(tri_count(eye_objs[(lod, s)].data) for s in 'LR') for lod in ('lod0', 'lod1', 'lod2')}
 
     # bake source: the full mesh subdivided (SRC_SUBDIV), masks evaluated at its own vertices (brows, lashes and the
     # lid line need ~1 mm, the hm08 face is ~5 mm), with the procedural skin
@@ -1046,7 +1088,7 @@ def run_head(args, kit):
         'source': 'MakeHuman hm08 base mesh and CC0 face targets, MPFB2 data from the pinned zip (docs/art-credits.md); '
                   'skin, eyes and hair generated in-repo (guard_skin.py)',
         'targets': head['targets'], 'facialHair': head.get('facialHair'), 'iris': head.get('iris'), 'irisCell': cell,
-        'tris': {'head': lod_counts, 'eyes': eye_tris, 'targets': tris},
+        'tris': {'head': lod_counts, 'eyes': eye_counts, 'targets': tris, 'headTargets': head_target},
         'objects': {lod: o.name for lod, o in lods.items()} | {'eyeL': eye_objs[('lod0', 'L')].name,
                                                                  'eyeR': eye_objs[('lod0', 'R')].name},
         'materialSlots': {'0': 'face tile (UV "face")', '1': 'eye block (UV "face" in eye-block space; LOD1/LOD2)'},
@@ -1069,7 +1111,7 @@ def run_head(args, kit):
     }
     with open(os.path.join(out_dir, f'guard-{head["id"]}-head.json'), 'w', encoding='utf-8') as f:
         json.dump(report, f, indent=2)
-    log(f'{head["id"]}: head {lod_counts}, eyes {eye_tris}, tile {tile} -> {blend}')
+    log(f'{head["id"]}: head {lod_counts}, eyes {eye_counts}, tile {tile} -> {blend}')
 
 
 # ---------------------------------------------------------------- mode: hair caps + head envelope + eye block (per base)
@@ -1118,14 +1160,14 @@ def write_envelope_json(out, base, kit, env, info, marks, job):
         for k in range(1, len(vs) - 1):
             tris.append([vs[0], vs[k], vs[k + 1]])
     lo, hi = co.min(axis=0), co.max(axis=0)
-    cy = float(lo[1] + hi[1]) / 2.0
+    cy = float(marks['headJoint'][1])   # radii about the vertical through the head joint (the head bone's pivot)
     caps = [c['offset'] for c in kit['hairCaps']]
     data = {
         'base': base['id'], 'job': job, 'refHeight': base['refHeight'],
         'units': 'm', 'axes': "Blender (Z up, the face toward -Y, the head's left on +X), feet at z = 0, base refHeight",
         'offset': info['offset'], 'thickestCap': max(caps), 'clearance': round(info['offset'] - max(caps), 4),
         'crownZ': round(float(hi[2]), 5),
-        'centreY': round(cy, 5),
+        'centreY': round(cy, 5), 'radiiAbout': 'x = 0, y = centreY (the head joint); z from eyeMid',
         'maxRadii': {'x': round(float(np.abs(co[:, 0]).max()), 5), 'yFront': round(cy - float(lo[1]), 5),
                      'yBack': round(float(hi[1]) - cy, 5), 'zAboveEyes': round(float(hi[2]) - marks['eyeMid'][2], 5)},
         'bounds': {'min': info['min'], 'max': info['max']},
@@ -1308,6 +1350,7 @@ def main():
     common.check_version()
     common.empty_scene()
     common.seed_everything(args.seed)
+    bpy.context.preferences.filepaths.save_version = 0   # no .blend1 backups beside a rebaked output
     kit = load_kit(args.kit)
     if args.haircaps:
         run_haircaps(args, kit)

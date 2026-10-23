@@ -70,8 +70,8 @@ describe('budgets (PLAN 5)', () => {
     expect(2 * eyeTris('lod0')).toBeLessThanOrEqual(500);
     const b = headBudgets(kit(), 'lean-2');
     expect(b.head).toEqual({ lod0: 4000, lod1: 1200, lod2: 400 });
-    expect(b.target.lod1 + b.eyesPerLod.lod1).toBe(1200);
-    expect(b.target.lod2 + b.eyesPerLod.lod2).toBe(400);
+    expect((b.target.lod1 ?? 0) + (b.eyesPerLod.lod1 ?? 0)).toBe(1200);
+    expect((b.target.lod2 ?? 0) + (b.eyesPerLod.lod2 ?? 0)).toBe(400);
     expect(b.target.lod2).toBeGreaterThan(300);
   });
   it('unknown head throws', () => {
