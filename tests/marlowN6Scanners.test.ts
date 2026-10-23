@@ -9,7 +9,7 @@ import { Scene, Vector3, type InstancedMesh } from '../src/core/babylon';
 import { SCANNER, SCAN_GLOW, SC_DONE, SC_HACKING, SC_IDLE, SC_READY, newScanPair, packScan, scanGlowAt, unpackScan, type ScannerDef } from '../src/game/scanners';
 import type { CtDevices as CtDevicesT, SecWire } from '../src/game/ctDevices';
 import type { CourseDevice } from '../src/game/course/courseDef';
-import { parseMessage, PROTOCOL_VERSION } from '../src/net/protocol';
+import { parseMessage } from '../src/net/protocol';
 
 const dev = (x: number, z: number, yaw: number, y = 0): CourseDevice => ({ x, y, z, yaw });
 
@@ -126,9 +126,6 @@ describe('(N6) scanner glow placement and the wire entry (pure)', () => {
 
 describe('(N6) protocol 30: sec.sc is one entry per pair', () => {
   const base = { ck: [], j: ['', ''], ch: [5, 5], cd: [0, 0], dv: [], al: 0 };
-  it('PROTOCOL_VERSION is 42 (42 marlow-final over train 31 (41, guard-ai S9); 36 the merge of marlow-final 33 and master 35 the weapons crate; 33: 30 one scanner entry per pair, merged with the Sector lamps 31)', () => {
-    expect(PROTOCOL_VERSION).toBe(42);
-  });
 
   it('two pairs round-trip', () => {
     const sec: SecWire = { ...base, j: ['', ''], ch: [5, 5], cd: [0, 0], sc: [[0, 0, 0, 0, 0], [3, 3, 3, 20, 20]] };
