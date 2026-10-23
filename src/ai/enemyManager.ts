@@ -36,6 +36,8 @@ import type { CameraBodyEvent } from '../security/securitySystem';
 import { Awareness, CAUTION, MAX_KEYS } from './awareness';
 import { bodyNoticed } from './bodies';
 import { CoverGrid, coverSetFrom, type CoverSet } from './coverGrid';
+import { gearFromTag, mergeGear, type GearTag, type GuardGear } from './gear';
+import { HelmetDrops } from './helmetDrops';
 import { assignRoles, combatSeed, P_AGGRESSIVE, P_POST, P_STANDARD, R_NONE, R_REPORTER, RoleInput, RoleOutput, SQUAD } from './squadRoles';
 
 // Live guard cap. 12 = the Dead Line co-op peak of 10 chapter-active guards (furthest-behind and furthest-ahead
@@ -287,6 +289,11 @@ export class EnemyManager {
   /** The tables (tests / e2e read the numbers from here). */
   readonly squadTable = SQUAD;
   readonly tacticsTable = TACTICS;
+  /** (guard-ai S12) Helmets shot off guards, lying where they fell (a pool; tests read `shown`). */
+  readonly helmetDrops: HelmetDrops;
+  /** (guard-ai S12) Scratch for `placeSlot`'s gear. */
+  private readonly gearA: GuardGear = { helmet: false, armour: false };
+  private readonly gearB: GuardGear = { helmet: false, armour: false };
 
   constructor(
     private scene: Scene,
@@ -319,6 +326,8 @@ export class EnemyManager {
     this.coverSet = coverSetFrom(world.level.cover);
     this.coverGrid = CoverGrid.fromSet(this.coverSet);
     this.coverBlockT = new Float32Array(this.coverSet.n);
+    // (guard-ai S12) helmets shot off guards (built on the first drop)
+    this.helmetDrops = new HelmetDrops(world.parts, (m) => world.addShadowCaster(m));
     this.ctx = {
       scene,
       world,
@@ -405,6 +414,7 @@ export class EnemyManager {
       radioCut: (e) => {
         this.radioNet.cut(e.num);
       },
+      dropHelmet: (x, y, z, top, dx, dz, hex, w, h, d) => this.helmetDrops.drop(x, y, z, top, dx, dz, hex, w, h, d),
       searchSlot: (e) => {
         let n = 0;
         for (const o of this.enemies) if (o !== e && o.alive && o.level === 'searching' && o.num < e.num) n++;
@@ -1090,6 +1100,9 @@ export class EnemyManager {
    * `squad` (none: the default cluster of posts within 12 m), a dog's `handler`, and `pair` (stored for S10). Without
    * `slots` only a hand-set `squad` joins. `zone`: a secure zone answers first inside its circle. `role`: radio-check
    * caller (desk), alarm runner (supervisor), light checker (rover first). `reason` is stored.
+   *
+   * (guard-ai S12) His gear: the slot's `gear` tag merged with the section default `sectionGear` (`SectorDef.gear`);
+   * neither = no gear (Marlow Yard and the early sections are unchanged).
    */
   placeSlot(
     e: Enemy,
@@ -1097,9 +1110,11 @@ export class EnemyManager {
     section?: number,
     slots?: readonly (GuardSlotTags & { x: number; z: number; y?: number })[],
     index = -1,
+    sectionGear?: GearTag,
   ): void {
     e.section = section ?? sectionAt(this.world.layout.guardAi, e.pos.x, e.pos.z);
     e.profile = slot.profile ?? 'standard';
+    e.setGear(mergeGear(gearFromTag(slot.gear, this.gearA), gearFromTag(sectionGear, this.gearB), this.gearA));
     // (guard-ai S8, A25) the squad-roles profile: a posted guard holds and watches (never point / flank), an aggressive
     // slot bounds first
     e.tacticsProfile = slot.post ? P_POST : slot.profile === 'aggressive' ? P_AGGRESSIVE : P_STANDARD;
@@ -1844,6 +1859,7 @@ export class EnemyManager {
 
   update(dt: number): void {
     this.sightT += dt;
+    this.helmetDrops.update(dt);
     // nobody hunting any more: the last known position is forgotten
     if (this.lkpValid && this.sightT > 2 && !this.hunting) this.lkpValid = false;
     this.flowT -= dt;
@@ -2026,5 +2042,7 @@ export class EnemyManager {
     this.coverBlockT.fill(0);
     this.contactCaller = -1;
     this.rolesActive = false;
+    // (guard-ai S12) and the helmets on the floor
+    this.helmetDrops.clear();
   }
 }

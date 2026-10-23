@@ -46,6 +46,11 @@ import type { BehaviourProfile } from './guardAiData';
 import { DogModel } from './dogModel';
 import { CAUTION } from './awareness';
 import type { InstancedMesh } from '../core/babylon';
+import { gearHit, type GearHit, type GuardGear } from './gear';
+import { factionLook } from './factions';
+
+/** (guard-ai S12) Scratch for `gearHit` (one hit at a time; the damage path allocates nothing for gear). */
+const GEAR_OUT: GearHit = { mult: 1, knockOff: false, stagger: 0 };
 
 export type EnemyState = 'idle' | 'chase' | 'attack' | 'seekCover' | 'inCover' | 'melee' | 'dead';
 
@@ -148,6 +153,9 @@ export interface AiContext {
   searchSlot(e: Enemy): number;
   /** A callout (shown near the speaker; radio lines chirp). */
   onBark?(e: Enemy, line: string, radio: boolean): void;
+  /** (guard-ai S12) His helmet was shot off: a dropped helmet (colour `hex`, size `w`, `h`, `d`) falls from `top` m
+   *  above his feet (x, y, z) to the floor beside them, flung along (dx, dz) (the pooled `HelmetDrops`). */
+  dropHelmet?(x: number, y: number, z: number, top: number, dx: number, dz: number, hex: string, w: number, h: number, d: number): void;
 }
 
 let nextId = 1;
@@ -515,10 +523,101 @@ export class Enemy implements Damageable {
     if (!this.alive || this.taken) return;
     this.stagger = Math.max(this.stagger, seconds);
     this.strikeStaggerT = seconds;
+    this.sinceStagger = 0;
     this.burstLeft = 0;
     this.windup = 0;
     this.vel.setAll(0);
     this.alert();
+  }
+
+  // ----- (guard-ai S12) gear: helmet and body armour (`gear.ts`; research/stealth-over-shooting.md items 2, 13) -----
+
+  /** He wears a helmet (the first bullet to the head knocks it off: no damage, a stagger). */
+  helmet = false;
+  /** He wears body armour (bullets to the body deal no damage, a stagger at most every `GEAR.staggerCd` s). */
+  armour = false;
+  /** Seconds since his last stagger (the vest's stagger cooldown); large at spawn so the first vest hit staggers. */
+  sinceStagger = 1e9;
+  /** The placeholder gear parts (A45), built once on first use and toggled: the helmet on his head node, the plates. */
+  private helmetPart: InstancedMesh | null = null;
+  private armourParts: InstancedMesh[] | null = null;
+  private gearHex = '';
+
+  /** Put gear on him (or take it off): `placeSlot` (slot tag + section default), a woken guard (`inherit`), and S13's
+   *  alarm stages. Parts are built the first time he needs them (load time), then only shown or hidden. */
+  setGear(g: GuardGear): void {
+    this.helmet = g.helmet === true;
+    this.armour = g.armour === true;
+    this.showGear();
+  }
+
+  /** The gear parts match `helmet` / `armour` (a dog has none; nothing is built for a guard without gear). */
+  private showGear(): void {
+    if (this.dog) return;
+    if (this.helmet && !this.helmetPart) this.buildHelmet();
+    if (this.armour && !this.armourParts) this.buildArmour();
+    if (this.helmetPart) this.helmetPart.isVisible = this.helmet;
+    const a = this.armourParts;
+    if (a) for (let i = 0; i < a.length; i++) a[i]!.isVisible = this.armour;
+  }
+
+  /** His faction's helmet / accent colours (the rig's look). */
+  private gearColour(slot: 'helmet' | 'accent'): string {
+    const look = factionLook(this.def.look, this.def.kind, this.ctx.world.map.theme.faction);
+    if (slot === 'helmet') this.gearHex = look.colors.helmet;
+    return slot === 'helmet' ? look.colors.helmet : look.colors.accent;
+  }
+
+  /** The helmet: the rig's combat-helmet part on his head node (over a cap). */
+  private buildHelmet(): void {
+    const rig = this.rig;
+    const H = rig.p.head;
+    const m = this.ctx.world.parts.instance('helmet', this.gearColour('helmet'), 'enemy-helmet');
+    m.parent = rig.headNode;
+    m.scaling.set(H.w * 1.26, H.h * 0.82, H.d * 1.18);
+    m.position.set(0, H.h * 0.14, -0.006);
+    this.ctx.world.addShadowCaster(m);
+    this.helmetPart = m;
+  }
+
+  /** Body armour: the rig's armour plates (front and back on the torso node, shoulder caps). */
+  private buildArmour(): void {
+    const rig = this.rig;
+    const p = rig.p;
+    const hex = this.gearColour('accent');
+    const parts = this.ctx.world.parts;
+    const front = p.chest.d / 2;
+    const out: InstancedMesh[] = [];
+    const plate = (z: number): void => {
+      const m = parts.instance('pill', hex, 'enemy-armour');
+      m.parent = rig.torso;
+      m.scaling.set(p.chest.w * 0.9, 0.34, 0.07);
+      m.position.set(0, 0.1, z);
+      out.push(m);
+    };
+    plate(front + 0.004);
+    plate(-front - 0.004);
+    for (const side of [-1, 1]) {
+      const m = parts.instance('dome', hex, 'enemy-armour');
+      m.parent = side < 0 ? rig.shoulderL : rig.shoulderR;
+      m.scaling.set(p.upperArm.r0 * 3.2, 0.095, p.upperArm.r0 * 3.2);
+      m.position.set(side * 0.01, 0, 0);
+      m.rotation.set(0, 0, -side * 0.35);
+      out.push(m);
+    }
+    for (let i = 0; i < out.length; i++) this.ctx.world.addShadowCaster(out[i]!);
+    this.armourParts = out;
+  }
+
+  /** The helmet comes off: hidden on his head, a dropped helmet at his feet flung away from the shot. */
+  private knockHelmetOff(h: HitInfo): void {
+    this.helmet = false;
+    if (this.helmetPart) this.helmetPart.isVisible = false;
+    const H = this.dog ? null : this.rig.p.head;
+    if (H) {
+      const dl = hyp2(h.dir.x, h.dir.z) || 1;
+      this.ctx.dropHelmet?.(this.pos.x, this.pos.y, this.pos.z, 1.65 * this.def.scale, h.dir.x / dl, h.dir.z / dl, this.gearHex || '#22262b', H.w * 1.26, H.h * 0.82, H.d * 1.18);
+    }
   }
 
   /** (3.2.0) Seconds this guard has seen its target holding a hostage (the hesitation before aimed fire). */
@@ -644,7 +743,8 @@ export class Enemy implements Damageable {
    * his key, squad, held room, passive flag, what he knows (`info`, unless spent), the sniper post and his patrol
    * walker (route, post and facing; its clock moved on by `downFor` s, so a timed loop rejoins where the schedule
    * says), back on the route at the nearest point. (guard-ai S5) He keeps his post too: the leash (centre `post`),
-   * its facing and high security, his section and profile (any lure in progress is dropped).
+   * its facing and high security, his section and profile (any lure in progress is dropped). (guard-ai S12) And his
+   * helmet and armour as they were at the knockout.
    */
   inherit(o: Enemy, downFor = 0): void {
     this.key = o.key;
@@ -674,6 +774,8 @@ export class Enemy implements Damageable {
     this.walker.tick(downFor);
     this.walker.rejoin(this.pos.x, this.pos.z);
     this.setCaution(0);
+    // (guard-ai S12) his gear as it was when he went down (a helmet shot off stays off)
+    this.setGear(o);
   }
 
   /** (guard-ai S4, M3) The knockout search: search round (x, z) from now (a waker already searching starts over, so
@@ -1232,6 +1334,17 @@ export class Enemy implements Damageable {
         return { dealt: 0, killed: false };
       }
     }
+    // (guard-ai S12) gear (`gearHit`): a helmet soaks the first bullet to the head (knocked off), body armour stops
+    // bullets to the body (a stagger at most every `GEAR.staggerCd` s); the heavy keeps its own plates; melee,
+    // explosions and sleep bolts (above) are untouched
+    let gearStagger = 0;
+    if (kind !== 'heavy' && h.kind === 'bullet' && (this.helmet || this.armour)) {
+      const g = gearHit(h.part, h.kind, false, this, this.sinceStagger, GEAR_OUT);
+      if (g.knockOff) this.knockHelmetOff(h);
+      if (g.mult <= 0) return this.deflect(h, g.stagger);
+      mult *= g.mult;
+      gearStagger = g.stagger;
+    }
     // one round to the head drops any guard but a heavy (its face plate rules above)
     const headshot = h.kind === 'bullet' && h.part === 'head' && kind !== 'heavy';
     const dealt = this.health.damage(headshot ? this.health.hp : h.amount * mult);
@@ -1244,11 +1357,32 @@ export class Enemy implements Damageable {
     }
     this.alert();
     if (dealt > 35) this.stagger = 0.35;
+    if (gearStagger > 0 && this.health.alive) this.strikeStagger(gearStagger);
     // getting shot in the open pushes cover users to find cover
     if (this.def.usesCover && this.state === 'attack' && this.rng.next() < 0.5) this.setState('seekCover');
     if (!this.health.alive) this.die(h);
     return { dealt, killed: !this.health.alive };
   }
+
+  /** (guard-ai S12) A bullet stopped by his helmet or vest: sparks, no damage, staggered `stagger` s (the strike
+   *  stagger: no fire, aim broken; 0 = none), then the normal "I'm hit" reaction (combat on the shot's origin, his
+   *  contact call). */
+  private deflect(h: HitInfo, stagger: number): DamageResult {
+    this.ctx.vfx.sparks(h.point, this.tmpN.copyFrom(h.dir).scaleInPlace(-1), 6, '#e8eef5');
+    this.flash = 1;
+    if (!this.alerted && h.sourcePos) {
+      this.stimulus[0] = h.sourcePos.x;
+      this.stimulus[1] = h.sourcePos.z;
+      this.lastKnown.copyFrom(h.sourcePos);
+      this.lastSeenT = 0;
+    }
+    this.bark('deflect');
+    if (stagger > 0) this.strikeStagger(stagger);
+    this.alert();
+    if (this.def.usesCover && this.state === 'attack' && this.rng.next() < 0.5) this.setState('seekCover');
+    return { dealt: 0, killed: false, deflect: true };
+  }
+  private readonly tmpN = new Vector3();
 
   private die(h: HitInfo, lethal = true): void {
     // (guard-ai S3) killed or knocked out before his call got through: it is lost
@@ -1297,6 +1431,7 @@ export class Enemy implements Damageable {
     if (!this.alive) return;
     this.walker.tick(dt);
     this.stateT += dt;
+    this.sinceStagger += dt;
     this.prevPos.copyFrom(this.pos);
     this.prevYaw = this.yaw;
     // in a takedown: the attacker drives the body, the brain is off

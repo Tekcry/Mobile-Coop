@@ -253,6 +253,7 @@ function guard(x: number, z: number, o: Partial<FakeGuard> = {}): FakeGuard {
     koSearch: vi.fn(),
     dispose: vi.fn(),
     setPost: vi.fn(),
+    setGear: vi.fn(), // (guard-ai S12) placeSlot puts gear on him
     setCaution(c: number) {
       g.caution = c;
     },

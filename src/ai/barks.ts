@@ -36,7 +36,9 @@ export type BarkEvent =
   // (guard-ai S8, design 8) squad tactics: the point bounds, the overwatch covers it, the flanker goes round
   | 'moving'
   | 'covering'
-  | 'flanking';
+  | 'flanking'
+  // (guard-ai S12) a round stopped by his helmet or vest
+  | 'deflect';
 
 export const BARKS: Record<BarkEvent, readonly string[]> = {
   suspicious: ['Huh?', 'What was that?', 'Hello?', 'Something there...'],
@@ -69,6 +71,7 @@ export const BARKS: Record<BarkEvent, readonly string[]> = {
   moving: ['Moving up!', 'Moving!', 'Cover me!'],
   covering: ['Covering!', 'Got you covered!', 'Go, go!'],
   flanking: ['Flanking!', 'Going round!', 'Taking the side!'],
+  deflect: ['Argh! Still up!', 'Took one! Still standing!', 'That was close!'],
 };
 
 /** Radio lines (a chirp plays with them). */

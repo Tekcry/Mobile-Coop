@@ -444,7 +444,8 @@ export class SectorMode implements GameMode {
       // (guard-ai S5) post, profile, section (the live SectorDef's index); (S5b) the sector tags (squad, handler,
       // zone, role, pair) with the section's guard list and this slot's place in it (a reinforcement: -1, none)
       const gs = this.run.defs[this.run.index]?.guards;
-      em.placeSlot(e, p.slot, this.run.index, gs, gs ? gs.indexOf(p.slot as SectorGuard) : -1);
+      // (guard-ai S12) and his gear: the slot tag plus the section default
+      em.placeSlot(e, p.slot, this.run.index, gs, gs ? gs.indexOf(p.slot as SectorGuard) : -1, this.run.defs[this.run.index]?.gear);
       // (guard-ai S6, M1) aggressive, knows the last known position, runs its entry route in (after `placeSlot`, which
       // sets `tacticsProfile` first)
       if (p.reinforce) em.joinReinforcement(e, this.run.index, p.route ?? null);

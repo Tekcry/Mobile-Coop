@@ -47,6 +47,7 @@ interface FakeGuard {
   radio: ReturnType<typeof vi.fn>;
   bark: ReturnType<typeof vi.fn>;
   setPost?: ReturnType<typeof vi.fn>;
+  setGear?: ReturnType<typeof vi.fn>;
   profile?: string;
   section?: number;
 }
@@ -302,7 +303,7 @@ describe('squad roles wired (coordinated)', () => {
 // (guard-ai S8 at the S5 merge) Profiles come from the map slots; a high-security post keeps his leash in a group.
 describe('squad roles and posts (S5 wiring)', () => {
   it('placeSlot sets the profile: a post P_POST, an aggressive slot P_AGGRESSIVE, else P_STANDARD', () => {
-    const g = guard(0, -16, { setPost: vi.fn() });
+    const g = guard(0, -16, { setPost: vi.fn(), setGear: vi.fn() });
     const { em } = manager([g]);
     em.placeSlot(E(g), { yaw: 0, post: { leash: 3, highSecurity: true } });
     expect(g.tacticsProfile).toBe(P_POST);
