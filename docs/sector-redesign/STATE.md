@@ -275,18 +275,22 @@ Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md pol
 ## Resume prompt
 ```
 Night Shift | Sector Ops Build (was Course Ready Build): RESUME (cleared session / new account). Job: sector-redesign (lead), branch
-feature/sector-redesign-p3 (feature/sector-redesign is frozen in train 23 as #206), worktree
-C:/NightShift/Mobile-Coop-sector-redesign-p3. git fetch, then read: CLAUDE.md; docs/ROADMAP.md
-(the live "Decided" is on origin/feature/menu: Sector Ops redesign 01:08-01:25, unavoidable guards 01:50, lean windows
-01:45); docs/sector-redesign/BRIEF.md (M1-M12, A1-A77), STATE.md ("Now" and "Next" at the top), PLAN.md, SPEC.md,
-briefs/, all on origin/feature/sector-redesign; CLAUDE.md "Heavy-usage throughput" + token rules on origin/feature/menu
-until they reach master. In flight at the save: Sonnet S4 / S5 builders on feature/sector-redesign-s4 / -s5 (worktrees
--s4 / -s5, WIP pushed per step; check their logs and checks/slice4-build.md / slice5-build.md, rerun from the brief if
-unfinished). Ask "Night Shift | Character Build" for the e2e-sectorops:6 verdict at 3796700d if STATE has none. Message
-the orchestrator only at PR open / train-ready / blocked / needs Michael. Then follow "Next". Opus plans, writes
-strict briefs, runs every checker and engine work; Sonnet 5.5 builds sections from the briefs; Haiku chores; one fix
-round per slice. Agent count / pacing as the orchestrator says. Michael may be asleep: log assumptions, no question
-dialogs. Every e2e is E2E_GPU=1: coop / netmove / ctcourse on Character Build (laptop); single suites on a desktop lane
-(heavy.lock 4191 / heavy2.lock 4192) only when CPU allows. Push WIP and refresh STATE after every hand-back. Report to
-"Night Shift | Orchestrator" at each slice end, PR or blocker.
+feature/sector-redesign-p3 (feature/sector-redesign is FROZEN at f29a43da in train 23 as #206: never push it), worktree
+C:/NightShift/Mobile-Coop-sector-redesign-p3. git fetch; read CLAUDE.md (+ token / swap / session-title rules on
+origin/feature/menu until master), docs/ROADMAP.md "Decided", then STATE.md on -p3 top to "## Next at ~10:20": "Now"
+and "Next window" hold everything (PR 3, lanes A-E). Briefs: docs/sector-redesign/briefs/ (ART-*.md, E9-CRATE.md).
+At the save (~12:25) in flight:
+- PR 3 GPU run at f96924e5 (sectorops 1-6 + coop + netmove + full vitest): read
+  C:/NightShift/scratch/runs/sectorredesign-f96924e5/{e2e,vitest,build}.log; green -> open PR 3 from -p3, message
+  the orchestrator; red -> one Opus fix round per failing suite.
+- Lane A ART-KIT (Opus): feature/sector-redesign-art-kit @ e8fad392+ (worktree -art-kit, checks/art-kit-build.md).
+- Lane B E2 glass (Opus): feature/sector-redesign-e2 @ ed420072+ (worktree -e2, checks/e2-glass.md).
+- Lane C posts DONE: feature/sector-redesign-posts @ e20103d6 (needs a Sonnet checker, then merge into -p3).
+For each lane: branch log + report; finished -> one checker per batch; unfinished -> rerun from its brief / STATE text.
+Worktrees made with `worktree add -b X origin/Y` track Y: push lane branches with `git push -u origin <branch>`.
+Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
+Sonnet builds from strict briefs, Haiku chores, one fix round per slice; parallel lanes up to desktop CPU ~80%,
+never two agents on the same files; every e2e E2E_GPU=1 on a desktop lane (atomic heavy.lock 4191 / heavy2.lock 4192;
+the laptop's Character Build session is gone); push WIP + refresh STATE after every hand-back; Michael may be asleep:
+log assumptions, no question dialogs.
 ```
