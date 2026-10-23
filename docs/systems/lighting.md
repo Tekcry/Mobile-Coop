@@ -27,32 +27,27 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   (`voxel/skyBake.ts` `bakeMoon`, 0.5 m cells) and the 1 m ambient grid (`world/ambientGrid.ts`), all from the canonical
   shapes (`voxel/lightShapes.ts`: visible blockout pieces >= 5 cm plus the Medium dressing). Keys hold only the map, seed,
   shapes, lights and the moon's direction.
-- `world/lampMath.ts` (pure): the one formula - linear range falloff x cosine cone (lamps without a cone: the hemisphere
-  below them, exponent 1; spots: squared, cut at the outer angle). `bakedLamps.ts` builds its GLSL from `LAMP_MATH_GLSL` and
-  the same constants (`LAMP_CONE_COS`, `LAMP_EXP`, `SPOT_EXP`; `LIGHT_GAIN` 1.6 is rendering only, `LAMP_LEVEL_GAIN` 1.2
-  gameplay only). `moonLight(theme)`: the moon's gameplay share of `lightLevel`.
-- Lamp falloff (lightrev LR13, prototype, default off): Settings > Gameplay > "Lamp falloff" (`gameplay.lampFalloff`: Classic
-  `linear`, the default / Realistic (test) `photometric`; `?falloff=photo` a dev override, `flags.photoLamps`). In
-  photometric the baked lamps fall off with the inverse square from 3 m (`PHOTO`), windowed to 0 at 1.6 x the radius
-  (`LightRegistry.add` scales fixed lamps' radius once; flashlights unchanged). A light-model rule, not a graphics
-  setting (no preset, governor or quality reads or writes it): `GameState.create` sets the mode once per map load
-  (`lampMath.matchLampFalloff`: the co-op host's `start.lf`, else the URL, else the setting; `GameState.lampFalloff`),
-  before the level adds its lights, so the registry, the bake, the field (meter and guards) and the shaders
-  (`lampMathGlsl()`; the `LAMP_PHOTO` define keeps the two modes' compiled effects apart) all read one mode; never
-  mid-match. Co-op: protocol 38 `start.lf`; in a match the row is locked to the match's mode (host and client); "Resume hosting" runs the dropped match's mode (`RejoinRecord.lf`). `?gfx=min` keeps Babylon's linear real
-  lights for the picture (the field is photometric). Not adopted: `docs/lighting-review/PROPOSAL.md` section 7 (LR13),
+- `world/lampMath.ts` (pure): one light model (LR16a, Michael 2026-10-23 ~18:12 "Disable returning to original lighting
+  system, focus on only the one new system"). Baked lamps: the photometric falloff `photoFalloff` (inverse square from
+  3 m, `PHOTO`, windowed to 0 at the reach = radius x 1.6; `LightRegistry.add` scales fixed lamps' radius once,
+  flashlights unchanged) x the cosine cone (lamps without a cone: the hemisphere below them, exponent 1; spots: squared,
+  cut at the outer angle). Flashlights: the linear `lampTerm`. `bakedLamps.ts` builds its GLSL from `LAMP_MATH_GLSL`
+  and the same constants (`LAMP_CONE_COS`, `LAMP_EXP`, `SPOT_EXP`; `LIGHT_GAIN` 1.6 is rendering only,
+  `LAMP_LEVEL_GAIN` 1.2 gameplay only). `moonLight(theme)`: the moon's gameplay share of `lightLevel`. The Classic
+  (linear) mode, Settings > Gameplay > Lamp falloff (`gameplay.lampFalloff`, an old stored key is dropped on load),
+  `?falloff=photo`, the co-op `start.lf` and `RejoinRecord.lf` are gone (LR16a). `?gfx=min` keeps Babylon's linear
+  real lights for the picture (the field is photometric). History: `docs/lighting-review/PROPOSAL.md` section 7 (LR13),
   numbers in `docs/sector-redesign/checks/light-measure.md`; tests `tests/lampFalloff.test.ts`.
-- (shadow audit, PROTOTYPE, rides the LR13 toggle) `world/shadowAccuracy.ts`: on exactly when the match runs Realistic
-  (`GameState.create` calls `setShadowAccuracy(matchShadowAccuracy(mode))` with the resolved mode, next to `setLampFalloff`:
-  the host's `start.lf` in co-op, `?falloff=photo`, the setting; never mid-match; read once per field / rig / bake / guards).
-  The field reads the ambient fill trilinearly as the shaders do; each lamp's door list skips doorways the lamp cannot see
-  (`doorSeen`, `bakeVisSampler`; field and shaders build the one list); the light rig sets the game's PBR materials (figures,
-  weapons) to the standard falloff so flashlights light them as they light the level (`gameLightFalloff`) and gives shadow
-  maps to cut beams first (`torchShadowPass`); guards' body-light samples test flashlights against static geometry
-  (`rayOccluder`). Findings: `docs/sector-redesign/checks/light-measure.md` (shadow audit); test `tests/shadowAccuracy.test.ts`.
-  LR15 (same toggle): 8 door slots per lamp (doors 5-8 in one extra texel per lamp, field and shaders share the list;
-  `LAMP_DOORS8`) and torches without a shadow map drawn in `LampPlugin` with the field's `lampTerm` x a cut at the beam's
-  reach (`LAMP_TORCH`, `lampTorch` UBO); non-PBR lit materials (fences, ropes, decals) then get no unshadowed torch light.
+- (shadow audit; always on since LR16a) `world/shadowAccuracy.ts`: the field reads the ambient fill trilinearly as the
+  shaders do; each lamp's door list skips doorways the lamp cannot see (`doorSeen`, `bakeVisSampler`; field and shaders
+  build the one list); the light rig sets the game's PBR materials (figures, weapons) to the standard falloff so
+  flashlights light them as they light the level (`gameLightFalloff`) and gives shadow maps to cut beams first
+  (`torchShadowPass`); guards' body-light samples test flashlights against static geometry (`rayOccluder`). Findings:
+  `docs/sector-redesign/checks/light-measure.md` (shadow audit); test `tests/shadowAccuracy.test.ts`.
+  LR15: 8 door slots per lamp (`DOORS_PER_LAMP_ACCURATE`: doors 5-8 in one extra texel per lamp, field and shaders share
+  the list; `LAMP_DOORS8`) and torches without a shadow map drawn in `LampPlugin` with the field's `lampTerm` x a cut at
+  the beam's reach (`LAMP_TORCH`, `lampTorch` UBO); non-PBR lit materials (fences, ropes, decals) then get no unshadowed
+  torch light.
   Build and check: `docs/sector-redesign/checks/lr15-build.md`, `lr15-check.md`.
 - `world/lightField.ts` (pure) `LightField` (`World.lightField`): `levelAt` = ambient grid + moon x moon visibility + the
   lamps listed for the 2 m column x `LAMP_LEVEL_GAIN` x intensity x formula x trilinear baked visibility, closed doors
