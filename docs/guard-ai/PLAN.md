@@ -76,7 +76,38 @@ Proposed assumptions A143-A154 are inside the briefs (not in `BRIEF.md` until th
 - Next candidates, not briefed (lower impact or polish): S8 polish 3-5 (a role guard with no cover waits upright in the
   open; the overwatch suppresses a stale LKP through a wall; no wait timeout outside the stealth modes); CT alarm stage 4
   (fortify); guards closing doors behind them is built (`StealthSystems` `guardOpened`, `noticeOpenDoors`): `ai.md`'s
-  "G41 not built" line is stale.
+  "G41 not built" line is stale. (Checked by the S26-S28 planner: see "Next (S26-S28)".)
+
+## Next (S26-S28; planner 2026-10-23 ~22:15)
+Checked against code (origin/master 33fff449 4.82.0, origin/feature/guard-ai-s24 96d565e5) and CT. The biggest gap
+left: once a guard is in combat or searching he is deaf (`EnemyManager.hear` skips alerted guards; a searcher only
+takes a meter bump), so after contact is broken the player's noise costs nothing; CT rule 8 has guards walk to a sound
+and, in a fight, aim at the last spot it rose above ambient. Then the S8 / walk polish that shows as broken behaviour
+on both co-op maps. Briefs: `slices/S26.md`, `S27.md` (file:line on 96d565e5). Proposed assumptions A155-A164 are in the
+briefs (not in `BRIEF.md` until the lead accepts them).
+| # | Slice | Goals | Done looks like | Unit tests | e2e |
+| --- | --- | --- | --- | --- | --- |
+| S26 | Hearing in a fight and a search (CT rule 8): `COMBAT_HEAR` + pure `combatHearAct` in `hearing.ts`; `hear(.., by)` with the noise maker's player id from the body-noise call sites (steps, landing, roll, rattle, holds, takedowns, suppressed shots; host and client); searchers walk to what they hear (lures too); a guard in combat out of sight relocates that player's slot as heard (`IntruderBoard.locT`, not `seenT`); G139 switch only when his own intruder is stale 8 s; the S25 plan re-centres on a heard spot | 1, 8, co-op | sprint behind a searcher in the dark: he turns and comes to the spot; crouch-walk past: nothing; a footstep behind a wall out of reach: nothing; in combat a heard step moves the LKP, not the sight clock | combatHearing.test, intruders / searchAreaWiring additions | e2e-stealth-ai (new 'heard in a search'), e2e-coop (new "the partner is heard"), e2e-sectorops, e2e-tactics, e2e-stealth, e2e-takedown, e2e-ctcourse, e2e-netmove |
+| S27 | Role guards take cover, fire where they see, draw on an alarm (S8 polish 3, 5, 7; WALK polish 4): a role guard out of sight in the open crouches, then today's `pickCover` after `SQUAD.openWait` 3 s; suppress only along a clear static line, own aim point (`lastKnown` untouched); the reporter on the radio throws and flanks nothing; `carryCalm` reads the Sector Ops alarm stage | 8, walk G5 | break sight on a 4-guard group: nobody stands upright in the open, no rounds into the wall; trip a camera in Sector Ops: every section guard draws | squadWiring, guardGunCarry additions | e2e-stealth-ai (new 'squad roles', S8 polish 2), e2e-sectorops (stage block: all drawn), e2e-tactics, e2e-ctcourse, e2e-guard-carry, e2e-takedown |
+- Order: S26 -> S27, sequential (both edit `enemy.ts` / `enemyManager.ts`). S26 branches off the S25 tip (S24 + S25a +
+  S25b) once S25b's checker passes; S27 off the S26 tip (or off the S24 tip if S25b / S26 hold the line: its regions do
+  not overlap, see `S27.md` Order). Each rides its own train once green.
+- Models: Opus implementer per slice, two fresh Opus checkers (AI code), at most one fix round. No Sonnet slice here.
+- Wire and save: none. Host only; S26 passes a player id the host already has at three `coopHost.ts` call sites (e2e-coop
+  and e2e-netmove run). `PROTOCOL_VERSION` and `SAVE_VERSION` untouched.
+- Sizes: S26 ~5-7 h, S27 ~3-5 h.
+- Questions for Michael: none (both follow CT and M1 / walk G5 directly).
+- S28: none earned a slice. Checked and dropped:
+  - S8 polish 4 (no wait timeout outside the stealth modes): every live mode with guards sets `em.stealth` (Course
+    `courseMode.ts:65`, Sector `sectorMode.ts:302`, Infiltration); only parked Clear / Mission run without it.
+  - `ai.md` "G41 not built": fixed on feature/guard-ai-s23 (#254, train 34).
+  - CT alarm stage 4 (fortify): the stage cap is Sector Ops' (`SECTOR.alarmMax` 3, `sectors.ts:489`; `sectorStage.ts:41`),
+    bible 5.7 says 0-3, and S13's response teams already never stand down (A39); it only matters after a fourth alarm.
+    A Sector Ops + Michael call, not a guard-ai slice.
+  - Locked doors in the guards' nav (WALK polish 3, A116): Marlow Yard despawns a set's squad when the next set starts
+    (`courseMode.ts` `dropSquad`, master `:862-878`), so no guard is left behind a locked airlock door, and Sector Ops'
+    locked doors are nav closures already; no live case today.
+  - S8 polish 6, 8, 11 and WALK polish 2, 6: feel or rare corner cases (the polish lists keep them).
 
 ## Stealth over shooting (S11-S15, SoS; Michael 2026-10-23 ~10:10)
 Design and per-item gaps: `research/stealth-over-shooting.md`; assumed decisions A35-A46 (`BRIEF.md`). Items 1, 5, 9,
