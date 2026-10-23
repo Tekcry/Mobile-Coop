@@ -35,6 +35,13 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   with the inverse square from 3 m (`PHOTO`), windowed to 0 at 1.6 x the radius (`LightRegistry.add` scales fixed lamps'
   radius once; flashlights unchanged); the field and the shaders (`lampMathGlsl()`) switch together. Not adopted:
   `docs/lighting-review/PROPOSAL.md` section 7 (LR13), numbers in `docs/sector-redesign/checks/light-measure.md`.
+- (shadow audit, PROTOTYPE, rides the same toggle) `world/shadowAccuracy.ts` `shadowAccuracyOn` (on with `?falloff=photo`
+  unless `setShadowAccuracy` says otherwise; read once per field / rig / bake): the field reads the ambient fill
+  trilinearly as the shaders do; each lamp's door list skips doorways the lamp cannot see (`doorSeen`, `bakeVisSampler`;
+  field and shaders build the one list); the light rig sets the game's PBR materials (figures, weapons) to the standard
+  falloff so flashlights light them as they light the level (`gameLightFalloff`) and gives shadow maps to cut beams first
+  (`torchShadowPass`); guards' body-light samples test flashlights against static geometry (`rayOccluder`).
+  Findings: `docs/sector-redesign/checks/shadow-audit.md`; test `tests/shadowAccuracy.test.ts`.
 - `world/lightField.ts` (pure) `LightField` (`World.lightField`): `levelAt` = ambient grid + moon x moon visibility + the
   lamps listed for the 2 m column x `LAMP_LEVEL_GAIN` x intensity x formula x trilinear baked visibility, closed doors
   (`Doors.list`, `DOOR_SHUT`) cutting a lamp by one segment-leaf test; `dynamicAt` = non-baked lights (flashlights);
