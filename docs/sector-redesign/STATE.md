@@ -303,7 +303,9 @@ Heads: art 2276483a (#226), lampx eb45b0af (LR15 + lighting polish + atlas fix),
    setting (Michael ~18:12); Realistic + character shadows on every map, fix lamp wall arcs, soft cone edges, contact-hardening penumbra, parity. Build from -lampx in the new account.
    LR16-0 audit DONE 34eab328: new slices LR16-1..8 in PLAN; LR16-5 moving lights needs Michael's scope; LR16-4 guard
    relight touches guard behaviour (offer to Guard AI).
-   RUNNING ~18:50 (new account; old agents died, resumed from their WIP): LR16a Opus on -lr16 (from WIP 315a2805;
+   LR16a DONE -lr16 59c8bfdd (PROTOCOL left 38, train sets it; 22 Classic-tuned map light tests red until LR16d/g;
+   lamp slot overflow >8 per column found) -> LR16b + slot overflow Opus RUNNING on -lr16 (lr16b-build.md); LR16t after it.
+   Was: LR16a Opus on -lr16 (from WIP 315a2805;
    checks/lr16a-build.md), LR16c+LR16-2 Opus on -lr16c (lamp-audit script + run -> checks/lr16-lamp-audit.md),
    LR16-6 DONE -lr16v 5ee3a270 (G100 instant cut, G102 door ghosts incl. partners; lr16v-build.md), LR16f DONE -lr16f 8501a0c7 (PCSS char shadows; LR16-7 DONE 0561be15 (Low 1x256 / Medium 1x512); LR16-3 DONE f16591bf (door leaves + props as char casters, render only; a listed door leaf draws all its instances);
    checks/lr16f-build.md). Resume: check each branch head + build doc; missing doc = rerun from lr16-plan.md row.
