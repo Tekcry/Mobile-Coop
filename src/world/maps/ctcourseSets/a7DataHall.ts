@@ -357,13 +357,13 @@ export function buildA7DataHall(b: LevelBuilder, kit: FacilityKit): SetPart {
     const bulkhead = (x: number, y: number, z: number, group: number, radius: number, intensity: number, color: [number, number, number]): void => {
       b.light({ x, y, z, radius, intensity, color, group, electric: true, destructible: true, fixture: { sx: 0.3, sy: 0.18, sz: 0.3, oy: 0.09 } });
     };
-    for (const [x, z] of [[81.6, 57.4], [80.9, 61.5], [80.9, 65.7], [91.0, 57.4], [91.0, 69.0]] as const) strip(x, z, true, 70, 3.8, 4.5, 1.0);
-    strip(84.5, 61.8, false, 70, 3.8, 4.5, 1.0);
-    b.light({ x: 73.0, y: 2.9, z: 61.0, radius: 4.0, intensity: 0.8, color: COOL, group: 70, electric: true, destructible: true, fixture: { sx: 0.6, sy: 0.05, sz: 0.6, oy: 0.025 } });
-    bulkhead(76.4, 2.6, 57.4, 71, 3.2, 0.9, COOL);
-    bulkhead(76.4, 2.6, 69.9, 71, 3.2, 0.9, COOL);
-    for (const x of [74.0, 79.5, 85.0, 91.0]) bulkhead(x, 3.0, 53.9, 72, 4.5, 1.0, WHITE);
-    for (const z of [60.0, 63.0]) strip(97.8, z, false, 73, 2.5, 3.5, 1.0);
+    for (const [x, z] of [[81.6, 57.4], [80.9, 61.5], [80.9, 65.7], [91.0, 57.4], [91.0, 69.0]] as const) strip(x, z, true, 70, 3.8, 4.5, 0.25);
+    strip(84.5, 61.8, false, 70, 3.8, 4.5, 0.25);
+    b.light({ x: 73.0, y: 2.9, z: 61.0, radius: 4.0, intensity: 0.18, color: COOL, group: 70, electric: true, destructible: true, fixture: { sx: 0.6, sy: 0.05, sz: 0.6, oy: 0.025 } });
+    bulkhead(76.4, 2.6, 57.4, 71, 3.2, 0.115, COOL);
+    bulkhead(76.4, 2.6, 69.9, 71, 3.2, 0.115, COOL);
+    for (const [x, i] of [[74.0, 0.19], [79.5, 0.19], [85.0, 0.19], [91.0, 0.22]] as const) bulkhead(x, 3.0, 53.9, 72, 4.5, i, WHITE);
+    for (const z of [60.0, 63.0]) strip(97.8, z, false, 73, 2.5, 3.5, 0.17);
   });
   for (const [k, g] of Object.entries(marlowCourseGroups())) if (k.startsWith('a7-')) p.groups[k] = g;
   // wall switches: the rows' in the lobby by the hall door, the aisle ends' at the south aisle's west end (the lure), the
