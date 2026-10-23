@@ -53,6 +53,31 @@ batch PR, one Opus checker. Opus for AI code (S17-S20, S22), S21 with the guard-
 | S21 (G5) | "they also dont always have to be low-ready, then can walk around holstered if they are in a calm area." | A calm guard in a calm area carries the weapon holstered / slung (every guard still armed); low ready from suspicious / cautious (S9 A91 0.4), raised in combat. Pose weight and the rig's carry clip; with the guard-render owner. |
 | S22 (G6) | "if i turn it off while hes distracted, he should notice when he sees it and turn it back on also." | Security console (Marlow S3, with Marlow Build): a guard who sees his console switched off walks to it and turns it back on (as the S15 breaker walk: calm, one guard, a bark), through the console's own toggle path. |
 
+## Co-op guards and search (S23-S25; planner 2026-10-23 ~19:30, "Tokens for progress": brief before start)
+The gaps left between M1 ("smarter, work together ... smart and tactical") plus CT and what is built, ranked by player
+impact on the two co-op maps: guards perceive only the nearest player, and the section shares one last known position,
+so in co-op a guard is blind to the farther partner and every fight re-aims at whoever was seen last; the search after
+combat is a blind spiral. Briefs: `slices/S23.md`, `S24.md`, `S25.md` (file:line on origin/train/31 e383ba16).
+Proposed assumptions A143-A154 are inside the briefs (not in `BRIEF.md` until the lead accepts them).
+| # | Slice | Goals | Done looks like | Unit tests | e2e |
+| --- | --- | --- | --- | --- | --- |
+| S23 | Every player seen (co-op perception): `perceive` loops every live player (pure `targetPick.ts`: `mayBeSeen` mirrors `sightRate`'s zero cases, so no rays where nothing can be seen; `pickTarget`: calm = best rate, combat = keep the one he sees), module-level per-player scratch, `seenMask` / `seesIndex`; `assignFlanker` by the guard's own target; host arcs only for guards that see the host's player | 8, co-op | A hidden nearer and B lit in front: the guard's meter fills on B and he fights B; a nearer hidden partner never blinds a guard in combat; solo identical | targetPick.test, coopPerception.test | e2e-coop (new block), e2e-stealth-ai, e2e-stealth, e2e-takedown, e2e-tactics, e2e-sectorops, e2e-ctcourse |
+| S24 | Two intruders (G139): `intruders.ts` `IntruderBoard` (a last known position per player id, up to 4), `Enemy.hunt` (own sighting, the radio contact's intruder as its incident, the shout, a located shot's shooter, the alarm caller's for reinforcements), roles per intruder group, flow field per intruder rebuilt only on a move, no walk to the real feet without a sighting (closes A105), host ghost = the host's own; `em.lkp` / `lkpValid` / `sightT` mirror the freshest (solo and tests unchanged) | 5, 8, co-op | A and B seen apart: each pair of guards hunts its own player's spot with its own roles; a guard radioed about A never goes to B; solo identical | intruders.test, twoIntruders.test, coopPerception additions | e2e-coop (new block), e2e-stealth-ai, e2e-sectorops (all), e2e-tactics, e2e-stealth, e2e-takedown, e2e-ctcourse, e2e-netmove |
+| S25 | Probable-area search: `searchArea.ts` `SearchPlan` per intruder (cells reachable by path within 6 m + 1.5 m/s x time unseen, cap 20 m, from S24's flow field; cover spots and dark cells by the baked light, 12 points 3 m apart, each claimed by one searcher), `ctx.searchPoint` / `searchDone`; combat searches only, the ring as the fallback; calm searches unchanged | 8 (CT search) | crouched in the dark corner 6 m from where he was seen, the first searcher comes to it; three searchers check three spots; nobody searches the room behind a wall first | searchArea.test, searchAreaWiring.test | e2e-stealth-ai (new 'search area', 'lkp' retuned), e2e-sectorops, e2e-tactics, e2e-stealth, e2e-ctcourse, e2e-coop |
+- Order: S23 -> S24 -> S25, sequential (all three edit `enemy.ts` / `enemyManager.ts`), each branch off the previous
+  tip after its checker passes; each can ride its own train once green. Off master after 4.80.0 releases.
+- Models: Opus implementer per slice (AI code), a fresh Opus checker, at most one fix round. Sonnet 5.5 is not used
+  (no pure-data slice here).
+- Wire and save: none. All three are host only; `PROTOCOL_VERSION` and `SAVE_VERSION` untouched (no bump this train).
+- Sizes: S23 ~4-6 h, S24 ~8-12 h, S25 ~6-9 h.
+- Questions for Michael (in the briefs, not blocking): co-op client awareness arcs and LKP ghost (S23: both screens
+  with a wire bump / remove both, pure CT / leave host only); searchers' flares (S25: now with the lighting job / after
+  the S25 playtest / never).
+- Next candidates, not briefed (lower impact or polish): S8 polish 3-5 (a role guard with no cover waits upright in the
+  open; the overwatch suppresses a stale LKP through a wall; no wait timeout outside the stealth modes); CT alarm stage 4
+  (fortify); guards closing doors behind them is built (`StealthSystems` `guardOpened`, `noticeOpenDoors`): `ai.md`'s
+  "G41 not built" line is stale.
+
 ## Stealth over shooting (S11-S15, SoS; Michael 2026-10-23 ~10:10)
 Design and per-item gaps: `research/stealth-over-shooting.md`; assumed decisions A35-A46 (`BRIEF.md`). Items 1, 5, 9,
 10, 12, 14, suppressor ammo and the ammo crate belong to other jobs (that file's hand-off table).
