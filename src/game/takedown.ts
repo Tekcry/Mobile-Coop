@@ -8,7 +8,7 @@
  */
 import { hyp2 } from '../core/mathx';
 
-export type TakedownKind = 'behind' | 'front' | 'side' | 'overCover' | 'corner' | 'above' | 'below' | 'window' | 'drop' | 'inverted' | 'hangDown';
+export type TakedownKind = 'behind' | 'front' | 'side' | 'overCover' | 'corner' | 'above' | 'below' | 'window' | 'drop' | 'inverted' | 'hangDown' | 'assist';
 
 /** Where the attacker is. (3.2.0 phase 4: `split`, `pipe` (a horizontal pipe, hands / legs up), `inverted`, `rappel`.) */
 export type AttackerState = 'ground' | 'wallLow' | 'wall' | 'hang' | 'climb' | 'zipline' | 'duct' | 'window' | 'split' | 'pipe' | 'inverted' | 'rappel' | 'hangDown';
@@ -187,6 +187,19 @@ export interface TakedownPlan {
 
 function wrap(a: number): number {
   return Math.atan2(Math.sin(a), Math.cos(a));
+}
+
+/**
+ * (coop-walk-fixes P6) The co-op team takedown on a guard the partner holds as a hostage (Michael 4.72: "should trigger
+ * coop takedown"): from the ground within `TAKEDOWN.reach` across and `TAKEDOWN.dy` up / down, with line of sight, from
+ * any side (he cannot turn: he is held). The attacker stays where he stands facing the guard (approach 0; the holder
+ * keeps moving him), then the strike (tap = knockout, held = kill). Null when out of reach.
+ */
+export function assistPlan(ax: number, ay: number, az: number, vx: number, vy: number, vz: number, los: boolean): TakedownPlan | null {
+  const dx = vx - ax;
+  const dz = vz - az;
+  if (!los || Math.abs(vy - ay) > TAKEDOWN.dy || hyp2(dx, dz) > TAKEDOWN.reach) return null;
+  return { kind: 'assist', alignX: ax, alignY: ay, alignZ: az, faceYaw: Math.atan2(dx, dz), approach: 0, arc: 0, strike: TAKEDOWN.strike, victimTo: null };
 }
 
 /** The takedown the geometry allows, or null. */

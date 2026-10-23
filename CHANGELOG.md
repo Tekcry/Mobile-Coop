@@ -1,5 +1,33 @@
 # Changelog
 
+## 4.78.0 - Train 29: Sector Ops lighting: lamp falloff setting, shadow accuracy, character lamp shadows (fixes calm guards drawn without bodies); Guard AI guards never fire into armour (2026-10-23, PR #238; #232, #228)
+
+### Guard AI S16 - guards hold fire at armour
+- Guards no longer empty their magazines into bulletproof glass or doors: before each burst and each round a guard checks
+  his line of fire, and when armour is first on it he holds fire, keeps tracking you and calling it in, then moves to a
+  spot with a clear shot (or round by the corridors), or holds if he must keep his post. Ordinary glass is unchanged:
+  guards still shoot through it.
+
+### Character silhouette shadows (LR14)
+- Character silhouette shadows from lamps, as in CT (LR14): from High up the 2-4 lamps nearest you (a steady set: a
+  newcomer must be 25% nearer and a lamp holds its slot at least 0.5 s) cast the real shape of guards, your partner,
+  bodies and held weapons - arms, legs, crouch and prone - on floors, walls and other characters. Their maps share one
+  texture; every other lamp keeps the soft capsule shadows, as do Low and Medium. Settings > Graphics > Character
+  shadows (Auto / On / Off) overrides the preset; each co-op player uses their own. Rendering only: the light meter and
+  the guards read the light exactly as before.
+
+### Lamp output review and the lamp falloff setting (walk 4.72)
+- Lighting review of the walk 4.72 S1 / M5 notes: measured lamp reach on every map (Sector Ops S1 goods-in floor median
+  0.186, real fittings 213-781 lux), proposal LR13 (photometric lamp falloff) for Michael in
+  `docs/lighting-review/PROPOSAL.md`.
+- New setting, Settings > Gameplay > Lamp falloff: Classic (the default, the game as before) or Realistic (test): lamps
+  fall off with the inverse square like real fittings and reach further. The light meter, the guards and the picture
+  switch together; it takes effect when a map loads. In co-op the host's choice applies to both players (co-op
+  protocol 38). `?falloff=photo` forces Realistic for a page (dev).
+- Shadow accuracy fixes ride Realistic (off in Classic): the meter reads the ambient fill as the picture does, shut doors
+  past a lamp's door slots stop leaking light, guards' torches light the operator figures and weapons with the level's
+  falloff, cut torch beams get the shadow maps first, and a torch behind a wall no longer lights a body for the guards.
+
 ## 4.77.0 - Train 28: Player batch 22 (strike pops, hang-down, dual reward, traverse fix, ladder knees); Guard AI walk fixes (lasers, bodies, urgency, spacing) (2026-10-23, PR #235; #207, #230)
 
 ### Co-op dual takedown counted for section-rating
