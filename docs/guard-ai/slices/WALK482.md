@@ -125,3 +125,4 @@ print the search start and the time in the final level.
 Tests: `node --check scripts/e2e-stealth-ai.mjs` OK; `npx vitest run tests/loneGuardEngage.test.ts` 11/11 pass. No src
 change, so no tsc rerun needed. e2e not run locally (laptop queue rule): queued as set `walk482-fix`, suite
 `e2e-stealth-ai` (the run also covers the unrun 'report then engage' scenario after `lkp`).
+Queued: request `20261023T125751-night-shift-guard-ai-d0968052-b79b` (sha d0968052).
