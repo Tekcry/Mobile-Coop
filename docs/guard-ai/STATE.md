@@ -1,6 +1,13 @@
 # Guard AI - state
 
 ## Now
+~21:45 (swap, laptop, session [1adb22]): laptop s23-coop 2/2 GREEN 01b107b5 (#254 in train 34, 4.83.0); relight 7/7
+GREEN fbf32636 -> #255 train-ready label + orchestrator told. The ~21:20 agents (S24 fix round, e2e-coop two
+intruders, guard-carry flake, S26-S28 planner) died at the swap with no output. S24 check A + B drafts committed
+96d565e5. RUNNING (Opus): S24 fix round in -s24 (finding 1 + tests + by-design e2e retunes + e2e-coop "two intruders"
+block; writes slices/S24-FIX.md); guard-carry flake triage on feature/guard-ai-carry-flake (new worktree -carry-flake
+off 96d565e5, writes slices/GUARD-CARRY-FLAKE.md; merge into s24 after); planner S26-S28 (feature/guard-ai, slices/S26.md+).
+
 ~21:12 SAVE: all guard-ai worktrees clean and pushed; resume block below is current (5 open items). Running at the
 save: S24 checkers A+B, S25a checker (Opus), laptop sets s23-coop, relight, s24.
 
@@ -621,36 +628,30 @@ merges). 2 Opus checkers on AI / src/net PRs; Opus triage agent on every laptop 
 cd C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.mjs --sha <sha> --set <name>
 --jobs 2 --requester "Night Shift | Guard AI Build" --suites "a b" (verdict = GitHub status laptop-e2e/<set>).
 Cloud builder briefs: orphan branch cloud-queue, briefs/guard-ai-<slice>.md (README there).
-Master 4.81.0 (train 32, bbd49206, PROTOCOL 42; asserts read the constant).
+Master 4.82.0 (train 33); train 34 (4.83.0, #260) carries #254 S23. PROTOCOL 42; asserts read the constant.
 Laptop worktrees (npm ci'd): C:/NightShift/Mobile-Coop-guard-ai (feature/guard-ai: STATE/PLAN/BRIEF/slices),
--s22-game, -s23, -s24, -s25a, -relight.
+-s22-game, -s23, -s24, -s25a, -relight, -carry-flake (node_modules junction to -s24's).
 Open:
-1. #254 S23 every player seen (feature/guard-ai-s23 dc964d15): train-ready label set. Checks A+B PASS. Laptop
-   s23-regress 14/14 on a87ef34c (e2e-guard-carry flaked once: fix that test in the next batch). s23-coop (e2e-coop
-   new block + netmove) on 01b107b5 PENDING: if red, Opus triage at once, pull #254 from the train if needed.
-2. #258 S22 game (feature/guard-ai-s22-game dd9f6960): train-ready. Laptop ctcourse:2+:4 PASS a74d27e2 (later commits
-   fragments only). CONFLICTS with master in src/net/protocol.ts, docs/systems/coop.md and 15 tests (old protocol
-   number asserts): resolve by taking master's side (no own wire change; S22 41 + #237 42 already on master). Told
-   the orchestrator.
-3. #255 LR16-4 relight (feature/guard-ai-relight f08c448c): checks A+B PASS (polish slices/LR16-4-POLISH.md on that
-   branch). Laptop set relight on fbf32636 (sectorops + stealth-ai) PENDING -> on green add train-ready label + tell
-   orchestrator. Sector Ops told (no map has an untimed board yet).
-4. ~21:25 S24 checker A FAIL (slices/S24-CHECK-A.md in -s24, untracked: commit it): solo no-hunt joiners never rebind
-   to slot 0 after a later sighting. Opus FIX ROUND started (writes slices/S24-FIX.md, commits + pushes WIP): if cut
-   off, check the -s24 branch tip / working tree and finish it, then re-check (fresh Opus) + laptop set s24 again.
-4. S24 two intruders: cloud-built feature/guard-ai-s24 ef44eea5 (contains S23 dc964d15). Checkers A+B RUNNING at
-   the save (docs/guard-ai/slices/S24-CHECK-A.md / -B.md in the -s24 worktree, drafts; rerun any that did not reach
-   a verdict). Laptop set s24 on ef44eea5 (coop, stealth-ai, sectorops, tactics, stealth, takedown, ctcourse,
-   netmove) PENDING. Then: add the e2e-coop "two intruders" block (slices/S24.md "e2e", Opus agent, commit+push,
-   request e2e-coop + netmove on it), PR (stacked on #254), train-ready.
+1. #254 S23: DONE on our side (laptop all green, in train 34).
+2. #258 S22 game (feature/guard-ai-s22-game dd9f6960): train-ready. CONFLICTS with master (protocol.ts, coop.md,
+   old number asserts): the orchestrator resolves in the train taking master's side (no own wire change).
+3. #255 LR16-4 relight f08c448c: train-ready (label set ~21:45, laptop 7/7, orchestrator told).
+4. S24 two intruders (feature/guard-ai-s24 96d565e5 = ef44eea5 + check drafts): check A FAIL (slices/S24-CHECK-A.md:
+   hunt -1 joiners never rebind after a later sighting; solo convergence lost), check B draft no blocker. Opus FIX
+   ROUND started ~21:45 (finding 1 + unit tests + by-design e2e retunes + e2e-coop "two intruders" block; writes
+   slices/S24-FIX.md, pushes): if cut off, read the branch tip / S24-FIX.md and finish with a fresh Opus. Then:
+   merge feature/guard-ai-carry-flake (item 7) into s24, 2 fresh Opus checkers + laptop set s24 (coop, netmove,
+   stealth-ai, sectorops, tactics, stealth, takedown, ctcourse, guard-carry) on the same sha, PR stacked on #254,
+   train-ready on green.
+7. Guard-carry flake (laptop s23-regress flagged e2e-guard-carry): Opus triage on feature/guard-ai-carry-flake
+   (worktree -carry-flake), writes slices/GUARD-CARRY-FLAKE.md. If cut off: rerun it.
+8. Planner S26-S28 (Opus, docs only on feature/guard-ai: slices/S26.md+, PLAN "Next (S26-S28)", A155+). If no
+   commit landed: rerun it. Then cloud-queue briefs for the builder.
 5. S25a pure searchArea.ts: feature/guard-ai-s25a (39420159 + check). Check PASS (slices/S25A-CHECK.md in
    -s25a). Not a PR alone: S25b = the wiring (slices/S25.md Build 2-4, tests, e2e) on S24's tip with S25a merged:
    BRIEFED ~21:20: cloud-queue briefs/guard-ai-S25b.md (8958388b, off S24 + S25a, merges later S24 fixes).
    S25b brief MUST add (S25A-CHECK polish 2): offer candidates best score first; searchDone finds the guard's point
    by claim === num (a finishBy(num) helper), never a saved index; buildPlan never rebuilds a plan with live claims.
-6. Running ~21:20 (Opus): S24 e2e-coop two-intruders block (-s24 worktree; commits, queues set s24-coop);
-   e2e-guard-carry flake triage (-s24 worktree, edits scripts/e2e-guard-carry.mjs + slices/GUARD-CARRY-FLAKE.md
-   uncommitted: the lead commits them into S24); planner S26-S28 briefs (feature/guard-ai, commits its own files).
 Questions for Michael (non-blocking, decision packs): S23 client arcs / LKP ghost; S25 searchers' flares.
 Polish lists only: WALK-CHECK 1-6, S16-CHECK, A126-CHECK, S22-CHECK 1-5, S22-GAME-CHECK(2), CARRY-FIX2-CHECK,
 S23-CHECK-A/B, LR16-4-POLISH. A-numbers: S23 A143-A145, S24 A146-A150, S25 A151-A154 accepted (move into BRIEF.md).
