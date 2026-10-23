@@ -4,6 +4,10 @@ Saved 2026-10-23 ~10:30 by the CT Core session, for the ~10:45 account swap (win
 agent milestone. Agents running at a cut-off are lost: their last pushed commit is the resume point (table below).
 
 ## Live (resumed 10:48 on the new account; newest first, overrides the table)
+- 12:00 mocap-strafe round 2 DONE 149f419c: knee-out facing 1.52-2.65 cm (STRAFE_KNEE_BOW 0.5), steady alloc = base ON,
+  knee-out assert, OFF md5 holds; e2e-anim 31 s + e2e-clip 13 s desktop GPU PASS. Found round-1 regressions (M1 fails):
+  restart after 0.3 s stand slide 3.87 cm (842270f0: 0), flip pelvis pops 3.34 / 2.36 cm (OFF 1.11 / 0.93), diagonal
+  flip slide 1.21 cm. ROUND 3 (Opus) RUNNING on those. Then: fresh Opus recheck (msc-CHECK.md scope + these), own PR.
 - 11:55 Spare team-climb (Opus) RUNNING: C:/NightShift/Mobile-Coop-team-climb, feature/team-climb off master 3c460923.
   Goals: CLIMB_UP_TEAM rope-top lip grips (teamController ropeTop reachL / reachR, remoteAvatar), ease teamController
   ~347-348 rise / across (5.7 cm pop), tests/teamClimb.test.ts; e2e coop / netmove / traverse. Stays off traverse-fix-2's
