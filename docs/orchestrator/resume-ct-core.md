@@ -17,7 +17,9 @@ scratch/ctcore/push-resume.sh <file> <msg>. Message the orchestrator only at PR 
 | team-climb (Opus) | feature/team-climb off 3c460923 | a5559685 WIP | CLIMB_UP_TEAM: rope-top lip grips (teamController ropeTop reachL / reachR, remoteAvatar), ease teamController.ts ~347-348 rise `min(1, e*1.7)` and `across` jump at e 0.4 (5.7 cm pop), tests/teamClimb.test.ts, e2e coop / netmove / traverse. Off traverse-fix-2's hunks. Next batch. |
 | spare 9 interrogation-intel (Sonnet) | feature/interrogation-intel off batch-22 99c37251 | a2984b63 DONE | intel.ts / intelReveal.ts, takedownController, coopHost relay; no wire / save / src/ai change. Vitest 40/40, tsc, eslint, e2e-takedown GPU green. e2e-coop relay assert untested (laptop batch). patrolRoute getter rides guard-ai-s8 (compiles without). Part B (modes' onIntelCode) after marlow-final / sector-redesign. |
 
-## Next window, at once (parallel, CPU < 80%)
+| batch 23 (train 25) | feature/ctcore-batch-23 off batch-22, folder ctcore-batch | dc8919cd | = interrogation-intel a2984b63 + sd-rounds 2ef4000f + team-climb 2805b65e (coop.md conflict: both bullets kept); tsc OK. Opus checker running (-> scratch/ctcore/b23-CHECK.md); laptop asked for coop, netmove, ctcourse, takedown, traverse, anim, combat, weapon-audio on dc8919cd. Then PR to master, train-ready. |
+
+## Next window, at once (parallel, CPU < 80%; orchestrator: max 2 tsc / vitest agents while CPU > 80%)
 1. (done after the swap) r3, team-climb, sd-rounds restarted from the heads above; spare 9 started. Spare 12 dual-reward is
    in #207. If cut off again: restart each with the table's goals.
 2. Wait for hand-backs (no polling).
