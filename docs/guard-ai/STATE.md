@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~17:30: S9 on train 28 = 3c49981e (protocol 38, A140; s9 + a126 branches there). A126 267553bf GREEN 3/3 (coop, netmove,
+stealth-ai). S22 check PASS (c2aac435, slices/S22-CHECK.md); PR #234 OPEN to master. Test Runner queue: 4191 S9 3c49981e
+(gates #229); 4192 S16 7f91bf3a sectorops:6, S22 301ade39 (stealth-ai, ct-warehouse, ctcourse, sectorops:6).
+
 ~17:05: 4.76.0 = train 27 (S13-S15 in master d9411fe1); #218-#220 closed as merged; #229 / #230 retargeted to master.
 Train 28 (3a2b1e9a) = #207 + #230 walk; #229 S9 OUT (scripts/e2e-coop.mjs conflict with Player batch 22). A126 check
 PASS (slices/A126-CHECK.md, 5db9715d). S16 fix 2 7f91bf3a (test-only, A89: loop.manual missing, sim ran past the 12 s
@@ -470,8 +474,8 @@ e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep lapto
    Test Runner asked: coop, netmove, stealth-ai, takedown on 3c49981e; green -> TRAIN-READY
    (train 29) for #229 (A126 rides inside it; never ship S9 without A126).
 3. #228 S16 7f91bf3a (test-only fix 2): Test Runner sectorops:6; green -> TRAIN-READY #228.
-4. S22 301ade39 (feature/guard-ai-s22, base walk): checker + Test Runner (stealth-ai, ct-warehouse, ctcourse,
-   sectorops:6). PASS + green -> PR to master (after #230 lands) + TRAIN-READY. Game side per slices/S22.md after
+4. S22 #234 (feature/guard-ai-s22, off walk; check PASS c2aac435): Test Runner on 301ade39 (stealth-ai, ct-warehouse,
+   ctcourse, sectorops:6); green -> TRAIN-READY #234. Game side per slices/S22.md after
    marlow-final merges (then e2e-ctcourse A4 step 3 expects a refusal from a passive officer: fix it with the wiring).
    When S9 and S22 meet: append `console`, `consoleCheck` to BARK_EVENTS.
 5. Polish lists only (no refining): WALK-CHECK.md 1-6, S16-CHECK.md, A126-CHECK.md.
