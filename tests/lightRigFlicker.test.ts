@@ -8,7 +8,7 @@ import type { Mesh } from '../src/core/babylon';
 import { LightRegistry, type LightDef, type LightFixture } from '../src/world/lights';
 import { FLICKER_NONE, FLICKER_STUTTER } from '../src/world/lampFlicker';
 import { SwaySet } from '../src/world/lampSway';
-import { bytesPerCall, HEAP_NUMBER, inlineRoom, inputs, sink } from './helpers/allocPerCall';
+import { bytesPerCall, HEAP_NUMBER, inputs, sink } from './helpers/allocPerCall';
 
 const BOX: LightFixture = { sx: 1.2, sy: 0.08, sz: 0.2, oy: 0.05 };
 const strip = (): LightFixture => ({ sx: 1.2, sy: 0.08, sz: 0.2, oy: 0, model: 'strip', base: 'ceiling', yaw: 0, mount: 0 });
@@ -149,7 +149,6 @@ describe('LightRig fitting glow on a flicker move (lr16pol E)', () => {
   });
 
   it('a flicker move allocates nothing (tickFlicker + the rig\'s frame)', async () => {
-    inlineRoom(); // the flicker call tree is deep: the inlining budget must not decide the reading (allocPerCall)
     const { scene, reg, r, b, flick } = await rig();
     const T = inputs(2000, (k) => 100 + k / 60);
     const before = reg.flickerVersion;

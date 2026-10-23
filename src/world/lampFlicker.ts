@@ -62,12 +62,14 @@ export const STUTTER_BURST_MAX = DROP_MIN + DROP_SPAN;
 export const FIRE_MEAN = 0.875;
 export const STUTTER_MEAN = 0.94;
 
-/** A 32-bit integer hash of two integers (lowbias32 mix). */
+/** A 30-bit integer hash of two integers (lowbias32 mix, low 30 bits): always a small integer (Smi), so the call never
+ *  boxes its result when V8 leaves it un-inlined (a uint32 above 2^30 is a 16 B HeapNumber: tickFlicker read 66-145 B a
+ *  call on CI, hash2 x14 over the inline budget). */
 export function hash2(a: number, b: number): number {
   let h = Math.imul(a | 0, 0x9e3779b1) ^ Math.imul((b | 0) ^ 0x5bd1e995, 0x85ebca77);
   h = Math.imul(h ^ (h >>> 16), 0x7feb352d);
   h = Math.imul(h ^ (h >>> 15), 0x846ca68b);
-  return (h ^ (h >>> 16)) >>> 0;
+  return (h ^ (h >>> 16)) & 0x3fffffff;
 }
 
 /** A map's flicker seed from its id and the match seed (both pages build the same map from the `start` message). */
@@ -87,8 +89,8 @@ export function lampSeed(mapSeed: number, id: number): number {
 export const FLICKER_T = new Float64Array(1);
 export const FLICKER_OUT = new Float64Array(1);
 
-/** 2^-32: a `hash2` as a fraction 0..1 (exclusive). */
-const U = 1 / 4294967296;
+/** 2^-30: a `hash2` as a fraction 0..1 (exclusive). */
+const U = 1 / 0x40000000;
 
 /** A fire's multiplier at time `FLICKER_T[0]` (s) into `FLICKER_OUT[0]`: `FIRE_MIN`..`FIRE_MAX`, smooth, a few Hz. Three octaves of
  *  value noise (lattice values 0..1, smoothstep between), written out so nothing is boxed. */

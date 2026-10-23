@@ -16,13 +16,6 @@
  * (Turbofan: 32.0), so a starved compiler thread decided the result. Now the warm-up ends in optimized code on any
  * machine, and every run reads the same bytes.
  *
- * Inlining room (`inlineRoom()`, opt-in per test file): Turbofan inlines a call tree only up to a cumulative bytecode
- * budget (920 B, the default), and which calls win it depends on the feedback the code had when the loop was compiled,
- * so on one machine a deep tree (lampFlicker: tickFlicker -> fireAt 417 B + stutterAt 459 B -> hash2 133 B x 14) fits
- * and on another (CI's Node 22: 66 B and 104 B a call) the last calls to `hash2` stay calls and box their uint32
- * results. A check that guards a deep tree calls `inlineRoom()` first: the budget no longer decides, so the reading is
- * the code's own allocation (an array or object a call makes still reads in full).
- *
  * The measured loop must not allocate itself: inputs precomputed with `inputs()` (no double arithmetic in the loop),
  * results into a typed array such as `sink` (`acc += x` on a captured `let` boxes 16 B an iteration), no closures or
  * literals in the loop. `ALLOC_TRACE=1` logs every round's reading with the loop's optimization status (hex,
@@ -50,11 +43,6 @@ const gc = vm.runInNewContext('gc') as () => void;
 v8.setFlagsFromString('--no-concurrent-recompilation');
 v8.setFlagsFromString('--no-concurrent-osr');
 v8.setFlagsFromString('--allow-natives-syntax');
-/** Lift Turbofan's inlining budgets for the rest of this test process (vitest runs each file in its own process). */
-export function inlineRoom(): void {
-  v8.setFlagsFromString('--max-inlined-bytecode-size-cumulative=20000');
-  v8.setFlagsFromString('--max-inlined-bytecode-size=2000');
-}
 const optStatus = new Function('f', 'return %GetOptimizationStatus(f)') as (f: unknown) => number;
 const newSpace = (): number => v8.getHeapSpaceStatistics().find((x) => x.space_name === 'new_space')!.space_used_size;
 
