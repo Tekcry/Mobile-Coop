@@ -337,7 +337,9 @@ describe('(LR16e) penumbra', () => {
     const set = canonicalLightSet(b.boxes, b.cylinders, map.id, dressingOn(map));
     const r = bakeLamps({ kind: 'lamps', id: 0, shapes: set.shapes, lights: bakedLights(b.lights).lights, lo: set.lo, hi: set.hi });
     // (ctcourse re-taken after pol-f's bounce bits, LAMP_VERSION 7; vis bytes checked identical old vs new on the merged tree)
-    expect(bakeHash(r)).toBe('0a285ac259cd1791');
+    // (LR16 train entry) re-pinned on master's Marlow Yard (A1-A8, marlow-final), which replaced the map the hash was
+    // taken on (0a285ac259cd1791); the scratch-cut equivalence itself stays proven by the fixture hashes above
+    expect(bakeHash(r)).toBe('6efdcc4965ad2745');
   }, 600_000);
 
   it('(LR16-POLISH C) the scratch is the blocker distance (4 B a cell of the largest box) plus rings of planes', () => {

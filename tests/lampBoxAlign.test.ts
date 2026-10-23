@@ -215,6 +215,9 @@ const ON_ITS_POST: Record<string, string> = {
  */
 const KNOWN_EMBEDDED: Record<string, string> = {
   'campusOps:16': 'S1 bike shelter fitting (-5, 2.2, -48) flush with the roof underside at 2.2 (campusS1.ts:254); tagged out (radius 0, off): bakes nothing',
+  'ctcourse:136': 'A8 counter lamp (121.0, 1.4, 65.9) 0.2 m over its 1.2 m oak counter (a8Strongroom.ts A8-15, master marlow-final): the counter top is in the cell under it; LR16 train entry, for the lead / Marlow Build',
+  'ctcourse:137': 'A8 counter lamp (124.8, 1.4, 65.9) 0.2 m over its 1.2 m oak counter (a8Strongroom.ts A8-15, master marlow-final): the counter top is in the cell under it; LR16 train entry, for the lead / Marlow Build',
+  'ctcourse:138': 'A8 counter lamp (125.6, 1.4, 61.5) 0.2 m over its 1.2 m oak counter (a8Strongroom.ts A8-15, master marlow-final): the counter top is in the cell under it; LR16 train entry, for the lead / Marlow Build',
 };
 
 describe('every map: no lamp embedded in its own mount', () => {
