@@ -1,6 +1,15 @@
 # Guard AI - state
 
 ## Now
+~14:40 (LAPTOP, fresh session): laptop worktrees made (npm ci): ...-guard-ai (docs), ...-guard-ai-s15, ...-guard-ai-walk.
+s15 <- s14 (s13's ladder flake fix) = f54d26d1, pushed; walk branch cut from f54d26d1 (the old walk agent's work never
+reached origin: restarted). RUNNING (Opus): S15 fix round (breaker arrival height + sectorops:6 panel / switch-bank
+cuts draw no guard) on s15; S17-S19 builder on walk (report slices/WALK.md, A100-A119). Ladder flake: already fixed on
+s13 82ef72bd (sim time + condition wait), green under load; now on s15. Train 26 is built without us: target train 27.
+Retarget #218 -> master was blocked by auto mode here (orchestrator or Michael: `gh pr edit 218 --base master`).
+S16 waits for Sector Ops #217 to land. Walk report G1-G6 = PLAN "Walk 4.72 fixes" S17-S22 (checked against
+docs/orchestrator/WALK-4.72-REPORT.md on feature/menu).
+
 ~14:10: a resumed session started on the DESKTOP by mistake and stopped at the orchestrator's word: no agents, no
 code. Desktop worktrees all clean, nothing unpushed: s15 72a5091f, s16 d6b43740, s9 59c35d7f, walk 884b89c0 (so the
 S17-S19 walk agent's work, if any, is only on the laptop worktree ...-guard-ai-walk). Resume on the laptop per the block.
@@ -385,35 +394,29 @@ behaviour code Opus; Sonnet only for tests / e2e scenarios / data from a strict 
 
 ## Resume prompt
 ```
-Night Shift | Guard AI Build - guard-ai: RESUME ON THE LAPTOP (Michael ~13:00: Guard AI moves off the desktop).
-Model Opus, effort high; fresh session. Everything is on origin: git fetch, then create laptop worktrees as needed
-(C:/NightShift/Mobile-Coop-guard-ai on feature/guard-ai, C:/NightShift/Mobile-Coop-guard-ai-s<n> on
-feature/guard-ai-s<n>; npm ci once per worktree, under the laptop heavy.lock). Branch guard before every write
-(CLAUDE.md "A job"). Read CLAUDE.md ("Sessions", "Heavy-usage throughput"), the ROADMAP "Decided" entries by grep,
-then this file's "Now" (top 4 entries).
-State at the save (~14:00): train 25 GREEN = #200-#203 + #208 releasing as 4.74.0 (once merged, retarget #218 to master).
-1. S15 laptop fix (s15 WIP 72a5091f, agent cut off?): e2e-stealth-ai 'breaker' (walks to 0.29 m, never relit) and
-   e2e-sectorops:6 (master's panel / switch-bank cuts draw no guard) on 884b89c0. Done = slices/S15.md "Laptop fix
-   (884b89c0)"; else a fresh Opus agent from the STATE ~13:55 entry (suspect: S15 breaker host x master's isolator
-   boards / switch banks in stealthSystems.ts + EnemyManager.lightsOut / circuitOut). Then laptop rerun on s15:
-   e2e-stealth-ai, e2e-sectorops 3 + 6, e2e-levels (s13's ladder flake fix 82ef72bd must be merged up into s14 / s15
-   first). Green -> train-ready #218-#220 (train 26).
-2. S9 co-op: checker PASS 59c35d7f (slices/S9-CHECK.md). Laptop run on 59c35d7f queued (coop, netmove, stealth-ai,
-   takedown). Then s9 <- fixed s15, rerun coop + netmove, PR S9 (base s15), message the orchestrator.
-3. S16 BUILT d6b43740 (slices/S16.md, A80-A87; armourFire.ts gate before every round, reposition via pickCover / chase;
-   19 + 183 tests; ballistics.ts one added method `armouredFirst`: tell Sector Ops). Checker: done = slices/S16-CHECK.md;
-   else a fresh Opus checker. Then laptop e2e-sectorops part 6, stealth-ai, ct-warehouse, ctcourse; PR base
-   feature/sector-redesign-e10 (retarget to master when E10 lands), tell Night Shift | Sector Ops Build.
-4. Laptop ~14:00: s9 59c35d7f 3/4 (coop incl. the S9 block, netmove, takedown OK; stealth-ai = the S15 breaker fail);
-   s13 82ef72bd e2e-levels GREEN under load (ladder flake fixed, on #218; s14 has it, 058b7916).
-5. Michael's walk fixes G1-G6 = PLAN.md "Walk 4.72 fixes" S17-S22. S17 lasers + S18 bodies + S19 urgency RUNNING
-   (Opus, ~14:00) on feature/guard-ai-walk off s15 884b89c0 (worktree ...-guard-ai-walk, was -s10; report
-   slices/WALK.md; A100-A119). Done = WALK.md with all three; else a fresh Opus agent finishes from PLAN rows + WIP.
-   Then S20 collision / doors and S22 console (with Marlow Build) in parallel, S21 holstered (with Test Runner, rig);
-   one batch PR, one Opus checker; merge the fixed s15 in before the PR.
-Rules: AI code and checkers Opus, Sonnet 5.5 tests / data from strict briefs, Haiku chores. Never two agents on the
-same files; keep the laptop CPU in step with Test Runner's queue (trains first). Every e2e E2E_GPU=1. Message the
-orchestrator only at PR open / train-ready / blocked / needs Michael; progress in this file. A-numbers: S13 A52-A59,
-S15 A60-A69, S14 A70-A79, S16 A80+. No question dialogs; log assumptions in BRIEF.md. At the save: WIP pushed in every
-worktree, this block current.
+Night Shift | Guard AI Build - guard-ai lead, on the LAPTOP. Model Opus, effort high; fresh session.
+git fetch. Worktrees (laptop): C:/NightShift/Mobile-Coop-guard-ai (feature/guard-ai, docs/STATE), ...-guard-ai-s15,
+...-guard-ai-walk (both npm ci'd); create others with git worktree add + npm ci under C:/NightShift/heavy.lock.
+Read CLAUDE.md ("Sessions", "Heavy-usage throughput" incl. "Token rules"), ROADMAP "Decided" by grep only (Guard AI,
+unavoidable guards, stealth over shooting), then this file's "Now" (top 3 entries).
+Laptop shares the machine with Test Runner: e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; tsc /
+vitest agents keep laptop CPU under ~80%. Train 26 built without us: aim at train 27.
+1. S15 fix round (#220): check feature/guard-ai-s15 for slices/S15.md "Laptop fix (884b89c0)" (done) else a fresh
+   Opus agent from STATE ~13:55 + ~14:40 (breaker: enemy.ts brkY / EnemyManager.switchFloor; sectorops:6: S15 BREAKER
+   branch ~enemyManager.ts:849 vs master's panel / switch-bank cuts in stealthSystems.ts). Then ask Test Runner for
+   E2E_GPU=1 on the s15 head: e2e-stealth-ai, e2e-sectorops parts 3 + 6, e2e-levels, e2e-ct-warehouse, e2e-course.
+   Green -> merge master into s12..s15 chain only then; TRAIN-READY #218 -> #219 -> #220 for train 27.
+2. Walk S17-S19 (G1-G3) on feature/guard-ai-walk: done = slices/WALK.md with all three; else a fresh Opus agent
+   from PLAN.md "Walk 4.72 fixes" + the pushed per-slice commits. Then merge fixed s15 in; S20 collision / doors next
+   (Opus, same branch), S22 console with Marlow Build, S21 holstered with Test Runner (rig); one batch PR, one Opus
+   checker.
+3. S9 co-op (protocol 32): checker PASS 59c35d7f; laptop 3/4 (stealth-ai = the S15 breaker fail). s9 <- fixed s15,
+   rerun e2e-coop + netmove + stealth-ai, PR S9 (base s15).
+4. S16 BUILT d6b43740 (off sector-redesign-e10): only after Sector Ops #217 lands: Opus checker (S16-CHECK.md), laptop
+   e2e-sectorops 6, stealth-ai, ct-warehouse, ctcourse; PR; tell Sector Ops Build (ballistics.ts armouredFirst).
+5. #218 retarget to master still pending (auto mode blocked `gh pr edit 218 --base master` on the laptop).
+Rules: AI code and checkers Opus; Sonnet 5.5 tests / data from strict briefs; Haiku chores. Never two agents on the
+same files. Message the orchestrator only at PR open / train-ready / blocked / needs Michael; progress here. A-numbers:
+S16 A80-A89, S9 A90-A95, walk A100-A119. No question dialogs; assumptions in BRIEF.md. At ~92%: WIP commit + push in
+every worktree, keep working to 100%; this block current.
 ```
