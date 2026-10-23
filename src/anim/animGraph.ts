@@ -1940,7 +1940,10 @@ export class AnimGraph {
       const cStill = locoD + stillD > 1e-4 ? stillD / (locoD + stillD) : 0;
       this.cIdleS = approach(this.cIdleS, cStill, cStill > this.cIdleS ? KEYED_CROUCH.settleIn : KEYED_CROUCH.settleOut, dt);
       this.cPace = approach(this.cPace, effortSpeed(locoSpeed, true), KEYED_CROUCH.paceTau / Math.max(0.05, this.moveW), dt);
-      this.cBackK = approach(this.cBackK, clamp(1 - Math.abs(i.yawRate) / CROUCH_BACK_TURN.rate, 0, 1), CROUCH_BACK_TURN.tau, dt);
+      // (approach and clamp written out: a call the graph does not inline boxes its double arguments, 16 B each a frame)
+      const cbT = 1 - Math.abs(i.yawRate) / CROUCH_BACK_TURN.rate;
+      const cbC = Math.max(0, Math.min(1, cbT));
+      this.cBackK = cbC + (this.cBackK - cbC) * Math.exp(-dt / CROUCH_BACK_TURN.tau);
       // (mocap-trial-2) switch on, the crouched sneak's capture (LOCO.set.crouchWalk) into kCr; the drawn set's crouched legs
       // stay hand-keyed (kCrD, as the drawn speed set: weapons are not part of the mocap trial)
       const mcC = this.mOn ? this.mS.crouchWalk : null;
@@ -2601,7 +2604,9 @@ export class AnimGraph {
     // uncross gap (FREE_GAP of the stance) was ~0.6 cm, so in a turn the outside foot came in across the inside one (jog
     // 3 m/s x 2.5 rad/s planted ankle -0.3 cm, run 4 x 4 0.5 cm). The walk keeps trackMul's (its turns are fine); off the
     // switch keyMocap is 0, and without clip feet (the placeholders) nothing here: unchanged
-    const hF = this.mFeet ? o.keyMocap * smoothstep((Math.max(0, i.speed) - MOCAP_FEET_TRACK.from) / (MOCAP_FEET_TRACK.full - MOCAP_FEET_TRACK.from)) : 0;
+    // (smoothstep written out: a call the graph does not inline boxes its double argument, 16 B a frame)
+    const hT = Math.max(0, Math.min(1, (Math.max(0, i.speed) - MOCAP_FEET_TRACK.from) / (MOCAP_FEET_TRACK.full - MOCAP_FEET_TRACK.from)));
+    const hF = this.mFeet ? o.keyMocap * (hT * hT * (3 - 2 * hT)) : 0;
     if (hF > 0) {
       const hc = this.kHalf * (1 - KNEEL_NARROW * o.kneel);
       if (hc > half) half += (hc - half) * hF;
@@ -2743,7 +2748,9 @@ export class AnimGraph {
       const turnMax = st > 0 && M.twistMax / st > M.turnMax ? M.twistMax / st : M.turnMax;
       // (anim-fix-pass AF1) at a jog and faster (eased in over MOCAP_FEET_TRACK's speeds) the hand-off comes at
       // MOCAP_FEET_TURN.off and the take-back under .on (hysteresis); the walk's own limit as before
-      const tk = smoothstep((speed - MOCAP_FEET_TRACK.from) / (MOCAP_FEET_TRACK.full - MOCAP_FEET_TRACK.from));
+      // (smoothstep written out: a call with a double boxes it, 16 B a frame)
+      const tkT = Math.max(0, Math.min(1, (speed - MOCAP_FEET_TRACK.from) / (MOCAP_FEET_TRACK.full - MOCAP_FEET_TRACK.from)));
+      const tk = tkT * tkT * (3 - 2 * tkT);
       const tOff = tk > 0 ? turnMax + ((turnMax < MOCAP_FEET_TURN.off ? turnMax : MOCAP_FEET_TURN.off) - turnMax) * tk : turnMax;
       const tOn = tk > 0 ? tOff + ((tOff < MOCAP_FEET_TURN.on ? tOff : MOCAP_FEET_TURN.on) - tOff) * tk : tOff;
       const yrA = Math.abs(i.yawRate);

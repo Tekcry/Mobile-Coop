@@ -60,3 +60,39 @@ guardGunCarry 2, guardHead 14, coopGuardCarry 8: all pass.
 - animFixPass rewrites docs/anim-fix-pass/before/numbers.md when run (known since AF4b); restored, not committed.
 
 Changelog: changes/feature-afp-af3.md "(CI fix) Guards keep their crouch ..." line.
+
+# PR #247 CI fix 2: mocapStrafe aimed strafe allocation (run 39942525621, both attempts)
+
+Opus fix agent, 2026-10-23. Head before: afea69d3.
+
+## Noise or real?
+Real. CI attempt 1 read steady R off 1883.9 / on 1930.9, attempt 2 off 1915.9 / on 1962.9: the absolute bytes move by
+32 between attempts, the gap stays 47.0 (3 boxed doubles; the limit is off + 2 x 16 + 1). Locally (Node 24; CI Node 22)
+the test alone (`-t "allocates no more"`) is deterministic: head off 1440.0 / on 1504.0 every run (limit 1473), master
+33fff449 off 1392.0 / on 1424.0. In the full file the earlier tests' warm-up hides it locally (head and fix both read
+1408 / 1424), which is why it "passed locally" before.
+
+Bisect (throwaway detached worktree, test alone): 69662cf2 and 0c886207 1392 / 1424 (master's); 44ed5389 (+AF1)
+1392 / 1440; 236601dc (+AF3) 1440 / 1504; unchanged through 48b9b73c, e70951e3, 0448c359. The CI fix 0448c359 added
+nothing.
+
+Cause: `approach`, `clamp` and `smoothstep` are never inlined into `AnimGraph.update` / `writeTargets` / `clipFeet`
+(`--trace-turbo-inlining`: 0 of 30 / 18 / 15 call sites in update, on master too), so a call with a non-integer double
+argument boxes it (16 B). AF3 added `this.cBackK = approach(..., clamp(...), ...)`, run every frame (48 B, OFF and ON);
+AF1 added two `smoothstep(...)` calls on the speed band (`hF` in writeTargets, `tk` in clipFeet), run every frame (16 B ON).
+
+## Fix (src/anim/animGraph.ts)
+The three written out, the same arithmetic bit for bit (clamp = max(lo, min(hi, v)); approach with tau > 0 =
+target + (x - target) exp(-dt / tau); smoothstep = c c (3 - 2c)), as motion.ts already does for sideStepAt. No test, threshold or
+measurement changed.
+
+## Numbers (steady R, B a frame, off / on; limit off + 33)
+- Test alone: head 1440.0 / 1504.0 (fail) -> 1392.0 / 1424.0 (master's exactly); all four plans now read master's
+  (steady L 1424 / 1424, diagonal 1532.2 / 1548.2, flips 1438.9 / 1458.6).
+- Full file: 1408.0 / 1424.0 before and after (local).
+
+## Tests
+mocapStrafe 5 runs in a row: 12/12 each. `npx tsc --noEmit -p .` 0 errors; eslint src/anim/animGraph.ts clean. No e2e
+(desktop rule). Open: CI on the new head (Node 22).
+
+Changelog: none (no behaviour change; the fragment's AF1 / AF3 lines cover the code).
