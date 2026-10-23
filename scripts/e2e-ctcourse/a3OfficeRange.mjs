@@ -15,8 +15,8 @@
 //      the client to the east lobby: `a3-far1` and `a3-in` tick, the lines swap to the swap step;
 //   6. the swap: the client jams from the east post (98.0, 10.75) (the host is the one who walks): the host to the recess, the second jam, the host
 //      to the east lobby: `a3-far` and `a3-swap` tick, both read the closing line;
-//   7. the lure (LIGHTING-PLAN 5): with the cleaner calm in office 2 the host turns office 1's switch off: office 1 reads dark on both pages and he
-//      walks toward the switch; the switch back on;
+//   7. the lure (LIGHTING-PLAN 5): with the cleaner calm in office 2, heading west, the host turns office 1's switch off: office 1 reads dark on
+//      both pages, he takes the dark office (breaker walk or light check) and walks toward the switch; the switch back on (by him or the host);
 //   8. both to the L3 door, nobody hanging, the pistols holstered.
 // Teleport legs are allowed on the open floor (the walks are proved by the unit tests: every hop is inside one blind window); a door the route
 // opens is opened by `use(P, 'door-<anchor id>')`. The offices route (one jam, the cleaner's loop) and the takedown at the far desk are not
@@ -407,7 +407,11 @@ export async function walk(t, n) {
   assert(!!sw1, `A3: office 1's switch is a map switch item (${sw1})`);
   // (S-e2e-fix2) on his loop (unaware or cooldown), not merely out of combat: a searching guard ignores a heard lure
   // (`alertState.ts`: 'searching' only times out; `heard` moves him from unaware, cooldown, suspicious and investigating)
-  await traced('A3 office 2', until(A, () => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return !!e && (e.aware.level === 'unaware' || e.aware.level === 'cooldown') && e.pos.x > 85.8 && e.pos.x < 90.8 && e.pos.z < 8.5; }, null, 150000, 'A3: the cleaner is calm in office 2'));
+  // (fix 4b, after train/30) and on his loop's leg back west (walker index 6: office 3 -> office 2 -> office 1), so office 1's lamps
+  // come into his view: the coordinated lights-out (guard-ai S2) lures only a guard who saw the lamps go, and a calm guard finds a dark
+  // fixture later only in his focused cone (guard-ai S15 late discovery). The position-only wait took him on the laptop as he came
+  // back into office 2 through the recess door from a look at the east post, facing south: he saw nothing and walked on east.
+  await traced('A3 office 2', until(A, () => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return !!e && (e.aware.level === 'unaware' || e.aware.level === 'cooldown') && e.incident < 0 && e.breakerGroup < 0 && e.walker?.idx === 6 && e.pos.x > 85.8 && e.pos.x < 90.8 && e.pos.z < 8.5; }, null, 150000, 'A3: the cleaner is calm in office 2, heading west'));
   const d0 = await cleaner();
   const dist = (e) => Math.hypot(e.x - SW_OFF1[0], e.z - SW_OFF1[1]);
   assert((await use(A, sw1)) === 'ok', 'A3: the host turns office 1\'s switch off');
@@ -419,8 +423,12 @@ export async function walk(t, n) {
   }
   const lit2 = [await level(A, OFFICE2[0], OFFICE2[1]), await level(B, OFFICE2[0], OFFICE2[1])];
   assert(lit2.every((l) => l >= 0.4), `A3: office 2 stays lit on both pages (${lit2.map((l) => l.toFixed(2))})`);
-  await traced('A3 lure', until(A, ([x, z, d]) => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return !!e && (Math.hypot(e.pos.x - x, e.pos.z - z) < d - 3 || Math.hypot(e.pos.x - x, e.pos.z - z) < 3); }, [SW_OFF1[0], SW_OFF1[1], dist(d0)], 30000, `A3: the cleaner walks toward office 1's switch (from ${dist(d0).toFixed(1)} m)`));
-  assert((await use(A, sw1)) === 'ok', 'A3: the host turns office 1\'s switch on again');
+  // (fix 4b) the lure itself, not only his loop: he takes the dark office (the breaker walk to its switch, or a light check) and
+  // closes on the switch; a reset he finishes first (the circuit back on by his hand) counts
+  await GA(() => { window.__a3Lure = false; });
+  await traced('A3 lure', until(A, ([x, z, d]) => { const g = window.__app.current; const e = g.enemyMgr.enemies.find((q) => q.alive); if (!e) return false; if (e.breakerGroup === 31 || e.incident >= 0) window.__a3Lure = true; const r = Math.hypot(e.pos.x - x, e.pos.z - z); return window.__a3Lure && (r < d - 3 || r < 3 || g.stealth.switchOn(31)); }, [SW_OFF1[0], SW_OFF1[1], dist(d0)], 45000, `A3: the cleaner takes office 1's dark lamps and walks toward its switch (from ${dist(d0).toFixed(1)} m)`));
+  // (fix 4b) he may have turned it back on himself (the breaker walk); else the host does
+  if (!(await GA(() => window.__app.current.stealth.switchOn(31)))) assert((await use(A, sw1)) === 'ok', 'A3: the host turns office 1\'s switch on again');
   await until(A, () => window.__app.current.stealth.switchOn(31), null, 15000, 'A3: group 31 is back on');
   await until(B, (g) => window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g).every((x) => x.on), 31, 15000, "A3: the client sees office 1's lamps on");
 
