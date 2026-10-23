@@ -28,3 +28,11 @@ Train 32: built 19:41, laptop pass 20:04 (43/43, sharded 564 / 560 s), release C
 | 3 | Label relay, no auto trains | #249 missed train 32 by minutes | auto mode blocks gh pr edit --add-label (laptop); auto-train not registered | allow rule on the laptop; register auto-train after 4.81.0 | Michael / orchestrator |
 | 4 | Player idle, AF7-AF9 gated | spare list empty | gated on Michael walking AF0-AF6 | earlier walk on a preview of #247 | Michael |
 | 5 | Desktop capacity unused | CPU 27-37% vs 80% | no desktop e2e (19:15) | desktop as queue overflow slot (JOBS=1) when backlog > 3 | Michael |
+
+## 2026-10-23 ~23:08 (orchestrator, Michael: "clear the queued tests faster")
+Laptop queue 26 open requests / ~135 suites while train 36 held both laptop slots. 8 requests (~36 suites) sat at shas
+whose branch had since changed real code (verdict cannot count): 0981cae6, 6eb6a863, 842c4140, f078e49d, afea69d3,
+961ca660, 1fcab6e3, 0356bd58. Guard AI / Sector Ops requests ask 6-10 suites each against the "1-2 suites" rule.
+Oldest-first pick runs the stalest requests first. Fixes: leads withdraw superseded requests (told 23:08); Test
+Runner builds auto-supersede + newest-first per requester + stale-claim drop; desktop second slot 4192 (cc56baed) and
+4191 CPU gate 80 (Michael 23:05) go live at the desktop service's next restart; leads held to 1-2 suites per non-net PR.
