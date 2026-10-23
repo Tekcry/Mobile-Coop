@@ -30,6 +30,16 @@ export const PLAYER_TUNING = MOVEMENT;
  * 52.6-53.6: last crouch step at 53.2, knee on the floor at 53.5).
  */
 export const KNEEL_STILL = 0.05;
+/**
+ * (anim-fix-pass AF4a, Michael P4 "Crouch cover strafe: ... moves around constantly") Crouched and aiming the kneel waits
+ * this long (s) still: an L <-> R stick flip crosses the dead zone for ~0.1-0.3 s, and at KNEEL_STILL the strafe could drop
+ * into a kneel and back on a flip. A real stop still kneels, a beat later.
+ */
+export const KNEEL_STILL_AIM = 0.35;
+/** The stillness (s) before the crouched kneel: KNEEL_STILL_AIM aiming, else KNEEL_STILL. */
+export function kneelStill(aiming: boolean): number {
+  return aiming ? KNEEL_STILL_AIM : KNEEL_STILL;
+}
 
 /**
  * Lets another system (cover) drive the controller for a step: a desired horizontal velocity and
@@ -652,7 +662,7 @@ export class PlayerController {
     this.stillT = this.crouched && mag < 0.1 && (this.ct ? this.motion.state === 'idle' : this.speed < 0.4) ? this.stillT + dt : 0;
     // (G1, audit row 3) crouched, the stop goes straight to the kneel (the stop hold lets go for it); not beside an
     // unaware guard (the tense sneak holds its pose there)
-    this.kneeling = this.stillT > KNEEL_STILL && (!this.stopHold || this.crouched) && this.stopEaseT < 0 && !this.tense;
+    this.kneeling = this.stillT > kneelStill(aiming) && (!this.stopHold || this.crouched) && this.stopEaseT < 0 && !this.tense;
     if (this.kneeling && this.stopHold) {
       this.stopHold = false;
       this.holdSpeed = 0;

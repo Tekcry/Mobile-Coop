@@ -395,6 +395,11 @@ const REST_SHIFT_RATE = 0.6;
  * capsule), eased over `tau` s: a side-step's weight goes onto the lead foot, then the trailing foot closes under it.
  */
 export const GLIDE_HIP = { share: 1, max: 0.09, tau: 0.08 } as const;
+/** (anim-fix-pass AF4a, Michael P4 "moves around constantly") Crouched, the glide's hips go only `share` of the way to the
+ *  feet's centre (blended in by the crouch), and that shift changes at most `rate` m/s (/ the crouch): every short crouched
+ *  shuffle moved the hips the full way at tau 0.08 with no limit (stop-go 8-11 cm p2p, flips 12.7). The share stays >= 0.85:
+ *  under it the steady strafe's knee bows past 3 cm (e2e-anim's crouched aimed strafe knee-out gate). Standing: GLIDE_HIP. */
+export const GLIDE_HIP_CROUCH = { share: 0.85, max: 0.09, rate: 0.03 } as const;
 /** (mocap-trial-2 strafe fix) In the mocap strafe the hips stay this far (m) inside each planted foot across the body (the
  *  captures keep theirs 4.4 cm inside; the planted knee then stays over its toes). */
 export const STRAFE_HIP_IN = 0.06;
@@ -2448,8 +2453,15 @@ export class CharacterRig {
       // (mocap-trial-2 strafe fix) also under the mocap strafe: its hips over the planner's feet, not a fixed hold (knee-out)
       const gk = free || this.input.wall ? 0 : t.keyDrawn * t.aimW * kw;
       const midX = ((L.x + R.x) * 0.5 - rp.x) * Math.cos(yaw) - ((L.z + R.z) * 0.5 - rp.z) * Math.sin(yaw);
-      const want = gk > 0 ? Math.max(-GLIDE_HIP.max, Math.min(GLIDE_HIP.max, midX - pex)) * GLIDE_HIP.share * gk : 0;
-      this.glideShift = approachTo(this.glideShift, want, dt, GLIDE_HIP.tau);
+      // (AF4a) crouched (blended by the crouch) the hips go GLIDE_HIP_CROUCH.share of the way, at most `max` off and
+      // `rate` m/s; crouch 0 keeps GLIDE_HIP as it was
+      const ck = this.input.crouch > 0 ? Math.min(1, this.input.crouch) : 0;
+      const share = GLIDE_HIP.share + (GLIDE_HIP_CROUCH.share - GLIDE_HIP.share) * ck;
+      const gmax = GLIDE_HIP.max + (GLIDE_HIP_CROUCH.max - GLIDE_HIP.max) * ck;
+      const want = gk > 0 ? Math.max(-gmax, Math.min(gmax, midX - pex)) * share * gk : 0;
+      const gs = approachTo(this.glideShift, want, dt, GLIDE_HIP.tau);
+      const gm = ck > 0 ? (GLIDE_HIP_CROUCH.rate * dt) / ck : Infinity;
+      this.glideShift = gs > this.glideShift + gm ? this.glideShift + gm : gs < this.glideShift - gm ? this.glideShift - gm : gs;
       pex += this.glideShift;
     }
     // (mocap-trial-2 strafe fix, the e2e-anim knee-out) in the mocap strafe the hips stay STRAFE_HIP_IN inside each planted
