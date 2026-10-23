@@ -1,6 +1,12 @@
 # Guard AI - state
 
 ## Now
+~12:25: S13 BUILT 6ed1cabd (slices/S13.md, A52-A56; responseWiring 17/17 + 207 AI tests; new pure src/ai/sweepTeam.ts,
+Enemy.crew / teamRank, EnemyManager.setAlarmStage / newTeam / joinTeam, sectorMode.raised builds the shield-led
+team, StealthSystems live alarm = enforcer + 2 grunts; e2e block "response teams (guard-ai S13)" in e2e-sectorops
+part 1 written, not run). Merged s12 159148f6 -> ec2ea5b7 (TESTING union; tsc, 132 unit tests). S9 must build the
+enforcer shield on the client by kind. S14, S15 still RUNNING.
+
 SAVED ~12:15 (window cap ~12:22). Parallel briefs: slices/NEXT-BRIEFS.md (sections 0-5; start there on resume).
 - Stack-tip fix DONE s10 345fbb91 (slices/S10.md "Stack-tip e2e fix"): radioNet.complete read the slot after
   `completed` (S6 command call reused it: section told 4 s late) = GAME FIX (S6), radioNet.ts:265-271 + 2 unit tests;
