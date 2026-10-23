@@ -326,7 +326,7 @@ export function jobsFor(stage, kit, opts = {}) {
         runner: 'node', script: LODS_SCRIPT, files: LODS_FILES, args: [...common(idOf('lods', b.id)), '--base', b.id],
         needs: [idOf('bodies', b.id), ...headsOf(b.id).map((h) => idOf('heads', h.id)), ...capsOf(b.id), ...garmentsOf(b.id).map((g) => idOf('garments', b.id, g.id)), ...gearIds(b.id)],
         tags: [b.id], kit: g4Slice(nk, b.id),
-        outputs: [0, 1, 2].map((n) => `lods/guard-${b.id}-lod${n}.glb`).concat(`lods/guard-${b.id}.report.json`),
+        outputs: [0, 1, 2].map((n) => `lods/guard-${b.id}-lod${n}.glb`).concat(`lods/guard-${b.id}.report.json`, `lods/guard-${b.id}.json`),
       })),
       // the shield is skinned on the rig of the base whose kinds carry it (G3 builds it in that bind pose)
       ...nk.ownGlb.map((p) => make(idOf('lods', p.id), {
@@ -379,7 +379,7 @@ export const CHECK_SCRIPT = 'scripts/operators/guard-check.mjs';
 const G4_JS = ['scripts/operators/guardAtlas.mjs', 'scripts/operators/guardGlb.mjs', 'scripts/operators/guardLodReport.mjs', 'scripts/operators/guardBakePlan.mjs'];
 const LODS_FILES = [...G4_JS, 'scripts/operators/ktx2.mjs', 'scripts/operators/blender.mjs',
   ...['bake_lods.py', 'bake_guard.py', 'guard_lod_util.py', 'guard_skin.py', 'materials.py', 'common.py'].map((f) => `${PY_REL}/${f}`)];
-const CHECK_FILES = [...G4_JS, 'src/operators/guards/guardBudget.ts', 'src/operators/guards/guardKit.ts'];
+const CHECK_FILES = [...G4_JS, 'src/operators/guards/guardBudget.ts', 'src/operators/guards/guardKit.ts', 'src/operators/guards/gearMask.ts'];
 const SHEET_FILES = ['scripts/operators/guard-sheet.mjs', 'scripts/operators/guardSheetPlan.mjs', 'src/operators/lab/guardSheet.ts', 'guards.html'];
 
 /** A base's kit slice for its lods / check hash: its entry, its heads, every piece its kinds use, the shared sections. */
@@ -465,6 +465,9 @@ export function parallelPlan(jobs, { par, maxGpu = 2 }) {
   return waves;
 }
 
-/** Outputs the push step ships to bake/guard-models: GLB, KTX2, report JSON, PNG sheets. */
-export const SHIPPABLE = /\.(glb|ktx2|png)$|\.report\.json$/;
+/**
+ * Outputs the push step ships to bake/guard-models: GLB, KTX2, report JSON, PNG sheets, and each base's runtime data
+ * file `lods/guard-<base>.json` (G7 guardAssets.ts `GuardFileData`; never the `.layout.json` / `.bake.json` scratch).
+ */
+export const SHIPPABLE = /\.(glb|ktx2|png)$|\.report\.json$|^lods\/guard-[a-z]+\.json$/;
 export const shippable = (rel) => SHIPPABLE.test(rel);

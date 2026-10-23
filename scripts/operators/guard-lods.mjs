@@ -8,7 +8,9 @@
 // 3. per LOD: `_PIECE` / `_TINT` to uint8 and the piece list into `extras.guard` (guardGlb.mjs), the PNGs to KTX2
 //    (toktx UASTC + Zstd with mips, ktx2.mjs toktxArgs) and the GLB repacked with KHR_texture_basisu only;
 // 4. the bake report measured from the finished files (guardLodReport.mjs) -> <out>/lods/guard-<id>.report.json, the
-//    shape G4b's check reads (src/operators/guards/guardBudget.ts), with the runtime manifest and the bake's notes.
+//    shape G4b's check reads (src/operators/guards/guardBudget.ts), with the runtime manifest and the bake's notes;
+// 5. a base only: <out>/lods/guard-<b>.json, the runtime's `GuardFileData` (G7 src/operators/guards/guardAssets.ts:
+//    { pieces, tintSlots: count, refHeight }), shipped with the three GLBs (guardLodReport.mjs guardFileData).
 import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
@@ -17,7 +19,7 @@ import { pathToFileURL } from 'node:url';
 import { findBlender } from './blender.mjs';
 import { guardLayout, pieceLayout } from './guardAtlas.mjs';
 import { fixGuardGlb, glbStats } from './guardGlb.mjs';
-import { baseReport, pieceReport } from './guardLodReport.mjs';
+import { baseReport, fileDataFile, guardFileData, pieceReport } from './guardLodReport.mjs';
 import { repackGlb, toktxArgs } from './ktx2.mjs';
 import { PY_DIR, SEED } from './paths.mjs';
 
@@ -86,8 +88,9 @@ export async function main(argv) {
   console.info(`guard-lods ${id}: ${layout.pieces.length} pieces, left atlas scale ${layout.leftScale ?? 1}`);
   const glbs = [0, 1, 2].map((l) => path.join(lodsDir, `guard-${id}-lod${l}.glb`));
   const reportFile = path.join(lodsDir, `guard-${id}.report.json`);
+  const dataFile = o.base ? path.join(out, fileDataFile(o.base)) : null;
   if (!o.skipBlender) {
-    for (const f of [...glbs, reportFile]) rmSync(f, { force: true });
+    for (const f of [...glbs, reportFile, ...(dataFile ? [dataFile] : [])]) rmSync(f, { force: true });
     await runBlender(['--stage', o.stage ?? 'lods', '--job', o.job ?? `lods-${id}`, '--guard', ...(o.base ? ['--base', o.base] : ['--piece', o.piece]),
       '--layout', layoutFile, '--kit', path.resolve(o.kit), '--out', out, ...(o.samples ? ['--samples', o.samples] : [])]);
   }
@@ -114,6 +117,7 @@ export async function main(argv) {
     seamSnapMm: bake.lods?.map((l) => l.seamSnapMm), seamBy: bake.lods?.map((l) => l.seamBy), lodBonesFrom: bake.lodBonesFrom, coverage: bake.bakeCoverage,
     garmentsBuilt: bake.garmentsBuilt, gearBuilt: bake.gearBuilt, headsBuilt: bake.headsBuilt };
   writeFileSync(reportFile, `${JSON.stringify(report, null, 1)}\n`);
+  if (dataFile) writeFileSync(dataFile, `${JSON.stringify(guardFileData(layout), null, 1)}\n`);
   for (const l of report.lods) console.info(`guard-lods ${id} LOD${l.lod}: ${l.bufferTris} tris, ${l.bones.length} bones, influences ${l.influences}, ${l.textures.map((t) => `${t.role} ${t.width}x${t.height} ${t.format}`).join(', ')}`);
   for (const n of report.notes) console.info(`guard-lods ${id} note: ${n}`);
   return 0;

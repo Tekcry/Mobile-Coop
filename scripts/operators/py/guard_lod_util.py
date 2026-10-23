@@ -215,7 +215,9 @@ def island_mask(co, loop_verts, loop_start, loop_total, target=None, min_diag=0.
     stitches, rivets, grommets: a collapse decimate cannot take an island below a few triangles, so 5,000 stitches floor
     a garment far over its budget; the full source still bakes them into the atlas). Islands whose bounding-box diagonal
     is under `min_diag` go first; then, when `target` is given, the smallest remaining islands go until the triangles left
-    fit it. The largest island always stays. Returns (keep, islands dropped)."""
+    fit it. The largest island always stays, and so does the largest island on each side of the mid-plane x = 0 (by its
+    bounding-box centre; X is lateral in G1's body frame), so a pair (two gloves, two boots) never loses one member: the
+    mask may then stay over `target`. Returns (keep, islands dropped)."""
     co = np.asarray(co, np.float64).reshape(-1, 3)
     lv = np.asarray(loop_verts, np.int64)
     ls = np.asarray(loop_start, np.int64)
@@ -237,15 +239,20 @@ def island_mask(co, loop_verts, loop_start, loop_total, target=None, min_diag=0.
     np.minimum.at(lo, vinv, co[used])
     np.maximum.at(hi, vinv, co[used])
     diag = np.linalg.norm(hi - lo, axis=1)
-    big = int(np.argmax(tris))
-    drop = diag < min_diag
-    drop[big] = False
+    protect = np.zeros(k, bool)
+    protect[int(np.argmax(tris))] = True
+    cx = 0.5 * (lo[:, 0] + hi[:, 0])
+    for side in (cx < 0, cx >= 0):
+        idx = np.flatnonzero(side)
+        if len(idx):
+            protect[idx[np.lexsort((diag[idx], tris[idx]))[-1]]] = True  # most triangles, then the larger box
+    drop = (diag < min_diag) & ~protect
     if target is not None:
         left = tris[~drop].sum()
         for i in np.argsort(diag, kind='stable'):
             if left <= target:
                 break
-            if drop[i] or i == big:
+            if drop[i] or protect[i]:
                 continue
             drop[i] = True
             left -= tris[i]
@@ -288,6 +295,13 @@ def _selftest():
     assert list(keep) == [True, True, False, False] and n == 2, 'islands: to budget'
     keep, n = island_mask(co, lv, ls, lt, 0, 10.0)
     assert list(keep) == [True, True, False, False] and n == 2, 'islands: largest stays'
+    # a pair (gloves at x = -1 / +1, one triangle each) plus a small bit on the right: a target of 1 drops only the bit
+    co = [[-1.2, 0, 0], [-0.8, 0, 0], [-1, 0.3, 0], [0.8, 0, 0], [1.2, 0, 0], [1, 0.3, 0],
+          [0.5, 0, 0], [0.52, 0, 0], [0.5, 0.02, 0]]
+    keep, n = island_mask(co, list(range(9)), [0, 3, 6], [3, 3, 3], 1, 0.0)
+    assert list(keep) == [True, True, False] and n == 1, 'islands: a pair keeps both members'
+    keep, n = island_mask(co, list(range(9)), [0, 3, 6], [3, 3, 3], None, 1.0)
+    assert list(keep) == [True, True, False] and n == 1, 'islands: tiny pass keeps both members'
     print('guard_lod_util self-test: ok')
 
 

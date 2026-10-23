@@ -8,16 +8,21 @@
 //  - the written report says what the files hold (no drift);
 //  - `_PIECE` is uint8, no triangle spans two pieces (G5 groups by a triangle's first vertex), the file's piece list
 //    (`extras.guard.pieces`) is the layout's, every piece of the base has triangles at LOD0;
-//  - the neck seam ring was kept on every LOD and every head welded to it.
+//  - every piece the kit gives triangles at LOD1 / LOD2 still has some there (a cluster at a large weld distance can
+//    delete a small piece's lower LODs; hair caps have none at LOD2 by the kit);
+//  - the neck seam ring was kept on every LOD and every head welded to it;
+//  - a base's runtime data file lods/guard-<b>.json (G7 guardAssets.ts `GuardFileData`) exists, has the loader's shape,
+//    says what the layout / report manifest say and passes the runtime's validateGuardManifest.
 // Writes <out>/check/guard-<id>.check.report.json; exit 1 on any problem.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { guardLayout, pieceLayout } from './guardAtlas.mjs';
 import { glbStats } from './guardGlb.mjs';
-import { baseReport, lodFile, pieceReport, reportDrift } from './guardLodReport.mjs';
+import { baseReport, fileDataFile, guardFileData, lodFile, pieceReport, reportDrift } from './guardLodReport.mjs';
 
 const { checkGuardReport } = await import('../../src/operators/guards/guardBudget.ts');
+const { validateGuardManifest } = await import('../../src/operators/guards/gearMask.ts');
 
 /** Seam ring size (G1: 42 hm08 vertices) when the body report is not at hand. */
 const SEAM_VERTS = 42;
@@ -36,8 +41,26 @@ export function parseArgs(argv) {
   return o;
 }
 
-/** Every problem of one id's LOD files (pure: the parsed inputs in). */
-export function checkGuardFiles({ kit, layout, stats, written, seamVerts = SEAM_VERTS }) {
+/**
+ * Problems of a base's `guard-<b>.json` (`data`: parsed, or null when absent) against the layout, the written report's
+ * manifest and the runtime's own validation (the loader's checks in G7 guardAssets.ts resolveGuardAsset).
+ */
+export function checkFileData(layout, data, written) {
+  const f = fileDataFile(layout.base);
+  if (!data) return [`${f} missing (the runtime falls back to the stand-in without it)`];
+  if (!Array.isArray(data.pieces) || typeof data.tintSlots !== 'number' || typeof data.refHeight !== 'number') return [`${f} malformed (needs { pieces: string[], tintSlots: number, refHeight: number })`];
+  const out = [];
+  const want = guardFileData(layout);
+  for (const k of ['pieces', 'tintSlots', 'refHeight']) if (JSON.stringify(data[k]) !== JSON.stringify(want[k])) out.push(`${f}: ${k} is not the layout's`);
+  const m = written?.manifest;
+  if (m) for (const k of ['pieces', 'tintSlots', 'refHeight']) if (JSON.stringify(data[k]) !== JSON.stringify(m[k])) out.push(`${f}: ${k} differs from the report manifest`);
+  const urls = ['', ...[0, 1, 2].map((l) => lodFile(layout.base, l))];
+  out.push(...validateGuardManifest({ id: `guard-${layout.base}`, base: layout.base, urls, pieces: data.pieces, tintSlots: data.tintSlots, refHeight: data.refHeight }).map((p) => `${f}: ${p}`));
+  return out;
+}
+
+/** Every problem of one id's LOD files (pure: the parsed inputs in; `fileData`: the parsed guard-<b>.json or null). */
+export function checkGuardFiles({ kit, layout, stats, written, fileData = null, seamVerts = SEAM_VERTS }) {
   const measured = layout.base ? baseReport(kit, layout, stats) : pieceReport(layout, stats);
   const problems = [...checkGuardReport(measured, kit)];
   if (written) problems.push(...reportDrift(written, measured).map((p) => `report drift: ${p}`));
@@ -51,7 +74,14 @@ export function checkGuardFiles({ kit, layout, stats, written, seamVerts = SEAM_
   });
   if (layout.base) {
     const t0 = measured.lods[0];
-    for (const [i, pid] of layout.pieces.entries()) if (!(stats[0].pieceTris[i] > 0)) problems.push(`${id} LOD0: piece ${pid} has no triangles (not built?)`);
+    const capTris = Object.fromEntries((layout.caps ?? []).map((c) => [c.id, c.tris]));
+    for (const [i, pid] of layout.pieces.entries()) {
+      if (!(stats[0].pieceTris[i] > 0)) { problems.push(`${id} LOD0: piece ${pid} has no triangles (not built?)`); continue; }
+      for (const lod of [1, 2]) {
+        if (capTris[pid] && !(capTris[pid][lod] > 0)) continue; // hair caps: none at LOD2 by the kit
+        if (!(stats[lod]?.pieceTris[i] > 0)) problems.push(`${id} LOD${lod}: piece ${pid} has no triangles (decimated away?)`);
+      }
+    }
     const seam = written?.bake?.seamKept;
     if (Array.isArray(seam)) {
       seam.forEach((sk, lod) => {
@@ -60,6 +90,7 @@ export function checkGuardFiles({ kit, layout, stats, written, seamVerts = SEAM_
         for (const h of layout.heads) if (sk[h.id] !== undefined && sk[h.id] < seamVerts) problems.push(`${id} LOD${lod}: head ${h.id} welded ${sk[h.id]} of ${seamVerts} seam vertices`);
       });
     }
+    problems.push(...checkFileData(layout, fileData, written));
     for (const n of written?.notes ?? []) problems.push(`bake note: ${n}`);
     return { problems, measured, summary: { bufferTris: measured.lods.map((l) => l.bufferTris), shownTris: measured.lods.map((l) => l.shownTris), bodyTris: t0.bodyTris } };
   }
@@ -83,7 +114,9 @@ export function main(argv) {
     let seamVerts = SEAM_VERTS;
     const bodyJson = o.base ? path.join(out, 'bodies', `guard-${o.base}-body.json`) : null;
     if (bodyJson && existsSync(bodyJson)) seamVerts = JSON.parse(readFileSync(bodyJson, 'utf8')).neckSeam?.bodyVerts?.length ?? SEAM_VERTS;
-    result = checkGuardFiles({ kit, layout, stats, written, seamVerts });
+    const dataPath = o.base ? path.join(out, fileDataFile(o.base)) : null;
+    const fileData = dataPath && existsSync(dataPath) ? JSON.parse(readFileSync(dataPath, 'utf8')) : null;
+    result = checkGuardFiles({ kit, layout, stats, written, fileData, seamVerts });
   }
   const dir = path.join(out, 'check');
   mkdirSync(dir, { recursive: true });

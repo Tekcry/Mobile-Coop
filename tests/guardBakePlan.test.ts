@@ -128,6 +128,8 @@ describe('guard bake plan: job split', () => {
     expect(l?.needs.filter((n) => n.startsWith('gear-average-'))).toHaveLength(16);
     expect(jobsFor('lods', kit).find((j) => j.id === 'lods-broad')?.needs.filter((n) => n.startsWith('heads-'))).toEqual(['heads-broad-1']);
     expect(jobsFor('lods', kit).find((j) => j.id === 'lods-shield_riot')?.needs[0]).toBe('gear-shield_riot');
+    expect(l?.outputs).toContain('lods/guard-average.json'); // G7's GuardFileData beside the GLBs
+    expect(jobsFor('lods', kit).find((j) => j.id === 'lods-shield_riot')?.outputs.some((o) => /guard-shield_riot\.json$/.test(o))).toBe(false);
     expect(jobsFor('check', kit).find((j) => j.id === 'check-lean')?.needs).toEqual(['lods-lean']);
     expect(jobsFor('sheet', kit)[0]?.needs).toHaveLength(4);
     expect(jobsFor('heads', kit).every((j) => j.needs.join() === 'prep')).toBe(true);
@@ -484,9 +486,9 @@ describe('guard bake plan: heads on G1\'s fit (G1h fix round)', () => {
 });
 
 describe('guard bake plan: shippable outputs and the contract kit', () => {
-  it('ships glb, ktx2, png and report.json only', () => {
-    for (const ok of ['lods/guard-average-lod0.glb', 'lods/a.ktx2', 'sheet/guard-sheet.png', 'lods/guard-average.report.json', 'check/guard-lean.check.report.json']) expect(plan.shippable(ok), ok).toBe(true);
-    for (const no of ['bodies/guard-average-body.blend', 'bodies/guard-average-body.json', 'logs/x.log', 'heads/x.hash']) expect(plan.shippable(no), no).toBe(false);
+  it('ships glb, ktx2, png, report.json and the base guard-<b>.json only', () => {
+    for (const ok of ['lods/guard-average-lod0.glb', 'lods/a.ktx2', 'sheet/guard-sheet.png', 'lods/guard-average.report.json', 'check/guard-lean.check.report.json', 'lods/guard-broad.json']) expect(plan.shippable(ok), ok).toBe(true);
+    for (const no of ['bodies/guard-average-body.blend', 'bodies/guard-average-body.json', 'logs/x.log', 'heads/x.hash', 'lods/guard-average.layout.json', 'lods/guard-average.bake.json']) expect(plan.shippable(no), no).toBe(false);
   });
 
   it('the built-in contract kit gives the same split as the fixture', () => {

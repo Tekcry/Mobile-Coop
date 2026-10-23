@@ -11,6 +11,17 @@
 /** guardBudget.ts GUARD_REPORT_VERSION (a test keeps the two equal; this module stays plain JS for the driver). */
 export const REPORT_VERSION = 1;
 export const lodFile = (id, lod) => `lods/guard-${id}-lod${lod}.glb`;
+/** The runtime's per-base data file beside the LOD GLBs (G7 guardAssets.ts `GuardFileData`). */
+export const fileDataFile = (base) => `lods/guard-${base}.json`;
+
+/**
+ * `guard-<base>.json`, the shape G7's loader reads (src/operators/guards/guardAssets.ts `GuardFileData`): the piece list
+ * in `_PIECE` order, the tint slot COUNT and the bind height. The same values as the report's `manifest` and the GLBs'
+ * `extras.guard`, all from the layout.
+ */
+export function guardFileData(layout) {
+  return { pieces: [...layout.pieces], tintSlots: layout.tintSlots.length, refHeight: layout.refHeight };
+}
 
 const max = (list, f) => list.reduce((m, x) => Math.max(m, f(x)), 0);
 
@@ -88,7 +99,7 @@ export function baseReport(kit, layout, statsByLod, ownTris = {}, notes = []) {
     version: REPORT_VERSION,
     base: layout.base,
     lods,
-    manifest: { id: `guard-${layout.base}`, base: layout.base, pieces: layout.pieces, tintSlots: layout.tintSlots.length, tintSlotNames: layout.tintSlots, refHeight: layout.refHeight },
+    manifest: { id: `guard-${layout.base}`, base: layout.base, ...guardFileData(layout), tintSlotNames: layout.tintSlots },
     notes,
   };
 }

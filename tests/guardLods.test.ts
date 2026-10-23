@@ -7,9 +7,12 @@ import { ATLAS, garmentParts, guardLayout, pieceLayout, pieceOrder, rectsAt, sky
 // @ts-expect-error plain JS module (scripts/operators), no types
 import { fixGuardGlb, glbStats, readGlb, writeGlb } from '../scripts/operators/guardGlb.mjs';
 // @ts-expect-error plain JS module (scripts/operators), no types
-import { baseReport, pieceReport, REPORT_VERSION, reportDrift, shownOfKind } from '../scripts/operators/guardLodReport.mjs';
+import { baseReport, fileDataFile, guardFileData, pieceReport, REPORT_VERSION, reportDrift, shownOfKind } from '../scripts/operators/guardLodReport.mjs';
 // @ts-expect-error plain JS module (scripts/operators), no types
-import { checkGuardFiles } from '../scripts/operators/guard-check.mjs';
+import { checkFileData, checkGuardFiles } from '../scripts/operators/guard-check.mjs';
+// @ts-expect-error plain JS module (scripts/operators), no types
+import { shippable } from '../scripts/operators/guardBakePlan.mjs';
+import { resolveGuardAsset, type GuardFileData } from '../src/operators/guards/guardAssets';
 // @ts-expect-error plain JS module (scripts/operators), no types
 import { ktxFor } from '../scripts/operators/guard-lods.mjs';
 import { checkGuardReport, GUARD_REPORT_VERSION } from '../src/operators/guards/guardBudget';
@@ -304,17 +307,75 @@ describe('guard check (files)', () => {
     const L = layout('broad');
     const stats = [0, 1, 2].map((l) => statsFor(L, l));
     const written = { ...baseReport(KIT, L, stats), bake: { seamKept: [0, 1, 2].map(() => ({ body: 42, 'broad-1': 42 })) } };
-    expect(checkGuardFiles({ kit: KIT, layout: L, stats, written }).problems).toEqual([]);
+    const fileData = guardFileData(L);
+    expect(checkGuardFiles({ kit: KIT, layout: L, stats, written, fileData }).problems).toEqual([]);
+    expect(checkGuardFiles({ kit: KIT, layout: L, stats, written }).problems).toEqual([`${fileDataFile('broad')} missing (the runtime falls back to the stand-in without it)`]);
     const s2 = JSON.parse(JSON.stringify(stats));
     s2[0].mixedTris = 3;
     s2[1].pieceAttrUint8 = false;
     s2[2].extras = { pieces: ['broad'] };
     s2[0].pieceTris[L.pieces.indexOf('pouch_belt')] = 0;
     const w2 = { ...written, bake: { seamKept: [{ body: 40, 'broad-1': 42 }, null, null] }, notes: ['garment shirt missing'] };
-    const p = checkGuardFiles({ kit: KIT, layout: L, stats: s2, written: w2 }).problems;
+    const p = checkGuardFiles({ kit: KIT, layout: L, stats: s2, written: w2, fileData }).problems;
     for (const re of [/span two pieces/, /not UNSIGNED_BYTE/, /extras.guard.pieces/, /pouch_belt has no triangles/, /body seam ring 40/, /bake note: garment shirt missing/, /report drift/]) {
       expect(p.some((x: string) => re.test(x)), String(re)).toBe(true);
     }
+  });
+
+  it('flags a piece with no triangles at LOD1 / LOD2, but not a hair cap at LOD2 (the kit gives caps none there)', () => {
+    const L = layout('average');
+    const stats = [0, 1, 2].map((l) => statsFor(L, l));
+    const written = { ...baseReport(KIT, L, stats), bake: {} };
+    const fileData = guardFileData(L);
+    const cap = L.caps[0]!.id;
+    expect(stats[2]!.pieceTris[L.pieces.indexOf(cap)]).toBe(0);
+    expect(checkGuardFiles({ kit: KIT, layout: L, stats, written, fileData }).problems).toEqual([]);
+    const s2 = JSON.parse(JSON.stringify(stats));
+    s2[1].pieceTris[L.pieces.indexOf('radio')] = 0;
+    s2[2].pieceTris[L.pieces.indexOf('glasses_dark')] = 0;
+    s2[1].pieceTris[L.pieces.indexOf(cap)] = 0;
+    const p = checkGuardFiles({ kit: KIT, layout: L, stats: s2, written: baseReport(KIT, L, s2), fileData }).problems;
+    expect(p).toContain('average LOD1: piece radio has no triangles (decimated away?)');
+    expect(p).toContain('average LOD2: piece glasses_dark has no triangles (decimated away?)');
+    expect(p).toContain(`average LOD1: piece ${cap} has no triangles (decimated away?)`);
+    expect(p.filter((x: string) => x.includes('has no triangles'))).toHaveLength(3);
+  });
+});
+
+describe('guard-<base>.json (G7 guardAssets.ts GuardFileData)', () => {
+  it('has the loader\'s shape, the report manifest\'s values, and G7\'s loader takes it for every base', () => {
+    for (const b of BASES) {
+      const L = layout(b);
+      const d = guardFileData(L) as GuardFileData;
+      expect(Object.keys(d).sort()).toEqual(['pieces', 'refHeight', 'tintSlots']);
+      expect(d.pieces).toEqual(L.pieces);
+      expect(d.tintSlots).toBe(KIT.tintSlots.length);
+      expect(d.refHeight).toBe(KIT.bases.find((x) => x.id === b)!.refHeight);
+      const m = baseReport(KIT, L, [0, 1, 2].map((l) => statsFor(L, l))).manifest;
+      expect({ pieces: m.pieces, tintSlots: m.tintSlots, refHeight: m.refHeight }).toEqual(d);
+      expect(checkFileData(L, d, { manifest: m })).toEqual([]);
+      // the runtime resolver itself (G7), with the file names the lead copies into src/operators/assets/guards/
+      const files = Object.fromEntries([0, 1, 2].map((l) => [`../assets/guards/guard-${b}-lod${l}.glb`, `u${l}`]));
+      const a = resolveGuardAsset(b as 'average', files, { [`../assets/guards/guard-${b}.json`]: JSON.parse(JSON.stringify(d)) as GuardFileData }, ['', 'w1', 'w2', 'w3']);
+      expect(a.problems, b).toEqual([]);
+      expect(a.standIn).toBe(false);
+      expect(fileDataFile(b)).toBe(`lods/guard-${b}.json`);
+      expect(shippable(fileDataFile(b))).toBe(true);
+    }
+    for (const no of ['lods/guard-average.layout.json', 'lods/guard-average.bake.json']) expect(shippable(no), no).toBe(false);
+  });
+
+  it('the check names a malformed file, a wrong value and a manifest the runtime refuses', () => {
+    const L = layout('lean');
+    const d = guardFileData(L);
+    expect(checkFileData(L, { ...d, tintSlots: KIT.tintSlots }, null)[0]).toMatch(/malformed/);
+    expect(checkFileData(L, { ...d, refHeight: d.refHeight + 0.1 }, null)).toEqual(['lods/guard-lean.json: refHeight is not the layout\'s']);
+    const m = { ...d, tintSlots: d.tintSlots + 1 };
+    expect(checkFileData(L, d, { manifest: m })).toEqual(['lods/guard-lean.json: tintSlots differs from the report manifest']);
+    const bad = { ...d, pieces: ['average', ...d.pieces.slice(1)] };
+    const p = checkFileData(L, bad, null);
+    expect(p.some((x: string) => /body piece average is not the base lean/.test(x))).toBe(true);
+    expect(p.some((x: string) => /pieces is not the layout's/.test(x))).toBe(true);
   });
 });
 

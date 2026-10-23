@@ -85,7 +85,7 @@ Inputs (post-fix only):
 - `heads-average-1`: the one extra producing job, built here with the merged G1h fix code (22 s): heads in G1's body
   frame, 42 seam vertices with `mh_index`, seam lock 0 mm.
 - Left out (their outputs on disk predate the fixes, or do not exist): heads average-2..4, the hair caps and eye tiles,
-  shirt, boots, jacket and all 14 gear pieces. Each is a bake note, as designed. Stub `.hash` files stand in for those
+  shirt, boots, jacket and all 12 gear pieces of the average layout. Each is a bake note, as designed. Stub `.hash` files stand in for those
   upstream jobs so the driver runs.
 
 Run 1 (`lods-average`, 226 s) found a G4 bug: G2's garments are a 0.9M-triangle sewn hero plus thousands of stitch
@@ -117,7 +117,7 @@ islands. Run 2 (the one rerun) used the same inputs:
   the bake: the unwrap of the 9 LOD meshes, with the 1M-tri sources in the scene. It has no timer yet (open item).
 - Guard check (`guard-bake.mjs --stage check --only average`): FAIL with 57 problems, all from missing upstream:
   - 20 pieces with no LOD0 triangles;
-  - 37 bake notes: 3 heads, the hair caps, 3 garments, 14 gear pieces, 16 cap and eye tile PNGs.
+  - 37 bake notes: 3 heads, the hair caps, 3 garments, 12 gear pieces, 18 cap and eye tile PNGs (corrected in the fix round).
 
   There are no budget, bone, texture, KTX2, seam, `mixedTris`, uint8 or drift problems. The full bake passes only
   once every upstream job is built post-fix.
@@ -139,3 +139,39 @@ islands. Run 2 (the one rerun) used the same inputs:
   skips files that are absent.
 - The riot shield is not smoked: there is no post-fix `gear/guard-shield_riot.blend` on the desktop.
 - `scripts/operators/py/__pycache__/*.pyc` is tracked and is left uncommitted (untrack it in G9).
+
+## Fix round
+Opus, 2026-10-24, on G4-CHECK (FAIL, B1). P1, P5, P6 and P7 stay on the polish list.
+
+- B1, `guard-<base>.json` (the runtime's `GuardFileData`, G7 `src/operators/guards/guardAssets.ts:17-22, 58-70`):
+  - `guardLodReport.mjs:14-24`: `fileDataFile(base)` = `lods/guard-<base>.json` and `guardFileData(layout)` =
+    `{ pieces, tintSlots: <count>, refHeight }`, the loader's shape (read from `guardAssets.ts`, not guessed). The report
+    `manifest` (`:102`) now spreads the same object, so the JSON, the manifest and `extras.guard` cannot disagree.
+  - `guard-lods.mjs:91-93, 120`: a base job deletes the stale file before Blender and writes the JSON after the report.
+    The shield job writes none (the loader reads its three GLBs only).
+  - `guardBakePlan.mjs:329`: `lods/guard-<b>.json` is a base lods job output. `:472` `SHIPPABLE` adds
+    `^lods/guard-[a-z]+\.json$`, so the push ships it and still skips `.layout.json` / `.bake.json`. `:382` the check hash
+    covers `gearMask.ts`.
+  - `guard-check.mjs:48-60` `checkFileData`, called for every base (`:93`): the file exists, has the loader's shape,
+    equals the layout's pieces / tint count / refHeight and the written report's manifest, and passes the runtime's own
+    `validateGuardManifest` (imported from `gearMask.ts` like `guardBudget.ts`, `:25`). `main` reads it (`:117-119`).
+  - Shipping: the lead copies `guard-<base>-lod0/1/2.glb` and `guard-<base>.json` per base (and
+    `guard-shield_riot-lod0/1/2.glb`) into `src/operators/assets/guards/`. Not `lods/textures/*`: the GLBs embed their
+    KTX2, and G9's 75 MB download test also sums loose `.ktx2` files in that folder.
+- P3, `guard-check.mjs:77-85`: a piece with LOD0 triangles but none at LOD1 or LOD2 is a problem ("decimated away?").
+  Hair caps are skipped where the kit gives them 0 (LOD2).
+- P4, `guard_lod_util.py:242-250` `island_mask`: the largest island overall and the largest island on each side of
+  x = 0 (bounding-box centre; X is lateral in G1's frame, `wrL` at x = -0.19) are never dropped, in the tiny pass or the
+  last-resort pass, so a glove or boot pair keeps both members (the mask may then stay over target).
+  `bake_guard.py:229-231` docstring only; no other Blender path changed, so no rerun.
+- P2: the smoke notes are 12 gear pieces and 18 tile PNGs (Smoke section above, corrected).
+
+Tests (one at a time):
+- `tests/guardLods.test.ts`: 20 passed (17 + 3 new: LOD1 / LOD2 empty pieces with the cap exception; the JSON's shape,
+  the manifest's values, G7's `resolveGuardAsset` taking it for every base, SHIPPABLE; `checkFileData` on a malformed
+  file, a wrong value, a manifest mismatch and a manifest the runtime refuses). The clean-base case now passes the JSON
+  and fails without it. The `guard_lod_util.py` self-test (run here under Blender's Python) gains two pair cases.
+- `tests/guardBakePlan.test.ts`: 38 passed (the lods output and the SHIPPABLE lists extended).
+- `tests/guardBudget.test.ts` 55 passed; `tests/guardAssets.test.ts` 4 passed, 3 skipped; `tests/guardAssetsReport.test.ts`
+  1 passed, 1 skipped.
+- `npx tsc --noEmit -p .` clean; eslint clean on both test files; `guard-check.mjs` imports under `ts-resolve.mjs` in node.

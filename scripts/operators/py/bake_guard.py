@@ -227,7 +227,8 @@ def decimate(obj, target, keep_group=None):
 
 
 def drop_islands(obj, target=None, min_diag=0.0):
-    """Drops obj's loose islands under `min_diag`, then the smallest until `target` triangles fit (U.island_mask)."""
+    """Drops obj's loose islands under `min_diag`, then the smallest until `target` triangles fit (U.island_mask; the
+    largest island overall and on each side of x = 0 always stay, so a glove or boot pair keeps both members)."""
     me = obj.data
     co = np.empty(len(me.vertices) * 3, np.float64)
     me.vertices.foreach_get('co', co)
