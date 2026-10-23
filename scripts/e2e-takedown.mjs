@@ -254,6 +254,7 @@ try {
       const e = t.spawn(2, -1, 0);
       e.info = { lines: ['Lab door is 4471.'], codes: [{ flag: 'e2e-code', label: 'Lab door 4471' }] };
       g.mode.onIntelCode = (f) => (window.__intelCodes ??= []).push(f);
+      const n0 = g.takedown.grabs.interrogated;
       t.step(0.4);
       t.press();
       t.step(1.2);
@@ -261,7 +262,7 @@ try {
       t.pick('interrogate');
       t.step(1.8);
       const feed = [...document.querySelectorAll('.hud-feed')].map((x) => x.textContent).join(' | ');
-      return { held, codes: window.__intelCodes ?? null, feed, info: e.info, n: g.takedown.grabs.interrogated };
+      return { held, codes: window.__intelCodes ?? null, feed, info: e.info, n: g.takedown.grabs.interrogated - n0 };
     });
     assert(r.held, 'the guard is held');
     assert(JSON.stringify(r.codes) === JSON.stringify(['e2e-code']), `the code flag reaches the mode (${JSON.stringify(r.codes)})`);
