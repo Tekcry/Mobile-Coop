@@ -109,7 +109,8 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   `docs/guard-render/run-s1` against `run-s1-off`. A body effect that will not finish compiling (Babylon's poll timed
   out, the compile failed, its program was disposed under it, or 8 s / 30 frames unready) is dropped and recompiled,
   at most 3 times per variant with a console warning (`bodyEffectRecovery.ts`, guard-ai carry fix: a stall during a
-  new variant's compile left guards invisible on the laptop GPU).
+  new variant's compile left guards invisible on the laptop GPU); the meshes holding it are switched back to GPU
+  skinning (Babylon's first fallback had set `computeBonesUsingShaders` false, drawing the body unskinned; carry fix 2).
 - Rig: root -> body (tumble pivot) -> pelvis(`hips`) -> spine -> chest(`torso`) -> neck -> head(`headNode`, head
   centre); chest -> shoulder -> elbow -> wrist; pelvis -> hip -> knee -> ankle; sockets `weaponPivot` (aim
   pocket), `backSocket`, `hipSocket`. Joints use `rotationQuaternion` (root uses Euler `rotation.y`).

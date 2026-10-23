@@ -106,6 +106,25 @@ describe('guard-ai carry fix: body effect recovery', () => {
     rig.dispose();
   });
 
+  it("undoes Babylon's CPU-skinning fallback on the meshes holding the recompiled effect", async () => {
+    const { mesh, ready, rec, rig } = await setup();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(await ready()).toBe(true);
+    expect(mesh.skeleton).toBeTruthy();
+    expect(mesh.computeBonesUsingShaders).toBe(true);
+    const lod = rig.renderMeshes[1] as Mesh;
+    // as EffectFallbacks.reduce does on a failed compile: the holders drop to CPU skinning
+    mesh.computeBonesUsingShaders = false;
+    timeOut(mesh.subMeshes[0]!.effect!);
+    const lodHeld = lod.subMeshes[0]!.effect === mesh.subMeshes[0]!.effect;
+    expect(rec.watchBodyEffect(mesh, rec.newEffectWatch(), 0)).toBe(true);
+    expect(mesh.computeBonesUsingShaders).toBe(true);
+    if (lodHeld) expect(lod.computeBonesUsingShaders).toBe(true);
+    expect(await ready()).toBe(true);
+    expect(mesh.subMeshes[0]!.effect!.defines).toContain(`#define NUM_BONE_INFLUENCERS ${mesh.numBoneInfluencers}`);
+    rig.dispose();
+  });
+
   it('gives up after MAX_RECOMPILES per variant (one log line), leaving the effect to Babylon', async () => {
     const { mesh, ready, rec, rig } = await setup();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});

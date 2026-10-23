@@ -136,6 +136,8 @@ export class SecuritySystem {
   onBody: ((e: CameraBodyEvent) => void) | null = null;
   /** (sector-redesign E8) A round ricocheted off a bulletproof camera at (x, y, z): the effect and sound (GameState). */
   onRicochet: ((x: number, y: number, z: number) => void) | null = null;
+  /** (marlow-final S10) Rounds a bulletproof housing turned (tests). */
+  ricochets = 0;
   private thinkT = 0;
   private bodyT = 0;
   private bodySrc: CamBodySource | null = null;
@@ -261,6 +263,7 @@ export class SecuritySystem {
     }
     if (!c) return null;
     if (c.def.bulletproof) {
+      this.ricochets++;
       this.onRicochet?.(c.x, c.y, c.z);
       return null;
     }

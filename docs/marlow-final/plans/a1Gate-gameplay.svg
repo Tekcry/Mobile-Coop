@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -40 480 370" width="960" height="740" font-family="Helvetica, Arial, sans-serif">
+<title>A1 the Gate - gameplay overlay</title>
+<defs>
+<pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#8a6d3b" stroke-width="1.6"/></pattern>
+<pattern id="ballast" width="5" height="5" patternUnits="userSpaceOnUse"><circle cx="2.5" cy="2.5" r="0.9" fill="#9a8f80"/></pattern>
+<marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker>
+</defs>
+<rect x="0" y="-40" width="480" height="370" fill="#ffffff"/>
+<text x="8" y="-24" font-size="13" font-weight="bold" fill="#1d2125">A1 the Gate - gameplay overlay</text>
+<text x="8" y="-9" font-size="8" fill="#7a8088">Unguarded teach set: co-op leg-up and unbolt (orange), relay variant (dashed). Lit pools on groups 10-13.</text>
+<g opacity="0.45">
+<line x1="40" y1="30" x2="40" y2="230" stroke="#d5d9de" stroke-width="0.8"/>
+<text x="40" y="240" font-size="7" text-anchor="middle" fill="#7a8088">x 0</text>
+<line x1="100" y1="30" x2="100" y2="230" stroke="#d5d9de" stroke-width="0.8"/>
+<text x="100" y="240" font-size="7" text-anchor="middle" fill="#7a8088">x 6</text>
+<line x1="160" y1="30" x2="160" y2="230" stroke="#d5d9de" stroke-width="0.8"/>
+<text x="160" y="240" font-size="7" text-anchor="middle" fill="#7a8088">x 12</text>
+<line x1="220" y1="30" x2="220" y2="230" stroke="#d5d9de" stroke-width="0.8"/>
+<text x="220" y="240" font-size="7" text-anchor="middle" fill="#7a8088">x 18</text>
+<line x1="280" y1="30" x2="280" y2="230" stroke="#d5d9de" stroke-width="0.8"/>
+<text x="280" y="240" font-size="7" text-anchor="middle" fill="#7a8088">x 24</text>
+<line x1="30" y1="180" x2="310" y2="180" stroke="#d5d9de" stroke-width="0.8"/>
+<text x="27" y="182.5" font-size="7" text-anchor="end" fill="#7a8088">z 6</text>
+<line x1="30" y1="120" x2="310" y2="120" stroke="#d5d9de" stroke-width="0.8"/>
+<text x="27" y="122.5" font-size="7" text-anchor="end" fill="#7a8088">z 12</text>
+<line x1="30" y1="60" x2="310" y2="60" stroke="#d5d9de" stroke-width="0.8"/>
+<text x="27" y="62.5" font-size="7" text-anchor="end" fill="#7a8088">z 18</text>
+<line x1="240" y1="254" x2="300" y2="254" stroke="#1d2125" stroke-width="2"/><text x="270" y="251" font-size="7" text-anchor="middle" fill="#1d2125">6 m</text>
+<path d="M325,44 l-5,14 l5,-4 l5,4 z" fill="#1d2125"/><text x="325" y="68" font-size="8" text-anchor="middle" fill="#1d2125">N</text>
+<rect x="40" y="40" width="220.0" height="180.0" fill="#f3f4f6"/>
+<rect x="40" y="40" width="220.0" height="180.0" fill="none" stroke="#8a9096" stroke-width="4.5"/>
+<rect x="260" y="100" width="40.0" height="60.0" fill="#eef1f4" stroke="#8a9096" stroke-width="3"/>
+<text x="280" y="133" font-size="9" text-anchor="middle" fill="#7a8088" >L1</text>
+<rect x="40" y="100" width="60.0" height="60.0" fill="#efe6d8"/>
+<rect x="40" y="158.5" width="60.0" height="3.0" fill="#4a4f55"/>
+<rect x="40" y="98.5" width="60.0" height="3.0" fill="#4a4f55"/>
+<rect x="98.5" y="139" width="3.0" height="21.0" fill="#4a4f55"/>
+<rect x="98.5" y="100" width="3.0" height="21.0" fill="#4a4f55"/>
+<rect x="97.5" y="121" width="5.0" height="18.0" fill="#ffffff" stroke="#1d2125" stroke-width="0.6"/>
+<line x1="100" y1="139" x2="100" y2="121" stroke="#1d2125" stroke-width="1.6" stroke-dasharray="4 2"/>
+<text x="70" y="112.33333333333333" font-size="7" text-anchor="middle" fill="#1d2125" >Arrival lounge</text>
+<text x="70" y="152" font-size="6" text-anchor="middle" fill="#7a8088" >(house 0.30)</text>
+<circle cx="60" cy="140" r="3" fill="#2e7d32"/>
+<circle cx="60" cy="120" r="3" fill="#2e7d32"/>
+<text x="63" y="131.83333333333334" font-size="5.5" text-anchor="start" fill="#2e7d32" >spawns</text>
+<rect x="110" y="88.5" width="30.0" height="3.0" fill="#4a4f55"/>
+<rect x="110" y="58.5" width="30.0" height="3.0" fill="#4a4f55"/>
+<rect x="108.5" y="60" width="3.0" height="30.0" fill="#4a4f55"/>
+<rect x="138.5" y="60" width="3.0" height="30.0" fill="#4a4f55"/>
+<rect x="120" y="88" width="12.0" height="4.0" fill="#ffffff"/>
+<line x1="120" y1="90" x2="120" y2="78" stroke="#1d2125" stroke-width="1.2"/>
+<path d="M120,78 A12,12 0 0 1 132,90" fill="none" stroke="#1d2125" stroke-width="0.7" stroke-dasharray="2 1.5"/>
+<rect x="134" y="66" width="4.5" height="14.0" fill="#b9bec4"/>
+<text x="125" y="68.16666666666667" font-size="6.5" text-anchor="middle" fill="#1d2125" >cabin</text>
+<text x="125" y="53.833333333333336" font-size="5.5" text-anchor="middle" fill="#7a8088" >x 7-10, noLedge</text>
+<rect x="157" y="136" width="6.0" height="84.0" fill="#8b4a3c"/>
+<rect x="157" y="40" width="6.0" height="84.0" fill="#8b4a3c"/>
+<rect x="157" y="170" width="2.0" height="30.0" fill="url(#hatch)"/>
+<text x="144" y="209.83333333333334" font-size="5.5" text-anchor="middle" fill="#8b4a3c" >chained gate (dressing)</text>
+<rect x="157" y="124" width="6.0" height="12.0" fill="#ffffff"/>
+<line x1="163" y1="136" x2="175" y2="136" stroke="#1d2125" stroke-width="1.2"/>
+<path d="M175,136 A12,12 0 0 0 163,124" fill="none" stroke="#1d2125" stroke-width="0.7" stroke-dasharray="2 1.5"/>
+<text x="170" y="146" font-size="6" text-anchor="start" fill="#1d2125" >wicket, bolt yard side</text>
+<line x1="157" y1="217.5" x2="157" y2="42.5" stroke="#d4380d" stroke-width="1.6"/>
+<line x1="163" y1="217.5" x2="163" y2="42.5" stroke="#d4380d" stroke-width="1.6"/>
+<text x="160" y="50" font-size="6" text-anchor="middle" fill="#d4380d" >4.4 m wall (lips both faces)</text>
+<rect x="143" y="175" width="10.0" height="10.0" fill="#f0a500" stroke="#7a5200" stroke-width="0.6"/>
+<text x="139" y="181.83333333333334" font-size="5.5" text-anchor="end" fill="#7a5200" >mark (10.8, 6)</text>
+<text x="130" y="147.66666666666666" font-size="8" text-anchor="middle" fill="#7a8088" >apron</text>
+<text x="210" y="132.66666666666666" font-size="8" text-anchor="middle" fill="#7a8088" >yard</text>
+<rect x="257.5" y="121" width="5.0" height="18.0" fill="#ffffff" stroke="#1d2125" stroke-width="0.6"/>
+<line x1="260" y1="139" x2="260" y2="121" stroke="#1d2125" stroke-width="1.6" stroke-dasharray="4 2"/>
+</g>
+<circle cx="70" cy="130" r="40" fill="#ffd33d" fill-opacity="0.18"/>
+<circle cx="141" cy="91" r="80" fill="#ffd33d" fill-opacity="0.18"/>
+<circle cx="164" cy="190" r="50" fill="#ffd33d" fill-opacity="0.18"/>
+<circle cx="164" cy="130" r="50" fill="#ffd33d" fill-opacity="0.18"/>
+<circle cx="164" cy="70" r="50" fill="#ffd33d" fill-opacity="0.18"/>
+<circle cx="125" cy="75" r="20" fill="#ffd33d" fill-opacity="0.18"/>
+<circle cx="141" cy="91" r="2.6" fill="#ffd33d" stroke="#9a7b00" stroke-width="0.7"/>
+<text x="141" y="101.83333333333333" font-size="5.5" text-anchor="middle" fill="#7a6000" >11</text>
+<circle cx="164" cy="190" r="2.6" fill="#ffd33d" stroke="#9a7b00" stroke-width="0.7"/>
+<text x="164" y="200.83333333333334" font-size="5.5" text-anchor="middle" fill="#7a6000" >12</text>
+<circle cx="164" cy="130" r="2.6" fill="#ffd33d" stroke="#9a7b00" stroke-width="0.7"/>
+<text x="164" y="140.83333333333334" font-size="5.5" text-anchor="middle" fill="#7a6000" >12</text>
+<circle cx="164" cy="70" r="2.6" fill="#ffd33d" stroke="#9a7b00" stroke-width="0.7"/>
+<text x="164" y="80.83333333333333" font-size="5.5" text-anchor="middle" fill="#7a6000" >12</text>
+<circle cx="125" cy="75" r="2.6" fill="#ffd33d" stroke="#9a7b00" stroke-width="0.7"/>
+<text x="125" y="85.83333333333333" font-size="5.5" text-anchor="middle" fill="#7a6000" >13</text>
+<circle cx="55" cy="145" r="2.6" fill="#ffd33d" stroke="#9a7b00" stroke-width="0.7"/>
+<circle cx="85" cy="145" r="2.6" fill="#ffd33d" stroke="#9a7b00" stroke-width="0.7"/>
+<circle cx="55" cy="115" r="2.6" fill="#ffd33d" stroke="#9a7b00" stroke-width="0.7"/>
+<circle cx="85" cy="115" r="2.6" fill="#ffd33d" stroke="#9a7b00" stroke-width="0.7"/>
+<text x="70" y="155.83333333333334" font-size="5.5" text-anchor="middle" fill="#7a6000" >group 10 (house)</text>
+<rect x="120" y="84" width="6" height="4" fill="#1d2125"/>
+<text x="116" y="82.66666666666667" font-size="5" text-anchor="end" fill="#1d2125" >sw 12/13</text>
+<polyline points="105,130 135,160 144,178" fill="none" stroke="#d97706" stroke-width="2.4" stroke-linejoin="round"  marker-end="url(#arr)" stroke-opacity="0.9"/>
+<polyline points="148,174 156,180" fill="none" stroke="#d97706" stroke-width="2.4" stroke-linejoin="round"  marker-end="url(#arr)" stroke-opacity="0.9"/>
+<polyline points="168,180 172,145 166,130" fill="none" stroke="#d97706" stroke-width="2.4" stroke-linejoin="round"  marker-end="url(#arr)" stroke-opacity="0.9"/>
+<polyline points="148,180 150,134 165,130 210,130 256,130" fill="none" stroke="#1f5fd1" stroke-width="2.4" stroke-linejoin="round" stroke-dasharray="5 3" marker-end="url(#arr)" stroke-opacity="0.9"/>
+<rect x="143" y="175" width="10.0" height="10.0" fill="#d97706" stroke="#7a3d00" stroke-width="0.6"/>
+<text x="148" y="193.16666666666666" font-size="6.5" text-anchor="middle" fill="#7a3d00" font-weight="bold">A boosts</text>
+<text x="173" y="176" font-size="6" text-anchor="start" fill="#d97706" font-weight="bold">B drops in</text>
+<text x="185" y="120" font-size="6" text-anchor="start" fill="#1f5fd1" >B unbolts, A through, both to L1</text>
+<circle cx="130" cy="75" r="4" fill="#a40e26" stroke="#ffffff" stroke-width="1"/>
+<line x1="130" y1="75" x2="146" y2="75" stroke="#a40e26" stroke-width="1.4" marker-end="url(#arr)"/>
+<text x="136" y="68.16666666666667" font-size="6.5" text-anchor="start" fill="#a40e26" font-weight="bold">a1-checker (passive: sees nothing)</text>
+<circle cx="106" cy="130" r="5" fill="#ffffff" stroke="#8250df" stroke-width="1.6"/>
+<circle cx="106" cy="130" r="2" fill="#8250df"/>
+<text x="108" y="116" font-size="6" text-anchor="start" fill="#8250df" >vantage</text>
+<text x="8" y="276" font-size="7.5" font-weight="bold" fill="#1d2125">Legend</text>
+<rect x="10" y="281" width="8" height="8" fill="#d97706"/>
+<text x="25" y="288" font-size="7" fill="#1d2125">leg-up / relay spot</text>
+<line x1="8" y1="296" x2="20" y2="296" stroke="#d97706" stroke-width="2.4" />
+<text x="25" y="299" font-size="7" fill="#1d2125">co-op route</text>
+<line x1="8" y1="307" x2="20" y2="307" stroke="#1f5fd1" stroke-width="2.4" />
+<text x="25" y="310" font-size="7" fill="#1d2125">walk-on route</text>
+<circle cx="14" cy="318" r="4" fill="#ffd33d" fill-opacity="0.5"/>
+<text x="25" y="321" font-size="7" fill="#1d2125">lit pool (group)</text>
+<circle cx="164" cy="285" r="3.5" fill="#a40e26"/>
+<text x="175" y="288" font-size="7" fill="#1d2125">passive guard + facing</text>
+<circle cx="164" cy="296" r="3.5" fill="#fff" stroke="#8250df" stroke-width="1.5"/>
+<text x="175" y="299" font-size="7" fill="#1d2125">vantage</text>
+</svg>
