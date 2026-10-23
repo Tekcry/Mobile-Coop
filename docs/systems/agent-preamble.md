@@ -23,6 +23,7 @@ the subagent's role, its step or slice and the previous step's handover. Read th
 - e2e on the job's port only (`E2E_PORT=<port>`), one runner at a time: free the port before and after (CLAUDE.md
   "Commands"), `npm run build`, then `node scripts/run-e2e.mjs <suites>` or `npm run e2e:quick`.
 - A failure in a KNOWN FLAKY suite, or under load, counts only if it also fails a solo rerun.
+- Cheap repeat runs (agent CPU): `npm run typecheck:fast` (incremental tsc, cache in node_modules/.cache; warm ~3x faster than `npm run typecheck`) and `npx vitest run <files>` (persistent transform cache, node_modules/.vitest-cache). `npm run build` / `check` are unchanged.
 - Never run `npm run dev`, `npm run preview` or a watch mode. Every shell command has a timeout. Logs: `tail` or `grep`.
 
 ## Report
