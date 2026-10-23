@@ -4,7 +4,9 @@
 // slice), called in route order. Between sets both players stand on the holding room's pad: the near door locks behind
 // them, the far door unlocks on both pages and the course moves to the next set. Every part checks the join (both
 // avatars drawn, the objective line); part 1 also the host-only pause restart at A1; part 4 ends with a revive in the
-// cash dock and the both-in exit zone (G138).
+// cash dock and the both-in exit zone (G138). (slice 9, LD 15) After sets 1, 2, 6 and 8 the client is downed on the set's
+// co-op surface (A1 yard, A2 staging, A6 gallery, A8 gallery) and revived from that level (`e2e-ctcourse/revive.mjs`);
+// after every set the bay's ghost ledger (detections, alarms, knock-outs, kills, bodies) is logged (report only).
 //
 // `--part=N` runs one pair of sets (the runner runs the four as parallel jobs): 1 A1-A2, 2 A3-A4, 3 A5-A6, 4 A7-A8
 // (SPEC 16). Named alone the suite runs all eight sets. A part after the first starts the course at its first set (the
@@ -27,10 +29,13 @@ import * as a5Substation from './e2e-ctcourse/a5Substation.mjs';
 import * as a6PumpHouse from './e2e-ctcourse/a6PumpHouse.mjs';
 import * as a7DataHall from './e2e-ctcourse/a7DataHall.mjs';
 import * as a8Strongroom from './e2e-ctcourse/a8Strongroom.mjs';
+import { SURFACES, reviveOn, freeRevive } from './e2e-ctcourse/revive.mjs';
 
 const SETS = [a1Gate, a2CarriageShed, a3OfficeRange, a4GoodsShed, a5Substation, a6PumpHouse, a7DataHall, a8Strongroom];
 const url = process.argv[2] ?? 'http://localhost:4173/';
 let failed = false;
+/** Revives done this run (each surface and the dock): the end screen's team count. */
+let revivesDone = 0;
 const Q = 'net=local&autostart=ctcourse&mode=course';
 const PART = Number(process.argv.find((a) => a.startsWith('--part='))?.slice(7) ?? 0);
 const GROUPS = { 1: [1, 2], 2: [3, 4], 3: [5, 6], 4: [7, 8] };
@@ -262,6 +267,8 @@ async function reviveInDock() {
   const dock = await point('dock');
   await moveHost(dock[0] - 3.4, dock[2] - 1);
   await moveClient(dock[0] - 2.8, dock[2] - 1);
+  // (slice 9) the A8 gallery revive came first: free one of the team's two revives (a test hook, the rule unchanged)
+  const used0 = await freeRevive(GA);
   const clientId = await GB(() => window.__coop.session.selfId);
   await GA((id) => {
     const g = window.__app.current;
@@ -286,7 +293,8 @@ async function reviveInDock() {
   await until(B, () => window.__app.current.player.alive, null, 8000, 'finale: the host revives the client inside 30 s');
   await until(B, () => getComputedStyle(document.querySelector('.hud-down-timer')).display === 'none', null, 8000, 'finale: the countdown is gone');
   const used = await GA(() => window.__app.current.net.reviveClock.used);
-  assert(used === 1, `finale: one revive of two used (${used})`);
+  assert(used === used0 + 1, `finale: one revive of two used (${used0} -> ${used})`);
+  revivesDone++;
 }
 
 try {
@@ -355,6 +363,9 @@ try {
     console.log(`set ${n} (${mod.SET})`);
     await until(A, (b) => window.__course.debug().bay === b, n - 1, 15000, `the course is at set ${n}`);
     await mod.walk(t, n);
+    const led = await GA((i) => { const s = window.__course.state.stats?.[i]; return s ? { detections: s.detections, alarms: s.alarms, knockouts: s.knockouts, kills: s.kills, bodies: s.bodies } : null; }, n - 1);
+    console.log(`  (ghost ledger A${n} after the walk: ${JSON.stringify(led)})`);
+    if (SURFACES[n]) revivesDone += await reviveOn(t, SURFACES[n]);
     if (n < 8) await throughHoldingRoom(n);
   }
 
@@ -373,7 +384,7 @@ try {
     await until(A, () => window.__app.current.isEnded, null, 15000, 'the course ends with both in the zone');
     assert(true, 'both players in the exit zone complete the course');
     const sum = await GA(() => { const c = window.__app.current.stats.course; return c ? { time: c.team.time, alarms: c.team.alarms, revives: c.team.revives } : null; });
-    assert(!!sum && sum.time > 0 && sum.revives === 1, `the end screen has the time, alarms and revives (${JSON.stringify(sum)})`);
+    assert(!!sum && sum.time > 0 && sum.revives === revivesDone, `the end screen has the time, alarms and revives (${JSON.stringify(sum)}, ${revivesDone} done)`);
   }
 
   const errs = [...eA, ...eB].filter((e) => !/WebGL|GPU stall|swiftshader|Trystero|Nostr|ERR_|favicon/i.test(e));
