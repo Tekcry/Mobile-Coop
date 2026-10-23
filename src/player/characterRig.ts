@@ -3843,15 +3843,44 @@ export class CharacterRig {
       let hx = fx - k * ax, hz = fz - k * az;
       const hl = Math.sqrt(hx * hx + hz * hz) || 1;
       hx /= hl; hz /= hl;
-      for (let step = 0; step <= 6; step++) {
-        const th = (step / 6) * (Math.PI / 2);
-        const c = Math.cos(th), s = Math.sin(th);
-        // palm normal (down on top, into the face at 90 degrees), knuckles (forward over the lip, then up)
-        const nx = hx * s, ny = -c, nz = hz * s;
-        const dx = hx * c, dy = s, dz = hz * c;
-        if (!this.gripFrame(hand, ry, dx, dy, dz, nx, ny, nz, gi)) return false;
-        this.gripWrist(gx - nx * PALM_DEPTH, gy - ny * PALM_DEPTH, gz - nz * PALM_DEPTH, ry, out, gi);
-        if (step === 6 || Vector3.Distance(out, S) <= reach) break;
+      // (traverse-fix-2) the pivot is continuous: the least angle in reach (bisected between the 15-degree steps), or, with
+      // none in reach, the angle nearest the shoulder. Was: the first step in reach, else 90 degrees (the hand flipped
+      // 0 -> 90 in a frame as the climb-up's shoulders rose out of reach while the hands let go: a 4.6 cm wrist pop).
+      const H = Math.PI / 2;
+      if (!this.hookAt(hand, ry, gi, hx, hz, gx, gy, gz, 0, out)) return false;
+      let bestD = Vector3.Distance(out, S);
+      if (bestD > reach) {
+        let lo = 0, hi = -1, best = 0;
+        for (let step = 1; step <= 6; step++) {
+          const th = (step / 6) * H;
+          if (!this.hookAt(hand, ry, gi, hx, hz, gx, gy, gz, th, out)) return false;
+          const d = Vector3.Distance(out, S);
+          if (d <= reach) { hi = th; break; }
+          if (d < bestD) { bestD = d; best = th; }
+          lo = th;
+        }
+        let th: number;
+        if (hi >= 0) {
+          // the reach boundary between the last step out of reach and the first in it
+          for (let it = 0; it < 6; it++) {
+            const m = (lo + hi) / 2;
+            if (!this.hookAt(hand, ry, gi, hx, hz, gx, gy, gz, m, out)) return false;
+            if (Vector3.Distance(out, S) <= reach) hi = m; else lo = m;
+          }
+          th = hi;
+        } else {
+          // none in reach: the nearest angle (a ternary search either side of the nearest step)
+          let a = Math.max(0, best - H / 6), b = Math.min(H, best + H / 6);
+          for (let it = 0; it < 10; it++) {
+            const m1 = a + (b - a) / 3, m2 = b - (b - a) / 3;
+            if (!this.hookAt(hand, ry, gi, hx, hz, gx, gy, gz, m1, out)) return false;
+            const d1 = Vector3.Distance(out, S);
+            if (!this.hookAt(hand, ry, gi, hx, hz, gx, gy, gz, m2, out)) return false;
+            if (d1 <= Vector3.Distance(out, S)) b = m2; else a = m1;
+          }
+          th = (a + b) / 2;
+        }
+        if (!this.hookAt(hand, ry, gi, hx, hz, gx, gy, gz, th, out)) return false;
       }
       this.gripOk[gi] = true;
       return true;
@@ -3888,6 +3917,16 @@ export class CharacterRig {
       gp.set(gp.x + out.x - ox, gp.y + out.y - oy, gp.z + out.z - oz);
     }
     this.gripOk[gi] = true;
+    return true;
+  }
+
+  /** (traverse-fix-2) A lip grip's hand pivoted `th` over the edge (0: palm down on top, pi/2: palm into the face; the
+   *  knuckles forward over the lip, then up; `hx`, `hz` the unit across the lip): its frame and wrist target into `out`. */
+  private hookAt(hand: HandFrame, ry: number, gi: number, hx: number, hz: number, gx: number, gy: number, gz: number, th: number, out: Vector3): boolean {
+    const c = Math.cos(th), s = Math.sin(th);
+    const nx = hx * s, ny = -c, nz = hz * s;
+    if (!this.gripFrame(hand, ry, hx * c, s, hz * c, nx, ny, nz, gi)) return false;
+    this.gripWrist(gx - nx * PALM_DEPTH, gy - ny * PALM_DEPTH, gz - nz * PALM_DEPTH, ry, out, gi);
     return true;
   }
 
