@@ -21,7 +21,7 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 ## Protocol (`protocol.ts`)
 - Every inbound message goes through `parseMessage` (shape, clamps, string sanitising, caps); anything unknown is
   dropped. Add a message: type in `Msg`, case in `parseMessage`, a test in `tests/net.test.ts`.
-- `PROTOCOL_VERSION` 31 (31: the Sector Ops lamps, sector-redesign slice L, below; 30: marlow-final's Menu Notes; 29: the lasers are jammed at their power panels, sector-fixes P: `jam` and `sec.dv` name panel ids; 28: the `jam` claim's camera eye `e`, jammer-fixes; 26: the jammer rules in `sec`, marlow-jammer: per-camera clocks `ck`, jam left `ch`, cooldown `cd`, jammed / recovering devices `dv`; 25: the guard torch bit in enemy `al`, below; 24: the `sector` message extras, below). A `hello` with another version is ignored by the host. History: 11 = the training course and
+- `PROTOCOL_VERSION` 34 (34: the section rating, section-rating S3: `sector` `rt` and the course stat `synced`, below; 32 / 33 reserved by other open jobs; 31: the Sector Ops lamps, sector-redesign slice L, below; 30: marlow-final's Menu Notes; 29: the lasers are jammed at their power panels, sector-fixes P: `jam` and `sec.dv` name panel ids; 28: the `jam` claim's camera eye `e`, jammer-fixes; 26: the jammer rules in `sec`, marlow-jammer: per-camera clocks `ck`, jam left `ch`, cooldown `cd`, jammed / recovering devices `dv`; 25: the guard torch bit in enemy `al`, below; 24: the `sector` message extras, below). A `hello` with another version is ignored by the host. History: 11 = the training course and
   locomotion 10 together (G52); 12 = Wave, team deathmatch, free-for-all and PvP removed (`NetMode`, `team`, `ptd`,
   `frag`, snapshot `score` / `tl`, end `waves` / `winner`); 13 = emotes removed (`emote` message and event), then in the
   same version the custom difficulty (`dc`) and carried medkits (`PlayerState.mk`, MoveState `medkit`, `cmove` kind
@@ -162,7 +162,8 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   resolves on it (traversal from `pstate.mv`, a client's takedown, thrown gadget, door use, team moves; A23). The
   `sprint` verb goes with the sprint in the CT prototype (M20).
 - The client mirrors the course (HUD, markers, toasts, results) and LANTERN's radio from `rl` / `rln`. The host sends a
-  final `course` before `end`. `start` carries `bay` ("Start at bay N", D20); both players start in that bay's entry
+  final `course` before `end`. (protocol 34) The per-player bay stats gain `synced` (whole 0-1e4, missing 0; synced
+  takedowns, section-rating). `start` carries `bay` ("Start at bay N", D20); both players start in that bay's entry
   airlock (`courseStartPos`).
 - Friendly fire in the course (D38, G49 pending the research): `playersHostile(friendlyFire, a, b)` (pure, `validate.ts`)
   makes partners hostile in course mode; host `Hitboxes` + `RemotePlayer.shootable`, client `PartnerTarget`, `blast`
@@ -205,6 +206,13 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   The client's `CtDevices` mirror runs `setLive(ls)` (other sections' cameras off, lasers dark, no jam targets), breaks
   or repairs cameras from `dn` and sets door locks from `lk`. The HUD line (section, alarm, syringes) comes with the
   snapshot's `info`. Objectives, markers and banners use the item and event mirror.
+- (section-rating, protocol 34) `rt` the last section rating `{ sec, marks, synced, gadget, syringe, medkit, alarmStep }`
+  (`SectorRatingWire`; `sec` -1 none yet, `marks` 0-15, the rest whole 0-99; junk drops `rt` only). The host rates a
+  section as its connector unloads it (the extraction rates the last one, sent at once, its grant fields zeroed) and
+  grants the next section as it begins; syringes through `CoopHost.addSyringes(n)` (`reviveClock.cap += n`). The client
+  takes each new `sec` once (`CoopClient.takeRating`): the card (`onRating`, not for the last section), the results list
+  (`GameState.sectionRatings`) and the gadget part on its own kit (`GadgetSystem.topUp`). The first `sector` after a
+  (re)join only records `rt.sec` as applied (no card, no top-up). `ratingViewFromWire` (`validate.ts`) names the section.
 - (sector-fixes-r RT) Team doors, no wire change: a section's `bolts` (`SectorDef.bolts`: door centre `at`, unbolting
   `side`) are locked at the start and each gets an "Unbolt" item `c-sbolt-<section>-<k>` (kind `door`, reach 1.6 m;
   the `c-` prefix sorts it with the course devices ahead of the item cap). `Interactable.side` makes `nearest` offer it

@@ -55,6 +55,7 @@ import {
   type Grant,
   type SectionStats,
 } from '../rating/sectionRating';
+import { RatingCard } from '../../ui/hud/ratingCard';
 
 /**
  * (section-rating S2) The gadgets a rating's charges top up, in order: the noisemaker first, then sleeping gas (the
@@ -182,6 +183,16 @@ export class SectorMode implements GameMode {
   private readonly rt: SectorRatingWire = { sec: -1, marks: 0, synced: 0, gadget: 0, syringe: 0, medkit: 0, alarmStep: 0 };
   private readonly hook: SectionRatingHook = { stats: this.secStats, last: null, lastGrant: null };
   private readonly offs: (() => void)[] = [];
+  /** (section-rating integration) The rating card on this machine's HUD (host / solo; the client has its own). */
+  private card: RatingCard | null = null;
+  /** The rating being reported gives a grant (a connector's); false for the extraction's, which goes to the results. */
+  private rateGrant = false;
+  /** The `onRated` listener: the card for a granted rating (one closure for the mode's life). */
+  private readonly rated = (): void => {
+    const v = this.hook.last;
+    if (!this.rateGrant || !v || !this.card) return;
+    this.card.show(v, this.grantGadgetName(v.grant.gadget));
+  };
 
   /** (sector-redesign G22) The lamps and doors as the current section began (a restart puts them back). */
   readonly startState = new SectionStartState();
@@ -219,6 +230,8 @@ export class SectorMode implements GameMode {
     );
     this.detSeen = g.style.detections;
     (window as unknown as { __sectionRating?: SectionRatingHook }).__sectionRating = this.hook;
+    this.card = new RatingCard(g.hud.el);
+    setOnRated(this.rated);
     this.findDoors();
     this.findBolts();
     const s = this.run.current;
@@ -563,6 +576,9 @@ export class SectorMode implements GameMode {
     g.hud.setObjective('');
     // (section-rating S2) the last section is rated at the extraction (nothing follows it to grant)
     this.rate(this.run.index, false);
+    // co-op: the last rating goes now (the sector sends stop once the op ends), ahead of the end message
+    const ct = this.ct;
+    if (ct && g.net?.sector) g.net.sector(ct.wire(), this.netExtra(ct));
     g.events.emit('operationComplete', {});
     // M7: the op's star for this difficulty (and the best time), solo or the co-op host
     void markCompleted(g.world.map.id, g.opts.difficulty ?? 'normal', this.t);
@@ -603,20 +619,40 @@ export class SectorMode implements GameMode {
     r.gadget = Math.min(gadgetsAtStart, r.gadget + r.alarmStep);
     r.alarmStep = 0;
     if (grant) this.owed = r;
-    this.hook.last = { sectionId: s.id, title: s.name, marks, synced, grant: r };
+    const view: SectionRatingView = { sectionId: s.id, title: s.name, marks, synced, grant: r };
+    this.hook.last = view;
+    // (integration) every section's rating, for the op-end results lines
+    g.sectionRatings.push(view);
+    // (integration) an ungranted rating (the extraction's) carries no grant on the wire: the client tops up nothing
     const w = this.rt;
     w.sec = i;
     w.marks = marks;
     w.synced = synced;
-    w.gadget = r.gadget;
-    w.syringe = r.syringe;
-    w.medkit = r.medkit;
-    w.alarmStep = r.alarmStep;
+    w.gadget = grant ? r.gadget : 0;
+    w.syringe = grant ? r.syringe : 0;
+    w.medkit = grant ? r.medkit : 0;
+    w.alarmStep = grant ? r.alarmStep : 0;
     this.secT = 0;
     const mapId = g.world.map.id;
     void updateRatingRecord(mapId, s.id, marks, synced);
+    this.rateGrant = grant;
     onRated?.(mapId, s.id, marks, synced);
     this.freshCounters();
+  }
+
+  /**
+   * (integration) The gadget a grant of `n` charges tops up as the next section begins, by name ("noisemaker"): the
+   * first of GRANT_GADGETS with room, when it takes all `n`; else undefined (the card reads "gadget").
+   */
+  private grantGadgetName(n: number): string | undefined {
+    if (n <= 0) return undefined;
+    const counts = this.g.weapons.gadgets.counts;
+    for (const id of GRANT_GADGETS) {
+      const room = Math.min(GADGETS[id].carry, GADGETS[id].max) - counts[id];
+      if (room <= 0) continue;
+      return room >= n ? GADGETS[id].name.toLowerCase() : undefined;
+    }
+    return undefined;
   }
 
   /** (section-rating S2) The section's counters back to zero (in place), the synced pairs forgotten. */
@@ -785,7 +821,9 @@ export class SectorMode implements GameMode {
     } else if (this.run.phase === 'connector' || this.run.phase === 'extract') this.exitStep(dt, s, g.playerRefsInto(this.refs));
   }
 
-  frameUpdate(): void {
+  frameUpdate(dt: number): void {
+    // (integration) the rating card's countdown (no DOM work until its fade)
+    this.card?.update(dt);
     const n = this.run.defs.length;
     const i = Math.min(n, this.run.index + 1);
     const a = this.run.alarm;
@@ -887,5 +925,8 @@ export class SectorMode implements GameMode {
     if (w.__sectionRating === this.hook) delete w.__sectionRating;
     for (const off of this.offs) off();
     this.offs.length = 0;
+    if (onRated === this.rated) setOnRated(null);
+    this.card?.el.remove();
+    this.card = null;
   }
 }

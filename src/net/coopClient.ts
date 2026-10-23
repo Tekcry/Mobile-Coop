@@ -23,7 +23,7 @@ import { PartnerBlocker, partnerPassable } from './partnerBlocker';
 import type { TeamMate } from '../game/teamController';
 import type { TeamKind } from '../game/teamMoves';
 import { clampEnd, clientForcedHolster, coopSessionStats, ratingViewFromWire } from './validate';
-import type { RatingView } from '../ui/hud/ratingCard';
+import { RatingCard, type RatingView } from '../ui/hud/ratingCard';
 import { GADGETS, type GadgetId } from '../game/gadgets';
 
 /** (section-rating S3) The gadgets a rating's charges top up, in order (as the host's grant in sectorMode.ts). */
@@ -87,10 +87,18 @@ export class CoopClient implements NetAttachment {
   rating: RatingView | null = null;
   /** (section-rating S3) Bumped on each new rating (the HUD shows the card when it changes). */
   ratingSeq = 0;
-  /** (section-rating S3) Called once per new rating (the HUD card hooks in here; null by default). */
-  onRating: ((v: RatingView) => void) | null = null;
+  /**
+   * (section-rating S3) Called once per new granted rating with the gadget the grant topped up here (by name, or
+   * undefined when none or several); not for the op's last section (that one goes to the results). Sector Ops sets it
+   * to the rating card below.
+   */
+  onRating: ((v: RatingView, gadgetName?: string) => void) | null = null;
   /** The section index of the last rating taken (-1 none; a restart never re-rates, so a new index is a new rating). */
   private ratedSec = -1;
+  /** (integration) A sector message has arrived since this client connected (the first one's rating is history). */
+  private sawSector = false;
+  /** (integration) Sector Ops: the section rating card on our HUD (null elsewhere). */
+  private card: RatingCard | null = null;
   /** (coop-torches) The guards' flashlights: the world's slots lit and placed from the snapshot's torch bits. */
   readonly torches: TorchMirror;
   private readonly torchA = new Vector3();
@@ -137,6 +145,15 @@ export class CoopClient implements NetAttachment {
       this.offs.push(() => {
         ct.dispose();
         g.ctDev = null;
+      });
+      // (section-rating integration) the host's section ratings on our own card (the host's mode shows its own)
+      const card = new RatingCard(g.hud.el);
+      this.card = card;
+      this.onRating = (v, name) => card.show(v, name);
+      this.offs.push(() => {
+        card.el.remove();
+        this.card = null;
+        this.onRating = null;
       });
     }
     g.explosions.onLocalBlast = (p) => {
@@ -654,7 +671,19 @@ export class CoopClient implements NetAttachment {
         if (d.anchor.locked !== on) doors.setLocked(d, on);
       }
     }
-    if (msg.rt && msg.rt.sec !== this.ratedSec) this.takeRating(msg.rt);
+    if (!this.sawSector) {
+      // (integration) a late join / rejoin: a rating already on the wire was shown and granted before we came; it
+      // only goes to the results list (no card, no top-up)
+      this.sawSector = true;
+      if (msg.rt) {
+        this.ratedSec = msg.rt.sec;
+        const v = ratingViewFromWire(msg.rt, this.g.world.map.sectors ?? []);
+        if (v) {
+          this.rating = v;
+          this.g.sectionRatings.push(v);
+        }
+      }
+    } else if (msg.rt && msg.rt.sec !== this.ratedSec) this.takeRating(msg.rt);
     // the HUD line (section, alarm, syringes) comes with the snapshot's `info` (the host's mode info, mirrored)
   }
 
@@ -665,18 +694,30 @@ export class CoopClient implements NetAttachment {
     if (!v) return;
     this.rating = v;
     this.ratingSeq++;
+    // (integration) every rating for the op-end results lines
+    this.g.sectionRatings.push(v);
     // the gadget part of the grant on our own kit (the host tops up only its own player): noisemaker first, then gas,
-    // each up to its starting carry, as the host's grant does; once per rating (a new `sec`)
+    // each up to its starting carry, as the host's grant does; once per rating (a new `sec`). The extraction's rating
+    // carries no grant (the host zeroes it).
     let n = rt.gadget;
+    let name: string | undefined;
+    let ids = 0;
     for (const id of GRANT_GADGETS) {
       if (n <= 0) break;
-      n -= this.g.gadgets.topUp(id, n, GADGETS[id].carry);
+      const k = this.g.gadgets.topUp(id, n, GADGETS[id].carry);
+      if (k <= 0) continue;
+      n -= k;
+      ids++;
+      name = GADGETS[id].name.toLowerCase();
     }
+    if (ids !== 1) name = undefined;
     // the test hook in the host's shape (SectionRatingHook): the client counts nothing and gives nothing itself
     const w = window as unknown as { __sectionRating?: { stats: unknown; last: RatingView | null; lastGrant: unknown } };
     if (w.__sectionRating) w.__sectionRating.last = v;
     else w.__sectionRating = { stats: null, last: v, lastGrant: null };
-    this.onRating?.(v);
+    // the op's last section (rated at the extraction) shows on the results screen, not the card
+    const defs = this.g.world.map.sectors ?? [];
+    if (rt.sec < defs.length - 1) this.onRating?.(v, name);
   }
 
   private onEndMsg(raw: EndStats): void {
@@ -742,6 +783,7 @@ export class CoopClient implements NetAttachment {
   frameUpdate(dt: number): void {
     if (this.inCourse) clientCourseFrame(this.g, dt);
     this.sec?.frame(dt);
+    this.card?.update(dt);
     const t = this.renderTime;
     for (const a of this.avatars.values()) a.update(dt, t);
     // (G7 fix) the partner holding one of the host's guards: his puppet posed from the partner's MoveState (hostage,

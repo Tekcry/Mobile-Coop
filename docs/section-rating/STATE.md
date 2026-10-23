@@ -73,3 +73,29 @@ Built the rating wire: `PROTOCOL_VERSION` 31 -> 34 (32 / 33 reserved by other op
 - `src/net/coopHost.ts`: `addSyringes(n)` (n a whole 0-9 added to `reviveClock.cap`), the duck-typed call in sectorMode's grant. The `sector` send already spreads `rt`; no other host change.
 - Tests: `tests/ratingWire.test.ts` (8: round trip, clamping, junk dropped, course synced, client view, host -> client through a session, version 31 refused / 34 joins). Version asserts 31 -> 34 in jammer, jammerFixes, moveState, net (and its refusal test: 31 refused, 34 joins), rejoin, sectorLampSync, sectorStep3 (167 pass). tsc clean, eslint clean.
 - Open: the client tops up at the rating (connector unload), the host at the next section's load (a few seconds apart). The last section's extraction rating carries its grant on the wire too, so the client tops up at op end (harmless; S2 could zero the grant fields of an ungranted rating). A client that joins / rejoins after a rating tops up once for the rating already shown.
+
+## Integration report (2026-10-23 13:55)
+Wired S1-S5 together. tsc clean; eslint clean on sectorMode.ts, coopClient.ts, gameState.ts; vitest single files all pass:
+sectionRating 23, ratingCardText 7, ratingRecord 3, ratingWire 8, sectorRatingHost 3, sectors 27, sectorRestart 8, net 72,
+rejoin 12, sectorLampSync 11, sectorStep3 7.
+- Host / solo card (`sectorMode.ts`): one `RatingCard(g.hud.el)` made in `start()`, shown from the `setOnRated` listener
+  (`rated`) for a granted rating only (`rateGrant`; the extraction's rating goes to the results), `card.update(dt)` in
+  `frameUpdate(dt)` (countdown only), removed and the listener cleared in `dispose()`. Gadget name: `grantGadgetName`
+  predicts the gadget the next section's top-up fills (the first of noisemaker / gas with room, if it takes all the
+  charges; else the card's generic "gadget").
+- Client card (`coopClient.ts`, in the constructor's Sector Ops block, which already wires the client's sector mirror):
+  its own `RatingCard(g.hud.el)`, `onRating = (v, name) => card.show(v, name)`, `card.update(dt)` in `frameUpdate`,
+  removed through `offs`. `onRating` now passes the gadget actually topped up (one gadget id, else generic) and is not
+  called for the op's last section. sectorMode never imports `src/net`.
+- Results: `GameState.sectionRatings` (every rating of the op in order) -> `ResultsNav.ratings` in `resultsNav()`. The
+  host's mode pushes each rating's view; the client pushes each taken rating (and the late-join one, as history).
+- The extraction's rating now goes to the client at once in `complete()` (the sector sends stop once the op ends, so
+  before this the client never got it), with its grant fields zeroed in `rt` (S3 open item: no top-up at op end).
+- Late join (S3 open item): `CoopClient.sawSector`: the first `sector` after connect records `rt.sec` as applied (no
+  card, no top-up; the view goes to the results list only).
+- Docs: A9 logged in BRIEF.md; coop.md has protocol 34, the `rt` field, `addSyringes` and the course stat `synced`.
+- For S7 (e2e): card DOM `.rating-card` (shown / hidden, rows `.rc-row.ok|.miss`, `.rc-grant`) on host and client after
+  a connector cycle; no card at the extraction; results `li` lines in `ul.rs-sections` on both screens; the client's
+  gadget top-up happens at the rating (connector unload), the host's at the next section's begin (a few seconds apart);
+  a client rejoining after a rating gets no second top-up. A rejoined client's results list starts at the last rating
+  before it rejoined (earlier sections are not resent). Not run: any e2e.

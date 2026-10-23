@@ -53,6 +53,7 @@ import { roomAt } from '../world/rooms';
 import { camSpaceAt, doorPassing } from '../world/camSpaces';
 import { CAMERA } from '../config/camera';
 import { ResultsScreen, type ResultsNav } from '../ui/screens/resultsScreen';
+import type { RatingView } from '../ui/hud/ratingCard';
 import { EventBus } from '../core/events';
 import type { GameEvents } from './gameEvents';
 import { attachGameAudio } from '../audio/gameAudio';
@@ -465,6 +466,8 @@ export class GameState implements AppState {
   }
   /** Coop attachment (null in single player). */
   net: NetAttachment | null = null;
+  /** (section-rating) The op's rated sections in order (Sector Ops: the host's mode, or the co-op client's mirror), for the results lines. */
+  readonly sectionRatings: RatingView[] = [];
   /** Coop client: enemies, waves and objectives are driven by the host. */
   readonly puppet: boolean;
   /** Who a takedown can be done on (enemies; co-op clients: the host's enemies as puppets). */
@@ -1024,6 +1027,7 @@ export class GameState implements AppState {
     if (gid && GADGETS[gid]) names.push(GADGETS[gid].name);
     const nav: ResultsNav = { coop: !!this.net };
     if (names.length) nav.kit = names.join(', ');
+    if (this.sectionRatings.length) nav.ratings = this.sectionRatings;
     const cb = this.cb;
     const id = this.stats.missionId;
     if (!this.net && id && cb.missions) {

@@ -68,3 +68,7 @@ Recommended: R1 + R2 + R3 + R4 (all four, small). No profile change, one protoco
 - M-h: Does a section restart keep the earned reward? A8 = the reward is granted when the next section loads; a
   restart of that next section keeps it (it is part of the checkpoint state); a restart never re-rates. Undo: grant on
   every load instead.
+
+## Assumed decisions logged during the build
+- A9 Bodies hidden gives +1 gadget charge instead of alarmStep until guard-ai's stage API is on master. Undo: map
+  BODIES_HIDDEN to alarmStep in sectionRating.ts's table and call the stage API in sectorMode.
