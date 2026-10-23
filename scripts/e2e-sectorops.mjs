@@ -533,6 +533,7 @@ await run(PARAMS, async ({ G, sim }) => {
     const s = g.weapons.current.stats;
     const n0 = s.noise;
     s.noise = 1;
+    g.weapons.lastShotNoise = 1; // (sd-rounds) onShot reads the fired round's noise
     // the report only (no round towards him: a hit would alert him without hearing anything)
     g.weapons.events.onShot(g.weapons.current.def);
     s.noise = n0;
