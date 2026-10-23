@@ -1,4 +1,4 @@
-# Resume - Night Shift | Player Build (formerly CT Core Build; resumed 2026-10-23 swap 2, agents launched)
+# Resume - Night Shift | Player Build (saved 2026-10-23 ~15:15 at the 82% swap save; all agent worktrees WIP-pushed)
 
 Rules: CLAUDE.md on origin/feature/menu "Heavy-usage throughput", "Token rules", "Account swap". No mid-window clears.
 Opus plans / checks / anim + net code; Sonnet builds from strict briefs; desktop CPU < 80%. e2e always E2E_GPU=1:
@@ -7,14 +7,14 @@ batch; desktop heavy.lock (4191) / heavy2.lock (4192) for single suites. Agent r
 COMMON-SPARE.md (subagents are refused REPORT.md: the lead writes it from the hand-back). Push this file with
 scratch/ctcore/push-resume.sh <abs file> <msg>. Message the orchestrator only at PR open / train-ready / blocked / Michael.
 
-## Open (master 4.74.0; #221 in train 26, origin/train/26 a63e6f4b). Train 27: #207 + #214 + #223 once green.
+## Open (master f5912402 after train 26, PROTOCOL 35; #221 merged). Train 27: #207 + #214 + #223 + #227 once green.
 | Job | Branch (folder C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
-| #207 batch 22 | feature/ctcore-batch-22 (b22-fix) | 99c37251 + WIP | Opus agent fixing e2e-clip ladder knees 8.9 vs > 9.0 cm (scripts/e2e-clip.mjs:250) via src/anim/clips/traverse.ts:389 fLX; report docs/ctcore-batch-22/LADDER-KNEES.md; then e2e-clip / traverse / anim. |
-| #214 batch 23 | feature/ctcore-batch-23 (ctcore-batch) | f26f35a6 | Recheck PASS (docs/interrogation-intel/CHECK-2.md, polish 1-4: run e2e-pad once). Studio out of pause, master 4.74.0 merged, patrol intel; e2e-menus / studio / takedown PASS. Waiting on #207 fix: merge batch-22 in, laptop batch (coop, netmove, ctcourse, clip, pad), train-ready. |
+| #207 batch 22 | feature/ctcore-batch-22 (b22-fix) | 59d69a76 WIP | Opus agent on ladder knees (e2e-clip 8.9 vs > 9.0, src/anim/clips/traverse.ts:389 fLX); told to merge master f5912402 and set tests/hangDownNet.test.ts:15 to 35 (CI red). If lost: restart from 59d69a76 with that goal. |
+| #214 batch 23 | feature/ctcore-batch-23 (ctcore-batch) | 0eaba0f8 | Recheck PASS. Merged master f5912402 (train 26, protocol 35); hangDownNet asserts 35 (CI was red on 31). Waiting on #207: merge batch-22 in, laptop batch (coop, netmove, ctcourse, clip, pad), train-ready. |
 | #223 batch 24 pose-parity | feature/pose-parity | 19248c01 | PROTOCOL 36. Green; stacked on #214: merge batch-23 in when green, train-ready. |
 | spare 7 crouch-pops #227 | feature/crouch-pops (crouch-pops) | 642ad971 | Checker PASS, e2e-anim / clip PASS. PR #227 open, train-ready sent (stacks on #221). Polish: docs/crouch-pops/CHECK.md 1-3 (OFF running crouch-down wristR 9.47 cm). |
-| walk P1-P5 anim fix pass | feature/anim-fix-pass (anim-fix-pass) | dba5b6a9 | AF0 harness merged (tests/helpers/afpMeasure.ts, before/numbers.md). Running: AF1 / AF2 / AF5 (afp-af1/2/5 off 69662cf2), AF6 (afp-af6 off coop-walk-fixes a4e1fe64). Next: group 2 AF3 + AF4a after AF1 / AF2 merge (same files), then AF4b; one checker; remote audit typical untested (afp-af0-remote.sh). |
+| walk P1-P5 anim fix pass | feature/anim-fix-pass (anim-fix-pass) | dba5b6a9 | AF0 merged. WIP-pushed agents: AF1 afp-af1 29a50ae3, AF2 afp-af2 9e281b46, AF5 afp-af5 13045007 (off 69662cf2), AF6 afp-af6 c9f1a67b (off coop-walk-fixes; PROTOCOL 38 if wire). If lost: restart each from its head with PLAN.md's slice. Next: group 2 AF3 + AF4a after AF1 / AF2 merge, then AF4b; one checker. |
 | walk P6-P7 co-op | feature/coop-walk-fixes (coop-walk-fixes) | a4e1fe64 | Checker PASS (docs/coop-walk-fixes/CHECK.md, polish 1-8). PROTOCOL 37. Laptop e2e-coop / netmove requested on c6b4f4a3 (docs-only since). Then PR (stacked on #223) + train-ready. |
 
 ## Next
