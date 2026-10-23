@@ -2,7 +2,8 @@ import { Vector3, type Scene } from '../core/babylon';
 import type { CharacterRig, FkPose } from '../player/characterRig';
 import { GuardCq, seedOf, type GuardCqMode } from '../game/closeQuarters';
 import type { WeaponModel } from '../weapons/weaponModel';
-import { buildEnemyRig } from './enemyRig';
+import { buildEnemyRig, GuardGunCarry } from './enemyRig';
+import { calmArea, carryRaise, carrySlotOf, GuardCarry, mayHolster } from './carryState';
 import { Hitboxes } from './hitboxes';
 import { Health } from '../game/health';
 import type { DamageRegistry, Damageable, DamageResult, HitInfo } from '../game/damage';
@@ -197,6 +198,10 @@ export class Enemy implements Damageable {
   private stateT = 0;
   private rig: CharacterRig;
   private gun: WeaponModel | null;
+  /** (guard-ai S21, walk 4.72 G5) Holstered in a calm area (`carryState.ts`): stepped in `update`, gates fire, posed in
+   *  `frame` (`gunCarry`, null: a kind that never holsters). */
+  readonly carry: GuardCarry;
+  private gunCarry: GuardGunCarry | null = null;
   private hitboxes: Hitboxes;
   private vel = new Vector3();
   /** Same root motion as the player: weighted starts/stops, stepped turns, stride-synced gait. */
@@ -380,6 +385,10 @@ export class Enemy implements Damageable {
     const built = buildEnemyRig(ctx.scene, ctx.world, def, this.id);
     this.rig = built.rig;
     this.gun = built.gun;
+    // (guard-ai S21) the carry: a kind that ever holsters gets the gun's slot (the rifle on his back, the pistol on his thigh)
+    const gunCls = built.gun ? built.gun.def.class : '';
+    this.carry = new GuardCarry(mayHolster(def.kind, def.gun, !!def.melee, def.quadruped), gunCls);
+    if (built.gun && this.carry.on) this.gunCarry = new GuardGunCarry(built.rig, built.gun, carrySlotOf(gunCls));
     this.hitboxes = new Hitboxes(ctx.scene, ctx.registry, this, def.scale, def.build);
     this.voice = new BarkVoice(this.num);
     const parts = ctx.world.parts;
@@ -1243,6 +1252,12 @@ export class Enemy implements Damageable {
     return this.aware.level === 'unaware' && this.caution === 0 && this.incident < 0 && !this.taken && this.camBody === null;
   }
 
+  /** (guard-ai S21, A120) In a calm area (`calmArea`): calm himself, no alarm, not a high-security post, not on a
+   *  response; stealth rules only (the parked modes keep low ready). */
+  private carryCalm(): boolean {
+    return this.ctx.stealth() && calmArea(this.aware.level, this.caution, this.incident >= 0 || this.camBody !== null, this.ctx.alarmRaised(), this.secure, this.responder || this.crew !== null);
+  }
+
   /** (guard-ai S10) Reacting to something that leaves his level as it is: a look toward a sound, a lure, a glimpse
    *  building (sight evidence above the leak). A talk stops for it (`PairMeet.interrupt`). */
   get disturbed(): boolean {
@@ -1826,6 +1841,8 @@ export class Enemy implements Damageable {
     if (this.los) this.losT += dt;
     else this.losT = 0;
     this.updateAwareness(dt);
+    // (guard-ai S21) holstered in a calm area, drawn above it (no fire until the draw ends, `tryFire`)
+    this.carry.step(dt, this.carryCalm());
 
     // on a ladder / dropping off a ledge: the route drives the body until it is off
     if (this.link) {
@@ -2770,7 +2787,8 @@ export class Enemy implements Damageable {
   private tryFire(dt: number, mode: 'aim' | 'suppress' | 'blind' = 'aim'): void {
     const w = this.def.weapon;
     const t = this.target;
-    if (!w || !t || (mode === 'aim' && !this.los) || this.dist > w.range) {
+    // (guard-ai S21) the draw first: no shot until the gun is in his hands
+    if (!w || !t || (mode === 'aim' && !this.los) || this.dist > w.range || (this.carry && !this.carry.drawn)) {
       this.windup = 0;
       return;
     }
@@ -3058,6 +3076,19 @@ export class Enemy implements Damageable {
     rp.traverse = this.climbing ? 'climb' : 'none';
     rp.traverseT = this.climbT;
     if (this.climbing) rp.aim = 0;
+    // (guard-ai S21, walk 4.72 G5) holstered in a calm area: hands empty with the armed carriage (`ready`; `armed` follows
+    // the gun in hand), the draw / holster clip (`swap`, one slot) while the gun travels (`GuardGunCarry`); no raise
+    // until it is drawn. A pistol on the thigh sets the rig's `thighGear` itself (WeaponModel).
+    const gc = this.gunCarry;
+    if (gc) {
+      const cs = this.carry;
+      if (!this.taken) gc.apply(cs);
+      rp.aim = carryRaise(rp.aim, cs);
+      rp.ready = cs.holstered;
+      rp.swap = cs.swapClip();
+      rp.swapFrom = gc.slot;
+      rp.swapTo = gc.slot;
+    }
     if (this.dog) {
       const alertK = lvl === 'unaware' ? 0 : 1;
       this.dog.update(dt, r.position.x, r.position.y, r.position.z, r.rotation.y, sp, alertK, this.kick);
