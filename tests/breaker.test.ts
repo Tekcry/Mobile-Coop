@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { CMD_ACK, CMD_SEND, GuardView, IncidentBoard, INCIDENT, LEVEL, MODE_BREAKER, MODE_LIGHT, type PathLen } from '../src/ai/incidents';
+import { CMD_ACK, CMD_SEND, GuardView, IncidentBoard, INCIDENT, LEVEL, MODE_BREAKER, type PathLen } from '../src/ai/incidents';
 import { BREAKER, LATE } from '../src/ai/gear';
 import { BREAKER_WALK, CIRCUIT_KEY, DARK_CUT, DARK_NONE, DARK_SHOT, DarkList, darkState, type BreakerHost } from '../src/ai/breaker';
 import { BARKS } from '../src/ai/barks';
@@ -119,7 +119,6 @@ function manager(reg: LightRegistry, blocked: (x: number, z: number) => boolean 
   return new EnemyManager({} as Scene, world as unknown as World, nav as unknown as NavGrid, {} as DamageRegistry, { clear } as unknown as Ballistics, {} as Vfx, DIFFICULTY.normal, () => []);
 }
 
-type Stand = ReturnType<typeof guard>;
 const late = (em: EnemyManager, n = 1): void => {
   for (let i = 0; i < n; i++) (em as unknown as { lateStep(): void }).lateStep();
 };
@@ -403,8 +402,17 @@ describe('Enemy.resetBreaker: the walk at patrol pace, the reset, calm after', (
       // straight at the goal (no nav)
       goTo: (p: [number, number]) => p,
     });
-    type W = Enemy & { breakerStep(dt: number): { point: [number, number] | null; speed: number; face: number | null }; onLevel(a: AlertLevel, b: AlertLevel): void; aware: AlertMachine; breakerGroup: number };
-    return { e: e as W, reset, barks, PACE };
+    type W = {
+      resetBreaker(x: number, z: number, y: number, inc: number, group: number): void;
+      breakerStep(dt: number): { point: [number, number] | null; speed: number; face: number | null };
+      onLevel(a: AlertLevel, b: AlertLevel): void;
+      aware: AlertMachine;
+      breakerGroup: number;
+      incident: number;
+      pos: Vector3;
+      walker: { rejoin: ReturnType<typeof vi.fn> };
+    };
+    return { e: e as unknown as W, reset, barks, PACE };
   }
   /** Run the walk: step toward its point at its speed; returns seconds until it ended (or `max`). */
   function run(e: { breakerStep(dt: number): { point: [number, number] | null; speed: number }; pos: Vector3; breakerGroup: number }, max: number, speeds: number[]): number {
