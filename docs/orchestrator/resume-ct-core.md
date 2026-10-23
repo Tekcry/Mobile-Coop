@@ -1,5 +1,13 @@
 # Resume - Night Shift | Player Build (updated 2026-10-23 ~21:40 after the swap; live state in docs/guard-models/STATE.md "RESUMED" line)
 
+~23:35: #247 laptop afp RUNNING on fd34263e (CI green): on pass -> train-ready label + message orchestrator.
+#269 coop-rejoin (feature/coop-rejoin, worktree coop-rejoin): checker A FAIL (B1 rejoin race) -> Opus fix round
+327e73f4 (JoinWatch) -> re-check PASS (f13b91e7, docs/coop-rejoin/RECHECK.md). Laptop coop netmove ctcourse sectorops
+20261023T122212-player-build-327e73f4-35c5 (set coop-rejoin): on pass -> train-ready + message orchestrator.
+Follow-up batch (not in #269, keeps the laptop verdict): RECHECK polish 1 (joinWatch.ts:128/134 load-gap state
+bypasses the in-flight skip: closes the rare restart-during-reload way back into item 7) + 2 (hold ends an open watch)
++ 5 (coop.md:83 wording). guard-models: STATE "~23:30" (G1 fix, G1h fix, G7, G7b, G9 merged; one bake 816419f7 queued,
+needs MPFB2 on the laptop; flag-on run b8ca0a2e queued; G2 / G4 building).
 RESUMED ~22:35 (new account): #247 fd34263e CI GREEN; laptop request 20261023T112112-...-fd34263e-d9aa still queued
 (queue backed up ~20 deep): on green -> label train-ready + message orchestrator. coop-rejoin: builder cut off with
 uncommitted work, saved as WIP d9fcb6be; Opus builder resumed (report docs/coop-rejoin/REPORT.md). guard-models: see
