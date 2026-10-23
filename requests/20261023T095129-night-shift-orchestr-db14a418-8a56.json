@@ -1,0 +1,10 @@
+{
+  "id": "20261023T095129-night-shift-orchestr-db14a418-8a56",
+  "sha": "db14a418a149f6d46197d122e3cc7641c1b09324",
+  "branch": "",
+  "pr": 256,
+  "kind": "full",
+  "requester": "Night Shift | Orchestrator",
+  "set": "train-33",
+  "note": "train 33 full run (4.82.0)"
+}
