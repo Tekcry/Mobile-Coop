@@ -329,6 +329,9 @@ const STRAFE_REAIM = 0.05;
 /** (mocap-trial-2, strafe) The strafe share (keyStrafe) the re-aim fade and the takeover fade act from: a real strafe, not
  *  the ~1e-6 a forward / back snap leaves (its fade outlived the touchdown: a 3.2 cm planted slide). */
 const STRAFE_ON = 0.05;
+/** (mocap-trial-2 strafe fix 3) In the mocap strafe a planted foot past the planner's reach is not dragged while the rig's
+ *  reach need for its leg (last frame's pelvis drop, m) is at most this: the rig still holds it (the drop eases it). */
+const STRAFE_HOLD_NEED = 0.15;
 /**
  * (mocap-trial-2, runturn) A fast jog / run turn hands the steps to the planner inside the clip's long swing window (the
  * gait clock keeps the clip's stance; run duty 0.156: ~0.55 s in the air, 126 deg of a 4 rad/s turn). Swung along the
@@ -1688,7 +1691,11 @@ export class FootPlanner {
       } else this.aim(f, i, side, i.rootX + i.velX * f.stepDur, i.rootZ + i.velZ * f.stepDur, i.yaw);
       return;
     }
-    if (hyp2(dx, dz) > reach) {
+    // (mocap-trial-2 strafe fix 3) in the mocap strafe not while the rig still reaches the foot (its reach need last frame
+    // under CLIP_TOE_OFF_NEED): the hips sit over the planner's lagging side-steps (GLIDE_HIP, STRAFE_HIP_IN), up to 30 cm
+    // behind the root, so the reach read from the root dragged a planted trailing foot 3.9 cm the rig could hold (a
+    // restart after a 0.3 s stand at 0.9 m/s) while the other foot's long side-step was in the air
+    if (hyp2(dx, dz) > reach && !((i.strafe ?? 0) > STRAFE_ON && ((side < 0 ? i.reachNeedL : i.reachNeedR) ?? 0) <= STRAFE_HOLD_NEED)) {
       // out of reach while locked: drag (counted) back to the reach limit; a real step follows
       const d = hyp2(dx, dz);
       const k = reach / d;

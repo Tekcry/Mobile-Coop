@@ -862,6 +862,13 @@ export class AnimGraph {
   private stWas = false;
   private stIn = false;
   private stDl = 0;
+  /** (mocap-trial-2 strafe fix 3) The travel's sideways and forward / back parts, each eased unsigned (the travel direction's
+   *  0.18 s), and the sideways share they give (`stSk`): the captures' share by it, not by dirX / dirZ, whose eased vector
+   *  passes the origin in a pure L <-> R flip and swung onto forward / back ~1 s after it (the strafe share dipped to 0.04
+   *  mid-strafe: the pose went to the forward glide and back, the hips lunged 1.4 cm a frame beyond the pace). */
+  private stAX = 0;
+  private stAZ = 0;
+  private stSk = 0;
   private mcK = 0;
   private cHalf = KEYED_CROUCH_WALK.half;
   private cKneeOut = 0;
@@ -1095,6 +1102,8 @@ export class AnimGraph {
         this.stHip = 0;
         this.stIdle = this.stIdleA = 1;
         this.stIn = true;
+        this.stAX = this.dirX < 0 ? -this.dirX : this.dirX;
+        this.stAZ = this.dirZ < 0 ? -this.dirZ : this.dirZ;
       }
       this.stDt = dt;
       this.stDl = dl;
@@ -2269,11 +2278,13 @@ export class AnimGraph {
       const zc = fwW >= bwW ? KEYED_GLIDE_FWD : KEYED_GLIDE_BACK;
       const zKnee = GLIDE.kneeOut;
       const S = KEYED_GLIDE_STRAFE;
-      const sk = swW / tot;
       // (mocap-trial-2, strafe, BRIEF A10) switch on with a strafe in the set: the captured sideways cycles (left, right by the
       // eased side) in place of the glide strafe, on their own side-step (motion.ts GLIDE_SIDE) and stance share
       const SL = this.mOn ? this.mS.strafeL : null;
       const SR = this.mOn ? this.mS.strafeR : null;
+      // (mocap-trial-2 strafe fix 3) the mocap strafe's share never under the flip-proof one (stSk): through a pure L <-> R
+      // flip it holds the captures; elsewhere the eased direction's share as before (it is the larger in a snap)
+      const sk = SL !== null && SR !== null ? this.stSk : swW / tot;
       const stW = this.stSide;
       // (mocap-trial-2, strafe) the pose's still share with the mocap strafe (stIdle): the drawn set's, rising through two
       // stages, each STRAFE_IDLE_TAU / 2, falling at once (a CT stop fades the moving pose out in ~0.1 s, the captures' wide
@@ -2400,6 +2411,15 @@ export class AnimGraph {
       // both captures and blended them every frame: two calls and a boxed double, 32 B a frame)
       this.stSide = ss - sw < 1e-4 && ss - sw > -1e-4 ? sw : ss;
     }
+    // (strafe fix 3) the travel's unsigned sideways / forward parts, eased as dirX / dirZ (0.18 s), and their sideways share
+    if (dl > 0.1 && i.speed > 0.05) {
+      const ek = Math.exp(-dt / 0.18);
+      const ax = (i.localX < 0 ? -i.localX : i.localX) / dl;
+      const az = (i.localZ < 0 ? -i.localZ : i.localZ) / dl;
+      this.stAX = ax + (this.stAX - ax) * ek;
+      this.stAZ = az + (this.stAZ - az) * ek;
+    }
+    this.stSk = this.stAX + this.stAZ > 0 ? this.stAX / (this.stAX + this.stAZ) : 0;
     // the hips' shift against the travel: a quarter of the side-step's cycle travel, at most STRAFE_LEAD.rate m/s; aimed only
     // (the captures play under the raise): holstered it eases back to 0 at the rate
     // (motion.ts sideStepAt written out, as mocapSideStep: no call with a double a frame)
