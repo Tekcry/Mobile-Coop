@@ -126,21 +126,23 @@ const WALL_N = makeCone(0, -0.819, 0.574, 0.96);
  */
 export const S3_LAMPS: readonly LampRoom[] = [
   // the hall floor (circuit 51) and the deck (52)
-  { id: 'hall', model: 'strip', y: 5.8, group: 51, yaw: 0, pass: true, lamps: [[-2.8, -2.6, 7.98, 1.046], [2.4, -2.6, 6.97, 1.346], [7.6, -2.6, 4.08, 0.321], [12.8, -2.6, 7.77, 0.442], [18.26, -2.6, 4.5, 0.294], [23.2, -2.6, 6.5, 0], [-2.8, 3.4, 4.5, 0.7], [2.4, 3.4, 4.5, 0.7], [7.6, 3.4, 6.39, 1.429], [12.8, 3.4, 4.66, 0.7], [18, 3.4, 5.96, 0.333], [22.15, 3.4, 2.7, 0.7], [-2.8, 9.4, 9, 0.552], [2.4, 9.4, 6.5, 0], [7.6, 9.4, 6.34, 0.517], [12.8, 9.4, 8.3, 0.502], [18, 9.4, 8.7, 0.646], [22.15, 9.4, 6.5, 0]] },
-  { id: 'deck', model: 'strip', y: 5.8, group: 52, yaw: 0, pass: true, lamps: [[-2, 13.2, 3.5, 0], [0.75, 13.2, 3.5, 0], [3.5, 13.2, 3.5, 0], [6.25, 13.2, 3.5, 0], [9, 13.2, 3.5, 0], [11.75, 13.2, 3.5, 0], [14.5, 13.2, 3.15, 0.521], [17.25, 13.2, 4.04, 0.287], [20, 13.2, 3.4, 0.216], [22.15, 13.2, 3.5, 0]] },
+  { id: 'hall', model: 'strip', y: 5.8, group: 51, yaw: 0, pass: true, lamps: [[-2.8, -2.6, 7.98, 1.112], [2.4, -2.6, 6.97, 1.029], [7.6, -2.6, 4.08, 0.153], [12.8, -2.6, 7, 0.618], [18.26, -2.6, 4.5, 0.245], [23.2, -2.6, 6.5, 0], [-2.8, 3.4, 4.5, 0.512], [2.4, 3.4, 4.5, 0.7], [7.6, 3.4, 6.39, 0.961], [12.8, 3.4, 4.66, 1.183], [18, 3.4, 4.2, 0.42, 0.6], [22.15, 3.4, 2.7, 0.569], [-2.8, 9.4, 9, 0.529], [2.4, 9.4, 6.5, 0], [7.6, 9.4, 6.34, 0.561], [12.8, 9.4, 8.3, 0.537, 0.6], [18, 9.4, 8.7, 0.748], [22.15, 9.4, 6.5, 0]] },
+  { id: 'deck', model: 'strip', y: 5.8, group: 52, yaw: 0, pass: true, lamps: [[-2, 13.2, 3.5, 0], [0.75, 13.2, 3.5, 0], [3.5, 13.2, 3.5, 0], [6.25, 13.2, 3.5, 0], [9, 13.2, 3.5, 0], [11.75, 13.2, 3.5, 0], [14.5, 13.2, 3.15, 0.167], [17.25, 13.2, 4.04, 0.048], [20, 13.2, 3.4, 0.045], [22.15, 13.2, 3.5, 0]] },
   // the south wall (section 1's z -8.8 wall, north face): over the crane walkway and the lobby roof
-  { id: 'southWall', model: 'bulkhead', y: 5.0, group: 52, yaw: 0, cone: WALL_N, pass: true, lamps: [[-3, -8.35, 1.98, 0.399], [1, -8.35, 4.5, 0], [5, -8.35, 3.36, 0.337], [9, -8.35, 4.5, 0], [13, -8.35, 5.68, 0.438], [17, -8.35, 2.5, 0.895], [21, -8.35, 2.5, 1.056]] },
+  { id: 'southWall', model: 'bulkhead', y: 5.0, group: 52, yaw: 0, cone: WALL_N, pass: true, lamps: [[-3, -8.35, 1.98, 0.043], [1, -8.35, 4.5, 0], [5, -8.35, 3.36, 0.333], [9, -8.35, 4.5, 0], [13, -8.35, 5.68, 0.352], [17, -8.35, 2.5, 0.162], [21, -8.35, 2.5, 0.149]] },
   // under the deck (ceiling 3.0): the office C3 (circuit 50), the manager's office (57); on the deck: the production office (53, ceiling 5.8)
-  { id: 'office', model: 'panel', y: 2.95, group: 50, yaw: 0, pass: true, lamps: [[-2.5, 13.5, 4.25, 0.307], [0.5, 13.5, 5.49, 0.45], [-2.5, 16.5, 4.5, 0], [0.5, 16.5, 3.45, 0.278]] },
-  { id: 'partsStore', model: 'panel', y: 2.95, group: 51, yaw: 0, pass: true, lamps: [[10, 12.8, 2.98, 0.202], [14, 12.8, 3, 0], [18, 12.8, 3, 0], [22, 12.8, 3, 0]] },
-  { id: 'manager', model: 'panel', y: 2.95, group: 57, yaw: 0, pass: true, lamps: [[5, 15, 7, 0.498]] },
-  { id: 'prodOffice', model: 'panel', y: 5.75, group: 53, yaw: 0, pass: true, lamps: [[17.85, 15.7, 1.5, 0.278], [20.4, 15.7, 4.22, 0.282], [22.95, 15.7, 1.84, 0.25], [17.85, 16.95, 5.28, 0.578], [20.4, 16.95, 3.5, 0], [22.95, 16.95, 5.31, 0.626]] },
+  { id: 'office', model: 'panel', y: 2.95, group: 50, yaw: 0, pass: true, lamps: [[-2, 13.5, 4.25, 0.16], [0.5, 13.5, 5.49, 0.03], [-2, 16.5, 1.8, 0.156], [0.5, 16.5, 3.45, 0.049]] },
+  { id: 'partsStore', model: 'panel', y: 2.95, group: 51, yaw: 0, pass: true, lamps: [[10, 12.8, 2.98, 0.045], [14, 12.8, 3, 0], [18, 12.8, 3, 0], [22, 12.8, 3, 0]] },
+  { id: 'manager', model: 'panel', y: 2.95, group: 57, yaw: 0, pass: true, lamps: [[5, 15, 7, 0.381]] },
+  { id: 'prodOffice', model: 'panel', y: 5.75, group: 53, yaw: 0, pass: true, lamps: [[17.85, 15.7, 1.5, 0.081], [20.4, 15.7, 4.22, 0.081], [22.95, 15.7, 1.84, 0.046], [17.85, 16.95, 5.28, 0.077], [20.4, 16.95, 3.5, 0], [22.95, 16.95, 5.31, 0.085]] },
   // the plant room (54, ceiling 3.6) and the east fire-exit lobby (55, ceiling 3.0)
-  { id: 'plant', model: 'panel', y: 3.55, group: 54, yaw: 0, pass: true, lamps: [[18, -3.3, 2.96, 1.296], [20, -3.3, 2.54, 1.143], [22, -3.3, 3.36, 1.366]] },
-  { id: 'fireLobby', model: 'panel', y: 2.95, group: 55, yaw: 0, pass: true, lamps: [[18, -7.2, 2, 1.184], [21, -7.2, 3, 0]] },
+  { id: 'plant', model: 'panel', y: 3.55, group: 54, yaw: 0, pass: true, lamps: [[18, -3.3, 2.96, 0.196], [20, -3.3, 2.54, 0.118], [22, -3.3, 3.36, 0.234]] },
+  { id: 'fireLobby', model: 'panel', y: 2.95, group: 55, yaw: 0, pass: true, lamps: [[18, -7.2, 2, 0.11], [21, -7.2, 3, 0.068]] },
   // the exit signs (58): the fire exit (the east wall), the deck's stair head (the production office's south wall)
-  { id: 'fireLobby', model: 'bulkhead', y: 2.4, group: 58, yaw: -PI / 2, colour: EXIT_GREEN, pass: true, lamps: [[23.7, -7.2, 3.69, 0.71]] },
+  { id: 'fireLobby', model: 'bulkhead', y: 2.4, group: 58, yaw: -PI / 2, colour: EXIT_GREEN, pass: true, lamps: [[23.7, -7.2, 1.5, 0.127]] },
   { id: 'deck', model: 'bulkhead', y: 5.6, group: 58, yaw: PI, colour: EXIT_GREEN, pass: true, lamps: [[22.7, 14.05, 0.3, 0.15]] },
+  // (LR16-W S3) the C3 far door's light: an LED bulkhead on the office door's lintel (hall side), a downlight over the threshold
+  { id: 'office', model: 'bulkhead', y: 2.4, group: 51, yaw: PI, cone: makeCone(0, -1, 0, 0.96), pass: true, lamps: [[-0.6, 11.55, 1, 0.03]] },
 ];
 
 /** The section's lamp pass (the light test switches these off to compare): every lit lamp of section 3. */
@@ -332,6 +334,13 @@ export function buildAssemblyS3(b: LevelBuilder): void {
   b.fence(0, -4.0, 2.4, -4.0, 2.4); // (a 1.2 gap round the 1.1 gate, as the office door: a nav cell fits)
   b.fence(3.6, -4.0, 6.0, -4.0, 2.4);
   b.fence(6.0, -4.0, 6.0, -8.65, 2.4);
+  // (LR16-W S3, L5) the secure store at the cage's back: sheet steel on the mesh, a top over the back racks (under the
+  // crane walkway) and the west side (the officer's restock corner stays in shadow at night; the counter is outside it)
+  p0 = b.boxes.length;
+  b.box(1.5, 2.43, -7.325, 3.0, 0.06, 2.65, STEEL);
+  b.box(0, 1.2, -7.325, 0.06, 2.4, 2.65, STEEL);
+  ov(p0);
+  nl(p0);
   b.door(2.45, 0, -4.0, 1.1, PI / 2, { swing: 1 });
   b.block(4.7, -4.35, 1.4, 1.0, 0.5, DESK);
   p0 = b.boxes.length;
