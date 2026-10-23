@@ -301,7 +301,11 @@ NEXT:
    -lr16-entry + LR16-M; mark #287 ready + label train-ready.
 2. ENTRY branch fixes (-lr16-entry): 2f719ac9 campusArtGameplay greybox re-pin (S4 post); 6e53e036 lampLevel -> LR16 formula (marlowLightingLevels 7/7; Marlow told to merge it into feature/marlow-lr16m); CI-only draft PR #290 on -lr16-entry runs the full test list (close it after). Read f85ef736 verdict (wire change protocol 45) and the perf verdicts (logs on the laptop: checks/lr16p-perf-request.md).
 3. LR16-4 DONE -lr16-4 eb2c62c2 (board-2; checks/lr16-4-build.md), check PASS (checks/lr16-4-check.md); laptop eb2c62c2-0cb6 (sectorops:6 coop). Was: one checker
-   (two on src/ai if touched) + laptop sectorops:6 + coop. Then LR16-8 sheets (briefs/LR16h-and-8.md part 2 to Test Runner).
+   (two on src/ai if touched) + laptop sectorops:6 + coop.
+4. FULL BURN (orchestrator ~07:35, Michael swaps at the 5-hour cap): RUNNING ~07:40: Opus LR16-6 vision polish
+   (-lr16-6 off 6e53e036; G100 instant cut, G102 thermal through shut doors; checks/lr16-6-build.md); Opus planner
+   briefs/LR16-POLISH2.md (this window's checker polish lists, base 6e53e036); LR16-8 sheets SENT to Test Runner on
+   606630ed (reply = one message with pass / flag list, probe table, perf, sheet folder).
 For Michael: Realistic dimmer (S2 atrium 0.47); S3 hall-lit white fog; R2N ladder foot 0.44 (layout cannot fix); warehouse
 fittings at 0.1-0.3x (GPU sheet judges); lamp-loop cost.
 Polish held: art-train-entry-check 1-6, lr16w-batch-check list, lr16-render-batch-check 1-4 (rtReflections highp),
