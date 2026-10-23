@@ -319,6 +319,9 @@ LATEST 16:25 Test Runner verdict: #226 perf CPU OVER at 24 guards (S5 15.6 / S3 
    running (lrpolish-check.md); rides the LR15 PR.
 19:25: lrpolish checker PASS (0cadd6f3), fast-forwarded into -lampx; LR15 laptop run moved to 0cadd6f3 (+ e2e-coop,
    e2e-menus, double-shadow view). LR15 PR (LR15 + lighting polish) opens against master once train 29 lands.
+19:35: #226 e2e-coop green (laptop) -> only perf views left. #232 releasing 4.78.0. Two Opus polish batches off -art
+   2276483a: -artpol (art-kit P2/P3/P6/P7/P8, art P1/P2, polish2-check 1-2; artpol-build.md) and -frzpol (freeze
+   retest on door / pane change, edge retest, leg point, roof moon shadow; frzpol-build.md). They ride a later batch PR.
 4. Polish batch 2 -polish2 cca3ccb7: checker PASS (polish2-check.md; touches src/net lamp checks, no wire change).
    Merge into -art together with the -perf fix, then one laptop batch at the new -art head: e2e-coop, e2e-sectorops 1-6,
    e2e-stealth-ai, e2e-stealth + perf rerun (MAP=campusOps MODE=sector). Still open: lr-check 1-6, lr14-check 1-7,
