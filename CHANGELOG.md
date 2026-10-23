@@ -1,5 +1,33 @@
 # Changelog
 
+## 4.83.0 - Train 35: Snapshot line endings; Guards relight switched-off breaker boards (guard-ai LR16-4); Guard AI: every player is seen; Laptop queue service (2026-10-23, PR #261; #259, #255, #254, #252)
+
+### Guards relight switched-off breaker boards (guard-ai LR16-4)
+- Guards relight (guard-ai LR16-4, the LR16-0 audit's gap row 10): the S15 breaker walk now covers the Sector Ops
+  breaker boards as well as wall switches. A breaker board (`MapLayout.boards`, no `window`) cut with a guard watching is
+  a fault: one witness says "Breaker's gone again.", walks to the board at patrol pace, works it 2 s and
+  `IsolatorBoards.switchBack` puts every circuit of the board back on (the board's label, its wall switches, the
+  `lightSwitch` event and the co-op lamp sync follow, as for a player's switch-back). A second cut inside 60 s is the
+  S2 light check at the board; a cut nobody saw is found by late discovery; a shot lamp stays dark. A timed isolator's
+  running window is the player's: its cut stays the S2 look at the board (the lure), no guard switches it back or turns
+  a wall switch of its circuit on while it runs (`switchBack` refuses, the breaker host's `isOff` is false), and the
+  timer relights it. Wall switch cuts were already relit by S15. Host only, no wire or save change. Unit tests in
+  `tests/guardRelight.test.ts`; `tests/sectorIsolator.test.ts` updated for the refused switch-back.
+
+### Guard AI: every player is seen
+- Co-op: a guard now looks at both players, not just the nearer one. Hiding behind a wall close to a guard no longer
+  makes your partner invisible while he stands in the guard's light in front of him: the guard notices whichever of you
+  he sees best (one meter, filled at that player's rate; two in view do not add up) and goes after him. In a firefight
+  he keeps shooting at the player he is fighting while he still sees him; a nearer hidden player no longer blinds him.
+  Out of sight of him, he turns on the nearest player he does see.
+- Co-op: the host's awareness arcs show only guards that see the host's own player (or stand close by), not guards
+  filling up on the partner. The flanker is picked by each guard's distance to his own target, not to the host.
+- A calm guard casts no sight ray for a player he cannot see at all (behind him beyond arm's reach, or past his view
+  range). Solo play is otherwise unchanged. Host only: no protocol or save change.
+
+### Snapshot line endings
+- Tooling: `.gitattributes` checks out `*.snap` with LF, so vitest no longer rewrites the snapshot on CRLF checkouts and leaves the merge-train worktree dirty.
+
 ## 4.82.0 - Train 33: Sector Ops lamp door slots and torch drawing; interrogation codes open course flags and keypads; laptop test queue service (2026-10-23, PR #256; #242, #249, #252)
 
 ### Laptop queue service
