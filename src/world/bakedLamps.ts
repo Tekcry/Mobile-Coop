@@ -7,8 +7,8 @@ import { bakedLights, type MoonGrid } from './lightBake';
 import { LAMP_CONE_COS, LAMP_EXP, LAMP_MATH_GLSL, LIGHT_GAIN, lampFalloffMode, lampMathGlsl, SPOT_EXP } from './lampMath';
 import { DARK_DESKTOP, DARK_GLSL, DARK_STANDARD, LEVEL_TO_RENDER, VISION_GAIN, visionAmount, visionDark, type DarkParams } from './darkCurve';
 import { AMBIENT_CELL, type AmbientGrid } from './ambientGrid';
-import { bakeVisSampler, DOOR_SHUT, DOORS_PER_LAMP, lampDoorLists, type FieldDoor } from './lightField';
-import { shadowAccuracyOn } from './shadowAccuracy';
+import { bakeVisSampler, DOOR_SHUT, DOORS_PER_LAMP, lampDoorLists, lampDoorSlots, type FieldDoor } from './lightField';
+import { shadowAccuracyOn, TORCH_DRAW_GLSL, TORCH_DRAW_SLOTS, TORCH_DRAW_STRIDE } from './shadowAccuracy';
 import { LEVEL_FILL_GLSL as LF, type Rgb } from './levelFill';
 import { CHAR_SHADOW_GLSL, type CharShadowLamps, type CharShadowLink } from './charShadows';
 
@@ -17,7 +17,9 @@ export { bakedLights };
 /** Texels per lamp in the data texture: position + range, colour + exponent, direction + cos, box origin + ny,
  *  atlas tile + nx / nz, character capsule ids, door ids (3.6), (LR14) its character shadow slot + 1 (0: none). */
 const LAMP_TEXELS = 8;
-/** Per door two texels after the capsules: hinge + width, (sin yaw, cos yaw, height, shut). */
+/** Per door two texels after the capsules: hinge + width, (sin yaw, cos yaw, height, shut). (LR15) With 8 door slots per
+ *  lamp (`lampDoorSlots`, the shadow-accuracy fixes on) one texel per lamp sits between the capsules and the doors: the
+ *  lamp's doors 5-8 (ids + 1), at `capBase + MAX_CAPSULES * 2 + lamp`. */
 const DOOR_TEXELS = 2;
 
 export { LEVEL_TO_RENDER };
@@ -100,8 +102,13 @@ export class BakedLamps implements CharShadowLamps {
   readonly darkNow: DarkParams = { ...DARK_DESKTOP };
   private readonly doors: readonly FieldDoor[];
   private readonly doorShut: Uint8Array;
-  /** Per lamp its door indices (`lampDoorLists`). */
+  /** Per lamp its door indices (`lampDoorLists`), `doorSlots` each. */
   private readonly lampDoors: Int16Array;
+  /** (LR15) Door slots per lamp: 4 today, 8 with the shadow-accuracy fixes on (read once). */
+  readonly doorSlots: number;
+  /** (LR15, shadow-accuracy fixes on; the per-lamp loop only) The flashlights without a shadow map, drawn by the plugin with
+   *  the light field's formula x their beam's cut (`shadowAccuracy.writeTorchDraw`; the light rig writes it each frame). */
+  readonly torchDraw: Float32Array | null;
   private readonly buf: Float32Array;
   private readonly order: number[];
   private version = -1;
@@ -160,7 +167,10 @@ export class BakedLamps implements CharShadowLamps {
     this.doors = extra.doors ?? [];
     this.doorShut = new Uint8Array(this.doors.length).fill(2);
     // (shadow audit) the light field's own list: with the fixes on, doorways the lamp cannot see take no slot
-    this.lampDoors = lampDoorLists(baked.lights, this.doors, shadowAccuracyOn() ? bakeVisSampler(r) : undefined);
+    const accurate = shadowAccuracyOn();
+    this.doorSlots = lampDoorSlots(accurate);
+    this.lampDoors = lampDoorLists(baked.lights, this.doors, accurate ? bakeVisSampler(r) : undefined, this.doorSlots);
+    this.torchDraw = accurate && !volume && !this.standard ? new Float32Array(TORCH_DRAW_SLOTS * TORCH_DRAW_STRIDE) : null;
     this.ids = new Set(baked.ids);
     this.boxes = r.boxes;
     this.lastColors = new Float32Array(baked.ids.length * 3).fill(-1);
@@ -177,7 +187,9 @@ export class BakedLamps implements CharShadowLamps {
     this.width = w;
     this.lampBase = grid.cols * 2 * grid.rows;
     this.capBase = this.lampBase + n * LAMP_TEXELS;
-    this.doorBase = this.capBase + MAX_CAPSULES * 2;
+    // (LR15: with 8 door slots, the lamps' second door texels first)
+    const door2Base = this.capBase + MAX_CAPSULES * 2;
+    this.doorBase = door2Base + (this.doorSlots > DOORS_PER_LAMP ? n : 0);
     const texels = this.doorBase + this.doors.length * DOOR_TEXELS;
     const h = Math.ceil(texels / w);
     const buf = new Float32Array(w * h * 4);
@@ -199,7 +211,10 @@ export class BakedLamps implements CharShadowLamps {
       buf.set([r.boxes[b]!, r.boxes[b + 1]!, r.boxes[b + 2]!, r.boxes[b + 4]!], o + 12);
       buf.set([atlas.offsets[i * 2]!, atlas.offsets[i * 2 + 1]!, r.boxes[b + 3]!, r.boxes[b + 5]!], o + 16);
       // (t6: the doors this lamp tests, ids + 1)
-      for (let k = 0; k < DOORS_PER_LAMP; k++) buf[o + 24 + k] = this.lampDoors[i * DOORS_PER_LAMP + k]! + 1;
+      const ns = this.doorSlots;
+      for (let k = 0; k < DOORS_PER_LAMP; k++) buf[o + 24 + k] = this.lampDoors[i * ns + k]! + 1;
+      // (LR15: doors 5-8)
+      for (let k = DOORS_PER_LAMP; k < ns; k++) buf[(door2Base + i) * 4 + k - DOORS_PER_LAMP] = this.lampDoors[i * ns + k]! + 1;
     }
     // the doors' fixed texels (their shut flag is written by `writeDoors`)
     this.doors.forEach((d, k) => {
@@ -344,7 +359,8 @@ export class BakedLamps implements CharShadowLamps {
       changed = true;
       if (this.volume && !first) {
         for (let i = 0; i < this.order.length; i++) {
-          for (let j = 0; j < DOORS_PER_LAMP; j++) if (this.lampDoors[i * DOORS_PER_LAMP + j] === k) (regions ??= []).push(lampVolumeRegion(this.boxes, i, this.volume.grid));
+          const ns = this.doorSlots;
+          for (let j = 0; j < ns; j++) if (this.lampDoors[i * ns + j] === k) (regions ??= []).push(lampVolumeRegion(this.boxes, i, this.volume.grid));
         }
       }
     }
@@ -490,6 +506,21 @@ void main(void) {
           break;
         }
       }
+#ifdef LAMP_DOORS8
+      // (LR15) doors 5-8: the lamp's second door texel, after the capsules (lamp order)
+      if (k > 0.0 && t6.w > 0.5) {
+        vec4 t8 = lampTexel(int(lampGridO.w) + ${MAX_CAPSULES * 2} + int(fid + 0.5) - 1);
+        for (int c = 0; c < 4; c++) {
+          float did = t8[c];
+          if (did < 0.5) break;
+          int db = int(lampMore.x) + (int(did + 0.5) - 1) * ${DOOR_TEXELS};
+          if (nsDoorBlocks(t0.xyz, p, lampTexel(db), lampTexel(db + 1))) {
+            k = 0.0;
+            break;
+          }
+        }
+      }
+#endif
       if (k <= 0.0) continue;
       vec3 c = t1.rgb * k;
       e += c;
@@ -542,7 +573,7 @@ class LampVolume {
     this.a = wrap(this.rtA);
     this.b = wrap(this.rtB);
     this.renderer = new EffectRenderer(engine);
-    this.wrapper = new EffectWrapper({ engine, name: 'lampVolumeMix', fragmentShader: MIX_GLSL.replace(LAMP_MATH_GLSL, lampMathGlsl()), uniformNames: ['lampInfo', 'lampGridO', 'lampAtlas', 'volO', 'slice', 'outB', 'volMax', 'lampMore'], samplerNames: ['lampVis', 'lampData'] });
+    this.wrapper = new EffectWrapper({ engine, name: 'lampVolumeMix', fragmentShader: MIX_GLSL.replace(LAMP_MATH_GLSL, lampMathGlsl()), defines: lamps.doorSlots > DOORS_PER_LAMP ? ['#define LAMP_DOORS8'] : null, uniformNames: ['lampInfo', 'lampGridO', 'lampAtlas', 'volO', 'slice', 'outB', 'volMax', 'lampMore'], samplerNames: ['lampVis', 'lampData'] });
   }
 
   /** Mix a region of cells (i0, j0, k0, i1, j1, k1) into both targets. */
@@ -682,7 +713,7 @@ export class LampPlugin extends MaterialPluginBase {
     material: Material,
     private lamps: BakedLamps,
   ) {
-    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false, LAMP_LEVEL: false, LAMP_SKY: false, LAMP_PHOTO: false, LAMP_CSHADOW: false });
+    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false, LAMP_LEVEL: false, LAMP_SKY: false, LAMP_PHOTO: false, LAMP_CSHADOW: false, LAMP_DOORS8: false, LAMP_TORCH: false });
     // (coop-fix) a clone must not carry it: Babylon rebuilds a cloned plugin by class name (`Tools.Instantiate`), which
     // fails for this unregistered class and aborted every figure loaded after the attach (the joiner's partner); the
     // clone is a new material, so `BakedLamps.frame` gives it its own plugin
@@ -723,6 +754,10 @@ export class LampPlugin extends MaterialPluginBase {
     defines.LAMP_PHOTO = !!mesh && this.photo;
     // (LR14) the character shadow atlas: one texture more while it is on (the per-lamp loop only)
     defines.LAMP_CSHADOW = !!mesh && !this.lamps.volume && !!this.lamps.charShadows?.on;
+    // (LR15) 8 door slots per lamp (the shadow-accuracy fixes): the second door texel
+    defines.LAMP_DOORS8 = !!mesh && this.lamps.doorSlots > DOORS_PER_LAMP;
+    // (LR15) the unshadowed flashlights drawn here (the per-lamp loop on PBR materials only)
+    defines.LAMP_TORCH = !!mesh && !this.lamps.volume && !!this.lamps.torchDraw && !this.std;
   }
 
   override getSamplers(samplers: string[]): void {
@@ -754,8 +789,10 @@ export class LampPlugin extends MaterialPluginBase {
         { name: 'lampCsM', size: 4, type: 'vec4', arraySize: 16 },
         { name: 'lampCsP', size: 4, type: 'vec4', arraySize: 4 },
         { name: 'lampCsI', size: 4, type: 'vec4' },
+        // (LR15) the drawn flashlights (`TORCH_DRAW_GLSL`)
+        { name: 'lampTorch', size: 4, type: 'vec4', arraySize: TORCH_DRAW_SLOTS * 3 },
       ],
-      fragment: `#ifdef BAKED_LAMPS\nuniform vec4 lampInfo;\nuniform vec4 lampGridO;\nuniform vec4 lampAtlas;\nuniform vec4 lampVolO;\nuniform vec4 lampVolD;\nuniform vec4 lampCaps[${VOL_CAPS * 2}];\nuniform vec4 lampMore;\nuniform vec4 lampMoonO;\nuniform vec4 lampMoonN;\nuniform vec4 lampAmbO;\nuniform vec4 lampAmbN;\nuniform vec4 lampFillC;\nuniform vec4 lampDark;\nuniform vec4 lampDarkP;\nuniform vec4 lampSkyO;\nuniform vec4 lampSkyN;\nuniform vec4 lampLvlSky;\nuniform vec4 lampLvlGnd;\nuniform vec4 lampCsM[16];\nuniform vec4 lampCsP[4];\nuniform vec4 lampCsI;\n#endif`,
+      fragment: `#ifdef BAKED_LAMPS\nuniform vec4 lampInfo;\nuniform vec4 lampGridO;\nuniform vec4 lampAtlas;\nuniform vec4 lampVolO;\nuniform vec4 lampVolD;\nuniform vec4 lampCaps[${VOL_CAPS * 2}];\nuniform vec4 lampMore;\nuniform vec4 lampMoonO;\nuniform vec4 lampMoonN;\nuniform vec4 lampAmbO;\nuniform vec4 lampAmbN;\nuniform vec4 lampFillC;\nuniform vec4 lampDark;\nuniform vec4 lampDarkP;\nuniform vec4 lampSkyO;\nuniform vec4 lampSkyN;\nuniform vec4 lampLvlSky;\nuniform vec4 lampLvlGnd;\nuniform vec4 lampCsM[16];\nuniform vec4 lampCsP[4];\nuniform vec4 lampCsI;\nuniform vec4 lampTorch[${TORCH_DRAW_SLOTS * 3}];\n#endif`,
     };
   }
 
@@ -813,6 +850,8 @@ export class LampPlugin extends MaterialPluginBase {
       ubo.updateFloat4('lampCsI', cs.info[0]!, cs.info[1]!, cs.info[2]!, cs.info[3]!);
       ubo.setTexture('lampCsAtlas', cs.atlas);
     }
+    // (LR15) the drawn flashlights
+    if (l.torchDraw) ubo.updateFloatArray('lampTorch', l.torchDraw);
   }
 
   override getCustomCode(shaderType: string): { [pointName: string]: string } | null {
@@ -842,6 +881,9 @@ float nsR = nsDarkRatio(nsS, lampDark.x, lampDarkP);`;
 ${LAMP_GLSL.replace(LAMP_MATH_GLSL, lampMathGlsl())}
 ${CHAR_SHADOW_GLSL}
 ${DARK_GLSL}
+#ifdef LAMP_TORCH
+${TORCH_DRAW_GLSL}
+#endif
 #ifdef LAMP_VOLUME
 uniform highp sampler3D lampVolA;
 uniform highp sampler3D lampVolB;
@@ -955,6 +997,21 @@ ${settle}
           break;
         }
       }
+#ifdef LAMP_DOORS8
+      // (LR15) doors 5-8: the lamp's second door texel, after the capsules (lamp order)
+      if (k > 0.0 && t6.w > 0.5) {
+        vec4 t8 = lampTexel(int(lampGridO.w) + ${MAX_CAPSULES * 2} + int(fid + 0.5) - 1);
+        for (int c = 0; c < 4; c++) {
+          float did = t8[c];
+          if (did < 0.5) break;
+          int db = int(lampMore.x) + (int(did + 0.5) - 1) * ${DOOR_TEXELS};
+          if (nsDoorBlocks(t0.xyz, dq, lampTexel(db), lampTexel(db + 1))) {
+            k = 0.0;
+            break;
+          }
+        }
+      }
+#endif
       if (k <= 0.0) continue;
       // (Step 4b: the curve's lamp term, as gameplay sums it: no N.L, no character shadows)
       nsLampRaw += t1.rgb * k;
@@ -1003,6 +1060,11 @@ ${level('nsLampRaw')}
 #else
   float nsBF = 1.0;
   float nsEnv = 1.0;
+#endif
+#ifdef LAMP_TORCH
+  // (LR15) the flashlights without a shadow map, drawn as the light field sums them x their beam's cut; like Babylon's
+  // lights they join after the darkness curve
+  nsDynD += nsTorches(vPositionW, normalW) * surfaceAlbedo.rgb;
 #endif
   finalDiffuse = max(nsStat, vec3(0.0)) * nsR + nsDynD;
   finalAmbient *= nsR;

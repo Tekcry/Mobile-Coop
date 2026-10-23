@@ -264,6 +264,8 @@ export class World {
       w.lamps.bakeMs = bake.ms;
       w.lamps.attachAll();
       w.lightRig.setBaked(w.lamps.ids);
+      // (LR15, shadow-accuracy fixes on) the unshadowed flashlights drawn by the baked lamps
+      w.lightRig.setTorchDraw(w.lamps.torchDraw);
       w.charShadows = new CharShadows(scene, w.lamps, w.charCasters);
       w.lamps.charShadows = w.charShadows;
       w.useBakedMoon();
