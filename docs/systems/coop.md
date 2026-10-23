@@ -124,6 +124,10 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   across of a guard and `throwKoLow`..`throwKoHigh` m over his feet (`teamMoves.throwKoHit`) knock him out through
   `Enemy.knockOut` (melee, `takedown: 'throw'`, the strike's noise), one guard per throw. Credit and the client's view
   ride the existing kill event and guard state sync: no wire change.
+- (spare 9) Interrogation intel: the host / solo `intel` game event becomes `feed` events for every client (`hookHud`). A client's
+  interrogation is seen on the host from its MoveState (`grab`, `sub` bit 2, `ph` >= `INTEL.donePh` then the bit drops:
+  `interrogationEnded`): the host spends the guard's information and reveals the intel once. A client interrogating from the
+  hang-down (`boost`) gives only the guard's own lines (gap). No wire change.
 - (anim-studio-2) Team-move animation tuning: the tuner's Co-op sections (`anim/moveTune.ts`, one per move: role A, role
   B, contact) apply to the LOCAL player's own role only (`GameState` writes `MOVE_TUNE_TEAM` from `TeamController`).
   `RemoteAvatar` never reads them: the partner always plays the shared defaults until an export is folded into the

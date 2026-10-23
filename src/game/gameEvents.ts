@@ -3,6 +3,8 @@ import type { PickupKind } from './pickups';
 /** Session-level events (audio, coop broadcast, analytics). */
 export interface GameEvents {
   objective: { id: string };
+  /** (spare 9) Interrogation intel (host / solo): the feed lines and the code flags; the co-op host relays the lines. */
+  intel: { lines: readonly string[]; codes: readonly string[] };
   /** Clear mode: a room was secured (n of total). */
   /** Clear mode: every hostile down (the only feedback the mode gives). */
   operationComplete: Record<string, never>;

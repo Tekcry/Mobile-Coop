@@ -41,6 +41,9 @@ import { stationHeal } from '../game/medkit';
 import { ReviveClock } from '../game/reviveClock';
 import type { CourseMode } from '../game/modes/courseMode';
 import type { PickupKind } from '../game/pickups';
+import { takeInfo } from '../ai/guardInfo';
+import { revealIntel } from '../game/intelReveal';
+import { interrogationEnded } from '../game/intel';
 import type { TeamMate } from '../game/teamController';
 import type { PlayerRef } from '../ai/enemy';
 
@@ -105,6 +108,8 @@ export class CoopHost implements NetAttachment {
   private snapT = 0;
   private histT = 0;
   private noiseT = 0;
+  /** (spare 9) A client's interrogation progress per seized enemy (MoveState ph while sub bit 2; -1 none). */
+  private readonly interPh = new Map<string, number>();
   private itemsT = 0;
   private itemsSig = '';
   private doorsSig = '';
@@ -240,6 +245,8 @@ export class CoopHost implements NetAttachment {
       if (title !== 'DOWN' && title !== 'ELIMINATED') this.push({ e: 'banner', title, sub });
       banner(title, sub, ms);
     };
+    // (spare 9) interrogation intel reaches the team as feed lines
+    this.offs.push(this.g.events.on('intel', (ev) => { for (const text of ev.lines) this.push({ e: 'feed', text }); }));
   }
 
   private hookCombat(): void {
@@ -896,6 +903,7 @@ export class CoopHost implements NetAttachment {
 
   private release(eid: string): void {
     this.seized.delete(eid);
+    this.interPh.delete(eid);
     const e = this.g.enemyMgr?.enemies.find((x) => x.id === eid);
     if (e?.alive) e.releaseTakedown();
   }
@@ -1227,6 +1235,12 @@ export class CoopHost implements NetAttachment {
           if (stepHoldFeed(s, at.x + sy * GRAB.hold + cy * GRAB.side, at.z + cy * GRAB.hold - sy * GRAB.side, this.holdClock, this.time, dt)) e.pos.set(s.hfX, at.y, s.hfZ);
           e.holdAt(s.hfX, at.y, s.hfZ, yaw);
           // (G7) the client's knockout lowers him here too, its interrogation turns his head (MoveState ph / sub)
+          // (spare 9) the client's interrogation ended: the host spends his information and gives the team the intel
+          if (interrogationEnded(this.interPh.get(eid) ?? -1, mv.sub)) {
+            const info = e.info;
+            if (takeInfo(e)) revealIntel(this.g, e.pos, info);
+          }
+          this.interPh.set(eid, mv.sub & 2 ? mv.ph : -1);
           if (mv.sub & 2) e.holdPose('interrogate', mv.ph);
           else if (mv.ph > 0 && !(mv.sub & 1)) {
             const ko = koCurve(mv.ph, this.koTmp);

@@ -696,6 +696,10 @@ try {
   await GA(() => window.__app.current.net.ping(4, 0.5, -3, ''));
   await until(B, (id) => window.__app.current.pings.some((p) => p.by === id), hostId0, 5000, 'client shows the host ping');
   assert(true, 'a host ping reaches the client');
+  // (spare 9) interrogation intel: the host's feed lines reach the client
+  await GA(() => window.__app.current.events.emit('intel', { lines: ['Code: e2e relay'], codes: [] }));
+  await until(B, () => (document.querySelector('.hud-feed')?.textContent ?? '').includes('Code: e2e relay'), null, 4000, 'client sees the intel line');
+  assert(true, 'interrogation intel reaches the client');
   // gadgets: a client's gas cloud acts on the host's guards
   const gv = await GA(() => {
     const g = window.__app.current;

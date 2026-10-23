@@ -245,6 +245,30 @@ try {
     assert(r.ko, 'the knockout (Z) knocks him out: he is down, the hold ends');
   });
 
+  // (spare 9) interrogation intel: a guard's door code reaches the mode and the feed
+  await scen('grab-interrogate-intel', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      t.tp(2, 0, -2.2, 0);
+      const e = t.spawn(2, -1, 0);
+      e.info = { lines: ['Lab door is 4471.'], codes: [{ flag: 'e2e-code', label: 'Lab door 4471' }] };
+      g.mode.onIntelCode = (f) => (window.__intelCodes ??= []).push(f);
+      t.step(0.4);
+      t.press();
+      t.step(1.2);
+      const held = g.takedown.hostage === e;
+      t.pick('interrogate');
+      t.step(1.8);
+      const feed = [...document.querySelectorAll('.hud-feed')].map((x) => x.textContent).join(' | ');
+      return { held, codes: window.__intelCodes ?? null, feed, info: e.info, n: g.takedown.grabs.interrogated };
+    });
+    assert(r.held, 'the guard is held');
+    assert(JSON.stringify(r.codes) === JSON.stringify(['e2e-code']), `the code flag reaches the mode (${JSON.stringify(r.codes)})`);
+    assert(r.feed.includes('Code: Lab door 4471'), `the feed shows the code (${r.feed})`);
+    assert(r.info === null && r.n === 1, 'his information is spent, one interrogation');
+  });
+
   // (Michael 08:10 / 08:20) RT kills; Carry is not a row (a script pick: knock out, then shoulder); nothing lets him go
   await scen('grab-kill-carry-noletgo', async () => {
     const r = await G(() => {

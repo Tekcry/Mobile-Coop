@@ -15,6 +15,7 @@ import { clearGripAxis } from '../player/attachGrips';
 import { wrapPi } from '../anim/motion';
 import type { MoveOverride } from '../player/playerController';
 import { GUARD_INFO_GAP, takeInfo, type GuardInfo } from '../ai/guardInfo';
+import { revealIntel } from './intelReveal';
 import { CQ, ease, grabStage, holdHandTargets, holdSway, koCurve, type GuardCqMode, type KoState } from './closeQuarters';
 import { GRAB_KILL_BLOW, KILL_TAIL_END, killWarp, TAKEDOWN_BLOW, type KillBlow } from '../anim/strikeBody';
 
@@ -451,12 +452,14 @@ export class TakedownController {
         this.grabs.interrogated++;
         // (PR 3) what he knows, said as his own lines (subtitle, `GUARD_INFO_GAP` apart); a guard with nothing says
         // nothing new. Spent here: he gives no menu again, and the hold goes on.
+        const info = e.info ?? null;
         const lines = takeInfo(e);
         if (lines) {
           gr.talk = lines;
           gr.talkI = 0;
           gr.talkT = 0;
         } else g.hud.feedItem('Interrogated: nothing new');
+        if (!g.puppet) revealIntel(g, e.pos, info); // (spare 9) the client's intel comes from the host
       }
       return true;
     }
