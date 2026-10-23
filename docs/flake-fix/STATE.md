@@ -18,7 +18,13 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   - 4192 chain-1023r92: guardais9-1ad04058 (coop netmove stealth-ai takedown; verdict -> Guard AI Build) ->
     guardaiwalk-2082f96b (S17-S21: stealth-ai sectorops ctcourse course ct-warehouse stealth tactics takedown coop;
     verdict -> Guard AI Build; lowest).
-  - 4189 chain-1023m1 (after r89 + r92): guardrender-m1-f5912402 = guard-render M1 check on master 4.75.0
+  - 4189 chain-1023lr (after r89): charshadow-83b22daa = Sector Ops LR14 items 1-2: e2e-lightbake (quote its "LR14
+    character shadows" line: max textures per shader, slot stats), then desktop darkness menus. Items 3-5 NOT queued
+    (need a script / manual steps): 3 Epic console smoke on campusOps sector + ctcourse course (no console errors,
+    world.charShadows.copies rising); 4 perf.mjs --preset=high --budget and --preset=epic --budget, 24 guards per section,
+    warehouseOps + campusOps, Character shadows Auto vs Off (p95 CPU / GPU, draws, allocations); 5 contact sheet: guard +
+    partner under a lamp Epic vs Medium, walk between two lamps (flicker). ONE verdict -> Sector Ops Build.
+  - 4189 chain-1023m1 (after r89 + r92 + lr): guardrender-m1-f5912402 = guard-render M1 check on master 4.75.0
     (work/guardrender-m1-f5912402; load sample runs/guardrender-m1-load.csv). Judge vs BRIEF M1 (24 facing: CPU p95
     <= 12, GPU p95 <= 15), write into docs/guard-render/STATE.md on feature/guard-render-close (PR #225), then close
     the job or re-plan.
