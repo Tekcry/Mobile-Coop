@@ -118,7 +118,10 @@
 PARALLEL lanes (each its own branch off -p3 + worktree with a node_modules junction; push WIP per step). STARTED ~12:15
 (Michael ~12:10 "do it faster"): lane B E2 glass (Opus, feature/sector-redesign-e2, checks/e2-glass.md) and lane C posts
 move (Sonnet, feature/sector-redesign-posts, checks/posts-move.md). On resume: check each branch log + report; rerun
-from this text if unfinished. Lane A waits for the art briefs.
+from this text if unfinished. Lane A: briefs DONE (2b349d4b, 87496dcc: ART-PLAN, ART-KIT A110-A126, ART-S1..S5 A127-A152,
+batch 3 A153-A157; assumptions AS1-AS10 for Michael in ART-PLAN, none blocking). ART-KIT (Opus, branch off -p3) is
+HELD at ~12:20 (desktop CPU 100%): start it as soon as the PR 3 GPU run ends. Then one Opus checker, then ART-S1..S5
+(Sonnet, parallel, cut from the ART-KIT head). Note: ART-S3..S5 hero coordinates come from -s45, re-check on -p3.
 A. Detail art: briefs/ART-PLAN.md + ART-KIT.md + ART-S1..S5.md (Opus planner, ~12:00; check -p3 for them; rerun the
    planner from ROADMAP "Next: campus detail art" if missing). Opus builds ART-KIT first (kit + rules engine + tests);
    then Sonnet dressers S1-S5 in parallel (each only campusS<N>Dress.ts + one registration line); one Opus checker per
