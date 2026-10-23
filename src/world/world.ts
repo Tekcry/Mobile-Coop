@@ -51,7 +51,7 @@ import { bakeLevelLight, lightBakeHash, type LightBake } from './lightBake';
 import { LightField } from './lightField';
 import { moonLight } from './lampMath';
 import { roofAt, roofGrid, type RoofGrid } from './roofGrid';
-import { SunCascadeLists, keepNearCamera } from './sunCascadeCull';
+import { SunCascadeLists, keepNearCamera, useCascadeLists } from './sunCascadeCull';
 
 /** Flashlight slots on dark maps (enemies searching / investigating in the dark): `torches.ts`. */
 export { FLASHLIGHTS } from './torches';
@@ -627,7 +627,7 @@ export class World {
     const sm = csm.getShadowMap();
     if (sm) {
       sm.renderList = this.sunCasters;
-      if (flags.guardSun) sm.getCustomRenderList = this.cascadeList;
+      if (useCascadeLists(flags.guardSun, this.bakedMoon)) sm.getCustomRenderList = this.cascadeList;
     }
     this.shadow = csm;
   }

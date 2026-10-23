@@ -59,3 +59,12 @@ export class SunCascadeLists {
     return out;
   }
 }
+
+/**
+ * Babylon re-prepares a custom render list for every cascade layer (the default list is prepared once a frame), so the
+ * per-cascade lists pay only where the list is all moving casters: under the baked moon the level is not a sun caster.
+ * Otherwise the level sits in the list and would be prepared up to 4 times per refresh.
+ */
+export function useCascadeLists(guardSun: boolean, bakedMoon: boolean): boolean {
+  return guardSun && bakedMoon;
+}

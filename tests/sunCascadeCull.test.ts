@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { NullEngine } from '@babylonjs/core/Engines/nullEngine';
 import { CreateBox, Matrix, Scene, Vector3 } from '../src/core/babylon';
-import { GUARD_SUN_REACH, SunCascadeLists, inCascadeXY, keepNearCamera } from '../src/world/sunCascadeCull';
+import { GUARD_SUN_REACH, SunCascadeLists, inCascadeXY, keepNearCamera, useCascadeLists } from '../src/world/sunCascadeCull';
 
 function cascade(): { t: Float32Array | number[]; dir: Vector3; right: Vector3 } {
   const dir = new Vector3(0.3, -1, 0.2).normalize();
@@ -81,5 +81,14 @@ describe('SunCascadeLists.fill', () => {
     expect(lists.fill(0, [a], null)).toBeNull();
     expect(lists.fill(4, [a], t)).toBeNull();
     expect(lists.fill(2, [], t)).toEqual([]);
+  });
+});
+
+describe('useCascadeLists', () => {
+  it('only with the flag on and the baked moon (level not a sun caster)', () => {
+    expect(useCascadeLists(true, true)).toBe(true);
+    expect(useCascadeLists(true, false)).toBe(false);
+    expect(useCascadeLists(false, true)).toBe(false);
+    expect(useCascadeLists(false, false)).toBe(false);
   });
 });
