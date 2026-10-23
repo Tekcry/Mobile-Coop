@@ -96,27 +96,6 @@ function drawMarker(g: GameState, st: CourseState, lay: CourseLayout, me: Player
   else v.marker(Math.sin(Math.atan2(pt.x - p.x, pt.z - p.z) - g.player.cam.yaw) >= 0 ? 96 : 4, 45, dist, true);
 }
 
-/** Lateral offset (m, along z) of P2 from the middle of an entry airlock at a bay-N start. */
-const P2_START_DZ = 1.2;
-
-/**
- * Where player `p` starts at bay `n` (1-based, D20): the middle of that bay's entry airlock (P2 beside P1), or null for
- * bay 1 or a map without a course. The host (`CourseMode.start`) and the client (`CoopClient`) both use it.
- */
-export function courseStartPos(g: GameState, n: number, p: PlayerIdx): Vector3 | null {
-  const lay = g.world.layout.course;
-  const bays = lay?.def.bays;
-  if (!lay || !bays || n <= 1) return null;
-  const bay = bays[Math.min(bays.length, Math.floor(n)) - 1];
-  const a = bay ? lay.def.airlocks.find((x) => x.id === bay.entry) : undefined;
-  if (!a) return null;
-  // (coop-rejoin) the airlock's own slot point when the map gives one
-  const own = a.spawns?.[p];
-  if (own) return new Vector3(own.x, a.floorY + 0.05, own.z);
-  const z = (a.box[1] + a.box[3]) / 2 + (p === 1 ? P2_START_DZ : 0);
-  return new Vector3((a.box[0] + a.box[2]) / 2, a.floorY + 0.05, Math.min(a.box[3] - 0.4, z));
-}
-
 /**
  * (coop-rejoin, walk items 4 and 7) The slot points (slot 0 the host, slot 1 the partner) of the course checkpoint `cp`
  * (`CourseState.checkpoint`: 'start' or an airlock id): the map's player spawns at the start, else the airlock's
@@ -887,6 +866,11 @@ export class CourseMode implements GameMode {
   checkpointSpawns(): SlotPoint[] {
     const st = this.state;
     return st ? courseSlotPoints(this.g, st.checkpoint) : [];
+  }
+
+  /** (coop-rejoin) The `course` message on the next step (a client joined or reconnected mid-run). */
+  resync(): void {
+    this.sendT = 0;
   }
 
   /**

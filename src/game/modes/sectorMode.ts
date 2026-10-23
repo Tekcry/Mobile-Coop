@@ -1186,6 +1186,11 @@ export class SectorMode implements GameMode {
     return out;
   }
 
+  /** (coop-rejoin) The `sector` message on the next step (a client joined or reconnected mid-run). */
+  resync(): void {
+    this.secT = 0;
+  }
+
   /** (marlow-bays item 3) The pause menu's restart: the section from its checkpoint, as everyone down (not once the op
    *  is ending, nor while a restart is already counting down). */
   restartCheckpoint(): boolean {

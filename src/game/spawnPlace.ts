@@ -4,7 +4,8 @@ import { MOVEMENT } from '../config/movement';
 import { G } from '../physics/groups';
 import type { GameState } from './gameState';
 import { SightWorld } from './sectorCheck';
-import { walkCrossesLocked, type LeafSeg, type SlotPoint, type SpawnProbe } from './spawnSlots';
+import { slotSpawn, walkCrossesLocked, type LeafSeg, type SlotPoint, type SlotSpawnKind, type SpawnBody, type SpawnProbe } from './spawnSlots';
+import { courseSlotPoints, courseStartCheckpoint } from './modes/courseMode';
 
 /**
  * (coop-rejoin) The game's spawn checks (`spawnSlots.ts` is the pure side): a body overlapping the level's solid pieces
@@ -87,4 +88,21 @@ export function canWalk(g: GameState, from: SlotPoint, to: { x: number; y: numbe
   const path = nav.findPath([from.x, from.z], [to.x, to.z], REACH_EXPAND, from.y, to.y);
   if (!path) return false;
   return !walkCrossesLocked(from.x, from.z, path, lockedLeaves(g, []));
+}
+
+/**
+ * (coop-rejoin, walk item 4) The slot points of the area a match starts in: a course's start checkpoint (bay 1: the
+ * map's spawns; a bay-N start: that bay's entry airlock), Sector Ops' first section start (`start`, `start2`), else the
+ * map's first two player spawns. Slot 0 is the host's, slot 1 the partner's.
+ */
+export function startSlotPoints(g: GameState): SlotPoint[] {
+  if (g.opts.mode === 'course' && g.world.layout.course) return courseSlotPoints(g, courseStartCheckpoint(g, g.opts.courseBay ?? 1));
+  const s = g.opts.mode === 'sector' ? g.world.map.sectors?.[0] : undefined;
+  if (s) return s.start2 ? [{ ...s.start }, { ...s.start2 }] : [{ ...s.start }];
+  return g.world.layout.playerSpawns.slice(0, 2).map((p) => ({ x: p.pos.x, y: p.pos.y, z: p.pos.z, yaw: p.yaw }));
+}
+
+/** Player slot `slot`'s spot in an area (`slotSpawn` with this level's checks); `others` are the players placed. */
+export function placeSlot(g: GameState, points: readonly SlotPoint[], slot: number, others: readonly SpawnBody[], out: SlotPoint): SlotSpawnKind {
+  return slotSpawn(points, slot, others, spawnProbe(g), out);
 }

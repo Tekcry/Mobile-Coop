@@ -98,9 +98,10 @@ export type SlotSpawnKind = 'slot' | 'beside' | 'base' | 'none';
 
 /**
  * Player slot `slot`'s spawn in an area with `points` (slot 0, slot 1 from map data; one is fine): its own point when the
- * map gives one and it is free, else a safe spot beside the area's first point (`besideSpot`), else that point itself
- * (the map's, so out of the level; the partner blocker parts two bodies). `others` are the players already placed.
- * 'none' when the area has no point.
+ * map gives one and it is free, else a safe spot beside the area's first point (`besideSpot`), else its own point (the
+ * map's, so out of the level; the partner blocker parts two bodies), else a spot beside clear of the level pieces only
+ * (`besideLoose`), else the first point itself. `others` are the players already placed. 'none' when the area has no
+ * point.
  */
 export function slotSpawn(points: readonly SlotPoint[], slot: number, others: readonly SpawnBody[], probe: SpawnProbe, out: SlotPoint): SlotSpawnKind {
   const base = points[0];
@@ -111,8 +112,38 @@ export function slotSpawn(points: readonly SlotPoint[], slot: number, others: re
     return 'slot';
   }
   if (besideSpot(base, Math.max(1, slot), others, probe, out)) return 'beside';
-  copyPoint(out, own ?? base);
+  if (own) {
+    copyPoint(out, own);
+    return 'base';
+  }
+  if (besideLoose(base, Math.max(1, slot), others, probe, out)) return 'beside';
+  copyPoint(out, base);
   return 'base';
+}
+
+/**
+ * The last try before a shared spot: the first ring x direction spot clear of the level's solid pieces and of the other
+ * players, with no floor or line check (those read the physics world, which may not be up yet as a match loads). A
+ * map's own slot point never gets here.
+ */
+export function besideLoose(at: SlotPoint, side: number, others: readonly SpawnBody[], probe: SpawnProbe, out: SlotPoint): boolean {
+  const flip = side % 2 === 0 ? -1 : 1;
+  const rings = SPAWN.rings;
+  for (let r = 0; r < rings.length; r++) {
+    const d = rings[r]!;
+    for (let k = 0; k < DIRS.length; k++) {
+      const a = at.yaw + DIRS[k]! * flip;
+      const x = at.x + Math.sin(a) * d;
+      const z = at.z + Math.cos(a) * d;
+      if (!clearOfBodies(x, at.y, z, others) || probe.blocked(x, at.y, z)) continue;
+      out.x = x;
+      out.y = at.y;
+      out.z = z;
+      out.yaw = at.yaw;
+      return true;
+    }
+  }
+  return false;
 }
 
 export function copyPoint(out: SlotPoint, p: SlotPoint): SlotPoint {

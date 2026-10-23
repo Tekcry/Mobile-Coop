@@ -101,6 +101,8 @@ export interface GameMode {
   /** (coop-rejoin) The current checkpoint's slot points (slot 0 the host, slot 1 the partner; one is fine): where the
    *  co-op host puts a respawning partner and a client that joins or reconnects mid-run. Course and Sector Ops. */
   checkpointSpawns?(): SlotPoint[];
+  /** (coop-rejoin) Co-op host: send the mode's whole state on the next step (a client joined or reconnected mid-run). */
+  resync?(): void;
   blips(): Blip[];
   dispose(): void;
 }

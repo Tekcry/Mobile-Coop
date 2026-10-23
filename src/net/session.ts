@@ -72,6 +72,9 @@ export class NetSession {
   courseBay = 1;
   /** (lightrev LR13, host) The lamp falloff a match started now runs (`coopUi` reads the host's setting / URL override). */
   hostLampFalloff: () => LampFalloff = () => 'linear';
+  /** (coop-rejoin, host) The course bay a match going to one player starts it at: the current bay, so its load lands
+   *  near the checkpoint (`CoopHost` sets it); null: the match's start bay. */
+  lateBay: (() => number) | null = null;
   phase: 'lobby' | 'playing' = 'lobby';
   private start: StartInfo | null = null;
   private closed = false;
@@ -191,7 +194,8 @@ export class NetSession {
       if (prev?.away) this.events.emit('rejoin', { id: pid, name: msg.name });
       // late join / reconnect during a match
       if (this.phase === 'playing' && this.start) {
-        this.send(startMsg(this.start), pid);
+        const bay = this.start.mode === 'course' ? this.lateBay?.() : undefined;
+        this.send(startMsg(bay ? { ...this.start, bay } : this.start), pid);
         this.events.emit('late', { id: pid });
       }
       return;
