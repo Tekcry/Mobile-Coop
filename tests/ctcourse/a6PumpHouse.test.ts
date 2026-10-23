@@ -780,7 +780,8 @@ describe('A6 the Pump House: dressing (slice 6 step 5)', () => {
     return null;
   };
   /** Skins whose centre lies in the plan box [x0, x1] x [z0, z1] and between `y0` and `y1`. */
-  const skinsIn = (x0: number, x1: number, z0: number, z1: number, y0 = -1, y1 = 99): BoxPiece[] => skins.filter((p) => p.c[0] > x0 && p.c[0] < x1 && p.c[2] > z0 && p.c[2] < z1 && p.c[1] > y0 && p.c[1] < y1);
+  const skinsInOf = (list: readonly BoxPiece[], x0: number, x1: number, z0: number, z1: number, y0 = -1, y1 = 99): BoxPiece[] => list.filter((p) => p.c[0] > x0 && p.c[0] < x1 && p.c[2] > z0 && p.c[2] < z1 && p.c[1] > y0 && p.c[1] < y1);
+  const skinsIn = (x0: number, x1: number, z0: number, z1: number, y0 = -1, y1 = 99): BoxPiece[] => skinsInOf(skins, x0, x1, z0, z1, y0, y1);
 
   it("the greybox is as S6 built it: its 78 boxes (checksum), 8 lamps, 1 door, 1 anchor; the only new collision is the stair's twelve rail boxes and the five pipes' ten", () => {
     let sum = 0;
@@ -986,29 +987,63 @@ describe('A6 the Pump House: dressing (slice 6 step 5)', () => {
     expect(lamps).toHaveLength(GREY.lights);
   });
 
+  /** Skin `p` overlaps box `q` (a 1 mm / 1 um margin on the plan / height, as the mark test always used). */
+  const overlap = (p: BoxPiece, q: BoxPiece): boolean => {
+    const o = (k: number): number => Math.min(p.c[k]! + p.s[k]! / 2, q.c[k]! + q.s[k]! / 2) - Math.max(p.c[k]! - p.s[k]! / 2, q.c[k]! - q.s[k]! / 2);
+    return o(0) > 1e-6 && o(1) > 1e-9 && o(2) > 1e-6;
+  };
+  const marks = grey.filter((p) => !p.collide && p.visible && Math.abs(p.yaw) < 1e-6 && p.s[1] < 0.1);
+  const clearPoints: [string, number, number, number][] = [
+    ['drive panel', panel.x, panel.y, panel.z],
+    ['exit release', exit.x, exit.y, exit.z],
+    ...part.switches.map((s) => [s.id, s.pos.x, s.pos.y, s.pos.z] as [string, number, number, number]),
+    ['interlock lamp', 63.7, 2.3, 64.0],
+    ...lamps.map((l) => [`lamp ${l.id}`, l.x, l.y, l.z] as [string, number, number, number]),
+  ];
+  /** The plate's column: the 0.55 m hole from the cage floor to the slab's top. */
+  const inPlateColumn = (s: BoxPiece): boolean => {
+    const o = (k: number, a: number, e: number): number => Math.min(s.c[k]! + s.s[k]! / 2, e) - Math.max(s.c[k]! - s.s[k]! / 2, a);
+    return o(0, 51.225, 51.775) > 1e-6 && o(2, 64.625, 65.175) > 1e-6 && o(1, 0, 4.45) > 1e-9;
+  };
+  /** A planted 0.03 m skin (a cube) centred on (x, y, z): the test's own piece, never in the set. */
+  const plantAt = (x: number, y: number, z: number): BoxPiece => ({ c: [x, y, z], s: [0.03, 0.03, 0.03], yaw: 0, pitch: 0, color: '#ff00ff', collide: false });
+
   it("dressing stays off the greybox's marks, the devices, the switches, the lamps and the gland plate's drop: no skin overlaps a mark, covers a device, a switch or a lamp, or crosses the plate's column to the cage floor; the cage door's opening and the leg-up's floor are clear", () => {
-    const overlap = (p: BoxPiece, q: BoxPiece): boolean => {
-      const o = (k: number): number => Math.min(p.c[k]! + p.s[k]! / 2, q.c[k]! + q.s[k]! / 2) - Math.max(p.c[k]! - p.s[k]! / 2, q.c[k]! - q.s[k]! / 2);
-      return o(0) > 1e-6 && o(1) > 1e-9 && o(2) > 1e-6;
-    };
-    const marks = grey.filter((p) => !p.collide && p.visible && Math.abs(p.yaw) < 1e-6 && p.s[1] < 0.1);
     expect(marks.length).toBe(6);
     for (const m of marks) for (const s of level) expect(overlap(m, s), `skin at (${s.c.join(', ')}) over the mark at (${m.c.join(', ')})`).toBe(false);
-    const points: [string, number, number, number][] = [
-      ['drive panel', panel.x, panel.y, panel.z],
-      ['exit release', exit.x, exit.y, exit.z],
-      ...part.switches.map((s) => [s.id, s.pos.x, s.pos.y, s.pos.z] as [string, number, number, number]),
-      ['interlock lamp', 63.7, 2.3, 64.0],
-      ...lamps.map((l) => [`lamp ${l.id}`, l.x, l.y, l.z] as [string, number, number, number]),
-    ];
-    for (const [name, x, y, z] of points) for (const s of level) expect(inside(s, x, y, z), `${name} inside the skin at (${s.c.join(', ')})`).toBe(false);
+    for (const [name, x, y, z] of clearPoints) for (const s of level) expect(inside(s, x, y, z), `${name} inside the skin at (${s.c.join(', ')})`).toBe(false);
     // the plate's column: nothing from the cage floor to the slab's top over the 0.55 m hole
-    for (const s of level) {
-      const o = (k: number, a: number, e: number): number => Math.min(s.c[k]! + s.s[k]! / 2, e) - Math.max(s.c[k]! - s.s[k]! / 2, a);
-      expect(o(0, 51.225, 51.775) > 1e-6 && o(2, 64.625, 65.175) > 1e-6 && o(1, 0, 4.45) > 1e-9, `skin at (${s.c.join(', ')}) in the plate's column`).toBe(false);
-    }
+    for (const s of level) expect(inPlateColumn(s), `skin at (${s.c.join(', ')}) in the plate's column`).toBe(false);
     for (const s of level) expect(inside(s, 51.5, 1.0, 62.05), `cage door opening, skin at (${s.c.join(', ')})`).toBe(false);
     expect(skinsIn(A6_MARK.x - 1.0, A6_MARK.x + 1.0, A6_MARK.z - 0.6, A6_MARK.z + 0.6, -1, 0.2)).toEqual([]);
+  });
+
+  it('the dressing-clearance checks have teeth: one planted 0.03 m skin inside each window (every mark, every device, switch and lamp point, the plate column, the cage door opening, the leg-up floor) is found by the same query, and the bare dressing is not', () => {
+    // every mark
+    for (const m of marks) {
+      const skin = plantAt(m.c[0], m.c[1], m.c[2]);
+      expect(level.some((s) => overlap(m, s)), `mark at (${m.c.join(', ')}) bare`).toBe(false);
+      expect(overlap(m, skin), `mark at (${m.c.join(', ')}) planted`).toBe(true);
+    }
+    // the devices, switches and lamps (the 0.03 skin centred on the point)
+    expect(clearPoints.length).toBeGreaterThanOrEqual(2 + part.switches.length + 1 + lamps.length);
+    for (const [name, x, y, z] of clearPoints) {
+      const skin = plantAt(x, y, z);
+      expect(level.some((s) => inside(s, x, y, z)), `${name} bare`).toBe(false);
+      expect(inside(skin, x, y, z), `${name} planted`).toBe(true);
+    }
+    // the plate's column and the cage door's opening
+    const plate = plantAt(51.5, 2.0, 64.9);
+    expect(level.some(inPlateColumn), 'plate column bare').toBe(false);
+    expect(inPlateColumn(plate), 'plate column planted').toBe(true);
+    const door = plantAt(51.5, 1.0, 62.05);
+    expect(level.some((s) => inside(s, 51.5, 1.0, 62.05)), 'cage door opening bare').toBe(false);
+    expect(inside(door, 51.5, 1.0, 62.05), 'cage door opening planted').toBe(true);
+    // the leg-up's floor window: the planted skin is the only one found
+    const legUp = plantAt(A6_MARK.x, 0.1, A6_MARK.z);
+    const legWindow = [A6_MARK.x - 1.0, A6_MARK.x + 1.0, A6_MARK.z - 0.6, A6_MARK.z + 0.6, -1, 0.2] as const;
+    expect(skinsIn(...legWindow)).toEqual([]);
+    expect(skinsInOf([...skins, legUp], ...legWindow)).toEqual([legUp]);
   });
 
   it("the pumps are dressed: each has at least 70 skins (grout, caps, sole plate, bolts, guard, slots, ribs, cowl, eyes, terminal box, nameplate, keep-clear line); the numbers 1 / 2 / 3 stencilled on the plinths' south faces have 2, 5 and 5 strokes; four yellow guard bands each", () => {

@@ -11,3 +11,4 @@ kind: patch
   (the client out only for the dark send-back), so the lure no longer finds them (a step-4 "calm" timeout flake).
 - Docs (code): the protocol 42 comment names the `sector` message's `rh`.
 - Sector Ops: the per-section synced-takedowns list for `rh` is built with the run, so the two always reset together.
+- Tests: the A7 cage clearance and A6 "stays off the marks" dressing checks have teeth: a planted 0.03 m skin in each window must be found (S3-7-dress polish 4); no game change.
