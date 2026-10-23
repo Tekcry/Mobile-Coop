@@ -6,16 +6,9 @@
   "kind": "pr",
   "requester": "Night Shift | Guard AI Build",
   "suites": [
-    "e2e-stealth-ai",
-    "e2e-sectorops",
-    "e2e-tactics",
-    "e2e-stealth",
-    "e2e-takedown",
-    "e2e-ctcourse",
-    "e2e-coop",
-    "e2e-netmove"
+    "e2e-ctcourse"
   ],
   "jobs": 2,
   "set": "s25",
-  "note": "S25b fix round (contains S24 7fe4f6a2); ctcourse:4 A7 red expected until #265 cabinet"
+  "note": "S25b fix round (contains S24 7fe4f6a2); ctcourse:4 A7 red expected until #265 cabinet | trimmed (host-only; stealth-ai in s25-sai 8bd13e0c; train runs the rest)"
 }

@@ -6,17 +6,11 @@
   "kind": "pr",
   "requester": "Night Shift | Guard AI Build",
   "suites": [
-    "e2e-coop",
-    "e2e-netmove",
     "e2e-stealth-ai",
-    "e2e-sectorops",
-    "e2e-tactics",
-    "e2e-stealth",
-    "e2e-takedown",
-    "e2e-ctcourse",
-    "e2e-guard-carry"
+    "e2e-netmove",
+    "e2e-ctcourse"
   ],
   "jobs": 2,
   "set": "s24",
-  "note": "S24 fix round + carry flake; ctcourse:4 A7 expected red until Marlow's cage fix (S23 sees client through mesh)"
+  "note": "S24 fix round + carry flake; ctcourse:4 A7 expected red until Marlow's cage fix (S23 sees client through mesh) | trimmed (Fewer per-PR runs: coop in s24-coop 7fe4f6a2; train runs the rest)"
 }
