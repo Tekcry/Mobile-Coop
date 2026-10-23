@@ -19,7 +19,7 @@ scratch/ctcore/push-resume.sh <file> <msg>. Message the orchestrator only at PR 
 
 | batch 23 (train 25) | feature/ctcore-batch-23 off batch-22, folder ctcore-batch | 58368e10 PR #214 | = interrogation-intel a2984b63 + sd-rounds 2ef4000f + team-climb 2805b65e (coop.md conflict: both bullets kept). Checker PASS (scratch/ctcore/b23-CHECK.md, polish list). Laptop GPU 10/10 GREEN on dc8919cd (posted in #214). Waits for the #207 fix + ipad-fit merge, then e2e-clip (+ menus / desktop) and train-ready with #207. |
 
-| ipad-fit (Sonnet, Michael ~13:05 via orchestrator: into #214) | feature/ipad-fit off batch-23 58368e10 | 58368e10 | Brief scratch/ctcore/briefs/spare-ipad-fit.md (version label, safe-area strip, GPU banner Windows only, pause room note). e2e-menus + e2e-desktop on the desktop lane, then merge into batch-23 / #214. |
+| ipad-fit (Sonnet, Michael ~13:05 via orchestrator: into #214) | feature/ipad-fit off batch-23 58368e10 | 92ba8c94 DONE, in batch-23 (fast-forward) | e2e-menus + e2e-desktop GPU PASS; noted in #214. Needs a real-iPad look (Michael). |
 | spare 6 pose-parity (Opus) | feature/pose-parity off batch-23 58368e10 | 546b6e41 BUILT | PROTOCOL 36 (32-35 taken by other branches; renumber at merge). PF.aimLeft 64, takedown blow bit, base move sections on the partner (identity today). 12 new + 9 updated test files green. Opus checker running (-> scratch/ctcore/pp-CHECK.md); laptop asked e2e-coop / netmove / takedown. Next batch (24). |
 
 ## Next window, at once (parallel, CPU < 80%; orchestrator: max 2 tsc / vitest agents while CPU > 80%)
