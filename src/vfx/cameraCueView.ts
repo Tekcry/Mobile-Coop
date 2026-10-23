@@ -1,6 +1,6 @@
 import { Constants, Effect, Mesh, ShaderMaterial, Vector3, Vector4, VertexBuffer, VertexData, type Scene } from '../core/babylon';
 import { CAMERA } from '../config/security';
-import { G } from '../physics/groups';
+import { MASK } from '../physics/groups';
 import { FIXED_DT } from '../core/loop';
 import type { CameraUnit } from '../security/camera';
 import {
@@ -82,7 +82,7 @@ interface CueCam {
 
 /**
  * The security camera vision cue (camera-cue): per camera one world-space mesh of the surfaces its lens can reach over
- * its whole sweep within its own range and about its own pitch (rays against `G.STATIC`, the detection ray's colliders;
+ * its whole sweep within its own range and about its own pitch (rays against `MASK.SIGHT`: static and frosted glass, E2; the detection ray's colliders;
  * `CameraUnit.range` / `pitch`, sector-fixes C), drawn additive and depth-tested with a
  * projected red scan grid (grid only, no frame edge: marlow-bays item 6); the shader keeps only the current yaw's frame
  * (`cueEdge`). Render only: never a light, gameplay never reads it. The rays are spread over frames (a first bake, then a slow refresh for doors).
@@ -185,7 +185,7 @@ export class CameraCueView {
         cueDir(s, i % s.cols, (i / s.cols) | 0, this.d);
         this.a.copyFrom(c.lens);
         this.b.set(c.lens.x + this.d[0] * reach, c.lens.y + this.d[1] * reach, c.lens.z + this.d[2] * reach);
-        const h = Math.min(reach, this.ray(this.a, this.b, G.STATIC));
+        const h = Math.min(reach, this.ray(this.a, this.b, MASK.SIGHT));
         if (c.baked && Math.abs(h - c.dist[i]!) > CUE.rebuildEps) c.moved = true;
         c.dist[i] = h;
       }

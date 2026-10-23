@@ -63,7 +63,12 @@ export interface KeyedClipDef {
   /** (mocap-trial) Optional clip feet (10 per frame, `KF`) and the root's travel over one cycle (1.75 m units). */
   feet?: readonly number[];
   stride?: number;
+  /** (mocap-trial-2, strafe) The direction the root travels over a cycle (absent: 'z', forward; CLIP-FORMAT.md `travel`). */
+  travel?: KeyedTravel;
 }
+
+/** (mocap-trial-2, strafe) A cycle's travel in the root frame: forward along +z, or sideways (+x right, -x left). */
+export type KeyedTravel = 'z' | '+x' | '-x';
 
 export interface KeyedClip {
   readonly name: string;
@@ -102,6 +107,8 @@ export interface KeyedClip {
   /** (mocap-trial) The clip feet (null: none, the planner places the steps) and the cycle's root travel (0: none). */
   readonly feet: Float32Array | null;
   readonly stride: number;
+  /** (mocap-trial-2, strafe) The cycle's travel ('z': forward, every clip but the mocap strafes). */
+  readonly travel: KeyedTravel;
   /** (tuner-v2 item 4) The per-key edit offsets (`tuneKeys` builds them on the first edit), or null: sampled exactly as baked. */
   keyOff: KeyedOffsets | null;
   /** (marlow-bays item 23) The key timing edits (`tuneKeys` sets them on the first retime), or null: the keys as baked. */
@@ -440,6 +447,7 @@ export function keyedClip(def: KeyedClipDef): KeyedClip {
     meanLegd,
     feet: def.feet ? Float32Array.from(def.feet) : null,
     stride: def.feet ? def.stride! : 0,
+    travel: def.travel ?? 'z',
     keyOff: null,
     keyTime: null,
   };
