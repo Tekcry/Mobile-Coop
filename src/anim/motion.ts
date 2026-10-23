@@ -93,8 +93,13 @@ const TURN_SETTLE = 0.12;
 // (anim-rework S2, M6: the CT movement references dropped, "too many steps") k 0.17 -> 0.2: 0.58 m at 1.4 m/s (2.4 steps a
 // second, was 2.6), 0.72 m at 2.1 m/s; the full 0.24 line (0.64 m) lifted the walk's head bob over 3.5 cm and a 90 deg walk
 // turn's to 6 cm (g1Locomotion), so the walk keeps a little shorter step and the jog and run take the line
-/** (anim-rework S2, M6) The player's crouched step line (m: stepLen0 + k * speed, capped at max): the pre-M6 values. */
-export const CROUCH_STEP = { k: 0.2, max: 0.95 } as const;
+/**
+ * (anim-rework S2, M6) The player's crouched step line (m: stepLen0 + k * speed, capped at max). (afp AF3, walk 4.72 P2
+ * "the crouch walk is still awkard") k 0.2 -> 0.115: shorter steps at a higher cadence for the low gait, 0.40 / 0.45 /
+ * 0.50 m at gears 1-3 (0.85 / 1.3 / 1.7 m/s; were 0.47 / 0.56 / 0.64); past `runFrom` m/s the step grows by `runK` a m/s
+ * more, so the crouch run keeps a longer stride (0.76 m at 2.6 m/s, was 0.82: at 0.6 m its arms swung over 2 m/s).
+ */
+export const CROUCH_STEP = { k: 0.115, max: 0.95, runFrom: 1.9, runK: 0.35 } as const;
 export const WALK_STEP = { k: 0.2, to: 2.1, blend: 3.0 } as const;
 /**
  * (anim-rework S3, BRIEF 3 "the glide") The aimed glide's steps (`glide` 1: a carrier aiming; MOVEMENT only; standing and
@@ -133,8 +138,9 @@ export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 
   const v = Math.max(0, speed);
   // (G1, audit row 7) capped at `stepLenMax`: faster than that the cadence rises instead
   let s = Math.min(M.stepLenMax, M.stepLen0 + M.stepLenK * v);
-  // (anim-rework S2, M6) the player's crouched gaits keep the old steps (CROUCH_STEP; slice 4 owns them)
-  if (M === MOVEMENT && crouch > 0) s += (Math.min(CROUCH_STEP.max, M.stepLen0 + CROUCH_STEP.k * v) - s) * Math.min(1, crouch);
+  // (anim-rework S2, M6) the player's crouched gaits take their own step line (CROUCH_STEP; afp AF3: short at the low gears,
+  // lengthening again into the crouch run)
+  if (M === MOVEMENT && crouch > 0) s += (Math.min(CROUCH_STEP.max, M.stepLen0 + CROUCH_STEP.k * v + CROUCH_STEP.runK * Math.max(0, v - CROUCH_STEP.runFrom)) - s) * Math.min(1, crouch);
   // (CT prototype G8, A4) the player's standing walk steps shorter (WALK_STEP), blended back to the line by the jog
   if (M === MOVEMENT && crouch < 1 && v < WALK_STEP.blend) {
     const u = v <= WALK_STEP.to ? 0 : (v - WALK_STEP.to) / (WALK_STEP.blend - WALK_STEP.to);
