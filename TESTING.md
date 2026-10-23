@@ -69,6 +69,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Settings > Controller: vibration on / off and strength. Settings > Controls is the only Controls place (Pause has
   no Controls item): Remap controls rebinds a verb (A), clears a slot (Y), a conflict shows a warning, reset restores
   the defaults.
+- [ ] Settings > Gameplay has no "Mocap locomotion" row; Wren walks / runs with the mocap clips even on an old save that
+  had it off (only `?mocap=0` or the tuner's Mocap box shows the hand-keyed set).
 - [ ] Unplug the pad mid-match: no stuck movement or firing, keyboard and mouse take over; plug it back in and press a
   button: the pad works again without a reload.
 
