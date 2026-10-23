@@ -25,10 +25,16 @@ for r in $reqs; do
   req=$(echo "$j" | grep -o '"requester": "[^"]*"' | cut -d'"' -f4); set=$(echo "$j" | grep -o '"set": "[^"]*"' | cut -d'"' -f4)
   suites=$(echo "$j" | tr -d '\n ' | grep -o '"suites":\[[^]]*\]' | sed 's/"suites":\[//;s/\]//;s/"//g;s/e2e-//g')
   k=$(echo "$suites" | tr ',' '\n' | grep -c .); total=$((total + k)); n=$((n + 1)); flags=""
-  b=$(git branch -r --contains $sha 2>/dev/null | grep -v HEAD | grep -vE 'train/|/master$|/dev$' | head -1 | tr -d ' ')
-  if [ -n "$b" ] && [ "$(git rev-parse $b)" != "$sha" ]; then
-    c=$(git diff --name-only $sha $b | grep -vcE '^(docs/|tests/|scripts/e2e|changes/|CHANGELOG)')
-    [ "$c" -gt 0 ] && flags="$flags STALE($b +$c files)"
+  # Stale only when EVERY branch holding the sha has moved past it in non-doc / non-test files: a later slice
+  # stacked on it (or another branch that merged it) is not a replacement for its own branch.
+  b=""; c=0
+  for cb in $(git branch -r --contains $sha 2>/dev/null | grep -v HEAD | grep -vE 'train/|/master$|/dev$' | tr -d ' '); do
+    cc=$(git diff --name-only $sha $cb | grep -vcE '^(docs/|tests/|scripts/e2e|changes/|CHANGELOG)|\.md$')
+    if [ "$cc" -eq 0 ]; then b=""; c=0; break; fi
+    if [ -z "$b" ] || [ "$cc" -lt "$c" ]; then b=$cb; c=$cc; fi
+  done
+  if [ -n "$b" ]; then
+    flags="$flags STALE($b +$c files)"
   fi
   [ -n "$set" ] && [ "${newest[$req|$set]}" != "$id" ] && flags="$flags DUP(newer ${newest[$req|$set]:0:15})"
   if [ "$kind" = "pr" ] && [ "$k" -gt 2 ] && ! git diff --name-only origin/master...$sha 2>/dev/null | grep -q '^src/net/'; then flags="$flags BIG($k suites, no src/net)"; fi
