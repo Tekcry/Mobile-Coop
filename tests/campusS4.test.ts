@@ -458,7 +458,7 @@ describe('S4 routes', () => {
     expect(nearNav(S4_AMMO_CRATE.x, S4_AMMO_CRATE.z, 0)).toBe(true);
     expect(S4_AMMO_CRATE.section).toBe(3);
     for (const a of S4_ARMOURED) {
-      const r = S4.routes.find((q) => q.name === a.bypass);
+      const r = S4.routes.find((q) => q.name === a.bypass.route);
       expect(r, a.id).toBeTruthy();
       for (let i = 0; i < r!.obj; i++) {
         const p = r!.pts[i]!;

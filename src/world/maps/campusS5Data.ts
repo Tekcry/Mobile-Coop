@@ -1,5 +1,7 @@
 import type { RoutePt, SectorDef, SectorGuard } from '../../game/sectors';
 import type { SecurityData } from '../../security/data';
+import type { ArmourPiece } from './campusS4Data';
+import { S5_BOX, S5_DOORS } from './campusS5';
 
 const PI = Math.PI;
 
@@ -125,10 +127,17 @@ export const S5_CAMERAS: SecurityData['devices'] = [
   { id: 'cam-terrace', kind: 'camera', level: 'ground', at: [-44, 44.3], y: 3.0, aim: 6, range: 12, facing: 0, reason: 'S5: the terrace gate and the lawn (the lake side)', section: 4, bulletproof: true, thermal: true },
 ];
 
-/** Armoured routes (same shape as S4's): an armoured door the bulletproof way in cannot be shot open; the quiet ways past it. */
-export const S5_ARMOURED: { id: string; kind: 'door'; at: [number, number]; bypass: string }[] = [
-  { id: 'arm-ante', kind: 'door', at: [-43, 32], bypass: 'The back corridor, the anteroom side door and the garden' },
-  { id: 'arm-front', kind: 'door', at: [-44, 18], bypass: 'The back corridor, the anteroom side door and the garden' },
+const S5_STEALTH = 'The back corridor, the anteroom side door and the garden';
+const S5_LOUD = 'The front hall, the kitchen and the terrace gate';
+const S5_HIGH = 'The service stair, the roof and the rappel';
+
+/** Section 5's armoured routes (E10, A97; `ArmourPiece`): the anteroom's hall door and the front door, each with one quiet bypass. */
+export const S5_ARMOURED: ArmourPiece[] = [
+  // the loud way to the token is across the hall to the anteroom's hall door: bulletproof (no shooting the keyholders
+  // through it); the quiet way is the anteroom's side door from the vestibule (SPEC CR6 "solo bypass")
+  { id: 'arm-ante', kind: 'door', at: [S5_DOORS.anteHall[0], S5_DOORS.anteHall[1]], loud: S5_LOUD, bypass: { kind: 'side door', name: 'the anteroom side door from the vestibule', at: [S5_DOORS.anteSide[0], S5_DOORS.anteSide[1]], route: S5_STEALTH } },
+  // the front door (SPEC loud "front door") is locked and bulletproof; the quiet way down from the roof is the north parapet rappel
+  { id: 'arm-front', kind: 'door', at: [S5_DOORS.front[0], S5_DOORS.front[1]], loud: S5_LOUD, bypass: { kind: 'rappel', name: 'the north parapet rappel to the terrace', at: [S5_BOX.rappel.x, S5_BOX.rappel.z], y: YR, route: S5_HIGH } },
 ];
 
 /** No ammo inside the section: the weapons crate at the section start (E9-crate, `S5_SECTOR.crate`), inside C4 by its south wall, strip facing north. */

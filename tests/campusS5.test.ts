@@ -345,7 +345,7 @@ describe('S5 cameras, flags, armoured routes, the ammo crate', () => {
     expect(cams.length).toBe(3);
     for (const c of cams) expect([c.bulletproof, c.thermal], c.id).toEqual([true, true]);
     for (const a of S5_ARMOURED) {
-      const r = S5.routes.find((q) => q.name === a.bypass);
+      const r = S5.routes.find((q) => q.name === a.bypass.route);
       expect(r, a.id).toBeTruthy();
       for (let i = 0; i < r!.obj; i++) {
         const p = r!.pts[i]!;

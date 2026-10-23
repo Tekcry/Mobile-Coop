@@ -368,8 +368,8 @@ function wall(b: LevelBuilder, alongX: boolean, at: number, a0: number, a1: numb
 }
 
 /** A door anchor in a wall along x (at z) or along z (at x), centred on `c`, on floor `y`. */
-function doorIn(b: LevelBuilder, alongX: boolean, at: number, c: number, y: number, o: { locked?: boolean; breachable?: boolean; swing?: 1 | -1 } = {}): void {
-  const opts = { swing: o.swing ?? 1, ...(o.locked !== undefined ? { locked: o.locked } : {}), ...(o.breachable !== undefined ? { breachable: o.breachable } : {}) };
+function doorIn(b: LevelBuilder, alongX: boolean, at: number, c: number, y: number, o: { locked?: boolean; breachable?: boolean; swing?: 1 | -1; armoured?: boolean } = {}): void {
+  const opts = { swing: o.swing ?? 1, ...(o.locked !== undefined ? { locked: o.locked } : {}), ...(o.breachable !== undefined ? { breachable: o.breachable } : {}), ...(o.armoured ? { armoured: true } : {}) };
   if (alongX) b.door(c - 0.6, y, at, 1.2, PI / 2, opts);
   else b.door(at, y, c - 0.6, 1.2, 0, opts);
 }
@@ -441,7 +441,7 @@ export function buildCampusS5(b: LevelBuilder): void {
   outer(true, 44, -56, -32, []);
   outer(false, -56, 18, 44, [dh(40, 0)]);
   outer(false, -32, 18, 44, [dh(29, 0)]);
-  doorIn(b, true, 18, -44, 0, { locked: true, breachable: false });
+  doorIn(b, true, 18, -44, 0, { locked: true, breachable: false, armoured: true }); // (E10) arm-front
   doorIn(b, false, -56, 40, 0);
   doorIn(b, false, -32, 29, 0);
 
@@ -509,7 +509,7 @@ export function buildCampusS5(b: LevelBuilder): void {
   wall(b, true, 32, -50, -38, 0, G_TOP, [dh(-48, 0), dh(-43, 0)]);
   wall(b, true, 32, -50, -38, L1, L_TOP, [dh(-40.5, L1)]);
   doorIn(b, true, 32, -48, 0);
-  doorIn(b, true, 32, -43, 0, { breachable: false });
+  doorIn(b, true, 32, -43, 0, { breachable: false, armoured: true }); // (E10) arm-ante: bulletproof
   doorIn(b, true, 32, -40.5, L1);
   // z 34: the passage | the well; x -46: passage, the well and the anteroom's west wall (the window), the strongroom's; L1: the archive's west wall (the hoist door)
   wall(b, true, 34, -50, -46, 0, G_TOP, []);

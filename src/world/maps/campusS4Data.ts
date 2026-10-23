@@ -103,12 +103,43 @@ export const S4_CAMERAS: SecurityData['devices'] = [
 ];
 
 /**
- * The armoured routes (stealth over shooting): pieces a bullet should not clear. No armoured flag exists on the engine
- * (E10 moves these onto `BoxPiece.armoured` and the door `bulletproof`); `bypass` names the S4 route that goes round.
+ * (E10, A97) An armoured route: a bulletproof piece on the loud way (the map builds it with `armoured`: a door's
+ * `Door.armoured`, a pane's `BoxPiece.armoured`; rounds stop on it, never through it) and the ONE named quiet bypass,
+ * a feature on a route (`bypass.route`) whose legs to the objective never pass the piece.
  */
-export const S4_ARMOURED: { id: string; kind: 'door' | 'glass'; at: readonly [number, number]; y?: number; bypass: string }[] = [
-  { id: 'arm-mantrap', kind: 'door', at: [10.5, 22], bypass: 'The service corridor, the battery room and the hot aisles' },
-  { id: 'arm-noc', kind: 'glass', at: [2, 42], y: 3.6, bypass: 'The service corridor, the battery room and the hot aisles' },
+export interface ArmourPiece {
+  id: string;
+  kind: 'door' | 'glass';
+  /** The door's centre in its opening, or a point on the pane (plan). */
+  at: readonly [number, number];
+  /** A pane's sill (its bottom) when it is above the floor. */
+  y?: number;
+  /** The loud route the piece armours (a `SectorDef.routes` name). */
+  loud: string;
+  bypass: {
+    kind: 'keypad' | 'hang' | 'vent' | 'side door' | 'rappel';
+    name: string;
+    /** Where the bypass is used (plan), on `route` within 0.6 m. */
+    at: readonly [number, number];
+    /** Its floor when it is not the ground (a basket, a roof). */
+    y?: number;
+    /** The route that takes it (a `SectorDef.routes` name). */
+    route: string;
+  };
+}
+
+const S4_STEALTH = 'The service corridor, the battery room and the hot aisles';
+const S4_LOUD = 'The lobby, the mantrap and the centre aisle';
+const S4_HIGH = 'The compound, the plant deck and the cable baskets';
+
+/** Section 4's armoured routes (A97): the mantrap's inner door and the NOC window. */
+export const S4_ARMOURED: ArmourPiece[] = [
+  // the loud way in is the mantrap by force: its inner door is bulletproof (no shooting #4 through it); the quiet way is
+  // the battery room's keypad door off the service corridor (the code is on the dock board)
+  { id: 'arm-mantrap', kind: 'door', at: [10.5, 22], loud: S4_LOUD, bypass: { kind: 'keypad', name: 'kp-batt, the battery room keypad door (code on the dock board)', at: [S4_DOORS.kpBatt[0], S4_DOORS.kpBatt[1]], route: S4_STEALTH } },
+  // the NOC pair watch the hall through bulletproof glass (nobody shoots them from the floor, they cannot shoot down
+  // through it); the quiet way keeps off the hall floor: over the cable baskets and the hang-down into the cage
+  { id: 'arm-noc', kind: 'glass', at: [2, 42], y: 4.6, loud: S4_LOUD, bypass: { kind: 'hang', name: 'the hang-down from the cable basket into the cage', at: [18.0, 36.6], y: 4.4, route: S4_HIGH } },
 ];
 
 /**

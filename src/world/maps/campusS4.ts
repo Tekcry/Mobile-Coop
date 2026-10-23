@@ -302,10 +302,10 @@ function wall(b: LevelBuilder, alongX: boolean, at: number, a0: number, a1: numb
 }
 
 /** A door anchor centred on `c` in a 1.2 opening of a wall line (hinge at `c - w / 2`). */
-function doorAt(b: LevelBuilder, alongX: boolean, at: number, c: number, y: number, swing: 1 | -1, o: { locked?: boolean; breachable?: boolean; w?: number } = {}): void {
+function doorAt(b: LevelBuilder, alongX: boolean, at: number, c: number, y: number, swing: 1 | -1, o: { locked?: boolean; breachable?: boolean; w?: number; armoured?: boolean } = {}): void {
   const w = o.w ?? 1.2;
   const a = c - w / 2;
-  const opts = { swing, locked: o.locked, breachable: o.breachable ?? !o.locked };
+  const opts = { swing, locked: o.locked, breachable: o.breachable ?? !o.locked, ...(o.armoured ? { armoured: true } : {}) };
   if (alongX) b.door(a, y, at, w, PI / 2, opts);
   else b.door(at, y, a, w, 0, opts);
 }
@@ -367,7 +367,7 @@ export function buildCampusS4(b: LevelBuilder): void {
 
   // ---- the hall's south wall (z 22, x -4..34): the mantrap's inner door; the service corridor / lobby partition z 18
   wall(b, true, 22, -4, 34.15, 0, R, [doorHole(10.5, 0)]);
-  doorAt(b, true, 22, 10.5, 0, 1, { breachable: false });
+  doorAt(b, true, 22, 10.5, 0, 1, { breachable: false, armoured: true }); // (E10) arm-mantrap: bulletproof, no round through it
   wall(b, true, 18, -4, 14, 0, R, [doorHole(4, 0)], P);
   doorAt(b, true, 18, 4, 0, 1);
   // the service corridor and lobby ceilings (3.0-3.2, overhead): 3.8 m of dead air over each
@@ -400,8 +400,9 @@ export function buildCampusS4(b: LevelBuilder): void {
   wall(b, true, 42, -4, 34.15, 0, R, [doorHole(2, 0), doorHole(20, 0), [-3.5, 7.5, 4.6, 6.6], [31.55, 32.65, S4_BASKET, 6.4]]);
   doorAt(b, true, 42, 2, 0, -1);
   doorAt(b, true, 42, 20, 0, -1);
-  // the NOC's window (E2): clear glass on the old L10 fence line (the wall head above); E10 makes it armoured (arm-noc)
-  b.glass(-3.5, 42, 7.5, 42, 2.0, 4.6);
+  // the NOC's window (E2): clear glass on the old L10 fence line (the wall head above); armoured (E10, arm-noc): the NOC
+  // pair sees the hall through it, no round crosses it either way
+  b.glass(-3.5, 42, 7.5, 42, 2.0, 4.6, 'clear', undefined, { armoured: true });
 
   // ---- the pods P1-P5
   for (const x0 of S4_PODS) pod(b, x0);
