@@ -4,6 +4,16 @@ Saved 2026-10-23 ~10:30 by the CT Core session, for the ~10:45 account swap (win
 agent milestone. Agents running at a cut-off are lost: their last pushed commit is the resume point (table below).
 
 ## Live (resumed 10:48 on the new account; newest first, overrides the table)
+- 12:15 PR #207 OPEN (batch 22: strike-pops, hang-down, dual-reward, traverse-fix-2; check PASS). Master 4.71.0 merged in
+  (one coopHost `seized` conflict: hang + HoldFeed), head 99c37251, tsc clean, hangDownNet / hostageGait / dualTakedown
+  pass. Character Build asked for coop, netmove, ctcourse, anim, takedown, traverse on 99c37251 (one verdict). Orchestrator
+  has it for the next train. Desktop CPU 99% at 12:14: no 4th agent.
+  NEXT WINDOW, start at once (parallel, CPU < 80%): (a) restart any lost agent from origin: sd-rounds (Sonnet,
+  brief spare-7), team-climb (Opus, prompt above), mocap-strafe r3 (Opus, MT2-STRAFE.md round-2 defects);
+  (b) spare 9 interrogation-intel (Sonnet, brief scratch/ctcore/briefs/spare-9-interrogation-intel.md): cut
+  feature/interrogation-intel off feature/ctcore-batch-22 (has #194 + hang-down), stacks on #207, next batch; the
+  patrolRoute getter comes with guard-ai-s8 (compiles without). Next batch = sd-rounds + team-climb + spare 9.
+  Orchestrator rule ~12:10: at the save message (~92%) commit every agent worktree as WIP and push; agents run to 100%.
 - 12:00 mocap-strafe round 2 DONE 149f419c: knee-out facing 1.52-2.65 cm (STRAFE_KNEE_BOW 0.5), steady alloc = base ON,
   knee-out assert, OFF md5 holds; e2e-anim 31 s + e2e-clip 13 s desktop GPU PASS. Found round-1 regressions (M1 fails):
   restart after 0.3 s stand slide 3.87 cm (842270f0: 0), flip pelvis pops 3.34 / 2.36 cm (OFF 1.11 / 0.93), diagonal
