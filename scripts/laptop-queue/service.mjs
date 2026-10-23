@@ -315,13 +315,17 @@ function pendingTrains() {
     aloneHold = { n: '?', sha: '', laptop: 'unknown' };
     return out;
   }
-  // every open train PR head without a laptop-e2e success holds alone requests (a status read error counts as none)
-  aloneHold = trainHold(openPrs.map((p) => {
-    let laptop = '';
-    try { laptop = gh(['api', `repos/${REPO}/commits/${p.sha}/status`, '--jq', '[.statuses[] | select(.context == "laptop-e2e") | .state] | first // ""']); } catch { /* unknown: holds */ }
-    return { ...p, laptop };
-  }));
   git(['fetch', '-q', 'origin', '+refs/heads/train/*:refs/remotes/origin/train/*'], { soft: true });
+  // every open train PR head without a laptop-e2e success holds alone requests (a status read error counts as none),
+  // except heads that can never get one here: older than LQ_TRAIN_MAX_AGE_H or a failed auto-train/* build (as below)
+  aloneHold = trainHold(openPrs.flatMap((p) => {
+    const ct = Number(git(['show', '-s', '--format=%ct', p.sha], { soft: true }));
+    if (ct && !(Date.now() / 1000 - ct < maxAge)) return [];
+    let sts = null;
+    try { sts = JSON.parse(gh(['api', `repos/${REPO}/commits/${p.sha}/status`, '--jq', '[.statuses[] | {context, state}]']) || '[]'); } catch { /* unknown: holds */ }
+    if (sts && trainBuildFailed(sts)) return [];
+    return [{ ...p, laptop: sts ? (sts.find((s) => s.context === 'laptop-e2e')?.state ?? '') : 'unknown' }];
+  }));
   for (const line of git(['ls-remote', 'origin', 'refs/heads/train/*'], { soft: true }).split('\n')) {
     const m = /^([0-9a-f]{40})\trefs\/heads\/train\/(\S+)$/.exec(line);
     if (!m || state.trains[m[1]] || !open.has(m[1])) continue;
