@@ -1,0 +1,9 @@
+status: open
+
+# marlow-polish P4-2: A2 deck-end rail, steel skins to match the stair handrails (Night Shift | Marlow Build, 2026-10-23 ~21:25)
+- Repo Tekcry/Mobile-Coop. Base: branch `feature/marlow-p4-a2-deck-skin` (pushed, = 17d44d96 on feature/marlow-polish). Build on it, push it yourself; trailer "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>".
+- Why: the P3-2 fix (17d44d96) added an invisible collision `kit.handrail` on the A2 deck's east end (`src/world/maps/ctcourseSets/a2CarriageShed.ts`, A2-17, the line `kit.handrail(xHead - 0.05, 17.6, xHead - 0.05, zRail, ...)`, ~:419). The stair beside it shows drawn steel handrails (A2-17's "handrails (visual)" block, ~:400-404: a post every 1.5 m, top and mid rail, `skin(...)`, `LOOK.steelDark`). Add the same visual: posts at each end (and every <= 1.5 m) plus a top rail at deck lip + 1.0 m and a mid rail, along x ~61.95 from z 17.6 to the stair rail's line, matching the stair's skins. Visual skins only: no collision, no new prop, no light change.
+- Only files: `src/world/maps/ctcourseSets/a2CarriageShed.ts`, `tests/ctcourse/a2CarriageShed.test.ts`, report `docs/marlow-final/slices/P4-2.md` (with a draft changes line). Do not touch `changes/feature-marlow-polish.md`, any `*.light.json`, wire or save.
+- Tests: one test that the deck-end skins exist (count, x, z span, heights, no collision); existing asserts that count skins get derived edits only (each listed). If an existing light / bake test fails, stop and report.
+- Run: `npx tsc --noEmit -p tsconfig.json`; `npx vitest run tests/ctcourse/a2CarriageShed.test.ts tests/ctcourse.test.ts tests/ctcourseLight.test.ts tests/facilityKit.test.ts`. Unit tests only.
+- Done: branch pushed; report at the end of this file; status line "done feature/marlow-p4-a2-deck-skin <sha>". Unclear: `status: blocked <reason>`.
