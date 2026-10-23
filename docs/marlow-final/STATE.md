@@ -493,9 +493,9 @@ Rules now (orchestrator ~19:15): no e2e on the desktop (all suites to "Night Shi
 Released: master 4.79.0 (train 30, PROTOCOL 40); train 31 = Guard AI (41). Ours (train 32, PROTOCOL 42, unreleased; orchestrator confirms after release-speed #244 whether we keep 42 or the train bumps):
 - marlow-final PR https://github.com/Tekcry/Mobile-Coop/pull/237, worktree C:/NightShift/Mobile-Coop-marlow-final, head 4e696f99 (fix 4b: A3 lure test, desktop :2 PASS 446 s). All slices incl. walk 4.72 W1-W5 done.
 - section-rating (no PR yet), worktree C:/NightShift/Mobile-Coop-section-rating, head 16caeacd (marlow-final merged). PR body C:/NightShift/sr-pr.md (laptop line "RESULT PENDING").
-- marlow-polish (next batch, no PR), worktree C:/NightShift/Mobile-Coop-marlow-polish, items 1-3 + checker PASS ecdd7b22 (slices/POLISH-check.md); item 4 running (Opus: A3 step-4 lure flake fix, protocol 42 comment, ratedSynced reset).
-Waiting: Test Runner verdict (sent ~19:25): ctcourse:2 on 16caeacd; coop, netmove, sectorops on ecdd7b22.
-Next: on :2 PASS fill sr-pr.md laptop line, `gh pr create --base master --head feature/section-rating`, label both train-ready, message the orchestrator (train 32). On a fail: Opus fix, laptop rerun of that suite only. Polish: after item 4, laptop :2 + coop + netmove + sectorops on its head, then PR in the next train.
+- marlow-polish (next batch, no PR), worktree C:/NightShift/Mobile-Coop-marlow-polish, items 1-3 + checker PASS ecdd7b22 (slices/POLISH-check.md); item 4 done 1bde5328 (section-rating merged; A3 step-4 lure flake test fix, protocol 42 comment, ratedSynced reset; tsc + ratingWire / sectorRatingHost green).
+Waiting: Test Runner verdict (sent ~19:25): ctcourse:2 on 16caeacd; coop, netmove, sectorops, ctcourse:2 on polish 1bde5328 (updated ~19:40).
+Next: on :2 PASS fill sr-pr.md laptop line, `gh pr create --base master --head feature/section-rating`, label both train-ready, message the orchestrator (train 32). On a fail: Opus fix, laptop rerun of that suite only. Polish: on green, PR in the next train.
 Merge master only when the orchestrator builds the train (into marlow-final, then section-rating, then polish).
 Open for Michael (both PR bodies): W5 A2 re-walk; restart shuts doors locked at set start (assumed); solo no-alarms reward = medkit heal (S1 default).
 ```
