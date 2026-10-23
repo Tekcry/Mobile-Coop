@@ -17,6 +17,8 @@ Accounts are labelled by their weekly reset (no emails in git). Each orchestrato
 
 ## State at the switch (refreshed 2026-10-23 ~07:58 for the next swap; newest update block first)
 
+**~12:20: ALL FIVE SAVED (CT Core 36c95dc5 + agent WIP; Menu Notes bea5aa6d, section-rating plan 00323aa3; Course Ready feature/sector-redesign-p3 b694c2ba; Guard AI 7e7a4f9b + s13 / s15 WIP; Character Build flake-fix 7df19d22). Laptop scheduled tasks through the swap: 4189 train 23 full (12:19) -> #207 99c37251 -> marlow 1a47946a; 4192 guard-ai 345fbb91 (12:19) -> sector-redesign f96924e5 -> S3a 220d3cf7. #207 head is 99c37251. Michael 12:15 (to Character Build): ship guard-render S6 without S6d.**
+
 **~12:14 save (93%): all five told to save. Train 24 candidates: #207 CT Core batch 22 (f75db56c, checker PASS; coop / netmove / ctcourse / anim / takedown / traverse on the laptop after train 23), guard-ai #200 -> #203 (stack-tip fix 345fbb91 incl. an S6 radio 4 s delay bug; laptop rerun pending, Guard AI sends train-ready) + #208 S11 / S12 helmets and body armour (on #203, checker PASS), sector-redesign PR 3 (protocol 35). Guard AI next-window briefs: docs/guard-ai/slices/NEXT-BRIEFS.md.**
 
 **~12:02: train 23 BUILT origin/train/23 9d4e0cb8 (feature/menu + guard-render-s5 9fc1e66a incl. #204 + sector-redesign f29a43da); laptop full run requested (Character Build, through the swap). On a pass: `node scripts/merge-train.mjs release 23 4.72.0 "Guard render merged bodies and anim cuts; Sector Ops campus sections 2-3"`.**
