@@ -1627,7 +1627,7 @@ export class Enemy implements Damageable {
         out.face = this.lookBase + Math.sin(tm.dwellT * 1.6) * 1.0;
         return out;
       }
-      tm.lead(dt, this.pos.x, this.pos.z);
+      tm.lead(dt, this.pos.x, this.pos.z, this.routeToGo(p));
       // (guard-ai sweep fix) held short of the point: his route is dropped and planned again from here
       if (tm.replan) {
         tm.replan = false;
@@ -3473,13 +3473,53 @@ export class Enemy implements Damageable {
 
   private readonly outP: P2 = [0, 0];
 
-  /** (guard-ai sweep fix) The step to (x, z) heads towards the walkable cell nearest him (he stands in a blocked one). */
-  private outward(x: number, z: number): boolean {
+  /**
+   * (guard-ai sweep fix) He stands in a blocked cell `cur`: does the step to (x, z) head out of it on his own side? The
+   * way out is the walkable neighbour whose centre is nearest his feet in metres (not the ring order: in a cell a thin
+   * wall splits, that is the side he is on, never across its line). No allocation.
+   */
+  private outward(cur: number, x: number, z: number): boolean {
     const nav = this.ctx.nav;
-    const w = nav.nearestWalkable(this.pos.x, this.pos.z, 2, this.pos.y);
-    if (w < 0) return false;
-    nav.centerInto(w, this.outP);
-    return (x - this.pos.x) * (this.outP[0] - this.pos.x) + (z - this.pos.z) * (this.outP[1] - this.pos.z) > 0;
+    const px = this.pos.x;
+    const pz = this.pos.z;
+    const o = this.outP;
+    nav.centerInto(cur, o);
+    const cx = o[0];
+    const cz = o[1];
+    let bd = Infinity;
+    let bx = 0;
+    let bz = 0;
+    for (let dz = -1; dz <= 1; dz++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dz === 0) continue;
+        const c = nav.cellNear(cur, cx + dx * nav.cell, cz + dz * nav.cell);
+        if (c < 0 || c === cur || !nav.isWalkable(c)) continue;
+        nav.centerInto(c, o);
+        const d = hyp2(o[0] - px, o[1] - pz);
+        if (d < bd) {
+          bd = d;
+          bx = o[0];
+          bz = o[1];
+        }
+      }
+    }
+    if (bd === Infinity) return false;
+    return (x - px) * (bx - px) + (z - pz) * (bz - pz) > 0;
+  }
+
+  /** (guard-ai sweep fix) His way still to go to `p` along his route (m): the legs of `routePath`, then on to `p`. */
+  private routeToGo(p: P2): number {
+    const rp = this.routePath;
+    let qx = this.pos.x;
+    let qz = this.pos.z;
+    let d = 0;
+    for (let k = 0; k < rp.length; k++) {
+      const w = rp[k]!;
+      d += hyp2(w[0] - qx, w[1] - qz);
+      qx = w[0];
+      qz = w[1];
+    }
+    return d + hyp2(p[0] - qx, p[1] - qz);
   }
 
   /** Move to (x, z) if the nav grid allows the step (no closure: called every step for every enemy). */
@@ -3497,7 +3537,7 @@ export class Enemy implements Damageable {
     if (c === cur || (c >= 0 && nav.canStep(cur < 0 ? c : cur, c)) || !nav.isWalkable(cur)) {
       // (guard-ai sweep fix) standing in a blocked cell (pressed into a wall's margin): a step inside it towards the
       // nearest walkable cell is taken too, so he walks out (before, every step short of the edge was refused: frozen)
-      if (c >= 0 && (nav.isWalkable(c) || (c === cur && !nav.isWalkable(cur) && this.outward(x, z)))) {
+      if (c >= 0 && (nav.isWalkable(c) || (c === cur && !nav.isWalkable(cur) && this.outward(cur, x, z)))) {
         this.pos.x = x;
         this.pos.z = z;
         return true;

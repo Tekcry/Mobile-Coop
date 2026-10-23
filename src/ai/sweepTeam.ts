@@ -56,16 +56,17 @@ export class SweepTeam<M extends SweepMember = SweepMember> {
   /** Unit vector behind the leader (from the point he heads for back to him): the followers stack along it. */
   bx = 0;
   bz = -1;
-  /** (guard-ai sweep fix) Seconds the leader has been held short of the current point (moved under `SWEEP.stallMove`
-   *  from (`ax`, `az`)); the stalls there so far (the first asks for a replan, the second gives the point up). */
+  /** (guard-ai sweep fix) Seconds the leader has made no progress to the current point (his way to go not cut by
+   *  `SWEEP.stallGain` under its best, `best`); the stalls there so far (the first asks for a replan, the second gives
+   *  the point up). */
   stallT = 0;
   stallN = 0;
   /** Set by a first stall: the leader drops his route and plans again from where he stands (`Enemy.sweepStep`). */
   replan = false;
   /** Points given up after two stalls (tests / debug; they count in `visited`, as an unreachable point does). */
   skipped = 0;
-  private ax = Number.NaN;
-  private az = Number.NaN;
+  /** The least way to go to the current point seen since the last progress (m); NaN none yet. */
+  private best = Number.NaN;
 
   /**
    * Team `index` (its stage's order in the section: the start point offset) of section `section`. `override`: the
@@ -127,36 +128,39 @@ export class SweepTeam<M extends SweepMember = SweepMember> {
 
   /**
    * The leader at (`x`, `z`): heading for the current point (false), or at it (true: looking, `dwellT` counts; after
-   * `SWEEP.dwell` the next point).
+   * `SWEEP.dwell` the next point). `togo`: his way still to go along his route (m, `Enemy.routeToGo`); absent: the
+   * straight distance.
    */
-  lead(dt: number, x: number, z: number): boolean {
+  lead(dt: number, x: number, z: number, togo = Number.NaN): boolean {
     const i = this.point;
     if (i < 0) return false;
     const dx = x - this.pts[2 * i]!;
     const dz = z - this.pts[2 * i + 1]!;
-    if (hyp2(dx, dz) > SWEEP_NEAR) {
+    const d = hyp2(dx, dz);
+    if (d > SWEEP_NEAR) {
       this.behind(dx, dz);
       this.dwellT = 0;
-      // (guard-ai sweep fix, train 45) held short of it: replan once, then give it up, so a jam never ends the sweep
-      if (hyp2(x - this.ax, z - this.az) < SWEEP.stallMove) {
+      // (guard-ai sweep fix, train 45) no progress along his way: replan once, then give the point up (last resort), so a
+      // jam never ends the sweep. Progress is his way to go cut under its best (a shuffle at a jam is none); a new
+      // route much longer than the best (a replan's detour) starts the count again.
+      const g = togo === togo ? togo : d;
+      if (!(g < this.best + SWEEP.stallJump) || g < this.best - SWEEP.stallGain) {
+        this.best = g;
+        this.stallT = 0;
+      } else {
         this.stallT += dt;
         if (this.stallT >= SWEEP.stall) {
           this.stallT = 0;
-          this.ax = x;
-          this.az = z;
+          this.best = g;
           if (++this.stallN >= 2) {
             this.skipped++;
             this.next();
           } else this.replan = true;
         }
-      } else {
-        this.ax = x;
-        this.az = z;
-        this.stallT = 0;
       }
       return false;
     }
-    this.ax = Number.NaN;
+    this.best = Number.NaN;
     this.stallT = 0;
     this.dwellT += dt;
     if (this.dwellT >= SWEEP.dwell) this.next();
@@ -178,8 +182,7 @@ export class SweepTeam<M extends SweepMember = SweepMember> {
     this.stallT = 0;
     this.stallN = 0;
     this.replan = false;
-    this.ax = Number.NaN;
-    this.az = Number.NaN;
+    this.best = Number.NaN;
   }
 
   /** Where follower `rank` (1..) stands: `rank` x `SWEEP.gap` m behind the leader at (`lx`, `lz`), into `out`. */

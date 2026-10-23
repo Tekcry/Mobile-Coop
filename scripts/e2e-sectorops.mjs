@@ -3639,7 +3639,7 @@ if (want(1)) {
       out.camN = ct.cams.length;
       out.camSame = cams() === cam0.s;
       out.ctAlarm = ct.alarm;
-      window.__s13 = { x, z, t: 1.8, firstSweep: -1, maxVisited: 0, lead0: null, moved: 0 };
+      window.__s13 = { x, z, t: 1.8, firstSweep: -1, maxVisited: 0, maxLooked: 0, lead0: null, moved: 0 };
       return out;
     }, S[0].obj);
     // (the warehouse sections set no `gear` default and no slot tags: only the stage gives armour)
@@ -3665,6 +3665,8 @@ if (want(1)) {
           s.t += 0.5;
           if (t.sweeping && s.firstSweep < 0) s.firstSweep = s.t;
           s.maxVisited = Math.max(s.maxVisited, t.visited);
+          // (guard-ai sweep fix round) looked at = visited less the points given up after two stalls (`SweepTeam.skipped`)
+          s.maxLooked = Math.max(s.maxLooked, t.visited - t.skipped);
           const L = t.leader;
           if (L && t.sweeping) {
             if (!s.lead0) s.lead0 = [L.pos.x, L.pos.z];
@@ -3672,12 +3674,14 @@ if (want(1)) {
           }
         }
         const all = em.teams.flatMap((q) => q.members);
-        return { t: s.t, firstSweep: s.firstSweep, visited: s.maxVisited, moved: s.moved, switches: t.switches, count: t.count, lv: all.map((e) => (e.alive ? e.level : 'down')), lead: t.members[0]?.def.kind };
+        const L = t.leader;
+        return { t: s.t, firstSweep: s.firstSweep, visited: s.maxVisited, looked: s.maxLooked, skipped: t.skipped, stallN: t.stallN, leadAt: L ? [Math.round(L.pos.x * 100) / 100, Math.round(L.pos.z * 100) / 100, em.nav.isWalkable(em.nav.cellOf(L.pos.x, L.pos.z, L.pos.y))] : null, moved: s.moved, switches: t.switches, count: t.count, lv: all.map((e) => (e.alive ? e.level : 'down')), lead: t.members[0]?.def.kind };
       });
     }
     // (guard-ai S28, train 45) no sweep point looked at: where each team stands (its point, the leader, the members, the
     // locked shut doors on the grid) for the log
-    if (!(w.visited >= 1 && w.moved > 2)) {
+    console.log(`  S13 sweep: looked at ${w.looked}, visited ${w.visited}, skipped ${w.skipped}, stalls ${w.stallN}, leader at ${JSON.stringify(w.leadAt)}`);
+    if (!(w.looked >= 1 && w.moved > 2)) {
       const diag = await G(() => {
         const g = window.__app.current;
         const em = g.enemyMgr;
@@ -3695,7 +3699,7 @@ if (want(1)) {
     });
     const searchT = 60;
     assert(w.count > 0 && w.firstSweep >= searchT, `S13: the team sweeps only after its search of the last known position (${searchT} s; first sweep at ${w.firstSweep} s, ${w.count} points)`);
-    assert(w.visited >= 1 && w.moved > 2, `S13: the team moves between sweep points (looked at ${w.visited}, the leader moved ${w.moved.toFixed(1)} m; switches ${w.switches})`);
+    assert(w.looked >= 1 && w.moved > 2, `S13: the team moves between sweep points (looked at ${w.looked}, skipped ${w.skipped}, the leader moved ${w.moved.toFixed(1)} m; switches ${w.switches})`);
     assert(w.t >= 120 && w.lv.every((l) => l === 'searching' || l === 'alert' || l === 'down') && !w.lv.includes('cooldown') && !w.lv.includes('unaware'), `S13: still hunting at ${w.t} s, none calm (${w.lv})`);
     assert(w.lead === 'enforcer', `S13: the shield guard still first in the team (${w.lead})`);
   });
