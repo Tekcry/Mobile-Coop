@@ -11,6 +11,7 @@ docs batch; a docs PR when convenient). Scratch worktree for version / merge ste
 (detached checkouts; reset --hard there is safe).
 
 ## Master
+v4.72.0 (train 23 #210 = #204 + #205 guard-render S1 / S5 + #206 sector-redesign PR 2, 0dc25cca, ~12:45 2026-10-23; dev moved; laptop GPU 41/41 JOBS=3 621 s). Train 24 = origin/train/24 468167df (feature/menu + #207 CT Core batch 22 + #209 guard-render S6 + #211 S3a) on the laptop full run, release 4.73.0 on a pass. Train 25: guard-ai #200-#203 (left out of 24: sectorMode.ts conflict with 4.72.0, Guard AI merging master) + #208 helmets / armour, sector-redesign PR 3, Player batch 23.
 v4.65.0 (train 16 #178 = #168-#176, 4fb8ea80, ~02:10; dev moved; laptop GPU 39/39 JOBS=3 559 s). Train 17 next: #177 camera-range.
 v4.64.0 (train 15 #167 = #159 mocap-trial, ffade187, ~01:20; /preview/ = dev = ffade187; laptop GPU 38/39 at JOBS=5 + e2e-coop solo x2; JOBS back to 3). Train 16 next: #168 decisions G276-G281, #169 g44-above (laptop GPU suites green), #170 load-audit (test-only, holds the coop fix; then a JOBS=5 trial). New job guard-ai (new session Night Shift | Guard AI Build, Michael ~01:35); sector-redesign (Course Ready, protocol 31); marlow-final took protocol 30.
 v4.61.0 (train 8 #157 = #138 N2 (+ #135 N1) + #156 vol-cone-fix, af56ab43, ~23:45; /preview/ = dev = af56ab43; laptop GPU 35/35, 490 s). Train 12 next: #119 560752d1 (ready), #158 coop-offer-load (ready), #144 (voxelFit fix), mocap-trial (checker).

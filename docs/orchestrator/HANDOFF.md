@@ -17,6 +17,8 @@ Accounts are labelled by their weekly reset (no emails in git). Each orchestrato
 
 ## State at the switch (refreshed 2026-10-23 ~07:58 for the next swap; newest update block first)
 
+**~12:45: 4.72.0 RELEASED (train 23 #210, 0dc25cca; dev moved). Train 24 BUILT origin/train/24 468167df (feature/menu + #207 + #209 S6 + #211 S3a); laptop full run requested; on a pass `node scripts/merge-train.mjs release 24 4.73.0 "Player batch 22 (strike pops, hang-down, dual reward, traverse fix); guard render moon shadow casters and head hit volume"` from C:/NightShift/Mobile-Coop-train. Guard AI #200-#203 left out (src/game/modes/sectorMode.ts conflict): train 25 with #208. Usage 12:35: 5-hour 17% (~1.7%/min: 92% ~13:20, 100% ~13:25), weekly 35%. Desktop CPU ~99% after the restarts.**
+
 **~12:25: SWAP LIVE (5-hour 0%, resets 17:20; weekly 32%, resets 2026-10-29 23:00: the 5-hour meter binds). Desktop heavy.lock stale (Course Ready sectorops:1 rerun f96924e5 12:19, no node) deleted on Michael's word; heavy2 absent. Cron 7/27/47 recreated. Five prompts out (new titles). Train 23 verdict waits on Test Runner (laptop 4189 run started 12:19); the f96924e5 sectorops:1 desktop rerun died with the old account: Sector Ops Build reruns it.**
 
 **~12:20: ALL FIVE SAVED (CT Core 36c95dc5 + agent WIP; Menu Notes bea5aa6d, section-rating plan 00323aa3; Course Ready feature/sector-redesign-p3 b694c2ba; Guard AI 7e7a4f9b + s13 / s15 WIP; Character Build flake-fix 7df19d22). Laptop scheduled tasks through the swap: 4189 train 23 full (12:19) -> #207 99c37251 -> marlow 1a47946a; 4192 guard-ai 345fbb91 (12:19) -> sector-redesign f96924e5 -> S3a 220d3cf7. #207 head is 99c37251. Michael 12:15 (to Character Build): ship guard-render S6 without S6d.**

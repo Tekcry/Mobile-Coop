@@ -227,6 +227,10 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
 | 2026-10-23 | #178 | 4.65.0: train 16: guards see poorly above (#169), deploy reload waits for the menu (#176), load-robust e2e (#170-#175), decisions G276-G281 (#168) |
 | 2026-10-23 | #181 | 4.66.0: train 17: guards hear by range, one investigator per noise (guard-ai S1, #179) |
 | 2026-10-23 | #183 | 4.67.0: train 18: mocap batch 1, default off (#182), shorter camera range on all maps (#177) |
+| 2026-10-23 | #210 | 4.72.0: train 23: guard render merged bodies and anim cuts (#204, #205), Sector Ops campus sections 2-3 (#206) |
+| 2026-10-23 | #199 | 4.71.0: train 22: Guard AI awareness, posts and camera body calls (#193, #195, #196); hostage gait (#194); changelog dedupe (#198) |
+| 2026-10-23 | #197 | 4.70.0: train 21: Guard AI radio net (#191), ledge-end hands (#189), partner seed walk (#190) |
+| 2026-10-23 | #192 | 4.69.0: train 20: Guard AI incident board (#185), partner throw KO (#186), mocap on by default (#188) |
 | 2026-10-23 | #187 | 4.68.0: train 19: Sector Ops part 1 - armed guards, reinforcements, dogs, co-op light sync, protocol 31 (#184); guard-cap report (#180) |
 | 2026-10-23 | #160 | 4.62.0: train 12: co-op holders, mantle / drop / roll and split brace, holds that breathe (#119 N4b), co-op takedown offer test steady under load (#158) |
 | 2026-10-22 | #157 | 4.61.0: train 8: Wren's body moves with the gait (twist, sway, head, arms) and run pops fixed (#138), feet in turns (#135, inside #138), Sector Ops strip lights no longer throw fog cones; floods and torches keep their beams (#156; closes Waiting item 5) |
