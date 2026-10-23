@@ -44,7 +44,9 @@ export type BarkEvent =
   // (guard-ai S14) section alert: a loud shot heard and called in; the reports when the calls get through
   | 'shots'
   | 'shotsReport'
-  | 'missingReport';
+  | 'missingReport'
+  // (guard-ai S17) sent to a tripped device (a laser beam, a camera's alarm)
+  | 'tripped';
 
 export const BARKS: Record<BarkEvent, readonly string[]> = {
   suspicious: ['Huh?', 'What was that?', 'Hello?', 'Something there...'],
@@ -83,6 +85,8 @@ export const BARKS: Record<BarkEvent, readonly string[]> = {
   shots: ['Shots fired! Calling it in.', 'Gunfire! Calling it in.', 'That was a gunshot. Calling it in.'],
   shotsReport: ['Control, shots fired near my position. All units, stay sharp.', 'Control, I heard gunfire. Everyone, eyes open.'],
   missingReport: ["Control, a unit's not answering. All units, stay sharp.", 'Control, we have a man not checking in. Eyes open.'],
+  // (guard-ai S17) original lines, written to be voiced later (G82)
+  tripped: ['Sensor tripped. Moving to check.', "Alarm point's lit. On my way."],
 };
 
 /**

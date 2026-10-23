@@ -362,3 +362,115 @@ doesnt make sense". A32-A34 are S10's (on `feature/guard-ai-s10`).
   message is keyed JSON: no field order to agree on). Undo: if pose-parity lands first or drops its number, renumber
   `PROTOCOL_VERSION` in `src/net/protocol.ts` and every `toBe(37)` / `v: 36` / `v: 37` in tests (net, jammer,
   jammerFixes, moveState, rejoin, sectorLampSync, sectorStep3, crateWire, coopGuardAi) and `docs/systems/coop.md`.
+
+## Walk 4.72 fixes (PLAN "Walk 4.72 fixes" S17-S19; Michael's walk of 4.72, G1-G3)
+Michael, verbatim: G1 "when guards alerted when i cross laser, they somehow know ive climbed elsewhere. theres no way
+they could no that unless they saw me. change it so they come to look where the laser is and search the room."; G2
+"guards investigating dead bodies give up too easily."; G3 "guards should rush to any triggered alarms or bodies
+reported, they need a sense of urgency when it makes logical sense." A100-A119 are this batch's (`slices/WALK.md`).
+- **A100** (S17) A broken laser is at its beam line's midpoint, at its floor (`beamSpot`): a beam sensor knows which
+  beam broke, not where along it. Undo: in `CtDevices.touch` report the nearest point of the beam to the body at the
+  break (`distToSegment`'s projection) instead.
+- **A101** (S17) A camera at full awareness is a device alert too (G3 "any triggered alarms"): its spot is where the
+  camera saw someone at that moment (a sighting, not his live position); calm guards go there as for a laser. No last
+  known position is set from it. Undo: drop the `alertAt` call in `CtDevices.onCamera`.
+- **A102** (S17) Reinforcements an alarm brings within `DEVICE.fresh` (90 s) of a device alert, with no last known
+  position (nobody has seen anyone), are responders: aggressive as every reinforcement, they run their entry route in,
+  then search the device's spot inside its room and never calm (as S6; a response team sweeps after it, S13). After a
+  sighting they go to combat on the last known position as before. Undo: `DEVICE.enabled = false` (also drops A103), or
+  return false from `EnemyManager.deviceFresh`.
+- **A103** (S17) A device alert opens a `device` board incident: the 2 nearest calm free guards by path within 30 m
+  (`DEVICE.want`, `callR`) go straight to the spot (no pause to look: the alarm went off), search round it inside the
+  room it is in (no room: round the spot), `ALERT.searchTime` (a plain search's length), then back to their route on edge;
+  nobody in range: it waits 20 s (`DEVICE.wait`), then lapses. One incident per device while open (a second trip
+  merges). Undo: `DEVICE.want` / `callR` / `wait` (`src/ai/gear.ts`).
+- **A104** (S17) Marlow Yard (Course mode) gets the same device incident as Sector Ops (both host `CtDevices`): a laser or
+  camera there sends calm guards in range. Undo: drop `alertAt` from the `CtDevices` hooks in `courseMode.ts`.
+- **A105** (S17) Left as is: an alerted guard with no last known position still goes for the player's feet in combat
+  (`Enemy.decide`'s `known`). Only the device alarms led there without a sighting; a panel or command alarm follows a
+  contact (a last known position). Undo: not needed; an open item if another path is found.
+- **A106** (S18) A dead body's search (`SEARCH_BODY`, `BODY_SEARCH` in `ai/gear.ts`): `ALERT.searchTime` x 3 (180 s,
+  M3's "a few minutes"), a ring from 1.5 m in 1.5 m steps out to 15 m (plain: 2 m, 2.5 m, 11 m), 2.5 s at each point
+  (plain 3 s): at the search pace about twice the points and 4 m further out than a plain search; then the held caution
+  as before (S4). Undo: `BODY_SEARCH = { timeMul: 1, r0: 2, step: 2.5, max: 11, look: 3 }`.
+- **A107** (S18) Who searches the body way: the dead body's finder and the calm guard who hears his "Man down!" (S4),
+  the guards a camera sends to a dead body (S7: the one who finds it, and the second, who now joins the search when the
+  first has found it instead of standing down), and a kill seen by a calm guard (it goes through the same finding). A
+  knockout keeps A4 (the waker and the woken guard search 60 s, the plain way); a kill seen with no body (a dog) stays
+  plain. Undo: `searchAt` in place of `bodySearch` in `EnemyManager.bodyFound`; drop the S18 branch in
+  `Enemy.stepCamBody`.
+- **A108** (S18) A guard already searching (a call, a pair, another body) who finds a dead body starts the body's search
+  over from zero round it (as `koSearch` does). Undo: drop the restart in `Enemy.bodySearch`.
+- **A109** (S19) Urgent = a jog: run speed x `PACE.rush` 0.75 (the aggressive jog), about 2.4 m/s for a grunt against
+  0.99 m/s on patrol, until he first reaches the spot (the investigated spot, or the first stop of his search); then
+  his calm investigate / search pace. Undo: `URGENT.enabled = false` (`ai/gear.ts`) or `PACE.rush` (`ai/response.ts`).
+- **A110** (S19) Who hurries (`urgentKind`): a tripped device's responders and its reinforcements (S17), guards a camera
+  sends to a body (S7), the guard who hears the finder's "Man down!" (S4), a guard sent on a radio body report (A111),
+  the missing pair (S2 / S5b / S10, lead and cover) and a shots investigator and its cover (S14). Calm: a noise, a lure,
+  a light gone out, a breaker fault (the S15 walk is untouched). The panel alarm runner and combat reinforcements
+  already ran; the knockout waker keeps `PACE.revive`. Undo: return false for a kind in `urgentKind`.
+- **A111** (S19) G3 "rush to ... bodies reported": when a finder's dead-body radio call gets through, the board sends
+  `URGENT.bodyHelpers` (1) calm free guard within `INCIDENT.callR` (25 m) by path to hurry over and search the body (the
+  body way, S18) with the finder; no alarm (A2 kept). Sent at the call's completion; a body carried, hidden or gone by
+  then sends nobody. Undo: `URGENT.bodyHelpers = 0`.
+- **A112** (S19) The S14 missing call itself still moves nobody (the section turns cautious); the move it goes with is the
+  board's missing pair, which now hurries. Undo: not needed.
+- **A113** (S19) Tests that change by design: e2e-stealth-ai 'bodies' and 'witness' now expect the calm guard out of voice
+  range to be searching (sent to help, `bodyHelps` 1) once the report gets through, not standing on edge; the unit
+  fakes in `awarenessWiring` / `sectionAlert` gain `helpSearch`. Undo: with A111.
+- **A114** (S20) G4 "guards seem to walk through eachother": the walker keeps the old soft push (3 x (1.1 - d) m/s inside
+  1.05 m), adds a sidestep round a guard ahead on his line (within 2.2 m and 0.9 m of his line, x0.9 of his speed at
+  contact; dead ahead each steps to his own left, so a head-on pair parts), and cuts every step at 0.65 m between centres
+  from each solid guard on his storey (1.5 m): he slides round the circle; one already nearer may only move apart; a
+  step that cannot be cut clear is not taken (`SEPARATION`, `ai/separation.ts`). Not solid: dead or knocked out, held in a
+  takedown. A talking pair (S10) and a post (S5) keep their spots (their meet points / posts are further apart than
+  0.65 m; a passer goes round them). Players keep the old soft push. Undo: `SEPARATION.min = 0` and `side = 0` (the old
+  steering alone).
+- **A115** (S20) G4 "... and sometimes doors": a guard's step into or across a shut door's leaf (its collider box grown by
+  the nav agent radius 0.32 m) is refused (`DoorGate.blocking`, every step in `Enemy.tryMove`). A shut door that is not
+  locked is opened as the guard push always did (`Doors.open(d, 'enemy')`: its sound and noise, the guard-opened close
+  behind him, the co-op door sync), and he waits until its swing reaches `DOOR_GATE.pass` 0.5 (0.2 s of the 0.4 s
+  push); the 1 m push (`Doors.pushOpen`) still runs first, so on a walk he rarely waits. Chosen over rerouting: the door
+  API keeps the door state and sound right for both players with no protocol change. Undo: drop `doorStep` from the
+  `EnemyManager` context.
+- **A116** (S20) A locked door is never crossed: the guard stops at its leaf and waits there (it opens when the door
+  unlocks). No nav closure per locked door: the e2e nav checks (`e2e-sectorops` 'nav (M8 routes, sealed sections)',
+  `e2e-course` Fallow paths) expect the guards' grid to walk through locked section doors, and guards do not route
+  across them; Sector Ops' keypad, bolt, lockdown and pair-gate doors already shut their doorways on the grid (routes go
+  round). No map data lets guards through a locked door (none exists). A door locked while open (a course gate) stays
+  open to them. Undo: drop `doorStep` (A115); a per-door closure (`NavGrid.addClosure`, shut while locked and closed) is
+  the follow-up if guards are seen waiting at locked doors.
+- **A117** (S20) Left as is: `Doors.pushOpen` ignores height (a guard under a door's floor within 1 m of its centre opens
+  it) and still runs for a held guard; dogs use the same gate and spacing. Undo: not needed; open items.
+
+- **A120** (S21) G5 Michael, verbatim: "they also dont always have to be low-ready, then can walk around holstered if they
+  are in a calm area." Every guard stays armed (2026-10-23 ~01:25). A calm area for a guard (`calmArea`,
+  `ai/carryState.ts`; `Enemy.carryCalm`): he is unaware (no suspicion, investigation, search, combat or its cooldown),
+  not cautious (S4 held / S14 section alert timed caution), on no board task or camera body, no alarm raised in his
+  section (`ctx.alarmRaised`, S6), not a high-security post (S5 `secure`), not a device responder (S17) or a response
+  team member (S13 `crew`), and stealth rules are on (the parked modes keep low ready). Undo: `GUARD_CARRY.enabled = false`.
+- **A121** (S21) Who holsters (`mayHolster`): every kind with a gun except the sniper (on his watch, laser and glint) and
+  the enforcer (the shield in his other hand); melee kinds and the dog never. Undo: edit `GUARD_CARRY.never`.
+- **A122** (S21) He holsters again only after `GUARD_CARRY.calmHold` 15 s calm without a break (no flicker after a glance
+  or a cooldown); stirred mid-holster he draws straight back up from where the gun is. Undo: `calmHold`.
+- **A123** (S21) Guard draw times: rifle 0.7 s, pistol 0.5 s (`GUARD_CARRY.draw`; the player's N3 draws are 1.1 / 0.75 s;
+  CT guards shoulder fast); holster 1.0 / 0.9 s (the player's). A guard who spots the player has usually drawn by then
+  (suspicion draws); one hit or sent to combat from calm waits the draw before his first shot (`Enemy.tryFire` gates on
+  `carry.drawn`), on top of the old reaction / aim settle. Undo: shorter `draw` values, or drop the gate in `tryFire`.
+- **A124** (S21) Where the gun rides: the player's carry slots and placement (`carrySlotOf` -> `WeaponModel.holster`):
+  the rifle slung diagonally across the back (`backC`, as Wren's, not the vertical `backSocket` mount), the pistol on the
+  right thigh (sets the rig's `thighGear`), a compact on the hip sling. The draw / holster runs the player's travel
+  (`beginTravel` / `travel`, the trigger hand on the grip) and the swap clip (one slot). Undo: `carrySlotOf`.
+- **A125** (S21) The rig: the shared `RigPose` gains an optional `ready` (the holstered carry with ready hands and the
+  armed carriage; unset it keeps `carrier && !heldWeapon`, so the player and remotes are unchanged). Guards are not
+  `carrier` (that also switches mocap and the keyed drawn set), so they set `ready` directly. The raise (`RigPose.aim`) is
+  0 while holstered and the wanted aim through a draw (gating it to 0 until drawn popped the gun 15-34 cm at the
+  hand-over). Undo: with A120.
+- **A126** (S21) Co-op: host only. A client poses guards from the snapshot's alert level (0 calm .. 3 combat), which
+  cannot tell caution, a raised alarm, a post or a response team apart from calm, so it cannot derive the holster; no
+  protocol change in this slice: client puppets stay at low ready (open item, `slices/WALK.md` S21). Undo: not needed.
+- **A127** (S20 check, `slices/WALK-CHECK.md`) Two guards face to face in a doorway or a corridor too narrow to step
+  round each other (1.2 m and less) were held about 0.65 m apart forever by the S20 spacing. Held by it (pushed off, cut
+  or refused) with somewhere to go, under a quarter of his pace, for `SEPARATION.stall` 1 s, a guard squeezes past for
+  `SEPARATION.squeeze` 2 s: the soft push only (as before S20, no sidestep, no hard cut), so they brush past in a narrow
+  gap and nobody waits forever; a man standing in his way is passed the same way. Undo: `SEPARATION.stall` very large.
