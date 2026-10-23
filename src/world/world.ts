@@ -260,7 +260,7 @@ export class World {
       const k = w.hemi.intensity * Math.PI;
       const sk = w.hemi.diffuse;
       const lvl = sky ? { sky: [sk.r * k, sk.g * k, sk.b * k] as [number, number, number], ground: [gr.r * k, gr.g * k, gr.b * k] as [number, number, number], vis: sky } : null;
-      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, null, { moon: bake.moon, doors: w.doors.list, fill, moonLight: bake.moonLight, level: lvl });
+      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, null, { moon: bake.moon, doors: w.doors.list, fill, bounce: w.lightField.bounce, moonLight: bake.moonLight, level: lvl });
       w.lamps.bakeMs = bake.ms;
       w.lamps.attachAll();
       w.lightRig.setBaked(w.lamps.ids);

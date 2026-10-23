@@ -11,6 +11,7 @@ import { bakeVisSampler, DOOR_SHUT, DOORS_PER_LAMP, DOORS_PER_LAMP_ACCURATE, lam
 import { TORCH_DRAW_GLSL, TORCH_DRAW_SLOTS, TORCH_DRAW_STRIDE } from './shadowAccuracy';
 import { LEVEL_FILL_GLSL as LF, type Rgb } from './levelFill';
 import { CHAR_SHADOW_GLSL, type CharShadowLamps, type CharShadowLink } from './charShadows';
+import { bounceColor, packFillRG, type BounceGrid } from './bounceGrid';
 
 export { bakedLights };
 
@@ -34,6 +35,9 @@ export interface BakeExtras {
    *  fill on the standard-material look and on the game's non-voxel surfaces (characters, props), in place of the
    *  hemisphere (Step 4b; the voxels keep the sky bake's fill). */
   fill?: { grid: AmbientGrid; color: [number, number, number] } | null;
+  /** (LR16-1) The light field's bounce grid (`LightField.bounce`): its bytes go in the fill texture's green channel and
+   *  light every lit material, the curve's level included. */
+  bounce?: BounceGrid | null;
   /** The moon's share of the open-sky level (`moonLight`): the curve's moon term. */
   moonLight?: number;
   /** smooth-world fix round 2 (rendering only): the level's own fill as the voxel path lights its walls
@@ -54,6 +58,9 @@ export function markLampLevel(m: Material): void {
 }
 export const isLampLevel = (m: Material): boolean => !!(m.metadata as { lampLevel?: boolean } | null)?.lampLevel;
 
+/** (LR16-1) The fill texture's bounce channel is re-uploaded at most this often (ms). */
+export const BOUNCE_UPLOAD_MS = 250;
+
 /** Character capsules (two texels each) and how many one lamp tests. */
 export const MAX_CAPSULES = 16;
 const CAPS_PER_LAMP = 4;
@@ -64,6 +71,9 @@ const CAPS_PER_LAMP = 4;
  * on or off at once (switches, shots, EMP), for a 3D texture tap per lamp per pixel; characters get soft capsule
  * shadows from every lamp. One data texture: the light grid (which lamps reach each 2 m column), the lamps, the
  * capsules (updated each frame).
+ * (LR16-1) The fill texture's G channel is the light field's bounce grid (the lit lamps' one-bounce fill). Light parity's
+ * one exception: the picture's bounce is re-uploaded at most every 0.25 s (`BOUNCE_UPLOAD_MS`), so it may lag a
+ * switched, shot or jammed lamp by that much; the meter, the guards and the direct light never lag.
  */
 export class BakedLamps implements CharShadowLamps {
   /** The lamps' visibility atlas and the data texture (grid, lamps, capsules). */
@@ -84,8 +94,16 @@ export class BakedLamps implements CharShadowLamps {
   /** 3.6: the baked moon (R8, linear). */
   readonly moonTex: RawTexture3D | null = null;
   readonly moon: MoonGrid | null;
+  /** The fill texture, RG8 (LR16-1): R the ambient grid, G the bounce. */
   readonly fillTex: RawTexture3D | null = null;
   readonly fill: BakeExtras['fill'];
+  /** (LR16-1) The light field's bounce grid, its upload buffer (RG, as `fillTex`), the version and time last uploaded. */
+  readonly bounce: BounceGrid | null;
+  private readonly fillRG: Uint8Array | null = null;
+  private bounceVer = -1;
+  private bounceUp = -Infinity;
+  /** (LR16-1) The bounce's colour (`bounceColor`: the lamps' tint, luminance 1). */
+  readonly bounceC: [number, number, number];
   /** The level fill (`BakeExtras.level`) and its sky visibility texture. */
   readonly level: BakeExtras['level'];
   readonly skyTex: RawTexture3D | null = null;
@@ -163,6 +181,8 @@ export class BakedLamps implements CharShadowLamps {
     for (let i = 0; i < baked.ids.length; i++) for (let k = 0; k < 4; k++) this.spheres[i * 4 + k] = baked.lights[i * LAMP_STRIDE + k]!;
     this.moon = extra.moon ?? null;
     this.fill = extra.fill ?? null;
+    this.bounce = extra.bounce ?? null;
+    this.bounceC = bounceColor(baked.ids.map((id) => reg.lights[id]!));
     this.level = extra.level ?? null;
     this.standard = !!extra.standard;
     this.moonLight = extra.moonLight ?? 0;
@@ -239,7 +259,20 @@ export class BakedLamps implements CharShadowLamps {
       return t;
     };
     if (this.moon) this.moonTex = mk3(this.moon.vis, this.moon.n[0], this.moon.n[1], this.moon.n[2]);
-    if (this.fill) this.fillTex = mk3(this.fill.grid.data, this.fill.grid.n[0], this.fill.grid.n[1], this.fill.grid.n[2]);
+    if (this.fill) {
+      // (LR16-1) RG8: R the ambient grid as before, G the bounce (one tap reads both; the samplers are unchanged)
+      const fg = this.fill.grid;
+      const bg = this.bounce && this.bounce.n.every((v, k) => v === fg.n[k]) ? this.bounce : null;
+      bg?.sync(reg);
+      this.fillRG = new Uint8Array(fg.data.length * 2);
+      packFillRG(fg.data, bg && bg.active ? bg.g : null, this.fillRG, fg.n);
+      bg?.clearDirty();
+      this.bounceVer = bg ? bg.version : -1;
+      if (!bg) this.bounce = null;
+      const t = new RawTexture3D(this.fillRG, fg.n[0], fg.n[1], fg.n[2], Constants.TEXTUREFORMAT_RG, scene, false, false, Texture.BILINEAR_SAMPLINGMODE, Constants.TEXTURETYPE_UNSIGNED_BYTE);
+      t.wrapU = t.wrapV = t.wrapR = Texture.CLAMP_ADDRESSMODE;
+      this.fillTex = t;
+    }
     const sv = this.level?.vis;
     if (sv) this.skyTex = mk3(sv.vis, sv.n[0], sv.n[1], sv.n[2]);
 
@@ -318,6 +351,7 @@ export class BakedLamps implements CharShadowLamps {
       for (let i = 0; i < mats.length; i++) this.attach(mats[i]!);
     }
     if (this.version !== this.reg.version) this.update();
+    this.uploadBounce();
     if (this.doors.length && this.writeDoors()) {
       if (this.volume) this.data.update(this.buf);
       else dirty = true;
@@ -344,6 +378,26 @@ export class BakedLamps implements CharShadowLamps {
       dirty = true;
     }
     if (dirty) this.data.update(this.buf);
+  }
+
+  /**
+   * (LR16-1) The bounce follows the lamps: when the grid moved (a lamp switched, shot, jammed or EMP'd), the dirty box
+   * is re-packed and the fill texture uploaded, at most every `BOUNCE_UPLOAD_MS`. The one parity exception: the
+   * picture's bounce may lag the meter's by up to 0.25 s (the direct light never lags). No allocation.
+   */
+  private uploadBounce(): void {
+    const bg = this.bounce;
+    const buf = this.fillRG;
+    if (!bg || !buf || !this.fillTex || !this.fill) return;
+    bg.sync(this.reg);
+    if (bg.version === this.bounceVer) return;
+    const now = performance.now();
+    if (now - this.bounceUp < BOUNCE_UPLOAD_MS) return;
+    this.bounceUp = now;
+    this.bounceVer = bg.version;
+    packFillRG(this.fill.grid.data, bg.g, buf, this.fill.grid.n, bg.dirty);
+    bg.clearDirty();
+    this.fillTex.update(buf);
   }
 
   /** Tests (3.6): the volume's cell at a world point (`LampVolume.readCell`), or null without a volume. */
@@ -672,6 +726,13 @@ class LampVolume {
   }
 }
 
+/**
+ * (LR16-1) The fill texture's two channels at a point: R the ambient fill (1 outside the grid, as `nsGrid`), G the
+ * bounce read clamped to the grid as the light field's `triInto` reads it (a clamped bilinear tap of the same bytes).
+ * One line: `tests/bounceGrid.test.ts` checks it against the field.
+ */
+export const NS_GRID2_GLSL = `vec2 nsGrid2(highp sampler3D t, vec3 p, vec4 o, vec4 n) { vec3 q = (p - o.xyz) / (o.w * n.xyz); vec2 v = texture(t, clamp(q, 0.0, 1.0)).rg; return vec2(any(lessThan(q, vec3(0.0))) || any(greaterThan(q, vec3(1.0))) ? 1.0 : v.x, v.y); }`;
+
 /** The lamp loop (GLSL), shared by every material the plugin is on. Exported for the guard test that it holds
  *  `LAMP_MATH_GLSL`. */
 export const LAMP_GLSL = `${LAMP_MATH_GLSL}
@@ -697,6 +758,7 @@ float nsGrid(highp sampler3D t, vec3 p, vec4 o, vec4 n) {
   if (any(lessThan(q, vec3(0.0))) || any(greaterThan(q, vec3(1.0)))) return 1.0;
   return texture(t, q).r;
 }
+${NS_GRID2_GLSL}
 // a character's capsule between the shaded point and the lamp: a soft shadow widening with the distance behind it
 float lampCapsule(vec3 p, vec3 l, vec3 a, vec3 b, float r) {
   vec3 d2 = b - a;
@@ -798,6 +860,7 @@ export class LampPlugin extends MaterialPluginBase {
         { name: 'lampAmbO', size: 4, type: 'vec4' },
         { name: 'lampAmbN', size: 4, type: 'vec4' },
         { name: 'lampFillC', size: 4, type: 'vec4' },
+        { name: 'lampBounceC', size: 4, type: 'vec4' },
         { name: 'lampDark', size: 4, type: 'vec4' },
         { name: 'lampDarkP', size: 4, type: 'vec4' },
         { name: 'lampSkyO', size: 4, type: 'vec4' },
@@ -811,7 +874,7 @@ export class LampPlugin extends MaterialPluginBase {
         // (LR15) the drawn flashlights (`TORCH_DRAW_GLSL`)
         { name: 'lampTorch', size: 4, type: 'vec4', arraySize: TORCH_DRAW_SLOTS * 3 },
       ],
-      fragment: `#ifdef BAKED_LAMPS\nuniform vec4 lampInfo;\nuniform vec4 lampGridO;\nuniform vec4 lampAtlas;\nuniform vec4 lampVolO;\nuniform vec4 lampVolD;\nuniform vec4 lampCaps[${VOL_CAPS * 2}];\nuniform vec4 lampMore;\nuniform vec4 lampMoonO;\nuniform vec4 lampMoonN;\nuniform vec4 lampAmbO;\nuniform vec4 lampAmbN;\nuniform vec4 lampFillC;\nuniform vec4 lampDark;\nuniform vec4 lampDarkP;\nuniform vec4 lampSkyO;\nuniform vec4 lampSkyN;\nuniform vec4 lampLvlSky;\nuniform vec4 lampLvlGnd;\nuniform vec4 lampCsM[16];\nuniform vec4 lampCsP[4];\nuniform vec4 lampCsI;\nuniform vec4 lampTorch[${TORCH_DRAW_SLOTS * 3}];\n#endif`,
+      fragment: `#ifdef BAKED_LAMPS\nuniform vec4 lampInfo;\nuniform vec4 lampGridO;\nuniform vec4 lampAtlas;\nuniform vec4 lampVolO;\nuniform vec4 lampVolD;\nuniform vec4 lampCaps[${VOL_CAPS * 2}];\nuniform vec4 lampMore;\nuniform vec4 lampMoonO;\nuniform vec4 lampMoonN;\nuniform vec4 lampAmbO;\nuniform vec4 lampAmbN;\nuniform vec4 lampFillC;\nuniform vec4 lampBounceC;\nuniform vec4 lampDark;\nuniform vec4 lampDarkP;\nuniform vec4 lampSkyO;\nuniform vec4 lampSkyN;\nuniform vec4 lampLvlSky;\nuniform vec4 lampLvlGnd;\nuniform vec4 lampCsM[16];\nuniform vec4 lampCsP[4];\nuniform vec4 lampCsI;\nuniform vec4 lampTorch[${TORCH_DRAW_SLOTS * 3}];\n#endif`,
     };
   }
 
@@ -831,6 +894,7 @@ export class LampPlugin extends MaterialPluginBase {
       ubo.updateFloat4('lampAmbO', f.grid.origin[0], f.grid.origin[1], f.grid.origin[2], AMBIENT_CELL);
       ubo.updateFloat4('lampAmbN', f.grid.n[0], f.grid.n[1], f.grid.n[2], 0);
       ubo.updateFloat4('lampFillC', f.color[0], f.color[1], f.color[2], 0);
+      ubo.updateFloat4('lampBounceC', l.bounceC[0], l.bounceC[1], l.bounceC[2], 0);
       ubo.setTexture('lampAmb', l.fillTex);
     }
     const lv = l.level;
@@ -885,12 +949,17 @@ export class LampPlugin extends MaterialPluginBase {
 }
 nsKind = 0.0;`;
     // the curve's input: the gameplay level here - fill, moon, lamps (as `LightField` sums them; no N.L)
+    // (LR16-1) the fill texture's G: the lit lamps' bounce, the field's own bytes, on the curve's level and on every
+    // lit material below
     const level = (lamps: string): string => `#ifdef LAMP_FILL
-float nsFillL = nsGrid(lampAmb, vPositionW + normalize(vNormalW) * 0.25, lampAmbO, lampAmbN);
+vec2 nsAmbB = nsGrid2(lampAmb, vPositionW + normalize(vNormalW) * 0.25, lampAmbO, lampAmbN);
+float nsFillL = nsAmbB.r;
+float nsBounce = nsAmbB.g;
 #else
 float nsFillL = 0.0;
+float nsBounce = 0.0;
 #endif
-float nsS = nsFillL + lampDark.y * nsMoon + max(${lamps}.r, max(${lamps}.g, ${lamps}.b)) / lampMore.w;
+float nsS = nsFillL + nsBounce + lampDark.y * nsMoon + max(${lamps}.r, max(${lamps}.g, ${lamps}.b)) / lampMore.w;
 // (a degenerate normal must not light a surface: a NaN level counts as none)
 if (!(nsS >= 0.0)) nsS = 0.0;
 float nsR = nsDarkRatio(nsS, lampDark.x, lampDarkP);`;
@@ -1085,6 +1154,11 @@ ${level('nsLampRaw')}
   float nsBF = 1.0;
   float nsEnv = 1.0;
 #endif
+#ifdef LAMP_FILL
+  // (LR16-1) the one-bounce fill on every lit material (the level, its sky-filled boxes, the voxels, bodies and props;
+  // bodies and props under night vision x the body fill cap, as their flat fill)
+  nsStat += nsBounce * lampMore.w * lampBounceC.rgb * surfaceAlbedo.rgb * nsBF;
+#endif
 #ifdef LAMP_TORCH
   // (LR15) the flashlights without a shadow map, drawn as the light field sums them x their beam's cut; like Babylon's
   // lights they join after the darkness curve. (lrpolish) x directIntensity / PI, as Babylon's lights scaled them: 1 on
@@ -1117,6 +1191,8 @@ ${settle}
 ${level('nsLampRaw')}
 #ifdef LAMP_FILL
   nsStat += nsFillL * lampMore.w * lampFillC.rgb;
+  // (LR16-1) the one-bounce fill
+  nsStat += nsBounce * lampMore.w * lampBounceC.rgb;
 #endif
   diffuseBase = max(nsStat, vec3(0.0)) * nsR + nsDyn;
 }
