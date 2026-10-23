@@ -65,3 +65,35 @@ export function tallHall(spot: boolean): { reg: LightRegistry; bake: LightBake; 
   const shapes = [box([10, -0.1, 10], [20.4, 0.2, 20.4]), box([10, 8.1, 10], [20.4, 0.2, 20.4])];
   return { reg, ...bakeRoom(reg, shapes, [-1, -1, -1], [21, 9, 21]) };
 }
+
+/** (LR16-1 fix round) `twoRooms` with the shared 0.2 m wall at x `wx`..`wx` + 0.2 (anywhere inside its 1 m cell). */
+export function wallRooms(wx: number): VoxelShape[] {
+  const s = twoRooms();
+  s[4] = box([wx + 0.1, 1.5, 5], [0.2, 3, 10.4]);
+  return s;
+}
+
+/** Room A's acceptance lamp `d` m (horizontally) from the lit face of a wall at x `wx`, baked. */
+export function wallRoom(wx: number, d: number): { reg: LightRegistry; bake: LightBake; field: LightField } {
+  const reg = new LightRegistry();
+  reg.add({ ...LAMP_A, x: wx - d });
+  return { reg, ...bakeRoom(reg, wallRooms(wx), TWO_LO, TWO_HI) };
+}
+
+/** Two storeys (10 x 10 m): the lower room's floor at 0, a 0.2 m slab at y `sy`..`sy` + 0.2, a 3 m room over it; the
+ *  acceptance lamp hangs 0.2 m under the slab. */
+export function slabRoom(sy: number): { reg: LightRegistry; bake: LightBake; field: LightField } {
+  const reg = new LightRegistry();
+  reg.add({ ...LAMP_A, x: 5, y: sy - 0.2, z: 5 });
+  const top = sy + 0.2 + 3;
+  const shapes = [
+    box([5, -0.1, 5], [10.4, 0.2, 10.4]),
+    box([5, sy + 0.1, 5], [10.4, 0.2, 10.4]),
+    box([5, top + 0.1, 5], [10.4, 0.2, 10.4]),
+    box([-0.1, top / 2, 5], [0.2, top, 10.4]),
+    box([10.1, top / 2, 5], [0.2, top, 10.4]),
+    box([5, top / 2, -0.1], [10.4, top, 0.2]),
+    box([5, top / 2, 10.1], [10.4, top, 0.2]),
+  ];
+  return { reg, ...bakeRoom(reg, shapes, [-1, -1, -1], [11, top + 1, 11]) };
+}
