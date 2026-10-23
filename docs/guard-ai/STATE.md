@@ -642,9 +642,12 @@ Open:
    request e2e-coop + netmove on it), PR (stacked on #254), train-ready.
 5. S25a pure searchArea.ts: feature/guard-ai-s25a (39420159 + check). Check PASS (slices/S25A-CHECK.md in
    -s25a). Not a PR alone: S25b = the wiring (slices/S25.md Build 2-4, tests, e2e) on S24's tip with S25a merged:
-   brief it to cloud-queue (Opus only) once S24's checks pass.
+   BRIEFED ~21:20: cloud-queue briefs/guard-ai-S25b.md (8958388b, off S24 + S25a, merges later S24 fixes).
    S25b brief MUST add (S25A-CHECK polish 2): offer candidates best score first; searchDone finds the guard's point
    by claim === num (a finishBy(num) helper), never a saved index; buildPlan never rebuilds a plan with live claims.
+6. Running ~21:20 (Opus): S24 e2e-coop two-intruders block (-s24 worktree; commits, queues set s24-coop);
+   e2e-guard-carry flake triage (-s24 worktree, edits scripts/e2e-guard-carry.mjs + slices/GUARD-CARRY-FLAKE.md
+   uncommitted: the lead commits them into S24); planner S26-S28 briefs (feature/guard-ai, commits its own files).
 Questions for Michael (non-blocking, decision packs): S23 client arcs / LKP ghost; S25 searchers' flares.
 Polish lists only: WALK-CHECK 1-6, S16-CHECK, A126-CHECK, S22-CHECK 1-5, S22-GAME-CHECK(2), CARRY-FIX2-CHECK,
 S23-CHECK-A/B, LR16-4-POLISH. A-numbers: S23 A143-A145, S24 A146-A150, S25 A151-A154 accepted (move into BRIEF.md).
