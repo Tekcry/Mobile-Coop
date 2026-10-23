@@ -1215,7 +1215,7 @@ try {
   {
     await startMode(...MISSION);
     await GA(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
-    const S24 = { pair1: [[-15, -2.5], [-14, -2.5]], host: [-14.5, 5.2], pair2: [[8, -6], [9.2, -6]], client: [9, 3], hostHide: [-11, -14.5], clientHide: [9, -10.3] };
+    const S24 = { pair1: [[-15, -2.5], [-14, -2.5]], host: [-14.5, 5.2], pair2: [[8, -6], [9.2, -6]], client: [9, 3], hostHide: [0, -14], clientHide: [9, -10.3] };
     const cid = await GB(() => window.__coop.session.selfId);
     const hostSpot = await GA(([x, z]) => { const g = window.__app.current; const nav = g.enemyMgr.nav; const c = nav.nearestWalkable(x, z, 2, 0); const [cx, cz] = c >= 0 ? nav.center(c) : [x, z]; g.player.controller.teleport(new g.player.position.constructor(cx, 0.05, cz), Math.PI); g.player.cam.pitch = 0; return [cx, cz]; }, S24.host);
     await moveClient(B, S24.client[0], 0.1, S24.client[1], Math.PI);
@@ -1257,7 +1257,7 @@ try {
         const sClient = em.intruders.slotFor(cid);
         const gen = (window.__s24Gen = (window.__s24Gen ?? 0) + 1);
         // per guard (pair 1 then pair 2): his own pair's slot, the other's, closest approaches once hiding
-        const s = (window.__s24 = { phase: 'seen', t0: g.time, t: 0, hideT: -1, sHost, sClient, own: [Infinity, Infinity, Infinity, Infinity], other: [Infinity, Infinity, Infinity, Infinity], wrong: [0, 0, 0, 0], hunts: [], levels: [], spots: null });
+        const s = (window.__s24 = { phase: 'seen', t0: g.time, t: 0, hideT: -1, sHost, sClient, own: [Infinity, Infinity, Infinity, Infinity], other: [Infinity, Infinity, Infinity, Infinity], wrong: [0, 0, 0, 0], seen: [0, 0, 0, 0], kOwn: [0, 0, 0, 0], kOther: [Infinity, Infinity, Infinity, Infinity], hunts: [], levels: [], spots: null });
         const hooks = window.__app.loop['hooks'];
         const orig = hooks.fixedUpdate;
         const step = (dt) => {
@@ -1276,10 +1276,15 @@ try {
             const mine = i < 2 ? sHost : sClient;
             const theirs = i < 2 ? sClient : sHost;
             if (e.hunt === theirs) s.wrong[i]++;
+            if (e.seesIndex(0) || e.seesIndex(1)) s.seen[i]++;
             const a = em.lkpOf(mine);
             if (a) s.own[i] = Math.min(s.own[i], Math.hypot(e.pos.x - a.x, e.pos.z - a.z));
             const b = s.spots[i < 2 ? 1 : 0];
             s.other[i] = Math.min(s.other[i], Math.hypot(e.pos.x - b[0], e.pos.z - b[1]));
+            // the point he works from (enemy.ts knownPt, set each combat think): his own player's spot, never the other's
+            const k = e.knownPt;
+            if (a && k) s.kOwn[i] = Math.max(s.kOwn[i], Math.hypot(k[0] - a.x, k[1] - a.z));
+            if (k) s.kOther[i] = Math.min(s.kOther[i], Math.hypot(k[0] - b[0], k[1] - b[1]));
           }
         };
         hooks.fixedUpdate = step;
@@ -1330,14 +1335,20 @@ try {
       const hid = await waitHostSim(A, 10000);
       const c1 = await GA(() => ({ ...window.__s24 }));
       const f2 = (v) => (Number.isFinite(v) ? v.toFixed(2) : String(v));
-      const why1 = JSON.stringify({ hid: Math.round(hid), own: c1.own.map(f2), other: c1.other.map(f2), wrong: c1.wrong, hunts: c1.hunts, levels: c1.levels, spots: c1.spots });
+      const why1 = JSON.stringify({ hid: Math.round(hid), own: c1.own.map(f2), other: c1.other.map(f2), kOwn: c1.kOwn.map(f2), kOther: c1.kOther.map(f2), seen: c1.seen, wrong: c1.wrong, hunts: c1.hunts, levels: c1.levels, spots: c1.spots });
       assert(hid >= 10000, `S24: 10 s of the host's sim with both players hidden (${why1})`);
       const own1 = Math.min(c1.own[0], c1.own[1]);
       const own2 = Math.min(c1.own[2], c1.own[3]);
       const oth1 = Math.min(c1.other[0], c1.other[1]);
       const oth2 = Math.min(c1.other[2], c1.other[3]);
-      assert(own1 < 3 && oth1 > own1 + 5, `S24: pair 1 closes on the host's last known position (${f2(own1)} m), never on the client's (${f2(oth1)} m) (${why1})`);
-      assert(own2 < 3 && oth2 > own2 + 5, `S24: pair 2 closes on the client's last known position (${f2(own2)} m), never on the host's (${f2(oth2)} m) (${why1})`);
+      // setup guard: both hide spots are walled off from both pairs (in combat sight is geometry only, no light / range)
+      assert(c1.seen.every((n) => n === 0), `S24: no pair guard sees a player during the hide (setup: hide spots walled off) (${why1})`);
+      // deterministic: each guard works from his own player's last known position, never the other's (roles may hold
+      // a pair in cover past 10 s, so distance closed is logged, not asserted)
+      assert(c1.kOwn.every((d) => d <= 0.5), `S24: every guard works from his own player's last known position (${why1})`);
+      assert(c1.kOther.every((d) => d > 10), `S24: no guard works from the other player's last known position (G139) (${why1})`);
+      assert(oth1 > own1 && oth2 > own2, `S24: each pair moves toward its own player's spot, not the other's (pair 1 ${f2(own1)} / ${f2(oth1)} m, pair 2 ${f2(own2)} / ${f2(oth2)} m) (${why1})`);
+      console.log(`    (S24: closest to own last known position: pair 1 ${f2(own1)} m, pair 2 ${f2(own2)} m in 10 s)`);
       assert(c1.wrong.every((n) => n === 0), `S24: no guard of either pair ever hunts the other pair's player (G139) (${why1})`);
     } finally {
       await GA((ids) => {
