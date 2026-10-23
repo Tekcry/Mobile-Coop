@@ -812,14 +812,17 @@ console.log('sector ops: co-op client mirrors the live section');
       await until(A, (c) => { const r = [...window.__app.current.net.remotes.values()][0]; return Math.hypot(r.feet.x - c.x, r.feet.z - c.z) < 1.6; }, cr, 15000, 'the host sees the client at the crate');
       const drain = (P) => P.evaluate(() => { for (const s of window.__app.current.weapons.slots) { s.mag = Math.min(3, s.stats.magSize); s.reserve = 0; } });
       const tot = (P) => P.evaluate(() => { const w = window.__app.current.weapons; return { eq: w.slots.every((s) => s.mag + s.reserve === s.stats.magSize + s.def.reserve), dry: w.slots.every((s) => s.reserve === 0), full: w.atLoadout() }; });
-      const nearId = (P) => P.evaluate(() => window.__app.current.interactables.nearest(window.__app.current.player.position)?.id ?? null);
+      // (crate-client-fix) the crate's prompt only: the stand points are 1.27 m (client) and 0.57 m (host) from the C2 far
+      // door's item (reach 1.4, unlocked by the cycle), so once the client has used the crate its nearest item is that
+      // door, never null (tests/weaponsCrate.test.ts pins the geometry)
+      const nearId = (P) => P.evaluate(() => window.__app.current.interactables.nearest(window.__app.current.player.position, undefined, 'crate')?.id ?? null);
       const useB = () => GB(() => { const it = window.__app.current.interactables.items.find((x) => x.id === 'racking-crate'); it.onUse(it); });
       await drain(B);
       assert((await nearId(B)) === 'racking-crate', 'the client is offered the crate');
       await useB();
       await until(B, () => window.__app.current.weapons.atLoadout(), null, 10000, 'the client\'s guns are topped up to its loadout');
       assert((await tot(B)).eq, 'the client totals equal its loadout');
-      await until(B, () => window.__app.current.interactables.nearest(window.__app.current.player.position) === null, null, 5000, 'the client\'s prompt is gone');
+      await until(B, () => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === 'racking-crate'); return it?.spent === true && g.interactables.nearest(g.player.position, undefined, 'crate') === null; }, null, 5000, 'the client\'s crate prompt is gone');
       assert((await nearId(A)) === 'racking-crate', 'the host is still offered the crate');
       const dbg = await GA(() => window.__sector.debug().crates.find((c) => c.id === 'racking-crate'));
       assert(dbg.used.includes(cr.who) && !dbg.used.includes('local') && dbg.live, `the host ledger lists the client (${JSON.stringify(dbg)})`);
