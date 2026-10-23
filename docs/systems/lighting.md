@@ -118,6 +118,18 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
 - A material made after load gets the lamp plugin on the next frame (`BakedLamps.frame` re-scans when the material count
   changes).
 
+## Moving lights: flicker and stutter (LR16-5, Michael M13)
+- `world/lampFlicker.ts` (pure): a fire's multiplier (value noise 0.75..1, a few Hz) and a failing tube's stutter
+  (mostly on; a burst every ~8 s: chatter off / dim / on, or a drop-out with starter blinks), each a function of the
+  lamp's seed (map id + match seed + registry id) and the sim time only. `STUTTER_TUBES`: one tube per main map,
+  matched by position at `World.create` (`applyMapFlicker`); every `kind: 'fire'` light enrols itself.
+- `LightRegistry.tickFlicker(t)` (once per fixed step in `GameState.updateLight`, before the meter samples; `t` the
+  shared clock `NetAttachment.simTime`, snapped to the 60 Hz step) writes `LightDef.flicker` and bumps `flickerVersion`,
+  never `version` (the caches, the bounce and the lamp sync do not re-run per frame). No wire traffic.
+- Every reader multiplies by `flicker`: `contribution`, the light field (baked and unbaked), the baked lamps' colour
+  texel (`writeFlicker`: the flickering lamps only, no new sampler), the pooled lights, the fitting glow, the haze.
+  Off / shot / jammed stays off: the multiplier never touches `on` / `destroyed`. Sway (LR16-5b) is not built.
+
 ## Character silhouette shadows (LR14, sector-redesign charshadow)
 Rendering only (plan and budget: `docs/lighting-review/LR14-PLAN.md`; build report:
 `docs/sector-redesign/checks/lr14-build.md`). As in CT, the lamps nearest the player throw the real shape of a guard,
