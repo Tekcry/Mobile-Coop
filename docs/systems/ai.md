@@ -321,6 +321,13 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   looks round it `SWEEP.dwell` s (unreachable: skipped), the others hold `rank x SWEEP.gap` m behind him, then the same
   order again. They stay hunting (S6), so never calm; `clear` (unload / restart) ends the teams; a woken member takes
   his place back (`swap`).
+- Co-op (guard-ai S9, protocol 32, A90-A95): the brain stays host-only; the client sees what the host shows. Barks:
+  `Enemy.bark` hands `onBark` the event, `BarkVoice.lastLine` and the unit; the host sends a `bark` event (index into
+  `BARK_EVENTS`, append only) and the client rebuilds the text with `barkLine` (pair talk and the desk's camera line go
+  as text). Caution and gear ride the snapshot `al` (`AL_CAUTION` 16, `AL_HELMET` 32, `AL_ARMOUR` 64). The weapon
+  carry is `ai/guardStance.ts` on both sides (`guardAim` host, `wireGuardAim` client): cautious and calm = low ready
+  (`GUARD_AIM.caution` 0.4). The gear parts and the enforcer shield are `ai/gearParts.ts`, built by `Enemy` and by the
+  client's `EnemyPuppet` alike.
 - Sound: `world/surfaces.ts` (pure) `surfaceAt` scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice. Shots:
   `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise` (combat); `onRay` hits
   are heard within `IMPACT_NOISE`.

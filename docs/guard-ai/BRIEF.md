@@ -333,3 +333,23 @@ doesnt make sense". A32-A34 are S10's (on `feature/guard-ai-s10`).
 - **A64** (S15) The walk ends at the walkable cell nearest the switch (`nearestWalkable`, 4 cells); he works it within
   0.7 m and gives up after 30 s without getting there (`BREAKER_WALK` in `ai/breaker.ts`); his pace is `PACE.patrol`
   (`PACE.cautious` while cautious). Undo: change `BREAKER_WALK`.
+- **A90** (S9) Protocol 32 (free on every origin branch: master 31, marlow-final 33, section-rating 34, sector-redesign
+  art kit 35). Barks go as indices (`BARK_EVENTS`, append only; line `BarkVoice.lastLine`; unit), the client rebuilds
+  the text (`barkLine`); lines not in the table (a talking pair's, the security desk's camera line) go as text
+  (`BARK_TEXT` / `BARK_CAM`, 120 chars). A80-A89 are left for S16. Undo: drop the text kinds (pairs and desk lines
+  host-only again).
+- **A91** (S9) Caution low ready on both screens: cautious and calm, `GUARD_AIM.caution` 0.4 (was the calm 0.2: the
+  host's own pose changes too, so the two match; research/ct-behaviour.md "weapon at low ready"). The client's wire
+  level 1 (suspicious or investigating) poses as investigating 0.7 (the host's suspicious is 0.4). Undo:
+  `GUARD_AIM.caution` 0.2.
+- **A92** (S9) The client's dropped helmet flies along our own round when it hit him within 1 s, else backwards from
+  his facing (the host's round direction is not on the wire); a helmet bit clearing while he jumped more than
+  `PG_JUMP` 1.5 m in one frame is a re-place (restart, new slot) and drops nothing. A re-place in place (under 1.5 m)
+  would drop a stray helmet on the client. Undo: carry the direction in a `helmet` event.
+- **A93** (S9) The client predicts a deflect from the gear bits (instant marker and ping through `playerWeapons`, as the
+  host's own); the host's `hitConfirm` `deflect` shows only when not predicted (`DeflectLedger`, 1 s window). The host
+  confirms only deflects on guards (hits are predicted, kills come as `kill`). Undo: show every confirm.
+- **A94** (S9) The puppet predicts the enforcer's front shield block (0 dealt) with the host's `shieldBlocks`, so a
+  client round on the shield no longer predicts damage. Undo: drop the line in `EnemyPuppet.applyDamage`.
+- **A95** (S9) The gear parts and the shield are one builder for both sides (`ai/gearParts.ts`, moved out of `Enemy`
+  without a change in look); gear parts build on the puppet the first time its bits ask, then toggle. Undo: n/a.
