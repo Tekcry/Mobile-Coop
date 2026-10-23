@@ -474,10 +474,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   slower than the #226 build.
 - [ ] Views s1-a to s5-g (`scripts/campus-art-shots.mjs`, laptop GPU): each shot reads as finished dressing; nothing
   floats, sinks or blocks a door, route, hiding spot or light.
-- [ ] No greybox showing: no bare grey box where a skin or hero belongs (S2 green wall, S3 lockers, S5 vault frame,
-  kitchen run and monitor wall).
+- [ ] No greybox showing: no bare grey box where a skin or hero belongs (S2 green wall, S5 kitchen run).
 - [ ] Draws: each section within 40 draws, 150 k triangles and 2500 placements (`world-and-characters.md`, "Campus art
-  kit"); S1 and S2 at 39 of 40, and the GPU draw count matches the `artCounts` in the dump.
+  kit"); S1 35, S2 33 of 40, and the GPU draw count matches the `artCounts` in the dump.
 - [ ] Gate: `tests/campusArtGameplay.test.ts` passes on the build (routes, cover, nav, lips, ledges, split gaps).
 
 ### Co-op (two browser tabs)

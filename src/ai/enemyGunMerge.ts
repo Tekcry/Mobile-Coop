@@ -9,9 +9,11 @@ import type { WeaponModel } from '../weapons/weaponModel';
  * evaluated, bounded and instanced per pass, under a hand chain the anim moves every frame). The parts' unit meshes are
  * merged once per (library, gun type, colours, world scale) with `mergeParts` (the merged guard body's pure merge):
  * per-vertex colour, `pattern`, `color2` and the pattern / surface space (`ppos` / `pnrm`, `SmoothBodyPlugin`) are the
- * instance values, so the gun shades the same pixels on the same `partSkinMat` (no look change: the ENEMY_GUN colours
- * as they were). Hi and low LOD as the part bases had (`trackLod`). Every guard's gun is an instance of that source
- * under his gun node (it follows the hand, holster and travel as the parts did; the node's `setVisible` hides it);
+ * instance values. The gun parts drew with `partMat` (`partLibrary.ts:103,115`); the merged gun moves them to
+ * `partSkinMat` (the same `make()` settings plus the voxel / smooth plugins), as the merged body does, with the
+ * ENEMY_GUN colours kept as they were. That the look is unchanged rests on the GPU look shot, not on this code.
+ * Hi and low LOD as the part bases had (`trackLod`). Every guard's gun is an instance of that source under his gun
+ * node (it follows the hand, holster and travel as the parts did; the node's `setVisible` hides it);
  * the parts stay for what reads them, disabled. `?guardmerge=0`: the parts, as before. Build time only.
  */
 

@@ -7,4 +7,4 @@ kind: minor
 - Campus dressing: the S2 atrium green wall is skinned onto the west wall in both bays.
 - Campus dressing: S4 battery rows use the real battery rack piece, the raised-floor tile grid now covers the hall (72 tiles), and the genset exhaust stack is listed as an overhang part.
 - Campus dressing: S5 kitchen counter run and wall cupboards are placed. The two hall portraits sit at the hall floor's height.
-- Freeze polish C1-C6, see artnext-c.
+- Freeze polish C4-C6 (C1-C3 were already on the base; C7-C9 at the master merge).

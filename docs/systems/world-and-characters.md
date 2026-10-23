@@ -115,12 +115,8 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   (the API above, one case per kit item), `campusDressRules`, `campusArtRender`, `campusS<N>Dress`.
 - **Render.** `campusArtRender.ts` draws one instanced mesh per (section, material); the World hook and
   `BuiltLevel.hidePieces` (`levelBuilder.ts`) hide the boxes a skin replaces.
-- **Budget.** At most 40 draws, 150 k triangles and 2500 placements per section. Now: S1 39 / S2 39 / S3 29 / S4 25 /
-  S5 30 draws; the campus is 162 draws and 183 k triangles (1852 placements). S1 and S2 sit at 39 of 40: adding a
-  material there needs a draw back first. Perf budgets: `docs/systems/performance.md`; shots: `scripts/campus-art-shots.mjs`.
-- **Not built yet:** the kit API above is in (artnext lane A). The dressing that uses it (artnext lane B: S1 cars, S2
-  green wall, S3 lockers, S4 racks and floor, S5 vault frame, kitchen and monitor wall) and its status are in
-  `docs/sector-redesign/checks/artnext-build.md`. Older gaps: "Not applied" in `art-join.md`.
+- **Budget.** At most 40 draws, 150 k triangles and 2500 placements per section. Now: S1 35 / S2 33 / S3 27 / S4 19 /
+  S5 29 draws; the campus is 143 draws and 186 k triangles (1930 placements). S1 sits at 35 of 40. Perf budgets: `docs/systems/performance.md`; shots: `scripts/campus-art-shots.mjs`.
 
 ## Characters (one rig for player, enemies, coop remotes, dummies and the menu operator)
 - (anim-natural-n2) Wren's body motion layer (`src/anim/bodyMotion.ts`, pure): per tuner body row (`BODY_MOTION`,

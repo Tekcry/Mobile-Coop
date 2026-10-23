@@ -16,7 +16,9 @@ S5-worst 13.1, S3-worst 10.6 ms CPU p95; guard-cap campus alert 18.1 ms, 583 dra
    - Merge note for master: master's line is `this.rig.animate(dt, rp, this.animTier.dt(...))`; resolve as
      `if (sd >= 0) this.rig.animate(sd, rp, this.animTier.dt(sd, ...))` (or give `GuardAnimTier` a frozen input that
      returns the skip), so a frozen guard neither solves nor ticks the tier.
-2. Merged guard gun (proposal 2, no look change).
+2. Merged guard gun (proposal 2). The gun parts drew with `partMat` (`partLibrary.ts:103,115`); the merged gun moves
+   them to `partSkinMat` (the same `make()` settings plus the voxel / smooth plugins), as the merged body does. The
+   no-look-change claim rests on the GPU look shot, not on code.
    - `src/ai/enemyGunMerge.ts` `mergeGun` (:25): the gun's part instances (rifle 18, pistol fewer) are merged once per
      (part library, gun type, part placements and instance values) with the merged body's own pure `mergeParts`
      (`smoothBodyMerge.ts`): per-vertex colour, `pattern`, `color2`, `ppos` / `pnrm` = the instance values, on the same
