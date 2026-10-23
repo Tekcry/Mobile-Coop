@@ -129,13 +129,13 @@ export const STAIR_FILL = { step: 0.5, gap: 0.05 } as const;
  *  to the wall would be one body width) to the head (x `to`, the deck's east end); each segment's collision box starts at the walking line at its low
  *  (east) end and stands `h` m over the line at its high end. Twelve segments. */
 export const A2_STAIR_RAIL = { z: 18.75, seg: 0.55, h: 1.1, from: 68.6, to: 62 } as const;
-/** The wheel stops' x spans and the train-facing face of each (the rails end against it). */
+/** The wheel stops' x spans and the train-facing face of each (the rails end against it); `side` is the shed end (w: x 33, e: x 69). */
 const STOPS = [
-  { side: 'e', at: 33.4, x0: 32.6, x1: 33.4 },
-  { side: 'w', at: 68.6, x0: 68.6, x1: 69.4 },
+  { side: 'w', at: 33.4, x0: 32.6, x1: 33.4 },
+  { side: 'e', at: 68.6, x0: 68.6, x1: 69.4 },
 ] as const;
 /** Road 2's east wheel stop stood in the L2 door's approach (door x 70, z 9.1-10.9): it is not built (walk482 X3), the other five are. */
-const NO_STOP = (side: string, c: number): boolean => side === 'w' && c === A2_ROADS[1];
+const NO_STOP = (side: string, c: number): boolean => side === 'e' && c === A2_ROADS[1];
 /** The track panels (10 m modules, x centres) on each road: rails from x 29.5 to 69.5, flush with the floor. */
 export const A2_TRACK_X = [34.5, 44.5, 54.5, 64.5] as const;
 /** The permit gate that closes the pocket x 28.25-30 where the west stair stood (A2-D3): 1.0 m across, a body (0.6 m) fits neither side. */
@@ -208,7 +208,7 @@ export function buildA2CarriageShed(b: LevelBuilder, kit: FacilityKit): SetPart 
   });
   tally(b, p.register, 'A2-10', 'Wheel stops 0.3 m at the road ends (x 32.6-33.4 and 68.6-69.4, 1.6 m wide), five: none at road 2\'s east end, which would stand in the L2 door\'s approach (walk482 X3): low, so no solo jump top (A2-D2)', () => {
     for (const c of A2_ROADS) {
-      for (const [side, x0, x1] of [['e', 32.6, 33.4], ['w', 68.6, 69.4]] as const) if (!NO_STOP(side, c)) slab(x0, x1, c - 0.8, c + 0.8, 0, 0.3, STEEL);
+      for (const [side, x0, x1] of [['w', 32.6, 33.4], ['e', 68.6, 69.4]] as const) if (!NO_STOP(side, c)) slab(x0, x1, c - 0.8, c + 0.8, 0, 0.3, STEEL);
     }
   });
   p.register.push({ id: 'A2-11', element: 'North walkway z 16.3-17.5 behind road 3\'s vans and along the staging face, west of x 45.5 and east of x 56.5 (open floor, no pieces; the neck ends are closed, A2-21)' });

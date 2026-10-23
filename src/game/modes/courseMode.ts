@@ -581,7 +581,9 @@ export class CourseMode implements GameMode {
     // fresh guard cannot fail the set again before both players are back (W482 check should-fix 1).
     if (this.spotHold > 0) this.spotHold -= dt;
     const sf = st.currentBay.spotFail;
-    if (sf && !st.over && this.restartT < 0 && this.spotHold <= 0 && spotFailed(st.currentBay, this.squad)) {
+    // The manager's list, not `squad`: Course mode spawns only this set's squad, and a knocked-out guard a squadmate wakes is a new
+    // `Enemy` (`EnemyManager.revive`) that `squad` never holds (W482 check should-fix 2).
+    if (sf && !st.over && this.restartT < 0 && this.spotHold <= 0 && spotFailed(st.currentBay, g.enemyMgr?.enemies ?? this.squad)) {
       this.radioQ.unshift(sf);
       if (this.radioQ.length > 4) this.radioQ.length = 4;
       this.restartCheckpoint();
