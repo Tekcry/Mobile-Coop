@@ -1,5 +1,9 @@
 # Resume - Night Shift | Player Build (updated 2026-10-23 ~21:40 after the swap; live state in docs/guard-models/STATE.md "RESUMED" line)
 
+HIGH ~22:15 (orchestrator, WALK-4.82-REPORT.md items 7 + 4): coop-rejoin = rejoining / reconnecting client spawns at
+the host's current checkpoint or beside the host with section state; two-slot spawn points (Marlow places them). Opus
+builder in C:/NightShift/Mobile-Coop-coop-rejoin (feature/coop-rejoin off master 33fff449; docs/coop-rejoin/REPORT.md).
+Then 2 Opus checkers (src/net) + laptop coop netmove ctcourse on the same commit, PR, train-ready label, message orchestrator.
 SAVE ~22:10 (92%): #247 checker PASS on afea69d3; CI red only on tests/mocapStrafe.test.ts alloc (1930.9 vs 1916.9):
 CI rerun 39942525621 + an Opus agent making the measurement robust (no threshold change) on feature/anim-fix-pass; if
 it changes only the test file the laptop request on afea69d3 still counts. guard-models live state: STATE.md "SAVE ~22:10"
