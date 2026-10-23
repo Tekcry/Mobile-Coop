@@ -392,21 +392,25 @@ e2e for you and posts the verdict as a commit status on the tested sha. No messa
   [--set name] [--jobs N] [--requester "<title>"] (--suites "e2e-coop e2e-netmove" | --full | --alone --step "<cmd>" [--env K=V])`.
   Needs a pushed sha. It pushes `requests/<id>.json` to the `laptop-queue` branch and prints the id. `--dry-run` shows
   the JSON and pushes nothing. An `--alone` step may start with `serve ` (runs `scripts/laptop-queue/serve.mjs`).
-- Order: trains (an `origin/train/<n>` head with no `laptop-e2e` status; both slots, sharded by suite times), then pr / full
+- Order: trains (an `origin/train/<n>` head with no `laptop-e2e` status; both slots, sharded by suite times; a head whose
+  `auto-train/*` status is failure or error is skipped), then pr / full
   requests (one slot), then alone-measurements (both slots; one waiting over 45 min goes ahead of pr work).
 - Statuses: `laptop-e2e` (trains), `laptop-e2e/<set>` (pr, set defaults to the suites joined by `+`), `laptop-e2e/full`,
   `laptop-e2e/alone-<set>`. Description "N/N pass, <s> s", plus "; flake: x" and "; FAIL: y". A failure also comments on the
   PR (suite, failing line, log path on the laptop). Logs: `C:/NightShift/scratch/laptop-queue/runs/<id>/`.
 - Flakes: a failed suite reruns once alone on the same sha; a pass counts as a pass and is logged as a flake (state.json,
   for its owner to fix); a suite that flaked in the last 24 h is not rerun again.
-- Manual runs keep working: the service uses the `C:/NightShift/heavy-<slot>.lock` files and waits while one is held.
+- Manual runs keep working: the service uses the `C:/NightShift/heavy-<slot>.lock` files and waits while one is held; its
+  log says "<port> waiting on manual lock: <holder>" once per holder and the wait in minutes when it takes the lock.
 - Desktop overflow lane (Michael 2026-10-23 ~20:45): the same service with `LQ_WORKER=desktop` (task
   `NightShift-desktop-queue`, `install-task.ps1 -Worker desktop`) takes pr requests only, on 4191 in
   `C:/NightShift/Mobile-Coop-testrun-4191` under `C:/NightShift/heavy.lock`, `E2E_GPU=1 E2E_JOBS=1`, and starts one only
-  while more than 3 requests wait and desktop CPU is under 60%. Trains, full and alone runs stay on the laptop. Its
+  while more than 3 requests wait and desktop CPU is under 60%. Full and alone runs stay on the laptop. Trains too, unless
+  the laptop is silent: no claim / done push by the laptop for 10 min (`LQ_LAPTOP_SILENT_MIN`) and the head is over 2 min
+  old; then the desktop takes the train (no backlog gate; lock and CPU gates kept), sharded on 4191+4192, E2E_JOBS=1. Its
   statuses read "desktop: ..."; logs `C:/NightShift/scratch/laptop-queue-desktop/runs/<id>/` on the desktop.
-- Claims: each worker pushes `claims/<id>.json` to the `laptop-queue` branch before a run and marks it done after, so
-  the two never run the same request. An open claim older than 3 h (`LQ_CLAIM_MAX_H`) is a dead worker's and is taken over.
+- Claims: each worker pushes `claims/<id>.json` (a train: `claims/<train-sha>.json`) to the `laptop-queue` branch before
+  a run and marks it done after, so the two never run the same request or train. An open claim older than 3 h (`LQ_CLAIM_MAX_H`) is a dead worker's and is taken over.
 - Install / remove the task: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-queue/install-task.ps1 [-Remove]`.
   Dry run: `node scripts/laptop-queue/service.mjs --once --dry-run`.
 

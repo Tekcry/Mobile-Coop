@@ -1,6 +1,16 @@
 # laptop-queue - state
 
-## Now (2026-10-23 ~22:05, Test Runner)
+## Now (2026-10-24, laptop-queue batch, local commits, not pushed)
+- `pendingTrains()` skips a train head with an `auto-train/*` status in failure / error (lib `trainBuildFailed`),
+  logged once per head (train 37 held both slots 18 min after vitest had failed).
+- Trains are claimed (`claims/<train-sha>.json`) by both workers; the desktop takes a train head when the laptop has
+  pushed no claim / done for `LQ_LAPTOP_SILENT_MIN` (10) min, the laptop service claims trains itself and the head is
+  over 2 min old (lib `workerActivity`, `desktopTrainGate`); sharded on 4191+4192, E2E_JOBS 1, lock / dir / CPU gates kept.
+  Rollout: the laptop service must run this code first (until it pushes a "claim train", the desktop takes no trains).
+- `takeLock` logs a manual-lock wait once per holder and the wait length when it takes the lock.
+- Not done here: auto-train "laptop missing" flag; `scripts/auto-train.mjs` is on master only (merge not allowed in this batch).
+
+## Earlier (2026-10-23 ~22:05, Test Runner)
 - Laptop service restarted on e1398df4 at ~21:57 (Michael approved; Stop-ScheduledTask leaves the node child alive,
   so a restart needs the node pid killed too). "done claim(s) pushed: 11": desktop lane unblocked.
 - Open-PR train gate (Orchestrator ~22:00): `pendingTrains()` (scripts/laptop-queue/service.mjs ~201) runs only a
