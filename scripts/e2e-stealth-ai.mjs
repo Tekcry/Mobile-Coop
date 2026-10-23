@@ -1453,6 +1453,88 @@ try {
     assert(r.nvOff < 0.01, `night vision is off (${r.nvOff})`);
   });
 
+  // (guard-ai S12, A35) a helmeted guard: the first round to the head knocks the helmet off (no damage, he reels, a
+  // deflect, the helmet tumbles to the floor and stays), the second kills
+  await scen('helmet', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      // the same random draws every run (as 'lkp')
+      const rnd = Math.random;
+      let seed = 3535;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      try {
+        t.light(1);
+        em.alarmRaised = true;
+        t.tp(-0.5, 0, 0);
+        const e = t.spawn('grunt', 0, 5, Math.PI);
+        e.setGear({ helmet: true, armour: false });
+        t.step(0.1);
+        const head = () => ({ amount: 60, point: e.pos.clone(), dir: new t.V(0, 0, 1), part: 'head', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', sourcePos: g.player.position.clone(), impulse: 1 });
+        const hp = e.health.hp;
+        const r1 = e.applyDamage(head());
+        const first = { deflect: r1.deflect === true, dealt: r1.dealt, alive: e.alive, hp: e.health.hp, helmet: e.helmet, stagger: +e['stagger'].toFixed(2), alerted: e.alerted, dropped: em.helmetDrops.shown };
+        t.step(0.6);
+        const d = em.helmetDrops['drops'][0];
+        const floor = d ? +(d.m.position.y - e.pos.y).toFixed(3) : 99;
+        const r2 = e.applyDamage(head());
+        return { hp, first, floor, killed: r2.killed, alive: e.alive, still: em.helmetDrops.shown };
+      } finally {
+        Math.random = rnd;
+      }
+    });
+    assert(r.first.deflect && r.first.dealt === 0 && r.first.alive && r.first.hp === r.hp, `the first head round is a deflect: no damage, alive (${JSON.stringify(r.first)})`);
+    assert(!r.first.helmet && r.first.dropped === 1, `the helmet is knocked off and dropped (${JSON.stringify(r.first)})`);
+    assert(r.first.stagger >= 0.85 && r.first.alerted, `he reels (stagger ${r.first.stagger}) and is in combat`);
+    assert(r.floor < 0.3, `the helmet lies on the floor after its tumble (${r.floor} m above his feet)`);
+    assert(r.killed && !r.alive, 'the second head round kills');
+    assert(r.still === 1, 'the dropped helmet stays as a clue');
+  });
+
+  // (guard-ai S12, A36) an armoured guard: five rounds to the body leave him alive and unhurt (staggered at most once
+  // per 1.5 s); one round to the head kills
+  await scen('armour', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const rnd = Math.random;
+      let seed = 4646;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      try {
+        t.light(1);
+        em.alarmRaised = true;
+        t.tp(-0.5, 0, 0);
+        const e = t.spawn('grunt', 0, 5, Math.PI);
+        e.setGear({ helmet: false, armour: true });
+        t.step(0.1);
+        const shot = (part) => ({ amount: 30, point: e.pos.clone(), dir: new t.V(0, 0, 1), part, kind: 'bullet', attackerTeam: 'player', attackerId: 'local', sourcePos: g.player.position.clone(), impulse: 1 });
+        const hp = e.health.hp;
+        let deflects = 0;
+        const staggers = [];
+        let clock = 0;
+        for (let i = 0; i < 5; i++) {
+          const before = e.sinceStagger;
+          if (e.applyDamage(shot('body')).deflect) deflects++;
+          if (e.sinceStagger < before) staggers.push(+clock.toFixed(2));
+          t.step(0.4);
+          clock += 0.4;
+        }
+        const body = { alive: e.alive, hp: e.health.hp, deflects, staggers };
+        const killed = e.applyDamage(shot('head')).killed;
+        return { hp, body, killed };
+      } finally {
+        Math.random = rnd;
+      }
+    });
+    assert(r.body.alive && r.body.hp === r.hp && r.body.deflects === 5, `five body rounds: alive, unhurt, five deflects (${JSON.stringify(r.body)})`);
+    let gap = 99;
+    for (let i = 1; i < r.body.staggers.length; i++) gap = Math.min(gap, r.body.staggers[i] - r.body.staggers[i - 1]);
+    assert(r.body.staggers.length >= 1 && r.body.staggers.length <= 2 && gap >= 1.5 - 1e-6, `staggered at most once per 1.5 s (${JSON.stringify(r.body.staggers)})`);
+    assert(r.killed, 'one round to the head kills (no helmet)');
+  });
+
   const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
   assert(real.length === 0, `no console errors (${real.join(' | ')})`);
 } catch (e) {
