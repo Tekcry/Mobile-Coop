@@ -285,10 +285,10 @@ LR16 batch on lr16int e7cec732 = LR16g + LR16-L A (bake box on the lamp, LAMP 6)
 C2 dropped: master has Marlow A1-A8) + lead fix 85b7ff10 + polish A, B, E + LR16-L B. Checks PASS: lr16w-batch-check
 (FIX 1 done), lr16-render-batch-check, lr16pol-ad-check.
 LAPTOP: e7cec732 lr16w RED 9/12 (3507 s): FAIL e2e-desktop:3, e2e-darkness, e2e-lightbake (sectorops + ctcourse pass).
-No PR -> no excerpt comment; asked Test Runner for the asserts (~05:05). RUNNING: Opus triage + one fix round on
+Cause (Test Runner excerpts): smooth-Epic level shader fails to compile on ANGLE D3D11 ("Error compiling dynamic pixel executable") -> no lamp light (darkness flat 9.7%), desktop:3 hangs after the 16-texture check. RUNNING: Opus triage + one fix round on
 feature/sector-redesign-lr16fix off e7cec732 (checks/lr16-laptop-triage.md). 2798e57d-642c lr16cf (lightbake) claimed
 17:44Z, no status yet. #226 MERGED in 4.84.0 (train 40). LR16-P check PASS (checks/lr16p-check.md); Sonnet agent
-queuing the LR16-P perf requests (checks/lr16p-perf-request.md). Lesson: open the LR16 PR (draft) before the next run
+queued the LR16-P perf requests (checks/lr16p-perf-request.md), lead WITHDREW all 3 (~05:25: C' / D carry the Epic shader failure); requeue the same steps on the fixed heads. Lesson: open the LR16 PR (draft) before the next run
 so failures post excerpts as PR comments.
 NEXT:
 1. e7cec732 verdict. Green -> merge feature/sector-redesign-lr16pol-cf 2798e57d (polish C + F, LAMP 7, check PASS
