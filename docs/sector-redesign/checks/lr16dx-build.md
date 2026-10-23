@@ -74,3 +74,38 @@ the reach and 3D face-distance rules), warehouseOps 1 (was 28: 44, decided), bun
   rack top 0.31 now under 0.4, R1[4] / R1[8] (-22.4, 11.2) no longer over 0.55. The slot-cap test ("no 2 m column has more
   lamps in reach than the shaders list") passes in all three.
 - No e2e, GPU, build or `npm run check` (brief).
+
+## Fix round (Opus, after the checker FIX `lr16dx-check.md`)
+
+What changed:
+- **Blocking 1** (`warehouseS3.ts:135` partsStore): 115 back to (10, 12.8) and 118 back to (22, 12.8), the row of four
+  panels at z 12.8 again (115 at z 12 hung 0.155 m past the deck slab over the open hall). Both dropped from
+  `LR16D_MOVED` (`tests/warehouseLamps.test.ts`). Neither flags under the dx rules (115: 1.03 m, 118: dead).
+- **Blocking 2** (`warehouseS2.ts:139` northA): 62 back to (-12, 6.9), in line with the cross-aisle row; dropped from
+  `LR16D_MOVED`. Its "wall" was a 0.05 x 0.05 m post.
+- **Polish 1** (`src/world/lampAudit.ts`): `THIN` 0.15 m. A solid whose world plan bounds are under `THIN` on both axes
+  (a post, a pipe, a hanger; a cylinder under 0.15 m across) is `Prepared.thin`; `cast(..., skipThin)` sees through it,
+  and only `nearestWall` passes `skipThin` (the ceiling, drop, push-block and framing casts still hit it). Unit test
+  "a thin post is not a wall" (`tests/lampAudit.test.ts`: a 5 cm post 0.45 m off the lamp is not flagged, a 0.2 m pier
+  there is at 0.35 m, a plain ray still stops on the post).
+- Other polish items untouched (LR16g / later).
+
+Tests:
+- `npx tsc --noEmit`: clean.
+- `npx vitest run` lampAudit, warehouseLamps, warehouseS1Light-S3Light (`--maxWorkers=2`): lampAudit (16) and
+  warehouseLamps pass; 11 failed, 47 passed, 3 skipped. The same 11 tests fail with the base c7a26ca7 map data
+  (warehouse, S1-S3 swapped in, run, restored).
+- Failing items vs base c7a26ca7, line by line: identical except
+  - new on head (the 3 accepted cage spots, lamp 71, LR16g): S2 "lit enough" R2[8] (-18.75, 13.5, 4) 0.38, R2[13]
+    (-23.45, 11.4, 4) 0.31, rack top W0N 0.31;
+  - gone on head: S2 "lit to a guard" R1[4] and R1[8] (-22.4, 11.2) (0.73 on base);
+  - the rest are the same items with values moved (largest: S3 pocket "the east bay by the plant room" 0.40 -> 0.54,
+    lamp 87, polish 3; S2 cage-side reads +-0.08 from 71). S3 R1[6], R3[6] and packing end and the S2 route
+    items the checker listed (R2[4], cross aisle middle, A2 middle, ladder foot R2N 0.17) are back to their base values
+    (S3: R1[6] passes, R3[6] 0.78 and the packing end 0.83 as on base; S2: R2[4], cross aisle middle and A2 middle
+    pass, ladder foot R2N 0.43 as on base).
+
+Audit (`node scripts/lamp-audit.mjs --json --no-views --map=warehouse,warehouseOps`): warehouse 0 flags, warehouseOps
+1 (44, decided). 62 not flagged (nearest wall 2.05 m: the post is seen through), 115 not flagged (1.03 m), 118 not
+flagged (dead fitting, 0.95 m). `lr16-lamp-audit.md` is not rewritten by this partial run; the next full
+`npm run lamp-audit` picks up the thin rule.

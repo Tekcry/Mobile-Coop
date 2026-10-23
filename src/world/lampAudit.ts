@@ -57,6 +57,8 @@ export const SIGN_REACH = 1.2;
 export const SPACING = 1.0;
 export const SPACING_DY = 1.0;
 export const FIT_GAP = 0.3;
+/** (LR16dx fix) A solid thinner than this in both plan axes (a post, a pipe, a hanger) paints no arc: not a wall face. */
+export const THIN = 0.15;
 /** The search step from the push toward the centre line, and the margin a dimmed sign's reach keeps off the face. */
 export const STEP = 0.05;
 export const DIM_MARGIN = 0.05;
@@ -159,6 +161,8 @@ export interface Prepared {
   sp: number;
   lo: [number, number, number];
   hi: [number, number, number];
+  /** Thinner than `THIN` in both plan axes (world bounds): the near-wall scan sees through it. */
+  thin: boolean;
 }
 
 /** The shapes in an xz bucket grid for ray casting. */
@@ -183,7 +187,7 @@ export function prepareScene(shapes: readonly VoxelShape[]): Scene {
     if (s.mode !== undefined && s.mode !== 0) continue;
     if (s.kind === 'cyl') {
       const hh = s.h / 2;
-      out.push({ box: false, cx: s.c[0], cy: s.c[1], cz: s.c[2], hx: s.r, hy: hh, hz: s.r, cyw: 1, syw: 0, cp: 1, sp: 0, lo: [s.c[0] - s.r, s.c[1] - hh, s.c[2] - s.r], hi: [s.c[0] + s.r, s.c[1] + hh, s.c[2] + s.r] });
+      out.push({ box: false, cx: s.c[0], cy: s.c[1], cz: s.c[2], hx: s.r, hy: hh, hz: s.r, cyw: 1, syw: 0, cp: 1, sp: 0, lo: [s.c[0] - s.r, s.c[1] - hh, s.c[2] - s.r], hi: [s.c[0] + s.r, s.c[1] + hh, s.c[2] + s.r], thin: 2 * s.r < THIN });
       continue;
     }
     const hx = s.s[0] / 2;
@@ -196,7 +200,7 @@ export function prepareScene(shapes: readonly VoxelShape[]): Scene {
     const ex = Math.abs(cyw) * hx + Math.abs(syw * sp) * hy + Math.abs(syw * cp) * hz;
     const ey = Math.abs(cp) * hy + Math.abs(sp) * hz;
     const ez = Math.abs(syw) * hx + Math.abs(cyw * sp) * hy + Math.abs(cyw * cp) * hz;
-    out.push({ box: true, cx: s.c[0], cy: s.c[1], cz: s.c[2], hx, hy, hz, cyw, syw, cp, sp, lo: [s.c[0] - ex, s.c[1] - ey, s.c[2] - ez], hi: [s.c[0] + ex, s.c[1] + ey, s.c[2] + ez] });
+    out.push({ box: true, cx: s.c[0], cy: s.c[1], cz: s.c[2], hx, hy, hz, cyw, syw, cp, sp, lo: [s.c[0] - ex, s.c[1] - ey, s.c[2] - ez], hi: [s.c[0] + ex, s.c[1] + ey, s.c[2] + ez], thin: 2 * ex < THIN && 2 * ez < THIN });
   }
   const lo: [number, number, number] = [Infinity, Infinity, Infinity];
   const hi: [number, number, number] = [-Infinity, -Infinity, -Infinity];
@@ -353,8 +357,8 @@ function hitShape(p: Prepared, ox: number, oy: number, oz: number, dx: number, d
   return { t: tn, nx: tN[0]!, ny: tN[1]!, nz: tN[2]! };
 }
 
-/** First hit of a ray (unit direction) within `tMax`, or null: a plan DDA over the buckets. */
-export function cast(sc: Scene, ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, tMax: number): Hit | null {
+/** First hit of a ray (unit direction) within `tMax`, or null: a plan DDA over the buckets. `skipThin`: see through thin solids. */
+export function cast(sc: Scene, ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, tMax: number, skipThin = false): Hit | null {
   let best: Hit | null = null;
   let bt = tMax;
   const seen = new Set<number>();
@@ -373,6 +377,7 @@ export function cast(sc: Scene, ox: number, oy: number, oz: number, dx: number, 
       for (const s of sc.cells[k * sc.nx + i]!) {
         if (seen.has(s)) continue;
         seen.add(s);
+        if (skipThin && sc.shapes[s]!.thin) continue;
         const h = hitShape(sc.shapes[s]!, ox, oy, oz, dx, dy, dz, bt);
         if (h) {
           best = h;
@@ -425,13 +430,14 @@ interface Near {
  * normal. `skip` drops one face direction (a wall fitting's own wall: normal along its facing). (LR16dx) A face a
  * tilted ray finds below the light (a cabinet, a unit, a wall top) is as near as its top edge: the perpendicular
  * distance with the drop from the light to the solid's top there (`faceDrop`), so a low unit 1.5 m under a lamp is
- * not read as a wall at its plan distance (the near radius is 3D).
+ * not read as a wall at its plan distance (the near radius is 3D). (LR16dx fix) Thin solids (posts, pipes: under `THIN`
+ * in both plan axes) are seen through: a 5 cm post paints no arc.
  */
 export function nearestWall(sc: Scene, x: number, y: number, z: number, skip: [number, number] | null = null): Near {
   let dist = Infinity;
   let n: [number, number, number] | null = null;
   for (const [dx, dy, dz] of DIRS) {
-    const h = cast(sc, x, y, z, dx, dy, dz, SCAN_REACH);
+    const h = cast(sc, x, y, z, dx, dy, dz, SCAN_REACH, true);
     if (!h || Math.abs(h.ny) >= WALL_NY) continue;
     const facing = -(dx * h.nx + dy * h.ny + dz * h.nz);
     if (facing <= 0) continue;

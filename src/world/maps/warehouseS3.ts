@@ -132,7 +132,7 @@ export const S3_LAMPS: readonly LampRoom[] = [
   { id: 'southWall', model: 'bulkhead', y: 5.0, group: 52, yaw: 0, cone: WALL_N, pass: true, lamps: [[-3, -8.35, 1.98, 0.399], [1, -8.35, 4.5, 0], [5, -8.35, 3.36, 0.613], [9, -8.35, 4.5, 0], [13, -8.35, 5.68, 0.584], [17, -8.35, 2.5, 0.895], [21, -8.35, 2.5, 1.056]] },
   // under the deck (ceiling 3.0): the office C3 (circuit 50), the manager's office (57); on the deck: the production office (53, ceiling 5.8)
   { id: 'office', model: 'panel', y: 2.95, group: 50, yaw: 0, pass: true, lamps: [[-2.5, 13.5, 4.25, 0.438], [0.5, 13.5, 5.49, 0.45], [-2.5, 16.5, 4.5, 0], [0.5, 16.5, 3.45, 0.278]] },
-  { id: 'partsStore', model: 'panel', y: 2.95, group: 51, yaw: 0, pass: true, lamps: [[10, 12, 2.98, 0.213], [14, 12.8, 3, 0], [18, 12.8, 3, 0], [22, 13.05, 3, 0]] },
+  { id: 'partsStore', model: 'panel', y: 2.95, group: 51, yaw: 0, pass: true, lamps: [[10, 12.8, 2.98, 0.213], [14, 12.8, 3, 0], [18, 12.8, 3, 0], [22, 12.8, 3, 0]] },
   { id: 'manager', model: 'panel', y: 2.95, group: 57, yaw: 0, pass: true, lamps: [[5, 15, 7, 0.906]] },
   { id: 'prodOffice', model: 'panel', y: 5.75, group: 53, yaw: 0, pass: true, lamps: [[17.85, 15.7, 1.5, 0.278], [20.4, 15.7, 4.22, 0.282], [22.95, 15.7, 1.84, 0.25], [17.85, 16.95, 5.28, 0.578], [20.4, 16.95, 3.5, 0], [22.95, 16.95, 5.31, 0.626]] },
   // the plant room (54, ceiling 3.6) and the east fire-exit lobby (55, ceiling 3.0)

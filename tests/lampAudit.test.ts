@@ -134,6 +134,21 @@ describe('lamp audit rules (LR16dx: realistic moves)', () => {
     expect(faceDrop(prepareScene(low), -0.62, 2.8, 0, 1.2)).toBeCloseTo(1.5, 6);
   });
 
+  it('a thin post is not a wall', () => {
+    // (LR16dx fix) a 5 cm post 0.45 m off the lamp, floor to ceiling (S2 lamp 62's case), paints no arc: not flagged;
+    // a 0.2 m pier at the same spot is a wall face
+    const post = [...room(), box([-0.45, 1.5, 0], [0.05, 3, 0.05])];
+    const pier = [...room(), box([-0.45, 1.5, 0], [0.2, 3, 0.2])];
+    const [a] = auditLamps(post, [{ id: 0, x: 0, y: 2.8, z: 0, cone: null, base: 'ceiling' }]);
+    const [b] = auditLamps(pier, [{ id: 0, x: 0, y: 2.8, z: 0, cone: null, base: 'ceiling' }]);
+    expect(a!.flagged).toBe(false);
+    expect(a!.nearWall).toBeGreaterThan(WALL_NEAR);
+    expect(b!.flagged).toBe(true);
+    expect(b!.dist).toBeCloseTo(0.35, 2);
+    // the post still stops a plain ray (it is a solid, only the near-wall scan sees through it)
+    expect(cast(prepareScene(post), 0, 2.8, 0, -1, 0, 0, 3)!.t).toBeCloseTo(0.425, 6);
+  });
+
   it('never two proposals on one spot: lamps off opposite walls of a 3.35 m room keep SPACING apart', () => {
     // walls at x +-1.675: both centre moves land on x 0 under the old rule
     const rows = auditLamps(room(3.35), [
