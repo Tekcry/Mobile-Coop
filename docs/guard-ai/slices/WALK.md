@@ -220,7 +220,7 @@ than 12 cm in a frame (rifle worst 5.6 cm, pistol 10.4 cm: the raise to full aim
 set (70 files incl. readyHands / backDiagTravel / net; 1108 passed, 2 skipped as before) green.
 
 Open items:
-- Co-op (A126): client puppets (`src/net/enemyPuppet.ts`) stay at low ready. The wire's alert level (`EnemyState.al`
+- Co-op (A126, **resolved** on `feature/guard-ai-a126`: the carry in `al` bits 7-8, `PuppetCarry`, BRIEF A136-A139): client puppets (`src/net/enemyPuppet.ts`) stay at low ready. The wire's alert level (`EnemyState.al`
   bits 0-1) cannot carry caution, a raised alarm, a post or a response team, so the client cannot derive the holster.
   It needs one bit on the wire (e.g. a carry bit in `al`, as `AL_TORCH`; a `PROTOCOL_VERSION` bump) with the puppet
   driving `GuardGunCarry` from it; not done here (no protocol change in this slice).

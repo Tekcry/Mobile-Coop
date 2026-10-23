@@ -1,5 +1,121 @@
 # Changelog
 
+## 4.80.0 - Train 31: Guard AI co-op S9 and S22 response, calm-guard body recovery, optic cable at doors; dead RT settings hidden (2026-10-23, PR #245; #240, #234, #243, #239)
+
+### Guard AI: co-op guard weapon carry
+- Co-op: your partner now sees the guards carry their guns the way the host does. A calm patrol walks with his rifle
+  slung on his back (an officer's pistol on his thigh) on both screens, draws it when something stirs him, holds it at
+  low ready or raised as before, and holsters it again after a calm spell; before, every guard on the client stood at
+  low ready all the time. The client's draw and holster run a moment behind the host's. Protocol 41 (the same co-op
+  version as the guard-ai co-op state it ships with).
+- Co-op: the "Sensor tripped" radio line now shows on the client too.
+
+### Guard carry: calm guards drawn (stuck body shader recovered)
+- New e2e suite `e2e-guard-carry` (full run; `src/ai`, `src/player`, `src/world` quick picks): on Warehouse Infiltration
+  at High (no mission, the failing calm sheet's setup: one guard at a time under the strip lamp at 0, -3, the camera 2 m
+  in front) a grunt, then an officer, stand calm 16.5 s (S21 holstered carry), then draw; the body effect's light
+  defines are logged; each merged smooth body must
+  be among the camera's active meshes with its material ready, its effect GPU skinned as the mesh is (never Babylon's
+  CPU-skinning fallback served to a GPU-skinned body, which drew 4.77.0's calm guards as a floating gun), and no effect
+  may fail to compile (the failure's error line is printed: `Effect.LogShaderCodeOnCompilationError` off). Train 29's
+  lamp plugin changes (#232) already make the body's effect compile; this holds it. Run with `E2E_GPU=1`.
+- Fix: guards no longer go invisible after a long stall while their body shader compiles. On the laptop GPU a merged
+  smooth body's PBR effect could never finish compiling (Babylon's parallel-compile poll then gives up after ~2 min:
+  "Operation timed out after maximum retries. - Effect: pbr"); the material kept that effect, so the guard showed only
+  his weapons. `src/player/bodyEffectRecovery.ts` (run once per render for each body mesh, no allocation) drops such an
+  effect from Babylon's caches and every sub-mesh holding it and compiles it afresh: at once when it timed out, failed
+  for good or lost its program, after 8 s / 30 frames when it simply never finishes; at most 3 times per shader
+  variant, each with a console warning ("smooth body ...: body shader ..., recompiling"). `e2e-guard-carry` now
+  replays the failing sheet first: the 16.5 s calm stepped in one block with no frame rendered, then the body must be
+  ready and drawn within 30 s of rendering; the 1 s-step pass follows.
+
+### Guard AI: security console switch-back
+- Security consoles (Michael's walk G6, guard AI side): a guard now notices a security console that has been switched
+  off, but only when he actually sees it: in front of him within about 12 m, or beside him within about 4 m, never
+  through a wall. A guard who was drawn away (sent to a noise, checking something, searching) notices once he is back
+  and looks at it. He says so ("Console's dropped out again. Getting it back up."), walks over at his normal pace, works
+  it for two seconds and goes back to his post calm. Switch it off again within a minute and it is no longer a fault:
+  one or two guards come to check the console and look round it, then one turns it back on. Host only. The game side
+  (Marlow Yard's console reporting its toggles, letting you use it while its guard is away, and the guard's switch
+  back) lands with Marlow Build's console rework.
+
+### Guard AI: the co-op partner sees what the host sees
+- S9 co-op: the joiner now sees the guards' lines and radio calls (radio checks, "Shots fired!", talking pairs, the
+  security desk) as the host does, with the radio chirp.
+- A cautious guard carries his weapon at low ready, on both screens (solo too).
+- The joiner sees the guards' vests and helmets from alarm stages 2 and 3 and a response team's riot shield.
+- The joiner's headshot on a helmeted guard pings as a deflect at once, and the helmet falls on both screens.
+- Co-op protocol 41: both players need this version.
+
+### Optic cable
+- (ct-toolkit 3.2, G97) Optic cable at doors, prototype: the door menu's OPTIC CABLE at a closed door kneels the
+  operator in front of the leaf and, after a 1.2 s feed, puts the view under the door on the far side at floor height
+  (the feed overlay, 100 deg field of view). The look turns the tip within +-75 deg yaw and -10..+60 deg pitch, night
+  vision toggles as usual, a ping goes out from the view, crouch (B / C) or the stick pulled back leaves (0.6 s pull
+  out). The tip is never perceived; the kneeling body is perceived as any crouched, still body. A door tagged `seal`
+  refuses ("Sealed"), as does a blocked far side ("No gap"). The view is local (nothing on the wire). New
+  `player/opticCable.ts` (pure), `game/opticSystem.ts`, `config/tools.ts`; the door anchor gets `seal`.
+
+### Settings: dead ray-traced and GI controls hidden
+- Settings > Graphics: the "Ray traced" reflections option, "Ray-traced reflections rate" and "Global illumination"
+  are gone (they did nothing since the voxel look was retired). A saved Ray traced setting shows and runs as Screen
+  space; the saved settings are unchanged (no migration).
+
+## 4.79.0 - Train 30: Player batches 23-24 (iPad fit, suppressor ammo, team-climb top-out, partner pose parity) and co-op walk fixes; voxel look retired (2026-10-23, PR #241; #231, #236)
+
+### Co-op walk fixes: team takedown on a hostage, partner shot audio
+- (coop-walk-fixes P6) Co-op: when either player holds a guard as a hostage, the other player beside them gets TEAM
+  TAKEDOWN on him (host or joiner holding, either way); it knocks him out (a held direct press kills), ends the hold and
+  counts as a dual takedown for both. Before, the joiner's offer on the host's hostage did nothing and the host had no
+  offer on the joiner's.
+- (coop-walk-fixes P7) Co-op: a partner's shot plays once per round (a single shot played twice) and with their own
+  weapon's sound, suppressed when it was (the suppressed pistol sounded like an open pistol); its muzzle flash is small
+  when suppressed. Protocol 37: the player state carries the rounds fired (`sc`).
+
+### Interrogation intel
+- (interrogation-intel) Interrogating a guard with information now also gives intel as feed lines for every player: door
+  codes authored on the guard (`GuardIntel.codes`, flag to `GameMode.onIntelCode`), the cameras near him (count, sweep
+  time) and the patrols near him (count, loop time, read through the Guard AI `Enemy.patrolRoute` getter). A co-op client's
+  interrogation is seen on the host from its MoveState; no wire change. A co-op client now also lists the host's relayed
+  `feed` lines in its HUD feed (they were only a radio subtitle, so the partner never saw the intel there).
+
+### iPad display fit
+- iPad: the version label stays fully on screen (bottom / right offsets include the safe-area insets, `--vh` follows `dvh`
+  where supported), the page and menu frame fill the visible viewport (no dark bottom strip), the "integrated GPU ... Windows
+  Settings" banner and settings hint show only on Windows, and the pause menu's co-op room line wraps in its own block clear
+  of the help box. Desktop rendering (zero insets) is unchanged.
+
+- The in-game pause menu no longer lists Anim Studio (dev); the studio opens from the main menu only, and the pause menu keeps Animation tuner (dev).
+
+### Partner pose parity: aim side, takedown blow, baked sections
+- (pose-parity) Co-op: your partner's weapon hand now follows their shoulder swap in every mode (holding a hostage, on
+  a rope, a split, an inverted pipe, atop the human ladder), not only on the ground; a partner choking a guard or
+  stepping in for a lethal takedown no longer holds the elbow strike's wind-up (they pose no arc, as on their own
+  screen); and once tuner values are baked into the code, the partner's rig plays the baked co-op / traversal move
+  sections and Body root offsets (body forward / up, the hold's guard gap and side, the wall gap) as their own page
+  does (never your live tuner values). Protocol 36 (32-35 are taken by open branches): the player flag `aimLeft` (64)
+  and the takedown blow bit (MoveState `sub` 1); the ground `sub` bit 128 is dropped.
+
+### Limited suppressor ammo
+- Suppressed guns (the issued rifle, the Hush 9 SD) carry a limited count of quiet rounds (rifle 60, pistol 45), separate from
+  the magazine. Each suppressed shot spends one; at 0 the gun still fires but loud (open sound, full flash, an open gun's
+  noise to the guards), with a one-off "Suppressed rounds out" feed line. The weapon box shows "SD n" (red at 5 or fewer).
+  Ammo crates refill quiet rounds, a checkpoint restart restores them, infinite ammo never spends them. In co-op a client's
+  spent gun is loud on the host (no protocol change).
+
+### Team climb: the rope top-out
+- (team-climb) The two-person rope's top-out (CLIMB_UP_TEAM) no longer pops: the climber is pulled in to the face on
+  the rope's last 0.6 m, then rises and moves over the lip on eased (quintic) paths that carry the climb's speed in
+  (`teamMoves.ropeTopPath`; `TEAM.ropeTop` 0.9 -> 1.1 s). Root per-frame velocity change 5.7 cm -> 0.44 cm.
+- (team-climb) The climber's hands grip the lip at the top (lip "hook" grips, lifting off as the arms run out), on
+  the owner's page and on the partner's view of them (`ropeSeenStep`, no wire change). The Anim Studio's rope pair
+  plays the same path.
+
+### voxel-retire
+- The voxel look is retired (Michael: "nothing should be voxel"): `?voxels=1`, the voxel world, voxel characters and
+  weapons, chips, voxel GI and ray-traced reflections are removed. Ray traced now runs screen space reflections. The
+  light bakes (lamp, moon, sky, ambient grid) and their hashes are unchanged.
+
 ## 4.78.0 - Train 29: Sector Ops lighting: lamp falloff setting, shadow accuracy, character lamp shadows (fixes calm guards drawn without bodies); Guard AI guards never fire into armour (2026-10-23, PR #238; #232, #228)
 
 ### Guard AI S16 - guards hold fire at armour

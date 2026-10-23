@@ -2,7 +2,7 @@
  * (CT prototype A3, G19, G97; G5) The Chaos Theory door options, Babylon-free. Since G5 they are rows of the one
  * context menu (`contextMenu.ts`): at a closed, unlocked door OPEN DOOR, OPEN DOOR STEALTH (the door peek: a slow
  * crack, the stick pushes it further; only when the peek is on offer), BASH DOOR (loud; knocks out a guard right
- * behind the door) and OPTIC CABLE (a stub: not built yet). An open door's item lists CLOSE DOOR. Locked doors list
+ * behind the door) and OPTIC CABLE (`game/opticSystem.ts`: the view under the door). An open door's item lists CLOSE DOOR. Locked doors list
  * nothing (no lock picking or breaking in the game yet, G180 note).
  */
 

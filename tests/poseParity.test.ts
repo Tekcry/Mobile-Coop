@@ -46,7 +46,7 @@ function fakeGame(o: { shoulder?: number; switchOk?: boolean; wall?: boolean; bl
 }
 
 describe('the wire (protocol 36)', () => {
-  it('PROTOCOL_VERSION is 42 (42 marlow-final over train 30 (40); 41 reserved for guard-ai S9; 40 the stack at train 30; 39 guard-ai S9; 38 lamp falloff; was 32-35 taken by open branches) and PF.aimLeft reuses the free old sprint bit 64', () => {
+  it('PROTOCOL_VERSION is 42 (42 marlow-final over train 31 (41); 41 guard-ai S9 + A126 on train 30; 40 the stack at train 30; 39 guard-ai S9 on train 29; 38 lamp falloff; was 32-35 taken by open branches) and PF.aimLeft reuses the free old sprint bit 64', () => {
     expect(PROTOCOL_VERSION).toBe(42);
     expect(PF.aimLeft).toBe(64);
     const others = Object.entries(PF).filter(([k]) => k !== 'aimLeft').map(([, v]) => v);
