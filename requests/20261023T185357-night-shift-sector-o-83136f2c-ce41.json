@@ -1,0 +1,34 @@
+{
+  "id": "20261023T185357-night-shift-sector-o-83136f2c-ce41",
+  "sha": "83136f2ccecdcc9442739a7253ba8b7126a5eaa0",
+  "branch": "feature/sector-redesign-lr16pol-cf",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Sector Ops Build",
+  "steps": [
+    "git show 1dea4a4ce098446f0c88db2b26977484cc38335d > lq-serve.mjs",
+    "git show f8008542:scripts/perf.mjs > scripts/_perf-ab.mjs",
+    "node -e \"eval(Buffer.from('Y29uc3QgZnMgPSByZXF1aXJlKCdmcycpOwpjb25zdCBzID0gZnMucmVhZEZpbGVTeW5jKCdzY3JpcHRzL19wZXJmLWFiLm1qcycsICd1dGY4Jyk7CmNvbnN0IHJlID0gL1xyP1xuYXdhaXQgYnJvd3NlclwuY2xvc2VcKFwpO1xyP1xuY29uc3QgbWlzc2VkID0gXFsvOwppZiAoIXJlLnRlc3QocykpIHsgY29uc29sZS5sb2coJ1BBVENIIEZBSUw6IGFuY2hvciBub3QgZm91bmQgaW4gc2NyaXB0cy9fcGVyZi1hYi5tanMnKTsgcHJvY2Vzcy5leGl0KDEpOyB9CmNvbnN0IHByb2JlID0gIlxuY29uc3QgcHJvYmUgPSBhd2FpdCBwYWdlLmV2YWx1YXRlKGFzeW5jICgpID0+IHsgY29uc3QgYSA9IHdpbmRvdy5fX2FwcDsgY29uc3QgZyA9IGEuY3VycmVudDsgY29uc3QgZW5nID0gYS5lbmdpbmU7IGNvbnN0IHcgPSBnLndvcmxkOyBhd2FpdCBuZXcgUHJvbWlzZSgocikgPT4gcmVxdWVzdEFuaW1hdGlvbkZyYW1lKHIpKTsgbGV0IHByZXYgPSBlbmcuX2RyYXdDYWxscy5jdXJyZW50OyBjb25zdCBuID0gW107IGZvciAobGV0IGkgPSAwOyBpIDwgOTsgaSsrKSB7IGF3YWl0IG5ldyBQcm9taXNlKChyKSA9PiByZXF1ZXN0QW5pbWF0aW9uRnJhbWUocikpOyBjb25zdCBjID0gZW5nLl9kcmF3Q2FsbHMuY3VycmVudDsgbi5wdXNoKGMgPj0gcHJldiA/IGMgLSBwcmV2IDogYyk7IHByZXYgPSBjOyB9IG4uc29ydCgoeCwgeSkgPT4geCAtIHkpOyByZXR1cm4geyB1cmw6IGxvY2F0aW9uLmhyZWYsIHNpemU6IGVuZy5nZXRSZW5kZXJXaWR0aCgpICsgJ3gnICsgZW5nLmdldFJlbmRlckhlaWdodCgpLCBkcmF3c0FsbFBhc3M6IG5bNF0sIGRyYXdzU2FtcGxlczogbiwgY2hhclNoYWRvd3M6IHcgJiYgdy5jaGFyU2hhZG93cyA/IHcuY2hhclNoYWRvd3Muc3RhdHMoKSA6IG51bGwsIHRvcmNoU2hhZG93czogdyAmJiB3LnRvcmNoU2hhZG93cyA/IHcudG9yY2hTaGFkb3dzLnN0YXRzKCkgOiBudWxsIH07IH0pO1xuY29uc29sZS5sb2coJ1BST0JFICcgKyBKU09OLnN0cmluZ2lmeShwcm9iZSkpOyI7CmZzLndyaXRlRmlsZVN5bmMoJ3NjcmlwdHMvX3BlcmYtcHJvYmUubWpzJywgcy5yZXBsYWNlKHJlLCAobSkgPT4gcHJvYmUgKyBtKSk7CmNvbnNvbGUubG9nKCdwYXRjaGVkIHNjcmlwdHMvX3BlcmYtcHJvYmUubWpzJyk7Cg==','base64').toString())\"",
+    "node -e \"require('fs').mkdirSync('C:/NightShift/scratch/work/lr16p-perf-c',{recursive:true})\"",
+    "node -e \"require('fs').copyFileSync('C:/NightShift/scratch/work/campus-view-perf2.mjs','scripts/_cvp.mjs')\"",
+    "node -e \"eval(Buffer.from('Y29uc3QgZnMgPSByZXF1aXJlKCdmcycpOwpjb25zdCBzID0gZnMucmVhZEZpbGVTeW5jKCdzY3JpcHRzL19jdnAubWpzJywgJ3V0ZjgnKTsKY29uc29sZS5sb2coJ0NWUCBlbnYgdmFyczogJyArIFsuLi5uZXcgU2V0KHMubWF0Y2goL3Byb2Nlc3NcLmVudlwuXHcrL2cpIHx8IFtdKV0uam9pbignICcpKTsKcy5zcGxpdCgnXG4nKS5maWx0ZXIoKGwpID0+IC9mYWxsb2ZmfEVYVFJBfF9kcmF3Q2FsbHN8Y2hhclNoYWRvd3N8dG9yY2hTaGFkb3dzfFJlbmRlcldpZHRofHZpZXdwb3J0fGF1dG9zdGFydHxzZWN0b3JHdWFyZHMvLnRlc3QobCkpLnNsaWNlKDAsIDQwKS5mb3JFYWNoKChsKSA9PiBjb25zb2xlLmxvZygnQ1ZQPiAnICsgbC50cmltKCkuc2xpY2UoMCwgMjIwKSkpOwo=','base64').toString())\"",
+    "set CVP_GFX=epic&& node scripts/_cvp.mjs C:/NightShift/scratch/work/lr16p-perf-c/c-epic-1.json",
+    "set CVP_GFX=epic&& node scripts/_cvp.mjs C:/NightShift/scratch/work/lr16p-perf-c/c-epic-2.json",
+    "set CVP_GFX=epic&& node scripts/_cvp.mjs C:/NightShift/scratch/work/lr16p-perf-c/c-epic-3.json",
+    "set CVP_GFX=medium&& node scripts/_cvp.mjs C:/NightShift/scratch/work/lr16p-perf-c/c-medium-1.json",
+    "set CVP_GFX=medium&& node scripts/_cvp.mjs C:/NightShift/scratch/work/lr16p-perf-c/c-medium-2.json",
+    "set CVP_GFX=medium&& node scripts/_cvp.mjs C:/NightShift/scratch/work/lr16p-perf-c/c-medium-3.json",
+    "set MAP=campusOps&& set MODE=sector&& set PASSES=1&& node lq-serve.mjs scripts/_perf-probe.mjs http://127.0.0.1:%E2E_PORT%/ --desktop",
+    "set MAP=campusOps&& set MODE=sector&& set PASSES=1&& node lq-serve.mjs scripts/_perf-probe.mjs http://127.0.0.1:%E2E_PORT%/ --desktop",
+    "set MAP=campusOps&& set MODE=sector&& set PASSES=1&& node lq-serve.mjs scripts/_perf-probe.mjs http://127.0.0.1:%E2E_PORT%/ --desktop",
+    "set MAP=campusOps&& set MODE=sector&& set PASSES=1&& node lq-serve.mjs scripts/_perf-probe.mjs http://127.0.0.1:%E2E_PORT%/ --preset=medium",
+    "set MAP=campusOps&& set MODE=sector&& set PASSES=1&& node lq-serve.mjs scripts/_perf-probe.mjs http://127.0.0.1:%E2E_PORT%/ --preset=medium",
+    "set MAP=campusOps&& set MODE=sector&& set PASSES=1&& node lq-serve.mjs scripts/_perf-probe.mjs http://127.0.0.1:%E2E_PORT%/ --preset=medium"
+  ],
+  "env": {
+    "CVP_ONLY": "guards",
+    "CVP_VIEWS": "start,s5-worst"
+  },
+  "set": "lr16p-perf-c",
+  "note": "LR16-P perf C' = e7cec732 + nsGrid2 fix (before C/F/P)"
+}
