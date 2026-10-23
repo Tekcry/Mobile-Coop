@@ -34,11 +34,20 @@ import { MODE_BODY } from './incidents';
 import { camBodyLine } from './barks';
 import type { CameraBodyEvent } from '../security/securitySystem';
 import { Awareness, CAUTION, MAX_KEYS } from './awareness';
-import { bodyNoticed } from './bodies';
+import { bodyNoticed, bodyNoticeRange } from './bodies';
 import { CoverGrid, coverSetFrom, type CoverSet } from './coverGrid';
 import { gearFromTag, mergeGear, type GearTag, type GuardGear } from './gear';
 import { HelmetDrops } from './helmetDrops';
 import { assignRoles, combatSeed, P_AGGRESSIVE, P_POST, P_STANDARD, R_NONE, R_REPORTER, RoleInput, RoleOutput, SQUAD } from './squadRoles';
+// (guard-ai S10) talking pairs
+import { PairMeet, PAIRS, pickMeet, type MeetPick, type PairGuard } from './pairs';
+
+/** (guard-ai S10) A talking pair: its meeting clock, and the two slot indices (`guardAtSlot`; A the lower). */
+export interface TalkPair {
+  readonly pm: PairMeet;
+  readonly sa: number;
+  readonly sb: number;
+}
 
 // Live guard cap. 12 = the Dead Line co-op peak of 10 chapter-active guards (furthest-behind and furthest-ahead
 // player, each with their next chapter) plus the two alarm reinforcements; about 2.6 ms main thread (D1 guard cost).
@@ -152,6 +161,18 @@ export class EnemyManager {
   private tagSlots: readonly unknown[] | null = null;
   private tagSquad = new Int32Array(32);
   private readonly slotGuard: (Enemy | null)[] = [];
+  /** (guard-ai S10, GA2) The live section's talking pairs (`pairs.ts`): built in `placeSlot` when the second of a
+   *  `pair` is placed, stepped at the board rate (`pairStep`); cleared with the slot tags. */
+  readonly pairs: TalkPair[] = [];
+  /** (guard-ai S10) Pairs not built (no timed loop, periods differ, no overlap within `PAIRS.meetMax`; tests / e2e). */
+  readonly pairSkips: string[] = [];
+  /** (guard-ai S10) Lines said and missing-partner searches sent by the pairs (tests / e2e). */
+  pairLines = 0;
+  pairMisses = 0;
+  readonly pairTable = PAIRS;
+  private pairT = 0;
+  private readonly pairPick: MeetPick = { stopA: 0, stopB: 0, open: 0, close: 0, d: 0 };
+  private readonly pairTmp: P2 = [0, 0];
   /** (guard-ai S5b) Who called the last radio check (tests / e2e; null none). */
   lastCheckCaller: Enemy | null = null;
   private buffT = 0;
@@ -209,6 +230,9 @@ export class EnemyManager {
   private boardT = 0;
   /** The incident table (tests / e2e read the numbers from here). */
   readonly incidentTable = INCIDENT;
+  /** (guard-ai stack-tip e2e fix) The body table and how far a body at a light level is noticed ahead (e2e bounds). */
+  readonly bodyTable = BODY;
+  readonly bodyNoticeRange = bodyNoticeRange;
   /**
    * (guard-ai S3, design 5, M5) The section radio net: one per section. Sector Ops loads one section at a time, so the
    * live section is this one net (cleared with the guards on every unload / restart: `despawnAll` -> `clear`); other
@@ -1135,11 +1159,20 @@ export class EnemyManager {
         if (this.tagSquad.length < slots.length) this.tagSquad = new Int32Array(slots.length);
         slotSquads(slots, e.section, this.tagSquad);
         this.tagSlots = slots;
+        // (guard-ai S10) a new section's list: its own pairs (nobody left standing in an old pair's hold)
+        for (let k = 0; k < this.slotGuard.length; k++) {
+          const o = this.slotGuard[k];
+          if (o) o.pairFace = Number.NaN;
+        }
         this.slotGuard.length = 0;
+        this.pairs.length = 0;
       }
       sq = this.tagSquad[index]!;
       e.slotIdx = index;
       while (this.slotGuard.length < slots.length) this.slotGuard.push(null);
+      // (guard-ai S10) a guard the slot held before is out of its pair: no hold left on him
+      const prev = this.slotGuard[index];
+      if (prev && prev !== e) prev.pairFace = Number.NaN;
       this.slotGuard[index] = e;
     } else if (slot.squad !== undefined) sq = squadId(e.section, slot.squad);
     // a dog with a handler: bound to him once he is placed (his squad then); else the slot's squad
@@ -1155,6 +1188,158 @@ export class EnemyManager {
         if (d.dog && d.handlerSlot === index && d.handler === null) this.bindDog(d, e);
       }
     }
+    // (guard-ai S10) the second of a talking pair placed: the pair is built
+    if (inList) this.buildPair(e, index);
+  }
+
+  /**
+   * (guard-ai S10, GA2, ENGINE.md section 7 `pair`) Guard `e` took slot `index`: his partner is the slot his `pair` tag
+   * names, or a placed guard whose tag names him (one tag is enough). Both placed: one `PairMeet` (A = the lower slot,
+   * id = section x 100 + it), meeting where `pickMeet` says (the nearest stops within `PAIRS.meetMax` whose stays
+   * overlap, at the slower walker's speed: a timed loop walks at `walkSpeed`). The two walkers' loop times now line the
+   * clocks up (they may have been placed at different moments). No window (no timed loop, periods differ, no overlap):
+   * logged (`pairSkips`, a console warning) and skipped. Load time only.
+   */
+  private buildPair(e: Enemy, index: number): void {
+    const sg = this.slotGuard;
+    let j = e.pairSlot !== index ? e.pairSlot : -1;
+    if (j < 0 || j >= sg.length || !sg[j])
+      for (let k = 0; k < sg.length; k++) {
+        const o = sg[k];
+        if (k !== index && o && o.pairSlot === index) {
+          j = k;
+          break;
+        }
+      }
+    const o = j >= 0 && j < sg.length ? (sg[j] ?? null) : null;
+    if (!o || o === e) return;
+    const lo = Math.min(index, j);
+    const hi = Math.max(index, j);
+    // a slot of a built pair placed again (a guard respawned into it, the same section list): the old pair goes and
+    // is built afresh below, its clock lined up with the walkers as they stand now (the old clock ran on the guards
+    // that went: kept, it would open the window at the wrong loop time)
+    for (let k = 0; k < this.pairs.length; k++) {
+      const p = this.pairs[k]!;
+      if (p.sa === lo && p.sb === hi) {
+        this.pairs.splice(k, 1);
+        e.pairFace = Number.NaN;
+        o.pairFace = Number.NaN;
+        break;
+      }
+    }
+    const A = index === lo ? e : o;
+    const B = index === lo ? o : e;
+    const id = e.section * 100 + lo;
+    const why = this.pairWhyNot(A, B);
+    if (why) {
+      const msg = `section ${e.section} slots ${lo} + ${hi}: ${why}`;
+      this.pairSkips.push(msg);
+      console.warn(`guard-ai pairs: ${msg}`);
+      return;
+    }
+    const ra = A.patrolRoute!;
+    const rb = B.patrolRoute!;
+    const ta = A.loopTime();
+    const tb = B.loopTime();
+    // the routes as the walkers stand now: loop time `t0` at this moment, the pair's clock starts with them
+    const sa = { ...ra, loop: { ...ra.loop!, t0: ta } };
+    const sb = { ...rb, loop: { ...rb.loop!, t0: tb } };
+    const m = this.pairPick;
+    if (!pickMeet(sa, sb, Math.min(A.def.walkSpeed, B.def.walkSpeed), PAIRS.meetMax, m)) {
+      const msg = `section ${e.section} slots ${lo} + ${hi}: no overlapping stays at stops within ${PAIRS.meetMax} m`;
+      this.pairSkips.push(msg);
+      console.warn(`guard-ai pairs: ${msg}`);
+      return;
+    }
+    const pa = ra.points[m.stopA]!;
+    const pb = rb.points[m.stopB]!;
+    const pm = new PairMeet({ id, period: ra.loop!.period, t0: ta, open: m.open, close: m.close, aPt: [pa[0], pa[1]], bPt: [pb[0], pb[1]] });
+    this.pairs.push({ pm, sa: lo, sb: hi });
+  }
+
+  /** (guard-ai S10) Why two guards cannot be a talking pair ('' when they can). */
+  private pairWhyNot(A: Enemy, B: Enemy): string {
+    if (A.dog || B.dog) return 'a dog does not talk';
+    const ra = A.patrolRoute;
+    const rb = B.patrolRoute;
+    if (!ra || !ra.loop || !rb || !rb.loop) return 'not both on a timed loop';
+    if (Math.abs(ra.loop.period - rb.loop.period) > 1e-6) return `loop periods differ (${ra.loop.period} / ${rb.loop.period} s)`;
+    return '';
+  }
+
+  /** (guard-ai S10) Fill one guard's side of a pair (null: not on the list). No allocation. */
+  private fillPair(g: PairGuard, e: Enemy | null): void {
+    if (!e || !e.alive || e.taken) {
+      g.present = false;
+      g.calm = false;
+      return;
+    }
+    g.present = true;
+    g.calm = e.pairCalm;
+    g.x = e.pos.x;
+    g.z = e.pos.z;
+    const p = e.routePoint(this.pairTmp);
+    g.routeX = p[0];
+    g.routeZ = p[1];
+  }
+
+  /**
+   * (guard-ai S10) Every pair, at the board rate, after the guards moved: fill both sides (`present` = alive, not held,
+   * on the list; `calm` = `Enemy.pairCalm`), interrupt on a disturbance either reacts to (`Enemy.disturbed`), step,
+   * then act: while meeting each holds at his meet point facing the other (`Enemy.pairFace`); a line is said over its
+   * speaker (`Enemy.sayLine`); a missing request sends the one who is left (`pairMissing`). A missing pair whose two
+   * guards are both up again (the partner woken) starts over. No allocation.
+   */
+  private pairStep(dt: number): void {
+    const list = this.pairs;
+    for (let i = 0; i < list.length; i++) {
+      const p = list[i]!;
+      const pm = p.pm;
+      const A = this.guardAtSlot(p.sa);
+      const B = this.guardAtSlot(p.sb);
+      this.fillPair(pm.a, A);
+      this.fillPair(pm.b, B);
+      if ((pm.state === 'waiting' || pm.state === 'meeting') && ((pm.a.present && A!.disturbed) || (pm.b.present && B!.disturbed))) pm.interrupt();
+      pm.step(dt);
+      const meet = pm.state === 'meeting';
+      if (A) this.pairHold(A, meet ? pm.faceA : Number.NaN, pm.def.aPt);
+      if (B) this.pairHold(B, meet ? pm.faceB : Number.NaN, pm.def.bPt);
+      if (pm.sayLine !== null) {
+        const s = pm.sayWho === 0 ? A : B;
+        if (s && s.alive) {
+          s.sayLine(pm.sayLine);
+          this.pairLines++;
+        }
+      }
+      if (pm.requested) this.pairMissing(pm, A, B);
+      else if (pm.state === 'missing' && pm.a.present && pm.b.present) pm.reset();
+    }
+  }
+
+  /** (guard-ai S10) Hold `e` at his meet point facing `yaw` (NaN: let him go). */
+  private pairHold(e: Enemy, yaw: number, pt: readonly [number, number]): void {
+    e.pairFace = yaw;
+    e.pairPt[0] = pt[0];
+    e.pairPt[1] = pt[1];
+  }
+
+  /**
+   * (guard-ai S10) A pair's partner never came (down, held, gone): the one left (`lookFor`) looks for him at his last
+   * route point (`lookX` / `lookZ`). Coordinated: a `missing` incident there (keyed by the missing guard, as a radio
+   * check's miss) with him as its only perceiver, so the board sends him as the lead and the nearest free guard covers
+   * (S5b's path); the missing guard counts as missed (the next radio check does not miss him again). Parked modes: he
+   * searches there himself.
+   */
+  private pairMissing(pm: PairMeet, A: Enemy | null, B: Enemy | null): void {
+    const goer = pm.lookFor === 0 ? A : B;
+    const gone = pm.lookFor === 0 ? B : A;
+    if (!goer || !goer.alive) return;
+    this.pairMisses++;
+    if (gone) this.silent.add(gone);
+    if (this.coordinated) {
+      this.hearWho[0] = goer.num;
+      this.report('missing', pm.lookX, goer.pos.y, pm.lookZ, gone ? gone.num : -1, 1);
+    } else goer.searchAt(pm.lookX, pm.lookZ, null);
   }
 
   /** (guard-ai S5b) Bind a dog to its handler: it heels on him only and joins his squad. */
@@ -1926,6 +2111,15 @@ export class EnemyManager {
       // walking into a closed door pushes it open
       if (doors.list.length && e.alive) doors.pushOpen(e.pos.x, e.pos.z);
     }
+    // (guard-ai S10) talking pairs at the board rate, after the guards moved
+    if (this.pairs.length) {
+      this.pairT -= dt;
+      if (this.pairT <= 0) {
+        this.pairT += PAIRS.tick;
+        if (this.pairT <= 0) this.pairT = PAIRS.tick;
+        this.pairStep(PAIRS.tick);
+      }
+    }
     this.updateTorches();
     // nobody in combat any more: no player is known to be there (takedowns open again)
     let fighting = false;
@@ -2016,6 +2210,10 @@ export class EnemyManager {
     // (guard-ai S5b) the slot tags are read afresh on the next load
     this.tagSlots = null;
     this.slotGuard.length = 0;
+    // (guard-ai S10) and the section's talking pairs
+    this.pairs.length = 0;
+    this.pairSkips.length = 0;
+    this.pairT = 0;
     this.lastCheckCaller = null;
     // (guard-ai S2) nobody left to send: the incidents go too; (S3) and every call and queued reception
     this.board.clear();

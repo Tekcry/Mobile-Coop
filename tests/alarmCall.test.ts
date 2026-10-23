@@ -167,6 +167,28 @@ describe('the alarm by radio (wired)', () => {
     expect(onAlarm.mock.calls[0]![1]).toBeNull();
   });
 
+  it('(stack-tip fix) the command call starting at the contact completion does not delay the section (call + staggerMax)', () => {
+    // the e2e-stealth-ai 'radio' layout: a near mate (~11 m) and a far one (~24 m), out of voice range
+    const spotter = fighter(0, 5);
+    const near = guard(10, 9);
+    const far = guard(-21, 17);
+    const { em, ctx, run, now } = manager([spotter, near, far]);
+    contact(ctx, spotter);
+    let nearT = -1;
+    let farT = -1;
+    while (now() < RADIO.callIn + RADIO.staggerMax + 1) {
+      run(0.1);
+      if (nearT < 0 && near.radio.mock.calls.length) nearT = now();
+      if (farT < 0 && far.radio.mock.calls.length) farT = now();
+    }
+    // his command call still ran on its own clock (callIn + report): the alarm by radio
+    expect(em.alarmBy).toBe('radio');
+    expect(spotter.bark).toHaveBeenCalledWith('command');
+    expect(nearT).toBeGreaterThanOrEqual(RADIO.callIn - 1e-6);
+    expect(farT).toBeGreaterThan(nearT);
+    expect(farT).toBeLessThanOrEqual(RADIO.callIn + RADIO.staggerMax + 0.1 + 1e-6);
+  });
+
   it('the caller cut during his contact call: nothing owed, no command call, no alarm', () => {
     const spotter = fighter(0, 0);
     const mate = fighter(5, 0);

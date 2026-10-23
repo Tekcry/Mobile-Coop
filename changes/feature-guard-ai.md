@@ -43,3 +43,11 @@
   dropping everyone in the fight. Reinforcements that come in on an alarm are aggressive: they already know where you
   were last seen, run straight in from the section's entry points, spend less time in cover, push forward faster and
   never calm down until you are found. Hunter and Mission (parked) keep their old alarms.
+- S10 talking pairs: two Sector Ops guards marked as a pair now meet on their rounds. When both reach their meeting
+  spot they stop, turn to face each other and swap a couple of lines of small talk, shown over their heads, and some of
+  it is worth hearing (a door that sticks, a dead camera, a code habit). Then they carry on with their rounds. Anything
+  that catches their attention cuts the talk short. Take one of them out before they meet and the other notices he
+  never turned up: a few seconds later he goes to look for him where he was last headed, with the nearest free guard
+  behind him. The car-park pair in Saltmarsh Park is the first.
+- Guard AI fix: when a guard's contact report gets through and he goes straight on to call command for backup, the
+  rest of his section now hears the contact at once, staggered by distance, instead of only after the backup call.
