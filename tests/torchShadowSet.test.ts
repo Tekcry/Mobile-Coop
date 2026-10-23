@@ -9,6 +9,7 @@ import { CHAR_SHADOW_DISK, CHAR_SHADOW_KERNEL } from '../src/world/charShadowSet
 import { DOOR_SHUT } from '../src/world/lightField';
 import { DOOR_TEXELS } from '../src/world/bakedLamps';
 import { bytesPerCall, sink } from './helpers/allocPerCall';
+import { hyp2, hyp3 } from '../src/core/mathx';
 import {
   casterInTorchCone,
   holdsTorch,
@@ -25,12 +26,14 @@ import {
   torchFilterTexels,
   torchLitSphere,
   torchPenumbra,
+  torchPoseStale,
   torchRefreshEvery,
   torchShadowFov,
   torchShadowSpec,
   torchTileX,
   torchTileY,
   type TorchDoor,
+  writeTorchPose,
 } from '../src/world/torchShadowSet';
 
 const COS = Math.cos(TORCH.outer);
@@ -100,9 +103,9 @@ describe('torch shadow set (LR16t)', () => {
     const sp = new Float32Array(4);
     torchLitSphere(1, 2, 3, 0, 0, 1, COS, TORCH.radius, sp);
     const rim = [1 + TORCH.radius * Math.sin(TORCH.outer), 2, 3 + TORCH.radius * COS];
-    expect(Math.hypot(rim[0]! - sp[0]!, rim[1]! - sp[1]!, rim[2]! - sp[2]!)).toBeLessThanOrEqual(sp[3]!);
-    expect(Math.hypot(1 - sp[0]!, 2 - sp[1]!, 3 - sp[2]!)).toBeLessThanOrEqual(sp[3]!);
-    expect(Math.hypot(1 - sp[0]!, 2 - sp[1]!, 3 + TORCH.radius - sp[2]!)).toBeLessThanOrEqual(sp[3]!);
+    expect(hyp3(rim[0]! - sp[0]!, rim[1]! - sp[1]!, rim[2]! - sp[2]!)).toBeLessThanOrEqual(sp[3]!);
+    expect(hyp3(1 - sp[0]!, 2 - sp[1]!, 3 - sp[2]!)).toBeLessThanOrEqual(sp[3]!);
+    expect(hyp3(1 - sp[0]!, 2 - sp[1]!, 3 + TORCH.radius - sp[2]!)).toBeLessThanOrEqual(sp[3]!);
     // the camera frustum test (Babylon planes: n . p + d >= 0 inside)
     const planes = [{ normal: { x: 1, y: 0, z: 0 }, d: 0 }];
     expect(sphereInFrustum(planes, 1, 0, 0, 0.5)).toBe(true);
@@ -192,11 +195,11 @@ describe('torch shadow set (LR16t)', () => {
     expect(TORCH_SHADOW_DISK).toBe(CHAR_SHADOW_DISK);
     expect(TORCH_SHADOW_KERNEL).toBe(CHAR_SHADOW_KERNEL);
     const n = TORCH_SHADOW_KERNEL;
-    for (let i = 0; i < n; i++) expect(Math.hypot(TORCH_SHADOW_DISK[i * 2]!, TORCH_SHADOW_DISK[i * 2 + 1]!)).toBeLessThanOrEqual(1);
+    for (let i = 0; i < n; i++) expect(hyp2(TORCH_SHADOW_DISK[i * 2]!, TORCH_SHADOW_DISK[i * 2 + 1]!)).toBeLessThanOrEqual(1);
     // every prefix the tiers take (search halves and filters) is spread: no two taps closer than a floor
     for (const k of [2, 3, 4, 6, 8, 12]) {
       let minD = Infinity;
-      for (let i = 0; i < k; i++) for (let j = 0; j < i; j++) minD = Math.min(minD, Math.hypot(TORCH_SHADOW_DISK[i * 2]! - TORCH_SHADOW_DISK[j * 2]!, TORCH_SHADOW_DISK[i * 2 + 1]! - TORCH_SHADOW_DISK[j * 2 + 1]!));
+      for (let i = 0; i < k; i++) for (let j = 0; j < i; j++) minD = Math.min(minD, hyp2(TORCH_SHADOW_DISK[i * 2]! - TORCH_SHADOW_DISK[j * 2]!, TORCH_SHADOW_DISK[i * 2 + 1]! - TORCH_SHADOW_DISK[j * 2 + 1]!));
       expect(minD).toBeGreaterThan(0.2);
     }
   });
@@ -226,5 +229,47 @@ describe('torch shadow set (LR16t)', () => {
     // not ready: dark (never through a wall); nothing to cast: lit
     expect(TORCH_SHADOW_GLSL).toContain('if (P.w < 0.5) return 0.0;');
     expect(TORCH_SHADOW_GLSL).toContain('if (P.w > 1.5) return 1.0;');
+    // (fix round, check A blocking 1) a valid map reads dark outside its frustum: only a map older than its torch's
+    // pose lands there, and a stale map must never let the beam through a wall
+    expect(TORCH_SHADOW_GLSL).toContain('if (abs(uv.x) >= 1.0 || abs(uv.y) >= 1.0) return 0.0;');
+    expect(TORCH_SHADOW_GLSL).not.toContain('abs(uv.y) >= 1.0) return 1.0;');
+  });
+
+  it('pose rule: a tile renders again once its torch turned past the pad or moved a few cm (fix round)', async () => {
+    const pose = new Float32Array(8).fill(7);
+    // a guard's torch at (2, 1.45, 3) pointing +z, in the slot's pose at offset 1
+    writeTorchPose(pose, 1, 2, 1.45, 3, 0, 0, 1);
+    expect(Array.from(pose)).toEqual([7, 2, 1.45, 3, 0, 0, 1, 7].map((v) => Math.fround(v)));
+    const turned = (a: number): boolean => torchPoseStale(pose, 1, 2, 1.45, 3, Math.sin(a), 0, Math.cos(a));
+    expect(turned(0)).toBe(false);
+    expect(turned(0.01)).toBe(false);
+    expect(turned(-0.02)).toBe(false);
+    // one frame of a guard's turn (turnRate 7.85 rad/s at 60 fps: ~0.13 rad) and anything past the threshold: stale
+    expect(turned(0.13)).toBe(true);
+    expect(turned(-0.13)).toBe(true);
+    expect(turned(TORCH_SHADOW.poseTurn + 0.002)).toBe(true);
+    // the threshold leaves the per-side pad room for the normal offset: a turn just under it keeps the whole new cone
+    // (rim + the normal offset at the radius) inside the old frustum, so a kept map never reads off-frustum in steady state
+    const half = torchShadowFov(COS) / 2;
+    const normalAng = (TORCH_SHADOW.normalOffset + TORCH_SHADOW.normalPerM * TORCH.radius) / TORCH.radius;
+    expect(TORCH.outer + TORCH_SHADOW.poseTurn + normalAng).toBeLessThan(half);
+    expect(TORCH_SHADOW.poseTurn).toBeLessThanOrEqual(TORCH_SHADOW.fovPad / 2);
+    // moved: a few cm hold, past poseMove renders
+    const moved = (dx: number, dy: number, dz: number): boolean => torchPoseStale(pose, 1, 2 + dx, 1.45 + dy, 3 + dz, 0, 0, 1);
+    expect(moved(0.02, 0, 0)).toBe(false);
+    expect(moved(0, 0.03, 0.03)).toBe(false);
+    expect(moved(TORCH_SHADOW.poseMove + 0.01, 0, 0)).toBe(true);
+    expect(moved(0, 0, -0.1)).toBe(true);
+    expect(TORCH_SHADOW.poseMove).toBeLessThanOrEqual(0.1);
+    // a stale map past a single frame's turn: the beam's rim lands outside the old frustum (where the shader now reads 0)
+    expect(TORCH.outer + 0.13).toBeGreaterThan(half);
+    // allocation-free (per slot per frame)
+    const bytes = await bytesPerCall((n) => {
+      for (let k = 0; k < n; k++) {
+        sink[0] = sink[0]! + (torchPoseStale(pose, 1, 2, 1.45, 3 + k * 1e-6, 0, 0, 1) ? 1 : 0);
+        writeTorchPose(pose, 1, 2, 1.45, 3, 0, 0, 1);
+      }
+    }, 16, { n: 2000 });
+    expect(bytes).toBeLessThanOrEqual(16);
   });
 });

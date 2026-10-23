@@ -50,6 +50,12 @@ export const TORCH_SHADOW = {
   sphereMargin: CHAR_SHADOW.sphereMargin,
   /** Shut doors tested exactly per torch (one vec4 of door ids + 1 in the torch's uniforms). */
   doors: 4,
+  /** (LR16t fix round) A tile is stale once its torch has turned more than this (rad) or moved more than this (m)
+   *  since the tile was made: the slot renders this frame (`torchPoseStale`). The turn stays under the frustum's pad per
+   *  side (`fovPad / 2` = 0.03) with room for the normal offset (~0.006 rad at the radius), so a tile within it still
+   *  holds the whole new cone; a few cm of travel moves a blocker's edge by about as much. */
+  poseTurn: 0.02,
+  poseMove: 0.05,
 } as const;
 
 /** Tile px per shadow tier: every tier has torch maps (a torch through a wall is a correctness bug, not polish). */
@@ -192,6 +198,33 @@ export function sphereInFrustum(planes: readonly TsPlane[] | null | undefined, x
   return true;
 }
 
+const POSE_COS = Math.cos(TORCH_SHADOW.poseTurn);
+const POSE_MOVE2 = TORCH_SHADOW.poseMove * TORCH_SHADOW.poseMove;
+
+/** A torch pose (position, unit axis) into `out[o..o + 5]`. */
+export function writeTorchPose(out: Float32Array, o: number, x: number, y: number, z: number, ax: number, ay: number, az: number): void {
+  out[o] = x;
+  out[o + 1] = y;
+  out[o + 2] = z;
+  out[o + 3] = ax;
+  out[o + 4] = ay;
+  out[o + 5] = az;
+}
+
+/**
+ * (LR16t fix round, check A blocking 1) True when the torch at (x, y, z), axis (ax, ay, az) (unit), has turned more
+ * than `poseTurn` or moved more than `poseMove` from the pose its tile was made from (`pose[o..o + 5]`,
+ * `writeTorchPose`): the slot renders this frame instead of waiting for its interval (a guard turns ~0.13 rad a frame,
+ * past the frustum's pad in one frame). Allocation-free.
+ */
+export function torchPoseStale(pose: Float32Array, o: number, x: number, y: number, z: number, ax: number, ay: number, az: number): boolean {
+  const dx = x - pose[o]!;
+  const dy = y - pose[o + 1]!;
+  const dz = z - pose[o + 2]!;
+  if (dx * dx + dy * dy + dz * dz > POSE_MOVE2) return true;
+  return ax * pose[o + 3]! + ay * pose[o + 4]! + az * pose[o + 5]! < POSE_COS;
+}
+
 /** Frames between a slot's refreshes: the torch nearest the camera every frame, the rest every 2nd, x the governor's. */
 export function torchRefreshEvery(nearest: boolean, governorEvery = 1): number {
   return (nearest ? 1 : 2) * Math.max(1, governorEvery | 0);
@@ -211,8 +244,9 @@ export const TORCH_DOOR_TEXELS = 2;
  * bias, valid (2: valid, nothing to cast); `lampTsI`: tile px, filter taps, atlas px, depth sign) - then LR16f's
  * contact-hardening PCF: the blocker search over the kernel's first half sized for the widest penumbra (blockers at
  * the near plane), the mean blocker depth gives the penumbra (`torchPenumbra`) and the filter (`torchFilterTexels`).
- * Not ready (a slot's first frame): 0, a torch never shows through a wall. Outside the frustum: 1 (the cone is 0
- * there). `nsTorchDoors`: one of the torch's shut doors (ids + 1 in `td`) between the torch and `p`.
+ * Not ready (a slot's first frame): 0, a torch never shows through a wall. Outside a valid map's frustum: 0 (the cone
+ * + pad fits inside it, so only a map older than its torch's pose lands there: a dark sliver for a frame, never light
+ * through a wall; LR16t fix round). `nsTorchDoors`: one of the torch's shut doors (ids + 1 in `td`) between the torch and `p`.
  */
 export const TORCH_SHADOW_GLSL = `
 #ifdef LAMP_TSHADOW
@@ -227,7 +261,7 @@ float nsTorchShadow(int s, vec3 p, vec3 gn, vec3 lpos) {
   vec4 c = M * vec4(q, 1.0);
   if (c.w <= 1e-4) return 1.0;
   vec2 uv = c.xy / c.w;
-  if (abs(uv.x) >= 1.0 || abs(uv.y) >= 1.0) return 1.0;
+  if (abs(uv.x) >= 1.0 || abs(uv.y) >= 1.0) return 0.0;
   float z = (lampTsI.w * c.z + P.x) / P.y - P.z;
   if (z <= 0.0) return 1.0;
   float T = lampTsI.x;

@@ -11,7 +11,7 @@ import { FLASHLIGHTS, TORCH } from '../src/world/torches';
 import { rayOccluder, TORCH_DRAW_SLOTS, TORCH_DRAW_STRIDE, torchDrawTerm } from '../src/world/shadowAccuracy';
 import { LAMP_LEVEL_GAIN } from '../src/world/lampMath';
 import { pickTorchDoors, TORCH_SHADOW } from '../src/world/torchShadowSet';
-import { hyp3 } from '../src/core/mathx';
+import { hyp2, hyp3 } from '../src/core/mathx';
 
 /** Four guard torches at (-4.5 + 3 k, 1.45, 0), all pointing +x (pitched down a little), off. */
 function torches(): { reg: LightRegistry; ls: LightDef[] } {
@@ -134,7 +134,7 @@ describe('every torch slot stops at walls and shut doors (LR16t)', () => {
       // an orthonormal pair across the axis
       const ux = -c.dz;
       const uz = c.dx;
-      const ul = Math.hypot(ux, uz);
+      const ul = hyp2(ux, uz);
       const vx = c.dy * (uz / ul);
       const vy = c.dz * (ux / ul) - c.dx * (uz / ul);
       const vz = -c.dy * (ux / ul);

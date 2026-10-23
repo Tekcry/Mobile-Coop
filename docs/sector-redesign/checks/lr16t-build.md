@@ -93,3 +93,33 @@ Low: +1 (Low had no torch shadow map; now every torch is occluded there).
 - Perf not measured (no GPU here): up to 4 depth passes every tier, the whole level proxy / voxel mesh drawn per map when
   its sphere holds the torch.
 - The fallback (no WebGL2 float target) keeps the reach cut and the Babylon shadow pool, as before.
+
+## Fix round (Opus, 2026-10-23; checks A and B both FIX)
+1. **Check A blocking 1 - a stale torch map read lit outside its frustum (beam through walls while guards turn).**
+   - (a) `src/world/torchShadowSet.ts:264`: a valid map (`P.w` 1) now returns 0.0 outside its frustum (was 1.0). In steady
+     state the cone + pad fits inside it, so only a map older than its torch's pose lands there: a dark sliver, never
+     light through a wall. Header comment `:248-250` updated.
+   - (b) Pose rule: `TORCH_SHADOW.poseTurn` 0.02 rad / `poseMove` 0.05 m `:57-58`; `writeTorchPose` `:205`,
+     `torchPoseStale` `:220` (pure, allocation-free). `src/world/torchShadows.ts`: each slot keeps the pose its tile
+     was made from (`TsSlot.pose` `:57`), written when a map copies (`copy` `:335`) and on "nothing to cast" (`:264`).
+     In `frame`, an in-view slot with casters calls `slot.map.resetRefreshCounter()` when its tile is not a valid map or
+     the torch has left that pose (`:276`), so a turning or walking guard's map renders that frame instead of waiting
+     for its interval. poseTurn is 0.02, not the full 0.03 per-side pad: the normal offset at the radius needs ~0.006
+     rad (a test holds outer + poseTurn + offset under the half fov).
+   - Polish A1 (out-of-view skip, `:247-255`): a skipped slot whose torch left the tile's pose goes to not ready (`w` 0,
+     dark) instead of keeping a stale "valid" map; it renders on its first in-view frame (the 0 -> n refresh change).
+   - Polish A2: a torch change in a slot sets `w` 0 (as before), and the rule at `:276` renders it the same frame.
+   - Cost note: forced renders bypass the slot interval and the governor while a torch turns or moves > 5 cm between
+     renders (a searching or walking guard renders its map most frames). Perf still unmeasured (GPU list item 3).
+   - Tests: `tests/torchShadowSet.test.ts:234-235` (GLSL: off-frustum returns 0.0, the old 1.0 gone); new
+     `:238` "pose rule": turn 0.01 / 0.02 hold, 0.13 (one frame of `turnRate`) and past poseTurn stale; 2-4 cm hold,
+     past poseMove stale; the threshold leaves room for the normal offset in the pad; one frame's turn puts the rim
+     outside the old frustum; allocation-free.
+2. **Check B blocking 1 - `scripts/e2e-desktop.mjs` part 3 asserted flashlights take the shadow pool.**
+   `scripts/e2e-desktop.mjs:577-589`: after alerting the guards and 240 frames it now asserts `world.torchShadows.on`,
+   `lightRig.shadowSlots === 0`, `lightRig.drawnTorches === min(4, enemyMgr.torchesOn)` with `torchesOn > 0`, and
+   `world.torchShadows.copies > 0`; the 16-texture check follows unchanged. `scripts/e2e-lightbake.mjs:72` comment
+   updated (comment only). `node --check` clean on both. Not run (GPU list).
+   - Polish B: `Math.hypot` -> `hyp2` / `hyp3` in `tests/torchShadowSet.test.ts` and `tests/torchOcclusion.test.ts:137`.
+3. Checks: `npx tsc --noEmit` clean. vitest `--maxWorkers=2`, 7 files, 85 / 85: torchShadowSet 10, torchOcclusion 6,
+   shadowAccuracy 15, lampTorchCone 2, lightField 15, charShadowSet 25, coopTorches 12. No e2e, no GPU.

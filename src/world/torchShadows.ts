@@ -16,7 +16,7 @@
 import { BaseTexture, Constants, EffectRenderer, EffectWrapper, ShadowGenerator, SpotLight, Texture, Vector3, Viewport, type AbstractMesh, type Observer, type RenderTargetWrapper, type Scene } from '../core/babylon';
 import type { LightRegistry } from './lights';
 import { TORCH_DRAW_SLOTS, TORCH_DRAW_STRIDE } from './shadowAccuracy';
-import { casterInTorchCone, holdsTorch, pickTorchDoors, sphereInFrustum, TORCH_SHADOW, torchAtlasSize, torchLitSphere, torchRefreshEvery, torchShadowFov, torchTileX, torchTileY, type TorchDoor, type TsPlane } from './torchShadowSet';
+import { casterInTorchCone, holdsTorch, pickTorchDoors, sphereInFrustum, TORCH_SHADOW, torchAtlasSize, torchLitSphere, torchRefreshEvery, torchShadowFov, torchPoseStale, torchTileX, torchTileY, writeTorchPose, type TorchDoor, type TsPlane } from './torchShadowSet';
 
 type RenderTargetTexture = NonNullable<ReturnType<ShadowGenerator['getShadowMap']>>;
 
@@ -52,6 +52,9 @@ interface TsSlot {
   ready: number;
   /** Frames between refreshes (0: not rendering). */
   every: number;
+  /** The torch pose (position, axis) the tile was made from (a map's render, or "nothing to cast"): a torch that has
+   *  left it (`torchPoseStale`) renders this frame (LR16t fix round). */
+  pose: Float32Array;
   obs: Observer<RenderTargetTexture> | null;
   vp: Viewport;
 }
@@ -168,7 +171,7 @@ export class TorchShadows implements TorchShadowLink {
     const map = sg.getShadowMap()!;
     map.renderList = [];
     map.refreshRate = 1e6;
-    const slot: TsSlot = { light, sg, map, list: [], id: -1, ready: -1, every: 0, obs: null, vp: new Viewport(torchTileX(s, tile) / size, torchTileY(s, tile) / size, tile / size, tile / size) };
+    const slot: TsSlot = { light, sg, map, list: [], id: -1, ready: -1, every: 0, pose: new Float32Array(6), obs: null, vp: new Viewport(torchTileX(s, tile) / size, torchTileY(s, tile) / size, tile / size, tile / size) };
     map.getCustomRenderList = () => slot.list;
     slot.obs = map.onAfterUnbindObservable.add(() => this.copy(s));
     return slot;
@@ -241,7 +244,13 @@ export class TorchShadows implements TorchShadowLink {
       pickTorchDoors(this.doors, l.x, l.y, l.z, c.dx, c.dy, c.dz, c.cosOuter, l.radius, draw, o, this.doorDist);
       torchLitSphere(l.x, l.y, l.z, c.dx, c.dy, c.dz, c.cosOuter, l.radius, sp);
       if (!sphereInFrustum(planes, sp[0]!, sp[1]!, sp[2]!, sp[3]!)) {
-        // (nothing it lights is on screen: the map waits; the tile keeps its last map and snapshot)
+        // (nothing it lights is on screen: the map waits; the tile keeps its last map and snapshot while the torch
+        // holds its pose. A torch that left it reads dark until it renders again: the camera planes lag a frame, so a
+        // flick onto it never shows the new beam through the old map. Check A polish 1.)
+        if (this.params[s * 4 + 3]! > 0.5 && torchPoseStale(slot.pose, 0, l.x, l.y, l.z, c.dx, c.dy, c.dz)) {
+          slot.ready = -1;
+          this.params[s * 4 + 3] = 0;
+        }
         slot.list.length = 0;
         this.setEvery(slot, 0);
         continue;
@@ -252,6 +261,7 @@ export class TorchShadows implements TorchShadowLink {
         this.setEvery(slot, 0);
         slot.ready = id;
         this.params[s * 4 + 3] = 2;
+        writeTorchPose(slot.pose, 0, l.x, l.y, l.z, c.dx, c.dy, c.dz);
         continue;
       }
       // (a tile that showed "nothing to cast" waits for its first map; the shader reads 0 until it copies)
@@ -260,6 +270,10 @@ export class TorchShadows implements TorchShadowLink {
         this.params[s * 4 + 3] = 0;
       }
       this.setEvery(slot, torchRefreshEvery(s === near, this.governorEvery));
+      // (check A blocking 1 and polish 2) the tile holds no map yet (a new torch in the slot, a restore) or one made
+      // from a pose the torch has left (turned past the frustum pad, or moved): render this frame, not at the slot's
+      // interval. The shader reads a stale map's off-frustum texels as dark, never lit, for the frame in between.
+      if (this.params[s * 4 + 3] !== 1 || torchPoseStale(slot.pose, 0, l.x, l.y, l.z, c.dx, c.dy, c.dz)) slot.map.resetRefreshCounter();
     }
   }
 
@@ -316,6 +330,9 @@ export class TorchShadows implements TorchShadowLink {
     p[s * 4 + 1] = lo + hi;
     p[s * 4 + 2] = TORCH_SHADOW.bias / Math.max(0.01, hi - lo);
     p[s * 4 + 3] = 1;
+    const lp = slot.light.position;
+    const ld = slot.light.direction;
+    writeTorchPose(slot.pose, 0, lp.x, lp.y, lp.z, ld.x, ld.y, ld.z);
     slot.ready = slot.id;
     this.copies++;
   }
