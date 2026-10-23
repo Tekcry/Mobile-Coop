@@ -284,7 +284,7 @@ In flight (window 4, ~13:15):
   :526 deflake 941dee7d, netmove 5d7eb6dd). Fragment changes/feature-sector-redesign-p3.md. Merge master only at the train.
 - PR 4 = feature/sector-redesign-polish @ ed256ccf (worktree -polish) = PR 3 + posts + E2 glass + E10 armour + polish batch
   (checks posts-check / e2-check / e10-check / polish-check all PASS; fragment changes/feature-sector-redesign-polish.md).
-  Laptop Test Runner runs sectorops 1 + 6, coop, netmove GPU at ed256ccf -> green: open PR 4 (base master; it stacks on #215).
+  PR 4 OPEN: Tekcry/Mobile-Coop#217 (laptop GPU 9/9 green at ed256ccf; orchestrator told; stacks on #215).
   -e10 at 16442ee1 was green on the laptop except the then-unfixed crate leg. Guard AI builds S16 (fire check vs armour) once
   E10 is on master. Polish follow-ups: ART-S4.md:39 / SLICE4.md:98 tank height 1.6 -> 2.0; hostCrackOk floor gap.
 - Lane A ART-KIT (Opus) running on -art-kit (checks/art-kit-build.md); then one Opus checker, then ART-S1..S5 Sonnet dressers.
