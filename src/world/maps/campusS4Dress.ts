@@ -109,7 +109,16 @@ export const HERO_S4: PropCatalogue | null = {
   hung: [],
   fit: ['containPanel', 'podRoof', 'basketRun', 'cracUnit', 'upsCabinet', 'batteryString', 'chiller', 'genset', 'fuelTank', 'crateStack', 'cagePanel'],
   overhang: {
-    basketRun: { by: 2.7, what: 'the trapeze hanger rods (2 cm) up to the slab, 2.6 m over the basket' },
+    // (artpol, polish2 2) the two rods per module as hero-s4.glb's steel mesh has them: 2 cm square at local x 0, z +-0.48,
+    // from the basket's top rail (0.4) to the hull top (3.0); radius 0.015 covers the square's half diagonal
+    basketRun: {
+      by: 2.7,
+      what: 'the trapeze hanger rods (2 cm) up to the slab, 2.6 m over the basket',
+      parts: [
+        { a: [0, 0.4, -0.48], b: [0, 3.0, -0.48], r: 0.015 },
+        { a: [0, 0.4, 0.48], b: [0, 3.0, 0.48], r: 0.015 },
+      ],
+    },
     genset: { by: 1.05, what: 'the exhaust stack (0.3 dia) above the container roof' },
   },
   emissive: { cracUnit: ['screen'], upsCabinet: ['lamp'] },

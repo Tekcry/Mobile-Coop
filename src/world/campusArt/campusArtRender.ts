@@ -101,9 +101,18 @@ export class CampusArtRender {
     const r = new CampusArtRender(scene, art.placements, cats, reg);
     if (scene.isDisposed) return r;
     useSkinsFirst(scene);
-    r.build(models, addCaster);
-    if (r.draws.some((d) => d.grouped) && reg) r.observer = scene.onBeforeRenderObservable.add(() => r.frame());
-    r.frame();
+    // (artpol, art-kit P8) a build that throws part-way leaves nothing behind: its draws, merges and materials, and any
+    // mesh made before it reached a list (the greybox, not hidden yet, still shows)
+    const n0 = scene.meshes.length;
+    try {
+      r.build(models, addCaster);
+      if (r.draws.some((d) => d.grouped) && reg) r.observer = scene.onBeforeRenderObservable.add(() => r.frame());
+      r.frame();
+    } catch (e) {
+      r.dispose();
+      for (const m of scene.meshes.slice(n0)) m.dispose();
+      throw e;
+    }
     // the boxes the box-hidden skins stand in for stop drawing only now, with the art ready
     const hide: number[] = [];
     for (const p of art.placements) if (p.cls === 'skin-hide' && p.skinOf !== undefined) hide.push(p.skinOf);

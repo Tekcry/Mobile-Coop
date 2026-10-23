@@ -125,6 +125,17 @@ describe('CampusArtRender (NullEngine)', () => {
     expect(CAMPUS_LOOK.screen).toBeDefined();
     r.dispose();
     expect(r.meshes().length).toBe(0);
+    // (artpol, art-kit P8) a build that throws part-way (here the caster hook, after some draws exist) leaks no mesh or material
+    const meshes0 = scene.meshes.length;
+    const mats0 = scene.materials.length;
+    expect(() =>
+      CampusArtRender.fromModels(scene, { placements, catalogues: ['F', 'K'] }, models, reg, { hidePieces: (ids) => hidden.push([...ids]) }, () => {
+        throw new Error('caster hook failed');
+      }, cats),
+    ).toThrow('caster hook failed');
+    expect(scene.meshes.length).toBe(meshes0);
+    expect(scene.materials.length).toBe(mats0);
+    expect(hidden).toEqual([[3]]);
     scene.dispose();
     engine.dispose();
   });

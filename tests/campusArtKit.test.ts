@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { Matrix, Quaternion, Vector3 } from '../src/core/babylon';
 import { parseGlb } from '../src/operators/lab/glb';
 import { canonicalLightShapes } from '../src/voxel/lightShapes';
+import { detailPieces } from '../src/world/detailPass';
 import { LevelBuilder, type BoxPiece, type CylPiece } from '../src/world/levelBuilder';
 import { PROP_COLLISION, PROP_FOOTPRINT, PROP_HUNG, PROP_IDS, PROP_LOOK, PROP_MATERIALS, PROP_TRI_BUDGET } from '../src/world/props/facilityProps';
 import {
@@ -353,6 +354,13 @@ describe('skins, rule V and the box classes (A115)', () => {
     expect(b.boxes[1]).toMatchObject({ collide: true, visible: false, noLedge: true });
     expect(b.boxes[2]).toMatchObject({ collide: true, visible: true, noLedge: true });
     expect(canonicalLightShapes(b.boxes, b.cylinders, 'art-test', false).length).toBe(2);
+    // (artpol, art-kit P7) every art box is marked, and the detail pass (drawn and baked alike) leaves it bare; a tall thin
+    // wall-like box decorates only when it is not art
+    for (const x of b.boxes) expect(x.art).toBe(true);
+    const wall: BoxPiece = { c: [0, 1.4, 20], s: [4, 2.8, 0.2], yaw: 0, pitch: 0, color: '#808080', collide: true, visible: true };
+    expect(detailPieces([wall], 'art-test', 'medium').length).toBeGreaterThan(0);
+    expect(detailPieces([{ ...wall, art: true }], 'art-test', 'medium')).toEqual([]);
+    expect(detailPieces(b.boxes, 'art-test', 'medium')).toEqual([]);
     // a scaled box: lo / hi times s
     const w = artBoxes(CAMPUS_KIT, { ...ps[0]!, prop: 'kitchenRun', s: [1.1, 1, 1] })!;
     expect(w[0]!.s[0]).toBeCloseTo((1.2 - 0.02) * 1.1, 6);

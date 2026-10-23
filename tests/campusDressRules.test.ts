@@ -17,10 +17,10 @@ import { pieceKind } from '../src/world/surfaceKinds';
 import type { SectorDef } from '../src/game/sectors';
 import { ART_TAGS, type ArtTag } from '../src/world/campusArt/artTags';
 import { boxAt, ceilingAt, cylAt, floorAt, wallRuns } from '../src/world/campusArt/geometry';
-import { blocked, buildKeepouts, checkDressing, KEEP, overlapsGreybox, type DressContext } from '../src/world/campusArt/keepouts';
+import { blocked, buildKeepouts, checkDressing, KEEP, MOUNT_CEIL, overlapsGreybox, placementMount, SKIN_PART_CLEAR, skinReach, type DressContext, type Keepouts } from '../src/world/campusArt/keepouts';
 import { DOOR_EXTRAS, DRESS_RULES, newReport, planRoom } from '../src/world/campusArt/dressRules';
 import { applyFinishes, CAMPUS_FINISH, FINISH_KIND } from '../src/world/campusArt/finishes';
-import { facilityCatalogue, type ArtPlacement, type CatalogueSet } from '../src/world/campusArt/catalogue';
+import { facilityCatalogue, type ArtPlacement, type CatalogueSet, type PropCatalogue } from '../src/world/campusArt/catalogue';
 import { CAMPUS_KIT } from '../src/world/campusArt/campusKit';
 import { CampusDresser } from '../src/world/campusArt/dresser';
 import { runtimeNav } from './helpers/runtimeNav';
@@ -273,6 +273,71 @@ describe('keepouts K1-K13: 5 cm inside rejects, 5 cm outside accepts (floor prop
     // a skin over a box it does not fit: S
     const s: ArtPlacement = { cat: 'K', prop: 'meetingTable', x: 0, y: 0, z: 0, yaw: 0, section: 0, cls: 'skin', skinOf: 0, why: 'probe' };
     expect(test(ctx, s)?.startsWith('S')).toBe(true);
+  });
+});
+
+describe('artpol: mount, long legs, skin reach', () => {
+  it('(art-kit P2) a raised piece with no wall behind it is a floor prop below 1.9 m, a ceiling piece from there', () => {
+    const ctx = ctxOf({ sector: sector({ routes: [{ name: 'r', pts: [[-5, 5], [5, 5]], obj: 1 }] }) });
+    const k = buildKeepouts(ctx);
+    const body = printer(0, 5, 1.0);
+    expect(placementMount(k, ctx, CAMPUS_KIT, body)).toBe('floor-free');
+    expect(blocked(k, ctx, CAMPUS_KIT, body, placementMount(k, ctx, CAMPUS_KIT, body))?.startsWith('K1')).toBe(true);
+    expect(placementMount(k, ctx, CAMPUS_KIT, printer(0, 5, MOUNT_CEIL - 0.05))).toBe('floor-free');
+    expect(placementMount(k, ctx, CAMPUS_KIT, printer(0, 5, MOUNT_CEIL + 0.05))).toBe('ceiling');
+  });
+
+  it('(art-kit P3) a long leg or beam that crosses the section with both ends outside it is kept', () => {
+    // the room is -20..20; the bounds grow 6, the cap margin r + 4: the ends at +-100 are far outside
+    const ctx = ctxOf({
+      sector: sector({ routes: [{ name: 'long', pts: [[-100, 5], [100, 5]], obj: 1 }] }),
+      lasers: [{ id: 'long', x1: -100, z1: -5, x2: 100, z2: -5, ys: [0.5], floorY: 0 }],
+    });
+    const k = buildKeepouts(ctx);
+    expect(k.caps.filter((c) => c.rule === 'K1').length).toBe(1);
+    expect(k.tubes.filter((t) => t.rule === 'K9').length).toBe(1);
+    expect(test(ctx, printer(0, 5))?.startsWith('K1')).toBe(true);
+    expect(test(ctx, printer(0, -5))?.startsWith('K9')).toBe(true);
+    // one that passes the section by is still dropped
+    const off = ctxOf({ sector: sector({ routes: [{ name: 'off', pts: [[-100, 60], [100, 60]], obj: 1 }] }) });
+    expect(buildKeepouts(off).caps.filter((c) => c.rule === 'K1').length).toBe(0);
+  });
+
+  // a probe skin: its hull 1 cm proud of a 1 m cube piece (y 0..1) on the faces, and 2 m of overhang above it (y 1..3)
+  const PIECE: BoxPiece = { c: [0, 0.5, 5], s: [1, 1, 1], yaw: 0, pitch: 0, color: '#777777', collide: true };
+  const PROBE = { ...CAMPUS_KIT, ids: [...CAMPUS_KIT.ids, 'probe'], bounds: { ...CAMPUS_KIT.bounds, probe: { lo: [-0.51, 0, -0.51] as const, hi: [0.51, 3, 0.51] as const } }, overhang: { probe: { by: 2, what: 'test overhang' } } } as PropCatalogue;
+  const skin: ArtPlacement = { cat: 'K', prop: 'probe', x: 0, y: 0, z: 5, yaw: 0, section: 0, cls: 'skin', skinOf: 1, why: 'probe' };
+  const ray = (ay: number, az: number, by: number, bz: number): Keepouts['rays'][number] => ({ ax: 0, ay, az, bx: 0, by, bz, lo: [0, Math.min(ay, by), Math.min(az, bz)], hi: [0, Math.max(ay, by), Math.max(az, bz)], cam: 't' });
+
+  it('(polish2 1) K8: a ray ending on the piece is the piece only where the hull meets it within 2 cm of the piece', () => {
+    const ctx = ctxOf();
+    ctx.boxes = [...ctx.boxes, PIECE];
+    const k = buildKeepouts(ctx);
+    // level at 0.5 m, ending on the piece's south face: the proud hull is entered 1 cm before it (the greybox decides)
+    k.rays = [ray(0.5, 0.2, 0.5, 4.51)];
+    expect(skinReach(k, ctx, PROBE, skin)).toBeNull();
+    // down from 6 m onto the piece's top: the overhang is crossed well before the piece
+    k.rays = [ray(6, 0.2, 0.99, 5.0)];
+    expect(skinReach(k, ctx, PROBE, skin)?.startsWith('K8')).toBe(true);
+  });
+
+  it('(polish2 2) K9: a beam over the piece plan is skipped only in its height band', () => {
+    const at = (y: number): DressContext => {
+      const ctx = ctxOf({ lasers: [{ id: 'l', x1: 0, z1: 4.6, x2: 0, z2: 5.4, ys: [y], floorY: 0 }] });
+      ctx.boxes = [...ctx.boxes, PIECE];
+      return ctx;
+    };
+    const low = at(0.5);
+    expect(skinReach(buildKeepouts(low), low, PROBE, skin)).toBeNull();
+    const high = at(2.0);
+    expect(skinReach(buildKeepouts(high), high, PROBE, skin)?.startsWith('K9')).toBe(true);
+    // an overhang that lists its parts (a 2 cm rod at local x 0.4) is measured by them above the band: clear at 0.39 m,
+    // caught within SKIN_PART_CLEAR of the rod's surface
+    const RODS = { ...PROBE, overhang: { probe: { by: 2, what: 'a rod', parts: [{ a: [0.4, 1, 0] as const, b: [0.4, 3, 0] as const, r: 0.01 }] } } } as PropCatalogue;
+    expect(skinReach(buildKeepouts(high), high, RODS, skin)).toBeNull();
+    const nearRod = ctxOf({ lasers: [{ id: 'l', x1: 0.4 + 0.01 + SKIN_PART_CLEAR - 0.02, z1: 4.6, x2: 0.4 + 0.01 + SKIN_PART_CLEAR - 0.02, z2: 5.4, ys: [2.0], floorY: 0 }] });
+    nearRod.boxes = [...nearRod.boxes, PIECE];
+    expect(skinReach(buildKeepouts(nearRod), nearRod, RODS, skin)?.startsWith('K9')).toBe(true);
   });
 });
 

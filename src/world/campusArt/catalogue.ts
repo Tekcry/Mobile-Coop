@@ -66,7 +66,10 @@ export interface PropCatalogue {
   hung: readonly string[];
   /** Pieces that may scale 0.8-1.25 per axis. */
   fit: readonly string[];
-  overhang: Readonly<Record<string, { by: number; what: string }>>;
+  /** Pieces whose drawn skin may stand `by` off their greybox piece; `parts` (artpol, polish2 2), when listed, are the
+   *  overhang's real parts in the piece frame (segments a -> b of radius r: rods, a stack), which the skin-reach K9 check
+   *  measures beams against above and below the piece instead of the hull box. */
+  overhang: Readonly<Record<string, { by: number; what: string; parts?: readonly { a: V3; b: V3; r: number }[] }>>;
   emissive: Readonly<Record<string, readonly ('screen' | 'lamp')[]>>;
   /** Row module (m along local x). */
   pitch: Readonly<Record<string, number>>;
@@ -284,7 +287,7 @@ export function writeArtBoxes(b: PropBoxBuilder, cats: CatalogueSet, ps: readonl
     for (const w of boxes) {
       const from = b.boxes.length;
       b.box(w.c[0], w.c[1], w.c[2], w.s[0], w.s[1], w.s[2], w.color, w.yaw, 0, true, w.visible);
-      b.mark(from, { noLedge: true });
+      b.mark(from, { noLedge: true, art: true });
       n++;
     }
   }

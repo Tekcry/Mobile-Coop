@@ -12,7 +12,7 @@
  * sweep, at 0.3 / 1.0 / 1.7 m, which no new box or bulky visual piece may cross).
  */
 import { camPitch, camRange, inFrame, sweepYaw } from '../../security/camera';
-import { hyp2 } from '../../core/mathx';
+import { hyp2, hyp3 } from '../../core/mathx';
 import { classifyHeight, MIN_FACE } from '../../cover/coverData';
 import type { CameraDevice } from '../../security/data';
 import type { LaserDef } from '../../game/jammer';
@@ -24,8 +24,8 @@ import type { Door, TraversalAnchors, WindowAnchor } from '../anchors';
 import type { BoxPiece, CylPiece } from '../levelBuilder';
 import type { CoopLip } from '../maps/campusS1';
 import { isOutdoor, type ArtTag } from './artTags';
-import { artBoxes, boxSlice, hullObb, pieceHull, ruleV, skinFit, writesBoxes, type ArtPlacement, type CatalogueSet, type PropCatalogue, type WorldObb } from './catalogue';
-import { boxObb, boxPlan, obbOf, planRect, pointObbDist, pointRectDist, rectGap, rectsOverlap, segHitsObb, segRectDist, type Obb3, type PlanRect } from './geometry';
+import { artBoxes, artToWorld, boxSlice, hullObb, pieceHull, ruleV, skinFit, writesBoxes, type ArtPlacement, type CatalogueSet, type PropCatalogue, type WorldObb } from './catalogue';
+import { boxObb, boxPlan, obbAabb, obbOf, planRect, pointObbDist, pointRectDist, pointSegDist, rectGap, rectsOverlap, segEntryObb, segHitsObb, segRectDist, type Obb3, type PlanRect } from './geometry';
 
 export interface DressContext {
   section: number;
@@ -122,6 +122,8 @@ interface Zone {
 interface Tube {
   /** Sample points along the shape (x, y, z, ...), at most 0.15 apart. */
   pts: number[];
+  /** (artpol, load time) The samples' world bounds [x0, y0, z0, x1, y1, z1]. */
+  bb: [number, number, number, number, number, number];
   floor: number;
   wall: number;
   ceil: number;
@@ -176,6 +178,8 @@ export interface Keepouts {
 const CELL = 2;
 export class BoxGrid {
   private cells = new Map<number, number[]>();
+  private readonly stamp: Int32Array;
+  private tick = 0;
   constructor(
     boxes: readonly BoxPiece[],
     n: number,
@@ -184,6 +188,7 @@ export class BoxGrid {
     readonly x1: number,
     readonly z1: number,
   ) {
+    this.stamp = new Int32Array(n);
     for (let i = 0; i < n; i++) {
       const p = boxPlan(boxes[i]!);
       const e = Math.abs(p.r.ux) * p.r.hx + Math.abs(p.r.uz) * p.r.hz;
@@ -211,14 +216,23 @@ export class BoxGrid {
   }
   /** Box indices whose plan bounds may meet x0..x1, z0..z1 (sorted, unique). */
   query(x0: number, z0: number, x1: number, z1: number): number[] {
-    const seen = new Set<number>();
+    // (artpol, load time) de-duplicated by a per-query stamp, not a Set
+    const out: number[] = [];
+    const t = ++this.tick;
     for (let i = this.ci(Math.max(x0, this.x0)); i <= this.ci(Math.min(x1, this.x1)); i++) {
       for (let k = this.ck(Math.max(z0, this.z0)); k <= this.ck(Math.min(z1, this.z1)); k++) {
         const c = this.cells.get(i * 4096 + k);
-        if (c) for (const j of c) seen.add(j);
+        if (!c) continue;
+        for (let n = 0; n < c.length; n++) {
+          const j = c[n]!;
+          if (this.stamp[j] === t) continue;
+          this.stamp[j] = t;
+          out.push(j);
+        }
       }
     }
-    return [...seen].sort((a, b) => a - b);
+    if (out.length > 1) out.sort((a, b) => a - b);
+    return out;
   }
 }
 
@@ -309,9 +323,12 @@ export function buildKeepouts(ctx: DressContext): Keepouts {
   x1 += 6;
   z1 += 6;
   const inB = (x: number, z: number, m = 0): boolean => x >= x0 - m && x <= x1 + m && z >= z0 - m && z <= z1 + m;
+  // (artpol, art-kit P3) a segment that meets the bounds grown by m: a long leg that crosses the section with both ends
+  // outside it is kept (an end test alone dropped it)
+  const segInB = (ax: number, az: number, bx: number, bz: number, m: number): boolean => segRectDist(planRect((x0 + x1) / 2, (z0 + z1) / 2, (x1 - x0) / 2 + m, (z1 - z0) / 2 + m, 0), ax, az, bx, bz) <= 0;
   const caps: PlanCap[] = [];
   const cap = (ax: number, az: number, bx: number, bz: number, ya: number | undefined, yb: number | undefined, r: number, rule: string, what: string): void => {
-    if (!inB(ax, az, r + 4) && !inB(bx, bz, r + 4)) return;
+    if (!segInB(ax, az, bx, bz, r + 4)) return;
     const [a0, a1] = bandOf(ya);
     const [b0, b1] = bandOf(yb);
     caps.push({ ax, az, bx, bz, y0: Math.min(a0, b0), y1: Math.max(a1, b1), r, rule, what });
@@ -381,8 +398,18 @@ export function buildKeepouts(ctx: DressContext): Keepouts {
   // K9 lasers, K10 lamps, K11 anchors: 3D tubes / spheres (floor, wall, ceiling radii)
   const tubes: Tube[] = [];
   const tube = (pts: (readonly [number, number, number])[], floor: number, wall: number, ceil: number, rule: string, what: string): void => {
-    if (!pts.some((p) => inB(p[0], p[2], 4))) return;
-    tubes.push({ pts: samples(pts), floor, wall, ceil, rule, what });
+    let near = pts.length === 1 && inB(pts[0]![0], pts[0]![2], 4);
+    for (let i = 0; !near && i + 1 < pts.length; i++) near = segInB(pts[i]![0], pts[i]![2], pts[i + 1]![0], pts[i + 1]![2], 4);
+    if (!near) return;
+    const sp = samples(pts);
+    const bb: [number, number, number, number, number, number] = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+    for (let i = 0; i < sp.length; i += 3) {
+      for (let a = 0; a < 3; a++) {
+        if (sp[i + a]! < bb[a]!) bb[a] = sp[i + a]!;
+        if (sp[i + a]! > bb[a + 3]!) bb[a + 3] = sp[i + a]!;
+      }
+    }
+    tubes.push({ pts: sp, bb, floor, wall, ceil, rule, what });
   };
   for (const l of ctx.lasers) for (const y of l.ys) tube([[l.x1, (l.floorY ?? 0) + y, l.z1], [l.x2, (l.floorY ?? 0) + y, l.z2]], KEEP.laser, KEEP.laser, KEEP.laser, 'K9', `laser ${l.id}`);
   for (const p of ctx.lamps) tube([[p.x, p.y, p.z]], KEEP.lamp, KEEP.lamp, KEEP.lamp, 'K10', 'lamp');
@@ -547,11 +574,20 @@ export function backGap(k: Keepouts, boxes: readonly BoxPiece[], cat: PropCatalo
   const bx = p.x - nx * back;
   const bz = p.z - nz * back;
   const near = k.grid.query(bx - 0.5, bz - 0.5, bx + 0.5, bz + 0.5);
-  const obbs = near.map((i) => ({ o: boxObb(boxes[i]!), glass: !!boxes[i]!.glass, collide: boxes[i]!.collide }));
+  // (artpol, load time) only the collide boxes within reach of the 0.3 m search (every sample is within 0.15 of its
+  // middle), in grid order as before
+  const obbs: { o: Obb3; glass: boolean }[] = [];
+  for (const i of near) {
+    const b = boxes[i]!;
+    if (!b.collide) continue;
+    const o = boxObb(b);
+    if (pointObbDist(o, bx + nx * 0.15, y, bz + nz * 0.15) > 0.151) continue;
+    obbs.push({ o, glass: !!b.glass });
+  }
   for (let d = 0; d <= 0.3 + 1e-9; d += 0.005) {
     const x = bx + nx * d;
     const z = bz + nz * d;
-    for (const o of obbs) if (o.collide && pointObbDist(o.o, x, y, z) < 1e-4) return { gap: d, glass: o.glass, back };
+    for (const o of obbs) if (pointObbDist(o.o, x, y, z) < 1e-4) return { gap: d, glass: o.glass, back };
   }
   return { gap: Infinity, glass: false, back };
 }
@@ -570,6 +606,22 @@ export function floorUnder(k: Keepouts, boxes: readonly BoxPiece[], cat: PropCat
   return best;
 }
 
+/** (artpol, art-kit P2) A raised piece with no wall behind it hangs (ceiling rules) only from this height over its floor. */
+export const MOUNT_CEIL = 1.9;
+/** (artpol, polish2 1) How far (m) along a K8 ray a skin's hull may be entered before its own greybox piece and still
+ *  count as the piece (a skin proud of its face). */
+export const SKIN_RAY_SLACK = 0.02;
+/** (artpol, polish2 2) A listed overhang part's (a 2 cm rod's) clearance (m) from a laser beam, from its surface. */
+export const SKIN_PART_CLEAR = 0.05;
+/** Distance from a point to the 3D segment a -> b. */
+function pointSeg3(x: number, y: number, z: number, ax: number, ay: number, az: number, bx: number, by: number, bz: number): number {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const dz = bz - az;
+  const l2 = dx * dx + dy * dy + dz * dz;
+  const t = l2 < 1e-12 ? 0 : Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy + (z - az) * dz) / l2));
+  return hyp3(x - (ax + dx * t), y - (ay + dy * t), z - (az + dz * t));
+}
 const overlapY = (a0: number, a1: number, b0: number, b1: number): boolean => a0 < b1 && b0 < a1;
 const minDistToShape = (s: Shape, pts: readonly number[]): number => {
   let d = Infinity;
@@ -587,11 +639,14 @@ export function placementMount(k: Keepouts, ctx: DressContext, cat: PropCatalogu
   const h = pieceHull(cat, p.prop);
   const sy = p.s?.[1] ?? 1;
   const bottom = p.y + Math.min(h.lo[1], h.hi[1]) * sy;
-  const raised = bottom > floorUnder(k, ctx.boxes, cat, p) + 0.05;
+  const floor = floorUnder(k, ctx.boxes, cat, p);
+  const raised = bottom > floor + 0.05;
   const depth = Math.abs(h.hi[2] - h.lo[2]) * (p.s?.[2] ?? 1);
   const onWall = backGap(k, ctx.boxes, cat, p).gap <= 0.06;
   if (onWall && (raised || (p.cls === 'visual' && depth <= 0.2))) return 'wall';
-  if (raised && !onWall) return 'ceiling';
+  // (artpol, art-kit P2) only a piece hung clear of head height (bottom 1.9 over the floor) takes the ceiling rules: one
+  // raised to body height with no wall behind it is a floor prop (K1-K6, C, K7 rules 2 / 3 and K12 apply)
+  if (raised && !onWall && bottom >= floor + MOUNT_CEIL) return 'ceiling';
   return 'floor-free';
 }
 
@@ -627,6 +682,8 @@ export function blocked(k: Keepouts, ctx: DressContext, cat: PropCatalogue, p: A
       for (const s of shapes) {
         if (!overlapY(s.y0, s.y1, c.y0, c.y1)) continue;
         const r = c.r + navPad(s, c.rule);
+        // (artpol, load time) the rect's circumcircle clear of the leg by r: the rect is too (most legs, cheaply)
+        if (pointSegDist(s.plan.cx, s.plan.cz, c.ax, c.az, c.bx, c.bz) - hyp2(s.plan.hx, s.plan.hz) > r + 1e-4) continue;
         if (segRectDist(s.plan, c.ax, c.az, c.bx, c.bz) < r - 1e-6) return `${c.rule}: ${p.prop} within ${r.toFixed(2)} of ${c.what}`;
       }
     }
@@ -642,6 +699,7 @@ export function blocked(k: Keepouts, ctx: DressContext, cat: PropCatalogue, p: A
       if (!s.solid || !classifyHeight(s.y1 - s.y0) || Math.max(s.plan.hx, s.plan.hz) * 2 < MIN_FACE) continue;
       for (const c of k.caps) {
         if ((c.rule !== 'K1' && c.rule !== 'K2') || !overlapY(s.y0, s.y0 + 0.5, c.y0, c.y1)) continue;
+        if (pointSegDist(s.plan.cx, s.plan.cz, c.ax, c.az, c.bx, c.bz) - hyp2(s.plan.hx, s.plan.hz) > KEEP.cover + 1e-4) continue;
         if (segRectDist(s.plan, c.ax, c.az, c.bx, c.bz) < KEEP.cover - 1e-6) return `C: ${p.prop} makes cover within ${KEEP.cover} of ${c.what}`;
       }
     }
@@ -687,9 +745,15 @@ export function blocked(k: Keepouts, ctx: DressContext, cat: PropCatalogue, p: A
     }
   }
   // K9 / K10 / K11 tubes and spheres
+  // (artpol, load time) a tube whose bounds are r or more off a shape's bounds on any axis is clear of it
+  const sbb = shapes.map((s) => obbAabb(s.obb));
   for (const t of k.tubes) {
     const r = floor ? t.floor : mount === 'wall' ? t.wall : t.ceil;
-    for (const s of shapes) if (minDistToShape(s, t.pts) < r - 1e-6) return `${t.rule}: ${p.prop} within ${r} of ${t.what}`;
+    for (let si = 0; si < shapes.length; si++) {
+      const b = sbb[si]!;
+      if (t.bb[0] - b[3] >= r || b[0] - t.bb[3] >= r || t.bb[1] - b[4] >= r || b[1] - t.bb[4] >= r || t.bb[2] - b[5] >= r || b[2] - t.bb[5] >= r) continue;
+      if (minDistToShape(shapes[si]!, t.pts) < r - 1e-6) return `${t.rule}: ${p.prop} within ${r} of ${t.what}`;
+    }
   }
   return null;
 }
@@ -759,17 +823,37 @@ export function skinReach(k: Keepouts, ctx: DressContext, cat: PropCatalogue, p:
   const hi2 = s.plan.cz + s.plan.hx + s.plan.hz;
   for (const r of k.rays) {
     if (r.hi[0] < lo0 || r.lo[0] > hi0 || r.hi[1] < s.y0 || r.lo[1] > s.y1 || r.hi[2] < lo2 || r.lo[2] > hi2) continue;
-    if (!segHitsObb(s.obb, r.ax, r.ay, r.az, r.bx, r.by, r.bz, 0.005)) continue;
-    if (own && segHitsObb(own, r.ax, r.ay, r.az, r.bx, r.by, r.bz, 0)) continue;
+    const tHull = segEntryObb(s.obb, r.ax, r.ay, r.az, r.bx, r.by, r.bz, 0.005);
+    if (tHull < 0) continue;
+    // (artpol, polish2 1) the piece decides the ray only from where the ray meets it: skipped when the hull is entered
+    // no more than SKIN_RAY_SLACK before the piece (a skin proud of its face), not when an overhang crosses it first
+    const tOwn = own ? segEntryObb(own, r.ax, r.ay, r.az, r.bx, r.by, r.bz, 0) : -1;
+    if (tOwn >= 0 && (tOwn - tHull) * hyp3(r.bx - r.ax, r.by - r.ay, r.bz - r.az) <= SKIN_RAY_SLACK) continue;
     return `K8: skin ${p.prop} blocks camera ${r.cam} towards (${r.bx.toFixed(1)}, ${r.by.toFixed(1)}, ${r.bz.toFixed(1)})`;
   }
+  // (artpol, polish2 2) the piece's own height band (its box or cylinder, KEEP.laser round): a laser point over its plan
+  // footprint but above or below that band meets the overhang alone, and is checked
+  const band0 = (box ? boxPlan(box).y0 : cyl ? cyl.c[1] - cyl.h / 2 : 0) - KEEP.laser;
+  const band1 = (box ? boxPlan(box).y1 : cyl ? cyl.c[1] + cyl.h / 2 : 0) + KEEP.laser;
+  // an overhang that lists its real parts (rods, a stack) is measured by them out of the band, not by its hull box
+  const parts = cat.overhang[p.prop]!.parts;
+  const wp: number[] = [];
+  const grow = Math.max(p.s?.[0] ?? 1, p.s?.[2] ?? 1);
+  for (const q of parts ?? []) wp.push(...artToWorld(p, q.a[0], q.a[1], q.a[2]), ...artToWorld(p, q.b[0], q.b[1], q.b[2]), q.r * grow);
   for (const t of k.tubes) {
     if (t.rule !== 'K9') continue;
     for (let i = 0; i + 2 < t.pts.length; i += 3) {
       const x = t.pts[i]!;
       const y = t.pts[i + 1]!;
       const z = t.pts[i + 2]!;
-      if (ownPlan ? pointRectDist(ownPlan, x, z) <= 0 : cyl ? hyp2(x - cyl.c[0], z - cyl.c[2]) <= cyl.r : false) continue;
+      const inBand = y >= band0 && y <= band1;
+      if (inBand && (ownPlan ? pointRectDist(ownPlan, x, z) <= 0 : cyl ? hyp2(x - cyl.c[0], z - cyl.c[2]) <= cyl.r : false)) continue;
+      if (parts && !inBand) {
+        for (let j = 0; j < wp.length; j += 7) {
+          if (pointSeg3(x, y, z, wp[j]!, wp[j + 1]!, wp[j + 2]!, wp[j + 3]!, wp[j + 4]!, wp[j + 5]!) - wp[j + 6]! < SKIN_PART_CLEAR - 1e-6) return `K9: skin ${p.prop} (a listed part) within ${SKIN_PART_CLEAR} of ${t.what}`;
+        }
+        continue;
+      }
       if (pointObbDist(s.obb, x, y, z) < KEEP.laser - 1e-6) return `K9: skin ${p.prop} within ${KEEP.laser} of ${t.what}`;
     }
   }

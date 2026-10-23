@@ -59,6 +59,12 @@ export function pointObbDist(o: Obb3, x: number, y: number, z: number): number {
 
 /** Does the segment a -> b cross the OBB shrunk by `shrink` on every side (a touch does not count)? Slab test. */
 export function segHitsObb(o: Obb3, ax: number, ay: number, az: number, bx: number, by: number, bz: number, shrink = 0): boolean {
+  return segEntryObb(o, ax, ay, az, bx, by, bz, shrink) >= 0;
+}
+
+/** (artpol) Where the segment a -> b enters the OBB shrunk by `shrink`, as a fraction 0..1 of the segment (0: it starts
+ *  inside); -1 when it does not cross it (`segHitsObb`'s test). */
+export function segEntryObb(o: Obb3, ax: number, ay: number, az: number, bx: number, by: number, bz: number, shrink = 0): number {
   const px = ax - o.c[0];
   const py = ay - o.c[1];
   const pz = az - o.c[2];
@@ -70,11 +76,11 @@ export function segHitsObb(o: Obb3, ax: number, ay: number, az: number, bx: numb
   for (let k = 0; k < 3; k++) {
     const u = k === 0 ? o.ax : k === 1 ? o.ay : o.az;
     const h = o.h[k]! - shrink;
-    if (h <= 0) return false;
+    if (h <= 0) return -1;
     const p = px * u[0] + py * u[1] + pz * u[2];
     const d = dx * u[0] + dy * u[1] + dz * u[2];
     if (Math.abs(d) < 1e-12) {
-      if (Math.abs(p) > h) return false;
+      if (Math.abs(p) > h) return -1;
       continue;
     }
     let ta = (-h - p) / d;
@@ -86,9 +92,9 @@ export function segHitsObb(o: Obb3, ax: number, ay: number, az: number, bx: numb
     }
     if (ta > t0) t0 = ta;
     if (tb < t1) t1 = tb;
-    if (t0 > t1) return false;
+    if (t0 > t1) return -1;
   }
-  return true;
+  return t0;
 }
 
 /** Plan rectangle of an OBB (yaw only; a pitched box's plan bounds are used as an axis-aligned rect). */
@@ -124,22 +130,6 @@ export function pointSegDist(x: number, z: number, ax: number, az: number, bx: n
   return hyp2(x - (ax + dx * t), z - (az + dz * t));
 }
 
-/** The four corners of a plan rectangle. */
-function corners(r: PlanRect): [number, number][] {
-  const vx = -r.uz;
-  const vz = r.ux;
-  const out: [number, number][] = [];
-  for (const [a, b] of [
-    [-1, -1],
-    [1, -1],
-    [1, 1],
-    [-1, 1],
-  ] as const) {
-    out.push([r.cx + r.ux * r.hx * a + vx * r.hz * b, r.cz + r.uz * r.hx * a + vz * r.hz * b]);
-  }
-  return out;
-}
-
 function segsCross(ax: number, az: number, bx: number, bz: number, cx: number, cz: number, dx: number, dz: number): boolean {
   const d1 = (bx - ax) * (cz - az) - (bz - az) * (cx - ax);
   const d2 = (bx - ax) * (dz - az) - (bz - az) * (dx - ax);
@@ -152,10 +142,22 @@ function segsCross(ax: number, az: number, bx: number, bz: number, cx: number, c
 export function segRectDist(r: PlanRect, ax: number, az: number, bx: number, bz: number): number {
   let d = Math.min(pointRectDist(r, ax, az), pointRectDist(r, bx, bz));
   if (d === 0) return 0;
-  const cs = corners(r);
+  // (artpol, load time) the four corners walked in place, no arrays: (-1, -1), (1, -1), (1, 1), (-1, 1) in (hx, hz)
+  const vx = -r.uz;
+  const vz = r.ux;
+  const ex = r.ux * r.hx;
+  const ez = r.uz * r.hx;
+  const fx = vx * r.hz;
+  const fz = vz * r.hz;
   for (let i = 0; i < 4; i++) {
-    const [px, pz] = cs[i]!;
-    const [qx, qz] = cs[(i + 1) % 4]!;
+    const sa = i === 1 || i === 2 ? 1 : -1;
+    const sb = i >= 2 ? 1 : -1;
+    const ta = i === 0 || i === 1 ? 1 : -1;
+    const tb = i === 1 || i === 2 ? 1 : -1;
+    const px = r.cx + ex * sa + fx * sb;
+    const pz = r.cz + ez * sa + fz * sb;
+    const qx = r.cx + ex * ta + fx * tb;
+    const qz = r.cz + ez * ta + fz * tb;
     if (segsCross(ax, az, bx, bz, px, pz, qx, qz)) return 0;
     d = Math.min(d, pointSegDist(px, pz, ax, az, bx, bz));
   }

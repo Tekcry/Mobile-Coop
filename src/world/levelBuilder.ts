@@ -58,6 +58,8 @@ export interface BoxPiece {
   overhead?: boolean;
   /** Visual-only dressing from the detail pass (never collides; the minimap skips it). */
   detail?: boolean;
+  /** (artpol, art-kit P7) A campus art box (`writeArtBoxes`): the detail pass leaves it bare (its skin is the look). */
+  art?: boolean;
   /** (guard-ai) Glass: 'clear' lets a guard's sight through, 'frosted' blocks it; hearing treats both as a wall.
    *  (E2, EW6) Light passes both (out of the canonical light shapes); a glass piece is never drawn as a solid box or
    *  voxels, never cover or a ledge, and its collision is its own body (`G.GLASS`: bodies stop, bullets pass). Place
@@ -498,11 +500,12 @@ export class LevelBuilder {
   }
 
   /** Mark the pieces added since `from` (an index into `boxes`): overhead and / or without ledges. */
-  mark(from: number, flags: { overhead?: boolean; noLedge?: boolean }): this {
+  mark(from: number, flags: { overhead?: boolean; noLedge?: boolean; art?: boolean }): this {
     for (let k = from; k < this.boxes.length; k++) {
       const b = this.boxes[k]!;
       if (flags.overhead) b.overhead = true;
       if (flags.noLedge) b.noLedge = true;
+      if (flags.art) b.art = true;
     }
     return this;
   }

@@ -729,7 +729,7 @@ export function propCollisionBox(p: PropPlacement): PropWorldBox[] | null {
 export interface PropBoxBuilder {
   readonly boxes: readonly unknown[];
   box(cx: number, cy: number, cz: number, sx: number, sy: number, sz: number, color: string, yaw?: number, pitch?: number, collide?: boolean, visible?: boolean): unknown;
-  mark(from: number, flags: { overhead?: boolean; noLedge?: boolean }): unknown;
+  mark(from: number, flags: { overhead?: boolean; noLedge?: boolean; art?: boolean }): unknown;
 }
 
 /** Writes every placement's gameplay boxes into the level builder (the map builder's one call per set). */

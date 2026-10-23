@@ -10,6 +10,7 @@
  */
 import { hyp2 } from '../../core/mathx';
 import { roomAt } from '../rooms';
+import type { BoxPiece } from '../levelBuilder';
 import type { ArtTag } from './artTags';
 import { isOutdoor } from './artTags';
 import { artToWorld, pieceHull, type ArtPlacement, type CatalogueSet, type PropCatalogue } from './catalogue';
@@ -260,7 +261,16 @@ export function planRoom(ctx: DressContext, k: Keepouts, cats: CatalogueSet, roo
   const rules = DRESS_RULES[tag];
   const cx = (room.minX + room.maxX) / 2;
   const cz = (room.minZ + room.maxZ) / 2;
-  const fa = floorAt(ctx.boxes, cx, cz, (room.minY ?? 0) + 0.1);
+  // (artpol, load time) the boxes over a plan point from the keepouts' grid (the greybox) plus any box written since,
+  // in place of a scan of every box: the same floor and ceiling answers (max / min over the boxes over the point)
+  const nearPt: BoxPiece[] = [];
+  const boxesAt = (x: number, z: number, greyOnly: boolean): readonly BoxPiece[] => {
+    nearPt.length = 0;
+    for (const i of k.grid.query(x - 0.01, z - 0.01, x + 0.01, z + 0.01)) nearPt.push(ctx.boxes[i]!);
+    if (!greyOnly) for (let i = k.nBoxes; i < ctx.boxes.length; i++) nearPt.push(ctx.boxes[i]!);
+    return nearPt;
+  };
+  const fa = floorAt(boxesAt(cx, cz, false), cx, cz, (room.minY ?? 0) + 0.1);
   const floorY = Number.isFinite(fa) ? fa : (room.minY ?? 0);
   const w = room.maxX - room.minX;
   const d = room.maxZ - room.minZ;
@@ -478,14 +488,14 @@ export function planRoom(ctx: DressContext, k: Keepouts, cats: CatalogueSet, roo
         if (placed >= allowed) break;
         const x = snap(x0);
         const z = snap(z0);
-        const cy = ceilingAt(ctx.boxes.slice(0, k.nBoxes), x, z, floorY);
+        const cy = ceilingAt(boxesAt(x, z, true), x, z, floorY);
         if (!Number.isFinite(cy)) {
           drop(rep, rule.piece, 'sky');
           continue;
         }
         const y = cy - (rule.y ?? 0) - hull.hi[1];
         const bottom = y + hull.lo[1];
-        const under = floorAt(ctx.boxes, x, z, cy - 0.5);
+        const under = floorAt(boxesAt(x, z, false), x, z, cy - 0.5);
         if (bottom < floorY + Math.max(2.4, rule.minHigh ?? 0) - 1e-6 || bottom < under + 1.9 - 1e-6) {
           drop(rep, rule.piece, 'low');
           continue;
