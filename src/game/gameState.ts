@@ -1621,7 +1621,8 @@ export class GameState implements AppState {
         n++;
       }
     }
-    sway.bumpKick(P, n, this.simNow());
+    // (at the tick's time: `tickSway` ran just before, on the shared clock)
+    sway.bumpKick(P, n);
   }
 
   private lightFrom = new Vector3();

@@ -395,14 +395,14 @@ describe('net session', () => {
     cli.toHost({ t: 'door', i: 0, crack: true });
     expect(got).toEqual([{ t: 'door', i: 0, crack: true }]);
   });
-  it('a peer on protocol version 37 is refused; version 38 joins (38 = the lamp falloff, lightrev LR13; 35 = the weapons crate, sector-redesign E9-crate; 31 the Sector Ops lamps, slice L; 30 marlow-final; 29 the lasers jammed at their power panels)', () => {
+  it('a peer on protocol version 38 is refused; version 39 joins (39 = the swinging pendants, LR16-5b; 38 = the lamp falloff, lightrev LR13; 35 = the weapons crate, sector-redesign E9-crate; 31 the Sector Ops lamps, slice L; 30 marlow-final; 29 the lasers jammed at their power panels)', () => {
     expect(PROTOCOL_VERSION).toBe(39);
     const h = hub();
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const old = h.make('O');
-    old.send({ t: 'hello', v: 37, name: 'Old', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 38, name: 'Old', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(false);
-    old.send({ t: 'hello', v: 38, name: 'New', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 39, name: 'New', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(true);
   });
   it("(LR16a, one light model) the start message carries no lamp falloff; an old peer's lf is dropped", () => {

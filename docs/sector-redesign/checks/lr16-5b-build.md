@@ -11,12 +11,13 @@ LR16-5 merged). Builder: Opus 5.5.
     pre-marlow-final; the base matches the 4).
   - `SwaySet` (:110): per pendant the rest fixture centre / half size, `len` (mean claimed hanger length), `w`, `wd`, a
     Float64Array ring (`slots` 4 x t, A, h, cos h, sin h), `off` / `env` / `last`, the hangers (`HANGER_STRIDE` 7).
-    `tick` (:201): off = sum A e^-(dt / tau) sin(wd dt) (cos h, sin h), swy = |off|^2 / 2L; a pendant with nothing live
-    is skipped after one write of 0. `scan` (:250, placement only: the envelope sum and the slot, a free one else the
-    smallest envelope). `kick` (:288: minGap, A = min(v / w, maxAmp - E), < minAmp dropped, `onKick`). `apply` (:301,
-    verbatim). `shotProbe` / `shotKicks` / `shotKick` / `shotKickOne` (:314-:363), `blastKick` (:366), `bumpKick` (:382).
-  - `claimHangers` (:425): thin (< `CANON_MIN_THICK`), vertical (> 0.3 m, no pitch) boxes centred in the fixture plan +
-    0.1 m with the bottom 0..0.25 m above the fixture top; hidden only when 2+ are found. `applyMapSway` (:454).
+    `tick` (:202): off = sum A e^-(dt / tau) sin(wd dt) (cos h, sin h), swy = |off|^2 / 2L; a pendant with nothing live
+    is skipped after one write of 0. `scan` (:251, placement only: the envelope sum and the slot, a free one else the
+    smallest envelope). `kick` (:296: minGap, A = min(v / w, maxAmp - E), < minAmp dropped, `onKick`). `apply` (:312,
+    verbatim). `shotProbe` / `shotKicks` / `shotKick` / `shotKickOne` (:329-:380), `blastKick` (:383), `bumpKick` (:402,
+    at the last tick's time `time[0]`). Doubles between the private steps go through the `tmp` slots (0 B a call).
+  - `claimHangers` (:449): thin (< `CANON_MIN_THICK`), vertical (> 0.3 m, no pitch) boxes centred in the fixture plan +
+    0.1 m with the bottom 0..0.25 m above the fixture top; hidden only when 2+ are found. `applyMapSway` (:478).
 - `src/world/lights.ts`: `LightDef.swx / swy / swz` (:55-61), `LightInit` omits them (:84), `lightTerm` reads rest +
   offset (:113, so `contribution` does), `add` sets 0 (:195), `sway` / `swayVersion` (:172-174), `tickSway` (:302, snaps to
   the 60 Hz step like `tickFlicker`, bumps `swayVersion` never `version`), `swayImpulse`. `lightOnRay` unchanged (rest).
@@ -47,9 +48,9 @@ LR16-5 merged). Builder: Opus 5.5.
 - `src/game/gameState.ts`: solo + host hooks made once (:721-737): our rounds (`weapons.onRay`), the guards' rounds
   (`em.onEnemyShot`) -> `shotKick`, blasts (`explosions.onExplode`) -> `blastKick`, all on `simNow()` (:1584);
   `updateLight` ticks `tickSway` after `tickFlicker` (:1544) and at `LIGHT.playerHz` `swayBumps` (:1596: local, remote
-  and live guard heads into a preallocated Float32Array, `MAX_SWAY_HEADS` 40, :270).
+  and live guard heads into a preallocated Float32Array, `MAX_SWAY_HEADS` 40, :270; `bumpKick` at the tick's time, :1625).
 - Tests: NEW `tests/lampSway.test.ts`; PROTOCOL asserts 38 -> 39 in crateWire, jammer, jammerFixes, moveState, net,
-  rejoin, sectorLampSync, sectorStep3.
+  rejoin, sectorLampSync, sectorStep3; net.test's version gate (:398-405) now refuses 38 and admits 39.
 - Docs: `docs/systems/lighting.md` (moving lights: swinging pendants), `docs/systems/coop.md` (protocol 39),
   `TESTING.md` (swinging pendants item), `changes/feature-sector-redesign-lr16-5b.md`.
 
@@ -58,7 +59,23 @@ LR16-5 merged). Builder: Opus 5.5.
 time). Per-frame wire: none. Sway is not re-sent on a rejoin (it decays in ~15 s).
 
 ## Tests run (desktop, single files, `--maxWorkers=2`, slot lock)
-RESULTS
+| File | Tests | Result |
+| --- | --- | --- |
+| tests/lampSway.test.ts (NEW) | 13 | pass (alloc: tickSway 0.0, shotKick 0.0, blastKick 0.0, bumpKick 0.0 B a call) |
+| tests/lampFlicker.test.ts | 20 | pass |
+| tests/lightField.test.ts | 17 | pass |
+| tests/charShadowSet.test.ts | 25 | pass |
+| tests/lampFalloff.test.ts | 12 | pass |
+| tests/crateWire.test.ts | 9 | pass |
+| tests/sectorLampSync.test.ts | 11 | pass |
+| tests/jammer.test.ts | 39 | pass |
+| tests/jammerFixes.test.ts | 10 | pass |
+| tests/moveState.test.ts | 16 | pass |
+| tests/net.test.ts | 73 | pass (after the version-gate test moved to 38 / 39) |
+| tests/rejoin.test.ts | 13 | pass |
+| tests/sectorStep3.test.ts | 7 | pass |
+
+Total 265 tests in 13 files. Not run (brief / lead rules): `npm run check`, e2e, GPU.
 
 `npx tsc --noEmit`: clean. `npx eslint` on every touched file: clean.
 
@@ -80,6 +97,8 @@ RESULTS
    only uses it to decide whether to ask.
 8. The pendant's heading convention: (cos h, sin h) on (x, z); h = atan2(dz, dx).
 9. Hangers drawn square at their thinnest side (0.04 m rods, 0.02 m cables).
+10. Head bumps are kicked at the last `tickSway` time (snapped to the 60 Hz step; `updateLight` samples them right
+    after the tick), so `bumpKick` takes no time argument (no boxed double).
 
 ## Open items
 - A dropped `ev` batch entry (the host queue past `MAX_EVENTS * 2`) loses a kick on the client: that client's ring
@@ -98,3 +117,13 @@ RESULTS
    mid-swing pendant: meter vs readback within the probe's tolerance).
 3. Shots: S2 on this base (A4 aisle 2 on master): fitting and rods swing as one, the pool and a guard's shadow sway;
    co-op two tabs in step; a shot-out pendant swings dark.
+
+## For the checkers (src/net touched)
+- Net / determinism: host `kick` -> `onKick` -> `push({ e: 'sway' })` -> client `swayImpulse` -> `apply` gives the same
+  ring (placement decided at each kick's own t0, `scan` never mutates); `tickSway` snapping; future kicks on a lagging
+  client; `onSwayShot` checks (limiter, origin, static segment) and that a client cannot push A past the cap (the host
+  computes A; the parse clamps a to `SWAY.maxAmp`); the client's `onRay` chain in Course mode (Marlow) and Sector Ops.
+- Parity / render: every reader at rest + offset (`lightTerm`, `lampInto`, t0 + `spheres` via `writeSway` before
+  `charShadows.frame`, one upload a frame, rig bodies / hangers, pooled light, haze); visibility and `lightOnRay` at
+  rest; the picker's hold and per-frame refresh while `moving`; the hidden hangers on ctcourse only (canonical set
+  unchanged, the voxel cache key changes once since the rods are no longer level pieces).

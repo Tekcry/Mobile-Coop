@@ -134,8 +134,9 @@ export class SwaySet {
   private readonly quiet: Uint8Array;
   /** The tick's time (s) in, so the call boxes no double (`LightRegistry.tickSway` writes it). */
   readonly time = new Float64Array(1);
-  /** Scratch: [0] the envelope sum, [1] the slot to write, [2] a kick's speed, [3] its heading. */
-  private readonly tmp = new Float64Array(4);
+  /** Scratch: [0] the envelope sum, [1] the slot to write, [2] a kick's speed, [3] its heading, [4] its time, [5] its
+   *  amplitude. */
+  private readonly tmp = new Float64Array(6);
 
   constructor(pendants: readonly SwayPendant[]) {
     const n = pendants.length;
@@ -245,9 +246,10 @@ export class SwaySet {
     return moved;
   }
 
-  /** The live envelopes' sum at `t` into `tmp[0]`, and the slot a new kick takes into `tmp[1]` (a free one, else the
+  /** The live envelopes' sum at `tmp[4]` (s) into `tmp[0]`, and the slot a new kick takes into `tmp[1]` (a free one, else the
    *  smallest envelope's). Placement-only: reading never changes the ring. */
-  private scan(k: number, t: number): void {
+  private scan(k: number): void {
+    const t = this.tmp[4]!;
     const ring = this.ring;
     const S = SWAY.slots;
     let sum = 0;
@@ -273,8 +275,13 @@ export class SwaySet {
     this.tmp[1] = free >= 0 ? free : small;
   }
 
-  private place(k: number, t: number, a: number, h: number): void {
-    const o = (k * SWAY.slots + this.tmp[1]!) * KS;
+  /** A kick at `tmp[4]` (t), amplitude `tmp[5]`, heading `tmp[3]` into the slot `scan` chose. */
+  private place(k: number): void {
+    const tmp = this.tmp;
+    const t = tmp[4]!;
+    const a = tmp[5]!;
+    const h = tmp[3]!;
+    const o = (k * SWAY.slots + tmp[1]!) * KS;
     const ring = this.ring;
     ring[o] = t;
     ring[o + 1] = a;
@@ -284,15 +291,19 @@ export class SwaySet {
     this.quiet[k] = 0;
   }
 
-  /** Host / solo: a kick of speed `v` (m/s) along heading `h` at `t`: capped, placed, reported. True when accepted. */
-  private kick(k: number, t: number, v: number, h: number): boolean {
+  /** Host / solo: a kick of speed `tmp[2]` (m/s) along heading `tmp[3]` at `tmp[4]`: capped, placed, reported. True when
+   *  accepted. (Doubles in and out through `tmp`: a non-inlined call boxes none.) */
+  private kick(k: number): boolean {
+    const tmp = this.tmp;
+    const t = tmp[4]!;
     if (t - this.last[k]! < SWAY.minGap) return false;
-    this.scan(k, t);
-    const a = Math.min(v / this.w[k]!, SWAY.maxAmp - this.tmp[0]!);
+    this.scan(k);
+    const a = Math.min(tmp[2]! / this.w[k]!, SWAY.maxAmp - tmp[0]!);
     if (!(a >= SWAY.minAmp)) return false;
-    this.place(k, t, a, h);
+    tmp[5] = a;
+    this.place(k);
     this.last[k] = t;
-    this.onKick?.(this.ids[k]!, t, a, h);
+    this.onKick?.(this.ids[k]!, t, a, tmp[3]!);
     return true;
   }
 
@@ -301,17 +312,21 @@ export class SwaySet {
   apply(id: number, t: number, a: number, h: number): void {
     const k = this.indexOf(id);
     if (k < 0 || !(a > 0)) return;
-    this.scan(k, t);
-    this.place(k, t, a, h);
+    const tmp = this.tmp;
+    tmp[3] = h;
+    tmp[4] = t;
+    tmp[5] = a;
+    this.scan(k);
+    this.place(k);
     if (t > this.last[k]!) this.last[k] = t;
   }
 
   /**
    * A round from a to b against pendant `k` (its fitting where it hangs now): the speed into `tmp[2]` and the heading
-   * into `tmp[3]`; 0 when it does not kick. A closest approach under `graze` kicks along the round's heading, an impact
+   * into `tmp[3]`; false when it does not kick. A closest approach under `graze` kicks along the round's heading, an impact
    * within `near` away from the impact; the larger wins. No allocation.
    */
-  private shotProbe(k: number, ax: number, ay: number, az: number, bx: number, by: number, bz: number): number {
+  private shotProbe(k: number, ax: number, ay: number, az: number, bx: number, by: number, bz: number): boolean {
     const cx = this.centre[k * 3]! + this.off[k * 3]!;
     const cy = this.centre[k * 3 + 1]! + this.off[k * 3 + 1]!;
     const cz = this.centre[k * 3 + 2]! + this.off[k * 3 + 2]!;
@@ -341,29 +356,33 @@ export class SwaySet {
     }
     this.tmp[2] = v;
     this.tmp[3] = h;
-    return v;
+    return v > 0;
   }
 
   /** Would a round from a to b kick pendant `k` (a client asks the host only then)? No allocation. */
   shotKicks(k: number, ax: number, ay: number, az: number, bx: number, by: number, bz: number): boolean {
-    return this.shotProbe(k, ax, ay, az, bx, by, bz) > 0;
+    return this.shotProbe(k, ax, ay, az, bx, by, bz);
   }
 
   /** Host / solo: a round from a to b at `t` kicks every pendant it passes or lands near. Returns the kicks accepted. */
   shotKick(ax: number, ay: number, az: number, bx: number, by: number, bz: number, t: number): number {
+    this.tmp[4] = t;
     let n = 0;
-    for (let k = 0; k < this.n; k++) if (this.shotProbe(k, ax, ay, az, bx, by, bz) > 0 && this.kick(k, t, this.tmp[2]!, this.tmp[3]!)) n++;
+    for (let k = 0; k < this.n; k++) if (this.shotProbe(k, ax, ay, az, bx, by, bz) && this.kick(k)) n++;
     return n;
   }
 
   /** Host: a client's checked round (`sw-<id>`) kicks pendant `k` only. True when accepted. */
   shotKickOne(k: number, ax: number, ay: number, az: number, bx: number, by: number, bz: number, t: number): boolean {
     if (k < 0 || k >= this.n) return false;
-    return this.shotProbe(k, ax, ay, az, bx, by, bz) > 0 && this.kick(k, t, this.tmp[2]!, this.tmp[3]!);
+    this.tmp[4] = t;
+    return this.shotProbe(k, ax, ay, az, bx, by, bz) && this.kick(k);
   }
 
   /** Host / solo: a blast at (x, y, z) kicks every pendant within `blastReach`, away from it. Returns the kicks. */
   blastKick(x: number, y: number, z: number, t: number): number {
+    const tmp = this.tmp;
+    tmp[4] = t;
     let n = 0;
     for (let k = 0; k < this.n; k++) {
       const cx = this.centre[k * 3]! + this.off[k * 3]!;
@@ -371,15 +390,18 @@ export class SwaySet {
       const cz = this.centre[k * 3 + 2]! + this.off[k * 3 + 2]!;
       const d = hyp3(cx - x, cy - y, cz - z);
       if (d >= SWAY.blastReach) continue;
-      const h = hyp2(cx - x, cz - z) > 1e-6 ? Math.atan2(cz - z, cx - x) : 0;
-      if (this.kick(k, t, SWAY.kickBlast * (1 - d / SWAY.blastReach), h)) n++;
+      tmp[2] = SWAY.kickBlast * (1 - d / SWAY.blastReach);
+      tmp[3] = hyp2(cx - x, cz - z) > 1e-6 ? Math.atan2(cz - z, cx - x) : 0;
+      if (this.kick(k)) n++;
     }
     return n;
   }
 
   /** Host / solo: head points (x, y, z each, `n` of them): one within `bumpReach` of a fixture's box bumps it away from
-   *  the nearest head. Returns the kicks. */
-  bumpKick(pts: Float32Array, n: number, t: number): number {
+   *  the nearest head, at the last tick's time (`time[0]`: bumps are sampled right after `tickSway`). Returns the kicks. */
+  bumpKick(pts: Float32Array, n: number): number {
+    const tmp = this.tmp;
+    tmp[4] = this.time[0]!;
     let kicks = 0;
     for (let k = 0; k < this.n; k++) {
       const cx = this.centre[k * 3]! + this.off[k * 3]!;
@@ -403,15 +425,17 @@ export class SwaySet {
       if (bi < 0) continue;
       const px = pts[bi * 3]!;
       const pz = pts[bi * 3 + 2]!;
-      const h = hyp2(cx - px, cz - pz) > 1e-6 ? Math.atan2(cz - pz, cx - px) : 0;
-      if (this.kick(k, t, SWAY.kickBump * (1 - best / SWAY.bumpReach), h)) kicks++;
+      tmp[2] = SWAY.kickBump * (1 - best / SWAY.bumpReach);
+      tmp[3] = hyp2(cx - px, cz - pz) > 1e-6 ? Math.atan2(cz - pz, cx - px) : 0;
+      if (this.kick(k)) kicks++;
     }
     return kicks;
   }
 
   /** The envelope bound (m) of pendant `k` at `t` (tests, tools): the sum of its live kicks' `A e^-(dt / tau)`. */
   envelopeAt(k: number, t: number): number {
-    this.scan(k, t);
+    this.tmp[4] = t;
+    this.scan(k);
     return this.tmp[0]!;
   }
 }

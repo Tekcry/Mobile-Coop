@@ -19,7 +19,7 @@ import { canonicalLightSet, CANON_MIN_THICK } from '../src/voxel/lightShapes';
 import { LampSlotPicker, CHAR_SHADOW } from '../src/world/charShadowSet';
 import { parseMessage, type NetEvent } from '../src/net/protocol';
 import { swayShotOk, swayTargetId, SWAY_TARGET } from '../src/net/lampSync';
-import { bytesPerCall, HEAP_NUMBER, inputs, sink } from './helpers/allocPerCall';
+import { bytesPerCall, inputs, sink } from './helpers/allocPerCall';
 
 const PENDANT = { sx: 1.2, sy: 0.08, sz: 0.22, oy: 0.08 };
 
@@ -116,7 +116,8 @@ describe('determinism', () => {
     host.s.blastKick(2, 1, 1, 1.237);
     host.s.shotKick(0.3, 0, -4, 0.2, c, 0, 2.001);
     const pts = new Float32Array([0.2, c + 0.1, 0]);
-    host.s.bumpKick(pts, 1, 3.3);
+    host.s.time[0] = 3.3;
+    host.s.bumpKick(pts, 1);
     host.s.blastKick(-1, 2, 0, 3.71);
     host.s.shotKick(-3, c, 0, 3, c, 0, 4.4);
     expect(ev.length).toBeGreaterThanOrEqual(4);
@@ -207,9 +208,10 @@ describe('kicks', () => {
     const b = hung(2.38);
     b.s.onKick = (id, t, a, h) => got.push([id, t, a, h]);
     const n0 = got.length;
-    expect(b.s.bumpKick(new Float32Array([0, c - PENDANT.sy / 2 - 0.5, 0]), 1, 1)).toBe(0);
+    b.s.time[0] = 1;
+    expect(b.s.bumpKick(new Float32Array([0, c - PENDANT.sy / 2 - 0.5, 0]), 1)).toBe(0);
     expect(got.length).toBe(n0);
-    expect(b.s.bumpKick(new Float32Array([5, 1, 5, 0, c, -0.05]), 2, 1)).toBe(1);
+    expect(b.s.bumpKick(new Float32Array([5, 1, 5, 0, c, -0.05]), 2)).toBe(1);
     expect(got[n0]![2]).toBeCloseTo(SWAY.kickBump / b.s.w[0]!, 12);
     expect(got[n0]![3]).toBeCloseTo(Math.PI / 2, 12);
   });
@@ -370,7 +372,7 @@ describe('picker', () => {
 });
 
 describe('alloc', () => {
-  it('tickSway, shotKick, blastKick and bumpKick allocate nothing', async () => {
+  it('tickSway, shotKick, blastKick and bumpKick allocate nothing (0 B a call: doubles in and out through typed slots)', async () => {
     const { reg, s, l } = hung(1.83);
     const c = 5 + PENDANT.oy;
     const T = inputs(2000, (k) => 10 + (k % 40) * 0.05);
@@ -381,21 +383,24 @@ describe('alloc', () => {
         reg.tickSway(T[i]!);
         sink[0] = l.swx;
       }
-    }, HEAP_NUMBER);
+    }, 0);
     const shot = await bytesPerCall((n) => {
       for (let i = 0; i < n; i++) sink[0] = s.shotKick(-4, c, 0.1, 4, c, -0.1, T[i]!);
-    }, HEAP_NUMBER);
+    }, 0);
     const blast = await bytesPerCall((n) => {
       for (let i = 0; i < n; i++) sink[0] = s.blastKick(1, 1, 1, T[i]!);
-    }, HEAP_NUMBER);
+    }, 0);
     const bump = await bytesPerCall((n) => {
-      for (let i = 0; i < n; i++) sink[0] = s.bumpKick(pts, 2, T[i]!);
-    }, HEAP_NUMBER);
+      for (let i = 0; i < n; i++) {
+        s.time[0] = T[i]!;
+        sink[0] = s.bumpKick(pts, 2);
+      }
+    }, 0);
     console.info(`bytes per call: tickSway ${tick.toFixed(1)}, shotKick ${shot.toFixed(1)}, blastKick ${blast.toFixed(1)}, bumpKick ${bump.toFixed(1)}`);
-    expect(tick).toBeLessThanOrEqual(HEAP_NUMBER);
-    expect(shot).toBeLessThanOrEqual(HEAP_NUMBER);
-    expect(blast).toBeLessThanOrEqual(HEAP_NUMBER);
-    expect(bump).toBeLessThanOrEqual(HEAP_NUMBER);
+    expect(tick).toBeLessThan(1);
+    expect(shot).toBeLessThan(1);
+    expect(blast).toBeLessThan(1);
+    expect(bump).toBeLessThan(1);
   });
 });
 
