@@ -55,6 +55,13 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
   and `flags` by file, then the folders); an unmapped `src/` path, `e2e-lib`, the runner or `package.json` runs `CORE` = e2e-move,
   e2e-combat, e2e-anim. A picked suite outside REQUIRED (a legacy or audio suite, `anim-audit`) runs REPORT ONLY; GPU
   suites never run there. `--list` prints what would run. Target: about 10 minutes for a single-folder change.
+- The folder -> suites map is `scripts/e2e-affected.mjs` (pure, tested by `tests/e2eAffected.test.ts`); `--quick` and `--affected` share it.
+  Edit the map there and keep its rule comments true. Cross-area rules (from what each suite drives): `src/weapons` also
+  `e2e-stealth-ai` and `e2e-sectorops:1` (`weapons.lastShotNoise` drives guard hearing; train 30), `src/ai` also the guard suites
+  (stealth-ai, takedown, weapons-carry, coop, sectorops parts 1 and 6), `src/net`, `src/save` (except the tuner store) and the wire
+  (`src/security/data`) the co-op group (`e2e-coop`, `e2e-netmove`, `e2e-ctcourse`), the lamp files (`src/world/light*`,
+  `lamp*`, `bakedLamps`, `ambientGrid`, `darkCurve`) and `src/voxel` `e2e-lightbake` plus the light readers, `src/player` and
+  `src/anim` the anim, clip, takedown and move suites. A name with a part (`e2e-sectorops:1`) is one job; a whole suite absorbs its parts.
 - The lists (process audit, 2026-10-19): REQUIRED = the co-op training level (Marlow Yard) and the systems it stands
   on. LEGACY (`--legacy`): `e2e-progression`, `e2e-cosmetics`, `e2e-clear`, `e2e-bunker` (these four get `LEGACY=1`, so
   `e2e-lib` adds `legacy=1`), `e2e-missions`, `e2e-modes`, `e2e-enemies`, `e2e-ct-warehouse`, `e2e-wall:flanker`,
@@ -81,6 +88,18 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
   (`e2e-wall:flanker`, `e2e-desktop:3`).
 - `E2E_PROFILE=1` makes each suite print where its time went (launch, boot, match build, frames, fixed waits,
   `stepHeadless`, screenshots).
+
+## Choosing suites for a change
+- `node scripts/run-e2e.mjs --affected <base-ref>` (e.g. `origin/master`): the suites a PR must pass. Changed files =
+  `git diff --name-only <merge-base of base and HEAD> HEAD` (committed work only, so it works on a detached commit on the
+  laptop; `--quick` reads the working tree). Add `--list` to print the chosen suites one per line and exit without running
+  (what the laptop queue service and leads use to know what a PR must pass). Without `--list` it runs them like `--quick`:
+  `smoke` first, suites outside REQUIRED REPORT ONLY, GPU suites never.
+- Rules: only `docs/**`, `*.md`, `changes/**`, `tests/**` -> no suites (empty list); a `scripts/e2e-*.mjs` -> that suite
+  (a helper -> what it serves); `e2e-lib`, the runner, `package.json` / lock, `index.html`, `vite.config`, `public/` and an unknown
+  `src/` path -> smoke + CORE (`e2e-move`, `e2e-combat`, `e2e-anim`); a `src/` folder -> its row in the map.
+- Selection is pure (`selectSuites(files)`: paths in, sorted unique suite list out); the runner orders it (REQUIRED first) and
+  drops GPU suites and suites without a script.
 
 ## Ports
 Two jobs on one PC never share a port. Each job names its pair in its RULES (G94).
