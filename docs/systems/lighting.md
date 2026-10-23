@@ -42,6 +42,14 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   mid-match. Co-op: protocol 38 `start.lf`, the client's row locked to the host's. `?gfx=min` keeps Babylon's linear real
   lights for the picture (the field is photometric). Not adopted: `docs/lighting-review/PROPOSAL.md` section 7 (LR13),
   numbers in `docs/sector-redesign/checks/light-measure.md`; tests `tests/lampFalloff.test.ts`.
+- (shadow audit, PROTOTYPE, rides the LR13 toggle) `world/shadowAccuracy.ts`: on exactly when the match runs Realistic
+  (`GameState.create` calls `setShadowAccuracy(matchShadowAccuracy(mode))` with the resolved mode, next to `setLampFalloff`:
+  the host's `start.lf` in co-op, `?falloff=photo`, the setting; never mid-match; read once per field / rig / bake / guards).
+  The field reads the ambient fill trilinearly as the shaders do; each lamp's door list skips doorways the lamp cannot see
+  (`doorSeen`, `bakeVisSampler`; field and shaders build the one list); the light rig sets the game's PBR materials (figures,
+  weapons) to the standard falloff so flashlights light them as they light the level (`gameLightFalloff`) and gives shadow
+  maps to cut beams first (`torchShadowPass`); guards' body-light samples test flashlights against static geometry
+  (`rayOccluder`). Findings: `docs/sector-redesign/checks/light-measure.md` (shadow audit); test `tests/shadowAccuracy.test.ts`.
 - `world/lightField.ts` (pure) `LightField` (`World.lightField`): `levelAt` = ambient grid + moon x moon visibility + the
   lamps listed for the 2 m column x `LAMP_LEVEL_GAIN` x intensity x formula x trilinear baked visibility, closed doors
   (`Doors.list`, `DOOR_SHUT`) cutting a lamp by one segment-leaf test; `dynamicAt` = non-baked lights (flashlights);
