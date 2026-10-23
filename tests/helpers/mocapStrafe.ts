@@ -171,6 +171,30 @@ export const STRAFE_PLANS = {
   snap: (sg: number, fwd: number): [AimTarget, number, number] => [(t) => (Math.floor(t / 1.5) % 2 ? { x: 0, z: fwd } : { x: sg * 0.7, z: 0 }), 480, 1],
 };
 
+/** (afp AF0) Crouched aimed plans (`crouch` 1 from t = 0, eased in; pass `AimOpts.weight` 0.7 for the pistol) and the drawn
+ *  crouched back-to-wall slide (pass `{ wall: true }`; `wallSlide`: steady, `wallReverse`: the slide reverses every `per` s).
+ *  [target, steps, record from s]: the crouch settles before the record starts. */
+export const CROUCH_PLANS = {
+  steady: (sg: number, v: number): [AimTarget, number, number] => [() => ({ x: sg * v, z: 0, crouch: 1 }), 420, 2],
+  /** `n` stop-go cycles: the stick on `on` s, off `off` s (the carrier kneels each stop). */
+  stopGo: (sg: number, v: number, n = 10, on = 1.0, off = 0.8): [AimTarget, number, number] => [
+    (t) => ({ x: t > 1 && (t - 1) % (on + off) < on ? sg * v : 0, z: 0, crouch: 1 }),
+    Math.round(60 * (1 + n * (on + off) + 0.5)),
+    1,
+  ],
+  /** L <-> R flips every `per` s through the stick's centre: `gap` s of zero between (a thumb crossing the dead zone). */
+  flip: (v: number, per: number, gap = 0.15): [AimTarget, number, number] => [
+    (t) => {
+      const u = t % per;
+      return { x: u < gap || t < 1 ? 0 : Math.floor(t / per) % 2 ? v : -v, z: 0, crouch: 1 };
+    },
+    480,
+    1,
+  ],
+  wallSlide: (sg: number, v: number): [AimTarget, number, number] => [(t) => ({ x: t < 1 ? 0 : sg * v, z: 0, crouch: 1 }), 360, 2],
+  wallReverse: (v: number, per = 1.4): [AimTarget, number, number] => [(t) => ({ x: t < 1 ? 0 : Math.floor((t - 1) / per) % 2 ? -v : v, z: 0, crouch: 1 }), 480, 1.5],
+};
+
 /** The feet's smallest sideways gap (m): the right ankle's x less the left's (the body faces +z: under 0 they cross). */
 export function footGap(R: Rec): number {
   let m = Infinity;
