@@ -3,7 +3,22 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
-**Test Runner SAVE 18 (2026-10-23 ~18:08, swap ~18:22; wins over all below):**
+**Test Runner SAVE 19 (2026-10-23 ~18:55, new account; wins over all below):**
+- Runner fix: laptop-runner.ps1 now `git clean -fdq` before checkout (an untracked scripts/e2e-guard-carry.mjs in
+  Mobile-Coop-testrun aborted guardcarryfix-48d049ad and the first 23cf567c try).
+- RUNNING (scheduled tasks, logs runs/chain-1023<x>.log):
+  - 4191 gf2: guardcarryfix-master2-f16600f5 (fix's suite file on master x2; the 18:10 master control PASSED = did not
+    reproduce), then gf3: guardcarryfix-23cf567c (e2e-guard-carry + e2e-stealth-ai) -> ONE verdict to Guard AI Build.
+  - 4192 s242: lr15pr242-1c22b913 (e2e-sectorops 1-6 + e2e-coop), then sr2: settingsrthide-ad2c6c06 (e2e-menus
+    e2e-desktop; message the orchestrator only on FAIL).
+  - 4189 lr15c (after gf3 + s242): lr15c-perf-classic / -photo-eb45b0af (MAP=campusOps MODE=sector, Epic, alone; the
+    lr15b perf measured the warehouse - discarded) -> ONE LR15 verdict to Sector Ops (with s242 + lr15b results:
+    photo / classic suites PASS, sheet clean, 0 texImage3D).
+- SENT: #226 2276483a + polish 1d34c348 perf / guard-cap / coop verdict to Sector Ops (CPU p95 < 12 missed).
+- OWN: PR #243 settings-rt-hide opened (master merged, ad2c6c06), orchestrator told; train-ready for train 31.
+- Next: trains 31 / 32 from the orchestrator on 4189 first (JOBS=5 only if 4192 idle).
+
+**Test Runner SAVE 18 (2026-10-23 ~18:08, swap ~18:22):**
 - TRAIN 30 7e8b8c51: 38/39, e2e-stealth-ai FAIL ("a suppressed shot 10 m off only makes a guard turn to look"; SENT).
   Player says test-only (fix 907bea89); orchestrator rebuilds train 30 on it -> run that train full when it arrives.
   Solo rerun runs/train30-stealthai-7e8b8c51 FAILED again (same assert, 53 s): deterministic, SENT to Orchestrator +
