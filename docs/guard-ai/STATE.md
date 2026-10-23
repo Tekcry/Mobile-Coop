@@ -517,23 +517,25 @@ behaviour code Opus; Sonnet only for tests / e2e scenarios / data from a strict 
 ## Resume prompt
 ```
 Night Shift | Guard AI Build - guard-ai lead, on the LAPTOP. Model Opus, effort high; fresh session.
-git fetch. Laptop worktrees (all npm ci'd): C:/NightShift/Mobile-Coop-guard-ai (feature/guard-ai: STATE / PLAN),
-...-guard-ai-s9, -s16, -s22, -a126 (s15 / s21 / walk done). Branch guard before every write.
-Read CLAUDE.md ("Sessions", "Heavy-usage throughput" incl. "Token rules"), ROADMAP "Decided" by grep only (Guard AI,
-unavoidable guards, stealth over shooting), then this file's "Now" (top entry).
+First set_session_title "self" -> "Night Shift | Guard AI Build". git fetch. Laptop worktrees (npm ci'd):
+C:/NightShift/Mobile-Coop-guard-ai (feature/guard-ai: STATE / PLAN), ...-guard-ai-s9, -s22, -carry-fix (others done).
+Branch guard before every write. Read CLAUDE.md ("Sessions", "Heavy-usage throughput" incl. "Token rules"), ROADMAP
+"Decided" by grep only (Guard AI, unavoidable guards, stealth over shooting), then this file's "Now" (top 2 entries).
 e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep laptop CPU under ~80%.
-1. Train 29 (61972cf1) = #228 S16 + Sector Ops #232: fix any failure reported at once.
-2. feature/guard-ai-carry-fix: fix for guard bodies lost to a timed-out async shader compile (Opus agent) + the
-   e2e-guard-carry stall check. Test Runner: suite on the fix sha (pass) and on f16600f5 (fail). Then merge into s9
-   (train 31) or its own PR (orchestrator's call).
-   Merge this branch into s9 for the train-31 PR (orchestrator's ask).
-   Train 31: #229 S9 71498e16 (PROTOCOL 41) + #234 S22 c51f1b30, TRAIN-READY sent: fix any failure reported at once.
-3. S22 game side (slices/S22.md: CourseState.consoleBack, CourseMode consoleHost / watchesConsole / consoleEdge) after
-   marlow-final merges; then fix e2e-ctcourse A4 step 3 (passive officer no longer refuses) in the same branch.
-4. Calm-guard GPU sheet (Test Runner, 267553bf): a grunt still drawn with e.carryCalm() true after 16 s calm = bug -> fix.
-5. Polish lists only (no refining): WALK-CHECK.md 1-6, S16-CHECK.md, A126-CHECK.md, S22-CHECK.md 1-5.
+1. Train 31 = #229 S9 71498e16 (PROTOCOL 41, A142, + e2e-guard-carry suite) + #234 S22 c51f1b30 (contains #229) +
+   Player #239: TRAIN-READY sent. Fix any failure reported at once (one Opus fix agent from the assert).
+2. feature/guard-ai-carry-fix: invisible guard bodies (Babylon async effect compile times out in a long stall,
+   "Operation timed out after maximum retries. - Effect: pbr"; partSkinMat keeps the failed effect; 4.78.0 only masks
+   it). Opus agent: recompile a timed-out body effect + unit test + e2e-guard-carry one-block 16.5 s stall. If it did
+   not finish, its WIP is pushed: check the branch, finish it. Then Test Runner: e2e-guard-carry on the sha (pass) and
+   on f16600f5 (fail); fresh Opus check; own small PR to master (orchestrator), TRAIN-READY.
+3. S22 game side (slices/S22.md: CourseState.consoleBack, CourseMode consoleHost / watchesConsole / consoleEdge) once
+   marlow-final #237 merges; fix e2e-ctcourse A4 step 3 (passive officer no longer refuses) in the same branch.
+4. Polish lists only (no refining): WALK-CHECK.md 1-6, S16-CHECK.md, A126-CHECK.md, S22-CHECK.md 1-5; calm walk:
+   the grunt's slung rifle reads at the right hip while walking.
 Rules: AI code and checkers Opus; Sonnet 5.5 tests / data from strict briefs; Haiku chores. Never two agents on the
-same files. Message the orchestrator only at PR open / train-ready / blocked / needs Michael; progress here. A-numbers:
-S16 A80-A89, S9 A90-A96, walk A100-A127, S22 A128-A135, A126 A136-A139, A140 protocol 38 (next A141). No question
-dialogs; assumptions in BRIEF.md. At ~92%: WIP commit + push in every worktree, keep working to 100%; block current.
+same files. One wire bump per train in merge order. Message the orchestrator only at PR open / train-ready / blocked /
+needs Michael; progress here. A-numbers: S16 A80-A89, S9 A90-A96, walk A100-A127, S22 A128-A135, A126 A136-A139,
+protocol A140-A142 (next A143). No question dialogs; assumptions in BRIEF.md. At ~92%: WIP commit + push in every
+worktree, keep working to 100%; this block current.
 ```
