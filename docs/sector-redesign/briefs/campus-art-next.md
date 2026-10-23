@@ -1,4 +1,4 @@
-status: blocked waiting for #226 to land (the lead sets the base and reopens)
+status: split to cloud-queue 4a5ee501 (artnext-ABD + artnext-C C1-C6, base artpol 72e87171); C7-C9 at #226 train entry (lead)
 
 # campus-art-next - the open campus art and freeze polish, one batch (Opus code, Sonnet dressers, Haiku docs)
 
