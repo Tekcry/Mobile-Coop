@@ -373,6 +373,8 @@ export class EnemyManager {
   /** The tables (tests / e2e read the numbers from here). */
   readonly missingTable = MISSING;
   readonly shotsTable = SHOTS;
+  /** (guard-ai S25b) The probable-area table (e2e-stealth-ai 'search area' picks its hide spots by it). */
+  readonly searchAreaTable = SEARCH_AREA;
   /** Where completed calls go (made once). */
   private readonly sink: RadioSink = {
     deliver: (gid, inc, kind, caller) => this.radioDeliver(gid, inc, kind, caller),
