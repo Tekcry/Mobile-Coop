@@ -41,7 +41,7 @@ spots moved.
 - Throwaway vitest probes (SightWorld + `runtimeNav` + `coverPointsFromSegments` + `scoreCover`) confirmed each point
   above. Deleted, not committed.
 - `node --check scripts/e2e-coop.mjs`: OK. No `src/` change, so no tsc run.
-- Laptop rerun queued (set `s24-coop-fix`, suite `e2e-coop`); the request id is in the commit hand-off below.
+- Laptop rerun queued on 0a42c6b5 (set `s24-coop-fix`, suite `e2e-coop`, jobs 2): request `20261023T130628-night-shift-guard-ai-0a42c6b5-f67c`.
 
 ## Open item (not fixed: pre-existing, prototype rule)
 `pickCover` and `scoreCover` choose cover by straight-line distance and need only a wall between the cover and the
