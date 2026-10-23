@@ -59,6 +59,13 @@ export class GuardAnimTier {
     this.st = newAnimTierState(slot);
   }
 
+  /** (guard-models G7) Watch `body` from now on: the guard figure's shown LOD mesh once it draws (it changes with the
+   *  LOD), the merged body before. Same mesh, or no track (built without a body): nothing. No allocation. */
+  watch(body: AbstractMesh | null): void {
+    const t = this.seen;
+    if (t && body && t.mesh !== body) t.mesh = body;
+  }
+
   /** The time to solve this frame, or -1 to skip (`CharacterRig.animate`'s `solveDt`). */
   dt(dt: number, pos: Vector3, players: readonly { feet: Vector3 }[], pinned: boolean): number {
     const s = this.scene;
