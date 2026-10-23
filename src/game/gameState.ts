@@ -41,6 +41,7 @@ import type { Difficulty } from '../ai/enemyDefs';
 import { resolveDifficulty, type DifficultyDef } from '../ai/archetypes';
 import { Pickups } from './pickups';
 import { Interactables, type Interactable } from './interactables';
+import { WeaponCrates } from './weaponCrates';
 import { addDoorRows, DOOR_KIND, DoorMenuView, guardBehindDoor, type DoorOpt } from './doorMenu';
 import { addGrabRows, GRAB_KIND, GRAB_OPT_LABEL, GRAB_OPTS, GRAB_PASS, GrabMenuView, grabTriggerPick, hasInfo, type GrabOpt } from './grabMenu';
 import { ContextMenu, CtxNav, emptyCtxInput } from './contextMenu';
@@ -99,7 +100,7 @@ import { TakedownController, type TakedownVictim } from './takedownController';
 import { StrikeController } from './strikeController';
 import { MEDKIT, stationHeal } from './medkit';
 import type { PickupKind } from './pickups';
-import { DOOR_PEEK, DoorPeekCore, PEEK_ACT, crackedHandle, doorFrame, doorPeekEligible, emptyFrame, type DoorPeekInput } from '../world/doorPeek';
+import { DOOR_PEEK, DoorPeekCore, PEEK_ACT, crackedHandle, doorFrame, doorPeekEligible, emptyFrame, isSlideDoor, type DoorPeekInput } from '../world/doorPeek';
 import { DOOR, driveStep, leafFraction } from '../world/doors';
 import { DOOR_OPEN, DoorOpenCore, OPEN_ACT, leafHandPoint } from '../world/doorOpen';
 import { muzzleBlock } from '../player/wallBlock';
@@ -197,6 +198,8 @@ export interface NetAttachment {
   commitCancel?(id: number, reason: string, kind?: CKind): void;
   /** Host: a wall medkit station heals player `who` (false: down or at full health). */
   healAtStation?(who: string): boolean;
+  /** (E9-crate) Host: client `who` used crate `id` (the `crate` event, fill). */
+  crateUsed?(who: string, id: string): void;
   /** Co-op: the local player pinged (x, y, z), on an enemy (`target`) or a spot (''). */
   ping?(x: number, y: number, z: number, target: string): void;
   /** Contact shadows for the characters the net layer draws (remote players, puppets). */
@@ -206,6 +209,9 @@ export interface NetAttachment {
   /** Host, Sector Ops: send the devices' state (cameras, jams, alarm stage) and the step 3 extras (live section, door
    *  locks, shot cameras, syringes) to every client. */
   sector?(sec: SecWire, extra: SectorNetExtra): void;
+  /** (sector-redesign EW5) Host, Sector Ops: a radio line (a keypad code found) shown to every client: the existing
+   *  `feed` event, no wire change. */
+  radioLine?(text: string): void;
   /** Host, Sector Ops: revive syringes left this op (co-op only). */
   revivesLeft?(): number;
   /** (section-rating) Host: a rating's syringe grant, added to the op's revive cap. */
@@ -361,6 +367,8 @@ export class GameState implements AppState {
   readonly enemyMgr: EnemyManager | null = null;
   readonly pickups: Pickups | null = null;
   readonly interactables: Interactables | null = null;
+  /** (E9-crate) The host's / solo's weapons crates and their per-player ledger (modes with enemies). */
+  readonly crates: WeaponCrates | null = null;
   readonly mode: GameMode | null = null;
   /** Bodies, switches, shot-out lights and alarm panels (modes with enemies). */
   readonly stealth: StealthSystems | null = null;
@@ -449,6 +457,9 @@ export class GameState implements AppState {
   /** (G6) Scratch for the weapon's wall-block ray. */
   private readonly blockA = new Vector3();
   private readonly blockB = new Vector3();
+  /** (sector-redesign E8) Scratch for a camera ricochet: the lens point and the sparks' spray direction. */
+  private readonly ricoAt = new Vector3();
+  private readonly ricoDown = new Vector3(0, -1, 0);
   private openOv: MoveOverride = {};
   private openKin = new Vector3();
   private openY = 0;
@@ -661,6 +672,7 @@ export class GameState implements AppState {
       w.pickups = new Pickups(this.scene, world.parts, world.layout.pickups);
       w.pickups.onPickup = (k, who) => this.pickedUp(k, who);
       w.interactables = new Interactables(this.scene, world.parts);
+      w.crates = new WeaponCrates(this);
       this.addMedkitWalls(w.interactables);
       w.mode =
         opts.mode === 'clear'
@@ -710,6 +722,13 @@ export class GameState implements AppState {
         { ballistics: this.ballistics, players: () => this.playerRefsInto(this.aiRefs) },
         new SecurityView(this.scene, world.parts),
       );
+      // (sector-redesign E8; marlow-final S10's Marlow cameras too) a round off a bulletproof camera: the bullet-impact sparks and sound at the lens (the
+      // impact noise is the onRay chain's own, as for any round that lands)
+      w.security.onRicochet = (x, y, z) => {
+        const at = this.ricoAt.set(x, y, z);
+        this.vfx.sparks(at, this.ricoDown, 8);
+        this.ballistics.onImpact?.(at, false);
+      };
       const prevRay = this.weapons.onRay;
       this.weapons.onRay = (a, b) => {
         prevRay?.(a, b);
@@ -1315,7 +1334,7 @@ export class GameState implements AppState {
           else m.add(TD_KIND, 'ko', -1, TD_LABEL[o.plan.kind]);
         }
         const dIdx = this.doorMenuCandidate();
-        if (dIdx >= 0) addDoorRows(m, dIdx, this.peekOffer === dIdx, this.doorMenu.opts);
+        if (dIdx >= 0) addDoorRows(m, dIdx, this.peekOffer === dIdx, this.doorMenu.opts, isSlideDoor(this.world.doors.list[dIdx]!.anchor));
         it = this.stealth?.carryTarget(this.player.position) ?? this.interactables?.nearest(this.player.position) ?? null;
         let label = it ? it.label : '';
         if (it && it.kind === 'door' && it.id.startsWith('door-')) {
@@ -1416,6 +1435,8 @@ export class GameState implements AppState {
       if (it?.onUse) it.onUse(it, 'local');
       else doors.open(d, 'quiet');
     };
+    // (marlow-final N9) a sliding door lists Open only; any other pick at it is ignored
+    if (isSlideDoor(d.anchor) && o !== 'open') return;
     switch (o) {
       case 'open':
         // (G6, AUDIT-WALLS row 4) a short committed move: the step to the latch side, then the door's own open
@@ -2653,7 +2674,7 @@ export class GameState implements AppState {
     let offer = -1;
     if (!was && !other && doors.list.length) {
       const d = doors.nearest(p.x, p.z, 2);
-      if (d && doorPeekEligible(d, d.cracked && this.peekedByOther(d.cx, d.cz), p.x, p.z, pl.cam.yaw, c.grounded, false)) offer = d.index;
+      if (d && doorPeekEligible(d, d.cracked && this.peekedByOther(d.cx, d.cz), p.x, p.z, pl.cam.yaw, c.grounded, false, p.y)) offer = d.index;
     }
     this.peekOffer = offer;
     if (ctx) cand = offer;
@@ -2762,7 +2783,11 @@ export class GameState implements AppState {
     const d = this.world.doors.list[di];
     const p = this.player.position;
     if (!d || this.doorOpen.active) return;
-    this.doorOpen.start(di, d.anchor, p.x, p.z);
+    // (marlow-final N9) a sliding door: no committed step-and-push, the door's own open at once
+    if (!this.doorOpen.start(di, d.anchor, p.x, p.z)) {
+      use();
+      return;
+    }
     this.openUse = use;
     this.openHp = this.target.health.hp;
     this.openY = p.y;
@@ -2949,7 +2974,7 @@ export class GameState implements AppState {
     this.exposure = exposureFraction(this.expPts, eyes, (a, b) => {
       this.rayA.set(a.x, a.y, a.z);
       this.rayB.set(b.x, b.y, b.z);
-      const h = this.ballistics.ray(this.rayA, this.rayB, G.STATIC);
+      const h = this.ballistics.ray(this.rayA, this.rayB, MASK.SIGHT);
       return h.hit && h.distance < Vector3.Distance(this.rayA, this.rayB) - 0.15;
     });
     this.coverQ = this.localRef.cover ? coverQuality(this.localRef.cover, eyes) : 1;

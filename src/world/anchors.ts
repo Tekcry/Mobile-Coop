@@ -118,6 +118,15 @@ export interface Door extends AnchorBase {
   swing: 1 | -1;
   locked: boolean;
   breachable: boolean;
+  /** (marlow-final kit) How the leaf is drawn: the hinged leaf (default) or none ('slide': the facility kit draws two
+   *  sliding leaves from the same open state; collision, light, sight and sound are the hinged door's, unchanged). */
+  leaf?: 'swing' | 'slide';
+  /** (E10, A97) An armoured (bulletproof) leaf: its body adds `G.GLASS_ARMOURED` (`doorMembership`), so a round stops on
+   *  it and never penetrates (a plain 0.1 leaf is thinner than a rifle's penetration). Opening, locks and bash unchanged. */
+  armoured?: boolean;
+  /** (sector-redesign cap fix) Sector Ops: the section whose map file built it (its door item is mirrored to co-op
+   *  clients only while that section is live, `Interactables.scope`); none: always. */
+  section?: number;
 }
 
 /** A zipline from `a` (high end) to `b`, at the cable. */
@@ -180,6 +189,8 @@ export interface AnchorBox {
   pitch: number;
   collide: boolean;
   visible?: boolean;
+  /** (E2) Glass is never a ledge. */
+  glass?: unknown;
   /** Never generate ledges from this piece. */
   noLedge?: boolean;
 }
@@ -313,7 +324,7 @@ export function generateLedges(boxes: readonly AnchorBox[], out: TraversalAnchor
   let piece = 0;
   for (const b of boxes) {
     piece++;
-    if (!b.collide || b.visible === false || b.noLedge || Math.abs(b.pitch) > 1e-3) continue;
+    if (!b.collide || b.visible === false || b.glass || b.noLedge || Math.abs(b.pitch) > 1e-3) continue;
     const [w, h, d] = b.s;
     const top = b.c[1] + h / 2;
     const bottom = b.c[1] - h / 2;

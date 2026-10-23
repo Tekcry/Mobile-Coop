@@ -1,7 +1,7 @@
 import { Color4, PhysicsRaycastResult, Vector3, type InstancedMesh, type PhysicsEngine } from '../core/babylon';
 import type { Enemy } from '../ai/enemy';
 import type { InputState } from '../input/inputState';
-import { G } from '../physics/groups';
+import { G, MASK } from '../physics/groups';
 import { hyp2, hyp3 } from '../core/mathx';
 import { GADGET_IDS, GADGETS, type GadgetId } from './gadgets';
 import { buildWheel, SelectionWheel, type WheelGadget, type WheelGun, type WheelPick, type WheelSeg } from './selectionWheel';
@@ -430,7 +430,7 @@ export class GadgetSystem {
       const f = this.fliers[k]!;
       this.b.copyFrom(f.v).scaleInPlace(dt).addInPlace(f.p);
       f.v.y -= GRAVITY * dt;
-      if (this.cast(f.p, this.b)) {
+      if (this.cast(f.p, this.b, MASK.GADGET_FLIGHT)) {
         this.fliers.splice(k, 1);
         this.b.copyFrom(this.hitN).scaleInPlace(0.05).addInPlace(this.hitP);
         if (f.kind === 'noise') {
@@ -666,7 +666,7 @@ export class GadgetSystem {
       vy -= GRAVITY * ARC_DT;
       this.a.set(px, py, pz);
       this.b.set(nx, ny, nz);
-      if (this.cast(this.a, this.b, G.STATIC | G.PROP)) {
+      if (this.cast(this.a, this.b, MASK.GADGET_FLIGHT | G.PROP)) {
         pts[n * 3] = this.hitP.x;
         pts[n * 3 + 1] = this.hitP.y;
         pts[n * 3 + 2] = this.hitP.z;

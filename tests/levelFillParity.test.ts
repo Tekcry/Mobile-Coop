@@ -12,8 +12,9 @@
  * linearised; the atlas detail (0.5 vs 0.45 strength, cavity 0.35 vs 0.3) and the voxel tone hash / AO average out
  * within a few percent. Not modelled (GPU only, desktop shots): the probe's captured cube itself (it renders whichever
  * level is drawn), the atlas textures' values, per-voxel AO in corners.
- * (marlow-bunker) Marlow Yard is an underground bunker now: every cell and airlock has a ceiling, so every point is roofed
- * (the old open-yard points are under the hall ceilings), and the smooth fill must still match the voxel fill there.
+ * (marlow-bunker) Marlow Yard is roofed throughout, so every point is roofed, and the smooth fill must still match the
+ * voxel fill there. (marlow-final 0d) The points moved to the rehearsal centre's facility pieces (holding rooms, the cash
+ * dock) and one set hall floor, so the set slices do not move them.
  */
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
@@ -53,13 +54,13 @@ function grids() {
 /** Wall and floor points (on the face, with its outward normal). */
 /** `roofed` null: a face on a sky cell its own wall touches (conservative occupancy reads it nearly hidden on both paths). */
 const POINTS: { name: string; p: Rgb; n: Rgb; roofed: boolean | null }[] = [
-  { name: 'annex front wall, inside', p: [97.5, 1.2, 10.5], n: [1, 0, 0], roofed: true },
-  { name: 'annex grid wall, front room', p: [100.3, 1.5, 3], n: [-1, 0, 0], roofed: true },
-  { name: 'annex floor, front room', p: [99, 0, 10], n: [0, 1, 0], roofed: true },
-  { name: 'annex front wall, outside (the S5 hall, under its 7.5 m ceiling)', p: [96.5, 1.2, 10.5], n: [-1, 0, 0], roofed: true },
-  { name: 'S8 obstacle wall by the exit (lamp-lit, under the 4.5 m ceiling)', p: [162.5, 1.2, 7], n: [-1, 0, 0], roofed: true },
-  { name: 'S2 obstacle wall (under the hall ceiling)', p: [30.5, 1.2, 3], n: [-1, 0, 0], roofed: true },
-  { name: 'S2 hall floor (under the 7.5 m ceiling)', p: [26, 0, 7], n: [0, 1, 0], roofed: true },
+  { name: 'L1 floor (under its 3.2 m lid)', p: [25, 0, 11], n: [0, 1, 0], roofed: true },
+  { name: 'L1 side wall, inside', p: [25, 1.2, 8.25], n: [0, 0, 1], roofed: true },
+  { name: 'L4 side wall (under the lid and the bridge)', p: [73, 1.2, 35.75], n: [0, 0, -1], roofed: true },
+  { name: 'L7 floor (the model room)', p: [103, 0, 60], n: [0, 1, 0], roofed: true },
+  { name: 'cash dock east wall (under the 4.5 m dock roof)', p: [159.75, 1.2, 62], n: [-1, 0, 0], roofed: true },
+  { name: 'cash dock floor', p: [152, 0, 62], n: [0, 1, 0], roofed: true },
+  { name: 'A8 hall floor (under the 10 m hall roof)', p: [128, 0, 64], n: [0, 1, 0], roofed: true },
 ];
 
 describe('smooth level light response matches the voxel walls (fix round 2)', () => {

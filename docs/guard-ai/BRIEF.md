@@ -93,19 +93,6 @@ manoeuvre beats guard count. Every map's guards are armed (Answers 3).
   and 2.5 s contact call as a sighting, instead of the old instant 22 m fan-out: taking out a guard who was just shot
   at also stops his call. Undo: in `Enemy.onLevel` (src/ai/enemy.ts, the `netOn` branch) route `loudAlert || gunfire`
   to an immediate `radioCall` completion (hold 0).
-- **A14** (S4) A knockout seen by a calm guard is a knockout found: he goes to wake him (both get the timed caution), not
-  a held "witnessed kill" (design 4 had the witness unable to tell; M1 "wake them up (if knocked out)" read literally).
-  A kill seen is a dead body found at once (every witness held, the nearest shouts and radios it). Undo: in
-  `EnemyManager.witnessKill` (src/ai/enemyManager.ts) open a `witness` hold with the mask for a knockout too.
-- **A15** (S4) Guard keys are given at spawn: the lowest key not held by a guard on the list or a knocked-out body (the
-  live section; deterministic, as spawn order is), not the map's squad-slot index; a woken guard keeps his, a dead
-  guard's key is reused (clean slate). Undo: S5 `placeSlot` / a `SquadSlot.key` override sets `Enemy.key`.
-- **A16** (S4) Caution is the cooldown level: a cautious calm guard sits in `cooldown` (sight x1.3 =
-  `SENSITIVITY.cooldown` = `CAUTION.sens`, never unaware while it lasts), patrols at 0.95, pauses x0.6, torch rule as
-  searching; investigating or searching he keeps that level's own sensitivity (no x1.3 on top). Only death holds
-  (`dead`, `witness`) are wired; contact and missing holds are not (combat keeps `AlertMachine.fought` as each guard's
-  permanent caution, as before). Undo: x`CAUTION.sens` in `Enemy.perceive` while `caution > 0`; open `contact` /
-  `missing` holds from the board.
 - **A11** Sector Ops tour guards that are melee-only conflict with "every map's guards are armed" (Answers 3): map data,
   passed to Course Ready, not changed here.
 - **A17** (S5) A high-security post is lured (not sent) by a noise or gunfire at his investigate tier (inside half its
@@ -131,3 +118,221 @@ manoeuvre beats guard count. Every map's guards are armed (Answers 3).
   unit, check on him." (KO) or "He's not moving. Two of you, go." (dead); N = the camera's place in the map's security
   list (1-based), {room} the `RoomRect.name` under the body (dropped when none); a radio bark over the camera, text
   only (G82). Undo: `camBodyLine` (src/ai/barks.ts) and the label in `GameState`'s `onBody`.
+- **A23** (S8) Squad roles run for one engaged group per guard set (the one shared last known position): every alerted,
+  free, cover-using guard (not melee, dog, sniper, enforcer, a room holder, passive, held, on an alarm run or closing in)
+  when there are at least 2 of them; a lone guard and the parked modes keep today's tactics and today's single flanker
+  (the flank role replaces it only while a group has roles). The reporter is the engagement's first contact caller.
+  Undo: `TACTICS.minGroup` (enemyManager.ts) to 99 turns the roles off.
+- **A24** (S8, A7) Combat dice: one mulberry32 `Rng` per guard, seeded by his `num` at spawn and reseeded
+  `combatSeed(matchSeed 0x5eed, engagement, num)` when he goes to combat; an engagement starts when a guard goes to
+  combat with nobody else in it (the board opens no contact incidents, so this stands in for the incident id). The
+  think cadence stays on `Math.random` (perception, not combat); the parked modes' `callAlert` / shout jitter stays
+  (parked, replaced by the radio net). Non-combat: reinforcements face the last known position, a revived guard keeps
+  the yaw he went down with (S4, `Enemy.inherit`), the squad radio check spread is a fixed golden-ratio sequence. Undo: `Math.random` back in those places.
+- **A25** (S8) Profiles: `EnemyManager.placeSlot` sets `tacticsProfile` `P_POST` for a guard with any post (normal or
+  high security: never point or flank), `P_AGGRESSIVE` for `profile: 'aggressive'`, else `P_STANDARD`; a woken guard keeps
+  it (`Enemy.inherit`); S6 reinforcements are `P_AGGRESSIVE` (`joinAsReinforcement`). A high-security post in a group (A18) never takes a
+  role cover outside his leash (`Enemy.setRole` drops it: he holds where he is), and a point or flank role given to him
+  (another profile) becomes search (today's leashed tactics). A guard with a role
+  holds his cover and keeps peeking and firing (peek-and-report: his sightings move the shared LKP) instead of stepping
+  out after 5 peeks; the point instead walks the last stretch (`closing`, out of the group, `ADVANCE_PACE`) when he has
+  no cover left to bound to or after 5 peeks with no sight. The reporter stays crouched and holds his fire while his
+  contact call is open. Undo: `holds` in `Enemy.decide` (`inCover`).
+- **A26** (S5b) Squads and radio checks in Sector Ops: every section guard joins a squad in `placeSlot` (`squad` tag ->
+  section x 100 + squad; none -> the cluster of posts within 12 m; a dog -> its handler's). A member down and not yet
+  found is missed at the next check (every ~40 s) and, in the coordinated modes, opens a `missing` incident at where he
+  went down whose perceivers are his squad's calm members, so two of them go (lead + cover, the S2 pair; one free: the
+  nearest other guard covers); a body already found, or a dog, is not missed; a squad of one has no check of its own
+  (nobody to answer; a desk's check covers him); own caller supervisor > officer > first. No caution from a miss (the
+  `missing` hold stays unwired, A16). Undo: `EnemyManager.radioCheckNow` (src/ai/enemyManager.ts): `caller.searchAt`
+  in place of `reportMissing`, drop the `men < 2` skip; the K_MISSING perceiver pass in `IncidentBoard.assign`.
+- **A27** (S5b) Zone and role: a secure zone is a `zone` tag 'secure' or with a word 'sec' / 'secure' ('s3-sec'); its
+  guard counts as a perceiver of any disturbance inside his zone circle (his post leash, else 8 m or his route's reach
+  + 2 m round his post) and ranks first there (score and distance x 0.25). Roles by class (`ROLE_CLASS`): desk / cctv /
+  operator call every squad's radio check of their section (the lowest key of them, calm); supervisor runs to the alarm
+  first (distance x 0.1; officer 0.25) and sends someone (x 1.6, as an officer); patrol / tour / response check a light
+  first (x 0.8), gate / posted / post / sentry / keyholder / bridge / reception / desk last (x 1.5); other words: none.
+  "Where a guard returns after a search" needs no new code: the walker takes every guard back to his own post / route
+  (his zone). Undo: `TAGS`, `ROLE_CLASS`, `isSecureZone` (src/ai/sectorTags.ts).
+- **A28** (S5b) A dog with a `handler` tag heels on him only (not the nearest squad mate); he goes down (knocked out or
+  dead): the dog searches round him, barks (a 14 m noise at the dog: the board sends one guard who hears it), then
+  keeps its heel spot by where he fell; a woken handler takes his dog back; a despawned one frees it (the old rule).
+  Undo: the `handler` branch of `Enemy.findLeader` (src/ai/enemy.ts) and `EnemyManager.handlerDown`.
+- **A29** (S6) The 3 s hand-over (design 7) applies to the command call only. Take the spotter out before his contact
+  call gets through and nothing is owed: his voice hearers fight but never call (S3), so no alarm. Once the contact got
+  through, a cut commander's call passes to the next guard in the fight (in combat, or the search after it; out of the
+  target's sight first, then an officer, then the lower key) 3 s later; with nobody left in the fight the alarm lapses.
+  Undo: in `EnemyManager.radioStep` (src/ai/enemyManager.ts) call `this.command.lapse()` instead of `nextCaller()` (any
+  cut commander stops the alarm).
+- **A30** (S6) Command calls run only under stealth rules (`EnemyManager.stealth`, as alarm panels): Sector Ops,
+  Infiltration (and the e2e's coordinated Clear); Free Roam and Course mode (stealth off on this branch) raise no radio
+  alarm. The radio alarm needs no panel, counts as the alarm (banner, `alarm` event, playstyle tally, Sector stage) and
+  is once per match / Sector section load like a panel. The caller says "Command, contact. Send backup." when he starts
+  the 4 s call, so the player sees whom to stop. Undo: drop the `this.stealth` check in `contactThrough`; bark at
+  completion in `sink.completed`.
+- **A31** (S6) Reinforcements are told by command (no contact call of their own; "Copy, moving!"), profile 'aggressive'
+  (S5's string, and S8's numeric `tacticsProfile = P_AGGRESSIVE` since the stack merge): cover first 0.3, 0.8 s between bounds, the last stretch at
+  0.75 x run speed, and they never calm (the search after combat never ends). An entry route is run at run speed,
+  dropped on sight of the target or after 30 s. Where: Sector Ops `SectorDef.entries` in turn, else its `reinforce`
+  points; other live maps `MapLayout.guardAi.entries` of the alarm's section furthest from the player, else the furthest
+  `MapLayout.reinforce` point; kinds unchanged (design Q4). No live map has entries yet. Undo: `joinReinforcement`
+  (src/ai/enemyManager.ts) -> `e.alert()` (the old alerted spawn, standard profile).
+- **A32** (S10) A talking pair meets at the nearest pair of stops (one per route) within `PAIRS.meetMax` 6 m whose stays
+  overlap (`pickMeet`; a tie within 0.05 m goes to the longer stay), timed at the slower guard's `walkSpeed` (a timed loop
+  walks at `walkSpeed`, not the x1.1 patrol pace the module note assumed); the two clocks are lined up by each walker's
+  loop time when the second guard is placed. No timed loop, periods that differ or no overlap: no pair, logged
+  (`EnemyManager.pairSkips`, a console warning). Undo: `PAIRS.meetMax` / `pickMeet` (src/ai/pairs.ts), or add an explicit
+  meet-stop field with Course Ready and read it in `EnemyManager.buildPair`.
+- **A33** (S10) While meeting, both stand at their meet points facing each other until the talk ends (~6.7 s from the
+  meeting: lines at 1.0 and 4.2 s, then 2.5 s), even past the earlier stop's `leave`: the walker's clock and schedule run
+  on underneath, so a held guard walks on late and his next timed stop takes the delay back. (The module's `leaveR` split
+  therefore never fires in play.) Undo: in `Enemy.calmDecide` (src/ai/enemy.ts, the `pairFace` branch) return the
+  walker's point once he has arrived and the walker moves him on, so his schedule splits the talk.
+- **A34** (S10) A partner who never comes (down, held, despawned; `PAIRS.grace` 6 s after the window opens) opens a
+  `missing` board incident at his last route point with the one left as its only perceiver (he leads, the nearest free
+  guard covers; keyed by the missing guard's number) and the missing guard counts as missed for the squad radio checks
+  (not missed twice); parked modes: the one left searches himself. A disturbance that stops a talk without changing his
+  level is a look toward a sound (`hearTurn`), a post lure, or sight evidence above `PERCEPTION.leak`. The lines go
+  through the bark layer like any bark: shown over the speaker and as a subtitle with no earshot limit (the layer has
+  none), and not sent to a co-op client (no bark is). Undo: `EnemyManager.pairMissing` (src/ai/enemyManager.ts) calls
+  `goer.searchAt` in place of `report('missing', ...)`; `Enemy.disturbed`.
+
+## Stealth over shooting (ROADMAP Decided 2026-10-23 ~10:10; plan S11-S15, `research/stealth-over-shooting.md`)
+Michael's theme, verbatim: "reward stealth over shooting as sections get harder"; on alarms: "dont add cameras, that
+doesnt make sense". A32-A34 are S10's (on `feature/guard-ai-s10`).
+- **A35** (S12) Helmet: the first bullet to the head knocks it off (no damage, stagger 0.9 s, then the normal hit path:
+  combat on the shot's origin, contact call); the next head hit kills as today. Takedowns, grabs, sleep bolts, melee
+  and explosions ignore the helmet. Undo: `GEAR.helmetHits` 1 -> 0 (`src/ai/gear.ts`).
+- **A36** (S12) Body armour: a bullet to the body deals no damage and staggers 0.5 s, at most once per 1.5 s (no
+  stun-lock); head hits follow the helmet rule. Item 13 "torso shots only stagger" is read literally for every armour,
+  including the alarm-stage armour (CT's stage armour halves chest damage instead). Undo: `GEAR.armourMult` 0 -> 0.5.
+- **A37** (S13) Gear by alarm stage, Sector Ops: stage 1 a response team only, stage 2 + armour, stage 3 + helmets
+  (CT's order, research C4). Every living guard of the live section gets it at once (no suit-up beat), later spawns at
+  spawn; it carries over sections with the stage and a restart drops it with the stage. Other live maps: the one alarm
+  is stage 1. No camera is added or changed. Undo: the `GEAR_BY_STAGE` table.
+- **A38** (S13) A response team is the stage's `perStage` guards led by a shield guard (`enforcer`, always helmeted),
+  the rest armed guards: same count, so the live cap holds. Outside Sector Ops the team is shield + 2 guards (in place
+  of grunt, grunt, heavy; G155). `validateGuardAi` rejects an `enforcer` in a section's guard list. Undo:
+  `RESPONSE.shieldLead = false`.
+- **A39** (S13) Sweep: after the LKP search (60 s) a response team walks the section's route points and posts (thinned
+  to 8 m, nearest the LKP first, each once, then again), shield first, the rest 2.5 m behind, 6 s at each; teams of
+  different stages start at different points. Never calm, never leaves; only a section unload or restart ends it.
+  Undo: `SWEEP.enabled = false` (they search the LKP for good, S6).
+- **A40** (S14) "Raise alert" (item 6) means section caution, not an alarm stage (A2 kept). A missed check-in: the
+  caller radios "not answering" (2.5 s x reaction, cut if he goes down); on delivery the section is cautious 180 s
+  (timed); the S5b pair search is unchanged; a dead find promotes it to the S4 held caution. Found bodies: S4 as
+  built. Undo: `MISSING.sectionCaution = false`.
+- **A41** (S14) Gunfire (item 7): hearing stays by range (M1, S1). A calm guard who hears a loud (unsuppressed) shot
+  radios "shots fired" (one call per shots incident, cuttable); on delivery the section is cautious 120 s (a later loud
+  shot refreshes it) and the board sends a pair instead of one. Suppressed shots stay local. No alarm from shots (M4).
+  Undo: `SHOTS.sectionCall = false`.
+- **A42** (S15) A breaker cut is a fault: one witness (never two) walks at patrol pace to the switch and flips it back
+  (2 s), no ring check, suspicious at most, back to his route. A second cut of the same circuit within 60 s is
+  tampering: the S2 light incident at the switch. Shot lamps stay dark for good (never relit). Undo:
+  `BREAKER.reset = false` (the S2 light incident for every cut).
+- **A43** (S15) Late discovery: a dark fixture nobody saw go is noticed by a calm guard who later has it in view
+  (`lightInView`) within 12 m; he reacts as a witness would (shot: investigates; cut: the reset walk). Undo:
+  `LATE.enabled = false`.
+- **A44** (S9) Protocol 32 carries S9's barks and caution plus `AL_HELMET` 32, `AL_ARMOUR` 64 and a `deflect`
+  hit-confirm kind; until S9 lands the client sees no gear (the rules still apply on the host). The client puppet builds
+  the enforcer shield by kind (no wire change for that). Undo: drop the bits (host-only gear).
+- **A45** (S12, S13) Gear art is placeholder parts (a dome on the head node, torso plates, the enforcer's box shield,
+  the dome as the dropped helmet); real meshes are a Character Build / art hand-off for the visual pass (in-repo
+  Blender, headless). Undo: not needed.
+- **A46** (S14) A co-op client's suppressed shot is heard at `SHOT_NOISE x weapon noise` as in solo (9.8 m), not the
+  fixed 14 m (`coopHost.ts`). Undo: restore `SHOT_NOISE * 0.5` there.
+- **A47** (S12) Gear stops any bullet that reaches a guard, a guard's own round into a hostage held as a shield
+  included (only the player's bullets were named). Undo: in `Enemy.applyDamage` gate the gear branch on
+  `h.attackerTeam === 'player'`.
+- **A48** (S12) The placeholder helmet is the rig's existing combat-helmet part (`'helmet'` shape, the `combat` look's
+  size), not a plain dome; the armour is the rig's plate set (chest and back plates, shoulder caps). The dropped helmet
+  is the same part (pool of 8, oldest reused, its colour from the first drop: one faction per map) and is cleared with
+  the guards (`EnemyManager.clear`). Undo: `'dome'` in `Enemy.buildHelmet` and `HelmetDrops.drop`.
+- **A49** (S12) A new bark event `deflect` (non-urgent, original lines: "Argh! Still up!", "Took one! Still
+  standing!", "That was close!"), said before his contact line. Undo: drop `this.bark('deflect')` in `Enemy.deflect`.
+- **A50** (S12) The vest's stagger cooldown counts from his last strike-style stagger (`strikeStagger`, which the gear
+  staggers use); the 0.35 s heavy-hit flinch and a takedown release do not reset it. Undo: set `sinceStagger = 0`
+  in those two places too.
+- **A51** (S12) The `deflect` hit marker is steel blue (`#8fb3d9`, `styles.css`) with a 2600 Hz ping (`sfx.hitMarker`);
+  the HUD and sfx `hitMarker` signatures take the new kind. Undo: drop the CSS rule and the ping (falls back to the
+  white hit marker).
+- **A52** (S13) A stage rise gives its gear to every living guard of the loaded section (Sector Ops loads one section)
+  on top of what he wears, so a guard whose own helmet was shot off gets a new one when stage 3 arrives. Undo: in
+  `EnemyManager.giveStageGear` skip the helmet for a guard who lost one (a flag set in `Enemy.knockHelmetOff`).
+- **A53** (S13) The sweep switches on when the team's leader (the first member up: the shield guard while he stands)
+  has searched `ALERT.searchTime`; members still searching follow him at once, a member in combat fights. The point
+  list is built at each switch from the last known position then (a sighting, the search, then a fresh order).
+  Undo: build once per team (`SweepTeam.begin` only when `switches === 0`).
+- **A54** (S13) Every pass starts at the team's own start point (`sweepStart`: team 0 at the point nearest the last
+  known position), so teams of different stages stay apart pass after pass. Undo: `this.start = 0` when `passes`
+  goes up in `SweepTeam.next`.
+- **A55** (S13) Followers stack on the leader's approach line (from the point back to him), rank x `SWEEP.gap`, jog
+  (0.6 x run speed) when more than 4.1 m off their place, and look the way he looks once there; the leader skips a
+  point his path cannot reach. A `SectorDef.sweep` list is used as given (only ordered, not thinned). Undo: `SWEEP.gap`;
+  pass `SWEEP.thin` for the override in `SweepTeam.begin`.
+- **A56** (S13) Sweep source: Sector Ops reads the section's guard list (route points, and the spawn point of each
+  guard with no route; dogs left out); other live maps read the guards placed in the alarm's section at the alarm
+  (dead ones included, dogs and team members left out). A woken team member takes his place back, counts as having
+  fought (never calms) and gets the stage gear. Undo: drop `e.aware.fought = true` in `EnemyManager.revive`.
+- **A70** (S14) An alert call (`missing` for a miss, `shots`) carries its own incident id (-2, -3, ...), apart from the
+  board's: the S2 pair lead's own `missing` report (board id) stays an ack and never makes anyone cautious, so taking
+  the caller during his call leaves the section calm even when another guard leads the search. When the caller also
+  leads, he holds two calls (both cut with him). Undo: start the alert call on the board's incident and drop the log
+  check in `radioDeliver` (the queue then merges the two calls' receivers under whichever completed first).
+- **A71** (S14) One `missing` call per radio check (several members missed in one check: one call, at the first one's
+  spot); the S10 pair miss calls too, also when the partner's guard is gone (the spot is his last route point). Each
+  missed member still counts in `missedChecks`. Undo: call per member in `radioCheckNow`.
+- **A72** (S14) "One call per shots incident" is the open call: loud shots heard while the shots call is going out join
+  it (the spot moves to the newest); once it is through or cut, the next loud shot heard is a new call, whose delivery
+  refreshes the caution. No refresh without a call. The caller is the nearest calm hearer (tier 1 or 2) whom this shot
+  does not send to combat; not a dog or melee guard, not passive, held or blinded, not on the search after a fight.
+  Undo: `SHOTS.sectionCall = false`.
+- **A73** (S14) The shots pair: the delivered call reports a board `shots` incident at the newest shot's spot with the
+  caller as a perceiver (`IncidentBoard.wantPair`): the lead walks over as an investigator (`sendTo`), the cover holds
+  `pairBack` short as the missing pair's cover; the cover is another perceiver, else a calm guard within `callR`, else
+  any free guard. Merged into a shots incident already assigned, its one investigator gets the cover. Undo:
+  `SHOTS.pair = false` (one goes, as before).
+- **A74** (S14) The section alert is the S4 caution 1 (cooldown sight, `PACE.cautious`, waits x `CAUTION.waitMul`, the
+  torch rule of a searching guard while calm); the caller is cautious too. A guard who goes down loses his timed alert
+  (woken: the S4 knockout caution). Undo: none needed (the caution model is S4's).
+- **A75** (S14) Section counters (`EnemyManager.sectionCounts`): `bodiesFound` (a guard found the body), `missedChecks`
+  (each member a check missed, each pair partner who never came, counted at the miss), `shotsCalls` (only calls that got
+  through), `radioAlarms` (a `command` call that raised the alarm); reset by `EnemyManager.clear` (section load via
+  `despawnAll`, restart via `resetMemory`). The older run tallies (`bodiesFound`, `radioMisses`, `pairMisses`) are
+  unchanged. Undo: not needed (read-only).
+- **A76** (S14) Barks: the radio check's "missed" line names the unit ("Unit three, report... Unit three? Nothing.";
+  slot + 1, else key + 1) and is urgent now (it follows his own "Radio check." at once; the cooldown dropped it before);
+  `shots` ("Shots fired! Calling it in.") at the call's start; radio lines `shotsReport` / `missingReport` when the call
+  gets through. Undo: drop `'missed'` from `URGENT`, call `bark('missed')` without the unit.
+- **A77** (S14) The co-op quiet shot (A46) uses `min(weapon def noise, 0.6)`: the host does not know a client's
+  suppressor mods, and a quiet shot is never louder than the suppressed cap. Undo: `SHOT_NOISE * 0.5` in
+  `CoopHost.remoteNoise`.
+- **A60** (S15) The breaker walk is calm: the guard keeps his level (unaware or cooldown; suspicious only if a glimpse
+  comes on the way, and the walk goes on once nothing is in sight); investigating or worse drops it. A fault is said
+  aloud ("Breaker's gone again.", a new `breaker` bark, not a radio line) and starts no radio call; the other witnesses
+  ack (look 3 s, up to 2 "Copy."). Undo: `this.ctx.radioCall?.(this, incident, 'light')` in `Enemy.resetBreaker`.
+- **A61** (S15) The `BREAKER.repeatT` clock runs from the last cut a guard noticed (a witness at the time or a late
+  find), on the board clock; a cut nobody saw opens nothing and starts no clock. Each press that leaves a circuit off
+  is a new cut (`cutSeq`); the same cut noticed again (seen at the time by guards who could not go, found late by
+  another) stays what it was first taken for, a fault or tampering, and does not restart the clock. Undo: record every
+  press in `EnemyManager.lightsOut` before the `n === 0` return in `circuitOut`; drop the `faultCut` test there to count
+  every notice as a new cut.
+- **A62** (S15) Late discovery looks with the focused cone only (no peripheral field: a fixture already dark is not a
+  bright change) within `LATE.range`, one line-of-sight ray, and only calm free guards (unaware or cooldown, no task;
+  not passive, held, melee, a dog, a high-security post or an alarm runner). A shot lamp found late sends him alone (the
+  one witness). The scan runs every 0.1 s over a round-robin share of the guards (~3 Hz each, `LATE_SCAN`). Undo:
+  `LATE.enabled = false`, or the peripheral field back in `EnemyManager.lateStep`.
+- **A63** (S15) Only a cut at a switch is a breaker fault: a circuit dark while its switches stay on (an isolator that
+  leaves the switches alone) keeps the S2 light incident, and the walk ends as soon as a lamp of the circuit is lit
+  again at its base (`BreakerHost.isOff`). A course mains gate's circuit (`MapLayout.course`: cutting it opens the gate)
+  is never a fault: `BreakerHost.isOff` and `reset` refuse it (`StealthSystems.mainsGroups`), so no guard turns it back
+  on and shuts the gate on the players (the S2 light incident at the switch, as before). marlow-final's timed isolator
+  is not on this branch: it gets the breaker walk if it sets its switches off (`StealthSystems.syncGroup(group, false)`)
+  when it cuts and back on when it relights, and passes its group to `lightsOut` so each cut counts as a new one (A61).
+  Undo: drop the `isOff` test in `EnemyManager.lightsOut`; empty `mainsGroups` to let guards reset mains circuits.
+- **A64** (S15) The walk ends at the walkable cell nearest the switch (`nearestWalkable`, 4 cells); he works it within
+  0.7 m and gives up after 30 s without getting there (`BREAKER_WALK` in `ai/breaker.ts`); his pace is `PACE.patrol`
+  (`PACE.cautious` while cautious). Undo: change `BREAKER_WALK`.
+- **A65** (S15 laptop fix) The breaker walker is the witness nearest the switch by path: no officer, cautious, role or
+  zone weight (a chore, not a check), so a map's lure guard by the panel / switch bank walks (`IncidentBoard.best`,
+  `incidents.ts:561`). Undo: drop the `K_BREAKER` branch there.

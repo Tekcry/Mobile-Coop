@@ -7,7 +7,7 @@ import type { Blip } from '../../ui/hud/minimap';
 import type { Interactable } from '../interactables';
 import type { DoorState } from '../../world/doors';
 import { CourseState, type CourseEvent } from '../course/courseState';
-import { airlockPad, courseUser, isPanelId, layoutKnownIds, validateCourse, type CourseDef, type CourseLayout, type DrillDef, type GateDef, type PlayerIdx } from '../course/courseDef';
+import { airlockPad, courseUser, deviceHoldTime, isPanelId, layoutKnownIds, registerCourse, validateCourse, warnKey, type CourseDef, type CourseLayout, type DrillDef, type GateDef, type PlayerIdx } from '../course/courseDef';
 import type { CourseWire } from '../course/courseWire';
 import { COURSE_CALLSIGNS, COURSE_SEND, RESTART_DELAY } from '../../config/course';
 import { hyp2 } from '../../core/mathx';
@@ -19,6 +19,8 @@ import { summarise } from '../course/courseRating';
 import { CourseHud } from '../../ui/hud/courseHud';
 import { recordBay, recordRun, updateCourseRecord } from '../../save/courseRecord';
 import { groupBaseOn } from '../../world/lights';
+import { SectionStartState } from '../sectorReset';
+import { COURSE_RESTART_TITLE } from '../course/courseWire';
 
 /** Seconds between two LANTERN radio lines. */
 const RADIO_GAP = 3;
@@ -43,6 +45,15 @@ export function courseAllBaysFlag(): boolean {
 /** "Moth: ledge shimmy - done" (the toast and LANTERN's short radio line on every `drillDone`). */
 export function drillDoneLine(d: DrillDef, p: PlayerIdx): string {
   return `${COURSE_CALLSIGNS[p]}: ${d.name ?? d.verb} - done`;
+}
+
+/**
+ * (marlow-final A8, ENGINE-ANSWERS Q2) Course guards run the CT stealth rules, as Infiltration does: a shout to 8 m and a
+ * call-in, the shared last known position, search and cooldown, the detection stat. With `stealth` false a spotted
+ * guard radioed every guard within 22 m, chased real positions and never searched. Undo: delete the call in `start`.
+ */
+export function courseGuardRules(em: { stealth: boolean }): void {
+  em.stealth = true;
 }
 
 /** Scratch for `markerPoint` (called every frame: no allocation). */
@@ -157,6 +168,22 @@ export class CourseMode implements GameMode {
   private endIt: Interactable | null = null;
   /** (CT prototype B3) The held jammer, the cameras it blinds and the lasers. */
   private ct: CtDevices | null = null;
+  /** Every gate by id (load time). */
+  private gateDefs = new Map<string, GateDef>();
+  /** (N3) A console's device id -> its pickup gate id (the re-arm query). */
+  private consoleGate = new Map<string, string>();
+  /** (N2) The last course device pressed (an isolator's lure goes to the cabinet pressed). */
+  private lastPress = '';
+  /** (N2) Every light group's on state at the start: a bay restart puts the map's lamps back this way. */
+  private lampStart: [number, boolean][] = [];
+  /** (marlow-final S10, M3) The doors as the current set began (Sector Ops' `SectionStartState`): a restart puts them back. */
+  private readonly startState = new SectionStartState();
+  /** (S10) Set by `bayStarted` / `bayRestart`: after this step's locks the doors are recorded (1) or put back (2). */
+  private doorStep = 0;
+  /** (S10) Set restarts done (tests). */
+  restarts = 0;
+  /** (S10) Doors the last restart put back (tests). */
+  lastDoors = 0;
 
   constructor(private g: GameState) {}
 
@@ -168,9 +195,24 @@ export class CourseMode implements GameMode {
       return;
     }
     this.layout = lay;
-    const st = new CourseState(validateCourse(lay.def, layoutKnownIds(lay)));
+    const st = new CourseState(validateCourse(lay.def, layoutKnownIds(lay)), lay.consoles);
     st.solo = courseSoloFlag();
     this.state = st;
+    if (g.enemyMgr) courseGuardRules(g.enemyMgr);
+    // (N8) the lobby's "Start at" counts this course's bays
+    registerCourse(g.world.map.id, lay.def);
+    for (const b of lay.def.bays) for (const gate of b.gates) this.gateDefs.set(gate.id, gate);
+    for (const c of lay.consoles ?? []) {
+      for (const gate of this.gateDefs.values()) if (gate.kind === 'pickup' && gate.switchId === c.id && gate.flag === c.flag) this.consoleGate.set(c.id, gate.id);
+    }
+    // (N2) the lamps' start state, for a restart (every group the map has, course group or not)
+    const reg = g.world.level.lights;
+    const seen = new Set<number>();
+    for (const l of reg.lights) {
+      if (l.group < 0 || seen.has(l.group)) continue;
+      seen.add(l.group);
+      this.lampStart.push([l.group, groupBaseOn(reg, l.group)]);
+    }
     const doors = g.world.doors;
     for (const [cid, aid] of Object.entries(lay.doors)) {
       const d = doors.list.find((x) => x.anchor.id === aid);
@@ -242,18 +284,23 @@ export class CourseMode implements GameMode {
   }
 
   /** A device item for course id `cid` (shared between gates naming the same switch). */
-  private device(cid: string, label: string, hold = false): Interactable | null {
+  private device(cid: string, label: string, braced = false): Interactable | null {
     const have = this.devices.get(cid);
     if (have) return have;
     const dv = this.layout!.devices[cid];
     if (!dv) return null;
     const ints = this.g.interactables!;
-    const it = ints.add(`c-${cid}`, 'switch', new Vector3(dv.x, dv.y, dv.z), dv.label ?? label, 0, dv.yaw);
+    // (N4) a hold device: the button is held `hold` s (with the hold noise pulses); the completed hold is the press
+    const holdT = deviceHoldTime(dv, braced);
+    const it = ints.add(`c-${cid}`, 'switch', new Vector3(dv.x, dv.y, dv.z), dv.label ?? label, holdT, dv.yaw);
     it.reach = 1.4;
+    if (holdT > 0 && dv.holdNoise) it.holdNoise = dv.holdNoise;
     ints.setEnabled(it, true);
-    it.onUse = (_it, by) => {
+    it.onUse = (used, by) => {
       const p = this.idx(by);
-      if (hold) this.holdOn(cid, p);
+      // a hold device starts from empty for the next use
+      if (holdT > 0) used.progress = 0;
+      if (braced) this.holdOn(cid, p);
       else this.press(cid, p);
     };
     this.devices.set(cid, it);
@@ -270,6 +317,9 @@ export class CourseMode implements GameMode {
         break;
       case 'pickup':
         this.device(gate.switchId, 'Take');
+        break;
+      case 'isolator':
+        for (const sw of gate.switchIds) this.device(sw, 'Isolate');
         break;
       case 'pair':
         this.device(gate.a, 'Press');
@@ -305,6 +355,8 @@ export class CourseMode implements GameMode {
     if (!st || st.over) return false;
     this.restartT = -1;
     st.restart();
+    // (marlow-final) hold the pass zones now: the next step's device update runs before `handle` sees `bayRestart`
+    this.ct?.holdZones(2);
     return true;
   }
 
@@ -324,11 +376,14 @@ export class CourseMode implements GameMode {
       this.refuse(this.layout?.devices[cid]?.label ?? null, p);
       return;
     }
-    // (sector-fixes S) a security console: refused while its guard is up (alive, held or not) or the cameras are off
+    this.lastPress = cid;
+    // (sector-fixes S) a security console: refused while its guard is up (alive, held or not), the cameras are off or
+    // (N3) a timed console re-arms
     const con = consoleFor(this.layout?.consoles, cid);
     if (con) {
       const guard = this.squadOf(con.guard);
-      const no = consoleRefusal(!!guard && guard.alive, !!this.state?.hasFlag(con.flag));
+      const gid = this.consoleGate.get(cid);
+      const no = consoleRefusal(!!guard && guard.alive, !!this.state?.hasFlag(con.flag), gid !== undefined && (this.state?.gateRearm(gid) ?? 0) > 0);
       if (no) {
         this.refuse(no, p);
         return;
@@ -547,6 +602,10 @@ export class CourseMode implements GameMode {
     for (const e of evs) this.onEvent(e);
     this.dirty = true;
     this.applyLocks();
+    // (S10, M3) after the locks: a set start records its doors, a restart puts them back (locked ones too: shut as they began)
+    if (this.doorStep === 1) this.startState.take(this.g.world.level.lights, this.g.world.doors);
+    else if (this.doorStep === 2) this.lastDoors = this.startState.applyDoors(this.g.world.doors, true);
+    this.doorStep = 0;
   }
 
   private onEvent(e: CourseEvent): void {
@@ -556,18 +615,44 @@ export class CourseMode implements GameMode {
       case 'bayStarted':
         this.spawnSquad(e.squad);
         this.radio('enter');
+        // (S10, M3) the doors as the set begins, recorded once this step's locks are on (`handle`)
+        this.doorStep = 1;
         break;
       case 'bayRestart':
         this.restartT = -1;
+        this.restarts++;
+        // (S10, M2) a full reset, as Sector Ops' section restart: every guard, body (carried ones too) and incident
+        // goes with the guards' shared memory, so the set's guards come back fresh and nobody finds the old bodies
+        this.dropSquad(true);
         this.spawnSquad(e.squad);
+        // the players' side (the grenades and gadgets out in the world, the stealth leftovers, the noise, the music);
+        // the co-op client runs its own on the restart banner
+        this.g.checkpointReset();
+        this.g.security?.clearBodyReports();
+        // a shot-out camera (none on Marlow's armoured ones) comes back, and every camera forgets what it had seen
+        this.ct?.repair(-1);
         this.resetLights();
+        // (S10, M3) the doors as the set began, once this step's locks are back on (`handle`)
+        this.doorStep = 2;
         for (const h of this.holds) h.holders = 0;
-        this.g.hud.banner('RESTART', bay.id, 2000);
+        this.g.hud.banner(COURSE_RESTART_TITLE, bay.id, 2000);
         this.g.scheduleRespawn(this.checkpointPos(), 0.5);
+        // (marlow-final) no pass zone fires on the old positions before both players are back at the checkpoint
+        this.ct?.holdZones(2);
         break;
       case 'gateOpened':
+        this.isolatorEdge(e.gate, false);
         this.radio(e.gate);
         this.radio('gate');
+        break;
+      case 'gateClosed':
+        this.isolatorEdge(e.gate, true);
+        break;
+      case 'gateWarn':
+        this.radio(warnKey(e.gate));
+        break;
+      case 'stepDone':
+        this.radio(e.step);
         break;
       case 'flagSet':
         // (course-ready F2) a flag gate (the camera pocket, the scanners) never fires gateOpened: its radio line is keyed
@@ -631,23 +716,32 @@ export class CourseMode implements GameMode {
     return new Vector3((a.box[0] + a.box[2]) / 2, a.floorY + 0.05, (a.box[1] + a.box[3]) / 2);
   }
 
-  private spawnSquad(ids: string[]): void {
+  /**
+   * The old squad goes. A held guard is let go first, as Sector Ops does (course-restart-hold): the host's own takedown
+   * or grab, and co-op every guard a client holds (`tdDenied` aborts its takedown). `full` (a restart, S10 M2): every
+   * guard, body and drone and the guards' shared memory (`EnemyManager.resetMemory`: incidents, calls, caution, alarm,
+   * last known position), as Sector Ops' restart; else (the next set) the squad's own guards and bodies (`despawn`).
+   */
+  private dropSquad(full: boolean): void {
     const em = this.g.enemyMgr;
     if (!em) return;
-    if (this.squad.length) {
-      // (course-restart-hold) a held guard is let go first, as Sector Ops does: the host's own takedown or grab, and
-      // co-op every guard a client holds (`tdDenied` aborts its takedown) before the squad is disposed
-      const g = this.g;
+    const g = this.g;
+    if (this.squad.length || full) {
       if (g.takedown.active) g.takedown.reset();
       g.net?.releaseHolds?.();
     }
-    for (const e of this.squad) {
-      const k = em.enemies.indexOf(e);
-      if (k >= 0) em.enemies.splice(k, 1);
-      e.dispose();
-    }
+    if (full) em.resetMemory();
+    // (ENGINE-ANSWERS Q4) `despawn`, not a splice and dispose: the old squad's knocked-out or dead bodies go too, so the
+    // next set's guards never find them
+    else for (const e of this.squad) em.despawn(e);
     this.squad.length = 0;
     this.squadIds.length = 0;
+  }
+
+  private spawnSquad(ids: string[]): void {
+    const em = this.g.enemyMgr;
+    if (!em) return;
+    this.dropSquad(false);
     for (const id of ids) {
       const s = this.layout!.squads[id];
       if (!s) continue;
@@ -676,14 +770,45 @@ export class CourseMode implements GameMode {
     return k >= 0 ? (this.squad[k] ?? null) : null;
   }
 
-  /** Restart: the course's light groups back on and its shot-out lamps restored. */
+  /**
+   * (N2) An isolator gate opened (the circuit goes dark: the lights-out lure at the cabinet pressed) or closed (the
+   * circuit comes back on). Any other gate: nothing.
+   */
+  private isolatorEdge(gateId: string, on: boolean): void {
+    const gate = this.gateDefs.get(gateId);
+    const lay = this.layout;
+    if (!gate || gate.kind !== 'isolator' || !lay) return;
+    const gid = lay.groups?.[gate.group];
+    if (gid === undefined) return;
+    const cab = gate.switchIds.includes(this.lastPress) ? this.lastPress : gate.switchIds[0]!;
+    const dv = lay.devices[cab];
+    const x = dv ? dv.x : 0;
+    const z = dv ? dv.z : 0;
+    const s = this.g.stealth;
+    if (s) s.isolate(gid, on, x, z);
+    else {
+      this.g.world.level.lights.setGroup(gid, on);
+      if (!on) this.g.enemyMgr?.lightsOut(x, z);
+    }
+    this.dirty = true;
+  }
+
+  /**
+   * Restart: the map's lamps as they were at the start (every light group, course group or not; N2 fixes the old early
+   * return, which left a map without course groups dark) and every shot-out lamp restored.
+   */
   private resetLights(): void {
     const reg = this.g.world.level.lights;
+    for (const l of reg.lights) if (l.destroyed) reg.restore(l.id);
+    for (const [gid, on] of this.lampStart) {
+      reg.setGroup(gid, on);
+      this.g.stealth?.syncGroup(gid, on);
+    }
+    // a course group with no lamps at the start (none in the snapshot) still comes back on
     const groups = this.layout!.groups;
-    if (!groups) return;
-    const want = new Set(Object.values(groups));
-    for (const l of reg.lights) if (want.has(l.group) && l.destroyed) reg.restore(l.id);
-    for (const gid of want) {
+    if (groups) for (const name in groups) {
+      const gid = groups[name]!;
+      if (this.lampStart.some((s) => s[0] === gid)) continue;
       reg.setGroup(gid, true);
       this.g.stealth?.syncGroup(gid, true);
     }
@@ -823,7 +948,7 @@ function mirrorOf(g: GameState): ClientCourse | null {
   if (m) return m;
   const lay = g.world.layout.course;
   if (!lay) return null;
-  const st = new CourseState(lay.def);
+  const st = new CourseState(lay.def, lay.consoles);
   const ct = new CtDevices(g, 'client', { say: () => undefined, record: () => undefined, dirty: () => undefined, has: (f) => st.hasFlag(f), hasShared: (f) => st.hasShared(f) });
   g.ctDev = ct;
   m = { st, lay, hud: new CourseHud(g.hud.el), open: [], startBay: -1, radioN: 0, pads: buildAirlockPads(g, lay), ct, rear: rearDoorAnchors(lay) };
@@ -836,6 +961,8 @@ export function clientCourseFrame(g: GameState, dt: number): void {
   const m = mirrors.get(g);
   if (!m) return;
   m.ct.frame(dt);
+  // (N1) timed windows run down between two messages (the HUD's "Lights back in 9 s")
+  m.st.advanceMirror(dt);
   m.hud.update(m.st, 1);
   m.hud.setStatus(m.st.airlockStatus());
   drawMarker(g, m.st, m.lay, 1);

@@ -1,10 +1,10 @@
 import { Vector3 } from '../core/babylon';
 import type { PlayerRef } from '../ai/enemy';
 import type { Ballistics } from '../weapons/ballistics';
-import { G } from '../physics/groups';
+import { MASK } from '../physics/groups';
 import { CAMERA } from '../config/security';
 import { hyp3 } from '../core/mathx';
-import { CameraUnit, cameraRate, segmentHitsHousing, stepCamMeter, type CamMeter } from './camera';
+import { CameraUnit, cameraRate, segmentHousingT, stepCamMeter, type CamMeter } from './camera';
 import type { SecurityData } from './data';
 import type { SecurityView } from './securityView';
 
@@ -44,7 +44,7 @@ export function remoteHeadY(feetY: number, crouched: boolean): number {
 
 /**
  * (camera-cue fix) One camera's per-player test, shared by the host's think and the co-op client's cue pulse: 0 unless
- * the head is in the camera's frame with a clear `G.STATIC` ray from the lens, else the meter rate (the guard formula
+ * the head is in the camera's frame with a clear `MASK.SIGHT` ray from the lens, else the meter rate (the guard formula
  * at the camera's own IR light, `CAMERA.irLight`: lamps do not matter to a camera, marlow-jammer M3). The camera "sees"
  * the body when `seenAt(rate)` (the rate is over the leak level).
  */
@@ -57,13 +57,13 @@ export function cameraSight(c: CameraUnit, head: Vector3, crouched: boolean, spe
 }
 
 /**
- * The one `G.STATIC` ray from the camera's lens to `to`: the distance (m) when nothing is hit closer than `slack` short
+ * The one `MASK.SIGHT` ray (static, frosted glass: E2) from the camera's lens to `to`: the distance (m) when nothing is hit closer than `slack` short
  * of the point (no hit returns the length), else -1. Shared by the player test and the body pass.
  */
 function lensRay(c: CameraUnit, to: Vector3, slack: number, ray: SightRay): number {
   LENS.set(c.x, c.y, c.z);
   const dist = hyp3(to.x - c.x, to.y - c.y, to.z - c.z);
-  return ray.hitDistance(LENS, to, G.STATIC) <= dist - slack ? -1 : dist;
+  return ray.hitDistance(LENS, to, MASK.SIGHT) <= dist - slack ? -1 : dist;
 }
 
 /** (guard-ai S7, design 9) The camera body pass: its rate and where on a body the ray aims. */
@@ -134,6 +134,10 @@ export class SecuritySystem {
    * replaced, not chained). Host only (the system exists only there).
    */
   onBody: ((e: CameraBodyEvent) => void) | null = null;
+  /** (sector-redesign E8) A round ricocheted off a bulletproof camera at (x, y, z): the effect and sound (GameState). */
+  onRicochet: ((x: number, y: number, z: number) => void) | null = null;
+  /** (marlow-final S10) Rounds a bulletproof housing turned (tests). */
+  ricochets = 0;
   private thinkT = 0;
   private bodyT = 0;
   private bodySrc: CamBodySource | null = null;
@@ -238,18 +242,35 @@ export class SecuritySystem {
     }
   }
 
-  /** A hitscan shot from `from` to `to`: a camera whose housing it passes through is destroyed. Returns its id. */
+  /**
+   * A hitscan shot from `from` to `to`: a camera whose housing it passes through is destroyed. Returns its id.
+   * (sector-redesign E8) A bulletproof housing stops the round instead: `onRicochet` plays the sparks and impact sound
+   * at the lens, the camera stays as it was and null is returned.
+   */
   shotRay(from: Vector3, to: Vector3): string | null {
+    // (polish 11) the housing nearest along the round, not the first in the list (a far bulletproof camera listed first
+    // no longer shields a near shootable one)
+    let c: CameraUnit | null = null;
+    let best = 2;
     for (let i = 0; i < this.cameras.length; i++) {
-      const c = this.cameras[i]!;
-      if (c.mode === 'destroyed') continue;
-      if (!segmentHitsHousing(c, from.x, from.y, from.z, to.x, to.y, to.z)) continue;
-      c.destroy();
-      this.view?.update(this.cameras);
-      this.onEvent?.({ kind: 'cameraDown', camera: c.def.id, x: c.x, z: c.z });
-      return c.def.id;
+      const k = this.cameras[i]!;
+      if (k.mode === 'destroyed') continue;
+      const t = segmentHousingT(k, from.x, from.y, from.z, to.x, to.y, to.z);
+      if (t >= 0 && t < best) {
+        best = t;
+        c = k;
+      }
     }
-    return null;
+    if (!c) return null;
+    if (c.def.bulletproof) {
+      this.ricochets++;
+      this.onRicochet?.(c.x, c.y, c.z);
+      return null;
+    }
+    c.destroy();
+    this.view?.update(this.cameras);
+    this.onEvent?.({ kind: 'cameraDown', camera: c.def.id, x: c.x, z: c.z });
+    return c.def.id;
   }
 
   dispose(): void {

@@ -11,8 +11,11 @@ import type { PassZone } from '../game/ctDevices';
 import type { ScannerDef } from '../game/scanners';
 import type { CourseLayout } from '../game/course/courseDef';
 import type { SectorDef } from '../game/sectors';
+import type { BoardDef } from '../game/isolators';
 import type { GuardAiLayout } from '../ai/guardAiData';
 import type { CamSize, CamSpace } from './camSpaces';
+import type { KitLayout } from './kit/facilityKit';
+import type { PropPlacement as FacilityPropPlacement } from './props/facilityProps';
 
 /** 3.0 weather choice (visual only): clear, rain (wet floors under the open sky, roofs keep it out), fog (light shafts). */
 export type WeatherChoice = 'clear' | 'rain' | 'fog';
@@ -55,19 +58,24 @@ export interface MapLayout {
   props: PropPlacement[];
   /** Mission objective sites (terminals, caches, extraction). */
   objectives: { id: string; pos: Vector3; kind: 'terminal' | 'cache' | 'extract' }[];
-  /** Supply crates (ammo / health pickups). */
+  /** Supply crates. No ammo pickups inside sections (`checkMapLayout`, Michael 2026-10-23); a between-section weapons crate refill comes later. */
   pickups: { pos: Vector3; kind: 'ammo' }[];
   /** Wall medkit stations (G20 / G98; test maps so far): hold to heal, single use. `yaw` faces the room. */
   medkitWalls?: { pos: Vector3; yaw: number }[];
   /** Tagged rooms (HUD room tag, Clear mode, enemies holding rooms). */
   rooms?: RoomDef[];
   /** Light switches on walls (facing `yaw`): each turns a lamp circuit (`group`) on / off. */
-  switches?: { pos: Vector3; yaw: number; group: number }[];
+  switches?: { pos: Vector3; yaw: number; group: number; section?: number }[];
+  /** (sector-redesign E4, EW8) Breaker / timed isolator boards on walls (facing `yaw`): each cuts its circuits
+   *  (`groups`) until switched back (a breaker) or for `window` s (a timed isolator); `game/isolators.ts`. */
+  // (sector-redesign cap fix) `section` on switches, boards, hide spots and door anchors (Sector Ops): the item is
+  // mirrored to co-op clients only while that section is live (`Interactables.scope`); none: always
+  boards?: BoardDef[];
   /** Alarm panels on walls: an alerted enemy who reaches one calls reinforcements. `section` (Sector Ops): the panel
    *  works only while that section is live. */
   alarms?: { pos: Vector3; yaw: number; section?: number }[];
   /** Where a carried body can be hidden (in front of a container / locker). */
-  hideSpots?: { pos: Vector3 }[];
+  hideSpots?: { pos: Vector3; section?: number }[];
   /** Where reinforcement squads come in. */
   reinforce?: Vector3[];
   /** (guard-ai) Zones, noisy things, reinforcement entries and squads; none = the whole map is one section. */
@@ -96,6 +104,13 @@ export interface MapLayout {
    *  `camSize`; neither given: the camera's probes decide (`world/camSpaces.ts`). Local only. */
   camSpaces?: CamSpace[];
   camSize?: CamSize;
+  /** (marlow-final M5) The facility kit's drawn pieces (`world/kit/facilityKit.ts` `FacilityKit.layout`): visual only,
+   *  the kit wrote their gameplay boxes into the builder itself. */
+  kit?: KitLayout;
+  /** (marlow-final M5) The props kit's placements (`world/props/facilityProps.ts` `FacilityProps.placements`): visual
+   *  only, drawn by `PropRender`; the map builder wrote their gameplay boxes with `props.write(b)`. (`props` above is
+   *  the dynamic prop system's.) */
+  facilityProps?: FacilityPropPlacement[];
 }
 
 export interface MapDef {

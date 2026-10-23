@@ -949,6 +949,14 @@ try {
       // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.03 (measured 3.1 cm)
       'pistol readyJog': { kneeBow: 0.034 },
     };
+    // (mocap-trial-2 strafe, lead decision A11, M1 "Mocap, as captured") with the switch ON the aimed strafe plays the CMU
+    // strafe captures (69_59 / 69_56), whose side-step is wider than CRAB_STRAFE's "shoulder width, never a lunge" (an old
+    // procedural limit). Only knee separation and the planted track are re-based, to the captures' measured envelope plus a
+    // small margin; knee-outside-ankle, slides and pops keep their limits. Measured at Wren's scale (fresh check repro3
+    // PART=clip): ankles 0.10-0.63 m apart, planted ankle up to 0.374 m from the pelvis line; a knee about midway between
+    // hip and ankle at 0.63 m apart is (0.173 + 0.625) / 2 = 0.40 m, 2.3 x the 0.173 m hips. Gates: kneeSep max 2.4, trackHalf
+    // 0.40 m. Undo: delete this table entry (the rows read CRAB_STRAFE again). Switch OFF rows unchanged.
+    const MOCAP_STRAFE_DRAWN = MOCAP ? { aimStrafe: { kneeSep: { min: L.CRAB_STRAFE.kneeSep.min, max: 2.4 }, trackHalf: 0.4 } } : {};
     const drawnRows = [];
     // (the gun current before, restored after: the checks below keep their conditions)
     const orig = await G(() => ({ cls: window.__app.current.weapons.current.def.class, mul: window.__app.current.player.controller.speedMul }));
@@ -958,7 +966,7 @@ try {
         if (!all && !gated) continue;
         for (const gear of gears) {
           const rec = await crabRecord(gear || 4, false, segs, weapon);
-          const C = { ...L.crabDrawnRanges(key), ...BODY_DRAWN[`${weapon} ${key}`] };
+          const C = { ...L.crabDrawnRanges(key), ...BODY_DRAWN[`${weapon} ${key}`], ...MOCAP_STRAFE_DRAWN[key] };
           const r = crabRow(`${weapon} ${name}${gear ? ` speed ${gear}` : ''}`, rec, false, false, C);
           drawnRows.push({ weapon, key, gear, ...r.row });
           console.log(crabLine(r, rec) + (gated ? '' : ' [report-only]'));
@@ -1243,15 +1251,9 @@ try {
     });
     // (anim-bake-1022) Michael's 2026-10-22 tune: was 0.075 (L.CROUCH_POP; measured 10.5 cm wristR); the player's low ready
     // still crouch -> stand only, every other transition keeps L.CROUCH_POP
-    // (anim-bake-targets) the Body tune (BODY_GAIT above): the stance width changes between the idle / run rows
-    // (trackMul 0.05) and the crouched rows (1) over the body ease (BODY_TAU), the tuner's own blend
-    const BODY_POP = {
-      // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.075 (L.CROUCH_POP; measured 8.7 cm kneeL)
-      'holstered still: stand -> crouch -> stand': 0.096,
-      // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.075 (L.CROUCH_POP; measured 7.5 cm wristL, over by rounding)
-      'holstered running: crouch -> stand': 0.083,
-    };
-    const popMax = (name) => (name === 'low ready still: crouch -> stand' ? 0.115 : BODY_POP[name] ?? L.CROUCH_POP);
+    // (crouch-pops, CP-A3) the two Body tune limits (holstered still 9.6 cm, holstered running 8.3 cm: the stance width
+    // switching rows at crouch 0.5) are gone: the Body base blends the rows by the crouch amount, both keep L.CROUCH_POP
+    const popMax = (name) => (name === 'low ready still: crouch -> stand' ? 0.115 : L.CROUCH_POP);
     for (const r of pops) {
       const lim = popMax(r.name);
       console.log(`  ${r.name}: worst velocity change ${cm(r.worst)} cm per 60 Hz frame (${r.where}; <= ${cm(lim)})${L.CROUCH_POP_GATE ? '' : ' [report-only]'}`);

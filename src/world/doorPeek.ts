@@ -15,6 +15,8 @@ export const DOOR_CRACK = { crack: 0.12, crackTime: 0.6, closeTime: 0.4 } as con
 export const DOOR_PEEK = {
   /** The door's face within this of the body (m) and the body facing it within `cone` (rad, 60 deg). */
   reach: 1.0,
+  /** (polish 3) The feet within this of the door's base (m), as the door menu: no peek offer from a walkway over a door. */
+  floorGap: 1.2,
   cone: Math.PI / 3,
   /** Settle onto the frame (s). (G6, AUDIT-WALLS row 14, 052349 @ 13.6-18.6: picked 14.1, the step to the latch side
    *  and the hand up 14.4-14.8, the camera in at about 15.0, the leaf starts about 15.6: 1.5 s after the pick; ours
@@ -53,6 +55,14 @@ export interface PeekDoorAnchor {
   height: number;
   swing: number;
   locked: boolean;
+  /** (marlow-final N9) 'slide': the facility kit's motorised sliding door (no crack, peek, bash or committed swing). */
+  leaf?: 'swing' | 'slide';
+}
+
+/** (marlow-final N9) A sliding door: it offers Open only (no crack / peek, bash, stealth drive or committed swing);
+ *  its leaves slide on the same `DoorState` (`open`, `target`), so collision, light, sight, locks and co-op are unchanged. */
+export function isSlideDoor(a: { leaf?: 'swing' | 'slide' }): boolean {
+  return a.leaf === 'slide';
 }
 
 /** The door state fields the peek reads (`DoorState`). */
@@ -127,12 +137,12 @@ export function leafDistance(a: PeekDoorAnchor, px: number, pz: number): number 
 /**
  * Eligible to start a peek at `d`: closed (target 0), unlocked, not peeked by someone else (`peekedByOther`: a crack
  * somebody holds; an abandoned crack nobody peeks is eligible, the peek resumes at it so it can be closed), the face
- * within `DOOR_PEEK.reach` and faced within the cone, grounded and free (`busy`: another state).
+ * within `DOOR_PEEK.reach` and faced within the cone, grounded and free (`busy`: another state); with `py`, the feet within `floorGap` of the door's base.
  */
-export function doorPeekEligible(d: PeekDoor, peekedByOther: boolean, px: number, pz: number, faceYaw: number, grounded: boolean, busy: boolean): boolean {
-  if (busy || !grounded || d.target !== 0 || d.anchor.locked || peekedByOther) return false;
+export function doorPeekEligible(d: PeekDoor, peekedByOther: boolean, px: number, pz: number, faceYaw: number, grounded: boolean, busy: boolean, py = Number.NaN): boolean {
+  if (busy || !grounded || d.target !== 0 || d.anchor.locked || peekedByOther || isSlideDoor(d.anchor)) return false;
   const a = d.anchor;
-  if (leafDistance(a, px, pz) > DOOR_PEEK.reach) return false;
+  if (leafDistance(a, px, pz) > DOOR_PEEK.reach || Math.abs(a.hinge.y - py) > DOOR_PEEK.floorGap) return false;
   const nx = Math.cos(a.yaw);
   const nz = -Math.sin(a.yaw);
   const side = (px - a.hinge.x) * nx + (pz - a.hinge.z) * nz >= 0 ? 1 : -1;
@@ -144,7 +154,7 @@ export function doorPeekEligible(d: PeekDoor, peekedByOther: boolean, px: number
 export function hostCrackOk(d: PeekDoor, fx: number, fz: number, on: boolean): boolean {
   if (d.target !== 0) return false;
   if (!on) return hyp2(d.cx - fx, d.cz - fz) <= DOOR_PEEK.hostReach;
-  return !d.anchor.locked && hyp2(d.cx - fx, d.cz - fz) <= DOOR_PEEK.hostReach;
+  return !d.anchor.locked && !isSlideDoor(d.anchor) && hyp2(d.cx - fx, d.cz - fz) <= DOOR_PEEK.hostReach;
 }
 
 export type DoorPeekPhase = 'off' | 'settle' | 'ready' | 'crack' | 'peek' | 'closing';

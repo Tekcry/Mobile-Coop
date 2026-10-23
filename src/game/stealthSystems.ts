@@ -5,13 +5,18 @@ import { SOCKET_YAW, socketLocal } from '../ai/carryPose';
 import type { Body } from '../ai/body';
 import { BODY } from '../ai/bodies';
 import { ALARM, type AlarmPanel } from '../ai/alarm';
+import { RESPONSE, responseTeam } from '../ai/gear';
 import type { EnemyManager } from '../ai/enemyManager';
 import type { EnemyKind } from '../ai/enemyDefs';
-import { lightOnRay, type LightRegistry } from '../world/lights';
+import type { Enemy } from '../ai/enemy';
+import type { ReinforceEntry } from '../ai/guardAiData';
+import { groupBaseOn, lightOnRay, type LightRegistry } from '../world/lights';
+import type { BreakerHost } from '../ai/breaker';
+import { BACK_TIMER, BOARD_REACH, IsolatorBoards, type BoardSink } from './isolators';
 import type { Interactable, Interactables } from './interactables';
 import type { GameState } from './gameState';
 import { DOOR, type DoorState } from '../world/doors';
-import { G } from '../physics/groups';
+import { G, MASK } from '../physics/groups';
 import { hyp2 } from '../core/mathx';
 import { clearGripAxis } from '../player/attachGrips';
 
@@ -30,6 +35,31 @@ const DOOR_NOTICE_EVERY = 0.25;
 const DOOR_BASH_NOISE = 10;
 
 /**
+ * (marlow-final, ENGINE-ANSWERS Q9) Is (x, z) occupied within `r`: the local player at (px, pz), any co-op partner (a
+ * calm guard must never shut a door onto the client's player), or a live enemy? No allocation.
+ */
+export function spotOccupied(
+  x: number,
+  z: number,
+  r: number,
+  px: number,
+  pz: number,
+  remotes: readonly { feet: { x: number; z: number } }[],
+  enemies: readonly { alive: boolean; pos: { x: number; z: number } }[],
+): boolean {
+  if (hyp2(px - x, pz - z) < r) return true;
+  for (let i = 0; i < remotes.length; i++) {
+    const f = remotes[i]!.feet;
+    if (hyp2(f.x - x, f.z - z) < r) return true;
+  }
+  for (let i = 0; i < enemies.length; i++) {
+    const e = enemies[i]!;
+    if (e.alive && hyp2(e.pos.x - x, e.pos.z - z) < r) return true;
+  }
+  return false;
+}
+
+/**
  * Stealth fixtures in a match (phase 3b): bodies the player can pick up, carry (slow, weapon stowed, hands on
  * the victim), put down or hide in a container; light switches (a room's lamp circuit) and lights shot out
  * (enemies come to look, with a flashlight in the dark); alarm panels the player can disable before an
@@ -43,6 +73,9 @@ export class StealthSystems {
   private bodyIts = new Map<Body, Interactable>();
   private switches: { it: Interactable; group: number; on: boolean }[] = [];
   private panels: { panel: AlarmPanel; it: Interactable }[] = [];
+  /** (sector-redesign E4, EW8) Breaker / timed isolator boards (`MapLayout.boards`) and their items (`board-<i>`). */
+  boards: IsolatorBoards | null = null;
+  private boardIts: Interactable[] = [];
   /** The "Drop body" action (not in the world: offered while carrying with no hiding spot near). */
   private dropIt: Interactable;
   private kneeL = new Vector3();
@@ -67,16 +100,57 @@ export class StealthSystems {
     const reg = g.world.level.lights;
     layout.switches?.forEach((s, i) => {
       const it = ints.add(`switch-${i}`, 'switch', s.pos, 'Lights off', 0, s.yaw);
+      if (s.section !== undefined) it.section = s.section;
       it.reach = 1.3;
       const sw = { it, group: s.group, on: true };
       it.onUse = () => this.toggle(sw, reg);
       ints.setEnabled(it, true);
       this.switches.push(sw);
     });
+    // (guard-ai S15) the guards reach the switches: a cut circuit is turned back on through the player's own toggle
+    // (never a course mains gate's circuit, A63)
+    const course = layout.course;
+    if (course?.groups) {
+      for (const bay of course.def.bays) {
+        for (const gt of bay.gates) {
+          const gid = gt.kind === 'mains' ? course.groups[gt.group] : undefined;
+          if (gid !== undefined) this.mainsGroups.add(gid);
+        }
+      }
+    }
+    em.breakers = this.breakerHost;
+    // (sector-redesign E4, EW8) boards: a 'switch' item (no new item kind on the wire), the switch's reach; host / solo
+    // only (a co-op client mirrors the item and sends `use`, the host runs it, its lamps follow by slice L's `lamps`)
+    const bd = layout.boards;
+    if (bd?.length) {
+      const sink: BoardSink = {
+        cut: (i, x, z) => {
+          this.boardChanged(i, false);
+          // the circuit going dark is noticed: the nearest calm armed guard comes to look at the board (as a switch)
+          this.em.lightsOut(x, z);
+        },
+        back: (i, how) => {
+          this.boardChanged(i, true);
+          // the timed window's end: the cue is the switch click, the lamps and the board's indicator lit again
+          if (how === BACK_TIMER) g.hud.feedItem('Circuit restored');
+        },
+      };
+      const boards = new IsolatorBoards(bd, reg, sink);
+      this.boards = boards;
+      bd.forEach((b, i) => {
+        const it = ints.add(`board-${i}`, 'switch', b.pos, '', 0, b.yaw);
+        if (b.section !== undefined) it.section = b.section;
+        it.reach = BOARD_REACH;
+        it.onUse = () => boards.use(i);
+        this.boardIts.push(it);
+        this.showBoard(i);
+      });
+    }
     layout.alarms?.forEach((a, i) => {
       const panel: AlarmPanel = { id: `alarm-${i}`, x: a.pos.x, y: a.pos.y, z: a.pos.z, yaw: a.yaw, disabled: false, ...(a.section !== undefined ? { section: a.section } : {}) };
       em.alarms.push(panel);
       const it = ints.add(panel.id, 'alarm', a.pos, 'Disable alarm', ALARM.disableTime, a.yaw);
+      if (a.section !== undefined) it.section = a.section;
       it.reach = 1.3;
       it.onUse = () => {
         panel.disabled = true;
@@ -89,6 +163,7 @@ export class StealthSystems {
     });
     layout.hideSpots?.forEach((h, i) => {
       const it = ints.add(`hide-${i}`, 'hide', h.pos, 'Hide body', 0);
+      if (h.section !== undefined) it.section = h.section;
       it.reach = 1.5;
       it.onUse = () => this.hideCarried();
       ints.setEnabled(it, true);
@@ -99,6 +174,7 @@ export class StealthSystems {
     const doors = g.world.doors;
     for (const d of doors.list) {
       const it = ints.add(`door-${d.anchor.id}`, 'door', new Vector3(d.cx, d.anchor.hinge.y, d.cz), 'Open door', 0);
+      if (d.anchor.section !== undefined) it.section = d.anchor.section;
       it.reach = 1.4;
       it.onUse = () => {
         if (d.target === 0) doors.open(d, 'quiet');
@@ -145,7 +221,7 @@ export class StealthSystems {
       g.hud.feedItem('Body found', 'warn');
     };
     em.onRevived = (e) => g.mode?.onEnemyJoined?.(e);
-    em.onAlarm = (_e, p) => this.onAlarm(p);
+    em.onAlarm = (e, p) => this.onAlarm(e, p);
     for (const b of em.bodies) this.addBody(b);
   }
 
@@ -421,11 +497,67 @@ export class StealthSystems {
       this.ints.setIndicator(o.it, o.on ? '#ffe08a' : '#3a3f45');
     }
     reg.setGroup(sw.group, sw.on);
+    this.followBoards();
     this.g.events.emit('lightSwitch', { on: sw.on });
     if (!sw.on) {
       // the room going dark is noticed; someone comes to look at the switch
       this.em.lightsOut(sw.it.pos.x, sw.it.pos.z, sw.it.pos.y + 2.5, -1, sw.group);
     }
+  }
+
+  /** (guard-ai S15, A42) The switches as the guards use them (`EnemyManager.breakers`). No allocation. */
+  private readonly breakerHost: BreakerHost = {
+    switchOf: (group, x, z, out) => {
+      const sws = this.switches;
+      let best = -1;
+      let bd = Infinity;
+      for (let i = 0; i < sws.length; i++) {
+        const s = sws[i]!;
+        if (s.group !== group) continue;
+        const d = hyp2(s.it.pos.x - x, s.it.pos.z - z);
+        if (d < bd) {
+          bd = d;
+          best = i;
+        }
+      }
+      if (best < 0) return false;
+      const p = sws[best]!.it.pos;
+      out[0] = p.x;
+      out[1] = p.y;
+      out[2] = p.z;
+      return true;
+    },
+    // off at its switches and dark (a lamp of it lit again by other means, an isolator: no longer a cut). A course
+    // mains gate's circuit (cutting it opens the gate) is never a fault a guard puts right (A63): the S2 incident
+    isOff: (group) => {
+      if (this.mainsGroups.has(group)) return false;
+      const sws = this.switches;
+      for (let i = 0; i < sws.length; i++) {
+        const s = sws[i]!;
+        if (s.group === group) return !s.on && !groupBaseOn(this.g.world.level.lights, group);
+      }
+      return false;
+    },
+    reset: (group) => !this.mainsGroups.has(group) && this.resetCircuit(group),
+  };
+  /** (guard-ai S15, A63) The circuits a course mains gate reads (`MapLayout.course`): cutting one opens the gate, so no
+   *  guard turns it back on (that would shut the gate on the players). */
+  private readonly mainsGroups = new Set<number>();
+
+  /**
+   * (guard-ai S15, A42) A guard worked the switch: circuit `group` back on through the player's own toggle, so the lamps,
+   * the light field and meter, the switch labels and the co-op light sync (Sector Ops `lamps`, Course `lights.groups`:
+   * both read the registry) all follow. Turning on wakes nobody. False when no switch of it was off.
+   */
+  resetCircuit(group: number): boolean {
+    const sws = this.switches;
+    for (let i = 0; i < sws.length; i++) {
+      const s = sws[i]!;
+      if (s.group !== group || s.on) continue;
+      this.toggle(s, this.g.world.level.lights);
+      return true;
+    }
+    return false;
   }
 
   /**
@@ -448,6 +580,35 @@ export class StealthSystems {
       sw.it.label = on ? 'Lights off' : 'Lights on';
       this.ints.setIndicator(sw.it, on ? '#ffe08a' : '#3a3f45');
     }
+    this.followBoards();
+  }
+
+  /** (E4) A board cut or put back its circuits: the wall switches on them and the board's item follow, the click. */
+  private boardChanged(i: number, on: boolean): void {
+    const gs = this.boards!.defs[i]!.groups;
+    for (let k = 0; k < gs.length; k++) this.syncGroup(gs[k]!, on);
+    this.followBoards();
+    this.g.events.emit('lightSwitch', { on });
+  }
+
+  /** (E4) Board `i`'s label, use and indicator from its state: off-use while its window runs (indicator dark). */
+  private showBoard(i: number): void {
+    const b = this.boards;
+    const it = this.boardIts[i];
+    if (!b || !it) return;
+    const running = b.left[i]! > 0;
+    const cut = b.cut[i] === 1;
+    it.label = running ? 'Circuit isolated' : b.timed(i) ? (cut ? 'Power on' : 'Isolate circuit') : cut ? 'Breaker on' : 'Breaker off';
+    this.ints.setEnabled(it, !running);
+    if (!running) this.ints.setIndicator(it, cut ? '#3a3f45' : '#ffe08a');
+  }
+
+  /** (E4) Idle boards read their circuits again (a wall switch moved one, a restart put the lamps back). */
+  private followBoards(): void {
+    const b = this.boards;
+    if (!b) return;
+    b.follow();
+    for (let i = 0; i < this.boardIts.length; i++) this.showBoard(i);
   }
 
   /** A hitscan ray: shoot out the first bulb along it. */
@@ -496,6 +657,9 @@ export class StealthSystems {
     this.playerOpened.clear();
     this.guardOpened.clear();
     this.noticeT = 0;
+    // (E4, A50) running isolator windows are dropped; the lamps come back from the section's start state, then
+    // `syncSwitches` has the boards read them
+    this.boards?.cancel();
     this.endMotion();
     if (this.carry) {
       this.carry = null;
@@ -503,33 +667,78 @@ export class StealthSystems {
     }
   }
 
-  /** The alarm went off: banner, horn, reinforcements at the map's entry points. */
-  private onAlarm(p: AlarmPanel): void {
+  /** The alarm went off (a panel `p`, or (guard-ai S6) a command call by radio, `p` null; `e` raised it): banner, horn,
+   *  reinforcements at the map's entry points. */
+  private onAlarm(e: Enemy, p: AlarmPanel | null): void {
     const g = this.g;
+    const em = this.em;
     g.hud.banner('ALARM', 'Reinforcements inbound', 2200);
     g.events.emit('alarm', {});
     g.style.record('alarm', true);
-    for (const q of this.panels) if (q.panel === p) this.ints.setIndicator(q.it, '#ff3b30');
+    if (p) for (const q of this.panels) if (q.panel === p) this.ints.setIndicator(q.it, '#ff3b30');
     const pts = g.world.layout.reinforce ?? [];
-    if (!pts.length) return;
-    let at = pts[0]!;
+    const px = g.player.position.x;
+    const pz = g.player.position.z;
+    let at: Vector3 | null = null;
     let bd = -1;
     // the entry furthest from the player (they come in, not spawn on top of them)
     for (const q of pts) {
-      const d = hyp2(q.x - g.player.position.x, q.z - g.player.position.z);
+      const d = hyp2(q.x - px, q.z - pz);
       if (d > bd) {
         bd = d;
         at = q;
       }
     }
-    // Hunter: the mode doubles the hostiles itself
-    if (g.mode?.onAlarm?.(at)) return;
+    // Hunter: the mode doubles the hostiles itself; Sector Ops raises its stage and sends its section's guards
+    // (guard-ai S6: a live mode's alarm reaches it with no map reinforce points too; the parked ones as before)
+    if (at || em.coordinated) {
+      if (g.mode?.onAlarm?.(at ?? g.player.position.clone())) return;
+    }
     const kinds: EnemyKind[] = ['grunt', 'grunt', 'heavy'];
-    for (let i = 0; i < ALARM.squad; i++) {
-      const e = this.em.reinforce(kinds[i % kinds.length]!, at.add(new Vector3(i * 1.3 - 1.3, 0, 0)), 1)[0];
-      if (e) g.mode?.onEnemyJoined?.(e);
+    if (!em.coordinated) {
+      if (!at) return;
+      for (let i = 0; i < ALARM.squad; i++) {
+        const r = em.reinforce(kinds[i % kinds.length]!, at.add(new Vector3(i * 1.3 - 1.3, 0, 0)), 1)[0];
+        if (r) g.mode?.onEnemyJoined?.(r);
+      }
+      return;
+    }
+    // (guard-ai S6, design 7, M1) aggressive reinforcements at the alarm section's entry furthest from the player
+    // (`MapLayout.guardAi.entries`, running its route in), else at the map's reinforce point
+    const ents = em.entriesFor(e.section, this.entryScratch);
+    let ent: ReinforceEntry | null = null;
+    bd = -1;
+    for (const q of ents) {
+      const d = hyp2(q.at[0] - px, q.at[1] - pz);
+      if (d > bd) {
+        bd = d;
+        ent = q;
+      }
+    }
+    if (!ent && !at) return;
+    const base = ent ? new Vector3(ent.at[0], ent.y ?? Number.NaN, ent.at[1]) : at!;
+    const yaw = ent?.yaw ?? 0;
+    // (guard-ai S13, items 3 and 11, A38) a response team in place of grunt, grunt, heavy (no heavies in the co-op
+    // missions, G155): the shield guard first (helmeted), then armed guards (`RESPONSE.liveTeam`); the one alarm is
+    // stage 1 (no stage gear). It sweeps the section's guard routes and posts after its search.
+    const n = responseTeam(1, RESPONSE.liveTeam, this.teamKinds);
+    em.sweepSource(e.section, this.teamRoutes, this.teamPosts);
+    const team = em.newTeam(e.section, null, this.teamRoutes.slice(), this.teamPosts.slice());
+    for (let i = 0; i < n; i++) {
+      const r = em.spawnReinforcement(this.teamKinds[i]!, base.add(new Vector3(i * 1.3 - 1.3, 0, 0)), yaw, e.section, ent?.route ?? null);
+      if (!r) continue;
+      em.joinTeam(r, team);
+      g.mode?.onEnemyJoined?.(r);
     }
   }
+
+  /** (guard-ai S13) Scratch for the response team's kinds and sweep source. */
+  private readonly teamKinds: EnemyKind[] = [];
+  private readonly teamRoutes: (readonly (readonly [number, number])[])[] = [];
+  private readonly teamPosts: (readonly [number, number])[] = [];
+
+  /** (guard-ai S6) Scratch for the alarm section's entries. */
+  private readonly entryScratch: ReinforceEntry[] = [];
 
   /**
    * (F1b, door-4, G41) A calm guard within range, facing a door the player opened (open past the shut threshold), with
@@ -556,7 +765,7 @@ export class StealthSystems {
         if (dist > 0.5 && (Math.sin(e.yaw) * dx + Math.cos(e.yaw) * dz) / dist < DOOR_NOTICE_COS) continue;
         this.noticeA.set(e.pos.x, e.pos.y + 1.6, e.pos.z);
         this.noticeB.set(d.cx, d.anchor.hinge.y + 1.2, d.cz);
-        if (!this.g.ballistics.clear(this.noticeA, this.noticeB, G.STATIC)) continue;
+        if (!this.g.ballistics.clear(this.noticeA, this.noticeB, MASK.SIGHT)) continue;
         e.hear(d.cx, d.cz, DOOR_NOTICE_RANGE + 2);
         this.guardOpened.set(i, 0);
         this.playerOpened.delete(i);
@@ -565,22 +774,28 @@ export class StealthSystems {
     }
   }
 
-  /** Someone (the player or an enemy) stands within `r` of (x, z). */
+  /** Someone (the player, a co-op partner or an enemy) stands within `r` of (x, z). */
   private occupied(x: number, z: number, r: number): boolean {
     const p = this.g.player.position;
-    if (hyp2(p.x - x, p.z - z) < r) return true;
-    for (const e of this.em.enemies) if (e.alive && hyp2(e.pos.x - x, e.pos.z - z) < r) return true;
-    return false;
+    return spotOccupied(x, z, r, p.x, p.z, this.g.remotePlayers(), this.em.enemies);
   }
 
   /** Fixed step: body interact positions, carry movement rules, doors. Call after the corner controller. `crouchPressed`
    *  (G7) lets go of a body still being reached for. */
   fixedUpdate(crouchPressed = false): void {
+    // (E4) timed isolator windows (allocation-free; a window's end relights through the sink)
+    this.boards?.update(1 / 60);
     this.bend = this.bendDrop = 0;
     this.stepping = false;
     this.loadShare = 0;
     this.liftStepK = -1;
-    for (const { d, it } of this.doorIts) it.label = d.target === 0 ? 'Open door' : 'Close door';
+    for (const { d, it } of this.doorIts) {
+      it.label = d.target === 0 ? 'Open door' : 'Close door';
+      // (S-e2e-fix3b, ENGINE-ANSWERS Q9) a lock only stops a door opening: a door left open when it relocks can still be
+      // shut by hand (the A8 grille after its 25 s window); shut and locked, its item goes off
+      const use = !d.anchor.locked || d.target !== 0;
+      if (it.enabled !== use) this.ints.setEnabled(it, use);
+    }
     if (this.playerOpened.size) this.noticeOpenDoors(1 / 60);
     // (A3, G97) running into a door does nothing special: bashing is the door menu's (CT)
     // (A3, G41) a door a guard opened is shut behind him on a calm patrol, once he is clear of it
@@ -705,6 +920,20 @@ export class StealthSystems {
     return n;
   }
 
+  /**
+   * (marlow-final N2) A course isolator switched circuit `group` off (or back on) from its cabinet at (x, z): the
+   * registry and the circuit's wall switches follow, and going dark is the lights-out lure at the cabinet (the nearest
+   * calm guard comes to look, as for a wall switch).
+   */
+  isolate(group: number, on: boolean, x: number, z: number): void {
+    this.g.world.level.lights.setGroup(group, on);
+    this.syncGroup(group, on);
+    this.g.events.emit('lightSwitch', { on });
+    // (S-e2e-fix3b) the circuit's group, as a wall switch passes it (guard-ai's coordinated lights-out): a guard who sees
+    // one of its lamps go out (or stands in a room it lights) is a witness; without it only the cabinet point was tested
+    if (!on) this.em.lightsOut(x, z, Number.NaN, -1, group);
+  }
+
   /** Set every switch on a circuit to the registry's state (label and indicator too); no event, no noise. */
   syncGroup(group: number, on: boolean): void {
     for (const o of this.switches) {
@@ -726,5 +955,6 @@ export class StealthSystems {
     this.em.onBodyAdded = this.em.onBodyRemoved = this.em.onBodyFound = null;
     this.em.onRevived = null;
     this.em.onAlarm = null;
+    if (this.em.breakers === this.breakerHost) this.em.breakers = null;
   }
 }

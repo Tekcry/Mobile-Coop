@@ -1,5 +1,176 @@
 # Changelog
 
+## 4.76.0 - Train 27: Guard AI response teams, section alert, breaker faults and lasting shot lamps; crouch transition pops (2026-10-23, PR #233; #225, #227, #220)
+
+### Crouch pops
+- Animation: crouching and standing no longer pop the stance width with the baked Body tune (idle / walk / jog / run
+  feet apart 0.05): the Body rows blend from the standing row to the crouched row with the crouch itself instead of
+  switching at half way. e2e-anim's two raised crouch limits are back to the shared 7.5 cm.
+
+### Guard AI: response teams
+- S13 response teams: each Sector Ops alarm stage now brings a response team led by a riot-shield guard (always
+  helmeted), the rest armed guards, the same number as before. From stage 2 every guard of the section wears body
+  armour at once, from stage 3 a helmet too, and guards that come in later (the next section, a woken guard, the next
+  team) wear it as well; a restart drops it with the stage. No camera is added or changed. Once the team has searched
+  your last known spot for a minute it sweeps the section point by point, the shield guard leading and the others
+  close behind, looking round at each point with torches on in the dark, round and round; a sighting brings a fight,
+  then the search, then the sweep again. Teams never leave or calm down until you leave the section or restart. On
+  the other live maps the alarm brings a shield guard and two armed guards (no heavy) who sweep the same way.
+
+Tests: the e2e-levels ladder chases wait on sim time (a sim-seconds budget from the design, a hang guard on wall clock) and the sim clock takes over the moment the match exists, so a loaded machine no longer fails "a runner climbs the rack ladder".
+
+### Guard AI: missed check-ins and gunfire put the section on edge
+- S14 section alert: when a radio check gets no answer from a guard you took out ("Unit three, report... Nothing."),
+  the caller radios it in and, once the call gets through, the whole section is on edge for three minutes: guards walk
+  slower, pause longer and spot you sooner, and two still go to look for him. Take the caller down while he is on the
+  radio and nobody else hears. The same happens when one of a talking pair never turns up.
+- An unsuppressed shot heard by a calm guard is radioed in ("Shots fired! Calling it in."): the section is on edge for
+  two minutes (another loud shot keeps it going) and two guards come to the spot instead of one. Shots never raise the
+  alarm by themselves. Suppressed shots are unchanged.
+- Co-op: a client's suppressed shot is now heard as close as the host's (about 10 m, was 14 m).
+
+### Guard AI: breakers and dark lamps
+- S15 breakers and dark lamps: a room's lights switched off at the wall now read as a fault, not an attack. The nearest guard who
+  saw it go (never two) says "Breaker's gone again.", walks over at his normal patrol pace, works the switch for 2 s and
+  the lights come back on; nobody checks the area and he goes back to his route calm. Cut the same circuit again within
+  a minute and the guards treat it as tampering: the full light check at the switch. A lamp shot out still draws the
+  usual check by one or two guards and now stays dark for good. A lamp shot out or a circuit cut while nobody looked is
+  no longer forgotten: the next calm guard who has the dark fixture in view within about 12 m reacts as a witness would
+  (checks the shot lamp, or goes to reset the breaker), once for each time it goes dark. Turn the lights back on
+  yourself before he gets there and he turns back. A course mains gate's circuit is left off (no guard shuts the gate on
+  you by turning it back on). Host only; co-op partners see the lights come back through the
+  existing light sync.
+
+## 4.75.0 - Train 26: Guard render S4, Sector Ops campus sections 4-5 with weapons crate, cameras, armoured routes and posts, mocap strafe (2026-10-23, PR #224; #212, #217, #221)
+
+### Guard anim tiers (guard-render S4)
+- Guards solve their animation less often when it cannot be seen: a guard whose merged body was drawn in no local
+  view last frame every 4th frame, a guard beyond 22 m of the camera (not scaled by the Detail setting) every 2nd,
+  otherwise every frame; the skipped time is carried into the next solve and the weapon glide runs every frame.
+  Guards are staggered so the cost spreads across frames. Full rate in a takedown or hold, a scripted emote, a climb,
+  or within 4 m of any player. `?animtier=0` turns it off. Gameplay is unaffected: the guard head hit volume comes
+  from the sim since S3a.
+
+### Mocap strafe
+- Mocap locomotion (switch on): aiming sideways, Wren plays captured strafe steps (CMU 69_59 / 69_56) at their own rhythm
+  instead of the hand-keyed glide strafe, with no pops or foot slides on starts, stops, flips and snaps; switch off and
+  guards unchanged. Clip format: a cycle can travel sideways (`travel` '+x' / '-x').
+
+### Sector Ops: campus S4 / S5, weapons crate, bulletproof / thermal cameras
+- Sector Ops campusOps: S4 data hall greybox (first dog, security desk, pair gate, keypads).
+- Sector Ops campusOps: S5 the Old House greybox and the jetty extraction (two dogs, response team, pair gate, light well).
+- Sector Ops: weapons crate engine and protocol 35 (crate item kind, crate event; per-player use on the host).
+- Sector Ops campusOps / warehouseOps: a weapons crate at every section start (once per player, tops up to the loadout).
+- Sector Ops: bulletproof cameras in S4 (shots ricochet) and bulletproof + thermal cameras in S5; early sections keep shootable cameras.
+- Sector Ops co-op: the host sends only the live section's interactables (plus objective, connector doors, revives), keeping the item list under the 128 cap.
+- Sector Ops: the S4 / S5 enforcers become officers / grunts (no enforcer in any section list).
+
+### Sector Ops: glass, armoured routes, posts on guard slots, polish
+- Sector Ops: armoured glass and armoured doors (rounds stop on them, no penetration; guards still see through armoured clear glass): S4 mantrap inner door and NOC window, S5 anteroom hall door and front door, each with a quiet way round (keypad, hang-down, side door, rappel).
+- Sector Ops polish: a grenade blast and thrown gadgets stop at glass panes; the host's shot and lamp-shot checks and the partner's tracer stop at armoured glass; the HUD exposure reads guard sight (frosted glass hides); a weapons-crate refill is never dropped in a busy co-op moment; a round hits the nearest camera on its line; no door peek offered from a walkway above the door; S4's fuel tanks no longer step out over the compound wall; S5 guards no longer walk through the open sash into the light well.
+- Sector Ops campusOps: glass panes (clear and frosted): light and clear-glass sight pass, bodies, props and grenades stop, rounds pass plain glass; nav treats a pane as a fence; takedowns and partner throws stop at glass.
+- Sector Ops campusOps: the guard posts live on each guard slot (no separate post tables).
+
+## 4.74.0 - Train 25: Guard AI squad tactics, Sector Ops tags, alarms and reinforcements, talking pairs, helmets and body armour; guard render GPU buffer share (2026-10-23, PR #222; #208, #213)
+
+### Guard AI: stealth over shooting data
+- Guard AI: gear and response tables for stealth over shooting (data only, not wired yet)
+
+### Guard AI: helmets and body armour
+- S12 helmets and body armour: later guards can wear a helmet, body armour or both. A helmet stops the first round to
+  the head: it flies off and lands on the floor (it stays there), the guard reels for a moment and comes up shooting at
+  where the shot came from; the next head shot kills. Body armour stops rounds to the chest: the guard only staggers
+  (not on every round) and keeps fighting, so aim for the head or get behind him. The hit marker turns steel blue with
+  a high ping for a stopped round instead of the kill marker. Takedowns, grabs, the strike, sleeping gas and
+  explosions ignore gear: one takedown still drops anyone. Who wears gear comes from the map data (no section has it
+  yet, so Marlow Yard and the early sections are unchanged). The helmet and armour are placeholder shapes for now.
+
+### Guard AI
+- S5b sector squads and jobs: Sector Ops guards now work in squads and check in on the radio about every 40 seconds.
+  Take a guard out and hide nothing: at the next check his squad notices he is not answering, and two of them go to
+  where he went down to look for him (a knocked-out guard they find is woken). A body they already found is not
+  missed again. A desk guard (security desk, CCTV, operator) calls the checks for the whole section, so taking him out
+  first means the lone posts go unchecked. A supervisor is the first to run for the alarm, a patrolling guard checks a
+  light that went out before a guard on a fixed post, and guards in a secure area deal with anything inside it first.
+  A guard dog sticks to its own handler; take the handler down and the dog stays by him, sniffing round and barking,
+  which brings a guard over.
+- S8 tactics: guards in a fight now work as a team instead of each doing his own thing. With two or more in it, the one
+  who called you in takes cover further back and stays down until his radio call is through; one guard (the point)
+  moves up from cover to cover ("Moving up!"), another covers him from cover with a view of where you were seen and
+  fires at that spot while a squadmate moves ("Covering!"), and with three or more one goes round the side
+  ("Flanking!"). Only one of the point and the flanker moves at a time, guards run only between covers, and nobody walks
+  out into the open at you. Their shooting (bursts, spread, strafes, going for cover) uses a fixed seed per guard and
+  fight, so the same fight plays the same way. A guard on a post never moves up or flanks (a high-security one never
+  takes cover outside his area), and a guard from an aggressive slot moves up first. A lone guard and Hunter / Mission
+  (parked) keep the old tactics.
+- S6 alarm and reinforcements: guards can now raise the alarm by radio. Once a spotter's contact call gets through, he
+  (or an officer close by) calls command: "Command, contact. Send backup." About 4 s later the alarm goes off, even with
+  no alarm panel nearby. Take the spotter out before his first call gets through and there is no alarm at all; take out
+  the guard calling command and the next guard still fighting picks up the radio 3 s later, so stopping it then means
+  dropping everyone in the fight. Reinforcements that come in on an alarm are aggressive: they already know where you
+  were last seen, run straight in from the section's entry points, spend less time in cover, push forward faster and
+  never calm down until you are found. Hunter and Mission (parked) keep their old alarms.
+- S10 talking pairs: two Sector Ops guards marked as a pair now meet on their rounds. When both reach their meeting
+  spot they stop, turn to face each other and swap a couple of lines of small talk, shown over their heads, and some of
+  it is worth hearing (a door that sticks, a dead camera, a code habit). Then they carry on with their rounds. Anything
+  that catches their attention cuts the talk short. Take one of them out before they meet and the other notices he
+  never turned up: a few seconds later he goes to look for him where he was last headed, with the nearest free guard
+  behind him. The car-park pair in Saltmarsh Park is the first.
+- Guard AI fix: when a guard's contact report gets through and he goes straight on to call command for backup, the
+  rest of his section now hears the contact at once, staggered by distance, instead of only after the backup call.
+
+### Guard render: shared guard GPU buffers (S7)
+- Guards of the same look now share one copy of the merged body's static GPU vertex and index buffers (per LOD
+  level) instead of uploading their own; colour, thermal heat, skeleton and culling box stay per guard
+  (`src/player/smoothBody.ts`). A grunt's buffers go from about 1.34 MB to 0.28 MB a guard after the first of its
+  look (24 guards of one look: about 32 MB -> 8 MB). No look change.
+
+## 4.73.0 - Train 24: Guard render moon shadow caster lists and head hit volume (2026-10-23, PR #216; #209, #211)
+
+### Guard render S3a: guard head hit volume from the sim
+- Guards: the head hit volume now comes from the guard's simulation (stance, gait, cover lean / peek, emotes, held
+  hostage), not from the rendered skeleton, so headshots and takedowns no longer depend on the animation's frame rate
+  or the Detail setting. Within 8-11 cm of the rendered head (exceptions in docs/guard-render/STATE.md).
+
+### Guard render S6: per-cascade moon shadow lists
+- Moon / sun shadows: each shadow cascade now draws only the moving casters inside it (exact per-cascade lists under
+  the baked moon), so fewer shadow draws with many guards. No look change. `?guardsun=0` turns it off.
+- (dev) `World.addShadowCaster` takes an optional sun reach (casters drop out of the moon's cascades beyond it, with
+  hysteresis); nothing passes one yet.
+
+## 4.72.0 - Train 23: Guard render merged bodies and anim cuts; Sector Ops campus sections 2-3 (2026-10-23, PR #210; #205, #206)
+
+### Guard animation cost cuts (S5)
+- Guard animation does less work per frame with no change to any pose: the foot planner's per-frame side loops no
+  longer allocate arrays or iterators; the emote layer (`applyFk`) no longer builds a map and `Object.entries` list each
+  frame; the joint limiter keeps its rate and previous rotation on the joint node instead of in two Map lookups; and
+  guard rigs skip the finger and goggle frames, whose outputs only the operator figures read.
+- New tests: a golden guard pose test with a fixture captured on the untouched code (`tests/guardPoseGolden.test.ts`)
+  and an opt-in NullEngine micro-benchmark of guard animate (`tests/guardAnimBench.test.ts`). The measured gains are
+  inside machine noise (about 0.5-2 us a guard a frame on NullEngine); the gain is less garbage.
+
+### Guard render: merged skinned guard body (S1)
+- Guards, carried bodies and fresh bodies now draw as one rigidly skinned smooth mesh each (`src/player/smoothBody*.ts`)
+  instead of about 20 instanced parts: one bone per joint, a fixed root-local bounding box, one scene observer for
+  every body, hi / lo LOD swapped as one at the body's sphere centre. `?guardmerge=0` gives the old instanced parts
+  for comparison. Colours, patterns, hit flash, thermal / night vision tint and ragdolls behave as before.
+- Measured on the laptop GPU (Epic, 1920x1080, `scripts/guard-cap.mjs`, 24 guards in view, merge off -> on, medians):
+  Sector Ops warehouse frame 9.7 -> 7.1 ms, render() CPU 7.6 -> 4.9 ms, GPU 6.7 -> 5.5 ms, active meshes 1429 -> 493;
+  Marlow Yard (ctcourse) frame 9.2 -> 6.3 ms, render() CPU 7.3 -> 4.4 ms, GPU 6.1 -> 4.8 ms. Runs:
+  `docs/guard-render/run-s1`, `run-s1-off`, `run-s0-base`.
+- Accepted look change: heads, hands, forearms and feet now cast moon, lamp and flashlight shadows (they were under
+  the 0.3 m caster-size cut as separate parts; the merged body is over it).
+
+### Unreleased - sector-redesign
+- Sector Ops campusOps: S2 HQ atrium and offices greybox.
+- Sector Ops team doors: pair bolts (open only while the partner pushes the door from the other side) and pair gates (two key switches turned within 1 s by both players), host-authoritative, reset on a restart; guards route round them while locked (engine only, no map uses them yet).
+- Sector Ops keypads: a keypad door stays locked until the team finds its code (overheard, a handover board, or an objective such as a hack); a section restart forgets the codes found in it.
+- Sector Ops engine: breaker and timed isolator boards (`MapLayout.boards`): cut light circuits until switched back or for a timed window (default 20 s), a guard comes to look, restart puts them back, co-op lamps follow (no map uses them yet).
+- Sector Ops alarm stages: a section can now force lights to full, lock doors (never the only way through) and send its reinforcements along a response route at a stage; a restart undoes them (data only, no map uses it yet).
+- Sector Ops campusOps: S3 lab block greybox (16 guards, the first lasers las-gown and las-store with their power panels, cam-view and cam-dock, the prototype grab, CR3 chamber roof).
+- Sector Ops engine: security desks (`security.desks`): with the operator down or away, the console loops its cameras (they sweep but report nothing, default 30 s) or switches them off until a restart; a restart or section change puts them back, the co-op client follows (no map uses them yet).
+- Ammo pickups removed from inside sections (a between-section weapons crate refill follows; Michael, 2026-10-23).
+
 ## 4.71.0 - Train 22: Guard AI awareness, posts and camera body calls; hostage gait; changelog dedupe (2026-10-23, PR #199; #198, #194, #196)
 
 ### Changelog build skips entries already released

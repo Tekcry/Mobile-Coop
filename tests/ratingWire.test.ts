@@ -7,7 +7,7 @@ import { parseMessage, PROTOCOL_VERSION, RT_COUNT, ratingWire, type Msg } from '
 import { ratingViewFromWire } from '../src/net/validate';
 import type { SectorRatingWire } from '../src/game/sectors';
 
-/** (section-rating S3, protocol 34) The `sector` message's `rt` and the course stats' `synced`. */
+/** (section-rating S3, protocol 37) The `sector` message's `rt` and the course stats' `synced`. */
 
 function hub() {
   const peers = new Map<string, Transport & { deliver(m: unknown, from: string): void }>();
@@ -51,9 +51,9 @@ afterEach(async () => {
 const RT: SectorRatingWire = { sec: 1, marks: 13, synced: 1, gadget: 2, syringe: 1, medkit: 0, alarmStep: 0 };
 const sectorOf = (m: Msg | null) => (m && m.t === 'sector' ? m : null);
 
-describe('rating wire (protocol 34)', () => {
-  it('is protocol 34', () => {
-    expect(PROTOCOL_VERSION).toBe(34);
+describe('rating wire (protocol 37)', () => {
+  it('is protocol 37', () => {
+    expect(PROTOCOL_VERSION).toBe(37);
   });
 
   it('a sector message round-trips its rt beside the other extras', () => {
@@ -114,13 +114,13 @@ describe('rating wire (protocol 34)', () => {
     expect(m?.rt).toEqual({ ...RT, marks: 15 });
   });
 
-  it('a peer on protocol 31 (master before this bump) is refused; 34 joins', () => {
+  it('a peer on protocol 36 (marlow-final before this bump) is refused; 37 joins', () => {
     const h = hub();
     const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const old = h.make('O');
-    old.send({ t: 'hello', v: 31, name: 'Old', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 36, name: 'Old', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(false);
-    old.send({ t: 'hello', v: 34, name: 'New', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 37, name: 'New', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(true);
   });
 });

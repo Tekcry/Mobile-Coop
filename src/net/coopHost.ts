@@ -7,7 +7,7 @@ import type { Interactable } from '../game/interactables';
 import type { Blip } from '../ui/hud/minimap';
 import type { BlobShadows } from '../vfx/blobShadows';
 import { WEAPONS, GRENADE } from '../weapons/weaponDefs';
-import { G } from '../physics/groups';
+import { MASK } from '../physics/groups';
 import { Hitboxes } from '../ai/hitboxes';
 import { noiseRadius } from '../player/movement';
 import { defaultHq, hqStats } from '../progression/suit';
@@ -15,7 +15,7 @@ import type { NetSession } from './session';
 import { TickLimiter, type CourseWire } from '../game/course/courseWire';
 import type { SecWire } from '../game/ctDevices';
 import { syringesFor, type SectorNetExtra } from '../game/sectors';
-import { ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
+import { eventQueueKeeps, ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
 import { HoldClock, holdFeed, stepHoldFeed, type HoldFeed } from './holdFeed';
@@ -24,6 +24,7 @@ import { PartnerBlocker, partnerPassable } from './partnerBlocker';
 import { checkBlast, checkShot, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile } from './validate';
 import { localFlags, htmlToInfo } from './netShared';
 import { keepSimInBackground } from './bgTicks';
+import { hostHoldPulse, inUseReach } from './holdPulse';
 import { LAMP_LOS_SLACK, LampSender, lampShotOk, lampTargetId } from './lampSync';
 import { hyp2 } from '../core/mathx';
 import { localMoveState } from '../game/localMoveState';
@@ -295,7 +296,7 @@ export class CoopHost implements NetAttachment {
   }
 
   private push(e: NetEvent): void {
-    if (this.queue.length < MAX_EVENTS * 2) this.queue.push(e);
+    if (eventQueueKeeps(this.queue.length, e)) this.queue.push(e);
   }
 
   private spawnPoint(i: number): Vector3 {
@@ -369,6 +370,8 @@ export class CoopHost implements NetAttachment {
     if (!this.remoteRefs.includes(r.ref)) this.remoteRefs.push(r.ref);
     const at = this.restoreFor.get(r.id);
     if (at) at.until = this.time + 30;
+    // (E9-crate, A106) the crates it used: its prompt stays gone (`fill` false: no top-up)
+    for (const id of this.g.crates?.usedBy(r.id) ?? []) this.push({ e: 'crate', player: r.id, id, fill: false });
     this.g.hud.setNetNotice(null);
     this.g.app.toasts.show(`${r.avatar.info.name} rejoined`);
   }
@@ -545,7 +548,8 @@ export class CoopHost implements NetAttachment {
         }
         break;
       case 'use':
-        this.onUse(r, msg.id);
+        if (msg.pulse) this.onHoldPulse(r, msg.id);
+        else this.onUse(r, msg.id);
         break;
       case 'door':
         this.onDoorCrack(r, msg.i, msg.crack);
@@ -597,7 +601,7 @@ export class CoopHost implements NetAttachment {
     if (!r.alive) return;
     const it = this.g.interactables?.items.find((i) => i.id === id);
     if (!it || !it.enabled || it.done) return;
-    if (hyp2(it.pos.x - r.feet.x, it.pos.z - r.feet.z) > (it.reach ?? 1.8) + 0.75 || Math.abs(it.pos.y - r.feet.y) > 2) {
+    if (!inUseReach(it, r.feet.x, r.feet.y, r.feet.z)) {
       r.violations++;
       return;
     }
@@ -610,6 +614,22 @@ export class CoopHost implements NetAttachment {
     mode?.onRemoteUse?.(r.id, false);
   }
 
+  /**
+   * (marlow-final Q12, SPEC N4) A client's noisy hold pulsed (its first moment, then every `HOLD_NOISE_PULSE` s): the
+   * guards hear it at the item, the way `GameState` makes them hear the host's own hold. Alive, the item live, noisy
+   * and in the use reach, and no faster than the hold pulses; a pulse that fails is dropped (no violation: the hold
+   * may end on the reach edge).
+   */
+  private onHoldPulse(r: RemotePlayer, id: string): void {
+    const em = this.g.enemyMgr;
+    if (!em) return;
+    const it = this.g.interactables?.items.find((i) => i.id === id);
+    const f = r.feet;
+    if (!it?.holdNoise || !hostHoldPulse(it, r.alive, f.x, f.y, f.z, this.time, this.holdPulseAt.get(r.id) ?? -Infinity)) return;
+    this.holdPulseAt.set(r.id, this.time);
+    em.hear(it.pos, it.holdNoise);
+  }
+
   /** Course mode: the course state, locks and lights to every client. */
   course(w: CourseWire): void {
     this.s.send({ t: 'course', ...w });
@@ -618,6 +638,11 @@ export class CoopHost implements NetAttachment {
   /** Sector Ops: the cameras, jams and alarm stage to every client (objectives and banners go as items and events). */
   sector(sec: SecWire, extra: SectorNetExtra): void {
     this.s.send({ t: 'sector', sec, ...extra });
+  }
+
+  /** (sector-redesign EW5) Sector Ops: a radio line (a keypad code found) to every client, as the existing `feed` event. */
+  radioLine(text: string): void {
+    this.push({ e: 'feed', text });
   }
 
   /** Sector Ops: the syringes left this op (the revive cap less the revives used). */
@@ -843,6 +868,12 @@ export class CoopHost implements NetAttachment {
     return true;
   }
 
+  /** (E9-crate) Client `who` used weapons crate `id` for the first time (the host's ledger): it tops up (the `crate` event,
+   *  fill; its ammo is its own). */
+  crateUsed(who: string, id: string): void {
+    if (this.remotes.has(who)) this.push({ e: 'crate', player: who, id, fill: true });
+  }
+
   private onCommitted(by: string, kind: CKind, id: number, target: string): void {
     const self = by === this.s.selfId;
     const r = self ? null : this.remotes.get(by);
@@ -952,7 +983,7 @@ export class CoopHost implements NetAttachment {
     // line of sight against level geometry (props/characters do not block validation)
     const o = this.tmp.set(m.ox, m.oy, m.oz);
     const aim = m.part === 'head' ? head : body;
-    const los = this.g.ballistics.ray(o, aim, G.STATIC);
+    const los = this.g.ballistics.ray(o, aim, MASK.HOST_LOS);
     if (los.hit && los.distance < Vector3.Distance(o, aim) - 0.4) return 0;
     return Math.min(m.dmg, maxHitDamage(def, m.part === 'head'));
   }
@@ -995,7 +1026,7 @@ export class CoopHost implements NetAttachment {
     const l = reg.lights[id]!;
     const a = this.lampA.set(m.ox, m.oy, m.oz);
     const b = this.lampB.set(l.x, l.y, l.z);
-    if (this.g.ballistics.hitDistance(a, b, G.STATIC) < Vector3.Distance(a, b) - LAMP_LOS_SLACK) return;
+    if (this.g.ballistics.hitDistance(a, b, MASK.HOST_LOS) < Vector3.Distance(a, b) - LAMP_LOS_SLACK) return;
     this.g.stealth.shootLight(id);
   }
 
@@ -1054,6 +1085,8 @@ export class CoopHost implements NetAttachment {
   }
 
   private pingAt = new Map<string, number>();
+  /** (Q12) Each client's last accepted hold noise pulse (host time). */
+  private holdPulseAt = new Map<string, number>();
   private gadgetAt = new Map<string, number>();
 
   private color(id: string): string {
@@ -1071,15 +1104,23 @@ export class CoopHost implements NetAttachment {
   private items(): NetItem[] {
     const out: NetItem[] = [];
     // course devices (`c-` ids: switches, levers, pickups, bolts, the finish) first, so the cap never drops them (D48:
-    // a map's door items filled the list before them and the client saw no course prompts)
-    const list = this.g.interactables?.items ?? [];
+    // a map's door items filled the list before them and the client saw no course prompts); (E9-crate, A107) the
+    // weapons crates too
+    // (sector-redesign cap fix) Sector Ops mirrors only the live section's items and the untagged ones (objective, exit,
+    // connector doors, revives); every section's items stay registered on the host (`Interactables.scope`)
+    const ints = this.g.interactables;
+    const list = ints?.items ?? [];
     for (let pass = 0; pass < 2; pass++) {
       for (const it of list) {
         if (out.length >= MAX_ITEMS) break;
-        if (it.id.startsWith('c-') !== (pass === 0)) continue;
+        if ((it.id.startsWith('c-') || it.kind === 'crate') !== (pass === 0)) continue;
+        if (ints && !ints.inScope(it)) continue;
         const k = it.kind as NetItem['k'];
         if (!ITEM_KINDS.includes(k)) continue;
-        out.push({ id: it.id, k, x: it.pos.x, y: it.pos.y, z: it.pos.z, yaw: it.node.rotation.y, label: it.label.slice(0, 24), hold: it.holdTime, reach: it.reach ?? 1.8, on: it.enabled && !it.done });
+        const n: NetItem = { id: it.id, k, x: it.pos.x, y: it.pos.y, z: it.pos.z, yaw: it.node.rotation.y, label: it.label.slice(0, 24), hold: it.holdTime, reach: it.reach ?? 1.8, on: it.enabled && !it.done };
+        // (30, Q12) a noisy hold's radius: the client's own hold pulses it back (`use.pulse`) and its noise meter reads it
+        if (it.holdTime > 0 && it.holdNoise) n.hn = it.holdNoise;
+        out.push(n);
       }
     }
     return out;
@@ -1183,7 +1224,8 @@ export class CoopHost implements NetAttachment {
       if (st.f & PF.firing && t <= 0) {
         this.firing.set(r.id, 0.4);
         const quiet = (st.f & PF.quiet) !== 0;
-        if (quiet) em.hear(r.feet, SHOT_NOISE * 0.5);
+        // (guard-ai S14, A46) as in solo: SHOT_NOISE x the weapon's noise (9.8 m for the CT guns), at most the quiet cap
+        if (quiet) em.hear(r.feet, SHOT_NOISE * Math.min(WEAPONS[st.w].noise ?? 1, 0.6));
         else em.noise(r.feet, SHOT_NOISE * (WEAPONS[st.w].noise ?? 1));
       } else this.firing.set(r.id, t);
     }

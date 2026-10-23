@@ -12,10 +12,10 @@ import {
   type Mesh,
   type Scene,
 } from '../core/babylon';
-import { G } from '../physics/groups';
+import { G, doorMembership } from '../physics/groups';
 import type { Door, TraversalAnchors } from './anchors';
 import { hyp2 } from '../core/mathx';
-import { DOOR_CRACK, stepCrack } from './doorPeek';
+import { DOOR_CRACK, isSlideDoor, stepCrack } from './doorPeek';
 
 /** How a door was opened: quietly by hand, bashed open at a sprint, or by an enemy walking through. */
 export type DoorHow = 'quiet' | 'bash' | 'enemy' | 'close' | 'crack' | 'drive';
@@ -151,6 +151,11 @@ export class Doors {
   /** Leaf matrix at its current swing. */
   private write(d: DoorState): void {
     const a = d.anchor;
+    // (marlow-final kit) a sliding door's leaves are the facility kit's (world/kit/kitRender.ts): no hinged leaf drawn
+    if (a.leaf === 'slide') {
+      this.buf!.fill(0, d.index * 16, d.index * 16 + 16);
+      return;
+    }
     const yaw = a.yaw + a.swing * DOOR.openAngle * leafFraction(d);
     Quaternion.RotationYawPitchRollToRef(yaw, 0, 0, this.q);
     const w = a.width - 0.04;
@@ -175,7 +180,7 @@ export class Doors {
     node.rotationQuaternion = Quaternion.RotationYawPitchRoll(a.yaw, 0, 0);
     const body = new PhysicsBody(node, PhysicsMotionType.STATIC, false, this.scene);
     const shape = new PhysicsShapeBox(Vector3.Zero(), Quaternion.Identity(), new Vector3(DOOR.thickness * 2, a.height, a.width - 0.04), this.scene);
-    shape.filterMembershipMask = G.STATIC;
+    shape.filterMembershipMask = doorMembership(a.armoured === true);
     shape.filterCollideMask = 0xffffffff & ~G.STATIC;
     body.shape = shape;
     d.body = body;
@@ -234,7 +239,8 @@ export class Doors {
    * clients see a held door as open).
    */
   drive(d: DoorState, amount: number): void {
-    if (d.anchor.locked) return;
+    // (marlow-final N9) a sliding door has no stealth drive (it opens only through `open` / `setOpen`)
+    if (d.anchor.locked || isSlideDoor(d.anchor)) return;
     const a = Math.max(DOOR.crack, Math.min(DOOR.driveMax, amount));
     if (a <= DOOR.driveShut) {
       if (d.target === 1) {
@@ -288,7 +294,8 @@ export class Doors {
    * stays 0); only the drawn leaf moves. False when nothing changes (open, locked, already so).
    */
   crack(d: DoorState, on: boolean): boolean {
-    if (on && (d.target !== 0 || d.anchor.locked || d.cracked)) return false;
+    // (marlow-final N9) a sliding door never cracks (host, client prediction and solo all land here)
+    if (on && (d.target !== 0 || d.anchor.locked || d.cracked || isSlideDoor(d.anchor))) return false;
     if (!on && !d.cracked) return false;
     d.cracked = on;
     d.held = false;
