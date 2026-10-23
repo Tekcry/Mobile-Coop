@@ -319,6 +319,20 @@ describe('bodies and alarms', () => {
     expect(bodyNoticed(5, Math.PI, 1)).toBe(false);
     expect(bodyNoticed(BODY.range + 1, 0, 1)).toBe(false);
   });
+  it('(stack-tip fix) bodyNoticeRange: the edge of bodyNoticed straight ahead; BODY.close in the dark', async () => {
+    const { bodyNoticed, bodyNoticeRange, BODY } = await import('../src/ai/bodies');
+    expect(bodyNoticeRange(0)).toBe(BODY.close);
+    for (const l of [0.12, 0.3, 0.6, 0.9, 1]) {
+      const r = bodyNoticeRange(l);
+      expect(r).toBeGreaterThanOrEqual(BODY.close);
+      expect(r).toBeLessThanOrEqual(BODY.range);
+      if (r > BODY.close) {
+        expect(bodyNoticed(r - 0.05, 0, l)).toBe(true);
+        expect(bodyNoticed(r + 0.05, 0, l)).toBe(false);
+      }
+    }
+    expect(bodyNoticeRange(0.9)).toBeGreaterThan(12);
+  });
   it('alarm runners pick the nearest working panel in range and stand off the wall', async () => {
     const { nearestPanel, alarmStandPoint, ALARM } = await import('../src/ai/alarm');
     const ps = [
