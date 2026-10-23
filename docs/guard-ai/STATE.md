@@ -1,6 +1,14 @@
 # Guard AI - state
 
 ## Now
+~15:50: S21 holstered BUILT 00d6d3b9 on feature/guard-ai-s21 (off walk d24453a7; carryState.ts, enemyRig.ts, enemy.ts
+pose block + tryFire gate, RigPose.ready optional in characterRig.ts: Player Build told; A120-A126; 19 tests, 1108 in
+the AI / rig / net set). Merge s21 -> walk once S20 lands. Open (A126): co-op clients still pose every guard low ready
+(needs one bit in `al` + a protocol bump: fold into S9's protocol 32 when S9 and walk meet). GPU lane later: slung rifle /
+thigh pistol clipping sheet, draw clip at guard speed. S22 console: Marlow Build says ours, but cut the game side after
+marlow-final merges (it edits securityRoom.ts; its s10 edits courseMode.ts / sectorReset.ts and owns the restart reset);
+AI side after S20.
+
 ~15:25: walk S17 339cdf96 / S18 7ea2764a / S19 0d6820f4 BUILT (slices/WALK.md, A100-A113, 28 new unit tests; e2e-stealth-ai
 'bodies' / 'witness' asserts changed by design, unrun). walk <- fixed s15 = d24453a7 (BRIEF conflict only; 130/130).
 RUNNING (Opus): S20 collision / doors on walk (A114+). Asked Marlow Build who owns the S3 console side (S22) and Test
