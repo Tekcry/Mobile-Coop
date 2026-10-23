@@ -56,6 +56,9 @@ Rejected by you (~01:25): anything that assumes a dark camera is blind (G240 sta
 Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN section 6; slice reports S0-*.md.
 
 ## Now (2026-10-23 ~01:20, new account; FULL BURN to 100% per Michael ~01:05 via the orchestrator)
+- ~18:10. train/30 merged: marlow-final b83a27fd, section-rating 053ff212, both PROTOCOL 42 (tsc clean; 831 / 891 unit
+  tests). section-rating desktop GPU on 568e7301: e2e-section-rating 69 s, e2e-course 169 s, e2e-ctcourse:1 204 s PASS.
+  Laptop asked for the train suites on 053ff212. Desktop GPU on b83a27fd: e2e-lightbake PASS 135 s, :4 PASS 304 s.
 - ~17:55. Desktop GPU on 0ead059c: e2e-coop PASS 87 s, e2e-netmove PASS 183 s. section-rating: S6 fix round done (b81d57dc:
   coopRating helper, `rh` rated-sets history inside 37), co-op Marlow rating e2e added (53017c9b), merged 568e7301;
   running there: e2e-section-rating, e2e-course, e2e-ctcourse:1 (desktop). Then wait for train 30.
@@ -485,8 +488,11 @@ Course Ready's prep notes: origin/feature/marlow-bays docs/marlow-final-prep/ (M
 
 ## Resume prompt
 ```
-Night Shift | Marlow Build: resume marlow-final + section-rating. Read CLAUDE.md ("Sessions", "Heavy-usage throughput", token rules), ROADMAP Decided (marlow-final M1-M6, "Next: stealth over shooting") by grep, then docs/marlow-final/STATE.md "Now" ~17:45 entry (worktree C:/NightShift/Mobile-Coop-marlow-final, feature/marlow-final; git fetch).
-State: marlow-final PR https://github.com/Tekcry/Mobile-Coop/pull/237 open (head 0ead059c, master 4.77.0 merged, protocol 36 locally). Tested: laptop full e2e GPU 64e64ef0 39/40 + e2e-lightbake test-race fix (7257b141) desktop PASS. section-rating (C:/NightShift/Mobile-Coop-section-rating) stacked on it at protocol 37: S1-S7 built, S6 check PASS (slices/S6-check.md), S6 fix round + co-op rating e2e done (568e7301); desktop suites on it in docs/marlow-final/STATE.md ~17:55.
-Orchestrator rule (~17:40): one wire bump per train in merge order. Master 38 with train 29, train 30 (Player stack) = 40. marlow-final + section-rating ride train 31 together: once origin/train/30 exists, merge it into feature/marlow-final, then marlow-final into feature/section-rating; set PROTOCOL_VERSION 41 at section-rating's tip (42 if Guard AI S9 took 41 first), fix every version assert, then ask "Night Shift | Test Runner" for e2e-coop, e2e-netmove, e2e-ctcourse:1-3 (E2E_GPU=1) on that tip, then open section-rating's PR and message "Night Shift | Orchestrator" train-ready (both PRs).
-Open for the PR body / Michael: W5 A2 re-walk; restart shuts doors locked at set start (assumed); co-op Marlow rating card has no e2e (S6-check should-fix 2).
+Night Shift | Marlow Build: resume marlow-final + section-rating (train 32). Read CLAUDE.md ("Sessions", "Heavy-usage throughput", token rules), ROADMAP Decided (marlow-final M1-M6, "Next: stealth over shooting") by grep, then docs/marlow-final/STATE.md "Now" ~18:10 entry (worktrees C:/NightShift/Mobile-Coop-marlow-final feature/marlow-final, C:/NightShift/Mobile-Coop-section-rating feature/section-rating; git fetch).
+State: marlow-final PR https://github.com/Tekcry/Mobile-Coop/pull/237 (b83a27fd: train/30 merged, PROTOCOL_VERSION 42; 41 is Guard AI S9's). section-rating 053ff212 stacked on it (42 carries its `rt` / `rh`); all slices built and checked; PR body drafted at C:/NightShift/sr-pr.md (laptop line "RESULT PENDING").
+Laptop verdict on 053ff212 (~18:35): 6/7, coop netmove ctcourse:1 :3 section-rating course PASS; ctcourse:2 FAIL "A3: the cleaner walks toward office 1's switch" (a3OfficeRange.mjs:422, since train/30). ~18:40 swap: fix 4b re-started (Opus, marlow-final worktree; desktop repro log scratch/mf-fix4-2a.log, fix run mf-fix4-2b.log; report S-e2e-fix4.md "After train/30"). Then merge marlow-final into section-rating, ask Test Runner to rerun ctcourse:2 on that tip.
+On all green: fill the laptop line in sr-pr.md, `gh pr create --base master --head feature/section-rating` with it, then message "Night Shift | Orchestrator": train-ready, #237 + section-rating PR together (train 32, protocol 42). On a fail: fix (Opus), rerun that suite only (desktop: C:/NightShift/scratch/mf-run.sh or sr-run.sh <wt> <suite> <log> [build]).
+If master moves again, merge only when the orchestrator builds the train (merge into marlow-final first, then into section-rating).
+Polish batch (next train): worktree C:/NightShift/Mobile-Coop-marlow-polish, branch feature/marlow-polish off 053ff212: items 1-3 done 9de24cd9 (Sector Ops `rh`, client ricochet sparks, revive reach docs); Opus checker running (slices/POLISH-check.md on that branch). On PASS: e2e-coop + netmove + sectorops (touches src/net), then next train.
+Open for Michael (in both PR bodies): W5 A2 re-walk; restart shuts doors locked at set start (assumed); solo no-alarms reward = medkit heal (S1 default).
 ```
