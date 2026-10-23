@@ -311,6 +311,9 @@ LATEST 16:25 Test Runner verdict: #226 perf CPU OVER at 24 guards (S5 15.6 / S3 
    merged into -art 2276483a (tsc + 165 related tests green). Laptop final batch asked: e2e-coop, sectorops 1-6,
    stealth-ai, stealth + perf views freeze on / off + guard-cap. Green -> merge master, train-ready #226.
    Freeze polish open: cracked door redraw up to 4 evals late; checker polish 1, 2, 5, 6.
+18:55: desktop lane runs #226 2276483a sectorops 1-6 + stealth-ai + stealth (scratch/runs/sectorart226-2276483a/RESULT);
+   laptop: e2e-coop + perf views freeze on / off (__sector.debug() guardFreeze*) + guard-cap. Lighting polish batch
+   (-lrpolish off LR15, Opus: lr-check 1-4, lr14-check 1-6, lr15-check 3 / 5 / 6; checks/lrpolish-build.md).
 4. Polish batch 2 -polish2 cca3ccb7: checker PASS (polish2-check.md; touches src/net lamp checks, no wire change).
    Merge into -art together with the -perf fix, then one laptop batch at the new -art head: e2e-coop, e2e-sectorops 1-6,
    e2e-stealth-ai, e2e-stealth + perf rerun (MAP=campusOps MODE=sector). Still open: lr-check 1-6, lr14-check 1-7,
