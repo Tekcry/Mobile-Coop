@@ -18,6 +18,7 @@ import { syringesFor, type SectorNetExtra } from '../game/sectors';
 import { ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
+import { HoldClock, holdFeed, stepHoldFeed, type HoldFeed } from './holdFeed';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
 import { checkBlast, checkShot, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile } from './validate';
@@ -31,6 +32,7 @@ import { hostCrackOk } from '../world/doorPeek';
 import { contactDelay, GRAB } from '../game/takedown';
 import { koCurve, type KoState } from '../game/closeQuarters';
 import { checkTeamRequest, type TeamKind, type TeamSide } from '../game/teamMoves';
+import { ThrowKo } from './throwKo';
 import { checkCommitted, type CKind, type CTargetView } from '../game/committedMoves';
 import { STRIKE, STRIKE_DUR } from '../game/elbowStrike';
 import { stationHeal } from '../game/medkit';
@@ -118,8 +120,10 @@ export class CoopHost implements NetAttachment {
   private tmpH = new Vector3();
   /** Revive points on downed players (co-op). */
   private revives = new Map<string, Interactable>();
-  /** Enemies seized by a client's takedown: enemy id -> client id and seconds held. */
-  private seized = new Map<string, { by: string; t: number; hostage?: boolean }>();
+  /** Enemies seized by a client's takedown: enemy id -> client id and seconds held; (hostage-gait) the hold point feed. */
+  private seized = new Map<string, { by: string; t: number; hostage?: boolean } & HoldFeed>();
+  /** (hostage-gait) Render time vs sim time for the hold feed (set each frame with the remote bodies). */
+  private readonly holdClock = new HoldClock();
   /** (G7) Scratch for a client hold's knockout pose. */
   private koTmp: KoState = { limp: 0, lower: 0, bend: 0 };
   /** Shot noise edges per client. */
@@ -616,6 +620,11 @@ export class CoopHost implements NetAttachment {
     this.s.send({ t: 'sector', sec, ...extra });
   }
 
+  /** (sector-redesign EW5) Sector Ops: a radio line (a keypad code found) to every client, as the existing `feed` event. */
+  radioLine(text: string): void {
+    this.push({ e: 'feed', text });
+  }
+
   /** Sector Ops: the syringes left this op (the revive cap less the revives used). */
   revivesLeft(): number {
     return Math.max(0, this.reviveClock.cap - this.reviveClock.used);
@@ -659,7 +668,7 @@ export class CoopHost implements NetAttachment {
       }
       // (G7) the struggle from the client's contact (derived from where it stands: no wire data)
       e.beginTakedown(!m.lethal, contactDelay(r.feet.x, r.feet.z, e.pos.x, e.pos.z, e.yaw, !!e.def.quadruped));
-      this.seized.set(e.id, { by: r.id, t: 0 });
+      this.seized.set(e.id, { by: r.id, t: 0, ...holdFeed() });
       return;
     }
     if (!held || held.by !== r.id) return;
@@ -722,6 +731,20 @@ export class CoopHost implements NetAttachment {
   private teamPairs = new Map<string, string>();
   private teamLast = new Map<string, number>();
   private teamMv = emptyMoveState();
+  /** (throw-ko) Partner throws in flight: the thrown player coming down on a guard knocks him out (host-authoritative). */
+  readonly throwKo = new ThrowKo<Enemy>(
+    (by) => (by === this.s.selfId ? this.g.player.alive : (this.remotes.get(by)?.alive ?? false)),
+    (by, e, at) => this.throwKnockOut(by, e, at),
+  );
+
+  /** (throw-ko) The thrown player `by` (feet at `at`) came down on `e`: knocked out through the game's own path. */
+  private throwKnockOut(by: string, e: Enemy, at: { readonly x: number; readonly y: number; readonly z: number }): void {
+    const src = new Vector3(at.x, at.y, at.z);
+    const dir = new Vector3(e.pos.x - at.x, 0, e.pos.z - at.z);
+    if (dir.lengthSquared() > 1e-6) dir.normalize();
+    e.knockOut({ amount: 9999, point: e.pos.clone(), dir, part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: by === this.s.selfId ? 'local' : by, sourcePos: src, impulse: 1, takedown: 'throw' });
+    this.g.enemyMgr?.hear(src, STRIKE.noise);
+  }
 
   private teamSide(id: string): TeamSide | null {
     const self = id === this.s.selfId;
@@ -777,6 +800,7 @@ export class CoopHost implements NetAttachment {
         this.teamPairs.set(partner, by);
       }
       const start = { kind, a: by, b: partner, target: -1, s: 0, t0: now, l: [land.x, land.y, land.z] as [number, number, number] };
+      if (kind === 'throw') this.throwKo.start(by, now, a.x, a.y, a.z, land.x, land.y, land.z);
       this.s.send({ t: 'tstart', ...start });
       if (by === self || partner === self) this.g.team.begin(start, self);
       this.g.mode?.onTeamMove?.(by === self ? undefined : by, partner === self ? undefined : partner);
@@ -1167,6 +1191,7 @@ export class CoopHost implements NetAttachment {
   fixedUpdate(dt: number): void {
     this.time += dt;
     if (this.strikes.size) this.runStrikes();
+    if (this.throwKo.active && this.g.enemyMgr) this.throwKo.step(this.time, this.g.enemyMgr.enemies);
     this.itemsT -= dt;
     for (const r of this.remotes.values()) r.update(dt);
     // revive points follow the bodies; client-held enemies are let go if the client never finishes
@@ -1198,7 +1223,10 @@ export class CoopHost implements NetAttachment {
           }
           const sy = Math.sin(yaw);
           const cy = Math.cos(yaw);
-          e.holdAt(at.x + sy * GRAB.hold + cy * GRAB.side, at.y, at.z + cy * GRAB.hold - sy * GRAB.side, yaw);
+          // (hostage-gait) the drawn body moves once per frame; below 60 fps 2+ steps see one pose and holdAt's speed
+          // (his gait) flickers 2x / 0. The feed moves the point every step (holdFeed.ts); a jump places him first
+          if (stepHoldFeed(s, at.x + sy * GRAB.hold + cy * GRAB.side, at.z + cy * GRAB.hold - sy * GRAB.side, this.holdClock, this.time, dt)) e.pos.set(s.hfX, at.y, s.hfZ);
+          e.holdAt(s.hfX, at.y, s.hfZ, yaw);
           // (G7) the client's knockout lowers him here too, its interrogation turns his head (MoveState ph / sub)
           if (mv.sub & 2) e.holdPose('interrogate', mv.ph);
           else if (mv.ph > 0 && !(mv.sub & 1)) {
@@ -1209,6 +1237,7 @@ export class CoopHost implements NetAttachment {
           continue;
         }
       }
+      s.hfOn = false;
       if (s.t > TD_MAX || !by || !by.alive) this.release(eid);
     }
     this.remoteNoise(dt);
@@ -1276,6 +1305,7 @@ export class CoopHost implements NetAttachment {
   private readonly posedHeadTmp = new Vector3();
   frameUpdate(dt: number): void {
     const now = performance.now() / 1000 - INTERP_DELAY;
+    this.holdClock.frame(now, this.time);
     for (const r of this.remotes.values()) {
       r.avatar.update(dt, now);
       if (r.alive) {
