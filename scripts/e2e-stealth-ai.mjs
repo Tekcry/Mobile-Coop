@@ -678,7 +678,14 @@ try {
           // he vanishes: dark, crouched
           t.light(0);
           t.crouch(true);
-          t.tp(hide.x, hide.z, 0);
+          // (S25-SAI-TRIAGE 5) 'wall': the player waits out the combat at the far park spot (0, -20) (behind the
+          // dispatch walls, as 'three' and 'lkp') and takes the walled spot only once the search starts. His combat
+          // route (the seeded cover pick: north-west to about (-2.1, 9.7), then cover at about (1-3.4, 9.5)) saw the
+          // walled spot through the x -4 gap at z 8-9.1 (round 4: the LKP moved onto it at 2.2 s). A searcher is calm
+          // and sees by the light (0 here), so from then on the spot stays hidden. 'wall' measures the plan and the
+          // walk by path from where he lost him, so it needs no particular spot during the fight
+          const park = which === 'wall' ? { x: 0, z: -20 } : hide;
+          t.tp(park.x, park.z, 0);
           // (S25-SAI-TRIAGE 2) the body follows the tp before the first sim step: the rig (and so the target's chest and
           // head, `PlayerTarget.sync` in the fixed step) is placed in `frameUpdate` (player.ts root.position), so the
           // first step after a bare tp let him see the chest still at the lit spot and report the feet, already at the
@@ -712,7 +719,13 @@ try {
             t.step(0.05);
             g.frameUpdate(0.05, 1);
             time += 0.05;
-            if (tS < 0 && e.level === 'searching') tS = time;
+            if (tS < 0 && e.level === 'searching') {
+              tS = time;
+              if (park !== hide) {
+                t.tp(hide.x, hide.z, 0);
+                g.frameUpdate(1 / 60, 1);
+              }
+            }
             // (or still in sight: 0.2 s on, the clock would be past 0.1 without one)
             if (resight < 0 && e.alerted && (e.sinceSeen < prevSince || (time > 0.2 && e.sinceSeen < 0.1))) resight = r1(time);
             prevSince = e.sinceSeen;
@@ -794,6 +807,7 @@ try {
             claims,
             level,
             guard: [r1(e.pos.x), r1(e.pos.z)],
+            atEnd: { x: r1(g.player.position.x), z: r1(g.player.position.z) },
             onPlan: gs.map((x) => x.onPlan),
             resight,
             lkpMoved,

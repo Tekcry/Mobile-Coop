@@ -162,3 +162,34 @@ there). No src issue.
 ### Checks
 - `node --check scripts/e2e-stealth-ai.mjs`: OK. The scratch nav probe is as above. No src change.
 - Queued: set `s25-sai-fix4`, suite `e2e-stealth-ai`, on cf3e013d, request `20261023T175019-night-shift-guard-ai-cf3e013d-dce3`.
+
+## Round 5 (cf3e013d: 'wall' fails its premise assert; S26 8e794f6c the same)
+
+`wall: he never sees him again ... (moved {t: 2.2, at: [-6.3, 6.3]}, seen 2.2)`, 4192.log:74-75. The spot is
+(-6.25, 6.25): 8.5 m straight, 13.3 m by path. In the fight the guard walks north-west to about (-2.1, 9.7), then
+takes cover at about (1-3.4, 9.5), the seeded cover-first pick, the same route as in 'near'. From about (-2.1, 9.7) he
+sees the spot through the x -4 gap at z 8-9.1, and the LKP moves onto the player. My sight test covered only his walk
+from the post to the LKP and a 1.5 m ring round the LKP, not this route. The rest of the run worked: plans were built,
+claims made, closest 0.6 m, maxPath 10.
+
+### Fix (scripts/e2e-stealth-ai.mjs only): staging, not the sight test
+Predicting or freezing his combat route (cover picks, seeded rolls) would be brittle. Instead, in 'wall' the player
+waits out the combat at the far park spot (0, -20), behind the dispatch walls, the same spot 'three' and 'lkp' use. He
+is teleported (with the post-tp `frameUpdate`) to the walled spot at the moment the search starts.
+- A searcher is calm and sees by the light (pinned at 0), so the spot stays hidden from then on.
+- The LKP stays where he lost him. 'wall' asserts the plan and the walk by path from that position, so its intent is
+  unchanged: every plan point within R + 0.5 m by path, no searcher past R + 1 m by path. The closest searcher is
+  logged.
+- The premise assert stays.
+- Lines from his route (the post, about (-2.1, 9.7), about (3.4, 9.5)) to (0, -20) all meet the z -8.8 wall away from
+  its gap (x 2-3.6). The return also reports where the player ends (`atEnd`).
+
+### 'three', checked by reading against the same route
+It stages at (0, -20) the whole run. The same lines are blocked, so no re-sight is expected. Its asserts (one
+intruder, a plan of at least 3 points, a claim each, first points at least 3 m apart) hold even if the LKP moved.
+Timing is as in round 4: about 11 s back from cover plus a 3 s look, inside 40 s.
+
+'near' is untouched; it passed in round 4.
+
+### Checks
+- `node --check scripts/e2e-stealth-ai.mjs`: OK. No src change.
