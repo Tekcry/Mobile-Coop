@@ -82,8 +82,9 @@ export function shard(list, times, bins = 2) {
 
 /**
  * Reads a run-e2e.mjs output. Suite lines come from its "times (...)" block ("  <s> ok|FAIL|FAIL (KNOWN FLAKY)|REPORT
- * ONLY (exit N) <n>s"). Returns { suites: [{ s, ok, flaky, report, sec }], wall, passed, failed } with failed = the
- * names in its "<k> suite(s) failed: a, b" line.
+ * ONLY (exit N) <n>s"). Returns { suites: [{ s, ok, flaky, report, sec }], wall, passed, failed, complete } with
+ * failed = the names in its "<k> suite(s) failed: a, b" line and complete = its summary line ("all e2e suites passed"
+ * or the failed line) was seen; a runner that died before its summary is not complete.
  */
 export function parseRun(text) {
   const lines = String(text).replace(/\r\n/g, '\n').split('\n');
@@ -103,7 +104,25 @@ export function parseRun(text) {
     wall: wall ? +wall[1] : 0,
     passed: /^all e2e suites passed$/m.test(text),
     failed: failed ? failed[2].split(', ').map((x) => x.trim()) : [],
+    complete: /^all e2e suites passed$/m.test(String(text)) || Boolean(failed),
   };
+}
+
+/**
+ * True when a parsed run is a full verdict: its summary line was seen and it reports at least `expected` suites
+ * (exact = true: exactly `expected`, for a train shard whose job list is already expanded). Anything else (a runner
+ * killed before its summary, a missing suite) must never post success.
+ */
+export function runComplete(run, expected, exact = false) {
+  if (!run || !run.complete) return false;
+  const n = run.suites.length;
+  return exact ? n === expected : n >= expected && n > 0;
+}
+
+/** The last `max` characters of a text, with a cut marker when cut. */
+export function capTail(text, max) {
+  const t = String(text);
+  return t.length > max ? `...(cut)\n${t.slice(t.length - max + 9)}` : t;
 }
 
 /** Folds the ok, non-report suites of a run into the times map (suite -> seconds); returns a new map. */
@@ -136,12 +155,15 @@ export function lockChanged(oldText, newText) {
 }
 
 
-/** A suite's section of a run log: from "=== <s> (" up to the next "=== " ('' when absent). */
+/**
+ * A suite's section of a run log: from "=== <s> (" (or the streamed "=== <s> ===" header at E2E_JOBS=1) up to the next
+ * "=== " line or the "times (" block ('' when absent).
+ */
 export function suiteSection(logText, suite) {
   const lines = String(logText).replace(/\r\n/g, '\n').split('\n');
-  const from = lines.findIndex((l) => l.startsWith(`=== ${suite} (`));
+  const from = lines.findIndex((l) => l.startsWith(`=== ${suite} (`) || l.trimEnd() === `=== ${suite} ===`);
   if (from < 0) return '';
-  let to = lines.findIndex((l, i) => i > from && l.startsWith('=== '));
+  let to = lines.findIndex((l, i) => i > from && (l.startsWith('=== ') || /^times \(/.test(l)));
   if (to < 0) to = lines.length;
   return lines.slice(from + 1, to).join('\n');
 }

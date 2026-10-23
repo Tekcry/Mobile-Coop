@@ -4,6 +4,7 @@
 //     (--suites "a b c" | --full | --alone --step "<cmd>" [--step ...] [--env K=V ...]) [--note ".."] [--branch x] [--dry-run]
 // --dry-run: builds the commit but pushes nothing; prints the sha it would push and the JSON.
 import { execFileSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -32,13 +33,16 @@ const git = (args, { env = {}, input, soft = false } = {}) => {
 if (!opts.sha) { console.error('usage: request.mjs --sha <ref> (--suites "a b" | --full | --alone --step "<cmd>") [--pr N] [--set s] [--jobs N] [--requester t] [--note t] [--dry-run]'); process.exit(1); }
 
 git(['fetch', '-q', 'origin'], { soft: true });
-const sha = git(['rev-parse', '--verify', '-q', `${opts.sha}^{commit}`], { soft: true }) || git(['rev-parse', '--verify', '-q', `origin/${opts.sha}^{commit}`], { soft: true });
+const isRef = !/^[0-9a-f]{7,40}$/i.test(opts.sha) && opts.sha !== 'HEAD';
+const resolve = (ref) => git(['rev-parse', '--verify', '-q', `${ref}^{commit}`], { soft: true });
+// a branch name resolves to the just-fetched origin/<name> first (a stale local branch must not win)
+const sha = (isRef && !opts.sha.startsWith('origin/') ? resolve(`origin/${opts.sha}`) : '') || resolve(opts.sha);
 if (!sha) { console.error(`cannot resolve ${opts.sha}`); process.exit(1); }
 
-const isRef = !/^[0-9a-f]{7,40}$/i.test(opts.sha) && opts.sha !== 'HEAD';
 const branch = opts.branch ?? (isRef ? opts.sha.replace(/^origin\//, '') : opts.sha === 'HEAD' ? git(['rev-parse', '--abbrev-ref', 'HEAD'], { soft: true }) : '');
 const requester = opts.requester ?? 'unknown';
-const id = requestId(Date.now(), requester, sha);
+// 4 random hex so two requests in the same second never collide
+const id = `${requestId(Date.now(), requester, sha)}-${randomBytes(2).toString('hex')}`;
 const kind = opts.alone ? 'alone' : opts.full ? 'full' : 'pr';
 const req = { id, sha, branch, pr: opts.pr ? Number(opts.pr) : null, kind, requester };
 if (kind === 'pr') req.suites = String(opts.suites ?? '').split(/\s+/).filter(Boolean);

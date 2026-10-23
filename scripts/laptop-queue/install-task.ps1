@@ -1,9 +1,25 @@
-# Registers the laptop queue service as a scheduled task that starts every 5 minutes (the pid lock makes the starts
-# no-ops while a service runs). No admin needed. Remove it with -Remove.
-#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-queue/install-task.ps1 [-Remove]
-param([switch]$Remove)
+# Registers the laptop queue service as a scheduled task that starts every 5 minutes, indefinitely (the pid lock makes
+# the starts no-ops while a service runs; IgnoreNew keeps a second instance from starting). Headless, Normal priority
+# (5), no time limit, keeps running on battery. No admin needed. Remove it with -Remove.
+#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-queue/install-task.ps1 [-Follow origin/master] [-Remove]
+# -Follow: the ref the service fast-forwards its checkout to when idle (env LQ_FOLLOW), default origin/master.
+param([switch]$Remove, [string]$Follow = 'origin/master')
+$ErrorActionPreference = 'Stop'
 $name = 'NightShift-laptop-queue'
-if ($Remove) { schtasks /delete /f /tn $name; exit $LASTEXITCODE }
-$run = 'powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command cd C:\NightShift\Mobile-Coop-laptop-queue-svc; node scripts/laptop-queue/service.mjs'
-schtasks /create /f /sc minute /mo 5 /tn $name /tr $run
-exit $LASTEXITCODE
+if ($Remove) {
+  Unregister-ScheduledTask -TaskName $name -Confirm:$false
+  exit 0
+}
+$dir = 'C:\NightShift\Mobile-Coop-laptop-queue-svc'
+if ($Follow -notmatch '^[A-Za-z0-9._/-]+$') { throw "bad -Follow ref: $Follow" }
+$cmd = "`$env:LQ_FOLLOW = '$Follow'; node scripts/laptop-queue/service.mjs"
+$action = New-ScheduledTaskAction -Execute 'powershell.exe' `
+  -Argument "-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"$cmd`"" `
+  -WorkingDirectory $dir
+$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5)
+$settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -AllowStartIfOnBatteries `
+  -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew -Priority 5
+Register-ScheduledTask -TaskName $name -Action $action -Trigger $trigger -Settings $settings `
+  -Description 'Night Shift laptop e2e queue (scripts/laptop-queue/service.mjs)' -Force | Out-Null
+Write-Output "registered $name (every 5 min, follow $Follow, in $dir)"
+exit 0

@@ -7,7 +7,7 @@
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { describe, failureExcerpt, lockChanged, mergeTimes, parseRun, pick, requestProblem, contextName, shard, suiteSection } from './lib.mjs';
+import { capTail, describe, failureExcerpt, lockChanged, mergeTimes, parseRun, pick, requestProblem, contextName, runComplete, shard, suiteSection } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const STATE_DIR = process.env.LQ_STATE ?? 'C:/NightShift/scratch/laptop-queue';
@@ -72,10 +72,14 @@ function postStatus(sha, status, context, description) {
   try { gh(args); log(`status ${context} ${status} on ${sha.slice(0, 8)}: ${description}`); } catch (e) { log(`status post failed: ${String(e.message).split('\n')[0]}`); }
 }
 
+const COMMENT_MAX = 60_000;
+
+/** Posts a PR comment, the JSON body through stdin (no argv length limit), body capped at COMMENT_MAX chars. */
 function postComment(pr, body) {
-  const args = ['api', `repos/${REPO}/issues/${pr}/comments`, '-f', `body=${body}`];
-  if (DRY) { log(`dry-run: gh api repos/${REPO}/issues/${pr}/comments -f body=<${body.split('\n').length} lines>`); return; }
-  try { gh(args); log(`comment on #${pr}`); } catch (e) { log(`comment failed: ${String(e.message).split('\n')[0]}`); }
+  const text = body.length > COMMENT_MAX ? `${body.slice(0, COMMENT_MAX - 20)}\n...(comment cut)` : body;
+  const args = ['api', `repos/${REPO}/issues/${pr}/comments`, '--input', '-'];
+  if (DRY) { log(`dry-run: gh ${args.join(' ')} <body: ${text.split('\n').length} lines>`); return; }
+  try { gh(args, { input: JSON.stringify({ body: text }) }); log(`comment on #${pr}`); } catch (e) { log(`comment failed: ${String(e.message).split('\n')[0]}`); }
 }
 
 // ---------- queue sources ----------
@@ -98,7 +102,12 @@ function listRequests() {
   return out;
 }
 
-/** Train heads with no laptop-e2e status; merged heads and heads older than LQ_TRAIN_MAX_AGE_H (default 24) are skipped. */
+/**
+ * Train heads still to run: no laptop-e2e status, or a stale `pending` one (not claimed by this process; the pid lock
+ * means no other service can be running it). Read from the combined status (latest state per context). A gh / network
+ * error skips the head this pass (never read as "no status"). Merged heads and heads older than LQ_TRAIN_MAX_AGE_H
+ * (default 24) are skipped.
+ */
 function pendingTrains() {
   const out = [];
   const maxAge = Number(process.env.LQ_TRAIN_MAX_AGE_H ?? 24) * 3600;
@@ -109,8 +118,11 @@ function pendingTrains() {
     const age = Date.now() / 1000 - Number(git(['show', '-s', '--format=%ct', m[1]], { soft: true }));
     if (!(age < maxAge)) continue;
     try { git(['merge-base', '--is-ancestor', m[1], 'origin/master']); continue; } catch { /* not merged */ }
-    const have = gh(['api', `repos/${REPO}/commits/${m[1]}/statuses`, '--jq', '.[].context'], { soft: true }).split('\n');
-    if (!have.includes('laptop-e2e')) out.push({ sha: m[1], n: m[2] });
+    let st;
+    try {
+      st = gh(['api', `repos/${REPO}/commits/${m[1]}/status`, '--jq', '[.statuses[] | select(.context == "laptop-e2e") | .state] | first // ""']);
+    } catch (e) { log(`train ${m[2]} ${m[1].slice(0, 8)}: status read failed, skipped this pass: ${String(e.message).split('\n')[0]}`); continue; }
+    if (st === '' || (st === 'pending' && !claimed.has(m[1]))) out.push({ sha: m[1], n: m[2], stale: st === 'pending' });
   }
   return out;
 }
@@ -141,42 +153,68 @@ function freePort(port) {
   }
 }
 
+/** Lock lines this process holds. */
+const heldLocks = new Set();
+
+/**
+ * Takes a slot lock (exclusive create). A `laptop-queue |` line this process does not hold is stale (the pid lock means
+ * no other service runs) and is deleted; any other holder (a manual run) is waited on.
+ */
 async function takeLock(port, label, sha) {
-  const line = `laptop-queue | ${label} ${sha.slice(0, 8)} | ${new Date().toISOString()}`;
+  const line = `laptop-queue | ${label} ${sha.slice(0, 8)} pid ${process.pid} | ${new Date().toISOString()}`;
   for (;;) {
-    try { fs.writeFileSync(SLOTS[port].lock, `${line}\n`, { flag: 'wx' }); return line; } catch (e) {
+    try { fs.writeFileSync(SLOTS[port].lock, `${line}\n`, { flag: 'wx' }); heldLocks.add(line); return line; } catch (e) {
       if (e.code !== 'EEXIST') throw e;
+      let have = '';
+      try { have = fs.readFileSync(SLOTS[port].lock, 'utf8').trim(); } catch { continue; /* gone: retry at once */ }
+      if (have.startsWith('laptop-queue |') && !heldLocks.has(have)) {
+        log(`stale lock on ${port} removed: ${have}`);
+        try { fs.unlinkSync(SLOTS[port].lock); } catch { /* gone */ }
+        continue;
+      }
       await sleep(15_000);
     }
   }
 }
 function releaseLock(port, line) {
+  heldLocks.delete(line);
   try { if (fs.readFileSync(SLOTS[port].lock, 'utf8').trim() === line) fs.unlinkSync(SLOTS[port].lock); } catch { /* gone */ }
 }
 
-/** Fetch, clean, detach at sha, npm ci when needed, build. Returns 'ok' | 'nosha' | 'build'. */
+/**
+ * Fetch (one retry), clean, detach at sha, npm ci when needed, build. Returns 'ok' | 'fetch' (fetch failed twice: skip
+ * this pass, not a verdict) | 'nosha' | 'build'. npm ci runs when node_modules is missing or package-lock.json differs
+ * (beyond its version lines) from the text saved after this slot's last SUCCESSFUL npm ci, so a failed one is retried.
+ */
 async function prepare(port, sha, logFile) {
   const cwd = SLOTS[port].dir;
-  git(['fetch', '-q', 'origin'], { cwd, soft: true });
+  let fetched = false;
+  for (let i = 0; i < 2 && !fetched; i++) {
+    try { git(['fetch', '-q', 'origin'], { cwd }); fetched = true; } catch (e) { log(`fetch in ${port} failed (try ${i + 1}): ${String(e.message).split('\n')[0]}`); }
+  }
+  if (!fetched) return 'fetch';
   git(['checkout', '-q', '--', '.'], { cwd, soft: true });
   git(['clean', '-fdq'], { cwd, soft: true });
-  const before = git(['show', 'HEAD:package-lock.json'], { cwd, soft: true });
   try { git(['checkout', '-q', '--detach', sha], { cwd }); } catch { return 'nosha'; }
-  const after = fs.readFileSync(path.join(cwd, 'package-lock.json'), 'utf8');
-  if (!fs.existsSync(path.join(cwd, 'node_modules')) || lockChanged(before, after)) {
+  const lockNow = fs.readFileSync(path.join(cwd, 'package-lock.json'), 'utf8');
+  let lockInstalled = null;
+  try { lockInstalled = fs.readFileSync(file(`npm-ci-${port}.lock.json`), 'utf8'); } catch { /* never installed by the service */ }
+  if (!fs.existsSync(path.join(cwd, 'node_modules')) || lockInstalled === null || lockChanged(lockInstalled, lockNow)) {
     if (await sh('npm ci', { cwd, logFile }) !== 0) return 'build';
+    fs.mkdirSync(STATE_DIR, { recursive: true });
+    fs.writeFileSync(file(`npm-ci-${port}.lock.json`), lockNow);
   }
   return (await sh('npm run build', { cwd, logFile })) === 0 ? 'ok' : 'build';
 }
 
-/** One run-e2e call on a slot; returns the parsed run. */
+/** One run-e2e call on a slot; returns the parsed run plus its exit code and the last 40 lines of its output. */
 async function e2e(port, suites, jobs, logFile) {
   freePort(port);
   const env = { E2E_PORT: port, E2E_JOBS: String(jobs), E2E_GPU: '1', E2E_SUITE_TIMEOUT: '900' };
-  await sh(`node scripts/run-e2e.mjs ${suites.join(' ')}`, { cwd: SLOTS[port].dir, env, logFile });
+  const code = await sh(`node scripts/run-e2e.mjs ${suites.join(' ')}`, { cwd: SLOTS[port].dir, env, logFile });
   freePort(port);
-  const run = parseRun(fs.readFileSync(logFile, 'utf8').split(/^\$ node scripts\/run-e2e.mjs /m).pop() ?? '');
-  return run;
+  const text = fs.readFileSync(logFile, 'utf8').split(/^\$ node scripts\/run-e2e.mjs /m).pop() ?? '';
+  return { ...parseRun(text), code, tail40: failureExcerpt(text).tail40 };
 }
 
 // ---------- results ----------
@@ -191,7 +229,7 @@ async function rerunFlakes(result, slotOf, job, runDir) {
     const port = slotOf[x.s] ?? PORTS[0];
     log(`rerun ${x.s} alone on ${port}`);
     const run = await e2e(port, [x.s], 1, path.join(runDir, `rerun-${x.s.replace(/\W/g, '_')}.log`));
-    if (run.suites.length && run.suites.every((s) => s.ok)) {
+    if (runComplete(run, 1) && run.suites.every((s) => s.ok)) {
       x.ok = true;
       flakes.push(x.s);
       state.flakes.push({ suite: x.s, sha: job.sha, ref: job.ref, date: new Date().toISOString() });
@@ -210,7 +248,7 @@ function failureComment(job, result, runDir) {
       if (sec) break;
     }
     const { assert, tail40 } = failureExcerpt(sec);
-    parts.push(`\n**${x.s}**\nFailing assert: \`${assert || 'none found'}\`\nLog on the laptop: ${runDir}\n\`\`\`\n${tail40 || '(no log section)'}\n\`\`\``);
+    parts.push(`\n**${x.s}**\nFailing assert: \`${capTail(assert || 'none found', 500)}\`\nLog on the laptop: ${runDir}\n\`\`\`\n${capTail(tail40 || '(no log section)', 8_000)}\n\`\`\``);
   }
   return parts.join('\n');
 }
@@ -240,6 +278,12 @@ async function runTrain(train) {
     for (const p of PORTS) locks[p] = await takeLock(p, `train ${train.n}`, train.sha);
     postStatus(train.sha, 'pending', 'laptop-e2e', 'sharded 4189+4192');
     const prep = await Promise.all(PORTS.map((p) => prepare(p, train.sha, path.join(runDir, `${p}.log`))));
+    if (prep.includes('fetch')) {
+      // not a verdict: the pending status is now unclaimed (stale) and the next pass picks the train again
+      log(`train ${train.n}: fetch failed, retried next pass`);
+      claimed.delete(train.sha);
+      return;
+    }
     if (prep.some((r) => r !== 'ok')) {
       const nosha = prep.includes('nosha');
       postStatus(train.sha, nosha ? 'error' : 'failure', 'laptop-e2e', nosha ? 'sha not found' : 'build failed');
@@ -251,12 +295,23 @@ async function runTrain(train) {
     bins.forEach((b, i) => log(`bin ${PORTS[i]}: ${b.suites.length} suites, weight ${Math.round(b.weight)} s`));
     const t0 = Date.now();
     const runs = await Promise.all(PORTS.map((p, i) => e2e(p, bins[i].suites, TRAIN_JOBS, path.join(runDir, `${p}.log`))));
+    const prNumber = Number(gh(['pr', 'list', '-R', REPO, '--head', `train/${train.n}`, '--json', 'number', '--jq', '.[0].number'], { soft: true })) || 0;
+    // a shard that died before its summary (or lost suites) is a failure, never a partial success
+    const broken = PORTS.findIndex((p, i) => !runComplete(runs[i], bins[i].suites.length, true));
+    if (broken >= 0) {
+      const p = PORTS[broken];
+      const r = runs[broken];
+      log(`train ${train.n}: shard ${p} incomplete (exit ${r.code}, ${r.suites.length}/${bins[broken].suites.length} suites, summary ${r.complete ? 'seen' : 'missing'})`);
+      postStatus(train.sha, 'failure', 'laptop-e2e', `shard ${p} gave no result`);
+      if (prNumber) postComment(prNumber, `laptop-e2e failed on ${train.sha.slice(0, 8)} (${job.ref}): shard ${p} gave no result (exit ${r.code}, ${r.suites.length}/${bins[broken].suites.length} suites).\nLog on the laptop: ${path.join(runDir, `${p}.log`)}\n\`\`\`\n${capTail(r.tail40 || '(empty log)', 8_000)}\n\`\`\``);
+      state.trains[train.sha] = { result: 'incomplete', shard: p, date: new Date().toISOString() };
+      return;
+    }
     const slotOf = {};
     runs.forEach((r, i) => r.suites.forEach((s) => { slotOf[s.s] = PORTS[i]; }));
     const result = { suites: runs.flatMap((r) => r.suites), wall: 0, flakes: [] };
     result.flakes = await rerunFlakes(result, slotOf, job, runDir);
     result.wall = (Date.now() - t0) / 1000;
-    const prNumber = Number(gh(['pr', 'list', '-R', REPO, '--head', `train/${train.n}`, '--json', 'number', '--jq', '.[0].number'], { soft: true })) || 0;
     const ok = finish(job, 'laptop-e2e', result, runDir, prNumber);
     state.trains[train.sha] = { result: ok ? 'success' : 'failure', wall: result.wall, date: new Date().toISOString() };
   } finally {
@@ -277,6 +332,13 @@ async function runRequest(r, port) {
     for (const p of ports) locks[p] = await takeLock(p, r.id, r.sha);
     postStatus(r.sha, 'pending', ctx, 'running');
     const prep = await prepare(ports[0], r.sha, path.join(runDir, 'prepare.log'));
+    if (prep === 'fetch') {
+      // not a verdict and not done: the claim is dropped and the next pass takes it again
+      postStatus(r.sha, 'pending', ctx, 'fetch failed, retrying');
+      log(`${r.id}: fetch failed, retried next pass`);
+      claimed.delete(r.id);
+      return;
+    }
     if (prep !== 'ok') {
       postStatus(r.sha, prep === 'nosha' ? 'error' : 'failure', ctx, prep === 'nosha' ? 'sha not found' : 'build failed');
       state.done[r.id] = { result: prep, date: new Date().toISOString() };
@@ -301,6 +363,14 @@ async function runRequest(r, port) {
     const jobs = r.jobs ?? (r.kind === 'full' ? 3 : 2);
     const t0 = Date.now();
     const run = await e2e(port, list, jobs, path.join(runDir, `${port}.log`));
+    // same completeness rule as a train shard; at least the listed suites (a named suite may expand into parts)
+    if (!runComplete(run, list.length)) {
+      log(`${r.id}: run incomplete (exit ${run.code}, ${run.suites.length}/${list.length} suites, summary ${run.complete ? 'seen' : 'missing'})`);
+      postStatus(r.sha, 'failure', ctx, `slot ${port} gave no result`);
+      if (r.pr) postComment(r.pr, `${ctx} failed on ${r.sha.slice(0, 8)} (${job.ref}): slot ${port} gave no result (exit ${run.code}, ${run.suites.length}/${list.length} suites).\nLog on the laptop: ${path.join(runDir, `${port}.log`)}\n\`\`\`\n${capTail(run.tail40 || '(empty log)', 8_000)}\n\`\`\``);
+      state.done[r.id] = { result: 'incomplete', date: new Date().toISOString() };
+      return;
+    }
     const result = { suites: run.suites, wall: 0, flakes: [] };
     result.flakes = await rerunFlakes(result, {}, job, runDir);
     result.wall = (Date.now() - t0) / 1000;
@@ -321,14 +391,22 @@ function dispatch(p) {
   if (p.kind === 'train') {
     claimed.add(p.train.sha);
     if (DRY) { log(`dry-run: would run train ${p.train.n} ${p.train.sha.slice(0, 8)} on both slots`); return planTrain(p.train.sha); }
-    const run = runTrain(p.train).catch((e) => log(`train failed: ${e.message}`));
+    const run = runTrain(p.train).catch((e) => {
+      log(`train ${p.train.n} service error: ${e.stack ?? e.message}`);
+      postStatus(p.train.sha, 'error', 'laptop-e2e', 'service error, see log');
+      claimed.delete(p.train.sha);
+    });
     PORTS.forEach((x) => { busy[x] = run; });
     return run;
   }
   claimed.add(p.request.id);
   const ports = p.kind === 'alone' ? PORTS : [p.slot];
   if (DRY) { log(`dry-run: would run ${p.request.id} (${p.request.kind}, ${p.request.suites ?? p.request.steps ?? 'full'}) on ${ports.join('+')}`); return Promise.resolve(); }
-  const run = runRequest(p.request, p.slot ?? PORTS[0]).catch((e) => log(`${p.request.id} failed: ${e.message}`));
+  const run = runRequest(p.request, p.slot ?? PORTS[0]).catch((e) => {
+    log(`${p.request.id} service error: ${e.stack ?? e.message}`);
+    postStatus(p.request.sha, 'error', contextName(p.request.kind, p.request.set, p.request.suites), 'service error, see log');
+    claimed.delete(p.request.id);
+  });
   ports.forEach((x) => { busy[x] = run; });
   return run;
 }

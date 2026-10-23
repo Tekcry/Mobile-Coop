@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { contextName, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseRun, pick, requestId, requestProblem, shard, suiteSection } from '../scripts/laptop-queue/lib.mjs';
+import { capTail, contextName, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseRun, pick, requestId, requestProblem, runComplete, shard, suiteSection } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -92,6 +92,23 @@ describe('parseRun', () => {
     expect(r.suites).toHaveLength(1);
     expect(parseRun('crashed').suites).toEqual([]);
   });
+  it('marks a run complete only when its summary line is seen', () => {
+    expect(parseRun(RUN).complete).toBe(true);
+    expect(parseRun('times (GPU, 1 at a time):\n  e2e-coop ok 5s\n\nall e2e suites passed\n').complete).toBe(true);
+    const died = '=== e2e-coop (ok, 74s) ===\nok\n=== e2e-menus ===\nstep 1\n';
+    expect(parseRun(died).complete).toBe(false);
+    expect(parseRun(died).suites).toEqual([]);
+    expect(parseRun('times (GPU, 1 at a time):\n  e2e-coop ok 5s\n').complete).toBe(false);
+  });
+  it('runComplete needs the summary and every expected suite', () => {
+    const good = parseRun(RUN);
+    expect(runComplete(good, 4, true)).toBe(true);
+    expect(runComplete(good, 5, true)).toBe(false);
+    expect(runComplete(good, 3)).toBe(true);
+    expect(runComplete(parseRun('crashed'), 0, true)).toBe(false);
+    expect(runComplete({ ...good, complete: false }, 4, true)).toBe(false);
+    expect(runComplete({ suites: [], complete: true }, 0)).toBe(false);
+  });
 });
 
 describe('describe', () => {
@@ -150,6 +167,17 @@ describe('failureExcerpt and mergeTimes', () => {
     expect(r.tail40.split('\n')).toHaveLength(40);
     expect(r.tail40.endsWith('line 99')).toBe(true);
     expect(failureExcerpt('')).toEqual({ assert: '', tail40: '' });
+  });
+  it('reads the streamed "=== s ===" header and stops before the times block', () => {
+    const streamed = '=== e2e-coop ===\nstep 1\nnot ok - join\n\ntimes (GPU, 1 at a time):\n  e2e-coop FAIL 9s\n';
+    expect(suiteSection(streamed, 'e2e-coop')).toBe('step 1\nnot ok - join\n');
+    expect(suiteSection(RUN, 'e2e-pad')).toBe('');
+  });
+  it('capTail keeps the end within the cap', () => {
+    expect(capTail('short', 100)).toBe('short');
+    const t = capTail('x'.repeat(50) + 'END', 20);
+    expect(t.length).toBe(20);
+    expect(t.endsWith('END')).toBe(true);
   });
   it('merges only ok, non-report suites', () => {
     expect(mergeTimes({ a: 1, b: 2 }, [{ s: 'a', ok: true, report: false, sec: 9 }, { s: 'b', ok: false, report: false, sec: 99 }, { s: 'c', ok: true, report: true, sec: 5 }])).toEqual({ a: 9, b: 2 });
