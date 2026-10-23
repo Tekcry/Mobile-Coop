@@ -54,4 +54,5 @@ Two parts:
   of a cell (after `FLOW_MIN`), so a stale field can steer for up to 0.5 s. Polish only.
 
 ## Queue
-Set `s24-levels-fix`, suites `e2e-levels e2e-stealth-ai e2e-coop`, on the fix commit (request id below).
+Set `s24-levels-fix`, suites `e2e-levels e2e-stealth-ai e2e-coop`, `--jobs 2`, on fix commit f3c62b00: request id
+`20261023T184726-night-shift-guard-ai-f3c62b00-cb64`.
