@@ -195,6 +195,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   "Breaker's gone again.", walks over at his normal pace and the lights come back about 2 s later, both stay calm;
   switch it off again at once: a full light check at the switch. Shoot a lamp out while no guard looks: the next guard
   who walks into view of it (within ~12 m) comes to check it; it stays dark for good.
+- [ ] Guards relight (guard-ai LR16-4, Sector Ops): switch off a hall at its switch with a guard
+  watching: a guard comes and switches it back on (a shot lamp stays dark); a timed isolator's lights stay off for its
+  window (guards only come to look) and come back on their own.
+  (An untimed Sector Ops breaker board uses the same walk; no map defines one yet.)
 - [ ] Lasers (guard-ai S17, Sector Ops campus S3 or the warehouse): break a beam near guards, then climb out of the room
   unseen: two guards come to the middle of the beam and search that room only; the reinforcements search there too and
   never head for where you went unless one sees you.
