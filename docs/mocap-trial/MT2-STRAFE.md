@@ -197,7 +197,10 @@ Files: `src/player/characterRig.ts` (STRAFE_KNEE_BOW, the bow blend), `src/anim/
 `tests/mocapStrafe.test.ts` (knee-out 3 cm facing frame, allocation case).
 Tests: mocapStrafe 11/11 (~74 s, the allocation case ~60 s of it), mocapSwitch 13/13, mocapFix2 11/11, footPlanner 12/12,
 animSkeletonIdentity / animSkeletonGuardIdentity 1 + 1 skip; tsc clean; eslint clean on the three files.
-GPU lane (desktop, E2E_GPU=1): see below.
+GPU lane (desktop, E2E_GPU=1, one suite at a time, build 75 s): e2e-anim PASS (31 s, 317 ok, 0 fail; was the fresh check's
+fail), e2e-clip PASS (13 s). e2e-anim aimed strafe knee outside the ankle (mocap ON): rifle R 2.0 / 2.8, L 1.5 / 2.6;
+pistol R 2.1 / 2.9, L 1.4 / 2.8 cm at speed 1 / 2 (<= 3.0; the pistol R speed 2 row has 1 mm of margin). Knees 1.94-2.23 x
+the hips max (A11 gate 2.4), track max 31.2-36.8 cm (A11 gate 40), slide 0, never crossing (track min 3.0-3.9 cm).
 
 Found by the checker's probe on the head, present at d504af7c too (the same numbers with either file reverted), not in
 this round's goals, for the lead:
