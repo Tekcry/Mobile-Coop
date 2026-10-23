@@ -56,9 +56,12 @@ export interface Flags {
   mocap: boolean | null;
   /** (guard-render S1) Guards draw as one merged smooth mesh each (`SmoothBody`); `?guardmerge=0`: the parts, for comparisons. */
   guardMerge: boolean;
+  /** (guard-render S4) Guard anim tiers (off-screen every 4th frame, far every 2nd: `src/ai/animTier.ts`); `?animtier=0` off. */
+  animTier: boolean;
   /** (guard-render S6) Per-cascade sun caster lists and the guards' sun reach; `?guardsun=0`: off, for comparisons. */
   guardSun: boolean;
-  /** (lightrev prototype, PROPOSAL "Walk 4.72 S1") `?falloff=photo`: the baked lamps' photometric falloff (`lampMath.setLampFalloff`). Default off. */
+  /** (lightrev LR13) `?falloff=photo`: dev override of Settings > Gameplay > Lamp falloff for this page's solo and hosted
+   *  matches (`lampMath.matchLampFalloff`; a co-op client takes the host's). Default off. */
   photoLamps: boolean;
 }
 
@@ -125,6 +128,7 @@ export const flags: Flags = {
   sectorGuards: /^\d{1,2}$/.test(params.get('sectorGuards') ?? '') ? Number(params.get('sectorGuards')) : null,
   mocap: onOffFlag(params.get('mocap')),
   guardMerge: params.get('guardmerge') !== '0',
+  animTier: params.get('animtier') !== '0',
   guardSun: params.get('guardsun') !== '0',
   photoLamps: params.get('falloff') === 'photo',
 };

@@ -4,7 +4,7 @@ import { BOX_STRIDE, fillLampAtlas, LAMP_CELL, LAMP_GRID, LAMP_STRIDE, lampGrid,
 import { LAMP_VOL_MAX, lampVolumeGrid, lampVolumeRegion, unionRegion, type LampVolumeGrid } from '../voxel/lampVolume';
 import type { LightRegistry } from './lights';
 import { bakedLights, type MoonGrid } from './lightBake';
-import { LAMP_CONE_COS, LAMP_EXP, LAMP_MATH_GLSL, LIGHT_GAIN, lampMathGlsl, SPOT_EXP } from './lampMath';
+import { LAMP_CONE_COS, LAMP_EXP, LAMP_MATH_GLSL, LIGHT_GAIN, lampFalloffMode, lampMathGlsl, SPOT_EXP } from './lampMath';
 import { DARK_DESKTOP, DARK_GLSL, DARK_STANDARD, LEVEL_TO_RENDER, VISION_GAIN, visionAmount, visionDark, type DarkParams } from './darkCurve';
 import { AMBIENT_CELL, type AmbientGrid } from './ambientGrid';
 import { DOOR_SHUT, DOORS_PER_LAMP, lampDoorLists, type FieldDoor } from './lightField';
@@ -680,13 +680,17 @@ export class LampPlugin extends MaterialPluginBase {
     material: Material,
     private lamps: BakedLamps,
   ) {
-    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false, LAMP_LEVEL: false, LAMP_SKY: false, LAMP_CSHADOW: false });
+    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false, LAMP_LEVEL: false, LAMP_SKY: false, LAMP_PHOTO: false, LAMP_CSHADOW: false });
     // (coop-fix) a clone must not carry it: Babylon rebuilds a cloned plugin by class name (`Tools.Instantiate`), which
     // fails for this unregistered class and aborted every figure loaded after the attach (the joiner's partner); the
     // clone is a new material, so `BakedLamps.frame` gives it its own plugin
     this.doNotSerialize = true;
     this._enable(true);
   }
+
+  /** (lightrev LR13) The falloff mode when this plugin's code was collected (the base constructor reads
+   *  `getCustomCode`, so `lampMathGlsl()` of the same moment). */
+  private readonly photo = lampFalloffMode() === 'photometric';
 
   /** On a standard material (the editor's light view): the light goes into `diffuseBase`. (Read from the material, not a
    *  field: Babylon collects the injection points inside the base constructor, before a field could be set.) */
@@ -712,6 +716,9 @@ export class LampPlugin extends MaterialPluginBase {
     defines.LAMP_LEVEL = !!mesh && isLampLevel(this._material);
     // (fix round 2) the level's fill and image-based light by sky visibility, as the voxel walls
     defines.LAMP_SKY = !!mesh && isLampLevel(this._material) && !!this.lamps.level && !!this.lamps.skyTex;
+    // (lightrev LR13) the falloff the lamp loop was written with (`lampMathGlsl`): its own effect-cache key, so a match
+    // after one in the other mode never reuses the engine's compiled effect with the old formula
+    defines.LAMP_PHOTO = !!mesh && this.photo;
     // (LR14) the character shadow atlas: one texture more while it is on (the per-lamp loop only)
     defines.LAMP_CSHADOW = !!mesh && !this.lamps.volume && !!this.lamps.charShadows?.on;
   }

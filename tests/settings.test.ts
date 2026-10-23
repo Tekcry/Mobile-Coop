@@ -265,3 +265,25 @@ describe('settings: the CT camera defaults (G3, camV 1)', () => {
     expect(later.gamepad.lookSensitivityY).toBe(0.8);
   });
 });
+
+describe('(lightrev LR13) Gameplay > Lamp falloff', () => {
+  it('defaults to Classic (linear); settings from before it read Classic; junk is dropped; Realistic is kept', () => {
+    expect(defaultSettings().gameplay.lampFalloff).toBe('linear');
+    expect(sanitizeSettings(PRE_STEP_18).gameplay.lampFalloff).toBe('linear');
+    expect(sanitizeSettings({ gameplay: { lampFalloff: 'bright' } }).gameplay.lampFalloff).toBe('linear');
+    const s = sanitizeSettings({ gameplay: { lampFalloff: 'photometric' } });
+    expect(s.gameplay.lampFalloff).toBe('photometric');
+    expect(sanitizeSettings(structuredClone(s)).gameplay.lampFalloff).toBe('photometric');
+  });
+  it('persists in IndexedDB kv/settings like the other settings (no save bump), and is not a graphics setting', async () => {
+    resetDbCache();
+    const st = new SettingsStore();
+    st.update((d) => void (d.gameplay.lampFalloff = 'photometric'));
+    await dbPut('kv', 'settings', st.get());
+    const back = sanitizeSettings(await dbGet('kv', 'settings'));
+    expect(back.gameplay.lampFalloff).toBe('photometric');
+    // a graphics preset / Auto never touches it (gameplay never reads graphics state)
+    expect('lampFalloff' in back.video).toBe(false);
+    expect('lampFalloff' in back.video.gfx).toBe(false);
+  });
+});

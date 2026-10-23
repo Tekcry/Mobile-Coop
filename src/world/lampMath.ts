@@ -29,7 +29,8 @@ export function lampFalloff(d: number, r: number): number {
 }
 
 /**
- * (lightrev, PROPOSAL "Walk 4.72 S1"; PROTOTYPE, default off: `?falloff=photo`) The baked lamps' distance falloff.
+ * (lightrev LR13, PROPOSAL "Walk 4.72 S1"; prototype, default off: Settings > Gameplay > Lamp falloff, `?falloff=photo`
+ * dev override) The baked lamps' distance falloff.
  * 'linear' (today): `1 - d / r`. 'photometric': inverse square as a real fitting gives it, `ref^2 / max(d, near)^2`,
  * windowed to 0 at the reach (glTF / Babylon `FALLOFF_GLTF`: `(1 - (d / R)^4)^2`). A lamp's intensity is then its
  * level on axis at `ref` m, and its reach is its authored radius x `reach` (`lampReach`, applied once when the registry
@@ -40,7 +41,7 @@ export function lampFalloff(d: number, r: number): number {
 export type LampFalloff = 'linear' | 'photometric';
 export const PHOTO = { ref: 3, near: 1, reach: 1.6 } as const;
 let falloffMode: LampFalloff = 'linear';
-/** Set once at boot (before a map builds); tests set and reset it. */
+/** Set when a match's map loads (`GameState.create`, before the level builds); tests set and reset it. */
 export function setLampFalloff(m: LampFalloff): void {
   falloffMode = m;
 }
@@ -59,6 +60,17 @@ export function photoFalloff(d: number, r: number): number {
   const n = d > PHOTO.near ? d : PHOTO.near;
   return ((PHOTO.ref * PHOTO.ref) / (n * n)) * w * w;
 }
+/**
+ * (LR13, Michael 2026-10-23 ~14:35 "Try it first") The falloff a match runs, decided once when its map loads
+ * (`GameState.create`): a co-op match takes the host's (`host`, from the `start` message: the client's own setting and
+ * URL are ignored), else the `?falloff=photo` dev override, else Settings > Gameplay > Lamp falloff. A light-model rule,
+ * never a graphics preset: the meter, the guards and the shaders read the one mode.
+ */
+export function matchLampFalloff(setting: LampFalloff, urlPhoto: boolean, host?: LampFalloff): LampFalloff {
+  return host ?? (urlPhoto ? 'photometric' : setting);
+}
+export const LAMP_FALLOFFS: readonly LampFalloff[] = ['linear', 'photometric'];
+
 /** The baked lamps' falloff in the current mode. */
 export function bakedFalloff(d: number, r: number): number {
   return falloffMode === 'photometric' ? photoFalloff(d, r) : lampFalloff(d, r);
