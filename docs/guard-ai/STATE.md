@@ -7,6 +7,9 @@ ct-warehouse, takedown. RUNNING (Opus): S6 close-on fix on s10 (report slices/S1
 from WIP 1a0ddf6a (s14, report slices/S14.md); S15 finish + checks from WIP ed33c329 (s15). S13 done (ec2ea5b7).
 Next: s10 fix -> laptop rerun of sectorops:1 (+ stealth-ai) -> train-ready #200-#203; merge s10 up into s12 (#208);
 then S13 / S14 / S15 onto one tip, one Opus checker, one laptop run, PRs stacked on #208, then S9.
+Master 4.72.0 has guard-render S3a (#211): enemy.ts head hitbox from pure src/ai/guardHead.ts, `aimWeight()` split out of
+syncHitboxes; our branches leave those lines as master had them, so the master merge is the import line ~46 only.
+guard-render S4 (tier hint at enemy.ts 46 / 217 / 358 / 2089) comes next. Checked ~12:40: no clash, no reply sent.
 
 ~12:25: S13 BUILT 6ed1cabd (slices/S13.md, A52-A56; responseWiring 17/17 + 207 AI tests; new pure src/ai/sweepTeam.ts,
 Enemy.crew / teamRank, EnemyManager.setAlarmStage / newTeam / joinTeam, sectorMode.raised builds the shield-led
