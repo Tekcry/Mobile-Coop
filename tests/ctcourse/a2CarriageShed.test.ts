@@ -1141,4 +1141,42 @@ describe('A2 the Carriage Shed: dressing (slice 2 step 5)', () => {
     const crate: BoxPiece = { c: [33, 0.9, A2_DECK.z - 2.5 - 0.5], s: [1, 1.8, 1], yaw: 0, pitch: 0, color: '#888', collide: true, visible: true };
     expect(soloJumpThreats([...all, crate], LIP).length).toBeGreaterThan(0);
   });
+
+  it("the deck's east-end rail is drawn (P4-2): two posts and a top and a mid rail as visual skins on x 61.95 from z 17.6 to the stair rail's line, matching the stair's steel skins, no collision, none added to the solids", () => {
+    const xe = xHead - 0.05;
+    const end = skins.filter((p) => Math.abs(p.c[0] - xe) < 1e-6 && p.c[1] > A2_DECK.lip && p.c[2] > 17.6 - 1e-6 && p.c[2] < A2_STAIR_RAIL.z + 1e-6);
+    expect(end).toHaveLength(4);
+    const posts = end.filter((p) => p.s[1] > 0.9);
+    const rails = end.filter((p) => p.s[1] < 0.1).sort((p, q) => q.c[1] - p.c[1]);
+    expect(posts).toHaveLength(2);
+    expect(rails).toHaveLength(2);
+    // a post at each end of the run, 1.0 m over the lip, steelDark like the stair's posts; at most 1.5 m between posts
+    const pz = posts.map((p) => p.c[2]).sort((p, q) => p - q);
+    expect(pz[0]! - 0.02, 'post at the screen\'s back').toBeCloseTo(17.6, 9);
+    expect(pz[1]! + 0.02, 'post at the stair rail\'s line').toBeCloseTo(A2_STAIR_RAIL.z, 9);
+    expect(pz[1]! - pz[0]!).toBeLessThanOrEqual(1.5);
+    const stairPost = skins.find((p) => Math.abs(p.c[0] - 69.4) < 1e-6 && p.s[1] > 0.9 && p.s[1] < 1.1)!;
+    for (const p of posts) {
+      expect(p.c[1] - p.s[1] / 2).toBeCloseTo(A2_DECK.lip, 9);
+      expect(top(p) - A2_DECK.lip).toBeCloseTo(1.0, 9);
+      expect(p.color).toBe(stairPost.color);
+    }
+    // top rail at the lip + 1.0 m, a mid rail at + 0.5 m, each spanning the whole run, steel like the stair's slope rails
+    const stairRailSkin = dressing.find((p) => !p.collide && p.color !== stairPost.color && Math.abs(p.pitch) > 1e-3)!;
+    expect(rails[0]!.c[1] - A2_DECK.lip).toBeCloseTo(1.0, 9);
+    expect(rails[1]!.c[1] - A2_DECK.lip).toBeCloseTo(0.5, 9);
+    for (const r of rails) {
+      expect(r.c[2] - r.s[2] / 2).toBeCloseTo(17.6, 9);
+      expect(r.c[2] + r.s[2] / 2).toBeCloseTo(A2_STAIR_RAIL.z, 9);
+      expect(r.color).toBe(stairRailSkin.color);
+    }
+    // visual only: none collides, all noLedge, thin; the solids the dressing added are unchanged by them
+    for (const p of end) {
+      expect(p.collide).toBe(false);
+      expect(p.noLedge).toBe(true);
+      expect(Math.min(...p.s)).toBeLessThan(CANON_MIN_THICK);
+      expect(solid).not.toContain(p);
+    }
+    expect(deckEnd).toHaveLength(1);
+  });
 });
