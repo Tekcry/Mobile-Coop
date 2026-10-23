@@ -63,12 +63,26 @@ try {
   // (let the open shots' noise die away first)
   await sim(4);
   await G(() => { window.__app.current.weapons.current.stats.noise = 0.45; });
+  const sdA = await G(() => window.__app.current.weapons.current.sd);
   const sd = await sim(0.3, [[BTN.RT, 1]]);
   await sim(0.5);
   const s2 = await stats();
+  const sdB = await G(() => window.__app.current.weapons.current.sd);
   assert(s2.suppressed > s1.suppressed, `a suppressed rifle plays suppressed shots (${s2.suppressed - s1.suppressed})`);
   assert(sd.noise < openNoise, `guards hear the suppressed rifle less (${sd.noise.toFixed(1)} m < ${openNoise.toFixed(1)} m)`);
+  assert(sdA - sdB === s2.suppressed - s1.suppressed && sdA - sdB > 0, `each suppressed shot spends a quiet round (${sdA} -> ${sdB})`);
+  await page.waitForFunction(() => /^SD d+$/.test(document.querySelector('.hud .w-sd')?.textContent ?? ''), null, { timeout: 5000 });
   await G(() => { window.__app.current.weapons.current.stats.noise = 1; });
+
+  // (sd-rounds) out of quiet rounds: a suppressed rifle fires open shots and guards hear it like an open gun
+  await sim(4);
+  await G(() => { const c = window.__app.current.weapons.current; c.stats.noise = 0.45; c.sd = 0; });
+  const sp = await sim(0.3, [[BTN.RT, 1]]);
+  await sim(0.5);
+  const s3o = await stats();
+  assert(s3o.suppressed === s2.suppressed, 'out of quiet rounds: open shots');
+  assert(sp.noise >= openNoise * 0.9, `guards hear a spent suppressor like an open gun (${sp.noise.toFixed(1)} m >= ${(openNoise * 0.9).toFixed(1)} m)`);
+  await G(() => { const c = window.__app.current.weapons.current; c.stats.noise = 1; c.sd = 60; });
 
   // reload, then dry fire on an empty gun with nothing in reserve
   await press(page, BTN.A);

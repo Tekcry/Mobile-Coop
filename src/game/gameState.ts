@@ -24,6 +24,7 @@ import { Ballistics } from '../weapons/ballistics';
 import { Explosions } from '../weapons/explosions';
 import { Grenades } from '../weapons/grenades';
 import { PlayerWeapons, type LoadoutEntry } from '../weapons/playerWeapons';
+import { sdHud } from '../weapons/sdRounds';
 import { PlayerTarget } from './playerTarget';
 import { Hud, type HudFrame } from '../ui/hud/hud';
 import type { WheelView } from '../ui/hud/gadgetWheel';
@@ -583,12 +584,14 @@ export class GameState implements AppState {
     // counted; farther, one is sent to look and the rest turn); a suppressed one (noise x0.6 or less) is an ordinary
     // noise (one sent, the rest turn)
     this.weapons.events.onShot = () => {
-      const n = this.weapons.current.stats.noise;
+      const n = this.weapons.lastShotNoise;
       const r = SHOT_NOISE * n;
       this.eventNoise(r);
       if (n <= SUPPRESSED_NOISE) this.enemyMgr?.hear(this.player.position, r);
       else this.enemyMgr?.noise(this.player.position, r);
     };
+    // (sd-rounds) the quiet rounds ran out: this gun is loud from here
+    this.weapons.events.onSdOut = () => this.hud.feedItem('Suppressed rounds out: shots are loud', 'warn');
     this.target.onDamaged = (h, dealt) => {
       this.stats.damageTaken += dealt;
       const bearing = Math.atan2(h.sourcePos.x - this.player.position.x, h.sourcePos.z - this.player.position.z);
@@ -3289,6 +3292,7 @@ export class GameState implements AppState {
       mag: w.mag,
       magSize: w.stats.magSize,
       reserve: this.weapons.infiniteAmmo ? Infinity : w.reserve,
+      sd: sdHud(w, this.weapons.infiniteAmmo),
       gadget: this.weapons.gadgets.selected,
       grenades: this.weapons.gadgets.count,
       reloadProgress: this.weapons.reloadProgress,

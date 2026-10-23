@@ -35,7 +35,7 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
   w.onShot = (def) => {
     prevShot?.(def);
     // a suppressor (or a built-in one) halves the noise stat or more: that gun sounds suppressed
-    if (!wa.shot(def.id, g.weapons.current.stats.noise < 0.6, g.surface)) sfx.gunshot(def.class, 1, 0.12);
+    if (!wa.shot(def.id, g.weapons.lastShotQuiet, g.surface)) sfx.gunshot(def.class, 1, 0.12);
   };
   w.onReload = (def) => {
     const s = g.weapons.current;
