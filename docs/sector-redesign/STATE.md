@@ -300,7 +300,8 @@ LR16 (one lighting system; plan checks/lr16-plan.md, audit lr16-0-ct-audit.md)
   LR16-5b brief planner (briefs/LR16-5b.md, uncommitted in -polish until the lead commits). If dead on resume: rerun
   from these lines. Laptop: lr16int 6eb6a863 full LR16 set queued (...6eb6a863-f2e8); queue at 21:28 = 27 requests,
   laptop service not claiming yet (old service; Michael restarts it).
-- artnext PASS -> merge -artnext + -artnext-c into -artpol (then #226 target = artpol head); FIX -> one Opus fix round.
+- artnext check PASS (checks/artnext-check.md, 436 tests, polish 1-9): merged into -artpol b5e93548 = #226 target head.
+  Laptop e2e-sectorops:6 + e2e-coop on b5e93548 queued (...b5e93548-6795). C7-C9 still at #226's train entry.
 - Laptop requests pending: LR16t 5700dff5-8673, LR16e 2f5ffec1-0c61, LR16-1 4007eafe-2ad6 (pre-fix), perf A/B 273539ec /
   f8008542 / 41204e30 + Test Runner S5-worst A/B asked. Perf triage: overage = unfrozen guards (#226), not LR16.
 - After g: LR16-8 sheets (briefs/LR16h-and-8.md part 2 text to Test Runner), then the LR16 PR (one batch, src/ai -> two
@@ -310,7 +311,7 @@ LR16 (one lighting system; plan checks/lr16-plan.md, audit lr16-0-ct-audit.md)
   LR16-5b sway (M14, ctcourse only): Opus slice AFTER LR16-5 + LR16-1 merge into lr16int (same files: lights.ts,
   charShadows.ts, bakedLamps.ts). Pendant ids in a NEW data table (e.g. src/world/lampSway.ts), never the ctcourseSets
   files Marlow #257 edits (a2 / a4 / a6 / a8). Laptop GPU perf on ctcourse after.
-- cloud-queue: artnext-ABD + artnext-C DONE by Cloud Builder 1 (-artnext 3ebc5e1e, -artnext-c 56557b58); checker running.
+- cloud-queue: artnext-ABD + artnext-C DONE, checked, merged into -artpol.
 For Michael: Realistic dimmer (S2 atrium 0.28 vs 0.48, LR16g); S3 hall-lit white fog.
 Polish: lr15-check 1/2/4, lrpolish 1-6, art P6, perf check polish 3-7, lr16dx-check 2-7, lr16t checks, lr16-1 / e checks.
 RULES: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
