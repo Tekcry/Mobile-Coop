@@ -1,0 +1,15 @@
+{
+  "id": "20261023T225704-night-shift-guard-ai-63c7a676-b450",
+  "sha": "63c7a6766ba8fd02fd830292dc4be8387a57441f",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-enemies",
+    "e2e-stealth-ai",
+    "e2e-combat"
+  ],
+  "jobs": 2,
+  "set": "sniper-fix"
+}
