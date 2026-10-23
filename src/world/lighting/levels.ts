@@ -9,9 +9,15 @@
  * tuning table the game reads at run time.
  *
  * Design-time helpers (`lampLevel`, `poolIntensity`, `coveRow`, `spillsPast`, `lampsPerColumn`) estimate a lamp
- * layout before the bake; the bake test is the authority. The per-query helpers are allocation-free.
+ * layout before the bake; the bake test is the authority. The per-query helpers are allocation-free. Gameplay, the
+ * meter and the picture never read them: they read the light field.
+ *
+ * (LR16 train entry) One light model: every helper reads a lamp as the registry and the bake do (`lights.ts`
+ * `contribution`): the photometric `photoTerm` over the reach `lampReach(radius)` (`LampSpec.radius` is the authored
+ * radius, as passed to `LightRegistry.add`). Before, `lampLevel` and `poolIntensity` kept the old linear falloff over the
+ * radius and `spillsPast` / `lampsPerColumn` the radius as the plan reach.
  */
-import { LAMP_CONE_COS, LAMP_EXP, LAMP_LEVEL_GAIN, lampTerm } from '../lampMath';
+import { LAMP_CONE_COS, LAMP_EXP, LAMP_LEVEL_GAIN, lampReach, photoTerm } from '../lampMath';
 import { LIGHT } from '../lights';
 
 /** The light levels the plan designs to (light-field units, a standing body's `bodyLevel` unless said). */
@@ -45,7 +51,7 @@ export function meterBand(level: number): 'dark' | 'mid' | 'lit' {
   return level < LIGHT.shadow ? 'dark' : level < LIGHT.lit ? 'mid' : 'lit';
 }
 
-/** A fixed downward lamp (no cone) for the estimates: position, radius, intensity. */
+/** A fixed downward lamp (no cone) for the estimates: position, authored radius (reach `lampReach(radius)`), intensity. */
 export interface LampSpec {
   x: number;
   y: number;
@@ -54,9 +60,11 @@ export interface LampSpec {
   intensity: number;
 }
 
-/** One downward lamp's gameplay term at a point, visibility 1 (the open-room estimate). Allocation-free. */
+/** One downward lamp's gameplay term at a point, visibility 1 (the open-room estimate): exactly `contribution` of the
+ *  same lamp added to a `LightRegistry` (on, steady, at rest): the registry's `lightTerm` for a fixed lamp with no cone
+ *  (`photoTerm`, the hemisphere cut, over `lampReach(radius)`). Allocation-free. */
 export function lampLevel(l: LampSpec, x: number, y: number, z: number): number {
-  return LAMP_LEVEL_GAIN * l.intensity * lampTerm(x - l.x, y - l.y, z - l.z, l.radius, 0, -1, 0, LAMP_CONE_COS, LAMP_EXP);
+  return LAMP_LEVEL_GAIN * l.intensity * photoTerm(x - l.x, y - l.y, z - l.z, lampReach(l.radius), 0, -1, 0, LAMP_CONE_COS, LAMP_EXP);
 }
 
 /** Estimated standing-body level at a plan point: ambient + every lamp at the brighter of chest and head, visibility 1.
@@ -75,12 +83,13 @@ export function bodyEstimate(lamps: readonly LampSpec[], ambient: number, x: num
 
 /**
  * The intensity a single lamp at `drop` metres above a standing head needs for a body straight under it to read
- * `target` on `ambient` fill (the pool's centre, visibility 1). Infinity when the radius does not reach the head.
+ * `target` on `ambient` fill (the pool's centre, visibility 1). Infinity when the reach (`lampReach(radius)`) does not
+ * reach the head. Build time only (`lampLevel` at intensity 1).
  */
 export function poolIntensity(target: number, ambient: number, drop: number, radius: number): number {
-  const f = radius > 0 && drop < radius ? 1 - drop / radius : 0;
-  if (f <= 0) return Infinity;
-  return Math.max(0, target - ambient) / (LAMP_LEVEL_GAIN * f);
+  const per = lampLevel({ x: 0, y: drop, z: 0, radius, intensity: 1 }, 0, 0, 0);
+  if (!(per > 0)) return Infinity;
+  return Math.max(0, target - ambient) / per;
 }
 
 /**
@@ -102,17 +111,18 @@ export function coveRow(x0: number, z0: number, x1: number, z1: number, spacing:
  * Does a lamp's light cross a vertical plane (`axis` x or z at `at`) onto the far side? The gallery rule: a lamp behind
  * a glazing plane that passes light (the kit's collision-only glass is out of the light shapes, G45) must stop short of
  * it, so no gallery light reaches a set and no set light reaches the gallery, in the bake and the picture alike.
- * `margin` keeps the falloff's zero that far before the plane.
+ * `margin` keeps the falloff's zero (the reach, `lampReach(radius)`) that far before the plane.
  */
 export function spillsPast(l: LampSpec, axis: 'x' | 'z', at: number, margin = 0.3): boolean {
   const d = Math.abs((axis === 'x' ? l.x : l.z) - at);
-  return l.radius + margin > d;
+  return lampReach(l.radius) + margin > d;
 }
 
 /**
  * Most lamps whose plan reach touches one `grid`-metre bake column over the box [x0, z0, x1, z1] (the downward-lamp
- * case of `lampBake.ts` `lampColumnDist`: plan reach = radius). The shaders hold `LAMP_GRID_SLOTS` 8 per column; the
- * plan keeps every set at 8 or fewer before the bake test (`lampGridLossless.test.ts`) checks the real grid.
+ * case of `lampBake.ts` `lampColumnDist`: plan reach = the registry's reach, `lampReach(radius)`). The shaders hold
+ * `LAMP_GRID_SLOTS` per column; the plan keeps every set within it before the bake test (`lampGridLossless.test.ts`)
+ * checks the real grid.
  */
 export function lampsPerColumn(lamps: readonly LampSpec[], box: readonly [number, number, number, number], grid = 2): number {
   let worst = 0;
@@ -123,7 +133,7 @@ export function lampsPerColumn(lamps: readonly LampSpec[], box: readonly [number
         const l = lamps[i]!;
         const dx = Math.max(cx - l.x, 0, l.x - (cx + grid));
         const dz = Math.max(cz - l.z, 0, l.z - (cz + grid));
-        if (Math.sqrt(dx * dx + dz * dz) < l.radius) n++;
+        if (Math.sqrt(dx * dx + dz * dz) < lampReach(l.radius)) n++;
       }
       if (n > worst) worst = n;
     }

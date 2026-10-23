@@ -148,3 +148,28 @@ Tuned levels, old -> new (tolerance 0.08):
 e2e-coop and e2e-netmove (wire change: protocol 45, `sway`, no `lf`), e2e-lightbake, e2e-ctcourse (master's Marlow under
 LR16 light; its level gates may read as above), plus e2e-darkness and e2e-sectorops (lighting files merged with master's
 guard-ai / player work).
+
+## marlowLightingLevels: levels.ts on the LR16 model (Marlow Build report)
+Master's `tests/marlowLightingLevels.test.ts` was red here (2 of 7; the merge check above missed it): `lampLevel` kept the
+old linear falloff while the registry (`lights.ts` `contribution`) runs LR16's photometric model.
+- `src/world/lighting/levels.ts`: one model. `lampLevel` = `LAMP_LEVEL_GAIN x intensity x photoTerm(..., lampReach(radius),
+  hemisphere cone)`, the registry's own pure function (`LampSpec.radius` stays the authored radius, as given to
+  `LightRegistry.add`). `poolIntensity` solves through `lampLevel` at intensity 1 (was `1 - drop / radius`).
+  `spillsPast` and `lampsPerColumn` use the reach `lampReach(radius)` as the plan reach, as the bake does.
+- `src/world/lighting/marlowCircuits.ts`: `MARLOW_LAMP_BUDGET.perColumn` = `LAMP_GRID_SLOTS` (24 since LR16b; was a
+  literal 8, which the test's `toBe(LAMP_GRID_SLOTS)` hid behind the cove assert).
+- Callers: none in gameplay, the meter, the guards or the picture (they read the light field). Marlow's map files import
+  only the `MARLOW_LEVEL` constants (unchanged); `lampLevel`, `bodyEstimate`, `poolIntensity`, `spillsPast`,
+  `lampsPerColumn` are read only by this test. (`src/editor/lamps.ts` `lampLevel` and the e2e `lampLevel` in
+  `scripts/e2e-ctcourse/a4GoodsShed.mjs` are other functions.)
+- Test inputs that encoded the linear model (each with the reason in a comment, intent kept): the cove row's intensity
+  0.45 -> 0.15 (0.45 saturates the room on LR16: centre and wall 1.00; 0.15 reads centre 0.47 >= 0.40, wall 0.83);
+  `poolIntensity`'s out-of-reach drop 7 -> 8 m (radius 5 reaches 8 m); the cut-circuit neighbour radius 5 -> 3.5
+  (reach 5.6 < 6 m); `spillsPast` radii 3.5 / 3.9 -> 2.3 / 2.4 (reach 3.68 / 3.84 against 4 m less 0.3); the alloc
+  limit (2 -> 3) x lamps + 2 boxed doubles (292 B a call in Turbofan on `photoTerm`; a per-lamp object still fails).
+- The cove fail was the test's inputs, not Marlow's data: no Marlow value comes from these helpers.
+- For Marlow LR16-M: `docs/marlow-final/LIGHTING-PLAN.md` lines 90, 260, 310 still say 8 per column (now 24), and the
+  gallery rule (line 80, 276) now holds on the reach: a gallery lamp's authored radius <= (distance to glazing - 0.3) / 1.6.
+- Checks: tsc 0; lint 0 errors (42 existing warnings); vitest single files, `--maxWorkers=2`, slot lock:
+  marlowLightingLevels 7/7, marlowLightingCircuits + smoothWorldLight green (22/22 with levels), ctcourse/a1-a8 green;
+  ctcourseLight still 2 failed / 5 passed / 1 skipped (the Marlow re-tune above; it reads no `levels.ts` helper).
