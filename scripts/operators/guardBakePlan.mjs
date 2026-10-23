@@ -50,7 +50,10 @@ const LIBS = {
   prep: [],
   bodies: ['common.py', 'mh.py', 'guard_body.py'],
   heads: ['common.py', 'mh.py', 'materials.py', 'guard_skin.py', 'guard_body.py'],
-  garments: ['common.py', 'pattern.py', 'build_garment.py', 'garment_details.py', 'fitted.py', 'materials.py', 'garments/torso_common.py'],
+  garments: ['common.py', 'pattern.py', 'build_garment.py', 'garment_details.py', 'fitted.py', 'materials.py', 'garments/torso_common.py',
+    // G2: the job runner, its data and the parts a layer chain rebuilds under another job (gloves are in no chain).
+    'guard_garment.py', 'guard_garments.json', 'build_fitted.py', 'garments/legwear.py', 'garments/combat_shirt.py',
+    'garments/trousers.py', 'garments/boots.py', 'garments/field_jacket.py'],
   gear: ['common.py', 'rigid_skin.py', 'materials.py', 'gear/__init__.py', 'gear/fit.py', 'gear/mesh.py', 'gear/headwear.py', 'gear/helmet.py',
     'gear/torso.py', 'gear/shield.py', 'gear/kit.py', 'gear/pieces.py'],
   lods: ['common.py', 'bake_lods.py', 'rigid_skin.py', 'materials.py'],
