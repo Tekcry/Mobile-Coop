@@ -14,7 +14,7 @@ scratch/ctcore/push-resume.sh <abs file> <msg>. Message the orchestrator only at
 | #214 batch 23 | feature/ctcore-batch-23 (ctcore-batch) | 92ba8c94 + WIP | Opus agent: commit Anim Studio out of pause (main menu only, tuner stays), merge origin/master 4.74.0, patrol-timing intel via Enemy.patrolRoute (src/ai/enemy.ts:651), report docs/interrogation-intel/PATROL-TIMING.md; e2e-menus / studio. Then merge batch-22 in, laptop request, train-ready. iPad fit already PASS. |
 | #223 batch 24 pose-parity | feature/pose-parity | 19248c01 | PROTOCOL 36. Green; stacked on #214: merge batch-23 in when green, train-ready. |
 | spare 7 crouch-pops | feature/crouch-pops (crouch-pops) | 191c3565 | Opus agent restarted: pops 9.6 / 8.3 cm -> <= 0.5 (docs/anim-bake-targets/STATE.md:19). Stacks on #221. |
-| walk P1-P5 anim fix pass | feature/anim-fix-pass (anim-fix-pass) | 191c3565 | Opus planner: docs/anim-fix-pass/BRIEF.md + PLAN.md + before sheets; then build slices in parallel, one checker. |
+| walk P1-P5 anim fix pass | feature/anim-fix-pass (anim-fix-pass) | 69662cf2 | PLAN.md slices AF0-AF4b (groups 0-3). Running: AF0 Sonnet (afp-af0), AF1 / AF2 / AF5 Opus (afp-af1/2/5, branches feature/afp-*). Next: AF6 (net; base on coop-walk-fixes), then group 2 AF3 + AF4a, group 3 AF4b; merge slices into feature/anim-fix-pass; one checker. |
 | walk P6-P7 co-op | feature/coop-walk-fixes (coop-walk-fixes) | c6b4f4a3 | Built (assist takedown kind, PlayerState.sc, PROTOCOL 37). takedown + weapon-audio PASS. Opus checker running; laptop e2e-coop / netmove requested. |
 
 ## Next
