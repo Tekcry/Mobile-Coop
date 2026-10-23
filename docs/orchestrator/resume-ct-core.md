@@ -14,10 +14,10 @@ scratch/ctcore/push-resume.sh <abs file> <msg>. Message the orchestrator only at
 | #214 batch 23 (+iPad fit, Anim Studio main menu only) | feature/ctcore-batch-23 (ctcore-batch) | 34c73892 | +batch-22 merged. Train-ready on the laptop verdict for d86007b5. |
 | #223 pose-parity | feature/pose-parity | faee0255 | +batch-23 merged, PROTOCOL 36, crateWire assert 36. Same verdict. |
 | #231 coop-walk-fixes (walk P6-P7) | feature/coop-walk-fixes | d86007b5 | +pose-parity, PROTOCOL 37. Laptop batch requested 16:15 (coop, netmove, ctcourse, clip, pad); then train-ready x3. |
-| anim-fix-pass (walk P1-P5; PLAN.md:7 maps P1-P7) | feature/anim-fix-pass | origin | AF0 / AF2 / AF5 merged. AF1 done 6ae0869e, checker running (AF1-CHECK.md). AF4a (afp-af4a) and AF6 (afp-af6, PROTOCOL 38) agents running. |
+| anim-fix-pass (walk P1-P5; PLAN.md:7 maps P1-P7) | feature/anim-fix-pass | origin | AF0 / AF1 / AF2 / AF5 merged (44ed5389; AF1 checker PASS). AF3 running (afp-af3, node_modules junction to afp-af1). AF4a (afp-af4a) and AF6 (afp-af6, PROTOCOL 38) agents running. |
 
 ## Next
-1. AF1 PASS -> merge afp-af1 into anim-fix-pass, start AF3 (animGraph, after AF1). AF4b after AF3.
+1. AF3 hand-back -> checker (batch with AF4a / AF6) -> merge; then AF4b (animGraph, after AF3).
 2. AF4a / AF6 hand-backs -> one Opus checker for the batch -> merge into anim-fix-pass; AF6 merges coop-walk-fixes head first.
 3. Laptop verdict on d86007b5 -> train-ready #214 / #223 / #231 to the orchestrator.
 4. Agent rules: scratch/ctcore/COMMON-27.md. Follow-ups: intel part B (onIntelCode); relay climber sub bit.
