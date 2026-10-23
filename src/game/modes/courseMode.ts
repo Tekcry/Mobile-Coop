@@ -301,6 +301,8 @@ export class CourseMode implements GameMode {
       hasShared: (f) => !!this.state?.hasShared(f),
     });
     g.ctDev = this.ct;
+    // (guard-ai S22, G6) the guards turn a console back on through its own gate; they hear of every toggle (`consoleEdge`)
+    if (g.enemyMgr && lay.consoles?.length) g.enemyMgr.consoleHost = { reset: (id) => this.consoleBack(id) };
     this.handle();
     this.applyLocks();
   }
@@ -414,13 +416,15 @@ export class CourseMode implements GameMode {
       return;
     }
     this.lastPress = cid;
-    // (sector-fixes S) a security console: refused while its guard is up (alive, held or not), the cameras are off or
-    // (N3) a timed console re-arms
+    // (sector-fixes S) a security console: refused while its guard watches it (guard-ai S22 A134: calm, free, the screens
+    // in view; drawn off by a distraction he does not), the cameras are off or (N3) a timed console re-arms
     const con = consoleFor(this.layout?.consoles, cid);
     if (con) {
       const guard = this.squadOf(con.guard);
       const gid = this.consoleGate.get(cid);
-      const no = consoleRefusal(!!guard && guard.alive, !!this.state?.hasFlag(con.flag), gid !== undefined && (this.state?.gateRearm(gid) ?? 0) > 0);
+      const dv = this.layout!.devices[cid];
+      const watching = !!guard && !!dv && !!this.g.enemyMgr?.watchesConsole(guard, dv.x, dv.y, dv.z);
+      const no = consoleRefusal(watching, !!this.state?.hasFlag(con.flag), gid !== undefined && (this.state?.gateRearm(gid) ?? 0) > 0);
       if (no) {
         this.refuse(no, p);
         return;
@@ -727,6 +731,10 @@ export class CourseMode implements GameMode {
         // (course-ready F2) a flag gate (the camera pocket, the scanners) never fires gateOpened: its radio line is keyed
         // by the gate id and spoken when its flag is set
         for (const gt of bay.gates) if (gt.kind === 'flag' && gt.flag === e.flag) this.radio(gt.id);
+        this.consoleEdge(e.flag, false);
+        break;
+      case 'flagCleared':
+        this.consoleEdge(e.flag, true);
         break;
       case 'drillDone': {
         const d = bay.drills.find((x) => x.id === e.drill);
@@ -929,6 +937,28 @@ export class CourseMode implements GameMode {
     }
   }
 
+  /** (guard-ai S22, G6) A console's flag set (its cameras looped: off) or cleared (on): the guards hear of the toggle. */
+  private consoleEdge(flag: string, on: boolean): void {
+    const lay = this.layout;
+    const em = this.g.enemyMgr;
+    if (!lay?.consoles || !em) return;
+    for (const c of lay.consoles) {
+      if (c.flag !== flag) continue;
+      const dv = lay.devices[c.id];
+      if (dv) em.consoleState(c.id, dv.x, dv.y, dv.z, on);
+    }
+  }
+
+  /** (guard-ai S22, G6, A133) A guard worked console `id`: its loop ends (`CourseState.consoleBack`); the next `handle`
+   *  sends `flagCleared` on (the guards, the cameras, the client). Not reentrant: no `handle` from inside the guards'
+   *  update. */
+  private consoleBack(id: string): boolean {
+    const gid = this.consoleGate.get(id);
+    if (gid === undefined || !this.state?.consoleBack(gid)) return false;
+    this.dirty = true;
+    return true;
+  }
+
   /** (sector-fixes S) The current bay's guard spawned from squad slot `slot` (alive or down), or null. */
   squadOf(slot: string): Enemy | null {
     const k = this.squadIds.indexOf(slot);
@@ -1082,6 +1112,7 @@ export class CourseMode implements GameMode {
     this.ct?.dispose();
     this.ct = null;
     this.g.ctDev = null;
+    if (this.g.enemyMgr) this.g.enemyMgr.consoleHost = null;
     for (const m of this.pads) m.dispose();
     this.pads.length = 0;
     this.g.hud.pings.hideMarker();
