@@ -100,6 +100,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   rappel and fences on the Proving CT course.
 - [ ] Light: a lit pool on the light meter is lit on screen and guards there see you; a dark corner keeps you hidden
   (light parity). Shooting a lamp or a switch darkens it for the meter and the guards at once.
+- [ ] Character shadows (LR14, High and up): under a lamp near you a guard, your partner, a body or a held rifle throws
+  its real silhouette on the floor and walls (arms, legs, crouch), steady as you walk between lamps; at Medium (or
+  Graphics > Character shadows Off) the soft capsule shadows return.
 - [ ] Guard alerts (guard-ai S1-S3, Sector Ops): a thrown bottle sends one guard over while the others only turn; shoot
   a lamp with guards near and one or two check it and go back calm. Get spotted: the spotter shouts "Contact!" (guards
   within a few metres join at once), about 2.5 s later radios it in, then the rest of the section joins one by one,

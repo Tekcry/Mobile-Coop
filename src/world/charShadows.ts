@@ -127,7 +127,6 @@ export class CharShadows implements CharShadowLink {
   copies = 0;
   /** The map's metric with a reversed depth buffer runs the other way. */
   private readonly depthSign: number;
-  private readonly noMeshes: AbstractMesh[] = [];
 
   constructor(
     private scene: Scene,
@@ -195,7 +194,8 @@ export class CharShadows implements CharShadowLink {
     sg.forceBackFacesOnly = true;
     sg.transparencyShadow = false;
     const map = sg.getShadowMap()!;
-    map.renderList = this.noMeshes;
+    // (an empty list of its own, never filled: the casters come from `getCustomRenderList`)
+    map.renderList = [];
     map.refreshRate = 0;
     const slot: CsSlot = { light, sg, map, list: [], lamp: -1, ready: -1, fit: new Float32Array(FIT.size), fitReady: new Float32Array(FIT.size), every: 0, obs: null, vp: new Viewport(tileX(s, tile) / atlasSize(tile), tileY(s, tile) / atlasSize(tile), 0.5, 0.5) };
     map.getCustomRenderList = () => slot.list;
