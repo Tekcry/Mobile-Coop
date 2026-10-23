@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseMessage, PROTOCOL_VERSION, type Msg } from '../src/net/protocol';
+import { parseMessage, type Msg } from '../src/net/protocol';
 import {
   applyLamps,
   decodeLamps,
@@ -50,10 +50,6 @@ const meter = (f: LightField): number => f.bodyLevel(0.5, 0, 0, 1.8);
 const doors = { list: [] as ResetDoor[], setOpen: () => undefined, crack: () => false };
 
 describe('Sector Ops lamp sync (slice L, protocol 31)', () => {
-  it('PROTOCOL_VERSION is 37 (37 coop-walk-fixes; 36 pose-parity)', () => {
-    expect(PROTOCOL_VERSION).toBe(39);
-  });
-
   it('encode / decode round trips every state, flashlights read on', () => {
     const n = 200;
     const st = new Uint8Array(LAMP_MAX);

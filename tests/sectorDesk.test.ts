@@ -216,6 +216,8 @@ function stubGame() {
     events: { emit: () => undefined },
     net: { radioLine: (t: string) => net.push(t) },
     playerRefsInto: (out: unknown[]) => out,
+    // (section-rating) the mode tick counts detections
+    style: { detections: 0 },
   } as unknown as GameState;
   return { g, items, feed, net };
 }
@@ -300,6 +302,8 @@ describe('SectorMode desks (stub game)', () => {
     const { m, mi, items } = setup();
     // the stub has none of the begin-section kit (weapons, lights, objective items): only the desk wiring is under test
     mi.beginSection = () => undefined;
+    // nor the section-rating kit (grants, results list): the rating has its own tests
+    (m as unknown as { rate(): void }).rate = () => undefined;
     expect(m.run.objectiveDone()).toBe(true);
     const IN = { allInside: true, doorwayClear: true };
     let loaded = false;

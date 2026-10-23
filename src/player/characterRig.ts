@@ -1,5 +1,4 @@
 import { Color4, Matrix, Quaternion, TransformNode, Vector3, type Vector4, type AbstractMesh, type InstancedMesh, type Material, type Scene } from '../core/babylon';
-import { VoxelBody, type VoxelBodyOptions } from '../voxel/voxelBody';
 import { buildSmoothBody, type SmoothBody } from './smoothBody';
 import { addGlow, BEACON, GLOW_IDLE, GLOW_VISION } from './goggleGlow';
 import type { SwapReach } from '../anim/clips/actions';
@@ -80,6 +79,9 @@ export interface RigPose {
   reload?: number;
   yawRate?: number;
   armed?: boolean;
+  /** (guard-ai S21) The holstered / slung carry with the hands empty (the ready hands, the armed carriage kept); unset:
+   *  a carrier (the player, a remote player) with no weapon in hand. A guard sets it while his gun is holstered. */
+  ready?: boolean;
   /** Dash blend 0..1. */
   dash?: number;
   /** Landing recovery 0..1. */
@@ -229,12 +231,6 @@ let DEFAULT_STYLE: AvatarStyle = 'detailed';
 export function setAvatarStyle(s: AvatarStyle): void {
   DEFAULT_STYLE = s;
 }
-/** 3.0 voxel characters (null: the smooth parts render, e.g. `?gfx=min`): the 'detailed' style is voxelised. */
-let VOXEL_BODY: VoxelBodyOptions | null = null;
-export function setVoxelBodies(o: VoxelBodyOptions | null): void {
-  VOXEL_BODY = o;
-}
-
 export function avatarStyle(): AvatarStyle {
   return DEFAULT_STYLE;
 }
@@ -1365,19 +1361,17 @@ export class CharacterRig {
     let thigh = p.thigh.r0;
     for (const m of this.parts) if (m.parent === this.hipR || m.parent === this.hipL) thigh = Math.max(thigh, Math.abs(m.position.x) + m.scaling.x / 2);
     this.thighOuter = thigh;
-    // voxels (3.0): the parts merged into one skinned voxel mesh (they stay, unseen, for what reads them)
+    // (guard-render S1) opted in (guards): the parts merged into one rigidly skinned smooth mesh (they stay, unseen, for what reads them)
     const skin = ((this.parts[0] as InstancedMesh | undefined)?.sourceMesh?.metadata as { skinMaterial?: Material } | null | undefined)?.skinMaterial;
-    if (VOXEL_BODY && this.style === 'detailed' && skin) this.voxel = new VoxelBody(scene, this.root, this.parts, this.headNode, skin, name, VOXEL_BODY, name === 'player');
-    // (guard-render S1) else, opted in (guards): the parts merged into one rigidly skinned smooth mesh
-    else if (opts.merge && this.style === 'detailed' && skin) this.voxel = buildSmoothBody(scene, this.root, this.parts, name);
+    if (opts.merge && this.style === 'detailed' && skin) this.voxel = buildSmoothBody(scene, this.root, this.parts, name);
     DEBUG_RIGS.add(this);
     LIVE_RIGS.push(this);
   }
 
-  /** The merged voxel body (3.0; null: the smooth parts render). */
-  voxel: VoxelBody | SmoothBody | null = null;
+  /** The merged smooth body (guard-render S1; null: the parts render). */
+  voxel: SmoothBody | null = null;
 
-  /** What renders (shadow casters): the voxel body's meshes, else the parts. */
+  /** What renders (shadow casters): the merged body's meshes, else the parts. */
   get renderMeshes(): AbstractMesh[] {
     return this.voxel ? this.voxel.meshes : this.parts;
   }
@@ -1852,7 +1846,7 @@ export class CharacterRig {
     i.weaponTravel = this.weaponTravel;
     i.grenade = s.grenade ?? -1;
     i.armed = s.armed ?? !!this.heldWeapon;
-    i.ready = this.carrier && !this.heldWeapon;
+    i.ready = s.ready ?? (this.carrier && !this.heldWeapon);
     // (anim-rework S3) the drawn keyed set: a carrier (the player, a remote player) with the gun in hand, free on foot
     i.keyedDrawn = this.carrier && !!this.heldWeapon && !((s.bend ?? 0) > 0) && !((s.bendDrop ?? 0) > 0) && !(s.wall ?? false) && !(s.settleFeet ?? false);
     i.thighGear = this.thighGear;

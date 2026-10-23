@@ -51,6 +51,12 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   path; `gameplay.mocapLoco` stays in the save but a stored false boots ON). `?mocap=0/1` overrides it
   for a page, then the animation tuner's More > Panel box (`mocapHost`, this page only, not saved).
   World-and-characters.md "Mocap locomotion switch".
+- (lightrev LR13) Settings > Gameplay > "Lamp falloff" (`gameplay.lampFalloff`: Classic, the default / Realistic (test)):
+  a light-model rule, applied when a map loads; in a co-op match the row is a locked row showing the host's (lighting.md
+  "Lamp falloff").
+- (LR14) Settings > Graphics > "Character shadows" (`video.charShadows`: Auto, the default - on from High shadows - / On /
+  Off), under Shadows: the nearest lamps' silhouette shadow maps; rendering only, this machine only (lighting.md
+  "Character silhouette shadows").
 - Difficulty (`ui/difficultyRows.ts`): one row, CT's fixed levels Rookie, Normal, Realistic, Perfectionist (G106; no
   sliders). Shown on the Play screen (hidden in Free Roam) and in the co-op host's lobby; a client sees the host's level
   read-only. Rows carry `data-diff` for the e2e suites.

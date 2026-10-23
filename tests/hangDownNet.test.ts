@@ -6,15 +6,8 @@ import { hangHoldStep, hangingMove, type HangHeld, type HangSpot } from '../src/
 import { emptyMoveState } from '../src/player/moveState';
 import { HANG_HEAD, HANG_SUB, ROPE_SUB, THROW_SUB } from '../src/game/teamMoves';
 import { hangHoldPoint } from '../src/game/takedown';
-import { PROTOCOL_VERSION } from '../src/net/protocol';
 
 const mv = (m: 'boost' | 'brace' | 'ground', sub: number, dw = 2) => ({ ...emptyMoveState(), m, sub, dw });
-
-describe('hang-down net: no wire change', () => {
-  it('PROTOCOL_VERSION is 37 (37 coop-walk-fixes; pose-parity)', () => {
-    expect(PROTOCOL_VERSION).toBe(39);
-  });
-});
 
 describe('hang-down net: the hanging partner keeps the pistol (host D8 rule)', () => {
   it('boost + HANG_SUB is hands-free; the other team modes stay busy', () => {

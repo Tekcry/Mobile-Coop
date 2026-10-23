@@ -35,7 +35,6 @@ import { proportions } from '../player/proportions';
 import { hyp2 } from '../core/mathx';
 import { generateLedges, makeLedge, suppressLedgesNear, TraversalAnchors, type Fence, type RappelPoint, type SplitAnchor, type Door, type Duct, type Grate, type Ladder, type Ledge, type P3, type PipeHorizontal, type PipeVertical, type WindowAnchor, type Zipline } from './anchors';
 import { LightRegistry, type LightInit } from './lights';
-import { levelVoxels, type LevelVoxels, type VoxelArt } from '../voxel/levelVoxels';
 import { canonicalLightSet } from '../voxel/lightShapes';
 import { sheetMesh, type SheetPiece } from './roofSheets';
 
@@ -59,8 +58,8 @@ export interface BoxPiece {
   /** Visual-only dressing from the detail pass (never collides; the minimap skips it). */
   detail?: boolean;
   /** (guard-ai) Glass: 'clear' lets a guard's sight through, 'frosted' blocks it; hearing treats both as a wall.
-   *  (E2, EW6) Light passes both (out of the canonical light shapes); a glass piece is never drawn as a solid box or
-   *  voxels, never cover or a ledge, and its collision is its own body (`G.GLASS`: bodies stop, bullets pass). Place
+   *  (E2, EW6) Light passes both (out of the canonical light shapes); a glass piece is never drawn as a solid box,
+   *  never cover or a ledge, and its collision is its own body (`G.GLASS`: bodies stop, bullets pass). Place
    *  panes with `LevelBuilder.glass`. */
   glass?: 'clear' | 'frosted';
   /** (E10, A97) An armoured (bulletproof) glass pane: its body adds `G.GLASS_ARMOURED`, so player and enemy rounds stop
@@ -117,8 +116,6 @@ export interface BuiltLevel {
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
   /** The level material's procedural-surface plugin (3.0; rain sets `wet`). */
   surfacePlugin: SurfacePlugin | null;
-  /** 3.0 voxels: the pieces rendered as voxels (their shapes, palette and grid); they are left out of `meshes`. */
-  voxels: LevelVoxels | null;
   /** 3.6: the canonical light-bake shapes (packed), their bounds and hash - the same on every device and tier. */
   light: { shapes: Float32Array; lo: [number, number, number]; hi: [number, number, number]; hash: string };
   dispose(): void;
@@ -130,9 +127,6 @@ export interface LevelBuildOptions {
   floor?: Surface;
   detail?: TierQuality;
   dressing?: boolean;
-  voxelSize?: number;
-  fineSize?: number;
-  art?: VoxelArt | null;
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -301,8 +295,10 @@ export class LevelBuilder {
     return this.anchors.add<WindowAnchor>({ kind: 'window', c: { x: cx, y: cy, z: cz }, w, h, yaw, sillHeight: opts.sill ?? cy - h / 2, breakable: opts.breakable ?? true, open: opts.open ?? false });
   }
 
-  door(hx: number, hy: number, hz: number, width: number, yaw: number, opts: { height?: number; swing?: 1 | -1; locked?: boolean; breachable?: boolean; armoured?: boolean } = {}): Door {
+  door(hx: number, hy: number, hz: number, width: number, yaw: number, opts: { height?: number; swing?: 1 | -1; locked?: boolean; breachable?: boolean; leaf?: 'swing' | 'slide'; armoured?: boolean } = {}): Door {
     const d: Omit<Door, 'id'> = { kind: 'door', hinge: { x: hx, y: hy, z: hz }, width, height: opts.height ?? 2.1, yaw, swing: opts.swing ?? 1, locked: opts.locked ?? false, breachable: opts.breachable ?? true };
+    // (marlow-final kit) only a sliding door carries the field: every other anchor stays as it was
+    if (opts.leaf === 'slide') d.leaf = 'slide';
     // (E10) an armoured leaf: rounds stop on it, never through it (`doorMembership`); it opens, locks and bashes as any door
     if (opts.armoured) d.armoured = true;
     return this.anchors.add<Door>(d);
@@ -323,7 +319,7 @@ export class LevelBuilder {
   /**
    * (3.2.0) A chain-link fence from (ax, az) to (bx, bz) on floor `y`, `height` tall: posts and a top rail (visual),
    * a see-through mesh panel, and a body that stops movement (never bullets or sight: not a level piece, so no cover,
-   * ledges or voxels).
+   * or ledges).
    */
   fence(ax: number, az: number, bx: number, bz: number, height: number, y = 0, color = '#7b8288'): Fence {
     const len = hyp2(bx - ax, bz - az);
@@ -342,7 +338,7 @@ export class LevelBuilder {
    * (E2, EW6) A glass pane from (ax, az) to (bx, bz) on floor `y`, `height` tall (DEC G45): `clear` passes light and
    * guard sight, `frosted` light only; bullets pass both unless `armoured` (E10: rounds stop, no penetration), hearing
    * treats both as a wall, bodies stop. One collision piece `GLASS_THICK` deep (the same nav footprint as a fence panel
-   * on the same line), invisible as a box (`visible: false`: no solid mesh, voxels, cover, ledges or dressing), drawn as
+   * on the same line), invisible as a box (`visible: false`: no solid mesh, cover, ledges or dressing), drawn as
    * a see-through pane.
    */
   glass(ax: number, az: number, bx: number, bz: number, height: number, y = 0, kind: 'clear' | 'frosted' = 'clear', color = GLASS_COLOR, opts: { armoured?: boolean } = {}): BoxPiece {
@@ -537,26 +533,22 @@ export class LevelBuilder {
    * id: floors by what is underfoot, `floor` the map's default; the rest by colour); without, the flat shading.
    */
   /**
-   * The Babylon-free part of `build` (smooth-world): the visual-only dressing pass, the voxel split (only with a
-   * `voxelSize`) and the canonical light shapes. Call once per builder (it adds the dressing to `boxes`). Tests use it
-   * to prove the light shapes are the same with voxels on or off.
+   * The Babylon-free part of `build` (smooth-world): the visual-only dressing pass and the canonical light shapes.
+   * Call once per builder (it adds the dressing to `boxes`). Tests use it to prove the light shapes are the same on
+   * every path.
    */
-  prepare(name: string, opts: LevelBuildOptions = {}): { voxels: LevelVoxels | null; light: BuiltLevel['light'] } {
+  prepare(name: string, opts: LevelBuildOptions = {}): { light: BuiltLevel['light'] } {
     // visual-only dressing (3.0): never collides, so nav / cover / ledges are unchanged
-    // (a map with a voxel art layer dresses itself in voxels: the box dressing is only for the plain path; the smooth
-    // default path - no voxels - always draws it at the Detail tier)
     // (a map with `detail: false` (MapDef, ON0b) gets none at any tier; the light shapes below agree)
     const dressing = opts.dressing !== false;
-    if (dressing && opts.detail && !(opts.voxelSize && opts.art)) this.boxes.push(...detailPieces(this.boxes, name, opts.detail));
-    // voxels (3.0, `?voxels=1`): pieces thick enough become voxels; the rest stay thin-instanced boxes / cylinders
-    const voxels = opts.voxelSize ? levelVoxels(this.boxes, this.cylinders, this.surfaces, opts.floor ?? 'concrete', opts.voxelSize, undefined, opts.art ?? null, opts.fineSize ?? 0) : null;
-    // (the canonical light shapes ignore the dressing added above and the voxels: the same set either way)
-    return { voxels, light: canonicalLightSet(this.boxes, this.cylinders, name, dressing) };
+    if (dressing && opts.detail) this.boxes.push(...detailPieces(this.boxes, name, opts.detail));
+    // (the canonical light shapes ignore the dressing added above)
+    return { light: canonicalLightSet(this.boxes, this.cylinders, name, dressing) };
   }
 
   build(scene: Scene, name: string, opts: LevelBuildOptions = {}): BuiltLevel {
     const root = new TransformNode(`level-${name}`, scene);
-    const { voxels, light } = this.prepare(name, opts);
+    const { light } = this.prepare(name, opts);
     let mat: StandardMaterial | PBRMaterial;
     let surfacePlugin: SurfacePlugin | null = null;
     if (opts.atlas) {
@@ -604,7 +596,7 @@ export class LevelBuilder {
     const tmpQ = new Quaternion();
 
     // Boxes
-    const asMesh = (i: number): boolean => this.boxes[i]!.visible !== false && !this.boxes[i]!.glass && !voxels?.voxelBox[i];
+    const asMesh = (i: number): boolean => this.boxes[i]!.visible !== false && !this.boxes[i]!.glass;
     const shown = this.boxes.filter((_b, i) => asMesh(i));
     const bm = new Float32Array(shown.length * 16);
     const bc = new Float32Array(shown.length * 4);
@@ -638,15 +630,13 @@ export class LevelBuilder {
     const cc = new Float32Array(Math.max(1, this.cylinders.length) * 4);
     const cs = new Float32Array(Math.max(1, this.cylinders.length));
     let ci = 0;
-    this.cylinders.forEach((c, i) => {
-      if (!voxels?.voxelCyl[i]) {
-        Matrix.ComposeToRef(new Vector3(c.r * 2, c.h, c.r * 2), unitQ, new Vector3(c.c[0], c.c[1], c.c[2]), mtx);
-        mtx.copyToArray(cm, ci * 16);
-        const [r, g, b] = lin(hexToRgb(c.color));
-        cc.set([r, g, b, 1], ci * 4);
-        cs[ci] = kindOf(c.color, c.r * 2, c.h, c.r * 2, c.c[0], c.c[1] + c.h / 2, c.c[2]);
-        ci++;
-      }
+    this.cylinders.forEach((c) => {
+      Matrix.ComposeToRef(new Vector3(c.r * 2, c.h, c.r * 2), unitQ, new Vector3(c.c[0], c.c[1], c.c[2]), mtx);
+      mtx.copyToArray(cm, ci * 16);
+      const [r, g, b] = lin(hexToRgb(c.color));
+      cc.set([r, g, b, 1], ci * 4);
+      cs[ci] = kindOf(c.color, c.r * 2, c.h, c.r * 2, c.c[0], c.c[1] + c.h / 2, c.c[2]);
+      ci++;
       if (c.collide) {
         const shape = new PhysicsShapeCylinder(new Vector3(0, -c.h / 2, 0), new Vector3(0, c.h / 2, 0), c.r, scene);
         container.addChild(shape, new Vector3(c.c[0], c.c[1], c.c[2]));
@@ -739,7 +729,6 @@ export class LevelBuilder {
       surfaces: this.surfaces,
       bounds: this.bounds,
       surfacePlugin,
-      voxels,
       light,
       dispose: () => {
         body.dispose();

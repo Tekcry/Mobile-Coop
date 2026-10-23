@@ -126,7 +126,7 @@ describe('partner motion between states (afp AF6)', () => {
         const now = f / 60 + 0.3 / 60; // the host's frames are not in step with the joiner's
         while (ai < arrivals.length && arrivals[ai]!.at <= now) {
           const a = arrivals[ai++]!;
-          // (39) the host's stamp: the joiner's send clock through a ClockSync (coopHost.stateTime), else the arrival
+          // (afp AF6) the host's stamp: the joiner's send clock through a ClockSync (coopHost.stateTime), else the arrival
           let at = a.at;
           if (senderTime) {
             clock.observe(a.t, a.at);
@@ -152,7 +152,7 @@ describe('partner motion between states (afp AF6)', () => {
     expect(now.over).toBeLessThan(was.over);
     // arrival stamps: the jitter bends the spans (a retransmit's bunched states step the pace)
     expect(now.worst).toBeGreaterThan(0.1);
-    // (39) stamped by the joiner's send clock: the spans keep the pace (the 1% retransmits still extrapolate and blend)
+    // (afp AF6) stamped by the joiner's send clock: the spans keep the pace (the 1% retransmits still extrapolate and blend)
     const sent = res(HOST_INTERP_DELAY, true);
     console.info('netsim typical, sender time:', sent);
     expect(sent.over).toBeLessThan(0.02);
@@ -162,7 +162,7 @@ describe('partner motion between states (afp AF6)', () => {
   });
 });
 
-describe('the gait on the wire (protocol 39, afp AF6)', () => {
+describe('the gait on the wire (afp AF6)', () => {
   it('gaitWire: the clock wrapped to 0..1, the CT stop only while set', () => {
     const o: { gph?: number; qs?: number; hs?: number } = {};
     gaitWire(1.25, true, -1, false, 0, 0.35, 0.12, o);
