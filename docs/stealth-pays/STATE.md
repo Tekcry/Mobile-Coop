@@ -1,10 +1,10 @@
 # stealth-pays state
 
 ## Now
-S1, S2 and S3 done and checked (check FAIL B1 fixed by the lead). Docs and the single changelog fragment are in. Waiting on laptop `e2e-ctcourse` and `e2e-sectorops`, then the PR.
+S1, S2 and S3 done and checked (check FAIL B1 fixed by the lead). Docs and the single changelog fragment are in. PR #249 open; laptop `e2e-ctcourse` + `e2e-sectorops` PASS on bf9445d6 (30ab34e7 is docs only past it); CI check pass; labelled train-ready.
 
 ## Next
-Push, request `e2e-ctcourse` and `e2e-sectorops` on the laptop (e2e-sectorops (a2) was reworked, not yet run), open the PR. P1 stays parked.
+Ride the next train (33, after train 32 releases). On a train failure in ctcourse / sectorops: Opus triage at once. P1 stays parked.
 
 ## Open
 - P1 (client hang-down interrogation) parked: needs a wire change and a PROTOCOL number from the orchestrator (A6).
