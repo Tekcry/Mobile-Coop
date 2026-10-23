@@ -4,6 +4,9 @@ Saved 2026-10-23 ~10:30 by the CT Core session, for the ~10:45 account swap (win
 agent milestone. Agents running at a cut-off are lost: their last pushed commit is the resume point (table below).
 
 ## Live (resumed 10:48 on the new account; newest first, overrides the table)
+- 11:20 dual-reward DONE d262b5e7 (REPORT.md; e2e-coop desktop GPU PASS 183 s after a test fix: dualClock.reset()
+  before the pair, the client's earlier takedowns had left a stale note). Merged into batch-22 (e74faae7). Spare 7
+  sd-rounds Sonnet builder RUNNING in C:/NightShift/Mobile-Coop-sd-rounds (feature/sd-rounds off 8e5dbd83).
 - 11:02 Rule (Michael ~11:00, CLAUDE.md token rules): no mid-window clears; sessions start fresh at each swap; clear
   only past ~50% context. Gmail / Google Drive / Fergus connectors turned off in this session (~20k tokens per turn).
 - 11:00 Spare 9's `patrolRoute` getter rides on Guard AI's feature/guard-ai-s8 (S8 tactics PR, stacked on #196). Spare 9
