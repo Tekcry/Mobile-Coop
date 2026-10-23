@@ -230,11 +230,7 @@ export const dustDepot: MapDef = {
         { id: 'cache', pos: new Vector3(0, 1.2, 0), kind: 'cache' },
         { id: 'extract', pos: v(S + 4, S + 4), kind: 'extract' },
       ],
-      pickups: [
-        { pos: v(-S + 3, -S + 3), kind: 'ammo' },
-        { pos: v(11, 0), kind: 'ammo' },
-        { pos: v(0, -11), kind: 'ammo' },
-      ],
+      pickups: [],
     };
   },
 };

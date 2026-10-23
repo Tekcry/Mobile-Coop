@@ -416,10 +416,7 @@ export const mansion: MapDef = {
         { id: 'cache', pos: v(-14.6, -2.4, UP), kind: 'cache' },
         { id: 'extract', pos: v(26, 23), kind: 'extract' },
       ],
-      pickups: [
-        { pos: v(6.8, -24.4, 0.95), kind: 'ammo' },
-        { pos: v(-15.4, 9.5, 2.1), kind: 'ammo' },
-      ],
+      pickups: [],
       rooms: ROOMS,
       switches: [
         { pos: v(-3.85, -3.2), yaw: Math.PI / 2, group: FOYER },
