@@ -50,6 +50,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Co-op guard torches (coop-torches): on a dark map, when a guard searching in the dark switches his flashlight on,
   the joiner sees the same beam from his head, aimed where he faces, and it goes off when the host's does; standing in
   it raises the joiner's light meter as it raises the host's.
+- [ ] Co-op throw onto a guard (throw-ko): one player stands and offers the partner throw (RB standing), the other runs
+  in about 3 m in front of a standing guard and is thrown over: the guard drops knocked out as the partner comes down
+  on him, on both screens; a guard a step or more past the landing is left standing. Try it with each player thrown.
 - [ ] Co-op on the High or Epic preset, host and joiner in two windows (side by side, then one over the other): each
   sees the other's character, and the joiner's "Connecting to host" goes away once in the match.
 - [ ] Marlow Yard in co-op: every station's task shows as the HUD step line on both screens; a radio line follows each
@@ -108,12 +111,18 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Posted guards (guard-ai S5; once a map has a high-security post, e.g. the campus keyholders): throw a bottle or cut
   the light near him: he walks to the edge of his area, looks toward it ~5 s, walks back and faces his post; he never
   follows a search or chases you out of his area.
+- [ ] Alarm by radio (guard-ai S6, Sector Ops): get spotted and let the radio calls through: "Command, contact. Send
+  backup.", ALARM STAGE about 6.5 s after the spotter saw you, and reinforcements run in hunting. Take the spotter down
+  before his first radio line: no alarm, nobody comes.
 - [ ] Squads and dogs (guard-ai S5b, Sector Ops): knock a guard out unseen and wait up to ~40 s: his squad's radio
   check misses him and two squad mates walk to where he went down and wake him. A dog stays with its handler; drop the
   handler and the dog stays by him and barks.
 - [ ] Cameras see bodies (guard-ai S7, Sector Ops): knock a guard out where a camera sweeps (lit or dark): the desk
   radios "Camera N has a man down..." and the nearest guard walks over and wakes him; loop or jam the camera first and
   nobody comes.
+- [ ] Guard tactics (guard-ai S8): get spotted by 4 guards and break line of sight: the caller drops back into cover,
+  one moves up cover to cover ("Moving up!"), one covers from cover ("Covering!"), one goes round the side
+  ("Flanking!"); never more than one of them moving up at once, nobody runs at you in the open.
 - [ ] Talking pairs (guard-ai S10, Saltmarsh Park car park): watch the pair from cover: at their stop by the aisle end
   they face each other and swap two lines, then walk on; knock one out before they meet and ~6 s later the other walks
   to where his partner was headed.

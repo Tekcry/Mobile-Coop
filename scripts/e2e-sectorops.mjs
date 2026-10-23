@@ -254,7 +254,11 @@ await run(PARAMS, async ({ page, G, sim }) => {
       raised = await G(() => window.__app.current.enemyMgr.alarmRaised);
     }
     const d = await G(() => window.__sector.debug());
+    // (guard-ai S6 stack merge) the stage rises through the panel, not the radio command call (S6: a contact call that
+    // gets through also raises the alarm, ~6.5 s after the sighting), so the path this scenario names is asserted
+    const by = await G(() => window.__app.current.enemyMgr.alarmBy);
     assert(raised && d.stage === st0 + 1, `${tag}: the panel raises the alarm stage (${st0} -> ${d.stage}, raised ${raised})`);
+    assert(by === 'panel', `${tag}: raised by the panel, not the radio (alarmBy '${by}')`);
   };
   await panelAlarm('section 2');
   // (marlow-bays item 3) the restart from the pause menu: "Restart at checkpoint", a confirm opening on Stay, then Restart
@@ -1914,7 +1918,7 @@ if (want(1)) {
       out.bMax = bMax;
       g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
       return out;
-    }, site);
+    }, site.at);
     const f2 = (v) => v.toFixed(2);
     assert(r.aSent === -1 && r.fSent >= 0, `posts: the board sends the free guard, never the vault-door guard (vault ${r.aSent}, free ${r.fSent})`);
     assert(JSON.stringify(r.phases.slice(0, 3)) === '[1,2,3]' && r.phases[r.phases.length - 1] === 5, `posts: the vault-door guard walks out, looks, walks back, done (phases ${JSON.stringify(r.phases)})`);
@@ -2307,6 +2311,92 @@ await run(PARAMS, async ({ G, sim }) => {
   }
   assert(st.revived, `the sent guard wakes the victim (${t.toFixed(1)} s: ${JSON.stringify(st)})`);
 });
+}
+
+// (guard-ai S6, design 7, M4, M1) The alarm by radio. The section's guards go, the live panel is off (the radio path
+// only), the cameras are held, the player stands far off in the dark. (a) A guard forced into combat is knocked out
+// during his contact call: no command call, no alarm stage, nobody comes. (b) Another one's contact gets through: he
+// holds the command call (RADIO.report x reaction), the stage rises by radio and the section's perStage reinforcements
+// come in at its entry points (`SectorDef.entries`, else its reinforce points): aggressive, in combat on the last known
+// position at once, closing on it fast, never calm. Numbers from the tables.
+if (want(1)) {
+  console.log('sector ops: the alarm by radio; the caller cut first stops it; aggressive reinforcements (guard-ai S6)');
+  await run(PARAMS, async ({ G, sim }) => {
+    await G(() => { const g = window.__app.current; g.target.damageMul = 0; if (g.security) g.security.fixedUpdate = () => {}; if (window.__ctdev) window.__ctdev.fixedUpdate = () => {}; });
+    await sim(0.5);
+    const S = await sections(G);
+    const r = await G((o) => {
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const nav = em.nav;
+      const V = g.player.position.constructor;
+      const step = (s) => window.__app.loop.stepHeadless(s);
+      const dbg = () => window.__sector.debug();
+      for (const e of [...em.enemies]) em.despawn(e);
+      for (const p of em.alarms) p.disabled = true;
+      g['updateLight'] = () => (g.localRef.light = g.lightLevel = 0);
+      g.player.controller.teleport(new V(o[0] - 40, o[1], o[2] - 40), 0);
+      const c = nav.nearestWalkable(o[0], o[2], 6, o[1]);
+      const [x, z] = nav.center(c);
+      const y = nav.height[c];
+      const out = { R: em.radioTable.report, react: em.diff.reaction };
+      const hit = (e) => ({ amount: 9999, point: e.pos.clone(), dir: new V(0, 0, 1), part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: 'local', sourcePos: e.pos.clone(), impulse: 0 });
+      // (a) cut during the contact call
+      const d0 = dbg();
+      const s0 = em.command.started;
+      const A = em.spawn('grunt', new V(x, y, z), false, 0);
+      em.placeSlot(A, { yaw: 0 }, 0);
+      step(0.3);
+      A.alert();
+      step(0.5);
+      out.aLeft = em.radioLeft(A);
+      A.knockOut(hit(A));
+      step(12);
+      const d1 = dbg();
+      Object.assign(out, { aStarted: em.command.started - s0, aRaised: em.alarmRaised, aStage: [d0.stage, d1.stage], aSent: d1.reinforced - d0.reinforced });
+      em.despawn(A);
+      // (b) the call gets through
+      em.lkp.set(x, y, z);
+      em.lkpValid = true;
+      em.sightT = 0;
+      const B = em.spawn('grunt', new V(x, y, z), false, 0);
+      em.placeSlot(B, { yaw: 0 }, 0);
+      step(0.3);
+      B.alert();
+      let t = 0;
+      let tCmd = -1;
+      while (!em.alarmRaised && t < 15) {
+        step(0.1);
+        t += 0.1;
+        if (tCmd < 0 && em.command.caller === B.num) tCmd = t;
+      }
+      const d2 = dbg();
+      const sec = g.world.map.sectors[0];
+      const pts = (sec.entries ?? []).length ? sec.entries.map((q) => q.at) : sec.reinforce;
+      const reinf = em.enemies.filter((e) => e.alive && e.profile === 'aggressive');
+      const atEntry = reinf.map((e) => Math.min(...pts.map((p) => Math.hypot(e.pos.x - p[0], e.pos.z - p[1]))));
+      const toLkp = () => reinf.map((e) => Math.hypot(e.pos.x - x, e.pos.z - z));
+      const dl0 = toLkp();
+      step(1);
+      const lv1 = reinf.map((e) => e.level);
+      step(7);
+      const dl1 = toLkp();
+      step(30);
+      const lv2 = reinf.map((e) => (e.alive ? e.level : 'down'));
+      g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
+      Object.assign(out, { tCmd, tAl: t, by: em.alarmBy, stage: [d1.stage, d2.stage], sent: d2.reinforced - d1.reinforced, perStage: sec.perStage, n: reinf.length, atEntry, lv1, dl0, dl1, lv2, walk: reinf[0]?.def.walkSpeed ?? 0 });
+      return out;
+    }, S[0].obj);
+    const f2 = (v) => v.toFixed(2);
+    assert(r.aLeft > 0.3 && r.aStarted === 0 && !r.aRaised && r.aStage[1] === r.aStage[0] && r.aSent === 0, `S6: the caller knocked out during his call (${f2(r.aLeft)} s left): no command call, no alarm, nobody comes (${JSON.stringify(r)})`);
+    assert(r.tCmd > 0 && r.by === 'radio' && Math.abs(r.tAl - r.tCmd - r.R * r.react) < 0.35, `S6: his contact gets through, he calls command, and ${f2(r.R * r.react)} s later the alarm goes off by radio (command at ${f2(r.tCmd)} s, alarm at ${f2(r.tAl)} s, '${r.by}')`);
+    assert(r.stage[1] === r.stage[0] + 1 && r.sent === r.perStage && r.n === r.perStage, `S6: the stage rises and the section's ${r.perStage} reinforcements come in, aggressive (${r.stage}, sent ${r.sent}, aggressive ${r.n})`);
+    assert(r.atEntry.every((d) => d < 4), `S6: they come in at the section's entry points (${r.atEntry.map(f2)} m)`);
+    assert(r.lv1.every((l) => l === 'alert'), `S6: in combat at once, on the last known position (${r.lv1})`);
+    const closed = r.dl0.map((d, i) => d - r.dl1[i]);
+    assert(r.dl1.every((d) => d < 4) || closed.some((d) => d > 4), `S6: they close on it (${r.dl0.map(f2)} -> ${r.dl1.map(f2)} m in 7 s; walk ${r.walk})`);
+    assert(r.lv2.every((l) => l === 'alert' || l === 'searching' || l === 'down'), `S6: still hunting 38 s on (never calm: alertState pins the endless search) (${r.lv2})`);
+  });
 }
 
 console.log(all.length ? 'console problems:\n' + all.join('\n') : 'no console errors');

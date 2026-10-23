@@ -42,7 +42,7 @@ first x 0.25, secure circle 8 m (route reach + 2 m); alarm run supervisor 0.1 / 
 - `src/ai/enemyManager.ts` (`placeSlot`, `bindDog`, `guardAtSlot`, `radioCheckNow`, `deskCaller`, `bodyFoundOf`,
   `reportMissing`, `handlerDown`, `swapSlot`; `fillView` tags; `assignAlarm` one line; `hear` optional `skip`;
   `despawn` / `clear` tidy-up)
-- `src/ai/enemy.ts` (tag fields, `findLeader` handler branch, `inherit`)
+- `src/ai/enemy.ts` (tag fields; the role word is `Enemy.job` since the S8 merge, `Enemy.role` being S8's combat role; `findLeader` handler branch, `inherit`)
 - `src/ai/incidents.ts` (`GuardView.role/zx/zz/zr` + `setTags`; `mark` zone guards; `best` role / zone factors;
   K_MISSING perceivers first)
 - `src/game/modes/sectorMode.ts` (fill passes the guard list and index)
@@ -85,3 +85,18 @@ first x 0.25, secure circle 8 m (route reach + 2 m); alarm run supervisor 0.1 / 
   mates walk to where he dropped and wake him. Hide the body first and they search the spot and find nothing.
 - Take the desk guard out first: lone posts are no longer checked on.
 - A dog stays with its handler on his round; drop the handler and the dog stays by him and barks, which brings a guard.
+
+## Stack merge (S8 43b407fd, then S8 caa59027 with master 4.70.0; 2026-10-23)
+- Conflicts: `src/ai/enemy.ts` `inherit` (kept S8's `this.tacticsProfile = o.tacticsProfile;` first, then S5b's tag
+  copies, `enemy.ts:654`) and `docs/guard-ai/BRIEF.md` (kept both: A23-A25 S8, then A26-A28 S5b). The second merge
+  (S8 caa59027: master 4.70.0 via S7) was clean and touched no AI file.
+- Must-do 1, the duplicate `Enemy.role`: S5b's string tag is now `Enemy.job` (field `enemy.ts:953`, `inherit`
+  `enemy.ts:661`, `placeSlot` `enemyManager.ts:990` `e.job = slot.role ?? ''`); S8's numeric combat `role` kept. The
+  test stub fields in `tests/sectorGuardTags.test.ts` (188, 231) renamed, plus an `expect(gs[0]!.job).toBe('desk')`.
+  Docs: `docs/systems/ai.md` (the `role` tag line) and this report's file list name `Enemy.job`. Kept as they were:
+  `roleFlags`, `GuardView.role` and the slot tag name `role`.
+- S8's numeric `tacticsProfile` and S5's string `profile` both kept; S8's `placeSlot` profile line merged cleanly.
+- Checks: `npx tsc --noEmit -p .` clean; `npx eslint` on the 31 `src/` / `tests/` files the merges changed clean;
+  vitest, 48 files (the 39 that cover `src/ai`, `src/game/sectors*`, `src/security`, plus sectorGuardTags and the
+  merges' mocapDefault, mocapGuards, mocapPlayer, mocapSwitch, remoteAvatarSeed, settingsCover, throwKo, traverseFix),
+  4 per call: 809 passed, 2 skipped, 1 todo, 0 failed. e2e not run.

@@ -131,6 +131,26 @@ manoeuvre beats guard count. Every map's guards are armed (Answers 3).
   unit, check on him." (KO) or "He's not moving. Two of you, go." (dead); N = the camera's place in the map's security
   list (1-based), {room} the `RoomRect.name` under the body (dropped when none); a radio bark over the camera, text
   only (G82). Undo: `camBodyLine` (src/ai/barks.ts) and the label in `GameState`'s `onBody`.
+- **A23** (S8) Squad roles run for one engaged group per guard set (the one shared last known position): every alerted,
+  free, cover-using guard (not melee, dog, sniper, enforcer, a room holder, passive, held, on an alarm run or closing in)
+  when there are at least 2 of them; a lone guard and the parked modes keep today's tactics and today's single flanker
+  (the flank role replaces it only while a group has roles). The reporter is the engagement's first contact caller.
+  Undo: `TACTICS.minGroup` (enemyManager.ts) to 99 turns the roles off.
+- **A24** (S8, A7) Combat dice: one mulberry32 `Rng` per guard, seeded by his `num` at spawn and reseeded
+  `combatSeed(matchSeed 0x5eed, engagement, num)` when he goes to combat; an engagement starts when a guard goes to
+  combat with nobody else in it (the board opens no contact incidents, so this stands in for the incident id). The
+  think cadence stays on `Math.random` (perception, not combat); the parked modes' `callAlert` / shout jitter stays
+  (parked, replaced by the radio net). Non-combat: reinforcements face the last known position, a revived guard keeps
+  the yaw he went down with (S4, `Enemy.inherit`), the squad radio check spread is a fixed golden-ratio sequence. Undo: `Math.random` back in those places.
+- **A25** (S8) Profiles: `EnemyManager.placeSlot` sets `tacticsProfile` `P_POST` for a guard with any post (normal or
+  high security: never point or flank), `P_AGGRESSIVE` for `profile: 'aggressive'`, else `P_STANDARD`; a woken guard keeps
+  it (`Enemy.inherit`); S6 reinforcements are `P_AGGRESSIVE` (`joinAsReinforcement`). A high-security post in a group (A18) never takes a
+  role cover outside his leash (`Enemy.setRole` drops it: he holds where he is), and a point or flank role given to him
+  (another profile) becomes search (today's leashed tactics). A guard with a role
+  holds his cover and keeps peeking and firing (peek-and-report: his sightings move the shared LKP) instead of stepping
+  out after 5 peeks; the point instead walks the last stretch (`closing`, out of the group, `ADVANCE_PACE`) when he has
+  no cover left to bound to or after 5 peeks with no sight. The reporter stays crouched and holds his fire while his
+  contact call is open. Undo: `holds` in `Enemy.decide` (`inCover`).
 - **A26** (S5b) Squads and radio checks in Sector Ops: every section guard joins a squad in `placeSlot` (`squad` tag ->
   section x 100 + squad; none -> the cluster of posts within 12 m; a dog -> its handler's). A member down and not yet
   found is missed at the next check (every ~40 s) and, in the coordinated modes, opens a `missing` incident at where he
@@ -151,6 +171,25 @@ manoeuvre beats guard count. Every map's guards are armed (Answers 3).
   dead): the dog searches round him, barks (a 14 m noise at the dog: the board sends one guard who hears it), then
   keeps its heel spot by where he fell; a woken handler takes his dog back; a despawned one frees it (the old rule).
   Undo: the `handler` branch of `Enemy.findLeader` (src/ai/enemy.ts) and `EnemyManager.handlerDown`.
+- **A29** (S6) The 3 s hand-over (design 7) applies to the command call only. Take the spotter out before his contact
+  call gets through and nothing is owed: his voice hearers fight but never call (S3), so no alarm. Once the contact got
+  through, a cut commander's call passes to the next guard in the fight (in combat, or the search after it; out of the
+  target's sight first, then an officer, then the lower key) 3 s later; with nobody left in the fight the alarm lapses.
+  Undo: in `EnemyManager.radioStep` (src/ai/enemyManager.ts) call `this.command.lapse()` instead of `nextCaller()` (any
+  cut commander stops the alarm).
+- **A30** (S6) Command calls run only under stealth rules (`EnemyManager.stealth`, as alarm panels): Sector Ops,
+  Infiltration (and the e2e's coordinated Clear); Free Roam and Course mode (stealth off on this branch) raise no radio
+  alarm. The radio alarm needs no panel, counts as the alarm (banner, `alarm` event, playstyle tally, Sector stage) and
+  is once per match / Sector section load like a panel. The caller says "Command, contact. Send backup." when he starts
+  the 4 s call, so the player sees whom to stop. Undo: drop the `this.stealth` check in `contactThrough`; bark at
+  completion in `sink.completed`.
+- **A31** (S6) Reinforcements are told by command (no contact call of their own; "Copy, moving!"), profile 'aggressive'
+  (S5's string, and S8's numeric `tacticsProfile = P_AGGRESSIVE` since the stack merge): cover first 0.3, 0.8 s between bounds, the last stretch at
+  0.75 x run speed, and they never calm (the search after combat never ends). An entry route is run at run speed,
+  dropped on sight of the target or after 30 s. Where: Sector Ops `SectorDef.entries` in turn, else its `reinforce`
+  points; other live maps `MapLayout.guardAi.entries` of the alarm's section furthest from the player, else the furthest
+  `MapLayout.reinforce` point; kinds unchanged (design Q4). No live map has entries yet. Undo: `joinReinforcement`
+  (src/ai/enemyManager.ts) -> `e.alert()` (the old alerted spawn, standard profile).
 - **A32** (S10) A talking pair meets at the nearest pair of stops (one per route) within `PAIRS.meetMax` 6 m whose stays
   overlap (`pickMeet`; a tie within 0.05 m goes to the longer stay), timed at the slower guard's `walkSpeed` (a timed loop
   walks at `walkSpeed`, not the x1.1 patrol pace the module note assumed); the two clocks are lined up by each walker's

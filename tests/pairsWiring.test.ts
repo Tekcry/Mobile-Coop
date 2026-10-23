@@ -96,7 +96,7 @@ function guard(route: PatrolRoute | null, x = 0, z = 0, o: Partial<FakeGuard> = 
     section: 0,
     coverIdx: -1,
     roleFlags: 0,
-    role: '',
+    job: '',
     zone: '',
     zoneR: 0,
     zoneX: 0,

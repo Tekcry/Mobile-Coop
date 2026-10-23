@@ -63,11 +63,14 @@ const az = new Vector3();
  * 0.08], beside the head: the hand rose above the shoulder), never across the face; out beside the right hip for the thigh
  * holster.
  */
-export const TRAVEL_VIA = { back: [0.36, 0.15, 0.18], thigh: [0.24, -0.1, 0.34], sling: [0.3, -0.22, 0.14] } as const;
+export const TRAVEL_VIA = { back: [0.36, 0.15, 0.18], thigh: [0.24, -0.1, 0.34], sling: [0.4, -0.22, 0.04] } as const;
 /**
  * (anim-rework S3, M2) The sling draw's grip waypoint (chest frame, m) is `TRAVEL_VIA.sling`: low beside the right hip,
  * a little forward, under the arm (the gun hangs muzzle down there before it swings up into the shoulder), clear of the
  * right thigh. Only a long gun drawn from the diagonal back sling by LT from holstered takes it (`beginTravel` sling).
+ * (traverse-fix) [0.3, -0.22, 0.14] -> [0.4, -0.22, 0.04]: further out from the hip and less forward, so the rifle swinging
+ * up into the shoulder clears the trunk (e2e-clip "sling draw + glide" trunk -1.5 -> +0.9 cm, legs 0.2 -> 2.8 cm; z 0.22
+ * forward was worse, -2.6 cm and into the thigh).
  */
 /**
  * (anim-cleanup, check fix r1) At the slot end the grip first moves out by this much (chest frame): off the back plate to

@@ -183,3 +183,12 @@ export async function turnFeet(v: number, ang: number, off: number, mode: Mode, 
   const b = contactSlide(R.heelR, R.ballR, R.contactR, FOOT_SLIDE);
   return { slide: Math.max(a.worst, b.worst), heel: Math.max(a.heelWorst, b.heelWorst), ball: Math.max(a.ballWorst, b.ballWorst), plants: a.plants + b.plants, lift };
 }
+
+/** (mt2-fixF) A straight CT gait at pace v (through CT's start spring), 2 s settled then `sec` s recorded: the planted
+ *  feet's rendered contact slide as turnFeet reads it (heel / ball, metrics.ts contactSlide; `lift` unused, 0). */
+export async function straightFeet(v: number, mode: Mode, sec = 2): Promise<TurnFeet> {
+  const R = await ctRun(() => ({ v, yr: 0 }), Math.round(60 * (2 + sec)), 2, mode);
+  const a = contactSlide(R.heelL, R.ballL, R.contactL, FOOT_SLIDE);
+  const b = contactSlide(R.heelR, R.ballR, R.contactR, FOOT_SLIDE);
+  return { slide: Math.max(a.worst, b.worst), heel: Math.max(a.heelWorst, b.heelWorst), ball: Math.max(a.ballWorst, b.ballWorst), plants: a.plants + b.plants, lift: 0 };
+}
