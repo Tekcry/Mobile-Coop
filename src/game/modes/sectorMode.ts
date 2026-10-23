@@ -13,6 +13,9 @@ import { flags } from '../../core/flags';
 import { reportGuardAi, validatePosts } from '../../ai/guardAiData';
 import { hyp2 } from '../../core/mathx';
 import { CtDevices } from '../ctDevices';
+import { SectorGuardFreeze, seeThroughRay } from '../sectorGuardFreezeView';
+import { inSheet } from '../../world/roofSheets';
+import { G } from '../../physics/groups';
 import { responseTeam } from '../../ai/gear';
 import type { SweepTeam } from '../../ai/sweepTeam';
 import type { EnemyKind } from '../../ai/enemyDefs';
@@ -265,6 +268,8 @@ export class SectorMode implements GameMode {
 
   private readonly checkpoint = new Vector3();
   private readonly tmp = new Vector3();
+  /** (sector-redesign perf) Guards whose body and shadows cannot reach the screen skip the render (`?guardfreeze=0`: off). */
+  private freeze: SectorGuardFreeze | null = null;
 
   constructor(private g: GameState) {
     this.run = new SectorRun(g.world.map.sectors ?? []);
@@ -316,6 +321,18 @@ export class SectorMode implements GameMode {
       alertAt: (x, y, z, key) => g.enemyMgr?.deviceAlert(x, y, z, key),
     });
     g.ctDev = this.ct;
+    // (the occlusion rays: static geometry only, so glass and fences never hide a guard; fix round: the static bodies the
+    // camera sees through - a door leaf not shut, an unbroken breakable pane, a roof sheet - are stepped past. Render
+    // only: gameplay rays keep G.STATIC whole; frzpol: a door that stops hiding the view or a pane that opens re-tests
+    // the hidden guards at the next evaluation)
+    if (flags.guardFreeze) {
+      const w = g.world;
+      const sheets = w.level.sheets;
+      const see = (body: unknown, x: number, y: number, z: number): boolean =>
+        w.doors.seeThrough(body) || w.breakables.seeThrough(body) || inSheet(sheets, x, y, z);
+      const views = (): number => w.doors.viewVersion() + w.breakables.viewVersion();
+      this.freeze = new SectorGuardFreeze(g.scene, em, seeThroughRay((a, b) => g.ballistics.cast(a, b, G.STATIC), see), views);
+    }
     (window as unknown as { __sector?: SectorMode }).__sector = this;
     // (section-rating S2) the section's alarms and found bodies; the dev / test view of the rating
     this.offs.push(
@@ -1331,6 +1348,10 @@ export class SectorMode implements GameMode {
       camAlarms: this.camAlarms,
       pending: this.pending.length,
       restarts: this.restarts,
+      // (sector-redesign perf) guards render-frozen at the last camera evaluation (-1: the freeze is off)
+      guardFreeze: this.freeze ? this.freeze.count : -1,
+      guardFreezeOccluded: this.freeze ? this.freeze.occluded : -1,
+      guardFreezeRays: this.freeze ? this.freeze.rays : -1,
       lastReset: { ...this.lastReset },
       restarting: this.restartT >= 0,
       checkpoint: { ...this.run.checkpoint },
@@ -1352,6 +1373,8 @@ export class SectorMode implements GameMode {
   }
 
   dispose(): void {
+    this.freeze?.dispose();
+    this.freeze = null;
     this.ct?.dispose();
     this.ct = null;
     this.g.ctDev = null;

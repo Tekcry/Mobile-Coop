@@ -138,7 +138,10 @@ export function lampShotOk(reg: LightRegistry, id: number, o: P3, d: P3, dist: n
   const l = reg.lights[id];
   if (!l || l.kind === 'flashlight' || !l.destructible || l.destroyed) return false;
   if (hyp3(o.x - feet.x, o.y - (feet.y + 1.2), o.z - feet.z) > LAMP_SHOT_ORIGIN) return false;
-  const len = Math.min(dist, range) + 0.3;
+  // the claimed landing first (`lightOnRay` measures the mount reach at the segment end), then 0.3 m on for rounding
+  const end = Math.min(dist, range);
+  if (lightOnRay(reg, o.x, o.y, o.z, o.x + d.x * end, o.y + d.y * end, o.z + d.z * end) === id) return true;
+  const len = end + 0.3;
   return lightOnRay(reg, o.x, o.y, o.z, o.x + d.x * len, o.y + d.y * len, o.z + d.z * len) === id;
 }
 
