@@ -472,7 +472,7 @@ export class TakedownController {
           gr.talk = lines;
           gr.talkI = 0;
           gr.talkT = 0;
-        } else g.hud.feedItem('Interrogated: nothing new');
+        } else if (!g.puppet) g.hud.feedItem('Interrogated: nothing new'); // a client: the host's feed answers
         if (!g.puppet) revealIntel(g, e.pos, info); // (spare 9) the client's intel comes from the host
       }
       return true;

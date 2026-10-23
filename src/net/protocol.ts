@@ -97,6 +97,9 @@ export interface EnemyState {
   /** Alert level: 0 calm, 1 suspicious / investigating, 2 searching, 3 combat; +4 (`AL_SEIZED`) = seized in a
    *  takedown; (25) +8 (`AL_TORCH`) = his flashlight is on. `packAlert` builds it. */
   al: number;
+  /** (stealth-pays client intel) 1: he has unspent interrogation intel (the host's `Enemy.info`); absent otherwise.
+   *  Host-authoritative: a revived guard, a client rejoin and an interrogation on either side all follow it. */
+  in?: 1;
 }
 
 /** `EnemyState.al` bits over the alert level (bits 0-1): seized in a takedown, and (protocol 25) the torch on. */
@@ -107,6 +110,14 @@ export const AL_TORCH = 8;
  *  is 8-11 (calm or investigating 8-9: one JSON digit; searching or in combat 10-11: two) or 12-15 seized: at most one byte more. */
 export function packAlert(level: number, seized: boolean, torch: boolean): number {
   return (level & 3) | (seized ? AL_SEIZED : 0) | (torch ? AL_TORCH : 0);
+}
+
+/** (stealth-pays client intel) The host's writer of `EnemyState.in`: set while the guard has unspent intel, absent
+ *  otherwise (no bytes for a guard without). */
+export function markIntel(s: EnemyState, has: boolean): EnemyState {
+  if (has) s.in = 1;
+  else delete s.in;
+  return s;
 }
 
 /** A usable thing on the host (mirrored on clients, used through `use`). */
@@ -291,7 +302,9 @@ function enemyState(v: unknown): EnemyState | null {
   const z = num(v.z, -WORLD, WORLD);
   const yaw = num(v.yaw, -1e4, 1e4);
   if (eid === null || !k || x === null || y === null || z === null || yaw === null) return null;
-  return { id: eid, k, x, y, z, yaw, st: Math.floor(num(v.st, 0, 3) ?? 0), hp: num(v.hp, 0, 1) ?? 1, al: Math.floor(num(v.al, 0, 15) ?? 0) };
+  const out: EnemyState = { id: eid, k, x, y, z, yaw, st: Math.floor(num(v.st, 0, 3) ?? 0), hp: num(v.hp, 0, 1) ?? 1, al: Math.floor(num(v.al, 0, 15) ?? 0) };
+  if (v.in === 1) out.in = 1;
+  return out;
 }
 
 function netItem(v: unknown): NetItem | null {
