@@ -25,7 +25,7 @@
  * - everything built by hand is a thin visual skin (no collision, `noLedge`, one side under `CANON_MIN_THICK` so it is out of the
  *   canonical light shapes: the bake, the meter and the guards see the greybox as built): van detail, wheel-stop buffer faces, the
  *   cabin's cladding and fittings, the cabinets' faces, the staging's plate, face, screens, drop chain and closed-stair scar, the
- *   stair's handrails (visual; the open side also has a collision rail, below), the shed walls' sheeting and frames, the roof ties, floor paint;
+ *   stair's handrails (visual; the open side also has a collision rail, below) and the same drawn rail on the deck's east end (P4-2), the shed walls' sheeting and frames, the roof ties, floor paint;
  * - the only new collision is invisible and `noLedge`: fifteen fillers under the east stair's flight (S2-check should-fix 2: nothing
  *   can stand inside the steps), the open side's collision rail (kit.handrail, invisible noLedge, twelve stepped 0.55 m segments from
  *   x 68.6 to the head, P3-2: no step-off the flight; the bottom treads stay open from the side), one more 1.1 m kit.handrail on the
@@ -388,7 +388,7 @@ export function buildA2CarriageShed(b: LevelBuilder, kit: FacilityKit): SetPart 
   };
 
   // ---- S2-check should-fix 2: the east stair's underside is solid (A2-17) ----
-  tally(b, p.register, 'A2-17', 'East stair: noLedge collision fillers under the flight (invisible, 0.5 m slices to just under the ramp slab top: nothing can stand in the steps), its handrails (visual skins) and the open side\'s 1.1 m collision rail (kit.handrail, invisible noLedge, twelve stepped segments of 0.55 m 0.05 m outside the flight from x 68.6 to the head; the bottom treads stay open from the side; accent on the staging strip 23), and one more 1.1 m kit.handrail on the deck\'s east end beside the head (x 61.95 on the deck, z 17.6 from the edge screen\'s back to the rail\'s line: no walk-off the staging there; the stair mouth stays open)', () => {
+  tally(b, p.register, 'A2-17', 'East stair: noLedge collision fillers under the flight (invisible, 0.5 m slices to just under the ramp slab top: nothing can stand in the steps), its handrails (visual skins) and the open side\'s 1.1 m collision rail (kit.handrail, invisible noLedge, twelve stepped segments of 0.55 m 0.05 m outside the flight from x 68.6 to the head; the bottom treads stay open from the side; accent on the staging strip 23), and one more 1.1 m kit.handrail on the deck\'s east end beside the head (x 61.95 on the deck, z 17.6 from the edge screen\'s back to the rail\'s line: no walk-off the staging there; the stair mouth stays open; drawn as two posts, a top rail and a mid rail, visual skins)', () => {
     for (let xa = xHead; xa < xFoot - 1e-9; xa += STAIR_FILL.step) {
       const xb = Math.min(xa + STAIR_FILL.step, xFoot);
       const hgt = lineAt(xb) - STAIR_FILL.gap;
@@ -417,6 +417,10 @@ export function buildA2CarriageShed(b: LevelBuilder, kit: FacilityKit): SetPart 
     // (z 17.6) to the rail's line, a 1.1 m wide, 4.4 m drop; one more balustrade on the deck, 0.05 m in from its east face, closes it and
     // meets the stair rail's head box, so the stair mouth (z 18.8 to the gallery wall) stays open
     kit.handrail(xHead - 0.05, 17.6, xHead - 0.05, zRail, { y: A2_DECK.lip, h: hRail, group: G_STAGING });
+    // its drawn rail (P4-2; visual skins like the stair's, no collision): a post at each end, a top rail 1.0 m over the deck's lip and a mid rail at 0.5 m
+    const xe = xHead - 0.05;
+    for (const [z0, z1] of [[17.6, 17.64], [zRail - 0.04, zRail]] as const) skin(xe - 0.02, xe + 0.02, A2_DECK.lip, A2_DECK.lip + 1.0, z0, z1, LOOK.steelDark);
+    for (const lift of [1.0, 0.5]) skin(xe - 0.02, xe + 0.02, A2_DECK.lip + lift - 0.02, A2_DECK.lip + lift + 0.02, 17.6, zRail, LOOK.steel);
   });
 
   // ---- A2-12: rails (the track panels are the props kit's, below) and the buffer faces on the wheel stops ----
