@@ -1,5 +1,23 @@
 # Changelog
 
+## 4.87.0 - Train 46: Guard body compile watchdog; Merge train: feature/menu alone is not a train; Guard AI: report, then engage; training cameras (2026-10-24, PR #297; #295, #293, #272)
+
+### Guard body compile watchdog
+- Guard bodies: a slow body shader compile is left to finish (the watchdog recovers only a timed-out, failed or disposed compile, or one still unready after 45 s), and a recompile no longer flags the new body shader disposed (e2e-lightbake's console warnings on big Epic shaders).
+
+### Guard AI: report, then engage; training cameras
+- A guard who spots you takes cover and radios it in, then, once his call is through and a peek shows nothing, leaves
+  his cover and moves up on where he last saw you, still in the fight, and searches from there: he no longer sits in
+  cover until the fight times out into a search (Marlow Yard walk 4.82, item 2). In a group the caller reports only
+  while his call is open, then takes a fighting role. Coordinated modes only; host only, no protocol or save change.
+- Training cameras: a camera marked `guardResponse: false` in its map data brings no guard response (no guard sent, no
+  radio call, no search; its body sightings are not reported). Its alarm, the course rules and the radio lines are
+  unchanged. Off by default: every existing camera behaves as before (walk 4.82, item 6, for Marlow Yard station 3).
+
+### Merge train: feature/menu alone is not a train
+- `merge-train build` stops (exit 3) without pushing or opening a PR when every member except the docs-only
+  `feature/menu` ride-along was left out (train 44 opened #292 holding only the menu docs merge, no version commit).
+
 ## 4.86.0 - Train 43: e2e-ctcourse A3: calm wait after the step-4 send-back (pairs with #254 S23); Guard AI: guards hear you in a fight and a search; Guard AI: cover, clear lines and the alarm draw; +2 more (2026-10-24, PR #289; #271, #270, #264)
 
 ### Guard AI: two intruders
