@@ -30,8 +30,10 @@ import { runtimeNav } from './helpers/runtimeNav';
 import { soloJumpThreats, soloTopLandingThreats } from './helpers/soloJumpReach';
 import { greyboxHash } from './helpers/campusHash';
 
-/** The campus greybox at the ART-KIT cut commit (b26c5925): boxes / cylinders / FNV of the box list (`campusHash.ts`). */
-const CUT_GREYBOX = '1297/171/9e5541f8';
+/** The campus greybox the art lift sits on: boxes / cylinders / FNV of the box list (`campusHash.ts`). ART-KIT cut b26c5925 was
+ *  '1297/171/9e5541f8'; at the art join the base is feature/sector-redesign-polish 4a65d692 (glass, posts, armour), whose
+ *  `campusOps.build` hashes to this value, so `buildCampus(b, { dress: false })` is that greybox byte for byte. */
+const CUT_GREYBOX = '1303/114/acb8cfbb';
 const SECTIONS = 5;
 const BUDGET = 200000;
 /** (11) A greybox ledge's ends must survive within this (m). */
