@@ -15,19 +15,27 @@
 //   node scripts/merge-train.mjs build <n> <version> "<title>" <branch>... [--keep] [--no-test] [--dry-run]
 //   node scripts/merge-train.mjs release <n> <version> "<title>" [--resume] [--dry-run]
 //   node scripts/merge-train.mjs single <branch> <version> "<title>" [--dry-run]
-// --keep: build on origin/train/<n> (conflicts fixed by hand there) instead of origin/master. --no-test: skip vitest.
+// --keep: build on origin/train/<n> (conflicts fixed by hand there) instead of origin/master. A conflicting branch is
+// merged by hand on the pre-version head: `git checkout -B train/<n> <version commit>^`, `git merge origin/<b>` with
+// the subject "Merge origin/<b> into train/<n>", `git push --force origin train/<n>`, then
+// `build <n> <version> "<title>" <all members> --keep` (a --keep over a version commit stops and prints these commands
+// with the sha). --no-test: skip vitest.
 // --resume: release a train with fix commits after its version commit (package.json at the head must still be
-// <version>, no new changes/*.md). HEAVY_LOCK env: the lock file (default C:/NightShift/heavy.lock).
+// <version>, no new changes/*.md). HEAVY_LOCK env: the lock file (default C:/NightShift/heavy.lock), taken through
+// scripts/heavy-lock.mjs (a lock whose pid is dead on this host is broken). After a merge, `release` closes member PRs
+// whose head is in origin/master with "Merged in <version> (train <n>, #<pr>)".
 // Exit: 0 built / merged (or dry run done), 1 usage or other error (also: --keep over a version commit, a fix commit
-// without --resume, release of an already merged train), 2 vitest failed on build or CI failed on release / single
+// without --resume, release of an already merged train, release with a version other than the train's version
+// commit), 2 vitest failed on build or CI failed on release / single
 // (nothing merged; a failed build still pushes so a fix can go on train/<n>), 3 conflict stop (build with no member
 // merged; release when master moved since build).
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { assemble, assembleDir, parseFragment, releaseHeading, summary } from './changelog-assemble.mjs';
+import { formatLock, takeLockText } from './heavy-lock.mjs';
 
 const DRY = process.argv.includes('--dry-run');
 const TRAILER = 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>';
@@ -95,6 +103,50 @@ export function findVersionCommit(subjects, n, version) {
   const want = versionSubject(n, version);
   return subjects.findIndex((s) => s.trim() === want);
 }
+
+/** The newest version commit of train `n` for any version in first-parent subjects: { idx, version } or { idx: -1 }. */
+export function findTrainVersionCommit(subjects, n) {
+  const re = new RegExp(`^(\\d+\\.\\d+\\.\\d+): version at merge, train ${n} \\(G183\\)$`);
+  for (let i = 0; i < subjects.length; i++) {
+    const m = re.exec(subjects[i].trim());
+    if (m) return { idx: i, version: m[1] };
+  }
+  return { idx: -1, version: null };
+}
+
+/** The --keep STOP text over a version commit: the pre-version head (`<version commit>^`) and the exact commands. */
+export function keepStopMessage({ n, version, title, versionSha, pre, members, after = 0 }) {
+  const b = `train/${n}`;
+  return [
+    `STOP: origin/${b} already holds the version commit for ${version} (${versionSha.slice(0, 8)}); --keep builds on a head without it.`,
+    `To merge a conflicting branch <b> by hand, start from the pre-version head ${pre} (${versionSha.slice(0, 8)}^):`,
+    `  git checkout -B ${b} ${pre}`,
+    `  git merge --no-ff origin/<b> -m "Merge origin/<b> into ${b}"   (resolve, git add, git commit --no-edit)`,
+    `  git push --force origin ${b}`,
+    `  node scripts/merge-train.mjs build ${n} ${version} ${JSON.stringify(title)} ${[...members, '<b>'].join(' ')} --keep`,
+    ...(after ? [`(${after} commit(s) after the version commit are not on that head: cherry-pick them again after the merge)`] : []),
+  ].join('\n');
+}
+
+/** The branches whose wire diff decides the PROTOCOL_VERSION bump: the kept command-line branches plus every train member. */
+export const wireCandidates = (kept, members) => [...new Set([...kept, ...members.map((m) => m.branch)])];
+
+/** package-lock.json text without its own version (`version`, `packages[""].version`), for an npm ci decision. */
+export function lockfileKey(text) {
+  const j = JSON.parse(text);
+  delete j.version;
+  if (j.packages?.['']) delete j.packages[''].version;
+  return JSON.stringify(j);
+}
+
+/** True when two package-lock.json texts differ beyond the version `npm version` writes (a missing one differs). */
+export function lockfilesDiffer(a, b) {
+  if (a == null || b == null) return true;
+  try { return lockfileKey(a) !== lockfileKey(b); } catch { return true; }
+}
+
+/** The comment on a member PR that a train merged. */
+export const closeComment = (version, n, pr) => `Merged in ${version} (train ${n}, #${pr})`;
 
 /**
  * What `release` does with a version commit at `idx` of the first-parent subjects (newest first): at the head it is
@@ -201,6 +253,30 @@ function exec(cmd, { input, env, timeout = 600_000 } = {}) {
   const r = Array.isArray(cmd) ? spawnSync(cmd[0], cmd.slice(1), opt) : spawnSync(cmd, { ...opt, shell: true });
   if (r.error) return { status: -1, out: '', err: String(r.error.message) };
   return { status: r.status ?? -1, out: r.stdout ?? '', err: r.stderr ?? '' };
+}
+
+/** The command that kills process `pid` and its whole tree (Windows: taskkill /T /F; else null, use a signal). */
+export const killTreeCmd = (pid, platform = process.platform) =>
+  (platform === 'win32' ? ['taskkill', '/T', '/F', '/PID', String(pid)] : null);
+
+/**
+ * Runs a shell command asynchronously; on `timeout` kills its whole process tree (not just the shell, which would
+ * leave vitest's node running on Windows) and reports status -1. Never throws: { status, out, err }.
+ */
+function execTree(cmd, { timeout }) {
+  return new Promise((resolve) => {
+    const child = spawn(cmd, { shell: true, windowsHide: true });
+    let out = '', err = '', timedOut = false;
+    child.stdout.setEncoding('utf8').on('data', (d) => { out += d; });
+    child.stderr.setEncoding('utf8').on('data', (d) => { err += d; });
+    const timer = setTimeout(() => {
+      timedOut = true;
+      const k = killTreeCmd(child.pid);
+      if (k) exec(k); else child.kill('SIGKILL');
+    }, timeout);
+    child.on('error', (e) => { clearTimeout(timer); resolve({ status: -1, out, err: `${err}${e.message}` }); });
+    child.on('close', (code) => { clearTimeout(timer); resolve({ status: timedOut ? -1 : (code ?? -1), out, err }); });
+  });
 }
 
 const show = (cmd) => (Array.isArray(cmd) ? cmd.map((a) => (/[\s"]/.test(a) ? JSON.stringify(a) : a)).join(' ') : cmd);
@@ -360,18 +436,12 @@ async function ciAndMerge({ branch, sha, pr, version }) {
 
 // ---- the heavy lock and the vitest run (item 3) -------------------------------------------------------------------
 
-/** Takes the lock atomically (`wx`), retrying every `retryMs` up to `maxMs`; throws when it stays held. */
-export async function takeHeavyLock(lock, text, { retryMs = 30_000, maxMs = 30 * 60_000, sleepFn = sleep } = {}) {
-  const t0 = Date.now();
-  for (;;) {
-    try { fs.writeFileSync(lock, text, { flag: 'wx' }); return; } catch (e) {
-      if (e?.code !== 'EEXIST') throw e;
-    }
-    const holder = (() => { try { return fs.readFileSync(lock, 'utf8').trim(); } catch { return '?'; } })();
-    if (Date.now() - t0 >= maxMs) throw new Error(`${lock} stayed held (${holder}) for ${Math.round(maxMs / 60_000)} min`);
-    console.log(`  heavy lock held (${holder}); retrying in ${Math.round(retryMs / 1000)} s`);
-    await sleepFn(retryMs);
-  }
+/**
+ * Takes the lock atomically (`wx`, scripts/heavy-lock.mjs: a lock whose pid is dead on this host is broken),
+ * retrying every `retryMs` up to `maxMs`; throws when it stays held.
+ */
+export async function takeHeavyLock(lock, text, { retryMs = 30_000, maxMs = 30 * 60_000, sleepFn = sleep, alive } = {}) {
+  return takeLockText(lock, text, { retryMs, maxMs, sleepFn, alive });
 }
 
 /** Removes the lock only while it names merge-train; true when removed. */
@@ -387,21 +457,23 @@ export function releaseHeavyLock(lock) {
 async function runVitest(n, head, prev) {
   const lock = process.env.HEAVY_LOCK || 'C:/NightShift/heavy.lock';
   if (DRY) {
-    console.log('  [dry-run] would run npm ci when package-lock.json differs from the previous HEAD or node_modules is missing');
-    console.log(`  [dry-run] would take ${lock} (wx, retry 30 s up to 30 min), run npx vitest run (20 min timeout), release it`);
+    console.log('  [dry-run] would run npm ci when package-lock.json (version fields ignored) differs from the previous HEAD or node_modules is missing');
+    console.log(`  [dry-run] would take ${lock} (wx, stale pid broken, retry 30 s up to 30 min), run npx vitest run (20 min timeout, tree killed), release it`);
     return { ok: true, message: '' };
   }
   const root = run(['git', 'rev-parse', '--show-toplevel']);
-  const lockChanged = prev && run(['git', 'diff', '--name-only', prev, head, '--', 'package-lock.json']);
+  const lockAt = (ref) => { const r = exec(['git', 'show', `${ref}:package-lock.json`]); return r.status === 0 ? r.out : null; };
+  const lockChanged = prev && lockfilesDiffer(lockAt(prev), lockAt(head));
   if (lockChanged || !fs.existsSync(path.join(root, 'node_modules'))) act('npm ci', { timeout: 15 * 60_000 });
+  else console.log('  package-lock.json unchanged (version fields ignored): no npm ci');
   let taken = false;
   try {
     if (fs.existsSync(path.dirname(lock))) {
-      await takeHeavyLock(lock, `merge-train | train ${n} | ${new Date().toISOString()}`);
+      await takeHeavyLock(lock, formatLock(`merge-train | train ${n}`, { pid: process.pid }));
       taken = true;
     } else console.log(`  no heavy lock folder (${path.dirname(lock)}): running without it`);
     console.log('  > npx vitest run');
-    const r = exec('npx vitest run', { timeout: 20 * 60_000 });
+    const r = await execTree('npx vitest run', { timeout: 20 * 60_000 });
     const v = vitestVerdict(r.status, `${r.out}\n${r.err}`);
     if (v.ok) { console.log('vitest passed'); return { ok: true, message: '' }; }
     console.error(`vitest ${v.kind === 'timeout' ? 'TIMED OUT or was killed' : 'failed'}; last lines:\n${v.tail}`);
@@ -466,8 +538,12 @@ async function build({ n, version, title, branches, keep, noTest }) {
   if (keep) {
     if (!exists(`origin/${branch}`)) throw new Error(`--keep: origin/${branch} does not exist`);
     head = rev(`origin/${branch}`);
-    if (findVersionCommit(firstParentSubjects(head), n, version) >= 0) {
-      console.error(`STOP: origin/${branch} already holds the version commit for ${version}; rebuild without --keep`);
+    const vc = findTrainVersionCommit(firstParentSubjects(head), n);
+    if (vc.idx >= 0) {
+      const versionSha = rev(`${head}~${vc.idx}`);
+      const merged = run(['git', 'log', '--first-parent', '--merges', '--reverse', '--format=%s', `origin/master..${head}`]).split('\n');
+      const members = [...new Set([...membersFromLog(merged), ...branches])];
+      console.error(keepStopMessage({ n, version: vc.version, title, versionSha, pre: rev(`${versionSha}^`), members, after: vc.idx }));
       return 1;
     }
     console.log(`--keep: starting from origin/${branch} (${head.slice(0, 8)}), not origin/master`);
@@ -492,12 +568,21 @@ async function build({ n, version, title, branches, keep, noTest }) {
   act(keep ? ['git', 'push', 'origin', branch] : ['git', 'push', '--force', 'origin', branch]);
   const members = trainMembers(head);
   const pr = ensurePr(n, version, title, members);
-  const protocol = planWire(kept, head);
+  const protocol = planWire(wireCandidates(kept, members), head);
   if (protocol && DRY) console.log('  [dry-run] would write src/net/protocol.ts and add it to the version commit');
   else if (protocol) fs.writeFileSync(path.join(run(['git', 'rev-parse', '--show-toplevel']), 'src/net/protocol.ts'), protocol);
-  const v = versionCommit({ branch, head, checkout: null, version, title: `Train ${n}: ${title}`, pr,
-    members: members.filter((m) => m.pr).map((m) => m.pr), subject: versionSubject(n, version), push: false,
-    extraAdd: protocol ? ['src/net/protocol.ts'] : [] });
+  let v;
+  try {
+    v = versionCommit({ branch, head, checkout: null, version, title: `Train ${n}: ${title}`, pr,
+      members: members.filter((m) => m.pr).map((m) => m.pr), subject: versionSubject(n, version), push: false,
+      extraAdd: protocol ? ['src/net/protocol.ts'] : [] });
+  } catch (e) {
+    if (!DRY) { // put back what the version step wrote (protocol.ts, CHANGELOG, fragments, package files): the tree was clean
+      const r = exec(['git', 'checkout', 'HEAD', '--', 'src/net/protocol.ts', 'CHANGELOG.md', 'changes', 'package.json', 'package-lock.json']);
+      console.error(r.status === 0 ? 'restored src/net/protocol.ts and the version step files to HEAD' : `restore FAILED: ${r.err.trim()}`);
+    }
+    throw e;
+  }
   if (v.code) return v.code;
   const sha = v.sha ?? head;
   let verdict = { ok: true, message: '' };
@@ -528,7 +613,23 @@ async function releaseOld(n, version, title, head0) {
   const v = versionCommit({ branch, head, checkout: ['git', 'checkout', '-B', branch, head], version, title: `Train ${n}: ${title}`, pr,
     members: members.filter((m) => m.pr).map((m) => m.pr), subject: versionSubject(n, version) });
   if (v.code) return v.code;
-  return ciAndMerge({ branch, sha: v.sha, pr, version });
+  const code = await ciAndMerge({ branch, sha: v.sha, pr, version });
+  if (code === 0) closeMembers(members, { n, version, pr });
+  return code;
+}
+
+/** After a train merged: closes each still-open member PR whose head sha is in origin/master (a dry run only prints). */
+function closeMembers(members, { n, version, pr }) {
+  for (const m of members.filter((x) => x.pr)) {
+    const close = ['gh', 'pr', 'close', String(m.pr), '--comment', closeComment(version, n, pr ?? 'NEW')];
+    if (DRY) { act(close); continue; }
+    try {
+      const [state, sha] = run(['gh', 'pr', 'view', String(m.pr), '--json', 'state,headRefOid', '--jq', '.state + " " + .headRefOid']).split(' ');
+      if (state !== 'OPEN') { console.log(`member #${m.pr}: ${state.toLowerCase()}`); continue; }
+      if (!exists(sha) || !isAncestor(sha, 'origin/master')) { console.log(`member #${m.pr}: head ${sha.slice(0, 8)} is not in origin/master, left open`); continue; }
+      act(close);
+    } catch (e) { console.warn(`WARNING: member #${m.pr} not closed: ${e.message}`); }
+  }
 }
 
 async function release({ n, version, title, resume }) {
@@ -541,6 +642,11 @@ async function release({ n, version, title, resume }) {
   const subjects = firstParentSubjects(head);
   const idx = findVersionCommit(subjects, n, version);
   if (idx < 0) {
+    const other = findTrainVersionCommit(subjects, n);
+    if (other.idx >= 0) {
+      console.error(`STOP: origin/${branch} holds the version commit for ${other.version}, not ${version}: check the version (release ${n} ${other.version} ...)`);
+      return 1;
+    }
     if (resume) { console.error(`STOP: --resume, but origin/${branch} holds no version commit for ${version} (build it first)`); return 1; }
     return releaseOld(n, version, title, head);
   }
@@ -561,7 +667,9 @@ async function release({ n, version, title, resume }) {
   console.log(`origin/${branch} ${head.slice(0, 8)}: version commit ${idx ? `at ~${idx}` : 'at the head'}, package.json ${at}, master is in`);
   const members = trainMembers(head);
   const pr = ensurePr(n, version, title, members);
-  return ciAndMerge({ branch, sha: head, pr, version });
+  const code = await ciAndMerge({ branch, sha: head, pr, version });
+  if (code === 0) closeMembers(members, { n, version, pr });
+  return code;
 }
 
 async function single({ branch, version, title }) {

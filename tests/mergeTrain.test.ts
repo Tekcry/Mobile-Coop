@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  bumpProtocol, classifyConflicts, findVersionCommit, lockIsOurs, membersFromLog, parseArgs, protocolValue, releaseHeavyLock,
+  bumpProtocol, classifyConflicts, closeComment, findTrainVersionCommit, findVersionCommit, keepStopMessage, killTreeCmd, lockfilesDiffer,
+  lockIsOurs, wireCandidates, membersFromLog, parseArgs, protocolValue, releaseHeavyLock,
   resolveKeepBoth, resumeCheck, tailLines, takeHeavyLock, touchesWire, trainPrBody, trainPrTitle, versionSubject, vitestVerdict, wirePaths,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/merge-train.mjs';
@@ -84,6 +85,49 @@ describe('merge-train version commit and resume', () => {
     expect(yes.ok).toBe(true);
     expect(yes.message).toBe('resume: 2 commit(s) after the version commit: fix lint | fix test');
     expect(resumeCheck(subjects, -1, true).ok).toBe(false);
+  });
+});
+
+describe('merge-train --keep, wrong version and member PRs', () => {
+  it('findTrainVersionCommit: any version of this train, newest first', () => {
+    const subjects = ['fix', versionSubject(31, '4.80.0'), 'Merge origin/feature/a into train/31'];
+    expect(findTrainVersionCommit(subjects, 31)).toEqual({ idx: 1, version: '4.80.0' });
+    expect(findTrainVersionCommit(subjects, 3)).toEqual({ idx: -1, version: null });
+    expect(findTrainVersionCommit(['4.80.0: version at merge (G183)'], 31).idx).toBe(-1);
+  });
+
+  it('keepStopMessage: the pre-version sha and the exact commands', () => {
+    const msg: string = keepStopMessage({ n: 31, version: '4.80.0', title: 'Lamps, wheel', versionSha: 'abcdef1234567890',
+      pre: '1234567890abcdef', members: ['feature/a', 'fix/b'] });
+    expect(msg).toContain('git checkout -B train/31 1234567890abcdef');
+    expect(msg).toContain('-m "Merge origin/<b> into train/31"');
+    expect(msg).toContain('git push --force origin train/31');
+    expect(msg).toContain('node scripts/merge-train.mjs build 31 4.80.0 "Lamps, wheel" feature/a fix/b <b> --keep');
+    expect(msg).toContain('abcdef12^');
+    expect(msg).not.toContain('without --keep');
+    expect(msg).not.toContain('cherry-pick');
+    expect(keepStopMessage({ n: 31, version: '4.80.0', title: 't', versionSha: 'abcdef12', pre: 'p', members: [], after: 2 })).toContain('2 commit(s)');
+  });
+
+  it('wireCandidates: command-line branches plus every train member, once each', () => {
+    expect(wireCandidates(['feature/c'], [{ branch: 'feature/a', pr: 1 }, { branch: 'feature/c', pr: 3 }, { branch: 'fix/b', pr: null }]))
+      .toEqual(['feature/c', 'feature/a', 'fix/b']);
+    expect(wireCandidates([], [])).toEqual([]);
+  });
+
+  it('lockfilesDiffer ignores the version fields npm version writes', () => {
+    const lock = (v: string, dep = '1.0.0'): string => JSON.stringify({ name: 'x', version: v, lockfileVersion: 3,
+      packages: { '': { name: 'x', version: v }, 'node_modules/a': { version: dep } } }, null, 2);
+    expect(lockfilesDiffer(lock('4.80.0'), lock('4.81.0'))).toBe(false);
+    expect(lockfilesDiffer(lock('4.80.0'), lock('4.80.0', '1.0.1'))).toBe(true);
+    expect(lockfilesDiffer(lock('4.80.0'), null)).toBe(true);
+    expect(lockfilesDiffer('{', lock('4.80.0'))).toBe(true);
+  });
+
+  it('closeComment and the Windows tree kill', () => {
+    expect(closeComment('4.80.0', 31, 250)).toBe('Merged in 4.80.0 (train 31, #250)');
+    expect(killTreeCmd(1234, 'win32')).toEqual(['taskkill', '/T', '/F', '/PID', '1234']);
+    expect(killTreeCmd(1234, 'linux')).toBeNull();
   });
 });
 
@@ -172,6 +216,16 @@ describe('merge-train vitest verdict and heavy lock', () => {
       expect(releaseHeavyLock(lock)).toBe(false);
       expect(fs.existsSync(lock)).toBe(true);
       expect(releaseHeavyLock(path.join(dir, 'none.lock'))).toBe(false);
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  it('takeHeavyLock breaks a lock whose pid is dead on this host', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mt-lock-'));
+    const lock = path.join(dir, 'heavy.lock');
+    try {
+      fs.writeFileSync(lock, `merge-train | train 1 | t | pid 999999 | host ${os.hostname()}`);
+      await takeHeavyLock(lock, 'merge-train | train 2 | t', { retryMs: 1, maxMs: 0, alive: () => false });
+      expect(fs.readFileSync(lock, 'utf8')).toBe('merge-train | train 2 | t');
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   });
 
