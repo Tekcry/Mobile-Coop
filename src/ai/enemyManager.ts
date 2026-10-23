@@ -31,7 +31,7 @@ import { CALL_KIND, callHold, hearsVoice, RADIO, RadioNet, type CallKind, type R
 import type { P2 } from './navGrid';
 // (guard-ai S7) cameras see bodies
 import { MODE_BODY } from './incidents';
-import { camBodyLine } from './barks';
+import { camBodyLine, type BarkEvent } from './barks';
 import type { CameraBodyEvent } from '../security/securitySystem';
 import { Awareness, CAUTION, MAX_KEYS } from './awareness';
 import { bodyNoticed, bodyNoticeRange } from './bodies';
@@ -198,8 +198,8 @@ export class EnemyManager {
   /** (guard-ai S5b) Who called the last radio check (tests / e2e; null none). */
   lastCheckCaller: Enemy | null = null;
   private buffT = 0;
-  /** Callouts (GameState shows them). */
-  onBark: ((e: Enemy, line: string, radio: boolean) => void) | null = null;
+  /** Callouts (GameState shows them). (guard-ai S9) `ev` / `n` / `unit`: the table line (`Enemy.bark`), for the co-op host. */
+  onBark: ((e: Enemy, line: string, radio: boolean, ev?: BarkEvent, n?: number, unit?: number) => void) | null = null;
   /**
    * (guard-ai S1) Coordinated hearing: of the guards a noise reaches, one is sent to investigate and the rest only turn
    * to look (`hear`, `noise`). Off (Hunter, Mission: the parked modes): everyone in reach hears and walks over, and
@@ -481,7 +481,7 @@ export class EnemyManager {
         this.onKilled?.(e, h);
       },
       onShot: (e, a, b) => this.onEnemyShot?.(e, a, b),
-      onBark: (e, line, radio) => this.onBark?.(e, line, radio),
+      onBark: (e, line, radio, ev, n, unit) => this.onBark?.(e, line, radio, ev, n, unit),
       onMelee: (e) => this.onEnemyMelee?.(e),
       onWindup: (e) => this.onEnemyWindup?.(e),
       isFlanker: (e) => this.flanker === e,

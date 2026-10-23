@@ -15,8 +15,8 @@ import type { SecWire } from '../game/ctDevices';
 import type { SectorNetExtra } from '../game/sectors';
 import { LAMP_BITS, LAMP_CHARS, LAMP_MAX, type LampWire } from './lampSync';
 
-/** 35: the weapons crate (sector-redesign E9-crate): `NetItem` kind `crate` and the `crate` event (host -> all: a player used a crate; `fill` false = rejoin re-send); 31: Sector Ops light state (sector-redesign slice L): the `lamps` message (host -> all: switched-off and shot-out bitsets, `lampSync.ts`) and a client's lamp shot as a `shot` whose target is `lt-<light id>`; 30: taken by marlow-final (Menu Notes); 29: the lasers' jam point is their power panel (sector-fixes P): the `jam` claim and `sec.dv` name panel ids (`panel-*`), never laser ids (a 28 peer would jam a laser the other side does not know); 28: the `jam` claim carries the client's camera eye `e` (jammer-fixes: the host checks the jam's line of sight from it); 27: rejoin (marlow-bays R): `hello.tok`, `PlayerInfo.away`, the `you` message, the `restore` event; 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
-export const PROTOCOL_VERSION = 35;
+/** 38: guard-ai S9 + A126 (37 is held by Player #231, A140); 37: guard-ai S9's number before the train 28 merge (never released), originally the `bark` event (a guard's line by event, line and unit index), `AL_CAUTION` 16 / `AL_HELMET` 32 / `AL_ARMOUR` 64 in the enemy `al`, the `hitConfirm` kind `deflect`; with it (same train, A126/A136) the S21 weapon carry `AL_CARRY` (bits 7-8, 128-384); 36: taken by pose-parity (#223); 35: the weapons crate (sector-redesign E9-crate): `NetItem` kind `crate` and the `crate` event (host -> all: a player used a crate; `fill` false = rejoin re-send); 32-34: guard-ai S9's number before the 4.75.0 merge (never released), marlow-final, hang-down; 31: Sector Ops light state (sector-redesign slice L): the `lamps` message (host -> all: switched-off and shot-out bitsets, `lampSync.ts`) and a client's lamp shot as a `shot` whose target is `lt-<light id>`; 30: taken by marlow-final (Menu Notes); 29: the lasers' jam point is their power panel (sector-fixes P): the `jam` claim and `sec.dv` name panel ids (`panel-*`), never laser ids (a 28 peer would jam a laser the other side does not know); 28: the `jam` claim carries the client's camera eye `e` (jammer-fixes: the host checks the jam's line of sight from it); 27: rejoin (marlow-bays R): `hello.tok`, `PlayerInfo.away`, the `you` message, the `restore` event; 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
+export const PROTOCOL_VERSION = 38;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -90,18 +90,56 @@ export interface EnemyState {
   st: number;
   hp: number;
   /** Alert level: 0 calm, 1 suspicious / investigating, 2 searching, 3 combat; +4 (`AL_SEIZED`) = seized in a
-   *  takedown; (25) +8 (`AL_TORCH`) = his flashlight is on. `packAlert` builds it. */
+   *  takedown; (25) +8 (`AL_TORCH`) = his flashlight is on; (32) +16 (`AL_CAUTION`) cautious, +32 (`AL_HELMET`) wears a
+   *  helmet, +64 (`AL_ARMOUR`) wears body armour; (37, A126) bits 7-8 (`AL_CARRY`) his S21 weapon carry (`WIRE_CARRY_*`).
+   *  `packAlert` builds it. */
   al: number;
 }
 
 /** `EnemyState.al` bits over the alert level (bits 0-1): seized in a takedown, and (protocol 25) the torch on. */
 export const AL_SEIZED = 4;
 export const AL_TORCH = 8;
+/** (32, guard-ai S9) Cautious (S4 / S14 caution: the client's low ready), wearing a helmet, wearing body armour (S12 /
+ *  S13 gear: the client's placeholder parts; the helmet bit falling 1 -> 0 drops his helmet there). */
+export const AL_CAUTION = 16;
+export const AL_HELMET = 32;
+export const AL_ARMOUR = 64;
+/** (37, guard-ai A126) The guard's S21 weapon carry in `al` bits 7-8 (`ai/carryState.ts` GuardCarry's phase, so the
+ *  client runs the same draw / holster clip): 0 drawn (in the hands; low ready or raised come from `st`, the level and
+ *  `AL_CAUTION` as before, and every kind that never holsters stays 0), 1 holstered, 2 drawing, 3 holstering. */
+export const AL_CARRY_SHIFT = 7;
+export const AL_CARRY = 3 << AL_CARRY_SHIFT;
+export const WIRE_CARRY_DRAWN = 0;
+export const WIRE_CARRY_HOLSTERED = 1;
+export const WIRE_CARRY_DRAWING = 2;
+export const WIRE_CARRY_HOLSTERING = 3;
+/** Every `al` bit in use (the parser clamps into these). */
+export const AL_MAX = 511;
 
-/** The wire `al`: alert level 0-3, seized, torch on. A guard without a torch costs what he did before (0-7); a lit one
- *  is 8-11 (calm or investigating 8-9: one JSON digit; searching or in combat 10-11: two) or 12-15 seized: at most one byte more. */
-export function packAlert(level: number, seized: boolean, torch: boolean): number {
-  return (level & 3) | (seized ? AL_SEIZED : 0) | (torch ? AL_TORCH : 0);
+/** The wire `al`: alert level 0-3, seized, torch on, (32) cautious, helmet, armour, (37, A126) the carry 0-3. A guard
+ *  without a torch or gear costs what he did before (0-7); a lit one is 8-15; caution and gear add at most two JSON
+ *  digits (16-127); a holstered carry one more (128-511). */
+export function packAlert(level: number, seized: boolean, torch: boolean, cautious = false, helmet = false, armour = false, carry = WIRE_CARRY_DRAWN): number {
+  return (level & 3) | (seized ? AL_SEIZED : 0) | (torch ? AL_TORCH : 0) | (cautious ? AL_CAUTION : 0) | (helmet ? AL_HELMET : 0) | (armour ? AL_ARMOUR : 0) | ((carry & 3) << AL_CARRY_SHIFT);
+}
+
+/** (37, A126) The carry (`WIRE_CARRY_*`) in a wire `al`. */
+export function alertCarry(al: number): number {
+  return (al & AL_CARRY) >> AL_CARRY_SHIFT;
+}
+
+/** (32, guard-ai S9) The `bark` event's `b` for the security desk's camera line (its text in `t`; `id` the camera). */
+export const BARK_CAM = 254;
+/** (32) The `bark` event's `b` for a line said verbatim by guard `id` (a talking pair's line: its text in `t`). */
+export const BARK_TEXT = 255;
+
+/** (32, guard-ai S9) The confirm a client's round earns (`hitConfirm.kind`): killed, stopped by a helmet or vest
+ *  (`deflect`, as the host's own hit marker), a head hit, a body hit; null when it did nothing (no confirm sent). */
+export function hitConfirmKind(dealt: number, killed: boolean, deflect: boolean, head: boolean): 'hit' | 'head' | 'kill' | 'deflect' | null {
+  if (killed) return 'kill';
+  if (deflect) return 'deflect';
+  if (dealt <= 0) return null;
+  return head ? 'head' : 'hit';
 }
 
 /** A usable thing on the host (mirrored on clients, used through `use`). */
@@ -135,7 +173,12 @@ export type NetEvent =
   /** (35, E9-crate) `player` used weapons crate `id`: `fill` true = the use itself (that player tops up), false = a
    *  re-send after a rejoin (hide the prompt only, never top up). */
   | { e: 'crate'; player: string; id: string; fill: boolean }
-  | { e: 'hitConfirm'; player: string; kind: 'hit' | 'head' | 'kill' }
+  /** (32/37) `deflect`: the round was stopped by the guard's helmet or vest (guard-ai S12 / S9). */
+  | { e: 'hitConfirm'; player: string; kind: 'hit' | 'head' | 'kill' | 'deflect' }
+  /** (32/37, guard-ai S9) A guard's line as the host shows it: speaker `id` (a guard; with `BARK_CAM` a camera), `b` the
+   *  bark event's index (`BARK_EVENTS`), `n` its line index, `u` the unit it names (0 none); `BARK_CAM` / `BARK_TEXT`
+   *  carry the line in `t` (radio `r`). */
+  | { e: 'bark'; id: string; b: number; n: number; u: number; r: boolean; t?: string }
   /** A player took damage from a source at (x, z). */
   | { e: 'hurt'; player: string; x: number; z: number; boom: boolean }
   | { e: 'revive'; player: string; x: number; y: number; z: number }
@@ -285,7 +328,7 @@ function enemyState(v: unknown): EnemyState | null {
   const z = num(v.z, -WORLD, WORLD);
   const yaw = num(v.yaw, -1e4, 1e4);
   if (eid === null || !k || x === null || y === null || z === null || yaw === null) return null;
-  return { id: eid, k, x, y, z, yaw, st: Math.floor(num(v.st, 0, 3) ?? 0), hp: num(v.hp, 0, 1) ?? 1, al: Math.floor(num(v.al, 0, 15) ?? 0) };
+  return { id: eid, k, x, y, z, yaw, st: Math.floor(num(v.st, 0, 3) ?? 0), hp: num(v.hp, 0, 1) ?? 1, al: Math.floor(num(v.al, 0, AL_MAX) ?? 0) };
 }
 
 function netItem(v: unknown): NetItem | null {
@@ -345,8 +388,20 @@ function netEvent(v: unknown): NetEvent | null {
     }
     case 'hitConfirm': {
       const player = id(v.player);
-      const kind = oneOf(v.kind, ['hit', 'head', 'kill'] as const);
+      const kind = oneOf(v.kind, ['hit', 'head', 'kill', 'deflect'] as const);
       return player && kind ? { e: 'hitConfirm', player, kind } : null;
+    }
+    case 'bark': {
+      const sid = id(v.id);
+      const b = num(v.b, 0, 255);
+      if (!sid || b === null) return null;
+      const bi = Math.floor(b);
+      const text = bi === BARK_CAM || bi === BARK_TEXT;
+      const t = text ? safeText(v.t, 120) : null;
+      if (text && !t) return null;
+      const ev: Extract<NetEvent, { e: 'bark' }> = { e: 'bark', id: sid, b: bi, n: Math.floor(num(v.n, 0, 63) ?? 0), u: Math.floor(num(v.u, 0, 99) ?? 0), r: v.r === true };
+      if (t) ev.t = t;
+      return ev;
     }
     case 'hurt': {
       const player = id(v.player);

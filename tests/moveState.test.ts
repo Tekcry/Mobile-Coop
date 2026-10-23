@@ -112,8 +112,8 @@ describe('move state (3.2.0 phase 1)', () => {
     expect(out.wallSide).toBe(1);
   });
 
-  it('PROTOCOL_VERSION is 35 (35 the weapons crate; 31 the Sector lamps; 29 the laser panels; 28 the jam claim eye; 27 rejoin; 26 the jammer rules; 25 the guard torch bit; 24 sector extras; 23 Sector Ops; 22 B7 rope; 21 scanners; 20 hang-down; 19 throw; 18 anim-cleanup: the left-shoulder weapon bit; 17 B3: the held jammer message; 16 was B2: the relay offer bit; 15 dropped the SWAT turn and the lean kind)', () => {
-    expect(PROTOCOL_VERSION).toBe(35);
+  it('PROTOCOL_VERSION is 38 (38 guard-ai S9 + A126 (37 Player #231): barks, caution and gear bits, deflect; 36 pose-parity; 35 the weapons crate; 31 the Sector lamps; 29 the laser panels; 28 the jam claim eye; 27 rejoin; 26 the jammer rules; 25 the guard torch bit; 24 sector extras; 23 Sector Ops; 22 B7 rope; 21 scanners; 20 hang-down; 19 throw; 18 anim-cleanup: the left-shoulder weapon bit; 17 B3: the held jammer message; 16 was B2: the relay offer bit; 15 dropped the SWAT turn and the lean kind)', () => {
+    expect(PROTOCOL_VERSION).toBe(38);
   });
 
   it('poses: attached families and exits, committed moves and takedowns', () => {
@@ -152,12 +152,13 @@ describe('move state (3.2.0 phase 1)', () => {
     expect(CLIMB_UP_STAND).toBeCloseTo(0.45, 2);
     const full = CLIMB_UP_TIME + CLIMB_UP_STAND;
     // the knee is planted (the left shin flat on the top) by 0.36 (0.47 s, CT 0.4-0.5 s); the hands hold through it and
-    // are off by 0.5 (0.65 s)
+    // (traverse-fix-2) on until the right foot is on the top (0.474), off before the crouch (was off by 0.5: the palms left
+    // the lip early; tests/climbHands.test.ts measures the palms, the foot and the release)
     expect(sample(CLIMB_UP, 'fLPitch', 0.36)).toBeCloseTo(1.2);
     expect(0.36 * full).toBeGreaterThan(0.4);
     expect(0.36 * full).toBeLessThan(0.5);
-    for (const k of [0.2, 0.3, 0.36, 0.38]) expect(attachGripWeight('exit', k, true)).toBe(1);
-    expect(attachGripWeight('exit', 0.5, true)).toBe(0);
+    for (const k of [0.2, 0.3, 0.36, 0.38, 0.45, 0.474]) expect(attachGripWeight('exit', k, true)).toBe(1);
+    expect(attachGripWeight('exit', CLIMB_UP_CROUCH_K - 0.01, true)).toBe(0);
     // at the crouch mark the body is in the crouched stance (CROUCH_IDLE pelY -0.42), the feet under it
     expect(sample(CLIMB_UP, 'pelY', CLIMB_UP_CROUCH_K)).toBeCloseTo(-0.42);
     expect(sample(CLIMB_UP, 'fLPitch', CLIMB_UP_CROUCH_K)).toBeCloseTo(0);

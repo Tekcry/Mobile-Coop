@@ -50,6 +50,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Co-op guard torches (coop-torches): on a dark map, when a guard searching in the dark switches his flashlight on,
   the joiner sees the same beam from his head, aimed where he faces, and it goes off when the host's does; standing in
   it raises the joiner's light meter as it raises the host's.
+- [ ] Co-op guard AI (guard-ai S9): on the joiner, guards' lines and radio calls show as on the host; a cautious guard
+  carries his weapon at low ready on both screens; after an alarm stage 2 / 3 the joiner sees the vests and helmets and
+  a response team's shield; the joiner's headshot on a helmeted guard pings as a deflect and the helmet falls on both.
 - [ ] Co-op throw onto a guard (throw-ko): one player stands and offers the partner throw (RB standing), the other runs
   in about 3 m in front of a standing guard and is thrown over: the guard drops knocked out as the partner comes down
   on him, on both screens; a guard a step or more past the landing is left standing. Try it with each player thrown.
@@ -58,6 +61,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Marlow Yard in co-op: every station's task shows as the HUD step line on both screens; a radio line follows each
   station opening; at station 2 the far player unbolts and either player can then open the door; a bay restart brings
   an alive partner back to the airlock too.
+- [ ] (hang-down) Co-op hang-down over a guard (any edge with a drop, e.g. a Sector Ops mezzanine): hanging, LT draws
+  the pistol (never the rifle) and aims upside down, RT fires; hold A lists GRAB CHARACTER on a guard by your head (he is
+  lifted, then RT tap / Z knocks him out, RT hold kills, no let-go); RT on him without the menu: tap chokes, hold snaps
+  the neck; the partner pulling you up while you hold him knocks him out. Check it as the joiner and as the host.
 - [ ] Marlow Yard is a bunker: a ceiling over every cell and airlock (no sky anywhere), every lamp in a fitting (pendants
   in the tall halls, strips / panels / caged bulkheads elsewhere); the S2 / S5 / S7 leg-ups, the S4 throw under the
   header and the S7 rope work as before; the floor between the pools reads as before on the light meter.
@@ -157,7 +164,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Weapon carry (guard-ai S21): a calm patrol walks with his rifle slung on his back (an officer's pistol on his thigh),
   hands empty; make a noise: he draws (the rifle off the back in the right hand, under a second) and walks at low ready;
   seen, he fires only once drawn; calm again, he holsters after about 15 s. A high-security post, and every guard once
-  the alarm is up, stays at low ready.
+  the alarm is up, stays at low ready. Co-op (A126): on the client the same guard is holstered, draws and holsters
+  with the host (a moment behind), never stuck at low ready.
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
 - [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
   glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen
@@ -483,7 +491,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Infiltration on the Warehouse: both see the same guards, doors and bodies; a client takedown, door and objective
   register on the host; pings show on both; a downed partner is revived; results on both pages.
 - [ ] Free Roam on Proving Grounds: brace and boost onto the 4.2 m block, the human ladder, a dual takedown; partners
-  block each other (no walking through).
+  block each other (no walking through). The dual takedown banner shows on both; the host's `g.style.duals` is 1
+  and `style.knockouts` did not rise from the pairing (e2e-coop).
 - [ ] The Fallow bunker: open `?net=local&autostart=bunker&mode=course` in both tabs. The objective list shows for both;
   one player on an airlock pad shows "Waiting for partner"; both seal it; the rear door stays locked.
 - [ ] Close the host tab: the client is told and returns to the menu.

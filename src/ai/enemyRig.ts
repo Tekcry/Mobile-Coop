@@ -34,7 +34,7 @@ export function buildEnemyRig(scene: Scene, world: World, def: EnemyDef, name: s
  * in its slot (`WeaponModel.holster`: the rifle slung across the back, the pistol on the right thigh, which sets the rig's
  * `thighGear`); a draw / holster carries it along the player's travel path in the trigger hand (`beginTravel` /
  * `travel`; the sling hands off), then it is held again (`hold`: the aim pocket). Render rate, before the rig animates;
- * no allocation. Host only: co-op puppets stay at low ready (open item, WALK.md S21).
+ * no allocation. Co-op puppets pose through it too (A126: `EnemyPuppet` with `net/puppetCarry.ts`).
  */
 export class GuardGunCarry {
   private seq = -1;

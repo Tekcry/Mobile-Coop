@@ -54,7 +54,8 @@ import { CAUTION } from './awareness';
 import type { InstancedMesh } from '../core/babylon';
 import { GuardAnimTier } from './animTierView';
 import { BREAKER, gearHit, type GearHit, type GuardGear } from './gear';
-import { factionLook } from './factions';
+import { buildArmourParts, buildHelmetPart, buildShieldPart, gearColour, HELMET_FIT } from './gearParts';
+import { guardAim } from './guardStance';
 import { SWEEP_NEAR, type SweepTeam } from './sweepTeam';
 
 /** (guard-ai S12) Scratch for `gearHit` (one hit at a time; the damage path allocates nothing for gear). */
@@ -159,8 +160,9 @@ export interface AiContext {
   radioCut?(e: Enemy): void;
   /** This enemy's slot among the searchers (fans the sweep out). */
   searchSlot(e: Enemy): number;
-  /** A callout (shown near the speaker; radio lines chirp). */
-  onBark?(e: Enemy, line: string, radio: boolean): void;
+  /** A callout (shown near the speaker; radio lines chirp). (guard-ai S9) `ev`, `n`, `unit`: the table line it is (the
+   *  event, its line index, the unit it names; absent for a line said verbatim, a talking pair's), for the co-op host. */
+  onBark?(e: Enemy, line: string, radio: boolean, ev?: BarkEvent, n?: number, unit?: number): void;
   /** (guard-ai S12) His helmet was shot off: a dropped helmet (colour `hex`, size `w`, `h`, `d`) falls from `top` m
    *  above his feet (x, y, z) to the floor beside them, flung along (dx, dz) (the pooled `HelmetDrops`). */
   dropHelmet?(x: number, y: number, z: number, top: number, dx: number, dz: number, hex: string, w: number, h: number, d: number): void;
@@ -424,17 +426,8 @@ export class Enemy implements Damageable {
       this.gun = null;
       this.dog = new DogModel(ctx.scene, parts, def.look.colors.torso, def.look.colors.accent);
     }
-    if (def.kind === 'enforcer') {
-      const sh = parts.instance('rbox', '#20242b', 'shield');
-      sh.parent = this.rig.root;
-      sh.scaling.set(0.58, 0.95 * def.scale, 0.07);
-      sh.position.set(-0.08, 1.05 * def.scale, 0.45);
-      const visor = parts.instance('rbox', '#7fb6d9', 'shield-visor');
-      visor.parent = sh;
-      visor.scaling.set(0.6, 0.12, 0.5);
-      visor.position.set(0, 0.32, 0.4);
-      this.shield = sh;
-    }
+    // (guard-ai S9) the shield builder is shared with the co-op client's puppet (`gearParts.ts`)
+    if (def.kind === 'enforcer') this.shield = buildShieldPart(ctx.world, this.rig.root, def.scale);
     if (def.kind === 'sniper') {
       this.laser = parts.instance('cyl', '#ff2a1a', 'laser');
       this.laser.isVisible = false;
@@ -607,52 +600,16 @@ export class Enemy implements Damageable {
     if (a) for (let i = 0; i < a.length; i++) a[i]!.isVisible = this.armour;
   }
 
-  /** His faction's helmet / accent colours (the rig's look). */
-  private gearColour(slot: 'helmet' | 'accent'): string {
-    const look = factionLook(this.def.look, this.def.kind, this.ctx.world.map.theme.faction);
-    if (slot === 'helmet') this.gearHex = look.colors.helmet;
-    return slot === 'helmet' ? look.colors.helmet : look.colors.accent;
-  }
-
-  /** The helmet: the rig's combat-helmet part on his head node (over a cap). */
+  /** The helmet: the rig's combat-helmet part on his head node (over a cap). (guard-ai S9) `gearParts.ts`, shared
+   *  with the co-op client's puppet. */
   private buildHelmet(): void {
-    const rig = this.rig;
-    const H = rig.p.head;
-    const m = this.ctx.world.parts.instance('helmet', this.gearColour('helmet'), 'enemy-helmet');
-    m.parent = rig.headNode;
-    m.scaling.set(H.w * 1.26, H.h * 0.82, H.d * 1.18);
-    m.position.set(0, H.h * 0.14, -0.006);
-    this.ctx.world.addShadowCaster(m);
-    this.helmetPart = m;
+    this.gearHex = gearColour(this.def, this.ctx.world, 'helmet');
+    this.helmetPart = buildHelmetPart(this.ctx.world, this.rig, this.gearHex);
   }
 
   /** Body armour: the rig's armour plates (front and back on the torso node, shoulder caps). */
   private buildArmour(): void {
-    const rig = this.rig;
-    const p = rig.p;
-    const hex = this.gearColour('accent');
-    const parts = this.ctx.world.parts;
-    const front = p.chest.d / 2;
-    const out: InstancedMesh[] = [];
-    const plate = (z: number): void => {
-      const m = parts.instance('pill', hex, 'enemy-armour');
-      m.parent = rig.torso;
-      m.scaling.set(p.chest.w * 0.9, 0.34, 0.07);
-      m.position.set(0, 0.1, z);
-      out.push(m);
-    };
-    plate(front + 0.004);
-    plate(-front - 0.004);
-    for (const side of [-1, 1]) {
-      const m = parts.instance('dome', hex, 'enemy-armour');
-      m.parent = side < 0 ? rig.shoulderL : rig.shoulderR;
-      m.scaling.set(p.upperArm.r0 * 3.2, 0.095, p.upperArm.r0 * 3.2);
-      m.position.set(side * 0.01, 0, 0);
-      m.rotation.set(0, 0, -side * 0.35);
-      out.push(m);
-    }
-    for (let i = 0; i < out.length; i++) this.ctx.world.addShadowCaster(out[i]!);
-    this.armourParts = out;
+    this.armourParts = buildArmourParts(this.ctx.world, this.rig, gearColour(this.def, this.ctx.world, 'accent'));
   }
 
   /** The helmet comes off: hidden on his head, a dropped helmet at his feet flung away from the shot. */
@@ -662,7 +619,7 @@ export class Enemy implements Damageable {
     const H = this.dog ? null : this.rig.p.head;
     if (H) {
       const dl = hyp2(h.dir.x, h.dir.z) || 1;
-      this.ctx.dropHelmet?.(this.pos.x, this.pos.y, this.pos.z, 1.65 * this.def.scale, h.dir.x / dl, h.dir.z / dl, this.gearHex || '#22262b', H.w * 1.26, H.h * 0.82, H.d * 1.18);
+      this.ctx.dropHelmet?.(this.pos.x, this.pos.y, this.pos.z, 1.65 * this.def.scale, h.dir.x / dl, h.dir.z / dl, this.gearHex || '#22262b', H.w * HELMET_FIT.w, H.h * HELMET_FIT.h, H.d * HELMET_FIT.d);
     }
   }
 
@@ -727,7 +684,7 @@ export class Enemy implements Damageable {
     if (!this.alive) return;
     const e = this.dog && ev !== 'blind' ? 'dog' : ev;
     const line = unit >= 1 ? this.voice.sayUnit(e, unit) : this.voice.say(e);
-    if (line) this.ctx.onBark?.(this, line, RADIO_BARKS.has(e));
+    if (line) this.ctx.onBark?.(this, line, RADIO_BARKS.has(e), e, this.voice.lastLine, unit);
   }
 
   /** Shots stopped by the enforcer's shield (tests). */
@@ -3123,10 +3080,10 @@ export class Enemy implements Damageable {
     this.hitboxes.sync(this.pos, this.head);
   }
 
-  /** The weapon-raise weight the rig gets (`frame`) and the head fit reads: 1 firing, down to 0.2 unaware. */
+  /** The weapon-raise weight the rig gets (`frame`) and the head fit reads: 1 firing, down to 0.2 unaware. (guard-ai S9)
+   *  `guardStance.ts` (shared with the co-op puppet): cautious and calm, low ready. */
   private aimWeight(): number {
-    const lvl = this.aware.level;
-    return this.def.melee ? 0 : this.state === 'attack' || this.state === 'inCover' || this.burstLeft > 0 || this.windup > 0 ? 1 : lvl === 'investigating' || lvl === 'searching' ? 0.7 : lvl === 'suspicious' ? 0.4 : 0.2;
+    return this.def.melee ? 0 : guardAim(this.state === 'attack' || this.state === 'inCover' || this.burstLeft > 0 || this.windup > 0, this.aware.level, this.caution > 0);
   }
 
   /** Render-rate animation with interpolation between fixed steps. */
