@@ -299,6 +299,9 @@ LATEST 16:25 Test Runner verdict: #226 perf CPU OVER at 24 guards (S5 15.6 / S3 
    laptop GPU request sent (falloff on / off suites, perf, shots). LR15 PR opens after #232 lands (stacked on it).
 17:25: sectorops:1 = same live-loop test timing bug; fixed test-only on -art 08af0e9f (checks/s1-shot-fix.md);
    laptop rerun of :1 asked. LR15 run commit e60730c4 (+ charshadow, perf.mjs MODE env) queued after train 28.
+17:55: -perf 47dba252 guard freeze (render-only skip of guards whose body / shadow cannot reach the screen;
+   est. S5-worst 15.6 -> ~11.3 ms; campus-perf-fix.md) - Opus checker running (campus-perf-check.md). -art 4554adbc =
+   + polish2 + perf.mjs MODE (skips the warehouse ten-enemy scene). On PASS merge -perf into -art, send the batch below.
 4. Polish batch 2 -polish2 cca3ccb7: checker PASS (polish2-check.md; touches src/net lamp checks, no wire change).
    Merge into -art together with the -perf fix, then one laptop batch at the new -art head: e2e-coop, e2e-sectorops 1-6,
    e2e-stealth-ai, e2e-stealth + perf rerun (MAP=campusOps MODE=sector). Still open: lr-check 1-6, lr14-check 1-7,
