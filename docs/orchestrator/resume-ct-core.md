@@ -2,6 +2,11 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+~02:20: coop-rejoin-2 READY on 03a0cf58 (polish 1, 2, 5 + check A1 / A2 / B3; checkers A 94571062 + B b68bacf1 PASS;
+CHECK2-B polish 1-2 left open). After train 39 releases: master into feature/coop-rejoin (resolve), then feature/coop-rejoin
+into coop-rejoin-2; laptop coop netmove on the coop-rejoin-2 head; PR coop-rejoin-2 (after #269 merges, or stacked) -> train.
+Nothing else unblocked: guard-models waits for MPFB2 on the laptop (one alone bake, all stages + sheet); AF7-AF9 wait for
+Michael's walk; rig-pose-audit fix slices need orchestrator / Michael priority.
 ~01:55: #269 left out of train 39 (conflicts with train members, not master: courseMode.ts vs guard-ai-s22-game /
 marlow-polish6 SPOT_HOLD; coopHost.ts imports vs anim-fix-pass / sector-redesign-art ClockSync, CT). Orchestrator agreed:
 when train 39 releases, merge master into feature/coop-rejoin (keep both; drop unused P2_START_DZ), tests joinWatch /
