@@ -114,7 +114,9 @@ describe('room codes', () => {
 // ---------------------------------------------------------------------------------------------
 import { SnapshotBuffer, ClockSync, lerpAngle } from '../src/net/interp';
 import { RateLimiter, checkShot, checkBlast, clampEnd, coopSessionStats, maxHitDamage, playersHostile, shotLimiter, rayPointDistance } from '../src/net/validate';
-import { NetSession } from '../src/net/session';
+import { NetSession, type StartInfo } from '../src/net/session';
+import { matchLampFalloff } from '../src/world/lampMath';
+import { defaultSettings } from '../src/core/settings';
 import type { Transport } from '../src/net/transport';
 import { WEAPONS } from '../src/weapons/weaponDefs';
 import { emptyStats } from '../src/game/modes/gameMode';
@@ -395,15 +397,48 @@ describe('net session', () => {
     cli.toHost({ t: 'door', i: 0, crack: true });
     expect(got).toEqual([{ t: 'door', i: 0, crack: true }]);
   });
-  it('a peer on protocol version 37 is refused; version 38 joins (38 = guard-ai S9 + A126 carry; 37 Player #231; barks, caution and gear bits, deflect confirms; 36 pose-parity; 35 the weapons crate, sector-redesign E9-crate; 31 the Sector Ops lamps, slice L; 30 marlow-final)', () => {
-    expect(PROTOCOL_VERSION).toBe(38);
+  it('a peer on protocol version 38 is refused; version 39 joins (39 = guard-ai S9 + A126 carry: barks, caution and gear bits, deflect confirms; 38 the lamp falloff, lightrev LR13; 37 Player #231; 36 pose-parity; 35 the weapons crate, sector-redesign E9-crate; 31 the Sector Ops lamps, slice L; 30 marlow-final)', () => {
+    expect(PROTOCOL_VERSION).toBe(39);
     const h = hub();
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const old = h.make('O');
-    old.send({ t: 'hello', v: 37, name: 'Old', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 38, name: 'Old', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(false);
-    old.send({ t: 'hello', v: 38, name: 'New', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 39, name: 'New', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(true);
+  });
+  it("(38, lightrev LR13) the host's lamp falloff reaches the client's match over its own setting; junk or a missing lf reads Classic", () => {
+    const h = hub();
+    const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
+    const cli = new NetSession(h.make('C'), 'client', 'ABCDE', prof('Cli'));
+    // the host's choice (coopUi: its setting or ?falloff=photo); the client's own setting is Classic
+    host.hostLampFalloff = () => matchLampFalloff('photometric', false);
+    let started = null as StartInfo | null;
+    cli.events.on('start', (s) => (started = s));
+    host.startMatch();
+    expect(started).toMatchObject({ lampFalloff: 'photometric' });
+    // the client's sim (GameState.create) runs the host's, never its own
+    const clientSetting = defaultSettings().gameplay.lampFalloff;
+    expect(clientSetting).toBe('linear');
+    expect(matchLampFalloff(clientSetting, false, started!.lampFalloff)).toBe('photometric');
+    expect(matchLampFalloff('photometric', true, 'linear')).toBe('linear');
+    // a reconnect / rejoin gets the same start re-sent, lf kept (a re-hello triggers it again)
+    let again = null as StartInfo | null;
+    cli.events.on('start', (s) => (again = s));
+    cli.transport.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'Cli', tag: {}, look: {} });
+    expect(again).toMatchObject({ lampFalloff: 'photometric' });
+    // the wire: lf round-trips; junk and a missing field read Classic
+    expect(parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'normal', lf: 'photometric' })).toMatchObject({ lf: 'photometric' });
+    expect(parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'normal', lf: 'bright' })).toMatchObject({ lf: 'linear' });
+    expect(parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'normal' })).toMatchObject({ lf: 'linear' });
+    // a host left on the default starts Classic
+    const h2 = hub();
+    const host2 = new NetSession(h2.make('H'), 'host', 'ABCDE', prof('Host'));
+    const cli2 = new NetSession(h2.make('C'), 'client', 'ABCDE', prof('Cli'));
+    let s2 = null as StartInfo | null;
+    cli2.events.on('start', (s) => (s2 = s));
+    host2.startMatch();
+    expect(s2).toMatchObject({ lampFalloff: 'linear' });
   });
   it('clients ignore authority claims from non-hosts and handle the host leaving', async () => {
     const h = hub();
@@ -490,7 +525,7 @@ import { strikeWarp } from '../src/anim/strikeBody';
 
 describe('step 09: host-authoritative drawn state (D8)', () => {
   it('protocol 7 (step 12 raised it)', () => {
-    expect(PROTOCOL_VERSION).toBe(38);
+    expect(PROTOCOL_VERSION).toBe(39);
   });
   it('(step 11) wall packs and sanitizes: `a` a segment in range, `sub` a u8', () => {
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 3, s: 2.25, sub: 1 | 2 | 64, ph: 1 };
@@ -675,7 +710,7 @@ describe('A3: the wall wire after the SWAT turn and the lean-out are gone (proto
   });
   it('PROTOCOL_VERSION is 17; leftHand (128) and low (64) round-trip on a wall state', async () => {
     const { PROTOCOL_VERSION } = await import('../src/net/protocol');
-    expect(PROTOCOL_VERSION).toBe(38);
+    expect(PROTOCOL_VERSION).toBe(39);
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 2, s: 1, sub: 1 | 4 | 16 | 64 | 128 };
     const back = sanitizeMoveState(JSON.parse(JSON.stringify(packMoveState(mv))), 4096, 8)!;
     expect(back.sub).toBe(1 | 4 | 16 | 64 | 128);
@@ -720,7 +755,7 @@ describe('step 13: door peek on the wire', () => {
     expect(new Set(dcr).size).toBe(dcr.length);
   });
   it('PROTOCOL_VERSION is 24', () => {
-    expect(PROTOCOL_VERSION).toBe(38);
+    expect(PROTOCOL_VERSION).toBe(39);
   });
 });
 
@@ -795,7 +830,7 @@ describe('course messages (T1b)', () => {
   });
   it('the course takes two players and the protocol was bumped', () => {
     expect(capacity('course')).toBe(2);
-    expect(PROTOCOL_VERSION).toBe(38);
+    expect(PROTOCOL_VERSION).toBe(39);
   });
   it('the ctick limiter allows 4 a second', () => {
     const l = new TickLimiter();

@@ -12,7 +12,8 @@ import type { Grenades } from '../weapons/grenades';
 import { GRAVITY } from '../physics/havok';
 import { Body } from './body';
 import { BODY } from './bodies';
-import type { LightDef } from '../world/lights';
+import type { LightDef, Occluder } from '../world/lights';
+import { rayOccluder, shadowAccuracyOn } from '../world/shadowAccuracy';
 import { beamReach, type BeamHit } from '../world/torches';
 import { ALARM_CALL, CommandCall, nearestPanel, type AlarmPanel } from './alarm';
 import { hyp2, hyp3 } from '../core/mathx';
@@ -1170,6 +1171,10 @@ export class EnemyManager {
 
   private torchTick = 0;
 
+  /** (shadow audit, `shadowAccuracy.ts`; default off) A body's light for the guards: flashlights tested against static
+   *  geometry, as the player's light is (`GameState.lightOccluder`), so a torch behind a wall does not light a body. */
+  private readonly bodyOccluder: Occluder | undefined = shadowAccuracyOn() ? rayOccluder((ax, ay, az, bx, by, bz) => this.beamHit(ax, ay, az, bx, by, bz)) : undefined;
+
   /** Longest unobstructed run of a cone light (`beamReach` in `world/torches.ts`, shared with the co-op client). */
   private beamReach(l: LightDef): number {
     return beamReach(l, this.beamHit);
@@ -1294,7 +1299,7 @@ export class EnemyManager {
     const vx = v.pos.x;
     const vy = v.pos.y;
     const vz = v.pos.z;
-    const light = this.world.lightField.totalAt(vx, vy + 0.2, vz);
+    const light = this.world.lightField.totalAt(vx, vy + 0.2, vz, this.bodyOccluder);
     let mask = 0;
     let n = 0;
     let first: Enemy | null = null;
@@ -2634,7 +2639,7 @@ export class EnemyManager {
       b.lightT -= dt;
       if (b.lightT <= 0 && b.present) {
         b.lightT = 1;
-        b.light = field.totalAt(b.pos.x, b.pos.y + 0.2, b.pos.z);
+        b.light = field.totalAt(b.pos.x, b.pos.y + 0.2, b.pos.z, this.bodyOccluder);
       }
     }
     // drop dead entries (a dog keeps its own body: kept to draw and dispose)
