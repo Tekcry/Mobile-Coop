@@ -15,6 +15,8 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   ONE verdict message to "Night Shift | Sector Ops Build": CPU p95 per view per preset, 273539ec vs f8008542 delta
   (their triage expects LR16 +0.1-0.3 ms Epic / +0.3-0.7 Medium, the rest = unfrozen campus guards from #226).
 - PR #252 (laptop-queue) open, train-ready; Orchestrator has the desktop start commands.
+- SENT ~21:20: train 33 e46fb9e5 FAIL ctcourse:4 (A8 N2 grille stop; superseded by db14a418 43/43 PASS). Opus triage:
+  test timing under load in a8Strongroom.mjs:278-294 -> fix + N2 dump sent to Marlow Build (owner).
 
 **Test Runner SAVE 25 (2026-10-23 ~20:35; wins over SAVE 24 where they differ):**
 - ALL manual chains are finished; NO hand-run chains from now on (Orchestrator 20:26). Alone runs (perf, guard-cap,
