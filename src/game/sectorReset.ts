@@ -24,6 +24,8 @@ export interface ResetDoors<D extends ResetDoor> {
 export class SectionStartState {
   /** Per light id: 0 off, 1 on, 2 shot out; -1 not recorded (a flashlight). */
   private lights: Int8Array = new Int8Array(0);
+  /** Per light id: its circuit (`LightDef.group`), as recorded by `take`. */
+  private groups: Int32Array = new Int32Array(0);
   /** Per door index: 1 open, 0 shut. */
   private doors: Uint8Array = new Uint8Array(0);
   taken = false;
@@ -31,15 +33,25 @@ export class SectionStartState {
   /** Record the lights' and doors' state now (a section begins). */
   take<D extends ResetDoor>(reg: LightRegistry, doors: ResetDoors<D>): void {
     const ls = reg.lights;
-    if (this.lights.length !== ls.length) this.lights = new Int8Array(ls.length);
+    if (this.lights.length !== ls.length) {
+      this.lights = new Int8Array(ls.length);
+      this.groups = new Int32Array(ls.length);
+    }
     for (let i = 0; i < ls.length; i++) {
       const l = ls[i]!;
+      this.groups[i] = l.group;
       this.lights[i] = l.kind === 'flashlight' ? -1 : l.destroyed ? 2 : reg.baseOn(l) ? 1 : 0;
     }
     const ds = doors.list;
     if (this.doors.length !== ds.length) this.doors = new Uint8Array(ds.length);
     for (let i = 0; i < ds.length; i++) this.doors[i] = ds[i]!.target === 1 ? 1 : 0;
     this.taken = true;
+  }
+
+  /** (E4, I5) Record circuit `group`'s lamps as on (a timed window running when the section began is not the section's
+   *  state): off (0) becomes on (1); shot (2) and flashlight (-1) entries are left alone. */
+  markGroupOn(group: number): void {
+    for (let i = 0; i < this.lights.length; i++) if (this.groups[i] === group && this.lights[i] === 0) this.lights[i] = 1;
   }
 
   /** Put them back (a section restart). Returns how many lights and doors changed (tests). */

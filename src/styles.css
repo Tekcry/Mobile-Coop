@@ -1183,6 +1183,10 @@ body {
 .hitmarker.head i {
   background: #ffd23f;
 }
+/* (guard-ai S12) stopped by a helmet or vest: a steel-blue marker, not a kill */
+.hitmarker.deflect i {
+  background: #8fb3d9;
+}
 .hitmarker.kill i {
   background: #ff3b30;
   width: 14px;

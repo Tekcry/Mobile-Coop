@@ -57,7 +57,7 @@ export interface WeaponSlot {
   sd: number;
 }
 
-export type HitKind = 'hit' | 'head' | 'kill';
+export type HitKind = 'hit' | 'head' | 'kill' | 'deflect';
 
 export interface CombatEvents {
   onHit?(kind: HitKind, weapon: WeaponId, damage: number): void;
@@ -1046,7 +1046,7 @@ export class PlayerWeapons {
       t.hits++;
       if (head) t.heads++;
       if (res.killed) t.kills++;
-      this.events.onHit?.(res.killed ? 'kill' : head ? 'head' : 'hit', s.def.id, res.dealt);
+      this.events.onHit?.(res.killed ? 'kill' : res.deflect ? 'deflect' : head ? 'head' : 'hit', s.def.id, res.dealt);
     } else if (h.prop) {
       this.world.props.impulse(h.prop, dir.scale(s.def.impulse), h.point);
       this.world.props.damage(h.prop, dmg);
