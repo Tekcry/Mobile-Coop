@@ -174,6 +174,21 @@ describe('light field (3.6)', async () => {
     };
     const ag = b.ambient;
     let v = at(ag.data, 0, ag.origin, ag.n, AMBIENT_CELL);
+    // (LR16-1) the lit lamps' bounce: their boxes summed in exact integers (q x round(intensity x 1024)), quantised
+    // (x 2^-15 / 1024 x the gain, to a byte), read trilinearly on the ambient grid's cells
+    const bb = b.lamps!.r.bounce;
+    if (bb) {
+      const acc = new Float64Array(ag.data.length);
+      let bo = 0;
+      b.lamps!.baked.ids.forEach((id, i) => {
+        const [bx, by, bz, nx, ny, nz] = Array.from(bb.boxes.subarray(i * 6, i * 6 + 6)) as number[];
+        const l = reg.lights[id]!;
+        const w = l.on && !l.destroyed && l.intensity > 0 ? Math.round(l.intensity * 1024) : 0;
+        for (let z = 0; z < nz!; z++) for (let y = 0; y < ny!; y++) for (let x = 0; x < nx!; x++) { const c = bx! + x + ag.n[0] * (by! + y + ag.n[1] * (bz! + z)); acc[c] = acc[c]! + bb.data[bo++]! * w; }
+      });
+      const g = Uint8Array.from(acc, (a) => Math.round(Math.min(1, a * (2 ** -15 / 1024) * 1.2) * 255));
+      v += at(g, 0, ag.origin, ag.n, AMBIENT_CELL);
+    }
     v += b.moonLight * at(b.moon.vis, 0, b.moon.origin, b.moon.n, MOON_CELL);
     let off = 0;
     b.lamps!.baked.ids.forEach((id, i) => {
@@ -220,6 +235,40 @@ describe('light field (3.6)', async () => {
     }
     // (the scene is not all dark: lamps really contribute)
     expect(lit).toBeGreaterThan(30);
+  });
+
+  it('(LR16-1) level adds the bounce read trilinearly', () => {
+    const { reg, bake } = scene();
+    const f = new LightField(bake, reg);
+    // the same bake without its bounce: the level before LR16-1
+    const bare = new LightField({ ...bake, lamps: { baked: bake.lamps!.baked, r: { ...bake.lamps!.r, bounce: undefined } } }, reg);
+    expect(f.bounce.active).toBe(true);
+    expect(bare.bounce.active).toBe(false);
+    const bg = f.bounce;
+    let seed = 13;
+    const rnd = (): number => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    let lit = 0;
+    for (let i = 0; i < 300; i++) {
+      const x = -10 + rnd() * 20;
+      const y = 0.05 + rnd() * 3.5;
+      const z = -10 + rnd() * 20;
+      const b = f.bounceAt(x, y, z);
+      // the bounce grid's own bytes, the ambient grid's cells, the shared trilinear read
+      expect(b).toBe(trilinear(bg.g, 0, bg.origin[0], bg.origin[1], bg.origin[2], bg.n[0], bg.n[1], bg.n[2], AMBIENT_CELL, x, y, z));
+      const before = bare.levelAt(x, y, z);
+      if (before + b < 1) expect(f.levelAt(x, y, z)).toBeCloseTo(before + b, 12);
+      else expect(f.levelAt(x, y, z)).toBe(1);
+      if (b > 0.02) lit++;
+    }
+    expect(lit).toBeGreaterThan(30);
+    // the west lamp's bounce goes with it, at once: its floor under it keeps only the others' bounce
+    const p = [-3, 0.5, 0] as const;
+    const on = f.bounceAt(...p);
+    reg.setOn(0, false);
+    expect(f.bounceAt(...p)).toBeLessThan(on - 0.05);
+    expect(f.levelAt(...p)).toBeCloseTo(brute(reg, bake, ...p), 6);
+    reg.setOn(0, true);
+    expect(f.bounceAt(...p)).toBe(on);
   });
 
   it('switching, shooting and EMP change the level at once; the wall and the roof shade it as baked', () => {

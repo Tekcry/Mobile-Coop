@@ -116,8 +116,8 @@ describe('meter, perception and shaders read one source', () => {
       const cone = (l.y - y) / d;
       const want = LAMP_LEVEL_GAIN * l.intensity * glsl(d, baked.lights[3]!) * cone * field.visAt(0, x, y, z);
       expect(field.lampAt(0, x, y, z)).toBeCloseTo(want, 6);
-      // the guards' sample (`levelAt`) is the same field: ambient 0 and no moon here, so the lamp alone
-      expect(field.levelAt(x, y, z)).toBeCloseTo(Math.min(1, want), 5);
+      // the guards' sample (`levelAt`) is the same field: ambient 0 and no moon here, so the lamp and (LR16-1) its bounce
+      expect(field.levelAt(x, y, z)).toBeCloseTo(Math.min(1, want + field.bounceAt(x, y, z)), 5);
     }
     expect(field.levelAt(2, 0.1, 1)).toBeGreaterThan(0.1);
   });

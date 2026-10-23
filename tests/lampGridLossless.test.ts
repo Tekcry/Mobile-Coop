@@ -117,9 +117,9 @@ function check(map: MapDef, id: string): Result {
         const dOld = Math.abs(sNew - sOld);
         if (dOld > maxOldVsNew) maxOldVsNew = dOld;
         if (dOld > 1e-9) oldChanged++;
-        // the field reads the same listing: its level (lamps only here) is the new sum, clamped
+        // the field reads the same listing: its level (lamps and, LR16-1, their bounce here) is the new sum, clamped
         const lv = field.levelAt(x, y, z);
-        const want = Math.min(1, sNew);
+        const want = Math.min(1, sNew + field.bounceAt(x, y, z));
         if (Math.abs(lv - want) > 1e-9) expect.fail(`${id}: levelAt ${lv} != listed sum ${want} at ${x}, ${y}, ${z}`);
         samples++;
       }
