@@ -98,7 +98,7 @@ describe('guard bake plan: job split', () => {
     }
   });
 
-  it('scripts match the plan: build_body, build_head, garments/<g>, rigid_skin, bake_lods', () => {
+  it('scripts match the plan: build_body, build_head, garments/<g>, build_gear, bake_lods', () => {
     expect(jobsFor('bodies', kit)[0]?.script).toBe('build_body.py');
     expect(jobsFor('heads', kit)[0]?.script).toBe('build_head.py');
     expect(jobsFor('garments', kit).map((j) => j.script).every((s) => s.startsWith('garments/'))).toBe(true);
