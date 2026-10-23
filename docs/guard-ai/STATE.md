@@ -1,6 +1,12 @@
 # Guard AI - state
 
 ## Now
+~12:05: #298 sniper armour TRAIN-READY (laptop 3/3, Opus check PASS). S13 bisect: master PASS, S28 alone PASS,
+master + S28 FAIL (diag: 3 response teams share 6 sweep points; team 1 stands on team 0's point, team 0's leader never
+arrives). Fix in src on feature/guard-ai-sweep (worktree -sweep = master cacd0c7e + S28 merged; stacked with #294,
+one train): S28 builder RUNNING (S13-SWEEP-FIX.md, set sweep-fix). Test-only branch feature/guard-ai-s28-train
+(worktree -s28-train): remove after.
+
 ~11:10: sniper = GAME BUG in S16's fire gate: Ballistics.armouredFirst / ray().armoured read armour from shape filter
 bits, Havok level-container hits read -1 -> every wall armour. Fix 63c7a676 (feature/guard-ai-sniper, worktree -sniper):
 armour is a body mark (groups.ts markArmoured / isArmouredBody; LevelBuilder glass + Doors). Side effect: player rounds
