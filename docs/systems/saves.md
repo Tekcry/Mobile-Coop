@@ -42,3 +42,10 @@ never holds a save.
 finale's best rating. Read at the co-op lobby ("Start at bay N"), written by the host at each airlock and at the end;
 sanitised on read (`sanitizeCourseRecord`). A new key in the existing `kv` store: no profile shape change, so no
 `SAVE_VERSION` bump.
+
+## Section rating record (`kv` `rating:sections`)
+`src/save/ratingRecord.ts` (section-rating S5): `{ v: 1, maps: { [mapId]: { [sectionId]: { marks, synced } } } }`, the best
+rating per Sector Ops section. Best-of: more marks (bits of the 4-bit mask) wins, a tie goes to more synced takedowns.
+Sanitised on read (`sanitiseRatingRecord`: marks clamped 0-15, synced a whole 0-1e4, bad ids dropped); writes are
+serialised; the host (or solo) writes at every rating. Read by the Sector Ops op list (four pips per section). Like
+`course:fallow`, a new `kv` key: no `SAVE_VERSION` bump.

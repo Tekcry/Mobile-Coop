@@ -13,9 +13,9 @@ import { fmtTime } from '../../game/sectors';
 import { loadRatingRecord, type RatingRecord } from '../../save/ratingRecord';
 import { ALL_MARKS } from '../../game/rating/sectionRating';
 
-/** Four small pips for a marks bitmask (filled = earned); empty string when nothing is recorded. */
+/** Four small pips for a marks bitmask (filled = earned; a recorded 0 is four empty); '' when nothing is recorded. */
 export function marksPips(marks: number | undefined): string {
-  if (!marks) return '';
+  if (marks === undefined) return '';
   return [1, 2, 4, 8].map((b) => ((marks & ALL_MARKS & b) !== 0 ? '●' : '○')).join('');
 }
 

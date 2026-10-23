@@ -72,3 +72,5 @@ Recommended: R1 + R2 + R3 + R4 (all four, small). No profile change, one protoco
 ## Assumed decisions logged during the build
 - A9 Bodies hidden gives +1 gadget charge instead of alarmStep until guard-ai's stage API is on master. Undo: map
   BODIES_HIDDEN to alarmStep in sectionRating.ts's table and call the stage API in sectorMode.
+- A10 Any alarm stage rise (camera, laser, panel) breaks No alarms (PLAN's table had panel alarms only); the card and
+  the HUD agree. Undo: drop the alarms++ in cameraAlarm.

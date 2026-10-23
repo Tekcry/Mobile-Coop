@@ -5,6 +5,13 @@
  * an in-run top-up for the next section (BRIEF R1 + R4). Rewards top up what the player already carries: they never add
  * new kit. All numbers sit in the tables below.
  */
+import type { GadgetId } from '../gadgets';
+
+/**
+ * The gadgets a rating's charges top up, in order: the noisemaker first, then sleeping gas (the stealth tools; the
+ * pistol jammer's charge is per use, not carried). Each is capped at its starting carry, on the host and the client.
+ */
+export const GRANT_GADGETS: readonly GadgetId[] = ['noise', 'gas'];
 
 /** Marks bitmask. */
 export const UNDETECTED = 1;

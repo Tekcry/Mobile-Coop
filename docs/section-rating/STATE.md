@@ -107,3 +107,21 @@ Built `scripts/e2e-section-rating.mjs` (not in the runner's suite list; the lead
 - Run: `E2E_GPU=1 E2E_JOBS=1 E2E_PORT=4191 node scripts/run-e2e.mjs e2e-section-rating`: pass, 46 s.
 - NEEDS HOOK: a real client takedown (the client's own press carried to the host) has no test hook; the pair is fed to the host's `Enemy.knockOut` with attackerId 'local' and the client's id. No hook for the client's gadget top-up on a rejoined page (its kit rebuilds at the starting carry), so the rejoin check is card hidden + ratingSeq 0 + host cap unchanged.
 - Observed (not asserted): the co-op grant read +2 syringes (No alarms + one synced pair); the host's section-1 rating was 3/4 because the KO'd bodies were found (bodiesFound 1).
+
+## Fix round report (2026-10-23 13:32)
+Checker's should-fix 1-5 and two polish items (S1-5-check.md).
+1. Camera / laser alarms break No alarms (A10, logged in BRIEF): `sectorMode.ts` `cameraAlarm` counts `secStats.alarms`
+   when the stage rose.
+2. The card names only rewards that land: host `rated` fills a reused `cardView` (gadget = min(grant, room left now over
+   GRANT_GADGETS), syringe only with `net.addSyringes`, medkit only when it heals this player now); client `takeRating`
+   fills its own reused `cardView` (gadget = charges actually added, medkit as the host). `hook.last`, results and the
+   wire keep the earned grant. Zero parts drop from the line (`ratingLines`).
+3. `coopClient.onSector`: the rating block runs before the `ls` / `markCheckpoint` check.
+4. `NetAttachment.addSyringes?(n)` (gameState.ts); the cast in `giveGrant` is gone.
+5. Docs: saves.md (`rating:sections`), modes-and-progression.md (Sector Ops section rating), TESTING.md (one line).
+Polish: `GRANT_GADGETS` exported once from `rating/sectionRating.ts`; `marksPips(0)` shows four empty pips.
+e2e-section-rating: section 1 (full kit and health) asserts no grant line; section 2 empties the gadgets first and
+asserts "+2 noisemaker charges" with no medkit.
+Results: tsc clean; eslint clean; vitest sectionRating 23, ratingCardText 7, ratingRecord 3, ratingWire 8,
+sectorRatingHost 3, sectors 27, sectorRestart 8, net 72, rejoin 12 (all pass). e2e (desktop, GPU, JOBS=1, 4191):
+e2e-section-rating pass 41 s, e2e-sectorops pass 220 s (13:26-13:30).

@@ -24,10 +24,9 @@ import type { TeamMate } from '../game/teamController';
 import type { TeamKind } from '../game/teamMoves';
 import { clampEnd, clientForcedHolster, coopSessionStats, ratingViewFromWire } from './validate';
 import { RatingCard, type RatingView } from '../ui/hud/ratingCard';
-import { GADGETS, type GadgetId } from '../game/gadgets';
-
-/** (section-rating S3) The gadgets a rating's charges top up, in order (as the host's grant in sectorMode.ts). */
-const GRANT_GADGETS: readonly GadgetId[] = ['noise', 'gas'];
+import { GADGETS } from '../game/gadgets';
+import { GRANT_GADGETS } from '../game/rating/sectionRating';
+import { stationHeal } from '../game/medkit';
 import { applyCourseWire, clientCourseFrame, clientCourseSummary, courseStartPos, disposeClientCourse } from '../game/modes/courseMode';
 import { isClientVerb, type ClientVerb } from '../game/course/courseWire';
 import { CtDevices } from '../game/ctDevices';
@@ -95,6 +94,14 @@ export class CoopClient implements NetAttachment {
   onRating: ((v: RatingView, gadgetName?: string) => void) | null = null;
   /** The section index of the last rating taken (-1 none; a restart never re-rates, so a new index is a new rating). */
   private ratedSec = -1;
+  /** (section-rating fix) The card's copy of a rating, its grant trimmed to what lands here (reused). */
+  private readonly cardView: RatingView = {
+    sectionId: '',
+    title: '',
+    marks: 0,
+    synced: 0,
+    grant: { gadget: 0, syringe: 0, medkit: 0, alarmStep: 0 },
+  };
   /** (integration) A sector message has arrived since this client connected (the first one's rating is history). */
   private sawSector = false;
   /** (integration) Sector Ops: the section rating card on our HUD (null elsewhere). */
@@ -653,6 +660,20 @@ export class CoopClient implements NetAttachment {
    */
   private onSector(msg: Extract<Msg, { t: 'sector' }>): void {
     const ct = this.sec;
+    // (section-rating fix) the rating first: a top-up in the same message as a new `ls` goes into that checkpoint loadout
+    if (!this.sawSector) {
+      // (integration) a late join / rejoin: a rating already on the wire was shown and granted before we came; it
+      // only goes to the results list (no card, no top-up)
+      this.sawSector = true;
+      if (msg.rt) {
+        this.ratedSec = msg.rt.sec;
+        const v = ratingViewFromWire(msg.rt, this.g.world.map.sectors ?? []);
+        if (v) {
+          this.rating = v;
+          this.g.sectionRatings.push(v);
+        }
+      }
+    } else if (msg.rt && msg.rt.sec !== this.ratedSec) this.takeRating(msg.rt);
     // (sector-restart, M9) a later section went live (the connector loaded it): our loadout now is the one a restart of
     // it gives back (the host records its own as the section begins)
     if (msg.ls !== undefined && msg.ls > this.kitSection) {
@@ -671,19 +692,6 @@ export class CoopClient implements NetAttachment {
         if (d.anchor.locked !== on) doors.setLocked(d, on);
       }
     }
-    if (!this.sawSector) {
-      // (integration) a late join / rejoin: a rating already on the wire was shown and granted before we came; it
-      // only goes to the results list (no card, no top-up)
-      this.sawSector = true;
-      if (msg.rt) {
-        this.ratedSec = msg.rt.sec;
-        const v = ratingViewFromWire(msg.rt, this.g.world.map.sectors ?? []);
-        if (v) {
-          this.rating = v;
-          this.g.sectionRatings.push(v);
-        }
-      }
-    } else if (msg.rt && msg.rt.sec !== this.ratedSec) this.takeRating(msg.rt);
     // the HUD line (section, alarm, syringes) comes with the snapshot's `info` (the host's mode info, mirrored)
   }
 
@@ -702,22 +710,37 @@ export class CoopClient implements NetAttachment {
     let n = rt.gadget;
     let name: string | undefined;
     let ids = 0;
+    let added = 0;
     for (const id of GRANT_GADGETS) {
       if (n <= 0) break;
       const k = this.g.gadgets.topUp(id, n, GADGETS[id].carry);
       if (k <= 0) continue;
       n -= k;
+      added += k;
       ids++;
       name = GADGETS[id].name.toLowerCase();
     }
     if (ids !== 1) name = undefined;
+    // (section-rating fix) the card names only what lands here: the charges actually added, a medkit only when the
+    // host's heal would heal us now (the view kept for the results and the hook is what was earned)
+    const c = this.cardView;
+    c.sectionId = v.sectionId;
+    c.title = v.title;
+    c.marks = v.marks;
+    c.synced = v.synced;
+    const g = this.g;
+    const h = g.target.health;
+    c.grant.gadget = added;
+    c.grant.syringe = v.grant.syringe;
+    c.grant.medkit = stationHeal(h.hp, h.maxHp, g.player.alive, g.opts.difficulty ?? 'normal') !== null ? v.grant.medkit : 0;
+    c.grant.alarmStep = v.grant.alarmStep;
     // the test hook in the host's shape (SectionRatingHook): the client counts nothing and gives nothing itself
     const w = window as unknown as { __sectionRating?: { stats: unknown; last: RatingView | null; lastGrant: unknown } };
     if (w.__sectionRating) w.__sectionRating.last = v;
     else w.__sectionRating = { stats: null, last: v, lastGrant: null };
     // the op's last section (rated at the extraction) shows on the results screen, not the card
     const defs = this.g.world.map.sectors ?? [];
-    if (rt.sec < defs.length - 1) this.onRating?.(v, name);
+    if (rt.sec < defs.length - 1) this.onRating?.(c, name);
   }
 
   private onEndMsg(raw: EndStats): void {

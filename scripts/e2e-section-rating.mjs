@@ -1,5 +1,5 @@
 // Section rating (feature/section-rating S7): Sector Ops rates each section as its connector unloads it. Solo (?autostart,
-// the Warehouse, 4 guards a section): section 1 cleared clean shows the rating card (4 ticks, a grant line), it hides
+// the Warehouse, 4 guards a section): section 1 cleared clean shows the rating card (4 ticks, no grant line: nothing would land), it hides
 // after ~4.6 s, window.__sectionRating.last.marks is 15; section 2 with a kill shows No kills as a miss; the extraction
 // shows no card and the results list one line per section. Co-op (two pages over ?net=local, the host pumped headless):
 // a synced knock-out pair (host + client inside SYNC_WINDOW) -> synced 1 on both cards, the client's gadgets topped up
@@ -70,7 +70,8 @@ console.log('section rating: solo Sector Ops (clean section, a kill, the extract
     await poll(async () => (await cardState(page))?.shown, 8000, 'the rating card after section 1');
     const c1 = await cardState(page);
     assert(c1.ok === 4 && c1.miss === 0, `a clean section 1: four ticks (${JSON.stringify(c1.rows)})`);
-    assert(c1.grant.length > 0 && !c1.grantHidden, `the card has a grant line ("${c1.grant}")`);
+    // the card names only rewards that land: full gadgets and full health here, so no grant line (fix round)
+    assert(c1.grantHidden || c1.grant === '', `no grant line with a full kit and full health ("${c1.grant}")`);
     const last1 = await G(() => window.__sectionRating.last);
     assert(last1 && last1.marks === 15, `__sectionRating.last.marks is 15 (${JSON.stringify(last1)})`);
     // the card hides by itself (4 s shown + 0.6 s fade of rendered frames)
@@ -90,11 +91,14 @@ console.log('section rating: solo Sector Ops (clean section, a kill, the extract
     });
     await sim(0.2);
     assert((await G(() => window.__sectionRating.stats.kills)) >= 1, 'the kill is counted in the live section stats');
+    await emptyGadgets(page); // room for the grant's charges: the card now names them
     await cycle(1);
     await poll(async () => (await cardState(page))?.shown, 8000, 'the rating card after section 2');
     const c2 = await cardState(page);
     // MARK_LABELS order: Undetected, No kills, No alarms, Bodies hidden
     assert(/kill/i.test(c2.rows[1].text) && c2.rows[1].cls.includes('miss'), `No kills is a miss after a kill (${JSON.stringify(c2.rows)})`);
+    assert(/charge/.test(c2.grant) && !c2.grantHidden, `the grant line names the gadget charges that land ("${c2.grant}")`);
+    assert(!/medkit/.test(c2.grant), `no medkit on the card at full health ("${c2.grant}")`);
     const last2 = await G(() => window.__sectionRating.last);
     assert(last2 && (last2.marks & 2) === 0, `the rating's No kills bit is clear (marks ${last2?.marks})`);
     await poll(async () => { await frames(page, 2); return (await cardState(page))?.shown === false; }, 90000, 'the card hides again', 50);

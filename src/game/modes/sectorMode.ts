@@ -42,10 +42,11 @@ import { killScore } from './score';
 import { SectionStartState } from '../sectorReset';
 import { markCompleted } from '../../save/sectorRecord';
 import { updateRatingRecord } from '../../save/ratingRecord';
-import { GADGETS, type GadgetId } from '../gadgets';
+import { GADGETS } from '../gadgets';
 import { stationHeal } from '../medkit';
 import {
   DEFAULT_RULES,
+  GRANT_GADGETS,
   SyncedDetector,
   emptyGrant,
   newSectionStats,
@@ -56,12 +57,6 @@ import {
   type SectionStats,
 } from '../rating/sectionRating';
 import { RatingCard } from '../../ui/hud/ratingCard';
-
-/**
- * (section-rating S2) The gadgets a rating's charges top up, in order: the noisemaker first, then sleeping gas (the
- * stealth tools; the pistol jammer's charge is per use, not carried). Each is capped at its starting carry.
- */
-const GRANT_GADGETS: readonly GadgetId[] = ['noise', 'gas'];
 
 /** (section-rating S2) The last rated section, as the rating card reads it (S4's `RatingView` shape). */
 export interface SectionRatingView {
@@ -191,8 +186,23 @@ export class SectorMode implements GameMode {
   private readonly rated = (): void => {
     const v = this.hook.last;
     if (!this.rateGrant || !v || !this.card) return;
-    this.card.show(v, this.grantGadgetName(v.grant.gadget));
+    // (section-rating fix) the card names only what lands: gadget charges up to the room left now, a medkit only when
+    // it heals us, syringes only with a net layer that takes them (the view itself keeps what was earned)
+    const c = this.cardView;
+    c.sectionId = v.sectionId;
+    c.title = v.title;
+    c.marks = v.marks;
+    c.synced = v.synced;
+    const cg = c.grant;
+    const vg = v.grant;
+    cg.gadget = Math.min(vg.gadget, this.gadgetRoom());
+    cg.syringe = this.g.net?.addSyringes ? vg.syringe : 0;
+    cg.medkit = this.ownHeals() ? vg.medkit : 0;
+    cg.alarmStep = vg.alarmStep;
+    this.card.show(c, this.grantGadgetName(cg.gadget));
   };
+  /** (section-rating fix) The card's copy of the rating, its grant trimmed to what lands (reused, no allocation). */
+  private readonly cardView: SectionRatingView = { sectionId: '', title: '', marks: 0, synced: 0, grant: emptyGrant() };
 
   /** (sector-redesign G22) The lamps and doors as the current section began (a restart puts them back). */
   readonly startState = new SectionStartState();
@@ -547,6 +557,8 @@ export class SectorMode implements GameMode {
     const ct = this.ct;
     const up = this.run.alarm;
     const send = ct && ct.alarm > up ? this.run.raiseAlarm() : 0;
+    // (section-rating fix, A10) a stage raised by a camera / laser breaks No alarms too (the card agrees with the HUD)
+    if (this.run.alarm > up) this.secStats.alarms++;
     this.raised(up, send, false);
   }
 
@@ -655,6 +667,21 @@ export class SectorMode implements GameMode {
     return undefined;
   }
 
+  /** (section-rating fix) Gadget charges a top-up could add now: each of GRANT_GADGETS up to its starting carry. */
+  private gadgetRoom(): number {
+    const counts = this.g.weapons.gadgets.counts;
+    let room = 0;
+    for (const id of GRANT_GADGETS) room += Math.max(0, Math.min(GADGETS[id].carry, GADGETS[id].max) - counts[id]);
+    return room;
+  }
+
+  /** (section-rating fix) A medkit grant would heal this machine's player now (alive, below full health). */
+  private ownHeals(): boolean {
+    const g = this.g;
+    const h = g.target.health;
+    return stationHeal(h.hp, h.maxHp, g.player.alive, g.opts.difficulty ?? 'normal') !== null;
+  }
+
   /** (section-rating S2) The section's counters back to zero (in place), the synced pairs forgotten. */
   private freshCounters(): void {
     resetSectionStats(this.secStats);
@@ -682,7 +709,7 @@ export class SectorMode implements GameMode {
     }
     if (r.syringe > 0) {
       this.run.syringeBonus += r.syringe;
-      const net = g.net as unknown as { addSyringes?: (n: number) => void } | null;
+      const net = g.net;
       if (net?.addSyringes) {
         net.addSyringes(r.syringe);
         given.syringe = r.syringe;
