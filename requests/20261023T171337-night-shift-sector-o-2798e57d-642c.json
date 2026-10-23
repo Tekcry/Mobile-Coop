@@ -1,0 +1,13 @@
+{
+  "id": "20261023T171337-night-shift-sector-o-2798e57d-642c",
+  "sha": "2798e57df4afebf468a1814ea7ad96f77efd7118",
+  "branch": "feature/sector-redesign-lr16pol-cf",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-lightbake"
+  ],
+  "set": "lr16cf",
+  "note": "polish C + F (LAMP_VERSION 7) on e7cec732"
+}
