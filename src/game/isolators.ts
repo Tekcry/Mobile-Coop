@@ -27,6 +27,8 @@ export interface BoardDef {
   groups: readonly number[];
   /** Seconds a timed isolator keeps them cut (> 0); unset or 0: a breaker (cut until switched back). */
   window?: number;
+  /** (sector-redesign cap fix) Sector Ops section (co-op mirrors its item only while it is live); none: always. */
+  section?: number;
 }
 
 /** What `use` did. */

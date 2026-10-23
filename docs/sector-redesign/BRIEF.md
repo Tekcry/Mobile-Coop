@@ -236,3 +236,13 @@ Lead, slice 1 check (2026-10-23, checks/slice1-check.md PASS; one fix round):
   hall door + front door); A98 no ammo inside sections, one weapons crate slot at each section start (Michael ~10:20),
   data only until E9-crate. Engine items for Opus: E8 bulletproof + thermal camera flags, E9-crate, E10 armoured glass /
   door pieces (glass needs E2).
+- E10 (armoured routes, A97; checks/e10-armour.md): A-E10-1 armour = one collision bit `G.GLASS_ARMOURED` (1 << 14) on
+  armoured panes and armoured door leaves, in `MASK.PLAYER_SHOT` / `ENEMY_SHOT`, not in `SIGHT` / `WORLD`; undo: drop the
+  bit from the shot masks. A-E10-2 doors cannot be shot open today (no runtime reads `breachable`), so an armoured door
+  only stops penetration (a plain 0.1 leaf is thinner than a rifle's 0.2 penetration); open, lock and bash unchanged;
+  undo: `armoured` off the door. A-E10-3 a round on armour gives sparks only (no chip / decal), the E8 ricochet look, the
+  generic impact sound. A-E10-4 only the mantrap's inner door is armoured (the outer door stays plain; the table lists
+  one door). A-E10-5 bypasses: arm-mantrap -> kp-batt keypad (stealth route), arm-noc -> the basket hang-down into the
+  cage (high route), arm-ante -> the anteroom side door (stealth), arm-front -> the north parapet rappel (high); undo:
+  edit `bypass` in `S4_ARMOURED` / `S5_ARMOURED`. A-E10-6 the armoured NOC window also stops the NOC pair's rounds (they
+  see the hall, cannot shoot it) - Guard AI must test the fire line on `MASK.ENEMY_SHOT`.

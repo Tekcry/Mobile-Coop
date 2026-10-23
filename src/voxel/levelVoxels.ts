@@ -159,7 +159,7 @@ export function levelVoxels(boxes: readonly BoxPiece[], cylinders: readonly CylP
   const shapes: VoxelShape[] = [];
   const fine: VoxelShape[] = [];
   const voxelBox = boxes.map((b, i) => {
-    if (b.visible === false) return false;
+    if (b.visible === false || b.glass) return false;
     const thin = Math.min(b.s[0], b.s[1], b.s[2]);
     if (thin < (fineSize ? Math.min(min, fineMin) : min)) return false;
     const mat = palette.get(b.color, kindOf(b.color, b.s[0], b.s[1], b.s[2], b.c[0], b.c[1] + b.s[1] / 2, b.c[2]));

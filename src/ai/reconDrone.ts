@@ -1,5 +1,5 @@
 import { PhysicsBody, PhysicsMotionType, PhysicsShapeSphere, TransformNode, Vector3, type InstancedMesh, type Scene } from '../core/babylon';
-import { G } from '../physics/groups';
+import { G, MASK } from '../physics/groups';
 import { hyp2, hyp3 } from '../core/mathx';
 import type { DamageRegistry, Damageable, DamageResult, HitInfo } from '../game/damage';
 import type { Ballistics } from '../weapons/ballistics';
@@ -176,7 +176,7 @@ export class ReconDrone implements Damageable {
         if (ang < D.half || below) {
           this.eye.set(this.pos.x, this.pos.y - 0.12, this.pos.z);
           best.target.aimPoint(this.to);
-          const h = this.ballistics.ray(this.eye, this.to, G.STATIC);
+          const h = this.ballistics.ray(this.eye, this.to, MASK.SIGHT);
           if (!h.hit || h.distance > Vector3.Distance(this.eye, this.to) - 0.3) {
             rate = D.rate * (1 - bd / D.range) * (best.crouched ? 0.7 : 1) * perception * 2;
           }

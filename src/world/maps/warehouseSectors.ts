@@ -25,6 +25,8 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
     name: 'Goods-in and trade offices',
     // the yard's dark south-west corner (A4); the DVR in the security office is the objective (SPEC 2.1 / 5.6)
     start: { x: -20.0, y: 0, z: -24.6, yaw: 0.5 },
+    // weapons crate (E9): the yard south wall, strip to the yard
+    crate: { at: [-21.8, 0, -25], yaw: 0 },
     objective: { kind: 'download', label: 'Download the security DVR', x: 3.95, y: 0, z: -16.0, yaw: Math.PI / 2 },
     connector: {
       label: 'Into the fire lobby',
@@ -86,6 +88,8 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
     id: 'racking',
     name: 'Storage hall',
     start: { x: -14.5, y: 0, z: -7.2, yaw: 0 },
+    // weapons crate (E9): the fire lobby west wall, strip into the lobby
+    crate: { at: [-15.8, 0, -7.2], yaw: Math.PI / 2 },
     // the high-value cage (SPEC 2.2): the case on the shelving by the west wall; the e2e stand point (x + 0.9) is free floor
     objective: { kind: 'grab', label: 'Take the case from the cage', x: -23.0, y: 0, z: 15.0, yaw: -Math.PI / 2 },
     connector: {
@@ -148,6 +152,8 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
     id: 'floor',
     name: 'Assembly hall and mezzanine',
     start: { x: -1.2, y: 0, z: 14.8, yaw: Math.PI },
+    // weapons crate (E9): the office west wall, strip into the office
+    crate: { at: [-3.2, 0, 16.4], yaw: Math.PI / 2 },
     objective: { kind: 'hack', label: 'Hack the production terminal', x: 22.4, y: 3.3, z: 17.3, yaw: Math.PI / 2 },
     extract: { label: 'Extract by the east fire exit', box: [21.4, -8.5, 23.7, -5.9] },
     // Nine guards with jobs (BUILD-S3.md 6.1, SPEC 2.3), in this order so `?sectorGuards=4` takes the porter (the entry), the loader

@@ -15,7 +15,7 @@
  * stay hand-keyed; so do the guards, the studio's keyed loops and every weapon clip. (mocap-trial-2) Except the holstered
  * crouched sneak band's body: the set's `crouchWalk` (CMU 136_09) over the planner's feet (animGraph `crouchSet`, BRIEF A5).
  */
-import { TURN_GAIT_MIN } from './motion';
+import { GLIDE_SIDE, sideStepAt, TURN_GAIT_MIN } from './motion';
 import type { ClipFeetIn } from './footPlanner';
 import { layerMul, mirrorKeyed, mixKeyed, mixKeyedArms, newKeyedPose, sampleKeyed, type KeyedClip, type KeyedLayerScale, type KeyedPose } from './keyed';
 import { KEYED_WALK } from './clips/keyed/walk';
@@ -31,6 +31,8 @@ import { MOCAP_START, MOCAP_START_SECONDS } from './clips/mocap/start';
 import { MOCAP_STOP, MOCAP_STOP_SECONDS } from './clips/mocap/stop';
 import { MOCAP_CROUCH_WALK } from './clips/mocap/crouch_walk';
 import { MOCAP_SPRINT } from './clips/mocap/sprint';
+import { MOCAP_STRAFE_L } from './clips/mocap/strafe_l';
+import { MOCAP_STRAFE_R } from './clips/mocap/strafe_r';
 
 /**
  * Per-layer scales for the mocap set (one table; the job lead tunes them once the real clips land). Each scales a
@@ -116,6 +118,10 @@ export interface LocoClipSet {
   /** (mocap-trial-2, crouch) The crouched sneak's cycle in place of the hand-keyed sneak (animGraph `crouchSet`; null: the
    *  hand-keyed sneak). The faster crouched bands stay hand-keyed (BRIEF A5). */
   readonly crouchWalk: KeyedClip | null;
+  /** (mocap-trial-2, strafe) The aimed strafe's sideways cycles, left (travel -x) and right (+x), in place of the hand-keyed
+   *  glide strafe (animGraph `keyedDrawnSet`), with their side-step (`mocapSideStep`; null: the glide strafe, BRIEF A10). */
+  readonly strafeL: KeyedClip | null;
+  readonly strafeR: KeyedClip | null;
 }
 
 /** The hand-keyed set: the game as it was (no slots: starts, stops and turns stay procedural). */
@@ -134,6 +140,8 @@ export const HAND_KEYED_SET: LocoClipSet = {
   stopSeconds: 0.6,
   layers: null,
   crouchWalk: null,
+  strafeL: null,
+  strafeR: null,
 };
 
 /** The mocap set (`clips/mocap/*`). */
@@ -152,6 +160,8 @@ export const MOCAP_SET: LocoClipSet = {
   stopSeconds: MOCAP_STOP_SECONDS,
   layers: MOCAP_LAYERS,
   crouchWalk: MOCAP_CROUCH_WALK,
+  strafeL: MOCAP_STRAFE_L,
+  strafeR: MOCAP_STRAFE_R,
 };
 
 /** Any slot filled (the graph runs `MocapSlots` only then). */
@@ -171,6 +181,26 @@ export function setMocapLocomotion(on: boolean): void {
   LOCO.set = on ? MOCAP_SET : HAND_KEYED_SET;
   LOCO.slots = hasSlots(LOCO.set);
 }
+
+/**
+ * (mocap-trial-2, strafe, BRIEF A10) The mocap strafe's rhythm: `cycle` the captures' cycle (s; 69_59 left 1.000, 69_56 right
+ * 0.967: their mean), `height` Wren's (m; the clips' `stride` is in 1.75 m units). At pace v the side-step keeps the
+ * capture's rhythm, its cycle scaled by sqrt(clip pace / v): a cycle travels sqrt(v x stride x cycle) (the clips' mean
+ * stride 0.49 m at 0.50 m/s: game / clip stride 0.89 at 0.4 m/s, 1.18 at the 0.7 m/s aimed strafe, 1.34 at 0.9).
+ */
+export const MOCAP_STRAFE = { cycle: 0.983, height: 1.68, strideExp: 0.25 } as const;
+
+/** (mocap-trial-2, strafe) The aimed side-step (m, half a cycle's travel) at pace v with the switch on and a strafe in the
+ *  set (motion.ts `GLIDE_SIDE` / `sideStepAt`, read by `stepLength`: the driver's and the graph's gait clocks), else NaN.
+ *  No allocation. */
+export function mocapSideStep(v: number): number {
+  const S = LOCO.set;
+  return !LOCO.mocap || S.strafeL === null || S.strafeR === null ? Number.NaN : sideStepAt(v);
+}
+// the captures' mean stride at Wren's height, their cycle, the stride's pace exponent (the mocap set's strafes)
+GLIDE_SIDE.stride = ((MOCAP_STRAFE_L.stride + MOCAP_STRAFE_R.stride) * 0.5 * MOCAP_STRAFE.height) / 1.75;
+GLIDE_SIDE.cycle = MOCAP_STRAFE.cycle;
+GLIDE_SIDE.exp = MOCAP_STRAFE.strideExp;
 
 /** On or off: the URL flag (`?mocap=1` / `?mocap=0`, null when absent) wins for the page, else the stored setting. */
 export function mocapWanted(url: boolean | null, setting: boolean): boolean {
