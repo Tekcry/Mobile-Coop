@@ -1,0 +1,21 @@
+{
+  "id": "20261023T113930-night-shift-guard-ai-1fcab6e3-40d8",
+  "sha": "1fcab6e33546ab8b7abdbf34840b2e7daaa6a509",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-stealth-ai",
+    "e2e-sectorops",
+    "e2e-tactics",
+    "e2e-stealth",
+    "e2e-takedown",
+    "e2e-ctcourse",
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "jobs": 2,
+  "set": "s26",
+  "note": "S26 combat/search hearing regression (cloud-built, s25 merged); ctcourse:4 A7 red until #265"
+}
