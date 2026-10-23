@@ -1,4 +1,4 @@
-# Resume - Night Shift | CT Core Build (saved 2026-10-23 ~12:18, 93%, for the ~12:20 swap)
+# Resume - Night Shift | Player Build (formerly CT Core Build; resumed 2026-10-23 after the ~12:20 swap)
 
 Rules: CLAUDE.md on origin/feature/menu "Heavy-usage throughput", "Token rules", "Account swap" (95% slow down, save by
 98%, small work to 100%; at the orchestrator's save message commit agent worktrees as WIP). No mid-window clears. Opus
@@ -11,16 +11,16 @@ scratch/ctcore/push-resume.sh <file> <msg>. Message the orchestrator only at PR 
 ## Open (master 4.71.0, 3c460923)
 | Job | Branch, folder C:/NightShift/Mobile-Coop-<x> | Head | Next |
 | --- | --- | --- | --- |
-| PR #207 batch 22 | feature/ctcore-batch-22, folder ctcore-batch | 99c37251 | strike-pops + hang-down + dual-reward + traverse-fix-2; check PASS (scratch/ctcore/b22-CHECK.md, polish list); master merged. Character Build asked for coop, netmove, ctcourse, anim, takedown, traverse on 99c37251 (one verdict) -> post in #207, tell orchestrator train-ready. |
+| PR #207 batch 22 | feature/ctcore-batch-22, folder ctcore-batch | 99c37251 | strike-pops + hang-down + dual-reward + traverse-fix-2; check PASS (scratch/ctcore/b22-CHECK.md, polish list); master merged. Laptop GPU 8/8 GREEN on 99c37251 (338 s), posted in #207; orchestrator told train-ready. In train 24 (origin/train/24 468167df; 4.73.0 on a pass). Batch 23 -> train 25. |
 | mocap-strafe r3 (Opus) | feature/mocap-strafe | d47b8ec5 WIP | Round 2 149f419c met knee-out / alloc / assert / OFF md5 (docs/mocap-trial/MT2-STRAFE.md "Fix round 2"). Round 3 goals: restart after 0.3 s stand slide 3.87 cm -> <= 0.5 (footPlanner, rig reachNeed / stOff timing), flip pelvis pops 3.34 / 2.36 cm -> <= OFF + 0.5 (OFF 1.11 / 0.93), diagonal flip slide 1.21 -> <= 0.5. Keep knee-out <= 3.0 (pistol R speed 2 at 2.9), OFF md5 9ce3f3d1... / 31,065,812 B. Then e2e-anim + e2e-clip, fresh Opus recheck (msc-CHECK.md scope + these), own PR. |
-| sd-rounds spare 7 (Sonnet) | feature/sd-rounds | 2d546449 WIP | Brief scratch/ctcore/briefs/spare-7-sd-rounds.md; build 36bb35c0 done, e2e (weapon-audio etc.) in progress. Then REPORT.md, next batch, the #207 checker scope reused (fresh Opus). Near-miss with Guard AI #208: WeaponSlot fields just above HitKind (playerWeapons.ts ~55). |
+| sd-rounds spare 7 (Sonnet) | feature/sd-rounds | 2ef4000f DONE | Vitest 40/40, tsc, eslint, e2e-combat + e2e-weapon-audio GPU green; REPORT.md in. Fixed weapon-audio's pre-existing reload step (A -> X hold; first X hold after shots not read, script holds twice: checker look). Next batch, the #207 checker scope reused (fresh Opus). Near-miss with Guard AI #208: WeaponSlot fields just above HitKind (playerWeapons.ts ~55). |
 | team-climb (Opus) | feature/team-climb off 3c460923 | a5559685 WIP | CLIMB_UP_TEAM: rope-top lip grips (teamController ropeTop reachL / reachR, remoteAvatar), ease teamController.ts ~347-348 rise `min(1, e*1.7)` and `across` jump at e 0.4 (5.7 cm pop), tests/teamClimb.test.ts, e2e coop / netmove / traverse. Off traverse-fix-2's hunks. Next batch. |
-| spare 9 interrogation-intel | not cut | - | Sonnet, brief scratch/ctcore/briefs/spare-9-interrogation-intel.md; cut feature/interrogation-intel off feature/ctcore-batch-22 (has #194 + hang-down). patrolRoute getter rides Guard AI's guard-ai-s8 (compiles without). Not started: CPU 99% at 12:14. |
+| spare 9 interrogation-intel (Sonnet) | feature/interrogation-intel off batch-22 99c37251 | a2984b63 DONE | intel.ts / intelReveal.ts, takedownController, coopHost relay; no wire / save / src/ai change. Vitest 40/40, tsc, eslint, e2e-takedown GPU green. e2e-coop relay assert untested (laptop batch). patrolRoute getter rides guard-ai-s8 (compiles without). Part B (modes' onIntelCode) after marlow-final / sector-redesign. |
 
 ## Next window, at once (parallel, CPU < 80%)
-1. Agents lost at the swap: restart each from its origin head above with the same goals (team-climb / r3 prompts:
-   the goals in the table; sd-rounds: its brief).
-2. Start spare 9 (Sonnet).
+1. (done after the swap) r3, team-climb, sd-rounds restarted from the heads above; spare 9 started. Spare 12 dual-reward is
+   in #207. If cut off again: restart each with the table's goals.
+2. Wait for hand-backs (no polling).
 3. #207 verdict -> train-ready message. Next batch (feature/ctcore-batch-23 off master) = sd-rounds + team-climb +
    spare 9, one Opus checker, laptop coop / netmove / ctcourse.
 4. Later spares (docs/orchestrator/spare-jobs.md on feature/menu): 7 crouch pops after mocap-strafe; 16 partner rig start
