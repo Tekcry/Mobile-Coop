@@ -1,0 +1,15 @@
+{
+  "id": "20261023T115816-night-shift-guard-ai-0ae92fd4-f23b",
+  "sha": "0ae92fd4f0704fd485956e6cba02df7b9fddc035",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-stealth-ai",
+    "e2e-sectorops"
+  ],
+  "jobs": 2,
+  "set": "s27-e2e",
+  "note": "S27 new scenarios (test-only diff vs fe567fd6): stealth-ai 'squad roles', sectorops S13 draw asserts"
+}
