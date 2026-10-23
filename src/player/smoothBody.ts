@@ -1,6 +1,7 @@
 import { Bone, BoundingInfo, GpuBuffer, Matrix, Mesh, Quaternion, Skeleton, Vector3, VertexBuffer, type AbstractMesh, type Color4, type DataBuffer, type InstancedMesh, type Material, type Observer, type Scene, type TransformNode } from '../core/babylon';
 import { flags } from '../core/flags';
 import { flashColors, heatPattern, mergeParts, paintPart, restBox, type MergedBody, type MergePart } from './smoothBodyMerge';
+import { newEffectWatch, watchBodyEffect, type EffectWatch } from './bodyEffectRecovery';
 
 /**
  * (guard-render S1) A rig's smooth parts merged into one mesh (and its low-LOD twin
@@ -114,6 +115,8 @@ export class SmoothBody {
   private flashK = 0;
   private heat = 0;
   private rootInv = new Matrix();
+  /** (guard-ai carry fix) Per mesh: its unready effect, timed (`watchBodyEffect`). */
+  private readonly watches: EffectWatch[] = [newEffectWatch(), newEffectWatch()];
   private readonly poseFn = (): void => this.pose();
 
   constructor(
@@ -298,11 +301,16 @@ export class SmoothBody {
     ss.map.clear();
   }
 
-  /** Once per render, for every body of a scene: the bones re-read their nodes; a re-parented joint (ragdoll) frees the box. */
+  /**
+   * Once per render, for every body of a scene: the bones re-read their nodes; a re-parented joint (ragdoll) frees the
+   * box; (guard-ai carry fix) a body effect that will not finish compiling is recompiled (`bodyEffectRecovery`).
+   */
   private static frame(bodies: readonly SmoothBody[]): void {
+    const now = performance.now();
     for (let b = 0; b < bodies.length; b++) {
       const body = bodies[b]!;
       body.bones[0]?.markAsDirty();
+      for (let i = 0; i < body.meshes.length; i++) watchBodyEffect(body.meshes[i]!, body.watches[i]!, now);
       if (body.loose) continue;
       const nodes = body.nodes;
       for (let i = 0; i < nodes.length; i++) {
