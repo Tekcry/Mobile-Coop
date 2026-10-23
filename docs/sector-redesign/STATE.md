@@ -297,8 +297,16 @@ LR16 (one lighting system; checks/lr16-plan.md, lr16-0-ct-audit.md)
 - LR16g BUILT (not done) -lr16g 02419d1b (checks/lr16g-build.md): 6 of 13 reds green, 7 left = C1 174 warehouseOps stealth
   points in pools, C2 Marlow S7 stair 0.31 < 0.33, C3 S2 A1 mouth, C4 S3 pockets. Marlow yard lifted (corners 0.41 -> 0.48,
   readers 0.47 -> 0.59), S2 atrium 0.36 -> 0.47; LAMP_VERSION 5 kept. Lead call (A-lead, ~23:20): CAP 0.55 stays, layout
-  changes (CT "clear pools, clear dark"). RUNNING: Opus LR16-W planner -> briefs/LR16-W.md (parts S1 / S2 / S3 / C2 off
-  02419d1b, Opus builders in parallel). Then ONE Opus checker on g + W together, then laptop.
+  changes (CT "clear pools, clear dark"). RUNNING: Opus LR16-W planner -> briefs/LR16-W.md (parts S1 / S2 / S3 / C2,
+  base = the LR16-L-A head, Opus builders in parallel, re-measure each cluster on base). Then ONE Opus checker on
+  g + L-A + W together, then laptop.
+- LR16-L (briefs/LR16-L.md, d7d9eb0d): root cause NOT Low / precision: the lamp visibility bake embeds ceiling lamps in
+  their own slab cell (lampBake.ts:79-81, :145, :236; 0.2 m grid from map lo), so upper walls lose the facing lamp in
+  0.2 m steps; Low / phone only remove the bloom / resolution that hid it. Part A (bake grid aligned on each lamp,
+  LAMP_VERSION 5 -> 6; raises upper-wall levels) RUNNING: Opus on feature/sector-redesign-lr16l-a (worktree -lr16l-a,
+  off -lr16g 02419d1b), report checks/lr16l-a-build.md. Part B (picture only: highp depth in TAAU / fog, precision
+  highp int, Low normals = Medium) QUEUED with the polish parts (CPU). Six lamps still embedded after A (campusOps
+  #16-24, warehouseOps #34 / #53): map-data look later. Polish part C (lampBake.ts) waits for L-A.
 - RUNNING (restarted ~22:40 after the swap; agents die at a swap): (b) LR16-5b builder (Opus) on feature/sector-redesign-lr16-5b (worktree -lr16-5b, base
   lr16int 4ebcecbd, junction), report checks/lr16-5b-build.md; PROTOCOL = branch value +1 (the train renumbers, A-lead).
   (c) LR16-L investigator (Opus) in -lowchk -> briefs/LR16-L.md committed on -polish. LR16-1 recheck PASS (4ebcecbd).
