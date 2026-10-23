@@ -119,3 +119,20 @@ item merges. Camera fill over range (EG2) comes from `feature/camera-range`.
 ## The old Warehouse map (M11 "Keep both")
 `warehouseOps` stays as it is and stays listed as a second Sector Ops map, never delisted (Michael ~01:25). campusOps
 joins the Sector selector beside it once S1-S3 is playable (slice 3); `e2e-sectorops` keeps its Warehouse parts.
+
+## Walk 4.72 (Michael, docs/orchestrator/WALK-4.72-REPORT.md on feature/menu, "Sector Ops Build")
+- W1 (S1 lighting realism, with Marlow M5): Opus measures lamp output / falloff / bounce vs real fittings and proposes ONE
+  engine change for all maps, default off; Michael decides. Branch -lightrev; docs/lighting-review/PROPOSAL.md "Walk 4.72 S1",
+  checks/light-measure.md.
+- W2 (S2 co-op client lamp shots do nothing on either screen): Opus root-cause fix (client hit -> host intent -> lamp-out
+  synced), e2e leg. Branch -walk; checks/walk-472-fix.md.
+- W3 (S3 client unbolt untested): e2e leg proves the client can unbolt; fix if not. Branch -walk.
+W2 / W3 ride the campus-art PR (or their own if src/net changes and art is late); W1 waits on Michael.
+
+## Campus detail art (ROADMAP "Next: campus detail art"; G278 extended to campusOps)
+- K kit (-art-kit, check PASS) -> D dressers S1-S5 (Sonnet, -art-s<N>, done) -> J join on -art (Opus: merges kit + S1-S5 +
+  gear, join fixes, ledge / split gates; checks/art-join.md) -> C one Sonnet checker for the dressing batch (Opus on kit
+  code) -> P GPU perf pass (perf.mjs MODE, scripts/campus-art-shots.mjs --sheet, port 4189) + e2e-sectorops 1-6 + coop
+  on the laptop -> PR 5.
+- A64 lift (-cap, Opus): guard-render S1-S7 are in; the 6-awake screen cap and dormant tags follow the measured budget
+  (checks/a64-lift.md); joins PR 5; the perf pass measures S4 / S5 at 20 / 24.
