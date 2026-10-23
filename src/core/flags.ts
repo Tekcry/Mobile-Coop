@@ -129,7 +129,7 @@ export const flags: Flags = {
   mocap: onOffFlag(params.get('mocap')),
   guardMerge: params.get('guardmerge') !== '0',
   // (guard-models G7) default off until G8's budget run: `?guardmodels=1` on; G8 makes it `!== '0'`
-  guardModels: params.get('guardmodels') === '1',
+  guardModels: params.get('guardmodels') !== '0',
   animTier: params.get('animtier') !== '0',
   guardSun: params.get('guardsun') !== '0',
   photoLamps: params.get('falloff') === 'photo',
