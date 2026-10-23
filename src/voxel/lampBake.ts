@@ -10,6 +10,7 @@
  * take the brightest air cell beside them, so a lookup just inside a lit surface stays lit.
  */
 import { rasterise, SHAPE_STRIDE, ShapeKind, ShapeMode, shapeBounds } from './shapes';
+import { BOUNCE_BOX_STRIDE, bounceLamp, type LampBounce } from './lampBounce';
 
 /** Bake cell (m). One size on every device: what is lit looks the same everywhere. */
 export const LAMP_CELL = 0.2;
@@ -41,6 +42,10 @@ export interface LampResult {
   boxes: Float32Array;
   /** Every light's cells (x fastest), one after another in light order: visibility x 255. */
   vis: Uint8Array;
+  /** (LR16-1) Every light's one-bounce fill (`lampBounce.ts`), in light order. Absent only on hand-made test results. */
+  bounce?: LampBounce;
+  /** (LR16-1) Bake time of this job's visibility and of its bounce (ms; the bake-time check logs both). */
+  ms?: { vis: number; bounce: number };
 }
 
 /** A light's box: its reach, clipped to the map; a downward lamp stops a cell above itself. */
@@ -125,12 +130,26 @@ export function bakeLamps(job: LampJob): LampResult {
   const parts: Uint8Array[] = [];
   let total = 0;
   const bx = [0, 0, 0, 0, 0, 0];
+  // (LR16-1) each light's one-bounce fill, from its own visibility
+  const bBoxes = new Int32Array(count * BOUNCE_BOX_STRIDE);
+  const bParts: Uint16Array[] = [];
+  let bTotal = 0;
+  let msVis = 0;
+  let msBounce = 0;
   for (let li = 0; li < count; li++) {
     lampBox(L, li, job.lo, job.hi, bx);
     boxes.set(bx, li * BOX_STRIDE);
+    const t0 = performance.now();
     const vis = bakeOne(L, li, bx, occShapes, sb);
+    const t1 = performance.now();
     parts.push(vis);
     total += vis.length;
+    const b = bounceLamp(L, li * LAMP_STRIDE, bx, c, vis, occShapes, sb, job.lo, job.hi);
+    msVis += t1 - t0;
+    msBounce += performance.now() - t1;
+    bBoxes.set(b.box, li * BOUNCE_BOX_STRIDE);
+    bParts.push(b.data);
+    bTotal += b.data.length;
   }
   const vis = new Uint8Array(total);
   let at = 0;
@@ -138,7 +157,13 @@ export function bakeLamps(job: LampJob): LampResult {
     vis.set(p, at);
     at += p.length;
   }
-  return { kind: 'lamps', id: job.id, boxes, vis };
+  const bData = new Uint16Array(bTotal);
+  at = 0;
+  for (const p of bParts) {
+    bData.set(p, at);
+    at += p.length;
+  }
+  return { kind: 'lamps', id: job.id, boxes, vis, bounce: { boxes: bBoxes, data: bData }, ms: { vis: msVis, bounce: msBounce } };
 }
 
 function bakeOne(L: Float32Array, li: number, box: number[], occShapes: Float32Array, sb: number[][]): Uint8Array {

@@ -1,0 +1,67 @@
+/**
+ * (LR16-1) The bounce fixtures: rooms baked as the game bakes them (`bakeLamps` -> `LightField`), no zones and no moon,
+ * so every level above 0 is a lamp's direct light or its bounce.
+ */
+import { bakeLamps } from '../../src/voxel/lampBake';
+import { packShapes, type VoxelShape } from '../../src/voxel/shapes';
+import { buildAmbientGrid } from '../../src/world/ambientGrid';
+import { bakedLights, type LightBake } from '../../src/world/lightBake';
+import { LightField } from '../../src/world/lightField';
+import { LightRegistry, makeCone } from '../../src/world/lights';
+
+export const box = (c: [number, number, number], s: [number, number, number]): VoxelShape => ({ kind: 'box', c, s, yaw: 0, pitch: 0, mat: 1 });
+
+/** Bake `shapes` under `reg`'s lights over [lo, hi] (ambient 0, no moon). */
+export function bakeRoom(reg: LightRegistry, shapes: VoxelShape[], lo: [number, number, number], hi: [number, number, number]): { bake: LightBake; field: LightField } {
+  reg.ambient = 0;
+  const packed = packShapes(shapes);
+  const baked = bakedLights(reg);
+  const r = bakeLamps({ kind: 'lamps', id: 0, shapes: packed, lights: baked.lights, lo, hi });
+  const ambient = buildAmbientGrid({ ambientAt: () => 0 }, lo, hi);
+  const bake: LightBake = {
+    lo,
+    hi,
+    lampKey: 'k',
+    moonKey: 'm',
+    lamps: baked.ids.length ? { baked, r } : null,
+    moon: { origin: lo, n: [1, 1, 1], cell: 1, vis: new Uint8Array(1), dir: [0, 1, 0] },
+    ambient,
+    moonLight: 0,
+    ms: 0,
+  };
+  return { bake, field: new LightField(bake, reg) };
+}
+
+/** Room A (x 0..10.4) and room B (x 10.6..20) behind a 0.2 m wall (x 10.4..10.6), both z 0..10, floor y 0, ceiling 3. */
+export const SHARED_WALL = 10.4;
+export function twoRooms(): VoxelShape[] {
+  return [
+    box([10, -0.1, 5], [20.4, 0.2, 10.4]),
+    box([10, 3.1, 5], [20.4, 0.2, 10.4]),
+    box([-0.1, 1.5, 5], [0.2, 3, 10.4]),
+    box([20.1, 1.5, 5], [0.2, 3, 10.4]),
+    box([10.5, 1.5, 5], [0.2, 3, 10.4]),
+    box([10, 1.5, -0.1], [20.4, 3, 0.2]),
+    box([10, 1.5, 10.1], [20.4, 3, 0.2]),
+  ];
+}
+export const TWO_LO: [number, number, number] = [-1, -1, -1];
+export const TWO_HI: [number, number, number] = [21, 4, 11];
+/** The acceptance lamp: downward, 2.8 m up, intensity 1, radius 2.5 (reach 4 m); its pool (direct floor level over the
+ *  0.28 shadow line, 1.95 m from it) ends 1 m short of the shared wall. */
+export const LAMP_A = { x: 7.45, y: 2.8, z: 5, radius: 2.5, intensity: 1 } as const;
+
+export function roomA(): { reg: LightRegistry; bake: LightBake; field: LightField } {
+  const reg = new LightRegistry();
+  reg.add({ ...LAMP_A });
+  return { reg, ...bakeRoom(reg, twoRooms(), TWO_LO, TWO_HI) };
+}
+
+/** A 20 x 8 x 20 m hall (ceiling at 8 m): a lamp 0.4 m under it sends no floor bounce up (the floor is past the reach). */
+export function tallHall(spot: boolean): { reg: LightRegistry; bake: LightBake; field: LightField } {
+  const reg = new LightRegistry();
+  if (spot) reg.add({ kind: 'spot', x: 10, y: 7.6, z: 10, radius: 6, intensity: 1, cone: makeCone(0, -1, 0, 0.6) });
+  else reg.add({ x: 10, y: 7.6, z: 10, radius: 6, intensity: 1 });
+  const shapes = [box([10, -0.1, 10], [20.4, 0.2, 20.4]), box([10, 8.1, 10], [20.4, 0.2, 20.4])];
+  return { reg, ...bakeRoom(reg, shapes, [-1, -1, -1], [21, 9, 21]) };
+}

@@ -4,19 +4,34 @@
  */
 import { dbDelete, dbGet, dbPut } from '../save/db';
 import { BOX_STRIDE, LAMP_STRIDE, type LampResult } from './lampBake';
+import { BOUNCE_BOX_STRIDE } from './lampBounce';
 import { MOON_CELL, type MoonResult } from './skyBake';
 import { WorkerPool } from './workerPool';
 
 const KEEP = 2;
 const INDEX = 'lamp-cache-index';
-/** Bump when the bake changes (old entries are never read again). */
-export const LAMP_VERSION = 1;
+/** Bump when the bake changes (old entries are never read again). (LR16-1) 3: the one-bounce fill joins the result. */
+export const LAMP_VERSION = 3;
+
+/** (LR16-1) A cached result holds every lamp's visibility and bounce. */
+function cacheOk(hit: LampResult | undefined, n: number): hit is LampResult {
+  return (
+    !!hit &&
+    hit.boxes instanceof Float32Array &&
+    hit.vis instanceof Uint8Array &&
+    hit.boxes.length === n * BOX_STRIDE &&
+    !!hit.bounce &&
+    hit.bounce.boxes instanceof Int32Array &&
+    hit.bounce.data instanceof Uint16Array &&
+    hit.bounce.boxes.length === n * BOUNCE_BOX_STRIDE
+  );
+}
 
 export async function bakeLevelLamps(shapes: Float32Array, lights: Float32Array, lo: [number, number, number], hi: [number, number, number], key: string | null): Promise<LampResult> {
   if (key) {
     try {
       const hit = await dbGet<LampResult>('kv', key);
-      if (hit && hit.boxes instanceof Float32Array && hit.vis instanceof Uint8Array && hit.boxes.length === (lights.length / LAMP_STRIDE) * BOX_STRIDE) return hit;
+      if (cacheOk(hit, lights.length / LAMP_STRIDE)) return hit;
     } catch {
       /* no cache */
     }
@@ -47,7 +62,27 @@ export async function bakeLevelLamps(shapes: Float32Array, lights: Float32Array,
     vis.set(p.vis, vi);
     vi += p.vis.length;
   }
-  const r: LampResult = { kind: 'lamps', id: 0, boxes, vis };
+  // (LR16-1) the bounce, joined in light order as the visibility
+  const bBoxes = new Int32Array(n * BOUNCE_BOX_STRIDE);
+  let blen = 0;
+  for (const p of parts) blen += p.bounce?.data.length ?? 0;
+  const bData = new Uint16Array(blen);
+  let bb = 0;
+  let bd = 0;
+  let msVis = 0;
+  let msBounce = 0;
+  for (const p of parts) {
+    const pn = p.boxes.length / BOX_STRIDE;
+    if (p.bounce) {
+      bBoxes.set(p.bounce.boxes, bb);
+      bData.set(p.bounce.data, bd);
+      bd += p.bounce.data.length;
+    }
+    bb += pn * BOUNCE_BOX_STRIDE;
+    msVis += p.ms?.vis ?? 0;
+    msBounce += p.ms?.bounce ?? 0;
+  }
+  const r: LampResult = { kind: 'lamps', id: 0, boxes, vis, bounce: { boxes: bBoxes, data: bData }, ms: { vis: msVis, bounce: msBounce } };
   if (key) void saveLamps(key, r);
   return r;
 }
