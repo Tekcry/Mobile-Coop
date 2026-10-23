@@ -10,8 +10,10 @@
   request) told.
 - S10 check PASS ac4cf9a0 (slices/S10-CHECK.md; fix: buildPair rebuilt from the live walkers on a re-place, pairFace
   cleared; e2e lower bound open+6-0.45). Ready for s10 <- s6 once the stack merge hands back.
-- S11 implementer RUNNING (Sonnet) in C:/NightShift/Mobile-Coop-guard-ai-s11 (branch feature/guard-ai-s11 off S5b
-  2d363f3e; gear.ts, guardAiData tags, validator, 3 new test files; no enemy.ts). Then one Opus checker for S11 + S12.
+- S11 BUILT 8671c9eb (Sonnet; slices/S11.md; tsc, eslint, 69 unit tests): src/ai/gear.ts, GuardSlot gear / kind,
+  validator rejects bad gear and `enforcer`, SectorDef gear / sweep. Heads-up: warehouseSectors.ts has 3 enforcers in
+  section lists (S13 swaps them when it wires the validator over sections). One Opus checker for S11 + S12 later.
+  NEXT: S12 (Opus) in a new worktree off the stack tip (s10 after s10 <- s6), merging s11 first.
 - Stack merge agent still RUNNING (s8 <- s7 12911d86 + patrolRoute, s5b, s6).
 
 TRAIN-READY sent (~11:20): laptop GPU on s7 4052c434 GREEN (e2e-stealth-ai x2, e2e-sectorops all). s7 then merged
