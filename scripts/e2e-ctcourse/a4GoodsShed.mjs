@@ -6,10 +6,12 @@
 //      the back aisle and the passage mouth dark, the main aisle, the dock and the room lit and the same on both pages, the three cameras online;
 //   2. the lure and the restart: the host cuts the floor circuit (41) with D2 at the desk: both pages dark, D1 walks to the switch; then the
 //      host's checkpoint restart: the circuit back on, the squad respawned at its posts, the claim clear;
-//   3. the console: with the officer up the host's press is refused on the host page and the client's own press on its page ("Take him out"), neither claims, the officer is taken
-//      down (the client stands behind him, he stays passive: the knock-out needs no awake officer beside a player); the host's press loops the
-//      floor cameras on both pages ('looped', the cue hidden, the timer line, LANTERN's line) and claims B (host B, client A); a press while it
-//      loops is refused ("already off"); the client stands in C1's frame, unseen, the alarm unchanged;
+//   3. the console (guard-ai S22, A134: refused only while the officer watches it): with the officer awake at his post the host's press is
+//      refused ("Take him out"), claims nothing; a distraction draws him off and the host's press then loops the cameras and claims B (host B,
+//      client A); back from the noise he notices the console off, walks over and turns it back on (`consoleResets` + 1, the flag cleared, the
+//      cameras online on both pages, the re-arm running); then he is taken down (passive, the client behind him), and once the console has
+//      re-armed the host's press loops the floor cameras on both pages ('looped', the cue hidden, the timer line, LANTERN's line), the claim
+//      standing; a press while it loops is refused ("already off"); the client stands in C1's frame, unseen, the alarm unchanged;
 //   4. the floor: the pass zone needs both west of x 84 (one is not enough; the client at stack N as A, the host at stack S as B); `a4-floor`
 //      ticks on both pages;
 //   5. the pair: both loaders go down together (the real takedown's pick is the unit test's, the dual counter the host's `takedownDone` as
@@ -22,13 +24,16 @@
 //   8. the medkit in L4, nobody hanging; the runner then puts both on the pad.
 // Teleport legs are allowed on the open floor; a door the route opens is opened by `use(P, 'door-<anchor id>')` and asserted open on both pages
 // before anyone is moved through it. The two loaders and the officer are made passive (they see and hear nothing) while the players are put
-// where a real run would crouch; the lure step runs with them awake. Every press from the client is made within the item's reach + 0.75 m.
+// where a real run would crouch; the lure step runs with them awake, and the officer stays awake for the console's refusal and the distraction
+// (the players in L3, out of his view: the host's own press needs no reach). Every press from the client is made within the item's reach + 0.75 m.
 export const SET = 'a4GoodsShed';
 
 const OFFICER = 'a4-officer';
 const DOCK1 = 'a4-dock1';
 const DOCK2 = 'a4-dock2';
 const CONSOLE = 'c-a4-console';
+/** The console's course device id (`layout.devices`, `layout.consoles`; the interactable is `c-<id>`). */
+const CON_DEV = 'a4-console';
 const PUSHBAR = 'c-a4-pushbar';
 const GATE = 'g-a4-console';
 const WICKET = 'g-a4-wicket';
@@ -50,6 +55,10 @@ const D1_POST = [80, 34.4];
 const D2_POST = [80, 31.6];
 /** A body in C1's frame (the main aisle, 11.5 m from the mount). */
 const IN_C1 = [100, 39.8];
+/** (guard-ai S22) A thrown item's landing in the room's north-west corner, 3.7 m from the officer's post (inside half a noisemaker's 13 m:
+ *  he is sent), away from the L3 door the players wait behind. */
+const NOISE = [101.0, 18.2];
+const NOISE_R = 13;
 const LOOP_S = 60;
 
 /** @param {object} t the runner's helpers (scripts/e2e-ctcourse.mjs) @param {number} n the set's number */
@@ -84,6 +93,8 @@ export async function walk(t, n) {
         if (e) e.passive = on;
       }
     }, [slots, on]);
+  /** (guard-ai S22) The guards' console counters (the host's `EnemyManager`): notices and resets. */
+  const conCount = () => GA(() => { const em = window.__app.current.enemyMgr; return { finds: em.consoleFinds, resets: em.consoleResets }; });
   /** A4's three cameras' modes on page P, in the map's order (the debug list holds every camera on the map). */
   const camModes = (P) => P.evaluate(() => window.__ctdev.debug().cams.filter((c) => c.id.startsWith('cam-a4-')).map((c) => c.mode));
   const allCams = (P, mode) => until(P, ([m]) => { const cs = window.__ctdev.debug().cams.filter((c) => c.id.startsWith('cam-a4-')); return cs.length === 3 && cs.every((c) => c.mode === m); }, [mode], 15000, `all three cameras are ${mode}`);
@@ -174,36 +185,71 @@ export async function walk(t, n) {
   await until(A, ([d1]) => { const e = window.__course.squadOf('a4-dock1'); return !!e && e.alive && Math.hypot(e.pos.x - d1[0], e.pos.z - d1[1]) < 1; }, [D1_POST], 15000, 'A4: D1 is back at his post');
   assert(!!(await guard(OFFICER))?.alive, 'A4: the officer is back at his post after the restart');
 
-  // ---- 3. the console: refused while the officer is up (claims nothing), then he goes down and the client loops the cameras ----
-  console.log('  A4: the console, the officer, the loop');
-  await setPassive([OFFICER, DOCK1, DOCK2], true);
-  await openDoor(PASSAGE_DOOR, 'A4 passage');
-  await moveClient(BEHIND[0], BEHIND[1], 0.1, 0);
-  await moveHost(AT_CONSOLE[0], AT_CONSOLE[1], 0.1, 0);
+  // ---- 3. the console: refused while the officer watches it (claims nothing); drawn off by a distraction he lets a press through, then
+  // ---- notices and turns it back on (guard-ai S22); then he goes down and the host loops the cameras ----
+  console.log('  A4: the console, the officer, the distraction, the loop');
+  // the loaders see and hear nothing; the officer stays awake (a passive guard watches nothing: the press would go through). The players
+  // wait in L3 after the restart, out of his view; the host's own `use` needs no reach
+  await setPassive([DOCK1, DOCK2], true);
+  await until(A, ([cid]) => { const c = window.__course; const e = c.squadOf('a4-officer'); const dv = c.layout.devices[cid]; return !!e && !!dv && window.__app.current.enemyMgr.watchesConsole(e, dv.x, dv.y, dv.z); }, [CON_DEV], 15000, 'A4: the officer, awake and calm at his post, watches the console');
   // (S-e2e-fix) a refusal goes to whoever pressed (`CourseMode.refuse`: the host's own banner; the `course` message's `ref` / `rn` carry the
-  // client's refusals only), so the host's refused press never reaches the client: its refusal count stays. The client's own press, from a spot
-  // in the console's reach (the host takes a client's `use` within reach 1.4 + 0.75 m, `inUseReach`; BEHIND is 2.6 m off), is refused on its page.
+  // client's refusals only), so the host's refused press never reaches the client: its refusal count stays. (guard-ai S22) The client's own
+  // refusals are checked below ("already off", and "rebooting" in step 7): the client in the console's reach would stand in his sight
   const rnB0 = await GB(() => window.__course.wire.rn);
-  assert((await use(A, CONSOLE)) === 'ok', 'A4: the host presses the console with the officer up');
-  await until(A, () => /Take him out/.test(window.__course.debug().refusal ?? ''), null, 8000, 'A4: the console refuses while the officer is up (host)');
+  assert((await use(A, CONSOLE)) === 'ok', 'A4: the host presses the console while the officer watches it');
+  await until(A, () => /Take him out/.test(window.__course.debug().refusal ?? ''), null, 8000, 'A4: the console refuses while the officer watches it (host)');
   await waitSim(600);
   assert((await GB(() => window.__course.wire.rn)) === rnB0, "A4: the host's refusal is the host's own (the client's refusal count does not move)");
-  await moveClient(CLIENT_PRESS[0], CLIENT_PRESS[1], 0.1, 0);
-  assert((await use(B, CONSOLE)) === 'ok', 'A4: the client presses the console with the officer up');
-  await until(B, (n0) => window.__course.wire.rn > n0 && /Take him out/.test(window.__course.debug().refusal ?? ''), rnB0, 8000, 'A4: the client gets the refusal for its own press');
-  await moveClient(BEHIND[0], BEHIND[1], 0.1, 0);
   assert(!(await hasFlag(FLAG)) && !(await gateOpen(GATE)), 'A4: the refused press sets no flag and opens no gate');
   assert(!(await claimed()), 'A4: a refused press claims nothing (A4-C9)');
   await sees(B, /Take the officer from behind/, 'A4: the client still reads the A line after the refusal');
   for (const P of [A, B]) assert((await camModes(P)).every((m) => m === 'online'), 'A4: the cameras stay online after the refusal');
+  // (guard-ai S22, G6) a thrown item in the room's north-west corner (`EnemyManager.hear` as a noisemaker: 'distraction', 13 m): he is sent
+  // to it, and while he investigates he watches nothing: the host's press goes through and claims B
+  const alarmD = (await t.dev(A)).alarm;
+  const cc0 = await conCount();
+  await GA(([x, z, r]) => { const g = window.__app.current; g.enemyMgr.hear(new g.player.position.constructor(x, 0.3, z), r, 'distraction'); }, [NOISE[0], NOISE[1], NOISE_R]);
+  await until(A, ([cid]) => { const c = window.__course; const e = c.squadOf('a4-officer'); const dv = c.layout.devices[cid]; return !!e && e.alive && e.incident >= 0 && !window.__app.current.enemyMgr.watchesConsole(e, dv.x, dv.y, dv.z); }, [CON_DEV], 8000, 'A4: the distraction draws the officer off (on the noise, not watching the console)');
+  assert((await use(A, CONSOLE)) === 'ok', 'A4: the host presses the console while the officer investigates');
+  await until(A, ([f, g]) => window.__course.state.hasFlag(f) && window.__course.debug().gates[g], [FLAG, GATE], 8000, 'A4: the press goes through while he is drawn off (the flag, the gate)');
+  await until(B, (f) => window.__course.wire.s.flags.includes(f), FLAG, 8000, 'A4: the client has the flag');
+  await allCams(A, 'looped');
+  await allCams(B, 'looped');
+  assert(await claimed(), 'A4: the press claims the job');
+  const roles = () => GA(() => [window.__course.state.roleOf(0), window.__course.state.roleOf(1)]);
+  assert(JSON.stringify(await roles()) === '["b","a"]', `A4: the host pressed first: host B, client A (${JSON.stringify(await roles())})`);
+  // back from the noise he sees the console off (the next free guard who looks at it, `consoleStep`), walks over at patrol pace, works it
+  // 2 s and turns it back on through its gate (`CourseState.consoleBack`, as the loop running out): well inside the 60 s loop
+  await until(A, (f0) => window.__app.current.enemyMgr.consoleFinds > f0, cc0.finds, 40000, 'A4: back from the noise, the officer notices the console off');
+  await until(A, (r0) => window.__app.current.enemyMgr.consoleResets > r0, cc0.resets, 20000, 'A4: the officer turns the console back on');
+  const cc1 = await conCount();
+  assert(cc1.resets === cc0.resets + 1 && cc1.finds === cc0.finds + 1, `A4: one notice, one reset (${JSON.stringify(cc0)} -> ${JSON.stringify(cc1)})`);
+  await until(A, (f) => !window.__course.state.hasFlag(f), FLAG, 5000, "A4: the officer's reset clears the flag (host)");
+  await until(B, (f) => !window.__course.wire.s.flags.includes(f), FLAG, 8000, "A4: the officer's reset clears the flag (client)");
+  await allCams(A, 'online');
+  await allCams(B, 'online');
+  assert(!(await gateOpen(GATE)) && (await gateRearm()) > 0, `A4: his reset closes the gate and starts the re-arm (${(await gateRearm()).toFixed(1)} s left)`);
+  const offD = await guard(OFFICER);
+  const alarmD1 = (await t.dev(A)).alarm;
+  assert(!!offD && offD.alive && !offD.alerted && alarmD1 === alarmD, `A4: the officer stays calm, no alarm (${JSON.stringify(offD)}, alarm ${alarmD} -> ${alarmD1})`);
+  assert(await ticked(A, 'a4-room'), 'A4: the room step stays ticked after his reset');
+  // he goes back to his post and watches the console again
+  await until(A, ([cid, px, pz]) => { const c = window.__course; const e = c.squadOf('a4-officer'); const dv = c.layout.devices[cid]; const dx = e.pos.x - px; const dz = e.pos.z - pz; return dx * dx + dz * dz < 1 && window.__app.current.enemyMgr.watchesConsole(e, dv.x, dv.y, dv.z); }, [CON_DEV, 104.8, 17.6], 20000, 'A4: back at his post, the officer watches the console again');
   // the officer goes down with the client behind him (the takedown itself is the game's; a HitInfo as `CtDevices.touch` builds one, dir -x,
-  // toward the desk's west). He stays passive: waking him with a player 0.8 m in front of him was a race (S34-check polish)
+  // toward the desk's west). He is made passive first: waking him with a player 0.8 m in front of him was a race (S34-check polish)
+  await setPassive([OFFICER], true);
+  await openDoor(PASSAGE_DOOR, 'A4 passage');
+  await moveClient(BEHIND[0], BEHIND[1], 0.1, 0);
+  await moveHost(AT_CONSOLE[0], AT_CONSOLE[1], 0.1, 0);
   const info0 = await GA(() => window.__course.squadOf('a4-officer').info?.lines?.length ?? 0);
   assert(info0 === 2, `A4: the officer carries his two interrogation lines (${info0})`);
   await knockOut([OFFICER]);
   assert(await GA(() => !window.__course.squadOf('a4-officer').alive), 'A4: the officer is down');
-  // pressed again: the cameras loop on both pages, the cue hides, the timer line shows, LANTERN's line reaches the client, the press claims B
+  // the console re-arms 20 s after his reset; pressed again: the cameras loop on both pages, the cue hides, the timer line shows, LANTERN's
+  // line reaches the client again, the claim stands
+  await until(A, (id) => window.__course.state.gateRearm(id) === 0, GATE, 30000, "A4: the console re-arms after the officer's reset");
   const alarm0 = (await t.dev(A)).alarm;
+  const rln0 = await GB(() => window.__course.wire.rln ?? 0);
   assert((await use(A, CONSOLE)) === 'ok', 'A4: the host presses the console again');
   await until(A, ([f, g]) => window.__course.state.hasFlag(f) && window.__course.debug().gates[g], [FLAG, GATE], 8000, 'A4: the console sets the flag and opens its gate');
   await until(B, (f) => window.__course.wire.s.flags.includes(f), FLAG, 8000, 'A4: the client has the flag');
@@ -212,10 +258,8 @@ export async function walk(t, n) {
   await waitSim(600);
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, cueHidden, null, 3000, `A4: the camera cues are hidden on the ${tag}`);
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await sees(P, /Cameras back in \d+ s/, `A4: the ${tag} reads the loop timer line`);
-  await until(B, () => /Cameras looped/.test(window.__course.wire.rl ?? ''), null, 15000, "A4: LANTERN's line reaches the client");
-  assert(await claimed(), 'A4: the press claims the job');
-  const roles = () => GA(() => [window.__course.state.roleOf(0), window.__course.state.roleOf(1)]);
-  assert(JSON.stringify(await roles()) === '["b","a"]', `A4: the host pressed first: host B, client A (${JSON.stringify(await roles())})`);
+  await until(B, (n0) => (window.__course.wire.rln ?? 0) > n0 && /Cameras looped/.test(window.__course.wire.rl ?? ''), rln0, 15000, "A4: LANTERN's line reaches the client");
+  assert(JSON.stringify(await roles()) === '["b","a"]', `A4: the claim stands: host B, client A (${JSON.stringify(await roles())})`);
   await sees(A, /Back aisle or mezzanine/, 'A4: the host has the B job (the floor step B line)');
   await sees(B, /Main aisle: move fast/, 'A4: the client has the A job (the floor step A line)');
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) assert(await ticked(P, 'a4-room'), `A4: the ${tag} sees the room step ticked`);
