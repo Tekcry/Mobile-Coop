@@ -544,10 +544,11 @@ export class Enemy implements Damageable {
   private gearHex = '';
 
   /** Put gear on him (or take it off): `placeSlot` (slot tag + section default), a woken guard (`inherit`), and S13's
-   *  alarm stages. Parts are built the first time he needs them (load time), then only shown or hidden. */
+   *  alarm stages. Parts are built the first time he needs them (load time), then only shown or hidden. A dog wears
+   *  nothing (S12 checker: a section default or stage gear must not make a dog bulletproof with no visible gear). */
   setGear(g: GuardGear): void {
-    this.helmet = g.helmet === true;
-    this.armour = g.armour === true;
+    this.helmet = !this.dog && g.helmet === true;
+    this.armour = !this.dog && g.armour === true;
     this.showGear();
   }
 

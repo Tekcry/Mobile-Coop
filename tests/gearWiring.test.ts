@@ -239,6 +239,17 @@ describe('gear parts (A45)', () => {
     expect(p.helmetPart?.isVisible).toBe(false);
   });
 
+  it('a dog wears no gear (a tag, section default or stage gear leaves him as he was): bullets hurt him', () => {
+    const { e, made } = guard('dog');
+    Object.assign(e, { dog: {} });
+    e.setGear({ helmet: true, armour: true });
+    expect([e.helmet, e.armour]).toEqual([false, false]);
+    expect(made.length).toBe(0);
+    const r = e.applyDamage(hit('body', 'bullet', { amount: 5 }));
+    expect(r.deflect).toBeUndefined();
+    expect(r.dealt).toBeGreaterThan(0);
+  });
+
   it('a deflect bark exists', () => {
     expect(BARKS.deflect.length).toBeGreaterThan(0);
   });
