@@ -2786,7 +2786,7 @@ async function campusS4Part(page) {
   assert(d4.scope === 3 && d4.live < d4.items && d4.live <= 100, `the mirrored (live) interactables stay under the cap (${d4.live} of ${d4.items}, scope ${d4.scope})`);
 
   // (a2) (stealth-pays S2) an interrogation's code flag reaches the team's codes through the mode hook `revealIntel`
-  // calls (`g.mode.onIntelCode`): kp-batt's prompt turns to "Enter code" and it opens with no board read. The real
+  // calls (`g.mode.onIntelCode`): kp-batt's prompt turns to "Enter code" (not opened here: (b) opens it). The real
   // grab-and-interrogate chain is e2e-takedown's `grab-interrogate-intel`.
   const ic = await G(() => {
     const m = window.__sector;
@@ -2795,11 +2795,11 @@ async function campusS4Part(page) {
     m.onIntelCode('s4-codes');
     m.onIntelCode('s4-codes');
     const after = { has: m.codes.has('s4-codes'), label: q?.it.label ?? null };
-    return { before, after, open: m.useKeypad(3, 0) };
+    return { before, after };
   });
   assert(
-    ic.before.has === false && ic.before.label === 'Keypad - code needed' && ic.after.has === true && ic.after.label === 'Enter code' && ic.open === true,
-    `S2: an interrogation code opens kp-batt (${JSON.stringify(ic)})`,
+    ic.before.has === false && ic.before.label === 'Keypad - code needed' && ic.after.has === true && ic.after.label === 'Enter code',
+    `S2: an interrogation code readies kp-batt (${JSON.stringify(ic)})`,
   );
 
   // (b) the dock board gives the codes: both keypads open

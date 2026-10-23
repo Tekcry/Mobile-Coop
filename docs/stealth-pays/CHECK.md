@@ -51,3 +51,6 @@ cannot pass. The src and Vitest work is correct; the fix is a few lines in `scri
   dropped by its restart. Harmless; a note only.
 - P4 Both e2e checks drive the hook directly (accepted deviation); the real chain stays covered by e2e-takedown
   `grab-interrogate-intel`.
+
+## Fix round (lead, 2026-10-23)
+B1 fixed: (a2) no longer calls `useKeypad(3, 0)`; it asserts the held code and the "Enter code" label only, and (b) opens kp-batt as before. `node --check` passes. e2e-sectorops reruns on the laptop (e2e-ctcourse unaffected).
