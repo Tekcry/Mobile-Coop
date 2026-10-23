@@ -4,6 +4,10 @@ Saved 2026-10-23 ~10:30 by the CT Core session, for the ~10:45 account swap (win
 agent milestone. Agents running at a cut-off are lost: their last pushed commit is the resume point (table below).
 
 ## Live (resumed 10:48 on the new account; newest first, overrides the table)
+- 11:50 batch-22 fresh check PASS on f75db56c (scratch/ctcore/b22-CHECK.md; no required fixes; polish list there).
+  Master is 4.71.0 (train 22 incl. #194). sd-rounds builder at 36bb35c0 doing its e2e (both desktop locks held by
+  others). Plan: sd-rounds done -> merge into batch -> same checker (follow-up) -> ONE laptop request (coop, netmove,
+  ctcourse, anim, takedown, weapon-audio) on the final head -> PR. Spare 9 can start once batch-22 is on master.
 - 11:40 traverse-fix-2 DONE a7425bfe (lead wrote REPORT.md from the hand-back; CLIMB_UP palms 0.0 cm, release 2.8 cm,
   lip-grip continuous pivot in characterRig solveWorldGrip; e2e-move 17 s + e2e-traverse 16 s desktop GPU PASS). Merged
   into batch-22 + traverseFix item-2 todo -> comment (f75db56c). Batch = strike-pops, hang-down, dual-reward,
