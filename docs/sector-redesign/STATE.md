@@ -321,6 +321,10 @@ Chain (all agents die at the swap; each branch has a WIP commit; rerun from brie
    Green -> LR16 PR to master from lr16int (train entry: merge master; ctcourse map conflict = take master's, drop
    LR16g's Marlow re-level + tuned.json; run master's ctcourseLight on the merged tree) + label + message. RUNNING ~03:00:
    Opus pol-c then pol-f off e7cec732 (checks/lr16pol-{c,f}-build.md) -> next batch.
+   pol-c afed404a + pol-f 98187543 check PASS (checks/lr16pol-cf-check.md; M1 hash re-take done): holding branch
+   -lr16pol-cf 2798e57d (off e7cec732; LAMP_VERSION 7). When the e7cec732 laptop run (RUNNING since ~03:57) is green:
+   merge -lr16pol-cf into lr16int, laptop e2e-lightbake on that head, then the LR16 PR. RUNNING ~04:05: Opus LR16-P
+   F1-F3 on -lr16p off 2798e57d (checks/lr16p-build.md; then a checker + the A1 / A2 perf request).
 Parallel (off lr16int 82f9e1bb, briefs/LR16-POLISH.md; builders started 23:20, WIP pushed): pol-a (Sonnet; skip the
   lampBounce.test.ts item -> F), pol-b (Opus torch picture), pol-e (Opus rig bulbs / comments), lr16l-b (Opus, LR16-L
   part B picture-only Low fixes), pol-d (Sonnet docs off artpol b5e93548). Checkers: Sonnet A + D, Opus B + C + L-B,
