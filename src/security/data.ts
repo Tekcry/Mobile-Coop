@@ -28,6 +28,14 @@ export interface CameraDevice {
   range?: number;
   /** (sector-fixes S) A course flag that switches the camera off until the bay restarts (a security room's console). */
   offFlag?: string;
+  /** (sector-redesign E8, A95: stealth over shooting) Armoured housing: a round ricochets off it (sparks, the impact
+   *  sound and noise) and never destroys it. The jammer, a desk, an `offFlag` console or slipping the sweep still beat
+   *  it. The host alone destroys cameras, so a co-op client follows (`applyDestroyed`) with no wire change. */
+  bulletproof?: boolean;
+  /** (sector-redesign E8, A96) A thermal camera. Every camera already sees by its own IR and ignores the lamps
+   *  (`CAMERA.irLight`, marlow-jammer M3) and no smoke or darkness-only hide exists for cameras, so this changes no
+   *  detection: it is the data tag plus its own LED colour (`SecurityView`), ready for a later hide a thermal one sees. */
+  thermal?: boolean;
 }
 
 export type SecurityDevice = CameraDevice;

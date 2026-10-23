@@ -172,7 +172,7 @@ alerts, GA6 aggressive reinforcements with flank / cover / report. Until GA2 lan
 
 **Escalation (DEC G125, never ends the run).** Today: stage 1-3 (camera / laser / panel), each stage spawns `perStage`
 2 alerted guards at the section's `reinforce` points, carried across connectors. Reinforcement kinds: grunt / officer
-(slice 0, no heavies); S5 stage reinforcements are enforcers (the response team). Per-section extras below are EW9
+(slice 0, no heavies); S5 stage reinforcements are grunts (shields come only with guard-ai's response teams). Per-section extras below are EW9
 (lockdown, lights to full, the response team's deploy route); fallback: stage reinforcements only.
 
 **Observation (R8, LS 3.1).** Each space opens on a two-person vantage out of every guard's view for the whole cycle,
@@ -359,7 +359,7 @@ security room; steel escape gallery at 4.5 on the hall's north wall (door into t
 | 12 | Security room operator | officer | Post; kettle every ~40 s | Watches the lab cameras | Isolation at the kettle |
 | 13 | Write-up officer | officer | Post facing the corridor glass | Reads test reports on the radio (barks) | Sees the viewing corridor |
 | 14 | East yard patrol | grunt | Back-and-forth outside the east windows, ~38 s | Glimpses in through the high windows | Finds bodies left in view |
-| 15 | Shift supervisor | enforcer | Long loop between posts, ~45 s | Visits every post (GA1: a missing guard is searched for) | First responder |
+| 15 | Shift supervisor | officer | Long loop between posts, ~45 s | Visits every post (GA1: a missing guard is searched for) | First responder |
 | 16 | Crane-bay sentry | grunt | Sweep at the hall's west door | The hall door from the HQ side | Answers the switch bank |
 **Security register.**
 | Id | Device | Protects | Why there | Weak side (cause) | Range / aim |
@@ -405,7 +405,7 @@ Opens C4.
 | 1-2 | Dog team | grunt handler + dog | Handler loop round the generator compound, dog heels, ~44 s | Diesel stolen from the tanks twice | Dog smells 6 m (light ignored); answers the compound board |
 | 3 | Yard gate officer | officer | Post at the service-yard gate | Lets the courier van in | Overlaps #1-2 |
 | 4 | Mantrap officer | officer | Post at the mantrap desk | Admits one at a time | Answers the hall lighting panel (lure) |
-| 5-6 | Security room pair | officer + enforcer | Talking post at the monitors | Operator and site supervisor | Alarm runners |
+| 5-6 | Security room pair | officer + officer | Talking post at the monitors | Operator and site supervisor | Alarm runners |
 | 7-8 | Cold-aisle patrols | grunt x 2 | Loops, ~40 s | Floor round | Opposite phase |
 | 9 | Cage keyholder | officer | Post at the cage front gate | Holds one of the two cage keys | Under cam-cage |
 | 10-11 | Hot-aisle checkers | grunt x 2 | Back-and-forth, ~40 s | Read the pod thermometers | Isolation inside the pod ends |
@@ -415,7 +415,7 @@ Opens C4.
 | 16 | Stair tour | officer | Loop clocking two stairs, ~44 s | Clocking round | Investigator |
 | 17-18 | Dock pair | grunt x 2 | Unload the 03:00 drives (staggered trips) | The courier delivery | Each other |
 | 19 | Colonnade sentry | grunt | Post at the C4 gate | The Old House is closed tonight | Exit pinch |
-| 20 | Roaming investigator | enforcer | Long loop, first to any report | Mobile supervisor | Visits posts (GA1) |
+| 20 | Roaming investigator | officer | Long loop, first to any report | Mobile supervisor | Visits posts (GA1) |
 **Security register.**
 | Id | Device | Protects | Why there | Weak side (cause) | Range / aim |
 | --- | --- | --- | --- | --- | --- |
@@ -432,7 +432,7 @@ at 3-7 m), plant deck (task lights at each chiller), the riser, the battery room
 **Observe.** From the C3 roller-door lobby (dark): the dock pair and the yard. From the battery room door: two aisles.
 From the plant deck through the NOC roof light: #14-15. The dog is heard before it is seen.
 **Escalation.** Stage 1 search; stage 2: the handler releases the dog to the last seen spot (EW9; fallback: the dog
-stays at heel), reinforce at the dock and the UPS corridor; stage 3 +2 enforcers.
+stays at heel), reinforce at the dock and the UPS corridor; stage 3 +2 grunts.
 
 ### S5 - The Old House (24 guards incl. 2 dogs, ~10 min, tension 5, the set piece)
 **Footprint** x -66..-26, z 18..48 (40 x 30). Brick, G 0 (4.2), L1 4.2, lead roof 8.4 with a 1.1 parapet; stair hall
@@ -459,7 +459,7 @@ back, A15). Roof: walk, chimney stacks, stair bulkhead.
 **Guards (24).**
 | # | Role | Kind | Post / patrol | Reason | Interacts |
 | --- | --- | --- | --- | --- | --- |
-| 1-4 | Armed response team | enforcer x 4 | Post in the control room; one walks the hall every ~45 s | Standing reaction force for the ceremony | Deploy at stage 1 (EW9; fallback: stage reinforcements are enforcers) |
+| 1-4 | Armed response team | grunt x 4 | Post in the control room; one walks the hall every ~45 s | Standing reaction force for the ceremony | Deploy at stage 1 (EW9; fallback: stage reinforcements are grunts) |
 | 5-8 | Dog teams (2) | grunt handler + dog, x 2 | Loops: walled garden; lake terrace, ~44 s | Grounds patrol for the ceremony | Answer the garden board; meet at the terrace gate |
 | 9-10 | Keyholders | officer x 2 | Talking post in the anteroom | Two-person rule: neither alone with the token | Each other (dual takedown target) |
 | 11 | Auditor's escort | officer | Back-and-forth anteroom to the shaft door, ~30 s | Escorts audit papers | Isolation at the shaft door |
@@ -492,7 +492,7 @@ west wall, the boathouse path under the trees, the roof behind the chimneys, the
 the audit room glass (EW6), the anteroom. From the roof bulkhead: the marksman and both dog teams. A ghost run never
 meets the response team.
 **Escalation.** Stage 1: the response team deploys from the control room (EW9) and the dogs are released; stage 2-3:
-+2 enforcers each at the front door and the service door; the jetty extraction stays open (G125).
++2 grunts each at the front door and the service door; the jetty extraction stays open (G125).
 
 ---
 
@@ -542,7 +542,7 @@ Size S < 1 day, M 1-3 days, L new system. Owner: slice 0 (in progress, slice-0 a
 (ours, later slices), GA (guard-ai provides), CR (camera-range job).
 | Id | Item (ENGINE gap) | Needed by | Size | Owner | Fallback |
 | --- | --- | --- | --- | --- | --- |
-| EW1 | Arm every guard: no runners; reinforcements grunt / officer, enforcer in S5 (EG3) | S1 | S | slice 0 | none needed (placement uses armed kinds) |
+| EW1 | Arm every guard: no runners; reinforcements grunt / officer, grunt in S5, no enforcer (EG3, SPEC Guards note) | S1 | S | slice 0 | none needed (placement uses armed kinds) |
 | EW2 | Camera cap per section, not 12 per map (EG1) | S5 (13th camera) | S | slice 0 | drop cam-dock4 |
 | EW3 | Pair bolt (R2-PATHS design 2) (EG11) | S4, S5 | S | E | team door cut; solo bypass only |
 | EW4 | Pair gate (two key switches) usable in Sector mode (EG11) | S4, S5 | M | E | EW3 at the same door |
