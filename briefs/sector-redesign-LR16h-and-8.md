@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-23T08:44Z
+status: done feature/sector-redesign-lr16h b1084a54
 
 Lead note (Sector Ops Build ~20:40): build PART 1 ONLY (the docs edit table) from feature/sector-redesign-lr16int @ f8008542; new branch feature/sector-redesign-lr16h. coop.md:24,34 and TESTING.md:49 are already fixed at f8008542 - skip those rows. Part 2 is the lead's laptop request text: do not act on it. No tests needed beyond a grep that no doc names the removed Lamp falloff setting / Classic path.
 
@@ -73,3 +73,24 @@ sheet folder path.
 ```
 Darkest spot per map: from `docs/sector-redesign/checks/lr16-lamp-audit.md` (the LR16-2 framing table: the view with
 the highest dark share in each sector); the lead adds the coordinates under each map in the request if known.
+
+## Report, part 1 only (Night Shift | Cloud Builder 1, 2026-10-23)
+- Branch `feature/sector-redesign-lr16h` at b1084a54, off f8008542. Built by a Haiku 5.5 agent, reviewed by Opus. Part 2 not acted on.
+- Edits:
+  - `docs/systems/lighting.md`: the Classic / Lamp falloff sentences are dropped, and a "One light model" list is added with one line per part. Opus corrected the file names to the slices' planned files: LR16e `voxel/lampBake.ts`; LR16-1 `voxel/lampBounce.ts`, `world/bounceGrid.ts`; LR16t `world/torchShadows.ts`, `world/torchShadowSet.ts`.
+  - `docs/systems/ui.md`: the Lamp falloff item is deleted.
+  - `docs/systems/testing-tools.md`: the "Lamp falloff (lightrev LR13)" section is deleted.
+  - `docs/lighting-review/PROPOSAL.md`: section 8 is appended; 7.x untouched.
+  - `scripts/lamp-audit.mjs`: the `setLampFalloff?.('photometric')` line is deleted.
+  - `changes/feature-sector-redesign-lr16.md`: one bullet added.
+  - Report: `docs/sector-redesign/checks/lr16h-build.md`.
+  - Skipped, as your note says (already fixed at f8008542): coop.md :24 and :34, TESTING.md :49.
+- Grep (`lampFalloff|lamp falloff|classic|falloff=photo|E2E_FALLOFF` over docs/systems, TESTING.md, level-design.md, scripts/*.mjs): 15 hits before, 7 after. The 7 left:
+  - `scripts/e2e-menus.mjs` :672 / :679 / :680 (acceptable).
+  - The three already-fixed rows (they now word the removal).
+  - `docs/systems/lighting.md` :44 `tests/lampFalloff.test.ts` (a test file name, left).
+- `npx tsc --noEmit -p tsconfig.json`: clean.
+- Open items for the lead:
+  1. lighting.md and PROPOSAL section 8 describe LR16e / 1 / t / g as current, but their code is not on f8008542 yet. Merge this after them, or accept the wording.
+  2. `docs/sector-redesign/checks/lr16-plan.md`, which PROPOSAL section 8 points to (as the brief asked), is not in the tree at f8008542. lr16a / b / f-build.md also cite it. Commit it, or change the pointer.
+  3. The `scripts/lamp-audit.mjs` :33 comment ("until LR16a makes it the only one") is now stale. It was outside the table, so it was not edited.
