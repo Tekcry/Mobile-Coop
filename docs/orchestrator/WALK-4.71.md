@@ -38,4 +38,9 @@ Open /preview/. The version label (small text on the title screen and the main m
 27. (co-op) Leg-up: boost your partner onto a high lip; they relay or drop the rope for you. Alone, the lip cannot be reached.
 28. (co-op) Guard alerts agree on both screens: a "Contact!" shout, radio call and the alarm stage show on both. A guard's torch in the dark shows on the joiner's screen too.
 
+## Added in 4.72.0 (label now reads v4.72.0 PREVIEW)
+29. Guards (any map): they look the same as before, colours and patterns too. Heads, hands and feet now cast shadows under moon, lamps and torches. Ragdolls and hit flash unchanged.
+30. Saltmarsh Park (Main menu > Sector Ops > Saltmarsh Park - Sector Ops > Normal > Start): greybox sections 1-3 - gatehouse and car park, HQ atrium and offices, lab block (16 guards, the first lasers with power panels). No ammo pickups inside a section. Walk it for flow; greybox only, no art yet.
+31. Warehouse: no ammo crates inside any section now.
+
 Report back: item number + what you saw.
