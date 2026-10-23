@@ -9,7 +9,7 @@ SAVED ~12:15 (window cap ~12:22). Parallel briefs: slices/NEXT-BRIEFS.md (sectio
   failed once, passed on the rerun: watch). Laptop rerun REQUESTED on 345fbb91 (stealth-ai, sectorops all, takedown,
   ct-warehouse; verdict also as a PR #203 comment). Green -> train-ready message for #200-#203.
 - s12 <- fixed s10 merged: 159148f6 (BRIEF / TESTING unions; pairsWiring fake gets setGear; 97 unit tests green).
-  PR for S11 + S12 (from feature/guard-ai-s12, base feature/guard-ai-s10) NOT yet opened: open it next, tell CT Core.
+  PR #208 OPEN for S11 + S12 (base feature/guard-ai-s10); orchestrator and CT Core told.
 - RUNNING (Opus): S13 in ...-guard-ai-s13, S15 in ...-guard-ai-s15 (both off s12 ebdc44a2: they need s12 159148f6
   merged before their PRs). S14: worktree ...-guard-ai-s14 (feature/guard-ai-s14 = s12 159148f6, pushed) READY, not
   started (desktop CPU 99%): start it from NEXT-BRIEFS.md section 4 when CPU < 80%.
@@ -313,7 +313,7 @@ C:/NightShift/Mobile-Coop-guard-ai-s<n> (branch feature/guard-ai-s<n>, its own g
 WIP commits "WIP at the swap" on their branch: review `git show --stat HEAD` and the slice's report, then finish with a
 fresh Opus agent. Order: "Now" top entry first, then docs/guard-ai/slices/NEXT-BRIEFS.md: section 0 (agents cut
 off: s13, s15, s14 WIP; heavy.lock check) -> laptop verdict on s10 345fbb91 (PR #203 comment) -> train-ready message
-for #200-#203 -> open the S11 + S12 PR (s12, base s10) -> start S14 (section 4) beside S13 / S15 up to CPU ~80% ->
+for #200-#203 -> (#208 S11 + S12 is open) -> start S14 (section 4) beside S13 / S15 up to CPU ~80% ->
 s13 <- s12, s15 <- s13 (+ s14), one checker for S13 + S15 (+ S14), one laptop run -> PRs -> S9 (section 5). Token rules: CLAUDE.md "Heavy-usage
 throughput" on master (message the orchestrator only at PRs / train-ready / blocked; no new tsc / vitest agent while
 desktop CPU >= 80%; at 95% no new agents, save by 98%, small work to 100%). The loop in docs/systems/session-method.md (implementer, fresh
