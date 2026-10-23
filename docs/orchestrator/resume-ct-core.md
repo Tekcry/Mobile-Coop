@@ -19,14 +19,17 @@ scratch/ctcore/push-resume.sh <file> <msg>. Message the orchestrator only at PR 
 
 | batch 23 (train 25) | feature/ctcore-batch-23 off batch-22, folder ctcore-batch | 58368e10 PR #214 | = interrogation-intel a2984b63 + sd-rounds 2ef4000f + team-climb 2805b65e (coop.md conflict: both bullets kept). Checker PASS (scratch/ctcore/b23-CHECK.md, polish list). Laptop asked for coop, netmove, ctcourse, takedown, traverse, anim, combat, weapon-audio on dc8919cd (58368e10 = + test comment) -> post in #214, train-ready message. |
 
+| ipad-fit (Sonnet, Michael ~13:05 via orchestrator: into #214) | feature/ipad-fit off batch-23 58368e10 | 58368e10 | Brief scratch/ctcore/briefs/spare-ipad-fit.md (version label, safe-area strip, GPU banner Windows only, pause room note). e2e-menus + e2e-desktop on the desktop lane, then merge into batch-23 / #214. |
+| spare 6 pose-parity (Opus) | feature/pose-parity off batch-23 58368e10 | 58368e10 | Agent writes docs/pose-parity/BRIEF.md then builds: aim side on the wire (PROTOCOL 31 -> 32 if free), remote melee -1 clamp, baked sections on the partner. Laptop e2e-coop / netmove after. Next batch (24). |
+
 ## Next window, at once (parallel, CPU < 80%; orchestrator: max 2 tsc / vitest agents while CPU > 80%)
 1. (done after the swap) r3, team-climb, sd-rounds restarted from the heads above; spare 9 started. Spare 12 dual-reward is
    in #207. If cut off again: restart each with the table's goals.
 2. Wait for hand-backs (no polling).
 3. #207 verdict -> train-ready message. Next batch (feature/ctcore-batch-23 off master) = sd-rounds + team-climb +
    spare 9, one Opus checker, laptop coop / netmove / ctcourse.
-4. Later spares (docs/orchestrator/spare-jobs.md on feature/menu): 7 crouch pops after mocap-strafe; 16 partner rig start
-   (remoteAvatar, after team-climb); 6 partner pose parity (protocol bump, M-L).
+4. Later spares (docs/orchestrator/spare-jobs.md on feature/menu): 7 crouch pops after mocap-strafe (same rig / footPlanner
+   files). 16 partner rig start is already merged (partner-seed). 6 started.
 
 ## Resume prompt
 ```
