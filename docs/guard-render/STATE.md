@@ -51,6 +51,23 @@ fresh bodies (`body.ts`) opt in; `?guardmerge=0` gives the old instanced parts f
   victim, lying without a ragdoll: the root itself rotates, so `lay` is fine) could cull a frame early at the screen
   edge. Ragdolls re-parent the joints, so they go always-active.
 
+## S6 (2026-10-23)
+What: per-cascade sun / moon shadow caster lists (S6a/S6b, exact) and guards leaving the moon cascades beyond 40 m
+(S6c/S6d, GUARD_SUN_REACH, 3 m hysteresis); `?guardsun=0` turns both off.
+Checker: PASS WITH NOTES (light parity clean). Findings fixed here: (1) the custom cascade render list is set only under
+the baked moon (Babylon re-prepares a custom list per cascade layer; without the baked moon the level is in it);
+(2) reach is measured from the player (`World.frame` focus), not the orbit camera; (3) body rigs register
+GUARD_SUN_REACH like a guard's corpse.
+Measure at c181002e (laptop GPU, alone; `run-s6-on`, `run-s6-off`): with 24 guards alert (spread out) frame 8.4 -> 8.1 ms
+on sectorops and 7.3 -> 6.5 on ctcourse; active meshes 639 -> 617 and 552 -> 503; draws 303 -> 271. Patrol / facing /
+away cells within run noise (+-0.5 ms). Render CPU: no regression on these baked-moon maps. Shadow map renders unchanged.
+Look change needing Michael's approval before S6d reaches master: past 40 m in moonlight a guard loses its ground shadow
+(blobs are off while sun shadows are on). The measured gain is small, so the job lead may drop S6c/S6d.
+MICHAEL 2026-10-23 12:15: "Ship S6 without S6d". Reverted S6d (c181002e: enemyRig reach + tests/guardSunReach.test.ts)
+and fix (3) (063605ff: body.ts reach). The S6 PR ships S6a/S6b (per-cascade lists) and S6c (the reach machinery, no
+caller passes a reach, so no look change). The measure above ran WITH S6d: the master gain is S6b only (smaller).
+S6d stays on c181002e for a later look check (ground shadow past 40 m) if Michael wants it.
+
 ## Next
 S1 is checked (PASS WITH NOTES), master merged in (4.68.0 + later), the GPU runs are in (`run-s1`, `run-s1-off`,
 `run-s0-base`: 24 guards facing, sectorops frame 9.7 -> 7.1 ms), the changelog fragment (`changes/feature-guard-render.md`),
