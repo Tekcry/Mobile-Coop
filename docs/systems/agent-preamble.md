@@ -13,7 +13,7 @@ the subagent's role, its step or slice and the previous step's handover. Read th
 ## What to follow
 - CLAUDE.md: the current goal (prototype first, no refining), the hard rules, the test tiers.
 - `docs/DECISIONS.md` (the G entries your brief cites), then the job's `BRIEF.md` and `PLAN.md`.
-- Co-op parity: remotes pose from `MoveState`; a wire change bumps `PROTOCOL_VERSION` and the tests that assert it.
+- Co-op parity: remotes pose from `MoveState`; a wire change does not bump `PROTOCOL_VERSION`; the train build does (tests read the constant).
 - Before changing a default, speed, timing or binding, grep `scripts/` and `tests/` for assertions on it and update
   them in the same change (read the number from the game's table where you can), never leave them failing.
 
