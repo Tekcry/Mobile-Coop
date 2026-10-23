@@ -1,0 +1,22 @@
+{
+  "id": "20261023T114654-player-build-9de2e96e-609d",
+  "sha": "9de2e96ebcf26f1729ba85181cd012132ff9ff7b",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Player Build",
+  "suites": [
+    "e2e-enemies",
+    "e2e-combat",
+    "e2e-takedown",
+    "e2e-guard-carry",
+    "e2e-stealth",
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-offline",
+    "e2e-ctcourse",
+    "e2e-sectorops"
+  ],
+  "set": "gm-g7-off",
+  "note": "guard-models G7 merged, flag OFF regression"
+}
