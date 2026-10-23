@@ -17,7 +17,7 @@
  *   open leaves and bodies).
  */
 import type { ShadowQuality } from '../core/quality';
-import { hyp3 } from '../core/mathx';
+import { hyp2, hyp3 } from '../core/mathx';
 import { CHAR_SHADOW, CHAR_SHADOW_DISK, CHAR_SHADOW_KERNEL, tileX, tileY } from './charShadowSet';
 import { DOOR_SHUT } from './lightField';
 import { TORCH } from './torches';
@@ -119,38 +119,51 @@ export function casterInTorchCone(lx: number, ly: number, lz: number, ax: number
   return a < torchShadowFov(cosOuter) * 0.5;
 }
 
-/** True when a character caster's sphere (+ `sphereMargin`) holds the torch (a candidate for its holder,
- *  `torchHoldDepth`). */
+/** True when a character caster's sphere (+ `sphereMargin`) holds the torch: a candidate for its holder
+ *  (`torchHolderScore`). */
 export function holdsTorch(lx: number, ly: number, lz: number, x: number, y: number, z: number, r: number): boolean {
-  return torchHoldDepth(lx, ly, lz, x, y, z, r) >= 0;
-}
-
-/**
- * (lr16pol B, lr16t check A 5) How deep the torch sits in a character caster's sphere (+ `sphereMargin`): (distance to
- * the centre / that radius)^2 in [0, 1], or -1 when the sphere does not hold the torch. The holder is the ONE character
- * whose caster scores lowest (`pickTorchHolder`): his body (the torch 0.35 m ahead of his feet, well inside his sphere)
- * casts nothing into his own beam, while a second guard or the player shoulder to shoulder casts again. Scaled by the
- * sphere, not the bare centre distance: a character is several casters (body, gun, helmet, armour), and a neighbour's
- * small shoulder cap can sit nearer the torch than the holder's own body centre. Allocation-free.
- */
-export function torchHoldDepth(lx: number, ly: number, lz: number, x: number, y: number, z: number, r: number): number {
   const rr = r + TORCH_SHADOW.sphereMargin;
   const dx = x - lx;
   const dy = y - ly;
   const dz = z - lz;
-  const d2 = dx * dx + dy * dy + dz * dz;
-  const r2 = rr * rr;
-  return d2 <= r2 ? d2 / Math.max(r2, 1e-6) : -1;
+  return dx * dx + dy * dy + dz * dz <= rr * rr;
+}
+
+/**
+ * (lr16pol B, lr16t check A 5) How well a character caster names the torch's holder: -1 when its sphere (+
+ * `sphereMargin`) does not hold the torch, else the squared plan distance (m^2) from its centre to the holder's feet,
+ * found by undoing `placeTorch` (the torch sits `TORCH.ahead` along the beam's plan heading and `TORCH.side` to its
+ * right of the feet; every torch, host and co-op client, is placed by it). The holder is the ONE character whose caster
+ * scores lowest (`pickTorchHolder`): his body and gear stand over those feet and cast nothing into his own beam, while a
+ * second guard or the player shoulder to shoulder, or a step in front of him in the beam, casts again. Not the bare
+ * distance to the torch: a guard 0.6 m in front of the holder has his body centre nearer the torch than the holder's
+ * own. (ax, az): the beam axis' plan part. Pure, allocation-free; the AI is not read (the registry light is all the
+ * renderer holds).
+ */
+export function torchHolderScore(lx: number, ly: number, lz: number, ax: number, az: number, x: number, y: number, z: number, r: number): number {
+  if (!holdsTorch(lx, ly, lz, x, y, z, r)) return -1;
+  const h = hyp2(ax, az);
+  let fx = lx;
+  let fz = lz;
+  if (h > 1e-6) {
+    const s = ax / h;
+    const c = az / h;
+    fx = lx - s * TORCH.ahead - c * TORCH.side;
+    fz = lz - c * TORCH.ahead + s * TORCH.side;
+  }
+  const dx = x - fx;
+  const dz = z - fz;
+  return dx * dx + dz * dz;
 }
 
 /** The holder among `n` character casters' spheres (x, y, z, r packed in `spheres`): the index of the lowest
- *  `torchHoldDepth`, -1 when none holds the torch. `TorchShadows.gather` runs the same rule over its casters. */
-export function pickTorchHolder(lx: number, ly: number, lz: number, spheres: Float32Array, n: number): number {
+ *  `torchHolderScore`, -1 when none holds the torch. `TorchShadows.gather` runs the same rule over its casters. */
+export function pickTorchHolder(lx: number, ly: number, lz: number, ax: number, az: number, spheres: Float32Array, n: number): number {
   let best = -1;
-  let bd = 2;
+  let bd = Infinity;
   for (let i = 0; i < n; i++) {
     const o = i * 4;
-    const d = torchHoldDepth(lx, ly, lz, spheres[o]!, spheres[o + 1]!, spheres[o + 2]!, spheres[o + 3]!);
+    const d = torchHolderScore(lx, ly, lz, ax, az, spheres[o]!, spheres[o + 1]!, spheres[o + 2]!, spheres[o + 3]!);
     if (d >= 0 && d < bd) {
       bd = d;
       best = i;

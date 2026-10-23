@@ -12,11 +12,17 @@
  * Rendering only: the meter and guard perception read the light field (rays + doors). Parity notes: `torchShadowSet.ts`.
  * Without WebGL2 or a float render target (`supported`) it stays off and the old path draws (reach cut, Babylon pool),
  * logged once.
+ *
+ * Receivers: the lamp plugin draws the torches (lit or shadowed) only on PBR materials. The level, voxels, props, doors,
+ * characters and (lr16pol B) the fences, ropes, rope line and bullet decals (`levelLitMaterial.ts`) take them. Still no
+ * torch light: every standard material - the whole `?gfx=min` / standard level path (no torch term there), the flat
+ * unlit or standard helpers (bulbs, vfx particles and tracers) - the Kestrel light view (its `BakedLamps` is
+ * `standard`: no torch draw, no guard torches) and the menu's scenes (no baked lamps).
  */
 import { BaseTexture, Constants, EffectRenderer, EffectWrapper, ShadowGenerator, SpotLight, Texture, Vector3, Viewport, type AbstractMesh, type Observer, type RenderTargetWrapper, type Scene } from '../core/babylon';
 import type { LightRegistry } from './lights';
 import { TORCH_DRAW_SLOTS, TORCH_DRAW_STRIDE } from './shadowAccuracy';
-import { casterInTorchCone, pickTorchDoors, sphereInFrustum, TORCH_SHADOW, torchAtlasSize, torchLitSphere, torchRefreshEvery, torchShadowFov, torchHoldDepth, torchPoseStale, torchTileX, torchTileY, writeTorchPose, type TorchDoor, type TsPlane } from './torchShadowSet';
+import { casterInTorchCone, pickTorchDoors, sphereInFrustum, TORCH_SHADOW, torchAtlasSize, torchForceRender, torchHolderScore, torchLitSphere, torchPoseMoved, torchPoseStale, torchPoseTurned, torchRefreshEvery, torchShadowFov, torchTileX, torchTileY, writeTorchPose, type TorchDoor, type TsPlane } from './torchShadowSet';
 
 type RenderTargetTexture = NonNullable<ReturnType<ShadowGenerator['getShadowMap']>>;
 type SceneNode = NonNullable<AbstractMesh['parent']>;
@@ -292,16 +298,17 @@ export class TorchShadows implements TorchShadowLink {
 
   /**
    * The casters in the torch's reach and cone (+ pad), not the guard holding it, into the slot's list. (lr16pol B,
-   * lr16t check A 5) Only the holder drops: the character caster scoring lowest in `torchHoldDepth` (`pickTorchHolder`'s
-   * rule) names him, and every character caster under the same root node (his rig: body, gun, helmet, armour) leaves
-   * the list; a second guard or the player beside him still casts. Allocation-free.
+   * lr16t check A 5) Only the holder drops: the character caster scoring lowest in `torchHolderScore` (`pickTorchHolder`'s
+   * rule: nearest the feet `placeTorch` put the torch ahead of) names him, and every character caster under the same
+   * root node (his rig: body, gun, helmet, armour) leaves the list; a second guard or the player beside him, or in front
+   * of him in his beam, still casts. Allocation-free.
    */
   private gather(slot: TsSlot, lx: number, ly: number, lz: number, ax: number, ay: number, az: number, cosOuter: number, radius: number): void {
     const list = slot.list;
     list.length = 0;
     const cs = this.rig.casters;
     let holder: AbstractMesh | null = null;
-    let hd = 2;
+    let hd = Infinity;
     for (let i = 0; i < cs.length; i++) {
       const m = cs[i]!;
       if (!m.isEnabled() || !m.isVisible) continue;
@@ -310,7 +317,7 @@ export class TorchShadows implements TorchShadowLink {
       const r = b.radiusWorld;
       if (!casterInTorchCone(lx, ly, lz, ax, ay, az, cosOuter, radius, p.x, p.y, p.z, r)) continue;
       if (this.isChar(m)) {
-        const d = torchHoldDepth(lx, ly, lz, p.x, p.y, p.z, r);
+        const d = torchHolderScore(lx, ly, lz, ax, az, p.x, p.y, p.z, r);
         if (d >= 0 && d < hd) {
           hd = d;
           holder = m;

@@ -26,10 +26,13 @@ import {
   TORCH_SHADOW_TAPS,
   torchAtlasSize,
   torchFilterTexels,
-  torchHoldDepth,
+  torchForceRender,
+  torchHolderScore,
   torchLitSphere,
   torchPenumbra,
+  torchPoseMoved,
   torchPoseStale,
+  torchPoseTurned,
   torchRefreshEvery,
   torchShadowFov,
   torchShadowSpec,
@@ -144,36 +147,47 @@ describe('torch shadow set (LR16t)', () => {
     // two guards side by side, 0.55 m apart, both facing +z: body spheres (centre 0.9 m up, r 0.95) as the merged rig
     const sph = new Float32Array([0, 0.9, 0, 0.95, 0.55, 0.9, 0, 0.95]);
     const l = { x: 0, y: 0, z: 0, cone: makeCone(0, 0, 1, TORCH.outer, TORCH.inner) } as LightDef;
+    const c = l.cone!;
+    const pick = (s: Float32Array, n: number): number => pickTorchHolder(l.x, l.y, l.z, c.dx, c.dz, s, n);
     // A holds it: the torch sits inside both spheres (+ margin), only A is the holder
     placeTorch(l, 0, 0, 0, 0, false, 1);
     expect(holdsTorch(l.x, l.y, l.z, 0, 0.9, 0, 0.95)).toBe(true);
     expect(holdsTorch(l.x, l.y, l.z, 0.55, 0.9, 0, 0.95)).toBe(true);
-    expect(pickTorchHolder(l.x, l.y, l.z, sph, 2)).toBe(0);
+    expect(pick(sph, 2)).toBe(0);
     // B holds it: B
     placeTorch(l, 0.55, 0, 0, 0, false, 1);
-    expect(pickTorchHolder(l.x, l.y, l.z, sph, 2)).toBe(1);
-    // listed in the other order, B on A's torch side (the torch 0.15 m to A's side): still A
+    expect(pick(sph, 2)).toBe(1);
+    // listed in the other order, B on either side of A: still A
     const sw = new Float32Array([0.55, 0.9, 0, 0.95, 0, 0.9, 0, 0.95]);
     placeTorch(l, 0, 0, 0, 0, false, 1);
-    expect(pickTorchHolder(l.x, l.y, l.z, sw, 2)).toBe(1);
+    expect(pick(sw, 2)).toBe(1);
     const sw2 = new Float32Array([-0.55, 0.9, 0, 0.95, 0, 0.9, 0, 0.95]);
-    expect(pickTorchHolder(l.x, l.y, l.z, sw2, 2)).toBe(1);
+    expect(pick(sw2, 2)).toBe(1);
+    // B a step in front of A, in A's beam: B's centre is nearer the torch than A's (a bare-distance rule would drop B
+    // and let A shade his own beam), yet A is the holder and B casts
+    const front = new Float32Array([0, 0.9, 0.6, 0.95, 0, 0.9, 0, 0.95]);
+    expect(holdsTorch(l.x, l.y, l.z, 0, 0.9, 0.6, 0.95)).toBe(true);
+    expect(hyp3(l.x, l.y - 0.9, l.z - 0.6)).toBeLessThan(hyp3(l.x, l.y - 0.9, l.z));
+    expect(pick(front, 2)).toBe(1);
     // crouched (the torch 1.0 m up) and turned away from B (yaw -PI / 2): still the holder
     placeTorch(l, 0, 0, 0, -Math.PI / 2, true, 1);
-    expect(pickTorchHolder(l.x, l.y, l.z, sph, 2)).toBe(0);
-    // a neighbour's small gear sphere nearer the torch than A's body centre does not win: depth is scaled by the sphere
+    expect(pick(sph, 2)).toBe(0);
+    // any heading and scale: a sphere centred over the feet scores 0 (placeTorch undone exactly, pitch included)
+    for (const yaw of [0, 0.7, Math.PI / 2, 2.5, -1.9]) {
+      placeTorch(l, 3, 0.2, -4, yaw, yaw > 1, 1.1);
+      expect(torchHolderScore(l.x, l.y, l.z, c.dx, c.dz, 3, 1.1, -4, 0.95)).toBeCloseTo(0, 9);
+    }
+    // a neighbour's small gear sphere (his gun at his hip, beside the torch) does not win over A's body
     placeTorch(l, 0, 0, 0, 0, false, 1);
     const gear = new Float32Array([0, 0.9, 0, 0.95, 0.4, 1.4, 0.2, 0.12]);
     expect(hyp3(l.x - 0.4, l.y - 1.4, l.z - 0.2)).toBeLessThan(hyp3(l.x, l.y - 0.9, l.z));
-    expect(torchHoldDepth(l.x, l.y, l.z, 0.4, 1.4, 0.2, 0.12)).toBeGreaterThan(torchHoldDepth(l.x, l.y, l.z, 0, 0.9, 0, 0.95));
-    expect(pickTorchHolder(l.x, l.y, l.z, gear, 2)).toBe(0);
-    // nobody near: -1; a sphere that does not hold the torch scores -1; the torch at the centre scores 0
-    expect(pickTorchHolder(l.x, l.y, l.z, new Float32Array([0, 0.9, 3, 0.95]), 1)).toBe(-1);
-    expect(torchHoldDepth(0, 1.45, 0.35, 0, 0.9, 3, 0.95)).toBe(-1);
-    expect(torchHoldDepth(0, 0.9, 0, 0, 0.9, 0, 0.95)).toBe(0);
+    expect(pick(gear, 2)).toBe(0);
+    // nobody near: -1; a sphere that does not hold the torch scores -1
+    expect(pick(new Float32Array([0, 0.9, 3, 0.95]), 1)).toBe(-1);
+    expect(torchHolderScore(0, 1.45, 0.35, 0, 1, 0, 0.9, 3, 0.95)).toBe(-1);
     // allocation-free (per caster per slot per frame)
     const bytes = await bytesPerCall((n) => {
-      for (let k = 0; k < n; k++) sink[0] = sink[0]! + pickTorchHolder(l.x, l.y + k * 1e-7, l.z, sph, 2) + torchHoldDepth(l.x, l.y, l.z, 0, 0.9, 0, 0.95);
+      for (let k = 0; k < n; k++) sink[0] = sink[0]! + pickTorchHolder(l.x, l.y + k * 1e-7, l.z, c.dx, c.dz, sph, 2) + torchHolderScore(l.x, l.y, l.z, c.dx, c.dz, 0, 0.9, 0, 0.95);
     }, 16, { n: 2000 });
     expect(bytes).toBeLessThanOrEqual(16);
   });
@@ -309,6 +323,59 @@ describe('torch shadow set (LR16t)', () => {
       for (let k = 0; k < n; k++) {
         sink[0] = sink[0]! + (torchPoseStale(pose, 1, 2, 1.45, 3 + k * 1e-6, 0, 0, 1) ? 1 : 0);
         writeTorchPose(pose, 1, 2, 1.45, 3, 0, 0, 1);
+      }
+    }, 16, { n: 2000 });
+    expect(bytes).toBeLessThanOrEqual(16);
+  });
+
+  it('pose split and the governor rule (lr16pol B, recheck 1): a turn-only pose waits under the governor', async () => {
+    const pose = new Float32Array(6);
+    writeTorchPose(pose, 0, 2, 1.45, 3, 0, 0, 1);
+    // the split: moved reads the position only, turned the axis only; stale is their OR
+    const cases: [number, number, number, number][] = [
+      [0, 0, 0, 0],
+      [0.13, 0, 0, 0],
+      [0, 0, 0.1, 0],
+      [0.13, 0.1, 0, 0],
+      [TORCH_SHADOW.poseTurn * 0.5, 0, 0, TORCH_SHADOW.poseMove * 0.5],
+    ];
+    for (const [a, dx, dz, dy] of cases) {
+      const ax = Math.sin(a);
+      const az = Math.cos(a);
+      const mv = torchPoseMoved(pose, 0, 2 + dx, 1.45 + dy, 3 + dz);
+      const tn = torchPoseTurned(pose, 0, ax, 0, az);
+      expect(mv).toBe(dx * dx + dz * dz + dy * dy > TORCH_SHADOW.poseMove ** 2);
+      expect(tn).toBe(Math.cos(a) < Math.cos(TORCH_SHADOW.poseTurn));
+      expect(torchPoseStale(pose, 0, 2 + dx, 1.45 + dy, 3 + dz, ax, 0, az)).toBe(mv || tn);
+    }
+    // the force rule: a tile with no map of this torch (valid 0: new, restored, or "nothing to cast" before its first
+    // map) or a moved pose always renders now; a turn-only pose renders now at governor 1 (as before), waits above it
+    for (const gov of [1, 2, 3, 4]) {
+      expect(torchForceRender(0, false, false, gov)).toBe(true);
+      expect(torchForceRender(2, false, false, gov)).toBe(true);
+      expect(torchForceRender(1, true, false, gov)).toBe(true);
+      expect(torchForceRender(1, true, true, gov)).toBe(true);
+      expect(torchForceRender(1, false, false, gov)).toBe(false);
+      expect(torchForceRender(1, false, true, gov)).toBe(gov <= 1);
+    }
+    // a bad governor value counts as 1 (no change from the LR16t rule)
+    expect(torchForceRender(1, false, true, 0)).toBe(true);
+    expect(torchForceRender(1, false, true, 1.7)).toBe(true);
+    // governor 1 reproduces the old single rule exactly: force = !valid || stale
+    for (const valid of [0, 1, 2]) {
+      for (const [a, dx] of [[0, 0], [0.13, 0], [0, 0.1], [0.13, 0.1]] as const) {
+        const mv = torchPoseMoved(pose, 0, 2 + dx, 1.45, 3);
+        const tn = torchPoseTurned(pose, 0, Math.sin(a), 0, Math.cos(a));
+        const old = valid !== 1 || torchPoseStale(pose, 0, 2 + dx, 1.45, 3, Math.sin(a), 0, Math.cos(a));
+        expect(torchForceRender(valid, valid === 1 && mv, valid === 1 && !mv && tn, 1)).toBe(old);
+      }
+    }
+    // allocation-free (per slot per frame)
+    const bytes = await bytesPerCall((n) => {
+      for (let k = 0; k < n; k++) {
+        const mv = torchPoseMoved(pose, 0, 2, 1.45, 3 + k * 1e-6);
+        const tn = torchPoseTurned(pose, 0, 0, 0, 1);
+        sink[0] = sink[0]! + (torchForceRender(1, mv, tn, 2) ? 1 : 0);
       }
     }, 16, { n: 2000 });
     expect(bytes).toBeLessThanOrEqual(16);
