@@ -1,0 +1,19 @@
+{
+  "id": "20261023T094409-night-shift-test-run-f8008542-1994",
+  "sha": "f8008542dec825b9890397cacfa2d078fbcabe94",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Test Runner",
+  "steps": [
+    "node -e \"require('fs').copyFileSync('C:/NightShift/scratch/work/campus-view-perf2.mjs','scripts/_cvp.mjs')\"",
+    "set CVP_GFX=epic&& node scripts/_cvp.mjs C:/NightShift/scratch/work/lr16tri-f8008542/views-epic.json",
+    "set CVP_GFX=medium&& node scripts/_cvp.mjs C:/NightShift/scratch/work/lr16tri-f8008542/views-medium.json"
+  ],
+  "env": {
+    "CVP_ONLY": "guards",
+    "CVP_VIEWS": "start,s5-worst"
+  },
+  "set": "lr16tri",
+  "note": "LR16 perf triage for Sector Ops: campus guards start + s5-worst, Epic then Medium"
+}
