@@ -461,6 +461,8 @@ export const AIM_ELBOW_TUCK = 0.85;
  * (no neck dip, no head roll onto the gun).
  */
 export const PISTOL_REACH = { x: -0.09, y: -0.06, z: 0.15, lean: 0.08 };
+/** (afp AF4b) Crouched, the raised pistol this much further out along the aim (m, by the crouch). */
+export const PISTOL_REACH_CROUCH = 0.05;
 /** `peekFull`: (G2 fix) the head lean (rad) at which a raised pistol keeps the full head roll and neck dip at a wall-edge peek. */
 export const SIGHT_HEAD = { roll: 0.15, peekFull: 0.2 };
 /**
@@ -629,6 +631,11 @@ export const WALL_STANCE = { pelX: 0.05, spRoll: 0.09, pelRoll: 0.06, hdRoll: 0.
  * (`leanFwd` of the lateral lean, rad per rad) past the edge the body faces. Starting values.
  */
 export const WALL_SIDE_POSE = { spine: 0.14, turnFrom: 0.35, turnTo: 0.85, handAt: 0.15, handIn: 0.3, leanFwd: 1.2, narrow: 0.35 };
+/** (afp AF4b) The lowered gun crouched, added to the open-ground carry (m up / ahead, rad pitch; - muzzle up): `pistol` by the
+ *  pistol's low-ready share and the crouch; `wall` side-on at a crouched wall (by the crouch and the wall blend, half
+ *  raised); `pistol.kneel` m up at the middle of a kneel going down or up ((4 k (1 - k))^2 of its progress: no velocity step at either end). Clears the thighs:
+ *  gun vs leg capsules >= 0 and no body-clearance push flipping it between the knees (tests/crouchStrafe.test.ts). */
+export const CROUCH_GUN = { pistol: { y: 0.15, z: 0.08, pitch: -0.5, kneel: 0.2 }, wall: { y: 0.3, z: 0.1, pitch: -0.7 } } as const;
 /** (G6, AUDIT-WALLS row 9) The peek's hip shift onto the outer foot (m per rad of lean; was 0.17). */
 export const PEEK_HIP = 0.7;
 /** (G6, AUDIT-WALLS row 12) A wall right in front of the raised weapon: `far` m to `near` m from the shoulder along the aim
@@ -1158,7 +1165,10 @@ export class AnimGraph {
     // the open-side knee up under the knee hand), from the wall side alone: the planner's lead differs between the owner
     // and the remote copy (their feet settle at different times), and a flipped kneel moved the knee hand 0.3 m
     // (e2e-netmove wall crouch). Turned toward the travel the wall is on the travel side (wallSide 1: the right).
-    if (wantKneel && this.kneelW <= 0) this.kneelSide = i.wall ? (i.wallSide < 0 ? -1 : 1) : this.lead < -0.05 ? -1 : 1;
+    // (afp AF4b, Michael P4 "pistol shifts between knees") off the wall: not from the lead (crouched the stance lead is zeroed,
+    // so after a sideways stop it was arbitrary and the knee changed between stops): armed, the gun hand's knee (a right hand
+    // kneels on the right knee); holstered (free movement squats instead, KEYED_CROUCH.squat) the planted lead foot as before
+    if (wantKneel && this.kneelW <= 0) this.kneelSide = i.wall ? (i.wallSide < 0 ? -1 : 1) : i.armed ? (i.hand < 0 ? -1 : 1) : this.lead < -0.05 ? -1 : 1;
     this.kneelW = clamp(this.kneelW + (wantKneel ? kStep : -kStep), 0, 1);
     const kw = smoothstep(this.kneelW);
     overClip(src, this.kneelSide > 0 ? KNEEL : KNEEL_M, this.idleT * KNEEL_RATE, kw);
@@ -1208,7 +1218,9 @@ export class AnimGraph {
       // (G6, AUDIT-WALLS row 3) sliding standing the chest turns toward the travel (square at rest)
       src[CH.spYaw] = src[CH.spYaw]! + (this.wallS || 0) * st.spYawSlide * this.moveW * (1 - crouchK) * flatW * wkOff;
       // (G6, row 1) side-on: bent well over the knees, deeper than the free crouch's lean
-      src[CH.spPitch] = src[CH.spPitch]! + WALL_SIDE_POSE.spine * sideK * wallW * wkOff;
+      // (afp AF4b) not with a weapon in the hands: the extra lean put the lowered muzzle into the thighs (the free crouch's
+      // lean is kept, ~40 deg)
+      src[CH.spPitch] = src[CH.spPitch]! + WALL_SIDE_POSE.spine * sideK * wallW * wkOff * (i.armed ? 0 : 1);
       // reloading, swapping or throwing at the wall: tuck in closer to it, a little lower
       this.tuckW = approach(this.tuckW, atWall && (i.reload >= 0 || i.swap >= 0 || i.grenade >= 0) ? 1 : 0, 0.12, dt);
       src[CH.pelX] = src[CH.pelX]! + this.wallS * 0.035 * this.tuckW;
@@ -1482,8 +1494,13 @@ export class AnimGraph {
     // at a wall the ready is the wall tuck: muzzle down along the wall, turned away from it (the rig mirrors
     // yaw with the hand, so the away side is relative to the hand holding it)
     this.wallReadyW = approach(this.wallReadyW, atWall ? 1 : 0, 0.25, dt);
-    const cw = this.wallReadyW;
-    const nw = 1 - this.wallReadyW;
+    // (afp AF4b, Michael P4 "with rifle clips") crouched at a wall the body is side-on, the free crouch carriage along the
+    // travel: the open-ground carry, not the tuck (muzzle down along the wall, which side-on and bent over put the muzzle
+    // into the thighs). By the crouch, not the body's turn, so a reversal (the body turning through square) keeps the carry
+    // and never swings the gun into the tuck and back.
+    const gs = smoothstep((crouchK - 0.35) / 0.5);
+    const cw = this.wallReadyW * (1 - gs);
+    const nw = 1 - cw;
     const awayYaw = (this.wallS === 0 ? 1 : -Math.sign(this.wallS)) * (i.hand < 0 ? -1 : 1);
     const cr = WALL_READY;
     // stepping to the wall the open-ground carry comes in tight to the chest (compressed) until the tuck takes
@@ -1502,7 +1519,9 @@ export class AnimGraph {
     if (pistolK > 0) {
       src[CH.wpX] = src[CH.wpX]! + pistolK * PISTOL_REACH.x;
       src[CH.wpY] = src[CH.wpY]! + pistolK * PISTOL_REACH.y;
-      src[CH.wpZ] = src[CH.wpZ]! + pistolK * PISTOL_REACH.z;
+      // (afp AF4b) crouched the raised pistol is held further out (PISTOL_REACH_CROUCH): close in, the rig's body clearance
+      // pushed it 0-3.6 cm in and out each step of the crouched gait (grip 1.01 cm a frame)
+      src[CH.wpZ] = src[CH.wpZ]! + pistolK * (PISTOL_REACH.z + PISTOL_REACH_CROUCH * crouchK);
       // (G2, AUDIT-AIM row 5) the chest forward over the raised pistol (it leaned back with the hips forward)
       src[CH.spPitch] = src[CH.spPitch]! + pistolK * PISTOL_REACH.lean;
     }
@@ -1561,6 +1580,23 @@ export class AnimGraph {
     src[CH.wpPitch] = src[CH.wpPitch]! - bendK * 1.1;
     src[CH.wpZ] = src[CH.wpZ]! + bendK * 0.08;
     src[CH.wpY] = src[CH.wpY]! + bendK * 0.06;
+    // (afp AF4b, Michael P4 "pistol shifts between knees") crouched, the pistol's low ready (Michael's standing hang, y -0.34)
+    // sat at knee height between the knees, and the rig's body clearance pushed it out to one side or the other frame to
+    // frame: crouched it comes up and ahead (CROUCH_GUN.pistol); side-on at a crouched wall the carry rises over the knees
+    // (CROUCH_GUN.wall)
+    const CG = CROUCH_GUN;
+    // (by the crouch or the kneel, whichever is more: standing up from the kneel the crouch runs out in standTime while the
+    // knees are still up (the kneel eases out over kneelTime); by the crouch alone the hang dropped into the rising thighs
+    // and the body clearance threw it 11 cm sideways (e2e-anim low ready still crouch -> stand, pistol: 14.5 cm a frame))
+    const pck = pistolW * Math.max(crouchK, smoothstep(this.kneelW)) * ready * cl;
+    const sk = gs * wallW * ready * nw * (1 - 0.5 * this.raiseS);
+    // (and through a kneel going down or coming up the body folds over the gun: the hang rises with it, CROUCH_GUN.pistol.kneel)
+    const kq = 4 * this.kneelW * (1 - this.kneelW);
+    const kb = pck * kq * kq * CG.pistol.kneel;
+    src[CH.wpY] = src[CH.wpY]! + CG.pistol.y * pck + CG.wall.y * sk + kb;
+    src[CH.wpZ] = src[CH.wpZ]! + CG.pistol.z * pck + CG.wall.z * sk;
+    // (kneeling at the wall the trunk is upright: the muzzle is not tipped up there, or it pointed at the sky)
+    src[CH.wpPitch] = src[CH.wpPitch]! + CG.pistol.pitch * pck + CG.wall.pitch * sk * (1 - smoothstep(this.kneelW));
     // recoil absorbed through the shoulder and spine ((anim-n3b) a Wren rig: the shooting shoulder pushed back too)
     src[CH.spPitch] = src[CH.spPitch]! - rcSpine;
     src[CH.spYaw] = src[CH.spYaw]! + rcYaw;

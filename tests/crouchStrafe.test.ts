@@ -16,7 +16,7 @@ import { CT } from '../src/config/movement';
 import type { CharacterRig, RigPose } from '../src/player/characterRig';
 import { GLIDE_HIP, GLIDE_HIP_CROUCH } from '../src/player/characterRig';
 import { KNEEL_STILL, KNEEL_STILL_AIM, kneelStill } from '../src/player/playerController';
-import { GUN_EXTENT, gripLateral, kneelSummary, makeProbe, pelvisLateral, type Probe } from './helpers/afpMeasure';
+import { GUN_EXTENT, gripLateral, gunClearance, kneelSummary, makeProbe, pelvisLateral, type Probe } from './helpers/afpMeasure';
 import type { Rec } from './helpers/mocapMeasure';
 import { kneeBow } from '../src/anim/audit/metrics';
 import { facingHips } from '../src/anim/audit/crabFacing';
@@ -28,8 +28,9 @@ const DT = 1 / 60;
 const STOPGO_P2P = 0.085;
 /** L <-> R flips: the same (m p2p; before 12.7 cm). */
 const FLIP_P2P = 0.08;
-/** The pistol's steady grip step (cm a frame): its AF0 before value 1.01, not loosened past it (AF4b owns the pistol hold). */
-const PISTOL_GRIP_STEADY = 1.02;
+/** The pistol's steady grip step (cm a frame): the rifle's 1.0 (AF0 before 1.01; AF4b holds the raised pistol further out
+ *  crouched, PISTOL_REACH_CROUCH). */
+const PISTOL_GRIP_STEADY = 1.0;
 
 /** Re-apply playerController's kneel rule (crouched, the stick still, the driver idle, `kneelStill(aimed)` s) to the pose
  *  aimRun hands the rig, through a hook on `rig.animate` set at the first step. */
@@ -53,14 +54,34 @@ function kneelRule(target: AimTarget, aimed: boolean): (rig: CharacterRig) => vo
 }
 
 interface Out { R: Rec; P: Probe }
-async function run(plan: [AimTarget, number, number], weight: number, aimed = true): Promise<Out> {
+/** `wall`: the drawn crouched back-to-wall slide (aimRun's own kneel rule: none at the wall). `lead`: a planner lead forced
+ *  on the graph (m, left foot ahead) flipping sign every `lead[1]` s (the lead after a sideways stop is arbitrary). */
+async function run(plan: [AimTarget, number, number], weight: number, aimed = true, wall = false, lead?: [number, number]): Promise<Out> {
   const P = makeProbe(plan[2], weight < 0.85 ? GUN_EXTENT.pistol : GUN_EXTENT.rifle, plan[0]);
   const hook = kneelRule(plan[0], aimed);
+  let leadHooked = false;
   const R = await aimRun(plan[0], plan[1], plan[2], 'on', (rig, k) => {
-    hook(rig);
+    if (!wall) hook(rig);
+    if (lead && !leadHooked) {
+      leadHooked = true;
+      const g = rig.graph as unknown as { setLead: (v: number) => void };
+      const set = g.setLead.bind(rig.graph);
+      let n = 0;
+      g.setLead = () => set(Math.floor(n++ * DT / lead[1]) % 2 ? -lead[0] : lead[0]);
+    }
     P.onStep(rig, k);
-  }, true, { weight });
+  }, true, { weight, wall });
   return { R, P };
+}
+
+/** Low ready (`aim` 0) over a plan. */
+function lowReady(p: [AimTarget, number, number]): [AimTarget, number, number] {
+  return [(t) => ({ ...p[0](t), aim: 0 }), p[1], p[2]];
+}
+
+/** Stop-go cycles alternating L / R (CROUCH_PLANS.stopGo's timing). */
+function stopGoAlt(v: number, n = 10, on = 1.0, off = 0.8): [AimTarget, number, number] {
+  return [(t) => ({ x: t > 1 && (t - 1) % (on + off) < on ? (Math.floor((t - 1) / (on + off)) % 2 ? -v : v) : 0, z: 0, crouch: 1 }), Math.round(60 * (1 + n * (on + off) + 0.5)), 1];
 }
 
 /** CROUCH_PLANS.flip, but moving from the start: that plan's first second is still, so its crouch-in kneel is still fading at
@@ -153,4 +174,134 @@ describe('crouched aimed strafe (AF4a)', () => {
     console.info(`AF4a standing startStop: pel p2p ${cm(pl.p2p)} beyond ${cm(pl.beyondPace)}`);
     expect(pl.beyondPace).toBeLessThanOrEqual(0.0195);
   }, 300_000);
+});
+
+/**
+ * (anim-fix-pass AF4b, Michael P4 "with rifle clips and moves around constantly, pistol shifts between knees"):
+ * - the kneel's knee is the gun hand's (right), the same over 10 stop-go cycles even with the planner's lead flipping (it
+ *   was picked from the lead: crouched the stance lead is zeroed, so after a sideways stop it was arbitrary);
+ * - the pistol hand's lateral position against the pelvis varies <= 3 cm across those cycles (aimed and at low ready);
+ * - the gun clears the legs (capsules >= 0 cm) and the trunk (>= -1 cm) on every frame, rifle and pistol: the crouched
+ *   strafe (aimed and low ready, steady and stop-go) and the drawn crouched wall slide both ways and its reversal. Before:
+ *   wall slide rifle leg -2.3 / -10.5 / -10.4 cm, trunk -4.0 / -11.6 / -14.7 (L / R / reverse); pistol leg -1.4 / -8.9 /
+ *   -9.6; the crouched pistol low ready -0.4..-1.6 (between the knees, pushed side to side by the rig's body clearance).
+ */
+const GUN_LEG = 0;
+const GUN_TRUNK = -0.01;
+const PISTOL_SPREAD = 0.03;
+
+describe('crouched strafe / wall slide: gun clear, pistol on one knee (AF4b)', () => {
+  for (const [w, weight] of [['rifle', 1], ['pistol', 0.7]] as const) {
+    it(`${w}: one knee over 10 alternating stop-go cycles, the lead flipping; the gun hand steady across them`, async () => {
+      for (const aim of [1, 0]) {
+        const plan = aim ? stopGoAlt(0.7) : lowReady(stopGoAlt(0.7));
+        const { R, P } = await run(plan, weight, aim > 0, false, [0.1, 1.8]);
+        const kn = kneelSummary(P);
+        const gr = gripLateral(R);
+        const gc = gunClearance(R, P, weight < 0.85);
+        console.info(`AF4b ${w} aim ${aim} stopgo alt: kneels ${kn.episodes} sides ${kn.sides.join(',')} changes ${kn.sideChanges} grip spread ${cm(gr.cycleSpread)} step ${gr.stepMax.toFixed(2)} gun leg ${cm(gc.leg)} trunk ${cm(gc.trunk)}`);
+        expect(kn.episodes).toBe(10);
+        expect(kn.sideChanges).toBe(0);
+        expect(kn.sides[0]).toBe(1);
+        if (weight < 0.85) expect(gr.cycleSpread).toBeLessThanOrEqual(PISTOL_SPREAD);
+        expect(gc.leg).toBeGreaterThanOrEqual(GUN_LEG);
+        expect(gc.trunk).toBeGreaterThanOrEqual(GUN_TRUNK);
+      }
+    }, 300_000);
+
+    it(`${w}: the crouched strafe clears the gun, aimed and at low ready`, async () => {
+      for (const aim of [1, 0]) {
+        for (const plan of [CROUCH_PLANS.steady(-1, 0.4), CROUCH_PLANS.steady(1, 0.7), CROUCH_PLANS.stopGo(1, 0.7), flipMoving(0.7, 1.3, 0.15)]) {
+          const { R, P } = await run(aim ? plan : lowReady(plan), weight, aim > 0);
+          const gc = gunClearance(R, P, weight < 0.85);
+          console.info(`AF4b ${w} aim ${aim} strafe: gun leg ${cm(gc.leg)} trunk ${cm(gc.trunk)}`);
+          expect(gc.frames).toBeGreaterThan(100);
+          expect(gc.leg).toBeGreaterThanOrEqual(GUN_LEG);
+          expect(gc.trunk).toBeGreaterThanOrEqual(GUN_TRUNK);
+        }
+      }
+    }, 300_000);
+
+    it(`${w}: the drawn crouched wall slide both ways and its reversal clear the gun`, async () => {
+      for (const [name, plan] of [['L', CROUCH_PLANS.wallSlide(-1, 0.6)], ['R', CROUCH_PLANS.wallSlide(1, 0.6)], ['reverse', CROUCH_PLANS.wallReverse(0.6)]] as const) {
+        const { R, P } = await run(plan, weight, false, true);
+        const gc = gunClearance(R, P, weight < 0.85);
+        console.info(`AF4b ${w} wall ${name}: gun leg ${cm(gc.leg)} trunk ${cm(gc.trunk)}`);
+        expect(gc.frames).toBeGreaterThan(100);
+        expect(gc.leg).toBeGreaterThanOrEqual(GUN_LEG);
+        expect(gc.trunk).toBeGreaterThanOrEqual(GUN_TRUNK);
+      }
+    }, 300_000);
+  }
+});
+
+describe('low ready still: crouch -> kneel -> stand, pistol (AF4b, e2e-anim pop)', () => {
+  // e2e-anim "low ready still: crouch -> stand" (the pistol in hand): standing from the kneel the crouch runs out in
+  // standTime while the knees are still up; CROUCH_GUN.pistol by the crouch alone dropped the hang into the rising thighs
+  // and the body clearance threw the gun 11 cm sideways (wristL 14.5 cm a frame, <= 11.5). By the crouch or the kneel,
+  // whichever is more. The real weapons, stance and carry (drawHarness), the e2e's pop measure (velocity change a frame).
+  it('standing up from the pistol low-ready kneel does not pop', async () => {
+    const { drawHarness } = await import('./helpers/drawHarness');
+    const h = await drawHarness();
+    const rig = h.rig;
+    let crouched = false;
+    let ck = 0;
+    let still = 0;
+    const r = rig as unknown as { animate: (dt: number, p: RigPose) => void };
+    const anim = r.animate.bind(rig);
+    r.animate = (dt: number, p: RigPose) => {
+      // PlayerController: crouchTime / standTime 0.22 s eased, the kneel after KNEEL_STILL still crouched
+      ck = crouched ? Math.min(1, ck + dt / 0.22) : Math.max(0, ck - dt / 0.22);
+      p.crouch = ck * ck * (3 - 2 * ck);
+      still = crouched ? still + dt : 0;
+      p.kneel = still > KNEEL_STILL;
+      p.motion = 'idle';
+      anim(dt, p);
+    };
+    h.tap('swapNext');
+    h.run(120);
+    h.stance.base = 'lowReady';
+    h.run(90);
+    expect(h.weapons.current.def.class).toBe('pistol');
+    const joints = ['hips', 'wristL', 'wristR', 'headNode'] as const;
+    let prev: number[] | null = null;
+    let vel: number[] | null = null;
+    let pop = 0;
+    let where = '';
+    let pushMax = 0;
+    const now: number[] = [];
+    const rec = (n: number): void => {
+      for (let k = 0; k < n; k++) {
+        h.step();
+        pushMax = Math.max(pushMax, (rig as unknown as { gunPush: number }).gunPush);
+        now.length = 0;
+        for (const j of joints) {
+          const m = rig[j].computeWorldMatrix(true).m;
+          now.push(m[12]!, m[13]!, m[14]!);
+        }
+        if (prev) {
+          const v = now.map((x, i) => x - prev![i]!);
+          if (vel)
+            for (let i = 0; i < joints.length; i++) {
+              const a = Math.hypot(v[3 * i]! - vel[3 * i]!, v[3 * i + 1]! - vel[3 * i + 1]!, v[3 * i + 2]! - vel[3 * i + 2]!);
+              if (a > pop) {
+                pop = a;
+                where = joints[i]!;
+              }
+            }
+          vel = v;
+        }
+        prev = now.slice();
+      }
+    };
+    crouched = true;
+    rec(72);
+    crouched = false;
+    rec(72);
+    h.dispose();
+    console.info(`AF4b pistol low ready crouch -> kneel -> stand: worst velocity change ${cm(pop)} cm a frame (${where}), body clearance push max ${cm(pushMax)} cm`);
+    expect(pop).toBeLessThanOrEqual(0.115);
+    // the hang stays clear of the thighs through the stand (by the crouch alone: pushed 4.2 cm here, 11 cm in the game)
+    expect(pushMax).toBeLessThanOrEqual(0.01);
+  }, 120_000);
 });
