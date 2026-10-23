@@ -11,6 +11,10 @@ laptop queue; fresh checker + laptop request on the same commit in parallel; fix
 train-ready = message + `gh pr edit <n> --add-label train-ready` (auto mode denied the label 19:2x: Michael adds it or
 allows it); use `node scripts/run-e2e.mjs --affected origin/master --list` once it lands. Prompts are stateless from the
 next swap: this block carries all state.
+Orchestrator 19:25 ("Tokens for progress"): lead at high effort (set in the app; a session cannot raise its own);
+an Opus agent keeps briefs for the next 2-3 slices ready (scratch/ctcore/briefs/); 2 independent checkers on AI /
+src/net changes; Opus triage agent at once on every laptop failure; a checker FAIL gets an Opus fix round and Opus
+siblings; questions to Michael carry a decision pack (prototype / shots / GPU sheets). Desktop CPU < ~80%.
 Released: #227 (4.76.0), #207 batch 22 (4.77.0), #214 -> #223 -> #231 stack (4.79.0, train 30, PROTOCOL 40).
 
 ## Open (master 4f6db420 = 4.79.0, train 30, PROTOCOL 40; PROTOCOL asserts 11 files 210/210 + tsc green on it, 18:38)
