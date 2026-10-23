@@ -263,3 +263,19 @@ Written as the branch's own fragment, `changes/feature-mocap-strafe.md` (this br
 - Mocap locomotion (switch on): aiming sideways, Wren plays captured strafe steps (CMU 69_59 / 69_56) at their own rhythm
   instead of the hand-keyed glide strafe, with no pops or foot slides on starts, stops, flips and snaps; switch off and
   guards unchanged. Clip format: a cycle can travel sideways (`travel` '+x' / '-x').
+
+## Recheck after round 3 (fresh Opus, 2026-10-23): PASS
+Goals met and asserted; switch OFF md5 9ce3f3d1... / 31,065,812 B confirmed; no new allocation; mutation runs show the
+footPlanner hold and `STRAFE_HIP_RATE` are each needed. Polish list (no fix round: current goal, round 3 already):
+1. Strafe -> sprint hand-off with a ramped aim drop: feet gap 5.8 / 3.5 cm ON (OFF 9.0; already in round 2, weak at base
+   too). Add the plan to mocapStrafe with `footGap >= GAP_MIN` and find why the uncross gap gives way at the hand-off.
+2. Knee-out margin depends on frame timing: jittered dt +/-60 % reads 3.00-3.07 cm (same in round 2); the e2e 2.9 vs 3.0
+   is luck. Add a jittered-dt steady case; aim <= 2.7 cm fixed-dt (STRAFE_KNEE_BOW / STRAFE_HIP_IN).
+3. `stSk` (animGraph.ts:2285-2287) has no test (removing it passes all 12) and its comment describes `max(stSk, swW/tot)`
+   while the code uses `stSk` alone. Assert its purpose or drop it; fix the comment.
+4. The "0.75 m/s leaves the steady strafe untouched" line above is wrong: the limiter clamps 9-42 of ~170 frames in
+   steady strafes. Correct it or limit only `strafeHip` growth when the feet are steady.
+5. characterRig.ts:2468-2469 gates the limiter on `keyStrafe > 0`; `stAX` never reaches 0 after a snap off the strafe.
+   Snap `stAX` / `stAZ` to 0 below 1e-4 or gate on a STRAFE_ON-like threshold.
+6. footPlanner.ts:334 `STRAFE_HOLD_NEED` 0.15 is loose (worst drop 2.1 cm): try ~0.05.
+7. tests/mocapStrafe.test.ts:177-196: run `expectClean` on the four new plans; probe back-to-wall entry when that work starts.
