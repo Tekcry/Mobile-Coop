@@ -274,7 +274,7 @@ Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md pol
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (self-contained; saved 2026-10-23 ~20:30, swap). Job sector-redesign (lead),
+Night Shift | Sector Ops Build: RESUME (self-contained; saved 2026-10-23 ~20:10, new account). Job sector-redesign (lead),
 worktree C:/NightShift/Mobile-Coop-sector-redesign-polish (feature/sector-redesign-polish: STATE / PLAN / checks / briefs).
 git fetch; read CLAUDE.md; ROADMAP Decided (grep only): "Lighting everywhere", "Campus detail art", "Stealth over shooting",
 "Pipeline speed-ups", "Tokens for progress"; PLAN.md "LR16". Released: #206 (4.72.0), #215 + #217 (4.75.0), #232 (4.78.0).
@@ -294,10 +294,13 @@ LR16 (one lighting system; Michael ~18:08-18:20; plan checks/lr16-plan.md, audit
   lights.contribution linear). FIX DONE f8008542 (lr16-batch-fix.md; torch cone feathered on every PBR torch path,
   meter vs picture < 1e-6). Recheck PASS aec88a70 (polish: far open door can widen the fit past max -> capsules). Laptop: batch 1 redirected to f8008542 (~20:40).
   Known reds after fix: exactly 15 (ctcourseLight 4, warehouseS1Light 4, S2 3, S3 4) -> LR16g. PROTOCOL stays 38: train bumps.
-- -lr16dx = lr16int c7a26ca7 + -lr16dw 0cdee9f1 (22 warehouse moves). Opus FIX ROUND was running (lr16dx-build.md):
-  ids 20 / 71, wrong 75 / 11 / 120+123, audit rule, none rows, full audit rerun. Resume from that doc; then 1 checker.
-- cloud-queue 12302947: LR16e + LR16-1 CLAIMED by Cloud Builder 1 (base c7a26ca7); LR16t + LR16h part 1 OPEN (base f8008542). Read status each check;
-  done -> fetch, review (two checkers if src/net / ai), merge e then 1 into lr16int, laptop run.
+- lr16int now 55e93d14 = aec88a70 + LR16h part 1 docs (b1084a54, lead-reviewed; lighting.md names e / 1 / t files
+  ahead of their merge: fix names at the PR if builders renamed them).
+- ~20:05 (new account) 4 Opus builders on the DESKTOP (Cloud Builder 1 gone at the swap; cloud-queue f04ea2ee reclaimed):
+  -lr16dx finish (lr16dx-build.md, slot 1), -lr16e (base c7a26ca7, slot 2), -lr16-1 (c7a26ca7, slot 3), -lr16t
+  (f8008542, slot 4). Each writes checks/<slice>-build.md and pushes per step. If cut off: rerun from the branch head +
+  its build doc + brief (git show origin/cloud-queue:briefs/sector-redesign-<slice>.md). Then: 1 checker for dx;
+  e + 1 one checker; t two checkers if src/ai changed; merge dx, e, 1 (LAMP_VERSION 3), t into lr16int; laptop run.
 - Next to queue: LR16g re-level (after dx + e + 1; set its base sha), LR16-8 sheets request text in
   briefs/LR16h-and-8.md (after g), campus-art-next (after #226). LR16-4 relight -> offer Guard AI; LR16-5 needs Michael.
 For Michael: Realistic dimmer (S2 atrium 0.28 vs 0.48, LR16g fixes); S3 hall-lit white fog.
