@@ -14,7 +14,7 @@ import { parseGlb } from '../src/operators/lab/glb';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { LightRegistry } from '../src/world/lights';
 import { PROP_DARK } from '../src/world/props/facilityProps';
-import { artCounts, facilityCatalogue, mergedLook, type ArtPlacement, type CatReport } from '../src/world/campusArt/catalogue';
+import { artCounts, artDrawKey, facilityCatalogue, mergedLook, type ArtPlacement, type CatReport } from '../src/world/campusArt/catalogue';
 import { CAMPUS_KIT, CAMPUS_LOOK } from '../src/world/campusArt/campusKit';
 import { bytesPerCall } from './helpers/allocPerCall';
 
@@ -65,25 +65,32 @@ describe('CampusArtRender (NullEngine)', () => {
     const cats = { F: facilityCatalogue(), K: CAMPUS_KIT };
     const r = CampusArtRender.fromModels(scene, { placements, catalogues: ['F', 'K'] }, models, reg, { hidePieces: (ids) => hidden.push([...ids]) }, (m) => casters.push(m.name), cats);
     const names = r.meshes().map((m) => m.name);
-    // statics: one merged mesh per (section, material); emissive and alpha pieces thin-instanced; the car is its own caster draw
+    // (perfa) merged per (section, material): the static opaque meshes, the emissives (vertex colours), the car's opaque
+    // parts (casters); the alpha meshes thin-instanced per piece (`artDrawKey`)
     const want = new Set<string>();
     const reports: Record<string, CatReport> = { K: kReport, F: fReport };
     for (const p of placements) {
       const rp = reports[p.cat]!.pieces[p.prop]!;
       const cat = cats[p.cat as 'K' | 'F'];
       for (const m of Object.keys(rp.meshes)) {
-        if (mergedLook(cat.looks[m]) && p.cls !== 'skin-hide') want.add(`campus-static.${p.section}.${m}`);
+        const k = artDrawKey(p, m, cat.looks[m]!);
+        if (k[0] === 'm') want.add(`campus-static.${p.section}.${m}`);
+        else if (k[0] === 'e') want.add(`campus-emissive.${p.section}.${m}`);
+        else if (k[0] === 'c') want.add(`campus-static.${p.section}.${m}.c`);
         else want.add(`campus-${p.cat}.${p.section}.${p.prop}.${m}${p.cls === 'skin-hide' ? '.c' : ''}`);
       }
     }
     expect(names.sort()).toEqual([...want].sort());
     expect(names).toContain('campus-static.1.white');
     expect(names).toContain('campus-static.2.white');
-    expect(names).toContain('campus-K.1.vendingMachine.screen');
+    expect(names).toContain('campus-emissive.1.screen');
+    expect(names).toContain('campus-emissive.1.exitGreen');
+    expect(names).toContain('campus-static.1.tyre.c');
+    expect(mergedLook(CAMPUS_LOOK.tyre)).toBe(true);
     expect(names).toContain('campus-K.1.vendingMachine.glass');
     // only the box-hidden skin casts, and the box it stands in for is hidden once the art is ready
     expect(casters.length).toBeGreaterThan(0);
-    expect(casters.every((n) => n.endsWith('.c') && n.includes('carBlue'))).toBe(true);
+    expect(casters.every((n) => n.endsWith('.c') && (n.startsWith('campus-static.1.') || n.includes('carBlue')))).toBe(true);
     expect(hidden).toEqual([[3]]);
     // counts per section = artCounts (the pure draw rule)
     const c = r.counts();
@@ -93,18 +100,19 @@ describe('CampusArtRender (NullEngine)', () => {
       expect(c.perSection[s]!.tris, `S${s} tris`).toBe(a.tris);
     }
     // a cut circuit dims the grouped screen (and the exit sign, on its own supply, stays lit)
-    const screens = (): Float32Array => r.colorsOf('campus-K.1.vendingMachine.screen')!;
+    // (perfa: merged emissives, colours per vertex; placement 2 is on circuit 70, 3 is not, 4 is the exit sign)
+    const screens = (): number[] => [r.colorOf(2, 'screen')![0], 0, 0, 0, r.colorOf(3, 'screen')![0]];
     const lit = screens()[0]!;
     expect(lit).toBeGreaterThan(0.1);
     expect(screens()[4]!).toBeCloseTo(lit, 6);
-    const exit = r.colorsOf('campus-K.1.exitSign.exitGreen')!;
+    const exit = r.colorOf(4, 'exitGreen')!;
     const green = exit[1]!;
     expect(green).toBeCloseTo(CAMPUS_KIT.ownSupply!.exitGreen!.tint[1] * CAMPUS_KIT.ownSupply!.exitGreen!.gain, 6);
     reg.setGroup(70, false);
     r.frame();
     expect(screens()[0]!).toBeCloseTo(lit * PROP_DARK, 6);
     expect(screens()[4]!).toBeCloseTo(lit, 6);
-    expect(r.colorsOf('campus-K.1.exitSign.exitGreen')![1]!).toBeCloseTo(green, 6);
+    expect(r.colorOf(4, 'exitGreen')![1]!).toBeCloseTo(green, 6);
     reg.setGroup(70, true);
     r.frame();
     expect(screens()[0]!).toBeCloseTo(lit, 6);
@@ -136,6 +144,48 @@ describe('CampusArtRender (NullEngine)', () => {
     expect(scene.meshes.length).toBe(meshes0);
     expect(scene.materials.length).toBe(mats0);
     expect(hidden).toEqual([[3]]);
+    scene.dispose();
+    engine.dispose();
+  });
+});
+
+describe('CampusArtRender far cull (perfa)', () => {
+  it('stops drawing an all-indoor draw past ART_FAR (hysteresis), never an outdoor or caster draw; allocation-free', async () => {
+    const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+    const { Scene } = await import('../src/core/babylon');
+    const { CampusArtRender, ART_FAR } = await import('../src/world/campusArt/campusArtRender');
+    const placements: ArtPlacement[] = [
+      P({ cat: 'K', prop: 'printerMfd', x: 0, section: 1, cls: 'solid', indoor: true }),
+      P({ cat: 'K', prop: 'exitSign', x: 2, y: 2.5, section: 1, cls: 'visual', indoor: true }),
+      P({ cat: 'K', prop: 'printerMfd', x: 0, section: 2, cls: 'solid', indoor: true }),
+      P({ cat: 'K', prop: 'printerMfd', x: 4, section: 2, cls: 'solid' }),
+      P({ cat: 'K', prop: 'carBlue', x: 12, section: 1, cls: 'skin-hide', skinOf: 3, indoor: true }),
+    ];
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    const models = { K: parseGlb(glb(path.join(ASSETS, 'campus-kit.glb'))) };
+    const r = CampusArtRender.fromModels(scene, { placements, catalogues: ['K'] }, models, null, null, () => {}, { K: CAMPUS_KIT });
+    const on = (name: string): boolean => r.meshes().find((m) => m.name === name)!.isEnabled();
+    const culled = r.probe().filter((x) => x.indoor).map((x) => x.name);
+    // section 1's opaque and emissive draws are all indoor; section 2's mixes an outdoor printer; the car never culls
+    expect(culled.length).toBeGreaterThan(0);
+    expect(culled.every((n) => n.includes('.1.') && n.endsWith('.i'))).toBe(true);
+    expect(culled).toContain('campus-emissive.1.exitGreen.i');
+    r.farCullAt(0, ART_FAR + 20, true);
+    for (const n of culled) expect(on(n)).toBe(false);
+    expect(on('campus-static.2.white')).toBe(true);
+    expect(on('campus-static.1.tyre.c')).toBe(true);
+    // hysteresis: just inside ART_FAR stays off, inside ART_FAR - 2 comes back
+    r.farCullAt(0, ART_FAR - 1 + 3, true);
+    for (const n of culled) expect(on(n)).toBe(false);
+    r.farCullAt(0, 10, true);
+    for (const n of culled) expect(on(n)).toBe(true);
+    let z = 0;
+    const bytes = await bytesPerCall((n) => {
+      for (let i = 0; i < n; i++) r.farCullAt(0, (z = (z + 37) % 200), false);
+    }, 0.5, { n: 500 });
+    expect(bytes).toBeLessThanOrEqual(0.5);
+    r.dispose();
     scene.dispose();
     engine.dispose();
   });

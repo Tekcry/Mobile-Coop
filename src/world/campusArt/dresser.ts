@@ -13,6 +13,8 @@ import type { BoxPiece } from '../levelBuilder';
 import { FIT_MAX, FIT_MIN, ART_PROUD, boxSlice, pieceHull, quarterTurns, skinFit, writeArtBoxes, type ArtPlacement, type CatalogueSet, type PropCatalogue } from './catalogue';
 import { blocked, buildKeepouts, checkDressing, placementMount, type DressContext, type Keepouts } from './keepouts';
 import { newReport, planRoom, type DressReport } from './dressRules';
+import { isOutdoor } from './artTags';
+import { roomAt } from '../rooms';
 
 const snap = (v: number, step = 0.05): number => Math.round(v / step) * step;
 const snapYaw = (yaw: number): number => {
@@ -183,6 +185,20 @@ export class CampusDresser {
   /** Writes the solid / see placements' boxes into the level builder (`writeArtBoxes`; every box noLedge, ART-KIT L15). */
   write(): this {
     this.report.boxes += writeArtBoxes(this.b, this.cats, this.placements);
+    this.markIndoor();
+    return this;
+  }
+
+  /** (perfa, render-only cull hint) Marks every placement inside a room with an indoor tag `indoor` (on its storey: the
+   *  placement's y less 0.1, so a ceiling piece at the ceiling's underside counts in the room below it). Outdoor rooms,
+   *  untagged rooms and no room leave it unset. Gameplay never reads it. */
+  markIndoor(): this {
+    const rooms = this.ctx.rooms;
+    for (const p of this.placements) {
+      const i = roomAt(rooms, p.x, p.z, p.y - 0.1);
+      const t = i >= 0 ? this.ctx.tags[rooms[i]!.id] : undefined;
+      if (t !== undefined && t !== 'none' && !isOutdoor(t)) p.indoor = true;
+    }
     return this;
   }
 

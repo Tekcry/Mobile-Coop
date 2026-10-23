@@ -116,6 +116,9 @@ export interface ArtPlacement {
   group?: number;
   /** Visual and < 0.4 m: may drop at distance (perf lever only). */
   minor?: boolean;
+  /** (perfa) In an indoor-tagged room (`CampusDresser.markIndoor`): the renderer may stop drawing it while the camera is
+   *  far from its section (render only; gameplay never reads it). */
+  indoor?: boolean;
   /** The real reason (16.0 reason test), one line. */
   why: string;
 }
@@ -444,14 +447,29 @@ export function mergedLook(look: ArtLook | undefined): boolean {
 }
 
 /**
- * Draws and triangles a section's placements cost under the renderer's draw rule (pure, `campusArtRender.ts` step 6):
- * one merged mesh per (section, material) for the static opaque meshes (not emissive, not alpha, not a `skin-hide` caster),
- * one thin-instanced mesh per (catalogue, section, piece, material) for the rest (emissive, alpha, casters). Box-only
- * pieces draw nothing. Placements: every placement of the section.
+ * The draw a placement's (piece, material) mesh goes into within its section (perfa; `campusArtRender.ts` and
+ * `artCounts` share it). Merged (baked, one mesh per key): 'm|mat' the static opaque meshes, 'e|mat' the emissives
+ * (coloured per vertex), 'c|mat' the opaque parts of the box-hidden skins (the shadow casters). Thin-instanced, one mesh
+ * per key: 'i|cat|prop|mat|c?' the alpha meshes (kept apart: transparent draws sort per mesh) and an emissive caster.
+ * (An indoor / outdoor split of the keys was measured: it adds more draws near than the far cull saves; the far cull
+ * takes a draw whose placements are all indoor instead.)
+ */
+export function artDrawKey(p: ArtPlacement, mat: string, look: ArtLook): string {
+  const caster = p.cls === 'skin-hide';
+  if (look.alpha !== undefined || (caster && look.emissive)) return `i|${p.cat}|${p.prop}|${mat}|${caster ? 'c' : ''}`;
+  if (caster) return `c|${mat}`;
+  return `${look.emissive ? 'e' : 'm'}|${mat}`;
+}
+
+/** Is a draw key a merged (baked) draw? */
+export const mergedKey = (key: string): boolean => key[0] !== 'i';
+
+/**
+ * Draws and triangles a section's placements cost under the renderer's draw rule (pure, `campusArtRender.ts`): one
+ * draw per distinct `artDrawKey`. Box-only pieces draw nothing. Placements: every placement of the section.
  */
 export function artCounts(cats: CatalogueSet, reports: Readonly<Record<string, CatReport>>, ps: readonly ArtPlacement[], section: number): { draws: number; tris: number; placements: number } {
-  const merged = new Set<string>();
-  const inst = new Set<string>();
+  const keys = new Set<string>();
   let tris = 0;
   let n = 0;
   for (const p of ps) {
@@ -462,9 +480,9 @@ export function artCounts(cats: CatalogueSet, reports: Readonly<Record<string, C
     if (!cat || !rep) continue;
     tris += rep.triangles;
     for (const mat of Object.keys(rep.meshes)) {
-      if (mergedLook(cat.looks[mat]) && p.cls !== 'skin-hide') merged.add(mat);
-      else inst.add(`${p.cat}|${p.prop}|${mat}|${p.cls === 'skin-hide' ? 'c' : ''}`);
+      const look = cat.looks[mat];
+      if (look) keys.add(artDrawKey(p, mat, look));
     }
   }
-  return { draws: merged.size + inst.size, tris, placements: n };
+  return { draws: keys.size, tris, placements: n };
 }
