@@ -292,26 +292,29 @@ export function jobsFor(stage, kit, opts = {}) {
         kit: slice(nk, p), outputs: [`gear/guard-${p.id}.blend`, `gear/guard-${p.id}.json`],
       })),
     ],
+    // G4: a node job per base / own-GLB piece (guard-lods.mjs: the atlas layout, Blender bake_lods.py --guard, KTX2,
+    // the measured report); the hash takes the base, its heads, every piece it uses and the shared sections (g4Slice)
     lods: () => [
       ...nk.bases.map((b) => make(idOf('lods', b.id), {
-        script: 'bake_lods.py', args: [...common(idOf('lods', b.id)), '--guard', '--base', b.id],
+        runner: 'node', script: LODS_SCRIPT, files: LODS_FILES, args: [...common(idOf('lods', b.id)), '--base', b.id],
         needs: [idOf('bodies', b.id), ...headsOf(b.id).map((h) => idOf('heads', h.id)), ...capsOf(b.id), ...garmentsOf(b.id).map((g) => idOf('garments', b.id, g.id)), ...gearIds(b.id)],
-        tags: [b.id], kit: slice(nk, b),
+        tags: [b.id], kit: g4Slice(nk, b.id),
         outputs: [0, 1, 2].map((n) => `lods/guard-${b.id}-lod${n}.glb`).concat(`lods/guard-${b.id}.report.json`),
       })),
+      // the shield is skinned on the rig of the base whose kinds carry it (G3 builds it in that bind pose)
       ...nk.ownGlb.map((p) => make(idOf('lods', p.id), {
-        script: 'bake_lods.py', args: [...common(idOf('lods', p.id)), '--guard', '--piece', p.id],
-        needs: [idOf('gear', p.id)], tags: [p.id], kit: slice(nk, p),
+        runner: 'node', script: LODS_SCRIPT, files: LODS_FILES, args: [...common(idOf('lods', p.id)), '--piece', p.id],
+        needs: [idOf('gear', p.id), ...ownBase(kit, p.id).map((b) => idOf('bodies', b))], tags: [p.id], kit: slice(nk, p),
         outputs: [0, 1, 2].map((n) => `lods/guard-${p.id}-lod${n}.glb`).concat(`lods/guard-${p.id}.report.json`),
       })),
     ],
     check: () => [
       ...nk.bases.map((b) => make(idOf('check', b.id), {
-        script: 'check_guard.py', args: [...common(idOf('check', b.id)), '--base', b.id], needs: [idOf('lods', b.id)],
-        tags: [b.id], kit: slice(nk, b), outputs: [`check/guard-${b.id}.check.report.json`],
+        runner: 'node', script: CHECK_SCRIPT, files: CHECK_FILES, args: [...common(idOf('check', b.id)), '--base', b.id], needs: [idOf('lods', b.id)],
+        tags: [b.id], kit: g4Slice(nk, b.id), outputs: [`check/guard-${b.id}.check.report.json`],
       })),
       ...nk.ownGlb.map((p) => make(idOf('check', p.id), {
-        script: 'check_guard.py', args: [...common(idOf('check', p.id)), '--piece', p.id], needs: [idOf('lods', p.id)],
+        runner: 'node', script: CHECK_SCRIPT, files: CHECK_FILES, args: [...common(idOf('check', p.id)), '--piece', p.id], needs: [idOf('lods', p.id)],
         tags: [p.id], kit: slice(nk, p), outputs: [`check/guard-${p.id}.check.report.json`],
       })),
     ],
@@ -320,7 +323,7 @@ export function jobsFor(stage, kit, opts = {}) {
       runner: 'node', script: 'scripts/operator-sheet.mjs', args: ['--guards'], gpuBound: true,
       env: { E2E_GPU: '1', E2E_PORT: '4189' }, needs: [...baseIds.map((b) => idOf('check', b)), ...nk.ownGlb.map((p) => idOf('check', p.id))],
       kit: { shared: nk.shared, bases: baseIds, heads: nk.heads.map((h) => h.id) },
-      outputs: ['sheet/guard-sheet.png'], files: [],
+      outputs: ['sheet/guard-sheet.png'], files: SHEET_FILES,
     })],
   }[stage]();
   // hair caps: one job per base whose kinds wear a cap with a mesh (heads stage, Cycles); lods-<base> needs it
@@ -339,6 +342,32 @@ export function jobsFor(stage, kit, opts = {}) {
   if (!only.length) return jobs;
   const prefix = `${stage}-`;
   return jobs.filter((j) => only.some((o) => o === j.id || o === j.id.slice(prefix.length) || j.tags.includes(o)));
+}
+
+/** G4: the lods / check / sheet jobs' scripts and the files their hashes cover (repo-relative). */
+export const LODS_SCRIPT = 'scripts/operators/guard-lods.mjs';
+export const CHECK_SCRIPT = 'scripts/operators/guard-check.mjs';
+const G4_JS = ['scripts/operators/guardAtlas.mjs', 'scripts/operators/guardGlb.mjs', 'scripts/operators/guardLodReport.mjs', 'scripts/operators/guardBakePlan.mjs'];
+const LODS_FILES = [...G4_JS, 'scripts/operators/ktx2.mjs', 'scripts/operators/blender.mjs',
+  ...['bake_lods.py', 'bake_guard.py', 'guard_lod_util.py', 'guard_skin.py', 'materials.py', 'common.py'].map((f) => `${PY_REL}/${f}`)];
+const CHECK_FILES = [...G4_JS, 'src/operators/guards/guardBudget.ts', 'src/operators/guards/guardKit.ts'];
+const SHEET_FILES = ['scripts/operators/guard-sheet.mjs', 'scripts/operators/guardSheetPlan.mjs', 'src/operators/lab/guardSheet.ts', 'guards.html'];
+
+/** A base's kit slice for its lods / check hash: its entry, its heads, every piece its kinds use, the shared sections. */
+function g4Slice(nk, baseId) {
+  const used = nk.pieceUse?.[baseId];
+  const all = [...nk.pieces, ...nk.ownGlb]; // outfits come in through the garments (each part carries its outfit pieces)
+  return {
+    entry: nk.bases.find((b) => b.id === baseId), shared: nk.shared, heads: nk.heads.filter((h) => h.base === baseId),
+    pieces: used ? all.filter((p) => used.has(p.id)) : all, garments: nk.garments.filter((g) => !g.bases || g.bases.includes(baseId)),
+  };
+}
+
+/** The bases whose kinds carry an own-GLB piece (the shield: the enforcer's broad), in kit order. */
+function ownBase(kit, pieceId) {
+  const kinds = Array.isArray(kit.kinds) ? kit.kinds : [];
+  const bases = kinds.filter((k) => KIND_PIECE_LISTS.some((l) => (k[l] ?? []).includes(pieceId))).map((k) => k.base);
+  return [...new Set(bases)];
 }
 
 function onlyList(only) {

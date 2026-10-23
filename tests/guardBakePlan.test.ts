@@ -101,7 +101,7 @@ describe('guard bake plan: job split', () => {
     }
   });
 
-  it('scripts match the plan: guard-prep, build_guard_body, build_head, garments/<g>, build_gear, bake_lods', () => {
+  it('scripts match the plan: guard-prep, build_guard_body, build_head, garments/<g>, build_gear, guard-lods, guard-check', () => {
     expect(jobsFor('prep', kit)[0]?.script).toBe('scripts/operators/guard-prep.mjs');
     expect(jobsFor('prep', kit)[0]?.runner).toBe('node');
     expect(jobsFor('bodies', kit)[0]?.script).toBe('build_guard_body.py');
@@ -109,7 +109,9 @@ describe('guard bake plan: job split', () => {
     expect(jobsFor('garments', kit).map((j) => j.script).every((s) => s.startsWith('garments/'))).toBe(true);
     expect(jobsFor('garments', kit).find((j) => j.id === 'garments-average-shirt')?.script).toBe('garments/combat_shirt.py');
     expect(jobsFor('gear', kit)[0]?.script).toBe('build_gear.py');
-    expect(jobsFor('lods', kit)[0]?.script).toBe('bake_lods.py');
+    expect(jobsFor('lods', kit)[0]?.script).toBe('scripts/operators/guard-lods.mjs'); // G4: node job, runs bake_lods.py --guard
+    expect(jobsFor('lods', kit).every((j) => j.runner === 'node' && j.files.includes('scripts/operators/py/bake_lods.py'))).toBe(true);
+    expect(jobsFor('check', kit).every((j) => j.runner === 'node' && j.script === 'scripts/operators/guard-check.mjs')).toBe(true);
   });
 
   it('wires the upstream jobs: garments need their base body, lods need everything of their base', () => {
@@ -124,7 +126,7 @@ describe('guard bake plan: job split', () => {
     expect(l?.needs.filter((n) => n.startsWith('garments-average-'))).toHaveLength(5);
     expect(l?.needs.filter((n) => n.startsWith('gear-average-'))).toHaveLength(16);
     expect(jobsFor('lods', kit).find((j) => j.id === 'lods-broad')?.needs.filter((n) => n.startsWith('heads-'))).toEqual(['heads-broad-1']);
-    expect(jobsFor('lods', kit).find((j) => j.id === 'lods-shield_riot')?.needs).toEqual(['gear-shield_riot']);
+    expect(jobsFor('lods', kit).find((j) => j.id === 'lods-shield_riot')?.needs[0]).toBe('gear-shield_riot');
     expect(jobsFor('check', kit).find((j) => j.id === 'check-lean')?.needs).toEqual(['lods-lean']);
     expect(jobsFor('sheet', kit)[0]?.needs).toHaveLength(4);
     expect(jobsFor('heads', kit).every((j) => j.needs.length === 0)).toBe(true);
@@ -406,7 +408,7 @@ describe('guard bake plan: the real guards.json', () => {
     }
     expect(jobsFor('lods', kit).find((j) => j.id === 'lods-average')?.needs).toContain('haircaps-average');
     expect(jobsFor('lods', kit).find((j) => j.id === 'lods-broad')?.needs.some((n) => n.startsWith('haircaps-'))).toBe(false);
-    expect(jobsFor('lods', kit).find((j) => j.id === 'lods-shield_riot')?.needs).toEqual(['gear-shield_riot']);
+    expect(jobsFor('lods', kit).find((j) => j.id === 'lods-shield_riot')?.needs).toEqual(['gear-shield_riot', 'bodies-broad']); // G4: skinned on the enforcer's rig
   });
 });
 
