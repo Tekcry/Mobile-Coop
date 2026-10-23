@@ -11,3 +11,4 @@ kind: patch
   (the client out only for the dark send-back), so the lure no longer finds them (a step-4 "calm" timeout flake).
 - Docs (code): the protocol 42 comment names the `sector` message's `rh`.
 - Sector Ops: the per-section synced-takedowns list for `rh` is built with the run, so the two always reset together.
+- Marlow Yard: A4's two mezzanine stairs (open south side) and A8's public stair (both sides) take an invisible noLedge collision rail from the third tread to the head (A6's staff stair idiom), so a player can no longer step off the flights.
