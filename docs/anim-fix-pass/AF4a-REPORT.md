@@ -40,8 +40,11 @@ Gating the glide off in the kneel made stop-go worse (9.9 vs 9.3); not kept.
 - Stop-go / flip bars in the test (the plan's acceptance names only "steady"): STOPGO_P2P 8.5 cm, FLIP_P2P 8 cm.
 
 ## Tests
-crouchStrafe 9/9; keyedCrouch, mocapCrouch, rig, mocapPlayer, animFixPass, crouchEntryRig, mocapStrafe: see the commit
-message / final hand-back; `npx tsc --noEmit -p .` clean; eslint clean on the three files. e2e-anim: see below.
+One file at a time: crouchStrafe 9/9, keyedCrouch 8/8, mocapCrouch 6/6, rig 21/21, mocapPlayer 10/10 (1 skipped),
+animFixPass 1/1, crouchEntryRig 1/1, mocapStrafe 12/12 (OFF / standing unchanged). `npx tsc --noEmit -p .` clean; eslint
+clean on the three files.
+e2e-anim (`E2E_GPU=1`, desktop lane 2, port 4192, heavy2.lock 16:15-16:18): all passed, 37 s. Crouched aimed strafe
+knee-out 2.7 cm (speed 1) / 2.9 cm (speed 2) against the 3.0 cm gate.
 
 ## Open items
 - Pistol steady grip step 1.01 cm a frame (bar 1.0): the pistol hold, AF4b.
@@ -49,4 +52,5 @@ message / final hand-back; `npx tsc --noEmit -p .` clean; eslint clean on the th
   kneel's pose (AF4b cause 2, animGraph.ts crouchSet re-centring).
 - Stop-go knee-out (during the kneel transitions) 10.0 / 10.3 cm vs 8.4 / 12.8 before: not gated anywhere; the kneel side
   is AF4b's.
+- e2e-anim crouched aimed strafe speed 2 knee-out 2.9 cm (gate 3.0): little headroom; a lower glide share would fail it.
 - The kneel after an aimed crouched stop now comes 0.3 s later (0.35 s vs 0.05 s): a feel item for Michael's walk.
