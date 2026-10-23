@@ -1,6 +1,9 @@
 # Guard AI - state
 
 ## Now
+~18:25: TRAIN-READY train 31 sent: #229 S9 71498e16 (train/30 7e8b8c51 merged, PROTOCOL 41, A142, + e2e-guard-carry
+fe910585) and #234 S22 c51f1b30 (contains #229). Unit 361/361 and 172/172.
+
 ~18:15: invisible-guard ROOT CAUSE (Test Runner split on f16600f5): not GLSL, not photo mode / player: Babylon's async
 effect compile gives up ("Operation timed out after maximum retries. - Effect: pbr") when the page stalls while a new
 partSkinMat body variant compiles; the material keeps the failed effect, the body never draws. Player risk: any long
@@ -524,8 +527,7 @@ e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep lapto
    e2e-guard-carry stall check. Test Runner: suite on the fix sha (pass) and on f16600f5 (fail). Then merge into s9
    (train 31) or its own PR (orchestrator's call).
    Merge this branch into s9 for the train-31 PR (orchestrator's ask).
-   Then train 31: when train 30 is built, merge origin/train/30 into s9 then s22, PROTOCOL 41 (42 if marlow-final #237 is train-ready first), fix the asserts, Test
-   Runner coop + netmove (+ stealth-ai, takedown; S22 stealth-ai, ctcourse:1), TRAIN-READY #229 + #234.
+   Train 31: #229 S9 71498e16 (PROTOCOL 41) + #234 S22 c51f1b30, TRAIN-READY sent: fix any failure reported at once.
 3. S22 game side (slices/S22.md: CourseState.consoleBack, CourseMode consoleHost / watchesConsole / consoleEdge) after
    marlow-final merges; then fix e2e-ctcourse A4 step 3 (passive officer no longer refuses) in the same branch.
 4. Calm-guard GPU sheet (Test Runner, 267553bf): a grunt still drawn with e.carryCalm() true after 16 s calm = bug -> fix.
