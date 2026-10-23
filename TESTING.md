@@ -123,6 +123,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Guard tactics (guard-ai S8): get spotted by 4 guards and break line of sight: the caller drops back into cover,
   one moves up cover to cover ("Moving up!"), one covers from cover ("Covering!"), one goes round the side
   ("Flanking!"); never more than one of them moving up at once, nobody runs at you in the open.
+- [ ] Helmets and armour (guard-ai S12; once a section has `gear`, or set one with `e.setGear` in the console): shoot a
+  helmeted guard in the head: steel-blue hit marker and a ping, the helmet falls to the floor and stays, he reels and
+  comes up shooting; a second head shot kills. An armoured guard shrugs off chest rounds (a short stagger, not every
+  round); a takedown drops either in one move.
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
 - [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
   glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen

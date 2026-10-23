@@ -159,8 +159,18 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 - Tactics: from sight into cover first (85%; the profile's `coverFirst` by `profileOf(tacticsProfile)`, S6, a seeded roll, S8), attack -> cover after 2.5-4.5 s, peek cycles (4.2 s, up to 5); out of sight
   an `advancing` bound to cover closer to the believed position (`pickAdvance`), a 2.5 s hold (`ADVANCE_HOLD`; a point or an aggressive guard: `profileOf(tacticsProfile).advanceHold`, 0.8 s aggressive), then the next; the last
   stretch is walked (`ADVANCE_PACE`; aggressive: a jog); cover is picked against `knownPt` (never the real position out of sight). One bullet
-  to the head kills any guard but a heavy (`Enemy.applyDamage`). The close-range sense from behind ignores a sneak /
-  crouched approach.
+  to the head kills any guard but a heavy (`Enemy.applyDamage`), unless he wears a helmet (below). The close-range
+  sense from behind ignores a sneak / crouched approach.
+- Gear (guard-ai S12, stealth over shooting items 2 and 13, A35 / A36; numbers `GEAR` in `ai/gear.ts`): `Enemy.helmet`
+  / `armour`, set by `EnemyManager.placeSlot` from the slot's `gear` tag merged with the section default
+  (`SectorDef.gear`, passed by `sectorMode.fill`; none = no gear), `Enemy.setGear` (S13's alarm stages), kept by a woken
+  guard (`inherit`). `applyDamage` runs player and guard bullets through `gearHit` (not the heavy, not melee,
+  takedowns, explosions or sleep bolts): head + helmet = 0 dealt, the helmet off (`helmetPart` hidden, a dropped
+  helmet from `EnemyManager.helmetDrops`, `ai/helmetDrops.ts`: a pool of 8, a 0.4 s tumble to the floor, it stays),
+  the strike stagger 0.9 s; body + armour = 0 dealt, stagger 0.5 s at most every 1.5 s (`sinceStagger`); then the
+  normal hit reaction (combat on the shot's origin, contact call) and a `deflect` bark. Both return
+  `DamageResult.deflect`. Placeholder parts (A45): the rig's combat-helmet part on the head node, the armour plates on
+  the torso and shoulders, built on first use and toggled. Host-only (S9 carries the gear bits and the confirm).
 - Squad roles (guard-ai S8, coordinated modes; `squadRoles.ts`, `coverGrid.ts`): `EnemyManager.rolesStep` at 2 Hz
   (`TACTICS.tick`) fills one reused `RoleInput` from the engaged group (alerted, free, cover-using guards; >= 2,
   `TACTICS.minGroup`), runs `assignRoles` against the level cover as typed arrays (`coverSet`, mirrored from

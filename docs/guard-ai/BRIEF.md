@@ -222,3 +222,18 @@ doesnt make sense". A32-A34 are S10's (on `feature/guard-ai-s10`).
   Blender, headless). Undo: not needed.
 - **A46** (S14) A co-op client's suppressed shot is heard at `SHOT_NOISE x weapon noise` as in solo (9.8 m), not the
   fixed 14 m (`coopHost.ts`). Undo: restore `SHOT_NOISE * 0.5` there.
+- **A47** (S12) Gear stops any bullet that reaches a guard, a guard's own round into a hostage held as a shield
+  included (only the player's bullets were named). Undo: in `Enemy.applyDamage` gate the gear branch on
+  `h.attackerTeam === 'player'`.
+- **A48** (S12) The placeholder helmet is the rig's existing combat-helmet part (`'helmet'` shape, the `combat` look's
+  size), not a plain dome; the armour is the rig's plate set (chest and back plates, shoulder caps). The dropped helmet
+  is the same part (pool of 8, oldest reused, its colour from the first drop: one faction per map) and is cleared with
+  the guards (`EnemyManager.clear`). Undo: `'dome'` in `Enemy.buildHelmet` and `HelmetDrops.drop`.
+- **A49** (S12) A new bark event `deflect` (non-urgent, original lines: "Argh! Still up!", "Took one! Still
+  standing!", "That was close!"), said before his contact line. Undo: drop `this.bark('deflect')` in `Enemy.deflect`.
+- **A50** (S12) The vest's stagger cooldown counts from his last strike-style stagger (`strikeStagger`, which the gear
+  staggers use); the 0.35 s heavy-hit flinch and a takedown release do not reset it. Undo: set `sinceStagger = 0`
+  in those two places too.
+- **A51** (S12) The `deflect` hit marker is steel blue (`#8fb3d9`, `styles.css`) with a 2600 Hz ping (`sfx.hitMarker`);
+  the HUD and sfx `hitMarker` signatures take the new kind. Undo: drop the CSS rule and the ping (falls back to the
+  white hit marker).
