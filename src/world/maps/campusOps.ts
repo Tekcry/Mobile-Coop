@@ -7,6 +7,7 @@ import { CAMPUS_ALARMS, CAMPUS_SECTORS, CAMPUS_SECURITY } from './campusSectors'
 import { buildCampusS3, S3_HIDESPOTS, S3_LASERS, S3_NAV_SEEDS, S3_PANELS, S3_PICKUPS, S3_ROOMS, S3_SWITCHES } from './campusS3';
 import { buildCampusS4, S4_BOARDS, S4_HIDESPOTS, S4_LASERS, S4_NAV_SEEDS, S4_PANELS, S4_ROOMS, S4_SWITCHES } from './campusS4';
 import { buildCampusS5, S5_BOARDS, S5_HIDESPOTS, S5_LASERS, S5_NAV_SEEDS, S5_PANELS, S5_ROOMS, S5_SWITCHES } from './campusS5';
+import { dressCampus } from './campusDress';
 
 const T = 0.3;
 const WALL = '#a9a496';
@@ -54,11 +55,14 @@ function inSection<T extends object>(list: readonly T[], section: number): (T & 
   return list.map((x) => ({ ...x, section }));
 }
 
-/** Runs one section file's build and tags the doors it made with that section. */
-function buildSection(b: LevelBuilder, section: number, build: (b: LevelBuilder) => void): void {
+/** Runs one section file's build and tags the doors it made with that section (ART-KIT: and records its box range). */
+function buildSection(b: LevelBuilder, section: number, build: (b: LevelBuilder) => void, ranges: [number, number][]): void {
   const n0 = b.anchors.doors.length;
+  const i0 = b.boxes.length;
   build(b);
   for (let i = n0; i < b.anchors.doors.length; i++) b.anchors.doors[i]!.section = section;
+  // (ART-KIT) the section's [i0, i1) box range: its finishes recolour only its own boxes
+  ranges[section] = [i0, b.boxes.length];
 }
 
 /** Extra nav flood seeds: every stub section's interior and connector (the stub run is joined by doorways, but seeds keep them kept). */
@@ -98,33 +102,44 @@ export const campusOps: MapDef = {
     // cool sodium outside, a little desaturated
     grade: { tint: [1.0, 0.99, 1.04], saturation: 0.85, contrast: 1.08 },
   },
-  build(b: LevelBuilder): MapLayout {
-    // the ground (1 m thick under y 0) and the boundary walls (they set the map's bounds)
-    b.floor(0, -7, 140, 154, GROUND, 0, 1);
-    b.perimeter(CAMPUS_BOUNDS.minX, CAMPUS_BOUNDS.maxX, CAMPUS_BOUNDS.minZ, CAMPUS_BOUNDS.maxZ, 6, '#2c3033');
-    buildSection(b, 0, buildCampusS1);
-    buildSection(b, 1, buildCampusS2);
-    otherBuildings(b);
-    buildSection(b, 2, buildCampusS3);
-    buildSection(b, 3, buildCampusS4);
-    buildSection(b, 4, buildCampusS5);
-    const alarms = CAMPUS_ALARMS.map((a) => ({ pos: new Vector3(a.at[0], a.y ?? 0, a.at[1]), yaw: a.yaw, section: a.section }));
-    return {
-      playerSpawns: S1_SPAWNS,
-      // the sections' guards come from the mode, not the rooms
-      enemySpawns: [],
-      props: [],
-      objectives: [],
-      pickups: [...S1_PICKUPS, ...S2_PICKUPS, ...S3_PICKUPS],
-      hideSpots: [...inSection(S1_HIDESPOTS, 0), ...inSection(S2_HIDESPOTS, 1), ...inSection(S3_HIDESPOTS, 2), ...inSection(S4_HIDESPOTS, 3), ...inSection(S5_HIDESPOTS, 4)],
-      switches: [...inSection(S1_SWITCHES, 0), ...inSection(S2_SWITCHES, 1), ...inSection(S3_SWITCHES, 2), ...inSection(S4_SWITCHES, 3), ...inSection(S5_SWITCHES, 4)],
-      rooms: [...S1_ROOMS, ...S2_ROOMS, ...S3_ROOMS, ...S4_ROOMS, ...S5_ROOMS],
-      navSeeds: [...S1_NAV_SEEDS, ...S2_NAV_SEEDS, ...STUB_NAV_SEEDS, ...S3_NAV_SEEDS, ...S4_NAV_SEEDS, ...S5_NAV_SEEDS],
-      alarms,
-      security: CAMPUS_SECURITY,
-      lasers: [...S3_LASERS, ...S4_LASERS, ...S5_LASERS],
-      laserPanels: [...S3_PANELS, ...S4_PANELS, ...S5_PANELS],
-      boards: [...inSection(S4_BOARDS, 3), ...inSection(S5_BOARDS, 4)],
-    };
-  },
+  // (ART-KIT) the greybox plus the campus art; `buildCampus(b, { dress: false })` is the bare greybox
+  build: (b: LevelBuilder): MapLayout => buildCampus(b, { dress: true }),
 };
+
+/**
+ * The campus build (the body `campusOps.build` had before ART-KIT). With `dress` (sector-redesign ART-KIT), once the layout
+ * is made the five sections are dressed (`dressCampus`: finishes, skins, heroes, the base pass, the solid / see boxes) and
+ * the placements ride on `layout.campusArt` for the renderer; without, the greybox exactly as before.
+ */
+export function buildCampus(b: LevelBuilder, o: { dress: boolean }): MapLayout {
+  const ranges: [number, number][] = [];
+  // the ground (1 m thick under y 0) and the boundary walls (they set the map's bounds)
+  b.floor(0, -7, 140, 154, GROUND, 0, 1);
+  b.perimeter(CAMPUS_BOUNDS.minX, CAMPUS_BOUNDS.maxX, CAMPUS_BOUNDS.minZ, CAMPUS_BOUNDS.maxZ, 6, '#2c3033');
+  buildSection(b, 0, buildCampusS1, ranges);
+  buildSection(b, 1, buildCampusS2, ranges);
+  otherBuildings(b);
+  buildSection(b, 2, buildCampusS3, ranges);
+  buildSection(b, 3, buildCampusS4, ranges);
+  buildSection(b, 4, buildCampusS5, ranges);
+  const alarms = CAMPUS_ALARMS.map((a) => ({ pos: new Vector3(a.at[0], a.y ?? 0, a.at[1]), yaw: a.yaw, section: a.section }));
+  const layout: MapLayout = {
+    playerSpawns: S1_SPAWNS,
+    // the sections' guards come from the mode, not the rooms
+    enemySpawns: [],
+    props: [],
+    objectives: [],
+    pickups: [...S1_PICKUPS, ...S2_PICKUPS, ...S3_PICKUPS],
+    hideSpots: [...inSection(S1_HIDESPOTS, 0), ...inSection(S2_HIDESPOTS, 1), ...inSection(S3_HIDESPOTS, 2), ...inSection(S4_HIDESPOTS, 3), ...inSection(S5_HIDESPOTS, 4)],
+    switches: [...inSection(S1_SWITCHES, 0), ...inSection(S2_SWITCHES, 1), ...inSection(S3_SWITCHES, 2), ...inSection(S4_SWITCHES, 3), ...inSection(S5_SWITCHES, 4)],
+    rooms: [...S1_ROOMS, ...S2_ROOMS, ...S3_ROOMS, ...S4_ROOMS, ...S5_ROOMS],
+    navSeeds: [...S1_NAV_SEEDS, ...S2_NAV_SEEDS, ...STUB_NAV_SEEDS, ...S3_NAV_SEEDS, ...S4_NAV_SEEDS, ...S5_NAV_SEEDS],
+    alarms,
+    security: CAMPUS_SECURITY,
+    lasers: [...S3_LASERS, ...S4_LASERS, ...S5_LASERS],
+    laserPanels: [...S3_PANELS, ...S4_PANELS, ...S5_PANELS],
+    boards: [...inSection(S4_BOARDS, 3), ...inSection(S5_BOARDS, 4)],
+  };
+  if (o.dress) layout.campusArt = dressCampus(b, layout, ranges);
+  return layout;
+}

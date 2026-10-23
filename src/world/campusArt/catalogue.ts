@@ -81,6 +81,9 @@ export interface PropCatalogue {
   open?: readonly string[];
   /** (ART-KIT L3) The piece's own light-parity class (ART-PLAN 3.1 / 3.2 "Class"; 'box' = box-only ids with no mesh). */
   classOf?: Readonly<Record<string, ArtPlacement['cls'] | 'box'>>;
+  /** (ART-KIT L11) Cylinder skins (`skinCyl`): the greybox radius and height the piece is modelled over (the fit scale is
+   *  the cylinder's over these). */
+  cylFit?: Readonly<Record<string, { r: number; h: number }>>;
   /** (ART-KIT L3) Emissive colour per material for own-supply emissives (exit signs), linear RGB before the gain. */
   ownSupply?: Readonly<Record<string, { tint: readonly [number, number, number]; gain: number }>>;
 }
@@ -102,6 +105,8 @@ export interface ArtPlacement {
   skinOf?: number;
   /** `b.cylinders` index (tree trunks, posts) instead of a box. */
   skinCyl?: number;
+  /** (ART-KIT L11) A module of a skinned row (`CampusDresser.skinRow`): part i of n of the box along the piece's local x. */
+  skinPart?: [number, number];
   tint?: [number, number, number];
   lamp?: [number, number, number];
   /** Light circuit (emissives dim when cut). */
@@ -373,6 +378,25 @@ export function skinFit(cat: PropCatalogue, p: ArtPlacement, box: BoxPiece | Cyl
     if (f.lo[k]! - slo[k]! > allow || shi[k]! - f.hi[k]! > allow) return `${p.prop}: the skin stands ${Math.max(f.lo[k]! - slo[k]!, shi[k]! - f.hi[k]!).toFixed(3)} m off the greybox piece on ${axis[k]} (allowed ${(allow - 1e-3).toFixed(2)})`;
   }
   return null;
+}
+
+/** Part i of n of a greybox box along a placement's local x (a skinned row's module covers its slice, not the box). */
+export function boxSlice(box: BoxPiece, p: ArtPlacement, i: number, n: number): BoxPiece {
+  // the box's world extent along the piece's local x axis (quarter turns only)
+  const ux = Math.cos(p.yaw);
+  const uz = -Math.sin(p.yaw);
+  const q = quarterTurns(box.yaw);
+  const ex = q === 1 || q === 3 ? box.s[2] : box.s[0];
+  const ez = q === 1 || q === 3 ? box.s[0] : box.s[2];
+  const along = Math.abs(ux) > 0.5 ? ex : ez;
+  const part = along / n;
+  const t = -along / 2 + part * (i + 0.5);
+  const c: [number, number, number] = [box.c[0] + ux * t, box.c[1], box.c[2] + uz * t];
+  // the slice's world extents, back into the box's own axes (a quarter-turned box swaps x and z)
+  const wx = Math.abs(ux) > 0.5 ? part : ex;
+  const wz = Math.abs(ux) > 0.5 ? ez : part;
+  const s: [number, number, number] = q === 1 || q === 3 ? [wz, box.s[1], wx] : [wx, box.s[1], wz];
+  return { ...box, c, s };
 }
 
 /**

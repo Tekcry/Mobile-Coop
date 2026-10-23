@@ -23,7 +23,7 @@ import type { Door, TraversalAnchors, WindowAnchor } from '../anchors';
 import type { BoxPiece, CylPiece } from '../levelBuilder';
 import type { CoopLip } from '../maps/campusS1';
 import { isOutdoor, type ArtTag } from './artTags';
-import { artBoxes, hullObb, pieceHull, ruleV, skinFit, writesBoxes, type ArtPlacement, type CatalogueSet, type PropCatalogue, type WorldObb } from './catalogue';
+import { artBoxes, boxSlice, hullObb, pieceHull, ruleV, skinFit, writesBoxes, type ArtPlacement, type CatalogueSet, type PropCatalogue, type WorldObb } from './catalogue';
 import { boxObb, boxPlan, obbOf, planRect, pointObbDist, pointRectDist, rectGap, rectsOverlap, segHitsObb, segRectDist, type Obb3, type PlanRect } from './geometry';
 
 export interface DressContext {
@@ -580,7 +580,7 @@ export function blocked(k: Keepouts, ctx: DressContext, cat: PropCatalogue, p: A
   if (p.cls === 'skin' || p.cls === 'skin-hide') {
     const piece = p.skinCyl !== undefined ? ctx.cylinders?.[p.skinCyl] : p.skinOf !== undefined ? ctx.boxes[p.skinOf] : undefined;
     if (!piece) return `S: ${p.prop} skins no greybox piece`;
-    const e = skinFit(cat, p, piece);
+    const e = skinFit(cat, p, p.skinPart && 's' in piece ? boxSlice(piece, p, p.skinPart[0], p.skinPart[1]) : piece);
     return e ? `S: ${e}` : null;
   }
   const shapes = shapesOf(cat, p);

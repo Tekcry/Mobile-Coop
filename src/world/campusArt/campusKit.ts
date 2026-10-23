@@ -244,6 +244,8 @@ export const CAMPUS_KIT: PropCatalogue = {
   boxColor: { chairEnv: '#2c2e30', binEnv: '#3b3f42', bookcase: '#4a2e17', sideboard: '#4a2e17', longcaseClock: '#4a2e17', chesterfield: '#24402e', fireplace: '#7c7f82' },
   open: ['ceilingGrid', 'floorTileGrid'],
   classOf: rec((r) => r.cls),
+  // the trunk is modelled over the S1 verge trees' pillars (r 0.3, 5 m); the S5 trees (r 0.35, 6 m) fit 1.17 / 1.2
+  cylFit: { treeSkin: { r: 0.3, h: 5.0 } },
   // exit signs run on their own maintained supply (ART-PLAN 2): green, gain 0.6, never dimmed by a circuit
   ownSupply: { exitGreen: { tint: [0.1, 1.0, 0.3], gain: 0.6 } },
 };
