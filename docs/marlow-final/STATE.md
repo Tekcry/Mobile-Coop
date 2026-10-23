@@ -56,6 +56,12 @@ Rejected by you (~01:25): anything that assumes a dark camera is blind (G240 sta
 Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN section 6; slice reports S0-*.md.
 
 ## Now (2026-10-23 ~01:20, new account; FULL BURN to 100% per Michael ~01:05 via the orchestrator)
+- ~13:55 SAVE (orchestrator ~90%). Master 4.73.0 merged (d32a435a; conflicts run-e2e / courseState / ctDevices /
+  world / laserPanels test; protocol stays 33; 6 ctcourse "teeth" asserts flipped for guard-ai wait-0 pass-through) and
+  pulled into feature/marlow-final (e3b9fcc0). Fix 3b WIP 0dd54d0f (src/game/stealthSystems.ts: a relocked open door can
+  still be shut by hand, A8 grille pass 2) - UNCHECKED, :4 not yet green; the agent is rerunning :4 on the merged code.
+  Laptop request sent ~13:45 on d32a435a: :1 :2 :3 coop course netmove (verdict pending). 4.74.0 out since (train 25):
+  merge master again only if the PR conflicts.
 - ~13:30 (Marlow Build, resumed ~12:25 fresh). Laptop GPU on 1a47946a: :1 / :3 / coop / netmove / course PASS (393 s
   wall). Fix 3 (25ed4646, test-only: A4 cue filter to cam-a4-*, client presses for its own refusal; A8 reads the host
   light registry): desktop GPU :2 PASS 346 s; :4 FAIL later at "A8: N2 walks away from the grille" (a8Strongroom.mjs:320,
@@ -454,7 +460,7 @@ Course Ready's prep notes: origin/feature/marlow-bays docs/marlow-final-prep/ (M
 ## Resume prompt
 ```
 Night Shift | Marlow Build: resume marlow-final. Read CLAUDE.md on origin/master ("Sessions", "Heavy-usage throughput", token rules), ROADMAP Decided (marlow-final M1-M6, "Next: stealth over shooting") by grep, then docs/marlow-final/STATE.md "Now" ~13:30 entry (worktree C:/NightShift/Mobile-Coop-marlow-final, feature/marlow-final; git fetch).
-State: all sets built, dressed, checked; slice 9 docs and perf done. Green on laptop GPU 1a47946a: :1 :3 coop netmove course. Fix 3 25ed4646 (test-only): :2 PASS desktop GPU. Open: :4 fails at a8Strongroom.mjs:320 (N2 alerted before N1 reaches the board); fix 3b report appended to slices/S-e2e-fix3.md - rerun it (Opus) if missing.
-Then: merge origin/master; ONE full e2e E2E_GPU=1 (laptop: message "Night Shift | Test Runner" branch + sha); PR to master (one PR; changes/feature-marlow-final.md; protocol 33); message "Night Shift | Orchestrator" at PR open only.
+State: all sets built, dressed, checked; slice 9 docs and perf done. Green on laptop GPU 1a47946a: :1 :3 coop netmove course. Fix 3 25ed4646 (test-only): :2 PASS desktop GPU. Open: :4 (A8 N2 alerted early at a8Strongroom.mjs:320; fix 3b WIP 0dd54d0f stealthSystems.ts door shut-by-hand, unchecked) - if slices/S-e2e-fix3.md has no 3b verdict, rerun fix 3b (Opus) on HEAD (master 4.73.0 already merged, e3b9fcc0). Laptop verdict on d32a435a (:1-:3 coop course netmove) pending from Test Runner.
+Then: ONE full e2e E2E_GPU=1 (laptop: message "Night Shift | Test Runner" branch + sha); PR to master (one PR; changes/feature-marlow-final.md; protocol 33); message "Night Shift | Orchestrator" at PR open only.
 Next job section-rating (C:/NightShift/Mobile-Coop-section-rating, feature/section-rating; docs/section-rating/STATE.md): S1-S5 + integration + S7 done, check PASS; fix round report in STATE; S6 (Marlow rated sets, courseMode.ts) after this PR merges; protocol 34 provisional.
 ```
