@@ -1,0 +1,14 @@
+{
+  "id": "20261023T105555-player-build-f078e49d-10f1",
+  "sha": "f078e49d8db87797cd5ab4a755a6e39714ce5e6d",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Player Build",
+  "suites": [
+    "e2e-anim",
+    "e2e-ctcourse"
+  ],
+  "set": "gm-g5",
+  "note": "guard-models G5 GuardFigure (not wired; Wren operatorMaterial extract)"
+}
