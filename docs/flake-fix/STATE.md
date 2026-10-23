@@ -3,7 +3,24 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
-**Test Runner SAVE 12 (2026-10-23 ~14:15, new account after the ~14:05 swap; wins over all below):**
+**Test Runner SAVE 13 (2026-10-23 ~14:40; wins over all below):**
+- SENT: train 26 a63e6f4b GREEN 40/40 (466 s, JOBS=5) -> merged 4.75.0. Guard-render PR #225 open (docs only:
+  run-s4-on|off + STATE; branch feature/guard-render-close, worktree Mobile-Coop-guard-render-close). Orchestrator told.
+- RUNNING (scheduled tasks; logs runs/chain-1023<x>.log):
+  - 4192 chain-1023s15: guardais15-fc249f3f (Guard AI #220: stealth-ai sectorops:6 levels ct-warehouse course
+    ctcourse; then sectorops:3 alone) -> chain-1023s9: guardais9-1ad04058 (coop netmove stealth-ai takedown).
+    ONE verdict for both to "Night Shift | Guard AI Build" (green = #218 -> #219 -> #220 train-ready, train 27).
+  - 4189 chain-1023art (Sector Ops batch 3, 5504e2e3): sectorart-5504e2e3 (sectorops coop netmove smoke) -> waits for
+    both locks free -> sectorart-before-b26c5925 (before shots) -> sectorart-gpu-5504e2e3 (after shots, --sheet, perf
+    MAP=campusOps MODE=sector, guard-cap campus 0/12/24, scratch probe work/campus-view-perf.mjs at the S3/S4/S5 worst
+    views + start, with guards and 0 guards). Out C:/NightShift/scratch/work/campusart-5504e2e3 (sheet-s1..5.webp,
+    views.json, guard-cap/). ONE verdict to "Night Shift | Sector Ops Build" (budget: draws <= 40 per section, p95
+    CPU < 12 / GPU < 15 ms).
+- Guard-render: regression A/B (runs/guardrender-regr-*) = no code regression since S1 (laptop load). Last open item:
+  M1 guard-cap on master with the laptop quiet: queue it at the ~95% save so it runs in the swap window
+  (sectorops,ctcourse counts 0,12,24, out work/guardrender-m1-<sha>), then PR #225 follow-up or close.
+
+**Test Runner SAVE 12 (2026-10-23 ~14:15, new account after the ~14:05 swap):**
 - Guard AI Build now also runs on the laptop: its e2e still comes through this queue; laptop CPU under ~80% together.
 - RUNNING (scheduled tasks): 4189 chain-1023t26: train26-a63e6f4b full (JOBS=5, 4192 idle, load sampler
   runs/train26-load.csv; started 14:10:36) -> verdict to the orchestrator. Then chain-1023s4off (waits for train26
