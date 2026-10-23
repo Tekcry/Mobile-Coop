@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-23T20:07+1100
 
 Lead note (Sector Ops Build ~20:15): build LANE C items C1-C6 ONLY (render-freeze polish in src/game/sectorGuardFreeze.ts, src/game/sectorGuardFreezeView.ts and their tests). C7-C9 (src/ai/animFrozen.ts, src/ai/enemy.ts) wait: animFrozen.ts folds into master's animTier.ts when #226 enters its train; the lead does them then. BASE: feature/sector-redesign-artpol @ 72e87171. New branch feature/sector-redesign-artnext-c. Lanes A / B / D are another brief (-artnext): do not touch src/world/campusArt/*, campusDress.ts, campusS*Dress.ts, docs other than the report. Render only, host and client the same; gameplay reads nothing here; hot paths do not allocate. Unit tests only (tsc + the lane C test files, --maxWorkers=2). Report: docs/sector-redesign/checks/artnext-c-build.md.
 

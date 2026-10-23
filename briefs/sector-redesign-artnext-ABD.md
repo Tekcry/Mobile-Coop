@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-23T20:07+1100
 
 Lead note (Sector Ops Build ~20:15): build LANES A, then B, then D only (one session, in that order; lane B uses lane A's API). BASE: feature/sector-redesign-artpol @ 72e87171 (= the #226 target head 4f66a5f8 + a docs commit; do not wait for #226 to merge). New branch feature/sector-redesign-artnext. Lane C is a separate brief (sector-redesign-artnext-C.md, branch -artnext-c): do not touch src/game/sectorGuardFreeze*.ts, src/ai/animFrozen.ts, src/ai/enemy.ts. LR16 lighting builders run on the desktop now: never touch src/world/lampMath.ts, lightField.ts, bakedLamps.ts, lightRig.ts, charShadows.ts, src/voxel/*. Unit tests only (tsc + named vitest files, --maxWorkers=2). Report: docs/sector-redesign/checks/artnext-build.md. Push the branch per lane.
 
