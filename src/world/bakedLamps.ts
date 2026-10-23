@@ -11,6 +11,7 @@ import { bakeVisSampler, DOOR_SHUT, DOORS_PER_LAMP, DOORS_PER_LAMP_ACCURATE, lam
 import { TORCH_DRAW_GLSL, TORCH_DRAW_SLOTS, TORCH_DRAW_STRIDE } from './shadowAccuracy';
 import { LEVEL_FILL_GLSL as LF, type Rgb } from './levelFill';
 import { CHAR_SHADOW_GLSL, type CharShadowLamps, type CharShadowLink } from './charShadows';
+import { charShadowReach } from './charShadowSet';
 import type { TorchShadowLink } from './torchShadows';
 import { bounceColor, packFillRGBA, type BounceGrid } from './bounceGrid';
 import { BOUNCE_T_SHIFT, BOUNCE_T_STEP } from '../voxel/lampBounce';
@@ -196,8 +197,12 @@ export class BakedLamps implements CharShadowLamps {
   torchShadows: TorchShadowLink | null = null;
   /** Texels per lamp (tests read the data texture). */
   readonly lampTexels = LAMP_TEXELS;
-  /** Per baked lamp x, y, z, radius (`CharShadowLamps`). (LR16-5b) A swinging pendant's x, y, z follow its swing. */
+  /** Per baked lamp x, y, z and (LR16-P F2) its character shadow reach (`charShadowReach`: where its level falls to
+   *  `CHAR_SHADOW.minLevel`; `CharShadowLamps`): the slot picker, a slot's casters, doors and props read it, never the
+   *  light. (LR16-5b) A swinging pendant's x, y, z follow its swing. */
   readonly spheres: Float32Array;
+  /** (LR16-P F2) Per baked lamp its light's reach (t0.w): a slot map's far plane. */
+  readonly lightReach: Float32Array;
   /** (LR16-5b) Per baked lamp its baked (rest) x, y, z: a pendant's t0 and sphere are rest + its live offset. */
   private readonly rest: Float32Array;
   /** (LR16-5b) Per baked lamp: 1 while it swings (`CharShadowLamps.moving`: it keeps its shadow slot, refreshed every frame). */
@@ -235,7 +240,14 @@ export class BakedLamps implements CharShadowLamps {
   ) {
     this.order = baked.ids;
     this.spheres = new Float32Array(baked.ids.length * 4);
-    for (let i = 0; i < baked.ids.length; i++) for (let k = 0; k < 4; k++) this.spheres[i * 4 + k] = baked.lights[i * LAMP_STRIDE + k]!;
+    this.lightReach = new Float32Array(baked.ids.length);
+    for (let i = 0; i < baked.ids.length; i++) {
+      for (let k = 0; k < 3; k++) this.spheres[i * 4 + k] = baked.lights[i * LAMP_STRIDE + k]!;
+      // (LR16-P F2) w: the picture-only shadow reach (`charShadowReach`); the lamp's own reach stays in t0.w and here
+      const R = baked.lights[i * LAMP_STRIDE + 3]!;
+      this.lightReach[i] = R;
+      this.spheres[i * 4 + 3] = charShadowReach(reg.lights[baked.ids[i]!]?.intensity ?? 0, R);
+    }
     this.rest = new Float32Array(baked.ids.length * 3);
     for (let i = 0; i < baked.ids.length; i++) for (let k = 0; k < 3; k++) this.rest[i * 3 + k] = baked.lights[i * LAMP_STRIDE + k]!;
     this.moving = new Uint8Array(baked.ids.length);

@@ -39,8 +39,12 @@ export interface CharShadowLink {
 /** The baked lamps' side `CharShadows` reads: per lamp x, y, z, radius, and whether it gives light now. */
 export interface CharShadowLamps {
   readonly count: number;
-  /** x, y, z, radius per lamp (stride 4). */
+  /** x, y, z, radius per lamp (stride 4). (LR16-P F2) The baked lamps' radius is the shadow reach (`charShadowReach`):
+   *  the picker, the casters and the doors and props a slot draws stay within it. */
   readonly spheres: Float32Array;
+  /** (LR16-P F2) Per lamp its light's reach: the slot map's far plane, so every point the lamp lights stays inside the
+   *  map's depth range (a receiver past the far plane would read the cleared map as a blocker). Absent: the radius. */
+  readonly lightReach?: Float32Array;
   lampLit(i: number): boolean;
   /** (LR16-5b) Per lamp: non-zero while it swings (it keeps its slot and its map is re-rendered every frame). */
   readonly moving?: Uint8Array;
@@ -376,7 +380,8 @@ export class CharShadows implements CharShadowLink {
     const angle = fit[FIT.half]! * 2;
     if (light.angle !== angle) light.angle = angle;
     const near = fit[FIT.near]!;
-    const far = Math.max(near + 0.5, reach + 0.5);
+    // (LR16-P F2: the far plane stays at the light's reach, past the shadow reach the casters are listed within)
+    const far = Math.max(near + 0.5, (this.lamps.lightReach?.[lamp] ?? reach) + 0.5);
     if (light.shadowMinZ !== near) light.shadowMinZ = near;
     if (light.shadowMaxZ !== far) light.shadowMaxZ = far;
     return true;
