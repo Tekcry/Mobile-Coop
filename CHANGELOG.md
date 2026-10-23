@@ -1,5 +1,54 @@
 # Changelog
 
+## 4.88.0 - Train 47: Guard AI: plain walls are not armour (sniper fires again); Marlow Yard re-lit under the LR16 light model (2026-10-24, PR #300; #298, #291)
+
+### Guard AI: plain walls are not armour (sniper fires again)
+- Guard AI fix: guards read every plain level wall as armour, so a guard whose fire line touched his own cover held fire
+  and lost his wind-up; the sniper never got his two shots in and never relocated (e2e-enemies "sniper relocates after
+  its shots"). Havok reads a container's filter back as all bits and reports no leaf shape for its hit, so armour is now
+  a mark on the body (`markArmoured` / `isArmouredBody` in `src/physics/groups.ts`), set where the armoured pane groups
+  (`LevelBuilder.buildGlass`) and armoured door leaves (`Doors.addBody`) are built. The S16 fire gate and E10's round
+  armour (`Ballistics.ray().armoured`) both read it, so player rounds again penetrate thin plain walls as E10 intended,
+  and armoured panes and leaves still stop every round.
+- Test: `tests/armourFireStatic.test.ts` (real Havok: a level wall is not armour, an armoured pane / leaf is);
+  e2e-enemies prints the sniper's brain trace when he does not relocate.
+
+### Marlow Yard re-lit under the LR16 light model
+- Marlow Yard (A1-A8): every fitting re-tuned for the one photometric light model (LR16): room fittings on night settings, a high-bay optic on the A2 shed strips and the A6 pump bays, the A5 flood reach short of the landing pocket, the A5 kiosk light a hooded gooseneck on the keypad, the A8 counter lamps inside their shades. The meter reads as before: lit pools, mid floors, dark pockets, cut circuits dark.
+
+### Moving lights: flicker and stutter (LR16-5)
+- Fires flicker, and one failing fluorescent tube per main map stutters (Warehouse Ops, the campus, Marlow Yard, the
+  Warehouse): every few seconds it chatters or drops out and catches again. The picture, the light meter and the guards
+  all follow it; a shot, switched-off or breaker-cut lamp stays dark. Co-op: both players see the same flicker with no
+  extra network traffic (no wire change).
+
+### Swinging pendants on Marlow Yard (LR16-5b)
+- Marlow Yard's hung fittings swing when a round passes close, a grenade goes off nearby or someone bumps one, then
+  settle in about 15 s. The fitting and its rods move as one; the pool of light, a guard's shadow and the light meter
+  sway with it, and a shot-out lamp swings dark. Co-op: both players see the same swing; only the kick crosses the
+  network (protocol 39).
+
+### One light model (LR16)
+- One light model (Michael: "Disable returning to original lighting system, focus on only the one new system"): every
+  lamp now runs the realistic (photometric) falloff and the shadow-accuracy fixes are always on. Settings > Gameplay >
+  Lamp falloff and `?falloff=photo` are gone (an old saved choice is ignored); Character shadows Auto / On / Off stay.
+  Co-op no longer sends the lamp falloff with a match start (wire change: `start.lf` and the rejoin record's `lf`
+  removed; the protocol number is set at the merge).
+- Docs name one light model (no Lamp falloff setting).
+- Soft light on walls (walk 4.82 item 8, "blotchy, not smooth"): each lamp's bake grid now sits on the lamp itself, so a
+  ceiling lamp no longer shadows its own wall from its mount (no dark toothed band above the fittings on any preset).
+  Low and phones read depth and HDR colour at full precision and get Medium's surface normals.
+- Realistic lamp levels on every map (LR16g / LR16-W): warehouseOps re-lit at night levels with beams and moved rows so
+  routes sit in the rim and pockets stay dark; S3 stores cage gets a steel top; campus S4 cage post moved off its lamp.
+- One-bounce fill reaches ceilings; no faint bounce glow behind thin walls or between crates and walls.
+- Guard torches: the holder no longer shades his own beam; fences, ropes and bullet marks take torch light like the floor.
+  Bright maps with no torches build no torch shadows.
+- Lamp flicker / stutter drives the night-vision glare and reflections too.
+- Performance: the lamp bake uses about a quarter of the memory per worker; per-frame lamp data upload 560 -> 27 KB on
+  campusOps; character shadows skip lamps too faint to cast one.
+- Fix: the bounce-light shader failed to compile on Windows D3D11 at Epic (lamps unlit, frame stalls); rewritten without
+  local arrays.
+
 ## 4.87.0 - Train 46: Guard body compile watchdog; Merge train: feature/menu alone is not a train; Guard AI: report, then engage; training cameras (2026-10-24, PR #297; #295, #293, #272)
 
 ### Guard body compile watchdog
