@@ -1,0 +1,17 @@
+{
+  "id": "20261023T112112-player-build-fd34263e-d9aa",
+  "sha": "fd34263e4da6aa6818b757382a5ba4df29158560",
+  "branch": "",
+  "pr": 247,
+  "kind": "pr",
+  "requester": "Player Build",
+  "suites": [
+    "e2e-anim",
+    "e2e-clip",
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-menus"
+  ],
+  "set": "afp",
+  "note": "#247 head after the alloc fix (supersedes afea69d3 request 20261023T105631-player-build-afea69d3-fd4f: skip it if not started)"
+}
