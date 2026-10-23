@@ -153,7 +153,7 @@ describe('Saltmarsh Park section 2 (HQ), registration and shape', () => {
 
   it('the spawn layout carries the S2 rooms, switches, hide spots and nav seeds', () => {
     expect(lay.rooms!.length).toBeGreaterThan(S2_ROOMS.length);
-    expect(lay.switches!.length).toBe(5 + 7 + 9);
+    expect(lay.switches!.length).toBe(5 + 7 + 9 + 8);
     expect(lay.navSeeds!.some((s) => s.y === 4.4)).toBe(true);
     expect(lay.alarms!.filter((a) => a.section === 1).length).toBe(2);
     expect(lay.alarms!.find((a) => a.section === 1 && a.pos.y > 4)).toBeTruthy();
@@ -447,7 +447,7 @@ describe('CR2: the L1 slab nose over the dark cafe against a solo player (SPEC C
     expect(slab.c[1] + slab.s[1] / 2 - CR2.boost.floor).toBeLessThanOrEqual(4.5);
     expect(slab.c[0] - slab.s[0] / 2).toBeCloseTo(-10);
     // the lip piece is the only slab piece along the void's east edge that keeps its ledge: the rest of that edge and the other edges are noLedge
-    const edge = solid.filter((p) => Math.abs(p.c[1] + p.s[1] / 2 - 4.4) < 1e-6 && Math.abs(p.s[1] - 0.4) < 1e-6 && p !== slab && p.c[2] > -30.5 && p.c[0] > -44.5 && p.c[0] < 4.5);
+    const edge = solid.filter((p) => Math.abs(p.c[1] + p.s[1] / 2 - 4.4) < 1e-6 && Math.abs(p.s[1] - 0.4) < 1e-6 && p !== slab && p.c[2] > -30.5 && p.c[2] < 16 && p.c[0] > -44.5 && p.c[0] < 4.5);
     expect(edge.length).toBeGreaterThan(4);
     expect(edge.every((p) => p.noLedge)).toBe(true);
     // the ledge generator gives the lip piece its west edge as a lip (the anchors were built with the level)
@@ -457,7 +457,7 @@ describe('CR2: the L1 slab nose over the dark cafe against a solo player (SPEC C
     expect(Math.min(...lips.map((e) => Math.min(e.a.z, e.b.z)))).toBeLessThanOrEqual(-10.5);
     expect(Math.max(...lips.map((e) => Math.max(e.a.z, e.b.z)))).toBeGreaterThanOrEqual(-5.5);
     // and no other S2 slab edge at 4.4 carries a ledge facing the void (the whole atrium is noLedge but this gap)
-    const strays = gen.ledges.filter((e) => Math.abs(e.top - 4.4) < 1e-6 && e.a.z > -30.5 && e.a.x > -44.5 && e.a.x < 4.5 && !lips.includes(e));
+    const strays = gen.ledges.filter((e) => Math.abs(e.top - 4.4) < 1e-6 && e.a.z > -30.5 && e.a.z < 16 && e.a.x > -44.5 && e.a.x < 4.5 && !lips.includes(e));
     expect(strays.map((e) => [e.a, e.b])).toEqual([]);
   });
 

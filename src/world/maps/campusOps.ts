@@ -5,6 +5,7 @@ import { buildCampusS1, S1_HIDESPOTS, S1_NAV_SEEDS, S1_PICKUPS, S1_ROOMS, S1_SPA
 import { buildCampusS2, S2_HIDESPOTS, S2_NAV_SEEDS, S2_PICKUPS, S2_ROOMS, S2_SWITCHES } from './campusS2';
 import { CAMPUS_ALARMS, CAMPUS_SECTORS, CAMPUS_SECURITY } from './campusSectors';
 import { buildCampusS3, S3_HIDESPOTS, S3_LASERS, S3_NAV_SEEDS, S3_PANELS, S3_PICKUPS, S3_ROOMS, S3_SWITCHES } from './campusS3';
+import { buildCampusS4, S4_BOARDS, S4_HIDESPOTS, S4_LASERS, S4_NAV_SEEDS, S4_PANELS, S4_ROOMS, S4_SWITCHES } from './campusS4';
 
 const PI = Math.PI;
 const T = 0.3;
@@ -94,8 +95,7 @@ function connector(b: LevelBuilder, o: { x0: number; x1: number; z0: number; z1:
  */
 function otherBuildings(b: LevelBuilder): void {
   // S2 / HQ and S3 / labs: built in full by `campusS2.ts` / `campusS3.ts` (called from `build`)
-  // S4 / data hall: C3's far door south, C4's near door west
-  shell(b, { x0: -10, x1: 40, z0: 16, z1: 48, h: 7.5, slabs: [7.5], s: [[23.4, 24.6]], w: [[28.4, 29.6]] });
+  // S4 / data hall: built in full by `campusS4.ts` (C3's far door south, C4's near door west)
   // S5 / old house: C4's far door east
   shell(b, { x0: -66, x1: -26, z0: 18, z1: 48, h: 8.4, slabs: [4.2, 8.4], e: [[28.4, 29.6]] });
   // the stub connectors: C3 (x 22..26, z 0..16), C4 (x -26..-10, z 26..32); C2 is S2's bridge
@@ -107,7 +107,6 @@ function otherBuildings(b: LevelBuilder): void {
 const STUB_NAV_SEEDS: Vector3[] = [
   new Vector3(24, 0, -14),
   new Vector3(24, 0, 8),
-  new Vector3(24, 0, 30),
   new Vector3(-18, 0, 29),
   new Vector3(-46, 0, 33),
 ];
@@ -150,6 +149,7 @@ export const campusOps: MapDef = {
     buildCampusS2(b);
     otherBuildings(b);
     buildCampusS3(b);
+    buildCampusS4(b);
     const alarms = CAMPUS_ALARMS.map((a) => ({ pos: new Vector3(a.at[0], a.y ?? 0, a.at[1]), yaw: a.yaw, section: a.section }));
     return {
       playerSpawns: S1_SPAWNS,
@@ -158,14 +158,15 @@ export const campusOps: MapDef = {
       props: [],
       objectives: [],
       pickups: [...S1_PICKUPS, ...S2_PICKUPS, ...S3_PICKUPS],
-      hideSpots: [...S1_HIDESPOTS, ...S2_HIDESPOTS, ...S3_HIDESPOTS],
-      switches: [...S1_SWITCHES, ...S2_SWITCHES, ...S3_SWITCHES],
-      rooms: [...S1_ROOMS, ...S2_ROOMS, ...S3_ROOMS],
-      navSeeds: [...S1_NAV_SEEDS, ...S2_NAV_SEEDS, ...STUB_NAV_SEEDS, ...S3_NAV_SEEDS],
+      hideSpots: [...S1_HIDESPOTS, ...S2_HIDESPOTS, ...S3_HIDESPOTS, ...S4_HIDESPOTS],
+      switches: [...S1_SWITCHES, ...S2_SWITCHES, ...S3_SWITCHES, ...S4_SWITCHES],
+      rooms: [...S1_ROOMS, ...S2_ROOMS, ...S3_ROOMS, ...S4_ROOMS],
+      navSeeds: [...S1_NAV_SEEDS, ...S2_NAV_SEEDS, ...STUB_NAV_SEEDS, ...S3_NAV_SEEDS, ...S4_NAV_SEEDS],
       alarms,
       security: CAMPUS_SECURITY,
-      lasers: S3_LASERS,
-      laserPanels: S3_PANELS,
+      lasers: [...S3_LASERS, ...S4_LASERS],
+      laserPanels: [...S3_PANELS, ...S4_PANELS],
+      boards: [...S4_BOARDS],
     };
   },
 };
