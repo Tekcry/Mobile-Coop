@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed } from '../scripts/laptop-queue/lib.mjs';
+import { capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -319,5 +319,32 @@ describe('trainBuildFailed', () => {
     expect(trainBuildFailed([{ context: 'laptop-e2e', state: 'failure' }, { context: 'ci/auto-train', state: 'failure' }])).toBeNull();
     expect(trainBuildFailed([])).toBeNull();
     expect(trainBuildFailed(undefined)).toBeNull();
+  });
+});
+
+describe('desktop trains', () => {
+  const MIN = 60_000;
+  const t = (minAgo: number) => Math.floor((NOW - minAgo * MIN) / 1000);
+  const log = [
+    `${t(3)} claim 20261023T195700-x-d7a3b887 (desktop)`,
+    `${t(12)} done train 37 (laptop)`,
+    `${t(30)} claim train 37 (laptop)`,
+    `${t(40)} claim 20261023T192000-y-d7a3b887 (lock taken) (laptop)`,
+    'not a log line',
+  ].join('\n');
+  it('workerActivity: the newest push of that worker and whether it claims trains', () => {
+    expect(workerActivity(log, 'laptop')).toEqual({ last: t(12) * 1000, trainClaims: true });
+    expect(workerActivity(log, 'desktop')).toEqual({ last: t(3) * 1000, trainClaims: false });
+    const none = workerActivity('', 'laptop');
+    expect(none.last).toBeNaN();
+    expect(none.trainClaims).toBe(false);
+  });
+  it('the desktop takes a train only after 10 min of laptop silence, a laptop that claims trains and a head past the grace', () => {
+    const base = { laptop: workerActivity(log, 'laptop'), now: NOW, silentMs: 10 * MIN, trainAgeMs: 5 * MIN, graceMs: 2 * MIN };
+    expect(desktopTrainGate(base)).toBe('');
+    expect(desktopTrainGate({ ...base, silentMs: 15 * MIN })).toBe('laptop active 12 min ago');
+    expect(desktopTrainGate({ ...base, trainAgeMs: MIN })).toBe('train head too new');
+    expect(desktopTrainGate({ ...base, laptop: { last: NaN, trainClaims: false } })).toMatch(/does not claim trains/);
+    expect(desktopTrainGate({ ...base, laptop: workerActivity(log.replace('claim train 37', 'claim x'), 'laptop') })).toMatch(/does not claim trains/);
   });
 });

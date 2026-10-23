@@ -263,3 +263,36 @@ export function failureExcerpt(sectionText) {
 export function trainBuildFailed(statuses) {
   return (statuses ?? []).find((s) => /^auto-train\//.test(String(s?.context)) && (s.state === 'failure' || s.state === 'error')) ?? null;
 }
+
+/**
+ * A worker's claim pushes on the laptop-queue branch, from `git log --format="%ct %s" -- claims/` lines (writeClaims
+ * subjects end "(<worker>)"): { last, trainClaims } = epoch ms of its newest push (NaN when none) and whether it ever
+ * pushed a "claim train ..." (it runs the service that claims trains).
+ */
+export function workerActivity(logText, worker) {
+  let last = NaN;
+  let trainClaims = false;
+  const tail = ` (${worker})`;
+  for (const l of String(logText).replace(/\r\n/g, '\n').split('\n')) {
+    const m = /^(\d+) (.*)$/.exec(l.trim());
+    if (!m || !m[2].endsWith(tail)) continue;
+    const t = Number(m[1]) * 1000;
+    if (!(t <= last)) last = t;
+    if (m[2].startsWith('claim train ')) trainClaims = true;
+  }
+  return { last, trainClaims };
+}
+
+/**
+ * Desktop train gate: '' when the desktop may take a train head, else why not. a = { laptop: workerActivity(...,
+ * 'laptop'), now, silentMs, trainAgeMs, graceMs }. Only while the laptop has pushed no claim / done for silentMs, only
+ * once the laptop claims trains itself (an older laptop service would rerun a desktop-claimed train), and only for a
+ * head older than graceMs (a live idle laptop claims a new head within one pass). The claim push stays the real guard.
+ */
+export function desktopTrainGate(a) {
+  if (!a.laptop.trainClaims) return 'laptop service does not claim trains yet';
+  const quiet = a.now - a.laptop.last;
+  if (quiet < a.silentMs) return `laptop active ${Math.round(quiet / 60_000)} min ago`;
+  if (!(a.trainAgeMs >= a.graceMs)) return 'train head too new';
+  return '';
+}

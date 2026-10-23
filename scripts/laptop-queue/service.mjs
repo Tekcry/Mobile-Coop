@@ -8,16 +8,19 @@
 // while the backlog is over LQ_DESKTOP_BACKLOG (3) requests, its lock is free and CPU is under its limit at the start:
 // 4191 (LQ_DESKTOP_DIR, default C:/NightShift/Mobile-Coop-testrun-4191) under C:/NightShift/heavy.lock, CPU < LQ_DESKTOP_CPU (60) %;
 // 4192 (LQ_DESKTOP_DIR2, default ...-testrun-4192) under heavy2.lock, CPU < LQ_DESKTOP_CPU2 (50) %, and its dir must exist.
-// At most one new start per pass, so CPU is re-read before the second slot. No trains, no alone.
-// Every request is claimed (claims/<id>.json on the laptop-queue branch, an atomic push) before it runs and marked
-// done after, so the two workers never run the same request.
+// At most one new start per pass, so CPU is re-read before the second slot. No alone. Trains only while the laptop is
+// silent: no claim / done push by 'laptop' on the branch for LQ_LAPTOP_SILENT_MIN (10) min, the laptop service claims
+// trains itself and the head is over 2 min old; then the backlog gate is dropped (lock, dir and CPU gates stay) and the
+// train runs sharded on the desktop slots whose dir exists (4191+4192), E2E_JOBS=LQ_TRAIN_JOBS (desktop default 1).
+// Every request and train is claimed (claims/<id>.json, a train: claims/<sha>.json, on the laptop-queue branch, an
+// atomic push) before it runs and marked done after, so the two workers never run the same request or train.
 // Supersede: an open pr / full request is marked done unrun when the same requester has a newer one (same set, or an
 // ancestor sha with overlapping suites); pick runs a requester's newest request first (lib.mjs superseded, pick).
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { capTail, claimBlocks, describe, desktopSlotGate, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, runComplete, shard, superseded, suiteSection, trainBuildFailed } from './lib.mjs';
+import { capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -36,7 +39,9 @@ const DESKTOP_BACKLOG = Number(process.env.LQ_DESKTOP_BACKLOG ?? 3);
 const DESKTOP_CPU = { 4191: Number(process.env.LQ_DESKTOP_CPU ?? 60), 4192: Number(process.env.LQ_DESKTOP_CPU2 ?? 50) };
 const CLAIM_MAX_MS = Number(process.env.LQ_CLAIM_MAX_H ?? 3) * 3600_000;
 const PORTS = Object.keys(SLOTS);
-const TRAIN_JOBS = process.env.LQ_TRAIN_JOBS ?? '3';
+const TRAIN_JOBS = process.env.LQ_TRAIN_JOBS ?? (DESKTOP ? '1' : '3');
+const LAPTOP_SILENT_MS = Number(process.env.LQ_LAPTOP_SILENT_MIN ?? 10) * 60_000;
+const TRAIN_GRACE_MS = 2 * 60_000; // a live idle laptop claims a new train head within one pass (30 s)
 const POLL_MS = 30_000;
 const FLAKE_WINDOW_MS = 24 * 3600_000;
 const argv = process.argv.slice(2);
@@ -206,7 +211,9 @@ function syncDone() {
  * error skips the head this pass (never read as "no status"). Merged heads and heads older than LQ_TRAIN_MAX_AGE_H
  * (default 24) are skipped. Only the head of an open train/<n> PR whose subject is the train's version commit runs:
  * a closed train, a PR not open yet or a pre-version head is never run; a failed PR list skips every train this pass.
- * A head whose auto-train/* status is failure or error is skipped (logged once per head per process).
+ * A head whose auto-train/* status is failure or error is skipped (logged once per head per process), and so is one
+ * the other worker claimed (claims/<sha>.json; claimBlocks). The stale-pending rule needs that claim check: a train
+ * the other worker runs is `pending` too.
  */
 const buildFailLogged = new Set();
 function pendingTrains() {
@@ -226,6 +233,8 @@ function pendingTrains() {
     const age = Date.now() / 1000 - Number(git(['show', '-s', '--format=%ct', m[1]], { soft: true }));
     if (!(age < maxAge)) continue;
     try { git(['merge-base', '--is-ancestor', m[1], 'origin/master']); continue; } catch { /* not merged */ }
+    // the other worker's open claim (or a done one) keeps it off; origin/laptop-queue was fetched by listRequests
+    if (!claimed.has(m[1]) && claimBlocks(parseClaim(git(['show', `origin/laptop-queue:claims/${m[1]}.json`], { soft: true })), WORKER, Date.now(), CLAIM_MAX_MS)) continue;
     let sts;
     try {
       sts = JSON.parse(gh(['api', `repos/${REPO}/commits/${m[1]}/status`, '--jq', '[.statuses[] | {context, state}]']) || '[]');
@@ -237,7 +246,7 @@ function pendingTrains() {
       continue;
     }
     const st = sts.find((s) => s.context === 'laptop-e2e')?.state ?? '';
-    if (st === '' || (st === 'pending' && !claimed.has(m[1]))) out.push({ sha: m[1], n: m[2], stale: st === 'pending' });
+    if (st === '' || (st === 'pending' && !claimed.has(m[1]))) out.push({ sha: m[1], n: m[2], stale: st === 'pending', ageMs: age * 1000 });
   }
   return out;
 }
@@ -384,19 +393,26 @@ function finish(job, ctx, result, runDir, prNumber) {
 
 const claimed = new Set();
 
-async function runTrain(train) {
+async function runTrain(train, ports = ports) {
   const id = `train-${train.n}-${train.sha.slice(0, 8)}`;
   const job = { sha: train.sha, ref: `train/${train.n}` };
   const runDir = path.join(STATE_DIR, 'runs', id);
   log(`train ${train.n} ${train.sha.slice(0, 8)}: start`);
   const locks = {};
   try {
-    for (const p of PORTS) locks[p] = await takeLock(p, `train ${train.n}`, train.sha);
-    postStatus(train.sha, 'pending', 'laptop-e2e', 'sharded 4189+4192');
-    const prep = await Promise.all(PORTS.map((p) => prepare(p, train.sha, path.join(runDir, `${p}.log`))));
+    for (const p of ports) locks[p] = await takeLock(p, `train ${train.n}`, train.sha);
+    // fresh `at` after the lock wait; the other worker took it over meanwhile: back off (as runRequest)
+    if (writeClaims([train.sha], 'claim', `claim train ${train.n} (lock taken)`) === 'blocked') {
+      log(`train ${train.n}: taken over by the other worker during the lock wait, dropped`);
+      claimed.delete(train.sha);
+      return;
+    }
+    postStatus(train.sha, 'pending', 'laptop-e2e', `${DESKTOP ? 'desktop: ' : ''}sharded ${ports.join('+')}`);
+    const prep = await Promise.all(ports.map((p) => prepare(p, train.sha, path.join(runDir, `${p}.log`))));
     if (prep.includes('fetch')) {
       // not a verdict: the pending status is now unclaimed (stale) and the next pass picks the train again
       log(`train ${train.n}: fetch failed, retried next pass`);
+      writeClaims([train.sha], 'release', `release train ${train.n}`);
       claimed.delete(train.sha);
       return;
     }
@@ -406,33 +422,34 @@ async function runTrain(train) {
       state.trains[train.sha] = { result: nosha ? 'nosha' : 'build', date: new Date().toISOString() };
       return;
     }
-    const list = cmd('node', ['scripts/run-e2e.mjs', '--list'], { cwd: SLOTS[PORTS[0]].dir }).split('\n').map((x) => x.trim()).filter(Boolean);
-    const bins = shard(list, times, PORTS.length);
-    bins.forEach((b, i) => log(`bin ${PORTS[i]}: ${b.suites.length} suites, weight ${Math.round(b.weight)} s`));
+    const list = cmd('node', ['scripts/run-e2e.mjs', '--list'], { cwd: SLOTS[ports[0]].dir }).split('\n').map((x) => x.trim()).filter(Boolean);
+    const bins = shard(list, times, ports.length);
+    bins.forEach((b, i) => log(`bin ${ports[i]}: ${b.suites.length} suites, weight ${Math.round(b.weight)} s`));
     const t0 = Date.now();
-    const runs = await Promise.all(PORTS.map((p, i) => e2e(p, bins[i].suites, TRAIN_JOBS, path.join(runDir, `${p}.log`))));
+    const runs = await Promise.all(ports.map((p, i) => e2e(p, bins[i].suites, TRAIN_JOBS, path.join(runDir, `${p}.log`))));
     const prNumber = Number(gh(['pr', 'list', '-R', REPO, '--head', `train/${train.n}`, '--json', 'number', '--jq', '.[0].number'], { soft: true })) || 0;
     // a shard that died before its summary (or lost suites) is a failure, never a partial success
-    const broken = PORTS.findIndex((p, i) => !runComplete(runs[i], bins[i].suites.length, true));
+    const broken = ports.findIndex((p, i) => !runComplete(runs[i], bins[i].suites.length, true));
     if (broken >= 0) {
-      const p = PORTS[broken];
+      const p = ports[broken];
       const r = runs[broken];
       log(`train ${train.n}: shard ${p} incomplete (exit ${r.code}, ${r.suites.length}/${bins[broken].suites.length} suites, summary ${r.complete ? 'seen' : 'missing'})`);
       postStatus(train.sha, 'failure', 'laptop-e2e', `shard ${p} gave no result`);
-      if (prNumber) postComment(prNumber, `laptop-e2e failed on ${train.sha.slice(0, 8)} (${job.ref}): shard ${p} gave no result (exit ${r.code}, ${r.suites.length}/${bins[broken].suites.length} suites).\nLog on the laptop: ${path.join(runDir, `${p}.log`)}\n\`\`\`\n${capTail(r.tail40 || '(empty log)', 8_000)}\n\`\`\``);
+      if (prNumber) postComment(prNumber, `laptop-e2e failed on ${train.sha.slice(0, 8)} (${job.ref}): shard ${p} gave no result (exit ${r.code}, ${r.suites.length}/${bins[broken].suites.length} suites).\nLog on the ${WORKER}: ${path.join(runDir, `${p}.log`)}\n\`\`\`\n${capTail(r.tail40 || '(empty log)', 8_000)}\n\`\`\``);
       state.trains[train.sha] = { result: 'incomplete', shard: p, date: new Date().toISOString() };
       return;
     }
     const slotOf = {};
-    runs.forEach((r, i) => r.suites.forEach((s) => { slotOf[s.s] = PORTS[i]; }));
+    runs.forEach((r, i) => r.suites.forEach((s) => { slotOf[s.s] = ports[i]; }));
     const result = { suites: runs.flatMap((r) => r.suites), wall: 0, flakes: [] };
-    result.flakes = await rerunFlakes(result, slotOf, job, runDir);
+    result.flakes = await rerunFlakes(result, slotOf, job, runDir, ports[0]);
     result.wall = (Date.now() - t0) / 1000;
     const ok = finish(job, 'laptop-e2e', result, runDir, prNumber);
     state.trains[train.sha] = { result: ok ? 'success' : 'failure', wall: result.wall, date: new Date().toISOString() };
   } finally {
-    for (const p of PORTS) { if (locks[p]) releaseLock(p, locks[p]); freePort(p); }
+    for (const p of ports) { if (locks[p]) releaseLock(p, locks[p]); freePort(p); }
     writeJson('state.json', state);
+    if (state.trains[train.sha]) writeClaims([train.sha], 'done', `done train ${train.n}`);
     log(`train ${train.n}: done`);
   }
 }
@@ -515,13 +532,15 @@ const busy = Object.fromEntries(PORTS.map((p) => [p, null]));
 function dispatch(p) {
   if (p.kind === 'train') {
     claimed.add(p.train.sha);
-    if (DRY) { log(`dry-run: would run train ${p.train.n} ${p.train.sha.slice(0, 8)} on both slots`); return planTrain(p.train.sha); }
-    const run = runTrain(p.train).catch((e) => {
+    const ports = p.ports ?? PORTS;
+    if (DRY) { log(`dry-run: would run train ${p.train.n} ${p.train.sha.slice(0, 8)} on ${ports.join('+')}`); return planTrain(p.train.sha, ports); }
+    const run = runTrain(p.train, ports).catch((e) => {
       log(`train ${p.train.n} service error: ${e.stack ?? e.message}`);
       postStatus(p.train.sha, 'error', 'laptop-e2e', 'service error, see log');
+      writeClaims([p.train.sha], 'release', `release train ${p.train.n}`);
       claimed.delete(p.train.sha);
     });
-    PORTS.forEach((x) => { busy[x] = run; });
+    ports.forEach((x) => { busy[x] = run; });
     return run;
   }
   claimed.add(p.request.id);
@@ -539,12 +558,12 @@ function dispatch(p) {
 
 /** Dry run: the shard bins for the current full list and the gh commands a train would run. */
 let previewed = false;
-function planTrain(sha = '<train sha>') {
+function planTrain(sha = '<train sha>', ports = PORTS) {
   previewed = true;
   const list = cmd('node', ['scripts/run-e2e.mjs', '--list'], { soft: true }).split('\n').map((x) => x.trim()).filter(Boolean);
-  const bins = shard(list, times, PORTS.length);
-  bins.forEach((b, i) => log(`dry-run: bin ${PORTS[i]} (weight ${Math.round(b.weight)} s): ${b.suites.map((s) => `${s}=${Math.round(times[s] ?? 0) || 'median'}`).join(' ')}`));
-  postStatus(sha, 'pending', 'laptop-e2e', 'sharded 4189+4192');
+  const bins = shard(list, times, ports.length);
+  bins.forEach((b, i) => log(`dry-run: bin ${ports[i]} (weight ${Math.round(b.weight)} s): ${b.suites.map((s) => `${s}=${Math.round(times[s] ?? 0) || 'median'}`).join(' ')}`));
+  postStatus(sha, 'pending', 'laptop-e2e', `${DESKTOP ? 'desktop: ' : ''}sharded ${ports.join('+')}`);
   postStatus(sha, 'success', 'laptop-e2e', `${list.length}/${list.length} pass, <wall> s`);
   return Promise.resolve();
 }
@@ -593,8 +612,25 @@ function applySupersedes(requests) {
   return requests.filter((r) => !sup.has(r.id));
 }
 
+/**
+ * Desktop: the train heads it may take now and why none ('' when it may), from the laptop's claim pushes on the branch
+ * (desktopTrainGate; pendingTrains only runs while the laptop is silent).
+ */
+function desktopTrains() {
+  const laptop = workerActivity(git(['log', '-n', '2000', '--format=%ct %s', 'origin/laptop-queue', '--', 'claims/'], { soft: true }), 'laptop');
+  const gate = (ageMs) => desktopTrainGate({ laptop, now: Date.now(), silentMs: LAPTOP_SILENT_MS, trainAgeMs: ageMs, graceMs: TRAIN_GRACE_MS });
+  const off = gate(Infinity);
+  if (off) return { trains: [], why: off };
+  const all = pendingTrains().filter((t) => !claimed.has(t.sha));
+  const trains = all.filter((t) => !gate(t.ageMs));
+  return { trains, why: all.length && !trains.length ? 'train head too new' : '' };
+}
+
 async function pass() {
-  const queue = { trains: DESKTOP ? [] : pendingTrains().filter((t) => !claimed.has(t.sha)), requests: listRequests().filter((r) => !claimed.has(r.id)) };
+  // requests first: listRequests fetches origin/laptop-queue, which the train claim checks read
+  const requests = listRequests().filter((r) => !claimed.has(r.id));
+  const dt = DESKTOP ? desktopTrains() : null;
+  const queue = { trains: DESKTOP ? dt.trains : pendingTrains().filter((t) => !claimed.has(t.sha)), requests };
   // done marks first: a claim (which tells the desktop the laptop is on claims) never lands before them
   if (!syncDone() && !DRY) { log('done claims not pushed: no new requests this pass (trains still run)'); queue.requests = []; }
   // supersede on the full list (before the desktop's pr filter); the desktop waits for claims on the branch like its gate does
@@ -604,6 +640,22 @@ async function pass() {
     const backlog = queue.requests.length;
     queue.requests = queue.requests.filter((r) => r.kind === 'pr');
     const why = {};
+    const train = queue.trains[0];
+    if (train) {
+      // laptop silent: the train goes first on the desktop slots that exist, backlog gate dropped (lock, dir, CPU kept);
+      // it blocks new requests meanwhile so busy slots drain (as pick does on the laptop)
+      const cpu = lazyCpu();
+      const ports = PORTS.filter((p) => fs.existsSync(SLOTS[p].dir));
+      for (const port of ports) why[port] = busy[port] ? 'busy' : desktopSlotGate({ lockName: path.basename(SLOTS[port].lock), lockHeld: fs.existsSync(SLOTS[port].lock), dirOk: true, backlog: Infinity, cpu: cpu(), minBacklog: 0, maxCpu: DESKTOP_CPU[port] });
+      const waits = Object.entries(why).filter(([, w]) => w).map(([p, w]) => `${p} ${w}`);
+      log(`queue: train ${train.n} ${train.sha.slice(0, 8)} (laptop silent), ${backlog} request(s)${ports.length === 0 ? '; no desktop worktree' : ''}${waits.length ? `; waiting: ${waits.join('; ')}` : ''}`);
+      if (ports.length === 0 || waits.length) return;
+      // the laptop may have woken up and claimed it since the list was read
+      if (writeClaims([train.sha], 'claim', `claim train ${train.n}`) !== true) return;
+      const run = dispatch({ kind: 'train', train, ports });
+      if (!DRY) run.finally(() => ports.forEach((x) => { if (busy[x] === run) busy[x] = null; }));
+      return;
+    }
     if (queue.requests.length > 0) {
       const cpu = lazyCpu();
       for (const port of PORTS) {
@@ -615,7 +667,7 @@ async function pass() {
       }
     }
     const waits = Object.entries(why).filter(([, w]) => w).map(([p, w]) => `${p} ${w}`);
-    log(`queue: ${backlog} request(s), ${queue.requests.length} pr${waits.length ? `; waiting: ${waits.join('; ')}` : ''}`);
+    log(`queue: ${backlog} request(s), ${queue.requests.length} pr${waits.length ? `; waiting: ${waits.join('; ')}` : ''}${dt.why ? `; trains: ${dt.why}` : ''}`);
     if (queue.requests.length === 0 || PORTS.every((p) => busy[p] || why[p])) return;
   } else log(`queue: ${queue.trains.length} train(s), ${queue.requests.length} request(s)`);
   const virtual = { ...desktopWait };
@@ -624,8 +676,11 @@ async function pass() {
     const slots = PORTS.map((port) => ({ port, busy: Boolean(busy[port] || virtual[port]) }));
     const p = pick(queue, Date.now(), slots);
     if (!p) break;
-    if (p.kind === 'train') queue.trains = queue.trains.filter((t) => t !== p.train);
-    else {
+    if (p.kind === 'train') {
+      queue.trains = queue.trains.filter((t) => t !== p.train);
+      // claimed like a request: the desktop may take a train while the laptop is silent
+      if (writeClaims([p.train.sha], 'claim', `claim train ${p.train.n}`) !== true) continue;
+    } else {
       queue.requests = queue.requests.filter((r) => r !== p.request);
       // the other worker may have taken it since the list was read: skip it this pass
       if (writeClaims([p.request.id], 'claim', `claim ${p.request.id}`) !== true) continue;
