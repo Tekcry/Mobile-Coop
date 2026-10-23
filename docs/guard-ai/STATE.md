@@ -1,6 +1,13 @@
 # Guard AI - state
 
 ## Now
+~13:00 2026-10-23 (laptop, account swap): train 31 rebuilt on master 4.79.0 (PROTOCOL 40). carry-fix 74c352a7 (#240,
+merge master, PROTOCOL 40, holds the calm-guard body GPU check: scripts/e2e-guard-carry.mjs compile-error / effect-ready /
+GPU-skinned / drawn asserts + the one-block stall), S9 4731c869 (#229, merge master + carry-fix, PROTOCOL 41), S22
+283d26f3 (#234, merge S9). tsc 0 and every PROTOCOL_VERSION test file (14, 238 tests) green on S9 / S22; carry-fix 12/213
++ bodyEffectRecovery. e2e-guard-carry is in REQUIRED (scripts/run-e2e.mjs:30), so the train-31 full run covers it.
+TRAIN-READY train 31 sent: #240 -> #229 -> #234 merge order, no shared-file conflict (S9 contains #240).
+
 ~19:00: full burn to 100% (orchestrator): S22 game side brought forward: Opus agent on feature/guard-ai-s22-game
 (worktree ...-guard-ai-s22-game) = s22 c51f1b30 + merge of marlow-final #237 + the slices/S22.md wiring + A4 e2e step;
 pushes after each commit. Ships after #237 merges (PR then).
@@ -535,18 +542,17 @@ behaviour code Opus; Sonnet only for tests / e2e scenarios / data from a strict 
 ```
 Night Shift | Guard AI Build - guard-ai lead, on the LAPTOP. Model Opus, effort high; fresh session.
 First set_session_title "self" -> "Night Shift | Guard AI Build". git fetch. Laptop worktrees (npm ci'd):
-C:/NightShift/Mobile-Coop-guard-ai (feature/guard-ai: STATE / PLAN), ...-guard-ai-s9, -s22, -carry-fix (others done).
+C:/NightShift/Mobile-Coop-guard-ai (feature/guard-ai: STATE / PLAN), ...-guard-ai-s9, -s22, -carry-fix, -s22-game.
 Branch guard before every write. Read CLAUDE.md ("Sessions", "Heavy-usage throughput" incl. "Token rules"), ROADMAP
-"Decided" by grep only (Guard AI, unavoidable guards, stealth over shooting), then this file's "Now" (top 2 entries).
+"Decided" by grep only (Guard AI, unavoidable guards, stealth over shooting), then this file's "Now" (top entry).
 e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep laptop CPU under ~80%.
-1. Train 31 = #229 S9 71498e16 (PROTOCOL 41, A142, + e2e-guard-carry suite) + #234 S22 c51f1b30 (contains #229) +
-   Player #239: TRAIN-READY sent. Fix any failure reported at once (one Opus fix agent from the assert).
-2. #240 carry fix (feature/guard-ai-carry-fix 23cf567c = fix 48d049ad + check doc; check PASS): invisible guard bodies
-   after a timed-out async shader compile. Test Runner watcher runs e2e-guard-carry + stealth-ai on 48d049ad and the
-   suite on f16600f5 (expect fail). Green -> TRAIN-READY #240; red -> one Opus fix agent from the assert.
-3. S22 game side: feature/guard-ai-s22-game (s22 + marlow-final #237 + the slices/S22.md wiring + A4 e2e); check its
-   tip, finish if WIP, Opus checker, Test Runner (ctcourse A4 part, coop), PR after #237 merges.
-4. Polish lists only (no refining): WALK-CHECK.md 1-6, S16-CHECK.md, A126-CHECK.md, S22-CHECK.md 1-5; calm walk:
+1. Train 31 (TRAIN-READY sent ~13:00): #240 carry-fix 74c352a7 (PROTOCOL 40) -> #229 S9 4731c869 (contains #240,
+   PROTOCOL 41) -> #234 S22 283d26f3 (contains S9), all on master 4.79.0. Fix any failure the train reports at once
+   (one Opus fix agent from the assert). The calm-guard GPU check is scripts/e2e-guard-carry.mjs (REQUIRED list,
+   scripts/run-e2e.mjs:30); the fix is src/player/bodyEffectRecovery.ts.
+2. S22 game side: feature/guard-ai-s22-game fa6230b6 (s22 + marlow-final #237, PROTOCOL 43 = 41 + #237's 42); after
+   train 31 merges: merge master + s22, Opus checker, Test Runner (ctcourse A4 part, coop), PR after #237 merges.
+3. Polish lists only (no refining): WALK-CHECK.md 1-6, S16-CHECK.md, A126-CHECK.md, S22-CHECK.md 1-5; calm walk:
    the grunt's slung rifle reads at the right hip while walking.
 Rules: AI code and checkers Opus; Sonnet 5.5 tests / data from strict briefs; Haiku chores. Never two agents on the
 same files. One wire bump per train in merge order. Message the orchestrator only at PR open / train-ready / blocked /
