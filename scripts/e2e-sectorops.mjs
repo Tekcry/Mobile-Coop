@@ -246,23 +246,42 @@ await run(PARAMS, async ({ page, G, sim }) => {
       // x reaction) beats his run to the panel. He stays in combat and is still the panel runner.
       em.radioNet.cut(best.num);
     });
+    // (guard-ai S27 triage, S27-SEC1-TRIAGE.md) radio silence for the whole race: every call any guard opens is cut
+    // within 0.5 s (a call holds >= 1.75 s: callIn 2.5 s x the fastest reaction 0.7), so no contact gets through and no
+    // command call is owed. Since S24 (A149) a guard in combat with no intruder who then sees the player calls the
+    // contact again, and S27 (A161) walks open-waiting role guards to cover after 3 s: a squadmate the runner's shout
+    // joined can come into the player's view and his call beats the panel run. Both are wanted; this scenario is the
+    // panel path only (the panel-vs-radio race is e2e-stealth-ai 'alarm'). The callers cut are in the asserts.
+    const cutBy = {};
+    const hush = () =>
+      G((acc) => {
+        const em = window.__app.current.enemyMgr;
+        for (const e of em.enemies) {
+          if (!e.alive) continue;
+          const n = em.radioNet.cut(e.num);
+          if (n > 0) acc[e.id] = (acc[e.id] ?? 0) + n;
+        }
+        return acc;
+      }, cutBy).then((acc) => Object.assign(cutBy, acc));
     let runner = null;
     for (let k = 0; k < 12 && !runner; k++) {
       await sim(0.5);
+      await hush();
       runner = await G(() => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive && q.alarm); return e ? { id: e.id, panel: e.alarm.id, s: e.alarm.section } : null; });
     }
     assert(runner && runner.s === 1, `${tag}: an alerted guard runs to section 2's panel (${JSON.stringify(runner)})`);
     let raised = false;
     for (let k = 0; k < 80 && !raised; k++) {
       await sim(0.5);
+      await hush();
       raised = await G(() => window.__app.current.enemyMgr.alarmRaised);
     }
     const d = await G(() => window.__sector.debug());
     // (guard-ai S6 stack merge) the stage rises through the panel, not the radio command call (S6: a contact call that
     // gets through also raises the alarm, ~6.5 s after the sighting), so the path this scenario names is asserted
     const by = await G(() => window.__app.current.enemyMgr.alarmBy);
-    assert(raised && d.stage === st0 + 1, `${tag}: the panel raises the alarm stage (${st0} -> ${d.stage}, raised ${raised})`);
-    assert(by === 'panel', `${tag}: raised by the panel, not the radio (alarmBy '${by}')`);
+    assert(raised && d.stage === st0 + 1, `${tag}: the panel raises the alarm stage (${st0} -> ${d.stage}, raised ${raised}; calls cut ${JSON.stringify(cutBy)})`);
+    assert(by === 'panel', `${tag}: raised by the panel, not the radio (alarmBy '${by}'; calls cut ${JSON.stringify(cutBy)})`);
   };
   await panelAlarm('section 2');
   // (marlow-bays item 3) the restart from the pause menu: "Restart at checkpoint", a confirm opening on Stay, then Restart
