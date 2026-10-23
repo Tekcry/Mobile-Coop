@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~13:05: Player Build #214 (interrogation intel) needs `get patrolRoute(): PatrolRoute | null { return this.walker.route; }`
+in src/ai/enemy.ts after setPatrol: the master merge agent adds it on s12 (train 25), flows up with the merges. Check it
+is on origin/feature/guard-ai-s12 before the train-ready message.
+
 ~13:45: orchestrator left #200-#203 out of train 24 (s10 x master 4.72.0 conflict in sectorMode.ts, #206). Wants
 train 25 = #200-#203 + #208 after: master merged up the stack, laptop sectorops 1-5 + stealth-ai rerun, train-ready.
 RUNNING (Opus): master merge agent s10 -> s12 -> s13 -> s14 (report slices/S10.md "Master 4.72.0 merge"; s15 left
