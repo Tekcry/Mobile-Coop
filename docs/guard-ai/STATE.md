@@ -1,6 +1,17 @@
 # Guard AI - state
 
 ## Now
+~13:05: S6 close-on fix s10 0742bd0d (test only: straight-line bound to a walled room; seeded, route distance,
+tests/s6CloseOn.test.ts; slices/S10.md "S6 close-on fix"); laptop rerun of sectorops:1 REQUESTED (Test Runner; green =
+train-ready #200-#203). s12 <- s10: a31daa61 (#208). S15 DONE debbfd0a (217 unit tests; A61 / A63 updated: course mains
+circuits never reset) and merged S13: s15 270cd1d8 (tsc, 106 tests). S14 still RUNNING. Open for Michael (design note):
+aggressive flanker takes a side cover 9.6 m out instead of pushing into a closed room (S8 roles fill point then
+flank); fine unless "reinforcements must be aggressive" means every one pushes in.
+NEW S16 armoured fire check (Sector Ops E10, feature/sector-redesign-e10 16442ee1, not on master): before a burst,
+muzzle-to-aim on MASK.ENEMY_SHOT; armour first (RayHit.armoured) = hold fire, reposition (S8 roles). Start once E10 is
+on master and S14 has handed back (enemy.ts). Told Sector Ops: hearing is deterministic, reaction cadence is not
+(seed Math.random at e2e-sectorops:526).
+
 ~12:30 (new window): laptop GPU on s10 345fbb91 7/8: FAIL e2e-sectorops:1 "S6: they close on it" (9.06,10.30 ->
 7.21,9.59 m in 7 s; lv2 searching, walk 0.9; 2nd failure of this assert). Pass: stealth-ai, sectorops 2-5,
 ct-warehouse, takedown. RUNNING (Opus): S6 close-on fix on s10 (report slices/S10.md "S6 close-on fix"); S14 finish
