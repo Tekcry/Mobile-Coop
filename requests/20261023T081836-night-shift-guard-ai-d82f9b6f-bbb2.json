@@ -1,0 +1,15 @@
+{
+  "id": "20261023T081836-night-shift-guard-ai-d82f9b6f-bbb2",
+  "sha": "d82f9b6ffb779a48a1045374e0ba02634b5fb0e6",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-ctcourse:2",
+    "e2e-ctcourse:4"
+  ],
+  "jobs": 2,
+  "set": "s22game-a3a8",
+  "note": "A4 console steps + A8 strongroom refusal; first live laptop-queue request"
+}
