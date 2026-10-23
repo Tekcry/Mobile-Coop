@@ -15,6 +15,9 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   branch feature/settings-rt-hide off feature/voxel-retire, worktree C:/NightShift/Mobile-Coop-settings-rt-hide,
   notes docs/settings-rt-hide/BRIEF.md + STATE.md (WIP pushed as it goes). Next: finish / check (fresh Opus checker),
   laptop e2e-menus + e2e-desktop, PR after #236 merges (rebase onto master).
+  UPDATE ~18:20: built 5e752abd (settingsScreen.ts only; tsc / eslint / 4 vitest / build ok); Sonnet checker running;
+  laptop 4192 chain-1023sr: runs/settingsrthide-5e752abd (e2e-menus e2e-desktop) - record result in its STATE.
+- SENT: Marlow section-rating 053ff212 6/7 (ctcourse:2 A3 cleaner-to-switch timeout).
 - 4191 chain-1023gf (watcher): polls origin/feature/guard-ai-carry-fix every 2 min for a commit "guard-ai carry fix:
   recover guard bodies..." (d704098e is WIP, skipped), then guardcarryfix-<sha> (e2e-guard-carry + e2e-stealth-ai,
   expect PASS) and guardcarryfix-master-f16600f5 (same suite file, expect FAIL) -> ONE verdict to Guard AI Build.
