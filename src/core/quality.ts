@@ -1,3 +1,5 @@
+import { charShadowSpec, type CharShadowMode } from '../world/charShadowSet';
+
 /**
  * Graphics settings (pure, unit-tested). 3.1: one preset ladder - Low / Medium / High / Ultra / Epic - filling the
  * per-feature settings; changing any feature makes it Custom. Gameplay never depends on
@@ -96,6 +98,10 @@ export interface ShadowSpec {
   soft: boolean;
   /** 3.1 Low: the moon shades only the level; characters and props get contact blobs. */
   staticSun?: boolean;
+  /** (LR14) Lamps given a character silhouette shadow map (the nearest; 0: capsule shadows only) and each one's atlas
+   *  tile (px): one more texture per lit shader while on (`world/charShadows.ts`). */
+  charLamps: number;
+  charTile: number;
 }
 
 /**
@@ -106,7 +112,13 @@ export interface ShadowSpec {
  */
 export const MAX_SHADOW_CASTERS = 4;
 
-export function shadowSpec(q: ShadowQuality): ShadowSpec {
+/** `charMode`: the character shadow override (LR14, Settings > Graphics; 'auto' = the tier's). */
+export function shadowSpec(q: ShadowQuality, charMode: CharShadowMode = 'auto'): ShadowSpec {
+  const c = charShadowSpec(q, charMode);
+  return { ...shadowBase(q), charLamps: c.lamps, charTile: c.tile };
+}
+
+function shadowBase(q: ShadowQuality): Omit<ShadowSpec, 'charLamps' | 'charTile'> {
   switch (q) {
     case 'off':
       return { sun: false, cascades: 0, sunSize: 0, casters: 0, size: 0, soft: false };
@@ -162,14 +174,15 @@ export interface QualityLevel {
   panini: number;
 }
 
-export function qualityLevel(name: GraphicsPreset, f: GraphicsFeatures, minimal = false, upscale = 1, panini = 0): QualityLevel {
+/** `charMode`: the character shadow override (LR14). */
+export function qualityLevel(name: GraphicsPreset, f: GraphicsFeatures, minimal = false, upscale = 1, panini = 0, charMode: CharShadowMode = 'auto'): QualityLevel {
   return {
     minimal,
     upscale: minimal ? 1 : Math.max(0.5, Math.min(1, upscale)),
     panini: minimal ? 0 : Math.max(0, Math.min(1, panini)),
     name,
     features: f,
-    shadow: shadowSpec(f.shadows),
+    shadow: shadowSpec(f.shadows, minimal ? 'off' : charMode),
     vfxDensity: EFFECT_DENSITY[f.effects],
     realLights: Math.round(Math.min(LIGHT_RANGE.max, Math.max(LIGHT_RANGE.min, f.lights))),
     detailScale: DETAIL_SCALE[f.detail],

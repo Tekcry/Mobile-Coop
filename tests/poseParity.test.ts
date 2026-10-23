@@ -46,8 +46,8 @@ function fakeGame(o: { shoulder?: number; switchOk?: boolean; wall?: boolean; bl
 }
 
 describe('the wire (protocol 36)', () => {
-  it('PROTOCOL_VERSION is 37 (37 coop-walk-fixes; 32-35 taken by open branches) and PF.aimLeft reuses the free old sprint bit 64', () => {
-    expect(PROTOCOL_VERSION).toBe(37);
+  it('PROTOCOL_VERSION is 40 (40 the stack at train 30; 39 guard-ai S9; 38 lamp falloff; was 32-35 taken by open branches) and PF.aimLeft reuses the free old sprint bit 64', () => {
+    expect(PROTOCOL_VERSION).toBe(40);
     expect(PF.aimLeft).toBe(64);
     const others = Object.entries(PF).filter(([k]) => k !== 'aimLeft').map(([, v]) => v);
     for (const v of others) expect(v & PF.aimLeft).toBe(0);
