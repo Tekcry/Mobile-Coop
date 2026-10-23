@@ -5,14 +5,14 @@
  *
  * What they do (light parity, bible 5.1: the picture, the meter and guard perception agree):
  * - the ambient fill is read trilinearly by the light field, as the shaders' bilinear `lampAmb` texture reads it
- *   (`LightField`; today the field takes the nearest 1 m cell);
+ *   (`LightField`; before the audit it took the nearest 1 m cell);
  * - each baked lamp's door list skips the doors whose leaf the lamp cannot see (`lampDoorLists` with a bake sampler), so
- *   the `DOORS_PER_LAMP` slots go to the doors that can cut its light (field and shaders build the one list);
+ *   the door slots go to the doors that can cut its light (field and shaders build the one list);
  * - the game's PBR materials (the operator figures, weapons) take the flashlights with the game's range falloff and
  *   cosine cone (`gameLightFalloff`), not Babylon's inverse square and Gaussian cone, which ignore the range;
  * - the light rig gives its shadow maps to the flashlights whose beam a wall cuts first (`torchShadowOrder`);
  * - a body's light for the guards (`EnemyManager`) tests the flashlights against static geometry, as the player's does;
- * - (LR15) each baked lamp tests 8 doors, not 4 (`lightField.lampDoorSlots`: a second door texel in the shaders);
+ * - (LR15) each baked lamp tests 8 doors, not 4 (`lightField.DOORS_PER_LAMP_ACCURATE`: a second door texel in the shaders);
  * - (LR15) the flashlights without a shadow map are drawn by the baked lamps' shader with the light field's own formula
  *   (`lampMath.lampTerm`: linear falloff over the torch's radius, cos^2 cone) x a cut at the beam's reach
  *   (`torchDrawTerm`), not as Babylon lights whose range is the reach (the beam dimmed towards the wall it lands on).

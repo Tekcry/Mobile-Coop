@@ -107,9 +107,9 @@ export class BakedLamps implements CharShadowLamps {
   private readonly doorShut: Uint8Array;
   /** Per lamp its door indices (`lampDoorLists`), `doorSlots` each. */
   private readonly lampDoors: Int16Array;
-  /** (LR15) Door slots per lamp: 4 today, 8 with the shadow-accuracy fixes on (read once). */
+  /** (LR15) Door slots per lamp: 8 (`DOORS_PER_LAMP_ACCURATE`, two door texels). */
   readonly doorSlots: number;
-  /** (LR15, shadow-accuracy fixes on; the per-lamp loop only) The flashlights without a shadow map, drawn by the plugin with
+  /** (LR15; the per-lamp loop only) The flashlights without a shadow map, drawn by the plugin with
    *  the light field's formula x their beam's cut (`shadowAccuracy.writeTorchDraw`; the light rig writes it each frame). */
   readonly torchDraw: Float32Array | null;
   private readonly buf: Float32Array;

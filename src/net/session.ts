@@ -61,7 +61,6 @@ export class NetSession {
   weather: WeatherChoice = 'clear';
   /** Course mode: "Start at bay N" (host, 1-based; D20). */
   courseBay = 1;
-  /** (lightrev LR13, host) The lamp falloff a match started now runs (`coopUi` reads the host's setting / URL override). */
   phase: 'lobby' | 'playing' = 'lobby';
   private start: StartInfo | null = null;
   private closed = false;
