@@ -64,6 +64,7 @@ import { CONSOLE_FAULT, CONSOLE_GROUP, ConsoleFaults, consoleInView, isConsoleGr
 // (guard-ai S24, G139) one last known position per intruder
 import { INTRUDERS, IntruderBoard } from './intruders';
 import { MAX_INTRUDERS } from './targetPick';
+import { SEARCH_AREA, SearchPlan, areaRadius, orderByScore, pointScore } from './searchArea';
 
 /** (guard-ai S10) A talking pair: its meeting clock, and the two slot indices (`guardAtSlot`; A the lower). */
 export interface TalkPair {
@@ -105,6 +106,12 @@ export const TACTICS = {
  *  or the nav grid changed, and (a move) at most once per `FLOW_MIN` s; one rebuild per `update` at most. */
 const FLOW_CELL = 0.5;
 const FLOW_MIN = 0.5;
+/** (guard-ai S25) A search plan is rebuilt round a last known position that moved more than this (m); the cover a plan
+ *  reads at most (one `coverGrid.query`), and its candidates (that cover plus the lattice, at most 21 x 21). */
+const PLAN_MOVE = 1;
+const PLAN_COVER = 128;
+const PLAN_LATTICE = 2 * Math.floor(SEARCH_AREA.max / SEARCH_AREA.lattice) + 1;
+const PLAN_CAND = PLAN_COVER + PLAN_LATTICE * PLAN_LATTICE;
 
 /** Owns enemies, the shared chase flow field, cover reservations, bodies (ragdolls), alarms and flashlights. */
 export class EnemyManager {
@@ -163,6 +170,23 @@ export class EnemyManager {
   private readonly flowGoalY = [0];
   /** (guard-ai S24) The intruder of the guard who raised the alarm: the reinforcements hunt him. */
   private alarmHunt = -1;
+  // ---- (guard-ai S25, A151) the probable-area search after combat ----
+  /** One search plan per intruder slot (made once): the cover spots and dark cells his searchers check, each claimed
+   *  by one of them (`buildPlan`, `AiContext.searchPoint` / `searchDone`). */
+  readonly plans: readonly SearchPlan[] = [new SearchPlan(), new SearchPlan(), new SearchPlan(), new SearchPlan()];
+  /** Each plan's area radius R when it was built (m; `take` weighs distance by it). */
+  private readonly planR = new Float32Array(MAX_INTRUDERS);
+  /** The clock the plans' ages are read on (s, the manager's updates). */
+  private planClock = 0;
+  /** `buildPlan` scratch (made once): the cover query, the candidates and their order, the searched points kept over a
+   *  rebuild. */
+  private readonly planCover = new Int32Array(PLAN_COVER);
+  private readonly candX = new Float32Array(PLAN_CAND);
+  private readonly candZ = new Float32Array(PLAN_CAND);
+  private readonly candS = new Float64Array(PLAN_CAND);
+  private readonly candOrder = new Int32Array(PLAN_CAND);
+  private readonly doneX = new Float32Array(SEARCH_AREA.points);
+  private readonly doneZ = new Float32Array(SEARCH_AREA.points);
   /** Radio range for a detection call (m): the parked modes' call (`callAlert`) and body-found search. (guard-ai S3,
    *  S4) The live modes' contact and body calls reach the whole section (`radioNet`), not a circle. */
   static readonly RADIO = 22;
@@ -516,6 +540,8 @@ export class EnemyManager {
       onKilled: (e, h) => {
         this.kills++;
         this.releaseCover(e);
+        // (guard-ai S25) down (killed or knocked out): his search plan point is free again
+        this.releasePlans(e.num);
         // (guard-ai S4) the awareness roster, and who saw it
         if (this.coordinated) this.downed(e);
         // (guard-ai S5b) his dog stays by him, searches round him and barks
@@ -602,6 +628,9 @@ export class EnemyManager {
         for (const o of this.enemies) if (o !== e && o.alive && o.level === 'searching' && o.num < e.num) n++;
         return n;
       },
+      // (guard-ai S25) the search after combat: his intruder's probable area, one point per searcher
+      searchPoint: (e, out) => this.searchPointFor(e, out),
+      searchDone: (e) => this.searchDoneFor(e),
       addBody: (e, rig: CharacterRig, imp: Vector3, lethal: boolean) => {
         const b = new Body(scene, world, e.def, lethal, rig, imp, this.canRagdoll());
         b.enemyId = e.id;
@@ -1632,6 +1661,8 @@ export class EnemyManager {
       this.world.level.lights.setOn(this.torches[i]!.id, false);
     }
     this.releaseCover(e);
+    // (guard-ai S25) and holds no search plan point
+    this.releasePlans(e.num);
     // (guard-ai S24) gone: he hunts nobody (his intruder may be forgotten)
     e.hunt = -1;
     e.dispose();
@@ -2610,6 +2641,8 @@ export class EnemyManager {
     for (let s = 0; s < MAX_INTRUDERS; s++) {
       if (b.valid[s] !== 1 || b.seenT[s]! <= INTRUDERS.forget || this.huntingOf(s)) continue;
       b.forget(s);
+      // (guard-ai S25) and his search plan (the next sighting builds a new one)
+      this.plans[s]!.reset(0, 0, -1);
       changed = true;
     }
     if (changed) this.mirror();
@@ -2648,6 +2681,143 @@ export class EnemyManager {
       this.slotFlowT[s] = FLOW_MIN;
       this.slotFlowRR = (s + 1) % MAX_INTRUDERS;
       return;
+    }
+  }
+
+  // ---- (guard-ai S25, A151) the probable-area search after combat ----
+
+  /** `AiContext.searchPoint`: guard `e`'s next point of his intruder's plan (built if due) into `out`, claimed for him;
+   *  false: off, the parked modes, no intruder, no plan yet or none left (the ring then). */
+  private searchPointFor(e: Enemy, out: P2): boolean {
+    if (!SEARCH_AREA.enabled || !this.stealth) return false;
+    const s = e.hunt;
+    if (s < 0 || s >= MAX_INTRUDERS || this.intruders.valid[s] !== 1) return false;
+    this.buildPlan(s);
+    const p = this.plans[s]!;
+    if (p.builtAt < 0) return false;
+    const k = p.take(e.num, e.pos.x, e.pos.z, this.planR[s]!);
+    if (k < 0) return false;
+    out[0] = p.x[k]!;
+    out[1] = p.z[k]!;
+    return true;
+  }
+
+  /** `AiContext.searchDone`: the point `e` holds is done (looked into or unreachable), found by his claim (S25a polish
+   *  2: never by a saved index). */
+  private searchDoneFor(e: Enemy): void {
+    for (let s = 0; s < MAX_INTRUDERS; s++) this.plans[s]!.finishBy(e.num);
+  }
+
+  /** Guard `num` holds no plan point any more (down, despawned). */
+  private releasePlans(num: number): void {
+    for (let s = 0; s < MAX_INTRUDERS; s++) this.plans[s]!.release(num);
+  }
+
+  /** A claim whose guard is gone, down, out of the search, on another intruder or off the plan is freed. */
+  private planSweep(): void {
+    for (let s = 0; s < MAX_INTRUDERS; s++) {
+      const p = this.plans[s]!;
+      for (let k = 0; k < p.n; k++) {
+        const num = p.claim[k]!;
+        if (num < 0) continue;
+        const e = this.byNum(num);
+        if (!e || !e.alive || e.level !== 'searching' || !e.onPlan || e.hunt !== s) p.release(num);
+      }
+    }
+  }
+
+  /**
+   * (guard-ai S25, A151) Intruder `slot`'s search plan, rebuilt when due: never built, older than `SEARCH_AREA.rebuild`
+   * s, or his last known position moved > `PLAN_MOVE` m; and only while no point is claimed (S25a polish 2: a rebuild
+   * never pulls a point from under a searcher) and his chase field is built round that position. The area: cells within
+   * R = `areaRadius(seenT)` path metres of the last known position (`flowOf(slot)` x `nav.cell`). Candidates: (a) the
+   * level cover in range at its own position, (b) a `lattice` m grid over the square of half-side R, walkable cells whose
+   * baked light (`levelAt` at `sampleY` over the floor: torches excluded, A153) is below `dark`; each scored with
+   * `pointScore` and offered best first (S25a polish 1). Points searched before a rebuild round the same position stay
+   * done. No ray, no A*, no allocation.
+   */
+  buildPlan(slot: number): void {
+    if (slot < 0 || slot >= MAX_INTRUDERS) return;
+    const p = this.plans[slot]!;
+    const b = this.intruders;
+    if (b.valid[slot] !== 1) return;
+    const cx = b.x[slot]!;
+    const cy = b.y[slot]!;
+    const cz = b.z[slot]!;
+    const built = p.builtAt >= 0;
+    const moved = !built || hyp2(cx - p.cx, cz - p.cz) > PLAN_MOVE;
+    if (!moved && this.planClock - p.builtAt < SEARCH_AREA.rebuild) return;
+    if (p.anyClaim()) return;
+    const f = this.slotFlow[slot];
+    if (!f || this.slotFlowVer[slot] !== this.nav.version) return;
+    if (hyp3(cx - this.slotFlowX[slot]!, cy - this.slotFlowY[slot]!, cz - this.slotFlowZ[slot]!) >= FLOW_CELL) return;
+    let nd = 0;
+    if (!moved) {
+      for (let k = 0; k < p.n; k++) {
+        if (!p.done[k]) continue;
+        this.doneX[nd] = p.x[k]!;
+        this.doneZ[nd] = p.z[k]!;
+        nd++;
+      }
+    }
+    p.reset(cx, cz, this.planClock);
+    const r = areaRadius(b.seenT[slot]!);
+    this.planR[slot] = r;
+    const nav = this.nav;
+    const cell = nav.cell;
+    const lf = this.world.lightField;
+    const cx0 = this.candX;
+    const cz0 = this.candZ;
+    const cs0 = this.candS;
+    let n = 0;
+    // (a) the level cover in range, at its own position
+    const cs = this.coverSet;
+    const nc = this.coverGrid.query(cx, cz, r, this.planCover);
+    for (let i = 0; i < nc; i++) {
+      const j = this.planCover[i]!;
+      const x = cs.x[j]!;
+      const z = cs.z[j]!;
+      const c = nav.nearestWalkable(x, z, 2, cs.y[j]!);
+      if (c < 0) continue;
+      const d = f[c]! * cell;
+      if (!(d <= r)) continue;
+      cx0[n] = x;
+      cz0[n] = z;
+      cs0[n] = pointScore(lf.levelAt(x, nav.cellHeight(c) + SEARCH_AREA.sampleY, z), true, d, r);
+      n++;
+    }
+    // (b) the dark cells of a lattice over the area
+    const L = SEARCH_AREA.lattice;
+    const m = Math.floor(r / L);
+    for (let iz = -m; iz <= m; iz++) {
+      for (let ix = -m; ix <= m; ix++) {
+        const x = cx + ix * L;
+        const z = cz + iz * L;
+        const c = nav.cellOf(x, z, cy);
+        if (!nav.isWalkable(c)) continue;
+        const d = f[c]! * cell;
+        if (!(d <= r)) continue;
+        const light = lf.levelAt(x, nav.cellHeight(c) + SEARCH_AREA.sampleY, z);
+        if (!(light < SEARCH_AREA.dark)) continue;
+        cx0[n] = x;
+        cz0[n] = z;
+        cs0[n] = pointScore(light, false, d, r);
+        n++;
+      }
+    }
+    orderByScore(this.candOrder, cs0, n);
+    for (let i = 0; i < n; i++) {
+      const o = this.candOrder[i]!;
+      p.offer(cx0[o]!, cz0[o]!, cs0[o]!);
+    }
+    // the same search re-planned: what was looked into stays done
+    for (let k = 0; k < p.n && nd > 0; k++) {
+      for (let j = 0; j < nd; j++) {
+        if (hyp2(p.x[k]! - this.doneX[j]!, p.z[k]! - this.doneZ[j]!) < SEARCH_AREA.spacing) {
+          p.finish(k);
+          break;
+        }
+      }
     }
   }
 
@@ -2896,6 +3066,9 @@ export class EnemyManager {
     // nobody hunting him any more: an intruder's last known position is forgotten (guard-ai S24: each on its own)
     this.forgetStep();
     this.slotFlowStep(dt);
+    // (guard-ai S25) the search plans' clock; claims whose searcher no longer holds them are freed
+    this.planClock += dt;
+    this.planSweep();
     this.flowT -= dt;
     // (sector-fixes-r2 nav) a nav closure opened or shut (a team door): the flow field is rebuilt at once
     if (this.flowT <= 0 || this.flowVer !== this.nav.version) {
@@ -3123,6 +3296,8 @@ export class EnemyManager {
     this.intruders.clear();
     this.mirror();
     this.alarmHunt = -1;
+    // (guard-ai S25) and every search plan
+    for (let s = 0; s < MAX_INTRUDERS; s++) this.plans[s]!.reset(0, 0, -1);
     // (guard-ai S12) and the helmets on the floor
     this.helmetDrops.clear();
     // (guard-ai S13) and the response teams: only an unload or a restart ends them

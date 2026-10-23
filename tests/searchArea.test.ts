@@ -7,7 +7,7 @@
  * identity through loops of offer / take).
  */
 import { describe, expect, it } from 'vitest';
-import { SEARCH_AREA, SearchPlan, areaRadius, pointScore } from '../src/ai/searchArea';
+import { SEARCH_AREA, SearchPlan, areaRadius, orderByScore, pointScore } from '../src/ai/searchArea';
 import { LIGHT } from '../src/world/lights';
 
 const N = SEARCH_AREA.points;
@@ -222,5 +222,75 @@ describe('SearchPlan.take / release / finish / reset', () => {
     expect(plan.claim).toBe(claim);
     expect(plan.done).toBe(done);
     expect(plan.x.length).toBe(N);
+  });
+});
+
+// (guard-ai S25b) the helpers the wiring uses: a point found by its claim (offer shifts indices), the rebuild guard, and
+// the best-first candidate order
+describe('SearchPlan.claimOf / finishBy / anyClaim (S25b)', () => {
+  it('finds a guard\'s point by its claim after an insert shifted it, and finishes that point only', () => {
+    const plan = new SearchPlan();
+    plan.reset(0, 0, 0);
+    fill(plan, [0.5, 0.4]);
+    expect(plan.anyClaim()).toBe(false);
+    const k = plan.take(7, 4, 0, 10);
+    expect(plan.claimOf(7)).toBe(k);
+    expect(plan.anyClaim()).toBe(true);
+    const x = plan.x[k]!;
+    // a better point far away goes in first: every index shifts by one, the claim moves with its point
+    plan.offer(-40, 0, 0.9);
+    const k2 = plan.claimOf(7);
+    expect(k2).toBe(k + 1);
+    expect(plan.x[k2]).toBe(x);
+    expect(plan.finishBy(7)).toBe(k2);
+    expect(plan.done[k2]).toBe(1);
+    expect(plan.done[0]).toBe(0);
+    expect(plan.claimOf(7)).toBe(-1);
+    expect(plan.finishBy(7)).toBe(-1);
+    expect(plan.anyClaim()).toBe(false);
+  });
+
+  it('a released claim is not live; reset clears every claim', () => {
+    const plan = new SearchPlan();
+    plan.reset(0, 0, 0);
+    fill(plan, [0.5, 0.4, 0.3]);
+    plan.take(1, 0, 0, 10);
+    plan.take(2, 0, 0, 10);
+    plan.release(1);
+    expect(plan.claimOf(1)).toBe(-1);
+    expect(plan.anyClaim()).toBe(true);
+    plan.reset(0, 0, 1);
+    expect(plan.anyClaim()).toBe(false);
+    expect(plan.claimOf(2)).toBe(-1);
+  });
+});
+
+describe('orderByScore (S25b)', () => {
+  it('orders indices best score first, in place, for any length', () => {
+    const order = new Int32Array(64);
+    const score = new Float64Array(64);
+    for (const n of [0, 1, 2, 5, 13, 40, 64]) {
+      for (let i = 0; i < n; i++) score[i] = ((i * 37) % 23) / 7 - 1;
+      orderByScore(order, score, n);
+      const seen = new Set<number>();
+      for (let i = 0; i < n; i++) {
+        seen.add(order[i]!);
+        if (i > 0) expect(score[order[i - 1]!]!).toBeGreaterThanOrEqual(score[order[i]!]!);
+      }
+      expect(seen.size).toBe(n);
+    }
+  });
+
+  it('offered best first, the polish-1 chain keeps every point (no order dependence)', () => {
+    // S25a check polish 1: A(0,0,0.5), B(2.5,0,0.4), C(-2,0,0.9) offered as A, B, C lose B; best first keeps C and B
+    const xs = [0, 2.5, -2];
+    const ss = new Float64Array([0.5, 0.4, 0.9]);
+    const order = new Int32Array(3);
+    orderByScore(order, ss, 3);
+    const plan = new SearchPlan();
+    plan.reset(0, 0, 0);
+    for (let i = 0; i < 3; i++) plan.offer(xs[order[i]!]!, 0, ss[order[i]!]!);
+    expect(plan.n).toBe(2);
+    expect([plan.x[0], plan.x[1]]).toEqual([-2, 2.5]);
   });
 });

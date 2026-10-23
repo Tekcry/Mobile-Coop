@@ -63,6 +63,27 @@ export function pointScore(light: number, cover: boolean, pathM: number, r: numb
   return SEARCH_AREA.wDark * (1 - l) + (cover ? SEARCH_AREA.wCover : 0) - SEARCH_AREA.wNear * p;
 }
 
+/** (S25b) Candidate order for `EnemyManager.buildPlan`: fills `order[0..n)` with 0..n-1 sorted by `score` best first
+ *  (a shell sort in place: no allocation, no closure), so the plan is offered its candidates best first and `offer`'s
+ *  order dependence never loses a point (S25a check polish 1). Equal scores keep no particular order. */
+export function orderByScore(order: Int32Array, score: Float64Array, n: number): void {
+  for (let i = 0; i < n; i++) order[i] = i;
+  let gap = 1;
+  while (gap < n / 3) gap = gap * 3 + 1;
+  for (; gap > 0; gap = (gap - 1) / 3) {
+    for (let i = gap; i < n; i++) {
+      const o = order[i]!;
+      const s = score[o]!;
+      let j = i;
+      while (j >= gap && score[order[j - gap]!]! < s) {
+        order[j] = order[j - gap]!;
+        j -= gap;
+      }
+      order[j] = o;
+    }
+  }
+}
+
 /** One intruder's search plan: up to `SEARCH_AREA.points` points, kept best first, each claimed by at most one
  *  searcher. Made once at load; every method is allocation-free. */
 export class SearchPlan {
@@ -150,6 +171,26 @@ export class SearchPlan {
     if (k < 0 || k >= this.n) return;
     this.done[k] = 1;
     this.claim[k] = -1;
+  }
+
+  /** (S25b) The point searcher `num` holds, -1 none. Found by the claim, never by an index saved earlier: `offer`
+   *  shifts indices. */
+  claimOf(num: number): number {
+    for (let k = 0; k < this.n; k++) if (this.claim[k] === num) return k;
+    return -1;
+  }
+
+  /** (S25b) The point searcher `num` holds is searched (or unreachable): `finish` it. Returns its index, -1 none. */
+  finishBy(num: number): number {
+    const k = this.claimOf(num);
+    if (k >= 0) this.finish(k);
+    return k;
+  }
+
+  /** (S25b) Some point is claimed (a searcher on his way to it or looking into it): the plan is not rebuilt. */
+  anyClaim(): boolean {
+    for (let k = 0; k < this.n; k++) if (this.claim[k] !== -1) return true;
+    return false;
   }
 
   /** Empties the plan round a new centre (the last known position) built at `now`. */

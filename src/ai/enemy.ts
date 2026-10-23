@@ -31,6 +31,7 @@ import { HEARING } from './hearing';
 import { PatrolWalker, PATROL, type PatrolRoute } from './patrol';
 import { ARMOUR_FIRE, ArmourGate } from './armourFire';
 import { PACE, paceSpeed, ringPoint, SEARCH_BODY, SEARCH_DEVICE, SEARCH_PLAIN, searchSpec, urgentKind } from './response';
+import { SEARCH_AREA } from './searchArea';
 import { SEPARATION, steerFrom, stepApart, tooClose, type SepOut } from './separation';
 import { BODY, bodyNoticed } from './bodies';
 import type { Body } from './body';
@@ -190,6 +191,12 @@ export interface AiContext {
   radioCut?(e: Enemy): void;
   /** This enemy's slot among the searchers (fans the sweep out). */
   searchSlot(e: Enemy): number;
+  /** (guard-ai S25, A151) His next point of a search after combat from his intruder's probable area (`searchArea.ts`):
+   *  written into `out` and claimed for him; false = none left or no plan (the ring then). Absent: the ring. */
+  searchPoint?(e: Enemy, out: P2): boolean;
+  /** (guard-ai S25) His claimed plan point is over: looked into (`reached`) or found unreachable; done either way, so
+   *  nobody retries it. */
+  searchDone?(e: Enemy, reached: boolean): void;
   /** A callout (shown near the speaker; radio lines chirp). (guard-ai S9) `ev`, `n`, `unit`: the table line it is (the
    *  event, its line index, the unit it names; absent for a line said verbatim, a talking pair's), for the co-op host. */
   onBark?(e: Enemy, line: string, radio: boolean, ev?: BarkEvent, n?: number, unit?: number): void;
@@ -370,6 +377,10 @@ export class Enemy implements Damageable {
   private spotLookT = 0;
   private lookBase = 0;
   private searchK = 0;
+  /** (guard-ai S25) The current spot came from his intruder's search plan (`AiContext.searchPoint`), and how many plan
+   *  points this search has had (the ring fallback counts on from its own first point). */
+  private planPoint = false;
+  private planN = 0;
   private routePath: Waypoint[] = [];
   private routeGoal: P2 = [NaN, NaN];
   private routeT = 0;
@@ -386,6 +397,11 @@ export class Enemy implements Damageable {
   /** (guard-ai S19) Hurrying to an incident (e2e / debug). */
   get rushing(): boolean {
     return this.rush;
+  }
+
+  /** (guard-ai S25) He holds a point of a search plan (the manager releases a claim whose guard no longer does). */
+  get onPlan(): boolean {
+    return this.planPoint;
   }
   /** (guard-ai S2 fix 2) This search follows combat (alert -> searching: the walk on to the last known position and
    *  the sweep round it): the old pace and the aimed turn. Only a calm search (a body, a call, a pair) is slow. */
@@ -852,6 +868,8 @@ export class Enemy implements Damageable {
     if (this.aware.level === 'searching') {
       this.aware.t = 0;
       this.searchK = 0;
+      this.planN = 0;
+      this.planPoint = false;
       this.spotSet = false;
       this.combatSearch = false;
     }
@@ -869,6 +887,8 @@ export class Enemy implements Damageable {
     if (this.aware.level === 'searching') {
       this.aware.t = 0;
       this.searchK = 0;
+      this.planN = 0;
+      this.planPoint = false;
       this.spotSet = false;
       this.combatSearch = false;
     }
@@ -1250,6 +1270,12 @@ export class Enemy implements Damageable {
   private takeSighting(p: PlayerRef): void {
     const s = this.ctx.reportSighting(p);
     if (s >= 0) this.hunt = s;
+  }
+
+  /** (guard-ai S25) His plan point is over (looked into, or unreachable): the manager marks it done. */
+  private planOver(reached: boolean): void {
+    this.planPoint = false;
+    this.ctx.searchDone?.(this, reached);
   }
 
   /** (guard-ai S3) The radio net runs (coordinated modes with a manager that wires it). */
@@ -1756,6 +1782,7 @@ export class Enemy implements Damageable {
     }
     if (to === 'searching') {
       this.searchK = 0;
+      this.planN = 0;
       this.spotSet = false;
       if (from === 'alert') {
         this.searchOwn = false;
@@ -1764,6 +1791,8 @@ export class Enemy implements Damageable {
       }
     }
     this.combatSearch = to === 'searching' && (from === 'alert' || (from === 'searching' && this.combatSearch));
+    // (guard-ai S25) a new search, or none: no plan point held (the manager frees the claim)
+    this.planPoint = false;
     if (to !== 'searching') this.reviving = null;
     // (guard-ai S17) a device's room bounds only its own search (combat's search is round the last known position)
     if (to !== 'searching' || from === 'alert') this.searchRoom = null;
@@ -2339,10 +2368,15 @@ export class Enemy implements Damageable {
           const k = this.ctx.stealth() && !this.searchOwn ? this.huntPos() : null;
           const cx = this.hasStimulus && !k ? this.stimulus[0] : k ? k.x : this.pos.x;
           const cz = this.hasStimulus && !k ? this.stimulus[1] : k ? k.z : this.pos.z;
+          this.planPoint = false;
           if (this.searchK === 0) {
             this.spot[0] = cx;
             this.spot[1] = cz;
-          } else ringPoint(cx, cz, this.searchK - 1, this.ctx.searchSlot(this), searchSpec(this.searchKind), this.spot);
+          } else if (lvl === 'searching' && this.combatSearch && !this.searchOwn && this.hunt >= 0 && SEARCH_AREA.enabled && this.ctx.searchPoint?.(this, this.spot)) {
+            // (guard-ai S25, A151) after combat: the next point of his intruder's probable area (dark, cover, near)
+            this.planPoint = true;
+            this.planN++;
+          } else ringPoint(cx, cz, this.searchK - 1 - this.planN, this.ctx.searchSlot(this), searchSpec(this.searchKind), this.spot);
           const c = this.ctx.nav.nearestWalkable(this.spot[0], this.spot[1], 4);
           if (c >= 0) {
             const cc = this.ctx.nav.center(c);
@@ -2369,6 +2403,7 @@ export class Enemy implements Damageable {
           this.spotLookT += dt;
           // (guard-ai S18) the look per point by the search's kind
           if (lvl === 'searching' && this.spotLookT >= searchSpec(this.searchKind).look) {
+            if (this.planPoint) this.planOver(true);
             this.searchK++;
             this.spotSet = false;
           }
@@ -2379,6 +2414,7 @@ export class Enemy implements Damageable {
         const wp = this.goTo(this.spot, dt);
         if (!wp && lvl === 'searching' && this.routePath.length === 0 && d > 1.1) {
           // unreachable: skip it
+          if (this.planPoint) this.planOver(false);
           this.searchK++;
           this.spotSet = false;
         }
