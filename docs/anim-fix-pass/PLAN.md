@@ -34,7 +34,9 @@ test file). Merge: one PR at the end (all groups), or per group if the lead want
   stick flips and 10 stop-go cycles, rifle and pistol; drawn crouched wall slide both ways with a reversal.
 - tests/animFixPass.test.ts records these as the before numbers into docs/anim-fix-pass/before/numbers.md (report-only,
   never failing), so each later slice asserts against fixed bars in its own test file.
-- Fix anim-audit.mjs:478 crouch caps to GEARS.crouch.
+- Fix anim-audit.mjs:478 crouch caps to GEARS.crouch; add a drawn crouched wall-slide sheet scenario (rifle + pistol)
+  to scripts/anim-sheet.mjs; find why `--remote` with `E2E_NETSIM=typical` times out "waiting for everyone ready"
+  (before/README.md) and give it a longer ready wait so AF6 can measure on a jittery network.
 
 ## AF1 - P1 legs sticking / overlapping at speed (Opus)
 Causes:
@@ -113,7 +115,8 @@ fields (phase, quickStop, holdSpeed) only if gaitPhase still fails, with PROTOCO
 is not edited here (AF2 owns it in this group); the yawRate tau change, if needed, moves to a group-2 follow-up.
 Acceptance (`E2E_GPU=1 E2E_NETSIM=typical node scripts/anim-audit.mjs <url> --remote`, flat set + stopidle + wall rows):
 - poseError <= 10 cm on stand 2 / 4 / 6, crouch 3, stopidle; wall rows <= 20 cm;
-- pops = 0 at 60 Hz on every row (today stand4 4, stand6 7, walledge 15, walllowL 24 in the old baseline);
+- pops = 0 at 60 Hz on every row (before, clean net: stand4 13, crouch3 5; pose 25.9 / 31.95 cm, lowerBody 53.7 /
+  45.1 cm, gaitPhase 0.23 / 0.30 cycle: before/README.md);
 - gaitPhase worst < 0.1 cycle, median < 0.05; lodSkip 0; lowerBody <= 10 cm on flat rows;
 - partner wrist second difference (DUMP=1, offline) <= owner's + 1 cm / frame;
 - tests: the net unit tests touched; laptop: e2e-coop + e2e-netmove on the pushed commit (A6).

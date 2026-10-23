@@ -40,7 +40,24 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { launch } from './e2e-lib.mjs';
-import { hostAndJoin, startMode, allowTeleport, JOINTS } from './e2e-net-lib.mjs';
+import { hostAndJoin, allowTeleport, JOINTS, until, LOAD_MS } from './e2e-net-lib.mjs';
+/** (afp AF0) startMode with a 40 s ready wait: under E2E_NETSIM=typical the client's ready travels through the simulated link and the
+ *  host runs near 28 fps; e2e-net-lib's 8 s `everyone ready` wait timed out twice. The ready is re-sent every 2 s until the host has it. */
+async function startModeSlow(pages, mode, map) {
+  const [A, ...clients] = pages;
+  await A.evaluate(([m, mp]) => window.__coop.session.setSettings(m, mp, 'normal', ''), [mode, map]);
+  for (const P of clients) await P.evaluate(() => window.__coop.session.setReady(true));
+  for (let t = 0; t < 20; t++) {
+    if (await A.evaluate(() => window.__coop.session.allReady)) break;
+    if (t === 19) throw new Error('everyone ready: not within 40 s');
+    await new Promise((r) => setTimeout(r, 2000));
+    for (const P of clients) await P.evaluate(() => window.__coop.session.setReady(true));
+  }
+  await A.evaluate(() => window.__coop.session.startMatch());
+  for (const P of pages) await until(P, (m) => window.__app.current?.opts?.mode === m && !!window.__app.current.net && !window.__app.current.isEnded, mode, LOAD_MS, `${mode} match on both pages`);
+  await until(A, () => [...window.__app.current.net.remotes.values()].every((r) => r.state), null, 30000, 'client state reaches the host');
+  await A.evaluate(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
+}
 
 const T0 = Date.now();
 const args = process.argv.slice(2);
@@ -475,7 +492,7 @@ async function drive(sc, halt = -1) {
       const s = SURF[sc.surface];
       const crouch = sc.stance === 'crouch';
       t.stance(crouch, sc.gear);
-      const cap = (crouch ? [0.42, 0.75, 1.08, 1.5, 1.9, 2.3] : [0.65, 1.1, 1.65, 2.3, 3.15, 4.15])[sc.gear - 1];
+      const cap = (crouch ? [0.85, 1.3, 1.7, 2.15, 2.6, 2.6] : [0.65, 1.1, 1.65, 2.3, 3.15, 4.15])[sc.gear - 1];
       // flat: 1.0 s accel + >= 2 strides; ramps and stairs: the accel is short (95% within 0.08 s), so the steady
       // window covers the slope from 0.3 s on and ends 0.4 m before its top
       let accel = 1.0;
@@ -1285,7 +1302,7 @@ function remoteSegments(sc) {
   if (sc.kind === 'wall') return [{ d: 0.6, tap: 'cover' }, { d: 1.0, x: 1 }, { d: 1.0 }, { d: 1.0, tap: 'crouch' }, { d: 1.0, x: -1 }, { d: 1.0 }];
   const s = SURF[sc.surface];
   const crouch = sc.stance === 'crouch';
-  const cap = (crouch ? [0.42, 0.75, 1.08, 1.5, 1.9, 2.3] : [0.65, 1.1, 1.65, 2.3, 3.15, 4.15])[sc.gear - 1];
+  const cap = (crouch ? [0.85, 1.3, 1.7, 2.15, 2.6, 2.6] : [0.65, 1.1, 1.65, 2.3, 3.15, 4.15])[sc.gear - 1];
   // as the local drive: flat 1.0 s accel + a steady window; ramps / stairs a short accel and the window up the slope
   // (remote runs in real time: a 1.5 s steady window, about three steps at a walk, and a 1.2 s stop keep it near 60 s)
   let accel = ACCEL;
@@ -1573,7 +1590,7 @@ async function runRemote() {
   const net = await hostAndJoin(url, 2, { viewport: { width: 640, height: 360 }, args: ['--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] });
   const { browser: rb, A, B } = net;
   try {
-    await startMode(net.pages, 'sandbox', 'proving');
+    await startModeSlow(net.pages, 'sandbox', 'proving');
     rep.lobbySeconds = (Date.now() - t0) / 1000;
     // A: the recorder (its copy of B, every rendered frame, measured dt) and the 120 Hz frame pump
     // software GL renders two match scenes at 2-12 frames/s on this VM, far from real time: there both pages skip the
@@ -2087,7 +2104,7 @@ async function runRemote() {
         return i;
       };
       const mk = b.marks.map(fa);
-      if (sc.kind === 'gait') m = { start: mk[1], steady: mk[2], stop: mk[3], end: Math.min(rec.n, mk[4] ?? rec.n), cap: (sc.stance === 'crouch' ? [0.42, 0.75, 1.08, 1.5, 1.9, 2.3] : [0.65, 1.1, 1.65, 2.3, 3.15, 4.15])[sc.gear - 1] };
+      if (sc.kind === 'gait') m = { start: mk[1], steady: mk[2], stop: mk[3], end: Math.min(rec.n, mk[4] ?? rec.n), cap: (sc.stance === 'crouch' ? [0.85, 1.3, 1.7, 2.15, 2.6, 2.6] : [0.65, 1.1, 1.65, 2.3, 3.15, 4.15])[sc.gear - 1] };
       else if (sc.kind === 'stance') m = { down: mk[1], up: mk[2], end: mk[3] ?? rec.n };
       else if (sc.kind === 'strike') m = { strike: mk[1], end: mk[2] ?? rec.n };
       else if (sc.kind === 'door') m = { enter: mk[0], press: mk[1], close: mk[2] ?? rec.n, end: Math.min(rec.n, mk[3] ?? rec.n), door: sc.door };

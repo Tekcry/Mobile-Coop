@@ -52,6 +52,9 @@ const SCENARIOS = {
   dooropenpull: { pre: 0.6, at0: G6_DOOR(true), input: () => ({}), at: { 0: G6_OPEN } },
   // (G6, rows 1 / 18) crouched on the wall and sliding: the side-on crouch-walk with the hand on the knee, and the reversal
   wallcrouchslide: { wall: { low: false, k: 2.5 }, pre: 1.8, preAt: { 0.1: "a.input.state.tap('cover');", 0.8: "a.input.state.tap('crouch');" }, input: (t) => ({ x: t < 0.7 ? 1 : t < 1.4 ? -1 : 0 }) },
+  // (anim-fix-pass AF0, P4) the same slide drawn (X tap draws, low ready): right, then the reversal left, then still; rifle / pistol
+  wallcrouchslidedrawn: { wall: { low: false, k: 2.5 }, pre: 2.2, preAt: { 0.1: "a.input.state.tap('cover');", 0.8: "a.input.state.tap('crouch');", 1.4: "a.input.state.tap('draw');" }, input: (t) => ({ x: t < 0.7 ? 1 : t < 1.4 ? -1 : 0 }) },
+  wallcrouchslidedrawnp: { weapon: 'pistol', wall: { low: false, k: 2.5 }, pre: 2.2, preAt: { 0.1: "a.input.state.tap('cover');", 0.8: "a.input.state.tap('crouch');", 1.4: "a.input.state.tap('draw');" }, input: (t) => ({ x: t < 0.7 ? 1 : t < 1.4 ? -1 : 0 }) },
   // (G6, row 12) aiming at a wall 0.45 m in front: the rifle up muzzle-high
   aimwall: { wall: { low: false, k: 2.5, out: 0.45 }, pre: 0.6, input: () => ({ ads: true }) },
   walk: { pos: [0, -14], yaw: Math.PI / 2, pre: 2.5, warm: { y: 0.5 }, input: () => ({ y: 0.5 }) },

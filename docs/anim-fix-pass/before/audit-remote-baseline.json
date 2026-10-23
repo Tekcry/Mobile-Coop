@@ -1,0 +1,355 @@
+{
+ "mode": {
+  "quick": true,
+  "only": null,
+  "local": false,
+  "remote": true
+ },
+ "local": {},
+ "remote": {
+  "flat-stand4@60": {
+   "jointRate": {
+    "worst": 36.731,
+    "pass": false
+   },
+   "pelvisJump": {
+    "worst": 0.098513,
+    "pass": false
+   },
+   "teleports": {
+    "worst": 0,
+    "pass": true
+   },
+   "footSlideL": {
+    "worst": 0.000028746,
+    "pass": true
+   },
+   "footFloatL": {
+    "worst": 0.02,
+    "pass": true
+   },
+   "footSinkL": {
+    "worst": 0.0090194,
+    "pass": true
+   },
+   "footSlideR": {
+    "worst": 0.000073926,
+    "pass": true
+   },
+   "footFloatR": {
+    "worst": 0.00060322,
+    "pass": true
+   },
+   "footSinkR": {
+    "worst": 0.0549,
+    "pass": false
+   },
+   "gripR": {
+    "worst": 0,
+    "pass": true
+   },
+   "gripL": {
+    "worst": 0,
+    "pass": true
+   },
+   "kneeL": {
+    "worst": 99.697,
+    "pass": true
+   },
+   "elbowL": {
+    "worst": 118.18,
+    "pass": true
+   },
+   "wristFlexL": {
+    "worst": 0,
+    "pass": true
+   },
+   "wristSideL": {
+    "worst": 0,
+    "pass": true
+   },
+   "kneeR": {
+    "worst": 97.544,
+    "pass": true
+   },
+   "elbowR": {
+    "worst": 125.55,
+    "pass": true
+   },
+   "wristFlexR": {
+    "worst": 0,
+    "pass": true
+   },
+   "wristSideR": {
+    "worst": 0,
+    "pass": true
+   },
+   "neckTwist": {
+    "worst": 12.561,
+    "pass": true
+   },
+   "spineTwist": {
+    "worst": 8.176,
+    "pass": true
+   },
+   "selfThighs": {
+    "worst": 0.039045,
+    "pass": false
+   },
+   "selfShanks": {
+    "worst": 0.014458,
+    "pass": true
+   },
+   "selfUpperArmL": {
+    "worst": 0,
+    "pass": true
+   },
+   "selfForearmL": {
+    "worst": 0,
+    "pass": true
+   },
+   "selfUpperArmR": {
+    "worst": 0,
+    "pass": true
+   },
+   "selfForearmR": {
+    "worst": 0,
+    "pass": true
+   },
+   "selfWeapon": {
+    "worst": 0,
+    "pass": true
+   },
+   "balance": {
+    "worst": 0,
+    "pass": true
+   },
+   "pelvisP2P": {
+    "worst": 0.11741,
+    "pass": false
+   },
+   "headTravel": {
+    "worst": 0.12687,
+    "pass": false
+   },
+   "headPitch": {
+    "worst": 5.1673,
+    "pass": false
+   },
+   "headRoll": {
+    "worst": 3.0515,
+    "pass": false
+   },
+   "readyElbowL": {
+    "worst": 88.181,
+    "pass": false
+   },
+   "readyThighL": {
+    "worst": 0,
+    "pass": true
+   },
+   "readyElbowR": {
+    "worst": 95.549,
+    "pass": false
+   },
+   "readyThighR": {
+    "worst": 0,
+    "pass": true
+   },
+   "rootOvershoot": {
+    "worst": 1.2832,
+    "pass": false
+   },
+   "poseError": {
+    "worst": 0.25898,
+    "pass": false
+   },
+   "lowerBody": {
+    "worst": 0.53687,
+    "pass": false
+   },
+   "pops": {
+    "worst": 13,
+    "pass": false
+   },
+   "lodSkip": {
+    "worst": 0,
+    "pass": true
+   }
+  },
+  "flat-crouch3@60": {
+   "jointRate": {
+    "worst": 43.037,
+    "pass": false
+   },
+   "pelvisJump": {
+    "worst": 0.22821,
+    "pass": false
+   },
+   "teleports": {
+    "worst": 0,
+    "pass": true
+   },
+   "blend": {
+    "worst": 0.2124,
+    "pass": true
+   },
+   "footSlideL": {
+    "worst": 0.000069074,
+    "pass": true
+   },
+   "footFloatL": {
+    "worst": 0.0047131,
+    "pass": true
+   },
+   "footSinkL": {
+    "worst": 0.070633,
+    "pass": false
+   },
+   "footSlideR": {
+    "worst": 0.000070626,
+    "pass": true
+   },
+   "footFloatR": {
+    "worst": 0.0047131,
+    "pass": true
+   },
+   "footSinkR": {
+    "worst": 0.072823,
+    "pass": false
+   },
+   "gripR": {
+    "worst": 0,
+    "pass": true
+   },
+   "gripL": {
+    "worst": 0,
+    "pass": true
+   },
+   "kneeL": {
+    "worst": 113.39,
+    "pass": true
+   },
+   "elbowL": {
+    "worst": 81.912,
+    "pass": true
+   },
+   "wristFlexL": {
+    "worst": 40.752,
+    "pass": true
+   },
+   "wristSideL": {
+    "worst": 13.408,
+    "pass": true
+   },
+   "kneeR": {
+    "worst": 116.96,
+    "pass": true
+   },
+   "elbowR": {
+    "worst": 48.911,
+    "pass": true
+   },
+   "wristFlexR": {
+    "worst": 46.286,
+    "pass": true
+   },
+   "wristSideR": {
+    "worst": 13.492,
+    "pass": true
+   },
+   "neckTwist": {
+    "worst": 12.446,
+    "pass": true
+   },
+   "spineTwist": {
+    "worst": 8.5102,
+    "pass": true
+   },
+   "selfThighs": {
+    "worst": 0.027402,
+    "pass": false
+   },
+   "selfShanks": {
+    "worst": 0,
+    "pass": true
+   },
+   "selfUpperArmL": {
+    "worst": 0,
+    "pass": true
+   },
+   "selfForearmL": {
+    "worst": 0,
+    "pass": true
+   },
+   "selfUpperArmR": {
+    "worst": 0,
+    "pass": true
+   },
+   "selfForearmR": {
+    "worst": 0,
+    "pass": true
+   },
+   "selfWeapon": {
+    "worst": 0,
+    "pass": true
+   },
+   "balance": {
+    "worst": 0.095313,
+    "pass": true
+   },
+   "pelvisP2P": {
+    "worst": 0.021881,
+    "pass": false
+   },
+   "headTravel": {
+    "worst": 0.023253,
+    "pass": true
+   },
+   "headPitch": {
+    "worst": 1.313,
+    "pass": true
+   },
+   "headRoll": {
+    "worst": 1.0109e-7,
+    "pass": true
+   },
+   "readyElbowL": {
+    "worst": 0,
+    "pass": true
+   },
+   "readyThighL": {
+    "worst": 0,
+    "pass": true
+   },
+   "readyElbowR": {
+    "worst": 0,
+    "pass": true
+   },
+   "readyThighR": {
+    "worst": 0,
+    "pass": true
+   },
+   "rootOvershoot": {
+    "worst": 1.5534,
+    "pass": false
+   },
+   "poseError": {
+    "worst": 0.31946,
+    "pass": false
+   },
+   "lowerBody": {
+    "worst": 0.45118,
+    "pass": false
+   },
+   "pops": {
+    "worst": 5,
+    "pass": false
+   },
+   "lodSkip": {
+    "worst": 0,
+    "pass": true
+   }
+  }
+ }
+}
