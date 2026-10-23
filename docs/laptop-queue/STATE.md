@@ -1,6 +1,33 @@
 # laptop-queue - state
 
-## Now (2026-10-23 ~20:10, LIVE OVERLAP DONE -> PR)
+## Now (2026-10-24, laptop-queue batch, local commits, not pushed)
+- `pendingTrains()` skips a train head with an `auto-train/*` status in failure / error (lib `trainBuildFailed`),
+  logged once per head (train 37 held both slots 18 min after vitest had failed).
+- Trains are claimed (`claims/<train-sha>.json`) by both workers; the desktop takes a train head when the laptop has
+  pushed no claim / done for `LQ_LAPTOP_SILENT_MIN` (10) min, the laptop service claims trains itself and the head is
+  over 2 min old (lib `workerActivity`, `desktopTrainGate`); sharded on 4191+4192, E2E_JOBS 1, lock / dir / CPU gates kept.
+  Rollout: the laptop service must run this code first (until it pushes a "claim train", the desktop takes no trains).
+- `takeLock` logs a manual-lock wait once per holder and the wait length when it takes the lock.
+- Not done here: auto-train "laptop missing" flag; `scripts/auto-train.mjs` is on master only (merge not allowed in this batch).
+
+## Earlier (2026-10-23 ~22:05, Test Runner)
+- Laptop service restarted on e1398df4 at ~21:57 (Michael approved; Stop-ScheduledTask leaves the node child alive,
+  so a restart needs the node pid killed too). "done claim(s) pushed: 11": desktop lane unblocked.
+- Open-PR train gate (Orchestrator ~22:00): `pendingTrains()` (scripts/laptop-queue/service.mjs ~201) runs only a
+  train/<n> head that is the head of an OPEN train PR and is the version commit (subject check, checker FIX
+  1c1f8451); a failed PR list skips trains that pass. Fixes the rerun of
+  closed train 35 aeadaec1 and the double run of a pre-version head (ce40dc06 then aeadaec1). Pushed after #252 entered
+  train 36, so it rides the next train (PR #252 head moves past the train 36 member sha).
+
+## Earlier (2026-10-23 ~21:00, PR #252 + desktop worker)
+Desktop overflow lane (Michael ~20:45 via Orchestrator): `LQ_WORKER=desktop` (a49cee57, fix round a1fc57ac + 6a658738
+after an Opus checker FIX: done sync every pass, claim refresh at lock / drop when taken over, release on give-up, desktop
+waits for claims and heavy.lock, 140-char status), 032b8969 self-update before a pass. Claims `claims/<id>.json` on
+the laptop-queue branch. Start commands sent to the Orchestrator (~20:58): svc worktree + testrun-4191 worktree +
+`install-task.ps1 -Worker desktop -Follow origin/feature/laptop-queue`. Open: the live laptop service (old code)
+updates only when idle; until then the desktop waits ("no claims yet"). Check the laptop log for "done claim(s) pushed".
+
+## Earlier (2026-10-23 ~20:10, LIVE OVERLAP DONE -> PR)
 First sharded train through the service: train 32 25c712c9, 43/43 PASS, status `laptop-e2e` success posted by the
 service. Shards 4189 / 4192 at JOBS=3 each (bins 22 / 21 suites, weight 1391 s each): wall 564 s / 560 s, vs 666 s
 for train 31 on one slot at JOBS=3 (~15% faster). Total 873 s incl. a 309 s alone rerun of the flake e2e-ctcourse:4
@@ -39,7 +66,9 @@ Worktree node_modules is a junction to Mobile-Coop-testrun-4189/node_modules (gi
 - feature/e2e-affected (`run-e2e.mjs --affected origin/master --list`) not on master yet: requests list suites.
 
 ## Done
+- 2026-10-23: supersede (`superseded()` in lib.mjs, applied each pass in service.mjs before pick, one batched done push) and newest-first per requester in `pick`; vitest cases added.
 - 2026-10-23 ~19:15: job started (orchestrator, Michael approved ~19:10).
+- 2026-10-23: desktop lane has a second slot 4192 (heavy2.lock, CPU < 50 %, dir must exist), per-slot gate `desktopSlotGate`, one desktop start per pass; vitest cases added.
 
 ## Resume prompt
 ```
