@@ -292,7 +292,9 @@ Heads: art 5c48f5c4 (PR 5 #226), lightrev 72552f93 (WIP), shadow 90dd18a1, chars
    running -> checks/lr14-check.md; laptop run requested (lightbake, desktop, darkness, menus, Epic smoke, perf High/Epic
    Auto vs Off, contact sheet). On PASS + green: own PR (after LR13 PR, or one LR PR with LR13 + shadow), train-ready.
 4. After LR14: 8 door slots per lamp + exact torch drawing in the lamp shader (shadow-audit.md proposals).
-5. Walk W2 / W3 (-walk, WIP e2e legs + fix in progress): checks/walk-472-fix.md; src/net? -> own PR or ride #226.
+5. Walk W2 / W3 DONE (-walk c984239d): pole-top lamps unhittable -> LAMP_MOUNT_REACH 0.35 m in lights.ts; no src/net /
+   protocol; client unbolt proven (sectorops 1 / 3-5 GPU pass). Opus checker running -> checks/walk-472-check.md; on
+   PASS merge -walk into -art (rides #226).
 Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
 Sonnet builds from strict briefs; one checker per batch; at most 3 tsc / vitest agents while desktop CPU > 80%
 (slot locks C:/NightShift/scratch/sr-slot-{1,2,3}.lock); every e2e E2E_GPU=1; never two agents on the same files.
