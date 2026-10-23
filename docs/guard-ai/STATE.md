@@ -2,7 +2,8 @@
 
 ## Now
 ~13:40: laptop GPU s12 f14b93af 7/7 GREEN -> TRAIN-READY sent for train 25 (#200 -> #201 -> #202 -> #203 5ca7d45d ->
-#208 f14b93af). s15 884b89c0 run in progress (Test Runner, port 4189).
+#208 f14b93af). s15 884b89c0 run in progress (Test Runner, port 4189). Orchestrator: stack in train 25
+(origin/train/25 a8bb27ab, with #213), full laptop run, 4.74.0 on a pass; #218-#220 -> train 26.
 
 ~13:30: master 4.72.0 merged up s10 -> s15 (heads in the resume block step 1; stealthSystems: S15 breaker host kept
 beside master's isolator boards). Laptop runs requested: s12 f14b93af (train 25) and s15 884b89c0 (S13-S15). PRs
