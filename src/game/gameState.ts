@@ -713,6 +713,13 @@ export class GameState implements AppState {
         prevRay?.(a, b);
         this.security?.shotRay(a, b);
       };
+      // (marlow-final S10) a round off an armoured camera: sparks at the housing and the impact sound there (no break)
+      const ric = new Vector3();
+      w.security.onRicochet = (x, y, z) => {
+        ric.set(x, y, z);
+        this.vfx.sparks(ric, Vector3.Down(), 8, '#fff1c8');
+        this.ballistics.onImpact?.(ric, false);
+      };
       // (guard-ai S7, M6) the cameras see downed guards (IR, G240): the body pass reads the manager's bodies (a kept
       // array, the closure made once) and its first sight goes to the incident board (a guard is sent); the desk's radio
       // line shows at the camera. Its own callback: `onEvent` is CtDevices'. Host only (this block); nothing on the wire

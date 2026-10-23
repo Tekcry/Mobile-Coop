@@ -16,7 +16,7 @@ import { buildA5Substation } from './ctcourseSets/a5Substation';
 import { buildA6PumpHouse } from './ctcourseSets/a6PumpHouse';
 import { buildA7DataHall } from './ctcourseSets/a7DataHall';
 import { buildA8Strongroom } from './ctcourseSets/a8Strongroom';
-import { pieceCount, pieceDelta, SET_IDS, SET_LINKS, setBay, SPAWNS, type LightSpot, type PieceCount, type Pt, type SetId, type SetPart, type ShotVantage } from './ctcourseSets/types';
+import { armourCameras, pieceCount, pieceDelta, SET_IDS, SET_LINKS, setBay, SPAWNS, type LightSpot, type PieceCount, type Pt, type SetId, type SetPart, type ShotVantage } from './ctcourseSets/types';
 
 /**
  * Marlow Yard (map `ctcourse`, Course mode; marlow-final, `docs/marlow-final/SPEC.md`): Vellan & Rook's rehearsal centre,
@@ -135,7 +135,8 @@ export function buildCtcourse(b: LevelBuilder): CtcourseBuild {
       ...facility.debugPoints.map((d) => ({ group: 'Facility', id: d.id, label: d.label, pos: v3(d.pos), yaw: d.yaw })),
       ...parts.flatMap((p) => p.debugPoints.map((d) => ({ group: setBay(p.id), id: d.id, label: d.label, pos: v3(d.pos), yaw: d.yaw }))),
     ],
-    security: { devices: all((p) => p.cameras), levels: Object.assign({}, ...parts.map((p) => p.levels ?? {})) as Record<string, number> },
+    // (marlow-final S10) A3 on: armoured cameras (`armourCameras`)
+    security: { devices: parts.flatMap((p) => armourCameras(p.id, p.cameras)), levels: Object.assign({}, ...parts.map((p) => p.levels ?? {})) as Record<string, number> },
     lasers: all((p) => p.lasers),
     laserPanels: all((p) => p.laserPanels),
     passZones: all((p) => p.passZones),

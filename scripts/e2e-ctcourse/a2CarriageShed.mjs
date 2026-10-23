@@ -126,6 +126,12 @@ export async function walk(t, n) {
   assert(ra >= 0.55 && Math.abs(ra - rb) < 0.02, `A2: the crossing reads lit again on both pages (host ${ra.toFixed(3)}, client ${rb.toFixed(3)})`);
   assert(!(await claimed()), 'A2: the restart clears the claim');
   await until(A, ([x, z]) => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return !!e && Math.hypot(e.pos.x - x, e.pos.z - z) < 2.5; }, [51, 10], 10000, 'A2: the shunter is back at his post');
+  // (S10, walk M2 / M3) a full reset: the cabin door the host opened is shut again on both pages (as at the set start), the shunter
+  // fresh (calm, not cautious) and no body or old guard left
+  const ci = await doorIndex(CABIN_DOOR);
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, (i) => window.__app.current.world.doors.list[i].open < 0.05, ci, 15000, `A2: the restart shuts the cabin door again (${tag})`);
+  const fresh = await GA(() => { const em = window.__app.current.enemyMgr; const e = em.enemies.find((q) => q.alive); return { n: em.enemies.length, bodies: em.bodies.length, alerted: !!e?.alerted, caution: e ? em.cautionOf(e) : -1, doors: window.__course.lastDoors }; });
+  assert(fresh.n === 1 && fresh.bodies === 0 && !fresh.alerted && fresh.caution === 0 && fresh.doors >= 1, `A2: the restart leaves one fresh shunter and puts the doors back (${JSON.stringify(fresh)})`);
 
   // ---- 3. the taught route: the press at cabinet one with the shunter near, the host crosses the dark neck ----
   console.log('  A2: cabinet one, the dark neck');

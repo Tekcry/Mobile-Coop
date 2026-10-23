@@ -28,6 +28,9 @@ export interface CameraDevice {
   range?: number;
   /** (sector-fixes S) A course flag that switches the camera off until the bay restarts (a security room's console). */
   offFlag?: string;
+  /** (marlow-final S10, ROADMAP stealth over shooting (1)) An armoured housing: a round through it ricochets (sparks and
+   *  the impact sound) and the camera keeps working. Jam it, switch or loop it at its console, or slip its sweep. */
+  armoured?: boolean;
 }
 
 export type SecurityDevice = CameraDevice;

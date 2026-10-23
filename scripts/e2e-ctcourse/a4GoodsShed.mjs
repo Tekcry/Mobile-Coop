@@ -150,6 +150,10 @@ export async function walk(t, n) {
   await until(A, () => !window.__app.current.stealth.switchOn(41), null, 10000, 'A4: the floor circuit is off on the host');
   await until(B, () => window.__course.wire.lights.groups.some(([g, on]) => g === 41 && !on), null, 15000, "A4: the client's course message has group 41 off");
   assert((await lampsOn(A, FLOOR_GROUP, false)) && (await lampsOn(B, FLOOR_GROUP, false)), 'A4: the eight floor lamps are off on both pages');
+  // S10-DIAG (temporary)
+  const diag = (P) => P.evaluate(() => { const g = window.__app.current; const f = (n) => +n.toFixed(2); return JSON.stringify({ doors: g.world.doors.list.filter((d) => d.open > 0.05 || d.target === 1).map((d) => [d.anchor.id, f(d.open), d.target, d.anchor.locked]), lit: g.world.level.lights.lights.filter((l) => l.on && Math.hypot(l.x - 80, l.z - 33) < 12).map((l) => [l.id, l.kind, l.group, f(l.x), f(l.z), l.destroyed]) }); });
+  console.log('  S10-DIAG host', await diag(A));
+  console.log('  S10-DIAG client', await diag(B));
   for (const [x, z, what] of [[92, 39.8, 'the main aisle'], [80, 33, 'the dock']]) {
     const [la, lb] = [await level(A, x, z), await level(B, x, z)];
     assert(la <= 0.24 && lb <= 0.24 && Math.abs(la - lb) < 0.02, `A4: ${what} reads dark and the same on both pages with the floor circuit cut (host ${la.toFixed(3)}, client ${lb.toFixed(3)})`);

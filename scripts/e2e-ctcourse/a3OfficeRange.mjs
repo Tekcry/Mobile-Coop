@@ -199,6 +199,44 @@ export async function walk(t, n) {
     const [la, lb] = [await level(A, x, z), await level(B, x, z)];
     assert(la >= floor && Math.abs(la - lb) < 0.01, `A3: ${what} reads lit and the same on both pages (host ${la.toFixed(3)}, client ${lb.toFixed(3)})`);
   }
+  // ---- 1b. (S10, walk M1 / M2) the hall camera is bulletproof; a restart after a kill is a full reset ----
+  console.log('  A3: the armoured camera, the restart after a kill');
+  const shots = await GA((id) => {
+    const g = window.__app.current;
+    const c = g.security.cameras.find((q) => q.def.id === id);
+    const V = g.player.position.constructor;
+    // two rounds along the camera's axis through its housing (the host's camera kill path)
+    for (let i = 0; i < 2; i++) g.security.shotRay(new V(c.x - 6, c.y, c.z), new V(c.x + 1, c.y, c.z));
+    return { mode: c.mode, ric: g.security.ricochets };
+  }, CAM_ID);
+  assert(shots.mode === 'online' && shots.ric >= 2, `A3: the hall camera survives two shots (ricochets) (${JSON.stringify(shots)})`);
+  await GA(() => {
+    const g = window.__app.current;
+    const e = g.enemyMgr.enemies.find((q) => q.alive);
+    const V = g.player.position.constructor;
+    e.applyDamage({ amount: 99999, point: e.pos.clone(), dir: new V(0, 0, 1), part: 'body', kind: 'bullet', attackerTeam: 'player', attackerId: 'test', sourcePos: e.pos.clone(), impulse: 1 });
+    // a camera broken some other way comes back with the restart too
+    g.security.cameras.find((q) => q.def.id === 'cam-a3-hall').destroy();
+  });
+  await until(A, () => window.__app.current.enemyMgr.bodies.length > 0 && !window.__app.current.enemyMgr.enemies.some((q) => q.alive), null, 10000, 'A3: the cleaner is down, his body on the floor');
+  assert(await GA(() => window.__course.restartCheckpoint()), 'A3: the host restarts at the checkpoint after the kill');
+  const cpA3 = await GA(() => { const p = window.__course.checkpointPos(); return [p.x, p.z]; });
+  await until(B, ([x, z]) => { const p = window.__app.current.player.position; return Math.hypot(p.x - x, p.z - z) < 2.5; }, cpA3, 15000, 'A3: the restart brings the client back');
+  await waitSim(3000);
+  // the respawn's 2 s spawn protection ends on a wall-clock timer (it sets damageMul back to 1): let it pass before `noDamage` below
+  await new Promise((r) => setTimeout(r, 2300));
+  const fresh = await GA(() => {
+    const em = window.__app.current.enemyMgr;
+    const live = em.enemies.filter((q) => q.alive);
+    return { live: live.length, all: em.enemies.length, bodies: em.bodies.length, alerted: live.some((q) => q.alerted), caution: live.map((q) => em.cautionOf(q)), cam: window.__app.current.security.cameras.find((q) => q.def.id === 'cam-a3-hall').mode };
+  });
+  assert(fresh.live === 1 && fresh.all === 1 && fresh.bodies === 0, `A3: the restart leaves one fresh cleaner and no body (${JSON.stringify(fresh)})`);
+  assert(!fresh.alerted && fresh.caution.every((c) => c === 0), `A3: the new cleaner is calm, not cautious (${JSON.stringify(fresh)})`);
+  assert(fresh.cam === 'online', `A3: the restart repairs the camera (${fresh.cam})`);
+  // the client: the old body gone (its kept ragdolls) and one guard drawn (CoopClient's private maps, read by the test)
+  await until(B, () => { const n = window.__app.current.net; return !!n && n.kept.size === 0 && n.puppets.size === 1; }, null, 15000, 'A3: the client has no old body and one guard');
+  await moveHost(77.2, 9.6, 0.1, Math.PI / 2);
+  await moveClient(77.2, 11.6, 0.1, Math.PI / 2);
   // (S-e2e-fix) both players unhurt for the set. The runner's `damageMul = 0` at the match start does not hold for a part
   // that starts at set 3: the bay-N start respawns the host after it, and the respawn's 2 s spawn protection ends on a
   // wall-clock timer at damageMul 1 (`gameState.ts` respawn). Step 3's corridor switch is a lights-out lure: the armed
