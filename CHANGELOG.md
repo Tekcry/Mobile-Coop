@@ -1,5 +1,46 @@
 # Changelog
 
+## 4.85.0 - Train 41: Co-op rejoin follow-ups; e2e-ctcourse A3: calm wait after the step-4 send-back (pairs with #254 S23); Auto-train: big trains keep their version commit; +6 more (2026-10-24, PR #283; #280, #270, #264, #254, #252)
+
+### Guard AI: every player is seen
+- Co-op: a guard now looks at both players, not just the nearer one. Hiding behind a wall close to a guard no longer
+  makes your partner invisible while he stands in the guard's light in front of him: the guard notices whichever of you
+  he sees best (one meter, filled at that player's rate; two in view do not add up) and goes after him. In a firefight
+  he keeps shooting at the player he is fighting while he still sees him; a nearer hidden player no longer blinds him.
+  Out of sight of him, he turns on the nearest player he does see.
+- Co-op: the host's awareness arcs show only guards that see the host's own player (or stand close by), not guards
+  filling up on the partner. The flanker is picked by each guard's distance to his own target, not to the host.
+- A calm guard casts no sight ray for a player he cannot see at all (behind him beyond arm's reach, or past his view
+  range). Solo play is otherwise unchanged. Host only: no protocol or save change.
+
+### Guard AI: two intruders
+- Co-op: guards keep one last known position per player. When you split up and are seen apart, the guards who saw
+  the host keep hunting the host's last seen spot and the ones who saw (or were told of) the partner hunt his; a new
+  sighting of one player no longer turns every hunter round. Each fight has its own reporter, point, overwatch and
+  flank, and two fights never take the same cover.
+- A radio contact call or a shout tells the section only of the player the caller saw; a shot locates its shooter.
+  Reinforcements hunt the player of the guard who raised the alarm. The host's last-known-position ghost shows only
+  the host's own spot.
+- Solo and co-op: an alerted guard who has no last known position for his player goes to where he last saw someone
+  (or what drew him), never to the player's real position. Otherwise solo is unchanged. Host only: no protocol or save
+  change.
+- Guards called in by a squadmate who had not seen anyone (shot from the dark) close on the player once any of them sees him: that first sighting is radioed again, naming him.
+
+### Guard AI: cover, clear lines and the alarm draw
+- Guards working together no longer stand upright and still in the open when they lose sight of you: they crouch while
+  they wait for the group and take the nearest cover within about 3 s (with no cover near, they stay crouched).
+- The covering guard's suppressive fire at your last known spot now needs a clear line from his gun: no more bursts
+  into a wall. Suppressing no longer moves where he thinks you are.
+- The guard calling in the contact throws no grenade and starts no flank while his call is open; caught in the open he
+  still fires back.
+- After any alarm stage (Sector Ops: a panel, a camera or a laser) every guard of the section keeps his gun drawn; a
+  restart from a checkpoint before the alarm holsters them again after the calm time.
+- Closes guard-ai S8 checker polish items 3, 5 and 7 and walk checker polish item 4. Host only: no protocol or save
+  change.
+
+### Auto-train: big trains keep their version commit
+- Auto-train read only the first 100 commits of a train PR, so a train with more lost its version commit and stopped with "no version commit: rebuild" (trains 39 and 40). It now also reads the head commit.
+
 ## 4.84.0 - Train 40: Auto-train laptop missing alert; Marlow Yard A2: woken guards and the spotted rule; Camera reach and mocap timeouts; Marlow Yard: Michael's 4.82 walk fixes; +7 more (2026-10-24, PR #279; #277, #276, #274, #267, #265, #258, #252, #247, #226)
 
 ### Fast-gait feet (anim-fix-pass AF1)
