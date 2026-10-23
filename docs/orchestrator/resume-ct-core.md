@@ -1,4 +1,4 @@
-# Resume - Night Shift | Player Build (resumed 2026-10-23 19:58 after the swap; locks absent, connectors lean)
+# Resume - Night Shift | Player Build (saved 2026-10-23 ~21:25 at the 92% save; guard-models P1 fix round + G5 / G1 / G1h / G3 builders were running: resume them from their branches, docs/guard-models/STATE.md SAVE line)
 
 Rules: CLAUDE.md on origin/master "Session titles", "Heavy-usage throughput", "Token rules", "Account swap". No mid-window clears.
 Opus plans / checks / anim + net code; Sonnet builds from strict briefs; Haiku chores; desktop CPU < 80%. e2e always
@@ -21,24 +21,17 @@ check; `blocked <reason>` -> answer in the file, set open. Use it first for CPU-
 Laptop queue: self-service from feature/laptop-queue (docs/systems/testing-tools.md "Laptop queue"; results as GitHub statuses laptop-e2e/<set>); until it merges, ask Test Runner.
 Released: #227 (4.76.0), #207 batch 22 (4.77.0), #214 -> #223 -> #231 stack (4.79.0, train 30, PROTOCOL 40).
 
-## Open (master 41204e30 = 4.80.0, train 31, PROTOCOL 41; train 32 25c712c9 at PROTOCOL 42 on the laptop 19:49, status laptop-e2e; #247 merge-tree vs train/32 = the brief's 15 files exactly, 19:59)
+## Open (master bbd49206 = 4.81.0; train 33 db14a418 4.82.0 building with #249 stealth-pays, NOT #247)
 | Job | Branch (folder C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
-| (#239 optic cable released in train 31, 4.80.0) | | | |
-| #247 anim-fix-pass (walk P1-P5; PLAN.md:7 maps P1-P7, P6-P7 = #231 released) | feature/anim-fix-pass | 3168f31a+STATE | PR open 19:45, all AF0-AF6 checker PASS; AF4b laptop e2e-anim + clip PASS. Train 33 (orchestrator 19:50): after train 32 releases (~20:15+, brings #244: PROTOCOL bump moves into the train build, number asserts removed) merge master, take master's side in protocol.ts + assert tests (NO renumber), brief briefs/afp-train-entry.md, laptop e2e-coop + netmove, train-ready. |
-| #249 stealth-pays (stealth over shooting 9; 7 and 12 already on master; docs/stealth-pays/) | feature/stealth-pays (stealth-pays) | d228ce59 (STATE only past 30ab34e7) | TRAIN-READY sent 19:3x, labelled (laptop ctcourse + sectorops PASS on bf9445d6; S3 docs after). Orchestrator labels. P1 parked (wire). |
+| #247 anim-fix-pass | feature/anim-fix-pass (anim-fix-pass) | e70951e3 (master 4.81.0 merged, docs/anim-fix-pass/TRAIN-ENTRY-REPORT.md; checker PASS) | Laptop request 20261023T093904-...-e70951e3 (coop netmove anim clip menus), status laptop-e2e* on e70951e3. On pass: gh pr edit 247 --add-label train-ready + message orchestrator (train 34). On fail: Opus triage at once. |
+| guard-models (lead since ~20:45, from Marlow) | feature/guard-models (guard-models) | 0c55a103 (G0 + GB + G6 + G6n merged; P1 fix round in it) | docs/guard-models/STATE.md "Now" is the live state: P1 checker on a63e82ca; G6n f9ce1015 checker A PASS, B running -> merge gm-g6n on both PASS; G5 (gm-g5), G1 (gm-g1), G1h (gm-g1h), G3 (gm-g3) Opus builders running in their worktrees (commit WIP there at the save). L0 probe: status laptop-e2e/alone-guard-bake-probe on bbd49206. Rules: briefs/gm-common.md, gm-blender.md. |
+| cloud-queue | orphan cloud-queue (a907adb6) | DONE: afp-next-AF0b -> feature/afp-af0b 9507c179 (harness, 50 rows, docs/afp-next/before/numbers.md; merge into afp-next when AF7 starts); player-rig-pose-audit -> feature/rig-pose-audit 4d7b1125 (docs/rig-pose-audit/REPORT.md: 20 gameplay reads, top risks player hit volumes / round origin / client headshot head; ranked 8 fix slices: not started, needs orchestrator / Michael priority). OPEN: player-stealth-pays-client-intel (answered: EnemyState `in` field, host-authoritative), guard-models-G4b (budget check). Note: mocapStrafe heap-per-frame test fails on 48b9b73c under load (pre-existing, load-sensitive). |
 
 ## Next
-1. #247: once train 32 is on master, run briefs/afp-train-entry.md (master's side, no renumber), laptop e2e-coop + netmove, message train-ready (orchestrator labels until Michael adds a permission rule).
-2. Entering its train: merge master; conflicts = src/net/protocol.ts, the 11 PROTOCOL assert tests, settingsScreen.ts
-   (git merge-tree). AF6 wire number after Guard AI 41 and marlow-final 42: orchestrator confirms (43?); NO renumber from train 32 (#244). Laptop e2e-coop + netmove on the merged head.
-3. After ANY master / train merge: run every test file with a PROTOCOL_VERSION assert (git grep -l PROTOCOL_VERSION -- tests)
-   + tsc; master check worktree C:/NightShift/Mobile-Coop-proto-check (detached, node_modules junction to Mobile-Coop-train).
-4. Draft next anim pass briefs/afp-next-pass.md (AF0b, AF7 drawn legs on mocap, AF8a glide cadence / back step, AF9 idle,
-   AF8b, AF9r parked): starts after Michael walks AF0-AF6 unless the orchestrator says go; D1 for Michael (idle stance width:
-   G27 feet-together vs CT audit row 20 0.3-0.4 m) needs a decision pack (sheets) when asked.
-5. Follow-ups (not in a PLAN yet): intel part B (onIntelCode); relay climber sub bit; stealth-over-shooting CT Core items
-   9 / 12 / 7 (ROADMAP "Next: stealth over shooting").
+1. #247 laptop verdict -> train-ready (train 34).
+2. guard-models: merge G6n after checker B; P1 checker verdict (fix round if FAIL); as G5 / G1 / G1h / G3 land: one Opus checker per group, book each full stage as a laptop alone request (node C:/NightShift/scratch/ctcore/lq/request.mjs --alone --step "node scripts/operators/guard-bake.mjs --stage <s> --push"), then G2 garments, G4 bake + sheet (to Michael, no stop), G7, G8, G9 per PLAN section 7.
+3. AF7-AF9 (briefs/afp-next-pass.md) wait for Michael's walk of AF0-AF6 (orchestrator ~20:20: hold).
 
 ## Resume prompt
 ```

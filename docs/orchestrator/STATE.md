@@ -131,7 +131,6 @@ Train 1 merged as #111 (#99 + #108; #105 left on a real e2e-menus failure, fixed
   reaches master with the anim-rework PR: count it as known.
 - Co-op suites time out under load; accept a full run where the load failures pass solo on the same commit (test-speed
   fixes this).
-- The co-op client never draws guards' flashlights (torch state not on the wire): later, a protocol bump.
 
 ## How Michael works with the orchestrator
 - Short, plain replies. Native multiple-choice questions only. Hyphens, not em dashes.
