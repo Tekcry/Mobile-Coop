@@ -297,7 +297,8 @@ Running / next - LR16 (Michael ~18:08-18:20; slices checks/lr16-plan.md + lr16-0
   same cone, 24 slots per column; 15 map-light tests still red for LR16g; shadow-mapped torch spotlight lightRig.ts:541 still hard -> LR16t). Then LR16t torch occlusion (walls + shut doors, all 4 torches), then
   LR16e penumbra, LR16-1 bounce fill, LR16g re-level, LR16h docs - all on -lr16 in order (same files).
 - -lr16c: LR16c DONE f80e11fc (lr16-lamp-audit.md: campusOps 26 / warehouseOps 28 / warehouse 2 flagged; bunker /
-  embassy parked, skipped). LR16d: -lr16d campus DONE 5811ed95 (26 moved, audit 0 flags); -lr16dw warehouse RUNNING (lr16d-*-build.md).
+  embassy parked, skipped). LR16d: -lr16d campus DONE 5811ed95 (26 moved, audit 0 flags); -lr16dw 0cdee9f1 (22 moved; 75 / 11 / 120+123 wrong,
+  20 / 71 reverted for the old cap) -> Opus fix round on -lr16dx (= lr16int + lr16dw; lr16dx-build.md, full audit rerun) RUNNING.
 - -lr16f: LR16f PCSS char shadows 8501a0c7, LR16-7 Low/Medium slots 0561be15, LR16-3 door / prop casters f16591bf. DONE.
 - -lr16v: LR16-6 vision polish 5ee3a270 DONE (G100 instant cut, G102 door ghosts).
 - BATCH 1 = -lr16int c7a26ca7 (-lr16 + -lr16f + -lr16v + -lr16d): two Opus checkers RUNNING (lr16-batch-check-A/B.md),
