@@ -6,7 +6,8 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 **Test Runner SAVE 18 (2026-10-23 ~18:08, swap ~18:22; wins over all below):**
 - TRAIN 30 7e8b8c51: 38/39, e2e-stealth-ai FAIL ("a suppressed shot 10 m off only makes a guard turn to look"; SENT).
   Player says test-only (fix 907bea89); orchestrator rebuilds train 30 on it -> run that train full when it arrives.
-  Solo rerun runs/train30-stealthai-7e8b8c51 (4191, chain-1023t30b): send pass / fail to Orchestrator AND Player Build.
+  Solo rerun runs/train30-stealthai-7e8b8c51 FAILED again (same assert, 53 s): deterministic, SENT to Orchestrator +
+  Player Build. The rebuilt train 30 (on 907bea89) needs its full run before release.
 - Still queued: 4192 chain-1023mr Marlow section-rating 053ff212 -> Marlow Build; 4189 chain-1023ap3 #226 perf alone
   (after gs5 done + all locks free; build first) -> Sector Ops. Guard AI carry-fix sha pending (see SAVE 17).
 - SENT: invisible-guard split verdict (compile timeout, all 3 passes) to Guard AI.
