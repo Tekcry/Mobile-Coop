@@ -60,7 +60,7 @@ export class Ragdoll {
 
     const filt = (s: PhysicsShape, self: boolean): PhysicsShape => {
       s.filterMembershipMask = G.RAGDOLL;
-      s.filterCollideMask = self ? G.STATIC | G.PROP | G.RAGDOLL : G.STATIC | G.PROP;
+      s.filterCollideMask = self ? G.STATIC | G.PROP | G.RAGDOLL | G.GLASS : G.STATIC | G.PROP | G.GLASS;
       s.material = { friction: 0.85, restitution: 0.05 };
       this.shapes.push(s);
       return s;

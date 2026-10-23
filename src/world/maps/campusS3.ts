@@ -329,10 +329,10 @@ export function buildCampusS3(b: LevelBuilder): void {
   slab(b, 10, 64, -30, 0, ROOF_TOP, ROOF);
 
   // ---- the west band (x 10..22): the lobby (G) under the C2 landing (L1); the x 22 wall has the hall's west door and, on
-  // L1 over the hall, the landing's spandrel and glass (the occlusion vantage over the whole hall, A23)
+  // L1 over the hall, the landing's spandrel and glass (the occlusion vantage over the whole hall, A23) (E2: clear glass panes on the old fence lines)
   wall(b, false, 22, -30, 0, 0, R, [doorHole(-18.6, 0), [-29.85, -8, S3_SPANDREL_TOP, R]]);
   doorAt(b, false, 22, -18.6, 0, 1);
-  b.fence(22, -29.85, 22, -8, R - S3_SPANDREL_TOP, S3_SPANDREL_TOP);
+  b.glass(22, -29.85, 22, -8, R - S3_SPANDREL_TOP, S3_SPANDREL_TOP);
   // the landing's floor, round the SW stair core
   slab(b, 10, 22, -22.4, 0, L1);
   slab(b, 10, 22, -30, -28, L1);
@@ -375,8 +375,8 @@ export function buildCampusS3(b: LevelBuilder): void {
   doorAt(b, true, -8, 40.7, 0, -1);
   wall(b, true, -8, 22, 52, L1, R, [[22, 40.7, S3_VIEW_SPANDREL_TOP, R], [40.7, 41.9, L1, L1 + DOOR_H], [41.9, 52, S3_VIEW_SPANDREL_TOP, R]]);
   doorAt(b, true, -8, 40.7, L1, 1);
-  b.fence(22, -8, 40.7, -8, R - S3_VIEW_SPANDREL_TOP, S3_VIEW_SPANDREL_TOP);
-  b.fence(41.9, -8, 52, -8, R - S3_VIEW_SPANDREL_TOP, S3_VIEW_SPANDREL_TOP);
+  b.glass(22, -8, 40.7, -8, R - S3_VIEW_SPANDREL_TOP, S3_VIEW_SPANDREL_TOP);
+  b.glass(41.9, -8, 52, -8, R - S3_VIEW_SPANDREL_TOP, S3_VIEW_SPANDREL_TOP);
   wall(b, false, 52, -30, -8, 0, R, []);
   // the east annex (x 52..64, z -30..-8): closed plant; its north wall runs to the roof (the security room's south wall on L1)
   wall(b, true, -8, 52, 64, 0, R, []);
@@ -430,13 +430,13 @@ export function buildCampusS3(b: LevelBuilder): void {
   slab(b, 42.6, 64, -6, 0, L1);
   // the viewing corridor's north side (z -6): the write-up office's glass front and door, the gowning room's wall and door,
   // the clean room's glass, the back corridor's end, the store's front with its hatch door; the corridor's east end (x 52)
-  b.fence(22, -6, 28.2, -6, R - L1, L1);
-  b.fence(29.4, -6, 30, -6, R - L1, L1);
-  b.fence(28.2, -6, 29.4, -6, R - L1 - DOOR_H, L1 + DOOR_H);
+  b.glass(22, -6, 28.2, -6, R - L1, L1);
+  b.glass(29.4, -6, 30, -6, R - L1, L1);
+  b.glass(28.2, -6, 29.4, -6, R - L1 - DOOR_H, L1 + DOOR_H);
   doorAt(b, true, -6, 28.2, L1, 1);
   wall(b, true, -6, 30, 33, L1, R, [[30.6, 31.8, L1, L1 + DOOR_H]]);
   doorAt(b, true, -6, 30.6, L1, 1);
-  b.fence(33, -6, 39.7, -6, R - L1, L1);
+  b.glass(33, -6, 39.7, -6, R - L1, L1);
   wall(b, true, -6, 42.9, 44.6, L1, R, []);
   wall(b, true, -6, 44.6, 52, L1, R, [[46.2, 47.4, L1, L1 + DOOR_H]]);
   doorAt(b, true, -6, 46.2, L1, 1, { locked: false });

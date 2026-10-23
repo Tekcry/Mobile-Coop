@@ -1,5 +1,5 @@
 import { PhysicsRaycastResult, Vector3, type PhysicsEngine, type Scene } from '../core/babylon';
-import { G } from '../physics/groups';
+import { G, isArmoured } from '../physics/groups';
 import type { DamageRegistry, Damageable, HitPart, Team } from '../game/damage';
 import type { Prop, PropSystem } from '../world/props';
 import type { Vfx } from '../vfx/vfx';
@@ -13,6 +13,9 @@ export interface RayHit {
   target?: Damageable;
   part?: HitPart;
   prop?: Prop;
+  /** (E10) The struck body carries `G.GLASS_ARMOURED` (armoured glass or an armoured door leaf): the round stops there,
+   *  sparks only, no penetration. */
+  armoured?: boolean;
 }
 
 export interface ShotOwner {
@@ -103,6 +106,8 @@ export class Ballistics {
     } else {
       const prop = this.props.get(r.body);
       if (prop) out.prop = prop;
+      // (E10) per shot, not per frame: the struck shape's bits (a pane's container or a door leaf carry the armour bit)
+      else if (isArmoured((r.shape ?? r.body?.shape)?.filterMembershipMask ?? 0)) out.armoured = true;
     }
     return out;
   }
@@ -115,6 +120,9 @@ export class Ballistics {
       this.vfx.hit(h.point, dir, h.part === 'head' ? '#ffe066' : '#ff6b5a', h.part === 'head' ? 7 : 4);
     } else if (h.prop) {
       this.vfx.sparks(h.point, h.normal, 4);
+    } else if (h.armoured) {
+      // (E10) armoured glass / door: the round glances off (sparks, as a bulletproof camera's ricochet), no chip or decal
+      this.vfx.sparks(h.point, h.normal, 5);
     } else {
       this.vfx.sparks(h.point, h.normal, 3);
       this.vfx.dust(h.point, h.normal);

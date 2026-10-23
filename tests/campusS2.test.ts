@@ -11,7 +11,7 @@ import { campusOps } from '../src/world/maps/campusOps';
 import { S1_GROUPS } from '../src/world/maps/campusS1';
 import { CAMPUS_COOP_LIPS } from '../src/world/maps/campusLips';
 import { BALCONY_LAMPS, BULKHEAD_TOP, C2_BOX, C2_FLOOR, CR2, FEATURE_STAIR, PENDANTS, S2_COOP_LIPS, S2_CORES, S2_DOORS, S2_FLIGHTS, S2_FLOORS, S2_GROUPS, S2_ROOMS, S2_VOID, SW_CORE, NE_CORE, coreFlights, type Flight } from '../src/world/maps/campusS2';
-import { CAMPUS_ALARMS, CAMPUS_POSTS, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
+import { CAMPUS_ALARMS, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
 import { SECTOR, checkSectorGuards, checkSectors, exitZone, inZone, type SectorGuard } from '../src/game/sectors';
 import { validateSecurity } from '../src/security/data';
 import { CAMERA } from '../src/config/security';
@@ -154,7 +154,7 @@ describe('Saltmarsh Park section 2 (HQ), registration and shape', () => {
 
   it('the spawn layout carries the S2 rooms, switches, hide spots and nav seeds', () => {
     expect(lay.rooms!.length).toBeGreaterThan(S2_ROOMS.length);
-    expect(lay.switches!.length).toBe(5 + 7 + 9);
+    expect(lay.switches!.length).toBe(5 + 7 + 9 + 8 + 9);
     expect(lay.navSeeds!.some((s) => s.y === 4.4)).toBe(true);
     expect(lay.alarms!.filter((a) => a.section === 1).length).toBe(2);
     expect(lay.alarms!.find((a) => a.section === 1 && a.pos.y > 4)).toBeTruthy();
@@ -448,7 +448,7 @@ describe('CR2: the L1 slab nose over the dark cafe against a solo player (SPEC C
     expect(slab.c[1] + slab.s[1] / 2 - CR2.boost.floor).toBeLessThanOrEqual(4.5);
     expect(slab.c[0] - slab.s[0] / 2).toBeCloseTo(-10);
     // the lip piece is the only slab piece along the void's east edge that keeps its ledge: the rest of that edge and the other edges are noLedge
-    const edge = solid.filter((p) => Math.abs(p.c[1] + p.s[1] / 2 - 4.4) < 1e-6 && Math.abs(p.s[1] - 0.4) < 1e-6 && p !== slab && p.c[2] > -30.5 && p.c[0] > -44.5 && p.c[0] < 4.5);
+    const edge = solid.filter((p) => Math.abs(p.c[1] + p.s[1] / 2 - 4.4) < 1e-6 && Math.abs(p.s[1] - 0.4) < 1e-6 && p !== slab && p.c[2] > -30.5 && p.c[2] < 16 && p.c[0] > -44.5 && p.c[0] < 4.5);
     expect(edge.length).toBeGreaterThan(4);
     expect(edge.every((p) => p.noLedge)).toBe(true);
     // the ledge generator gives the lip piece its west edge as a lip (the anchors were built with the level)
@@ -458,7 +458,7 @@ describe('CR2: the L1 slab nose over the dark cafe against a solo player (SPEC C
     expect(Math.min(...lips.map((e) => Math.min(e.a.z, e.b.z)))).toBeLessThanOrEqual(-10.5);
     expect(Math.max(...lips.map((e) => Math.max(e.a.z, e.b.z)))).toBeGreaterThanOrEqual(-5.5);
     // and no other S2 slab edge at 4.4 carries a ledge facing the void (the whole atrium is noLedge but this gap)
-    const strays = gen.ledges.filter((e) => Math.abs(e.top - 4.4) < 1e-6 && e.a.z > -30.5 && e.a.x > -44.5 && e.a.x < 4.5 && !lips.includes(e));
+    const strays = gen.ledges.filter((e) => Math.abs(e.top - 4.4) < 1e-6 && e.a.z > -30.5 && e.a.z < 16 && e.a.x > -44.5 && e.a.x < 4.5 && !lips.includes(e));
     expect(strays.map((e) => [e.a, e.b])).toEqual([]);
   });
 
@@ -671,14 +671,14 @@ describe('M8: isolation in time at each takedown spot (sectorCheck, the Warehous
 
 describe('K2 (M12): the bridge officer is an unavoidable posted guard at the C2 card door', () => {
   const post = S2.guards[10]!;
-  it('the data: role posted, zone c2, leash 5, guards c2-door (`CAMPUS_POSTS` until guard-ai\'s `post` block exists)', () => {
+  it('the data: role posted, zone c2, leash 5, guards c2-door (`SquadSlot.post`)', () => {
     expect(post.role).toBe('posted');
     expect(post.zone).toBe('c2');
-    expect(CAMPUS_POSTS['s2#11']).toEqual({ leash: 5, guards: 'c2-door' });
+    expect(post.post).toEqual({ leash: 5, guards: 'c2-door' });
   });
 
   it('the leash edge is at least 1 m off the card door\'s nav cell, the door is at his back', () => {
-    const leash = CAMPUS_POSTS['s2#11']!.leash;
+    const leash = post.post!.leash;
     const door = S2_DOORS.c2Near;
     const cell = nav.center(nav.cellOf(door[0], door[1], 4.4));
     const dPost = hyp2(cell[0] - post.x, cell[1] - post.z);
