@@ -1,9 +1,10 @@
-// (guard-models G5) The guard figure's piece mask, pure: per-piece visibility, tint fill, flash in alpha, no-op when
-// nothing changed, the index grouping by piece and the visible index ranges, the manifest checks and the stand-in.
+// (guard-models G5) The guard figure's piece mask, pure: per-piece visibility from G6's reused (ids, count) list, the
+// body piece always shown, stale ids past count ignored, tint fill, flash and heat in alpha, no-op when nothing
+// changed, the index grouping by piece and the visible index ranges, the manifest checks and the stand-in.
 import { describe, expect, it } from 'vitest';
 import {
-  fillGvis, gearMask, groupByPiece, guardStandInManifest, isGuardPieceId, pieceMask, validateGuardManifest, visibleAlpha,
-  visibleIndices, type GuardManifest,
+  fillGvis, FX_LEVELS, gearMask, groupByPiece, guardStandInManifest, isGuardPieceId, pieceMask, validateGuardManifest,
+  visibleAlpha, visibleIndices, type GuardManifest,
 } from '../src/operators/guards/gearMask';
 
 const PIECES = ['average', 'average-1', 'average-2', 'buzz', 'cap', 'helmet_std', 'vest_soft'] as const;
@@ -21,30 +22,59 @@ function mesh(): { piece: Uint8Array; tint: Uint8Array } {
 
 const TINTS = new Uint8Array([255, 255, 255, 200, 150, 100, 40, 60, 80]);
 
+/** G6's `GuardPieces` shape: a fixed 16-slot reused array, the first `count` valid. */
+function g6(ids: string[], stale: string[] = []): { ids: string[]; count: number } {
+  const out = [...ids, ...stale];
+  while (out.length < 16) out.push('');
+  return { ids: out, count: ids.length };
+}
+
 describe('gearMask', () => {
   it('shows exactly the visible pieces and fills each vertex with its slot tint', () => {
     const { piece, tint } = mesh();
     const out = new Uint8Array(piece.length * 4);
-    const visible = new Set(['average', 'average-2', 'cap', 'vest_soft']);
-    expect(gearMask(PIECES, piece, tint, visible, TINTS, out)).toBe(true);
+    const visible = ['average', 'average-2', 'cap', 'vest_soft'];
+    expect(gearMask(PIECES, piece, tint, visible, visible.length, TINTS, out)).toBe(true);
     for (let v = 0; v < piece.length; v++) {
       const p = PIECES[piece[v]!]!;
-      expect(out[v * 4 + 3]).toBe(visible.has(p) ? 255 : 0);
+      expect(out[v * 4 + 3]).toBe(visible.includes(p) ? 255 : 0);
       const s = tint[v]! * 3;
       expect([out[v * 4], out[v * 4 + 1], out[v * 4 + 2]]).toEqual([TINTS[s], TINTS[s + 1], TINTS[s + 2]]);
     }
   });
 
+  it('(B1) the body piece is always shown: a G6 applyGear list never names the base', () => {
+    const { piece, tint } = mesh();
+    const out = new Uint8Array(piece.length * 4);
+    const p = g6(['average-1', 'buzz', 'vest_soft']);
+    gearMask(PIECES, piece, tint, p.ids, p.count, TINTS, out);
+    expect([out[3], out[7]]).toEqual([255, 255]); // body (piece 0) vertices 0, 1
+    expect([out[4 * 4 + 3], out[12 * 4 + 3]]).toEqual([0, 255]); // average-2 hidden, vest shown
+    const vis = new Uint8Array(PIECES.length);
+    pieceMask(PIECES, [], 0, vis);
+    expect(Array.from(vis)).toEqual([1, 0, 0, 0, 0, 0, 0]);
+  });
+
+  it('(B2) ids past count are stale and ignored', () => {
+    const vis = new Uint8Array(PIECES.length);
+    const p = g6(['average-1', 'cap'], ['helmet_std', 'vest_soft']);
+    pieceMask(PIECES, p.ids, p.count, vis);
+    expect(Array.from(vis)).toEqual([1, 1, 0, 0, 1, 0, 0]);
+    // count past the array's end is clamped
+    pieceMask(PIECES, ['buzz'], 5, vis);
+    expect(Array.from(vis)).toEqual([1, 0, 0, 1, 0, 0, 0]);
+  });
+
   it('is a no-op when nothing changed, and a gear toggle changes only that piece\'s bytes', () => {
     const { piece, tint } = mesh();
     const out = new Uint8Array(piece.length * 4);
-    const visible = new Set(['average', 'average-1', 'buzz']);
-    gearMask(PIECES, piece, tint, visible, TINTS, out);
+    const p = g6(['average-1', 'buzz'], ['helmet_std']);
+    gearMask(PIECES, piece, tint, p.ids, p.count, TINTS, out);
     const before = out.slice();
-    expect(gearMask(PIECES, piece, tint, visible, TINTS, out)).toBe(false);
+    expect(gearMask(PIECES, piece, tint, p.ids, p.count, TINTS, out)).toBe(false);
     expect(out).toEqual(before);
-    visible.add('helmet_std');
-    expect(gearMask(PIECES, piece, tint, visible, TINTS, out)).toBe(true);
+    p.count = 3; // the helmet slot becomes valid
+    expect(gearMask(PIECES, piece, tint, p.ids, p.count, TINTS, out)).toBe(true);
     const h = PIECES.indexOf('helmet_std');
     for (let i = 0; i < out.length; i++) {
       const v = i >> 2;
@@ -56,30 +86,43 @@ describe('gearMask', () => {
   it('a tint change rewrites only the vertices of that slot', () => {
     const { piece, tint } = mesh();
     const out = new Uint8Array(piece.length * 4);
-    const visible = new Set<string>(PIECES);
+    const visible: readonly string[] = PIECES;
     const tints = TINTS.slice();
-    gearMask(PIECES, piece, tint, visible, tints, out);
+    gearMask(PIECES, piece, tint, visible, visible.length, tints, out);
     const before = out.slice();
     tints[3] = 10; // slot 1 red
-    expect(gearMask(PIECES, piece, tint, visible, tints, out)).toBe(true);
+    expect(gearMask(PIECES, piece, tint, visible, visible.length, tints, out)).toBe(true);
     for (let v = 0; v < piece.length; v++) expect(out[v * 4]).toBe(tint[v] === 1 ? 10 : before[v * 4]);
   });
 
-  it('folds the flash into a visible vertex\'s alpha and never hides it', () => {
+  it('folds flash (low 4 bits) and heat (high 4 bits) into a visible vertex\'s alpha and never hides it', () => {
+    expect(FX_LEVELS).toBe(15);
     expect(visibleAlpha(0)).toBe(255);
-    expect(visibleAlpha(1)).toBe(1);
-    expect(visibleAlpha(2)).toBe(1);
+    expect(visibleAlpha(1)).toBe(240);
+    expect(visibleAlpha(2)).toBe(240);
     expect(visibleAlpha(-1)).toBe(255);
-    expect(visibleAlpha(0.5)).toBe(128);
+    expect(visibleAlpha(0.5)).toBe(255 - 8);
+    expect(visibleAlpha(0, 1)).toBe(255 - 240);
+    expect(visibleAlpha(1, 1)).toBe(1); // both full: clamped, never 0
+    // the thermal body heat (0.85 x n / 16) lands on a level and decodes back within half a level
+    for (let n = 0; n <= 16; n++) {
+      const k = 0.85 * n / 16;
+      const v = 255 - visibleAlpha(0.4, k);
+      const heat = Math.floor(v / 16) / FX_LEVELS, flash = (v % 16) / FX_LEVELS;
+      expect(Math.abs(heat - k)).toBeLessThanOrEqual(0.5 / FX_LEVELS + 1e-9);
+      expect(Math.abs(flash - 0.4)).toBeLessThanOrEqual(0.5 / FX_LEVELS + 1e-9);
+    }
     const { piece, tint } = mesh();
     const vis = new Uint8Array(PIECES.length);
-    pieceMask(PIECES, new Set(['average']), vis);
-    expect(Array.from(vis)).toEqual([1, 0, 0, 0, 0, 0, 0]);
+    pieceMask(PIECES, [], 0, vis);
     const out = new Uint8Array(piece.length * 4);
     fillGvis(piece, tint, vis, TINTS, 1, out);
-    expect(out[3]).toBe(1);
-    expect(out[7]).toBe(1);
+    expect(out[3]).toBe(240);
+    expect(out[7]).toBe(240);
     expect(out[11]).toBe(0);
+    fillGvis(piece, tint, vis, TINTS, 0, out, 0.85);
+    expect(out[3]).toBe(255 - 13 * 16);
+    expect(out[11]).toBe(0); // hidden stays hidden whatever the heat
   });
 
   it('an out-of-range tint slot falls back to slot 0', () => {
@@ -133,5 +176,9 @@ describe('guard manifest', () => {
     expect(p.some((x) => x.includes('hat'))).toBe(true);
     expect(p.some((x) => x.includes('tint slots'))).toBe(true);
     expect(p.some((x) => x.includes('reference height'))).toBe(true);
+    // the body piece: present, and the only base in the file
+    expect(validateGuardManifest({ ...s, pieces: ['helmet_std'] }).some((x) => x.includes('body piece average missing'))).toBe(true);
+    expect(validateGuardManifest({ ...s, pieces: ['average', 'lean'] }).some((x) => x.includes('not the base'))).toBe(true);
+    expect(validateGuardManifest({ ...s, pieces: ['average', 'eyes'] }).some((x) => x.includes('eyes is not a contract id'))).toBe(true);
   });
 });

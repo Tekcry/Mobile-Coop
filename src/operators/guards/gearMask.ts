@@ -3,8 +3,8 @@
  * ONE material (PLAN section 2, A3); every vertex carries a static piece index (`_PIECE`, uint8, into the manifest's
  * `pieces`) and a tint slot (`_TINT`, uint8). Per guard the runtime keeps one RGBA8 normalised vertex buffer `gvis`
  * per LOD: rgb = the tint of the vertex's slot (sRGB bytes; the plugin multiplies the albedo by it where the atlas tint
- * mask is set), a = piece visible (0 = hidden) with the hit flash folded in (255 = no flash, 1 = full flash; never 0
- * while visible). Hidden pieces also leave the guard's index buffer (`visibleIndices`), so no pass draws them (the
+ * mask is set), a = piece visible (0 = hidden) with the hit flash and the thermal heat folded in (`visibleAlpha`: 255 =
+ * no flash, cold; never 0 while visible). The body piece (the base id) is always shown. Hidden pieces also leave the guard's index buffer (`visibleIndices`), so no pass draws them (the
  * shadow maps and the G-buffer do not run material plugins; G5-REPORT).
  *
  * Ids follow the guard-models shared id contract (gm-common.md); G0's kit data (`guardKit.ts`) is the source of truth
@@ -69,14 +69,20 @@ export function validateGuardManifest(m: GuardManifest): string[] {
   if (m.pieces.length > MAX_PIECES) out.push(`${m.id}: ${m.pieces.length} pieces (max ${MAX_PIECES})`);
   const seen = new Set<string>();
   for (const p of m.pieces) {
+    // (eyes have no piece of their own: they belong to each head piece or the body, so an `eyes` piece is refused here)
     if (!isGuardPieceId(p)) out.push(`${m.id}: piece ${p} is not a contract id`);
     if (seen.has(p)) out.push(`${m.id}: piece ${p} twice`);
+    if (isGuardBase(p) && p !== m.base) out.push(`${m.id}: body piece ${p} is not the base ${m.base}`);
     seen.add(p);
   }
+  if (!seen.has(m.base)) out.push(`${m.id}: body piece ${m.base} missing`);
   if (m.tintSlots < 1 || m.tintSlots > MAX_TINT_SLOTS) out.push(`${m.id}: ${m.tintSlots} tint slots`);
   if (!(m.refHeight > 0)) out.push(`${m.id}: no reference height`);
   return out;
 }
+
+/** The stand-in manifests' id prefix (Wren's multi-primitive files; a guard file proper is one primitive, A3). */
+export const STAND_IN_PREFIX = 'guard-standin-';
 
 /** Wren's height (G74): the stand-in's reference height. */
 const WREN_HEIGHT = 1.68;
@@ -86,31 +92,59 @@ const WREN_HEIGHT = 1.68;
  * the one body piece (piece 0 = the base id) in tint slot 0. `wrenUrls` is Wren's operator manifest's `urls`.
  */
 export function guardStandInManifest(base: GuardBase, wrenUrls: readonly [string, string, string, string]): GuardManifest {
-  return { id: `guard-standin-${base}`, base, urls: ['', wrenUrls[1], wrenUrls[2], wrenUrls[3]], pieces: [base], tintSlots: 1, refHeight: WREN_HEIGHT };
+  return { id: `${STAND_IN_PREFIX}${base}`, base, urls: ['', wrenUrls[1], wrenUrls[2], wrenUrls[3]], pieces: [base], tintSlots: 1, refHeight: WREN_HEIGHT };
 }
 
 // ---- the mask (no allocation after load) ----
 
 const VIS = new Uint8Array(MAX_PIECES);
 
-/** out[i] = 1 when `pieces[i]` is in `visible`, else 0 (no allocation). */
-export function pieceMask(pieces: readonly string[], visible: ReadonlySet<string>, out: Uint8Array): void {
-  for (let i = 0; i < pieces.length; i++) out[i] = visible.has(pieces[i]!) ? 1 : 0;
+/** A body piece id (a base: skin, neck, wrists). It is always shown: G6's `applyGear` never lists it. */
+export function isGuardBase(id: string): boolean {
+  return id === 'average' || id === 'lean' || id === 'broad';
 }
 
-/** The alpha byte of a visible vertex at flash `k` (0..1): 255 unflashed, 1 at the full flash (0 means hidden). */
-export function visibleAlpha(k: number): number {
+/**
+ * out[i] = 1 when `pieces[i]` is among `visible[0..count)` or is the body piece (a base id, always shown), else 0.
+ * `visible` is G6's reused `GuardPieces.ids` (entries past `count` are stale and ignored). Index loops only: no
+ * iterator, no Set, no allocation.
+ */
+export function pieceMask(pieces: readonly string[], visible: readonly string[], count: number, out: Uint8Array): void {
+  const n = count < visible.length ? count : visible.length;
+  for (let i = 0; i < pieces.length; i++) {
+    const p = pieces[i]!;
+    let on = isGuardBase(p) ? 1 : 0;
+    for (let k = 0; on === 0 && k < n; k++) if (visible[k] === p) on = 1;
+    out[i] = on;
+  }
+}
+
+/** Flash and heat levels in `gvis.a`: 0..FX_LEVELS each (4 bits; thermal heat moves in 1/16 steps anyway). */
+export const FX_LEVELS = 15;
+
+/** A 0..1 effect strength as its level 0..FX_LEVELS. */
+export function fxLevel(k: number): number {
   const f = k > 0 ? (k < 1 ? k : 1) : 0;
-  return 255 - Math.round(f * 254);
+  return Math.round(f * FX_LEVELS);
+}
+
+/**
+ * The alpha byte of a visible vertex at flash `flash` and thermal heat `heat` (0..1 each): a = 255 - (heat level x 16 +
+ * flash level), so 255 = no flash and cold; never 0 while visible (0 means hidden; full heat with full flash clamps to
+ * 1, both white). The plugin decodes both in the vertex shader.
+ */
+export function visibleAlpha(flash: number, heat = 0): number {
+  const v = fxLevel(heat) * 16 + fxLevel(flash);
+  return 255 - (v < 254 ? v : 254);
 }
 
 /**
  * Fills `out` (RGBA8 per vertex) from the per-piece visibility `vis` and the tint table `tints` (rgb bytes per slot):
- * rgb = the vertex's slot tint, a = `visibleAlpha(flash)` or 0 when its piece is hidden. Writes only bytes that change;
- * returns true when any did (false: nothing to upload). No allocation.
+ * rgb = the vertex's slot tint, a = `visibleAlpha(flash, heat)` or 0 when its piece is hidden. Writes only bytes that
+ * change; returns true when any did (false: nothing to upload). No allocation.
  */
-export function fillGvis(vertexPiece: Uint8Array, vertexTint: Uint8Array, vis: Uint8Array, tints: Uint8Array, flash: number, out: Uint8Array): boolean {
-  const a1 = visibleAlpha(flash);
+export function fillGvis(vertexPiece: Uint8Array, vertexTint: Uint8Array, vis: Uint8Array, tints: Uint8Array, flash: number, out: Uint8Array, heat = 0): boolean {
+  const a1 = visibleAlpha(flash, heat);
   const slots = (tints.length / 3) | 0;
   let changed = false;
   const n = vertexPiece.length;
@@ -129,16 +163,18 @@ export function fillGvis(vertexPiece: Uint8Array, vertexTint: Uint8Array, vis: U
 }
 
 /**
- * The G5 contract call: (piece ids of the mesh, per-vertex piece index, visible piece set, tint table) -> `gvis` in
- * place. `vertexTint` gives each vertex's tint slot; `flash` the hit flash 0..1. Returns true when a byte changed.
- * No allocation (a module scratch holds the per-piece mask).
+ * The G5 contract call: (piece ids of the mesh, per-vertex piece index, visible piece ids, tint table) -> `gvis` in
+ * place. `visible` / `count` are G6's `GuardPieces` as `applyGear` leaves them (`ids`, `count`; stale entries past
+ * `count` ignored); the body piece is always shown. `vertexTint` gives each vertex's tint slot; `flash` the hit flash
+ * 0..1, `heat` the thermal warmth 0..1. Returns true when a byte changed. No allocation (a module scratch holds the
+ * per-piece mask).
  */
 export function gearMask(
-  pieceIds: readonly string[], vertexPiece: Uint8Array, vertexTint: Uint8Array, visible: ReadonlySet<string>, tints: Uint8Array,
-  out: Uint8Array, flash = 0,
+  pieceIds: readonly string[], vertexPiece: Uint8Array, vertexTint: Uint8Array, visible: readonly string[], count: number,
+  tints: Uint8Array, out: Uint8Array, flash = 0, heat = 0,
 ): boolean {
-  pieceMask(pieceIds, visible, VIS);
-  return fillGvis(vertexPiece, vertexTint, VIS, tints, flash, out);
+  pieceMask(pieceIds, visible, count, VIS);
+  return fillGvis(vertexPiece, vertexTint, VIS, tints, flash, out, heat);
 }
 
 // ---- hidden pieces leave the index buffer ----

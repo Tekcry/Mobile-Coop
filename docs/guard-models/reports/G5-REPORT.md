@@ -106,3 +106,54 @@ into enemies (G7).
   same small leak S7 documents.
 - Finger bones: `fingerRig` finds Wren's finger joint names; G1's ten finger bones must use the same naming for the
   hands to close on the gun.
+
+## Fix round (checker FAIL, one round)
+Against G6's contract on feature/guard-models (`applyGear` / `GuardPieces`, G6-REPORT). Supersedes decisions 2 and 7
+and the `setHeat` / `setPieces` lines above where they differ.
+- B1 (fixed) The body piece is always shown. `pieceMask` forces every base id (`isGuardBase`: `average` / `lean` /
+  `broad`) on, so `setPieces` (and its default, now an empty list) and the pure `gearMask` keep the body's vertices at
+  a > 0 and its triangles in the index buffer whatever the list holds. G6's `applyGear` never lists the base and G0's
+  kit always counts the body. `validateGuardManifest` now also refuses a manifest without its base piece or with
+  another base's piece.
+- B2 (fixed) G6's reused output shape, taken directly: `setPieces(ids: readonly string[], count = ids.length)`
+  (`figure.setPieces(p.ids, p.count)`), `gearMask(pieceIds, vertexPiece, vertexTint, visible, count, tints, out,
+  flash?, heat?)` and `pieceMask(pieces, visible, count, out)`: index loops, no iterator, no Set; entries past `count`
+  are stale and ignored (count is clamped to the array). The figure's `pieces` Set getter is gone: `pieceShown(id)`.
+- R1 (done) Thermal heat folded into `gvis.a` like the flash, so a guard stays ONE draw per mesh in every vision mode
+  (Wren's `renderOverlay` costs one more draw per mesh: 24 more at 24 guards). Encoding below. The plugin decodes it in
+  the vertex shader and blends `finalColor` towards white by the heat after image processing (where Wren's overlay
+  lands), in the same draw. `setHeat` / `setFlash` rewrite gvis only on a level change (shown LOD now, the others when
+  shown). Wren's figure untouched.
+- P1 (done) A load finishing after the scene is disposed builds nothing (`scene.isDisposed` checked in the library's
+  `then`, which rejects "scene disposed"); `GuardFigure.load` treats that as abandoned (resolves) when the figure or
+  scene is gone. Wren's library unchanged.
+- P2 (done) `validateGuardModel` refuses more than one primitive unless the manifest is a stand-in
+  (`STAND_IN_PREFIX` = `guard-standin-`, Wren's multi-primitive files).
+- Also: the guard material sets `albedoTexture.hasAlpha = false` and `useAlphaFromAlbedoTexture = false` (the atlas
+  alpha is the tint mask, never transparency).
+
+Tests (all pass): `tests/gearMask.test.ts` 10 (new: B1 body with a G6 list without the base and with an empty list, B2
+stale ids past count and count clamping, flash / heat nibbles and the thermal 1/16 steps decoding within half a level,
+manifest body-piece and `eyes` refusals); `tests/guardFigure.test.ts` 13 (new: B1 G6-style list without the base: body
+alphas 255 and body indices in the index buffer, read from `createIndexBuffer`; B2 stale `helmet_std` past `count`
+hidden and its vertices absent from the uploaded indices, a different stale tail is a no-op; R1 heat as level 13 in
+alpha, one gvis upload, no overlay, a later LOD catches up, and a draw count over `scene.render()`: heat on draws the
+same as off while a forced overlay adds one; P1 scene disposed mid-load; P2 two primitives refused, stand-in allowed;
+the plugin's heat code in the PBR effect); `tests/operatorsRuntimeFigure.test.ts` 3 (Wren's figure, unchanged).
+`npx tsc --noEmit -p .` clean; eslint on the five changed files clean.
+
+## For SPEC section 8
+- Tint mask = the albedo atlas's alpha channel (1 = tinted); G4 bakes it there.
+- `gvis` rgb is the tint as sRGB-encoded bytes (the plugin linearises with `toLinearSpace`): G7 converts SPEC's linear
+  target / neutral colours with `toGammaSpace` before writing them with `setTints`.
+- The albedo is never `hasAlpha` (the guard material forces `hasAlpha = false`, `useAlphaFromAlbedoTexture = false`).
+- Eyes have no piece of their own: they belong to each head piece (or the body); an `eyes` piece is not a contract id, so
+  `validateGuardManifest` refuses it.
+- The body piece (the base id: skin, neck, wrists) is always shown; G6's list never names it.
+- `setPieces(ids, count)` takes G6's `GuardPieces` directly; ids past `count` are stale.
+- `GuardFigure.update()` should be gated by the guard-ai S4 anim tier at G7 (not every guard every frame).
+- `figure.mesh` changes on a LOD switch: G7's `GuardAnimTier` re-reads it, never caches it.
+- Heat and flash in `gvis.a`: hidden = 0; visible a = 255 - (heat level x 16 + flash level), levels 0..15
+  (`fxLevel(k) = round(clamp(k) x 15)`), clamped to a >= 1 (full heat with full flash); 255 = cold, no flash. Flash
+  blends the albedo to warm white (1, 0.92, 0.85); heat blends the final colour to white. Flash is now in 1/15 steps
+  (was 1/254).

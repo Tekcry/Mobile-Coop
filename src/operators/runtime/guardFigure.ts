@@ -10,7 +10,8 @@
  *   authority); LOD0 / 1 / 2 by camera distance (`pickLod`, Wren's bands and hysteresis, A8), LOD2 loaded first.
  *   Per guard only the skeleton, one RGBA8 `gvis` vertex buffer per LOD primitive (tint rgb, a = piece visible with
  *   the flash folded in, `gearMask.ts`) and one index buffer of the visible pieces (rewritten on a gear change), so a
- *   hidden piece is drawn by no pass. `gvis` is rewritten only on a spawn, gear, tint or flash change.
+ *   hidden piece is drawn by no pass. `gvis` is rewritten only on a spawn, gear, tint, flash or thermal heat change
+ *   (heat is in gvis, not an overlay: one draw per guard in every vision mode).
  * - Culling: guard-render S1's fixed root-local box (the bind pose plus S1's margins), not `alwaysSelectAsActiveMesh`,
  *   so camera and cascade culling work. While any rig joint is re-parented (a ragdoll) the box no longer bounds the
  *   body: the meshes go always-active, and a world-matrix path poses the bones (each operator joint rides its rig
@@ -28,7 +29,8 @@ import { hyp3 } from '../../core/mathx';
 import { FING_LEN, fingerPose, fingerRig, handGripShape, type FingerRig } from '../../anim/fingers';
 import type { GlbMesh, GlbModel } from '../lab/glb';
 import {
-  fillGvis, groupByPiece, MAX_PIECES, pieceMask, validateGuardManifest, visibleIndices, type GuardManifest, type PieceGroups,
+  fillGvis, FX_LEVELS, fxLevel, groupByPiece, MAX_PIECES, pieceMask, STAND_IN_PREFIX, validateGuardManifest, visibleIndices,
+  type GuardManifest, type PieceGroups,
 } from '../guards/gearMask';
 import { loadModel, operatorMaterial, readRig, rigNodes, type RigLike } from './figure';
 import { GuardFigurePlugin } from './guardFigurePlugin';
@@ -83,6 +85,8 @@ export function validateGuardModel(model: GlbModel, manifest: GuardManifest, lab
   for (const j of REQUIRED_JOINTS) if (!names.has(j)) out.push(`${label}: joint ${j} missing`);
   if (!model.materials.length) out.push(`${label}: no material`);
   if (!model.meshes.length) out.push(`${label}: no mesh`);
+  // (A3) a guard file is ONE skinned mesh with ONE primitive; only the stand-in draws Wren's multi-primitive files
+  if (model.meshes.length > 1 && !manifest.id.startsWith(STAND_IN_PREFIX)) out.push(`${label}: ${model.meshes.length} primitives (a guard file has one)`);
   for (const g of model.meshes as GuardGlbMesh[]) {
     const n = g.positions.length / 3;
     if (g.joints.length !== n * 4) out.push(`${label}: ${g.name} is not 4-influence skinned`);
@@ -105,6 +109,9 @@ export function buildGuardLod(scene: Scene, model: GlbModel, manifest: GuardMani
   const boneOfSkin = model.joints.map((nd) => slotOfNode.get(nd) ?? 0);
   const materials = model.materials.map((m) => {
     const p = operatorMaterial(scene, m, label);
+    // the albedo atlas's alpha is the tint mask, never transparency (opaque, no alpha test)
+    if (p.albedoTexture) p.albedoTexture.hasAlpha = false;
+    p.useAlphaFromAlbedoTexture = false;
     new GuardFigurePlugin(p);
     return p;
   });
@@ -171,6 +178,8 @@ export class GuardLibrary {
     let p = this.assets.get(key);
     if (!p) {
       p = loadModel(url).then((model) => {
+        // (a load finishing after the scene went away builds nothing into the dead scene)
+        if (this.scene.isDisposed) throw new Error(`${manifest.id}: scene disposed`);
         const a = buildGuardLod(this.scene, model, manifest, lod, `${manifest.id}-${LOD_NAMES[lod]}`);
         this.built.push(a);
         return a;
@@ -233,10 +242,11 @@ interface GuardLod {
   drv: Int32Array;
   abs: Matrix[];
   fingIn: Float64Array;
-  /** The figure state its gvis / indices were last written from. */
+  /** The figure state its gvis / indices were last written from (flash and heat as levels 0..FX_LEVELS). */
   visVer: number;
   tintVer: number;
   flash: number;
+  heat: number;
 }
 
 export interface GuardFigureOptions {
@@ -245,8 +255,8 @@ export interface GuardFigureOptions {
    * default. Fixed at construction (the world path's offsets are measured with it): do not rescale `root` later.
    */
   scale?: number;
-  /** Visible pieces at spawn (default: the base's body piece). */
-  pieces?: Iterable<string>;
+  /** Visible pieces at spawn (contract ids; the body piece is always shown; default: the body only). */
+  pieces?: readonly string[];
   /** Tint table, rgb bytes per slot (default: white). */
   tints?: ArrayLike<number>;
 }
@@ -259,6 +269,7 @@ const TM2 = new Matrix();
 const INV = new Matrix();
 /** Scratch per-piece mask (a gear change compares it against the figure's own). */
 const VIS = new Uint8Array(MAX_PIECES);
+const NO_PIECES: readonly string[] = [];
 
 /** One guard body on a CharacterRig. */
 export class GuardFigure {
@@ -279,13 +290,13 @@ export class GuardFigure {
   private readonly rigBuf = new Float64Array(RIG_JOINTS.length * TRS);
   private readonly rigRest = new Float64Array(RIG_JOINTS.length * TRS);
   private readonly fingBuf = new Float64Array(FING_LEN);
-  private readonly visibleSet = new Set<string>();
   private readonly vis: Uint8Array;
   private readonly tints: Uint8Array;
   private visVer = 0;
   private tintVer = 0;
-  private flashK = 0;
-  private heatK = 0;
+  /** Flash and heat as levels 0..FX_LEVELS (gearMask `fxLevel`): only a level change rewrites gvis. */
+  private flashLv = 0;
+  private heatLv = 0;
   private have = 0;
   private enabled = true;
   private disposed = false;
@@ -306,7 +317,7 @@ export class GuardFigure {
     this.rigRestRel = this.rig.map((n) => n.computeWorldMatrix(true).multiply(toRoot));
     this.vis = new Uint8Array(manifest.pieces.length);
     this.tints = new Uint8Array(manifest.tintSlots * 3).fill(255);
-    this.setPieces(opts.pieces ?? [manifest.base]);
+    this.setPieces(opts.pieces ?? NO_PIECES);
     if (opts.tints) this.setTints(opts.tints);
     lib.figures.add(this);
   }
@@ -346,15 +357,22 @@ export class GuardFigure {
     return this.lods[lod]?.skeleton ?? null;
   }
 
-  /** Visible pieces now (contract ids). */
-  get pieces(): ReadonlySet<string> {
-    return this.visibleSet;
+  /** Is piece `id` shown now (the body piece always is)? False for an id not in this base's file. */
+  pieceShown(id: string): boolean {
+    const i = this.manifest.pieces.indexOf(id);
+    return i >= 0 && this.vis[i] === 1;
   }
 
   /** Loads one game LOD into this body (shared asset, own skeleton and buffers). Resolves when it can be shown. */
   async load(lod: number): Promise<void> {
     if (this.lods[lod]) return;
-    const asset = await this.lib.load(this.manifest, lod);
+    let asset: GuardLodAsset;
+    try {
+      asset = await this.lib.load(this.manifest, lod);
+    } catch (e) {
+      if (this.isDisposed) return; // the scene went away mid-load: abandoned, not failed
+      throw e;
+    }
     if (this.disposed || this.lods[lod]) return;
     this.lods[lod] = this.instance(asset);
     this.have |= 1 << lod;
@@ -427,28 +445,29 @@ export class GuardFigure {
     });
     const inst: GuardLod = {
       asset: a, root, skeleton, bones, parts, meshes, poser, off, drv, abs,
-      fingIn: new Float64Array(FING_LEN).fill(Number.NaN), visVer: -1, tintVer: -1, flash: Number.NaN,
+      fingIn: new Float64Array(FING_LEN).fill(Number.NaN), visVer: -1, tintVer: -1, flash: -1, heat: -1,
     };
     this.sync(inst);
     // the rest box plus margins, root-local: culled like any mesh (skinned bounds never refresh)
     for (const m of meshes) m.setBoundingInfo(new BoundingInfo(bmin, bmax));
-    if (this.heatK > 0) this.applyHeat(inst);
     return inst;
   }
 
-  /** Brings a LOD's gvis and indices up to the figure's pieces, tints and flash (writes only what changed). */
+  /** Brings a LOD's gvis and indices up to the figure's pieces, tints, flash and heat (writes only what changed). */
   private sync(l: GuardLod): void {
     const visDirty = l.visVer !== this.visVer;
-    if (visDirty || l.tintVer !== this.tintVer || l.flash !== this.flashK) {
+    if (visDirty || l.tintVer !== this.tintVer || l.flash !== this.flashLv || l.heat !== this.heatLv) {
+      const flash = this.flashLv / FX_LEVELS, heat = this.heatLv / FX_LEVELS;
       for (let i = 0; i < l.parts.length; i++) {
         const p = l.parts[i]!;
-        if (fillGvis(p.prim.piece, p.prim.tint, this.vis, this.tints, this.flashK, p.gvis) || p.count < 0) p.gvisVb.updateDirectly(p.gvis, 0);
+        if (fillGvis(p.prim.piece, p.prim.tint, this.vis, this.tints, flash, p.gvis, heat) || p.count < 0) p.gvisVb.updateDirectly(p.gvis, 0);
       }
     }
     if (visDirty) for (let i = 0; i < l.parts.length; i++) this.uploadIndices(l.parts[i]!);
     l.visVer = this.visVer;
     l.tintVer = this.tintVer;
-    l.flash = this.flashK;
+    l.flash = this.flashLv;
+    l.heat = this.heatLv;
   }
 
   /** The visible pieces' triangles as this guard's index buffer (a gear change, not per frame). */
@@ -477,11 +496,13 @@ export class GuardFigure {
     }
   }
 
-  /** The visible pieces (contract ids; ids not in this base's file are ignored). A spawn or gear change. */
-  setPieces(visible: Iterable<string>): void {
-    this.visibleSet.clear();
-    for (const id of visible) this.visibleSet.add(id);
-    pieceMask(this.manifest.pieces, this.visibleSet, VIS);
+  /**
+   * The visible pieces, a spawn or gear change: G6's reused `GuardPieces` as `applyGear` leaves it
+   * (`setPieces(p.ids, p.count)`; entries past `count` are stale and ignored). Contract ids; ids not in this base's
+   * file are ignored; the body piece (the base id: skin, neck, wrists) is always shown, listed or not. No allocation.
+   */
+  setPieces(ids: readonly string[], count = ids.length): void {
+    pieceMask(this.manifest.pieces, ids, count, VIS);
     let same = true;
     for (let i = 0; i < this.vis.length; i++) {
       if (this.vis[i] !== VIS[i]) {
@@ -513,28 +534,29 @@ export class GuardFigure {
     if (l) this.sync(l);
   }
 
-  /** Hit flash 0..1 (towards white, as `SmoothBody.setFlash`): the shown LOD's gvis now, the others when shown. */
+  /**
+   * Hit flash 0..1 (towards white, as `SmoothBody.setFlash`), in FX_LEVELS steps: the shown LOD's gvis now, the others
+   * when shown.
+   */
   setFlash(k: number): void {
-    if (k === this.flashK) return;
-    this.flashK = k;
+    const lv = fxLevel(k);
+    if (lv === this.flashLv) return;
+    this.flashLv = lv;
     const l = this.current >= 0 ? this.lods[this.current] : null;
     if (l) this.sync(l);
   }
 
-  /** Thermal warmth 0..1 (render only): a white overlay per mesh, as Wren's figure. */
+  /**
+   * Thermal warmth 0..1 (render only), in FX_LEVELS steps folded into gvis like the flash (gameState moves it in 1/16
+   * steps): the final colour towards white in the guard's own draw. Not Wren's overlay, which is a second draw per
+   * mesh (24 guards in thermal would add 24 draws). The shown LOD now, the others when shown.
+   */
   setHeat(k: number): void {
-    if (k === this.heatK) return;
-    this.heatK = k;
-    for (const l of this.lods) if (l) this.applyHeat(l);
-  }
-
-  private applyHeat(l: GuardLod): void {
-    const k = this.heatK;
-    for (const m of l.meshes) {
-      m.renderOverlay = k > 0;
-      m.overlayAlpha = k;
-      m.overlayColor.set(1, 1, 1);
-    }
+    const lv = fxLevel(k);
+    if (lv === this.heatLv) return;
+    this.heatLv = lv;
+    const l = this.current >= 0 ? this.lods[this.current] : null;
+    if (l) this.sync(l);
   }
 
   /** Guards keep their heads (the camera fade is the player's); present for the body interface. */

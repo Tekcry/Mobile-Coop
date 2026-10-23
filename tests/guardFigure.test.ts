@@ -154,6 +154,8 @@ describe('guard figure on a NullEngine', () => {
       expect(ma.geometry!.getIndexBuffer()).not.toBe(mb.geometry!.getIndexBuffer());
       expect(ma.material).toBe(mb.material);
       expect(ma.material!.pluginManager?.getPlugin('GuardFigure')).toBeTruthy();
+      // the albedo alpha is the tint mask, never transparency
+      expect((ma.material as InstanceType<typeof B.PBRMaterial>).useAlphaFromAlbedoTexture).toBe(false);
       expect(ma.skeleton).not.toBe(mb.skeleton);
       expect(ma.numBoneInfluencers).toBe(4);
       // only the visible pieces' triangles are in each guard's index buffer
@@ -316,7 +318,73 @@ describe('guard figure on a NullEngine', () => {
     forgetModels();
   });
 
-  it('flash and heat: flash folds into the visible alpha only; heat is the overlay; neither throws', async () => {
+  it('(B1) the body piece is always shown: a G6 applyGear list without the base keeps it in gvis and the index buffer', async () => {
+    const { B, G, M, scene, rig, forgetModels } = await setup();
+    const lib = new G.GuardLibrary(scene);
+    // the default: the body only
+    const d = new G.GuardFigure(lib, rig('gd'), MANIFEST, 'gd');
+    // G6's applyGear output never lists the base (head, hair, headwear, kit, outfit, gear only)
+    const a = new G.GuardFigure(lib, rig('ga'), MANIFEST, 'ga', { pieces: ['helmet_std'] });
+    await Promise.all([a.loadGameLods(), d.loadGameLods()]);
+    const cam = new B.FreeCamera('cam', new B.Vector3(0, 1.6, -3), scene);
+    a.update(cam);
+    d.update(cam);
+    const m0 = a.lodMeshes(M.LOD_0)[0]!;
+    expect(alphas(m0)).toEqual([255, 255, 255, 255, 255, 255, 0, 0, 0]);
+    expect(m0.getTotalIndices()).toBe(6);
+    expect(a.pieceShown('average')).toBe(true);
+    expect(alphas(d.lodMeshes(M.LOD_0)[0]!)).toEqual([255, 255, 255, 0, 0, 0, 0, 0, 0]);
+    expect(d.lodMeshes(M.LOD_0)[0]!.getTotalIndices()).toBe(3);
+    // a gear change with no body named and nothing else: the body stays drawn
+    const ib = vi.spyOn(scene.getEngine(), 'createIndexBuffer');
+    a.setPieces([], 0);
+    expect(alphas(m0).slice(0, 3)).toEqual([255, 255, 255]);
+    expect(m0.getTotalIndices()).toBe(3);
+    expect(Array.from(ib.mock.calls.at(-1)![0] as Uint16Array)).toEqual([0, 1, 2]);
+    expect(m0.isVisible).toBe(true);
+    ib.mockRestore();
+    a.dispose();
+    d.dispose();
+    scene.dispose();
+    forgetModels();
+  });
+
+  it('(B2) takes G6\'s reused (ids, count): a stale helmet_std past count stays hidden and out of the index buffer', async () => {
+    const { B, G, M, scene, rig, forgetModels } = await setup();
+    const lib = new G.GuardLibrary(scene);
+    const a = new G.GuardFigure(lib, rig('ga'), MANIFEST, 'ga');
+    await a.loadGameLods();
+    const cam = new B.FreeCamera('cam', new B.Vector3(0, 1.6, -3), scene);
+    a.update(cam);
+    const m0 = a.lodMeshes(M.LOD_0)[0]!;
+    // GuardPieces as applyGear leaves it: 16 reused slots, the first `count` valid
+    const ids: string[] = ['average-1', 'vest_soft', 'helmet_std'];
+    while (ids.length < 16) ids.push('');
+    const ib = vi.spyOn(scene.getEngine(), 'createIndexBuffer');
+    a.setPieces(ids, 3);
+    expect(alphas(m0)).toEqual([255, 255, 255, 255, 255, 255, 255, 255, 255]);
+    expect(m0.getTotalIndices()).toBe(9);
+    // the helmet knocked off: applyGear rewrites the list shorter; helmet_std stays in slot 2 as a stale entry
+    ids[1] = 'vest_soft';
+    a.setPieces(ids, 2);
+    expect(alphas(m0)).toEqual([255, 255, 255, 0, 0, 0, 255, 255, 255]);
+    expect(a.pieceShown('helmet_std')).toBe(false);
+    expect(m0.getTotalIndices()).toBe(6);
+    const last = Array.from(ib.mock.calls.at(-1)![0] as Uint16Array);
+    expect(last.some((i) => i >= 3 && i <= 5)).toBe(false);
+    expect(last.sort()).toEqual([0, 1, 2, 6, 7, 8]);
+    // the same set again (a different stale tail): no rewrite
+    const n = ib.mock.calls.length;
+    ids[2] = 'cap';
+    a.setPieces(ids, 2);
+    expect(ib.mock.calls.length).toBe(n);
+    ib.mockRestore();
+    a.dispose();
+    scene.dispose();
+    forgetModels();
+  });
+
+  it('flash and heat fold into the visible alpha (no overlay, one draw per guard in thermal); neither throws', async () => {
     const { B, G, M, scene, rig, forgetModels } = await setup();
     const lib = new G.GuardLibrary(scene);
     const a = new G.GuardFigure(lib, rig('ga'), MANIFEST, 'ga', { pieces: ['average', 'vest_soft'] });
@@ -325,22 +393,71 @@ describe('guard figure on a NullEngine', () => {
     a.update(cam);
     const m0 = a.lodMeshes(M.LOD_0)[0]!;
     expect(() => a.setFlash(1)).not.toThrow();
-    expect(alphas(m0)).toEqual([1, 1, 1, 0, 0, 0, 1, 1, 1]);
+    expect(alphas(m0)).toEqual([240, 240, 240, 0, 0, 0, 240, 240, 240]);
     // the far LODs catch up when shown
     expect(alphas(a.lodMeshes(M.LOD_2)[0]!)).toEqual([255, 255, 255, 0, 0, 0, 255, 255, 255]);
     a.setFlash(0.5);
-    expect(alphas(m0)[0]).toBe(128);
+    expect(alphas(m0)[0]).toBe(255 - 8);
     a.setFlash(0);
     expect(alphas(m0)).toEqual([255, 255, 255, 0, 0, 0, 255, 255, 255]);
+    // thermal: the body heat (THERMAL.bodyEmit 0.85) as level 13 in the high bits of the same bytes, no overlay pass
+    const vb = m0.getVertexBuffer('gvis')!;
+    const up = vi.spyOn(vb, 'updateDirectly');
     expect(() => a.setHeat(0.85)).not.toThrow();
-    expect(a.renderMeshes.every((m) => m.renderOverlay && m.overlayAlpha === 0.85)).toBe(true);
+    expect(up).toHaveBeenCalledTimes(1);
+    expect(alphas(m0)).toEqual([47, 47, 47, 0, 0, 0, 47, 47, 47]);
+    expect(a.renderMeshes.some((m) => m.renderOverlay)).toBe(false);
+    a.setHeat(0.851); // same level: no rewrite
+    expect(up).toHaveBeenCalledTimes(1);
+    up.mockRestore();
+    // a LOD shown later catches up with the heat
+    cam.position.set(0, 1.6, -40);
+    cam.computeWorldMatrix();
+    a.update(cam);
+    expect(a.current).toBe(M.LOD_2);
+    expect(alphas(a.lodMeshes(M.LOD_2)[0]!)).toEqual([47, 47, 47, 0, 0, 0, 47, 47, 47]);
     a.setHeat(0);
+    expect(alphas(a.lodMeshes(M.LOD_2)[0]!)).toEqual([255, 255, 255, 0, 0, 0, 255, 255, 255]);
     expect(a.renderMeshes.some((m) => m.renderOverlay)).toBe(false);
     expect(() => a.setHeadVisible(false)).not.toThrow();
+    const m2 = a.lodMeshes(M.LOD_2)[0]!;
     a.setEnabled(false);
-    expect(m0.isEnabled()).toBe(false);
+    expect(m2.isEnabled()).toBe(false);
     a.setEnabled(true);
-    expect(m0.isEnabled()).toBe(true);
+    expect(m2.isEnabled()).toBe(true);
+    a.dispose();
+    scene.dispose();
+    forgetModels();
+  });
+
+  it('(R1) thermal adds no draw: the guard draws once with heat on as with it off (an overlay would add one)', async () => {
+    const { B, G, M, scene, rig, forgetModels } = await setup();
+    const lib = new G.GuardLibrary(scene);
+    const a = new G.GuardFigure(lib, rig('ga'), MANIFEST, 'ga', { pieces: ['average', 'vest_soft'] });
+    await a.loadGameLods();
+    const cam = new B.FreeCamera('cam', new B.Vector3(0, 1.6, -3), scene);
+    cam.setTarget(new B.Vector3(0, 1.2, 0));
+    scene.activeCamera = cam;
+    a.update(cam);
+    const m0 = a.lodMeshes(M.LOD_0)[0]!;
+    const draws = vi.spyOn(scene.getEngine(), 'drawElementsType');
+    const frame = async (): Promise<number> => {
+      await vi.waitFor(() => expect(scene.isReady()).toBe(true));
+      draws.mockClear();
+      scene.render();
+      return draws.mock.calls.length;
+    };
+    const cold = await frame();
+    expect(cold).toBeGreaterThan(0);
+    a.setHeat(0.85);
+    expect(await frame()).toBe(cold);
+    // the counter does see an overlay pass: Wren's way (renderOverlay) costs one more draw per mesh
+    m0.renderOverlay = true;
+    m0.overlayAlpha = 0.85;
+    // (the outline renderer compiles its effect on the first frames)
+    await vi.waitFor(async () => expect(await frame()).toBe(cold + 1));
+    m0.renderOverlay = false;
+    draws.mockRestore();
     a.dispose();
     scene.dispose();
     forgetModels();
@@ -391,10 +508,38 @@ describe('guard figure on a NullEngine', () => {
     const on = await effectOf(true);
     expect(on.defines).toContain('#define GUARDFIG');
     expect(on._vertexSourceCode).toContain('gl_Position *= step(0.5 / 255.0, gvis.a);');
-    expect(on._fragmentSourceCode).toContain('surfaceAlbedo *= mix(vec3(1.0), toLinearSpace(vGvis.rgb), gTintMask);');
+    expect(on._fragmentSourceCode).toContain('surfaceAlbedo *= mix(vec3(1.0), toLinearSpace(vGvis), gTintMask);');
+    expect(on._vertexSourceCode).toContain('float gHeat = floor(gFx / 16.0);');
+    expect(on._fragmentSourceCode).toContain('finalColor.rgb = mix(finalColor.rgb, vec3(1.0), vGfx.y);');
     const off = await effectOf(false);
     expect(off.defines).not.toContain('#define GUARDFIG');
     scene.dispose();
+  });
+
+  it('(P1) a load finishing after the scene is disposed builds nothing; the figure load is abandoned, not failed', async () => {
+    const { G, M, scene, rig, forgetModels } = await setup();
+    const lib = new G.GuardLibrary(scene);
+    const a = new G.GuardFigure(lib, rig('ga'), MANIFEST, 'ga');
+    const p = a.load(M.LOD_0);
+    const q = lib.load(MANIFEST, M.LOD_1);
+    scene.dispose();
+    await expect(p).resolves.toBeUndefined();
+    await expect(q).rejects.toThrow('scene disposed');
+    expect(lib.sharedCount).toBe(0);
+    expect(a.loaded).toBe(0);
+    forgetModels();
+  });
+
+  it('(P2) a guard file is one primitive; only the stand-in may carry several', async () => {
+    const { G, scene, forgetModels } = await setup();
+    const { loadModel } = await import('../src/operators/runtime/figure');
+    const model = await loadModel(MANIFEST.urls[1]);
+    const two = { ...model, meshes: [model.meshes[0]!, model.meshes[0]!] };
+    expect(G.validateGuardModel(model, MANIFEST, 'x')).toEqual([]);
+    expect(G.validateGuardModel(two, MANIFEST, 'x').some((e) => e.includes('2 primitives'))).toBe(true);
+    expect(G.validateGuardModel(two, { ...MANIFEST, id: 'guard-standin-average' }, 'x')).toEqual([]);
+    scene.dispose();
+    forgetModels();
   });
 
   it('refuses a bad manifest and a hero LOD', async () => {
