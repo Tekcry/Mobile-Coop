@@ -3,7 +3,22 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
-**Test Runner SAVE 11 (2026-10-23 ~13:55, swap ~14:05; wins over all below):**
+**Test Runner SAVE 12 (2026-10-23 ~14:15, new account after the ~14:05 swap; wins over all below):**
+- Guard AI Build now also runs on the laptop: its e2e still comes through this queue; laptop CPU under ~80% together.
+- RUNNING (scheduled tasks): 4189 chain-1023t26: train26-a63e6f4b full (JOBS=5, 4192 idle, load sampler
+  runs/train26-load.csv; started 14:10:36) -> verdict to the orchestrator. Then chain-1023s4off (waits for train26
+  DONE + both locks free): guardrender-s4off-5809afe6 = the S4 `?animtier=0` guard-cap pass (out
+  C:/NightShift/scratch/work/guardrender-s4-off).
+- guardrender-s4cap-5809afe6: the "on" pass is good (C:/NightShift/scratch/work/guardrender-s4-on); the "off" pass
+  ran with no flags (unescaped `&` in `cmd /c`: write `^&` unquoted, as the S1 / S6 runs did), so it is rerun above.
+  First read of "on" vs S1-on at 24 guards: sectorops patrol/facing 9.4 vs 7.1 ms, ctcourse facing 9.5 vs 6.3 ms
+  (worse; Guard AI agents shared the laptop CPU during the run, no load sample). Judge S4 only from on vs off.
+- QUEUE after that: Player #207 e2e-clip (feature/ctcore-batch-22 still 99c37251 = not requested yet), Guard AI
+  S13-S15 rerun (feature/guard-ai-s15 still 72a5091f WIP = not requested yet). Run on 4192 when the request comes.
+- Guard-render: after the off numbers, copy both into docs/guard-render/run-s4-on|off on feature/guard-render-s4 +
+  STATE "## S4"; then re-plan (PLAN.md: all slices done except S2 = voxel path only, off by default).
+
+**Test Runner SAVE 11 (2026-10-23 ~13:55, swap ~14:05):**
 - SENT since SAVE 10: Sector Ops b3fd1fa3 6/7 (sectorops:6 console warnings from guard-ai talking pairs; they fixed it
   in e57dac61); pose-parity 546b6e41 GREEN 3/3 (Player Build).
 - RUNNING / QUEUED (scheduled tasks): 4189 sectorp4-e57dac61 SENT GREEN (PR #217 green);
@@ -543,9 +558,15 @@ puts it in CLAUDE.md on feature/menu). Laptop full runs: `RUN_GPU=1` (E2E_GPU=1)
 
 ## Resume prompt
 ```
-Night Shift | Test Runner (laptop, the MAIN test machine, GPU for every e2e run). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop"), then the newest "Test Runner SAVE" / "Character Build SAVE" block (SAVE 11 at the time of writing) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). It names the runs (C:/NightShift/scratch/runs/<label>/summary.txt; no DONE line = it died in the swap, rerun it) and the agent branches (check each branch's newest commit to see what landed; restart unfinished work from there). Message "Night Shift | Orchestrator" that you are back with any results, then continue the SAVE block's list: send any finished verdicts (train 20 lightbake solo first, to the orchestrator), keep both slots busy with the queue, and run the guard-render job (S1 e2e + guard-cap ALONE + PR; S3a / S5 Sonnet builders, Opus checkers; docs/guard-render/STATE.md). Sonnet 5.5 builds from strict Opus briefs, Opus checks. At most one full run at a time (4189), singles on 4192; a lock with no live node process is stale (taskkill /T /F).
+Night Shift | Test Runner (laptop, the MAIN test machine; GPU for every e2e run). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop", "Heavy-usage throughput" incl. "Token rules"), then the newest "Test Runner SAVE" block at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Do what it lists, in order.
 
-Runner: C:/NightShift/scratch/laptop-runner.ps1 (header explains; results C:/NightShift/scratch/runs/<label>/summary.txt, DONE at the end). Every run RUN_GPU=1. Slots: full runs RUN_JOBS=3 on -Slot 4189 (the trial in STATE: keep the load sampler C:/NightShift/scratch/load-sampler.ps1 on and check the pass criteria); single suites RUN_JOBS=1 on -Slot 4192. Fetch in the slot's worktree before a new commit. Launch hidden; a run that may outlive the session goes through a scheduled task (schtasks, see STATE), never only Start-Process. Chain several runs in one script (C:/NightShift/scratch/chain-*.ps1 are examples). Reply to the requester with pass / fail per suite, the failing assert lines, times and commit; copy the orchestrator. Order: orchestrator, CT Core, Menu Notes, Course Ready, then own jobs (gpu-tests-2 PR, test-speed-2).
+Start: check C:/NightShift/scratch/runs/<label>/summary.txt for each run the SAVE names (no DONE line = died in the swap: rerun) and C:/NightShift/heavy-4189.lock / heavy-4192.lock (a lock with no live node.exe is stale: taskkill /T /F, delete). If two Test Runner sessions show in ListAgents, close the older one.
 
-Pacing: docs/orchestrator/STATE.md "Pacing" on origin/feature/menu (get_usage before each agent; 97% no new agent, 98% commit + push + STATE, stopped by 99%). Branch guard before every write. Native multiple choice only, hyphens not em dashes.
+Runner: C:/NightShift/scratch/laptop-runner.ps1 (header explains; results runs/<label>/summary.txt, DONE at the end). RUN_GPU=1 always. Full runs and trains on -Slot 4189: RUN_JOBS=5 only while 4192 is idle, else 3. Singles on 4192 RUN_JOBS=1. Chain runs in C:/NightShift/scratch/chain-1023<x>.ps1 and launch each through a scheduled task (schtasks /create /sc once /st 23:59 /f /tn NightShift-chain-<x>-<slot> /tr "powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File <chain.ps1>", then schtasks /run): survives swaps. In a step passed to cmd /c write query flags as ^& unquoted. A PowerShell run list with one run needs an ArrayList.
+
+Order: trains first, then PR / area suites, then measures that need 4189 alone (guard-cap, perf) only with no train queued. Laptop CPU under ~80% with Guard AI Build (it also runs here). One verdict message per batch: trains, guard-render PRs and train blockers to "Night Shift | Orchestrator"; other verdicts to the job lead (pass / fail per suite, failing assert, times, commit). Message the orchestrator only at PR open / train-ready / blocked / needs Michael; progress goes in this STATE.
+
+Guard-render job (docs/guard-render/PLAN.md, STATE.md on the newest feature/guard-render-* branch): Opus plans and checks, Sonnet 5.5 builds from strict briefs, Haiku 5.5 chores; branch guard before every write; one checker per batch.
+
+Burn: full burn to 100%; at the orchestrator's ~92% save commit agent worktrees as WIP + push, keep the SAVE block current, keep working. No mid-window clears unless past ~50% context. No polling turns. Native multiple choice only, hyphens not em dashes. Commits end with "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>".
 ```
