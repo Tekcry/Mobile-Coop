@@ -1,6 +1,6 @@
 import { BaseTexture, Constants, max3DTextureSize, EffectRenderer, EffectWrapper, MaterialPluginBase, RawTexture, RawTexture3D, Texture, Viewport, type AbstractMesh, type Material, type MaterialDefines, type Observer, type RenderTargetWrapper, type Scene, type SubMesh, type UniformBuffer } from '../core/babylon';
 import { dropCpuCopy } from '../voxel/voxelWorld';
-import { BOX_STRIDE, fillLampAtlas, fitLampAtlas, LAMP_CELL, LAMP_GRID, LAMP_STRIDE, lampGrid, type LampResult } from '../voxel/lampBake';
+import { BOX_STRIDE, fillLampAtlas, fitLampAtlas, LAMP_CELL, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_GRID_TEXELS, LAMP_STRIDE, lampGrid, type LampResult } from '../voxel/lampBake';
 import { LAMP_VOL_MAX, lampVolumeGrid, lampVolumeRegion, unionRegion, type LampVolumeGrid } from '../voxel/lampVolume';
 import type { LightRegistry } from './lights';
 import { bakedLights, type MoonGrid } from './lightBake';
@@ -186,11 +186,13 @@ export class BakedLamps implements CharShadowLamps {
     this.vis.wrapU = this.vis.wrapV = this.vis.wrapR = Texture.CLAMP_ADDRESSMODE;
     dropCpuCopy(this.vis);
     const grid = lampGrid(baked.lights, lo, hi);
+    if (grid.worst > LAMP_GRID_SLOTS) console.warn(`BakedLamps: a 2 m column has ${grid.worst} lamps in reach, past the ${LAMP_GRID_SLOTS} slots: the farthest are dropped`);
     this.gridInfo = { lox: lo[0]!, loz: lo[2]!, cols: grid.cols, rows: grid.rows };
     const n = baked.ids.length;
-    const w = Math.max(32, grid.cols * 2);
+    // (LR16b) `LAMP_GRID_TEXELS` texels a column
+    const w = Math.max(32, grid.cols * LAMP_GRID_TEXELS);
     this.width = w;
-    this.lampBase = grid.cols * 2 * grid.rows;
+    this.lampBase = grid.cols * LAMP_GRID_TEXELS * grid.rows;
     this.capBase = this.lampBase + n * LAMP_TEXELS;
     // (LR15: with 8 door slots, the lamps' second door texels first)
     const door2Base = this.capBase + MAX_CAPSULES * 2;
@@ -480,11 +482,12 @@ void main(void) {
   float wsum = 0.0;
   vec2 gq = floor((p.xz - lampGridO.xy) / lampGridO.z);
   if (gq.x >= 0.0 && gq.y >= 0.0 && gq.x < lampInfo.y && gq.y < lampInfo.z) {
-    int gk = (int(gq.y) * int(lampInfo.y) + int(gq.x)) * 2;
-    vec4 ga = lampTexel(gk);
-    vec4 gb = lampTexel(gk + 1);
-    for (int s = 0; s < 8; s++) {
-      float fid = s < 4 ? ga[s] : gb[s - 4];
+    int gk = (int(gq.y) * int(lampInfo.y) + int(gq.x)) * ${LAMP_GRID_TEXELS};
+    vec4 ga = vec4(0.0);
+    for (int s = 0; s < ${LAMP_GRID_SLOTS}; s++) {
+      int sl = s - (s / 4) * 4;
+      if (sl == 0) ga = lampTexel(gk + s / 4);
+      float fid = ga[sl];
       if (fid < 0.5) break;
       int lb = int(lampInfo.w) + (int(fid + 0.5) - 1) * ${LAMP_TEXELS};
       vec4 t1 = lampTexel(lb + 1);
@@ -978,11 +981,12 @@ ${settle}
   vec3 lsum = vec3(0.0);
   vec3 nsLampRaw = vec3(0.0);
   if (gq.x >= 0.0 && gq.y >= 0.0 && gq.x < lampInfo.y && gq.y < lampInfo.z) {
-    int gk = (int(gq.y) * int(lampInfo.y) + int(gq.x)) * 2;
-    vec4 ga = lampTexel(gk);
-    vec4 gb = lampTexel(gk + 1);
-    for (int s = 0; s < 8; s++) {
-      float fid = s < 4 ? ga[s] : gb[s - 4];
+    int gk = (int(gq.y) * int(lampInfo.y) + int(gq.x)) * ${LAMP_GRID_TEXELS};
+    vec4 ga = vec4(0.0);
+    for (int s = 0; s < ${LAMP_GRID_SLOTS}; s++) {
+      int sl = s - (s / 4) * 4;
+      if (sl == 0) ga = lampTexel(gk + s / 4);
+      float fid = ga[sl];
       if (fid < 0.5) break;
       int lb = int(lampInfo.w) + (int(fid + 0.5) - 1) * ${LAMP_TEXELS};
       vec4 t1 = lampTexel(lb + 1);

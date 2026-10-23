@@ -377,8 +377,21 @@ export function fillLampAtlas(r: LampResult, a: LampAtlas): Uint8Array {
 
 /** Light grid cell (m): each cell lists the lights that can reach it. */
 export const LAMP_GRID = 2;
-/** Lights listed per grid cell (two RGBA8 texels). */
-export const LAMP_GRID_SLOTS = 8;
+/**
+ * Lights listed per grid cell: `LAMP_GRID_TEXELS` RGBA texels of 4 ids. (LR16b; was 8 in two texels) With the
+ * photometric reach (radius x 1.6, LR16a) a 2 m column has up to 17 lamps in reach (Sector Ops; Saltmarsh Park 16,
+ * Fallow 11, Marlow Yard 9), and a lamp past the 8th lost its light in the meter and the picture alike. Every lamp in
+ * a column's reach now gets a slot: nothing is dropped and nothing approximated (a residual or a shortened reach would
+ * change what each lamp lights), the shaders' loop stops at the first empty slot so a column costs what it lists, and
+ * the grid texels cost 16 B each (Saltmarsh Park: 5688 columns, 546 KB). `lampGrid` reports a column past the cap.
+ */
+export const LAMP_GRID_SLOTS = 24;
+/** RGBA texels per grid cell (`LAMP_GRID_SLOTS` / 4). */
+export const LAMP_GRID_TEXELS = LAMP_GRID_SLOTS / 4;
+/** Index into `lampGrid(...).data` of column (q, r)'s first slot. */
+export function lampGridBase(cols: number, q: number, r: number): number {
+  return (r * cols + q) * LAMP_GRID_TEXELS * 4;
+}
 
 const clamp1 = (c: number): number => (c < -1 ? -1 : c > 1 ? 1 : c);
 
@@ -425,13 +438,16 @@ export function lampColumnDist(L: ArrayLike<number>, i: number, reach: ArrayLike
 
 /**
  * Pure: per `LAMP_GRID` column of the map, the ids (+1; 0 = none) of up to `LAMP_GRID_SLOTS` lights whose plan reach
- * (`lampPlanReach`) touches it, nearest first. Two RGBA8 texels per cell, `cols * 2` x `rows`. Load time only.
+ * (`lampPlanReach`) touches it, nearest first. `LAMP_GRID_TEXELS` RGBA texels per cell (`lampGridBase`),
+ * `cols * LAMP_GRID_TEXELS` x `rows`. `worst`: the most lights any column has in reach (past `LAMP_GRID_SLOTS` the
+ * farthest are dropped; the callers warn). Load time only.
  */
-export function lampGrid(L: Float32Array, lo: readonly number[], hi: readonly number[]): { data: Uint8Array; cols: number; rows: number } {
+export function lampGrid(L: Float32Array, lo: readonly number[], hi: readonly number[]): { data: Uint8Array; cols: number; rows: number; worst: number } {
   const g = LAMP_GRID;
   const cols = Math.max(1, Math.ceil((hi[0]! - lo[0]!) / g));
   const rows = Math.max(1, Math.ceil((hi[2]! - lo[2]!) / g));
-  const data = new Uint8Array(cols * 2 * rows * 4);
+  const data = new Uint8Array(cols * LAMP_GRID_TEXELS * rows * 4);
+  let worst = 0;
   const n = Math.min(255, L.length / LAMP_STRIDE);
   const near: { id: number; d: number }[] = [];
   const reach = new Float64Array(n * 5);
@@ -450,8 +466,10 @@ export function lampGrid(L: Float32Array, lo: readonly number[], hi: readonly nu
         if (d >= 0) near.push({ id: i, d });
       }
       near.sort((a, b) => a.d - b.d);
-      for (let k = 0; k < Math.min(LAMP_GRID_SLOTS, near.length); k++) data[(r * cols * 2 + q * 2) * 4 + k] = near[k]!.id + 1;
+      if (near.length > worst) worst = near.length;
+      const base = lampGridBase(cols, q, r);
+      for (let k = 0; k < Math.min(LAMP_GRID_SLOTS, near.length); k++) data[base + k] = near[k]!.id + 1;
     }
   }
-  return { data, cols, rows };
+  return { data, cols, rows, worst };
 }
