@@ -21,7 +21,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity } from './lib.mjs';
+import { assertKey, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -359,12 +359,27 @@ async function e2e(port, suites, jobs, logFile) {
 
 // ---------- results ----------
 
-/** Reruns each failed (non-known-flaky) suite once alone; a pass is a flake. Mutates result.suites, returns flake names. */
+/** A suite's section in the run's own logs (not the reruns), '' when none. */
+function sectionOf(runDir, suite) {
+  for (const f of fs.existsSync(runDir) ? fs.readdirSync(runDir) : []) {
+    if (!f.endsWith('.log') || f.startsWith('rerun-')) continue;
+    const sec = suiteSection(fs.readFileSync(path.join(runDir, f), 'utf8'), suite);
+    if (sec) return sec;
+  }
+  return '';
+}
+
+/**
+ * Reruns each failed (non-known-flaky) suite once alone; a pass is a flake. Mutates result.suites, returns flake names.
+ * The failure stands unrerun only when the same suite flaked within 24 h on the same assert (assertKey): a new assert
+ * on a suite that flaked before is rerun (train 40 ctcourse:4, 2026-10-24).
+ */
 async function rerunFlakes(result, slotOf, job, runDir, fallback = PORTS[0]) {
   const flakes = [];
   const now = Date.now();
   for (const x of result.suites.filter((s) => !s.ok && !s.flaky && !s.report)) {
-    if (state.flakes.some((f) => f.suite === x.s && now - Date.parse(f.date) < FLAKE_WINDOW_MS)) { log(`${x.s} flaked within 24 h, failure stands`); continue; }
+    const key = assertKey(failureExcerpt(sectionOf(runDir, x.s)).assert);
+    if (flakeStands(state.flakes, x.s, key, now, FLAKE_WINDOW_MS)) { log(`${x.s} flaked within 24 h on the same assert, failure stands`); continue; }
     if (DRY) continue;
     const port = slotOf[x.s] ?? fallback;
     log(`rerun ${x.s} alone on ${port}`);
@@ -372,7 +387,7 @@ async function rerunFlakes(result, slotOf, job, runDir, fallback = PORTS[0]) {
     if (runComplete(run, 1) && run.suites.every((s) => s.ok)) {
       x.ok = true;
       flakes.push(x.s);
-      state.flakes.push({ suite: x.s, sha: job.sha, ref: job.ref, date: new Date().toISOString() });
+      state.flakes.push({ suite: x.s, key, sha: job.sha, ref: job.ref, date: new Date().toISOString() });
     }
   }
   return flakes;
@@ -381,13 +396,7 @@ async function rerunFlakes(result, slotOf, job, runDir, fallback = PORTS[0]) {
 function failureComment(job, result, runDir) {
   const parts = [`laptop-e2e failed on ${job.sha.slice(0, 8)} (${job.ref}).`];
   for (const x of result.suites.filter((s) => !s.ok && !s.flaky && !s.report)) {
-    let sec = '';
-    for (const f of fs.existsSync(runDir) ? fs.readdirSync(runDir) : []) {
-      if (!f.endsWith('.log') || f.startsWith('rerun-')) continue;
-      sec = suiteSection(fs.readFileSync(path.join(runDir, f), 'utf8'), x.s);
-      if (sec) break;
-    }
-    const { assert, tail40 } = failureExcerpt(sec);
+    const { assert, tail40 } = failureExcerpt(sectionOf(runDir, x.s));
     parts.push(`\n**${x.s}**\nFailing assert: \`${capTail(assert || 'none found', 500)}\`\nLog on the ${WORKER}: ${runDir}\n\`\`\`\n${capTail(tail40 || '(no log section)', 8_000)}\n\`\`\``);
   }
   return parts.join('\n');

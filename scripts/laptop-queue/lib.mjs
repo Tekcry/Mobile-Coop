@@ -257,6 +257,22 @@ export function failureExcerpt(sectionText) {
 }
 
 /**
+ * An assert line reduced to what names it: bracketed parts ([host: sim 90.30 s ...] timing and state dumps) dropped,
+ * numbers as #, spaces collapsed. '' for no assert.
+ */
+export function assertKey(line) {
+  return String(line ?? '').replace(/\[[^\]]*\]/g, '').replace(/\d+(?:\.\d+)?/g, '#').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * The failure stands without an alone rerun: the same suite flaked within windowMs on the same assert key. A flake
+ * recorded without a key (older state) or a failure with no assert never matches, so it is rerun.
+ */
+export function flakeStands(flakes, suite, key, now, windowMs) {
+  return Boolean(key) && (flakes ?? []).some((f) => f.suite === suite && f.key === key && now - Date.parse(f.date) < windowMs);
+}
+
+/**
  * The train's own build already failed: the first auto-train/* status (auto-train/vitest, ...) in failure or error as
  * { context, state }, else null. statuses = a combined status list (latest per context). Such a head never takes the slots.
  */
