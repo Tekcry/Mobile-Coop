@@ -315,7 +315,7 @@ export class TakedownController {
     // (hanging: from over the lip, where the hands are)
     this.eye.set(p.x, p.y + (i.state === 'hang' ? 2.05 : 1.2), p.z);
     this.head.set(best.pos.x, best.pos.y + 1.2, best.pos.z);
-    const h = g.ballistics.ray(this.eye, this.head, G.STATIC);
+    const h = g.ballistics.ray(this.eye, this.head, G.STATIC | G.GLASS);
     i.los = !h.hit || h.distance > Vector3.Distance(this.eye, this.head) - 0.2;
     const plan = pickTakedown(i);
     if (!plan) return null;

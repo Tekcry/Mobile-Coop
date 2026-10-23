@@ -370,6 +370,12 @@ export const KNEE_GAP = 0.15;
 export const KEYED_KNEE_GAP = 0.11;
 /** (anim-rework S2) The bow-out rule's pole share per unit of closing under the keyed gaits (6 otherwise). */
 export const KEYED_KNEE_BOW = 2.5;
+/** (mocap-trial-2 strafe fix 2, the e2e-anim knee-out) In the mocap strafe (by its share, keyStrafe) the bow-out rule's pole
+ *  share per unit of closing: just enough to part the knees. The captures' closed stance (ankles 9 cm apart, both feet down
+ *  for 8 frames, OFF 1) brought the knees inside KEYED_KNEE_GAP, and 2.5 bowed both 2 cm past the gap (15 cm apart): the
+ *  knees 3.4-3.5 cm outside their ankles. One unit of pole moves each bent knee about 0.2 m across the body (0.4 m of gap),
+ *  so 0.11 m of gap per unit of closing needs 0.28: 0.5 keeps a margin. */
+export const STRAFE_KNEE_BOW = 0.5;
 /** A knee's centre never goes lower than this above the floor (m): the kneecap rests on it. */
 export const KNEE_FLOOR = 0.05;
 /** (CT prototype G1, audit rows 16 / 27) Moving crouched (sneak, crouch walk, crouch run) the rear knee stays this high
@@ -393,6 +399,15 @@ const REST_SHIFT_RATE = 0.6;
  * capsule), eased over `tau` s: a side-step's weight goes onto the lead foot, then the trailing foot closes under it.
  */
 export const GLIDE_HIP = { share: 1, max: 0.09, tau: 0.08 } as const;
+/** (mocap-trial-2 strafe fix) In the mocap strafe the hips stay this far (m) inside each planted foot across the body (the
+ *  captures keep theirs 4.4 cm inside; the planted knee then stays over its toes). */
+export const STRAFE_HIP_IN = 0.06;
+/** (mocap-trial-2 strafe fix 3) In the mocap strafe the hips' sideways offset from the root (the keyed pelvis, GLIDE_HIP
+ *  and STRAFE_HIP_IN together) changes at most this fast (m/s): after a flip or a restart the side-steps lag the root up to
+ *  30 cm, the hold inside the planted feet grew to 23 cm and let go at its ease as a foot lifted (the hips jumped 3-4 cm a
+ *  frame beyond the pace). A steady strafe moves it up to ~0.75 m/s (GLIDE_HIP over the long side-steps): under that the
+ *  hips lagged their feet and the knees bowed out (0.3: knee-out 3.5 cm). */
+export const STRAFE_HIP_RATE = 0.75;
 /** (anim-rework S3, BRIEF 3 "elbows down and close to the ribs") With a gun in the hands the elbow pole's outward share
  *  is cut by this much at low ready (AIM_ELBOW_TUCK raised). */
 export const READY_ELBOW_TUCK = 0.5;
@@ -1178,6 +1193,10 @@ export class CharacterRig {
   /** (n138 fix 2) The keyed pelvis offset applied last frame (m: height, forward; KEY_PEL_RATE). */
   private keyPelY = 0;
   private keyPelZ = 0;
+  /** (mocap-trial-2 strafe fix) The mocap strafe's hips shift inside the planted feet (m, eased; STRAFE_HIP_IN). */
+  private strafeHip = 0;
+  /** (mocap-trial-2 strafe fix 3) The hips's sideways shift (glideShift + strafeHip) applied last frame (m; STRAFE_HIP_RATE). */
+  private strafeSum = 0;
   private keyPelOn = false;
   /** (anim-rework S3) The glide's lateral hip shift over the feet (m, eased; GLIDE_HIP). */
   private glideShift = 0;
@@ -1701,13 +1720,17 @@ export class CharacterRig {
   // Animation
   // ------------------------------------------------------------------------------------------
 
-  /** Animation (clip graph + foot planner + IK). Call every render frame. */
-  animate(dt: number, s: RigPose): void {
+  /** Animation (clip graph + foot planner + IK). Call every render frame. `solveDt` (guard-render S4, guards'
+   *  `animTier.ts`): the caller's anim tier, the time to solve this frame (it carries the skipped time) or -1 to skip;
+   *  omitted: the camera-distance LOD below. */
+  animate(dt: number, s: RigPose, solveDt?: number): void {
     if (this.disposed) return;
     // (21w) a re-parented weapon eases onto its new place (every frame, LOD or not)
     this.stepGlide(dt);
+    if (solveDt !== undefined && solveDt < 0) return;
+    if (solveDt !== undefined) dt = solveDt;
     // animation LOD: rigs far from the camera solve every other frame
-    const cam = this.root.getScene().activeCamera;
+    const cam = solveDt === undefined ? this.root.getScene().activeCamera : null;
     if (cam) {
       const p = this.root.position;
       const c = cam.globalPosition;
@@ -1982,6 +2005,8 @@ export class CharacterRig {
     pin.reachNeedR = this.liftR;
     // (mocap-trial-2, crouchpop) the switch: a clip-planted foot's hand-off rules once clip feet are gone
     pin.mocap = this.mOn;
+    // (mocap-trial-2, strafe) the mocap strafe's share (0 with the switch off): its trailing foot's toe-off rule
+    pin.strafe = t.keyStrafe;
     // (mocap-trial, fix 2) the switch turned off mid-game: no clip feet state is left on the feet (a clip-planted foot kept
     // its flag, read at a stop), so the planner has them as if the switch had never been on (but a toe-up plant's flag)
     if (this.mOn !== this.mocapWas) {
@@ -2425,12 +2450,39 @@ export class CharacterRig {
     // the hips ride over the feet's centre across the body (GLIDE_HIP: the weight moves onto the lead foot of a side-step
     // before the trailing foot closes), eased; the chest above stays square (the spine counters only the tilt)
     {
+      // (mocap-trial-2 strafe fix) also under the mocap strafe: its hips over the planner's feet, not a fixed hold (knee-out)
       const gk = free || this.input.wall ? 0 : t.keyDrawn * t.aimW * kw;
       const midX = ((L.x + R.x) * 0.5 - rp.x) * Math.cos(yaw) - ((L.z + R.z) * 0.5 - rp.z) * Math.sin(yaw);
       const want = gk > 0 ? Math.max(-GLIDE_HIP.max, Math.min(GLIDE_HIP.max, midX - pex)) * GLIDE_HIP.share * gk : 0;
       this.glideShift = approachTo(this.glideShift, want, dt, GLIDE_HIP.tau);
       pex += this.glideShift;
     }
+    // (mocap-trial-2 strafe fix, the e2e-anim knee-out) in the mocap strafe the hips stay STRAFE_HIP_IN inside each planted
+    // foot across the body (the captures keep the pelvis 4.4 cm inside theirs; played over the planner's longer side-steps
+    // the hips sat over or past the planted trailing foot and its knee bowed out 7.6 cm); both planted closer than that:
+    // their midpoint. Eased (GLIDE_HIP.tau), by the strafe's share; never with the switch off (keyStrafe 0, strafeHip 0)
+    if (t.keyStrafe > 0 || this.strafeHip !== 0) {
+      let want = 0;
+      if (t.keyStrafe > 0 && !free && !this.input.wall) {
+        const cy = Math.cos(yaw);
+        const sy = Math.sin(yaw);
+        const lo = L.contact ? (L.x - rp.x) * cy - (L.z - rp.z) * sy + STRAFE_HIP_IN : -1e9;
+        const hi = R.contact ? (R.x - rp.x) * cy - (R.z - rp.z) * sy - STRAFE_HIP_IN : 1e9;
+        const at = pex;
+        const tgt = lo > hi ? (lo + hi) * 0.5 : at < lo ? lo : at > hi ? hi : at;
+        want = (tgt - at) * t.keyStrafe;
+      }
+      this.strafeHip = approachTo(this.strafeHip, want, dt, GLIDE_HIP.tau);
+      // (strafe fix 3) in the strafe the hips' whole sideways offset (last frame's: strafeSum) at most STRAFE_HIP_RATE a
+      // frame: this shift takes up the excess
+      const ds = pex + this.strafeHip - this.strafeSum;
+      const dm = STRAFE_HIP_RATE * dt;
+      if (t.keyStrafe > 0 && ds > dm) this.strafeHip -= ds - dm;
+      else if (t.keyStrafe > 0 && ds < -dm) this.strafeHip -= ds + dm;
+      if (t.keyStrafe <= 0 && this.strafeHip < 1e-5 && this.strafeHip > -1e-5) this.strafeHip = 0;
+      pex += this.strafeHip;
+    }
+    this.strafeSum = pex;
     // (anim-natural-n2) the body motion layer's pelvis sway, before the feet's reach (a Wren rig on foot; 0 on any other)
     if (t.motion.pelX !== 0) pex += t.motion.pelX * kk;
     // (anim-natural N4c, AUDIT row 49) a Wren rig's elbow strike: the hips and trunk drive it (strikeBody.ts); the weight
@@ -2633,7 +2685,9 @@ export class CharacterRig {
       // stays over its toes and the passing knee clears it (both bowed 6 x had both knees 9-17 cm outside the ankles in
       // a direction change)
       const need = 1 - kneeGap / gapMin;
-      const bow = this.kneeOutNow + need * (6 + (KEYED_KNEE_BOW - 6) * kw);
+      // (mocap-trial-2 strafe fix 2) in the mocap strafe a bow that only parts them (STRAFE_KNEE_BOW); never with the switch off
+      const bowK = 6 + (KEYED_KNEE_BOW - 6) * kw;
+      const bow = this.kneeOutNow + need * (t.keyStrafe > 0 ? bowK + (STRAFE_KNEE_BOW - bowK) * t.keyStrafe : bowK);
       const oneSwings = kw > 0.5 && L.contact !== R.contact;
       if (!oneSwings || !L.contact) this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + lYc + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1, bow);
       if (!oneSwings || !R.contact) this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + rYc + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1, bow);

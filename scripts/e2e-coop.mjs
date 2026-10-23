@@ -339,6 +339,40 @@ try {
   const stillOk = await GA(() => window.__app.current.net.remotes.size === 1 && !window.__app.current.isEnded);
   assert(stillOk, 'host unaffected by junk');
 
+  // (E9-crate, A101-A106) a weapons crate beside the client (added by hand, as the medkit leg does): the client mirrors
+  // it, drains and uses it (topped up exactly, its prompt gone); a second use after a drain is refused; the host's own
+  // use tops the host up. The rejoin leg below checks the client's mirror stays spent with its ammo untouched.
+  console.log('weapons crate: a client uses it once and is topped up; the host uses it for itself');
+  const crateTot = (P) => P.evaluate(() => { const w = window.__app.current.weapons; return { eq: w.slots.every((s) => s.mag + s.reserve === s.stats.magSize + s.def.reserve), dry: w.slots.every((s) => s.reserve === 0), sum: w.slots.map((s) => s.mag + s.reserve).join() }; });
+  const crateDrain = (P) => P.evaluate(() => { for (const s of window.__app.current.weapons.slots) { s.mag = Math.min(3, s.stats.magSize); s.reserve = 0; } });
+  let crateSumB = '';
+  {
+    await GA(() => { window.__cbid = [...window.__app.current.net.remotes.keys()][0]; });
+    await GA(() => {
+      const g = window.__app.current;
+      const r = g.net.remotes.get(window.__cbid);
+      g.crates.add('crate-e2e', r.feet.clone().addInPlaceFromFloats(0.5, 0, 0), 0);
+      g.crates.setLive('crate-e2e');
+    });
+    await until(B, () => { const it = window.__app.current.interactables?.items.find((i) => i.id === 'crate-e2e'); return !!it && it.enabled && it.kind === 'crate'; }, null, 8000, 'client mirrors the weapons crate');
+    await crateDrain(B);
+    assert((await GB(() => window.__app.current.interactables.nearest(window.__app.current.player.position)?.id ?? null)) === 'crate-e2e', 'the client is offered the crate');
+    await GB(() => window.__app.current.interactables.items.find((i) => i.id === 'crate-e2e').onUse());
+    await until(B, () => window.__app.current.weapons.atLoadout(), null, 8000, 'the client is topped up to its loadout');
+    assert((await crateTot(B)).eq, 'the client totals equal its loadout exactly');
+    await until(B, () => window.__app.current.interactables.nearest(window.__app.current.player.position) === null, null, 5000, 'the client prompt is gone');
+    crateSumB = (await crateTot(B)).sum;
+    await crateDrain(B);
+    await GB(() => window.__app.current.interactables.items.find((i) => i.id === 'crate-e2e').onUse());
+    await wait(1200);
+    assert((await crateTot(B)).dry, 'a second client use after a drain is refused (still drained)');
+    await GB(() => { const g = window.__app.current; for (const s of g.weapons.slots) { s.mag = s.stats.magSize; s.reserve = s.def.reserve; } });
+    await crateDrain(A);
+    await GA(() => { const g = window.__app.current; const it = g.interactables.items.find((i) => i.id === 'crate-e2e'); it.onUse(it, 'local'); });
+    assert((await crateTot(A)).eq, 'the host use tops the host up too');
+    assert(await GA(() => { const d = window.__app.current.crates.debug().find((c) => c.id === 'crate-e2e'); return d.used.includes('local') && d.used.includes(window.__cbid); }), 'the host ledger lists both players');
+  }
+
   // (marlow-bays R1-R2) the joiner drops mid-match (leaves to its menu): the host holds its place (frozen, unhurt, out
   // of the guards' list, a "reconnecting" line); the joiner's main menu offers "Rejoin <code>", which takes the same
   // player back where it stood, with the health the host kept
@@ -365,6 +399,9 @@ try {
     await until(B, (p) => { const q = window.__app.current.player.position; return Math.hypot(q.x - p[0], q.z - p[2]) < 1.2; }, held0, 30000, 'the rejoined joiner is put back where it was held');
     await until(B, () => Math.abs(window.__app.current.target.health.hp - 60) < 0.01, null, 8000, 'the rejoined joiner keeps the health the host held (60)');
     await until(A, (id) => { const g = window.__app.current; const r = g.net.remotes.get(id); const n = document.querySelector('.hud-net-notice'); return !!r && !r.held && g.remotePlayers().some((x) => x.id === id) && (!n || n.style.display === 'none'); }, pid0, 10000, 'the host has the joiner back in play');
+    // (E9-crate, A106) the rejoin re-send hides the prompt only: the client's crate mirror is spent, its ammo is not changed
+    await until(B, () => { const it = window.__app.current.interactables?.items.find((i) => i.id === 'crate-e2e'); return !!it && it.spent === true; }, null, 15000, 'the rejoined client\'s crate mirror is spent');
+    assert((await crateTot(B)).sum === crateSumB, `the crate re-send does not change the rejoined client's ammo (${crateSumB} -> ${(await crateTot(B)).sum})`);
     await GA((id) => { const r = window.__app.current.net.remotes.get(id); r.health.hp = 100; r.damageMul = 0; }, pid0);
     assert(true, 'a dropped joiner rejoins from its main menu as the same player, where it stood, with its health');
   }

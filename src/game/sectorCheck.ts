@@ -5,7 +5,7 @@ import { PATROL } from '../ai/patrol';
  * Sector Ops layout check (feature/sector-ops M8): every patrol has a takedown spot no other guard can see. Pure and
  * Babylon-free: it reads the level's solid pieces (`LevelBuilder.boxes` / `cylinders`, the same blockout gameplay
  * reads) and traces eye-height sight lines through them, doors open (doors are anchors, not pieces), windows open,
- * fences see-through. Used by the Vitest data check and the design notes, never at run time.
+ * fences and clear glass see-through, frosted glass solid (E2, G45; every pane stops a body). Used by the Vitest data check and the design notes, never at run time.
  */
 export interface SolidBox {
   c: readonly number[];
@@ -13,6 +13,8 @@ export interface SolidBox {
   yaw: number;
   pitch: number;
   collide: boolean;
+  /** (E2) A glass pane: clear passes sight, frosted blocks it; both stop a body. */
+  glass?: 'clear' | 'frosted';
 }
 
 export interface SolidCyl {
@@ -45,12 +47,14 @@ interface Obb {
 /** The solid pieces for sight lines (level, unpitched boxes; ramps and visual pieces skipped). */
 export class SightWorld {
   private readonly boxes: Obb[] = [];
+  /** (E2) Clear glass panes: they stop a body (`blocked`), not a sight line. */
+  private readonly panes: Obb[] = [];
   private readonly cyls: SolidCyl[] = [];
 
   constructor(boxes: readonly SolidBox[], cyls: readonly SolidCyl[]) {
     for (const b of boxes) {
       if (!b.collide || Math.abs(b.pitch) > 1e-3) continue;
-      this.boxes.push({ cx: b.c[0]!, cy: b.c[1]!, cz: b.c[2]!, hx: b.s[0]! / 2, hy: b.s[1]! / 2, hz: b.s[2]! / 2, cos: Math.cos(b.yaw), sin: Math.sin(b.yaw), rr: hyp2(b.s[0]!, b.s[2]!) / 2 });
+      (b.glass === 'clear' ? this.panes : this.boxes).push({ cx: b.c[0]!, cy: b.c[1]!, cz: b.c[2]!, hx: b.s[0]! / 2, hy: b.s[1]! / 2, hz: b.s[2]! / 2, cos: Math.cos(b.yaw), sin: Math.sin(b.yaw), rr: hyp2(b.s[0]!, b.s[2]!) / 2 });
     }
     for (const c of cyls) if (c.collide) this.cyls.push(c);
   }
@@ -74,20 +78,26 @@ export class SightWorld {
 
   /** A body (radius r, feet at y, 1.7 m tall) at (x, z) overlaps a solid piece. */
   blocked(x: number, y: number, z: number, r = 0.3): boolean {
-    for (const o of this.boxes) {
-      if (y + 1.7 < o.cy - o.hy || y + 0.3 > o.cy + o.hy) continue;
-      const dx = x - o.cx;
-      const dz = z - o.cz;
-      const lx = dx * o.cos - dz * o.sin;
-      const lz = dx * o.sin + dz * o.cos;
-      if (Math.abs(lx) < o.hx + r && Math.abs(lz) < o.hz + r) return true;
-    }
+    if (obbsBlock(this.boxes, x, y, z, r) || obbsBlock(this.panes, x, y, z, r)) return true;
     for (const c of this.cyls) {
       if (y + 1.7 < c.c[1]! - c.h / 2 || y + 0.3 > c.c[1]! + c.h / 2) continue;
       if (hyp2(x - c.c[0]!, z - c.c[2]!) < c.r + r) return true;
     }
     return false;
   }
+}
+
+/** A body (radius r, feet at y, 1.7 m tall) at (x, z) overlaps one of the boxes. */
+function obbsBlock(list: readonly Obb[], x: number, y: number, z: number, r: number): boolean {
+  for (const o of list) {
+    if (y + 1.7 < o.cy - o.hy || y + 0.3 > o.cy + o.hy) continue;
+    const dx = x - o.cx;
+    const dz = z - o.cz;
+    const lx = dx * o.cos - dz * o.sin;
+    const lz = dx * o.sin + dz * o.cos;
+    if (Math.abs(lx) < o.hx + r && Math.abs(lz) < o.hz + r) return true;
+  }
+  return false;
 }
 
 /** Segment a-b against a yawed box (slab test in the box's frame; local z runs along (sin yaw, cos yaw)). */

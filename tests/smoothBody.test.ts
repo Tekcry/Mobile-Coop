@@ -3,6 +3,7 @@
 // puts it (both levels of detail), colours are the instance colours, the flash / ragdoll / off-flag paths hold.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Mesh } from '../src/core/babylon';
+import type { SmoothBody } from '../src/player/smoothBody';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -117,5 +118,161 @@ describe('guard-render S1: SmoothBody', () => {
     }
     lib.dispose();
     scene.dispose();
+  });
+});
+
+describe('guard-render S7: shared GPU buffers per cache entry', () => {
+  it('two guards of one look share the static vertex and index buffers; per guard colour, skeleton and box; disposal by reference count', async () => {
+    const { scene, lib, rig, SmoothBody, VertexBuffer } = await setup();
+    const { CharacterRig } = await import('../src/player/characterRig');
+    const { ENEMIES } = await import('../src/ai/enemyDefs');
+    const { sharedBufferCount } = await import('../src/player/smoothBody');
+    const def = ENEMIES.grunt;
+    const make = (name: string) => new CharacterRig(scene, (s, h, sl) => lib.instance(s, h, `enemy-${sl}`), def.look, def.height, name, { build: def.build, armor: def.plated, style: 'detailed', merge: true });
+    const rigB = make('g2');
+    const a = rig.voxel as InstanceType<typeof SmoothBody>;
+    const b = rigB.voxel as InstanceType<typeof SmoothBody>;
+    expect(b).toBeInstanceOf(SmoothBody);
+    const STATIC = [VertexBuffer.PositionKind, VertexBuffer.NormalKind, VertexBuffer.MatricesIndicesKind, VertexBuffer.MatricesWeightsKind, 'color2', 'ppos', 'pnrm'];
+    const gpu = (m: Mesh, kind: string) => m.getVertexBuffer(kind)!.getBuffer()!;
+    const holder = (m: Mesh, kind: string) => (m.getVertexBuffer(kind) as unknown as { _buffer: { isDisposed: boolean } })._buffer;
+    // hi and lo: one shared entry each
+    expect(sharedBufferCount(scene)).toBe(2);
+    const held: { isDisposed: boolean }[] = [];
+    const dataBufs: { references: number }[] = [];
+    for (let li = 0; li < 2; li++) {
+      const ma = a.meshes[li]!;
+      const mb = b.meshes[li]!;
+      for (const kind of STATIC) {
+        expect(gpu(mb, kind)).toBe(gpu(ma, kind));
+        expect(holder(mb, kind)).toBe(holder(ma, kind));
+        expect(gpu(ma, kind).references).toBe(2);
+        held.push(holder(ma, kind));
+        dataBufs.push(gpu(ma, kind));
+      }
+      const ia = ma.geometry!.getIndexBuffer()!;
+      expect(mb.geometry!.getIndexBuffer()).toBe(ia);
+      expect(ia.references).toBe(2);
+      dataBufs.push(ia);
+      expect(ma.getTotalIndices()).toBeGreaterThan(0);
+      expect(Array.from(mb.getIndices()!.slice(0, 6))).toEqual(Array.from(ma.getIndices()!.slice(0, 6)));
+      // per guard: colour (flash, lens glow) and pattern (heat), skeleton, box, geometry
+      expect(gpu(mb, VertexBuffer.ColorKind)).not.toBe(gpu(ma, VertexBuffer.ColorKind));
+      expect(gpu(mb, 'pattern')).not.toBe(gpu(ma, 'pattern'));
+      expect(mb.skeleton).not.toBe(ma.skeleton);
+      expect(mb.getBoundingInfo()).not.toBe(ma.getBoundingInfo());
+      expect(mb.geometry).not.toBe(ma.geometry);
+    }
+    // a flash on one guard leaves the other's colours
+    const colB = Array.from(b.meshes[0]!.getVerticesData(VertexBuffer.ColorKind)!.slice(0, 4));
+    a.setFlash(1);
+    a.setHeat(0.8);
+    expect(Array.from(b.meshes[0]!.getVerticesData(VertexBuffer.ColorKind)!.slice(0, 4))).toEqual(colB);
+    expect(b.meshes[0]!.getVerticesData('pattern')![3]).toBe(0);
+    // dispose one: the other keeps every buffer, one reference each
+    rig.dispose();
+    for (const d of dataBufs) expect(d.references).toBe(1);
+    for (const h of held) expect(h.isDisposed).toBe(false);
+    expect(sharedBufferCount(scene)).toBe(2);
+    for (const m of b.meshes) {
+      expect(m.geometry!.isReady()).toBe(true);
+      for (const kind of STATIC) expect(m.getVertexBuffer(kind)!.getBuffer()).not.toBeNull();
+      expect(m.getTotalIndices()).toBeGreaterThan(0);
+      expect(m.subMeshes[0]!.indexCount).toBe(m.getTotalIndices());
+    }
+    // still selected for drawing (NullEngine: the PBR material never reports ready, before S7 too, so the active list)
+    const { FreeCamera, Vector3 } = await import('../src/core/babylon');
+    const cam = new FreeCamera('cam', new Vector3(0, 1.5, -4), scene);
+    cam.setTarget(new Vector3(0, 1, 0));
+    scene.render();
+    expect(scene.getActiveMeshes().data.slice(0, scene.getActiveMeshes().length).map((m) => m.name)).toContain('g2-smooth');
+    cam.dispose();
+    // dispose both: the GPU buffers go, the entry with them
+    rigB.dispose();
+    for (const d of dataBufs) expect(d.references).toBe(0);
+    for (const h of held) expect(h.isDisposed).toBe(true);
+    expect(sharedBufferCount(scene)).toBe(0);
+    // a later guard of the same look uploads afresh
+    const rigC = make('g3');
+    const c = rigC.voxel as InstanceType<typeof SmoothBody>;
+    expect(gpu(c.meshes[0]!, VertexBuffer.PositionKind).references).toBe(1);
+    expect(holder(c.meshes[0]!, VertexBuffer.PositionKind)).not.toBe(held[0]);
+    expect(sharedBufferCount(scene)).toBe(2);
+    // scene dispose (guard left undisposed) drops the scene's entries
+    lib.dispose();
+    scene.dispose();
+    expect(sharedBufferCount(scene)).toBe(0);
+  });
+
+  it('after a WebGL context restore: references match the users, the lookup empties, a new spawn uploads fresh, disposal in any order keeps every live guard drawing', async () => {
+    for (const order of [[0, 1, 2, 3], [3, 2, 1, 0], [1, 3, 0, 2], [2, 0, 3, 1]]) {
+      const { scene, lib, rig, VertexBuffer } = await setup();
+      const { CharacterRig } = await import('../src/player/characterRig');
+      const { ENEMIES } = await import('../src/ai/enemyDefs');
+      const { sharedBufferCount } = await import('../src/player/smoothBody');
+      const def = ENEMIES.grunt;
+      const make = (name: string) => new CharacterRig(scene, (s, h, sl) => lib.instance(s, h, `enemy-${sl}`), def.look, def.height, name, { build: def.build, armor: def.plated, style: 'detailed', merge: true });
+      const STATIC = [VertexBuffer.PositionKind, VertexBuffer.NormalKind, VertexBuffer.MatricesIndicesKind, VertexBuffer.MatricesWeightsKind, 'color2', 'ppos', 'pnrm'];
+      const gpu = (m: Mesh, kind: string) => m.getVertexBuffer(kind)!.getBuffer()!;
+      const holder = (m: Mesh, kind: string) => (m.getVertexBuffer(kind) as unknown as { _buffer: { isDisposed: boolean } })._buffer;
+      const rigs = [rig, make('g2'), make('g3')];
+      const bodies = () => rigs.map((r) => r.voxel as SmoothBody);
+      const before = gpu(bodies()[0]!.meshes[0]!, VertexBuffer.PositionKind);
+      const deadIndex = bodies()[0]!.meshes[0]!.geometry!.getIndexBuffer()!;
+      expect(before.references).toBe(3);
+      // the restore path: the engine rebuilds every geometry, then notifies
+      const engine = scene.getEngine() as unknown as { _rebuildBuffers(): void };
+      engine._rebuildBuffers();
+      scene.getEngine().onContextRestoredObservable.notifyObservers(scene.getEngine());
+      expect(sharedBufferCount(scene)).toBe(0);
+      for (let li = 0; li < 2; li++) {
+        const ms = bodies().map((b) => b.meshes[li]!);
+        for (const kind of STATIC) {
+          const g = gpu(ms[0]!, kind);
+          for (const m of ms) expect(gpu(m, kind)).toBe(g);
+          expect(g.references).toBe(3);
+        }
+        // each geometry rebuilt its own index buffer from its CPU indices
+        for (const m of ms) {
+          expect(m.geometry!.getIndexBuffer()).not.toBe(deadIndex);
+          expect(m.geometry!.getIndexBuffer()!.references).toBe(1);
+        }
+      }
+      expect(gpu(bodies()[0]!.meshes[0]!, VertexBuffer.PositionKind)).not.toBe(before);
+      // a new spawn of the same look uploads fresh
+      rigs.push(make('g4'));
+      const d = bodies()[3]!;
+      expect(sharedBufferCount(scene)).toBe(2);
+      for (const kind of STATIC) {
+        expect(holder(d.meshes[0]!, kind)).not.toBe(holder(bodies()[0]!.meshes[0]!, kind));
+        expect(gpu(d.meshes[0]!, kind).references).toBe(1);
+      }
+      expect(d.meshes[0]!.geometry!.getIndexBuffer()).not.toBe(deadIndex);
+      expect(d.meshes[0]!.geometry!.getIndexBuffer()!.references).toBe(1);
+      // dispose in this order: every guard still alive keeps live buffers
+      const alive = new Set([0, 1, 2, 3]);
+      const all = bodies();
+      const holders = all.flatMap((bd) => bd.meshes.flatMap((m) => STATIC.map((kind) => holder(m, kind))));
+      for (const i of order) {
+        rigs[i]!.dispose();
+        alive.delete(i);
+        for (const j of alive) {
+          for (const m of all[j]!.meshes) {
+            for (const kind of STATIC) {
+              expect(holder(m, kind).isDisposed).toBe(false);
+              expect(gpu(m, kind).references).toBeGreaterThan(0);
+            }
+            expect(m.geometry!.getIndexBuffer()!.references).toBeGreaterThan(0);
+          }
+        }
+        // the lookup holds only the fresh spawn's entries, while it lives
+        expect(sharedBufferCount(scene)).toBe(alive.has(3) ? 2 : 0);
+      }
+      // all gone: every shared buffer released
+      for (const h of holders) expect(h.isDisposed).toBe(true);
+      lib.dispose();
+      scene.dispose();
+      expect(scene.getEngine().onContextRestoredObservable.hasObservers()).toBe(false);
+    }
   });
 });
