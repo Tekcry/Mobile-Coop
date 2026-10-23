@@ -77,6 +77,9 @@ const DEFAULT_GARMENTS = [
   { id: 'jacket', script: 'garments/field_jacket.py', bases: ['average'] },
 ];
 
+/** Pieces with their own GLB, rigid and the same for every base (G3, G4): one job, not one per base. */
+const OWN_GLB = new Set(['shield_riot']);
+
 /**
  * Garment parts per outfit (SPEC section 4, PLAN G2) when the kit's outfit pieces (`kind: 'outfit'`) list none
  * (`garments` on the piece overrides). Each part is one cloth job per base that wears the outfit; a part two outfits share
@@ -101,9 +104,6 @@ const GARMENT_PARTS = {
 };
 /** Kind lists whose ids are gear jobs of the kind's base (the outfit is a garment, hair caps are a heads job). */
 const KIND_PIECE_LISTS = ['headwear', 'headwear2', 'eyewear', 'fixedGear', 'gameplayGear', 'kitPool'];
-
-/** Pieces with their own GLB, rigid and the same for every base (G3, G4): one job, not one per base. */
-const OWN_GLB = new Set(['shield_riot']);
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 

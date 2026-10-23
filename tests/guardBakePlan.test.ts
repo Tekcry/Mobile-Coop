@@ -76,7 +76,7 @@ describe('guard bake plan: job split', () => {
   const kit = fixtureKit();
   const count = (s: string) => jobsFor(s, kit).length;
 
-  it('one job per base, head variant, hair-cap base, (base, garment), (base, piece), sheet', () => {
+  it('one job per base, head variant, (base, garment), (base, piece), sheet', () => {
     expect(count('bodies')).toBe(3);
     expect(count('heads')).toBe(9 + 3); // 9 head variants + one hair-cap job per base (no kinds: every base wears caps)
     expect(count('garments')).toBe(13); // shirt, trousers, boots, gloves on 3 bases + officer jacket on average
@@ -87,10 +87,10 @@ describe('guard bake plan: job split', () => {
   });
 
   it('ids are unique across the whole bake and each job names a script, args and outputs', () => {
-    const all = STAGES.flatMap((s) => jobsFor(s.name, kit));
+    const all = STAGES.flatMap((s) => jobsFor(s.name, kit)).filter((j) => !j.tags.includes('haircaps')); // haircaps-<base>: own test
     expect(new Set(all.map((j) => j.id)).size).toBe(all.length);
     for (const j of all) {
-      expect(j.id.startsWith(j.stage === 'sheet' ? 'sheet' : `${j.stage}-`) || (j.stage === 'heads' && j.id.startsWith('haircaps-'))).toBe(true);
+      expect(j.id.startsWith(j.stage === 'sheet' ? 'sheet' : `${j.stage}-`)).toBe(true);
       expect(j.script).toMatch(/\.(py|mjs)$/);
       expect(j.args).toContain(j.stage === 'sheet' ? '--guards' : j.id);
       expect(j.outputs.length).toBeGreaterThan(0);
@@ -98,7 +98,7 @@ describe('guard bake plan: job split', () => {
     }
   });
 
-  it('scripts match the plan: build_body, build_head, garments/<g>, build_gear, bake_lods', () => {
+  it('scripts match the plan: build_body, build_head, garments/<g>, rigid_skin, bake_lods', () => {
     expect(jobsFor('bodies', kit)[0]?.script).toBe('build_body.py');
     expect(jobsFor('heads', kit)[0]?.script).toBe('build_head.py');
     expect(jobsFor('garments', kit).map((j) => j.script).every((s) => s.startsWith('garments/'))).toBe(true);
@@ -353,6 +353,11 @@ describe('guard bake plan: the real guards.json', () => {
     expect(ids('gear')).not.toContain('gear-broad-helmet_std');
     expect(ids('gear')).toContain('gear-broad-helmet_heavy');
     expect(ids('gear')).not.toContain('gear-average-boonie');
+  });
+
+  it('ids are unique across the whole bake (hair caps included)', () => {
+    const all = STAGES.flatMap((s) => jobsFor(s.name, kit)).map((j) => j.id);
+    expect(new Set(all).size).toBe(all.length);
   });
 
   it('hair caps: one heads-stage job per base whose kinds wear a cap (not broad), gpu-bound', () => {
