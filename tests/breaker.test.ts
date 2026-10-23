@@ -675,7 +675,7 @@ describe('the board: the breaker walker is the witness nearest the switch by pat
     // at his first stop. On master (the light check) #2 went first and #1 as the pair's second (the e2e: #1 walked
     // 12 m -> 3 m); the one walker of the weighted pick was #2 (officer x fixed post 2.4 against rover 0.8) and #1
     // stayed put, while #2 turned the circuit back on (884b89c0: "12.0 m -> 12.0 m, lamps on 4")
-    const pn = sws.find((s) => s.group === 50)!;
+    const pn = lay.boards!.find((q) => q.groups.includes(50))!; // (LR16-4) the reception panel is a board now
     const p2: [number, number, number] = [pn.pos.x, nav.heightAt(pn.pos.x, pn.pos.z, pn.pos.y), pn.pos.z];
     const s2 = [w(1, 1), w(1, 2)];
     expect(dist(s2[0]!, p2)).toBeCloseTo(11.95, 1);

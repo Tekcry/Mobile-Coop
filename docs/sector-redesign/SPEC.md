@@ -146,9 +146,9 @@ the near side, with a reason. Drawn in night vision only (engine fact): every la
 switch or board where a real one would be (LS 5.1, 16.8.1). Encounter spaces use a standby fill under the shadow
 line, `ambientZone` 0.14 (LR7 applied, A10 / A39), so a cut circuit is true
 dark for picture, meter and guards. Outdoors: moon + sodium columns; transit spaces and connectors 0.30. Dark only
-where nobody works, each dark pocket named with its reason. "Breakers" and "boards" are switches at a real board
-until EW8 (A11). A light cut draws the nearest calm armed guard within 25 m (engine `lightsOut`); guards do not relight
-lamps until guard-ai provides it (GA4). **Co-op light parity needs slice L (protocol 31)** before any co-op playtest
+where nobody works, each dark pocket named with its reason. "Breakers" and "boards" are real boards since EW8 (A11):
+guards relight cut breakers and boards (guard-ai S15, LR16-4); timed isolators stay the player's. A light cut draws the
+nearest calm armed guard within 25 m (engine `lightsOut`); the S2 reception panel is the one untimed board (lure #1). **Co-op light parity needs slice L (protocol 31)** before any co-op playtest
 that cuts a light (EF7).
 
 **Guards (M1, M8, R6-R8).** All humans armed: officer (pistolSd), grunt (rifle), enforcer (pistolSd + shield). (Michael
