@@ -210,7 +210,10 @@ ${LIB}
 void main(void) {
   int k; vec2 uv; atlasCell(vUV, k, uv);
   float h; vec3 col; float rough;
-  float e = texel * 4.0;
+  // (LR16-L B3) the slope step never exceeds Medium's (512 px tiles): the bump scales with the step, so Low's 256 px
+  // tiles took twice Medium's and grazing lamp light showed it as speckle; surf() is analytic (evaluated at uv + e,
+  // not fetched), so any step works at 256 px. Ultra / Epic (1024 px) keep their own.
+  float e = min(texel, 1.0 / 512.0) * 4.0;
   surf(k, uv, h, col, rough);
   float hx; float hy; vec3 c2; float r2;
   surf(k, fract(uv + vec2(e, 0.0)), hx, c2, r2);
