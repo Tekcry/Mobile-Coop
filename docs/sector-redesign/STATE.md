@@ -290,7 +290,9 @@ OPEN PRs
 LR16 (one lighting system; checks/lr16-plan.md, lr16-0-ct-audit.md)
 - lr16int 961ca660 = LR16a/b/f/7/3/v/d/h/dx/e/t + LR16-1 bounce (72ad3d4a, LAMP_VERSION 5, checks/lr16int-merge-1.md)
   + LR16-5 flicker / stutter (da69b884, checkers A + B PASS, no wire change). tsc clean, 167 light tests; 13 map-light
-  reds left for LR16g. Laptop full LR16 set on 961ca660 queued (...961ca660-9185: lightbake darkness desktop sectorops
+  reds left for LR16g. Laptop LR16 set WITHDRAWN 23:10 (orchestrator: stale heads; 6eb6a863 / bb47a985 / 961ca660 deleted,
+  laptop-queue 6b62e08d). Requeue once, on the LR16 PR head after g + 5b merge, area suites only (src/net: coop netmove;
+  + lightbake ctcourse). Was: lightbake darkness desktop sectorops
   stealth-ai ctcourse coop netmove). Older requests 6eb6a863 / bb47a985 / 4007eafe / 5700dff5 / 2f5ffec1 are superseded.
 - RUNNING (restarted ~22:40 after the swap; agents die at a swap): (a) LR16g builder (Opus) on -lr16g from WIP c3f03ce8;
   brief briefs/LR16g.md (base 961ca660; lead decisions at its top), report checks/lr16g-build.md. If dead: rerun an Opus
