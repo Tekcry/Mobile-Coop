@@ -321,7 +321,7 @@ describe('(LR16e) penumbra', () => {
   };
 
   // (LR16-POLISH C) the penumbra scratch was cut from 21 B per cell of the largest lamp box to the blocker distance (4 B,
-  // reused as the band index), plane rings and the band's own cells. The bytes must not move: the hashes were taken on
+  // also the band index), plane rings and the band's own cells. The bytes must not move: the hashes were taken on
   // lr16int e7cec732 (LR16g, LR16-L A) before the change, so no LAMP_VERSION bump.
   it('(LR16-POLISH C) scratch cut: the fixture bakes to the same bytes as before (penumbra on and off)', () => {
     const shapes = [floor, box([0, 1.5, -5.4], [0.2, 3, 8.8]), box([0, 1.5, 5.6], [0.2, 3, 8.8]), box([0, 2.6, 0.6], [0.2, 0.8, 1.2]), box([-3, 0.3, 2], [0.6, 0.6, 0.6]), box([3, 1.5, -2], [2, 0.05, 1]), box([4, 0.4, 3], [1, 0.8, 0.4]), crate, slab(1.5), fence(0.8)];
@@ -336,7 +336,8 @@ describe('(LR16e) penumbra', () => {
     map.build(b, 0);
     const set = canonicalLightSet(b.boxes, b.cylinders, map.id, dressingOn(map));
     const r = bakeLamps({ kind: 'lamps', id: 0, shapes: set.shapes, lights: bakedLights(b.lights).lights, lo: set.lo, hi: set.hi });
-    expect(bakeHash(r)).toBe('b282bc62ffaa7583');
+    // (ctcourse re-taken after pol-f's bounce bits, LAMP_VERSION 7; vis bytes checked identical old vs new on the merged tree)
+    expect(bakeHash(r)).toBe('0a285ac259cd1791');
   }, 600_000);
 
   it('(LR16-POLISH C) the scratch is the blocker distance (4 B a cell of the largest box) plus rings of planes', () => {
