@@ -94,7 +94,7 @@ const HANG = 2.0;
 const POCKETS: { name: string; x: number; y: number; z: number }[] = [
   { name: "supervisor's spot (the parts store)", x: 12.0, y: 0, z: 15.0 },
   { name: "loader's spot (the deck, west staging)", x: 3.0, y: 3.3, z: 13.2 },
-  { name: "crane operator's spot (under the walkway)", x: 8.0, y: 0, z: -6.8 },
+  { name: "crane operator's spot (under the walkway)", x: 7.3, y: 0, z: -7.5 },
   { name: "stores officer's spot (the cage corner)", x: 0.6, y: 0, z: -7.6 },
   { name: 'the east bay by the plant room', x: 21.0, y: 0, z: 1.5 },
   { name: "the deck's west end", x: -2.0, y: 3.3, z: 15.5 },

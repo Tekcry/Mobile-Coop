@@ -562,7 +562,7 @@ export function buildCampusS2(b: LevelBuilder): void {
 
   // ---- lamps (SPEC "Lighting"): pendants over the south half of the void, balcony downlights on L1 and L2, the reception, the kitchen,
   // the facilities office, and one night lamp per corridor (0.25); dark by reason: open plan, meeting rooms, stairs, comms, roof
-  for (const [x, z] of PENDANTS) lamp(b, x, 9.0, z, { r: 12, i: 0.9, group: S2_GROUPS.atrium, colour: WHITE, w: 0.7 });
+  for (const [x, z] of PENDANTS) lamp(b, x, 9.0, z, { r: 12, i: 1.35, group: S2_GROUPS.atrium, colour: WHITE, w: 0.7 });
   for (const [x, z] of BALCONY_LAMPS) {
     lamp(b, x, 7.9, z, { r: 5, i: 0.8, group: S2_GROUPS.l1Bal, colour: WHITE, cone: makeCone(0, -1, 0, 1.2), w: 0.4 });
     lamp(b, x, 11.9, z, { r: 5, i: 0.8, group: S2_GROUPS.l2Bal, colour: WHITE, cone: makeCone(0, -1, 0, 1.2), w: 0.4 });
