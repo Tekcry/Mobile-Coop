@@ -157,12 +157,22 @@ await run('autostart=warehouse&mode=clear', [
         const p0 = e.pos.clone();
         let laser = false;
         let glintMax = 0;
+        // the brain's trace (printed with the result): state, sight, wind-up, rounds, the S16 gate, the S21 carry
+        const trace = [];
+        const snap = (tag) =>
+          trace.push(
+            `${tag} ${e.state}/${e['stateT'].toFixed(1)} los=${e.los ? 1 : 0} d=${e.dist.toFixed(1)} wu=${e['windup'].toFixed(2)} ` +
+              `pause=${e['pauseT'].toFixed(1)} rf=${e.roundsFired} here=${e.shotsHere} cov=${e['coverIdx']} ` +
+              `gate=${e.fireGate.blocked ? 1 : 0}/${e.fireGate.heldTicks} carry=${e.carry.phase} ` +
+              `at=${e.pos.x.toFixed(1)},${e.pos.z.toFixed(1)} alarm=${e['alarm'] ? 1 : 0}`,
+          );
         for (let i = 0; i < 90 && e.relocations === 0; i++) {
           t.step(0.1);
           g.frameUpdate(1 / 120, 1);
           laser = laser || e['laser'].isVisible;
           const cp = g.player.cam.camera.position;
           glintMax = Math.max(glintMax, e.glintFor(cp.x, cp.y, cp.z));
+          if (i % 5 === 4) snap(`t${((i + 1) / 10).toFixed(1)}`);
         }
         const shots = g.weapons ? e.relocations : 0;
         // the walk to the new perch (its path length varies with the perch picked)
@@ -170,9 +180,11 @@ await run('autostart=warehouse&mode=clear', [
         for (let k = 0; k < 24 && moved <= 3; k++) {
           t.step(0.5);
           moved = Math.hypot(e.pos.x - p0.x, e.pos.z - p0.z);
+          snap(`w${k}`);
         }
-        return { laser, glintMax, relocations: e.relocations, moved, shots };
+        return { laser, glintMax, relocations: e.relocations, moved, shots, num: e.num, trace };
       });
+      console.log(`  sniper e${r.num}:\n    ${r.trace.join('\n    ')}`);
       assert(r.laser, 'its laser shows while it aims');
       assert(r.glintMax > 0.3, `its scope glints at you (${r.glintMax.toFixed(2)})`);
       assert(r.relocations >= 1 && r.moved > 3, `it relocates after its shots (${r.relocations}, moved ${r.moved.toFixed(1)} m)`);
