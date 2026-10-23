@@ -1,0 +1,14 @@
+{
+  "id": "20261023T211420-night-shift-sector-o-cacd0c7e-dbfc",
+  "sha": "cacd0c7ea2f73250a12824d6ee710cde5049348c",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Sector Ops Build",
+  "steps": [
+    "set \"BC_RUNS=3\" && set \"BC_OUT=C:/NightShift/scratch/work/bodycompile/master-cacd0c7e-cold3.json\" && node C:/NightShift/scratch/work/bodycompile/measure.mjs"
+  ],
+  "env": {},
+  "set": "bodycompile-master",
+  "note": "cold Epic body compile, control (master): 3 cold runs"
+}
