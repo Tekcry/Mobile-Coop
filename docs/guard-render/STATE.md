@@ -243,3 +243,54 @@ Follow-ups (not in this slice):
    ~7 cm forward off for such a guard. Needs the held guard's stride aim in `GuardHeadIn` (one field from
    `Enemy.syncHitboxes`).
 6. The facing stride's sideways-slip dip near 45-60 deg (above) is the rig's foot planner; a fix belongs in the rig.
+
+## S4 (2026-10-23, feature/guard-render-s4, cut from S3a 220d3cf7)
+Anim tiers for guards (PLAN S4). Commits 34ecc539 (pure rules + tests), 6cd4162f (scene side + flag), b5a374d3
+(characterRig hook), 077212ff (enemy hook).
+- Rules (`src/ai/animTier.ts`, pure, first match wins): `?animtier=0`, pinned (`taken`: takedown / held / hostage;
+  `rig.emote !== null`: flashbang blind, close-quarters poses; `climbing`) or within 4 m (horizontal) of any player
+  (`ctx.players()`, so remote players count on the host): every frame. Off-screen (a render happened since the last
+  update and the merged body was drawn in no local camera view): every 4th frame. Beyond `ANIM_TIER_FAR` 22 m
+  (= `ANIM_LOD_DISTANCE`, asserted; never scaled by Detail) from the nearest local camera (`activeCameras`, else
+  `activeCamera`): every 2nd. Else every frame. Stagger: solve when `(tick + slot) % period == 0`, slot = the guard's
+  spawn number (`Enemy.num`), tick per guard; the first update always solves; the skipped time is carried into the
+  next solve (`AnimTierState.carry`, the rig's `lodDt` stays 0 for guards). The weapon glide runs every frame (the
+  rig's `stepGlide` before the skip).
+- Scene side (`src/ai/animTierView.ts`): one `onAfterActiveMeshesEvaluationObservable` observer per scene marks a
+  tracked merged mesh drawn when `mesh._renderId === scene.getRenderId()` right after a camera's active-mesh
+  evaluation (frustum, layer mask, visibility and LOD-null all already applied; shadow / RTT passes do not fire it).
+  Disposed meshes are pruned there. No merged body (`?guardmerge=0`, voxel path not applicable: always active) =
+  never off-screen. Headless steps (`stepHeadless`, no render between updates) count as seen, so e2e that step
+  without rendering keep full rate for near guards.
+- Files and exact lines for the owners (line numbers on 077212ff):
+  - Player Build, `src/player/characterRig.ts` (b5a374d3): 1699-1702 (doc + `animate(dt, s, solveDt?: number)`),
+    1706-1707 (`solveDt < 0` returns after `stepGlide`; else `dt = solveDt`), 1709 (`const cam = solveDt ===
+    undefined ? ... : null`: the camera LOD only without a hint). Callers without the hint (player, puppets,
+    dummies, studio) are unchanged. Diff: `git show b5a374d3`.
+  - Guard AI Build, `src/ai/enemy.ts` (077212ff): 46 (import), 217-218 (field), 358-359 (constructed after the rig,
+    before the constructor's `frame(0, 1)`), 2089-2090 (`rig.animate(dt, rp, this.animTier.dt(...))`). Diff:
+    `git show 077212ff`.
+  - `src/core/flags.ts`: `animTier` (interface + `params.get('animtier') !== '0'`), next to `guardMerge`.
+- Co-op / gameplay readers of the render pose (verified by grep of every `.rig.` reader): on the host and solo,
+  none for an `Enemy` (the head hit volume is the S3a sim head; perception eye from the sim; takedowns read the
+  player's rig and the enemy's sim pos; the death ragdoll / carried body starts from the last solved pose, visual
+  only). Not a blocker for S4, but listed: `src/net/enemyPuppet.ts:312-314` (the client's guard puppet) still
+  copies its hitbox head from the rendered rig, under the old Detail-scaled camera LOD. S4 does not tier puppets.
+- Tests: `tests/animTier.test.ts` (14: every rule, unknown visibility, stagger 4 / 8 guards at period 4 and 6 at
+  period 2 = even per frame, carry with none lost, drop to period 1). Passed single files: animTier, animGuard,
+  animSkeletonGuardIdentity, footPlanner, smoothBody, enemyManagerDespawn, hearing, sectorRestart, guardHead;
+  `tsc --noEmit -p .` and eslint on the changed files clean. No full check, no e2e, nothing measured.
+- e2e a run should cover: smoke, stealth-ai, takedown, enemies, sectorops, ctcourse, coop, netmove, anim; plus the
+  S0 guard-cap run (PLAN section 5) with and without `?animtier=0` for `ai.anim` and frame CPU (away cell especially).
+
+S4 doubts (for the checker):
+1. `mesh._renderId` is Babylon-internal (typed public in the d.ts). If Babylon changes when it sets it, guards read
+   as always off-screen (4th-frame animation on screen, visible as choppy) or never. A GPU / e2e look is the check.
+2. A guard that steps into view is drawn once with a pose up to 3 frames old (its first visible frame); then full
+   rate. The S1 rest box + 1 m pad makes the mesh "drawn" slightly before it is really on screen, which helps.
+3. Remote views (camera gadgets) swap `activeCamera`; if any view renders through a render target with its own
+   camera, guards seen only there count as off-screen (not found by grep: `activeCameras` / RTT users are TAAU,
+   night bloom, baked lamps only).
+4. Stagger uses a per-guard tick from spawn, so guards spawned on different frames mix their phases; the slot keeps
+   a batch spawn even, a mixed population is spread but not exactly even.
+5. Pinned list choices beyond the brief: climbing (a traverse clip). Near-player radius 4 m is a guess.
