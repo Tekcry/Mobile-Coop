@@ -44,6 +44,8 @@ interface FakeGuard {
   radio: ReturnType<typeof vi.fn>;
   bark: ReturnType<typeof vi.fn>;
   searchAt: ReturnType<typeof vi.fn>;
+  bodySearch: ReturnType<typeof vi.fn>;
+  helpSearch: ReturnType<typeof vi.fn>;
   koSearch: ReturnType<typeof vi.fn>;
   dispose: ReturnType<typeof vi.fn>;
   setCaution: (c: number) => void;
@@ -76,6 +78,12 @@ function guard(x: number, z: number, key: number, o: Partial<FakeGuard> = {}): F
     radio: vi.fn(),
     bark: vi.fn(),
     searchAt: vi.fn(),
+    // (guard-ai S18) a dead body's search is the body way (`Enemy.bodySearch`): a search round the body all the same
+    bodySearch: vi.fn((bx: number, bz: number) => (g.searchAt as unknown as (x: number, z: number, r: null) => void)(bx, bz, null)),
+    // (guard-ai S19) sent to a dead body the radio reported: he takes the task, as the real one does
+    helpSearch: vi.fn((_x: number, _z: number, inc: number) => {
+      g.incident = inc;
+    }),
     koSearch: vi.fn(),
     dispose: vi.fn(),
     setCaution(c: number) {
@@ -272,10 +280,14 @@ describe('awareness wired: a kill seen (witnessed)', () => {
     expect(em.lastWitnesses).toBe(1);
     expect(witness.caution).toBe(2);
     expect(witness.searchAt).toHaveBeenCalled();
+    // (the real finder is searching now: never sent anywhere by the board)
+    witness.level = 'searching';
     expect(away.caution).toBe(0);
     expect(em.radioLeft(E(witness))).toBeGreaterThan(0);
     run(RADIO.callIn + RADIO.staggerMax + 0.5);
     expect(away.caution).toBe(2);
+    // (guard-ai S19, G3) the report got through: the calm guard in range hurries over to help search the body
+    expect(away.helpSearch).toHaveBeenCalledTimes(1);
   });
 
   it('take the witness out before his report gets through: the section stays calm and the hold clears', () => {

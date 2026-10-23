@@ -56,6 +56,8 @@ Rejected by you (~01:25): anything that assumes a dark camera is blind (G240 sta
 Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN section 6; slice reports S0-*.md.
 
 ## Now (2026-10-23 ~01:20, new account; FULL BURN to 100% per Michael ~01:05 via the orchestrator)
+- ~17:45. PR #237 opened (laptop 39/40 + lightbake test fix 7257b141 desktop PASS 137 s). Master 4.77.0 merged (0ead059c;
+  TESTING.md + gameState.ts conflicts, tsc clean). section-rating S6 check PASS; fix round running. Orchestrator: train 31, protocol 41.
 - ~16:50. Fix 4 merged (d8c232fa; test-only A4 dock read, A2 needed fix 3b only). Master 4.76.0 merged 64e64ef0
   (protocol 36; camera field unified on master `bulletproof`; ricochet wiring is master's). Laptop full e2e requested.
 - ~16:35. Merged head 7d13e391 (desktop GPU): :3 PASS 417 s, :4 PASS 344 s. Slice 10 changelog / TESTING lines
@@ -480,8 +482,8 @@ Course Ready's prep notes: origin/feature/marlow-bays docs/marlow-final-prep/ (M
 
 ## Resume prompt
 ```
-Night Shift | Marlow Build: resume marlow-final. Read CLAUDE.md ("Sessions", "Heavy-usage throughput", token rules), ROADMAP Decided (marlow-final M1-M6, "Next: stealth over shooting") by grep, then docs/marlow-final/STATE.md "Now" ~16:50 entry (worktree C:/NightShift/Mobile-Coop-marlow-final, feature/marlow-final; git fetch).
-State: ALL slices done and checked (1-10; slice 10 = Michael's walk 4.72 M1-M5, S10-check.md PASS). Fix 3c / fix 4 test-only, merged. Desktop GPU green pre-merge: :1 :2 (fix 4), :3 :4 (7d13e391). Master 4.76.0 merged at 64e64ef0: protocol 36 (marlow 33 + master crate 35); cameras use master's `bulletproof` (slice 10's `armoured` dropped); tsc clean, 825 unit tests pass.
-Waiting: Test Runner full e2e E2E_GPU=1 on 64e64ef0 (requested ~16:50). On a pass: open ONE PR feature/marlow-final -> master (body: slices, MORNING-REVIEW table from STATE top, A9 ghost-run design, W5 needs Michael's A2 re-walk, protocol 36, changes/feature-marlow-final.md), then message "Night Shift | Orchestrator" (PR open, train-ready). On a fail: fix the suite (Opus), rerun only that suite on the desktop lane (C:/NightShift/scratch/mf-run.sh <wt> <suite> <log> [build]).
-Next job section-rating (C:/NightShift/Mobile-Coop-section-rating, feature/section-rating; docs/section-rating/STATE.md): stacked on feature/marlow-final since ~17:00 (protocol 37), S6 running (Opus, report in its STATE); its PR enters the same train after this one.
+Night Shift | Marlow Build: resume marlow-final + section-rating. Read CLAUDE.md ("Sessions", "Heavy-usage throughput", token rules), ROADMAP Decided (marlow-final M1-M6, "Next: stealth over shooting") by grep, then docs/marlow-final/STATE.md "Now" ~17:45 entry (worktree C:/NightShift/Mobile-Coop-marlow-final, feature/marlow-final; git fetch).
+State: marlow-final PR https://github.com/Tekcry/Mobile-Coop/pull/237 open (head 0ead059c, master 4.77.0 merged, protocol 36 locally). Tested: laptop full e2e GPU 64e64ef0 39/40 + e2e-lightbake test-race fix (7257b141) desktop PASS. section-rating (C:/NightShift/Mobile-Coop-section-rating) stacked on it at protocol 37: S1-S7 built, S6 check PASS (slices/S6-check.md), S6 fix round running (should-fix 1 + 3).
+Orchestrator rule (~17:40): one wire bump per train in merge order. Master 38 with train 29, train 30 (Player stack) = 40. marlow-final + section-rating ride train 31 together: once origin/train/30 exists, merge it into feature/marlow-final, then marlow-final into feature/section-rating; set PROTOCOL_VERSION 41 at section-rating's tip (42 if Guard AI S9 took 41 first), fix every version assert, then ask "Night Shift | Test Runner" for e2e-coop, e2e-netmove, e2e-ctcourse:1-3 (E2E_GPU=1) on that tip, then open section-rating's PR and message "Night Shift | Orchestrator" train-ready (both PRs).
+Open for the PR body / Michael: W5 A2 re-walk; restart shuts doors locked at set start (assumed); co-op Marlow rating card has no e2e (S6-check should-fix 2).
 ```

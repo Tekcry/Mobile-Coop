@@ -24,6 +24,7 @@ import {
   LASER,
   advanceDevJam,
   applyJamLight,
+  beamSpot,
   deviceAlarm,
   hallStep,
   inBox,
@@ -203,7 +204,15 @@ export interface CtHooks {
   /** (sector-fixes S) Is a shared (not per-player) course flag set? Non-allocating: the camera and laser `offFlag`
    *  checks run it every step / frame (falls back to `has`). */
   hasShared?(flag: string): boolean;
+  /** (guard-ai S17, Michael's walk of 4.72 G1) A device was tripped at (x, y, z) (y NaN: the floor there): a laser's
+   *  beam (its midpoint, `beamSpot`), a camera's alarm (where it saw someone). The guards' device incident, never the
+   *  player's live position. `key`: the device (laser index; a camera `CAM_KEY` + its index). Called before the alarm
+   *  stage rises (`record`), so the reinforcements it brings know the spot. Host only. */
+  alertAt?(x: number, y: number, z: number, key: number): void;
 }
+
+/** (guard-ai S17) A camera's device key: `CAM_KEY` + its index (lasers use their index). */
+export const CAM_KEY = 1000;
 
 /**
  * The CT prototype devices (B3): the held pistol jammer, the security cameras it blinds and the laser devices.
@@ -279,6 +288,8 @@ export class CtDevices {
   private readonly flagOff = new Set<string>();
   private cool: { t: number }[] = [{ t: 0 }, { t: 0 }];
   private alarmT = -99;
+  /** (guard-ai S17) Scratch for a broken beam's spot (`beamSpot`). */
+  private readonly spot = { x: 0, y: 0, z: 0 };
   private radioT = -99;
   private changed = true;
   /** (sector-fixes C, item 4) Night vision is on screen: the IR beams are drawn (render only). */
@@ -1003,17 +1014,27 @@ export class CtDevices {
 
   private touch(i: number, r: PlayerRef, dt: number): void {
     let hit: LaserRt | null = null;
+    let hk = -1;
     if (r.target.alive) {
       const h = r.crouched ? LASER.crouchHeight : LASER.standHeight;
       for (let k = 0; k < this.lasers.length && !hit; k++) {
         const l = this.lasers[k]!;
-        if (l.on && laserTouch(l.def, r.feet.x, r.feet.y, r.feet.z, h)) hit = l;
+        if (l.on && laserTouch(l.def, r.feet.x, r.feet.y, r.feet.z, h)) {
+          hit = l;
+          hk = k;
+        }
       }
     }
     if (!laserCooldown(this.cool[i]!, dt, hit !== null) || !hit) return;
     // (sector-fixes C, item 5) a break sets off the alarm on the camera's path; it never hurts (no damage path)
     this.hits++;
     const l = hit.def;
+    // (guard-ai S17, G1) the guards hear of the beam (its midpoint), not of the player: first, so the alarm's
+    // reinforcements know the spot
+    if (this.hooks.alertAt) {
+      const sp = beamSpot(l, this.spot);
+      this.hooks.alertAt(sp.x, sp.y, sp.z, hk);
+    }
     const raised = this.raiseAlarm(`${l.label ?? 'Laser'} tripped`);
     if (this.time - this.radioT > 6) {
       this.radioT = this.time;
@@ -1044,6 +1065,13 @@ export class CtDevices {
         this.hooks.say('The camera has noticed something. Jam it or break its line.');
       }
       return;
+    }
+    // (guard-ai S17, G3) the guards hear of where the camera saw someone (a sighting then, not his live position):
+    // first, so the alarm's reinforcements know the spot
+    if (this.hooks.alertAt) {
+      let ci = 0;
+      while (ci < this.cams.length && this.cams[ci]!.def.id !== e.camera) ci++;
+      this.hooks.alertAt(e.x, Number.NaN, e.z, CAM_KEY + ci);
     }
     // full awareness: the alarm stage goes up one (G125: escalating, it never ends the run)
     if (!this.raiseAlarm('A camera has you')) return;

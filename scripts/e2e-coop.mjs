@@ -2,7 +2,7 @@
 // Lobby (host, join by typed code, ready-up by controller), match start, snapshot replication,
 // a host guard's flashlight on, then off, on the client (coop-torches), host-validated client hits + kill credit,
 // downed/revive, results, back to lobby, guards and doors in co-op,
-// difficulty, a course restart at the checkpoint while a guard is held (Marlow Yard), a door peek and a wall medkit in
+// difficulty, (hang-down) the hanging joiner's pistol, grab and neck snap, a course restart at the checkpoint while a guard is held (Marlow Yard), a door peek and a wall medkit in
 // Free Roam, host leaving, malformed messages, and the offline state.
 // (co-op test fix, process audit section 2) The pages open legacy-off: the matches are Infiltration (the Ledger
 // mission on the Warehouse: guards, and detection costs only a bonus) and Free Roam, no Hunter. Two players only (G2).
@@ -854,9 +854,13 @@ try {
     await until(A, (id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || (!e.alive && e.ko); }, gg, 8000, 'host knocks the grabbed guard out');
     assert(true, "the grab menu's Knock out knocks the client's hostage out on the host");
   }
-  // dual takedown: two players finishing takedowns together
+  // dual takedown: two players finishing takedowns together (clock cleared first: the client's takedowns above would else pair with the host's)
+  const k0 = await GA(() => { const g = window.__app.current; g.net['dualClock'].reset(); window.__duals = []; g.events.on('dualTakedown', (e) => window.__duals.push(e)); return g.style.knockouts; });
   await GA(([a, b]) => { const n = window.__app.current.net; n['takedownDone'](a); n['takedownDone'](b); }, [hostId0, clientId]);
   assert((await GA(() => window.__app.current.net.duals)) === 1, 'two takedowns together count as a dual takedown');
+  const dv = await GA(() => { const g = window.__app.current; const d = window.__duals; return { n: g.style.duals, k: g.style.knockouts, ev: d.length, a: d[0]?.a, b: d[0]?.b }; });
+  assert(dv.n === 1 && dv.ev === 1 && dv.a === hostId0 && dv.b === clientId, `the dual takedown is counted and evented for section-rating (${JSON.stringify(dv)} h=${hostId0} c=${clientId})`);
+  assert(dv.k === k0, `a dual takedown adds no knockout of its own (${k0} -> ${dv.k})`);
   await until(B, () => /DUAL TAKEDOWN/.test(document.querySelector('.hud')?.textContent ?? document.body.textContent), null, 4000, 'client sees the dual takedown');
   assert(true, 'the dual takedown banner reaches the client');
   // the host goes down: a team-mate can revive (the client, through its mirrored revive point)
@@ -908,6 +912,197 @@ try {
   await until(B, () => { const t = window.__app.current.hud.objectiveText; return t.length > 0 && !/Connecting to host|Waiting for host/.test(t); }, null, 10000, 'the mission objective on the client');
   const obj = await GB(() => window.__app.current.hud.objectiveText);
   assert(!/Connecting to host/.test(obj) && obj.length > 0, `client sees the mission's objectives (${obj})`);
+
+  // (hang-down) The joiner hangs head-first from the host's hands over the Warehouse's mezzanine lip. The offer and the
+  // request are made by their own calls (the drop search is skipped: a railing post can stand in its waist ray; the host
+  // still checks the request), the rest is the game: hanging, the client draws the pistol (LT; the host lets it hold it),
+  // grabs a guard with the hold-A menu and knocks him out (KBM Z), neck-snaps a second (RT held), grabs a third and the
+  // host pulls it up: the held guard is knocked out by default. The guards are statues on their spots (their brains off,
+  // as the takedown steps above: the start, the reach check and the outcome are the real code).
+  console.log('hang-down: the hanging joiner draws the pistol, grabs, neck-snaps; the pull-up knocks the held guard out');
+  {
+    await GA(() => { const g = window.__app.current; g.target.damageMul = 0; for (const r of g.net.remotes.values()) r.damageMul = 0; });
+    const lip = await GA(() => {
+      const g = window.__app.current;
+      const L = g.world.level.anchors.ledges.filter((l) => l.canHang && Math.abs(l.top - 2.6) < 0.1 && Math.abs(l.a.z - 12) < 0.25 && Math.abs(l.b.z - 12) < 0.25).sort((p, q) => q.len - p.len)[0];
+      return L ? { x: L.a.x + L.tx * (L.len / 2), y: L.top } : null;
+    });
+    assert(!!lip, `hang-down: the mezzanine lip (${JSON.stringify(lip)})`);
+    const HZ = 11.6;
+    const spot = { x: lip.x + 0.3, z: HZ - 0.3 };
+    const hdIds = await GB(() => [...window.__app.current.net.puppets.values()].filter((p) => p.alive && p.def.kind === 'grunt').slice(0, 3).map((p) => p.id));
+    assert(hdIds.length === 3, `hang-down: three calm guards (${hdIds.join(',')})`);
+    const hdState = (P) => P.evaluate(() => { const g = window.__app.current; const c = g.player.controller; return JSON.stringify({ st: g.team.state, why: g.team.endWhy, denied: g.team.lastDenied, cnt: g.team.count, depth: g.team.hang.depth, pos: [c.pos.x, c.pos.y, c.pos.z].map((n) => n.toFixed(2)), offer: g.takedown.offer ? { id: g.takedown.offer.e.id, kind: g.takedown.offer.plan.kind } : null, td: !!g.takedown.active, hostage: g.takedown.hostage?.id ?? null, draw: g.weapons.drawPhase }); });
+    // the guards: the one in play at the spot under the hang, the others well off it; all calm, the client unspotted
+    // (every host sim step, the loop's fixedUpdate hook, as the strike pin above)
+    const pinHd = (live) => GA(([ids, live, sp]) => {
+      const g = window.__app.current;
+      const gen = (window.__hdPinGen = (window.__hdPinGen ?? 0) + 1);
+      const vs = ids.map((id) => g.enemyMgr.enemies.find((e) => e.id === id));
+      const pin = () => {
+        for (const r of g.net.remotes.values()) r.ref.spotted = false;
+        for (const e of g.enemyMgr.enemies) {
+          e['stagger'] = 99;
+          if (e.alive && !e.taken) e.aware.set('unaware');
+        }
+        vs.forEach((v, i) => {
+          if (!v?.alive || v.taken) return;
+          v.update = () => {};
+          if (v.id === live) v.pos.set(sp.x, 0, sp.z);
+          else v.pos.set(sp.x - 6 - i * 1.5, 0, sp.z - 4);
+          v.yaw = 0;
+        });
+      };
+      const hooks = window.__app.loop['hooks'];
+      const orig = hooks.fixedUpdate;
+      const step = (dt) => {
+        if (window.__hdPinGen !== gen || window.__app.current !== g) {
+          if (hooks.fixedUpdate === step) hooks.fixedUpdate = orig;
+          orig(dt);
+          return;
+        }
+        pin();
+        orig(dt);
+        pin();
+      };
+      hooks.fixedUpdate = step;
+      pin();
+    }, [hdIds, live, spot]);
+    // (fix round) every host kill / knock-out from here on: a guard killed or knocked out leaves `enemyMgr.enemies` (the
+    // manager drops dead entries the same step), so the outcome is read from this log, not from the list
+    await GA(() => {
+      const em = window.__app.current.enemyMgr;
+      const prev = em.onKilled;
+      window.__hdKills = [];
+      window.__hdKillsPrev = prev;
+      em.onKilled = (e, h) => {
+        window.__hdKills.push({ id: e.id, ko: !!e.ko, kind: h.kind, by: h.attackerId, pos: [e.pos.x, e.pos.y, e.pos.z].map((n) => +n.toFixed(2)) });
+        prev?.(e, h);
+      };
+    });
+    const hostKo = (id) => GA((id) => window.__hdKills.some((k) => k.id === id && k.ko), id);
+    const hostKilled = (id) => GA((id) => window.__hdKills.some((k) => k.id === id && !k.ko), id);
+    // (fix round) why a guard is not offered: the client's offer search on his puppet, the host's guard and its log
+    const hdWhy = async (id) => {
+      const c = await GB((id) => {
+        const g = window.__app.current;
+        const p = g.net.puppets.get(id);
+        const o = p ? g.takedown['tryVictim'](p) : null;
+        const i = g.takedown['inp'];
+        return JSON.stringify({ sent: g.team.hang.sent, spotted: g.spottedLocal, puppet: p ? { pos: [p.pos.x, p.pos.y, p.pos.z].map((n) => +n.toFixed(2)), alive: p.alive, taken: p.taken, level: p.level } : null, plan: o?.plan.kind ?? null, ay: +i.ay.toFixed(2), los: i.los });
+      }, id).catch((e) => String(e));
+      const h = await GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return JSON.stringify({ found: !!e, pos: e && [e.pos.x, e.pos.y, e.pos.z].map((n) => +n.toFixed(2)), taken: e?.taken, level: e?.level, log: window.__hdKills }); }, id);
+      console.log('    client:', c, '\n    host:', h);
+    };
+    try {
+      await pinHd('');
+      for (const P of [A, B]) await P.evaluate(() => { window.__pad.connect(); for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); });
+      // the host on the mezzanine facing the lip, the client beside it
+      await GA(([x, y]) => { const g = window.__app.current; g.team.end(true); g.player.controller.teleport(new g.player.position.constructor(x, y + 0.05, 12.4), Math.PI); }, [lip.x, lip.y]);
+      await moveClient(B, lip.x + 0.8, lip.y + 0.05, 12.4, Math.PI);
+      await until(A, () => window.__app.current.player.controller.grounded, null, 8000, 'hang-down: the host stands on the mezzanine');
+      await until(A, ([x, y]) => { const r = window.__app.current.net.remotes.values().next().value; return Math.hypot(r.feet.x - x, r.feet.z - 12.4) < 0.4 && Math.abs(r.feet.y - y) < 0.4; }, [lip.x + 0.8, lip.y], 15000, 'hang-down: the host sees the client beside it');
+      const hostId = await GA(() => window.__coop.session.selfId);
+      let hanging = false;
+      for (let attempt = 0; attempt < 4 && !hanging; attempt++) {
+        // the host offers the hang-down at the lip (its own state, as the crouch + RB facing the drop sets it)
+        await GA(([x, y, z]) => {
+          const t = window.__app.current.team;
+          if (t.state === 'hangOffer' || t.state === 'hangHold') return;
+          t.end(true);
+          Object.assign(t.hang, { x, z, edgeY: y, floorY: 0, max: 2.3, sent: false, lostT: 0 });
+          t.state = 'hangOffer';
+          t['t'] = 0;
+          t.partner = '';
+        }, [lip.x, lip.y, HZ]);
+        await until(B, () => window.__app.current.net.teamMates().some((m) => m.mode === 'brace' && (m.sub & 2) !== 0), null, 8000, 'hang-down: the client sees the host offering');
+        await GB(([id, y, x, z]) => { const g = window.__app.current; g.team.partner = id; g.net.teamRequest('hang', id, -1, 0, y, x, z); }, [hostId, lip.y, lip.x, HZ]);
+        hanging = await until(B, () => window.__app.current.team.state === 'hanging', null, 15000, 'hang-down: the client hangs head-first').then(() => true, async () => { console.log('    client:', await hdState(B), 'host:', await hdState(A)); return false; });
+      }
+      assert(hanging, 'hang-down: the client hangs head-first from the host over the lip');
+      await until(A, () => window.__app.current.team.state === 'hangHold', null, 8000, 'hang-down: the host holds');
+      // the holder raises the client so the head is at a standing guard's neck (the stick's own depth, set)
+      await GA(() => { window.__app.current.team.hang.depth = 1.2; });
+      await until(B, () => Math.abs(window.__app.current.team.hang.depth - 1.2) < 0.02 && window.__app.current.team.hangActs, null, 10000, 'hang-down: the client follows the holder to 1.2 m');
+
+      // the pistol: LT draws it one-handed, aimed inverted; the host lets the hanging client hold it (no forced holster)
+      await B.evaluate(() => window.__pad.set(6, 1));
+      try {
+        await until(B, () => { const g = window.__app.current; return g.player.attachAim?.inverted === true && g.weapons.drawPhase === 2 && g.weapons.current.def.class === 'pistol'; }, null, 10000, 'hang-down: the hanging client draws the pistol (LT)');
+        await until(A, () => { const mv = window.__app.current.net.remotes.values().next().value.state?.mv; return mv?.m === 'boost' && (mv.sub & 2) !== 0 && mv.dw === 2; }, null, 8000, 'hang-down: the host sees the hanging client with the pistol drawn');
+        assert(true, 'hang-down: the hanging client aims the pistol, held as drawn on the host');
+      } finally {
+        await B.evaluate(() => window.__pad.set(6, 0));
+      }
+      await until(B, () => window.__app.current.weapons.drawPhase === 0 && !window.__app.current.player.adsWanted, null, 10000, 'hang-down: the pistol goes away');
+
+      // the grab: the guard by the head, the hold-A menu's GRAB CHARACTER (A held opens it, the release runs it)
+      const g1 = hdIds[0];
+      await pinHd(g1);
+      await until(B, (id) => window.__app.current.takedown.offer?.e.id === id && window.__app.current.takedown.offer.plan.kind === 'hangDown', g1, 15000, 'hang-down: the guard under the hang is offered').catch(async (e) => { console.log('    client:', await hdState(B)); throw e; });
+      await B.evaluate(() => window.__pad.set(0, 1));
+      try {
+        await until(B, () => { const m = window.__app.current['ctxMenu']; return m.state === 'active' && m.opts[m.sel]?.opt === 'grab'; }, null, 8000, 'hang-down: hold A lists GRAB CHARACTER');
+      } finally {
+        await B.evaluate(() => window.__pad.set(0, 0));
+      }
+      await until(B, (id) => window.__app.current.takedown.hostage?.id === id && window.__app.current.takedown.menuReady, g1, 8000, 'hang-down: the client holds the guard, lifted');
+      assert(await GB(() => window.__app.current.team.state === 'hanging'), 'hang-down: still hanging while holding');
+      // the host keeps the client's guard (no let-go after TD_MAX) under the hanging head
+      await wait(1500);
+      const near = await GA((id) => { const g = window.__app.current; const e = g.enemyMgr.enemies.find((x) => x.id === id); const r = g.net.remotes.values().next().value; return { taken: !!e?.taken, d: e ? Math.hypot(e.pos.x - r.feet.x, e.pos.z - r.feet.z) : -1 }; }, g1);
+      assert(near.taken && near.d >= 0 && near.d < 0.9, `hang-down: the host holds the guard under the hanging client (${JSON.stringify(near)})`);
+      // KBM Z (the knockout)
+      await GB(() => window.__app.input.state.tap('altFire'));
+      await until(A, (id) => window.__hdKills.some((k) => k.id === id && k.ko), g1, 10000, 'hang-down: the held guard knocked out on the host');
+      assert(await hostKo(g1), 'hang-down: grab and knock out from the hang');
+
+      // the neck snap: RT held on the next guard in reach (no menu row needed)
+      const g2 = hdIds[1];
+      await pinHd(g2);
+      await until(B, () => !window.__app.current.takedown.active, null, 5000, 'hang-down: the grab finished');
+      let snapped = false;
+      for (let attempt = 0; attempt < 3 && !snapped; attempt++) {
+        await until(B, (id) => window.__app.current.takedown.offer?.e.id === id, g2, 15000, 'hang-down: the second guard offered').catch(async (e) => { console.log('    client:', await hdState(B)); await hdWhy(g2).catch((x) => console.log('    (no diag)', x)); throw e; });
+        await B.evaluate(() => window.__pad.set(7, 1));
+        try {
+          snapped = await until(A, (id) => window.__hdKills.some((k) => k.id === id && !k.ko), g2, 12000, 'hang-down: RT held neck-snaps the guard').then(() => true, async () => { console.log('    client:', await hdState(B)); return false; });
+        } finally {
+          await B.evaluate(() => window.__pad.set(7, 0));
+        }
+      }
+      assert(snapped && (await hostKilled(g2)), 'hang-down: RT held from the hang kills (the neck snap)');
+
+      // KO by default: a third guard grabbed, the host pulls the client up (RB): the client's hold ends as a knockout
+      const g3 = hdIds[2];
+      await pinHd(g3);
+      await until(B, () => !window.__app.current.takedown.active, null, 5000, 'hang-down: the neck snap finished');
+      await until(B, (id) => window.__app.current.takedown.offer?.e.id === id, g3, 15000, 'hang-down: the third guard offered').catch(async (e) => { await hdWhy(g3).catch(() => {}); throw e; });
+      await B.evaluate(() => window.__pad.set(0, 1));
+      try {
+        await until(B, () => { const m = window.__app.current['ctxMenu']; return m.state === 'active' && m.opts[m.sel]?.opt === 'grab'; }, null, 8000, 'hang-down: hold A lists GRAB CHARACTER again');
+      } finally {
+        await B.evaluate(() => window.__pad.set(0, 0));
+      }
+      await until(B, (id) => window.__app.current.takedown.hostage?.id === id, g3, 8000, 'hang-down: the client holds the third guard');
+      await A.evaluate(() => window.__pad.set(5, 1));
+      try {
+        await until(A, () => window.__app.current.team.state === 'none', null, 10000, 'hang-down: the host pulls the client up (RB)');
+      } finally {
+        await A.evaluate(() => window.__pad.set(5, 0));
+      }
+      await until(A, (id) => window.__hdKills.some((k) => k.id === id && k.ko), g3, 10000, 'hang-down: the held guard knocked out by default');
+      assert(await hostKo(g3), 'hang-down: the hang ending while holding knocks the guard out (no let-go)');
+      await until(B, () => { const g = window.__app.current; return g.team.state === 'none' && g.player.pose.tumble === 0 && !g.takedown.active; }, null, 10000, 'hang-down: the client is back up, upright');
+      assert(true, 'hang-down: the client is pulled back onto the mezzanine');
+    } finally {
+      await GA(() => { const em = window.__app.current?.enemyMgr; if (em) em.onKilled = window.__hdKillsPrev; }).catch(() => {});
+      await GA((ids) => { window.__hdPinGen = (window.__hdPinGen ?? 0) + 1; for (const e of window.__app.current.enemyMgr.enemies) if (ids.includes(e.id)) delete e.update; }, hdIds).catch(() => {});
+      for (const P of [A, B]) await P.evaluate(() => { for (let i = 0; i < 17; i++) window.__pad?.set(i, 0); window.__app.current?.team?.end(true); }).catch(() => {});
+      // (the host had no pad before: back to keyboard and mouse there)
+      await GA(() => window.__pad?.disconnect()).catch(() => {});
+    }
+  }
   // (marlow-bays item 4, A1) "Return to lobby" from the host's pause menu takes both players back to the room lobby; the
   // client's row is disabled ("Host only") and it keeps its own Quit
   console.log('pause: return to lobby (host only) takes both players back to the lobby');

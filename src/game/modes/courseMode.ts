@@ -288,6 +288,8 @@ export class CourseMode implements GameMode {
         this.rating?.camera();
       },
       dirty: () => (this.dirty = true),
+      // (guard-ai S17, G1) a laser broken / a camera's alarm: the guards search the device's spot, never the player's
+      alertAt: (x, y, z, key) => g.enemyMgr?.deviceAlert(x, y, z, key),
       flag: (f) => this.state?.setFlag(f),
       solo: () => !!this.state?.solo,
       has: (f) => !!this.state?.hasFlag(f),
