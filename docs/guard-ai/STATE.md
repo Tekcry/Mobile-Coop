@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~19:00: full burn to 100% (orchestrator): S22 game side brought forward: Opus agent on feature/guard-ai-s22-game
+(worktree ...-guard-ai-s22-game) = s22 c51f1b30 + merge of marlow-final #237 + the slices/S22.md wiring + A4 e2e step;
+pushes after each commit. Ships after #237 merges (PR then).
+
 ~18:55: carry fix check PASS (slices/CARRY-FIX-CHECK.md on the branch, 23cf567c); PR #240 OPEN to master (fix). Waiting:
 Test Runner watcher (e2e-guard-carry + stealth-ai on 48d049ad; suite on f16600f5 expect fail) -> TRAIN-READY #240.
 
@@ -540,8 +544,8 @@ e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep lapto
 2. #240 carry fix (feature/guard-ai-carry-fix 23cf567c = fix 48d049ad + check doc; check PASS): invisible guard bodies
    after a timed-out async shader compile. Test Runner watcher runs e2e-guard-carry + stealth-ai on 48d049ad and the
    suite on f16600f5 (expect fail). Green -> TRAIN-READY #240; red -> one Opus fix agent from the assert.
-3. S22 game side (slices/S22.md: CourseState.consoleBack, CourseMode consoleHost / watchesConsole / consoleEdge) once
-   marlow-final #237 merges; fix e2e-ctcourse A4 step 3 (passive officer no longer refuses) in the same branch.
+3. S22 game side: feature/guard-ai-s22-game (s22 + marlow-final #237 + the slices/S22.md wiring + A4 e2e); check its
+   tip, finish if WIP, Opus checker, Test Runner (ctcourse A4 part, coop), PR after #237 merges.
 4. Polish lists only (no refining): WALK-CHECK.md 1-6, S16-CHECK.md, A126-CHECK.md, S22-CHECK.md 1-5; calm walk:
    the grunt's slung rifle reads at the right hip while walking.
 Rules: AI code and checkers Opus; Sonnet 5.5 tests / data from strict briefs; Haiku chores. Never two agents on the
