@@ -115,7 +115,10 @@
    renumbers protocol at train build). Red -> one Opus fix round per failing suite (likeliest: the co-op crate prompt,
    the crate stands in the previous connector but is tagged with its own section and items are scoped to the live
    section), rerun only the failing suites. After #206 lands in master: merge master into -p3 only when PR 3 enters a train.
-PARALLEL lanes (each its own branch off -p3 + worktree with a node_modules junction; push WIP per step):
+PARALLEL lanes (each its own branch off -p3 + worktree with a node_modules junction; push WIP per step). STARTED ~12:15
+(Michael ~12:10 "do it faster"): lane B E2 glass (Opus, feature/sector-redesign-e2, checks/e2-glass.md) and lane C posts
+move (Sonnet, feature/sector-redesign-posts, checks/posts-move.md). On resume: check each branch log + report; rerun
+from this text if unfinished. Lane A waits for the art briefs.
 A. Detail art: briefs/ART-PLAN.md + ART-KIT.md + ART-S1..S5.md (Opus planner, ~12:00; check -p3 for them; rerun the
    planner from ROADMAP "Next: campus detail art" if missing). Opus builds ART-KIT first (kit + rules engine + tests);
    then Sonnet dressers S1-S5 in parallel (each only campusS<N>Dress.ts + one registration line); one Opus checker per
