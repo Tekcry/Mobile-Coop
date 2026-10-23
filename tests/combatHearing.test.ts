@@ -316,6 +316,28 @@ describe('EnemyManager.hear in a fight and a search (guard-ai S26)', () => {
     expect(spotOf(s)).toEqual([1.5, 1.5]);
   });
 
+  it('(S26 fix) a flashbanged guard (blindT running) hears nothing: no walk, no locate, no bark, no ray', () => {
+    const A = player('host', 10, 0);
+    const { em, ctx, add, tick, clear } = manager([A]);
+    const c = add(guard(0, -5, 'alert', { blindT: 2 }));
+    const s = add(guard(2, 0, 'searching', { blindT: 2 }));
+    c.hunt = ctx.reportSighting(A);
+    s.hunt = c.hunt;
+    tick(3);
+    const sp0 = spotOf(s);
+    em.hear(at(0, 1), STEP, 'noise', null, 'host');
+    expect(clear).not.toHaveBeenCalled();
+    expect(em.lkpOf(0)!.x).toBe(10);
+    expect(em.intruders.locT[0]).toBeCloseTo(3, 4);
+    expect([c.heardAt, s.heardAt]).toEqual([99, 99]);
+    expect(spotOf(s)).toEqual(sp0);
+    expect(s.bark).not.toHaveBeenCalled();
+    // the flash wears off: he hears the next step
+    (s as unknown as { blindT: number }).blindT = 0;
+    em.hear(at(0, 1), STEP, 'noise', null, 'host');
+    expect(s.heardAt).toBe(0);
+  });
+
   it('(h) throttles: two steps 0.25 s apart, one re-aim; a slot moved < 1.5 m within 1 s, one report', () => {
     const A = player('host', 10, 0);
     const { em, add, tick } = manager([A]);

@@ -9,7 +9,6 @@ import type { BlobShadows } from '../vfx/blobShadows';
 import { WEAPONS, GRENADE } from '../weapons/weaponDefs';
 import { MASK } from '../physics/groups';
 import { Hitboxes } from '../ai/hitboxes';
-import { noiseRadius } from '../player/movement';
 import { defaultHq, hqStats } from '../progression/suit';
 import { SD_OPEN_NOISE } from '../weapons/sdRounds';
 import type { NetSession } from './session';
@@ -22,7 +21,7 @@ import { RemotePlayer } from './remotePlayer';
 import { HoldClock, holdFeed, stepHoldFeed, type HoldFeed } from './holdFeed';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
-import { checkBlast, checkShot, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile, SHOT_UNDER, SHOT_UNDER_HANG } from './validate';
+import { checkBlast, checkShot, clientStepNoise, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile, SHOT_UNDER, SHOT_UNDER_HANG } from './validate';
 import { localFlags, htmlToInfo } from './netShared';
 import { keepSimInBackground } from './bgTicks';
 import { LAMP_LOS_SLACK, LampSender, lampShotOk, lampTargetId } from './lampSync';
@@ -1293,9 +1292,11 @@ export class CoopHost implements NetAttachment {
     for (const r of this.remotes.values()) {
       const st = r.state;
       if (!r.alive || !st) continue;
-      if (steps && (st.f & PF.silent) === 0 && (st.f & PF.grounded) !== 0) {
-        // (step 11) a back-to-wall slide is heard at the crouch band (bible 5.3)
-        const n = noiseRadius(r.ref.speed, (st.f & PF.crouch) !== 0 || st.mv?.m === 'wall');
+      if (steps) {
+        // (guard-ai S26 fix) the host player's rule on the client's own sent speed and stance (never the snapshot-delta
+        // estimate: a crouch-walk is silent, a teleport makes no step); (step 11) a back-to-wall slide is heard at the
+        // crouch band (bible 5.3)
+        const n = clientStepNoise(st, r.stepOk);
         if (n > 0) em.hear(r.feet, n, 'noise', null, r.ref.id);
       }
       const t = (this.firing.get(r.id) ?? 0) - dt;

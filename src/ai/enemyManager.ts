@@ -2620,6 +2620,8 @@ export class EnemyManager {
    * gone stale (`COMBAT_HEAR.switchAfter`, G139). In combat that is all: his `knownSpot` and chase field read the slot.
    */
   private hearFight(e: Enemy, i: number, pos: Vector3, reach: number, kind: 'noise' | 'distraction', by: string | null): void {
+    // (S26 fix, check B polish 1) a flashbanged guard is deaf too: no walk, no locate, no bark while blinded
+    if (e.blindT > 0) return;
     const state = e.alerted ? 2 : 1;
     const sees = e.seesTarget;
     const body = by !== null;

@@ -38,6 +38,9 @@ export class RemotePlayer implements Damageable {
   private lastT = -1;
   /** Seconds during which a large position jump is accepted (after a host-driven respawn). */
   private teleportGrace = 0;
+  /** (guard-ai S26 fix) The last accepted state continued the one before (no jump past the plausible-move bound) and the
+   *  host has not moved this copy since: only then can its step make a noise (`clientStepNoise`). */
+  stepOk = false;
   private node: TransformNode;
   private body: PhysicsBody;
   private shape: PhysicsShapeCapsule;
@@ -122,6 +125,8 @@ export class RemotePlayer implements Damageable {
     // (3.2.0) free movement within the speed gear's pace; traversal / the air keep the general cap
     const cap = moveSpeedCap(s.mv, (s.f & PF.crouch) !== 0, (s.f & PF.driven) !== 0, (s.f & PF.grounded) !== 0);
     const max = Math.min(MAX_SPEED, cap) * dt + 0.75;
+    // (guard-ai S26 fix) a jump (teleport, respawn, send-back, a clamped claim) is never a step
+    this.stepOk = this.state !== null && d <= max;
     if (d > max && this.teleportGrace <= 0 && this.state) {
       const k = max / d;
       s = { ...s, x: this.feet.x + dx * k, z: this.feet.z + dz * k };
@@ -171,6 +176,7 @@ export class RemotePlayer implements Damageable {
   /** (marlow-jammer fix round 1) Moved by the host (the camera hallway's send-back): alive, health kept. */
   moveTo(x: number, y: number, z: number): void {
     this.feet.set(x, y, z);
+    this.stepOk = false;
     // (fix round 2) the camera hallway holds the player "sent back" for as long as this grace (stale positions)
     this.allowTeleport(HALL_BACK_HOLD);
     this.sync();
@@ -269,6 +275,7 @@ export class RemotePlayer implements Damageable {
   revive(at: Vector3, protect = 2): void {
     this.health.reset();
     this.feet.copyFrom(at);
+    this.stepOk = false;
     this.allowTeleport();
     this.damageMul = 0;
     this.protectT = protect;
