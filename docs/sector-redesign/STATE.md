@@ -304,7 +304,9 @@ NEXT:
    (two on src/ai if touched) + laptop sectorops:6 + coop.
 4. FULL BURN (orchestrator ~07:35, Michael swaps at the 5-hour cap): RUNNING ~07:40: Opus LR16-6 vision polish
    (-lr16-6 off 6e53e036; G100 instant cut, G102 thermal through shut doors; checks/lr16-6-build.md); Opus planner
-   briefs/LR16-POLISH2.md (this window's checker polish lists, base 6e53e036); LR16-8 sheets SENT to Test Runner on
+   briefs/LR16-POLISH2.md DONE (d9982b9f: 7 build / 18 held / 7 dropped); RUNNING Sonnet pol2-a (warehouseS3 overhead
+   mark, LR16D_MOVED stale keys) + pol2-b (bounce / lamp-upload tests), off 6e53e036; then one Sonnet checker, merge
+   into feature/sector-redesign-pol2; part C after #291 releases; PR after #291 (with LR16-4). LR16-8 sheets SENT to Test Runner on
    606630ed (reply = one message with pass / flag list, probe table, perf, sheet folder).
 For Michael: Realistic dimmer (S2 atrium 0.47); S3 hall-lit white fog; R2N ladder foot 0.44 (layout cannot fix); warehouse
 fittings at 0.1-0.3x (GPU sheet judges); lamp-loop cost.
