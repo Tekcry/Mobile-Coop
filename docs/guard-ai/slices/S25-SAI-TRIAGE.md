@@ -50,3 +50,42 @@ No assert was loosened.
 - `npx vitest run tests/searchAreaWiring.test.ts`: 17 / 17 passed.
 - Scratch nav probe (warehouse, `runtimeNav`): the gap geometry and routes quoted above.
 - No local e2e (laptop rule). Laptop rerun queued on b384befc: set `s25-sai-fix`, suite `e2e-stealth-ai`, request `20261023T130835-night-shift-guard-ai-b384befc-75cc`.
+
+## Round 2 (b384befc still failed 'near', desktop run + rerun; also on S26 97da4fdf)
+
+New state: hide (-4.75, -0.25), out of his sight, and `resight` passed. But the walk trace shows his intruder's LKP at
+[-4.8, -0.3], the player's true hide spot, from the first sample (0.1 s). tS was 12.3 s, about lostSight 12 s from a
+sight at about 0.3 s. During the alert he took cover about 9.5 m north at (1.2-3.4, 9.5), the seeded cover-first roll
+of 0.85 at the first sight. At tS he walked straight to the player. He was still about 2 m short at 24 s, so he never
+reached point 0, never asked the plan, and `plans` stayed `[]`.
+
+### Root cause: the test's teleport leaks the player's position into the LKP (test harness, not S25)
+- The player's rig root is placed only in the render-side `frameUpdate` (`player.ts:371`
+  `root.position.copyFrom(c.renderPos)`). `PlayerTarget.sync` runs in the fixed step (`gameState.ts:1884`) and reads
+  the chest and head from the rig (`playerTarget.ts:85-110`).
+- So on the first fixed step after a bare `t.tp`, the chest is still at the lit spot (-0.5, 0), in his sight. The
+  alerted guard has LOS and calls `takeSighting`, and `reportSighting` (`enemyManager.ts:588`) reports `p.feet`, which
+  the teleport has already moved to the hide spot. The LKP jumps onto the player.
+- My round-1 `resight` check started at 0.5 s, so it missed this. Round 1's "re-sight through the x -4 gap" was only
+  part of the story: the 8bd13e0c run had this same leak from the first step.
+- In play the feet and the rig move together, at most one frame apart (centimetres). So this is a teleport-in-a-test
+  artifact, not a game bug. The S25 wiring is as specified: point 0 is the LKP, then plan points (ai.md S25 "the first
+  point is the last known position as before"). Asking the plan only after the look at the LKP is the design, so no
+  src change.
+
+### Fix (scripts/e2e-stealth-ai.mjs only)
+1. After `t.tp(hide)`, one `g.frameUpdate(1 / 60, 1)`, so the body follows the teleport before the first sim step.
+   This covers all three 'search area' runs: 'wall' and 'three' had the same leak.
+2. `resight` is now checked from the first step, and a new 'near' assert checks that the LKP stays within 0.5 m of
+   where he lost him (`lkpMoved`, with the time and the position).
+3. The 'near' window now counts from his first plan point (`tP`: the first plan built in the search), with
+   `closestP` / `closestPT` measured from then. It used to count from the search start. The walk back from cover
+   (about 9.5 m, about 9 s) and the 3 s look at the LKP are point 0, not the plan's to answer for. The assert itself
+   (within 1.5 m or found, 20 s) is unchanged, and a 45 s cap ends a run that never gets a plan.
+
+### Checks
+- `node --check scripts/e2e-stealth-ai.mjs`: OK. No src change (no tsc / vitest needed; round 1's
+  `searchAreaWiring` 17/17 stands).
+- Risk left: the hide's rank in the plan (S25B-RECHECK). The printed plans and the walk show it if 20 s from the plan
+  is still short.
+- Queued: set `s25-sai-fix2`, suite `e2e-stealth-ai`, on 923be420, request `20261023T133138-night-shift-guard-ai-923be420-40a9`.

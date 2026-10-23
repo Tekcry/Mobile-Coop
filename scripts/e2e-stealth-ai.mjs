@@ -673,6 +673,11 @@ try {
           t.light(0);
           t.crouch(true);
           t.tp(hide.x, hide.z, 0);
+          // (S25-SAI-TRIAGE 2) the body follows the tp before the first sim step: the rig (and so the target's chest and
+          // head, `PlayerTarget.sync` in the fixed step) is placed in `frameUpdate` (player.ts root.position), so the
+          // first step after a bare tp let him see the chest still at the lit spot and report the feet, already at the
+          // hide spot: the last known position leaked onto the player (both laptop runs: LKP = the hide spot from 0.1 s)
+          g.frameUpdate(1 / 60, 1);
           const at = { x: r1(g.player.position.x), z: r1(g.player.position.z) };
           let time = 0;
           let tS = -1;
@@ -685,7 +690,12 @@ try {
           let builtAt = -2;
           // (S25-SAI-TRIAGE) he sees him again after the tp (alerted: line of sight alone), and his walk, once a second
           let resight = -1;
+          let lkpMoved = null;
           const trace = [];
+          // ('near') the first plan built in the search, and the nearest a searcher comes to the spot from then on
+          let tP = -1;
+          let closestP = 99;
+          let closestPT = -1;
           const plans = [];
           const claims = gs.map(() => []);
           for (let i = 0; i < 1600; i++) {
@@ -694,7 +704,11 @@ try {
             g.frameUpdate(0.05, 1);
             time += 0.05;
             if (tS < 0 && e.level === 'searching') tS = time;
-            if (resight < 0 && time > 0.5 && e.alerted && e.sinceSeen < 0.1) resight = r1(time);
+            if (resight < 0 && e.alerted && e.sinceSeen < 0.1) resight = r1(time);
+            {
+              const lk = em.lkpOf(s);
+              if (!lkpMoved && lk && Math.hypot(lk.x - Lx, lk.z - Lz) > 0.5) lkpMoved = { t: r1(time), at: [r1(lk.x), r1(lk.z)] };
+            }
             if (i % 20 === 0) {
               const lk = em.lkpOf(s);
               trace.push([r1(time), e.level, r1(e.pos.x), r1(e.pos.z), lk ? [r1(lk.x), r1(lk.z)] : null, e.onPlan]);
@@ -709,6 +723,7 @@ try {
                 const pp = pc >= 0 ? f[pc] * cell : Infinity;
                 pts.push([r1(p0.x[q]), r1(p0.z[q]), +p0.score[q].toFixed(2), r1(pp)]);
               }
+              if (tP < 0 && tS >= 0) tP = time;
               plans.push({ t: r1(time - Math.max(0, tS)), c: [r1(p0.cx), r1(p0.cz)], R: r1(em['planR'][s]), pts });
             }
             for (let gi = 0; gi < gs.length; gi++) {
@@ -727,6 +742,10 @@ try {
                 closestT = time - tS;
               }
               if (found < 0 && e.level === 'alert' && e.sinceSeen < 1) found = time - tS;
+              if (tP >= 0 && d < closestP) {
+                closestP = d;
+                closestPT = time - tP;
+              }
               for (const x of gs) {
                 const p = pathAt(x.pos.x, x.pos.z);
                 if (Number.isFinite(p) && p > maxPath) {
@@ -735,7 +754,10 @@ try {
                 }
               }
             }
-            if (which === 'near' && tS >= 0 && (time - tS > 20 || closest < 1.5 || found >= 0)) break;
+            // ('near', S25-SAI-TRIAGE 2) 20 s from his first plan point: the search's first point is the last known
+            // position (ai.md, S25), and in this staging he took cover ~9.5 m off during combat, so the walk back and
+            // the look there are not the plan's to answer for
+            if (which === 'near' && tS >= 0 && ((tP >= 0 && time - tP > 20) || time - tS > 45 || closestP < 1.5 || found >= 0)) break;
             if (which === 'wall' && tS >= 0 && time - tS > 20) break;
             if (which === 'three' && tS >= 0 && (claims.every((v) => v.length > 0) || time - tS > 40)) break;
           }
@@ -750,6 +772,9 @@ try {
             tS: r1(tS),
             closest: r1(closest),
             closestT: r1(closestT),
+            tP: tP >= 0 ? r1(tP - tS) : -1,
+            closestP: r1(closestP),
+            closestPT: r1(closestPT),
             found: r1(found),
             homing,
             maxPath: r1(maxPath),
@@ -760,6 +785,7 @@ try {
             guard: [r1(e.pos.x), r1(e.pos.z)],
             onPlan: gs.map((x) => x.onPlan),
             resight,
+            lkpMoved,
             trace,
           };
         } finally {
@@ -776,10 +802,11 @@ try {
     assert(a.ownField, `near: his intruder has his own chase field (${sa})`);
     // (S25-SAI-TRIAGE) the vanish holds: out of his sight after the tp (else the last known position moves onto him)
     assert(a.resight < 0, `near: after the tp he never sees him again (seen at ${a.resight} s; ${sa}; walk ${JSON.stringify(a.trace)})`);
+    assert(!a.lkpMoved, `near: his last known position stays where he lost him (moved ${JSON.stringify(a.lkpMoved)}; ${sa}; walk ${JSON.stringify(a.trace)})`);
     assert(a.tS > 0 && a.plans.length > 0 && a.plans[0].pts.length > 0, `near: the search starts and asks the plan, built (${sa}; plans ${JSON.stringify(a.plans)}; walk ${JSON.stringify(a.trace)})`);
     const nearA = Math.min(...a.plans.map((p) => near2(p.pts, a.hide.x, a.hide.z)));
     assert(nearA <= 3, `near: a plan point within 3 m of the dark spot (nearest ${nearA.toFixed(1)} m; ${sa}; plans ${JSON.stringify(a.plans)})`);
-    assert(a.closest <= 1.5 || a.found >= 0, `near: a searcher comes to the dark spot within 20 s of the search (closest ${a.closest} m at ${a.closestT} s, found ${a.found}; ${sa}; plans ${JSON.stringify(a.plans)}; walk ${JSON.stringify(a.trace)})`);
+    assert(a.closestP <= 1.5 || a.found >= 0, `near: a searcher comes to the dark spot within 20 s of his first plan point (closest ${a.closestP} m at ${a.closestPT} s after it, the plan at ${a.tP} s into the search; found ${a.found}; ${sa}; plans ${JSON.stringify(a.plans)}; walk ${JSON.stringify(a.trace)})`);
     assert(!a.homing, `near: before the search he never homes in on the hidden player (${sa})`);
 
     // --- wall: the room behind a wall is not searched first ---
