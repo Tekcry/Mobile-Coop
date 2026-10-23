@@ -1,6 +1,9 @@
 # Guard AI - state
 
 ## Now
+~06:45: s26-levels, s27-levels, w482-levels PASS (desktop) -> #264, #266, #270, #271, #272 TRAIN-READY again,
+orchestrator told. Nothing running. Resume block current.
+
 ~06:15: S24 ladder fix f3c62b00 (src: spawn(.., true) is told the command's known intruder via commandHunt, no
 wallhack (A148); e2e-levels reports the player seen before the spawn; twoIntruders (i)/(i2); S24-LEVELS-TRIAGE.md).
 Merged up: s25 5cb67c9d, s26 2c92865d, s27 321b1e2e, walk482 046776ca. Laptop: s24-levels-fix (levels, stealth-ai,
@@ -763,18 +766,15 @@ Laptop worktrees (npm ci'd): C:/NightShift/Mobile-Coop-guard-ai (feature/guard-a
 Open (requests on branch laptop-queue, no cancel CLI: delete the JSON, commit, push. Verdict = GitHub status
 laptop-e2e/<set> on the sha; logs C:/NightShift/scratch/laptop-queue/runs/<id>/ (desktop-worker runs: ask the
 orchestrator). Green -> `gh pr edit <n> --add-label train-ready` + tell orchestrator; red -> Opus triage at once):
-1. TRAIN-READY (2026-10-24 ~02:05, one train after train 40): #281 A3 calm wait (feature/guard-ai-a3-calm 8559a357,
-   off master, test only: must ride with #254; keep both sides on an a3OfficeRange.mjs conflict with Marlow), #254 S23,
-   #264 S24 (e2e-coop hide fix 0a42c6b5), #270 S27 (sectorops:1 fix 1e8d1b6c), #272 walk482 (lkp fix d0968052).
-   #258 S22 game: in train 38 (failed on S23's A3; rides again). Triage docs: slices/S23-A3-TRIAGE.md,
-   S24-COOP-TRIAGE.md, S27-SEC1-TRIAGE.md, WALK482.md "Laptop triage".
-2. #266 S25 (feature/guard-ai-s25, worktree -s25): e2e-stealth-ai 'near' round 3 1eb5644d (S25-SAI-TRIAGE.md;
-   predicted pass, thin 1.49 m vs 1.5 m found margin; 'wall' / 'three' not run since round 1). Laptop s25-sai-fix3
-   queued. Green -> label #266.
-3. #271 S26 (feature/guard-ai-s26, worktree -s26, head f71ae5c7 = s25 merged): e2e-coop S26 block round 2 531a65e9
-   (block sets em.alarmRaised so no response team re-locates the client; S26-COOP-TRIAGE.md). s26-fix4 (coop,
-   netmove on 531a65e9) PASS; s26-sai (stealth-ai on f71ae5c7) FAIL (desktop log: ask the orchestrator). Green on both + #266 green -> label #271.
-   A further s25 fix -> merge s25 into s26 and requeue s26-sai.
+1. TRAIN-READY (2026-10-24 ~06:45): #281 A3 calm wait + #254 S23 in train 42 #288. Then ONE train: #264 S24 76431481
+   (+ ladder fix f3c62b00: an alerted spawn is told the command's known intruder; S24-LEVELS-TRIAGE / -CHECK PASS),
+   #266 S25 5cb67c9d, #271 S26 2c92865d, #270 S27 321b1e2e, #272 walk482 046776ca (all merged up with the fix; laptop
+   s26-levels / s27-levels / w482-levels PASS). On a train failure: bisect with single-suite laptop sets on master
+   and each stack head (as for train 41), Opus triage at once, merge the fix up s24 -> s25 -> s26, s27, walk482.
+2. Triage docs (this window): S23-A3-TRIAGE, S24-COOP-TRIAGE, S24-LEVELS-TRIAGE/-CHECK, S25-SAI-TRIAGE (5 rounds),
+   S26-COOP-TRIAGE, S27-SEC1-TRIAGE, WALK482.md "Laptop triage". All test-only except S24 ladder (src).
+3. Polish (S24-LEVELS-CHECK): redundant tell(alarmHunt) after spawn in reinforce (enemyManager.ts:979) and parked
+   joinReinforcement (:811). Mission reinforcements with nothing known stand at spawn (A148): Michael's call.
 4. Backlog: path through a locked door (A7-cage-w) stalls ~15 s (S20 door gate never opens a locked leaf); cover
    picked by straight-line distance can send a guard behind a full wall (S24-COOP-TRIAGE.md; polish list).
 5. PLAN has no slice after S27 (S28 none). Next work: walk reports from Michael, polish lists only after his playtest.
