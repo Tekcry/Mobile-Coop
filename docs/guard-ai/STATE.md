@@ -1,6 +1,12 @@
 # Guard AI - state
 
 ## Now
+~19:35: s22-game d82f9b6f: e2e-ctcourse:4 PASS (A8 refusal holds); :2 FAIL twice (real): A3 passes now, A4 fails at
+a4GoodsShed.mjs:223 "back from the noise, the officer notices the console off" (40 s, consoleFinds never rises).
+RUNNING: Opus triage-and-fix agent (writes slices/S22-GAME-A4-TRIAGE.md, pushes, queues the laptop rerun itself with
+C:/NightShift/Mobile-Coop-laptop-queue-svc node scripts/laptop-queue/request.mjs --sha .. --set s22game-a4fix; the
+verdict is a GitHub commit status on that sha). If it was cut off: check that doc / the branch tip and finish.
+
 ~19:30 SAVE (orchestrator, 77%): every guard-ai worktree clean and pushed. S23-S25 briefed (planner 1957231b:
 PLAN.md + slices/S23-S25.md, A143-A154 proposed, 2 questions for Michael). S23 queued for the cloud builder
 (cloud-queue briefs/guard-ai-S23.md 674e5e6b, base master 41204e30 4.80.0, A143-A145 accepted). #246 in train 32.
@@ -600,8 +606,8 @@ Open:
 2. S22 game side: feature/guard-ai-s22-game d82f9b6f (s22 + marlow-final 12fa2f29, PROTOCOL 43 = 41 + #237's 42;
    console wiring src/game/course/courseState.ts consoleBack, src/game/modes/courseMode.ts; A4 e2e
    scripts/e2e-ctcourse/a4GoodsShed.mjs). Checks PASS x2 (slices/S22-GAME-CHECK.md, -CHECK2.md). e2e-coop PASS
-   (08586783). RUNNING on Test Runner's laptop queue: e2e-ctcourse --part=2 + --part=4 on d82f9b6f (GitHub status
-   "laptop-e2e/s22game-a3a8" + a message). Green -> PR to master after #237 merges (then the train merges master).
+   (08586783), ctcourse:4 PASS (d82f9b6f); ctcourse:2 FAILS in A4 (officer never notices the console off): see
+   "Now" (triage-and-fix agent; rerun set s22game-a4fix). Laptop runs: submit with request.mjs (above). Green -> PR to master after #237 merges (then the train merges master).
    Red in a4GoodsShed / a8Strongroom -> Opus triage at once (risks: distraction wait 8 s, notice wait 40 s, "stays
    calm"); marlow's step-3/4 corridor flake is not ours.
 3. S23 every player seen (slices/S23.md): cloud builder claims briefs/guard-ai-S23.md -> branch feature/guard-ai-s23.
