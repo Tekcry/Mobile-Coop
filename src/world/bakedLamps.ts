@@ -841,6 +841,11 @@ class LampVolume {
  * bounce read as the light field's `BounceGrid.sampleInto` reads it (fix round: 8 texel fetches, the home cell crossed
  * to the point's side of a wall inside it, the corners it reaches through open faces blended and renormalised; B + A x
  * 256 the wall bits). Step for step the field's arithmetic: `tests/bounceGrid.test.ts` checks it against the field.
+ * (LR16-P F3) No local arrays (dynamically indexed `float v[8]` / `int e[8]` / `bool c[8]` spill to local memory on
+ * NVIDIA): the corners k = x + 2y + 4z as two vec4 of values (`va` k 0-3, `vb` k 4-7) and two ivec4 of wall bits, the
+ * reach set an 8-bit mask grown along the cube's 12 edges (each pass adds every corner one open edge from the set; the
+ * set a corner reaches is the same as the per-corner loop's, at most 7 passes), the blend over all 8 corners with the
+ * unreached ones weighted 0 (the same sums: + 0 and x 0 are exact).
  */
 export const NS_GRID2_GLSL = `vec2 nsGrid2(highp sampler3D t, vec3 p, vec4 o, vec4 n) {
   vec3 q = (p - o.xyz) / (o.w * n.xyz);
@@ -850,22 +855,24 @@ export const NS_GRID2_GLSL = `vec2 nsGrid2(highp sampler3D t, vec3 p, vec4 o, ve
   vec3 f = u - b;
   ivec3 i0 = ivec3(b);
   ivec3 i1 = min(i0 + 1, ivec3(n.xyz) - 1);
-  float v[8];
-  int e[8];
-  bool c[8];
-  float lit = 0.0;
-  int walls = 0;
-  for (int k = 0; k < 8; k++) {
-    vec4 s = texelFetch(t, ivec3((k & 1) != 0 ? i1.x : i0.x, (k & 2) != 0 ? i1.y : i0.y, (k & 4) != 0 ? i1.z : i0.z), 0);
-    v[k] = s.g;
-    e[k] = int(s.b * 255.0 + 0.5) + int(s.a * 255.0 + 0.5) * 256;
-    lit += s.g;
-    walls |= e[k];
-  }
-  if (lit <= 0.0) return vec2(amb, 0.0);
+  vec4 s0 = texelFetch(t, ivec3(i0.x, i0.y, i0.z), 0);
+  vec4 s1 = texelFetch(t, ivec3(i1.x, i0.y, i0.z), 0);
+  vec4 s2 = texelFetch(t, ivec3(i0.x, i1.y, i0.z), 0);
+  vec4 s3 = texelFetch(t, ivec3(i1.x, i1.y, i0.z), 0);
+  vec4 s4 = texelFetch(t, ivec3(i0.x, i0.y, i1.z), 0);
+  vec4 s5 = texelFetch(t, ivec3(i1.x, i0.y, i1.z), 0);
+  vec4 s6 = texelFetch(t, ivec3(i0.x, i1.y, i1.z), 0);
+  vec4 s7 = texelFetch(t, ivec3(i1.x, i1.y, i1.z), 0);
+  vec4 va = vec4(s0.g, s1.g, s2.g, s3.g);
+  vec4 vb = vec4(s4.g, s5.g, s6.g, s7.g);
+  if (va + vb == vec4(0.0)) return vec2(amb, 0.0);
+  ivec4 ea = ivec4(vec4(s0.b, s1.b, s2.b, s3.b) * 255.0 + 0.5) + ivec4(vec4(s0.a, s1.a, s2.a, s3.a) * 255.0 + 0.5) * 256;
+  ivec4 eb = ivec4(vec4(s4.b, s5.b, s6.b, s7.b) * 255.0 + 0.5) + ivec4(vec4(s4.a, s5.a, s6.a, s7.a) * 255.0 + 0.5) * 256;
   ivec3 hb = ivec3(step(vec3(0.5), f));
   int h = hb.x + hb.y * 2 + hb.z * 4;
-  int eh = e[h];
+  ivec4 eq = hb.z == 1 ? eb : ea;
+  int hq = hb.x + hb.y * 2;
+  int eh = hq == 0 ? eq.x : hq == 1 ? eq.y : hq == 2 ? eq.z : eq.w;
   vec3 d = abs(f - vec3(hb));
   int tx = (eh >> (hb.x == 1 ? ${BOUNCE_T_SHIFT[1]} : ${BOUNCE_T_SHIFT[0]})) & 3;
   int ty = (eh >> (hb.y == 1 ? ${BOUNCE_T_SHIFT[3]} : ${BOUNCE_T_SHIFT[2]})) & 3;
@@ -873,28 +880,32 @@ export const NS_GRID2_GLSL = `vec2 nsGrid2(highp sampler3D t, vec3 p, vec4 o, ve
   if (tx > 0 && d.x >= float(tx) * ${BOUNCE_T_STEP}) h ^= 1;
   if (ty > 0 && d.y >= float(ty) * ${BOUNCE_T_STEP}) h ^= 2;
   if (tz > 0 && d.z >= float(tz) * ${BOUNCE_T_STEP}) h ^= 4;
-  bool open = (walls & 7) == 0;
-  for (int k = 0; k < 8; k++) c[k] = k == h || open;
-  if (!open) {
+  ivec4 wo = ea | eb;
+  int c = ((wo.x | wo.y | wo.z | wo.w) & 7) == 0 ? 255 : 1 << h;
+  if (c != 255) {
+    ivec4 xa = ivec4(equal(ea & 1, ivec4(0)));
+    ivec4 xb = ivec4(equal(eb & 1, ivec4(0)));
+    ivec4 ya = ivec4(equal(ea & 2, ivec4(0)));
+    ivec4 yb = ivec4(equal(eb & 2, ivec4(0)));
+    ivec4 za = ivec4(equal(ea & 4, ivec4(0)));
+    int mx = xa.x | (xa.z << 2) | (xb.x << 4) | (xb.z << 6);
+    int my = ya.x | (ya.y << 1) | (yb.x << 4) | (yb.y << 5);
+    int mz = za.x | (za.y << 1) | (za.z << 2) | (za.w << 3);
     for (int r = 0; r < 7; r++) {
-      bool grew = false;
-      for (int k = 0; k < 8; k++) {
-        if ((k & 1) == 0 && (e[k] & 1) == 0 && c[k] != c[k + 1]) { c[k] = true; c[k + 1] = true; grew = true; }
-        if ((k & 2) == 0 && (e[k] & 2) == 0 && c[k] != c[k + 2]) { c[k] = true; c[k + 2] = true; grew = true; }
-        if ((k & 4) == 0 && (e[k] & 4) == 0 && c[k] != c[k + 4]) { c[k] = true; c[k + 4] = true; grew = true; }
-      }
-      if (!grew) break;
+      int g = c | ((c & mx) << 1) | ((c >> 1) & mx) | ((c & my) << 2) | ((c >> 2) & my) | ((c & mz) << 4) | ((c >> 4) & mz);
+      if (g == c) break;
+      c = g;
     }
   }
-  float sw = 0.0;
-  float sv = 0.0;
-  for (int k = 0; k < 8; k++) {
-    if (!c[k]) continue;
-    float w = ((k & 1) != 0 ? f.x : 1.0 - f.x) * ((k & 2) != 0 ? f.y : 1.0 - f.y) * ((k & 4) != 0 ? f.z : 1.0 - f.z);
-    sw += w;
-    sv += w * v[k];
-  }
-  return vec2(amb, sw > 0.0 ? sv / sw : v[h]);
+  vec2 wx = vec2(1.0 - f.x, f.x);
+  vec4 wa = vec4(wx * (1.0 - f.y), wx * f.y) * (1.0 - f.z) * vec4(notEqual(ivec4(c) & ivec4(1, 2, 4, 8), ivec4(0)));
+  vec4 wb = vec4(wx * (1.0 - f.y), wx * f.y) * f.z * vec4(notEqual(ivec4(c) & ivec4(16, 32, 64, 128), ivec4(0)));
+  float sw = wa.x + wa.y + wa.z + wa.w + wb.x + wb.y + wb.z + wb.w;
+  float sv = wa.x * va.x + wa.y * va.y + wa.z * va.z + wa.w * va.w + wb.x * vb.x + wb.y * vb.y + wb.z * vb.z + wb.w * vb.w;
+  vec4 vq = h >= 4 ? vb : va;
+  int hk = h & 3;
+  float vh = hk == 0 ? vq.x : hk == 1 ? vq.y : hk == 2 ? vq.z : vq.w;
+  return vec2(amb, sw > 0.0 ? sv / sw : vh);
 }`;
 
 /** The lamp loop (GLSL), shared by every material the plugin is on. Exported for the guard test that it holds
