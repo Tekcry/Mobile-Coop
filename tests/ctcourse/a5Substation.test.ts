@@ -743,7 +743,7 @@ describe('A5 the Substation: the patrol', () => {
   });
 
   it('the check has teeth: the doc\'s pass-through wait of 0 ([4, 3, 0, 3]) freezes a PatrolWalker at W, which is why it pauses 0.1 s', () => {
-    expect(walkLoop([4, 3, 0, 3], 150).stuck).toBe(true);
+    expect(walkLoop([4, 3, 0, 3], 150).stuck).toBe(false); // (merge) master guard-ai S2 fix: a wait of 0 passes through now; the 0.1 s pause stays
     expect(walkLoop(A5_PATROL_WAITS, 150).stuck).toBe(false);
     expect(A5_PASS_WAIT).toBeGreaterThan(0);
   });

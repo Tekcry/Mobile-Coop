@@ -119,8 +119,9 @@ describe('(sector-fixes P) every map with lasers has their panels', () => {
       // (marlow-final 0d) Marlow Yard's lasers come and go with its set slices (A5, A8): the frame there checks them
       if (map.id !== 'ctcourse') lasers += (lay.lasers ?? []).length;
     }
-    // Sector Ops' five bands
-    expect(lasers).toBe(5);
+    // Sector Ops' five bands and Saltmarsh Park's two (las-gown, las-store; sector-redesign slice 3); Marlow Yard's
+    // are left out above (marlow-final 0d)
+    expect(lasers).toBe(7);
     expect(WAREHOUSE_OPS_PANELS.map((p) => p.id)).toEqual(['panel-workshop', 'panel-deck', 'panel-vna', 'panel-mezz']);
     expect(WAREHOUSE_OPS_PANELS.find((p) => p.id === 'panel-mezz')!.lasers).toEqual(['laser-deck-stairs', 'laser-deck-west']);
   });

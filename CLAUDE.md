@@ -33,6 +33,8 @@ until Michael lifts it.
 The only place for session, job, machine and test rules. `docs/systems/session-method.md` details the job lead's loop;
 `docs/ROADMAP.md` is state only (now, next, waiting on Michael, done).
 
+**Session titles** (Michael 2026-10-23 ~11:05, from the next account swap; titles are message addresses, so sessions never rename themselves mid-run): "Night Shift | Player Build" (formerly CT Core Build: movement, mocap, takedowns, co-op spare jobs), "Night Shift | Marlow Build" (formerly Menu Notes Build: marlow-final, then section-rating), "Night Shift | Sector Ops Build" (formerly Course Ready Build: sector-redesign, campus art), "Night Shift | Test Runner" (formerly Character Build: laptop GPU runs, guard-render), "Night Shift | Guard AI Build" (on the laptop from the 2026-10-23 ~13:50 swap, Michael ~13:00, to take desktop CPU load; its e2e still goes through Test Runner's queue), "Night Shift | Orchestrator". Older docs use the former names; read them as these. Message the title ListAgents shows.
+
 **The orchestrator.** One session, "Night Shift | Orchestrator", runs the whole build: it owns `docs/ROADMAP.md` (the
 only session that edits it), plans and starts jobs, reviews PRs and merges green ones into master (Michael, 2026-10-19:
 "you can merge automatically without my permission. Just remember that i want to maintain the master as the most up to
@@ -54,8 +56,41 @@ means this session only; the session running a job is its **job lead**.
 GPU are far stronger, and the desktop sits near 99% CPU running every session's agents). This overrides the older
 machine wording below: full runs, merge trains, `e2e-coop` / `e2e-netmove` / `e2e-ctcourse` and GPU or visual work
 (anim-audit, anim-sheet, shots, `E2E_GPU=1` suites, port 4189) go to Character Build on the laptop (Normal priority,
-`E2E_JOBS=3`, its own `heavy.lock`). The desktop runs only quick single suites at `E2E_JOBS=1` under its lock, and the
+`E2E_JOBS=5` for full runs and trains (Michael 2026-10-23 ~00:10 "Yes, if clean": 316 s vs ~490 s at 3; back to 3 the first time 5 causes a failure; 2026-10-23 trial on 4.65.0: JOBS=5 only while the second slot is idle, else 3: 621 s at 5 beside a busy 4192 vs 559 s at 3), its own `heavy.lock`). The desktop runs only quick single suites at `E2E_JOBS=1` under its lock, and the
 sessions' agents. Job leads send run requests (branch, commit, suites) to Character Build, not the desktop lock.
+
+**GPU for logic e2e** (Michael, 2026-10-22 ~20:30: "use gpu on any tests that would benefit"; overrides the
+software-GL wording below and in "Commands"): both machines run logic e2e with `E2E_GPU=1` (hardware GPU), which is
+4-14x faster than software GL and keeps CPU free. Measured on 4.58.0 on the desktop, GPU vs software: e2e-mouse 35 s vs
+225 s, e2e-menus 61 s vs ~13 min, e2e-coop 74 s vs ~10 min; laptop GPU full run 585 s vs 2025 s in software.
+Always GPU (Michael, 2026-10-22 ~21:10: "Shouldn't we always use gpu"): every e2e run is `E2E_GPU=1`; a GPU failure
+counts (fix the test or the game). A software rerun is optional, only to tell a timing bug in the test from a game
+bug. CI stays software GL (`npm run check` only, no e2e). Ports stay as in the table; a GPU logic run may use 4191 / 4192.
+Desktop second lane (2026-10-22 21:06, a GPU run left the desktop at ~40% CPU): a second GPU-only e2e run may start
+under `C:/NightShift/heavy2.lock` (same atomic create and release rules) on port 4192, `E2E_GPU=1`, `E2E_JOBS=1`,
+only while desktop CPU is under 50% at the start. Full `npm run check` and any software run keep the single `heavy.lock`.
+
+**Heavy-usage throughput** (Michael, 2026-10-23 ~09:50: "update with your token suggestions to accomodate heavy usage (desktop e2e and merge PRs)"; full burn showed the laptop queue and desktop CPU, not tokens, as the limit):
+- Desktop agent budget: CPU target under ~80%, so one desktop e2e lane always has room. At most 3 agents per desktop session running tsc / vitest at once (more may run docs, briefs and checks that only read); agents run single vitest files and tsc, never a full `npm run check` (CI runs it). The orchestrator trims the heaviest session when CPU is over 90% at a check.
+- Desktop e2e lane: heavy.lock (4191) runs `E2E_GPU=1 E2E_JOBS=1` single suites whenever desktop CPU is under ~80% at the start (was 60%); heavy2.lock (4192) keeps the 50% rule. A desktop-lane timeout under load is not a verdict: rerun that suite on the laptop. The laptop keeps full runs, trains and the e2e-coop / e2e-netmove / e2e-ctcourse group.
+- Fewer per-PR runs: a PR with a fresh checker PASS whose change is outside `src/net`, `PROTOCOL_VERSION` and the save shape goes straight into the next train on CI `check` plus at most the one or two suites its own area names, run on the desktop lane; the train's full run covers the rest. Stacked series (one job's chained PRs, e.g. guard-ai S4 -> S5 -> S7) enter one train together.
+- Bigger trains: build a train when 3+ PRs are ready, or when the oldest ready PR has waited 2 hours, whichever comes first (was "2+ ready"). One full laptop run per train.
+- Token rules (Michael, 2026-10-23 ~09:40: "apply all. maximise token usage during full burn where possible to achieve more"): spend tokens on work, not overhead, and put what is saved into more parallel slices and spare jobs up to the CPU cap.
+  - Message the orchestrator only when a PR opens or is train-ready, when blocked, or when Michael is needed; progress goes in the job's STATE.md (the orchestrator's cron reads it).
+  - Clears at swaps only (Michael 2026-10-23 ~11:00, replaces the 25-30% clear): a resumed session already sits at ~15% context (~80k fixed tools + ~70k startup reads), and every swap starts all sessions fresh about hourly, so a mid-window clear re-reads ~70k and loses working knowledge to save little. Clear mid-window only past ~50% context, at the next clean point. Unused connectors (Gmail, Google Drive, Fergus) and plugins (small-business, productivity) stay off in Night Shift sessions (~20k tokens per turn).
+  - Burn fast, bring work forward, in every full-burn (100%) window (Michael ~12:05, "apply that moving forward when we are in a 100% burn state"; near the cap, parallel builders still start, and the 98% save commits each agent worktree as WIP; "I want you to burn as fast as possible, bringing the work forward, while keeping token usage efficient in terms of not wasting tokens on something that doesnt need doing right now"): every lead runs all independent slices of its own plan in parallel now, not one at a time, while desktop CPU stays under ~80% (tsc / vitest agents per session may exceed 3 when CPU allows; read-only planning and checking agents are not capped). Nothing speculative: only slices already in the job's PLAN, its next checker, its next PR. Two agents never edit the same files.
+  - Lean restarts (Michael ~11:55; a swap restart cost ~9% of the new window): each job's resume block is ~40 lines max with exact file:line pointers, history below it; at a resume read only the ROADMAP entries the prompt names. Player Build and Marlow Build leads run at medium effort (agents keep their own model and effort); Guard AI stays high.
+  - Small and spare jobs of one lead ride in one batch PR per train (one branch, one checker, one CI), not one PR each.
+  - One fresh checker per batch of related slices; Sonnet 5.5 checks greybox, data and dressing; Opus checks AI, anim and `src/net` code.
+  - No polling turns: start long runs in the background and wait for the notification or the reply; Character Build sends one verdict message per batch, not per suite.
+  - Merge master into a job branch only when it is about to enter a train (or to fix a real conflict), not after every release.
+- Account swap (Michael 2026-10-23 ~10:55, after the old account ran out before every session stopped and he had no current orchestrator prompt: "slow down at 95% and ensure you give me the correct orchestrator prompt early enough so i can copy it. must still utilise 100% tokens before swapping"): at ~92% every session saves (each agent worktree committed as WIP and pushed, STATE and resume prompt current, long runs queued) and keeps working to 100%; no slow-down (Michael ~12:10, "if the work can be done faster, do it faster"). At 95% the orchestrator refreshes HANDOFF.md and gives Michael the next orchestrator prompt as the last thing in a message, so he has it before the cutoff. Michael swaps at 100%.
+  The trigger is whichever limit binds first (Michael ~11:15: "make sure to stop earlier relative to weekly amount remaining, but make sure to hit 100% safely"): the 5-hour or the weekly limit. Measured 2026-10-23: 1% weekly costs about 6% of a 5-hour window, so a window that starts with W% weekly left reaches the weekly cap at about 6W% of the 5-hour meter. When the weekly would cap first, the 95% slow-down and the orchestrator prompt go out at weekly ~95-96% and the swap is at weekly 100%. Michael chooses which account to swap to (~12:10: "ignore accounts, i will deal with that. you focus on making maximum progress. if the work can be done faster, do it faster"); the orchestrator only times the save and gives the prompt. Near the cap, parallel builders may still start: at the 98% save each lead commits every agent worktree's files as WIP, so a cut-off agent loses little.
+- Progress through the burn (Michael 2026-10-23 ~10:45: "the 100% top priority is making progress through the burn periods with efficient use of tokens"):
+  - Machines never idle across a swap: at ~95% every lead makes sure its next long runs are queued (laptop requests sent, desktop runs started in the background), so the laptop and desktop keep testing headless through the 98% save and the swap. Character Build keeps a chain script with the next ~2 hours of queued runs, so the laptop runs without a live session.
+  - Desktop locks are taken per suite run and released at once, never held across a fix loop.
+  - Laptop order: trains first, then PR / area suites, then measurements that need a slot alone (guard-cap, perf) only while no train is queued.
+  - A suite that fails then passes on the same commit is a flake: its owner fixes the test in the next batch PR instead of rerunning it again.
 
 **Machines** (Michael, 2026-10-19; 2026-10-21 16:40: "i dont care about usage on the desktop, i use the laptop": the desktop is the main test machine at full power, full e2e there with E2E_JOBS=2; the laptop is overflow only, BelowNormal, E2E_JOBS=1). Two heavy slots. CPU or GPU heavy work (e2e, full test runs, builds in loops, GPU
 shots, Blender, heavy subagents) runs on the desktop (orchestrator, CT Core and the other desktop job leads), the main
@@ -77,7 +112,7 @@ Build runs them on the laptop in its own worktree `C:/NightShift/Mobile-Coop-tes
 failing assert and the run time, and copies the orchestrator. Logic e2e only: GPU, perf and visual checks stay on the
 desktop. A result counts for the test tier only for the exact commit it ran on, or for a later commit whose only
 difference is docs, `CHANGELOG.md`, changelog fragments or test scripts (Michael, 2026-10-22 ~18:00). The laptop runs
-two requests at once, one per port (4191 and 4192; GPU on 4189), each with its own lock file. Between requests Character Build works
+two requests at once, one per port (4191 and 4192; GPU on 4189), each with its own lock file, but at most ONE full run (`npm run e2e`, a train) at a time: the other slots take single suites (2026-10-22, after overlapping full runs timed out). Between requests Character Build works
 its own small jobs from the roadmap. Cloud sessions run unit tests,
 logic e2e and design only; every GPU check there is "pending PC run".
 
@@ -88,7 +123,7 @@ logic e2e and design only; every GPU check there is "pending PC run".
   `cd /c/NightShift/Mobile-Coop-<job> && test "$(git rev-parse --abbrev-ref HEAD)" = feature/<job> && test "$(git rev-parse --show-toplevel)" = "C:/NightShift/Mobile-Coop-<job>"`.
 - The job lead builds a quick prototype first when the job needs a feel or look decision (G4), then runs the loop in
   `docs/systems/session-method.md` (G87): an implementer, a fresh checker, at most 1 fix round per slice while the
-  current goal holds. Opus builds and checks; a lighter model only for mechanical chores (G88). Subagents start from
+  current goal holds. Opus plans, writes strict slice briefs, reviews and runs every fresh checker; Sonnet 5.5 may build a slice from a strict Opus brief (map greybox and data, tests, wiring), Haiku 5.5 does mechanical chores (logs, CHANGELOG, renames); tricky engine, AI and animation code stays Opus; a Sonnet slice that fails its checker gets its fix round from Opus (Michael 2026-10-23 ~01:45 "Apply it", replacing G88 "Opus builds"). Subagents start from
   `docs/systems/agent-preamble.md`.
 - Three files in `docs/<job>/`:
   - `BRIEF.md`: the ask with Michael's words, the goal and limits; Michael's answers M1, M2, ... and assumed decisions
@@ -160,7 +195,7 @@ then `netstat -ano | grep ":4191 .*LISTENING"` must print nothing. The runner st
 
 ## Hard rules
 - No runtime CDN or network dependency. All assets are bundled; Havok WASM is imported with `?url`.
-- No external art, except CC0 textures for desktop detail and the CC0 base body of the operator pipeline (bible 5.14);
+- No external art, except CC0 textures for desktop detail, the CC0 base body of the operator pipeline (bible 5.14), and CMU motion-capture takes for the mocap set (Michael 2026-10-22 ~20:45 mocap-trial, 2026-10-23 ~00:15 "Yes, download them"; converted clips bundled, raw files not committed, credited in `docs/art-credits.md`);
   operator meshes are generated offline by in-repo scripts (Blender, headless) and bundled. CC0 recordings may be used for any sound (G58): bundled,
   never fetched at runtime, each source credited in `docs/audio-credits.md` (the score's samples in
   `docs/audio/samples.md`). WebAudio synthesis stays where it sounds better.

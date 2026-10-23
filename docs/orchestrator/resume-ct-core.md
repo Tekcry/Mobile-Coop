@@ -1,69 +1,40 @@
-# Resume - Night Shift | CT Core Build (track B, animation)
+# Resume - Night Shift | Player Build (formerly CT Core Build; resumed 2026-10-23 after the ~12:20 swap)
 
-Written 2026-10-22 ~14:55 at the 5-hour pause; updated ~19:12 by the resumed CT Core session (overflow session). Every branch
-below is committed and pushed. Each job's own `docs/<job>/STATE.md` has the detail; this is the index.
+Rules: CLAUDE.md on origin/feature/menu "Heavy-usage throughput", "Token rules", "Account swap" (95% slow down, save by
+98%, small work to 100%; at the orchestrator's save message commit agent worktrees as WIP). No mid-window clears. Opus
+plans / checks / anim + net code; Sonnet builds from strict briefs; max 3 tsc / vitest agents; desktop CPU < 80%.
+e2e always E2E_GPU=1: laptop (Character Build) for coop / netmove / ctcourse and batches; desktop heavy.lock (4191,
+CPU < 80%) / heavy2.lock (4192, CPU < 50%) for single suites. Agent rules: scratch/mt2/COMMON.md, COMMON-SPARE.md
+(subagents may be refused writing REPORT.md: the lead writes it from the hand-back). Push this file with
+scratch/ctcore/push-resume.sh <file> <msg>. Message the orchestrator only at PR open / train-ready / blocked / Michael.
 
-## Rules carried
-- (Michael 15:25, via the orchestrator) CT Core is the overflow session: it ignores the 97 / 98 / 99% stops and works and
-  starts agents up to 100%. Cutoff-proof: commit + push a WIP after every agent hand-back, keep this file current at each
-  step, long runs as detached scripts that release their own lock. If cut off: do nothing; resume when the orchestrator
-  messages after the reset.
-- Full burn (Michael, 13:30): parallel agents where the work splits. `mcp__ccd_session_mgmt__get_usage` before every
-  agent: at 97% (5-hour) start no new agent; at 98% commit, push and update STATE; stopped by 99%. Resume after a pause
-  only when the orchestrator messages. Weekly at 98%: the orchestrator runs `docs/orchestrator/HANDOFF.md`.
-- Desktop heavy lock `C:/NightShift/heavy.lock` (a full `npm run check`, a full `vitest run`, every e2e, anim-audit,
-  Blender, GPU sheets): create it ATOMICALLY and wait while it exists:
-  `until ( set -o noclobber; echo "CT Core Build | <job> | $(date '+%H:%M')" > /c/NightShift/heavy.lock ) 2>/dev/null; do sleep 20; done`;
-  delete it only if it still names you (`grep -q "<job>" "$L" && rm -f "$L"`). Port 4191 (logic), 4189 (GPU). Follow
-  the orchestrator's lock queue; when you free the lock, tell whoever is next. When it is held, send logic suites to
-  the laptop runner "Night Shift | Character Build" (branch, commit, named suites). Single test files need no lock.
-- Main test machine = the laptop (Michael ~17:50, CLAUDE.md "Main test machine"): full runs, npm run check, co-op suites
-  and ALL GPU work (anim-audit, anim-sheet, shots, E2E_GPU=1) go to Character Build (bridge:session_01HVFKDvRCTbTDNhJKQP1oaa)
-  with branch, commit, suites and where outputs go. The desktop runs only quick single suites at E2E_JOBS=1 under its lock.
-- Rule changes (Michael via the orchestrator, ~18:35; CLAUDE.md on feature/menu): a PR whose fresh checker passed goes
-  straight into the next merge train with CI check only (the train full run covers its suites); PRs touching src/net,
-  PROTOCOL_VERSION or the save shape still pass their area suites first. A test result stands for a later commit that only
-  changes docs / CHANGELOG / test scripts. The laptop runs two queues (ports 4191, 4192). Changelog fragments: format to come.
-- Merge trains: a PR needs CI + its area suites; the orchestrator runs one full e2e per train and sets versions at merge
-  (G183). CHANGELOG entries are "## Unreleased - <job>".
-- Every tuner slider bakes. Never loosen a metric to pass; a widened limit from Michael's tune is marked
-  `(<job>) Michael's 2026-10-22 tune: was <old>`.
-- Subagents: Opus, from `docs/systems/agent-preamble.md`; implementer + fresh checker, one fix round; they return text,
-  the job lead writes REPORT / CHECK files and commits. Tell them: no full vitest / check / e2e.
-- `git checkout -- tests/__snapshots__/visionIsolation.test.ts.snap` before every commit (vitest rewrites it). In bash
-  scripts, write PowerShell's `$_` as `\$_` inside double quotes; a port-free command can return non-zero: never chain
-  the next step with `&&` after it.
+## Open (master 4.71.0, 3c460923)
+| Job | Branch, folder C:/NightShift/Mobile-Coop-<x> | Head | Next |
+| --- | --- | --- | --- |
+| PR #207 batch 22 | feature/ctcore-batch-22, folder ctcore-batch | 99c37251 | strike-pops + hang-down + dual-reward + traverse-fix-2; check PASS (scratch/ctcore/b22-CHECK.md, polish list); master merged. Laptop GPU 8/8 GREEN on 99c37251 (338 s), posted in #207; orchestrator told train-ready. In train 24 (origin/train/24 468167df; 4.73.0 on a pass). Batch 23 -> train 25. |
+| mocap-strafe r3 (Opus) | feature/mocap-strafe | d47b8ec5 WIP | Round 2 149f419c met knee-out / alloc / assert / OFF md5 (docs/mocap-trial/MT2-STRAFE.md "Fix round 2"). Round 3 goals: restart after 0.3 s stand slide 3.87 cm -> <= 0.5 (footPlanner, rig reachNeed / stOff timing), flip pelvis pops 3.34 / 2.36 cm -> <= OFF + 0.5 (OFF 1.11 / 0.93), diagonal flip slide 1.21 -> <= 0.5. Keep knee-out <= 3.0 (pistol R speed 2 at 2.9), OFF md5 9ce3f3d1... / 31,065,812 B. Then e2e-anim + e2e-clip, fresh Opus recheck (msc-CHECK.md scope + these), own PR. |
+| sd-rounds spare 7 (Sonnet) | feature/sd-rounds | 2ef4000f DONE | Vitest 40/40, tsc, eslint, e2e-combat + e2e-weapon-audio GPU green; REPORT.md in. Fixed weapon-audio's pre-existing reload step (A -> X hold; first X hold after shots not read, script holds twice: checker look). Next batch, the #207 checker scope reused (fresh Opus). Near-miss with Guard AI #208: WeaponSlot fields just above HitKind (playerWeapons.ts ~55). |
+| team-climb (Opus) | feature/team-climb off 3c460923 | a5559685 WIP | CLIMB_UP_TEAM: rope-top lip grips (teamController ropeTop reachL / reachR, remoteAvatar), ease teamController.ts ~347-348 rise `min(1, e*1.7)` and `across` jump at e 0.4 (5.7 cm pop), tests/teamClimb.test.ts, e2e coop / netmove / traverse. Off traverse-fix-2's hunks. Next batch. |
+| spare 9 interrogation-intel (Sonnet) | feature/interrogation-intel off batch-22 99c37251 | a2984b63 DONE | intel.ts / intelReveal.ts, takedownController, coopHost relay; no wire / save / src/ai change. Vitest 40/40, tsc, eslint, e2e-takedown GPU green. e2e-coop relay assert untested (laptop batch). patrolRoute getter rides guard-ai-s8 (compiles without). Part B (modes' onIntelCode) after marlow-final / sector-redesign. |
 
-## Open jobs (branch, folder, head, next step)
-| Job | Branch / folder | Head | State | Next step |
-| --- | --- | --- | --- | --- |
-| anim-run-half (#110) | `feature/anim-run-half`, `C:/NightShift/Mobile-Coop-anim-run-half` | 16b1a044 | Master 4.54.0 merged, fixture re-captured; check 2682 ok, e2e-anim ok, e2e-studio ok solo (a JOBS=2 phase-sampling flake). In train 4. | Nothing unless train 4 fails. |
-| idle-shins (#120) | `feature/idle-shins`, `C:/NightShift/Mobile-Coop-idle-shins` | 741da1da | PR #120; master 4.55.1 merged. Train 5. | Nothing unless train 5 fails. |
-| anim-natural N1 (feet) | `feature/anim-natural-n1`, `C:/NightShift/Mobile-Coop-anim-natural-n1` (a separate clone: use origin/ refs) | 50acdc7e | Jog 180 fix f8e98b26 (REPORT-D) + the 4.55.1 merge branch merged (50acdc7e). After the merge footTurn's new timing test fails: run 180 at 1.067 s 6.11 m/s (<= 5). Agent (19:10) in the N1 folder: run 180 fix (task 1) + master 4.56.0 merge and fixture proof (task 2), commits locally; report -> REPORT-E.md (lost on a clear: check git log / status there). | Push; laptop: e2e-anim e2e-clip e2e-move on the head; fresh checker; CHANGELOG Unreleased section; PR (minor; checker pass -> train with CI only). GPU sheets on the laptop. |
-| anim-natural N2 (body motion) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | 77b21ea4 | Step 2 DONE: laptop on 53e6dc03 check / e2e-anim / e2e-studio / e2e-clip PASS (STATE 19:10). Step 3 (arms) implementer agent (18:30) in branch feature/anim-natural-n2-s3, folder C:/NightShift/Mobile-Coop-anim-natural-n2-merge (from 4028d386; uncommitted until its report -> REPORT-3.md; lost on a clear: check git status there). | Step 3 report -> REPORT-3, fresh checker; merge s3 + master 4.56.0 into N2 (fixture proof); steps 4-5; #128 alloc test. |
-| anim-bake-all (#123) | `feature/anim-bake-all`, `C:/NightShift/Mobile-Coop-anim-bake-all` | ad967e39 | Master 4.56.0 merged (tuneRegistry: both imports; 146 tests + tsc green). Told the orchestrator: train 6 once CI is green. | Nothing unless train 6 fails. |
-| anim-n2-runkey | `feature/anim-n2-runkey` | 038e2519 | A1 branch, merged into N2. | None (history; sheets in docs/anim-natural-n2/sheets/). |
+| batch 23 (train 25) | feature/ctcore-batch-23 off batch-22, folder ctcore-batch | 58368e10 PR #214 | = interrogation-intel a2984b63 + sd-rounds 2ef4000f + team-climb 2805b65e (coop.md conflict: both bullets kept). Checker PASS (scratch/ctcore/b23-CHECK.md, polish list). Laptop asked for coop, netmove, ctcourse, takedown, traverse, anim, combat, weapon-audio on dc8919cd (58368e10 = + test comment) -> post in #214, train-ready message. |
 
-## Test logs on the desktop
-`/c/NightShift/ctb-b.log` (master 5220f79c anim-audit: 645 / 89), `abt-aa.log` (#103: 703 / 108; selfShanks 4 -> 38 =
-idle-shins), `ctb3-n1audit.log` (N1), `ctb-d*.log` / `ctb3-studio.log` (#110), `ish-audit.log` (idle-shins),
-`ctb-a.log` (A1 rebake + sheets). If `C:/NightShift/heavy.lock` names "CT Core Build" and no node / bash process of
-ours runs, the lock is stale: delete it.
-
-## Done today
-#102 anim-goggle (4.49.1), #107 e2e-coop-takedown (4.51.1), #103 anim-bake-targets (4.54.0, train 3 with #113).
+## Next window, at once (parallel, CPU < 80%; orchestrator: max 2 tsc / vitest agents while CPU > 80%)
+1. (done after the swap) r3, team-climb, sd-rounds restarted from the heads above; spare 9 started. Spare 12 dual-reward is
+   in #207. If cut off again: restart each with the table's goals.
+2. Wait for hand-backs (no polling).
+3. #207 verdict -> train-ready message. Next batch (feature/ctcore-batch-23 off master) = sd-rounds + team-climb +
+   spare 9, one Opus checker, laptop coop / netmove / ctcourse.
+4. Later spares (docs/orchestrator/spare-jobs.md on feature/menu): 7 crouch pops after mocap-strafe; 16 partner rig start
+   (remoteAvatar, after team-climb); 6 partner pose parity (protocol bump, M-L).
 
 ## Resume prompt
 ```
-Night Shift | CT Core Build: RESUME (after a clear or a pause). Model Opus, effort high. Read CLAUDE.md, docs/ROADMAP.md,
-then docs/orchestrator/resume-ct-core.md on origin/feature/menu (git fetch; git show
-origin/feature/menu:docs/orchestrator/resume-ct-core.md) and follow its rules (full burn with parallel agents,
-overflow session: works to 100%, WIP pushed after each agent hand-back; the atomic heavy.lock and the
-orchestrator's lock queue; the laptop runner "Night Shift | Character Build" when the lock is held; merge trains,
-versions at merge). Work the "Open jobs" table top to bottom, each from its own docs/<job>/STATE.md:
-1. N1: the run 180 + 4.56.0 merge agent (REPORT-E) or rerun; push; laptop e2e-anim e2e-clip e2e-move; checker; PR.
-2. N2: step 3 agent (REPORT-3) or rerun; checker; merge s3 + master 4.56.0; steps 4-5.
-3. #123 in train 6 (master 4.56.0 merged).
-Desktop lock: ask the orchestrator for the current order; scripts take it atomically and free it themselves.
-Message "Night Shift | Orchestrator" at each slice, verdict and PR.
+Night Shift | CT Core Build: RESUME after the ~12:20 account swap. Model Opus, effort high. Read CLAUDE.md
+("Sessions": "Heavy-usage throughput", "Token rules", "Account swap"; on origin/feature/menu if newer than master), then
+docs/orchestrator/resume-ct-core.md on origin/feature/menu (git fetch; git show
+origin/feature/menu:docs/orchestrator/resume-ct-core.md). Copy it to C:/NightShift/scratch/ctcore/resume-ct-core.md and
+push updates with scratch/ctcore/push-resume.sh. A heavy.lock / heavy2.lock naming CT Core Build with no node / bash
+process of ours is stale: delete it. Message "Night Shift | Orchestrator" once that you resumed, then only at PR open /
+train-ready / blocked / Michael needed. Work "Next window" top down. e2e always E2E_GPU=1.
 ```

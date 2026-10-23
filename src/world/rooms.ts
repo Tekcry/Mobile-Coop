@@ -5,6 +5,7 @@
  */
 import type { EnemyKind } from '../ai/enemyDefs';
 import type { GuardInfo } from '../ai/guardInfo';
+import type { PostDef } from '../ai/posts';
 
 export interface RoomRect {
   id: string;
@@ -41,6 +42,10 @@ export interface SquadSlot {
   passive?: boolean;
   /** (PR 3) What INTERROGATE gets out of him once he is held (`ai/guardInfo.ts`); none = nothing to ask. */
   info?: GuardInfo;
+  /** (guard-ai) Post leash / high security (`ai/posts.ts`); none = a free guard. */
+  post?: PostDef;
+  /** (guard-ai) Behaviour profile: hand-placed reinforcement-like guards are 'aggressive'; default 'standard'. */
+  profile?: 'standard' | 'aggressive';
 }
 
 export interface RoomDef extends RoomRect {

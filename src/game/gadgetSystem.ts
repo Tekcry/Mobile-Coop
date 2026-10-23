@@ -381,7 +381,7 @@ export class GadgetSystem {
     g.vfx.sparks(at, Vector3.UpReadOnly as Vector3, 22, '#6fb6ff');
     const n = g.world.level.lights.disrupt(at.x, at.y, at.z, d.radius, d.duration);
     this.stats.empLights += n;
-    if (n) g.enemyMgr?.lightsOut(at.x, at.z);
+    if (n) g.enemyMgr?.lightsOut(at.x, at.z, at.y);
     // enemy recon drones in range drop
     g.enemyMgr?.empAt(at.x, at.y, at.z, d.radius);
     // enemies close by are dazed for a moment (their kit sparks)
@@ -458,7 +458,7 @@ export class GadgetSystem {
       n.next -= dt;
       if (n.next <= 0 && n.t > 0) {
         n.next = NOISE_PERIOD;
-        em?.hear(n.p, GADGETS.noise.radius);
+        em?.hear(n.p, GADGETS.noise.radius, 'distraction');
         g.vfx.sparks(n.p, this.hitN.set(0, 1, 0), 4, GADGETS.noise.color);
         g.events.emit('gadget', { kind: 'noise', phase: 'pulse' });
         this.stats.pulses++;
@@ -547,7 +547,7 @@ export class GadgetSystem {
       // fire: a lure ping
       if (inp.pressed('fire') && c.ping <= 0) {
         c.ping = CAM_PING_CD;
-        g.enemyMgr?.hear(c.p, CAM_PING);
+        g.enemyMgr?.hear(c.p, CAM_PING, 'distraction');
         g.events.emit('gadget', { kind: 'stickyCam', phase: 'pulse' });
         this.stats.pings++;
       }

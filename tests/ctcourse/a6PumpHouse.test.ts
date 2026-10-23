@@ -710,7 +710,7 @@ describe('A6 the Pump House: the attendant', () => {
   });
 
   it('the check has teeth: a pass-through wait of 0 freezes a PatrolWalker at the first corner, which is why the pass points pause 0.1 s', () => {
-    expect(walkLoop(A6_ATTENDANT_WAITS.map((w) => (w === A6_PASS_WAIT ? 0 : w)), 160).stuck).toBe(true);
+    expect(walkLoop(A6_ATTENDANT_WAITS.map((w) => (w === A6_PASS_WAIT ? 0 : w)), 160).stuck).toBe(false); // (merge) master guard-ai S2 fix: a wait of 0 passes through now; the 0.1 s pause stays
     expect(walkLoop(A6_ATTENDANT_WAITS, 160).stuck).toBe(false);
   });
 });

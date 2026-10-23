@@ -102,10 +102,7 @@ export const S1_SWITCHES: NonNullable<MapLayout['switches']> = [
   { pos: new Vector3(3.15, 0, -14.3), yaw: PI / 2, group: 34 },
 ];
 
-export const S1_PICKUPS: NonNullable<MapLayout['pickups']> = [
-  { pos: new Vector3(-23.3, 0, -14.0), kind: 'ammo' },
-  { pos: new Vector3(6.0, 0, -9.4), kind: 'ammo' },
-];
+export const S1_PICKUPS: NonNullable<MapLayout['pickups']> = [];
 
 export const S1_HIDESPOTS: NonNullable<MapLayout['hideSpots']> = [{ pos: new Vector3(-21.3, 0, -21.5) }, { pos: new Vector3(-6.0, 0, -7.2) }];
 

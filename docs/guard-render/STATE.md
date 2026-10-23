@@ -1,0 +1,285 @@
+# Guard render: state
+
+## Now
+S1 (merged rigidly skinned guard body) implemented and pushed on `feature/guard-render` (commits a-f below), on master
+4.68.0. Unit + NullEngine tests pass; nothing measured or seen on a GPU yet. Guards (`enemyRig.ts`) and carried /
+fresh bodies (`body.ts`) opt in; `?guardmerge=0` gives the old instanced parts for comparisons.
+
+## S1 done (2026-10-23)
+- (a) 63c5bdfe `src/player/smoothBodyMerge.ts` (pure) + `tests/smoothBodyMerge.test.ts`: joint-space positions,
+  normals = normalize(M3 * n), colour / pattern / color2, matricesIndices / weights, `ppos` / `pnrm`, per-part ranges,
+  `flashColors` / `heatPattern` / `paintPart`, `restBox`.
+- (b) 2901fde1 `src/player/smoothBody.ts`: one bone per joint node (bind identity), `onBeforeComputeObservable` pose
+  (no allocation), one scene observer per scene for all bodies (`markAsDirty` + sticky ragdoll check -> always
+  active), fixed root-local `BoundingInfo` on both meshes (rest box + PAD 1 m sideways, 0.3 m up / down), LOD via
+  `getLOD` (the low mesh is blocked as an LOD level), merged geometry cached per (joints, parts, instance values),
+  parts `setEnabled(false)`. `BoundingInfo` exported from `src/core/babylon.ts`.
+- (c) 00012998 `src/player/smoothBodyPlugin.ts` (priority 220, `SMOOTHBODY` when `ppos` present: vPatPos / vSurfPos
+  = ppos, vSurfNrm = pnrm) on `partSkinMat` before freeze; `src/world/partLibrary.ts`: base metadata `library`,
+  `low(base)`, `trackLod(hi, lo)` (setLodScale moves merged LODs). No `world.ts` hunk needed (setLodScale already
+  goes through the library).
+- (d) 09f329f7 characterRig hook (CT Core's file, its own commit): `src/player/characterRig.ts` line 3 (import),
+  1232 (`merge?: boolean` in the opts type), 1308-1309 (comment + `else if (opts.merge ...) this.voxel =
+  buildSmoothBody(...)`), 1315 (`voxel: VoxelBody | SmoothBody | null`). Constructor + field only, no per-frame code,
+  nothing in 1850-2010 / 2600-2700 or `src/anim`. Diff: `git show 09f329f7 -- src/player/characterRig.ts`.
+- (e) 3c559e43 `merge: true` in `src/ai/enemyRig.ts` and `src/ai/body.ts`; `guardMerge` in `src/core/flags.ts`
+  (`?guardmerge=0` off; `buildSmoothBody` returns null).
+- (f) ac088549 `tests/smoothBody.test.ts` (NullEngine): a grunt rig with merge, walked 20 frames, moved and turned:
+  every 7th vertex of every part, both LODs, skinned = instance world position (< 1e-4 m); colours; flash; ragdoll
+  re-parent -> always active; one shared observer; `guardMerge = false` -> parts. Also fixed in (f): the per-mesh
+  buffers were built lo-first while `meshes` is [hi, lo] (flash would have written the wrong buffer).
+- Checks run: `tsc --noEmit -p .`, eslint on every changed file, vitest single files: smoothBodyMerge, smoothBody,
+  voxel, animGear, coopTorches, enemyManagerDespawn, hearing, sectorRestart (all pass). No full check, no e2e.
+
+## S1 checker (2026-10-23 ~09:10, fresh Opus): PASS WITH NOTES
+- Applied: `LIVE` entry deleted on `scene.onDisposeObservable` (an undisposed body kept a disposed scene alive).
+- Known pixel difference (accepted, more correct): `lightRig.ts:456` and `world.ts:342` skip casters with
+  `radiusWorld < 0.3`; that used to drop heads, hands, forearms and feet, and the merged body is over 0.3 m, so those
+  now cast moon / lamp / flashlight shadows. Note it in the look check and the on / off GPU comparison.
+- Later (S7): GPU buffers are per body (CACHE shares only CPU arrays); share VertexBuffers per cache entry.
+- GPU run: first-draw compile of the BONES + VERTEXCOLOR + SMOOTHBODY variant may hide the first guard for a few
+  frames; the box has only 0.3 m headroom (raised hands poke out).
+
+## S1 doubts (for the checker / the GPU run)
+- Not rendered on a GPU yet: the plugin's shader (PBR + SURF_OBJECT + BONES + VERTEXCOLOR) compiles only in the e2e /
+  GPU run; a compile error would show as missing guards in smoke.
+- LOD swap: the merged body switches as one at the body's sphere centre; the instances switched part by part (parts
+  ~1 m from the centre swap slightly earlier / later near 16 m x Detail).
+- `setHeadVisible` is a no-op (one mesh, no head split): only the player's camera fades a head, and the player keeps
+  its own figure. Pattern scale is fixed at build (a joint scaled at run time would not stretch the pattern).
+- Rest box margins (1 m / 0.3 m) are a guess: a keyed pose reaching further than 1 m past the rest box (takedown
+  victim, lying without a ragdoll: the root itself rotates, so `lay` is fine) could cull a frame early at the screen
+  edge. Ragdolls re-parent the joints, so they go always-active.
+
+## S6 (2026-10-23)
+What: per-cascade sun / moon shadow caster lists (S6a/S6b, exact) and guards leaving the moon cascades beyond 40 m
+(S6c/S6d, GUARD_SUN_REACH, 3 m hysteresis); `?guardsun=0` turns both off.
+Checker: PASS WITH NOTES (light parity clean). Findings fixed here: (1) the custom cascade render list is set only under
+the baked moon (Babylon re-prepares a custom list per cascade layer; without the baked moon the level is in it);
+(2) reach is measured from the player (`World.frame` focus), not the orbit camera; (3) body rigs register
+GUARD_SUN_REACH like a guard's corpse.
+Measure at c181002e (laptop GPU, alone; `run-s6-on`, `run-s6-off`): with 24 guards alert (spread out) frame 8.4 -> 8.1 ms
+on sectorops and 7.3 -> 6.5 on ctcourse; active meshes 639 -> 617 and 552 -> 503; draws 303 -> 271. Patrol / facing /
+away cells within run noise (+-0.5 ms). Render CPU: no regression on these baked-moon maps. Shadow map renders unchanged.
+Look change needing Michael's approval before S6d reaches master: past 40 m in moonlight a guard loses its ground shadow
+(blobs are off while sun shadows are on). The measured gain is small, so the job lead may drop S6c/S6d.
+MICHAEL 2026-10-23 12:15: "Ship S6 without S6d". Reverted S6d (c181002e: enemyRig reach + tests/guardSunReach.test.ts)
+and fix (3) (063605ff: body.ts reach). The S6 PR ships S6a/S6b (per-cascade lists) and S6c (the reach machinery, no
+caller passes a reach, so no look change). The measure above ran WITH S6d: the master gain is S6b only (smaller).
+S6d stays on c181002e for a later look check (ground shadow past 40 m) if Michael wants it.
+
+## Next
+S1 is checked (PASS WITH NOTES), master merged in (4.68.0 + later), the GPU runs are in (`run-s1`, `run-s1-off`,
+`run-s0-base`: 24 guards facing, sectorops frame 9.7 -> 7.1 ms), the changelog fragment (`changes/feature-guard-render.md`),
+TESTING.md line and `docs/systems/world-and-characters.md` section are written.
+1. DONE 2026-10-23 ~11:35: look check `look-s1/` (laptop GPU, 2198d0da, `look-s1/s1-look.mjs` + `look-shot.js`): merge on
+   vs `?guardmerge=0` in normal / thermal / night vision read the same by eye (same silhouette, colours, thermal
+   pattern, NV shading); no missing guard, no console errors.
+2. PR to master (2026-10-23): checker PASS WITH NOTES, nothing in `src/net` / protocol / save, so it rides the next
+   train on CI `check` (heavy-usage rule); e2e at 70470c30 was GREEN 14/14 (smoke stealth-ai sectorops ctcourse coop
+   netmove anim takedown; 668d623d adds only the dispose cleanup), the train's full run covers the final head.
+3. DONE: CT Core OK'd the characterRig hook (item d).
+4. Next slices: S5 PR (stacked on S1), S3a after its fix round 2 + e2e, S6 after its fix round + e2e (S6d look change
+   waits for Michael); then re-plan from PLAN section 4.
+
+## S5 (guard anim cost cuts L1, L3-L6; L2 dropped)
+- Branch feature/guard-render-s5, checker PASS WITH NOTES, CT Core OK'd. L2 dropped (guards would snap on a mocap
+  setting change, ~3-5 us).
+- NOT based on feature/guard-render when built: merged origin/feature/guard-render, then origin/master (no conflicts).
+  The PR to master carries S1 too until PR #204 merges; retarget or wait.
+- Tests after the merges: tsc clean; animSkeletonGuardIdentity, footPlanner, guardPoseGolden green (no re-capture).
+- Measured: bench medians per guard ms/frame on NullEngine, L3 0.0276/0.0423/0.0366 -> 0.0280/0.0334/0.0317 (noise).
+  Whole-S5 end-to-end cost on the GPU PC: measure pending.
+- Changelog fragment: changes/feature-guard-render-s5.md.
+- Next: PR to master (not opened yet).
+
+## Open
+1-5: answered (BRIEF.md M1-M6).
+6. GPU share (+1.1 ms a guard) is not explained by triangles; S1's run will show whether it was the per-pass
+   instance-buffer uploads.
+
+## Done
+- 2026-10-23: step-1 analysis, BRIEF / PLAN / STATE written.
+- 2026-10-23: S1 implemented (commits a-f, see "S1 done"); master 4.68.0 merged in before it.
+
+## Resume prompt
+```
+You are the job lead for the Night Shift Mobile-Coop job "guard-render" (Babylon.js 9 + Havok PWA, desktop).
+Worktree C:/NightShift/Mobile-Coop-guard-render, branch feature/guard-render. First: git fetch -q origin && git merge -q origin/master.
+Read CLAUDE.md ("Sessions", "Hard rules", "Definition of done"), then docs/guard-render/BRIEF.md (answers M1-M6), PLAN.md and STATE.md.
+Branch guard before every write:
+cd /c/NightShift/Mobile-Coop-guard-render && test "$(git rev-parse --abbrev-ref HEAD)" = feature/guard-render && test "$(git rev-parse --show-toplevel)" = "C:/NightShift/Mobile-Coop-guard-render"
+Assumed decision A1: the no-perf-tuning rule is lifted for guard render cost only (undo: revert the job).
+S1 (the merged rigidly skinned guard body) is implemented and pushed (STATE.md "S1 done", "S1 doubts").
+Do next, per STATE.md "Next": a fresh checker on S1 (docs/systems/session-method.md); ask Character Build for the S1
+guard-cap run on the laptop GPU (port 4189, alone), merge on and ?guardmerge=0, and the e2e suites smoke stealth-ai
+sectorops ctcourse coop netmove anim takedown on the pushed head; send CT Core the characterRig hook (STATE.md item d).
+Then re-plan from the numbers (PLAN section 4). Keep gameplay off graphics state and light parity (PLAN section 2).
+Update STATE.md, commit (end with "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"), push, report to the orchestrator.
+```
+
+## S3a fix round (2026-10-23, feature/guard-render-s3a)
+Fresh checker verdict FIX, four findings. Commits 67560313 (guardHead + enemy + unit tests), 0c399192 (parity harness,
+cases, sweep, fit script). The WIP rewrite (c8128bdb: per-direction `MOVE` tables, gait-clock bob) was kept: it compiles
+and its free-movement tables pass against the new harness; only the wall tables were wrong and are refitted.
+- Harness: `tests/helpers/guardHeadHarness.ts` moves the body through a `MotionDriver` as `Enemy.move` does and builds
+  the `RigPose` exactly as `Enemy.frame` (gait clock, motion state, accel, stride, dash); the old test set speed along
+  the facing with no driver, so strafe / backpedal / wall walks were never seen.
+- Finding 1 (walking wall peek): `WALL_MOVE` / `WALL_LEAN_MOVE` refitted by `scripts/guard-head-fit.mjs wall` from
+  `tests/guardHeadSweep.test.ts` (`GUARD_HEAD_SWEEP=1 GUARD_HEAD_SETTLE=2.5 GUARD_HEAD_LEN=2 GUARD_HEAD_OUT=<file>`); the
+  leaning walk gets the stride's first harmonic. Cases: wall walk leaning out both sides, back to the cover point,
+  side step both ways, the full peek walk cycle both sides.
+- Finding 2 (strafe / backpedal): `GuardHeadIn.moveX / moveZ` (velocity in his frame) and `phase` (gait clock) fed by
+  `Enemy.syncHitboxes`. Cases: strafe L / R aimed, backpedal, diagonal back, slow strafe at pitch 0.3, the patrol look
+  walks L / R / back, walk / strafe / backpedal start-stop.
+- Finding 3 (blind + seized): the rig shows one emote; `beginTakedown` replaces the flashbang's, so the rig shows the
+  held pose only. `guardHead` now takes `poseW` (the sim copy of the rig's `emoteW`, 5 per s up / down, the last pose
+  kept while it fades) and `held` wins over `blind`; `Enemy.blindPose` tracks whose emote it is. Cases: blind + seized
+  (T2), blind then seize (T3), unit test.
+- Finding 4 (impossible signs): high-cover lean is always away from the wall side (`coverPeek = -edge.side`,
+  `coverWallSide` the side away from the edge); low cover never leans (removed); cover poses run on `usesCover` kinds
+  only (grunt, sniper, officer; not the heavy or the runner).
+- T3 "steady" now also waits out the driver's start / stop / turn / pivot states (a stop lasts ~1 s).
+
+Worst parity errors (m; 3D, both yaws): T1 0.042 (aim -0.3 heavy); T1 strafe / back 0.034; T2 0.036 (held ko);
+T2 blind + seized 0.008; T2 wall walk lean 0 0.041; T3 0.108 every frame, 0.039 steady; T3 strafe / walk start-stop
+0.043. Written exceptions (in the test, measured worst rounded up): wall walk leaning out 0.167 (bound 0.17), peek walk
+cycle 0.289 (bound 0.29, every frame and steady), backpedal start 0.127 (bound 0.13).
+
+Open doubts (for the checker):
+1. The leaning wall walk: the rig's hips sit 0.7 m out on the outer foot (`PEEK_HIP` x lean 1) and its head rides a
+   10-17 cm once-a-stride sawtooth set by the foot planner, not locked to the gait clock (a per-kind phase-binned fit
+   still leaves 5-9 cm). The first leaning step from rest dips up to 25 cm under the fit. The sim has no feet, so the
+   head sphere (r 0.115) can sit off the drawn head for ~0.1 s at that step. Fixing it needs the rig (a smaller
+   `PEEK_HIP` / lean for guards) or a sim foot model; neither is in this slice.
+2. The backpedal from rest: the rig's head dips 12 cm 0.6-1.6 s in and settles by ~2.5 s (the T1 back walks use a 3 s
+   settle). Not modelled.
+3. (Fixed in round 2.) The `MOVE` tables were the WIP's, its sweep script not kept.
+4. `WALL_*` pitch terms are the WIP's (the sweep runs at pitch 0).
+5. GPU / e2e not run (laptop): e2e-stealth-ai, e2e-takedown, e2e-sectorops, e2e-enemies, e2e-coop, e2e-ctcourse.
+
+### Fix round 2 (2026-10-23)
+The fresh checker returned PASS WITH NOTES; three items and one test bound fixed. Commits ad4f6ead (emote step, walked
+hostage), 5c0fa9cc (free / hostage fit modes, `MOVE` regenerated), then the steady bounds and this STATE.
+- Item 1 (blocked the job PR: `MOVE` could not be regenerated): `scripts/guard-head-fit.mjs free` fits every `MOVE`
+  class (AF0 / AF1 / AV0 / AV1 / DF / DV / NF0 / NF1 / NV0 / NV1) at once, one least-squares system per axis, each
+  frame weighted by the stride class, dash share and crouch `guardHead` blends; `--write` replaces the block between the
+  `<guard-head-fit free>` markers. The free sweep (`GUARD_HEAD_CASES=free`) now has crouch 0 / 1, all six armed kinds
+  at aim 0.2 / 0.4 / 0.7 / 1 (aim 1 also at pitch -0.3 / 0.3) and the runner, 14 directions, the standing / crouched
+  speed knots capped at the run speed. It runs in 8 parts (one vitest each: a single process runs out of heap).
+  Regenerate (also in the `guardHead.ts` header):
+  `for i in 0 1 2 3 4 5 6 7; do GUARD_HEAD_SWEEP=1 GUARD_HEAD_CASES=free GUARD_HEAD_EVERY=3 GUARD_HEAD_PART=$i/8 GUARD_HEAD_OUT=free-$i.tsv npx vitest run tests/guardHeadSweep.test.ts; done`
+  then `node scripts/guard-head-fit.mjs free free-*.tsv --write`. The output is deterministic (refit = the committed
+  block). The regenerated tables differ from the WIP's mostly in cells the game barely reaches (AF0 above the dash
+  speed, the dash's new aim terms); fit residual p95 1-3 cm per group, worst 7.5 cm (sniper aim 0.2 near the dash).
+- Item 2 (the harness re-implemented the emote logic): `GuardEmoteState` + `emoteBlind` / `emoteSeize` /
+  `emoteBlindEnd` / `emoteStep` in `src/ai/guardHead.ts`, called by `Enemy` and the harness. Unit tests: blind, seize,
+  release with the flash on (fails if `emoteSeize` keeps the flashbang's emote; checked by deleting the line), the
+  flash end, the knockout limp. The old `this.blindPose = false` in `beginTakedown` is now `emoteSeize`.
+- Item 3 (walked hostage): the held pose now also replaces the free-move side offset, and `HELD_MOVE` (fitted by
+  `guard-head-fit.mjs hostage` from `GUARD_HEAD_CASES=hostage`: 8 directions, 0.15-1.6 m/s) adds the rig's own gait
+  under the pose (`rp.phase` -1 when held, so the frozen motion clock is not read). Parity cases (T2): hostage walked
+  1.2 and 0.6 m/s ahead, 0.6 m/s sideways (the game caps the hold at 0.7 m/s): worst 0.024 m (was 0.085-0.111).
+- Peek walk cycle steady bound: T3 "steady" also waits for the driver to reach its pace (acceleration under
+  0.2 m/s^2: the rig leans on `accelFwd` / `accelSide`, the sim has no term). Settled frames measured 0.050-0.087 m:
+  steady bound 0.09 (was 0.29, off). Backpedal start settled 0.083-0.105 m: steady bound 0.11 (was 0.13).
+
+Worst parity errors after round 2 (m; 3D, both yaws; every frame / steady for T3):
+| Case | Worst |
+| --- | --- |
+| T1 idle / walk / run | 0.028 (run) |
+| T1 aim, crouch | 0.042 (aim -0.3, crouch aim) |
+| T1 strafe / backpedal / diag / look walks | 0.034 (look walk R) |
+| T2 wall still / lean | 0.033 |
+| T2 wall walk lean 0 | 0.041 |
+| T2 wall walk leaning out (exception 0.17) | 0.167 |
+| T2 held poses | 0.036 (ko) |
+| T2 hostage walked (new) | 0.024 |
+| T2 blind, blind + seized, climb | 0.033 |
+| T3 crouch, lean, seize, release, strafe | 0.108 / 0.041 |
+| T3 walk start-stop | 0.104 / 0.016 |
+| T3 peek walk cycle (exception 0.29, steady 0.09) | 0.289 / 0.087 |
+| T3 backpedal start (exception 0.13, steady 0.11) | 0.129 / 0.105 |
+The refit moved some T1 cases by up to 1.2 cm (look walk back 0.014 -> 0.026, crouch walk 0.014 -> 0.016), all within
+the unchanged bounds.
+
+Follow-ups (not in this slice):
+1. The peek walk cycle: the first leaning step from rest leaves the sim head up to 29 cm off the drawn head for up to
+   ~0.2 s (a headshot there can miss or hit air). Needs a smaller `PEEK_HIP` / lean for guards in the rig, or a sim
+   foot model.
+2. The checker's unverified notes: wall walks are tested only at +-90 deg and pitch 0 (the `WALL_*` pitch terms are
+   unchecked); kick / melee (`rp.kick`, `rp.melee`) are not modelled; the sim head is computed in the fixed step and
+   leads the drawn (interpolated) head by up to one step.
+3. Hostage walk crouched (the knockout lowering) fades `HELD_MOVE` with crouch, not fitted.
+
+### Fix round 3 (2026-10-23)
+The fresh checker's should-fix: the walked-hostage fit at 60 deg sat on the facing / velocity stride boundary
+(cos 60 = 0.5000000000000001), its frames split between the classes (clamped to the 50 deg row or the 70 deg row), the
+V 70 row turned to noise, residuals at dir 60 0.144-0.160 m (bound 0.08), and the head stepped ~6 cm forward as a
+walked hostage's direction crossed 60 deg.
+- Measured the rig across the boundary (16 directions 40-80 deg, 0.3-0.9 m/s): the rig itself steps there. It takes
+  stride 'facing' when `localZ > 0.5` (`Enemy.frame`), and armed its head sits 6.7 cm further back on the facing stride
+  (forward -0.075 against -0.008 m), reached in ~0.1 s (keyed walk weight tau 0.08 s, its pelvis rate 1.2 m/s); the
+  runner has no step (-0.007 / -0.008). So `HELD_MOVE` keeps the class switch, on the rig's own test bit for bit
+  (`heldFacing`: `sp > 0.01 && mz * (1 / sp) > 0.5`, as `localZ` is computed): a blend would be off the rig for every
+  steady direction inside the band, the step only for the rig's ~0.1 s crossing. The free `MOVE` lookup keeps its
+  `mz > 0.5 * sp` (refitting it needs the 8-part free sweep; it differs from the rig's test only at exactly 60 deg).
+- Knots: `TH_HF` 0 / 30 / 45 / 50 / 55 / 59 (facing), `TH_HV` 61 / 75 / 90 / 120 / 150 / 180 (velocity), `SP_H`
+  0.15 / 0.3 / 0.45 / 0.6 / 0.75 / 0.9 / 1.2 / 1.6. The sweep (`HOSTAGE_DIRS`, also -90) has no frame on the boundary;
+  `GUARD_HEAD_LEN=3` (the dips below are irregular); `GUARD_HEAD_DIRS` / `GUARD_HEAD_SPEEDS` override it for exploring.
+  The refit is deterministic (two sweeps, the same block). The script reports per direction at the hold's speeds
+  (<= 0.75) apart from the faster ones (0.9-1.6, reached only in a turning hold).
+- Near the boundary the facing stride slips sideways and the rig's head dips up to 11 cm below its mean for ~0.5 s at
+  irregular times (the foot planner catching up: 52-60 deg at 0.45 m/s, 54-60 at 0.6, 58-60 at 0.75, also 45 deg at
+  0.3-0.45 and straight back at 0.3); the fit gives the mean, the dip stays as residual.
+- Harness: `heldMove.turn` (`HeldTurn`: rate, optional from / to): the operator walks along her facing and turns, the
+  hostage placed `GRAB.hold` ahead / `GRAB.side` to her side and facing her way (`TakedownController` holding); a turn
+  with an end marks the T3 change.
+- Parity cases (new): diag 45 and 60 at 0.6 m/s, turning arcs at the cap 0.75 m/s (1.5 rad/s both ways; 3 rad/s both
+  ways, exception), the 180 at her free-movement turn cap (`CT.turnRate` 7.85 rad/s, both ways, T3 exception). The 1.2 m/s
+  case is now labelled a bound check (the hold cap is `GRAB.speedCap` 0.75 m/s, a straight 1.2 m/s walk cannot happen).
+- `HELD_MOVE` doc: the boundary choice, the dip band, the aim follow-up below, and the release transient (`poseW`
+  fades over 0.2 s with the last held pose kept, `HELD_MOVE` and the `sxm` removal scaled by it).
+
+Fit residuals per direction, hold speeds 0.15-0.75 m/s (m, worst / p95 over grunt, runner, heavy):
+| Dir | Worst | p95 |
+| --- | --- | --- |
+| 0 | 0.017 | 0.013 |
+| 30 | 0.017 | 0.013 |
+| 45 | 0.068-0.097 | 0.029-0.052 |
+| 50 | 0.075-0.094 | 0.022-0.040 |
+| 55 | 0.072-0.087 | 0.053-0.075 |
+| 59 | 0.068-0.088 | 0.058-0.077 |
+| 61 | 0.019-0.043 | 0.014-0.029 |
+| 75 | 0.015-0.038 | 0.013-0.024 |
+| 90 / -90 | 0.015-0.072 | 0.011-0.029 |
+| 120 | 0.015-0.038 | 0.012-0.023 |
+| 150 | 0.040-0.049 | 0.017-0.031 |
+| 180 | 0.096-0.106 | 0.047-0.051 |
+At 0.9-1.6 m/s (a turning hold only): worst 0.12-0.15 at 50-59 deg (p95 0.07-0.10), 0.084 at 0 (heavy), else <= 0.11.
+Round 2 at dir 60: 0.144-0.160 (p95 0.067-0.092).
+
+Parity worst errors, hostage cases (m; 3D, both yaws, grunt / runner / heavy):
+| Case | Worst |
+| --- | --- |
+| T2 held hostage (still) | 0.012 |
+| T2 walked 1.2 (bound check, over the cap) | 0.016 |
+| T2 walked 0.6 / side 0.6 | 0.013 / 0.025 |
+| T2 walked diag 45 0.6 (new) | 0.037 |
+| T2 walked diag 60 0.6 (new; the class differs by root yaw, the sim follows it) | 0.074 |
+| T2 turning arc 1.5 rad/s R / L (new) | 0.015 / 0.020 |
+| T2 turning arc 3 rad/s R / L (new, exception 0.15) | 0.145 / 0.097 |
+| T3 180 at the turn cap R (new, exception 0.26, steady 0.12) | 0.255 / steady 0.026 |
+| T3 180 at the turn cap L (new, exception 0.26, steady 0.12) | 0.153 / steady 0.113 |
+Everything else unchanged; the whole parity file passes (165 tests).
+
+Follow-ups (not in this slice):
+4. A fast turning hold: the rig's body lags its root (up to 14 cm sideways, 18 cm forward in the 180 at the cap: he
+   swings round her at 2.4-2.9 m/s for 0.4 s) and dips after a left turn (10 cm, ~0.6 s); the 3 rad/s arc sits in the
+   slip band at 1.1-1.4 m/s. The sim has no yaw-rate term. Needs a yaw-rate input to `guardHead` or a slower hostage
+   swing in the hold.
+5. The held stride class also follows the guard's `aimWeight()` in the rig (`rp.stride` is 'velocity' at 0.5 or more,
+   e.g. a guard seized while investigating, 0.7); the sim gets aim 0 when held and assumes 'facing' under 60 deg: up to
+   ~7 cm forward off for such a guard. Needs the held guard's stride aim in `GuardHeadIn` (one field from
+   `Enemy.syncHitboxes`).
+6. The facing stride's sideways-slip dip near 45-60 deg (above) is the rig's foot planner; a fix belongs in the rig.

@@ -1179,7 +1179,7 @@ describe('A8 the Strongroom: the guards', () => {
     expect(n2.faces![0]).toBe(Math.PI / 2);
     expect(n2.faces![2]).toBe(Math.PI / 2);
     expect([1, 3, 4].every((i) => Number.isNaN(n2.faces![i]!))).toBe(true);
-    expect(walkLoop(A8_N2_ROUTE, [5, 0, 5, 0, 0], A8_N2_FACES, n2, 140).stuck).toBe(true);
+    expect(walkLoop(A8_N2_ROUTE, [5, 0, 5, 0, 0], A8_N2_FACES, n2, 140).stuck).toBe(false); // (merge) master guard-ai S2 fix: a wait of 0 passes through now; the 0.1 s pause stays
     expect(walkLoop(A8_N2_ROUTE, A8_N2_WAITS, A8_N2_FACES, n2, 140).stuck).toBe(false);
     // every leg is a walk for the nav grid (his A* path, as `Enemy.goTo` takes it) no longer than a third over the straight line
     let len = 0;
