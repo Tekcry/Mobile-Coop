@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~15:15: S22 game second check PASS 4149b292 (slices/S22-GAME-CHECK2.md; polish: A8 console y 5.6, client refusal
+unit test, no line on the reset). marlow-final merged in: s22-game d82f9b6f (A3 test fix). Test Runner asked:
+e2e-ctcourse --part=2 + --part=4 on d82f9b6f (e2e-coop on 08586783 counts).
+
 ~15:05: A3 triage: a race in the A3 step-7 test, fixed in marlow-final 3ed1ba84 (after the 4cbfc1af that s22-game
 merged); train 31 never ran the new A3 sets. Fix: merge origin/feature/marlow-final (12fa2f29, 3 files, PROTOCOL 42
 unchanged) into s22-game once its second checker ends, then Test Runner e2e-ctcourse:2. Cloud builder: briefs as
@@ -583,7 +587,7 @@ Open:
 1. Train 31 PASSED, 4.80.0 (#240 / #229 / #234; the orchestrator closes #240 by hand). Nothing open there.
 2. #246 feature/guard-ai-carry-fix2 a63bef43: OPEN, train-ready (label), next train. Recovered bodies GPU skinned
    again + the forced-timeout pass; check PASS, Test Runner PASS on 93bd9db1. Fix any train failure at once.
-3. S22 game side: feature/guard-ai-s22-game 2665b622 (s22 + marlow-final #237, PROTOCOL 43 = 41 + #237's 42; A4 e2e
+3. S22 game side: feature/guard-ai-s22-game d82f9b6f (2 checks PASS) (s22 + marlow-final #237, PROTOCOL 43 = 41 + #237's 42; A4 e2e
    08586783 scripts/e2e-ctcourse/a4GoodsShed.mjs; check PASS slices/S22-GAME-CHECK.md). e2e-coop PASS;
    e2e-ctcourse:2 FAIL in A3 (a3OfficeRange.mjs:85 the cleaner never walks to office 1's switch; Marlow's
    section-rating 053ff212 fails the same): the A3 test race, fixed in marlow-final 3ed1ba84; merge
