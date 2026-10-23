@@ -321,6 +321,42 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   looks round it `SWEEP.dwell` s (unreachable: skipped), the others hold `rank x SWEEP.gap` m behind him, then the same
   order again. They stay hunting (S6), so never calm; `clear` (unload / restart) ends the teams; a woken member takes
   his place back (`swap`).
+- Device alerts (guard-ai S17, walk 4.72 G1, A100-A105; numbers `DEVICE` in `ai/gear.ts`): a broken laser
+  (`CtDevices.touch`, its beam's midpoint `beamSpot`) or a camera at full awareness (where it saw someone) calls
+  `CtHooks.alertAt` -> `EnemyManager.deviceAlert` before the alarm stage rises: a `device` board incident sends the 2
+  nearest calm guards within 30 m to the spot (`Enemy.respondDevice`: search round it inside its room, `searchRoom`),
+  and the alarm's reinforcements within `DEVICE.fresh` s with no last known position search there too
+  (`joinAsResponder`, never calm) instead of combat. Nothing reads the player's position; no last known position is set.
+- Search kinds (guard-ai S18, walk 4.72 G2, A106-A108; `ai/response.ts` pure, numbers `BODY_SEARCH` in `ai/gear.ts`):
+  a calm search has a kind (`Enemy.searchKind`: plain, body, device) whose `SearchSpec` sets its length
+  (`AlertInput.searchFor`), its ring (`ringPoint`: first radius, step, cap) and the look per point. A dead body found
+  (`EnemyManager.bodyFound`: the finder and his voice partner; the camera-sent guards) is searched `Enemy.bodySearch`:
+  3 x `ALERT.searchTime`, out to 15 m; combat's search and every other search stay plain (`PATROL`'s ring, 60 s).
+- Urgency (guard-ai S19, walk 4.72 G3, A109-A113; `ai/response.ts` `PACE` (moved from `enemy.ts`, re-exported there),
+  `urgentKind`, `paceSpeed`; `URGENT` in `ai/gear.ts`): a guard sent to a device, a body (camera, radio, a shout), a
+  missing man or shots sets `Enemy.rush`: his investigate / search walk is run x `PACE.rush` until he first reaches the
+  spot; a noise, lure, light or breaker keeps the calm pace. A dead body's radio call that gets through
+  (`EnemyManager.bodyHelp`) opens a `bodyDead` board incident: `URGENT.bodyHelpers` calm guards in `callR` hurry over and
+  search it with the finder (`Enemy.helpSearch`, `MODE_HELP`).
+- Spacing and doors (guard-ai S20, walk 4.72 G4, A114-A118; `ai/separation.ts`, `ai/doorGate.ts`, both pure):
+  `Enemy.move` steers off near guards (the old soft push plus a sidestep round a guard ahead, `steerFrom`) and cuts its
+  step at `SEPARATION.min` 0.65 m from every solid guard on his storey (`stepApart`; `tryMove` refuses the slides too);
+  held (`taken`) and downed guards are not solid. Held by the spacing with somewhere to go (pushed off, cut or refused,
+  under a quarter of his pace) for `SEPARATION.stall` 1 s, a guard squeezes past for `SEPARATION.squeeze` 2 s (the
+  soft push only), so two guards face to face in a doorway or a narrow corridor never wait forever (S20 check, A127).
+  `tryMove` asks `AiContext.doorStep` (`EnemyManager`: `DoorGate.blocking`):
+  a step into or across a shut leaf is refused; a door not locked is opened `Doors.open(d, 'enemy')` and he waits for
+  `DOOR_GATE.pass`; a locked door stops him at the leaf (he waits). The grid still walks every doorway (no closure per
+  door: A116); Sector Ops' keypad, bolt, lockdown and pair-gate closures are unchanged.
+- Weapon carry (guard-ai S21, walk 4.72 G5, A120-A126; `ai/carryState.ts` pure: `calmArea`, `mayHolster`, `carrySlotOf`,
+  `GuardCarry`, numbers `GUARD_CARRY`; render side `GuardGunCarry` in `ai/enemyRig.ts`): every guard stays armed. A calm
+  guard in a calm area (unaware, no caution, no board task, no alarm raised, not a high-security post, not a responder or
+  response team member; stealth rules) carries his gun holstered: the rifle slung across the back (`backC`), the pistol on
+  the right thigh. Anything above calm draws it (rifle 0.7 s, pistol 0.5 s; `Enemy.tryFire` waits for `carry.drawn`); he
+  holsters again after `calmHold` 15 s calm. `Enemy.update` steps it after the awareness; `Enemy.frame` drives `RigPose`
+  `ready` (holstered), `swap` / `swapFrom` / `swapTo` (the draw / holster clip, one slot) and `aim` (none while holstered);
+  `armed`, `thighGear` and `weaponTravel` follow the `WeaponModel` (`holster` / `beginTravel` / `travel` / `hold`). Sniper,
+  enforcer, melee kinds and dogs never holster. Host only: co-op puppets stay at low ready (no wire field; WALK.md S21).
 - Sound: `world/surfaces.ts` (pure) `surfaceAt` scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice. Shots:
   `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise` (combat); `onRay` hits
   are heard within `IMPACT_NOISE`.
@@ -374,6 +410,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   once; `setClosed(id, on)` toggles `walk` through a per-cell count (overlaps stay shut until all open) and bumps
   `version`, which makes `goTo` routes and the manager's flow field replan. Sector Ops shuts each bolted team door's
   doorway this way (`sectorMode.findBolts` / `unbolt` / `rebolt`; host and solo only, the client has no grid).
+  (guard-ai S20) Other doors are not on the grid: the walker's door gate (`ai/doorGate.ts`) stops guards at a shut leaf.
 - Multi-level: the grid is layered - up to 3 standing surfaces per column by default (`sampleLayers`; a surface needs
   `HEADROOM` 1.7 m; a map may raise `navLayers`), cell = `layer * cols + column`; columns join by height (`stepTo`). Links
   (`navLinks`): ladders both ways (`kind 'ladder'`), ledge drops 1-2.2 m one way; A* / Dijkstra take them, paths split at

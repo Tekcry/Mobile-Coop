@@ -23,7 +23,7 @@ import { HEARING, ambientDb, effectiveReach, hearTier, wallMatters, WALL_FACTOR,
 import { MUFFLE } from '../config/noise';
 import { CMD_ACK, CMD_SEND, GuardView, GV_BUSY, GV_DOWN, GV_HELD, GV_MELEE, GV_OFFICER, GV_POSTED, INCIDENT, IncidentBoard, LEVEL, lightInView, MODE_COVER, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT, type IncidentKind, type PathLen } from './incidents';
 import { EYE_STAND, PERCEPTION } from './perception';
-import { roomAt, type SquadSlot } from '../world/rooms';
+import { roomAt, type RoomRect, type SquadSlot } from '../world/rooms';
 import { reportGuardAi, sectionAt, squadId, validateGuardAi, type GuardSlotTags, type ReinforceEntry } from './guardAiData';
 // (guard-ai S5b) the sector tags
 import { alarmRunMul, callerRank, isSecureZone, ROLE_DESK, roleFlags, slotSquads, TAGS, zoneRadius } from './sectorTags';
@@ -48,7 +48,16 @@ import { assignRoles, combatSeed, P_AGGRESSIVE, P_POST, P_STANDARD, R_NONE, R_RE
 import { PairMeet, PAIRS, pickMeet, type MeetPick, type PairGuard } from './pairs';
 // (guard-ai S14) section alert: missed check-ins and loud shots
 import { MISSING, SHOTS } from './gear';
+// (guard-ai S17, Michael's walk of 4.72 G1) a tripped device is an incident at the device, never the player
+import { DEVICE } from './gear';
+import { MODE_DEVICE } from './incidents';
+// (guard-ai S19, walk 4.72 G3) guards hurry to a dead body the radio reported
+import { MODE_HELP } from './incidents';
+import { URGENT } from './gear';
+import { urgentKind } from './response';
 import { ALERT_MISSING, ALERT_SHOTS, AlertCallLog, SectionCounters, unitOf, type SectionCounts } from './sectionAlert';
+// (guard-ai S20) doors on the walker's way
+import { DoorGate } from './doorGate';
 
 /** (guard-ai S10) A talking pair: its meeting clock, and the two slot indices (`guardAtSlot`; A the lower). */
 export interface TalkPair {
@@ -313,7 +322,11 @@ export class EnemyManager {
         // (S6) the section knows: now command must be told (the alarm)
         this.contactThrough(caller);
       }
-      else if (kind === 'body') this.byNum(caller)?.bark('deadReport');
+      else if (kind === 'body') {
+        this.byNum(caller)?.bark('deadReport');
+        // (S19) a calm guard hurries over to help search it
+        this.bodyHelp(inc);
+      }
       else if (kind === 'ko') this.byNum(caller)?.bark('koReport');
       // (S14) a missing guard or shots: the section is told
       else if (kind === 'missing' || kind === 'shots') this.alertThrough(caller, inc, kind);
@@ -365,6 +378,10 @@ export class EnemyManager {
   /** The match's wall switches as the guards use them (`StealthSystems` sets it; null: no switches, a cut stays the S2
    *  light incident). */
   breakers: BreakerHost | null = null;
+  /** (guard-ai S20) The doors as the walker sees them (built on the first update with doors). */
+  private doorGate: DoorGate | null = null;
+  /** (guard-ai S20) Doors a guard opened at the leaf (`doorStep`; tests). */
+  doorOpens = 0;
   /** The tables (tests / e2e read the numbers from here). */
   readonly breakerTable = BREAKER;
   readonly lateTable = LATE;
@@ -509,6 +526,18 @@ export class EnemyManager {
       breakerReset: (_e, group) => {
         if (this.breakers?.reset(group)) this.breakerResets++;
       },
+      // (guard-ai S20) a shut door's leaf in his step: not taken; a door not locked is opened the player's way (its
+      // sound, the close behind him and the co-op door sync as before) and he waits for the swing
+      doorStep: (_e, x0, z0, x1, z1, y) => {
+        const g = this.doorGate;
+        if (!g) return true;
+        const k = g.blocking(x0, z0, x1, z1, y);
+        if (k < 0) return true;
+        const doors = this.world.doors;
+        const d = doors.list[k]!;
+        if (d.target === 0 && !d.anchor.locked && doors.open(d, 'enemy')) this.doorOpens++;
+        return false;
+      },
       searchSlot: (e) => {
         let n = 0;
         for (const o of this.enemies) if (o !== e && o.alive && o.level === 'searching' && o.num < e.num) n++;
@@ -572,11 +601,15 @@ export class EnemyManager {
     if (this.coordinated) {
       if (b.lethal) {
         e.bark('body');
-        e.searchAt(b.pos.x, b.pos.z, null);
+        // (guard-ai S18, G2) a dead body's search: longer and wider than a plain one (`BODY_SEARCH`)
+        e.bodySearch(b.pos.x, b.pos.z);
         const mask = (this.voiceMask(e) | keyBit(e.key) | also) >>> 0;
-        this.voiceNear?.searchAt(b.pos.x, b.pos.z, null);
+        // (guard-ai S19) the one who heard his "Man down!" hurries over
+        this.voiceNear?.bodySearch(b.pos.x, b.pos.z, urgentKind('bodyDead'));
         const h = this.awareness.openHold('dead', mask);
         this.lastHold = h;
+        // (guard-ai S19) the body his report is about, for the guards sent once it gets through
+        this.noteBodyCall(h, b);
         this.radioNet.startCall(e.num, h, 'body', callHold('body', this.reactionOf(e)));
       } else {
         e.bark('koFound');
@@ -694,14 +727,96 @@ export class EnemyManager {
     return e;
   }
 
-  /** (guard-ai S6) A guard just spawned (and placed) on the alarm becomes a reinforcement (`spawnReinforcement`). */
+  /** (guard-ai S6) A guard just spawned (and placed) on the alarm becomes a reinforcement (`spawnReinforcement`).
+   *  (guard-ai S17, G1, A102) An alarm a device raised (`deviceAlert` within `DEVICE.fresh` s, nobody has seen anyone
+   *  since: no last known position) brings him to the device's spot to search its room (`Enemy.joinAsResponder`), not
+   *  to combat: in combat with no last known position he would go for the player wherever he is. */
   joinReinforcement(e: Enemy, section: number, route: readonly (readonly [number, number])[] | null = null): void {
     e.section = section;
     if (!this.coordinated) {
       e.alert();
       return;
     }
+    if (this.deviceFresh()) {
+      const d = this.devSpot;
+      e.joinAsResponder(route, d.x, d.z, this.roomOf(d.x, d.y, d.z));
+      return;
+    }
     e.joinAsReinforcement(route);
+  }
+
+  /** (guard-ai S17) The last tripped device's spot (floor height) and board time (-Infinity: none since the clear). */
+  private readonly devSpot = new Vector3();
+  private devT = -Infinity;
+  /** (guard-ai S17) Device alerts taken (tests / e2e). */
+  deviceAlerts = 0;
+
+  /** (guard-ai S19) The last few dead-body reports on the radio: the hold each call carries and its body (a fixed ring). */
+  private readonly bcHold = new Int32Array(8).fill(-1);
+  private readonly bcBody: (Body | null)[] = [null, null, null, null, null, null, null, null];
+  private bcK = 0;
+  /** (guard-ai S19) Reported bodies the board sent someone to (tests / e2e). */
+  bodyHelps = 0;
+
+  /** (guard-ai S19) A finder radios dead body `b` under hold `h` (his `body` call). */
+  private noteBodyCall(h: number, b: Body): void {
+    const j = this.bcK;
+    this.bcK = (j + 1) % this.bcHold.length;
+    this.bcHold[j] = h;
+    this.bcBody[j] = b;
+  }
+
+  /**
+   * (guard-ai S19, Michael's walk of 4.72 G3: "guards should rush to any triggered alarms or bodies reported") A finder's
+   * `body` call about hold `h` got through: unless the body is gone (carried, hidden, removed), a `bodyDead` board
+   * incident sends `URGENT.bodyHelpers` calm guards in range to hurry over and search it with him (`Enemy.helpSearch`).
+   */
+  private bodyHelp(h: number): void {
+    for (let j = 0; j < this.bcHold.length; j++) {
+      if (this.bcHold[j] !== h) continue;
+      const b = this.bcBody[j]!;
+      this.bcHold[j] = -1;
+      this.bcBody[j] = null;
+      if (!URGENT.enabled || URGENT.bodyHelpers < 1 || !b.present || b.carried || b.hidden || this.bodies.indexOf(b) < 0) return;
+      const n = b.id ? Number.parseInt(b.id.slice(1), 10) : Number.NaN;
+      const opened = this.board.opened;
+      this.board.reportBodyCall(b.pos.x, b.pos.z, this.nav.heightAt(b.pos.x, b.pos.z, b.pos.y), Number.isFinite(n) ? n : 1000000 + j);
+      this.boardStep(0);
+      if (this.board.opened !== opened) this.bodyHelps++;
+      return;
+    }
+  }
+
+  /** (guard-ai S17) A device alert recent enough for an alarm's reinforcements, and no sighting since. */
+  private deviceFresh(): boolean {
+    return DEVICE.enabled && !this.lkpValid && this.board.now - this.devT <= DEVICE.fresh;
+  }
+
+  /** (guard-ai S17) The room at a floor point (null: none, or the map has no rooms). */
+  private roomOf(x: number, y: number, z: number): RoomRect | null {
+    const rooms = this.ctx.rooms;
+    const r = rooms.length ? roomAt(rooms, x, z, y + 0.1) : -1;
+    return r >= 0 ? rooms[r]! : null;
+  }
+
+  /**
+   * (guard-ai S17, Michael's walk of 4.72 G1: "theres no way they could no that unless they saw me. change it so they
+   * come to look where the laser is and search the room") A device was tripped at (x, y, z): a laser's beam (its
+   * midpoint, `beamSpot`), a camera's alarm (where it saw someone). `y` NaN: the nav floor there. `key`: the device
+   * (`CtHooks.alertAt`). Coordinated modes only: a `device` incident on the board (one per device while open) sends the
+   * nearest `DEVICE.want` calm guards to the spot to search its room, and the alarm's reinforcements that come in on it
+   * search there too (`joinReinforcement`). Nothing here reads a player's position: no last known position is set.
+   * Returns the incident id, -1 when ignored. Host only.
+   */
+  deviceAlert(x: number, y: number, z: number, key: number): number {
+    if (!this.coordinated || !DEVICE.enabled) return -1;
+    const fy = y === y ? y : this.nav.heightAt(x, z);
+    this.devSpot.set(x, fy, z);
+    this.devT = this.board.now;
+    this.deviceAlerts++;
+    const id = this.board.reportDevice(x, z, fy, key);
+    this.boardStep(0);
+    return id;
   }
 
   /** (guard-ai S6) The map's reinforcement entries for `section` (`MapLayout.guardAi.entries`); empty: none (the
@@ -1801,6 +1916,10 @@ export class EnemyManager {
           const body = this.camBodyOf(inc, o.x[k]!, o.z[k]!);
           if (body) e.checkBody(body, inc);
         }
+        // (guard-ai S17, G1) a tripped device: to its spot, then search its room
+        else if (m === MODE_DEVICE) e.respondDevice(o.x[k]!, o.z[k]!, inc, this.roomOf(o.x[k]!, o.y[k]!, o.z[k]!));
+        // (guard-ai S19, G3) a dead body reported over the radio: hurry over and search it with its finder
+        else if (m === MODE_HELP) e.helpSearch(o.x[k]!, o.z[k]!, inc);
       } else if (o.cmd[k] === CMD_ACK) e.ack(o.x[k]!, o.z[k]!, o.arg[k] === 1);
     }
     o.n = 0;
@@ -2411,6 +2530,8 @@ export class EnemyManager {
 
   update(dt: number): void {
     this.sightT += dt;
+    // (guard-ai S20) the door gate, built once (the door list is fixed for the map)
+    if (!this.doorGate && this.world.doors.list.length) this.doorGate = new DoorGate(this.world.doors.list);
     this.helmetDrops.update(dt);
     // nobody hunting any more: the last known position is forgotten
     if (this.lkpValid && this.sightT > 2 && !this.hunting) this.lkpValid = false;
@@ -2595,6 +2716,10 @@ export class EnemyManager {
     this.lastCheckCaller = null;
     // (guard-ai S2) nobody left to send: the incidents go too; (S3) and every call and queued reception
     this.board.clear();
+    // (guard-ai S17) and the last tripped device; (S19) and the body reports
+    this.devT = -Infinity;
+    this.bcHold.fill(-1);
+    this.bcBody.fill(null);
     this.radioNet.clear();
     // (S6) and the command call it may have owed
     this.command.clear();
