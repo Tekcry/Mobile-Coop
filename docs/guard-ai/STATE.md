@@ -1,6 +1,13 @@
 # Guard AI - state
 
 ## Now
+~12:30 (new window): laptop GPU on s10 345fbb91 7/8: FAIL e2e-sectorops:1 "S6: they close on it" (9.06,10.30 ->
+7.21,9.59 m in 7 s; lv2 searching, walk 0.9; 2nd failure of this assert). Pass: stealth-ai, sectorops 2-5,
+ct-warehouse, takedown. RUNNING (Opus): S6 close-on fix on s10 (report slices/S10.md "S6 close-on fix"); S14 finish
+from WIP 1a0ddf6a (s14, report slices/S14.md); S15 finish + checks from WIP ed33c329 (s15). S13 done (ec2ea5b7).
+Next: s10 fix -> laptop rerun of sectorops:1 (+ stealth-ai) -> train-ready #200-#203; merge s10 up into s12 (#208);
+then S13 / S14 / S15 onto one tip, one Opus checker, one laptop run, PRs stacked on #208, then S9.
+
 ~12:25: S13 BUILT 6ed1cabd (slices/S13.md, A52-A56; responseWiring 17/17 + 207 AI tests; new pure src/ai/sweepTeam.ts,
 Enemy.crew / teamRank, EnemyManager.setAlarmStage / newTeam / joinTeam, sectorMode.raised builds the shield-led
 team, StealthSystems live alarm = enforcer + 2 grunts; e2e block "response teams (guard-ai S13)" in e2e-sectorops
