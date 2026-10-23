@@ -106,7 +106,7 @@ behind a VPN adapter).
   `frames(page, n)`. Real time is kept where the suite is about it: the two-page co-op suites, `e2e-stealth` (real-time
   camera), `e2e-mouse`, `e2e-pad` (input timing), `e2e-desktop` (benchmark flights, the 15 s resolution revert, shader
   compiles), `e2e-offline`, and the rAF-sampled foot-slide check in `e2e-move`. The light bake is about 0.5 s a page
-  load and the Epic voxel bake cache is 190 MB, so neither is shared between browsers.
+  load so it is not shared between browsers.
 - Two-page suites (`?net=local`): the `until()` helper in `e2e-net-lib`, `e2e-coop`, `e2e-course` and `e2e-bunker`
   polls from Node (`page.evaluate` every 50-100 ms): in a desktop context the in-page polling stops on the background
   page. A throwing predicate shows as a timeout.
@@ -395,9 +395,8 @@ behind a VPN adapter).
   only. Cloud sessions run unit tests and logic e2e and report those checks "pending PC run"; they never claim a perf or
   visual result from SwiftShader.
 - `perf.mjs` with `E2E_GPU=1` uses the laptop goals (`LOCAL_BUDGET`, performance.md).
-- D3D11 compiles the Epic voxel characters' `partSkinMat` shader slowly (seconds after spawn); an uncompiled effect's
-  `_samplerList` holds every candidate (61), trimmed once compiled (11 for `partSkinMat`, 15 for the level `voxMat`,
-  limit 16). `e2e-desktop` therefore waits for every drawn mesh's effects before counting textures.
+- D3D11 compiles the characters' `partSkinMat` shader slowly (seconds after spawn); an uncompiled effect's
+  `_samplerList` holds every candidate (61), trimmed once compiled (11 for `partSkinMat`, limit 16). `e2e-desktop` therefore waits for every drawn mesh's effects before counting textures.
 
 ## Debug overlay
 - F3 (or the settings switch); `?debug=1` shows it at boot. Buttons: Skeleton (bones, controller capsules, hit volumes

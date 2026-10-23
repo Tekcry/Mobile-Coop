@@ -1,7 +1,7 @@
 import { landingRumble } from '../config/rumble';
 import type { App, AppState } from '../core/app';
 import { Color3, type FreeCamera, InstancedMesh, PhysicsRaycastResult, Vector3, type Vector4, type PhysicsEngine, type Scene } from '../core/babylon';
-import { VOXEL_LOD, World } from '../world/world';
+import { World } from '../world/world';
 import { flags } from '../core/flags';
 import { lampFalloffMode, matchLampFalloff, setLampFalloff, type LampFalloff } from '../world/lampMath';
 import { matchShadowAccuracy, setShadowAccuracy } from '../world/shadowAccuracy';
@@ -9,11 +9,7 @@ import { cqSimSet } from '../anim/cqGait';
 import { showEconomy } from '../core/legacy';
 import { shownResolution } from '../core/display';
 import { LIVE_RIGS } from '../player/characterRig';
-import { setCharacterVoxels } from '../operators/runtime/playerFigure';
 import { LIVE_DOGS } from '../ai/dogModel';
-import { setVoxelWeapons } from '../weapons/weaponModel';
-import { setVoxelProps } from '../voxel/voxelGroup';
-import { LOD_DISTANCE } from '../world/partLibrary';
 import type { WeatherChoice } from '../world/mapDef';
 import type { MapDef } from '../world/mapDef';
 import { Player } from '../player/player';
@@ -60,7 +56,7 @@ import { ResultsScreen, type ResultsNav } from '../ui/screens/resultsScreen';
 import { EventBus } from '../core/events';
 import type { GameEvents } from './gameEvents';
 import { attachGameAudio } from '../audio/gameAudio';
-import { VOXEL_TIER, type QualityLevel } from '../core/quality';
+import { type QualityLevel } from '../core/quality';
 import type { Adaptive } from '../core/governor';
 import { CT, FENCE, MOVEMENT, RAPPEL, TEAM } from '../config/movement';
 import { TraversalController } from '../player/traversal';
@@ -521,8 +517,6 @@ export class GameState implements AppState {
     setTenseSource(() => this.takedownVictims());
     this.vfx = new Vfx(this.scene);
     this.ballistics = new Ballistics(this.scene, this.registry, world.props, this.vfx);
-    // voxel chips (3.0, cosmetic): the struck voxel darkens (the prop layer first), debris in its colour
-    if (world.voxels && world.voxels.lv.size <= 0.05) this.ballistics.onWorldHit = (p, n) => world.voxelsFine?.chip(p.x, p.y, p.z, n.x, n.y, n.z) ?? world.voxels?.chip(p.x, p.y, p.z, n.x, n.y, n.z) ?? null;
     this.explosions = new Explosions(this.registry, world.props, this.vfx, this.ballistics);
     this.grenades = new Grenades(this.scene, world.parts, this.explosions);
     const loadout: LoadoutEntry[] =
@@ -567,7 +561,6 @@ export class GameState implements AppState {
     // weather (3.0, visual only): the map's theme, or the choice made on the Play screen / in the lobby
     const wx = opts.weather && world.map.weathers?.includes(opts.weather) ? opts.weather : null;
     const kind = wx === 'rain' ? 'rain' : wx ? null : (world.map.theme.weather ?? null);
-    const vx = world.voxels;
     const sun = world.sun.diffuse;
     this.stack = new PostStack(this.scene, this.player.cam.camera, {
       fogColor: [fc.r * 0.5, fc.g * 0.5, fc.b * 0.5],
@@ -575,18 +568,14 @@ export class GameState implements AppState {
       fogDensity: ((world.map.theme.lightLevel ?? 0.75) < 0.5 ? 0.007 : 0.004) * (wx === 'fog' ? 4 : wx === 'rain' ? 1.6 : 1),
       lights: world.level.lights.lights.length ? world.level.lights : null,
       shimmer: kind === 'haze' ? 1 : 0,
-      // fog: moonlit shafts under the skylights and through the doors (the voxels' sky bake)
-      // (smooth-world: without voxels the baked moon's visibility stands in - the shafts are moonlit anyway)
-      sky: vx?.skyTex && vx.sky ? { tex: vx.skyTex, origin: vx.sky.origin, cell: vx.sky.cell, dims: vx.sky.n } : world.lamps?.moonTex && world.lamps.moon ? { tex: world.lamps.moonTex, origin: world.lamps.moon.origin, cell: world.lamps.moon.cell, dims: world.lamps.moon.n } : null,
+      // fog: moonlit shafts under the skylights and through the doors (the baked moon's visibility)
+      sky: world.lamps?.moonTex && world.lamps.moon ? { tex: world.lamps.moonTex, origin: world.lamps.moon.origin, cell: world.lamps.moon.cell, dims: world.lamps.moon.n } : null,
       shafts: wx === 'fog' ? [sun.r * 0.03, sun.g * 0.03, sun.b * 0.035] : [0, 0, 0],
-      // ray-traced reflections (Settings > Graphics > Reflections): the structure layer's brickmap (none without voxels:
-      // Ray traced falls back to screen space)
-      rt: vx?.plugins[0] ? { tex: vx.plugins[0].tex, state: () => vx.plugins[0]!, capsules: this.rtCapsules, lights: world.level.lights.lights.length ? world.level.lights : null } : null,
     });
     // 3.2 baked lamps: the characters' soft shadows from every lamp
     if (world.lamps) world.lamps.capsules = this.rtCapsules;
     this.weather = new Weather(this.scene, kind);
-    // (no rain under roofs: the voxel sky bake's roofs, or the canonical shapes' tops on the smooth path; render only)
+    // (no rain under roofs: the canonical shapes' tops; render only)
     this.weather.occluder = (x, z) => world.roofAt(x, z);
     // (the grade / vignette / goggles pass stays after the stack)
     this.stack.onRebuilt = () => this.post.toEnd();
@@ -847,7 +836,7 @@ export class GameState implements AppState {
     });
   }
 
-  /** Characters for the ray-traced reflections: upright capsules (the player, then the living guards). */
+  /** Characters for the baked lamps' soft shadows: upright capsules (the player, then the living guards). */
   private readonly rtCapsules = (a: Float32Array, b: Float32Array, max: number): number => {
     const p = this.player.position;
     let n = rtCapsule(a, b, 0, p.x, p.y, p.z, this.player.rig.headNode.getAbsolutePosition().y - p.y + 0.12);
@@ -858,25 +847,16 @@ export class GameState implements AppState {
 
   static async create(app: App, opts: GameOptions, cb: SessionCallbacks): Promise<GameState> {
     const q = app.quality.level;
-    // voxels (3.0): 5 cm with three levels of detail; `?gfx=min` (tests) 20 cm, one level, no AO / micro detail
-    const vt = VOXEL_TIER[q.features.detail];
-    // (`?gfx=min`: the blockout's boxes in standard materials, smooth characters. smooth-world: without `?voxels=1` every
-    // preset draws the blockout's pieces smooth - PBR with the surface atlas and baked lamps above `?gfx=min`)
+    // (`?gfx=min`: the blockout's boxes in standard materials; every other preset draws them smooth - PBR with the
+    // surface atlas and baked lamps)
     const plain = q.minimal;
-    const voxel = !flags.voxels ? null : q.minimal ? { size: 0.2, fineSize: 0, levels: 1, lodDist: [999, 999] as [number, number], ao: false, micro: false } : { size: vt.size, fineSize: vt.fine, levels: 3, lodDist: VOXEL_LOD[q.features.detail], ao: true, micro: q.features.textures !== 'low', gi: q.features.gi };
-    // voxel characters (3.0): 2 cm, 4 cm past the part LOD distance; `?gfx=min`: the smooth parts
-    setCharacterVoxels(flags.voxels && !plain ? { size: vt.character, lodSize: vt.character * 2, lodDistance: LOD_DISTANCE * q.detailScale } : null);
-    // weapons and gadgets: 1 cm, small parts (sights, pins, trigger) 5 mm
-    const vw = flags.voxels && !plain ? { size: vt.weapon, fineSize: vt.weapon / 2, lodSize: vt.weapon * 2, lodDistance: LOD_DISTANCE * q.detailScale, small: 0.03 } : null;
-    setVoxelWeapons(vw);
-    setVoxelProps(vw);
     // (lightrev LR13) the lamp falloff, before the level adds its lights (`LightRegistry.add` scales the reach), bakes and
     // builds its field and shaders: the host's in co-op, else the URL override, else the setting (never mid-match)
     const lampFalloff = matchLampFalloff(app.settings.get().gameplay.lampFalloff, flags.photoLamps, opts.lampFalloff);
     setLampFalloff(lampFalloff);
     // (shadow audit) the shadow-accuracy fixes ride the same resolved mode, at the same point: on exactly in Realistic
     setShadowAccuracy(matchShadowAccuracy(lampFalloff));
-    const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, voxel, cheap: plain });
+    const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, cheap: plain });
     const g = new GameState(app, world, opts, cb);
     if (opts.net) g.net = opts.net.attach(g);
     // (anim-studio) the studio stage: single player only (never offered in a co-op session)
@@ -926,7 +906,6 @@ export class GameState implements AppState {
     this.weather.setDensity(level.minimal ? 0 : level.vfxDensity);
     const sp = this.world.level.surfacePlugin;
     const wet = level.minimal ? 0 : this.weather.wetness;
-    for (const v of this.world.voxelLayers) v.setWet(wet);
     if (sp && sp.wet !== wet) {
       sp.wet = wet;
       // (frozen material: let it re-bind its uniforms once)
@@ -2118,7 +2097,6 @@ export class GameState implements AppState {
   readonly spikes = new SpikeLog();
   private spikeLast = 0;
   private spikeShaders = 0;
-  private spikeLod = 0;
   private spikeGov = 0;
 
   /** Per render frame: the interval since the last one, tagged with this frame's events. */
@@ -2130,10 +2108,6 @@ export class GameState implements AppState {
     const sh = this.shaderCount();
     if (sh !== this.spikeShaders) ev |= SPIKE_EVENT.shaders;
     this.spikeShaders = sh;
-    let lod = 0;
-    for (const v of this.world.voxelLayers) lod += v.lodSwaps;
-    if (lod !== this.spikeLod) ev |= SPIKE_EVENT.lod;
-    this.spikeLod = lod;
     const gv = this.app.quality.governor.level;
     if (gv !== this.spikeGov) ev |= SPIKE_EVENT.governor;
     this.spikeGov = gv;

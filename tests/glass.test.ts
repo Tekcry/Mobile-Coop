@@ -7,7 +7,6 @@
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder, GLASS_THICK, type BoxPiece } from '../src/world/levelBuilder';
 import { canonicalLightSet, canonicalLightShapes } from '../src/voxel/lightShapes';
-import { levelVoxels } from '../src/voxel/levelVoxels';
 import { buildCoverSegments } from '../src/cover/coverData';
 import { generateLedges } from '../src/world/anchors';
 import { detailPieces } from '../src/world/detailPass';
@@ -101,13 +100,11 @@ describe('E2 glass: the pane piece', () => {
     expect(p).toMatchObject({ collide: true, visible: false, noLedge: true, glass: 'frosted' });
   });
 
-  it('no voxels, no cover, no ledges, no dressing from a pane (a visible glass box included)', () => {
+  it('no cover, no ledges, no dressing from a pane (a visible glass box included)', () => {
     const vis: BoxPiece = { c: [0, 1.5, 0], s: [0.3, 3, 4], yaw: 0, pitch: 0, color: '#9fb8c4', collide: true, glass: 'clear' };
     const b = new LevelBuilder();
     b.glass(3, -2, 3, 2, 3, 0, 'clear');
     b.boxes.push(vis);
-    const v = levelVoxels(b.boxes, [], [], 'concrete', 0.1);
-    expect(v.voxelBox).toEqual([false, false]);
     expect(buildCoverSegments(b.boxes)).toEqual([]);
     expect(generateLedges(b.boxes).ledges).toEqual([]);
     expect(detailPieces(b.boxes, 'glassTest', 'epic')).toEqual([]);
