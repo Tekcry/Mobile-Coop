@@ -302,6 +302,8 @@ LATEST 16:25 Test Runner verdict: #226 perf CPU OVER at 24 guards (S5 15.6 / S3 
 17:55: -perf 47dba252 guard freeze (render-only skip of guards whose body / shadow cannot reach the screen;
    est. S5-worst 15.6 -> ~11.3 ms; campus-perf-fix.md) - Opus checker running (campus-perf-check.md). -art 4554adbc =
    + polish2 + perf.mjs MODE (skips the warehouse ten-enemy scene). On PASS merge -perf into -art, send the batch below.
+18:05: laptop all green: #226 sectorops:1 at 08af0e9f; #232 273539ec sectorops:6 + falloff=photo suites. #232
+   merged master (75ff18d7, clean, tsc + 54 lighting tests) -> TRAIN-READY sent to the orchestrator (PROTOCOL 38 to confirm).
 4. Polish batch 2 -polish2 cca3ccb7: checker PASS (polish2-check.md; touches src/net lamp checks, no wire change).
    Merge into -art together with the -perf fix, then one laptop batch at the new -art head: e2e-coop, e2e-sectorops 1-6,
    e2e-stealth-ai, e2e-stealth + perf rerun (MAP=campusOps MODE=sector). Still open: lr-check 1-6, lr14-check 1-7,
