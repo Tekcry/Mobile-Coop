@@ -152,12 +152,13 @@ describe('move state (3.2.0 phase 1)', () => {
     expect(CLIMB_UP_STAND).toBeCloseTo(0.45, 2);
     const full = CLIMB_UP_TIME + CLIMB_UP_STAND;
     // the knee is planted (the left shin flat on the top) by 0.36 (0.47 s, CT 0.4-0.5 s); the hands hold through it and
-    // are off by 0.5 (0.65 s)
+    // (traverse-fix-2) on until the right foot is on the top (0.474), off before the crouch (was off by 0.5: the palms left
+    // the lip early; tests/climbHands.test.ts measures the palms, the foot and the release)
     expect(sample(CLIMB_UP, 'fLPitch', 0.36)).toBeCloseTo(1.2);
     expect(0.36 * full).toBeGreaterThan(0.4);
     expect(0.36 * full).toBeLessThan(0.5);
-    for (const k of [0.2, 0.3, 0.36, 0.38]) expect(attachGripWeight('exit', k, true)).toBe(1);
-    expect(attachGripWeight('exit', 0.5, true)).toBe(0);
+    for (const k of [0.2, 0.3, 0.36, 0.38, 0.45, 0.474]) expect(attachGripWeight('exit', k, true)).toBe(1);
+    expect(attachGripWeight('exit', CLIMB_UP_CROUCH_K - 0.01, true)).toBe(0);
     // at the crouch mark the body is in the crouched stance (CROUCH_IDLE pelY -0.42), the feet under it
     expect(sample(CLIMB_UP, 'pelY', CLIMB_UP_CROUCH_K)).toBeCloseTo(-0.42);
     expect(sample(CLIMB_UP, 'fLPitch', CLIMB_UP_CROUCH_K)).toBeCloseTo(0);
