@@ -3,6 +3,7 @@
 // puts it (both levels of detail), colours are the instance colours, the flash / ragdoll / off-flag paths hold.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Mesh } from '../src/core/babylon';
+import type { SmoothBody } from '../src/player/smoothBody';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -205,7 +206,7 @@ describe('guard-render S7: shared GPU buffers per cache entry', () => {
 
   it('after a WebGL context restore: references match the users, the lookup empties, a new spawn uploads fresh, disposal in any order keeps every live guard drawing', async () => {
     for (const order of [[0, 1, 2, 3], [3, 2, 1, 0], [1, 3, 0, 2], [2, 0, 3, 1]]) {
-      const { scene, lib, rig, SmoothBody, VertexBuffer } = await setup();
+      const { scene, lib, rig, VertexBuffer } = await setup();
       const { CharacterRig } = await import('../src/player/characterRig');
       const { ENEMIES } = await import('../src/ai/enemyDefs');
       const { sharedBufferCount } = await import('../src/player/smoothBody');
@@ -215,7 +216,7 @@ describe('guard-render S7: shared GPU buffers per cache entry', () => {
       const gpu = (m: Mesh, kind: string) => m.getVertexBuffer(kind)!.getBuffer()!;
       const holder = (m: Mesh, kind: string) => (m.getVertexBuffer(kind) as unknown as { _buffer: { isDisposed: boolean } })._buffer;
       const rigs = [rig, make('g2'), make('g3')];
-      const bodies = () => rigs.map((r) => r.voxel as InstanceType<typeof SmoothBody>);
+      const bodies = () => rigs.map((r) => r.voxel as SmoothBody);
       const before = gpu(bodies()[0]!.meshes[0]!, VertexBuffer.PositionKind);
       const deadIndex = bodies()[0]!.meshes[0]!.geometry!.getIndexBuffer()!;
       expect(before.references).toBe(3);
