@@ -293,6 +293,14 @@ State at the ~90% save (~13:55):
 - Lane D gear / sweep: Sonnet on feature/sector-redesign-gear (worktree -gear, off e57dac61): S4 / S5 helmet defaults,
   'both' for NOC / supervisor / response / token guards, sweep points; checks/gear-sweep.md, tests/campusGear.test.ts.
   Then one Sonnet checker, merge into the PR 4 follow-up (or -art).
+- Train 26: #217 sent train-ready ~14:00 (e57dac61 sectorops 5 + 6 green on the laptop).
+- Dressers: S1 DONE b66c35aa (37 draws; L1: move monitorBank / keyCabinet / visitorBoard onto the gatehouse wall faces z -73.15 /
+  x 14.15 at the join), S4 DONE ddc8e6a1 (25 draws), S5 DONE 1a588f84; S2 / S3 running at ~14:00. Gear DONE 8b135170
+  (Sonnet checker running -> checks/gear-check.md; per-slot gear sits on a local alias type: may be a no-op).
+- Walk 4.72 (Michael, docs/orchestrator/WALK-4.72-REPORT.md on feature/menu, "Sector Ops Build"): S2 co-op client lamp shots
+  do nothing on either screen + S3 client unbolt untested -> Opus fix on feature/sector-redesign-walk (worktree -walk,
+  checks/walk-472-fix.md, e2e legs + GPU). S1 lamp output too low -> Opus measure + one engine proposal on
+  feature/sector-redesign-lightrev (docs/lighting-review/PROPOSAL.md "Walk 4.72 S1", checks/light-measure.md): Michael decides.
 - Guard AI builds S16 (no firing into armour) once E10 is on master. Polish: hostCrackOk floor gap (doorPeek.ts:146).
 Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
 Sonnet builds from strict briefs; one fix round per slice; parallel lanes up to desktop CPU ~80%; never two agents on the

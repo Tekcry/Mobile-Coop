@@ -70,6 +70,7 @@ and pins it there with no slide until the clip lifts it. The leg IK then reaches
 | --- | --- | --- |
 | `feet` | 10 | Per side, L then R (`keyed.ts` `KF`): ankle x (lateral), y (lift), z (fore-aft) in the ROOT frame / K; foot pitch (rad); contact (0 / 1). |
 | `stride` | | The root's travel over one cycle, / K (take speed x cycle duration / K). Required with `feet`. |
+| `travel` | | (mocap-trial-2, strafe) The direction the root travels over a cycle: `'z'` forward (absent: every forward cycle), `'+x'` right, `'-x'` left (a sideways cycle). |
 
 - x, z: the ankle joint's ground projection relative to the root (above). While a foot is planted in the take its z falls
   back at the take's speed; the runtime scales z by game stride / `stride`, so a planted foot moves back under the body at
@@ -88,6 +89,11 @@ and pins it there with no slide until the clip lifts it. The leg IK then reaches
   already in the air finishes under the clip. So in this pass fast turns, starts and stops keep planned feet; the turn /
   start / stop slots pose the body only (their `feet` are ignored).
 - Blending: walk / jog / run blend their feet linearly by the speed blend; the strides blend the same way.
+- Sideways cycles (`travel` `'+x'` / `'-x'`, mocap-trial-2 strafe, BRIEF A10: CMU 69_56 right, 69_59 left): the root is turned
+  to the body facing (faceRoot), then the take's travel onto the x axis (emit.mjs `travel`); `stride` is the sideways travel
+  over a cycle. The game plays them as the aimed glide's sideways pose (animGraph `keyedDrawnSet`) over the planner's
+  side-steps, not as clip feet (their `feet` are written but not read): the side-step keeps the captures' rhythm
+  (motion.ts `GLIDE_SIDE`, mocap.ts `MOCAP_STRAFE`). MT2-STRAFE.md.
 
 ## One-shot slots (turns, start, stop)
 The same fields, not a cycle: frame 0 is the first frame of the move, frame N - 1 its last; sampled by progress 0..1

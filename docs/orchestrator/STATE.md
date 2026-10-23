@@ -11,6 +11,7 @@ docs batch; a docs PR when convenient). Scratch worktree for version / merge ste
 (detached checkouts; reset --hard there is safe).
 
 ## Master
+v4.74.0 (train 25 #222 = Guard AI #200-#203 + #208 + guard-render #213, b1e1809b, ~13:50 2026-10-23; dev moved; laptop 38/39, e2e-levels rack-ladder flake passed alone, Guard AI fixing the test). Protocol registry: master 31; reserved 32 guard-ai S9, 33 marlow-final, 34 hang-down (#207), 35 sector-redesign (#215), 36 pose-parity (#223); a train takes the highest of its members.
 v4.73.0 (train 24 #216 = #209 guard-render S6 + #211 S3a, cc667692, ~13:20 2026-10-23; dev moved; #207 out on e2e-clip ladder knees 8.9 cm, laptop 38/39 then e2e-clip green on the rebuilt head). Train 25 candidates: #212 S4 + #213 S7 (guard-render), #215 + #217 (sector-redesign PR 3 + 4, protocol 35), #203 stack + #208 (Guard AI, laptop run on f14b93af), #207 + #214 (Player, ladder fix + iPad fit).
 v4.72.0 (train 23 #210 = #204 + #205 guard-render S1 / S5 + #206 sector-redesign PR 2, 0dc25cca, ~12:45 2026-10-23; dev moved; laptop GPU 41/41 JOBS=3 621 s). Train 24 = origin/train/24 468167df (feature/menu + #207 CT Core batch 22 + #209 guard-render S6 + #211 S3a) on the laptop full run, release 4.73.0 on a pass. Train 25: guard-ai #200-#203 (left out of 24: sectorMode.ts conflict with 4.72.0, Guard AI merging master) + #208 helmets / armour, sector-redesign PR 3, Player batch 23.
 v4.65.0 (train 16 #178 = #168-#176, 4fb8ea80, ~02:10; dev moved; laptop GPU 39/39 JOBS=3 559 s). Train 17 next: #177 camera-range.

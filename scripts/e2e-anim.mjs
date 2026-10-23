@@ -949,6 +949,14 @@ try {
       // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.03 (measured 3.1 cm)
       'pistol readyJog': { kneeBow: 0.034 },
     };
+    // (mocap-trial-2 strafe, lead decision A11, M1 "Mocap, as captured") with the switch ON the aimed strafe plays the CMU
+    // strafe captures (69_59 / 69_56), whose side-step is wider than CRAB_STRAFE's "shoulder width, never a lunge" (an old
+    // procedural limit). Only knee separation and the planted track are re-based, to the captures' measured envelope plus a
+    // small margin; knee-outside-ankle, slides and pops keep their limits. Measured at Wren's scale (fresh check repro3
+    // PART=clip): ankles 0.10-0.63 m apart, planted ankle up to 0.374 m from the pelvis line; a knee about midway between
+    // hip and ankle at 0.63 m apart is (0.173 + 0.625) / 2 = 0.40 m, 2.3 x the 0.173 m hips. Gates: kneeSep max 2.4, trackHalf
+    // 0.40 m. Undo: delete this table entry (the rows read CRAB_STRAFE again). Switch OFF rows unchanged.
+    const MOCAP_STRAFE_DRAWN = MOCAP ? { aimStrafe: { kneeSep: { min: L.CRAB_STRAFE.kneeSep.min, max: 2.4 }, trackHalf: 0.4 } } : {};
     const drawnRows = [];
     // (the gun current before, restored after: the checks below keep their conditions)
     const orig = await G(() => ({ cls: window.__app.current.weapons.current.def.class, mul: window.__app.current.player.controller.speedMul }));
@@ -958,7 +966,7 @@ try {
         if (!all && !gated) continue;
         for (const gear of gears) {
           const rec = await crabRecord(gear || 4, false, segs, weapon);
-          const C = { ...L.crabDrawnRanges(key), ...BODY_DRAWN[`${weapon} ${key}`] };
+          const C = { ...L.crabDrawnRanges(key), ...BODY_DRAWN[`${weapon} ${key}`], ...MOCAP_STRAFE_DRAWN[key] };
           const r = crabRow(`${weapon} ${name}${gear ? ` speed ${gear}` : ''}`, rec, false, false, C);
           drawnRows.push({ weapon, key, gear, ...r.row });
           console.log(crabLine(r, rec) + (gated ? '' : ' [report-only]'));
