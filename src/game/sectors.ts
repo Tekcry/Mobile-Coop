@@ -58,6 +58,8 @@ export interface ConnectorDef extends SectorZone {
   sealUnlocks?: [number, number][];
   /** Where a restart puts the players once the connector has sealed (the next section's checkpoint). */
   checkpoint: Pose;
+  /** (coop-rejoin, walk item 4) The partner's (slot 1) point at that checkpoint; none: a safe spot beside `checkpoint`. */
+  checkpoint2?: Pose;
 }
 
 /** A route waypoint: [x, z] on the ground, or [x, z, y] on a raised floor (rack tops, the deck). */
@@ -104,6 +106,8 @@ export interface SectorDef {
   name: string;
   /** Where the section starts. The run's checkpoint for section 1; later sections start at the previous connector. */
   start: Pose;
+  /** (coop-rejoin, walk item 4) The partner's (slot 1) start point; none: a safe spot beside `start`. */
+  start2?: Pose;
   objective: SectorObjective;
   /** The room into the next section; every section but the last has one. */
   connector?: ConnectorDef;
@@ -707,6 +711,8 @@ export class SectorRun {
   alarmAtStart = 0;
   /** Where a restart puts the players (a copy; the defs are never written). */
   readonly checkpoint: Pose = { x: 0, y: 0, z: 0, yaw: 0 };
+  /** (coop-rejoin) The partner's (slot 1) point at the checkpoint, when the map gives one (`start2` / `checkpoint2`). */
+  checkpoint2: Pose | null = null;
   /** The current section's connector. */
   readonly conn = new ConnectorMachine();
   /** Time (s) every living player has been in the extraction. */
@@ -720,7 +726,10 @@ export class SectorRun {
     this.marks = defs.map(() => -1);
     const s = defs[0];
     if (!s) this.phase = 'done';
-    else setPose(this.checkpoint, s.start);
+    else {
+      setPose(this.checkpoint, s.start);
+      this.checkpoint2 = s.start2 ?? null;
+    }
   }
 
   get current(): SectorDef | null {
@@ -807,7 +816,10 @@ export class SectorRun {
   /** The connector sealed: the next section begins at it. */
   private advance(): void {
     const c = this.current?.connector;
-    if (c) setPose(this.checkpoint, c.checkpoint);
+    if (c) {
+      setPose(this.checkpoint, c.checkpoint);
+      this.checkpoint2 = c.checkpoint2 ?? null;
+    }
     this.index++;
     this.phase = this.index < this.defs.length ? 'objective' : 'done';
     this.progress = 0;

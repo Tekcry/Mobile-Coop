@@ -97,6 +97,7 @@ export function setOnRated(fn: typeof onRated): void {
   onRated = fn;
 }
 import { crateItemId } from '../crateLedger';
+import type { SlotPoint } from '../spawnSlots';
 import {
   DESK_HOLD,
   DESK_ITEM_Y,
@@ -1172,6 +1173,17 @@ export class SectorMode implements GameMode {
     g.scheduleRespawn(this.checkpoint, 0.3);
     // (co-op: this banner reaches the client, which runs its own `checkpointReset` on it)
     g.hud.banner(SECTOR_RESTART_TITLE, this.run.current?.name ?? '', 2200);
+  }
+
+  /** (coop-rejoin) The checkpoint's slot points: the run's checkpoint (slot 0) and the partner's point when the map gives
+   *  one (slot 1; else the host places the partner beside the checkpoint). */
+  checkpointSpawns(): SlotPoint[] {
+    if (!this.run.current) return [];
+    const a = this.run.checkpoint;
+    const b = this.run.checkpoint2;
+    const out: SlotPoint[] = [{ x: a.x, y: a.y, z: a.z, yaw: a.yaw }];
+    if (b) out.push({ x: b.x, y: b.y, z: b.z, yaw: b.yaw });
+    return out;
   }
 
   /** (marlow-bays item 3) The pause menu's restart: the section from its checkpoint, as everyone down (not once the op

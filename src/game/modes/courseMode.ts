@@ -30,6 +30,7 @@ import { REVIVES_PER_MISSION } from '../reviveClock';
 import type { SectorRatingWire } from '../sectors';
 import { updateRatingRecord } from '../../save/ratingRecord';
 import { RatingCard, type RatingView } from '../../ui/hud/ratingCard';
+import { areaSlotPoints, type SlotPoint } from '../spawnSlots';
 
 /** Seconds between two LANTERN radio lines. */
 const RADIO_GAP = 3;
@@ -109,8 +110,32 @@ export function courseStartPos(g: GameState, n: number, p: PlayerIdx): Vector3 |
   const bay = bays[Math.min(bays.length, Math.floor(n)) - 1];
   const a = bay ? lay.def.airlocks.find((x) => x.id === bay.entry) : undefined;
   if (!a) return null;
+  // (coop-rejoin) the airlock's own slot point when the map gives one
+  const own = a.spawns?.[p];
+  if (own) return new Vector3(own.x, a.floorY + 0.05, own.z);
   const z = (a.box[1] + a.box[3]) / 2 + (p === 1 ? P2_START_DZ : 0);
   return new Vector3((a.box[0] + a.box[2]) / 2, a.floorY + 0.05, Math.min(a.box[3] - 0.4, z));
+}
+
+/**
+ * (coop-rejoin, walk items 4 and 7) The slot points (slot 0 the host, slot 1 the partner) of the course checkpoint `cp`
+ * (`CourseState.checkpoint`: 'start' or an airlock id): the map's player spawns at the start, else the airlock's
+ * `spawns`, else its middle (the partner then goes on a safe spot beside it, `slotSpawn`). Empty on a map without a
+ * course.
+ */
+export function courseSlotPoints(g: GameState, cp: string): SlotPoint[] {
+  const lay = g.world.layout.course;
+  if (!lay) return [];
+  const a = cp === 'start' ? undefined : lay.def.airlocks.find((x) => x.id === cp);
+  if (!a) return g.world.layout.playerSpawns.slice(0, 2).map((s) => ({ x: s.pos.x, y: s.pos.y, z: s.pos.z, yaw: s.yaw }));
+  return areaSlotPoints(a, g.player.cam.yaw);
+}
+
+/** (coop-rejoin) A bay-N start's checkpoint (bay 1: the start, else that bay's entry airlock). */
+export function courseStartCheckpoint(g: GameState, n: number): string {
+  const bays = g.world.layout.course?.def.bays;
+  if (!bays || n <= 1) return 'start';
+  return bays[Math.min(bays.length, Math.floor(n)) - 1]?.entry ?? 'start';
 }
 
 interface HoldRt {
@@ -847,12 +872,21 @@ export class CourseMode implements GameMode {
     for (let i = 0; i < lines.length; i++) if (lines[i]!.at === at) this.radioQ.push(lines[i]!.text);
   }
 
-  /** Where the players respawn: the checkpoint airlock's middle, or the map's first spawn. */
+  /** Where the players respawn: the checkpoint airlock's slot 0 point (its middle unless the map places one), or the
+   *  map's first spawn. */
   checkpointPos(): Vector3 {
     const st = this.state!;
     const a = st.def.airlocks.find((x) => x.id === st.checkpoint);
     if (!a) return this.g.world.layout.playerSpawns[0]!.pos.clone();
-    return new Vector3((a.box[0] + a.box[2]) / 2, a.floorY + 0.05, (a.box[1] + a.box[3]) / 2);
+    const p = areaSlotPoints(a)[0]!;
+    return new Vector3(p.x, p.y, p.z);
+  }
+
+  /** (coop-rejoin) The current checkpoint's slot points: the co-op host places a respawning partner and a (re)joining
+   *  client with them. */
+  checkpointSpawns(): SlotPoint[] {
+    const st = this.state;
+    return st ? courseSlotPoints(this.g, st.checkpoint) : [];
   }
 
   /**
