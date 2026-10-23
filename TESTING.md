@@ -155,10 +155,14 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
     falls to the floor as the same helmet (his faction colour), the hair or cap shows again. Vests show only with the
     armour stage; the heavy shows his plate; the enforcer carries the shield on his left arm.
   - Same looks after a restart: note three guards (a face, hair, cap); restart at the checkpoint or the section: the same
-    guards in the same places look the same. In co-op, host and joiner see the same man in each place, and after a
-    restart still the same.
+    guards in the same places look the same.
   - Bodies: carry and drop a guard: the body keeps his face, clothes and helmet state; thermal and night vision show him
     like before (no extra glow, no missing piece); the shadow of a guard has no helmet after the knock-off.
+  - Co-op, both screens: host and joiner see the same man in each place (face, hair, cap, outfit, vest, helmet), the
+    helmet falls on both screens, and a restart keeps the looks on both.
+  - First frame: at level start every guard shows as a figure on his first frame, no hitch the first time one comes
+    into view. Until the bake's guard files are bundled the figure is Wren's stand-in: variety, faces and pieces only
+    show with the real files.
 - [ ] Talking pairs (guard-ai S10, Saltmarsh Park car park): watch the pair from cover: at their stop by the aisle end
   they face each other and swap two lines, then walk on; knock one out before they meet and ~6 s later the other walks
   to where his partner was headed.
