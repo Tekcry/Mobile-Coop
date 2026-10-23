@@ -180,6 +180,22 @@ branch, cause file:line, smallest fix), then one implementer after the merge fix
 - W5 (M5) The A2 locked-door lamp lights both rooms it hangs over (the fitting's falloff / occlusion or its room
   assignment); the all-maps lamp output review is Sector Ops Build's (S1 / LR1-LR12), so fix only Marlow's data here.
 
+## 4c. Michael's walk of 4.82.0 (2026-10-23 ~22:15, docs/orchestrator/WALK-4.82-REPORT.md on feature/menu; Marlow's items)
+Walked on 4.82.0 (the rebuilt yard: "s2" / "s3" = sets A2 / A3 unless the planner finds the HUD numbers otherwise).
+Follow-ups to #257: one branch off feature/marlow-polish, one batch PR. Plan first (Opus, plans/WALK-4.82.md: per item the
+cause file:line, the smallest change, files, tests, the split between Marlow and Guard AI / Player Build), then builders.
+- X2 (walk 2, Marlow part) A2: being spotted fails the set (send-back, like A3's camera); more guards; more linear, fewer
+  lanes; overwatch guards above the lit crossings who see a player crossing the light. Guard AI owns "report, then attack,
+  keep the last known position".
+- X3 (walk 3) A2: the door to the airlock exit has a floor obstacle in the way: clear the door's approach.
+- X4 (walk 4) Spawn points: the two players spawn at different points in the same start area, no overlap (Player Build
+  if the spawn code needs it).
+- X5 (walk 5) The start room reads as an armoury / locker room (weapons display cabinet on one side, lockers), not a
+  reception; the bench stands off the wall.
+- X6 (walk 6) A3: a camera detection still sends back, but the guard does not turn hostile or respond to it (a training
+  exercise). Marlow: the exercise rule (the set's camera send-back raises no device alert); Guard AI owns the AI side. This
+  changes e2e-ctcourse:2's A3 steps (the 6a168e74 fix relies on the cleaner answering step 2's camera alarm).
+
 ## 5. Parallel order (up to 6 Opus agents)
 Now (slice 0, already running): 0a, 0b, 0c, the lighting agent, the props agent (batch 1), and this spec writer when
 it ends. Start 0g as soon as a slot frees: it touches no file the others own.
