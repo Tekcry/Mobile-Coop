@@ -425,9 +425,7 @@ export const embassy: MapDef = {
         { id: 'cache', pos: v(13.5, 13.6), kind: 'cache' },
         { id: 'extract', pos: v(-23, 19), kind: 'extract' },
       ],
-      pickups: [
-        { pos: v(-12.4, -18.8, 0.95), kind: 'ammo' },
-      ],
+      pickups: [],
       rooms: ROOMS,
       switches: [
         { pos: v(-4.85, 1.2), yaw: Math.PI / 2, group: LOBBY },
