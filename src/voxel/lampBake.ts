@@ -68,7 +68,14 @@ export interface LampResult {
   ms?: { vis: number; bounce: number };
 }
 
-/** A light's box: its reach, clipped to the map; a downward lamp stops a cell above itself. */
+/**
+ * A light's box: its reach, clipped to the map; a downward lamp stops a cell above itself. (LR16-L) The box's cell
+ * planes run through the light point on all three axes (`alignedFrom`): a lamp hung up to a cell under its mount (a
+ * ceiling, a shelf) then sits on a cell boundary under the mount's solid row, so rays from below never cross that row.
+ * On a grid started at the map's `lo` the row could hold the lamp itself (5 cm under a 3.0 m slab: 0.15 m deep in the
+ * slab's grown row), and every ray rising less than that over the march's last `NEAR_LIGHT` was blocked: upper walls lost
+ * the lamp in front of them in hard 0.2 m teeth (walk 4.82 item 8). The meter, the guards and the picture read this box.
+ */
 export function lampBox(L: Float32Array, i: number, lo: readonly number[], hi: readonly number[], out: number[] = [0, 0, 0, 0, 0, 0]): number[] {
   const o = i * LAMP_STRIDE;
   const x = L[o]!;
@@ -77,19 +84,29 @@ export function lampBox(L: Float32Array, i: number, lo: readonly number[], hi: r
   const r = L[o + 3]!;
   const c = LAMP_CELL;
   const down = L[o + 7]! < -1.5;
-  const x0 = Math.max(lo[0]!, x - r);
-  const y0 = Math.max(lo[1]!, y - r);
-  const z0 = Math.max(lo[2]!, z - r);
+  const x0 = alignedFrom(x, Math.max(lo[0]!, x - r), c);
+  const y0 = alignedFrom(y, Math.max(lo[1]!, y - r), c);
+  const z0 = alignedFrom(z, Math.max(lo[2]!, z - r), c);
   const x1 = Math.min(hi[0]!, x + r);
   const y1 = Math.min(hi[1]!, down ? y + c : y + r);
   const z1 = Math.min(hi[2]!, z + r);
   out[0] = x0;
   out[1] = y0;
   out[2] = z0;
-  out[3] = Math.max(1, Math.ceil((x1 - x0) / c));
-  out[4] = Math.max(1, Math.ceil((y1 - y0) / c));
-  out[5] = Math.max(1, Math.ceil((z1 - z0) / c));
+  // (the 1e-6: an aligned end such as the downward lamp's y + c lands on a whole count; rounding must not add a row)
+  out[3] = Math.max(1, Math.ceil((x1 - x0) / c - 1e-6));
+  out[4] = Math.max(1, Math.ceil((y1 - y0) / c - 1e-6));
+  out[5] = Math.max(1, Math.ceil((z1 - z0) / c - 1e-6));
   return out;
+}
+
+/**
+ * (LR16-L) The first cell plane through the light point `l` at or past `from` (`from <= origin < from + c`): the box
+ * stays inside the old clip; the strip `[from, origin)` it drops is under a cell at the reach's end (falloff ~0) or at
+ * the map's outer bound, where lookups clamp to the edge cell as before.
+ */
+function alignedFrom(l: number, from: number, c: number): number {
+  return l - c * Math.floor((l - from) / c + 1e-9);
 }
 
 /** The fixture's sample points (x, y, z triples): along its longer horizontal side, a point for a bulb. */

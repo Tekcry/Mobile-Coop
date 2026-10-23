@@ -16,8 +16,9 @@ const INDEX = 'lamp-cache-index';
  * its centre's side only. (lr16int merge-1) 5: the penumbra + bounce bake, one past both branches' numbers (LR16e 2,
  * LR16-1 4), so neither branch's caches are served: an LR16-1-alone v4 entry has the bounce and bits but no penumbra,
  * which `cacheOk` cannot see (the penumbra lives in the `vis` bytes, no field marks it); only the key can reject it.
+ * (LR16-L) 6: the box grid aligned on the light point (`lampBox`): new origins and bytes.
  */
-export const LAMP_VERSION = 5;
+export const LAMP_VERSION = 6;
 
 /** (LR16-1) A cached result holds every lamp's visibility and bounce (LR16e's penumbra: covered by `LAMP_VERSION`). */
 function cacheOk(hit: LampResult | undefined, n: number): hit is LampResult {
