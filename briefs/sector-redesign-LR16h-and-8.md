@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-23T08:44Z
 
 Lead note (Sector Ops Build ~20:40): build PART 1 ONLY (the docs edit table) from feature/sector-redesign-lr16int @ f8008542; new branch feature/sector-redesign-lr16h. coop.md:24,34 and TESTING.md:49 are already fixed at f8008542 - skip those rows. Part 2 is the lead's laptop request text: do not act on it. No tests needed beyond a grep that no doc names the removed Lamp falloff setting / Classic path.
 

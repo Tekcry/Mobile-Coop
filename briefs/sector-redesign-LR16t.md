@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-23T08:44Z
 
 Lead note (Sector Ops Build ~20:40): BASE CHANGED - build from feature/sector-redesign-lr16int @ f8008542 (not c7a26ca7). The checker fix round there made every PBR torch path use the meter's feathered nsLampCone (lamp plugin), lightRig.place takes SPOT_EXP / LAMP_EXP, new tests/lampTorchCone.test.ts (keep it green; worst meter vs picture < 1e-6), door / prop spheres in the char-shadow cone fit; see docs/sector-redesign/checks/lr16-batch-fix.md. Line numbers in this brief are pre-fix: re-anchor. LR16e and LR16-1 are being built in parallel from c7a26ca7 (lampBake.ts / bakedLamps.ts / world.ts other regions; LAMP_VERSION: leave it, the lead sets it at the merge). Unit tests only, vitest --maxWorkers=2.
 
