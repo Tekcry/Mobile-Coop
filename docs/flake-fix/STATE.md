@@ -3,6 +3,21 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 9 (2026-10-23 ~13:00; wins over all below):**
+- RUNNING: 4189 train24-468167df full (chain-1023t24.ps1, task NightShift-chain-1023t24-4189) -> verdict to the
+  orchestrator (4.73.0 on pass; train = menu + #207 + #209 S6 + #211 S3a). 4192 chain-1023sr.ps1: sectore10-16442ee1
+  (Sector Ops: sectorops:6 :1 coop; known :1 fail at e2e-sectorops.mjs:822 crate prompt, :526 hearing flake) ->
+  guardrender-s7-45fccee5 (smoke stealth-ai sectorops ctcourse coop anim).
+- SENT since SAVE 8: train 23 GREEN 41/41 (4.72.0 released, #210). #207 GREEN 8/8 (Player Build + orch). marlow
+  1a47946a GREEN 5/5 (Marlow Build). sector-redesign f96924e5 7/8 (sectorops:1 crate prompt; Course Ready, offline).
+  Guard AI 0742bd0d sectorops:1 GREEN -> #200-#203 train-ready (train 25 with #208, sectorMode conflict).
+- GUARD-RENDER PRs: #209 S6 (in train 24), #211 S3a (in train 24), #212 S4 (stacked on #211; e2e GREEN adcd5fa7 15/15,
+  checker PASS WITH NOTES; orchestrator + Player Build (characterRig 1699-1709) not told yet: send with train 24 verdict).
+  S7 (feature/guard-render-s7 45fccee5): checker PASS WITH NOTES, finding 4 (context-loss) fixed; e2e queued; then PR.
+  Next measures (4189 ALONE, only with no train queued): guard-cap S4 on vs ?animtier=0; S7 GPU memory.
+- LESSON: a PowerShell list with ONE run `@(@(...))` flattens to its strings (labels g / a / b ran nothing): use
+  an ArrayList (chain-1023sr.ps1). In bash heredocs never write "$runs\chain..." unquoted (\c ate the path).
+
 **Test Runner SAVE 8 (2026-10-23 ~12:35, new account; wins over all below):**
 - SENT: guardais10-345fbb91 7/8 (sectorops:1 "S6: they close on it (9.06,10.30 -> 7.21,9.59 m in 7 s)") -> Guard AI +
   PR #203 comment. Train 23 9d4e0cb8 running on 4189 (chain x); verdict -> orchestrator when DONE.
