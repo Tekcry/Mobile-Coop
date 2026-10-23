@@ -397,8 +397,9 @@ const REST_SHIFT_RATE = 0.6;
 export const GLIDE_HIP = { share: 1, max: 0.09, tau: 0.08 } as const;
 /** (anim-fix-pass AF4a, Michael P4 "moves around constantly") Crouched, the glide's hips go only `share` of the way to the
  *  feet's centre (blended in by the crouch), and that shift changes at most `rate` m/s (/ the crouch): every short crouched
- *  shuffle moved the hips the full way at tau 0.08 with no limit (stop-go 8-11 cm p2p, flips 12.7). Standing: GLIDE_HIP. */
-export const GLIDE_HIP_CROUCH = { share: 0.85, max: 0.09, rate: 0.06 } as const;
+ *  shuffle moved the hips the full way at tau 0.08 with no limit (stop-go 8-11 cm p2p, flips 12.7). The share stays >= 0.85:
+ *  under it the steady strafe's knee bows past 3 cm (e2e-anim's crouched aimed strafe knee-out gate). Standing: GLIDE_HIP. */
+export const GLIDE_HIP_CROUCH = { share: 0.85, max: 0.09, rate: 0.03 } as const;
 /** (mocap-trial-2 strafe fix) In the mocap strafe the hips stay this far (m) inside each planted foot across the body (the
  *  captures keep theirs 4.4 cm inside; the planted knee then stays over its toes). */
 export const STRAFE_HIP_IN = 0.06;

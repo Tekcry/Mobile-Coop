@@ -662,7 +662,7 @@ export class PlayerController {
     this.stillT = this.crouched && mag < 0.1 && (this.ct ? this.motion.state === 'idle' : this.speed < 0.4) ? this.stillT + dt : 0;
     // (G1, audit row 3) crouched, the stop goes straight to the kneel (the stop hold lets go for it); not beside an
     // unaware guard (the tense sneak holds its pose there)
-    this.kneeling = this.stillT > kneelStill(aiming) &&(!this.stopHold || this.crouched) && this.stopEaseT < 0 && !this.tense;
+    this.kneeling = this.stillT > kneelStill(aiming) && (!this.stopHold || this.crouched) && this.stopEaseT < 0 && !this.tense;
     if (this.kneeling && this.stopHold) {
       this.stopHold = false;
       this.holdSpeed = 0;
