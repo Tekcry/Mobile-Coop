@@ -1,0 +1,15 @@
+{
+  "id": "20261023T210337-night-shift-sector-o-34ae51d0-c617",
+  "sha": "34ae51d057ca688d38beede0ea8e35f9a07ce5e5",
+  "branch": "feature/sector-redesign-lr16-6",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-darkness",
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "lr16-6",
+  "note": "LR16-6 after the fix round (client body cooling, walking door figures, chest colour read); supersedes 543cb6da"
+}
