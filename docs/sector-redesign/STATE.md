@@ -283,8 +283,8 @@ Open PRs:
 1. #226 campus detail art (PR 5; head feature/sector-redesign-art 2276483a, not train-ready). Laptop perf MISSED
    CPU p95 < 12 (Epic, 24 guards); -artpol 1d34c348 (art + polish) start 13.4 / S4 12.1 / S5 13.1 / S3 10.6.
    Fixes: -perfg 057403f5 (frozen anim skip, merged guard gun; perfg-build.md) + -perfa 3f87166e (campus art merges,
-   indoor cull 60 m; perfa-build.md). Opus checker perf-batch-check.md: on PASS it merges both into -artpol and pushes.
-   Next: laptop request on that -artpol head (start / S3 / S4 / S5-worst, freeze on vs &guardfreeze=0, guard-cap,
+   indoor cull 60 m; perfa-build.md). Checker PASS (perf-batch-check.md); merged: -artpol 4f66a5f8.
+   SENT ~19:35 to Test Runner at 4f66a5f8 (start / S3 / S4 / S5-worst, freeze on vs &guardfreeze=0, guard-cap,
    e2e-sectorops 1-6 + coop + stealth-ai; visuals: emissive dimming, car shadows, no pop at 58-60 m). In budget ->
    push -art to the -artpol head, merge master at train entry (master's animTier.ts vs our animFrozen.ts; enemy.ts
    animate-line conflict, perfg-build.md), message orchestrator + `gh pr edit 226 --add-label train-ready`.
