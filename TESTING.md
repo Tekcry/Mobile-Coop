@@ -449,6 +449,26 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   walks in to the body standing, crouches, and her feet step (no slide) before she stands with it. F3 tuner, "Holds
   and carries": each slider moves only its walk; reset puts it back.
 
+### Campus detail art (Sector Ops, campusOps)
+- [ ] Sector Ops, campus, `?gfx=min` first: the plain boxes show (no props) and every route below still plays. Then Epic.
+- [ ] S1 (gatehouse, car park, grounds): walk the gate route, the verge and the car park. No prop stops you, blocks a
+  hiding spot, a ledge, a vent or a door. The gatehouse desk, monitors and key cabinet stand on the inner walls. Cars,
+  planters and trees look finished, nothing floats.
+- [ ] S2 (HQ offices round the atrium): the atrium shows its hero set (the model on the reception desk, green wall,
+  seating) and the offices their desks, boards and ceiling tiles. Both stair and lift routes stay open; no desk in a
+  doorway or on a patrol line.
+- [ ] S3 (lab block): lab hall, clean room and stores show their benches, hoods and shelving. Cover stays where it was;
+  walk the gown room and the airlock doors free.
+- [ ] S4 (data hall, plant, dock): racks, pods, UPS and battery racks, ducts and the dock fit their boxes. Climb every
+  ledge and vent you used before; no rack edge blocks the lip. Raised-floor and pallets do not sink or float.
+- [ ] S5 (Old House, strongroom): oak panel, bookcases, the fireplace and the strongroom vault set read as 1960s. The
+  vault door, deposit wall and time-lock stay usable; the objective prompts still show.
+- [ ] In each section: every lamp you see is a lamp the light meter reacts to. Stand in a shadow beside a prop: the
+  meter stays dark; stand in light: it lights. Props never change what a guard or camera sees.
+- [ ] No prop floats, sinks into a wall or clips another prop; no flicker or z-fighting up close.
+- [ ] Frame rate holds steady in the busiest views (S2 atrium, S1 car park, S4 data hall) with 20 and with 24 guards
+  (laptop GPU; the draw and triangle numbers are in `docs/systems/world-and-characters.md`, "Campus art kit").
+
 ### Co-op (two browser tabs)
 - [ ] Two tabs with `?net=local` (or two PCs with a room code): Co-op > Host in one, Join in the other. The lobby shows
   both players and the host's difficulty read-only on the client.

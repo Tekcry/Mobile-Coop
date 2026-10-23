@@ -55,6 +55,46 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   and a `collideWith` mask; hit volumes (`ai/hitboxes.ts`, `game/playerTarget.ts`) are ANIMATED bodies
   registered in the `DamageRegistry`, which maps bodies to `Damageable`s.
 
+## Campus art kit
+The detail art of Saltmarsh Park (`campusOps`, Sector Ops) is a shared, instanced prop and material kit drawn over the
+level-builder boxes. Gameplay never reads it: collision, cover, ledges, nav, perception, the light bake and the meter use
+only the boxes. `?gfx=min`, a GLB that fails to load, or `buildCampus(b, { dress: false })` show the plain greybox.
+Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-redesign/checks/art-kit-build.md`,
+`art-join.md`.
+
+- **Generated, not drawn.** Headless Blender scripts in the repo (`scripts/campus-props/`: `lib.py`, `kit.py`,
+  `hero_s1.py` .. `hero_s5.py`, driver `build.mjs`; `npm run campus-props:build [-- --set kit|hero-s<N>]`). Output is
+  deterministic (byte-identical GLB per run) and lands in `src/world/campusArt/assets/` as `campus-kit.glb/.json` and
+  `hero-s<N>.glb/.json`. Factor-only materials, no UVs, no textures. The kit is 60 ids, about 7 k triangles.
+- **Base dressing by room tag.** Each section lists an art tag per room (`S<N>_ART_TAGS`, `artTags.ts`). The rule table
+  (`dressRules.ts`, `DRESS_RULES`, plus `DOOR_EXTRAS`) fills free floor, wall and ceiling by tag: `per`, `max`, `perRun`,
+  `alt`, `tile`. Finish colours per room come from `finishes.ts`.
+- **Bespoke hero sets.** One catalogue per section (`HERO_S<N>`, ids `H1`..`H5`): S1 gatehouse, S2 atrium, S3 lab block,
+  S4 data hall, S5 Old House strongroom. Placed by hand at exact positions before the base pass.
+- **Dressers.** `src/world/maps/campusS<N>Dress.ts` exports `S<N>_ART_TAGS`, `HERO_S<N>` and `dressS<N>(d)`; the registry
+  is `maps/campusDress.ts` (do not edit). API in `campusArt/dresser.ts`: skins, then heroes, then `d.base()` last.
+  - `d.add(piece, x, y, z, yaw, { cls, why, s?, group?, tint?, free? })`: exact placement; throws on any keepout.
+  - `d.skin(piece, boxIndex, yaw, { why, dy?, group? })`: skins one greybox box (fit pieces scale 0.8-1.25).
+  - `d.skinHide(...)`: as `skin`, and hides the box's own drawn instance (cars, the S5 van).
+  - `d.skinCyl(piece, cylIndex, { why, group? })`: cylinders (tree trunks).
+  - `d.skinRow(piece, boxIndex, alongX, faceSign, { why, group? })`: tiles a long box with whole modules.
+  - `group` is optional on all skin calls and ties a piece to a circuit group.
+  - Pieces are named `'K:whiteboard'`, `'F:filingCabinet'`, `'H2:atriumModel'`. Find boxes with `boxAt` / `cylAt`
+    (`geometry.ts`).
+- **Keepouts.** `keepouts.ts` holds K1-K13 (routes, doors, cover, nav, cameras, lasers, ledges, switches, vents) and
+  rule ids `C`, `W`, `V`, `S`, `F`, `B`. A prop never lands on one. Every art box is `noLedge`. Light class and the three
+  prop classes: ART-PLAN section 2.
+- **Gameplay gate.** `tests/campusArtGameplay.test.ts` (`-t S<N>`): legs, protected nav cells, patrols, cover, lips,
+  cameras, lasers, reach, ledges, split gaps, `checkDressing`, budgets. `tests/campusArtLight.test.ts` bakes and checks
+  every protected point within 0.02. Others: `campusArtKit`, `campusDressRules`, `campusArtRender`, `campusS<N>Dress`.
+- **Render.** `campusArtRender.ts` draws one instanced mesh per (section, material); the World hook and
+  `BuiltLevel.hidePieces` (`levelBuilder.ts`) hide the boxes a skin replaces.
+- **Budget.** At most 40 draws, 150 k triangles and 2500 placements per section. Now: S1 39 / S2 39 / S3 29 / S4 25 /
+  S5 30 draws; the campus is 162 draws and 183 k triangles (1852 placements). S1 and S2 sit at 39 of 40: adding a
+  material there needs a draw back first. Perf budgets: `docs/systems/performance.md`; shots: `scripts/campus-art-shots.mjs`.
+- **Not built yet:** see "Not applied" in `art-join.md` (cars in 2 of 4 colours, S2 green wall, `skinFace`, a few S4 and S5
+  kit gaps).
+
 ## Characters (one rig for player, enemies, coop remotes, dummies and the menu operator)
 - (anim-natural-n2) Wren's body motion layer (`src/anim/bodyMotion.ts`, pure): per tuner body row (`BODY_MOTION`,
   one literal per field: hipTurn / hipTime, chestTurn / chestTime deg and cycles, sway / swayTime cm and cycles,
