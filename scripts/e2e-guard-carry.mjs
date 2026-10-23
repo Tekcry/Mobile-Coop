@@ -296,7 +296,8 @@ try {
     const recompiled = errors.slice(e0).filter((e) => /smooth body .*recompiling/.test(e));
     console.log(`  forced fault: injected into ${f.faulted} body effect(s) [${f.names}], ${f.timeouts} poll timeout(s), ${f.disposed} dropped by the recovery; recovery logged "recompiling": ${recompiled.length ? `yes (${recompiled.length})` : 'no'}`);
     for (const r of recompiled.slice(0, 4)) console.log(`    ${r}`);
-    assert(f.faulted >= 1 && f.timeouts >= 1, `the forced fault fired (${f.faulted} effects faulted, ${f.timeouts} timeouts): else Babylon's compile path changed (or no KHR_parallel_shader_compile) and this pass tests nothing`);
+    // (the fixed build recovers the faulted effect before Babylon's cut poll gives up: a drop counts as well as a timeout)
+    assert(f.faulted >= 1 && (f.timeouts >= 1 || f.disposed >= 1), `the forced fault fired (${f.faulted} effects faulted, ${f.timeouts} timeouts, ${f.disposed} dropped by the recovery): else Babylon's compile path changed (or no KHR_parallel_shader_compile) and this pass tests nothing`);
     if (fail) {
       console.log('  forced: the timed-out body effect was never recompiled, the guard stays invisible');
       throw fail;
