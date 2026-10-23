@@ -1,6 +1,9 @@
 # Guard AI - state
 
 ## Now
+~13:40: laptop GPU s12 f14b93af 7/7 GREEN -> TRAIN-READY sent for train 25 (#200 -> #201 -> #202 -> #203 5ca7d45d ->
+#208 f14b93af). s15 884b89c0 run in progress (Test Runner, port 4189).
+
 ~13:30: master 4.72.0 merged up s10 -> s15 (heads in the resume block step 1; stealthSystems: S15 breaker host kept
 beside master's isolator boards). Laptop runs requested: s12 f14b93af (train 25) and s15 884b89c0 (S13-S15). PRs
 #218 / #219 / #220 open, orchestrator told. S9 RUNNING. patrolRoute getter already in the stack (enemy.ts:651, S10).
@@ -365,9 +368,8 @@ feature/guard-ai-s<n>; npm ci once per worktree, under the laptop heavy.lock). B
 then this file's "Now" (top 3 entries) and slices/NEXT-BRIEFS.md section 5 (S9).
 1. Master 4.72.0 is merged up the stack (s10 5ca7d45d, s12 f14b93af, s13 98e9e800, s14 45f0774d, s15 884b89c0;
    slices/S10.md "Master 4.72.0 merge"). guard-render S3a (#211) is NOT in 4.72.0: expect enemy.ts import ~46 when it lands.
-2. Laptop verdict on s12 f14b93af (sectorops 1-5, stealth-ai, takedown; requested ~13:30 from Test Runner, or a PR
-   #208 comment). Green -> ONE train-ready message to Night Shift | Orchestrator: train 25 = #200 -> #201 -> #202 ->
-   #203 -> #208. Red -> fix on the lowest branch it belongs to and merge up.
+2. Train 25 (#200-#203 + #208, f14b93af) GREEN 7/7 and train-ready sent ~13:40. If the orchestrator reports a train
+   failure: fix on the lowest branch it belongs to, merge up, rerun that suite.
 3. PRs #218 S13 (base s12), #219 S14 (base s13), #220 S15 (base s14) open; checker PASS. Laptop verdict on s15 884b89c0
    (stealth-ai, sectorops all, takedown, ct-warehouse, course, ctcourse, coop, netmove; requested). Green -> train-ready.
 4. S9 co-op on feature/guard-ai-s9 (off s15 78c2fe7c): done = slices/S9.md with checks; else a fresh Opus agent
