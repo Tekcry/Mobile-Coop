@@ -233,7 +233,7 @@ Goals: the three items round 2 found (restart slide, slow-flip pelvis, diagonal 
    steady knee-out rose to 3.5 cm (the hips lag the feet); limiting only the hold and GLIDE_HIP (not the keyed pelvis)
    needed <= 0.45 for the 0.7 flip and failed the knees (3.1); a direction-split or held-split rate, or capping the hold,
    did not reach both. Steady strafe moves the offset up to ~0.75 m/s, so 0.75 leaves it untouched.
-3. Diagonal flip NW <-> SE 0.9 / 1.37 s: slide **1.21 -> 0 cm** (goal <= 0.5); by the stSk change below with item 1.
+3. Diagonal flip NW <-> SE 0.9 / 1.37 s: slide **1.21 -> 0 cm** (goal <= 0.5); with items 1, 2 and 4 together (not isolated).
    Diagonal sweep (NW/NE/SE/SW flips, 0.7 / 0.9, 0.8-1.6 s): slide 0 ON and OFF, pelvis ON 0.61-1.01 (OFF 0.50-0.67).
 4. animGraph (kept from the lost agent's WIP): the strafe share for the captures reads `stSk`, the travel's unsigned
    sideways / forward parts eased (0.18 s) and divided, not the eased direction vector, which passes the origin in a pure
@@ -246,6 +246,9 @@ already reads ON 0.89-1.12 vs OFF 0.56 (the captures' own sway).
 Tests: tests/mocapStrafe.test.ts 12/12 (new: restart after a 0.3 s stand, flips 0.9 / 1.37 and 0.7 / 1.3 with pelvis <=
 OFF + 0.5 cm, NW <-> SE 0.9 / 1.37; slide < 0.5 cm, no crossing). mocapSwitch 13/13, mocapFix2 11/11, footPlanner 12/12,
 animSkeletonIdentity / animSkeletonGuardIdentity 1 + 1 skip; tsc clean; eslint clean.
+GPU lane (desktop, E2E_GPU=1, E2E_JOBS=1, one suite at a time on bcb84c5f): e2e-anim PASS (36 s), e2e-clip PASS (13 s).
+Aimed strafe knee outside the ankle: rifle R 2.0 / 2.8, L 1.5 / 2.6; pistol R 2.1 / 2.9, L 1.4 / 2.8 cm at speed 1 / 2
+(as round 2; <= 3.0, pistol R speed 2 still 1 mm under); knees 1.94-2.23 x the hips max, track max 31.1-37.1 cm, slide 0.
 
 ## Not done / open
 - Toggling the switch mid-strafe is covered by the rig's switch cross-fade only (A8's residual applies; not probed here).
