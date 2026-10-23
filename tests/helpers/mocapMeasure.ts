@@ -6,7 +6,7 @@
  * game's, and pops (each bone's turn per frame against the bible's 25 deg, the joints' positional jerk). Node only
  * (NullEngine, no ground: the floor is y = 0).
  */
-import { elbowWing, footSlide, footTrack, kneeBow, kneeSeparation, plantedSlide } from '../../src/anim/audit/metrics';
+import { elbowWing, footSlide, footTrack, kneeBow, kneeSeparation } from '../../src/anim/audit/metrics';
 import { HEEL_BACK, HEEL_DOWN, TOE_BALL } from '../../src/anim/footGeom';
 import { CRAB, JOINT_DEG_PER_60HZ_FRAME } from '../../src/anim/audit/limits';
 import type { CharacterRig, RigPose } from '../../src/player/characterRig';
@@ -156,7 +156,8 @@ function contactPts(n: CharacterRig['ankleL'], heel: number[], ball: number[]): 
 /**
  * (N1 merge) The planted feet's slide as e2e-anim reads it (metrics.ts `footSlide`, N1 decisions 1 / 2): a plant the
  * planner anchors (N1's held contact: the ankle rolls / pivots round the heel or ball by design) at its contact points,
- * any other plant (the clip's pinned feet among them) at the ankle. A plant whose holder changes (the planner's anchored
+ * any other plant at the ankle. (mt2-fixF) The clip's plants are anchored too now (held at the heel / ball as the clip's
+ * stance pitch rolls), so they read at the contact; before, pinned at the ankle, they read at the ankle. A plant whose holder changes (the planner's anchored
  * foot taken over by the clip at a turn's end, or handed back) is read in its parts, each by its own holder's measure.
  * Worst over both feet (m).
  */
@@ -233,8 +234,11 @@ export function gaitNumbers(R: Rec, C: Ranges): GaitNumbers {
   const knee = kneeSeparation(P.hipL, P.hipR, P.kneeL, P.kneeR, C.kneeSep.min, C.kneeSep.max);
   const track = footTrack(P.hipL, P.hipR, P.ankleL, P.ankleR, C.trackHalf, R.contactL, R.contactR);
   const bow = kneeBow(P.hipL, P.hipR, P.kneeL, P.kneeR, P.ankleL, P.ankleR, C.kneeBow);
-  const sL = plantedSlide(P.ankleL, R.contactL, C.slide);
-  const sR = plantedSlide(P.ankleR, R.contactR, C.slide);
+  // (mt2-fixF) the planted feet as e2e-anim's foot locking reads them (metrics.ts footSlide): a plant the planner anchors (N1's
+  // held contact; since fix F the clip's plants too: the ankle travels with the clip's heel-to-toe roll by design, 6 cm in
+  // a walk stance) at its heel / ball while each is down, any other plant at the ankle. Was every plant's ankle. Limit kept
+  const sL = footSlide(P.ankleL, R.heelL, R.ballL, R.contactL, R.heldL, C.slide);
+  const sR = footSlide(P.ankleR, R.heelR, R.ballR, R.contactR, R.heldR, C.slide);
   const wing = elbowWing(P.shoulderL, P.shoulderR, P.elbowL, P.elbowR, C.elbowWing);
   const slide = Math.max(sL.worst, sR.worst);
   const out = [!knee.pass && 'knees', !track.pass && 'track', !bow.pass && 'knee-out', slide >= C.slide && 'slide', !wing.pass && 'elbows'].filter((x): x is string => !!x);
