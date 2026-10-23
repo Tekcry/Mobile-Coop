@@ -9,6 +9,7 @@ import type { LaserDef } from '../game/jammer';
 import type { LaserPanelDef } from '../game/laserPanels';
 import type { PassZone } from '../game/ctDevices';
 import type { ScannerDef } from '../game/scanners';
+import type { CampusArtLayout } from './maps/campusDress';
 import type { CourseLayout } from '../game/course/courseDef';
 import type { SectorDef } from '../game/sectors';
 import type { BoardDef } from '../game/isolators';
@@ -102,6 +103,8 @@ export interface MapLayout {
    *  `camSize`; neither given: the camera's probes decide (`world/camSpaces.ts`). Local only. */
   camSpaces?: CamSpace[];
   camSize?: CamSize;
+  /** (sector-redesign ART-KIT) The campus art placements (`maps/campusDress.ts`), drawn by `CampusArtRender`; gameplay never reads them. */
+  campusArt?: CampusArtLayout;
 }
 
 export interface MapDef {

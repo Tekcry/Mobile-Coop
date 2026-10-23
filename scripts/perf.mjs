@@ -63,9 +63,11 @@ const BUDGET = GPU ? { ...CLOUD_BUDGET, ...LOCAL_BUDGET } : CLOUD_BUDGET;
 const stealth = !!process.env.STEALTH;
 // MAP=embassy: the embassy court (the same ten enemies)
 const MAP = process.env.MAP ?? 'warehouse';
+// (sector-redesign ART-KIT) MODE=sector: the mode in the URL (e.g. MAP=campusOps MODE=sector); unset: as before
+const MODE = process.env.MODE;
 const { browser, page, errors } = await launch({
   url,
-  params: `autostart=${MAP}&mode=${stealth ? 'clear' : 'mission'}&debug=1${preset ? `&gfx=${preset}` : desktop ? '&gfx=epic' : ''}${process.env.WARM ? '&warm=' + process.env.WARM : ''}${process.env.EXTRA ? '&' + process.env.EXTRA : ''}`,
+  params: `autostart=${MAP}&mode=${MODE ?? (stealth ? 'clear' : 'mission')}&debug=1${preset ? `&gfx=${preset}` : desktop ? '&gfx=epic' : ''}${process.env.WARM ? '&warm=' + process.env.WARM : ''}${process.env.EXTRA ? '&' + process.env.EXTRA : ''}`,
   ...(desktop ? { viewport: { width: 640, height: 360 } } : {}),
 });
 if (heavy) await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 300000 });
