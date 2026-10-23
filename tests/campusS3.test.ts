@@ -167,7 +167,7 @@ function cycle(g: SectorGuard): number | null {
 describe('S3 guards (SPEC "S3" guard table)', () => {
   it('sixteen guards: kinds and weapons as listed, all armed humans (checkSectorGuards), no dogs, the live cap holds', () => {
     expect(G.length).toBe(16);
-    expect(G.map((g) => g.kind)).toEqual(['officer', 'officer', 'grunt', 'grunt', 'officer', 'grunt', 'grunt', 'grunt', 'officer', 'grunt', 'officer', 'officer', 'officer', 'grunt', 'enforcer', 'grunt']);
+    expect(G.map((g) => g.kind)).toEqual(['officer', 'officer', 'grunt', 'grunt', 'officer', 'grunt', 'grunt', 'grunt', 'officer', 'grunt', 'officer', 'officer', 'officer', 'grunt', 'officer', 'grunt']);
     expect(G.every((g) => !!ENEMIES[g.kind].weapon && !ENEMIES[g.kind].quadruped)).toBe(true);
     expect(checkSectorGuards(S3)).toEqual([]);
     expect(S3.dogs ?? 0).toBe(0);

@@ -201,7 +201,7 @@ const S3_GUARDS: SectorGuard[] = [
   // 14 the east yard patrol: outside the east wall, 38 s
   { kind: 'grunt', x: 67, z: -26, yaw: 0, route: [[67, -26], [67, -10]], waits: [3, 3], faces: [0, PI], takedownSpot: [67, -10], role: 'patrol', dormant: true, zone: 's3-yard', squad: 4, reason: "Walks the yard outside the hall's east wall" },
   // 15 the shift supervisor (L1): the back corridor's north end <-> the security room door, 40 s
-  { kind: 'enforcer', x: 43.6, y: Y1, z: -0.8, yaw: PI, route: [[43.6, -0.8], [57, -0.8]], waits: [4, 6], faces: [PI, PI], takedownSpot: [43.6, -0.8], role: 'supervisor', zone: 's3-l1', squad: 1, reason: 'Visits every post on L1 and checks in with the security room' },
+  { kind: 'officer', x: 43.6, y: Y1, z: -0.8, yaw: PI, route: [[43.6, -0.8], [57, -0.8]], waits: [4, 6], faces: [PI, PI], takedownSpot: [43.6, -0.8], role: 'supervisor', zone: 's3-l1', squad: 1, reason: 'Visits every post on L1 and checks in with the security room' },
   // 16 the crane-bay sentry: a sweep inside the hall's west door, facing the hall, +-50 degrees, 12 s each way
   { kind: 'grunt', x: 25, z: -19, yaw: PI / 2 - 0.87, route: [[25, -19], [25, -17]], waits: [12, 12], faces: [PI / 2 - 0.87, PI / 2 + 0.87], takedownSpot: [24.4, -18], role: 'sentry', zone: 's3-hall', squad: 2, reason: 'Minds the hall door from the HQ side' },
 ];
