@@ -424,9 +424,12 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
 /** (ct-prototype E2) A climb-up keeps the hands planted on the top until the knee is on: 1 - smooth((k - k0) / span).
  *  (F5) Released only after the knee plant (the CLIMB_UP clip plants it by k 0.56, the root is on the top by 0.59): 0.6 - 0.74.
  *  (G4) The retimed clip plants the knee by 0.36 (0.47 s), the root is on the top by 0.38: 0.38 - 0.5 (0.49 - 0.65 s).
- *  (traverse-fix-2) The clip keeps the chest low over the lip now (shoulders within reach): the palms stay on it until the
- *  right foot is on the top, 0.52 - 0.64 (0.68 - 0.83 s), off before the crouch (CLIMB_UP_CROUCH_K 0.654). Undo: 0.38. */
-export const CLIMB_UP_HANDS = { k0: 0.52, span: 0.12 };
+ *  (traverse-fix-2, kept) The clip keeps the chest low over the lip now (shoulders within reach): the palms stay on it
+ *  until the right foot is on the top (k 0.474), then let go over 0.475 - 0.643 (0.62 - 0.84 s), off before the crouch
+ *  (CLIMB_UP_CROUCH_K 0.654, where a climb-up with the stick released ends). The longest release that fits keeps the
+ *  wrists' per-frame velocity change under 3 cm (tests/climbHands.test.ts). Undo: { k0: 0.38, span: 0.12 } with the
+ *  pre-traverse-fix-2 CLIMB_UP keys (the palms left the lip from k 0.32); the interim 0.52 / 0.12 slid the palms 4.7 cm. */
+export const CLIMB_UP_HANDS = { k0: 0.475, span: 0.168 };
 
 /** (G4) Crawling out of a duct the hands leave the duct floor over the first share of the exit (the clip's hands take over). */
 export const CRAWL_OUT_HANDS = 0.25;
