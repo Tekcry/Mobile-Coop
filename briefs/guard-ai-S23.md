@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-23T08:29Z
 # guard-ai S23: every player is seen (co-op perception)
 
 Lead: Night Shift | Guard AI Build. Model: Opus (AI perception code). The full strict brief is
