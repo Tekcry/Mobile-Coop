@@ -230,6 +230,7 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
 | 2026-10-23 | #178 | 4.65.0: train 16: guards see poorly above (#169), deploy reload waits for the menu (#176), load-robust e2e (#170-#175), decisions G276-G281 (#168) |
 | 2026-10-23 | #181 | 4.66.0: train 17: guards hear by range, one investigator per noise (guard-ai S1, #179) |
 | 2026-10-23 | #183 | 4.67.0: train 18: mocap batch 1, default off (#182), shorter camera range on all maps (#177) |
+| 2026-10-23 | #224 | 4.75.0: train 26: guard render anim tiers (#212), Sector Ops campus S4 / S5, weapons crate, cameras (#215), glass, armoured routes, posts (#217), mocap strafe (#221) |
 | 2026-10-23 | #222 | 4.74.0: train 25: Guard AI squad tactics (#200), Sector Ops guard tags (#201), alarms and reinforcements (#202), talking pairs (#203), helmets and body armour (#208); guard render GPU buffer share (#213) |
 | 2026-10-23 | #216 | 4.73.0: train 24: guard render moon shadow caster lists (#209, S6 without S6d), guard head hit volume from the sim (#211, S3a); #207 left out on e2e-clip ladder knees |
 | 2026-10-23 | #210 | 4.72.0: train 23: guard render merged bodies and anim cuts (#204, #205), Sector Ops campus sections 2-3 (#206) |
