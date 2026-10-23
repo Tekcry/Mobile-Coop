@@ -46,7 +46,10 @@ export type BarkEvent =
   | 'shotsReport'
   | 'missingReport'
   // (guard-ai S17) sent to a tripped device (a laser beam, a camera's alarm)
-  | 'tripped';
+  | 'tripped'
+  // (guard-ai S22) a security console found switched off: he turns it back on; off again soon after: he checks it
+  | 'console'
+  | 'consoleCheck';
 
 export const BARKS: Record<BarkEvent, readonly string[]> = {
   suspicious: ['Huh?', 'What was that?', 'Hello?', 'Something there...'],
@@ -87,6 +90,9 @@ export const BARKS: Record<BarkEvent, readonly string[]> = {
   missingReport: ["Control, a unit's not answering. All units, stay sharp.", 'Control, we have a man not checking in. Eyes open.'],
   // (guard-ai S17) original lines, written to be voiced later (G82)
   tripped: ['Sensor tripped. Moving to check.', "Alarm point's lit. On my way."],
+  // (guard-ai S22) original lines, written to be voiced later (G82)
+  console: ["Console's dropped out again. Getting it back up.", 'Monitors are dark. Switching them back on.'],
+  consoleCheck: ["Console's off again. Someone's been at it. Checking.", 'Monitors down twice now. Taking a look.'],
 };
 
 /**
@@ -106,7 +112,7 @@ export function unitWord(n: number): string {
 }
 
 /** Radio lines (a chirp plays with them). */
-export const RADIO_BARKS: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['radioCheck', 'radioOk', 'missed', 'alarm', 'drone', 'search', 'callIn', 'ack', 'checking', 'lightOut', 'standDown', 'missing', 'koReport', 'deadReport', 'command', 'shotsReport', 'missingReport']);
+export const RADIO_BARKS: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['radioCheck', 'radioOk', 'missed', 'alarm', 'drone', 'search', 'callIn', 'ack', 'checking', 'lightOut', 'standDown', 'missing', 'koReport', 'deadReport', 'command', 'shotsReport', 'missingReport', 'consoleCheck']);
 /** Urgent lines cut through a speaker's cooldown. (guard-ai S14) `missed` too: it follows his own "Radio check." at once. */
 const URGENT: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['contact', 'body', 'blind', 'grenade', 'alarm', 'callIn', 'koFound', 'koReport', 'deadReport', 'command', 'missed', 'shots', 'shotsReport', 'missingReport']);
 

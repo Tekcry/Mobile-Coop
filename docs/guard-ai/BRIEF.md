@@ -448,3 +448,36 @@ reported, they need a sense of urgency when it makes logical sense." A100-A119 a
   or refused) with somewhere to go, under a quarter of his pace, for `SEPARATION.stall` 1 s, a guard squeezes past for
   `SEPARATION.squeeze` 2 s: the soft push only (as before S20, no sidestep, no hard cut), so they brush past in a narrow
   gap and nobody waits forever; a man standing in his way is passed the same way. Undo: `SEPARATION.stall` very large.
+- **A128** (S22) G6 Michael, verbatim: "if i turn it off while hes distracted, he should notice when he sees it and turn
+  it back on also." He notices a console off only when he sees its screens (`CONSOLE_FAULT.screenY` 1.1 m over its floor):
+  in his focused cone within `range` 12 m, or his peripheral field within `near` 4 m (Marlow's officer at his post has
+  the console about 51 degrees off his facing, outside the 27.5 degree focused cone), with one clear ray or in the room
+  he stands in; at the switch-off or later on the late-discovery clock (about 3 looks a second per guard). Never through
+  walls, never by radio. Undo: the `CONSOLE_FAULT` numbers.
+- **A129** (S22) Distracted means not free: on a board task (a noise, a light, a body), investigating, searching,
+  suspicious or in combat, held, or running the alarm. Such a guard never
+  notices; once he is unaware or cooling down and free again, the next time he looks at it he does. A high-security post
+  (S5 `secure`, the board never sends one), a dog and a melee kind never notice. Undo: `EnemyManager.consoleFree`.
+- **A130** (S22) Reuse, not a copy: a console is a pseudo circuit (`CONSOLE_GROUP` 50000 + its index) on the S15 breaker
+  walk and the board's `breaker` / `light` incidents, so it keeps S15's numbers: one walker (nearest by path), patrol
+  pace, `BREAKER.resetT` 2 s at the console, `BREAKER_WALK.giveUp` 30 s, `BREAKER.repeatT` 60 s. Undo: separate numbers
+  in `CONSOLE_FAULT` read by `Enemy.breakerStep` for console groups.
+- **A131** (S22) Tampering: a second switch-off noticed within 60 s of the last noticed one is the S2 light check at the
+  console (1-2 go, the look, the 4-point ring, the radio report, line `consoleCheck`). Unlike a tampered breaker (left
+  off after the check), once the check is over (its incident closed) the next guard who sees the console still off
+  turns it back on: a console left off for good would make the second press free. Undo: in `ConsoleFaults.notice`, a
+  tampered cut never becomes `V_FAULT`.
+- **A132** (S22) A walk dropped on the way (he was drawn off again, gave up after 30 s, nobody was free): the console is
+  noticed again by the next guard who sees it, after `CONSOLE_FAULT.retry` 3 s, as the same cut (the reset walk, never
+  "a second cut"). S15's breaker reacts once per cut; the console keeps trying while it is off. Undo: `retry` Infinity.
+- **A133** (S22, game side, applied after marlow-final merges: `slices/S22.md`) A guard's reset ends the console's
+  loop as if it ran out: the flag clears, the cameras come back on both machines, the pickup gate closes and a timed
+  console's re-arm (`rearm`, 20 s on Marlow's A4 console) starts. Undo: `CourseState.consoleBack` sets no re-arm.
+- **A134** (S22, game side, same) The refusal "The guard is watching the monitors" holds only while the console's guard
+  is watching it now (`EnemyManager.watchesConsole`: calm, free, the screens in view with a clear line), not while he is
+  alive anywhere: G6's "turn it off while hes distracted" needs the console usable while he is drawn away. The refusal
+  text may want "Take him out or draw him away first." (Marlow Build's call). Undo: keep `guard.alive`.
+- **A135** (S22) Lines (original, G82): `console` ("Console's dropped out again. Getting it back up." / "Monitors are
+  dark. Switching them back on.", not a radio line, as `breaker`) and `consoleCheck` (a radio line, as `lightOut`).
+  Host only, no protocol change; when S9's wire list of bark events (`BARK_EVENTS`, append only) merges, `console` and
+  `consoleCheck` go at its end. Undo: drop the two lines (the walk barks `breaker`, the check `lightOut`).

@@ -357,6 +357,19 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   `ready` (holstered), `swap` / `swapFrom` / `swapTo` (the draw / holster clip, one slot) and `aim` (none while holstered);
   `armed`, `thighGear` and `weaponTravel` follow the `WeaponModel` (`holster` / `beginTravel` / `travel` / `hold`). Sniper,
   enforcer, melee kinds and dogs never holster. Host only: co-op puppets stay at low ready (no wire field; WALK.md S21).
+- Security consoles (guard-ai S22, walk 4.72 G6, A128-A135; `ai/consoleFault.ts` pure: `ConsoleFaults`, `consoleInView`,
+  numbers `CONSOLE_FAULT`): a console switched off is a breaker-style fault. The game reports every toggle
+  (`EnemyManager.consoleState(id, x, floorY, z, on)`) and turns one back on through `EnemyManager.consoleHost`
+  (`ConsoleHost.reset(id)`, its own toggle path). A calm, free guard (unaware or cooldown, no board task, not held, not
+  a dog, melee kind or high-security post) notices it only when he sees its screens (1.1 m up: the focused cone to 12 m,
+  the peripheral field to 4 m, a clear ray or the same room): at the switch-off, or later on a round-robin scan on the
+  late-discovery clock, so a guard drawn off by a distraction notices once he is back and looks at it. The console rides
+  the S15 machinery as a pseudo circuit (`CONSOLE_GROUP` 50000 + index): a `breaker` incident, one walker, `resetBreaker`
+  (bark `console`, patrol pace, 2 s at the console, `breakerReset` -> `consoleHost`), calm after. A second cut noticed
+  within `BREAKER.repeatT` 60 s is the S2 `light` check at the console (bark `consoleCheck`); once that check is over the
+  next guard who sees it still off turns it back on, and a dropped walk is noticed again (`CONSOLE_FAULT.retry` 3 s).
+  `watchesConsole(e, x, floorY, z)` tells the game whether a guard is watching it now (the refusal). Game-side wiring
+  (CourseMode, after marlow-final): `docs/guard-ai/slices/S22.md`. Host only, no protocol change.
 - Sound: `world/surfaces.ts` (pure) `surfaceAt` scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice. Shots:
   `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise` (combat); `onRay` hits
   are heard within `IMPACT_NOISE`.

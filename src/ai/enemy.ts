@@ -41,6 +41,7 @@ import { placeTorch } from '../world/torches';
 import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
 import { INCIDENT, MODE_BODY, MODE_BREAKER, MODE_COVER, MODE_DEVICE, MODE_HELP, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT } from './incidents';
 import { BREAKER_WALK } from './breaker';
+import { isConsoleGroup } from './consoleFault';
 import { P_AGGRESSIVE, P_STANDARD, profileOf, R_FLANK, R_NONE, R_OVERWATCH, R_POINT, R_REPORTER, R_SEARCH, ROLES, Rng, type BehaviourProfile as TacticsProfile, type Role } from './squadRoles';
 import type { GuardInfo } from './guardInfo';
 import type { CallKind } from './radioNet';
@@ -963,7 +964,7 @@ export class Enemy implements Damageable {
    * s at the spot), say "nothing here" and go back to his route calm (no cooldown: "return back to normal"). `slot` 1:
    * the second of a pair (his ring starts offset). Torch on in the dark (the investigating torch rule).
    */
-  checkLight(x: number, z: number, incident: number, slot = 0): void {
+  checkLight(x: number, z: number, incident: number, slot = 0, line: BarkEvent = 'lightOut'): void {
     if (!this.sendable) return;
     this.incident = incident;
     this.incMode = MODE_LIGHT;
@@ -973,7 +974,8 @@ export class Enemy implements Damageable {
     this.stimulus[1] = z;
     this.hasStimulus = true;
     // (guard-ai S3) his report is a radio call: the section hears it once it completes (an ack, nothing more)
-    this.bark('lightOut');
+    // (guard-ai S22) a security console switched off again: its own line
+    this.bark(line);
     this.ctx.radioCall?.(this, incident, 'light');
     const from = this.aware.level;
     if (from !== 'investigating') {
@@ -1115,7 +1117,8 @@ export class Enemy implements Damageable {
     this.brkT = 0;
     this.brkWalkT = 0;
     this.routePath.length = 0;
-    this.bark('breaker');
+    // (guard-ai S22, G6) a security console rides the same walk (a pseudo circuit): its own line
+    this.bark(isConsoleGroup(group) ? 'console' : 'breaker');
   }
 
   /** (guard-ai S15) The walk is over (done, given up, dropped): off the board's task, back to his route. */
