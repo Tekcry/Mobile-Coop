@@ -205,6 +205,9 @@ export interface NetAttachment {
   /** Host, Sector Ops: send the devices' state (cameras, jams, alarm stage) and the step 3 extras (live section, door
    *  locks, shot cameras, syringes) to every client. */
   sector?(sec: SecWire, extra: SectorNetExtra): void;
+  /** (sector-redesign EW5) Host, Sector Ops: a radio line (a keypad code found) shown to every client: the existing
+   *  `feed` event, no wire change. */
+  radioLine?(text: string): void;
   /** Host, Sector Ops: revive syringes left this op (co-op only). */
   revivesLeft?(): number;
   /** Host, Sector Ops: every guard a client holds (takedown grab, hostage) is let go, before a section unloads. */

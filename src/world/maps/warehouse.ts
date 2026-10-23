@@ -507,11 +507,7 @@ export function buildWarehouse(b: LevelBuilder, o: WarehouseOpts = {}): MapLayou
       { id: 'cache', pos: v(15, 16.3, 2.6), kind: 'cache' },
       { id: 'extract', pos: v(18.5, -23.2), kind: 'extract' },
     ],
-    pickups: [
-      { pos: v(-12.5, -16), kind: 'ammo' },
-      { pos: v(-14.5, 5.2), kind: 'ammo' },
-      { pos: v(8.5, -15.5), kind: 'ammo' },
-    ],
+    pickups: [],
     rooms: ROOMS,
     switches: [
       { pos: v(-4.15, -13), yaw: -Math.PI / 2, group: 0 },
