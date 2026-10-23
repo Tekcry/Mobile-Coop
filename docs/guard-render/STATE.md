@@ -317,3 +317,13 @@ S4 doubts (for the checker):
 4. Stagger uses a per-guard tick from spawn, so guards spawned on different frames mix their phases; the slot keeps
    a batch spawn even, a mixed population is spread but not exactly even.
 5. Pinned list choices beyond the brief: climbing (a traverse clip). Near-player radius 4 m is a guess.
+
+Checker (Opus, fresh, 2026-10-23): PASS WITH NOTES. Carry exact, glide every frame, pinned / near-player full rate,
+no gameplay reader of the stale pose, the off-screen test right in Babylon 9 (shadow / RTT passes cannot match).
+Polish list: (1) animTierView.ts:39 - with freezeActiveMeshes / snapshot rendering the observer never fires and every
+guard reads off-screen: treat scene._activeMeshesFrozen as seen if either is ever turned on; (2) enemy.ts:2090 - rp.kick
+decays every frame, recoil pulses on skipped frames are lost (off-screen / far only); (3) enemyPuppet.ts:312-314
+(pre-existing, src/net): the client puppet's hit head is the rendered rig, the host's is the S3a sim head; build the
+puppet hit head from guardHead later.
+e2e GREEN on adcd5fa7 (laptop GPU, JOBS=3, wall 330 s): smoke, stealth-ai, takedown, enemies, sectorops:1-5,
+ctcourse:1-3, coop, netmove, anim (15/15). Measure (guard-cap, ?animtier=0 vs on, 4189 alone) still to run.
