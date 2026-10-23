@@ -12,6 +12,13 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 - Player Build alone-guard-bake-probe bbd49206 FAIL = missing C:/NightShift/downloads/mpfb2-2.0.18 zip (setup, not
   game). Told Player Build; a download needs Michael's OK.
 - Still open from SAVE 27: Marlow log-excerpt ask waits on Michael.
+- ~23:20: train 36 PASS 42/43 (e2e-pad known flaky). feature/laptop-queue (#252) now bf0059cb, laptop service live on
+  it (start 23:18), train 37 8cea5195 running: cc56baed second desktop slot 4192 (heavy2.lock, CPU < 50, one start per
+  pass) + request flake reruns stay on their own slot; bf0059cb supersede (same requester + kind, same set or
+  descendant sha covering all suites; never different sets / alone / no requester) and newest-first per requester.
+  Orchestrator has both shas; it must create the desktop Mobile-Coop-testrun-4192 worktree.
+- OPEN: Michael to answer whether 3 superseded requests (Sector Ops 6eb6a863, bb47a985; Guard AI ef44eea5-08d4) are
+  dropped by hand (auto mode blocked my claims push); bf0059cb may supersede them itself.
 
 **Test Runner SAVE 27 (2026-10-23 ~22:10, swap save; wins over SAVE 26 where they differ):**
 - Service restarted ~21:57 (Michael OK): now e1398df4, pid 30620, "done claim(s) pushed: 11" (desktop lane live; SAVE
