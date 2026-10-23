@@ -5,7 +5,7 @@ import { MASK } from '../physics/groups';
 import { CAMERA } from '../config/security';
 import { hyp3 } from '../core/mathx';
 import { CameraUnit, cameraRate, nearestHousing, stepCamMeter, type CamMeter } from './camera';
-import type { SecurityData } from './data';
+import { cameraAlertsGuards, type SecurityData } from './data';
 import type { SecurityView } from './securityView';
 
 /** What the system needs from the match (kept small so tests and the view stay independent of `GameState`). */
@@ -210,7 +210,8 @@ export class SecuritySystem {
     const ray = this.host.ballistics;
     for (let i = 0; i < this.cameras.length; i++) {
       const c = this.cameras[i]!;
-      if (!c.sees || c.frozen) continue;
+      // (guard-ai walk 4.82 item 6) a training camera (`guardResponse` false) reports no body: no guard response
+      if (!c.sees || c.frozen || !cameraAlertsGuards(c.def)) continue;
       const seen = this.bodySeen[i]!;
       for (let j = 0; j < bodies.length; j++) {
         const b = bodies[j]!;

@@ -69,7 +69,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   1.2 / 1.3); walking to wake a KO'd squadmate 1.3; cautious patrol 0.95 (guard-ai S4; not on a timed loop).
   Coordinated searching turns at the calm rate.
 - Pace and patience: `PATROL.wait` 5.5 s, glances every 10 s, `searchLook` 3 s, `hearLook` 2.4 s; `ENEMY_CALM_MOTION` (60
-  deg/s turns while not in combat; parked modes: not searching either). Combat: `ALERT.lostSight` 12 s, `searchTime` 60 s; after combat a guard
+  deg/s turns while not in combat; parked modes: not searching either). Combat: `ALERT.lostSight` 12 s (`lostSightClosing` 30 s while he moves up on the last known position, walk 4.82), `searchTime` 60 s; after combat a guard
   never returns to unaware (`AlertMachine.fought`).
 - Alerts and the radio (guard-ai S3, design 5, M5; `ai/radioNet.ts` pure, `EnemyManager.radioNet`, coordinated modes):
   a guard who goes to combat on his own (a sighting, a hit, gunfire close by, the end of a flashbang, spawned alerted)
@@ -229,6 +229,16 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   while his call is open (`inCover` runs the radio hold before `tactics`; in `attack` he fights with his rifle only).
   A path failure blocks the cover. While a group has roles the single
   `flanker` is cleared; otherwise `assignFlanker` as before. Barks `moving` / `covering` / `flanking`.
+- Report, then engage (guard-ai walk 4.82 item 2, Michael: "He should report then attack you instead of hiding";
+  coordinated modes, stealth): the caller is the group's reporter only while his call is open (`radioNet.pendingFor`:
+  the contact, then a command call); once it is through he takes a fighting role. A guard with no holding role (lone,
+  `R_NONE`, or a group's `R_SEARCH`) in cover with his call through (`AiContext.radioOpen`), unseen for one whole peek
+  (`ENGAGE.peekWait` 4.2 s, `closeFromCover` in `squadRoles.ts`, pure) leaves it and moves up on his intruder's last
+  known position (the chase branch's cover-to-cover advance; not a high-security post, not outside a hold). While he
+  closes on it (`Enemy.closingIn`, also a point's bound) the alert machine's lost-sight cap is `ALERT.lostSightClosing`
+  30 s (`AlertInput.closing`), so arriving there with nothing to see starts the search, not the 12 s timer in cover;
+  the position is kept while he fights and searches (`huntingOf`). Parked modes unchanged. Tests:
+  `tests/loneGuardEngage.test.ts`, `squadWiring.test.ts`, `twoIntruders.test.ts`; e2e: e2e-stealth-ai 'report then engage'.
 - Combat dice (S8, A24): `Enemy.rng` (mulberry32) reseeded `combatSeed(matchSeed, engagement, num)` on going to
   combat; `tacticsProfile` (`placeSlot`: `P_POST` with a post, `P_AGGRESSIVE` for an aggressive slot, else `P_STANDARD`;
   kept by `Enemy.inherit`) weights cover-first (standard 0.85) and the roles (`P_POST` never point or flank). A
@@ -357,6 +367,11 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   and the alarm's reinforcements within `DEVICE.fresh` s with no last known position search there too
   (`joinAsResponder`, never calm) instead of combat. Nothing reads the player's position; no last known position is set.
   (S24, A148: a guard in combat with no position for his intruder no longer walks to the player's feet either.)
+  Training cameras (guard-ai walk 4.82 item 6, Michael: "the guard should be non hostile and not respond to you being
+  detected on the camera"): `CameraDevice.guardResponse: false` (`security/data.ts`, read by `cameraAlertsGuards`)
+  makes no `alertAt` call (`CtDevices.onCamera`: no device incident, nobody sent, no radio, no investigation) and no
+  body report (`SecuritySystem.bodyPass`); its meter, cue, the course's own rules (a hallway send-back) and the alarm
+  stage run as before. Off by default (absent = true). Test: `tests/trainingCamera.test.ts`.
 - Search kinds (guard-ai S18, walk 4.72 G2, A106-A108; `ai/response.ts` pure, numbers `BODY_SEARCH` in `ai/gear.ts`):
   a calm search has a kind (`Enemy.searchKind`: plain, body, device) whose `SearchSpec` sets its length
   (`AlertInput.searchFor`), its ring (`ringPoint`: first radius, step, cap) and the look per point. A dead body found

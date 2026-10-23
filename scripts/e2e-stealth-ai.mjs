@@ -502,6 +502,7 @@ try {
         const hid = { x: +g.player.position.x.toFixed(2), z: +g.player.position.z.toFixed(2) };
         let ghost = false;
         let searching = false;
+        let searchAt = -1;
         let closest = 99;
         let wallhack = false;
         // why no ghost, if none: the first frame each condition of `updateStealthHud`'s show held
@@ -516,16 +517,24 @@ try {
           if (why.lkp < 0 && em.lkpValid) why.lkp = i;
           if (why.show < 0 && g.ghost.show) why.show = i;
           if (g.ghost.visible) ghost = true;
-          if (e.level === 'searching') searching = true;
+          if (e.level === 'searching' && !searching) {
+            searching = true;
+            searchAt = (i + 1) * 0.05;
+          }
           closest = Math.min(closest, Math.hypot(e.pos.x - seenAt.x, e.pos.z - seenAt.z));
           if (e.level === 'alert' && e.sinceSeen > 1 && Math.hypot(e.pos.x - 0, e.pos.z + 20) < 2) wallhack = true;
         }
         const lkpNear = Math.hypot(em.lkp.x - seenAt.x, em.lkp.z - seenAt.z);
-        // the search ends
-        for (let i = 0; i < 50; i++) t.step(1);
+        // the search ends: it runs its length (`ALERT.searchTime` 60 s) from when it started, then he calms. (guard-ai
+        // walk 4.82 item 2) He no longer sits in cover until the 12 s lost-sight cap: he closes on the last known
+        // position first and the search starts on arrival, so it starts later than the old fixed 25 + 50 s window
+        // allowed for. Stepped until the level leaves the fight / search, bounded by the search's own length + 5 s (a
+        // search that never ends, or one that restarts, still fails here).
+        for (let i = 0; i < 120 && (e.level === 'alert' || e.level === 'searching') && !(e.level === 'searching' && e.aware.t >= 65); i++) t.step(1);
+        const endT = e.aware.t;
         for (let i = 0; i < 5; i++) g.frameUpdate(0.2, 1);
         t.light(null);
-        return { seen, why, lkpNear, ghost, searching, closest, wallhack, hid, end: e.level, guard: { x: +e.pos.x.toFixed(1), z: +e.pos.z.toFixed(1) }, lkpAfter: em.lkpValid, ghostAfter: g.ghost.visible };
+        return { seen, why, lkpNear, ghost, searching, searchAt, endT, closest, wallhack, hid, end: e.level, guard: { x: +e.pos.x.toFixed(1), z: +e.pos.z.toFixed(1) }, lkpAfter: em.lkpValid, ghostAfter: g.ghost.visible };
       } finally {
         Math.random = rnd;
       }
@@ -534,10 +543,79 @@ try {
     assert(r.lkpNear < 1.5, `the last known position stays where the player was seen (${r.lkpNear.toFixed(2)} m off)`);
     assert(r.ghost, `the LKP ghost shows once they lose sight (first frame of: ${JSON.stringify(r.why)}, captured ${r.seen.captured})`);
     assert(r.closest < 2.5, `they converge on the last known position (closest ${r.closest.toFixed(2)} m)`);
-    assert(r.searching, 'they search from it');
+    assert(r.searching, `they search from it (from ${r.searchAt.toFixed(2)} s after he vanished)`);
     assert(!r.wallhack, `they never home in on the hidden player (hidden at ${JSON.stringify(r.hid)})`);
-    assert(r.end === 'cooldown' || r.end === 'unaware', `the search ends (${r.end}; guard at ${JSON.stringify(r.guard)}, player at ${JSON.stringify(r.hid)})`);
+    assert(r.end === 'cooldown' || r.end === 'unaware', `the search ends (${r.end}; started ${r.searchAt.toFixed(2)} s after he vanished, ${r.endT.toFixed(0)} s in that level at the end; guard at ${JSON.stringify(r.guard)}, player at ${JSON.stringify(r.hid)})`);
     assert(!r.lkpAfter && !r.ghostAfter, 'the LKP and its ghost clear afterwards');
+  });
+
+  await scen('report then engage', async () => {
+    // (guard-ai walk 4.82 item 2, Michael: "s2 guard sees you, hides, reports, and forgets where you are and becomes
+    // cautious. That's not logical at all. He should report then attack you instead of hiding.") A lone guard spots the
+    // lit player and radios it in; the player vanishes out of sight. Once the call is through he does not sit in cover
+    // until the lost-sight timer turns the fight into a search: he moves up on the last known position still in combat
+    // (alert), never leaving cover while his call is open, and the search starts there with the position kept.
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const rnd = Math.random;
+      let seed = 4821;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      try {
+        t.light(1);
+        // the contact call only (no command call: the alarm run would bring Hunter's reinforcements)
+        em.alarmRaised = true;
+        const e = t.spawn('grunt', 0, 5, Math.PI);
+        t.tp(-0.5, 0, 0);
+        let k = 0;
+        while (!(e.alerted && em.sightT < 0.1) && k++ < 900) t.step(1 / 60);
+        const seen = { alerted: e.alerted, call: +em.radioLeft(e).toFixed(2), lkp: em.lkpValid };
+        const at = { x: em.lkp.x, z: em.lkp.z };
+        // out of sight behind the dispatch wall, far from the last known position
+        t.light(0);
+        t.tp(-2, -15, 0);
+        let time = 0;
+        let callDone = -1;
+        let leftEarly = false;
+        let prev = e.state;
+        let wasInCover = false;
+        let arrived = null;
+        let searchAt = -1;
+        let lkpAtSearch = false;
+        let wallhack = false;
+        let closest = 99;
+        for (let i = 0; i < 700 && searchAt < 0; i++) {
+          for (const x of em.enemies) if (x !== e) x.passive = true;
+          t.step(0.05);
+          time += 0.05;
+          const open = em.radioLeft(e) > 0;
+          if (callDone < 0 && !open) callDone = time;
+          if (e.state === 'inCover') wasInCover = true;
+          if (prev === 'inCover' && e.state === 'chase' && open) leftEarly = true;
+          prev = e.state;
+          const d = Math.hypot(e.pos.x - at.x, e.pos.z - at.z);
+          closest = Math.min(closest, d);
+          if (!arrived && d < 2) arrived = { level: e.level, t: +time.toFixed(2), unseen: +e.sinceSeen.toFixed(2) };
+          if (e.level === 'alert' && e.sinceSeen > 1 && Math.hypot(e.pos.x + 2, e.pos.z + 15) < 2) wallhack = true;
+          if (e.level === 'searching') {
+            searchAt = time;
+            lkpAtSearch = em.lkpValid && em.lkpOf(e.hunt) !== null;
+          }
+        }
+        t.light(null);
+        return { seen, callDone, leftEarly, wasInCover, arrived, closest, searchAt, lkpAtSearch, wallhack, end: e.level };
+      } finally {
+        Math.random = rnd;
+      }
+    });
+    const f = (v) => v.toFixed(2);
+    assert(r.seen.alerted && r.seen.lkp, `the guard detects the lit player and sets the last known position (${JSON.stringify(r.seen)})`);
+    assert(r.seen.call > 0 && r.callDone > 0, `he radios it in (call ${f(r.seen.call)} s, through at ${f(r.callDone)} s)`);
+    assert(!r.leftEarly, `he does not leave his cover while the call is open (in cover: ${r.wasInCover})`);
+    assert(r.arrived && r.arrived.level === 'alert', `he moves up on the last known position still in the fight, not a search (${JSON.stringify(r.arrived)}, closest ${f(r.closest)} m)`);
+    assert(r.searchAt > 0 && r.lkpAtSearch, `the search starts there and the position is kept (${f(r.searchAt)} s, ${r.lkpAtSearch})`);
+    assert(!r.wallhack, 'he never homes in on the hidden player');
   });
 
   // (guard-ai S25, A151) The probable-area search after combat (S25.md "e2e", S25B-CHECK-B.md draft). One sighting of
@@ -684,7 +762,11 @@ try {
           // walled spot through the x -4 gap at z 8-9.1 (round 4: the LKP moved onto it at 2.2 s). A searcher is calm
           // and sees by the light (0 here), so from then on the spot stays hidden. 'wall' measures the plan and the
           // walk by path from where he lost him, so it needs no particular spot during the fight
-          const park = which === 'wall' ? { x: 0, z: -20 } : hide;
+          // (walk 4.82 laptop triage 2) 'near' too: with walk 4.82 item 2 a guard whose call is through leaves cover and
+          // moves up on the last known position while still in combat; from there (about (-4.8, 0.4) at 10.6 s) he saw
+          // the near spot 4.3 m off. The near intent (the plan ranks the dark spot near the last known position and a
+          // searcher reaches it) is about the search, so the spot is taken when the search starts
+          const park = which === 'wall' || which === 'near' ? { x: 0, z: -20 } : hide;
           t.tp(park.x, park.z, 0);
           // (S25-SAI-TRIAGE 2) the body follows the tp before the first sim step: the rig (and so the target's chest and
           // head, `PlayerTarget.sync` in the fixed step) is placed in `frameUpdate` (player.ts root.position), so the
@@ -727,11 +809,12 @@ try {
               }
             }
             // (or still in sight: 0.2 s on, the clock would be past 0.1 without one)
-            if (resight < 0 && e.alerted && (e.sinceSeen < prevSince || (time > 0.2 && e.sinceSeen < 0.1))) resight = r1(time);
+            // (walk 4.82 laptop triage 2) the premise is the fight: once the search runs, a find is a pass ('near' found)
+            if (tS < 0 && resight < 0 && e.alerted && (e.sinceSeen < prevSince || (time > 0.2 && e.sinceSeen < 0.1))) resight = r1(time);
             prevSince = e.sinceSeen;
             {
               const lk = em.lkpOf(s);
-              if (!lkpMoved && lk && Math.hypot(lk.x - Lx, lk.z - Lz) > 0.5) lkpMoved = { t: r1(time), at: [r1(lk.x), r1(lk.z)] };
+              if (tS < 0 && !lkpMoved && lk && Math.hypot(lk.x - Lx, lk.z - Lz) > 0.5) lkpMoved = { t: r1(time), at: [r1(lk.x), r1(lk.z)] };
             }
             if (i % 20 === 0) {
               const lk = em.lkpOf(s);
@@ -759,7 +842,8 @@ try {
               if (!last || last[0] !== pt[0] || last[1] !== pt[1]) v.push(pt);
             }
             const d = Math.hypot(e.pos.x - hide.x, e.pos.z - hide.z);
-            if (tS < 0 && e.level === 'alert' && e.sinceSeen > 1 && d < 2) homing = true;
+            // (homing: on the player where he really is, the park spot before the search)
+            if (tS < 0 && e.level === 'alert' && e.sinceSeen > 1 && Math.hypot(e.pos.x - g.player.position.x, e.pos.z - g.player.position.z) < 2) homing = true;
             if (tS >= 0) {
               if (d < closest) {
                 closest = d;

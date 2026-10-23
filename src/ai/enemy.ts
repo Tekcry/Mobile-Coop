@@ -44,7 +44,7 @@ import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
 import { INCIDENT, MODE_BODY, MODE_BREAKER, MODE_COVER, MODE_DEVICE, MODE_HELP, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT } from './incidents';
 import { BREAKER_WALK } from './breaker';
 import { isConsoleGroup } from './consoleFault';
-import { P_AGGRESSIVE, P_STANDARD, profileOf, R_FLANK, R_NONE, R_OVERWATCH, R_POINT, R_REPORTER, R_SEARCH, ROLES, Rng, SQUAD, type BehaviourProfile as TacticsProfile, type Role } from './squadRoles';
+import { closeFromCover, P_AGGRESSIVE, P_STANDARD, profileOf, R_FLANK, R_NONE, R_OVERWATCH, R_POINT, R_REPORTER, R_SEARCH, ROLES, Rng, SQUAD, type BehaviourProfile as TacticsProfile, type Role } from './squadRoles';
 import type { GuardInfo } from './guardInfo';
 import type { CallKind } from './radioNet';
 import { LC_DONE, LC_FACE, LightCheck, type LightCheckWalker } from './lightCheck';
@@ -193,6 +193,8 @@ export interface AiContext {
   radioCall?(e: Enemy, inc: number, kind: CallKind): void;
   /** (guard-ai S3) He went down, was grabbed or blinded: his open radio calls are lost. */
   radioCut?(e: Enemy): void;
+  /** (guard-ai walk 4.82 item 2) He holds an open radio call (contact, command, ...: not through yet). Absent: none. */
+  radioOpen?(e: Enemy): boolean;
   /** This enemy's slot among the searchers (fans the sweep out). */
   searchSlot(e: Enemy): number;
   /** (guard-ai S25, A151) His next point of a search after combat from his intruder's probable area (`searchArea.ts`):
@@ -2295,6 +2297,8 @@ export class Enemy implements Damageable {
     i.hunting = (this.aware.fought || this.responder) && profileOf(this.tacticsProfile).neverCautious;
     // (guard-ai S18) the search's length by its kind (a dead body's is longer)
     i.searchFor = searchSpec(this.searchKind).time;
+    // (guard-ai walk 4.82 item 2) moving up on the last known position: he keeps the fight until he gets there
+    i.closing = this.closingIn && this.alerted && !this.los;
     const from = this.aware.level;
     if (this.aware.step(dt, i)) this.onLevel(from, this.aware.level);
     // in combat without sight: arriving at the last known position with nothing there starts the search
@@ -2569,6 +2573,9 @@ export class Enemy implements Damageable {
   private mateMoving = false;
   /** The reporter's contact call is still open: he stays down and holds his fire. */
   private onRadio = false;
+  /** (guard-ai walk 4.82 item 2) In combat out of sight and moving up on the last known position this step (set by
+   *  `decide`): the alert machine's longer lost-sight cap (`AlertInput.closing`). */
+  private closingIn = false;
   /** Point with no cover left to bound to: walking the last stretch to the last known position (out of the group;
    *  the manager clears it when he leaves combat). */
   closing = false;
@@ -2650,8 +2657,11 @@ export class Enemy implements Damageable {
       const go = role !== R_POINT || aggressive || (!this.los && (this.state !== 'inCover' || this.stateT >= profileOf(this.tacticsProfile).advanceHold));
       if (go) {
         if (this.boundTo(c, role === R_POINT)) {
-          if (role === R_POINT) this.bark('moving');
-          else if (role === R_FLANK) this.bark('flanking');
+          if (role === R_POINT) {
+            this.bark('moving');
+            // (guard-ai walk 4.82 item 2) a point's bound out of sight is closing on the last known position
+            if (!this.los && this.coordinated) this.closingIn = true;
+          } else if (role === R_FLANK) this.bark('flanking');
           return g;
         }
         // no path (blocked for a while) or taken: no new A* every frame until the next roles tick
@@ -2778,6 +2788,10 @@ export class Enemy implements Damageable {
     // (guard-ai S5) a high-security post holds his leash the same way (radios, never chases out of it)
     const outside = (this.hold !== null && !inRoom(this.hold, t.feet.x, t.feet.z, 1.5, t.feet.y)) || !this.inLeash(known.x, known.z, 1.5);
     if (this.doorCheck > 0 && !this.los) return { point: null, speed: 0, face: null };
+    // (guard-ai walk 4.82 item 2) set again below on each step he closes on the last known position (coordinated modes)
+    this.closingIn = false;
+    // (his intruder's last known position to go to: none, and today's rules hold)
+    const closer = !this.los && !outside && this.coordinated && this.ctx.stealth() && this.huntPos() !== null;
 
     // ---- melee (runner) ----
     if (def.melee) {
@@ -2872,6 +2886,7 @@ export class Enemy implements Damageable {
         // out of sight (stealth): move up on the last known position from cover to cover, weapon on it, never a
         // run into the open; the last stretch is walked
         if (!this.los && this.ctx.stealth() && def.usesCover) {
+          this.closingIn = closer;
           const dk = hyp2(tp[0] - this.pos.x, tp[1] - this.pos.z);
           if (dk > 7 && this.advanceCd <= 0) {
             if (this.pickAdvance(tp, known.y)) {
@@ -2885,6 +2900,7 @@ export class Enemy implements Damageable {
           // (guard-ai S8) an aggressive guard (reinforcements) closes at a jog
           return { point: this.chasePoint(tp, false), speed: this.tacticsProfile === P_AGGRESSIVE ? def.runSpeed * AGGRESSIVE_JOG : def.walkSpeed * ADVANCE_PACE, face: null };
         }
+        this.closingIn = closer;
         return { point: this.chasePoint(tp, false), speed: this.los ? def.walkSpeed : def.runSpeed, face: null };
       }
       case 'attack': {
@@ -2931,6 +2947,8 @@ export class Enemy implements Damageable {
           }
         }
         if (this.stateT > 6) this.setState(this.advancing && !this.los ? 'chase' : 'attack');
+        // (guard-ai walk 4.82 item 2) a bound towards the last known position
+        if (this.advancing) this.closingIn = closer;
         // (guard-ai S8) the reporter holds his fire while he is on the radio
         if (this.los && this.stateT > 0.5 && def.kind !== 'sniper' && !this.onRadio) this.tryFire(dt);
         const wp = this.path[0];
@@ -2951,6 +2969,7 @@ export class Enemy implements Damageable {
         // (guard-ai S8) a point holds `advanceHold` and bounds again when the manager gives it a cover (`roleStep`); with
         // none left to bound to it walks the last stretch (`closing`: out of the group)
         if (this.advancing && !this.los) {
+          this.closingIn = closer;
           this.coverPose = cp.low ? 'low' : 'high';
           this.wantCrouch = cp.low;
           // (guard-ai S6) an aggressive guard (a lone or unroled reinforcement too) bounds after his profile's 0.8 s
@@ -2993,6 +3012,16 @@ export class Enemy implements Damageable {
           return { point: [cp.pos.x, cp.pos.z], speed: def.walkSpeed, face: toTarget };
         }
         if (this.tactics(t)) return { point: null, speed: 0, face: toTarget };
+        // (guard-ai walk 4.82 item 2, Michael: "He should report then attack you instead of hiding") no holding role (a
+        // lone guard, a group's search), his call through, a whole peek with no sight of him: he leaves the cover and
+        // moves up on his intruder's last known position (the chase branch's out-of-sight advance) instead of sitting
+        // there until the lost-sight timer makes it a search
+        if (closer && closeFromCover(this.role, this.ctx.radioOpen?.(this) ?? false, this.secure, this.lastSeenT, this.stateT)) {
+          this.peekCycles = 0;
+          this.closingIn = true;
+          this.setState('chase');
+          return { point: null, speed: 0, face: toTarget };
+        }
         if (this.role === R_OVERWATCH && this.mateMoving && !this.los && profileOf(this.tacticsProfile).suppress) this.suppressLkp(dt);
         // hide / peek cycle; some hide phases blind-fire over/around the cover at the last position
         const cycle = this.stateT % 4.2;

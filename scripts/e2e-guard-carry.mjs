@@ -24,8 +24,8 @@ const spotArg = process.argv.find((a) => a.startsWith('--spot='))?.slice(7).spli
 const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=infiltration&gfx=high', viewport: { width: 960, height: 720 } });
 const G = (f, a) => page.evaluate(f, a);
 const CALM_SEC = 16.5;
-/** Rendering time a body may take to be ready after the one-block stall (the fix recompiles a stuck one after 8 s). */
-const STALL_WAIT_MS = 30000;
+/** Rendering time a body may take to be ready after the one-block stall (a compile that never finishes is recompiled after 45 s, bodyEffectRecovery STUCK_MS; the loop ends as soon as the body is ready). */
+const STALL_WAIT_MS = 60000;
 let failed = false;
 try {
   await frames(page, 10);

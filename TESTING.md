@@ -193,6 +193,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   the open (they crouch, then take cover within ~3 s); the covering guard fires at your last spot only where he has a
   clear line (no rounds into a wall); the caller throws no grenade while he is on the radio. Trip a camera or a laser:
   every guard in the section draws his gun and none holsters while the alarm stage holds.
+- [ ] Report, then attack (guard-ai walk 4.82 items 2 and 6, Marlow Yard): get spotted by the station 2 guard and break
+  line of sight: he takes cover and radios it in, then (call done, a few seconds with no sight of you) leaves cover and
+  moves up on where he last saw you, still in the fight, and searches from there; he does not sit in cover and go
+  cautious. Once station 3's camera is a training camera (`guardResponse: false`), being seen by it sends you back but
+  no guard comes for you.
 - [ ] Helmets and armour (guard-ai S12; once a section has `gear`, or set one with `e.setGear` in the console): shoot a
   helmeted guard in the head: steel-blue hit marker and a ping, the helmet falls to the floor and stays, he reels and
   comes up shooting; a second head shot kills. An armoured guard shrugs off chest rounds (a short stagger, not every

@@ -2,6 +2,15 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+~08:00: #269 + #282 RELEASED in 4.85.0 (train 42): coop-rejoin done. MPFB2 zip confirmed on the laptop (Michael):
+the full bake 20261023T202119-...-a8ff2d45-5e1d can run (not started yet; status laptop-e2e/alone-guard-bake-all).
+~07:50 FULL BURN: #269 + #282 laptop coop + netmove 2/2 PASS on 0e65c3eb (post master merge) -> train 42 ready.
+guard-models 125b0826 (G9 docs merged). FULL BAKE queued 20261023T202119-player-build-a8ff2d45-5e1d (all stages + sheet;
+probe fails fast if MPFB2 still missing). Flag-on e2e-enemies sniper fail: Opus triage = NOT the flag (sniper fires no
+round: master AI shooting gates S16 / S21 or stale test; e2e-enemies is a LEGACY suite); A/B flag-off queued
+20261023T202045-player-build-a8ff2d45-5437 (if it also fails: report to Guard AI via orchestrator). G7 pre-flip items
+were done in G7b. Next: bake verdict -> copy shippables from bake/guard-models into src/operators/assets/guards/, sheet
+to Michael, G8 (guard-cap on / off + look check, laptop alone), then the guard-models PR.
 RESUMED ~04:50 (window reset): 4.84.0 released (train 40, #247 on master). #285 OPEN train-ready (AF0 numbers test only with
 AFP_WRITE_NUMBERS=1; it rewrote tracked docs/anim-fix-pass/before/numbers.md and stopped the 4.84.0 release). #269 a6a792b8 +
 #282 0e65c3eb: master merged, conflicts resolved, train-ready for train 42 together; laptop coop + netmove on 0e65c3eb
