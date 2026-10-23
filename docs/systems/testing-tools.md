@@ -420,7 +420,7 @@ e2e for you and posts the verdict as a commit status on the tested sha. No messa
   schedule an ad-hoc run is `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-queue/one-shot-task.ps1
   -Name NightShift-run-<what> -Command "<powershell command>" [-At <time>] [-ExpireMinutes 240] [-WhatIf]`: one hidden
   run whose trigger expires at At + ExpireMinutes (also its run time limit), after which Windows deletes the task.
-- Task guard: at start and every `LQ_TASK_GUARD_MIN` min (laptop 10; desktop 0 = off until its NightShift tasks are checked with a dry run), disable (Disable-ScheduledTask only; never
+- Task guard: at start and every `LQ_TASK_GUARD_MIN` (10; 0 = off) min on both workers (desktop dry run 2026-10-24: only "NightShift auto-train" and NightShift-desktop-queue, both allowed), disable (Disable-ScheduledTask only; never
   stop, kill or delete; a running instance keeps running) every enabled task named `NightShift-*` that is not one of the
   three above, a `NightShift-run-*` with an expiry or in `LQ_TASK_ALLOW` (comma list), and every other enabled task whose
   action mentions `C:\NightShift\scratch` or `laptop-runner.ps1`. Log line "task guard: disabled <name> (<state>, <why>)";

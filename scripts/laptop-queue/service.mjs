@@ -18,7 +18,7 @@
 // Supersede: an open pr / full request is marked done unrun when the same requester has a newer one (same set, or an
 // ancestor sha with overlapping suites); pick runs a requester's newest request first (lib.mjs superseded, pick).
 // Task guard (Michael 2026-10-24 07:13, after 87 stale NightShift-chain-* one-shots fired at 23:59 and held the slot
-// locks): at start and every LQ_TASK_GUARD_MIN (laptop 10, desktop 0 = off) min, disables (never stops, kills or deletes) each stale
+// locks): at start and every LQ_TASK_GUARD_MIN (10; 0 = off) min, disables (never stops, kills or deletes) each stale
 // scheduled task (lib staleTasks; allowlist + env LQ_TASK_ALLOW, a comma list) and pushes alerts/<ts>-<worker>-tasks.json to the
 // laptop-queue branch. --dry-run only logs what it would disable.
 import { execFileSync, spawn } from 'node:child_process';
@@ -217,7 +217,7 @@ function pushFile(rel, text, label) {
 
 // ---------- task guard ----------
 
-const TASK_GUARD_MS = Number(process.env.LQ_TASK_GUARD_MIN ?? (DESKTOP ? 0 : 10)) * 60_000; // desktop: off until its tasks are checked (set LQ_TASK_GUARD_MIN)
+const TASK_GUARD_MS = Number(process.env.LQ_TASK_GUARD_MIN ?? 10) * 60_000;
 // exact names; NightShift-run-* one-shots with an EndBoundary are allowed in staleTasks
 const TASK_ALLOW = ['NightShift-laptop-queue', 'NightShift-desktop-queue', 'NightShift auto-train',
   ...String(process.env.LQ_TASK_ALLOW ?? '').split(',').map((s) => s.trim()).filter(Boolean)];
