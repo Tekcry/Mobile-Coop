@@ -116,6 +116,8 @@ change (PROTOCOL_VERSION and message shapes untouched); no new allocation on the
 3. **Polish 5:** `docs/systems/coop.md:84-85` adds "unless it now stands in its start area (then placed at the
    checkpoint)"; `:76-78` notes the post-gap exception and the drop ending the watch.
 4. Changelog fragment `changes/feature-coop-rejoin-2.md` (kind: patch).
+5. **Polish A1 / A2 / B3 done:** gap bypass only if quiet before the teleport (`joinWatch.ts:115`, `:150`; test `:162`); coop.md `:76`, `:85`; header `:13`.
+6. **Left on the polish list:** CHECK2-B polish 1 (a drop in the round trip after a placement) and 2 (a checkpoint restart during a hold moves the held host copy).
 
 Tests: `tests/joinWatch.test.ts` 13/13 (+2: `:97` `respawned`, then the reload 1 s later after a 5 s gap -> placed;
 `:201` an unmet placement restore, `hold`, rejoin -> the new watch places on the reload; both fail on the old code).

@@ -151,9 +151,26 @@ describe('the join watch: never placed without a reload', () => {
     w.respawned('C', c.t);
     c.prev = { x: 2, z: 12 };
     expect(c.send(8, 10) & JOIN_PLACE).toBe(0);
-    // still in flight, no load gap between (a state after a gap is checked: the coop-rejoin-2 test)
+    // still in flight, no load gap between (a gap that began before the revive is checked: the coop-rejoin-2 test; a
+    // stall after a post-revive state is not: the check A1 test)
     expect(JOIN_GAP_S - 0.2 + STEP).toBeLessThan(JOIN_REVIVE_QUIET_S);
     c.t += JOIN_GAP_S - 0.2;
+    expect(c.send(2, 12) & JOIN_PLACE).toBe(0);
+    expect(c.placed).toBe(0);
+  });
+
+  it('(check A1) a stale pre-teleport state after the revive, then a 1.5 s stall, then the start area: not placed', () => {
+    const w = new JoinWatch();
+    w.late('C', START, 0);
+    const c = new Client(w, pt(8, 10));
+    for (let i = 0; i < 5; i++) c.send(8, 10);
+    // a revive at a checkpoint restart; its last pre-revive state arrives after it (accepted in the teleport grace)
+    w.respawned('C', c.t);
+    c.send(8, 10);
+    // a 1.5 s stall (a long task), a load gap still inside the revive's in-flight time, then its first post-revive state
+    expect(1.5 + 2 * STEP).toBeLessThan(JOIN_REVIVE_QUIET_S);
+    expect(1.5 + STEP).toBeGreaterThan(JOIN_GAP_S);
+    c.t += 1.5;
     expect(c.send(2, 12) & JOIN_PLACE).toBe(0);
     expect(c.placed).toBe(0);
   });
