@@ -173,3 +173,20 @@ old linear falloff while the registry (`lights.ts` `contribution`) runs LR16's p
 - Checks: tsc 0; lint 0 errors (42 existing warnings); vitest single files, `--maxWorkers=2`, slot lock:
   marlowLightingLevels 7/7, marlowLightingCircuits + smoothWorldLight green (22/22 with levels), ctcourse/a1-a8 green;
   ctcourseLight still 2 failed / 5 passed / 1 skipped (the Marlow re-tune above; it reads no `levels.ts` helper).
+
+## Refresh vs master cacd0c7e (4.86.0)
+Merge 614871a9 (6e53e036 + origin/master cacd0c7e). npm deps unchanged (package.json / lock: version only).
+- `src/ai/enemy.ts`: master's Guard AI S24-S27 perception (per-player `P_*` pass, `P_LIGHT`). LR16t needs one line
+  there, twice: both light samples (the per-player pass and the target's NaN fallback) read `fieldLight(this.ctx, ...)`
+  (flashlights tested with `ctx.lightOccluder`) instead of a bare `lightField.totalAt`. Rest is master's.
+- `src/net/protocol.ts`: master's `PROTOCOL_VERSION` line (46, no history in the comment; master's form). The train bumps it.
+- `src/net/session.ts`: master's `lateBay` (coop-rejoin) kept; `hostLampFalloff` stays removed (LR16a dropped `start.lf`
+  and the `LampFalloff` import; master's side would not compile).
+- `docs/systems/coop.md` (auto-merged, edited): "currently 46"; LR16's wire change is "the train after 46", not 45.
+- Auto-merged both sides: enemyManager.ts (keeps `lightOccluder: this.bodyOccluder`), gameState.ts, coopClient.ts,
+  coopHost.ts, net.test.ts, TESTING.md, testing-tools.md. Master changed nothing under `src/world` or `src/render`.
+- Marlow #291 (`feature/marlow-lr16m`): `git merge-tree` onto the merge is clean; no file it touches changed on master.
+- Checks: tsc 0; lint 0 errors (42 warnings); vitest single files, `--maxWorkers=2`, slot lock, 96 files in 8 batches
+  (tests importing enemy / protocol / session, master's new or changed tests since 5d1e8e3e, PROTOCOL tests, the light
+  set, charShadow*, torchShadow*, torchOcclusion, enemy* / guard*): 92 passed, 3 skipped, 1 failed; 1452 tests passed,
+  8 skipped, 2 failed. The 2 are ctcourseLight's band / tuned-level checks, red before this refresh (the Marlow re-tune).
