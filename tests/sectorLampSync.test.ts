@@ -50,8 +50,8 @@ const meter = (f: LightField): number => f.bodyLevel(0.5, 0, 0, 1.8);
 const doors = { list: [] as ResetDoor[], setOpen: () => undefined, crack: () => false };
 
 describe('Sector Ops lamp sync (slice L, protocol 31)', () => {
-  it('PROTOCOL_VERSION is 36 (36 pose-parity)', () => {
-    expect(PROTOCOL_VERSION).toBe(36);
+  it('PROTOCOL_VERSION is 40 (40 the stack at train 30; 39 guard-ai S9; 38 lamp falloff; was 36 pose-parity)', () => {
+    expect(PROTOCOL_VERSION).toBe(40);
   });
 
   it('encode / decode round trips every state, flashlights read on', () => {

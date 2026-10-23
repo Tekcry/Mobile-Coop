@@ -50,7 +50,7 @@ afterEach(async () => {
 
 describe('rejoin wire (protocol 27)', () => {
   it('is protocol 28 (27 added rejoin; 28 the jam claim eye, jammer-fixes)', () => {
-    expect(PROTOCOL_VERSION).toBe(36);
+    expect(PROTOCOL_VERSION).toBe(40);
   });
   it('carries the hello token, the you id, the away flag and the restore event; drops bad ones', () => {
     const h = parseMessage({ t: 'hello', v: 27, name: 'A', tag: {}, look: {}, tok: 'rabc123' });

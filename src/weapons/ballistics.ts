@@ -87,6 +87,17 @@ export class Ballistics {
     return this.res.hasHit ? Vector3.Distance(from, this.res.hitPoint) : Vector3.Distance(from, to);
   }
 
+  /** (guard-ai S16) The first hit in `collideWith` along the segment carries the armour bit (an armoured pane or door
+   *  leaf), resolved in `ray`'s order (a hit volume or a prop first is not armour); no allocation (the fire gate). */
+  armouredFirst(from: Vector3, to: Vector3, collideWith: number): boolean {
+    this.res.reset();
+    this.q.collideWith = collideWith;
+    this.eng.raycastToRef(from, to, this.res, this.q);
+    const r = this.res;
+    if (!r.hasHit || this.registry.lookup(r.body) || this.props.get(r.body)) return false;
+    return isArmoured((r.shape ?? r.body?.shape)?.filterMembershipMask ?? 0);
+  }
+
   ray(from: Vector3, to: Vector3, collideWith: number): RayHit {
     this.res.reset();
     this.q.collideWith = collideWith;

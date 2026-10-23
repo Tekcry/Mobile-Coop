@@ -265,3 +265,40 @@ describe('settings: the CT camera defaults (G3, camV 1)', () => {
     expect(later.gamepad.lookSensitivityY).toBe(0.8);
   });
 });
+
+describe('(lightrev LR13) Gameplay > Lamp falloff', () => {
+  it('defaults to Classic (linear); settings from before it read Classic; junk is dropped; Realistic is kept', () => {
+    expect(defaultSettings().gameplay.lampFalloff).toBe('linear');
+    expect(sanitizeSettings(PRE_STEP_18).gameplay.lampFalloff).toBe('linear');
+    expect(sanitizeSettings({ gameplay: { lampFalloff: 'bright' } }).gameplay.lampFalloff).toBe('linear');
+    const s = sanitizeSettings({ gameplay: { lampFalloff: 'photometric' } });
+    expect(s.gameplay.lampFalloff).toBe('photometric');
+    expect(sanitizeSettings(structuredClone(s)).gameplay.lampFalloff).toBe('photometric');
+  });
+  it('persists in IndexedDB kv/settings like the other settings (no save bump), and is not a graphics setting', async () => {
+    resetDbCache();
+    const st = new SettingsStore();
+    st.update((d) => void (d.gameplay.lampFalloff = 'photometric'));
+    await dbPut('kv', 'settings', st.get());
+    const back = sanitizeSettings(await dbGet('kv', 'settings'));
+    expect(back.gameplay.lampFalloff).toBe('photometric');
+    // a graphics preset / Auto never touches it (gameplay never reads graphics state)
+    expect('lampFalloff' in back.video).toBe(false);
+    expect('lampFalloff' in back.video.gfx).toBe(false);
+  });
+});
+
+describe('(LR14) Graphics > Character shadows', () => {
+  it('defaults to Auto; settings from before it read Auto; junk is dropped; On / Off are kept; Auto follows the preset', () => {
+    expect(defaultSettings().video.charShadows).toBe('auto');
+    expect(sanitizeSettings(PRE_STEP_18).video.charShadows).toBe('auto');
+    expect(sanitizeSettings({ video: { charShadows: 'maybe' } }).video.charShadows).toBe('auto');
+    for (const m of ['on', 'off'] as const) {
+      const s = sanitizeSettings({ video: { charShadows: m } });
+      expect(s.video.charShadows).toBe(m);
+      expect(sanitizeSettings(structuredClone(s)).video.charShadows).toBe(m);
+    }
+    // (render only: it lives with the graphics settings, never in gameplay)
+    expect('charShadows' in defaultSettings().gameplay).toBe(false);
+  });
+});

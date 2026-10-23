@@ -246,3 +246,10 @@ Lead, slice 1 check (2026-10-23, checks/slice1-check.md PASS; one fix round):
   cage (high route), arm-ante -> the anteroom side door (stealth), arm-front -> the north parapet rappel (high); undo:
   edit `bypass` in `S4_ARMOURED` / `S5_ARMOURED`. A-E10-6 the armoured NOC window also stops the NOC pair's rounds (they
   see the hall, cannot shoot it) - Guard AI must test the fire line on `MASK.ENEMY_SHOT`.
+- A100 (lightrev LR13, 2026-10-23 ~14:45; Michael ~14:35 "Try it first"; checks/lr13-build.md): in a co-op match the
+  host's Lamp falloff applies to both players: it rides the `start` message as `lf` (PROTOCOL_VERSION 38; 36 / 37 are
+  taken by pose-parity and coop-walk-fixes), the client's own setting and `?falloff=photo` are ignored, and its Settings
+  row is a locked row showing the host's. The mode is set once per map load (start, Retry, a co-op restart to the
+  lobby), never mid-match; a Sector Ops checkpoint restart keeps the match's mode. Undo: drop `lf` from `start`
+  (protocol back), and let `GameState.create` read only the local setting (`matchLampFalloff` without `host`).
+  (A99 is taken on `feature/sector-redesign-art`.)
