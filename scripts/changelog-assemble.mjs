@@ -66,22 +66,61 @@ export function splitChangelog(text) {
   };
 }
 
+/** Whitespace-normalised text: runs of whitespace (newlines included) become one space, ends trimmed. */
+const norm = (s) => s.replace(/\s+/g, ' ').trim();
+
 /**
- * Pure assembly: the new CHANGELOG text from its old text and parsed fragments ({ name, title, kind, body }), or null
- * when there is nothing to assemble. A legacy block whose every line is already in a released section (a member
- * released it before) is dropped, not repeated. `bump` is "minor" when any fragment (or legacy block) is minor.
+ * Splits lines into blocks: an entry ("- " or "* " bullet with its indented wrapped lines) or a run of loose lines.
+ */
+function blocksOf(lines) {
+  const blocks = [];
+  for (const l of lines) {
+    const last = blocks[blocks.length - 1];
+    if (/^\s*[-*] /.test(l)) blocks.push({ entry: true, lines: [l] });
+    else if (last && last.entry && /^\s+\S/.test(l)) last.lines.push(l);
+    else if (last && !last.entry) last.lines.push(l);
+    else blocks.push({ entry: false, lines: [l] });
+  }
+  return blocks;
+}
+
+/** The body without the entries already in `known` (normalised CHANGELOG entries); each dropped one goes to `skipped`. */
+function dropKnown(body, known, skipped) {
+  const kept = [];
+  for (const b of blocksOf(body)) {
+    const key = norm(b.lines.join('\n'));
+    if (b.entry && known.has(key)) { skipped.push(key.replace(/^[-*] /, '')); continue; }
+    kept.push(...b.lines);
+  }
+  return trimBlank(kept);
+}
+
+/**
+ * Pure assembly: the new CHANGELOG text from its old text and parsed fragments ({ name, title, kind, body }). Returns
+ * null when there is nothing to read. A legacy block whose every line is already in a released section (a member
+ * released it before) is dropped, not repeated. A fragment entry whose normalised text already appears as an entry
+ * in CHANGELOG.md is skipped; a fragment with no entries left adds no block. `text` is null when nothing is new (every
+ * fragment skipped); the fragments are still consumed. `bump` is "minor" when any part is minor.
  */
 export function assemble(changelog, fragments, { version, title, date, pr, members = [] }) {
   const { head, keep, legacy, rest } = splitChangelog(changelog);
   const released = new Set(rest.map((l) => l.trim()).filter(Boolean));
-  const parts = fragments.map((f) => ({ title: f.title, body: f.body, from: f.name, kind: f.kind }));
+  const known = new Set(blocksOf(changelog.replace(/\r\n/g, '\n').split('\n'))
+    .filter((b) => b.entry).map((b) => norm(b.lines.join('\n'))));
+  const skipped = [];
+  const parts = [];
+  for (const f of fragments) {
+    const body = dropKnown(f.body, known, skipped);
+    if (body.length) parts.push({ title: f.title, body, from: f.name, kind: f.kind });
+  }
   const dropped = [];
   for (const b of legacy) {
     const lines = b.body.filter((l) => l.trim());
     if (lines.every((l) => released.has(l.trim()))) { dropped.push(b.title); continue; }
     parts.push({ title: b.title, body: b.body, from: `## Unreleased - ${b.title}`, kind: 'minor' });
   }
-  if (!parts.length) return null;
+  const consumed = fragments.map((f) => f.name);
+  if (!parts.length) return skipped.length ? { text: null, parts, dropped, skipped, consumed, bump: null } : null;
   const out = [...head, ''];
   if (keep.length) out.push(...keep, '');
   out.push(releaseHeading(version, title, date, pr, members));
@@ -91,7 +130,7 @@ export function assemble(changelog, fragments, { version, title, date, pr, membe
   if (rest.length) out.push('', ...rest);
   let text = out.join('\n');
   if (!text.endsWith('\n')) text += '\n';
-  return { text, parts, dropped, bump: parts.some((p) => p.kind === 'minor') ? 'minor' : 'patch' };
+  return { text, parts, dropped, skipped, consumed, bump: parts.some((p) => p.kind === 'minor') ? 'minor' : 'patch' };
 }
 
 /** Fragment files in `<root>/changes` (every .md but README.md), sorted by name. */
@@ -110,16 +149,18 @@ export function assembleDir(root, opts, write = true) {
   const file = path.join(root, 'CHANGELOG.md');
   const r = assemble(fs.readFileSync(file, 'utf8'), fragments, opts);
   if (r && write) {
-    fs.writeFileSync(file, r.text);
+    if (r.text) fs.writeFileSync(file, r.text);
     for (const n of names) fs.unlinkSync(path.join(root, 'changes', n));
   }
   return r;
 }
 
-/** One line per part for the console. */
+/** One line per part and skipped entry for the console. */
 export function summary(r, heading) {
   return [heading, ...r.parts.map((p) => `  + ${p.title} (${p.from}, ${p.kind}, ${p.body.length} lines)`),
-    ...r.dropped.map((t) => `  - dropped "Unreleased - ${t}" (already released)`), `  fragments ask for a ${r.bump} step`].join('\n');
+    ...r.dropped.map((t) => `  - dropped "Unreleased - ${t}" (already released)`),
+    ...r.skipped.map((s) => `  - skipped (already in CHANGELOG.md): ${s.slice(0, 60)}`),
+    ...(r.bump ? [`  fragments ask for a ${r.bump} step`] : [])].join('\n');
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -140,6 +181,12 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     console.error('changelog-assemble: nothing to assemble (no changes/*.md fragment, no "## Unreleased - ..." block on top)');
     process.exit(1);
   }
+  if (!r.text) {
+    console.log(summary(r, 'CHANGELOG.md: nothing new'));
+    console.log(`  ${r.consumed.length} fragment file(s) deleted`);
+    console.error('changelog-assemble: nothing new to release: every fragment entry is already in CHANGELOG.md');
+    process.exit(1);
+  }
   console.log(summary(r, `CHANGELOG.md: ${releaseHeading(version, title, date, pr, members)}`));
-  console.log(`  ${r.parts.filter((p) => p.from.startsWith('changes/')).length} fragment file(s) deleted`);
+  console.log(`  ${r.consumed.length} fragment file(s) deleted`);
 }

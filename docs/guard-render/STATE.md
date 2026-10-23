@@ -107,6 +107,17 @@ TESTING.md line and `docs/systems/world-and-characters.md` section are written.
 4. Next slices: S5 PR (stacked on S1), S3a after its fix round 2 + e2e, S6 after its fix round + e2e (S6d look change
    waits for Michael); then re-plan from PLAN section 4.
 
+## S5 (guard anim cost cuts L1, L3-L6; L2 dropped)
+- Branch feature/guard-render-s5, checker PASS WITH NOTES, CT Core OK'd. L2 dropped (guards would snap on a mocap
+  setting change, ~3-5 us).
+- NOT based on feature/guard-render when built: merged origin/feature/guard-render, then origin/master (no conflicts).
+  The PR to master carries S1 too until PR #204 merges; retarget or wait.
+- Tests after the merges: tsc clean; animSkeletonGuardIdentity, footPlanner, guardPoseGolden green (no re-capture).
+- Measured: bench medians per guard ms/frame on NullEngine, L3 0.0276/0.0423/0.0366 -> 0.0280/0.0334/0.0317 (noise).
+  Whole-S5 end-to-end cost on the GPU PC: measure pending.
+- Changelog fragment: changes/feature-guard-render-s5.md.
+- Next: PR to master (not opened yet).
+
 ## Open
 1-5: answered (BRIEF.md M1-M6).
 6. GPU share (+1.1 ms a guard) is not explained by triangles; S1's run will show whether it was the per-pass

@@ -8,6 +8,7 @@ import { ALARM, type AlarmPanel } from '../ai/alarm';
 import type { EnemyManager } from '../ai/enemyManager';
 import type { EnemyKind } from '../ai/enemyDefs';
 import { lightOnRay, type LightRegistry } from '../world/lights';
+import { BACK_TIMER, BOARD_REACH, IsolatorBoards, type BoardSink } from './isolators';
 import type { Interactable, Interactables } from './interactables';
 import type { GameState } from './gameState';
 import { DOOR, type DoorState } from '../world/doors';
@@ -43,6 +44,9 @@ export class StealthSystems {
   private bodyIts = new Map<Body, Interactable>();
   private switches: { it: Interactable; group: number; on: boolean }[] = [];
   private panels: { panel: AlarmPanel; it: Interactable }[] = [];
+  /** (sector-redesign E4, EW8) Breaker / timed isolator boards (`MapLayout.boards`) and their items (`board-<i>`). */
+  boards: IsolatorBoards | null = null;
+  private boardIts: Interactable[] = [];
   /** The "Drop body" action (not in the world: offered while carrying with no hiding spot near). */
   private dropIt: Interactable;
   private kneeL = new Vector3();
@@ -73,6 +77,32 @@ export class StealthSystems {
       ints.setEnabled(it, true);
       this.switches.push(sw);
     });
+    // (sector-redesign E4, EW8) boards: a 'switch' item (no new item kind on the wire), the switch's reach; host / solo
+    // only (a co-op client mirrors the item and sends `use`, the host runs it, its lamps follow by slice L's `lamps`)
+    const bd = layout.boards;
+    if (bd?.length) {
+      const sink: BoardSink = {
+        cut: (i, x, z) => {
+          this.boardChanged(i, false);
+          // the circuit going dark is noticed: the nearest calm armed guard comes to look at the board (as a switch)
+          this.em.lightsOut(x, z);
+        },
+        back: (i, how) => {
+          this.boardChanged(i, true);
+          // the timed window's end: the cue is the switch click, the lamps and the board's indicator lit again
+          if (how === BACK_TIMER) g.hud.feedItem('Circuit restored');
+        },
+      };
+      const boards = new IsolatorBoards(bd, reg, sink);
+      this.boards = boards;
+      bd.forEach((b, i) => {
+        const it = ints.add(`board-${i}`, 'switch', b.pos, '', 0, b.yaw);
+        it.reach = BOARD_REACH;
+        it.onUse = () => boards.use(i);
+        this.boardIts.push(it);
+        this.showBoard(i);
+      });
+    }
     layout.alarms?.forEach((a, i) => {
       const panel: AlarmPanel = { id: `alarm-${i}`, x: a.pos.x, y: a.pos.y, z: a.pos.z, yaw: a.yaw, disabled: false, ...(a.section !== undefined ? { section: a.section } : {}) };
       em.alarms.push(panel);
@@ -421,6 +451,7 @@ export class StealthSystems {
       this.ints.setIndicator(o.it, o.on ? '#ffe08a' : '#3a3f45');
     }
     reg.setGroup(sw.group, sw.on);
+    this.followBoards();
     this.g.events.emit('lightSwitch', { on: sw.on });
     if (!sw.on) {
       // the room going dark is noticed; someone comes to look at the switch
@@ -448,6 +479,35 @@ export class StealthSystems {
       sw.it.label = on ? 'Lights off' : 'Lights on';
       this.ints.setIndicator(sw.it, on ? '#ffe08a' : '#3a3f45');
     }
+    this.followBoards();
+  }
+
+  /** (E4) A board cut or put back its circuits: the wall switches on them and the board's item follow, the click. */
+  private boardChanged(i: number, on: boolean): void {
+    const gs = this.boards!.defs[i]!.groups;
+    for (let k = 0; k < gs.length; k++) this.syncGroup(gs[k]!, on);
+    this.followBoards();
+    this.g.events.emit('lightSwitch', { on });
+  }
+
+  /** (E4) Board `i`'s label, use and indicator from its state: off-use while its window runs (indicator dark). */
+  private showBoard(i: number): void {
+    const b = this.boards;
+    const it = this.boardIts[i];
+    if (!b || !it) return;
+    const running = b.left[i]! > 0;
+    const cut = b.cut[i] === 1;
+    it.label = running ? 'Circuit isolated' : b.timed(i) ? (cut ? 'Power on' : 'Isolate circuit') : cut ? 'Breaker on' : 'Breaker off';
+    this.ints.setEnabled(it, !running);
+    if (!running) this.ints.setIndicator(it, cut ? '#3a3f45' : '#ffe08a');
+  }
+
+  /** (E4) Idle boards read their circuits again (a wall switch moved one, a restart put the lamps back). */
+  private followBoards(): void {
+    const b = this.boards;
+    if (!b) return;
+    b.follow();
+    for (let i = 0; i < this.boardIts.length; i++) this.showBoard(i);
   }
 
   /** A hitscan ray: shoot out the first bulb along it. */
@@ -496,6 +556,9 @@ export class StealthSystems {
     this.playerOpened.clear();
     this.guardOpened.clear();
     this.noticeT = 0;
+    // (E4, A50) running isolator windows are dropped; the lamps come back from the section's start state, then
+    // `syncSwitches` has the boards read them
+    this.boards?.cancel();
     this.endMotion();
     if (this.carry) {
       this.carry = null;
@@ -576,6 +639,8 @@ export class StealthSystems {
   /** Fixed step: body interact positions, carry movement rules, doors. Call after the corner controller. `crouchPressed`
    *  (G7) lets go of a body still being reached for. */
   fixedUpdate(crouchPressed = false): void {
+    // (E4) timed isolator windows (allocation-free; a window's end relights through the sink)
+    this.boards?.update(1 / 60);
     this.bend = this.bendDrop = 0;
     this.stepping = false;
     this.loadShare = 0;

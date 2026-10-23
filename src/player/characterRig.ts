@@ -226,6 +226,9 @@ function clipFootOff(f: FootState): void {
   f.clipPitchOff = 0;
 }
 
+/** (guard-render S5 L5) A joint's limiter state (`limitJoint`): its max rate once resolved, the previous local rotation. */
+type LimitedNode = TransformNode & { _lim?: { rate: number | undefined; prev: Quaternion | null } };
+
 /**
  * Max joint angular speeds (rad/s) by joint name suffix: realistic limits, also blend continuity. (locomotion step 21)
  * hips and knees 25 rad/s = 23.9 deg per 60 Hz frame, under bible 5.12.2's 25 deg per frame.
@@ -1200,7 +1203,6 @@ export class CharacterRig {
   private handDur = EDGE_HAND_TIME;
   /** Smoothed world aim rotation of the weapon (inertia from the weapon's mass). */
   private aimQ: Quaternion | null = null;
-  private prevRot = new Map<TransformNode, Quaternion>();
   /** Joint-rate limiter hits (debug overlay warning counter). */
   limited = 0;
   /** Last graph output (debug overlay: layer weights, weapon bob). */
@@ -2039,8 +2041,11 @@ export class CharacterRig {
     if (this.emoteW === 0) this.lastFk = null;
     this.switchFade(dt);
     // (anim-skeleton S2) the hands' fingers and this window's goggle offsets, for the figure
-    this.fingerFrame();
-    this.goggleFrame();
+    // (guard-render S5 L6) only the operator figure reads them; a guard rig (`guardRows`, no tuner rows) has none
+    if (this.guardSt === null || this.tuneSt !== null) {
+      this.fingerFrame();
+      this.goggleFrame();
+    }
     for (let k = 0; k < this.onPosed.length; k++) this.onPosed[k]!();
   }
 
@@ -3505,7 +3510,7 @@ export class CharacterRig {
       Quaternion.RotationAxisToRef(elbAxis, pass === 0 ? best : -2 * best, elbQ);
       elbQ.multiplyToRef(sh.absoluteRotationQuaternion, tmpQ3);
       this.setWorldRot(sh, sh.parent as TransformNode, tmpQ3);
-      this.prevRot.get(sh)?.copyFrom(sh.rotationQuaternion!);
+      (sh as LimitedNode)._lim?.prev?.copyFrom(sh.rotationQuaternion!);
       fresh(sh);
       fresh(el);
       const e = el.getAbsolutePosition();
@@ -3532,7 +3537,7 @@ export class CharacterRig {
     Quaternion.RotationAxisToRef(elbAxis, th, elbQ);
     elbQ.multiplyToRef(sh.absoluteRotationQuaternion, tmpQ3);
     this.setWorldRot(sh, sh.parent as TransformNode, tmpQ3);
-    this.prevRot.get(sh)?.copyFrom(sh.rotationQuaternion!);
+    (sh as LimitedNode)._lim?.prev?.copyFrom(sh.rotationQuaternion!);
     fresh(sh);
     fresh(el);
     this.setWorldRot(wr, el, elbHand);
@@ -3544,18 +3549,19 @@ export class CharacterRig {
    * angular speed. Any abrupt pose change (state switch, IK flip, scripted pose) is spread over a few frames,
    * so motion stays continuous (an inertialization-style safety net under the weighted blends).
    */
-  private jointRate = new Map<TransformNode, number>();
-
   private limitJoint(node: TransformNode, dt: number, rate?: number): boolean {
-    let maxRate = rate ?? this.jointRate.get(node);
+    // (guard-render S5 L5) the limiter state lives on the node itself (a node belongs to one rig): no Map lookups
+    let st = (node as LimitedNode)._lim;
+    if (st === undefined) st = (node as LimitedNode)._lim = { rate: undefined, prev: null };
+    let maxRate = rate ?? st.rate;
     if (maxRate === undefined) {
       maxRate = JOINT_RATE.get(node.name.split('-').pop() ?? '') ?? 20;
-      this.jointRate.set(node, maxRate);
+      st.rate = maxRate;
     }
     const q = node.rotationQuaternion!;
-    const prev = this.prevRot.get(node);
+    const prev = st.prev;
     if (!prev) {
-      this.prevRot.set(node, q.clone());
+      st.prev = q.clone();
       return false;
     }
     const dot = Math.min(1, Math.abs(Quaternion.Dot(prev, q)));
@@ -4270,31 +4276,29 @@ export class CharacterRig {
     freshBelow(this.heldWeapon!, this.weaponPivot);
   }
 
+  /** (guard-render S5 L4) the FK joint names, in `fkNodes` order. */
+  private static readonly FK_JOINTS: readonly JointName[] = [
+    'pelvis', 'spine', 'chest', 'neck', 'head', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'hipL', 'hipR', 'kneeL', 'kneeR',
+  ];
+  /** The nodes of `FK_JOINTS`, built on the first emote (no per-frame map / entries allocation). */
+  private fkNodes: TransformNode[] | null = null;
+
   /** Blend an FK pose (scripted poses) over the procedural result. */
   private applyFk(fk: FkPose, w: number): void {
-    const map: Record<JointName, TransformNode> = {
-      pelvis: this.hips,
-      spine: this.spine,
-      chest: this.torso,
-      neck: this.neck,
-      head: this.headNode,
-      shoulderL: this.shoulderL,
-      shoulderR: this.shoulderR,
-      elbowL: this.elbowL,
-      elbowR: this.elbowR,
-      hipL: this.hipL,
-      hipR: this.hipR,
-      kneeL: this.kneeL,
-      kneeR: this.kneeR,
-    };
-    for (const [k, e] of Object.entries(fk) as [JointName | 'pelvisLift', readonly [number, number, number] | number][]) {
-      if (k === 'pelvisLift') {
-        this.hips.position.y += (e as number) * w;
-        continue;
-      }
-      const node = map[k];
-      const [x, y, z] = e as readonly [number, number, number];
-      Quaternion.RotationYawPitchRollToRef(y, x, z, tmpQ);
+    let nodes = this.fkNodes;
+    if (nodes === null) {
+      nodes = this.fkNodes = [
+        this.hips, this.spine, this.torso, this.neck, this.headNode, this.shoulderL, this.shoulderR, this.elbowL, this.elbowR,
+        this.hipL, this.hipR, this.kneeL, this.kneeR,
+      ];
+    }
+    if (fk.pelvisLift !== undefined) this.hips.position.y += fk.pelvisLift * w;
+    const names = CharacterRig.FK_JOINTS;
+    for (let j = 0; j < names.length; j++) {
+      const e = fk[names[j]!];
+      if (e === undefined) continue;
+      const node = nodes[j]!;
+      Quaternion.RotationYawPitchRollToRef(e[1], e[0], e[2], tmpQ);
       Quaternion.SlerpToRef(node.rotationQuaternion!, tmpQ, w, node.rotationQuaternion!);
     }
     if (fk.shoulderL || fk.shoulderR) {

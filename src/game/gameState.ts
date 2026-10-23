@@ -205,6 +205,9 @@ export interface NetAttachment {
   /** Host, Sector Ops: send the devices' state (cameras, jams, alarm stage) and the step 3 extras (live section, door
    *  locks, shot cameras, syringes) to every client. */
   sector?(sec: SecWire, extra: SectorNetExtra): void;
+  /** (sector-redesign EW5) Host, Sector Ops: a radio line (a keypad code found) shown to every client: the existing
+   *  `feed` event, no wire change. */
+  radioLine?(text: string): void;
   /** Host, Sector Ops: revive syringes left this op (co-op only). */
   revivesLeft?(): number;
   /** Host, Sector Ops: every guard a client holds (takedown grab, hostage) is let go, before a section unloads. */
@@ -710,6 +713,24 @@ export class GameState implements AppState {
         prevRay?.(a, b);
         this.security?.shotRay(a, b);
       };
+      // (guard-ai S7, M6) the cameras see downed guards (IR, G240): the body pass reads the manager's bodies (a kept
+      // array, the closure made once) and its first sight goes to the incident board (a guard is sent); the desk's radio
+      // line shows at the camera. Its own callback: `onEvent` is CtDevices'. Host only (this block); nothing on the wire
+      const em = this.enemyMgr;
+      if (em) {
+        const bodies = em.bodies;
+        const sec = w.security;
+        sec.setBodySource(() => bodies);
+        sec.onBody = (ev) => {
+          let k = 0;
+          while (k < sec.cameras.length && sec.cameras[k]!.def.id !== ev.camera) k++;
+          this.enemyMgr?.cameraReport(ev, `Camera ${k + 1}`);
+        };
+        em.onCameraLine = (cam, line) => {
+          this.hud.barks.say(`cam:${cam}`, line, true);
+          this.events.emit('bark', { radio: true });
+        };
+      }
     }
     if (opts.mode === 'sandbox') {
       // (locomotion step 15) free roam on a test map keeps its wall medkit stations (Proving); a co-op client mirrors
@@ -2960,6 +2981,19 @@ export class GameState implements AppState {
   private placeBark = (who: string, out: { x: number; y: number }): boolean => {
     const em = this.enemyMgr;
     if (!em) return false;
+    // (guard-ai S7) the security desk's line about a camera's body: over that camera
+    if (who.startsWith('cam:')) {
+      const cams = this.security?.cameras ?? [];
+      for (let i = 0; i < cams.length; i++) {
+        const c = cams[i]!;
+        if (who.length !== c.def.id.length + 4 || !who.endsWith(c.def.id)) continue;
+        if (!this.project(c.x, c.y + 0.4, c.z)) return false;
+        out.x = this.scr.x;
+        out.y = this.scr.y;
+        return true;
+      }
+      return false;
+    }
     for (const e of em.enemies) {
       if (e.id !== who || !e.alive) continue;
       if (!this.project(e.pos.x, e.pos.y + (e.dog ? 1.0 : 2.15 * e.def.scale), e.pos.z)) return false;

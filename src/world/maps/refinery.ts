@@ -379,10 +379,7 @@ export const refinery: MapDef = {
         { id: 'cache', pos: v(-26, 2, TANK_H), kind: 'cache' },
         { id: 'extract', pos: v(25, 28), kind: 'extract' },
       ],
-      pickups: [
-        { pos: v(7.2, -29, 0.95), kind: 'ammo' },
-        { pos: v(4, 27, UNIT + 1.2), kind: 'ammo' },
-      ],
+      pickups: [],
       rooms: ROOMS,
       switches: [
         { pos: v(20.15, -2), yaw: Math.PI / 2, group: CONTROL },
