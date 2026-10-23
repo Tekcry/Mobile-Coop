@@ -1,0 +1,15 @@
+{
+  "id": "20261023T204123-night-shift-sector-o-543cb6da-a297",
+  "sha": "543cb6da453d7b290c6574dd0296a1a08545fad4",
+  "branch": "feature/sector-redesign-lr16-6",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-darkness",
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "lr16-6",
+  "note": "LR16-6: G100 instant cut + G102 thermal door ghosts (new e2e-darkness thermal leg)"
+}
