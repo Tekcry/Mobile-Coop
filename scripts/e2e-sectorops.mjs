@@ -3636,6 +3636,19 @@ if (want(1)) {
         return { t: s.t, firstSweep: s.firstSweep, visited: s.maxVisited, moved: s.moved, switches: t.switches, count: t.count, lv: all.map((e) => (e.alive ? e.level : 'down')), lead: t.members[0]?.def.kind };
       });
     }
+    // (guard-ai S28, train 45) no sweep point looked at: where each team stands (its point, the leader, the members, the
+    // locked shut doors on the grid) for the log
+    if (!(w.visited >= 1 && w.moved > 2)) {
+      const diag = await G(() => {
+        const g = window.__app.current;
+        const em = g.enemyMgr;
+        const f1 = (v) => Math.round(v * 10) / 10;
+        const teams = em.teams.map((t) => ({ i: t.index, pt: t.point, at: t.point >= 0 ? [t.pts[2 * t.point], t.pts[2 * t.point + 1]] : null, n: t.count, visited: t.visited, dwell: f1(t.dwellT), sweeping: t.sweeping, pts: t.pts.slice(0, 2 * t.count).map(f1), m: t.members.map((e) => [f1(e.pos.x), f1(e.pos.z), e.alive ? e.level : 'down']) }));
+        const shut = g.world.doors.list.filter((d) => d.anchor.locked && d.target === 0).map((d) => [d.index, f1(d.cx), f1(d.cz)]);
+        return { lkp: [f1(em.lkp.x), f1(em.lkp.z), em.lkpValid], teams, shut, ver: em.nav.version };
+      });
+      console.log(`  S13 diag: ${JSON.stringify(diag)}`);
+    }
     await G(() => {
       const g = window.__app.current;
       g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
