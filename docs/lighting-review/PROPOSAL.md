@@ -375,3 +375,9 @@ If adopted: the default flips in one PR with the map re-tunes (one slice per map
 - Brightening the darkness curve or raising zone fills: breaks "darkness is dark" (L7) and makes a cut circuit not
   dark. Rejected, as in section 3.
 - A fitting check that rejects a footprint across a wall line (a data guard for M5-like layouts).
+
+## 8. LR16 (2026-10-23): one light model
+- Michael 2026-10-23 ~18:08: "the edge of lights should diffuse against walls/floors/etc unless something directly cuts off the light ray, depending on how far away it is. Must be realistic depiction of light". ~18:12: "Disable returning to original lighting system, focus on only the one new system".
+- LR16a removed the toggle and Classic: one photometric model, the `?falloff=photo` switch, the Settings row and the co-op falloff field (`start.lf`, `RejoinRecord.lf`) are gone.
+- LR16b made the edges soft (feathered cone, smooth near term); LR16e (contact-hardening penumbra in the bake), LR16-1 (one-bounce fill in the ambient grid's G channel), LR16t (torch shadow atlas) and LR16g (map re-level, lifts pools) change the rest of the model.
+- Plan: `docs/sector-redesign/checks/lr16-plan.md`.

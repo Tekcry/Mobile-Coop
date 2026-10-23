@@ -5,3 +5,4 @@ kind: minor
   Lamp falloff and `?falloff=photo` are gone (an old saved choice is ignored); Character shadows Auto / On / Off stay.
   Co-op no longer sends the lamp falloff with a match start (wire change: `start.lf` and the rejoin record's `lf`
   removed; the protocol number is set at the merge).
+- Docs name one light model (no Lamp falloff setting).

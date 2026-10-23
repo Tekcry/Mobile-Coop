@@ -31,7 +31,6 @@ const load = (p) => server.ssrLoadModule(p);
 try {
   const lampMath = await load('/src/world/lampMath.ts');
   // the Realistic model: fixed lamps get the photometric reach when the registry adds them (until LR16a makes it the only one)
-  lampMath.setLampFalloff?.('photometric');
   const { LevelBuilder } = await load('/src/world/levelBuilder.ts');
   const { LightRegistry } = await load('/src/world/lights.ts');
   const { MAPS } = await load('/src/world/maps/index.ts');
