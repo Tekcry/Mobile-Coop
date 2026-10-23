@@ -1,0 +1,14 @@
+{
+  "id": "20261023T211650-night-shift-guard-ai-de2a51f5-6c91",
+  "sha": "de2a51f56a5483e0633a91ee4b85bd0910cc7fab",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-enemies"
+  ],
+  "jobs": 2,
+  "set": "sniper-diag",
+  "note": "diagnostic trace for the sniper relocation triage"
+}
