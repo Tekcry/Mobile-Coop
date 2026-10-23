@@ -216,7 +216,8 @@ behind a VPN adapter).
   across a reload, a new co-op room on Campaign (Marlow Yard) with Campaign and Sector Ops listed, save export / import) and the
   legacy-on menus (Hunter default; Missions and Free roam listed)
 - `e2e-coop` two pages over `?net=local`, opened with `legacy=1`: lobby, a Hunter match (puppet alert levels, door sync,
-  a client door use and takedown, kept / hidden bodies, pings both ways, a client gas cloud, a dual takedown, a client
+  a client door use and takedown, kept / hidden bodies, pings both ways, a client gas cloud, a client grab and (coop-walk-fixes
+  P6) the host's team takedown on that hostage, a dual takedown, a client
   reviving the host, the team wipe), validated hits, revive, results; Infiltration objectives on the client; the host's
   fixed difficulty level read-only on the client and running on both; a client using the host's wall medkit station;
   host leaving, offline (known flaky)
@@ -307,7 +308,7 @@ behind a VPN adapter).
   Alert (with Evasion alongside)
 - `e2e-weapon-audio` (AUDIO) on Proving: the sprite decodes with a small alignment shift; automatic fire plays one shot per
   round with brass and stays under 24 voices; a suppressed rifle plays its suppressed bank and guards hear it less; a
-  reload, a dry click and a shot 20 m away play; the weapon lab (`?weaponlab=1`) fires the two kit guns, an automatic
+  reload, a dry click and a shot 20 m away play, (coop-walk-fixes P7) a partner's suppressed pistol round plays suppressed; the weapon lab (`?weaponlab=1`) fires the two kit guns, an automatic
   run, a suppressed guard shot at 18 m, both reloads, brass and dry fire
 - `e2e-foley` (AUDIO) on Proving: the sprite decodes; one foley step per real foot plant at a walk and a sprint (the walk
   check reads 3 or 4 plants against >= 4 at the step-22 speed: parked, not fixed), silence standing still, a drop

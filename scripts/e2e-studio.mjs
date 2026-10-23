@@ -1328,11 +1328,11 @@ try {
     assert(gb.who.who === 'wren' && gb.who.entry === 'state:idle' && !gb.puppet && gb.wrenShown && gb.who.section !== 'guardJoint', `Who = Wren: she is back, the puppet gone, the Body tab shows her parts (${JSON.stringify(gb.who)})`);
   }
 
-  // pause: no studio row inside the studio; quit to the main menu
+  // pause: no studio row (batch-23: never on the pause menu; the tuner row stays); quit to the main menu
   await G(() => window.__app.current.pause());
   await frames(page, 4);
   const keys = await G(() => [...document.querySelectorAll('.pause-screen .ms-item')].map((b) => b.dataset.key).join(','));
-  assert(!keys.includes('anim-studio') && keys.includes('quit'), `pause in the studio has no studio row (${keys})`);
+  assert(!keys.includes('anim-studio') && keys.includes('anim-tuner') && keys.includes('quit'), `pause in the studio: the tuner row, no studio row (${keys})`);
   await G(() => document.querySelector('.pause-screen [data-key="quit"]').click());
   await frames(page, 3);
   await G(() => [...document.querySelectorAll('.dialog-buttons .btn')].find((b) => b.textContent === 'Quit').click());

@@ -26,6 +26,7 @@ import { Ballistics } from '../weapons/ballistics';
 import { Explosions } from '../weapons/explosions';
 import { Grenades } from '../weapons/grenades';
 import { PlayerWeapons, type LoadoutEntry } from '../weapons/playerWeapons';
+import { sdHud } from '../weapons/sdRounds';
 import { PlayerTarget } from './playerTarget';
 import { Hud, type HudFrame } from '../ui/hud/hud';
 import type { WheelView } from '../ui/hud/gadgetWheel';
@@ -220,6 +221,12 @@ export interface NetAttachment {
   revivesLeft?(): number;
   /** Host, Sector Ops: every guard a client holds (takedown grab, hostage) is let go, before a section unloads. */
   releaseHolds?(): void;
+  /** (coop-walk-fixes P6) Co-op: another player holds guard `v` as a hostage now (the team takedown on him is on
+   *  offer to this player: `TakedownController`, kind `assist`). */
+  partnerHolds?(v: TakedownVictim): boolean;
+  /** (P6) This player's team takedown on a partner's hostage: `start`, `done` (`lethal`: the kill) or `abort`. The host
+   *  applies its own at `done`; a client asks the host (`td`, kind `assist`), which checks and applies it. */
+  assistTakedown?(v: TakedownVictim, ph: 'start' | 'done' | 'abort', lethal: boolean): void;
   /** (camera-cue fix) Client: the other living players' bodies for the camera cue's own sight test, written into
    *  `out` from index `from` (entries added when missing); returns how many. */
   partnerBodies?(out: SeenBody[], from: number): number;
@@ -296,6 +303,8 @@ const TD_LABEL: Readonly<Record<TakedownKind, string>> = {
   inverted: 'Choke',
   // (hang-down) the only grab row while hanging (CT); RT is the neck snap
   hangDown: 'Grab character',
+  // (coop-walk-fixes P6) the partner's hostage: the co-op team takedown
+  assist: 'Team takedown',
 };
 
 const TRAVERSE_LABEL: Record<string, string> = { step: 'Step up', vault: 'Vault', mantle: 'Climb', drop: 'Drop down', hop: 'Jump', none: '' };
@@ -609,12 +618,14 @@ export class GameState implements AppState {
     // counted; farther, one is sent to look and the rest turn); a suppressed one (noise x0.6 or less) is an ordinary
     // noise (one sent, the rest turn)
     this.weapons.events.onShot = () => {
-      const n = this.weapons.current.stats.noise;
+      const n = this.weapons.lastShotNoise;
       const r = SHOT_NOISE * n;
       this.eventNoise(r);
       if (n <= SUPPRESSED_NOISE) this.enemyMgr?.hear(this.player.position, r);
       else this.enemyMgr?.noise(this.player.position, r);
     };
+    // (sd-rounds) the quiet rounds ran out: this gun is loud from here
+    this.weapons.events.onSdOut = () => this.hud.feedItem('Suppressed rounds out: shots are loud', 'warn');
     this.target.onDamaged = (h, dealt) => {
       this.stats.damageTaken += dealt;
       const bearing = Math.atan2(h.sourcePos.x - this.player.position.x, h.sourcePos.z - this.player.position.z);
@@ -1222,7 +1233,6 @@ export class GameState implements AppState {
           objectives: () => this.objectiveLines(),
           dof: this.stack.hasDof,
           notice,
-          inStudio: !!this.studio,
           // (marlow-bays items 3-4, A1) host actions in co-op: the client sees them disabled, "Host only"
           host: !this.puppet,
           restartCheckpoint: CHECKPOINT_MODES.has(this.opts.mode) ? () => this.restartCheckpoint() : undefined,
@@ -2677,7 +2687,7 @@ export class GameState implements AppState {
     // EDGE_HAND_TIME (the remotes from WALL_SUB.leftHand)
     // (F1a, cam-5) on the left shoulder (after the aim's shoulder swap) the weapon is in the left hand too; (anim-cleanup)
     // only settled in the aim pocket, never mid-draw / holster / reload (the travel paths and the reload are
-    // right-handed), and the partner sees it (localMoveState: ground sub bit 128)
+    // right-handed), and the partner sees it (`PF.aimLeft`, net/netShared.ts localFlags)
     pl.rig.openLeft = w.leftHand || (!w.active && pl.cam.shoulder < 0 && this.weapons.handSwitchOk);
     const g = w.seg >= 0 ? segs[w.seg] : undefined;
     pose.wallNx = g ? g.nx : 0;
@@ -3388,6 +3398,7 @@ export class GameState implements AppState {
       mag: w.mag,
       magSize: w.stats.magSize,
       reserve: this.weapons.infiniteAmmo ? Infinity : w.reserve,
+      sd: sdHud(w, this.weapons.infiniteAmmo),
       gadget: this.weapons.gadgets.selected,
       grenades: this.weapons.gadgets.count,
       reloadProgress: this.weapons.reloadProgress,

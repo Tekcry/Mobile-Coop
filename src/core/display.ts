@@ -133,3 +133,20 @@ export function resolutionLabel(nativeW: number, nativeH: number, scale: number)
   const r = renderSize(nativeW, nativeH, scale);
   return `${r.w} x ${r.h} (${Math.abs(scale - 1) < 1e-3 ? 'native' : `${Math.round(scale * 100)}%`})`;
 }
+
+/**
+ * (ipad-fit) True only on Windows: the "High performance" hint names Windows Settings. `platform` is
+ * `navigator.userAgentData?.platform` when present, else `navigator.platform`; `ua` the user agent. An iPad in
+ * desktop mode ("Macintosh" / "MacIntel"), iPhone, Mac, Android and Linux are false.
+ */
+export function isWindowsPlatform(ua: string, platform: string): boolean {
+  if (platform) return /Windows|^Win/i.test(platform);
+  return /Windows/i.test(ua);
+}
+
+/** (ipad-fit) {@link isWindowsPlatform} for the running browser. */
+export function runningOnWindows(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const uaData = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData;
+  return isWindowsPlatform(navigator.userAgent, uaData?.platform || navigator.platform || '');
+}
