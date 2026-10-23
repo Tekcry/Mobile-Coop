@@ -276,68 +276,25 @@ Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md pol
 ```
 Night Shift | Sector Ops Build: RESUME. Job sector-redesign (lead), branch feature/sector-redesign-polish (worktree
 C:/NightShift/Mobile-Coop-sector-redesign-polish). git fetch; read CLAUDE.md, ROADMAP "Decided" (grep only: Walk 4.72,
-campus detail art, stealth over shooting), PLAN.md "Walk 4.72" + "Campus detail art" + "LR15". Saved 2026-10-23 ~16:15.
-Heads: art 8521bcbf (#226), charshadow 93546cd6 (#232 = LR13 + shadow + LR14), lampx (LR15, building).
-1. #226 (-art: kit, S1-S5 dressing, A64 lift -cap, walk W2/W3): checkers PASS, CI green. Waiting on the laptop: e2e-coop
-   + e2e-sectorops 1, 3-6 GPU at 8521bcbf + perf part 2 (perf.mjs campusOps, guard-cap 0/12/24, p95 S3/S4/S5), asked
-   ~15:45; Test Runner was offline at 16:06 (swap). Re-ask if no verdict. Green: merge master into -art, message the
-   orchestrator "train-ready #226" (train 28). sectorops:6 breaker-walker assert needs guard-ai S15 on master.
-2. #232 (-charshadow): both checkers PASS, CI green; PROTOCOL 38 awaiting the orchestrator; laptop combined GPU / perf
-   run asked at f03bb0ea (= 93546cd6 + docs). Green + 38 confirmed: merge master, train-ready.
-3. LR15 (-lampx off #232, Opus agent): 8 door slots per lamp + exact torch drawing in LampPlugin, behind the LR13
-   toggle (shadow-audit.md s2 :76, s3b :101). Then a fresh Opus checker (checks/lr15-check.md), laptop GPU checks
-   listed in checks/lr15-build.md; rides #232 if it is not yet merged, else its own PR.
-LATEST 16:25 Test Runner verdict: #226 perf CPU OVER at 24 guards (S5 15.6 / S3 14.5 / S4 12.4 vs 12;
-   0 guards 6.7-7.4; ~0.28 ms per guard) -> Opus fix on -perf (checks/campus-perf-fix.md). #232 f03bb0ea 6/7, sectorops:6
-   FAIL "C1 cycles: near door locks, section 1 unloads" -> Opus fix on -charshadow (checks/s6-c1-fix.md). Asked the
-   laptop for #226 8521bcbf suites + Realistic darkness / lightbake / Epic smoke; torch / preset sheets wait for LR15.
-16:40: C1 = test timing bug (live rAF loop), fixed 00fd3392 + E2E_FALLOFF 273539ec on -charshadow; cherry-picked
-   to -art eb6d63c4. Laptop asked: #232 sectorops:6 + falloff=photo darkness / lightbake / desktop at 273539ec; #226
-   suites at eb6d63c4 after train 27.
-17:05: #226 eb6d63c4 laptop 5/6: sectorops:1 FAIL "a loud shot ... alerts the nearest guard" (nearest stays suspicious)
-   -> Opus fixer on -art (checks/s1-shot-fix.md). LR15 checker PASS (lr15-check.md), lampx 13ec8df4 (fragment + lighting.md);
-   laptop GPU request sent (falloff on / off suites, perf, shots). LR15 PR opens after #232 lands (stacked on it).
-17:25: sectorops:1 = same live-loop test timing bug; fixed test-only on -art 08af0e9f (checks/s1-shot-fix.md);
-   laptop rerun of :1 asked. LR15 run commit e60730c4 (+ charshadow, perf.mjs MODE env) queued after train 28.
-17:55: -perf 47dba252 guard freeze (render-only skip of guards whose body / shadow cannot reach the screen;
-   est. S5-worst 15.6 -> ~11.3 ms; campus-perf-fix.md) - Opus checker running (campus-perf-check.md). -art 4554adbc =
-   + polish2 + perf.mjs MODE (skips the warehouse ten-enemy scene). On PASS merge -perf into -art, send the batch below.
-18:05: laptop all green: #226 sectorops:1 at 08af0e9f; #232 273539ec sectorops:6 + falloff=photo suites. #232
-   merged master (75ff18d7, clean, tsc + 54 lighting tests) -> TRAIN-READY sent to the orchestrator (PROTOCOL 38 to confirm).
-18:20: orchestrator: #232 keeps PROTOCOL 38, train 29 (#232 + #229 + #228). Guard-freeze checker FAIL (campus-perf-check.md):
-   cracked doors and see-through STATIC panes (glass, roof sheets) freeze visible guards -> Opus fix round on -perf
-   (+ release on unload, bounded camera-cut rays). Gameplay / parity / co-op passed.
-18:40: freeze fix round a358df2d (see-through doors / panes / roof sheets, release on unload, 8 tests per eval);
-   merged into -art 2276483a (tsc + 165 related tests green). Laptop final batch asked: e2e-coop, sectorops 1-6,
-   stealth-ai, stealth + perf views freeze on / off + guard-cap. Green -> merge master, train-ready #226.
-   Freeze polish open: cracked door redraw up to 4 evals late; checker polish 1, 2, 5, 6.
-18:55: desktop lane runs #226 2276483a sectorops 1-6 + stealth-ai + stealth (scratch/runs/sectorart226-2276483a/RESULT);
-   laptop: e2e-coop + perf views freeze on / off (__sector.debug() guardFreeze*) + guard-cap. Lighting polish batch
-   (-lrpolish off LR15, Opus: lr-check 1-4, lr14-check 1-6, lr15-check 3 / 5 / 6; checks/lrpolish-build.md).
-19:15: desktop GPU at 2276483a: sectorops 1-6, stealth-ai, stealth ALL PASS. Waiting on the laptop: e2e-coop + perf
-   views (freeze on / off) + guard-cap. #232 in train 29 (61972cf1, 4.78.0 on pass). lrpolish 56a6dbf9 built, Opus checker
-   running (lrpolish-check.md); rides the LR15 PR.
-19:25: lrpolish checker PASS (0cadd6f3), fast-forwarded into -lampx; LR15 laptop run moved to 0cadd6f3 (+ e2e-coop,
-   e2e-menus, double-shadow view). LR15 PR (LR15 + lighting polish) opens against master once train 29 lands.
-19:35: #226 e2e-coop green (laptop) -> only perf views left. #232 releasing 4.78.0. Two Opus polish batches off -art
-   2276483a: -artpol (art-kit P2/P3/P6/P7/P8, art P1/P2, polish2-check 1-2; artpol-build.md) and -frzpol (freeze
-   retest on door / pane change, edge retest, leg point, roof moon shadow; frzpol-build.md). They ride a later batch PR.
-19:55: LR15 0cadd6f3 laptop GREEN (Classic 8/8, photo 6/6, perf in budget, photo +0.3-0.5 ms main on campus).
-   Photo logs texImage3D INVALID_VALUE and S2 atrium floor pools vanish / guards near-black -> Opus fix on -lampx
-   (checks/lr-tex3d-fix.md). For Michael: S3 hall-lit blows out to white fog in BOTH modes (volumetric / bloom).
-   frzpol d1b46acb built; one checker for artpol + frzpol when artpol lands.
-20:20: artpol + frzpol checker PASS (artpol-frzpol-check.md); STALE = RETEST fix 03916126; batch branch -artpol
-   1d34c348 (artpol + frzpol). Desktop lane: sectorops 1-6 + stealth-ai (scratch/runs/sectorpol-1d34c348/RESULT).
-   Batch PR opens against master after #226 merges (base -art); needs laptop perf A/B + door-peek / roof-shadow views.
-20:35: Realistic darkness = lamp vis atlas 1023x90x2428 > MAX_3D 2048, upload failed, picture 0 vs field lit (parity bug,
-   also in 4.78.0 Realistic, default off). Fixed -lampx eb45b0af (paged atlas, runtime max; Classic identical; 205 MB VRAM
-   campus Realistic). Opus checker running (lr-tex3d-check.md). Real photometric dimming after the fix: S2 atrium pool
-   ~0.28 vs Classic 0.48 (9 m pendants) - retune is Michael's call.
-4. Polish batch 2 -polish2 cca3ccb7: checker PASS (polish2-check.md; touches src/net lamp checks, no wire change).
-   Merge into -art together with the -perf fix, then one laptop batch at the new -art head: e2e-coop, e2e-sectorops 1-6,
-   e2e-stealth-ai, e2e-stealth + perf rerun (MAP=campusOps MODE=sector). Still open: lr-check 1-6, lr14-check 1-7,
-   art P1 / P2 / P5 / P6, polish2-check polish 1-3.
+campus detail art, stealth over shooting), PLAN.md "Walk 4.72" + "Campus detail art" + "LR15". Saved 2026-10-23 ~18:05.
+Heads: art 2276483a (#226), lampx eb45b0af (LR15 + lighting polish + atlas fix), artpol 1d34c348 (art + freeze polish).
+#232 (LR13 + shadow + LR14) released in 4.78.0 (train 29).
+1. #226 (-art: campus art, A64 lift, walk W2/W3, polish2 lamp probe, guard-freeze CPU fix; checks campus-perf-fix.md /
+   -check.md): all suites green (desktop sectorops 1-6 + stealth-ai + stealth; laptop e2e-coop). WAITING: laptop perf
+   views start / S3 / S4 / S5-worst, 24 guards, &guardfreeze=0 vs on (budget CPU p95 < 12; __sector.debug() guardFreeze*)
+   + guard-cap. In budget -> merge master into -art, tsc + related vitest, push, message the orchestrator "train-ready #226".
+   Over budget -> read frozen counts, next lever: guard-ai / guard-render proposals in campus-perf-fix.md.
+2. LR15 PR (-lampx): LR15 + lrpolish passed checkers and laptop at 0cadd6f3. eb45b0af fixes the Realistic lamp atlas
+   overflow (1023x90x2428 > MAX_3D 2048 -> black lamps, parity bug; lr-tex3d-fix.md); Opus checker -> lr-tex3d-check.md.
+   Laptop rerun asked at eb45b0af: campusOps Realistic texImage3D warning gone, LAMP_PAGES compiles, perf + memory
+   (~205 MB VRAM), S2 / S3 sheet. Green -> merge master, open the PR against master, message the orchestrator.
+3. Polish batch PR (-artpol 1d34c348 = artpol + frzpol, checker PASS artpol-frzpol-check.md): desktop sectorops 1-6 +
+   stealth-ai at scratch/runs/sectorpol-1d34c348/RESULT. Open against master after #226 merges (rebase on master);
+   laptop perf A/B + door-peek / roof-shadow views.
+4. For Michael (STATE "Now"): Realistic is genuinely dimmer after the atlas fix (S2 atrium pool ~0.28 vs Classic 0.48);
+   S3 hall-lit blows out to white fog in both modes (volumetric / bloom).
+5. Open polish: lr15-check 1 / 2 / 4, lrpolish-check 1-6, freeze checker polish, art P6.
 Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
-Sonnet builds from strict briefs; one checker per batch; tsc / vitest slot locks C:/NightShift/scratch/sr-slot-{1,2,3}.lock
-while desktop CPU > 80%; every e2e E2E_GPU=1; never two agents on the same files.
+Sonnet builds from strict briefs; one checker per batch; tsc / vitest slot locks C:/NightShift/scratch/sr-slot-{1,2,3,4}.lock;
+every e2e E2E_GPU=1; desktop lane script pattern scratch/runs/sectorart226-2276483a/run.sh; never two agents on one file.
 ```
