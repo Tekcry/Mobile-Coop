@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bakeLamps, BOX_STRIDE, fillLampAtlas, LAMP_CELL, LAMP_STRIDE, lampColumnDist, lampGrid, lampPlanReach, packLampAtlas, type LampJob, type LampResult } from '../src/voxel/lampBake';
+import { bakeLamps, BOX_STRIDE, fillLampAtlas, LAMP_CELL, LAMP_GRID_SLOTS, LAMP_STRIDE, lampColumnDist, lampGrid, lampGridBase, lampPlanReach, packLampAtlas, type LampJob, type LampResult } from '../src/voxel/lampBake';
 import { lampTerm, LAMP_CONE_COS, LAMP_EXP, SPOT_EXP } from '../src/world/lampMath';
 import { packShapes, ShapeMode, type VoxelShape } from '../src/voxel/shapes';
 import { canonicalLightSet, canonicalLightShapes } from '../src/voxel/lightShapes';
@@ -95,8 +95,8 @@ describe('baked lamp visibility (3.2)', () => {
     const ids = (x: number, z: number): number[] => {
       const q = Math.floor((x + 10) / 2);
       const r = Math.floor((z + 10) / 2);
-      const o = (r * g.cols * 2 + q * 2) * 4;
-      return [...g.data.subarray(o, o + 8)].filter((v) => v > 0).map((v) => v - 1);
+      const o = lampGridBase(g.cols, q, r);
+      return [...g.data.subarray(o, o + LAMP_GRID_SLOTS)].filter((v) => v > 0).map((v) => v - 1);
     };
     expect(ids(0.5, 0.5)).toEqual([0]);
     expect(ids(4.5, 0.5)).toEqual([1, 0]);

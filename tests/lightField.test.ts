@@ -182,18 +182,23 @@ describe('light field (3.6)', async () => {
       off += B[3]! * B[4]! * B[5]!;
       const l = reg.lights[id]!;
       if (!l.on || l.destroyed) return;
-      const dx = x - l.x;
-      const dy = y - l.y;
-      const dz = z - l.z;
+      // (the lamp data as the shaders and the field hold it: float32)
+      const f = Math.fround;
+      const dx = x - f(l.x);
+      const dy = y - f(l.y);
+      const dz = z - f(l.z);
+      const R = f(l.radius);
       const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-      if (d >= l.radius) return;
-      const axis = l.cone ? [l.cone.dx, l.cone.dy, l.cone.dz] : [0, -1, 0];
+      if (d >= R) return;
+      const axis = l.cone ? [f(l.cone.dx), f(l.cone.dy), f(l.cone.dz)] : [0, -1, 0];
       const cosA = d > 1e-4 ? (dx * axis[0]! + dy * axis[1]! + dz * axis[2]!) / d : 1;
-      const cut = l.cone ? l.cone.cosOuter : Math.cos((Math.PI * 0.97) / 2);
-      if (cosA < cut) return;
-      const cone = Math.pow(Math.max(cosA, 1e-4), l.cone ? 2 : 1);
-      // inverse square referenced at PHOTO.ref (clamped inside PHOTO.near), windowed (1 - (d / R)^4)^2 to 0 at the reach
-      const fall = (PHOTO.ref / Math.max(d, PHOTO.near)) ** 2 * (1 - (d / l.radius) ** 4) ** 2;
+      const cut = l.cone ? f(l.cone.cosOuter) : Math.cos((Math.PI * 0.97) / 2);
+      if (cosA <= cut) return;
+      // (LR16b) the feathered edge: a smoothstep from the cut over 0.4 (lamps) / 0.65 (spots) of (1 - cut)
+      const u = Math.min(1, (cosA - cut) / ((l.cone ? 0.65 : 0.4) * (1 - cut)));
+      const cone = Math.pow(Math.max(cosA, 1e-4), l.cone ? 2 : 1) * u * u * (3 - 2 * u);
+      // inverse square referenced at PHOTO.ref with the smooth near term (LR16b), windowed (1 - (d / R)^4)^2 to 0 at the reach
+      const fall = (PHOTO.ref ** 2 + PHOTO.near ** 2) / (d * d + PHOTO.near ** 2) * (1 - (d / R) ** 4) ** 2;
       v += 1.2 * l.intensity * fall * cone * at(b.lamps!.r.vis, start, [B[0]!, B[1]!, B[2]!], [B[3]!, B[4]!, B[5]!], LAMP_CELL);
     });
     return Math.min(1, Math.max(0, v));
