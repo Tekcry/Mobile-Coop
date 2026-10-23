@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -472,5 +472,39 @@ describe('yieldTo', () => {
     expect(yieldTo({ kind: 'pr' }, true, [t])).toBeNull();
     expect(yieldTo({ kind: 'full' }, false, [])).toBeNull();
     expect(yieldTo({ kind: 'pr', trainRerun: true }, false, [t])).toBeNull();
+  });
+});
+
+describe('train reruns', () => {
+  const rerun = (min: number, tag = 'rr') => ({ ...req(min, 'pr', tag, 'auto-train'), trainRerun: true, pr: 301, suites: ['e2e-coop'] });
+  it('goes right after trains, ahead of older pr work and an aged alone run, on one free slot', () => {
+    const rr = rerun(1);
+    const q = { trains: [], requests: [req(30, 'pr', 'p'), req(60, 'alone', 'al'), rr] };
+    expect(pick(q, NOW, slots(false, false))).toEqual({ kind: 'request', request: rr, slot: '4189' });
+    expect(pick(q, NOW, slots(true, false))).toEqual({ kind: 'request', request: rr, slot: '4192' });
+    expect(pick(q, NOW, slots(true, true))).toBeNull();
+    expect(pick({ trains: [train], requests: [rr] }, NOW, slots(false, false))).toEqual({ kind: 'train', train });
+  });
+  it('the oldest rerun first', () => {
+    const a = rerun(20, 'a');
+    expect(pick({ trains: [], requests: [rerun(5, 'b'), a] }, NOW, slots(false, false))?.request).toBe(a);
+  });
+  it('context, description and validation', () => {
+    expect(contextName('pr', 'ignored', ['e2e-coop', 'e2e-netmove'], true)).toBe('laptop-e2e/rerun-coop+netmove');
+    expect(contextName('pr', '', ['e2e-' + 'x'.repeat(60)], true).length).toBe('laptop-e2e/'.length + 40);
+    expect(rerunPassed(['e2e-coop', 'e2e-netmove'])).toBe('laptop rerun passed: e2e-coop,e2e-netmove (desktop fail)');
+    const long = rerunPassed(Array.from({ length: 20 }, (_, i) => `e2e-suite-${i}`));
+    expect(long.length).toBe(140);
+    expect(long.endsWith('... (desktop fail)')).toBe(true);
+    const ok = { id: 'x', sha: 'a'.repeat(40), kind: 'pr', suites: ['e2e-coop'], trainRerun: true, pr: 301 };
+    expect(requestProblem(ok)).toBe('');
+    expect(requestProblem({ ...ok, pr: null })).toMatch(/train rerun/);
+    expect(requestProblem({ ...ok, kind: 'full' })).toMatch(/train rerun/);
+  });
+  it('a rerun and a plain request are never superseded by or duplicates of each other', () => {
+    const plain = { ...req(30, 'pr', 'p', 'auto-train'), sha: 'a'.repeat(40), suites: ['e2e-coop'] };
+    const rr = { ...rerun(10), sha: 'a'.repeat(40) };
+    expect(superseded([plain, rr], () => true).size).toBe(0);
+    expect(duplicates([plain, rr], [], NOW, 3600_000).size).toBe(0);
   });
 });

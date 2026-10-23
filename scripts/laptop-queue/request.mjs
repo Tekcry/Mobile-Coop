@@ -2,6 +2,8 @@
 // plumbing only (temp index, no checkout), never touching the working tree, the worktree index or HEAD. Prints the id.
 //   node scripts/laptop-queue/request.mjs --sha <ref> [--pr N] [--set name] [--jobs N] [--requester "<title>"]
 //     (--suites "a b c" | --full | --alone --step "<cmd>" [--step ...] [--env K=V ...]) [--note ".."] [--branch x] [--dry-run]
+// --train-rerun (with --pr N and --suites; auto-train, --requester auto-train): a train's failed suites rerun on the
+// laptop at train priority; "trainRerun": true, kind pr. A pass also posts laptop-e2e success on the sha.
 // --dry-run: builds the commit but pushes nothing; prints the sha it would push and the JSON.
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
@@ -16,7 +18,7 @@ for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (!a.startsWith('--')) { console.error(`unexpected argument ${a}`); process.exit(1); }
   const k = a.slice(2);
-  if (['full', 'alone', 'dry-run'].includes(k)) opts[k] = true;
+  if (['full', 'alone', 'dry-run', 'train-rerun'].includes(k)) opts[k] = true;
   else if (k === 'step' || k === 'env') opts[k].push(argv[++i]);
   else opts[k] = argv[++i];
 }
@@ -32,6 +34,8 @@ const git = (args, { env = {}, input, soft = false } = {}) => {
 
 if (!opts.sha) { console.error('usage: request.mjs --sha <ref> (--suites "a b" | --full | --alone --step "<cmd>") [--pr N] [--set s] [--jobs N] [--requester t] [--note t] [--dry-run]'); process.exit(1); }
 
+if (opts['train-rerun'] && (!opts.pr || !opts.suites || opts.full || opts.alone)) { console.error('--train-rerun needs --pr N and --suites (no --full / --alone)'); process.exit(1); }
+
 git(['fetch', '-q', 'origin'], { soft: true });
 const isRef = !/^[0-9a-f]{7,40}$/i.test(opts.sha) && opts.sha !== 'HEAD';
 const resolve = (ref) => git(['rev-parse', '--verify', '-q', `${ref}^{commit}`], { soft: true });
@@ -46,6 +50,7 @@ const id = `${requestId(Date.now(), requester, sha)}-${randomBytes(2).toString('
 const kind = opts.alone ? 'alone' : opts.full ? 'full' : 'pr';
 const req = { id, sha, branch, pr: opts.pr ? Number(opts.pr) : null, kind, requester };
 if (kind === 'pr') req.suites = String(opts.suites ?? '').split(/\s+/).filter(Boolean);
+if (opts['train-rerun']) req.trainRerun = true;
 if (kind === 'alone') {
   req.steps = opts.step;
   req.env = Object.fromEntries(opts.env.map((e) => { const i = e.indexOf('='); return [e.slice(0, i), e.slice(i + 1)]; }));

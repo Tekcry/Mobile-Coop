@@ -15,6 +15,8 @@
 // train runs sharded on the desktop slots whose dir exists (4191+4192), E2E_JOBS=LQ_TRAIN_JOBS (desktop default 1).
 // Every request and train is claimed (claims/<id>.json, a train: claims/<sha>.json, on the laptop-queue branch, an
 // atomic push) before it runs and marked done after, so the two workers never run the same request or train.
+// Train reruns (request.mjs --train-rerun, from auto-train): kind pr, picked right after trains on one slot at E2E_JOBS=1
+// (laptop only); own context laptop-e2e/rerun-<suites>; a full pass also posts laptop-e2e success on the sha.
 // Supersede: an open pr / full request is marked done unrun when the same requester has a newer one (same set, or an
 // ancestor sha with overlapping suites); pick runs a requester's newest request first (lib.mjs superseded, pick).
 // Duplicates (Orchestrator audit 2026-10-24): an open request that runs exactly what another request runs (lib dupKey:
@@ -30,7 +32,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { assertKey, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo } from './lib.mjs';
+import { assertKey, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -618,7 +620,7 @@ async function runTrain(train, ports = PORTS) {
 
 async function runRequest(r, port) {
   const runDir = path.join(STATE_DIR, 'runs', r.id);
-  const ctx = contextName(r.kind, r.set, r.suites);
+  const ctx = contextName(r.kind, r.set, r.suites, r.trainRerun);
   const job = { sha: r.sha, ref: r.branch || r.sha.slice(0, 8) };
   log(`${r.id}: ${r.kind} on ${port}`);
   const ports = r.kind === 'alone' ? PORTS : [port];
@@ -677,7 +679,7 @@ async function runRequest(r, port) {
       return;
     }
     const list = r.kind === 'full' ? cmd('node', ['scripts/run-e2e.mjs', '--list'], { cwd: SLOTS[port].dir }).split('\n').map((x) => x.trim()).filter(Boolean) : r.suites;
-    const jobs = DESKTOP ? 1 : r.jobs ?? (r.kind === 'full' ? 3 : 2);
+    const jobs = DESKTOP || r.trainRerun ? 1 : r.jobs ?? (r.kind === 'full' ? 3 : 2); // a train rerun: E2E_JOBS=1, unsharded
     const t0 = Date.now();
     const run = await e2e(port, list, jobs, path.join(runDir, `${port}.log`));
     // same completeness rule as a train shard; at least the listed suites (a named suite may expand into parts)
@@ -693,6 +695,9 @@ async function runRequest(r, port) {
     result.flakes = await rerunFlakes(result, {}, job, runDir, port);
     result.wall = (Date.now() - t0) / 1000;
     const ok = finish(job, ctx, result, runDir, r.pr);
+    // a train rerun that passed also turns the train's own context green (the latest status per context wins in the
+    // combined status, so it replaces the desktop's laptop-e2e failure); a failed one leaves laptop-e2e red
+    if (ok && r.trainRerun) postStatus(r.sha, 'success', 'laptop-e2e', rerunPassed(r.suites));
     state.done[r.id] = { result: ok ? 'success' : 'failure', wall: result.wall, date: new Date().toISOString() };
   } finally {
     for (const p of ports) { if (locks[p]) releaseLock(p, locks[p]); freePort(p); }
@@ -727,7 +732,7 @@ function dispatch(p) {
   activeReqs.set(p.request.id, p.request);
   const run = runRequest(p.request, p.slot ?? PORTS[0]).catch((e) => {
     log(`${p.request.id} service error: ${e.stack ?? e.message}`);
-    postStatus(p.request.sha, 'error', contextName(p.request.kind, p.request.set, p.request.suites), 'service error, see log');
+    postStatus(p.request.sha, 'error', contextName(p.request.kind, p.request.set, p.request.suites, p.request.trainRerun), 'service error, see log');
     writeClaims([p.request.id], 'release', `release ${p.request.id}`);
     claimed.delete(p.request.id);
   }).finally(() => activeReqs.delete(p.request.id));
@@ -848,7 +853,7 @@ async function pass() {
   const desktopWait = {};
   if (DESKTOP) {
     const backlog = queue.requests.length;
-    queue.requests = queue.requests.filter((r) => r.kind === 'pr');
+    queue.requests = queue.requests.filter((r) => r.kind === 'pr' && !r.trainRerun); // a train rerun is the laptop's (desktop failed)
     const why = {};
     const train = queue.trains[0];
     if (train) {

@@ -19,11 +19,24 @@ export function requestId(now, requester, sha) {
   return `${ts}-${slug || 'anon'}-${String(sha).slice(0, 8)}`;
 }
 
-/** Commit status context: `laptop-e2e/<set>` (alone: `laptop-e2e/alone-<set>`), set cut to [a-z0-9+._-], 40 chars. */
-export function contextName(kind, set, suites = []) {
-  const raw = set || (kind === 'full' ? 'full' : suites.join('+'));
-  const clean = String(raw).toLowerCase().replace(/[^a-z0-9+._-]/g, '-').slice(0, 40) || 'run';
+/**
+ * Commit status context: `laptop-e2e/<set>` (alone: `laptop-e2e/alone-<set>`), set cut to [a-z0-9+._-], 40 chars. A train
+ * rerun: `laptop-e2e/rerun-<suites short>` (the suites without their e2e- prefix, joined by +, 40 chars with "rerun-").
+ */
+export function contextName(kind, set, suites = [], trainRerun = false) {
+  const cut = (raw, n) => String(raw).toLowerCase().replace(/[^a-z0-9+._-]/g, '-').slice(0, n);
+  if (trainRerun) return `laptop-e2e/rerun-${cut((suites ?? []).map((s) => String(s).replace(/^e2e-/, '')).join('+'), 34) || 'run'}`;
+  const clean = cut(set || (kind === 'full' ? 'full' : suites.join('+')), 40) || 'run';
   return `laptop-e2e/${kind === 'alone' ? 'alone-' : ''}${clean}`;
+}
+
+/** The `laptop-e2e` description a passed train rerun posts: "laptop rerun passed: <suites> (desktop fail)", 140 chars. */
+export function rerunPassed(suites) {
+  const tail = ' (desktop fail)';
+  let list = (suites ?? []).join(',');
+  const room = 140 - 'laptop rerun passed: '.length - tail.length;
+  if (list.length > room) list = `${list.slice(0, room - 3)}...`;
+  return `laptop rerun passed: ${list}${tail}`;
 }
 
 /** The problem with a request object, or '' when it is fine. */
@@ -35,6 +48,7 @@ export function requestProblem(r) {
   const strings = (a) => Array.isArray(a) && a.length > 0 && a.every((x) => typeof x === 'string' && x);
   if (r.kind === 'pr' && !strings(r.suites)) return 'pr request needs suites';
   if (r.kind === 'alone' && !strings(r.steps)) return 'alone request needs steps';
+  if (r.trainRerun && (r.kind !== 'pr' || !(Number(r.pr) > 0))) return 'train rerun needs kind pr and a pr number';
   return '';
 }
 
@@ -81,7 +95,8 @@ export function desktopSlotGate(s) {
  * What to start next. queue = { trains: [{ sha, n }], requests: [request] }, slots = [{ port, busy }].
  * Returns { kind: 'train', train } or { kind: 'alone', request } (both need BOTH slots idle), { kind: 'request',
  * request, slot } (one free slot), or null. A pending train wins and, while a slot is busy, blocks all new work so the
- * slots drain (preemption). An alone request over ALONE_AGE_MIN old blocks pr / full work the same way (never starved).
+ * slots drain (preemption). A train rerun (trainRerun, oldest first) comes next, on one free slot, ahead of every other
+ * request and alone run. An alone request over ALONE_AGE_MIN old blocks pr / full work the same way (never starved).
  * Among pr / full requests the requester goes by arrival (the requester whose OLDEST open request has the smallest id),
  * and that requester's NEWEST non-alone request runs (older ones are stale; superseded() normally retires them).
  */
@@ -90,6 +105,8 @@ export function pick(queue, now, slots) {
   const bothIdle = idle.length === slots.length;
   if (queue.trains.length > 0) return bothIdle ? { kind: 'train', train: queue.trains[0] } : null;
   const reqs = [...queue.requests].sort(sortById);
+  const rerun = reqs.find((r) => r.trainRerun);
+  if (rerun) return idle[0] ? { kind: 'request', request: rerun, slot: idle[0].port } : null;
   const alone = reqs.filter((r) => r.kind === 'alone');
   const aged = alone.find((r) => {
     const t = idTime(r.id);
@@ -123,7 +140,7 @@ export function superseded(requests, isAncestor) {
     if (!r.requester || r.requester === 'unknown') return;
     for (let j = reqs.length - 1; j > i; j--) {
       const n = reqs[j];
-      if (n.id === r.id || n.requester !== r.requester || n.kind !== r.kind) continue;
+      if (n.id === r.id || n.requester !== r.requester || n.kind !== r.kind || Boolean(n.trainRerun) !== Boolean(r.trainRerun)) continue;
       const rSet = typeof r.set === 'string' && r.set !== '' ? r.set : '';
       const nSet = typeof n.set === 'string' && n.set !== '' ? n.set : '';
       if (rSet && nSet && rSet !== nSet) continue;
