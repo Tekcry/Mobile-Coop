@@ -73,16 +73,17 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   host keeps sending until the `start` reaches it). The reload (`joinIsReload`) is a client with no state before, or a
   state that jumps `JOIN_SAME_M` 3 m or more from its previous accepted state into its start area (`startSlotPoints` at
   the bay its `start` carried, within `JOIN_START_M` 4 m) and not onto a restore the host sent it; no check runs while a
-  `back` or a revive the host sent it is in flight. The watch lasts 30 s from its last load gap (no state for 1 s) and
-  ends once its placement's restore is met. The host places it with `joinSpawn`
+  `back` or a revive the host sent it is in flight, except on the first state after a load gap (a restart during the
+  load). The watch lasts 30 s from its last load gap (no state for 1 s) and ends once its placement's restore is met or
+  the client drops again. The host places it with `joinSpawn`
   (`game/spawnSlots.ts`, pure): Course and Sector Ops, the current checkpoint (`GameMode.checkpointSpawns`) at the
   client's slot, when a player there can walk to the host (`canWalk`: a nav path that crosses no locked closed door
   leaf); else beside the host. Never the level start unless that is still the checkpoint. Other modes: where its slot
   was held, else beside the host. The spot goes as the existing `restore` event, repeated every 0.5 s until the client
   stands within 1 m (30 s at most); a checkpoint restart (`onRespawn`) stops that repeat. A client that kept its match
-  up (it ignored the `start`) plays on where it is, even when it moved 3 m or more in a gap the host did not see. A
-  rejoin whose reloaded start lies within 3 m of its held spot (it dropped in the start area) is restored to the held
-  spot, not the checkpoint slot.
+  up (it ignored the `start`) plays on where it is, even when it moved 3 m or more in a gap the host did not see,
+  unless it now stands in its start area (then placed at the checkpoint). A rejoin whose reloaded start lies within 3 m
+  of its held spot (it dropped in the start area) is restored to the held spot, not the checkpoint slot.
 - (coop-rejoin, walk item 4) Two spawn slots per spawn area, no wire change: slot 0 the host, slot 1 the partner
   (`CoopHost.slotOf` / `CoopClient.slot`: 1 + the place among the joiners). Map data may give slot 1 (`AirlockDef.spawns`
   `[slot 0, slot 1]`, validated: at most 2, inside the box by 0.3 m, 0.9 m apart; Sector Ops `SectorDef.start2`,

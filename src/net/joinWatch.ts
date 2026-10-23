@@ -10,7 +10,8 @@ import { joinIsReload, type SlotPoint } from '../game/spawnSlots';
  * reloads only when the `start` reaches it. So the watch stays open (`JOIN_WATCH_S` from the last load gap) and places
  * the client on the first state that is its reload (`joinIsReload`: a jump of 3 m or more from the previous accepted
  * state, into its start area, not onto a restore the host sent), never while a teleport the host sent it (a `back`, a
- * revive) is in flight. It ends when the restore that placement set is met or runs out, or after the watch time.
+ * revive) is in flight unless the state follows a load gap. It ends when the restore that placement set is met or runs
+ * out, after the watch time, or when the client drops again.
  */
 
 /** A spot the host keeps sending a client to (`restore` event) until it stands there. */
@@ -58,9 +59,12 @@ export class JoinWatch {
   readonly restores = new Map<string, RestoreSpot>();
   private readonly pending = new Map<string, Pending>();
 
-  /** (R2) Client `id` dropped: where it stood comes back on its rejoin (the repeat starts at `resume`). */
+  /** (R2) Client `id` dropped: where it stood comes back on its rejoin (the repeat starts at `resume`). An open watch
+   *  ends (coop-rejoin-2): its next rejoin's `late` opens a fresh one, so a placement still unmet at the drop cannot
+   *  close that watch when the old match meets the new held restore. */
   hold(id: string, at: SlotPoint): void {
     this.restores.set(id, { x: at.x, y: at.y, z: at.z, yaw: at.yaw, sent: -1, until: 0 });
+    this.pending.delete(id);
   }
 
   /** (R2) The held client's first state: its restore repeats from now. */
@@ -125,13 +129,16 @@ export class JoinWatch {
       out |= JOIN_RESYNC;
     }
     // its first state, or the first after a load gap: the watch time starts again
-    if (p.lastT < 0 || now - p.lastT > JOIN_GAP_S) p.until = now + JOIN_WATCH_S;
+    const gap = p.lastT < 0 || now - p.lastT > JOIN_GAP_S;
+    if (gap) p.until = now + JOIN_WATCH_S;
     p.lastT = now;
     if (now > p.until) {
       this.pending.delete(id);
       return out;
     }
-    if (now < p.quietUntil) return out;
+    // (coop-rejoin-2) a running match never goes 1 s+ without a state, so a state after a load gap is never a stale
+    // pre-teleport one: it is checked even while a teleport is in flight (a restart during the load: its revive is lost)
+    if (now < p.quietUntil && !gap) return out;
     if (joinIsReload(prev, x, z, p.start, this.restores.get(id) ?? null)) out |= JOIN_PLACE;
     return out;
   }

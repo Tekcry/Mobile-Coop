@@ -104,3 +104,20 @@ eslint clean on the touched files. No e2e (desktop rule; e2e-coop / e2e-netmove 
 
 Left open: a rejoin through the start area's 3 m (P5) keeps the held-spot restore (written in coop.md); a host restart
 or `back` landing in the reload's 2-3 s window would skip that reload (the watch then sees no later jump). Rare.
+
+## Follow-up batch (coop-rejoin-2)
+Branch feature/coop-rejoin-2, stacked on feature/coop-rejoin (PR #269, f13b91e7). RECHECK.md polish 1, 2 and 5; no wire
+change (PROTOCOL_VERSION and message shapes untouched); no new allocation on the per-state path (one boolean).
+1. **Polish 1 (closes "restart / `back` in the reload's 2-3 s window"):** a state after a load gap (no state for
+   `JOIN_GAP_S` 1 s, or the watch's first state) bypasses the in-flight skip (`src/net/joinWatch.ts:132`, `:141`). A
+   running match never goes 1 s+ without a state, so a post-gap state is never a stale pre-teleport one.
+2. **Polish 2:** `hold` ends an open watch (`src/net/joinWatch.ts:67`), so a placement restore still unmet at a second
+   drop can no longer close the next rejoin's watch when the old match meets the new held restore.
+3. **Polish 5:** `docs/systems/coop.md:84-85` adds "unless it now stands in its start area (then placed at the
+   checkpoint)"; `:76-78` notes the post-gap exception and the drop ending the watch.
+4. Changelog fragment `changes/feature-coop-rejoin-2.md` (kind: patch).
+
+Tests: `tests/joinWatch.test.ts` 13/13 (+2: `:97` `respawned`, then the reload 1 s later after a 5 s gap -> placed;
+`:201` an unmet placement restore, `hold`, rejoin -> the new watch places on the reload; both fail on the old code).
+The existing revive in-flight case (`:154`) now steps 0.8 s, under `JOIN_GAP_S`, so it still tests the skip.
+coopRejoin 12/12; `npx tsc --noEmit -p .` clean; eslint clean on the two files. No e2e (desktop rule).

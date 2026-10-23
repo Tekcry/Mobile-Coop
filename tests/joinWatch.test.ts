@@ -93,6 +93,22 @@ describe('the join watch (B1): placed on its reload, not on its old match', () =
     expect(c.send(2, 12) & JOIN_PLACE).toBe(JOIN_PLACE);
     expect(c.resynced).toBe(1);
   });
+
+  it('(coop-rejoin-2) a restart during the load: the reload after the gap is placed, though the revive is in flight', () => {
+    const w = new JoinWatch();
+    w.hold('C', HELD);
+    w.late('C', START, 0);
+    w.resume('C', 0);
+    const c = new Client(w, HELD);
+    for (let i = 0; i < 10; i++) c.send(140, 20);
+    // it loads for 5 s; 4 s in, a checkpoint restart moves its host copy (the revive never reaches the loading page)
+    c.t += 4;
+    w.respawned('C', c.t);
+    // the reload's first state, 1 s after the restart (inside JOIN_REVIVE_QUIET_S) and 5 s after its last state
+    c.t += 1 - STEP;
+    expect(c.send(2, 12) & JOIN_PLACE).toBe(JOIN_PLACE);
+    expect(c.placed).toBe(1);
+  });
 });
 
 describe('the join watch: never placed without a reload', () => {
@@ -135,7 +151,9 @@ describe('the join watch: never placed without a reload', () => {
     w.respawned('C', c.t);
     c.prev = { x: 2, z: 12 };
     expect(c.send(8, 10) & JOIN_PLACE).toBe(0);
-    c.t += JOIN_REVIVE_QUIET_S - 0.5;
+    // still in flight, no load gap between (a state after a gap is checked: the coop-rejoin-2 test)
+    expect(JOIN_GAP_S - 0.2 + STEP).toBeLessThan(JOIN_REVIVE_QUIET_S);
+    c.t += JOIN_GAP_S - 0.2;
     expect(c.send(2, 12) & JOIN_PLACE).toBe(0);
     expect(c.placed).toBe(0);
   });
@@ -178,6 +196,29 @@ describe('the restore repeat', () => {
     w.resume('C', 1);
     w.respawned('C', 1);
     expect(w.restoreStep('C', 50, 50, 1.5)).toBeNull();
+  });
+
+  it('(coop-rejoin-2) a drop while its placement restore is unmet ends the watch: the next rejoin is placed on its reload', () => {
+    const w = new JoinWatch();
+    w.late('C', START, 0);
+    const c = new Client(w, HELD);
+    c.send(140, 20);
+    expect(c.send(2, 12) & JOIN_PLACE).toBe(JOIN_PLACE);
+    // it walks off before the placement restore is met, then drops again
+    for (let x = 2.5; x <= 20; x += 0.5) c.send(x, 12);
+    expect(w.restoring('C')).toBe(true);
+    w.hold('C', pt(20, 12));
+    expect(w.watching('C')).toBe(false);
+    // the rejoin: its old match meets the new held restore, then the reload after the load gap
+    c.t += 3;
+    w.late('C', START, c.t);
+    w.resume('C', c.t);
+    for (let i = 0; i < 5; i++) expect(c.send(20, 12) & JOIN_PLACE).toBe(0);
+    expect(w.restoring('C')).toBe(false);
+    expect(w.watching('C')).toBe(true);
+    c.t += 3;
+    expect(c.send(2, 10) & JOIN_PLACE).toBe(JOIN_PLACE);
+    expect(c.placed).toBe(2);
   });
 
   it('a watch ends with its client (left for good)', () => {
