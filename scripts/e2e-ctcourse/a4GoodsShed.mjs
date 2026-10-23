@@ -93,7 +93,9 @@ export async function walk(t, n) {
     }
     await until(B, (i) => window.__app.current.world.doors.list[i].open > 0.5, i, 15000, `${what}: the client sees ${cid} open`);
   }
-  const cueHidden = () => window.__ctdev.debug().cue.every((c) => c.a === 0 && !c.shown && !c.seen);
+  /** (S-e2e-fix3) A4's three camera cues are hidden. The cue list, like `cams`, holds every camera on the map (`CameraCueView` is built over
+   *  `CtDevices.cams`), and Course mode never makes another set's camera dead (no `setLive`): A3's, A7's and A8's stay online, their cues shown. */
+  const cueHidden = () => { const cs = window.__ctdev.debug().cue.filter((c) => c.id.startsWith('cam-a4-')); return cs.length === 3 && cs.every((c) => c.a === 0 && !c.shown && !c.seen); };
   /** The lamps of circuit g are all on / all off on page P's registry (the host's own, the client's from the course message). */
   const lampsOn = (P, g, on) => P.evaluate(([g, on]) => { const l = window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g); return l.length > 0 && l.every((x) => x.on === on); }, [g, on]);
   /** Knock a guard out with a melee HitInfo as `CtDevices.touch` builds one (dir -x). */
@@ -228,8 +230,9 @@ export async function walk(t, n) {
     await waitSim(300);
     for (const P of [A, B]) {
       const d = await t.dev(P);
-      if (d.cue.some((c) => c.seen)) seen = true;
-      if (d.cams.some((c) => c.mode !== 'looped')) back = true;
+      // (S-e2e-fix3) A4's cameras only: the other sets' cameras are online all along
+      if (d.cue.some((c) => c.id.startsWith('cam-a4-') && c.seen)) seen = true;
+      if (d.cams.some((c) => c.id.startsWith('cam-a4-') && c.mode !== 'looped')) back = true;
     }
   }
   const alarm1 = (await t.dev(A)).alarm;

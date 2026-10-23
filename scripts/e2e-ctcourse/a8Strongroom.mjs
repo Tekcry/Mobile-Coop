@@ -304,7 +304,9 @@ export async function walk(t, n) {
   // off the board at once, to the lane between the column and the stair (dark in the cut, behind N2 at the grille and out of N1's walk): the client is
   // not left at the board while N1 walks at it, and not put at the grille while N2 stands there (he waits 5 s facing the gate)
   await moveClient(132.25, 66.0, 0.1, EAST);
-  await until(A, (g) => !window.__app.current.stealth.switchOn(g), NIGHT_GROUP, 10000, 'A8: the night circuit is off on the host');
+  // (S-e2e-fix3) the host's registry, not `stealth.switchOn`: that reads the wall switches, and circuit 81 has none (the board is its only
+  // control: an isolator, `CourseMode.isolatorEdge` -> `StealthSystems.isolate`), so `switchOn(81)` is true whatever the lamps do
+  await until(A, ([g, on]) => { const l = window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g); return l.length > 0 && l.every((x) => x.on === on); }, [NIGHT_GROUP, false], 10000, 'A8: the night circuit is off on the host');
   await until(B, (g) => window.__course.wire.lights.groups.some(([k, on]) => k === g && !on), NIGHT_GROUP, 15000, "A8: the client's course message has group 81 off");
   assert((await lampsOn(A, NIGHT_GROUP, false)) && (await lampsOn(B, NIGHT_GROUP, false)), 'A8: the seven night lamps are off on both pages');
   for (const [x, z, what] of [[128, 66.5, 'the front'], [GRILLE_AT[0], GRILLE_AT[1], 'the grille approach']]) {
@@ -449,7 +451,8 @@ export async function walk(t, n) {
   await openDoor(A, DOORS.grille, 'A8 pass 2 grille');
   await moveHost(INSIDE[0], INSIDE[1], 0.1, EAST);
   await until(A, (g) => !window.__course.debug().gates[g], NIGHT_GATE, 40000, 'A8 pass 2: the 25 s window ends');
-  await until(A, (g) => window.__app.current.stealth.switchOn(g), NIGHT_GROUP, 10000, 'A8 pass 2: the night circuit is back on (host)');
+  // (S-e2e-fix3) the host's registry (circuit 81 has no wall switch, see step 5)
+  await until(A, ([g, on]) => { const l = window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g); return l.length > 0 && l.every((x) => x.on === on); }, [NIGHT_GROUP, true], 10000, 'A8 pass 2: the night circuit is back on (host)');
   await until(B, (g) => !window.__course.wire.lights.groups.some(([k, on]) => k === g && !on), NIGHT_GROUP, 15000, 'A8 pass 2: the night circuit is back on (client)');
   assert(await lockedOnHost(DOORS.grille), 'A8 pass 2: the grille is locked again on the host');
   await until(B, (i) => window.__course.wire.locks.includes(i), await doorIndex(DOORS.grille), 15000, 'A8 pass 2: the client sees the grille locked');
