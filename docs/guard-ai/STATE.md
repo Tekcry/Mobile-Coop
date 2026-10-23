@@ -1,6 +1,13 @@
 # Guard AI - state
 
 ## Now
+~10:30: train 45 FAILED e2e-sectorops:1 S13 "team moves between sweep points (looked at 0)" with S28 (#294 unlabelled,
+train closed; next train #295 + #272 + #293). S28 triage (S28.md "Train 45"): no src bug found; sweep points all
+reachable; S28 reroutes team 1 through team 0's doors -> likely two stacks crowding doorways (S13 / S20, unconfirmed).
+Diag line 35eb178e. Test-only merge feature/guard-ai-s28-train 6f5bc803 (master + S28, NEVER master; worktree
+-s28-train) -> laptop s13-diag. Also pending: s13-master, s13-s28, s13-train45, s28-s13. Sniper triage still waiting
+on its laptop run.
+
 ~09:45: #272, #294, #295 TRAIN-READY. Running: e2e-enemies sniper triage (worktree -sniper, feature/guard-ai-sniper,
 SNIPER-TRIAGE.md, set sniper-fix).
 
