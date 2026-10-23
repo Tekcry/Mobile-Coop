@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   bumpVersion, ciGreenAt, ciState, contextStatus, decide, desktopFailSuites, docsOnly, fragmentInfo, fragmentPath, joinTitles, laptopMissing, laptopQueueState, membersFromSubjects,
   nextTrainNumber, pacing, parseChangelogHeading, parseLeftOut, parseTrainTitle, planBuild, rebuildSkip, releaseArgs, releaseKind, scratchFiles,
-  stackedTips, versionFromSubjects, rerunArgs, rerunContext, rerunPlan,
+  stackedTips, versionFromSubjects, rerunArgs, rerunContext, rerunPlan, buildMarkerPath, clearBuildMarker, withBuildMarker, writeBuildMarker,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/auto-train.mjs';
 
@@ -308,5 +308,40 @@ describe('auto-train: laptop rerun after a desktop failure', () => {
     const passed = train({ laptop: { state: 'success', description: 'laptop rerun passed: 2/2' } });
     expect(rerunPlan(passed, { rerun: { head, id: 'r1', suites: ['e2e-coop'] } })).toBeNull();
     expect(decide({ train: passed })).toMatchObject({ state: 'releasing', action: 'release' });
+  });
+});
+
+describe('auto-train: build marker', () => {
+  const memFs = () => {
+    const files = new Map<string, string>();
+    return { files, mkdirSync: () => undefined, writeFileSync: (f: string, t: string) => { files.set(f, t); }, rmSync: (f: string) => { files.delete(f); } };
+  };
+
+  it('sits in the scratch dir beside the other files, a dry run with its own suffix', () => {
+    expect(buildMarkerPath('S', false)).toMatch(/^S[\\/]auto-train-building\.json$/);
+    expect(buildMarkerPath('S', true)).toMatch(/^S[\\/]auto-train-building\.dryrun\.json$/);
+    expect(scratchFiles('S', false).building).toBe(buildMarkerPath('S', false));
+    expect(scratchFiles('S', true).building).toBe(buildMarkerPath('S', true));
+  });
+
+  it('writes { train, version, pid, at } and deletes it; never throws', () => {
+    const m = memFs();
+    expect(writeBuildMarker('S/b.json', { train: 47, version: '4.90.0', pid: 123, at: '2026-10-24T10:00:00.000Z' }, m)).toBe(true);
+    expect(JSON.parse(m.files.get('S/b.json')!)).toEqual({ train: 47, version: '4.90.0', pid: 123, at: '2026-10-24T10:00:00.000Z' });
+    expect(clearBuildMarker('S/b.json', m)).toBe(true);
+    expect(m.files.size).toBe(0);
+    const broken = { mkdirSync: () => { throw new Error('EACCES'); }, writeFileSync: () => undefined, rmSync: () => { throw new Error('EBUSY'); } };
+    expect(writeBuildMarker('S/b.json', { train: 1, version: '1.0.0' }, broken)).toBe(false);
+    expect(clearBuildMarker('S/b.json', broken)).toBe(false);
+  });
+
+  it('is present while the build runs and gone after, also on an error', async () => {
+    const m = memFs();
+    let seen: string | undefined;
+    await expect(withBuildMarker('S/b.json', { train: 47, version: '4.90.0' }, async () => { seen = m.files.get('S/b.json'); return 7; }, m)).resolves.toBe(7);
+    expect(JSON.parse(seen!)).toMatchObject({ train: 47, version: '4.90.0', pid: process.pid });
+    expect(m.files.size).toBe(0);
+    await expect(withBuildMarker('S/b.json', { train: 47, version: '4.90.0' }, async () => { throw new Error('boom'); }, m)).rejects.toThrow('boom');
+    expect(m.files.size).toBe(0);
   });
 });

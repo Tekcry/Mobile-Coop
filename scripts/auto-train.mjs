@@ -23,8 +23,9 @@
 // Files: lock C:/NightShift/scratch/auto-train.lock (wx, stale when untouched 30 min; a heartbeat keeps a long build's
 // lock fresh; merge-train takes the same lock for a hand run), log C:/NightShift/scratch/runs/auto-train.log, status
 // C:/NightShift/scratch/auto-train-status.json (one line: state, train, version, head, reason, time, ...); --dry-run
-// uses auto-train.dryrun.lock, runs/auto-train.dryrun.log and auto-train-status.dryrun.json. AUTO_TRAIN_SCRATCH env
-// moves them all.
+// uses auto-train.dryrun.lock, runs/auto-train.dryrun.log and auto-train-status.dryrun.json. Build marker
+// C:/NightShift/scratch/auto-train-building.json ({ train, version, pid, at }; dry: auto-train-building.dryrun.json),
+// written just before `merge-train build` and deleted in a finally. AUTO_TRAIN_SCRATCH env moves them all.
 // Exit: 0 tick done (the outcome is the status state; also when another tick holds the lock), 1 usage or error.
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -285,7 +286,33 @@ export function scratchFiles(scratch, dry) {
     log: path.join(scratch, 'runs', `auto-train${x}.log`),
     status: path.join(scratch, `auto-train-status${x}.json`),
     realStatus: path.join(scratch, 'auto-train-status.json'),
+    building: buildMarkerPath(scratch, dry),
   };
+}
+
+// ---- build marker (audit 2026-10-24 item 3): the laptop queue sees a `merge-train build` (vitest under heavy.lock) --
+
+/** The build marker in `scratch`: auto-train-building.json (a dry run: auto-train-building.dryrun.json). */
+export const buildMarkerPath = (scratch, dry) => path.join(scratch, `auto-train-building${dry ? '.dryrun' : ''}.json`);
+
+/** Writes the marker { train, version, pid, at } through `fsi` (injected fs); never throws: true when written. */
+export function writeBuildMarker(file, { train, version, pid = process.pid, at = new Date().toISOString() }, fsi = fs) {
+  try {
+    fsi.mkdirSync(path.dirname(file), { recursive: true });
+    fsi.writeFileSync(file, `${JSON.stringify({ train, version, pid, at })}\n`);
+    return true;
+  } catch { return false; }
+}
+
+/** Deletes the marker through `fsi`; never throws (absent is fine): true when gone. */
+export function clearBuildMarker(file, fsi = fs) {
+  try { fsi.rmSync(file, { force: true }); return true; } catch { return false; }
+}
+
+/** Runs `fn` with the marker written just before and deleted in a finally (also when `fn` throws or rejects). */
+export async function withBuildMarker(file, info, fn, fsi = fs) {
+  writeBuildMarker(file, info, fsi);
+  try { return await fn(); } finally { clearBuildMarker(file, fsi); }
 }
 
 // ---- laptop rerun after a desktop failure (audit 2026-10-24 item 2) ----------------------------------------------
@@ -568,7 +595,8 @@ function commentLeftOut(cands, left, n) {
 async function build(n, cands, { rebuildOf } = {}) {
   const p = plan(cands);
   log(`build train ${n}: ${p.version} (${p.kind}, master ${p.masterVersion}) "${p.title}" <- ${p.branches.join(' ')}`);
-  const r = await mergeTrain(['build', String(n), p.version, p.title, ...p.branches]);
+  log(`  build marker ${FILES.building} (deleted when the build ends)`);
+  const r = await withBuildMarker(FILES.building, { train: n, version: p.version }, () => mergeTrain(['build', String(n), p.version, p.title, ...p.branches]));
   const base = { train: n, version: p.version, members: p.branches };
   if (r.dry) return { ...base, state: 'building', reason: `${rebuildOf ? 'rebuild' : 'build'} would run (dry run)` };
   const head = exec(['git', 'ls-remote', 'origin', `refs/heads/train/${n}`]).out.split('\t')[0].trim() || null;

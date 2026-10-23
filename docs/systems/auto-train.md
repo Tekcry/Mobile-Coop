@@ -24,9 +24,11 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   `C:/NightShift/scratch/runs/auto-train.log` (merge-train output included), status
   `C:/NightShift/scratch/auto-train-status.json`: one JSON line `{ state, train, version, head, reason, time, ... }`
   (extra keys: `pr`, `members`, `leftOut`, `candidates`, `released`, `rebuildFailed`, `rerun`, `rerunRequestFailed`,
-  `dryRun`; `rerun` is carried into every status of the same train head, error ticks included). A `--dry-run` tick
-  uses `auto-train.dryrun.lock`, `runs/auto-train.dryrun.log` and `auto-train-status.dryrun.json` and never touches
-  the real three.
+  `dryRun`; `rerun` is carried into every status of the same train head, error ticks included), build marker
+  `C:/NightShift/scratch/auto-train-building.json` (`{ train, version, pid, at }`, written just before
+  `merge-train build` (its vitest runs under `heavy.lock`) and deleted in a finally, also on errors; the laptop queue
+  reads it). A `--dry-run` tick uses `auto-train.dryrun.lock`, `runs/auto-train.dryrun.log`,
+  `auto-train-status.dryrun.json` and `auto-train-building.dryrun.json` and never touches the real four.
 - The train lock is shared: `merge-train build / release / single` (not `--dry-run`) take the same
   `auto-train.lock` (same format and staleness; `AUTO_TRAIN_LOCK` overrides the path), so a hand run in the train
   worktree and a tick never overlap: a held lock stops merge-train with exit 1. A tick hands its lock text to the
@@ -47,7 +49,7 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 | Anything else (CI or laptop pending / missing) | pending | wait |
 | No open train, no `train-ready` PR with a green `check` | idle | none |
 | Candidates, but the last release is under `--min-interval` min old and the laptop queue is not idle (or `--max-per-day` reached) | waiting | none |
-| Candidates, paced to go | building / built | `merge-train build <n+1> <version> "<title>" <branches...>`; exit 2 -> failed (and an `auto-train/vitest` failure status on the head); exit 3 -> failed (every member left out); exit 4 (vitest not run: the heavy-lock wait timed out; the train is pushed and CI's `check` runs the unit tests) -> pending, the next tick goes on |
+| Candidates, paced to go | building / built | (build marker written) `merge-train build <n+1> <version> "<title>" <branches...>`; exit 2 -> failed (and an `auto-train/vitest` failure status on the head); exit 3 -> failed (every member left out); exit 4 (vitest not run: the heavy-lock wait timed out; the train is pushed and CI's `check` runs the unit tests) -> pending, the next tick goes on |
 | Any command error, or no version for the open train | error | none |
 
 - The `build` vitest step (under the heavy lock) is load-tolerant: when the full run fails and every failure is a `Test timed out in` or at most 3 test files failed, only those files rerun once with `npx vitest run --no-file-parallelism <files>`; a pass there is ok ("passed on isolated rerun: <files>"), a fail reports the rerun's tail. More than 3 failed files that are not all timeouts fail at once, no rerun.
