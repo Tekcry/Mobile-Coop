@@ -46,7 +46,7 @@ No `src/` change, so no `e2e-stealth-ai` in the rerun.
 
 ## Rerun
 
-Laptop set `s27-sec1-fix`, suites `e2e-sectorops:1` (request id in the commit thread / below).
+Laptop set `s27-sec1-fix`, suites `e2e-sectorops:1`, on 1e8d1b6c: request `20261023T130022-night-shift-guard-ai-1e8d1b6c-4671`.
 
 ## Open
 
