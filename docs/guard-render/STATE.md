@@ -171,3 +171,75 @@ Follow-ups (not in this slice):
    unchecked); kick / melee (`rp.kick`, `rp.melee`) are not modelled; the sim head is computed in the fixed step and
    leads the drawn (interpolated) head by up to one step.
 3. Hostage walk crouched (the knockout lowering) fades `HELD_MOVE` with crouch, not fitted.
+
+### Fix round 3 (2026-10-23)
+The fresh checker's should-fix: the walked-hostage fit at 60 deg sat on the facing / velocity stride boundary
+(cos 60 = 0.5000000000000001), its frames split between the classes (clamped to the 50 deg row or the 70 deg row), the
+V 70 row turned to noise, residuals at dir 60 0.144-0.160 m (bound 0.08), and the head stepped ~6 cm forward as a
+walked hostage's direction crossed 60 deg.
+- Measured the rig across the boundary (16 directions 40-80 deg, 0.3-0.9 m/s): the rig itself steps there. It takes
+  stride 'facing' when `localZ > 0.5` (`Enemy.frame`), and armed its head sits 6.7 cm further back on the facing stride
+  (forward -0.075 against -0.008 m), reached in ~0.1 s (keyed walk weight tau 0.08 s, its pelvis rate 1.2 m/s); the
+  runner has no step (-0.007 / -0.008). So `HELD_MOVE` keeps the class switch, on the rig's own test bit for bit
+  (`heldFacing`: `sp > 0.01 && mz * (1 / sp) > 0.5`, as `localZ` is computed): a blend would be off the rig for every
+  steady direction inside the band, the step only for the rig's ~0.1 s crossing. The free `MOVE` lookup keeps its
+  `mz > 0.5 * sp` (refitting it needs the 8-part free sweep; it differs from the rig's test only at exactly 60 deg).
+- Knots: `TH_HF` 0 / 30 / 45 / 50 / 55 / 59 (facing), `TH_HV` 61 / 75 / 90 / 120 / 150 / 180 (velocity), `SP_H`
+  0.15 / 0.3 / 0.45 / 0.6 / 0.75 / 0.9 / 1.2 / 1.6. The sweep (`HOSTAGE_DIRS`, also -90) has no frame on the boundary;
+  `GUARD_HEAD_LEN=3` (the dips below are irregular); `GUARD_HEAD_DIRS` / `GUARD_HEAD_SPEEDS` override it for exploring.
+  The refit is deterministic (two sweeps, the same block). The script reports per direction at the hold's speeds
+  (<= 0.75) apart from the faster ones (0.9-1.6, reached only in a turning hold).
+- Near the boundary the facing stride slips sideways and the rig's head dips up to 11 cm below its mean for ~0.5 s at
+  irregular times (the foot planner catching up: 52-60 deg at 0.45 m/s, 54-60 at 0.6, 58-60 at 0.75, also 45 deg at
+  0.3-0.45 and straight back at 0.3); the fit gives the mean, the dip stays as residual.
+- Harness: `heldMove.turn` (`HeldTurn`: rate, optional from / to): the operator walks along her facing and turns, the
+  hostage placed `GRAB.hold` ahead / `GRAB.side` to her side and facing her way (`TakedownController` holding); a turn
+  with an end marks the T3 change.
+- Parity cases (new): diag 45 and 60 at 0.6 m/s, turning arcs at the cap 0.75 m/s (1.5 rad/s both ways; 3 rad/s both
+  ways, exception), the 180 at her free-movement turn cap (`CT.turnRate` 7.85 rad/s, both ways, T3 exception). The 1.2 m/s
+  case is now labelled a bound check (the hold cap is `GRAB.speedCap` 0.75 m/s, a straight 1.2 m/s walk cannot happen).
+- `HELD_MOVE` doc: the boundary choice, the dip band, the aim follow-up below, and the release transient (`poseW`
+  fades over 0.2 s with the last held pose kept, `HELD_MOVE` and the `sxm` removal scaled by it).
+
+Fit residuals per direction, hold speeds 0.15-0.75 m/s (m, worst / p95 over grunt, runner, heavy):
+| Dir | Worst | p95 |
+| --- | --- | --- |
+| 0 | 0.017 | 0.013 |
+| 30 | 0.017 | 0.013 |
+| 45 | 0.068-0.097 | 0.029-0.052 |
+| 50 | 0.075-0.094 | 0.022-0.040 |
+| 55 | 0.072-0.087 | 0.053-0.075 |
+| 59 | 0.068-0.088 | 0.058-0.077 |
+| 61 | 0.019-0.043 | 0.014-0.029 |
+| 75 | 0.015-0.038 | 0.013-0.024 |
+| 90 / -90 | 0.015-0.072 | 0.011-0.029 |
+| 120 | 0.015-0.038 | 0.012-0.023 |
+| 150 | 0.040-0.049 | 0.017-0.031 |
+| 180 | 0.096-0.106 | 0.047-0.051 |
+At 0.9-1.6 m/s (a turning hold only): worst 0.12-0.15 at 50-59 deg (p95 0.07-0.10), 0.084 at 0 (heavy), else <= 0.11.
+Round 2 at dir 60: 0.144-0.160 (p95 0.067-0.092).
+
+Parity worst errors, hostage cases (m; 3D, both yaws, grunt / runner / heavy):
+| Case | Worst |
+| --- | --- |
+| T2 held hostage (still) | 0.012 |
+| T2 walked 1.2 (bound check, over the cap) | 0.016 |
+| T2 walked 0.6 / side 0.6 | 0.013 / 0.025 |
+| T2 walked diag 45 0.6 (new) | 0.037 |
+| T2 walked diag 60 0.6 (new; the class differs by root yaw, the sim follows it) | 0.074 |
+| T2 turning arc 1.5 rad/s R / L (new) | 0.015 / 0.020 |
+| T2 turning arc 3 rad/s R / L (new, exception 0.15) | 0.145 / 0.097 |
+| T3 180 at the turn cap R (new, exception 0.26, steady 0.12) | 0.255 / steady 0.026 |
+| T3 180 at the turn cap L (new, exception 0.26, steady 0.12) | 0.153 / steady 0.113 |
+Everything else unchanged; the whole parity file passes (165 tests).
+
+Follow-ups (not in this slice):
+4. A fast turning hold: the rig's body lags its root (up to 14 cm sideways, 18 cm forward in the 180 at the cap: he
+   swings round her at 2.4-2.9 m/s for 0.4 s) and dips after a left turn (10 cm, ~0.6 s); the 3 rad/s arc sits in the
+   slip band at 1.1-1.4 m/s. The sim has no yaw-rate term. Needs a yaw-rate input to `guardHead` or a slower hostage
+   swing in the hold.
+5. The held stride class also follows the guard's `aimWeight()` in the rig (`rp.stride` is 'velocity' at 0.5 or more,
+   e.g. a guard seized while investigating, 0.7); the sim gets aim 0 when held and assumes 'facing' under 60 deg: up to
+   ~7 cm forward off for such a guard. Needs the held guard's stride aim in `GuardHeadIn` (one field from
+   `Enemy.syncHitboxes`).
+6. The facing stride's sideways-slip dip near 45-60 deg (above) is the rig's foot planner; a fix belongs in the rig.
