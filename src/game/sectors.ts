@@ -1,8 +1,12 @@
 import type { SquadSlot } from '../world/rooms';
 import type { DifficultyPreset } from '../ai/archetypes';
+import { AIRLOCK_DOORWAY_CLEAR, PAIR_WINDOW } from '../config/course';
+import { clearPairHalves, pairHalves, pressPairHalf, type PairHalves } from './pairPress';
 import type { GearTag, NoisySource, ReinforceEntry } from '../ai/guardAiData';
-import { AIRLOCK_DOORWAY_CLEAR } from '../config/course';
 import { ENEMIES } from '../ai/enemyDefs';
+import { checkStageActions, type SectorStageAction, type StageNavCheck } from './sectorStage';
+import { checkDesks } from './sectorDesks';
+import type { SecurityData } from '../security/data';
 
 /**
  * Sector Ops (feature/sector-ops): a map split into sections played in order. Each section has one objective (a hack,
@@ -127,6 +131,87 @@ export interface SectorDef {
   routes: SectorRoute[];
   /** (sector-fixes-r RT) Team doors: doors bolted from one side (the course's B2 rule); none when absent. */
   bolts?: readonly SectorBolt[];
+  /**
+   * (sector-redesign E3, EW4) Pair gates: a door opened by two key switches turned within a window by two different
+   * players (the course `PairGate`); none when absent. Co-op only by rule (A21, EG11).
+   */
+  pairGates?: readonly SectorPairGate[];
+  /** (sector-redesign EW5, A4) Keypad doors: locked until the team holds the code (`SectorKeypad`); none when absent. */
+  keypads?: readonly SectorKeypad[];
+  /** (sector-redesign EW5, A4) Where the codes are found in this section (`SectorIntel`); none when absent. */
+  intel?: readonly SectorIntel[];
+  /** (sector-redesign E5, EW9) Alarm-stage extras: lights to full, lockdown doors, the response route, dog release (`sectorStage.ts`). */
+  stageActions?: readonly SectorStageAction[];
+}
+
+/**
+ * (sector-redesign EW5, A4) A keypad door. `at` is the door's plan centre [x, z] (found by position, `Doors.nearest`,
+ * as the team doors). The door starts locked; its keypad ("Enter code", either side) opens it only once the team holds
+ * the flag `code`. Codes are found in the level (`SectorIntel`), never typed. A section restart locks its keypads again.
+ * Guards treat a keypad door as any locked door while it is locked (no guard route uses one).
+ */
+export interface SectorKeypad {
+  readonly at: readonly [number, number];
+  /** The code flag that opens it (any string; several keypads may share one, e.g. the lab block's codes). */
+  readonly code: string;
+}
+
+/**
+ * (sector-redesign EW5, A4) A place a code is found; using it gives the team the flag `grants` and shows `line` once as
+ * a radio subtitle (written to be voiced later, G82; at most `INTEL_LINE_MAX` characters so it fits the co-op feed).
+ * - `overhear`: a player stands in the plan box `box` (feet on `floorY`, default 0) for `hold` s (default
+ *   `OVERHEAR_HOLD`) in a row. `talkers` (indices into this section's `guards`): the time runs only while every one is
+ *   alive and not knocked out (one not spawned yet counts as not talking); omitted: the zone alone.
+ * - `board`: a readable board at `at` [x, y, z] (a "Read" item, held `BOARD_READ` s).
+ * - `objective`: the section's own objective is done (the S2 BMS hack gives the lab block's codes).
+ */
+export type SectorIntel =
+  | { readonly kind: 'overhear'; readonly grants: string; readonly line: string; readonly box: PlanBox; readonly floorY?: number; readonly hold?: number; readonly talkers?: readonly number[] }
+  | { readonly kind: 'board'; readonly grants: string; readonly line: string; readonly at: readonly [number, number, number]; readonly yaw?: number }
+  | { readonly kind: 'objective'; readonly grants: string; readonly line: string };
+
+/** (EW5) A keypad is used from this far (m) of the door centre, and held this long (s). */
+export const KEYPAD_REACH = 1.6;
+export const KEYPAD_HOLD = 1;
+/** (EW5) An overheard code takes this long (s) in the zone, unless the intel sets `hold`. */
+export const OVERHEAR_HOLD = 4;
+/** (EW5) A board is read in this long (s). */
+export const BOARD_READ = 1;
+/** (EW5) The longest intel line: the co-op `feed` event's text cap (`net/protocol.ts`). */
+export const INTEL_LINE_MAX = 60;
+
+/** (EW5) The keypad item id of section `sec`'s keypad `k` (`c-`: first in the co-op item list, as the bolts). */
+export function keypadItemId(sec: number, k: number): string {
+  return `c-skey-${sec}-${k}`;
+}
+
+/** (EW5) The "Read" item id of section `sec`'s board intel `k`. */
+export function intelItemId(sec: number, k: number): string {
+  return `c-sintel-${sec}-${k}`;
+}
+
+/**
+ * (EW5) A section's keypads and intel against the rules (empty when fine): every keypad's code is found somewhere a
+ * solo player can reach first (an intel in an earlier section, or an overhear / board intel in its own section: its own
+ * objective may sit behind the keypad), every line fits `INTEL_LINE_MAX`, every overhear hold is above 0.
+ */
+export function checkSectorCodes(defs: readonly SectorDef[]): string[] {
+  const out: string[] = [];
+  const earlier = new Set<string>();
+  for (const d of defs) {
+    const here = new Set<string>();
+    d.intel?.forEach((n, k) => {
+      if (n.kind !== 'objective') here.add(n.grants);
+      if (n.line.length > INTEL_LINE_MAX) out.push(`${d.id}: intel ${k} line is over ${INTEL_LINE_MAX} characters`);
+      if (n.kind === 'overhear' && !((n.hold ?? OVERHEAR_HOLD) > 0)) out.push(`${d.id}: intel ${k} overhear hold is not above 0`);
+      if (n.kind === 'overhear') for (const t of n.talkers ?? []) if (!Number.isInteger(t) || t < 0 || t >= d.guards.length) out.push(`${d.id}: intel ${k} talker ${t} is not a guard index`);
+    });
+    d.keypads?.forEach((p, k) => {
+      if (!earlier.has(p.code) && !here.has(p.code)) out.push(`${d.id}: keypad ${k} code '${p.code}' is not found before it`);
+    });
+    for (const n of d.intel ?? []) earlier.add(n.grants);
+  }
+  return out;
 }
 
 /**
@@ -141,6 +226,13 @@ export interface SectorBolt {
   readonly side: readonly [number, number];
   /** (sector-fixes-r2) The door's width (m) along its plane; `BOLT_DOOR_W` when absent. */
   readonly w?: number;
+  /**
+   * (sector-redesign E3, EW3; R2-PATHS design 2) A pair bolt: it draws only while another living player pushes the leaf
+   * home on the near side (`partnerAtDoor`: within `BOLT_PAIR_DEPTH` of the plane, on the door's span, on the user's
+   * floor). One player alone can never draw it, from either side. A plain bolt (absent / false) is not used by the
+   * redesign (A21, EG11).
+   */
+  readonly pair?: boolean;
 }
 
 /** Reach (m) of a team door's "Unbolt" item (the course bolt's). */
@@ -176,6 +268,34 @@ export function inBoltReach(b: SectorBolt, x: number, z: number): boolean {
   const along = dz * b.side[0] - dx * b.side[1];
   return depth > 0 && depth <= BOLT_DEPTH && Math.abs(along) <= boltHalfSpan(b);
 }
+
+/** (sector-redesign E3, R2-PATHS design 2) How far (m) out from the door plane, on the near side, the partner pushes. */
+export const BOLT_PAIR_DEPTH = 1.5;
+/** (sector-redesign E3) The partner's feet within this (m) of the user's height (a catwalk over the door does not count). */
+export const BOLT_PAIR_RISE = 1.0;
+
+/** A player's feet (any `Vector3`-like). */
+export interface Feet {
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+}
+
+/**
+ * (sector-redesign E3) Is a partner with feet at (x, y, z) pushing a pair bolt's leaf home: on the near side (not past
+ * the plane on `side`), within `BOLT_PAIR_DEPTH` of the plane, within `boltHalfSpan` along it, and within
+ * `BOLT_PAIR_RISE` of the user's feet height `userY`?
+ */
+export function partnerAtDoor(b: SectorBolt, x: number, y: number, z: number, userY: number): boolean {
+  const dx = x - b.at[0];
+  const dz = z - b.at[1];
+  const depth = dx * b.side[0] + dz * b.side[1];
+  const along = dz * b.side[0] - dx * b.side[1];
+  return depth <= 0 && depth >= -BOLT_PAIR_DEPTH && Math.abs(along) <= boltHalfSpan(b) && Math.abs(y - userY) <= BOLT_PAIR_RISE;
+}
+
+/** Why a team door press did or did not draw the bolt: 'ok' drew it; 'partner': a pair bolt with nobody pushing. */
+export type BoltPress = 'ok' | 'shut' | 'reach' | 'partner';
 
 const BOLT_ID = /^c-sbolt-(\d+)-(\d+)$/;
 
@@ -214,12 +334,36 @@ export class SectorBolts {
     return this.shut[sec]?.[k] === true;
   }
 
-  /** A player at (x, z) used bolt `k` of section `sec`: true when it unbolts (shut, and the feet in reach, `inBoltReach`). */
+  /**
+   * A player at (x, z) used bolt `k` of section `sec`: true when it unbolts (shut, and the feet in reach, `inBoltReach`).
+   * A pair bolt never draws here (one player alone, EW3): it takes `press` with the partners' feet.
+   */
   use(sec: number, k: number, x: number, z: number): boolean {
     const b = this.defs[sec]?.bolts?.[k];
-    if (!b || !this.isShut(sec, k) || !inBoltReach(b, x, z)) return false;
+    if (!b || b.pair || !this.isShut(sec, k) || !inBoltReach(b, x, z)) return false;
     this.shut[sec]![k] = false;
     return true;
+  }
+
+  /**
+   * (sector-redesign E3) The host's press of bolt `k` of section `sec` by feet `user`, with the players' feet `mates`
+   * (the user's own entry is skipped; indexed loop, no allocation): 'ok' when it draws. A plain bolt acts as `use`; a
+   * pair bolt also needs a mate `partnerAtDoor` ('partner' otherwise). 'shut': a bad index or a bolt already drawn.
+   */
+  press(sec: number, k: number, user: Feet, mates: readonly Feet[]): BoltPress {
+    const b = this.defs[sec]?.bolts?.[k];
+    if (!b || !this.isShut(sec, k)) return 'shut';
+    if (!inBoltReach(b, user.x, user.z)) return 'reach';
+    if (b.pair) {
+      let ok = false;
+      for (let i = 0; i < mates.length && !ok; i++) {
+        const m = mates[i]!;
+        if (m !== user && partnerAtDoor(b, m.x, m.y, m.z, user.y)) ok = true;
+      }
+      if (!ok) return 'partner';
+    }
+    this.shut[sec]![k] = false;
+    return 'ok';
   }
 
   /** Shut every bolt of section `sec` again; returns the indices that were open (their doors lock again). */
@@ -230,6 +374,96 @@ export class SectorBolts {
     for (let k = 0; k < row.length; k++) {
       if (!row[k]) out.push(k);
       row[k] = true;
+    }
+    return out;
+  }
+}
+
+/** (sector-redesign E3, EW4) One key switch of a pair gate: plan [x, z], its height (default the door's floor) and facing. */
+export interface SectorKeySwitch {
+  readonly at: readonly [number, number];
+  readonly y?: number;
+  readonly yaw?: number;
+  /** The prompt; `PAIR_SWITCH_LABEL` when absent. */
+  readonly label?: string;
+}
+
+/**
+ * (sector-redesign E3, EW4) A pair gate (the course `PairGate` in Sector Ops): the door at plan centre `door` [x, z]
+ * (found by position, `Doors.nearest`) starts locked; key switches `a` and `b` turned within `window` s (default the
+ * course's `PAIR_WINDOW`, 1.0), either order, by two different players unlock it for both. A section restart locks it
+ * again. Guards treat it as a locked door (nav closure while shut).
+ */
+export interface SectorPairGate {
+  readonly door: readonly [number, number];
+  readonly a: SectorKeySwitch;
+  readonly b: SectorKeySwitch;
+  readonly window?: number;
+}
+
+/** (sector-redesign E3) A key switch's prompt and reach (m, the course devices'). */
+export const PAIR_SWITCH_LABEL = 'Turn key';
+export const PAIR_SWITCH_REACH = 1.4;
+
+const PAIR_ID = /^c-spg-(\d+)-(\d+)-([ab])$/;
+
+/** The item id of section `sec`'s pair gate `k`, switch a or b (`c-`: sorts with the course devices, never dropped). */
+export function pairSwitchId(sec: number, k: number, isA: boolean): string {
+  return `c-spg-${sec}-${k}-${isA ? 'a' : 'b'}`;
+}
+
+/** The pair gate a key switch item id names, or null. */
+export function pairGateById(defs: readonly SectorDef[] | undefined, id: string): { sec: number; k: number; isA: boolean; gate: SectorPairGate } | null {
+  const m = PAIR_ID.exec(id);
+  if (!m || !defs) return null;
+  const sec = Number(m[1]);
+  const k = Number(m[2]);
+  const gate = defs[sec]?.pairGates?.[k];
+  return gate ? { sec, k, isA: m[3] === 'a', gate } : null;
+}
+
+/** A key turn: 'open' opened the gate; 'wait': the partner's key was not turned within the window; 'done': open already or a bad index. */
+export type PairPress = 'open' | 'wait' | 'done';
+
+/**
+ * (sector-redesign E3, EW4) The pair gates' state (host only, pure): open or not and the two halves, per section.
+ * `press` is a turn of switch a or b by player `p` at time `now` (the course rule, `pressPairHalf`, never solo);
+ * `reset` locks a section's gates again (M9 restart).
+ */
+export class SectorPairGates {
+  /** `open[sec][k]`: the gate is open (its door unlocked). */
+  readonly open: boolean[][];
+  private readonly halves: PairHalves[][];
+
+  constructor(readonly defs: readonly SectorDef[]) {
+    this.open = defs.map((d) => (d.pairGates ?? []).map(() => false));
+    this.halves = defs.map((d) => (d.pairGates ?? []).map(() => pairHalves()));
+  }
+
+  isOpen(sec: number, k: number): boolean {
+    return this.open[sec]?.[k] === true;
+  }
+
+  /** Player `p` (an index, distinct per player) turned switch a (`isA`) or b of gate `k` of section `sec` at `now` (s). */
+  press(sec: number, k: number, isA: boolean, p: number, now: number): PairPress {
+    const g = this.defs[sec]?.pairGates?.[k];
+    const h = this.halves[sec]?.[k];
+    if (!g || !h || this.isOpen(sec, k)) return 'done';
+    if (!pressPairHalf(h, isA, p, now, g.window ?? PAIR_WINDOW, false)) return 'wait';
+    this.open[sec]![k] = true;
+    return 'open';
+  }
+
+  /** Lock every gate of section `sec` again (keys back); returns the indices that were open. */
+  reset(sec: number): number[] {
+    const out: number[] = [];
+    const row = this.open[sec];
+    const hs = this.halves[sec];
+    if (!row || !hs) return out;
+    for (let k = 0; k < row.length; k++) {
+      if (row[k]) out.push(k);
+      row[k] = false;
+      clearPairHalves(hs[k]!);
     }
     return out;
   }
@@ -293,8 +527,12 @@ export function exitZone(def: SectorDef): SectorZone | null {
   return def.connector ?? def.extract ?? null;
 }
 
-/** Problems with a run's data (empty when fine): every section but the last has a connector, the last an extraction. */
-export function checkSectors(defs: readonly SectorDef[]): string[] {
+/**
+ * Problems with a run's data (empty when fine): every section but the last has a connector, the last an extraction.
+ * (E5) With `nav` (the map's nav grid and doors), a stage lockdown that leaves no way through is rejected too.
+ * (E6) With `security` (the map's security data), its desks are checked against the sections and cameras (`checkDesks`).
+ */
+export function checkSectors(defs: readonly SectorDef[], nav?: StageNavCheck, security?: SecurityData): string[] {
   const out: string[] = [];
   for (let i = 0; i < defs.length; i++) {
     const d = defs[i]!;
@@ -306,8 +544,16 @@ export function checkSectors(defs: readonly SectorDef[]): string[] {
     d.bolts?.forEach((b, k) => {
       if (b.side[0] === 0 && b.side[1] === 0) out.push(`${d.id}: bolt ${k} side is zero`);
     });
+    d.pairGates?.forEach((g, k) => {
+      if (g.a.at[0] === g.b.at[0] && g.a.at[1] === g.b.at[1]) out.push(`${d.id}: pair gate ${k} has both key switches in one place`);
+      if (g.window !== undefined && !(g.window > 0)) out.push(`${d.id}: pair gate ${k} window is not positive`);
+    });
     out.push(...checkSectorGuards(d));
   }
+  out.push(...checkSectorCodes(defs));
+  out.push(...checkStageActions(defs, nav));
+  // (E6, EW10) the map's security desks: cameras that exist, in the desk's section; an operator of that section
+  out.push(...checkDesks(defs, security));
   return out;
 }
 

@@ -67,6 +67,7 @@ import {
   type ScannerDef,
 } from './scanners';
 import { cameraOff } from './course/securityRoom';
+import { deskCamMode } from './sectorDesks';
 import {
   PANEL,
   PANEL_LED_PART,
@@ -578,6 +579,27 @@ export class CtDevices {
     this.changed = true;
   }
 
+  /**
+   * (sector-redesign E6, EW10) A security desk's hold on its cameras (`DESK_*`: none, looped, off), both roles: the host
+   * from `SectorDesks`, the client from the desk item's mirrored label. Applied at once when one changed. No allocation;
+   * not per tick (a desk use, a loop's end, a section load, a label change).
+   */
+  setDesk(ids: readonly string[], mode: number): void {
+    let changed = false;
+    for (let i = 0; i < ids.length; i++) {
+      const id = ids[i]!;
+      for (let k = 0; k < this.cams.length; k++) {
+        const c = this.cams[k]!;
+        if (c.def.id !== id || c.desk === mode) continue;
+        c.desk = mode;
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    this.applyJam();
+    this.changed = true;
+  }
+
   /** Host: the ids of the cameras shot out, into `out` (cleared first). */
   destroyedIds(out: string[]): string[] {
     out.length = 0;
@@ -882,14 +904,18 @@ export class CtDevices {
       const fOff = cameraOff(c.def, shared);
       if (fOff) this.flagOff.add(id);
       else this.flagOff.delete(id);
-      if (ph !== DEV_IDLE || this.dead.has(id) || fOff) {
-        if (c.mode === 'online') {
+      // (sector-redesign E6) a security desk's loop (blind, still sweeping) or off sits under the other blinding
+      const want = deskCamMode(ph !== DEV_IDLE || this.dead.has(id) || fOff, c.desk);
+      if (want === 'off') {
+        if (c.mode === 'online' || c.mode === 'looped') {
           c.setMode('off');
           this.camOff.add(id);
         }
-      } else if (this.camOff.has(id)) {
+      } else if (c.mode === 'destroyed') {
         this.camOff.delete(id);
-        if (c.mode === 'off') c.setMode('online');
+      } else if (c.mode !== want && (c.mode !== 'off' || this.camOff.has(id))) {
+        this.camOff.delete(id);
+        c.setMode(want);
       }
     }
     for (let i = 0; i < this.lasers.length; i++) {

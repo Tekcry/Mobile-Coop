@@ -1,5 +1,6 @@
 import { CAMERA, SECURITY_LIMITS } from '../config/security';
 import { camRange } from './camera';
+import type { SecurityDesk } from '../game/sectorDesks';
 
 /**
  * Security map data (S0 section 6). Part A of S1 reads cameras only; the desk, panel and the rest join as their
@@ -35,6 +36,9 @@ export interface SecurityData {
   devices: SecurityDevice[];
   /** Floor height (m) of each level id a device names (default 0, the ground floor). */
   levels?: Record<string, number>;
+  /** (sector-redesign E6, EW10) Sector Ops security desks: consoles that loop or switch off their section's cameras
+   *  once the operator is down or away (`game/sectorDesks.ts`; checked by `checkSectors` given the security data). */
+  desks?: SecurityDesk[];
 }
 
 /** Every rule violation in a security file (empty = valid). */

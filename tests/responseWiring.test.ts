@@ -9,6 +9,7 @@ import { SWEEP_NEAR, SweepTeam, type SweepMember } from '../src/ai/sweepTeam';
 import { SectorMode } from '../src/game/modes/sectorMode';
 import { StealthSystems } from '../src/game/stealthSystems';
 import { SECTOR, SectorRun, type SectorDef } from '../src/game/sectors';
+import { SectorDesks } from '../src/game/sectorDesks';
 import { Vector3, type Scene } from '../src/core/babylon';
 import type { World } from '../src/world/world';
 import type { NavGrid } from '../src/ai/navGrid';
@@ -109,7 +110,7 @@ function sector(defs: SectorDef[]) {
       return o;
     },
   };
-  Object.assign(m, { g, run: new SectorRun(defs), ct, pending: [], reinforceK: 0, reinforced: 0, refs: [], tmp: new Vector3(), teamKinds: [], sweepSrc: new Map() });
+  Object.assign(m, { g, run: new SectorRun(defs), ct, pending: [], reinforceK: 0, reinforced: 0, refs: [], tmp: new Vector3(), teamKinds: [], sweepSrc: new Map(), desks: new SectorDesks([]), deskIts: [], slotEnemy: [] });
   const load = (i: number) => (m as unknown as { loadSection(i: number): void }).loadSection(i);
   return { m, em, spawned, ct, cams, load };
 }
