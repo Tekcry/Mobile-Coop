@@ -246,3 +246,6 @@ Lead, slice 1 check (2026-10-23, checks/slice1-check.md PASS; one fix round):
   cage (high route), arm-ante -> the anteroom side door (stealth), arm-front -> the north parapet rappel (high); undo:
   edit `bypass` in `S4_ARMOURED` / `S5_ARMOURED`. A-E10-6 the armoured NOC window also stops the NOC pair's rounds (they
   see the hall, cannot shoot it) - Guard AI must test the fire line on `MASK.ENEMY_SHOT`.
+- A-D-1 gear: S4 / S5 default `helmet`; `both` on S4 #6, #14, #15 and S5 #1-#4, #9, #10; dogs and S1-S3 unset. Undo: edit `gear` in `campusS4Data.ts` / `campusS5Data.ts`.
+- A-D-2 per-slot `gear` rides on a local `GearGuard` type (`SquadSlot` lacks the field on this branch); drop the alias when guard-ai adds it.
+- A-D-3 sweep: S4 and S5 have 6 ground-storey points each (route points, on the runtime nav grid, covering the objective approaches and the kp-batt / hang-down / side-door / rappel bypasses); undo: delete `sweep`.
