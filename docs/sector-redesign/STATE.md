@@ -326,6 +326,9 @@ LATEST 16:25 Test Runner verdict: #226 perf CPU OVER at 24 guards (S5 15.6 / S3 
    Photo logs texImage3D INVALID_VALUE and S2 atrium floor pools vanish / guards near-black -> Opus fix on -lampx
    (checks/lr-tex3d-fix.md). For Michael: S3 hall-lit blows out to white fog in BOTH modes (volumetric / bloom).
    frzpol d1b46acb built; one checker for artpol + frzpol when artpol lands.
+20:20: artpol + frzpol checker PASS (artpol-frzpol-check.md); STALE = RETEST fix 03916126; batch branch -artpol
+   1d34c348 (artpol + frzpol). Desktop lane: sectorops 1-6 + stealth-ai (scratch/runs/sectorpol-1d34c348/RESULT).
+   Batch PR opens against master after #226 merges (base -art); needs laptop perf A/B + door-peek / roof-shadow views.
 4. Polish batch 2 -polish2 cca3ccb7: checker PASS (polish2-check.md; touches src/net lamp checks, no wire change).
    Merge into -art together with the -perf fix, then one laptop batch at the new -art head: e2e-coop, e2e-sectorops 1-6,
    e2e-stealth-ai, e2e-stealth + perf rerun (MAP=campusOps MODE=sector). Still open: lr-check 1-6, lr14-check 1-7,
