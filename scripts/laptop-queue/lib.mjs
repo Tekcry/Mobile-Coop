@@ -82,6 +82,8 @@ export function desktopSlotGate(s) {
  * Returns { kind: 'train', train } or { kind: 'alone', request } (both need BOTH slots idle), { kind: 'request',
  * request, slot } (one free slot), or null. A pending train wins and, while a slot is busy, blocks all new work so the
  * slots drain (preemption). An alone request over ALONE_AGE_MIN old blocks pr / full work the same way (never starved).
+ * Among pr / full requests the requester goes by arrival (the requester whose OLDEST open request has the smallest id),
+ * and that requester's NEWEST non-alone request runs (older ones are stale; superseded() normally retires them).
  */
 export function pick(queue, now, slots) {
   const idle = slots.filter((s) => !s.busy);
@@ -94,10 +96,42 @@ export function pick(queue, now, slots) {
     return Number.isFinite(t) && now - t > ALONE_AGE_MIN * 60_000;
   });
   if (aged) return bothIdle ? { kind: 'alone', request: aged } : null;
-  const next = reqs.find((r) => r.kind !== 'alone');
+  const nonAlone = reqs.filter((r) => r.kind !== 'alone');
+  const newest = new Map(); // requester -> its newest request (reqs is sorted, so the last wins)
+  for (const r of nonAlone) newest.set(r.requester ?? '', r);
+  const first = nonAlone[0]; // the oldest request overall belongs to the requester who has waited longest
+  const next = first ? newest.get(first.requester ?? '') : undefined;
   if (next && idle[0]) return { kind: 'request', request: next, slot: idle[0].port };
   if (!next && alone[0] && bothIdle) return { kind: 'alone', request: alone[0] };
   return null;
+}
+
+const suiteBase = (s) => String(s).replace(/:.*$/, '');
+
+/**
+ * Open requests made redundant by a newer one: Map(olderId -> newerId). R is superseded by the newest N (later id)
+ * with the same requester and the same kind ('pr' or 'full' only, never 'alone'), when either both name the same
+ * non-empty `set`, or R.sha is N.sha or an ancestor of it (isAncestor(R.sha, N.sha); injected, false on doubt) and the
+ * suite lists overlap ('full': always; 'pr': one suite name in common, ":part" suffixes ignored).
+ */
+export function superseded(requests, isAncestor) {
+  const reqs = [...requests].sort(sortById);
+  const out = new Map();
+  reqs.forEach((r, i) => {
+    if (r.kind !== 'pr' && r.kind !== 'full') return;
+    for (let j = reqs.length - 1; j > i; j--) {
+      const n = reqs[j];
+      if (n.id === r.id || n.requester !== r.requester || n.kind !== r.kind) continue;
+      const sameSet = typeof r.set === 'string' && r.set !== '' && r.set === n.set;
+      let ok = sameSet;
+      if (!ok) {
+        const overlap = r.kind === 'full' || (r.suites ?? []).some((s) => (n.suites ?? []).some((t) => suiteBase(s) === suiteBase(t)));
+        ok = overlap && (r.sha === n.sha || Boolean(isAncestor(r.sha, n.sha)));
+      }
+      if (ok) { out.set(r.id, n.id); return; }
+    }
+  });
+  return out;
 }
 
 /**

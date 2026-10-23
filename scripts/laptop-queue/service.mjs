@@ -11,11 +11,13 @@
 // At most one new start per pass, so CPU is re-read before the second slot. No trains, no alone.
 // Every request is claimed (claims/<id>.json on the laptop-queue branch, an atomic push) before it runs and marked
 // done after, so the two workers never run the same request.
+// Supersede: an open pr / full request is marked done unrun when the same requester has a newer one (same set, or an
+// ancestor sha with overlapping suites); pick runs a requester's newest request first (lib.mjs superseded, pick).
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { capTail, claimBlocks, describe, desktopSlotGate, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, runComplete, shard, suiteSection } from './lib.mjs';
+import { capTail, claimBlocks, describe, desktopSlotGate, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, runComplete, shard, superseded, suiteSection } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -549,10 +551,45 @@ function lazyCpu() {
   return () => (v === undefined ? (v = cpuLoad()) : v);
 }
 
+const ancestorMemo = new Map();
+/** True when sha a is an ancestor of (or equal to) b in this checkout; any git error (a sha not fetched) is false. */
+function isAncestor(a, b) {
+  const key = `${a}>${b}`;
+  if (!ancestorMemo.has(key)) {
+    let r = false;
+    try { git(['merge-base', '--is-ancestor', a, b]); r = true; } catch { r = false; }
+    ancestorMemo.set(key, r);
+  }
+  return ancestorMemo.get(key);
+}
+
+/**
+ * Marks superseded requests done (no run, no status) in one batched push and drops them from `requests`. Open claims
+ * (any worker) and runs here never reach `requests`, so they are never superseded. A lost push is retried next pass.
+ */
+function applySupersedes(requests) {
+  ancestorMemo.clear();
+  const sup = superseded(requests, isAncestor);
+  if (sup.size === 0) return requests;
+  const ids = [...sup.keys()];
+  const date = new Date().toISOString();
+  if (!DRY && writeClaims(ids, 'done', `superseded ${ids.length} request(s)`) !== true) { log(`supersede push failed for ${ids.length} request(s), retried next pass`); return requests; }
+  for (const [id, by] of sup) {
+    log(`${id}: superseded by ${by}`);
+    if (DRY) continue;
+    state.done[id] = { result: 'superseded', by, date };
+    doneSynced.add(id);
+  }
+  writeJson('state.json', state);
+  return requests.filter((r) => !sup.has(r.id));
+}
+
 async function pass() {
   const queue = { trains: DESKTOP ? [] : pendingTrains().filter((t) => !claimed.has(t.sha)), requests: listRequests().filter((r) => !claimed.has(r.id)) };
   // done marks first: a claim (which tells the desktop the laptop is on claims) never lands before them
   if (!syncDone() && !DRY) { log('done claims not pushed: no new requests this pass (trains still run)'); queue.requests = []; }
+  // supersede on the full list (before the desktop's pr filter); the desktop waits for claims on the branch like its gate does
+  else if (!(DESKTOP && claimCount === 0)) queue.requests = applySupersedes(queue.requests);
   const desktopWait = {};
   if (DESKTOP) {
     const backlog = queue.requests.length;

@@ -56,6 +56,7 @@ Worktree node_modules is a junction to Mobile-Coop-testrun-4189/node_modules (gi
 - feature/e2e-affected (`run-e2e.mjs --affected origin/master --list`) not on master yet: requests list suites.
 
 ## Done
+- 2026-10-23: supersede (`superseded()` in lib.mjs, applied each pass in service.mjs before pick, one batched done push) and newest-first per requester in `pick`; vitest cases added.
 - 2026-10-23 ~19:15: job started (orchestrator, Michael approved ~19:10).
 - 2026-10-23: desktop lane has a second slot 4192 (heavy2.lock, CPU < 50 %, dir must exist), per-slot gate `desktopSlotGate`, one desktop start per pass; vitest cases added.
 

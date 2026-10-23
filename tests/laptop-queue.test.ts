@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, suiteSection } from '../scripts/laptop-queue/lib.mjs';
+import { capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
   const d = new Date(NOW - min * 60_000).toISOString().replace(/[-:]/g, '').slice(0, 15);
   return `${d}-${tag}-d7a3b887`;
 };
-const req = (min: number, kind: string, tag = kind) => ({ id: idAt(min, tag), kind });
+const req = (min: number, kind: string, tag = kind, requester = tag) => ({ id: idAt(min, tag), kind, requester });
 const slots = (a: boolean, b: boolean) => [{ port: '4189', busy: a }, { port: '4192', busy: b }];
 const train = { sha: 'a'.repeat(40), n: '31' };
 
@@ -30,11 +30,90 @@ describe('pick', () => {
     expect(pick({ trains: [], requests: [req(20, 'alone')] }, NOW, slots(true, false))).toBeNull();
     expect(pick({ trains: [], requests: [req(20, 'alone')] }, NOW, slots(false, false))?.kind).toBe('alone');
   });
-  it('pr and full requests go oldest first, on the free slot', () => {
+  it('pr and full requests of different requesters go oldest first, on the free slot', () => {
     const a = req(30, 'pr', 'a');
     const b = req(20, 'full', 'b');
     expect(pick({ trains: [], requests: [b, a] }, NOW, slots(true, false))).toEqual({ kind: 'request', request: a, slot: '4192' });
     expect(pick({ trains: [], requests: [b, a] }, NOW, slots(true, true))).toBeNull();
+  });
+});
+
+describe('pick newest first per requester', () => {
+  it('runs the requester with the oldest request first, then that one newest request',() => {
+    const a1 = req(50, 'pr', 'a1', 'A');
+    const b1 = req(40, 'pr', 'b1', 'B');
+    const a2 = req(30, 'pr', 'a2', 'A');
+    const b2 = req(10, 'full', 'b2', 'B');
+    const q = { trains: [], requests: [b2, a2, b1, a1] };
+    expect(pick(q, NOW, slots(false, false))).toEqual({ kind: 'request', request: a2, slot: '4189' });
+    const rest = { trains: [], requests: [b2, b1] };
+    expect(pick(rest, NOW, slots(false, false))).toEqual({ kind: 'request', request: b2, slot: '4189' });
+  });
+  it('an alone request is never the newest to run', () => {
+    const p1 = req(30, 'pr', 'p1', 'A');
+    const al = req(5, 'alone', 'al', 'A');
+    expect(pick({ trains: [], requests: [al, p1] }, NOW, slots(false, false))).toEqual({ kind: 'request', request: p1, slot: '4189' });
+  });
+});
+
+describe('superseded', () => {
+  const SHA = (c: string) => c.repeat(40);
+  const r = (min: number, tag: string, o: Record<string, unknown> = {}) => ({ id: idAt(min, tag), requester: 'A', kind: 'pr', sha: SHA('1'), suites: ['e2e-coop'], ...o });
+  const never = () => false;
+  const anc = (pairs: string[][]) => (a: string, b: string) => pairs.some(([x, y]) => x === a && y === b);
+
+  it('same non-empty set name supersedes, whatever the sha', () => {
+    const o = r(30, 'o', { set: 'train', suites: ['x'] });
+    const n = r(10, 'n', { set: 'train', sha: SHA('2'), suites: ['y'] });
+    expect([...superseded([n, o], never)]).toEqual([[o.id, n.id]]);
+    expect(superseded([r(30, 'o', { set: '' }), r(10, 'n', { set: '', sha: SHA('2'), suites: ['y'] })], never).size).toBe(0);
+  });
+  it('ancestor sha with overlapping suites supersedes', () => {
+    const o = r(30, 'o', { sha: SHA('1'), suites: ['a', 'b'] });
+    const n = r(10, 'n', { sha: SHA('2'), suites: ['b', 'c'] });
+    expect(superseded([o, n], anc([[SHA('1'), SHA('2')]])).get(o.id)).toBe(n.id);
+  });
+  it('full requests always overlap', () => {
+    const o = r(30, 'o', { kind: 'full', suites: undefined });
+    const n = r(10, 'n', { kind: 'full', suites: undefined, sha: SHA('2') });
+    expect(superseded([o, n], anc([[SHA('1'), SHA('2')]])).get(o.id)).toBe(n.id);
+  });
+  it('an ancestor without overlapping suites is kept', () => {
+    const o = r(30, 'o', { suites: ['a'] });
+    const n = r(10, 'n', { sha: SHA('2'), suites: ['b'] });
+    expect(superseded([o, n], anc([[SHA('1'), SHA('2')]])).size).toBe(0);
+  });
+  it('a sha that is not an ancestor is kept', () => {
+    expect(superseded([r(30, 'o'), r(10, 'n', { sha: SHA('2') })], never).size).toBe(0);
+  });
+  it('a different requester or kind is kept', () => {
+    expect(superseded([r(30, 'o'), r(10, 'n', { requester: 'B' })], never).size).toBe(0);
+    expect(superseded([r(30, 'o', { kind: 'full' }), r(10, 'n')], never).size).toBe(0);
+  });
+  it('alone is never superseded, even with the same set', () => {
+    const o = r(30, 'o', { kind: 'alone', set: 's', steps: ['x'], suites: undefined });
+    const n = r(10, 'n', { kind: 'alone', set: 's', steps: ['x'], suites: undefined });
+    expect(superseded([o, n], () => true).size).toBe(0);
+  });
+  it('a duplicate (same sha, overlapping suites) is superseded; the newest one stays', () => {
+    const o = r(30, 'o');
+    const n = r(10, 'n');
+    expect([...superseded([n, o], never)]).toEqual([[o.id, n.id]]);
+    expect(superseded([n, o], never).has(n.id)).toBe(false);
+  });
+  it('ignores the :part suffix when comparing suites', () => {
+    const o = r(30, 'o', { suites: ['e2e-ctcourse:2'] });
+    const n = r(10, 'n', { sha: SHA('2'), suites: ['e2e-ctcourse'] });
+    expect(superseded([o, n], anc([[SHA('1'), SHA('2')]])).get(o.id)).toBe(n.id);
+  });
+  it('a chain maps each old request to the newest request that supersedes it', () => {
+    const a = r(30, 'a');
+    const b = r(20, 'b');
+    const c = r(10, 'c');
+    const m = superseded([a, b, c], never);
+    expect(m.get(a.id)).toBe(c.id);
+    expect(m.get(b.id)).toBe(c.id);
+    expect(m.has(c.id)).toBe(false);
   });
 });
 
