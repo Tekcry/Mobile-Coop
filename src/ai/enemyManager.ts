@@ -163,6 +163,9 @@ export class EnemyManager {
   private readonly flowGoalY = [0];
   /** (guard-ai S24) The intruder of the guard who raised the alarm: the reinforcements hunt him. */
   private alarmHunt = -1;
+  /** (guard-ai S24 fix) The intruder the last contact call that got through named (-1 none since the clear / alarm
+   *  reset): an alarm raised by a guard with no intruder sends its reinforcements after him. */
+  private contactHunt = -1;
   /** Radio range for a detection call (m): the parked modes' call (`callAlert`) and body-found search. (guard-ai S3,
    *  S4) The live modes' contact and body calls reach the whole section (`radioNet`), not a circle. */
   static readonly RADIO = 22;
@@ -351,6 +354,12 @@ export class EnemyManager {
       // the spotter's radio line, as the section hears it; (S4) the body reports
       if (kind === 'contact') {
         this.byNum(caller)?.bark('callIn');
+        // (guard-ai S24 fix) a contact naming an intruder got through: command knows of him; an alarm raised with none
+        // (its caller had no intruder) sends its reinforcements after him from now on
+        if (inc >= 0) {
+          this.contactHunt = inc;
+          if (this.alarmRaised && this.alarmHunt < 0) this.alarmHunt = inc;
+        }
         // (S6) the section knows: now command must be told (the alarm)
         this.contactThrough(caller);
       }
@@ -694,6 +703,7 @@ export class EnemyManager {
     this.alarmRunner = null;
     this.alarmBy = '';
     this.alarmHunt = -1;
+    this.contactHunt = -1;
     this.command.clear();
   }
 
@@ -703,8 +713,9 @@ export class EnemyManager {
     if (this.alarmRaised || (p && p.disabled)) return;
     this.alarmRaised = true;
     this.alarmBy = p ? 'panel' : 'radio';
-    // (guard-ai S24) the reinforcements hunt the intruder of the guard who raised it
-    this.alarmHunt = e.hunt;
+    // (guard-ai S24) the reinforcements hunt the intruder of the guard who raised it; (S24 fix) he has none: the one the
+    // last contact call that got through named (command heard it), else none until one does (`sink.completed`)
+    this.alarmHunt = e.hunt >= 0 ? e.hunt : this.contactHunt;
     this.alarmRunner = null;
     this.command.raised();
     this.onAlarm?.(e, p);
@@ -2153,7 +2164,12 @@ export class EnemyManager {
     const list = this.enemies;
     for (let i = 0; i < list.length; i++) {
       const o = list[i]!;
-      if (o === e || !o.alive || o.alerted || o.taken) continue;
+      if (o === e || !o.alive || o.taken) continue;
+      if (o.alerted) {
+        // (guard-ai S24 fix) in combat with no intruder of his own: he hears which one the shouter names (G139)
+        if (o.hunt < 0 && e.hunt >= 0 && this.hearsShout(e, o) >= 0) o.tell(e.hunt);
+        continue;
+      }
       // (guard-ai S24) the shouter's intruder
       if (this.hearsShout(e, o) >= 0) o.radio(RADIO.voiceDelay, e.hunt);
     }
@@ -3123,6 +3139,7 @@ export class EnemyManager {
     this.intruders.clear();
     this.mirror();
     this.alarmHunt = -1;
+    this.contactHunt = -1;
     // (guard-ai S12) and the helmets on the floor
     this.helmetDrops.clear();
     // (guard-ai S13) and the response teams: only an unload or a restart ends them

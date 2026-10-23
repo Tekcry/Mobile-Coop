@@ -48,6 +48,7 @@ interface FakeGuard {
   bark: ReturnType<typeof vi.fn>;
   hearGunfire: ReturnType<typeof vi.fn>;
   tell: ReturnType<typeof vi.fn>;
+  joinAsReinforcement?: ReturnType<typeof vi.fn>;
 }
 
 let n = 0;
@@ -144,6 +145,25 @@ const E = (g: FakeGuard) => g as unknown as Enemy;
 const sees = (g: FakeGuard, p: PlayerRef) => (Enemy.prototype as unknown as { takeSighting(this: FakeGuard, p: PlayerRef): void }).takeSighting.call(g, p);
 const callContact = (g: FakeGuard) => (Enemy.prototype as unknown as { callContact(this: FakeGuard): void }).callContact.call(g);
 const names = (gs: FakeGuard[]) => gs.map((g) => ROLES[g.role]);
+
+/**
+ * (S24 fix) A stand-in on the radio net (`netOn`) running the real `callContact` (his re-call on his first intruder),
+ * whose `radio` is the real rule (`tell`: in combat with none, at once), with the fields `knownSpot` reads.
+ */
+function netGuard(x: number, z: number, o: Partial<FakeGuard> = {}): FakeGuard {
+  const g = guard(x, z, o) as FakeGuard & Record<string, unknown>;
+  const proto = Enemy.prototype as unknown as Record<string, unknown>;
+  Object.assign(g, { netOn: true, sawOnce: false, hasStimulus: false, stimulus: [0, 0], lastKnown: new Vector3(), knownV: new Vector3() });
+  g.huntPos = proto.huntPos;
+  g.callContact = () => callContact(g);
+  const tell = g.tell as unknown as (s: number) => void;
+  g.radio = vi.fn((_d: number, s: number) => tell(s));
+  g.joinAsReinforcement = vi.fn();
+  return g;
+}
+
+/** The real `Enemy.knownSpot`: where he goes out of sight (his intruder's last known position, else his own spot). */
+const spot = (g: FakeGuard, t: PlayerRef) => (Enemy.prototype as unknown as { knownSpot(this: FakeGuard, t: PlayerRef): Vector3 }).knownSpot.call(g, t);
 
 describe('guard-ai S24: two intruders', () => {
   it('(a) A seen at (0, 0) and B at (30, 0) by different guards: two slots, each guard hunts his own sighting, lkp mirrors the later', () => {
@@ -315,6 +335,79 @@ describe('guard-ai S24: two intruders', () => {
     }
     tick(0.1);
     expect([em.lkpValid, em.intruders.freshest]).toEqual([false, -1]);
+  });
+
+  it('(h) S24 fix: a contact with no intruder, then the caller sees B: every alerted joiner hunts B and goes for its spot (G139: never A)', () => {
+    const A = player('host', 0, 0);
+    const B = player('guest', 30, 0);
+    const ha = guard(0, -10);
+    const c = netGuard(30, -14);
+    const far = netGuard(30, 10);
+    const near = netGuard(32, -14);
+    const { em, radio } = manager([ha, c, far, near], [A, B]);
+    sees(ha, A);
+    const sa = em.intruders.slotFor('host');
+    const sb = em.intruders.slotFor('guest');
+    // c went to combat with no intruder (shot from the dark): his shout and call name nobody; they join with none
+    callContact(c);
+    radio(RADIO.callIn + RADIO.staggerMax + 1);
+    expect(far.radio).toHaveBeenCalledWith(0, -1);
+    expect([c.hunt, far.hunt, near.hunt]).toEqual([-1, -1, -1]);
+    expect([spot(far, B).x, spot(far, B).z]).toEqual([30, 10]);
+    // c sees B: he names him again; the guard in voice range takes it at once, the far one when the call gets through
+    sees(c, B);
+    expect([c.hunt, near.hunt, far.hunt]).toEqual([sb, sb, -1]);
+    radio(RADIO.callIn + RADIO.staggerMax + 1);
+    expect(far.radio).toHaveBeenCalledWith(0, sb);
+    expect(far.hunt).toBe(sb);
+    expect([spot(far, B).x, spot(far, B).z]).toEqual([30, 0]);
+    expect(spot(near, B)).toBe(em.lkpOf(sb));
+    expect(ha.hunt).toBe(sa);
+    for (const g of [c, far, near]) expect(g.radio).not.toHaveBeenCalledWith(0, sa);
+    // he made the call naming B: B's reporter
+    expect((em as unknown as { callers: Int32Array }).callers[sb]).toBe(c.num);
+    // a second sighting with an intruder already: no new call
+    const calls = (em.radioNet as unknown as { nextId: number }).nextId;
+    sees(c, B);
+    expect((em.radioNet as unknown as { nextId: number }).nextId).toBe(calls);
+  });
+
+  it('(f2) solo parity: guards in combat with no intruder (a shot from the dark) converge once anyone sees the player', () => {
+    const P = player('local', 0, 0);
+    const v = netGuard(0, -16);
+    const js = [netGuard(2, -17), netGuard(-2, -17.5), netGuard(0, -19)];
+    const rf = netGuard(40, 40, { alerted: false, level: 'unaware' });
+    const all = [v, ...js];
+    const { em, roles, radio, priv } = manager([...all, rf], [P]);
+    const pr = em as unknown as { raiseAlarm(e: Enemy, p: null): void; alarmHunt: number };
+    // the victim's call names nobody; his squad joins with none (they stand where they are: no position)
+    callContact(v);
+    radio(RADIO.callIn + RADIO.staggerMax + 1);
+    expect(all.map((g) => g.hunt)).toEqual([-1, -1, -1, -1]);
+    expect(spot(js[2]!, P).z).toBe(-19);
+    // command is called by one of them (no intruder yet): the alarm's reinforcements have none
+    pr.raiseAlarm(E(js[2]!), null);
+    expect(pr.alarmHunt).toBe(-1);
+    // the victim walks over and sees the player: one position (slot 0), and he names it
+    sees(v, P);
+    radio(RADIO.callIn + RADIO.staggerMax + 1);
+    // as the old shared path: every guard in the fight hunts it and goes for it
+    expect(all.map((g) => g.hunt)).toEqual([0, 0, 0, 0]);
+    expect([em.lkp.x, em.lkp.z, em.lkpValid, em.sightT]).toEqual([0, 0, true, 0]);
+    for (const g of js) expect(spot(g, P)).toBe(em.lkpOf(0));
+    // one roles group, the victim (the first caller) its reporter
+    roles();
+    expect(names(all)).toEqual(['reporter', 'point', 'overwatch', 'flank']);
+    // the reinforcements: the intruder the call named
+    expect(pr.alarmHunt).toBe(0);
+    em.joinReinforcement(E(rf), 0, null);
+    expect(rf.joinAsReinforcement).toHaveBeenCalledWith(null, 0);
+    // the victim goes down: his squad still fights it, slot 0 is kept (the old rule: kept while anyone hunts)
+    v.alive = false;
+    em.sightT += 3;
+    em.intruders.step(3);
+    priv.forgetStep();
+    expect([em.lkpValid, em.huntingOf(0)]).toEqual([true, true]);
   });
 
   it('(g) stealth: one chase field per intruder, at most one rebuild per update, only on a move of a nav cell', () => {
