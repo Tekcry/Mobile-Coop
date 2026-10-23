@@ -762,7 +762,11 @@ try {
           // walled spot through the x -4 gap at z 8-9.1 (round 4: the LKP moved onto it at 2.2 s). A searcher is calm
           // and sees by the light (0 here), so from then on the spot stays hidden. 'wall' measures the plan and the
           // walk by path from where he lost him, so it needs no particular spot during the fight
-          const park = which === 'wall' ? { x: 0, z: -20 } : hide;
+          // (walk 4.82 laptop triage 2) 'near' too: with walk 4.82 item 2 a guard whose call is through leaves cover and
+          // moves up on the last known position while still in combat; from there (about (-4.8, 0.4) at 10.6 s) he saw
+          // the near spot 4.3 m off. The near intent (the plan ranks the dark spot near the last known position and a
+          // searcher reaches it) is about the search, so the spot is taken when the search starts
+          const park = which === 'wall' || which === 'near' ? { x: 0, z: -20 } : hide;
           t.tp(park.x, park.z, 0);
           // (S25-SAI-TRIAGE 2) the body follows the tp before the first sim step: the rig (and so the target's chest and
           // head, `PlayerTarget.sync` in the fixed step) is placed in `frameUpdate` (player.ts root.position), so the
@@ -805,11 +809,12 @@ try {
               }
             }
             // (or still in sight: 0.2 s on, the clock would be past 0.1 without one)
-            if (resight < 0 && e.alerted && (e.sinceSeen < prevSince || (time > 0.2 && e.sinceSeen < 0.1))) resight = r1(time);
+            // (walk 4.82 laptop triage 2) the premise is the fight: once the search runs, a find is a pass ('near' found)
+            if (tS < 0 && resight < 0 && e.alerted && (e.sinceSeen < prevSince || (time > 0.2 && e.sinceSeen < 0.1))) resight = r1(time);
             prevSince = e.sinceSeen;
             {
               const lk = em.lkpOf(s);
-              if (!lkpMoved && lk && Math.hypot(lk.x - Lx, lk.z - Lz) > 0.5) lkpMoved = { t: r1(time), at: [r1(lk.x), r1(lk.z)] };
+              if (tS < 0 && !lkpMoved && lk && Math.hypot(lk.x - Lx, lk.z - Lz) > 0.5) lkpMoved = { t: r1(time), at: [r1(lk.x), r1(lk.z)] };
             }
             if (i % 20 === 0) {
               const lk = em.lkpOf(s);
@@ -837,7 +842,8 @@ try {
               if (!last || last[0] !== pt[0] || last[1] !== pt[1]) v.push(pt);
             }
             const d = Math.hypot(e.pos.x - hide.x, e.pos.z - hide.z);
-            if (tS < 0 && e.level === 'alert' && e.sinceSeen > 1 && d < 2) homing = true;
+            // (homing: on the player where he really is, the park spot before the search)
+            if (tS < 0 && e.level === 'alert' && e.sinceSeen > 1 && Math.hypot(e.pos.x - g.player.position.x, e.pos.z - g.player.position.z) < 2) homing = true;
             if (tS >= 0) {
               if (d < closest) {
                 closest = d;

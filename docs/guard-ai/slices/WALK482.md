@@ -126,3 +126,33 @@ Tests: `node --check scripts/e2e-stealth-ai.mjs` OK; `npx vitest run tests/loneG
 change, so no tsc rerun needed. e2e not run locally (laptop queue rule): queued as set `walk482-fix`, suite
 `e2e-stealth-ai` (the run also covers the unrun 'report then engage' scenario after `lkp`).
 Queued: request `20261023T125751-night-shift-guard-ai-d0968052-b79b` (sha d0968052).
+
+## Laptop triage 2 (e2e-stealth-ai on 5a3dd588, desktop worker, run + rerun identical)
+
+The 'lkp' and 'report then engage' scenarios pass. 'search area' 'near' fails `near: after the tp he never sees him
+again (seen at 10.6 s ...)`. The hide spot is (-4.75, -0.25): 4.3 m straight from the LKP (-0.5, 0), 5.6 m by path.
+The guard was at (-4.8, 0.4).
+
+Cause: item 2 works as designed. Once his call is through he leaves cover (`closeFromCover`) and moves up on the LKP
+while still in combat. The S25 staging assumed he held cover about 9.5 m north until the search (S25-SAI-TRIAGE rounds
+2-4), so the 'near' spot, out of sight of his walk from the post and of a 1.5 m ring round the LKP, was never in his
+view. Moving up past that ring he sees it, an alerted guard sees by line of sight alone, and the premise assert trips.
+This is a test staging issue; no src change.
+
+Fix (scripts/e2e-stealth-ai.mjs only), as 'wall' in S25-SAI-TRIAGE round 5:
+- 'near' now waits out the fight at the far park spot (0, -20), behind the dispatch walls, and the player is
+  teleported (with the post-tp `frameUpdate`) to the near spot when the search starts. The near intent is unchanged:
+  the plan ranks the dark spot near the LKP, and a searcher reaches it within 20 s of his first plan point.
+- `homing` (before the search) is measured to the player's real position, which is the park spot before the search,
+  not to the empty near spot.
+- The premise trackers (`resight`, `lkpMoved`) count only the fight (before tS). Once the search runs, a find is a
+  pass ('near' accepts `found`). The asserts themselves are unchanged.
+
+Static check of the other runs with the move-up:
+- 'wall': the same park staging. Moving up to the LKP only shortens his path, so "no searcher past R + 1 m" and
+  "every plan point within R + 0.5 m by path" hold.
+- 'three': the park spot is its own hide. From the LKP, the line to (0, -20) meets the z -8.8 wall at about x -0.3
+  (its gap is x 2-3.6) and the z -11 wall at about x -0.2, which is solid wall: no re-sight. The search starts as
+  each guard reaches the LKP (earlier than from cover), so each takes a plan point well inside 40 s.
+
+Checks: `node --check scripts/e2e-stealth-ai.mjs` OK. No src change; no local e2e.
