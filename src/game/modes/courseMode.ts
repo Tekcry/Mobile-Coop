@@ -892,8 +892,13 @@ export class CourseMode implements GameMode {
     }
     if (full) em.resetMemory();
     // (ENGINE-ANSWERS Q4) `despawn`, not a splice and dispose: the old squad's knocked-out or dead bodies go too, so the
-    // next set's guards never find them
-    else for (const e of this.squad) em.despawn(e);
+    // next set's guards never find them. Then whatever the manager still holds (a guard a squadmate woke is a new `Enemy`
+    // that `squad` never held): Course mode only spawns the current set's guards, so none carries into the next set
+    // (polish6 check should-fix).
+    else {
+      for (const e of this.squad) em.despawn(e);
+      for (let i = em.enemies.length - 1; i >= 0; i--) em.despawn(em.enemies[i]!);
+    }
     this.squad.length = 0;
     this.squadIds.length = 0;
   }
