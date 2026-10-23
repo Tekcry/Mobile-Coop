@@ -316,7 +316,8 @@ NEXT:
    mark, LR16D_MOVED stale keys) + pol2-b (bounce / lamp-upload tests), off 6e53e036; then one Sonnet checker, merge
    into feature/sector-redesign-pol2; part C after #291 releases; PR after #291 (with LR16-4). LR16-8 sheets SENT to Test Runner on
    606630ed (reply = one message with pass / flag list, probe table, perf, sheet folder).
-For Michael: Realistic dimmer (S2 atrium 0.47); S3 hall-lit white fog; R2N ladder foot 0.44 (layout cannot fix); warehouse
+LR16-8 sheets (606630ed, scratch/lighting/lr16-8/): parity probe 0 diff, perf p95 9.6 / 10.2 ms (S5-worst only 14 / 24 guards), bakes 3.5 / 8 / 27 s. Flags: torch light through walls (S1, warehouseOps 07), shot lamp meter unchanged (S1 08), black ceilings (04) -> Opus triage RUNNING (checks/lr16-8-triage.md); warehouse / proving / kestrel shots rerunning on 5c20c538 (Test Runner).
+For Michael: LR16-8 look flags (views with no pool / no dark, S3 lit everywhere, NV too dark in S3 / S4 darkest rooms, partner beacon unreadable at 10-20 m); Realistic dimmer (S2 atrium 0.47); S3 hall-lit white fog; R2N ladder foot 0.44 (layout cannot fix); warehouse
 fittings at 0.1-0.3x (GPU sheet judges); lamp-loop cost.
 Polish held: art-train-entry-check 1-6, lr16w-batch-check list, lr16-render-batch-check 1-4 (rtReflections highp),
 lr16pol-cf-check 1-4, warehouseLamps.test.ts:119 plantDeck keys, lr15 / lrpolish / perf / lr16dx / lr16t / lr16-1 /
