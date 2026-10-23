@@ -1,0 +1,17 @@
+{
+  "id": "20261023T092223-night-shift-sector-o-7e4c8b8e-2768",
+  "sha": "7e4c8b8ec40520922d4366b79deb1c876bdb1308",
+  "branch": "feature/sector-redesign-lr16t",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-lightbake",
+    "e2e-darkness",
+    "e2e-sectorops",
+    "e2e-stealth-ai",
+    "e2e-coop"
+  ],
+  "set": "lr16t",
+  "note": "LR16t torch shadow atlas (src/ai light occluder). Logs: lightbake sampler counts (<=16 Epic / Low / voxels=1 micro must read 16)."
+}
