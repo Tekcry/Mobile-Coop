@@ -5,8 +5,9 @@
  * camera or laser uses: (1) route legs keep a path within 2% + 0.5 m, (2) protected nav cells (K1-K6, K13) stay
  * walkable, (3) patrols stay walkable, (4) cover by the legs is unchanged and new cover is 3 m off them, (5) no new solo
  * reach to a co-op lip and its headroom stays clear, (6) camera rays and laser tubes unchanged, (7) every interactable
- * keeps its reach, (8) M8 / A64 run in the section tests on the dressed build, (9) skins fit, (10) rule V; plus the
- * whole dressing passes `checkDressing` and the section budgets (ART-PLAN 5.1). Data-driven: the section slices never
+ * keeps its reach, (8) M8 / A64 run in the section tests on the dressed build, (9) skins fit, (10) rule V, (11) every
+ * generated greybox ledge near a route leg or a co-op lip survives with its span (ART-KIT check P1); plus the whole
+ * dressing passes `checkDressing` (split gaps included, P4) and the section budgets (ART-PLAN 5.1). Data-driven: the section slices never
  * edit it; on the stub-dressed campus every delta is 0.
  */
 import { existsSync, readFileSync } from 'node:fs';
@@ -21,8 +22,10 @@ import { hyp2 } from '../src/core/mathx';
 import type { MapLayout } from '../src/world/mapDef';
 import type { NavGrid } from '../src/ai/navGrid';
 import { artCounts, type ArtPlacement, type CatReport } from '../src/world/campusArt/catalogue';
-import { buildKeepouts, checkDressing, lipLine, type DressContext, type Keepouts } from '../src/world/campusArt/keepouts';
-import { boxObb, pointObbDist, pointSegDist, segHitsObb } from '../src/world/campusArt/geometry';
+import { buildKeepouts, checkDressing, KEEP, lipLine, type DressContext, type Keepouts } from '../src/world/campusArt/keepouts';
+import { boxObb, obbOf, pointObbDist, pointSegDist, segHitsObb } from '../src/world/campusArt/geometry';
+import { generateLedges, type AnchorBox, type Ledge } from '../src/world/anchors';
+import { findSplitGaps } from '../src/player/splitJump';
 import { runtimeNav } from './helpers/runtimeNav';
 import { soloJumpThreats, soloTopLandingThreats } from './helpers/soloJumpReach';
 import { greyboxHash } from './helpers/campusHash';
@@ -31,6 +34,12 @@ import { greyboxHash } from './helpers/campusHash';
 const CUT_GREYBOX = '1297/171/9e5541f8';
 const SECTIONS = 5;
 const BUDGET = 200000;
+/** (11) A greybox ledge's ends must survive within this (m). */
+const LEDGE_TOL = 0.02;
+/** (11) A ledge counts for a route leg when its top is in the leg's storey band, raised by a standing reach (m). */
+const LEDGE_REACH_UP = 1.0;
+/** (11) A ledge counts for a co-op lip when its top is within this of the lip's grip height (m). */
+const LEDGE_LIP_DY = 2.6;
 
 let bG: LevelBuilder;
 let bD: LevelBuilder;
@@ -41,6 +50,8 @@ let navD: NavGrid;
 let coverG: CoverSegment[];
 let coverD: CoverSegment[];
 let nGrey = 0;
+let ledgesG: Ledge[];
+let ledgesD: Ledge[];
 const ctxs: DressContext[] = [];
 const kos: Keepouts[] = [];
 
@@ -55,8 +66,12 @@ beforeAll(() => {
   navD = runtimeNav(bD, layD.playerSpawns[0]!.pos, campusOps.navLayers ?? 3, seeds(layD));
   coverG = buildCoverSegments(bG.boxes, bG.cylinders);
   coverD = buildCoverSegments(bD.boxes, bD.cylinders);
+  ledgesG = generateLedges(bG.boxes).ledges;
+  ledgesD = generateLedges(bD.boxes).ledges;
+  // (P4) the greybox split gaps, as the level build finds them, so the gate's checkDressing checks K11 on them
+  const splits = findSplitGaps(coverG).map((g) => ({ a: g.a, b: g.b }));
   for (let k = 0; k < SECTIONS; k++) {
-    ctxs.push(sectionContext(bG, layG, k, () => []));
+    ctxs.push(sectionContext(bG, layG, k, () => splits));
     kos.push(buildKeepouts(ctxs[k]!));
   }
 }, 600_000);
@@ -235,6 +250,26 @@ for (let k = 0; k < SECTIONS; k++) {
       expect(fails).toEqual([]);
     });
 
+    it('(11) every greybox ledge near a route leg or a co-op lip survives on the dressed build, same span within 2 cm', () => {
+      const { fails } = ledgeLosses(k, ledgesD, bD.boxes);
+      expect(fails).toEqual([]);
+    });
+
+    it('(11) self-test: a box on a protected ledge, or in its hang space, fails the ledge gate (test boxes, not data)', () => {
+      const l = protectedLedges(k)[0];
+      // S5's greybox has no ledge by a route leg or lip; the liveness item below covers the gate as a whole
+      if (!l) return;
+      const mx = (l.a.x + l.b.x) / 2;
+      const mz = (l.a.z + l.b.z) / 2;
+      const art = (c: [number, number, number], s: [number, number, number]): AnchorBox => ({ c, s, yaw: 0, pitch: 0, collide: true, visible: true, noLedge: true });
+      // a 0.6 m crate resting on the lip (a rooftop unit), and a 0.3 m sign on the face just under it (a wall mount)
+      for (const bad of [art([mx - l.nx * 0.3, l.top + 0.3, mz - l.nz * 0.3], [0.6, 0.6, 0.6]), art([mx + l.nx * 0.25, l.top - 0.4, mz + l.nz * 0.25], [0.3, 0.4, 0.3])]) {
+        const boxes = [...bD.boxes, bad];
+        const { fails } = ledgeLosses(k, generateLedges(boxes).ledges, boxes);
+        expect(fails.some((f) => f.includes(`piece ${l.piece} `) && f.includes(`art box ${boxes.length - 1} `)), fails.join('\n')).toBe(true);
+      }
+    });
+
     it('(8-10) the dressing passes every keepout, skin rule and rule V (checkDressing), and the section budgets', () => {
       const ps = placementsOf(k);
       expect(checkDressing(ctxs[k]!, sectionCatalogues(k), ps)).toEqual([]);
@@ -252,6 +287,67 @@ for (let k = 0; k < SECTIONS; k++) {
     });
   });
 }
+
+/** (11) The greybox ledges of section k a player uses: a sample within K1's radius of a route leg (top in the leg's
+ *  storey band + `LEDGE_REACH_UP`), or within `KEEP.lipReach` of a co-op lip (top within `LEDGE_LIP_DY` of its grip). */
+function protectedLedges(k: number): Ledge[] {
+  const legs = kos[k]!.caps.filter((c) => c.rule === 'K1');
+  const lips = CAMPUS_COOP_LIPS.filter((l) => l.section === k).map((l) => ({ y: l.lip.y, ...lipLine(l) }));
+  const out: Ledge[] = [];
+  for (const l of ledgesG) {
+    if (l.piece < 1 || l.piece > nGrey) continue;
+    const n = Math.max(2, Math.ceil(l.len / 0.25) + 1);
+    let hit = false;
+    for (let i = 0; i < n && !hit; i++) {
+      const t = i / (n - 1);
+      const x = l.a.x + (l.b.x - l.a.x) * t;
+      const z = l.a.z + (l.b.z - l.a.z) * t;
+      hit =
+        legs.some((c) => l.top >= c.y0 && l.top <= c.y1 + LEDGE_REACH_UP && pointSegDist(x, z, c.ax, c.az, c.bx, c.bz) < c.r) ||
+        lips.some((c) => Math.abs(l.top - c.y) <= LEDGE_LIP_DY && pointSegDist(x, z, c.ax, c.az, c.bx, c.bz) < KEEP.lipReach);
+    }
+    if (hit) out.push(l);
+  }
+  return out;
+}
+
+/** (11) Each protected greybox ledge of section k needs a dressed ledge on the same piece, top and normal with both
+ *  ends within `LEDGE_TOL`; a loss names the ledge, its piece, what is left of it and the nearest art box. */
+function ledgeLosses(k: number, dressed: readonly Ledge[], boxes: readonly AnchorBox[]): { fails: string[]; checked: number } {
+  const prot = protectedLedges(k);
+  const fails: string[] = [];
+  const near = (p: { x: number; z: number }, q: { x: number; z: number }): boolean => hyp2(p.x - q.x, p.z - q.z) <= LEDGE_TOL;
+  const same = (d: Ledge, g: Ledge): boolean => d.piece === g.piece && Math.abs(d.nx - g.nx) < 1e-6 && Math.abs(d.nz - g.nz) < 1e-6 && Math.abs(d.top - g.top) < 1e-6;
+  for (const g of prot) {
+    if (dressed.some((d) => same(d, g) && near(d.a, g.a) && near(d.b, g.b))) continue;
+    const mx = (g.a.x + g.b.x) / 2;
+    const mz = (g.a.z + g.b.z) / 2;
+    let best = -1;
+    let bd = Infinity;
+    for (let i = nGrey; i < boxes.length; i++) {
+      const b = boxes[i]!;
+      const o = obbOf(b.c, b.s, b.yaw, b.pitch);
+      const dd = Math.min(pointObbDist(o, g.a.x, g.top, g.a.z), pointObbDist(o, mx, g.top, mz), pointObbDist(o, g.b.x, g.top, g.b.z));
+      if (dd < bd) {
+        bd = dd;
+        best = i;
+      }
+    }
+    const left = dressed.filter((d) => same(d, g)).map((d) => `(${d.a.x.toFixed(2)}, ${d.a.z.toFixed(2)})-(${d.b.x.toFixed(2)}, ${d.b.z.toFixed(2)})`);
+    fails.push(
+      `ledge (${g.a.x.toFixed(2)}, ${g.a.z.toFixed(2)})-(${g.b.x.toFixed(2)}, ${g.b.z.toFixed(2)}) top ${g.top.toFixed(2)} piece ${g.piece} ` +
+        `now [${left.join(', ')}]: ${best >= 0 ? `art box ${best} (${bd.toFixed(2)} m)` : 'no art box (greybox change)'}`,
+    );
+  }
+  return { fails, checked: prot.length };
+}
+
+describe('the ledge gate (11)', () => {
+  it('is live: it protects greybox ledges in S1-S4 (S5 has none by a route leg or lip)', () => {
+    const counts = Array.from({ length: SECTIONS }, (_, k) => protectedLedges(k).length);
+    expect(counts.slice(0, 4).every((n) => n > 0), counts.join(' / ')).toBe(true);
+  });
+});
 
 function pointInRect(r: { cx: number; cz: number; hx: number; hz: number; ux: number; uz: number }, x: number, z: number): boolean {
   const dx = x - r.cx;
