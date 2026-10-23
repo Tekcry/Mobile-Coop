@@ -84,6 +84,8 @@ export { PassPostProcess } from '@babylonjs/core/PostProcesses/passPostProcess';
 export type { PostProcessManager } from '@babylonjs/core/PostProcesses/postProcessManager';
 export type { RenderTargetWrapper } from '@babylonjs/core/Engines/renderTargetWrapper';
 export { Effect } from '@babylonjs/core/Materials/effect';
+// (guard-ai carry fix) the GL state's cached pipelines: a body effect recompiled after a timed-out compile drops its own
+export { getStateObject } from '@babylonjs/core/Engines/thinEngine.functions';
 export { SceneInstrumentation } from '@babylonjs/core/Instrumentation/sceneInstrumentation';
 export { EngineInstrumentation } from '@babylonjs/core/Instrumentation/engineInstrumentation';
 export { ParticleSystem } from '@babylonjs/core/Particles/particleSystem';

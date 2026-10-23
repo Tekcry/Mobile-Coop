@@ -237,7 +237,7 @@ describe('P7 the partner weapon sound and the wire', () => {
     expect(remoteGun('rifle', 'nope')).toBe('rifle');
   });
 
-  it('PROTOCOL_VERSION is 42 (42 marlow-final over train 30 (40); 37 the stack tip, one bump at train 30); pstate carries sc (clamped to 0..255, dropped when not a number)', () => {
+  it('PROTOCOL_VERSION is 42 (42 marlow-final over train 31 (41); 41 guard-ai S9 on train 30; 40 the stack, 37 the stack tip, one bump at train 30); pstate carries sc (clamped to 0..255, dropped when not a number)', () => {
     expect(PROTOCOL_VERSION).toBe(42);
     const ps: PlayerState = { id: 'c1', x: 0, y: 0, z: 0, yaw: 0, pitch: 0, speed: 0, f: 0, w: 'pistolSd', hp: 100, sc: 42 };
     const m = parseMessage(JSON.parse(JSON.stringify({ t: 'pstate', s: ps })));

@@ -397,7 +397,7 @@ describe('net session', () => {
     cli.toHost({ t: 'door', i: 0, crack: true });
     expect(got).toEqual([{ t: 'door', i: 0, crack: true }]);
   });
-  it('a peer on protocol version 41 is refused; version 42 joins (42 = marlow-final over train 30 (40), 41 reserved for guard-ai S9; 40 the stack at train 30; 36 = pose-parity: PF.aimLeft, the takedown blow bit; 31 the Sector Ops lamps; 30 marlow-final)', () => {
+  it('a peer on protocol version 41 is refused; version 42 joins (42 = marlow-final over train 31 (41); 41 = guard-ai S9 + A126 carry on train 30: barks, caution and gear bits, deflect confirms; 40 the Player stack at train 30: PF.aimLeft, the takedown blow bit, PlayerState.sc; 39 guard-ai S9 on train 29; 38 the lamp falloff, lightrev LR13; 37 Player #231; 36 pose-parity; 35 the weapons crate, sector-redesign E9-crate; 31 the Sector Ops lamps, slice L; 30 marlow-final)', () => {
     expect(PROTOCOL_VERSION).toBe(42);
     const h = hub();
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));

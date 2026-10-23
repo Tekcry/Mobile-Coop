@@ -55,6 +55,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Co-op guard torches (coop-torches): on a dark map, when a guard searching in the dark switches his flashlight on,
   the joiner sees the same beam from his head, aimed where he faces, and it goes off when the host's does; standing in
   it raises the joiner's light meter as it raises the host's.
+- [ ] Co-op guard AI (guard-ai S9): on the joiner, guards' lines and radio calls show as on the host; a cautious guard
+  carries his weapon at low ready on both screens; after an alarm stage 2 / 3 the joiner sees the vests and helmets and
+  a response team's shield; the joiner's headshot on a helmeted guard pings as a deflect and the helmet falls on both.
 - [ ] Co-op throw onto a guard (throw-ko): one player stands and offers the partner throw (RB standing), the other runs
   in about 3 m in front of a standing guard and is thrown over: the guard drops knocked out as the partner comes down
   on him, on both screens; a guard a step or more past the landing is left standing. Try it with each player thrown.
@@ -199,7 +202,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Weapon carry (guard-ai S21): a calm patrol walks with his rifle slung on his back (an officer's pistol on his thigh),
   hands empty; make a noise: he draws (the rifle off the back in the right hand, under a second) and walks at low ready;
   seen, he fires only once drawn; calm again, he holsters after about 15 s. A high-security post, and every guard once
-  the alarm is up, stays at low ready.
+  the alarm is up, stays at low ready. Co-op (A126): on the client the same guard is holstered, draws and holsters
+  with the host (a moment behind), never stuck at low ready.
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
 - [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
   glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen
@@ -406,6 +410,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Action menu (G5): near a door, hold A: BACK TO GAME on top, move the highlight, release on a row (it runs) or
   on BACK TO GAME (nothing); a quick tap runs row 1; behind a guard: GRAB CHARACTER only; holding him: no menu (only the
   Marlow Yard A1's checker, A4's and A8's officers have information: hold A, INTERROGATE, two lines, then no menu again), RT kills, LT knocks out, X aims (human shield), B / Y never let him go.
+- [ ] Optic cable (ct-toolkit 3.2): at a closed door hold A, OPTIC CABLE: she kneels, after about 1.2 s the view is
+  under the door on the far side at floor height (feed overlay); the stick turns it (+-75 deg, -10..+60 deg), D-pad
+  left toggles vision, B or the stick pulled back leaves; a guard on your side still sees you kneeling.
 - [ ] Drainpipe: one reach per hand about a second, feet together; shimmy slow with the legs swinging; ledge climb-up
   ends crouched (hold the stick to stand); ladder slower up, faster down; rappel 0.6 m/s.
 
