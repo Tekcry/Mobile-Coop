@@ -283,6 +283,11 @@ C:/NightShift/Mobile-Coop-sector-redesign-polish). git fetch; read CLAUDE.md, RO
   A  -cap   Opus A64 lift for 20 / 24 guards (guard-render S1-S7 in) -> checks/a64-lift.md.
   W1 -lightrev Opus lamp measure + one engine proposal -> PROPOSAL.md "Walk 4.72 S1" (Michael decides).
   W2/W3 -walk Opus: client lamp shots + client unbolt (src/net?) -> checks/walk-472-fix.md.
+  ~14:50: train 26 = 4.75.0 (PR 3 / 4 on master). A done (d218f74b, A99 cap 12). J done + A merged: -art 5504e2e3,
+  checker PASS (checks/art-check.md; P2 screen tests -> greybox, Sonnet running); laptop batch 3 requested at 5504e2e3.
+  LR13 (Michael "Try it first"): -lightrev Opus: settings toggle, default off, host choice in co-op -> checks/lr13-build.md.
+  Shadow audit (Michael ~14:45): -shadow Opus -> checks/shadow-audit.md (fold into light-measure.md).
+  LR14 char shadow maps (Michael ~14:42, on at High+): -charshadow Opus -> LR14-PLAN.md, checks/lr14-build.md.
 - Next when J + A are in: merge -cap into -art; one Sonnet checker (dressing) + Opus (kit code) -> checks/art-check.md;
   GPU perf pass + e2e-sectorops 1-6 + coop at the -art head (Test Runner, E2E_GPU=1); merge -walk; fragment
   changes/feature-sector-redesign-art.md; PR 5 -> orchestrator "PR open". W1 -> orchestrator "needs Michael".
