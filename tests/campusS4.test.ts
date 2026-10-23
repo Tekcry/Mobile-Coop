@@ -540,6 +540,14 @@ describe('CR4: the cable basket B1 against a solo player (SPEC Campus-wide rules
     }
   });
 
+  it('(polish 1, L6) the fuel tanks are 2.0 noLedge: no tank-top step onto the 2.8 compound wall 0.85 m east', () => {
+    const [tx0, tz0, tx1, tz1] = S4_BOX.tanks;
+    const tank = solid.find((p) => Math.abs(p.c[0] - (tx0 + tx1) / 2) < 1e-6 && Math.abs(p.c[2] - (tz0 + tz1) / 2) < 1e-6 && Math.abs(bottom(p)) < 1e-6);
+    expect(tank).toBeDefined();
+    expect(top(tank!)).toBeCloseTo(2.0);
+    expect(tank!.noLedge).toBe(true);
+  });
+
   it('ledges among the baskets only on the CR4 box (its two long faces); every other basket piece and the landing is noLedge', () => {
     const gen = generateLedges(b.boxes);
     const among = gen.ledges.filter((e) => Math.abs(e.top - S4_BASKET) < 1e-6 && e.a.x > 3 && e.a.x < 33 && e.a.z > 24 && e.a.z < 45);

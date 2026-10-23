@@ -580,18 +580,17 @@ describe('CR7: the two-person rope into the well (A85)', () => {
   it('ropeRoom(4.2, 0) is ok; the rope edge is the hoist door\'s sill; the well\'s cells reach nothing else; the well to #9 line is clear through the window and shorter than a roll landing\'s noise', () => {
     expect(ropeRoom(S5_ROPE_EDGE.y, S5_ROPE_EDGE.floor)).toBe('ok');
     expect(onNav(-48, 36, 0)).toBe(true);
-    // L-log: the guards' grid steps over the 0.45 sill of the open window (its 1.6 clear height is not read there); the sash is closed on the grid here
-    const sash = addDoorClosure(nav, { cx: -46, cz: 35.5, yaw: 0, width: 1.6, y: 0 });
-    nav.setClosed(sash, true);
+    // (polish 6, L11) the open window's sill is 0.5, over the nav step (0.45): the guards' grid no longer steps through the
+    // sash (it was closed on the grid here), and the player vaults it (step 0.42)
     for (const to of [[-48, 33], [-44.5, 36], [-48, 40], [-43, 33], [-43, 40]] as const) expect(nav.findPath([-48, 36], [to[0], to[1]], 200000, 0, 0), `well -> ${to}`).toBeNull();
-    nav.setClosed(sash, false);
+    expect(onNav(-44.5, 36, 0)).toBe(true);
     const world = new SightWorld(b.boxes, b.cylinders);
     const nine = G[8]!;
     expect(world.clear(-48, 0.3, 36, nine.x, 1.6, nine.z)).toBe(true);
     expect(hyp3(nine.x + 48, 1.6 - 0.3, nine.z - 36)).toBeLessThan(LANDING_NOISE_RADIUS.roll);
     const hoist = b.anchors.doors.find((d) => hyp2(doorCentre(d)[0] - S5_DOORS.hoist[0], doorCentre(d)[1] - S5_DOORS.hoist[1]) < 0.2)!;
     expect(hoist.hinge.y).toBe(S5_L1);
-    expect(b.anchors.windows.some((w) => hyp2(w.c.x + 46, w.c.z - 35.5) < 0.1 && w.open && !w.breakable)).toBe(true);
+    expect(b.anchors.windows.some((w) => hyp2(w.c.x + 46, w.c.z - 35.5) < 0.1 && w.open && !w.breakable && w.sillHeight > 0.45)).toBe(true);
   });
 });
 
