@@ -329,6 +329,10 @@ LATEST 16:25 Test Runner verdict: #226 perf CPU OVER at 24 guards (S5 15.6 / S3 
 20:20: artpol + frzpol checker PASS (artpol-frzpol-check.md); STALE = RETEST fix 03916126; batch branch -artpol
    1d34c348 (artpol + frzpol). Desktop lane: sectorops 1-6 + stealth-ai (scratch/runs/sectorpol-1d34c348/RESULT).
    Batch PR opens against master after #226 merges (base -art); needs laptop perf A/B + door-peek / roof-shadow views.
+20:35: Realistic darkness = lamp vis atlas 1023x90x2428 > MAX_3D 2048, upload failed, picture 0 vs field lit (parity bug,
+   also in 4.78.0 Realistic, default off). Fixed -lampx eb45b0af (paged atlas, runtime max; Classic identical; 205 MB VRAM
+   campus Realistic). Opus checker running (lr-tex3d-check.md). Real photometric dimming after the fix: S2 atrium pool
+   ~0.28 vs Classic 0.48 (9 m pendants) - retune is Michael's call.
 4. Polish batch 2 -polish2 cca3ccb7: checker PASS (polish2-check.md; touches src/net lamp checks, no wire change).
    Merge into -art together with the -perf fix, then one laptop batch at the new -art head: e2e-coop, e2e-sectorops 1-6,
    e2e-stealth-ai, e2e-stealth + perf rerun (MAP=campusOps MODE=sector). Still open: lr-check 1-6, lr14-check 1-7,
