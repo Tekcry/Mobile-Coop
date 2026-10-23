@@ -308,7 +308,7 @@ NEXT:
 3. LR16-4 DONE -lr16-4 eb2c62c2 (board-2; checks/lr16-4-build.md), check PASS (checks/lr16-4-check.md); laptop eb2c62c2-0cb6 (sectorops:6 coop). Was: one checker
    (two on src/ai if touched) + laptop sectorops:6 + coop.
 4. FULL BURN. LR16-6 DONE -lr16-6 543cb6da (G100 label on every cut; G102 dim-blue door figures, doorGhosts.ts /
-   thermalGhost.ts; one line each in ai/enemy.ts + net/enemyPuppet.ts); RUNNING two Opus checkers (lr16-6-check-A / -B)
+   thermalGhost.ts; one line each in ai/enemy.ts + net/enemyPuppet.ts); checkers A FIX / B PASS -> fix round DONE 34ae51d0 (client body cooling via src/net/keptBodies.ts, walking door figures, hitDistance rays, chest colour read; 250 tests); laptop 543cb6da FAILED e2e-darkness (asked Test Runner for the assert), requeued 34ae51d0-c617. LR16-4 eb2c62c2 laptop GREEN 2/2. Was: two Opus checkers
    + laptop 543cb6da-a297 (darkness incl. new thermal leg, coop, netmove). pol2 = A + B merged 35b8ab7b + a0fe26a0 (check
    PASS, pol2-ab-check). PR for LR16-4 + pol2 + LR16-6 after #291 releases. Was: Opus LR16-6 vision polish
    (-lr16-6 off 6e53e036; G100 instant cut, G102 thermal through shut doors; checks/lr16-6-build.md); Opus planner
