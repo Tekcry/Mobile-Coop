@@ -1,6 +1,6 @@
 // Serves the existing dist/ with `vite preview` and runs the e2e suites, several at a time (one browser per suite).
 //
-//   node scripts/run-e2e.mjs [suite ...] [--legacy | --audio | --gpu] [--serial] [--jobs=N] [--quick [--since=<ref>]] [--affected <base-ref>] [--list]
+//   node scripts/run-e2e.mjs [suite ...] [--legacy | --audio | --gpu] [--serial] [--jobs=N] [--quick [--since=<ref>]] [--affected <base-ref> [--wide]] [--list]
 //
 //   (no flags)   the REQUIRED suites in parallel (`E2E_JOBS` or --jobs; default: min(5, cores / 3))
 //   --serial     one suite at a time with its output streamed live (debugging; same as --jobs=1)
@@ -10,14 +10,15 @@
 //   --audio      the audio suites (`npm run e2e:audio`)
 //   --gpu        the visual read-back suites, Michael's PC only with E2E_GPU=1 (`npm run e2e:gpu`)
 //   --affected <base-ref>  the suites a PR must pass: `git diff` of the merge-base with <base-ref> to HEAD (committed files only, so it
-//                works on a detached commit); `--list` prints them one per line and exits (the laptop queue and leads use it); picked suites
+//                works on a detached commit), the DIRECT tier (the suites that drive the changed area); `--wide` adds the cross-area
+//                readers (WIDE_COVERS); `--list` prints them one per line and exits (the laptop queue and leads use it); picked suites
 //                outside REQUIRED are REPORT ONLY, as in --quick
 // Which change runs what (the test tiers): CLAUDE.md "Sessions" and docs/systems/testing-tools.md.
 // The slowest suites start first (scripts/e2e-times.json, refreshed by every full run), so the pool stays busy to the end.
 import { spawn, execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { cpus } from 'node:os';
-import { selectSuites, suitesForFile } from './e2e-affected.mjs';
+import { selectSuites, suitesForFile, QUICK_COVERS, DIRECT_COVERS, WIDE_COVERS } from './e2e-affected.mjs';
 
 const PORT = Number(process.env.E2E_PORT ?? 4179);
 // Windows: `localhost` can resolve to ::1, which a VPN adapter on the PC blocks (EACCES): bind and browse the IPv4 loopback there
@@ -31,7 +32,7 @@ const SUITE_TIMEOUT = Number(process.env.E2E_SUITE_TIMEOUT ?? 600) * 1000;
 // (Marlow Yard) and the systems it stands on. Everything else has its own list, outside the full run:
 // LEGACY = parked content (Hunter / Mission, the economy and cosmetics, Fallow, Kestrel, the Warehouse routes and AI
 // archetypes); AUDIO = the sound suites; GPU = visual read-backs (no visual result from SwiftShader).
-const REQUIRED = ['smoke', 'e2e-pad', 'e2e-mouse', 'e2e-menus', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-clip', 'e2e-tactics', 'e2e-wall', 'e2e-stealth-ai', 'e2e-takedown', 'e2e-gadgets', 'e2e-levels', 'e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-course', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-ct', 'e2e-lightbake', 'e2e-feedback', 'e2e-desktop', 'e2e-offline', 'e2e-studio', 'e2e-tuner-phone'];
+const REQUIRED = ['smoke', 'e2e-pad', 'e2e-mouse', 'e2e-menus', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-clip', 'e2e-tactics', 'e2e-wall', 'e2e-stealth-ai', 'e2e-guard-carry', 'e2e-takedown', 'e2e-gadgets', 'e2e-levels', 'e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-course', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-ct', 'e2e-lightbake', 'e2e-feedback', 'e2e-desktop', 'e2e-offline', 'e2e-studio', 'e2e-tuner-phone'];
 // e2e-wall:flanker = e2e-wall's Warehouse (Clear) flanker section; e2e-bunker: Fallow, parked behind ?legacy=1 (CT prototype B1)
 const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-clear', 'e2e-bunker', 'e2e-missions', 'e2e-modes', 'e2e-enemies', 'e2e-ct-warehouse', 'e2e-wall:flanker', 'e2e-kestrel', 'e2e-camera-bounds', 'e2e-security'];
 // the suites written for `?legacy=1` pages (LEGACY=1 makes e2e-lib add it); the others moved to LEGACY run as they always did
@@ -58,7 +59,8 @@ const REQUIRED_JOBS = new Set(expand(REQUIRED));
 const KNOWN_FLAKY = new Set(['e2e-pad']);
 const flaky = (s) => KNOWN_FLAKY.has(s.split(':')[0]);
 
-// The folder -> suites map and the selection live in scripts/e2e-affected.mjs (pure; shared by `--quick` and `--affected`).
+// The folder -> suites maps and the selection live in scripts/e2e-affected.mjs (pure): QUICK_COVERS for `--quick` (master's map
+// unchanged), DIRECT_COVERS for `--affected`, WIDE_COVERS for `--affected --wide`.
 
 const argv = process.argv.slice(2);
 const flag = (n) => argv.includes(`--${n}`);
@@ -79,6 +81,7 @@ if (affected && !affectedBase) {
   console.error('E2E ERROR: --affected needs a base ref, e.g. --affected origin/master');
   process.exit(1);
 }
+const wide = flag('wide');
 const selective = quick || affected; // a selected run: suites outside REQUIRED are REPORT ONLY
 const named = argv.filter((a, i) => !a.startsWith('--') && !(affected && !argv[affIdx].includes('=') && i === affIdx + 1));
 
@@ -101,23 +104,26 @@ function changedFiles() {
   return [...out].map((f) => f.replace(/\\/g, '/'));
 }
 
+// scripts/e2e-<x>.mjs files that are modules, not suites (master's --quick rules pick e2e-affected.mjs by name)
+const NOT_SUITES = ['e2e-affected'];
+
 /** Required suites first, then the rest (a legacy / audio suite runs REPORT ONLY; GPU suites never run on software GL; a suite without a script is dropped). A part token (`e2e-sectorops:1`) stays one job. */
 function orderPicked(picked) {
   const base = (s) => s.split(':')[0];
   const reqWhole = REQUIRED.filter((s) => picked.has(s));
   const reqParts = [...picked].filter((s) => s.includes(':') && REQUIRED.includes(base(s)));
-  const rest = [...picked].filter((s) => !REQUIRED.includes(base(s)) && !GPU.includes(base(s)) && !GPU.includes(s) && existsSync(`scripts/${base(s)}.mjs`));
+  const rest = [...picked].filter((s) => !REQUIRED.includes(base(s)) && !GPU.includes(base(s)) && !GPU.includes(s) && existsSync(`scripts/${base(s)}.mjs`) && !NOT_SUITES.includes(base(s)));
   return [...new Set([...expand(reqWhole), ...reqParts, ...expand(rest)])];
 }
 
 function quickSuites() {
   const files = changedFiles();
-  const picked = new Set(['smoke', ...selectSuites(files)]);
-  console.log(`quick: ${files.length} changed file(s), ${files.filter((f) => suitesForFile(f)).length} reach the browser`);
+  const picked = new Set(['smoke', ...selectSuites(files, QUICK_COVERS)]);
+  console.log(`quick: ${files.length} changed file(s), ${files.filter((f) => suitesForFile(f, QUICK_COVERS)).length} reach the browser`);
   return orderPicked(picked);
 }
 
-/** `--affected <base-ref>`: the committed diff from the merge-base to HEAD (works on a detached commit). */
+/** `--affected <base-ref> [--wide]`: the committed diff from the merge-base to HEAD (works on a detached commit). */
 function affectedSuites() {
   let files;
   try {
@@ -128,8 +134,8 @@ function affectedSuites() {
     console.error(`E2E ERROR: --affected ${affectedBase}: ${String(e.stderr || e.message).trim()}`);
     process.exit(1);
   }
-  const suites = selectSuites(files);
-  console.error(`affected: ${files.length} changed file(s) vs ${affectedBase}, ${suites.length} suite(s)`);
+  const suites = selectSuites(files, wide ? WIDE_COVERS : DIRECT_COVERS);
+  console.error(`affected${wide ? ' (wide)' : ''}: ${files.length} changed file(s) vs ${affectedBase}, ${suites.length} suite(s)`);
   return orderPicked(new Set(suites));
 }
 
