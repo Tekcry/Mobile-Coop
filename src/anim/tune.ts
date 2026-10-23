@@ -741,15 +741,22 @@ let bodyRig: TuneRigIn | null = null;
  * TUNE_CUR (the local player's tuner values; identity for every other rig), the pose's head turn and the grip targets,
  * all put back by `bodyRigEnd`. The local player's rig (TUNE_OWNER) also gets the composed values in TUNE_LOCAL (the wall
  * gap and the root offset read them outside the window). Nothing live: returns at once (bit-identical). No allocation.
+ * (crouch-pops, CP-A2) `gi2` / `w`: mid-crouch (0 < w < 1) the target is row `gi` (the standing row) blended toward row
+ * `gi2` (the crouched row) by the crouch amount `w`, so a row change follows the crouch's own eased curve instead of
+ * switching at 0.5 (Michael's trackMul 0.05 stepped the stance width's velocity mid-crouch: e2e-anim's two crouch pops).
+ * Without them (w 0) as before.
  */
-export function bodyRigBegin(st: BodyRigState, gi: number, p: TunePoseIn, rig: TuneRigIn, dt: number): void {
+export function bodyRigBegin(st: BodyRigState, gi: number, p: TunePoseIn, rig: TuneRigIn, dt: number, gi2 = -1, w = 0): void {
   if (!BODY_BASE_LIVE.on && !st.live) return;
   const a = st.applied;
   const row = gi >= 0 && gi < NBG ? gi * NBF : -1;
+  const blend = w > 0 && w < 1 && gi2 !== gi;
+  const row2 = blend && gi2 >= 0 && gi2 < NBG ? gi2 * NBF : -1;
   const k = dt > 0 ? 1 - Math.exp(-dt / BODY_TAU) : 1;
   let live = false;
   for (let i = 0; i < NBF; i++) {
-    const t = row >= 0 ? BODY_BASE[row + i]! : BB_ID[i]!;
+    const t0 = row >= 0 ? BODY_BASE[row + i]! : BB_ID[i]!;
+    const t = blend ? t0 + ((row2 >= 0 ? BODY_BASE[row2 + i]! : BB_ID[i]!) - t0) * w : t0;
     const d = t - a[i]!;
     const v = k === 1 || (d > -1e-6 && d < 1e-6) ? t : a[i]! + d * k;
     a[i] = v;

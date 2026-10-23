@@ -38,7 +38,15 @@ export type BarkEvent =
   | 'covering'
   | 'flanking'
   // (guard-ai S12) a round stopped by his helmet or vest
-  | 'deflect';
+  | 'deflect'
+  // (guard-ai S15) a switched-off circuit taken for a fault: he goes to turn it back on
+  | 'breaker'
+  // (guard-ai S14) section alert: a loud shot heard and called in; the reports when the calls get through
+  | 'shots'
+  | 'shotsReport'
+  | 'missingReport'
+  // (guard-ai S17) sent to a tripped device (a laser beam, a camera's alarm)
+  | 'tripped';
 
 export const BARKS: Record<BarkEvent, readonly string[]> = {
   suspicious: ['Huh?', 'What was that?', 'Hello?', 'Something there...'],
@@ -72,12 +80,35 @@ export const BARKS: Record<BarkEvent, readonly string[]> = {
   covering: ['Covering!', 'Got you covered!', 'Go, go!'],
   flanking: ['Flanking!', 'Going round!', 'Taking the side!'],
   deflect: ['Argh! Still up!', 'Took one! Still standing!', 'That was close!'],
+  breaker: ["Breaker's gone again."],
+  // (guard-ai S14) original lines, written to be voiced later (G82)
+  shots: ['Shots fired! Calling it in.', 'Gunfire! Calling it in.', 'That was a gunshot. Calling it in.'],
+  shotsReport: ['Control, shots fired near my position. All units, stay sharp.', 'Control, I heard gunfire. Everyone, eyes open.'],
+  missingReport: ["Control, a unit's not answering. All units, stay sharp.", 'Control, we have a man not checking in. Eyes open.'],
+  // (guard-ai S17) original lines, written to be voiced later (G82)
+  tripped: ['Sensor tripped. Moving to check.', "Alarm point's lit. On my way."],
 };
 
+/**
+ * (guard-ai S14) Lines naming a unit (`{unit}`: his radio number as a word, `unitWord`), said through `BarkVoice.sayUnit`
+ * when the speaker knows who he means; without a number the event's `BARKS` lines are used.
+ */
+export const BARKS_UNIT: Partial<Record<BarkEvent, readonly string[]>> = {
+  missed: ['Unit {unit}, report... Unit {unit}? Nothing.', 'Unit {unit}, check in... No answer.', "Unit {unit}, respond... He's not answering."],
+};
+
+const WORDS = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+
+/** (guard-ai S14) A unit's number as said on the radio ("three"); digits past twelve. */
+export function unitWord(n: number): string {
+  const i = Math.floor(n);
+  return i >= 1 && i < WORDS.length ? WORDS[i]! : String(i);
+}
+
 /** Radio lines (a chirp plays with them). */
-export const RADIO_BARKS: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['radioCheck', 'radioOk', 'missed', 'alarm', 'drone', 'search', 'callIn', 'ack', 'checking', 'lightOut', 'standDown', 'missing', 'koReport', 'deadReport', 'command']);
-/** Urgent lines cut through a speaker's cooldown. */
-const URGENT: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['contact', 'body', 'blind', 'grenade', 'alarm', 'callIn', 'koFound', 'koReport', 'deadReport', 'command']);
+export const RADIO_BARKS: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['radioCheck', 'radioOk', 'missed', 'alarm', 'drone', 'search', 'callIn', 'ack', 'checking', 'lightOut', 'standDown', 'missing', 'koReport', 'deadReport', 'command', 'shotsReport', 'missingReport']);
+/** Urgent lines cut through a speaker's cooldown. (guard-ai S14) `missed` too: it follows his own "Radio check." at once. */
+const URGENT: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['contact', 'body', 'blind', 'grenade', 'alarm', 'callIn', 'koFound', 'koReport', 'deadReport', 'command', 'missed', 'shots', 'shotsReport', 'missingReport']);
 
 export const BARK = {
   /** Seconds between one speaker's lines; on screen this long. */
@@ -104,8 +135,20 @@ export class BarkVoice {
 
   /** The line for `ev` if this speaker may talk now (else null). */
   say(ev: BarkEvent): string | null {
+    return this.pick(ev, BARKS[ev]);
+  }
+
+  /** (guard-ai S14) The line for `ev` naming unit `unit` (`BARKS_UNIT`, `{unit}` -> "three"); the plain line when the
+   *  event has no unit lines or `unit` < 1. Null when he may not talk now. */
+  sayUnit(ev: BarkEvent, unit: number): string | null {
+    const t = unit >= 1 ? BARKS_UNIT[ev] : undefined;
+    if (!t) return this.say(ev);
+    const line = this.pick(ev, t);
+    return line === null ? null : line.split('{unit}').join(unitWord(unit));
+  }
+
+  private pick(ev: BarkEvent, lines: readonly string[]): string | null {
     if (this.t < this.next && !URGENT.has(ev)) return null;
-    const lines = BARKS[ev];
     const line = lines[(this.turn + this.seed) % lines.length]!;
     this.turn++;
     this.next = this.t + BARK.cooldown;
