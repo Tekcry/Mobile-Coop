@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~04:35: s25-sai-fix3 1eb5644d FAIL (laptop, run + rerun): every 'near' assert now PASSES; next scenario fails on
+staging: "wall: no spot 4-9 m straight and > 23 m by path from the last known position" (log runs/20261023T170434-
+...-1eb5644d-9b03/4189.log:74). FIRST at the wake: resume the S25 agent (or a fresh Opus) on the 'wall' spot picker
+(round 1/2 sight filter likely leaves no candidate), then 'three'; s26-sai is probably the same fail.
+
 ~04:30: s26-fix4 531a65e9 PASS 2/2 (e2e-coop + netmove: S26 coop block fixed). s26-sai f71ae5c7 FAIL e2e-stealth-ai
 (desktop worker, 49 s; log desktop-only: ask the orchestrator). s25-sai-fix3 (1eb5644d) still pending: if it fails
 the same, one S25 triage covers both; if it passes, triage S26's stealth-ai on its own.
