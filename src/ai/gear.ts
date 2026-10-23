@@ -51,6 +51,36 @@ export const BREAKER = { reset: true, resetT: 2, repeatT: 60 } as const;
 /** Late discovery: a calm guard who sees a dead fixture within `range` m reacts as a witness would (S14). */
 export const LATE = { enabled: true, range: 12 } as const;
 
+/**
+ * (guard-ai S17, Michael's walk of 4.72 G1: "change it so they come to look where the laser is and search the room") A
+ * tripped device (a laser beam broken, a camera's alarm) is an incident at the device, never the player's live
+ * position: `want` calm guards within `callR` m (best by path) go to the spot and search its room; nobody in range, the
+ * report waits `wait` s for one, then lapses. Alarm reinforcements that come in within `fresh` s of it, with no
+ * sighting since, search the spot too instead of going to combat. `enabled` false: the old way (no incident;
+ * reinforcements in combat, where a missing last known position leaves them on the player).
+ */
+export const DEVICE = { enabled: true, want: 2, callR: 30, wait: 20, fresh: 90 } as const;
+
+/**
+ * (guard-ai S18, Michael's walk of 4.72 G2: "guards investigating dead bodies give up too easily") A dead body found
+ * (S4: the finder and the guard who hears his shout; S7: the guards a camera sent, the second one too) is searched
+ * `ALERT.searchTime` x `timeMul` s before the held caution, over a denser ring (`r0`, then every `step` m) out to `max`
+ * m round the body (a plain search: 2 m, 2.5 m steps, 11 m), `look` s at each point (`response.ts` `SEARCH`).
+ * `timeMul` 1, `r0` 2, `step` 2.5, `max` 11: the plain search again.
+ */
+export const BODY_SEARCH = { timeMul: 3, r0: 1.5, step: 1.5, max: 15, look: 2.5 } as const;
+
+/**
+ * (guard-ai S19, Michael's walk of 4.72 G3: "guards should rush to any triggered alarms or bodies reported, they need a
+ * sense of urgency when it makes logical sense") Urgent responders (a tripped device, an alarm's reinforcement, a body a
+ * camera or the radio reported, a shots call, a missing man) jog there at the run speed x `PACE.rush` (`response.ts`)
+ * until they first reach the spot, then search at the search pace; calm checks (a noise, a lure, a light, a breaker)
+ * keep their pace. `bodyHelpers`: calm guards the board sends to a dead body once its finder's radio report gets
+ * through. `enabled` false: everyone at the calm paces, no helpers.
+ */
+export const URGENT = { enabled: true, bodyHelpers: 1 } as const;
+
+
 /** The gear a tag names into `out` (undefined = none). Returns `out`. */
 export function gearFromTag(tag: GearTag | undefined, out: GuardGear): GuardGear {
   out.helmet = tag === 'helmet' || tag === 'both';

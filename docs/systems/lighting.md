@@ -46,6 +46,13 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   gates read them, so a jam never counts as the group switched off.
 - Gameplay reads only the field: `GameState.updateLight` (10 Hz, the local player and, on the host, every remote player's
   `PlayerRef.light`), `Enemy.perceive`, body light (`EnemyManager`, 1 Hz), `Enemy.torchWanted`.
+- (guard-ai S15) Guards turn circuits back on: a guard who resets a breaker calls `StealthSystems.resetCircuit`, the
+  player's own `toggle` (`LightRegistry.setGroup`, the switch labels and indicator, the `lightSwitch` event), so the field,
+  the meter, perception and the picture follow as for a player press; co-op clients get it through the existing light
+  sync (Sector Ops `lamps`, `net/lampSync.ts`, reads `baseOn`; Course `lights.groups` reads `groupBaseOn`): no wire
+  change. `setGroup` skips destroyed lamps, so a shot lamp is never relit. A course mains gate's circuit is never
+  relit by a guard (`StealthSystems.mainsGroups`: cutting it opens the gate). Late discovery reads the registry only
+  (`destroyed`, `baseOn`, `group`, `version`) and collision for its one ray (`ai/breaker.ts` `DarkList`).
 - Guard flashlights (`world/torches.ts`, pure; coop-torches): `addTorchSlots` (dark maps: `FLASHLIGHTS` 4 slots,
   radius 13, intensity 0.85, cone 0.34 / 0.2 rad), `placeTorch` (eye height x scale, 0.35 m ahead, 0.15 m right,
   pitched 0.16 rad down; crouched past half way 1.0 m) and `beamReach` (rendering only) are the one code for the host

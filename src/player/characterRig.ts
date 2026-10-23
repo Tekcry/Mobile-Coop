@@ -12,7 +12,7 @@ import { elbowSwivelClear, solveTwoBone } from '../anim/rigMath';
 import { HOLDS, holdInto, solveHold, type HandFrame, type HoldName } from './handHold';
 import { emptyPlannerInput, FootPlanner, type FootState } from '../anim/footPlanner';
 import { CqLiftCrouch } from '../anim/cqGait'; // (anim-n4, track A)
-import { newStrikeBody, strikeBodyAt, type StrikeBodyOut } from '../anim/strikeBody'; // (anim-natural N4c) the elbow strike's hips and trunk
+import { newStrikeBody, strikeBodyAt, strikeBodyPhase, type StrikeBodyOut } from '../anim/strikeBody'; // (anim-natural N4c) the elbow strike's hips and trunk
 import { KNEE_SWING_SHARE, kneePoleYaw, PELVIS_FOLLOW_KEYED, PELVIS_FOLLOW_MAX, pelvisFollow } from '../anim/turnFollow';
 import { LOCO, MOCAP_FEET, MOCAP_LAYERS, mocapLayerK } from '../anim/mocap'; // (mocap-trial)
 import type { MotionState } from '../anim/motion';
@@ -24,7 +24,7 @@ import { LEGD_OPT, legdContactW, plantKnee } from '../anim/legDelta';
 import { toePitch } from '../anim/toeRoll';
 import { heelLift } from '../anim/footGeom';
 import { TUNE_CUR } from '../anim/tune';
-import { HAND_SWAP, handSwapK } from '../anim/handSwapPath'; // (anim-n4c)
+import { HAND_SWAP, handSwapK, handSwapPh } from '../anim/handSwapPath'; // (anim-n4c; strike-pops)
 import { studioFeet } from '../anim/studioDrive';
 import { J, JOINTS_CUR, jointApply, mulInto } from '../anim/tuneJoints';
 import { HANDS_CUR, HANDS_GUN, HP, gunVisualPoint, handsRotApply, ikStrength, type GunVisual } from '../anim/tuneHands';
@@ -79,6 +79,9 @@ export interface RigPose {
   reload?: number;
   yawRate?: number;
   armed?: boolean;
+  /** (guard-ai S21) The holstered / slung carry with the hands empty (the ready hands, the armed carriage kept); unset:
+   *  a carrier (the player, a remote player) with no weapon in hand. A guard sets it while his gun is holstered. */
+  ready?: boolean;
   /** Dash blend 0..1. */
   dash?: number;
   /** Landing recovery 0..1. */
@@ -1125,6 +1128,8 @@ export class CharacterRig {
   private readonly liftCrouch = new CqLiftCrouch();
   /** (anim-natural N4c) The elbow strike's hips and trunk this frame (strikeBody.ts; rest on every non-Wren rig). */
   private readonly sb = newStrikeBody();
+  /** (strike-pops) The strike body layer's phase (`strikeBodyPhase`: the trunk's pace; -1 none). */
+  private sbPh = -1;
   /** (3.2.0) Pinned feet (world x / z, left then right; NaN = free): a remote's feet on the owner's (`FootPlanner`). */
   readonly footPins = [NaN, NaN, NaN, NaN];
   private pin = emptyPlannerInput();
@@ -1804,7 +1809,7 @@ export class CharacterRig {
     i.weaponTravel = this.weaponTravel;
     i.grenade = s.grenade ?? -1;
     i.armed = s.armed ?? !!this.heldWeapon;
-    i.ready = this.carrier && !this.heldWeapon;
+    i.ready = s.ready ?? (this.carrier && !this.heldWeapon);
     // (anim-rework S3) the drawn keyed set: a carrier (the player, a remote player) with the gun in hand, free on foot
     i.keyedDrawn = this.carrier && !!this.heldWeapon && !((s.bend ?? 0) > 0) && !((s.bendDrop ?? 0) > 0) && !(s.wall ?? false) && !(s.settleFeet ?? false);
     i.thighGear = this.thighGear;
@@ -1915,7 +1920,9 @@ export class CharacterRig {
         this.handRate = 0;
       }
     }
-    i.handSwap = this.handSwap;
+    // (strike-pops, n4c polish 1) the graph's tuck bump and the gun's dip read the progress from the blend
+    // (`handSwapPh`): a reversal's rewind of `handSwap` flipped their rate in one frame
+    i.handSwap = this.handSwap < 0 ? -1 : handSwapPh(this.handBlend);
     i.hand = 1 - this.handBlend * 2;
 
     // (G1) the kneel keeps the lead foot planted: which foot is ahead (last frame's planted feet, body frame)
@@ -2479,7 +2486,9 @@ export class CharacterRig {
     // (anim-natural N4c, AUDIT row 49) a Wren rig's elbow strike: the hips and trunk drive it (strikeBody.ts); the weight
     // shifts back over the rear foot on the wind-up and onto the lead foot driving, on the feet only (attached, a takedown
     // blow from a hang or a pipe, the turn alone); the turn goes on after the keyed trunk
-    const sb = strikeBodyAt(this.graph.wrenReady ? this.input.melee : -1, this.sb);
+    // (strike-pops) at the trunk's pace (`STRIKE_BODY_RATE`): the strike's drive over 3 frames, not on the arm's fastest 2
+    this.sbPh = strikeBodyPhase(this.sbPh, this.graph.wrenReady ? this.input.melee : -1, dt);
+    const sb = strikeBodyAt(this.sbPh, this.sb);
     if (!free) pex += sb.side;
     const peZ = pez + this.restShift + (free ? 0 : sb.fwd);
     const yc = Math.cos(yaw);
@@ -2788,7 +2797,7 @@ export class CharacterRig {
     const w = t.weapon;
     const mirror = 1 - this.handBlend * 2;
     // (anim-n4c, AUDIT row 29) changing hands aimed, the gun drops and comes forward under the chin (handSwapPath.ts)
-    const swapK = handSwapK(this.handSwap);
+    const swapK = handSwapK(this.input.handSwap);
     const swapDrop = swapK * t.aimW * TUNE_CUR.swapDropMul;
     this.weaponPivot.position.set((p.shoulderHalf * AIM_POCKET.x + w.x + TUNE_CUR.gunSide) * mirror, p.y.shoulder - chestY + AIM_POCKET.y + w.y + TUNE_CUR.gunUp - HAND_SWAP.drop * swapDrop, AIM_POCKET.z + w.z + TUNE_CUR.gunFwd + HAND_SWAP.fwd * swapDrop);
     // raised the weapon points along the aim; lowered (ready) it is carried with the body, so a lowered gun
@@ -3891,15 +3900,44 @@ export class CharacterRig {
       let hx = fx - k * ax, hz = fz - k * az;
       const hl = Math.sqrt(hx * hx + hz * hz) || 1;
       hx /= hl; hz /= hl;
-      for (let step = 0; step <= 6; step++) {
-        const th = (step / 6) * (Math.PI / 2);
-        const c = Math.cos(th), s = Math.sin(th);
-        // palm normal (down on top, into the face at 90 degrees), knuckles (forward over the lip, then up)
-        const nx = hx * s, ny = -c, nz = hz * s;
-        const dx = hx * c, dy = s, dz = hz * c;
-        if (!this.gripFrame(hand, ry, dx, dy, dz, nx, ny, nz, gi)) return false;
-        this.gripWrist(gx - nx * PALM_DEPTH, gy - ny * PALM_DEPTH, gz - nz * PALM_DEPTH, ry, out, gi);
-        if (step === 6 || Vector3.Distance(out, S) <= reach) break;
+      // (traverse-fix-2) the pivot is continuous: the least angle in reach (bisected between the 15-degree steps), or, with
+      // none in reach, the angle nearest the shoulder. Was: the first step in reach, else 90 degrees (the hand flipped
+      // 0 -> 90 in a frame as the climb-up's shoulders rose out of reach while the hands let go: a 4.6 cm wrist pop).
+      const H = Math.PI / 2;
+      if (!this.hookAt(hand, ry, gi, hx, hz, gx, gy, gz, 0, out)) return false;
+      let bestD = Vector3.Distance(out, S);
+      if (bestD > reach) {
+        let lo = 0, hi = -1, best = 0;
+        for (let step = 1; step <= 6; step++) {
+          const th = (step / 6) * H;
+          if (!this.hookAt(hand, ry, gi, hx, hz, gx, gy, gz, th, out)) return false;
+          const d = Vector3.Distance(out, S);
+          if (d <= reach) { hi = th; break; }
+          if (d < bestD) { bestD = d; best = th; }
+          lo = th;
+        }
+        let th: number;
+        if (hi >= 0) {
+          // the reach boundary between the last step out of reach and the first in it
+          for (let it = 0; it < 6; it++) {
+            const m = (lo + hi) / 2;
+            if (!this.hookAt(hand, ry, gi, hx, hz, gx, gy, gz, m, out)) return false;
+            if (Vector3.Distance(out, S) <= reach) hi = m; else lo = m;
+          }
+          th = hi;
+        } else {
+          // none in reach: the nearest angle (a ternary search either side of the nearest step)
+          let a = Math.max(0, best - H / 6), b = Math.min(H, best + H / 6);
+          for (let it = 0; it < 10; it++) {
+            const m1 = a + (b - a) / 3, m2 = b - (b - a) / 3;
+            if (!this.hookAt(hand, ry, gi, hx, hz, gx, gy, gz, m1, out)) return false;
+            const d1 = Vector3.Distance(out, S);
+            if (!this.hookAt(hand, ry, gi, hx, hz, gx, gy, gz, m2, out)) return false;
+            if (d1 <= Vector3.Distance(out, S)) b = m2; else a = m1;
+          }
+          th = (a + b) / 2;
+        }
+        if (!this.hookAt(hand, ry, gi, hx, hz, gx, gy, gz, th, out)) return false;
       }
       this.gripOk[gi] = true;
       return true;
@@ -3936,6 +3974,16 @@ export class CharacterRig {
       gp.set(gp.x + out.x - ox, gp.y + out.y - oy, gp.z + out.z - oz);
     }
     this.gripOk[gi] = true;
+    return true;
+  }
+
+  /** (traverse-fix-2) A lip grip's hand pivoted `th` over the edge (0: palm down on top, pi/2: palm into the face; the
+   *  knuckles forward over the lip, then up; `hx`, `hz` the unit across the lip): its frame and wrist target into `out`. */
+  private hookAt(hand: HandFrame, ry: number, gi: number, hx: number, hz: number, gx: number, gy: number, gz: number, th: number, out: Vector3): boolean {
+    const c = Math.cos(th), s = Math.sin(th);
+    const nx = hx * s, ny = -c, nz = hz * s;
+    if (!this.gripFrame(hand, ry, hx * c, s, hz * c, nx, ny, nz, gi)) return false;
+    this.gripWrist(gx - nx * PALM_DEPTH, gy - ny * PALM_DEPTH, gz - nz * PALM_DEPTH, ry, out, gi);
     return true;
   }
 
