@@ -340,6 +340,20 @@ export async function walk(t, n) {
   await unjam(0);
   await cameraBack('A3 window miss');
   await sentBack('A3 window miss', n0);
+  // (guard-ai S23 A3 triage) the send-back is a camera alarm (stage 2): since guard-ai S17 it is a device incident that sends
+  // the calm cleaner to search the corridor where the camera saw the client (`CtDevices.onCamera` -> `EnemyManager.deviceAlert`
+  // -> `Enemy.respondDevice`). Since guard-ai S23 he perceives every player, not only the nearest (G41): from the corridor
+  // the host standing at the west post is in plain, lit view, and with the client hidden nearer (the recess, the east lobby) the
+  // old nearest-only sight never looked at him. Both wait out the search in the L2 holding room behind the shut far door until
+  // he is calm and back in the offices (as after step 3), then take the relay positions again.
+  await moveHost(L2_HIDE[0][0], L2_HIDE[0][1], 0.1, Math.PI / 2);
+  await moveClient(L2_HIDE[1][0], L2_HIDE[1][1], 0.1, Math.PI / 2);
+  if (await GA((i) => window.__app.current.world.doors.list[i].target !== 0, l2Far)) assert((await use(A, `door-${l2Aid}`)) === 'ok', 'A3: the host shuts the L2 far door for the camera-alarm search');
+  await until(A, (i) => { const d = window.__app.current.world.doors.list[i]; return d.target === 0 && d.open < 0.05; }, l2Far, 5000, 'A3: the L2 far door is shut for the camera-alarm search');
+  await traced('A3 calm after the window miss', until(A, () => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return !e || ((e.aware.level === 'unaware' || e.aware.level === 'cooldown') && e.pos.x > 79.6 && e.pos.z < 8.7); }, null, 150000, "A3: the cleaner is calm and back in the offices after the window miss's camera alarm"));
+  await noDamage(A);
+  await moveHost(POST_W[0], POST_W[1], 0.1, Math.PI / 2);
+  await moveClient(BACK[0], BACK[1], 0.1, Math.PI / 2);
 
   // ---- 5. the relay: jam, the client to the recess, jam again, the client to the far lobby ----
   console.log('  A3: the relay');
