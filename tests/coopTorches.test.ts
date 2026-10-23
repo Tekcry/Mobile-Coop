@@ -79,7 +79,7 @@ describe('coop-torches: the wire', () => {
     });
   });
 
-  it('a bad al is clamped into the nine bits (protocol 38: S9 and the A126 carry), never past them', () => {
+  it('a bad al is clamped into the nine bits (protocol 39: S9 and the A126 carry), never past them', () => {
     const m = parseMessage({ t: 'snap', time: 1, players: [], enemies: [{ id: 'e1', k: 'grunt', x: 0, y: 0, z: 0, yaw: 0, st: 0, hp: 1, al: 999 }, { id: 'e2', k: 'grunt', x: 0, y: 0, z: 0, yaw: 0, st: 0, hp: 1, al: -3 }], obj: '', info: '' });
     const es = (m as Extract<typeof m, { t: 'snap' }>).enemies;
     expect(es[0]!.al).toBe(511);

@@ -520,7 +520,7 @@ try {
     const fixed = reg.lights.filter((l) => l.kind !== 'flashlight').length;
     const rigIds = [...w.lightRig.pool, ...w.lightRig.shadowPool].map((s) => s.id).filter((id) => id >= 0);
     const i = L.order.findIndex((id) => reg.lights[id].destructible && reg.lights[id].on);
-    const off = (L.lampBase + i * 6 + 1) * 4;
+    const off = (L.lampBase + i * L.lampTexels + 1) * 4;
     const lit = () => L.buf[off] + L.buf[off + 1] + L.buf[off + 2];
     const before = lit();
     reg.destroy(L.order[i]);

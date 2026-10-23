@@ -112,8 +112,8 @@ describe('move state (3.2.0 phase 1)', () => {
     expect(out.wallSide).toBe(1);
   });
 
-  it('PROTOCOL_VERSION is 38 (38 guard-ai S9 + A126 (37 Player #231): barks, caution and gear bits, deflect; 36 pose-parity; 35 the weapons crate; 31 the Sector lamps; 29 the laser panels; 28 the jam claim eye; 27 rejoin; 26 the jammer rules; 25 the guard torch bit; 24 sector extras; 23 Sector Ops; 22 B7 rope; 21 scanners; 20 hang-down; 19 throw; 18 anim-cleanup: the left-shoulder weapon bit; 17 B3: the held jammer message; 16 was B2: the relay offer bit; 15 dropped the SWAT turn and the lean kind)', () => {
-    expect(PROTOCOL_VERSION).toBe(38);
+  it('PROTOCOL_VERSION is 39 (39 guard-ai S9 + A126: barks, caution and gear bits, deflect, the carry; 38 the lamp falloff; 37 Player #231; 36 pose-parity; 35 the weapons crate; 31 the Sector lamps; 29 the laser panels; 28 the jam claim eye; 27 rejoin; 26 the jammer rules; 25 the guard torch bit; 24 sector extras; 23 Sector Ops; 22 B7 rope; 21 scanners; 20 hang-down; 19 throw; 18 anim-cleanup: the left-shoulder weapon bit; 17 B3: the held jammer message; 16 was B2: the relay offer bit; 15 dropped the SWAT turn and the lean kind)', () => {
+    expect(PROTOCOL_VERSION).toBe(39);
   });
 
   it('poses: attached families and exits, committed moves and takedowns', () => {

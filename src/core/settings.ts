@@ -4,6 +4,8 @@ import { BINDS, defaultBinds, KEY_LAYOUT_V, keyName, migrateKeysV1, sanitizeBind
 import { findConflicts } from '../input/conflicts';
 import { defaultPadBinds, migrateA3Dpad, PAD_BINDS, PAD_FIXED, PAD_LAYOUT_V, padButtonName, sanitizePadBinds, type PadBinds } from '../input/padBinds';
 import { BRIGHTNESS_MAX, BRIGHTNESS_MIN } from '../world/darkCurve';
+import { LAMP_FALLOFFS, type LampFalloff } from '../world/lampMath';
+import { CHAR_SHADOW_MODES, type CharShadowMode } from '../world/charShadowSet';
 import { FPS_CAPS, GRAPHICS_PRESETS, LIGHT_RANGE, PRESET_DISPLAY, PRESET_IDS, presetOf, type AaMode, type FixedPreset, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type ShadowQuality, type TierQuality } from './quality';
 
 
@@ -65,6 +67,9 @@ export interface Settings {
     upscaler: 'off' | 'taau';
     /** Panini projection strength 0..1 (0 = off): keeps wide fields of view from stretching at the sides. */
     panini: number;
+    /** (LR14) Character silhouette shadows from the nearest lamps: 'auto' (the Shadows tier's: on from High), 'on' or
+     *  'off' (capsule shadows). Rendering only; this machine only (nothing on the wire). */
+    charShadows: CharShadowMode;
     /** Frame-rate cap (0 = the display's refresh rate). */
     fpsCap: number;
     /** Horizontal FOV (degrees) at a 16:9 reference; wider screens see more at the sides (Hor+). */
@@ -97,7 +102,12 @@ export interface Settings {
     /** (mocap-trial) Mocap locomotion: Wren's holstered walk / jog / run (and the mocap turn / start / stop clips) from
      *  the CMU mocap set instead of the hand-keyed one (default on since mocap-trial-2, Michael M4; `?mocap=0/1` overrides it for a page; this machine
      *  only: the co-op partner drawn here follows it, nothing on the wire). */
-    mocapLoco: boolean };
+    mocapLoco: boolean;
+    /** (lightrev LR13, Michael 2026-10-23 ~14:35 "Try it first") The baked lamps' falloff: 'linear' (Classic, the
+     *  default) or 'photometric' (Realistic, a test: `lampMath.ts` `PHOTO`). A light-model rule, not a graphics preset:
+     *  the meter, the guards and the shaders switch together, read once when a map loads (`lampMath.matchLampFalloff`;
+     *  a co-op match runs the host's, the `start` message's `lf`). */
+    lampFalloff: LampFalloff };
   /** Accessibility and HUD. */
   access: {
     /** HUD size multiplier (0.8 .. 1.4). */
@@ -152,9 +162,9 @@ export function defaultSettings(): Settings {
     keysV: KEY_LAYOUT_V,
     camV: CAM_V,
     mocapV: MOCAP_V,
-    video: { preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 86, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, brightness: 1, brightnessSet: false, avatarStyle: 'detailed', avatarStyleV: 2 },
+    video: { preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, charShadows: 'auto', fpsCap: 0, fovH: 86, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, brightness: 1, brightnessSet: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.15, ui: 0.7, musicV: 3 },
-    gameplay: { defaultShoulder: 'right', crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true, grabToggle: true, rumble: 1, courseMarkers: true, mocapLoco: true },
+    gameplay: { defaultShoulder: 'right', crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true, grabToggle: true, rumble: 1, courseMarkers: true, mocapLoco: true, lampFalloff: 'linear' },
     access: { hudScale: 1, healthBar: true, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
   };
 }
@@ -335,6 +345,8 @@ export function sanitizeSettings(raw: unknown): Settings {
       adaptive: bool(v.adaptive, d.video.adaptive),
       upscaler: pick(v.upscaler, ['off', 'taau'] as const, d.video.upscaler),
       panini: num(v.panini, d.video.panini, 0, 1),
+      // (LR14) settings from before it: the preset's
+      charShadows: pick(v.charShadows, CHAR_SHADOW_MODES, d.video.charShadows),
       fpsCap: pick(v.fpsCap, FPS_CAPS as readonly number[], d.video.fpsCap),
       fovH: camKept(r.camV, num(v.fovH, d.video.fovH, 60, 120), 75, d.video.fovH),
       maxFov: num(v.maxFov, d.video.maxFov, 90, 150),
@@ -369,6 +381,8 @@ export function sanitizeSettings(raw: unknown): Settings {
       courseMarkers: bool(gp.courseMarkers, d.gameplay.courseMarkers),
       // (mocap-trial-2, M4) a save from before MOCAP_V (off was the default) takes the new default (on) once
       mocapLoco: typeof r.mocapV === 'number' && r.mocapV >= MOCAP_V ? bool(gp.mocapLoco, d.gameplay.mocapLoco) : d.gameplay.mocapLoco,
+      // (lightrev LR13) settings from before it have none: Classic
+      lampFalloff: pick(gp.lampFalloff, LAMP_FALLOFFS, d.gameplay.lampFalloff),
     },
     access: {
       hudScale: num(ac.hudScale, d.access.hudScale, 0.8, 1.4),

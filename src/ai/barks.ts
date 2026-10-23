@@ -121,7 +121,7 @@ export const BARK_EVENTS: readonly BarkEvent[] = [
   'deadReport', 'command', 'moving', 'covering', 'flanking', 'deflect', 'breaker', 'shots', 'shotsReport', 'missingReport',
   // (guard-ai A126 merge, A139) S17's device line, appended (protocol 38 still, A140: S9's table is unreleased)
   'tripped',
-  // (guard-ai S22, A135) the console lines, appended (same protocol-38 train as S9)
+  // (guard-ai S22, A135) the console lines, appended (same train as S9: protocol 39 since A141)
   'console', 'consoleCheck',
 ];
 
