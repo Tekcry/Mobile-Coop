@@ -622,7 +622,10 @@ export class CoopClient implements NetAttachment {
         }
         break;
       case 'feed':
+        // a radio line (subtitle), also kept in the feed: the host's interrogation intel arrives as these and the host
+        // shows it in its feed (`revealIntel`); a bark alone left the client's feed without it
         g.hud.barks.say('lantern', e.text, true);
+        g.hud.feedItem(e.text);
         break;
       case 'pickup':
         if (e.player !== me) break;
