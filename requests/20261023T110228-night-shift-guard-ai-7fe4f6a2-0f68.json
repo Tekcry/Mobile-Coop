@@ -1,0 +1,14 @@
+{
+  "id": "20261023T110228-night-shift-guard-ai-7fe4f6a2-0f68",
+  "sha": "7fe4f6a2eb47928e7c18461350700ca7d4dc1d42",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-coop"
+  ],
+  "jobs": 2,
+  "set": "s24-coop",
+  "note": "test-only diff vs e31edd54 (e2e-coop S24 block retune)"
+}
