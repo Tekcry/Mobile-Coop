@@ -1,6 +1,12 @@
 # Guard AI - state
 
 ## Now
+~17:10 laptop clock: 4.77.0 = train 28 (walk in master f16600f5). Train 29 = #229 + #228 + Sector Ops #232 (both at
+PROTOCOL 38, one bump). S22 301ade39 GREEN 6/6 -> merged #229 S9 into s22 (3f1a6e88: `console`, `consoleCheck` appended
+to BARK_EVENTS, A135) -> TRAIN-READY #234 (contains #229: same train or later). #228 S16 merged master 4.77.0 = afc02451
+(enemy.ts import conflict; carryState.test.ts fixture stubs `armourBlocks`) so CI runs. Calm-guard sheet redo queued
+(Warehouse infiltration; labels `e.carryCalm()`, `e.carry.calmT`).
+
 ~17:50: GREEN: #229 S9 3c49981e 4/4 (coop, netmove, stealth-ai, takedown); #228 S16 7f91bf3a sectorops:6; train 28
 (#230 walk) 39/39. TRAIN-READY #229 + #228 sent for train 29. S22 301ade39 running on 4192.
 
@@ -468,20 +474,17 @@ behaviour code Opus; Sonnet only for tests / e2e scenarios / data from a strict 
 ```
 Night Shift | Guard AI Build - guard-ai lead, on the LAPTOP. Model Opus, effort high; fresh session.
 git fetch. Laptop worktrees (all npm ci'd): C:/NightShift/Mobile-Coop-guard-ai (feature/guard-ai: STATE / PLAN),
-...-guard-ai-s9, -s16, -walk, -s22, -a126 (s15 / s21 done). Branch guard before every write.
+...-guard-ai-s9, -s16, -s22, -a126 (s15 / s21 / walk done). Branch guard before every write.
 Read CLAUDE.md ("Sessions", "Heavy-usage throughput" incl. "Token rules"), ROADMAP "Decided" by grep only (Guard AI,
 unavoidable guards, stealth over shooting), then this file's "Now" (top entry).
 e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep laptop CPU under ~80%.
-1. Train 28 (#230 walk) GREEN 39/39; train 29 gets #229 + #228 (TRAIN-READY sent): fix any failure reported at once.
-2. #229 S9 = 3c49981e (S9 + walk + A126 + train 28 merge 70279266, PROTOCOL 38, A140; s9 and a126 branches both there);
-   Test Runner asked: coop, netmove, stealth-ai, takedown on 3c49981e; green -> TRAIN-READY
-   (train 29) for #229 (A126 rides inside it; never ship S9 without A126).
-3. #228 S16 7f91bf3a (test-only fix 2): Test Runner sectorops:6; green -> TRAIN-READY #228.
-4. S22 #234 (feature/guard-ai-s22, off walk; check PASS c2aac435): Test Runner on 301ade39 (stealth-ai, ct-warehouse,
-   ctcourse, sectorops:6); green -> TRAIN-READY #234. Game side per slices/S22.md after
-   marlow-final merges (then e2e-ctcourse A4 step 3 expects a refusal from a passive officer: fix it with the wiring).
-   When S9 and S22 meet: append `console`, `consoleCheck` to BARK_EVENTS.
-5. Polish lists only (no refining): WALK-CHECK.md 1-6, S16-CHECK.md, A126-CHECK.md.
+1. Train 29 = #229 S9 (3c49981e, PROTOCOL 38, A126 inside) + #228 S16 (afc02451 = 7f91bf3a + master 4.77.0) + Sector
+   Ops #232: fix any failure Test Runner / the orchestrator reports at once (one Opus fix agent from the assert).
+2. #234 S22 (3f1a6e88 = AI side 301ade39 GREEN 6/6 + #229 merged): TRAIN-READY sent; it contains #229 (never before it).
+3. S22 game side (slices/S22.md: CourseState.consoleBack, CourseMode consoleHost / watchesConsole / consoleEdge) after
+   marlow-final merges; then fix e2e-ctcourse A4 step 3 (passive officer no longer refuses) in the same branch.
+4. Calm-guard GPU sheet (Test Runner, 267553bf): a grunt still drawn with e.carryCalm() true after 16 s calm = bug -> fix.
+5. Polish lists only (no refining): WALK-CHECK.md 1-6, S16-CHECK.md, A126-CHECK.md, S22-CHECK.md 1-5.
 Rules: AI code and checkers Opus; Sonnet 5.5 tests / data from strict briefs; Haiku chores. Never two agents on the
 same files. Message the orchestrator only at PR open / train-ready / blocked / needs Michael; progress here. A-numbers:
 S16 A80-A89, S9 A90-A96, walk A100-A127, S22 A128-A135, A126 A136-A139, A140 protocol 38 (next A141). No question
