@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~13:15: S13-S15 check PASS 78c2fe7c (slices/S13-15-CHECK.md; 532 unit tests; fixed e2e 'loud shot' hearer behind a
+wall; polish list there). S9 co-op RUNNING (Opus) on feature/guard-ai-s9 off 78c2fe7c (worktree
+...-guard-ai-s9, was -s8; report slices/S9.md). Waiting: master merge agent (s10 -> s14), then s15 <- new s14.
+
 ~13:05: Player Build #214 (interrogation intel) needs `get patrolRoute(): PatrolRoute | null { return this.walker.route; }`
 in src/ai/enemy.ts after setPatrol: the master merge agent adds it on s12 (train 25), flows up with the merges. Check it
 is on origin/feature/guard-ai-s12 before the train-ready message.
@@ -362,11 +366,10 @@ then this file's "Now" (top 3 entries) and slices/NEXT-BRIEFS.md section 5 (S9).
 2. Laptop GPU run on the new s12 tip: e2e-sectorops 1-5, e2e-stealth-ai, e2e-takedown (ask Night Shift | Test Runner,
    or run here under its lock rules). Green -> ONE train-ready message to Night Shift | Orchestrator: train 25 =
    #200 S8 -> #201 S5b -> #202 S6 -> #203 S10 -> #208 S11 + S12.
-3. Checker S13 + S14 + S15 on feature/guard-ai-s15 (tip e8a3973e): done = slices/S13-15-CHECK.md with a verdict.
-   Not done = a fresh Opus checker from that brief (NEXT-BRIEFS 2-4, the reports S13 / S14 / S15.md).
-   PASS -> s15 <- new s14; open PRs S13 (base s12), S14 (base s13), S15 (base s14); one laptop run on s15 (e2e-stealth-ai,
+3. Checker S13 + S14 + S15: PASS 78c2fe7c (slices/S13-15-CHECK.md). s15 <- new s14 (after step 1); open PRs S13 (base s12), S14 (base s13), S15 (base s14); one laptop run on s15 (e2e-stealth-ai,
    sectorops all, takedown, ct-warehouse, course, ctcourse, coop, netmove); then one message to the orchestrator.
-4. S9 co-op (NEXT-BRIEFS 5, protocol 32: check the registry) on the s15 tip, Opus.
+4. S9 co-op on feature/guard-ai-s9 (off s15 78c2fe7c): done = slices/S9.md with checks; else a fresh Opus agent
+   finishes from NEXT-BRIEFS 5 and the WIP. Then merge the new s15 into s9, Opus checker, laptop e2e-coop + netmove.
 5. S16 armoured fire check (Now ~13:05 entry) once Sector Ops E10 (feature/sector-redesign-e10) is on master.
 Rules: AI code and checkers Opus, Sonnet 5.5 tests / data from strict briefs, Haiku chores. Never two agents on the
 same files; keep the laptop CPU in step with Test Runner's queue (trains first). Every e2e E2E_GPU=1. Message the
