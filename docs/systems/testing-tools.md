@@ -458,6 +458,13 @@ e2e for you and posts the verdict as a commit status on the tested sha. No messa
 - Flakes: a failed suite reruns once alone on the same sha; a pass counts as a pass and is logged as a flake (state.json,
   for its owner to fix); a suite that flaked in the last 24 h is not rerun again.
 - Manual runs keep working: the service uses the `C:/NightShift/heavy-<slot>.lock` files and waits while one is held.
+- Desktop overflow lane (Michael 2026-10-23 ~20:45): the same service with `LQ_WORKER=desktop` (task
+  `NightShift-desktop-queue`, `install-task.ps1 -Worker desktop`) takes pr requests only, on 4191 in
+  `C:/NightShift/Mobile-Coop-testrun-4191` under `C:/NightShift/heavy.lock`, `E2E_GPU=1 E2E_JOBS=1`, and starts one only
+  while more than 3 requests wait and desktop CPU is under 60%. Trains, full and alone runs stay on the laptop. Its
+  statuses read "desktop: ..."; logs `C:/NightShift/scratch/laptop-queue-desktop/runs/<id>/` on the desktop.
+- Claims: each worker pushes `claims/<id>.json` to the `laptop-queue` branch before a run and marks it done after, so
+  the two never run the same request. An open claim older than 3 h (`LQ_CLAIM_MAX_H`) is a dead worker's and is taken over.
 - Install / remove the task: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-queue/install-task.ps1 [-Remove]`.
   Dry run: `node scripts/laptop-queue/service.mjs --once --dry-run`.
 
