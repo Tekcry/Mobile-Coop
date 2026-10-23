@@ -325,8 +325,11 @@ LR16 (one lighting system; checks/lr16-plan.md, lr16-0-ct-audit.md)
   Classic). Fixes F1 row-only lamp upload + F2 picture-only char-shadow reach (both bakedLamps.ts: after LR16-5b), F3
   bounce read rewrite (after g + 5b). Lamp-loop cost has no parity-safe cut (Michael's call, not recommended now). Perf
   request (A1 / A2 Classic vs photo split + fixes) ONCE, after the fixes land, alone slot.
-- LR16-5b sway (M14, ctcourse only): building (above). Then two Opus checkers (src/net) + laptop perf on ctcourse, merge
-  into lr16int.
+- LR16-5b sway (M14, ctcourse only): BUILT -lr16-5b 6cf7713d (checks/lr16-5b-build.md; 265 tests in 13 files; PROTOCOL
+  38 -> 39 + 8 test files; sway event + client `sw-<id>` shot). RUNNING: two independent Opus checkers -> checks/
+  lr16-5b-check-A.md (net / determinism) and -B.md (parity / render / perf), committed on -polish. Pass -> merge into
+  lr16int; laptop coop / netmove / ctcourse + perf once on the integrated LR16 head (not on 6cf7713d alone). Then polish E
+  and LR16-P F1 / F2 (bakedLamps.ts).
 - Walk 4.82 (WALK-4.82-REPORT.md on feature/menu): item 1 "Marlow yard seems dark" -> LR16g target (builder told).
   Item 8 "s3 lights on low look terrible on walls, blotchy" -> LR16-L (investigator above). If dead: rerun from these lines.
 For Michael: Realistic dimmer (S2 atrium 0.28 vs 0.48, LR16g); S3 hall-lit white fog.
