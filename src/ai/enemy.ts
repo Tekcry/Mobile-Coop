@@ -44,6 +44,7 @@ import { LC_DONE, LC_FACE, LightCheck, type LightCheckWalker } from './lightChec
 import { clampToLeash, inLeash, LURE, lurePoint, POST, PostLure, type PostDef, type PostLureOut } from './posts';
 import type { BehaviourProfile } from './guardAiData';
 import { DogModel } from './dogModel';
+import { animFrozenStep, newAnimFrozenState } from './animFrozen';
 import { emoteBlind, emoteBlindEnd, emoteSeize, emoteStep, guardHead, guardHeadRest, leanStep, newEmoteState, newLeanState, type GuardHeadIn, type GuardHeadRest } from './guardHead';
 import { CAUTION } from './awareness';
 import type { InstancedMesh } from '../core/babylon';
@@ -213,6 +214,8 @@ export class Enemy implements Damageable {
   private prevPos = new Vector3();
   private prevYaw = 0;
   private rp: RigPose = { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0 };
+  /** (perfg) The FROZEN anim tier's carried time (`animFrozen.ts`). */
+  private readonly frozenAnim = newAnimFrozenState();
   private target: PlayerRef | null = null;
   private los = false;
   private losT = 0;
@@ -2796,7 +2799,9 @@ export class Enemy implements Damageable {
       this.dog.update(dt, r.position.x, r.position.y, r.position.z, r.rotation.y, sp, alertK, this.kick);
       this.head.copyFrom(this.dog.head);
     } else {
-      this.rig.animate(dt, rp);
+      // (perfg) FROZEN tier: the render freeze disabled his rig root (nothing of him is drawn): no solve, dt carried
+      const sd = animFrozenStep(this.frozenAnim, !r.isEnabled(false), dt);
+      if (sd >= 0) this.rig.animate(sd, rp);
     }
     if (this.laser) this.sniperFx();
   }
