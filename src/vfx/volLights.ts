@@ -31,9 +31,10 @@ export function volBeam(l: Pick<LightDef, 'kind' | 'cone' | 'fixture'>): boolean
 export function writeVolLight(l: LightDef, k: number, pos: Float32Array, dir: Float32Array, col: Float32Array): void {
   const beam = volBeam(l);
   const o = k * 4;
-  pos[o] = l.x;
-  pos[o + 1] = l.y;
-  pos[o + 2] = l.z;
+  // (LR16-5b: + a swinging pendant's offset, 0 for every other light)
+  pos[o] = l.x + l.swx;
+  pos[o + 1] = l.y + l.swy;
+  pos[o + 2] = l.z + l.swz;
   pos[o + 3] = beam ? Math.min(l.reach ?? l.radius, VOL_BEAM_MAX) : Math.min(VOL_LAMP_MAX, l.radius * 0.5, Math.max(0.8, l.y));
   const c = l.cone;
   if (c) {

@@ -1,6 +1,7 @@
 import { hyp3 } from '../core/mathx';
 import { FLICKER_FIRE, FLICKER_NONE, FLICKER_OUT, FLICKER_STEP_HZ, FLICKER_T, flickerAt, lampSeed } from './lampFlicker';
 import { LAMP_CONE_COS, LAMP_EXP, LAMP_LEVEL_GAIN, lampReach, lampTerm, photoTerm, SPOT_EXP } from './lampMath';
+import type { SwaySet } from './lampSway';
 /**
  * Light model (pure: no Babylon/DOM), unit-tested.
  *
@@ -51,6 +52,13 @@ export interface LightDef {
    *  light field, the baked lamps' data texture and the fixture glow all scale the lamp by it (light parity). Written by
    *  `LightRegistry.tickFlicker` only; never bumps `version` (the bounce and the caches must not re-sum every frame). */
   flicker: number;
+  /** (LR16-5b) A swinging pendant's live offset from its rest position (m; `lampSway.ts`): 0 for every other light. The
+   *  light field, the baked lamps' data texture, the fitting and its hangers read rest + offset (light parity); the
+   *  visibility stays the rest-pose bake, and a shot is tested at rest (`lightOnRay`). Written by
+   *  `LightRegistry.tickSway` only; never bumps `version`. */
+  swx: number;
+  swy: number;
+  swz: number;
 }
 
 /** (sector-fixes L) The LED fitting family (`fixtureModels.ts`): a flush ceiling panel, a hung linear strip, a wall bulkhead. */
@@ -73,7 +81,7 @@ export interface LightFixture {
   mount?: number;
 }
 
-export type LightInit = Partial<Omit<LightDef, 'id' | 'x' | 'y' | 'z' | 'flicker'>> & { x: number; y: number; z: number };
+export type LightInit = Partial<Omit<LightDef, 'id' | 'x' | 'y' | 'z' | 'flicker' | 'swx' | 'swy' | 'swz'>> & { x: number; y: number; z: number };
 
 /** Gameplay thresholds for the light meter and perception. */
 export const LIGHT = {
@@ -101,9 +109,10 @@ export function contribution(l: LightDef, x: number, y: number, z: number): numb
  *  light field's unbaked lights (`LightField.dynamicInto`) read it. Allocation-free. */
 export function lightTerm(l: LightDef, x: number, y: number, z: number): number {
   const c = l.cone;
-  const vx = x - l.x;
-  const vy = y - l.y;
-  const vz = z - l.z;
+  // (LR16-5b) from where it hangs now (a swinging pendant's offset; 0 for every other light)
+  const vx = x - (l.x + l.swx);
+  const vy = y - (l.y + l.swy);
+  const vz = z - (l.z + l.swz);
   const dx = c ? c.dx : 0;
   const dy = c ? c.dy : -1;
   const dz = c ? c.dz : 0;
@@ -159,6 +168,10 @@ export class LightRegistry {
   flickerSeed = 0;
   /** (LR16-5) Bumped when a flickering light's multiplier moves (renderers re-write those lights only). */
   flickerVersion = 0;
+  /** (LR16-5b) The swinging pendants (`applyMapSway`, Marlow Yard only; null on every other map). */
+  sway: SwaySet | null = null;
+  /** (LR16-5b) Bumped when a pendant's offset moves (renderers re-write those lights only); never `version`. */
+  swayVersion = 0;
 
   add(init: LightInit): LightDef {
     const l: LightDef = {
@@ -179,6 +192,9 @@ export class LightRegistry {
       group: init.group ?? -1,
       fixture: init.fixture ?? null,
       flicker: 1,
+      swx: 0,
+      swy: 0,
+      swz: 0,
     };
     this.lights.push(l);
     this.version++;
@@ -276,6 +292,23 @@ export class LightRegistry {
       }
     }
     if (moved) this.flickerVersion++;
+  }
+
+  /**
+   * (LR16-5b) The swinging pendants at sim time `t` (s; the shared clock, as `tickFlicker`, snapped to the fixed step):
+   * each one's `swx, swy, swz` from its kicks, a pure function, so host and client agree with only the kicks on the wire.
+   * Bumps `swayVersion` when one moved (never `version`). Once per fixed step (`GameState.updateLight`). No allocation.
+   */
+  tickSway(t: number): void {
+    const s = this.sway;
+    if (!s) return;
+    s.time[0] = Math.round(t * FLICKER_STEP_HZ) / FLICKER_STEP_HZ;
+    if (s.tick(this.lights)) this.swayVersion++;
+  }
+
+  /** (LR16-5b) A kick the host sent (co-op client: the `sway` event), applied verbatim. */
+  swayImpulse(id: number, t: number, a: number, h: number): void {
+    this.sway?.apply(id, t, a, h);
   }
 
   /** (jammer-fixes) A jam starts on a light: its present on state becomes the base the switches and the EMP own. */

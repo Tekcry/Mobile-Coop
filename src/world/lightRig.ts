@@ -4,6 +4,7 @@ import type { ShadowSpec } from '../core/quality';
 import { nearestLights, type FittingModel, type LightDef, type LightRegistry } from './lights';
 import { fittingMesh, type MeshArrays } from './fixtureModels';
 import { mountLinks } from './lampMount';
+import { HANGER_STRIDE } from './lampSway';
 import { gameLightFalloff, TORCH_DRAW_SLOTS, torchShadowPass, writeTorchDraw } from './shadowAccuracy';
 
 /** (warehouse-lamps) One fitting model's draws: the body (shared dark material) and the glowing face, and the lights they show. */
@@ -186,6 +187,8 @@ export class LightRig {
       const l = reg.lights[i]!;
       // moving lights (enemy flashlights) have no fixed bulb
       if (l.kind === 'flashlight') continue;
+      // (LR16-5b) a swinging pendant's fitting is drawn by `buildSway` (a zero matrix here)
+      if (reg.sway && reg.sway.indexOf(i) >= 0) continue;
       const f = l.fixture;
       // a fitting model (drawn by `buildFittings`) has no bulb and no box
       if (f?.model) continue;
@@ -217,6 +220,95 @@ export class LightRig {
     mesh.freezeWorldMatrix();
     this.bulbs = mesh;
     this.buildFittings(scene, mat);
+    this.buildSway(scene, mat);
+  }
+
+  /** (LR16-5b) The swinging pendants: their fitting boxes (glowing, as `lightFixtures`) and their hangers (the fittings'
+   *  body material), each one thin-instanced box mesh with dynamic matrices. */
+  private swayBodies: Mesh | null = null;
+  private swayLinks: Mesh | null = null;
+  private swayBodyMtx: Float32Array | null = null;
+  private swayLinkMtx: Float32Array | null = null;
+  private swayColors: Float32Array | null = null;
+  private swayV = -1;
+  private readonly swM = new Matrix();
+  private readonly swQ = new Quaternion();
+  private readonly swS = new Vector3();
+  private readonly swP = new Vector3();
+
+  /** (LR16-5b) Load time: the pendants' two meshes (at most 9 bodies, 18 hangers on Marlow Yard). */
+  private buildSway(scene: Scene, faceMat: StandardMaterial): void {
+    const s = this.reg.sway;
+    if (!s || !s.n) return;
+    const bodies = CreateBox('swayFittings', { size: 1 }, scene);
+    bodies.material = faceMat;
+    bodies.isPickable = false;
+    this.swayBodyMtx = new Float32Array(s.n * 16);
+    this.swayColors = new Float32Array(s.n * 4);
+    bodies.thinInstanceSetBuffer('matrix', this.swayBodyMtx, 16, false);
+    bodies.thinInstanceSetBuffer('color', this.swayColors, 4, false);
+    bodies.alwaysSelectAsActiveMesh = true;
+    bodies.freezeWorldMatrix();
+    this.swayBodies = bodies;
+    if (s.hangerCount) {
+      const links = CreateBox('swayHangers', { size: 1 }, scene);
+      links.material = this.bodyMaterial(scene);
+      links.isPickable = false;
+      this.swayLinkMtx = new Float32Array(s.hangerCount * 16);
+      links.thinInstanceSetBuffer('matrix', this.swayLinkMtx, 16, false);
+      links.alwaysSelectAsActiveMesh = true;
+      links.freezeWorldMatrix();
+      this.swayLinks = links;
+    }
+    this.drawSway();
+  }
+
+  /** (LR16-5b) The pendants where they hang now: each body at rest + its offset, each hanger from its fixed top to its
+   *  bottom + the offset (the links' maths in `buildFittings`). On a `swayVersion` move only. No allocation. */
+  private drawSway(): void {
+    const s = this.reg.sway;
+    const bm = this.swayBodyMtx;
+    if (!s || !bm || !this.swayBodies) return;
+    this.swayV = this.reg.swayVersion;
+    const ls = this.reg.lights;
+    const m = this.swM;
+    const q = this.swQ;
+    const sc = this.swS;
+    const pos = this.swP;
+    for (let k = 0; k < s.n; k++) {
+      const l = ls[s.ids[k]!]!;
+      const f = l.fixture!;
+      sc.set(f.sx, f.sy, f.sz);
+      q.set(0, 0, 0, 1);
+      pos.set(l.x + l.swx, l.y + f.oy + l.swy, l.z + l.swz);
+      Matrix.ComposeToRef(sc, q, pos, m);
+      m.copyToArray(bm, k * 16);
+    }
+    this.swayBodies.thinInstanceBufferUpdated('matrix');
+    const lm = this.swayLinkMtx;
+    if (!lm || !this.swayLinks) return;
+    const H = s.hangers;
+    for (let j = 0; j < s.hangerCount; j++) {
+      const o = j * HANGER_STRIDE;
+      const k = H[o]!;
+      const ox = s.off[k * 3]!;
+      const oy = s.off[k * 3 + 1]!;
+      const oz = s.off[k * 3 + 2]!;
+      const ax = H[o + 1]!;
+      const az = H[o + 2]!;
+      const ay = H[o + 3]!;
+      const dx = ox;
+      const dy = H[o + 4]! + oy - ay;
+      const dz = oz;
+      const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      // local +z along the hanger: yaw about y, then pitch about x (as the strip wires)
+      Quaternion.RotationYawPitchRollToRef(Math.atan2(dx, dz), -Math.asin(len > 1e-6 ? dy / len : 0), 0, q);
+      sc.set(H[o + 5]!, H[o + 6]!, len);
+      pos.set(ax + dx / 2, ay + dy / 2, az + dz / 2);
+      Matrix.ComposeToRef(sc, q, pos, m);
+      m.copyToArray(lm, j * 16);
+    }
+    this.swayLinks.thinInstanceBufferUpdated('matrix');
   }
 
   /** (warehouse-lamps; the LED family since sector-fixes L) The three fitting models, merged per type and thin-instanced, and every mount's links (strip wires, bulkhead stand-offs) as one box mesh. Load time only. */
@@ -412,6 +504,8 @@ export class LightRig {
   /** Per render frame: re-pick the nearest lights to the camera a few times a second, and on any change. */
   update(dt: number, cx: number, cy: number, cz: number): void {
     if (!this.bulbs) return;
+    // (LR16-5b) the swinging pendants' fittings and hangers follow their light on the frames it moves
+    if (this.swayV !== this.reg.swayVersion) this.drawSway();
     this.pickT -= dt;
     const changed = this.version !== this.reg.version;
     // (LR16-5) a flickering lamp's fitting follows its light on the frames it moves (no re-pick)
@@ -588,7 +682,8 @@ export class LightRig {
 
   private place(s: Slot, l: LightDef): void {
     const sp = s.light;
-    sp.position.set(l.x, l.y, l.z);
+    // (LR16-5b: + a swinging pendant's offset, 0 for every other light)
+    sp.position.set(l.x + l.swx, l.y + l.swy, l.z + l.swz);
     // (3.6: a shadowed light draws its whole radius - its shadow map stops it at the wall, and the falloff stays the
     // light field's; an unshadowed one still ends at the first wall, `reach`)
     sp.range = s.sg ? l.radius : (l.reach ?? l.radius);
@@ -671,6 +766,19 @@ export class LightRig {
       }
       fd.face.thinInstanceBufferUpdated('color');
     }
+    // (LR16-5b) the swinging pendants' fittings: dark with their light, as the static ones
+    const sc = this.swayColors;
+    const sw = this.reg.sway;
+    if (sc && sw && this.swayBodies) {
+      for (let k = 0; k < sw.n; k++) {
+        const i = sw.ids[k]!;
+        sc[k * 4] = c[i * 4]!;
+        sc[k * 4 + 1] = c[i * 4 + 1]!;
+        sc[k * 4 + 2] = c[i * 4 + 2]!;
+        sc[k * 4 + 3] = 1;
+      }
+      this.swayBodies.thinInstanceBufferUpdated('color');
+    }
   }
 
   dispose(): void {
@@ -686,6 +794,10 @@ export class LightRig {
     this.fittings = [];
     this.links?.dispose();
     this.links = null;
+    this.swayBodies?.dispose();
+    this.swayBodies = null;
+    this.swayLinks?.dispose();
+    this.swayLinks = null;
     this.bodyMat?.dispose();
     this.bodyMat = null;
     this.bulbs = null;

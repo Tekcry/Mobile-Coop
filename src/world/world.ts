@@ -35,6 +35,7 @@ import { Ropes } from './ropes';
 import type { LightRegistry } from './lights';
 import { addTorchSlots } from './torches';
 import { applyMapFlicker } from './lampFlicker';
+import { applyMapSway } from './lampSway';
 import { GI_STRIDE } from '../voxel/skyBake';
 import { TEXTURE_ANISO, TEXTURE_SIZE, VOXEL_TIER, type QualityLevel, type ShadowSpec, type TierQuality } from '../core/quality';
 import type { Adaptive } from '../core/governor';
@@ -230,6 +231,9 @@ export class World {
     const layout = map.build(b, opts.seed);
     // (LR16-5) the map's flicker seed and its stutter tube (fires enrolled themselves)
     applyMapFlicker(b.lights, map.id, opts.seed);
+    // (LR16-5b) Marlow Yard's swinging pendants: before the build, so the hangers they claim (now drawn by the light
+    // rig, with the swing) never mesh
+    applyMapSway(b, map.id);
     // procedural surfaces: drawn small here, sized by the Textures setting in applyQuality
     const atlas = opts.cheap ? null : new SurfaceAtlas(scene, 256, 4);
     const vo = opts.voxel ?? null;
@@ -717,6 +721,8 @@ export class World {
   frame(focus: Vector3, dt = 0): void {
     this.updateGi();
     const cam = this.scene.activeCamera;
+    // (LR16-5b) the swinging pendants' positions first: the shadow slots below fit and render from where they hang now
+    this.lamps?.writeSway();
     // (LR14) the character shadow slots before the lamps write their texels (which lamp reads which tile)
     if (this.charShadows) {
       const c = cam ? cam.globalPosition : focus;

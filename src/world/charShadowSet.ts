@@ -178,6 +178,8 @@ export class LampSlotPicker {
   private readonly heldFor: Float32Array;
   /** Bumped on every change of assignment. */
   version = 0;
+  /** (LR16-5b) The last `update`'s swinging lamps (null: none). */
+  private mv: Uint8Array | null = null;
   private slots = 0;
   private t = Infinity;
   private readonly candLamp: Int32Array;
@@ -222,8 +224,10 @@ export class LampSlotPicker {
    * Per frame. `lamps`: per lamp x, y, z, radius (stride 4), `n` of them; `lit`: non-zero while the lamp gives light;
    * `focus`: x, y, z per point (the local player, the camera), `nf` of them. Returns true when the assignment changed.
    */
-  update(lamps: Float32Array, lit: Uint8Array, n: number, focus: Float32Array, nf: number, dt: number): boolean {
+  update(lamps: Float32Array, lit: Uint8Array, n: number, focus: Float32Array, nf: number, dt: number, moving: Uint8Array | null = null): boolean {
     const v0 = this.version;
+    // (LR16-5b) the swinging lamps (`refreshEvery` reads them too): a held one keeps its slot while it moves
+    this.mv = moving;
     for (let s = 0; s < this.slots; s++) {
       const i = this.slotLamp[s]!;
       if (i < 0) continue;
@@ -253,8 +257,10 @@ export class LampSlotPicker {
       const s = this.slotOf(i);
       const limit = lamps[o + 3]! + CHAR_SHADOW.reachMargin + (s >= 0 ? CHAR_SHADOW.keepMargin : 0);
       if (!(d < limit)) continue;
-      // (a lamp inside its minimum hold outranks every newcomer)
-      const score = s < 0 ? d : this.heldFor[s]! < CHAR_SHADOW.minHold ? -1 : d * CHAR_SHADOW.hold;
+      // (a lamp inside its minimum hold outranks every newcomer; (LR16-5b) so does a held lamp while it swings, and a
+      // swinging newcomer competes as if held)
+      const swings = moving !== null && moving[i]! !== 0;
+      const score = s < 0 ? (swings ? d * CHAR_SHADOW.hold : d) : this.heldFor[s]! < CHAR_SHADOW.minHold || swings ? -1 : d * CHAR_SHADOW.hold;
       // insert into the k best (ascending score)
       let j = nc < k ? nc++ : k;
       if (j === k && !(score < this.candScore[k - 1]!)) continue;
@@ -299,6 +305,10 @@ export class LampSlotPicker {
   /** Frames between a slot's map refreshes: every frame near the focus, every 2nd further, at least the tier's
    *  `base` (LR16-7: Low / Medium 2), x the governor's. */
   refreshEvery(s: number, governorEvery = 1, base = 1): number {
+    // (LR16-5b) a swinging lamp's map follows it every frame (the tier's base and the governor still hold)
+    const i = this.slotLamp[s]!;
+    const mv = this.mv;
+    if (mv !== null && i >= 0 && mv[i]! !== 0) return Math.max(base | 0, 1) * Math.max(1, governorEvery | 0);
     return Math.max(base | 0, this.slotDist[s]! <= CHAR_SHADOW.near ? 1 : 2) * Math.max(1, governorEvery | 0);
   }
 }

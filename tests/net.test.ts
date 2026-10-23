@@ -395,14 +395,14 @@ describe('net session', () => {
     cli.toHost({ t: 'door', i: 0, crack: true });
     expect(got).toEqual([{ t: 'door', i: 0, crack: true }]);
   });
-  it('a peer on protocol version 37 is refused; version 38 joins (38 = the lamp falloff, lightrev LR13; 35 = the weapons crate, sector-redesign E9-crate; 31 the Sector Ops lamps, slice L; 30 marlow-final; 29 the lasers jammed at their power panels)', () => {
-    expect(PROTOCOL_VERSION).toBe(38);
+  it('a peer on protocol version 38 is refused; version 39 joins (39 = the swinging pendants, LR16-5b; 38 = the lamp falloff, lightrev LR13; 35 = the weapons crate, sector-redesign E9-crate; 31 the Sector Ops lamps, slice L; 30 marlow-final; 29 the lasers jammed at their power panels)', () => {
+    expect(PROTOCOL_VERSION).toBe(39);
     const h = hub();
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const old = h.make('O');
-    old.send({ t: 'hello', v: 37, name: 'Old', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 38, name: 'Old', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(false);
-    old.send({ t: 'hello', v: 38, name: 'New', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 39, name: 'New', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(true);
   });
   it("(LR16a, one light model) the start message carries no lamp falloff; an old peer's lf is dropped", () => {
@@ -503,7 +503,7 @@ import { strikeWarp } from '../src/anim/strikeBody';
 
 describe('step 09: host-authoritative drawn state (D8)', () => {
   it('protocol 7 (step 12 raised it)', () => {
-    expect(PROTOCOL_VERSION).toBe(38);
+    expect(PROTOCOL_VERSION).toBe(39);
   });
   it('(step 11) wall packs and sanitizes: `a` a segment in range, `sub` a u8', () => {
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 3, s: 2.25, sub: 1 | 2 | 64, ph: 1 };
@@ -688,7 +688,7 @@ describe('A3: the wall wire after the SWAT turn and the lean-out are gone (proto
   });
   it('PROTOCOL_VERSION is 17; leftHand (128) and low (64) round-trip on a wall state', async () => {
     const { PROTOCOL_VERSION } = await import('../src/net/protocol');
-    expect(PROTOCOL_VERSION).toBe(38);
+    expect(PROTOCOL_VERSION).toBe(39);
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 2, s: 1, sub: 1 | 4 | 16 | 64 | 128 };
     const back = sanitizeMoveState(JSON.parse(JSON.stringify(packMoveState(mv))), 4096, 8)!;
     expect(back.sub).toBe(1 | 4 | 16 | 64 | 128);
@@ -733,7 +733,7 @@ describe('step 13: door peek on the wire', () => {
     expect(new Set(dcr).size).toBe(dcr.length);
   });
   it('PROTOCOL_VERSION is 24', () => {
-    expect(PROTOCOL_VERSION).toBe(38);
+    expect(PROTOCOL_VERSION).toBe(39);
   });
 });
 
@@ -808,7 +808,7 @@ describe('course messages (T1b)', () => {
   });
   it('the course takes two players and the protocol was bumped', () => {
     expect(capacity('course')).toBe(2);
-    expect(PROTOCOL_VERSION).toBe(38);
+    expect(PROTOCOL_VERSION).toBe(39);
   });
   it('the ctick limiter allows 4 a second', () => {
     const l = new TickLimiter();

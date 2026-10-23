@@ -52,6 +52,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Failing tube (LR16-5): stand under the stutter tube (Warehouse Ops: the trade offices corridor panel, west half;
   campusOps: HQ L1 breakout kitchen; Marlow Yard: airlock 1 / on master the A7 south rack strip): every few seconds it
   chatters or drops out, the floor, the fitting and the light meter go with it; shoot it and it stays dark.
+- [ ] Swinging pendants (LR16-5b, Marlow Yard only): fire past a hung fitting (station 2 on this base; on master the A4
+  aisle-2 strips), or throw a grenade near it: the fitting and its two rods swing as one, up to a hand's width, and
+  settle in about 15 s; the pool of light, a guard's shadow and the light meter sway with it. Shoot one out: it swings
+  dark. Co-op: both players see the same swing (no lag beyond the kick).
 - [ ] Co-op: Host a room starts on Campaign (Marlow Yard); the Mode row offers Campaign and Sector Ops only.
 - [ ] Co-op guard torches (coop-torches): on a dark map, when a guard searching in the dark switches his flashlight on,
   the joiner sees the same beam from his head, aimed where he faces, and it goes off when the host's does; standing in

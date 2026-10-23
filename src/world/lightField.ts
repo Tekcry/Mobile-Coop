@@ -290,9 +290,11 @@ export class LightField {
     if (!l || !l.on || l.destroyed || l.intensity <= 0) return;
     const o = i * LS;
     const P = this.lamp;
-    const lx = P[o]!;
-    const ly = P[o + 1]!;
-    const lz = P[o + 2]!;
+    // (LR16-5b) where it hangs now: a swinging pendant's offset (0 for every other lamp), as the data texture's t0;
+    // its visibility stays the rest bake, read at the receiver point (`visInto`)
+    const lx = P[o]! + l.swx;
+    const ly = P[o + 1]! + l.swy;
+    const lz = P[o + 2]! + l.swz;
     // falloff x cone: `lampMath.photoTerm` (`photoFalloff` x the feathered `lampCone`, LR16b) written out (this path
     // must not box a returned double; change both together - the brute-force tests in `tests/lightField.test.ts` /
     // `lampFalloff.test.ts` compare them)
