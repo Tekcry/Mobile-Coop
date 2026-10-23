@@ -1,13 +1,11 @@
 /**
- * Voxel shapes (3.0, pure): what a map's voxels are made of - the blockout's boxes and cylinders plus the art
- * layer's stamps - packed into a Float32Array so a chunk job can cross to a worker cheaply. Rasterised by voxel
+ * Voxel shapes (3.0, pure): what a map's voxels are made of - the blockout's boxes and cylinders - packed into
+ * a Float32Array so a bake job can cross to a worker cheaply. Rasterised by voxel
  * centre (a voxel is solid when its centre is inside), so a surface lands within half a voxel of the shape's.
  *
  * Rotation matches Babylon's `RotationYawPitchRoll(yaw, pitch, 0)` (left-handed, row vectors: local -> world =
  * pitch about X, then yaw about Y).
  */
-import { runProgram } from './programs';
-
 export const SHAPE_STRIDE = 16;
 
 export const enum ShapeKind {
@@ -33,10 +31,10 @@ export interface BoxShape {
   pitch: number;
   mat: number;
   mode?: ShapeMode;
-  /** Material program (phase 2 art layer: brick courses, rust, grime...; 0 = plain) and its parameters. */
+  /** Material program slot and parameters (packed as is; no light shape carries one). */
   prog?: number;
   params?: readonly number[];
-  /** Art dressing: on the fine layer. */
+  /** On the fine layer. */
   fine?: boolean;
 }
 
@@ -80,24 +78,6 @@ export function packShapes(shapes: readonly VoxelShape[]): Float32Array {
     const p = s.params ?? [];
     for (let k = 0; k < 4; k++) out[o + 12 + k] = p[k] ?? 0;
   });
-  return out;
-}
-
-/**
- * Shapes for a coarse level of detail (3.1): by voxel centre, a filled shape thinner than a voxel may fall between
- * the centres and vanish (a wall seen through at a distance). Every filled shape is made at least one voxel (and a
- * hair) thick, so it always leaves a layer; a surface still lands within half a voxel of its own. Carves and paint
- * keep their size. A copy; `packed` is untouched.
- */
-export function coarseShapes(packed: Float32Array, size: number): Float32Array {
-  const out = packed.slice();
-  const h = size * 0.51;
-  for (let o = 0; o < out.length; o += SHAPE_STRIDE) {
-    if (out[o + 1] !== ShapeMode.Fill) continue;
-    out[o + 6] = Math.max(out[o + 6]!, h);
-    out[o + 7] = Math.max(out[o + 7]!, h);
-    if (out[o] === ShapeKind.Box) out[o + 8] = Math.max(out[o + 8]!, h);
-  }
   return out;
 }
 
@@ -183,11 +163,6 @@ export function rasterise(
     const sp = Math.sin(sh[o + 10]!);
     const r2 = h0 * h0;
     const eps = 1e-6;
-    const prog = sh[o + 11]!;
-    const q0 = sh[o + 12]!;
-    const q1 = sh[o + 13]!;
-    const q2 = sh[o + 14]!;
-    const q3 = sh[o + 15]!;
     for (let z = z0; z <= z1; z++) {
       const dz = origin[2] + (z + 0.5) * size - cz;
       for (let y = y0; y <= y1; y++) {
@@ -196,16 +171,13 @@ export function rasterise(
         for (let x = x0; x <= x1; x++) {
           const dx = origin[0] + (x + 0.5) * size - cx;
           let inside: boolean;
-          let lx = dx;
-          let ly = dy;
-          let lz = dz;
           if (cyl) inside = dx * dx + dz * dz <= r2 + eps && Math.abs(dy) <= h1 + eps;
           else {
             // undo yaw, then pitch
-            lx = dx * cyw - dz * syw;
+            const lx = dx * cyw - dz * syw;
             const az = dx * syw + dz * cyw;
-            ly = dy * cp + az * sp;
-            lz = -dy * sp + az * cp;
+            const ly = dy * cp + az * sp;
+            const lz = -dy * sp + az * cp;
             inside = Math.abs(lx) <= h0 + eps && Math.abs(ly) <= h1 + eps && Math.abs(lz) <= h2 + eps;
           }
           if (!inside) continue;
@@ -214,14 +186,8 @@ export function rasterise(
             grid[k] = 0;
             continue;
           }
-          let m = mat;
-          if (prog) {
-            if (mode === ShapeMode.Paint && !grid[k]) continue;
-            m = runProgram(prog, mat, q0, q1, q2, q3, lx, ly, lz, h0, h1, cyl ? h0 : h2, cx + dx, cy + dy, cz + dz, size, grid[k]!);
-            if (m < 0) continue;
-          }
-          if (mode === ShapeMode.Fill) grid[k] = m;
-          else if (grid[k]) grid[k] = m;
+          if (mode === ShapeMode.Fill) grid[k] = mat;
+          else if (grid[k]) grid[k] = mat;
         }
       }
     }

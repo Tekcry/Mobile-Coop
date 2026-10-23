@@ -514,7 +514,7 @@ export const TEAM = {
   ropeMax: 6.0,
   ropeUp: 1.0,
   ropeDown: 1.6,
-  ropeTop: 0.9,
+  ropeTop: 1.1, // (team-climb) was 0.9: the eased path (teamMoves `ROPE_TOP_PATH`) needs 1.1 s to keep the root from popping
   ropeSlide: 3.0,
   ropeLost: 1.5,
   /** Requests a player may make (host rate limit, per second). */

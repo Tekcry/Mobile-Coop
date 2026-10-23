@@ -1,5 +1,60 @@
 # Changelog
 
+## 4.79.0 - Train 30: Player batches 23-24 (iPad fit, suppressor ammo, team-climb top-out, partner pose parity) and co-op walk fixes; voxel look retired (2026-10-23, PR #241; #231, #236)
+
+### Co-op walk fixes: team takedown on a hostage, partner shot audio
+- (coop-walk-fixes P6) Co-op: when either player holds a guard as a hostage, the other player beside them gets TEAM
+  TAKEDOWN on him (host or joiner holding, either way); it knocks him out (a held direct press kills), ends the hold and
+  counts as a dual takedown for both. Before, the joiner's offer on the host's hostage did nothing and the host had no
+  offer on the joiner's.
+- (coop-walk-fixes P7) Co-op: a partner's shot plays once per round (a single shot played twice) and with their own
+  weapon's sound, suppressed when it was (the suppressed pistol sounded like an open pistol); its muzzle flash is small
+  when suppressed. Protocol 37: the player state carries the rounds fired (`sc`).
+
+### Interrogation intel
+- (interrogation-intel) Interrogating a guard with information now also gives intel as feed lines for every player: door
+  codes authored on the guard (`GuardIntel.codes`, flag to `GameMode.onIntelCode`), the cameras near him (count, sweep
+  time) and the patrols near him (count, loop time, read through the Guard AI `Enemy.patrolRoute` getter). A co-op client's
+  interrogation is seen on the host from its MoveState; no wire change. A co-op client now also lists the host's relayed
+  `feed` lines in its HUD feed (they were only a radio subtitle, so the partner never saw the intel there).
+
+### iPad display fit
+- iPad: the version label stays fully on screen (bottom / right offsets include the safe-area insets, `--vh` follows `dvh`
+  where supported), the page and menu frame fill the visible viewport (no dark bottom strip), the "integrated GPU ... Windows
+  Settings" banner and settings hint show only on Windows, and the pause menu's co-op room line wraps in its own block clear
+  of the help box. Desktop rendering (zero insets) is unchanged.
+
+- The in-game pause menu no longer lists Anim Studio (dev); the studio opens from the main menu only, and the pause menu keeps Animation tuner (dev).
+
+### Partner pose parity: aim side, takedown blow, baked sections
+- (pose-parity) Co-op: your partner's weapon hand now follows their shoulder swap in every mode (holding a hostage, on
+  a rope, a split, an inverted pipe, atop the human ladder), not only on the ground; a partner choking a guard or
+  stepping in for a lethal takedown no longer holds the elbow strike's wind-up (they pose no arc, as on their own
+  screen); and once tuner values are baked into the code, the partner's rig plays the baked co-op / traversal move
+  sections and Body root offsets (body forward / up, the hold's guard gap and side, the wall gap) as their own page
+  does (never your live tuner values). Protocol 36 (32-35 are taken by open branches): the player flag `aimLeft` (64)
+  and the takedown blow bit (MoveState `sub` 1); the ground `sub` bit 128 is dropped.
+
+### Limited suppressor ammo
+- Suppressed guns (the issued rifle, the Hush 9 SD) carry a limited count of quiet rounds (rifle 60, pistol 45), separate from
+  the magazine. Each suppressed shot spends one; at 0 the gun still fires but loud (open sound, full flash, an open gun's
+  noise to the guards), with a one-off "Suppressed rounds out" feed line. The weapon box shows "SD n" (red at 5 or fewer).
+  Ammo crates refill quiet rounds, a checkpoint restart restores them, infinite ammo never spends them. In co-op a client's
+  spent gun is loud on the host (no protocol change).
+
+### Team climb: the rope top-out
+- (team-climb) The two-person rope's top-out (CLIMB_UP_TEAM) no longer pops: the climber is pulled in to the face on
+  the rope's last 0.6 m, then rises and moves over the lip on eased (quintic) paths that carry the climb's speed in
+  (`teamMoves.ropeTopPath`; `TEAM.ropeTop` 0.9 -> 1.1 s). Root per-frame velocity change 5.7 cm -> 0.44 cm.
+- (team-climb) The climber's hands grip the lip at the top (lip "hook" grips, lifting off as the arms run out), on
+  the owner's page and on the partner's view of them (`ropeSeenStep`, no wire change). The Anim Studio's rope pair
+  plays the same path.
+
+### voxel-retire
+- The voxel look is retired (Michael: "nothing should be voxel"): `?voxels=1`, the voxel world, voxel characters and
+  weapons, chips, voxel GI and ray-traced reflections are removed. Ray traced now runs screen space reflections. The
+  light bakes (lamp, moon, sky, ambient grid) and their hashes are unchanged.
+
 ## 4.78.0 - Train 29: Sector Ops lighting: lamp falloff setting, shadow accuracy, character lamp shadows (fixes calm guards drawn without bodies); Guard AI guards never fire into armour (2026-10-23, PR #238; #232, #228)
 
 ### Guard AI S16 - guards hold fire at armour
