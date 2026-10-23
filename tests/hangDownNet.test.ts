@@ -12,7 +12,7 @@ const mv = (m: 'boost' | 'brace' | 'ground', sub: number, dw = 2) => ({ ...empty
 
 describe('hang-down net: no wire change', () => {
   it('the protocol stays at master\'s version', () => {
-    expect(PROTOCOL_VERSION).toBe(35);
+    expect(PROTOCOL_VERSION).toBe(38);
   });
 });
 
