@@ -56,6 +56,11 @@ Rejected by you (~01:25): anything that assumes a dark camera is blind (G240 sta
 Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN section 6; slice reports S0-*.md.
 
 ## Now (2026-10-23 ~01:20, new account; FULL BURN to 100% per Michael ~01:05 via the orchestrator)
+- ~12:05 SAVE POINT (window caps ~12:22). Since 11:15: A8 dressing + S1 check PASS (2220e245), perf after measured
+  (906065e4). Running at the save: e2e fixer 2 (Opus; uncommitted work in a3 / a6 / a7 set files, their .mjs, maybe
+  doors / ai; scratch tests/zz-scratch-nav.test.ts), section-rating planner (Opus, docs only, in the section-rating
+  worktree). ON RESUME: if either report is missing, rerun it from the working tree (same brief, continue from WIP);
+  then the resume prompt below.
 - ~11:15 Done since the resume: S1 prop emissives (0aa53f12), slice 9 docs (15fb489a), A8 dressing (75d70466), revive
   per co-op surface e2e (041eee07, not run yet). Assumed (A9, undo: build it): the ghost-run e2e stays a design
   (S9-e2e.md: needs a `t.ghost` switch in all eight set modules; prototype first), listed for Michael in the PR.
@@ -441,7 +446,7 @@ Course Ready's prep notes: origin/feature/marlow-bays docs/marlow-final-prep/ (M
 
 ## Resume prompt
 ```
-Night Shift | Menu Notes Build: resume marlow-final (Marlow Yard redesign). Read CLAUDE.md, and on origin/feature/menu CLAUDE.md "Heavy-usage throughput" + "Token rules" and docs/ROADMAP.md (Decided: marlow-final M1-M6, "Overnight" ~01:42, Pacing 09:00, Throughput 09:50), then in C:/NightShift/Mobile-Coop-marlow-final (git fetch; branch feature/marlow-final) docs/marlow-final/STATE.md: the newest Now entry (10:30) and its ON RESUME list.
-State: master 4.68.0 merged (protocol 33); A1-A7 built, dressed, checked; A8 greybox checked + must-fix done, A8 dressing and the three e2e fixes mid-work in the WIP commit; facility perf pass in (unmeasured). Loop: Sonnet builds / dresses / checks greybox and dressing from strict briefs, Opus checks ctcourse / net fixes (one fix round), Character Build runs every e2e (E2E_GPU=1; one batched request). Desktop: tsc and single vitest files, at most 3 such agents, CPU under ~80%. Push WIP and refresh STATE after every hand-back; message "Night Shift | Orchestrator" only at the PR, when blocked or when Michael is needed.
-Before the PR: A8 dressing + its check, prop emissives on circuits, Character Build e2e + perf after + shots, slice 9 docs, merge master, full e2e, then the PR to master (Michael: "Merge to master").
+Night Shift | Menu Notes Build: resume marlow-final (Marlow Yard redesign). Read CLAUDE.md and docs/ROADMAP.md on origin/feature/menu (CLAUDE.md "Heavy-usage throughput", token rules, "Account swap", "Progress through the burn"; ROADMAP Decided: marlow-final M1-M6, "Next: stealth over shooting"), then in C:/NightShift/Mobile-Coop-marlow-final (git fetch; branch feature/marlow-final) docs/marlow-final/STATE.md: the newest Now entries (~11:15 and ~12:05).
+State: A1-A8 built, dressed, checked (A8 dressing + S1 prop emissives PASS, S8-dress-check.md); slice 9 docs in; revive-per-surface e2e written, not run; perf after measured (S9-perf.md); ghost run a design (A9). Open: e2e fixer 2 (A3 cleaner / A6 cage door / A7 technician; slices/S-e2e-fix2.md): if its report is missing or not final, rerun it (Opus) from the working tree. Then ONE Character Build request on the pushed head: e2e-ctcourse :1-:4, e2e-coop, e2e-netmove, e2e-course (E2E_GPU=1); one fix round; merge master; full e2e; PR to master (Michael: "Merge to master"); message "Night Shift | Orchestrator". heavy.lock only for the length of one suite run.
+Next job: section-rating, planned in C:/NightShift/Mobile-Coop-section-rating (feature/section-rating, docs/section-rating/BRIEF / PLAN / STATE; uncommitted if the planner was cut off: commit what is there). Its slices start in parallel the moment marlow-final's PR is open.
 ```
