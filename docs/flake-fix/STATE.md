@@ -7,6 +7,8 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 - SENT: Guard AI S15 fc249f3f GREEN 9/9 (runs/guardais15-fc249f3f). Sector Ops art 5504e2e3 PART 1: logic 8/9
   (sectorops:6 = the guard panel-walker assert S15 rewrites, not the art), shots + sheets
   (work/campusart-5504e2e3/sheet-s1..5.webp), meter parity ok. Answered Guard AI S21 (rig armed/ready path exists).
+- SENT ~15:20: Guard AI S9 1ad04058 GREEN 4/4 (#218-#220 train-ready, orch copied). Player coopwalk c6b4f4a3 1/2:
+  e2e-coop FAIL "two takedowns together count as a dual takedown" (after their new step; orch copied). Both DONE.
 - RUNNING / QUEUED (scheduled tasks, run through the swap; logs runs/chain-1023<x>.log):
   - 4189 chain-1023r89: coopwalk-c6b4f4a3 (Player Build: coop netmove; verdict -> Player Build + orchestrator) ->
     waits for chain-1023r92 done + both locks free -> sectorart-perf-5504e2e3 (Sector Ops PART 2: perf MAP=campusOps
