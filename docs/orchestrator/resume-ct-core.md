@@ -14,6 +14,7 @@ scratch/ctcore/push-resume.sh <abs file> <msg>. Message the orchestrator only at
 | #223 pose-parity | feature/pose-parity | 57b68268 | PROTOCOL 40 (one bump for the stack; asserts 40; net.test hello 39 refused / 40 joins). |
 | #231 coop-walk-fixes (walk P6-P7) | feature/coop-walk-fixes | bd55878b | PROTOCOL 40 tip. Laptop green on 0d7f04ce (coop) + d86007b5 (rest). CI pass x3, TRAIN-READY sent (train 30). |
 | anim-fix-pass (walk P1-P5; PLAN.md:7 maps P1-P7) | feature/anim-fix-pass | origin | AF0 / AF1 / AF2 / AF4a / AF5 merged (20a67cd7; AF1, AF4a checker PASS). AF3 running (afp-af3, node_modules junction to afp-af1). AF6 checker PASS 2bb1ba3f (polish: wall, lowerBody, test titles; AF6-CHECK.md). Merge into anim-fix-pass after laptop e2e-coop + netmove (brings the stack in). AF6 head b1de49f5 (merged 0d7f04ce); laptop e2e-coop + netmove requested. |
+| spare 15 optic cable (doors, local view, no wire) | feature/optic-cable (optic-cable) | f16600f5 | Opus agent started 17:3x (node_modules junction to ctcore-batch). Hand-back -> checker -> PR. |
 
 ## Next
 1. AF3 hand-back -> checker (batch with AF4a / AF6) -> merge; then AF4b (animGraph, after AF3).
