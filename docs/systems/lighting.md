@@ -128,7 +128,26 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   never `version` (the caches, the bounce and the lamp sync do not re-run per frame). No wire traffic.
 - Every reader multiplies by `flicker`: `contribution`, the light field (baked and unbaked), the baked lamps' colour
   texel (`writeFlicker`: the flickering lamps only, no new sampler), the pooled lights, the fitting glow, the haze.
-  Off / shot / jammed stays off: the multiplier never touches `on` / `destroyed`. Sway (LR16-5b) is not built.
+  Off / shot / jammed stays off: the multiplier never touches `on` / `destroyed`.
+
+## Moving lights: swinging pendants (LR16-5b, Michael M14; Marlow Yard only)
+- `world/lampSway.ts` (pure): a hung fitting on two parallel hangers (bifilar: it translates and stays level, the cone
+  never tilts) swings as a damped pendulum, `w = sqrt(g / L)` from its claimed hangers' mean length, `tau` 5 s. Its offset
+  is a pure function of its kicks (t, amplitude, heading; 4 a pendant in a ring) and the sim time; a kick is capped so
+  the envelope never passes `SWAY.maxAmp` 0.25 m (the visibility stays the rest-pose bake: the audit accepts < 0.3 m).
+- Kicks (solo and host, `GameState`): a round within 0.6 m of the fitting (or landing within 1.5 m), a blast within
+  6 m, a head within 0.35 m of the fitting box; 0.2 s apart per pendant. Co-op: the host sends each accepted kick (the
+  `sway` event, protocol 39) and the client applies it verbatim; a client's own round asks the host (`shot` at
+  `sw-<id>`, re-checked there). No per-frame wire.
+- `SWAY_PENDANTS` (by map id and light position, matched at `World.create` by `applyMapSway`, before the build): every
+  entry that matches a fixture box with 2+ thin vertical hangers above it; the hangers are hidden from the level
+  (`visible = false`, already out of the light bake) and drawn by the light rig with the swing.
+- `LightRegistry.tickSway(t)` (every fixed step, beside `tickFlicker`) writes `LightDef.swx / swy / swz` and bumps
+  `swayVersion`, never `version`. Readers at rest + offset: `contribution` / `lightTerm`, the light field's baked lamp
+  (`lampInto`), the baked lamps' t0 texel and `spheres` (`writeSway`, folded into the frame's one data upload; the
+  capsules, the doors' test and the character shadow follow t0), the rig's fitting and hangers, the pooled light, the
+  haze. At rest: the lamp's visibility (read at the receiver) and the shot test (`lightOnRay`).
+- The character-shadow picker holds a swinging lamp's slot and re-renders its map every frame (`moving`).
 
 ## Character silhouette shadows (LR14, sector-redesign charshadow)
 Rendering only (plan and budget: `docs/lighting-review/LR14-PLAN.md`; build report:

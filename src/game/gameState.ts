@@ -1595,13 +1595,12 @@ export class GameState implements AppState {
    */
   private swayBumps(sway: SwaySet): void {
     const P = this.swayHeads;
-    let n = 0;
     const p = this.player.position;
     const hh = this.player.rig.height * (1 - 0.35 * this.player.controller.crouchBlend);
     P[0] = p.x;
     P[1] = p.y + hh;
     P[2] = p.z;
-    n = 1;
+    let n = 1;
     const rs = this.remotePlayers();
     for (let i = 0; i < rs.length && n < MAX_SWAY_HEADS; i++) {
       const r = rs[i]!;
