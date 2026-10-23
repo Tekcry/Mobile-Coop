@@ -3,9 +3,13 @@ Purpose: perception, alert states, enemy behaviour, archetypes, difficulty, the 
 Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible.md (Section 5.7).
 
 ## Decided direction
-- Decided, not built yet (G41): guards close doors behind them on a calm patrol and notice any door open that should be
-  shut; one 15% open threshold for light, sound and sight. Code: guards push doors open and leave them; the light cut is
-  `DOOR_SHUT` 0.05 (`docs/systems/lighting.md`).
+- Decided, built (G41; ct-prototype A3, F1b door-4): guards close doors behind them on a calm patrol and notice any door
+  open that should be shut. `game/stealthSystems.ts`: a door a guard opened is shut `DOOR_GUARD_CLOSE` 1.5 s after
+  nobody stands within 2.2 m of it, while no guard is in combat (`guardOpened`, `fixedUpdate`); a calm guard within
+  `DOOR_NOTICE_RANGE` 9 m, facing a door the player opened, with a clear line, hears it at the door (suspicion, he comes
+  to look) and it joins the doors guards shut (`noticeOpenDoors`). The 15% threshold is `DOOR.driveShut` 0.15
+  (`world/doors.ts`): a stick-driven door under it is still a crack, shut to the body, light and sight; the light
+  field's own cut for a swinging leaf stays `DOOR_SHUT` 0.05 (`world/lightField.ts`, `docs/systems/lighting.md`).
 - Decided, built (G44, g44-above): guards see poorly above them. `pitchFactor` (`PERCEPTION.up*` / `down*`) scales the
   sight term by the chest's elevation from the eye line: 1 up to +22 deg, smoothstep to 0.15 by +48 deg; below, 1 to -40
   deg, easing to 0.6 by -75 deg. `instantDetect` needs the body within +22 deg. Not applied in combat (`alerted`) or to
@@ -208,21 +212,32 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   (`TACTICS.tick`) fills one reused `RoleInput` from the engaged group (alerted, free, cover-using guards; >= 2,
   `TACTICS.minGroup`), runs `assignRoles` against the level cover as typed arrays (`coverSet`, mirrored from
   `reserveCover`; `coverGrid` 4 m buckets) and calls `Enemy.setRole(role, cover, moving, run, mateMoving, onRadio)`.
-  Reporter = the engagement's first contact caller (`contactCaller`), held crouched and silent while his call is open;
+  (S24: one group per intruder, the guards with `hunt` = that slot, scored against his last known position; cover
+  reservations shared, so two groups never take one cover.) Reporter = the first contact caller of that fight
+  (`contactCaller`, per slot), held crouched and silent while his call is open;
   point bounds cover to cover (`profile.advanceHold` between bounds, out of sight), walks the last stretch (`closing`)
   when no cover is left; overwatch's low cover needs one view ray to the LKP (`TACTICS.viewChecks` 4, a blind one
   blocked `TACTICS.blockS` 5 s), suppresses the LKP while a mate moves; flank (groups of 3+) bounds to cover >= 60 deg
   off the point's bearing; the rest search (today's). One of point / flank moves at a time (standard). Out of sight in
-  the open a role guard waits for the group. A path failure blocks the cover. While a group has roles the single
+  the open a role guard waits for the group, crouched (guard-ai S27, A161: `Enemy.roleStep`'s open wait, at most
+  `SQUAD.openWait` 3 s, one think with no role cover at all), then takes today's cover pick (`pickCover`, reserved
+  through `reserveCover`); no cover anywhere: crouched where he is until `ALERT.lostSight`; the wait restarts when he
+  sees his target, is in or on his way to cover, or his role changes (`Infinity`: the S8 wait). The overwatch's
+  suppress (S27, A162: `suppressLkp`) aims at its own spot (`suppressAim`, the hunt's spot + 1.1 m; his `lastKnown` is
+  left alone) and, with `SQUAD.suppressView`, fires only along a clear static line from the muzzle (one `G.STATIC` ray
+  per 0.25 s, cached; counters `suppressRounds` / `suppressHeld`). The reporter (S27, A163) throws and flanks nothing
+  while his call is open (`inCover` runs the radio hold before `tactics`; in `attack` he fights with his rifle only).
+  A path failure blocks the cover. While a group has roles the single
   `flanker` is cleared; otherwise `assignFlanker` as before. Barks `moving` / `covering` / `flanking`.
 - Combat dice (S8, A24): `Enemy.rng` (mulberry32) reseeded `combatSeed(matchSeed, engagement, num)` on going to
   combat; `tacticsProfile` (`placeSlot`: `P_POST` with a post, `P_AGGRESSIVE` for an aggressive slot, else `P_STANDARD`;
   kept by `Enemy.inherit`) weights cover-first (standard 0.85) and the roles (`P_POST` never point or flank). A
   high-security post never takes a role cover outside his leash (`Enemy.setRole` drops it; A18, A25).
-- `EnemyManager.stealth` (on in Hunter, Mission and Infiltration; off in Free Roam): shared `lkp` (sightings by alerted
-  enemies, located gunfire), a flow field to the LKP (never the real position), arriving with nothing there starts the
-  search; `callAlert` radios within `RADIO` 22 m in the parked modes (a radioed alert does not relay; the live modes use
-  the radio net above); `sightT`, `hunting`.
+- `EnemyManager.stealth` (on in Hunter, Mission and Infiltration; off in Free Roam): one last known position per
+  intruder (guard-ai S24, below; `lkp` / `lkpValid` / `sightT` mirror the freshest one: solo reads them as before),
+  sightings by alerted enemies and located gunfire, a flow field per intruder (never the real position), arriving with
+  nothing there starts the search; `callAlert` radios within `RADIO` 22 m in the parked modes (a radioed alert does
+  not relay; the live modes use the radio net above); `sightT`, `hunting`, `huntingOf(slot)`.
 - HUD: `ui/hud/awareness.ts` arcs round the crosshair (only for enemies `inSight` or within `ARC_NEAR` 2.5 m),
   `Hud.setLight` meter; `vfx/lkpGhost.ts` (thin-instanced silhouette) shown at the LKP while hunted unseen
   (`GameState.updateStealthHud`).
@@ -341,6 +356,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   nearest calm guards within 30 m to the spot (`Enemy.respondDevice`: search round it inside its room, `searchRoom`),
   and the alarm's reinforcements within `DEVICE.fresh` s with no last known position search there too
   (`joinAsResponder`, never calm) instead of combat. Nothing reads the player's position; no last known position is set.
+  (S24, A148: a guard in combat with no position for his intruder no longer walks to the player's feet either.)
 - Search kinds (guard-ai S18, walk 4.72 G2, A106-A108; `ai/response.ts` pure, numbers `BODY_SEARCH` in `ai/gear.ts`):
   a calm search has a kind (`Enemy.searchKind`: plain, body, device) whose `SearchSpec` sets its length
   (`AlertInput.searchFor`), its ring (`ringPoint`: first radius, step, cap) and the look per point. A dead body found
@@ -364,8 +380,9 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   door: A116); Sector Ops' keypad, bolt, lockdown and pair-gate closures are unchanged.
 - Weapon carry (guard-ai S21, walk 4.72 G5, A120-A126; `ai/carryState.ts` pure: `calmArea`, `mayHolster`, `carrySlotOf`,
   `GuardCarry`, numbers `GUARD_CARRY`; render side `GuardGunCarry` in `ai/enemyRig.ts`): every guard stays armed. A calm
-  guard in a calm area (unaware, no caution, no board task, no alarm raised, not a high-security post, not a responder or
-  response team member; stealth rules) carries his gun holstered: the rifle slung across the back (`backC`), the pistol on
+  guard in a calm area (unaware, no caution, no board task, no alarm raised and (guard-ai S27, A164) no alarm stage
+  (`AiContext.alarmStage`, Sector Ops' panel, camera or laser stage; it carries over sections, A37), not a
+  high-security post, not a responder or response team member; stealth rules) carries his gun holstered: the rifle slung across the back (`backC`), the pistol on
   the right thigh. Anything above calm draws it (rifle 0.7 s, pistol 0.5 s; `Enemy.tryFire` waits for `carry.drawn`); he
   holsters again after `calmHold` 15 s calm. `Enemy.update` steps it after the awareness; `Enemy.frame` drives `RigPose`
   `ready` (holstered), `swap` / `swapFrom` / `swapTo` (the draw / holster clip, one slot) and `aim` (none while holstered);
@@ -385,6 +402,32 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   next guard who sees it still off turns it back on, and a dropped walk is noticed again (`CONSOLE_FAULT.retry` 3 s).
   `watchesConsole(e, x, floorY, z)` tells the game whether a guard is watching it now (the refusal). Game-side wiring
   (CourseMode, after marlow-final): `docs/guard-ai/slices/S22.md`. Host only, no protocol change.
+- Every player is seen (guard-ai S23, A143-A145; `ai/targetPick.ts` pure: `mayBeSeen`, `pickTarget`, `TARGETS`,
+  `MAX_INTRUDERS` 4): each think a guard perceives every live player (`Enemy.perceive`, per-player module scratch, no
+  allocation): chest / head / hips rays, light and `sightRate` per player, a dog's smell per player; a player a calm
+  guard cannot see at all (outside his field and not felt close by, `mayBeSeen`, the two terms of `sightRate`) costs no
+  ray. The target is the best seen when calm (the highest rate, else the nearest); in combat the one he fights while he
+  sees him, else the nearest he sees, else his last (S24 passes the hunted player). One meter per guard, filled at the
+  target's rate (two in view do not add up). `seesIndex(i)` (player `i` of `players()` in sight, any body sample) drives
+  the host's awareness arcs (`seesIndex(0)`: the host's own player); `targetDist` drives the flanker pick. Undo:
+  `TARGETS.all` false (the nearest only), `TARGETS.sticky` false (best seen each think in combat). Solo: the same
+  target, rate and meter. Host only, no protocol change. Brief: `docs/guard-ai/slices/S23.md`. Tests:
+  `targetPick.test.ts`, `coopPerception.test.ts`, e2e-coop "every player seen (guard-ai S23)".
+- Two intruders (guard-ai S24, G139, A146-A150; `ai/intruders.ts` pure: `IntruderBoard`, `INTRUDERS`): one last known
+  position per player (up to `MAX_INTRUDERS`, slot by player id, stable over a rejoin): `x/y/z`, `valid`, `seenT`,
+  `freshest`. Each guard hunts one (`Enemy.hunt`): his own sighting wins (`reportSighting` returns the slot; reported
+  on going to combat so his contact call carries it); else the call or shout that told him (a contact call's incident
+  is its slot, A149; `radio(delay, hunt)`, taken on going to combat); a located shot (`noise(pos, reach, by)`: the
+  shooter's id, null = the freshest); the alarm caller's for reinforcements (`alarmHunt`). His hunt ends when he calms
+  (cooldown / unaware), wakes (`inherit`) or is despawned. He goes to `lkpOf(hunt)`, searches round it, suppresses it,
+  faces it and follows `flowOf(hunt)`; `pickTarget` gets his intruder's player. With no position for his intruder
+  (A148, `INTRUDERS.noFeet`): his own last sighting, else his stimulus, never the player's real feet (A105 closed, solo
+  too). A slot is forgotten `INTRUDERS.forget` 2 s after its last sighting once nobody hunts it (`huntingOf`). Flow
+  fields: one per slot, made the first time it is valid, rebuilt on a move of a nav cell (at most every 0.5 s) or a nav
+  change, one rebuild per update (round robin). Response teams, the reinforcement facing and the device-fresh test
+  follow the freshest (A150); the host's LKP ghost shows only the host's own slot. Undo: `INTRUDERS.split` false (one
+  shared position, one group). Host only, no protocol or save change. Brief: `docs/guard-ai/slices/S24.md`. Tests:
+  `intruders.test.ts`, `twoIntruders.test.ts`, `coopPerception.test.ts` (S24 block).
 - Sound: `world/surfaces.ts` (pure) `surfaceAt` scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice. Shots:
   `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise` (combat); `onRay` hits
   are heard within `IMPACT_NOISE`.

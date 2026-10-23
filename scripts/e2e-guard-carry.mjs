@@ -49,8 +49,29 @@ try {
     const Effect = eff?.constructor;
     const engine = g.scene.getEngine();
     const FAULT_MS = 1000;
-    const fault = { armed: false, effects: new Set(), contexts: new WeakSet(), polls: new Set(), faulted: 0, timeouts: 0, disposed: 0, names: [] };
+    const fault = { armed: false, effects: new Set(), contexts: new WeakSet(), polls: new Set(), faulted: 0, timeouts: 0, disposed: 0, names: [], disposers: [] };
     const hooked = !!(Effect?.prototype?._checkIsReady && Effect.prototype._processCompilationErrors && Effect.prototype._isReadyInternal && Effect.prototype.dispose && engine._isRenderingStateCompiled);
+    // (carry flake, diagnostic only) A faulted program can be flagged disposed under its effect before the cut poll
+    // times out (Babylon's name-keyed resetCachedPipeline, or the gl-warning-fix delete in src/core/babylon.ts); the
+    // recovery then drops it as "program disposed". Record who set `_isDisposed` (a few stack frames) for the log.
+    const track = (pc) => {
+      if (!pc || fault.contexts.has(pc)) return;
+      fault.contexts.add(pc);
+      let v = !!pc._isDisposed;
+      try {
+        Object.defineProperty(pc, '_isDisposed', {
+          configurable: true,
+          enumerable: true,
+          get: () => v,
+          set: (x) => {
+            if (x && !v && fault.disposers.length < 4) fault.disposers.push(String(new Error().stack ?? '').split('\n').slice(2, 6).map((s) => s.trim()).join(' < '));
+            v = x;
+          },
+        });
+      } catch {
+        // (diagnostic only)
+      }
+    };
     if (hooked) {
       const checkIsReady = Effect.prototype._checkIsReady;
       Effect.prototype._checkIsReady = function (prev) {
@@ -60,12 +81,12 @@ try {
           fault.names.push(/#define NUM_BONE_INFLUENCERS (\d+)/.exec(this.defines)?.[0].slice(8) ?? 'NUM_BONE_INFLUENCERS 0');
         }
         if (!fault.effects.has(this)) return checkIsReady.call(this, prev);
-        if (this._pipelineContext) fault.contexts.add(this._pipelineContext);
+        track(this._pipelineContext);
         if (fault.polls.has(this)) return;
         fault.polls.add(this);
         let left = FAULT_MS;
         const int = setInterval(() => {
-          if (this._pipelineContext) fault.contexts.add(this._pipelineContext);
+          track(this._pipelineContext);
           if (this._isReadyInternal() || this._isDisposed) {
             clearInterval(int);
             fault.polls.delete(this);
@@ -139,8 +160,9 @@ try {
         const held = new Set();
         for (const m of g.scene.meshes) for (const sm of m.subMeshes ?? []) if (sm.effect) held.add(sm.effect);
         const { faulted, timeouts, disposed, names } = fault;
+        const disposers = fault.disposers.join(' | ');
         for (const e of [...fault.effects]) if (!held.has(e)) e.dispose(true);
-        return { faulted, timeouts, disposed, names: names.join(', '), left: fault.effects.size };
+        return { faulted, timeouts, disposed, names: names.join(', '), left: fault.effects.size, disposers };
       },
       reset() {
         g.photoFreeze(false);
@@ -293,6 +315,8 @@ try {
       fail = e;
     }
     const f = await G(() => window.__gc.disarm());
+    // (carry flake: which call flagged a faulted program disposed; the recovery's own drop is one of them)
+    if (f.disposers) console.log(`  forced fault: faulted program flagged disposed by: ${f.disposers.slice(0, 1200)}`);
     const recompiled = errors.slice(e0).filter((e) => /smooth body .*recompiling/.test(e));
     console.log(`  forced fault: injected into ${f.faulted} body effect(s) [${f.names}], ${f.timeouts} poll timeout(s), ${f.disposed} dropped by the recovery; recovery logged "recompiling": ${recompiled.length ? `yes (${recompiled.length})` : 'no'}`);
     for (const r of recompiled.slice(0, 4)) console.log(`    ${r}`);

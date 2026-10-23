@@ -127,6 +127,12 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
     `barksShown`, `helmetDrops`.
   - A guard's breaker relight (S15) needs nothing here: it is a registry change, so the `lamps` message (Sector Ops)
     and `course.lights` (Marlow Yard) carry it; the client's switch labels still do not follow it (as for a host press).
+  - (guard-ai S23, A143-A145) The host's guards perceive both players: each think every live player of
+    `GameState.playerRefsInto` (the host's own player 0, the partner 1) gets his own rays, light and sight rate; the target
+    is the best seen when calm, the one he fights while he still sees him in combat (`ai/targetPick.ts`). A partner lit in
+    front of a guard is seen while the host hides nearer. The host's awareness arcs read `Enemy.seesIndex(0)` (only guards
+    that see the host's own player); the client still has no arcs. Host only: no wire or save change. e2e-coop block
+    "every player seen (guard-ai S23)".
 - Snapshots carry enemy `al` (alert level, +4 seized, +8 torch, (37) +16 cautious, +32 helmet, +64 armour) and, when changed or every 2 s, `items` (usable interactables:
   objectives, switches, alarms, doors, revive points, wall medkit stations `medkitWall`; clients mirror them and send
   `use`, the host checks reach; course devices `c-` first so the cap never drops them) and `doors` (open indices).
@@ -145,6 +151,10 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   (guard-ai S14, A46 / A77) A client's quiet shot is heard at `SHOT_NOISE x min(weapon noise, 0.6)` as a solo shot is
   (9.8 m for the CT guns; was a fixed 14 m), a loud one at `SHOT_NOISE x weapon noise` through `EnemyManager.noise`, so
   a client's unsuppressed shot is radioed as "shots fired" like the host's (section caution, host-only, no wire change).
+  (guard-ai S24, G139) Each player is his own intruder on the host (`EnemyManager.intruders`, slot by player id): his
+  own last known position, the guards who saw or were told of him hunting it, his own squad-roles group; a shot locates
+  its shooter (`noise(pos, reach, r.ref.id)`). The host's LKP ghost shows only the host's own slot; the client draws
+  none (no wire change; a client ghost would read `lkpOf(slot)` and take a protocol bump).
 - Downed: `revive` interactables on bodies (`NetAttachment.onLocalDeath` / `onRespawn`); everyone down -> the mode.
 - Bodies: the host lists lying bodies in `snap.bodies` when they change; clients keep those ragdolls and drop the rest.
 - Pings (action `ping`: D-pad left tap, Z): `GameState.sendPing` (aim ray) -> `ping` msg / event (host rate 0.8 s) ->

@@ -622,7 +622,8 @@ export class GameState implements AppState {
       const r = SHOT_NOISE * n;
       this.eventNoise(r);
       if (n <= SUPPRESSED_NOISE) this.enemyMgr?.hear(this.player.position, r);
-      else this.enemyMgr?.noise(this.player.position, r);
+      // (guard-ai S24) the shot locates this player's intruder slot
+      else this.enemyMgr?.noise(this.player.position, r, this.localRef.id);
     };
     // (sd-rounds) the quiet rounds ran out: this gun is loud from here
     this.weapons.events.onSdOut = () => this.hud.feedItem('Suppressed rounds out: shots are loud', 'warn');
@@ -2589,7 +2590,8 @@ export class GameState implements AppState {
         // only enemies that can see the player (or are close by) show an arc: a guard who merely heard
         // something through a wall does not give himself away
         const near = hyp2(e.pos.x - p.x, e.pos.z - p.z) < ARC_NEAR;
-        if (!e.inSight && !near) continue;
+        // (guard-ai S23, A145) seeing the host's own player (players()[0]), not his target: the partner's does not count
+        if (!e.seesIndex(0) && !near) continue;
         const red = e.alerted && e.sinceSeen < 0.6;
         if (!red && (e.alerted || e.meter < ARC_MIN)) continue;
         const b = Math.atan2(e.pos.x - p.x, e.pos.z - p.z) - camYaw;
@@ -2598,11 +2600,15 @@ export class GameState implements AppState {
     }
     arcs.end();
     this.hud.setLight(this.lightLevel, this.lightLevel < LIGHT.shadow);
-    // ghost: frozen at the last sighting; shown once the hunters have lost sight of the player
+    // ghost: frozen at the last sighting; shown once the hunters have lost sight of the player. (guard-ai S24, A150)
+    // The host's own intruder slot only: never the partner's last known position drawn with the host's rig
     const g = this.ghost;
     if (em && em.stealth) {
-      if (em.sightT < 0.25 && em.lkpValid) g.capture(this.player.rig, em.lkp);
-      g.show = em.lkpValid && em.sightT > 0.6 && em.hunting && hyp2(g.at.x - em.lkp.x, g.at.z - em.lkp.z) < 1.5;
+      const slot = em.intruders.slotFor(this.localRef.id);
+      const k = em.lkpOf(slot);
+      const seenT = slot >= 0 ? em.intruders.seenT[slot]! : 99;
+      if (k && seenT < 0.25) g.capture(this.player.rig, k);
+      g.show = k !== null && seenT > 0.6 && em.huntingOf(slot) && hyp2(g.at.x - k.x, g.at.z - k.z) < 1.5;
     } else g.show = false;
     g.update(dt);
   }

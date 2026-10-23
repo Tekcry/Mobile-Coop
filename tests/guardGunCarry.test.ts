@@ -103,3 +103,61 @@ describe('the guard gun carry on the rig (GuardGunCarry)', () => {
     expect(s.worst()).toBeLessThan(0.12);
   });
 });
+
+// (guard-ai S27, A164) The carry rule reads the mode's alarm stage too (`AiContext.alarmStage`, Sector Ops' panel, camera
+// or laser stage): a calm guard with the guards' own alarm not raised but a stage up is not in a calm area (he draws);
+// at stage 0 he holsters after the calm hold as before. On Enemy's prototype (the fields `carryCalm` reads).
+describe('the carry after an alarm stage (guard-ai S27)', () => {
+  async function calmGuard(stage: () => number) {
+    const { Enemy } = await import('../src/ai/enemy');
+    const { GuardCarry, GUARD_CARRY } = await import('../src/ai/carryState');
+    const e = Object.create(Enemy.prototype) as InstanceType<typeof Enemy>;
+    Object.assign(e, {
+      ctx: { stealth: () => true, alarmRaised: () => false, alarmStage: stage },
+      aware: { level: 'unaware' },
+      caution: 0,
+      incident: -1,
+      camBody: null,
+      postDef: null,
+      responder: false,
+      crew: null,
+    });
+    const carry = new GuardCarry(true, 'rifle');
+    const calm = (): boolean => (e as unknown as { carryCalm(): boolean }).carryCalm();
+    return { carry, calm, GUARD_CARRY };
+  }
+
+  it('stage 1 with no own alarm: not a calm area, he draws', async () => {
+    let stage = 0;
+    const s = await calmGuard(() => stage);
+    expect(s.calm()).toBe(true);
+    s.carry.step(DT, s.calm());
+    expect(s.carry.holstered).toBe(true);
+    stage = 1;
+    expect(s.calm()).toBe(false);
+    for (let i = 0; i < 60 && !s.carry.drawn; i++) s.carry.step(DT, s.calm());
+    expect(s.carry.drawn).toBe(true);
+    // he stays drawn while the stage holds
+    for (let i = 0; i < 60 * (s.GUARD_CARRY.calmHold + 2); i++) s.carry.step(DT, s.calm());
+    expect(s.carry.drawn).toBe(true);
+  });
+
+  it('stage 0 (a restart from a stage-0 checkpoint): holstered again after the calm hold', async () => {
+    let stage = 2;
+    const s = await calmGuard(() => stage);
+    s.carry.step(DT, s.calm());
+    expect(s.carry.drawn).toBe(true);
+    stage = 0;
+    for (let i = 0; i < 60 * (s.GUARD_CARRY.calmHold - 1); i++) s.carry.step(DT, s.calm());
+    expect(s.carry.drawn).toBe(true);
+    for (let i = 0; i < 60 * 3; i++) s.carry.step(DT, s.calm());
+    expect(s.carry.holstered).toBe(true);
+  });
+
+  it('no alarmStage hook (the parked modes, the co-op client): as before', async () => {
+    const { Enemy } = await import('../src/ai/enemy');
+    const e = Object.create(Enemy.prototype) as InstanceType<typeof Enemy>;
+    Object.assign(e, { ctx: { stealth: () => true, alarmRaised: () => false }, aware: { level: 'unaware' }, caution: 0, incident: -1, camBody: null, postDef: null, responder: false, crew: null });
+    expect((e as unknown as { carryCalm(): boolean }).carryCalm()).toBe(true);
+  });
+});

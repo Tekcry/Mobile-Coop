@@ -30,6 +30,8 @@ interface FakeGuard {
   pos: Vector3;
   yaw: number;
   radio: ReturnType<typeof vi.fn>;
+  /** (guard-ai S24) his intruder slot (the shout and the contact call carry it). */
+  hunt: number;
   bark: ReturnType<typeof vi.fn>;
 }
 
@@ -52,6 +54,7 @@ function guard(x: number, z: number, o: Partial<FakeGuard> = {}): FakeGuard {
     pos: new Vector3(x, 0, z),
     yaw: 0,
     radio: vi.fn(),
+    hunt: -1,
     bark: vi.fn(),
     ...o,
   };
@@ -211,10 +214,10 @@ describe('radio net wired: the shout (voice model)', () => {
     const busy = guard(-3, 1, { alerted: true });
     const { ctx, clear } = manager([spotter, open4, open7, wall4, wall2, busy], (x) => x > 0);
     ctx.shout!(E(spotter));
-    expect(open4.radio).toHaveBeenCalledWith(RADIO.voiceDelay);
+    expect(open4.radio).toHaveBeenCalledWith(RADIO.voiceDelay, -1);
     expect(open7.radio).not.toHaveBeenCalled();
     expect(wall4.radio).not.toHaveBeenCalled();
-    expect(wall2.radio).toHaveBeenCalledWith(RADIO.voiceDelay);
+    expect(wall2.radio).toHaveBeenCalledWith(RADIO.voiceDelay, -1);
     expect(busy.radio).not.toHaveBeenCalled();
     // one ray only where one wall decides it (the 4 m listeners), none for the 2 m one or the 7 m one
     expect(clear).toHaveBeenCalledTimes(2);

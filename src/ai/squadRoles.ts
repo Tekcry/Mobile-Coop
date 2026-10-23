@@ -159,6 +159,12 @@ export const SQUAD = {
   wProtect: 2,
   /** Overwatch on low cover can fire over it. */
   lowOverwatch: 0.5,
+  /** (guard-ai S27) A role guard out of sight in the open waits for the group at most this long (s), crouched; then he
+   *  takes today's cover pick. Infinity: the S8 wait. */
+  openWait: 3,
+  /** (guard-ai S27) Suppressive fire only along a clear static line from the muzzle to the spot (one cached ray per
+   *  think). false: the S8 rule. */
+  suppressView: true,
 } as const;
 
 /** cos(flankMinDeg): a flank cover's bearing cos to the point's must be <= this. */
