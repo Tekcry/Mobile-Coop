@@ -139,6 +139,8 @@ const SCENARIOS = {
   stand: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.5, at0: "a.input.state.tap('crouch');", input: () => ({}), at: { 0: "a.input.state.tap('crouch');" } },
   sneakstand: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.5, warm: { y: 0.4 }, at0: "a.input.state.tap('crouch');", input: (t) => ({ y: t < 0.3 ? 0.4 : 0 }), at: { 0.6: "a.input.state.tap('crouch');" } },
   aimcrouchstrafe: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.2, at0: "a.input.state.tap('crouch');", warm: { ads: true }, input: () => ({ ads: true, x: 1 }) },
+  // (anim-fix-pass P4) the crouched aimed strafe with the pistol
+  aimcrouchstrafep: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.2, weapon: 'pistol', at0: "a.input.state.tap('crouch');", warm: { ads: true }, input: () => ({ ads: true, x: 1 }) },
   aimpistol: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.8, weapon: 'pistol', input: () => ({ ads: true }) },
   aimcrouchpistol: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.2, weapon: 'pistol', at0: "a.input.state.tap('crouch');", input: () => ({ ads: true }) },
   vault: { pos: [-3.8, -6], yaw: -Math.PI / 2, pre: 0.8, input: () => ({}), at: { 0: "a.input.state.tap('jump');" } },
