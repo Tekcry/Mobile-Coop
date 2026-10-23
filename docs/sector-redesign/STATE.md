@@ -311,7 +311,7 @@ lr16pol-cf-check 1-4, warehouseLamps.test.ts:119 plantDeck keys, lr15 / lrpolish
 lr16e / lr16-5 / artnext (LR16-POLISH "Held"). Stale worktree -lr16wp (detached, probes): remove (rmdir node_modules first).
 RULES: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
 Sonnet from strict briefs; one checker per batch in parallel with the laptop request; Opus triage on any laptop failure;
-one fix round; every e2e E2E_GPU=1 on the laptop queue, none on the desktop; vitest --maxWorkers=2 under
+one fix round; every e2e E2E_GPU=1 on the laptop queue, none on the desktop; no desktop GPU probe or shader compile while heavy.lock / heavy2.lock names a train (orchestrator ~05:40); vitest --maxWorkers=2 under
 C:/NightShift/scratch/sr-slot-{1..4}.lock; agents wait while CPU > 90%; never two agents on one file; agents push explicit
 refs. Detached worktrees: `cmd //c rmdir "<wt>\node_modules"` FIRST, then git worktree remove --force. Master merges only
 at train entry. Train-ready = message + `gh pr edit <n> --add-label train-ready`.
