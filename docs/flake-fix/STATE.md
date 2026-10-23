@@ -13,9 +13,9 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   Solo rerun request 20261023T165342-...-6e9632d1-a69e running on 4189 since 17:01Z: verdict = status
   laptop-e2e/t40-ctc4-solo on 6e9632d1: PASS 336 s (17:28Z) = flake, Orchestrator told.
 - Pushed: feature/laptop-queue 8279a48f..e52b4a79 (a, b, d, solo fallback; checkers PASS); PR #277 (c, train-ready).
-- Queue service flaw found: the 24 h flake rule (service.mjs rerunFlakes) matches the suite name only, so a NEW assert
-  on a suite that flaked earlier gets no alone rerun. Next laptop-queue slice: match on the assert text too.
-- Orchestrator resumes this session at ~04:47.
+- DONE (04:50 resume): the 24 h flake rule now needs the same suite AND the same assert key (lib.mjs assertKey /
+  flakeStands), e9363533 pushed to feature/laptop-queue, Sonnet checker PASS, vitest 44/44. #252 is train-ready, CI
+  green. 4.84.0 released (train 40); train 41 #283 runs on the desktop. Chains still need Michael.
 
 **Test Runner SAVE 30 (2026-10-24 ~00:50; wins over SAVE 29 where they differ):**
 - BLOCKER (needs Michael): at 23:59 ~68 old NightShift-chain-* scheduled tasks (one-shot 2026-10-23T23:59 triggers)
