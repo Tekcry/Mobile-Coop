@@ -86,3 +86,5 @@ That puts the searcher in the yard lane near the client's hide (8.75, -24.75), w
 
 ### Tests
 - `node --check scripts/e2e-coop.mjs`: OK. No `src/` change. `e2e-stealth-ai.mjs` not touched (the S25 agent owns it).
+- Laptop rerun queued on 531a65e9 (set `s26-fix4`, suites `e2e-coop e2e-netmove`, jobs 2): request
+  `20261023T170644-night-shift-guard-ai-531a65e9-42ad`.
