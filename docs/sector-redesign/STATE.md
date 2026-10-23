@@ -34,7 +34,9 @@
   GPU part 6 on -s45, PR 3 (S4 / S5 / E8) after PR 2.
 - E9-crate brief DONE: briefs/E9-CRATE.md (ce574d71, A99-A109). PROTOCOL 35 (orchestrator ~11:25; registry 31 master,
   32 guard-ai, 33 marlow-final, 34 hang-down; renumbering at train build is the orchestrator's). IN FLIGHT: Opus part (a)
-  engine + net on feature/sector-redesign-e9 off -m (worktree -e9, checks/e9-engine.md). Was: needs a number (NetItem kind 'crate' + event
+  engine + net DONE on feature/sector-redesign-e9 @ 1dc25681 (off -m; PROTOCOL_VERSION 35, 500 tests, checks/e9-engine.md).
+  IN FLIGHT: Sonnet part (b) on -e9 (checks/e9-build.md; S1-S3 + warehouse crates, S4 / S5 table for the s45 merge).
+  Then ONE Opus checker for E8 + E9 (engine + net). Was: needs a number (NetItem kind 'crate' + event
   'crate'); asked the orchestrator ~11:20. Build (a) Opus engine + net, then (b) Sonnet crate model / placement / tests.
 - (done) Opus E9-crate planner -> briefs/E9-CRATE.md (commits only that file). On resume: check each file / branch; rerun if
   missing.
