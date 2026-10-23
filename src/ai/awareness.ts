@@ -177,23 +177,6 @@ export class Awareness {
     return true;
   }
 
-  /** Every key in `mask` hears it (`timedHold` each); returns how many took it. */
-  timedHoldMask(mask: number, seconds: number, kind: number): number {
-    let n = 0;
-    for (let k = 0; k < MAX_KEYS; k++) {
-      if (!((mask >>> k) & 1)) continue;
-      const b = bit(k);
-      if ((this.dead | this.ko) & b || !(seconds > 0)) continue;
-      if (seconds >= this.alertT[k]!) {
-        this.alertT[k] = seconds;
-        this.alertKind[k] = kind;
-      }
-      n++;
-    }
-    this.settle();
-    return n;
-  }
-
   /** Seconds left on key `k`'s timed section alert (0 none). */
   alertLeft(k: number): number {
     return bit(k) ? this.alertT[k]! : 0;

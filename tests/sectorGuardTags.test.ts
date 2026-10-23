@@ -419,7 +419,8 @@ describe('radio checks in Sector Ops (squad tag)', () => {
     m2.down(gs2[0]!);
     m2.em.radioCheckNow();
     expect(m2.em.radioMisses).toBe(1);
-    expect(gs2[1]!.bark).toHaveBeenCalledWith('missed');
+    // (guard-ai S14) the line names the unit he missed (his slot + 1)
+    expect(gs2[1]!.bark).toHaveBeenCalledWith('missed', 1);
   });
 
   it('parked modes (not coordinated): the caller searches the spot himself (the old rule)', () => {

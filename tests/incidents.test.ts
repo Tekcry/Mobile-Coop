@@ -868,6 +868,8 @@ describe('S2 check polish (guard-ai S3)', () => {
       ack: vi.fn(),
       checkLight: vi.fn(),
       pairSearch: vi.fn(),
+      // (guard-ai S14) a calm hearer of a loud shot radios it ("shots fired")
+      bark: vi.fn(),
     });
     const world = { level: { lights: { lights: [], setOn: vi.fn() }, cover: [], coverSegments: [] }, layout: { rooms: [] }, doors: { list: [] } };
     const nav = { walk: new Uint8Array(4), nearestWalkable: vi.fn(() => -1), lineClear: vi.fn(() => true), findPath: vi.fn(() => null), heightAt: vi.fn(() => 0) };

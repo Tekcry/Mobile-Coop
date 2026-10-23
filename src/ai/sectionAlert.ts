@@ -4,21 +4,23 @@
  *
  * Two radio calls raise the section's caution without an alarm (A2, A40, A41; M4: only a panel or a command call
  * raises it):
- * - `missing`: a radio-check caller who missed a squad member (S5b), or the one left of a talking pair whose partner
- *   never came (S10), radios it ("Unit three, report... Unit three? Nothing."). The call is `RADIO.callIn` x his
- *   reaction and cuttable (take him during it and nobody else hears). Once it gets through every receiver is cautious
- *   `MISSING.cautious` s (`Awareness.timedHold`), staggered as S3 delivers it. The S5b / S10 pair search is unchanged.
- *   The pair lead's own S2 `missing` report is not the alert: only the call this module logged counts (so cutting the
- *   caller leaves the section calm even when another guard leads the search).
- * - `shots`: a calm guard (not fighting) who hears a loud shot at hearing tier 1 or more radios it, one call per shots
- *   incident: a later loud shot while the call is open adds to it (the spot moves to the newest shot); once the call
- *   is done or lost, the next loud shot heard is a new incident and a new call (its delivery refreshes the caution).
- *   Delivered: the section is cautious `SHOTS.cautious` s, and the board sends a pair (lead + cover, G11) to the spot.
- *   Suppressed shots never call (they are ordinary noises, `EnemyManager.hear`).
+ * - `missing`: a radio-check caller who missed a squad member (S5b; one call per check), or the one left of a talking
+ *   pair whose partner never came (S10), radios it ("Unit three, report... Unit three? Nothing."). The call is
+ *   `RADIO.callIn` x his reaction and cuttable (take him during it and nobody else hears). Once it gets through every
+ *   receiver is cautious `MISSING.cautious` s (`Awareness.timedHold`), staggered as S3 delivers it. The S5b / S10 pair
+ *   search is unchanged. The pair lead's own S2 `missing` report is not the alert: only a call this module logged
+ *   counts (so cutting the caller leaves the section calm even when another guard leads the search).
+ * - `shots`: the nearest calm guard (not fighting, not sent to combat by it) who hears a loud shot at hearing tier 1 or
+ *   more radios it, one call per shots incident: a later loud shot while the call is open joins it (the spot moves to
+ *   the newest shot); once the call is done or lost, the next loud shot heard is a new incident and a new call (its
+ *   delivery refreshes the caution). Delivered: the section is cautious `SHOTS.cautious` s, and the board sends a pair
+ *   (lead + cover, G11) to the spot. Suppressed shots never call (they are ordinary noises, `EnemyManager.hear`).
  *
- * `AlertCallLog` remembers the last `ALERT_LOG` alert calls (kind, incident, caller, spot) so the manager can tell an
- * alert call's delivery from another call of the same kind. `SectionCounters` are the read-only per-section tallies
- * the section rating reads (reset with the section). No allocation per call (fixed typed arrays).
+ * An alert call has its own incident id (negative, from `EnemyManager.alertInc`), so the radio net never merges its
+ * receivers with another call of the same kind. `AlertCallLog` remembers the last `ALERT_LOG` alert calls (kind,
+ * incident, caller, spot) so the manager can tell an alert call's delivery from another call of the same kind.
+ * `SectionCounters` are the read-only per-section tallies the section rating reads (reset with the section). No
+ * allocation per call (fixed typed arrays).
  */
 import { ALERT_MISSING, ALERT_SHOTS } from './awareness';
 
@@ -68,13 +70,13 @@ export class AlertCallLog {
   }
 }
 
-/** Per-section tallies for the section rating (item 5; read-only outside `EnemyManager`, reset with the section). */
+/** Per-section tallies for the section rating (read-only outside `EnemyManager`, reset with the section). */
 export class SectionCounters {
   /** Bodies a guard found (dead or knocked out; a camera's report counts once a guard reaches the body). */
   bodiesFound = 0;
-  /** Missed check-ins: a radio-check miss (S5b) or a talking-pair partner who never came (S10). */
+  /** Missed check-ins: each member a radio check missed (S5b), each talking-pair partner who never came (S10). */
   missedChecks = 0;
-  /** `shots` calls that got through (the section heard them). */
+  /** `shots` calls that got through (the section heard them; a cut call is not counted). */
   shotsCalls = 0;
   /** Alarms raised by radio (a `command` call that got through; panels are `EnemyManager.alarmBy`). */
   radioAlarms = 0;
@@ -89,14 +91,6 @@ export class SectionCounters {
 
 /** The read-only view the section rating gets. */
 export type SectionCounts = Readonly<Pick<SectionCounters, 'bodiesFound' | 'missedChecks' | 'shotsCalls' | 'radioAlarms'>>;
-
-const WORDS = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
-
-/** A unit's number as said on the radio ("three"); digits past twelve. */
-export function unitWord(n: number): string {
-  const i = Math.floor(n);
-  return i >= 1 && i < WORDS.length ? WORDS[i]! : String(i);
-}
 
 /** The radio number of a guard: his section slot + 1, else his guard key + 1, else 0 (none). */
 export function unitOf(slotIdx: number, key: number): number {

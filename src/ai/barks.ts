@@ -2,8 +2,6 @@
  * Enemy callouts (pure): short lines shown near the speaker (no voice audio; a radio chirp plays for radio
  * lines). Lines rotate per speaker; a speaker waits `BARK.cooldown` between lines (urgent ones cut in sooner).
  */
-import { unitWord } from './sectionAlert';
-
 export type BarkEvent =
   | 'suspicious'
   | 'investigate'
@@ -91,6 +89,14 @@ export const BARKS: Record<BarkEvent, readonly string[]> = {
 export const BARKS_UNIT: Partial<Record<BarkEvent, readonly string[]>> = {
   missed: ['Unit {unit}, report... Unit {unit}? Nothing.', 'Unit {unit}, check in... No answer.', "Unit {unit}, respond... He's not answering."],
 };
+
+const WORDS = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+
+/** (guard-ai S14) A unit's number as said on the radio ("three"); digits past twelve. */
+export function unitWord(n: number): string {
+  const i = Math.floor(n);
+  return i >= 1 && i < WORDS.length ? WORDS[i]! : String(i);
+}
 
 /** Radio lines (a chirp plays with them). */
 export const RADIO_BARKS: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['radioCheck', 'radioOk', 'missed', 'alarm', 'drone', 'search', 'callIn', 'ack', 'checking', 'lightOut', 'standDown', 'missing', 'koReport', 'deadReport', 'command', 'shotsReport', 'missingReport']);
