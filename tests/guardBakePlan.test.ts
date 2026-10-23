@@ -128,8 +128,11 @@ describe('guard bake plan: job split', () => {
     expect(jobsFor('check', kit).find((j) => j.id === 'check-lean')?.needs).toEqual(['lods-lean']);
     expect(jobsFor('sheet', kit)[0]?.needs).toHaveLength(4);
     expect(jobsFor('heads', kit).every((j) => j.needs.length === 0)).toBe(true);
-    // per-base gear fits its base's body (G3 gear/fit.py load_body): a rebuilt body rebakes it; the shield needs nothing
-    for (const j of jobsFor('gear', kit)) expect(j.needs).toEqual(j.tags.length === 2 ? [`bodies-${j.tags[0]}`] : []);
+    // per-base gear fits its base's body (G3 gear/fit.py load_body): a rebuilt body rebakes it; the shield is built on
+    // broad's body (gear/pieces.py SHIELD_BASE; a kit without kinds falls back to it)
+    for (const j of jobsFor('gear', kit)) expect(j.needs).toEqual(j.tags.length === 2 ? [`bodies-${j.tags[0]}`] : ['bodies-broad']);
+    expect(jobsFor('gear', realKit).find((j) => j.id === 'gear-shield_riot')?.needs).toEqual(['bodies-broad']);
+    expect(jobsFor('gear', realKit).find((j) => j.id === 'gear-shield_riot')?.inputs).toContain('bodies-broad');
     expect(jobsFor('bodies', kit).every((j) => j.needs.join() === 'prep')).toBe(true);
   });
 

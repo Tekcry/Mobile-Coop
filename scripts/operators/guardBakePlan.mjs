@@ -92,6 +92,8 @@ const PREP_FILES = [
 
 /** Pieces with their own GLB, rigid and the same for every base (G3, G4): one job, not one per base. */
 const OWN_GLB = new Set(['shield_riot']);
+/** The base an own-GLB piece is built on when the kit has no kinds (mirrors gear/pieces.py SHIELD_BASE). */
+const OWN_GLB_BASE = { shield_riot: 'broad' };
 
 /**
  * Garment parts per outfit (SPEC section 4, PLAN G2) when the kit's outfit pieces (`kind: 'outfit'`) list none
@@ -261,11 +263,20 @@ export function jobsFor(stage, kit, opts = {}) {
   });
   const common = (j) => ['--stage', stage, '--job', j];
   const gearIds = (b) => nk.pieces.filter((p) => !nk.pieceUse || nk.pieceUse[b]?.has(p.id)).map((p) => idOf('gear', b, p.id));
+  // an own-GLB piece is built on the body of the base whose kinds use it (the shield: broad, gear/pieces.py SHIELD_BASE);
+  // a kit without kinds falls back to OWN_GLB_BASE
+  const ownGlbBases = (p) => {
+    const used = nk.pieceUse ? baseIds.filter((b) => nk.pieceUse[b]?.has(p.id)) : [];
+    const fb = p.base ?? OWN_GLB_BASE[p.id];
+    return used.length ? used : fb && baseIds.includes(fb) ? [fb] : [];
+  };
   const capsOf = (b) => nk.hairCapBases.filter((h) => h.base === b).map((h) => idOf('haircaps', h.base));
   const out = {
     // the joints come from the game's TypeScript (proportions, the rig layout, the clavicle point): those files join the hash
     prep: () => [make('prep', {
-      runner: 'node', script: PREP_SCRIPT, args: common('prep'), files: PREP_FILES, kit: { bases: nk.bases },
+      // (only what the joints read: a base's mounts, kinds or face tiles never rebuild the joints)
+      runner: 'node', script: PREP_SCRIPT, args: common('prep'), files: PREP_FILES,
+      kit: { bases: nk.bases.map((b) => ({ id: b.id, refHeight: b.refHeight, build: b.build })) },
       outputs: [...baseIds.map((b) => `joints/guard-${b}.json`), 'mpfb2/3dobjs/base.obj', 'prep/prep.json'],
     })],
     bodies: () => nk.bases.map((b) => make(idOf('bodies', b.id), {
@@ -289,7 +300,7 @@ export function jobsFor(stage, kit, opts = {}) {
       }))),
       ...nk.ownGlb.map((p) => make(idOf('gear', p.id), {
         script: p.script ?? 'build_gear.py', args: [...common(idOf('gear', p.id)), '--piece', p.id], tags: [p.id],
-        kit: slice(nk, p), outputs: [`gear/guard-${p.id}.blend`, `gear/guard-${p.id}.json`],
+        kit: slice(nk, p), outputs: [`gear/guard-${p.id}.blend`, `gear/guard-${p.id}.json`], needs: ownGlbBases(p).map((b) => idOf('bodies', b)),
       })),
     ],
     lods: () => [
