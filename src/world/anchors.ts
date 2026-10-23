@@ -118,6 +118,9 @@ export interface Door extends AnchorBase {
   swing: 1 | -1;
   locked: boolean;
   breachable: boolean;
+  /** (sector-redesign cap fix) Sector Ops: the section whose map file built it (its door item is mirrored to co-op
+   *  clients only while that section is live, `Interactables.scope`); none: always. */
+  section?: number;
 }
 
 /** A zipline from `a` (high end) to `b`, at the cable. */

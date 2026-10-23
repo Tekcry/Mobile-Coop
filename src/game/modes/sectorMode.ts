@@ -5,6 +5,7 @@ import type { HitInfo } from '../damage';
 import type { GameState } from '../gameState';
 import type { GameMode } from './gameMode';
 import type { Interactable } from '../interactables';
+import { ITEM_SCOPE_OFF } from '../itemScope';
 import type { Blip } from '../../ui/hud/minimap';
 import type { DoorState } from '../../world/doors';
 import type { SquadSlot } from '../../world/rooms';
@@ -245,7 +246,18 @@ export class SectorMode implements GameMode {
       if (near) this.lockDoor(near, true);
       if (far) this.lockDoor(far, true);
       for (const d of seal) this.lockDoor(d, true);
+      // (cap fix) a connector's doors sit between two sections: their items are always mirrored (untagged)
+      this.untagDoor(near);
+      this.untagDoor(far);
+      for (const d of seal) this.untagDoor(d);
     }
+  }
+
+  /** (sector-redesign cap fix) Door `d`'s item goes on the co-op wire in every section (`Interactables.scope`). */
+  private untagDoor(d: DoorState | null): void {
+    if (!d) return;
+    const it = this.g.interactables?.items.find((x) => x.id === `door-${d.anchor.id}`);
+    if (it) delete it.section;
   }
 
   /**
@@ -267,6 +279,7 @@ export class SectorMode implements GameMode {
         if (!ints) return;
         const y = door ? door.anchor.hinge.y : 0;
         const it = ints.add(keypadItemId(sec, k), 'door', new Vector3(p.at[0], y, p.at[1]), KEYPAD_LABEL_NONE, KEYPAD_HOLD, 0);
+        it.section = sec;
         it.reach = KEYPAD_REACH;
         it.onUse = (u, by) => this.enterCode(sec, k, u, by);
         ints.setEnabled(it, true);
@@ -275,6 +288,7 @@ export class SectorMode implements GameMode {
       s.intel?.forEach((n, k) => {
         if (n.kind !== 'board' || !ints) return;
         const it = ints.add(intelItemId(sec, k), 'intel', new Vector3(n.at[0], n.at[1], n.at[2]), BOARD_LABEL, BOARD_READ, n.yaw ?? 0);
+        it.section = sec;
         it.onUse = () => {
           if (this.codes.grant(sec, k)) this.learned(sec, k);
         };
@@ -415,6 +429,7 @@ export class SectorMode implements GameMode {
         continue;
       }
       const it = ints.add(deskItemId(i), 'switch', new Vector3(d.at[0], (d.y ?? 0) + DESK_ITEM_Y, d.at[1]), deskLabel(0), DESK_HOLD, d.yaw);
+      it.section = d.section;
       it.reach = DESK_REACH;
       it.onUse = (_u, by) => {
         this.useDesk(i, by);
@@ -514,6 +529,8 @@ export class SectorMode implements GameMode {
     const s = this.run.defs[i];
     this.deskSec = s ? i : -1;
     this.ct?.setLive(s ? i : -1);
+    // (cap fix) co-op mirrors this section's items only (plus the untagged ones)
+    if (this.g.interactables) this.g.interactables.scope = s ? i : -1;
     // alarm panels: only this section's work, armed again; a panel alarm can be raised again (once per section load)
     this.g.stealth?.setLiveAlarms(s ? i : -1);
     this.g.enemyMgr?.resetAlarm();
@@ -546,6 +563,7 @@ export class SectorMode implements GameMode {
     g.security?.clearBodyReports();
     this.ct?.setLive(-1);
     g.stealth?.setLiveAlarms(-1);
+    if (g.interactables) g.interactables.scope = -1;
     // (E6) the desks' loops and offs end with the section
     this.deskSec = -1;
     this.desks.reset();
@@ -973,6 +991,7 @@ export class SectorMode implements GameMode {
     this.ct?.dispose();
     this.ct = null;
     this.g.ctDev = null;
+    if (this.g.interactables) this.g.interactables.scope = ITEM_SCOPE_OFF;
     this.pending.length = 0;
     const em = this.g.enemyMgr;
     if (em && this.prevMaxAlive >= 0) em.maxAlive = this.prevMaxAlive;

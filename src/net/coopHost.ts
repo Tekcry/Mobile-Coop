@@ -1071,11 +1071,15 @@ export class CoopHost implements NetAttachment {
     const out: NetItem[] = [];
     // course devices (`c-` ids: switches, levers, pickups, bolts, the finish) first, so the cap never drops them (D48:
     // a map's door items filled the list before them and the client saw no course prompts)
-    const list = this.g.interactables?.items ?? [];
+    // (sector-redesign cap fix) Sector Ops mirrors only the live section's items and the untagged ones (objective, exit,
+    // connector doors, revives); every section's items stay registered on the host (`Interactables.scope`)
+    const ints = this.g.interactables;
+    const list = ints?.items ?? [];
     for (let pass = 0; pass < 2; pass++) {
       for (const it of list) {
         if (out.length >= MAX_ITEMS) break;
         if (it.id.startsWith('c-') !== (pass === 0)) continue;
+        if (ints && !ints.inScope(it)) continue;
         const k = it.kind as NetItem['k'];
         if (!ITEM_KINDS.includes(k)) continue;
         out.push({ id: it.id, k, x: it.pos.x, y: it.pos.y, z: it.pos.z, yaw: it.node.rotation.y, label: it.label.slice(0, 24), hold: it.holdTime, reach: it.reach ?? 1.8, on: it.enabled && !it.done });

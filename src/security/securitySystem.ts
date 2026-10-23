@@ -134,6 +134,8 @@ export class SecuritySystem {
    * replaced, not chained). Host only (the system exists only there).
    */
   onBody: ((e: CameraBodyEvent) => void) | null = null;
+  /** (sector-redesign E8) A round ricocheted off a bulletproof camera at (x, y, z): the effect and sound (GameState). */
+  onRicochet: ((x: number, y: number, z: number) => void) | null = null;
   private thinkT = 0;
   private bodyT = 0;
   private bodySrc: CamBodySource | null = null;
@@ -238,12 +240,20 @@ export class SecuritySystem {
     }
   }
 
-  /** A hitscan shot from `from` to `to`: a camera whose housing it passes through is destroyed. Returns its id. */
+  /**
+   * A hitscan shot from `from` to `to`: a camera whose housing it passes through is destroyed. Returns its id.
+   * (sector-redesign E8) A bulletproof housing stops the round instead: `onRicochet` plays the sparks and impact sound
+   * at the lens, the camera stays as it was and null is returned.
+   */
   shotRay(from: Vector3, to: Vector3): string | null {
     for (let i = 0; i < this.cameras.length; i++) {
       const c = this.cameras[i]!;
       if (c.mode === 'destroyed') continue;
       if (!segmentHitsHousing(c, from.x, from.y, from.z, to.x, to.y, to.z)) continue;
+      if (c.def.bulletproof) {
+        this.onRicochet?.(c.x, c.y, c.z);
+        return null;
+      }
       c.destroy();
       this.view?.update(this.cameras);
       this.onEvent?.({ kind: 'cameraDown', camera: c.def.id, x: c.x, z: c.z });
