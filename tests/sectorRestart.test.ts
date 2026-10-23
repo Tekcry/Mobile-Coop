@@ -59,6 +59,19 @@ describe('LoadoutSnapshot (the checkpoint loadout)', () => {
     expect(guns[0]!.mag).toBe(30);
   });
 
+  it('(sd-rounds) the quiet rounds come back with the loadout; a slot without them restores as before', () => {
+    const k = new LoadoutSnapshot();
+    const guns: AmmoSlot[] = [{ mag: 10, reserve: 50, sd: 30, stats: { magSize: 30 } }, slot(10, 50)];
+    k.take(guns, carry());
+    guns[0]!.sd = 0;
+    guns[0]!.mag = 0;
+    guns[1]!.mag = 0;
+    expect(k.restore(guns, carry())).toBe(true);
+    expect(guns[0]!.sd).toBe(30);
+    expect(guns[1]!.sd).toBeUndefined();
+    expect([guns[1]!.mag, guns[1]!.reserve]).toEqual([30, 30]);
+  });
+
   it('a magazine short at the checkpoint is topped up from its reserve, never from nowhere', () => {
     const k = new LoadoutSnapshot();
     const guns = [slot(10, 5), slot(0, 0)];

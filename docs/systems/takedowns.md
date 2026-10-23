@@ -57,7 +57,11 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
   bark + subtitle (`GUARD_INFO_GAP` apart, `GrabState.talk`; he stops if he is knocked out or killed first); a scripted
   Interrogate on a guard with none ends in the feed line "Interrogated: nothing new". Host-side: the co-op client's puppet
   takes the same slot's info by where it first appears (`infoAtSpawn`), the interrogation runs on the interrogator's
-  machine, no wire data, PROTOCOL_VERSION 24. One use per guard per bay start (a restart spawns a fresh guard).
+  machine, no wire data, PROTOCOL_VERSION 24.
+  (spare 9, interrogation intel) A guard with information also gives intel when the interrogation ends (`intelReveal.revealIntel`,
+  pure part `game/intel.ts`): `Code: <label>` per authored code (`GuardIntel.codes`, flag to `GameMode.onIntelCode`), then
+  `Cameras near: n, sweep a-b s` and `Patrols near: n, loop a-b s` within `INTEL.reach` 30 m on his storey (patrol lines read each
+  guard's route through the Guard AI `Enemy.patrolRoute` getter, `intelGuard`). Feed lines (<= 60 chars), event `intel`; a guard with none: unchanged. One use per guard per bay start (a restart spawns a fresh guard).
   There is no let-go (the shove is removed): the hold ends only in the knockout or the
   kill, or cleanly when the holder dies, the guard dies to something else (`abort`) or the match restarts (`reset`; a
   co-op host still frees a client's guard when that client drops out or the section restarts). Carry (the knockout,
@@ -84,6 +88,11 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
   interrogating, the same fields, PROTOCOL_VERSION unchanged); `CoopHost` keeps a client's seized guard at their offset
   and `ref.shield` and lowers / turns him from `ph` / `sub`; `RemoteAvatar` poses the hold hands and the bend from them.
   The carry has no MoveState (a partner sees no body on the shoulder, as before).
+- (coop-walk-fixes P6) Team takedown: a guard the partner holds as a hostage is offered to the other player from the
+  ground or a wall (`assistPlan`: `TAKEDOWN.reach` / `dy`, line of sight, any side; not the `taken` / combat rules),
+  row TEAM TAKEDOWN. The attacker stays put facing him for `TAKEDOWN.strike` (the row: a knockout; a held direct press: the kill);
+  the guard is never seized or moved by him; the partner letting go first ends it. The host applies it and ends the
+  hold; holder and striker are credited together (a dual takedown). Net: `docs/systems/coop.md` (client takedowns).
 
 ## From the co-op hang-down (hang-down job; `docs/hang-down/BRIEF.md`)
 CT 1.5 Drop Line: the hanging player can grab and neck-snap a guard below (the only grab entry while hanging) and use

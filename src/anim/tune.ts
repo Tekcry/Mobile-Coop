@@ -656,6 +656,12 @@ const BB_HO = bbi('handOutAdd');
 const BB_FU = bbi('footUpAdd');
 const BB_FF = bbi('footFwdAdd');
 const BB_FO = bbi('footOutAdd');
+// (pose-parity) the root offsets and the wall gap a partner's rig reads from its own applied base (`bodyRigRoot`)
+const BB_BF = bbi('bodyFwdAdd');
+const BB_BU = bbi('bodyUpAdd');
+const BB_GG = bbi('guardGapAdd');
+const BB_GS = bbi('guardSideAdd');
+const BB_WG = bbi('wallGapAdd');
 /** The table in use: [body group][base field], identity where the base has no value. */
 const BODY_BASE = new Float64Array(NBG * NBF);
 for (let g = 0; g < NBG; g++) BODY_BASE.set(BB_ID, g * NBF);
@@ -846,6 +852,30 @@ export function tuneRoot(pos: { x: number; y: number; z: number }, yaw: number):
   pos.x += s * f + c * r;
   pos.z += c * f - s * r;
   pos.y += u;
+}
+
+/**
+ * (pose-parity) `tuneRoot` for a Wren rig that is not the local player (the co-op partner): the root offset from the
+ * rig's OWN applied Body base (its last `bodyRigBegin`, as the owner's TUNE_LOCAL is its last frame's), never the
+ * tuner's live values (the local player's own). Not live: nothing (bit-identical). No allocation.
+ */
+export function bodyRigRoot(st: BodyRigState, pos: { x: number; y: number; z: number }, yaw: number): void {
+  if (!st.live) return;
+  const a = st.applied;
+  const f = a[BB_BF]! - a[BB_GG]!;
+  const r = -a[BB_GS]!;
+  const u = a[BB_BU]!;
+  if (f === 0 && u === 0 && r === 0) return;
+  const s = Math.sin(yaw);
+  const c = Math.cos(yaw);
+  pos.x += s * f + c * r;
+  pos.z += c * f - s * r;
+  pos.y += u;
+}
+
+/** (pose-parity) The rig's applied Body base wall gap (m, the owner's `TUNE_LOCAL.wallGapAdd` without the tuner). */
+export function bodyRigWallGap(st: BodyRigState): number {
+  return st.live ? st.applied[BB_WG]! : 0;
 }
 
 /**
