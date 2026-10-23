@@ -1,5 +1,5 @@
 import { hyp3 } from '../core/mathx';
-import { LAMP_CONE_COS, LAMP_EXP, LAMP_LEVEL_GAIN, lampReach, lampTerm, SPOT_EXP } from './lampMath';
+import { LAMP_CONE_COS, LAMP_EXP, LAMP_LEVEL_GAIN, lampReach, lampTerm, photoTerm, SPOT_EXP } from './lampMath';
 /**
  * Light model (pure: no Babylon/DOM), unit-tested.
  *
@@ -80,12 +80,31 @@ export const LIGHT = {
   playerHz: 10,
 } as const;
 
-/** One light's gameplay contribution at a point (gain x intensity x the lamp formula, `lampMath.ts`; ignores
- *  visibility). */
+/**
+ * One light's gameplay contribution at a point (gain x intensity x the lamp formula, `lampMath.ts`; ignores
+ * visibility). (LR16 fix) The formula the game draws and the baked field reads: a fixed lamp the photometric
+ * `photoTerm` over its reach (`radius`, already `lampReach`), a flashlight the linear `lampTerm` (as the meter's
+ * torch term). Before, every light took the linear term over the 1.6x photometric reach: Classic falloff on the
+ * photometric reach, far too bright at range.
+ */
 export function contribution(l: LightDef, x: number, y: number, z: number): number {
   if (!l.on || l.destroyed) return 0;
+  return LAMP_LEVEL_GAIN * l.intensity * lightTerm(l, x, y, z);
+}
+
+/** (LR16 fix) A light's falloff x cone at a point, unoccluded (no gain, intensity or on / off): `contribution` and the
+ *  light field's unbaked lights (`LightField.dynamicInto`) read it. Allocation-free. */
+export function lightTerm(l: LightDef, x: number, y: number, z: number): number {
   const c = l.cone;
-  return LAMP_LEVEL_GAIN * l.intensity * lampTerm(x - l.x, y - l.y, z - l.z, l.radius, c ? c.dx : 0, c ? c.dy : -1, c ? c.dz : 0, c ? c.cosOuter : LAMP_CONE_COS, c ? SPOT_EXP : LAMP_EXP);
+  const vx = x - l.x;
+  const vy = y - l.y;
+  const vz = z - l.z;
+  const dx = c ? c.dx : 0;
+  const dy = c ? c.dy : -1;
+  const dz = c ? c.dz : 0;
+  const cut = c ? c.cosOuter : LAMP_CONE_COS;
+  const e = c ? SPOT_EXP : LAMP_EXP;
+  return l.kind === 'flashlight' ? lampTerm(vx, vy, vz, l.radius, dx, dy, dz, cut, e) : photoTerm(vx, vy, vz, l.radius, dx, dy, dz, cut, e);
 }
 
 /** Make a cone from a direction and half-angles (rad). */
