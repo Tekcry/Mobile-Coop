@@ -315,5 +315,7 @@ Heads: art 2276483a (#226), lampx eb45b0af (LR15 + lighting polish + atlas fix),
 6. Open polish: lr15-check 1 / 2 / 4, lrpolish-check 1-6, freeze checker polish, art P6.
 Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
 Sonnet builds from strict briefs; one checker per batch; tsc / vitest slot locks C:/NightShift/scratch/sr-slot-{1,2,3,4}.lock;
-every e2e E2E_GPU=1; desktop lane script pattern scratch/runs/sectorart226-2276483a/run.sh; never two agents on one file.
+every e2e E2E_GPU=1 on the LAPTOP only (Michael ~19:15: no desktop e2e; heavy.lock = builds / check only); start the checker
+and the laptop request on the same commit in parallel; train-ready = message + `gh pr edit <n> --add-label train-ready`;
+#242 conflicts with master: fix at train entry only. Never two agents on one file.
 ```
