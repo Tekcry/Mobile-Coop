@@ -50,9 +50,6 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
 - (mocap-trial) Settings > Gameplay > "Mocap locomotion" (`gameplay.mocapLoco`, default off; `?mocap=0/1` overrides it
   for a page): the CMU mocap walk / jog / run trial; the animation tuner's More > Panel has the same box (`mocapHost`).
   World-and-characters.md "Mocap locomotion switch".
-- (lightrev LR13) Settings > Gameplay > "Lamp falloff" (`gameplay.lampFalloff`: Classic, the default / Realistic (test)):
-  a light-model rule, applied when a map loads; in a co-op match the row is a locked row showing the host's (lighting.md
-  "Lamp falloff").
 - (LR14) Settings > Graphics > "Character shadows" (`video.charShadows`: Auto, the default - on from High shadows - / On /
   Off), under Shadows: the nearest lamps' silhouette shadow maps; rendering only, this machine only (lighting.md
   "Character silhouette shadows").

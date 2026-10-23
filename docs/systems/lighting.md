@@ -27,15 +27,19 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   (`voxel/skyBake.ts` `bakeMoon`, 0.5 m cells) and the 1 m ambient grid (`world/ambientGrid.ts`), all from the canonical
   shapes (`voxel/lightShapes.ts`: visible blockout pieces >= 5 cm plus the Medium dressing). Keys hold only the map, seed,
   shapes, lights and the moon's direction.
+- One light model (LR16; no falloff setting). The parts, one line each:
+  - photometric falloff with a smooth near term and a feathered cone: `world/lampMath.ts` (LR16b)
+  - contact-hardening penumbra in the bake: `voxel/lampBake.ts` (LR16e)
+  - one-bounce fill in the ambient grid's G channel: `voxel/lampBounce.ts`, `world/bounceGrid.ts` (LR16-1)
+  - torch shadow atlas: `world/torchShadows.ts`, `world/torchShadowSet.ts` (LR16t)
+  - character shadows on every tier: `world/charShadows.ts`, `world/charShadowSet.ts` (LR16-7 / LR16f / LR16-3)
 - `world/lampMath.ts` (pure): one light model (LR16a, Michael 2026-10-23 ~18:12 "Disable returning to original lighting
   system, focus on only the one new system"). Baked lamps: the photometric falloff `photoFalloff` (inverse square from
   3 m, `PHOTO`, windowed to 0 at the reach = radius x 1.6; `LightRegistry.add` scales fixed lamps' radius once,
   flashlights unchanged) x the cosine cone (lamps without a cone: the hemisphere below them, exponent 1; spots: squared,
   cut at the outer angle). Flashlights: the linear `lampTerm`. `bakedLamps.ts` builds its GLSL from `LAMP_MATH_GLSL`
   and the same constants (`LAMP_CONE_COS`, `LAMP_EXP`, `SPOT_EXP`; `LIGHT_GAIN` 1.6 is rendering only,
-  `LAMP_LEVEL_GAIN` 1.2 gameplay only). `moonLight(theme)`: the moon's gameplay share of `lightLevel`. The Classic
-  (linear) mode, Settings > Gameplay > Lamp falloff (`gameplay.lampFalloff`, an old stored key is dropped on load),
-  `?falloff=photo`, the co-op `start.lf` and `RejoinRecord.lf` are gone (LR16a). `?gfx=min` keeps Babylon's linear
+  `LAMP_LEVEL_GAIN` 1.2 gameplay only). `moonLight(theme)`: the moon's gameplay share of `lightLevel`. `?gfx=min` keeps Babylon's linear
   real lights for the picture (the field is photometric). History: `docs/lighting-review/PROPOSAL.md` section 7 (LR13),
   numbers in `docs/sector-redesign/checks/light-measure.md`; tests `tests/lampFalloff.test.ts`.
 - (shadow audit; always on since LR16a) `world/shadowAccuracy.ts`: the field reads the ambient fill trilinearly as the
