@@ -1,6 +1,13 @@
 # Guard AI - state
 
 ## Now
+~16:15 laptop clock (fresh session after the swap): Test Runner verdicts: S9 f2fd1219 GREEN 4/4, walk 906765a4 GREEN
+18/18 -> TRAIN-READY #229 + #230 sent for train 28 (retarget to master after train 27; protocol 37 vs Player #231: first
+merged keeps it). S16 fb192d45 RED e2e-sectorops:6 (scripts/e2e-sectorops.mjs:3024: no NOC guard gets sight through
+arm-noc; log scratch/runs/guardais16-fb192d45). RUNNING (Opus): S16 fix round (s16 worktree, A80-A89 range); S22 AI side
+on feature/guard-ai-s22 off walk (consoleFault, A128-A135; game side planned in slices/S22.md, applied after
+marlow-final merges); A126 on feature/guard-ai-a126 = s9 + walk (carry state bits in `al`, protocol stays 37, A136-A139).
+
 ~17:25: walk check PASS 773f8f2b (S20 fix: doorway stall -> squeeze past, A127; WALK-CHECK.md polish list 1-6). walk <- s15
 6b65c3a5 = 906765a4 (407 unit). s9 <- s15 = f2fd1219, PROTOCOL 37 (A96). PRs OPEN: #229 S9, #230 walk (both base s15),
 #228 S16 (master). Test Runner: S16 fb192d45, s9 f2fd1219, walk 906765a4 (+ GPU sheet). Train-ready each on green.
@@ -440,21 +447,22 @@ behaviour code Opus; Sonnet only for tests / e2e scenarios / data from a strict 
 ```
 Night Shift | Guard AI Build - guard-ai lead, on the LAPTOP. Model Opus, effort high; fresh session.
 git fetch. Laptop worktrees (all npm ci'd): C:/NightShift/Mobile-Coop-guard-ai (feature/guard-ai: STATE / PLAN),
-...-guard-ai-s15, -s9, -s16, -walk, -s21. Branch guard before every write.
+...-guard-ai-s15, -s9, -s16, -walk, -s21, -s22, -a126. Branch guard before every write.
 Read CLAUDE.md ("Sessions", "Heavy-usage throughput" incl. "Token rules"), ROADMAP "Decided" by grep only (Guard AI,
-unavoidable guards, stealth over shooting), then this file's "Now" (top 3 entries).
-e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep laptop CPU under ~80%. Target train 27.
-1. #218 -> #219 -> #220 (S13-S15, s15 6b65c3a5): TRAIN-READY sent for train 27; #218 base still s12 (orchestrator).
-2. #228 S16 (fb192d45, master), #229 S9 (f2fd1219, protocol 37, base s15), #230 walk S17-S21 (906765a4, base s15):
-   checks PASS, Test Runner runs requested (S16: sectorops 6, stealth-ai, ct-warehouse, ctcourse, tactics; S9: coop,
-   netmove, stealth-ai, takedown; walk: stealth-ai, sectorops, ctcourse, course, ct-warehouse, stealth, tactics,
-   takedown, coop, netmove). Green -> TRAIN-READY each; red -> one Opus fix agent from the failing assert.
-3. Open: A126 co-op clients pose guards low ready (needs S21's holstered bit in S9's protocol 37 `al` once #229 and
-   #230 meet); WALK-CHECK.md polish 1-6; S16-CHECK.md polish.
-4. S22 console (G6): AI side + game side (securityRoom.ts, courseMode.ts, sectorReset.ts) after marlow-final merges
-   (Marlow Build: ours; its slice 10 owns the restart reset). Branch off walk.
+unavoidable guards, stealth over shooting), then this file's "Now" (top 2 entries).
+e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep laptop CPU under ~80%.
+1. Train 27 (origin/train/27 e83f423a) has #218 -> #219 -> #220 (S13-S15): fix any failure Test Runner reports at once.
+2. Train 28: #229 S9 (f2fd1219) + #230 walk (906765a4) GREEN, TRAIN-READY sent; both base s15 (retarget after 27).
+3. #228 S16 (fb192d45): RED sectorops:6 (scripts/e2e-sectorops.mjs:3024, NOC sight through arm-noc). Fix agent ran on
+   ...-guard-ai-s16: check its commit, then ask Test Runner: sectorops:6 (+ suites the fix names); green -> TRAIN-READY.
+4. S22 AI side on feature/guard-ai-s22 (slices/S22.md): when built, one Opus checker, then PR (base walk) + Test Runner
+   (stealth-ai, sectorops, ctcourse, course). Game side (securityRoom.ts, courseMode.ts, sectorReset.ts) after
+   marlow-final merges, per slices/S22.md.
+5. A126 on feature/guard-ai-a126 (s9 + walk, carry bits in `al`, protocol 37): when built, Opus checker, PR after #229 /
+   #230 land, Test Runner coop + netmove.
+6. Polish lists only (no refining): WALK-CHECK.md 1-6, S16-CHECK.md.
 Rules: AI code and checkers Opus; Sonnet 5.5 tests / data from strict briefs; Haiku chores. Never two agents on the
 same files. Message the orchestrator only at PR open / train-ready / blocked / needs Michael; progress here. A-numbers:
-S16 A80-A89, S9 A90-A95, walk A100-A126 (next A127). No question dialogs; assumptions in BRIEF.md. At ~92%: WIP commit
-+ push in every worktree, keep working to 100%; this block current.
+S16 A80-A89, S9 A90-A95, walk A100-A127, S22 A128-A135, A126 work A136-A139 (next A140). No question dialogs;
+assumptions in BRIEF.md. At ~92%: WIP commit + push in every worktree, keep working to 100%; this block current.
 ```
