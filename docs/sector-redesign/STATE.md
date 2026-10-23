@@ -294,10 +294,12 @@ LR16 (one lighting system; checks/lr16-plan.md, lr16-0-ct-audit.md)
   laptop-queue 6b62e08d). Requeue once, on the LR16 PR head after g + 5b merge, area suites only (src/net: coop netmove;
   + lightbake ctcourse). Was: lightbake darkness desktop sectorops
   stealth-ai ctcourse coop netmove). Older requests 6eb6a863 / bb47a985 / 4007eafe / 5700dff5 / 2f5ffec1 are superseded.
-- RUNNING (restarted ~22:40 after the swap; agents die at a swap): (a) LR16g builder (Opus) on -lr16g from WIP c3f03ce8;
-  brief briefs/LR16g.md (base 961ca660; lead decisions at its top), report checks/lr16g-build.md. If dead: rerun an Opus
-  builder from the brief + the branch head (LAMP_VERSION is 5; measure steady level, flicker 1; Marlow #257 files
-  re-baselined in tests only). (b) LR16-5b builder (Opus) on feature/sector-redesign-lr16-5b (worktree -lr16-5b, base
+- LR16g BUILT (not done) -lr16g 02419d1b (checks/lr16g-build.md): 6 of 13 reds green, 7 left = C1 174 warehouseOps stealth
+  points in pools, C2 Marlow S7 stair 0.31 < 0.33, C3 S2 A1 mouth, C4 S3 pockets. Marlow yard lifted (corners 0.41 -> 0.48,
+  readers 0.47 -> 0.59), S2 atrium 0.36 -> 0.47; LAMP_VERSION 5 kept. Lead call (A-lead, ~23:20): CAP 0.55 stays, layout
+  changes (CT "clear pools, clear dark"). RUNNING: Opus LR16-W planner -> briefs/LR16-W.md (parts S1 / S2 / S3 / C2 off
+  02419d1b, Opus builders in parallel). Then ONE Opus checker on g + W together, then laptop.
+- RUNNING (restarted ~22:40 after the swap; agents die at a swap): (b) LR16-5b builder (Opus) on feature/sector-redesign-lr16-5b (worktree -lr16-5b, base
   lr16int 4ebcecbd, junction), report checks/lr16-5b-build.md; PROTOCOL = branch value +1 (the train renumbers, A-lead).
   (c) LR16-L investigator (Opus) in -lowchk -> briefs/LR16-L.md committed on -polish. LR16-1 recheck PASS (4ebcecbd).
   Detached check worktrees: `cmd //c rmdir <wt>\node_modules` (junction) FIRST, then git worktree remove --force.
@@ -311,7 +313,10 @@ LR16 (one lighting system; checks/lr16-plan.md, lr16-0-ct-audit.md)
 - LR16-POLISH (briefs/LR16-POLISH.md, e8f7af9c): 25 open items in parts A-F (19 dropped, 30 held). A / B / C (off lr16int
   4ebcecbd) and D (off artpol, docs) can start now: QUEUED until desktop CPU < 80% (100% at 22:58). Lead: A's
   lampBounce.test.ts bake-time item moves to F (LR16g may edit that file). E after LR16-5b merges, F after LR16g.
-  LR16-P perf brief (Opus) running -> briefs/LR16-P.md.
+  LR16-P (briefs/LR16-P.md, ed0e6325): most of the cost is the chosen photometric model (1.6x reach; base 273539ec ran
+  Classic). Fixes F1 row-only lamp upload + F2 picture-only char-shadow reach (both bakedLamps.ts: after LR16-5b), F3
+  bounce read rewrite (after g + 5b). Lamp-loop cost has no parity-safe cut (Michael's call, not recommended now). Perf
+  request (A1 / A2 Classic vs photo split + fixes) ONCE, after the fixes land, alone slot.
 - LR16-5b sway (M14, ctcourse only): building (above). Then two Opus checkers (src/net) + laptop perf on ctcourse, merge
   into lr16int.
 - Walk 4.82 (WALK-4.82-REPORT.md on feature/menu): item 1 "Marlow yard seems dark" -> LR16g target (builder told).
