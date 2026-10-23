@@ -1,6 +1,7 @@
 # Guard models: state
 
 ## Resume
+- ~21:55: G3 done (gm-g3 0753e753, G3-REPORT.md; smoke helmet_std 856 / 1200 tris, 62 s): Opus checker on a scratch merge with 5b56f8ea. Gear bake waits for G1 bodies (torso pieces) and needs a helmet refit on G1h's head envelope once G1h names that output.
 - ~21:50: P1 re-check PASS (reports/P1-RECHECK.md, polish list there): P1 group closed on feature/guard-models. G2 garments Opus builder started early (gm-g2 off 92292b90; scripts now, bake after G1 bodies).
 - RESUMED ~21:35 (new account): P1 fix round done (9029cb72, 88ba424b, 7488d74d; P1-FIX-REPORT.md): fresh Opus re-check running on 7488d74d. G5 done (gm-g5 4f51918a, G5-REPORT.md): Opus checker running. G1 (gm-g1 5d9c601a), G1h (gm-g1h f4685346), G3 (gm-g3 456698c3) Opus builders restarted from WIP with the P1 data (bodies 3, heads 11, gear 25). Next: merge P1 on PASS, gm-g5 on PASS, then book each full stage as a laptop alone request.
 - SAVE ~21:25: P1 checker FAIL (G6 kit ids outside kit pools; GB normalizeKit misreads outfits / gear per base; helmet_heavy to gameplayGear): Opus fix round running IN this worktree (report docs/guard-models/reports/P1-FIX-REPORT.md), then a fresh re-check. WIP pushed: gm-g5 ef173084, gm-g1 729f6dcb, gm-g1h 5da3600c (nothing yet), gm-g3 09f27096. Laptop: gm-g6n e2e-coop + netmove on 0981cae6 (set gm-g6n), L0 probe (set guard-bake-probe). Hair caps: job haircaps-<base> (build_head.py --haircaps), told to G1h.
