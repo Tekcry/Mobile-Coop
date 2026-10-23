@@ -56,6 +56,11 @@ Rejected by you (~01:25): anything that assumes a dark camera is blind (G240 sta
 Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN section 6; slice reports S0-*.md.
 
 ## Now (2026-10-23 ~01:20, new account; FULL BURN to 100% per Michael ~01:05 via the orchestrator)
+- ~16:10 (swap resume, fresh). Fix 3c committed as found (a48aae2b, test-only, no report section; agent died at the
+  swap). Running: :4 on a48aae2b (desktop lane 4191, log C:/NightShift/scratch/mf-s4h.log); fix 4 (Opus, worktree
+  -fix4 ff'd to a48aae2b; A2 shunter ignores the cut, A4 host dock lit 0.991; slice 10 diag in scratch/s10-d1.log,
+  s10-ct2b.log; lane 2 runner scratch/mf-run2.sh 4192); slice 10 checker (Sonnet, slices/S10-check.md). s10 diag
+  edits reverted. NEXT: merge s10 + fix4 into feature/marlow-final, merge master, ONE laptop full e2e, PR.
 - ~15:12 SAVE (orchestrator 82%). WIP pushed: feature/marlow-final 3d6aa95b (fix 3c mid-work: a8Strongroom.mjs,
   stealthSystems.ts; no "Fix 3c" verdict yet), feature/marlow-final-s10 dfee91c3 (slice 10 W1-W5 mid-work, 16 files;
   W1 done: every Marlow camera armoured, S10-A1; no wire change so far; desktop lane jammed at CPU 97%). Laptop asked
