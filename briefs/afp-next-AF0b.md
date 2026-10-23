@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-23T20:07+1100
+status: done feature/afp-af0b 9507c179
 
 # Brief: afp-next AF0b - before-numbers harness for the hand-keyed states (Player Build, test code only)
 
@@ -66,3 +66,36 @@ E. `tests/afpNext.test.ts`: same shape as animFixPass.test.ts (try / catch per r
 - Report at the end of THIS brief: what changed, rows that ERROR and why, test counts and run time, deviations.
 - Commit trailer: `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Set `status: done feature/afp-af0b <sha>`.
 - Questions the brief cannot settle: `status: blocked <reason>`.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-23)
+Built `feature/afp-af0b` @ 9507c179 on 48b9b73c. `git diff --stat 48b9b73c`: 3 files, +350 / -10 (no src/).
+What changed:
+- `tests/helpers/afpMeasure.ts`: `runGait` `opts.drawn: 'rifle' | 'pistol'` (~444-490): a bare gun node under
+  `rig.weaponPivot` follows the target's `armed` per step (`heldWeapon = null` + dispose on holster), built from the
+  onStep hook. Probe records head yaw vs root yaw (~36-93); a holstered frame on a gun-extent probe gets a NaN gun segment
+  (alignment) and `gunClearance` skips it (~350-358; aimRun callers always hold a gun, unaffected). New metrics
+  `pelvisVertical`, `headYawStats`, `footPitchStep`, `cadence` (~398-434) -> 5 new `Measures` fields. New sets
+  `readyScenarios` (38 rows), `aimedScenarios` (6), `idleScenarios` (6) as `NextScenario` (~561-621).
+- `tests/afpNext.test.ts` (new): report-only, try / catch per row, one `expect(out.length).toBeGreaterThan(10)`,
+  timeout 1500000; control table + `gun` column.
+- `docs/afp-next/before/numbers.md` (new, generated).
+Rows that ERROR: none (0 of 50).
+Control vs `docs/anim-fix-pass/before/numbers.md`: walk-1.4-straight max diff 0.00 in every shared column;
+jog-3-straight max diff 3.0 (pel below 3.6 vs 6.6; trunk, bank, pass gap differ too). AF0's file was written at
+098fc9af, before AF1-AF4b changed src/. The base harness from 48b9b73c and the new one, run side by side on current src,
+gave both rows identical to 3 decimals, so the drift is the game changes, not the harness (two-line note in numbers.md).
+The done criterion "+-0.1" is therefore met for walk only; jog differs by design of AF1-AF4b.
+Tests: tsc 0 errors; eslint clean on the 3 files; `afpNext.test.ts` 1 / 1 in ~9 s (brief estimated 10-25 min);
+mocapStrafe + mocapRunFeet + keyedDrawn: 21 pass, 1 skip, 1 FAIL = mocapStrafe "the aimed strafe allocates no more a
+frame than the hand-keyed glide strafe (base ON)" (on 1882.9 vs off 1835.9 B / frame, limit 1868.9; two solo reruns
+also failed). PRE-EXISTING: Cloud Builder 1 reran it on base 48b9b73c (untouched harness) and it fails there too (11
+pass, 1 fail); the test imports none of the changed files. Heap-per-frame test, likely load-sensitive on a shared box.
+Deviations:
+1. `mocapPlayer.ts` not edited (3 files, not 4); `rig.animate` wrapped from the hook instead of editing `ctRun`.
+2. Gun attached in the hook after step 0's animate: frame 0 (1/60 s) of a drawn run has no gun; recording starts >= 2 s.
+3. Pistol on the CT run = weight 0.7 (AF0 convention) + `supportStyle = 'cup'` (as `weaponModel.ts:297` sets in game).
+4. Head yaw recorded in the probe, not a new recorder array (would need mocapMeasure.ts / mocapStrafe.ts edits).
+5. Timings chosen: reversal fwd 1.4 / back 1.05 every 1.5 s from 1 s; raise aim 0 -> 1 at 1.5 s, recorded from 1 s;
+   idle stop rows record 4 s from the stop; idle start rows move at 3 s, record from 2.5 s for 3 s; 12 s idle rows
+   settle 2 s first.
+6. Control table = the 2 gait rows (walk / jog straight), self-checked against AF0's committed file.
