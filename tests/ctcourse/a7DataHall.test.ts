@@ -835,11 +835,21 @@ describe('A7 the Data Hall: dressing (slice 7 step 5)', () => {
   /** A skin box's extent as [x0, x1, y0, y1, z0, z1]. */
   const ext = (p: BoxPiece): [number, number, number, number, number, number] => [p.c[0] - p.s[0] / 2, p.c[0] + p.s[0] / 2, p.c[1] - p.s[1] / 2, p.c[1] + p.s[1] / 2, p.c[2] - p.s[2] / 2, p.c[2] + p.s[2] / 2];
   /** The skins whose box overlaps the volume [x0, x1] x [y0, y1] x [z0, z1] (1 mm in). */
-  const skinsIn = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number): BoxPiece[] =>
-    skins.filter((p) => {
+  const skinsInOf = (list: readonly BoxPiece[], x0: number, x1: number, y0: number, y1: number, z0: number, z1: number): BoxPiece[] =>
+    list.filter((p) => {
       const [a, e, c, d, f, g] = ext(p);
       return a < x1 - 1e-3 && e > x0 + 1e-3 && c < y1 - 1e-3 && d > y0 + 1e-3 && f < z1 - 1e-3 && g > z0 + 1e-3;
     });
+  const skinsIn = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number): BoxPiece[] => skinsInOf(skins, x0, x1, y0, y1, z0, z1);
+  /** A planted 0.03 m skin (a cube) at the middle of a window [x0, x1, y0, y1, z0, z1]: the test's own piece, never in the set. */
+  const plantIn = (w: readonly [number, number, number, number, number, number]): BoxPiece => ({
+    c: [(w[0] + w[1]) / 2, (w[2] + w[3]) / 2, (w[4] + w[5]) / 2],
+    s: [0.03, 0.03, 0.03],
+    yaw: 0,
+    pitch: 0,
+    color: '#ff00ff',
+    collide: false,
+  });
 
   it('the greybox is as S7 built it: its 46 boxes (checksum), 36 solids, 15 lamps, 5 doors, 6 anchors; the dressing adds NO collision (every dressing box is a skin)', () => {
     let sum = 0;
@@ -1057,11 +1067,12 @@ describe('A7 the Data Hall: dressing (slice 7 step 5)', () => {
     for (const l of lamps) expect(l.group).toBeGreaterThanOrEqual(g0);
   });
 
-  it("the cage keeps its clearances: no skin on the ready lamps' line (fence x 86 and 96, z 61.4-61.6, y 1.9-2.3), none within 0.5 m of either hack spot above the floor, the doors' clear openings and the cameras' lenses bare", () => {
-    for (const x of [cage.x0, cage.x1]) expect(skinsIn(x - 0.15, x + 0.15, 1.9, 2.3, 61.4, 61.6).map((p) => p.c), `fence ${x}`).toEqual([]);
-    for (const [sx, sz] of [A7_T1_SPOT, A7_T2_SPOT]) {
-      expect(skinsIn(sx - 0.5, sx + 0.5, 0.05, 3.0, sz - 0.5, sz + 0.5).map((p) => p.c), `spot ${sx}, ${sz}`).toEqual([]);
-    }
+  /** The clearance windows the cage test expects bare, as [x0, x1, y0, y1, z0, z1] (the planted-skin test below runs the same list). */
+  type ClearWindow = { name: string; w: [number, number, number, number, number, number] };
+  const clearWindows = (): ClearWindow[] => {
+    const out: ClearWindow[] = [];
+    for (const x of [cage.x0, cage.x1]) out.push({ name: `fence ${x}`, w: [x - 0.15, x + 0.15, 1.9, 2.3, 61.4, 61.6] });
+    for (const [sx, sz] of [A7_T1_SPOT, A7_T2_SPOT]) out.push({ name: `spot ${sx}, ${sz}`, w: [sx - 0.5, sx + 0.5, 0.05, 3.0, sz - 0.5, sz + 0.5] });
     // the doors' clear openings (1.2 x 2.1, through the wall's thickness): the hall door, the plant door, the pod door, both cage doors
     const d = (id: string) => b.anchors.doors.find((q) => q.id === course.doors[id])!;
     for (const id of [A7_HALL_DOOR, A7_PLANT_DOOR, A7_POD_DOOR, A7_CAGE_W, A7_CAGE_E]) {
@@ -1071,15 +1082,32 @@ describe('A7 the Data Hall: dressing (slice 7 step 5)', () => {
       const x1 = alongZ ? q.hinge.x + 0.14 : q.hinge.x + q.width;
       const z0 = alongZ ? q.hinge.z : q.hinge.z - 0.14;
       const z1 = alongZ ? q.hinge.z + q.width : q.hinge.z + 0.14;
-      expect(skinsIn(x0, x1, 0.05, 2.1, z0, z1).map((p) => p.c), id).toEqual([]);
+      out.push({ name: id, w: [x0, x1, 0.05, 2.1, z0, z1] });
     }
     // the L6 far and L7 near sliding doors (1.8 m, frames to 2.42 m) on the set box's edges
-    expect(skinsIn(70.2, 70.3, 0.05, 2.45, 61.0, 63.0)).toEqual([]);
-    expect(skinsIn(99.7, 99.8, 0.05, 2.45, 59.0, 61.0)).toEqual([]);
+    out.push({ name: 'L6 far sliding door', w: [70.2, 70.3, 0.05, 2.45, 61.0, 63.0] });
+    out.push({ name: 'L7 near sliding door', w: [99.7, 99.8, 0.05, 2.45, 59.0, 61.0] });
     // the cameras lenses (the 0.2 m round the mount point) are free of skins
-    for (const c of [A7_CAM1, A7_CAM2]) expect(skinsIn(c.at[0] - 0.1, c.at[0] + 0.1, c.y - 0.15, c.y + 0.15, c.at[1] - 0.1, c.at[1] + 0.1).map((p) => p.c), c.id).toEqual([]);
+    for (const c of [A7_CAM1, A7_CAM2]) out.push({ name: c.id, w: [c.at[0] - 0.1, c.at[0] + 0.1, c.y - 0.15, c.y + 0.15, c.at[1] - 0.1, c.at[1] + 0.1] });
     // the units west lees: no skin above the floor within 0.25 m of the lee foot (the body is 0.3: a skin stands at most 5 cm off a box face, inside the capsule standoff)
-    for (const [x, z] of A7_LEES) expect(skinsIn(x - 0.25, x + 0.25, 0.05, 1.8, z - 0.25, z + 0.25).map((p) => p.c), `lee ${x}`).toEqual([]);
+    for (const [x, z] of A7_LEES) out.push({ name: `lee ${x}`, w: [x - 0.25, x + 0.25, 0.05, 1.8, z - 0.25, z + 0.25] });
+    return out;
+  };
+
+  it("the cage keeps its clearances: no skin on the ready lamps' line (fence x 86 and 96, z 61.4-61.6, y 1.9-2.3), none within 0.5 m of either hack spot above the floor, the doors' clear openings and the cameras' lenses bare", () => {
+    for (const { name, w } of clearWindows()) expect(skinsIn(...w).map((p) => p.c), name).toEqual([]);
+  });
+
+  it('the clearance windows have teeth: the same query over the dressing plus one planted 0.03 m skin inside each window (the ready-lamp line, the hack spots, the door openings, the sliding doors, the lenses, the lees) finds exactly that skin', () => {
+    const wins = clearWindows();
+    expect(wins).toHaveLength(2 + 2 + 5 + 2 + 2 + A7_LEES.length);
+    for (const { name, w } of wins) {
+      const skin = plantIn(w);
+      expect(skinsInOf(skins, ...w), `${name} bare without the plant`).toEqual([]);
+      const found = skinsInOf([...skins, skin], ...w);
+      expect(found, `${name} planted skin`).toHaveLength(1);
+      expect(found[0], `${name} planted skin`).toBe(skin);
+    }
   });
 
   it('the raised floor and the grating: 0.6 m tile seams across the lobby and hall (60 or more), 14 perforated tiles in aisle B, every floor skin flush (under 4 cm), the grating 60 bars across x 86-92 over a dark pit', () => {

@@ -354,8 +354,8 @@ client takes the boost first and the HUD shows the client as A on both pages; th
    pages; host walks to the office door within the window: no camera detection counted.
 4. Host takes `a8-officer` from behind; host presses `c-a8-console`: `a8-loop` set on both pages, C1-C3 in the looped
    mode on both, the HUD shows "Cameras back in" on both; `a8-office` ticks.
-5. Client to the board's west side; wait for `a8-night2` at the grille stop (route index 2, read on the host); client
-   presses `c-a8-board`: group `a8-night` off on both pages; the grille unlocked; `a8-night1` heads for the board; a
+5. Wait for `a8-night2` at the grille stop (route index 2, read on the host; the client in the dark at the jam spot), then
+   the client to the board's west side; client presses `c-a8-board`: group `a8-night` off on both pages; the grille unlocked; `a8-night1` heads for the board; a
    second press does nothing.
 6. Client walks the east side to the grille (teleport legs allowed in the dark), opens it, steps in, closes it. Host
    down the office stair: the push bar `c-a8-stair-bar` opens the foot door. `a8-lobby` set; `a8-grille` ticks.

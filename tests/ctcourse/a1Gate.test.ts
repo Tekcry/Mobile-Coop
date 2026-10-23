@@ -361,7 +361,7 @@ describe('A1 the Gate: the lounge', () => {
     expect(lay.playerSpawns).toHaveLength(2);
   });
 
-  it('from each spawn the way to the door, and from the door to the mark and to the wicket, is open floor (no desk, seat or flat in the way)', () => {
+  it('from each spawn the way to the door, and from the door to the mark and to the wicket, is open floor (no locker, bench or flat in the way)', () => {
     for (const sp of SPAWNS) expect(walkBlocked(sp.x, sp.z, 5.0, 11), `spawn ${sp.x}, ${sp.z} to the door`).toBeNull();
     expect(walkBlocked(5.0, 11, 7.0, 11)).toBeNull();
     expect(walkBlocked(7.0, 11, A1_MARK.x, A1_MARK.z)).toBeNull();

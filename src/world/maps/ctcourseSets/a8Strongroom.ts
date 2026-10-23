@@ -37,9 +37,11 @@
  * - everything built by hand is a thin visual skin (no collision, `noLedge`, one side under `CANON_MIN_THICK`, so out of the canonical
  *   light shapes: the bake, the meter, the guards and the cameras see the greybox as built): the hall's wall finish (oak dado, plaster,
  *   pilasters, windows, cornice), floors (chequer, plank seams, plate seams, carpet seams, the two striped marks), the gallery's coping,
- *   panels, frieze, column bases and capitals, newels and drop chain, rails on both stairs (visual: the flights' open sides stay open),
+ *   panels, frieze, column bases and capitals, newels and drop chain, rails on both stairs (visual; the public stair's two open sides also take an invisible noLedge collision rail, below),
  *   the counters' back panels and lamp stems, the grille's stone surround and two brass bar panels, the lighting board's cabinet, the
  *   office, the stairwell, the lobby, the beam curtain's plates, the time locks' cases and dials, the vault's inner surround;
+ * - the one collision the stair's rails add: the public stair's two open sides' collision rail (kit.handrail, invisible noLedge, thirteen 0.55 m segments a side
+ *   from the fourth tread to the gallery, S8-check polish 10), so a body cannot step off the flight; the foot and the flight stay open;
  * - the props kit: 8 bank counters and the night desk stand over their greybox boxes (no box written), 5 sign plates hang on the walls,
  *   and the vault's 6 deposit walls are the dressing's only collision (their own six `noLedge` boxes, 0.56 m deep on the two flanks: the
  *   vault stays 6.58 m wide (the test floor is 6.5 m) and the door's axis and swing are clear);
@@ -161,6 +163,12 @@ export const A8_COLUMNS_N: readonly number[] = [115, 121, 127, 133];
 export const A8_COLUMNS_W: readonly number[] = [56.2, 62, 65.6, 71.0];
 /** The public stair (foot z 67.3, rising north) and the office stair (foot x 134.5, rising east). */
 export const A8_PUBLIC_STAIR = { x0: 130.5, x1: 131.7, foot: 67.3 } as const;
+/** The public stair's open-side rails (S8-check polish 10; A6's `A6_STAIR_RAIL` idiom): `kit.handrail` in stepped segments of `seg` m along z on the two lines `x` (0.05 m
+ *  outside each open edge, so it never narrows the 1.2 m flight), from the flight's fourth tread (z `from`: treads are 0.285 m deep from the foot at 67.3, so the fourth starts at 68.155, 5 mm past `from` on the kit's 0.05 m grid; the first
+ *  three treads stay open to step on from the side, a 0.6 m body's centre z <= `from` - 0.3 = 67.85 reaching the first and second treads' centres) to the gallery (z `to`,
+ *  where the balustrade's ends stand at x 130.5 / 131.7); each segment's collision box starts at the floor line at its low (south) end and stands `h` m over the line
+ *  at its high end. Twelve whole `seg` segments and a 0.25 m last one to `to`: thirteen a side (P4-1; P2-3 started at 67.85, the third tread). */
+export const A8_STAIR_RAIL = { x: [A8_PUBLIC_STAIR.x0 - 0.05, A8_PUBLIC_STAIR.x1 + 0.05] as readonly number[], from: 68.15, to: 75, seg: 0.55, h: 1.1 } as const;
 export const A8_OFFICE_STAIR = { z0: 70.0, z1: 71.2, foot: 134.5 } as const;
 /** The closed block south of the flight starts here (x): the foot landing is x 134.15-135.2, so a body there is 2.18 m from T1 (A8-D13). */
 export const A8_STAIR_BLOCK_X0 = 135.2;
@@ -940,11 +948,11 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
     kit.ledSlot(108.9, A8_H.slab, 72.75, 4.5, Math.PI / 2, { tone: 'warm', light: false, group: G_GALLERY });
   });
 
-  // ---- A8-19: the public stair: stringers, balusters, a brass handrail and a mid rail on both sides, newels at the foot (visual: the open sides stay open) ----
+  // ---- A8-19: the public stair: stringers, balusters, a brass handrail and a mid rail on both sides, newels at the foot, and each open side's collision rail (invisible) ----
   const lineAt = (z: number): number => (A8_H.gallery * (z - ps.foot)) / st.len;
   const stairPitch = -Math.atan2(A8_H.gallery, st.len);
   const stairLen = hyp2(st.len, A8_H.gallery);
-  tally(b, p.register, 'A8-19', "Public stair rails (visual skins, no collision: the flight's open sides stay open, SPEC P13 and the A2-17 idiom): on both sides a post every 1.5 m with balusters every 0.4 m under a brass top rail 1.0 m over the nosing line and a mid rail at 0.5 m (pitched like the flight), a stringer board along the nosings, a cross-plate newel 1.1 m at each foot", () => {
+  tally(b, p.register, 'A8-19', "Public stair rails (visual skins, and the open sides' 1.1 m collision rail: kit.handrail, invisible noLedge, thirteen stepped segments of 0.55 m a side 0.05 m outside the flight, from the fourth tread to the gallery where they meet the balustrade's ends; the foot stays open to step on; accent on the gallery strip 82): on both sides a post every 1.5 m with balusters every 0.4 m under a brass top rail 1.0 m over the nosing line and a mid rail at 0.5 m (pitched like the flight), a stringer board along the nosings, a cross-plate newel 1.1 m at each foot", () => {
     for (const x of [ps.x0 - 0.03, ps.x1 + 0.03]) {
       const mid = ps.foot + st.len / 2;
       slope(x, A8_H.gallery / 2 + A8_RAIL_LIFT.top, mid, 0.05, 0.04, stairLen, 0, stairPitch, LOOK.brass);
@@ -959,6 +967,16 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
       skin(x - 0.05, x + 0.05, 0, 1.1, ps.foot - 0.115, ps.foot - 0.085, LOOK.oakDark);
       skin(x - 0.015, x + 0.015, 0, 1.1, ps.foot - 0.15, ps.foot - 0.05, LOOK.oakDark);
       skin(x - 0.06, x + 0.06, 1.1, 1.13, ps.foot - 0.16, ps.foot - 0.04, LOOK.brass);
+    }
+    // the open sides: the kit's balustrade and its collision box per segment, `h` over the walking line at the high end
+    const { x: rx, from, to, seg, h } = A8_STAIR_RAIL;
+    const n = Math.ceil((to - from) / seg - 1e-9);
+    for (const x of rx) {
+      for (let k = 0; k < n; k++) {
+        const za = from + k * seg;
+        const zb = Math.min(za + seg, to);
+        kit.handrail(x, za, x, zb, { y: lineAt(za), h: h + (lineAt(zb) - lineAt(za)), group: G_GALLERY });
+      }
     }
   });
 

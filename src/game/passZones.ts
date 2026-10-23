@@ -24,3 +24,14 @@ export interface PassZone {
 export function passZoneNeed(any: boolean | undefined, n: number, solo: boolean): number {
   return any || solo ? 1 : Math.max(2, n);
 }
+
+/**
+ * (marlow-walk482 X6) The cameras that watch a hallway rule (`PassZone.hall.camera`): a training send-back camera. Its
+ * full awareness only sends the player back (`CtDevices.stepHall`): no device alert to the guards, no alarm stage
+ * (`CtDevices.onCamera`). Built once per map (host); empty when no zone has a hall.
+ */
+export function hallCameras(zones: readonly PassZone[]): Set<string> {
+  const s = new Set<string>();
+  for (const z of zones) if (z.hall) s.add(z.hall.camera);
+  return s;
+}

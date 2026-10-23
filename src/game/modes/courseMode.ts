@@ -14,6 +14,7 @@ import { hyp2 } from '../../core/mathx';
 import { CtDevices } from '../ctDevices';
 import { consoleFor, consoleRefusal } from '../course/securityRoom';
 import { CourseFeed } from '../course/courseFeed';
+import { spotFailed } from '../course/spotFail';
 import { DrillDetect, emptySnap, VERBS } from '../course/drillDetect';
 import { summarise } from '../course/courseRating';
 import { CourseHud } from '../../ui/hud/courseHud';
@@ -23,7 +24,7 @@ import { SectionStartState } from '../sectorReset';
 import { COURSE_RESTART_TITLE, packRated, unpackRated } from '../course/courseWire';
 import type { PlayerRef } from '../../ai/enemy';
 import { CourseMarks, bayTitle, courseGrant } from '../course/courseMarks';
-import { GRANT_GADGETS, coopRating, emptyGrant, type Grant, type SectionStats } from '../rating/sectionRating';
+import { GRANT_GADGETS, coopRating, emptyGrant, putRating, type Grant, type SectionStats } from '../rating/sectionRating';
 import { GADGETS } from '../gadgets';
 import { stationHeal } from '../medkit';
 import { REVIVES_PER_MISSION } from '../reviveClock';
@@ -97,6 +98,8 @@ function drawMarker(g: GameState, st: CourseState, lay: CourseLayout, me: Player
 
 /** Lateral offset (m, along z) of P2 from the middle of an entry airlock at a bay-N start. */
 const P2_START_DZ = 1.2;
+/** (marlow-walk482 X2a) s after a set restart before the spotted rule can fire again (0.5 s respawn + co-op lag). */
+const SPOT_HOLD = 1.5;
 
 /**
  * Where player `p` starts at bay `n` (1-based, D20): the middle of that bay's entry airlock (P2 beside P1), or null for
@@ -154,6 +157,8 @@ export class CourseMode implements GameMode {
   private sendT = 0;
   private dirty = true;
   private restartT = -1;
+  /** (marlow-walk482 X2a) seconds left in which the spotted rule cannot fire again after a set restart */
+  private spotHold = 0;
   private lightsVer = -1;
   private feed: CourseFeed | null = null;
   /** The remote's host-visible verbs (its MoveState mode, C10). */
@@ -568,6 +573,21 @@ export class CourseMode implements GameMode {
     const det = g.style.detections;
     if (det > this.detSeen) st.record('detections', det - this.detSeen);
     this.detSeen = det;
+    // (marlow-walk482 X2a) spotted fails the set: a squad guard in combat restarts it from its start (the full reset,
+    // both players back to the checkpoint; the client hears the line through `rl`). Once: the restart drops the squad
+    // this step (`handle`), and never over a pending everyone-down restart. The line goes first in the queue so a
+    // full queue of lines held while the guard was alerted never drops it.
+    // A hold after any set restart covers the respawn wait (players still where they were seen) and co-op lag, so a
+    // fresh guard cannot fail the set again before both players are back (W482 check should-fix 1).
+    if (this.spotHold > 0) this.spotHold -= dt;
+    const sf = st.currentBay.spotFail;
+    // The manager's list, not `squad`: Course mode spawns only this set's squad, and a knocked-out guard a squadmate wakes is a new
+    // `Enemy` (`EnemyManager.revive`) that `squad` never holds (W482 check should-fix 2).
+    if (sf && !st.over && this.restartT < 0 && this.spotHold <= 0 && spotFailed(st.currentBay, g.enemyMgr?.enemies ?? this.squad)) {
+      this.radioQ.unshift(sf);
+      if (this.radioQ.length > 4) this.radioQ.length = 4;
+      this.restartCheckpoint();
+    }
     // (section-rating S6) the set's live rating stats (the test hook)
     const rs = this.rating;
     if (rs && rs.current >= 0) {
@@ -666,6 +686,7 @@ export class CourseMode implements GameMode {
       case 'bayRestart':
         this.restartT = -1;
         this.restarts++;
+        this.spotHold = SPOT_HOLD;
         // (section-rating S6, A8) the set's rating stats start again; a set already rated is never re-rated, and a grant
         // already given stays (the course has no checkpoint loadout to put back)
         this.rating?.begin(st.bay, st.stats[st.bay]!);
@@ -758,7 +779,7 @@ export class CourseMode implements GameMode {
     const gr = courseGrant(marks, synced, coopRating(g.net !== null, g.playerRefsInto(this.refs).length), REVIVES_PER_MISSION, g.net?.revivesLeft?.() ?? REVIVES_PER_MISSION, carry);
     const view: RatingView = { sectionId: b.id, title: bayTitle(b), marks, synced, grant: gr };
     this.hook.last = view;
-    g.sectionRatings.push(view);
+    putRating(g.sectionRatings, view);
     // an ungranted rating (the finish's) carries no grant on the wire: the client tops up nothing
     const w = this.rt;
     w.sec = bi;
@@ -871,8 +892,13 @@ export class CourseMode implements GameMode {
     }
     if (full) em.resetMemory();
     // (ENGINE-ANSWERS Q4) `despawn`, not a splice and dispose: the old squad's knocked-out or dead bodies go too, so the
-    // next set's guards never find them
-    else for (const e of this.squad) em.despawn(e);
+    // next set's guards never find them. Then whatever the manager still holds (a guard a squadmate woke is a new `Enemy`
+    // that `squad` never held): Course mode only spawns the current set's guards, so none carries into the next set
+    // (polish6 check should-fix).
+    else {
+      for (const e of this.squad) em.despawn(e);
+      for (let i = em.enemies.length - 1; i >= 0; i--) em.despawn(em.enemies[i]!);
+    }
     this.squad.length = 0;
     this.squadIds.length = 0;
   }
@@ -1160,10 +1186,10 @@ function mirrorRating(g: GameState, m: ClientCourse, rt: SectorRatingWire | unde
   if (first && rh) {
     for (let i = 0; i < rh.length && i < bays.length; i++) {
       const r = i === rt.sec ? null : unpackRated(rh[i]!);
-      if (r) g.sectionRatings.push({ sectionId: bays[i]!.id, title: bayTitle(bays[i]!), marks: r.marks, synced: r.synced, grant: emptyGrant() });
+      if (r) putRating(g.sectionRatings, { sectionId: bays[i]!.id, title: bayTitle(bays[i]!), marks: r.marks, synced: r.synced, grant: emptyGrant() });
     }
   }
-  g.sectionRatings.push(v);
+  putRating(g.sectionRatings, v);
   const w = window as unknown as { __sectionRating?: { stats: unknown; last: RatingView | null; lastGrant: unknown; seq?: number } };
   if (w.__sectionRating) w.__sectionRating.last = v;
   else w.__sectionRating = { stats: null, last: v, lastGrant: null, seq: 0 };
