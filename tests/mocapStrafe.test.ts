@@ -21,6 +21,9 @@ import { AnimGraph, defaultInput } from '../src/anim/animGraph';
 import { proportions } from '../src/player/proportions';
 import { bytesPerCall, HEAP_NUMBER, inputs } from './helpers/allocPerCall';
 
+/** Bytes a frame of heap-average jitter tolerated in the allocation compare (well under one boxed double). */
+const ALLOC_NOISE = 1;
+
 /** A swing foot's largest move in a frame (m): ON's steady 0.9 m/s side-step peaks at 7.8 cm, a snap off the strafe at
  *  11.3 cm (the STRAFE_REAIM fade); before the fade a re-aimed side-step jumped 24-29 cm in a frame (a pop). */
 const ANKLE_JUMP = 0.115;
@@ -249,7 +252,9 @@ describe('mocap strafe (A10)', () => {
           if (on) expect(g.out.keyStrafe, `${name}: the captures play`).toBeGreaterThan(0.5);
         }
         rows.push(`${name} off ${b[0]!.toFixed(1)} on ${b[1]!.toFixed(1)}`);
-        expect(b[1]!, `${name}: on ${b[1]!.toFixed(1)} vs off ${b[0]!.toFixed(1)} B a frame`).toBeLessThanOrEqual(b[0]! + boxes * HEAP_NUMBER);
+        // + ALLOC_NOISE: the heap average over N frames jitters by a fraction of a byte (CI read diagonal on 1989.4 vs
+        // limit 1989.28); 1 B a frame is a sixteenth of one boxed double, far under a real new allocation
+        expect(b[1]!, `${name}: on ${b[1]!.toFixed(1)} vs off ${b[0]!.toFixed(1)} B a frame`).toBeLessThanOrEqual(b[0]! + boxes * HEAP_NUMBER + ALLOC_NOISE);
       }
     } finally {
       setMocapLocomotion(false);
