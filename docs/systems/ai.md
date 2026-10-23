@@ -186,6 +186,24 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   normal hit reaction (combat on the shot's origin, contact call) and a `deflect` bark. Both return
   `DamageResult.deflect`. Placeholder parts (A45): the rig's combat-helmet part on the head node, the armour plates on
   the torso and shoulders, built on first use and toggled. Host-only (S9 carries the gear bits and the confirm).
+- Section alert (guard-ai S14, stealth over shooting items 6 and 7, A40 / A41, A70-A76; `ai/sectionAlert.ts` pure:
+  `AlertCallLog`, `SectionCounters`, `unitOf`; numbers `MISSING` / `SHOTS` in `ai/gear.ts`). A missed check-in (a
+  radio check's miss, one call per check; a talking pair's partner who never came) -> the caller's `missing` call
+  (`EnemyManager.missingCall`, `RADIO.callIn` x reaction, cuttable) under its own incident id (`alertInc`: -2, -3, ...;
+  the S2 pair lead's own `missing` report stays an ack). A loud shot (`noise`): the nearest calm hearer at tier 1-2 not
+  sent to combat by it (`mayCallShots`) starts a `shots` call (`CallKind` appended, code 7; `shotsHeard`: one per
+  shots incident, later shots join the open call). Delivered (`radioDeliver` -> `alertHold`), each receiver is cautious
+  on a timed hold (`Awareness.timedHold(k, s, kind)`, `alertT` / `alertKind`, `ALERT_MISSING` 180 s / `ALERT_SHOTS`
+  120 s; caution 1; the longer time wins, so a later call refreshes it; it ends on its own; going down drops it; a held
+  caution beats it, so a missing guard then found dead is the S4 held caution). When the call completes
+  (`alertThrough`) the caller says `missingReport` / `shotsReport`, turns cautious too, and a shots call reports a board
+  `shots` incident at the newest shot with him as perceiver plus `IncidentBoard.wantPair`: a lead (`sendTo`) and a cover
+  `pairBack` short (`pairSearch`, cover), or a cover for the one already sent (`needCover` -> `addCover`). No alarm from
+  either (M4). Suppressed shots stay ordinary noises (`hear`). Read-only tallies `EnemyManager.sectionCounts`
+  (`bodiesFound`, `missedChecks`, `shotsCalls` through, `radioAlarms`), reset by `clear` (section load, restart).
+  Barks: `missed` names the unit (`BARKS_UNIT`, `BarkVoice.sayUnit`, `Enemy.bark(ev, unit)`), `shots`, `shotsReport`,
+  `missingReport`. Host-only, no wire change (S9's caution bit shows it on the client). Tests:
+  `tests/sectionAlert.test.ts`, `tests/radioNet.test.ts`; e2e: e2e-stealth-ai 'missed check', 'loud shot'.
 - Squad roles (guard-ai S8, coordinated modes; `squadRoles.ts`, `coverGrid.ts`): `EnemyManager.rolesStep` at 2 Hz
   (`TACTICS.tick`) fills one reused `RoleInput` from the engaged group (alerted, free, cover-using guards; >= 2,
   `TACTICS.minGroup`), runs `assignRoles` against the level cover as typed arrays (`coverSet`, mirrored from

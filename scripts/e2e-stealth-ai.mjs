@@ -1621,6 +1621,154 @@ try {
     assert(r.killed, 'one round to the head kills (no helmet)');
   });
 
+  // (guard-ai S14, A40) a radio check misses a squad member taken out unseen: the caller radios "not answering", the
+  // section turns cautious on a timed hold (MISSING.cautious), two search the spot; the caller taken during the call:
+  // nobody is cautious
+  await scen('missed check', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const R = em.radioTable;
+      const rnd = Math.random;
+      let seed = 1414;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      try {
+        // a squad of three facing away from their third (yaw PI = -z), a far guard of the same section; dark, the
+        // player far off
+        const setup = () => {
+          t.light(0);
+          t.tp(-22, -24, 0);
+          const a = t.spawn('grunt', 0, 5, Math.PI);
+          const b = t.spawn('grunt', 6, 5, Math.PI);
+          const c = t.spawn('grunt', 10, 9, Math.PI);
+          const far = t.spawn('grunt', -21, 17, Math.PI);
+          for (const e of [a, b, c]) em.joinSquad(e, 77);
+          t.step(0.3);
+          return { a, b, c, far };
+        };
+        const s = setup();
+        t.kill(s.c, true);
+        t.step(0.2);
+        const m0 = em.sectionCounts.missedChecks;
+        em.radioCheckNow();
+        const caller = em.lastCheckCaller;
+        t.step(0.1);
+        const inc = [s.a.incident, s.b.incident];
+        const kind = s.a.incident >= 0 ? em.board.kindOf(s.a.incident) : null;
+        const left = caller ? em.radioLeft(caller) : 0;
+        const before = em.cautionOf(s.far);
+        t.step(left + R.staggerMax + 0.5);
+        const got = {
+          far: em.cautionOf(s.far),
+          farLeft: em.awareness.alertLeft(s.far.key),
+          farKind: em.awareness.alertOf(s.far.key),
+          a: em.cautionOf(s.a),
+          b: em.cautionOf(s.b),
+          missed: em.sectionCounts.missedChecks - m0,
+        };
+        // the caller taken (silently) during his call
+        t.reset();
+        const s2 = setup();
+        t.kill(s2.c, true);
+        t.step(0.2);
+        em.radioCheckNow();
+        const caller2 = em.lastCheckCaller;
+        t.step(0.5);
+        const left2 = caller2 ? em.radioLeft(caller2) : 0;
+        if (caller2) t.kill(caller2, true);
+        t.step(left2 + R.staggerMax + 1);
+        const cut = {
+          far: em.cautionOf(s2.far),
+          alerts: [s2.a, s2.b, s2.far].filter((e) => e.alive && em.awareness.alertLeft(e.key) > 0).length,
+        };
+        t.light(null);
+        return { caller: !!caller, inc, kind, left, before, got, max: em.missingTable.cautious, caller2: !!caller2, left2, cut };
+      } finally {
+        Math.random = rnd;
+      }
+    });
+    const f = (v) => v.toFixed(2);
+    assert(r.caller && r.left > 1.5, `the radio check's caller radios the miss (call ${f(r.left)} s)`);
+    assert(r.inc[0] >= 0 && r.inc[0] === r.inc[1] && r.kind === 'missing', `two of his squad search the spot (${r.inc}, ${r.kind})`);
+    assert(r.before === 0, 'nobody is cautious before the call gets through');
+    assert(r.got.far === 1 && r.got.farKind === 1 && r.got.farLeft > r.max - 10, `the far guard of the section turns cautious, timed (${JSON.stringify(r.got)})`);
+    assert(r.got.a >= 1 && r.got.b >= 1, `the squad is cautious too (${r.got.a}, ${r.got.b})`);
+    assert(r.got.missed === 1, `one missed check counted (${r.got.missed})`);
+    assert(r.caller2 && r.left2 > 0.3, `the second caller is still on the radio when he is taken (${f(r.left2)} s left)`);
+    assert(r.cut.far === 0 && r.cut.alerts === 0, `the caller taken during the call: nobody is cautious (${JSON.stringify(r.cut)})`);
+  });
+
+  // (guard-ai S14, A41) a loud shot 20 m from one guard (he only turns): he radios "shots fired"; once it gets through a
+  // far guard who never heard it turns cautious (SHOTS.cautious) and two go to the spot (lead + cover); a suppressed
+  // shot: no call
+  await scen('loud shot', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const R = em.radioTable;
+      const rnd = Math.random;
+      let seed = 2727;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      const fire = (noise) => {
+        const st = g.weapons.current.stats;
+        const n0 = st.noise;
+        st.noise = noise;
+        g.weapons.events.onShot(g.weapons.current.def);
+        st.noise = n0;
+      };
+      try {
+        t.light(0);
+        t.tp(0, -5, Math.PI);
+        // ~20 m from the shot (tier 1: a turn), and one ~30 m off (out of its 28 m reach)
+        const ear = t.spawn('grunt', -7, 14, 0);
+        const far = t.spawn('grunt', -21, 17, Math.PI);
+        t.step(0.3);
+        const c0 = em.sectionCounts.shotsCalls;
+        fire(1);
+        const left = em.radioLeft(ear);
+        const earLevel = ear.level;
+        t.step(0.1);
+        const before = em.cautionOf(far);
+        t.step(left + R.staggerMax + 0.5);
+        const got = {
+          far: em.cautionOf(far),
+          farKind: em.awareness.alertOf(far.key),
+          farLeft: em.awareness.alertLeft(far.key),
+          ear: em.cautionOf(ear),
+          inc: [ear.incident, far.incident],
+          kind: ear.incident >= 0 ? em.board.kindOf(ear.incident) : null,
+          calls: em.sectionCounts.shotsCalls - c0,
+          alarm: em.alarmRaised,
+        };
+        // a suppressed shot 8 m from him: he turns, nobody radios
+        t.reset();
+        t.light(0);
+        t.tp(0, -5, Math.PI);
+        const ear2 = t.spawn('grunt', 0, 3, 0);
+        const far2 = t.spawn('grunt', -21, 17, Math.PI);
+        t.step(0.3);
+        fire(0.35);
+        const supp = { left: em.radioLeft(ear2) };
+        t.step(5);
+        supp.far = em.cautionOf(far2);
+        supp.calls = em.sectionCounts.shotsCalls;
+        t.light(null);
+        return { left, earLevel, before, got, max: em.shotsTable.cautious, supp };
+      } finally {
+        Math.random = rnd;
+      }
+    });
+    const f = (v) => v.toFixed(2);
+    assert(r.left > 1.5 && r.earLevel !== 'alert', `the guard who heard it (${r.earLevel}) radios it (call ${f(r.left)} s)`);
+    assert(r.before === 0, 'the far guard is calm before the call gets through');
+    assert(r.got.far === 1 && r.got.farKind === 2 && r.got.farLeft > r.max - 10, `the far guard turns cautious, timed (${JSON.stringify(r.got)})`);
+    assert(r.got.inc[0] >= 0 && r.got.inc[0] === r.got.inc[1] && r.got.kind === 'shots', `two go to the spot (${r.got.inc}, ${r.got.kind})`);
+    assert(r.got.calls === 1 && !r.got.alarm, `one shots call, no alarm (${r.got.calls}, ${r.got.alarm})`);
+    assert(r.supp.left === 0 && r.supp.far === 0 && r.supp.calls === 0, `a suppressed shot: no call, nobody cautious (${JSON.stringify(r.supp)})`);
+  });
+
   const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
   assert(real.length === 0, `no console errors (${real.join(' | ')})`);
 } catch (e) {

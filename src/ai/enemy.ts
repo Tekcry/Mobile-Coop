@@ -682,11 +682,12 @@ export class Enemy implements Damageable {
     return out.copyFrom(this.pos).addInPlaceFromFloats(0, (this.crouch > 0.5 ? 1.0 : EYE_STAND) * this.def.scale, 0);
   }
 
-  /** Say a line for `ev` (the dog growls whatever the event). */
-  bark(ev: BarkEvent): void {
+  /** Say a line for `ev` (the dog growls whatever the event). (guard-ai S14) `unit` >= 1: a line that names that unit
+   *  ("Unit three, report..."), where the event has one (`BARKS_UNIT`). */
+  bark(ev: BarkEvent, unit = 0): void {
     if (!this.alive) return;
     const e = this.dog && ev !== 'blind' ? 'dog' : ev;
-    const line = this.voice.say(e);
+    const line = unit >= 1 ? this.voice.sayUnit(e, unit) : this.voice.say(e);
     if (line) this.ctx.onBark?.(this, line, RADIO_BARKS.has(e));
   }
 

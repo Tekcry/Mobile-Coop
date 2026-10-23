@@ -134,6 +134,12 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   helmets too. Each alarm's team comes in behind a shield guard; hide: after about a minute at your last spot the team
   walks the section point to point (shield first, the rest close behind, a look round at each, torches in the dark),
   still hunting minutes later; the cameras are as before. A restart drops the gear with the stage.
+- [ ] Section alert (guard-ai S14, Sector Ops): knock a squad guard out unseen and wait for the radio check: "Unit N,
+  report... Nothing.", then "a unit's not answering" on the radio; the section's guards walk slower and look longer for
+  a few minutes (cautious), two search the spot. Do it again but take the caller down while he is still on the radio:
+  nobody turns cautious. Fire an unsuppressed shot ~20 m from a guard: "Shots fired! Calling it in.", then a far guard
+  who never heard it turns cautious and two guards come to the spot; no alarm. A suppressed shot: no call. In co-op
+  the client's suppressed shot is heard as close as the host's (about 10 m).
 - [ ] Breakers and dark lamps (guard-ai S15, Sector Ops): switch a room's lights off with two guards watching: one says
   "Breaker's gone again.", walks over at his normal pace and the lights come back about 2 s later, both stay calm;
   switch it off again at once: a full light check at the switch. Shoot a lamp out while no guard looks: the next guard

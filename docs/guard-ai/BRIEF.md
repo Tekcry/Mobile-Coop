@@ -274,6 +274,39 @@ doesnt make sense". A32-A34 are S10's (on `feature/guard-ai-s10`).
   guard with no route; dogs left out); other live maps read the guards placed in the alarm's section at the alarm
   (dead ones included, dogs and team members left out). A woken team member takes his place back, counts as having
   fought (never calms) and gets the stage gear. Undo: drop `e.aware.fought = true` in `EnemyManager.revive`.
+- **A70** (S14) An alert call (`missing` for a miss, `shots`) carries its own incident id (-2, -3, ...), apart from the
+  board's: the S2 pair lead's own `missing` report (board id) stays an ack and never makes anyone cautious, so taking
+  the caller during his call leaves the section calm even when another guard leads the search. When the caller also
+  leads, he holds two calls (both cut with him). Undo: start the alert call on the board's incident and drop the log
+  check in `radioDeliver` (the queue then merges the two calls' receivers under whichever completed first).
+- **A71** (S14) One `missing` call per radio check (several members missed in one check: one call, at the first one's
+  spot); the S10 pair miss calls too, also when the partner's guard is gone (the spot is his last route point). Each
+  missed member still counts in `missedChecks`. Undo: call per member in `radioCheckNow`.
+- **A72** (S14) "One call per shots incident" is the open call: loud shots heard while the shots call is going out join
+  it (the spot moves to the newest); once it is through or cut, the next loud shot heard is a new call, whose delivery
+  refreshes the caution. No refresh without a call. The caller is the nearest calm hearer (tier 1 or 2) whom this shot
+  does not send to combat; not a dog or melee guard, not passive, held or blinded, not on the search after a fight.
+  Undo: `SHOTS.sectionCall = false`.
+- **A73** (S14) The shots pair: the delivered call reports a board `shots` incident at the newest shot's spot with the
+  caller as a perceiver (`IncidentBoard.wantPair`): the lead walks over as an investigator (`sendTo`), the cover holds
+  `pairBack` short as the missing pair's cover; the cover is another perceiver, else a calm guard within `callR`, else
+  any free guard. Merged into a shots incident already assigned, its one investigator gets the cover. Undo:
+  `SHOTS.pair = false` (one goes, as before).
+- **A74** (S14) The section alert is the S4 caution 1 (cooldown sight, `PACE.cautious`, waits x `CAUTION.waitMul`, the
+  torch rule of a searching guard while calm); the caller is cautious too. A guard who goes down loses his timed alert
+  (woken: the S4 knockout caution). Undo: none needed (the caution model is S4's).
+- **A75** (S14) Section counters (`EnemyManager.sectionCounts`): `bodiesFound` (a guard found the body), `missedChecks`
+  (each member a check missed, each pair partner who never came, counted at the miss), `shotsCalls` (only calls that got
+  through), `radioAlarms` (a `command` call that raised the alarm); reset by `EnemyManager.clear` (section load via
+  `despawnAll`, restart via `resetMemory`). The older run tallies (`bodiesFound`, `radioMisses`, `pairMisses`) are
+  unchanged. Undo: not needed (read-only).
+- **A76** (S14) Barks: the radio check's "missed" line names the unit ("Unit three, report... Unit three? Nothing.";
+  slot + 1, else key + 1) and is urgent now (it follows his own "Radio check." at once; the cooldown dropped it before);
+  `shots` ("Shots fired! Calling it in.") at the call's start; radio lines `shotsReport` / `missingReport` when the call
+  gets through. Undo: drop `'missed'` from `URGENT`, call `bark('missed')` without the unit.
+- **A77** (S14) The co-op quiet shot (A46) uses `min(weapon def noise, 0.6)`: the host does not know a client's
+  suppressor mods, and a quiet shot is never louder than the suppressed cap. Undo: `SHOT_NOISE * 0.5` in
+  `CoopHost.remoteNoise`.
 - **A60** (S15) The breaker walk is calm: the guard keeps his level (unaware or cooldown; suspicious only if a glimpse
   comes on the way, and the walk goes on once nothing is in sight); investigating or worse drops it. A fault is said
   aloud ("Breaker's gone again.", a new `breaker` bark, not a radio line) and starts no radio call; the other witnesses
