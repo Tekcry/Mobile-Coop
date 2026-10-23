@@ -25,10 +25,11 @@
  * - everything built by hand is a thin visual skin (no collision, `noLedge`, one side under `CANON_MIN_THICK` so it is out of the
  *   canonical light shapes: the bake, the meter and the guards see the greybox as built): van detail, wheel-stop buffer faces, the
  *   cabin's cladding and fittings, the cabinets' faces, the staging's plate, face, screens, drop chain and closed-stair scar, the
- *   stair's handrails, the shed walls' sheeting and frames, the roof ties, floor paint;
+ *   stair's handrails (visual; the open side also has a collision rail, below), the shed walls' sheeting and frames, the roof ties, floor paint;
  * - the only new collision is invisible and `noLedge`: fifteen fillers under the east stair's flight (S2-check should-fix 2: nothing
- *   can stand inside the steps) and the props kit's own box (`FacilityProps.write`: the permit gate that closes the pocket where the
- *   removed west stair stood). The two push stations, twelve track panels (flush rails) and the gate are the set's props;
+ *   can stand inside the steps), the open side's collision rail (kit.handrail, invisible noLedge, twelve stepped 0.55 m segments from
+ *   x 68.6 to the head, P3-2: no step-off the flight; the bottom treads stay open from the side) and the props kit's own box
+ *   (`FacilityProps.write`: the permit gate that closes the pocket where the removed west stair stood). The two push stations, twelve track panels (flush rails) and the gate are the set's props;
  * - kit panels with accent coves, every one on its circuit's group: the shed's south, west and east walls above 4.4 m (the shed
  *   general circuit, 20) and the north wall over the gallery glazing (the staging, 23). No lamp is added.
  */
@@ -103,6 +104,12 @@ const THIN = 0.05;
 /** The east stair's collider is `LevelBuilder.ramp`'s 0.3 m slab (its top is the nosing line). The fillers under the flight are `step` wide and
  *  stand to `gap` under that line at their low end, so their tops are inside the slab (0.35 m thick): no air under it, and no top above what a body walks on. */
 export const STAIR_FILL = { step: 0.5, gap: 0.05 } as const;
+/** The east stair's open-side rail (P3-2; A6's `A6_STAIR_RAIL` and A4's `A4_STAIR_RAIL` idiom): `kit.handrail` in stepped segments of `seg` m along x at
+ *  z `z` (0.05 m outside the flight's open south edge z 18.8, so it never narrows the 1.2 m flight), from x `from` (0.63 m up the walking line: the foot
+ *  sits 0.05 m off the east wall, so the only way onto the flight is from the side across the bottom treads, which stay open; at the third tread the gap
+ *  to the wall would be one body width) to the head (x `to`, the deck's east end); each segment's collision box starts at the walking line at its low
+ *  (east) end and stands `h` m over the line at its high end. Twelve segments. */
+export const A2_STAIR_RAIL = { z: 18.75, seg: 0.55, h: 1.1, from: 68.6, to: 62 } as const;
 /** The wheel stops' x spans and the train-facing face of each (the rails end against it). */
 const STOPS = [
   { side: 'e', at: 33.4, x0: 32.6, x1: 33.4 },
@@ -380,7 +387,7 @@ export function buildA2CarriageShed(b: LevelBuilder, kit: FacilityKit): SetPart 
   };
 
   // ---- S2-check should-fix 2: the east stair's underside is solid (A2-17) ----
-  tally(b, p.register, 'A2-17', 'East stair: noLedge collision fillers under the flight (invisible, 0.5 m slices to just under the ramp slab top: nothing can stand in the steps) and its handrails (visual skins)', () => {
+  tally(b, p.register, 'A2-17', 'East stair: noLedge collision fillers under the flight (invisible, 0.5 m slices to just under the ramp slab top: nothing can stand in the steps), its handrails (visual skins) and the open side\'s 1.1 m collision rail (kit.handrail, invisible noLedge, twelve stepped segments of 0.55 m 0.05 m outside the flight from x 68.6 to the head; the bottom treads stay open from the side; accent on the staging strip 23)', () => {
     for (let xa = xHead; xa < xFoot - 1e-9; xa += STAIR_FILL.step) {
       const xb = Math.min(xa + STAIR_FILL.step, xFoot);
       const hgt = lineAt(xb) - STAIR_FILL.gap;
@@ -397,6 +404,14 @@ export function buildA2CarriageShed(b: LevelBuilder, kit: FacilityKit): SetPart 
     slopeRail(zStairS + 0.02, zStairS + 0.06, 1.0, LOOK.steel);
     slopeRail(zStairS + 0.02, zStairS + 0.06, 0.5, LOOK.steel);
     slopeRail(north - 0.04, north, 0.9, LOOK.steel);
+    // the open side's collision rail: the kit's balustrade and its invisible noLedge box per segment, `h` over the walking line at the high end
+    const { z: zRail, seg, h: hRail, from, to } = A2_STAIR_RAIL;
+    const n = Math.round((from - to) / seg);
+    for (let k = 0; k < n; k++) {
+      const xa = from - k * seg;
+      const xb = xa - seg;
+      kit.handrail(xa, zRail, xb, zRail, { y: lineAt(xa), h: hRail + (lineAt(xb) - lineAt(xa)), group: G_STAGING });
+    }
   });
 
   // ---- A2-12: rails (the track panels are the props kit's, below) and the buffer faces on the wheel stops ----

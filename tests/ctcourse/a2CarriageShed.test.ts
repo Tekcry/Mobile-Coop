@@ -50,6 +50,7 @@ import {
   A2_SHUNTER_FACES,
   A2_SHUNTER_ROUTE,
   A2_SHUNTER_WAITS,
+  A2_STAIR_RAIL,
   A2_TRACK_X,
   STAIR_FILL,
 } from '../../src/world/maps/ctcourseSets/a2CarriageShed';
@@ -666,7 +667,9 @@ describe('A2 the Carriage Shed: dressing (slice 2 step 5)', () => {
   const propBoxes = own.flatMap((p) => propCollisionBox(p) ?? []);
   const written = propBoxes.map((w) => mine.find((p) => p.collide && p.c.every((v, k) => Math.abs(v - w.c[k]!) < 1e-6) && p.s.every((v, k) => Math.abs(v - w.s[k]!) < 1e-6) && Math.abs(p.yaw - w.yaw) < 1e-6)!);
   const upright = (p: BoxPiece): BoxPiece => (Math.abs(Math.sin(p.yaw)) > 0.5 ? { ...p, s: [p.s[2], p.s[1], p.s[0]], yaw: 0 } : { ...p, yaw: 0 });
-  const fillers = dressing.filter((p) => p.collide && !written.includes(p));
+  /** The east stair's open-side collision rail (P3-2): the dressing's `kit.handrail` boxes on the line z `A2_STAIR_RAIL.z` (twelve). */
+  const stairRail = dressing.filter((p) => p.collide && Math.abs(p.c[2] - A2_STAIR_RAIL.z) < 1e-6);
+  const fillers = dressing.filter((p) => p.collide && !written.includes(p) && !stairRail.includes(p));
   const skins = dressing.filter((p) => !p.collide);
   /** The east stair (the helper's flight): its nosing line over x (the ramp collider's top) and the ramp's underside. */
   const stair = coopDeck({ id: 'a2-stage', at: { x: A2_DECK.x, z: A2_DECK.z }, facing: '+z', span: A2_DECK.span, depth: A2_DECK.depth, lip: A2_DECK.lip, open: A2_DECK.open, screen: 1.2, stair: 'end', stairW: 1.2 }).stairs[0]!;
@@ -692,7 +695,7 @@ describe('A2 the Carriage Shed: dressing (slice 2 step 5)', () => {
     return null;
   };
 
-  it('the greybox is as S2 built it: its 58 boxes (checksum), 15 lamps, 2 doors, 1 anchor; the only new collision is the stair fillers and the permit gate\'s box', () => {
+  it('the greybox is as S2 built it: its 58 boxes (checksum), 15 lamps, 2 doors, 1 anchor; the only new collision is the stair fillers, the stair\'s open-side rail and the permit gate\'s box', () => {
     let sum = 0;
     for (const p of grey) sum += (p.c[0] + 2 * p.c[1] + 3 * p.c[2] + 5 * p.s[0] + 7 * p.s[1] + 11 * p.s[2] + p.yaw) * (p.collide ? 1 : 1.5) * (p.visible === false ? 1.25 : 1) * (p.overhead ? 1.1 : 1);
     expect(sum).toBeCloseTo(GREY.checksum, 3);
@@ -700,9 +703,9 @@ describe('A2 the Carriage Shed: dressing (slice 2 step 5)', () => {
     expect(propBoxes).toHaveLength(1);
     expect(written.every((p) => p !== undefined)).toBe(true);
     expect(fillers.length).toBeGreaterThanOrEqual(10);
-    expect(built.counts.sets.a2CarriageShed).toEqual({ lights: GREY.lights, solids: GREY.solids + fillers.length + propBoxes.length, doors: GREY.doors, anchors: GREY.anchors });
-    // after the greybox: the fillers, the gate's box and visual skins; nothing else collides
-    expect(dressing.filter((p) => p.collide)).toHaveLength(fillers.length + propBoxes.length);
+    expect(built.counts.sets.a2CarriageShed).toEqual({ lights: GREY.lights, solids: GREY.solids + fillers.length + propBoxes.length + stairRail.length, doors: GREY.doors, anchors: GREY.anchors });
+    // after the greybox: the fillers, the stair rail's boxes, the gate's box and visual skins; nothing else collides
+    expect(dressing.filter((p) => p.collide)).toHaveLength(fillers.length + propBoxes.length + stairRail.length);
     expect(lamps).toHaveLength(GREY.lights);
     expect(part.register.map((r) => r.id)).toEqual(expect.arrayContaining(['A2-12', 'A2-13', 'A2-14', 'A2-15', 'A2-16', 'A2-17', 'A2-18', 'A2-19', 'A2-20']));
     expect(part.doors).toEqual({ [A2_CABIN_DOOR]: expect.any(Number), [A2_BACK_DOOR]: expect.any(Number) });
@@ -843,9 +846,15 @@ describe('A2 the Carriage Shed: dressing (slice 2 step 5)', () => {
       expect(plan.has(i.group!), `${i.piece} group ${i.group}`).toBe(true);
       expect(i.group!, `${i.piece} group ${i.group}`).toBeGreaterThanOrEqual(g0);
       expect(i.group!, `${i.piece} group ${i.group}`).toBeLessThanOrEqual(g1);
-      // the hall's panels only: nothing lower than the 4.4 m deck's top (the shed's own walls keep their sheeting)
+      // the hall's panels only: nothing lower than the 4.4 m deck's top (the shed's own walls keep their sheeting); the east stair's collision rail
+      // (P3-2, z 18.75) climbs with the flight, so its modules are asserted below
+      if (i.piece === 'handrail' && Math.abs(i.z - A2_STAIR_RAIL.z) < 1e-6) continue;
       expect(i.y, `${i.piece} at ${i.x}, ${i.z}`).toBeGreaterThanOrEqual(A2_DECK.lip - 1e-9);
     }
+    // the stair rail's balustrade modules: one a segment, on the staging circuit (23)
+    const stairRailKit = glowing.filter((i) => i.piece === 'handrail' && Math.abs(i.z - A2_STAIR_RAIL.z) < 1e-6);
+    expect(stairRailKit).toHaveLength(stairRail.length);
+    for (const i of stairRailKit) expect(i.group).toBe(23);
     const panels = glowing.filter((i) => i.piece === 'wallPanel');
     for (const i of panels) expect(i.group, `panel at ${i.x}, ${i.y}, ${i.z}`).toBe(i.y >= 7.5 - 1e-9 ? 23 : 20);
     for (const i of panels) expect(i.group).not.toBe(21);
@@ -977,5 +986,114 @@ describe('A2 the Carriage Shed: dressing (slice 2 step 5)', () => {
     // the pocket stays clear floor for a crouched body and the takedown step
     expect(blockedAt(28.95, 4.25, 0.3)).toEqual([]);
     expect(walkBlocked(28.95, 4.25, 30.6, 3.2)).toBeNull();
+  });
+
+  /** The flight's open south edge (z 18.8), the gallery wall's face (the flight's back), and a body's hit on a list of upright boxes at a walking height `y`. */
+  const zStairS = stair.z - stair.w / 2;
+  const zWall = 19.75;
+  /** The east wall's face (the shell's 0.5 m wall on the set box's east edge x 70). */
+  const xWall = box[2] - 0.25;
+  const bodyHits = (x: number, y: number, zz: number, list: readonly BoxPiece[], r = MOVEMENT.radius): string | null => {
+    for (const p of list) {
+      if (p.c[1] - p.s[1] / 2 >= y + 1.7 || top(p) <= y + 0.3) continue;
+      if (hyp2(Math.max(Math.abs(x - p.c[0]) - p.s[0] / 2, 0), Math.max(Math.abs(zz - p.c[2]) - p.s[2] / 2, 0)) < r) return `box (${p.c.map((v) => v.toFixed(2)).join(', ')})`;
+    }
+    return null;
+  };
+
+  it("the east stair's open south side has a 1.1 m rail (P3-2): twelve kit.handrail segments of 0.55 m on z 18.75 (0.05 m outside the flight) from x 68.6 to the head, each at least 1.1 m over the walking line at its high end, no gap, invisible, noLedge, the kit's modules on the staging circuit 23", () => {
+    const { z, seg, h, from, to } = A2_STAIR_RAIL;
+    // on the kit's 0.05 m snap, a whole number of segments, the line 0.05 m outside the open edge, the head at the flight's head (the deck's east end)
+    for (const v of [z, seg, from, to]) expect(Math.abs(v / 0.05 - Math.round(v / 0.05)), `${v} on the 0.05 m snap`).toBeLessThan(1e-9);
+    expect((from - to) / seg).toBeCloseTo(12, 9);
+    expect(z).toBeCloseTo(zStairS - 0.05, 9);
+    expect(to).toBeCloseTo(xHead, 9);
+    // the side entry stays open: from the rail's start to the east wall's face is wider than a body
+    expect(zWall).toBeCloseTo(stair.z + stair.w / 2 - 0.25, 9);
+    expect(xWall - xFoot).toBeCloseTo(0.05, 1);
+    expect(xWall - from).toBeGreaterThan(2 * MOVEMENT.radius);
+    expect(stairRail).toHaveLength(12);
+    expect(stairRail.every((p) => p.collide && p.visible === false && p.noLedge === true)).toBe(true);
+    const run = stairRail.map(upright).sort((p, q) => q.c[0] - p.c[0]);
+    let x: number = from;
+    for (const p of run) {
+      // a 0.1 m box on the line z 18.75 (its face stops on the flight's open edge), one segment long, from the walking line at its low (east) end
+      expect(p.s[0]).toBeCloseTo(seg, 6);
+      expect(p.s[2]).toBeCloseTo(0.1, 9);
+      expect(p.c[2]).toBeCloseTo(z, 9);
+      expect(p.c[2] + p.s[2] / 2, 'the box face is never inside the flight').toBeLessThanOrEqual(zStairS + 1e-9);
+      expect(p.c[0] + p.s[0] / 2, `no gap at x ${x.toFixed(2)}`).toBeCloseTo(x, 6);
+      const hi = p.c[0] - p.s[0] / 2;
+      expect(p.c[1] - p.s[1] / 2, 'from the walking line at the low end').toBeCloseTo(lineAt(x), 6);
+      expect(top(p) - lineAt(hi), 'the rail height over the walking line at the high end').toBeGreaterThanOrEqual(h - 1e-6);
+      x = hi;
+    }
+    expect(x, 'the head').toBeCloseTo(to, 6);
+    // no gap: at every x from 68.6 to the head a rail box stands on z 18.75 across 0.3 m to 1.0 m over the walking line
+    for (let sx = to + 0.025; sx < from; sx += 0.05) for (const dy of [0.3, 0.6, 1.0]) expect(run.some((p) => inside(p, sx, lineAt(sx) + dy, z)), `x ${sx.toFixed(3)} dy ${dy}`).toBe(true);
+    // the register counts the rail's boxes on A2-17 with the fillers
+    expect(part.register.find((r) => r.id === 'A2-17')!.solids).toBe(fillers.length + stairRail.length);
+    // the kit's balustrade over each box: twelve `handrail` modules along z 18.75 on the staging strip (23)
+    const pieces = lay.kit!.instances.filter((i) => i.piece === 'handrail' && Math.abs(i.z - z) < 1e-6);
+    expect(pieces).toHaveLength(12);
+    for (const i of pieces) expect(i.group).toBe(23);
+  });
+
+  it("the east stair's rail keeps the flight and its side entry open and stops a step-off (P3-2): a body clears the centre line and an edge lane 0.3 m in, and the side step-on across the bottom treads; 0.1 m outside the open edge it hits the rail from x 68.6 to the head, and without the rail nothing (teeth)", () => {
+    const rail = stairRail.map(upright);
+    const zMid = (zStairS + zWall) / 2;
+    // the flight is not narrowed: a body walking its centre line and an edge lane 0.3 m in, foot to head, meets no rail box
+    for (let t = 0; t <= stair.len + 1e-9; t += 0.1) {
+      const sx = xFoot - t;
+      expect(bodyHits(sx, lineAt(sx), zMid, rail), `centre line at x ${sx.toFixed(2)}`).toBeNull();
+      expect(bodyHits(sx, lineAt(sx), zStairS + 0.3 + 0.01, rail), `edge lane at x ${sx.toFixed(2)}`).toBeNull();
+    }
+    // the side step-on: the foot is 0.05 m off the east wall, so a body steps on from the south across the bottom treads (x 69.45 and 69.2, z 18.0 to 19.3)
+    for (const sx of [69.45, 69.2]) {
+      for (let k = 0; k <= 13; k++) {
+        const zz = 18.0 + k * 0.1;
+        expect(bodyHits(sx, zz < zStairS ? 0 : lineAt(sx), zz, rail), `step-on at x ${sx} z ${zz.toFixed(2)}`).toBeNull();
+      }
+      // and the floor up to the open edge is as it was (a body a hair more than its radius off the east wall's face)
+      const fx = Math.min(sx, xWall - MOVEMENT.radius - 0.01);
+      expect(walkBlocked(fx, 18.0, fx, zStairS - MOVEMENT.radius), `floor to the edge at x ${fx}`).toBeNull();
+    }
+    // the open side is shut from x 68.6 to the head: a body 0.1 m outside the edge at the walking line hits the rail; without the rail boxes nothing (teeth)
+    const { from, to } = A2_STAIR_RAIL;
+    const n = Math.round((from - to) / 0.1);
+    for (let k = 0; k <= n; k++) {
+      const sx = to + k * 0.1;
+      expect(bodyHits(sx, lineAt(sx), zStairS - 0.1, [...solid, ...rail]), `step off at x ${sx.toFixed(2)}`).not.toBeNull();
+      expect(bodyHits(sx, lineAt(sx), zStairS - 0.1, solid), `step off at x ${sx.toFixed(2)} without the rail`).toBeNull();
+    }
+  });
+
+  it("the east stair's rail leaves the lanes as they were (P3-2): the floor strip south of the flight is walkable, the shunter's loop and the debug points are clear of it, and soloJumpThreats for the loading edge is still empty with the rail in the solid list (and still bites)", () => {
+    const rail = stairRail.map(upright);
+    const railWalk = (x0: number, z0: number, x1: number, z1: number): string | null => {
+      const steps = Math.ceil(hyp2(x1 - x0, z1 - z0) / 0.1);
+      for (let i = 0; i <= steps; i++) {
+        const x = x0 + ((x1 - x0) * i) / steps;
+        const z = z0 + ((z1 - z0) * i) / steps;
+        const hit = bodyHits(x, 0, z, rail);
+        if (hit) return `(${x.toFixed(2)}, ${z.toFixed(2)}): ${hit}`;
+      }
+      return null;
+    };
+    // the strip south of the flight (z 17.0-18.2, x 62-69.4: body centres from a radius off the deck's east face) on three lanes
+    for (const zz of [17.0, 17.6, 18.2]) {
+      expect(walkBlocked(xHead + MOVEMENT.radius + 0.01, zz, 69.4, zz), `strip lane z ${zz}`).toBeNull();
+      expect(railWalk(xHead + MOVEMENT.radius + 0.01, zz, 69.4, zz), `strip lane z ${zz} (rail)`).toBeNull();
+    }
+    for (let i = 1; i <= A2_SHUNTER_ROUTE.length; i++) {
+      const a = A2_SHUNTER_ROUTE[i - 1]!;
+      const c = A2_SHUNTER_ROUTE[i % A2_SHUNTER_ROUTE.length]!;
+      expect(railWalk(a[0], a[1], c[0], c[1]), `loop leg ${i}`).toBeNull();
+    }
+    for (const d of part.debugPoints) expect(bodyHits(d.pos.x, d.pos.y, d.pos.z, rail), d.id).toBeNull();
+    const withRail = [...solid, ...rail];
+    expect(soloJumpThreats(withRail, LIP)).toEqual([]);
+    const crate: BoxPiece = { c: [33, 0.9, A2_DECK.z - 2.5 - 0.5], s: [1, 1.8, 1], yaw: 0, pitch: 0, color: '#888', collide: true, visible: true };
+    expect(soloJumpThreats([...withRail, crate], LIP).length).toBeGreaterThan(0);
   });
 });
