@@ -17,7 +17,6 @@ import { CAPSULE, DOME, HELMET, ROUND_CYL, SPHERE, TORSO, limbProfile, revolve, 
 import { PATTERN_ID, type PatternName } from '../cosmetics/patterns';
 import { SURFACE_ID, type SurfaceAtlas } from './surfaceAtlas';
 import { SurfacePlugin } from './surfacePlugin';
-import { VoxelBodyPlugin } from '../voxel/voxelBodyPlugin';
 import { SmoothBodyPlugin } from '../player/smoothBodyPlugin';
 import type { SmoothBodyLibrary } from '../player/smoothBody';
 import { hsv, pieceKind } from './surfaceKinds';
@@ -103,9 +102,8 @@ export class PartLibrary implements SmoothBodyLibrary {
     const m = make('partMat');
     m.freeze();
     this.material = m;
-    // voxel characters (3.0): merged skinned meshes with per-vertex colour, pattern and voxel grid (not frozen)
+    // merged skinned bodies (guard-render S1 smooth bodies; not frozen until set up)
     this.skinMaterial = make('partSkinMat');
-    new VoxelBodyPlugin(this.skinMaterial);
     // (guard-render S1) merged smooth bodies: the instances' pattern / surface space per vertex
     new SmoothBodyPlugin(this.skinMaterial);
     // (frozen too: an unfrozen material re-checks its defines on every mesh, every frame - garbage and CPU)

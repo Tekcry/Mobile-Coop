@@ -1,4 +1,5 @@
 import { h } from '../dom';
+import { SD_LOW } from '../../weapons/sdRounds';
 import { icon } from '../icons';
 import { keyLabels, verbPromptHtml } from '../prompts';
 import type { Minimap } from './minimap';
@@ -16,6 +17,8 @@ export interface HudFrame {
   mag: number;
   magSize: number;
   reserve: number;
+  /** (sd-rounds) Quiet rounds left, -1 = not shown. */
+  sd: number;
   /** Selected gadget (icon) and how many are carried. */
   gadget: string;
   grenades: number;
@@ -42,6 +45,7 @@ export class Hud {
   private wName: HTMLElement;
   private wMag: HTMLElement;
   private wRes: HTMLElement;
+  private wSd: HTMLElement;
   /** Gadget wheel and the remote feed overlay. */
   readonly gadgets: GadgetWheel;
   private gCount: HTMLElement;
@@ -102,6 +106,7 @@ export class Hud {
     this.wName = h('div', { class: 'w-name' });
     this.wMag = h('span', { class: 'w-mag' });
     this.wRes = h('span', { class: 'w-res' });
+    this.wSd = h('span', { class: 'w-sd' });
     this.gCount = h('span', { class: 'w-gren' });
     this.gIcon = h('span', { class: 'w-gren-icon', html: icon('frag', 16) });
     const weapon = (this.weaponEl = h(
@@ -109,7 +114,7 @@ export class Hud {
       { class: 'hud-weapon' },
       this.wName,
       h('div', { class: 'w-ammo' }, this.wMag, h('span', { class: 'w-sep', text: '/' }), this.wRes),
-      h('div', { class: 'w-extra' }, this.gIcon, this.gCount),
+      h('div', { class: 'w-extra' }, this.wSd, this.gIcon, this.gCount),
     ));
     this.cross = h('div', { class: 'crosshair' }, h('i', { class: 'ch t' }), h('i', { class: 'ch b' }), h('i', { class: 'ch l' }), h('i', { class: 'ch r' }), h('i', { class: 'ch dot' }));
     this.hit = h('div', { class: 'hitmarker' }, h('i'), h('i'), h('i'), h('i'));
@@ -222,6 +227,11 @@ export class Hud {
       this.wMag.classList.toggle('low', f.mag <= Math.max(1, Math.floor(f.magSize * 0.25)));
     });
     this.set('res', f.reserve, () => (this.wRes.textContent = Number.isFinite(f.reserve) ? String(f.reserve) : '∞'));
+    this.set('sd', f.sd, () => {
+      this.wSd.textContent = f.sd >= 0 ? `SD ${f.sd}` : '';
+      this.wSd.style.display = f.sd >= 0 ? '' : 'none';
+      this.wSd.classList.toggle('low', f.sd >= 0 && f.sd <= SD_LOW);
+    });
     this.set('gr', f.grenades, () => (this.gCount.textContent = `×${f.grenades}`));
     this.set('gi', f.gadget, () => (this.gIcon.innerHTML = icon(f.gadget, 16)));
     const gap = Math.round(Math.min(60, 4 + f.spreadPx));
@@ -231,7 +241,7 @@ export class Hud {
     this.set('cx', f.crosshair, () => (this.cross.style.display = f.crosshair ? '' : 'none'));
     // ammo / gadget readout: on any change, a reload or a low magazine; fades after 3 s otherwise
     const now = performance.now();
-    const ak = `${f.weapon}|${f.mag}|${f.reserve}|${f.grenades}|${f.gadget}`;
+    const ak = `${f.weapon}|${f.mag}|${f.reserve}|${f.grenades}|${f.gadget}|${f.sd}`;
     if (ak !== this.ammoKey || f.reloadProgress > 0 || f.mag <= Math.max(1, Math.floor(f.magSize * 0.25))) {
       this.ammoKey = ak;
       this.ammoT = now;

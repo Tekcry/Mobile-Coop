@@ -85,6 +85,8 @@
   /* viewport units of the page as laid out (3.1.6: swapped while the page is turned to landscape) */
   --vw: 1vw;
   --vh: 1vh;
+  /* (ipad-fit) full height of the visible viewport (Safari's toolbars do not count in 100vh) */
+  --page-h: 100%;
   --font: 'Avenir Next Condensed', 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
@@ -108,6 +110,17 @@ body {
   -webkit-user-select: none;
   -webkit-touch-callout: none;
   overscroll-behavior: none;
+}
+/* (ipad-fit) dvh = vh on a desktop; on an iPad it follows the visible viewport so the bottom is not pushed off screen */
+@supports (height: 1dvh) {
+  :root {
+    --vh: 1dvh;
+    --page-h: 100dvh;
+  }
+  html,
+  body {
+    height: 100dvh;
+  }
 }
 
 #game {
@@ -417,6 +430,9 @@ body {
 .version {
   font-size: 11px;
   color: var(--muted);
+  /* (ipad-fit) keep clear of the home indicator and the rounded corner */
+  margin-bottom: var(--sab);
+  margin-right: var(--sar);
 }
 .profile-badge {
   position: absolute;
@@ -1080,6 +1096,16 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 3px;
+}
+.w-sd {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  margin-right: 6px;
+}
+.w-sd.low {
+  color: var(--danger);
 }
 .hud-center {
   position: absolute;
@@ -3951,8 +3977,9 @@ body.tune-hide-hud .mouse-capture-hint {
 .main-menu.menu-screen .version,
 .title-screen .version {
   position: absolute;
-  right: 28px;
-  bottom: 26px;
+  right: calc(28px + var(--sar));
+  bottom: calc(26px + var(--sab));
+  margin: 0;
   font-size: 14px;
   color: #56625e;
   letter-spacing: 0.1em;
@@ -4663,7 +4690,7 @@ body.tune-hide-hud .mouse-capture-hint {
 
 /* Menu UI (menu-ui slice 4): missions list, briefing, issued kit */
 .screen.menu-screen .ms-list.ms-scroll {
-  max-height: calc(100vh - var(--sp-list-y) - 110px);
+  max-height: calc(var(--page-h) - var(--sp-list-y) - 110px);
   overflow-y: auto;
   scrollbar-width: none;
 }
@@ -4798,6 +4825,18 @@ body.tune-hide-hud .mouse-capture-hint {
 }
 .pause-screen .ps-coop {
   margin-top: 10px;
+}
+/* (ipad-fit) the room code line: its own block beside the list (the list reaches the help box under it), wrapping
+   instead of running into the help box */
+.pause-screen .ps-room {
+  position: absolute;
+  left: calc(440px + 36px);
+  top: 0;
+  width: 280px;
+  margin: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
 }
 .objectives-screen .ms-item .ms-ctr {
   margin-left: auto;

@@ -4,12 +4,11 @@
  * proportions) and puts her OperatorFigure on it.
  *
  * - The rig stays the pose authority (animation, IK, sockets, light-meter samples, hit volumes); its own body parts are
- *   still built (back gear and thigh widths are measured from them for the weapon carry) but never drawn, and no voxel
- *   body is built for it.
+ *   still built (back gear and thigh widths are measured from them for the weapon carry) but never drawn.
  * - Gameplay reads nothing here (CLAUDE.md): the controller capsule, speeds, noise and camera are unchanged (G38).
  */
 import type { AbstractMesh, Camera, Scene } from '../../core/babylon';
-import { CharacterRig, setVoxelBodies, type PartFactory } from '../../player/characterRig';
+import { CharacterRig, type PartFactory } from '../../player/characterRig';
 import type { AvatarLook } from '../../cosmetics/avatarLook';
 import { flags } from '../../core/flags';
 import { OPERATORS } from '../operatorBody';
@@ -20,20 +19,10 @@ import { goggleColour, goggleSlot } from './goggle';
 import { wrenManifest } from './assets';
 import { WREN_BACK_MOUNT, WREN_HANDS, WREN_HOLSTER, WREN_SLING } from '../handFrame';
 
-type VoxelOpts = Parameters<typeof setVoxelBodies>[0];
-
 /** Every player is Wren until Moth is built (G123: "Both play as Wren"). */
 export const PLAYER_OPERATOR = OPERATORS.wren;
 /** The player rig's height (m): the operator's own (G74), so her hands, feet and head sit on the rig's joints. */
 export const PLAYER_HEIGHT = PLAYER_OPERATOR.height;
-
-let characterVoxels: VoxelOpts = null;
-
-/** The match's voxel character setting (guards keep their voxel bodies); players never get one. */
-export function setCharacterVoxels(o: VoxelOpts): void {
-  characterVoxels = o;
-  setVoxelBodies(o);
-}
 
 const LIBRARIES = new WeakMap<Scene, OperatorLibrary>();
 
@@ -58,13 +47,7 @@ export interface OperatorRig {
  * disabled: Wren is what renders. Load the LODs with `figure.loadGameLods()` (play) or `loadCloseUp()` (menu).
  */
 export function operatorRig(scene: Scene, make: PartFactory, look: AvatarLook, name: string, casters?: (m: AbstractMesh) => void): OperatorRig {
-  setVoxelBodies(null);
-  let rig: CharacterRig;
-  try {
-    rig = new CharacterRig(scene, make, look, PLAYER_HEIGHT, name, { build: 'average', style: 'detailed' });
-  } finally {
-    setVoxelBodies(characterVoxels);
-  }
+  const rig = new CharacterRig(scene, make, look, PLAYER_HEIGHT, name, { build: 'average', style: 'detailed' });
   for (const m of rig.root.getChildMeshes(false)) {
     m.setEnabled(false);
     m.isPickable = false;

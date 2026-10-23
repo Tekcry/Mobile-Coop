@@ -1,9 +1,8 @@
-/** Voxel worker (3.0): chunk jobs (rasterise + mesh + bricks), the sky bake and (3.2) lamp bakes off the main thread; buffers go back transferred. */
-import { buildChunk, transferables, type ChunkJob } from './chunk';
+/** Bake worker: the sky, lamp and moon bakes off the main thread; buffers go back transferred. */
 import { bakeLamps, type LampJob } from './lampBake';
 import { bakeMoon, bakeSky, type MoonJob, type SkyJob } from './skyBake';
 
-const ctx = self as unknown as { onmessage: ((e: MessageEvent<ChunkJob | SkyJob | LampJob | MoonJob>) => void) | null; postMessage(m: unknown, t: Transferable[]): void };
+const ctx = self as unknown as { onmessage: ((e: MessageEvent<SkyJob | LampJob | MoonJob>) => void) | null; postMessage(m: unknown, t: Transferable[]): void };
 ctx.onmessage = (e) => {
   const job = e.data;
   if ('kind' in job && job.kind === 'lamps') {
@@ -21,6 +20,4 @@ ctx.onmessage = (e) => {
     ctx.postMessage(r, [r.vis.buffer as ArrayBuffer, r.roof.buffer as ArrayBuffer]);
     return;
   }
-  const r = buildChunk(job as ChunkJob);
-  ctx.postMessage(r, transferables(r));
 };

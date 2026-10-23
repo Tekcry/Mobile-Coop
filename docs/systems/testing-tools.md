@@ -40,9 +40,10 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
   process and browser, the slowest first (`scripts/e2e-times.json`, rewritten by every clean full run). Each suite's
   output prints as one block and is kept in `test-results/e2e/`. `e2e-desktop` runs as jobs `e2e-desktop:1`, `:2`, `:4`
   (`--part=N`; its sections are independent); part 3 (the Epic renderer) is in the GPU list. `e2e-ctcourse` runs as
-  `e2e-ctcourse:1`, `:2`, `:3` (stations 1-3, 4-5, 6-8), each its own pair of pages started at its bay through the host
-  session's `courseBay`; named alone (`node scripts/run-e2e.mjs e2e-ctcourse`) it runs all eight stations in sequence
-  (test-speed A3). `e2e-sectorops` runs as `e2e-sectorops:1` to `:5` (sector-fixes-r RE: the suite before slice R, the
+  `e2e-ctcourse:1` to `:4` (marlow-final: A1-A2, A3-A4, A5-A6, A7-A8), each its own pair of pages started at its first
+  set through the host session's `courseBay`; named alone (`node scripts/run-e2e.mjs e2e-ctcourse`) it runs all eight
+  sets in sequence (test-speed A3). `scripts/e2e-times.json` holds 150 s per part as an estimate until a clean full run
+  rewrites it (pending laptop run). `e2e-sectorops` runs as `e2e-sectorops:1` to `:5` (sector-fixes-r RE: the suite before slice R, the
   solo route checks, the co-op routes of sections 1-3); named alone it runs all five in sequence.
 - Pool size: default min(5, cores / 3) (`--jobs=N` / `E2E_JOBS`); use `E2E_JOBS=2` on Michael's 8-thread desktop and on
   cloud VMs (two suites at a time, G94).
@@ -106,7 +107,7 @@ behind a VPN adapter).
   `frames(page, n)`. Real time is kept where the suite is about it: the two-page co-op suites, `e2e-stealth` (real-time
   camera), `e2e-mouse`, `e2e-pad` (input timing), `e2e-desktop` (benchmark flights, the 15 s resolution revert, shader
   compiles), `e2e-offline`, and the rAF-sampled foot-slide check in `e2e-move`. The light bake is about 0.5 s a page
-  load and the Epic voxel bake cache is 190 MB, so neither is shared between browsers.
+  load so it is not shared between browsers.
 - Two-page suites (`?net=local`): the `until()` helper in `e2e-net-lib`, `e2e-coop`, `e2e-course` and `e2e-bunker`
   polls from Node (`page.evaluate` every 50-100 ms): in a desktop context the in-page polling stops on the background
   page. A throwing predicate shows as a timeout.
@@ -171,7 +172,11 @@ behind a VPN adapter).
   "stack"; the pad and keyboard verb tables cover the button
 - `e2e-stealth-ai` night Warehouse: shadow vs light detection, the arc warns first, no sight through walls, noise ->
   suspicious -> investigating, squad radio, the shout, a spotter taken out first tells nobody, LKP + ghost + converge +
-  search ends, patrols
+  search ends, patrols, the optic cable (the door menu pick, the view under the door at floor height, the look limits,
+  night vision, the tip never seen, the kneeling body seen, crouch leaves, a sealed door refuses)
+- `e2e-guard-carry` Warehouse Infiltration (High): a calm holstered grunt and officer (S21 carry) and then drawing ones
+  are drawn: body among the active meshes, material ready, GPU-skinned effect (no CPU-skinning fallback), no effect
+  compile error (its error line printed). Run with `E2E_GPU=1`
 - `e2e-takedown` takedown kinds (ground rules, over low cover, above, below, window; the grab - walk, sidearm, human
   shield, knock out / kill / shove - and drop attacks from a pipe / split, the inverted choke), tap / hold, 5 cm
   alignment, damage interrupt; no takedown on a guard in combat who saw you
@@ -211,12 +216,17 @@ behind a VPN adapter).
   host's relay or two-person rope; both on the 4.4 m top; S1 C1 on to the deck, S1 C2 over the checker and let go)
   and the section's team door unbolted by the client from the far side for both pages (refused from the near side) and
   re-bolted on both pages by the host's checkpoint restart.
+- `e2e-section-rating` (section-rating S7 / S6) the stealth rating: solo Sector Ops (a clean section: 4 ticks; a kill:
+  No kills missed; the extraction: results lines), co-op (a synced pair on both cards, the client top-up, the host syringe,
+  a rejoin with no second grant) and solo Marlow Yard (A1 unrated, A2 rated with the gadget grant, A3 rated clean after a
+  kill and a restart). In the required list; the quick map picks it for the rating files and both modes.
 - `e2e-park` the legacy-off menus (title Night Shift, badge without level / credits, the main menu Sector Ops / Co-op / Loadout /
   Settings / Feedback, the Sector Ops briefing, Loadout root rows, every weapon selectable with nothing unlocked, the choice kept
   across a reload, a new co-op room on Campaign (Marlow Yard) with Campaign and Sector Ops listed, save export / import) and the
   legacy-on menus (Hunter default; Missions and Free roam listed)
 - `e2e-coop` two pages over `?net=local`, opened with `legacy=1`: lobby, a Hunter match (puppet alert levels, door sync,
-  a client door use and takedown, kept / hidden bodies, pings both ways, a client gas cloud, a dual takedown, a client
+  a client door use and takedown, kept / hidden bodies, pings both ways, a client gas cloud, a client grab and (coop-walk-fixes
+  P6) the host's team takedown on that hostage, a dual takedown, a client
   reviving the host, the team wipe), validated hits, revive, results; Infiltration objectives on the client; the host's
   fixed difficulty level read-only on the client and running on both; a client using the host's wall medkit station;
   host leaving, offline (known flaky)
@@ -229,6 +239,42 @@ behind a VPN adapter).
 - `e2e-course` two pages, Course on courselab: the airlock refuses one player, cycles with both; a forced both-down
   restart, then every gate kind by the client (the host's gates are e2e-ctcourse's); door locks and the lamp group reach the client within 0.5 s; friendly fire
   (a host shot and a client grenade down the partner, who is revived); automatic airlocks and the locked rear door
+- `e2e-ctcourse` (marlow-final) two pages on `?net=local&autostart=ctcourse&mode=course`, Marlow Yard A1-A8 as four parts
+  (`--part=N`, run as the jobs `:1` A1-A2, `:2` A3-A4, `:3` A5-A6, `:4` A7-A8; a part after the first starts at its first
+  set through the host session's `courseBay`). `scripts/e2e-ctcourse.mjs` owns the helper object `t` (`t.A` host page,
+  `t.B` client page, `until`, `assert`, `moveHost` / `moveClient`, `use`, the team-move and jammer helpers, `t.point(id)`)
+  and the part dispatch; each set's steps are a module in `scripts/e2e-ctcourse/<set>.mjs` exporting `SET` and
+  `walk(t, n)`, called in route order (`a1Gate`, `a2CarriageShed`, `a3OfficeRange`, `a4GoodsShed`, `a5Substation`,
+  `a6PumpHouse`, `a7DataHall`, `a8Strongroom`). Between sets both players stand on the holding room's pad: the near door
+  locks, the far door unlocks on both pages. Every part checks the join (both avatars drawn, the objective line); part 1
+  also the host-only pause restart at A1 (the client's rows disabled "Host only"); part 4 ends with a revive in the cash
+  dock (one of two used) and the both-in exit zone (G138). Per set: A1 the claim swap, leg-up, hang-drop, bolt refused from
+  the apron and opened from the yard, the relay variant after a restart, the yard switch's light on both pages; A2 the
+  isolator (15 s dark on both pages, the timer line, re-arm refusal, the lure, restart), the crossing and the mirror; A3
+  the send-back (also in the dark), the window miss, the relay and the swap, the office lure; A4 the lure and restart,
+  the console (refused with the officer up, 60 s loop, 20 s re-arm, the loop running out), `a4-floor`, the dual takedown
+  banner, the push bar and the wicket; A5 the throw, flood jam, kiosk release, the panel jam variant; A6 the leg-up and
+  rescue line, the hang-down hold (the client's hold pulses the host's noise), the cage fallback pass; A7 the claim, the
+  corridor in the camera's blind windows, the late-hack fail (10 HP) and the synced hack, cage and east door; A8 the leg-up,
+  the cross-level jam, the console loop, the board (25 s cut, grille), the throw over the beams, the time locks, the vault
+  and `a8-out`. Teleport legs are allowed on open floor (the walks are the unit tests'); a door a route opens is opened
+  by `use(P, 'door-<anchor id>')` and asserted open on both pages first. The old bunker stations' steps are in git at
+  5920cce5. The ghost run with every bonus and the revive on each co-op surface (A1 yard, A2 staging, A6 gallery, A8
+  gallery) are not in the suite yet. Results for the head: pending laptop run.
+- Marlow Yard unit tests (`npm test`, Babylon-free where they can be; each set's file is its builder's contract, run by
+  the set agent): `tests/ctcourse/<set>.test.ts` per set (the part passes `checkSetPart`, register rows and counts equal
+  the builder's, geometry and keep-clear, no solo way up a co-op lip (`soloJumpThreats`), the gates, steps and role claim
+  in `CourseState`, lamps and groups against `MARLOW_CIRCUITS`, the tuned light levels, guards and walkers, cameras,
+  nav seeds), `tests/ctcourse/facility.test.ts`, `tests/ctcourse.test.ts`, `ctcourseGreybox.test.ts`,
+  `ctcourseLight.test.ts` (the whole map's light frame: pools >= 0.60, read floor >= 0.40, dark pockets <= 0.22, a cut
+  circuit <= 0.24, standby 0.14, house 0.30), `facilityKit.test.ts`, `facilityProps.test.ts` (kit and prop render, the
+  static merge); the engine pieces: `marlowN1Objectives`, `marlowN2Isolator` (with the Q9 occupancy rule),
+  `marlowN3Console`, `marlowN4Hold` (with Q2 stealth and Q4 despawn), `marlowN6Scanners`, `marlowN9SlideDoor`,
+  `marlowPassAny`, `marlowHoldNoise` (the client's hold pulse), `marlowClientSwitch`, `marlowStaleSupport` (the
+  controller's stale floor after a kinematic move), `marlowLightingCircuits`, `marlowLightingLevels`,
+  `marlowLightingSchedule` (`tests/marlow*.test.ts`; `marlowT1a` / `marlowT2` are the animation tuner's). A set's light
+  levels are re-tuned with `CTLIGHT_WRITE=<set>|all npx vitest run tests/ctcourseLight.test.ts`, which writes
+  `tests/ctcourse/<set>.light.json` (`CTLIGHT_PRINT=1` prints every set's json), then rerun without the variable.
 - `e2e-bunker` (LEGACY) two pages on `?net=local&autostart=bunker&mode=course`, Fallow by bay: B1 the objective list on both
   pages, every course prompt on the client, "Waiting for partner", the seal and the locked rear door; B2 a lane lever
   pulled by the client unlocks the doors on both pages
@@ -307,7 +353,7 @@ behind a VPN adapter).
   Alert (with Evasion alongside)
 - `e2e-weapon-audio` (AUDIO) on Proving: the sprite decodes with a small alignment shift; automatic fire plays one shot per
   round with brass and stays under 24 voices; a suppressed rifle plays its suppressed bank and guards hear it less; a
-  reload, a dry click and a shot 20 m away play; the weapon lab (`?weaponlab=1`) fires the two kit guns, an automatic
+  reload, a dry click and a shot 20 m away play, (coop-walk-fixes P7) a partner's suppressed pistol round plays suppressed; the weapon lab (`?weaponlab=1`) fires the two kit guns, an automatic
   run, a suppressed guard shot at 18 m, both reloads, brass and dry fire
 - `e2e-foley` (AUDIO) on Proving: the sprite decodes; one foley step per real foot plant at a walk and a sprint (the walk
   check reads 3 or 4 plants against >= 4 at the step-22 speed: parked, not fixed), silence standing still, a drop
@@ -343,6 +389,19 @@ behind a VPN adapter).
   second (top allocators), draws and triangles over every pass. Budgets: performance.md.
 - `node scripts/perf-trend.mjs [perf args]` serves `dist/`, runs `perf.mjs` once without `--budget`: a trend against this
   machine's own baseline, never a pass claim.
+- `E2E_GPU=1 E2E_PORT=4189 node scripts/guard-cap.mjs [--maps=sectorops,ctcourse] [--counts=0,12] [--cells=patrol,away,alert]
+  [--gfx=epic] [--viewport=1920x1080] [--warm=5] [--secs=10] [--out=<dir>]` (feature/guard-cap; laptop, headless, needs
+  `npm ci` and `npm run build`) is the Course-mode perf measure (marlow-final): per map and guard count a fresh browser,
+  the cells patrol / facing, patrol / away (camera turned, render only) and alert, each with the sim split (AI, nav, rays,
+  light reads, step total) and the render split (frame, frame CPU, GPU ms from the timer query, draws and triangles over
+  every pass). Report only: it writes `guard-cap.json`, `guard-cap.csv` and `RESULTS.md` into `--out`, never a pass
+  claim and never in cloud (software GL needs `--software` and is no perf result). The Marlow Yard budget read from it is
+  GPU <= 7.5 ms at Epic 1080p, 0 guards; baseline 5100141d and the facility perf pass: `docs/marlow-final/slices/S9-perf.md`
+  (the "after" numbers: pending laptop run).
+- `E2E_GPU=1 E2E_PORT=4189 node scripts/shots-ctcourse.mjs <dir> <suffix> [prefix]` (marlow-final): one GPU shot per
+  `SHOT_VANTAGES` entry of Marlow Yard (the facility's `f-*` and each set's `a<n>-*`), written as
+  `<dir>/<name>-<suffix>.png`, with the printed `meter field` row per vantage (fails when the two differ by more than
+  0.02: light parity). `prefix` limits it to one set.
 - `node scripts/soak.mjs [minutes=10] [url]` (`MAP=`, `MODE=`, default Hunter) real-time soak: pacing, CPU, adaptive
   quality, heap growth (leak check)
 - `node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json> [--dry-run] [--only section,...] [--allow-shared]`
@@ -381,6 +440,35 @@ behind a VPN adapter).
     `run-e2e` it is the REPORT entry; the quick map runs it (`--quick`) for `src/anim/`, `src/player/`, `src/net/` and
     `scripts/e2e-net-lib.mjs`.
 
+## Laptop queue
+A service on the laptop (`scripts/laptop-queue/service.mjs`, one scheduled task, see `docs/laptop-queue/PLAN.md`) runs
+e2e for you and posts the verdict as a commit status on the tested sha. No message per verdict.
+- Request (from any desktop, never touches your working tree): `node scripts/laptop-queue/request.mjs --sha <ref> [--pr N]
+  [--set name] [--jobs N] [--requester "<title>"] (--suites "e2e-coop e2e-netmove" | --full | --alone --step "<cmd>" [--env K=V])`.
+  Needs a pushed sha. It pushes `requests/<id>.json` to the `laptop-queue` branch and prints the id. `--dry-run` shows
+  the JSON and pushes nothing. An `--alone` step may start with `serve ` (runs `scripts/laptop-queue/serve.mjs`).
+- Order: trains (an `origin/train/<n>` head with no `laptop-e2e` status; both slots, sharded by suite times; a head whose
+  `auto-train/*` status is failure or error is skipped), then pr / full
+  requests (one slot), then alone-measurements (both slots; one waiting over 45 min goes ahead of pr work).
+- Statuses: `laptop-e2e` (trains), `laptop-e2e/<set>` (pr, set defaults to the suites joined by `+`), `laptop-e2e/full`,
+  `laptop-e2e/alone-<set>`. Description "N/N pass, <s> s", plus "; flake: x" and "; FAIL: y". A failure also comments on the
+  PR (suite, failing line, log path on the laptop). Logs: `C:/NightShift/scratch/laptop-queue/runs/<id>/`.
+- Flakes: a failed suite reruns once alone on the same sha; a pass counts as a pass and is logged as a flake (state.json,
+  for its owner to fix); a suite that flaked in the last 24 h is not rerun again.
+- Manual runs keep working: the service uses the `C:/NightShift/heavy-<slot>.lock` files and waits while one is held; its
+  log says "<port> waiting on manual lock: <holder>" once per holder and the wait in minutes when it takes the lock.
+- Desktop overflow lane (Michael 2026-10-23 ~20:45): the same service with `LQ_WORKER=desktop` (task
+  `NightShift-desktop-queue`, `install-task.ps1 -Worker desktop`) takes pr requests only, on 4191 in
+  `C:/NightShift/Mobile-Coop-testrun-4191` under `C:/NightShift/heavy.lock`, `E2E_GPU=1 E2E_JOBS=1`, and starts one only
+  while more than 3 requests wait and desktop CPU is under 60%. Full and alone runs stay on the laptop. Trains too, unless
+  the laptop is silent: no claim / done push by the laptop for 10 min (`LQ_LAPTOP_SILENT_MIN`) and the head is over 2 min
+  old; then the desktop takes the train (no backlog gate; lock and CPU gates kept), sharded on 4191+4192, E2E_JOBS=1. Its
+  statuses read "desktop: ..."; logs `C:/NightShift/scratch/laptop-queue-desktop/runs/<id>/` on the desktop.
+- Claims: each worker pushes `claims/<id>.json` (a train: `claims/<train-sha>.json`) to the `laptop-queue` branch before
+  a run and marks it done after, so the two never run the same request or train. An open claim older than 3 h (`LQ_CLAIM_MAX_H`) is a dead worker's and is taken over.
+- Install / remove the task: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-queue/install-task.ps1 [-Remove]`.
+  Dry run: `node scripts/laptop-queue/service.mjs --once --dry-run`.
+
 ## GPU runs (Michael's PC only)
 - `E2E_GPU=1 npm run e2e` (or any script, e.g. `E2E_GPU=1 node scripts/perf.mjs --desktop --budget`): `e2e-lib` launches
   Chromium with the hardware GPU (Windows: ANGLE D3D11, GPU blocklist ignored) instead of SwiftShader, headless with a
@@ -391,9 +479,8 @@ behind a VPN adapter).
   only. Cloud sessions run unit tests and logic e2e and report those checks "pending PC run"; they never claim a perf or
   visual result from SwiftShader.
 - `perf.mjs` with `E2E_GPU=1` uses the laptop goals (`LOCAL_BUDGET`, performance.md).
-- D3D11 compiles the Epic voxel characters' `partSkinMat` shader slowly (seconds after spawn); an uncompiled effect's
-  `_samplerList` holds every candidate (61), trimmed once compiled (11 for `partSkinMat`, 15 for the level `voxMat`,
-  limit 16). `e2e-desktop` therefore waits for every drawn mesh's effects before counting textures.
+- D3D11 compiles the characters' `partSkinMat` shader slowly (seconds after spawn); an uncompiled effect's
+  `_samplerList` holds every candidate (61), trimmed once compiled (11 for `partSkinMat`, limit 16). `e2e-desktop` therefore waits for every drawn mesh's effects before counting textures.
 
 ## Debug overlay
 - F3 (or the settings switch); `?debug=1` shows it at boot. Buttons: Skeleton (bones, controller capsules, hit volumes

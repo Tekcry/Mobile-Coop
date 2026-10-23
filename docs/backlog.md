@@ -10,7 +10,7 @@ Format: `N. Item - destination - status`.
 
 1. **Free Roam: shoot out lights, use switches and alarms.** Must work in Free Roam for testing. Destination: the light parity work (G47).
 2. **FPS / perf overlay is too big.** Make it a minimal bar along the top edge, critical numbers only. Destination: unscheduled.
-5. **Ghost copy of the operator on Epic.** A second copy of the operator's voxel body, its level-of-detail mesh `player-vox-lod` (`src/voxel/voxelBody.ts`), can draw beside the real one; detail in `docs/archive/progress-phases.md` ("Noted fixes"). Destination: graphics fix batch (Michael: "don't do it yet").
+5. **Ghost copy of the operator on Epic. CLOSED by voxel-retire (2026-10-23): the voxel body code is gone.** A second copy of the operator's voxel body, its level-of-detail mesh `player-vox-lod` (`src/voxel/voxelBody.ts`), can draw beside the real one; detail in `docs/archive/progress-phases.md` ("Noted fixes"). Destination: graphics fix batch (Michael: "don't do it yet").
 6. **Voice test, a later idea (G82).** Generate the Mission 1 opening three ways: the browser's built-in speech, a free open-source voice model run on this PC, a paid AI voice service; Michael picks by ear. Until then radio and subtitles are text. Write all radio lines short and voice-ready. Original voices only: never clone or imitate a real actor. Destination: unscheduled.
 7. **Epic misses its design targets on the RTX 4090 laptop.** Main thread about 4.3 ms against 3 ms, frame spikes. The goals are rewritten to the laptop's numbers (G14). Destination: graphics fix batch.
 8. **Epic's level material (voxMat) uses 15 of 16 texture units.** Any new texture breaks it. Plan texture atlases before the CC0 desktop textures. Destination: before the CC0 texture work.

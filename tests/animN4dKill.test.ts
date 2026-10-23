@@ -63,14 +63,14 @@ describe('anim-n4d: the kill warp (pure)', () => {
     const out = emptyMovePose();
     for (let k = 0; k <= 20; k++) {
       const u = k / 20;
-      expect(poseFromMoveState({ ...emptyMoveState(), m: 'takedown', ph: u, tid: 'e1' }, 0, out).melee).toBeCloseTo(killWarp(u, TAKEDOWN_BLOW), 12);
+      expect(poseFromMoveState({ ...emptyMoveState(), m: 'takedown', ph: u, sub: 1, tid: 'e1' }, 0, out).melee).toBeCloseTo(killWarp(u, TAKEDOWN_BLOW), 12);
       expect(poseFromMoveState({ ...emptyMoveState(), m: 'grab', ph: u, sub: 1, tid: 'e1' }, 0, out).melee).toBeCloseTo(killWarp(u, GRAB_KILL_BLOW), 12);
       // the grab's knockout and interrogation pose no blow
       expect(poseFromMoveState({ ...emptyMoveState(), m: 'grab', ph: u, sub: 0, tid: 'e1' }, 0, out).melee).toBe(-1);
       expect(poseFromMoveState({ ...emptyMoveState(), m: 'grab', ph: u, sub: 2, tid: 'e1' }, 0, out).melee).toBe(-1);
     }
-    // a choke (no blow) carries 0: posed at the arc's rest phase 0, as before
-    expect(poseFromMoveState({ ...emptyMoveState(), m: 'takedown', ph: 0, tid: 'e1' }, 0, out).melee).toBe(0);
+    // (pose-parity) a choke / the lethal approach (no blow: the takedown sub bit 1 clear) poses no arc, as the owner's -1
+    expect(poseFromMoveState({ ...emptyMoveState(), m: 'takedown', ph: 0, sub: 0, tid: 'e1' }, 0, out).melee).toBe(-1);
   });
 });
 

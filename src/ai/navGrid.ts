@@ -410,6 +410,13 @@ export class NavGrid {
     return i >= 0 ? this.height[i]! : 0;
   }
 
+  /** (guard-ai S15 laptop fix) The surface height of cell `i` (0 outside the grid). `heightAt` on a wall's own column
+   *  gives the wall's top (often its only surface): a point on a wall stands on the walkable cell beside it, at that
+   *  cell's height. */
+  cellHeight(i: number): number {
+    return i >= 0 ? this.height[i]! : 0;
+  }
+
   /** Can an agent step directly from cell a to adjacent cell b? */
   canStep(a: number, b: number): boolean {
     return a >= 0 && b >= 0 && this.walk[a] === 1 && this.walk[b] === 1 && Math.abs(this.height[a]! - this.height[b]!) <= this.step;

@@ -48,7 +48,7 @@ one page").
 | `weapons/` | Data-driven weapons, hitscan + pooled projectiles, recoil / spread, grenades, `WeaponCarry` |
 | `ai/` | Enemy brains, grid navmesh + A*, `perception`, `alertState`, `patrol` (pure), archetypes, the enemy recon drone |
 | `world/` | Level builder, map builders (`maps/`: Warehouse, Proving Grounds, Kestrel, the Fallow bunker, courselab, seclab; the 2.x maps parked in `maps/parked.ts`, not imported), rooms, anchors, doors, lights, light rig, surfaces, menu stage |
-| `voxel/` | Voxel level, characters and weapons, lamp bake and light volume, sky bake |
+| `voxel/` | Light bakes (the folder name is history): lamp bake and light volume, moon / sky bake, canonical light shapes, the bake worker pool |
 | `vfx/` | Pooled effects, post stack, TAAU, weather, vision looks |
 | `security/` | Kestrel's security system (cameras, panels); owned by the Kestrel job |
 | `editor/`, `dev/` | The Kestrel level editor (dev only, never in `dist/`) and its bridge |

@@ -32,6 +32,8 @@ export interface WeaponAudioStats {
   shots: number;
   suppressed: number;
   remote: number;
+  /** (coop-walk-fixes P7) Remote shots played suppressed (a partner's suppressed round). */
+  remoteSd: number;
   reloads: number;
   casings: number;
   dry: number;
@@ -49,7 +51,7 @@ export class WeaponAudio {
   /** The player's last shot (its envelope), for the choke. */
   private lastShot: GainNode | null = null;
   private readonly reloadSrcs: AudioBufferSourceNode[] = [];
-  readonly stats: WeaponAudioStats = { loaded: false, failed: false, shots: 0, suppressed: 0, remote: 0, reloads: 0, casings: 0, dry: 0, layers: 0, shift: 0, decodeMs: 0 };
+  readonly stats: WeaponAudioStats = { loaded: false, failed: false, shots: 0, suppressed: 0, remote: 0, remoteSd: 0, reloads: 0, casings: 0, dry: 0, layers: 0, shift: 0, decodeMs: 0 };
 
   constructor(private a: AudioEngine) {
     a.whenReady(() => void this.load());
@@ -113,6 +115,7 @@ export class WeaponAudio {
     if (!this.a.allow(`wshot-${gunId}`, 0.04)) return true;
     this.play(this.planner.shot(this.plan, gunId, suppressed, Math.max(0.5, dist), level, pan), null);
     this.stats.remote++;
+    if (suppressed) this.stats.remoteSd++;
     return true;
   }
 

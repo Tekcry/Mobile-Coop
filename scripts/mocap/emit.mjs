@@ -2,7 +2,7 @@
 // (docs/mocap-trial/CLIP-FORMAT.md), written as TS modules matching src/anim/clips/mocap/<name>.ts into
 // build/mocap/clips/ (the job lead moves them into src). Extra slots the format has no file for go to clips/extra/,
 // the runner-up loops to clips/alt/.
-//   node --import ./scripts/operators/ts-resolve.mjs scripts/mocap/emit.mjs [--no-check]
+//   node --import ./scripts/operators/ts-resolve.mjs scripts/mocap/emit.mjs [--no-check] [--no-doc]
 // The check builds every clip through the game's own `keyedClip` (src/anim/keyed.ts; read only) and verifies the
 // loops close, the planted feet fall back at exactly the clip's stride and the arrays have the right lengths.
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -26,6 +26,16 @@ const KNEE_OUT = { walk: -0.03, jog: -0.045, run: -0.045 };
  * walk / jog / run ranges (tests/mocapSwitch.test.ts; the jog and walk knee-out sits at Michael's tuned limit).
  */
 const TRACK_HALF = { walk: 0.0425, jog: 0.08, run: 0.07 };
+/**
+ * (anim-fix-pass AF1, Michael P1 "legs sticking and overlapping eachother") The forward cycles' track is now measured on
+ * the PLANTED frames only (the clip feet's stance window) and re-centred per side: each side's mean planted ankle x goes to
+ * -/+ STANCE_HALF (null: the old whole-cycle TRACK_HALF shift, below). TRACK_HALF was a mean over the whole cycle, swing arc
+ * included, and never re-centred, so the planted track sat narrow and off the midline (run L -5.8 / R +1.7 cm, sprint
+ * -1.7 / +5.2; jog -6.0 / +5.0): the ~8 cm stance gap at the rig's uncross / knee-gap rules. The walk keeps its old track
+ * exactly (Michael called its turns fine; centred, its planted feet left e2e-anim's walk track / knee-out ranges). Not for `ownTrack` cycles (m3's
+ * crouch walk puts the take's track back as captured: the old symmetric shift, below) or sideways cycles.
+ */
+const STANCE_HALF = { walk: null, jog: 0.06, run: 0.055 };
 const KNEE_OUT_CYCLE = { walk: -0.055, jog: -0.09, run: -0.03 };
 /**
  * (integration) `liftH` is the foot planner's own swing lift (animGraph `g.liftH` -> `FootPlanner.beginSwing` stepLift),
@@ -84,6 +94,9 @@ export const FILES = [
   { file: 'extra/stop_jog.ts', slot: 'jog_stop', name: 'stop_jog', kind: 'stop', typed: true, gait: 'jog', seconds: 'MOCAP_STOP_JOG_SECONDS' },
   { file: 'extra/start_run.ts', slot: 'run_start_from_walk', name: 'start_run', kind: 'start', typed: true, gait: 'run', seconds: 'MOCAP_START_RUN_SECONDS' },
 ];
+
+/** (AF1) The M3 forward loops this emitter re-emits from build/mocap/m3/ (m3.mjs's spec for each; `--no-doc` skips TAKES.md). */
+const M3_CYCLES = [{ file: 'sprint.ts', slot: 'sprint', name: 'sprint', kind: 'cycle', gait: 'run' }];
 
 /** Sampler over an intermediate: fractional frame -> pelvis, local rotations, root (cyclic for loops). */
 function sampler(d, rig) {
@@ -252,12 +265,32 @@ export function emitCycle(d0, rig, spec) {
     }
   }
   const takeHalf = halfOf(frames, K);
-  // (mocap-trial-2, strafe) a sideways cycle keeps the take's own track (its feet open and close along x)
-  const half = lateral ? takeHalf : TRACK_HALF[spec.gait];
-  const dh = half - takeHalf;
-  for (let i = 0; i < feet.length; i += 10) {
-    feet[i] -= dh;
-    feet[i + 5] += dh;
+  // (AF1) each side's mean planted ankle x (root frame, 1.75 m units) as captured
+  const planted = (o) => {
+    let s = 0, c = 0;
+    for (let i = 0; i < feet.length; i += 10) if (feet[i + o + 4]) { s += feet[i + o]; c++; }
+    return c ? s / c : 0;
+  };
+  const stanceTake = [planted(0), planted(5)];
+  let half;
+  if (lateral || spec.ownTrack || STANCE_HALF[spec.gait] === null) {
+    // (mocap-trial-2, strafe) a sideways cycle keeps the take's own track (its feet open and close along x); an ownTrack
+    // cycle and the walk get the old symmetric shift to TRACK_HALF (m3.mjs puts an ownTrack take's half back)
+    half = lateral ? takeHalf : TRACK_HALF[spec.gait];
+    const dh = half - takeHalf;
+    for (let i = 0; i < feet.length; i += 10) {
+      feet[i] -= dh;
+      feet[i + 5] += dh;
+    }
+  } else {
+    // (AF1) the planted track re-centred, each side at -/+ the stance half
+    half = STANCE_HALF[spec.gait];
+    const dl = -half - stanceTake[0];
+    const dr = half - stanceTake[1];
+    for (let i = 0; i < feet.length; i += 10) {
+      feet[i] += dl;
+      feet[i + 5] += dr;
+    }
   }
   const T = n / d.fps;
   const speed = S / T;
@@ -271,7 +304,7 @@ export function emitCycle(d0, rig, spec) {
     },
     report: {
       take: d.source.take, seconds: d.source.seconds, cycle: T, speed, stride: S, rStrikePhaseTake: rStrike / n,
-      takeDuty: [cl / n, cr / n], warpedDuty: takeDuty, travelTurnDeg: d.travelTurnDeg ?? 0, takeHalf, strideScale: scales, liftH, pelvisYawMeanDeg: Math.atan2(frames.reduce((s, f) => s + Math.sin(f.yaw), 0), frames.reduce((s, f) => s + Math.cos(f.yaw), 0)) * R2D,
+      takeDuty: [cl / n, cr / n], warpedDuty: takeDuty, travelTurnDeg: d.travelTurnDeg ?? 0, takeHalf, stanceTake, strideScale: scales, liftH, pelvisYawMeanDeg: Math.atan2(frames.reduce((s, f) => s + Math.sin(f.yaw), 0), frames.reduce((s, f) => s + Math.cos(f.yaw), 0)) * R2D,
     },
     frames,
   };
@@ -434,13 +467,29 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
     if (spec.kind === 'cycle') notes.push(...checkCycle(out));
     const r = out.report;
     const line = spec.kind === 'cycle'
-      ? `${spec.file}: ${d.slot} ${r.take} ${r.seconds.join('-')} s, Wren ${r.speed.toFixed(2)} m/s, stride ${r.stride.toFixed(2)} m, cycle ${r.cycle.toFixed(3)} s, R strike at ${r.rStrikePhaseTake.toFixed(3)} of the take cycle (warped to 0.5), duty ${out.def.duty.toFixed(3)} (ankle pinned; the take's contact ${r.warpedDuty.toFixed(3)}), capture lift ${(r.liftH * 100).toFixed(1)} cm (liftH written ${out.def.liftH}: the planner's), half ${out.def.half.toFixed(3)} (the take's ${r.takeHalf.toFixed(3)}), knee pole ${out.def.kneeOut}, game/clip stride ${r.strideScale.map((x) => x.toFixed(2)).join('-')} over the band, mean pelvis yaw ${r.pelvisYawMeanDeg.toFixed(1)} deg`
+      ? `${spec.file}: ${d.slot} ${r.take} ${r.seconds.join('-')} s, Wren ${r.speed.toFixed(2)} m/s, stride ${r.stride.toFixed(2)} m, cycle ${r.cycle.toFixed(3)} s, R strike at ${r.rStrikePhaseTake.toFixed(3)} of the take cycle (warped to 0.5), duty ${out.def.duty.toFixed(3)} (ankle pinned; the take's contact ${r.warpedDuty.toFixed(3)}), capture lift ${(r.liftH * 100).toFixed(1)} cm (liftH written ${out.def.liftH}: the planner's), half ${out.def.half.toFixed(3)} (the take's ${r.takeHalf.toFixed(3)}; planted ankle x as captured ${r.stanceTake.map((x) => (x * 100).toFixed(1)).join(' / ')} cm, now centred), knee pole ${out.def.kneeOut}, game/clip stride ${r.strideScale.map((x) => x.toFixed(2)).join('-')} over the band, mean pelvis yaw ${r.pelvisYawMeanDeg.toFixed(1)} deg`
       : `${spec.file}: ${d.slot} ${r.take} ${r.seconds.join('-')} s, ${out.def.frames} frames${r.turnedDeg !== undefined ? `, turned ${r.turnedDeg.toFixed(1)} deg over ${r.takeSeconds.toFixed(2)} s of the take` : ''}${out.seconds ? `, ${out.seconds.toFixed(2)} s` : ''}`;
     report.push({ file: spec.file, line, notes });
     console.log(line);
     for (const nt of notes) console.log(`   ${nt}`);
   }
+  // (anim-fix-pass AF1) the M3 forward loops re-emitted from their intermediates (build/mocap/m3/<slot>.json, written by
+  // m3.mjs from the takes) with this emitter's track, as m3.mjs writes them: clips/m3/<file>, header naming m3.mjs
+  for (const spec of M3_CYCLES) {
+    const src = path.join(OUT, 'm3', `${spec.slot}.json`);
+    if (!existsSync(src)) { console.warn(`skip m3/${spec.file}: no m3/${spec.slot}.json`); continue; }
+    const d = JSON.parse(readFileSync(src, 'utf8'));
+    const out = emitCycle(d, rig, spec);
+    const file = path.join(CLIPS, 'm3', spec.file);
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, moduleSource(spec, d, out).replace(`by scripts/mocap/emit.mjs from build/mocap/${d.slot}.json`, `by scripts/mocap/m3.mjs (emit.mjs) from build/mocap/m3/${d.slot}.json`)
+      .replace('(docs/mocap-trial/TAKES.md "Rerun")', '(docs/mocap-trial/TAKES.md "M3 takes")'));
+    const r = out.report;
+    console.log(`m3/${spec.file}: ${r.take}, duty ${out.def.duty.toFixed(3)}, half ${out.def.half.toFixed(3)} (planted ankle x as captured ${r.stanceTake.map((x) => (x * 100).toFixed(1)).join(' / ')} cm, now centred)`);
+    for (const nt of checkCycle(out)) console.log(`   ${nt}`);
+  }
   writeFileSync(path.join(CLIPS, 'report.json'), JSON.stringify(report, null, 1));
+  if (process.argv.includes('--no-doc')) process.exit(0);
   const L = ['## Clips (build/mocap/clips/, CLIP-FORMAT.md)', '',
     'Emitted by `emit.mjs` as TS modules matching `src/anim/clips/mocap/<name>.ts` (the job lead moves them into src);',
     '`alt/` holds the runner-up loops, `extra/` the slots the format has no file for yet. Each clip passed the game\'s',

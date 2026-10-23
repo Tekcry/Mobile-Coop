@@ -1,562 +1,368 @@
+/**
+ * Marlow Yard whole-map frame (marlow-final slice 0d; PLAN.md section 2, SPEC sections 5, 7, 12, 13, 16, 18): the merge of
+ * the facility and the eight set parts. The chain (start -> L1 .. L7 -> end), `validateCourse`, the text limits, the
+ * contract rules per part (`checkSetPart`), the element register count, every lamp grouped (N12), the holding rooms and
+ * their 1.8 m sliding doors, the gallery out of bounds, the co-op lips band and no unplanned boost target, the bay-1
+ * guard e2e-coop needs. Each set slice adds its own cases in `tests/ctcourse/<set>.test.ts`.
+ */
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { AIRLOCK_LID, AIRLOCK_PAD_COLOR, bayX, ctcourse, CT_BAY, CT_CEIL, CT_EXIT_ZONE, CT_W, FENCE, S4_GAP, S4_HEADER, GATE_RADIO, LEGUP_SPOT, OBJECTIVE_TEXT, PANEL_TEXT, PANEL_TEXT_MAX, RADIO_ENTER, S3_CAMS_OFF, S3_CONSOLE, S3_HALL, S3_PASS, S3_PASS_COLOR, S3_ROOM_RADIO, S3_SEC_GUARD, S3_SEC_POST, S3_SEC_ROOM, S5_HATCH, S5_PANEL, S7_STAIR_Z } from '../src/world/maps/ctcourse';
-import { CONSOLE_DONE, CONSOLE_GUARD_UP, consoleErrors } from '../src/game/course/securityRoom';
-import { bayObjective, courseUser, exitZoneReady, inExitZone, isPanelId, layoutKnownIds, validateCourse } from '../src/game/course/courseDef';
-import { CourseState, REFUSE_BOLT, REFUSE_PAIR } from '../src/game/course/courseState';
-import { COURSE_TEXT_MAX } from '../src/config/course';
-import { getMap } from '../src/world/maps';
-import { findJumpTarget, generateLedges, suppressLedgesNear, type Ledge } from '../src/world/anchors';
-import { hangReaches, inBoostBand, ropeRoom } from '../src/game/teamMoves';
-import { TEAM } from '../src/config/movement';
+import { buildCtcourse, COOP_LIPS, ctcourse, SPOT_FAIL } from '../src/world/maps/ctcourse';
+import { getMap, MAPS } from '../src/world/maps';
 import { isListedMap } from '../src/world/maps/listed';
-import { buildVariety } from '../src/world/maps/ctcourseVariety';
+import { inExitZone, isPanelId, layoutKnownIds, registeredBayCount, validateCourse } from '../src/game/course/courseDef';
+import { CourseState } from '../src/game/course/courseState';
+import { COURSE_TEXT_MAX, AIRLOCK_SIZE } from '../src/config/course';
+import { GUARD_INFO_LINE_MAX } from '../src/ai/guardInfo';
+import { checkPanels } from '../src/game/laserPanels';
+import { validateSecurity } from '../src/security/data';
+import { generateLedges, type Anchor } from '../src/world/anchors';
+import { TEAM, WALL_JUMP } from '../src/config/movement';
+import { camSpaceAt } from '../src/world/camSpaces';
+import { COOP_BAND } from '../src/world/maps/ctcourseGreybox';
+import { MARLOW_CIRCUITS, marlowCourseGroups, validateMarlowCircuits } from '../src/world/lighting/marlowCircuits';
+import { DOCK_BOX, EXIT_ZONE, HOLD_BOX, HOLD_DOOR_W, HOLD_DOORS, HOLD_H, HOLD_IDS, holdDoorId, HALL_H, boxInSet, inBox, inSet, LOUNGE_BOX, MAP_CAMERAS, OBJECTIVE_ID_MAX, registerSum, SET_BOX, SET_IDS, SET_LINKS, setBay, setEntryDoor, setExitDoor, setGroups, checkSetPart, type Box } from '../src/world/maps/ctcourseSets/types';
+import { GALLERY_BOX, GAL_FLOOR, GALLERY_GROUP, SLOT } from '../src/world/maps/ctcourseSets/facility';
 
-describe('ctcourse (CT prototype B1)', () => {
-  const lay = ctcourse.build(new LevelBuilder(), 0);
-  const c = lay.course!;
-  it('is registered, course only, not listed, the default course map', () => {
+const b = new LevelBuilder();
+const built = buildCtcourse(b);
+const lay = built.layout;
+const c = lay.course!;
+const def = c.def;
+/** The `SEC_SCANS` cap in `protocol.ts` (not exported): the wire keeps this many scanner pairs. */
+const WIRE_SCAN_PAIRS = 8;
+
+describe('Marlow Yard: identity and the course chain', () => {
+  it('is registered, course only, not listed, in MAPS; its course registered itself at load (N8)', () => {
     expect(getMap('ctcourse').id).toBe('ctcourse');
     expect(ctcourse.modes).toEqual(['course']);
     expect(isListedMap('ctcourse')).toBe(false);
+    expect(MAPS.some((m) => m.id === 'ctcourse')).toBe(true);
+    expect(registeredBayCount('ctcourse')).toBe(8);
   });
-  it('has eight stations, seven airlocks and a course that validates', () => {
-    expect(() => validateCourse(c.def, layoutKnownIds(c))).not.toThrow();
-    expect(c.def.bays).toHaveLength(8);
-    expect(c.def.airlocks).toHaveLength(7);
+  it('eight bays A1-A8 in route order, seven 6 x 6 holding rooms, the chain start -> L1 .. L7 -> end, and it validates', () => {
+    expect(() => validateCourse(def, layoutKnownIds(c))).not.toThrow();
+    expect(def.bays.map((x) => x.id)).toEqual(SET_IDS.map(setBay));
+    expect(def.airlocks.map((a) => a.id)).toEqual([...HOLD_IDS]);
+    expect(def.bays[0]!.entry).toBe('start');
+    expect(def.bays[7]!.exit).toBe('end');
+    def.bays.forEach((bay, i) => {
+      if (i > 0) expect(bay.entry).toBe(def.bays[i - 1]!.exit);
+      expect(bay.entry).toBe(SET_LINKS[SET_IDS[i]!].entry);
+    });
+    for (const a of def.airlocks) {
+      expect(Math.abs(a.box[2] - a.box[0])).toBeCloseTo(AIRLOCK_SIZE, 6);
+      expect(Math.abs(a.box[3] - a.box[1])).toBeCloseTo(AIRLOCK_SIZE, 6);
+      expect(a.box).toEqual([...HOLD_BOX[a.id as (typeof HOLD_IDS)[number]]]);
+    }
+  });
+  it('two spawns in the arrival lounge facing +x; no explainer panels (M4)', () => {
     expect(lay.playerSpawns).toHaveLength(2);
-    expect((lay.medkitWalls ?? []).length).toBeGreaterThan(0);
+    for (const s of lay.playerSpawns) {
+      expect(inBox(LOUNGE_BOX, s.pos.x, s.pos.z)).toBe(true);
+      expect(s.yaw).toBeCloseTo(Math.PI / 2);
+    }
+    expect(Object.keys(c.devices).filter(isPanelId)).toEqual([]);
   });
-  it('the exit zone is one rule: both players, or one under the solo flag', () => {
-    expect(exitZoneReady(true, true, false)).toBe(true);
-    expect(exitZoneReady(true, false, false)).toBe(false);
-    expect(exitZoneReady(false, false, true)).toBe(false);
-    expect(exitZoneReady(true, false, true)).toBe(true);
-    const mid = (CT_EXIT_ZONE.box[0] + CT_EXIT_ZONE.box[2]) / 2;
-    expect(inExitZone(CT_EXIT_ZONE, mid, 0, 7, 1)).toBe(true);
-    expect(inExitZone(CT_EXIT_ZONE, mid, 3, 7, 1)).toBe(false);
-    expect(inExitZone(CT_EXIT_ZONE, mid - 20, 0, 7, 1)).toBe(false);
-  });
-  it('the course ends only when BOTH players are in the exit zone', () => {
-    const s = new CourseState(c.def);
+  it('the exit zone is in the cash dock and ends the course only with BOTH players in it (G138)', () => {
+    const z = def.exitZone!;
+    expect(z.box).toEqual([...EXIT_ZONE]);
+    expect(inBox(DOCK_BOX, z.box[0], z.box[1]) && inBox(DOCK_BOX, z.box[2], z.box[3])).toBe(true);
+    const s = new CourseState(def, c.consoles);
     s.startAt(8);
-    const x = (CT_EXIT_ZONE.box[0] + CT_EXIT_ZONE.box[2]) / 2;
-    s.setPlayer(0, x, 0, 7, false);
-    s.setPlayer(1, 5, 0, 7, false);
+    const x = (z.box[0] + z.box[2]) / 2;
+    const zc = (z.box[1] + z.box[3]) / 2;
+    expect(inExitZone(z, x, 0, zc, 1)).toBe(true);
+    s.setPlayer(0, x, 0, zc, false);
+    s.setPlayer(1, 151, 0, 62, false);
     s.update(1 / 60);
     expect(s.over).toBe(false);
-    expect(s.finishRefusal()).toBe('Wait for your partner');
-    s.setPlayer(1, x + 0.5, 0, 6, true);
-    s.update(1 / 60);
-    expect(s.over).toBe(false);
-    s.setPlayer(1, x + 0.5, 0, 6, false);
+    s.setPlayer(1, x + 0.5, 0, zc + 0.5, false);
     s.update(1 / 60);
     expect(s.over).toBe(true);
   });
 });
 
-describe('ctcourse (CT prototype B2: leg-up wall and relay roof)', () => {
-  const b = new LevelBuilder();
-  const lay = ctcourse.build(b, 0);
-  const anchors = generateLedges(b.boxes);
-  const c = lay.course!;
-  const MID = 7;
-
-  it('station 2: the wall is bolted from the far side; the plates are gone', () => {
-    const bay = c.def.bays[1]!;
-    expect(bay.gates.filter((x) => x.kind !== 'pickup')).toHaveLength(1);
-    const g = bay.gates[0]!;
-    expect(g.kind).toBe('bolt');
-    if (g.kind === 'bolt') {
-      // the bolt opens from the +x (far) side; its side test is the door plane x 22 + 9 (course-ready F7)
-      expect(g.side).toEqual([1, 0]);
-      expect(g.at[0]).toBe(22 + 9);
+describe('Marlow Yard: the set-part contract', () => {
+  it('one part per set in route order; every part passes the contract rules', () => {
+    expect(built.parts.map((p) => p.id)).toEqual([...SET_IDS]);
+    const bad = built.parts.flatMap((p) => checkSetPart(p));
+    expect(bad).toEqual([]);
+  });
+  it('each set enters by its holding room\'s far door and leaves by the next one\'s near door (facility doors)', () => {
+    for (const id of SET_IDS) {
+      for (const door of [setEntryDoor(id), setExitDoor(id)]) if (door) expect(c.doors[door], door).toBeTypeOf('number');
     }
-    expect(c.devices['sw-s2-a']).toBeUndefined();
+    expect(setEntryDoor('a1Gate')).toBeNull();
+    expect(setExitDoor('a8Strongroom')).toBeNull();
   });
-  it('a leg-up from the floor in front of the station 2 wall finds a climbable lip in the 4.3-4.5 band', () => {
-    const floor = 0;
-    const apex = { x: 22 + 8, y: floor + TEAM.boostMax - 1.15, z: MID + 2 };
-    const t = findJumpTarget(anchors, apex, -1, 1, 0, 1, 2.2, 0.2);
-    expect(t).not.toBeNull();
-    expect(inBoostBand(t!.grip.y - floor)).toBe(true);
-    expect(t!.grip.y).toBeGreaterThanOrEqual(4.3);
-    expect(t!.grip.y).toBeLessThanOrEqual(4.5);
-    expect((t!.anchor as Ledge).canClimbUp).toBe(true);
+  it('cameras within the map budget and valid; scanner pairs fit the wire (8); every laser has one panel', () => {
+    const cams = lay.security!.devices;
+    expect(cams.length).toBeLessThanOrEqual(MAP_CAMERAS);
+    expect(validateSecurity(lay.security!)).toEqual([]);
+    expect((lay.scanners ?? []).length).toBeLessThanOrEqual(WIRE_SCAN_PAIRS);
+    expect(checkPanels(lay.lasers ?? [], lay.laserPanels ?? [])).toEqual([]);
   });
-  it('station 5: the roof lip is reachable, and both roof plates stand on the roof (4.4 m)', () => {
-    const x0 = 22 * 4;
-    const apex = { x: x0 + 8, y: TEAM.boostMax - 1.15, z: 3 };
-    const t = findJumpTarget(anchors, apex, -1, 1, 0, 1, 2.2, 0.2);
-    expect(t).not.toBeNull();
-    expect(inBoostBand(t!.grip.y)).toBe(true);
-    expect((t!.anchor as Ledge).canClimbUp).toBe(true);
-    for (const id of ['sw-s5-a', 'sw-s5-b']) {
-      expect(c.devices[id]!.y).toBeGreaterThanOrEqual(4.3);
-      expect(c.devices[id]!.x).toBeGreaterThan(x0 + 9);
-    }
+  it('the element register counts every light, collidable box, door and anchor each part added (SPEC 18)', () => {
+    expect(registerSum(built.facility.register)).toEqual(built.counts.facility);
+    for (const p of built.parts) expect(registerSum(p.register), p.id).toEqual(built.counts.sets[p.id]);
+    expect(built.facility.register.map((r) => r.id)).toEqual(expect.arrayContaining(['F1', 'F2', 'F3', 'F4', 'F6', 'F7']));
   });
-  it('no skip: the walls are lower than the perimeter, nothing but a 4.5 m boost clears them, the airlock walls are 7.5 m', () => {
-    expect(TEAM.boostMax).toBeLessThan(FENCE);
-    expect(FENCE).toBe(7.5);
-    // a hanging player's relay reach and a leg-up's top stay under the perimeter's height
-    expect(TEAM.relayMax).toBeLessThan(FENCE);
+  it('the bay-1 guard (e2e-coop): A1 spawns a passive, grabbable guard with information, inside A1', () => {
+    const bay = def.bays[0]!;
+    expect(bay.squad.length).toBeGreaterThanOrEqual(1);
+    const slot = c.squads[bay.squad[0]!]!;
+    expect(slot.passive).toBe(true);
+    expect(slot.kind).not.toBe('runner');
+    expect(slot.info?.lines.length).toBeGreaterThanOrEqual(1);
+    expect(inSet('a1Gate', slot.x, slot.z)).toBe(true);
+  });
+  it('every guard slot is an armed kind (SPEC rule 9: never a runner)', () => {
+    for (const [id, s] of Object.entries(c.squads)) expect(['grunt', 'heavy', 'enforcer', 'officer', 'sniper'], id).toContain(s.kind);
   });
 });
 
-describe('ctcourse panels (F1b: one optional panel per station)', () => {
-  const lay = ctcourse.build(new LevelBuilder(), 0);
-  const c = lay.course!;
-  it('every station has exactly one panel device, and no drill or door waits on reading it', () => {
-    expect(isPanelId('sw-p3')).toBe(true);
-    expect(isPanelId('sw-s3-a')).toBe(false);
-    for (let n = 1; n <= 8; n++) {
-      expect(c.devices[`sw-p${n}`]?.label?.length ?? 0).toBeGreaterThan(10);
-      const bay = c.def.bays[n - 1]!;
-      expect(bay.gates.filter((g) => g.kind === 'pickup' && g.switchId === `sw-p${n}`)).toHaveLength(1);
-      expect(bay.drills.some((d) => d.verb === 'switch')).toBe(false);
-      for (const g of c.def.bays.flatMap((b) => b.gates)) if (g.kind === 'flag' || g.kind === 'anchorLock') expect(g.flag.startsWith('panel-')).toBe(false);
+describe('Marlow Yard: text (90 characters, British, no dashes)', () => {
+  const lines: [string, string][] = [];
+  for (const bay of def.bays) for (const r of bay.radio) lines.push([`${bay.id} radio ${r.at}`, r.text]);
+  for (const bay of def.bays) for (const d of bay.drills) lines.push([`${bay.id} drill ${d.id}`, d.text]);
+  for (const bay of def.bays) if (bay.spotFail !== undefined) lines.push([`${bay.id} spotted`, bay.spotFail]);
+  for (const o of def.objectives ?? []) {
+    lines.push([`step ${o.id}`, o.text]);
+    if (o.a) lines.push([`step ${o.id} A`, o.a]);
+    if (o.b) lines.push([`step ${o.id} B`, o.b]);
+  }
+  it('every radio line, drill and objective line fits COURSE_TEXT_MAX with no em or en dash', () => {
+    expect(lines.length).toBeGreaterThan(8);
+    for (const [k, t] of lines) {
+      expect(t.length, k).toBeLessThanOrEqual(COURSE_TEXT_MAX);
+      expect(/[\u2013\u2014]/.test(t), k).toBe(false);
     }
   });
-  it('station 1 has no drill at all: the airlock pad is its only step', () => {
-    expect(c.def.bays[0]!.drills).toHaveLength(0);
-    expect(c.def.bays[0]!.gates.every((g) => g.kind === 'pickup')).toBe(true);
+  it('(walk482 X2a) only A2 fails on being spotted; its line fits COURSE_TEXT_MAX and validateCourse checks the length', () => {
+    const withRule = def.bays.filter((bay) => bay.spotFail !== undefined);
+    expect(withRule.map((bay) => bay.id)).toEqual(['A2']);
+    const line = withRule[0]!.spotFail!;
+    expect(line).toBe(SPOT_FAIL.a2CarriageShed);
+    expect(line.length).toBeGreaterThan(0);
+    expect(line.length).toBeLessThanOrEqual(COURSE_TEXT_MAX);
+    const long = { ...def, bays: def.bays.map((bay) => (bay.spotFail ? { ...bay, spotFail: 'x'.repeat(COURSE_TEXT_MAX + 1) } : bay)) };
+    expect(() => validateCourse(long, layoutKnownIds(c))).toThrow(/spotted line/);
   });
-});
-
-describe('ctcourse (CT prototype B5: hang-down hack at station 5)', () => {
-  const b = new LevelBuilder();
-  const lay = ctcourse.build(b, 0);
-  const anchors = generateLedges(b.boxes);
-  const c = lay.course!;
-  const [hx0, hz0, hx1, hz1] = S5_HATCH;
-  const hx = (hx0 + hx1) / 2;
-  const hz = (hz0 + hz1) / 2;
-  const solidAt = (x: number, y: number, z: number): boolean =>
-    b.boxes.some((p) => p.collide && Math.abs(x - p.c[0]) < p.s[0] / 2 && Math.abs(y - p.c[1]) < p.s[1] / 2 && Math.abs(z - p.c[2]) < p.s[2] / 2);
-
-  it('the roof has a hatch over the back room, narrower than a body (0.6 m), roof all round it', () => {
-    expect(solidAt(hx, 4.2, hz)).toBe(false);
-    expect(hx1 - hx0).toBeLessThan(0.6);
-    expect(hz1 - hz0).toBeLessThan(0.6);
-    for (const [x, z] of [[hx0 - 0.1, hz], [hx1 + 0.1, hz], [hx, hz0 - 0.1], [hx, hz1 + 0.1], [hx, hz1 + 0.5]] as const) expect(solidAt(x, 4.2, z)).toBe(true);
-    // behind the grid wall (x +12.5) and inside the annex (front of the airlock at +16)
-    expect(hx0).toBeGreaterThan(22 * 4 + 12.65);
-    expect(hx1).toBeLessThan(22 * 4 + 16);
-    // no generated ledge at the hatch (nobody hangs off its rim and drops in)
-    suppressLedgesNear(anchors, hx, hz, 1.0);
-    for (const l of anchors.ledges) {
-      const mx = (l.a.x + l.b.x) / 2;
-      const mz = (l.a.z + l.b.z) / 2;
-      if (Math.hypot(mx - hx, mz - hz) < 0.5) expect(l.canHang).toBe(false);
+  it('every bay has an entry radio line and a closing objective line', () => {
+    for (const bay of def.bays) {
+      expect(bay.radio.some((r) => r.at === 'enter'), bay.id).toBe(true);
+      expect((def.objectives ?? []).some((o) => o.bay === bay.id && o.done === undefined), bay.id).toBe(true);
     }
   });
-  it('the hack panel is the grid lever, in the back room, reached hanging from the hatch, not from the roof or the front room', () => {
-    const gate = c.def.bays[4]!.gates.find((g) => g.kind === 'lever');
-    expect(gate && gate.kind === 'lever' && gate.switchId).toBe('sw-s5-hack');
-    const d = c.devices['sw-s5-hack']!;
-    expect([d.x, d.y, d.z]).toEqual([S5_PANEL.x, S5_PANEL.y, S5_PANEL.z]);
-    // hanging under the hatch, lowered: in reach; at the start height: not
-    expect(hangReaches(hx, hz - 0.1, 4.4, TEAM.hangMax, d.x, d.y, d.z)).toBe(true);
-    expect(hangReaches(hx, hz - 0.1, 4.4, TEAM.hangStart, d.x, d.y, d.z)).toBe(false);
-    // the game's reach rule (1.8 m across, 1.5 m up / down): not from the roof, not from the front room (west of the grid wall)
-    expect(Math.abs(d.y - 4.4)).toBeGreaterThan(1.5);
-    expect(d.x - (22 * 4 + 12.35)).toBeGreaterThan(1.8);
-  });
-});
-
-describe('ctcourse (CT prototype B7: two-person rope at station 7)', () => {
-  const b = new LevelBuilder();
-  const lay = ctcourse.build(b, 0);
-  const anchors = generateLedges(b.boxes);
-  const c = lay.course!;
-  const x0 = 22 * 6;
-  const solidAt = (x: number, y: number, z: number): boolean =>
-    b.boxes.some((p) => p.collide && Math.abs(x - p.c[0]) < p.s[0] / 2 && Math.abs(y - p.c[1]) < p.s[1] / 2 && Math.abs(z - p.c[2]) < p.s[2] / 2);
-
-  it('the placeholder console is gone; the wall is solid full width (no door), 4.4 m, 1 m thick', () => {
-    const bay = c.def.bays[6]!;
-    expect(bay.gates.filter((x) => x.kind !== 'pickup')).toHaveLength(0);
-    expect(c.devices['h-s7']).toBeUndefined();
-    expect(c.doors['S7-door']).toBeUndefined();
-    for (const z of [0.5, 3, 6.4, 7, 10, 13.5]) {
-      expect(solidAt(x0 + 9, 1, z)).toBe(true);
-      expect(solidAt(x0 + 9, 4.3, z)).toBe(true);
-      expect(solidAt(x0 + 9, 4.5, z)).toBe(false);
-    }
-    expect(solidAt(x0 + 8.6, 4.3, 7)).toBe(true);
-    expect(solidAt(x0 + 9.4, 4.3, 7)).toBe(true);
-  });
-  it('a leg-up from the near side reaches a climbable lip in the band; the rope serves the drop back down', () => {
-    const apex = { x: x0 + 8, y: TEAM.boostMax - 1.15, z: 3 };
-    const t = findJumpTarget(anchors, apex, -1, 1, 0, 1, 2.2, 0.2);
-    expect(t).not.toBeNull();
-    expect(inBoostBand(t!.grip.y)).toBe(true);
-    expect((t!.anchor as Ledge).canClimbUp).toBe(true);
-    expect(ropeRoom(4.4, 0)).toBe('ok');
-  });
-  it('never stranded: a far-side stair (1.1 m rises) climbs back to the wall top; nothing on the near side', () => {
-    for (let k = 1; k <= 3; k++) {
-      const h = 1.1 * (4 - k);
-      expect(solidAt(x0 + 9.5 + k - 0.5, h - 0.05, S7_STAIR_Z)).toBe(true);
-      expect(solidAt(x0 + 9.5 + k - 0.5, h + 0.05, S7_STAIR_Z)).toBe(false);
-    }
-    expect(solidAt(x0 + 8, 1, S7_STAIR_Z)).toBe(false);
-  });
-});
-
-describe('station 8 (B8): the final beat', () => {
-  const b = new LevelBuilder();
-  const lay = ctcourse.build(b, 0);
-  const c = lay.course!;
-  const x0 = 22 * 7;
-  const solidAt = (x: number, y: number, z: number): boolean =>
-    b.boxes.some((p) => p.collide && Math.abs(x - p.c[0]) < p.s[0] / 2 && Math.abs(y - p.c[1]) < p.s[1] / 2 && Math.abs(z - p.c[2]) < p.s[2] / 2);
-
-  it('the held console placeholder is gone: no gate, no door, an open doorway in the 3.5 m wall', () => {
-    const bay = c.def.bays[7]!;
-    expect(bay.gates.filter((x) => x.kind !== 'pickup')).toHaveLength(0);
-    expect(c.devices['h-s8']).toBeUndefined();
-    expect(c.doors['S8-door']).toBeUndefined();
-    expect(bay.exit).toBe('end');
-    expect(solidAt(x0 + 9, 1, 1)).toBe(true);
-    expect(solidAt(x0 + 9, 3.4, 12)).toBe(true);
-    expect(solidAt(x0 + 9, 1, 7)).toBe(false);
-  });
-
-  it('the course still ends only with both in the exit zone', () => {
-    const st = new CourseState(validateCourse(c.def, layoutKnownIds(lay.course!)));
-    st.startAt(8);
-    st.clearEvents();
-    const zx = (CT_EXIT_ZONE.box[0] + CT_EXIT_ZONE.box[2]) / 2;
-    st.setPlayer(0, zx, 0, 7, false);
-    st.setPlayer(1, x0 + 2, 0, 7, false);
-    st.update(1 / 60);
-    expect(st.over).toBe(false);
-    st.setPlayer(1, zx, 0, 6, false);
-    st.update(1 / 60);
-    expect(st.over).toBe(true);
-  });
-});
-
-describe('course-ready S1: station fixes and text', () => {
-  const b = new LevelBuilder();
-  const lay = ctcourse.build(b, 0);
-  const anchors = generateLedges(b.boxes);
-  const c = lay.course!;
-  const def = validateCourse(c.def, layoutKnownIds(c));
-  const DOOR_X = 22 + 9;
-  const at2 = (): CourseState => {
-    const s = new CourseState(def);
-    s.startAt(2);
-    s.clearEvents();
-    return s;
-  };
-
-  it('F7: the bolt side is the door plane: feet just past the leaf unbolt, the near side and the near doorway are refused', () => {
-    for (const x of [DOOR_X + 0.1, DOOR_X + 0.6, DOOR_X + 1.2]) {
-      const s = at2();
-      s.setPlayer(0, x, 0, 7, false);
-      expect(s.press('S2-door', 0)).toBeNull();
-      expect(s.isGateOpen('g-s2')).toBe(true);
-    }
-    for (const x of [DOOR_X - 0.1, DOOR_X - 0.6, DOOR_X - 1.5]) {
-      const s = at2();
-      s.setPlayer(1, x, 0, 7, false);
-      expect(s.press('S2-door', 1)).toBe(REFUSE_BOLT);
-      expect(s.isGateOpen('g-s2')).toBe(false);
-    }
-  });
-
-  it("marlow-bays item 2: the host's own press ('local') is P1, so a host alone past the door unbolts it", () => {
-    expect(courseUser('local')).toBe(0);
-    expect(courseUser(undefined)).toBe(0);
-    expect(courseUser('peer-abc')).toBe(1);
-    const s = at2();
-    // the host crossed alone; the client still waits on the near side
-    s.setPlayer(0, DOOR_X + 0.6, 0, 7, false);
-    s.setPlayer(1, DOOR_X - 3, 0, 7, false);
-    expect(s.press('S2-door', courseUser('local'))).toBeNull();
-    expect(s.isGateOpen('g-s2')).toBe(true);
-    // and the other way round: the client crossed alone, its id is P2
-    const c = at2();
-    c.setPlayer(0, DOOR_X - 3, 0, 7, false);
-    c.setPlayer(1, DOOR_X + 0.6, 0, 7, false);
-    expect(c.press('S2-door', courseUser('peer-abc'))).toBeNull();
-    expect(c.isGateOpen('g-s2')).toBe(true);
-  });
-
-  it('F8: the "Unbolt" item is live only while the bolt is shut; a bay restart brings it back', () => {
-    const s = at2();
-    expect(s.boltUsable('g-s2')).toBe(true);
-    s.setPlayer(0, DOOR_X + 0.5, 0, 7, false);
-    s.press('S2-door', 0);
-    expect(s.boltUsable('g-s2')).toBe(false);
-    expect(s.locked('S2-door')).toBe(false);
-    s.restart();
-    expect(s.boltUsable('g-s2')).toBe(true);
-    expect(s.locked('S2-door')).toBe(true);
-  });
-
-  it('F17: a lone roof-plate press gets the partner hint; the partner inside the window opens the door', () => {
-    const s = new CourseState(def);
-    s.startAt(5);
-    expect(s.press('sw-s5-a', 0)).toBe(REFUSE_PAIR);
-    expect(s.press('sw-s5-a', 0)).toBe(REFUSE_PAIR);
-    expect(s.isGateOpen('g-s5')).toBe(false);
-    s.update(0.5);
-    expect(s.press('sw-s5-b', 1)).toBeNull();
-    expect(s.isGateOpen('g-s5')).toBe(true);
-    // too late: the hint again, nothing opens
-    const t = new CourseState(def);
-    t.startAt(5);
-    t.press('sw-s5-a', 0);
-    t.update(1.5);
-    expect(t.press('sw-s5-b', 1)).toBe(REFUSE_PAIR);
-    expect(t.isGateOpen('g-s5')).toBe(false);
-  });
-
-  it('F2: each station gate has a radio line naming the next step, in its own bay; flag gates are keyed by gate id', () => {
-    const want: [string, number][] = [['g-s2', 2], ['g-s3', 3], ['g-s3-cams', 3], ['g-s4', 4], ['g-s5', 5], ['g-s5-grid', 5], ['g-s6', 6]];
-    for (const [id, n] of want) {
-      const bay = def.bays[n - 1]!;
-      expect(bay.gates.some((g) => g.id === id)).toBe(true);
-      expect(bay.radio.find((r) => r.at === id)?.text).toBe(GATE_RADIO[id]);
-    }
-    // the camera pocket and the scanners are flag gates (CourseMode speaks their line on flagSet)
-    expect(def.bays[2]!.gates.find((g) => g.id === 'g-s3')?.kind).toBe('flag');
-    expect(def.bays[5]!.gates.find((g) => g.id === 'g-s6')?.kind).toBe('flag');
-    expect(GATE_RADIO['g-s2']).toBe('Unbolted. Open the door for your partner.');
-    expect(GATE_RADIO['g-s5-grid']).toBe('Grid open. Off the roof, in the front door, through the grid to the airlock.');
-    // (anim-rework S1; Michael 14:55 "Interact always") A opens the door in every weapon state: no holster first
-    expect(GATE_RADIO['g-s3']).toMatch(/Open it \(A \/ E\)/);
-  });
-
-  it('F1: every bay has one objective (the HUD step line while it has no drills)', () => {
-    expect(def.objectives).toHaveLength(8);
-    for (let n = 1; n <= 8; n++) expect(bayObjective(def, `S${n}`)).toBe(OBJECTIVE_TEXT[n - 1]);
-    expect(bayObjective(def, 'nope')).toBeNull();
-  });
-
-  it('every panel, radio and objective line is within its limit, has no em or en dash, says pad and keyboard words', () => {
-    const radio = def.bays.flatMap((bay) => bay.radio.map((r) => r.text));
-    // (sector-fixes S) + 1: station 3's second enter line names the security room
-    expect(radio.length).toBe(RADIO_ENTER.length + Object.keys(GATE_RADIO).length + 1);
-    for (const t of [...radio, ...OBJECTIVE_TEXT]) {
-      expect(t.length, t).toBeLessThanOrEqual(COURSE_TEXT_MAX);
-      expect(t).not.toMatch(/[\u2013\u2014]/);
-    }
-    for (const t of PANEL_TEXT) {
-      expect(t.length, t).toBeLessThanOrEqual(PANEL_TEXT_MAX);
-      expect(t).not.toMatch(/[\u2013\u2014]/);
-    }
-    for (const t of [...radio, ...PANEL_TEXT, ...OBJECTIVE_TEXT]) expect(t).not.toMatch(/green pad/i);
-    // F14: every Co-op names RB / F, every LT names its key, every A names E (anim-rework S1: LT is the held aim, so its
-    // key is the right mouse button, RMB)
-    for (const t of [...radio, ...PANEL_TEXT, ...OBJECTIVE_TEXT]) {
-      if (/Co-op/.test(t)) expect(t, t).toMatch(/Co-op \(RB \/ F\)|Co-op action/i);
-      if (/\bLT\b/.test(t)) expect(t, t).toMatch(/LT \/ RMB/);
-      if (/\bA\b(?! \()/.test(t.replace(/Roof plate A|scanner A/g, ''))) expect(t, t).toMatch(/A \/ E/);
-    }
-    // F12, F15: station 3 names the pistol switch and the draw; station 4 the release's place
-    expect(PANEL_TEXT[2]).toMatch(/LB \/ Tab to the pistol/);
-    expect(PANEL_TEXT[3]).toMatch(/red release on the left wall/);
-    // F18: panel 5 is two sentences, the hatch part is the g-s5 radio line
-    expect(PANEL_TEXT[4]!.split('. ').length).toBe(2);
-    expect(GATE_RADIO['g-s5']).toMatch(/hatch/);
-  });
-
-  it('F5: the station 3 blind spot is not the airlock pads\' colour', () => {
-    expect(S3_PASS_COLOR).not.toBe(AIRLOCK_PAD_COLOR);
-    const px = (S3_PASS.box[0] + S3_PASS.box[2]) / 2;
-    const sq = b.boxes.find((p) => !p.collide && Math.abs(p.c[0] - px) < 0.01 && Math.abs(p.c[2] - 7) < 0.01 && p.c[1] < 0.05);
-    expect(sq?.color).toBe(S3_PASS_COLOR);
-  });
-
-  it('F11: the leg-up squares at stations 2, 5 and 7 sit on a spot where a leg-up finds a climbable lip', () => {
-    for (const n of [2, 5, 7]) {
-      const x = 22 * (n - 1) + LEGUP_SPOT[0];
-      const z = LEGUP_SPOT[1];
-      const sq = b.boxes.find((p) => !p.collide && Math.abs(p.c[0] - x) < 0.01 && Math.abs(p.c[2] - z) < 0.01 && p.c[1] < 0.05);
-      expect(sq, `station ${n} square`).toBeDefined();
-      const t = findJumpTarget(anchors, { x, y: TEAM.boostMax - 1.15, z }, -1, 1, 0, 1, 2.2, 0.2);
-      expect(t, `station ${n} leg-up`).not.toBeNull();
-      expect(inBoostBand(t!.grip.y)).toBe(true);
-      expect((t!.anchor as Ledge).canClimbUp).toBe(true);
+  it('objective ids fit the wire\'s 48-character flag (obj:<id>); guard information lines fit the radio', () => {
+    for (const o of def.objectives ?? []) expect(o.id.length, o.id).toBeLessThanOrEqual(OBJECTIVE_ID_MAX);
+    expect(`obj:${'x'.repeat(OBJECTIVE_ID_MAX)}`.length).toBeLessThanOrEqual(48);
+    for (const s of Object.values(c.squads)) for (const l of s.info?.lines ?? []) {
+      expect(l.length).toBeLessThanOrEqual(GUARD_INFO_LINE_MAX);
+      expect(/[\u2013\u2014]/.test(l)).toBe(false);
     }
   });
 });
 
-describe('marlow-bunker: ceilings, lids and walls to the ceiling (no new climbs)', () => {
-  const b = new LevelBuilder();
-  ctcourse.build(b, 0);
-  const anchors = generateLedges(b.boxes);
-  const near = (a: number, v: number, e = 1e-3): boolean => Math.abs(a - v) < e;
-  /** A solid, overhead, ledge-free slab whose underside is at y over [x0, x1] x [z0, z1]. */
-  const slab = (y: number, x0: number, x1: number, z0: number, z1: number): boolean =>
-    b.boxes.some((p) => p.collide && p.overhead === true && p.noLedge === true && near(p.c[1] - p.s[1] / 2, y) &&
-      p.c[0] - p.s[0] / 2 <= x0 + 1e-3 && p.c[0] + p.s[0] / 2 >= x1 - 1e-3 && p.c[2] - p.s[2] / 2 <= z0 + 1e-3 && p.c[2] + p.s[2] / 2 >= z1 - 1e-3);
+describe('Marlow Yard: every lamp grouped (N12, LIGHTING-PLAN 4)', () => {
+  const lamps = b.lights.lights.filter((l) => l.kind !== 'flashlight');
+  const rowOf = new Map(MARLOW_CIRCUITS.map((r) => [r.group, r]));
+  const setOfPoint = (x: number, z: number): (typeof SET_IDS)[number] | null => SET_IDS.find((id) => inSet(id, x, z)) ?? null;
 
-  it('every test cell has its ceiling (low 4.5, laser 5.5, high halls 7.5) and every airlock its 3.2 m lid', () => {
-    expect(CT_CEIL).toEqual([4.5, 7.5, 4.5, 5.5, 7.5, 4.5, 7.5, 4.5]);
-    for (let i = 0; i < 8; i++) expect(slab(CT_CEIL[i]!, bayX(i), bayX(i) + CT_BAY, 0, CT_W), `S${i + 1} ceiling`).toBe(true);
-    for (let i = 0; i < 7; i++) expect(slab(AIRLOCK_LID, bayX(i) + CT_BAY, bayX(i) + CT_BAY + 6, 4, 10), `A${i + 1} lid`).toBe(true);
-    // the perimeter reaches the highest ceiling (no gap to the void over the low cells)
-    expect(FENCE).toBeGreaterThanOrEqual(Math.max(...CT_CEIL));
+  it('the circuit table is valid; the course groups are exactly its live circuits', () => {
+    expect(validateMarlowCircuits()).toEqual([]);
+    expect(c.groups).toEqual(marlowCourseGroups());
   });
-
-  it('under the ceilings the only lips are the planned ones: S2 and S7 walls, S5 roof front, S7 return stair', () => {
-    const odd: string[] = [];
-    for (const l of anchors.ledges) {
-      // the perimeter and airlock wall tops at 7.5 m are above every ceiling: outside the playable volume
-      if (l.top >= FENCE - 1e-3) continue;
-      const x = (l.a.x + l.b.x) / 2;
-      const z = (l.a.z + l.b.z) / 2;
-      const wallTop = near(l.top, 4.4) && [bayX(1) + 8.5, bayX(1) + 9.5, bayX(4) + 8.85, bayX(6) + 8.5, bayX(6) + 9.5].some((v) => near(x, v, 0.02));
-      const stair = (near(l.top, 3.3) || near(l.top, 2.2)) && x > bayX(6) + 9.5 && x < bayX(6) + 12.6 && z < 1.7;
-      if (!wallTop && !stair) odd.push(`${x.toFixed(2)}, ${z.toFixed(2)} y ${l.top.toFixed(2)}`);
+  it('every lamp has a group that is a table row; a set lamp is on its own set\'s circuits; house lamps stay out of the sets', () => {
+    const bad: string[] = [];
+    for (const l of lamps) {
+      const at = `lamp ${l.id} (${l.x.toFixed(1)}, ${l.y.toFixed(1)}, ${l.z.toFixed(1)}) group ${l.group}`;
+      const row = rowOf.get(l.group);
+      if (!row) {
+        bad.push(`${at}: no circuit`);
+        continue;
+      }
+      const set = setOfPoint(l.x, l.z);
+      // the gallery floats over the sets' edges: its decor lamps are judged by height, not plan
+      if (l.group === GALLERY_GROUP) continue;
+      if (set) {
+        const [g0, g1] = setGroups(set);
+        if (l.group < g0 || l.group > g1) bad.push(`${at}: in ${set}, outside its groups ${g0}-${g1}`);
+        // (S3) house lamps only in the lounge and A3's two lobbies (group 34: transit spaces kept at the house light, as
+        // LIGHTING-PLAN's own A3 rows place them; the set doc's A3-C4 lists the table change as the undo)
+        if (row.kind === 'house' && !(set === 'a1Gate' && inBox(LOUNGE_BOX, l.x, l.z)) && !(set === 'a3OfficeRange' && l.group === 34)) bad.push(`${at}: a house lamp inside a set (only the lounge's and A3's lobbies)`);
+      } else if (l.group < 90) bad.push(`${at}: a set circuit outside every set box`);
     }
-    expect(odd).toEqual([]);
-    // the high halls leave room over the 4.4 m tops to stand and hold the rope (3.1 m)
-    for (const i of [1, 4, 6]) expect(CT_CEIL[i]! - 4.4).toBeGreaterThanOrEqual(3);
+    expect(bad).toEqual([]);
   });
-
-  it('station 4: the header over the laser gap clears the throw arc (apex over a 1.8 m body)', () => {
-    expect(S4_HEADER).toBeGreaterThanOrEqual(4.6);
-    expect(S4_HEADER).toBeLessThan(CT_CEIL[3]!);
-    expect(TEAM.throwApex + 1.8).toBeLessThan(S4_HEADER);
-    const x = bayX(3) + 9;
-    const header = b.boxes.find((p) => near(p.c[0], x) && near(p.c[1] - p.s[1] / 2, S4_HEADER));
-    expect(header?.s[2]).toBeCloseTo(S4_GAP[1] - S4_GAP[0], 5);
-    // the gap stays open below the header (only the laser band closes it)
-    const inGap = b.boxes.filter((p) => p.collide && near(p.c[0], x, 0.2) && p.c[1] - p.s[1] / 2 < S4_HEADER - 1e-3 && Math.abs(p.c[2] - 7) < p.s[2] / 2);
-    expect(inGap).toHaveLength(0);
+  it('gallery lamps are decor: group 90, not jam targets, not shootable, up in the gallery', () => {
+    const gal = lamps.filter((l) => l.group === GALLERY_GROUP);
+    expect(gal.length).toBeGreaterThan(10);
+    for (const l of gal) {
+      expect(l.electric).toBe(false);
+      expect(l.destructible).toBe(false);
+      expect(l.y).toBeGreaterThan(GAL_FLOOR);
+      expect(GALLERY_BOX.some((g) => inBox(g, l.x, l.z))).toBe(true);
+    }
   });
-
-  it('the haunches are dressing: no solid piece is pitched (no stray collision on the corners)', () => {
-    for (const p of b.boxes) if (p.collide) expect(Math.abs(p.pitch), `solid pitched piece at ${p.c.join(', ')}`).toBeLessThan(1e-3);
-    expect(b.boxes.some((p) => !p.collide && Math.abs(p.pitch - Math.PI / 4) < 1e-6)).toBe(true);
+  it('every map switch is on a live course group; built sets have a lamp on each circuit the table plans lamps for', () => {
+    const live = new Set(Object.values(c.groups ?? {}));
+    for (const s of lay.switches ?? []) expect(live.has(s.group), `switch on ${s.group}`).toBe(true);
+    const groups = new Set(lamps.map((l) => l.group));
+    for (const p of built.parts) {
+      if (p.stub) continue;
+      for (const r of MARLOW_CIRCUITS) if (r.room === setBay(p.id) && r.lamps > 0) expect(groups.has(r.group), `${p.id} circuit ${r.key}`).toBe(true);
+    }
+    for (const r of MARLOW_CIRCUITS) if (r.room === 'F' && r.lamps > 0) expect(groups.has(r.group), `facility circuit ${r.key}`).toBe(true);
   });
 });
 
-describe('marlow-variety: the dressing adds no climb and keeps the routes clear', () => {
-  const v = new LevelBuilder();
-  buildVariety(v, CT_CEIL, S7_STAIR_Z);
-  const full = new LevelBuilder();
-  ctcourse.build(full, 0);
-
-  it('only the S6 server racks are solid: lip-free and taller than a mantle (1.8 m)', () => {
-    const solid = v.boxes.filter((p) => p.collide);
-    expect(solid).toHaveLength(4);
-    for (const p of solid) {
-      expect(p.noLedge).toBe(true);
-      expect(p.c[1] - p.s[1] / 2).toBeLessThan(0.01);
-      expect(p.s[1]).toBeGreaterThan(1.8);
-      // against the S6 west wall, clear of its door (z 6.4 - 7.6)
-      expect(p.c[0]).toBeGreaterThan(bayX(5));
-      expect(p.c[0]).toBeLessThan(bayX(5) + 1.2);
-      expect(p.c[2] - p.s[2] / 2).toBeGreaterThan(7.9);
-    }
-    expect(generateLedges(v.boxes).ledges).toHaveLength(0);
-  });
-
-  it('S1: the grab from behind stays clear (nothing solid in x 2 - 10.5, z 2.5 - 5 under 2 m)', () => {
-    const inArea = full.boxes.filter((p) => p.collide && p.c[1] - p.s[1] / 2 < 2 && p.c[1] + p.s[1] / 2 > 0.05 &&
-      p.c[0] + p.s[0] / 2 > 2 && p.c[0] - p.s[0] / 2 < 10.5 && p.c[2] + p.s[2] / 2 > 2.5 && p.c[2] - p.s[2] / 2 < 5);
-    expect(inArea).toHaveLength(0);
-  });
-});
-
-describe('sector-fixes S: the station 3 security room', () => {
-  const b = new LevelBuilder();
-  const lay = ctcourse.build(b, 0);
-  const c = lay.course!;
-  const R = S3_SEC_ROOM;
-  /** A solid piece holds (x, y, z), its yaw honoured (walls along x are turned a quarter). */
-  const solidAt = (x: number, y: number, z: number): boolean =>
-    b.boxes.some((p) => {
-      if (!p.collide || Math.abs(y - p.c[1]) >= p.s[1] / 2) return false;
-      const dx = x - p.c[0];
-      const dz = z - p.c[2];
-      const cy = Math.cos(p.yaw);
-      const sy = Math.sin(p.yaw);
-      return Math.abs(dx * cy - dz * sy) < p.s[0] / 2 && Math.abs(dx * sy + dz * cy) < p.s[2] / 2;
-    });
-  const inRoom = (x: number, z: number): boolean => x > R.x0 + 0.15 && x < R.x1 - 0.15 && z > R.z0 + 0.15 && z < R.z1 - 0.15;
-
-  it('the console layout passes its rules: device, guard slot, pickup gate, a camera switched by its flag', () => {
-    expect(c.consoles).toEqual([{ id: S3_CONSOLE, guard: S3_SEC_GUARD, flag: S3_CAMS_OFF }]);
-    expect(consoleErrors(c, lay.security!.devices)).toEqual([]);
-    const gate = c.def.bays[2]!.gates.find((g) => g.id === 'g-s3-cams');
-    expect(gate).toEqual({ kind: 'pickup', id: 'g-s3-cams', switchId: S3_CONSOLE, flag: S3_CAMS_OFF, perPlayer: false });
-    expect(lay.security!.devices.find((d) => d.id === 'cam-s3')).toMatchObject({ offFlag: S3_CAMS_OFF });
-    // the jam handoff is untouched: the pass zone gate is still station 3's door gate (A11)
-    expect(c.def.bays[2]!.gates.find((g) => g.id === 'g-s3')?.kind).toBe('flag');
-  });
-
-  it('the duty guard is a passive slot of bay 3 only, inside the room, facing -x (the monitors), with one line to give', () => {
-    const s = c.squads[S3_SEC_GUARD]!;
-    expect(s.passive).toBe(true);
-    expect(inRoom(s.x, s.z)).toBe(true);
-    expect([s.x, s.z, s.yaw]).toEqual([S3_SEC_POST.x, S3_SEC_POST.z, S3_SEC_POST.yaw]);
-    expect(Math.sin(s.yaw)).toBeCloseTo(-1, 6);
-    expect(c.def.bays.map((bay) => bay.squad.includes(S3_SEC_GUARD))).toEqual([false, false, true, false, false, false, false, false]);
-    expect(s.info?.lines).toHaveLength(1);
-    for (const l of s.info!.lines) expect(l.length).toBeLessThanOrEqual(90);
-    // nothing solid where he stands (the desk is dressing)
-    expect(solidAt(s.x, 1, s.z)).toBe(false);
-  });
-
-  it('the console is in the room, within reach (1.4 m) of a standing spot clear of the guard and his body', () => {
-    const d = c.devices[S3_CONSOLE]!;
-    expect(inRoom(d.x, d.z)).toBe(true);
-    expect(d.label).toBe('Security console: cameras off');
-    let best = Infinity;
-    for (let x = R.x0 + 0.5; x < R.x1 - 0.4; x += 0.1) {
-      for (let z = R.z0 + 0.5; z < R.z1 - 0.4; z += 0.1) {
-        // a body clear of the guard (and of where he falls by the desk), off the desk's footprint (x 52.05 - 52.65)
-        if (Math.hypot(x - S3_SEC_POST.x, z - S3_SEC_POST.z) < 1.2 || x < R.x0 + 1.4 || solidAt(x, 1, z)) continue;
-        best = Math.min(best, Math.hypot(x - d.x, z - d.z));
+describe('Marlow Yard: holding rooms, doors and the gallery (SPEC 5)', () => {
+  const doorAnchor = (id: string) => b.anchors.doors.find((d) => d.id === c.doors[id])!;
+  it('each holding room has two 1.8 m motorised sliding doors on its door walls; the far door is the next set\'s way in', () => {
+    for (const h of HOLD_IDS) {
+      for (const end of ['near', 'far'] as const) {
+        const d = doorAnchor(holdDoorId(h, end));
+        expect(d, `${h} ${end}`).toBeDefined();
+        expect(d.leaf).toBe('slide');
+        expect(d.width).toBeCloseTo(HOLD_DOOR_W, 6);
+        // the opening's centre is the door spot (the hinge sits half a width back along the leaf)
+        const s = HOLD_DOORS[h][end];
+        expect(d.hinge.x + Math.sin(d.yaw) * d.width / 2).toBeCloseTo(s.x, 1);
+        expect(d.hinge.z + Math.cos(d.yaw) * d.width / 2).toBeCloseTo(s.z, 1);
+        expect(inBox(HOLD_BOX[h], s.x, s.z, 0.01)).toBe(true);
       }
     }
-    expect(best).toBeLessThan(1.4 - 0.2);
   });
-
-  it('a door gap with a lintel in the far cross wall; the rest of the void stays sealed', () => {
-    const [z0, z1] = R.door;
-    const zm = (z0 + z1) / 2;
-    expect(R.x1).toBe(S3_HALL.x1);
-    expect(solidAt(R.x1, 1, zm)).toBe(false);
-    expect(solidAt(R.x1, 3, zm)).toBe(true);
-    expect(b.anchors.doors.some((dr) => Math.abs(dr.hinge.x - R.x1) < 1e-6 && Math.abs(dr.hinge.z - z0) < 1e-6 && dr.width === 1.2 && Math.abs(z1 - z0 - 1.2) < 1e-9 && !dr.locked)).toBe(true);
-    // the far cross wall is whole but for the door
-    for (let z = S3_HALL.wallZ + 0.15; z < CT_W - 0.15; z += 0.1) if (z < z0 - 0.01 || z > z1 + 0.01) expect(solidAt(R.x1, 1, z), `x ${R.x1} z ${z.toFixed(2)}`).toBe(true);
-    // the room's south and west walls, and the void's other sides (the hallway wall, the entry cross wall), have no opening
-    for (let x = R.x0 + 0.05; x < R.x1; x += 0.1) expect(solidAt(x, 1, R.z0), `south wall x ${x.toFixed(2)}`).toBe(true);
-    for (let z = R.z0 + 0.05; z < R.z1; z += 0.1) expect(solidAt(R.x0, 1, z), `west wall z ${z.toFixed(2)}`).toBe(true);
-    for (let x = S3_HALL.x0 + 0.05; x < S3_HALL.x1; x += 0.1) expect(solidAt(x, 1, S3_HALL.wallZ)).toBe(true);
-    for (let z = S3_HALL.wallZ + 0.05; z < CT_W; z += 0.1) expect(solidAt(S3_HALL.x0, 1, z)).toBe(true);
-    // all of it to the ceiling
-    for (const [x, z] of [[R.x0, 11], [54.6, R.z0], [R.x1, 12]] as const) expect(solidAt(x, CT_CEIL[2]! - 0.05, z)).toBe(true);
+  it('every other door is at least 1.2 m wide (scale sheet)', () => {
+    for (const d of b.anchors.doors) expect(d.width, `door ${d.id}`).toBeGreaterThanOrEqual(1.2 - 1e-6);
   });
-
-  it('no new ledge in or round the room', () => {
-    const anchors = generateLedges(b.boxes);
-    const near = anchors.ledges.filter((l) => {
-      const x = (l.a.x + l.b.x) / 2;
-      const z = (l.a.z + l.b.z) / 2;
-      return x > R.x0 - 0.5 && x < R.x1 + 0.5 && z > R.z0 - 0.5 && l.top < FENCE - 1e-3;
-    });
-    expect(near).toEqual([]);
-  });
-
-  it('text: the enter line names the room, the gate line and the refusals fit the radio (90)', () => {
-    const radio = c.def.bays[2]!.radio;
-    expect(radio.filter((r) => r.at === 'enter').map((r) => r.text)).toEqual([RADIO_ENTER[2], S3_ROOM_RADIO]);
-    expect(radio.find((r) => r.at === 'g-s3-cams')?.text).toBe(GATE_RADIO['g-s3-cams']);
-    for (const t of [S3_ROOM_RADIO, GATE_RADIO['g-s3-cams']!, CONSOLE_GUARD_UP, CONSOLE_DONE, c.devices[S3_CONSOLE]!.label!]) {
-      expect(t.length, t).toBeLessThanOrEqual(COURSE_TEXT_MAX);
-      expect(t).not.toMatch(/[\u2013\u2014]/);
+  it('each holding room: a lid at 3.2 m, a pad, a glass slot beside the far door; camera tight; a nav seed', () => {
+    for (const h of HOLD_IDS) {
+      const bx = HOLD_BOX[h];
+      const cx = (bx[0] + bx[2]) / 2;
+      const cz = (bx[1] + bx[3]) / 2;
+      const lid = b.boxes.find((p) => p.overhead && Math.abs(p.c[0] - cx) < 0.01 && Math.abs(p.c[2] - cz) < 0.01 && Math.abs(p.c[1] - p.s[1] / 2 - HOLD_H) < 0.01);
+      expect(lid, `${h} lid`).toBeDefined();
+      const far = HOLD_DOORS[h].far;
+      const along = far.yaw === 0 ? [far.x, far.z + SLOT.off] : [far.x + SLOT.off, far.z];
+      const glass = b.boxes.find((p) => p.collide && p.visible === false && Math.abs(p.c[0] - along[0]!) < 0.1 && Math.abs(p.c[2] - along[1]!) < 0.1 && p.c[1] > SLOT.sill && p.c[1] < SLOT.sill + SLOT.h);
+      expect(glass, `${h} glass slot`).toBeDefined();
+      expect(camSpaceAt(lay.camSpaces, lay.camSize, cx, 0, cz), `${h} camera`).toBe(0);
+      expect((lay.navSeeds ?? []).some((v) => inBox(bx, v.x, v.z)), `${h} nav seed`).toBe(true);
     }
+  });
+  it('wall medkits in L4 and L7, facing into the room', () => {
+    for (const h of ['L4', 'L7'] as const) expect((lay.medkitWalls ?? []).some((m) => inBox(HOLD_BOX[h], m.pos.x, m.pos.z)), h).toBe(true);
+  });
+  it('the gallery is out of bounds: overhead floor slabs, glazing collision-only, no nav seed in it', () => {
+    for (const g of GALLERY_BOX) {
+      const cx = (g[0] + g[2]) / 2;
+      const cz = (g[1] + g[3]) / 2;
+      const floor = b.boxes.find((p) => Math.abs(p.c[0] - cx) < 0.01 && Math.abs(p.c[2] - cz) < 0.01 && Math.abs(p.c[1] + p.s[1] / 2 - GAL_FLOOR) < 0.01);
+      expect(floor?.overhead, `gallery floor ${g.join(',')}`).toBe(true);
+    }
+    const glazing = b.boxes.filter((p) => p.collide && p.visible === false && p.c[1] > GAL_FLOOR);
+    expect(glazing.length).toBeGreaterThan(5);
+    for (const p of glazing) expect(p.noLedge).toBe(true);
+    for (const v of lay.navSeeds ?? []) expect(v.y < 1 || !GALLERY_BOX.some((g) => inBox(g, v.x, v.z))).toBe(true);
+  });
+});
+
+describe('Marlow Yard: co-op lips (SPEC 12, LD 11.3, 11.5)', () => {
+  const anchors = generateLedges(b.boxes);
+  it('every planned co-op lip is 0.5 m or more over the solo reach and within the boost', () => {
+    expect(COOP_BAND.min).toBeCloseTo(WALL_JUMP.maxUp + 0.5);
+    expect(COOP_BAND.max).toBe(TEAM.boostMax);
+    for (const l of COOP_LIPS) {
+      expect(l.y - l.floor, l.id).toBeGreaterThanOrEqual(COOP_BAND.min - 1e-6);
+      expect(l.y - l.floor, l.id).toBeLessThanOrEqual(COOP_BAND.max + 1e-6);
+    }
+  });
+  it('no unplanned boost target: every generated lip 3.8-4.5 m over its floor is a planned co-op lip', () => {
+    const planned = (x: number, z: number, y: number): boolean =>
+      COOP_LIPS.some((l) => Math.abs(l.y - y) < 0.15 && distSeg(x, z, l.a.x, l.a.z, l.b.x, l.b.z) < 0.6);
+    const bad: string[] = [];
+    for (const l of anchors.ledges) {
+      if (l.drop < WALL_JUMP.maxUp || l.drop > TEAM.boostMax) continue;
+      const mx = (l.a.x + l.b.x) / 2;
+      const mz = (l.a.z + l.b.z) / 2;
+      if (!planned(mx, mz, l.top)) bad.push(`(${mx.toFixed(1)}, ${l.top.toFixed(2)}, ${mz.toFixed(1)}) drop ${l.drop.toFixed(2)}`);
+    }
+    expect(bad).toEqual([]);
+  });
+  it('the facility shell offers no lip at all (its pieces are noLedge)', () => {
+    const facilityBox = (x: number, z: number): boolean => !SET_IDS.some((id) => inSet(id, x, z, -0.3));
+    const onShell = anchors.ledges.filter((l) => facilityBox((l.a.x + l.b.x) / 2, (l.a.z + l.b.z) / 2));
+    expect(onShell.map((l) => `${l.a.x.toFixed(1)},${l.a.z.toFixed(1)} top ${l.top}`)).toEqual([]);
+  });
+});
+
+function distSeg(px: number, pz: number, ax: number, az: number, bx: number, bz: number): number {
+  const dx = bx - ax;
+  const dz = bz - az;
+  const L = dx * dx + dz * dz;
+  const t = L > 0 ? Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / L)) : 0;
+  const x = ax + dx * t - px;
+  const z = az + dz * t - pz;
+  return Math.sqrt(x * x + z * z);
+}
+
+describe('Marlow Yard: set boxes', () => {
+  it('the set boxes and holding rooms never overlap (a parallel builder can never build into another\'s space)', () => {
+    const boxes: [string, Box][] = [...SET_IDS.flatMap((id) => SET_BOX[id].map((bx, i) => [`${id}#${i}`, bx] as [string, Box])), ...HOLD_IDS.map((h) => [h, HOLD_BOX[h]] as [string, Box]), ['dock', DOCK_BOX]];
+    const over = (p: Box, q: Box): boolean => Math.min(p[2], q[2]) - Math.max(p[0], q[0]) > 0.01 && Math.min(p[3], q[3]) - Math.max(p[1], q[1]) > 0.01;
+    const bad: string[] = [];
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) if (over(boxes[i]![1], boxes[j]![1])) bad.push(`${boxes[i]![0]} x ${boxes[j]![0]}`);
+    expect(bad).toEqual([]);
+  });
+  it('every box and anchor a set built lies inside its own set box (0.3 m pad, the boundary walls\' half thickness) and under the hall roof', () => {
+    // plan points an anchor occupies (door: the hinge and the closed leaf's far end)
+    const pts = (a: Anchor): { x: number; z: number }[] => {
+      switch (a.kind) {
+        case 'ladder':
+        case 'pipeV':
+          return [a.base, a.top];
+        case 'pipeH':
+        case 'ledge':
+        case 'zipline':
+        case 'split':
+        case 'fence':
+          return [a.a, a.b];
+        case 'duct':
+          return a.path;
+        case 'window':
+          return [a.c];
+        case 'door':
+          return [a.hinge, { x: a.hinge.x + Math.sin(a.yaw) * a.width, z: a.hinge.z + Math.cos(a.yaw) * a.width }];
+        case 'rappel':
+          return [a.top];
+      }
+    };
+    const bad: string[] = [];
+    for (const id of SET_IDS) {
+      const r = built.ranges[id];
+      for (let i = r.boxes[0]; i < r.boxes[1]; i++) {
+        const bx = b.boxes[i]!;
+        // plan half extents of the yawed (and pitched about its local x) box, and its top
+        const hx = bx.s[0] / 2;
+        const hz = (bx.s[2] / 2) * Math.cos(bx.pitch);
+        const sn = Math.abs(Math.sin(bx.yaw));
+        const cs = Math.abs(Math.cos(bx.yaw));
+        const ex = hx * cs + hz * sn;
+        const ez = hx * sn + hz * cs;
+        const top = bx.c[1] + (bx.s[1] / 2) * Math.cos(bx.pitch) + (bx.s[2] / 2) * Math.abs(Math.sin(bx.pitch));
+        const foot: Box = [bx.c[0] - ex, bx.c[2] - ez, bx.c[0] + ex, bx.c[2] + ez];
+        const at = `${id}: box #${i} c (${bx.c.map((v) => v.toFixed(2)).join(', ')}) s (${bx.s.map((v) => v.toFixed(2)).join(', ')}) yaw ${bx.yaw.toFixed(2)}`;
+        if (!boxInSet(id, foot, 0.3)) bad.push(`${at} leaves the set box (footprint ${foot.map((v) => v.toFixed(2)).join(', ')})`);
+        if (top > HALL_H + 0.01) bad.push(`${at} tops ${top.toFixed(2)} m, over HALL_H ${HALL_H}`);
+      }
+      for (let i = r.anchors[0]; i < r.anchors[1]; i++) {
+        const a = b.anchors.all[i]!;
+        for (const p of pts(a)) if (!inSet(id, p.x, p.z, 0.3)) bad.push(`${id}: anchor #${i} (${a.kind}) at (${p.x.toFixed(2)}, ${p.z.toFixed(2)}) leaves the set box`);
+      }
+    }
+    expect(bad).toEqual([]);
   });
 });

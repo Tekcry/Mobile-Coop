@@ -656,6 +656,12 @@ const BB_HO = bbi('handOutAdd');
 const BB_FU = bbi('footUpAdd');
 const BB_FF = bbi('footFwdAdd');
 const BB_FO = bbi('footOutAdd');
+// (pose-parity) the root offsets and the wall gap a partner's rig reads from its own applied base (`bodyRigRoot`)
+const BB_BF = bbi('bodyFwdAdd');
+const BB_BU = bbi('bodyUpAdd');
+const BB_GG = bbi('guardGapAdd');
+const BB_GS = bbi('guardSideAdd');
+const BB_WG = bbi('wallGapAdd');
 /** The table in use: [body group][base field], identity where the base has no value. */
 const BODY_BASE = new Float64Array(NBG * NBF);
 for (let g = 0; g < NBG; g++) BODY_BASE.set(BB_ID, g * NBF);
@@ -735,15 +741,22 @@ let bodyRig: TuneRigIn | null = null;
  * TUNE_CUR (the local player's tuner values; identity for every other rig), the pose's head turn and the grip targets,
  * all put back by `bodyRigEnd`. The local player's rig (TUNE_OWNER) also gets the composed values in TUNE_LOCAL (the wall
  * gap and the root offset read them outside the window). Nothing live: returns at once (bit-identical). No allocation.
+ * (crouch-pops, CP-A2) `gi2` / `w`: mid-crouch (0 < w < 1) the target is row `gi` (the standing row) blended toward row
+ * `gi2` (the crouched row) by the crouch amount `w`, so a row change follows the crouch's own eased curve instead of
+ * switching at 0.5 (Michael's trackMul 0.05 stepped the stance width's velocity mid-crouch: e2e-anim's two crouch pops).
+ * Without them (w 0) as before.
  */
-export function bodyRigBegin(st: BodyRigState, gi: number, p: TunePoseIn, rig: TuneRigIn, dt: number): void {
+export function bodyRigBegin(st: BodyRigState, gi: number, p: TunePoseIn, rig: TuneRigIn, dt: number, gi2 = -1, w = 0): void {
   if (!BODY_BASE_LIVE.on && !st.live) return;
   const a = st.applied;
   const row = gi >= 0 && gi < NBG ? gi * NBF : -1;
+  const blend = w > 0 && w < 1 && gi2 !== gi;
+  const row2 = blend && gi2 >= 0 && gi2 < NBG ? gi2 * NBF : -1;
   const k = dt > 0 ? 1 - Math.exp(-dt / BODY_TAU) : 1;
   let live = false;
   for (let i = 0; i < NBF; i++) {
-    const t = row >= 0 ? BODY_BASE[row + i]! : BB_ID[i]!;
+    const t0 = row >= 0 ? BODY_BASE[row + i]! : BB_ID[i]!;
+    const t = blend ? t0 + ((row2 >= 0 ? BODY_BASE[row2 + i]! : BB_ID[i]!) - t0) * w : t0;
     const d = t - a[i]!;
     const v = k === 1 || (d > -1e-6 && d < 1e-6) ? t : a[i]! + d * k;
     a[i] = v;
@@ -839,6 +852,30 @@ export function tuneRoot(pos: { x: number; y: number; z: number }, yaw: number):
   pos.x += s * f + c * r;
   pos.z += c * f - s * r;
   pos.y += u;
+}
+
+/**
+ * (pose-parity) `tuneRoot` for a Wren rig that is not the local player (the co-op partner): the root offset from the
+ * rig's OWN applied Body base (its last `bodyRigBegin`, as the owner's TUNE_LOCAL is its last frame's), never the
+ * tuner's live values (the local player's own). Not live: nothing (bit-identical). No allocation.
+ */
+export function bodyRigRoot(st: BodyRigState, pos: { x: number; y: number; z: number }, yaw: number): void {
+  if (!st.live) return;
+  const a = st.applied;
+  const f = a[BB_BF]! - a[BB_GG]!;
+  const r = -a[BB_GS]!;
+  const u = a[BB_BU]!;
+  if (f === 0 && u === 0 && r === 0) return;
+  const s = Math.sin(yaw);
+  const c = Math.cos(yaw);
+  pos.x += s * f + c * r;
+  pos.z += c * f - s * r;
+  pos.y += u;
+}
+
+/** (pose-parity) The rig's applied Body base wall gap (m, the owner's `TUNE_LOCAL.wallGapAdd` without the tuner). */
+export function bodyRigWallGap(st: BodyRigState): number {
+  return st.live ? st.applied[BB_WG]! : 0;
 }
 
 /**

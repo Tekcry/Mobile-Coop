@@ -24,3 +24,16 @@ export function handSwapK(s: number): number {
   const v = Math.sin(Math.PI * Math.min(1, s));
   return v * v;
 }
+
+/**
+ * (strike-pops, n4c polish 1) The swap's progress (0..1) read back from the hand blend `b` (0 right .. 1 left): the
+ * inverse of the plain swap's smoothstep, so a plain swap gets its own progress back (`handSwapK` and the graph's tuck
+ * bump unchanged). A reversal rewound the progress (s -> 1 - s): the envelope kept its place but its rate flipped sign
+ * in one frame (the gun dropping 8 cm a frame came up 3 cm the next). The blend keeps its velocity through a reversal
+ * (the rig's Hermite), so the envelope read from it does too. Symmetric (b and 1 - b give 1 - s and s: the same
+ * envelope), so either direction reads alike. Pure, no allocation.
+ */
+export function handSwapPh(b: number): number {
+  const c = b < 0 ? 0 : b > 1 ? 1 : b;
+  return 0.5 - Math.sin(Math.asin(1 - 2 * c) / 3);
+}

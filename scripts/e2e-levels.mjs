@@ -6,8 +6,24 @@ const { browser, page, errors } = await launch({ url, params: 'autostart=warehou
 let failed = false;
 /** (havok-stall) Math.random's seed for the ladder chases. */
 const LADDER_SEED = 7919;
+/** (guard-ai S13) Sim seconds the manual clock runs before the chases (the player's physics and the world settle). */
+const SETTLE_S = 2;
+/** (guard-ai S13) Wall-clock safety net per chase (ms); the sim budget below ends a chase long before it. */
+const WALL_CAP_MS = 240000;
+/** (guard-ai S13) The nav link walk's ladder speeds (`Enemy.runLink`: up 1.1, down 1.4 m/s) and the budget's margin. */
+const CLIMB_UP = 1.1;
+const CLIMB_DOWN = 1.4;
+const BUDGET_MARGIN = 4;
+const BUDGET_EXTRA_S = 30;
 try {
-  await page.waitForFunction(() => window.__app.current?.enemyMgr, null, { timeout: 60000 });
+  // (guard-ai S13) the manual clock takes over the moment the match exists, so the sim time before the chases does not
+  // depend on how many real-time steps a loaded machine ran first (that world state moved the climb between 10 and
+  // 30 s of game time); the settle below is sim time too.
+  await page.waitForFunction(() => {
+    if (!window.__app.current?.enemyMgr) return false;
+    window.__app.loop.manual = true;
+    return true;
+  }, null, { timeout: 60000 });
   await frames(page, 10);
   const G = (f, a) => page.evaluate(f, a);
 
@@ -20,13 +36,18 @@ try {
   assert(nav.layers === 3, `the grid holds three storeys per column (${nav.layers})`);
   assert(nav.ladders >= 6, `every Warehouse ladder joins two storeys both ways (${nav.ladders} links)`);
 
-  // (havok-stall) the chases are deterministic: the sim runs on the manual clock from here (no real-time frames move it
-  // between the steps), and each chase draws its random numbers (the guard's think ticks) from a fixed seed. Unseeded,
-  // the climb-up took 9-30 s of game time against its 30 s budget (the runner takes the ladder once sight breaks).
-  await G(() => { window.__app.loop.manual = true; });
+  // (havok-stall) the chases are deterministic: the sim runs on the manual clock (no real-time frames move it between
+  // the steps), and each chase draws its random numbers (the guard's think ticks) from a fixed seed. Unseeded, the
+  // climb-up took 9-30 s of game time (the runner takes the ladder once sight breaks).
+  // (guard-ai S13) The wait is sim time, never wall clock: the loop steps 0.25 s of game time at a time until the runner
+  // has taken a link and stands on the player's storey (within 0.4 m), or the sim budget runs out. The budget comes from
+  // the design: the run to the ladder at the runner's run speed plus the climb at the link walk's climb speed is the
+  // ideal time (about 4.5 s up); solo runs read 10-15.5 s (think ticks and sight-break pauses), so the budget is
+  // BUDGET_MARGIN x ideal + BUDGET_EXTRA_S (about 48 s up, 45 s down). The wall cap is only the hang guard.
+  await G((s) => { window.__app.loop.stepHeadless(s); }, SETTLE_S);
   /** A runner chases the player across a ladder (`seed`: Math.random's for the chase); returns its track. */
   const chase = (up, seed) =>
-    G(([up, seed]) => {
+    G(([up, seed, climb, margin, extra, wallCap]) => {
       const rnd = Math.random;
       let sd = seed;
       Math.random = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
@@ -46,23 +67,35 @@ try {
         g.player.controller.teleport(up ? top : floor, up ? L.facing + Math.PI : L.facing);
         const e = em.spawn('runner', up ? floor : new V(top.x + fx * 0.4, L.top.y, top.z + fz * 0.4), true, 0);
         const y0 = e.pos.y;
+        // the budget (sim s): the flat run to the ladder and across the top at the runner's run speed + the rise at the climb speed
+        const run = e.def?.runSpeed ?? 4.2;
+        const ideal = 7.2 / run + (L.top.y - L.base.y) / climb;
+        const budget = Math.ceil(ideal * margin + extra);
+        const wall0 = performance.now();
         let t = 0;
-        for (; t < 30; t += 0.25) {
+        let done = false;
+        for (; t < budget && performance.now() - wall0 < wallCap; ) {
           a.loop.stepHeadless(0.25);
-          if (e.linksTaken && !e['link'] && Math.abs(e.pos.y - g.player.position.y) < 0.4) break;
+          t += 0.25;
+          if (e.linksTaken && !e['link'] && Math.abs(e.pos.y - g.player.position.y) < 0.4) {
+            done = true;
+            break;
+          }
         }
-        return { y0, y: e.pos.y, links: e.linksTaken, t, py: g.player.position.y };
+        return { y0, y: e.pos.y, links: e.linksTaken, t, py: g.player.position.y, budget, ideal, done, wallMs: performance.now() - wall0, linking: !!e['link'], state: String(e.state) };
       } finally {
         Math.random = rnd;
       }
-    }, [up, seed]);
+    }, [up, seed, up ? CLIMB_UP : CLIMB_DOWN, BUDGET_MARGIN, BUDGET_EXTRA_S, WALL_CAP_MS]);
+  /** A chase's sim time and budget for an assert message (sim seconds, and the wall time it took). */
+  const took = (r) => `${r.t.toFixed(2)} sim s of ${r.budget} s budget (ideal ${r.ideal.toFixed(1)} s), ${(r.wallMs / 1000).toFixed(0)} s wall${r.done ? '' : `, not done: state ${r.state}, links ${r.links}, linking ${r.linking}, player y ${r.py.toFixed(2)}`}`;
 
   console.log('up a ladder');
   const u = await chase(true, LADDER_SEED);
-  assert(u.links >= 1 && Math.abs(u.y - u.py) < 0.4, `a runner climbs the rack ladder to the player (${u.y0.toFixed(1)} -> ${u.y.toFixed(2)} m in ${u.t} s)`);
+  assert(u.links >= 1 && Math.abs(u.y - u.py) < 0.4, `a runner climbs the rack ladder to the player (${u.y0.toFixed(1)} -> ${u.y.toFixed(2)} m in ${took(u)})`);
   console.log('down a ladder');
   const d = await chase(false, LADDER_SEED);
-  assert(d.links >= 1 && d.y < 0.4, `a runner on the rack climbs down to the player (${d.y0.toFixed(1)} -> ${d.y.toFixed(2)} m in ${d.t} s)`);
+  assert(d.links >= 1 && d.y < 0.4, `a runner on the rack climbs down to the player (${d.y0.toFixed(1)} -> ${d.y.toFixed(2)} m in ${took(d)})`);
 
   const bad = errors.filter((e) => !/GL Driver|GPU stall/.test(e));
   assert(bad.length === 0, `no console errors${bad.length ? `: ${bad.join(' | ')}` : ''}`);

@@ -2,8 +2,7 @@
 // in-game action follows), the Graphics menu (presets, Custom, the frame cap), and the Epic
 // renderer booting in a match (clustered lights, shadow casters, the post stack) without console errors; 16:10,
 // 21:9 and 32:9 windows (centred menus, the HUD inset, Hor+ up to the FOV cap).
-// (smooth-world: parts 3 and 4 test the voxel renderer - voxel world, bodies, weapons, chips, ray-traced reflections -
-// so they pass `?voxels=1`; the smooth default's baked lamps and RT fallback are checked in e2e-lightbake)
+// (voxel-retire: parts 3 and 4 run the smooth renderer; the voxel look is gone)
 import { launch, assert, frames, GPU } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -343,53 +342,15 @@ try {
 
   if (part(3)) {
   // the Epic renderer in a match (small window: software GL)
-  const e = await launch({ url, params: 'autostart=warehouse&mode=clear&gfx=epic&voxels=1', viewport: { width: 640, height: 360 } });
+  const e = await launch({ url, params: 'autostart=warehouse&mode=clear&gfx=epic', viewport: { width: 640, height: 360 } });
   browser = e.browser;
   await e.page.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 180000 });
   await frames(e.page, 6);
   const r = await e.page.evaluate(() => {
     const g = window.__app.current;
     const rig = g.world.lightRig;
-    const vx = g.world.voxels;
-    return { clustered: rig.clustered, placed: rig.placed, shadowed: rig.shadowed, sun: !!g.world.shadow, pps: g.player.cam.camera._postProcesses.filter(Boolean).map((p) => p.name), vox: vx && { ...vx.stats, size: vx.lv.size, levels: vx.materials.length, casters: vx.meshes.filter((m) => rig.casters.includes(m)).length, meshes: vx.meshes.length } };
+    return { clustered: rig.clustered, placed: rig.placed, shadowed: rig.shadowed, sun: !!g.world.shadow, pps: g.player.cam.camera._postProcesses.filter(Boolean).map((p) => p.name) };
   });
-  assert(r.vox && r.vox.size === 0.05 && r.vox.levels === 3 && r.vox.chunks > 20 && r.vox.quads > 1000, `Epic: the Warehouse in 5 cm voxels, three levels of detail (${JSON.stringify(r.vox)})`);
-  assert(r.vox.casters === r.vox.meshes, 'every voxel chunk casts shadows');
-  // the voxel shading made it into the compiled PBR shader (tone, AO, micro detail; not the cheap path's code)
-  const shaded = await e.page.evaluate(() => {
-    const w = window.__app.current.world;
-    const src = (v) => v?.meshes.find((m) => m.isEnabled() && m.subMeshes?.[0]?.effect)?.subMeshes[0].effect.fragmentSourceCode ?? '';
-    return [src(w.voxels), src(w.voxelsFine)].map((s) => s.includes('m = vxMat(v)') && s.includes('vxAmbient ='));
-  });
-  assert(shaded.every(Boolean), `voxel chunks compile the full voxel shading (${shaded})`);
-  const art = await e.page.evaluate(() => {
-    const w = window.__app.current.world;
-    return { fine: w.voxelsFine && { size: w.voxelsFine.lv.size, chunks: w.voxelsFine.stats.chunks }, sky: !!w.voxels.skyTex, inside: w.voxels.skyAt(5, 1.2, 0), yard: w.voxels.skyAt(2, 1.2, -21.5), roofIn: w.voxels.roofAt(5, 0), roofYard: w.voxels.roofAt(2, -21.5), palette: w.voxels.lv.palette.length };
-  });
-  assert(art.fine && art.fine.size === 0.025 && art.fine.chunks > 5, `props on a 2.5 cm layer (${JSON.stringify(art.fine)})`);
-  assert(art.sky && art.inside < 0.5 && art.yard > 0.8, `the sky is baked: dark under the roof, open in the yard (${art.inside.toFixed(2)} / ${art.yard.toFixed(2)})`);
-  assert(art.roofIn > 5 && art.roofYard < 1, `rain stops at the roof, falls to the ground in the yard (${art.roofIn} / ${art.roofYard})`);
-  assert(art.palette > 40, `the art layer's materials (${art.palette} palette entries)`);
-  // GI per lamp circuit (Epic): baked, in the shader (3.2: the circuits mixed into one texture), and a switched-off
-  // circuit takes its bounce light away (the mix's sum drops, and comes back)
-  const gi = await e.page.evaluate(() => {
-    const w = window.__app.current.world;
-    const vx = w.voxels;
-    const src = vx.meshes.find((m) => m.isEnabled() && m.subMeshes?.[0]?.effect)?.subMeshes[0].effect.fragmentSourceCode ?? '';
-    const reg = w.level.lights;
-    const l = reg.lights.find((x, i) => w.giSlotOf?.[i] >= 0 && x.group >= 0 && x.on);
-    const sum = () => vx.giMix.reduce((a, v, i) => (i % 4 === 3 ? a : a + v), 0);
-    const before = sum();
-    if (l) reg.setGroup(l.group, false);
-    w.frame(window.__app.current.player.position, 0);
-    const after = sum();
-    if (l) reg.setGroup(l.group, true);
-    w.frame(window.__app.current.player.position, 0);
-    return { groups: vx.giGroups, shader: src.includes('voxGi'), before, after, back: sum() };
-  });
-  assert(gi.groups > 1 && gi.shader, `GI baked per lamp circuit and in the voxel shader (${gi.groups} circuits)`);
-  assert(gi.before > 0 && gi.after < gi.before && gi.back === gi.before, `a switched-off circuit takes its bounce light away (${gi.before} -> ${gi.after} -> ${gi.back})`);
-  // voxel characters (3.0 phase 3): one skinned voxel body per character, the smooth parts unseen
   // (operators 11e fix r1) Wren's checks below need a LOD on screen: wait for the first (LOD2)
   await e.page.waitForFunction(() => window.__app.current.player.figure.current >= 0, null, { timeout: 60000 }).catch(() => {});
   const ch = await e.page.evaluate(async () => {
@@ -397,17 +358,6 @@ try {
     // (operators 11e, G123) the player is Wren (her own skinned model, no voxel body): the voxel bodies are the guards'
     const pr = g.player.rig;
     const wren = { voxel: !!pr.voxel, partsHidden: pr.parts.every((m) => !m.isEnabled() || !m.isVisible), figure: !!g.player.figure };
-    const rigs = g.enemyMgr.enemies.map((x) => x.rig).filter((r) => r && !r.isDog);
-    const casters = g.world.lightRig.casters;
-    // bones follow the joints: each bone = its node relative to the root
-    const err = (r) => {
-      const v = r.voxel;
-      const inv = r.root.getWorldMatrix().clone().invert();
-      let worst = 0;
-      v.bones.forEach((b, i) => { const m = v.nodes[i].getWorldMatrix().multiply(inv).m; const l = b.getLocalMatrix().m; for (let k = 12; k < 15; k++) worst = Math.max(worst, Math.abs(m[k] - l[k])); });
-      return worst;
-    };
-    const p = rigs[0];
     // (operators 11e fix r1) Wren, driven directly: the camera fade's head hide scales her shown LOD's head joint to 0
     // and back to 1; a vision mode on brings the goggle into use with a brighter lens than 'off' (G73). The player's own
     // frame sets both back from the camera and the vision state next frame.
@@ -429,86 +379,32 @@ try {
     const visionOff = { glow: glowOf(), pose: f.goggle.pose };
     const wrenHead = { lod: f.current, headOff, headOn };
     const wrenGoggle = { on: visionOn, off: visionOff };
-    // the lens glow and head fade on a voxel body with goggle lenses: only where a lensed body exists (the guards'
-    // archetypes have none at present; the player's lenses are Wren's own model, checked above)
-    const lr = rigs.find((r) => r.lenses?.length > 0);
-    let lensChanged = null;
-    let lensHead = null;
-    if (lr) {
-      const lens0 = lr.voxel.meshes[1].getVerticesData('color').slice();
-      lr.setLensGlow(true);
-      lensChanged = lr.voxel.meshes[1].getVerticesData('color').some((c, i) => Math.abs(c - lens0[i]) > 1e-3);
-      lr.setLensGlow(false);
-      lr.setHeadVisible(false);
-      lensHead = !lr.voxel.meshes[1].isVisible && lr.voxel.meshes[0].isVisible;
-      lr.setHeadVisible(true);
-    }
-    // a ragdoll still drives its voxel body (the joints re-parented onto physics nodes)
-    const victim = g.enemyMgr.enemies.find((x) => x.rig?.voxel);
-    const P = g.player.position.constructor;
-    victim.applyDamage({ amount: 99999, point: victim.pos.clone(), dir: new P(0, 0, 1), part: 'body', kind: 'bullet', attackerTeam: 'player', attackerId: 'test', sourcePos: victim.pos.clone(), impulse: 1 });
-    const body = g.enemyMgr.bodies.at(-1);
-    await new Promise((res) => { let n = 0; const o = g.scene.onAfterRenderObservable.add(() => { if (++n >= 3) { o.remove(); res(); } }); });
-    const rag = body?.['rig'];
     return {
-      n: rigs.length,
-      voxel: rigs.filter((r) => r.voxel).length,
-      hidden: rigs.every((r) => r.parts.every((m) => !m.isVisible)),
-      cast: rigs.every((r) => r.voxel.meshes.every((m) => casters.includes(m))),
-      quads: p.voxel.meshes[0].getTotalIndices() / 6,
-      err: Math.max(...rigs.map(err)),
-      ragErr: rag?.voxel ? err(rag) : -1,
-      lensChanged,
-      lensHead,
       wrenHead,
       wrenGoggle,
       wren,
     };
   });
-  assert(!ch.wren.voxel && ch.wren.partsHidden && ch.wren.figure, `the player is Wren: no voxel body, the rig's parts unseen (${JSON.stringify(ch.wren)})`);
-  assert(ch.n > 0 && ch.voxel === ch.n && ch.hidden, `every guard is a voxel body, the smooth parts unseen (${ch.voxel} / ${ch.n})`);
-  assert(ch.cast, 'voxel bodies cast shadows');
-  assert(ch.quads > 500, `a guard in 2 cm voxels (${ch.quads} quads)`);
-  assert(ch.err < 1e-3 && ch.ragErr >= 0 && ch.ragErr < 1e-3, `bones follow the joints, ragdolls too (${ch.err.toExponential(1)}, ${ch.ragErr.toExponential(1)})`);
+  assert(ch.wren.partsHidden && ch.wren.figure, `the player is Wren: the rig's parts unseen (${JSON.stringify(ch.wren)})`);
   const zero = (v) => !!v && v.every((x) => x === 0);
   const one = (v) => !!v && v.every((x) => x === 1);
   assert(ch.wrenHead.lod >= 0 && zero(ch.wrenHead.headOff) && one(ch.wrenHead.headOn), `the camera head fade hides Wren's head (LOD ${ch.wrenHead.lod}: head joint scale ${JSON.stringify(ch.wrenHead.headOff)} hidden, ${JSON.stringify(ch.wrenHead.headOn)} shown)`);
   assert(ch.wrenGoggle.on.pose === 'inUse' && ch.wrenGoggle.off.pose === 'stowed' && ch.wrenGoggle.off.glow > 0 && ch.wrenGoggle.on.glow > ch.wrenGoggle.off.glow * 1.5, `a vision mode brings Wren's goggle down with a brighter lens (on ${ch.wrenGoggle.on.pose} ${ch.wrenGoggle.on.glow.toFixed(3)}, off ${ch.wrenGoggle.off.pose} ${ch.wrenGoggle.off.glow.toFixed(3)})`);
-  if (ch.lensChanged === null) console.log('  (no guard body has goggle lenses: the voxel lens glow / head fade check has nothing to drive)');
-  else assert(ch.lensChanged && ch.lensHead, `lens glow and the camera head fade reach a lensed voxel body (lens ${ch.lensChanged}, head ${ch.lensHead})`);
-  // voxel weapons and chips (3.0 phase 4); (feature/weapons, A7) the kit with a baked mesh renders that instead
+  // weapons (feature/weapons): the kit's baked meshes render, casting shadows
   const wp = await e.page.evaluate(async () => {
     const g = window.__app.current;
     const models = g.weapons.slots.map((s) => s.model).filter(Boolean);
     // the baked meshes load after the match starts
-    for (let t = 0; t < 600 && models.some((m) => !m.mesh && !m.voxel); t++) await new Promise((r) => setTimeout(r, 100));
+    for (let t = 0; t < 600 && models.some((m) => !m.mesh); t++) await new Promise((r) => setTimeout(r, 100));
     const casters = g.world.lightRig.casters;
-    // a shot into the wall in front: the struck voxel turns to the chip colour
-    const vx = g.world.voxels;
-    const P = g.player.position.constructor;
-    const o = g.player.position.add(new P(0, 1.2, 0));
-    const f = g.player.cam.forward;
-    const end = o.add(new P(f.x, 0, f.z).normalize().scale(30));
-    const h = g.ballistics.ray(o, end, 1);
-    let chipped = null;
-    if (h.hit) {
-      const color = g.ballistics.onWorldHit?.(h.point, h.normal) ?? null;
-      const lv = (g.world.voxelsFine && g.world.voxelsFine.brickmap.get(...[0, 1, 2].map((a) => Math.floor((h.point.asArray()[a] - h.normal.asArray()[a] * g.world.voxelsFine.lv.size * 0.5 - g.world.voxelsFine.lv.origin[a]) / g.world.voxelsFine.lv.size))) ? g.world.voxelsFine : vx);
-      const at = [0, 1, 2].map((a) => Math.floor((h.point.asArray()[a] - h.normal.asArray()[a] * lv.lv.size * 0.5 - lv.lv.origin[a]) / lv.lv.size));
-      chipped = { color, now: lv.brickmap.get(...at), chip: lv.lv.chip };
-    }
     return {
       n: models.length,
-      voxel: models.filter((m) => m.voxel || m.mesh).length,
       meshes: models.filter((m) => m.mesh).map((m) => m.def.id),
       hidden: models.every((m) => m.parts.every((p) => !p.isVisible || !p.isEnabled(false))),
       cast: models.every((m) => m.renderMeshes.length > 0 && m.renderMeshes.every((x) => casters.includes(x))),
-      quads: models.map((m) => (m.voxel ? m.voxel.meshes[0].getTotalIndices() / 6 : m.mesh.getTotalIndices() / 3)),
-      chipped,
     };
   });
-  assert(wp.n > 0 && wp.voxel === wp.n && wp.hidden && wp.cast, `the loadout's weapons are baked meshes (${wp.meshes.join(', ')}) or voxel models, casting shadows (${wp.voxel} / ${wp.n}, ${wp.quads} quads / tris)`);
-  assert(wp.chipped && wp.chipped.color && wp.chipped.now === wp.chipped.chip, `a shot chips the struck voxel (${JSON.stringify(wp.chipped)})`);
+  assert(wp.n > 0 && wp.cast, `the loadout's weapons render and cast shadows (${wp.meshes.join(', ')} baked)`);
   // 3.2 baked lamps: every fixed light baked and drawn by the lamp plugin; the rig's pools only take flashlights;
   // a shot-out lamp goes dark at once
   const lb = await e.page.evaluate(async () => {
@@ -597,8 +493,8 @@ try {
   }
 
   if (part(4)) {
-  // 3.0 phase 5: ray-traced reflections, TAAU, Panini (the saved settings, changed in the match)
-  const u = await launch({ url, params: 'autostart=warehouse&gfx=user&voxels=1', viewport: { width: 640, height: 360 } });
+  // 3.0 phase 5: TAAU, Panini, the Ray traced setting (screen space since voxel-retire; the saved settings, changed in the match)
+  const u = await launch({ url, params: 'autostart=warehouse&gfx=user', viewport: { width: 640, height: 360 } });
   browser = u.browser;
   await u.page.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 180000 });
   await frames(u.page, 3);
@@ -611,7 +507,7 @@ try {
     const taau = pps.find((p) => p.name === 'taau');
     return { pps: pps.map((p) => p.name), canvas: a.engine.getRenderWidth(), scene: taau?.inputTexture?.width ?? 0, level: a.quality.level.upscale, panini: a.quality.level.panini };
   });
-  assert(p5.pps.includes('rtReflect') && p5.pps.includes('rtComposite') && !p5.pps.includes('ssr'), `Ray traced: the reflection passes replace screen space (${p5.pps.join(',')})`);
+  assert(p5.pps.includes('ssr') && !p5.pps.includes('rtReflect'), `Ray traced runs screen space reflections (${p5.pps.join(',')})`);
   assert(p5.pps[0] === 'volumetric' && p5.pps[1] === 'taau' && !p5.pps.includes('TAA'), `TAAU leads the chain after the low-resolution fog pass and replaces TAA (${p5.pps.slice(0, 3).join(',')})`);
   assert(p5.scene > 0 && Math.abs(p5.scene / p5.canvas - 0.67) < 0.02, `TAAU: the scene at 67% of the native canvas (${p5.scene} of ${p5.canvas})`);
   assert(p5.pps.includes('panini') && p5.pps.at(-1) === 'cinematic', `Panini on, the grade pass still last (${p5.panini})`);

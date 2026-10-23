@@ -63,15 +63,36 @@ try {
   // (let the open shots' noise die away first)
   await sim(4);
   await G(() => { window.__app.current.weapons.current.stats.noise = 0.45; });
+  // (the sandbox gives infinite ammo, which never spends quiet rounds: switch it off for the quiet-round checks)
+  await G(() => { window.__app.current.weapons['infiniteAmmo'] = false; });
+  const sdA = await G(() => window.__app.current.weapons.current.sd);
   const sd = await sim(0.3, [[BTN.RT, 1]]);
   await sim(0.5);
   const s2 = await stats();
+  const sdB = await G(() => window.__app.current.weapons.current.sd);
   assert(s2.suppressed > s1.suppressed, `a suppressed rifle plays suppressed shots (${s2.suppressed - s1.suppressed})`);
   assert(sd.noise < openNoise, `guards hear the suppressed rifle less (${sd.noise.toFixed(1)} m < ${openNoise.toFixed(1)} m)`);
+  assert(sdA - sdB === s2.suppressed - s1.suppressed && sdA - sdB > 0, `each suppressed shot spends a quiet round (${sdA} -> ${sdB})`);
+  await page.waitForFunction(() => /^SD \d+$/.test(document.querySelector('.w-sd')?.textContent ?? ''), null, { timeout: 5000 });
   await G(() => { window.__app.current.weapons.current.stats.noise = 1; });
 
+  // (sd-rounds) out of quiet rounds: a suppressed rifle fires open shots and guards hear it like an open gun
+  await sim(4);
+  await G(() => { const c = window.__app.current.weapons.current; c.stats.noise = 0.45; c.sd = 0; });
+  const sp = await sim(0.3, [[BTN.RT, 1]]);
+  await sim(0.5);
+  const s3o = await stats();
+  assert(s3o.suppressed === s2.suppressed, 'out of quiet rounds: open shots');
+  assert(sp.noise >= openNoise * 0.9, `guards hear a spent suppressor like an open gun (${sp.noise.toFixed(1)} m >= ${(openNoise * 0.9).toFixed(1)} m)`);
+  await G(() => { const c = window.__app.current.weapons.current; c.stats.noise = 1; c.sd = 60; window.__app.current.weapons['infiniteAmmo'] = true; });
+
   // reload, then dry fire on an empty gun with nothing in reserve
-  await press(page, BTN.A);
+  // (X held 0.4 s with the gun out reloads; A never does: anim-rework S1)
+  // (forceAds aims without drawing, so the stance base is still 'holstered': the first X press is spent as the draw
+  // (weaponStance.ts), the second hold reloads. A player-drawn gun reloads on the first hold.)
+  await sim(0.55, [[BTN.X, 1]]);
+  await sim(0.2);
+  await sim(0.55, [[BTN.X, 1]]);
   await sim(0.3);
   const s3 = await stats();
   assert(s3.reloads > s2.reloads, 'a reload plays the handling');
@@ -93,6 +114,11 @@ try {
   await sim(0.2);
   const s5 = await stats();
   assert(s5.remote > s4.remote, 'a shot 20 m away plays from the sprite');
+  // (coop-walk-fixes P7) a partner's suppressed pistol round: its own gun, played suppressed
+  await G(() => { const g = window.__app.current; const p = g.player.position; g.events.emit('remoteShot', { cls: 'pistol', x: p.x + 8, y: p.y + 1, z: p.z, gun: 'pistolSd', quiet: true }); });
+  await sim(0.2);
+  const s6 = await stats();
+  assert(s6.remote > s5.remote && s6.remoteSd > s5.remoteSd, `a partner's suppressed round plays suppressed (${s5.remoteSd} -> ${s6.remoteSd})`);
   await frames(page, 3);
   assert(errors.length === 0, `no console errors${errors.length ? ': ' + errors.join(' | ') : ''}`);
 } catch (e) {

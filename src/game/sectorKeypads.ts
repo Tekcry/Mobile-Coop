@@ -47,6 +47,13 @@ export class SectorCodes {
     return true;
   }
 
+  /** (stealth-pays S2) A code from an interrogation (no intel index): true when it was new; it is held for section sec. */
+  grantCode(flag: string, sec: number): boolean {
+    if (!this.host || !flag || this.have.has(flag)) return false;
+    this.have.set(flag, sec);
+    return true;
+  }
+
   /** Section sec's objective is done: its `objective` intel indices that grant now (into `out`, cleared first). */
   objectiveDone(sec: number, out: number[]): number[] {
     out.length = 0;

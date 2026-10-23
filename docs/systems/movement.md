@@ -379,7 +379,9 @@ The door menu's Stealth open starts it (A3).
   2 rungs a reach (slack 1.9 rungs), 0.3 s swings; mounting from the top `LADDER_TOP_TIME` 1.2 s (turned round first, then
   lowered); over the top `LADDER_TOPOUT_TIME` 0.85 s with the climb-up's knee, ending crouched 0.4 m in; the drop control
   lets go below `LADDER_DROP_MAX` 1.2 m (slides above it). The ledge climb-up is `CLIMB_UP_TIME` 0.85 s to a crouch on top
-  (the knee on at 0.47 s, the hands off after it, `CLIMB_UP_HANDS` 0.38 - 0.5 of the 1.3 s clip) and ends crouched unless
+  (the knee on at 0.47 s, the chest pitched low over the lip so the palms stay on it until the right foot is on the top at
+  k 0.474, then let go over `CLIMB_UP_HANDS` 0.475 - 0.643 of the 1.3 s clip while the trunk rises into the crouch; a lip
+  grip's hand pivots over the edge continuously as the shoulder leaves its reach) and ends crouched unless
   the stick is held there (then `CLIMB_UP_STAND` 0.45 s more); team boost / relay / rope-top climb-ups keep the old
   one-rise clip (`CLIMB_UP_TEAM`). A drop from a lip / pipe lands crouched. A lip grabbed from the ground takes
   `jumpGrabTime` (0.3 s low, 0.55 s at 2.4 m). Out of a wall vent `DUCT_CRAWL_OUT` 2.5 s (crawl out, rise to the crouch,

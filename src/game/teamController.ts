@@ -5,7 +5,8 @@ import { TEAM } from '../config/movement';
 import { findJumpTarget, anchorLength, type JumpTarget } from '../world/anchors';
 import { attachPose, GAMEPLAY_HEIGHT } from '../player/attach';
 import { ATTACH_SUB } from '../player/moveState';
-import { boostPath, inBoostBand, legUpRoom, relayPath, relaySlot, throwArc, throwLanding, throwRoom, THROW_SUB, HANG_SUB, HANG_HEAD, hangDepth, hangDepthMax, hangEndOf, hangFollow, hangRootY, ROPE_SUB, ropeClimb, ropeEndOf, ropeRoom, ropeSlide, ropeTopY, type TeamKind } from './teamMoves';
+import { boostPath, inBoostBand, legUpRoom, relayPath, relaySlot, throwArc, throwLanding, throwRoom, THROW_SUB, HANG_SUB, HANG_HEAD, hangDepth, hangDepthMax, hangEndOf, hangFollow, hangRootY, ROPE_SUB, ropeClimb, ropeEndOf, ropeRoom, ropeSlide, ropeTopY, findRopeLip, ropeClimbPull, newRopeLip, ropeClimbGripW, ropeLipHands, ropeTopGripW, ropeTopPath, ROPE_TOP_HANDS, ROPE_TOP_PATH, type TeamKind } from './teamMoves';
+import { clearGripAxis } from '../player/attachGrips';
 import type { GameState } from './gameState';
 
 /** A team-mate as the team moves see them (from the net layer). */
@@ -140,6 +141,12 @@ export class TeamController {
   /** (B5) Hanging head-first from the partner's hands (the interact button stays free: the hack). */
   get hangingDown(): boolean {
     return HANGER_STATES.includes(this.state);
+  }
+
+  /** (hang-down) Hanging settled under the partner's hands, no end asked: the hanging player's actions are live (the
+   *  hold-A menu, the grab and the neck snap, the pistol). Lowering, the pull-up and the drop are not. */
+  get hangActs(): boolean {
+    return this.state === 'hanging' && !this.hang.sent;
   }
 
   /** Free air over the head and the four side clearances (m): the leg-up's room (G151). */
@@ -291,7 +298,25 @@ export class TeamController {
   // ---- (CT prototype B7) the two-person rope (CT 1.4 Belay Line) ----
 
   /** The rope's foot, the top-out spot beside the holder, the climber's feet height on the rope. */
-  readonly rope = { x: 0, z: 0, edgeY: 0, floorY: 0, y: 0, yaw: 0, ox: 0, oz: 0, tx: 0, ty: 0, tz: 0, lostT: 0, sent: false, slideWhy: '' };
+  readonly rope = { x: 0, z: 0, edgeY: 0, floorY: 0, y: 0, yaw: 0, ox: 0, oz: 0, tx: 0, ty: 0, tz: 0, lostT: 0, sent: false, slideWhy: '', vy: 0, m0: 0, px: 0, pz: 0 };
+  /** (team-climb) The lip the rope goes over (found as the top-out starts: the hands' grips). */
+  readonly ropeLip = newRopeLip();
+  private readonly ropePath = { rise: 0, across: 0 };
+  private ropeGrips = false;
+  private readonly lipA = new Vector3();
+  private readonly lipB = new Vector3();
+  /** (team-climb) The lip search's ray (once per top-out). */
+  private readonly lipRay = (ax: number, ay: number, az: number, bx: number, by: number, bz: number, n: { x: number; y: number; z: number }): number => {
+    this.lipA.set(ax, ay, az);
+    this.lipB.set(bx, by, bz);
+    const h = this.g.ballistics.ray(this.lipA, this.lipB, G.STATIC);
+    if (!h.hit) return 2;
+    n.x = h.normal.x;
+    n.y = h.normal.y;
+    n.z = h.normal.z;
+    const l = Vector3.Distance(this.lipA, this.lipB);
+    return l > 1e-6 ? h.distance / l : 0;
+  };
 
   /** The holder: braced at the edge while the partner climbs; Co-op or B lets go (the climber slides down safely). */
   private runRopeHold(dt: number, coopPressed: boolean, bPressed: boolean): void {
@@ -327,7 +352,9 @@ export class TeamController {
     this.t += dt;
     if (this.state === 'ropeSlide') {
       r.y = ropeSlide(r.y, dt, r.floorY);
-      this.kin.set(r.x + r.ox, r.y, r.z + r.oz);
+      // (team-climb) the pull in to the face undone by height on the way down
+      const pin = ropeClimbPull(ropeTopY(r.edgeY) - r.y);
+      this.kin.set(r.x + r.ox + r.px * pin, r.y, r.z + r.oz + r.pz * pin);
       c.override = { kinematic: this.kin, yaw: r.yaw, turnRate: 20, crouch: false };
       g.player.pose.traverse = 'climb';
       g.player.pose.traverseT = 0;
@@ -338,17 +365,25 @@ export class TeamController {
       return;
     }
     if (this.state === 'ropeTop') {
-      // over the edge to beside the holder: up first, then in
+      // over the edge to beside the holder: up first, then in, from the rope's top pulled in to the face; (team-climb)
+      // each eased at both ends (ropeTopPath), the rise carrying the rope climb's speed in (was: the rise stopped dead at
+      // k 0.56 and the move in started with a jump at e 0.4, a 5.7 cm pop)
       const k = Math.min(1, this.t / TEAM.ropeTop);
-      const e = k * k * (3 - 2 * k);
-      const x0 = r.x + r.ox;
-      const z0 = r.z + r.oz;
+      const x0 = r.x + r.ox + r.px;
+      const z0 = r.z + r.oz + r.pz;
       const y0 = ropeTopY(r.edgeY);
-      const across = Math.max(0, (e - 0.4) / 0.6);
-      this.kin.set(x0 + (r.tx - x0) * across, y0 + (r.ty - y0) * Math.min(1, e * 1.7), z0 + (r.tz - z0) * across);
+      const p = ropeTopPath(k, r.m0, this.ropePath);
+      this.kin.set(x0 + (r.tx - x0) * p.across, y0 + (r.ty - y0) * p.rise, z0 + (r.tz - z0) * p.across);
       c.override = { kinematic: this.kin, yaw: r.yaw, turnRate: 20, crouch: false };
       g.player.pose.traverse = 'climbUp';
       g.player.pose.traverseT = k;
+      // (team-climb) the palms on the lip while the body rises over them, on the team clip (CLIMB_UP_TEAM: the grip
+      // weight starts low, so characterRig's `ledgeClimb` stays false)
+      if (this.ropeLip.ok) {
+        const rig = g.player.rig;
+        ropeLipHands(this.ropeLip, x0, z0, r.yaw, 0.25 * (rig.height / GAMEPLAY_HEIGHT), ropeTopGripW(k), rig.reachL, rig.reachR);
+        this.ropeGrips = true;
+      }
       if (k >= 1) {
         this.count.tops++;
         this.finishRope();
@@ -365,10 +400,23 @@ export class TeamController {
     }
     const top = ropeTopY(r.edgeY);
     r.y = ropeClimb(r.y, moveY, dt, r.floorY, top);
-    this.kin.set(r.x + r.ox, r.y, r.z + r.oz);
+    // (team-climb) the climb's speed (the top-out's rise carries it in)
+    r.vy = moveY > 0 ? moveY * TEAM.ropeUp : 0;
+    // (team-climb) pulled in to the face on the rope's last stretch (by height: ropeClimbPull), so the hands reach the lip
+    const below = top - r.y;
+    const pin = ropeClimbPull(below);
+    const bx = r.x + r.ox + r.px * pin;
+    const bz = r.z + r.oz + r.pz * pin;
+    this.kin.set(bx, r.y, bz);
     c.override = { kinematic: this.kin, yaw: r.yaw, turnRate: 20, crouch: false };
     g.player.pose.traverse = 'climb';
     g.player.pose.traverseT = ((((r.y - r.floorY) / 0.7) % 1) + 1) % 1;
+    // (team-climb) the hands start for the lip on the rope's last stretch (at most ROPE_TOP_HANDS.preW at its top)
+    if (this.ropeLip.ok && below < ROPE_TOP_HANDS.pre) {
+      const rig = g.player.rig;
+      ropeLipHands(this.ropeLip, bx, bz, r.yaw, 0.25 * (rig.height / GAMEPLAY_HEIGHT), ropeClimbGripW(below), rig.reachL, rig.reachR);
+      this.ropeGrips = true;
+    } else this.dropRopeGrips();
     this.prompt = r.sent ? null : 'On the rope: stick up / down; Co-op or B lets go';
     this.promptAt.set(c.pos.x, c.pos.y + 2.0, c.pos.z);
     const k = ropeEndOf(r.y >= top - 1e-3, coopPressed, bPressed);
@@ -378,6 +426,7 @@ export class TeamController {
       r.sent = true;
       this.state = 'ropeTop';
       this.t = 0;
+      this.ropeTopBegin();
     } else if (k === 'drop' && !r.sent) {
       r.sent = true;
       g.net?.teamHangEnd?.('drop');
@@ -386,13 +435,47 @@ export class TeamController {
   }
 
   private slideNow(why: string): void {
+    this.dropRopeGrips();
     this.rope.slideWhy = why;
     this.state = 'ropeSlide';
     this.t = 0;
   }
 
+  /** (team-climb) The top-out starts: the rise's starting slope (the climb's speed carried in). */
+  private ropeTopBegin(): void {
+    const r = this.rope;
+    const d = r.ty - ropeTopY(r.edgeY);
+    r.m0 = d > 0.05 ? (r.vy * ROPE_TOP_PATH.riseEnd * TEAM.ropeTop) / d : 0;
+  }
+
+  /** (team-climb) The climber on the rope: the lip it goes over (the hands' grips) and the top-out's pull in to it. */
+  private ropeLipFind(): void {
+    const r = this.rope;
+    const L = this.ropeLip;
+    r.px = r.pz = 0;
+    if (findRopeLip(this.lipRay, r.x + r.ox, r.z + r.oz, r.yaw, r.edgeY - 0.3, r.edgeY + 0.3, L)) {
+      // the pull in: from the body's distance off the face to ROPE_TOP_PATH.pullOut (never out)
+      const off = (r.x + r.ox - L.x) * L.nx + (r.z + r.oz - L.z) * L.nz;
+      const pull = Math.max(0, off - ROPE_TOP_PATH.pullOut);
+      r.px = -L.nx * pull;
+      r.pz = -L.nz * pull;
+    }
+  }
+
+  /** (team-climb) The top-out's hands off the lip (no grip axis left for the next reach). */
+  private dropRopeGrips(): void {
+    if (!this.ropeGrips) return;
+    this.ropeGrips = false;
+    const rig = this.g.player.rig;
+    rig.reachL.w = rig.reachR.w = 0;
+    clearGripAxis(rig.reachL);
+    clearGripAxis(rig.reachR);
+    rig.reachL.liftOff = rig.reachR.liftOff = undefined;
+  }
+
   private finishRope(): void {
     const g = this.g;
+    this.dropRopeGrips();
     g.player.controller.override = null;
     g.player.pose.traverse = 'none';
     this.state = 'none';
@@ -541,7 +624,8 @@ export class TeamController {
     } else this.kin.set(h.x, ry, h.z);
     c.override = { kinematic: this.kin, yaw: h.yaw, turnRate: 20, crouch: false };
     g.player.pose.tumble = Math.PI;
-    this.prompt = h.sent ? null : 'Hanging: A to use what is in reach; Co-op to be pulled up';
+    // (hang-down) A the item in reach (A9), the hold-A menu by a guard (grab), RT the neck snap, LT the pistol
+    this.prompt = h.sent ? null : 'Hanging: A to use what is in reach, hold A by a guard to grab, RT takes him down, LT aims; Co-op to be pulled up';
     this.promptAt.set(c.pos.x, c.pos.y + 0.4, c.pos.z);
     const k = hangEndOf(false, coopPressed, bPressed);
     if (k && !h.sent) {
@@ -855,6 +939,7 @@ export class TeamController {
         const hp = this.partnerPos();
         const hyaw = this.mate(s.b)?.yaw ?? r.yaw + Math.PI;
         this.ropeTopSpot(hp ? hp.x : r.x, r.edgeY, hp ? hp.z : r.z, hyaw);
+        this.ropeLipFind();
         this.count.ropes++;
       } else if (s.b === self && this.state === 'ropeOffer') {
         this.partner = s.a;
@@ -1041,6 +1126,7 @@ export class TeamController {
     const g = this.g;
     if (this.state !== 'none') this.count.ends++;
     if (HANGER_STATES.includes(this.state) || ROPE_CLIMBER.includes(this.state)) {
+      this.dropRopeGrips();
       g.player.pose.tumble = 0;
       g.player.controller.override = null;
       if (g.player.pose.traverse === 'climb') g.player.pose.traverse = 'none';

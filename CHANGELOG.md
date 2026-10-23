@@ -1,5 +1,578 @@
 # Changelog
 
+## 4.84.0 - Train 40: Auto-train laptop missing alert; Marlow Yard A2: woken guards and the spotted rule; Camera reach and mocap timeouts; Marlow Yard: Michael's 4.82 walk fixes; +7 more (2026-10-24, PR #279; #277, #276, #274, #267, #265, #258, #252, #247, #226)
+
+### Fast-gait feet (anim-fix-pass AF1)
+- Mocap jog / run / sprint feet no longer cross or stick in turns: the clips' planted track is centred and measured
+  on the stance, the planner's turn steps keep the clips' stance width (the outside foot steps out by the turn's arc),
+  and the clip feet hand turns to the planner from 1.5 rad/s with hysteresis.
+
+### Animation fix pass AF2: run carriage and steady hands
+- Mocap run / sprint carriage (Michael P1 "weird pose when running", "hands randomly moving around when running"): the
+  capture's pelvis rides about its own mean and is lifted (run knees no longer sit bent), its constant pelvis roll / yaw
+  is taken out, the chest pitch follows the CT run carriage, the turn bank leans the body into fast turns again, and the
+  arms go through a light follower with keepElbowOut's swivel eased (`MOCAP_LAYERS` pelHeight / trunkMean / bankWipe /
+  armSmooth, `MOCAP_RUN_POSE`).
+
+### Balanced crouch walk (anim-fix-pass AF3)
+- The crouched walk sits its hips back over the feet and keeps one carriage from the sneak to the crouch walk: trunk about
+  32 deg at gears 1-3 (the sneak capture leaned 43 deg), hips within 2.2 cm across the gears (were 7 cm apart), the
+  centre of mass about 3 cm ahead of the feet (was 11-15 cm), the sneak's side sway halved.
+- Shorter crouched steps at a higher cadence: 0.40 / 0.45 / 0.50 m at gears 1-3 (were 0.47 / 0.56 / 0.64); the crouch
+  run's stride lengthens again past 1.9 m/s.
+- (CI fix) Guards keep their crouch: the balanced crouch walk, its shorter steps and the crouched gun hold are Wren's only;
+  crouched spins keep their short turning stance with the new crouch cadence.
+
+### Animation fix pass AF4a: crouched strafe hips steady, no kneel on a flip
+- Crouched aimed strafe (Michael P4 "moves around constantly"): the glide's hips go 0.85 of the way to the feet's centre
+  and that shift changes at most 3 cm/s when crouched (`GLIDE_HIP_CROUCH`), so stop-go and L <-> R flips swing the hips
+  6-7 cm instead of 8-13 cm; standing is unchanged. Crouched and aiming, the kneel waits 0.35 s still
+  (`KNEEL_STILL_AIM`), so a stick flip through the dead zone no longer drops into a kneel and back.
+
+### Animation fix pass AF4b: crouched strafe and wall slide, gun clear, pistol on one knee
+- Crouched and armed, the kneel goes down on the gun hand's knee every time (Michael P4 "pistol shifts between knees": it
+  followed whichever foot the planner had ahead, so it changed between stops).
+- The crouched pistol low ready is held higher and ahead, clear of the knees (`CROUCH_GUN.pistol`: it hung between them
+  and the body clearance pushed it from one side to the other), and rises a little while kneeling down or standing up; the
+  hang stays up until the knees are down when standing from the kneel (it dropped into the rising thighs and jumped 11 cm
+  sideways); the raised pistol crouched is held 5 cm further out (`PISTOL_REACH_CROUCH`; grip jitter 1.01 -> 0.67 cm a frame).
+- Drawn and crouched at a wall (Michael P4 "with rifle clips"): the gun keeps the crouch carry raised over the knees
+  (`CROUCH_GUN.wall`) through the slide and the reversal instead of the muzzle-down wall tuck, and the side-on body keeps
+  the free crouch's lean with a weapon out; gun vs legs went from -10.5 cm to +2.2 cm or more.
+
+### Mocap is the only player animation path
+- Settings > Gameplay no longer has the "Mocap locomotion" row: Wren always walks, jogs, runs, sprints and sneaks with
+  the motion-captured clips (Michael: "Mocap off: has old animations which are also still as bad as they originally
+  were"). A save that had it off now boots with it on; the save field stays (no save change). `?mocap=0` or the
+  animation tuner's Mocap box (that page only) still show the hand-keyed set for comparison.
+
+### Co-op partner moves like its owner
+- The co-op partner's walk, run, stops and crouches now play in step with what its owner sees (Michael, walk 4.72
+  P5: "animations are bad, doesnt match existing animations, seem more jumpy"): the owner's stride clock, motion state
+  (start / stop / turn / pivot), acceleration and Chaos Theory stop travel with each player state, the host times the
+  joiner's states by the joiner's own clock instead of their arrival, the partner renders a little further behind
+  (0.13 s on the host, 0.16 s on the joiner) so a late packet no longer makes it guess ahead and snap back, and its
+  pace, velocity and turn rate blend smoothly between states. Off a wall it turns back at the owner's rate, and it
+  crouches and stands on the owner's stance curve. A wire change (the train build sets PROTOCOL_VERSION): both players need this build.
+
+### Animation fix pass
+- Animation fix pass (Michael's walk P1-P5): plan, causes traced in code and before contact sheets / quick audits
+  (`docs/anim-fix-pass/`); the sheet script gains `aimcrouchstrafep` (the pistol crouched aimed strafe).
+
+### Auto-train laptop missing alert
+- Auto-train: an open train whose CI `check` is green but has no `laptop-e2e` status 10 min later
+  (`AUTO_TRAIN_LAPTOP_MISSING_MIN`) now reports state `laptop-missing` with the train, head and `waitingMin`, so the
+  orchestrator chases the laptop queue instead of waiting for the 3 h `stale` alert.
+
+### Camera reach and mocap timeouts
+- Tests: longer timeouts for the all-maps camera reach and mocap short-start tests (train builds on a loaded desktop).
+
+### Guard AI: the Marlow Yard A4 console officer
+- Marlow Yard A4: the security console cannot be switched off while the officer watches it (he refuses you); draw him
+  off with a distraction and the press goes through. Back from the noise he notices the console off, walks over and
+  turns it back on, calm (Michael's walk G6). The A8 strongroom console refuses the same way.
+
+### Marlow Yard A7: equipment cabinet in the cage
+- The A7 cage now has an equipment cabinet between the terminals, so the technician at the cage front can no longer see a
+  player waiting at terminal two through both mesh faces.
+
+### Marlow and Sector Ops small fixes
+- Sector Ops: a late joiner or reloaded rejoiner now lists every rated section in its results, not only the last. The
+  `sector` message carries an optional `rh` (every section's marks and synced takedowns, as the course message's) inside
+  protocol 42; the client rebuilds the results lines from it (no card, no top-up, no grant).
+- Co-op client: your own round off a bulletproof camera (Sector Ops, Marlow Yard) now shows the ricochet sparks and
+  plays the impact sound on your screen, as it does on the host's (local only). `nearestHousing` is the shared pick.
+- Docs: the revive reach in the Marlow Yard spec (`docs/marlow-final/SPEC.md`, CONSTRAINTS, ENGINE-ANSWERS) now reads
+  1.6 m, the revive item's own reach in code (1.8 m is only the interactables default).
+- Tests: e2e-ctcourse A3 step 3 shuts both players in the L2 room behind its far door before the corridor switch goes off
+  (the client out only for the dark send-back), so the lure no longer finds them (a step-4 "calm" timeout flake).
+- Docs (code): the protocol 42 comment names the `sector` message's `rh`.
+- Sector Ops: the per-section synced-takedowns list for `rh` is built with the run, so the two always reset together.
+- Co-op results: each section's rating line goes into the op-end results list at most once (`putRating` replaces by section id); e2e-section-rating's rejoin parts now check the client's list equals the host's (Marlow: A2 from `rh`, A3 from `rt`).
+- Tests: e2e-ctcourse A3 1b asserts the client's own round off the bulletproof hall camera sparks on the client only (host camera online, host ricochet count unchanged, a ray under the housing does not spark); A3 also asserts the L2 far and L3 near doors unlocked on the host.
+- Marlow Yard: A4's two mezzanine stairs (open south side) and A8's public stair (both sides) take an invisible noLedge collision rail from the third tread to the head (A6's staff stair idiom), so a player can no longer step off the flights.
+- Tests: the A7 cage clearance and A6 "stays off the marks" dressing checks have teeth: a planted 0.03 m skin in each window must be found (S3-7-dress polish 4); no game change.
+- Tests: e2e-ctcourse A8 step 5 waits for N2's grille stop with the client in the dark at the jam spot and only then puts him at the board (a flake under load: standing at the board's west side across a full N2 cycle put him in front of N2's W2 -> TALK leg); the timeout now prints N2's state; no game change.
+- Tests: e2e-ctcourse A3 step 3 hides both players in L2's south half (71.5 / 74.5, 8.2): the client's old spot (72.5, 11.5) was in view of the far wall's clear glass slot, where the cleaner's device search and breaker walk saw it and fought through the step-4 calm wait (laptop 3/3); no game change.
+- A6 the Pump House: the interlock lamp beside the outfall door now shows red until the drive is isolated and green after, on both players' screens (marlow-polish P3-1).
+- A2 the Carriage Shed: the east stair's open south side now stops a body stepping off the flight (an invisible collision rail from x 68.6 to the stair head, as A4, A6 and A8 have); the bottom treads stay open from the side; the staging deck's east end beside the stair head, open to a 4.4 m drop, now has a 1.1 m rail too (marlow-polish P3-2).
+- Tests: e2e-ctcourse A3 step 3 now waits for the cleaner to be calm and back on his office loop before the corridor cut: step 2's camera alarm sends him to search the corridor, and the dark send-back taken while he stood there put the client in his sight at the send-back spot; his search round it runs through the L2 far door into the players' room (laptop 2/2 on d0689dd8, 3/3 on 1bde5328); no game change.
+
+### Marlow Yard A2: woken guards and the spotted rule
+- Marlow Yard A2: a knocked-out guard woken by a squadmate now fails the set when he spots the players (the spotted rule reads the live guard list, not the set's spawn list).
+- A set change also removes guards a squadmate woke in that set, so none carries into the next set.
+- A2 wheel stops: the `side` names match the shed ends (code only, no change in game).
+
+### Marlow Yard: Michael's 4.82 walk fixes
+- Marlow Yard A2: being spotted now fails the set. LANTERN says "Spotted. Back to the start of the set." and the set
+  restarts with both players back in L1 (per-set `spotFail` rule, host side, no wire change; the rule holds 1.5 s
+  after any set restart).
+- Marlow Yard A2: more linear and watched from above. The neck is reached by two lanes (four closures shut the cess and
+  north walkway), two overwatch guards on the staging watch the lit crossing, and the taught crossing is now the road 2/3
+  gap. The obstacle on the floor in front of the L2 airlock door (road 2's east wheel stop) is gone.
+- Marlow Yard A3: the hall camera no longer alerts the guards, adds an alarm or breaks Undetected; sending you back to the
+  lobby is its only cost (a training camera).
+- Marlow Yard start room: now an armoury, with a four-case weapons display cabinet on the west wall, two locker banks on
+  the south and north flats and two free-standing benches, replacing the reception desk, green wall and armchairs. The
+  spawns and the aisle to the door are unchanged.
+
+### Sector Ops: Saltmarsh Park detail art, gear and sweep points
+- Sector Ops campusOps: the full detail-art lift of Saltmarsh Park. Every room of the five sections now reads as its real
+  place (gatehouse, HQ atrium and offices, lab block, data hall, the 1960s Old House, car park and grounds); props sit over
+  the greybox boxes and never change collision, cover, ledges, nav, cameras, lasers or the light bake.
+- Campus art kit: one shared instanced prop and material kit (the marlow-final facility props plus a new 60-piece campus
+  base kit, Blender-built in repo), room finishes, a rule-based base dressing by room tag with keepouts round routes,
+  patrols, doors, items, takedown and hide spots, co-op lips, cameras, lasers, lamps, traversal anchors and glass, and
+  pure gates that prove routes, nav cells, patrols, cover, lips, ledges, split gaps and light parity are unchanged.
+- Campus hero sets per section: S1 gatehouse desks, CCTV monitors, key cabinet, barrier, parked cars and bollards; S2
+  reception, speed gates, cafe, mailroom, offices and the atrium display; S3 test chamber, EMC room, burn-in racks, crane
+  girder and clean room; S4 pod racks, containment, cable baskets, CRAC, UPS, batteries, NOC wall and plant; S5 radio racks,
+  rolling stacks, strongroom fronts and time lock, balustrades, chimney stacks, trees and the van.
+- Sector Ops campusOps: guard gear tags (helmets on the S4 / S5 late guards) and response-team sweep points for S4 and S5
+  (data for the guard AI; dressing keeps clear of the sweep points).
+- Sector Ops campusOps: with guard-render in, the per-view guard limit rises from 6 awake guards to 12 guards in sight,
+  every guard counted (A99), so S4 and S5 run their full 20 / 24 guards.
+
+### Campus art next: kit API, dressing and freeze polish
+- Campus art kit: `skinFace` puts a visual panel flush on one face of a greybox box. It writes no box, so collision, light and sight stay as they were.
+- Campus art kit: `tryAdd` takes a list of spots and returns the first that passes (or -1). Every refusal names its keepout rule (`ArtRuleError`).
+- Campus art kit: per-piece fit ranges for battery racks, lab benches, mesh panels and kitchen runs. Floor decals under 5 cm are no longer held to the route, patrol, door and box keepouts (K1-K6, K13). A door frame may span its own door.
+- Campus dressing: S1 parked cars come in four colours. S1 heroes go through `tryAdd`; the bike rack and bench it refuses are an explicit omitted list the test checks.
+- Campus dressing: the S2 atrium green wall is skinned onto the west wall in both bays.
+- Campus dressing: S4 battery rows use the real battery rack piece, the raised-floor tile grid now covers the hall (72 tiles), and the genset exhaust stack is listed as an overhang part.
+- Campus dressing: S5 kitchen counter run and wall cupboards are placed. The two hall portraits sit at the hall floor's height.
+- Freeze polish C4-C6 (C1-C3 were already on the base; C7-C9 at the master merge).
+- Guard render freeze: the frozen tier is now part of the guard anim tiers (one system). A guard thawed from the freeze is posed in the same frame, so he never shows his pose from before the freeze; if he walked more than 0.3 m while hidden his feet re-plant instead of stretching; a guard killed while hidden falls from his current pose (C7-C9).
+
+### Campus art polish batch 3
+- Campus dressing: a raised piece with no wall behind it counts as a floor prop below 1.9 m (only higher pieces take
+  the ceiling rules); long route, patrol and laser legs that cross a section with both ends outside it are kept; the
+  skin-reach check skips a camera ray only where the skin meets its own piece (2 cm) and a laser only in the piece's
+  height band, measuring listed overhang parts (the S4 basket hanger rods) by their real geometry.
+- Campus art: a failed art build disposes everything it made; the detail pass leaves art boxes bare (drawn and baked).
+- Campus load: the dressing runs about twice as fast (cold) and 60% faster (warm) in node, with identical output.
+
+### Sector Ops guard freeze polish
+- Guard render freeze (Sector Ops, render only): a guard behind a door that cracks or opens, or a breakable pane that
+  opens, is re-tested and drawn at the next frame instead of up to 4 frames later; a hidden guard coming back into the
+  view, or hidden right behind a wall's edge, is re-tested at once / every frame (ray budget still capped at 8 guards
+  per frame).
+- The freeze now samples a guard's knees, and a roof guard's moon shadow that falls off the edge onto the ground below
+  keeps him drawn.
+
+### Sector Ops guard render freeze
+- Sector Ops guards whose body and shadows cannot reach the screen (outside the view, or behind walls, floors and
+  closed doors; never glass or fences) skip the render: no mesh evaluation, skeleton or shadow draws for them. Render
+  only; the brains, perception and light are untouched. `?guardfreeze=0` turns it off (sector-redesign perf).
+
+### Sector Ops polish 2: lamp shots through door soffits, skin overhang gate
+- Sector Ops: a round that lands just under a lamp breaks it only with a clear line up to the lamp's head, so a rising shot through a doorway that hits the door soffit no longer breaks the wall lamp over the far side of the door (host, client and single player agree; no wire change).
+- Sector Ops campusOps: the art gate checks a skin's listed overhang (hanger rods, exhaust stack, chimney pots) against camera rays and laser beams; the split gaps come from the bare greybox before any section is dressed.
+
+### Sector Ops walk 4.72 fixes
+- Sector Ops: a round that lands on a street lamp's pole just under its head (Saltmarsh Park's 6 m lamps, bollard heads) now shoots it out, for the host and, through the host, the co-op client; before, those lamps could not be shot out from the ground by anyone.
+
+### Train lock wait
+- Tooling: `scripts/merge-train.mjs` `build` waits at most 5 min (was 30) for the heavy lock before its vitest run, then
+  exits 4 (pending; CI still runs the unit tests). `TRAIN_LOCK_WAIT_MIN` (minutes) overrides it.
+
+## 4.83.0 - Train 36: Train vitest retry; Snapshot line endings; Guards relight switched-off breaker boards (guard-ai LR16-4) (2026-10-23, PR #263; #262, #259, #255)
+
+### Guards relight switched-off breaker boards (guard-ai LR16-4)
+- Guards relight (guard-ai LR16-4, the LR16-0 audit's gap row 10): the S15 breaker walk now covers the Sector Ops
+  breaker boards as well as wall switches. A breaker board (`MapLayout.boards`, no `window`) cut with a guard watching is
+  a fault: one witness says "Breaker's gone again.", walks to the board at patrol pace, works it 2 s and
+  `IsolatorBoards.switchBack` puts every circuit of the board back on (the board's label, its wall switches, the
+  `lightSwitch` event and the co-op lamp sync follow, as for a player's switch-back). A second cut inside 60 s is the
+  S2 light check at the board; a cut nobody saw is found by late discovery; a shot lamp stays dark. A timed isolator's
+  running window is the player's: its cut stays the S2 look at the board (the lure), no guard switches it back or turns
+  a wall switch of its circuit on while it runs (`switchBack` refuses, the breaker host's `isOff` is false), and the
+  timer relights it. Wall switch cuts were already relit by S15. Host only, no wire or save change. Unit tests in
+  `tests/guardRelight.test.ts`; `tests/sectorIsolator.test.ts` updated for the refused switch-back.
+
+### Snapshot line endings
+- Tooling: `.gitattributes` checks out `*.snap` with LF, so vitest no longer rewrites the snapshot on CRLF checkouts and leaves the merge-train worktree dirty.
+
+### Train vitest retry
+- `scripts/merge-train.mjs build`: when the full vitest run fails only on timeouts or in at most 3 test files, those files
+  rerun once in isolation (`--no-file-parallelism`); a pass counts as ok, so desktop CPU load no longer fails a train build.
+
+## 4.82.0 - Train 33: Sector Ops lamp door slots and torch drawing; interrogation codes open course flags and keypads; laptop test queue service (2026-10-23, PR #256; #242, #249, #252)
+
+### Laptop queue service
+- Tooling: `scripts/laptop-queue/` (queue service, `request.mjs` CLI, `serve.mjs`, `install-task.ps1`) runs requests from the
+  `laptop-queue` branch and `train/*` heads on the two laptop slots, shards train runs across 4189 + 4192 and posts
+  `laptop-e2e` / `laptop-e2e/<set>` commit statuses. Docs: `docs/systems/testing-tools.md` "Laptop queue".
+
+### Lamp door slots and exact torch light (LR15)
+- With Realistic lamp falloff on (prototype, default off), a lamp now stops at up to 8 shut doors instead of 4, so light
+  no longer leaks past a long row of doors, and a guard's flashlight that has no shadow map lights you exactly as the
+  light meter and the guards read it, cut where its beam meets a wall. Classic falloff is unchanged.
+
+# Realistic lamps light large maps again (lr-tex3d)
+kind: patch
+- With Realistic lamp falloff on, the lamps on large maps (Saltmarsh Park) no longer go dark on screen: their light data
+  was too big for the graphics card and failed to load, so the picture showed only the fittings while the light meter
+  and the guards still saw the light. The data now packs to fit the card's limit. Classic falloff is unchanged.
+
+### Lighting polish (LR13 / LR14 / LR15 checker lists)
+- Character shadows: a guard right beside a lamp, in a dense crowd, or just stepping into a lamp's reach keeps its soft
+  shadow instead of briefly losing it; after the graphics context is lost and restored there is no brief dark cone.
+- Realistic lighting (test): a guard's torch through glass is no longer about 3x too bright.
+- Co-op: "Resume hosting" runs the same lamp falloff the dropped match ran.
+
+### Stealth pays: interrogation door codes
+- Interrogation door codes now open Course gates and Sector Ops keypads. Course: the code is set as a course flag, so a gate
+  that lists it in `externalFlags` opens (stealth-pays S1). Sector Ops: a guard's slot `info` is copied onto him at spawn and
+  the code is held by the team for that section, opening the matching keypad (dropped by the section's restart; S2). Play is
+  unchanged until map owners author guard `info` codes.
+
+## 4.81.0 - Train 32: Marlow Yard final and section rating; guard body GPU skinning after recovery; release speed-ups and automatic trains (scheduled task not yet registered); faster agent tests (2026-10-23, PR #253; #244, #246, #250, #248)
+
+### Agent CPU: cached vitest transforms and incremental typecheck
+- Vitest persists transformed modules across runs (`fsModuleCache: true`); transform was 75-88% of tracked time per run.
+- New `npm run typecheck:fast` (incremental `tsc --noEmit`, build info in `node_modules/.cache`). `typecheck`, `build` and
+  `check` are unchanged.
+
+### Automatic merge train
+- `scripts/auto-train.mjs tick`, run every 5 min by a scheduled task (`scripts/auto-train-task.ps1`), builds the next
+  merge train from the `train-ready` PRs with a green `check` and releases it to master once CI and the laptop's
+  `laptop-e2e` status are green; failures, stale trains and conflicts are reported in
+  `C:/NightShift/scratch/auto-train-status.json` for the orchestrator (`docs/systems/auto-train.md`).
+- Trains are paced: the next one is built once the last release is 60 min old, or earlier when the laptop queue is idle.
+- A release is pinned to the tested head (`merge-train release --head <sha>`, `gh pr merge --match-head-commit`), a
+  train with no version commit is never released, and a hand-run merge-train and a tick share one lock, so they never
+  overlap.
+
+### Guard carry: recovered guard bodies GPU skinned again
+- Fix: a guard body recovered from a timed-out shader compile (4.80.0) is GPU skinned again. Babylon's first fallback
+  on the failed compile had switched the body to CPU skinning, which draws the GPU-buffer body unskinned (bind pose);
+  `recompileEffect` (`src/player/bodyEffectRecovery.ts`) turns `computeBonesUsingShaders` back on for every mesh holding
+  the recompiled effect. Unit test in `tests/bodyEffectRecovery.test.ts`.
+- `e2e-guard-carry` gets a "(forced)" pass that makes the first guard-body compile time out the way the laptop GPU did
+  (a runtime hook on Babylon's compile poll, cut to 1 s, with Babylon's own timeout error), so the suite fails without
+  the recovery (master 4.79.0 fails it: the guard stays invisible). The pass asserts the fault fired (a timeout or a
+  recovery drop), the body recompiled, drawn and GPU skinned again. Run with `E2E_GPU=1`.
+
+### Marlow Yard redesign: eight co-op sets in a luxury training centre
+- Marlow Yard (map `ctcourse`, Course mode) is rebuilt as one 15-20 minute co-op run: eight sets A1-A8 inside a luxury
+  rehearsal centre (glass instructor gallery, LED coves, sliding doors, dark premium surfaces), each set a mock-up of a
+  real-map co-op scenario: A1 Gate (leg-up, relay and bolt), A2 Carriage Shed (timed light isolation), A3 Office Range
+  (timed jam relay), A4 Goods Shed (security room camera loop, dual takedown), A5 Substation (partner throw, floodlight
+  jam, release), A6 Pump House (rope and hang-down hack), A7 Data Hall (split paths, synced hack), A8 Strongroom (all of
+  it under two timers). Seven lit holding rooms join the sets. Every set is lit and the players make the dark.
+- No explainer pads. The objective table updates per set and guides both players; where the team splits each player sees
+  their own A or B line, and the first player to do a set's A job takes it for both (`CourseObjective` steps, N1).
+- New co-op devices: a two-way timed light isolator (N2, 15 s and 25 s windows, re-arm, lights-out lure, restart now
+  restores every lamp); a timed security console that loops the cameras for 60 s with a 20 s re-arm (N3); a hold device
+  whose noise a joiner makes too (N4, protocol 30 `use.pulse`, `NetItem.hn`); several scanner pairs (N6, protocol 30
+  `sec.sc` one entry per pair); one-player pass zones; sliding doors with Open only (N9); the course start list reads the
+  course's bay count (N8). Course guards now run stealth rules (shout, search, cooldown, detection stat).
+- Co-op wire: `PROTOCOL_VERSION` 42 (this branch's 30 / 33 / 36 wire, scanner pairs and hold pulses, over train 30's 40; 41 reserved for guard-ai S9). Details: `docs/systems/coop.md`.
+- Fixes: the character controller no longer reads a stale floor for one step after a hang, climb or teleport
+  (`staleSupport`); a client's wall switch press is taken only within the host's reach rule.
+- Course tests: one unit file per set (`tests/ctcourse/`), a whole-map light frame (`CTLIGHT_WRITE`), `e2e-ctcourse` now
+  runs as four parts (:1 A1-A2, :2 A3-A4, :3 A5-A6, :4 A7-A8), `scripts/shots-ctcourse.mjs` takes one shot per set vantage.
+- Old best times: the course record was keyed by bays S1-S8 and the bays are now A1-A8, so the old best times no longer
+  show and the record starts again. No save migration (`SAVE_VERSION` unchanged; the record is a sanitised key).
+- Proposals built as assumed decisions, each undoable (`docs/marlow-final/SPEC.md` section 15, `STATE.md` MORNING-REVIEW):
+  - P1 entry vantages are concealed by occlusion and holding rooms are lit; undo: a dark mixed-zone pocket at each vantage.
+  - P2 sets sit at 0.14 standby light, 0.30 in the lounge, holding rooms and dock; undo: keep 0.30 (isolations become lures only).
+  - P3 timed device windows only (never a fail, no course clock); undo: held isolators and a permanent console off.
+  - P4 new rule LD 5.5 "lit as the real building, the players make the dark" (Marlow Yard only here); undo: lower fitting intensities.
+  - P5 an alarm resetting the set is not used; add it only on Michael's word.
+  - P6 12 role-players, at most 3 alive per set; undo: drop `a4-dock2` and `a8-night2`, move the A1 checker slot.
+  - P7 Course guards run `em.stealth = true`; undo: one line in `courseMode.ts`.
+  - P8 occluders on every high route instead of a guard look-up penalty; undo: build G44's penalty in `perception.ts`.
+  - P9 new code N1-N4, N6, N8, N9; undo: the per-item fallback in SPEC P9.
+  - P10 one new mechanic per space is relaxed in A4 and A6; undo: move A6's rope to A8.
+  - P11 two or three ways per guarded set, a secret in A2, A3, A5; undo: a secret per guarded set.
+  - P12 set walls stop under the 10 m hall roof; undo: a charcoal panel wall above each to the roof.
+  - P13 co-op lip spans are open loading edges (a drop chain); undo: full rails, lips move to a hoist bay.
+  - P14 info lines on the A1 checker and the A4 and A8 officers; undo: the A1 checker only.
+  - P15 the luxury rehearsal centre replaces the bunker fiction (Michael's word, M5).
+  - P16 striped leg-up marks at A1, A2, A6, A8; undo: no marks, the objective line names the spot.
+  - P17 all glass stops guard and camera sight and jam lines; undo: build G45's clear-glass sight.
+- Open polish (none blocks play): the combined list is in `docs/marlow-final/slices/S3-7-dress-check.md` ("Polish list"),
+  with `S34-check.md`, `S567-check.md` and `S8-check.md`. Main items: A5 beam towers and A4 / A8 stair rails have no
+  collision, the A6 interlock lamp has no emissive, A3 floor surfaces, the A8 marble `tile` surface, and the lamp-radius
+  trim. GPU frame time per set and the perf "after" run are pending a PC run (`docs/marlow-final/slices/S9-perf.md`).
+- Slice 10 (Michael's walk 4.72 / 4.73): every Marlow camera (A3 hall, A4, A7, A8) is armoured. A shot ricochets with
+  sparks and a ricochet sound, and the camera keeps watching. Jam and power cut still work.
+- Slice 10: a checkpoint restart fully resets the set on host and client. Guards, bodies and drones go back to set
+  start, with no old incident or alert left. A carried body, gadgets and noise reset. Broken cameras come back online.
+  Doors go back as at set start: open ones shut, cracked ones whole, and locked doors shut.
+- Slice 10: the A2 locked door has no lamp on the rebuilt set. The old lamp was on the master map only. Michael to
+  re-walk A2 to confirm.
+
+### Release speed-ups
+- Merge trains: `merge-train.mjs build <n> <version> "<title>" <branch>...` now makes the version commit, opens the
+  train PR and runs the unit tests on the train head, so CI runs beside the laptop e2e run; `release` only merges,
+  tags and moves dev, and `release --resume` finishes after a fix on the train branch.
+- One train may carry several wire changes: the train build bumps PROTOCOL_VERSION once, and tests read the constant
+  instead of asserting its number.
+- CI runs lint, tests and build in parallel with a cached `node_modules`, and a new push cancels the older run.
+
+### Section rating: four marks, rewards and best records
+- Sector Ops sections and Marlow Yard sets A2-A8 are rated on four marks: undetected, no kills, no alarms and bodies hidden. Each mark you earn counts once, so a clean section scores 4 of 4.
+- Each mark pays a reward. Undetected gives a gadget charge. No kills gives a medkit heal. No alarms gives a syringe (a medkit heal when you play solo). Bodies hidden gives a gadget charge.
+- Rewards never go over the usual carry limits.
+- Synced takedowns pay more in co-op. A synced takedown is two players taking down guards within 1.5 seconds. Each one pays a gadget charge and a syringe, up to two paid takedowns per section.
+- A card shows after each rated section, on the host and on the client. It lists each mark as earned or missed, and the reward you got. It hides by itself after about 4 seconds.
+- The last section of an op or course shows no card. Its rating goes to the results screen.
+- Each section is rated once, when you leave it. A restart does not rate it again.
+- Your best marks per section are saved. More marks wins. A tie goes to more synced takedowns.
+- The Sector Ops select screen shows each section's best marks as four pips. Unrated sections show no pips. Marlow Yard saves best marks too, but its select screen does not show them yet.
+- The results screen lists every rated section in order, with its marks (for example 4/4) and its synced count.
+- Co-op wire: protocol 42. The section rating adds the `rt` field to the sector and course messages and `rh` to the course message. It rides marlow-final's 42 (one bump per train), so host and client must both run 42. Builds on 41 and below are refused.
+
+## 4.80.0 - Train 31: Guard AI co-op S9 and S22 response, calm-guard body recovery, optic cable at doors; dead RT settings hidden (2026-10-23, PR #245; #240, #234, #243, #239)
+
+### Guard AI: co-op guard weapon carry
+- Co-op: your partner now sees the guards carry their guns the way the host does. A calm patrol walks with his rifle
+  slung on his back (an officer's pistol on his thigh) on both screens, draws it when something stirs him, holds it at
+  low ready or raised as before, and holsters it again after a calm spell; before, every guard on the client stood at
+  low ready all the time. The client's draw and holster run a moment behind the host's. Protocol 41 (the same co-op
+  version as the guard-ai co-op state it ships with).
+- Co-op: the "Sensor tripped" radio line now shows on the client too.
+
+### Guard carry: calm guards drawn (stuck body shader recovered)
+- New e2e suite `e2e-guard-carry` (full run; `src/ai`, `src/player`, `src/world` quick picks): on Warehouse Infiltration
+  at High (no mission, the failing calm sheet's setup: one guard at a time under the strip lamp at 0, -3, the camera 2 m
+  in front) a grunt, then an officer, stand calm 16.5 s (S21 holstered carry), then draw; the body effect's light
+  defines are logged; each merged smooth body must
+  be among the camera's active meshes with its material ready, its effect GPU skinned as the mesh is (never Babylon's
+  CPU-skinning fallback served to a GPU-skinned body, which drew 4.77.0's calm guards as a floating gun), and no effect
+  may fail to compile (the failure's error line is printed: `Effect.LogShaderCodeOnCompilationError` off). Train 29's
+  lamp plugin changes (#232) already make the body's effect compile; this holds it. Run with `E2E_GPU=1`.
+- Fix: guards no longer go invisible after a long stall while their body shader compiles. On the laptop GPU a merged
+  smooth body's PBR effect could never finish compiling (Babylon's parallel-compile poll then gives up after ~2 min:
+  "Operation timed out after maximum retries. - Effect: pbr"); the material kept that effect, so the guard showed only
+  his weapons. `src/player/bodyEffectRecovery.ts` (run once per render for each body mesh, no allocation) drops such an
+  effect from Babylon's caches and every sub-mesh holding it and compiles it afresh: at once when it timed out, failed
+  for good or lost its program, after 8 s / 30 frames when it simply never finishes; at most 3 times per shader
+  variant, each with a console warning ("smooth body ...: body shader ..., recompiling"). `e2e-guard-carry` now
+  replays the failing sheet first: the 16.5 s calm stepped in one block with no frame rendered, then the body must be
+  ready and drawn within 30 s of rendering; the 1 s-step pass follows.
+
+### Guard AI: security console switch-back
+- Security consoles (Michael's walk G6, guard AI side): a guard now notices a security console that has been switched
+  off, but only when he actually sees it: in front of him within about 12 m, or beside him within about 4 m, never
+  through a wall. A guard who was drawn away (sent to a noise, checking something, searching) notices once he is back
+  and looks at it. He says so ("Console's dropped out again. Getting it back up."), walks over at his normal pace, works
+  it for two seconds and goes back to his post calm. Switch it off again within a minute and it is no longer a fault:
+  one or two guards come to check the console and look round it, then one turns it back on. Host only. The game side
+  (Marlow Yard's console reporting its toggles, letting you use it while its guard is away, and the guard's switch
+  back) lands with Marlow Build's console rework.
+
+### Guard AI: the co-op partner sees what the host sees
+- S9 co-op: the joiner now sees the guards' lines and radio calls (radio checks, "Shots fired!", talking pairs, the
+  security desk) as the host does, with the radio chirp.
+- A cautious guard carries his weapon at low ready, on both screens (solo too).
+- The joiner sees the guards' vests and helmets from alarm stages 2 and 3 and a response team's riot shield.
+- The joiner's headshot on a helmeted guard pings as a deflect at once, and the helmet falls on both screens.
+- Co-op protocol 41: both players need this version.
+
+### Optic cable
+- (ct-toolkit 3.2, G97) Optic cable at doors, prototype: the door menu's OPTIC CABLE at a closed door kneels the
+  operator in front of the leaf and, after a 1.2 s feed, puts the view under the door on the far side at floor height
+  (the feed overlay, 100 deg field of view). The look turns the tip within +-75 deg yaw and -10..+60 deg pitch, night
+  vision toggles as usual, a ping goes out from the view, crouch (B / C) or the stick pulled back leaves (0.6 s pull
+  out). The tip is never perceived; the kneeling body is perceived as any crouched, still body. A door tagged `seal`
+  refuses ("Sealed"), as does a blocked far side ("No gap"). The view is local (nothing on the wire). New
+  `player/opticCable.ts` (pure), `game/opticSystem.ts`, `config/tools.ts`; the door anchor gets `seal`.
+
+### Settings: dead ray-traced and GI controls hidden
+- Settings > Graphics: the "Ray traced" reflections option, "Ray-traced reflections rate" and "Global illumination"
+  are gone (they did nothing since the voxel look was retired). A saved Ray traced setting shows and runs as Screen
+  space; the saved settings are unchanged (no migration).
+
+## 4.79.0 - Train 30: Player batches 23-24 (iPad fit, suppressor ammo, team-climb top-out, partner pose parity) and co-op walk fixes; voxel look retired (2026-10-23, PR #241; #231, #236)
+
+### Co-op walk fixes: team takedown on a hostage, partner shot audio
+- (coop-walk-fixes P6) Co-op: when either player holds a guard as a hostage, the other player beside them gets TEAM
+  TAKEDOWN on him (host or joiner holding, either way); it knocks him out (a held direct press kills), ends the hold and
+  counts as a dual takedown for both. Before, the joiner's offer on the host's hostage did nothing and the host had no
+  offer on the joiner's.
+- (coop-walk-fixes P7) Co-op: a partner's shot plays once per round (a single shot played twice) and with their own
+  weapon's sound, suppressed when it was (the suppressed pistol sounded like an open pistol); its muzzle flash is small
+  when suppressed. Protocol 37: the player state carries the rounds fired (`sc`).
+
+### Interrogation intel
+- (interrogation-intel) Interrogating a guard with information now also gives intel as feed lines for every player: door
+  codes authored on the guard (`GuardIntel.codes`, flag to `GameMode.onIntelCode`), the cameras near him (count, sweep
+  time) and the patrols near him (count, loop time, read through the Guard AI `Enemy.patrolRoute` getter). A co-op client's
+  interrogation is seen on the host from its MoveState; no wire change. A co-op client now also lists the host's relayed
+  `feed` lines in its HUD feed (they were only a radio subtitle, so the partner never saw the intel there).
+
+### iPad display fit
+- iPad: the version label stays fully on screen (bottom / right offsets include the safe-area insets, `--vh` follows `dvh`
+  where supported), the page and menu frame fill the visible viewport (no dark bottom strip), the "integrated GPU ... Windows
+  Settings" banner and settings hint show only on Windows, and the pause menu's co-op room line wraps in its own block clear
+  of the help box. Desktop rendering (zero insets) is unchanged.
+
+- The in-game pause menu no longer lists Anim Studio (dev); the studio opens from the main menu only, and the pause menu keeps Animation tuner (dev).
+
+### Partner pose parity: aim side, takedown blow, baked sections
+- (pose-parity) Co-op: your partner's weapon hand now follows their shoulder swap in every mode (holding a hostage, on
+  a rope, a split, an inverted pipe, atop the human ladder), not only on the ground; a partner choking a guard or
+  stepping in for a lethal takedown no longer holds the elbow strike's wind-up (they pose no arc, as on their own
+  screen); and once tuner values are baked into the code, the partner's rig plays the baked co-op / traversal move
+  sections and Body root offsets (body forward / up, the hold's guard gap and side, the wall gap) as their own page
+  does (never your live tuner values). Protocol 36 (32-35 are taken by open branches): the player flag `aimLeft` (64)
+  and the takedown blow bit (MoveState `sub` 1); the ground `sub` bit 128 is dropped.
+
+### Limited suppressor ammo
+- Suppressed guns (the issued rifle, the Hush 9 SD) carry a limited count of quiet rounds (rifle 60, pistol 45), separate from
+  the magazine. Each suppressed shot spends one; at 0 the gun still fires but loud (open sound, full flash, an open gun's
+  noise to the guards), with a one-off "Suppressed rounds out" feed line. The weapon box shows "SD n" (red at 5 or fewer).
+  Ammo crates refill quiet rounds, a checkpoint restart restores them, infinite ammo never spends them. In co-op a client's
+  spent gun is loud on the host (no protocol change).
+
+### Team climb: the rope top-out
+- (team-climb) The two-person rope's top-out (CLIMB_UP_TEAM) no longer pops: the climber is pulled in to the face on
+  the rope's last 0.6 m, then rises and moves over the lip on eased (quintic) paths that carry the climb's speed in
+  (`teamMoves.ropeTopPath`; `TEAM.ropeTop` 0.9 -> 1.1 s). Root per-frame velocity change 5.7 cm -> 0.44 cm.
+- (team-climb) The climber's hands grip the lip at the top (lip "hook" grips, lifting off as the arms run out), on
+  the owner's page and on the partner's view of them (`ropeSeenStep`, no wire change). The Anim Studio's rope pair
+  plays the same path.
+
+### voxel-retire
+- The voxel look is retired (Michael: "nothing should be voxel"): `?voxels=1`, the voxel world, voxel characters and
+  weapons, chips, voxel GI and ray-traced reflections are removed. Ray traced now runs screen space reflections. The
+  light bakes (lamp, moon, sky, ambient grid) and their hashes are unchanged.
+
+## 4.78.0 - Train 29: Sector Ops lighting: lamp falloff setting, shadow accuracy, character lamp shadows (fixes calm guards drawn without bodies); Guard AI guards never fire into armour (2026-10-23, PR #238; #232, #228)
+
+### Guard AI S16 - guards hold fire at armour
+- Guards no longer empty their magazines into bulletproof glass or doors: before each burst and each round a guard checks
+  his line of fire, and when armour is first on it he holds fire, keeps tracking you and calling it in, then moves to a
+  spot with a clear shot (or round by the corridors), or holds if he must keep his post. Ordinary glass is unchanged:
+  guards still shoot through it.
+
+### Character silhouette shadows (LR14)
+- Character silhouette shadows from lamps, as in CT (LR14): from High up the 2-4 lamps nearest you (a steady set: a
+  newcomer must be 25% nearer and a lamp holds its slot at least 0.5 s) cast the real shape of guards, your partner,
+  bodies and held weapons - arms, legs, crouch and prone - on floors, walls and other characters. Their maps share one
+  texture; every other lamp keeps the soft capsule shadows, as do Low and Medium. Settings > Graphics > Character
+  shadows (Auto / On / Off) overrides the preset; each co-op player uses their own. Rendering only: the light meter and
+  the guards read the light exactly as before.
+
+### Lamp output review and the lamp falloff setting (walk 4.72)
+- Lighting review of the walk 4.72 S1 / M5 notes: measured lamp reach on every map (Sector Ops S1 goods-in floor median
+  0.186, real fittings 213-781 lux), proposal LR13 (photometric lamp falloff) for Michael in
+  `docs/lighting-review/PROPOSAL.md`.
+- New setting, Settings > Gameplay > Lamp falloff: Classic (the default, the game as before) or Realistic (test): lamps
+  fall off with the inverse square like real fittings and reach further. The light meter, the guards and the picture
+  switch together; it takes effect when a map loads. In co-op the host's choice applies to both players (co-op
+  protocol 38). `?falloff=photo` forces Realistic for a page (dev).
+- Shadow accuracy fixes ride Realistic (off in Classic): the meter reads the ambient fill as the picture does, shut doors
+  past a lamp's door slots stop leaking light, guards' torches light the operator figures and weapons with the level's
+  falloff, cut torch beams get the shadow maps first, and a torch behind a wall no longer lights a body for the guards.
+
+## 4.77.0 - Train 28: Player batch 22 (strike pops, hang-down, dual reward, traverse fix, ladder knees); Guard AI walk fixes (lasers, bodies, urgency, spacing) (2026-10-23, PR #235; #207, #230)
+
+### Co-op dual takedown counted for section-rating
+- Co-op host: a dual takedown (two players' takedowns within 1.5 s) is now counted in `StealthRating.duals` and emitted as a
+  `dualTakedown` event, as the input for section-rating's "synced takedowns reward more than shooting". It no longer adds a
+  knockout of its own. The banner and the wire are unchanged.
+
+### Guard AI: walk 4.72 fixes
+- Lasers (Michael's walk G1): breaking a laser beam no longer tells the guards where you are. The guards hear of the
+  beam, not of you: the two nearest calm guards within about 30 m go straight to the middle of the beam ("Sensor tripped.
+  Moving to check.") and search the room it is in, then go back to their routes on edge. Alarm reinforcements the laser
+  brings in search the beam's room too (they no longer head for wherever you climbed to); once anyone actually sees you
+  they fight as before. A camera that raises the alarm works the same way, at the spot where it saw you. Host only.
+- Dead bodies (G2): guards who find a dead body no longer give up after a minute. The finder and the guard who hears
+  his shout search round the body for about three minutes, at twice as many spots and out to about 15 m (a plain search:
+  one minute, 11 m), then stay on edge as before. Both guards a camera sends to a dead body now search it, not just the
+  one who gets there first. Knocked-out guards are still searched for a minute.
+- Urgency (G3): guards now hurry (a jog, more than twice their patrol pace) to a tripped laser or camera alarm, to a body
+  a camera or a radio report named, to a guard who is not answering and to gunfire, then search at their usual pace once
+  there. When a finder's "man down" report gets through, the nearest calm guard in range comes running to help search
+  the body. Noises, thrown items, lights going out and breaker faults are still checked at a calm walk.
+- Guards and doors (G4): guards no longer walk through each other. Two guards whose paths cross step round each other and
+  never come closer than about two thirds of a metre, at a walk, a jog or a run (two meeting in a doorway or a narrow
+  corridor brush past after a second instead of waiting); a guard held in a takedown or lying
+  on the floor is not in anyone's way. Guards no longer walk through doors: a guard opens a closed door the way he
+  always pushed it, waits for it to swing, then goes through; a locked door stays shut and a guard who reaches it stops
+  there instead of walking through it. Host only.
+- Weapon carry (G5): calm guards in a calm area now walk with their gun put away, the rifle slung across the back and
+  the pistol on the thigh, hands empty. Anything that stirs them (suspicion, a search, caution, combat) makes them draw
+  it, quickly (under a second), and they cannot fire until it is out; they put it away again after about 15 calm
+  seconds. Guards on a high-security post, a response team or any guard once the alarm is raised stay at low ready, as
+  do snipers and shield guards. Host only: in co-op the joining player still sees every guard at low ready.
+
+### Hang-down: the hanging player's grab, neck snap and pistol
+- (hang-down) The co-op hang-down's hanging player can act (CT 1.5 Drop Line): hold A lists GRAB CHARACTER on a guard
+  by the head (he is lifted to the hands, then the held rules: RT tap / Z knocks out, RT hold kills - the neck snap -,
+  Interrogate when he knows something, no let-go); RT on a guard in reach without the menu chokes (tap) or snaps the
+  neck (hold); LT draws the pistol one-handed and aims upside down (never the rifle), the camera at the hanging head.
+  A still uses the item in reach (the hack) with no guard there; by a guard it is a menu row. The partner pulling up or letting go while a guard is held knocks him
+  out. Works for the joiner: the host keeps and lifts its guard, lets it hold the pistol and shoot from the hang. No
+  protocol change (stays 31).
+
+### Strike and hand-swap pops (spare job #5)
+- (strike-pops, n4c polish 9) The elbow strike's trunk turns at its own pace (`STRIKE_BODY_RATE` 6.25 / s,
+  `strikeBodyPhase`): no load-to-drive reversal at speed (shoulders 12.6 then -12.1 deg a frame -> 9.2, -0.4, -13.3),
+  the drive over 2 frames (18.9 -> 13.3 deg max), the right wrist's largest frame 31.4 -> 27.0 cm, the pelvis'
+  2.9 -> 2.0 cm. The hit still resolves at 83 ms, the hand across at 100 ms.
+- (strike-pops, n4c polish 1) A hand swap reversed mid-swap no longer flips the gun's dip direction in one frame: the
+  dip and the tuck read the swap's progress from the hand blend (`handSwapPh`); plain swaps unchanged.
+- (strike-pops, n4d polish 1) A bay or section restart ends a strike or a kill's follow-through on the respawned player
+  (the respawn's `StrikeController.reset` ends the takedown tail; the co-op client's `revive` resets the strike too).
+
+### Climb-up hands (traverse-fix-2)
+- Ledge climb-up: the palms stay on the lip (0.0 cm off, 1.1 cm drift) until the right foot is on the top (k 0.474, was
+  0.52), then let go over `CLIMB_UP_HANDS` 0.475 - 0.643 while the trunk rises into the crouch; the wrists' worst
+  velocity change at the release is 2.8 cm a frame (was 23.5 cm).
+- Lip grips: the hand pivots over the edge continuously as the shoulder leaves its reach (was 15-degree steps with a
+  0 -> 90 degree flip in one frame).
+- Ladder top-out (the climb-up from a ladder): the right foot sets down under its hip as it steps onto the top (CLIMB_UP
+  `fRX` -0.08 at 0.49, was 0.022 -> 0), so its knee no longer folds in onto the left: the knees stay 14.4 cm apart (were
+  8.9 cm, e2e-clip asks > 9).
+
+## 4.76.0 - Train 27: Guard AI response teams, section alert, breaker faults and lasting shot lamps; crouch transition pops (2026-10-23, PR #233; #225, #227, #220)
+
+### Crouch pops
+- Animation: crouching and standing no longer pop the stance width with the baked Body tune (idle / walk / jog / run
+  feet apart 0.05): the Body rows blend from the standing row to the crouched row with the crouch itself instead of
+  switching at half way. e2e-anim's two raised crouch limits are back to the shared 7.5 cm.
+
+### Guard AI: response teams
+- S13 response teams: each Sector Ops alarm stage now brings a response team led by a riot-shield guard (always
+  helmeted), the rest armed guards, the same number as before. From stage 2 every guard of the section wears body
+  armour at once, from stage 3 a helmet too, and guards that come in later (the next section, a woken guard, the next
+  team) wear it as well; a restart drops it with the stage. No camera is added or changed. Once the team has searched
+  your last known spot for a minute it sweeps the section point by point, the shield guard leading and the others
+  close behind, looking round at each point with torches on in the dark, round and round; a sighting brings a fight,
+  then the search, then the sweep again. Teams never leave or calm down until you leave the section or restart. On
+  the other live maps the alarm brings a shield guard and two armed guards (no heavy) who sweep the same way.
+
+Tests: the e2e-levels ladder chases wait on sim time (a sim-seconds budget from the design, a hang guard on wall clock) and the sim clock takes over the moment the match exists, so a loaded machine no longer fails "a runner climbs the rack ladder".
+
+### Guard AI: missed check-ins and gunfire put the section on edge
+- S14 section alert: when a radio check gets no answer from a guard you took out ("Unit three, report... Nothing."),
+  the caller radios it in and, once the call gets through, the whole section is on edge for three minutes: guards walk
+  slower, pause longer and spot you sooner, and two still go to look for him. Take the caller down while he is on the
+  radio and nobody else hears. The same happens when one of a talking pair never turns up.
+- An unsuppressed shot heard by a calm guard is radioed in ("Shots fired! Calling it in."): the section is on edge for
+  two minutes (another loud shot keeps it going) and two guards come to the spot instead of one. Shots never raise the
+  alarm by themselves. Suppressed shots are unchanged.
+- Co-op: a client's suppressed shot is now heard as close as the host's (about 10 m, was 14 m).
+
+### Guard AI: breakers and dark lamps
+- S15 breakers and dark lamps: a room's lights switched off at the wall now read as a fault, not an attack. The nearest guard who
+  saw it go (never two) says "Breaker's gone again.", walks over at his normal patrol pace, works the switch for 2 s and
+  the lights come back on; nobody checks the area and he goes back to his route calm. Cut the same circuit again within
+  a minute and the guards treat it as tampering: the full light check at the switch. A lamp shot out still draws the
+  usual check by one or two guards and now stays dark for good. A lamp shot out or a circuit cut while nobody looked is
+  no longer forgotten: the next calm guard who has the dark fixture in view within about 12 m reacts as a witness would
+  (checks the shot lamp, or goes to reset the breaker), once for each time it goes dark. Turn the lights back on
+  yourself before he gets there and he turns back. A course mains gate's circuit is left off (no guard shuts the gate on
+  you by turning it back on). Host only; co-op partners see the lights come back through the
+  existing light sync.
+
 ## 4.75.0 - Train 26: Guard render S4, Sector Ops campus sections 4-5 with weapons crate, cameras, armoured routes and posts, mocap strafe (2026-10-23, PR #224; #212, #217, #221)
 
 ### Guard anim tiers (guard-render S4)

@@ -4,6 +4,7 @@ import { AIRLOCK_DOORWAY_CLEAR, PAIR_WINDOW } from '../config/course';
 import { clearPairHalves, pairHalves, pressPairHalf, type PairHalves } from './pairPress';
 import type { GearTag, NoisySource, ReinforceEntry } from '../ai/guardAiData';
 import { ENEMIES } from '../ai/enemyDefs';
+import { markCount } from './rating/sectionRating';
 import { checkStageActions, type SectorStageAction, type StageNavCheck } from './sectorStage';
 import { checkDesks } from './sectorDesks';
 import type { SecurityData } from '../security/data';
@@ -94,7 +95,7 @@ export interface SectorGuard extends SquadSlot {
   reason?: string;
   /** A talking-pair partner: the index in this section's `guards` of the guard he meets on his route. */
   pair?: number;
-  /** A far guard that may sleep; read by guard-render (A64). */
+  /** A far guard that may sleep (sector-redesign A64). Data only: guard-render shipped no reader (A99). */
   dormant?: boolean;
 }
 
@@ -710,8 +711,13 @@ export class SectorRun {
   readonly conn = new ConnectorMachine();
   /** Time (s) every living player has been in the extraction. */
   private extractT = 0;
+  /** (section-rating S2) Each section's marks (bitmask, `rating/sectionRating`), -1 until rated (never re-rated). */
+  readonly marks: number[];
+  /** (section-rating S2) Revive syringes the ratings granted this op (co-op, over the difficulty's preset). */
+  syringeBonus = 0;
 
   constructor(readonly defs: readonly SectorDef[]) {
+    this.marks = defs.map(() => -1);
     const s = defs[0];
     if (!s) this.phase = 'done';
     else setPose(this.checkpoint, s.start);
@@ -831,6 +837,8 @@ export interface SectorTally {
   kills: number;
   /** Times spotted: guard detections plus camera alarms. */
   spotted: number;
+  /** (section-rating S2) Each section's marks (bitmask; -1 not rated). Omitted: no marks on the line. */
+  marks?: readonly number[];
 }
 
 export function fmtTime(s: number): string {
@@ -839,9 +847,18 @@ export function fmtTime(s: number): string {
 }
 
 /** The result line: time, kills, times spotted, and "Ghost" when there are none of either (A4). */
-export function sectorResult(t: SectorTally): { ghost: boolean; line: string } {
+export function sectorResult(t: SectorTally): { ghost: boolean; line: string; marks?: readonly number[] } {
   const ghost = t.kills === 0 && t.spotted === 0;
-  return { ghost, line: `Time ${fmtTime(t.time)}  ·  Kills ${t.kills}  ·  Spotted ${t.spotted}${ghost ? '  ·  GHOST' : ''}` };
+  const line = `Time ${fmtTime(t.time)}  ·  Kills ${t.kills}  ·  Spotted ${t.spotted}${ghost ? '  ·  GHOST' : ''}${marksText(t.marks)}`;
+  return { ghost, line, marks: t.marks };
+}
+
+/** (section-rating S2) "  ·  Marks 4/4 3/4 -": each section's marks of 4 ("-" not rated); '' when none are given. */
+function marksText(marks: readonly number[] | undefined): string {
+  if (!marks || marks.length === 0) return '';
+  let out = '  ·  Marks';
+  for (const m of marks) out += m < 0 ? ' -' : ` ${markCount(m)}/4`;
+  return out;
 }
 
 /** Co-op revive syringes for an op on `preset` (M7, A10); an unknown preset reads as Normal. */
@@ -867,4 +884,23 @@ export interface SectorNetExtra {
   lk: number[];
   dn: string[];
   sy: number;
+  /** (section-rating S2) The last section's rating (plain numbers; `sec` -1: none yet). S3 parses and clamps it. */
+  rt: SectorRatingWire;
+  /** (marlow-polish, inside protocol 42) Every section's rating so far, by index (`packRated`, the course's `rh`): a late
+   *  joiner or a reloaded rejoiner rebuilds its results lines from it (no card, no top-up, no grant). */
+  rh?: number[];
+}
+
+/**
+ * (section-rating S2) The last rated section: its index, marks bitmask (0-15), synced takedowns and the grant it gave
+ * the next section (gadget charges, syringes, medkits, alarm steps). Numbers only.
+ */
+export interface SectorRatingWire {
+  sec: number;
+  marks: number;
+  synced: number;
+  gadget: number;
+  syringe: number;
+  medkit: number;
+  alarmStep: number;
 }

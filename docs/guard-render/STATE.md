@@ -1,9 +1,30 @@
 # Guard render: state
 
 ## Now
-S1 (merged rigidly skinned guard body) implemented and pushed on `feature/guard-render` (commits a-f below), on master
-4.68.0. Unit + NullEngine tests pass; nothing measured or seen on a GPU yet. Guards (`enemyRig.ts`) and carried /
-fresh bodies (`body.ts`) opt in; `?guardmerge=0` gives the old instanced parts for comparisons.
+**CLOSED 2026-10-23 ~17:10** (orchestrator approved: close with #225, M1 CPU overage to the polish list; perf tuning
+waits for Michael's playtest, current goal). Every planned slice is on master (S1, S3a, S5, S6, S7, S4; S2 skipped:
+voxel path only, and the voxel look is now retired).
+
+**M1 result** (guard-cap on master 4.75.0 f5912402, 4189 alone, laptop GPU, Epic 1920x1080, ~15:53;
+`C:/NightShift/scratch/work/guardrender-m1-f5912402/RESULTS.md`). Target: 24 facing, frame CPU p95 <= 12 ms,
+GPU p95 <= 15 ms.
+
+| Map | N | cell | frame CPU p95 | GPU p95 | draws |
+| --- | --- | --- | --- | --- | --- |
+| sectorops (warehouseOps) | 24 | patrol / facing | 13.9 | 8.6 | 239 |
+| sectorops | 24 | alert / facing | 15.9 | 10.1 | 300 |
+| ctcourse (Marlow) | 24 | patrol / facing | 12.7 | 7.1 | 167 |
+| ctcourse | 24 | alert / facing | 13.2 | 7.7 | 183 |
+| ctcourse | 12 (its cap, M3) | patrol / alert | 8.6 / 9.0 | 5.8 / 5.7 | 143 / 156 |
+| campusOps (5504e2e3, 4.73.0) | 24 | patrol / alert | 17.8 / 19.7 | 11.4 / 11.6 | 541 / 589 |
+
+GPU passes everywhere; frame CPU misses at 24 facing by 0.7-3.9 ms (7.7 ms on campus). Marlow at its 12-guard cap
+passes. Per added guard ~0.28 ms frame CPU (patrol) / ~0.33 ms (alert). Campus 24-guard CPU is being cut by Sector Ops
+(guard freeze, #226).
+
+## Polish list (after the playtest)
+- M1: frame CPU p95 at 24 facing guards (sectorops 13.9 / 15.9, Marlow 12.7 / 13.2 vs 12 ms). Biggest buckets per the
+  draws-per-pass lines: sun CSM shadow casters (91 draws at 24 alert) and the TAA / gBuffer passes.
 
 ## S1 done (2026-10-23)
 - (a) 63c5bdfe `src/player/smoothBodyMerge.ts` (pure) + `tests/smoothBodyMerge.test.ts`: joint-space positions,
@@ -141,7 +162,9 @@ TESTING.md line and `docs/systems/world-and-characters.md` section are written.
    instance-buffer uploads.
 
 ## Done
+- 2026-10-23 ~17:10: M1 measured (table in "Now"); job closed (rides in the voxel-retire batch PR).
 - 2026-10-23: step-1 analysis, BRIEF / PLAN / STATE written.
+- 2026-10-23: S1, S3a, S5, S6, S7, S4 merged (4.68.0 - 4.75.0); S4 measured (`run-s4-on|off`).
 - 2026-10-23: S1 implemented (commits a-f, see "S1 done"); master 4.68.0 merged in before it.
 
 ## Resume prompt
@@ -385,4 +408,24 @@ decays every frame, recoil pulses on skipped frames are lost (off-screen / far o
 (pre-existing, src/net): the client puppet's hit head is the rendered rig, the host's is the S3a sim head; build the
 puppet hit head from guardHead later.
 e2e GREEN on adcd5fa7 (laptop GPU, JOBS=3, wall 330 s): smoke, stealth-ai, takedown, enemies, sectorops:1-5,
-ctcourse:1-3, coop, netmove, anim (15/15). Measure (guard-cap, ?animtier=0 vs on, 4189 alone) still to run.
+ctcourse:1-3, coop, netmove, anim (15/15). Measure (guard-cap, ?animtier=0 vs on, 4189 alone): done, see "S4 measure".
+
+## S4 measure (2026-10-23 ~14:00-14:26, laptop 4090, Epic 1920x1080, uncapped, 4189, head 5809afe6)
+`run-s4-on` (default) vs `run-s4-off` (`?animtier=0`), counts 0 / 12 / 24, same build, 20 min apart. Frame ms med,
+24 guards (12 in sight on Sector Ops):
+
+| Cell | Sector Ops on / off | Marlow on / off |
+| --- | --- | --- |
+| patrol/facing | 9.4 / 10.7 | 9.5 / 9.3 |
+| patrol/away | 7.7 / 8.4 | 5.2 / 7.3 |
+| alert/facing | 13.0 / 12.3 | 9.6 / 11.5 |
+
+- `ai.anim` per sim step at 24, Sector Ops patrol/facing: 0.838 on vs 1.295 off (-35%); alert 1.224 vs 1.29.
+  Marlow facing 1.096 vs 0.944 (Marlow's guards stand within the 4 m near-player radius more often; noise-level).
+- So S4 gives ~-0.7 to -2 ms where guards are away or far (as PLAN S4 said) and ~0 facing. The +0.7 on Sector Ops
+  alert is inside the run-to-run spread under load.
+- 0-guard base unchanged (sectorops 3.4 vs 3.2, ctcourse 2.8 vs 2.5).
+- Not a code regression: S4's 24-guard numbers are above S1's run (7.1 ms), so a 3-build A/B (sectorops, 0 and 24,
+  patrol only, back to back, ~14:28-14:33) ran 668d623d (S1) 11.0 ms, b1e1809b (master 4.74.0) 10.8 ms: the same
+  build is ~4 ms slower than at ~10:07, so the laptop's shared load, not the code, moved. (5809afe6's point in that
+  A/B overlapped another run's build: void.) Logs: C:/NightShift/scratch/runs/guardrender-regr-*.

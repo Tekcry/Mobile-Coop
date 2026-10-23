@@ -24,8 +24,6 @@ export interface PauseOpts {
   dof?: boolean;
   /** A controller dropped out: a line with the way back. */
   notice?: string;
-  /** (anim-studio) In the Anim Studio already: no "Anim Studio (dev)" row. */
-  inStudio?: boolean;
   /** (marlow-bays A1) Solo or the co-op host (default true); false: the co-op client, whose host-only rows are disabled. */
   host?: boolean;
   /** (marlow-bays item 3) "Restart at checkpoint" (Sector Ops, the course); absent: no row. Returns false when the mode
@@ -152,11 +150,6 @@ export class PauseScreen extends MenuScreen {
         'anim-tuner',
       ),
     );
-    // (anim-studio) the Anim Studio stage: single player only (never in a co-op session), not from inside it
-    if (!opts.coop && !opts.inStudio && app.studio) {
-      const open = app.studio;
-      list.append(item('Anim Studio (dev)', () => open(), 'Developer tool: leaves this match for a plain stage with the loop player, the tuner and the viewing aids.', 'anim-studio'));
-    }
     list.append(
       item(
         'Quit to menu',

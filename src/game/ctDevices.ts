@@ -1,7 +1,7 @@
 import { Color4, TransformNode, Vector3, type InstancedMesh, type Vector4 } from '../core/babylon';
 import { CAMERA } from '../config/security';
 import { hyp2, hyp3 } from '../core/mathx';
-import { CameraUnit, sweepYaw } from '../security/camera';
+import { CameraUnit, nearestHousing, sweepYaw } from '../security/camera';
 import { SecurityView } from '../security/securityView';
 import { CameraCueView } from '../vfx/cameraCueView';
 import { cameraSight, newSeenBody, remoteHeadY, type SecurityEvent, type SeenBody } from '../security/securitySystem';
@@ -24,6 +24,7 @@ import {
   LASER,
   advanceDevJam,
   applyJamLight,
+  beamSpot,
   deviceAlarm,
   hallStep,
   inBox,
@@ -49,24 +50,28 @@ import {
 } from './jammer';
 import {
   SCANNER,
-  SC_DONE,
+  SCAN_GLOW,
   SC_HACKING,
   SC_IDLE,
   SC_READY,
   SCAN_LABEL,
   newScanPair,
   newScanResult,
+  packScan,
   scanDamage,
+  scanGlowAt,
   scanPairReady,
   scanStart,
   scanStep,
   scanWindowLeft,
+  unpackScan,
   type ScanPair,
-  type ScanPhase,
   type ScanResult,
   type ScannerDef,
 } from './scanners';
-import { cameraOff } from './course/securityRoom';
+import { hallCameras, passZoneNeed, type PassZone } from './passZones';
+import type { CourseDevice } from './course/courseDef';
+import { cameraOff, consoleCamMode } from './course/securityRoom';
 import { deskCamMode } from './sectorDesks';
 import {
   PANEL,
@@ -93,14 +98,17 @@ export interface SecWire {
   dv: [string, number, number][];
   /** Alarm stage 0..ALARM_MAX. */
   al: number;
-  /** (B6) The scanner pair: [phase A, phase B, occupied bits (1 A, 2 B), hack progress A, B (tenths of s)]. */
-  sc?: number[];
+  /** (B6; 30 marlow-final N6) One entry per scanner pair, in the map's `scanners` order (the pairs both pages built):
+   *  [phase A, phase B, occupied bits (1 A, 2 B), hack progress A, B (tenths of s)] (`packScan`). */
+  sc?: number[][];
 }
 
 interface ScanRt {
   def: ScannerDef;
   /** Panel positions [ax, az, bx, bz]. */
   pos: [number, number, number, number];
+  /** (N6) Panel floor heights [a, b] (the devices' `y`). */
+  fy: [number, number];
   pair: ScanPair;
   res: ScanResult;
   /** Bit 1: someone stands at A, bit 2: at B. */
@@ -109,21 +117,16 @@ interface ScanRt {
   glow: InstancedMesh[];
   ready: InstancedMesh[];
   root: TransformNode;
+  /** (N6) This pair's last "partner: start yours" radio line (clock s). */
+  radioT: number;
 }
 
 const SC_COL: readonly Color4[] = [new Color4(0.35, 0.38, 0.42, 1), new Color4(1, 0.6, 0.1, 1), new Color4(0.2, 0.8, 1, 1), new Color4(0.2, 1, 0.35, 1)];
 const RDY_OFF = new Color4(0.15, 0.2, 0.15, 1);
 const RDY_ON = new Color4(0.3, 1, 0.4, 1);
 
-/** A zone both players must stand in to set a course flag (station 3's camera pocket). */
-export interface PassZone {
-  id: string;
-  box: [number, number, number, number];
-  flag: string;
-  floorY?: number;
-  /** (marlow-jammer fix round 1) The camera hallway before this zone: its send-back rule (`hallStep`). */
-  hall?: HallRule;
-}
+/** (marlow-final N1) The pass zone lives in `passZones.ts` (pure); re-exported here for the maps that import it. */
+export type { PassZone } from './passZones';
 
 const BEAM = '#ff2a1a';
 const BEAM_W = 0.035;
@@ -169,6 +172,14 @@ const LED_COL: readonly Color4[] = [new Color4(0.06, 0.06, 0.06, 1), new Color4(
 /** The LED's glow (`pattern.w`, render only) by state: lit states glow, dark and the blink's dim half do not. */
 const LED_GLOW: readonly number[] = [0, 0.55, 0.8, 0, 0.6];
 
+/** (marlow-polish P3-1) A prop status lamp that follows a shared course flag (`PropPlacement.flag`, A6's interlock): render
+ *  only, nothing in gameplay reads it. `on`: the state last put on the prop (-1 none yet, 0 off, 1 on). */
+interface FlagLampRt {
+  id: string;
+  flag: string;
+  on: number;
+}
+
 /** (marlow-jammer) One jam target: its pick record, its jam timeline and the device it drives. */
 interface DevRt {
   t: JamTarget;
@@ -201,7 +212,15 @@ export interface CtHooks {
   /** (sector-fixes S) Is a shared (not per-player) course flag set? Non-allocating: the camera and laser `offFlag`
    *  checks run it every step / frame (falls back to `has`). */
   hasShared?(flag: string): boolean;
+  /** (guard-ai S17, Michael's walk of 4.72 G1) A device was tripped at (x, y, z) (y NaN: the floor there): a laser's
+   *  beam (its midpoint, `beamSpot`), a camera's alarm (where it saw someone). The guards' device incident, never the
+   *  player's live position. `key`: the device (laser index; a camera `CAM_KEY` + its index). Called before the alarm
+   *  stage rises (`record`), so the reinforcements it brings know the spot. Host only. */
+  alertAt?(x: number, y: number, z: number, key: number): void;
 }
+
+/** (guard-ai S17) A camera's device key: `CAM_KEY` + its index (lasers use their index). */
+export const CAM_KEY = 1000;
 
 /**
  * The CT prototype devices (B3): the held pistol jammer, the security cameras it blinds and the laser devices.
@@ -214,6 +233,8 @@ export class CtDevices {
   readonly lasers: LaserRt[] = [];
   /** (sector-fixes P) The lasers' power panels (the lasers' jam targets). */
   private readonly panels: PanelRt[] = [];
+  /** (P3-1) The props' flag lamps (`PropPlacement.device` + `flag`), one per device id. */
+  private readonly flagLamps: FlagLampRt[] = [];
   /** The jam targets that are live (Sector Ops: only the live section's devices). */
   readonly targets: JamTarget[] = [];
   private readonly allTargets: JamTarget[] = [];
@@ -277,28 +298,61 @@ export class CtDevices {
   private readonly flagOff = new Set<string>();
   private cool: { t: number }[] = [{ t: 0 }, { t: 0 }];
   private alarmT = -99;
+  /** (guard-ai S17) Scratch for a broken beam's spot (`beamSpot`). */
+  private readonly spot = { x: 0, y: 0, z: 0 };
   private radioT = -99;
   private changed = true;
   /** (sector-fixes C, item 4) Night vision is on screen: the IR beams are drawn (render only). */
   private nv = false;
   private lamp: InstancedMesh | null = null;
   private zoneSet = new Set<string>();
+  /** (marlow-final) Seconds the pass zones stay shut after a bay restart (`holdZones`). */
+  private zoneHoldT = 0;
+
+  /** (marlow-final) Shut the pass zones for `seconds` (a bay restart: the players are still at their old positions). */
+  holdZones(seconds: number): void {
+    this.zoneHoldT = Math.max(this.zoneHoldT, seconds);
+  }
   /** (fix round 1) Per pass zone with a hallway rule: each player's hallway state (zone * 2 + player), its camera. */
   private hallRun = new Uint8Array(0);
   /** (fix round 2) Per zone and player: seconds left of the sent-back hold (`HALL_BACK_HOLD`, the client only). */
   private hallHold = new Float32Array(0);
   private hallCam: (CameraUnit | null)[] = [];
+  /** (marlow-walk482 X6) Host: the hallway rules' cameras (`hallCameras`): the send-back is their only cost (`onCamera`). */
+  private hallCamIds: ReadonlySet<string> = new Set<string>();
   private readonly backAt = new Vector3();
   /** (fix round 1) Players the hallway camera sent back (tests). */
   sendBacks = 0;
   private readonly p = new Vector3();
   private readonly dir = new Vector3();
-  /** (B6) The paired scanners (station 6), null on maps without them. */
-  scan: ScanRt | null = null;
+  /** (B6; marlow-final N6) The paired scanners, one per `lay.scanners` entry whose two devices exist (both pages build
+   *  the same list in the map's order: `SecWire.sc` is indexed by it). Empty on maps without them. */
+  readonly scans: ScanRt[] = [];
   /** (B6) Failed scanner syncs (tests) and the last one's player and reason. */
   scanFails = 0;
   scanLast = '';
-  private scanRadioT = -99;
+  private readonly glowAt = { x: 0, y: 0, z: 0 };
+  /** (marlow-polish) The client's own ricochet spot and the sparks' direction (as the host's `ricoAt` / `ricoDown`). */
+  private readonly ricoAt = new Vector3();
+  private readonly ricoDown = new Vector3(0, -1, 0);
+  /** (marlow-polish) The client's own rounds that sparked off a bulletproof housing (tests). */
+  ricochets = 0;
+
+  /**
+   * (marlow-polish) Client: our own round from `a` to `b` through the mirrored cameras. When the nearest housing along
+   * it is bulletproof, the host's ricochet (SecuritySystem.shotRay, GameState's `onRicochet`) plays here too: the sparks
+   * and the impact sound at the lens. Local cosmetic only (the host still resolves the shot); no allocation.
+   */
+  ricochetRay(a: Vector3, b: Vector3): boolean {
+    if (this.role !== 'client') return false;
+    const c = nearestHousing(this.cams, a.x, a.y, a.z, b.x, b.y, b.z);
+    if (!c || !c.def.bulletproof) return false;
+    this.ricochets++;
+    const at = this.ricoAt.set(c.x, c.y, c.z);
+    this.g.vfx.sparks(at, this.ricoDown, 8);
+    this.g.ballistics.onImpact?.(at, false);
+    return true;
+  }
 
   constructor(
     private g: GameState,
@@ -324,6 +378,7 @@ export class CtDevices {
     this.hallRun = new Uint8Array(this.zones.length * 2);
     this.hallHold = new Float32Array(this.zones.length * 2);
     this.hallCam = this.zones.map((z) => (z.hall && role === 'host' ? (this.cams.find((c) => c.def.id === z.hall!.camera) ?? null) : null));
+    if (role === 'host') this.hallCamIds = hallCameras(this.zones);
     this.cueSeen = new Uint8Array(this.cams.length);
     if (this.cams.length > 0) {
       const b = g.ballistics;
@@ -345,6 +400,11 @@ export class CtDevices {
       this.buildPanel(p);
       this.panels.push(p);
     }
+    // (marlow-polish P3-1) the props' status lamps on a shared course flag (A6's interlock): `applyJam` puts the flag on them
+    for (const p of lay.facilityProps ?? []) {
+      if (p.device === undefined || p.flag === undefined || this.flagLamps.some((f) => f.id === p.device)) continue;
+      this.flagLamps.push({ id: p.device, flag: p.flag, on: -1 });
+    }
     // (marlow-jammer, item 8) the map's fixed electric lamps are jam targets too (id `lt-<registry id>`, the same on both
     // pages: both build the level's lights in the same order)
     for (const l of g.world.level.lights.lights) {
@@ -356,11 +416,13 @@ export class CtDevices {
     this.hudEl.className = 'hud-jammer';
     this.hudEl.style.cssText = 'position:absolute;left:50%;top:58%;transform:translateX(-50%);font:600 13px/1.2 sans-serif;letter-spacing:0.08em;color:#bfe9ff;text-shadow:0 1px 2px #000;pointer-events:none;display:none';
     g.hud.el.appendChild(this.hudEl);
-    const sd = lay.scanners?.[0];
+    // (marlow-final N6) every scanner pair, not only the first
     const devs = lay.course?.devices;
-    const da = sd && devs?.[sd.a];
-    const db = sd && devs?.[sd.b];
-    if (sd && da && db) this.scan = this.buildScan(sd, da.x, da.z, db.x, db.z);
+    for (const sd of lay.scanners ?? []) {
+      const da = devs?.[sd.a];
+      const db = devs?.[sd.b];
+      if (da && db) this.scans.push(this.buildScan(sd, da, db));
+    }
     (window as unknown as { __ctdev?: unknown }).__ctdev = this;
   }
 
@@ -417,27 +479,32 @@ export class CtDevices {
     if (pt) pt.w = LED_GLOW[k]!;
   }
 
-  private buildScan(def: ScannerDef, ax: number, az: number, bx: number, bz: number): ScanRt {
-    const root = new TransformNode('scanners', this.g.scene);
+  /** (B6; N6) A pair's runtime and its glows, placed on each panel's face from the device's position and yaw. */
+  private buildScan(def: ScannerDef, da: CourseDevice, db: CourseDevice): ScanRt {
+    const root = new TransformNode(`scanners-${def.id}`, this.g.scene);
     const glow: InstancedMesh[] = [];
     const ready: InstancedMesh[] = [];
-    const pts: [number, number][] = [[ax, az], [bx, bz]];
-    for (const [x, z] of pts) {
-      // on the panel face (the panels sit against the fences, 0.2 m from them)
-      const fz = z < 7 ? 0.3 : 13.7;
-      const s = addGlow(this.g.scene, root, x, 1.95, fz, 0.16);
+    const at = this.glowAt;
+    for (const d of [da, db]) {
+      scanGlowAt(d.x, d.y, d.z, d.yaw, at);
+      const s = addGlow(this.g.scene, root, at.x, at.y + SCAN_GLOW.state, at.z, 0.16);
       s.instancedBuffers.color = SC_COL[0]!;
       glow.push(s);
-      const r = addGlow(this.g.scene, root, x, 2.25, fz, 0.1);
+      const r = addGlow(this.g.scene, root, at.x, at.y + SCAN_GLOW.ready, at.z, 0.1);
       r.instancedBuffers.color = RDY_OFF;
       ready.push(r);
     }
-    return { def, pos: [ax, az, bx, bz], pair: newScanPair(), res: newScanResult(), occ: 0, glow, ready, root };
+    return { def, pos: [da.x, da.z, db.x, db.z], fy: [da.y, db.y], pair: newScanPair(), res: newScanResult(), occ: 0, glow, ready, root, radioT: -99 };
   }
 
-  /** Is the player at the scanner panel `k` (alive, within reach)? */
+  /** Is the player at the scanner panel `k` (alive, within reach, on the panel's floor)? */
   private atPanel(sc: ScanRt, k: number, r: PlayerRef): boolean {
-    return r.target.alive && hyp2(sc.pos[k * 2]! - r.feet.x, sc.pos[k * 2 + 1]! - r.feet.z) <= SCANNER.reach && Math.abs(r.feet.y) < 1.5;
+    return r.target.alive && hyp2(sc.pos[k * 2]! - r.feet.x, sc.pos[k * 2 + 1]! - r.feet.z) <= SCANNER.reach && Math.abs(r.feet.y - sc.fy[k]!) < 1.5;
+  }
+
+  /** (N6) The first scanner pair (Marlow's station 6; tests and the old single-pair callers), null on maps without. */
+  get scan(): ScanRt | null {
+    return this.scans[0] ?? null;
   }
 
   /**
@@ -445,8 +512,12 @@ export class CtDevices {
    * the player (alive, at that panel) and the panel (free, not the other one of a player already on it).
    */
   scanPress(cid: string, p: number): string | null | undefined {
-    const sc = this.scan;
-    if (!sc || (cid !== sc.def.a && cid !== sc.def.b)) return undefined;
+    let sc: ScanRt | null = null;
+    for (let i = 0; i < this.scans.length && !sc; i++) {
+      const s = this.scans[i]!;
+      if (cid === s.def.a || cid === s.def.b) sc = s;
+    }
+    if (!sc) return undefined;
     if (this.role !== 'host') return null;
     const k = cid === sc.def.a ? 0 : 1;
     const r = this.g.playerRefs()[p];
@@ -455,17 +526,20 @@ export class CtDevices {
     const why = scanStart(sc.pair, k as 0 | 1, p, !!this.hooks.solo?.());
     if (!why) {
       this.changed = true;
-      if (this.time - this.scanRadioT > 8 && sc.pair.ph[k === 0 ? 1 : 0] === SC_IDLE) {
-        this.scanRadioT = this.time;
+      if (this.time - sc.radioT > 8 && sc.pair.ph[k === 0 ? 1 : 0] === SC_IDLE) {
+        sc.radioT = this.time;
         this.hooks.say(`Scanner ${k === 0 ? 'A' : 'B'} hacking. Partner: start yours now, both must finish within ${SCANNER.window} s.`);
       }
     }
     return why;
   }
 
-  private stepScan(dt: number, refs: PlayerRef[], n: number): void {
-    const sc = this.scan;
-    if (!sc) return;
+  /** (N6) Every scanner pair, each on its own. */
+  private stepScans(dt: number, refs: PlayerRef[], n: number): void {
+    for (let i = 0; i < this.scans.length; i++) this.stepScan(this.scans[i]!, dt, refs, n);
+  }
+
+  private stepScan(sc: ScanRt, dt: number, refs: PlayerRef[], n: number): void {
     const pr = sc.pair;
     // a bay restart cleared the flag: the scanners are live again
     if (pr.open && this.hooks.has && !this.hooks.has(sc.def.flag)) {
@@ -505,19 +579,17 @@ export class CtDevices {
       if (r) {
         const health = (r.target as unknown as { health?: { hp: number } }).health;
         const dmg = scanDamage(health?.hp ?? 100);
-        this.p.set(sc.pos[0], 1.4, sc.pos[1]);
+        this.p.set(sc.pos[0], sc.fy[0] + 1.4, sc.pos[1]);
         this.dir.set(0, 0, 1);
         if (dmg > 0) r.target.applyDamage({ amount: dmg, point: this.p, dir: this.dir, part: 'body', kind: 'melee', attackerTeam: 'enemy', attackerId: 'scanner', sourcePos: this.p, impulse: 0 });
       }
       this.hooks.say(res.why === 'abort' ? 'Scanner hack broken off. Both reset, and that one hurt. Stay at the panel.' : res.why === 'alone' ? 'The other scanner was never started. Both reset. Start your hacks together.' : `Scanners out of sync. Both reset, and that one hurt. Finish within ${SCANNER.window} s of each other.`);
     }
-    this.scanVisuals();
+    this.scanVisuals(sc);
   }
 
   /** Both roles: the panel glows (state) and the ready glows (both players at their panels). */
-  private scanVisuals(): void {
-    const sc = this.scan;
-    if (!sc) return;
+  private scanVisuals(sc: ScanRt): void {
     const rdy = (scanPairReady((sc.occ & 1) !== 0, (sc.occ & 2) !== 0) && sc.pair.ph[0] !== SC_HACKING) || sc.pair.open;
     for (let k = 0; k < 2; k++) {
       sc.glow[k]!.instancedBuffers.color = SC_COL[sc.pair.ph[k]!]!;
@@ -798,9 +870,17 @@ export class CtDevices {
     this.followVision();
     // laser breaks: the alarm, never damage (sector-fixes C, item 5)
     for (let i = 0; i < n; i++) this.touch(i, refs[i]!, dt);
-    this.stepScan(dt, refs, n);
-    // pass zones: both (or the solo player) inside sets the flag; (B8) a bay restart that cleared the flag re-arms it
+    this.stepScans(dt, refs, n);
+    // pass zones: both (or the solo player; N1: one player in an `any` zone) inside sets the flag; (B8) a bay restart
+    // that cleared the flag re-arms it
     if (this.hooks.has) rearmZones(this.zoneSet, this.zones, this.hooks.has);
+    // (marlow-final) just after a bay restart the players still stand where they were (the respawn waits 0.5 s and the
+    // client's new position reaches the host later): no zone fires on those old positions
+    if (this.zoneHoldT > 0) {
+      this.zoneHoldT -= dt;
+      return;
+    }
+    const solo = !!this.hooks.solo?.();
     for (let z = 0; z < this.zones.length; z++) {
       const zone = this.zones[z]!;
       if (this.zoneSet.has(zone.id)) continue;
@@ -815,7 +895,7 @@ export class CtDevices {
         if (hall && this.hallRun[z * 2 + i] !== HALL_IDLE) continue;
         if (r.target.alive && inBox(zone.box, r.feet.x, r.feet.z) && Math.abs(r.feet.y - (zone.floorY ?? 0)) < 1) inside++;
       }
-      if (inside >= (this.hooks.solo?.() ? 1 : Math.max(2, n))) {
+      if (inside >= passZoneNeed(zone.any, n, solo)) {
         this.zoneSet.add(zone.id);
         this.hallRun[z * 2] = this.hallRun[z * 2 + 1] = 0;
         this.hallHold[z * 2] = this.hallHold[z * 2 + 1] = 0;
@@ -827,8 +907,8 @@ export class CtDevices {
   /**
    * (marlow-jammer fix round 1, Michael item 5) The camera hallway's hard rule (`hallStep`): a player its camera has
    * while in the hallway (or still running in the far lobby) goes back to the entry lobby's spot. The host moves its
-   * own player; the client's goes through the co-op layer (`sendBack`: a `back` event). Being seen also raises the
-   * alarm stage as everywhere (both kept: the simpler choice).
+   * own player; the client's goes through the co-op layer (`sendBack`: a `back` event). A hall camera raises no alarm
+   * stage and no guard alert (marlow-walk482 X6, `onCamera`): the send-back is the only cost.
    */
   private stepHall(z: number, zone: PassZone, hall: HallRule, refs: PlayerRef[], n: number, dt: number): void {
     const cam = this.hallCam[z] ?? null;
@@ -904,8 +984,11 @@ export class CtDevices {
       const fOff = cameraOff(c.def, shared);
       if (fOff) this.flagOff.add(id);
       else this.flagOff.delete(id);
-      // (sector-redesign E6) a security desk's loop (blind, still sweeping) or off sits under the other blinding
-      const want = deskCamMode(ph !== DEV_IDLE || this.dead.has(id) || fOff, c.desk);
+      // (sector-redesign E6) a security desk's loop (blind, still sweeping) or off sits under the other blinding; a jam
+      // or a dead device switches it off
+      let want = deskCamMode(ph !== DEV_IDLE || this.dead.has(id), c.desk);
+      // (marlow-final N3) a course console loops the feed ('looped', blind) unless something already switched it off
+      if (fOff && want === 'online') want = consoleCamMode();
       if (want === 'off') {
         if (c.mode === 'online' || c.mode === 'looped') {
           c.setMode('off');
@@ -926,6 +1009,17 @@ export class CtDevices {
       if (on === l.on) continue;
       l.on = on;
       this.showLaser(l);
+      // (S3-7 S1, light parity) the beam towers' lenses follow their laser (dark while jammed, rebooting, off or dead); render only
+      this.g.world.facilityProps?.setDevice(l.def.id, on);
+    }
+    // (marlow-polish P3-1) a flag lamp shows its shared flag (on = set), on both roles from the same course flags; only on
+    // a change (the first pass always); render only
+    for (let i = 0; i < this.flagLamps.length; i++) {
+      const f = this.flagLamps[i]!;
+      const on = shared?.(f.flag) ? 1 : 0;
+      if (on === f.on) continue;
+      f.on = on;
+      this.g.world.facilityProps?.setDevice(f.id, on === 1);
     }
     for (let i = 0; i < this.panels.length; i++) this.showPanel(this.panels[i]!);
     const reg = this.g.world.level.lights;
@@ -968,17 +1062,27 @@ export class CtDevices {
 
   private touch(i: number, r: PlayerRef, dt: number): void {
     let hit: LaserRt | null = null;
+    let hk = -1;
     if (r.target.alive) {
       const h = r.crouched ? LASER.crouchHeight : LASER.standHeight;
       for (let k = 0; k < this.lasers.length && !hit; k++) {
         const l = this.lasers[k]!;
-        if (l.on && laserTouch(l.def, r.feet.x, r.feet.y, r.feet.z, h)) hit = l;
+        if (l.on && laserTouch(l.def, r.feet.x, r.feet.y, r.feet.z, h)) {
+          hit = l;
+          hk = k;
+        }
       }
     }
     if (!laserCooldown(this.cool[i]!, dt, hit !== null) || !hit) return;
     // (sector-fixes C, item 5) a break sets off the alarm on the camera's path; it never hurts (no damage path)
     this.hits++;
     const l = hit.def;
+    // (guard-ai S17, G1) the guards hear of the beam (its midpoint), not of the player: first, so the alarm's
+    // reinforcements know the spot
+    if (this.hooks.alertAt) {
+      const sp = beamSpot(l, this.spot);
+      this.hooks.alertAt(sp.x, sp.y, sp.z, hk);
+    }
     const raised = this.raiseAlarm(`${l.label ?? 'Laser'} tripped`);
     if (this.time - this.radioT > 6) {
       this.radioT = this.time;
@@ -1010,6 +1114,16 @@ export class CtDevices {
       }
       return;
     }
+    // (marlow-walk482 X6, Michael: "It's a training exercise, the guard should be non hostile and not respond to you being
+    // detected on the camera") a hallway rule's camera only sends the player back (`stepHall`): no device alert, no alarm
+    if (this.hallCamIds.has(e.camera)) return;
+    // (guard-ai S17, G3) the guards hear of where the camera saw someone (a sighting then, not his live position):
+    // first, so the alarm's reinforcements know the spot
+    if (this.hooks.alertAt) {
+      let ci = 0;
+      while (ci < this.cams.length && this.cams[ci]!.def.id !== e.camera) ci++;
+      this.hooks.alertAt(e.x, Number.NaN, e.z, CAM_KEY + ci);
+    }
     // full awareness: the alarm stage goes up one (G125: escalating, it never ends the run)
     if (!this.raiseAlarm('A camera has you')) return;
     this.hooks.say(`Camera alert, stage ${this.alarm}. It keeps watching until someone jams it.`);
@@ -1026,7 +1140,7 @@ export class CtDevices {
       cd: [Math.round(this.jam[0].cool * 100) / 100, Math.round(this.jam[1].cool * 100) / 100],
       dv,
       al: this.alarm,
-      ...(this.scan ? { sc: [this.scan.pair.ph[0], this.scan.pair.ph[1], this.scan.occ, Math.round(this.scan.pair.t[0] * 10), Math.round(this.scan.pair.t[1] * 10)] } : {}),
+      ...(this.scans.length > 0 ? { sc: this.scans.map((s) => packScan(s.pair, s.occ)) } : {}),
     };
   }
 
@@ -1059,16 +1173,14 @@ export class CtDevices {
       if (mirrorDevJam(dv.d, ph, t, dv.idleFor) && (ph !== DEV_IDLE || was !== DEV_IDLE)) dv.idleFor = Infinity;
     }
     this.alarm = s.al;
-    const sc = this.scan;
-    if (sc && s.sc) {
-      for (let k = 0; k < 2; k++) {
-        const ph = s.sc[k] ?? 0;
-        sc.pair.ph[k] = (ph >= SC_IDLE && ph <= SC_DONE ? ph : SC_IDLE) as ScanPhase;
-        sc.pair.t[k] = (s.sc[3 + k] ?? 0) / 10;
+    // (N6) one entry per pair, in the same order on both pages
+    const scw = s.sc;
+    if (scw) {
+      for (let i = 0; i < this.scans.length && i < scw.length; i++) {
+        const sc = this.scans[i]!;
+        sc.occ = unpackScan(scw[i]!, sc.pair);
+        this.scanVisuals(sc);
       }
-      sc.pair.open = sc.pair.ph[0] === SC_DONE && sc.pair.ph[1] === SC_DONE;
-      sc.occ = s.sc[2] ?? 0;
-      this.scanVisuals();
     }
     for (let i = 0; i < this.cams.length; i++) {
       const c = this.cams[i]!;
@@ -1157,19 +1269,25 @@ export class CtDevices {
       lasers: this.lasers.map((l) => ({ id: l.def.id, on: l.on, live: this.live(l.def.id), panel: l.panel?.def.id ?? '' })),
       // (sector-fixes P) each power panel: its jam phase (0 idle, 1 jammed, 2 rebooting), LED (laserPanels LED_*), lasers
       panels: this.panels.map((p) => ({ id: p.def.id, ph: p.dv.d.ph, t: p.dv.d.t, led: p.ledK, live: this.live(p.def.id), lasers: p.lasers.map((l) => l.def.id), at: [p.dv.t.x, p.dv.t.y, p.dv.t.z] })),
+      // (P3-1) each flag lamp's state last put on its prop
+      flagLamps: this.flagLamps.map((f) => ({ id: f.id, on: f.on === 1 })),
       live: this.liveSection,
       range: CAMERA.range,
       cue: this.cue?.debug() ?? [],
       scan: this.scanDebug(),
+      // (N6) every pair, in the map's order
+      scans: this.scans.map((_s, i) => this.scanDebug(i)),
     };
   }
 
-  /** (B6) Scanner state for tests (null on maps without scanners). */
-  scanDebug(): Record<string, unknown> | null {
-    const sc = this.scan;
+  /** (B6) Scanner pair `i`'s state for tests (null when there is no such pair; default the first). */
+  scanDebug(i = 0): Record<string, unknown> | null {
+    const sc = this.scans[i];
     if (!sc) return null;
     const pr = sc.pair;
     return {
+      id: sc.def.id,
+      flag: sc.def.flag,
       ph: [SCAN_LABEL[pr.ph[0]], SCAN_LABEL[pr.ph[1]]],
       t: [pr.t[0], pr.t[1]],
       who: [pr.who[0], pr.who[1]],
@@ -1184,8 +1302,8 @@ export class CtDevices {
   }
 
   dispose(): void {
-    this.scan?.root.dispose();
-    this.scan = null;
+    for (const sc of this.scans) sc.root.dispose();
+    this.scans.length = 0;
     this.view?.dispose();
     this.cue?.dispose();
     this.cue = null;

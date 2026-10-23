@@ -27,7 +27,7 @@ import { loadMenuLods, operatorRig } from '../operators/runtime/playerFigure';
 import { wrenManifest } from '../operators/runtime/assets';
 import { avatarFactory } from '../cosmetics/avatarFactory';
 import type { AvatarLook } from '../cosmetics/avatarLook';
-import { setVoxelWeapons, WeaponModel } from '../weapons/weaponModel';
+import { WeaponModel } from '../weapons/weaponModel';
 import { WEAPON_IDS, WEAPONS, type WeaponId } from '../weapons/weaponDefs';
 import { carryKind, type CarrySlot } from '../weapons/carrySlots';
 import { withAttachments } from '../progression/attachments';
@@ -432,9 +432,7 @@ export class MenuState implements AppState {
     this.sidearm?.dispose();
     this.figure?.dispose();
     this.rig?.dispose();
-    // voxel weapon (3.0; `?gfx=min`: the smooth parts); the operator is Wren (operators 11e, D31 / G123)
-    const vox = flags.voxels && flags.gfx !== 'min';
-    setVoxelWeapons(vox ? { size: 0.01, fineSize: 0.005, lodSize: 0.02, lodDistance: 1000, small: 0.03 } : null);
+    // the operator is Wren (operators 11e, D31 / G123)
     const op = operatorRig(this.scene, avatarFactory(this.parts, look, 'preview-part'), look, 'preview');
     this.rig = op.rig;
     const fig = (this.figure = op.figure);
@@ -609,7 +607,7 @@ export class MenuState implements AppState {
     }
   }
 
-  /** (menu-notes slice 3) The Blender weapons show in the void (slice 6 hid the old voxel guns there: they did not hold
+  /** (menu-notes slice 3) The Blender weapons show in the void (the old parts did not hold
    *  up in close-up). Until a weapon's mesh has loaded its proxy parts stand in, and those stay hidden in the void's
    *  close-ups (they look broken there); on the stage everything shows as before. Applied only when something changed. */
   private weaponLight(): void {
@@ -620,7 +618,7 @@ export class MenuState implements AppState {
     for (const w of [this.weapon, this.sidearm]) {
       if (!w) continue;
       const show = !inVoid || w.mesh !== null;
-      // (the voxel group is not always under the node: hide what renders)
+      // (hide what renders)
       for (const m of w.renderMeshes) m.isVisible = show;
     }
   }

@@ -362,20 +362,6 @@ describe('(LR16e) penumbra', () => {
   });
 });
 
-describe('GI circuits mixed into one texture (3.2)', () => {
-  it('weights each circuit and sums at half scale', async () => {
-    const { mixGiSlots } = await import('../src/voxel/voxelWorld');
-    // two cells, two circuits
-    const data = new Uint8Array([100, 50, 0, 255, 200, 0, 0, 255, /* slot 1 */ 100, 100, 100, 255, 255, 255, 255, 255]);
-    const out = new Uint8Array(8);
-    mixGiSlots(data, 2, [1, 1], out);
-    expect([...out.subarray(0, 4)]).toEqual([100, 75, 50, 255]);
-    expect(out[4]).toBe(228);
-    mixGiSlots(data, 2, [0, 0.5], out);
-    expect([...out.subarray(0, 3)]).toEqual([25, 25, 25]);
-  });
-});
-
 describe('canonical light shapes (3.6)', () => {
   const b = (c: [number, number, number], s: [number, number, number], extra: Partial<BoxPiece> = {}): BoxPiece => ({ c, s, yaw: 0, pitch: 0, color: '#888888', collide: true, visible: true, ...extra });
 

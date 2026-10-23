@@ -15,7 +15,8 @@ describe('G1 gait numbers', () => {
     // 1.4 m/s, 1.02 m at the jog, 1.26 m at the 4 m/s run
     expect(stepLength(1.4)).toBeCloseTo(0.58, 9);
     expect(stepLength(2.1)).toBeCloseTo(0.72, 9);
-    expect(stepLength(2, MOVEMENT, 0, 0, 1)).toBeCloseTo(0.7, 9);
+    // (afp AF3, walk 4.72 P2) crouched: CROUCH_STEP 0.3 + 0.115 v, + 0.35 a m/s past 1.9 (was 0.3 + 0.2 v: 0.7 at 2 m/s)
+    expect(stepLength(2, MOVEMENT, 0, 0, 1)).toBeCloseTo(0.3 + 0.115 * 2 + 0.35 * (2 - 1.9), 9);
     expect(stepLength(GEARS.stand[3]!)).toBeCloseTo(0.3 + 0.24 * GEARS.stand[3]!, 9);
     // ~2.4 steps a second at a 1.4 m/s walk (was 2.6), ~2.9 at 2.1 m/s (was 3.2)
     expect(2 * gaitRate(1.4, 0)).toBeGreaterThan(2.2);
@@ -104,14 +105,36 @@ describe('G1 graph layers', () => {
     settle(g, i, 1);
     expect(g.out.stance.lZ).toBeGreaterThan(g.out.stance.rZ + 0.4);
     // a stop that left the right foot ahead kneels on the left knee: the right foot stays the front one
+    // (afp AF4b, Michael P4 "pistol shifts between knees": an armed Wren rig kneels on the gun hand's knee whatever the lead;
+    // holstered, and a guard, by the lead as here)
     const m = new AnimGraph(proportions());
     const j = defaultInput();
+    j.armed = false;
     j.crouch = 1;
     settle(m, j, 0.5);
     m.setLead(-0.3);
     j.kneel = true;
     settle(m, j, 1);
     expect(m.out.stance.rZ).toBeGreaterThan(m.out.stance.lZ + 0.4);
+    // armed (right hand) with the same lead: the right knee goes down, the left foot is the front one
+    const a = new AnimGraph(proportions());
+    const ja = defaultInput();
+    ja.crouch = 1;
+    settle(a, ja, 0.5);
+    a.setLead(-0.3);
+    ja.kneel = true;
+    settle(a, ja, 1);
+    expect(a.out.stance.lZ).toBeGreaterThan(a.out.stance.rZ + 0.4);
+    // a guard (not a carrier, not a Wren rig) armed: by the lead as before
+    const gd = new AnimGraph(proportions());
+    const jg = defaultInput();
+    jg.mocapOk = false;
+    jg.crouch = 1;
+    settle(gd, jg, 0.5);
+    gd.setLead(-0.3);
+    jg.kneel = true;
+    settle(gd, jg, 1);
+    expect(gd.out.stance.rZ).toBeGreaterThan(gd.out.stance.lZ + 0.4);
   });
   it('(row 26) crouched at a sneak pace with tense set: long steps, a high knee lift; off at a crouch run', () => {
     const g = new AnimGraph(proportions());

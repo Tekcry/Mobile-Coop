@@ -59,6 +59,12 @@ const sameBoxes = async (scope) => {
 
 try {
   await page.waitForSelector('.main-menu .ms-item.focused', { timeout: 60000 });
+  // (ipad-fit) the version label sits fully inside the viewport
+  const verBox = await G(() => {
+    const r = document.querySelector('.main-menu .version').getBoundingClientRect();
+    return { l: r.left, t: r.top, r: r.right, b: r.bottom, w: innerWidth, h: innerHeight };
+  });
+  assert(verBox.l >= 0 && verBox.t >= 0 && verBox.r <= verBox.w && verBox.b <= verBox.h, 'the version label is fully inside the viewport (' + JSON.stringify(verBox) + ')');
   await frames(page, 5);
   // (menu-notes notes 2 / 4) the load screen held the menu until Wren's close-up LOD was drawn (`?gfx=min`: LOD2)
   const gate = await G(() => { const s = window.__app.current; return { gate: s.bootGate, lod: s.heroLod, want: s.heroLodWanted, hold: window.__app.bootHold }; });
@@ -150,6 +156,9 @@ try {
   // tab clicks: the RB glyph, a header, the LB legend item
   await clickAt('.settings-screen .ms-bump[data-bump="rb"]');
   assert((await tab()) === 'Gameplay', 'clicking the RB glyph: next tab');
+  // (anim-fix-pass AF5, BRIEF A1) mocap is the only player path: no "Mocap locomotion" row
+  const gp = await G(() => [...document.querySelectorAll('.settings-screen .tab-panel [data-focus]')].filter((e) => e.offsetParent).map((e) => e.textContent ?? ''));
+  assert(gp.length >= 2 && !gp.some((t) => /mocap/i.test(t)), `Gameplay has no Mocap locomotion row (${gp.length} rows: ${gp.map((t) => t.slice(0, 20)).join(' | ')})`);
   await clickAt('.settings-screen .tab[data-tab="access"]');
   assert((await tab()) === 'Accessibility' && (await fk()) === 'subtitles', `clicking a header opens that tab, first row focused (${await fk()})`);
   await key('Enter');
@@ -438,11 +447,28 @@ try {
     await frames(P, 4);
     assert((await mtop()) === 'pause-screen' && (await mkey()) === 'resume', 'pause opens on the field terminal with Resume focused');
     assert(await GM(() => getComputedStyle(document.querySelector('.hud')).display === 'none'), 'the HUD hides while paused');
+    // (ipad-fit) the room line (a co-op room's pause) wraps in its own block: inside the viewport, off the help box
+    await GM(() => {
+      const n = document.createElement('div');
+      n.className = 'ms-note ps-room';
+      n.textContent = 'Room ABCDE. If either player drops, rejoin from the main menu with this code.';
+      document.querySelector('.pause-screen .ms-body').append(n);
+    });
+    const roomFit = await GM(() => {
+      const r = document.querySelector('.pause-screen .ps-room').getBoundingClientRect();
+      const c = document.querySelector('.pause-screen .ms-ctx').getBoundingClientRect();
+      const inside = r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight;
+      const apart = r.right <= c.left || r.left >= c.right || r.bottom <= c.top || r.top >= c.bottom || c.width === 0;
+      return { inside, apart, w: r.width, h: r.height };
+    });
+    assert(roomFit.inside && roomFit.apart, 'the pause room line sits inside the viewport and clear of the help box (' + JSON.stringify(roomFit) + ')');
+    await GM(() => document.querySelector('.pause-screen .ps-room').remove());
     const keys = await GM(() => [...document.querySelectorAll('.pause-screen .ms-item')].map((b) => b.dataset.key).join(','));
     // (menu-notes A2) no separate Controls item: controls live in Settings > Controls
     // (anim-tuner pass 3) the dev row "Animation tuner (dev)" before Quit (Up from Resume still wraps to Quit)
-    // (anim-studio) then Anim Studio (dev) before Quit (single player only)
-    assert(keys === 'resume,objectives,settings,report-feedback,anim-tuner,anim-studio,quit', `pause items (${keys})`);
+    // (batch-23) no Anim Studio row in the pause menu: the studio opens from the main menu only
+    assert(keys === 'resume,objectives,settings,report-feedback,anim-tuner,quit', `pause items (${keys})`);
+    assert(!keys.includes('anim-studio') && keys.includes('anim-tuner'), `the pause menu has Animation tuner (dev) and no Anim Studio row (${keys})`);
     await GM(() => { const b = document.querySelector('.pause-screen [data-key="objectives"]'); window.__app.nav.focus(b); b.click(); });
     await frames(P, 3);
     const objs = await GM(() => [...document.querySelectorAll('.objectives-screen .ms-item')].map((b) => b.textContent));

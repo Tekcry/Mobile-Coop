@@ -1,8 +1,8 @@
-import { Vector3, type Scene } from '../core/babylon';
+import { Vector3, type InstancedMesh, type Scene } from '../core/babylon';
 import type { CharacterRig, FkPose } from '../player/characterRig';
 import type { WeaponModel } from '../weapons/weaponModel';
 import { GuardCq, koCurve, seedOf, type GuardCqMode, type KoState } from '../game/closeQuarters';
-import { buildEnemyRig } from '../ai/enemyRig';
+import { buildEnemyRig, GuardGunCarry } from '../ai/enemyRig';
 import { Hitboxes } from '../ai/hitboxes';
 import { DogModel } from '../ai/dogModel';
 import { ENEMIES, type EnemyDef } from '../ai/enemyDefs';
@@ -11,10 +11,23 @@ import type { DamageRegistry, Damageable, DamageResult, HitInfo } from '../game/
 import type { TakedownVictim } from '../game/takedownController';
 import type { World } from '../world/world';
 import { SnapshotBuffer } from './interp';
-import { AL_TORCH, type EnemyState } from './protocol';
+import { AL_ARMOUR, AL_CAUTION, AL_HELMET, AL_TORCH, alertCarry, type EnemyState } from './protocol';
 import type { TorchHolder } from './torchMirror';
 import type { GuardInfo } from '../ai/guardInfo';
 import { hyp2 } from '../core/mathx';
+import { buildArmourParts, buildHelmetPart, buildShieldPart, gearColour, HELMET_FIT } from '../ai/gearParts';
+import { wireGuardAim } from '../ai/guardStance';
+import { shieldBlocks } from '../ai/archetypes';
+import { PG_ARMOUR, PG_DROP, PG_HELMET, predictDeflect, puppetGear } from './puppetGear';
+import { carryRaise, carrySlotOf, mayHolster } from '../ai/carryState';
+import { PuppetCarry } from './puppetCarry';
+import type { RigPose } from '../player/characterRig';
+
+/** (guard-ai S9) A dropped helmet for the client's pool (`HelmetDrops.drop`'s arguments). */
+export type PuppetHelmetDrop = (x: number, y: number, z: number, top: number, dx: number, dz: number, hex: string, w: number, h: number, d: number) => void;
+
+/** (guard-ai S9) The gear bits of `EnemyState.al`. */
+const GEAR_BITS = AL_HELMET | AL_ARMOUR;
 
 /** Wire alert level (`EnemyState.al & 3`) -> the local level a takedown reads. */
 const LEVELS: AlertLevel[] = ['unaware', 'investigating', 'searching', 'alert'];
@@ -60,10 +73,40 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
   onShot: ((h: HitInfo) => void) | null = null;
   /** Takedown messages for the host. */
   onTakedown: ((phase: 'start' | 'done' | 'abort', lethal: boolean) => void) | null = null;
+  /** (guard-ai S9) Our round predicted as stopped by his helmet or vest (the marker shows now; `DeflectLedger`). */
+  onDeflect: (() => void) | null = null;
+  /** (guard-ai S9) His helmet bit cleared: a helmet falls (the client's `HelmetDrops`). */
+  onDropHelmet: PuppetHelmetDrop | null = null;
+
+  // ----- (guard-ai S9, protocol 38) gear and caution from the snapshot's `al` -----
+  /** The enforcer's riot shield (by kind, as the host's `Enemy`). */
+  private shield: InstancedMesh | null = null;
+  /** The S12 placeholder parts, built the first time his bits ask for them, then shown or hidden. */
+  private helmetPart: InstancedMesh | null = null;
+  private armourParts: InstancedMesh[] | null = null;
+  private gearHex = '';
+  /** The `al` his gear was last set from (-1: none yet). */
+  private gearAl = -1;
+  /** The direction of our last round his helmet stopped and when (the drop flies along it; else backwards). */
+  private dropDx = 0;
+  private dropDz = 0;
+  private dropT = -1e9;
+  private clock = 0;
+  private cautionBit = false;
+
+  // ----- (guard-ai A126, protocol 38) the S21 weapon carry from the snapshot's `al` (bits 7-8) -----
+  /** Follows the host's carry phase (null: a kind that never holsters, or no gun): holstered / drawing / drawn /
+   *  holstering, posed through the host's own path (`GuardGunCarry`, `RigPose.ready` / `swap`, `carryRaise`). */
+  readonly carry: PuppetCarry | null = null;
+  private gunCarry: GuardGunCarry | null = null;
+  /** The newest wire carry (`alertCarry`, `WIRE_CARRY_*`). */
+  private carryWire = 0;
+  /** The rig pose, reused each frame. */
+  private readonly rp: RigPose = { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0 };
 
   constructor(
     scene: Scene,
-    world: World,
+    private world: World,
     private registry: DamageRegistry,
     readonly id: string,
     kind: EnemyState['k'],
@@ -77,7 +120,51 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
       this.dog = new DogModel(scene, world.parts, this.def.look.colors.torso, this.def.look.colors.accent);
       this.dog.setVisible(false);
     }
+    // (guard-ai S9, S13) the response team's lead and every enforcer: the shield on his root (shown with the rig)
+    if (this.def.kind === 'enforcer') this.shield = buildShieldPart(world, this.rig.root, this.def.scale);
+    // (guard-ai A126) the carry as the host's `Enemy` builds it: a kind that ever holsters gets the gun's slot
+    if (built.gun && mayHolster(this.def.kind, this.def.gun, !!this.def.melee, this.def.quadruped)) {
+      const cls = built.gun.def.class;
+      this.carry = new PuppetCarry(cls);
+      this.gunCarry = new GuardGunCarry(built.rig, built.gun, carrySlotOf(cls));
+    }
     this.hitboxes = new Hitboxes(scene, registry, this, this.def.scale, this.def.build);
+  }
+
+  /** (guard-ai S9) Shown wearing (tests / e2e): the helmet, the armour, the shield. */
+  get gearShown(): { helmet: boolean; armour: boolean; shield: boolean } {
+    return { helmet: !!this.helmetPart?.isVisible, armour: !!this.armourParts?.[0]?.isVisible, shield: !!this.shield && !this.dead };
+  }
+
+  /** (guard-ai S9) The host says he is cautious (`AL_CAUTION`): calm, he carries at low ready. */
+  get cautious(): boolean {
+    return this.cautionBit;
+  }
+
+  /** (guard-ai S9) His gear from wire `al` (`puppetGear`): parts built on first need, a helmet falls when its bit
+   *  clears on a guard already shown who did not jump `jumped` m. Only on a gear-bit change (no work per frame). */
+  private applyGear(al: number, jumped: number): void {
+    const prev = this.gearAl;
+    this.gearAl = al;
+    const rig = this.rig;
+    if (!rig || this.dog) return;
+    const bits = puppetGear(prev, al, jumped);
+    if (bits & PG_HELMET && !this.helmetPart) {
+      this.gearHex = gearColour(this.def, this.world, 'helmet');
+      this.helmetPart = buildHelmetPart(this.world, rig, this.gearHex);
+    }
+    if (bits & PG_ARMOUR && !this.armourParts) this.armourParts = buildArmourParts(this.world, rig, gearColour(this.def, this.world, 'accent'));
+    if (this.helmetPart) this.helmetPart.isVisible = (bits & PG_HELMET) !== 0;
+    const a = this.armourParts;
+    if (a) for (let i = 0; i < a.length; i++) a[i]!.isVisible = (bits & PG_ARMOUR) !== 0;
+    if (bits & PG_DROP) {
+      // along our own round when it was ours (just now), else backwards from his facing (the host's round: A92)
+      const ours = this.clock - this.dropT < 1;
+      const dx = ours ? this.dropDx : -Math.sin(this.yaw);
+      const dz = ours ? this.dropDz : -Math.cos(this.yaw);
+      const H = rig.p.head;
+      this.onDropHelmet?.(this.pos.x, this.pos.y, this.pos.z, 1.65 * this.def.scale, dx, dz, this.gearHex || '#22262b', H.w * HELMET_FIT.w, H.h * HELMET_FIT.h, H.d * HELMET_FIT.d);
+    }
   }
 
   get alive(): boolean {
@@ -126,7 +213,21 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     if (h.kind !== 'bullet') return { dealt: 0, killed: false };
     this.flash = 1;
     this.onShot?.(h);
-    return { dealt: h.amount * (h.part === 'head' ? this.def.headMult : this.def.armor), killed: false };
+    // (guard-ai S9) predicted as the host decides: a front round on the enforcer's shield does nothing; one his helmet
+    // or vest stops is a deflect (the marker now; the host's `hitConfirm` deflect then adds none, `DeflectLedger`)
+    if (this.def.kind === 'enforcer' && !this.taken && shieldBlocks(this.yaw, h.dir.x, h.dir.z)) return { dealt: 0, killed: false };
+    const head = h.part === 'head';
+    if (predictDeflect(this.gearAl < 0 ? 0 : this.gearAl, head, true, h.nonLethal === true, this.def.kind === 'heavy') && !this.dog) {
+      if (head) {
+        const dl = hyp2(h.dir.x, h.dir.z) || 1;
+        this.dropDx = h.dir.x / dl;
+        this.dropDz = h.dir.z / dl;
+        this.dropT = this.clock;
+      }
+      this.onDeflect?.();
+      return { dealt: 0, killed: false, deflect: true };
+    }
+    return { dealt: h.amount * (head ? this.def.headMult : this.def.armor), killed: false };
   }
 
   // --- takedown (local player) ---
@@ -222,6 +323,10 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
 
   /** (G7 fix) Held by the partner this frame (the crouch comes from the knockout's lowering, not the snapshot). */
   private remoteHold = false;
+  /** (coop-walk-fixes P6) Held by a partner as a hostage now (not by our own takedown): the team takedown's offer. */
+  get partnerHeld(): boolean {
+    return this.remoteHold && !this.taken && !this.dead;
+  }
   private remoteLower = 0;
   private koTmp: KoState = { limp: 0, lower: 0, bend: 0 };
 
@@ -254,6 +359,7 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
 
   update(dt: number, renderTime: number): void {
     if (!this.rig || this.dead) return;
+    this.clock += dt;
     if (!this.taken) {
       const s = this.buf.sample(renderTime);
       if (!s) return;
@@ -264,10 +370,15 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
       // (coop-torches) the torch and the crouch it is held at, from the state shown now (as the position)
       this.st = st;
       this.torchBit = (s.state.al & AL_TORCH) !== 0;
+      this.cautionBit = (s.state.al & AL_CAUTION) !== 0;
+      this.carryWire = alertCarry(s.state.al);
+      // (guard-ai S9) gear from the state shown now; a jump since the last frame is a re-place, not a knock-off
+      if (this.gearAl < 0 || ((s.state.al ^ this.gearAl) & GEAR_BITS) !== 0) this.applyGear(s.state.al, this.placed ? hyp2(this.pos.x - this.prev.x, this.pos.z - this.prev.z) : 0);
       // (G7 fix) held by the partner: lowered with the knockout's own phase (the snapshot's crouch bit flips at half way)
       if (this.remoteHold) this.crouch = this.remoteLower;
       else this.crouch += ((st === 2 ? 1 : 0) - this.crouch) * Math.min(1, dt * 8);
-      this.aim += ((st === 1 || st === 2 ? 1 : 0.2) - this.aim) * Math.min(1, dt * 8);
+      // (guard-ai S9) the host's stance (`guardStance.ts`): searching / investigating raised, cautious and calm low ready
+      this.aim += (wireGuardAim(st, s.state.al & 3, this.cautionBit) - this.aim) * Math.min(1, dt * 8);
     } else {
       // seized by our takedown (posed here, not sampled): the torch bit follows the host's newest state
       const ls = this.buf.latest();
@@ -298,17 +409,31 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     const sy = Math.sin(this.yaw);
     const cy = Math.cos(this.yaw);
     const inv = moved > 1e-4 ? 1 / moved : 0;
-    this.rig.animate(dt, {
-      speed: this.speed,
-      localX: (lx * cy - lz * sy) * inv,
-      localZ: (lx * sy + lz * cy) * inv,
-      grounded: true,
-      crouch: this.crouch,
-      aimPitch: 0,
-      aim: this.def.melee || this.taken || this.remoteHold ? 0 : this.aim,
-      kick: this.def.melee ? 0 : this.kick,
-      melee: this.def.melee && this.kick > 0 ? 1 - this.kick : -1,
-    });
+    const rp = this.rp;
+    rp.speed = this.speed;
+    rp.localX = (lx * cy - lz * sy) * inv;
+    rp.localZ = (lx * sy + lz * cy) * inv;
+    rp.grounded = true;
+    rp.crouch = this.crouch;
+    rp.aimPitch = 0;
+    rp.aim = this.def.melee || this.taken || this.remoteHold ? 0 : this.aim;
+    rp.kick = this.def.melee ? 0 : this.kick;
+    rp.melee = this.def.melee && this.kick > 0 ? 1 - this.kick : -1;
+    // (guard-ai A126) the host's carry (S21): holstered he walks with ready hands, the draw / holster clip runs while the
+    // gun travels, no raise until it is drawn; held in a takedown the gun is hidden and left where it is (as the host)
+    const pc = this.carry;
+    const gc = this.gunCarry;
+    if (pc && gc) {
+      pc.step(dt, this.carryWire);
+      const cs = pc.c;
+      if (!this.taken && !this.remoteHold) gc.apply(cs);
+      rp.aim = carryRaise(rp.aim, cs);
+      rp.ready = cs.holstered;
+      rp.swap = cs.swapClip();
+      rp.swapFrom = gc.slot;
+      rp.swapTo = gc.slot;
+    }
+    this.rig.animate(dt, rp);
     this.rig.headNode.computeWorldMatrix(true);
     this.head.copyFrom(this.rig.headNode.getAbsolutePosition());
     this.hitboxes?.sync(this.pos, this.head);
@@ -351,6 +476,8 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     this.rig?.dispose();
     this.rig = null;
     this.dog?.dispose();
+    this.shield?.dispose();
+    this.shield = null;
     this.dog = null;
   }
 }

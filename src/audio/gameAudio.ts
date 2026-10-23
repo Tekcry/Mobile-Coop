@@ -5,7 +5,7 @@ import { awareness } from './score/game/adapter';
 import { gaitOf, type FoleyMove } from './foley/steps';
 import { noiseRadius, stepVolume } from '../player/movement';
 import { SURFACE_NOISE } from '../world/surfaces';
-import { CLASS_GUN, GUARD_GUN } from './weapons/guns';
+import { GUARD_GUN, remoteGun } from './weapons/guns';
 import { JAM_BUZZ, JamBuzz } from './jamBuzz';
 import type { Spatial } from './audioEngine';
 
@@ -35,7 +35,7 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
   w.onShot = (def) => {
     prevShot?.(def);
     // a suppressor (or a built-in one) halves the noise stat or more: that gun sounds suppressed
-    if (!wa.shot(def.id, g.weapons.current.stats.noise < 0.6, g.surface)) sfx.gunshot(def.class, 1, 0.12);
+    if (!wa.shot(def.id, g.weapons.lastShotQuiet, g.surface)) sfx.gunshot(def.class, 1, 0.12);
   };
   w.onReload = (def) => {
     const s = g.weapons.current;
@@ -113,9 +113,11 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
     g.events.on('checkpointRestart', () => app.music.calm()),
     g.events.on('pickup', ({ kind }) => sfx.pickup(kind)),
     // coop: shots fired by teammates or host-simulated enemies
-    g.events.on('remoteShot', ({ cls, x, y, z }) => {
+    // (coop-walk-fixes P7) a partner's round: its own weapon's sound (the suppressed pistol is not the class's open 1911),
+    // suppressed when it was (the synth fallback quieter)
+    g.events.on('remoteShot', ({ cls, x, y, z, gun, quiet }) => {
       const s = a.spatial(x, y, z, 70);
-      if (s.gain > 0.03 && !wa.remoteShot(CLASS_GUN[cls] ?? 'rifle', s.dist, s.gain, s.pan)) sfx.gunshot(cls, s.gain, s.pan, Math.max(1, s.dist));
+      if (s.gain > 0.03 && !wa.remoteShot(remoteGun(cls, gun), s.dist, s.gain, s.pan, quiet === true)) sfx.gunshot(cls, s.gain * (quiet ? 0.3 : 1), s.pan, Math.max(1, s.dist));
     }),
   ];
   app.music.mission();

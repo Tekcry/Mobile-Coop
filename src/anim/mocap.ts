@@ -56,6 +56,12 @@ import { MOCAP_STRAFE_R } from './clips/mocap/strafe_r';
  *   (headFollow); `motionNod`: the head's nod with the steps (headPitch); `motionArmCap`: the keyed arm speed cap
  *   (armSpeed, the rig's `armCap`: 0 lets it go on the share); `keyPelRate`: the keyed pelvis offset's rate limit
  *   (characterRig KEY_PEL_RATE: 0 lets it go on the share). The layer's parts are scaled in the graph (`bodyMotion`).
+ * - (afp-af2, `MOCAP_RUN_POSE`, past a jog only) `pelHeight`: the capture's mean pelvis height (1: the clip's absolute
+ *   height on the procedural one, run 6.9 cm and sprint 12.5 cm low: bent knees; 0: the clip's bob about its own mean);
+ *   `trunkMean`: the capture's mean pelvis / chest roll and yaw and its chest pitch (1: as captured, the run's -4.5 deg
+ *   pelvis roll; 0: roll and yaw off, the pitch the CT carriage's); `bankWipe`: the keyed trunk wiping the graph's turn
+ *   bank (1: as before, no bank; 0: the bank over the capture); `armSmooth`: the raw keyed arm points (1: as sampled; 0:
+ *   through the arm follower).
  * - `turnStep`: anim-natural N1's turn rules (the turn step, the ball pivot, the held contact) on the mocap set: 1, they
  *   stay (fast turns, starts and stops hand the steps to the planner, which turns them). Not a scale (the planner's
  *   `turnRule` is an on / off opt-out), so nothing reads it.
@@ -89,8 +95,30 @@ export const MOCAP_LAYERS = {
   motionArmCap: 1,
   keyPelRate: 1,
   turnStep: 1,
+  pelHeight: 0,
+  trunkMean: 0,
+  bankWipe: 0,
+  armSmooth: 0,
 };
 export type MocapLayers = typeof MOCAP_LAYERS;
+
+/**
+ * (afp-af2, BRIEF A2: Michael "hands randomly moving around when running, weird pose when running") The run carriage
+ * over the capture, by the rig (characterRig `mocapRunPose`) on the mocap share, eased in from `from` to `to` m/s (none
+ * walking: the walk, its turns, starts and stops stay as captured). The captures' own means are followed over `tau` s
+ * (two first-order stages: the cycle's bob and sway filtered out, a pace change followed within ~0.5 s):
+ * - `bob`, `lift` (1.75 m units), eased in from `liftFrom` to `liftTo` m/s: the capture's height swing about its mean is
+ *   scaled by `bob` and the whole raised by `lift` (the run's stance knee 59 -> ~34 deg, its hips 2-5 cm over the
+ *   hand-keyed run's; at the jog a lift overreached the trailing leg at toe-off: the pelvis drop jerked 3 cm a frame).
+ * - `pitch` / `pitchSprint` (rad): the chest's forward pitch at `pitchFrom` / `pitchTo` m/s (CT run 10-20 deg, sprint
+ *   <= 25), in place of the capture's mean (the 127_07 sprint leans ~32 deg, the run sits upright over bent knees).
+ * - `bankLag` (s): the graph's pelvis roll (the turn bank, BANK) followed before it goes over the capture.
+ * - `armTau` (s), `armLead` (0..1): the keyed arm points (chest frame) through a critically damped follower on the share
+ *   (`armSmooth`), the points' own rate fed forward by `armLead` (0: ~5 frames late and 30 % smaller at the run; 0.7: ~2
+ *   frames, ~10 %); `elbowRate` (rad/s): keepElbowOut's 15 deg swivel steps eased in and out at most this fast.
+ * Undo: the four MOCAP_LAYERS entries `pelHeight`, `trunkMean`, `bankWipe`, `armSmooth` back to 1 (as captured).
+ */
+export const MOCAP_RUN_POSE = { from: 2.0, to: 3.0, tau: 0.25, bob: 0.35, lift: 0.05, liftFrom: 3.0, liftTo: 4.0, pitch: 0.26, pitchSprint: 0.32, pitchFrom: 4.0, pitchTo: 5.0, bankLag: 0.06, armTau: 0.08, armLead: 0.7, elbowRate: 4 } as const;
 // (the sampler reads the three it owns through the keyed format's own interface)
 const _LAYERS_FIT: KeyedLayerScale = MOCAP_LAYERS;
 void _LAYERS_FIT;

@@ -1,20 +1,20 @@
 # Graphics and quality
-Purpose: presets, auto graphics, the frame governor, the benchmark, the renderer, materials, voxels, TAAU and weather.
+Purpose: presets, auto graphics, the frame governor, the benchmark, the renderer, materials, TAAU and weather.
 Design authority: docs/DECISIONS.md (G12, G14, G68, G99-G102), then docs/design-bible.md (Section 8).
 
 Desktop only (G12): one preset ladder, no phone preset, no phone look and no phone benchmark (deleted with the phone
 code). Graphics never change gameplay: gameplay reads collision, occupancy, anchors, the light bake and the noise model
-only. smooth-world (2026-10-20, replaces G68's voxel clause): the world, characters and weapons draw smooth by default;
-voxels only behind `?voxels=1`. Characters and weapons become realistic from the operators pipeline (G68).
+only. smooth-world (2026-10-20, replaces G68's voxel clause): the world, characters and weapons draw smooth; the voxel look
+was retired 2026-10-23 (Michael: "nothing should be voxel"). Characters and weapons become realistic from the operators pipeline (G68).
 Budgets: performance.md.
 
 ## Presets, auto graphics, governor
 - Graphics (3.0, 3.1 ladder; `core/quality.ts` pure): `GRAPHICS_PRESETS` Low / Medium / High / Ultra / Epic (`PRESET_IDS`)
   fill `GraphicsFeatures` (shadows off / low / medium / high / ultra / epic -> `shadowSpec`: sun
   cascades, lamp / flashlight casters 0 / 2 / 3 / 4 / 4 (3.1.7 `MAX_SHADOW_CASTERS`: WebGL guarantees 16 textures per
-  shader and the voxel level material uses 11 without lamp shadows; lamps are PCF, one texture each - 8 soft ones broke
+  shader and the level material uses 11 without lamp shadows; lamps are PCF, one texture each - 8 soft ones broke
   the level on D3D11, while headless software GL allows 32; `e2e-desktop` checks every material at Epic <= 16, at the start
-  and again with the guards alerted. PC1 fix: since the lamp bake the voxel level's micro-detail shader takes 15 without a
+  and again with the guards alerted. PC1 fix: since the lamp bake the level's micro-detail shader takes 15 without a
   lamp shadow, and a spot's shadow joins a shader only once its map has casters - a guard's flashlight - so two shadowed
   flashlights took the near chunks to 17 and they stopped drawing as guards alerted; `LightRig` caps the pool at one with
   micro detail (`MICRO_SHADOWS`). Repro on a GPU: `?autostart=warehouse&mode=clear&gfx=epic` with E2E_GPU=1, call
@@ -30,8 +30,7 @@ Budgets: performance.md.
   Benchmark > Resolutions runs them, `benchOutput` = the monitor on desktop), applied on a pick, `KeepResolution` reverts after `RES_CONFIRM_S`
   15 s unless kept), `dynamicRes` (retired in 3.1.7: `QualityManager.auto` is false), `fpsCap` (`GameLoop.fpsCap`,
   `capAllows`), `fovH` 60-120 (default 86, G3; `camV` moves a saved 75 to 86); `setGfx` / `setPreset` (also sets `renderScale` / `upscaler` from `PRESET_DISPLAY`:
-  Low 0.67 .. Ultra 0.9 TAAU, Epic native). `VOXEL_TIER` per Detail tier: structure 5 cm on every preset (fairness),
-  the 2.5 cm prop layer from High up, character / weapon voxel sizes; `VOXEL_LOD` distances per tier. `app.quality` (QualityManager) applies the level to the state's
+  Low 0.67 .. Ultra 0.9 TAAU, Epic native). `app.quality` (QualityManager) applies the level to the state's
   `applyQuality(level)` (GameState: `World.applyQuality` + `PostStack.apply`; MenuState: lamp shadows + its stack),
   feeds `RefreshDetector` (raw rAF intervals; 3.1.9: the 25th percentile, and in a match it only rises - GPU-bound
   frames last whole refresh periods), `FrameStats` and, only with dynamic resolution, the
@@ -51,13 +50,13 @@ Budgets: performance.md.
   `calibFrame` runs it on `MenuState` (`menuStage`) through `QualityManager.setOverride`, aborted off the menu,
   toast + `onDetected`. Under automation only with `?detect=1` (`?renderer=` fakes the GPU name).
 - Frame governor (3.1, `core/governor.ts` pure): `Governor.frame(interval, budget)` levels 0-10 (`adaptiveAt` ->
-  `Adaptive`: scale 0.92 / 0.84 / 0.76, shadowEvery 2, volLights x0.5, voxelLod x0.75, effects x0.6, lights x0.75,
+  `Adaptive`: scale 0.92 / 0.84 / 0.76, shadowEvery 2, volLights x0.5, step 6 (was voxel LOD) a no-op since voxel-retire, effects x0.6, lights x0.75,
   partLod x0.75, scale 0.68), down on a p90 miss (> budget x 1.08, >= 8 frames, 1 s cooldown), up by a trial after
   6 s doubling to 96 s on a miss; `thermal` (a minute's average 12% over the first at one level, or three failed
   tries). `QualityManager` runs it in a match when `video.adaptive`
   (default; replaces `dynamicRes`) and not under `?gfx=` / a benchmark override; `applyAdaptive` -> canvas scale
   (no TAAU) and `QualityTarget.applyAdaptive` (GameState: `World.applyAdaptive` - `LightRig.setAdaptive(lit share,
-  shadow refresh)`, sun CSM refresh, voxel / part / anim LOD; `PostStack.setAdaptive` - `Taau.setScale` (the post
+  shadow refresh)`, sun CSM refresh, part / anim LOD; `PostStack.setAdaptive` - `Taau.setScale` (the post
   process's ratio), volumetric light count; vfx / weather density). Reset on a new target or a settings change.
   Debug line `governor L<n>`; feedback context `adaptive`. `perf.mjs --preset=<p>` (budgets per preset).
 - Benchmark (3.0, `game/benchmark.ts` pure: `BENCH`, `benchPlan(kind, w, h)`, `benchResult`, `sustainedDrift`):
@@ -127,96 +126,24 @@ Budgets: performance.md.
   cover faces, ledges and the solid set are unchanged. `QualityLevel.detailScale` scales `PartLibrary.setLodScale`
   and `setAnimLodScale` (characterRig). `Vfx`: spent brass (`Brass`: one bounce, then lies at the shooter's floor;
   48 x effects density kept), 160 decals.
-- Smooth world (default, smooth-world): `flags.voxels` is off unless `?voxels=1` (`?voxels=0` also off). `World.create`
-  gets no `voxel` options: `LevelBuilder.build` draws every visible piece as thin-instanced boxes / 12-sided cylinders
-  in the PBR level material with `SurfacePlugin` (per-instance `surf` kind, as above); the box detail pass draws at the
-  Detail tier (also on maps with an art layer); `BakedLamps` builds on every non-cheap path (below and lighting.md);
-  characters, weapons and props are the smooth parts. Off without voxels: the sky-bake fill (the ambient grid fills
-  instead), GI, chips (decals), Ray traced reflections (screen space instead); the rain stops at `World.roofAt`
-  (`world/roofGrid.ts`, the canonical light shapes' tops); fog shafts read the baked moon. `?gfx=min` is unchanged:
-  standard materials, no atlas, no baked lamps (and no voxels by default).
-- Voxels (3.0, `src/voxel/`, `?voxels=1`): the level renders as voxels; gameplay still reads the blockout (collision, cover, nav,
-  ledges, anchors, perception). `levelVoxels` (pure) splits the pieces (every side >= `MIN_VOXELS` 1.5 voxels becomes
-  voxels, thinner ones stay thin-instanced boxes / cylinders until the art layer models them) and builds the palette
-  (`Palette`: colour + surface kind + emissive, <= 255) and the grid (`CHUNK` 128 voxels a side, origin on the brick
-  grid). `shapes.ts` (pure): `VoxelShape` box (yaw / pitch as Babylon's) / cylinder, fill / carve / paint, packed 16
-  floats each, `rasterise` by voxel centre (a surface lands within half a voxel). `mesher.ts` (pure) greedy meshing on
-  occupancy only (one-voxel apron, Babylon winding). `chunk.ts` `buildChunk` (pure: rasterise + mesh + bricks) runs in
-  `voxelWorker.ts` through `WorkerPool` (`hardwareConcurrency - 4`, 2..16; inline without Worker). `brickmap.ts`
-  (pure) `Brickmap`: 8^3 bricks, empty / uniform / explicit (pool slots), `fold`, `compact`. `VoxelWorld` (Babylon):
-  chunk jobs per level of detail (level l = 2^l x the size, same chunk extent), meshes per chunk, the brickmap on the
-  GPU (indirection RGBA8 3D: a 0 empty / 254 uniform / 255 explicit slot; pool R8 3D 512 x 512 x 8n; palette RGBA8 256
-  x 1), `VoxelPlugin` (PBR plugin: the voxel behind each pixel -> palette; per-voxel tone / roughness hash; AO and
-  worn convex edges from neighbour voxels; the surface atlas as micro detail inside faces; rain `wet`; emissive;
-  coarse levels search 2^l voxels inward), level of detail per chunk by camera distance at 5 Hz (`VOXEL_LOD` per Detail
-  tier: Epic 30 / 60 m). `voxelCache.ts`: chunk results in IndexedDB `kv` (`voxel:<map>:<seed>:<size>:<levels>:v<VOXEL_VERSION>:<hash>`,
-  newest 4 kept). `World.create(.., { voxel })` (GameState: 5 cm x 3 levels with AO / micro; `?gfx=min` 20 cm x 1, no
-  AO / micro; without `?voxels=1` the smooth boxes); chunk meshes are shadow casters and in the reflection probe.
-  Coarse levels rasterise `coarseShapes` (every filled shape >= one voxel thick, so thin walls never drop out at a
-  distance). `tests/losParity.test.ts` (3.1): sight lines through the Warehouse agree for every preset's layers and
-  levels (against Epic up close), except lines grazing a surface within the coarsest voxel's reach; a line through
-  every thin piece stays blocked at every level.
-  `tests/voxelFit.test.ts`: parity (voxelising changes no cover face, ledge or solid) and fit (+-3 cm on every axis
-  cover face, ledge lip and floor top against the plain blockout, art layer and fine layer included; round pillars:
-  half a voxel's diagonal plus the curve's sag).
-- Voxel art (3.0 phase 2): `MapDef.art` (`VoxelArt`: `piece(p, i, kind, pal, mat)` -> `{ mat, prog, params, fine }`,
-  `extra(pal, boxes, cyls)` -> visual-only shapes) - `world/maps/warehouseArt.ts` picks by the builder's colours.
-  `voxel/programs.ts` (pure) material programs run per voxel inside `rasterise`: BlockWall (running bond, mortar),
-  Concrete (chipped arrises, form lines), Cladding (concrete plinth, ribs carved only above 4.4 m), Planks, Steel
-  (worn edges, seams, rust), Hazard, Floor (saw cuts, stains), Wrap, Rack, paint programs Grime / Rust (-1 = keep);
-  variants are consecutive palette entries (`Palette.range`). Rule: nothing carves or protrudes where gameplay reads a
-  surface (cover faces, lips, floors) - the fit test enforces it. `fine: true` pieces (props, furniture, machines,
-  vehicles; also pieces thinner than 1.5 coarse voxels) form a second `VoxelWorld` at `fineSize` (2.5 cm at Epic,
-  `World.voxelsFine`, LOD at half the distances). With an art layer the box detail pass is skipped.
-- Sky bake (`voxel/skyBake.ts`, pure, a worker job): conservative occupancy in 0.5 m cells, 16 cosine-weighted upward
-  rays per air cell -> visibility (R8 3D texture, linear) + the roof height per column. `VoxelPlugin` takes the
-  hemisphere's fill itself (`setFill`; the hemi light excludes voxel meshes) scaled by visibility, and scales
-  irradiance / reflections by it; the fine layer reads the structure layer's bake (`skyFrom`). `VoxelWorld.roofAt`,
-  `skyAt`. Palette row 1 r = puddle (mirror-like in the rain).
+- Smooth world (the only renderer since voxel-retire, 2026-10-23, Michael: "nothing should be voxel"): `LevelBuilder.build`
+  draws every visible piece as thin-instanced boxes / 12-sided cylinders in the PBR level material with `SurfacePlugin`
+  (per-instance `surf` kind, as above); the box detail pass draws at the Detail tier; `BakedLamps` builds on every
+  non-cheap path (below and lighting.md); characters, weapons and props are the smooth parts (guards merge into one
+  skinned `SmoothBody`). The rain stops at `World.roofAt` (`world/roofGrid.ts`, the canonical light shapes' tops); fog
+  shafts read the baked moon. `?gfx=min` is standard materials, no atlas, no baked lamps. `src/voxel/` now holds only
+  the light bakes (lamp bake, light volume, moon / sky bake, canonical light shapes, the bake worker pool).
+- Sky bake (`voxel/skyBake.ts`, pure, a worker job): the smooth level's sky visibility (`World` `smoothSky`, grid
+  `SKY_GRID` + `SKY_CELL` 0.5 m in `world/levelFill.ts`): conservative occupancy over the canonical light shapes, 16
+  cosine-weighted upward rays per air cell -> visibility (R8 3D texture, linear). `LampPlugin` `LAMP_LEVEL` takes the
+  hemisphere's fill scaled by it and scales irradiance / reflections by it. `bakeMoon` bakes the moon's visibility
+  (fog shafts, the lamp plugin's moon term). Its GI bake code stays but nothing in the game calls it.
 - Weather choice (3.0, `MapDef.weathers`, `WeatherChoice` clear / rain / fog; Play screen + co-op lobby, `lobby` /
   `start` messages carry `weather`): rain = `Weather('rain')` with `occluder` = `roofAt` (no rain under roofs; it falls
-  through the skylights), voxels wet only where the sky reaches (`setWet`), fog x1.6; fog = fog x4 and the volumetric
-  pass's light shafts (`PostStack` `sky` + `shafts`: the sky bake sampled along the first 30 m of each ray).
-- Voxel characters (3.0 phase 3, `voxel/voxelBody.ts`): `setVoxelBodies(opts)` (GameState: 2 cm, 4 cm past
-  `LOD_DISTANCE` x detail; menu stage 2 cm; `?gfx=min` / `?voxels=0`: null, the smooth parts render) makes every
-  'detailed' `CharacterRig` (the stick style stays) a `VoxelBody`: every part on one joint voxelised into one grid in
-  that joint's space (`meshVoxels.ts` `fillMesh`, pure: scanline parity by voxel centre; thin features keep the cell of
-  a surface vertex with none of the part's cells beside it; a later part overwrites an earlier one - balaclava over the
-  head), greedy meshed by value (`greedyMesh(.., byValue)`: faces between parts culled, a quad per part colour), cached
-  per (joint's parts + transforms, size), merged into a body and a head mesh
-  (+ the LOD pair) with per-vertex colour / pattern / `color2` / `vox` (the voxel-grid position: `VoxelBodyPlugin`
-  per-voxel tone and fine seams), rigidly skinned: one flat bone per node a part hangs from, set each frame (skeleton
-  `onBeforeComputeObservable`) to the node's world matrix relative to the root, so ragdolls (joints re-parented onto
-  physics nodes) still drive it. The smooth parts stay, invisible (hit volumes, clearances, ghost reads the
-  joints). `rig.renderMeshes` (shadow casters), `rig.setHeadVisible` (camera fade), `setLensGlow` / `setFlash` reach
-  the vertices (`setPartColor`). `PartLibrary.skinMaterial` (unfrozen twin of the part material + `VoxelBodyPlugin`,
-  `mesh.metadata.skinMaterial` on the bases). Two draws per character (+ shadows).
-- Voxel weapons / gadgets (3.0 phase 4, `voxel/voxelGroup.ts`): `VoxelGroup` merges the parts under one node into one
-  rigid voxel mesh there (parts at `size`, parts thinner than `small` on a second grid at `fineSize`; a coarser LOD).
-  `setVoxelWeapons` (`WeaponModel.voxel`, `renderMeshes` for shadow casters; 1 cm, 5 mm small parts, 2 cm LOD) and
-  `setVoxelProps` + `voxeliseParts` (thrown grenades - the LED stays a part to blink). `VoxelSink` (`voxelBody.ts`) is the shared vertex builder.
-- Chips (3.0 phase 4, cosmetic): `Ballistics.onWorldHit` (GameState, 5 cm voxels or finer) -> `VoxelWorld.chip`: the
-  voxel behind a world hit (the prop layer first) turns to `LevelVoxels.chip` (a dark pock, the palette's last
-  entry): one `texSubImage3D` texel, or for a uniform brick a new explicit slot from the GPU pool's spare capacity
-  (brick + indirection texel); geometry, collision and meshes never change. `Vfx.chips` throws cubes of the struck
-  colour (instead of the decal).
-- GI (3.0 phase 6, `GraphicsFeatures.gi`, Epic; baked at load, so "next map"): `world.ts` `giLights(reg)` packs the
-  map's fixed lights (not flashlights; `GI_STRIDE`) with a slot per lamp circuit (`group`, <= `GI_SLOTS` 12, more share
-  the last); the sky bake job takes them (`skyBake.ts` `bakeGi`, pure: per air cell near a light, 12 rays to the
-  surfaces round it, each surface's direct light from that lamp - falloff, cone, facing, a visibility march - bounced
-  at a grey albedo, into the light's slot; RGBA / `GI_MAX`). `VoxelWorld.giData` (the sky cells, slots stacked along
-  z); 3.2: `mixGiSlots` / `VoxelWorld.mixGi` sum the slots x the lit share of each circuit (World.updateGi on a
-  `LightRegistry.version` change: switches, shot-out lamps, EMP) at half scale into one `giTex` (the fine layer reads
-  the structure's), and `VoxelPlugin` `VOXEL_GI` takes one tap of it (x 2 `giScale`) into the voxel ambient.
-  Cached with the sky (`VOXEL_VERSION` 4, the key carries the lights' hash).
-- Reflections (3.0 phase 5, `GraphicsFeatures.reflections` off / ssr / rt; settings before had `ssr` on / off):
-  `vfx/rtReflections.ts` `RtReflections` (PostStack, Ray traced with a voxel world, `PostStackOptions.rt` = GameState's
-  `RtSource`: the structure layer's textures, its plugin's wet / fills, `rtCapsules`, the light registry): `rtScene`
-  (a copy) -> `rtReflect` (per pixel, or a checkerboard alternating per frame at `rtRes` half: the voxel the pixel
-  shows gives an axis normal, metal (`VX_P`), wetness / puddle -> roughness; glossy ones reflect: screen space first
-  (20 steps against the depth), then a brickmap DDA (empty bricks skipped, <= 320 steps, 30 m) and up to 16 character
-  capsules; hits shaded by palette colour, sky fill x baked visibility, 16 nearest lights, emissive) -> `rtComposite`
-  (a tent over the traced pixels added to the scene). The SSR pipeline is off while it runs.
+  through the skylights), fog x1.6; fog = fog x4 and the volumetric
+  pass's light shafts (`PostStack` `sky` + `shafts`: the baked moon sampled along the first 30 m of each ray).
+- Reflections (`GraphicsFeatures.reflections` off / ssr / rt): `rt` runs screen space reflections since voxel-retire (the
+  ray tracer traced only the voxel brickmap and is gone); the setting is kept for saved settings.
 - TAAU (3.0 phase 5, Display > Upscaler, `video.upscaler` off / taau with a render scale < 1; `QualityLevel.upscale`):
   the canvas stays native (`QualityManager.applyScale`), `vfx/taau.ts` `Taau` is first in the chain (its input sets
   the scene's size), jitters the projection (Halton 2, 3 in low-res pixels; un-jittered view-projection kept for the

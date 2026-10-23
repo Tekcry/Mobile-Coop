@@ -1,5 +1,4 @@
-import { Matrix, Quaternion, TransformNode, Vector3, type AbstractMesh, type InstancedMesh, type Material, type Mesh, type Scene } from '../core/babylon';
-import { VoxelGroup, type VoxelGroupOptions } from '../voxel/voxelGroup';
+import { Matrix, Quaternion, TransformNode, Vector3, type AbstractMesh, type Mesh, type Scene } from '../core/babylon';
 import type { CharacterRig } from '../player/characterRig';
 import type { PartLibrary, PartPattern } from '../world/partLibrary';
 import { modelExtents, type ModelExtents, type WeaponDef } from './weaponDefs';
@@ -12,7 +11,7 @@ import { diagTurn, diagTurnSling, useDiagTurn, FRAME_DOWN, FRAME_UP, planeFrame,
 
 /** (feature/weapons) The built mesh instead of the primitive parts (A6, A7): the players' guns, not the guards'. */
 export interface WeaponMeshOptions {
-  /** Load the kit item's baked mesh (weaponMesh.ts); the parts show until it is in, then hide. No voxel model. */
+  /** Load the kit item's baked mesh (weaponMesh.ts); the parts show until it is in, then hide. */
   mesh?: boolean;
   /** Gets the mesh when it arrives (shadow casters: the parts were registered at construction). */
   caster?: (m: AbstractMesh) => void;
@@ -45,12 +44,6 @@ const SLING_SPLAY = 0.12;
 const SLING_MARGIN = 0.12;
 /** The sling hangs this far (m) outside the thigh (the detailed body's hip and cargo pocket swing in a side-step). */
 const SLING_GAP = 0.035;
-
-/** 3.0 voxel weapons (null: the smooth parts render, e.g. `?gfx=min`). */
-let VOXEL_WEAPONS: VoxelGroupOptions | null = null;
-export function setVoxelWeapons(o: VoxelGroupOptions | null): void {
-  VOXEL_WEAPONS = o;
-}
 
 const ax = new Vector3();
 const ay = new Vector3();
@@ -174,15 +167,12 @@ export class WeaponModel {
     }
     this.muzzleLocal = new Vector3(...def.muzzle);
     this.ext = modelExtents(def);
-    // voxels (3.0): one rigid voxel mesh under the weapon's node (the parts stay, unseen)
-    const skin = ((this.parts[0] as InstancedMesh | undefined)?.sourceMesh?.metadata as { skinMaterial?: Material } | null | undefined)?.skinMaterial;
-    // (feature/weapons) the baked mesh replaces the parts once loaded; such a weapon never builds a voxel model (A7)
+    // (feature/weapons) the baked mesh replaces the parts once loaded
     const meshed = opts.mesh === true && loadWeaponMesh(scene, def.id, this.node, () => !this.disposed, (m, mag) => this.useMesh(m, mag, opts.caster), () => (this.meshWanted = false));
     this.meshWanted = meshed;
-    if (VOXEL_WEAPONS && skin && !meshed) this.voxel = new VoxelGroup(scene, this.node, this.parts, skin, `wpn-${def.id}`, VOXEL_WEAPONS);
   }
 
-  /** The baked mesh once loaded (null: the parts or the voxel model render). */
+  /** The baked mesh once loaded (null: the parts render). */
   mesh: Mesh | null = null;
   private disposed = false;
   /** A baked mesh was asked for and has neither loaded nor failed yet. */
@@ -259,12 +249,9 @@ export class WeaponModel {
     mag.scaling.setAll(1);
   }
 
-  /** The voxel model (3.0; null: the smooth parts render). */
-  readonly voxel: VoxelGroup | null = null;
-
   /** What renders (shadow casters). */
   get renderMeshes(): AbstractMesh[] {
-    return this.mesh ? [this.mesh] : this.voxel ? this.voxel.meshes : this.parts;
+    return this.mesh ? [this.mesh] : this.parts;
   }
 
   /** In the hands: parented to the rig's aim pocket, with the hands IK'd to its grips. */
@@ -776,7 +763,7 @@ export class WeaponModel {
    * (tuner-v2 item 2) The local player's tuner gun transform (scale, position, rotation about the trigger grip point,
    * weapon frame) on the RENDERED mesh only: the baked mesh and its seated magazine. `node`, `muzzleLocal`, the grip
    * points, so the muzzle, the aim and ballistics, are untouched. null: back to the mesh's own pose (once). The
-   * primitive parts / voxel fallback (no baked mesh) are not moved. No allocation.
+   * primitive parts (no baked mesh) are not moved. No allocation.
    */
   tuneVisual(v: GunVisual | null): void {
     if (!v || !v.on) {
@@ -827,7 +814,6 @@ export class WeaponModel {
     if (this.rig) this.track(this.rig, false);
     this.slot = null;
     this.syncThigh();
-    this.voxel?.dispose();
     for (const m of this.parts) m.dispose();
     this.ghost.dispose();
     this.node.dispose();

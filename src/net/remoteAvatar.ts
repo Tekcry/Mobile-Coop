@@ -2,7 +2,7 @@ import { crackedHandle } from '../world/doorPeek';
 import { DOOR } from '../world/doors';
 import { KNEEL_STILL } from '../player/playerController';
 import { tenseNear } from '../player/tenseSneak';
-import { WALL, WALL_LOOK_PITCH, WALL_SUB, WALL_TURN, wallHandPoint, wallHeadYaw, wallMoveK, wallPeekOffset, wallPoint, wallRootPush, wallSideFromSub, wallTurnRate, wallYawOffset } from '../player/wallController';
+import { WALL, WALL_LOOK_PITCH, WALL_SUB, WALL_TURN, WALL_TURN_RATE, wallHandPoint, wallHeadYaw, wallMoveK, wallPeekOffset, wallPoint, wallRootPush, wallSideFromSub, wallTurnRate, wallYawOffset } from '../player/wallController';
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { muzzleBlock } from '../player/wallBlock';
 import { PhysicsRaycastResult, Vector3, type PhysicsEngine } from '../core/babylon';
@@ -20,20 +20,25 @@ import { G, MASK } from '../physics/groups';
 import type { World } from '../world/world';
 import type { Vfx } from '../vfx/vfx';
 import type { Ballistics } from '../weapons/ballistics';
-import { SnapshotBuffer } from './interp';
-import { PF, type PlayerInfo, type PlayerState } from './protocol';
+import { ExtrapBlend, sampleSpeed, SnapshotBuffer } from './interp';
+import { MOTION_WIRE, PF, type PlayerInfo, type PlayerState } from './protocol';
 import { hyp2 } from '../core/mathx';
 import { AttachGrips } from '../player/attachGrips';
-import { wrapPi } from '../anim/motion';
+import { easeInOut, wrapPi, type MotionState } from '../anim/motion';
 import { GRAB_KILL_BLOW, KILL_SEEN, KILL_TAIL_END, killWarp, strikeWarp, TAKEDOWN_BLOW, type KillBlow } from '../anim/strikeBody';
-import { RAPPEL } from '../config/movement';
-import { attachGripWeight, climbUpFootWeight, emptyMovePose, isAttachedMode, poseFromMoveState, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
+import { MOVEMENT, RAPPEL, TEAM } from '../config/movement';
+import { GAMEPLAY_HEIGHT } from '../player/attach';
+import { findRopeLip, newRopeLip, ROPE_SUB, ropeLipHands, ropeSeenStep, type RopeSeen } from '../game/teamMoves';
+import { attachGripWeight, climbUpFootWeight, emptyMovePose, isAttachedMode, poseFromMoveState, TAKEDOWN_SUB_BLOW, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
 import { traversePath, type PathKind } from '../player/traversePath';
 import type { TraverseKind } from '../anim/animGraph';
 import { teamRowOfWire } from '../anim/tuneMoveRows';
+import { moveTuneBegin, moveTuneEnd, moveTuneRoot, moveTuneSelectBase, teamContactKOfWire } from '../anim/moveTune';
+import { bodyRigRoot, bodyRigWallGap } from '../anim/tune';
 import { clearGripAxis } from '../player/attachGrips';
 import { GRAB } from '../game/takedown';
-import { easeRemoteSpeed, isShownTeleport, seedHeading } from './remoteSeed';
+import { easeRemoteSpeed, isShownTeleport, REMOTE_SPEED_MAX, seedHeading } from './remoteSeed';
+import { RemoteShots } from './remoteShots';
 import { bodyPoint, CQ, ease, holdHandsLocal, koCurve, type KoState } from '../game/closeQuarters';
 
 /** Rope slots per remote (`Ropes` keys). */
@@ -72,6 +77,17 @@ export class RemoteAvatar {
   private blowU = 0;
   private tailU = -1;
   readonly buf = new SnapshotBuffer<PlayerState>(40, 0.25);
+  /** (afp AF6) The step back from an extrapolation, blended out (`ExtrapBlend`). */
+  private readonly xb = new ExtrapBlend();
+  /** (afp AF6) The shown body yaw off the wall: rate-limited after a wall until it meets the owner's, as the owner's
+   *  `visYaw` (player.ts: WALL_TURN.out while the wall eases out, then WALL_TURN_RATE until the gap is under 0.05). */
+  private visYaw = 0;
+  /** (afp AF6) The stance transition's linear clock (0 standing .. 1 crouched), as the owner's `crouchK`. */
+  private crouchK = 0;
+  private visLimit = false;
+  /** (afp AF6) The owner's velocity at the render time (the buffer's span-middle blend, lightly smoothed; m/s). */
+  private vx = 0;
+  private vz = 0;
   readonly pos = new Vector3();
   yaw = 0;
   pitch = 0;
@@ -79,7 +95,8 @@ export class RemoteAvatar {
   private models = new Map<WeaponId, WeaponModel>();
   private pouches: GrenadePouches;
   private weapon: WeaponId | null = null;
-  private fireT = 0;
+  /** (coop-walk-fixes P7) The partner's rounds from its `sc` counter (one shot each, at most at the fire rate). */
+  private readonly shots = new RemoteShots();
   private kick = 0;
   private crouch = 0;
   private aim = 0;
@@ -145,8 +162,27 @@ export class RemoteAvatar {
   /** (anim-n4b, track A) The co-op team pose from its MoveState (and our side of the move, `TEAM_LINK`), as the owner's. */
   private readonly teamPose = new TeamPoser();
   private readonly teamIn = newTeamPoseIn();
-  /** Fire sound hook. */
-  onFire: ((cls: string, at: Vector3) => void) | null = null;
+  /** (team-climb) On a team-mate's rope: seconds in, the lip (looked for once), the top-out and grips as seen. */
+  private ropeT = 0;
+  private ropeLooked = false;
+  private readonly ropeLip = newRopeLip();
+  private readonly ropeSeen: RopeSeen = { top: false, w: 0 };
+  private ropeGrips = false;
+  private readonly lipA = new Vector3();
+  private readonly lipB = new Vector3();
+  private readonly lipRay = (ax: number, ay: number, az: number, bx: number, by: number, bz: number, n: { x: number; y: number; z: number }): number => {
+    this.lipA.set(ax, ay, az);
+    this.lipB.set(bx, by, bz);
+    const h = this.ballistics.ray(this.lipA, this.lipB, G.STATIC);
+    if (!h.hit) return 2;
+    n.x = h.normal.x;
+    n.y = h.normal.y;
+    n.z = h.normal.z;
+    const l = Vector3.Distance(this.lipA, this.lipB);
+    return l > 1e-6 ? h.distance / l : 0;
+  };
+  /** Fire sound hook: the weapon's class and id, the muzzle, (P7) whether the round was suppressed (`PF.quiet`). */
+  onFire: ((cls: string, at: Vector3, gun: WeaponId, quiet: boolean) => void) | null = null;
 
   constructor(
     private world: World,
@@ -220,6 +256,53 @@ export class RemoteAvatar {
     this.weapon = id;
   }
 
+  /**
+   * (team-climb) A climber on a team-mate's rope (wire mode `boost` + ROPE_SUB; nothing new on the wire): the lip it goes
+   * over, looked for once a moment into the climb (from its feet up to the rope's reach, along its facing); then, as the
+   * owner's teamController, its hands start for the lip on the rope's last stretch and its top-out (the feet past the
+   * rope's top) plays the team clip at the wire phase with the palms on the lip (`ropeSeenStep`). No allocation per frame
+   * (the one search's rays may).
+   */
+  private ropeFrame(dt: number, roping: boolean, ph: number, mp: { traverse: TraverseKind; traverseT: number }): void {
+    const rs = this.ropeSeen;
+    if (!roping) {
+      if (this.ropeT > 0) {
+        this.ropeT = 0;
+        this.ropeLooked = false;
+        this.ropeLip.ok = false;
+        rs.top = false;
+        rs.w = 0;
+        this.dropRopeGrips();
+      }
+      return;
+    }
+    this.ropeT += dt;
+    if (!this.ropeLip.ok && !this.ropeLooked && this.ropeT >= 0.25) {
+      this.ropeLooked = true;
+      findRopeLip(this.lipRay, this.pos.x, this.pos.z, this.yaw, this.pos.y + 0.6, this.pos.y + TEAM.ropeMax + 0.5, this.ropeLip);
+    }
+    if (!this.ropeLip.ok) return;
+    ropeSeenStep(rs, this.pos.y, this.ropeLip.y, ph, dt);
+    if (rs.top) {
+      mp.traverse = 'climbUp';
+      mp.traverseT = ph;
+    }
+    if (rs.w > 0) {
+      ropeLipHands(this.ropeLip, this.pos.x, this.pos.z, this.yaw, 0.25 * (this.rig.height / GAMEPLAY_HEIGHT), rs.w, this.rig.reachL, this.rig.reachR);
+      this.ropeGrips = true;
+    } else this.dropRopeGrips();
+  }
+
+  private dropRopeGrips(): void {
+    if (!this.ropeGrips) return;
+    this.ropeGrips = false;
+    const rg = this.rig;
+    rg.reachL.w = rg.reachR.w = 0;
+    clearGripAxis(rg.reachL);
+    clearGripAxis(rg.reachR);
+    rg.reachL.liftOff = rg.reachR.liftOff = undefined;
+  }
+
   /** Render-rate update at `renderTime` (in the buffer's clock). */
   update(dt: number, renderTime: number): void {
     const s = this.buf.sample(renderTime);
@@ -230,13 +313,19 @@ export class RemoteAvatar {
       this.rig.setEnabled(true);
       this.prev.set(s.x, s.y, s.z);
       this.lastCommit = s.state.mv?.c?.n ?? -1;
+      this.xb.reset();
+      this.visYaw = s.yaw;
+      this.visLimit = false;
     }
+    // (afp AF6) a new state after an extrapolation: the step back blends out instead of showing in one frame
+    this.xb.apply(s, dt);
     this.pos.set(s.x, s.y, s.z);
     this.yaw = s.yaw;
     const st = s.state;
     const mv = st.mv;
     this.pitch = st.pitch;
     this.flags = st.f;
+    this.shots.observe(st.sc);
     this.mode = mv?.m ?? 'ground';
     this.anchor = mv?.a ?? -1;
     this.sub = mv?.sub ?? 0;
@@ -288,7 +377,20 @@ export class RemoteAvatar {
       this.yaw = this.wallYaw;
       this.wallYawOn = true;
       this.wallS = sv;
-    } else this.wallYawOn = false;
+      this.visYaw = this.wallYaw;
+      this.visLimit = true;
+    } else {
+      this.wallYawOn = false;
+      // (afp AF6) off the wall the turn back to the owner's yaw is rate-limited, as the owner's (it snapped in a frame)
+      if (this.visLimit || this.wallK > 0) {
+        const d = wrapPi(s.yaw - this.visYaw);
+        const mx = (this.wallK > 0 ? wallTurnRate(Math.abs(d), false, false, this.crouch) : WALL_TURN_RATE) * dt;
+        this.visYaw = wrapPi(this.visYaw + Math.max(-mx, Math.min(mx, d)));
+        this.visLimit = Math.abs(wrapPi(s.yaw - this.visYaw)) > 0.05;
+        if (!this.visLimit) this.visYaw = s.yaw;
+      } else this.visYaw = s.yaw;
+      this.yaw = this.visYaw;
+    }
     // (locomotion step 13, D8) a door peek: the hand away from the hinge on the handle of the leaf as cracked (`ph`),
     // the side from where the body stands
     const pd = mv?.m === 'doorPeek' && !rp ? this.world.doors.list[mv.a] : undefined;
@@ -357,11 +459,19 @@ export class RemoteAvatar {
     const reseed = !!mv && (this.justPlaced || isShownTeleport(moved, dt));
     this.justPlaced = false;
     const inst = dt > 0 ? moved / dt : 0;
-    // (3.2.0) the owner's own speed when it sends a move state (interpolation jitter is not a gait)
-    const want = mv && !rp ? st.speed : inst;
-    this.speed = easeRemoteSpeed(this.speed, reseed ? st.speed : want, dt, reseed);
-    let lx = this.pos.x - this.prev.x;
-    let lz = this.pos.z - this.prev.z;
+    // (3.2.0) the owner's own speed when it sends a move state (interpolation jitter is not a gait); (afp AF6) blended
+    // across the span at render rate, as the owner's pace (the older state's pace stepped at 15-20 Hz, then eased at 10 / s)
+    if (mv && !rp) this.speed = Math.min(Math.max(sampleSpeed(s), 0), REMOTE_SPEED_MAX);
+    else this.speed = easeRemoteSpeed(this.speed, reseed ? st.speed : inst, dt, reseed);
+    // (afp AF6) the owner's velocity (the buffer's continuous span blend), smoothed over 0.04 s: the stride heading, the
+    // planner's velocity and the derived lean / stop (MotionDerive) read it instead of per-frame position deltas
+    const vk = reseed ? 1 : 1 - Math.exp(-dt / 0.04);
+    this.vx += (s.vx - this.vx) * vk;
+    this.vz += (s.vz - this.vz) * vk;
+    const free = !!mv && !rp && !isAttachedMode(mv.m);
+    let lx = free ? this.vx * dt : this.pos.x - this.prev.x;
+    let lz = free ? this.vz * dt : this.pos.z - this.prev.z;
+    if (free) moved = hyp2(lx, lz);
     if (reseed) {
       seedHeading(s.from.x, s.from.z, s.to.x, s.to.z, this.speed, dt, this.seedH);
       lx = this.seedH.x;
@@ -370,7 +480,14 @@ export class RemoteAvatar {
     }
     this.prev.copyFrom(this.pos);
     const f = this.flags;
-    this.crouch += ((f & PF.crouch ? 1 : 0) - this.crouch) * Math.min(1, dt * 10);
+    // (afp AF6) the owner's stance curve (playerController.updateStance: linear over crouchTime / standTime, eased in and
+    // out), the bit from the state nearer the render time (an exponential ease at 10 / s led the owner's crouch by ~0.1 s
+    // and stood up late)
+    const cWant = ((s.k >= 0.5 ? s.to.f : s.from.f) & PF.crouch) !== 0 ? 1 : 0;
+    if (reseed) this.crouchK = cWant;
+    else if (cWant > this.crouchK) this.crouchK = Math.min(cWant, this.crouchK + dt / MOVEMENT.crouchTime);
+    else this.crouchK = Math.max(cWant, this.crouchK - dt / MOVEMENT.standTime);
+    this.crouch = easeInOut(this.crouchK);
     const aimTarget = mv ? mv.r : f & (PF.ads | PF.firing) ? 1 : 0.15;
     this.aim += (aimTarget - this.aim) * Math.min(1, dt * 10);
     // ready position weights eased to the owner's (`MoveState.rd`)
@@ -384,6 +501,10 @@ export class RemoteAvatar {
     const r = this.rig.root;
     r.position.copyFrom(this.pos);
     r.rotation.y = this.yaw;
+    // (pose-parity) the baked Body root offset (body fwd / up, the hold's guard gap / side), as the owner's `tuneRoot`, from
+    // this rig's own applied base (identity until a bake sets one)
+    const bb = this.rig.tuneSt?.bodyBase;
+    if (bb) bodyRigRoot(bb, r.position, this.yaw);
     // the pose families from the movement state; on an anchor the hands and feet grip it like the player's
     const pk = wseg && mv!.sub & WALL_SUB.peek ? 1 : 0;
     this.peekK = wseg ? (pk ? Math.min(1, this.peekK + dt / WALL.peekBlend) : Math.max(0, this.peekK - dt / WALL.peekBlend)) : 0;
@@ -397,7 +518,7 @@ export class RemoteAvatar {
     const wk = this.wallK * this.wallK * (3 - 2 * this.wallK);
     if (wk > 0) {
       // (G6) as the owner (Player.frameUpdate)
-      const push = wallRootPush(COVER_STANDOFF, this.rig.p.bodyDepthHalf, Math.max(Math.abs(Math.sin(this.yaw - Math.atan2(this.wallNx, this.wallNz))), Math.abs(this.rig.shoulderTurnSin(this.wallNx, this.wallNz))), this.rig.p.shoulderHalf, this.crouch) * wk;
+      const push = (wallRootPush(COVER_STANDOFF, this.rig.p.bodyDepthHalf, Math.max(Math.abs(Math.sin(this.yaw - Math.atan2(this.wallNx, this.wallNz))), Math.abs(this.rig.shoulderTurnSin(this.wallNx, this.wallNz))), this.rig.p.shoulderHalf, this.crouch) - (bb ? bodyRigWallGap(bb) : 0)) * wk;
       r.position.x -= this.wallNx * push;
       r.position.z -= this.wallNz * push;
       // (G6, AUDIT-WALLS row 9) the peek's step toward the edge, as the owner's rig (the MoveState peek bit, eased)
@@ -415,7 +536,7 @@ export class RemoteAvatar {
     } else this.rig.wallHand = null;
     // (anim-n4d, M1) a kill blow's follow-through: the owner's takedown ended on the kill (the wire moved on), the arc
     // plays on from contact as the owner's (a strike below takes it over)
-    const blowB = mv && !rp ? (mv.m === 'takedown' ? TAKEDOWN_BLOW : mv.m === 'grab' && mv.sub & 1 ? GRAB_KILL_BLOW : null) : null;
+    const blowB = mv && !rp ? (mv.m === 'takedown' && mv.sub & TAKEDOWN_SUB_BLOW ? TAKEDOWN_BLOW : mv.m === 'grab' && mv.sub & 1 ? GRAB_KILL_BLOW : null) : null;
     if (blowB) {
       this.blowB = blowB;
       this.blowU = mv!.ph;
@@ -492,9 +613,17 @@ export class RemoteAvatar {
       mp.traverse = rp.pose;
       mp.traverseT = replayK;
     }
+    // (team-climb) on a partner's rope: the top-out on the team clip and the hands on the lip, as the owner's
+    this.ropeFrame(dt, !!mv && !rp && mv.m === 'boost' && mv.sub === ROPE_SUB, mv ? mv.ph : 0, mp);
+    // (pose-parity) the baked co-op role / traversal move sections, as the owner's (`player.ts` moveTuneSelect): the
+    // partner's role from the wire, the base table only (identity until a bake sets one)
+    const tuneTeam = mv && !rp ? teamRowOfWire(mv.m, mv.sub) : '';
+    moveTuneSelectBase(tuneTeam, teamContactKOfWire(tuneTeam, mv ? mv.ph : 0), mp.traverse);
+    moveTuneRoot(r.position, r.rotation);
     // (step 12b, D9) weapon hand from WALL_SUB.leftHand (the open side at a left edge): the rig blends the switch
     // over EDGE_HAND_TIME as the owner's did
-    this.rig.openLeft = !!mv && !rp && mp.leftHand && (mv.sub & WALL_SUB.leftHand) !== 0;
+    // (pose-parity) and off the wall the owner's left-shoulder aim (`PF.aimLeft`, every mode), as the owner's openLeft
+    this.rig.openLeft = (!!mv && !rp && mp.leftHand && (mv.sub & WALL_SUB.leftHand) !== 0) || (f & PF.aimLeft) !== 0;
     const sy = Math.sin(this.yaw);
     const cy = Math.cos(this.yaw);
     const inv = moved > 1e-4 ? 1 / moved : 0;
@@ -514,6 +643,45 @@ export class RemoteAvatar {
       this.airTop = Number.NaN;
     }
     this.landT = Math.max(0, this.landT - dt);
+    // (afp AF6) the owner's gait clock between the two states around the render time (forward, wrapping), as the
+    // owner's rig plays it (player.ts: none side-on on a wall); the CT stop's blend and held pace from the state
+    const wallTurn = mp.wall ? Math.abs(Math.sin(this.yaw - Math.atan2(this.wallNx, this.wallNz))) : 0;
+    const ga = s.from.gph;
+    const gb = s.to.gph;
+    let gaitPh = -1;
+    if (free && ga !== undefined && gb !== undefined && (mv.m === 'ground' || (mv.m === 'wall' && wallTurn <= 0.5))) {
+      const d = (((gb - ga) % 1) + 1) % 1;
+      gaitPh = d < 0.5 ? (ga + d * Math.max(0, s.k)) % 1 : s.k >= 1 ? gb : ga;
+    }
+    // (afp AF6) the owner's motion state at the render time: the newer state's from the moment it began (its time in
+    // it back from its stamp), else the older one's, timed on (start / stop / turn / pivot as the owner's)
+    let motion: MotionState | undefined;
+    let motionT = 0;
+    const moA = s.from.mo;
+    const moB = s.to.mo;
+    if (free && moA !== undefined && moB !== undefined) {
+      const el = Math.max(0, s.k) * s.span;
+      const bAt = s.span - (s.to.mt ?? 0);
+      if (moB !== moA && el >= bAt) {
+        motion = MOTION_WIRE[moB];
+        motionT = el - bAt;
+      } else {
+        motion = MOTION_WIRE[moA];
+        motionT = (s.from.mt ?? 0) + el;
+      }
+    }
+    // (afp AF6) the owner's acceleration across the span, in this body's frame (the lean, the mocap stop slot), as its rig
+    let accelFwd: number | undefined;
+    let accelSide: number | undefined;
+    const axA = s.from.ax;
+    const axB = s.to.ax;
+    if (motion !== undefined && axA !== undefined && axB !== undefined) {
+      const ka = s.k < 0 ? 0 : s.k > 1 ? 1 : s.k;
+      const ax = axA + (axB - axA) * ka;
+      const az = (s.from.az ?? 0) + ((s.to.az ?? 0) - (s.from.az ?? 0)) * ka;
+      accelFwd = ax * sy + az * cy;
+      accelSide = ax * cy - az * sy;
+    }
     const rpose: RigPose = {
       speed: this.speed,
       kneel: this.kneelT > KNEEL_STILL && !tense,
@@ -522,6 +690,18 @@ export class RemoteAvatar {
       localX: (lx * cy - lz * sy) * inv,
       localZ: (lx * sy + lz * cy) * inv,
       grounded: (f & PF.grounded) !== 0 || mp.traverse !== 'none',
+      // (afp AF6) free on foot: the owner's velocity and turn rate at the render time (the rig measured both from the
+      // interpolated root, whose 15-20 Hz corners stepped the gait clock and the derived stop)
+      velX: free ? this.vx : undefined,
+      velZ: free ? this.vz : undefined,
+      yawRate: free && !this.visLimit && !this.wallYawOn ? s.vyaw : undefined,
+      phase: gaitPh >= 0 ? gaitPh : undefined,
+      quickStop: free ? (st.qs ?? 0) : 0,
+      holdSpeed: free ? (st.hs ?? 0) : 0,
+      motion,
+      motionT,
+      accelFwd,
+      accelSide,
       crouch: this.crouch,
       aimPitch: (upside ? -this.pitch : this.pitch) * this.aim,
       aimYaw: mv ? (upside ? -wrapPi(mv.ay + Math.PI) : mv.ay) * this.aim : 0,
@@ -543,7 +723,7 @@ export class RemoteAvatar {
       // (A1.2) as the owner: free movement strides along the facing (no faceGoal: the planner caps its turn guess)
       stride: this.aim > 0.5 || mp.wall || mp.settle ? 'velocity' : 'facing',
       wallSide: mp.wallSide,
-      wallTurn: mp.wall ? Math.abs(Math.sin(this.yaw - Math.atan2(this.wallNx, this.wallNz))) : 0,
+      wallTurn,
       wallBlock: this.aim > 0.05 && mv && !upside ? muzzleBlock(this.ballistics, this.pos.x, this.pos.y, this.pos.z, this.yaw + mv.ay, this.pitch, this.crouch, this.blockA, this.blockB) : 0,
       wallNx: this.wallNx,
       wallNz: this.wallNz,
@@ -563,9 +743,11 @@ export class RemoteAvatar {
     // (anim-n4b, track A) a team move: the holder's working body / the leg-up's push, from the same state as the owner's
     teamPoseOfWire(mv && !rp ? mv.m : '', mv ? mv.sub : 0, mv ? mv.s : 0, mv ? mv.ph : 0, this.info.id, this.teamIn);
     this.teamPose.begin(dt, this.teamIn, rpose, this.rig);
+    moveTuneBegin(rpose, this.rig); // (pose-parity) the move sections selected above
     try {
       this.rig.animate(dt, rpose);
     } finally {
+      moveTuneEnd(this.rig);
       this.teamPose.end(this.rig);
     }
     // (3.2.0 phase 3) on a rope: draw it from the anchor to the harness
@@ -589,23 +771,25 @@ export class RemoteAvatar {
   }
 
   private fireVisuals(dt: number): void {
-    if (!(this.flags & PF.firing) || this.dead || !this.weapon) {
-      this.fireT = 0;
+    if (this.dead || !this.weapon) {
+      this.shots.clear();
       return;
     }
-    this.fireT -= dt;
-    if (this.fireT > 0) return;
     const def = WEAPONS[this.weapon];
-    this.fireT = Math.max(0.06, 60 / def.rpm);
+    // (coop-walk-fixes P7) one round per step of the partner's counter (was: every fire interval while `PF.firing`,
+    // fired within 0.2 s, was set: a single shot played twice)
+    if (!this.shots.step(dt, Math.max(0.06, 60 / def.rpm))) return;
+    const quiet = (this.flags & PF.quiet) !== 0;
     const m = this.models.get(this.weapon)!;
     const muzzle = m.muzzleWorld(this.tmpA);
     const cp = Math.cos(this.pitch);
     const end = this.tmpB.set(muzzle.x + Math.sin(this.yaw) * cp * 60, muzzle.y + Math.sin(this.pitch) * 60, muzzle.z + Math.cos(this.yaw) * cp * 60);
     const hit = this.ballistics.ray(muzzle, end, MASK.WORLD | G.GLASS_ARMOURED);
     this.vfx.tracer(muzzle, hit.point, def.tracer, def.pellets > 1 ? 0.012 : 0.02);
-    this.vfx.muzzleFlash(muzzle, def.pellets > 1 ? 0.3 : 0.2);
+    // (P7) a suppressed round's flash is small, as the owner's own (`PlayerWeapons.shoot`)
+    this.vfx.muzzleFlash(muzzle, (def.pellets > 1 ? 0.3 : 0.2) * (quiet ? 0.35 : 1));
     this.kick = 1;
-    this.onFire?.(def.class, muzzle);
+    this.onFire?.(def.class, muzzle, def.id, quiet);
   }
 
   dispose(): void {

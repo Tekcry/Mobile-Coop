@@ -553,8 +553,68 @@ export function rayBox(ax: number, ay: number, az: number, dx: number, dy: numbe
 }
 
 /**
+ * (walk 4.72 S2) How far under a fitting (m) a round may land and still break it: a head on top of its own pole or
+ * bracket (Saltmarsh Park's street lamps: a 6 m pillar, the head centred on its top) hides its underside, so a round aimed
+ * at it from the ground lands on the pole's side 0.1-0.3 m below the head and never enters its box.
+ */
+export const LAMP_MOUNT_REACH = 0.35;
+
+/** Is the round's landing point (x, y, z) just under a box (centre cy, half sizes hx / hy / hz): inside its footprint,
+ *  at most `LAMP_MOUNT_REACH` below its underside? A wall lamp's far side or a lamp on the next storey is never this. */
+function landsUnder(x: number, y: number, z: number, cx: number, cy: number, cz: number, hx: number, hy: number, hz: number): boolean {
+  const under = cy - hy - y;
+  return under >= -1e-6 && under <= LAMP_MOUNT_REACH && Math.abs(x - cx) <= hx && Math.abs(z - cz) <= hz;
+}
+
+/** (polish2) How far the reach probe starts back from the landing, against the round (m): off the struck face. */
+export const LAMP_PROBE_BACK = 0.05;
+
+/**
+ * (polish2, walk 4.72 polish 1) Light `id` taken by the shot (ax..bz, b the true landing) only through the mount reach
+ * (`landsUnder`, the segment never enters its box): the callers then need a clear static line straight up from just off
+ * the landing (`LAMP_PROBE_BACK` back along the round, written into `out`) to the head's underside, so a round that
+ * lands on a door soffit under a wall lamp on the far face cannot break it. Returns that probe's length (m), or 0 when
+ * no probe is needed (the round entered the box, or the start is already level with the underside). Allocation-free.
+ */
+export function lampReachProbe(reg: LightRegistry, id: number, ax: number, ay: number, az: number, bx: number, by: number, bz: number, out: { x: number; y: number; z: number }): number {
+  const l = reg.lights[id];
+  if (!l) return 0;
+  const dx = bx - ax;
+  const dy = by - ay;
+  const dz = bz - az;
+  const len = hyp3(dx, dy, dz);
+  if (len < 1e-4) return 0;
+  const f = l.fixture;
+  let cy: number;
+  let hy: number;
+  if (f) {
+    hy = f.sy / 2 + FIXTURE_PAD;
+    cy = l.y + f.oy;
+    const t = rayBox(ax, ay, az, dx, dy, dz, l.x, cy, l.z, f.sx / 2 + FIXTURE_PAD, hy, f.sz / 2 + FIXTURE_PAD);
+    if (t >= 0 && t <= 1) return 0;
+  } else {
+    hy = BULB_RADIUS;
+    cy = l.y;
+    const t = ((l.x - ax) * dx + (l.y - ay) * dy + (l.z - az) * dz) / (len * len);
+    if (t >= 0 && t <= 1) {
+      const px = ax + dx * t - l.x;
+      const py = ay + dy * t - l.y;
+      const pz = az + dz * t - l.z;
+      if (px * px + py * py + pz * pz <= BULB_RADIUS * BULB_RADIUS) return 0;
+    }
+  }
+  const k = LAMP_PROBE_BACK / len;
+  out.x = bx - dx * k;
+  out.y = by - dy * k;
+  out.z = bz - dz * k;
+  const h = cy - hy - out.y;
+  return h > 0.02 ? h : 0;
+}
+
+/**
  * The first shootable light (on, not destroyed, destructible, fixed) a shot from (ax, ay, az) to (bx, by, bz)
- * passes within `BULB_RADIUS` of, or -1. Allocation-free.
+ * passes within `BULB_RADIUS` of (a fixture: enters its padded box), or -1. A round that lands just under a fitting (its
+ * pole top or bracket, `LAMP_MOUNT_REACH`) counts as hitting it, at the end of the segment. Allocation-free.
  */
 export function lightOnRay(reg: LightRegistry, ax: number, ay: number, az: number, bx: number, by: number, bz: number): number {
   const dx = bx - ax;
@@ -571,19 +631,26 @@ export function lightOnRay(reg: LightRegistry, ax: number, ay: number, az: numbe
     const f = l.fixture;
     if (f) {
       // slab test against the fixture box (a little padded: a strip a few cm thick is a fair target)
-      const t = rayBox(ax, ay, az, dx, dy, dz, l.x, l.y + f.oy, l.z, f.sx / 2 + FIXTURE_PAD, f.sy / 2 + FIXTURE_PAD, f.sz / 2 + FIXTURE_PAD);
+      const hx = f.sx / 2 + FIXTURE_PAD;
+      const hy = f.sy / 2 + FIXTURE_PAD;
+      const hz = f.sz / 2 + FIXTURE_PAD;
+      let t = rayBox(ax, ay, az, dx, dy, dz, l.x, l.y + f.oy, l.z, hx, hy, hz);
+      if ((t < 0 || t > 1) && landsUnder(bx, by, bz, l.x, l.y + f.oy, l.z, hx, hy, hz)) t = 1;
       if (t >= 0 && t <= 1 && t < bt) {
         bt = t;
         best = l.id;
       }
       continue;
     }
-    const t = ((l.x - ax) * dx + (l.y - ay) * dy + (l.z - az) * dz) / len2;
-    if (t < 0 || t > 1 || t >= bt) continue;
-    const px = ax + dx * t - l.x;
-    const py = ay + dy * t - l.y;
-    const pz = az + dz * t - l.z;
-    if (px * px + py * py + pz * pz <= BULB_RADIUS * BULB_RADIUS) {
+    let t = ((l.x - ax) * dx + (l.y - ay) * dy + (l.z - az) * dz) / len2;
+    if (t >= 0 && t <= 1) {
+      const px = ax + dx * t - l.x;
+      const py = ay + dy * t - l.y;
+      const pz = az + dz * t - l.z;
+      if (px * px + py * py + pz * pz > BULB_RADIUS * BULB_RADIUS) t = -1;
+    } else t = -1;
+    if (t < 0 && landsUnder(bx, by, bz, l.x, l.y, l.z, BULB_RADIUS, BULB_RADIUS, BULB_RADIUS)) t = 1;
+    if (t >= 0 && t < bt) {
       bt = t;
       best = l.id;
     }

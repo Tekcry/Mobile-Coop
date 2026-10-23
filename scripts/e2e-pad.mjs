@@ -478,8 +478,6 @@ try {
   await press(page, BTN.DOWN);
   assert(/Animation tuner/.test(await focusedText(page)), 'focus Animation tuner (dev)'); // (anim-tuner: before Quit)
   await press(page, BTN.DOWN);
-  assert(/Anim Studio/.test(await focusedText(page)), 'focus Anim Studio (dev)'); // (anim-studio: before Quit)
-  await press(page, BTN.DOWN);
   assert(/Quit/.test(await focusedText(page)), 'focus Quit');
   await press(page, BTN.A);
   assert(await q('.dialog'), 'confirm dialog');

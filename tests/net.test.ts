@@ -40,7 +40,7 @@ describe('net message validation', () => {
     expect(m && m.t === 'pstate' && m.s).toMatchObject({ x: 400, hp: 100, speed: 0, pitch: 1.6 });
   });
   it('sanitises strings (names, ids, looks) and caps lengths', () => {
-    const m = parseMessage({ t: 'hello', v: 1, name: '<img src=x onerror=alert(1)>Mallory-the-long-name', tag: { title: '<b>', color: 'red', emblem: 'x' }, look: { hair: 'laser' } });
+    const m = parseMessage({ t: 'hello', v: PROTOCOL_VERSION, name: '<img src=x onerror=alert(1)>Mallory-the-long-name', tag: { title: '<b>', color: 'red', emblem: 'x' }, look: { hair: 'laser' } });
     expect(m?.t).toBe('hello');
     if (m?.t !== 'hello') return;
     expect(m.name).not.toMatch(/[<>]/);
@@ -50,10 +50,10 @@ describe('net message validation', () => {
     expect(parseMessage({ t: 'pstate', s: { ...ps, id: '../../etc' } })).toBeNull();
   });
   it('loadout: known weapons only, no repeats, capped', () => {
-    const m = parseMessage({ t: 'hello', v: 1, name: 'A', tag: {}, look: {}, loadout: ['rifle', 'rifle', 'railgun', 7, 'pistol', 'smg', 'pistolSd', 'sniper', 'pistolSd'] });
+    const m = parseMessage({ t: 'hello', v: PROTOCOL_VERSION, name: 'A', tag: {}, look: {}, loadout: ['rifle', 'rifle', 'railgun', 7, 'pistol', 'smg', 'pistolSd', 'sniper', 'pistolSd'] });
     // the deleted guns (G115) are unknown ids now
     expect(m?.t === 'hello' && m.loadout).toEqual(['rifle', 'pistolSd']);
-    const n = parseMessage({ t: 'hello', v: 1, name: 'A', tag: {}, look: {}, loadout: 'rifle' });
+    const n = parseMessage({ t: 'hello', v: PROTOCOL_VERSION, name: 'A', tag: {}, look: {}, loadout: 'rifle' });
     expect(n?.t === 'hello' && n.loadout).toEqual([]);
   });
   it('caps array sizes and drops bad entries', () => {
@@ -395,14 +395,13 @@ describe('net session', () => {
     cli.toHost({ t: 'door', i: 0, crack: true });
     expect(got).toEqual([{ t: 'door', i: 0, crack: true }]);
   });
-  it('a peer on protocol version 38 is refused; version 39 joins (39 = the swinging pendants, LR16-5b; 38 = the lamp falloff, lightrev LR13; 35 = the weapons crate, sector-redesign E9-crate; 31 the Sector Ops lamps, slice L; 30 marlow-final; 29 the lasers jammed at their power panels)', () => {
-    expect(PROTOCOL_VERSION).toBe(39);
+  it('a peer one protocol version behind is refused; the current version joins', () => {
     const h = hub();
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const old = h.make('O');
-    old.send({ t: 'hello', v: 38, name: 'Old', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: PROTOCOL_VERSION - 1, name: 'Old', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(false);
-    old.send({ t: 'hello', v: 39, name: 'New', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'New', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(true);
   });
   it("(LR16a, one light model) the start message carries no lamp falloff; an old peer's lf is dropped", () => {
@@ -502,9 +501,6 @@ import { MOVE_MODES, dropBadWallMove, packMoveState, sanitizeMoveState, emptyMov
 import { strikeWarp } from '../src/anim/strikeBody';
 
 describe('step 09: host-authoritative drawn state (D8)', () => {
-  it('protocol 7 (step 12 raised it)', () => {
-    expect(PROTOCOL_VERSION).toBe(39);
-  });
   it('(step 11) wall packs and sanitizes: `a` a segment in range, `sub` a u8', () => {
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 3, s: 2.25, sub: 1 | 2 | 64, ph: 1 };
     const wire = JSON.parse(JSON.stringify(packMoveState(mv)));
@@ -686,9 +682,7 @@ describe('A3: the wall wire after the SWAT turn and the lean-out are gone (proto
     const q = poseFromMoveState({ ...emptyMoveState(), m: 'wall', a: 0, sub: 32 | 8, r: 1 }, 0, emptyMovePose());
     expect(q.lean).toBe(0);
   });
-  it('PROTOCOL_VERSION is 17; leftHand (128) and low (64) round-trip on a wall state', async () => {
-    const { PROTOCOL_VERSION } = await import('../src/net/protocol');
-    expect(PROTOCOL_VERSION).toBe(39);
+  it('leftHand (128) and low (64) round-trip on a wall state', async () => {
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 2, s: 1, sub: 1 | 4 | 16 | 64 | 128 };
     const back = sanitizeMoveState(JSON.parse(JSON.stringify(packMoveState(mv))), 4096, 8)!;
     expect(back.sub).toBe(1 | 4 | 16 | 64 | 128);
@@ -731,9 +725,6 @@ describe('step 13: door peek on the wire', () => {
     expect((m2 as Extract<typeof m2, { t: 'snap' }>).dcr).toEqual([]);
     expect(dcr.length).toBeLessThanOrEqual(MAX_DOORS);
     expect(new Set(dcr).size).toBe(dcr.length);
-  });
-  it('PROTOCOL_VERSION is 24', () => {
-    expect(PROTOCOL_VERSION).toBe(39);
   });
 });
 
@@ -806,9 +797,8 @@ describe('course messages (T1b)', () => {
     expect(parseMessage({ t: 'ctick', verb: 'gear' })).toEqual({ t: 'ctick', verb: 'gear' });
     expect(parseMessage({ t: 'ctick', verb: 'takedown' })).toBeNull();
   });
-  it('the course takes two players and the protocol was bumped', () => {
+  it('the course takes two players', () => {
     expect(capacity('course')).toBe(2);
-    expect(PROTOCOL_VERSION).toBe(39);
   });
   it('the ctick limiter allows 4 a second', () => {
     const l = new TickLimiter();

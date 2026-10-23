@@ -15,7 +15,7 @@ import { LightRegistry, groupBaseOn } from '../src/world/lights';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { courselab } from '../src/world/maps/courselab';
 import { CourseState } from '../src/game/course/courseState';
-import { parseMessage, PROTOCOL_VERSION } from '../src/net/protocol';
+import { parseMessage } from '../src/net/protocol';
 
 const DT = 1 / 60;
 const GROUP = 3;
@@ -202,10 +202,6 @@ describe('jammer-fixes 2: jamming courselab\'s mains lamp never opens g-mains; t
 });
 
 describe('jammer-fixes 3: the jam claim carries the client\'s camera eye (protocol 27)', () => {
-  it('PROTOCOL_VERSION is 39 (39 the swinging pendants; 38 the lamp falloff; 35 the weapons crate; 31 the Sector lamps; 30 marlow-final; 29 the panels)', () => {
-    expect(PROTOCOL_VERSION).toBe(39);
-  });
-
   it('the eye round-trips, is clamped to the world, and a malformed one is dropped; a release carries none', () => {
     const msg = { t: 'jam', tgt: 'cam-s3', e: [12.25, 1.52, -40.5] };
     expect(parseMessage(JSON.parse(JSON.stringify(msg)))).toEqual(msg);

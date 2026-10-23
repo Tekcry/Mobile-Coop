@@ -19,7 +19,6 @@ import {
 } from '../core/babylon';
 import type { QualityLevel } from '../core/quality';
 import type { LightRegistry } from '../world/lights';
-import { RtReflections, type RtSource } from './rtReflections';
 import { depthWanted, fStopFor, stepAperture } from './dofAperture';
 import { pauseAperture } from './pauseLook';
 import { writeVolLight } from './volLights';
@@ -151,11 +150,9 @@ export interface PostStackOptions {
   lights: LightRegistry | null;
   /** Heat haze 0..1. */
   shimmer?: number;
-  /** Sky visibility (the voxel bake) for the fog's light shafts, and the shafts' colour x strength (0: none). */
+  /** Sky visibility (the baked moon) for the fog's light shafts, and the shafts' colour x strength (0: none). */
   sky?: { tex: BaseTexture; origin: [number, number, number]; cell: number; dims: [number, number, number] } | null;
   shafts?: [number, number, number];
-  /** Ray-traced reflections' source (the voxel world); null: Ray traced falls back to screen space. */
-  rt?: RtSource | null;
 }
 
 /**
@@ -167,7 +164,6 @@ export class PostStack {
   private def: DefaultRenderingPipeline | null = null;
   private ssao: SSAO2RenderingPipeline | null = null;
   private ssr: SSRRenderingPipeline | null = null;
-  private rtr: RtReflections | null = null;
   private taau: Taau | null = null;
   private panini: PaniniPass | null = null;
   private taa: TAARenderingPipeline | null = null;
@@ -294,7 +290,7 @@ export class PostStack {
     this.hdr = scene.getEngine().getCaps().textureHalfFloatRender ? Constants.TEXTURETYPE_HALF_FLOAT : Constants.TEXTURETYPE_UNSIGNED_BYTE;
     // TAAU first: its input sets the scene's render size; it does the temporal anti-aliasing too
     // (one depth for fog and TAAU: the G-buffer's when SSAO / SSR draw one anyway - no second geometry pass)
-    if (f.ao || f.reflections === 'ssr' || (f.reflections === 'rt' && !this.opts.rt)) {
+    if (f.ao || f.reflections === 'ssr' || f.reflections === 'rt') {
       // (at the scene's resolution: with TAAU that is the upscaler's input, not the native canvas)
       const gbr = scene.enableGeometryBufferRenderer(q.upscale < 1 ? q.upscale : 1);
       if (gbr) {
@@ -333,7 +329,7 @@ export class PostStack {
       ssao.expensiveBlur = true;
       this.ssao = ssao;
     }
-    if (f.reflections === 'ssr' || (f.reflections === 'rt' && !this.opts.rt)) {
+    if (f.reflections === 'ssr' || f.reflections === 'rt') {
       const ssr = new SSRRenderingPipeline('ssr', scene, cams, true, this.hdr);
       ssr.thickness = 0.4;
       ssr.selfCollisionNumSkip = 2;
@@ -350,10 +346,6 @@ export class PostStack {
       // half: traced at half resolution
       ssr.ssrDownsample = f.postRes === 'half' ? 1 : 0;
       this.ssr = ssr;
-    }
-    if (f.reflections === 'rt' && this.opts.rt) {
-      this.depth = scene.enableDepthRenderer(this.camera, false, true);
-      this.rtr = new RtReflections(scene, this.camera, this.opts.rt, this.depth, f.rtRes === 'half', this.hdr);
     }
     if (f.motionBlur) {
       const mb = new MotionBlurPostProcess('motionBlur', scene, 1, this.camera, undefined, undefined, false, this.hdr);
@@ -465,7 +457,6 @@ export class PostStack {
   /** Per render frame: the volumetric lights (nearest the camera) and the depth-of-field focus. */
   frame(dt: number): void {
     this.t += dt;
-    this.rtr?.frame();
     const reg = this.opts.lights;
     if (this.vol && reg) {
       const p = this.camera.globalPosition;
@@ -484,8 +475,6 @@ export class PostStack {
       // aiming: a shallow field on what the sight is on; otherwise everything sharp - a zero circle of confusion
       // whatever the depth reads (3.6: the old f/32 blurred the whole frame off the paused depth when ray tracing was
       // off, `dofAperture.ts`)
-      // (3.1.9: the depth pauses only when nothing else reads it - ray-traced reflections share it: paused, they
-      // traced a stale depth and the floors reflected fog, the lower half of the view grey on Epic)
       const own = this.dofDepth && this.dofDepth !== this.depth ? this.dofDepth : null;
       this.aperture = stepAperture(this.aperture, this.focusOn, !own || own.enabled, dt);
       const pausing = this.pauseK > 0;
@@ -502,7 +491,6 @@ export class PostStack {
     this.def?.dispose();
     this.ssao?.dispose(false);
     this.ssr?.dispose(false);
-    this.rtr?.dispose();
     this.taau?.dispose();
     this.panini?.dispose();
     this.taa?.dispose();
@@ -517,7 +505,6 @@ export class PostStack {
     this.def = null;
     this.ssao = null;
     this.ssr = null;
-    this.rtr = null;
     this.taau = null;
     this.panini = null;
     this.taa = null;

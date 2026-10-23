@@ -9,9 +9,11 @@ import {
   GV_OFFICER,
   INCIDENT,
   IncidentBoard,
+  KIND,
   LEVEL,
   lightInView,
   lightRingPoint,
+  MODE_BREAKER,
   MODE_COVER,
   MODE_INVESTIGATE,
   MODE_LEAD,
@@ -757,6 +759,8 @@ describe('search pace: after combat vs calm (fix round 2: e2e lkp)', () => {
       pos: { x: 0, y: 0, z: 0 },
       // (guard-ai S8) going to combat reseeds his combat dice
       rng: { reseed() {} },
+      // (guard-ai S16) combat over resets the armour fire gate
+      fireGate: { reset() {} },
     });
     return e as unknown as Probe;
   }
@@ -868,6 +872,8 @@ describe('S2 check polish (guard-ai S3)', () => {
       ack: vi.fn(),
       checkLight: vi.fn(),
       pairSearch: vi.fn(),
+      // (guard-ai S14) a calm hearer of a loud shot radios it ("shots fired")
+      bark: vi.fn(),
     });
     const world = { level: { lights: { lights: [], setOn: vi.fn() }, cover: [], coverSegments: [] }, layout: { rooms: [] }, doors: { list: [] } };
     const nav = { walk: new Uint8Array(4), nearestWalkable: vi.fn(() => -1), lineClear: vi.fn(() => true), findPath: vi.fn(() => null), heightAt: vi.fn(() => 0) };
@@ -885,5 +891,45 @@ describe('S2 check polish (guard-ai S3)', () => {
     em2.enemies.push(mk(3, 10) as unknown as Enemy);
     em2.noise(new Vector3(0, 0, 0), 28);
     expect(sent).toEqual([['p3', false]]);
+  });
+});
+
+describe('incident board: breaker faults (guard-ai S15)', () => {
+  it('the kind codes of the earlier kinds hold; breaker is appended (code 10)', () => {
+    expect(KIND.slice(0, 10)).toEqual(['noise', 'shots', 'light', 'distraction', 'missing', 'bodyDead', 'bodyKo', 'camBody', 'witnessKill', 'contact']);
+    expect(KIND.indexOf('breaker')).toBe(10);
+  });
+
+  it('two witnesses close by: one goes (MODE_BREAKER, never a pair), the other acks; done, it closes', () => {
+    const b = new IncidentBoard(paths());
+    const v = view([
+      { id: 1, x: 2, z: 0 },
+      { id: 2, x: 4, z: 0 },
+    ]);
+    const id = b.report('breaker', 0, 0, 0, 100004, ids(1, 2), 2);
+    b.tick(0, v);
+    expect(sends(b)).toEqual([[1, MODE_BREAKER, 0]]);
+    expect(acks(b).map((a) => a[0])).toEqual([2]);
+    expect(b.keyOf(id)).toBe(100004);
+    apply(b, v);
+    // back from it (the walk ended): the board closes it
+    v.task[0] = -1;
+    b.tick(0.2, v);
+    expect(b.kindOf(id)).toBeNull();
+    expect(b.keyOf(id)).toBe(-1);
+  });
+
+  it('a breaker merges only with an open breaker of its circuit; a light with the same key is its own incident', () => {
+    const b = new IncidentBoard(paths());
+    const v = view([{ id: 1, x: 30, z: 0, task: 99 }]);
+    const a = b.report('breaker', 0, 0, 0, 100004, ids(1), 1);
+    expect(b.report('breaker', 0.5, 0, 0, 100004, ids(1), 1)).toBe(a);
+    expect(b.report('breaker', 0.5, 0, 0, 100005, ids(1), 1)).not.toBe(a);
+    const l = b.report('light', 0, 0, 0, 100004, ids(1), 1);
+    expect(l).not.toBe(a);
+    expect(b.kindOf(l)).toBe('light');
+    expect(b.kindOf(a)).toBe('breaker');
+    b.tick(0, v);
+    expect(sends(b)).toEqual([]);
   });
 });

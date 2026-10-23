@@ -50,11 +50,17 @@ export const GUNS: Record<string, GunSound> = {
   semiShotgun: { shot: 'model12', rate: 1.02, gain: 1.1, sd: 'sdHeavy', casing: 'shell', action: 'none', reload: 'shotgun' },
 };
 
-/** A weapon class (co-op shots carry only the class) to its gun. The CT kit has the rifle and pistol classes only. */
+/** A weapon class (a guard's tracer carries only the class) to its gun. The CT kit has the rifle and pistol classes only. */
 export const CLASS_GUN: Record<string, string> = { pistol: 'pistol', rifle: 'rifle', heavy: 'lmg' };
 
 /** Guard archetypes to the gun they sound like (`enemies.json`). */
 export const GUARD_GUN: Record<string, string> = { grunt: 'ak', heavy: 'lmg', sniper: 'sniper', enforcer: 'semiShotgun', droneOp: 'smg', officer: 'pistol' };
+
+/** (coop-walk-fixes P7) The gun a remote shot sounds like: the partner's weapon id when it has a sound (`pistolSd`, `rifle`),
+ *  else its class's (`CLASS_GUN`; a guard's tracer has only the class). */
+export function remoteGun(cls: string, gun?: string): string {
+  return gun !== undefined && GUNS[gun] !== undefined ? gun : (CLASS_GUN[cls] ?? 'rifle');
+}
 
 export function gunOf(id: string): GunSound {
   return GUNS[id] ?? GUNS[CLASS_GUN[id] ?? 'rifle']!;

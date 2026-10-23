@@ -56,7 +56,7 @@ export function fakePointerLock() {
 }
 
 
-/** E2E_PROFILE=1: where a suite's time goes, printed when it exits: browser launch, page boot, match build (voxel + light
+/** E2E_PROFILE=1: where a suite's time goes, printed when it exits: browser launch, page boot, match build (the light
  * bake inside it), the first rendered frames of a match (the shaders compile there: warmup), later rendered frames, fixed
  * waits, in-page work (`stepHeadless` and the rest of `evaluate`), screenshots, and the rest. A bucket never counts inside another. */
 export const PROFILE = process.env.E2E_PROFILE === '1';
@@ -215,11 +215,11 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
       proto.stepHeadless.__prof = true;
     }).catch(() => {});
   }
-  // autostart: the match itself (3.0: the voxel world builds in workers before it starts)
+  // autostart: the match itself (the level builds before it starts)
   if (/(^|&)autostart=/.test(params)) {
     await timed('match', () => page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 120000 }).catch(() => {}));
     warmed = false;
-    if (PROFILE) prof.bake += await page.evaluate(() => { const w = window.__app?.current?.world; return (w?.lightInfo?.().ms ?? 0) + (w?.voxels?.stats?.ms ?? 0); }).catch(() => 0);
+    if (PROFILE) prof.bake += await page.evaluate(() => { const w = window.__app?.current?.world; return w?.lightInfo?.().ms ?? 0; }).catch(() => 0);
   }
   return { page, errors };
 }

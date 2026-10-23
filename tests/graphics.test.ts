@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { capAllows, capNext, GRAPHICS_PRESETS, PRESET_DISPLAY, PRESET_IDS, presetOf, qualityLevel, MAX_SHADOW_CASTERS, shadowSpec, VOXEL_TIER } from '../src/core/quality';
+import { capAllows, capNext, GRAPHICS_PRESETS, PRESET_DISPLAY, PRESET_IDS, presetOf, qualityLevel, MAX_SHADOW_CASTERS, shadowSpec } from '../src/core/quality';
 import { defaultSettings, sanitizeSettings, setAuto, setGfx, setPreset } from '../src/core/settings';
 
 describe('graphics settings (3.0)', () => {
@@ -52,8 +52,6 @@ describe('graphics settings (3.0)', () => {
     // render scale falls with the preset; Epic is native
     for (let i = 1; i < PRESET_IDS.length; i++) expect(PRESET_DISPLAY[PRESET_IDS[i]!].renderScale).toBeGreaterThanOrEqual(PRESET_DISPLAY[PRESET_IDS[i - 1]!].renderScale);
     expect(PRESET_DISPLAY.epic).toEqual({ renderScale: 1, upscaler: 'off' });
-    // the level's structure voxels are the same size on every preset (what hides a player looks the same)
-    for (const p of PRESET_IDS) expect(VOXEL_TIER[p].size).toBe(VOXEL_TIER.epic.size);
     const s = defaultSettings();
     setPreset(s, 'medium');
     expect(s.video.gfx).toEqual(GRAPHICS_PRESETS.medium);

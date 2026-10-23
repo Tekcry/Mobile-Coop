@@ -11,8 +11,12 @@ import { emptyKinds, ENEMY_KINDS } from '../ai/enemyDefs';
 import { hyp2, hyp3 } from '../core/mathx';
 import { gearCap } from '../player/speedGears';
 import { isAttachedMode, unpackAttachSub, type MoveState } from '../player/moveState';
+import { HANG_SUB, ROPE_SUB } from '../game/teamMoves';
 import { attachPose, type AttachPose } from '../player/attach';
 import type { TraversalAnchors } from '../world/anchors';
+import type { SectorRatingWire } from '../game/sectors';
+import type { RatingView } from '../ui/hud/ratingCard';
+import { unpackRated } from '../game/course/courseWire';
 
 export interface V3 {
   x: number;
@@ -83,17 +87,22 @@ export type ShotVerdict = { ok: true; distance: number } | { ok: false; reason: 
  * - it must pass within `tolerance` of the target's body centre (or head for headshots);
  * - and be within weapon range.
  */
-export function checkShot(c: ShotClaim, shooterFeet: V3, targetBody: V3, targetHead: V3, range: number, tolerance = 1.1): ShotVerdict {
+export function checkShot(c: ShotClaim, shooterFeet: V3, targetBody: V3, targetHead: V3, range: number, tolerance = 1.1, under = SHOT_UNDER): ShotVerdict {
   const dx = c.origin.x - shooterFeet.x;
   const dz = c.origin.z - shooterFeet.z;
   const dy = c.origin.y - shooterFeet.y;
-  if (hyp2(dx, dz) > 3.5 || dy < -1 || dy > 3) return { ok: false, reason: 'origin' };
+  if (hyp2(dx, dz) > 3.5 || dy < -under || dy > 3) return { ok: false, reason: 'origin' };
   const aim = c.part === 'head' ? targetHead : targetBody;
   const r = rayPointDistance(c.origin, c.dir, aim);
   if (r.along > range + 2) return { ok: false, reason: 'range' };
   if (r.perp > (c.part === 'head' ? tolerance * 0.7 : tolerance)) return { ok: false, reason: 'miss' };
   return { ok: true, distance: r.along };
 }
+
+/** How far under the shooter's feet reference a shot may start (m); (hang-down) head-first under the partner's hands
+ *  the feet reference is the turned-over rig root, the pistol held out under the head (`SHOT_UNDER_HANG`). */
+export const SHOT_UNDER = 1;
+export const SHOT_UNDER_HANG = 2.2;
 
 /** Grenade detonations must be near the thrower (throw range + roll) and rate-limited. */
 export function checkBlast(p: V3, shooterFeet: V3): boolean {
@@ -197,7 +206,7 @@ export function hostWeapon<W extends string>(w: W, loadout: readonly W[], last: 
  * (step 09, D8) The draw phase the host allows a client: forced 0 (holstered) while its hands are busy in the host's
  * view - attached with a holster (every anchor kind; the one-handed sidearm from a split, a rappel or an inverted
  * pipe is the exception), in a takedown (a hostage keeps the sidearm), in a team move with busy hands (braced,
- * boosting, the bottom of the human ladder) - or downed.
+ * boosting, the bottom of the human ladder; the hang-down's hanging partner keeps the sidearm) - or downed.
  */
 export function hostDrawPhase(mv: MoveState | undefined, downed: boolean): number {
   if (!mv || !hostHandsFree(mv, downed)) return 0;
@@ -208,6 +217,8 @@ export function hostDrawPhase(mv: MoveState | undefined, downed: boolean): numbe
 export function hostHandsFree(mv: MoveState, downed: boolean): boolean {
   if (downed) return false;
   const m = mv.m;
+  // (hang-down, A6) head-first under the partner's hands: the pistol one-handed (the brace holding them stays busy)
+  if (m === 'boost' && (mv.sub & HANG_SUB) !== 0 && (mv.sub & ROPE_SUB) === 0) return true;
   if (m === 'brace' || m === 'boost' || (m === 'stacked' && mv.sub !== 1)) return false;
   if (m === 'takedown') return false;
   if (isAttachedMode(m)) {
@@ -237,4 +248,39 @@ export function hostShotWeapon<W extends string>(w: W, held: W | undefined, load
  */
 export function clientForcedHolster(echoedDw: number, localDw: number, localMv: MoveState, downed: boolean): boolean {
   return echoedDw === 0 && localDw !== 0 && !hostHandsFree(localMv, downed);
+}
+
+/**
+ * (section-rating S3) The client's view of the host's last rating (`rt`, already clamped by the parser) for the HUD card:
+ * the section's id and title come from this map's own sector list. Null when none is rated yet (`sec` -1) or the index
+ * is not one of ours (a mismatched map is not shown).
+ */
+export function ratingViewFromWire(rt: SectorRatingWire, defs: readonly { id: string; name: string }[]): RatingView | null {
+  if (rt.sec < 0) return null;
+  const d = defs[rt.sec];
+  if (!d) return null;
+  return {
+    sectionId: d.id,
+    title: d.name,
+    marks: rt.marks & 15,
+    synced: rt.synced,
+    grant: { gadget: rt.gadget, syringe: rt.syringe, medkit: rt.medkit, alarmStep: rt.alarmStep },
+  };
+}
+
+/**
+ * (marlow-polish) A late joiner's / reloaded rejoiner's results lines from the `sector` message's `rh` (already clamped
+ * by the parser): one view per rated section of this map, in index order, skipping `skip` (the section `rt` carries,
+ * pushed on its own). No grant: those were given before we came.
+ */
+export function ratingViewsFromRh(rh: readonly number[], skip: number, defs: readonly { id: string; name: string }[]): RatingView[] {
+  const out: RatingView[] = [];
+  for (let i = 0; i < rh.length && i < defs.length; i++) {
+    if (i === skip) continue;
+    const r = unpackRated(rh[i]!);
+    if (!r) continue;
+    const d = defs[i]!;
+    out.push({ sectionId: d.id, title: d.name, marks: r.marks, synced: r.synced, grant: { gadget: 0, syringe: 0, medkit: 0, alarmStep: 0 } });
+  }
+  return out;
 }

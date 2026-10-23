@@ -772,7 +772,7 @@ Two operators, Wren and Moth, are built and playable; there is no four-operator 
 and briefing crew, not playable (G112).
 
 - **Realistic** (G68): the operators come from the realistic character pipeline on `feature/operators`; guards and
-  weapons follow later from the same pipeline. Voxels are off by default (G223, replaces G68's voxel line). That
+  weapons follow later from the same pipeline. The voxel look is retired (2026-10-23, Michael: "nothing should be voxel"; G number at the merge). That
   branch keeps its own decisions and open items (G75).
 - **Wren is the player character** for both players, with no dev switch, before the prototype is done (G123, replaces
   G70's "after the prototype, behind a dev switch"); Michael tunes movement on her himself (G227, replaces G150's core-feel job); then the weapon
@@ -805,7 +805,7 @@ Mission 8 has no traitor and no player-versus-player finale (G9). The finale is 
 
 - **CT's look (G1, G5):** CT's visual style and HUD layout are copied closely, with original art assets. Desktop aims to
   surpass CT in fidelity (Michael, 2026-10-09). Visual work never changes gameplay.
-- **Realistic everywhere (G68).** Voxels are off by default (G223).
+- **Realistic everywhere (G68).** The voxel look is retired (2026-10-23, Michael: "nothing should be voxel"; G number at the merge).
 - **Where to win:** lighting and atmosphere: soft shadows shaped by the lamp fixture, one-bounce light, light cones in fog
   and rain, flickering and failing lamps, flashlight beams in haze, rain with wet surfaces and drips, steam and dust in
   light shafts.
@@ -971,7 +971,7 @@ Each map's documents also include:
   (G218).
 - **Performance:** the budgets in `docs/systems/performance.md`, set to the target laptop's numbers (G14).
 - **Gameplay reads only** collision, occupancy, anchors, the light bake and the noise model. It never reads graphics
-  presets, LOD, voxel layers or the governor.
+  presets, LOD or the governor.
 - **Offline:** the game installs and loads offline; the campaign needs a two-player co-op session, online,
   split-screen or over LAN (G133).
 - **Release intent:** a personal project. No store builds and no paid infrastructure unless it is cheap. The originality

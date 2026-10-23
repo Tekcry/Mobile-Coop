@@ -12,7 +12,26 @@
  */
 import { AIRLOCK_CYCLE, AIRLOCK_DOORWAY_CLEAR, AIRLOCK_Y_TOL, PAIR_WINDOW, RESTART_DELAY, TIMED_HOLD_AFTER } from '../../config/course';
 import { pressPairHalf } from '../pairPress';
-import { airlockPad, exitZoneReady, gateDoors, inExitZone, leadOf, type AirlockDef, type BayDef, type CourseDef, type DrillDef, type GateDef, type PlayerIdx } from './courseDef';
+import {
+  airlockPad,
+  exitZoneReady,
+  FLAG_VERB,
+  gateDoors,
+  inExitZone,
+  inZone,
+  leadOf,
+  TIMED_WARN,
+  type AirlockDef,
+  type BayDef,
+  type CourseDef,
+  type CourseObjective,
+  type DrillDef,
+  type GateDef,
+  type PlayerIdx,
+  type RoleClaim,
+  type StepCond,
+} from './courseDef';
+import type { SecurityConsole } from './securityRoom';
 
 export type AirlockPhase = 'open' | 'waiting' | 'ready' | 'cycling' | 'sealed';
 
@@ -25,7 +44,15 @@ export type CourseEvent =
   | { t: 'drillDone'; drill: string; player: PlayerIdx; complete: boolean }
   | { t: 'bayStarted'; bay: string; squad: string[] }
   | { t: 'bayRestart'; bay: string; squad: string[] }
-  | { t: 'courseDone' };
+  | { t: 'courseDone' }
+  /** (N2 / N3) A timed window crossed its last TIMED_WARN s. */
+  | { t: 'gateWarn'; gate: string }
+  /** (N3) A timed flag ran out (a timed console's loop ended). */
+  | { t: 'flagCleared'; flag: string }
+  /** (N1) An objective step was latched done. */
+  | { t: 'stepDone'; step: string }
+  /** (gap list 6b) A role claim: player `a` has the A job in the current bay. */
+  | { t: 'roleClaimed'; bay: string; a: PlayerIdx };
 
 export interface BayStats {
   time: number;
@@ -37,6 +64,8 @@ export interface BayStats {
   teamMoves: number;
   /** Bodies the guards found. */
   bodies: number;
+  /** (section-rating S6) Synced takedowns: two knock-outs by the two players within SYNC_WINDOW (team stat). */
+  synced: number;
 }
 export type StatKind = Exclude<keyof BayStats, 'time'>;
 
@@ -49,6 +78,12 @@ export const REFUSE_PAIR = 'Partner: press the other plate now';
 export const AIR_WAITING = 'Waiting for partner';
 /** The airlock status while it cycles (the rear door shut and locked). */
 export const AIR_CYCLING = 'Airlock sealed - cycling';
+/** (N2) A press on an isolator inside its re-arm time. */
+export const REFUSE_ISO_REARM = 'The isolator is re-arming';
+/** (N3) A press on a timed console inside its re-arm time. */
+export const REFUSE_CONSOLE_REARM = 'The console is rebooting';
+/** (marlow-final) Seconds the claim zones stay shut after a bay restart (as the pass zones' `holdZones` 2 s). */
+export const ROLE_HOLD = 2;
 
 /** The `course` message body: plain JSON (state, locks, flags; T1b sends it). */
 export interface PackedCourse {
@@ -91,6 +126,35 @@ interface GateRt {
   /** flag / anchorLock / perPlayer pickup: `${flag}@1` and `${flag}@2` (precomputed: queries must not allocate); else ''. */
   key1: string;
   key2: string;
+  /**
+   * (N2 isolator, N3 timed console pickup) The window (s; 0 = not timed) and the re-arm time (s). While the window runs
+   * `t` counts down; after it `tb` holds the clock time the re-arm ends (-1 = none).
+   */
+  secs: number;
+  rearm: number;
+}
+
+/** (N1) A step condition, precomputed (no allocation per step). */
+interface CondRt {
+  /** 0 flag, 1 gate, 2 all, 3 any. */
+  k: 0 | 1 | 2 | 3;
+  flag: string;
+  key1: string;
+  key2: string;
+  /** 0 any player, 1 the A job's player, 2 the B job's. */
+  who: 0 | 1 | 2;
+  gate: GateRt | null;
+  kids: CondRt[];
+}
+
+/** (N1) An objective step at run time. */
+interface StepRt {
+  o: CourseObjective;
+  /** The course flag that latches it done (`obj:<id>`; rides `PackedCourse.flags`, cleared by a bay restart). */
+  key: string;
+  cond: CondRt | null;
+  /** The `timer` gate, or null. */
+  timer: GateRt | null;
 }
 
 interface AirRt {
@@ -99,7 +163,10 @@ interface AirRt {
   t: number;
 }
 
-export const newStats = (): BayStats => ({ time: 0, detections: 0, alarms: 0, knockouts: 0, kills: 0, revives: 0, teamMoves: 0, bodies: 0 });
+const NO_STEPS: readonly CourseObjective[] = [];
+const NO_STEP_RT: StepRt[] = [];
+
+export const newStats = (): BayStats => ({ time: 0, detections: 0, alarms: 0, knockouts: 0, kills: 0, revives: 0, teamMoves: 0, bodies: 0, synced: 0 });
 
 export class CourseState {
   /** Current bay index (0-based). */
@@ -136,13 +203,30 @@ export class CourseState {
   private readonly flagBay = new Map<string, number>();
   private readonly groupsOff = new Set<string>();
   private downT = 0;
+  /** (marlow-final) Seconds the claim zones stay shut after a bay restart: the players' old feet sit in the zone until the
+   *  respawn moves them, which re-claimed the job at once (e2e A5 / A7 restart). */
+  private roleHoldT = 0;
   /** Bumped whenever drill ticks may change (drillRefusal cache key, with the bay). */
   private tickGen = 0;
   private refusalGen = -1;
   private refusalBay = -1;
   private refusalText: string | null = null;
+  /** (N1) Objective steps per bay, in route order. */
+  private readonly steps: StepRt[][] = [];
+  /** (gap list 6b) Per bay: the role-claim flags "P1 has A" / "P2 has A" (precomputed keys). */
+  private readonly roleKeys: [string, string][] = [];
+  /** (gap list 6a) Per bay: drills ticked by a flag (`flag:<flag>` verbs), with the flag name. */
+  private readonly flagDrills: { d: DrillDef; flag: string }[][] = [];
+  /** Whether `setPlayer` has given each player's feet yet (a role zone never claims for a player not there). */
+  private readonly feetSet: [boolean, boolean] = [false, false];
 
-  constructor(readonly def: CourseDef) {
+  /**
+   * `consoles` (the layout's security consoles): a console with `seconds` makes its pickup gate a timed loop (N3).
+   */
+  constructor(
+    readonly def: CourseDef,
+    consoles?: readonly SecurityConsole[],
+  ) {
     this.done = def.bays.map(() => false);
     this.stats = def.bays.map(newStats);
     for (const a of def.airlocks) {
@@ -155,23 +239,80 @@ export class CourseState {
         const keyed = g.kind === 'flag' || g.kind === 'anchorLock' || (g.kind === 'pickup' && g.perPlayer);
         const key1 = keyed ? `${g.flag}@1` : '';
         const key2 = keyed ? `${g.flag}@2` : '';
-        this.gates.push({ def: g, doors: gateDoors(g), bay: i, open: false, t: 0, holders: 0, ta: -1, tb: -1, pa: -1, pb: -1, key1, key2 });
+        let secs = 0;
+        let rearm = 0;
+        if (g.kind === 'isolator') {
+          secs = g.seconds;
+          rearm = g.rearm ?? 0;
+        } else if (g.kind === 'pickup' && !g.perPlayer && consoles) {
+          for (const c of consoles) {
+            if (c.id === g.switchId && c.flag === g.flag && c.seconds !== undefined && c.seconds > 0) {
+              secs = c.seconds;
+              rearm = c.rearm ?? 0;
+            }
+          }
+        }
+        this.gates.push({ def: g, doors: gateDoors(g), bay: i, open: false, t: 0, holders: 0, ta: -1, tb: -1, pa: -1, pb: -1, key1, key2, secs, rearm });
       }
+      const fd: { d: DrillDef; flag: string }[] = [];
       for (const d of b.drills) {
         this.drillIdx.set(d, this.ticks.length);
         this.ticks.push([0, 0]);
+        if (d.verb.startsWith(FLAG_VERB)) fd.push({ d, flag: d.verb.slice(FLAG_VERB.length) });
       }
+      this.flagDrills.push(fd);
+      this.roleKeys.push([`role:${b.id}:A=P1`, `role:${b.id}:A=P2`]);
+    });
+    def.bays.forEach((b) => {
+      const list: StepRt[] = [];
+      for (const o of def.objectives ?? []) {
+        if (o.bay !== b.id) continue;
+        const cond = o.done === undefined ? null : Array.isArray(o.done) ? this.condAny(o.done) : this.condRt(o.done);
+        list.push({ o, key: `obj:${o.id}`, cond, timer: o.timer !== undefined ? this.gateRt(o.timer) : null });
+      }
+      this.steps.push(list);
     });
     this.emitBayStarted();
+  }
+
+  private gateRt(id: string): GateRt | null {
+    for (const g of this.gates) if (g.def.id === id) return g;
+    return null;
+  }
+
+  private condAny(list: readonly StepCond[]): CondRt {
+    return { k: 3, flag: '', key1: '', key2: '', who: 0, gate: null, kids: list.map((c) => this.condRt(c)) };
+  }
+
+  private condRt(c: StepCond): CondRt {
+    if ('all' in c) return { k: 2, flag: '', key1: '', key2: '', who: 0, gate: null, kids: c.all.map((x) => this.condRt(x)) };
+    if ('gate' in c) return { k: 1, flag: '', key1: '', key2: '', who: 0, gate: this.gateRt(c.gate), kids: [] };
+    return { k: 0, flag: c.flag, key1: `${c.flag}@1`, key2: `${c.flag}@2`, who: c.who === 'a' ? 1 : c.who === 'b' ? 2 : 0, gate: null, kids: [] };
   }
 
   get currentBay(): BayDef {
     return this.def.bays[this.bay]!;
   }
 
-  /** Lead of the current bay. */
+  /** Lead (the A job) of the current bay: a role claim, else the swap rule. */
   get lead(): PlayerIdx {
-    return leadOf(this.bay);
+    return this.roleA(this.bay);
+  }
+
+  /** (gap list 6b) The player with the A job in bay `bayIdx`: the bay's role claim, else `leadOf` (the swap rule). */
+  roleA(bayIdx: number): PlayerIdx {
+    const k = this.roleKeys[bayIdx];
+    if (k) {
+      if (this.flags.has(k[0])) return 0;
+      if (this.flags.has(k[1])) return 1;
+    }
+    return leadOf(bayIdx);
+  }
+
+  /** Has a role been claimed in bay `bayIdx` (default current)? */
+  roleClaimed(bayIdx = this.bay): boolean {
+    const k = this.roleKeys[bayIdx];
+    return !!k && (this.flags.has(k[0]) || this.flags.has(k[1]));
   }
 
   clearEvents(): void {
@@ -185,6 +326,7 @@ export class CourseState {
     this.feet[p * 3 + 1] = y;
     this.feet[p * 3 + 2] = z;
     this.downed[p] = downed;
+    this.feetSet[p] = true;
   }
 
   /** A course door's plan centre (the mode sets the airlocks' rear doors once): the cycle waits while it is occupied. */
@@ -199,17 +341,55 @@ export class CourseState {
     else this.groupsOff.add(group);
     for (let i = 0; i < this.gates.length; i++) {
       const g = this.gates[i]!;
-      if (g.def.kind !== 'mains' || g.def.group !== group) continue;
+      const d = g.def;
+      // (N2) the circuit came back on by other means (a wall switch) while isolated: the window ends now
+      if (d.kind === 'isolator' && d.group === group && on && g.open) {
+        this.endWindow(g);
+        continue;
+      }
+      if (d.kind !== 'mains' || d.group !== group) continue;
       if (!on) this.setOpen(g, true);
       else if (!this.bothInside(this.exitAirlockOf(g.bay))) this.setOpen(g, false);
     }
   }
 
   setFlag(flag: string): void {
+    this.addFlag(flag, this.bay);
+  }
+
+  /**
+   * (N3) Clear a course flag (a timed console's loop ran out): the cameras reading it come back, flag gates on it relock.
+   * Steps already latched stay done; drills stay ticked.
+   */
+  clearFlag(flag: string): void {
+    if (!this.flags.delete(flag)) return;
+    this.flagBay.delete(flag);
+    this.tickGen++;
+    this.events.push({ t: 'flagCleared', flag });
+  }
+
+  /** Set a flag (owned by bay `bay`: its restart clears it); `flag:<flag>` drills of the current bay tick (6a). */
+  private addFlag(flag: string, bay: number): void {
     if (this.flags.has(flag)) return;
     this.flags.add(flag);
-    this.flagBay.set(flag, this.bay);
+    this.flagBay.set(flag, bay);
+    this.tickGen++;
     this.events.push({ t: 'flagSet', flag });
+    if (this.over) return;
+    const fd = this.flagDrills[this.bay]!;
+    for (let i = 0; i < fd.length; i++) {
+      const e = fd[i]!;
+      const f = e.flag;
+      // a shared flag ticks every player the drill is open for; `<flag>@1` / `@2` that player only
+      if (flag === f) {
+        this.tickOne(e.d, 0);
+        this.tickOne(e.d, 1);
+      } else if (flag.length === f.length + 2 && flag.startsWith(f) && flag.charCodeAt(f.length) === 64 /* @ */) {
+        const p: PlayerIdx = flag.charCodeAt(f.length + 1) === 49 /* 1 */ ? 0 : 1;
+        this.tickOne(e.d, p);
+        if (this.solo) this.tickOne(e.d, p === 0 ? 1 : 0);
+      }
+    }
   }
 
   /** A flag set globally or by either player. */
@@ -236,6 +416,7 @@ export class CourseState {
     if (this.over || this.downed[p]) return null;
     const a = this.airById.get(id);
     if (a) return this.airRefusalFor(a, p);
+    this.claimByPress(id, p);
     let refusal: string | null = null;
     for (let i = 0; i < this.gates.length; i++) {
       const g = this.gates[i]!;
@@ -260,13 +441,31 @@ export class CourseState {
           break;
         case 'pickup':
           if (d.switchId === id) {
-            const flag = d.perPlayer ? (p === 0 ? g.key1 : g.key2) : d.flag;
-            if (!this.flags.has(flag)) {
-              this.flags.add(flag);
-              this.flagBay.set(flag, g.bay);
-              this.events.push({ t: 'flagSet', flag });
+            if (g.secs > 0) {
+              // (N3) a timed console: one loop at a time, then the re-arm
+              if (g.open) break;
+              if (this.clock < g.tb) {
+                refusal = REFUSE_CONSOLE_REARM;
+                break;
+              }
+              g.t = g.secs;
+              g.tb = -1;
             }
+            const flag = d.perPlayer ? (p === 0 ? g.key1 : g.key2) : d.flag;
+            this.addFlag(flag, g.bay);
             this.setOpen(g, true);
+          }
+          break;
+        case 'isolator':
+          if (!g.open && d.switchIds.includes(id)) {
+            // (N2) presses while isolated do nothing; inside the re-arm time the press is refused
+            if (this.clock < g.tb) refusal = REFUSE_ISO_REARM;
+            else {
+              g.t = g.secs;
+              g.tb = -1;
+              g.pa = p;
+              this.setOpen(g, true);
+            }
           }
           break;
         default:
@@ -388,6 +587,8 @@ export class CourseState {
       a.t = 0;
     }
     this.downT = 0;
+    this.roleHoldT = ROLE_HOLD;
+    this.tickGen++;
     const squad = this.currentBay.squad.slice();
     this.events.push({ t: 'bayRestart', bay: this.currentBay.id, squad });
     return squad;
@@ -400,6 +601,15 @@ export class CourseState {
     this.stats[this.bay]!.time += dt;
     for (let i = 0; i < this.gates.length; i++) {
       const g = this.gates[i]!;
+      if (g.secs > 0) {
+        // (N2 / N3) a timed window: the warning, then the end and the re-arm
+        if (!g.open || g.t <= 0) continue;
+        const before = g.t;
+        g.t -= dt;
+        if (before > TIMED_WARN + 1e-9 && g.t <= TIMED_WARN + 1e-9) this.events.push({ t: 'gateWarn', gate: g.def.id });
+        if (g.t <= 1e-9) this.endWindow(g);
+        continue;
+      }
       if (g.def.kind !== 'timedHold' || g.holders !== 0 || g.t <= 0) continue;
       g.t -= dt;
       if (g.t <= 1e-9) {
@@ -407,6 +617,9 @@ export class CourseState {
         this.setOpen(g, false);
       }
     }
+    if (this.roleHoldT > 0) this.roleHoldT -= dt;
+    else this.stepRoles();
+    this.latchSteps();
     const a = this.airById.get(this.currentBay.exit);
     if (a && a.phase !== 'sealed') this.stepAirlock(a, dt);
     // the exit zone (G138): both players in it ends the course (the "Finish" device is the fallback without a zone)
@@ -428,12 +641,28 @@ export class CourseState {
       if (a.def.nearDoor === doorId && (a.phase === 'sealed' || a.phase === 'cycling')) return true;
       if (a.def.farDoor === doorId && a.phase !== 'sealed') return true;
     }
+    // every other gate on the door must be open (Fallow's L9 lift door: three keys and the pair); an open egress gate releases
+    // the door on its own (marlow-final A8: the grille's mains gate or its request-to-exit opens it)
+    let egress = false;
+    let other = false;
+    let otherShut = false;
     for (let i = 0; i < this.gates.length; i++) {
       const g = this.gates[i]!;
       const doors = g.doors;
-      for (let j = 0; j < doors.length; j++) if (doors[j] === doorId && !this.gateOpen(g)) return true;
+      for (let j = 0; j < doors.length; j++) {
+        if (doors[j] !== doorId) continue;
+        const open = this.gateOpen(g);
+        if (g.def.kind === 'egress') {
+          if (open) return false;
+          egress = true;
+        } else {
+          other = true;
+          if (!open) otherShut = true;
+        }
+      }
     }
-    return false;
+    // a door with only egress gates stays locked until one opens
+    return other ? otherShut : egress;
   }
 
   /** Is the anchor locked (an anchorLock gate whose flag is not set)? */
@@ -520,7 +749,7 @@ export class CourseState {
   drillComplete(d: DrillDef, bayIdx = this.bay): boolean {
     const n = this.ticks[this.drillIdx.get(d)!]!;
     const c = d.count ?? 1;
-    const lead = leadOf(bayIdx);
+    const lead = this.roleA(bayIdx);
     switch (d.who) {
       case 'both':
         return n[0] >= c && n[1] >= c;
@@ -541,7 +770,7 @@ export class CourseState {
   /** Is drill `d` player `p`'s to do (in bay `bayIdx`, default current)? `either` drills are both players'. */
   drillIsFor(d: DrillDef, p: PlayerIdx, bayIdx = this.bay): boolean {
     if (d.who === 'both' || d.who === 'either') return true;
-    const lead = leadOf(bayIdx);
+    const lead = this.roleA(bayIdx);
     return d.who === 'lead' ? p === lead : p !== lead;
   }
 
@@ -549,7 +778,7 @@ export class CourseState {
   drillOpenFor(d: DrillDef, p: PlayerIdx, bayIdx = this.bay): boolean {
     const n = this.ticks[this.drillIdx.get(d)!]!;
     const c = d.count ?? 1;
-    const lead = leadOf(bayIdx);
+    const lead = this.roleA(bayIdx);
     switch (d.who) {
       case 'both':
         return n[p] < c;
@@ -589,8 +818,106 @@ export class CourseState {
       t.revives += s.revives;
       t.teamMoves += s.teamMoves;
       t.bodies += s.bodies;
+      t.synced += s.synced;
     }
     return t;
+  }
+
+  // ---- objective steps (N1) ----
+
+  /** The objective steps of bay `bayIdx` (default current), in route order. */
+  stepsOf(bayIdx = this.bay): readonly CourseObjective[] {
+    const list = this.stepList(bayIdx);
+    return list.length ? (this.stepObjs[bayIdx] ??= list.map((s) => s.o)) : NO_STEPS;
+  }
+  private readonly stepObjs: CourseObjective[][] = [];
+
+  /** Is step `o` done? A step with `done`: latched (its `obj:<id>` flag). One without: its bay is done. */
+  stepDone(o: CourseObjective): boolean {
+    const s = this.stepRtOf(o);
+    if (!s) return false;
+    if (s.cond) return this.flags.has(s.key);
+    const bi = this.bayIndexOf(o.bay);
+    return this.over || (bi >= 0 && this.done[bi] === true);
+  }
+
+  /** Is step `id` done (tests, debug)? */
+  isStepDone(id: string): boolean {
+    for (let b = 0; b < this.steps.length; b++) {
+      const list = this.steps[b]!;
+      for (let i = 0; i < list.length; i++) if (list[i]!.o.id === id) return this.stepDone(list[i]!.o);
+    }
+    return false;
+  }
+
+  /** The current bay's first open step with `done` (an objective table row), or null when they are all done. */
+  currentStep(): CourseObjective | null {
+    const list = this.stepList(this.bay);
+    for (let i = 0; i < list.length; i++) {
+      const s = list[i]!;
+      if (s.cond && !this.flags.has(s.key)) return s.o;
+    }
+    return null;
+  }
+
+  /** The current bay's last line (its first step without `done`), or null. */
+  finalStep(): CourseObjective | null {
+    const list = this.stepList(this.bay);
+    for (let i = 0; i < list.length; i++) if (!list[i]!.cond) return list[i]!.o;
+    return null;
+  }
+
+  /** Player `p`'s job in the current bay: 'a' (the lead, or a claim) or 'b'. */
+  roleOf(p: PlayerIdx): 'a' | 'b' {
+    return this.lead === p ? 'a' : 'b';
+  }
+
+  /** Player `p`'s line for step `o` (the A or B line by their job), or the shared line when the step has none. */
+  stepLine(o: CourseObjective, p: PlayerIdx): string {
+    const own = this.roleOf(p) === 'a' ? o.a : o.b;
+    return own ?? o.text;
+  }
+
+  /** Seconds left on step `o`'s `timer` gate while its window runs (0: none or not running). */
+  stepTimer(o: CourseObjective): number {
+    const g = this.stepRtOf(o)?.timer;
+    if (!g || !this.gateOpen(g)) return 0;
+    if (g.secs > 0 || g.def.kind === 'timedHold') return Math.max(0, g.t);
+    return 0;
+  }
+
+  /** Seconds left on timed gate `gateId`'s window (0: not running). */
+  gateTimer(gateId: string): number {
+    const g = this.gateRt(gateId);
+    return g && g.open ? Math.max(0, g.t) : 0;
+  }
+
+  /** Seconds until timed gate `gateId` re-arms (0: ready). */
+  gateRearm(gateId: string): number {
+    const g = this.gateRt(gateId);
+    return g && g.tb > this.clock ? g.tb - this.clock : 0;
+  }
+
+  /** (guard-ai S22, G6, A133) A guard turned console gate `gateId` back on: as its loop running out (the flag clears,
+   *  the cameras come back, the gate closes, a timed console's re-arm starts). False: not a pickup gate or its flag was
+   *  not set. Host only. */
+  consoleBack(gateId: string): boolean {
+    const g = this.gateRt(gateId);
+    if (!g || g.def.kind !== 'pickup' || !this.flags.has(g.def.flag)) return false;
+    this.endWindow(g);
+    return true;
+  }
+
+  /**
+   * Client mirror, per frame: run the timed windows down between two `course` messages (display only: nothing opens or
+   * closes here; the next message corrects it). No allocation.
+   */
+  advanceMirror(dt: number): void {
+    this.clock += dt;
+    for (let i = 0; i < this.gates.length; i++) {
+      const g = this.gates[i]!;
+      if (g.open && g.t > 0 && (g.secs > 0 || (g.def.kind === 'timedHold' && g.holders === 0))) g.t = Math.max(0, g.t - dt);
+    }
   }
 
   // ---- serialisation ----
@@ -667,6 +994,99 @@ export class CourseState {
 
   // ---- internals ----
 
+  private stepList(bayIdx: number): StepRt[] {
+    return this.steps[bayIdx] ?? NO_STEP_RT;
+  }
+
+  private stepRtOf(o: CourseObjective): StepRt | null {
+    for (let b = 0; b < this.steps.length; b++) {
+      const list = this.steps[b]!;
+      for (let i = 0; i < list.length; i++) if (list[i]!.o === o) return list[i]!;
+    }
+    return null;
+  }
+
+  private bayIndexOf(id: string): number {
+    const bays = this.def.bays;
+    for (let i = 0; i < bays.length; i++) if (bays[i]!.id === id) return i;
+    return -1;
+  }
+
+  /** (N2 / N3) A timed window ends: a timed console's flag clears; the gate closes and the re-arm starts. */
+  private endWindow(g: GateRt): void {
+    g.t = 0;
+    g.tb = g.rearm > 0 ? this.clock + g.rearm : -1;
+    if (g.def.kind === 'pickup') this.clearFlag(g.def.flag);
+    this.setOpen(g, false);
+  }
+
+  /** (N1) Latch the current bay's steps whose condition holds (host, per step; no allocation unless one latches). */
+  private latchSteps(): void {
+    const list = this.stepList(this.bay);
+    for (let i = 0; i < list.length; i++) {
+      const s = list[i]!;
+      if (!s.cond || this.flags.has(s.key) || !this.condHolds(s.cond)) continue;
+      this.addFlag(s.key, this.bay);
+      this.events.push({ t: 'stepDone', step: s.o.id });
+    }
+  }
+
+  private condHolds(c: CondRt): boolean {
+    switch (c.k) {
+      case 0: {
+        if (c.who === 0) return this.flags.has(c.flag) || this.flags.has(c.key1) || this.flags.has(c.key2);
+        const a = this.lead;
+        const p = c.who === 1 ? a : a === 0 ? 1 : 0;
+        return this.flags.has(c.flag) || this.flags.has(p === 0 ? c.key1 : c.key2);
+      }
+      case 1:
+        return !!c.gate && this.gateOpen(c.gate);
+      case 2:
+        for (let i = 0; i < c.kids.length; i++) if (!this.condHolds(c.kids[i]!)) return false;
+        return true;
+      case 3:
+        for (let i = 0; i < c.kids.length; i++) if (this.condHolds(c.kids[i]!)) return true;
+        return false;
+    }
+  }
+
+  /** (6b) The current bay's claims by zone: the first player standing in a claim zone takes its job. */
+  private stepRoles(): void {
+    const roles = this.currentBay.roles;
+    if (!roles || this.roleClaimed()) return;
+    for (let r = 0; r < roles.length; r++) {
+      const c = roles[r]!;
+      const zn = c.zone;
+      if (!zn) continue;
+      for (let p = 0 as PlayerIdx; p < 2; p = (p + 1) as PlayerIdx) {
+        if (!this.feetSet[p] || this.downed[p]) continue;
+        if (inZone(zn, this.feet[p * 3]!, this.feet[p * 3 + 1]!, this.feet[p * 3 + 2]!)) {
+          this.claim(p, c);
+          return;
+        }
+      }
+    }
+  }
+
+  /** (6b) A press on a claim device of the current bay takes its job (first claim only). */
+  private claimByPress(id: string, p: PlayerIdx): void {
+    const roles = this.currentBay.roles;
+    if (!roles || this.roleClaimed()) return;
+    for (let r = 0; r < roles.length; r++) {
+      const c = roles[r]!;
+      if (c.press && c.press.includes(id)) {
+        this.claim(p, c);
+        return;
+      }
+    }
+  }
+
+  private claim(p: PlayerIdx, c: RoleClaim): void {
+    const a: PlayerIdx = c.role === 'a' ? p : p === 0 ? 1 : 0;
+    this.addFlag(this.roleKeys[this.bay]![a], this.bay);
+    this.events.push({ t: 'roleClaimed', bay: this.currentBay.id, a });
+  }
+
   private emitBayStarted(): void {
     const b = this.currentBay;
     this.events.push({ t: 'bayStarted', bay: b.id, squad: b.squad.slice() });
@@ -690,11 +1110,8 @@ export class CourseState {
     // (sector-redesign E3) the rule is shared with Sector Ops (`pairPress.ts`): two different players, unless the dev
     // solo flag lets one work both halves (A6), within the window
     if (!pressPairHalf(g, isA, p, this.clock, g.def.window ?? PAIR_WINDOW, this.solo)) return REFUSE_PAIR;
-    if (g.def.flag !== undefined && !this.flags.has(g.def.flag)) {
-      this.flags.add(g.def.flag);
-      this.flagBay.set(g.def.flag, g.bay);
-      this.events.push({ t: 'flagSet', flag: g.def.flag });
-    }
+    // (marlow-final) addFlag also ticks the bay's flag drills
+    if (g.def.flag !== undefined) this.addFlag(g.def.flag, g.bay);
     this.setOpen(g, true);
     return null;
   }

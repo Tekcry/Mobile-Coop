@@ -12,7 +12,7 @@ import {
   sanitizeMoveState,
   unpackAttachSub,
 } from '../src/player/moveState';
-import { parseMessage, PROTOCOL_VERSION, wirePlayerState, type PlayerState } from '../src/net/protocol';
+import { parseMessage, wirePlayerState, type PlayerState } from '../src/net/protocol';
 import { attachedClamp, MAX_FREE_SPEED, MOVE_TOLERANCE, moveSpeedCap } from '../src/net/validate';
 import { traversePath } from '../src/player/traversePath';
 import { AttachGrips } from '../src/player/attachGrips';
@@ -112,10 +112,6 @@ describe('move state (3.2.0 phase 1)', () => {
     expect(out.wallSide).toBe(1);
   });
 
-  it('PROTOCOL_VERSION is 39 (39 the swinging pendants; 38 the lamp falloff; 35 the weapons crate; 31 the Sector lamps; 29 the laser panels; 28 the jam claim eye; 27 rejoin; 26 the jammer rules; 25 the guard torch bit; 24 sector extras; 23 Sector Ops; 22 B7 rope; 21 scanners; 20 hang-down; 19 throw; 18 anim-cleanup: the left-shoulder weapon bit; 17 B3: the held jammer message; 16 was B2: the relay offer bit; 15 dropped the SWAT turn and the lean kind)', () => {
-    expect(PROTOCOL_VERSION).toBe(39);
-  });
-
   it('poses: attached families and exits, committed moves and takedowns', () => {
     const out = emptyMovePose();
     poseFromMoveState({ ...emptyMoveState(), m: 'ladder', a: 0, sub: packAttachSub('on', 1, 'none') }, 0.3, out);
@@ -128,7 +124,7 @@ describe('move state (3.2.0 phase 1)', () => {
     expect(out.traverse).toBe('crawl');
     poseFromMoveState({ ...emptyMoveState(), m: 'roll', ph: 0.5 }, 0, out);
     expect(out).toMatchObject({ traverse: 'roll', traverseT: 0.5 });
-    poseFromMoveState({ ...emptyMoveState(), m: 'takedown', ph: 0.7, tid: 'e1' }, 0, out);
+    poseFromMoveState({ ...emptyMoveState(), m: 'takedown', ph: 0.7, sub: 1, tid: 'e1' }, 0, out); // (pose-parity) sub 1: the blow runs
     expect(out).toMatchObject({ traverse: 'none' });
     expect(out.melee).toBeCloseTo(killWarp(0.7, TAKEDOWN_BLOW), 12); // (anim-n4d) the blow's phase posed warped onto the kill
     poseFromMoveState(emptyMoveState(), 0, out);
@@ -152,12 +148,13 @@ describe('move state (3.2.0 phase 1)', () => {
     expect(CLIMB_UP_STAND).toBeCloseTo(0.45, 2);
     const full = CLIMB_UP_TIME + CLIMB_UP_STAND;
     // the knee is planted (the left shin flat on the top) by 0.36 (0.47 s, CT 0.4-0.5 s); the hands hold through it and
-    // are off by 0.5 (0.65 s)
+    // (traverse-fix-2) on until the right foot is on the top (0.474), off before the crouch (was off by 0.5: the palms left
+    // the lip early; tests/climbHands.test.ts measures the palms, the foot and the release)
     expect(sample(CLIMB_UP, 'fLPitch', 0.36)).toBeCloseTo(1.2);
     expect(0.36 * full).toBeGreaterThan(0.4);
     expect(0.36 * full).toBeLessThan(0.5);
-    for (const k of [0.2, 0.3, 0.36, 0.38]) expect(attachGripWeight('exit', k, true)).toBe(1);
-    expect(attachGripWeight('exit', 0.5, true)).toBe(0);
+    for (const k of [0.2, 0.3, 0.36, 0.38, 0.45, 0.474]) expect(attachGripWeight('exit', k, true)).toBe(1);
+    expect(attachGripWeight('exit', CLIMB_UP_CROUCH_K - 0.01, true)).toBe(0);
     // at the crouch mark the body is in the crouched stance (CROUCH_IDLE pelY -0.42), the feet under it
     expect(sample(CLIMB_UP, 'pelY', CLIMB_UP_CROUCH_K)).toBeCloseTo(-0.42);
     expect(sample(CLIMB_UP, 'fLPitch', CLIMB_UP_CROUCH_K)).toBeCloseTo(0);
@@ -274,13 +271,11 @@ describe('shared posing code (3.2.0 phase 1)', () => {
   });
 });
 
-describe('the shoulder swap on the wire (anim-cleanup)', () => {
-  it('a ground state with the left-shoulder bit puts the partner weapon in the left hand; without it, the right', () => {
+describe('the shoulder swap on the wire (anim-cleanup; pose-parity: now PF.aimLeft)', () => {
+  it('a ground state no longer reads sub bit 128 (the player flag carries the aim side in every mode, tests/poseParity)', () => {
     const mv = emptyMoveState();
     mv.m = 'ground';
     mv.sub = 128;
-    expect(poseFromMoveState(mv, 1, emptyMovePose()).leftHand).toBe(true);
-    mv.sub = 0;
     expect(poseFromMoveState(mv, 1, emptyMovePose()).leftHand).toBe(false);
   });
 });

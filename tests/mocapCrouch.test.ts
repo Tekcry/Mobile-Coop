@@ -18,6 +18,8 @@ import { AnimGraph, defaultInput } from '../src/anim/animGraph';
 import { proportions } from '../src/player/proportions';
 import { driveRig, plantSlide, pops, POP_DEG, type Plan, type Rec } from './helpers/mocapMeasure';
 import { bytesPerCall, HEAP_NUMBER, inputs } from './helpers/allocPerCall';
+import { crouchScenarios, measureAll, rampDelta, type Measures } from './helpers/afpMeasure';
+import { GEARS } from '../src/config/movement';
 
 const SET = MOCAP_SET as { -readonly [K in keyof LocoClipSet]: LocoClipSet[K] };
 afterEach(() => {
@@ -104,9 +106,11 @@ describe('mocap crouch: the crouched sneak on the rig (switch ON against OFF)', 
     for (const v of [0.5, 0.8, 0.9]) {
       const { off, on } = await both(`steady ${v}`, 60 * 5, (_k, t) => ({ speed: v, yawRate: 0, rec: t > 2, crouch: 1 }));
       expect(on.step).toBeLessThanOrEqual(POP_DEG);
-      // as captured (M1, notes): hips about 11 cm higher than the hand-keyed sneak, the trunk about 43 deg over
-      expect(on.hipY - off.hipY).toBeGreaterThan(0.08);
-      expect(on.trunk).toBeGreaterThan(35);
+      // (afp AF3) the capture carried as the crouch walk (MOCAP_CROUCH_POSE): trunk 30-38 deg (was 43 as captured) and the
+      // hips no longer 8+ cm over the hand-keyed sneak (11 cm before; the gears 1-3 height bar is in the AF3 block below)
+      expect(on.trunk).toBeGreaterThanOrEqual(30);
+      expect(on.trunk).toBeLessThanOrEqual(38);
+      expect(on.hipY - off.hipY, `v ${v} on ${on.hipY.toFixed(3)} off ${off.hipY.toFixed(3)}`).toBeLessThan(0.08);
       expect(off.trunk).toBeLessThan(30);
     }
   }, 120_000);
@@ -148,6 +152,48 @@ describe('mocap crouch: the crouched sneak on the rig (switch ON against OFF)', 
       });
     }
   }, 240_000);
+});
+
+describe('(afp AF3) the balanced crouch: one carriage across gears 1-3 (AF0 harness, CT-driven, mocap on)', () => {
+  it('trunk 30-38 deg, hips within 5 cm, CoM within 5 cm of the feet, sway <= 5 cm, step 0.40-0.50 m, idle unchanged', async () => {
+    const out: string[] = [];
+    const rows: Record<string, Measures> = {};
+    for (const s of crouchScenarios()) {
+      const run = await s.run();
+      const m = await measureAll(run, s.sg);
+      rows[s.name] = m;
+      let x = '';
+      if (s.name === 'crouch-ramp-1to3') {
+        const r = rampDelta(run.R);
+        x = `, ramp trunk ${r.trunk.toFixed(1)} deg hips ${(r.hipY * 100).toFixed(1)} cm`;
+        // the gear 1 -> 3 ramp keeps its shape (was -15 deg, -6.9 cm)
+        expect(Math.abs(r.trunk), s.name).toBeLessThanOrEqual(6);
+        expect(Math.abs(r.hipY), s.name).toBeLessThanOrEqual(0.05);
+      }
+      out.push(`${s.name}: trunk ${m.trunkMean_deg.toFixed(1)} hips ${m.hipY_cm.toFixed(1)} CoM ${m.comDouble_cm.toFixed(1)} sway ${m.pelLatP2P_cm.toFixed(1)} step ${m.stepLen_cm.toFixed(1)} slide ${m.slide_cm.toFixed(2)}${x}`);
+    }
+    console.info(out.join('\n'));
+    // the crouched idle unchanged (AF0 before 28.4 deg on this measure)
+    expect(Math.abs(rows['crouch-idle']!.trunkMean_deg - 28.4)).toBeLessThanOrEqual(2);
+    const gears = GEARS.crouch.slice(0, 3).map((v, g) => rows[`crouch-gear${g + 1}-${v}`]!);
+    for (const [g, m] of gears.entries()) {
+      const msg = `gear ${g + 1}: ${out[g + 1]}`;
+      expect(m.trunkMean_deg, msg).toBeGreaterThanOrEqual(30);
+      expect(m.trunkMean_deg, msg).toBeLessThanOrEqual(38);
+      expect(Math.abs(m.comDouble_cm), msg).toBeLessThanOrEqual(5);
+      expect(m.pelLatP2P_cm, msg).toBeLessThanOrEqual(5);
+      expect(m.slide_cm, msg).toBeLessThanOrEqual(1);
+      // step 0.40-0.50 m at 1.3-1.7 m/s (gears 2-3)
+      if (g > 0) {
+        expect(m.stepLen_cm, msg).toBeGreaterThanOrEqual(40);
+        expect(m.stepLen_cm, msg).toBeLessThanOrEqual(50);
+      }
+    }
+    const hy = gears.map((m) => m.hipY_cm);
+    expect(Math.max(...hy) - Math.min(...hy), out.join('; ')).toBeLessThanOrEqual(5);
+    const tr = gears.map((m) => m.trunkMean_deg);
+    expect(Math.max(...tr) - Math.min(...tr), out.join('; ')).toBeLessThanOrEqual(6);
+  }, 600_000);
 });
 
 describe('mocap crouch: no allocation per frame', () => {

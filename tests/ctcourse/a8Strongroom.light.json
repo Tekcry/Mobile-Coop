@@ -1,0 +1,22 @@
+{
+ "levels": {
+  "A8 front": 0.77,
+  "A8 front cut": 0.14,
+  "A8 grille approach": 0.64,
+  "A8 grille approach cut": 0.22,
+  "A8 board": 0.14,
+  "A8 board cut": 0.14,
+  "A8 jam spot": 0.14,
+  "A8 leg-up mark": 0.14,
+  "A8 vestibule": 0.14,
+  "A8 gallery east": 0.59,
+  "A8 gallery east cut": 0.23,
+  "A8 gallery west": 0.14,
+  "A8 office": 0.82,
+  "A8 office cut": 0.14,
+  "A8 T1": 0.79,
+  "A8 T2": 0.83,
+  "A8 hall floor": 0.23,
+  "A8 hall standby": 0.14
+ }
+}

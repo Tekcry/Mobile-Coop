@@ -68,6 +68,18 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   gates read them, so a jam never counts as the group switched off.
 - Gameplay reads only the field: `GameState.updateLight` (10 Hz, the local player and, on the host, every remote player's
   `PlayerRef.light`), `Enemy.perceive`, body light (`EnemyManager`, 1 Hz), `Enemy.torchWanted`.
+- (guard-ai S15) Guards turn circuits back on: a guard who resets a breaker calls `StealthSystems.resetCircuit`, the
+  player's own `toggle` (`LightRegistry.setGroup`, the switch labels and indicator, the `lightSwitch` event), so the field,
+  the meter, perception and the picture follow as for a player press; co-op clients get it through the existing light
+  sync (Sector Ops `lamps`, `net/lampSync.ts`, reads `baseOn`; Course `lights.groups` reads `groupBaseOn`): no wire
+  change. `setGroup` skips destroyed lamps, so a shot lamp is never relit. A course mains gate's circuit is never
+  relit by a guard (`StealthSystems.mainsGroups`: cutting it opens the gate). Late discovery reads the registry only
+  (`destroyed`, `baseOn`, `group`, `version`) and collision for its one ray (`ai/breaker.ts` `DarkList`).
+- (guard-ai LR16-4) The board switch-back sink is wired: `IsolatorBoards.switchBack(i)` (`game/isolators.ts`, the old
+  "GA4 hook point") is what a guard's breaker walk calls at a cut breaker board (`StealthSystems.breakerHost.reset`), so
+  every circuit of the board comes back through `restore` -> `setGroup` -> the sink's `back(i, BACK_HAND)`, as a player's
+  switch-back (labels, wall switches, the `lightSwitch` event, the co-op `lamps` sync). Shot lamps stay dark. A running
+  timed window is the player's: `switchBack` refuses it and the timer brings the circuits back.
 - Guard flashlights (`world/torches.ts`, pure; coop-torches): `addTorchSlots` (dark maps: `FLASHLIGHTS` 4 slots,
   radius 13, intensity 0.85, cone 0.34 / 0.2 rad), `placeTorch` (eye height x scale, 0.35 m ahead, 0.15 m right,
   pitched 0.16 rad down; crouched past half way 1.0 m) and `beamReach` (rendering only) are the one code for the host
@@ -78,7 +90,15 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   from a host-built and a client-built torch.
 - `world/lights.ts` (pure): `LightRegistry` holds state only (lights, on / destroyed, groups, EMP, `zones`, `ambientAt` /
   `zoneAt`, `version`); `contribution` calls `lampMath`; `LIGHT` thresholds 0.28 / 0.6 (bible L6); `visibilityFromLight`;
-  `nearestLights`; `lightOnRay`.
+  `nearestLights`; `lightOnRay` (a padded fixture box or the bulb sphere along the round; walk 4.72: a round landing
+  within `LAMP_MOUNT_REACH` 0.35 m under a head, inside its footprint, counts too, so a head on top of its own pole breaks).
+  The reach is measured at the segment's end, so callers must pass the round's true landing, not a stretched or
+  range-length ray (`lampShotOk` tries the exact claimed landing first). A hit through the reach alone also needs a clear
+  static line straight up from just off the landing to the head's underside (`lampReachProbe`, polish2): a round on a
+  door soffit under a wall lamp on the far face does not break it. `StealthSystems.shotRay`, the client's `lampRay` and
+  the host's `onLampShot` all run that probe (`G.STATIC`), so host and client agree. The fixture box ignores the light's
+  `yaw` (axis-aligned `sx` / `sz`): a bulkhead on an x-facing wall keeps `sx` along x, so its footprint reaches ~0.14 m
+  into the wall; harmless with 0.2 m walls.
 - `world/lightRig.ts`: emissive bulbs (one thin-instanced mesh) for every light, and a fixed pool of `MAX_REAL_LIGHTS` spot
   lights given to the nearest lights at 4 Hz; quality sets how many are lit (`QualityLevel.realLights`). Pool lights are
   never enabled / disabled (no recompiles). Maps without lights create nothing.
@@ -101,7 +121,7 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   skips `detail` pieces); collision-only boxes (`visible: false`) are too. Neither changes the bake.
 
 ## Baked lamps (3.2)
-- `voxel/lampBake.ts` (pure, in the voxel workers): per fixed light (`bakedLights(reg)`: every kind but flashlight) a box
+- `voxel/lampBake.ts` (pure, in the bake workers): per fixed light (`bakedLights(reg)`: every kind but flashlight) a box
   over its reach of `LAMP_CELL` 0.2 m cells: the share of the fixture's sample points each air cell sees through
   conservative occupancy; solid cells take their brightest air neighbour. (LR16-L) The box's cell planes run through the
   light point (`lampBox`), so a lamp hung up to a cell under its mount sits under the mount's solid row and never shadows
@@ -111,8 +131,7 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   `lampColumnDist`: radius x sin(its widest angle from straight down) and the cone's plan box, lossless since the
   formula is 0 outside the outer angle; sector-fixes L). `voxel/lampJobs.ts` `bakeLevelLamps` splits the lights across the `WorkerPool`
   and caches (`lamps:` keys, `LAMP_VERSION`).
-- `world/bakedLamps.ts` `BakedLamps` (`World.lamps`; built on every path but `cheap` (`?gfx=min`), smooth default and
-  `?voxels=1` alike (smooth-world), `?baked=0` off): an R8 3D
+- `world/bakedLamps.ts` `BakedLamps` (`World.lamps`; built on every path but `cheap` (`?gfx=min`), `?baked=0` off): an R8 3D
   atlas + one RGBA32F data texture (per lamp 8 texels, the 8th its character shadow slot; `MAX_CAPSULES` 16 character
   capsules from `GameState.rtCapsules`, 4 per lamp, re-written each frame). `LampPlugin` (priority 250, on every `PBRMaterial` via `attachAll`): per pixel the lamps
   in its 2 m column - range falloff, cone, N.L - x the atlas x `lampCapsule` soft shadows, added to `finalDiffuse`.
@@ -204,9 +223,9 @@ change.
   directional = the moon, static; hemisphere = replaced by the ambient grid where the grid fills; the rest = flashlights
   and moving lights, added after the curve) on `finalDiffuse`, `finalIrradiance`, `finalRadianceScaled` and `finalAmbient`.
   Uniforms `lampDark`, `lampDarkP`.
-- Non-voxel surfaces (characters, props, weapons, and the level's own boxes on the smooth default) take the ambient grid
-  as their fill in place of the hemisphere; the voxels (`?voxels=1`) keep the sky bake's fill. `tests/smoothWorldLight.test.ts`
-  proves the light shapes and the light field are the same with voxels on or off.
+- Surfaces (characters, props, weapons, and the level's own boxes) take the ambient grid
+  as their fill in place of the hemisphere. `tests/smoothWorldLight.test.ts`
+  proves the light shapes and the light field are the same on every smooth path (Epic, Low, `?gfx=min`).
 - No light cones: a beam is not seen in clean air, only where it lands. The volumetric haze (post stack) stays. Research:
   `docs/research/night-vision-and-lamps.md`.
 - Volumetric beams (post stack, `src/vfx/volLights.ts`, vol-cone-fix): torches (`kind: 'flashlight'`) and cone lights
@@ -217,7 +236,7 @@ change.
 
 ## Night vision
 - Gain: `VISION_GAIN` 6, the darkness curve's floor eased up to `VISION_FLOOR` 1.0 under the goggles (`visionDark`);
-  `GameState` eases `BakedLamps.visionGain` with the goggles. Bodies: the flat ambient fill on non-voxel surfaces is
+  `GameState` eases `BakedLamps.visionGain` with the goggles. Bodies: the flat ambient fill on surfaces is
   scaled by `BODY_FILL` (nv 0.35, render path only; lamp light untouched).
 - The tube (`vfx/nightVision.ts`, pure; GLSL `NV_GLSL`): `CinematicPost` maps luma through `nvDrive` (contrast `gamma` 1.3)
   and `nvColor` (a green phosphor, tint 0.35 / 0.85 / 0.30, that clips to pale white from drive 0.85), adds intensifier
@@ -246,7 +265,7 @@ change.
 ## Thermal and electro (locomotion step 14)
 - `vfx/visionLook.ts` (pure, GLSL `VISION_GLSL`): a `vk` branch in the cinematic post pass (1 thermal, 2 electro). No new
   render target or material. Warm bodies and live devices set the free `pattern.w` channel of the PatternPlugin (per
-  instance, or per vertex on voxel bodies), a white emissive added to the lit colour; the ramp then colours by luma.
+  instance, or per vertex on merged guard bodies), a white emissive added to the lit colour; the ramp then colours by luma.
   Thermal softens with 4 taps in the same pass. Sensor grain and softening on all three modes (A87). Render-only: the light
   meter, the light bake and guard perception never read it.
 - What glows in each mode: `docs/systems/gadgets.md`.

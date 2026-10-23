@@ -11,43 +11,58 @@ import { MASK } from '../physics/groups';
 import { Hitboxes } from '../ai/hitboxes';
 import { noiseRadius } from '../player/movement';
 import { defaultHq, hqStats } from '../progression/suit';
+import { SD_OPEN_NOISE } from '../weapons/sdRounds';
 import type { NetSession } from './session';
 import { TickLimiter, type CourseWire } from '../game/course/courseWire';
 import type { SecWire } from '../game/ctDevices';
 import { syringesFor, type SectorNetExtra } from '../game/sectors';
-import { eventQueueKeeps, ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
+import { eventQueueKeeps, gaitWire, motionWire, ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, BARK_CAM, BARK_TEXT, hitConfirmKind, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
 import { HoldClock, holdFeed, stepHoldFeed, type HoldFeed } from './holdFeed';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
-import { checkBlast, checkShot, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile } from './validate';
+import { checkBlast, checkShot, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile, SHOT_UNDER, SHOT_UNDER_HANG } from './validate';
 import { localFlags, htmlToInfo } from './netShared';
 import { keepSimInBackground } from './bgTicks';
+import { hostHoldPulse, inUseReach } from './holdPulse';
 import { LAMP_LOS_SLACK, LampSender, lampShotOk, lampTargetId, SWAY_TARGET, swayShotOk, swayTargetId } from './lampSync';
+import { lampReachProbe } from '../world/lights';
 import { hyp2 } from '../core/mathx';
+import { barkIndex } from '../ai/barks';
+import { wireCarry } from './puppetCarry';
 import { localMoveState } from '../game/localMoveState';
 import { emptyMoveState, moveChanged } from '../player/moveState';
 import { hostCrackOk } from '../world/doorPeek';
 import { contactDelay, GRAB } from '../game/takedown';
+import { hangHoldStep, hangingMove, type HangSpot } from './hangHold';
 import { koCurve, type KoState } from '../game/closeQuarters';
 import { checkTeamRequest, type TeamKind, type TeamSide } from '../game/teamMoves';
 import { ThrowKo } from './throwKo';
 import { checkCommitted, type CKind, type CTargetView } from '../game/committedMoves';
 import { STRIKE, STRIKE_DUR } from '../game/elbowStrike';
+import { DualClock } from '../game/dualTakedown';
+import { assistHolder } from './assistTakedown';
+import type { TakedownVictim } from '../game/takedownController';
 import { stationHeal } from '../game/medkit';
 import { ReviveClock } from '../game/reviveClock';
 import type { CourseMode } from '../game/modes/courseMode';
 import type { PickupKind } from '../game/pickups';
+import { takeInfo } from '../ai/guardInfo';
+import { revealIntel } from '../game/intelReveal';
+import { interrogationEnded } from '../game/intel';
 import type { TeamMate } from '../game/teamController';
 import type { PlayerRef } from '../ai/enemy';
+import { ClockSync, HOST_INTERP_DELAY } from './interp';
+import { CT } from '../config/movement';
 
 import type { CharacterRig } from '../player/characterRig';
 
 const SNAP_HZ = 15;
 const HISTORY_HZ = 20;
 const MAX_REWIND = 0.6;
-const INTERP_DELAY = 0.1;
+/** (afp AF6) `HOST_INTERP_DELAY` (interp.ts; was 0.1). */
+const INTERP_DELAY = HOST_INTERP_DELAY;
 /** Items and door states are re-sent at least this often (s), else only when they change. */
 const ITEMS_EVERY = 2;
 /** Seconds to revive a downed team-mate (HQ medic training divides it). */
@@ -57,8 +72,6 @@ const SHOT_NOISE = 28;
 /** A client takedown: the victim within this of the client (m), and let go after this long without an outcome (s). */
 const TD_REACH = 3;
 const TD_MAX = 6;
-/** Two takedowns by different players this close together (s) make a dual takedown. */
-const DUAL_WINDOW = 1.5;
 
 interface Hist {
   t: number;
@@ -80,11 +93,12 @@ interface Hist {
 type Tally = EndStats['players'][string];
 const emptyTally = (): Tally => ({ kills: 0, headshots: 0, byKind: emptyKinds(), weaponKills: {} });
 
-/** The enemy alert level on the wire (`EnemyState.al`): level, seized and (25, coop-torches) his flashlight on. */
+/** The enemy alert level on the wire (`EnemyState.al`): level, seized, (25, coop-torches) his flashlight on and (32,
+ *  guard-ai S9) cautious, helmet, armour, (A126) his S21 weapon carry (read only: `Enemy.carry`'s phase). */
 function alertCode(e: Enemy, torch: boolean): number {
   const l = e.level;
   const a = l === 'alert' ? 3 : l === 'searching' ? 2 : l === 'suspicious' || l === 'investigating' ? 1 : 0;
-  return packAlert(a, e.taken, torch);
+  return packAlert(a, e.taken, torch, e.caution > 0, e.helmet, e.armour, wireCarry(e.carry.phase));
 }
 
 /**
@@ -105,6 +119,8 @@ export class CoopHost implements NetAttachment {
   private snapT = 0;
   private histT = 0;
   private noiseT = 0;
+  /** (spare 9) A client's interrogation progress per seized enemy (MoveState ph while sub bit 2; -1 none). */
+  private readonly interPh = new Map<string, number>();
   private itemsT = 0;
   private itemsSig = '';
   private doorsSig = '';
@@ -121,7 +137,14 @@ export class CoopHost implements NetAttachment {
   /** Revive points on downed players (co-op). */
   private revives = new Map<string, Interactable>();
   /** Enemies seized by a client's takedown: enemy id -> client id and seconds held; (hostage-gait) the hold point feed. */
-  private seized = new Map<string, { by: string; t: number; hostage?: boolean } & HoldFeed>();
+  private seized = new Map<string, { by: string; t: number; hostage?: boolean; hang?: HangSpot } & HoldFeed>();
+  /** (coop-walk-fixes P6) A client's team takedown under way on a partner's hostage: client id -> enemy id. */
+  private assists = new Map<string, string>();
+  /** (P6) A client's `grab` MoveState target ('' none), for `assistHolder` (bound once: no closure per call). */
+  private readonly grabTid = (id: string): string => {
+    const mv = this.remotes.get(id)?.state?.mv;
+    return mv && mv.m === 'grab' ? (mv.tid ?? '') : '';
+  };
   /** (hostage-gait) Render time vs sim time for the hold feed (set each frame with the remote bodies). */
   private readonly holdClock = new HoldClock();
   /** (G7) Scratch for a client hold's knockout pose. */
@@ -249,6 +272,8 @@ export class CoopHost implements NetAttachment {
       if (title !== 'DOWN' && title !== 'ELIMINATED') this.push({ e: 'banner', title, sub });
       banner(title, sub, ms);
     };
+    // (spare 9) interrogation intel reaches the team as feed lines
+    this.offs.push(this.g.events.on('intel', (ev) => { for (const text of ev.lines) this.push({ e: 'feed', text }); }));
   }
 
   private hookCombat(): void {
@@ -259,6 +284,20 @@ export class CoopHost implements NetAttachment {
       em.onKilled = (e, h) => {
         prevKilled?.(e, h);
         this.onKill(e, h);
+      };
+      // (32, guard-ai S9) every line the host shows goes to the clients: a table line by index (`barkLine` rebuilds
+      // it), a talking pair's line and the security desk's camera line as text
+      const prevBark = em.onBark;
+      em.onBark = (e, line, radio, ev, n, unit) => {
+        prevBark?.(e, line, radio, ev, n, unit);
+        const b = ev === undefined ? -1 : barkIndex(ev);
+        if (b >= 0) this.push({ e: 'bark', id: e.id, b, n: n ?? 0, u: unit ?? 0, r: radio });
+        else this.push({ e: 'bark', id: e.id, b: BARK_TEXT, n: 0, u: 0, r: radio, t: line });
+      };
+      const prevCam = em.onCameraLine;
+      em.onCameraLine = (cam, line) => {
+        prevCam?.(cam, line);
+        this.push({ e: 'bark', id: cam, b: BARK_CAM, n: 0, u: 0, r: true, t: line });
       };
       const prevShot = em.onEnemyShot;
       em.onEnemyShot = (e, from, to) => {
@@ -284,23 +323,21 @@ export class CoopHost implements NetAttachment {
     );
   }
 
-  /** Takedowns finished by two players within `DUAL_WINDOW` s: a dual takedown. */
-  private lastTd: { by: string; t: number } | null = null;
+  /** Takedowns finished by two players within `DUAL_WINDOW` s: a dual takedown (`DualClock`). */
+  private readonly dualClock = new DualClock();
   /** Dual takedowns this match (tests). */
   duals = 0;
 
   private takedownDone(by: string): void {
-    const l = this.lastTd;
-    if (l && l.by !== by && this.time - l.t <= DUAL_WINDOW) {
-      const sub = `${this.name(l.by)} + ${this.name(by)}`;
-      this.g.hud.banner('DUAL TAKEDOWN', sub, 1800);
-      this.push({ e: 'banner', title: 'DUAL TAKEDOWN', sub });
-      this.duals++;
-      this.g.style.record('takedownNonLethal', this.g.detected);
-      this.lastTd = null;
-      return;
-    }
-    this.lastTd = { by, t: this.time };
+    const first = this.dualClock.note(by, this.time);
+    if (first === null) return;
+    const sub = `${this.name(first)} + ${this.name(by)}`;
+    this.g.hud.banner('DUAL TAKEDOWN', sub, 1800);
+    this.push({ e: 'banner', title: 'DUAL TAKEDOWN', sub });
+    this.duals++;
+    // (spare 12, A3) counted as its own event for section-rating (no extra knockout)
+    this.g.style.record('dualTakedown', this.g.detected);
+    this.g.events.emit('dualTakedown', { a: first, b: by, detected: this.g.detected });
   }
 
   private push(e: NetEvent): void {
@@ -315,7 +352,7 @@ export class CoopHost implements NetAttachment {
   private addRemote(p: PlayerInfo): void {
     const g = this.g;
     const avatar = new RemoteAvatar(g.world, g.vfx, g.ballistics, p);
-    avatar.onFire = (cls, at) => g.events.emit('remoteShot', { cls, x: at.x, y: at.y, z: at.z });
+    avatar.onFire = (cls, at, gun, quiet) => g.events.emit('remoteShot', { cls, x: at.x, y: at.y, z: at.z, gun, quiet });
     const r = new RemotePlayer(g.scene, g.registry, p.id, avatar, this.spawnPoint(this.remotes.size + 1));
     r.onDamaged = (h) => this.push({ e: 'hurt', player: p.id, x: h.sourcePos.x, z: h.sourcePos.z, boom: h.kind === 'explosion' });
     r.onDeath = () => this.onRemoteDeath(r);
@@ -530,6 +567,28 @@ export class CoopHost implements NetAttachment {
 
   // --- incoming ---
 
+  /** (afp AF6) Per joiner: its send clock against ours (ClockSync), and the last stamp. */
+  private readonly sendClocks = new Map<string, { c: ClockSync; last: number }>();
+  /**
+   * (afp AF6) The local time (s) a joiner's state stands for: its send clock `t` mapped through a ClockSync (the
+   * lowest latency seen wins quickly, slower arrivals nudge it back gently), so the network's jitter and a retransmit's
+   * bunched states no longer bend the interpolation spans (arrival stamps did: up to ~0.4 m a frame off the pace under
+   * netsim typical). No `t`: the arrival time. Kept increasing.
+   */
+  private stateTime(id: string, t: number | undefined): number {
+    const now = performance.now() / 1000;
+    let e = this.sendClocks.get(id);
+    if (!e) this.sendClocks.set(id, (e = { c: new ClockSync(), last: -Infinity }));
+    let at = now;
+    if (t !== undefined) {
+      e.c.observe(t, now);
+      at = e.c.toLocal(t);
+    }
+    at = Math.max(at, e.last + 1e-3);
+    e.last = at;
+    return at;
+  }
+
   private receive(msg: Msg, from: string): void {
     const r = this.remotes.get(from);
     if (!r) return;
@@ -540,7 +599,7 @@ export class CoopHost implements NetAttachment {
         if (this.rejoining.has(from)) this.resume(r);
         if (this.restoreFor.has(from)) r.allowTeleport(3);
         r.accept({ ...msg.s, id: from }, this.time, this.g.world.level.anchors, this.g.world.level.coverSegments, this.g.world.doors.list.length);
-        r.avatar.buf.push(performance.now() / 1000, r.state!);
+        r.avatar.buf.push(this.stateTime(r.id, msg.s.t), r.state!);
         if (msg.s.mv) this.g.mode?.onRemoteMove?.(r.id, msg.s.mv.m);
         this.restoreStep(r);
         break;
@@ -558,7 +617,8 @@ export class CoopHost implements NetAttachment {
         }
         break;
       case 'use':
-        this.onUse(r, msg.id);
+        if (msg.pulse) this.onHoldPulse(r, msg.id);
+        else this.onUse(r, msg.id);
         break;
       case 'door':
         this.onDoorCrack(r, msg.i, msg.crack);
@@ -610,7 +670,7 @@ export class CoopHost implements NetAttachment {
     if (!r.alive) return;
     const it = this.g.interactables?.items.find((i) => i.id === id);
     if (!it || !it.enabled || it.done) return;
-    if (hyp2(it.pos.x - r.feet.x, it.pos.z - r.feet.z) > (it.reach ?? 1.8) + 0.75 || Math.abs(it.pos.y - r.feet.y) > 2) {
+    if (!inUseReach(it, r.feet.x, r.feet.y, r.feet.z)) {
       r.violations++;
       return;
     }
@@ -621,6 +681,22 @@ export class CoopHost implements NetAttachment {
     if (it.onUse) it.onUse(it, r.id);
     else mode?.onInteract?.(it);
     mode?.onRemoteUse?.(r.id, false);
+  }
+
+  /**
+   * (marlow-final Q12, SPEC N4) A client's noisy hold pulsed (its first moment, then every `HOLD_NOISE_PULSE` s): the
+   * guards hear it at the item, the way `GameState` makes them hear the host's own hold. Alive, the item live, noisy
+   * and in the use reach, and no faster than the hold pulses; a pulse that fails is dropped (no violation: the hold
+   * may end on the reach edge).
+   */
+  private onHoldPulse(r: RemotePlayer, id: string): void {
+    const em = this.g.enemyMgr;
+    if (!em) return;
+    const it = this.g.interactables?.items.find((i) => i.id === id);
+    const f = r.feet;
+    if (!it?.holdNoise || !hostHoldPulse(it, r.alive, f.x, f.y, f.z, this.time, this.holdPulseAt.get(r.id) ?? -Infinity)) return;
+    this.holdPulseAt.set(r.id, this.time);
+    em.hear(it.pos, it.holdNoise);
   }
 
   /** Course mode: the course state, locks and lights to every client. */
@@ -641,6 +717,12 @@ export class CoopHost implements NetAttachment {
   /** Sector Ops: the syringes left this op (the revive cap less the revives used). */
   revivesLeft(): number {
     return Math.max(0, this.reviveClock.cap - this.reviveClock.used);
+  }
+
+  /** (section-rating S3) A rating's syringe reward: `n` (a whole 0-9) more revives this op. */
+  addSyringes(n: number): void {
+    const k = Number.isFinite(n) ? Math.max(0, Math.min(9, Math.floor(n))) : 0;
+    this.reviveClock.cap += k;
   }
 
   /** Sector Ops (step 3): every guard a client holds is let go and the client told (`tdDenied` aborts its takedown or
@@ -673,6 +755,11 @@ export class CoopHost implements NetAttachment {
       if (m.ph === 'start') deny();
       return;
     }
+    // (coop-walk-fixes P6) the team takedown on a partner's hostage (the guard stays in the holder's hands until done)
+    if (m.kind === 'assist') {
+      this.onAssist(r, m, e, deny);
+      return;
+    }
     const held = this.seized.get(e.id);
     if (m.ph === 'start') {
       if (!r.alive || (held && held.by !== r.id) || (!held && e.taken) || (r.ref.spotted && e.level === 'alert') || hyp2(e.pos.x - r.feet.x, e.pos.z - r.feet.z) > TD_REACH) {
@@ -699,6 +786,69 @@ export class CoopHost implements NetAttachment {
     this.g.enemyMgr?.hear(r.feet, m.lethal ? 3 : 1.2);
     this.takedownDone(r.id);
     this.g.mode?.onRemoteTakedown?.(r.id, m.kind ?? '');
+  }
+
+  /** (P6) Who else holds `e` as a hostage than `by` (null: nobody; no team takedown). */
+  private holderOf(e: Enemy, by: string): string | null {
+    const hh = this.g.takedown.hostage;
+    return assistHolder(e.id, by, this.s.selfId, hh ? hh.id : '', this.seized, this.grabTid);
+  }
+
+  /** (P6) NetAttachment: another player holds `v` as a hostage (the host's own offer; a client's comes from its MoveState
+   *  view of the partner, `CoopClient.partnerHolds`). */
+  partnerHolds(v: TakedownVictim): boolean {
+    const s = this.seized.get(v.id);
+    return !!s && s.hostage === true && this.grabTid(s.by) === v.id;
+  }
+
+  /** (P6) NetAttachment: the host's own team takedown; applied at its `done` (the host checked the offer itself). */
+  assistTakedown(v: TakedownVictim, ph: 'start' | 'done' | 'abort', lethal: boolean): void {
+    if (ph !== 'done') return;
+    const e = this.g.enemyMgr?.enemies.find((x) => x.id === v.id);
+    const holder = e && e.alive ? this.holderOf(e, this.s.selfId) : null;
+    if (e && holder) this.assistApply(this.s.selfId, e, lethal, holder, this.g.player.position);
+  }
+
+  /** (P6) A client's team takedown: `start` checks it (alive, in reach, the guard held as a hostage by another player),
+   *  `done` applies it when still so, `abort` forgets it. */
+  private onAssist(r: RemotePlayer, m: Extract<Msg, { t: 'td' }>, e: Enemy, deny: () => void): void {
+    if (m.ph === 'abort') {
+      if (this.assists.get(r.id) === e.id) this.assists.delete(r.id);
+      return;
+    }
+    const holder = r.alive ? this.holderOf(e, r.id) : null;
+    const d = hyp2(e.pos.x - r.feet.x, e.pos.z - r.feet.z);
+    if (m.ph === 'start') {
+      if (!holder || d > TD_REACH) deny();
+      else this.assists.set(r.id, e.id);
+      return;
+    }
+    if (this.assists.get(r.id) !== e.id) return;
+    this.assists.delete(r.id);
+    // (the holder let go, or the pair walked apart, since the start: nothing happens; the client's view follows the host's)
+    if (!holder || d > TD_REACH) return;
+    this.assistApply(r.id, e, m.lethal, holder, r.feet);
+  }
+
+  /** (P6) The team takedown lands: the holder's hold ends (a client's here; the host's own grab sees him down and ends),
+   *  the guard is knocked out (or killed: `lethal`) by `by`, heard as a takedown, and both players are credited: a
+   *  dual takedown (`takedownDone` for the holder, then the striker: the host's own through its `takedown` event). */
+  private assistApply(by: string, e: Enemy, lethal: boolean, holder: string, src: Vector3): void {
+    if (holder !== this.s.selfId) {
+      this.seized.delete(e.id);
+      this.interPh.delete(e.id);
+    }
+    e.taken = false;
+    e.bodyRig.emote = null;
+    const dir = new Vector3(e.pos.x - src.x, 0, e.pos.z - src.z).normalize();
+    const hit = { amount: 9999, point: e.pos.clone(), dir, part: 'body' as const, kind: 'melee' as const, attackerTeam: 'player' as const, attackerId: by === this.s.selfId ? 'local' : by, sourcePos: src.clone(), impulse: 1, takedown: 'assist' };
+    if (lethal) e.applyDamage(hit);
+    else e.knockOut(hit);
+    this.g.enemyMgr?.hear(src, lethal ? 3 : 1.2);
+    this.takedownDone(holder);
+    if (by === this.s.selfId) return;
+    this.takedownDone(by);
+    this.g.mode?.onRemoteTakedown?.(by, 'assist');
   }
 
   // --- (3.2.0 phase 5) team moves ---
@@ -922,6 +1072,7 @@ export class CoopHost implements NetAttachment {
 
   private release(eid: string): void {
     this.seized.delete(eid);
+    this.interPh.delete(eid);
     const e = this.g.enemyMgr?.enemies.find((x) => x.id === eid);
     if (e?.alive) e.releaseTakedown();
   }
@@ -962,7 +1113,8 @@ export class CoopHost implements NetAttachment {
     // (3.2.0) a player's posed head / pelvis when recorded (hanging off a lip, crawling, leaning out), else by stance
     const body = posed ? this.tmpB.copyFrom(this.rwBody).addInPlaceFromFloats(0, 0.12, 0) : this.tmpB.copyFrom(feet).addInPlaceFromFloats(0, (crouch > 0.5 ? 0.7 : 1.0) * scale, 0);
     const head = posed ? this.tmpH.copyFrom(this.rwHead) : this.tmpH.copyFrom(feet).addInPlaceFromFloats(0, (crouch > 0.5 ? 1.15 : 1.62) * scale, 0);
-    const verdict = checkShot({ origin: { x: m.ox, y: m.oy, z: m.oz }, dir: { x: m.dx, y: m.dy, z: m.dz }, part: m.part }, r.feet, body, head, def.range, 1.1 * scale);
+    // (hang-down, A6) a client hanging head-first shoots from under its turned-over root
+    const verdict = checkShot({ origin: { x: m.ox, y: m.oy, z: m.oz }, dir: { x: m.dx, y: m.dy, z: m.dz }, part: m.part }, r.feet, body, head, def.range, 1.1 * scale, hangingMove(r.state?.mv) ? SHOT_UNDER_HANG : SHOT_UNDER);
     if (!verdict.ok) {
       r.violations++;
       return 0;
@@ -988,7 +1140,10 @@ export class CoopHost implements NetAttachment {
     const dmg = this.judge(r, m, feet, pose?.crouch ?? 0, enemy.def.scale);
     if (dmg <= 0) return;
     const aim = (m.part === 'head' ? this.tmpH : this.tmpB).clone();
-    enemy.applyDamage({ amount: dmg, point: aim, dir: new Vector3(m.dx, m.dy, m.dz), part: m.part, kind: 'bullet', attackerTeam: 'player', attackerId: r.id, weapon: m.w, sourcePos: new Vector3(m.ox, m.oy, m.oz), impulse: WEAPONS[m.w].impulse });
+    const res = enemy.applyDamage({ amount: dmg, point: aim, dir: new Vector3(m.dx, m.dy, m.dz), part: m.part, kind: 'bullet', attackerTeam: 'player', attackerId: r.id, weapon: m.w, sourcePos: new Vector3(m.ox, m.oy, m.oz), impulse: WEAPONS[m.w].impulse });
+    // (32, guard-ai S9) a round his helmet or vest stopped: the client shows the deflect marker as the host's own does
+    // (its hits and kills it predicts on its puppet; kills also come as `kill`)
+    if (res.deflect) this.push({ e: 'hitConfirm', player: r.id, kind: 'deflect' });
   }
 
   /**
@@ -1010,6 +1165,12 @@ export class CoopHost implements NetAttachment {
       r.violations++;
       return;
     }
+    // (polish2) a hit only through the mount reach at the claimed landing needs a clear static line up to the head, as
+    // our own rounds (`StealthSystems.shotRay`) and the client's `lampRay` test it
+    const end = Math.min(m.dist, WEAPONS[m.w].range);
+    const p = this.lampA;
+    const h = lampReachProbe(reg, id, m.ox, m.oy, m.oz, m.ox + m.dx * end, m.oy + m.dy * end, m.oz + m.dz * end, p);
+    if (h > 0 && !this.g.ballistics.clear(p, this.lampB.set(p.x, p.y + h, p.z), MASK.WORLD)) return;
     const l = reg.lights[id]!;
     const a = this.lampA.set(m.ox, m.oy, m.oz);
     const b = this.lampB.set(l.x, l.y, l.z);
@@ -1068,7 +1229,8 @@ export class CoopHost implements NetAttachment {
       impulse: WEAPONS[m.w].impulse,
     };
     const res = self ? this.g.target.applyDamage(hit) : victim!.applyDamage(hit);
-    if (res.dealt > 0) this.push({ e: 'hitConfirm', player: r.id, kind: res.killed ? 'kill' : m.part === 'head' ? 'head' : 'hit' });
+    const kind = hitConfirmKind(res.dealt, res.killed, res.deflect === true, m.part === 'head');
+    if (kind) this.push({ e: 'hitConfirm', player: r.id, kind });
   }
 
   // --- outgoing ---
@@ -1082,7 +1244,12 @@ export class CoopHost implements NetAttachment {
     const p = g.player;
     const c = p.controller;
     const th = g.target.health;
+    // (afp AF6) the gait clock / CT stop for the partner's stride (the snapshot's `time` times it)
+    const gw: { gph?: number; qs?: number; hs?: number; mo?: number; mt?: number; ax?: number; az?: number } = {};
+    gaitWire(c.motion.phase, c.ct, c.stopEaseT, c.stopHold, c.holdSpeed, CT.stopEase, CT.stopBlend, gw);
+    motionWire(c.override?.kinematic ? null : c.motion.state, c.motion.stateT, c.motion.ax, c.motion.az, gw);
     return {
+      ...gw,
       mv: localMoveState(g, this.mvNow),
       id: this.s.selfId,
       x: p.position.x,
@@ -1094,10 +1261,13 @@ export class CoopHost implements NetAttachment {
       f: localFlags(g),
       w: g.weapons.current.def.id,
       hp: th.hp,
+      sc: g.weapons.shotCount & 255,
     };
   }
 
   private pingAt = new Map<string, number>();
+  /** (Q12) Each client's last accepted hold noise pulse (host time). */
+  private holdPulseAt = new Map<string, number>();
   private gadgetAt = new Map<string, number>();
 
   private color(id: string): string {
@@ -1128,7 +1298,10 @@ export class CoopHost implements NetAttachment {
         if (ints && !ints.inScope(it)) continue;
         const k = it.kind as NetItem['k'];
         if (!ITEM_KINDS.includes(k)) continue;
-        out.push({ id: it.id, k, x: it.pos.x, y: it.pos.y, z: it.pos.z, yaw: it.node.rotation.y, label: it.label.slice(0, 24), hold: it.holdTime, reach: it.reach ?? 1.8, on: it.enabled && !it.done });
+        const n: NetItem = { id: it.id, k, x: it.pos.x, y: it.pos.y, z: it.pos.z, yaw: it.node.rotation.y, label: it.label.slice(0, 24), hold: it.holdTime, reach: it.reach ?? 1.8, on: it.enabled && !it.done };
+        // (30, Q12) a noisy hold's radius: the client's own hold pulses it back (`use.pulse`) and its noise meter reads it
+        if (it.holdTime > 0 && it.holdNoise) n.hn = it.holdNoise;
+        out.push(n);
       }
     }
     return out;
@@ -1232,8 +1405,10 @@ export class CoopHost implements NetAttachment {
       if (st.f & PF.firing && t <= 0) {
         this.firing.set(r.id, 0.4);
         const quiet = (st.f & PF.quiet) !== 0;
-        if (quiet) em.hear(r.feet, SHOT_NOISE * 0.5);
-        else em.noise(r.feet, SHOT_NOISE * (WEAPONS[st.w].noise ?? 1));
+        // (guard-ai S14, A46) as in solo: SHOT_NOISE x the weapon's noise (9.8 m for the CT guns), at most the quiet cap;
+        // (spare 7) a suppressed gun out of quiet rounds fires open at its open noise
+        if (quiet) em.hear(r.feet, SHOT_NOISE * Math.min(WEAPONS[st.w].noise ?? 1, 0.6));
+        else em.noise(r.feet, SHOT_NOISE * (SD_OPEN_NOISE[st.w] ?? WEAPONS[st.w].noise ?? 1));
       } else this.firing.set(r.id, t);
     }
   }
@@ -1263,6 +1438,11 @@ export class CoopHost implements NetAttachment {
       const by = this.remotes.get(s.by);
       // (3.2.0) a client holding the guard as a hostage: kept in front of them (and a shield) for as long as it lasts
       const mv = by?.state?.mv;
+      // (hang-down, A7) a client hanging head-first keeps the guard it took (grab or neck snap), lifted under its head
+      if (by && by.alive && hangingMove(mv) && hangHoldStep(this.g.enemyMgr?.enemies, eid, s, by.avatar.pos.x, by.avatar.pos.y, by.avatar.pos.z, dt)) {
+        s.t = 0;
+        continue;
+      }
       if (by && by.alive && mv?.m === 'grab' && mv.tid === eid) {
         const e = this.g.enemyMgr?.enemies.find((x) => x.id === eid);
         if (e && e.alive) {
@@ -1283,6 +1463,12 @@ export class CoopHost implements NetAttachment {
           if (stepHoldFeed(s, at.x + sy * GRAB.hold + cy * GRAB.side, at.z + cy * GRAB.hold - sy * GRAB.side, this.holdClock, this.time, dt)) e.pos.set(s.hfX, at.y, s.hfZ);
           e.holdAt(s.hfX, at.y, s.hfZ, yaw);
           // (G7) the client's knockout lowers him here too, its interrogation turns his head (MoveState ph / sub)
+          // (spare 9) the client's interrogation ended: the host spends his information and gives the team the intel
+          if (interrogationEnded(this.interPh.get(eid) ?? -1, mv.sub)) {
+            const info = e.info;
+            if (takeInfo(e)) revealIntel(this.g, e.pos, info);
+          }
+          this.interPh.set(eid, mv.sub & 2 ? mv.ph : -1);
           if (mv.sub & 2) e.holdPose('interrogate', mv.ph);
           else if (mv.ph > 0 && !(mv.sub & 1)) {
             const ko = koCurve(mv.ph, this.koTmp);

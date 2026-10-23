@@ -3,17 +3,19 @@ import type { LevelBuilder } from './levelBuilder';
 import type { PropKind } from './props';
 import type { RoomDef } from './rooms';
 import type { Surface } from './surfaces';
-import type { VoxelArt } from '../voxel/levelVoxels';
 import type { SecurityData } from '../security/data';
 import type { LaserDef } from '../game/jammer';
 import type { LaserPanelDef } from '../game/laserPanels';
 import type { PassZone } from '../game/ctDevices';
 import type { ScannerDef } from '../game/scanners';
+import type { CampusArtLayout } from './maps/campusDress';
 import type { CourseLayout } from '../game/course/courseDef';
 import type { SectorDef } from '../game/sectors';
 import type { BoardDef } from '../game/isolators';
 import type { GuardAiLayout } from '../ai/guardAiData';
 import type { CamSize, CamSpace } from './camSpaces';
+import type { KitLayout } from './kit/facilityKit';
+import type { PropPlacement as FacilityPropPlacement } from './props/facilityProps';
 
 /** 3.0 weather choice (visual only): clear, rain (wet floors under the open sky, roofs keep it out), fog (light shafts). */
 export type WeatherChoice = 'clear' | 'rain' | 'fog';
@@ -102,6 +104,15 @@ export interface MapLayout {
    *  `camSize`; neither given: the camera's probes decide (`world/camSpaces.ts`). Local only. */
   camSpaces?: CamSpace[];
   camSize?: CamSize;
+  /** (sector-redesign ART-KIT) The campus art placements (`maps/campusDress.ts`), drawn by `CampusArtRender`; gameplay never reads them. */
+  campusArt?: CampusArtLayout;
+  /** (marlow-final M5) The facility kit's drawn pieces (`world/kit/facilityKit.ts` `FacilityKit.layout`): visual only,
+   *  the kit wrote their gameplay boxes into the builder itself. */
+  kit?: KitLayout;
+  /** (marlow-final M5) The props kit's placements (`world/props/facilityProps.ts` `FacilityProps.placements`): visual
+   *  only, drawn by `PropRender`; the map builder wrote their gameplay boxes with `props.write(b)`. (`props` above is
+   *  the dynamic prop system's.) */
+  facilityProps?: FacilityPropPlacement[];
 }
 
 export interface MapDef {
@@ -114,8 +125,6 @@ export interface MapDef {
   /** Sector Ops (feature/sector-ops): the sectors in play order (maps that run the `sector` mode). */
   sectors?: readonly SectorDef[];
   build(b: LevelBuilder, seed: number): MapLayout;
-  /** 3.0: the voxel art layer (what the pieces' voxels look like, visual-only dressing); none = plain voxels. */
-  art?: VoxelArt;
   /** 3.0: weather the Play screen / lobby offers on this map (none: the theme's own). */
   weathers?: readonly WeatherChoice[];
   /** Walkable surfaces the nav grid keeps per column (default 3). Maps that stack more storeys raise it. */

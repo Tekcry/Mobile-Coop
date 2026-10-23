@@ -2,13 +2,9 @@ import {
   ReflectionProbe,
   CascadedShadowGenerator,
   Color3,
-  CreateBox,
-  CreateCylinder,
   CreatePlane,
   PBRMaterial,
   Material,
-  Matrix,
-  Quaternion,
   Color4,
   CreateSphere,
   DirectionalLight,
@@ -29,24 +25,20 @@ import type { MapDef, MapLayout } from './mapDef';
 import { PartLibrary } from './partLibrary';
 import { PropSystem } from './props';
 import { LightRig } from './lightRig';
+import { CampusArtRender } from './campusArt/campusArtRender';
 import { Breakables } from './breakables';
 import { Doors } from './doors';
 import { Ropes } from './ropes';
-import type { LightRegistry } from './lights';
 import { addTorchSlots } from './torches';
 import { applyMapFlicker } from './lampFlicker';
 import { applyMapSway } from './lampSway';
-import { GI_STRIDE } from '../voxel/skyBake';
-import { TEXTURE_ANISO, TEXTURE_SIZE, VOXEL_TIER, type QualityLevel, type ShadowSpec, type TierQuality } from '../core/quality';
+import { TEXTURE_ANISO, TEXTURE_SIZE, type QualityLevel, type ShadowSpec, type TierQuality } from '../core/quality';
 import type { Adaptive } from '../core/governor';
 import { SurfaceAtlas } from './surfaceAtlas';
 import { setAnimLodScale } from '../player/characterRig';
-import { SKY_CELL, VoxelWorld } from '../voxel/voxelWorld';
 import { WorkerPool } from '../voxel/workerPool';
-import { CHUNK, MIN_VOXELS, VOXEL_VERSION } from '../voxel/levelVoxels';
-import { packShapes, SHAPE_STRIDE, shapeBounds } from '../voxel/shapes';
-import { BRICK } from '../voxel/brickmap';
-import { skyGridFor, skyShapes } from './levelFill';
+import { SHAPE_STRIDE, shapeBounds } from '../voxel/shapes';
+import { SKY_CELL, SKY_GRID, skyGridFor, skyShapes } from './levelFill';
 import { flags } from '../core/flags';
 import { BakedLamps } from './bakedLamps';
 import { CharShadows } from './charShadows';
@@ -56,6 +48,8 @@ import { bakeLevelLight, lightBakeHash, type LightBake } from './lightBake';
 import { LightField } from './lightField';
 import { moonLight } from './lampMath';
 import { roofAt, roofGrid, type RoofGrid } from './roofGrid';
+import { KitRender } from './kit/kitRender';
+import { PropRender } from './props/propRender';
 import { SunCascadeLists, keepNearCamera, useCascadeLists } from './sunCascadeCull';
 
 /** Flashlight slots on dark maps (enemies searching / investigating in the dark): `torches.ts`. */
@@ -67,50 +61,9 @@ export interface WorldOptions {
   cheap?: boolean;
   /** Detail tier for the visual-only dressing pass (none for `?gfx=min`). */
   detail?: TierQuality;
-  /** 3.0 voxels (null / absent: the blockout's boxes as before). */
-  voxel?: VoxelOptions | null;
 }
-
-export interface VoxelOptions {
-  /** Finest voxel edge (m). */
-  size: number;
-  /** The fine layer's edge (props, furniture, machines, vehicles; 0: none). */
-  fineSize: number;
-  /** Levels of detail (1..3). */
-  levels: number;
-  lodDist: [number, number];
-  ao: boolean;
-  micro: boolean;
-  /** One-bounce GI per light group (Epic). */
-  gi?: boolean;
-}
-
-/** GI group slots the voxel material weighs (lamp circuits; more circuits share the last). */
-export const GI_SLOTS = 12;
-
-/** The map's fixed lights packed for the GI bake, and each light's group slot (-1: not baked). */
-export function giLights(reg: LightRegistry): { lights: Float32Array; groups: number; slotOf: Int8Array } {
-  const ids: number[] = [];
-  const slotOf = new Int8Array(reg.lights.length).fill(-1);
-  const baked = reg.lights.filter((l) => l.kind !== 'flashlight');
-  for (const l of baked) if (!ids.includes(l.group)) ids.push(l.group);
-  ids.sort((a, b) => a - b);
-  const lights = new Float32Array(baked.length * GI_STRIDE);
-  baked.forEach((l, i) => {
-    const slot = Math.min(GI_SLOTS - 1, ids.indexOf(l.group));
-    slotOf[reg.lights.indexOf(l)] = slot;
-    lights.set([l.x, l.y, l.z, l.radius, l.cone?.dx ?? 0, l.cone?.dy ?? 0, l.cone?.dz ?? 0, l.cone ? l.cone.cosOuter : -2, l.color[0] * l.intensity, l.color[1] * l.intensity, l.color[2] * l.intensity, slot], i * GI_STRIDE);
-  });
-  return { lights, groups: Math.max(1, Math.min(GI_SLOTS, ids.length)), slotOf };
-}
-
-/** Level-of-detail distances (m) per Detail tier: Epic keeps 5 cm voxels to 30 m. */
-export const VOXEL_LOD: Record<TierQuality, [number, number]> = { low: [8, 16], medium: [10, 20], high: [15, 30], ultra: [20, 40], epic: [30, 60] };
 
 /** Scene + lighting + level geometry + props for one map. */
-/** A layer no camera draws (cameras default to 0x0FFFFFFF); explicit shadow-map lists ignore layers. */
-const PROXY_LAYER = 0x10000000;
-
 export class World {
   readonly parts: PartLibrary;
   readonly props: PropSystem;
@@ -137,6 +90,14 @@ export class World {
   readonly breakables: Breakables;
   /** Hinged doors (collision while closed, armed once the nav grid is built). */
   readonly doors: Doors;
+  /** (sector-redesign ART-KIT) The campus art (render only; null: no art, `?gfx=min`, or a failed load: the greybox shows). */
+  campusArt: CampusArtRender | null = null;
+  /** (marlow-final M5) The facility kit's meshes over the level (null: the map places none, `?gfx=min`, or the GLB
+   *  failed to load - the greybox boxes under it then show). Render only. */
+  kit: KitRender | null = null;
+  /** (marlow-final M5) The props kit's meshes (null: the map places none, `?gfx=min`, or the GLB failed to load - the
+   *  prop boxes under them then show). Render only: gameplay reads the boxes `props.write(b)` put in the level. */
+  facilityProps: PropRender | null = null;
   private _ropes: Ropes | null = null;
   /** (3.2.0) Rappel ropes (the local player's and remotes'), created on first use. */
   get ropes(): Ropes {
@@ -149,9 +110,6 @@ export class World {
     readonly level: BuiltLevel,
     readonly layout: MapLayout,
     atlas: SurfaceAtlas | null,
-    /** The level's voxels (3.0; null: blockout boxes): the structure layer, then the fine layer. */
-    readonly voxels: VoxelWorld | null = null,
-    readonly voxelsFine: VoxelWorld | null = null,
     /** 3.6: the canonical light bake (lamp and moon visibility, ambient grid). */
     readonly lightBake: LightBake | null = null,
   ) {
@@ -171,15 +129,6 @@ export class World {
     this.sun.intensity = th.sunIntensity;
     this.sun.position = this.sun.direction.scale(-40);
     this.sky = makeSky(scene, th.sky, th.horizon);
-    for (const v of atlas ? this.voxelLayers : []) {
-      // the voxels take the hemisphere's fill themselves, scaled by how much sky each spot sees (dark under the roof;
-      // the cheap standard path keeps the hemisphere)
-      this.hemi.excludedMeshes.push(...v.meshes);
-      const k = this.hemi.intensity * Math.PI;
-      const sk = this.hemi.diffuse;
-      const gr = this.hemi.groundColor;
-      v.setFill([sk.r * k, sk.g * k, sk.b * k], [gr.r * k, gr.g * k, gr.b * k]);
-    }
 
     this.parts = new PartLibrary(scene, atlas);
     // gameplay light level everywhere (moonlight / daylight)
@@ -190,8 +139,6 @@ export class World {
     this.lightRig = new LightRig(scene, level.lights);
     // the level itself casts shadows (walls stop lamp light and the sun)
     for (const m of level.meshes) this.addStatic(m);
-    for (const v of this.voxelLayers) for (const m of v.meshes) this.addStatic(m, true);
-    this.buildShadowProxy();
     this.props = new PropSystem(scene, this.parts, (m) => this.addShadowCaster(m, Infinity, false));
     for (const p of layout.props) this.props.spawn(p.kind, p.pos, p.yaw ?? 0);
     // image-based light for the PBR surfaces: the level and sky seen from the middle, captured once
@@ -200,7 +147,6 @@ export class World {
     probe.position.set((bd.minX + bd.maxX) / 2, 2.2, (bd.minZ + bd.maxZ) / 2);
     probe.refreshRate = 0;
     for (const m of level.meshes) probe.renderList?.push(m);
-    for (const v of this.voxelLayers) for (const m of v.meshes) probe.renderList?.push(m);
     probe.renderList?.push(this.sky);
     // (assigned after the capture: a material sampling the cube while it renders into it is a feedback loop)
     probe.cubeTexture.onAfterRenderObservable.addOnce(() => {
@@ -219,7 +165,7 @@ export class World {
   }
 
   static async create(engine: Engine, mapIn: MapDef, opts: WorldOptions): Promise<World> {
-    // `?fullbright=1` (hand checks): the same map under a day theme, with its own bake and voxel cache keys. Nothing changes without it.
+    // `?fullbright=1` (hand checks): the same map under a day theme, with its own bake key. Nothing changes without it.
     const map: MapDef = flags.fullbright ? { ...mapIn, theme: { ...mapIn.theme, lightLevel: 0.95, ambient: 0.9, sunIntensity: 0.5 } } : mapIn;
     const bakeId = flags.fullbright ? `${map.id}:fullbright` : map.id;
     const scene = new Scene(engine);
@@ -236,36 +182,40 @@ export class World {
     applyMapSway(b, map.id);
     // procedural surfaces: drawn small here, sized by the Textures setting in applyQuality
     const atlas = opts.cheap ? null : new SurfaceAtlas(scene, 256, 4);
-    const vo = opts.voxel ?? null;
-    const level = b.build(scene, map.id, { atlas: atlas ?? undefined, floor: map.theme.floor ?? 'concrete', detail: opts.detail, dressing: dressingOn(map), voxelSize: vo?.size, fineSize: vo?.fineSize ?? 0, art: map.art ?? null });
-    let voxels: VoxelWorld | null = null;
-    let fine: VoxelWorld | null = null;
-    if (vo && level.voxels) {
-      const lv = level.voxels;
-      const key = (l: typeof lv): string => `voxel:${map.id}:${opts.seed}:${l.size}:${vo.levels}:v${VOXEL_VERSION}${flags.fullbright ? ":fb" : ""}:${contentHash(packShapes(l.shapes), l.palette.map((p) => `${p.color}${p.kind}${p.emissive}`).join())}`;
-      // GI (Epic): the lamps' bounce light per circuit, baked with the sky
-      const gi = vo.gi && atlas && level.lights.lights.length ? giLights(level.lights) : null;
-      const giKey = gi ? `:gi${contentHash(gi.lights, '')}` : '';
-      voxels = await VoxelWorld.build(scene, lv, { name: map.id, atlas, levels: vo.levels, lodDist: vo.lodDist, ao: vo.ao, micro: vo.micro, cacheKey: key(lv) + giKey, gi, group: 2 });
-      // the fine layer: half the size, levels of detail at half the distances, lit by the structure's sky bake
-      if (lv.fine) fine = await VoxelWorld.build(scene, lv.fine, { name: `${map.id}-fine`, atlas, levels: vo.levels, lodDist: [vo.lodDist[0] / 2, vo.lodDist[1] / 2], ao: vo.ao, micro: vo.micro, cacheKey: key(lv.fine), bakeSky: false, skyFrom: voxels, group: 4 });
-    }
+    const level = b.build(scene, map.id, { atlas: atlas ?? undefined, floor: map.theme.floor ?? 'concrete', detail: opts.detail, dressing: dressingOn(map) });
     // 3.6 the canonical light bake: the same on every device, preset and tier (the shapes come from the level's own
     // pieces, never from what a renderer draws); gameplay's light field and every renderer read it
     level.lights.ambient = map.theme.lightLevel ?? 0.75;
-    // (smooth-world fix round 2, rendering only) the smooth level's sky visibility, as the voxel path bakes it: its fill
-    // and image-based light follow it (`world/levelFill.ts`); a worker job beside the light bake
-    const skyJob = !vo && atlas && flags.baked ? smoothSky(level.light).catch(() => null) : null;
+    // (rendering only) the smooth level's sky visibility: its fill and image-based light follow it
+    // (`world/levelFill.ts`); a worker job beside the light bake
+    const skyJob = atlas && flags.baked ? smoothSky(level.light).catch(() => null) : null;
     const bake = await bakeLevelLight({ mapId: bakeId, seed: opts.seed, shapes: level.light.shapes, shapesHash: level.light.hash, lo: level.light.lo, hi: level.light.hi, reg: level.lights, sunDir: map.theme.sunDir, moonLight: moonLight(map.theme) });
-    const w = new World(scene, map, level, layout, atlas, voxels, fine, bake);
-    // 3.2 baked lamps: drawn from the bake on every PBR path - the smooth default and `?voxels=1` - so the picture
+    const w = new World(scene, map, level, layout, atlas, bake);
+    // (marlow-final M5) the facility kit: skins over the level's own boxes (gameplay reads the boxes), made before the
+    // lamp bake's plugin attaches so its materials are lit as level
+    if (layout.kit?.instances.length && atlas && !opts.cheap) {
+      try {
+        w.kit = await KitRender.create(scene, layout.kit, w.doors.list, level.lights, (m) => w.lightRig.addCaster(m));
+      } catch (e) {
+        console.warn('[kit] the facility kit failed to load; the greybox shows', e);
+      }
+    }
+    // (marlow-final M5) the props kit: drawn over the boxes the map builder wrote for them (the kit's rules)
+    if (layout.facilityProps?.length && atlas && !opts.cheap) {
+      try {
+        w.facilityProps = await PropRender.create(scene, layout.facilityProps, w.doors.list, level.lights);
+      } catch (e) {
+        console.warn('[props] the props kit failed to load; the greybox shows', e);
+      }
+    }
+    // 3.2 baked lamps: drawn from the bake on every PBR path, so the picture
     // matches the light meter (smooth-world); not the cheap test path; `?baked=0` off
     if (bake.lamps && flags.baked && atlas && !opts.cheap) {
-      // 3.6: the baked moon and closed doors (the voxels keep the sky bake's fill: Michael, 2026-10-09). Step 4b: the
-      // darkness curve reads the ambient grid everywhere, and it fills the non-voxel surfaces (characters, props, and on
+      // 3.6: the baked moon and closed doors (Michael, 2026-10-09). Step 4b: the
+      // darkness curve reads the ambient grid everywhere, and it fills the surfaces (characters, props, and on
       // the smooth path the level's own boxes) in place of the hemisphere, which lit them as if under open sky indoors.
       const fill = { grid: bake.ambient, color: [w.hemi.diffuse.r, w.hemi.diffuse.g, w.hemi.diffuse.b] as [number, number, number] };
-      // (smooth-world fix round 2) the smooth level's own fill: the voxel walls' (the hemisphere's colours x sky visibility)
+      // (smooth-world fix round 2) the smooth level's own fill (the hemisphere's colours x sky visibility)
       const sky = skyJob ? await skyJob : null;
       const gr = w.hemi.groundColor;
       const k = w.hemi.intensity * Math.PI;
@@ -289,7 +239,14 @@ export class World {
       w.charShadows.setDynamic(w.doors, w.props);
       w.useBakedMoon();
     }
-    if (voxels?.giGroups) w.giSlotOf = giLights(level.lights).slotOf;
+    // (sector-redesign ART-KIT) the campus art over the greybox: PBR path only; a failed load leaves the boxes drawn
+    if (layout.campusArt?.placements.length && atlas && !opts.cheap) {
+      try {
+        w.campusArt = await CampusArtRender.create(scene, layout.campusArt, level.lights, level, (m) => w.lightRig.addCaster(m));
+      } catch (e) {
+        console.warn('[campus-art] failed to load; the greybox shows', e);
+      }
+    }
     return w;
   }
 
@@ -329,20 +286,13 @@ export class World {
   private roofs: RoofGrid | null = null;
 
   /**
-   * Rendering only (the rain's occluder): the roof height over (x, z) - the voxel sky bake's with `?voxels=1`, else the
-   * canonical light shapes' tops (smooth-world; built on first use). Gameplay never reads it.
+   * Rendering only (the rain's occluder): the roof height over (x, z) - the canonical light shapes' tops (built on
+   * first use). Gameplay never reads it.
    */
   roofAt(x: number, z: number): number {
-    const vx = this.voxels;
-    if (vx?.sky) return vx.roofAt(x, z);
     const l = this.level.light;
     this.roofs ??= roofGrid(l.shapes, l.lo, l.hi);
     return roofAt(this.roofs, x, z);
-  }
-
-  /** The voxel layers present (structure, fine). */
-  get voxelLayers(): VoxelWorld[] {
-    return [this.voxels, this.voxelsFine].filter((v): v is VoxelWorld => !!v);
   }
 
   /**
@@ -374,7 +324,6 @@ export class World {
     const tmp = this.sunTmp;
     tmp.length = 0;
     for (let i = 0; i < this.sunStatic.length; i++) tmp.push(this.sunStatic[i]!);
-    const vx = this.voxels;
     const cp = focus; // (the player, not the orbit camera: the boom would flip guards at the edge)
     for (let i = 0; i < this.sunMoving.length && !this.staticSun; i++) {
       const m = this.sunMoving[i]!;
@@ -391,14 +340,7 @@ export class World {
         this.sunNear[i] = near;
         if (!near) continue;
       }
-      if (vx?.sky && m.isEnabled()) {
-        const b = m.getBoundingInfo().boundingBox;
-        const x = (b.minimumWorld.x + b.maximumWorld.x) / 2;
-        const z = (b.minimumWorld.z + b.maximumWorld.z) / 2;
-        const top = b.maximumWorld.y + 0.3;
-        // (a 1.5 m margin round the roof's edge: a shadow falls a little way in)
-        if (vx.roofAt(x, z) > top && vx.skyAt(x, top, z) <= 0.05 && vx.roofAt(x + 1.5, z) > top && vx.roofAt(x - 1.5, z) > top && vx.roofAt(x, z + 1.5) > top && vx.roofAt(x, z - 1.5) > top) continue;
-      } else if (this.bakedMoon && m.isEnabled()) {
+      if (this.bakedMoon && m.isEnabled()) {
         // (smooth-world: no sky bake - the roof grid; under the baked moon a caster indoors shades nothing the bake
         // has not already darkened)
         const b = m.getBoundingInfo().boundingBox;
@@ -425,95 +367,13 @@ export class World {
   private useBakedMoon(): void {
     this.bakedMoon = true;
     this.sunStatic.length = 0;
-    this.voxelSun.length = 0;
     this.sunT = 0;
     this.sunSpec = '';
   }
 
-  /** The voxel meshes casting shadows (Epic; below it the blockout proxy stands in). */
-  private voxelCasters: AbstractMesh[] = [];
-  private voxelSun: AbstractMesh[] = [];
-  /** 3.1: the voxelised pieces as plain boxes / cylinders, one thin-instanced mesh each, on a layer no camera draws:
-   *  the static shadow casters below Epic (a draw or two per shadow map instead of dozens of chunk meshes; shadows
-   *  shift by at most half a voxel). */
-  private proxy: Mesh[] = [];
-  private casterMode: 'voxel' | 'proxy' = 'voxel';
-
-  private buildShadowProxy(): void {
-    const lv = this.level.voxels;
-    if (!lv) return;
-    const mat = new StandardMaterial('shadow-proxy', this.scene);
-    mat.disableLighting = true;
-    mat.freeze();
-    const q = new Quaternion();
-    const make = (name: string, base: Mesh, ms: Matrix[]): void => {
-      if (!ms.length) {
-        base.dispose();
-        return;
-      }
-      const buf = new Float32Array(ms.length * 16);
-      ms.forEach((m, i) => m.copyToArray(buf, i * 16));
-      base.thinInstanceSetBuffer('matrix', buf, 16, true);
-      base.thinInstanceRefreshBoundingInfo();
-      base.material = mat;
-      base.layerMask = PROXY_LAYER;
-      base.isPickable = false;
-      base.receiveShadows = false;
-      base.freezeWorldMatrix();
-      base.name = name;
-      this.proxy.push(base);
-    };
-    const boxes: Matrix[] = [];
-    this.level.boxes.forEach((p, i) => {
-      if (!lv.voxelBox[i]) return;
-      Quaternion.RotationYawPitchRollToRef(p.yaw, p.pitch, 0, q);
-      boxes.push(Matrix.Compose(new Vector3(p.s[0], p.s[1], p.s[2]), q, new Vector3(p.c[0], p.c[1], p.c[2])));
-    });
-    make('shadow-proxy-box', CreateBox('shadow-proxy-box', { size: 1 }, this.scene), boxes);
-    const cyls: Matrix[] = [];
-    this.level.cylinders.forEach((c, i) => {
-      if (!lv.voxelCyl[i]) return;
-      cyls.push(Matrix.Compose(new Vector3(c.r * 2, c.h, c.r * 2), Quaternion.Identity(), new Vector3(c.c[0], c.c[1], c.c[2])));
-    });
-    make('shadow-proxy-cyl', CreateCylinder('shadow-proxy-cyl', { diameter: 1, height: 1, tessellation: 12 }, this.scene), cyls);
-  }
-
-  /** Epic: the voxels cast; below it the proxy (`applyQuality`). */
-  private setCasterMode(mode: 'voxel' | 'proxy'): void {
-    if (mode === this.casterMode || !this.proxy.length) return;
-    this.casterMode = mode;
-    const off = mode === 'proxy' ? this.voxelCasters : this.proxy;
-    const on = mode === 'proxy' ? this.proxy : this.voxelCasters;
-    for (const m of off) {
-      this.lightRig.removeCaster(m);
-      const i = this.sunStatic.indexOf(m);
-      if (i >= 0) this.sunStatic.splice(i, 1);
-    }
-    for (const m of on) this.lightRig.addCaster(m);
-    if (!this.bakedMoon) for (const m of mode === 'proxy' ? this.proxy : this.voxelSun) this.sunStatic.push(m);
-    this.sunT = 0;
-  }
-
-  /** Static level / voxel geometry: every lamp's list (filtered by reach), the moon's only where open to the sky. */
-  private addStatic(m: AbstractMesh, voxel = false): void {
-    if (voxel) this.voxelCasters.push(m);
+  /** Static level geometry: every lamp's list (filtered by reach) and the moon's. */
+  private addStatic(m: AbstractMesh): void {
     this.lightRig.addCaster(m);
-    const vx = this.voxels;
-    if (vx?.sky) {
-      m.computeWorldMatrix(true);
-      const b = m.getBoundingInfo().boundingBox;
-      const mn = b.minimumWorld;
-      const mx = b.maximumWorld;
-      let open = false;
-      // the top's corners and centre: open sky above, or nothing higher in that column (a roof is its own top)
-      for (let i = 0; i < 5 && !open; i++) {
-        const x = i === 4 ? (mn.x + mx.x) / 2 : i & 1 ? mx.x - 0.05 : mn.x + 0.05;
-        const z = i === 4 ? (mn.z + mx.z) / 2 : i & 2 ? mx.z - 0.05 : mn.z + 0.05;
-        if (vx.roofAt(x, z) <= mx.y + 0.3 || vx.skyAt(x, mx.y + 0.3, z) > 0.05) open = true;
-      }
-      if (!open) return;
-    }
-    if (voxel) this.voxelSun.push(m);
     this.sunStatic.push(m);
   }
 
@@ -572,12 +432,6 @@ export class World {
         m.markAsDirty(1);
         m.freeze();
       }
-      for (const v of this.voxelLayers) v.refresh();
-    }
-    if (!q.minimal) {
-      const [d1, d2] = VOXEL_LOD[q.features.detail];
-      this.voxels?.setLodDistances(d1, d2);
-      this.voxelsFine?.setLodDistances(d1 / 2, d2 / 2);
     }
     const shadowKey = JSON.stringify(q.shadow);
     const shadowChanged = rebuildShadows || (this.shadowKey !== '' && shadowKey !== this.shadowKey);
@@ -591,16 +445,14 @@ export class World {
     }
     const tsChanged = !!this.torchShadows && this.torchShadows.on !== tsWas;
     this.lightRig.setTorchShadows(!!this.torchShadows?.on);
-    this.lightRig.configure({ lights: q.realLights, shadow: q.shadow, volumetric: q.features.volumetrics, minimal: q.minimal, micro: !!this.voxels?.micro }, rebuildShadows);
+    this.lightRig.configure({ lights: q.realLights, shadow: q.shadow, volumetric: q.features.volumetrics, minimal: q.minimal }, rebuildShadows);
     // (LR14) the nearest lamps' character shadow maps (the shadow key above re-reads the materials' defines on a change).
-    // Their atlas is one more texture in every lit shader: the voxel level's micro-detail shader (`?voxels=1`) is full
-    // at 16 with its one flashlight shadow (`LightRig` MICRO_SHADOWS), so that path keeps the capsules
+    // Their atlas is one more texture in every lit shader (`?gfx=min` keeps the capsules)
     const csWas = !!this.charShadows?.on;
-    this.charShadows?.configure(q.minimal || this.voxels?.micro ? 0 : q.shadow.charLamps, q.shadow.charTile);
+    this.charShadows?.configure(q.minimal ? 0 : q.shadow.charLamps, q.shadow.charTile);
     // (the lamp plugin's LAMP_CSHADOW define follows it: on the first apply too, the materials may have compiled already)
     const csChanged = !!this.charShadows && this.charShadows.on !== csWas;
     if (rebuildShadows) this.sunSpec = '';
-    this.setCasterMode(q.features.shadows === 'epic' ? 'voxel' : 'proxy');
     if (this.staticSun !== !!q.shadow.staticSun) {
       this.staticSun = !!q.shadow.staticSun;
       this.sunT = 0;
@@ -647,11 +499,6 @@ export class World {
     this.torchShadows?.setAdaptive(a.shadowEvery);
     const sm = this.shadow?.getShadowMap();
     if (sm) sm.refreshRate = a.shadowEvery;
-    if (!q.minimal) {
-      const [d1, d2] = VOXEL_LOD[q.features.detail];
-      this.voxels?.setLodDistances(d1 * a.voxelLod, d2 * a.voxelLod);
-      this.voxelsFine?.setLodDistances((d1 / 2) * a.voxelLod, (d2 / 2) * a.voxelLod);
-    }
     const k = (q.minimal ? 1 : q.detailScale) * a.partLod;
     this.parts.setLodScale(k);
     setAnimLodScale(k);
@@ -691,35 +538,7 @@ export class World {
   }
 
   /** Keep the sun's shadow frustum centred on the player. */
-  /** GI: each map light's group slot (null: no GI). */
-  giSlotOf: Int8Array | null = null;
-  private giVersion = -1;
-  private readonly giOn = new Float32Array(GI_SLOTS);
-  private readonly giAll = new Float32Array(GI_SLOTS);
-  private readonly giW = new Float32Array(GI_SLOTS);
-
-  /** GI: how much of each circuit is lit now (switches, shot-out lamps, EMP) - the voxels weigh their slots by it. */
-  private updateGi(): void {
-    const reg = this.level.lights;
-    const slots = this.giSlotOf;
-    if (!slots || reg.version === this.giVersion) return;
-    this.giVersion = reg.version;
-    this.giOn.fill(0);
-    this.giAll.fill(0);
-    for (let i = 0; i < slots.length; i++) {
-      const s = slots[i]!;
-      if (s < 0) continue;
-      const l = reg.lights[i]!;
-      this.giAll[s] = this.giAll[s]! + l.intensity;
-      if (l.on && !l.destroyed) this.giOn[s] = this.giOn[s]! + l.intensity;
-    }
-    // (3.2: the structure layer mixes its circuits into the one texture both layers read)
-    for (let s = 0; s < GI_SLOTS; s++) this.giW[s] = this.giAll[s]! > 0 ? this.giOn[s]! / this.giAll[s]! : 0;
-    this.voxels?.mixGi(this.giW);
-  }
-
   frame(focus: Vector3, dt = 0): void {
-    this.updateGi();
     const cam = this.scene.activeCamera;
     // (LR16-5b) the swinging pendants' positions first: the shadow slots below fit and render from where they hang now
     this.lamps?.writeSway();
@@ -734,12 +553,13 @@ export class World {
       this.lightRig.update(dt, cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);
       // (LR16t) after the rig fills the torch slots: each slot's map follows its torch, its shut doors picked
       this.torchShadows?.frame(cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);
-      for (const v of this.voxelLayers) v.frame(dt, cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);
     }
     this.sun.position.copyFrom(focus).subtractInPlace(this.sun.direction.scale(40));
   }
 
   dispose(): void {
+    this.kit?.dispose();
+    this.facilityProps?.dispose();
     this.shadow?.dispose();
     this.surfaces?.dispose();
     this.probe?.dispose();
@@ -748,23 +568,19 @@ export class World {
     this.torchShadows?.dispose();
     this.lamps?.dispose();
     this.breakables.dispose();
+    this.campusArt?.dispose();
     this.doors.dispose();
     this.props.dispose();
     this.level.dispose();
-    this.voxelsFine?.dispose();
-    this.voxels?.dispose();
     this.parts.dispose();
     this.scene.dispose();
   }
 }
 
-/** The smooth level's sky visibility (rendering only): `bakeSky` over the canonical light shapes in `SKY_CELL` cells, on
- *  the grid the voxel path would use (`skyGridFor`: the 5 cm voxels' brick grid), so both read the same cells. */
+/** The smooth level's sky visibility (rendering only): `bakeSky` over the canonical light shapes in `SKY_CELL` cells on `SKY_GRID`. */
 async function smoothSky(l: BuiltLevel['light']): Promise<{ origin: [number, number, number]; cell: number; n: [number, number, number]; vis: Uint8Array }> {
-  const size = VOXEL_TIER.epic.size;
-  // (what the voxel structure layer holds: pieces at least 1.5 voxels thick)
-  const shapes = skyShapes(l.shapes, SHAPE_STRIDE, size * MIN_VOXELS);
-  const { origin, n } = skyGridFor(shapes.length / SHAPE_STRIDE, (i, out) => shapeBounds(shapes, i, out), () => true, BRICK * size, CHUNK * size, SKY_CELL);
+  const shapes = skyShapes(l.shapes, SHAPE_STRIDE, SKY_GRID.size * SKY_GRID.minThick);
+  const { origin, n } = skyGridFor(shapes.length / SHAPE_STRIDE, (i, out) => shapeBounds(shapes, i, out), () => true, SKY_GRID.brick * SKY_GRID.size, SKY_GRID.chunk * SKY_GRID.size, SKY_CELL);
   const pool = new WorkerPool(1);
   try {
     const r = await pool.sky({ kind: 'sky', id: -1, origin, cell: SKY_CELL, n, shapes });
@@ -772,15 +588,6 @@ async function smoothSky(l: BuiltLevel['light']): Promise<{ origin: [number, num
   } finally {
     pool.dispose();
   }
-}
-
-/** FNV-1a over the shapes' bytes and the palette (the voxel cache key). */
-function contentHash(shapes: Float32Array, palette: string): string {
-  let h = 2166136261;
-  const b = new Uint8Array(shapes.buffer, shapes.byteOffset, shapes.byteLength);
-  for (let i = 0; i < b.length; i++) h = Math.imul(h ^ b[i]!, 16777619);
-  for (let i = 0; i < palette.length; i++) h = Math.imul(h ^ palette.charCodeAt(i), 16777619);
-  return (h >>> 0).toString(36);
 }
 
 function makeSky(scene: Scene, top: string, horizon: string): Mesh {

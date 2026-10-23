@@ -1,5 +1,4 @@
 import { BaseTexture, Constants, max3DTextureSize, EffectRenderer, EffectWrapper, MaterialPluginBase, RawTexture, RawTexture3D, Texture, Viewport, type AbstractMesh, type Material, type MaterialDefines, type Observer, type RenderTargetWrapper, type Scene, type SubMesh, type UniformBuffer } from '../core/babylon';
-import { dropCpuCopy } from '../voxel/voxelWorld';
 import { BOX_STRIDE, fillLampAtlas, fitLampAtlas, LAMP_CELL, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_GRID_TEXELS, LAMP_STRIDE, lampGrid, type LampResult } from '../voxel/lampBake';
 import { LAMP_VOL_MAX, lampVolumeGrid, lampVolumeRegion, unionRegion, type LampVolumeGrid } from '../voxel/lampVolume';
 import type { LightRegistry } from './lights';
@@ -1349,7 +1348,7 @@ ${settle}
   vec3 nsDynD = nsDyn * nsAlb;
   // the static light so far: the moon (and the voxels' own fill and bounce); the hemisphere goes where the grid fills
   vec3 nsStat = finalDiffuse - nsDynD;
-#if defined(LAMP_FILL) && !defined(VOXELS)
+#if defined(LAMP_FILL)
   nsStat -= nsHemi * nsAlb;
 #endif
 #ifdef LAMP_VOLUME
@@ -1443,7 +1442,7 @@ ${settle}
   nsStat += lsum * surfaceAlbedo.rgb;
 #endif
 ${level('nsLampRaw')}
-#if defined(LAMP_FILL) && !defined(VOXELS)
+#if defined(LAMP_FILL)
   // (nv-pass slice 1) under night vision the flat fill (and the probe's diffuse) is capped and hemisphere-shaded, so a
   // body sits at the walls' brightness instead of glowing (\`bodyFillScale\`; the lamps on it are untouched). The level's
   // own material (smooth-world, \`LAMP_LEVEL\`) keeps its whole fill, as the voxel walls do.
@@ -1522,4 +1521,10 @@ if (lampDark.x > 1.0) color.rgb += vec3(max(dot(diffuseBase * diffuseColor, vec3
 #endif`;
     return code;
   }
+}
+
+/** Free a texture's CPU copy once uploaded (the bake's pools are large). */
+function dropCpuCopy(t: { getInternalTexture(): unknown } | null): void {
+  const it = t?.getInternalTexture() as { _bufferView?: unknown } | null | undefined;
+  if (it) it._bufferView = null;
 }

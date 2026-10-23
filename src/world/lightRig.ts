@@ -63,7 +63,7 @@ export interface LightRigConfig {
   volumetric: boolean;
   /** Tests (`?gfx=min`): a short plain pool, no clustering. */
   minimal?: boolean;
-  /** The voxel level draws micro detail (`VoxelWorld.micro`): the shadow pool shrinks to `MICRO_SHADOWS`. */
+  /** A level that draws micro detail: the shadow pool shrinks to `MICRO_SHADOWS`. */
   micro?: boolean;
 }
 

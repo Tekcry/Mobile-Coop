@@ -331,6 +331,18 @@ export function laserTouch(def: LaserDef, px: number, py: number, pz: number, he
   return false;
 }
 
+/**
+ * (guard-ai S17, A100) Where a broken laser is for the guards: the middle of its beam line on the plan, at its floor
+ * (`floorY`; NaN when the def has none: the caller takes the nav floor there). A beam sensor knows which beam broke,
+ * not where along it, nor where the body went after: never the player's position. Writes `out`, no allocation.
+ */
+export function beamSpot(def: LaserDef, out: { x: number; y: number; z: number }): { x: number; y: number; z: number } {
+  out.x = (def.x1 + def.x2) / 2;
+  out.z = (def.z1 + def.z2) / 2;
+  out.y = def.floorY ?? Number.NaN;
+  return out;
+}
+
 /** Per-player break cooldown: true when a break counts now (and arms the cooldown), false while it is cooling. */
 export function laserCooldown(cool: { t: number }, dt: number, touching: boolean): boolean {
   cool.t = Math.max(0, cool.t - dt);

@@ -22,7 +22,7 @@
  * composes the rig's own row onto TUNE_CUR, put back by `tuneRigEnd` (`tune.ts`).
  */
 import { ANIM_BASE, type AnimBaseData } from './animBase';
-import { BODY_BASE_FIELDS, BODY_GROUPS, bodyBaseLoad, bodyRigBegin, bodyRigEnd, bodyRigState, tuneBodyGroup, type BodyField, type BodyRigState, type TunePoseIn, type TuneRigIn } from './tune';
+import { BODY_BASE_FIELDS, BODY_GROUPS, bodyBaseLoad, bodyRigBegin, bodyRigEnd, bodyRigState, selectBodyGroup, TUNE_PIN, tuneBodyGroup, type BodyField, type BodyRigState, type TunePoseIn, type TuneRigIn } from './tune';
 import { HAND_WEAPONS, handsBaseLoad, handsBeginRigRows, handsEnd, handsRigState, handsWeaponOf, type HandsRigIn, type HandsRigState } from './tuneHands';
 import { JOINT_ROWS, jointsBaseLoad, jointsBeginRigRows, jointsEnd, jointsRigState, type JointsRigState } from './tuneJoints';
 import { pickTuneRows, TUNE_MOVE_MAX, TUNE_ROW_IDS, tuneRowPick, type TuneActionWeights, type TuneMovePoseIn, type TuneRowPick } from './tuneMoveRows';
@@ -87,7 +87,16 @@ export function tuneRigBegin(st: TuneRigState, pose: TunePoseIn & TuneMovePoseIn
   // (anim-gear) the gear offsets by this rig's crouch amount (nothing live: returns at once)
   gearRigUpdate(st.gear, pose.crouch);
   // (anim-bake-targets, BT-A1) the Body base of this rig's row onto TUNE_CUR (the local player's tuner values or identity)
-  bodyRigBegin(st.bodyBase, gi, pose, rig, dt);
+  // (crouch-pops, CP-A2) mid-crouch (no studio pin): the standing row blended toward the crouched row by the crouch amount
+  const c = pose.crouch;
+  if (c > 0 && c < 1 && !(TUNE_PIN.body !== '' && rig === TUNE_PIN.rig)) {
+    pose.crouch = 0;
+    const gs = selectBodyGroup(pose, ledge, armed);
+    pose.crouch = 1;
+    const gc = selectBodyGroup(pose, ledge, armed);
+    pose.crouch = c;
+    bodyRigBegin(st.bodyBase, gs === null ? -1 : (BODY_INDEX[gs] ?? -1), pose, rig, dt, gc === null ? -1 : (BODY_INDEX[gc] ?? -1), c);
+  } else bodyRigBegin(st.bodyBase, gi, pose, rig, dt);
 }
 
 /** After the rig's `animate` frame: both windows off. */

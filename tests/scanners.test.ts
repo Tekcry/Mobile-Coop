@@ -16,9 +16,6 @@ import {
   scanWindowLeft,
   type ScanPair,
 } from '../src/game/scanners';
-import { ctcourse, S6_FLAG, S6_SCANNERS } from '../src/world/maps/ctcourse';
-import { LevelBuilder } from '../src/world/levelBuilder';
-import { hyp2 } from '../src/core/mathx';
 
 const DT = 1 / 60;
 /** Step `secs` with both players at their panels (or as given); returns the last non-'none' result kind. */
@@ -128,17 +125,12 @@ describe('paired scanners (B6)', () => {
     expect(scanPairReady(true, false)).toBe(false);
   });
 
-  it('station 6: the scanners sit on opposite fences, too far apart for one player in the window', () => {
-    const lay = ctcourse.build(new LevelBuilder(), 0);
-    expect(lay.scanners).toEqual([S6_SCANNERS]);
-    const a = lay.course!.devices[S6_SCANNERS.a]!;
-    const b = lay.course!.devices[S6_SCANNERS.b]!;
-    const d = hyp2(a.x - b.x, a.z - b.z);
-    expect(d).toBeGreaterThan(12);
-    // even a 6 m/s sprint between two finished hacks misses the window (the second hack also takes SCANNER.hack)
+  // (marlow-final 0d) the Marlow Yard station 6 case (two panels too far apart for one player inside the window, the flag
+  // gate and its external flag) returns with the A7 and A8 scanner pairs in their set tests (tests/ctcourse/<set>.test.ts;
+  // `syncStation` throws under `syncMinGap`). The rule it pinned, kept here map-free: a pair 12 m apart beats a lone
+  // player's 6 m/s sprint between the two hacks.
+  it('a pair 12 m apart is too far for one player in the window', () => {
+    const d = 12;
     expect((d - 2 * SCANNER.reach) / 6 + SCANNER.hack).toBeGreaterThan(SCANNER.window);
-    const gates = lay.course!.def.bays[5]!.gates;
-    expect(gates.some((g) => g.kind === 'flag' && g.flag === S6_FLAG && g.doorId === 'S6-door')).toBe(true);
-    expect(lay.course!.def.externalFlags).toContain(S6_FLAG);
   });
 });

@@ -256,3 +256,342 @@ doesnt make sense". A32-A34 are S10's (on `feature/guard-ai-s10`).
 - **A51** (S12) The `deflect` hit marker is steel blue (`#8fb3d9`, `styles.css`) with a 2600 Hz ping (`sfx.hitMarker`);
   the HUD and sfx `hitMarker` signatures take the new kind. Undo: drop the CSS rule and the ping (falls back to the
   white hit marker).
+- **A80** (S16, Sector Ops E10) A guard never fires into armour: before the wind-up, a burst and every round
+  `Enemy.tryFire` casts the fire line (the muzzle `shoot` uses -> its aim point before spread, `MASK.ENEMY_SHOT`, plus
+  `G.ENEMY_HITBOX` against a human shield); a first hit with `G.GLASS_ARMOURED` (armoured pane or door leaf) drops the
+  wind-up and the burst. Aimed, suppressive and blind fire are all gated. Undo: drop the `armourBlocks` call in `tryFire`.
+- **A81** (S16) The verdict is cached per guard for `ARMOUR_FIRE.recheck` 0.25 s while his nav cell and the aim's stay the
+  same (a new cell recasts at once): at most ~4 rays a second per fighting guard, no allocation. Undo: `recheck` 0.
+- **A82** (S16) Held fire with the target in sight for `moveAfter` 1.0 s starts a reposition: a cover user takes the
+  existing cover pick in relocation range (5-22 m), clear-line spots only; no such spot, or no cover use, chases round by
+  the nav flow field at 0.75 x run, not stopping to engage while the line stays armoured. A reposition lasts at most
+  `moveT` 8 s and ends early on a clear line; the next may start `retry` 6 s after it; in between he holds. Undo: the
+  `ARMOUR_FIRE` table, or drop the plan branch in `Enemy.decide`. With S8 roles (merge of master 4.75.0): the role
+  step runs first (a bound the group starts is not cut short), then this check, for a role holder too (his rounds are
+  gated in `tryFire` whatever path calls it); a reposition blocks the cover he leaves for the role picks
+  (`blockCover`, `TACTICS.blockS` 5 s) and drops his role cover until the next roles tick, so the group does not send
+  him straight back. Undo: move the S16 block above the `roleStep` call.
+- **A83** (S16) The cover pick casts a spot's line (standing muzzle height -> the target's aim point) only for a spot that
+  would be the new best, at most `coverCasts` 6 per pick; an unverified spot is skipped. Undo: raise `coverCasts`.
+- **A84** (S16) A guard held to a room (`hold`) or a post leash with the target outside it only holds: he tracks and
+  faces him, never fires into the armour and never leaves. Undo: `plan(true)` in `Enemy.decide`.
+- **A85** (S16) Sight (`MASK.SIGHT`), hearing (`MASK.HEARING`), the alert level and reporting are unchanged: a guard behind
+  clear armour still spots, shouts and radios. Plain glass is unchanged (not in the shot mask: guards fire through it).
+- **A86** (S16) Co-op: host only (the host's guards decide), no wire change; a client player behind armour is a
+  `PlayerRef` like the host's and gets the same gate.
+- **A87** (S16) The ray is `Ballistics.armouredFirst` (src/weapons/ballistics.ts, a combat file): an additive,
+  allocation-free method in `ray`'s order (a hit volume or prop first is not armour). Sector Ops are told. Undo: remove
+  it with the gate.
+- **A88** (S16 fix round) The e2e block "guards hold fire at armour" (`e2e-sectorops.mjs` part 6) picks the player's
+  hall floor spot with the AI still frozen, by each NOC guard's own `Enemy.perceive` at his window post, then turns the
+  AI on and asserts `los` through the update path. The first run (fb192d45) failed in the test, not the game: three of
+  its five spots were inside pod P1 (racks under the 3.0 roof), and the pair, alerted without sight, walked off the
+  window toward the stairs before the one visible spot (-1.5, 32) came up; from the back of the NOC the 4.6 sill hides
+  the floor. New spots: the hall's west aisle (-2.5, 30), (-2, 31), (-1.5, 32), (-2.5, 29), pinned by
+  `tests/campusS4NocSight.test.ts` (clear from both posts +-0.3 m at chest / head 0.9-1.6, each line crosses arm-noc).
+  No game change. Undo: the old spot loop (alert first, then try spots).
+- **A89** (S16 fix 2) The same e2e block runs its timed part in sim time only: `loop.manual = true` before the alert
+  (rAF frames render, never step), as the other blocks with sim-time steps do. Without it every page round trip let rAF
+  step the sim on in real time, so the nominal 1.5 + 10 s ran past `ALERT.lostSight` (12 s; `sinceSeen` starts at 99,
+  so a guard who never sees again times out 12 s after the alert) and the pair, out of sight in their cover, dropped to
+  searching (the pre-existing combat timeout, not the gate). In sim time the window ends under 12 s, so a drop there
+  is something other than the timeout. The final assert prints each guard's level, time in it and time unseen. No game
+  change. Undo: drop the `manual` line.
+- **A52** (S13) A stage rise gives its gear to every living guard of the loaded section (Sector Ops loads one section)
+  on top of what he wears, so a guard whose own helmet was shot off gets a new one when stage 3 arrives. Undo: in
+  `EnemyManager.giveStageGear` skip the helmet for a guard who lost one (a flag set in `Enemy.knockHelmetOff`).
+- **A53** (S13) The sweep switches on when the team's leader (the first member up: the shield guard while he stands)
+  has searched `ALERT.searchTime`; members still searching follow him at once, a member in combat fights. The point
+  list is built at each switch from the last known position then (a sighting, the search, then a fresh order).
+  Undo: build once per team (`SweepTeam.begin` only when `switches === 0`).
+- **A54** (S13) Every pass starts at the team's own start point (`sweepStart`: team 0 at the point nearest the last
+  known position), so teams of different stages stay apart pass after pass. Undo: `this.start = 0` when `passes`
+  goes up in `SweepTeam.next`.
+- **A55** (S13) Followers stack on the leader's approach line (from the point back to him), rank x `SWEEP.gap`, jog
+  (0.6 x run speed) when more than 4.1 m off their place, and look the way he looks once there; the leader skips a
+  point his path cannot reach. A `SectorDef.sweep` list is used as given (only ordered, not thinned). Undo: `SWEEP.gap`;
+  pass `SWEEP.thin` for the override in `SweepTeam.begin`.
+- **A56** (S13) Sweep source: Sector Ops reads the section's guard list (route points, and the spawn point of each
+  guard with no route; dogs left out); other live maps read the guards placed in the alarm's section at the alarm
+  (dead ones included, dogs and team members left out). A woken team member takes his place back, counts as having
+  fought (never calms) and gets the stage gear. Undo: drop `e.aware.fought = true` in `EnemyManager.revive`.
+- **A70** (S14) An alert call (`missing` for a miss, `shots`) carries its own incident id (-2, -3, ...), apart from the
+  board's: the S2 pair lead's own `missing` report (board id) stays an ack and never makes anyone cautious, so taking
+  the caller during his call leaves the section calm even when another guard leads the search. When the caller also
+  leads, he holds two calls (both cut with him). Undo: start the alert call on the board's incident and drop the log
+  check in `radioDeliver` (the queue then merges the two calls' receivers under whichever completed first).
+- **A71** (S14) One `missing` call per radio check (several members missed in one check: one call, at the first one's
+  spot); the S10 pair miss calls too, also when the partner's guard is gone (the spot is his last route point). Each
+  missed member still counts in `missedChecks`. Undo: call per member in `radioCheckNow`.
+- **A72** (S14) "One call per shots incident" is the open call: loud shots heard while the shots call is going out join
+  it (the spot moves to the newest); once it is through or cut, the next loud shot heard is a new call, whose delivery
+  refreshes the caution. No refresh without a call. The caller is the nearest calm hearer (tier 1 or 2) whom this shot
+  does not send to combat; not a dog or melee guard, not passive, held or blinded, not on the search after a fight.
+  Undo: `SHOTS.sectionCall = false`.
+- **A73** (S14) The shots pair: the delivered call reports a board `shots` incident at the newest shot's spot with the
+  caller as a perceiver (`IncidentBoard.wantPair`): the lead walks over as an investigator (`sendTo`), the cover holds
+  `pairBack` short as the missing pair's cover; the cover is another perceiver, else a calm guard within `callR`, else
+  any free guard. Merged into a shots incident already assigned, its one investigator gets the cover. Undo:
+  `SHOTS.pair = false` (one goes, as before).
+- **A74** (S14) The section alert is the S4 caution 1 (cooldown sight, `PACE.cautious`, waits x `CAUTION.waitMul`, the
+  torch rule of a searching guard while calm); the caller is cautious too. A guard who goes down loses his timed alert
+  (woken: the S4 knockout caution). Undo: none needed (the caution model is S4's).
+- **A75** (S14) Section counters (`EnemyManager.sectionCounts`): `bodiesFound` (a guard found the body), `missedChecks`
+  (each member a check missed, each pair partner who never came, counted at the miss), `shotsCalls` (only calls that got
+  through), `radioAlarms` (a `command` call that raised the alarm); reset by `EnemyManager.clear` (section load via
+  `despawnAll`, restart via `resetMemory`). The older run tallies (`bodiesFound`, `radioMisses`, `pairMisses`) are
+  unchanged. Undo: not needed (read-only).
+- **A76** (S14) Barks: the radio check's "missed" line names the unit ("Unit three, report... Unit three? Nothing.";
+  slot + 1, else key + 1) and is urgent now (it follows his own "Radio check." at once; the cooldown dropped it before);
+  `shots` ("Shots fired! Calling it in.") at the call's start; radio lines `shotsReport` / `missingReport` when the call
+  gets through. Undo: drop `'missed'` from `URGENT`, call `bark('missed')` without the unit.
+- **A77** (S14) The co-op quiet shot (A46) uses `min(weapon def noise, 0.6)`: the host does not know a client's
+  suppressor mods, and a quiet shot is never louder than the suppressed cap. Undo: `SHOT_NOISE * 0.5` in
+  `CoopHost.remoteNoise`.
+- **A60** (S15) The breaker walk is calm: the guard keeps his level (unaware or cooldown; suspicious only if a glimpse
+  comes on the way, and the walk goes on once nothing is in sight); investigating or worse drops it. A fault is said
+  aloud ("Breaker's gone again.", a new `breaker` bark, not a radio line) and starts no radio call; the other witnesses
+  ack (look 3 s, up to 2 "Copy."). Undo: `this.ctx.radioCall?.(this, incident, 'light')` in `Enemy.resetBreaker`.
+- **A61** (S15) The `BREAKER.repeatT` clock runs from the last cut a guard noticed (a witness at the time or a late
+  find), on the board clock; a cut nobody saw opens nothing and starts no clock. Each press that leaves a circuit off
+  is a new cut (`cutSeq`); the same cut noticed again (seen at the time by guards who could not go, found late by
+  another) stays what it was first taken for, a fault or tampering, and does not restart the clock. Undo: record every
+  press in `EnemyManager.lightsOut` before the `n === 0` return in `circuitOut`; drop the `faultCut` test there to count
+  every notice as a new cut.
+- **A62** (S15) Late discovery looks with the focused cone only (no peripheral field: a fixture already dark is not a
+  bright change) within `LATE.range`, one line-of-sight ray, and only calm free guards (unaware or cooldown, no task;
+  not passive, held, melee, a dog, a high-security post or an alarm runner). A shot lamp found late sends him alone (the
+  one witness). The scan runs every 0.1 s over a round-robin share of the guards (~3 Hz each, `LATE_SCAN`). Undo:
+  `LATE.enabled = false`, or the peripheral field back in `EnemyManager.lateStep`.
+- **A63** (S15) Only a cut at a switch is a breaker fault: a circuit dark while its switches stay on (an isolator that
+  leaves the switches alone) keeps the S2 light incident, and the walk ends as soon as a lamp of the circuit is lit
+  again at its base (`BreakerHost.isOff`). A course mains gate's circuit (`MapLayout.course`: cutting it opens the gate)
+  is never a fault: `BreakerHost.isOff` and `reset` refuse it (`StealthSystems.mainsGroups`), so no guard turns it back
+  on and shuts the gate on the players (the S2 light incident at the switch, as before). marlow-final's timed isolator
+  is not on this branch: it gets the breaker walk if it sets its switches off (`StealthSystems.syncGroup(group, false)`)
+  when it cuts and back on when it relights, and passes its group to `lightsOut` so each cut counts as a new one (A61).
+  Undo: drop the `isOff` test in `EnemyManager.lightsOut`; empty `mainsGroups` to let guards reset mains circuits.
+- **A64** (S15) The walk ends at the walkable cell nearest the switch (`nearestWalkable`, 4 cells); he works it within
+  0.7 m and gives up after 30 s without getting there (`BREAKER_WALK` in `ai/breaker.ts`); his pace is `PACE.patrol`
+  (`PACE.cautious` while cautious). Undo: change `BREAKER_WALK`.
+- **A65** (S15 laptop fix) The breaker walker is the witness nearest the switch by path: no officer, cautious, role or
+  zone weight (a chore, not a check), so a map's lure guard by the panel / switch bank walks (`IncidentBoard.best`,
+  `incidents.ts:561`). Undo: drop the `K_BREAKER` branch there.
+- **A90** (S9) Protocol 32 (free on every origin branch: master 31, marlow-final 33, section-rating 34, sector-redesign
+  art kit 35). Barks go as indices (`BARK_EVENTS`, append only; line `BarkVoice.lastLine`; unit), the client rebuilds
+  the text (`barkLine`); lines not in the table (a talking pair's, the security desk's camera line) go as text
+  (`BARK_TEXT` / `BARK_CAM`, 120 chars). A80-A89 are left for S16. Undo: drop the text kinds (pairs and desk lines
+  host-only again).
+- **A91** (S9) Caution low ready on both screens: cautious and calm, `GUARD_AIM.caution` 0.4 (was the calm 0.2: the
+  host's own pose changes too, so the two match; research/ct-behaviour.md "weapon at low ready"). The client's wire
+  level 1 (suspicious or investigating) poses as investigating 0.7 (the host's suspicious is 0.4). Undo:
+  `GUARD_AIM.caution` 0.2.
+- **A92** (S9) The client's dropped helmet flies along our own round when it hit him within 1 s, else backwards from
+  his facing (the host's round direction is not on the wire); a helmet bit clearing while he jumped more than
+  `PG_JUMP` 1.5 m in one frame is a re-place (restart, new slot) and drops nothing. A re-place in place (under 1.5 m)
+  would drop a stray helmet on the client. Undo: carry the direction in a `helmet` event.
+- **A93** (S9) The client predicts a deflect from the gear bits (instant marker and ping through `playerWeapons`, as the
+  host's own); the host's `hitConfirm` `deflect` shows only when not predicted (`DeflectLedger`, 1 s window). The host
+  confirms only deflects on guards (hits are predicted, kills come as `kill`). Undo: show every confirm.
+- **A94** (S9) The puppet predicts the enforcer's front shield block (0 dealt) with the host's `shieldBlocks`, so a
+  client round on the shield no longer predicts damage. Undo: drop the line in `EnemyPuppet.applyDamage`.
+- **A95** (S9) The gear parts and the shield are one builder for both sides (`ai/gearParts.ts`, moved out of `Enemy`
+  without a change in look); gear parts build on the puppet the first time its bits ask, then toggle. Undo: n/a.
+- **A96** (S9, merge of master 4.75.0) Protocol 37, not 32: master 4.75.0 is at 35 (sector-redesign E9-crate) and the
+  orchestrator's registry has 33 marlow-final, 34 hang-down, 35 sector-redesign, 36 pose-parity (#223, unreleased);
+  37 is the next free number. The wire content is S9's unchanged (A90) next to master's `crate` item / event (every
+  message is keyed JSON: no field order to agree on). Undo: if pose-parity lands first or drops its number, renumber
+  `PROTOCOL_VERSION` in `src/net/protocol.ts` and every `toBe(37)` / `v: 36` / `v: 37` in tests (net, jammer,
+  jammerFixes, moveState, rejoin, sectorLampSync, sectorStep3, crateWire, coopGuardAi) and `docs/systems/coop.md`. **Superseded by A140**
+  (train 28 merge): 38.
+
+## Walk 4.72 fixes (PLAN "Walk 4.72 fixes" S17-S19; Michael's walk of 4.72, G1-G3)
+Michael, verbatim: G1 "when guards alerted when i cross laser, they somehow know ive climbed elsewhere. theres no way
+they could no that unless they saw me. change it so they come to look where the laser is and search the room."; G2
+"guards investigating dead bodies give up too easily."; G3 "guards should rush to any triggered alarms or bodies
+reported, they need a sense of urgency when it makes logical sense." A100-A119 are this batch's (`slices/WALK.md`).
+- **A100** (S17) A broken laser is at its beam line's midpoint, at its floor (`beamSpot`): a beam sensor knows which
+  beam broke, not where along it. Undo: in `CtDevices.touch` report the nearest point of the beam to the body at the
+  break (`distToSegment`'s projection) instead.
+- **A101** (S17) A camera at full awareness is a device alert too (G3 "any triggered alarms"): its spot is where the
+  camera saw someone at that moment (a sighting, not his live position); calm guards go there as for a laser. No last
+  known position is set from it. Undo: drop the `alertAt` call in `CtDevices.onCamera`.
+- **A102** (S17) Reinforcements an alarm brings within `DEVICE.fresh` (90 s) of a device alert, with no last known
+  position (nobody has seen anyone), are responders: aggressive as every reinforcement, they run their entry route in,
+  then search the device's spot inside its room and never calm (as S6; a response team sweeps after it, S13). After a
+  sighting they go to combat on the last known position as before. Undo: `DEVICE.enabled = false` (also drops A103), or
+  return false from `EnemyManager.deviceFresh`.
+- **A103** (S17) A device alert opens a `device` board incident: the 2 nearest calm free guards by path within 30 m
+  (`DEVICE.want`, `callR`) go straight to the spot (no pause to look: the alarm went off), search round it inside the
+  room it is in (no room: round the spot), `ALERT.searchTime` (a plain search's length), then back to their route on edge;
+  nobody in range: it waits 20 s (`DEVICE.wait`), then lapses. One incident per device while open (a second trip
+  merges). Undo: `DEVICE.want` / `callR` / `wait` (`src/ai/gear.ts`).
+- **A104** (S17) Marlow Yard (Course mode) gets the same device incident as Sector Ops (both host `CtDevices`): a laser or
+  camera there sends calm guards in range. Undo: drop `alertAt` from the `CtDevices` hooks in `courseMode.ts`.
+- **A105** (S17) Left as is: an alerted guard with no last known position still goes for the player's feet in combat
+  (`Enemy.decide`'s `known`). Only the device alarms led there without a sighting; a panel or command alarm follows a
+  contact (a last known position). Undo: not needed; an open item if another path is found.
+- **A106** (S18) A dead body's search (`SEARCH_BODY`, `BODY_SEARCH` in `ai/gear.ts`): `ALERT.searchTime` x 3 (180 s,
+  M3's "a few minutes"), a ring from 1.5 m in 1.5 m steps out to 15 m (plain: 2 m, 2.5 m, 11 m), 2.5 s at each point
+  (plain 3 s): at the search pace about twice the points and 4 m further out than a plain search; then the held caution
+  as before (S4). Undo: `BODY_SEARCH = { timeMul: 1, r0: 2, step: 2.5, max: 11, look: 3 }`.
+- **A107** (S18) Who searches the body way: the dead body's finder and the calm guard who hears his "Man down!" (S4),
+  the guards a camera sends to a dead body (S7: the one who finds it, and the second, who now joins the search when the
+  first has found it instead of standing down), and a kill seen by a calm guard (it goes through the same finding). A
+  knockout keeps A4 (the waker and the woken guard search 60 s, the plain way); a kill seen with no body (a dog) stays
+  plain. Undo: `searchAt` in place of `bodySearch` in `EnemyManager.bodyFound`; drop the S18 branch in
+  `Enemy.stepCamBody`.
+- **A108** (S18) A guard already searching (a call, a pair, another body) who finds a dead body starts the body's search
+  over from zero round it (as `koSearch` does). Undo: drop the restart in `Enemy.bodySearch`.
+- **A109** (S19) Urgent = a jog: run speed x `PACE.rush` 0.75 (the aggressive jog), about 2.4 m/s for a grunt against
+  0.99 m/s on patrol, until he first reaches the spot (the investigated spot, or the first stop of his search); then
+  his calm investigate / search pace. Undo: `URGENT.enabled = false` (`ai/gear.ts`) or `PACE.rush` (`ai/response.ts`).
+- **A110** (S19) Who hurries (`urgentKind`): a tripped device's responders and its reinforcements (S17), guards a camera
+  sends to a body (S7), the guard who hears the finder's "Man down!" (S4), a guard sent on a radio body report (A111),
+  the missing pair (S2 / S5b / S10, lead and cover) and a shots investigator and its cover (S14). Calm: a noise, a lure,
+  a light gone out, a breaker fault (the S15 walk is untouched). The panel alarm runner and combat reinforcements
+  already ran; the knockout waker keeps `PACE.revive`. Undo: return false for a kind in `urgentKind`.
+- **A111** (S19) G3 "rush to ... bodies reported": when a finder's dead-body radio call gets through, the board sends
+  `URGENT.bodyHelpers` (1) calm free guard within `INCIDENT.callR` (25 m) by path to hurry over and search the body (the
+  body way, S18) with the finder; no alarm (A2 kept). Sent at the call's completion; a body carried, hidden or gone by
+  then sends nobody. Undo: `URGENT.bodyHelpers = 0`.
+- **A112** (S19) The S14 missing call itself still moves nobody (the section turns cautious); the move it goes with is the
+  board's missing pair, which now hurries. Undo: not needed.
+- **A113** (S19) Tests that change by design: e2e-stealth-ai 'bodies' and 'witness' now expect the calm guard out of voice
+  range to be searching (sent to help, `bodyHelps` 1) once the report gets through, not standing on edge; the unit
+  fakes in `awarenessWiring` / `sectionAlert` gain `helpSearch`. Undo: with A111.
+- **A114** (S20) G4 "guards seem to walk through eachother": the walker keeps the old soft push (3 x (1.1 - d) m/s inside
+  1.05 m), adds a sidestep round a guard ahead on his line (within 2.2 m and 0.9 m of his line, x0.9 of his speed at
+  contact; dead ahead each steps to his own left, so a head-on pair parts), and cuts every step at 0.65 m between centres
+  from each solid guard on his storey (1.5 m): he slides round the circle; one already nearer may only move apart; a
+  step that cannot be cut clear is not taken (`SEPARATION`, `ai/separation.ts`). Not solid: dead or knocked out, held in a
+  takedown. A talking pair (S10) and a post (S5) keep their spots (their meet points / posts are further apart than
+  0.65 m; a passer goes round them). Players keep the old soft push. Undo: `SEPARATION.min = 0` and `side = 0` (the old
+  steering alone).
+- **A115** (S20) G4 "... and sometimes doors": a guard's step into or across a shut door's leaf (its collider box grown by
+  the nav agent radius 0.32 m) is refused (`DoorGate.blocking`, every step in `Enemy.tryMove`). A shut door that is not
+  locked is opened as the guard push always did (`Doors.open(d, 'enemy')`: its sound and noise, the guard-opened close
+  behind him, the co-op door sync), and he waits until its swing reaches `DOOR_GATE.pass` 0.5 (0.2 s of the 0.4 s
+  push); the 1 m push (`Doors.pushOpen`) still runs first, so on a walk he rarely waits. Chosen over rerouting: the door
+  API keeps the door state and sound right for both players with no protocol change. Undo: drop `doorStep` from the
+  `EnemyManager` context.
+- **A116** (S20) A locked door is never crossed: the guard stops at its leaf and waits there (it opens when the door
+  unlocks). No nav closure per locked door: the e2e nav checks (`e2e-sectorops` 'nav (M8 routes, sealed sections)',
+  `e2e-course` Fallow paths) expect the guards' grid to walk through locked section doors, and guards do not route
+  across them; Sector Ops' keypad, bolt, lockdown and pair-gate doors already shut their doorways on the grid (routes go
+  round). No map data lets guards through a locked door (none exists). A door locked while open (a course gate) stays
+  open to them. Undo: drop `doorStep` (A115); a per-door closure (`NavGrid.addClosure`, shut while locked and closed) is
+  the follow-up if guards are seen waiting at locked doors.
+- **A117** (S20) Left as is: `Doors.pushOpen` ignores height (a guard under a door's floor within 1 m of its centre opens
+  it) and still runs for a held guard; dogs use the same gate and spacing. Undo: not needed; open items.
+
+- **A120** (S21) G5 Michael, verbatim: "they also dont always have to be low-ready, then can walk around holstered if they
+  are in a calm area." Every guard stays armed (2026-10-23 ~01:25). A calm area for a guard (`calmArea`,
+  `ai/carryState.ts`; `Enemy.carryCalm`): he is unaware (no suspicion, investigation, search, combat or its cooldown),
+  not cautious (S4 held / S14 section alert timed caution), on no board task or camera body, no alarm raised in his
+  section (`ctx.alarmRaised`, S6), not a high-security post (S5 `secure`), not a device responder (S17) or a response
+  team member (S13 `crew`), and stealth rules are on (the parked modes keep low ready). Undo: `GUARD_CARRY.enabled = false`.
+- **A121** (S21) Who holsters (`mayHolster`): every kind with a gun except the sniper (on his watch, laser and glint) and
+  the enforcer (the shield in his other hand); melee kinds and the dog never. Undo: edit `GUARD_CARRY.never`.
+- **A122** (S21) He holsters again only after `GUARD_CARRY.calmHold` 15 s calm without a break (no flicker after a glance
+  or a cooldown); stirred mid-holster he draws straight back up from where the gun is. Undo: `calmHold`.
+- **A123** (S21) Guard draw times: rifle 0.7 s, pistol 0.5 s (`GUARD_CARRY.draw`; the player's N3 draws are 1.1 / 0.75 s;
+  CT guards shoulder fast); holster 1.0 / 0.9 s (the player's). A guard who spots the player has usually drawn by then
+  (suspicion draws); one hit or sent to combat from calm waits the draw before his first shot (`Enemy.tryFire` gates on
+  `carry.drawn`), on top of the old reaction / aim settle. Undo: shorter `draw` values, or drop the gate in `tryFire`.
+- **A124** (S21) Where the gun rides: the player's carry slots and placement (`carrySlotOf` -> `WeaponModel.holster`):
+  the rifle slung diagonally across the back (`backC`, as Wren's, not the vertical `backSocket` mount), the pistol on the
+  right thigh (sets the rig's `thighGear`), a compact on the hip sling. The draw / holster runs the player's travel
+  (`beginTravel` / `travel`, the trigger hand on the grip) and the swap clip (one slot). Undo: `carrySlotOf`.
+- **A125** (S21) The rig: the shared `RigPose` gains an optional `ready` (the holstered carry with ready hands and the
+  armed carriage; unset it keeps `carrier && !heldWeapon`, so the player and remotes are unchanged). Guards are not
+  `carrier` (that also switches mocap and the keyed drawn set), so they set `ready` directly. The raise (`RigPose.aim`) is
+  0 while holstered and the wanted aim through a draw (gating it to 0 until drawn popped the gun 15-34 cm at the
+  hand-over). Undo: with A120.
+- **A126** (S21) Co-op: host only. A client poses guards from the snapshot's alert level (0 calm .. 3 combat), which
+  cannot tell caution, a raised alarm, a post or a response team apart from calm, so it cannot derive the holster; no
+  protocol change in this slice: client puppets stay at low ready (open item, `slices/WALK.md` S21). Undo: not needed.
+  **Resolved** (branch `feature/guard-ai-a126`, A136-A139): the host's carry phase rides `al` bits 7-8 and the client's
+  `EnemyPuppet` poses holstered / drawing / low ready / raised / holstering through the host's rig path.
+- **A127** (S20 check, `slices/WALK-CHECK.md`) Two guards face to face in a doorway or a corridor too narrow to step
+  round each other (1.2 m and less) were held about 0.65 m apart forever by the S20 spacing. Held by it (pushed off, cut
+  or refused) with somewhere to go, under a quarter of his pace, for `SEPARATION.stall` 1 s, a guard squeezes past for
+  `SEPARATION.squeeze` 2 s: the soft push only (as before S20, no sidestep, no hard cut), so they brush past in a narrow
+  gap and nobody waits forever; a man standing in his way is passed the same way. Undo: `SEPARATION.stall` very large.
+- **A128** (S22) G6 Michael, verbatim: "if i turn it off while hes distracted, he should notice when he sees it and turn
+  it back on also." He notices a console off only when he sees its screens (`CONSOLE_FAULT.screenY` 1.1 m over its floor):
+  in his focused cone within `range` 12 m, or his peripheral field within `near` 4 m (Marlow's officer at his post has
+  the console about 51 degrees off his facing, outside the 27.5 degree focused cone), with one clear ray or in the room
+  he stands in; at the switch-off or later on the late-discovery clock (about 3 looks a second per guard). Never through
+  walls, never by radio. Undo: the `CONSOLE_FAULT` numbers.
+- **A129** (S22) Distracted means not free: on a board task (a noise, a light, a body), investigating, searching,
+  suspicious or in combat, held, or running the alarm. Such a guard never
+  notices; once he is unaware or cooling down and free again, the next time he looks at it he does. A high-security post
+  (S5 `secure`, the board never sends one), a dog and a melee kind never notice. Undo: `EnemyManager.consoleFree`.
+- **A130** (S22) Reuse, not a copy: a console is a pseudo circuit (`CONSOLE_GROUP` 50000 + its index) on the S15 breaker
+  walk and the board's `breaker` / `light` incidents, so it keeps S15's numbers: one walker (nearest by path), patrol
+  pace, `BREAKER.resetT` 2 s at the console, `BREAKER_WALK.giveUp` 30 s, `BREAKER.repeatT` 60 s. Undo: separate numbers
+  in `CONSOLE_FAULT` read by `Enemy.breakerStep` for console groups.
+- **A131** (S22) Tampering: a second switch-off noticed within 60 s of the last noticed one is the S2 light check at the
+  console (1-2 go, the look, the 4-point ring, the radio report, line `consoleCheck`). Unlike a tampered breaker (left
+  off after the check), once the check is over (its incident closed) the next guard who sees the console still off
+  turns it back on: a console left off for good would make the second press free. Undo: in `ConsoleFaults.notice`, a
+  tampered cut never becomes `V_FAULT`.
+- **A132** (S22) A walk dropped on the way (he was drawn off again, gave up after 30 s, nobody was free): the console is
+  noticed again by the next guard who sees it, after `CONSOLE_FAULT.retry` 3 s, as the same cut (the reset walk, never
+  "a second cut"). S15's breaker reacts once per cut; the console keeps trying while it is off. Undo: `retry` Infinity.
+- **A133** (S22, game side, applied after marlow-final merges: `slices/S22.md`) A guard's reset ends the console's
+  loop as if it ran out: the flag clears, the cameras come back on both machines, the pickup gate closes and a timed
+  console's re-arm (`rearm`, 20 s on Marlow's A4 console) starts. Undo: `CourseState.consoleBack` sets no re-arm.
+- **A134** (S22, game side, same) The refusal "The guard is watching the monitors" holds only while the console's guard
+  is watching it now (`EnemyManager.watchesConsole`: calm, free, the screens in view with a clear line), not while he is
+  alive anywhere: G6's "turn it off while hes distracted" needs the console usable while he is drawn away. The refusal
+  text may want "Take him out or draw him away first." (Marlow Build's call). Undo: keep `guard.alive`.
+- **A135** (S22) Lines (original, G82): `console` ("Console's dropped out again. Getting it back up." / "Monitors are
+  dark. Switching them back on.", not a radio line, as `breaker`) and `consoleCheck` (a radio line, as `lightOut`).
+  Host only, no protocol change; when S9's wire list of bark events (`BARK_EVENTS`, append only) merges, `console` and
+  `consoleCheck` go at its end. Undo: drop the two lines (the walk barks `breaker`, the check `lightOut`).
+
+## A126: co-op guard carry (`feature/guard-ai-a126`, S9 + the walk batch; A128-A135 left for the walk's other slices)
+- **A136** (A126) Wire: the host's S21 carry phase in `EnemyState.al` bits 7-8 (`AL_CARRY` 384, `AL_CARRY_SHIFT` 7):
+  0 drawn, 1 holstered, 2 drawing, 3 holstering (`WIRE_CARRY_*`; `packAlert`'s 7th argument, `alertCarry`; the host
+  maps `Enemy.carry.phase` with `wireCarry`, read only). `AL_MAX` 127 -> 511 (the parser clamp). Drawn is 0, so a kind
+  that never holsters and every old `packAlert` caller pack what they did. `PROTOCOL_VERSION` stays 37 (38 since A140, 39 since A141): S9 (37) is not
+  released or merged, and this rides the same train (assumed). Two 37 builds are NOT compatible with each other: an
+  S9-only 37 client clamps a holstered guard's `al` (128+) to 127 (combat, seized, torch, caution, helmet, armour), so
+  S9 must never ship without this. Undo: if S9 merges or releases alone first, bump to the next free number and every
+  test asserting 37; or drop the carry argument in `coopHost.alertCode` (clients then see every guard drawn).
+- **A137** (A126) The wire carries the carry phase, not "low ready / raised": low ready and raised are already on the
+  wire (`st` aiming / cover, the level, `AL_CAUTION` -> `wireGuardAim`, A91), so two bits give the client the host's
+  whole carry, including which clip runs. Undo: n/a.
+- **A138** (A126) The client runs each clip on its own clock at the host's times (`net/puppetCarry.ts` `PuppetCarry`,
+  driving a `GuardCarry` of its own that is never stepped by a brain): a draw / holster starts when the sampled
+  snapshot (15 Hz, interpolated) shows it, a clip whose phase the snapshots skipped is played whole (never jumped to its
+  end), a clip that ends before the host's waits at its end, a stir mid-holster draws back as the host does
+  (`reverseMin`, the share done). So the client's carry runs about one snapshot plus the interpolation delay behind the
+  host. Held in a takedown (ours or the partner's) the gun stays hidden and the carry is not applied, as on the host.
+  Undo: drop the carry block in `EnemyPuppet.update` (puppets back at low ready).
+- **A139** (A126 merge) S17's `tripped` bark (walk branch) was missing from S9's wire table: appended to `BARK_EVENTS`
+  (append only; same protocol-37 train as A136), so the client shows "Sensor tripped. Moving to check." Undo: n/a.
+- **A140** (S9 + A126, merge of train 28: master 4.76.0 + #207 + #230) Protocol 38, not 37: S9 and A126 take 38 because
+  Player PR #231 holds 37 in the orchestrator's registry (train 28 itself is at 35). The wire content is unchanged
+  (A90, A136, A139); only the number moves. Undo: if #231 drops 37 or lands after us with a later number, renumber
+  `PROTOCOL_VERSION` in `src/net/protocol.ts` and every `toBe(38)` / `v: 37` / `v: 38` in tests (net, jammer,
+  jammerFixes, moveState, rejoin, sectorLampSync, sectorStep3, crateWire, hangDownNet, coopGuardAi, coopGuardCarry,
+  coopTorches' title), `scripts/e2e-coop.mjs`' comment, `docs/systems/coop.md` and the two changelog fragments. **Number superseded by A141** (train 29 merge): 39.
+- **A141** (S9 + A126, merge of train 29: master 4.77.0 + #228 guard-ai S16 + Sector Ops #232) Protocol 39, not 38:
+  Sector Ops #232 (lightrev LR13) takes 38 with its own wire change (`start.lf`, the host's lamp falloff), so S9 and
+  A126 move to 39 on top of it; supersedes A140's number. The two wire changes do not overlap: #232 adds the `start`
+  field `lf`; ours adds the `bark` event, `al` bits 16 / 32 / 64 and 7-8 (`AL_MAX` 511) and the `hitConfirm` kind
+  `deflect`. Both are kept as they were (A90, A136, A139). Undo: if #232 drops 38 or lands after us, renumber
+  `PROTOCOL_VERSION` and every `toBe(39)` / `v: 38` / `v: 39` in the A140 list of tests, `scripts/e2e-coop.mjs`'
+  comment, `docs/systems/coop.md` and the two changelog fragments. **Number superseded by A142** (train 30 merge): 41.
+- **A142** (S9 + A126, merge of train 30: master 4.78.0 + the Player stack pose-parity #223 + coop-walk-fixes #231 +
+  #236 + feature/menu) Protocol 41, not 39: the Player stack takes 40 with its own wire change (`PF.aimLeft` 64, the
+  MoveState `takedown` `sub` bit 1, `PlayerState.sc` rounds fired mod 256), so S9 and A126 move to 41 on top of it;
+  supersedes A141's number. The two wire changes do not overlap: the stack adds a player flag, a player-state field
+  and a MoveState sub bit; ours adds the `bark` event, enemy `al` bits 16 / 32 / 64 and 7-8 (`AL_MAX` 511) and the
+  `hitConfirm` kind `deflect`. Both are kept as they were. Also merged: guard-ai-carry-fix (the GPU suite
+  `scripts/e2e-guard-carry.mjs`). Undo: if the stack drops 40 or lands after us, renumber `PROTOCOL_VERSION` and every
+  `toBe(41)` / `v: 40` / `v: 41` in the A140 list of tests plus coopWalkFixes and poseParity, `scripts/e2e-coop.mjs`'
+  comment, `docs/systems/coop.md` and the two changelog fragments.

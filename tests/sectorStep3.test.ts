@@ -3,7 +3,7 @@ import { DIFFICULTIES } from '../src/ai/archetypes';
 import { SECTOR, sectorInfoHtml, syringesFor } from '../src/game/sectors';
 import { ReviveClock, REVIVES_PER_MISSION } from '../src/game/reviveClock';
 import { starsText } from '../src/save/sectorRecord';
-import { parseMessage, PROTOCOL_VERSION, MAX_DOORS } from '../src/net/protocol';
+import { parseMessage, MAX_DOORS } from '../src/net/protocol';
 import { CameraUnit } from '../src/security/camera';
 import type { CameraDevice } from '../src/security/data';
 import { warehouseOps } from '../src/world/maps/warehouseOps';
@@ -50,8 +50,7 @@ describe('sector ops step 3', () => {
     expect(starsText([false, false, false, false])).toBe('☆☆☆☆');
   });
 
-  it('protocol 24 (now 39, 39 the swinging pendants; 38 the lamp falloff `lf`; 35 the weapons crate; 31 the Sector lamps; 29 the laser power panels; 28 the jam claim eye; 27 rejoin; 26 the jammer rules): the sector message carries the live section, locked doors, shot cameras and syringes', () => {
-    expect(PROTOCOL_VERSION).toBe(39);
+  it('the sector message carries the live section, locked doors, shot cameras and syringes', () => {
     const sec = { ck: [1.5], j: ['', 'cam-dock'], ch: [3, 5], cd: [2.5, 0], dv: [['cam-dock', 1, 0.5]], al: 1 };
     const msg = { t: 'sector', sec, ls: 1, lk: [3, 7], dn: ['cam-floor'], sy: 2 };
     expect(parseMessage(JSON.parse(JSON.stringify(msg)))).toEqual(msg);
