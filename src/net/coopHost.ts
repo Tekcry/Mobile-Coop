@@ -25,6 +25,7 @@ import { PartnerBlocker, partnerPassable } from './partnerBlocker';
 import { checkBlast, checkShot, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile, SHOT_UNDER, SHOT_UNDER_HANG } from './validate';
 import { localFlags, htmlToInfo } from './netShared';
 import { keepSimInBackground } from './bgTicks';
+import { hostHoldPulse, inUseReach } from './holdPulse';
 import { LAMP_LOS_SLACK, LampSender, lampShotOk, lampTargetId } from './lampSync';
 import { hyp2 } from '../core/mathx';
 import { barkIndex } from '../ai/barks';
@@ -579,7 +580,8 @@ export class CoopHost implements NetAttachment {
         }
         break;
       case 'use':
-        this.onUse(r, msg.id);
+        if (msg.pulse) this.onHoldPulse(r, msg.id);
+        else this.onUse(r, msg.id);
         break;
       case 'door':
         this.onDoorCrack(r, msg.i, msg.crack);
@@ -631,7 +633,7 @@ export class CoopHost implements NetAttachment {
     if (!r.alive) return;
     const it = this.g.interactables?.items.find((i) => i.id === id);
     if (!it || !it.enabled || it.done) return;
-    if (hyp2(it.pos.x - r.feet.x, it.pos.z - r.feet.z) > (it.reach ?? 1.8) + 0.75 || Math.abs(it.pos.y - r.feet.y) > 2) {
+    if (!inUseReach(it, r.feet.x, r.feet.y, r.feet.z)) {
       r.violations++;
       return;
     }
@@ -642,6 +644,22 @@ export class CoopHost implements NetAttachment {
     if (it.onUse) it.onUse(it, r.id);
     else mode?.onInteract?.(it);
     mode?.onRemoteUse?.(r.id, false);
+  }
+
+  /**
+   * (marlow-final Q12, SPEC N4) A client's noisy hold pulsed (its first moment, then every `HOLD_NOISE_PULSE` s): the
+   * guards hear it at the item, the way `GameState` makes them hear the host's own hold. Alive, the item live, noisy
+   * and in the use reach, and no faster than the hold pulses; a pulse that fails is dropped (no violation: the hold
+   * may end on the reach edge).
+   */
+  private onHoldPulse(r: RemotePlayer, id: string): void {
+    const em = this.g.enemyMgr;
+    if (!em) return;
+    const it = this.g.interactables?.items.find((i) => i.id === id);
+    const f = r.feet;
+    if (!it?.holdNoise || !hostHoldPulse(it, r.alive, f.x, f.y, f.z, this.time, this.holdPulseAt.get(r.id) ?? -Infinity)) return;
+    this.holdPulseAt.set(r.id, this.time);
+    em.hear(it.pos, it.holdNoise);
   }
 
   /** Course mode: the course state, locks and lights to every client. */
@@ -662,6 +680,12 @@ export class CoopHost implements NetAttachment {
   /** Sector Ops: the syringes left this op (the revive cap less the revives used). */
   revivesLeft(): number {
     return Math.max(0, this.reviveClock.cap - this.reviveClock.used);
+  }
+
+  /** (section-rating S3) A rating's syringe reward: `n` (a whole 0-9) more revives this op. */
+  addSyringes(n: number): void {
+    const k = Number.isFinite(n) ? Math.max(0, Math.min(9, Math.floor(n))) : 0;
+    this.reviveClock.cap += k;
   }
 
   /** Sector Ops (step 3): every guard a client holds is let go and the client told (`tdDenied` aborts its takedown or
@@ -1168,6 +1192,8 @@ export class CoopHost implements NetAttachment {
   }
 
   private pingAt = new Map<string, number>();
+  /** (Q12) Each client's last accepted hold noise pulse (host time). */
+  private holdPulseAt = new Map<string, number>();
   private gadgetAt = new Map<string, number>();
 
   private color(id: string): string {
@@ -1198,7 +1224,10 @@ export class CoopHost implements NetAttachment {
         if (ints && !ints.inScope(it)) continue;
         const k = it.kind as NetItem['k'];
         if (!ITEM_KINDS.includes(k)) continue;
-        out.push({ id: it.id, k, x: it.pos.x, y: it.pos.y, z: it.pos.z, yaw: it.node.rotation.y, label: it.label.slice(0, 24), hold: it.holdTime, reach: it.reach ?? 1.8, on: it.enabled && !it.done });
+        const n: NetItem = { id: it.id, k, x: it.pos.x, y: it.pos.y, z: it.pos.z, yaw: it.node.rotation.y, label: it.label.slice(0, 24), hold: it.holdTime, reach: it.reach ?? 1.8, on: it.enabled && !it.done };
+        // (30, Q12) a noisy hold's radius: the client's own hold pulses it back (`use.pulse`) and its noise meter reads it
+        if (it.holdTime > 0 && it.holdNoise) n.hn = it.holdNoise;
+        out.push(n);
       }
     }
     return out;

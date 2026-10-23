@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { camSpaceAt, doorPassing, probeOpen } from '../src/world/camSpaces';
-import { LevelBuilder } from '../src/world/levelBuilder';
-import { bayX, ctcourse, CT_BAY, CT_OBST } from '../src/world/maps/ctcourse';
 import { CAMERA, exploreBoom, framing } from '../src/config/camera';
 
 describe('camera spaces (G3, AUDIT-CAMERA rows 1 and 7)', () => {
@@ -17,15 +15,9 @@ describe('camera spaces (G3, AUDIT-CAMERA rows 1 and 7)', () => {
     expect(camSpaceAt(spaces, 'open', 30, 0, 30)).toBe(1);
     expect(Number.isNaN(camSpaceAt(undefined, undefined, 0, 0, 0))).toBe(true);
   });
-  it('Marlow Yard: the yard and the annex roof are open, the airlocks and the roofed annex tight', () => {
-    const lay = ctcourse.build(new LevelBuilder(), 0);
-    const at = (x: number, y: number, z: number) => camSpaceAt(lay.camSpaces, lay.camSize, x, y, z);
-    expect(at(2, 0, 7)).toBe(1);
-    expect(at(bayX(2) + 5, 0, 3)).toBe(1);
-    for (let i = 0; i < 7; i++) expect(at(bayX(i) + CT_BAY + 3, 0, 7)).toBe(0);
-    expect(at(bayX(4) + CT_OBST + 3, 0, 7)).toBe(0);
-    expect(at(bayX(4) + CT_OBST + 3, 4.4, 7)).toBe(1);
-  });
+  // (marlow-final 0d) the Marlow Yard case (yard open, airlocks and the roofed annex tight) pinned the old bays: the
+  // whole-map frame checks the holding rooms tight (tests/ctcourse.test.ts) and each part's spaces lie in its set box
+  // (`checkSetPart`); each set slice adds its own open / tight cases (SPEC 13)
   it('the probe fallback: open only with the back and both sides clear', () => {
     const B = CAMERA.openBack;
     const S = CAMERA.openSide;

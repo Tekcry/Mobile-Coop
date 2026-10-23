@@ -53,6 +53,7 @@ import { roomAt } from '../world/rooms';
 import { camSpaceAt, doorPassing } from '../world/camSpaces';
 import { CAMERA } from '../config/camera';
 import { ResultsScreen, type ResultsNav } from '../ui/screens/resultsScreen';
+import type { RatingView } from '../ui/hud/ratingCard';
 import { EventBus } from '../core/events';
 import type { GameEvents } from './gameEvents';
 import { attachGameAudio } from '../audio/gameAudio';
@@ -98,7 +99,7 @@ import { TakedownController, type TakedownVictim } from './takedownController';
 import { StrikeController } from './strikeController';
 import { MEDKIT, stationHeal } from './medkit';
 import type { PickupKind } from './pickups';
-import { DOOR_PEEK, DoorPeekCore, PEEK_ACT, crackedHandle, doorFrame, doorPeekEligible, emptyFrame, type DoorPeekInput } from '../world/doorPeek';
+import { DOOR_PEEK, DoorPeekCore, PEEK_ACT, crackedHandle, doorFrame, doorPeekEligible, emptyFrame, isSlideDoor, type DoorPeekInput } from '../world/doorPeek';
 import { DOOR, driveStep, leafFraction } from '../world/doors';
 import { DOOR_OPEN, DoorOpenCore, OPEN_ACT, leafHandPoint } from '../world/doorOpen';
 import { muzzleBlock } from '../player/wallBlock';
@@ -216,6 +217,8 @@ export interface NetAttachment {
   radioLine?(text: string): void;
   /** Host, Sector Ops: revive syringes left this op (co-op only). */
   revivesLeft?(): number;
+  /** (section-rating) Host: a rating's syringe grant, added to the op's revive cap. */
+  addSyringes?(n: number): void;
   /** Host, Sector Ops: every guard a client holds (takedown grab, hostage) is let go, before a section unloads. */
   releaseHolds?(): void;
   /** (coop-walk-fixes P6) Co-op: another player holds guard `v` as a hostage now (the team takedown on him is on
@@ -498,6 +501,8 @@ export class GameState implements AppState {
   }
   /** Coop attachment (null in single player). */
   net: NetAttachment | null = null;
+  /** (section-rating) The op's rated sections in order (Sector Ops: the host's mode, or the co-op client's mirror), for the results lines. */
+  readonly sectionRatings: RatingView[] = [];
   /** (lightrev LR13) The lamp falloff this match runs (set before its map built; the meter, the guards and the shaders
    *  all read it, `lampMath`). */
   readonly lampFalloff: LampFalloff = lampFalloffMode();
@@ -738,7 +743,7 @@ export class GameState implements AppState {
         { ballistics: this.ballistics, players: () => this.playerRefsInto(this.aiRefs) },
         new SecurityView(this.scene, world.parts),
       );
-      // (sector-redesign E8) a round off a bulletproof camera: the bullet-impact sparks and sound at the lens (the
+      // (sector-redesign E8; marlow-final S10's Marlow cameras too) a round off a bulletproof camera: the bullet-impact sparks and sound at the lens (the
       // impact noise is the onRay chain's own, as for any round that lands)
       w.security.onRicochet = (x, y, z) => {
         const at = this.ricoAt.set(x, y, z);
@@ -1060,6 +1065,7 @@ export class GameState implements AppState {
     if (gid && GADGETS[gid]) names.push(GADGETS[gid].name);
     const nav: ResultsNav = { coop: !!this.net };
     if (names.length) nav.kit = names.join(', ');
+    if (this.sectionRatings.length) nav.ratings = this.sectionRatings;
     const cb = this.cb;
     const id = this.stats.missionId;
     if (!this.net && id && cb.missions) {
@@ -1353,7 +1359,7 @@ export class GameState implements AppState {
           else m.add(TD_KIND, 'ko', -1, TD_LABEL[o.plan.kind]);
         }
         const dIdx = this.doorMenuCandidate();
-        if (dIdx >= 0) addDoorRows(m, dIdx, this.peekOffer === dIdx, this.doorMenu.opts);
+        if (dIdx >= 0) addDoorRows(m, dIdx, this.peekOffer === dIdx, this.doorMenu.opts, isSlideDoor(this.world.doors.list[dIdx]!.anchor));
         // (hang-down) no body is picked up from the hang
         it = hangDirect ? null : ((hangActs ? null : this.stealth?.carryTarget(this.player.position)) ?? this.interactables?.nearest(this.player.position) ?? null);
         let label = it ? it.label : '';
@@ -1455,6 +1461,8 @@ export class GameState implements AppState {
       if (it?.onUse) it.onUse(it, 'local');
       else doors.open(d, 'quiet');
     };
+    // (marlow-final N9) a sliding door lists Open only; any other pick at it is ignored
+    if (isSlideDoor(d.anchor) && o !== 'open') return;
     switch (o) {
       case 'open':
         // (G6, AUDIT-WALLS row 4) a short committed move: the step to the latch side, then the door's own open
@@ -2821,7 +2829,11 @@ export class GameState implements AppState {
     const d = this.world.doors.list[di];
     const p = this.player.position;
     if (!d || this.doorOpen.active) return;
-    this.doorOpen.start(di, d.anchor, p.x, p.z);
+    // (marlow-final N9) a sliding door: no committed step-and-push, the door's own open at once
+    if (!this.doorOpen.start(di, d.anchor, p.x, p.z)) {
+      use();
+      return;
+    }
     this.openUse = use;
     this.openHp = this.target.health.hp;
     this.openY = p.y;

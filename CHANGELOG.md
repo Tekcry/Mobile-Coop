@@ -1,5 +1,104 @@
 # Changelog
 
+## 4.81.0 - Train 32: Marlow Yard final and section rating; guard body GPU skinning after recovery; release speed-ups and automatic trains (scheduled task not yet registered); faster agent tests (2026-10-23, PR #253; #244, #246, #250, #248)
+
+### Agent CPU: cached vitest transforms and incremental typecheck
+- Vitest persists transformed modules across runs (`fsModuleCache: true`); transform was 75-88% of tracked time per run.
+- New `npm run typecheck:fast` (incremental `tsc --noEmit`, build info in `node_modules/.cache`). `typecheck`, `build` and
+  `check` are unchanged.
+
+### Automatic merge train
+- `scripts/auto-train.mjs tick`, run every 5 min by a scheduled task (`scripts/auto-train-task.ps1`), builds the next
+  merge train from the `train-ready` PRs with a green `check` and releases it to master once CI and the laptop's
+  `laptop-e2e` status are green; failures, stale trains and conflicts are reported in
+  `C:/NightShift/scratch/auto-train-status.json` for the orchestrator (`docs/systems/auto-train.md`).
+- Trains are paced: the next one is built once the last release is 60 min old, or earlier when the laptop queue is idle.
+- A release is pinned to the tested head (`merge-train release --head <sha>`, `gh pr merge --match-head-commit`), a
+  train with no version commit is never released, and a hand-run merge-train and a tick share one lock, so they never
+  overlap.
+
+### Guard carry: recovered guard bodies GPU skinned again
+- Fix: a guard body recovered from a timed-out shader compile (4.80.0) is GPU skinned again. Babylon's first fallback
+  on the failed compile had switched the body to CPU skinning, which draws the GPU-buffer body unskinned (bind pose);
+  `recompileEffect` (`src/player/bodyEffectRecovery.ts`) turns `computeBonesUsingShaders` back on for every mesh holding
+  the recompiled effect. Unit test in `tests/bodyEffectRecovery.test.ts`.
+- `e2e-guard-carry` gets a "(forced)" pass that makes the first guard-body compile time out the way the laptop GPU did
+  (a runtime hook on Babylon's compile poll, cut to 1 s, with Babylon's own timeout error), so the suite fails without
+  the recovery (master 4.79.0 fails it: the guard stays invisible). The pass asserts the fault fired (a timeout or a
+  recovery drop), the body recompiled, drawn and GPU skinned again. Run with `E2E_GPU=1`.
+
+### Marlow Yard redesign: eight co-op sets in a luxury training centre
+- Marlow Yard (map `ctcourse`, Course mode) is rebuilt as one 15-20 minute co-op run: eight sets A1-A8 inside a luxury
+  rehearsal centre (glass instructor gallery, LED coves, sliding doors, dark premium surfaces), each set a mock-up of a
+  real-map co-op scenario: A1 Gate (leg-up, relay and bolt), A2 Carriage Shed (timed light isolation), A3 Office Range
+  (timed jam relay), A4 Goods Shed (security room camera loop, dual takedown), A5 Substation (partner throw, floodlight
+  jam, release), A6 Pump House (rope and hang-down hack), A7 Data Hall (split paths, synced hack), A8 Strongroom (all of
+  it under two timers). Seven lit holding rooms join the sets. Every set is lit and the players make the dark.
+- No explainer pads. The objective table updates per set and guides both players; where the team splits each player sees
+  their own A or B line, and the first player to do a set's A job takes it for both (`CourseObjective` steps, N1).
+- New co-op devices: a two-way timed light isolator (N2, 15 s and 25 s windows, re-arm, lights-out lure, restart now
+  restores every lamp); a timed security console that loops the cameras for 60 s with a 20 s re-arm (N3); a hold device
+  whose noise a joiner makes too (N4, protocol 30 `use.pulse`, `NetItem.hn`); several scanner pairs (N6, protocol 30
+  `sec.sc` one entry per pair); one-player pass zones; sliding doors with Open only (N9); the course start list reads the
+  course's bay count (N8). Course guards now run stealth rules (shout, search, cooldown, detection stat).
+- Co-op wire: `PROTOCOL_VERSION` 42 (this branch's 30 / 33 / 36 wire, scanner pairs and hold pulses, over train 30's 40; 41 reserved for guard-ai S9). Details: `docs/systems/coop.md`.
+- Fixes: the character controller no longer reads a stale floor for one step after a hang, climb or teleport
+  (`staleSupport`); a client's wall switch press is taken only within the host's reach rule.
+- Course tests: one unit file per set (`tests/ctcourse/`), a whole-map light frame (`CTLIGHT_WRITE`), `e2e-ctcourse` now
+  runs as four parts (:1 A1-A2, :2 A3-A4, :3 A5-A6, :4 A7-A8), `scripts/shots-ctcourse.mjs` takes one shot per set vantage.
+- Old best times: the course record was keyed by bays S1-S8 and the bays are now A1-A8, so the old best times no longer
+  show and the record starts again. No save migration (`SAVE_VERSION` unchanged; the record is a sanitised key).
+- Proposals built as assumed decisions, each undoable (`docs/marlow-final/SPEC.md` section 15, `STATE.md` MORNING-REVIEW):
+  - P1 entry vantages are concealed by occlusion and holding rooms are lit; undo: a dark mixed-zone pocket at each vantage.
+  - P2 sets sit at 0.14 standby light, 0.30 in the lounge, holding rooms and dock; undo: keep 0.30 (isolations become lures only).
+  - P3 timed device windows only (never a fail, no course clock); undo: held isolators and a permanent console off.
+  - P4 new rule LD 5.5 "lit as the real building, the players make the dark" (Marlow Yard only here); undo: lower fitting intensities.
+  - P5 an alarm resetting the set is not used; add it only on Michael's word.
+  - P6 12 role-players, at most 3 alive per set; undo: drop `a4-dock2` and `a8-night2`, move the A1 checker slot.
+  - P7 Course guards run `em.stealth = true`; undo: one line in `courseMode.ts`.
+  - P8 occluders on every high route instead of a guard look-up penalty; undo: build G44's penalty in `perception.ts`.
+  - P9 new code N1-N4, N6, N8, N9; undo: the per-item fallback in SPEC P9.
+  - P10 one new mechanic per space is relaxed in A4 and A6; undo: move A6's rope to A8.
+  - P11 two or three ways per guarded set, a secret in A2, A3, A5; undo: a secret per guarded set.
+  - P12 set walls stop under the 10 m hall roof; undo: a charcoal panel wall above each to the roof.
+  - P13 co-op lip spans are open loading edges (a drop chain); undo: full rails, lips move to a hoist bay.
+  - P14 info lines on the A1 checker and the A4 and A8 officers; undo: the A1 checker only.
+  - P15 the luxury rehearsal centre replaces the bunker fiction (Michael's word, M5).
+  - P16 striped leg-up marks at A1, A2, A6, A8; undo: no marks, the objective line names the spot.
+  - P17 all glass stops guard and camera sight and jam lines; undo: build G45's clear-glass sight.
+- Open polish (none blocks play): the combined list is in `docs/marlow-final/slices/S3-7-dress-check.md` ("Polish list"),
+  with `S34-check.md`, `S567-check.md` and `S8-check.md`. Main items: A5 beam towers and A4 / A8 stair rails have no
+  collision, the A6 interlock lamp has no emissive, A3 floor surfaces, the A8 marble `tile` surface, and the lamp-radius
+  trim. GPU frame time per set and the perf "after" run are pending a PC run (`docs/marlow-final/slices/S9-perf.md`).
+- Slice 10 (Michael's walk 4.72 / 4.73): every Marlow camera (A3 hall, A4, A7, A8) is armoured. A shot ricochets with
+  sparks and a ricochet sound, and the camera keeps watching. Jam and power cut still work.
+- Slice 10: a checkpoint restart fully resets the set on host and client. Guards, bodies and drones go back to set
+  start, with no old incident or alert left. A carried body, gadgets and noise reset. Broken cameras come back online.
+  Doors go back as at set start: open ones shut, cracked ones whole, and locked doors shut.
+- Slice 10: the A2 locked door has no lamp on the rebuilt set. The old lamp was on the master map only. Michael to
+  re-walk A2 to confirm.
+
+### Release speed-ups
+- Merge trains: `merge-train.mjs build <n> <version> "<title>" <branch>...` now makes the version commit, opens the
+  train PR and runs the unit tests on the train head, so CI runs beside the laptop e2e run; `release` only merges,
+  tags and moves dev, and `release --resume` finishes after a fix on the train branch.
+- One train may carry several wire changes: the train build bumps PROTOCOL_VERSION once, and tests read the constant
+  instead of asserting its number.
+- CI runs lint, tests and build in parallel with a cached `node_modules`, and a new push cancels the older run.
+
+### Section rating: four marks, rewards and best records
+- Sector Ops sections and Marlow Yard sets A2-A8 are rated on four marks: undetected, no kills, no alarms and bodies hidden. Each mark you earn counts once, so a clean section scores 4 of 4.
+- Each mark pays a reward. Undetected gives a gadget charge. No kills gives a medkit heal. No alarms gives a syringe (a medkit heal when you play solo). Bodies hidden gives a gadget charge.
+- Rewards never go over the usual carry limits.
+- Synced takedowns pay more in co-op. A synced takedown is two players taking down guards within 1.5 seconds. Each one pays a gadget charge and a syringe, up to two paid takedowns per section.
+- A card shows after each rated section, on the host and on the client. It lists each mark as earned or missed, and the reward you got. It hides by itself after about 4 seconds.
+- The last section of an op or course shows no card. Its rating goes to the results screen.
+- Each section is rated once, when you leave it. A restart does not rate it again.
+- Your best marks per section are saved. More marks wins. A tie goes to more synced takedowns.
+- The Sector Ops select screen shows each section's best marks as four pips. Unrated sections show no pips. Marlow Yard saves best marks too, but its select screen does not show them yet.
+- The results screen lists every rated section in order, with its marks (for example 4/4) and its synced count.
+- Co-op wire: protocol 42. The section rating adds the `rt` field to the sector and course messages and `rh` to the course message. It rides marlow-final's 42 (one bump per train), so host and client must both run 42. Builds on 41 and below are refused.
+
 ## 4.80.0 - Train 31: Guard AI co-op S9 and S22 response, calm-guard body recovery, optic cable at doors; dead RT settings hidden (2026-10-23, PR #245; #240, #234, #243, #239)
 
 ### Guard AI: co-op guard weapon carry
