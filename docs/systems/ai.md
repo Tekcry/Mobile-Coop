@@ -363,7 +363,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   holsters again after `calmHold` 15 s calm. `Enemy.update` steps it after the awareness; `Enemy.frame` drives `RigPose`
   `ready` (holstered), `swap` / `swapFrom` / `swapTo` (the draw / holster clip, one slot) and `aim` (none while holstered);
   `armed`, `thighGear` and `weaponTravel` follow the `WeaponModel` (`holster` / `beginTravel` / `travel` / `hold`). Sniper,
-  enforcer, melee kinds and dogs never holster. Host only: co-op puppets stay at low ready (no wire field; WALK.md S21).
+  enforcer, melee kinds and dogs never holster. Co-op (A126, A136-A138): the phase rides `al` bits 7-8; the client's
+  `EnemyPuppet` follows it with `net/puppetCarry.ts` `PuppetCarry` and poses through the same `GuardGunCarry` / `RigPose`.
 - Sound: `world/surfaces.ts` (pure) `surfaceAt` scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice. Shots:
   `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise` (combat); `onRay` hits
   are heard within `IMPACT_NOISE`.

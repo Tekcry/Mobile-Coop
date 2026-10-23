@@ -113,6 +113,8 @@ export const BARK_EVENTS: readonly BarkEvent[] = [
   'suspicious', 'investigate', 'contact', 'lost', 'search', 'body', 'radioCheck', 'radioOk', 'missed', 'dog', 'blind', 'grenade',
   'alarm', 'clear', 'callIn', 'drone', 'ack', 'checking', 'lightOut', 'standDown', 'missing', 'joining', 'koFound', 'koReport',
   'deadReport', 'command', 'moving', 'covering', 'flanking', 'deflect', 'breaker', 'shots', 'shotsReport', 'missingReport',
+  // (guard-ai A126 merge, A139) S17's device line, appended (protocol 37 still: S9's table is unreleased)
+  'tripped',
 ];
 
 /** (guard-ai S9) The wire index of `ev` (-1 unknown). */

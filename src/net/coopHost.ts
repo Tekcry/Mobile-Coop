@@ -27,6 +27,7 @@ import { keepSimInBackground } from './bgTicks';
 import { LAMP_LOS_SLACK, LampSender, lampShotOk, lampTargetId } from './lampSync';
 import { hyp2 } from '../core/mathx';
 import { barkIndex } from '../ai/barks';
+import { wireCarry } from './puppetCarry';
 import { localMoveState } from '../game/localMoveState';
 import { emptyMoveState, moveChanged } from '../player/moveState';
 import { hostCrackOk } from '../world/doorPeek';
@@ -82,11 +83,11 @@ type Tally = EndStats['players'][string];
 const emptyTally = (): Tally => ({ kills: 0, headshots: 0, byKind: emptyKinds(), weaponKills: {} });
 
 /** The enemy alert level on the wire (`EnemyState.al`): level, seized, (25, coop-torches) his flashlight on and (32,
- *  guard-ai S9) cautious, helmet, armour. */
+ *  guard-ai S9) cautious, helmet, armour, (A126) his S21 weapon carry (read only: `Enemy.carry`'s phase). */
 function alertCode(e: Enemy, torch: boolean): number {
   const l = e.level;
   const a = l === 'alert' ? 3 : l === 'searching' ? 2 : l === 'suspicious' || l === 'investigating' ? 1 : 0;
-  return packAlert(a, e.taken, torch, e.caution > 0, e.helmet, e.armour);
+  return packAlert(a, e.taken, torch, e.caution > 0, e.helmet, e.armour, wireCarry(e.carry.phase));
 }
 
 /**

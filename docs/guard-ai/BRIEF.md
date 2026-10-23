@@ -469,8 +469,32 @@ reported, they need a sense of urgency when it makes logical sense." A100-A119 a
 - **A126** (S21) Co-op: host only. A client poses guards from the snapshot's alert level (0 calm .. 3 combat), which
   cannot tell caution, a raised alarm, a post or a response team apart from calm, so it cannot derive the holster; no
   protocol change in this slice: client puppets stay at low ready (open item, `slices/WALK.md` S21). Undo: not needed.
+  **Resolved** (branch `feature/guard-ai-a126`, A136-A139): the host's carry phase rides `al` bits 7-8 and the client's
+  `EnemyPuppet` poses holstered / drawing / low ready / raised / holstering through the host's rig path.
 - **A127** (S20 check, `slices/WALK-CHECK.md`) Two guards face to face in a doorway or a corridor too narrow to step
   round each other (1.2 m and less) were held about 0.65 m apart forever by the S20 spacing. Held by it (pushed off, cut
   or refused) with somewhere to go, under a quarter of his pace, for `SEPARATION.stall` 1 s, a guard squeezes past for
   `SEPARATION.squeeze` 2 s: the soft push only (as before S20, no sidestep, no hard cut), so they brush past in a narrow
   gap and nobody waits forever; a man standing in his way is passed the same way. Undo: `SEPARATION.stall` very large.
+
+## A126: co-op guard carry (`feature/guard-ai-a126`, S9 + the walk batch; A128-A135 left for the walk's other slices)
+- **A136** (A126) Wire: the host's S21 carry phase in `EnemyState.al` bits 7-8 (`AL_CARRY` 384, `AL_CARRY_SHIFT` 7):
+  0 drawn, 1 holstered, 2 drawing, 3 holstering (`WIRE_CARRY_*`; `packAlert`'s 7th argument, `alertCarry`; the host
+  maps `Enemy.carry.phase` with `wireCarry`, read only). `AL_MAX` 127 -> 511 (the parser clamp). Drawn is 0, so a kind
+  that never holsters and every old `packAlert` caller pack what they did. `PROTOCOL_VERSION` stays 37: S9 (37) is not
+  released or merged, and this rides the same train (assumed). Two 37 builds are NOT compatible with each other: an
+  S9-only 37 client clamps a holstered guard's `al` (128+) to 127 (combat, seized, torch, caution, helmet, armour), so
+  S9 must never ship without this. Undo: if S9 merges or releases alone first, bump to the next free number and every
+  test asserting 37; or drop the carry argument in `coopHost.alertCode` (clients then see every guard drawn).
+- **A137** (A126) The wire carries the carry phase, not "low ready / raised": low ready and raised are already on the
+  wire (`st` aiming / cover, the level, `AL_CAUTION` -> `wireGuardAim`, A91), so two bits give the client the host's
+  whole carry, including which clip runs. Undo: n/a.
+- **A138** (A126) The client runs each clip on its own clock at the host's times (`net/puppetCarry.ts` `PuppetCarry`,
+  driving a `GuardCarry` of its own that is never stepped by a brain): a draw / holster starts when the sampled
+  snapshot (15 Hz, interpolated) shows it, a clip whose phase the snapshots skipped is played whole (never jumped to its
+  end), a clip that ends before the host's waits at its end, a stir mid-holster draws back as the host does
+  (`reverseMin`, the share done). So the client's carry runs about one snapshot plus the interpolation delay behind the
+  host. Held in a takedown (ours or the partner's) the gun stays hidden and the carry is not applied, as on the host.
+  Undo: drop the carry block in `EnemyPuppet.update` (puppets back at low ready).
+- **A139** (A126 merge) S17's `tripped` bark (walk branch) was missing from S9's wire table: appended to `BARK_EVENTS`
+  (append only; same protocol-37 train as A136), so the client shows "Sensor tripped. Moving to check." Undo: n/a.

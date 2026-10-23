@@ -2,7 +2,7 @@ import { Vector3, type InstancedMesh, type Scene } from '../core/babylon';
 import type { CharacterRig, FkPose } from '../player/characterRig';
 import type { WeaponModel } from '../weapons/weaponModel';
 import { GuardCq, koCurve, seedOf, type GuardCqMode, type KoState } from '../game/closeQuarters';
-import { buildEnemyRig } from '../ai/enemyRig';
+import { buildEnemyRig, GuardGunCarry } from '../ai/enemyRig';
 import { Hitboxes } from '../ai/hitboxes';
 import { DogModel } from '../ai/dogModel';
 import { ENEMIES, type EnemyDef } from '../ai/enemyDefs';
@@ -11,7 +11,7 @@ import type { DamageRegistry, Damageable, DamageResult, HitInfo } from '../game/
 import type { TakedownVictim } from '../game/takedownController';
 import type { World } from '../world/world';
 import { SnapshotBuffer } from './interp';
-import { AL_ARMOUR, AL_CAUTION, AL_HELMET, AL_TORCH, type EnemyState } from './protocol';
+import { AL_ARMOUR, AL_CAUTION, AL_HELMET, AL_TORCH, alertCarry, type EnemyState } from './protocol';
 import type { TorchHolder } from './torchMirror';
 import type { GuardInfo } from '../ai/guardInfo';
 import { hyp2 } from '../core/mathx';
@@ -19,6 +19,9 @@ import { buildArmourParts, buildHelmetPart, buildShieldPart, gearColour, HELMET_
 import { wireGuardAim } from '../ai/guardStance';
 import { shieldBlocks } from '../ai/archetypes';
 import { PG_ARMOUR, PG_DROP, PG_HELMET, predictDeflect, puppetGear } from './puppetGear';
+import { carryRaise, carrySlotOf, mayHolster } from '../ai/carryState';
+import { PuppetCarry } from './puppetCarry';
+import type { RigPose } from '../player/characterRig';
 
 /** (guard-ai S9) A dropped helmet for the client's pool (`HelmetDrops.drop`'s arguments). */
 export type PuppetHelmetDrop = (x: number, y: number, z: number, top: number, dx: number, dz: number, hex: string, w: number, h: number, d: number) => void;
@@ -91,6 +94,16 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
   private clock = 0;
   private cautionBit = false;
 
+  // ----- (guard-ai A126, protocol 37) the S21 weapon carry from the snapshot's `al` (bits 7-8) -----
+  /** Follows the host's carry phase (null: a kind that never holsters, or no gun): holstered / drawing / drawn /
+   *  holstering, posed through the host's own path (`GuardGunCarry`, `RigPose.ready` / `swap`, `carryRaise`). */
+  readonly carry: PuppetCarry | null = null;
+  private gunCarry: GuardGunCarry | null = null;
+  /** The newest wire carry (`alertCarry`, `WIRE_CARRY_*`). */
+  private carryWire = 0;
+  /** The rig pose, reused each frame. */
+  private readonly rp: RigPose = { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0 };
+
   constructor(
     scene: Scene,
     private world: World,
@@ -109,6 +122,12 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     }
     // (guard-ai S9, S13) the response team's lead and every enforcer: the shield on his root (shown with the rig)
     if (this.def.kind === 'enforcer') this.shield = buildShieldPart(world, this.rig.root, this.def.scale);
+    // (guard-ai A126) the carry as the host's `Enemy` builds it: a kind that ever holsters gets the gun's slot
+    if (built.gun && mayHolster(this.def.kind, this.def.gun, !!this.def.melee, this.def.quadruped)) {
+      const cls = built.gun.def.class;
+      this.carry = new PuppetCarry(cls);
+      this.gunCarry = new GuardGunCarry(built.rig, built.gun, carrySlotOf(cls));
+    }
     this.hitboxes = new Hitboxes(scene, registry, this, this.def.scale, this.def.build);
   }
 
@@ -348,6 +367,7 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
       this.st = st;
       this.torchBit = (s.state.al & AL_TORCH) !== 0;
       this.cautionBit = (s.state.al & AL_CAUTION) !== 0;
+      this.carryWire = alertCarry(s.state.al);
       // (guard-ai S9) gear from the state shown now; a jump since the last frame is a re-place, not a knock-off
       if (this.gearAl < 0 || ((s.state.al ^ this.gearAl) & GEAR_BITS) !== 0) this.applyGear(s.state.al, this.placed ? hyp2(this.pos.x - this.prev.x, this.pos.z - this.prev.z) : 0);
       // (G7 fix) held by the partner: lowered with the knockout's own phase (the snapshot's crouch bit flips at half way)
@@ -385,17 +405,31 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     const sy = Math.sin(this.yaw);
     const cy = Math.cos(this.yaw);
     const inv = moved > 1e-4 ? 1 / moved : 0;
-    this.rig.animate(dt, {
-      speed: this.speed,
-      localX: (lx * cy - lz * sy) * inv,
-      localZ: (lx * sy + lz * cy) * inv,
-      grounded: true,
-      crouch: this.crouch,
-      aimPitch: 0,
-      aim: this.def.melee || this.taken || this.remoteHold ? 0 : this.aim,
-      kick: this.def.melee ? 0 : this.kick,
-      melee: this.def.melee && this.kick > 0 ? 1 - this.kick : -1,
-    });
+    const rp = this.rp;
+    rp.speed = this.speed;
+    rp.localX = (lx * cy - lz * sy) * inv;
+    rp.localZ = (lx * sy + lz * cy) * inv;
+    rp.grounded = true;
+    rp.crouch = this.crouch;
+    rp.aimPitch = 0;
+    rp.aim = this.def.melee || this.taken || this.remoteHold ? 0 : this.aim;
+    rp.kick = this.def.melee ? 0 : this.kick;
+    rp.melee = this.def.melee && this.kick > 0 ? 1 - this.kick : -1;
+    // (guard-ai A126) the host's carry (S21): holstered he walks with ready hands, the draw / holster clip runs while the
+    // gun travels, no raise until it is drawn; held in a takedown the gun is hidden and left where it is (as the host)
+    const pc = this.carry;
+    const gc = this.gunCarry;
+    if (pc && gc) {
+      pc.step(dt, this.carryWire);
+      const cs = pc.c;
+      if (!this.taken && !this.remoteHold) gc.apply(cs);
+      rp.aim = carryRaise(rp.aim, cs);
+      rp.ready = cs.holstered;
+      rp.swap = cs.swapClip();
+      rp.swapFrom = gc.slot;
+      rp.swapTo = gc.slot;
+    }
+    this.rig.animate(dt, rp);
     this.rig.headNode.computeWorldMatrix(true);
     this.head.copyFrom(this.rig.headNode.getAbsolutePosition());
     this.hitboxes?.sync(this.pos, this.head);

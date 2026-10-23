@@ -44,7 +44,7 @@ describe('guard-ai S9: protocol 37 (32 before the 4.75.0 merge)', () => {
   });
 
   it('packAlert: the new bits are 16 / 32 / 64 and every combination with the old ones round-trips', () => {
-    expect([AL_SEIZED, AL_TORCH, AL_CAUTION, AL_HELMET, AL_ARMOUR, AL_MAX]).toEqual([4, 8, 16, 32, 64, 127]);
+    expect([AL_SEIZED, AL_TORCH, AL_CAUTION, AL_HELMET, AL_ARMOUR, AL_MAX]).toEqual([4, 8, 16, 32, 64, 511]);
     const states: EnemyState[] = [];
     const want: number[][] = [];
     for (let lvl = 0; lvl < 4; lvl++) {
@@ -74,13 +74,13 @@ describe('guard-ai S9: protocol 37 (32 before the 4.75.0 merge)', () => {
     expect(packAlert(0, false, false, true, true, true)).toBe(112);
   });
 
-  it('a bad al is clamped into the seven bits', () => {
+  it('a bad al is clamped into the nine bits (A126: the carry is bits 7-8)', () => {
     const es = snapEnemies([
       { id: 'a', k: 'grunt', x: 0, y: 0, z: 0, yaw: 0, st: 0, hp: 1, al: 999 },
       { id: 'b', k: 'grunt', x: 0, y: 0, z: 0, yaw: 0, st: 0, hp: 1, al: -3 },
       { id: 'c', k: 'grunt', x: 0, y: 0, z: 0, yaw: 0, st: 0, hp: 1, al: 99 },
     ]);
-    expect(es.map((e) => e.al)).toEqual([127, 0, 99]);
+    expect(es.map((e) => e.al)).toEqual([511, 0, 99]);
   });
 });
 
