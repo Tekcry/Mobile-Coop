@@ -57,3 +57,8 @@ Checker: fresh Opus, read only. Branch `feature/sector-redesign-walk` @ c984239d
    footprint reaches 0.14 m into the wall; harmless with 0.2 m walls, worth a note in `docs/systems/lighting.md`.
 4. `docs/systems/lighting.md`: mention that the reach is measured at the segment's end (the landing), which is why
    callers must pass the true landing.
+
+## Fix round (lead, after the FAIL)
+- `lampShotOk` (src/net/lampSync.ts:141) tries the exact claimed landing first, then the 0.3 m stretched ray, as the checker gave it.
+- New test in tests/sectorLampSync.test.ts: a client round landing on the wall face 0.2 m under a wall pack; it fails on c984239d and passes now. tsc clean; sectorLampSync + perception 43 pass.
+- No wire change (PROTOCOL_VERSION stays 35); e2e-coop to run at the train since src/net logic changed.
