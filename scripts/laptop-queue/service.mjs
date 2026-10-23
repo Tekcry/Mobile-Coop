@@ -197,8 +197,8 @@ function syncDone() {
  * Train heads still to run: no laptop-e2e status, or a stale `pending` one (not claimed by this process; the pid lock
  * means no other service can be running it). Read from the combined status (latest state per context). A gh / network
  * error skips the head this pass (never read as "no status"). Merged heads and heads older than LQ_TRAIN_MAX_AGE_H
- * (default 24) are skipped. Only the head of an open train/<n> PR runs: a closed train (or one whose PR is not open
- * yet) is never run; a failed PR list skips every train this pass.
+ * (default 24) are skipped. Only the head of an open train/<n> PR whose subject is the train's version commit runs:
+ * a closed train, a PR not open yet or a pre-version head is never run; a failed PR list skips every train this pass.
  */
 function pendingTrains() {
   const out = [];
@@ -211,6 +211,9 @@ function pendingTrains() {
   for (const line of git(['ls-remote', 'origin', 'refs/heads/train/*'], { soft: true }).split('\n')) {
     const m = /^([0-9a-f]{40})\trefs\/heads\/train\/(\S+)$/.exec(line);
     if (!m || state.trains[m[1]] || !open.has(m[1])) continue;
+    // merge-train `build` opens the PR before it pushes the version commit: run only the version head (versionSubject)
+    const subject = git(['show', '-s', '--format=%s', m[1]], { soft: true });
+    if (!new RegExp(`^\\d+\\.\\d+\\.\\d+: version at merge, train ${m[2]} \\(G183\\)$`).test(subject)) continue;
     const age = Date.now() / 1000 - Number(git(['show', '-s', '--format=%ct', m[1]], { soft: true }));
     if (!(age < maxAge)) continue;
     try { git(['merge-base', '--is-ancestor', m[1], 'origin/master']); continue; } catch { /* not merged */ }

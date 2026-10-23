@@ -4,7 +4,8 @@
 - Laptop service restarted on e1398df4 at ~21:57 (Michael approved; Stop-ScheduledTask leaves the node child alive,
   so a restart needs the node pid killed too). "done claim(s) pushed: 11": desktop lane unblocked.
 - Open-PR train gate (Orchestrator ~22:00): `pendingTrains()` (scripts/laptop-queue/service.mjs ~201) runs only a
-  train/<n> head that is the head of an OPEN train PR; a failed PR list skips trains that pass. Fixes the rerun of
+  train/<n> head that is the head of an OPEN train PR and is the version commit (subject check, checker FIX
+  1c1f8451); a failed PR list skips trains that pass. Fixes the rerun of
   closed train 35 aeadaec1 and the double run of a pre-version head (ce40dc06 then aeadaec1). Pushed after #252 entered
   train 36, so it rides the next train (PR #252 head moves past the train 36 member sha).
 
