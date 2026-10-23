@@ -312,9 +312,10 @@ lighting schedule. Opens C2.
 | cam-bridge | Camera over the C2 card door, L1 | The bridge door and landing | The lab block's only link | Sees the landing, not the NE stair door 6 m along | 9 m |
 | kp-fac | Keypad, facilities office | The BMS terminal | Building controls | Code overheard (#5-6) or on the comms-room handover board | - (EW5) |
 | alarm-rcp, alarm-brg | Alarm panels at reception and the bridge landing | The building | Guard posts | Both beside posted guards | - |
-**Lighting.** Lit: atrium pendants (`s2-atrium`, reception panel: lure #1; each pendant shootable), balcony downlights
-(`s2-l1-bal`, `s2-l2-bal`, switch at each stair door), corridor night level 25% per floor, kitchen, facilities office,
-reception. Dark by reason: open-plan offices and meeting rooms (PIR, nobody there), fire stairs (emergency pools at
+**Lighting.** Lit: atrium pendants and the reception downlight (`s2-atrium`, reception panel: lure #1, who sees his own
+room go dark - from the desk the pendants are above the L1 slab line; each lamp shootable), balcony downlights
+(`s2-l1-bal`, `s2-l2-bal`, switch at each stair door), corridor night level 25% per floor, kitchen, facilities office.
+Dark by reason: open-plan offices and meeting rooms (PIR, nobody there), fire stairs (emergency pools at
 landings), comms room (LEDs), roof plant room.
 **Observe.** From the post room door (dark): #1, #2, cam-turnstile. From the SW stair L1 door (vision panel; occlusion
 vantage, A23): #3, #4 in opposite phase, #5-6, #7 through the facilities glass.
