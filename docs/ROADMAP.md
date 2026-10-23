@@ -144,11 +144,12 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
 ## Now
 | Session | Machine | Doing | Next |
 | --- | --- | --- | --- |
-| Orchestrator | desktop | trains, reviews, pacing (full burn), bottlenecks | train 11 (#144, #150, #154) release; train 8 (#119 + #138) build |
-| CT Core Build | desktop agents, overflow to 100% | mocap-trial fix round (pops only; "Mocap, as captured"), #138 N2 fix round (e2e-anim knees, e2e-clip crouched holstered) | #138 sha for train 8; mocap-trial PR |
-| Menu Notes Build | desktop agents | vol-cone-fix (#152 general fix; checker PASS, flood reshoot), mocap-sheets (start / stop rows) | vol-cone-fix PR |
-| Course Ready Build | desktop agents | #144 R and #154 netmove-compare done (train 11) | lightField heap check under load; mocap checker on CT Core's fix sha |
-| Character Build | laptop: MAIN test machine, GPU full slot (4189, JOBS=3) + second slot (4192) | train 11 full run, vol-cone-fix shots, #149 master merge | train 8 full run |
+| Orchestrator | desktop | trains, pacing, account swaps (refreshed 2026-10-23 ~11:30) | 4.71.0 release (train 22); train 23 |
+| CT Core Build (Player Build from the next swap) | desktop | mocap-strafe, traverse-fix-2, hang-down (laptop GREEN), strike-pops, dual-reward, sd-rounds | batch PR for train 23; stealth spare jobs (interrogation, synced takedowns, suppressor ammo) |
+| Menu Notes Build (Marlow Build) | desktop | marlow-final: A4-A6 dressing, ctcourse :1-:3 fixes, A8 greybox checker | A8 dressing, slice 9 (perf, docs, full e2e), one PR; then section-rating |
+| Course Ready Build (Sector Ops Build) | desktop | sector-redesign: PR 2 (parts 1-6 GPU pass), E9 crate (protocol 35) | S4 / S5 greybox, E8 / E10, then campus detail art (~1 day) |
+| Guard AI Build | desktop | S4 / S5 / S7 in train 22 | S8 / S5b / S6 / S10, then stealth-over-shooting AI |
+| Character Build (Test Runner) | laptop: test runner (4189 + 4192) | train 22 GREEN (408 s); guard-render S6 / S1 measures | guard-render slices for 24 guards |
 
 ## Next (in order)
 1. **Animation**: train 8 (train/8 4cc73665: #119 N4b, #135 N1, #138 N2) on the laptop GPU; the CMU **mocap-trial** (CT Core, top priority) with a side-by-side for Michael; N4c (Menu Notes). Michael calls the current animations broken (2026-10-22 ~20:45).
