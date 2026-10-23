@@ -11,7 +11,7 @@
 import type { LevelBuilder } from '../levelBuilder';
 import type { BoxPiece } from '../levelBuilder';
 import { FIT_MAX, FIT_MIN, ART_PROUD, boxSlice, pieceHull, quarterTurns, skinFit, writeArtBoxes, type ArtPlacement, type CatalogueSet, type PropCatalogue } from './catalogue';
-import { blocked, buildKeepouts, checkDressing, mountOf, type DressContext, type Keepouts } from './keepouts';
+import { blocked, buildKeepouts, checkDressing, placementMount, type DressContext, type Keepouts } from './keepouts';
 import { newReport, planRoom, type DressReport } from './dressRules';
 
 const snap = (v: number, step = 0.05): number => Math.round(v / step) * step;
@@ -72,7 +72,7 @@ export class CampusDresser {
     if (o.s) p.s = o.s;
     if (o.group !== undefined) p.group = o.group;
     if (o.tint) p.tint = o.tint;
-    const e = blocked(this.keepouts, this.ctx, cat, p, mountOf(cat, prop));
+    const e = blocked(this.keepouts, this.ctx, cat, p, placementMount(this.keepouts, this.ctx, cat, p));
     if (e) throw new Error(`campus art S${this.ctx.section + 1}: ${piece} at (${x}, ${y}, ${z}): ${e}`);
     return this.push(p, piece);
   }
@@ -176,7 +176,7 @@ export class CampusDresser {
     return out;
   }
 
-  /** Writes the solid / see placements' boxes into the level builder (`writeArtBoxes`; noLedge on every box 1.9-4.2 tall). */
+  /** Writes the solid / see placements' boxes into the level builder (`writeArtBoxes`; every box noLedge, ART-KIT L15). */
   write(): this {
     this.report.boxes += writeArtBoxes(this.b, this.cats, this.placements);
     return this;

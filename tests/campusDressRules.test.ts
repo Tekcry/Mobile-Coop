@@ -17,7 +17,7 @@ import { pieceKind } from '../src/world/surfaceKinds';
 import type { SectorDef } from '../src/game/sectors';
 import { ART_TAGS, type ArtTag } from '../src/world/campusArt/artTags';
 import { boxAt, ceilingAt, cylAt, floorAt, wallRuns } from '../src/world/campusArt/geometry';
-import { blocked, buildKeepouts, checkDressing, overlapsGreybox, type DressContext } from '../src/world/campusArt/keepouts';
+import { blocked, buildKeepouts, checkDressing, KEEP, overlapsGreybox, type DressContext } from '../src/world/campusArt/keepouts';
 import { DOOR_EXTRAS, DRESS_RULES, newReport, planRoom } from '../src/world/campusArt/dressRules';
 import { applyFinishes, CAMPUS_FINISH, FINISH_KIND } from '../src/world/campusArt/finishes';
 import { facilityCatalogue, type ArtPlacement, type CatalogueSet } from '../src/world/campusArt/catalogue';
@@ -68,6 +68,9 @@ function ctxOf(o: Partial<DressContext> = {}): DressContext {
 const printer = (x: number, z: number, y = 0): ArtPlacement => ({ cat: 'K', prop: 'printerMfd', x, y, z, yaw: 0, section: 0, cls: 'solid', why: 'probe' });
 const HZ = 0.325;
 const HX = 0.3;
+/** A visual probe with no box (the water cooler, 0.32 square) and a see-box probe (the plant pot, 0.6 square). */
+const cooler = (x: number, z: number): ArtPlacement => ({ cat: 'K', prop: 'waterCooler', x, y: 0, z, yaw: 0, section: 0, cls: 'visual', why: 'probe' });
+const pot = (x: number, z: number): ArtPlacement => ({ cat: 'K', prop: 'plantPot', x, y: 0, z, yaw: 0, section: 0, cls: 'see', why: 'probe' });
 const test = (ctx: DressContext, p: ArtPlacement): string | null => blocked(buildKeepouts(ctx), ctx, CAMPUS_KIT, p, 'floor-free');
 
 /**
@@ -152,15 +155,23 @@ describe('keepouts K1-K13: 5 cm inside rejects, 5 cm outside accepts (floor prop
     expect(test(ctx, outside), `${rule} outside`).toBeNull();
   };
 
+  // two probes: the water cooler (visual, 0.32 square: no box) at the keepout's own radius, and the plant pot (a 0.6 see
+  // box) at the radius plus the nav agent's clearance (KEEP.navClear: a box keeps the walkable cells inside the keepout)
+  const NC = KEEP.navClear;
+  const both = (rule: string, ctx: DressContext, at: (d: number, h: number) => [number, number], r: number): void => {
+    inOut(rule, ctx, cooler(...at(r - 0.05, 0.16)), cooler(...at(r + 0.05, 0.16)));
+    inOut(rule, ctx, pot(...at(r + NC - 0.05, 0.3)), pot(...at(r + NC + 0.05, 0.3)));
+  };
+
   it('K1 route legs: capsule 1.2', () => {
     const ctx = ctxOf({ sector: sector({ routes: [{ name: 'r', pts: [[-5, 5], [5, 5]], obj: 1 }] }) });
-    inOut('K1', ctx, printer(0, 5 + HZ + 1.2 - 0.05), printer(0, 5 + HZ + 1.2 + 0.05));
+    both('K1', ctx, (d, h) => [0, 5 + h + d], 1.2);
   });
 
   it('K2 guard patrol legs: capsule 0.9', () => {
     const g = { kind: 'grunt', x: -5, z: 5, yaw: 0, route: [[5, 5]], takedownSpot: [50, 50] };
     const ctx = ctxOf({ sector: sector({ guards: [g] as unknown as SectorDef['guards'] }) });
-    inOut('K2', ctx, printer(0, 5 + HZ + 0.9 - 0.05), printer(0, 5 + HZ + 0.9 + 0.05));
+    both('K2', ctx, (d, h) => [0, 5 + h + d], 0.9);
   });
 
   it('K3 doors: the opening + 1.2 deep each side (and the swing)', () => {
@@ -168,23 +179,28 @@ describe('keepouts K1-K13: 5 cm inside rejects, 5 cm outside accepts (floor prop
     // a door at z 5, its leaf along +x from (5, 5) to (6, 5); its zone runs 1.4 from the opening line
     b.door(5, 0, 5, 1, Math.PI / 2);
     const ctx = ctxOf({ doors: b.anchors.doors });
-    inOut('K3', ctx, printer(5.5, 5 + 1.4 + HZ - 0.05), printer(5.5, 5 + 1.4 + HZ + 0.05));
+    both('K3', ctx, (d, h) => [5.5, 5 + 1.4 + h + d], 0);
   });
 
   it('K4 interactables: disc 1.5', () => {
     const ctx = ctxOf({ items: [{ x: 0, y: 1.2, z: 5, what: 'switch' }] });
-    inOut('K4', ctx, printer(1.5 + HX - 0.05, 5), printer(1.5 + HX + 0.05, 5));
+    both('K4', ctx, (d, h) => [d + h, 5], 1.5);
   });
 
   it('K5 takedown spots: disc 1.5', () => {
     const g = { kind: 'grunt', x: 50, z: 50, yaw: 0, takedownSpot: [0, 5] };
     const ctx = ctxOf({ sector: sector({ guards: [g] as unknown as SectorDef['guards'] }) });
-    inOut('K5', ctx, printer(1.5 + HX - 0.05, 5), printer(1.5 + HX + 0.05, 5));
+    both('K5', ctx, (d, h) => [d + h, 5], 1.5);
   });
 
   it('K6 hide spots, spawns, seeds: disc 1.2', () => {
     const ctx = ctxOf({ hides: [{ x: 0, y: 0, z: 5 }] });
-    inOut('K6', ctx, printer(1.2 + HX - 0.05, 5), printer(1.2 + HX + 0.05, 5));
+    both('K6', ctx, (d, h) => [d + h, 5], 1.2);
+  });
+
+  it('cover (ART-PLAN 4.4 item 4): a visible box tall enough for cover stays 3.0 off route and patrol legs', () => {
+    const ctx = ctxOf({ sector: sector({ routes: [{ name: 'r', pts: [[-5, 5], [5, 5]], obj: 1 }] }) });
+    inOut('C', ctx, printer(0, 5 + HZ + 3.0 - 0.05), printer(0, 5 + HZ + 3.0 + 0.05));
   });
 
   it('K7 co-op lips: rule 3 (a 0.6-1.7 step within 1.0 of the wall under the lip) and rule 2 (a 1.2+ box within 4.0)', () => {
@@ -242,7 +258,8 @@ describe('keepouts K1-K13: 5 cm inside rejects, 5 cm outside accepts (floor prop
     const k = buildKeepouts(ctx);
     expect(k.zones.filter((z) => z.rule === 'K13').length).toBe(1);
     expect(test(ctx, printer(5.5, 5 + 1.2 + HZ - 0.05))).not.toBeNull();
-    expect(test(ctx, printer(5.5, 5 + 1.4 + HZ + 0.05))).toBeNull();
+    expect(test(ctx, cooler(5.5, 5 + 1.4 + 0.16 + 0.05))).toBeNull();
+    expect(test(ctx, pot(5.5, 5 + 1.4 + KEEP.navClear + 0.3 + 0.05))).toBeNull();
     // with both sides in rooms the door is no escape door
     const both = ctxOf({ doors: b.anchors.doors, rooms: [{ id: 'a', name: 'a', minX: 0, maxX: 12, minZ: 5, maxZ: 15 }, { id: 'b', name: 'b', minX: 0, maxX: 12, minZ: -5, maxZ: 5 }] });
     expect(buildKeepouts(both).zones.filter((z) => z.rule === 'K13').length).toBe(0);

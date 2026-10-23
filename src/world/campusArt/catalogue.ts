@@ -271,7 +271,8 @@ export function artBoxes(cat: PropCatalogue, p: ArtPlacement): PropWorldBox[] | 
 export const writesBoxes = (p: ArtPlacement): boolean => p.cls === 'solid' || p.cls === 'see';
 
 /** Writes the solid / see placements' boxes into the level builder (skips skin / skin-hide / visual); returns boxes written.
- *  Every box 1.9-4.2 m tall gets `noLedge` (campus rule 6). */
+ *  Every box gets `noLedge` (ART-KIT L15: campus rule 6 asks it of every box 1.9-4.2 m tall; the dressing marks all its
+ *  boxes, so no prop adds a ledge, a hang or a climb no section plan names). */
 export function writeArtBoxes(b: PropBoxBuilder, cats: CatalogueSet, ps: readonly ArtPlacement[]): number {
   let n = 0;
   for (const p of ps) {
@@ -283,7 +284,7 @@ export function writeArtBoxes(b: PropBoxBuilder, cats: CatalogueSet, ps: readonl
     for (const w of boxes) {
       const from = b.boxes.length;
       b.box(w.c[0], w.c[1], w.c[2], w.s[0], w.s[1], w.s[2], w.color, w.yaw, 0, true, w.visible);
-      if (w.noLedge) b.mark(from, { noLedge: true });
+      b.mark(from, { noLedge: true });
       n++;
     }
   }

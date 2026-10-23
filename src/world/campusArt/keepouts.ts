@@ -13,6 +13,7 @@
  */
 import { camPitch, camRange, inFrame, sweepYaw } from '../../security/camera';
 import { hyp2 } from '../../core/mathx';
+import { classifyHeight, MIN_FACE } from '../../cover/coverData';
 import type { CameraDevice } from '../../security/data';
 import type { LaserDef } from '../../game/jammer';
 import type { SectorDef } from '../../game/sectors';
@@ -91,7 +92,14 @@ export const KEEP = {
   anchorCeil: 0.6,
   glass: 0.5,
   escape: 1.0,
+  /** (ART-KIT L12) The nav agent's radius (0.32, `navBuild`) and a margin: a box stays this much more off K1-K6 / K13. */
+  navClear: 0.4,
+  /** (ART-KIT L12) New cover only this far from route and patrol legs (ART-PLAN 4.4 item 4). */
+  cover: 3.0,
 } as const;
+
+/** The floor keepouts whose walkable cells the gate protects (ART-PLAN 4.4 item 2). */
+const NAV_RULES: readonly string[] = ['K1', 'K2', 'K3', 'K4', 'K5', 'K6', 'K13'];
 
 interface PlanCap {
   ax: number;
@@ -567,6 +575,24 @@ const minDistToShape = (s: Shape, pts: readonly number[]): number => {
   return d;
 };
 
+/**
+ * (ART-KIT L13) Where a placement is mounted, by its geometry (the planner and the checks agree): a ceiling piece by its
+ * frame; a piece whose back is on a wall (0.06) that is raised off the floor, or a flush visual (0.2 deep), on the wall;
+ * a raised piece with no wall behind it hangs (ceiling rules); everything standing on the floor is a floor prop.
+ */
+export function placementMount(k: Keepouts, ctx: DressContext, cat: PropCatalogue, p: ArtPlacement): Mount {
+  if (mountOf(cat, p.prop) === 'ceiling') return 'ceiling';
+  const h = pieceHull(cat, p.prop);
+  const sy = p.s?.[1] ?? 1;
+  const bottom = p.y + Math.min(h.lo[1], h.hi[1]) * sy;
+  const raised = bottom > floorUnder(k, ctx.boxes, cat, p) + 0.05;
+  const depth = Math.abs(h.hi[2] - h.lo[2]) * (p.s?.[2] ?? 1);
+  const onWall = backGap(k, ctx.boxes, cat, p).gap <= 0.06;
+  if (onWall && (raised || (p.cls === 'visual' && depth <= 0.2))) return 'wall';
+  if (raised && !onWall) return 'ceiling';
+  return 'floor-free';
+}
+
 /** Pieces that hang over a solid run (rule V counts them flush when their back is on a wall; ART-KIT L6). */
 export const OVER_RUN: readonly string[] = ['wallCupboards'];
 /** Wall pieces that go over a door (K3's wall rule exempts them). */
@@ -593,14 +619,29 @@ export function blocked(k: Keepouts, ctx: DressContext, cat: PropCatalogue, p: A
   }
   const floor = mount === 'floor-wall' || mount === 'floor-free';
   if (floor) {
+    // (ART-KIT L12) a box keeps the nav agent's clearance more off K1-K6 / K13, so the walkable cells inside them stay walkable (ART-PLAN 4.4 item 2)
+    const navPad = (s: Shape, rule: string): number => (s.box && NAV_RULES.includes(rule) ? KEEP.navClear : 0);
     for (const c of k.caps) {
       for (const s of shapes) {
         if (!overlapY(s.y0, s.y1, c.y0, c.y1)) continue;
-        if (segRectDist(s.plan, c.ax, c.az, c.bx, c.bz) < c.r - 1e-6) return `${c.rule}: ${p.prop} within ${c.r} of ${c.what}`;
+        const r = c.r + navPad(s, c.rule);
+        if (segRectDist(s.plan, c.ax, c.az, c.bx, c.bz) < r - 1e-6) return `${c.rule}: ${p.prop} within ${r.toFixed(2)} of ${c.what}`;
       }
     }
     for (const z of k.zones) {
-      for (const s of shapes) if (overlapY(s.y0, s.y1, z.y0, z.y1) && rectsOverlap(s.plan, z.r, 0)) return `${z.rule}: ${p.prop} in ${z.what}`;
+      for (const s of shapes) {
+        if (!overlapY(s.y0, s.y1, z.y0, z.y1)) continue;
+        const pad = navPad(s, z.rule);
+        if (pad > 0 ? rectGap(s.plan, z.r) < pad - 1e-6 : rectsOverlap(s.plan, z.r, 0)) return `${z.rule}: ${p.prop} in ${z.what}`;
+      }
+    }
+    // (ART-KIT L12) cover (ART-PLAN 4.4 item 4): a visible box tall enough to make cover stays 3.0 off route and patrol legs
+    for (const s of shapes) {
+      if (!s.solid || !classifyHeight(s.y1 - s.y0) || Math.max(s.plan.hx, s.plan.hz) * 2 < MIN_FACE) continue;
+      for (const c of k.caps) {
+        if ((c.rule !== 'K1' && c.rule !== 'K2') || !overlapY(s.y0, s.y0 + 0.5, c.y0, c.y1)) continue;
+        if (segRectDist(s.plan, c.ax, c.az, c.bx, c.bz) < KEEP.cover - 1e-6) return `C: ${p.prop} makes cover within ${KEEP.cover} of ${c.what}`;
+      }
     }
     // K7 lips: rule 2 (a box with top >= 1.2 over the booster's floor within 4.0), rule 3 (a box 0.6-1.7 tall within 1.0
     // of the wall under the lip), the headroom prism
@@ -651,6 +692,32 @@ export function blocked(k: Keepouts, ctx: DressContext, cat: PropCatalogue, p: A
   return null;
 }
 
+/** (ART-KIT L14) Does a floor piece stand on a floor: its hull's bottom on a collide box top (3 cm) under its origin and
+ *  under each footprint corner (5 cm in)? */
+export function standsOn(k: Keepouts, boxes: readonly BoxPiece[], cat: PropCatalogue, p: ArtPlacement): boolean {
+  const h = pieceHull(cat, p.prop);
+  const bottom = p.y + Math.min(h.lo[1], h.hi[1]) * (p.s?.[1] ?? 1);
+  const sx = p.s?.[0] ?? 1;
+  const sz = p.s?.[2] ?? 1;
+  const pts: [number, number][] = [[0, 0]];
+  for (const [a, b] of [[h.lo[0], h.lo[2]], [h.hi[0], h.lo[2]], [h.hi[0], h.hi[2]], [h.lo[0], h.hi[2]]] as const) pts.push([(a + Math.sign(-a) * 0.05) * sx, (b + Math.sign(-b) * 0.05) * sz]);
+  const c = Math.cos(p.yaw);
+  const s = Math.sin(p.yaw);
+  for (const [lx, lz] of pts) {
+    const x = p.x + lx * c + lz * s;
+    const z = p.z - lx * s + lz * c;
+    let top = -Infinity;
+    for (const i of k.grid.query(x, z, x, z)) {
+      const b = boxes[i]!;
+      if (!b.collide || pointRectDist(boxPlan(b).r, x, z) > 0) continue;
+      const t = boxPlan(b).y1;
+      if (t <= bottom + 0.3 && t > top) top = t;
+    }
+    if (Math.abs(top - bottom) > 0.03) return false;
+  }
+  return true;
+}
+
 /** Does a placement's footprint overlap a greybox box (other than the floor it stands on and the wall it hangs on)? */
 export function overlapsGreybox(k: Keepouts, boxes: readonly BoxPiece[], cat: PropCatalogue, p: ArtPlacement): number {
   const shapes = shapesOf(cat, p);
@@ -681,13 +748,13 @@ export function checkDressing(ctx: DressContext, cats: CatalogueSet, ps: readonl
       shapes.push(null);
       return;
     }
-    const e = blocked(k, ctx, cat, p, mountOf(cat, p.prop));
+    const m = placementMount(k, ctx, cat, p);
+    const e = blocked(k, ctx, cat, p, m);
     if (e) out.push(`#${i} ${p.cat}:${p.prop} (${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)}): ${e}`);
     if (p.cls === 'skin' || p.cls === 'skin-hide') {
       shapes.push(null);
       return;
     }
-    const m = mountOf(cat, p.prop);
     if (m === 'floor-wall' || m === 'floor-free') {
       const g = overlapsGreybox(k, ctx.boxes, cat, p);
       if (g >= 0) out.push(`#${i} ${p.cat}:${p.prop}: B: overlaps greybox box ${g}`);

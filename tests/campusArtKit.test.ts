@@ -338,7 +338,7 @@ describe('skins, rule V and the box classes (A115)', () => {
     expect(ruleV(CAMPUS_KIT, { ...v('whiteboard'), cls: 'solid' }, 0, Infinity)).toBeNull();
   });
 
-  it('writeArtBoxes: solid writes visible boxes (in the light shapes), see collision-only, skin and visual nothing; noLedge 1.9-4.2', () => {
+  it('writeArtBoxes: solid writes visible boxes (in the light shapes), see collision-only, skin and visual nothing; every box noLedge', () => {
     const b = new LevelBuilder();
     const cats = { K: CAMPUS_KIT, F: facilityCatalogue() };
     const ps: ArtPlacement[] = [
@@ -349,7 +349,7 @@ describe('skins, rule V and the box classes (A115)', () => {
       { cat: 'K', prop: 'lockerBank', x: 12, y: 0, z: 0, yaw: 0, section: 0, cls: 'solid', why: 't' },
     ];
     expect(writeArtBoxes(b, cats, ps)).toBe(3);
-    expect(b.boxes[0]).toMatchObject({ collide: true, visible: true });
+    expect(b.boxes[0]).toMatchObject({ collide: true, visible: true, noLedge: true });
     expect(b.boxes[1]).toMatchObject({ collide: true, visible: false, noLedge: true });
     expect(b.boxes[2]).toMatchObject({ collide: true, visible: true, noLedge: true });
     expect(canonicalLightShapes(b.boxes, b.cylinders, 'art-test', false).length).toBe(2);

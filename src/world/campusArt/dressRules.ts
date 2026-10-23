@@ -14,7 +14,7 @@ import type { ArtTag } from './artTags';
 import { isOutdoor } from './artTags';
 import { artToWorld, pieceHull, type ArtPlacement, type CatalogueSet, type PropCatalogue } from './catalogue';
 import { ceilingAt, floorAt, pointSegDist, rectsOverlap, runLen, wallRuns, type PlanRect, type WallRun } from './geometry';
-import { blocked, doorLine, overlapsGreybox, shapesOf, type DressContext, type Keepouts, type Mount } from './keepouts';
+import { blocked, doorLine, overlapsGreybox, placementMount, shapesOf, standsOn, type DressContext, type Keepouts, type Mount } from './keepouts';
 
 export interface RuleItem {
   /** Catalogue and piece: 'K:whiteboard', 'F:filingCabinet'. */
@@ -284,7 +284,11 @@ export function planRoom(ctx: DressContext, k: Keepouts, cats: CatalogueSet, roo
   };
   let index = 0;
   /** Tries one placement: keepouts, greybox overlap, local overlap. Null: accepted (and recorded). */
-  const tryPlace = (piece: string, cat: PropCatalogue, p: ArtPlacement, mount: Mount, commit = true): string | null => {
+  const tryPlace = (piece: string, cat: PropCatalogue, p: ArtPlacement, ruleMount: Mount, commit = true): string | null => {
+    // the keepouts by where the piece really is (as `checkDressing` reads it), the rule's mount for the wall check
+    const mount = placementMount(k, ctx, cat, p);
+    if (ruleMount === 'wall' && mount === 'ceiling') return 'W: no wall behind it';
+    if ((ruleMount === 'floor-wall' || ruleMount === 'floor-free') && !standsOn(k, ctx.boxes, cat, p)) return 'F: not on the floor';
     const e = blocked(k, ctx, cat, p, mount);
     if (e) return e;
     if (mount !== 'ceiling' && overlapsGreybox(k, ctx.boxes, cat, p) >= 0) return 'B: greybox';
