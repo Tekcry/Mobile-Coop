@@ -1,5 +1,7 @@
 status: blocked until LR16-1 (fix round running) is merged into feature/sector-redesign-lr16int; base = lr16int after the LR16-1 merge (lead fills the sha: `<sha>`)
 
+Lead decisions (~21:30): (1) ctcourse lamp data MAY be re-levelled, except the files Marlow #257 edits (ctcourseSets/a2CarriageShed.ts, a4GoodsShed.ts, a6PumpHouse.ts, a8Strongroom.ts, src/game/ctDevices.ts, courseMode.ts): their lamps are re-baselined in tests only and listed for Marlow Build. (2) LR16-4-board: replacing the S2 reception switch with the board is accepted (assumed A, undo = restore the switch beside it); it runs after LR16g (both edit campusS2.ts). (3) S3 white fog stays a GPU-sheet item.
+
 # LR16g - brightness re-level on the one light model (Opus)
 
 Planner: Opus 5.5, 2026-10-23 (refresh after LR16dx, LR16e, LR16t merged at lr16int 6eb6a863 and LR16-1 checked).
