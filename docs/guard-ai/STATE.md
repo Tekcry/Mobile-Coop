@@ -1,6 +1,14 @@
 # Guard AI - state
 
 ## Now
+~15:00: S15 fix round DONE fc249f3f (2a58fcca + A65): breaker walker stands on the floor cell by the switch
+(EnemyManager.switchFloor enemyManager.ts:942, enemy.ts:1028); a breaker fault goes to the nearest witness by path,
+no officer / role / zone weight (incidents.ts:561; that was sectorops:6: the rover beat the map's lure guards #1 / #16);
+the part-6 panel assert now expects #1 to relight circuit 50 (e2e-sectorops.mjs:1755). Unit: breaker 27, incidents 36,
+campus / isolator files green. Test Runner asked (E2E_GPU=1): s15 fc249f3f stealth-ai, sectorops 3 + 6, levels,
+ct-warehouse, course, ctcourse. s9 <- s15 = 1ad04058 (conflicts: coopClient imports, BRIEF; tsc + 6 net / AI files
+161/161), queued after it: coop, netmove, stealth-ai, takedown. Walk S17-S19 agent still RUNNING.
+
 ~14:40 (LAPTOP, fresh session): laptop worktrees made (npm ci): ...-guard-ai (docs), ...-guard-ai-s15, ...-guard-ai-walk.
 s15 <- s14 (s13's ladder flake fix) = f54d26d1, pushed; walk branch cut from f54d26d1 (the old walk agent's work never
 reached origin: restarted). RUNNING (Opus): S15 fix round (breaker arrival height + sectorops:6 panel / switch-bank
