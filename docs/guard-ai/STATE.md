@@ -1,6 +1,9 @@
 # Guard AI - state
 
 ## Now
+~09:45: #272, #294, #295 TRAIN-READY. Running: e2e-enemies sniper triage (worktree -sniper, feature/guard-ai-sniper,
+SNIPER-TRIAGE.md, set sniper-fix).
+
 ~09:15: #294 TRAIN-READY; #295 OPEN (body watchdog); #272 conflicts resolved (merge 5a3dd588). Laptop pending:
 body-watchdog, w482-merge. Next after these: e2e-enemies sniper (item 5).
 
@@ -788,12 +791,10 @@ Open (requests on branch laptop-queue, no cancel CLI: delete the JSON, commit, p
 laptop-e2e/<set> on the sha; logs C:/NightShift/scratch/laptop-queue/runs/<id>/ (desktop-worker runs: ask the
 orchestrator). Green -> `gh pr edit <n> --add-label train-ready` + tell orchestrator; red -> Opus triage at once):
 1. MERGED: #254 S23 (train 42), #264 S24 / #266 S25 / #271 S26 / #270 S27 (train 43, master cacd0c7e). #281 closed.
-2. #272 walk482 (train-ready): master merged for real conflicts 5a3dd588 (onCamera: Marlow's hall return first; enemy.ts
-   onRadio -> tactics -> closeFromCover; e2e-stealth-ai keeps 'report then engage' + 'search area'); laptop w482-merge
-   (stealth-ai) pending: red -> Opus triage.
+2. #272 walk482 TRAIN-READY (0dbadad0): master merged for conflicts 5a3dd588; 'near' staging fix 2258ae7b (move-up saw
+   the near spot: wait out the fight far away, WALK482.md "Laptop triage 2"); laptop w482-sai PASS.
 3. #294 S28 locked-door re-path TRAIN-READY (5d0b2c38; laptop s28-fix 10/10; re-check PASS).
-   #295 body watchdog (urgent, unblocks LR16 #291): Opus check PASS 8ada677d; laptop body-watchdog (lightbake,
-   guard-carry on afc9cdd7) pending -> train-ready. Follow-ups: LR16 Epic compile time on the laptop (> 45 s still
+   #295 body watchdog TRAIN-READY (8ada677d; laptop lightbake + guard-carry PASS; Opus check PASS). Follow-ups: LR16 Epic compile time on the laptop (> 45 s still
    warns); glWarningFix.test.ts to pin the Babylon internals the unlink uses.
 4. Polish (S24-LEVELS-CHECK): redundant tell(alarmHunt) after spawn in reinforce (enemyManager.ts:979) and parked
    joinReinforcement (:811). Mission reinforcements with nothing known stand at spawn (A148): Michael's call.
