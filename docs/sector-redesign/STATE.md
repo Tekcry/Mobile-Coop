@@ -297,11 +297,12 @@ LR16 (one lighting system). lr16int 82f9e1bb = LR16a/b/f/7/3/v/d/h/dx/e/t + LR16
 Chain (all agents die at the swap; each branch has a WIP commit; rerun from brief + branch head + its checks/<x>-build.md):
 1. LR16g -lr16g 02419d1b DONE as built (checks/lr16g-build.md): 7 reds left = C1 174 warehouse stealth points in pools,
    C2 Marlow S7 stair, C3 S2 A1 mouth, C4 S3 pockets. Lead call A-lead: CAP 0.55 stays, layout changes.
-2. LR16-L-A (bake: lamp grid aligned on each lamp, LAMP_VERSION 5 -> 6) on -lr16l-a (off 02419d1b), WIP a1151500
-   (zzOldLampBake.ts / zzLr16lPerf.test.ts are probes: never ship). Brief briefs/LR16-L.md part A; report
-   checks/lr16l-a-build.md. Opus.
-3. LR16-W layout (briefs/LR16-W.md, planner running at the save: if missing, rerun an Opus planner: parts S1 / S2 / S3 /
-   C2, base = L-A head, re-measure each cluster). Then Opus builders per part in parallel (file-disjoint).
+2. LR16-L-A DONE -lr16l-a 67f3661a (checks/lr16l-a-build.md; 0 embedded lamps, wall guard holds; new red warehouseS3
+   lit-enough 0.42 < 0.43; strip #61 freed moves S2). Lead calls: #34 / #53 wall-mounted (-> ON_ITS_POST); campus #81
+   cage light inside its post = our map bug -> W; wall-guard cap 3.0 stays; new reds -> W; torchOcclusion.test.ts:166
+   lint error (LR16t) -> W.
+3. LR16-W layout: Opus planner RUNNING ~00:55 (briefs/LR16-W.md, base 67f3661a; if missing rerun with the calls above).
+   Then Opus builders per part in parallel (file-disjoint), branches -lr16w-<part>.
 4. ONE Opus checker on g + L-A + W together; merge -lr16g -> -lr16l-a -> W parts into lr16int.
 Parallel (off lr16int 82f9e1bb, briefs/LR16-POLISH.md; builders started 23:20, WIP pushed): pol-a (Sonnet; skip the
   lampBounce.test.ts item -> F), pol-b (Opus torch picture), pol-e (Opus rig bulbs / comments), lr16l-b (Opus, LR16-L
