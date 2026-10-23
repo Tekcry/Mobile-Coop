@@ -296,11 +296,12 @@ tuned.json dropped, rtReflections deleted; 110 / 111 test files green). BLOCKER:
 ctcourse.ts), #287 trains with the entry resolution once LR16-M is green. Laptop f85ef736-021e (coop netmove lightbake
 darkness sectorops) queued; LR16-P perf requeued: 1c22b913-74eb, 83136f2c-ce41, 809c25f4-6cde.
 NEXT:
-1. RUNNING ~06:15: Opus planner briefs/LR16-M.md (base f85ef736; lamp data levers only). Then send the path to Marlow Build
+1. LR16-M brief DONE (f075b01b; M1-M4 + INT, all bands green in memory) and SENT to Marlow Build (~06:45, branch off f85ef736). Was: send the path to Marlow Build
    and copy the orchestrator. When Marlow's LR16-M branch is green: tell the orchestrator #287 trains with
    -lr16-entry + LR16-M; mark #287 ready + label train-ready.
 2. Read f85ef736 verdict (wire change protocol 45) and the perf verdicts (logs on the laptop: checks/lr16p-perf-request.md).
-3. Then: LR16-8 sheets (briefs/LR16h-and-8.md part 2 to Test Runner), LR16-4 board (briefs/LR16-4-board.md).
+3. RUNNING ~06:50: Sonnet LR16-4 board on -lr16-4 off f85ef736 (#255 on master; checks/lr16-4-build.md) -> one checker
+   (two on src/ai if touched) + laptop sectorops:6 + coop. Then LR16-8 sheets (briefs/LR16h-and-8.md part 2 to Test Runner).
 For Michael: Realistic dimmer (S2 atrium 0.47); S3 hall-lit white fog; R2N ladder foot 0.44 (layout cannot fix); warehouse
 fittings at 0.1-0.3x (GPU sheet judges); lamp-loop cost.
 Polish held: art-train-entry-check 1-6, lr16w-batch-check list, lr16-render-batch-check 1-4 (rtReflections highp),
