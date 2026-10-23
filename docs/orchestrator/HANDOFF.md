@@ -17,6 +17,8 @@ Accounts are labelled by their weekly reset (no emails in git). Each orchestrato
 
 ## State at the switch (refreshed 2026-10-23 ~07:58 for the next swap; newest update block first)
 
+**~12:25: SWAP LIVE (5-hour 0%, resets 17:20; weekly 32%, resets 2026-10-29 23:00: the 5-hour meter binds). Desktop heavy.lock stale (Course Ready sectorops:1 rerun f96924e5 12:19, no node) deleted on Michael's word; heavy2 absent. Cron 7/27/47 recreated. Five prompts out (new titles). Train 23 verdict waits on Test Runner (laptop 4189 run started 12:19); the f96924e5 sectorops:1 desktop rerun died with the old account: Sector Ops Build reruns it.**
+
 **~12:20: ALL FIVE SAVED (CT Core 36c95dc5 + agent WIP; Menu Notes bea5aa6d, section-rating plan 00323aa3; Course Ready feature/sector-redesign-p3 b694c2ba; Guard AI 7e7a4f9b + s13 / s15 WIP; Character Build flake-fix 7df19d22). Laptop scheduled tasks through the swap: 4189 train 23 full (12:19) -> #207 99c37251 -> marlow 1a47946a; 4192 guard-ai 345fbb91 (12:19) -> sector-redesign f96924e5 -> S3a 220d3cf7. #207 head is 99c37251. Michael 12:15 (to Character Build): ship guard-render S6 without S6d.**
 
 **~12:14 save (93%): all five told to save. Train 24 candidates: #207 CT Core batch 22 (f75db56c, checker PASS; coop / netmove / ctcourse / anim / takedown / traverse on the laptop after train 23), guard-ai #200 -> #203 (stack-tip fix 345fbb91 incl. an S6 radio 4 s delay bug; laptop rerun pending, Guard AI sends train-ready) + #208 S11 / S12 helmets and body armour (on #203, checker PASS), sector-redesign PR 3 (protocol 35). Guard AI next-window briefs: docs/guard-ai/slices/NEXT-BRIEFS.md.**
