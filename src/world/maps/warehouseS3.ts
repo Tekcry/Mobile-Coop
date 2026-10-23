@@ -334,10 +334,12 @@ export function buildAssemblyS3(b: LevelBuilder): void {
   b.fence(0, -4.0, 2.4, -4.0, 2.4); // (a 1.2 gap round the 1.1 gate, as the office door: a nav cell fits)
   b.fence(3.6, -4.0, 6.0, -4.0, 2.4);
   b.fence(6.0, -4.0, 6.0, -8.65, 2.4);
-  // (LR16-W S3, L5) the secure store at the cage's back: sheet steel on the mesh, a top over the back racks (under the
-  // crane walkway) and the west side (the officer's restock corner stays in shadow at night; the counter is outside it)
+  // (LR16-W S3, L5) the secure store at the cage's back: sheet steel on the mesh, a top over the back racks and the west
+  // side (the officer's restock corner stays in shadow at night; the counter is outside it). The top stops at z -6.85, clear
+  // of a player hanging from the crane walkway's north lip (body z -7.53 to -6.93); it still cuts lamp #77's rays to the
+  // officer (they cross y 2.4 at z -6.14 / -6.65).
   p0 = b.boxes.length;
-  b.box(1.5, 2.43, -7.325, 3.0, 0.06, 2.65, STEEL);
+  b.box(1.5, 2.43, -6.425, 3.0, 0.06, 0.85, STEEL);
   b.box(0, 1.2, -7.325, 0.06, 2.4, 2.65, STEEL);
   ov(p0);
   nl(p0);
