@@ -279,9 +279,9 @@ export function guardVariant(seed: number, kind: string, mapId: string, out: Gua
  *  - Random variation never adds a helmet or armour: helmet_std only for `helmet`, vest_soft only for `armour`.
  *  - A helmet replaces the headwear and hides the hair cap; a balaclava stays under it. With the helmet knocked off
  *    (`helmet` false) the headwear and hair come back.
- *  - plate_heavy for `plated` (and always for heavy); heavy and enforcer always wear helmet_heavy and the balaclava;
- *    the enforcer always wears vest_soft and holds shield_riot. The enforcer's `plated` is the shield front, so it
- *    shows no plate carrier. A plate carrier replaces the soft vest.
+ *  - plate_heavy for `plated` and always for heavy and enforcer (both `plated` in enemies.json; BRIEF A5: what stops a
+ *    round is drawn); heavy and enforcer always wear helmet_heavy and the balaclava; the enforcer holds shield_riot.
+ *    A plate carrier replaces the soft vest.
  *  - Beanie, balaclava and helmets hide the hair cap; caps, boonie and headset leave it.
  */
 export function applyGear(v: GuardVariant, helmet: boolean, armour: boolean, plated: boolean, kind: string, out: GuardPieces): GuardPieces {
@@ -310,8 +310,8 @@ export function applyGear(v: GuardVariant, helmet: boolean, armour: boolean, pla
   ids[n++] = v.outfit;
 
   if (helmetOn) ids[n++] = heavyKit ? 'helmet_heavy' : 'helmet_std';
-  if (heavy || (plated && !enforcer)) ids[n++] = 'plate_heavy';
-  else if (armour || enforcer) ids[n++] = 'vest_soft';
+  if (heavyKit || plated) ids[n++] = 'plate_heavy';
+  else if (armour) ids[n++] = 'vest_soft';
   if (enforcer) ids[n++] = 'shield_riot';
 
   out.count = n;
