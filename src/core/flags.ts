@@ -58,6 +58,8 @@ export interface Flags {
   guardMerge: boolean;
   /** (guard-render S4) Guard anim tiers (off-screen every 4th frame, far every 2nd: `src/ai/animTier.ts`); `?animtier=0` off. */
   animTier: boolean;
+  /** (guard-render S6) Per-cascade sun caster lists and the guards' sun reach; `?guardsun=0`: off, for comparisons. */
+  guardSun: boolean;
 }
 
 /** (mocap-trial) An on / off URL value: "1" true, "0" false, anything else (or absent) null. */
@@ -124,4 +126,5 @@ export const flags: Flags = {
   mocap: onOffFlag(params.get('mocap')),
   guardMerge: params.get('guardmerge') !== '0',
   animTier: params.get('animtier') !== '0',
+  guardSun: params.get('guardsun') !== '0',
 };

@@ -49,6 +49,7 @@ interface FakeGuard {
   radio: ReturnType<typeof vi.fn>;
   bark: ReturnType<typeof vi.fn>;
   setPost: ReturnType<typeof vi.fn>;
+  setGear: ReturnType<typeof vi.fn>;
   section?: number;
   profile?: string;
 }
@@ -89,6 +90,7 @@ function guard(x: number, z: number, o: Partial<FakeGuard> & { leash?: number } 
     radio: vi.fn(),
     bark: vi.fn(),
     setPost: vi.fn(),
+    setGear: vi.fn(), // (guard-ai S12) placeSlot puts gear on him
     ...o,
   };
   return g;

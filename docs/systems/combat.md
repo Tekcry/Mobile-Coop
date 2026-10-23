@@ -30,6 +30,9 @@ Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G103-G105), then d
 - `PlayerWeapons` (fixed step) owns fire / reload / swap / grenades; `Ballistics` owns rays and pooled swept projectiles;
   `Explosions` queues detonations (never recursive); `Vfx` pools every effect.
 - Anything shootable implements `Damageable` and registers its bodies with `DamageRegistry`.
+- (guard-ai S12) A guard's helmet soaks his first bullet to the head and body armour every bullet to the body
+  (`docs/systems/ai.md` "Gear"): `DamageResult.deflect`, 0 dealt; `PlayerWeapons` reports the `deflect` hit kind (HUD
+  marker steel blue, a high ping), not a kill. Takedowns, melee, explosions and sleep bolts ignore gear.
 - HUD rules: `docs/systems/ui.md`.
 - Holstered unless aiming (step 09, G21): `weapons/drawState.ts` (pure) holds the draw phase (0 holstered, 1 drawing, 2
   drawn, 3 holstering; `DRAW_TIME_SIDEARM` 0.75 s, `DRAW_TIME_PRIMARY` 1.1 s, `HOLSTER_TIME_SIDEARM` 0.9 s,

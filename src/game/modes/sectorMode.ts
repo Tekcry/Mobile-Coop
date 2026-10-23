@@ -76,6 +76,9 @@ interface Pending {
   k: number;
   slot: SquadSlot;
   alerted: boolean;
+  /** (guard-ai S6) An alarm reinforcement (aggressive, told by command), and the entry route it runs in. */
+  reinforce?: boolean;
+  route?: readonly (readonly [number, number])[] | null;
 }
 
 /** The doors of one connector, found by position at the start. */
@@ -522,6 +525,8 @@ export class SectorMode implements GameMode {
     this.deskApply();
     // (guard-ai S5) the section's noisy things mask hearing (else the map's); dev / tests check its posts (warnings)
     const em = this.g.enemyMgr;
+    // (guard-ai S6, S3-CHECK) the radio net serves the live section (its command call raises this section's alarm)
+    if (em && s) em.setSection(i);
     if (em) em.setNoisy(s?.noisy ?? em.mapNoisy);
     if (s && import.meta.env.DEV) reportGuardAi(s.id, validatePosts(s.guards, s.id));
     if (!s) return;
@@ -699,12 +704,19 @@ export class SectorMode implements GameMode {
         continue;
       }
       this.tmp.set(p.slot.x, p.slot.y ?? Number.NaN, p.slot.z);
-      const e = em.spawn(p.slot.kind, this.tmp, p.alerted, p.slot.yaw);
+      // (guard-ai S6) a reinforcement is told by command (`joinReinforcement`), not spawned alerted (no contact call)
+      const e = em.spawn(p.slot.kind, this.tmp, p.alerted && !(p.reinforce && em.coordinated), p.slot.yaw);
       if (!e) break;
       if (p.slot.route) e.setPatrol({ points: p.slot.route, wait: p.slot.wait, waits: p.slot.waits, faces: p.slot.faces, start: p.slot.start, loop: p.slot.loop });
       if (p.k >= 0) this.slotEnemy[p.k] = e;
-      // (guard-ai S5) post, profile, section (the live SectorDef's index)
-      em.placeSlot(e, p.slot, this.run.index);
+      // (guard-ai S5) post, profile, section (the live SectorDef's index); (S5b) the sector tags (squad, handler,
+      // zone, role, pair) with the section's guard list and this slot's place in it (`k`; a reinforcement: -1, none)
+      const gs = this.run.defs[this.run.index]?.guards;
+      // (guard-ai S12) and his gear: the slot tag plus the section default
+      em.placeSlot(e, p.slot, this.run.index, gs, gs ? p.k : -1, this.run.defs[this.run.index]?.gear);
+      // (guard-ai S6, M1) aggressive, knows the last known position, runs its entry route in (after `placeSlot`, which
+      // sets `tacticsProfile` first)
+      if (p.reinforce) em.joinReinforcement(e, this.run.index, p.route ?? null);
       this.pending.splice(i, 1);
     }
   }
@@ -735,13 +747,20 @@ export class SectorMode implements GameMode {
     const s = this.run.current;
     if (s && stage > from) this.stageActions(from, stage);
     if (!s || !send) return;
+    // (guard-ai S6, design 7) the stage's response route (E5, `reinforceSlot`: the guard's patrol) first; else the
+    // section's entries (`SectorDef.entries`, with their run-in routes); else its reinforce points; taken in turn
+    const ents = s.entries?.length && !s.stageActions?.some((a) => a.stage === stage && a.responseRoute?.length) ? s.entries : null;
     let n = 0;
     for (let i = 0; i < send; i++) {
+      const en = ents ? ents[this.reinforceK++ % ents.length]! : null;
       // (sector-redesign G3) armed guards, never heavies (G155); the count is the section's `perStage`; (E5) at the
       // stage's response route (its patrol) when it has one
-      const slot = reinforceSlot(s, stage, i, this.reinforceK++, SECTOR_REINFORCE_KIND);
+      const slot: SquadSlot | null = en
+        ? { kind: SECTOR_REINFORCE_KIND, x: en.at[0] + (i % 2) * 1.3, z: en.at[1], yaw: en.yaw ?? 0 }
+        : reinforceSlot(s, stage, i, this.reinforceK++, SECTOR_REINFORCE_KIND);
       if (!slot) break;
-      this.pending.push({ k: -1, slot, alerted: true });
+      if (en?.y !== undefined) slot.y = en.y;
+      this.pending.push({ k: -1, slot, alerted: true, reinforce: true, route: en?.route ?? null });
       n++;
     }
     if (!n) return;
