@@ -114,6 +114,11 @@ try {
   await sim(0.2);
   const s5 = await stats();
   assert(s5.remote > s4.remote, 'a shot 20 m away plays from the sprite');
+  // (coop-walk-fixes P7) a partner's suppressed pistol round: its own gun, played suppressed
+  await G(() => { const g = window.__app.current; const p = g.player.position; g.events.emit('remoteShot', { cls: 'pistol', x: p.x + 8, y: p.y + 1, z: p.z, gun: 'pistolSd', quiet: true }); });
+  await sim(0.2);
+  const s6 = await stats();
+  assert(s6.remote > s5.remote && s6.remoteSd > s5.remoteSd, `a partner's suppressed round plays suppressed (${s5.remoteSd} -> ${s6.remoteSd})`);
   await frames(page, 3);
   assert(errors.length === 0, `no console errors${errors.length ? ': ' + errors.join(' | ') : ''}`);
 } catch (e) {

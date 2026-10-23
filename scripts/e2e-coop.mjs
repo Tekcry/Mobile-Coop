@@ -817,9 +817,24 @@ try {
     assert(solid >= 0 && (solid & 0x4) === 0, `the client's held guard is not solid to bodies there (membership ${solid})`);
     // (A4: the CT grab menu opens on the client; Knock out is the first entry, A picks it)
     await until(B, () => window.__app.current.grabMenu.open, null, 4000, 'the client grab menu opens');
-    await GB(() => { window.__app.current.grabMenu.sel = 0; window.__app.input.state.tap('interact'); });
-    await until(A, (id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || (!e.alive && e.ko); }, gg, 8000, 'host knocks the grabbed guard out');
-    assert(true, "the grab menu's Knock out knocks the client's hostage out on the host");
+    // (coop-walk-fixes P6, Michael 4.72: "if coop partner holds guard, host doesnt have option for takedown.") the host
+    // beside the client's hostage is offered the team takedown, and it knocks him out there: the hold ends, a dual takedown.
+    // (The client's own finisher from the hold goes the same td done path as the client takedown above.)
+    const d0 = await GA(() => window.__app.current.net.duals);
+    await GA((id) => {
+      const g = window.__app.current;
+      const e = g.enemyMgr.enemies.find((x) => x.id === id);
+      const yaw = [...g.net.remotes.values()][0].state.yaw;
+      // 1.1 m to the hostage's side (off the holder's line), facing him
+      const x = e.pos.x + Math.cos(yaw) * 1.1;
+      const z = e.pos.z - Math.sin(yaw) * 1.1;
+      g.player.controller.teleport(new g.player.position.constructor(x, e.pos.y + 0.05, z), Math.atan2(e.pos.x - x, e.pos.z - z));
+    }, gg);
+    // (started in the poll that sees the offer: it can come and go between two polls)
+    await until(A, (id) => { const td = window.__app.current.takedown; const o = td.offer; if (td.active?.plan.kind === 'assist') return true; if (o?.plan.kind !== 'assist' || o.e.id !== id) return false; td.start(false); return true; }, gg, 6000, "the host is offered the team takedown on the client's hostage");
+    await until(A, (id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || (!e.alive && e.ko); }, gg, 8000, "the team takedown knocks the client's hostage out on the host");
+    await until(B, () => !window.__app.current.takedown.active, null, 4000, "the client's hold ends with him");
+    assert((await GA(() => window.__app.current.net.duals)) > d0, 'the team takedown counts as a dual (co-op) takedown');
   }
   // dual takedown: two players finishing takedowns together (clock cleared first: the client's takedowns above would else pair with the host's)
   const k0 = await GA(() => { const g = window.__app.current; g.net['dualClock'].reset(); window.__duals = []; g.events.on('dualTakedown', (e) => window.__duals.push(e)); return g.style.knockouts; });

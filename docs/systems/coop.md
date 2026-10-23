@@ -21,7 +21,9 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 ## Protocol (`protocol.ts`)
 - Every inbound message goes through `parseMessage` (shape, clamps, string sanitising, caps); anything unknown is
   dropped. Add a message: type in `Msg`, case in `parseMessage`, a test in `tests/net.test.ts`.
-- `PROTOCOL_VERSION` 36 (36: partner pose parity, pose-parity: `PF.aimLeft` 64, the left-shoulder aim in every mode (the ground MoveState `sub` bit 128 dropped), and the `takedown` `sub` bit 1 = the blow is running (a choke and the lethal approach pose no arc on the partner); 32-35 taken by open branches (guard-ai, marlow-final, section-rating, sector-redesign); 31: the Sector Ops lamps, sector-redesign slice L, below; 30: marlow-final's Menu Notes; 29: the lasers are jammed at their power panels, sector-fixes P: `jam` and `sec.dv` name panel ids; 28: the `jam` claim's camera eye `e`, jammer-fixes; 26: the jammer rules in `sec`, marlow-jammer: per-camera clocks `ck`, jam left `ch`, cooldown `cd`, jammed / recovering devices `dv`; 25: the guard torch bit in enemy `al`, below; 24: the `sector` message extras, below). A `hello` with another version is ignored by the host. History: 11 = the training course and
+- `PROTOCOL_VERSION` 37 (37: the partner's rounds, coop-walk-fixes P7: `PlayerState.sc` = rounds fired mod 256
+  (`PlayerWeapons.shotCount`), a remote plays one round per step with its weapon's sound, suppressed when `PF.quiet`
+  (`net/remoteShots.ts`); 36: partner pose parity, pose-parity: `PF.aimLeft` 64, the left-shoulder aim in every mode (the ground MoveState `sub` bit 128 dropped), and the `takedown` `sub` bit 1 = the blow is running (a choke and the lethal approach pose no arc on the partner); 32-35 taken by open branches (guard-ai, marlow-final, section-rating, sector-redesign); 31: the Sector Ops lamps, sector-redesign slice L, below; 30: marlow-final's Menu Notes; 29: the lasers are jammed at their power panels, sector-fixes P: `jam` and `sec.dv` name panel ids; 28: the `jam` claim's camera eye `e`, jammer-fixes; 26: the jammer rules in `sec`, marlow-jammer: per-camera clocks `ck`, jam left `ch`, cooldown `cd`, jammed / recovering devices `dv`; 25: the guard torch bit in enemy `al`, below; 24: the `sector` message extras, below). A `hello` with another version is ignored by the host. History: 11 = the training course and
   locomotion 10 together (G52); 12 = Wave, team deathmatch, free-for-all and PvP removed (`NetMode`, `team`, `ptd`,
   `frag`, snapshot `score` / `tl`, end `waves` / `winner`); 13 = emotes removed (`emote` message and event), then in the
   same version the custom difficulty (`dc`) and carried medkits (`PlayerState.mk`, MoveState `medkit`, `cmove` kind
@@ -108,7 +110,14 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   (`CoopHost.healAtStation`); the station shows spent on both pages. Stations exist only on Proving Grounds today;
   placing one in every map is decided, not built yet (G98).
 - Client takedowns: `GameState.takedownVictims` = puppets; `td start / done / abort` seizes the host enemy (denied ->
-  `tdDenied`). The host hears clients (footsteps by `noiseRadius`, shots by `PF.firing`, `PF.quiet` = suppressed).
+  `tdDenied`). (coop-walk-fixes P6) The team takedown on a partner's hostage (Michael 4.72: "should trigger coop
+  takedown"): `NetAttachment.partnerHolds` (host: a client's `seized` hostage whose MoveState still holds him; client:
+  the puppet posed from a partner's `grab`, `EnemyPuppet.partnerHeld`) puts a held guard on offer (`TakedownController`,
+  plan kind `assist`, row TEAM TAKEDOWN); it never seizes him (the holder keeps him). `assistTakedown`: the host's own
+  applies at done; a client sends `td` with kind `assist` (start checked: the guard held as a hostage by another player
+  (`net/assistTakedown.ts` `assistHolder`), in `TD_REACH`; done applied when still so). The host ends a client holder's
+  `seized` entry (the host's own grab sees him down and ends), knocks him out (kill when held), and credits the holder and
+  the striker: a dual takedown. No new field. The host hears clients (footsteps by `noiseRadius`, shots by `PF.firing`, `PF.quiet` = suppressed).
 - Downed: `revive` interactables on bodies (`NetAttachment.onLocalDeath` / `onRespawn`); everyone down -> the mode.
 - Bodies: the host lists lying bodies in `snap.bodies` when they change; clients keep those ragdolls and drop the rest.
 - Pings (action `ping`: D-pad left tap, Z): `GameState.sendPing` (aim ray) -> `ping` msg / event (host rate 0.8 s) ->

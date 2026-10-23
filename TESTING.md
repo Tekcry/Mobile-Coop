@@ -46,6 +46,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   in the yard facade and the hoist rail in goods-in; section 2 the high-bay rack R3S from the east gangway and the landing high on the east wall over the gangway; section 3 the valve platform
   in the east bay and the crane drive over the CNC cell, each climbable onto under its roof hood); they relay or drop the
   rope for you; alone, the lip cannot be reached. Each team door is locked from your side; your partner unbolts it from the other side; a restart bolts it again.
+- [ ] (coop-walk-fixes) Co-op, two pages: one player grabs a guard (hostage); the other, beside them, gets TEAM TAKEDOWN on him and it knocks him out (the hold ends, DUAL TAKEDOWN banner), both ways (host holding, joiner holding). A partner's single shot plays once; a partner's suppressed pistol sounds suppressed.
 - [ ] (pose-parity) Co-op, two pages: a partner aiming from the left shoulder while holding a hostage or on a rope shows the gun in the left hand; a partner's choke shows no elbow wind-up.
 - [ ] Co-op: Host a room starts on Campaign (Marlow Yard); the Mode row offers Campaign and Sector Ops only.
 - [ ] Co-op guard torches (coop-torches): on a dark map, when a guard searching in the dark switches his flashlight on,

@@ -88,6 +88,11 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
   interrogating, the same fields, PROTOCOL_VERSION unchanged); `CoopHost` keeps a client's seized guard at their offset
   and `ref.shield` and lowers / turns him from `ph` / `sub`; `RemoteAvatar` poses the hold hands and the bend from them.
   The carry has no MoveState (a partner sees no body on the shoulder, as before).
+- (coop-walk-fixes P6) Team takedown: a guard the partner holds as a hostage is offered to the other player from the
+  ground or a wall (`assistPlan`: `TAKEDOWN.reach` / `dy`, line of sight, any side; not the `taken` / combat rules),
+  row TEAM TAKEDOWN. The attacker stays put facing him for `TAKEDOWN.strike` (the row: a knockout; a held direct press: the kill);
+  the guard is never seized or moved by him; the partner letting go first ends it. The host applies it and ends the
+  hold; holder and striker are credited together (a dual takedown). Net: `docs/systems/coop.md` (client takedowns).
 
 ## From the co-op hang-down (hang-down job; `docs/hang-down/BRIEF.md`)
 CT 1.5 Drop Line: the hanging player can grab and neck-snap a guard below (the only grab entry while hanging) and use
