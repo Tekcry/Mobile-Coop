@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~13:30: master 4.72.0 merged up s10 -> s15 (heads in the resume block step 1; stealthSystems: S15 breaker host kept
+beside master's isolator boards). Laptop runs requested: s12 f14b93af (train 25) and s15 884b89c0 (S13-S15). PRs
+#218 / #219 / #220 open, orchestrator told. S9 RUNNING. patrolRoute getter already in the stack (enemy.ts:651, S10).
+
 ~13:15: S13-S15 check PASS 78c2fe7c (slices/S13-15-CHECK.md; 532 unit tests; fixed e2e 'loud shot' hearer behind a
 wall; polish list there). S9 co-op RUNNING (Opus) on feature/guard-ai-s9 off 78c2fe7c (worktree
 ...-guard-ai-s9, was -s8; report slices/S9.md). Waiting: master merge agent (s10 -> s14), then s15 <- new s14.
@@ -39,7 +43,7 @@ ct-warehouse, takedown. RUNNING (Opus): S6 close-on fix on s10 (report slices/S1
 from WIP 1a0ddf6a (s14, report slices/S14.md); S15 finish + checks from WIP ed33c329 (s15). S13 done (ec2ea5b7).
 Next: s10 fix -> laptop rerun of sectorops:1 (+ stealth-ai) -> train-ready #200-#203; merge s10 up into s12 (#208);
 then S13 / S14 / S15 onto one tip, one Opus checker, one laptop run, PRs stacked on #208, then S9.
-Master 4.72.0 has guard-render S3a (#211): enemy.ts head hitbox from pure src/ai/guardHead.ts, `aimWeight()` split out of
+(Correction ~13:30: #211 is NOT in master 4.72.0; it merged 4.72.0 into its branch.) guard-render S3a (#211): enemy.ts head hitbox from pure src/ai/guardHead.ts, `aimWeight()` split out of
 syncHitboxes; our branches leave those lines as master had them, so the master merge is the import line ~46 only.
 guard-render S4 (tier hint at enemy.ts 46 / 217 / 358 / 2089) comes next. Checked ~12:40: no clash, no reply sent.
 
@@ -359,15 +363,13 @@ Model Opus, effort high; fresh session. Everything is on origin: git fetch, then
 feature/guard-ai-s<n>; npm ci once per worktree, under the laptop heavy.lock). Branch guard before every write
 (CLAUDE.md "A job"). Read CLAUDE.md ("Sessions", "Heavy-usage throughput"), the ROADMAP "Decided" entries by grep,
 then this file's "Now" (top 3 entries) and slices/NEXT-BRIEFS.md section 5 (S9).
-1. Master merge (s10 <- master 4.72.0, conflict sectorMode.ts from #206; then s12 <- s10, s13 <- s12, s14 <- s13):
-   done = slices/S10.md "Master 4.72.0 merge" on origin/feature/guard-ai-s10 and each branch's head says "merge".
-   Not done = a fresh Opus merge agent finishes it (tsc + the sectorMode / sectors / radio / squad / response vitest
-   files, one at a time).
-2. Laptop GPU run on the new s12 tip: e2e-sectorops 1-5, e2e-stealth-ai, e2e-takedown (ask Night Shift | Test Runner,
-   or run here under its lock rules). Green -> ONE train-ready message to Night Shift | Orchestrator: train 25 =
-   #200 S8 -> #201 S5b -> #202 S6 -> #203 S10 -> #208 S11 + S12.
-3. Checker S13 + S14 + S15: PASS 78c2fe7c (slices/S13-15-CHECK.md). s15 <- new s14 (after step 1); open PRs S13 (base s12), S14 (base s13), S15 (base s14); one laptop run on s15 (e2e-stealth-ai,
-   sectorops all, takedown, ct-warehouse, course, ctcourse, coop, netmove); then one message to the orchestrator.
+1. Master 4.72.0 is merged up the stack (s10 5ca7d45d, s12 f14b93af, s13 98e9e800, s14 45f0774d, s15 884b89c0;
+   slices/S10.md "Master 4.72.0 merge"). guard-render S3a (#211) is NOT in 4.72.0: expect enemy.ts import ~46 when it lands.
+2. Laptop verdict on s12 f14b93af (sectorops 1-5, stealth-ai, takedown; requested ~13:30 from Test Runner, or a PR
+   #208 comment). Green -> ONE train-ready message to Night Shift | Orchestrator: train 25 = #200 -> #201 -> #202 ->
+   #203 -> #208. Red -> fix on the lowest branch it belongs to and merge up.
+3. PRs #218 S13 (base s12), #219 S14 (base s13), #220 S15 (base s14) open; checker PASS. Laptop verdict on s15 884b89c0
+   (stealth-ai, sectorops all, takedown, ct-warehouse, course, ctcourse, coop, netmove; requested). Green -> train-ready.
 4. S9 co-op on feature/guard-ai-s9 (off s15 78c2fe7c): done = slices/S9.md with checks; else a fresh Opus agent
    finishes from NEXT-BRIEFS 5 and the WIP. Then merge the new s15 into s9, Opus checker, laptop e2e-coop + netmove.
 5. S16 armoured fire check (Now ~13:05 entry) once Sector Ops E10 (feature/sector-redesign-e10) is on master.
