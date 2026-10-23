@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~06:05: s25-sai-fix5 3a762da9 PASS, s26-sai3 2581b794 PASS (e2e-stealth-ai green on S25 + S26; S26 coop + netmove PASS
+on 531a65e9). Train 41 closed; #281 + #254 in train 42. #264 / #266 / #270 / #271 / #272 wait for the S24 ladder fix
+(merged up + e2e-levels green) -> relabel all.
+
 ~05:50: train 41 #283 FAILED e2e-levels ladder runner (spawned-alerted runner stays idle). Bisect: master + S23 PASS,
 S24 1ae5e211 FAIL (+ s27, walk482). train-ready REMOVED from #264, #270, #272; #281 + #254 stay. Opus S24 triage
 RUNNING in -s24 (S24-LEVELS-TRIAGE.md; likely src: alerted guard with no per-player LKP has nothing to hunt; set
