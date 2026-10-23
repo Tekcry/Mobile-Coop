@@ -1,0 +1,14 @@
+{
+  "id": "20261023T122907-player-build-b8ca0a2e-fbd5",
+  "sha": "b8ca0a2ee4b5c106b9e76750da2a23231dd9fb64",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Player Build",
+  "suites": [
+    "e2e-enemies",
+    "e2e-coop"
+  ],
+  "set": "gm-flagon",
+  "note": "guard-models flag ON (scratch default flip on c0e82508: G7 + G7b + G9): first real GPU compile of the packed shader + warm, G9 host / client look asserts"
+}
