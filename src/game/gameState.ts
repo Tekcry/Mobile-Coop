@@ -2419,12 +2419,9 @@ export class GameState implements AppState {
     }
   }
 
-  /** Goggles per render frame: night vision blend, flip, lens glow. */
+  /** Goggles per render frame: night vision blend, lens glow. */
   private renderVision(dt: number): void {
     const v = this.vision;
-    // (F1b, gog-1) the goggle flip plays only when turning vision on / off (a switch between modes has none)
-    v.stepFlip(dt);
-    this.post.setFlip(v.flipCentre);
     this.post.setNightVision(v.night);
     // (Step 4b fix) the lamps glare in the tube; their fixtures and beams brighten with the gain (rendering only)
     this.nightGain.set(v.night, dt);
@@ -2445,7 +2442,7 @@ export class GameState implements AppState {
     this.paintElectro(kind === 2 ? 1 : 0);
     // (A5, G102) thermal: a dim silhouette of a guard behind a closed door (render only)
     const gh = (this.doorGhosts ??= new DoorGhosts(this.scene, this.world.doors, (a, b, m) => this.ballistics.ray(a, b, m)));
-    gh.update(kind === 1, this.player.cam.camera.position, this.enemyMgr?.enemies);
+    gh.update(kind === 1, this.player.cam.camera.position, this.enemyMgr?.enemies, this.remotePlayers());
     this.world.lightRig.setVisionBoost(Math.max(v.night, kind === 2 ? ELECTRO_BULB : 0));
     this.visionLabelT += dt;
     this.hud.setVision(this.visionLabelT < VISION_LABEL_TIME ? visionLabel(v.mode) : '', v.mode);
