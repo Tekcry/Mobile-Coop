@@ -449,6 +449,9 @@ export class GameState implements AppState {
   /** (G6) Scratch for the weapon's wall-block ray. */
   private readonly blockA = new Vector3();
   private readonly blockB = new Vector3();
+  /** (sector-redesign E8) Scratch for a camera ricochet: the lens point and the sparks' spray direction. */
+  private readonly ricoAt = new Vector3();
+  private readonly ricoDown = new Vector3(0, -1, 0);
   private openOv: MoveOverride = {};
   private openKin = new Vector3();
   private openY = 0;
@@ -708,6 +711,13 @@ export class GameState implements AppState {
         { ballistics: this.ballistics, players: () => this.playerRefsInto(this.aiRefs) },
         new SecurityView(this.scene, world.parts),
       );
+      // (sector-redesign E8) a round off a bulletproof camera: the bullet-impact sparks and sound at the lens (the
+      // impact noise is the onRay chain's own, as for any round that lands)
+      w.security.onRicochet = (x, y, z) => {
+        const at = this.ricoAt.set(x, y, z);
+        this.vfx.sparks(at, this.ricoDown, 8);
+        this.ballistics.onImpact?.(at, false);
+      };
       const prevRay = this.weapons.onRay;
       this.weapons.onRay = (a, b) => {
         prevRay?.(a, b);
