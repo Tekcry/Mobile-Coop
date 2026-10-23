@@ -1,6 +1,14 @@
 # Guard AI - state
 
 ## Now
+~08:50: S28 checks A + B FAIL (e2e-sectorops nav reads: Sector Ops locks connectors at load) -> fix round 902c86c7 (test
+reads unlock / query / relock; no guard needs a locked connector; doc F2; A7 detour fits A* 1611 / 3000; polish) +
+BRIEF A116 note 6c1c05cf. RUNNING: Opus re-check (S28-RECHECK.md), laptop s28-fix (sectorops, ctcourse); s28 on 147c4a34
+still running (expected sectorops fail). NEW urgent (orchestrator ~08:40, blocks LR16 #291): body-effect watchdog fix,
+feature/guard-ai-body-watchdog off master cacd0c7e (worktree -body-watchdog, npm ci'd): Opus builder RUNNING (recover
+only on error / foreign dispose / Babylon timeout; recompile self-catch; BODY-WATCHDOG.md; laptop set body-watchdog:
+lightbake + guard-carry) -> Opus check, PR, train-ready.
+
 ~08:10: #281 CLOSED (superseded on master: Marlow 6a168e74 calm wait + walk482 X6 58fcf7b5). S28 BUILT 147c4a34
 (src/ai/lockedDoors.ts nav closure per locked shut door + Doors.onLocked; goTo unreachable retry 1/s; S28.md).
 RUNNING: Opus checkers A + B (S28-CHECK-A/B.md in -s28, uncommitted: lead commits); laptop set s28 (stealth-ai,
@@ -783,7 +791,8 @@ orchestrator). Green -> `gh pr edit <n> --add-label train-ready` + tell orchestr
    and each stack head (as for train 41), Opus triage at once, merge the fix up s24 -> s25 -> s26, s27, walk482.
 2. Triage docs (this window): S23-A3-TRIAGE, S24-COOP-TRIAGE, S24-LEVELS-TRIAGE/-CHECK, S25-SAI-TRIAGE (5 rounds),
    S26-COOP-TRIAGE, S27-SEC1-TRIAGE, WALK482.md "Laptop triage". All test-only except S24 ladder (src).
-3. S28 locked-door re-path: feature/guard-ai-s28 147c4a34 (worktree -s28): checkers A + B + laptop s28 running -> PR.
+3. S28 locked-door re-path: feature/guard-ai-s28 6c1c05cf (fix round 902c86c7): re-check + laptop s28-fix -> PR.
+   Body watchdog (urgent, LR16 #291): feature/guard-ai-body-watchdog (worktree -body-watchdog): builder -> check -> PR.
 4. Polish (S24-LEVELS-CHECK): redundant tell(alarmHunt) after spawn in reinforce (enemyManager.ts:979) and parked
    joinReinforcement (:811). Mission reinforcements with nothing known stand at spawn (A148): Michael's call.
 5. After S28 (low, legacy suite, not in the full run; orchestrator ~07:45): e2e-enemies "sniper relocates after its
