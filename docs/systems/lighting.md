@@ -76,6 +76,11 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   change. `setGroup` skips destroyed lamps, so a shot lamp is never relit. A course mains gate's circuit is never
   relit by a guard (`StealthSystems.mainsGroups`: cutting it opens the gate). Late discovery reads the registry only
   (`destroyed`, `baseOn`, `group`, `version`) and collision for its one ray (`ai/breaker.ts` `DarkList`).
+- (guard-ai LR16-4) The board switch-back sink is wired: `IsolatorBoards.switchBack(i)` (`game/isolators.ts`, the old
+  "GA4 hook point") is what a guard's breaker walk calls at a cut breaker board (`StealthSystems.breakerHost.reset`), so
+  every circuit of the board comes back through `restore` -> `setGroup` -> the sink's `back(i, BACK_HAND)`, as a player's
+  switch-back (labels, wall switches, the `lightSwitch` event, the co-op `lamps` sync). Shot lamps stay dark. A running
+  timed window is the player's: `switchBack` refuses it and the timer brings the circuits back.
 - Guard flashlights (`world/torches.ts`, pure; coop-torches): `addTorchSlots` (dark maps: `FLASHLIGHTS` 4 slots,
   radius 13, intensity 0.85, cone 0.34 / 0.2 rad), `placeTorch` (eye height x scale, 0.35 m ahead, 0.15 m right,
   pitched 0.16 rad down; crouched past half way 1.0 m) and `beamReach` (rendering only) are the one code for the host
