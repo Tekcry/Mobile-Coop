@@ -1,7 +1,6 @@
 import { Quaternion, Vector3, type Scene, type TransformNode } from '../core/babylon';
 import { CharacterRig } from '../player/characterRig';
 import type { World } from '../world/world';
-import { GUARD_SUN_REACH } from '../world/sunCascadeCull';
 import type { EnemyDef } from './enemyDefs';
 import { Ragdoll } from './ragdoll';
 import { attachToShoulder, captureLying, hoistAt, slideAt } from './carryPose';
@@ -15,7 +14,7 @@ export function buildBodyRig(scene: Scene, world: World, def: EnemyDef, name: st
     armor: def.plated,
     merge: true, // (guard-render S1) one merged smooth mesh (`?guardmerge=0`: the parts)
   });
-  for (const m of rig.renderMeshes) world.addShadowCaster(m, GUARD_SUN_REACH);
+  for (const m of rig.renderMeshes) world.addShadowCaster(m);
   return rig;
 }
 

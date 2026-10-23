@@ -8,7 +8,7 @@ import { buildBodyRig } from '../src/ai/body';
 import { GUARD_SUN_REACH } from '../src/world/sunCascadeCull';
 
 describe('guard sun reach registration', () => {
-  it('guards, guns and body rigs register with GUARD_SUN_REACH', () => {
+  it('guards and guns register once with GUARD_SUN_REACH; bodies with none', () => {
     const scene = new Scene(new NullEngine());
     const parts = new PartLibrary(scene);
     const calls: { m: unknown; reach: unknown }[] = [];
@@ -31,7 +31,7 @@ describe('guard sun reach registration', () => {
       const body = buildBodyRig(scene, world as never, ENEMIES.grunt, 'b-grunt');
       expect(calls.length).toBe(body.renderMeshes.length);
       expect(calls.length).toBeGreaterThan(0);
-      for (const c of calls) expect(c.reach).toBe(GUARD_SUN_REACH);
+      for (const c of calls) expect(c.reach).toBeUndefined();
     } finally {
       Math.random = random;
     }
