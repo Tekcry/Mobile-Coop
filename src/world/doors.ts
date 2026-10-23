@@ -338,6 +338,28 @@ export class Doors {
     return false;
   }
 
+  /** (frzpol) Per door: its leaf no longer hid the view at the last `viewVersion` read (1). */
+  private viewClear = new Uint8Array(0);
+  private viewV = 0;
+
+  /**
+   * (sector-redesign frzpol, render only: the guard freeze's view epoch) A count that grows each time a door stops
+   * hiding what is behind it (a leaf cracked, eased or driven ajar, swung, or its body removed). Read once per camera
+   * evaluation; a shut leaf going back up does not count. Allocation-free after the first read.
+   */
+  viewVersion(): number {
+    const l = this.list;
+    if (this.viewClear.length !== l.length) this.viewClear = new Uint8Array(l.length);
+    const v = this.viewClear;
+    for (let i = 0; i < l.length; i++) {
+      const d = l[i]!;
+      const clear = d.body === null || leafSeeThrough(d) ? 1 : 0;
+      if (clear && !v[i]) this.viewV++;
+      v[i] = clear;
+    }
+    return this.viewV;
+  }
+
   /** Leaves shown or hidden (the benchmark flight: open doorways, no leaf standing out into a corridor). */
   setVisible(on: boolean): void {
     if (this.mesh) this.mesh.isVisible = on;

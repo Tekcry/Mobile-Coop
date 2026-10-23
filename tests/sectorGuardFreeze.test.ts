@@ -113,7 +113,7 @@ describe('sectorGuardFreeze: guardFrustum bits and occlusion points', () => {
     const { occlusionPoints, FREEZE_BODY_IN, FREEZE_SHADOW_IN, FREEZE_SIDE, FREEZE_MAX_POINTS } = await import('../src/game/sectorGuardFreeze');
     const out = new Float64Array(FREEZE_MAX_POINTS * 3);
     const L = noLights();
-    expect(occlusionPoints(out, FREEZE_BODY_IN, 0, 0, 20, 1.8, 0, 0, L)).toBe(4);
+    expect(occlusionPoints(out, FREEZE_BODY_IN, 0, 0, 20, 1.8, 0, 0, L)).toBe(5);
     expect(out[1]).toBeCloseTo(1.95, 6);
     expect(out[4]).toBeCloseTo(1.08, 6);
     // the camera looks down +z: across is x
@@ -131,5 +131,40 @@ describe('sectorGuardFreeze: guardFrustum bits and occlusion points', () => {
     expect(out[3]).toBeCloseTo(1.35, 6);
     expect(out[4]).toBeCloseTo(2.1, 6);
     expect(occlusionPoints(out, FREEZE_BODY_IN | FREEZE_SHADOW_IN, 0, 0, 20, 1.8, 0, 0, L)).toBe(FREEZE_MAX_POINTS);
+  });
+});
+
+describe('sector-redesign frzpol: knee sample, moon shadow off a roof edge', () => {
+  it('the fifth body point is the knee, on his centre', async () => {
+    const { occlusionPoints, FREEZE_BODY_IN, FREEZE_KNEE, FREEZE_MAX_POINTS } = await import('../src/game/sectorGuardFreeze');
+    const out = new Float64Array(FREEZE_MAX_POINTS * 3);
+    expect(occlusionPoints(out, FREEZE_BODY_IN, 3, 2, 20, 1.8, 0, 0, noLights())).toBe(5);
+    expect(out[12]).toBeCloseTo(3, 6);
+    expect(out[13]).toBeCloseTo(2 + FREEZE_KNEE, 6);
+    expect(out[14]).toBeCloseTo(20, 6);
+  });
+
+  it('a probe from the head runs along the moon to shadowDrop below his feet; a stop below his floor is a landing', async () => {
+    const { shadowProbe, shadowLanding, FREEZE } = await import('../src/game/sectorGuardFreeze');
+    const L = noLights();
+    const pr = new Float64Array(9);
+    expect(shadowProbe(pr, 0, 8.4, 20, 1.8, 1, L)).toBe(false);
+    L.sun = true;
+    L.sx = 0.6;
+    L.sy = -0.8;
+    L.sz = 0;
+    expect(shadowProbe(pr, 0, 8.4, 20, 1.8, 1, L)).toBe(true);
+    expect(pr[1]).toBeCloseTo(10.2, 6);
+    expect(pr[4]).toBeCloseTo(8.4 - FREEZE.shadowDrop, 6);
+    // (1.8 + 9) / 0.8 = 13.5 m along the light
+    expect(pr[3]).toBeCloseTo(0.6 * 13.5, 6);
+    // stops on his own roof (2.25 m along: y 8.4): no landing
+    expect(shadowLanding(pr, 8.4, 2.25)).toBe(false);
+    // stops on the ground (12.75 m along: y 0): a landing, backed 0.2 m toward the light
+    expect(shadowLanding(pr, 8.4, 12.75)).toBe(true);
+    expect(pr[7]).toBeCloseTo(10.2 - 0.8 * 12.55, 6);
+    expect(pr[6]).toBeCloseTo(0.6 * 12.55, 6);
+    // never stopped: no ground within the drop
+    expect(shadowLanding(pr, 8.4, 13.5)).toBe(false);
   });
 });

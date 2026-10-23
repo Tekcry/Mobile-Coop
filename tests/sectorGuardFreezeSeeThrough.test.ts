@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Enemy } from '../src/ai/enemy';
 import { Doors, leafSeeThrough, type DoorState } from '../src/world/doors';
 import { inSheet, type SheetPiece } from '../src/world/roofSheets';
+import { FREEZE_TEST_RAYS } from '../src/game/sectorGuardFreeze';
 
 async function physicsScene() {
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
@@ -24,7 +25,7 @@ async function physicsScene() {
 function door(body: unknown): { ds: Doors; d: DoorState } {
   const ds = Object.create(Doors.prototype) as Doors;
   const d = { open: 0, target: 0, rate: 0, cracked: false, ajar: 0, held: false, cx: 0, cz: 0, body, node: null, index: 0 } as unknown as DoorState;
-  Object.assign(ds, { list: [d] });
+  Object.assign(ds, { list: [d], viewClear: new Uint8Array(0), viewV: 0 });
   return { ds, d };
 }
 
@@ -99,14 +100,14 @@ describe('sector-redesign perf fix: seeThroughRay (Havok)', () => {
     scene.dispose();
   });
 
-  it('the freeze: a guard behind a shut door is frozen; the door cracked, he is drawn by the next re-test', async () => {
+  it('the freeze: a guard behind a shut door is frozen; the door cracked, he is drawn at the next evaluation (frzpol view epoch)', async () => {
     const { B, scene } = await physicsScene();
     const { G } = await import('../src/physics/groups');
     const { Ballistics } = await import('../src/weapons/ballistics');
     const { PartLibrary } = await import('../src/world/partLibrary');
     const { CharacterRig } = await import('../src/player/characterRig');
     const { ENEMIES } = await import('../src/ai/enemyDefs');
-    const { SectorGuardFreeze, seeThroughRay, RETEST } = await import('../src/game/sectorGuardFreezeView');
+    const { SectorGuardFreeze, seeThroughRay } = await import('../src/game/sectorGuardFreezeView');
     vi.spyOn(Math, 'random').mockReturnValue(0.25);
     const cam = new B.FreeCamera('cam', new B.Vector3(0, 1.6, 0), scene);
     cam.setTarget(new B.Vector3(0, 1.6, 10));
@@ -133,11 +134,11 @@ describe('sector-redesign perf fix: seeThroughRay (Havok)', () => {
     const rig = new CharacterRig(scene, (s, h, sl) => lib.instance(s, h, `enemy-${sl}`), def.look, def.height, 'g', { build: def.build, armor: def.plated, merge: true });
     rig.root.position.set(0, 0, 11);
     const e = { alive: true, taken: false, dog: null, def, bodyRig: rig } as unknown as Enemy;
-    const f = new SectorGuardFreeze(scene, { enemies: [e] }, seeThroughRay((a, b) => bal.cast(a, b, G.STATIC), (body) => ds.seeThrough(body)));
+    const f = new SectorGuardFreeze(scene, { enemies: [e] }, seeThroughRay((a, b) => bal.cast(a, b, G.STATIC), (body) => ds.seeThrough(body)), () => ds.viewVersion());
     scene.render();
     expect(rig.root.isEnabled(false)).toBe(false);
     ds.crack(d, true);
-    for (let k = 0; k <= RETEST; k++) scene.render();
+    scene.render();
     expect(rig.root.isEnabled(false)).toBe(true);
     f.dispose();
     scene.dispose();
@@ -206,8 +207,8 @@ describe('sector-redesign perf fix: release on unload, ray budget', () => {
     cam.setTarget(new B.Vector3(0.5, 1.6, 10));
     const r0 = rays();
     scene.render();
-    expect(f.rays).toBeLessThanOrEqual(V.TESTS_PER_EVAL * 6);
-    expect(rays() - r0).toBeLessThanOrEqual(V.TESTS_PER_EVAL * 6);
+    expect(f.rays).toBeLessThanOrEqual(V.TESTS_PER_EVAL * FREEZE_TEST_RAYS);
+    expect(rays() - r0).toBeLessThanOrEqual(V.TESTS_PER_EVAL * FREEZE_TEST_RAYS);
     expect(f.count).toBeLessThan(20);
     // within a few evaluations every guard is tested and frozen again
     for (let k = 0; k < 3; k++) scene.render();
