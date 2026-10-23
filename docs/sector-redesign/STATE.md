@@ -288,7 +288,9 @@ Heads: art 5c48f5c4 (PR 5 #226), lightrev 72552f93 (WIP), shadow 90dd18a1, chars
    checks/lr13-build.md if present, else from the WIP diff. Then merge -shadow (fixes in src/world/shadowAccuracy.ts),
    wire setShadowAccuracy beside setLampFalloff (main.ts), check the 3-line enemyManager.ts change; laptop GPU + perf
    (campusOps atlas 48 -> 134 MB, bake 27 -> 118 s under LR13); own PR, train-ready.
-3. LR14 (-charshadow, Opus plan + build, WIP): docs/lighting-review/LR14-PLAN.md; on at High+, toggle after LR13 merges.
+3. LR14 built (-charshadow 83b22daa, checks/lr14-build.md; includes LR13 WIP 8ccf7822; NO GPU run yet). Opus checker
+   running -> checks/lr14-check.md; laptop run requested (lightbake, desktop, darkness, menus, Epic smoke, perf High/Epic
+   Auto vs Off, contact sheet). On PASS + green: own PR (after LR13 PR, or one LR PR with LR13 + shadow), train-ready.
 4. After LR14: 8 door slots per lamp + exact torch drawing in the lamp shader (shadow-audit.md proposals).
 5. Walk W2 / W3 (-walk, WIP e2e legs + fix in progress): checks/walk-472-fix.md; src/net? -> own PR or ride #226.
 Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
