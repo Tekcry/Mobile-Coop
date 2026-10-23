@@ -318,6 +318,11 @@ LR16 (one lighting system; Michael ~18:08-18:20; plan checks/lr16-plan.md, audit
   At the LR16-1 merge: LAMP_VERSION -> 4 (not 3: laptop holds v3 no-penumbra caches); lampBake.ts call
   bakeOne(..., sb, pen) inside LR16-1's t0/t1; lightField.test.ts keep both appended tests; rerun lampBounce +
   bounceGrid tests. Then LR16t (bakedLamps getUniforms line: keep both).
+- ~21:15: lr16int 6eb6a863 = + LR16t (tsc clean, 10 light / torch files 138 pass). LR16-1 checker FIX (bounce bleeds
+  through off-centre walls, 1 m cells; up to +0.22 at 0.15 m behind) -> Opus fix round running (face-blocked bits, same
+  arithmetic field + shader). Then merge LR16-1 (LAMP_VERSION 4; re-count samplers with the torch atlas <= 16), laptop
+  run on the full lr16int, then LR16g re-level (LR16-1 check: warehouseOps S1 10 spots +0.02 over 0.55, 70 / 825 dark
+  floor points cross 0.30 - pass to LR16g; BOUNCE retune also bumps LAMP_VERSION).
 - LR16 perf triage (checks/lr16-perf-triage.md): NOT LR16 (unfrozen guards; #226 fix); LR16 adds ~0.1-0.3 Epic /
   0.3-0.7 Medium; Test Runner asked for S5-worst A/B 273539ec vs f8008542. If train lands >= 12: CHAR_SHADOW_EVERY
   2 -> 3 (charShadowSet.ts:102), skip unchanged lampTorch upload (bakedLamps.ts:913).
