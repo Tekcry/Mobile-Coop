@@ -38,6 +38,35 @@ export function requestProblem(r) {
   return '';
 }
 
+/** A `claims/<id>.json` record { worker, pid, at, done } from its text; null when absent or unreadable. */
+export function parseClaim(text) {
+  if (!text) return null;
+  try {
+    const c = JSON.parse(text);
+    return c && typeof c.worker === 'string' && Number.isFinite(Date.parse(c.at)) ? c : null;
+  } catch { return null; }
+}
+
+/**
+ * True when a claim keeps `worker` off the request: a done claim (any worker), or another worker's claim younger than
+ * maxMs (an older one is a dead worker's and may be taken over). The worker's own open claim never blocks (its process
+ * restarted; the in-memory claim set guards the live one).
+ */
+export function claimBlocks(claim, worker, now, maxMs) {
+  if (!claim) return false;
+  if (claim.done) return true;
+  if (claim.worker === worker) return false;
+  return now - Date.parse(claim.at) < maxMs;
+}
+
+/** Desktop overflow lane gate: start new work only while the backlog is over minBacklog and CPU under maxCpu. */
+export function desktopGate(backlog, cpu, minBacklog, maxCpu) {
+  if (!(backlog > minBacklog)) return `backlog ${backlog} <= ${minBacklog}`;
+  if (!Number.isFinite(cpu)) return 'cpu unknown';
+  if (cpu >= maxCpu) return `cpu ${cpu}% >= ${maxCpu}%`;
+  return '';
+}
+
 /**
  * What to start next. queue = { trains: [{ sha, n }], requests: [request] }, slots = [{ port, busy }].
  * Returns { kind: 'train', train } or { kind: 'alone', request } (both need BOTH slots idle), { kind: 'request',
