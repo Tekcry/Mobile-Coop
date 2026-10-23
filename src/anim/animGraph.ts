@@ -878,6 +878,8 @@ export class AnimGraph {
   private cIdle = 0;
   private cIdleS = 0;
   private cPace = 0;
+  /** (afp AF3) The crouched hips-back share (CROUCH_BACK_TURN: 1 straight, 0 turning), eased. */
+  private cBackK = 1;
   /** (anim-rework S4) The procedural breath's phase (rad). */
   private breathPh = 0;
   /** (mocap-trial) The mocap set's slots on this graph, the set they ran on (reset on a switch), the planner values they
@@ -1894,6 +1896,7 @@ export class AnimGraph {
       const cStill = locoD + stillD > 1e-4 ? stillD / (locoD + stillD) : 0;
       this.cIdleS = approach(this.cIdleS, cStill, cStill > this.cIdleS ? KEYED_CROUCH.settleIn : KEYED_CROUCH.settleOut, dt);
       this.cPace = approach(this.cPace, effortSpeed(locoSpeed, true), KEYED_CROUCH.paceTau / Math.max(0.05, this.moveW), dt);
+      this.cBackK = approach(this.cBackK, clamp(1 - Math.abs(i.yawRate) / CROUCH_BACK_TURN.rate, 0, 1), CROUCH_BACK_TURN.tau, dt);
       // (mocap-trial-2) switch on, the crouched sneak's capture (LOCO.set.crouchWalk) into kCr; the drawn set's crouched legs
       // stay hand-keyed (kCrD, as the drawn speed set: weapons are not part of the mocap trial)
       const mcC = this.mOn ? this.mS.crouchWalk : null;
@@ -2077,7 +2080,7 @@ export class AnimGraph {
     const wWalk = smoothstep((es - C.sneakTo) / (C.walkFrom - C.sneakTo));
     const wRun = smoothstep((es - C.walkTo) / (C.runFrom - C.walkTo));
     // (mocap-trial-2, BRIEF A5) `mc` (switch on: the mocap set's crouch walk capture) poses the body in the sneak band (pelvis,
-    // trunk, arms, head; no KEYED_CROUCH_POSE on it: its lean and depth as captured, M1); the planner keeps the
+    // trunk, arms, head; (afp AF3) carried by MOCAP_CROUCH_POSE, its sway scaled to the keyed feet); the planner keeps the
     // hand-keyed sneak's feet (duty, lift, track, knee pole); the crouch walk / run bands stay hand-keyed, crossed into
     // over the same blend. Null (switch off, the drawn legs): the hand-keyed sneak.
     let c0: KeyedClip = mc ?? KEYED_SNEAK;
@@ -2085,8 +2088,8 @@ export class AnimGraph {
     let l0: { duty: number; lift: number } = L.sneak;
     let l1: { duty: number; lift: number } = L.walk;
     const P = KEYED_CROUCH_POSE;
-    let p0: { lean: number; drop: number } = mc !== null ? MOCAP_CROUCH_POSE : P.sneak;
-    let p1: { lean: number; drop: number } = P.walk;
+    let p0: { lean: number; drop: number; back: number } = mc !== null ? MOCAP_CROUCH_POSE : P.sneak;
+    let p1: { lean: number; drop: number; back: number } = P.walk;
     let t = wWalk;
     if (wRun > 0) {
       c0 = KEYED_CROUCH_WALK;
@@ -2103,7 +2106,7 @@ export class AnimGraph {
         // the sneak's amplitude by pace, the set's layer scales; the sway centred on the planner's track (the clip's root sits
         // under the pelvis at phase 0, 3.7 cm off its mean)
         sampleKeyed(mc, ph, C.ampMin + (1 - C.ampMin) * clamp(es / C.full, 0, 1), out, this.mS.layers);
-        out.pel[0] = out.pel[0]! - mc.meanPel[0]!;
+        out.pel[0] = (out.pel[0]! - mc.meanPel[0]!) * MOCAP_CROUCH_POSE.sway;
       } else sampleKeyed(c0, ph, c0 === KEYED_SNEAK ? C.ampMin + (1 - C.ampMin) * clamp(es / C.full, 0, 1) : 1, out);
       scaleKeyedArms(out.arm, c0.meanArm, this.armGain(c0)); // (anim-natural-n2 step 3) KEY_MOTION's arm gain per clip
       if (t > 0) {
@@ -2114,6 +2117,7 @@ export class AnimGraph {
       // the game's extra lean and drop (KEYED_CROUCH_POSE), the arms turned back by the lean
       const lean = p0.lean + (p1.lean - p0.lean) * t;
       out.pel[1] = out.pel[1]! - (p0.drop + (p1.drop - p0.drop) * t);
+      out.pel[2] = out.pel[2]! - (p0.back + (p1.back - p0.back) * t) * this.cBackK;
       const sn = Math.sin(lean * 0.5);
       const cs = Math.cos(lean * 0.5);
       const q = out.q;
@@ -2864,14 +2868,29 @@ export const KEYED_CROUCH_LEG = {
  * so they still hang as keyed, along the body) and `drop` (m at 1.75 m) a lower pelvis. In the game the keyed clips read
  * upright and high (trunk 17 / 21 / 26 deg, hips 17-25 cm under standing for the sneak / crouch walk / crouch run): about
  * 25 / 28 / 37 deg and 20-27 cm with these. The crouched idle keeps its own.
+ * (afp AF3, walk 4.72 P2 "leaning a bit too far forward seems hard to balance") `back` (m at 1.75 m) the hips behind the
+ * root, so the body sits over the planted feet: the centre of mass was 11-15 cm ahead of the feet in crouched double
+ * support (the keyed idle that balances sits its hips 10 cm back), now about 3 cm; the walk leans 0.18 (was 0.12) so gears
+ * 1-3 keep one carriage (AF0 harness: trunk 31.5-32.2 deg, hips within 2.2 cm; were 28-43 deg and 7 cm apart).
  */
 export const KEYED_CROUCH_POSE = {
-  sneak: { lean: 0.08, drop: 0.02 },
-  walk: { lean: 0.12, drop: 0.03 },
-  run: { lean: 0.2, drop: 0.05 },
+  sneak: { lean: 0.08, drop: 0.02, back: 0.1 },
+  walk: { lean: 0.18, drop: 0.03, back: 0.1 },
+  run: { lean: 0.2, drop: 0.05, back: 0.08 },
 } as const;
-/** (mocap-trial-2, BRIEF A5) The mocap crouch walk takes no KEYED_CROUCH_POSE (its lean and depth as captured, M1). */
-const MOCAP_CROUCH_POSE = { lean: 0, drop: 0 } as const;
+/**
+ * (afp AF3, walk 4.72 P2) The mocap crouch walk's carriage in the game (it was as captured, M1: trunk 43 deg, hips 7 cm
+ * over the keyed crouch walk's, CoM 15 cm ahead of the feet): `lean` (rad, negative: more upright; the arms turned with
+ * it as KEYED_CROUCH_POSE's), `drop` and `back` as KEYED_CROUCH_POSE's, and `sway` the share of the capture's lateral
+ * pelvis sway kept (8.4 cm p2p over the keyed sneak's narrow feet: now 4.2 cm).
+ */
+const MOCAP_CROUCH_POSE = { lean: -0.19, drop: 0.05, back: 0.1, sway: 0.5 } as const;
+/**
+ * (afp AF3) The crouched hips-back offset (`back` above) fades out while turning: gone by `rate` (rad/s of yaw), eased
+ * over `tau` (s). With the hips behind the root a crouched landing in a turn hit the leg joints' rate limit
+ * (characterRig limitJoint) and the planted heel slid 2-8 cm (mocapCrouch turns at 0.5-0.8 m/s).
+ */
+const CROUCH_BACK_TURN = { rate: 0.5, tau: 0.1 } as const;
 /** (anim-rework S4) The free kneel's stance width share taken off (the feet under the hips; walls keep theirs). */
 export const KNEEL_NARROW = 0.12;
 /**
