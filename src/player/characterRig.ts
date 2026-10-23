@@ -80,6 +80,9 @@ export interface RigPose {
   reload?: number;
   yawRate?: number;
   armed?: boolean;
+  /** (guard-ai S21) The holstered / slung carry with the hands empty (the ready hands, the armed carriage kept); unset:
+   *  a carrier (the player, a remote player) with no weapon in hand. A guard sets it while his gun is holstered. */
+  ready?: boolean;
   /** Dash blend 0..1. */
   dash?: number;
   /** Landing recovery 0..1. */
@@ -1847,7 +1850,7 @@ export class CharacterRig {
     i.weaponTravel = this.weaponTravel;
     i.grenade = s.grenade ?? -1;
     i.armed = s.armed ?? !!this.heldWeapon;
-    i.ready = this.carrier && !this.heldWeapon;
+    i.ready = s.ready ?? (this.carrier && !this.heldWeapon);
     // (anim-rework S3) the drawn keyed set: a carrier (the player, a remote player) with the gun in hand, free on foot
     i.keyedDrawn = this.carrier && !!this.heldWeapon && !((s.bend ?? 0) > 0) && !((s.bendDrop ?? 0) > 0) && !(s.wall ?? false) && !(s.settleFeet ?? false);
     i.thighGear = this.thighGear;

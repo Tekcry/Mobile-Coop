@@ -1,4 +1,4 @@
-# Resume - Night Shift | Player Build (formerly CT Core Build; saved 2026-10-23 ~13:45 at the orchestrator's 90% save)
+# Resume - Night Shift | Player Build (resumed 2026-10-23 16:05 after the swap)
 
 Rules: CLAUDE.md on origin/feature/menu "Heavy-usage throughput", "Token rules", "Account swap". No mid-window clears.
 Opus plans / checks / anim + net code; Sonnet builds from strict briefs; desktop CPU < 80%. e2e always E2E_GPU=1:
@@ -7,31 +7,20 @@ batch; desktop heavy.lock (4191) / heavy2.lock (4192) for single suites. Agent r
 COMMON-SPARE.md (subagents are refused REPORT.md: the lead writes it from the hand-back). Push this file with
 scratch/ctcore/push-resume.sh <abs file> <msg>. Message the orchestrator only at PR open / train-ready / blocked / Michael.
 
-## Open (master 4.74.0 after train 25). All four PRs go in train 26 together, once #207 is fixed.
+## Open (master f5912402, PROTOCOL 35). Train 27 = #227 (origin/train/27 e83f423a). Train 28 = #207 + #214 + #223 + #231 (stack).
 | Job | Branch (folder C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
-| #207 batch 22 | feature/ctcore-batch-22 (folder b22-fix) | 99c37251 + WIP | Out of train 24: e2e-clip "ladder climb: knees never knock" 8.9 vs > 9.0 cm (scripts/e2e-clip.mjs:250; master passes). Opus fix agent's WIP: src/anim/clips/traverse.ts:389 CLIMB_UP `fLX` holds -0.12 over 0.36-0.5 (plus debug-only logs in e2e-clip.mjs, drop before commit); saved at refs/heads/wip/b22-ladder-knees (7a56088d). Finish: e2e-clip / traverse / anim green, commit, push. |
-| #214 batch 23 | feature/ctcore-batch-23 (folder ctcore-batch) | 92ba8c94 | sd-rounds + team-climb + interrogation-intel + ipad-fit. Checker PASS (scratch/ctcore/b23-CHECK.md). Laptop 10/10 GREEN on dc8919cd; ipad-fit e2e-menus / desktop PASS. After #207's fix: merge batch-22 in, laptop e2e-clip (+ the batch's suites if src changed), train-ready message. |
-| #221 mocap-strafe | feature/mocap-strafe | ebdd882f | CI red fixed (alloc compare + 1 B/frame noise, test only); train-ready re-sent. Recheck PASS, e2e-anim / clip PASS. Polish list: docs/mocap-trial/MT2-STRAFE.md "Recheck after round 3". |
-| #223 batch 24 pose-parity | feature/pose-parity | 19248c01 | PROTOCOL 36 (renumber at train if taken). Check PASS, laptop coop / netmove / takedown GREEN; train-ready sent. Stacked on #214. |
+| #207 batch 22 | feature/ctcore-batch-22 (b22-fix) | f1fac44a | TRAIN-READY sent 16:15 (ladder knees 14.4 cm, e2e-clip GPU PASS, CI green). |
+| #214 batch 23 (+iPad fit, Anim Studio main menu only) | feature/ctcore-batch-23 (ctcore-batch) | 34c73892 | +batch-22 merged. Train-ready on the laptop verdict for d86007b5. |
+| #223 pose-parity | feature/pose-parity | faee0255 | +batch-23 merged, PROTOCOL 36, crateWire assert 36. Same verdict. |
+| #231 coop-walk-fixes (walk P6-P7) | feature/coop-walk-fixes | d86007b5 | +pose-parity, PROTOCOL 37. Laptop batch requested 16:15 (coop, netmove, ctcourse, clip, pad); then train-ready x3. |
+| anim-fix-pass (walk P1-P5; PLAN.md:7 maps P1-P7) | feature/anim-fix-pass | origin | AF0 / AF1 / AF2 / AF5 merged (44ed5389; AF1 checker PASS). AF3 running (afp-af3, node_modules junction to afp-af1). AF4a done c0fab095 (e2e-anim GPU PASS; pistol grip 1.01 vs 1.0 -> AF4b; AF4a-REPORT.md open items). AF6 (afp-af6, PROTOCOL 38) running. |
 
-## Next, at once (parallel)
-1. If the b22-fix agent was lost: restart an Opus agent in folder b22-fix from the WIP above with the table's goal.
-2. When #207 is green: steps in the #214 row; message the orchestrator train-ready for #207 + #214 (+ #221 + #223).
-3. Spare 7 crouch-pops (Opus) STARTED ~13:50: feature/crouch-pops off mocap-strafe 191c3565 (stacks on #221), folder
-   crouch-pops. Goal: stand -> crouch -> stand 9.6 cm and running crouch -> stand 8.3 cm pops <= 0.5 (docs/anim-bake-targets/
-   STATE.md:19), baked trackMul 0.05 kept; BRIEF first, tests/crouchPops.test.ts, e2e-anim + clip. If lost: restart from
-   its pushed head with this goal.
-4. Michael's walk 4.72 (docs/orchestrator/WALK-4.72-REPORT.md on feature/menu, "Player Build" P1-P7; started ~14:00):
-   - Anim Studio out of the pause menu (Michael 14:00; main menu keeps it, pause keeps the Animation Tuner): Sonnet agent
-     in folder ctcore-batch on batch-23 (#214), e2e-menus. Then the batch-23 laptop request covers it.
-   - P1-P5 animation fix pass: Opus PLANNER, feature/anim-fix-pass off mocap-strafe 191c3565, folder anim-fix-pass ->
-     docs/anim-fix-pass/BRIEF.md + PLAN.md (slices, files, parallel groups) + before sheets. Then build the slices in
-     parallel (Opus for rig / planner / graph / net, Sonnet from strict briefs), after-sheets, one checker per batch.
-   - P6 co-op hostage takedown both ways + P7 co-op shot audio doubled / unsuppressed: Opus builder,
-     feature/coop-walk-fixes off pose-parity 19248c01, folder coop-walk-fixes; laptop e2e-coop / netmove after. Next batch.
-5. Follow-ups noted: Guard AI `Enemy.patrolRoute` getter (forwarded by the orchestrator); intel part B (modes'
-   onIntelCode) after marlow-final / sector-redesign; relay climber sub bit (pose-parity open item); Michael's iPad look.
+## Next
+1. AF3 hand-back -> checker (batch with AF4a / AF6) -> merge; then AF4b (animGraph, after AF3).
+2. AF4a / AF6 hand-backs -> one Opus checker for the batch -> merge into anim-fix-pass; AF6 merges coop-walk-fixes head first.
+3. Laptop verdict on d86007b5 -> train-ready #214 / #223 / #231 to the orchestrator.
+4. Agent rules: scratch/ctcore/COMMON-27.md. Follow-ups: intel part B (onIntelCode); relay climber sub bit.
 
 ## Resume prompt
 ```

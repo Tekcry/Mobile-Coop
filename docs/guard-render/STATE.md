@@ -1,9 +1,12 @@
 # Guard render: state
 
 ## Now
-S1 (merged rigidly skinned guard body) implemented and pushed on `feature/guard-render` (commits a-f below), on master
-4.68.0. Unit + NullEngine tests pass; nothing measured or seen on a GPU yet. Guards (`enemyRig.ts`) and carried /
-fresh bodies (`body.ts`) opt in; `?guardmerge=0` gives the old instanced parts for comparisons.
+2026-10-23 ~14:50 (Test Runner): every planned slice is on master 4.75.0 (S1, S3a, S5, S6, S7, S4 via trains 23-26;
+S2 skipped: voxel path only, off by default). S4's measure is in (`run-s4-on`, `run-s4-off`, "S4 measure" below).
+Open: the M1 check (BRIEF.md: 24 facing, frame CPU p95 <= 12 ms, GPU p95 <= 15 ms) needs a quiet laptop. Every run
+today shared the laptop with other sessions' agents and the numbers drift with it (the same S1 build: 7.1 ms at ~10:07,
+11.0 ms at ~14:30). Next: one guard-cap on master with nothing else running (a swap window), then close the job or
+re-plan from that run. No new slice before it.
 
 ## S1 done (2026-10-23)
 - (a) 63c5bdfe `src/player/smoothBodyMerge.ts` (pure) + `tests/smoothBodyMerge.test.ts`: joint-space positions,
@@ -142,6 +145,7 @@ TESTING.md line and `docs/systems/world-and-characters.md` section are written.
 
 ## Done
 - 2026-10-23: step-1 analysis, BRIEF / PLAN / STATE written.
+- 2026-10-23: S1, S3a, S5, S6, S7, S4 merged (4.68.0 - 4.75.0); S4 measured (`run-s4-on|off`).
 - 2026-10-23: S1 implemented (commits a-f, see "S1 done"); master 4.68.0 merged in before it.
 
 ## Resume prompt
@@ -385,4 +389,24 @@ decays every frame, recoil pulses on skipped frames are lost (off-screen / far o
 (pre-existing, src/net): the client puppet's hit head is the rendered rig, the host's is the S3a sim head; build the
 puppet hit head from guardHead later.
 e2e GREEN on adcd5fa7 (laptop GPU, JOBS=3, wall 330 s): smoke, stealth-ai, takedown, enemies, sectorops:1-5,
-ctcourse:1-3, coop, netmove, anim (15/15). Measure (guard-cap, ?animtier=0 vs on, 4189 alone) still to run.
+ctcourse:1-3, coop, netmove, anim (15/15). Measure (guard-cap, ?animtier=0 vs on, 4189 alone): done, see "S4 measure".
+
+## S4 measure (2026-10-23 ~14:00-14:26, laptop 4090, Epic 1920x1080, uncapped, 4189, head 5809afe6)
+`run-s4-on` (default) vs `run-s4-off` (`?animtier=0`), counts 0 / 12 / 24, same build, 20 min apart. Frame ms med,
+24 guards (12 in sight on Sector Ops):
+
+| Cell | Sector Ops on / off | Marlow on / off |
+| --- | --- | --- |
+| patrol/facing | 9.4 / 10.7 | 9.5 / 9.3 |
+| patrol/away | 7.7 / 8.4 | 5.2 / 7.3 |
+| alert/facing | 13.0 / 12.3 | 9.6 / 11.5 |
+
+- `ai.anim` per sim step at 24, Sector Ops patrol/facing: 0.838 on vs 1.295 off (-35%); alert 1.224 vs 1.29.
+  Marlow facing 1.096 vs 0.944 (Marlow's guards stand within the 4 m near-player radius more often; noise-level).
+- So S4 gives ~-0.7 to -2 ms where guards are away or far (as PLAN S4 said) and ~0 facing. The +0.7 on Sector Ops
+  alert is inside the run-to-run spread under load.
+- 0-guard base unchanged (sectorops 3.4 vs 3.2, ctcourse 2.8 vs 2.5).
+- Not a code regression: S4's 24-guard numbers are above S1's run (7.1 ms), so a 3-build A/B (sectorops, 0 and 24,
+  patrol only, back to back, ~14:28-14:33) ran 668d623d (S1) 11.0 ms, b1e1809b (master 4.74.0) 10.8 ms: the same
+  build is ~4 ms slower than at ~10:07, so the laptop's shared load, not the code, moved. (5809afe6's point in that
+  A/B overlapped another run's build: void.) Logs: C:/NightShift/scratch/runs/guardrender-regr-*.

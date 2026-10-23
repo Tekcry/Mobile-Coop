@@ -1251,15 +1251,9 @@ try {
     });
     // (anim-bake-1022) Michael's 2026-10-22 tune: was 0.075 (L.CROUCH_POP; measured 10.5 cm wristR); the player's low ready
     // still crouch -> stand only, every other transition keeps L.CROUCH_POP
-    // (anim-bake-targets) the Body tune (BODY_GAIT above): the stance width changes between the idle / run rows
-    // (trackMul 0.05) and the crouched rows (1) over the body ease (BODY_TAU), the tuner's own blend
-    const BODY_POP = {
-      // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.075 (L.CROUCH_POP; measured 8.7 cm kneeL)
-      'holstered still: stand -> crouch -> stand': 0.096,
-      // (anim-bake-targets) Michael's 2026-10-22 tune: was 0.075 (L.CROUCH_POP; measured 7.5 cm wristL, over by rounding)
-      'holstered running: crouch -> stand': 0.083,
-    };
-    const popMax = (name) => (name === 'low ready still: crouch -> stand' ? 0.115 : BODY_POP[name] ?? L.CROUCH_POP);
+    // (crouch-pops, CP-A3) the two Body tune limits (holstered still 9.6 cm, holstered running 8.3 cm: the stance width
+    // switching rows at crouch 0.5) are gone: the Body base blends the rows by the crouch amount, both keep L.CROUCH_POP
+    const popMax = (name) => (name === 'low ready still: crouch -> stand' ? 0.115 : L.CROUCH_POP);
     for (const r of pops) {
       const lim = popMax(r.name);
       console.log(`  ${r.name}: worst velocity change ${cm(r.worst)} cm per 60 Hz frame (${r.where}; <= ${cm(lim)})${L.CROUCH_POP_GATE ? '' : ' [report-only]'}`);
