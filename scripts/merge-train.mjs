@@ -13,8 +13,15 @@
 // or remote (it only fetches) and prints what a real run would do.
 // Usage:
 //   node scripts/merge-train.mjs build <n> <version> "<title>" <branch>... [--keep] [--no-test] [--dry-run]
-//   node scripts/merge-train.mjs release <n> <version> "<title>" [--resume] [--dry-run]
+//   node scripts/merge-train.mjs release <n> <version> "<title>" [--resume] [--head <sha>] [--no-fallback] [--dry-run]
 //   node scripts/merge-train.mjs single <branch> <version> "<title>" [--dry-run]
+// --head <sha> (release): STOP unless origin/train/<n> is that sha after the fetch (the head CI and the laptop passed
+// on). Every merge is `gh pr merge --match-head-commit <the head it verified>`, so a push after the check cannot merge.
+// --no-fallback (release): STOP instead of the old-style release when the train has no version commit (auto-train).
+// Train lock: build / release / single (not --dry-run) take the auto-train tick lock (AUTO_TRAIN_LOCK, default
+// <AUTO_TRAIN_SCRATCH or C:/NightShift/scratch>/auto-train.lock; wx, stale when untouched 30 min, touched every minute),
+// so a hand run and a tick never overlap; held -> STOP, exit 1. Under auto-train (AUTO_TRAIN_LOCK_TEXT = the lock's
+// text) the caller already holds it. Build / release / single STOP (exit 1) when <version> is not above master's.
 // --keep: build on origin/train/<n> (conflicts fixed by hand there) instead of origin/master. A conflicting branch is
 // merged by hand on the pre-version head: `git checkout -B train/<n> <version commit>^`, `git merge origin/<b>` with
 // the subject "Merge origin/<b> into train/<n>", `git push --force origin train/<n>`, then
@@ -26,18 +33,21 @@
 // whose head is in origin/master with "Merged in <version> (train <n>, #<pr>)".
 // Exit: 0 built / merged (or dry run done), 1 usage or other error (also: --keep over a version commit, a fix commit
 // without --resume, release of an already merged train, release with a version other than the train's version
-// commit), 2 vitest failed on build or CI failed on release / single
+// commit, --head mismatch, --no-fallback with no version commit, version not above master's, train lock held),
+// 2 vitest failed on build or CI failed on release / single
 // (nothing merged; a failed build still pushes so a fix can go on train/<n>), 3 conflict stop (build with no member
-// merged; release when master moved since build).
+// merged; release when master moved since build), 4 vitest NOT run on build (heavy lock wait timed out; the train is
+// pushed, CI's check still runs the unit tests: pending, not a failure).
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { assemble, assembleDir, parseFragment, releaseHeading, summary } from './changelog-assemble.mjs';
-import { formatLock, takeLockText } from './heavy-lock.mjs';
+import { formatLock, takeLockText, takeTouchLock } from './heavy-lock.mjs';
 
 const DRY = process.argv.includes('--dry-run');
+const TRAIN_LOCK_STALE_MIN = 30; // the same staleness as auto-train's tick lock
 const TRAILER = 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>';
 const FOOTER = '🤖 Generated with [Claude Code](https://claude.com/claude-code)';
 
@@ -208,15 +218,44 @@ export const lockIsOurs = (text) => /^merge-train\s*\|/.test(text.trim());
 const USAGE = [
   'usage:',
   '  node scripts/merge-train.mjs build <n> <version> "<title>" <branch>... [--keep] [--no-test] [--dry-run]',
-  '  node scripts/merge-train.mjs release <n> <version> "<title>" [--resume] [--dry-run]',
+  '  node scripts/merge-train.mjs release <n> <version> "<title>" [--resume] [--head <sha>] [--no-fallback] [--dry-run]',
   '  node scripts/merge-train.mjs single <branch> <version> "<title>" [--dry-run]',
 ].join('\n');
 
+/** -1 / 0 / 1 comparing two "X.Y.Z" versions numerically. */
+export function cmpVersion(a, b) {
+  const pa = String(a).split('.').map(Number), pb = String(b).split('.').map(Number);
+  for (let i = 0; i < 3; i++) if ((pa[i] ?? 0) !== (pb[i] ?? 0)) return (pa[i] ?? 0) < (pb[i] ?? 0) ? -1 : 1;
+  return 0;
+}
+
+/** The version race STOP text when `version` is not above master's, else null. */
+export function versionRace(version, masterVersion) {
+  return cmpVersion(version, masterVersion) > 0 ? null
+    : `STOP: version ${version} is not above master's package.json ${masterVersion} (another release landed?): pick the next version`;
+}
+
+/** The --head pin STOP text when origin/train/<n> is not the tested sha (prefix match for a short sha), else null. */
+export function headPinCheck(actual, want, branch) {
+  if (!want || actual.toLowerCase().startsWith(want.toLowerCase())) return null;
+  return `STOP: origin/${branch} is ${actual.slice(0, 8)}, not the tested head ${want.slice(0, 8)}: nothing merged`;
+}
+
 /** argv (after `node script`) -> { cmd, ...fields, dry }; throws an Error carrying the usage text. */
-export function parseArgs(argv) {
-  const FLAGS = ['--dry-run', '--keep', '--no-test', '--resume'];
-  const unknown = argv.find((x) => x.startsWith('--') && !FLAGS.includes(x));
+export function parseArgs(argv0) {
+  const FLAGS = ['--dry-run', '--keep', '--no-test', '--resume', '--no-fallback', '--head'];
   const bad = (why) => new Error(`${why}\n${USAGE}`);
+  // --head <sha> takes a value: pull it out before the positional parse.
+  let headSha = null;
+  const argv = [];
+  for (let i = 0; i < argv0.length; i++) {
+    if (argv0[i] !== '--head') { argv.push(argv0[i]); continue; }
+    const v = argv0[++i];
+    if (!/^[0-9a-f]{7,40}$/i.test(v ?? '')) throw bad(`--head needs a commit sha, got "${v ?? ''}"`);
+    headSha = v.toLowerCase();
+    argv.push('--head');
+  }
+  const unknown = argv.find((x) => x.startsWith('--') && !FLAGS.includes(x));
   if (unknown) throw bad(`unknown flag ${unknown}`);
   const has = (f) => argv.includes(f);
   const [cmd, ...a] = argv.filter((x) => !FLAGS.includes(x));
@@ -231,10 +270,10 @@ export function parseArgs(argv) {
     return { cmd, n: a[0], version: ver(a[1]), title: a[2], branches: a.slice(3), keep: has('--keep'), noTest: has('--no-test'), dry };
   }
   if (cmd === 'release') {
-    only('--resume');
+    only('--resume', '--no-fallback', '--head');
     if (!/^\d+$/.test(a[0] ?? '') || !a[2]) throw bad('release needs <n> <version> "<title>"');
     if (a.length > 3) throw bad(`unexpected argument "${a[3]}"`);
-    return { cmd, n: a[0], version: ver(a[1]), title: a[2], resume: has('--resume'), dry };
+    return { cmd, n: a[0], version: ver(a[1]), title: a[2], resume: has('--resume'), head: headSha, noFallback: has('--no-fallback'), dry };
   }
   if (cmd === 'single') {
     only();
@@ -380,7 +419,8 @@ async function waitCi(branch, sha) {
   if (!runs.length) { console.error(`no CI run appeared for ${sha} on ${branch}`); return false; }
   for (const r of runs) {
     console.log(`watching CI run ${r.databaseId} (${r.workflowName}) on ${sha.slice(0, 8)}`);
-    const w = exec(['gh', 'run', 'watch', String(r.databaseId), '--exit-status', '--interval', '30'], { timeout: 90 * 60_000 });
+    // async (not spawnSync) so the train lock heartbeat keeps touching the lock during a long watch
+    const w = await execTree(show(['gh', 'run', 'watch', String(r.databaseId), '--exit-status', '--interval', '30']), { timeout: 90 * 60_000 });
     if (w.status !== 0) { console.error(`CI FAILED: run ${r.databaseId}`); failTail(r.databaseId); return false; }
   }
   return true;
@@ -409,9 +449,16 @@ function versionCommit({ branch, head, checkout, version, title, pr, members, su
   return { sha: DRY ? null : rev('HEAD') };
 }
 
-/** The shared tail of release / single: merge the PR, tag the merge commit, move dev. Returns the merge commit (null in a dry run). */
-function mergeAndTag({ pr, version }) {
-  act(['gh', 'pr', 'merge', String(pr ?? 'NEW'), '--merge']);
+/** The `gh pr merge` argv: always pinned to the head that passed (`--match-head-commit`), so a push after CI cannot merge. */
+export const mergeCmd = (pr, sha) => ['gh', 'pr', 'merge', String(pr ?? 'NEW'), '--merge', '--match-head-commit', sha ?? '<tested head>'];
+
+/**
+ * The shared tail of release / single: merge the PR at exactly `sha` (the head CI passed on), tag the merge commit,
+ * move dev. Returns the merge commit (null in a dry run).
+ */
+function mergeAndTag({ pr, version, sha }) {
+  if (!DRY && !sha) throw new Error('mergeAndTag: no head sha to pin the merge to');
+  act(mergeCmd(pr, sha));
   if (DRY) {
     for (const c of [['git', 'tag', `v${version}`, '<merge commit>'], ['git', 'push', 'origin', `v${version}`],
       ['git', 'push', 'origin', '<merge commit>:refs/heads/dev']]) act(c);
@@ -430,7 +477,7 @@ function mergeAndTag({ pr, version }) {
 async function ciAndMerge({ branch, sha, pr, version }) {
   if (DRY) console.log(`  [dry-run] would wait for CI on ${sha ? sha.slice(0, 8) : 'that commit'} (gh run list --branch ${branch}, gh run watch --exit-status)`);
   else if (!(await waitCi(branch, sha))) { console.error(`NOT merged: CI failed on ${sha}`); return 2; }
-  mergeAndTag({ pr, version });
+  mergeAndTag({ pr, version, sha });
   return 0;
 }
 
@@ -479,7 +526,7 @@ async function runVitest(n, head, prev) {
     console.error(`vitest ${v.kind === 'timeout' ? 'TIMED OUT or was killed' : 'failed'}; last lines:\n${v.tail}`);
     return { ok: false, message: `vitest FAILED on ${head.slice(0, 8)}: fix on train/${n} then release --resume, or drop the member and rebuild` };
   } catch (e) {
-    return { ok: false, message: `vitest NOT run on ${head.slice(0, 8)} (${e.message}): run it by hand, fix on train/${n}, then release --resume` };
+    return { ok: false, notRun: true, message: `vitest NOT run on ${head.slice(0, 8)} (${e.message}): the train is pushed; CI's check runs the unit tests, or run vitest by hand` };
   } finally { if (taken) releaseHeavyLock(lock); }
 }
 
@@ -533,6 +580,8 @@ async function build({ n, version, title, branches, keep, noTest }) {
   requireClean();
   run(['git', 'fetch', 'origin']);
   const branch = `train/${n}`;
+  const race = versionRace(version, versionAt('origin/master'));
+  if (race) { console.error(race); return 1; }
   const prev = DRY ? null : rev('HEAD');
   let head;
   if (keep) {
@@ -592,7 +641,7 @@ async function build({ n, version, title, branches, keep, noTest }) {
   console.log(`\ntrain/${n} head: ${DRY ? `${head} (dry run: an unreferenced commit; the version commit would sit on it)` : sha}`);
   console.log(`members: ${kept.join(', ') || '(none)'}${pr ? ` | train PR #${pr}` : ''}`);
   for (const l of left) console.log(`LEFT OUT: ${l.b} - ${l.why}`);
-  if (!verdict.ok) { console.error(`\n${verdict.message}`); return 2; }
+  if (!verdict.ok) { console.error(`\n${verdict.message}`); return verdict.notRun ? 4 : 2; }
   console.log(`\nnext: node scripts/merge-train.mjs release ${n} ${version} ${JSON.stringify(title)}`);
   return 0;
 }
@@ -606,6 +655,8 @@ function versionAt(ref) {
 async function releaseOld(n, version, title, head0) {
   const branch = `train/${n}`;
   console.log(`origin/${branch} has no version commit for ${version}: old-style release (merge master, version commit, CI, merge)`);
+  const race = versionRace(version, versionAt('origin/master'));
+  if (race) { console.error(race); return 1; }
   const head = mergeMaster(head0, branch);
   if (!head) return 3;
   const members = trainMembers(head);
@@ -632,12 +683,14 @@ function closeMembers(members, { n, version, pr }) {
   }
 }
 
-async function release({ n, version, title, resume }) {
+async function release({ n, version, title, resume, head: wantHead, noFallback }) {
   requireClean();
   run(['git', 'fetch', 'origin']);
   const branch = `train/${n}`;
   if (!exists(`origin/${branch}`)) throw new Error(`origin/${branch} does not exist (run build first)`);
   const head = rev(`origin/${branch}`);
+  const pin = headPinCheck(head, wantHead, branch);
+  if (pin) { console.error(pin); return 1; }
   if (isAncestor(head, 'origin/master')) { console.error(`STOP: origin/${branch} is already merged into origin/master`); return 1; }
   const subjects = firstParentSubjects(head);
   const idx = findVersionCommit(subjects, n, version);
@@ -648,12 +701,15 @@ async function release({ n, version, title, resume }) {
       return 1;
     }
     if (resume) { console.error(`STOP: --resume, but origin/${branch} holds no version commit for ${version} (build it first)`); return 1; }
+    if (noFallback) { console.error(`STOP: origin/${branch} has no version commit for ${version} and --no-fallback is set: rebuild it`); return 1; }
     return releaseOld(n, version, title, head);
   }
   if (!isAncestor('origin/master', head)) {
     console.error(`STOP: master moved since build: rebuild with the next version (origin/master is not in origin/${branch})`);
     return 3;
   }
+  const race = versionRace(version, versionAt('origin/master'));
+  if (race) { console.error(race); return 1; }
   const check = resumeCheck(subjects, idx, resume);
   if (!check.ok) { console.error(`STOP: ${check.message}`); return 1; }
   if (check.message) console.log(check.message);
@@ -676,6 +732,8 @@ async function single({ branch, version, title }) {
   requireClean();
   run(['git', 'fetch', 'origin']);
   if (!exists(`origin/${branch}`)) throw new Error(`origin/${branch} does not exist`);
+  const race = versionRace(version, versionAt('origin/master'));
+  if (race) { console.error(race); return 1; }
   const pr = openPr(branch);
   if (!pr) throw new Error(`no open PR has head ${branch}`);
   const head = mergeMaster(rev(`origin/${branch}`), branch);
@@ -687,12 +745,28 @@ async function single({ branch, version, title }) {
   return ciAndMerge({ branch, sha: v.sha, pr, version });
 }
 
+/** The train lock shared with scripts/auto-train.mjs (its tick lock): AUTO_TRAIN_LOCK, else <AUTO_TRAIN_SCRATCH>/auto-train.lock. */
+export const trainLockPath = (env = process.env) =>
+  env.AUTO_TRAIN_LOCK || path.join(env.AUTO_TRAIN_SCRATCH || 'C:/NightShift/scratch', 'auto-train.lock');
+
+/** True when the train lock already holds `parentText` (AUTO_TRAIN_LOCK_TEXT: auto-train called us under its tick lock). */
+export const heldByParent = (lockText, parentText) => !!parentText && lockText != null && lockText.trim() === parentText.trim();
+
 async function main(argv) {
   const args = parseArgs(argv);
   if (DRY) console.log('DRY RUN: nothing is pushed, merged, tagged or checked out\n');
-  if (args.cmd === 'build') return build(args);
-  if (args.cmd === 'release') return release(args);
-  return single(args);
+  const go = () => (args.cmd === 'build' ? build(args) : args.cmd === 'release' ? release(args) : single(args));
+  if (DRY) return go(); // a dry run moves no ref: no train lock
+  const lock = trainLockPath();
+  let cur = null;
+  try { cur = fs.readFileSync(lock, 'utf8'); } catch { /* absent */ }
+  if (heldByParent(cur, process.env.AUTO_TRAIN_LOCK_TEXT)) return go();
+  const t = takeTouchLock(lock, `merge-train ${args.cmd}`, { staleMin: TRAIN_LOCK_STALE_MIN });
+  if (!t.release) {
+    console.error(`STOP: the train lock ${lock} is held ("${t.holder}", touched ${Math.round(t.ageMin)} min ago): an auto-train tick or another merge-train is running; retry later`);
+    return 1;
+  }
+  try { return await go(); } finally { t.release(); }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

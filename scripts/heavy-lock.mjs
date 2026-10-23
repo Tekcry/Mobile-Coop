@@ -1,7 +1,8 @@
 // Heavy lock helper (CLAUDE.md "Machines"): one heavy job per machine, held in a lock file created atomically (wx).
 // The lock text is "<label> | <iso start> | pid <n> | host <hostname>". A lock whose pid is dead on this host is stale:
-// `take` logs it and replaces it (rename to <path>.stale, then a wx create). Old-format lines with no pid (the
-// noclobber way) are never broken automatically.
+// `take` logs it and replaces it (rename to <path>.stale.<pid>, unique per taker, then a wx create; the renamed file is
+// removed). Old-format lines with no pid (the noclobber way) are never broken automatically.
+// takeTouchLock: the auto-train tick lock (mtime staleness, heartbeat), also taken by merge-train build / release / single.
 // Usage:
 //   node scripts/heavy-lock.mjs take <path> "<label>" [--wait <min>] [--pid <n>]
 //   node scripts/heavy-lock.mjs release <path> "<label>"
@@ -14,6 +15,7 @@
 // check 0 free, 1 held, 3 stale (take would break it); 2 usage.
 import fs from 'node:fs';
 import os from 'node:os';
+import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -59,13 +61,48 @@ export function tryTake(lock, text, { host = os.hostname(), alive = pidAlive, lo
   if (holder === null) return { taken: create(), holder: '?' };
   if (!isStale(holder, { host, alive })) return { taken: false, holder };
   log(`  heavy lock is stale (pid ${parseLock(holder).pid} is not alive on ${host}): breaking "${holder}"`);
-  const stale = `${lock}.stale`;
+  const stale = staleName(lock); // unique per taker: two breakers never rename onto one file
   try { fs.renameSync(lock, stale); } catch { return { taken: false, holder }; }
-  if (readLock(stale) !== holder) { // someone replaced it between our read and the rename: give theirs back
-    try { fs.copyFileSync(stale, lock, fs.constants.COPYFILE_EXCL); } catch { /* a third taker got there */ }
-    return { taken: false, holder: readLock(lock) ?? holder };
+  try {
+    if (readLock(stale) !== holder) { // someone replaced it between our read and the rename: give theirs back
+      try { fs.copyFileSync(stale, lock, fs.constants.COPYFILE_EXCL); } catch { /* a third taker got there */ }
+      return { taken: false, holder: readLock(lock) ?? holder };
+    }
+    return { taken: create(), holder };
+  } finally { fs.rmSync(stale, { force: true }); }
+}
+
+/** The file a stale lock is renamed to while it is broken: `<lock>.stale.<pid>`. */
+export const staleName = (lock, pid = process.pid) => `${lock}.stale.${pid}`;
+
+/**
+ * A touch lock (the auto-train tick lock, shared by merge-train build / release / single): text
+ * "<label> | pid <n> | <iso>", created wx; stale when its mtime is `staleMin` min old (a holder touches it every
+ * minute). One try (a stale one is replaced once): { release } when taken (release stops the heartbeat and removes the
+ * lock while it still holds our text), { holder, ageMin } when held.
+ */
+export function takeTouchLock(lock, label, { staleMin = 30, log = console.log, pid = process.pid, beatMs = 60_000 } = {}) {
+  fs.mkdirSync(path.dirname(lock), { recursive: true });
+  const text = `${label} | pid ${pid} | ${new Date().toISOString()}`;
+  for (let i = 0; ; i++) {
+    try { fs.writeFileSync(lock, text, { flag: 'wx' }); break; } catch (e) {
+      if (e?.code !== 'EEXIST') throw e;
+      let ageMin = 0, holder = '?';
+      try { ageMin = (Date.now() - fs.statSync(lock).mtimeMs) / 60_000; holder = fs.readFileSync(lock, 'utf8').trim(); } catch { /* gone: retry */ }
+      if (ageMin < staleMin || i) return { release: null, holder, ageMin };
+      log(`stale lock (${Math.round(ageMin)} min, "${holder}") removed`);
+      fs.rmSync(lock, { force: true });
+    }
   }
-  return { taken: create(), holder };
+  const beat = beatMs > 0 ? setInterval(() => { try { const t = new Date(); fs.utimesSync(lock, t, t); } catch { /* gone */ } }, beatMs) : null;
+  beat?.unref?.();
+  return {
+    text,
+    release: () => {
+      if (beat) clearInterval(beat);
+      try { if (fs.readFileSync(lock, 'utf8') === text) fs.rmSync(lock, { force: true }); } catch { /* gone */ }
+    },
+  };
 }
 
 /** Takes `lock` with `text`, retrying every `retryMs` up to `maxMs` (0: one try); throws when it stays held. */
