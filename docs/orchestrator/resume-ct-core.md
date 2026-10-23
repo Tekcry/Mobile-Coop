@@ -1,5 +1,9 @@
 # Resume - Night Shift | Player Build (updated 2026-10-23 ~21:40 after the swap; live state in docs/guard-models/STATE.md "RESUMED" line)
 
+RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
+#247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+#269: laptop-e2e/coop-rejoin running on 327e73f4 (head f13b91e7 docs only): on pass label train-ready + message orchestrator.
+guard-models: G2 Opus builder resumed on gm-g2 (tests, one desktop smoke, report); G4 parked; see STATE "RESUMED ~23:55".
 ~23:35: #247 laptop afp RUNNING on fd34263e (CI green): on pass -> train-ready label + message orchestrator.
 #269 coop-rejoin (feature/coop-rejoin, worktree coop-rejoin): checker A FAIL (B1 rejoin race) -> Opus fix round
 327e73f4 (JoinWatch) -> re-check PASS (f13b91e7, docs/coop-rejoin/RECHECK.md). Laptop coop netmove ctcourse sectorops
