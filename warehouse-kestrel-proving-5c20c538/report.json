@@ -1,0 +1,2737 @@
+{
+ "script": "C:/NightShift/scratch/work/lr16-8/sheets.mjs",
+ "commit": "5c20c5388eb4829f119eab0e44c63249c5c0ab58",
+ "cwd": "C:\\NightShift\\Mobile-Coop-testrun-4189",
+ "started": "2026-10-23T23:10:17.068Z",
+ "gpu": true,
+ "port": 4189,
+ "thresholds": {
+  "LIT_LUMA": 0.2,
+  "DARK_LUMA": 0.09,
+  "MIN_SHARE": 0.05,
+  "fieldLit": 0.45,
+  "fieldDark": 0.28,
+  "parity": 0.02
+ },
+ "hooks": {
+  "10": "two pages over ?net=local in one context (the host / join menu flow of e2e-net-lib hostAndJoin, startMode, until), RemotePlayer.allowTeleport, the remote avatar rig headNode, Vector3.TransformCoordinates for the crop",
+  "01-03": "window.__app.current (GameState): player.controller.teleport, photoFreeze / photoCamera (photo mode), vision.set(\"off\"); the spot planner: nav (NavGrid cells), ballistics.cast + world.lightField.levelAt (the lamp-audit framing rays); screenshot luma histograms",
+  "04": "world.level.lights (LightRegistry), ballistics.cast (the nearest wall face and the ceiling over the lamp), photo camera; ceiling luma",
+  "05": "player teleport with the rig shown, world.charShadows (silhouette slots, stats()), Epic pass: app.quality.setOverride({ preset: \"epic\" })",
+  "06": "world.level.boxes / world.layout.props (crate / rack), world.doors.setOpen (the leaf open), the lamp registry",
+  "07": "enemyMgr.spawn (passive grunts), Enemy.torchOverride (the coop-torches test hook), enemyMgr.torchesOn, world.doors.setOpen(false); on / off screenshot diff",
+  "08": "stealth.shotRay (the round on the fitting; shootLight fallback), the circuit wall switch item (StealthSystems switch onUse = the player toggle; LightRegistry.setGroup fallback), GameState.lightLevel (the HUD meter), LightRegistry.restore",
+  "09": "vision.set(\"night\" / \"thermal\"), enemyMgr.spawn (a warm body in view); the darkest room from the audit file",
+  "probe": "GameState.lightLevel (the meter) vs world.lightField.bodyLevel (shots-ctcourse parity); World.addLightProbe grey card + centre display-luma read-back against the L5 band (e2e-darkness)",
+  "bake": "World.lightInfo() (bake ms, lamp visibility bytes), BakedLamps.atlasDims (R8 atlas), a fresh context per preset (?gfx=epic / ?gfx=low: a cold bake)",
+  "perf": "guard-cap pageSpawn (24 passive grunts in a wedge in front of the camera) + loop.onFrameEnd frame intervals + EXT_disjoint_timer_query_webgl2 GPU ms, in an E2E_UNCAP=1 browser, 1920x1080"
+ },
+ "deviations": [
+  "No `__game` hook exists on this commit: `window.__app.current` is the game (every shot script uses it); `__course` is not needed (no course-only shot).",
+  "campusOps has no Workshop room: the Workshop unit is the Sector Ops Workshop on warehouseOps (room `workshop`, the 4.78 wall-arc room). Maps without sectors are one unit, `all`.",
+  "Parity probe: there is no hook reading the shader light level back on this commit (BakedLamps.volumeAt needs the editor-only volume; the e2e-lightbake parity probe named in lr16-5b-build.md is not in the script). The probe is the meter vs the light field (shots-ctcourse, |diff| < 0.02) plus the grey card display luma checked against the L5 band of its field level (e2e-darkness).",
+  "Auto graphics = `?gfx=user&detect=1` (the saved defaults; automation skips the detection without detect=1). The starred shots (05, 07) are taken again at Epic through app.quality.setOverride, skipped when Auto already is Epic.",
+  "Realistic is the only light model (LR16a removed the switch): nothing to set.",
+  "Each map's own guards are removed and its security cameras paused (security.fixedUpdate replaced), so no alarm stage changes the lights mid-shot; the guards of shots 07 / 09 and the perf cells are spawned passive grunts.",
+  "Free Roam (sandbox) builds no nav grid or EnemyManager (gameState.ts:667): warehouse boots `mode=clear` (e2e-stealth-ai) and proving `mode=mission` (e2e-tactics), their mode fixedUpdate replaced so it spawns, alarms and ends nothing; their co-op pair runs `clear` (Mission is no NetMode). Kestrel boots only in sandbox: its shots and probe are \"not possible\", its bakes run. A boot without a nav grid after 30 s is recorded as \"no nav grid in <mode>\" and the map moves on.",
+  "Shot 09: the thermal ghost through a shut door is LR16-6 (not built): the note says what thermal shows (a warm guard is placed in view).",
+  "Shot 10: vision is never sent to the partner (D8): what A sees of B's goggles is the same in every mode of B.",
+  "Pass / flag: 01-03, 04, 07, 08, 09, 10 and the probe have cheap automated checks; 05 and 06 (shadow softness) are \"review\": the sheet is the result."
+ ],
+ "auditFile": "docs/sector-redesign/checks/lr16-lamp-audit.md",
+ "maps": {
+  "warehouse": {
+   "query": "autostart=warehouse&mode=clear",
+   "mode": "clear",
+   "units": {
+    "all": {
+     "unit": {
+      "name": "all",
+      "all": true
+     },
+     "shots": {
+      "10": {
+       "file": "warehouse-all-10.png",
+       "status": "not-possible",
+       "note": "not possible: no standing spot 8-22 m from the dark spot with a clear line"
+      },
+      "01": {
+       "file": "warehouse-all-01.png",
+       "status": "flag",
+       "note": "S no dark (lit 20%/38%/96%/73%, dark 52%/35%/0%/8%)",
+       "spot": {
+        "p": [
+         -9.75,
+         0.08,
+         -17.75
+        ],
+        "score": 0.2,
+        "mean": 0.333,
+        "yaws": [
+         [
+          0.2,
+          0.267
+         ],
+         [
+          0.467,
+          0.467
+         ],
+         [
+          0.333,
+          0.667
+         ],
+         [
+          0.4,
+          0.333
+         ]
+        ]
+       },
+       "frames": [
+        {
+         "dir": "N (+z)",
+         "yaw": 0,
+         "lit": 0.198,
+         "dark": 0.523,
+         "black": 0.003,
+         "mean": 0.141,
+         "pool": true,
+         "darkOk": true,
+         "field": [
+          0.2,
+          0.267
+         ],
+         "file": "warehouse-all-01-N.png"
+        },
+        {
+         "dir": "E (+x)",
+         "yaw": 90,
+         "lit": 0.381,
+         "dark": 0.347,
+         "black": 0.003,
+         "mean": 0.177,
+         "pool": true,
+         "darkOk": true,
+         "field": [
+          0.467,
+          0.467
+         ],
+         "file": "warehouse-all-01-E.png"
+        },
+        {
+         "dir": "S (-z)",
+         "yaw": 180,
+         "lit": 0.963,
+         "dark": 0.003,
+         "black": 0.003,
+         "mean": 0.314,
+         "pool": true,
+         "darkOk": false,
+         "field": [
+          0.333,
+          0.667
+         ],
+         "file": "warehouse-all-01-S.png"
+        },
+        {
+         "dir": "W (-x)",
+         "yaw": 270,
+         "lit": 0.733,
+         "dark": 0.077,
+         "black": 0.003,
+         "mean": 0.275,
+         "pool": true,
+         "darkOk": true,
+         "field": [
+          0.4,
+          0.333
+         ],
+         "file": "warehouse-all-01-W.png"
+        }
+       ]
+      },
+      "02": {
+       "file": "warehouse-all-02.png",
+       "status": "flag",
+       "note": "S no dark (lit 41%/36%/87%/43%, dark 51%/36%/1%/41%)",
+       "spot": {
+        "p": [
+         -17.75,
+         0.02,
+         -15.75
+        ],
+        "score": 0.2,
+        "mean": 0.323,
+        "yaws": [
+         [
+          0.357,
+          0.5
+         ],
+         [
+          0.333,
+          0.267
+         ],
+         [
+          0.533,
+          0.467
+         ],
+         [
+          0.333,
+          0.2
+         ]
+        ]
+       },
+       "frames": [
+        {
+         "dir": "N (+z)",
+         "yaw": 0,
+         "lit": 0.411,
+         "dark": 0.512,
+         "black": 0.241,
+         "mean": 0.152,
+         "pool": true,
+         "darkOk": true,
+         "field": [
+          0.357,
+          0.5
+         ],
+         "file": "warehouse-all-02-N.png"
+        },
+        {
+         "dir": "E (+x)",
+         "yaw": 90,
+         "lit": 0.356,
+         "dark": 0.359,
+         "black": 0.107,
+         "mean": 0.157,
+         "pool": true,
+         "darkOk": true,
+         "field": [
+          0.333,
+          0.267
+         ],
+         "file": "warehouse-all-02-E.png"
+        },
+        {
+         "dir": "S (-z)",
+         "yaw": 180,
+         "lit": 0.866,
+         "dark": 0.008,
+         "black": 0,
+         "mean": 0.318,
+         "pool": true,
+         "darkOk": false,
+         "field": [
+          0.533,
+          0.467
+         ],
+         "file": "warehouse-all-02-S.png"
+        },
+        {
+         "dir": "W (-x)",
+         "yaw": 270,
+         "lit": 0.431,
+         "dark": 0.409,
+         "black": 0.072,
+         "mean": 0.166,
+         "pool": true,
+         "darkOk": true,
+         "field": [
+          0.333,
+          0.2
+         ],
+         "file": "warehouse-all-02-W.png"
+        }
+       ]
+      },
+      "03": {
+       "file": "warehouse-all-03.png",
+       "status": "pass",
+       "note": "every frame holds a pool and a dark (lit 60%/7%/29%/38%, dark 20%/77%/56%/59%)",
+       "spot": {
+        "p": [
+         10.25,
+         0.02,
+         4.25
+        ],
+        "score": 0.133,
+        "mean": 0.317,
+        "yaws": [
+         [
+          0.733,
+          0.133
+         ],
+         [
+          0.333,
+          0.467
+         ],
+         [
+          0.333,
+          0.333
+         ],
+         [
+          0.467,
+          0.467
+         ]
+        ]
+       },
+       "frames": [
+        {
+         "dir": "N (+z)",
+         "yaw": 0,
+         "lit": 0.596,
+         "dark": 0.201,
+         "black": 0.071,
+         "mean": 0.213,
+         "pool": true,
+         "darkOk": true,
+         "field": [
+          0.733,
+          0.133
+         ],
+         "file": "warehouse-all-03-N.png"
+        },
+        {
+         "dir": "E (+x)",
+         "yaw": 90,
+         "lit": 0.07,
+         "dark": 0.774,
+         "black": 0.377,
+         "mean": 0.051,
+         "pool": true,
+         "darkOk": true,
+         "field": [
+          0.333,
+          0.467
+         ],
+         "file": "warehouse-all-03-E.png"
+        },
+        {
+         "dir": "S (-z)",
+         "yaw": 180,
+         "lit": 0.29,
+         "dark": 0.555,
+         "black": 0.306,
+         "mean": 0.121,
+         "pool": true,
+         "darkOk": true,
+         "field": [
+          0.333,
+          0.333
+         ],
+         "file": "warehouse-all-03-S.png"
+        },
+        {
+         "dir": "W (-x)",
+         "yaw": 270,
+         "lit": 0.376,
+         "dark": 0.588,
+         "black": 0.164,
+         "mean": 0.156,
+         "pool": true,
+         "darkOk": true,
+         "field": [
+          0.467,
+          0.467
+         ],
+         "file": "warehouse-all-03-W.png"
+        }
+       ]
+      },
+      "04": {
+       "file": "warehouse-all-04.png",
+       "status": "review",
+       "note": "open above the lamp (no ceiling) (top mean 0.209); wall 0.44 m, gradient bands 0.288/0.316/0.309/0.299/0.298/0.291",
+       "plan": {
+        "lamp": 15,
+        "lampPos": [
+         -18.5,
+         5.6,
+         -18.6
+        ],
+        "model": null,
+        "base": null,
+        "wallDist": 0.44,
+        "wall": [
+         -18.5,
+         5.3,
+         -18.16
+        ],
+        "normal": [
+         0,
+         0,
+         -1
+        ],
+        "cam": [
+         -18.25,
+         1.6,
+         -21.25
+        ],
+        "target": [
+         -18.5,
+         3,
+         -18.16
+        ],
+        "ceilY": null,
+        "ccam": [
+         -18.25,
+         1.5,
+         -20.25
+        ],
+        "ctarget": [
+         -18.5,
+         8.6,
+         -18.38
+        ]
+       },
+       "wallBands": [
+        0.288,
+        0.316,
+        0.309,
+        0.299,
+        0.298,
+        0.291
+       ],
+       "ceilMean": 0.209
+      },
+      "05": {
+       "file": "warehouse-all-05.png",
+       "status": "review",
+       "note": "silhouette shadow slots with casters 1 / 2 (1 m / 4 m); shape, sharp feet, soft head is a visual check",
+       "plan": {
+        "lamp": 0,
+        "lampPos": [
+         20.6,
+         2.45,
+         -22.9
+        ],
+        "floor": [
+         20.75,
+         0,
+         -22.75
+        ],
+        "dir": [
+         -0.707,
+         0,
+         -0.707
+        ],
+        "frames": [
+         {
+          "m": 1,
+          "feet": [
+           20.25,
+           0,
+           -23.25
+          ],
+          "yaw": 2.356,
+          "cam": [
+           22.25,
+           1.35,
+           -25.25
+          ],
+          "target": [
+           20.25,
+           0.85,
+           -23.25
+          ],
+          "nearest": {
+           "id": 0,
+           "d": 0.495
+          }
+         },
+         {
+          "m": 4,
+          "feet": [
+           17.75,
+           0,
+           -25.25
+          ],
+          "yaw": -0.896,
+          "cam": [
+           15.25,
+           1.35,
+           -23.25
+          ],
+          "target": [
+           17.75,
+           0.85,
+           -25.25
+          ],
+          "nearest": {
+           "id": 0,
+           "d": 3.694
+          }
+         }
+        ]
+       },
+       "charShadowSlots": [
+        [
+         {
+          "lamp": 0,
+          "ready": 0,
+          "casters": 10,
+          "every": 1
+         },
+         {
+          "lamp": 17,
+          "ready": -1,
+          "casters": 0,
+          "every": 0
+         },
+         {
+          "lamp": 9,
+          "ready": -1,
+          "casters": 0,
+          "every": 0
+         },
+         {
+          "lamp": -1,
+          "ready": -1,
+          "casters": 0,
+          "every": 0
+         }
+        ],
+        [
+         {
+          "lamp": 0,
+          "ready": 0,
+          "casters": 10,
+          "every": 1
+         },
+         {
+          "lamp": 17,
+          "ready": 17,
+          "casters": 2,
+          "every": 2
+         },
+         {
+          "lamp": -1,
+          "ready": -1,
+          "casters": 0,
+          "every": 0
+         },
+         {
+          "lamp": -1,
+          "ready": -1,
+          "casters": 0,
+          "every": 0
+         }
+        ]
+       ]
+      },
+      "06": {
+       "file": "warehouse-all-06.png",
+       "status": "review",
+       "note": "box 14 at 0.6 m from lamp 17; door 1 open 1 under lamp 8: sharp at contact, soft with distance is a visual check",
+       "crate": {
+        "what": "box 14",
+        "at": [
+         11.5,
+         0.45,
+         -18
+        ],
+        "size": [
+         0.3,
+         0.9
+        ],
+        "lamp": 17,
+        "lampDist": 0.6,
+        "cam": [
+         13.25,
+         1.32,
+         -15.75
+        ],
+        "target": [
+         11.5,
+         0.2,
+         -18
+        ]
+       },
+       "door": {
+        "door": 1,
+        "at": [
+         2,
+         0.02,
+         16.05
+        ],
+        "lamp": 8,
+        "lampDist": 2.259,
+        "cam": [
+         -0.75,
+         1.52,
+         16.25
+        ],
+        "target": [
+         2,
+         0.72,
+         16.05
+        ],
+        "lampSide": true
+       }
+      },
+      "07": {
+       "file": "warehouse-all-07.png",
+       "status": "flag",
+       "note": "wall: light through the wall (30% of pixels changed, mean 0.0385)",
+       "parts": {
+        "wall": {
+         "status": "flag",
+         "note": "light through the wall (30% of pixels changed, mean 0.0385)",
+         "diff": {
+          "meanAbs": 0.0385,
+          "changed": 0.302
+         },
+         "plan": {
+          "cam": [
+           -17.75,
+           1.62,
+           -15.75
+          ],
+          "target": [
+           -16.91,
+           1.22,
+           -17.85
+          ],
+          "guard": [
+           -15.75,
+           0,
+           -20.75
+          ],
+          "yaw": -0.381,
+          "wallAt": [
+           -16.91,
+           1.612,
+           -17.85
+          ]
+         }
+        },
+        "door": {
+         "status": "pass",
+         "note": "nothing through the door",
+         "diff": {
+          "meanAbs": 0.0002,
+          "changed": 0
+         },
+         "plan": {
+          "door": 0,
+          "cam": [
+           -0.75,
+           1.62,
+           15.25
+          ],
+          "target": [
+           -0.95,
+           1.12,
+           12
+          ],
+          "guard": [
+           -0.75,
+           0.02,
+           10.75
+          ],
+          "yaw": -0.159
+         }
+        },
+        "corner": {
+         "status": "pass",
+         "note": "beam reads round the corner (45% of pixels changed)",
+         "diff": {
+          "meanAbs": 0.0431,
+          "changed": 0.4469
+         },
+         "plan": {
+          "cam": [
+           -9.75,
+           1.68,
+           -17.75
+          ],
+          "target": [
+           -13.355,
+           0,
+           -20.75
+          ],
+          "guard": [
+           -3.75,
+           0,
+           -20.75
+          ],
+          "yaw": 4.712,
+          "beamAt": [
+           -13.355,
+           0,
+           -20.75
+          ]
+         }
+        },
+        "four": {
+         "status": "pass",
+         "note": "4 of 4 torches on (slots 4); soft beam rim is a visual check",
+         "plan": {
+          "cam": [
+           -9.75,
+           1.68,
+           -17.75
+          ],
+          "target": [
+           -2.82,
+           -0.307,
+           -10.82
+          ],
+          "viewYaw": 0.785,
+          "guards": [
+           {
+            "p": [
+             -8.25,
+             0.02,
+             -14.25
+            ],
+            "yaw": 3.027
+           },
+           {
+            "p": [
+             -4.75,
+             0.02,
+             -15.25
+            ],
+            "yaw": 4.827
+           },
+           {
+            "p": [
+             -5.75,
+             0.02,
+             -13.75
+            ],
+            "yaw": 3.027
+           },
+           {
+            "p": [
+             -7.75,
+             0.02,
+             -8.75
+            ],
+            "yaw": 4.827
+           }
+          ]
+         },
+         "torchesOn": 4
+        }
+       }
+      },
+      "08": {
+       "file": "warehouse-all-08.png",
+       "status": "pass",
+       "note": "meter 1 -> 0.123 (shot) -> 0.123 (circuit off); frame mean 0.1 -> 0.013 -> 0.013",
+       "plan": {
+        "lamp": 7,
+        "lampPos": [
+         0,
+         5.05,
+         -3
+        ],
+        "group": 5,
+        "groupLamps": 4,
+        "hasSwitch": true,
+        "stand": [
+         0.25,
+         0.02,
+         -1.75
+        ],
+        "cam": [
+         0.25,
+         1.62,
+         1.25
+        ],
+        "target": [
+         0.25,
+         2.535,
+         -2.75
+        ],
+        "from": [
+         0.25,
+         1.52,
+         -1.75
+        ]
+       },
+       "meter": [
+        1,
+        0.123,
+        0.123
+       ],
+       "field": [
+        1,
+        0.123,
+        0.123
+       ],
+       "frameMean": [
+        0.1,
+        0.013,
+        0.013
+       ],
+       "shot": {
+        "how": "stealth.shotRay",
+        "destroyed": true
+       },
+       "switch": "wall switch (the player toggle)",
+       "restored": true
+      },
+      "09": {
+       "file": "warehouse-all-09.png",
+       "status": "flag",
+       "note": "night vision too dark to read (mean 0.094, p99.5 0.146); thermal: mean 0.06, hottest p99.5 0.076, no warm body in view; the door ghost (LR16-6) is not built",
+       "plan": {
+        "p": [
+         6.25,
+         0.02,
+         16.25
+        ],
+        "yaw": 0,
+        "source": "audit view",
+        "room": "manager",
+        "level": 0.122,
+        "cam": [
+         6.25,
+         1.62,
+         16.25
+        ],
+        "target": [
+         6.25,
+         0.423,
+         26.178
+        ],
+        "guard": null
+       },
+       "night": {
+        "mean": 0.094,
+        "p995": 0.146,
+        "black": 0.023
+       },
+       "thermal": {
+        "mean": 0.06,
+        "p995": 0.076,
+        "max": 0.098
+       },
+       "warmGuard": false
+      },
+      "05-epic": {
+       "status": "same-as-auto",
+       "note": "Auto is Epic on this device: the Auto shot is the Epic shot"
+      },
+      "07-epic": {
+       "status": "same-as-auto",
+       "note": "Auto is Epic on this device: the Auto shot is the Epic shot"
+      }
+     },
+     "darkPick": {
+      "source": "audit view",
+      "room": "manager",
+      "roomName": "Manager's Office (`manager`)",
+      "darkShare": 0.64,
+      "views": 12,
+      "view": {
+       "x": 6,
+       "y": 0,
+       "z": 16,
+       "yaw": 0
+      }
+     },
+     "plan": {
+      "rooms": [
+       "dock",
+       "dispatch",
+       "workshop",
+       "corridor",
+       "racking",
+       "floor",
+       "mezz",
+       "office",
+       "manager"
+      ],
+      "lamps": 18,
+      "errors": [],
+      "lampIds": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7,
+       8,
+       9,
+       10,
+       11,
+       12,
+       13,
+       14,
+       15,
+       16,
+       17
+      ],
+      "spin": {
+       "step": 2,
+       "cells": 312,
+       "scored": 312,
+       "spots": [
+        {
+         "p": [
+          -9.75,
+          0.08,
+          -17.75
+         ],
+         "score": 0.2,
+         "mean": 0.333,
+         "yaws": [
+          [
+           0.2,
+           0.267
+          ],
+          [
+           0.467,
+           0.467
+          ],
+          [
+           0.333,
+           0.667
+          ],
+          [
+           0.4,
+           0.333
+          ]
+         ]
+        },
+        {
+         "p": [
+          -17.75,
+          0.02,
+          -15.75
+         ],
+         "score": 0.2,
+         "mean": 0.323,
+         "yaws": [
+          [
+           0.357,
+           0.5
+          ],
+          [
+           0.333,
+           0.267
+          ],
+          [
+           0.533,
+           0.467
+          ],
+          [
+           0.333,
+           0.2
+          ]
+         ]
+        },
+        {
+         "p": [
+          10.25,
+          0.02,
+          4.25
+         ],
+         "score": 0.133,
+         "mean": 0.317,
+         "yaws": [
+          [
+           0.733,
+           0.133
+          ],
+          [
+           0.333,
+           0.467
+          ],
+          [
+           0.333,
+           0.333
+          ],
+          [
+           0.467,
+           0.467
+          ]
+         ]
+        }
+       ]
+      },
+      "cells": 1438,
+      "wall": {
+       "lamp": 15,
+       "lampPos": [
+        -18.5,
+        5.6,
+        -18.6
+       ],
+       "model": null,
+       "base": null,
+       "wallDist": 0.44,
+       "wall": [
+        -18.5,
+        5.3,
+        -18.16
+       ],
+       "normal": [
+        0,
+        0,
+        -1
+       ],
+       "cam": [
+        -18.25,
+        1.6,
+        -21.25
+       ],
+       "target": [
+        -18.5,
+        3,
+        -18.16
+       ],
+       "ceilY": null,
+       "ccam": [
+        -18.25,
+        1.5,
+        -20.25
+       ],
+       "ctarget": [
+        -18.5,
+        8.6,
+        -18.38
+       ]
+      },
+      "char": {
+       "lamp": 0,
+       "lampPos": [
+        20.6,
+        2.45,
+        -22.9
+       ],
+       "floor": [
+        20.75,
+        0,
+        -22.75
+       ],
+       "dir": [
+        -0.707,
+        0,
+        -0.707
+       ],
+       "frames": [
+        {
+         "m": 1,
+         "feet": [
+          20.25,
+          0,
+          -23.25
+         ],
+         "yaw": 2.356,
+         "cam": [
+          22.25,
+          1.35,
+          -25.25
+         ],
+         "target": [
+          20.25,
+          0.85,
+          -23.25
+         ],
+         "nearest": {
+          "id": 0,
+          "d": 0.495
+         }
+        },
+        {
+         "m": 4,
+         "feet": [
+          17.75,
+          0,
+          -25.25
+         ],
+         "yaw": -0.896,
+         "cam": [
+          15.25,
+          1.35,
+          -23.25
+         ],
+         "target": [
+          17.75,
+          0.85,
+          -25.25
+         ],
+         "nearest": {
+          "id": 0,
+          "d": 3.694
+         }
+        }
+       ]
+      },
+      "crate": {
+       "what": "box 14",
+       "at": [
+        11.5,
+        0.45,
+        -18
+       ],
+       "size": [
+        0.3,
+        0.9
+       ],
+       "lamp": 17,
+       "lampDist": 0.6,
+       "cam": [
+        13.25,
+        1.32,
+        -15.75
+       ],
+       "target": [
+        11.5,
+        0.2,
+        -18
+       ]
+      },
+      "door": {
+       "door": 1,
+       "at": [
+        2,
+        0.02,
+        16.05
+       ],
+       "lamp": 8,
+       "lampDist": 2.259,
+       "cam": [
+        -0.75,
+        1.52,
+        16.25
+       ],
+       "target": [
+        2,
+        0.72,
+        16.05
+       ],
+       "lampSide": true
+      },
+      "torch": {
+       "wall": {
+        "cam": [
+         -17.75,
+         1.62,
+         -15.75
+        ],
+        "target": [
+         -16.91,
+         1.22,
+         -17.85
+        ],
+        "guard": [
+         -15.75,
+         0,
+         -20.75
+        ],
+        "yaw": -0.381,
+        "wallAt": [
+         -16.91,
+         1.612,
+         -17.85
+        ]
+       },
+       "door": {
+        "door": 0,
+        "cam": [
+         -0.75,
+         1.62,
+         15.25
+        ],
+        "target": [
+         -0.95,
+         1.12,
+         12
+        ],
+        "guard": [
+         -0.75,
+         0.02,
+         10.75
+        ],
+        "yaw": -0.159
+       },
+       "corner": {
+        "cam": [
+         -9.75,
+         1.68,
+         -17.75
+        ],
+        "target": [
+         -13.355,
+         0,
+         -20.75
+        ],
+        "guard": [
+         -3.75,
+         0,
+         -20.75
+        ],
+        "yaw": 4.712,
+        "beamAt": [
+         -13.355,
+         0,
+         -20.75
+        ]
+       },
+       "four": {
+        "cam": [
+         -9.75,
+         1.68,
+         -17.75
+        ],
+        "target": [
+         -2.82,
+         -0.307,
+         -10.82
+        ],
+        "viewYaw": 0.785,
+        "guards": [
+         {
+          "p": [
+           -8.25,
+           0.02,
+           -14.25
+          ],
+          "yaw": 3.027
+         },
+         {
+          "p": [
+           -4.75,
+           0.02,
+           -15.25
+          ],
+          "yaw": 4.827
+         },
+         {
+          "p": [
+           -5.75,
+           0.02,
+           -13.75
+          ],
+          "yaw": 3.027
+         },
+         {
+          "p": [
+           -7.75,
+           0.02,
+           -8.75
+          ],
+          "yaw": 4.827
+         }
+        ]
+       }
+      },
+      "shoot": {
+       "lamp": 7,
+       "lampPos": [
+        0,
+        5.05,
+        -3
+       ],
+       "group": 5,
+       "groupLamps": 4,
+       "hasSwitch": true,
+       "stand": [
+        0.25,
+        0.02,
+        -1.75
+       ],
+       "cam": [
+        0.25,
+        1.62,
+        1.25
+       ],
+       "target": [
+        0.25,
+        2.535,
+        -2.75
+       ],
+       "from": [
+        0.25,
+        1.52,
+        -1.75
+       ]
+      },
+      "dark": {
+       "p": [
+        6.25,
+        0.02,
+        16.25
+       ],
+       "yaw": 0,
+       "source": "audit view",
+       "room": "manager",
+       "level": 0.122,
+       "cam": [
+        6.25,
+        1.62,
+        16.25
+       ],
+       "target": [
+        6.25,
+        0.423,
+        26.178
+       ],
+       "guard": null
+      },
+      "ms": 133
+     }
+    }
+   },
+   "probe": [
+    {
+     "map": "warehouse",
+     "point": 1,
+     "at": [
+      12.25,
+      2.62,
+      17.25
+     ],
+     "meter": 0.166,
+     "field": 0.166,
+     "diff": 0,
+     "pass": true,
+     "cardLevel": 0.168,
+     "cardLight": "lamp",
+     "cardLuma": 0.019,
+     "band": [
+      0,
+      0.086
+     ],
+     "inBand": true,
+     "file": "warehouse-probe-1.png"
+    },
+    {
+     "map": "warehouse",
+     "point": 2,
+     "at": [
+      20.25,
+      0.04,
+      4.25
+     ],
+     "meter": 0.161,
+     "field": 0.161,
+     "diff": 0,
+     "pass": true,
+     "cardLevel": 0.161,
+     "cardLight": "lamp",
+     "cardLuma": 0.016,
+     "band": [
+      0,
+      0.084
+     ],
+     "inBand": true,
+     "file": "warehouse-probe-2.png"
+    },
+    {
+     "map": "warehouse",
+     "point": 3,
+     "at": [
+      8.25,
+      0.04,
+      -14.75
+     ],
+     "meter": 1,
+     "field": 1,
+     "diff": 0,
+     "pass": true,
+     "cardLevel": 0.876,
+     "cardLight": "lamp",
+     "cardLuma": 0.606,
+     "band": [
+      0.42,
+      1
+     ],
+     "inBand": true,
+     "file": "warehouse-probe-3.png"
+    },
+    {
+     "map": "warehouse",
+     "point": 4,
+     "at": [
+      -22.75,
+      0.04,
+      -8.75
+     ],
+     "meter": 0.193,
+     "field": 0.193,
+     "diff": 0,
+     "pass": true,
+     "cardLevel": 0.157,
+     "cardLight": "lamp",
+     "cardLuma": 0.016,
+     "band": [
+      0,
+      0.082
+     ],
+     "inBand": true,
+     "file": "warehouse-probe-4.png"
+    },
+    {
+     "map": "warehouse",
+     "point": 5,
+     "at": [
+      6.25,
+      0.04,
+      6.25
+     ],
+     "meter": 0.801,
+     "field": 0.801,
+     "diff": 0,
+     "pass": true,
+     "cardLevel": 0.79,
+     "cardLight": "lamp",
+     "cardLuma": 0.531,
+     "band": [
+      0.42,
+      1
+     ],
+     "inBand": true,
+     "file": "warehouse-probe-5.png"
+    }
+   ],
+   "bake": {
+    "auto": {
+     "preset": "auto (epic)",
+     "ms": 1826,
+     "lights": 18,
+     "visMB": 9.55,
+     "atlasDims": [
+      975,
+      49,
+      372
+     ],
+     "atlasMB": 17.77,
+     "moonCells": 232960,
+     "hash": "1k9492x",
+     "bakedLampsDrawn": true
+    },
+    "epic": {
+     "preset": "epic",
+     "ms": 1912,
+     "lights": 18,
+     "visMB": 9.55,
+     "atlasDims": [
+      975,
+      49,
+      372
+     ],
+     "atlasMB": 17.77,
+     "moonCells": 232960,
+     "hash": "1k9492x",
+     "bakedLampsDrawn": true
+    },
+    "low": {
+     "preset": "low",
+     "ms": 1940,
+     "lights": 18,
+     "visMB": 9.55,
+     "atlasDims": [
+      975,
+      49,
+      372
+     ],
+     "atlasMB": 17.77,
+     "moonCells": 232960,
+     "hash": "1k9492x",
+     "bakedLampsDrawn": true
+    }
+   },
+   "errors": [],
+   "settings": {
+    "preset": "epic",
+    "auto": true,
+    "device": {
+     "key": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)|desktop|1280x720",
+     "tier": "epic",
+     "source": "gpu"
+    },
+    "renderScale": 1,
+    "upscaler": "off",
+    "governor": 3,
+    "override": null,
+    "bakedLamps": true,
+    "charShadows": true,
+    "torchSlots": 4,
+    "mode": "clear",
+    "ambient": 0.3,
+    "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "canvas": [
+     972,
+     547
+    ]
+   },
+   "minutes": 1.8
+  },
+  "kestrel": {
+   "query": "autostart=kestrel&mode=sandbox",
+   "mode": "sandbox",
+   "units": {
+    "all": {
+     "unit": {
+      "name": "all",
+      "all": true
+     },
+     "shots": {
+      "10": {
+       "file": "kestrel-all-10.png",
+       "status": "not-possible",
+       "note": "not possible: kestrel only boots in sandbox (no nav grid)"
+      },
+      "01": {
+       "file": "kestrel-all-01.png",
+       "status": "not-possible",
+       "note": "not possible: kestrel only boots in sandbox (no nav grid)"
+      },
+      "02": {
+       "file": "kestrel-all-02.png",
+       "status": "not-possible",
+       "note": "not possible: kestrel only boots in sandbox (no nav grid)"
+      },
+      "03": {
+       "file": "kestrel-all-03.png",
+       "status": "not-possible",
+       "note": "not possible: kestrel only boots in sandbox (no nav grid)"
+      },
+      "04": {
+       "file": "kestrel-all-04.png",
+       "status": "not-possible",
+       "note": "not possible: kestrel only boots in sandbox (no nav grid)"
+      },
+      "05": {
+       "file": "kestrel-all-05.png",
+       "status": "not-possible",
+       "note": "not possible: kestrel only boots in sandbox (no nav grid)"
+      },
+      "06": {
+       "file": "kestrel-all-06.png",
+       "status": "not-possible",
+       "note": "not possible: kestrel only boots in sandbox (no nav grid)"
+      },
+      "07": {
+       "file": "kestrel-all-07.png",
+       "status": "not-possible",
+       "note": "not possible: kestrel only boots in sandbox (no nav grid)"
+      },
+      "08": {
+       "file": "kestrel-all-08.png",
+       "status": "not-possible",
+       "note": "not possible: kestrel only boots in sandbox (no nav grid)"
+      },
+      "09": {
+       "file": "kestrel-all-09.png",
+       "status": "not-possible",
+       "note": "not possible: kestrel only boots in sandbox (no nav grid)"
+      }
+     }
+    }
+   },
+   "probe": [
+    {
+     "map": "kestrel",
+     "status": "not-possible",
+     "note": "not possible: kestrel only boots in sandbox (no nav grid)"
+    }
+   ],
+   "bake": {
+    "auto": {
+     "preset": "auto (epic)",
+     "ms": 137,
+     "lights": 0,
+     "visMB": 0,
+     "atlasDims": null,
+     "atlasMB": null,
+     "moonCells": 629760,
+     "hash": "7wvk67",
+     "bakedLampsDrawn": false
+    },
+    "epic": {
+     "preset": "epic",
+     "ms": 142,
+     "lights": 0,
+     "visMB": 0,
+     "atlasDims": null,
+     "atlasMB": null,
+     "moonCells": 629760,
+     "hash": "7wvk67",
+     "bakedLampsDrawn": false
+    },
+    "low": {
+     "preset": "low",
+     "ms": 131,
+     "lights": 0,
+     "visMB": 0,
+     "atlasDims": null,
+     "atlasMB": null,
+     "moonCells": 629760,
+     "hash": "7wvk67",
+     "bakedLampsDrawn": false
+    }
+   },
+   "errors": [
+    "kestrel: no nav grid in sandbox (kestrel only boots in sandbox (no nav grid)): shots, probe and co-op skipped, bakes run"
+   ],
+   "settings": {
+    "preset": "epic",
+    "auto": true,
+    "device": {
+     "key": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)|desktop|1280x720",
+     "tier": "epic",
+     "source": "gpu"
+    },
+    "renderScale": 1,
+    "upscaler": "off",
+    "governor": 0,
+    "override": null,
+    "bakedLamps": false,
+    "charShadows": false,
+    "torchSlots": 0,
+    "mode": null,
+    "ambient": 0.22,
+    "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "canvas": [
+     1280,
+     720
+    ]
+   },
+   "minutes": 0.7
+  },
+  "proving": {
+   "query": "autostart=proving&mode=mission",
+   "mode": "clear",
+   "units": {
+    "all": {
+     "unit": {
+      "name": "all",
+      "all": true
+     },
+     "shots": {
+      "10": {
+       "file": "proving-all-10.png",
+       "status": "pass",
+       "note": "yes: B's goggle beacon is readable at 20 m (crop peak 0.498, median 0.356)",
+       "readable": true,
+       "distance": 20,
+       "a": [
+        -28.75,
+        0,
+        -8.75
+       ],
+       "b": [
+        -28.75,
+        0,
+        -28.75
+       ],
+       "crop": [
+        592,
+        312,
+        96,
+        96
+       ],
+       "ndc": [
+        -0.001,
+        0.001,
+        0.995
+       ],
+       "peak": 0.498,
+       "median": 0.356
+      },
+      "01": {
+       "file": "proving-all-01.png",
+       "status": "flag",
+       "note": "N no dark, E no dark, S no dark, W no dark (lit 99%/99%/99%/99%, dark 0%/0%/1%/0%)",
+       "spot": {
+        "p": [
+         -26.75,
+         0,
+         -26.75
+        ],
+        "score": 0,
+        "mean": 0,
+        "yaws": [
+         [
+          1,
+          0
+         ],
+         [
+          0.667,
+          0
+         ],
+         [
+          0,
+          0
+         ],
+         [
+          1,
+          0
+         ]
+        ]
+       },
+       "frames": [
+        {
+         "dir": "N (+z)",
+         "yaw": 0,
+         "lit": 0.994,
+         "dark": 0.003,
+         "black": 0.003,
+         "mean": 0.537,
+         "pool": true,
+         "darkOk": false,
+         "field": [
+          1,
+          0
+         ],
+         "file": "proving-all-01-N.png"
+        },
+        {
+         "dir": "E (+x)",
+         "yaw": 90,
+         "lit": 0.994,
+         "dark": 0.003,
+         "black": 0.003,
+         "mean": 0.503,
+         "pool": true,
+         "darkOk": false,
+         "field": [
+          0.667,
+          0
+         ],
+         "file": "proving-all-01-E.png"
+        },
+        {
+         "dir": "S (-z)",
+         "yaw": 180,
+         "lit": 0.993,
+         "dark": 0.005,
+         "black": 0.003,
+         "mean": 0.314,
+         "pool": true,
+         "darkOk": false,
+         "field": [
+          0,
+          0
+         ],
+         "file": "proving-all-01-S.png"
+        },
+        {
+         "dir": "W (-x)",
+         "yaw": 270,
+         "lit": 0.994,
+         "dark": 0.004,
+         "black": 0.003,
+         "mean": 0.416,
+         "pool": true,
+         "darkOk": false,
+         "field": [
+          1,
+          0
+         ],
+         "file": "proving-all-01-W.png"
+        }
+       ]
+      },
+      "02": {
+       "file": "proving-all-02.png",
+       "status": "flag",
+       "note": "N no dark, E no dark, S no dark, W no dark (lit 99%/100%/100%/100%, dark 0%/0%/0%/0%)",
+       "spot": {
+        "p": [
+         -26.75,
+         0,
+         -17.75
+        ],
+        "score": 0,
+        "mean": 0,
+        "yaws": [
+         [
+          1,
+          0
+         ],
+         [
+          1,
+          0
+         ],
+         [
+          0.733,
+          0
+         ],
+         [
+          1,
+          0
+         ]
+        ]
+       },
+       "frames": [
+        {
+         "dir": "N (+z)",
+         "yaw": 0,
+         "lit": 0.994,
+         "dark": 0.003,
+         "black": 0,
+         "mean": 0.532,
+         "pool": true,
+         "darkOk": false,
+         "field": [
+          1,
+          0
+         ],
+         "file": "proving-all-02-N.png"
+        },
+        {
+         "dir": "E (+x)",
+         "yaw": 90,
+         "lit": 0.997,
+         "dark": 0.003,
+         "black": 0,
+         "mean": 0.574,
+         "pool": true,
+         "darkOk": false,
+         "field": [
+          1,
+          0
+         ],
+         "file": "proving-all-02-E.png"
+        },
+        {
+         "dir": "S (-z)",
+         "yaw": 180,
+         "lit": 0.997,
+         "dark": 0.003,
+         "black": 0,
+         "mean": 0.468,
+         "pool": true,
+         "darkOk": false,
+         "field": [
+          0.733,
+          0
+         ],
+         "file": "proving-all-02-S.png"
+        },
+        {
+         "dir": "W (-x)",
+         "yaw": 270,
+         "lit": 0.997,
+         "dark": 0.003,
+         "black": 0,
+         "mean": 0.425,
+         "pool": true,
+         "darkOk": false,
+         "field": [
+          1,
+          0
+         ],
+         "file": "proving-all-02-W.png"
+        }
+       ]
+      },
+      "03": {
+       "file": "proving-all-03.png",
+       "status": "flag",
+       "note": "N no dark, E no dark, S no dark, W no dark (lit 95%/97%/100%/100%, dark 0%/0%/0%/0%)",
+       "spot": {
+        "p": [
+         -26.75,
+         0,
+         -8.75
+        ],
+        "score": 0,
+        "mean": 0,
+        "yaws": [
+         [
+          1,
+          0
+         ],
+         [
+          0.909,
+          0
+         ],
+         [
+          0.867,
+          0
+         ],
+         [
+          1,
+          0
+         ]
+        ]
+       },
+       "frames": [
+        {
+         "dir": "N (+z)",
+         "yaw": 0,
+         "lit": 0.954,
+         "dark": 0,
+         "black": 0,
+         "mean": 0.511,
+         "pool": true,
+         "darkOk": false,
+         "field": [
+          1,
+          0
+         ],
+         "file": "proving-all-03-N.png"
+        },
+        {
+         "dir": "E (+x)",
+         "yaw": 90,
+         "lit": 0.97,
+         "dark": 0,
+         "black": 0,
+         "mean": 0.569,
+         "pool": true,
+         "darkOk": false,
+         "field": [
+          0.909,
+          0
+         ],
+         "file": "proving-all-03-E.png"
+        },
+        {
+         "dir": "S (-z)",
+         "yaw": 180,
+         "lit": 0.998,
+         "dark": 0,
+         "black": 0,
+         "mean": 0.509,
+         "pool": true,
+         "darkOk": false,
+         "field": [
+          0.867,
+          0
+         ],
+         "file": "proving-all-03-S.png"
+        },
+        {
+         "dir": "W (-x)",
+         "yaw": 270,
+         "lit": 0.997,
+         "dark": 0.002,
+         "black": 0,
+         "mean": 0.426,
+         "pool": true,
+         "darkOk": false,
+         "field": [
+          1,
+          0
+         ],
+         "file": "proving-all-03-W.png"
+        }
+       ]
+      },
+      "04": {
+       "file": "proving-all-04.png",
+       "status": "not-possible",
+       "note": "not possible: no lit fixed lamp in the unit"
+      },
+      "05": {
+       "file": "proving-all-05.png",
+       "status": "not-possible",
+       "note": "not possible: no lit fixed lamp in the unit"
+      },
+      "06": {
+       "file": "proving-all-06.png",
+       "status": "not-possible",
+       "note": "not possible: no crate / rack box and no door under a lit lamp in the unit"
+      },
+      "07": {
+       "file": "proving-all-07.png",
+       "status": "not-possible",
+       "note": "not possible: the map has no guard flashlight slots (not a dark map)"
+      },
+      "08": {
+       "file": "proving-all-08.png",
+       "status": "not-possible",
+       "note": "not possible: no lit fixed lamp in the unit"
+      },
+      "09": {
+       "file": "proving-all-09.png",
+       "status": "pass",
+       "note": "night vision reads (mean 0.787, p99.5 0.957); thermal: mean 0.213, hottest p99.5 0.906 with a warm guard in view; the door ghost (LR16-6) is not built",
+       "plan": {
+        "p": [
+         -28.75,
+         0,
+         -28.75
+        ],
+        "yaw": 0,
+        "source": "darkest point of the unit",
+        "room": null,
+        "level": 0.337,
+        "cam": [
+         -28.75,
+         1.6,
+         -28.75
+        ],
+        "target": [
+         -28.75,
+         0.403,
+         -18.822
+        ],
+        "guard": {
+         "p": [
+          -28.75,
+          0,
+          -24.75
+         ],
+         "yaw": 3.142
+        }
+       },
+       "night": {
+        "mean": 0.787,
+        "p995": 0.957,
+        "black": 0
+       },
+       "thermal": {
+        "mean": 0.213,
+        "p995": 0.906,
+        "max": 0.945
+       },
+       "warmGuard": true
+      },
+      "05-epic": {
+       "status": "same-as-auto",
+       "note": "Auto is Epic on this device: the Auto shot is the Epic shot"
+      },
+      "07-epic": {
+       "status": "same-as-auto",
+       "note": "Auto is Epic on this device: the Auto shot is the Epic shot"
+      }
+     },
+     "darkPick": {
+      "source": "audit room",
+      "room": null,
+      "roomName": "(outside rooms)",
+      "darkShare": 0,
+      "views": 12,
+      "view": null
+     },
+     "plan": {
+      "rooms": [
+       "miniA",
+       "miniB",
+       "miniC"
+      ],
+      "lamps": 0,
+      "errors": [],
+      "lampIds": [],
+      "spin": {
+       "step": 2.8,
+       "cells": 330,
+       "scored": 328,
+       "spots": [
+        {
+         "p": [
+          -26.75,
+          0,
+          -26.75
+         ],
+         "score": 0,
+         "mean": 0,
+         "yaws": [
+          [
+           1,
+           0
+          ],
+          [
+           0.667,
+           0
+          ],
+          [
+           0,
+           0
+          ],
+          [
+           1,
+           0
+          ]
+         ]
+        },
+        {
+         "p": [
+          -26.75,
+          0,
+          -17.75
+         ],
+         "score": 0,
+         "mean": 0,
+         "yaws": [
+          [
+           1,
+           0
+          ],
+          [
+           1,
+           0
+          ],
+          [
+           0.733,
+           0
+          ],
+          [
+           1,
+           0
+          ]
+         ]
+        },
+        {
+         "p": [
+          -26.75,
+          0,
+          -8.75
+         ],
+         "score": 0,
+         "mean": 0,
+         "yaws": [
+          [
+           1,
+           0
+          ],
+          [
+           0.909,
+           0
+          ],
+          [
+           0.867,
+           0
+          ],
+          [
+           1,
+           0
+          ]
+         ]
+        }
+       ]
+      },
+      "cells": 3168,
+      "wall": null,
+      "char": null,
+      "crate": null,
+      "door": null,
+      "torch": {
+       "wall": {
+        "cam": [
+         23.25,
+         1.6,
+         -27.75
+        ],
+        "target": [
+         24.125,
+         1.2,
+         -26
+        ],
+        "guard": [
+         25.25,
+         0,
+         -23.75
+        ],
+        "yaw": -2.678,
+        "wallAt": [
+         24.125,
+         1.6,
+         -26
+        ]
+       },
+       "door": null,
+       "corner": {
+        "cam": [
+         8.25,
+         1.6,
+         -28.75
+        ],
+        "target": [
+         15.963,
+         0.406,
+         -18.2
+        ],
+        "guard": [
+         13.25,
+         0,
+         -24.75
+        ],
+        "yaw": 0.393,
+        "beamAt": [
+         15.963,
+         0.406,
+         -18.2
+        ]
+       },
+       "four": {
+        "cam": [
+         -26.75,
+         1.6,
+         -26.75
+        ],
+        "target": [
+         -26.75,
+         -0.387,
+         -16.949
+        ],
+        "viewYaw": 0,
+        "guards": [
+         {
+          "p": [
+           -28.25,
+           0,
+           -23.25
+          ],
+          "yaw": 2.242
+         },
+         {
+          "p": [
+           -25.25,
+           0,
+           -21.75
+          ],
+          "yaw": 4.042
+         },
+         {
+          "p": [
+           -27.75,
+           0,
+           -19.75
+          ],
+          "yaw": 2.242
+         },
+         {
+          "p": [
+           -23.25,
+           0,
+           -19.25
+          ],
+          "yaw": 4.042
+         }
+        ]
+       }
+      },
+      "shoot": null,
+      "dark": {
+       "p": [
+        -28.75,
+        0,
+        -28.75
+       ],
+       "yaw": 0,
+       "source": "darkest point of the unit",
+       "room": null,
+       "level": 0.337,
+       "cam": [
+        -28.75,
+        1.6,
+        -28.75
+       ],
+       "target": [
+        -28.75,
+        0.403,
+        -18.822
+       ],
+       "guard": {
+        "p": [
+         -28.75,
+         0,
+         -24.75
+        ],
+        "yaw": 3.142
+       }
+      },
+      "ms": 109
+     }
+    }
+   },
+   "probe": [
+    {
+     "map": "proving",
+     "point": 1,
+     "at": [
+      -25.75,
+      0.02,
+      23.25
+     ],
+     "meter": 0.749,
+     "field": 0.749,
+     "diff": 0,
+     "pass": true,
+     "cardLevel": 0.749,
+     "cardLight": "moon",
+     "cardLuma": 0.294,
+     "band": [
+      0.42,
+      1
+     ],
+     "inBand": false,
+     "file": "proving-probe-1.png"
+    },
+    {
+     "map": "proving",
+     "point": 2,
+     "at": [
+      -25.75,
+      0.02,
+      21.25
+     ],
+     "meter": 0.749,
+     "field": 0.749,
+     "diff": 0,
+     "pass": true,
+     "cardLevel": 0.749,
+     "cardLight": "moon",
+     "cardLuma": 0.294,
+     "band": [
+      0.42,
+      1
+     ],
+     "inBand": false,
+     "file": "proving-probe-2.png"
+    },
+    {
+     "map": "proving",
+     "point": 3,
+     "at": [
+      -16.75,
+      0.02,
+      26.25
+     ],
+     "meter": 0.749,
+     "field": 0.749,
+     "diff": 0,
+     "pass": true,
+     "cardLevel": 0.543,
+     "cardLight": "moon",
+     "cardLuma": 0.294,
+     "band": [
+      0.247,
+      0.69
+     ],
+     "inBand": true,
+     "file": "proving-probe-3.png"
+    },
+    {
+     "map": "proving",
+     "point": 4,
+     "at": [
+      -22.75,
+      0.02,
+      23.25
+     ],
+     "meter": 0.749,
+     "field": 0.749,
+     "diff": 0,
+     "pass": true,
+     "cardLevel": 0.749,
+     "cardLight": "moon",
+     "cardLuma": 0.294,
+     "band": [
+      0.42,
+      1
+     ],
+     "inBand": false,
+     "file": "proving-probe-4.png"
+    },
+    {
+     "map": "proving",
+     "point": 5,
+     "at": [
+      -25.75,
+      0.02,
+      27.25
+     ],
+     "meter": 0.749,
+     "field": 0.749,
+     "diff": 0,
+     "pass": true,
+     "cardLevel": 0.749,
+     "cardLight": "moon",
+     "cardLuma": 0.294,
+     "band": [
+      0.42,
+      1
+     ],
+     "inBand": false,
+     "file": "proving-probe-5.png"
+    }
+   ],
+   "bake": {
+    "auto": {
+     "preset": "auto (epic)",
+     "ms": 79,
+     "lights": 0,
+     "visMB": 0,
+     "atlasDims": null,
+     "atlasMB": null,
+     "moonCells": 348480,
+     "hash": "164kfte",
+     "bakedLampsDrawn": false
+    },
+    "epic": {
+     "preset": "epic",
+     "ms": 78,
+     "lights": 0,
+     "visMB": 0,
+     "atlasDims": null,
+     "atlasMB": null,
+     "moonCells": 348480,
+     "hash": "164kfte",
+     "bakedLampsDrawn": false
+    },
+    "low": {
+     "preset": "low",
+     "ms": 84,
+     "lights": 0,
+     "visMB": 0,
+     "atlasDims": null,
+     "atlasMB": null,
+     "moonCells": 348480,
+     "hash": "164kfte",
+     "bakedLampsDrawn": false
+    }
+   },
+   "errors": [],
+   "settings": {
+    "preset": "epic",
+    "auto": true,
+    "device": {
+     "key": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)|desktop|1280x720",
+     "tier": "epic",
+     "source": "gpu"
+    },
+    "renderScale": 1,
+    "upscaler": "off",
+    "governor": 3,
+    "override": null,
+    "bakedLamps": false,
+    "charShadows": false,
+    "torchSlots": 0,
+    "mode": "mission",
+    "ambient": null,
+    "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "canvas": [
+     972,
+     547
+    ]
+   },
+   "minutes": 1
+  }
+ },
+ "probeTable": [
+  {
+   "map": "warehouse",
+   "point": 1,
+   "at": [
+    12.25,
+    2.62,
+    17.25
+   ],
+   "meter": 0.166,
+   "field": 0.166,
+   "diff": 0,
+   "pass": true,
+   "cardLevel": 0.168,
+   "cardLight": "lamp",
+   "cardLuma": 0.019,
+   "band": [
+    0,
+    0.086
+   ],
+   "inBand": true,
+   "file": "warehouse-probe-1.png"
+  },
+  {
+   "map": "warehouse",
+   "point": 2,
+   "at": [
+    20.25,
+    0.04,
+    4.25
+   ],
+   "meter": 0.161,
+   "field": 0.161,
+   "diff": 0,
+   "pass": true,
+   "cardLevel": 0.161,
+   "cardLight": "lamp",
+   "cardLuma": 0.016,
+   "band": [
+    0,
+    0.084
+   ],
+   "inBand": true,
+   "file": "warehouse-probe-2.png"
+  },
+  {
+   "map": "warehouse",
+   "point": 3,
+   "at": [
+    8.25,
+    0.04,
+    -14.75
+   ],
+   "meter": 1,
+   "field": 1,
+   "diff": 0,
+   "pass": true,
+   "cardLevel": 0.876,
+   "cardLight": "lamp",
+   "cardLuma": 0.606,
+   "band": [
+    0.42,
+    1
+   ],
+   "inBand": true,
+   "file": "warehouse-probe-3.png"
+  },
+  {
+   "map": "warehouse",
+   "point": 4,
+   "at": [
+    -22.75,
+    0.04,
+    -8.75
+   ],
+   "meter": 0.193,
+   "field": 0.193,
+   "diff": 0,
+   "pass": true,
+   "cardLevel": 0.157,
+   "cardLight": "lamp",
+   "cardLuma": 0.016,
+   "band": [
+    0,
+    0.082
+   ],
+   "inBand": true,
+   "file": "warehouse-probe-4.png"
+  },
+  {
+   "map": "warehouse",
+   "point": 5,
+   "at": [
+    6.25,
+    0.04,
+    6.25
+   ],
+   "meter": 0.801,
+   "field": 0.801,
+   "diff": 0,
+   "pass": true,
+   "cardLevel": 0.79,
+   "cardLight": "lamp",
+   "cardLuma": 0.531,
+   "band": [
+    0.42,
+    1
+   ],
+   "inBand": true,
+   "file": "warehouse-probe-5.png"
+  },
+  {
+   "map": "proving",
+   "point": 1,
+   "at": [
+    -25.75,
+    0.02,
+    23.25
+   ],
+   "meter": 0.749,
+   "field": 0.749,
+   "diff": 0,
+   "pass": true,
+   "cardLevel": 0.749,
+   "cardLight": "moon",
+   "cardLuma": 0.294,
+   "band": [
+    0.42,
+    1
+   ],
+   "inBand": false,
+   "file": "proving-probe-1.png"
+  },
+  {
+   "map": "proving",
+   "point": 2,
+   "at": [
+    -25.75,
+    0.02,
+    21.25
+   ],
+   "meter": 0.749,
+   "field": 0.749,
+   "diff": 0,
+   "pass": true,
+   "cardLevel": 0.749,
+   "cardLight": "moon",
+   "cardLuma": 0.294,
+   "band": [
+    0.42,
+    1
+   ],
+   "inBand": false,
+   "file": "proving-probe-2.png"
+  },
+  {
+   "map": "proving",
+   "point": 3,
+   "at": [
+    -16.75,
+    0.02,
+    26.25
+   ],
+   "meter": 0.749,
+   "field": 0.749,
+   "diff": 0,
+   "pass": true,
+   "cardLevel": 0.543,
+   "cardLight": "moon",
+   "cardLuma": 0.294,
+   "band": [
+    0.247,
+    0.69
+   ],
+   "inBand": true,
+   "file": "proving-probe-3.png"
+  },
+  {
+   "map": "proving",
+   "point": 4,
+   "at": [
+    -22.75,
+    0.02,
+    23.25
+   ],
+   "meter": 0.749,
+   "field": 0.749,
+   "diff": 0,
+   "pass": true,
+   "cardLevel": 0.749,
+   "cardLight": "moon",
+   "cardLuma": 0.294,
+   "band": [
+    0.42,
+    1
+   ],
+   "inBand": false,
+   "file": "proving-probe-4.png"
+  },
+  {
+   "map": "proving",
+   "point": 5,
+   "at": [
+    -25.75,
+    0.02,
+    27.25
+   ],
+   "meter": 0.749,
+   "field": 0.749,
+   "diff": 0,
+   "pass": true,
+   "cardLevel": 0.749,
+   "cardLight": "moon",
+   "cardLuma": 0.294,
+   "band": [
+    0.42,
+    1
+   ],
+   "inBand": false,
+   "file": "proving-probe-5.png"
+  }
+ ],
+ "bakeTable": [
+  {
+   "map": "warehouse",
+   "preset": "epic",
+   "ms": 1912,
+   "lights": 18,
+   "visMB": 9.55,
+   "atlasDims": [
+    975,
+    49,
+    372
+   ],
+   "atlasMB": 17.77,
+   "moonCells": 232960,
+   "hash": "1k9492x",
+   "bakedLampsDrawn": true
+  },
+  {
+   "map": "warehouse",
+   "preset": "low",
+   "ms": 1940,
+   "lights": 18,
+   "visMB": 9.55,
+   "atlasDims": [
+    975,
+    49,
+    372
+   ],
+   "atlasMB": 17.77,
+   "moonCells": 232960,
+   "hash": "1k9492x",
+   "bakedLampsDrawn": true
+  },
+  {
+   "map": "kestrel",
+   "preset": "epic",
+   "ms": 142,
+   "lights": 0,
+   "visMB": 0,
+   "atlasDims": null,
+   "atlasMB": null,
+   "moonCells": 629760,
+   "hash": "7wvk67",
+   "bakedLampsDrawn": false
+  },
+  {
+   "map": "kestrel",
+   "preset": "low",
+   "ms": 131,
+   "lights": 0,
+   "visMB": 0,
+   "atlasDims": null,
+   "atlasMB": null,
+   "moonCells": 629760,
+   "hash": "7wvk67",
+   "bakedLampsDrawn": false
+  },
+  {
+   "map": "proving",
+   "preset": "epic",
+   "ms": 78,
+   "lights": 0,
+   "visMB": 0,
+   "atlasDims": null,
+   "atlasMB": null,
+   "moonCells": 348480,
+   "hash": "164kfte",
+   "bakedLampsDrawn": false
+  },
+  {
+   "map": "proving",
+   "preset": "low",
+   "ms": 84,
+   "lights": 0,
+   "visMB": 0,
+   "atlasDims": null,
+   "atlasMB": null,
+   "moonCells": 348480,
+   "hash": "164kfte",
+   "bakedLampsDrawn": false
+  }
+ ],
+ "perf": [],
+ "errors": [],
+ "updated": "2026-10-23T23:13:45.426Z",
+ "minutes": 3.5,
+ "summary": {
+  "shots": 34,
+  "pass": 4,
+  "flag": 7,
+  "review": 3,
+  "notPossible": 16,
+  "error": 0,
+  "sameAsAuto": 4,
+  "probeFails": 0,
+  "probeMaxDiff": 0,
+  "perfP95": []
+ },
+ "finished": "2026-10-23T23:13:45.426Z"
+}

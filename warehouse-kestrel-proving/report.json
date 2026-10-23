@@ -1,0 +1,102 @@
+{
+ "script": "C:/NightShift/scratch/work/lr16-8/sheets.mjs",
+ "commit": "606630ed34f49a160e45348f3573428619943377",
+ "cwd": "C:\\NightShift\\Mobile-Coop-testrun-4189",
+ "started": "2026-10-23T22:27:08.110Z",
+ "gpu": true,
+ "port": 4189,
+ "thresholds": {
+  "LIT_LUMA": 0.2,
+  "DARK_LUMA": 0.09,
+  "MIN_SHARE": 0.05,
+  "fieldLit": 0.45,
+  "fieldDark": 0.28,
+  "parity": 0.02
+ },
+ "hooks": {
+  "10": "two pages over ?net=local in one context (the host / join menu flow of e2e-net-lib hostAndJoin, startMode, until), RemotePlayer.allowTeleport, the remote avatar rig headNode, Vector3.TransformCoordinates for the crop",
+  "01-03": "window.__app.current (GameState): player.controller.teleport, photoFreeze / photoCamera (photo mode), vision.set(\"off\"); the spot planner: nav (NavGrid cells), ballistics.cast + world.lightField.levelAt (the lamp-audit framing rays); screenshot luma histograms",
+  "04": "world.level.lights (LightRegistry), ballistics.cast (the nearest wall face and the ceiling over the lamp), photo camera; ceiling luma",
+  "05": "player teleport with the rig shown, world.charShadows (silhouette slots, stats()), Epic pass: app.quality.setOverride({ preset: \"epic\" })",
+  "06": "world.level.boxes / world.layout.props (crate / rack), world.doors.setOpen (the leaf open), the lamp registry",
+  "07": "enemyMgr.spawn (passive grunts), Enemy.torchOverride (the coop-torches test hook), enemyMgr.torchesOn, world.doors.setOpen(false); on / off screenshot diff",
+  "08": "stealth.shotRay (the round on the fitting; shootLight fallback), the circuit wall switch item (StealthSystems switch onUse = the player toggle; LightRegistry.setGroup fallback), GameState.lightLevel (the HUD meter), LightRegistry.restore",
+  "09": "vision.set(\"night\" / \"thermal\"), enemyMgr.spawn (a warm body in view); the darkest room from the audit file",
+  "probe": "GameState.lightLevel (the meter) vs world.lightField.bodyLevel (shots-ctcourse parity); World.addLightProbe grey card + centre display-luma read-back against the L5 band (e2e-darkness)",
+  "bake": "World.lightInfo() (bake ms, lamp visibility bytes), BakedLamps.atlasDims (R8 atlas), a fresh context per preset (?gfx=epic / ?gfx=low: a cold bake)",
+  "perf": "guard-cap pageSpawn (24 passive grunts in a wedge in front of the camera) + loop.onFrameEnd frame intervals + EXT_disjoint_timer_query_webgl2 GPU ms, in an E2E_UNCAP=1 browser, 1920x1080"
+ },
+ "deviations": [
+  "No `__game` hook exists on this commit: `window.__app.current` is the game (every shot script uses it); `__course` is not needed (no course-only shot).",
+  "campusOps has no Workshop room: the Workshop unit is the Sector Ops Workshop on warehouseOps (room `workshop`, the 4.78 wall-arc room). Maps without sectors are one unit, `all`.",
+  "Parity probe: there is no hook reading the shader light level back on this commit (BakedLamps.volumeAt needs the editor-only volume; the e2e-lightbake parity probe named in lr16-5b-build.md is not in the script). The probe is the meter vs the light field (shots-ctcourse, |diff| < 0.02) plus the grey card display luma checked against the L5 band of its field level (e2e-darkness).",
+  "Auto graphics = `?gfx=user&detect=1` (the saved defaults; automation skips the detection without detect=1). The starred shots (05, 07) are taken again at Epic through app.quality.setOverride, skipped when Auto already is Epic.",
+  "Realistic is the only light model (LR16a removed the switch): nothing to set.",
+  "Each map's own guards are removed and its security cameras paused (security.fixedUpdate replaced), so no alarm stage changes the lights mid-shot; the guards of shots 07 / 09 and the perf cells are spawned passive grunts.",
+  "Shot 09: the thermal ghost through a shut door is LR16-6 (not built): the note says what thermal shows (a warm guard is placed in view).",
+  "Shot 10: vision is never sent to the partner (D8): what A sees of B's goggles is the same in every mode of B.",
+  "Pass / flag: 01-03, 04, 07, 08, 09, 10 and the probe have cheap automated checks; 05 and 06 (shadow softness) are \"review\": the sheet is the result."
+ ],
+ "auditFile": "docs/sector-redesign/checks/lr16-lamp-audit.md",
+ "maps": {
+  "warehouse": {
+   "query": "autostart=warehouse&mode=sandbox",
+   "mode": "sandbox",
+   "units": {},
+   "probe": [],
+   "bake": {},
+   "errors": [
+    "warehouse: page.waitForFunction: Timeout 300000ms exceeded."
+   ],
+   "settings": null,
+   "minutes": 5.1
+  },
+  "kestrel": {
+   "query": "autostart=kestrel&mode=sandbox",
+   "mode": "sandbox",
+   "units": {},
+   "probe": [],
+   "bake": {},
+   "errors": [
+    "kestrel: page.waitForFunction: Timeout 300000ms exceeded."
+   ],
+   "settings": null,
+   "minutes": 5
+  },
+  "proving": {
+   "query": "autostart=proving&mode=sandbox",
+   "mode": "sandbox",
+   "units": {},
+   "probe": [],
+   "bake": {},
+   "errors": [
+    "proving: page.waitForFunction: Timeout 300000ms exceeded."
+   ],
+   "settings": null,
+   "minutes": 5
+  }
+ },
+ "probeTable": [],
+ "bakeTable": [],
+ "perf": [],
+ "errors": [
+  "warehouse: page.waitForFunction: Timeout 300000ms exceeded.",
+  "kestrel: page.waitForFunction: Timeout 300000ms exceeded.",
+  "proving: page.waitForFunction: Timeout 300000ms exceeded."
+ ],
+ "updated": "2026-10-23T22:42:17.099Z",
+ "minutes": 15.2,
+ "summary": {
+  "shots": 0,
+  "pass": 0,
+  "flag": 0,
+  "review": 0,
+  "notPossible": 0,
+  "error": 0,
+  "sameAsAuto": 0,
+  "probeFails": 0,
+  "probeMaxDiff": 0,
+  "perfP95": []
+ },
+ "finished": "2026-10-23T22:42:17.099Z"
+}
