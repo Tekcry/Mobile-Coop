@@ -47,7 +47,11 @@
   engine + net DONE on feature/sector-redesign-e9 @ 1dc25681 (off -m; PROTOCOL_VERSION 35, 500 tests, checks/e9-engine.md).
   Part (b) DONE: -e9 @ 1a571836 (checks/e9-build.md; tsc clean, 423 tests; e2e legs unrun: sectorops parts 1 + 6,
   e2e-coop). At the S4 / S5 join: crates s4 (25.2, 0, 6.8) yaw -PI/2, s5 (-17.2, 0, 27.0) yaw 0, campus count 5, drop
-  the stub filter. IN FLIGHT: Opus checker E8 + E9 -> checks/e8-e9-check.md on -e9.
+  the stub filter. E8 + E9 CHECK (0deafd5b, checks/e8-e9-check.md): E8 PASS, E9 FIX 1 (mapCheck Math.hypot -> hyp2,
+  done 1bb9516c). Polish P1-P7 (e.g. the client re-sends `use` every frame while held). At the s45 join: S4 / S5
+  crates from S4_AMMO_CRATE / S5_AMMO_CRATE, weaponsCrate campus count 5, drop the stub filter. Crate e2e legs unrun.
+- S45 part 6 GPU at 3fc36d79: S4 / S5 blocks run, FAIL only on the interactable cap (196 > 128, S4 + S5 asserts).
+  IN FLIGHT: Opus cap fixer on -s45 (checks/s45-cap-fix.md; likely live-section-only registration / sync).
   Then ONE Opus checker for E8 + E9 (engine + net). Was: needs a number (NetItem kind 'crate' + event
   'crate'); asked the orchestrator ~11:20. Build (a) Opus engine + net, then (b) Sonnet crate model / placement / tests.
 - (done) Opus E9-crate planner -> briefs/E9-CRATE.md (commits only that file). On resume: check each file / branch; rerun if
