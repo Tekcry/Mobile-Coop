@@ -1,14 +1,15 @@
 # Guard models: state
 
 ## Resume
-- Now: plan only (BRIEF.md, PLAN.md) on `feature/guard-models` off master 41204e30 (4.80.0). No code. Michael's
-  answers M1-M3 are in BRIEF (2026-10-23 ~19:45) and PLAN is re-budgeted for them: mid-detail faces (G1h), the look
-  seed on the wire (G6n, two Opus checkers, the train build bumps `PROTOCOL_VERSION`), the look fix pass (G10), and
-  Blender on the laptop queue (GB driver, L0 tools; no desktop Blender).
-- Starts: after sector-redesign incl. campus detail art (ROADMAP "Next: guard-models"); the orchestrator starts it.
-- Next: P1 in parallel: G0 spec + kit data (Opus SPEC incl. face spec and seed rule, Sonnet data), GB bake driver
-  (Sonnet, Opus checker), L0 laptop probe request (Test Runner), G5 GuardFigure on Wren's LODs (Opus), G6 variation
-  (Sonnet), G6n look seed (Opus). Then G1 bodies + G1h heads as laptop bakes.
+- Now (2026-10-23 ~21:00, lead: Night Shift | Player Build, taken over from Marlow Build): P1 running. Slice worktrees
+  C:/NightShift/Mobile-Coop-gm-<s> on branches feature/gm-<s> off 6b5c4319 (node_modules junction to
+  Mobile-Coop-anim-fix-pass): g0 (Opus SPEC + kit data + validateGuardKit), gb (Sonnet bake driver), g5 (Opus
+  GuardFigure on the Wren stand-in), g6 (Sonnet guardVariant), g6n (Opus look seed on the wire). Shared rules and the id
+  contract: C:/NightShift/scratch/ctcore/briefs/gm-common.md. L0 probe queued on the laptop: request
+  20261023T094854-...-7d0b, set guard-bake-probe (step 1 Blender, 2 toktx, 3 MPFB2 zip; status laptop-e2e/alone-guard-bake-probe).
+- Started 2026-10-23 ~20:45 on the orchestrator's word (Michael gave Player the build).
+- Next: as each P1 slice lands: merge feature/gm-<s> into feature/guard-models; one fresh Opus checker for P1 (G0, GB, G5,
+  G6) and two independent Opus checkers on G6n; then P2 (G1 bodies + G1h heads as laptop alone bakes via GB).
 - Open: L0 needs Michael's yes only if the probe finds Blender 5.2.2 / MPFB2 zip / KTX-Software missing on the laptop
   (orchestrator asks, native multiple choice). Until then the desktop fallback (`--par 2`, heavy.lock) applies.
 - Key refs: PLAN sections 5 (budgets: LOD0 20 k shown / 45 k buffer tris, 4096 x 2048 atlas), 6 (24-guard fit vs
