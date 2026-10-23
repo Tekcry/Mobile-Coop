@@ -15,7 +15,11 @@
   5 m lamp's own-floor guard); part 6 FAIL at "the panel cut s2-atrium and #1 walked to it" (guard-ai's coordinated
   lightsOut: #1 did not see / share a room with the pendants). IN FLIGHT: Opus fixer on -m (floor rule -> not above
   the fixture, <= 7 m below; diagnose S2 rooms / pendants / #1; fix in our data or e2e, guard-ai change only as a
-  proposal; checks/merge-m-fix.md). Then rerun part 6 + full vitest on -m.
+  proposal; checks/merge-m-fix.md). FIX DONE de19debd: #1 at the desk never saw the pendants (L1 slab underside 4.0
+  cuts the sight line; pendants in no room). Data fix: the reception downlight (-20, 3.9, -26.5) moves from group 53 to
+  s2-atrium (S2_GROUPS.reception removed; SPEC S2 Lighting text updated - ASSUMED, flag to Michael: the S2 lit-lamp
+  list changed). lightsOutOld: feet not above y, <= LIGHTS_OUT_BELOW 7 below. 236 related tests pass. Optional idea
+  for guard-ai: a witness when the light's lit area reaches his room. RUNNING: build + part 6 + full vitest at de19debd.
 - Guard AI asks (~11:30, plan docs/guard-ai/research/stealth-over-shooting.md on feature/guard-ai; types in S11):
   optional `gear?: 'helmet' | 'armour' | 'both'` per slot and `SectorDef.gear?` default (fill for later sections; early
   sections unchanged); no `enforcer` in any section list (validateGuardAi rejects); optional `SectorDef.sweep?: [x, z][]`
