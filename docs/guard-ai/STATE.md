@@ -11,7 +11,7 @@ guard-cap retunes, e2e-coop "two intruders" block); carry-flake e7d70c62 (test b
 by Cloud Builder: feature/guard-ai-s25 73038a40 (worktree -s25, junction to -s24 node_modules). Planner S26 + S27 DONE
 299d6265 (S28 none); cloud briefs guard-ai-S26 (off s25) + S27 (off s24) OPEN ad9d59cf, A155-A164 accepted.
 RUNNING (Opus): S24 re-checks A + B (slices/S24-RECHECK-A/B.md, uncommitted: lead commits), S25b checks A + B
-(slices/S25B-CHECK-A/B.md in -s25). Laptop set s24 waits for the A7 fix merge (ctcourse:4 must count).
+(slices/S25B-CHECK-A/B.md in -s25). Laptop set s24 queued on e31edd54 (20261023T105203-...-3cd1; ctcourse:4 A7 expected red until the cage fix).
 
 ~21:45 (swap, laptop, session [1adb22]): laptop s23-coop 2/2 GREEN 01b107b5 (#254 in train 34, 4.83.0); relight 7/7
 GREEN fbf32636 -> #255 train-ready label + orchestrator told. The ~21:20 agents (S24 fix round, e2e-coop two
@@ -644,7 +644,11 @@ Master 4.82.0 (train 33); train 34 (4.83.0, #260) carries #254 S23. PROTOCOL 42;
 Laptop worktrees (npm ci'd): C:/NightShift/Mobile-Coop-guard-ai (feature/guard-ai: STATE/PLAN/BRIEF/slices),
 -s22-game, -s23, -s24, -s25a, -relight, -carry-flake (node_modules junction to -s24's).
 Open:
-1. #254 S23: DONE on our side (laptop all green, in train 34).
+1. #254 S23: pulled from train 34 on e2e-ctcourse:4 A7. Triage: S23 is right (fence mesh passes sight,
+   levelBuilder.ts:318; R0 technician really sees the client at SPOT2). Map fix by Marlow Build (cabinet
+   slab(90.4, 91.6, 60.1, 63.7, 0, 1.85, KICK) in a7DataHall.ts ~307 proposed). Orchestrator: re-add train-ready on
+   #254 when Marlow's cage-fix PR is train-ready (same train). Backlog: investigate path through a locked door
+   (A7-cage-w) stalls ~15 s (S20 door gate never opens a locked leaf).
 2. #258 S22 game (feature/guard-ai-s22-game dd9f6960): train-ready. CONFLICTS with master (protocol.ts, coop.md,
    old number asserts): the orchestrator resolves in the train taking master's side (no own wire change).
 3. #255 LR16-4 relight f08c448c: train-ready (label set ~21:45, laptop 7/7, orchestrator told).
