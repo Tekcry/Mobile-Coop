@@ -5,7 +5,7 @@
  * the M8 isolation check, the K2 choke (the bridge officer) and the screen count (A99: no more than `CAMPUS_SCREEN_CAP` guards in
  * view from any walkable point, every guard counted).
  */
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { LevelBuilder, type BoxPiece } from '../src/world/levelBuilder';
 import { buildCampus, campusOps } from '../src/world/maps/campusOps';
 import { S1_GROUPS } from '../src/world/maps/campusS1';
@@ -24,6 +24,14 @@ import { HANG, LEDGE, generateLedges } from '../src/world/anchors';
 import { hyp2, hyp3 } from '../src/core/mathx';
 import { LIGHT, contribution } from '../src/world/lights';
 import { soloJumpThreats, soloTopLandingThreats, MANTLE } from './helpers/soloJumpReach';
+import { dressingOn } from '../src/world/detailPass';
+import { canonicalLightSet } from '../src/voxel/lightShapes';
+import { bakeLamps } from '../src/voxel/lampBake';
+import { bakeMoon, MOON_CELL } from '../src/voxel/skyBake';
+import { bakedLights } from '../src/world/lightBake';
+import { buildAmbientGrid } from '../src/world/ambientGrid';
+import { LightField, type FieldDoor } from '../src/world/lightField';
+import { moonLight } from '../src/world/lampMath';
 import { SightWorld, isolatedInTime, longestIsolation, guardPoints, CHECK_ISOLATION, CHECK_PATROL_PACE, CHECK_SPOT, CHECK_EYE, distToGuard, type CheckGuard } from '../src/game/sectorCheck';
 
 const PI = Math.PI;
@@ -789,5 +797,43 @@ describe('C2 and the zone', () => {
     expect(inZone(z, 7, 0, -14)).toBe(false);
     expect(S2.connector!.farAt).toEqual([...S2_DOORS.c2Far]);
     expect(S2_FLIGHTS.length).toBe(13);
+  });
+});
+
+describe('(LR16g) the atrium on the one light model (direct + penumbra + bounce)', () => {
+  // the real light field, baked in node as `World.create` + `bakeLevelLight` do (`tests/ctcourseLight.test.ts`), over a box
+  // round S2 only (the pendants' reach and their bounce stay inside it; the whole campus bake is ~2 min)
+  const lb = new LevelBuilder();
+  campusOps.build(lb, 0);
+  const reg = lb.lights;
+  let field: LightField;
+  beforeAll(() => {
+    const set = canonicalLightSet(lb.boxes, lb.cylinders, campusOps.id, dressingOn(campusOps));
+    const lo: [number, number, number] = [Math.max(set.lo[0], -50), set.lo[1], Math.max(set.lo[2], -40)];
+    const hi: [number, number, number] = [Math.min(set.hi[0], 10), set.hi[1], Math.min(set.hi[2], 12)];
+    reg.ambient = campusOps.theme.lightLevel ?? 0.75;
+    const mL = moonLight(campusOps.theme);
+    const sky = Math.max(0, reg.ambient - mL);
+    const ambient = buildAmbientGrid({ ambientAt: (x, y, z) => { const v = reg.zoneAt(x, y, z); return v === v ? v : sky; } }, lo, hi);
+    const s = campusOps.theme.sunDir;
+    const l = Math.sqrt(s[0] * s[0] + s[1] * s[1] + s[2] * s[2]);
+    const dir: [number, number, number] = [-s[0] / l, -s[1] / l, -s[2] / l];
+    const n: [number, number, number] = [0, 1, 2].map((k) => Math.max(1, Math.ceil((hi[k]! - lo[k]!) / MOON_CELL))) as [number, number, number];
+    const m = bakeMoon({ kind: 'moon', id: 0, origin: lo, n, shapes: set.shapes, dir });
+    const baked = bakedLights(reg);
+    const r = bakeLamps({ kind: 'lamps', id: 0, shapes: set.shapes, lights: baked.lights, lo, hi });
+    const bake = { lo, hi, lampKey: 't', moonKey: 't', lamps: { baked, r }, moon: { origin: lo, n, cell: MOON_CELL, vis: m.vis, dir }, ambient, moonLight: mL, ms: 0 };
+    field = new LightField(bake, reg, lb.anchors.doors.map((anchor): FieldDoor => ({ anchor, open: 0 })));
+  }, 300_000);
+
+  it('(LR16g) the atrium pool reads 0.45-0.5 between the pendants, the cafe stays dark', () => {
+    // the floor between the pendants (Classic read 0.48 here, the photometric pendants at 0.9 read 0.36 with the bounce;
+    // `checks/lr-tex3d-fix.md`, LR16g): what the meter and the guards read, and the picture (one field)
+    const floor = field.levelAt(-16, 0.05, -15);
+    expect(floor).toBeGreaterThanOrEqual(0.45);
+    expect(floor).toBeLessThanOrEqual(0.5);
+    // the cafe (the void's north strip: the counter at (-19, -5.6), the table at (-13, -6.5)): a standing body stays under the
+    // shadow line; the tables at z -9 / -9.5 sit on the pool's rim
+    for (const x of [-25, -22, -19, -16, -13, -11]) for (const z of [-7, -5]) expect(field.bodyLevel(x, 0, z, 1.7), `cafe (${x}, ${z})`).toBeLessThan(LIGHT.shadow);
   });
 });

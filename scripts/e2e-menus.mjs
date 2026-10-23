@@ -695,38 +695,15 @@ try {
     assert(mk1.n === 0 && mk1.el, `tuner: the barrel marker makes no scene meshes and draws on its overlay (${mk1.n} marker meshes, overlay ${mk1.el})`);
     await GM(() => window.__app.debug.animTune.hide());
     await frames(P, 2);
-    // (lightrev LR13) Pause > Settings > Gameplay > Lamp falloff: Classic by default; Realistic (test) is picked by a click
-    // on the row's arrow and applies at the next map load (the Retry below), never to the running match. A fixed point
-    // under a lamp: the field the meter (`bodyLevel`) and the guards (`levelAt`) read, and the lamp's reach (the shaders'
-    // lamp data), recorded now and read again after the reload.
-    const lr0 = await GM(() => {
-      const g = window.__app.current;
-      const f = g.world.lightField;
-      // (the field's baked lamps: index i, registry light `ids[i]`)
-      for (let i = 0; i < f.ids.length; i++) {
-        const l = f.reg.lights[f.ids[i]];
-        if (!l || !(l.intensity > 0) || !l.on) continue;
-        for (const dy of [3.5, 2.5, 4.5, 1.5]) {
-          const p = [l.x, l.y - dy, l.z];
-          const v = f.lampAt(i, p[0], p[1], p[2]);
-          if (v > 0.03 && v < 0.5) return { id: l.id, r: l.radius, p, lvl: f.levelAt(p[0], p[1], p[2]), mode: g.lampFalloff, setting: window.__app.settings.get().gameplay.lampFalloff };
-        }
-      }
-      return { id: -1, mode: g.lampFalloff, setting: window.__app.settings.get().gameplay.lampFalloff };
-    });
-    assert(lr0.id >= 0 && lr0.mode === 'linear' && lr0.setting === 'linear', `lamp falloff: Classic by default, a lamp-lit fixed point found (${JSON.stringify(lr0)})`);
+    // (LR16a, one light model) Pause > Settings > Gameplay: no Lamp falloff row, no `lampFalloff` setting or match mode
     await GM(() => window.__app.current.pause());
     await frames(P, 4);
     await GM(() => { const b = document.querySelector('.pause-screen [data-key="settings"]'); window.__app.nav.focus(b); b.click(); });
     await frames(P, 4);
     await GM(() => document.querySelector('.settings-screen .tab[data-tab="gameplay"]').click());
     await frames(P, 3);
-    const lfRow = await GM(() => ({ val: document.querySelector('.settings-screen [data-key="lamp-falloff"] .choice-val')?.textContent ?? '', ctx: document.querySelector('.settings-screen [data-key="lamp-falloff"]')?.dataset.ctx ?? '' }));
-    assert(lfRow.val === 'Classic' && /map loads/.test(lfRow.ctx) && /host/.test(lfRow.ctx), `lamp falloff: Settings > Gameplay shows the row on Classic with its help text (${JSON.stringify(lfRow).slice(0, 160)})`);
-    await GM(() => document.querySelector('.settings-screen [data-key="lamp-falloff"] .choice-arrow:last-child').click());
-    await frames(P, 3);
-    const lf1 = await GM(() => ({ val: document.querySelector('.settings-screen [data-key="lamp-falloff"] .choice-val')?.textContent ?? '', setting: window.__app.settings.get().gameplay.lampFalloff, mode: window.__app.current.lampFalloff }));
-    assert(lf1.val === 'Realistic (test)' && lf1.setting === 'photometric' && lf1.mode === 'linear', `lamp falloff: a click picks Realistic (test); the running match stays Classic until a map loads (${JSON.stringify(lf1)})`);
+    const lf0 = await GM(() => ({ row: !!document.querySelector('.settings-screen [data-key="lamp-falloff"]'), key: 'lampFalloff' in window.__app.settings.get().gameplay, mode: 'lampFalloff' in window.__app.current }));
+    assert(!lf0.row && !lf0.key && !lf0.mode, `one light model: no Lamp falloff row, setting or match mode (${JSON.stringify(lf0)})`);
     await GM(() => document.querySelector('.settings-screen .ms-lg[data-legend="back"]').click());
     await frames(P, 3);
     await GM(() => window.__app.screens.top.resume?.());
@@ -755,21 +732,6 @@ try {
     assert(res.title === 'VICTORY' && /★★☆/.test(res.stars) && res.earned === 3, `results: outcome, stars and what earned them (${res.stars}, ${res.earned} lines)`);
     assert(/★ +All primary objectives complete.★ +No alarms raised.☆ +Kills: 2/.test(res.lines) && /Bonus: No alarms/.test(res.bonus), `G146 lines and bonus (${res.lines}; ${res.bonus})`);
     assert(/retry/.test(res.keys) && /missions/.test(res.keys) && /quit/.test(res.keys), `results items (${res.keys}, focus ${res.focus})`);
-    // (lightrev LR13) Retry loads the map again: now Realistic (test); the same fixed point reads a different level and
-    // the lamp's reach is 1.6 x (the registry's radius, which the shaders' lamp data and the 2 m columns read)
-    await GM(() => { window.__lrOld = window.__app.current; document.querySelector('.results-screen [data-key="retry"]').click(); });
-    await P.waitForFunction(() => window.__app.current && window.__app.current !== window.__lrOld && window.__app.current.player && window.__app.current.world?.lightField, null, { timeout: 90000, polling: 200 });
-    await frames(P, 10);
-    const lr1 = await GM((a) => {
-      const g = window.__app.current;
-      const f = g.world.lightField;
-      const l = f.reg.lights[a.id];
-      return { mode: g.lampFalloff, r: l?.radius ?? -1, lvl: f.levelAt(a.p[0], a.p[1], a.p[2]), meter: f.bodyLevel(a.p[0], a.p[1] - 1.2, a.p[2], 1.7) };
-    }, lr0);
-    assert(lr1.mode === 'photometric' && Math.abs(lr1.r - lr0.r * 1.6) < 1e-3, `lamp falloff: after Retry the match runs Realistic, the lamp's reach 1.6 x (${lr0.r.toFixed(2)} -> ${lr1.r.toFixed(2)})`);
-    assert(Math.abs(lr1.lvl - lr0.lvl) > 0.01, `lamp falloff: the meter's field reads a different level at the fixed point (${lr0.lvl.toFixed(3)} Classic -> ${lr1.lvl.toFixed(3)} Realistic; body ${lr1.meter.toFixed(3)})`);
-    // back to Classic for anything after (settings persist in IndexedDB for this profile)
-    await GM(() => window.__app.settings.update((d) => void (d.gameplay.lampFalloff = 'linear')));
   } finally {
     await M.browser.close();
   }

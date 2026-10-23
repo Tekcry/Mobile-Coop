@@ -13,7 +13,7 @@ import { GRAVITY } from '../physics/havok';
 import { Body } from './body';
 import { BODY } from './bodies';
 import type { LightDef, Occluder } from '../world/lights';
-import { rayOccluder, shadowAccuracyOn } from '../world/shadowAccuracy';
+import { rayOccluder } from '../world/shadowAccuracy';
 import { beamReach, type BeamHit } from '../world/torches';
 import { ALARM_CALL, CommandCall, nearestPanel, type AlarmPanel } from './alarm';
 import { hyp2, hyp3 } from '../core/mathx';
@@ -546,6 +546,8 @@ export class EnemyManager {
       cover: world.level.cover,
       coverSegments: world.level.coverSegments,
       rooms: world.layout.rooms ?? [],
+      // (LR16t) a target's light without its own sample: the flashlights tested against static geometry
+      lightOccluder: this.bodyOccluder,
       reserveCover: (e, idx) => {
         const o = this.coverOwner.get(idx);
         if (o && o !== e && o.alive) return false;
@@ -1422,9 +1424,9 @@ export class EnemyManager {
 
   private torchTick = 0;
 
-  /** (shadow audit, `shadowAccuracy.ts`; default off) A body's light for the guards: flashlights tested against static
+  /** (shadow audit, `shadowAccuracy.ts`) A body's light for the guards: flashlights tested against static
    *  geometry, as the player's light is (`GameState.lightOccluder`), so a torch behind a wall does not light a body. */
-  private readonly bodyOccluder: Occluder | undefined = shadowAccuracyOn() ? rayOccluder((ax, ay, az, bx, by, bz) => this.beamHit(ax, ay, az, bx, by, bz)) : undefined;
+  private readonly bodyOccluder: Occluder = rayOccluder((ax, ay, az, bx, by, bz) => this.beamHit(ax, ay, az, bx, by, bz));
 
   /** Longest unobstructed run of a cone light (`beamReach` in `world/torches.ts`, shared with the co-op client). */
   private beamReach(l: LightDef): number {

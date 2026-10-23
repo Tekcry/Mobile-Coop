@@ -113,6 +113,13 @@ describe('Sector Ops LED fittings', () => {
     });
   }
 
+  /** Ceiling fittings the lamp audit moved (LR16d, LR16dx): `<room key> <new x,z>` -> the grid cells they came from (source
+   *  order). The production office was re-gridded whole (LR16dx: 3 x 2 panels 1.05 m off its walls), so it is not here. */
+  const LR16D_MOVED: Record<string, [number, number][]> = {
+    'S1 plantDeck ceiling -5,-15.15': [[-5, -14.6]], 'S1 plantDeck ceiling -1,-15.15': [[-1, -14.6]], 'S1 plantDeck ceiling 4.2,-15.15': [[3, -14.6]], 'S1 plantDeck ceiling 7,-15.15': [[7, -14.6]],
+    'S3 hall ceiling 18.26,-2.6': [[18, -2.6]], 'S3 hall ceiling 22.15,-2.6': [[23.2, -2.6]], 'S3 hall ceiling 22.15,3.4': [[23.2, 3.4]], 'S3 hall ceiling 22.15,9.4': [[23.2, 9.4]],
+  };
+
   it('one height per room and mount, and the ceiling fittings of a room on a regular grid', () => {
     const bad: string[] = [];
     for (const [s, rooms] of SECTIONS) {
@@ -125,9 +132,19 @@ describe('Sector Ops LED fittings', () => {
         const ys = new Set(rs.map((r) => r.y));
         if (ys.size !== 1) bad.push(`${k}: heights ${[...ys].join(', ')}`);
         if (k.endsWith('wall')) continue;
-        const pts = rs.flatMap((r) => r.lamps.map(([x, z]) => `${x},${z}`));
-        const xs = [...new Set(rs.flatMap((r) => r.lamps.map(([x]) => x)))].sort((a, c) => a - c);
-        const zs = [...new Set(rs.flatMap((r) => r.lamps.map(([, z]) => z)))].sort((a, c) => a - c);
+        // (LR16d: a fitting the lamp audit moved off its wall is read at its grid cell, so the grid check still guards the layout)
+        const used = new Map<string, number>();
+        const cell = (x: number, z: number): [number, number] => {
+          const o = LR16D_MOVED[`${k} ${x},${z}`];
+          if (!o) return [x, z];
+          const i = used.get(`${k} ${x},${z}`) ?? 0;
+          used.set(`${k} ${x},${z}`, i + 1);
+          return o[i]!;
+        };
+        const lamps = rs.flatMap((r) => r.lamps.map(([x, z]) => cell(x, z)));
+        const pts = lamps.map(([x, z]) => `${x},${z}`);
+        const xs = [...new Set(lamps.map(([x]) => x))].sort((a, c) => a - c);
+        const zs = [...new Set(lamps.map(([, z]) => z))].sort((a, c) => a - c);
         // a full grid: every column on every row
         if (pts.length !== xs.length * zs.length || xs.some((x) => zs.some((z) => !pts.includes(`${x},${z}`)))) bad.push(`${k}: not a full grid (${xs.length} x ${zs.length}, ${pts.length} fittings)`);
         // rows evenly spaced (the roof bays)

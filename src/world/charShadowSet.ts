@@ -6,7 +6,29 @@
  * read any of it (they keep the light field, which has no character shadows at all).
  */
 import type { ShadowQuality } from '../core/quality';
-import { hyp3 } from '../core/mathx';
+import { hyp2, hyp3 } from '../core/mathx';
+import { LAMP_LEVEL_GAIN, photoFalloff } from './lampMath';
+
+/**
+ * (LR16-P F2) A lamp's character shadow reach (m): the distance where its level on the axis, `LAMP_LEVEL_GAIN` x
+ * `intensity` x `photoFalloff(d, reach)`, falls to `minLevel` (bisection; at most `reach`); 0 when the lamp never gives
+ * that much. Load time: intensity is map data (switches, jams and flicker scale the colour, not it). The slot picker,
+ * the casters a slot's map draws and its doors and props read it (`BakedLamps.spheres` w); the light field never does.
+ */
+export function charShadowReach(intensity: number, reach: number, minLevel: number = CHAR_SHADOW.minLevel): number {
+  const k = LAMP_LEVEL_GAIN * intensity;
+  if (!(reach > 0) || !(k > 0)) return 0;
+  if (!(minLevel > 0)) return reach;
+  if (k * photoFalloff(0, reach) < minLevel) return 0;
+  let lo = 0;
+  let hi = reach;
+  for (let i = 0; i < 48; i++) {
+    const m = (lo + hi) * 0.5;
+    if (k * photoFalloff(m, reach) >= minLevel) lo = m;
+    else hi = m;
+  }
+  return lo;
+}
 
 /** The settings override: the preset's choice, or always on / off. */
 export type CharShadowMode = 'auto' | 'on' | 'off';
@@ -18,16 +40,18 @@ export interface CharShadowSpec {
   tile: number;
 }
 
-/** Per shadow tier (Graphics > Shadows; the presets fill it): capsules at Low / Medium, maps from High up. */
+/** Per shadow tier (Graphics > Shadows; the presets fill it). (LR16-7) Low and Medium get one slot - the nearest lamp
+ *  only, its map refreshed every 2nd frame (`charShadowEvery`) - so a guard under it throws his shape on every tier;
+ *  the characters outside that slot keep the capsules. Off: capsules only. */
 export const CHAR_SHADOW_PRESET: Readonly<Record<ShadowQuality, Readonly<CharShadowSpec>>> = {
   off: { lamps: 0, tile: 0 },
-  low: { lamps: 0, tile: 0 },
-  medium: { lamps: 0, tile: 0 },
+  low: { lamps: 1, tile: 256 },
+  medium: { lamps: 1, tile: 512 },
   high: { lamps: 2, tile: 512 },
   ultra: { lamps: 3, tile: 1024 },
   epic: { lamps: 4, tile: 1024 },
 };
-/** The override 'on' below High: High's set. */
+/** The override 'on' on a tier without maps (Off): High's set. */
 export const CHAR_SHADOW_FORCED: Readonly<CharShadowSpec> = CHAR_SHADOW_PRESET.high;
 
 /** The spec a shadow tier and the override give. */
@@ -41,7 +65,10 @@ export function charShadowSpec(q: ShadowQuality, mode: CharShadowMode = 'auto'):
 export const CHAR_SHADOW = {
   /** Slots in the atlas (2 x 2 tiles). */
   maxSlots: 4,
-  /** A lamp is a candidate while the nearest focus point is within its radius + this (m). */
+  /** (LR16-P F2) A slot's shadow reach (`charShadowReach`): where the lamp's level (`LAMP_LEVEL_GAIN` x intensity x
+   *  `photoFalloff`, on its axis) falls to this. Past it a character keeps his capsule from that lamp. Picture only. */
+  minLevel: 0.04,
+  /** A lamp is a candidate while the nearest focus point is within its shadow reach + this (m). */
   reachMargin: 3,
   /** A held lamp stays a candidate this much further (m). */
   keepMargin: 1,
@@ -68,7 +95,98 @@ export const CHAR_SHADOW = {
   bias: 0.03,
   normalOffset: 0.02,
   normalPerM: 0.004,
+  /** (LR16f) Contact-hardening softness (PCSS): the lamp fixture's radius (m) - the penumbra radius on a receiver is
+   *  `lightRadius x (receiver - blocker) / blocker` - capped at `maxPenumbra` (m), and the filter radius in shadow-map
+   *  texels kept within [`minTexels`, `maxTexels`] (the floor keeps a 2-texel disc at contact, as the old 2 x 2 PCF). */
+  lightRadius: 0.12,
+  maxPenumbra: 0.3,
+  minTexels: 1,
+  maxTexels: 24,
 } as const;
+
+/** (LR16f) Filter taps per shadow tier (the blocker search takes half as many): picture only, never the meter.
+ *  (LR16-7) Low / Medium: 4 filter + 2 search - 2 fetches where no blocker is near (most pixels; the old 2 x 2 PCF
+ *  took 4 everywhere), 6 in or near a shadow; the kernel's first point sits near its centre, so the 2-tap search
+ *  still finds the umbra and only the outermost fringe of a wide penumbra reads a little harder. */
+export const CHAR_SHADOW_TAPS: Readonly<Record<ShadowQuality, number>> = { off: 0, low: 4, medium: 4, high: 8, ultra: 12, epic: 16 };
+/** The kernel's size (the most taps any tier takes). */
+export const CHAR_SHADOW_KERNEL = 16;
+
+/** Filter taps for a configured spec (`CharShadows.configure` gets lamps and tile, not the tier): a single slot at
+ *  Medium's tile or smaller (Low / Medium) 4, High's 512 tile 8, Ultra's 1024 tile 12, Epic's 4 lamps 16; the override
+ *  'on' on Off takes High's. */
+export function charShadowTaps(lamps: number, tile: number): number {
+  if (lamps <= 0 || tile <= 0) return 0;
+  if (lamps < CHAR_SHADOW_PRESET.high.lamps && tile <= CHAR_SHADOW_PRESET.medium.tile) return CHAR_SHADOW_TAPS.medium;
+  if (tile < CHAR_SHADOW_PRESET.ultra.tile) return CHAR_SHADOW_TAPS.high;
+  return lamps >= CHAR_SHADOW_PRESET.epic.lamps ? CHAR_SHADOW_TAPS.epic : CHAR_SHADOW_TAPS.ultra;
+}
+
+/** (LR16-7) The least frames between a slot's map refreshes per tier: Low / Medium every 2nd frame (half the caster
+ *  draws), High up every frame (far slots still every 2nd, `LampSlotPicker.refreshEvery`). */
+export const CHAR_SHADOW_EVERY: Readonly<Record<ShadowQuality, number>> = { off: 1, low: 2, medium: 2, high: 1, ultra: 1, epic: 1 };
+/** That floor for a configured spec (the same rule as `charShadowTaps`). */
+export function charShadowEvery(lamps: number, tile: number): number {
+  return lamps > 0 && lamps < CHAR_SHADOW_PRESET.high.lamps && tile <= CHAR_SHADOW_PRESET.medium.tile ? CHAR_SHADOW_EVERY.medium : 1;
+}
+
+/**
+ * (LR16f) The fixed Poisson kernel: `CHAR_SHADOW_KERNEL` points in the unit disc (x, y interleaved) by Mitchell's best
+ * candidate from a fixed seed, so every prefix (the blocker search's half, each tier's count) is itself well spread.
+ * Built once at load; the same every run and every frame (no per-frame jitter, no shimmer).
+ */
+export const CHAR_SHADOW_DISK: Float32Array = (() => {
+  const n = CHAR_SHADOW_KERNEL;
+  const out = new Float32Array(n * 2);
+  let seed = 0x1f2e3d4c;
+  const rnd = (): number => {
+    // mulberry32
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  for (let i = 0; i < n; i++) {
+    let bx = 0;
+    let by = 0;
+    let best = -1;
+    for (let c = 0; c < 64; c++) {
+      // uniform in the disc
+      const r = Math.sqrt(rnd());
+      const a = rnd() * Math.PI * 2;
+      const x = r * Math.cos(a);
+      const y = r * Math.sin(a);
+      let d = i === 0 ? 1 - r : Infinity;
+      for (let j = 0; j < i; j++) {
+        const dx = x - out[j * 2]!;
+        const dy = y - out[j * 2 + 1]!;
+        d = Math.min(d, dx * dx + dy * dy);
+      }
+      if (d > best) {
+        best = d;
+        bx = x;
+        by = y;
+      }
+    }
+    out[i * 2] = bx;
+    out[i * 2 + 1] = by;
+  }
+  return out;
+})();
+
+/** (LR16f) The penumbra radius (m) on a receiver `dr` from the lamp behind a blocker `db` from it: 0 at contact,
+ *  growing with the gap, capped. The GLSL (`charShadows.ts`) computes the same from the same constants. */
+export function charPenumbra(dr: number, db: number): number {
+  const gap = Math.max(0, dr - db);
+  return Math.min(CHAR_SHADOW.maxPenumbra, (CHAR_SHADOW.lightRadius * gap) / Math.max(db, CHAR_SHADOW.minNear));
+}
+
+/** (LR16f) That radius in shadow-map texels: the map spans `2 dr / sx` metres over `tile` texels at the receiver
+ *  (`sx` = 1 / tan(half angle)), clamped to [`minTexels`, `maxTexels`]. */
+export function charFilterTexels(penumbra: number, dr: number, sx: number, tile: number): number {
+  const t = (penumbra * 0.5 * tile * sx) / Math.max(dr, CHAR_SHADOW.minNear);
+  return Math.min(CHAR_SHADOW.maxTexels, Math.max(CHAR_SHADOW.minTexels, t));
+}
 
 /**
  * Which lamps hold the shadow-map slots. Candidates are lit lamps whose radius (+ `reachMargin`) reaches the nearest
@@ -85,6 +203,8 @@ export class LampSlotPicker {
   private readonly heldFor: Float32Array;
   /** Bumped on every change of assignment. */
   version = 0;
+  /** (LR16-5b) The last `update`'s swinging lamps (null: none). */
+  private mv: Uint8Array | null = null;
   private slots = 0;
   private t = Infinity;
   private readonly candLamp: Int32Array;
@@ -126,11 +246,13 @@ export class LampSlotPicker {
   }
 
   /**
-   * Per frame. `lamps`: per lamp x, y, z, radius (stride 4), `n` of them; `lit`: non-zero while the lamp gives light;
-   * `focus`: x, y, z per point (the local player, the camera), `nf` of them. Returns true when the assignment changed.
+   * Per frame. `lamps`: per lamp x, y, z, radius (stride 4; (LR16-P F2) the shadow reach, 0: never a slot), `n` of
+   * them; `lit`: non-zero while the lamp gives light; `focus`: x, y, z per point (the local player, the camera), `nf` of them. Returns true when the assignment changed.
    */
-  update(lamps: Float32Array, lit: Uint8Array, n: number, focus: Float32Array, nf: number, dt: number): boolean {
+  update(lamps: Float32Array, lit: Uint8Array, n: number, focus: Float32Array, nf: number, dt: number, moving: Uint8Array | null = null): boolean {
     const v0 = this.version;
+    // (LR16-5b) the swinging lamps (`refreshEvery` reads them too): a held one keeps its slot while it moves
+    this.mv = moving;
     for (let s = 0; s < this.slots; s++) {
       const i = this.slotLamp[s]!;
       if (i < 0) continue;
@@ -147,8 +269,9 @@ export class LampSlotPicker {
     const k = this.slots;
     let nc = 0;
     for (let i = 0; i < n; i++) {
-      if (!lit[i]) continue;
       const o = i * 4;
+      // ((LR16-P F2) a lamp whose shadow reach is 0 never gives minLevel: no slot)
+      if (!lit[i] || !(lamps[o + 3]! > 0)) continue;
       const lx = lamps[o]!;
       const ly = lamps[o + 1]!;
       const lz = lamps[o + 2]!;
@@ -160,8 +283,10 @@ export class LampSlotPicker {
       const s = this.slotOf(i);
       const limit = lamps[o + 3]! + CHAR_SHADOW.reachMargin + (s >= 0 ? CHAR_SHADOW.keepMargin : 0);
       if (!(d < limit)) continue;
-      // (a lamp inside its minimum hold outranks every newcomer)
-      const score = s < 0 ? d : this.heldFor[s]! < CHAR_SHADOW.minHold ? -1 : d * CHAR_SHADOW.hold;
+      // (a lamp inside its minimum hold outranks every newcomer; (LR16-5b) so does a held lamp while it swings, and a
+      // swinging newcomer competes as if held)
+      const swings = moving !== null && moving[i]! !== 0;
+      const score = s < 0 ? (swings ? d * CHAR_SHADOW.hold : d) : this.heldFor[s]! < CHAR_SHADOW.minHold || swings ? -1 : d * CHAR_SHADOW.hold;
       // insert into the k best (ascending score)
       let j = nc < k ? nc++ : k;
       if (j === k && !(score < this.candScore[k - 1]!)) continue;
@@ -203,9 +328,14 @@ export class LampSlotPicker {
     return this.version !== v0;
   }
 
-  /** Frames between a slot's map refreshes: every frame near the focus, every 2nd further, x the governor's. */
-  refreshEvery(s: number, governorEvery = 1): number {
-    return (this.slotDist[s]! <= CHAR_SHADOW.near ? 1 : 2) * Math.max(1, governorEvery | 0);
+  /** Frames between a slot's map refreshes: every frame near the focus, every 2nd further, at least the tier's
+   *  `base` (LR16-7: Low / Medium 2), x the governor's. */
+  refreshEvery(s: number, governorEvery = 1, base = 1): number {
+    // (LR16-5b) a swinging lamp's map follows it every frame (the tier's base and the governor still hold)
+    const i = this.slotLamp[s]!;
+    const mv = this.mv;
+    if (mv !== null && i >= 0 && mv[i]! !== 0) return Math.max(base | 0, 1) * Math.max(1, governorEvery | 0);
+    return Math.max(base | 0, this.slotDist[s]! <= CHAR_SHADOW.near ? 1 : 2) * Math.max(1, governorEvery | 0);
   }
 }
 
@@ -316,13 +446,31 @@ export function spheresHold(spheres: Float32Array, n: number, x: number, y: numb
   return false;
 }
 
-/** The atlas (2 x 2 tiles): its side (px) and a slot's tile origin (px). */
-export function atlasSize(tile: number): number {
-  return tile * 2;
+/** The atlas (2 x 2 tiles): its side (px) and a slot's tile origin (px). (LR16-7) One slot (Low / Medium): the atlas is
+ *  that one tile (slot 0's origin is 0, so the shader reads it unchanged), a quarter of the memory. */
+export function atlasSize(tile: number, slots: number = CHAR_SHADOW.maxSlots): number {
+  return slots > 1 ? tile * 2 : tile;
 }
 export function tileX(slot: number, tile: number): number {
   return (slot & 1) * tile;
 }
 export function tileY(slot: number, tile: number): number {
   return (slot >> 1) * tile;
+}
+
+/** (LR16-3) A door leaf or prop at (x, y, z) with bounding radius r can reach a lamp's slot when within its range. */
+export function casterInReach(lx: number, ly: number, lz: number, reach: number, x: number, y: number, z: number, r: number): boolean {
+  return hyp3(x - lx, y - ly, z - lz) <= reach + r;
+}
+
+/**
+ * (LR16 fix, LR16-3) A door leaf's bounding sphere at any swing, into `out` (x, y, z, r): centred on the hinge line at
+ * mid height, radius = the leaf's far edge from there (hyp(width, height / 2)). The slot's cone fit takes it, so the
+ * leaf's shadow is never cut at the frustum. Allocation-free.
+ */
+export function doorSphere(a: { hinge: { x: number; y: number; z: number }; width: number; height: number }, out: Float32Array): void {
+  out[0] = a.hinge.x;
+  out[1] = a.hinge.y + a.height * 0.5;
+  out[2] = a.hinge.z;
+  out[3] = hyp2(a.width, a.height * 0.5);
 }

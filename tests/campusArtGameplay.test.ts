@@ -33,7 +33,9 @@ import { greyboxHash } from './helpers/campusHash';
 /** The campus greybox the art lift sits on: boxes / cylinders / FNV of the box list (`campusHash.ts`). ART-KIT cut b26c5925 was
  *  '1297/171/9e5541f8'; at the art join the base is feature/sector-redesign-polish 4a65d692 (glass, posts, armour), whose
  *  `campusOps.build` hashes to this value, so `buildCampus(b, { dress: false })` is that greybox byte for byte. */
-const CUT_GREYBOX = '1303/114/acb8cfbb';
+// (LR16-W T) re-pinned: the S4 cage basket post moved (18, 37) -> (17.55, 38.5) off the cage downlight (checks/lr16w-t-build.md);
+// with the post at (18, 37) the greybox still hashes to acb8cfbb (verified on f85ef736).
+const CUT_GREYBOX = '1303/114/d9289634';
 const SECTIONS = 5;
 const BUDGET = 200000;
 /** (11) A greybox ledge's ends must survive within this (m). */

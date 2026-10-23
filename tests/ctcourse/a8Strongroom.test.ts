@@ -1000,7 +1000,7 @@ describe('A8 the Strongroom: the lights (LIGHTING-PLAN 3, A8)', () => {
     expect(by(84).length).toBe(circuitOf(84)!.lamps + 2);
     // the doc's positions: chandeliers at 7.5 m, counter lamps over the counters, the desk lamp on the desk, wall lights on the north wall, panels under the ceilings
     const at = (g: number) => by(g).map((l) => [l.x, l.y, l.z].map((v) => Number(v.toFixed(2))).join(','));
-    expect(at(81)).toEqual(['130,7.5,62', '124,7.5,58', '128,7.5,69.5', '121,1.4,65.9', '124.8,1.4,65.9', '125.6,1.4,61.5', '128.5,1,70.4']);
+    expect(at(81)).toEqual(['130,7.5,62', '124,7.5,58', '128,7.5,69.5', '121,1.6,65.9', '124.8,1.6,65.9', '125.6,1.6,61.5', '128.5,1,70.4']);
     expect(at(82)).toEqual(['126,6.6,77.6', '129.5,6.6,77.6', '133,6.6,77.6']);
     expect(at(83)).toEqual(['137.5,7.2,74.7', '141.5,7.2,74.7']);
     expect(at(84).slice(0, 2)).toEqual(['137,5.3,62', '143,5.3,62']);
@@ -1885,18 +1885,18 @@ describe('A8 the Strongroom: dressing (slice 8 step 5)', () => {
     expect(130.5 - 130.47).toBeLessThanOrEqual(0.05);
   });
 
-  it("the counters and the night desk dressing: oak back panels over the boxes' backs, end caps, brass stems carrying the three counter lamps (1.21 to 1.4) and the desk lamp (0.76 to 1.0)", () => {
+  it("the counters and the night desk dressing: oak back panels over the boxes' backs, end caps, brass stems carrying the three counter lamps (1.21 to 1.6) and the desk lamp (0.76 to 1.0)", () => {
     for (const [x, z] of [[121.0, 65.9], [124.8, 65.9], [125.6, 61.5]] as const) {
-      const stem = flat.find((q) => Math.abs(q.c[0] - x) < 1e-6 && Math.abs(q.c[2] - z) < 1e-6 && Math.abs(q.s[0] - 0.04) < 1e-9 && Math.abs(q.s[1] - 0.17) < 1e-9)!;
+      const stem = flat.find((q) => Math.abs(q.c[0] - x) < 1e-6 && Math.abs(q.c[2] - z) < 1e-6 && Math.abs(q.s[0] - 0.04) < 1e-9 && Math.abs(q.s[1] - 0.37) < 1e-9)!;
       expect(stem, `stem at ${x}, ${z}`).toBeDefined();
-      expect(top(stem)).toBeCloseTo(1.4, 9);
+      expect(top(stem)).toBeCloseTo(1.6, 9);
       expect(stem.c[1] - stem.s[1] / 2).toBeCloseTo(1.23, 9);
     }
     const stemD = flat.find((q) => Math.abs(q.c[0] - 128.5) < 1e-6 && Math.abs(q.c[2] - 70.4) < 1e-6 && Math.abs(q.s[1] - 0.22) < 1e-9)!;
     expect(stemD).toBeDefined();
     expect(top(stemD)).toBeCloseTo(1.0, 9);
     // the lamps the stems carry are the greybox's (their fixtures' feet are the stems' tops)
-    for (const [x, z, y] of [[121.0, 65.9, 1.4], [124.8, 65.9, 1.4], [125.6, 61.5, 1.4], [128.5, 70.4, 1.0]] as const) expect(lamps.some((l) => Math.abs(l.x - x) < 1e-6 && Math.abs(l.z - z) < 1e-6 && Math.abs(l.y - y) < 1e-6)).toBe(true);
+    for (const [x, z, y] of [[121.0, 65.9, 1.6], [124.8, 65.9, 1.6], [125.6, 61.5, 1.6], [128.5, 70.4, 1.0]] as const) expect(lamps.some((l) => Math.abs(l.x - x) < 1e-6 && Math.abs(l.z - z) < 1e-6 && Math.abs(l.y - y) < 1e-6)).toBe(true);
     // the counter tops: the stems start over the 1.2 m solid
     expect(top(mine.find((q) => q.collide && Math.abs(q.c[0] - 120) < 1e-6 && Math.abs(q.c[2] - 65.87) < 1e-6)!)).toBeCloseTo(1.2, 9);
   });

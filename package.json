@@ -1,7 +1,7 @@
 {
   "name": "mobile-coop",
   "private": true,
-  "version": "4.87.0",
+  "version": "4.88.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host",
@@ -13,6 +13,7 @@
     "preview": "vite preview --host",
     "lint": "eslint .",
     "test": "vitest run",
+    "lamp-audit": "node scripts/lamp-audit.mjs",
     "icons": "node scripts/gen-icons.mjs",
     "e2e": "node scripts/run-e2e.mjs",
     "e2e:legacy": "node scripts/run-e2e.mjs --legacy",

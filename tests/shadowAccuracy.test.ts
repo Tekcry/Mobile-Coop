@@ -1,54 +1,25 @@
 /**
- * Shadow accuracy fixes (sector-redesign shadow audit, Michael 2026-10-23 ~14:45; `world/shadowAccuracy.ts`, default
- * off, on with the LR13 falloff toggle). Findings: `docs/sector-redesign/checks/shadow-audit.md`.
+ * Shadow accuracy fixes (sector-redesign shadow audit, Michael 2026-10-23 ~14:45; `world/shadowAccuracy.ts`; always on
+ * since LR16a, one light model). Findings: `docs/sector-redesign/checks/shadow-audit.md`.
  */
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { canonicalLightSet } from '../src/voxel/lightShapes';
 import { bakeLamps } from '../src/voxel/lampBake';
 import { bakedLights, type LightBake } from '../src/world/lightBake';
 import { ambientFromGrid, AMBIENT_CELL, buildAmbientGrid } from '../src/world/ambientGrid';
-import { bakeVisSampler, doorSeen, DOORS_PER_LAMP, DOORS_PER_LAMP_ACCURATE, lampDoorLists, lampDoorSlots, LightField, trilinear, type FieldDoor } from '../src/world/lightField';
-import { LAMP_LEVEL_GAIN, lampTerm, LIGHT_GAIN, matchLampFalloff, setLampFalloff, SPOT_EXP } from '../src/world/lampMath';
-import { gameLightFalloff, matchShadowAccuracy, rayOccluder, setShadowAccuracy, shadowAccuracyOn, TORCH_CUT_SOFT, TORCH_DRAW_GLSL, TORCH_DRAW_SLOTS, TORCH_DRAW_STRIDE, torchCut, torchDrawTerm, torchShadowPass, writeTorchDraw } from '../src/world/shadowAccuracy';
+import * as shadowAccuracy from '../src/world/shadowAccuracy';
+import { bakeVisSampler, doorSeen, DOORS_PER_LAMP, DOORS_PER_LAMP_ACCURATE, lampDoorLists, LightField, trilinear, type FieldDoor } from '../src/world/lightField';
+import { LAMP_LEVEL_GAIN, lampTerm, LIGHT_GAIN, SPOT_EXP } from '../src/world/lampMath';
+import { gameLightFalloff, rayOccluder, TORCH_CUT_SOFT, TORCH_DRAW_GLSL, TORCH_DRAW_SLOTS, TORCH_DRAW_STRIDE, torchCut, torchDrawTerm, torchShadowPass, writeTorchDraw } from '../src/world/shadowAccuracy';
 import { beamReach, TORCH } from '../src/world/torches';
 import { makeCone } from '../src/world/lights';
 import { hyp3 } from '../src/core/mathx';
 
-afterEach(() => {
-  setShadowAccuracy(null);
-  setLampFalloff('linear');
-});
-
-describe('the toggle', () => {
-  it('is off by default and follows the LR13 falloff toggle unless set', () => {
-    expect(shadowAccuracyOn()).toBe(false);
-    setLampFalloff('photometric');
-    expect(shadowAccuracyOn()).toBe(true);
-    setShadowAccuracy(false);
-    expect(shadowAccuracyOn()).toBe(false);
-    setLampFalloff('linear');
-    setShadowAccuracy(true);
-    expect(shadowAccuracyOn()).toBe(true);
-  });
-});
-
-describe('the match wiring (GameState.create)', () => {
-  /** What `GameState.create` does when a map loads: the resolved falloff, then the switch from it. */
-  function startMatch(setting: 'linear' | 'photometric', url: boolean, host?: 'linear' | 'photometric'): boolean {
-    const mode = matchLampFalloff(setting, url, host);
-    setLampFalloff(mode);
-    setShadowAccuracy(matchShadowAccuracy(mode));
-    return shadowAccuracyOn();
-  }
-  it('the resolved Realistic mode turns the fixes on, Classic off', () => {
-    expect(matchShadowAccuracy('photometric')).toBe(true);
-    expect(matchShadowAccuracy('linear')).toBe(false);
-    expect(startMatch('photometric', false)).toBe(true); // the setting
-    expect(startMatch('linear', false)).toBe(false); // a Realistic match before does not leak into the next
-    expect(startMatch('linear', true)).toBe(true); // ?falloff=photo
-    expect(startMatch('photometric', true, 'linear')).toBe(false); // co-op: the host's Classic wins
-    expect(startMatch('linear', false, 'photometric')).toBe(true); // co-op: the host's Realistic wins
+describe('always on (LR16a)', () => {
+  it('no toggle is left', () => {
+    const names = Object.keys(shadowAccuracy);
+    for (const gone of ['setShadowAccuracy', 'shadowAccuracyOn', 'matchShadowAccuracy']) expect(names).not.toContain(gone);
   });
 });
 
@@ -78,22 +49,19 @@ describe('door lists skip the doorways a lamp cannot see', () => {
     const seen = bakeVisSampler(r);
     expect(doors.slice(0, 5).every((d) => !doorSeen(seen, 0, d))).toBe(true);
     expect(doorSeen(seen, 0, doors[5]!)).toBe(true);
-    // today: the four nearest (all behind the wall); the door in view gets no slot
+    // without the bake sampler: the four nearest (all behind the wall); the door in view gets no slot
     const old = lampDoorLists(baked.lights, doors);
     expect(Array.from(old.subarray(0, DOORS_PER_LAMP)).includes(5)).toBe(false);
     const fixed = lampDoorLists(baked.lights, doors, seen);
     expect(fixed[0]).toBe(5);
     // a point behind the closed door in view: the leaf is between it and the lamp
     const p: [number, number, number] = [5.5, 1, 0];
-    const off = new LightField(bake, reg, doors);
-    expect(off.doorBlocks(0, 3, 0, ...p)).toBe(true);
-    expect(off.lampAt(0, ...p)).toBeGreaterThan(0.05);
-    setShadowAccuracy(true);
     const on = new LightField(bake, reg, doors);
+    expect(on.doorBlocks(0, 3, 0, ...p)).toBe(true);
     expect(on.lampAt(0, ...p)).toBe(0);
-    // with the door open the light passes in both
+    // with the door open the light passes
     doors[5]!.open = 1;
-    expect(on.lampAt(0, ...p)).toBeCloseTo(off.lampAt(0, ...p), 9);
+    expect(on.lampAt(0, ...p)).toBeGreaterThan(0.05);
   });
 
   it('the sampler reads what the field reads', () => {
@@ -106,17 +74,14 @@ describe('door lists skip the doorways a lamp cannot see', () => {
 });
 
 describe('the ambient fill is read as the shaders read it', () => {
-  it('trilinear with the fixes on, the nearest cell without', () => {
+  it('trilinear, not the nearest cell', () => {
     const { reg, bake } = scene();
     reg.setOn(0, false);
     const g = bake.ambient;
-    const off = new LightField(bake, reg);
-    setShadowAccuracy(true);
     const on = new LightField(bake, reg);
     let most = 0;
     for (let x = -2; x <= 3; x += 0.1) {
       const tri = trilinear(g.data, 0, g.origin[0], g.origin[1], g.origin[2], g.n[0], g.n[1], g.n[2], AMBIENT_CELL, x, 1.2, 0.3);
-      expect(off.levelAt(x, 1.2, 0.3)).toBeCloseTo(ambientFromGrid(g, x, 1.2, 0.3), 9);
       expect(on.levelAt(x, 1.2, 0.3)).toBeCloseTo(tri, 9);
       most = Math.max(most, Math.abs(tri - ambientFromGrid(g, x, 1.2, 0.3)));
     }
@@ -126,22 +91,20 @@ describe('the ambient fill is read as the shaders read it', () => {
 });
 
 describe('flashlights in the picture', () => {
-  it('game PBR materials drop the inverse-square falloff only with the fixes on', () => {
+  it('game PBR materials drop the inverse-square falloff', () => {
     const m = { usePhysicalLightFalloff: true };
-    expect(gameLightFalloff(m, false)).toBe(false);
-    expect(m.usePhysicalLightFalloff).toBe(true);
-    expect(gameLightFalloff(m, true)).toBe(true);
+    expect(gameLightFalloff(m)).toBe(true);
     expect(m.usePhysicalLightFalloff).toBe(false);
-    expect(gameLightFalloff({}, true)).toBe(false);
+    expect(gameLightFalloff(m)).toBe(false);
+    expect(gameLightFalloff({})).toBe(false);
   });
 
   it('shadow maps go to the cut beams first', () => {
     const cut = { kind: 'flashlight', radius: 13, reach: 3.4 };
     const free = { kind: 'flashlight', radius: 13, reach: 13 };
     const lamp = { kind: 'lamp', radius: 6 };
-    expect([torchShadowPass(cut, false), torchShadowPass(free, false), torchShadowPass(lamp, false)]).toEqual([0, 0, 1]);
-    expect([torchShadowPass(cut, true), torchShadowPass(free, true), torchShadowPass(lamp, true)]).toEqual([0, 1, 2]);
-    expect(torchShadowPass({ kind: 'flashlight', radius: 13 }, true)).toBe(1);
+    expect([torchShadowPass(cut), torchShadowPass(free), torchShadowPass(lamp)]).toEqual([0, 1, 2]);
+    expect(torchShadowPass({ kind: 'flashlight', radius: 13 })).toBe(1);
   });
 
   it('a body behind a wall is not lit by a torch for the guards', () => {
@@ -179,13 +142,9 @@ function doorRow(n: number) {
 }
 
 describe('8 door slots per lamp (LR15)', () => {
-  it('4 slots today, 8 with the fixes on', () => {
-    expect(lampDoorSlots(false)).toBe(DOORS_PER_LAMP);
-    expect(lampDoorSlots(true)).toBe(DOORS_PER_LAMP_ACCURATE);
+  it('8 slots (two door texels of 4)', () => {
+    expect(DOORS_PER_LAMP).toBe(4);
     expect(DOORS_PER_LAMP_ACCURATE).toBe(8);
-    expect(lampDoorSlots()).toBe(4);
-    setShadowAccuracy(true);
-    expect(lampDoorSlots()).toBe(8);
   });
 
   it('the list holds the 8 nearest doors in view, nearest first', () => {
@@ -206,24 +165,15 @@ describe('8 door slots per lamp (LR15)', () => {
     expect(Array.from(lampDoorLists(baked.lights, doors, undefined, 8)).includes(8)).toBe(false);
   });
 
-  it('5-8 shut doors: today the 5th-8th leak, with the fixes on every one cuts the light', () => {
+  it('5-8 shut doors: every one cuts the light (a 4-slot list would leak the 5th-8th)', () => {
     for (let n = 5; n <= 8; n++) {
       const { reg, bake, doors, pts } = doorRow(n);
-      setShadowAccuracy(null);
-      const off = new LightField(bake, reg, doors);
-      setShadowAccuracy(true);
       const on = new LightField(bake, reg, doors);
-      const litOff = pts.filter((p) => off.lampAt(0, ...p) > 0.01).length;
-      const litOn = pts.filter((p) => on.lampAt(0, ...p) > 0).length;
-      expect(litOff).toBe(n - 4);
-      expect(litOn).toBe(0);
-      // every point is behind a leaf; open them and both modes light every point alike
+      expect(pts.filter((p) => on.lampAt(0, ...p) > 0).length).toBe(0);
+      // every point is behind a leaf; open them and every point is lit
       for (const p of pts) expect(on.doorBlocks(0, 3, 0, ...p)).toBe(true);
       for (const d of doors) d.open = 1;
-      for (const p of pts) {
-        expect(on.lampAt(0, ...p)).toBeGreaterThan(0.05);
-        expect(on.lampAt(0, ...p)).toBeCloseTo(off.lampAt(0, ...p), 9);
-      }
+      for (const p of pts) expect(on.lampAt(0, ...p)).toBeGreaterThan(0.05);
     }
   });
 });
@@ -285,6 +235,20 @@ describe('exact torch drawing (LR15)', () => {
     expect(torchCut(l.reach!, l.reach!)).toBe(0);
   });
 
+  it('(LR16t) torchDrawTerm(cut = false): the field term past the reach, no ramp before it', () => {
+    const { l } = torch(3);
+    for (let x = 0.8; x < 9; x += 0.37) {
+      for (const [y, z] of [[1.2, 0], [0.4, 0.2]] as const) {
+        const exact = lampTerm(x - l.x, y - l.y, z - l.z, l.radius, l.cone!.dx, l.cone!.dy, l.cone!.dz, l.cone!.cosOuter, SPOT_EXP);
+        expect(torchDrawTerm(l, x, y, z, false)).toBe(exact > 0 ? exact : 0);
+        if (hyp3(x - l.x, y - l.y, z - l.z) >= l.reach!) expect(torchDrawTerm(l, x, y, z)).toBe(0);
+      }
+    }
+    // the default keeps the cut (the fallback path)
+    expect(torchDrawTerm(l, l.reach! + 1, 1.2, 0)).toBe(0);
+    expect(torchDrawTerm(l, l.reach! + 1, 1.2, 0, false)).toBeGreaterThan(0);
+  });
+
   it('the slot data: position + cut, axis + cos, colour x intensity x gain + radius; empty when off', () => {
     const { l } = torch(3);
     const buf = new Float32Array(TORCH_DRAW_SLOTS * TORCH_DRAW_STRIDE).fill(9);
@@ -295,6 +259,10 @@ describe('exact torch drawing (LR15)', () => {
     expect(buf[o + 8]).toBeCloseTo(TORCH.color[0] * TORCH.intensity * LIGHT_GAIN, 5);
     expect(buf[o + 11]).toBe(TORCH.radius);
     expect(buf[0]).toBe(9);
+    // (LR16t) stride 16: the 4th vec4 (the torch's shut doors) is the torch shadows' - a write leaves it, a clear zeros it
+    expect(TORCH_DRAW_STRIDE).toBe(16);
+    expect(Array.from(buf.subarray(o + 12, o + 16))).toEqual([9, 9, 9, 9]);
+    expect(buf[2 * TORCH_DRAW_STRIDE]).toBe(9);
     l.on = false;
     writeTorchDraw(buf, 1, l);
     expect(Array.from(buf.subarray(o, o + TORCH_DRAW_STRIDE))).toEqual(new Array(TORCH_DRAW_STRIDE).fill(0));
@@ -305,13 +273,12 @@ describe('exact torch drawing (LR15)', () => {
     expect(TORCH_DRAW_GLSL).toContain(TORCH_CUT_SOFT.toFixed(2));
   });
 
-  it('(lrpolish, LR15 polish 5) the rig: 1 shadow slot and 3 torches -> 1 shadowed, 2 drawn; fixes off: none drawn', async () => {
+  it('(lrpolish, LR15 polish 5) the rig: 1 shadow slot and 3 torches -> 1 shadowed, 2 drawn', async () => {
     const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
     const { Scene } = await import('../src/core/babylon');
     const { LightRig } = await import('../src/world/lightRig');
     const { LightRegistry } = await import('../src/world/lights');
-    const run = (on: boolean): { drawn: number; buf: Float32Array } => {
-      setShadowAccuracy(on);
+    const run = (): { drawn: number; buf: Float32Array } => {
       const scene = new Scene(new NullEngine());
       const reg = new LightRegistry();
       for (let i = 0; i < 3; i++) reg.add({ kind: 'flashlight', x: i * 2, y: 1.45, z: 0, radius: TORCH.radius, intensity: TORCH.intensity, color: [...TORCH.color], cone: makeCone(1, -0.2, 0, TORCH.outer, TORCH.inner), on: true, destructible: false, electric: false });
@@ -324,12 +291,11 @@ describe('exact torch drawing (LR15)', () => {
       scene.getEngine().dispose();
       return { drawn, buf };
     };
-    const on = run(true);
+    const on = run();
     expect(on.drawn).toBe(2);
     // two slots filled (reach > 0), the rest empty
     let filled = 0;
     for (let s = 0; s < TORCH_DRAW_SLOTS; s++) if (on.buf[s * TORCH_DRAW_STRIDE + 3]! > 0) filled++;
     expect(filled).toBe(2);
-    expect(run(false).drawn).toBe(0);
   });
 });

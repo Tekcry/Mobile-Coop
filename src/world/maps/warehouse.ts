@@ -30,6 +30,9 @@ const LAMPS_ON = new Set([
   '0,-3', '18,-3', '9,3', '9,9', '18,15', '0,15',
 ]);
 
+/** Lit strips moved off what they hung against (LR16d / LR16dx, lamp audit row 11: the (9, 3) strip sat 0.82 m off the crane girder's face at z 2.17; at z 3.8 it clears the girder and the z 5 pillar by 1.1 m and keeps 5.2 m to the (9, 9) strip): grid key -> the strip's z (its circuit stays the grid cell's room). */
+const LAMP_MOVED_Z: Record<string, number> = { '9,3': 3.8 };
+
 /** Circuit per room (light switches turn a room's lamps off). */
 function lampGroup(x: number, z: number): number {
   const i = ROOMS.findIndex((r) => x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ);
@@ -408,7 +411,7 @@ export function buildWarehouse(b: LevelBuilder, o: WarehouseOpts = {}): MapLayou
   b.block(1.4, -22.5, 2.4, 2.5, 2.3, '#8b2b2b').box(2.62, 1.85, -22.5, 0.04, 0.6, 2.0, GLASS, 0, 0, false).box(2.66, 0.45, -22.5, 0.12, 0.3, 2.3, TYRE, 0, 0, false);
   // a gatehouse in the east lot with a lit window and a door lamp (3.2.0: 2 m clear of the pump house)
   b.block(22.9, -22.9, 2.2, 2.6, 2.0, WALL).box(22.8, 2.68, -22.9, 2.6, 0.12, 2.4, STEEL, 0, 0, false).box(21.78, 1.55, -22.9, 0.04, 0.6, 1.1, '#d9c27a', 0, 0, false);
-  b.light({ kind: 'lamp', x: 21.45, y: 2.45, z: -22.9, radius: 4, intensity: 0.7, color: [1, 0.85, 0.6], group: 20, fixture: { sx: 0.2, sy: 0.12, sz: 0.2, oy: 0.06 } });
+  b.light({ kind: 'lamp', x: 20.6, y: 2.45, z: -22.9, radius: 4, intensity: 0.7, color: [1, 0.85, 0.6], group: 20, fixture: { sx: 0.2, sy: 0.12, sz: 0.2, oy: 0.06 } });
   // a pallet stack between the roller doors (first cover off the spawn), bollards at the door edges
   b.block(-14.5, -19.0, 1.2, 1.1, 1.0, CRATE);
   for (const x of [-20.35, -16.65, -12.35, -8.65]) b.pillar(x, -18.5, 0.13, 0.7, HAZARD);
@@ -430,7 +433,7 @@ export function buildWarehouse(b: LevelBuilder, o: WarehouseOpts = {}): MapLayou
       if (!sh && x < -4) continue; // Sector Ops: section 2 has its own lamps
       if (!ah && x > -4) continue; // Sector Ops: section 3 has its own lamps
       // a lit strip is the light's fixture (shoot anywhere along it; it goes dark), an unlit one is just a box
-      if (LAMPS_ON.has(`${x},${z}`)) b.light({ kind: 'lamp', x, y: 5.05, z, radius: 8, intensity: 1.0, color: [1, 0.92, 0.75], group: lampGroup(x, z), fixture: { sx: 0.25, sy: 0.08, sz: 2.6, oy: 0.15 } });
+      if (LAMPS_ON.has(`${x},${z}`)) b.light({ kind: 'lamp', x, y: 5.05, z: LAMP_MOVED_Z[`${x},${z}`] ?? z, radius: 8, intensity: 1.0, color: [1, 0.92, 0.75], group: lampGroup(x, z), fixture: { sx: 0.25, sy: 0.08, sz: 2.6, oy: 0.15 } });
       else b.box(x, 5.2, z, 0.25, 0.08, 2.6, LAMP_OFF, 0, 0, false);
     }
   }

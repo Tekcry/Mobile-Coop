@@ -187,15 +187,15 @@ const PLATE = '#585d61';
 const STEEL = '#8d949b';
 const CONCRETE = '#5b5e61';
 
-/** Lamp radius and intensity per circuit (prototype values, tuned with `CTLIGHT_WRITE=a8Strongroom`). */
+/** Lamp radius and intensity per circuit (prototype values; night levels re-tuned under the LR16 light model, LR16-M; the counter lamps' bulb 0.4 m over the marble top; one level per time lock). */
 const LAMP = {
-  chandelier: { radius: 9, intensity: 1.5 },
-  counter: { radius: 2.2, intensity: 0.6 },
+  chandelier: { radius: 9, intensity: 1.4 },
+  counter: { radius: 2.2, intensity: 0.6, y: 1.6 },
   desk: { radius: 2.0, intensity: 0.5 },
-  gallery: { radius: 3.5, intensity: 0.9 },
-  office: { radius: 5, intensity: 0.9 },
-  lobby: { radius: 6.0, intensity: 1.0 },
-  lock: { radius: 3.4, intensity: 0.7 },
+  gallery: { radius: 3.5, intensity: 0.15 },
+  office: { radius: 5, intensity: 0.28 },
+  lobby: { radius: 6.0, intensity: 0.2 },
+  lock: { radius: 3.4, t1: 0.07, t2: 0.085 },
 } as const;
 
 
@@ -504,14 +504,14 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
       b.light({ x, y, z, radius, intensity, color, group, electric: true, destructible: true, fixture: { sx: fx[0], sy: fx[1], sz: fx[2], oy: fx[1] / 2 } });
     };
     for (const [x, z] of [[130.0, 62.0], [124.0, 58.0], [128.0, 69.5]] as const) lamp(x, 7.5, z, 81, LAMP.chandelier.radius, LAMP.chandelier.intensity, WARM, [0.8, 0.4, 0.8]);
-    for (const [x, z] of [[121.0, 65.9], [124.8, 65.9], [125.6, 61.5]] as const) lamp(x, 1.4, z, 81, LAMP.counter.radius, LAMP.counter.intensity, WARM, [0.2, 0.2, 0.2]);
+    for (const [x, z] of [[121.0, 65.9], [124.8, 65.9], [125.6, 61.5]] as const) lamp(x, LAMP.counter.y, z, 81, LAMP.counter.radius, LAMP.counter.intensity, WARM, [0.2, 0.2, 0.2]);
     lamp(128.5, 1.0, 70.4, 81, LAMP.desk.radius, LAMP.desk.intensity, WARM, [0.2, 0.2, 0.2]);
     for (const x of [126.0, 129.5, 133.0]) lamp(x, 6.6, 77.6, 82, LAMP.gallery.radius, LAMP.gallery.intensity, BRASS, [0.2, 0.3, 0.15]);
     for (const x of [137.5, 141.5]) lamp(x, 7.2, 74.7, 83, LAMP.office.radius, LAMP.office.intensity, WHITE, [0.6, 0.05, 0.6]);
     for (const x of [137.0, 143.0]) lamp(x, 5.3, 62.0, 84, LAMP.lobby.radius, LAMP.lobby.intensity, WHITE, [0.6, 0.05, 0.6]);
     // a status lamp over each time lock (A8-D12): the panels' own pools, so the locks read lit without the ceiling panels spilling out of the open grille
-    lamp(A8_T1_AT.x, 2.2, A8_T1_AT.z - 0.4, 84, LAMP.lock.radius, LAMP.lock.intensity, WHITE, [0.3, 0.05, 0.2]);
-    lamp(A8_T2_AT.x - 0.4, 2.2, A8_T2_AT.z + 0.4, 84, LAMP.lock.radius, LAMP.lock.intensity, WHITE, [0.2, 0.05, 0.3]);
+    lamp(A8_T1_AT.x, 2.2, A8_T1_AT.z - 0.4, 84, LAMP.lock.radius, LAMP.lock.t1, WHITE, [0.3, 0.05, 0.2]);
+    lamp(A8_T2_AT.x - 0.4, 2.2, A8_T2_AT.z + 0.4, 84, LAMP.lock.radius, LAMP.lock.t2, WHITE, [0.2, 0.05, 0.3]);
   });
   for (const [k, gr] of Object.entries(marlowCourseGroups())) if (k.startsWith('a8-')) p.groups[k] = gr;
   // wall switches: the gallery's on the stair head's east balustrade end, the office's inside its door
@@ -984,7 +984,7 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
   const cm = A8_COUNTER_MAIN;
   const cr = A8_COUNTER_RETURN;
   const ds = A8_DESK;
-  tally(b, p.register, 'A8-20', "Counters and night desk dressing (visual skins, no collision): oak back panels with rails and stiles on the clerks' side of the main run (north face z 66.24) and the return (east face x 126.0), end caps on the main run's west end and the return's south end, a back panel and two end caps on the night desk, brass stems and base plates under the three counter lamps and the desk lamp (the lamps' fixtures float 0.2 m over the counter tops in the greybox; the stems carry them)", () => {
+  tally(b, p.register, 'A8-20', "Counters and night desk dressing (visual skins, no collision): oak back panels with rails and stiles on the clerks' side of the main run (north face z 66.24) and the return (east face x 126.0), end caps on the main run's west end and the return's south end, a back panel and two end caps on the night desk, brass stems and base plates under the three counter lamps and the desk lamp (the counter lamps' light points sit 0.4 m over the counter tops in the greybox, the bulb inside a banker's-lamp shade; the stems carry them)", () => {
     face('n', cm.z1, cm.x0, cm.x1 + SKIN, 0, 1.19, LOOK.oak, 0);
     face('e', cr.x1, cr.z0, cm.z1 + SKIN, 0, 1.19, LOOK.oak, 0);
     for (let x = cm.x0; x <= cm.x1 + 1e-9; x += 2.4) face('n', cm.z1, x - 0.035, x + 0.035, 0.16, 1.1, LOOK.oakDark, 1);
@@ -995,10 +995,10 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
     face('e', cr.x1, cr.z0, cr.z1, 1.1, 1.16, LOOK.oakDark, 1);
     face('w', cm.x0, cm.z0 - 0.02, cm.z1 + SKIN, 0, 1.2, LOOK.oak, 0);
     face('s', cr.z0, cr.x0 - 0.03, cr.x1 + SKIN, 0, 1.2, LOOK.oak, 0);
-    // the lamps' brass stems (a base plate and a stem from the marble top at 1.21 to the fixture's foot at 1.4)
+    // the lamps' brass stems (a base plate and a stem from the marble top at 1.21 to the fixture's foot at the light point)
     for (const [x, z] of [[121.0, 65.9], [124.8, 65.9], [125.6, 61.5]] as const) {
       skin(x - 0.07, x + 0.07, 1.21, 1.23, z - 0.07, z + 0.07, LOOK.brassDark);
-      skin(x - 0.02, x + 0.02, 1.23, 1.4, z - 0.02, z + 0.02, LOOK.brass);
+      skin(x - 0.02, x + 0.02, 1.23, LAMP.counter.y, z - 0.02, z + 0.02, LOOK.brass);
     }
     // the night desk (over its box 127.3-129.7 x 70.0-70.9; the prop is 5 cm north): back panel, end caps, the desk lamp's stem at (128.5, 70.4)
     face('s', ds.z0, ds.x0, ds.x1, 0, ds.h, LOOK.oak, 0);

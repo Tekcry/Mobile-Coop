@@ -1,6 +1,5 @@
 import type { App } from '../core/app';
 import type { WeatherChoice } from '../world/mapDef';
-import { matchLampFalloff, type LampFalloff } from '../world/lampMath';
 import type { GameOptions, GameState, SessionCallbacks } from '../game/gameState';
 import { clearRejoin, rejoinToken, saveRejoin, type RejoinRecord } from '../core/rejoin';
 import { flags } from '../core/flags';
@@ -72,8 +71,6 @@ class CoopController {
   private left = false;
   /** (R1) Refreshes the rejoin record while a match runs. */
   private recT: ReturnType<typeof setInterval> | null = null;
-  /** (lrpolish) The running match's lamp falloff, kept in the rejoin record so "Resume hosting" runs the same mode. */
-  private matchLf: LampFalloff | undefined;
   /** (server browser) Host: the room is listed in Browse rooms (default Private). */
   isPublic = false;
   dir: DirectoryPoster | null = null;
@@ -184,7 +181,7 @@ class CoopController {
       return;
     }
     const s = this.session;
-    const r: RejoinRecord = { code: s.code, role: s.role, at: Date.now(), mode: s.mode, map: s.map, difficulty: s.difficulty, mission: s.mission, weather: s.weather, bay: g.mode?.resumeBay?.() ?? s.courseBay, lf: this.matchLf };
+    const r: RejoinRecord = { code: s.code, role: s.role, at: Date.now(), mode: s.mode, map: s.map, difficulty: s.difficulty, mission: s.mission, weather: s.weather, bay: g.mode?.resumeBay?.() ?? s.courseBay };
     saveRejoin(r);
   }
 
@@ -194,7 +191,6 @@ class CoopController {
     if (this.inGame && !this.waiting) return;
     this.waiting = false;
     this.inGame = true;
-    this.matchLf = s.lampFalloff;
     if (!this.recT) this.recT = setInterval(() => this.record(), 2000);
     const session = this.session;
     const mission = s.mode === 'infiltration' ? missionById(s.mission) : null;
@@ -208,8 +204,6 @@ class CoopController {
         missionId: mission?.id,
         weather: map.weathers?.includes(s.weather) ? s.weather : undefined,
         courseBay: s.mode === 'course' ? (s.bay ?? 1) : undefined,
-        // (lightrev LR13) the host's lamp falloff for everyone (the client's own setting and URL are ignored)
-        lampFalloff: s.lampFalloff,
         net: {
           role: session.role,
           code: session.code,
@@ -809,9 +803,6 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
     session.weather = resume.weather;
     session.courseBay = resume.bay;
     adopt(app, api, session);
-    // (lrpolish) the resumed match runs the falloff the dropped one ran (an older record: the host's setting, as before)
-    const lf = resume.lf;
-    if (lf) session.hostLampFalloff = () => matchLampFalloff(app.settings.get().gameplay.lampFalloff, flags.photoLamps, lf);
     session.startMatch();
     return;
   }
@@ -834,8 +825,6 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
 
 /** The room's controller and lobby for a connected session. */
 function adopt(app: App, api: CoopApi, session: NetSession): CoopController {
-  // (lightrev LR13) a match this host starts runs its lamp falloff (the setting, or `?falloff=photo`), read at the start
-  session.hostLampFalloff = () => matchLampFalloff(app.settings.get().gameplay.lampFalloff, flags.photoLamps);
   const c = new CoopController(app, api, session);
   current = c;
   (window as unknown as { __coop?: CoopController }).__coop = c;

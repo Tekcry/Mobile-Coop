@@ -44,6 +44,7 @@ import { hyp2 } from '../../../core/mathx';
 import type { CourseObjective, EgressGate, FlagGate, PickupGate } from '../../../game/course/courseDef';
 import type { FacilityKit } from '../../kit/facilityKit';
 import type { LevelBuilder } from '../../levelBuilder';
+import { makeCone } from '../../lights';
 import { MARLOW_LEVEL } from '../../lighting/levels';
 import { marlowCourseGroups } from '../../lighting/marlowCircuits';
 import { FacilityProps, PROP_LAMP_TINT } from '../../props/facilityProps';
@@ -300,16 +301,17 @@ export function buildA6PumpHouse(b: LevelBuilder, kit: FacilityKit): SetPart {
 
   // ---- A6-10: the lights (LIGHTING-PLAN 3, A6; the circuits are `MARLOW_CIRCUITS` 60-63, 69 dead) ----
   tally(b, p.register, 'A6-10', 'Lights: pump floor high-bays 60 (the east third), gallery strip 61 (bulkheads over the bridge junction and the stair), desk lamp 62, cage work light 63 (the drive panel\'s own circuit); the sump high-bay and the west gallery fittings (69) are tagged out: no lamp, the dark sump bay', () => {
-    for (const [x, z] of [[61.0, 57.5], [61.0, 63.0], [61.0, 68.5]] as const) {
-      b.light({ x, y: 8.4, z, radius: 11, intensity: 1.1, color: WHITE, group: 60, electric: true, destructible: true, fixture: { sx: 0.6, sy: 0.3, sz: 0.6, oy: 0.15 } });
+    // one high-bay optic for the row (LR16-M): brighter over pumps 1-2 (the gauge board, the outfall approach), lower over the desk
+    for (const [x, z, intensity] of [[61.0, 57.5, 2.8], [61.0, 63.0, 2.9], [61.0, 68.5, 1.2]] as const) {
+      b.light({ kind: 'spot', x, y: 8.4, z, radius: 11, intensity, color: WHITE, cone: makeCone(0, -1, 0, 0.9), group: 60, electric: true, destructible: true, fixture: { sx: 0.6, sy: 0.3, sz: 0.6, oy: 0.15 } });
     }
     // the gallery strip: a pendant over the bridge (the holder's spot reads lit; S6 deviation) and two bulkheads on the north wall
-    b.light({ x: A6_HANG.x, y: 7.0, z: 67.6, radius: 5, intensity: 0.9, color: WHITE, group: 61, electric: true, destructible: true, fixture: { sx: 0.3, sy: 0.2, sz: 0.3, oy: 0.1 } });
+    b.light({ x: A6_HANG.x, y: 7.0, z: 67.6, radius: 5, intensity: 0.28, color: WHITE, group: 61, electric: true, destructible: true, fixture: { sx: 0.3, sy: 0.2, sz: 0.3, oy: 0.1 } });
     for (const x of [53.5, 59.5]) {
-      b.light({ x, y: 6.6, z: A6_SHELL.north - 0.35, radius: 6.5, intensity: 0.9, color: WHITE, group: 61, electric: true, destructible: true, fixture: { sx: 0.3, sy: 0.2, sz: 0.15, oy: 0 } });
+      b.light({ x, y: 6.6, z: A6_SHELL.north - 0.35, radius: 6.5, intensity: 0.7, color: WHITE, group: 61, electric: true, destructible: true, fixture: { sx: 0.3, sy: 0.2, sz: 0.15, oy: 0 } });
     }
-    b.light({ x: 61.5, y: 1.0, z: 66.0, radius: 2, intensity: 0.6, color: WARM, group: 62, electric: true, destructible: true, fixture: { sx: 0.2, sy: 0.15, sz: 0.2, oy: 0.07 } });
-    b.light({ x: A6_HANG.x, y: 3.4, z: 62.9, radius: 3.0, intensity: 1.3, color: WHITE, group: 63, electric: true, destructible: true, fixture: { sx: 0.4, sy: 0.1, sz: 0.15, oy: 0.05 } });
+    b.light({ x: 61.5, y: 1.0, z: 66.0, radius: 2, intensity: 0.7, color: WARM, group: 62, electric: true, destructible: true, fixture: { sx: 0.2, sy: 0.15, sz: 0.2, oy: 0.07 } });
+    b.light({ x: A6_HANG.x, y: 3.4, z: 62.9, radius: 3.0, intensity: 0.21, color: WHITE, group: 63, electric: true, destructible: true, fixture: { sx: 0.4, sy: 0.1, sz: 0.15, oy: 0.05 } });
   });
   for (const [k, g] of Object.entries(marlowCourseGroups())) if (k.startsWith('a6-')) p.groups[k] = g;
   // wall switches: the floor's by the outfall door, the gallery's at the stair head on the gallery (A6-C6), the desk lamp's on the desk

@@ -58,9 +58,16 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   beside the host if that airlock is shut off), with A1-A2 done, the A3 doors as the host has them and the HUD on A3,
   never at the yard start. Same in Sector Ops in section 2 or 3.
 - [ ] (pose-parity) Co-op, two pages: a partner aiming from the left shoulder while holding a hostage or on a rope shows the gun in the left hand; a partner's choke shows no elbow wind-up.
-- [ ] Lamp falloff (LR13, test): Settings > Gameplay > Lamp falloff > Realistic (test), then start Sector Ops: the S1
-  goods-in floor between the strips reads lit (meter and picture agree), Marlow station 2 still reads; back to Classic
-  for the old look. In co-op the host's choice applies to both (the joiner's row shows it locked).
+- [ ] Lamp light (LR16a: one photometric model, no Lamp falloff row in Settings > Gameplay): start Sector Ops: the S1
+  goods-in floor between the strips reads lit (meter and picture agree), Marlow station 2 still reads; a guard's torch
+  beam has a soft edge, and the meter fades with it at the beam's edge (LR16 fix).
+- [ ] Failing tube (LR16-5): stand under the stutter tube (Warehouse Ops: the trade offices corridor panel, west half;
+  campusOps: HQ L1 breakout kitchen; Marlow Yard: the A7 south rack strip): every few seconds it chatters or drops
+  out, the floor, the fitting and the light meter go with it; shoot it and it stays dark.
+- [ ] Swinging pendants (LR16-5b, Marlow Yard only): fire past a hung fitting (the A4 aisle-2 strips), or throw a
+  grenade near it: the fitting and its two rods swing as one, up to a hand's width, and settle in about 15 s; the pool
+  of light, a guard's shadow and the light meter sway with it. Shoot one out: it swings dark. Co-op: both players see
+  the same swing (no lag beyond the kick).
 - [ ] Co-op: Host a room starts on Campaign (Marlow Yard); the Mode row offers Campaign and Sector Ops only.
 - [ ] Co-op guard torches (coop-torches): on a dark map, when a guard searching in the dark switches his flashlight on,
   the joiner sees the same beam from his head, aimed where he faces, and it goes off when the host's does; standing in

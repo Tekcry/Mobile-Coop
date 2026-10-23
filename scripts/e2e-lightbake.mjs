@@ -79,7 +79,8 @@ await Promise.all(CONFIGS.map(async ([name, q], k) => {
       info.lampLevel = lvl;
       // (LR14) character silhouette shadows: on at Epic (4 lamp slots, one atlas), the level shader compiles
       // LAMP_CSHADOW, the slots near the player copy maps into the atlas, and every drawn shader still fits WebGL's 16
-      // textures with the guards alerted (their flashlights take the rig's shadow pool)
+      // textures with the guards alerted (LR16t: their flashlights are drawn by the baked lamps and shadowed through the
+      // torch atlas, one sampler; the rig's shadow pool stays empty while the atlas is on)
       info.cs = await page.evaluate(async () => {
         const g = window.__app.current;
         const cs = g.world.charShadows;

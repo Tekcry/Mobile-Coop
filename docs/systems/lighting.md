@@ -27,32 +27,31 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   (`voxel/skyBake.ts` `bakeMoon`, 0.5 m cells) and the 1 m ambient grid (`world/ambientGrid.ts`), all from the canonical
   shapes (`voxel/lightShapes.ts`: visible blockout pieces >= 5 cm plus the Medium dressing). Keys hold only the map, seed,
   shapes, lights and the moon's direction.
-- `world/lampMath.ts` (pure): the one formula - linear range falloff x cosine cone (lamps without a cone: the hemisphere
-  below them, exponent 1; spots: squared, cut at the outer angle). `bakedLamps.ts` builds its GLSL from `LAMP_MATH_GLSL` and
-  the same constants (`LAMP_CONE_COS`, `LAMP_EXP`, `SPOT_EXP`; `LIGHT_GAIN` 1.6 is rendering only, `LAMP_LEVEL_GAIN` 1.2
-  gameplay only). `moonLight(theme)`: the moon's gameplay share of `lightLevel`.
-- Lamp falloff (lightrev LR13, prototype, default off): Settings > Gameplay > "Lamp falloff" (`gameplay.lampFalloff`: Classic
-  `linear`, the default / Realistic (test) `photometric`; `?falloff=photo` a dev override, `flags.photoLamps`). In
-  photometric the baked lamps fall off with the inverse square from 3 m (`PHOTO`), windowed to 0 at 1.6 x the radius
-  (`LightRegistry.add` scales fixed lamps' radius once; flashlights unchanged). A light-model rule, not a graphics
-  setting (no preset, governor or quality reads or writes it): `GameState.create` sets the mode once per map load
-  (`lampMath.matchLampFalloff`: the co-op host's `start.lf`, else the URL, else the setting; `GameState.lampFalloff`),
-  before the level adds its lights, so the registry, the bake, the field (meter and guards) and the shaders
-  (`lampMathGlsl()`; the `LAMP_PHOTO` define keeps the two modes' compiled effects apart) all read one mode; never
-  mid-match. Co-op: protocol 38 `start.lf`; in a match the row is locked to the match's mode (host and client); "Resume hosting" runs the dropped match's mode (`RejoinRecord.lf`). `?gfx=min` keeps Babylon's linear real
-  lights for the picture (the field is photometric). Not adopted: `docs/lighting-review/PROPOSAL.md` section 7 (LR13),
+- One light model (LR16; no falloff setting). The parts, one line each:
+  - photometric falloff with a smooth near term and a feathered cone: `world/lampMath.ts` (LR16b)
+  - contact-hardening penumbra in the bake: `voxel/lampBake.ts` (LR16e)
+  - one-bounce fill in the ambient grid's G channel: `voxel/lampBounce.ts`, `world/bounceGrid.ts` (LR16-1)
+  - torch shadow atlas: `world/torchShadows.ts`, `world/torchShadowSet.ts` (LR16t)
+  - character shadows on every tier: `world/charShadows.ts`, `world/charShadowSet.ts` (LR16-7 / LR16f / LR16-3)
+- `world/lampMath.ts` (pure): one light model (LR16a, Michael 2026-10-23 ~18:12 "Disable returning to original lighting
+  system, focus on only the one new system"). Baked lamps: the photometric falloff `photoFalloff` (inverse square from
+  3 m, `PHOTO`, windowed to 0 at the reach = radius x 1.6; `LightRegistry.add` scales fixed lamps' radius once,
+  flashlights unchanged) x the cosine cone (lamps without a cone: the hemisphere below them, exponent 1; spots: squared,
+  cut at the outer angle). Flashlights: the linear `lampTerm`. `bakedLamps.ts` builds its GLSL from `LAMP_MATH_GLSL`
+  and the same constants (`LAMP_CONE_COS`, `LAMP_EXP`, `SPOT_EXP`; `LIGHT_GAIN` 1.6 is rendering only,
+  `LAMP_LEVEL_GAIN` 1.2 gameplay only). `moonLight(theme)`: the moon's gameplay share of `lightLevel`. `?gfx=min` keeps Babylon's linear
+  real lights for the picture (the field is photometric). History: `docs/lighting-review/PROPOSAL.md` section 7 (LR13),
   numbers in `docs/sector-redesign/checks/light-measure.md`; tests `tests/lampFalloff.test.ts`.
-- (shadow audit, PROTOTYPE, rides the LR13 toggle) `world/shadowAccuracy.ts`: on exactly when the match runs Realistic
-  (`GameState.create` calls `setShadowAccuracy(matchShadowAccuracy(mode))` with the resolved mode, next to `setLampFalloff`:
-  the host's `start.lf` in co-op, `?falloff=photo`, the setting; never mid-match; read once per field / rig / bake / guards).
-  The field reads the ambient fill trilinearly as the shaders do; each lamp's door list skips doorways the lamp cannot see
-  (`doorSeen`, `bakeVisSampler`; field and shaders build the one list); the light rig sets the game's PBR materials (figures,
-  weapons) to the standard falloff so flashlights light them as they light the level (`gameLightFalloff`) and gives shadow
-  maps to cut beams first (`torchShadowPass`); guards' body-light samples test flashlights against static geometry
-  (`rayOccluder`). Findings: `docs/sector-redesign/checks/light-measure.md` (shadow audit); test `tests/shadowAccuracy.test.ts`.
-  LR15 (same toggle): 8 door slots per lamp (doors 5-8 in one extra texel per lamp, field and shaders share the list;
-  `LAMP_DOORS8`) and torches without a shadow map drawn in `LampPlugin` with the field's `lampTerm` x a cut at the beam's
-  reach (`LAMP_TORCH`, `lampTorch` UBO); non-PBR lit materials (fences, ropes, decals) then get no unshadowed torch light.
+- (shadow audit; always on since LR16a) `world/shadowAccuracy.ts`: the field reads the ambient fill trilinearly as the
+  shaders do; each lamp's door list skips doorways the lamp cannot see (`doorSeen`, `bakeVisSampler`; field and shaders
+  build the one list); the light rig sets the game's PBR materials (figures, weapons) to the standard falloff so
+  flashlights light them as they light the level (`gameLightFalloff`) and gives shadow maps to cut beams first
+  (`torchShadowPass`); guards' body-light samples test flashlights against static geometry (`rayOccluder`). Findings:
+  `docs/sector-redesign/checks/light-measure.md` (shadow audit); test `tests/shadowAccuracy.test.ts`.
+  LR15: 8 door slots per lamp (`DOORS_PER_LAMP_ACCURATE`: doors 5-8 in one extra texel per lamp, field and shaders share
+  the list; `LAMP_DOORS8`) and torches without a shadow map drawn in `LampPlugin` with the field's `lampTerm` x a cut at
+  the beam's reach (`LAMP_TORCH`, `lampTorch` UBO); non-PBR lit materials (fences, ropes, decals) then get no unshadowed
+  torch light.
   Build and check: `docs/sector-redesign/checks/lr15-build.md`, `lr15-check.md`.
 - `world/lightField.ts` (pure) `LightField` (`World.lightField`): `levelAt` = ambient grid + moon x moon visibility + the
   lamps listed for the 2 m column x `LAMP_LEVEL_GAIN` x intensity x formula x trilinear baked visibility, closed doors
@@ -124,7 +123,10 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
 ## Baked lamps (3.2)
 - `voxel/lampBake.ts` (pure, in the bake workers): per fixed light (`bakedLights(reg)`: every kind but flashlight) a box
   over its reach of `LAMP_CELL` 0.2 m cells: the share of the fixture's sample points each air cell sees through
-  conservative occupancy; solid cells take their brightest air neighbour. `packLampAtlas` / `fillLampAtlas`, `lampGrid` (2 m
+  conservative occupancy; solid cells take their brightest air neighbour. (LR16-L) The box's cell planes run through the
+  light point (`lampBox`), so a lamp hung up to a cell under its mount sits under the mount's solid row and never shadows
+  itself from it (walk 4.82 item 8: the toothed dark band on upper walls); `tests/lampBoxAlign.test.ts` audits every map
+  for lamps inside their mount (known data errors listed there). `packLampAtlas` / `fillLampAtlas`, `lampGrid` (2 m
   columns, <= 8 lights each, nearest first; a cone light only in the columns its beam reaches, `lampPlanReach` /
   `lampColumnDist`: radius x sin(its widest angle from straight down) and the cone's plan box, lossless since the
   formula is 0 outside the outer angle; sector-fixes L). `voxel/lampJobs.ts` `bakeLevelLamps` splits the lights across the `WorkerPool`
@@ -137,6 +139,37 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   1 with micro detail): the flashlights. GLSL names must not clash with Babylon's macros (`E` is one).
 - A material made after load gets the lamp plugin on the next frame (`BakedLamps.frame` re-scans when the material count
   changes).
+
+## Moving lights: flicker and stutter (LR16-5, Michael M13)
+- `world/lampFlicker.ts` (pure): a fire's multiplier (value noise 0.75..1, a few Hz) and a failing tube's stutter
+  (mostly on; a burst every ~8 s: chatter off / dim / on, or a drop-out with starter blinks), each a function of the
+  lamp's seed (map id + match seed + registry id) and the sim time only. `STUTTER_TUBES`: one tube per main map,
+  matched by position at `World.create` (`applyMapFlicker`); every `kind: 'fire'` light enrols itself.
+- `LightRegistry.tickFlicker(t)` (once per fixed step in `GameState.updateLight`, before the meter samples; `t` the
+  shared clock `NetAttachment.simTime`, snapped to the 60 Hz step) writes `LightDef.flicker` and bumps `flickerVersion`,
+  never `version` (the caches, the bounce and the lamp sync do not re-run per frame). No wire traffic.
+- Every reader multiplies by `flicker`: `contribution`, the light field (baked and unbaked), the baked lamps' colour
+  texel (`writeFlicker`: the flickering lamps only, no new sampler), the pooled lights, the fitting glow, the haze.
+  Off / shot / jammed stays off: the multiplier never touches `on` / `destroyed`.
+
+## Moving lights: swinging pendants (LR16-5b, Michael M14; Marlow Yard only)
+- `world/lampSway.ts` (pure): a hung fitting on two parallel hangers (bifilar: it translates and stays level, the cone
+  never tilts) swings as a damped pendulum, `w = sqrt(g / L)` from its claimed hangers' mean length, `tau` 5 s. Its offset
+  is a pure function of its kicks (t, amplitude, heading; 4 a pendant in a ring) and the sim time; a kick is capped so
+  the envelope never passes `SWAY.maxAmp` 0.25 m (the visibility stays the rest-pose bake: the audit accepts < 0.3 m).
+- Kicks (solo and host, `GameState`): a round within 0.6 m of the fitting (or landing within 1.5 m), a blast within
+  6 m, a head within 0.35 m of the fitting box; 0.2 s apart per pendant. Co-op: the host sends each accepted kick (the
+  `sway` event, protocol 39) and the client applies it verbatim; a client's own round asks the host (`shot` at
+  `sw-<id>`, re-checked there). No per-frame wire.
+- `SWAY_PENDANTS` (by map id and light position, matched at `World.create` by `applyMapSway`, before the build): every
+  entry that matches a fixture box with 2+ thin vertical hangers above it; the hangers are hidden from the level
+  (`visible = false`, already out of the light bake) and drawn by the light rig with the swing.
+- `LightRegistry.tickSway(t)` (every fixed step, beside `tickFlicker`) writes `LightDef.swx / swy / swz` and bumps
+  `swayVersion`, never `version`. Readers at rest + offset: `contribution` / `lightTerm`, the light field's baked lamp
+  (`lampInto`), the baked lamps' t0 texel and `spheres` (`writeSway`, folded into the frame's one data upload; the
+  capsules, the doors' test and the character shadow follow t0), the rig's fitting and hangers, the pooled light, the
+  haze. At rest: the lamp's visibility (read at the receiver) and the shot test (`lightOnRay`).
+- The character-shadow picker holds a swinging lamp's slot and re-renders its map every frame (`moving`).
 
 ## Character silhouette shadows (LR14, sector-redesign charshadow)
 Rendering only (plan and budget: `docs/lighting-review/LR14-PLAN.md`; build report:

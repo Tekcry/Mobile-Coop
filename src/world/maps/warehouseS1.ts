@@ -56,39 +56,50 @@ const WALL_S = makeCone(0, -0.819, -0.574, 0.96);
  * roof or on a climbing pipe, LED fittings; the levels of warehouse-s23 M1 kept: `tests/warehouseS1Light.test.ts`). The
  * hall (the goods-in bay, the lobby-block roof, the plant deck and the workshop share the 5.8 roof): LED strips 0.22 under
  * it in grids over the bays (the bay and workshop with a 45 degree beam); the rooms: LED panels flush under their
- * ceilings; the facade: two floods at 5.0 over the shutters and door bulkheads at 3.0 (the drainpipe's 1.0 m east of the
- * pipe), on 0.3 m brackets with a forward-down beam; the crane walkway: bulkheads at 5.0 on the wall over it; no lamp on
+ * ceilings; the facade: two floods at 5.0 over the shutters and door bulkheads at 3.3 (the drainpipe's 1.0 m east of the
+ * pipe), on 0.3 m brackets with a forward-down beam; the crane walkway: bulkheads at 5.5 on the wall over it; no lamp on
  * the roof (it reads by the moon). Radius and intensity per fitting are tuned against the light tests' bands (sector-fixes
- * L); dead fittings (intensity 0) keep the grids regular over the dark pockets. [x, z, radius, intensity].
+ * L); dead fittings (intensity 0) keep the grids regular over the dark pockets. (LR16-W) The night state: every fitting on
+ * its LED night level (the photometric near field reads 3-7x a level 3 m away), routes in the pools' rim (0.4 - 0.55), work
+ * areas in their own pool, pockets dark (`docs/sector-redesign/checks/lr16w-s1-build.md`). [x, z, radius, intensity].
  */
 export const S1_LAMPS: readonly LampRoom[] = [
-  // the facade (z -18, south face -18.15): the floods over shutters W and E (5.0), the drainpipe, entrance and workshop door lamps (3.0)
-  { id: 'facade', model: 'bulkhead', y: 5.0, group: 20, yaw: PI, cone: FLOOD, colour: [0.85, 0.9, 1], pass: true, lamps: [[-19, -18.45, 5.09, 0.418]] },
+  // the facade (z -18, south face -18.15): the floods over shutters W and E (5.0), the drainpipe, entrance and workshop door lamps (3.3; LR16-W: 0.3 m up, a flatter pool over the doors)
+  { id: 'facade', model: 'bulkhead', y: 5.0, group: 20, yaw: PI, cone: FLOOD, colour: [0.85, 0.9, 1], pass: true, lamps: [[-19, -18.45, 3.05, 0.3]] },
   { id: 'facade', model: 'bulkhead', y: 5.0, group: 20, yaw: PI, cone: FLOOD, colour: [0.85, 0.9, 1], pass: false, lamps: [[-11, -18.45, 7.5, 0]] },
-  { id: 'facadeDoor', model: 'bulkhead', y: 3.0, group: 20, yaw: PI, cone: WALL_S, pass: true, lamps: [[-21.4, -18.45, 2.27, 1.315]] },
-  { id: 'facadeDoor', model: 'bulkhead', y: 3.0, group: 20, yaw: PI, cone: WALL_S, pass: false, lamps: [[-5, -18.45, 5.59, 0.261], [11, -18.45, 5.97, 0.197]] },
+  { id: 'facadeDoor', model: 'bulkhead', y: 3.3, group: 20, yaw: PI, cone: WALL_S, pass: true, lamps: [[-21.4, -18.45, 1.8, 0.281]] },
+  { id: 'facadeDoor', model: 'bulkhead', y: 3.3, group: 20, yaw: PI, cone: WALL_S, pass: false, lamps: [[-5, -18.45, 5.59, 0.103], [11, -18.45, 5.97, 0.065]] },
   // the gatehouse door lamp (its north wall, z -22.6)
-  { id: 'gatehouse', model: 'bulkhead', y: 2.3, group: 20, yaw: 0, pass: false, lamps: [[11.25, -22.3, 5.76, 0.242]] },
-  // the hall: the goods-in bay (circuit 30), the lobby-block roof (31), the plant deck (34), the workshop (36)
-  { id: 'bay', model: 'strip', y: 5.58, group: 30, yaw: 0, cone: HALL, pass: true, lamps: [[-22, -15.4, 7.02, 0.7], [-18, -15.4, 6.78, 0.7], [-14, -15.4, 5.51, 0.852], [-10, -15.4, 5.05, 1.022], [-22, -11.6, 5.4, 0.7], [-18, -11.6, 4.8, 0.7], [-14, -11.6, 5.55, 1.345], [-10, -11.6, 8.8, 0.579]] },
-  { id: 'lobbyRoof', model: 'strip', y: 5.58, group: 31, yaw: 0, pass: true, lamps: [[-22, -7.4, 6.09, 0.567], [-17, -7.4, 6.49, 0.608], [-12, -7.4, 1.5, 0.4], [-7, -7.4, 3.5, 0]] },
-  { id: 'plantDeck', model: 'strip', y: 5.58, group: 34, yaw: 0, pass: true, lamps: [[-5, -14.6, 3.5, 0], [-1, -14.6, 3.5, 0], [3, -14.6, 5.19, 0.976], [7, -14.6, 1.5, 0.726]] },
-  // the crane walkway (y 3 along the z -8.8 wall's south face): LED bulkheads at 5.0 on brackets, one every 7 m
-  { id: 'walkway', model: 'bulkhead', y: 5.0, group: 36, yaw: PI, cone: WALL_S, pass: true, lamps: [[8.6, -9.25, 2.12, 0.365], [15.6, -9.25, 2.31, 0.303], [22.6, -9.25, 2.5, 0.349]] },
-  { id: 'workshop', model: 'strip', y: 5.58, group: 36, yaw: 0, cone: HALL, pass: true, lamps: [[10.7, -15.8, 5.51, 0.967], [16, -15.8, 6.7, 0.921], [21.3, -15.8, 7.5, 0.921], [10.7, -11.8, 5.43, 0.921], [16, -11.8, 6.83, 1.376], [21.3, -11.8, 6.3, 1.182]] },
-  // the lobby block (ceiling 3.0): the goods-in office, the fire lobby C2; the charging bay's sign on the z -6 wall
+  { id: 'gatehouse', model: 'bulkhead', y: 2.3, group: 20, yaw: 0, pass: false, lamps: [[11.25, -22.3, 5.76, 0.225]] },
+  // the hall: the goods-in bay (circuit 30), the lobby-block roof (31), the plant deck (34), the workshop (36); (LR16-W) the bay's
+  // north row 0.6 m north (z -11.0, over the lane ends), the checker's desk strip (-22, -15.4) kept at full level (the bay's pool),
+  // the workshop's middle column 0.6 m east (x 16.6, clear of the crane girder)
+  { id: 'bay', model: 'strip', y: 5.58, group: 30, yaw: 0, cone: HALL, pass: true, lamps: [[-22, -15.4, 7.02, 0.7], [-18, -15.4, 6.78, 0.456], [-14, -15.4, 5.51, 0.428], [-10, -15.4, 5.05, 0.467], [-22, -11, 5.4, 0.608], [-18, -11, 4.8, 0.386], [-14, -11, 5.55, 0.572], [-10, -11, 8.8, 0.452]] },
+  // (LR16-W) the lobby-block roof row 0.8 m north (z -6.6, by the z -6 wall): the roof walk (z -7.4 to -8.4) in its rim
+  { id: 'lobbyRoof', model: 'strip', y: 5.58, group: 31, yaw: 0, pass: true, lamps: [[-22, -6.6, 6.09, 0.314], [-17, -6.6, 6.49, 0.305], [-12, -6.6, 1.5, 0.211], [-7, -6.6, 3.5, 0]] },
+  // (LR16-W) the deck row over the plant side (z -16.9): the walk line (z -14.6 / -14.9) in its pool's rim
+  { id: 'plantDeck', model: 'strip', y: 5.58, group: 34, yaw: 0, pass: true, lamps: [[-5, -16.9, 3.5, 0], [-1, -16.9, 3.5, 0], [4.2, -16.9, 5.19, 0.237], [7, -16.9, 3, 0.327]] },
+  // the crane walkway (y 3 along the z -8.8 wall's south face): LED bulkheads at 5.5 on brackets, one every 7 m
+  { id: 'walkway', model: 'bulkhead', y: 5.5, group: 36, yaw: PI, cone: WALL_S, pass: true, lamps: [[8.6, -9.25, 2.12, 0.063], [15.6, -9.25, 2.31, 0.052], [22.6, -9.25, 2.5, 0.06]] },
+  { id: 'workshop', model: 'strip', y: 5.58, group: 36, yaw: 0, cone: HALL, pass: true, lamps: [[10.7, -15.8, 5.51, 0.482], [16.6, -15.8, 6.7, 0.639], [21.3, -15.8, 7.5, 0.632], [10.7, -11.8, 5.43, 0.686], [16.6, -11.8, 6.83, 0.613], [21.3, -11.8, 6.3, 0.792]] },
+  // the lobby block (ceiling 3.0): the goods-in office, the fire lobby C2; the charging bay's sign on the z -6 wall (LR16dx: x -8,
+  // between the parked forklift and the charger: at x -10.2 it hung 0.16 m off the forklift's back)
   { id: 'goodsInOffice', model: 'panel', y: 2.95, group: 31, yaw: 0, pass: false, lamps: [[-20.25, -7.4, 4, 0]] },
-  { id: 'lobby', model: 'panel', y: 2.95, group: 31, yaw: 0, pass: true, lamps: [[-15.5, -7.4, 4, 0], [-13.5, -7.4, 5.65, 0.626]] },
-  { id: 'charging', model: 'bulkhead', y: 2.4, group: 31, yaw: PI, colour: EXIT_GREEN, pass: false, lamps: [[-10.2, -6.24, 0.6, 0.15]] },
+  // (LR16-W) the fire lobby: two panels along its east side, one by each door, off the door axis (a flat pool over the route)
+  { id: 'lobby', model: 'panel', y: 2.95, group: 31, yaw: 0, pass: true, lamps: [[-13.1, -8, 6, 0.087], [-13.1, -7, 6, 0.11]] },
+  { id: 'charging', model: 'bulkhead', y: 2.4, group: 31, yaw: PI, colour: EXIT_GREEN, pass: false, lamps: [[-8, -6.24, 0.6, 0.15]] },
   // the office block: the south rooms (ceiling 3.0 under the plant deck), the corridor and the mess (2.8 under the void), the void (4.6)
-  { id: 'reception', model: 'panel', y: 2.95, group: 33, yaw: 0, pass: true, lamps: [[-6.5, -15.9, 6.93, 0.496]] },
-  { id: 'reception', model: 'panel', y: 2.95, group: 33, yaw: 0, pass: false, lamps: [[-3.5, -15.9, 4.5, 0]] },
-  { id: 'security', model: 'panel', y: 2.95, group: 34, yaw: 0, pass: false, lamps: [[4.3, -15.9, 4.42, 0.706], [6.7, -15.9, 2.18, 0.45]] },
-  { id: 'corridor', model: 'panel', y: 2.75, group: 32, yaw: 0, pass: true, lamps: [[-6.8, -12.3, 3.46, 0.321], [-3.4, -12.3, 5.82, 0.411], [0, -12.3, 2.84, 0.314], [3.4, -12.3, 3.4, 0.664], [6.8, -12.3, 4, 0]] },
-  { id: 'mess', model: 'panel', y: 2.75, group: 35, yaw: 0, pass: false, lamps: [[4.5, -9.8, 4.14, 0.861]] },
-  { id: 'void', model: 'panel', y: 4.55, group: 32, yaw: 0, pass: true, lamps: [[-5.3, -12.3, 2.53, 0.513], [-1.1, -12.3, 2.8, 0], [3.1, -12.3, 2.8, 0], [7.3, -12.3, 2.8, 0], [-5.3, -10, 2.8, 0], [-1.1, -10, 2.8, 0], [3.1, -10, 2.89, 0.623], [7.3, -10, 2, 0.732]] },
-  // the workshop door's exit sign (the facade's inside face)
-  { id: 'workshop', model: 'bulkhead', y: 2.4, group: 36, yaw: 0, colour: EXIT_GREEN, pass: false, lamps: [[11, -17.76, 3.14, 0.06]] },
+  // (LR16-W) the reception row over the counter's back edge (z -15.1), both panels on their night level
+  { id: 'reception', model: 'panel', y: 2.95, group: 33, yaw: 0, pass: true, lamps: [[-6.5, -15.1, 5, 0.114]] },
+  { id: 'reception', model: 'panel', y: 2.95, group: 33, yaw: 0, pass: true, lamps: [[-3.5, -15.1, 5, 0.113]] },
+  { id: 'security', model: 'panel', y: 2.95, group: 34, yaw: 0, pass: false, lamps: [[4.3, -15.9, 4.42, 0.138], [6.7, -15.9, 2.18, 0.037]] },
+  { id: 'corridor', model: 'panel', y: 2.75, group: 32, yaw: 0, pass: true, lamps: [[-6.8, -12.3, 3.46, 0.064], [-3.4, -12.3, 5.82, 0.091], [0, -12.3, 2.84, 0.041], [3.4, -12.3, 2.45, 0.163], [6.8, -12.3, 4, 0]] },
+  // (LR16-W) the mess panel over the kitchenette end (x 6.0): the kettle end (x 2.6, under hatch h2) in its rim
+  { id: 'mess', model: 'panel', y: 2.75, group: 35, yaw: 0, pass: false, lamps: [[6, -9.8, 4.14, 0.773]] },
+  // (LR16-W) the void: the north row 1.0 m south (z -11.0) and the east column on x 7.3, three panels lit 1.1 - 1.7 m off the openings
+  { id: 'void', model: 'panel', y: 4.55, group: 32, yaw: 0, pass: true, lamps: [[-5.3, -12.3, 2.53, 0], [-1.1, -12.3, 2.8, 0], [3.1, -12.3, 2.8, 0], [7.3, -12.3, 2.8, 0], [-5.3, -11, 2.8, 0.222], [-1.1, -11, 2.8, 0], [3.1, -11, 2.8, 0.175], [7.3, -11, 2.8, 0.257]] },
+  // the workshop door's exit sign (the facade's inside face; LR16-W: a local glow, radius 0.6 as S2's signs)
+  { id: 'workshop', model: 'bulkhead', y: 2.4, group: 36, yaw: 0, colour: EXIT_GREEN, pass: false, lamps: [[11, -17.76, 0.6, 0.06]] },
 ];
 
 /** The section's lamp pass (the light test switches these off to compare): the pass rooms' lit lamps. */
@@ -258,7 +269,10 @@ export function buildServiceS1(b: LevelBuilder): void {
   lintel(b, 8, 2.45, -12.3, T, 0.7, 1.2);
   lintel(b, MESS_DOOR.x, 2.45, MESS_DOOR.hinge + MESS_DOOR.w / 2, T, 0.7, MESS_DOOR.w); // (R1) the mess back door's head
   b.box(-8, 3.8, -11.3, T, 2.0, 5.0, WALL); // void west wall
-  b.box(8, 3.8, -11.975, T, 2.0, 3.65, WALL); // void east wall with the catwalk opening z -10.15 to -8.95 (y 3.0 - 4.6)
+  // void east wall with the catwalk opening z -10.0 to -8.95 (y 3.0 - 4.6); (lr16fix2) its south jamb 0.15 m in from the
+  // catwalk's south edge: the corner where the deck edge met the wall end let a floor eye (x 21.6 - 23.6, z -13.2 - -13.6)
+  // see panel-workshop over the sill (tests/laserPanels.test.ts "hidden from the floor")
+  b.box(8, 3.8, -11.9, T, 2.0, 3.8, WALL);
   // (the openings' sills and caps are not ledges: the catwalk walks straight in)
   noLedgeBox(b, 8, 2.9, -9.55, T, 0.2, 1.2);
   noLedgeBox(b, 8, 4.7, -9.55, T, 0.2, 1.2);

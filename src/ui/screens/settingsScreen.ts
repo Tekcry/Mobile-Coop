@@ -5,7 +5,6 @@ import { defaultSettings, setAuto, setGfx, setPreset, type Settings } from '../.
 import { FPS_CAPS, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode,type ShadowQuality, type TierQuality } from '../../core/quality';
 import { BENCH } from '../../game/benchmark';
 import type { CurveKind } from '../../input/stickMath';
-import type { LampFalloff } from '../../world/lampMath';
 import type { CharShadowMode } from '../../world/charShadowSet';
 import { h } from '../dom';
 import { MenuScreen, type LegendItem } from '../menuScreen';
@@ -20,12 +19,6 @@ const CURVE_OPTS: { value: CurveKind; label: string }[] = [
   { value: 'classic', label: 'Classic' },
   { value: 'precise', label: 'Precise' },
   { value: 'aggressive', label: 'Aggressive' },
-];
-/** (lightrev LR13) Gameplay > Lamp falloff. */
-export const LAMP_FALLOFF_LABEL: Record<LampFalloff, string> = { linear: 'Classic', photometric: 'Realistic (test)' };
-const LAMP_FALLOFF_OPTS: { value: LampFalloff; label: string }[] = [
-  { value: 'linear', label: LAMP_FALLOFF_LABEL.linear },
-  { value: 'photometric', label: LAMP_FALLOFF_LABEL.photometric },
 ];
 /** (LR14) Graphics > Character shadows. */
 const CHAR_SHADOW_OPTS: { value: CharShadowMode; label: string }[] = [
@@ -163,8 +156,7 @@ export class SettingsScreen extends MenuScreen {
             desc(toggle('Course markers', () => s().gameplay.courseMarkers, (v) => upd((d) => void (d.gameplay.courseMarkers = v))), 'Shows the markers on training and test courses.'),
             desc(toggle('Last-guard slow motion', () => s().gameplay.slowBeat, (v) => upd((d) => void (d.gameplay.slowBeat = v))), 'A short slow-motion beat when the last guard in a room goes down.'),
             // (anim-fix-pass AF5, BRIEF A1) no "Mocap locomotion" row: mocap is the only player path (app.ts; `?mocap=0`
-            // or the tuner box turn it off for one page)
-            this.lampFalloffRow(),
+            // or the tuner box turn it off for one page); (LR16a) no Lamp falloff row: one photometric light model
           ),
       },
       {
@@ -220,7 +212,6 @@ export class SettingsScreen extends MenuScreen {
       fromDefaults((d, def) => {
         d.gameplay.courseMarkers = def.gameplay.courseMarkers;
         d.gameplay.slowBeat = def.gameplay.slowBeat;
-        d.gameplay.lampFalloff = def.gameplay.lampFalloff;
       }),
     );
     this.resets.set('video', () => st.reset('video'));
@@ -286,20 +277,6 @@ export class SettingsScreen extends MenuScreen {
     ];
     if (this.resets.has(this.tabs.activeId)) out.push({ act: 'x', label: 'Defaults' });
     return out;
-  }
-
-  /**
-   * (lightrev LR13, Michael 2026-10-23 ~14:35 "Try it first") Gameplay > Lamp falloff: a light-model rule (the meter, the
-   * guards and the picture together), read when a map loads. In a co-op match the host's applies to everyone: the row is
-   * locked there and shows the match's.
-   */
-  private lampFalloffRow(): HTMLElement {
-    const app = this.app;
-    const text =
-      'How lamp light fades with distance. Classic: the game as before. Realistic (test): lamps fall off with the inverse square like real fittings and reach further, so rooms fill with light; the light meter and the guards follow it too. Takes effect when a map loads (start or restart the mission). In co-op the host\'s choice applies to everyone. ?falloff=photo in the address forces Realistic for that page.';
-    const g = app.current as { net?: unknown; lampFalloff?: LampFalloff } | null;
-    if (g?.net && g.lampFalloff) return lockedRow('Lamp falloff', LAMP_FALLOFF_LABEL[g.lampFalloff], 'In co-op the host\'s lamp falloff applies to everyone.', text);
-    return desc(choice('Lamp falloff', LAMP_FALLOFF_OPTS, () => app.settings.get().gameplay.lampFalloff, (v) => app.settings.update((d) => void (d.gameplay.lampFalloff = v))), text);
   }
 
   /** Graphics: preset and every feature, display options (3.0: one renderer, PC presets). */
