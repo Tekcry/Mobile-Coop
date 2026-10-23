@@ -219,7 +219,15 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   when no cover is left; overwatch's low cover needs one view ray to the LKP (`TACTICS.viewChecks` 4, a blind one
   blocked `TACTICS.blockS` 5 s), suppresses the LKP while a mate moves; flank (groups of 3+) bounds to cover >= 60 deg
   off the point's bearing; the rest search (today's). One of point / flank moves at a time (standard). Out of sight in
-  the open a role guard waits for the group. A path failure blocks the cover. While a group has roles the single
+  the open a role guard waits for the group, crouched (guard-ai S27, A161: `Enemy.roleStep`'s open wait, at most
+  `SQUAD.openWait` 3 s, one think with no role cover at all), then takes today's cover pick (`pickCover`, reserved
+  through `reserveCover`); no cover anywhere: crouched where he is until `ALERT.lostSight`; the wait restarts when he
+  sees his target, is in or on his way to cover, or his role changes (`Infinity`: the S8 wait). The overwatch's
+  suppress (S27, A162: `suppressLkp`) aims at its own spot (`suppressAim`, the hunt's spot + 1.1 m; his `lastKnown` is
+  left alone) and, with `SQUAD.suppressView`, fires only along a clear static line from the muzzle (one `G.STATIC` ray
+  per 0.25 s, cached; counters `suppressRounds` / `suppressHeld`). The reporter (S27, A163) throws and flanks nothing
+  while his call is open (`inCover` runs the radio hold before `tactics`; in `attack` he fights with his rifle only).
+  A path failure blocks the cover. While a group has roles the single
   `flanker` is cleared; otherwise `assignFlanker` as before. Barks `moving` / `covering` / `flanking`.
 - Combat dice (S8, A24): `Enemy.rng` (mulberry32) reseeded `combatSeed(matchSeed, engagement, num)` on going to
   combat; `tacticsProfile` (`placeSlot`: `P_POST` with a post, `P_AGGRESSIVE` for an aggressive slot, else `P_STANDARD`;
@@ -372,8 +380,9 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   door: A116); Sector Ops' keypad, bolt, lockdown and pair-gate closures are unchanged.
 - Weapon carry (guard-ai S21, walk 4.72 G5, A120-A126; `ai/carryState.ts` pure: `calmArea`, `mayHolster`, `carrySlotOf`,
   `GuardCarry`, numbers `GUARD_CARRY`; render side `GuardGunCarry` in `ai/enemyRig.ts`): every guard stays armed. A calm
-  guard in a calm area (unaware, no caution, no board task, no alarm raised, not a high-security post, not a responder or
-  response team member; stealth rules) carries his gun holstered: the rifle slung across the back (`backC`), the pistol on
+  guard in a calm area (unaware, no caution, no board task, no alarm raised and (guard-ai S27, A164) no alarm stage
+  (`AiContext.alarmStage`, Sector Ops' panel, camera or laser stage; it carries over sections, A37), not a
+  high-security post, not a responder or response team member; stealth rules) carries his gun holstered: the rifle slung across the back (`backC`), the pistol on
   the right thigh. Anything above calm draws it (rifle 0.7 s, pistol 0.5 s; `Enemy.tryFire` waits for `carry.drawn`); he
   holsters again after `calmHold` 15 s calm. `Enemy.update` steps it after the awareness; `Enemy.frame` drives `RigPose`
   `ready` (holstered), `swap` / `swapFrom` / `swapTo` (the draw / holster clip, one slot) and `aim` (none while holstered);

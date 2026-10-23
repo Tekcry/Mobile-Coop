@@ -189,6 +189,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Guard tactics (guard-ai S8): get spotted by 4 guards and break line of sight: the caller drops back into cover,
   one moves up cover to cover ("Moving up!"), one covers from cover ("Covering!"), one goes round the side
   ("Flanking!"); never more than one of them moving up at once, nobody runs at you in the open.
+- [ ] Guard cover and fire (guard-ai S27, Sector Ops): break sight on a group of 3-4: nobody stands upright and still in
+  the open (they crouch, then take cover within ~3 s); the covering guard fires at your last spot only where he has a
+  clear line (no rounds into a wall); the caller throws no grenade while he is on the radio. Trip a camera or a laser:
+  every guard in the section draws his gun and none holsters while the alarm stage holds.
 - [ ] Helmets and armour (guard-ai S12; once a section has `gear`, or set one with `e.setGear` in the console): shoot a
   helmeted guard in the head: steel-blue hit marker and a ping, the helmet falls to the floor and stays, he reels and
   comes up shooting; a second head shot kills. An armoured guard shrugs off chest rounds (a short stagger, not every

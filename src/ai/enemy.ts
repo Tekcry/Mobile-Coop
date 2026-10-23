@@ -44,7 +44,7 @@ import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
 import { INCIDENT, MODE_BODY, MODE_BREAKER, MODE_COVER, MODE_DEVICE, MODE_HELP, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT } from './incidents';
 import { BREAKER_WALK } from './breaker';
 import { isConsoleGroup } from './consoleFault';
-import { P_AGGRESSIVE, P_STANDARD, profileOf, R_FLANK, R_NONE, R_OVERWATCH, R_POINT, R_REPORTER, R_SEARCH, ROLES, Rng, type BehaviourProfile as TacticsProfile, type Role } from './squadRoles';
+import { P_AGGRESSIVE, P_STANDARD, profileOf, R_FLANK, R_NONE, R_OVERWATCH, R_POINT, R_REPORTER, R_SEARCH, ROLES, Rng, SQUAD, type BehaviourProfile as TacticsProfile, type Role } from './squadRoles';
 import type { GuardInfo } from './guardInfo';
 import type { CallKind } from './radioNet';
 import { LC_DONE, LC_FACE, LightCheck, type LightCheckWalker } from './lightCheck';
@@ -166,6 +166,9 @@ export interface AiContext {
   /** Wake the knocked-out guard of body `b`; `by` woke him (guard-ai S4: both turn cautious, timed). */
   revive(b: Body, by: Enemy): void;
   alarmRaised(): boolean;
+  /** (guard-ai S27) The mode's alarm stage (the manager's `alarmStage`: Sector Ops' panel, camera or laser stage;
+   *  absent = 0). Only the carry rule reads it (`carryCalm`). */
+  alarmStage?(): number;
   raiseAlarm(e: Enemy, p: AlarmPanel): void;
   /** Stealth rules: enemies only know where the target is from what they see and hear (else they are
    *  sent at it, as in Wave). */
@@ -224,6 +227,8 @@ const ADVANCE_HOLD = 2.5;
  *  profile's (`profileOf(tacticsProfile).advanceHold`: aggressive 0.8 s, post 4 s), everyone else `ADVANCE_HOLD`
  *  (2.5 s, as before); an aggressive guard's last stretch is a jog (x run speed), not `ADVANCE_PACE`. */
 const AGGRESSIVE_JOG = 0.75;
+/** (guard-ai S27) The overwatch's suppress line (muzzle -> spot, static geometry) is cast at most this often (s). */
+const SUPPRESS_CHECK = 0.25;
 /** (guard-ai S6) A reinforcement gives up his entry route after this long (s; a blocked route). */
 const ENTRY_MAX = 30;
 /** Body sample heights for exposure (fractions of the target's height above the feet, then the head). */
@@ -1439,9 +1444,11 @@ export class Enemy implements Damageable {
   }
 
   /** (guard-ai S21, A120) In a calm area (`calmArea`): calm himself, no alarm, not a high-security post, not on a
-   *  response; stealth rules only (the parked modes keep low ready). */
+   *  response; stealth rules only (the parked modes keep low ready). (guard-ai S27, A164) Any alarm stage (Sector Ops:
+   *  a panel, a camera or a laser) is an alarm too: no guard of the live section holsters after it. */
   private carryCalm(): boolean {
-    return this.ctx.stealth() && calmArea(this.aware.level, this.caution, this.incident >= 0 || this.camBody !== null, this.ctx.alarmRaised(), this.secure, this.responder || this.crew !== null);
+    const alarm = this.ctx.alarmRaised() || (this.ctx.alarmStage?.() ?? 0) > 0;
+    return this.ctx.stealth() && calmArea(this.aware.level, this.caution, this.incident >= 0 || this.camBody !== null, alarm, this.secure, this.responder || this.crew !== null);
   }
 
   /** (guard-ai S10) Reacting to something that leaves his level as it is: a look toward a sound, a lure, a glimpse
@@ -2565,6 +2572,24 @@ export class Enemy implements Damageable {
   /** Point with no cover left to bound to: walking the last stretch to the last known position (out of the group;
    *  the manager clears it when he leaves combat). */
   closing = false;
+  /** (guard-ai S27, A161) Seconds waiting for the group out of sight in the open (`roleStep`; 0 when he sees his
+   *  target, is in or on his way to cover, or his role changes). */
+  private openT = 0;
+  /** (guard-ai S27) The open wait's cover pick found no cover: he waits crouched (the 12 s rule ends it) until he sees his target, gets
+   *  to cover or his role changes. */
+  private openNoCover = false;
+  /** (guard-ai S27, A162) The overwatch's suppress spot (his hunt's spot + 1.1 m; scratch, made once): never his own
+   *  `lastKnown`. */
+  private readonly suppressAim = new Vector3();
+  /** (guard-ai S27) A `suppressLkp` round is in flight: `aimAt` returns `suppressAim`. */
+  private suppressing = false;
+  /** (guard-ai S27) The cached verdict of the static ray muzzle -> `suppressAim` and the time to the next cast (s). */
+  private suppressOk = false;
+  private suppressCheckT = 0;
+  /** (guard-ai S27) Rounds the overwatch's suppress put out, and the thinks it held for a blocked line (tests, e2e,
+   *  debug). */
+  suppressRounds = 0;
+  suppressHeld = 0;
   /** `roleStep`'s goal, reused (decide runs every frame: no allocation). */
   private readonly roleGoal: { point: P2 | null; speed: number; face: number | null } = { point: null, speed: 0, face: null };
 
@@ -2592,6 +2617,11 @@ export class Enemy implements Damageable {
       }
     }
     if (role === R_OVERWATCH && mateMoving && !this.mateMoving && this.alive && this.alerted) this.bark('covering');
+    // (guard-ai S27) a new role: the open wait starts again
+    if (role !== this.role) {
+      this.openT = 0;
+      this.openNoCover = false;
+    }
     this.role = role;
     this.roleCover = cover;
     this.roleMoving = moving;
@@ -2628,14 +2658,36 @@ export class Enemy implements Damageable {
         this.roleCover = -1;
       }
     }
-    if (this.los || (this.state !== 'chase' && this.state !== 'idle')) return null;
+    if (this.los || (this.state !== 'chase' && this.state !== 'idle')) {
+      if (this.los || this.state === 'seekCover' || this.state === 'inCover') this.openNoCover = false;
+      this.openT = 0;
+      return null;
+    }
     // out of sight in the open with no cover to bound to: the point walks the last stretch (out of the group, today's
     // advance at ADVANCE_PACE, a jog if aggressive); the rest wait for the group
     if (role === R_POINT && c < 0) {
       this.closing = true;
       return null;
     }
-    this.wantCrouch = this.onRadio;
+    if (SQUAD.openWait === Infinity) this.wantCrouch = this.onRadio;
+    else {
+      // (guard-ai S27, A161) he waits crouched, at most `SQUAD.openWait` (with no role cover at all: one think), then
+      // takes today's cover pick (`pickCover`: the nearest protecting cover, reserved through `reserveCover`) and the
+      // `seekCover` branch walks him there; no cover anywhere: crouched where he is (the 12 s rule ends it)
+      this.wantCrouch = true;
+      if (!this.openNoCover && this.openT > 0 && (c < 0 || this.openT >= SQUAD.openWait)) {
+        this.openT = 0;
+        this.armourPick = false;
+        if (this.pickCover()) {
+          // (from chase / idle: the reservation is kept)
+          this.setState('seekCover');
+          this.coverPicked = true;
+          return null;
+        }
+        this.openNoCover = true;
+      }
+      this.openT += dt;
+    }
     if (role === R_OVERWATCH && this.mateMoving && profileOf(this.tacticsProfile).suppress) this.suppressLkp(dt);
     return g;
   }
@@ -2663,12 +2715,28 @@ export class Enemy implements Damageable {
   }
 
   /** Overwatch: suppressive fire at his intruder's last known position while a squadmate moves (his own fresher sight
-   *  is today's suppress). */
+   *  is today's suppress). (guard-ai S27, A162) At his own spot (`suppressAim`; his `lastKnown` is left alone) and,
+   *  with `SQUAD.suppressView`, only along a clear static line from the muzzle (one ray per `SUPPRESS_CHECK`, cached). */
   private suppressLkp(dt: number): void {
     const k = this.huntPos();
     if (!k || this.lastSeenT < 2.5) return;
-    this.lastKnown.set(k.x, k.y + 1.1, k.z);
+    this.suppressAim.set(k.x, k.y + 1.1, k.z);
+    if (SQUAD.suppressView) {
+      this.suppressCheckT -= dt;
+      if (this.suppressCheckT <= 0) {
+        this.suppressCheckT = SUPPRESS_CHECK;
+        this.suppressOk = this.ctx.ballistics.clear(this.muzzle(this.fireFrom, 'suppress'), this.suppressAim, G.STATIC);
+      }
+      if (!this.suppressOk) {
+        this.suppressHeld++;
+        return;
+      }
+    }
+    const before = this.roundsFired;
+    this.suppressing = true;
     this.tryFire(dt, 'suppress');
+    this.suppressing = false;
+    this.suppressRounds += this.roundsFired - before;
   }
 
   private decide(dt: number): { point: P2 | null; speed: number; face: number | null } {
@@ -2823,7 +2891,9 @@ export class Enemy implements Damageable {
         // lost sight a moment ago: keep their head down with suppressive fire at the last position
         if (this.los) this.tryFire(dt);
         else if (this.lastSeenT < 2.5) this.tryFire(dt, 'suppress');
-        if (this.tactics(t)) return { point: null, speed: 0, face: toTarget };
+        // (guard-ai S27, A163) a reporter caught in the open with his call open fights back with his rifle, but throws and
+        // flanks only after the call
+        if (!this.onRadio && this.tactics(t)) return { point: null, speed: 0, face: toTarget };
         if (!this.los && this.stateT > 2.6) {
           this.setState('chase');
         } else if (this.dist > def.engageMax + 3) {
@@ -2914,14 +2984,15 @@ export class Enemy implements Damageable {
           this.setState('attack');
           return { point: null, speed: 0, face: toTarget };
         }
-        if (this.tactics(t)) return { point: null, speed: 0, face: toTarget };
         // (guard-ai S8) the reporter stays down while he calls it in; the overwatch suppresses while a squadmate moves
+        // (guard-ai S27, A163) before the grenade and the flank: nothing is thrown or started while his call is open
         if (this.onRadio) {
           this.coverPose = cp.low ? 'low' : 'high';
           this.wantCrouch = true;
           this.coverPeek = 0;
           return { point: [cp.pos.x, cp.pos.z], speed: def.walkSpeed, face: toTarget };
         }
+        if (this.tactics(t)) return { point: null, speed: 0, face: toTarget };
         if (this.role === R_OVERWATCH && this.mateMoving && !this.los && profileOf(this.tacticsProfile).suppress) this.suppressLkp(dt);
         // hide / peek cycle; some hide phases blind-fire over/around the cover at the last position
         const cycle = this.stateT % 4.2;
@@ -3161,9 +3232,10 @@ export class Enemy implements Damageable {
     return out;
   }
 
-  /** The aim point before spread: the head or the body; suppressive and blind fire go at the last known spot. */
+  /** The aim point before spread: the head or the body; suppressive and blind fire go at the last known spot.
+   *  (guard-ai S27) An overwatch's `suppressLkp` round goes at its own spot (`suppressAim`). */
   private aimAt(t: PlayerRef, mode: 'aim' | 'suppress' | 'blind', out: Vector3): Vector3 {
-    if (mode !== 'aim') return out.copyFrom(this.lastKnown);
+    if (mode !== 'aim') return out.copyFrom(mode === 'suppress' && this.suppressing ? this.suppressAim : this.lastKnown);
     return (this.losHead || t.shield) && t.target.headPoint ? t.target.headPoint(out) : t.target.aimPoint(out);
   }
 

@@ -2489,6 +2489,183 @@ try {
     assert(r.supp.left === 0 && r.supp.far === 0 && r.supp.calls === 0, `a suppressed shot: no call, nobody cautious (${JSON.stringify(r.supp)})`);
   });
 
+  // (guard-ai S27, A161-A163; S8 polish 2, the sketch in master `docs/guard-ai/slices/S8.md`) four grunts in view of the lit
+  // player on the factory floor, the guards' own alarm already up (no panel run); the first contact call opens, the light
+  // goes out and the player is put behind a wall, then 8 s of sim time sampled every 0.25 s. The spot is picked by reading
+  // `em.coverSet` round it (each role's band has covers that protect from it, `SQUAD`), the guards 14-18 m out on a clear line.
+  // Roles appear (a reporter and two of point / overwatch / flank), at most one role bound at a time (point / flank on the
+  // way to their role cover), nobody stands upright and still in the open out of sight longer than `SQUAD.openWait` + 0.5 s,
+  // and no overwatch round goes along a line a wall blocks (`suppressRounds` / `suppressHeld`).
+  await scen('squad roles (guard-ai S27)', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const st = window.__app.input.state;
+      const V = t.V;
+      const S = em.squadTable;
+      const nav = em.nav;
+      const set = em.coverSet;
+      const rnd = Math.random;
+      let seed = 2827;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      try {
+        // no panel run and no reinforcements: the guards' own alarm is already up (as 'lkp')
+        em.alarmRaised = true;
+        const ray = (ax, ay, az, bx, by, bz) => g.ballistics.ray(new V(ax, ay, az), new V(bx, by, bz), 1).hit;
+        const lineClear = (ax, az, bx, bz) => !ray(ax, 1.5, az, bx, 1.5, bz) && !ray(ax, 0.9, az, bx, 0.9, bz);
+        const floorOk = (x, z) => {
+          if (x < -3 || x > 23 || z < -8 || z > 11) return false;
+          const c = nav.cellOf(x, z, 0);
+          return c >= 0 && nav.isWalkable(c) && Math.abs(nav.height[c]) < 0.3;
+        };
+        // covers in a role's band round the spot that protect from it (the cover's normal faces the spot)
+        const band = (px, pz, lo, hi) => {
+          let n = 0;
+          for (let i = 0; i < set.n; i++) {
+            if (set.block[i] === 1 || Math.abs(set.y[i]) > S.storeyDy) continue;
+            const dx = px - set.x[i];
+            const dz = pz - set.z[i];
+            const d = Math.hypot(dx, dz);
+            if (d < lo || d > hi) continue;
+            if ((set.nx[i] * dx + set.nz[i] * dz) / d < S.protectDot) continue;
+            n++;
+          }
+          return n;
+        };
+        const offs = [[14.5, -0.16], [15.5, 0.16], [16.5, -0.05], [17.5, 0.05]];
+        let best = null;
+        for (const px of [-2, 0, 2, 4, 6]) {
+          for (const pz of [-7, -5, -3, -1, 1, 3, 5, 7, 9]) {
+            if (!floorOk(px, pz)) continue;
+            for (const b of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+              const sp = offs.map(([d, o]) => [px + Math.cos(b + o) * d, pz + Math.sin(b + o) * d]);
+              if (!sp.every(([x, z]) => floorOk(x, z) && lineClear(px, pz, x, z))) continue;
+              const n = [band(px, pz, S.pointMin, S.pointMax), band(px, pz, S.overwatchMin, S.overwatchMax), band(px, pz, S.flankMin, S.flankMax), band(px, pz, S.reporterMin, S.reporterMax)];
+              const score = Math.min(n[0], n[1], n[2]) * 100 + n[0] + n[1] + n[2] + n[3];
+              if (!best || score > best.score) best = { score, px, pz, b, sp, n };
+            }
+          }
+        }
+        if (!best) return { spot: null };
+        // the hiding place: behind a wall from all four (the dispatch room, as 'lkp')
+        let hide = null;
+        for (const [hx, hz] of [[-2, -15], [0, -15], [2, -15], [4, -15]]) {
+          if (best.sp.every(([x, z]) => !lineClear(hx, hz, x, z))) {
+            hide = [hx, hz];
+            break;
+          }
+        }
+        hide ??= [-2, -15];
+        t.light(1);
+        // facing the guards (forward is (sin yaw, cos yaw)); they face the player
+        const yawP = Math.atan2(Math.cos(best.b), Math.sin(best.b));
+        t.tp(best.px, best.pz, yawP);
+        const guards = best.sp.map(([x, z]) => t.spawn('grunt', x, z, Math.atan2(best.px - x, best.pz - z)));
+        const base = guards[0].tacticsProfile;
+        // the lit player strafes a little (standing still the far ones would never fill their meters), until a contact call opens
+        let k = 0;
+        while (em.contactCaller < 0 && k++ < 600) {
+          st.setMove('t', k % 20 < 10 ? 0.6 : -0.6, 0);
+          t.step(0.05);
+        }
+        const opened = em.contactCaller >= 0;
+        const alertedAtCall = guards.filter((e) => e.alerted).length;
+        st.setMove('t', 0, 0);
+        t.light(0);
+        t.tp(hide[0], hide[1], 0);
+        const roleNames = ['point', 'overwatch', 'flank', 'reporter'];
+        const dt = 0.25;
+        const seen = new Set();
+        const prev = new Map();
+        const stall = new Map();
+        let maxStall = 0;
+        let stallWho = '';
+        let movers = 0;
+        let moversStrict = 0;
+        let aggr = false;
+        let viol = 0;
+        let blockedMateT = 0;
+        let blockedHeld = 0;
+        let blockedSamples = 0;
+        for (let s = 0; s < Math.round(8 / dt); s++) {
+          t.step(dt);
+          let mv = 0;
+          let mvStrict = 0;
+          for (const e of guards) {
+            if (!e.alive) continue;
+            if (e.tacticsProfile !== base) aggr = true;
+            const name = e.roleName;
+            seen.add(name);
+            const p = prev.get(e.num);
+            const speed = p ? Math.hypot(e.pos.x - p.x, e.pos.z - p.z) / dt : 99;
+            // the open wait: out of sight, upright, still, and neither on the way to cover nor in it
+            const standing = roleNames.includes(name) && e.alerted && !e.seesTarget && e.crouchBlend < 0.5 && speed < 0.1 && e.state !== 'seekCover' && e.state !== 'inCover';
+            const run = standing ? (stall.get(e.num) ?? 0) + dt : 0;
+            stall.set(e.num, run);
+            if (run > maxStall) {
+              maxStall = run;
+              stallWho = `${name} ${e.state}`;
+            }
+            // one role bound at a time: a point or flank on his way to his role's cover (the open wait's own pick is not a bound)
+            if ((name === 'point' || name === 'flank') && e.state === 'seekCover') {
+              mvStrict++;
+              if (e.coverIdx === e['roleCover']) mv++;
+            }
+            // the overwatch's line to his spot, as `suppressLkp` casts it (muzzle -> hunt spot + 1.1 m, static geometry)
+            let blocked = false;
+            let hasSpot = false;
+            if (name === 'overwatch') {
+              const k2 = e['huntPos']();
+              if (k2) {
+                const m = e['muzzle'](new V(), 'suppress');
+                blocked = g.ballistics.ray(m, new V(k2.x, k2.y + 1.1, k2.z), 1).hit;
+                hasSpot = true;
+              }
+            }
+            const fire = e.state === 'inCover' || e.state === 'chase' || e.state === 'idle';
+            if (p && hasSpot && p.run2 >= 2 && blocked) {
+              // blocked at three samples in a row, and he held his fire for it in the interval before (so his cached verdict
+              // is fresh: a new suppress episode may fire for up to SUPPRESS_CHECK 0.25 s on the old one): no round in this interval
+              if (p.dheld > 0) viol += e.suppressRounds - p.rounds;
+              if (p.mate && e['mateMoving'] && fire && e['lastSeenT'] >= 2.5) {
+                blockedMateT += dt;
+                blockedHeld += e.suppressHeld - p.held;
+              }
+            }
+            if (hasSpot && blocked) blockedSamples++;
+            prev.set(e.num, { x: e.pos.x, z: e.pos.z, blocked, run2: p && hasSpot && blocked && p.blocked ? p.run2 + 1 : hasSpot && blocked ? 1 : 0, rounds: e.suppressRounds, held: e.suppressHeld, dheld: p ? e.suppressHeld - p.held : 0, mate: e['mateMoving'] && fire });
+          }
+          movers = Math.max(movers, mv);
+          moversStrict = Math.max(moversStrict, mvStrict);
+        }
+        t.light(null);
+        return {
+          spot: [best.px, best.pz], n: best.n, hide, opened, alertedAtCall, callAt: k * 0.05,
+          seen: [...seen], maxStall, stallWho, movers, moversStrict, aggr, viol, blockedMateT, blockedHeld, blockedSamples,
+          rounds: guards.reduce((a, e) => a + e.suppressRounds, 0), held: guards.reduce((a, e) => a + e.suppressHeld, 0),
+          openWait: S.openWait,
+          // the rounds a stale verdict could still let through (0.3 s at the weapon's rate, from the game's table)
+          slack: Math.ceil((guards[0].def.weapon.rpm / 60) * 0.3),
+        };
+      } finally {
+        Math.random = rnd;
+        st.setMove('t', 0, 0);
+        t.light(null);
+      }
+    });
+    const f = (v) => v.toFixed(2);
+    assert(r.spot, 'a spot on the factory floor with covers in every role band and four clear lines 14-18 m out');
+    if (!r.spot) return;
+    assert(r.opened, `a contact call opens (at ${f(r.callAt)} s, ${r.alertedAtCall} alerted; spot ${r.spot}, covers per band ${r.n})`);
+    const roles = ['point', 'overwatch', 'flank'].filter((n) => r.seen.includes(n));
+    assert(r.seen.includes('reporter') && roles.length >= 2, `a reporter and at least two of point / overwatch / flank appear (${r.seen})`);
+    assert(r.movers <= 1 || r.aggr, `at most one guard advancing / bounding to his role's cover at once, the one-mover rule (${r.movers}; a held point's open-wait pick may add a seekCover: any seekCover ${r.moversStrict}; aggressive ${r.aggr})`);
+    assert(r.maxStall <= r.openWait + 0.5, `no role guard out of sight, upright and still outside cover for more than ${r.openWait + 0.5} s (${f(r.maxStall)} s: ${r.stallWho})`);
+    assert(r.viol <= r.slack, `no overwatch round along a line a wall blocks once he has held fire for it (${r.viol} rounds, slack ${r.slack} in ${r.blockedSamples} blocked samples; rounds ${r.rounds}, held ${r.held})`);
+    assert(r.blockedMateT < 1 || r.blockedHeld > 0, `an overwatch with a blocked line held his fire while a mate moved (${f(r.blockedMateT)} s blocked, held +${r.blockedHeld})`);
+  });
+
   const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
   assert(real.length === 0, `no console errors (${real.join(' | ')})`);
 } catch (e) {

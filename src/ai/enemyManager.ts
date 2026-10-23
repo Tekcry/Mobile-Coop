@@ -660,6 +660,8 @@ export class EnemyManager {
       bodyFound: (e, b) => this.bodyFound(e, b),
       revive: (b, by) => this.revive(b, by),
       alarmRaised: () => this.alarmRaised,
+      // (guard-ai S27, A164) the mode's alarm stage: only the guards' carry rule reads it
+      alarmStage: () => this.alarmStage,
       raiseAlarm: (e, p) => this.raiseAlarm(e, p),
     };
     this.refreshFlow();

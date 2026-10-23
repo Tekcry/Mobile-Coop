@@ -246,23 +246,42 @@ await run(PARAMS, async ({ page, G, sim }) => {
       // x reaction) beats his run to the panel. He stays in combat and is still the panel runner.
       em.radioNet.cut(best.num);
     });
+    // (guard-ai S27 triage, S27-SEC1-TRIAGE.md) radio silence for the whole race: every call any guard opens is cut
+    // within 0.5 s (a call holds >= 1.75 s: callIn 2.5 s x the fastest reaction 0.7), so no contact gets through and no
+    // command call is owed. Since S24 (A149) a guard in combat with no intruder who then sees the player calls the
+    // contact again, and S27 (A161) walks open-waiting role guards to cover after 3 s: a squadmate the runner's shout
+    // joined can come into the player's view and his call beats the panel run. Both are wanted; this scenario is the
+    // panel path only (the panel-vs-radio race is e2e-stealth-ai 'alarm'). The callers cut are in the asserts.
+    const cutBy = {};
+    const hush = () =>
+      G((acc) => {
+        const em = window.__app.current.enemyMgr;
+        for (const e of em.enemies) {
+          if (!e.alive) continue;
+          const n = em.radioNet.cut(e.num);
+          if (n > 0) acc[e.id] = (acc[e.id] ?? 0) + n;
+        }
+        return acc;
+      }, cutBy).then((acc) => Object.assign(cutBy, acc));
     let runner = null;
     for (let k = 0; k < 12 && !runner; k++) {
       await sim(0.5);
+      await hush();
       runner = await G(() => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive && q.alarm); return e ? { id: e.id, panel: e.alarm.id, s: e.alarm.section } : null; });
     }
     assert(runner && runner.s === 1, `${tag}: an alerted guard runs to section 2's panel (${JSON.stringify(runner)})`);
     let raised = false;
     for (let k = 0; k < 80 && !raised; k++) {
       await sim(0.5);
+      await hush();
       raised = await G(() => window.__app.current.enemyMgr.alarmRaised);
     }
     const d = await G(() => window.__sector.debug());
     // (guard-ai S6 stack merge) the stage rises through the panel, not the radio command call (S6: a contact call that
     // gets through also raises the alarm, ~6.5 s after the sighting), so the path this scenario names is asserted
     const by = await G(() => window.__app.current.enemyMgr.alarmBy);
-    assert(raised && d.stage === st0 + 1, `${tag}: the panel raises the alarm stage (${st0} -> ${d.stage}, raised ${raised})`);
-    assert(by === 'panel', `${tag}: raised by the panel, not the radio (alarmBy '${by}')`);
+    assert(raised && d.stage === st0 + 1, `${tag}: the panel raises the alarm stage (${st0} -> ${d.stage}, raised ${raised}; calls cut ${JSON.stringify(cutBy)})`);
+    assert(by === 'panel', `${tag}: raised by the panel, not the radio (alarmBy '${by}'; calls cut ${JSON.stringify(cutBy)})`);
   };
   await panelAlarm('section 2');
   // (marlow-bays item 3) the restart from the pause menu: "Restart at checkpoint", a confirm opening on Stay, then Restart
@@ -3574,9 +3593,17 @@ if (want(1)) {
       const cam0 = { n: ct.cams.length, s: cams() };
       const living = () => em.enemies.filter((e) => e.alive && !e.dog);
       const out = { stage0: m.run.alarm, perStage: g.world.map.sectors[0].perStage, cam0: cam0.n };
+      // (guard-ai S27, A164) the section's own guards before the stage rises, read as the `e2e-guard-carry` suite reads the
+      // carry (`carry.holstered` / `carry.drawn`); `em.alarmRaised` is the guards' own alarm (a panel / command call), which
+      // the mode's `onAlarm()` does not set: this is the camera / laser case, a stage and nothing else
+      const own = living();
+      out.carryN = own.length;
+      out.holst0 = own.filter((e) => e.carry.holstered).length;
+      out.raised0 = em.alarmRaised;
       m.onAlarm();
       step(0.6);
       out.stage1 = m.run.alarm;
+      out.holst1 = own.filter((e) => e.alive && e.carry.holstered).length;
       out.gear1 = living().map((e) => [e.helmet, e.armour]);
       m.onAlarm();
       step(0.6);
@@ -3585,6 +3612,9 @@ if (want(1)) {
       m.onAlarm();
       step(0.6);
       out.stage3 = m.run.alarm;
+      // (S27) 1.8 s after the first stage rise (inside the 2 s the draw is owed in; the longest draw clip is 0.7 s)
+      out.drawn3 = own.filter((e) => e.alive).map((e) => e.carry.drawn);
+      out.raised3 = em.alarmRaised;
       out.both3 = living().map((e) => e.helmet && e.armour);
       out.teams = em.teams.map((t) => t.members.map((e) => e.def.kind));
       out.shieldHelmet = em.teams.map((t) => t.members[0]?.helmet === true);
@@ -3596,6 +3626,10 @@ if (want(1)) {
     }, S[0].obj);
     // (the warehouse sections set no `gear` default and no slot tags: only the stage gives armour)
     assert(r.stage1 === r.stage0 + 1 && r.gear1.every(([, a]) => !a), `S13: stage 1 brings a team, no stage armour yet (${JSON.stringify(r.gear1)})`);
+    // (guard-ai S27, A164) a stage without the guards' own alarm (`em.alarmRaised` false: the camera / laser case) ends the
+    // calm area: every guard of the live section has his weapon drawn within 2 s (none holstered 0.6 s on)
+    assert(r.carryN > 0 && r.holst0 > 0 && !r.raised0, `S27: the section's guards start calm, some holstered, no guard alarm (${r.holst0} of ${r.carryN} holstered, alarmRaised ${r.raised0})`);
+    assert(!r.raised3 && r.holst1 === 0 && r.drawn3.length === r.carryN && r.drawn3.every(Boolean), `S27: after the stage rise (the guards' own alarm still ${r.raised3 ? 'raised' : 'off'}) none is holstered 0.6 s on (${r.holst1}) and all ${r.carryN} have the weapon drawn within 2 s (${r.drawn3})`);
     assert(r.stage2 === r.stage0 + 2 && r.armour2.every(Boolean), `S13: stage 2: every living guard wears armour (${r.armour2})`);
     assert(r.stage3 === r.stage0 + 3 && r.both3.every(Boolean), `S13: stage 3: every living guard wears armour and a helmet (${r.both3})`);
     assert(r.teams.length === 3 && r.teams.every((t) => t[0] === 'enforcer' && t.length === r.perStage && t.slice(1).every((k) => k === 'grunt')), `S13: each stage's team leads with a shield guard, perStage ${r.perStage} strong (${JSON.stringify(r.teams)})`);
