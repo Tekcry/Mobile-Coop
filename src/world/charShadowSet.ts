@@ -68,7 +68,85 @@ export const CHAR_SHADOW = {
   bias: 0.03,
   normalOffset: 0.02,
   normalPerM: 0.004,
+  /** (LR16f) Contact-hardening softness (PCSS): the lamp fixture's radius (m) - the penumbra radius on a receiver is
+   *  `lightRadius x (receiver - blocker) / blocker` - capped at `maxPenumbra` (m), and the filter radius in shadow-map
+   *  texels kept within [`minTexels`, `maxTexels`] (the floor keeps a 2-texel disc at contact, as the old 2 x 2 PCF). */
+  lightRadius: 0.12,
+  maxPenumbra: 0.3,
+  minTexels: 1,
+  maxTexels: 24,
 } as const;
+
+/** (LR16f) Filter taps per shadow tier (the blocker search takes half as many): picture only, never the meter. */
+export const CHAR_SHADOW_TAPS: Readonly<Record<ShadowQuality, number>> = { off: 0, low: 0, medium: 0, high: 8, ultra: 12, epic: 16 };
+/** The kernel's size (the most taps any tier takes). */
+export const CHAR_SHADOW_KERNEL = 16;
+
+/** Filter taps for a configured spec (`CharShadows.configure` gets lamps and tile, not the tier): High's 512 tile 8,
+ *  Ultra's 1024 tile 12, Epic's 4 lamps 16; the override 'on' below High takes High's. */
+export function charShadowTaps(lamps: number, tile: number): number {
+  if (lamps <= 0 || tile <= 0) return 0;
+  if (tile < CHAR_SHADOW_PRESET.ultra.tile) return CHAR_SHADOW_TAPS.high;
+  return lamps >= CHAR_SHADOW_PRESET.epic.lamps ? CHAR_SHADOW_TAPS.epic : CHAR_SHADOW_TAPS.ultra;
+}
+
+/**
+ * (LR16f) The fixed Poisson kernel: `CHAR_SHADOW_KERNEL` points in the unit disc (x, y interleaved) by Mitchell's best
+ * candidate from a fixed seed, so every prefix (the blocker search's half, each tier's count) is itself well spread.
+ * Built once at load; the same every run and every frame (no per-frame jitter, no shimmer).
+ */
+export const CHAR_SHADOW_DISK: Float32Array = (() => {
+  const n = CHAR_SHADOW_KERNEL;
+  const out = new Float32Array(n * 2);
+  let seed = 0x1f2e3d4c;
+  const rnd = (): number => {
+    // mulberry32
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  for (let i = 0; i < n; i++) {
+    let bx = 0;
+    let by = 0;
+    let best = -1;
+    for (let c = 0; c < 64; c++) {
+      // uniform in the disc
+      const r = Math.sqrt(rnd());
+      const a = rnd() * Math.PI * 2;
+      const x = r * Math.cos(a);
+      const y = r * Math.sin(a);
+      let d = i === 0 ? 1 - r : Infinity;
+      for (let j = 0; j < i; j++) {
+        const dx = x - out[j * 2]!;
+        const dy = y - out[j * 2 + 1]!;
+        d = Math.min(d, dx * dx + dy * dy);
+      }
+      if (d > best) {
+        best = d;
+        bx = x;
+        by = y;
+      }
+    }
+    out[i * 2] = bx;
+    out[i * 2 + 1] = by;
+  }
+  return out;
+})();
+
+/** (LR16f) The penumbra radius (m) on a receiver `dr` from the lamp behind a blocker `db` from it: 0 at contact,
+ *  growing with the gap, capped. The GLSL (`charShadows.ts`) computes the same from the same constants. */
+export function charPenumbra(dr: number, db: number): number {
+  const gap = Math.max(0, dr - db);
+  return Math.min(CHAR_SHADOW.maxPenumbra, (CHAR_SHADOW.lightRadius * gap) / Math.max(db, CHAR_SHADOW.minNear));
+}
+
+/** (LR16f) That radius in shadow-map texels: the map spans `2 dr / sx` metres over `tile` texels at the receiver
+ *  (`sx` = 1 / tan(half angle)), clamped to [`minTexels`, `maxTexels`]. */
+export function charFilterTexels(penumbra: number, dr: number, sx: number, tile: number): number {
+  const t = (penumbra * 0.5 * tile * sx) / Math.max(dr, CHAR_SHADOW.minNear);
+  return Math.min(CHAR_SHADOW.maxTexels, Math.max(CHAR_SHADOW.minTexels, t));
+}
 
 /**
  * Which lamps hold the shadow-map slots. Candidates are lit lamps whose radius (+ `reachMargin`) reaches the nearest

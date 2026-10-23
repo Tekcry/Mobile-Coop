@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { atlasSize, CHAR_SHADOW, CHAR_SHADOW_PRESET, charShadowSpec, coneCovers, FIT, fitCone, fittedSpheres, LampSlotPicker, spheresHold, tileX, tileY } from '../src/world/charShadowSet';
+import { atlasSize, CHAR_SHADOW, CHAR_SHADOW_DISK, CHAR_SHADOW_KERNEL, CHAR_SHADOW_PRESET, CHAR_SHADOW_TAPS, charFilterTexels, charPenumbra, charShadowSpec, charShadowTaps, coneCovers, FIT, fitCone, fittedSpheres, LampSlotPicker, spheresHold, tileX, tileY } from '../src/world/charShadowSet';
+import { CHAR_SHADOW_GLSL } from '../src/world/charShadows';
 import { GRAPHICS_PRESETS, MIN_FEATURES, PRESET_IDS, qualityLevel } from '../src/core/quality';
 import { bytesPerCall } from './helpers/allocPerCall';
 
@@ -198,6 +199,80 @@ describe('LR14 cone fit', () => {
         fittedSpheres(0, 3, 0, src, 2, dst);
         spheresHold(dst, 1, 2, 0.9, 0);
       }
+    }, 16, { n: 2000 });
+    expect(bytes).toBeLessThanOrEqual(16);
+  });
+});
+
+describe('LR16f character shadow softness (contact hardening)', () => {
+  it('the kernel is fixed, in the unit disc, and every prefix the shader takes is spread', () => {
+    expect(CHAR_SHADOW_DISK.length).toBe(CHAR_SHADOW_KERNEL * 2);
+    for (let i = 0; i < CHAR_SHADOW_KERNEL; i++) expect(Math.hypot(CHAR_SHADOW_DISK[i * 2]!, CHAR_SHADOW_DISK[i * 2 + 1]!)).toBeLessThanOrEqual(1);
+    // each count the shader reads (blocker search = half, filter = the tier's): no two taps bunched together
+    for (const n of [4, 6, 8, 12, 16]) {
+      let min = Infinity;
+      let cx = 0;
+      let cy = 0;
+      for (let i = 0; i < n; i++) {
+        cx += CHAR_SHADOW_DISK[i * 2]! / n;
+        cy += CHAR_SHADOW_DISK[i * 2 + 1]! / n;
+        for (let j = 0; j < i; j++) min = Math.min(min, Math.hypot(CHAR_SHADOW_DISK[i * 2]! - CHAR_SHADOW_DISK[j * 2]!, CHAR_SHADOW_DISK[i * 2 + 1]! - CHAR_SHADOW_DISK[j * 2 + 1]!));
+      }
+      expect(min, `prefix ${n}`).toBeGreaterThan(1.4 / Math.sqrt(n));
+      expect(Math.hypot(cx, cy), `prefix ${n} centroid`).toBeLessThan(0.35);
+    }
+    // the shader embeds exactly these taps: no per-frame jitter (no time / frame / random input)
+    expect(CHAR_SHADOW_GLSL).toContain(`vec2(${CHAR_SHADOW_DISK[0]!.toFixed(4)}, ${CHAR_SHADOW_DISK[1]!.toFixed(4)})`);
+    expect(CHAR_SHADOW_GLSL).toContain(`const vec2 CS_DISK[${CHAR_SHADOW_KERNEL}]`);
+    expect(CHAR_SHADOW_GLSL).not.toMatch(/time|frame|rand|noise/i);
+  });
+
+  it('the penumbra is 0 at contact, grows with the receiver-blocker gap, and is capped', () => {
+    expect(charPenumbra(3, 3)).toBe(0);
+    expect(charPenumbra(3, 3.2)).toBe(0);
+    let prev = -1;
+    // receiver on the floor 4 m from the lamp, the blocker moving up from the feet (4 m) to near the lamp
+    for (let db = 4; db >= 0.5; db -= 0.1) {
+      const p = charPenumbra(4, db);
+      expect(p).toBeGreaterThanOrEqual(prev);
+      prev = p;
+    }
+    expect(prev).toBe(CHAR_SHADOW.maxPenumbra);
+    // feet (gap ~0.05 m) sharp, the head (gap ~1.7 m, 2.3 m from the lamp) soft
+    expect(charPenumbra(4, 3.95)).toBeLessThan(0.005);
+    expect(charPenumbra(4, 2.3)).toBeGreaterThan(0.05);
+    // in texels: the floor at contact, wider with the gap, never past the cap
+    const sx = 1 / Math.tan(0.6);
+    expect(charFilterTexels(charPenumbra(4, 3.95), 4, sx, 1024)).toBe(CHAR_SHADOW.minTexels);
+    expect(charFilterTexels(charPenumbra(4, 2.3), 4, sx, 1024)).toBeGreaterThan(5);
+    expect(charFilterTexels(10, 4, sx, 1024)).toBe(CHAR_SHADOW.maxTexels);
+    let t = 0;
+    for (let db = 4; db >= 0.5; db -= 0.25) {
+      const v = charFilterTexels(charPenumbra(4, db), 4, sx, 1024);
+      expect(v).toBeGreaterThanOrEqual(t);
+      t = v;
+    }
+  });
+
+  it('taps are gated by the preset (picture only): 8 / 12 / 16, none without maps', () => {
+    expect(CHAR_SHADOW_TAPS).toEqual({ off: 0, low: 0, medium: 0, high: 8, ultra: 12, epic: 16 });
+    for (const q of ['off', 'low', 'medium', 'high', 'ultra', 'epic'] as const) {
+      const p = CHAR_SHADOW_PRESET[q];
+      expect(charShadowTaps(p.lamps, p.tile), q).toBe(CHAR_SHADOW_TAPS[q]);
+      expect(CHAR_SHADOW_TAPS[q]).toBeLessThanOrEqual(CHAR_SHADOW_KERNEL);
+      expect(CHAR_SHADOW_TAPS[q] % 2, q).toBe(0);
+    }
+    // the override 'on' below High takes High's maps and High's taps
+    const forced = charShadowSpec('low', 'on');
+    expect(charShadowTaps(forced.lamps, forced.tile)).toBe(CHAR_SHADOW_TAPS.high);
+    expect(charShadowTaps(0, 0)).toBe(0);
+  });
+
+  it('the pure math is allocation-free', async () => {
+    const bytes = await bytesPerCall((m) => {
+      let s = 0;
+      for (let i = 0; i < m; i++) s += charFilterTexels(charPenumbra(4, 2 + (i % 7) * 0.1), 4, 1.5, 1024) + charShadowTaps(3, 1024);
+      return s;
     }, 16, { n: 2000 });
     expect(bytes).toBeLessThanOrEqual(16);
   });

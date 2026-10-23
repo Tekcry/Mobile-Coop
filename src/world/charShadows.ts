@@ -10,7 +10,7 @@
  * only drives its shadow map. Per frame nothing is allocated (render lists and uniforms refilled in place).
  */
 import { BaseTexture, Constants, EffectRenderer, EffectWrapper, ShadowGenerator, SpotLight, Texture, Vector3, Viewport, type AbstractMesh, type Observer, type RenderTargetWrapper, type Scene } from '../core/babylon';
-import { atlasSize, CHAR_SHADOW, coneCovers, FIT, fitCone, fittedSpheres, LampSlotPicker, spheresHold, tileX, tileY } from './charShadowSet';
+import { atlasSize, CHAR_SHADOW, CHAR_SHADOW_DISK, CHAR_SHADOW_KERNEL, charShadowTaps, coneCovers, FIT, fitCone, fittedSpheres, LampSlotPicker, spheresHold, tileX, tileY } from './charShadowSet';
 
 type RenderTargetTexture = NonNullable<ReturnType<ShadowGenerator['getShadowMap']>>;
 
@@ -29,7 +29,7 @@ export interface CharShadowLink {
   /** True when slot `s`'s map holds a character at (x, y, z) (its capsule is dropped for that lamp). */
   covers(s: number, x: number, y: number, z: number): boolean;
   /** Uniforms: per slot its view-projection (4 x vec4), its params (min z, min + max z, bias, valid), the atlas info
-   *  (tile px, tiles per row, atlas px, depth sign). */
+   *  (tile px, (LR16f) filter taps, atlas px, depth sign). */
   readonly mats: Float32Array;
   readonly params: Float32Array;
   readonly info: Float32Array;
@@ -77,14 +77,23 @@ void main(void) {
   gl_FragColor = vec4(texelFetch(csSrc, ivec2(gl_FragCoord.xy - csOrg), 0).r, 0.0, 0.0, 1.0);
 }`;
 
+/** The kernel as a GLSL array literal (fixed: the same taps every frame). */
+const DISK_GLSL = Array.from({ length: CHAR_SHADOW_KERNEL }, (_, i) => `vec2(${CHAR_SHADOW_DISK[i * 2]!.toFixed(4)}, ${CHAR_SHADOW_DISK[i * 2 + 1]!.toFixed(4)})`).join(', ');
+const F = (v: number): string => v.toFixed(4);
+
 /**
  * The lamp loop's test (GLSL, `LAMP_CSHADOW`): a point lit by lamp `lpos` against slot `s`'s map in the atlas -
- * normal offset, Babylon's shadow metric from the snapshotted view-projection, 2 x 2 bilinear PCF on texelFetch.
- * 1 lit, `floor` in shadow; 1 outside the slot's frustum.
+ * normal offset, Babylon's shadow metric from the snapshotted view-projection - then (LR16f) contact-hardening PCF:
+ * a blocker search over the first half of the fixed Poisson kernel, sized for the widest penumbra the lamp could give
+ * here (blockers at the slot's near plane); none found: lit, after the search taps only. Else the mean blocker depth
+ * gives the penumbra (`charPenumbra`: lamp radius x (receiver - blocker) / blocker, capped) and the kernel's first
+ * `lampCsI.y` taps (the preset's, `charShadowTaps`) filter over it (`charFilterTexels`). Feet on the floor: gap ~0,
+ * the 1-texel floor (sharp); the head's shadow: soft. 1 lit, `floor` in shadow; 1 outside the slot's frustum.
  */
 export const CHAR_SHADOW_GLSL = `
 #ifdef LAMP_CSHADOW
 uniform highp sampler2D lampCsAtlas;
+const vec2 CS_DISK[${CHAR_SHADOW_KERNEL}] = vec2[${CHAR_SHADOW_KERNEL}](${DISK_GLSL});
 float nsCharShadow(int s, vec3 p, vec3 gn, vec3 lpos) {
   vec4 P = lampCsP[s];
   if (P.w < 0.5) return 1.0;
@@ -97,17 +106,38 @@ float nsCharShadow(int s, vec3 p, vec3 gn, vec3 lpos) {
   float z = (lampCsI.w * c.z + P.x) / P.y - P.z;
   if (z <= 0.0) return 1.0;
   float T = lampCsI.x;
+  int n = int(lampCsI.y + 0.5);
+  int nb = n / 2;
   vec2 org = vec2(float(s - (s / 2) * 2), float(s / 2)) * T;
-  vec2 f = (uv * 0.5 + 0.5) * T - 0.5;
-  vec2 i0 = floor(f);
-  vec2 w = f - i0;
-  vec2 lo = clamp(i0, vec2(0.0), vec2(T - 1.0));
-  vec2 hi = clamp(i0 + 1.0, vec2(0.0), vec2(T - 1.0));
-  float a = step(z, texelFetch(lampCsAtlas, ivec2(org + lo), 0).r);
-  float b = step(z, texelFetch(lampCsAtlas, ivec2(org + vec2(hi.x, lo.y)), 0).r);
-  float d = step(z, texelFetch(lampCsAtlas, ivec2(org + vec2(lo.x, hi.y)), 0).r);
-  float e = step(z, texelFetch(lampCsAtlas, ivec2(org + hi), 0).r);
-  return mix(${CHAR_SHADOW.floor.toFixed(2)}, 1.0, mix(mix(a, b, w.x), mix(d, e, w.x), w.y));
+  vec2 f = (uv * 0.5 + 0.5) * T;
+  vec2 hiT = vec2(T - 1.0);
+  // (the metric's slope: 1 / (far - near) per metre; c.w: the receiver's depth from the lamp; sx = 1 / tan(half),
+  // the length of the view-projection's first row - the view is a rotation)
+  float span = max(P.y - 2.0 * P.x, 0.01);
+  float dr = c.w;
+  float sx = length(vec3(M[0][0], M[1][0], M[2][0]));
+  float tpm = 0.5 * T * sx / max(dr, ${F(CHAR_SHADOW.minNear)});
+  float nearB = max(P.x, ${F(CHAR_SHADOW.minNear)});
+  float sr = clamp(min(${F(CHAR_SHADOW.maxPenumbra)}, ${F(CHAR_SHADOW.lightRadius)} * max(dr - nearB, 0.0) / nearB) * tpm, ${F(CHAR_SHADOW.minTexels)}, ${F(CHAR_SHADOW.maxTexels)});
+  float zb = 0.0;
+  float nbk = 0.0;
+  for (int i = 0; i < ${CHAR_SHADOW_KERNEL / 2}; i++) {
+    if (i >= nb) break;
+    float d = texelFetch(lampCsAtlas, ivec2(org + clamp(floor(f + CS_DISK[i] * sr), vec2(0.0), hiT)), 0).r;
+    if (d < z) {
+      zb += d;
+      nbk += 1.0;
+    }
+  }
+  if (nbk < 0.5) return 1.0;
+  float db = clamp(dr - (z + P.z - zb / nbk) * span, nearB, max(dr, nearB));
+  float r = clamp(min(${F(CHAR_SHADOW.maxPenumbra)}, ${F(CHAR_SHADOW.lightRadius)} * (dr - db) / db) * tpm, ${F(CHAR_SHADOW.minTexels)}, ${F(CHAR_SHADOW.maxTexels)});
+  float lit = 0.0;
+  for (int i = 0; i < ${CHAR_SHADOW_KERNEL}; i++) {
+    if (i >= n) break;
+    lit += step(z, texelFetch(lampCsAtlas, ivec2(org + clamp(floor(f + CS_DISK[i] * r), vec2(0.0), hiT)), 0).r);
+  }
+  return mix(${CHAR_SHADOW.floor.toFixed(2)}, 1.0, lit / float(max(n, 1)));
 }
 #endif
 `;
@@ -183,7 +213,8 @@ export class CharShadows implements CharShadowLink {
     this.renderer = new EffectRenderer(engine);
     this.wrapper = new EffectWrapper({ engine, name: 'charShadowCopy', fragmentShader: COPY_GLSL, uniformNames: ['csOrg'], samplerNames: ['csSrc'] });
     this.info[0] = tile;
-    this.info[1] = 2;
+    // (LR16f: the shader hard-codes the 2 x 2 tile layout; this lane carries the preset's filter taps)
+    this.info[1] = charShadowTaps(n, tile);
     this.info[2] = size;
     this.info[3] = this.depthSign;
     for (let s = 0; s < n; s++) this.slots.push(this.makeSlot(s, tile));
