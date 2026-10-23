@@ -8,9 +8,9 @@ a session's job changes, not at each swap. Rules common to all five job sessions
 | Session title | Model | Effort | Where |
 | --- | --- | --- | --- |
 | Night Shift \| Orchestrator | Opus 5.5 | high | desktop |
-| Night Shift \| Player Build | Opus 5.5 | medium | desktop |
-| Night Shift \| Marlow Build | Opus 5.5 | medium | desktop |
-| Night Shift \| Sector Ops Build | Opus 5.5 | medium | desktop |
+| Night Shift \| Player Build | Opus 5.5 | high | desktop |
+| Night Shift \| Marlow Build | Opus 5.5 | high | desktop |
+| Night Shift \| Sector Ops Build | Opus 5.5 | high | desktop |
 | Night Shift \| Test Runner | Opus 5.5 | medium | laptop |
 | Night Shift \| Guard AI Build | Opus 5.5 | high | laptop |
 
