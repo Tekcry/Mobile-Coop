@@ -56,6 +56,11 @@ Rejected by you (~01:25): anything that assumes a dark camera is blind (G240 sta
 Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN section 6; slice reports S0-*.md.
 
 ## Now (2026-10-23 ~01:20, new account; FULL BURN to 100% per Michael ~01:05 via the orchestrator)
+- ~14:15 (swap resume). :4 on fix 3b (uncommitted stealthSystems.ts:811 hunk) FAIL 252 s, same step (a8Strongroom.mjs:320;
+  log C:/NightShift/scratch/mf-s4g.log). Running: fix 3c (Opus, main worktree; owns a8Strongroom.mjs, stealthSystems.ts,
+  A8 data; appends S-e2e-fix3.md) and slice 10 W1-W5 (Opus, worktree C:/NightShift/Mobile-Coop-marlow-final-s10, branch
+  feature/marlow-final-s10 off 6b211fb7; report slices/S10-walk.md; merge back after its checker). Desktop e2e runner:
+  C:/NightShift/scratch/mf-run.sh <worktree> <suite> <log> [build] (heavy.lock, CPU < 80%, GPU, 4191).
 - ~13:55 SAVE (orchestrator ~90%). Master 4.73.0 merged (d32a435a; conflicts run-e2e / courseState / ctDevices /
   world / laserPanels test; protocol stays 33; 6 ctcourse "teeth" asserts flipped for guard-ai wait-0 pass-through) and
   pulled into feature/marlow-final (e3b9fcc0). Fix 3b WIP 0dd54d0f (src/game/stealthSystems.ts: a relocked open door can
@@ -459,8 +464,9 @@ Course Ready's prep notes: origin/feature/marlow-bays docs/marlow-final-prep/ (M
 
 ## Resume prompt
 ```
-Night Shift | Marlow Build: resume marlow-final. Read CLAUDE.md on origin/master ("Sessions", "Heavy-usage throughput", token rules), ROADMAP Decided (marlow-final M1-M6, "Next: stealth over shooting") by grep, then docs/marlow-final/STATE.md "Now" ~13:30 entry (worktree C:/NightShift/Mobile-Coop-marlow-final, feature/marlow-final; git fetch).
-State: all sets built, dressed, checked; slice 9 docs and perf done. Green on laptop GPU 1a47946a: :1 :3 coop netmove course. Fix 3 25ed4646 (test-only): :2 PASS desktop GPU. Open: :4 (A8 N2 alerted early at a8Strongroom.mjs:320; fix 3b WIP 0dd54d0f stealthSystems.ts door shut-by-hand, unchecked) - if slices/S-e2e-fix3.md has no 3b verdict, rerun fix 3b (Opus) on HEAD (master 4.73.0 already merged, e3b9fcc0). Laptop verdict on d32a435a (:1-:3 coop course netmove) pending from Test Runner.
-Then: PLAN slice 10 (walk 4.72 W1-W5: hall camera bulletproof, restart = full reset of guards / bodies / cameras / doors, A2 lamp spread; diagnosis slices/S10-walk.md, implement after the merge fixes, one checker). Then: ONE full e2e E2E_GPU=1 (laptop: message "Night Shift | Test Runner" branch + sha); PR to master (one PR; changes/feature-marlow-final.md; protocol 33); message "Night Shift | Orchestrator" at PR open only.
+Night Shift | Marlow Build: resume marlow-final. Read CLAUDE.md on origin/master ("Sessions", "Heavy-usage throughput", token rules), ROADMAP Decided (marlow-final M1-M6, "Next: stealth over shooting") by grep, then docs/marlow-final/STATE.md "Now" ~14:15 entry (worktree C:/NightShift/Mobile-Coop-marlow-final, feature/marlow-final; git fetch).
+State: all sets built, dressed, checked; slice 9 docs and perf done. Green on laptop GPU 1a47946a: :1 :3 coop netmove course; :2 PASS desktop (fix 3). Open: :4 fails at a8Strongroom.mjs:320 (N2 alerted early; fix 3b did not fix it). Laptop verdict on d32a435a pending from Test Runner.
+Running at ~14:15: fix 3c (main worktree; report S-e2e-fix3.md "Fix 3c") and slice 10 W1-W5 (worktree C:/NightShift/Mobile-Coop-marlow-final-s10, branch feature/marlow-final-s10; report slices/S10-walk.md). If a report is missing, rerun that agent from its working tree (brief: PLAN slice 10 / S-e2e-fix3.md).
+Then: commit fix 3c; one Sonnet checker on slice 10 (Opus fix round if needed); merge feature/marlow-final-s10 in; merge master (entering the train); ONE full e2e E2E_GPU=1 (laptop: message "Night Shift | Test Runner" branch + sha); PR to master (one PR; changes/feature-marlow-final.md; protocol 33); message "Night Shift | Orchestrator" at PR open only.
 Next job section-rating (C:/NightShift/Mobile-Coop-section-rating, feature/section-rating; docs/section-rating/STATE.md): S1-S5 + integration + S7 done, check PASS; fix round report in STATE; S6 (Marlow rated sets, courseMode.ts) after this PR merges; protocol 34 provisional.
 ```
