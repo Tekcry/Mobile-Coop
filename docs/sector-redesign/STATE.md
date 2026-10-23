@@ -306,6 +306,11 @@ Chain (all agents die at the swap; each branch has a WIP commit; rerun from brie
    agent for -lr16w-t then -lr16w-c2; reports checks/lr16w-<part>-build.md. Rerun a part from the brief + branch head if
    cut off. Then lead merges T, C2, S1, S2, S3 into feature/sector-redesign-lr16w (off 67f3661a), INT round (brief
    "INT"), one Opus checker (g + L-A + W), laptop sectorops + ctcourse + sheet.
+   S1 DONE d63ccd38 (S1 12/12; C-entry: 4 S2 points at (-14.5, -5.4) 0.37), S2 DONE 678241fe (41 cleared, rack tops
+   pass), S3 DONE b997a0fe (S3 11/11; S2 "C3 far door" 0.54 -> 0.50 accepted). Tolerance-edge passes accepted.
+   RUNNING ~02:55: Opus merge + INT on feature/sector-redesign-lr16w (worktree -lr16w; t, s1, s2, s3, not c2;
+   checks/lr16w-int.md). Then ONE Opus checker (g + L-A + W) in parallel with the laptop request (sectorops, ctcourse,
+   lightbake, darkness) on the INT head.
    T DONE bef5ca5f (checks/lr16w-t-build.md): post at (17.55, 38.5) not 37 (lead call: accepted; 37 shades the cage
    west third), cage floor 0.29 -> 1.00, lint 0 errors. C2 DONE e2416712 but DROPPED: master already has Marlow's A1-A8
    ctcourse (no S7 stair, no ctcourseLight.tuned.json), so do not merge -lr16w-c2. RISK at the LR16 train entry: master's
