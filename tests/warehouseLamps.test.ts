@@ -117,7 +117,7 @@ describe('Sector Ops LED fittings', () => {
    *  order). The production office was re-gridded whole (LR16dx: 3 x 2 panels 1.05 m off its walls), so it is not here. */
   const LR16D_MOVED: Record<string, [number, number][]> = {
     'S1 plantDeck ceiling -5,-15.15': [[-5, -14.6]], 'S1 plantDeck ceiling -1,-15.15': [[-1, -14.6]], 'S1 plantDeck ceiling 4.2,-15.15': [[3, -14.6]], 'S1 plantDeck ceiling 7,-15.15': [[7, -14.6]],
-    'S3 hall ceiling 18.26,-2.6': [[18, -2.6]], 'S3 hall ceiling 22.15,3.4': [[23.2, 3.4]], 'S3 hall ceiling 22.15,9.4': [[23.2, 9.4]],
+    'S3 hall ceiling 18.26,-2.6': [[18, -2.6]], 'S3 hall ceiling 22.15,-2.6': [[23.2, -2.6]], 'S3 hall ceiling 22.15,3.4': [[23.2, 3.4]], 'S3 hall ceiling 22.15,9.4': [[23.2, 9.4]],
   };
 
   it('one height per room and mount, and the ceiling fittings of a room on a regular grid', () => {
