@@ -121,3 +121,4 @@ and 0.05 s later it is still under 0.1. That was the clock counting on, not a si
 
 ### Checks
 - `node --check scripts/e2e-stealth-ai.mjs`: OK. No src change.
+- Queued: set `s25-sai-fix3`, suite `e2e-stealth-ai`, on 1eb5644d, request `20261023T170434-night-shift-guard-ai-1eb5644d-9b03`.
