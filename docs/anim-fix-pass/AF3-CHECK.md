@@ -39,7 +39,7 @@ reproduced here match the report exactly. No required fixes.
   mocapCrouch's per-frame allocation test passes.
 
 ## Polish (not blocking)
-1. src/anim/animGraph.ts:2896 MOCAP_CROUCH_POSE.leanD (-0.19) is dead: `kCrD` is always called with `mc` null
+1. src/anim/animGraph.ts:2891 MOCAP_CROUCH_POSE.leanD (-0.19) is dead: `kCrD` is always called with `mc` null
    (:1904), so p0 is never MOCAP_CROUCH_POSE when `dw`. Drop it or note "unused, type shape only" (AF4b owns the file).
 2. src/anim/animGraph.ts:2382 with mocap off (`?mocap=0`, dev rollback only) the drawn crouch uses `kCr`, so it takes the
    new walk lean 0.18 and the hips-back, unlike the mocap-on drawn crouch (`kCrD`, leanD). Dev-only; AF4b may want the
