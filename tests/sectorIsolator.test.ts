@@ -108,17 +108,26 @@ describe('Sector Ops breaker / timed isolator boards (E4, EW8)', () => {
     expect(rec.outs.length).toBe(2);
   });
 
-  it('the GA4 hook switches a cut board back (a window dropped, no timer return later)', () => {
+  it("(guard-ai LR16-4) a guard's switchBack puts a cut breaker back; a running timed window is the player's (refused, the timer returns it)", () => {
     const reg = level();
     const rec = recorder();
     const b = new IsolatorBoards(BOARDS, reg, rec);
-    expect(b.switchBack(1)).toBe(false);
+    expect(b.switchBack(0)).toBe(false);
+    b.use(0);
+    expect(b.cutBoard(3, 0, 0)).toBe(0);
+    expect(b.switchBack(0)).toBe(true);
+    expect(groupBaseOn(reg, 3)).toBe(true);
+    expect(rec.backs).toEqual([[0, BACK_HAND]]);
     b.use(1);
-    expect(b.switchBack(1)).toBe(true);
-    expect(groupBaseOn(reg, 5)).toBe(true);
+    expect(b.holding(5)).toBe(true);
+    expect(b.cutBoard(5, 0, 0)).toBe(-1);
+    expect(b.switchBack(1)).toBe(false);
+    expect(groupBaseOn(reg, 5)).toBe(false);
     for (let k = 0; k < Math.ceil((ISOLATOR_WINDOW + 1) / DT); k++) b.update(DT);
-    expect(b.returns).toBe(0);
-    expect(rec.backs).toEqual([[1, BACK_HAND]]);
+    expect(b.returns).toBe(1);
+    expect(b.holding(5)).toBe(false);
+    expect(groupBaseOn(reg, 5)).toBe(true);
+    expect(rec.backs).toEqual([[0, BACK_HAND], [1, BACK_TIMER]]);
   });
 
   it('a wall switch on a shared circuit moves an idle breaker with it', () => {
