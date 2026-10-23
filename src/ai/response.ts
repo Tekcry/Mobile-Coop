@@ -1,0 +1,98 @@
+/**
+ * (guard-ai S18, Michael's walk of 4.72) How a calm search runs (pure: no Babylon / DOM), unit-tested
+ * (`tests/bodySearch.test.ts`). `Enemy` reads the table: how long he searches and the ring of points he walks.
+ *
+ * A search (searching, not after combat) walks from its centre out over a widening ring of points (`ringPoint`: the
+ * k-th point `r0 + k x step` m out, capped at `max`, a golden-angle bearing per searcher so a pair fans out), looks round
+ * `look` s at each, and ends after `time` s (then the cooldown; cautious guards stay on edge). Three kinds:
+ * - plain (a call, a pair, the knockout search, a light cut): `ALERT.searchTime` and `PATROL`'s ring, as before;
+ * - body (G2 "guards investigating dead bodies give up too easily"): a dead body found, `BODY_SEARCH` (`gear.ts`):
+ *   `ALERT.searchTime` x `timeMul`, a denser ring out to a wider radius, so more points round the body;
+ * - device (S17): a tripped device's spot, the plain numbers inside the device's room.
+ * Allocation-free: `ringPoint` writes the caller's `out`; the table is built once.
+ */
+import { ALERT } from './alertState';
+import { PATROL } from './patrol';
+import { BODY_SEARCH } from './gear';
+
+export const SEARCH_PLAIN = 0;
+export const SEARCH_BODY = 1;
+export const SEARCH_DEVICE = 2;
+export type SearchKind = typeof SEARCH_PLAIN | typeof SEARCH_BODY | typeof SEARCH_DEVICE;
+
+/** One kind of search: its length (s), the ring's first radius, growth per point and cap (m), the look at each point (s). */
+export interface SearchSpec {
+  readonly time: number;
+  readonly r0: number;
+  readonly step: number;
+  readonly max: number;
+  readonly look: number;
+}
+
+const PLAIN: SearchSpec = { time: ALERT.searchTime, r0: PATROL.searchR0, step: PATROL.searchStep, max: PATROL.searchMax, look: PATROL.searchLook };
+
+/** The search kinds' numbers, by `SEARCH_*`. */
+export const SEARCH: readonly SearchSpec[] = [
+  PLAIN,
+  { time: ALERT.searchTime * BODY_SEARCH.timeMul, r0: BODY_SEARCH.r0, step: BODY_SEARCH.step, max: BODY_SEARCH.max, look: BODY_SEARCH.look },
+  PLAIN,
+];
+
+/** The numbers of search kind `kind` (an unknown kind: plain). */
+export function searchSpec(kind: number): SearchSpec {
+  return SEARCH[kind] ?? PLAIN;
+}
+
+/**
+ * The k-th ring point (k from 0) round (cx, cz) for searcher `slot` under `s`: `min(max, r0 + k x step)` m out, at a
+ * bearing of `slot x 2.39996 + k x 1.9` rad (the golden angle between searchers). With `PATROL`'s numbers this is
+ * `patrol.ts` `searchPoint` exactly. Writes and returns `out`.
+ */
+export function ringPoint(cx: number, cz: number, k: number, slot: number, s: SearchSpec, out: [number, number]): [number, number] {
+  const r = Math.min(s.max, s.r0 + k * s.step);
+  const a = slot * 2.39996 + k * 1.9;
+  out[0] = cx + Math.sin(a) * r;
+  out[1] = cz + Math.cos(a) * r;
+  return out;
+}
+
+/** What one searcher covers in a search (`searchCoverage`): stops made (the centre counts) and the furthest (m). */
+export interface SearchCover {
+  points: number;
+  reach: number;
+}
+
+const cov: [number, number] = [0, 0];
+
+/**
+ * A model of one search under `s` at `speed` m/s (straight lines, open floor): from the centre (the first stop) out
+ * over the ring, `look` s at each stop, until `time` runs out; a stop still on its way when time is up does not count.
+ * Docs and tests (how much more a body search covers); the guard walks the same points on the nav grid. Writes `out`.
+ */
+export function searchCoverage(s: SearchSpec, speed: number, out: SearchCover): SearchCover {
+  let t = 0;
+  let x = 0;
+  let z = 0;
+  let k = -1;
+  out.points = 0;
+  out.reach = 0;
+  while (k < 1000) {
+    let nx = 0;
+    let nz = 0;
+    if (k >= 0) {
+      ringPoint(0, 0, k, 0, s, cov);
+      nx = cov[0];
+      nz = cov[1];
+    }
+    const walk = Math.sqrt((nx - x) * (nx - x) + (nz - z) * (nz - z)) / Math.max(speed, 1e-6);
+    if (t + walk > s.time) break;
+    t += walk + s.look;
+    x = nx;
+    z = nz;
+    out.points++;
+    const r = Math.sqrt(x * x + z * z);
+    if (r > out.reach) out.reach = r;
+    k++;
+  }
+  return out;
+}

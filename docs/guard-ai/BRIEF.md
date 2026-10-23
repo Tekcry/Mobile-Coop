@@ -352,7 +352,7 @@ reported, they need a sense of urgency when it makes logical sense." A100-A119 a
   return false from `EnemyManager.deviceFresh`.
 - **A103** (S17) A device alert opens a `device` board incident: the 2 nearest calm free guards by path within 30 m
   (`DEVICE.want`, `callR`) go straight to the spot (no pause to look: the alarm went off), search round it inside the
-  room it is in (no room: round the spot), `ALERT.searchTime` (S18 may lengthen it), then back to their route on edge;
+  room it is in (no room: round the spot), `ALERT.searchTime` (a plain search's length), then back to their route on edge;
   nobody in range: it waits 20 s (`DEVICE.wait`), then lapses. One incident per device while open (a second trip
   merges). Undo: `DEVICE.want` / `callR` / `wait` (`src/ai/gear.ts`).
 - **A104** (S17) Marlow Yard (Course mode) gets the same device incident as Sector Ops (both host `CtDevices`): a laser or
@@ -360,3 +360,15 @@ reported, they need a sense of urgency when it makes logical sense." A100-A119 a
 - **A105** (S17) Left as is: an alerted guard with no last known position still goes for the player's feet in combat
   (`Enemy.decide`'s `known`). Only the device alarms led there without a sighting; a panel or command alarm follows a
   contact (a last known position). Undo: not needed; an open item if another path is found.
+- **A106** (S18) A dead body's search (`SEARCH_BODY`, `BODY_SEARCH` in `ai/gear.ts`): `ALERT.searchTime` x 3 (180 s,
+  M3's "a few minutes"), a ring from 1.5 m in 1.5 m steps out to 15 m (plain: 2 m, 2.5 m, 11 m), 2.5 s at each point
+  (plain 3 s): at the search pace about twice the points and 4 m further out than a plain search; then the held caution
+  as before (S4). Undo: `BODY_SEARCH = { timeMul: 1, r0: 2, step: 2.5, max: 11, look: 3 }`.
+- **A107** (S18) Who searches the body way: the dead body's finder and the calm guard who hears his "Man down!" (S4),
+  the guards a camera sends to a dead body (S7: the one who finds it, and the second, who now joins the search when the
+  first has found it instead of standing down), and a kill seen by a calm guard (it goes through the same finding). A
+  knockout keeps A4 (the waker and the woken guard search 60 s, the plain way); a kill seen with no body (a dog) stays
+  plain. Undo: `searchAt` in place of `bodySearch` in `EnemyManager.bodyFound`; drop the S18 branch in
+  `Enemy.stepCamBody`.
+- **A108** (S18) A guard already searching (a call, a pair, another body) who finds a dead body starts the body's search
+  over from zero round it (as `koSearch` does). Undo: drop the restart in `Enemy.bodySearch`.

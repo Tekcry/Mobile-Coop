@@ -575,9 +575,10 @@ export class EnemyManager {
     if (this.coordinated) {
       if (b.lethal) {
         e.bark('body');
-        e.searchAt(b.pos.x, b.pos.z, null);
+        // (guard-ai S18, G2) a dead body's search: longer and wider than a plain one (`BODY_SEARCH`)
+        e.bodySearch(b.pos.x, b.pos.z);
         const mask = (this.voiceMask(e) | keyBit(e.key) | also) >>> 0;
-        this.voiceNear?.searchAt(b.pos.x, b.pos.z, null);
+        this.voiceNear?.bodySearch(b.pos.x, b.pos.z);
         const h = this.awareness.openHold('dead', mask);
         this.lastHold = h;
         this.radioNet.startCall(e.num, h, 'body', callHold('body', this.reactionOf(e)));

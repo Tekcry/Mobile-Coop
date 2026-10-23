@@ -83,10 +83,13 @@ export interface AlertInput {
   /** (guard-ai S6, design 7, M1 "any reinforcements must be aggressive") An aggressive guard who has fought
    *  (`BEHAVIOUR.aggressive.neverCautious`): his search never ends (no cooldown, never calm again). */
   hunting: boolean;
+  /** (guard-ai S18) This search's length (s; `response.ts` `searchSpec`: a dead body's is longer); absent or 0:
+   *  `ALERT.searchTime`. */
+  searchFor?: number;
 }
 
 export function emptyAlertInput(): AlertInput {
-  return { meter: 0, seeing: false, arrived: false, sinceSeen: 99, heard: false, damaged: false, gunfire: false, called: false, search: false, hold: false, turning: false, calmEnd: false, cautious: false, hunting: false };
+  return { meter: 0, seeing: false, arrived: false, sinceSeen: 99, heard: false, damaged: false, gunfire: false, called: false, search: false, hold: false, turning: false, calmEnd: false, cautious: false, hunting: false, searchFor: 0 };
 }
 
 export class AlertMachine {
@@ -182,7 +185,8 @@ export class AlertMachine {
         break;
       case 'searching':
         // (guard-ai S6) a hunting (aggressive) guard keeps searching: never calm
-        if (this.t >= ALERT.searchTime && !i.hunting) this.set('cooldown');
+        // (guard-ai S18) a body's search runs longer (`searchFor`)
+        if (this.t >= (i.searchFor ? i.searchFor : ALERT.searchTime) && !i.hunting) this.set('cooldown');
         break;
     }
     return this.changes !== before;

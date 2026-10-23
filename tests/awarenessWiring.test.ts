@@ -44,6 +44,7 @@ interface FakeGuard {
   radio: ReturnType<typeof vi.fn>;
   bark: ReturnType<typeof vi.fn>;
   searchAt: ReturnType<typeof vi.fn>;
+  bodySearch: ReturnType<typeof vi.fn>;
   koSearch: ReturnType<typeof vi.fn>;
   dispose: ReturnType<typeof vi.fn>;
   setCaution: (c: number) => void;
@@ -76,6 +77,8 @@ function guard(x: number, z: number, key: number, o: Partial<FakeGuard> = {}): F
     radio: vi.fn(),
     bark: vi.fn(),
     searchAt: vi.fn(),
+    // (guard-ai S18) a dead body's search is the body way (`Enemy.bodySearch`): a search round the body all the same
+    bodySearch: vi.fn((bx: number, bz: number) => (g.searchAt as unknown as (x: number, z: number, r: null) => void)(bx, bz, null)),
     koSearch: vi.fn(),
     dispose: vi.fn(),
     setCaution(c: number) {

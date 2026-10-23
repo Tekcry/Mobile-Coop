@@ -327,6 +327,11 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   nearest calm guards within 30 m to the spot (`Enemy.respondDevice`: search round it inside its room, `searchRoom`),
   and the alarm's reinforcements within `DEVICE.fresh` s with no last known position search there too
   (`joinAsResponder`, never calm) instead of combat. Nothing reads the player's position; no last known position is set.
+- Search kinds (guard-ai S18, walk 4.72 G2, A106-A108; `ai/response.ts` pure, numbers `BODY_SEARCH` in `ai/gear.ts`):
+  a calm search has a kind (`Enemy.searchKind`: plain, body, device) whose `SearchSpec` sets its length
+  (`AlertInput.searchFor`), its ring (`ringPoint`: first radius, step, cap) and the look per point. A dead body found
+  (`EnemyManager.bodyFound`: the finder and his voice partner; the camera-sent guards) is searched `Enemy.bodySearch`:
+  3 x `ALERT.searchTime`, out to 15 m; combat's search and every other search stay plain (`PATROL`'s ring, 60 s).
 - Sound: `world/surfaces.ts` (pure) `surfaceAt` scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice. Shots:
   `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise` (combat); `onRay` hits
   are heard within `IMPACT_NOISE`.

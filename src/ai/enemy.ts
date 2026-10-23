@@ -27,7 +27,8 @@ import { hyp2 } from '../core/mathx';
 import { EYE_STAND, instantDetect, losClear, noiseSuspicion, PERCEPTION, seenAt, sightRate, stepMeter, type SightInput } from './perception';
 import { ALERT, AlertMachine, callInDelay, emptyAlertInput, type AlertLevel } from './alertState';
 import { HEARING } from './hearing';
-import { PatrolWalker, searchPoint, PATROL, type PatrolRoute } from './patrol';
+import { PatrolWalker, PATROL, type PatrolRoute } from './patrol';
+import { ringPoint, SEARCH_BODY, SEARCH_DEVICE, SEARCH_PLAIN, searchSpec } from './response';
 import { BODY, bodyNoticed } from './bodies';
 import type { Body } from './body';
 import { alarmStandPoint, raiseTime, type AlarmPanel } from './alarm';
@@ -312,6 +313,8 @@ export class Enemy implements Damageable {
   private routeVer = -1;
   /** Searching round its own stimulus (a body, a light) rather than the shared last known position. */
   private searchOwn = false;
+  /** (guard-ai S18) The search's kind (`response.ts` `SEARCH_*`): plain, a dead body's (longer, wider), a device's. */
+  private searchKind: number = SEARCH_PLAIN;
   /** (guard-ai S2 fix 2) This search follows combat (alert -> searching: the walk on to the last known position and
    *  the sweep round it): the old pace and the aimed turn. Only a calm search (a body, a call, a pair) is slow. */
   private combatSearch = false;
@@ -799,6 +802,22 @@ export class Enemy implements Damageable {
     this.searchAt(x, z, null);
   }
 
+  /**
+   * (guard-ai S18, Michael's walk of 4.72 G2: "guards investigating dead bodies give up too easily") A dead body at
+   * (x, z): he searches round it the body's way (`SEARCH_BODY`: `BODY_SEARCH` in `gear.ts`, longer and wider than a
+   * plain search) before the held caution. Already searching (a call, a pair, another body): he starts over round it.
+   */
+  bodySearch(x: number, z: number): void {
+    if (!this.alive || this.alerted) return;
+    if (this.aware.level === 'searching') {
+      this.aware.t = 0;
+      this.searchK = 0;
+      this.spotSet = false;
+      this.combatSearch = false;
+    }
+    this.searchAt(x, z, null, SEARCH_BODY);
+  }
+
   /** The perception multiplier: difficulty, plus an officer close by. */
   private get perceptionMul(): number {
     if (this.passive) return 0;
@@ -968,6 +987,12 @@ export class Enemy implements Damageable {
       this.incident = -1;
       return;
     }
+    // (guard-ai S18) a dead body found on the way by the other guard sent with him (or anyone): he joins its search
+    if (b.found && b.lethal && b.present && !b.carried && !b.hidden) {
+      this.camBody = null;
+      this.bodySearch(b.pos.x, b.pos.z);
+      return;
+    }
     if (!b.present || b.found || b.carried || b.hidden || this.camBodyT >= INCIDENT.bodyWalk) {
       this.camBody = null;
       return;
@@ -1120,11 +1145,12 @@ export class Enemy implements Damageable {
   }
 
   /** Something to search for without a sighting (a body, lights cut) around (x, z); with `revive`, wake that
-   *  knocked-out victim first. */
-  searchAt(x: number, z: number, revive: Body | null = null): void {
+   *  knocked-out victim first. (guard-ai S18) `kind`: the search's numbers (`response.ts` `SEARCH_*`). */
+  searchAt(x: number, z: number, revive: Body | null = null, kind: number = SEARCH_PLAIN): void {
     if (!this.alive || this.alerted) return;
     // (guard-ai S17) a plain search keeps to no room (`respondDevice` sets one after this)
     this.searchRoom = null;
+    this.searchKind = kind;
     this.stimulus[0] = x;
     this.stimulus[1] = z;
     this.hasStimulus = true;
@@ -1276,7 +1302,7 @@ export class Enemy implements Damageable {
    */
   respondDevice(x: number, z: number, incident: number, room: RoomRect | null): void {
     if (!this.sendable) return;
-    this.searchAt(x, z, null);
+    this.searchAt(x, z, null, SEARCH_DEVICE);
     this.searchRoom = room && inRoom(room, x, z, 0.5) ? room : null;
     this.incident = incident;
     this.incMode = MODE_DEVICE;
@@ -1297,7 +1323,7 @@ export class Enemy implements Damageable {
     this.entryK = 0;
     this.entryT = 0;
     this.responder = true;
-    this.searchAt(x, z, null);
+    this.searchAt(x, z, null, SEARCH_DEVICE);
     this.searchRoom = room && inRoom(room, x, z, 0.5) ? room : null;
   }
 
@@ -1584,7 +1610,11 @@ export class Enemy implements Damageable {
     if (to === 'searching') {
       this.searchK = 0;
       this.spotSet = false;
-      if (from === 'alert') this.searchOwn = false;
+      if (from === 'alert') {
+        this.searchOwn = false;
+        // (guard-ai S18) combat's search is a plain one
+        this.searchKind = SEARCH_PLAIN;
+      }
     }
     this.combatSearch = to === 'searching' && (from === 'alert' || (from === 'searching' && this.combatSearch));
     if (to !== 'searching') this.reviving = null;
@@ -1943,6 +1973,8 @@ export class Enemy implements Damageable {
     // (guard-ai S6) an aggressive guard who has fought (a reinforcement) never calms: his search does not end
     // (guard-ai S17) so does a responder on a device's alarm (he came in on it, the stage stays up)
     i.hunting = (this.aware.fought || this.responder) && profileOf(this.tacticsProfile).neverCautious;
+    // (guard-ai S18) the search's length by its kind (a dead body's is longer)
+    i.searchFor = searchSpec(this.searchKind).time;
     const from = this.aware.level;
     if (this.aware.step(dt, i)) this.onLevel(from, this.aware.level);
     // in combat without sight: arriving at the last known position with nothing there starts the search
@@ -2099,7 +2131,7 @@ export class Enemy implements Damageable {
           if (this.searchK === 0) {
             this.spot[0] = cx;
             this.spot[1] = cz;
-          } else searchPoint(cx, cz, this.searchK - 1, this.ctx.searchSlot(this), this.spot);
+          } else ringPoint(cx, cz, this.searchK - 1, this.ctx.searchSlot(this), searchSpec(this.searchKind), this.spot);
           const c = this.ctx.nav.nearestWalkable(this.spot[0], this.spot[1], 4);
           if (c >= 0) {
             const cc = this.ctx.nav.center(c);
@@ -2122,7 +2154,8 @@ export class Enemy implements Damageable {
           this.spotArrived = true;
           if (this.spotLookT === 0) this.lookBase = this.yaw;
           this.spotLookT += dt;
-          if (lvl === 'searching' && this.spotLookT >= PATROL.searchLook) {
+          // (guard-ai S18) the look per point by the search's kind
+          if (lvl === 'searching' && this.spotLookT >= searchSpec(this.searchKind).look) {
             this.searchK++;
             this.spotSet = false;
           }

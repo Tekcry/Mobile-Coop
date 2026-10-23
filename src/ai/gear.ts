@@ -61,6 +61,16 @@ export const LATE = { enabled: true, range: 12 } as const;
  */
 export const DEVICE = { enabled: true, want: 2, callR: 30, wait: 20, fresh: 90 } as const;
 
+/**
+ * (guard-ai S18, Michael's walk of 4.72 G2: "guards investigating dead bodies give up too easily") A dead body found
+ * (S4: the finder and the guard who hears his shout; S7: the guards a camera sent, the second one too) is searched
+ * `ALERT.searchTime` x `timeMul` s before the held caution, over a denser ring (`r0`, then every `step` m) out to `max`
+ * m round the body (a plain search: 2 m, 2.5 m steps, 11 m), `look` s at each point (`response.ts` `SEARCH`).
+ * `timeMul` 1, `r0` 2, `step` 2.5, `max` 11: the plain search again.
+ */
+export const BODY_SEARCH = { timeMul: 3, r0: 1.5, step: 1.5, max: 15, look: 2.5 } as const;
+
+
 /** The gear a tag names into `out` (undefined = none). Returns `out`. */
 export function gearFromTag(tag: GearTag | undefined, out: GuardGear): GuardGear {
   out.helmet = tag === 'helmet' || tag === 'both';

@@ -52,3 +52,39 @@ awarenessWiring, gear.
 E2e to run: `e2e-stealth-ai`, `e2e-sectorops` (all parts), `e2e-ctcourse` (station 4's laser), `e2e-ct-warehouse`.
 No e2e assert added (the suites trip lasers only for the alarm stage; a guard-side assert needs a guard in range of a beam,
 not cheap without a run).
+
+## S18 (G2) Bodies: the finders search longer, at more points, further out
+Michael: "guards investigating dead bodies give up too easily."
+
+Cause: a dead body's finder (and the guard who heard his shout) ran the same search as any call: `ALERT.searchTime`
+(60 s) over `PATROL`'s ring (2 m, +2.5 m, cap 11 m), 3 s per point; at the calm search pace (x0.75 of a slow walk) that
+was about five stops, the furthest ~9.5 m out. The second guard a camera sent to a dead body stood down when the first
+found it.
+
+Built:
+- `src/ai/gear.ts:71` `BODY_SEARCH` (timeMul 3, r0 1.5, step 1.5, max 15, look 2.5).
+- `src/ai/response.ts` (new, pure): `SEARCH_PLAIN` / `SEARCH_BODY` / `SEARCH_DEVICE`, `SearchSpec` and the `SEARCH` table
+  (plain = `ALERT.searchTime` + `PATROL`'s ring; body = `BODY_SEARCH`; device = plain), `searchSpec`, `ringPoint`
+  (`patrol.ts` `searchPoint` with a spec), `searchCoverage` (a model of one search: stops and reach; docs and tests).
+- `src/ai/alertState.ts:88` `AlertInput.searchFor` (absent / 0: `ALERT.searchTime`), read by the searching case (`:189`).
+- `src/ai/enemy.ts`: `searchKind` (plain unless set), `searchAt(..., kind)`; `bodySearch` (`:810`: starts over when
+  already searching, then the body's search); `updateAwareness` sets `searchFor` by kind (`:1977`); `calmDecide` takes
+  the ring and the look from the spec (`:2134`, `:2158`); combat's search is plain (`onLevel`, `:1616`); `stepCamBody`
+  (`:991`): a dead body found by the other guard sent with him -> he joins its search. `respondDevice` /
+  `joinAsResponder` search the device way.
+- `src/ai/enemyManager.ts:579-581` `bodyFound` (dead, coordinated): the finder and the voice partner `bodySearch`.
+- Tests that change by design: `tests/awarenessWiring.test.ts` and `tests/sectionAlert.test.ts` fake guards gain
+  `bodySearch` (awareness: it records a `searchAt` round the body, so its asserts hold as written).
+
+Tests: `tests/bodySearch.test.ts` (7): the table (body = searchTime x timeMul, wider, denser; device and unknown plain);
+the plain ring equals `searchPoint` (nothing changes for other searches); the coverage model at the search pace: twice
+the stops and 3+ m further; `AlertMachine` ends a search after its `searchFor`; on the real `Enemy` code (its own
+`updateAwareness` and `calmDecide`): a dead body's search lasts 180 s against 60 s, at least twice the stops and 3+ m
+further out, then cooldown under the held caution; a guard already searching starts over; the second camera-sent guard
+joins the search. Also green: awarenessWiring, sectionAlert, pairsWiring, sectorGuardTags, camBodyWiring, incidents,
+sweep, deviceTrip, breaker and the other AI suites (alarmCall, cameraReach, coopTorches, ctcourseLight, difficulty,
+enemyLightsOut, enemyManagerDespawn, gearWiring, hearing, perception, postsWiring, radioWiring, responseWiring,
+s6CloseOn, sectorRestart, securityBodies, securityCamera, squadWiring).
+
+E2e to run: `e2e-stealth-ai` (body finding and the search that ends), `e2e-sectorops` (all parts; camera bodies),
+`e2e-ctcourse`. Note for the runner: an e2e that waits for a body search to end now waits up to 180 s, not 60 s.
