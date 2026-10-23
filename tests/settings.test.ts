@@ -287,3 +287,18 @@ describe('(lightrev LR13) Gameplay > Lamp falloff', () => {
     expect('lampFalloff' in back.video.gfx).toBe(false);
   });
 });
+
+describe('(LR14) Graphics > Character shadows', () => {
+  it('defaults to Auto; settings from before it read Auto; junk is dropped; On / Off are kept; Auto follows the preset', () => {
+    expect(defaultSettings().video.charShadows).toBe('auto');
+    expect(sanitizeSettings(PRE_STEP_18).video.charShadows).toBe('auto');
+    expect(sanitizeSettings({ video: { charShadows: 'maybe' } }).video.charShadows).toBe('auto');
+    for (const m of ['on', 'off'] as const) {
+      const s = sanitizeSettings({ video: { charShadows: m } });
+      expect(s.video.charShadows).toBe(m);
+      expect(sanitizeSettings(structuredClone(s)).video.charShadows).toBe(m);
+    }
+    // (render only: it lives with the graphics settings, never in gameplay)
+    expect('charShadows' in defaultSettings().gameplay).toBe(false);
+  });
+});

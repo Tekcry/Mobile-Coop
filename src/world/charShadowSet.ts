@@ -10,6 +10,7 @@ import { hyp3 } from '../core/mathx';
 
 /** The settings override: the preset's choice, or always on / off. */
 export type CharShadowMode = 'auto' | 'on' | 'off';
+export const CHAR_SHADOW_MODES: readonly CharShadowMode[] = ['auto', 'on', 'off'];
 
 /** Lamps given a character shadow map, and each one's tile (px) in the shared atlas. 0 lamps: capsules only. */
 export interface CharShadowSpec {

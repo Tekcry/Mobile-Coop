@@ -5,6 +5,7 @@ import { findConflicts } from '../input/conflicts';
 import { defaultPadBinds, migrateA3Dpad, PAD_BINDS, PAD_FIXED, PAD_LAYOUT_V, padButtonName, sanitizePadBinds, type PadBinds } from '../input/padBinds';
 import { BRIGHTNESS_MAX, BRIGHTNESS_MIN } from '../world/darkCurve';
 import { LAMP_FALLOFFS, type LampFalloff } from '../world/lampMath';
+import { CHAR_SHADOW_MODES, type CharShadowMode } from '../world/charShadowSet';
 import { FPS_CAPS, GRAPHICS_PRESETS, LIGHT_RANGE, PRESET_DISPLAY, PRESET_IDS, presetOf, type AaMode, type FixedPreset, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type ShadowQuality, type TierQuality } from './quality';
 
 
@@ -66,6 +67,9 @@ export interface Settings {
     upscaler: 'off' | 'taau';
     /** Panini projection strength 0..1 (0 = off): keeps wide fields of view from stretching at the sides. */
     panini: number;
+    /** (LR14) Character silhouette shadows from the nearest lamps: 'auto' (the Shadows tier's: on from High), 'on' or
+     *  'off' (capsule shadows). Rendering only; this machine only (nothing on the wire). */
+    charShadows: CharShadowMode;
     /** Frame-rate cap (0 = the display's refresh rate). */
     fpsCap: number;
     /** Horizontal FOV (degrees) at a 16:9 reference; wider screens see more at the sides (Hor+). */
@@ -158,7 +162,7 @@ export function defaultSettings(): Settings {
     keysV: KEY_LAYOUT_V,
     camV: CAM_V,
     mocapV: MOCAP_V,
-    video: { preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 86, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, brightness: 1, brightnessSet: false, avatarStyle: 'detailed', avatarStyleV: 2 },
+    video: { preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, charShadows: 'auto', fpsCap: 0, fovH: 86, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, brightness: 1, brightnessSet: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.15, ui: 0.7, musicV: 3 },
     gameplay: { defaultShoulder: 'right', crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true, grabToggle: true, rumble: 1, courseMarkers: true, mocapLoco: true, lampFalloff: 'linear' },
     access: { hudScale: 1, healthBar: true, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
@@ -341,6 +345,8 @@ export function sanitizeSettings(raw: unknown): Settings {
       adaptive: bool(v.adaptive, d.video.adaptive),
       upscaler: pick(v.upscaler, ['off', 'taau'] as const, d.video.upscaler),
       panini: num(v.panini, d.video.panini, 0, 1),
+      // (LR14) settings from before it: the preset's
+      charShadows: pick(v.charShadows, CHAR_SHADOW_MODES, d.video.charShadows),
       fpsCap: pick(v.fpsCap, FPS_CAPS as readonly number[], d.video.fpsCap),
       fovH: camKept(r.camV, num(v.fovH, d.video.fovH, 60, 120), 75, d.video.fovH),
       maxFov: num(v.maxFov, d.video.maxFov, 90, 150),
