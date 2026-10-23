@@ -7,8 +7,9 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 Everything below runs headless through the swap (scheduled tasks + the laptop-queue service). A new session only
 collects results and sends ONE verdict per batch (fail: assert, log path, last ~40 lines - Michael ~19:25 rule).
 - laptop-queue SERVICE (task NightShift-laptop-queue; log C:/NightShift/scratch/laptop-queue/log.txt, results as
-  GitHub statuses): (a) Guard AI d82f9b6f ctcourse:2+:4 "laptop-e2e/s22game-a3a8" -> verdict to Guard AI (a4GoodsShed /
-  a8Strongroom fail: assert + 20 lines; marlow step-3/4 flake = not theirs); (b) Marlow #248/#237 91b587f2 coop netmove
+  GitHub statuses): (a) DONE + SENT: Guard AI d82f9b6f ctcourse:4 PASS, ctcourse:2 FAIL twice (A4 "back from the
+  noise, the officer notices the console off", a4GoodsShed.mjs:223) - first live service run: status, flake rerun and
+  done record all worked; (b) Marlow #248/#237 91b587f2 coop netmove
   ctcourse:1-3 section-rating "laptop-e2e/train32-entry"; (c) Marlow polish 1bde5328 ctcourse:2 flake rerun
   "laptop-e2e/polish-ctc2-rerun" -> ONE verdict to Marlow for (b)+(c)+polish 1bde5328 (coop netmove sectorops 1-6 PASS;
   ctcourse:2 FAIL "timed out waiting for A3: the cleaner is calm and back in the offices after the corridor lure",
