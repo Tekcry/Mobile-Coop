@@ -241,6 +241,10 @@ await run(PARAMS, async ({ page, G, sim }) => {
         }
       }
       best.alert();
+      // (guard-ai S6 stack-tip fix) the panel path only: his contact call is cut at once, so nothing gets through and no
+      // command call is owed (S6 A29: contact cut first = no radio alarm); else the command call (callIn + report, ~6.5 s
+      // x reaction) beats his run to the panel. He stays in combat and is still the panel runner.
+      em.radioNet.cut(best.num);
     });
     let runner = null;
     for (let k = 0; k < 12 && !runner; k++) {
@@ -1998,13 +2002,16 @@ if (want(1)) {
       out.kind = B.incident >= 0 ? em.board.kindOf(B.incident) : null;
       let close = 99;
       let found = false;
+      let light = 0;
       for (let k = 0; k < 400 && !found; k++) {
         step(0.1);
         close = Math.min(close, Math.hypot(B.pos.x - ax, B.pos.z - az), Math.hypot(C.pos.x - ax, C.pos.z - az));
         const b = em.bodies.find((q) => q.enemyId === A.id);
+        if (b) light = b.light;
         found = !b || b.found;
       }
-      Object.assign(out, { close, found });
+      // (stack-tip fix) the game's find range for that body: sight in focus at its light (BODY.close at the least)
+      Object.assign(out, { close, found, light, reach: em.bodyNoticeRange(light) });
       for (const e of [...em.enemies]) em.despawn(e);
       // (b) the dog: handler H walks a round; a squad mate D stands beside the dog's spawn
       const slotsB = [
@@ -2044,15 +2051,21 @@ if (want(1)) {
       return out;
     }, site.at);
     const f2 = (v) => v.toFixed(2);
-    console.log(`  squad ${JSON.stringify(r.squads)}, before ${JSON.stringify(r.before)}, incident ${r.inc} (${r.kind}), closest ${f2(r.close)} m, found ${r.found}; dog far ${f2(r.far)} m (handler moved ${f2(r.hMove)} m; the squad mate ${f2(r.decoy)} m off at the end), stay ${f2(r.stay)} m (${r.dogLevel})`);
+    console.log(`  squad ${JSON.stringify(r.squads)}, before ${JSON.stringify(r.before)}, incident ${r.inc} (${r.kind}), closest ${f2(r.close)} m (find range ${f2(r.reach)} m at light ${f2(r.light)}), found ${r.found}; dog far ${f2(r.far)} m (handler moved ${f2(r.hMove)} m; the squad mate ${f2(r.decoy)} m off at the end), stay ${f2(r.stay)} m (${r.dogLevel})`);
     assert(r.squads[0] === r.squads[1] && r.squads[1] === r.squads[2] && r.squads[0] >= 0, `sector tags: the three join one squad (${r.squads})`);
     assert(r.before.b === -1 && r.before.c === -1, `sector tags: nobody knows before the radio check (incidents ${r.before.b} / ${r.before.c}, ${r.before.bl} / ${r.before.cl})`);
     assert(r.misses === 1, `sector tags: the radio check misses him (${r.misses})`);
     assert(r.inc[0] >= 0 && r.inc[0] === r.inc[1] && r.kind === 'missing', `sector tags: the other two are sent as a pair to a missing incident (${r.inc}, ${r.kind})`);
-    assert(r.close < 2.5 && r.found, `sector tags: they reach where he went down and find him (${f2(r.close)} m, found ${r.found})`);
+    // (stack-tip fix) found by sight, not only inside BODY.close (2.5 m, the old bound): a guard notices a body at up to
+    // `bodyNoticeRange(light)` m straight ahead (BODY.range x the falloff at BODY.threshold, BODY.close at the least);
+    // + 0.5 m for the think interval (0.22-0.3 s) and the body's 1 Hz light sample. The laptop run found him at 3.93 m.
+    assert(r.close < r.reach + 0.5 && r.found, `sector tags: they reach where he went down and find him (${f2(r.close)} m, find range ${f2(r.reach)} m, found ${r.found})`);
     assert(r.bound && r.leader, `sector tags: the dog is bound to its handler, in his squad (${r.bound}, leader ${r.leader})`);
     assert(r.hMove > 6 && r.far < 3.5, `sector tags: the dog stays at its handler on his round (${f2(r.far)} m off; he walked ${f2(r.hMove)} m)`);
-    assert(r.dogAlive && r.stay < 3.5, `sector tags: the handler down, the dog stays by him (${f2(r.stay)} m, ${r.dogLevel})`);
+    // (stack-tip fix) the handler down, the dog searches round him (`handlerDown` -> `searchAt` on his spot), on the search
+    // rings (patrol.ts `searchPoint`: PATROL.searchR0 2 m, then + searchStep 2.5 m): in the 5-15 s window it reaches the
+    // second ring at most (4.5 m) + 0.5 m for the walk past a point. The old 3.5 m cut the second ring (3.72 m seen).
+    assert(r.dogAlive && r.stay < 5, `sector tags: the handler down, the dog stays by him (${f2(r.stay)} m, ${r.dogLevel})`);
   });
 }
 
@@ -2152,6 +2165,7 @@ if (want(1)) {
       let kind = null;
       let close = 99;
       let found = false;
+      let light = 0;
       for (let k = 0; k < 500 && !found; k++) {
         step(0.1);
         const t = 0.5 + (k + 1) * 0.1;
@@ -2161,16 +2175,18 @@ if (want(1)) {
         }
         if (sentT >= 0) close = Math.min(close, Math.hypot(A2.pos.x - bx, A2.pos.z - bz));
         const b = em.bodies.find((q) => q.enemyId === B2.id);
+        if (b) light = b.light;
         found = !b || b.found;
       }
-      out.b = { open: p2 ? p2.pm.def.open : -1, sentT, kind, close, found, misses: em.pairMisses, lines: em.pairLines - lines0, radioMisses: em.radioMisses, witnessed: em.lastWitnesses };
+      // (stack-tip fix) the game's find range for that body (as the sector tags block)
+      out.b = { open: p2 ? p2.pm.def.open : -1, sentT, kind, close, found, light, reach: em.bodyNoticeRange(light), misses: em.pairMisses, lines: em.pairLines - lines0, radioMisses: em.radioMisses, witnessed: em.lastWitnesses };
       for (const e of [...em.enemies]) em.despawn(e);
       em.onBark = prevBark;
       g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
       return out;
     }, site.at);
     const f2 = (v) => v.toFixed(2);
-    console.log(`  built ${JSON.stringify(r.built)}; met at ${f2(r.a.met)} s, facing off ${f2(r.a.faceA)} / ${f2(r.a.faceB)} rad, ${f2(r.a.atA)} m from his stop, lines ${r.a.lines} ${JSON.stringify(r.a.said.map((s) => s.line))}, then ${r.a.state}, ${f2(r.a.split)} m off; missing: open ${f2(r.b.open)} s, sent at ${f2(r.b.sentT)} s (${r.b.kind}), closest ${f2(r.b.close)} m, found ${r.b.found}, lines ${r.b.lines}`);
+    console.log(`  built ${JSON.stringify(r.built)}; met at ${f2(r.a.met)} s, facing off ${f2(r.a.faceA)} / ${f2(r.a.faceB)} rad, ${f2(r.a.atA)} m from his stop, lines ${r.a.lines} ${JSON.stringify(r.a.said.map((s) => s.line))}, then ${r.a.state}, ${f2(r.a.split)} m off; missing: open ${f2(r.b.open)} s, sent at ${f2(r.b.sentT)} s (${r.b.kind}), closest ${f2(r.b.close)} m (find range ${f2(r.b.reach)} m at light ${f2(r.b.light)}), found ${r.b.found}, lines ${r.b.lines}`);
     assert(r.built.n === 1 && r.built.skips.length === 0, `talking pairs: the pair is built (${r.built.n}, skips ${JSON.stringify(r.built.skips)})`);
     assert(r.a.met > 0 && r.a.met < 18, `talking pairs: they meet inside the window (${f2(r.a.met)} s, window ${f2(r.built.open)}..${f2(r.built.close)})`);
     assert(r.a.faceA < 0.35 && r.a.faceB < 0.35 && r.a.atA < 0.8, `talking pairs: they stand at their stops facing each other (${f2(r.a.faceA)} / ${f2(r.a.faceB)} rad, ${f2(r.a.atA)} m)`);
@@ -2182,7 +2198,9 @@ if (want(1)) {
     // from the step the window opens: the request lands 5.6 .. 6.0 s after the window opens, read at 0.1 s
     assert(r.b.sentT >= r.b.open + 6 - 0.45 && r.b.sentT <= r.b.open + 6 + 0.5, `talking pairs: the request ${f2(r.b.sentT)} s, grace 6 s after the window opens (${f2(r.b.open)} s)`);
     assert(r.b.kind === 'missing', `talking pairs: the other is sent on a missing incident (${r.b.kind})`);
-    assert(r.b.close < 2.5 && r.b.found, `talking pairs: he searches at his partner's stop and finds him (${f2(r.b.close)} m, found ${r.b.found})`);
+    // (stack-tip fix) found by sight within the game's find range, not only inside BODY.close (see the sector tags block;
+    // the laptop run found him at 4.44 m). `lines` 0 above is right: part (b) has no meeting (B is down before the window)
+    assert(r.b.close < r.b.reach + 0.5 && r.b.found, `talking pairs: he searches at his partner's stop and finds him (${f2(r.b.close)} m, find range ${f2(r.b.reach)} m, found ${r.b.found})`);
   });
 }
 

@@ -49,3 +49,5 @@
   that catches their attention cuts the talk short. Take one of them out before they meet and the other notices he
   never turned up: a few seconds later he goes to look for him where he was last headed, with the nearest free guard
   behind him. The car-park pair in Saltmarsh Park is the first.
+- Guard AI fix: when a guard's contact report gets through and he goes straight on to call command for backup, the
+  rest of his section now hears the contact at once, staggered by distance, instead of only after the backup call.

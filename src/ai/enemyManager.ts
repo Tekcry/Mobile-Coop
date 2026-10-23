@@ -34,7 +34,7 @@ import { MODE_BODY } from './incidents';
 import { camBodyLine } from './barks';
 import type { CameraBodyEvent } from '../security/securitySystem';
 import { Awareness, CAUTION, MAX_KEYS } from './awareness';
-import { bodyNoticed } from './bodies';
+import { bodyNoticed, bodyNoticeRange } from './bodies';
 import { CoverGrid, coverSetFrom, type CoverSet } from './coverGrid';
 import { assignRoles, combatSeed, P_AGGRESSIVE, P_POST, P_STANDARD, R_NONE, R_REPORTER, RoleInput, RoleOutput, SQUAD } from './squadRoles';
 // (guard-ai S10) talking pairs
@@ -228,6 +228,9 @@ export class EnemyManager {
   private boardT = 0;
   /** The incident table (tests / e2e read the numbers from here). */
   readonly incidentTable = INCIDENT;
+  /** (guard-ai stack-tip e2e fix) The body table and how far a body at a light level is noticed ahead (e2e bounds). */
+  readonly bodyTable = BODY;
+  readonly bodyNoticeRange = bodyNoticeRange;
   /**
    * (guard-ai S3, design 5, M5) The section radio net: one per section. Sector Ops loads one section at a time, so the
    * live section is this one net (cleared with the guards on every unload / restart: `despawnAll` -> `clear`); other
