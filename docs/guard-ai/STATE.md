@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~18:25: e2e-guard-carry fe910585 (sheet URL, guards under lamp (0,-3), same light defines incl. CLUSTLIGHT4 LIGHTCOUNT 5)
+PASSES on master f16600f5 and 4.78.0: no repro. Left between the failing sheet and the suite: photoFreeze + photo
+camera, 1920x1080, the player 1.5 m behind (his body + shadow copies). Test Runner splits it on f16600f5 (A: player far,
+photo mode; B: player near, no photo mode), low priority. Then aim the check at the failing path.
+
 ~18:05: 4.78.0 = train 29 (S16 + #232 in master). Invisible-body root cause NOT pinned (GPU log cut before the error
 line). Likely: a failed GPU-skinned partSkinMat effect falls back to CPU skinning rank 0 (Babylon effectFallbacks) and
 poisons the effect cache, so later bodies draw unskinned; #232 only masks it with a new define set (still fragile).
@@ -504,8 +509,8 @@ Read CLAUDE.md ("Sessions", "Heavy-usage throughput" incl. "Token rules"), ROADM
 unavoidable guards, stealth over shooting), then this file's "Now" (top entry).
 e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep laptop CPU under ~80%.
 1. Train 29 (61972cf1) = #228 S16 + Sector Ops #232: fix any failure reported at once.
-2. feature/guard-ai-carry-fix 4bed934a: e2e-guard-carry suite (regression check for invisible bodies; #232 masks the
-   master bug). Test Runner: on 4bed934a + on master f16600f5 for the GLSL error line -> pin the cause, fix if real.
+2. feature/guard-ai-carry-fix fe910585: e2e-guard-carry suite (passes on master too: no repro yet). Test Runner splits
+   the failing sheet on f16600f5 (photo mode vs player near) -> point the suite at the failing path, fix if real.
    Merge this branch into s9 for the train-31 PR (orchestrator's ask).
    Then train 31: when train 30 is built, merge origin/train/30 into s9 then s22, PROTOCOL 41 (42 if marlow-final #237 is train-ready first), fix the asserts, Test
    Runner coop + netmove (+ stealth-ai, takedown; S22 stealth-ai, ctcourse:1), TRAIN-READY #229 + #234.
