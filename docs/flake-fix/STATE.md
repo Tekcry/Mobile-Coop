@@ -27,6 +27,8 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   when baked moon, reach from player, body rigs reach, runs into docs); Sonnet S5 PR prep (merge S1 + master, golden:
   report, no recapture without CT Core). RUNNING chain w: 4189 guardais10-88a93584 then guardrender-s3a-e704d5f3 (stale
   after fix 2: rerun on the new head), 4192 guardrender-s6-c181002e (baseline before the S6 fixes).
+- 11:45 PR #205 OPEN guard-render S5 9fc1e66a (stacked on #204, same train; golden passes, no recapture). Runner
+  guardrender-s5-9fc1e66a waits on the 4192 lock (e2e-anim e2e-takedown, JOBS=2): message the orchestrator only on a fail.
 - 11:30 CHECKER (Opus) S3a e704d5f3 PASS WITH NOTES: (1, blocks job PR) fit script has no `free` mode for MOVE + no
   crouch sweep; (2) harness re-implements syncHitboxes emote logic (move to a pure fn, test beginTakedown blindPose clear);
   (3) hostage walk untested (mSx survives held blend, frozen phase); exceptions OK, peek cycle 29 cm = follow-up (smaller
