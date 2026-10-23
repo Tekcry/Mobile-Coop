@@ -6,7 +6,7 @@ import type { Vfx } from '../vfx/vfx';
 import type { NavGrid } from './navGrid';
 import { Enemy, type AiContext, type PlayerRef } from './enemy';
 import { ENEMIES, type EnemyKind } from './enemyDefs';
-import { BUDGET, G } from '../physics/groups';
+import { BUDGET, G, MASK } from '../physics/groups';
 import type { CharacterRig } from '../player/characterRig';
 import type { Grenades } from '../weapons/grenades';
 import { GRAVITY } from '../physics/havok';
@@ -1021,7 +1021,7 @@ export class EnemyManager {
       // a wall between them would stop it: one ray, head to head
       this.earA.set(e.pos.x, e.pos.y + 1.6, e.pos.z);
       this.earB.set(o.pos.x, o.pos.y + 1.6, o.pos.z);
-      if (!this.ballistics.clear(this.earA, this.earB, G.STATIC)) return -1;
+      if (!this.ballistics.clear(this.earA, this.earB, MASK.HEARING)) return -1;
     }
     return d;
   }
@@ -1188,12 +1188,12 @@ export class EnemyManager {
       if (d > r * MUFFLE) {
         this.earA.set(pos.x, pos.y + 1.5, pos.z);
         this.earB.set(e.pos.x, e.pos.y + 1.6, e.pos.z);
-        if (!this.ballistics.clear(this.earA, this.earB, G.STATIC)) r *= MUFFLE;
+        if (!this.ballistics.clear(this.earA, this.earB, MASK.HEARING)) r *= MUFFLE;
       }
     } else if (wallMatters(d, r, loud)) {
       this.earA.set(pos.x, pos.y + 1.5, pos.z);
       this.earB.set(e.pos.x, e.pos.y + 1.6, e.pos.z);
-      if (!this.ballistics.clear(this.earA, this.earB, G.STATIC)) r *= WALL_FACTOR;
+      if (!this.ballistics.clear(this.earA, this.earB, MASK.HEARING)) r *= WALL_FACTOR;
     }
     this.hearR[i] = r;
     return hearTier(d, r, loud);

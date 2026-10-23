@@ -183,6 +183,8 @@ export interface AnchorBox {
   pitch: number;
   collide: boolean;
   visible?: boolean;
+  /** (E2) Glass is never a ledge. */
+  glass?: unknown;
   /** Never generate ledges from this piece. */
   noLedge?: boolean;
 }
@@ -316,7 +318,7 @@ export function generateLedges(boxes: readonly AnchorBox[], out: TraversalAnchor
   let piece = 0;
   for (const b of boxes) {
     piece++;
-    if (!b.collide || b.visible === false || b.noLedge || Math.abs(b.pitch) > 1e-3) continue;
+    if (!b.collide || b.visible === false || b.glass || b.noLedge || Math.abs(b.pitch) > 1e-3) continue;
     const [w, h, d] = b.s;
     const top = b.c[1] + h / 2;
     const bottom = b.c[1] - h / 2;

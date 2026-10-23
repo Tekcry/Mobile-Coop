@@ -10,7 +10,7 @@
  * fills first: AI fairness).
  */
 import { hyp3 } from '../core/mathx';
-import { G } from '../physics/groups';
+import { MASK } from '../physics/groups';
 import { LIGHT, visibilityFromLight } from '../world/lights';
 
 export const PERCEPTION = {
@@ -78,7 +78,7 @@ interface P3 {
  * against static geometry (closed doors included), clear when nothing is hit nearer than the point less `slack`.
  */
 export function losClear(b: { ray(from: P3, to: P3, mask: number): { hit: boolean; distance: number } }, eye: P3, to: P3, slack: number): boolean {
-  const h = b.ray(eye, to, G.STATIC);
+  const h = b.ray(eye, to, MASK.SIGHT);
   return !h.hit || h.distance > hyp3(to.x - eye.x, to.y - eye.y, to.z - eye.z) - slack;
 }
 
