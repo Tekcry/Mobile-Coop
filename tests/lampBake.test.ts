@@ -1,13 +1,15 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { bakeLamps, BOX_STRIDE, fillLampAtlas, fixtureSize, LAMP_CELL, LAMP_GRID_SLOTS, LAMP_STRIDE, lampColumnDist, lampGrid, lampGridBase, lampPlanReach, packLampAtlas, PENUMBRA, penumbraWidth, tentWeight, type LampJob, type LampResult } from '../src/voxel/lampBake';
+import { bakeLamps, BOX_STRIDE, fillLampAtlas, fixtureSize, LAMP_CELL, LAMP_GRID_SLOTS, LAMP_STRIDE, lampColumnDist, lampGrid, lampGridBase, lampPlanReach, packLampAtlas, PENUMBRA, PenumbraBuffers, penumbraWidth, tentWeight, type LampJob, type LampResult } from '../src/voxel/lampBake';
 import { lampTerm, LAMP_CONE_COS, LAMP_EXP, SPOT_EXP } from '../src/world/lampMath';
 import { packShapes, ShapeMode, type VoxelShape } from '../src/voxel/shapes';
 import { canonicalLightSet, canonicalLightShapes } from '../src/voxel/lightShapes';
 import { lampVolumeGrid, lampVolumeRegion, unionRegion } from '../src/voxel/lampVolume';
-import { detailPieces } from '../src/world/detailPass';
+import { detailPieces, dressingOn } from '../src/world/detailPass';
 import { LevelBuilder, type BoxPiece, type CylPiece } from '../src/world/levelBuilder';
 import { MAPS } from '../src/world/maps';
 import { trilinear } from '../src/world/lightField';
+import { bakedLights } from '../src/world/lightBake';
 
 const box = (c: [number, number, number], s: [number, number, number], mode?: ShapeMode): VoxelShape => ({ kind: 'box', c, s, yaw: 0, pitch: 0, mat: 1, mode });
 /** A downward lamp at (x, y, z), radius r, fixture sx x sz. */
@@ -304,6 +306,59 @@ describe('(LR16e) penumbra', () => {
     for (let k = 0; k < te.length; k++) ratio = Math.min(ratio, te[k]! / tb[k]!);
     console.info(`LR16e bake ${Math.min(...te).toFixed(0)} ms vs LR16b ${Math.min(...tb).toFixed(0)} ms (x${ratio.toFixed(3)})`);
     expect(ratio).toBeLessThanOrEqual(1.35);
+  });
+
+  /** sha256 (first 16 hex) of everything a bake returns: boxes, visibility bytes, bounce boxes, data and bits. */
+  const bakeHash = (r: LampResult): string => {
+    const h = createHash('sha256');
+    const bytes = (a: ArrayBufferView): Uint8Array => new Uint8Array(a.buffer, a.byteOffset, a.byteLength);
+    h.update(bytes(r.boxes));
+    h.update(r.vis);
+    h.update(bytes(r.bounce!.boxes));
+    h.update(bytes(r.bounce!.data));
+    h.update(bytes(r.bounce!.bits!));
+    return h.digest('hex').slice(0, 16);
+  };
+
+  // (LR16-POLISH C) the penumbra scratch was cut from 21 B per cell of the largest lamp box to the blocker distance (4 B,
+  // also the band index), plane rings and the band's own cells. The bytes must not move: the hashes were taken on
+  // lr16int e7cec732 (LR16g, LR16-L A) before the change, so no LAMP_VERSION bump.
+  it('(LR16-POLISH C) scratch cut: the fixture bakes to the same bytes as before (penumbra on and off)', () => {
+    const shapes = [floor, box([0, 1.5, -5.4], [0.2, 3, 8.8]), box([0, 1.5, 5.6], [0.2, 3, 8.8]), box([0, 2.6, 0.6], [0.2, 0.8, 1.2]), box([-3, 0.3, 2], [0.6, 0.6, 0.6]), box([3, 1.5, -2], [2, 0.05, 1]), box([4, 0.4, 3], [1, 0.8, 0.4]), crate, slab(1.5), fence(0.8)];
+    const L = [lamp(-3, 3, 0, 6), panel(3, 3, 0, 2.4, 0.3), panel(3, 2.5, 4, 0.6, 0.6, 5), panel(-4, 2.8, -5, 0.1, 0.1, 5), panel(-1, Y, 0, 0.6), lamp(-3, 2.5, -2, 5)];
+    expect(bakeHash(bakeP(shapes, L, true))).toBe('8a043bd5a06b6607');
+    expect(bakeHash(bakeP(shapes, L, false))).toBe('74336023ce3a74b4');
+  });
+
+  it('(LR16-POLISH C) scratch cut: Marlow Yard (ctcourse) bakes to the same bytes as before', () => {
+    const map = MAPS.find((m) => m.id === 'ctcourse')!;
+    const b = new LevelBuilder();
+    map.build(b, 0);
+    const set = canonicalLightSet(b.boxes, b.cylinders, map.id, dressingOn(map));
+    const r = bakeLamps({ kind: 'lamps', id: 0, shapes: set.shapes, lights: bakedLights(b.lights).lights, lo: set.lo, hi: set.hi });
+    // (ctcourse re-taken after pol-f's bounce bits, LAMP_VERSION 7; vis bytes checked identical old vs new on the merged tree)
+    expect(bakeHash(r)).toBe('0a285ac259cd1791');
+  }, 600_000);
+
+  it('(LR16-POLISH C) the scratch is the blocker distance (4 B a cell of the largest box) plus rings of planes', () => {
+    const shapes = [floor, crate, slab(1.5), fence(0.8), box([0, 1.5, -5.4], [0.2, 3, 8.8])];
+    const L = [panel(-1, Y, 0, 0.6), lamp(-3, 2.5, -2, 5), panel(2, 2.6, 1, 2.4, 0.3)];
+    const pen = new PenumbraBuffers();
+    const r = bakeLamps({ kind: 'lamps', id: 0, shapes: packShapes(shapes), lights: new Float32Array(L.flat()), lo: [-10, -0.5, -10], hi: [10, 6, 10] }, true, pen);
+    let cells = 0;
+    let plane = 0;
+    let row = 0;
+    for (let i = 0; i < L.length; i++) {
+      const [nx, ny, nz] = [r.boxes[i * BOX_STRIDE + 3]!, r.boxes[i * BOX_STRIDE + 4]!, r.boxes[i * BOX_STRIDE + 5]!];
+      cells = Math.max(cells, nx * ny * nz);
+      plane = Math.max(plane, nx * ny);
+      row = Math.max(row, nx);
+    }
+    // per plane cell: sums 100 B (2 inputs, x sums, 2 rings of 8, 2 Float64 sums, 2 outputs), filter 96 B (4 widths, x pass, 2 rings of 7)
+    expect(pen.bytes).toBeLessThanOrEqual(4 * cells + 196 * plane + 8 * row);
+    expect(pen.peakBand).toBeGreaterThan(0);
+    // (was 21 B a cell, 1 + 5 x 4, plus 21 B a band cell)
+    expect(pen.bytes).toBeLessThan((21 * cells) / 2);
   });
 });
 

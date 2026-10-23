@@ -27,7 +27,8 @@ import { AMBIENT_CELL } from '../world/ambientGrid';
  * The bounce's constants. Check of the numbers: a 3 m pool of level ~1 (28 m^2 lit at ~0.6 mean) returns
  * PHI ~ 0.35 x 17 ~ 5.9; a wall 2 m from the pool's middle reads ~ 5.9 x 0.5 / (pi x 4.25) ~ 0.22: inside the 1/5-2/5
  * of the direct light real rooms return. The cache key does not hash these: retuning any of them (LR16g: albedo) bumps
- * `LAMP_VERSION` (`lampJobs.ts`).
+ * `LAMP_VERSION` (`lampJobs.ts`); so does retuning `BOUNCE_SUB`, `BOUNCE_T_STEP`, `BOUNCE_T_FAR` or `BOUNCE_T_SHIFT`
+ * (the wall bits are baked with the bounce and cached under the same key), or any rule of `bounceBits`.
  */
 export const BOUNCE = {
   /** Average indoor surface reflectance (concrete 0.3-0.4, painted plaster 0.5-0.7, dark floors 0.1-0.2). */
@@ -73,6 +74,12 @@ export interface LampBounce {
  *   side instead. The code is the wall's middle (the middle of the first solid run that starts in this half of the
  *   cell), rounded to a step; from a centre inside a solid, the step of its first air sub-cell that way (none while the
  *   solid runs on through the half cell); a wall whose middle is past `BOUNCE_T_FAR` m none. A point 0.15 m or more from a 0.2 m wall's face reads its own side wherever the wall sits.
+ *   (LR16-POLISH F, the LR16-1 recheck's face-glow strips) The middle is of the run's first two sub-cells at most (a
+ *   0.2 m wall grown): a wall and the hull of an object close behind it merge into one run, whose middle lay inside the
+ *   object. From a centre inside a solid whose run has both ends in the cell and its middle this way (a thin wall the
+ *   centre's sub-cell falls in), the code is at that middle, not at the run's grown end. From a centre inside a solid
+ *   otherwise (an object's hull), no code when a second solid run lies between the run's end and the neighbour's centre
+ *   (a crate's hull and the wall past it: the neighbour is the next room). Rotated walls stay out of scope.
  */
 export const BOUNCE_SUB = 5;
 export const BOUNCE_T_SHIFT = [3, 5, 8, 10, 12, 14] as const;
@@ -189,14 +196,35 @@ export function bounceBits(occShapes: Float32Array, sb: readonly (readonly numbe
           for (let sgn = 0; sgn < 2; sgn++) {
             const step = sgn === 0 ? st : -st;
             let code = 0;
+            // (LR16-POLISH F) the first sub-cell past the run the code crosses, when the way on from there to the
+            // neighbour's centre must be clear (0: not checked)
+            let after = 0;
             if (solid) {
-              // inside a solid: past its end (the first air sub-cell this way, in this half; else it runs on and no
-              // point leaves it this way)
+              // inside a solid: the run's ends this way and the other (the first air sub-cell; half + 1 when the run
+              // runs on through the half cell)
+              let ea = half + 1;
               for (let m = 1; m <= half; m++) {
                 if (!occ[c + m * step]) {
-                  code = m;
+                  ea = m;
                   break;
                 }
+              }
+              let eb = half + 1;
+              for (let m = 1; m <= half; m++) {
+                if (!occ[c - m * step]) {
+                  eb = m;
+                  break;
+                }
+              }
+              // (LR16-POLISH F) the run's middle lies this way (both ends in the cell): the centre is on the wall's near
+              // side, and a point past the middle is past the wall (a thin wall's far face is nearer than the run's
+              // grown end). A run that runs on past the half cell has no known middle: the old rule
+              const mid = ((ea - eb) * sub) / 2;
+              if (mid > 0 && ea <= half) code = Math.max(1, Math.min(3, Math.round(mid / BOUNCE_T_STEP)));
+              else if (ea <= half) {
+                // past its end (else it runs on and no point leaves it this way)
+                code = ea;
+                after = ea;
               }
             } else {
               let js = 0;
@@ -209,9 +237,25 @@ export function bounceBits(occShapes: Float32Array, sb: readonly (readonly numbe
               if (js > 0) {
                 let je = js;
                 while (je < 2 * half && occ[c + (je + 1) * step]) je++;
-                // the run's middle: its sub-cells' ends (js - 0.5, je + 0.5) halved
+                // the run's middle: its sub-cells' ends (js - 0.5, je + 0.5) halved (past `BOUNCE_T_FAR`: a floor or a
+                // thick wall the cell's points never cross); (LR16-POLISH F) the step at the middle of its first two
+                // sub-cells at most (a 0.2 m wall grown), so a wall and the hull of an object close behind it are not
+                // one wide wall
                 const mid = ((js + je) * sub) / 2;
-                code = mid > BOUNCE_T_FAR ? 0 : Math.max(1, Math.min(3, Math.round(mid / BOUNCE_T_STEP)));
+                const near = ((js + Math.min(je, js + 1)) * sub) / 2;
+                code = mid > BOUNCE_T_FAR ? 0 : Math.max(1, Math.min(3, Math.round(near / BOUNCE_T_STEP)));
+              }
+            }
+            // (LR16-POLISH F) from inside a hull (an object's: the centre on its far side from the run's middle), past
+            // a second solid run the neighbour is not on the point's side: the point keeps its home. Not from an air
+            // centre: there the first run is as likely the wall and the second an object behind it, whose pocket is
+            // the neighbour's side (the fixture sweeps: checks/lr16pol-f-build.md)
+            if (code > 0 && after > 0) {
+              for (let m = after; m <= S; m++) {
+                if (occ[c + m * step]) {
+                  code = 0;
+                  break;
+                }
               }
             }
             v |= code << BOUNCE_T_SHIFT[a * 2 + sgn]!;

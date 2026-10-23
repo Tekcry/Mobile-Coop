@@ -122,11 +122,12 @@ const WALL_N = makeCone(0, -0.819, 0.574, 0.96);
  * mezzanine deck: a row of strips at z 13.2 every 2.75 m; the south wall: LED bulkheads at 5.0 on 0.3 m brackets with a
  * forward-down beam, over the walkway and the lobby roof; the rooms: LED panels flush under their ceilings; the exit
  * signs: LED bulkheads. Radius and intensity per fitting tuned against the light test's bands; dead fittings (intensity
- * 0) keep the grids regular over the dark pockets. [x, z, radius, intensity].
+ * 0) keep the grids regular over the dark pockets. [x, z, radius, intensity]. (LR16-POLISH F, lr16dx 4) The hall's east
+ * column: the dead strip at z -2.6 moved 23.2 -> 22.15, in line with #87 / #93 / #103 (intensity 0: no light changes).
  */
 export const S3_LAMPS: readonly LampRoom[] = [
   // the hall floor (circuit 51) and the deck (52)
-  { id: 'hall', model: 'strip', y: 5.8, group: 51, yaw: 0, pass: true, lamps: [[-2.8, -2.6, 7.98, 1.109], [2.4, -2.6, 6.97, 1.039], [7.6, -2.6, 4.08, 0.194], [12.8, -2.6, 7, 0.575], [18.26, -2.6, 4.5, 0.249], [23.2, -2.6, 6.5, 0], [-2.8, 3.4, 4.5, 0.512], [2.4, 3.4, 4.5, 0.7], [7.6, 3.4, 6.39, 0.964], [12.8, 3.4, 4.66, 0.91], [18, 3.4, 4.2, 0.42, 0.6], [22.15, 3.4, 2.7, 0.507], [-2.8, 9.4, 9, 0.529], [2.4, 9.4, 6.5, 0], [7.6, 9.4, 6.34, 0.56], [12.8, 9.4, 8.3, 0.537, 0.6], [18, 9.4, 8.7, 0.753], [22.15, 9.4, 6.5, 0]] },
+  { id: 'hall', model: 'strip', y: 5.8, group: 51, yaw: 0, pass: true, lamps: [[-2.8, -2.6, 7.98, 1.109], [2.4, -2.6, 6.97, 1.039], [7.6, -2.6, 4.08, 0.194], [12.8, -2.6, 7, 0.575], [18.26, -2.6, 4.5, 0.249], [22.15, -2.6, 6.5, 0], [-2.8, 3.4, 4.5, 0.512], [2.4, 3.4, 4.5, 0.7], [7.6, 3.4, 6.39, 0.964], [12.8, 3.4, 4.66, 0.91], [18, 3.4, 4.2, 0.42, 0.6], [22.15, 3.4, 2.7, 0.507], [-2.8, 9.4, 9, 0.529], [2.4, 9.4, 6.5, 0], [7.6, 9.4, 6.34, 0.56], [12.8, 9.4, 8.3, 0.537, 0.6], [18, 9.4, 8.7, 0.753], [22.15, 9.4, 6.5, 0]] },
   { id: 'deck', model: 'strip', y: 5.8, group: 52, yaw: 0, pass: true, lamps: [[-2, 13.2, 3.5, 0], [0.75, 13.2, 3.5, 0], [3.5, 13.2, 3.5, 0], [6.25, 13.2, 3.5, 0], [9, 13.2, 3.5, 0], [11.75, 13.2, 3.5, 0], [14.5, 13.2, 3.15, 0.167], [17.25, 13.2, 4.04, 0.048], [20, 13.2, 3.4, 0.044], [22.15, 13.2, 3.5, 0]] },
   // the south wall (section 1's z -8.8 wall, north face): over the crane walkway and the lobby roof
   { id: 'southWall', model: 'bulkhead', y: 5.0, group: 52, yaw: 0, cone: WALL_N, pass: true, lamps: [[-3, -8.35, 1.98, 0.043], [1, -8.35, 4.5, 0], [5, -8.35, 3.36, 0.332], [9, -8.35, 4.5, 0], [13, -8.35, 5.68, 0.376], [17, -8.35, 2.5, 0.162], [21, -8.35, 2.5, 0.149]] },
