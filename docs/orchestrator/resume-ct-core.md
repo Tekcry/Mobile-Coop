@@ -33,7 +33,10 @@ Released: #227 (4.76.0), #207 batch 22 (4.77.0), #214 -> #223 -> #231 stack (4.7
    (git merge-tree). AF6 wire number after Guard AI 41 and marlow-final 42: orchestrator confirms (43?); NO renumber from train 32 (#244). Laptop e2e-coop + netmove on the merged head.
 3. After ANY master / train merge: run every test file with a PROTOCOL_VERSION assert (git grep -l PROTOCOL_VERSION -- tests)
    + tsc; master check worktree C:/NightShift/Mobile-Coop-proto-check (detached, node_modules junction to Mobile-Coop-train).
-4. Follow-ups (not in a PLAN yet): intel part B (onIntelCode); relay climber sub bit; stealth-over-shooting CT Core items
+4. Draft next anim pass briefs/afp-next-pass.md (AF0b, AF7 drawn legs on mocap, AF8a glide cadence / back step, AF9 idle,
+   AF8b, AF9r parked): starts after Michael walks AF0-AF6 unless the orchestrator says go; D1 for Michael (idle stance width:
+   G27 feet-together vs CT audit row 20 0.3-0.4 m) needs a decision pack (sheets) when asked.
+5. Follow-ups (not in a PLAN yet): intel part B (onIntelCode); relay climber sub bit; stealth-over-shooting CT Core items
    9 / 12 / 7 (ROADMAP "Next: stealth over shooting").
 
 ## Resume prompt
