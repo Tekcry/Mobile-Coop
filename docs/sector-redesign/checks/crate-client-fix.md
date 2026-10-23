@@ -39,3 +39,11 @@ host ledger and restart included).
 ## Open
 
 - E8/E9 check P2 (a dropped `crate` fill past the event cap) unchanged.
+
+## Deflake: e2e-sectorops "a loud shot inside the combat reach alerts the nearest guard" (2026-10-23)
+
+- Failed 2 of 5 GPU runs (`{"nearest":false,"level":"suspicious"}`): hearing is deterministic, but the think cadence
+  draws on Math.random left anywhere by real-time frames, so the 0.5 s read could catch him still reacting.
+- Fix (test only, guard AI's advice): Math.random seeded from the teleport to the read (as guard-ai S10 does), read
+  after 1.0 s, original restored in the read. The count of other alerted guards is not asserted (S14 radio calls).
+- GPU, port 4191, `e2e-sectorops:1`: pass 138 s, pass 120 s (12:58-13:02), both `{"nearest":true,"level":"alert"}`.
