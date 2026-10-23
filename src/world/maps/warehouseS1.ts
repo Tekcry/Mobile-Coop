@@ -65,15 +65,16 @@ const WALL_S = makeCone(0, -0.819, -0.574, 0.96);
  */
 export const S1_LAMPS: readonly LampRoom[] = [
   // the facade (z -18, south face -18.15): the floods over shutters W and E (5.0), the drainpipe, entrance and workshop door lamps (3.3; LR16-W: 0.3 m up, a flatter pool over the doors)
-  { id: 'facade', model: 'bulkhead', y: 5.0, group: 20, yaw: PI, cone: FLOOD, colour: [0.85, 0.9, 1], pass: true, lamps: [[-19, -18.45, 3.05, 0.284]] },
+  { id: 'facade', model: 'bulkhead', y: 5.0, group: 20, yaw: PI, cone: FLOOD, colour: [0.85, 0.9, 1], pass: true, lamps: [[-19, -18.45, 3.05, 0.3]] },
   { id: 'facade', model: 'bulkhead', y: 5.0, group: 20, yaw: PI, cone: FLOOD, colour: [0.85, 0.9, 1], pass: false, lamps: [[-11, -18.45, 7.5, 0]] },
-  { id: 'facadeDoor', model: 'bulkhead', y: 3.3, group: 20, yaw: PI, cone: WALL_S, pass: true, lamps: [[-21.4, -18.45, 1.8, 0.288]] },
+  { id: 'facadeDoor', model: 'bulkhead', y: 3.3, group: 20, yaw: PI, cone: WALL_S, pass: true, lamps: [[-21.4, -18.45, 1.8, 0.281]] },
   { id: 'facadeDoor', model: 'bulkhead', y: 3.3, group: 20, yaw: PI, cone: WALL_S, pass: false, lamps: [[-5, -18.45, 5.59, 0.103], [11, -18.45, 5.97, 0.065]] },
   // the gatehouse door lamp (its north wall, z -22.6)
   { id: 'gatehouse', model: 'bulkhead', y: 2.3, group: 20, yaw: 0, pass: false, lamps: [[11.25, -22.3, 5.76, 0.225]] },
   // the hall: the goods-in bay (circuit 30), the lobby-block roof (31), the plant deck (34), the workshop (36); (LR16-W) the bay's
-  // north row 0.6 m north (z -11.0, over the lane ends), the workshop's middle column 0.6 m east (x 16.6, clear of the crane girder)
-  { id: 'bay', model: 'strip', y: 5.58, group: 30, yaw: 0, cone: HALL, pass: true, lamps: [[-22, -15.4, 7.02, 0.422], [-18, -15.4, 6.78, 0.491], [-14, -15.4, 5.51, 0.409], [-10, -15.4, 5.05, 0.526], [-22, -11, 5.4, 0.402], [-18, -11, 4.8, 0.398], [-14, -11, 5.55, 0.579], [-10, -11, 8.8, 0.438]] },
+  // north row 0.6 m north (z -11.0, over the lane ends), the checker's desk strip (-22, -15.4) kept at full level (the bay's pool),
+  // the workshop's middle column 0.6 m east (x 16.6, clear of the crane girder)
+  { id: 'bay', model: 'strip', y: 5.58, group: 30, yaw: 0, cone: HALL, pass: true, lamps: [[-22, -15.4, 7.02, 0.7], [-18, -15.4, 6.78, 0.456], [-14, -15.4, 5.51, 0.428], [-10, -15.4, 5.05, 0.467], [-22, -11, 5.4, 0.608], [-18, -11, 4.8, 0.386], [-14, -11, 5.55, 0.572], [-10, -11, 8.8, 0.452]] },
   // (LR16-W) the lobby-block roof row 0.8 m north (z -6.6, by the z -6 wall): the roof walk (z -7.4 to -8.4) in its rim
   { id: 'lobbyRoof', model: 'strip', y: 5.58, group: 31, yaw: 0, pass: true, lamps: [[-22, -6.6, 6.09, 0.314], [-17, -6.6, 6.49, 0.305], [-12, -6.6, 1.5, 0.211], [-7, -6.6, 3.5, 0]] },
   // (LR16-W) the deck row over the plant side (z -16.9): the walk line (z -14.6 / -14.9) in its pool's rim
