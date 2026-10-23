@@ -51,6 +51,10 @@ import { MISSING, SHOTS } from './gear';
 // (guard-ai S17, Michael's walk of 4.72 G1) a tripped device is an incident at the device, never the player
 import { DEVICE } from './gear';
 import { MODE_DEVICE } from './incidents';
+// (guard-ai S19, walk 4.72 G3) guards hurry to a dead body the radio reported
+import { MODE_HELP } from './incidents';
+import { URGENT } from './gear';
+import { urgentKind } from './response';
 import { ALERT_MISSING, ALERT_SHOTS, AlertCallLog, SectionCounters, unitOf, type SectionCounts } from './sectionAlert';
 
 /** (guard-ai S10) A talking pair: its meeting clock, and the two slot indices (`guardAtSlot`; A the lower). */
@@ -316,7 +320,11 @@ export class EnemyManager {
         // (S6) the section knows: now command must be told (the alarm)
         this.contactThrough(caller);
       }
-      else if (kind === 'body') this.byNum(caller)?.bark('deadReport');
+      else if (kind === 'body') {
+        this.byNum(caller)?.bark('deadReport');
+        // (S19) a calm guard hurries over to help search it
+        this.bodyHelp(inc);
+      }
       else if (kind === 'ko') this.byNum(caller)?.bark('koReport');
       // (S14) a missing guard or shots: the section is told
       else if (kind === 'missing' || kind === 'shots') this.alertThrough(caller, inc, kind);
@@ -578,9 +586,12 @@ export class EnemyManager {
         // (guard-ai S18, G2) a dead body's search: longer and wider than a plain one (`BODY_SEARCH`)
         e.bodySearch(b.pos.x, b.pos.z);
         const mask = (this.voiceMask(e) | keyBit(e.key) | also) >>> 0;
-        this.voiceNear?.bodySearch(b.pos.x, b.pos.z);
+        // (guard-ai S19) the one who heard his "Man down!" hurries over
+        this.voiceNear?.bodySearch(b.pos.x, b.pos.z, urgentKind('bodyDead'));
         const h = this.awareness.openHold('dead', mask);
         this.lastHold = h;
+        // (guard-ai S19) the body his report is about, for the guards sent once it gets through
+        this.noteBodyCall(h, b);
         this.radioNet.startCall(e.num, h, 'body', callHold('body', this.reactionOf(e)));
       } else {
         e.bark('koFound');
@@ -721,6 +732,42 @@ export class EnemyManager {
   private devT = -Infinity;
   /** (guard-ai S17) Device alerts taken (tests / e2e). */
   deviceAlerts = 0;
+
+  /** (guard-ai S19) The last few dead-body reports on the radio: the hold each call carries and its body (a fixed ring). */
+  private readonly bcHold = new Int32Array(8).fill(-1);
+  private readonly bcBody: (Body | null)[] = [null, null, null, null, null, null, null, null];
+  private bcK = 0;
+  /** (guard-ai S19) Reported bodies the board sent someone to (tests / e2e). */
+  bodyHelps = 0;
+
+  /** (guard-ai S19) A finder radios dead body `b` under hold `h` (his `body` call). */
+  private noteBodyCall(h: number, b: Body): void {
+    const j = this.bcK;
+    this.bcK = (j + 1) % this.bcHold.length;
+    this.bcHold[j] = h;
+    this.bcBody[j] = b;
+  }
+
+  /**
+   * (guard-ai S19, Michael's walk of 4.72 G3: "guards should rush to any triggered alarms or bodies reported") A finder's
+   * `body` call about hold `h` got through: unless the body is gone (carried, hidden, removed), a `bodyDead` board
+   * incident sends `URGENT.bodyHelpers` calm guards in range to hurry over and search it with him (`Enemy.helpSearch`).
+   */
+  private bodyHelp(h: number): void {
+    for (let j = 0; j < this.bcHold.length; j++) {
+      if (this.bcHold[j] !== h) continue;
+      const b = this.bcBody[j]!;
+      this.bcHold[j] = -1;
+      this.bcBody[j] = null;
+      if (!URGENT.enabled || URGENT.bodyHelpers < 1 || !b.present || b.carried || b.hidden || this.bodies.indexOf(b) < 0) return;
+      const n = b.id ? Number.parseInt(b.id.slice(1), 10) : Number.NaN;
+      const opened = this.board.opened;
+      this.board.reportBodyCall(b.pos.x, b.pos.z, this.nav.heightAt(b.pos.x, b.pos.z, b.pos.y), Number.isFinite(n) ? n : 1000000 + j);
+      this.boardStep(0);
+      if (this.board.opened !== opened) this.bodyHelps++;
+      return;
+    }
+  }
 
   /** (guard-ai S17) A device alert recent enough for an alarm's reinforcements, and no sighting since. */
   private deviceFresh(): boolean {
@@ -1853,6 +1900,8 @@ export class EnemyManager {
         }
         // (guard-ai S17, G1) a tripped device: to its spot, then search its room
         else if (m === MODE_DEVICE) e.respondDevice(o.x[k]!, o.z[k]!, inc, this.roomOf(o.x[k]!, o.y[k]!, o.z[k]!));
+        // (guard-ai S19, G3) a dead body reported over the radio: hurry over and search it with its finder
+        else if (m === MODE_HELP) e.helpSearch(o.x[k]!, o.z[k]!, inc);
       } else if (o.cmd[k] === CMD_ACK) e.ack(o.x[k]!, o.z[k]!, o.arg[k] === 1);
     }
     o.n = 0;
@@ -2647,8 +2696,10 @@ export class EnemyManager {
     this.lastCheckCaller = null;
     // (guard-ai S2) nobody left to send: the incidents go too; (S3) and every call and queued reception
     this.board.clear();
-    // (guard-ai S17) and the last tripped device
+    // (guard-ai S17) and the last tripped device; (S19) and the body reports
     this.devT = -Infinity;
+    this.bcHold.fill(-1);
+    this.bcBody.fill(null);
     this.radioNet.clear();
     // (S6) and the command call it may have owed
     this.command.clear();

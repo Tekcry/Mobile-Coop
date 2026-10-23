@@ -332,6 +332,12 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   (`AlertInput.searchFor`), its ring (`ringPoint`: first radius, step, cap) and the look per point. A dead body found
   (`EnemyManager.bodyFound`: the finder and his voice partner; the camera-sent guards) is searched `Enemy.bodySearch`:
   3 x `ALERT.searchTime`, out to 15 m; combat's search and every other search stay plain (`PATROL`'s ring, 60 s).
+- Urgency (guard-ai S19, walk 4.72 G3, A109-A113; `ai/response.ts` `PACE` (moved from `enemy.ts`, re-exported there),
+  `urgentKind`, `paceSpeed`; `URGENT` in `ai/gear.ts`): a guard sent to a device, a body (camera, radio, a shout), a
+  missing man or shots sets `Enemy.rush`: his investigate / search walk is run x `PACE.rush` until he first reaches the
+  spot; a noise, lure, light or breaker keeps the calm pace. A dead body's radio call that gets through
+  (`EnemyManager.bodyHelp`) opens a `bodyDead` board incident: `URGENT.bodyHelpers` calm guards in `callR` hurry over and
+  search it with the finder (`Enemy.helpSearch`, `MODE_HELP`).
 - Sound: `world/surfaces.ts` (pure) `surfaceAt` scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice. Shots:
   `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise` (combat); `onRay` hits
   are heard within `IMPACT_NOISE`.

@@ -28,7 +28,7 @@ import { EYE_STAND, instantDetect, losClear, noiseSuspicion, PERCEPTION, seenAt,
 import { ALERT, AlertMachine, callInDelay, emptyAlertInput, type AlertLevel } from './alertState';
 import { HEARING } from './hearing';
 import { PatrolWalker, PATROL, type PatrolRoute } from './patrol';
-import { ringPoint, SEARCH_BODY, SEARCH_DEVICE, SEARCH_PLAIN, searchSpec } from './response';
+import { PACE, paceSpeed, ringPoint, SEARCH_BODY, SEARCH_DEVICE, SEARCH_PLAIN, searchSpec, urgentKind } from './response';
 import { BODY, bodyNoticed } from './bodies';
 import type { Body } from './body';
 import { alarmStandPoint, raiseTime, type AlarmPanel } from './alarm';
@@ -37,7 +37,7 @@ import type { LightField } from '../world/lightField';
 import { ARCHETYPE, carriesTorch, glint, heavyMult, shieldBlocks, smellRate, sniperRelocate, torchRule, type DifficultyDef } from './archetypes';
 import { placeTorch } from '../world/torches';
 import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
-import { INCIDENT, MODE_BODY, MODE_BREAKER, MODE_COVER, MODE_DEVICE, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT } from './incidents';
+import { INCIDENT, MODE_BODY, MODE_BREAKER, MODE_COVER, MODE_DEVICE, MODE_HELP, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT } from './incidents';
 import { BREAKER_WALK } from './breaker';
 import { P_AGGRESSIVE, P_STANDARD, profileOf, R_FLANK, R_NONE, R_OVERWATCH, R_POINT, R_REPORTER, R_SEARCH, ROLES, Rng, type BehaviourProfile as TacticsProfile, type Role } from './squadRoles';
 import type { GuardInfo } from './guardInfo';
@@ -166,22 +166,8 @@ export interface AiContext {
 }
 
 let nextId = 1;
-/**
- * Calm paces (x the combat walk, which is a slow aimed walk). (guard-ai S2, A9) Coordinated guards investigate at 0.85
- * and search at 0.75 (they were faster than the patrol: backwards); the parked modes (Hunter, Mission) keep the old
- * 1.2 / 1.3. Patrol 1.1 is unchanged (the Sector pace checks, `CHECK_PATROL_PACE`). Walking to wake a knocked-out
- * squadmate keeps 1.3 (he hurries to a man down). (guard-ai S4, A9) A cautious guard patrols at 0.95 (not on a timed
- * loop: its schedule is the map's).
- */
-export const PACE = {
-  patrol: 1.1,
-  cautious: 0.95,
-  investigate: 0.85,
-  search: 0.75,
-  revive: 1.3,
-  oldInvestigate: 1.2,
-  oldSearch: 1.3,
-} as const;
+/** The paces table lives in `response.ts` (pure; guard-ai S19 added the rush), re-exported here for its readers. */
+export { PACE };
 const PATROL_PACE = PACE.patrol;
 /** Out of sight in combat: walking up on the last known position (x walk speed); a hold between bounds (s). */
 const ADVANCE_PACE = 1.15;
@@ -315,6 +301,14 @@ export class Enemy implements Damageable {
   private searchOwn = false;
   /** (guard-ai S18) The search's kind (`response.ts` `SEARCH_*`): plain, a dead body's (longer, wider), a device's. */
   private searchKind: number = SEARCH_PLAIN;
+  /** (guard-ai S19, walk 4.72 G3) Hurrying to it (an alarm, a reported body, shots, a missing man: `urgentKind`): his
+   *  investigate / search walk is a jog (`paceSpeed`) until he first gets to the spot. */
+  private rush = false;
+
+  /** (guard-ai S19) Hurrying to an incident (e2e / debug). */
+  get rushing(): boolean {
+    return this.rush;
+  }
   /** (guard-ai S2 fix 2) This search follows combat (alert -> searching: the walk on to the last known position and
    *  the sweep round it): the old pace and the aimed turn. Only a calm search (a body, a call, a pair) is slow. */
   private combatSearch = false;
@@ -806,8 +800,9 @@ export class Enemy implements Damageable {
    * (guard-ai S18, Michael's walk of 4.72 G2: "guards investigating dead bodies give up too easily") A dead body at
    * (x, z): he searches round it the body's way (`SEARCH_BODY`: `BODY_SEARCH` in `gear.ts`, longer and wider than a
    * plain search) before the held caution. Already searching (a call, a pair, another body): he starts over round it.
+   * (guard-ai S19) `rush`: he hurries there first (the one who heard the finder's shout, a guard sent on the report).
    */
-  bodySearch(x: number, z: number): void {
+  bodySearch(x: number, z: number, rush = false): void {
     if (!this.alive || this.alerted) return;
     if (this.aware.level === 'searching') {
       this.aware.t = 0;
@@ -816,6 +811,21 @@ export class Enemy implements Damageable {
       this.combatSearch = false;
     }
     this.searchAt(x, z, null, SEARCH_BODY);
+    this.rush = rush;
+  }
+
+  /**
+   * (guard-ai S19, walk 4.72 G3: "guards should rush to any triggered alarms or bodies reported") The finder's radio
+   * report of a dead body got through and the board sends him (calm, free, in range): he answers ("On my way!"),
+   * hurries to the body and searches it the body way (S18) with the finder. His task holds through the search.
+   */
+  helpSearch(x: number, z: number, incident: number): void {
+    if (!this.sendable) return;
+    this.bodySearch(x, z, urgentKind('bodyDead'));
+    this.incident = incident;
+    this.incMode = MODE_HELP;
+    this.turnT = 0;
+    this.bark('joining');
   }
 
   /** The perception multiplier: difficulty, plus an officer close by. */
@@ -896,6 +906,8 @@ export class Enemy implements Damageable {
     this.incident = incident;
     this.incMode = MODE_INVESTIGATE;
     this.incCalm = calm;
+    // (guard-ai S19) gunfire (not calm) is urgent: he hurries over; a plain noise or a lure keeps the calm pace
+    this.rush = urgentKind(calm ? 'noise' : 'shots');
     this.turnT = 0;
     this.stimulus[0] = x;
     this.stimulus[1] = z;
@@ -941,6 +953,8 @@ export class Enemy implements Damageable {
       this.ctx.radioCall?.(this, incident, 'missing');
     }
     this.searchAt(x, z, null);
+    // (guard-ai S19) a man not answering (or a shots call's cover): they hurry to the spot
+    this.rush = urgentKind(lead ? 'missing' : 'shots');
     this.incident = incident;
     this.incMode = lead ? MODE_LEAD : MODE_COVER;
     this.turnT = 0;
@@ -958,6 +972,8 @@ export class Enemy implements Damageable {
     this.incident = incident;
     this.incMode = MODE_BODY;
     this.turnT = 0;
+    // (guard-ai S19) a body a camera reported: he hurries to it
+    this.rush = urgentKind('camBody');
     this.camBody = b;
     this.camBodyT = 0;
     this.stimulus[0] = b.pos.x;
@@ -988,9 +1004,10 @@ export class Enemy implements Damageable {
       return;
     }
     // (guard-ai S18) a dead body found on the way by the other guard sent with him (or anyone): he joins its search
+    // ((S19) still hurrying if he was)
     if (b.found && b.lethal && b.present && !b.carried && !b.hidden) {
       this.camBody = null;
-      this.bodySearch(b.pos.x, b.pos.z);
+      this.bodySearch(b.pos.x, b.pos.z, this.rush);
       return;
     }
     if (!b.present || b.found || b.carried || b.hidden || this.camBodyT >= INCIDENT.bodyWalk) {
@@ -1148,9 +1165,11 @@ export class Enemy implements Damageable {
    *  knocked-out victim first. (guard-ai S18) `kind`: the search's numbers (`response.ts` `SEARCH_*`). */
   searchAt(x: number, z: number, revive: Body | null = null, kind: number = SEARCH_PLAIN): void {
     if (!this.alive || this.alerted) return;
-    // (guard-ai S17) a plain search keeps to no room (`respondDevice` sets one after this)
+    // (guard-ai S17) a plain search keeps to no room (`respondDevice` sets one after this); (S19) nor hurries (the
+    // urgent callers set it after this)
     this.searchRoom = null;
     this.searchKind = kind;
+    this.rush = false;
     this.stimulus[0] = x;
     this.stimulus[1] = z;
     this.hasStimulus = true;
@@ -1304,6 +1323,8 @@ export class Enemy implements Damageable {
     if (!this.sendable) return;
     this.searchAt(x, z, null, SEARCH_DEVICE);
     this.searchRoom = room && inRoom(room, x, z, 0.5) ? room : null;
+    // (guard-ai S19) the alarm went off: he hurries there
+    this.rush = urgentKind('device');
     this.incident = incident;
     this.incMode = MODE_DEVICE;
     this.turnT = 0;
@@ -1325,6 +1346,8 @@ export class Enemy implements Damageable {
     this.responder = true;
     this.searchAt(x, z, null, SEARCH_DEVICE);
     this.searchRoom = room && inRoom(room, x, z, 0.5) ? room : null;
+    // (guard-ai S19) a reinforcement on an alarm hurries to its spot
+    this.rush = urgentKind('device');
   }
 
   /** (guard-ai S6, S17) One step of his run-in route (`ReinforceEntry.route`), at his run speed; null when there is none
@@ -1568,8 +1591,9 @@ export class Enemy implements Damageable {
     if ((to === 'cooldown' || to === 'unaware') && task >= 0) this.ctx.radioCall?.(this, task, 'standDown');
     // (guard-ai S2) off the board's task: back (calm), in combat, or on another search (a body, a call)
     if (task >= 0) {
-      // (guard-ai S17) a device's responder keeps his task on its search, as the missing pair does
-      const pair = this.incMode === MODE_LEAD || this.incMode === MODE_COVER || this.incMode === MODE_DEVICE;
+      // (guard-ai S17) a device's responder keeps his task on its search, as the missing pair does; (S19) so does a
+      // guard sent to a reported body
+      const pair = this.incMode === MODE_LEAD || this.incMode === MODE_COVER || this.incMode === MODE_DEVICE || this.incMode === MODE_HELP;
       const keep = to === 'suspicious' || to === 'investigating' ? !pair : to === 'searching' ? pair : false;
       if (!keep) this.incident = -1;
     }
@@ -1620,6 +1644,8 @@ export class Enemy implements Damageable {
     if (to !== 'searching') this.reviving = null;
     // (guard-ai S17) a device's room bounds only its own search (combat's search is round the last known position)
     if (to !== 'searching' || from === 'alert') this.searchRoom = null;
+    // (guard-ai S19) back to calm or into combat: no more hurrying
+    if (to === 'unaware' || to === 'cooldown' || to === 'alert') this.rush = false;
     if (to === 'investigating') this.spotSet = false;
     if (to === 'unaware' || to === 'cooldown') {
       this.hasStimulus = false;
@@ -2151,6 +2177,8 @@ export class Enemy implements Damageable {
         const d = hyp2(this.spot[0] - this.pos.x, this.spot[1] - this.pos.z);
         const there = d < 1.1;
         if (there) {
+          // (guard-ai S19) there: the hurry is over (the search goes on at its pace)
+          this.rush = false;
           this.spotArrived = true;
           if (this.spotLookT === 0) this.lookBase = this.yaw;
           this.spotLookT += dt;
@@ -2169,7 +2197,8 @@ export class Enemy implements Damageable {
           this.searchK++;
           this.spotSet = false;
         }
-        return { point: wp, speed: def.walkSpeed * (lvl === 'searching' ? this.searchPace : this.investigatePace), face: null };
+        // (guard-ai S19) hurrying to it: a jog (`paceSpeed`), else his calm pace
+        return { point: wp, speed: paceSpeed(this.rush, lvl === 'searching' ? this.searchPace : this.investigatePace, def.walkSpeed, def.runSpeed), face: null };
       }
       default:
         return { point: null, speed: 0, face: null };

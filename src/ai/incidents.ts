@@ -20,7 +20,9 @@
  * radio call got through (`wantPair`) sends a pair instead of one: the lead and a cover `pairBack` short (G11).
  * (S17) A tripped device (`reportDevice`: a laser beam broken, a camera's alarm; one incident per device while open) at
  * the device's spot, never the player's: the `DEVICE.want` calm guards best by path within `DEVICE.callR` go there and
- * search its room (`MODE_DEVICE`); nobody in range, it waits `DEVICE.wait` s, then lapses.
+ * search its room (`MODE_DEVICE`); nobody in range, it waits `DEVICE.wait` s, then lapses. (S19) A dead body whose
+ * finder's radio report got through (`reportBodyCall`, `bodyDead`, one per body while open): `URGENT.bodyHelpers` calm
+ * free guards best by path within `callR` hurry over to search it with him (`MODE_HELP`); nobody: it lapses.
  *
  * The board only reads a `GuardView` (struct of arrays filled by `EnemyManager`) and writes commands (`BoardOut`) the
  * manager applies to its guards. Guards are named by their stable id (`Enemy.num`), never by array index (the manager
@@ -29,7 +31,7 @@
  */
 import { hyp2, hyp3 } from '../core/mathx';
 import { roleSendMul, TAGS } from './sectorTags';
-import { DEVICE } from './gear';
+import { DEVICE, URGENT } from './gear';
 
 export type IncidentKind = 'noise' | 'shots' | 'light' | 'distraction' | 'missing' | 'bodyDead' | 'bodyKo' | 'camBody' | 'witnessKill' | 'contact' | 'breaker' | 'device';
 
@@ -38,6 +40,8 @@ export const KIND: readonly IncidentKind[] = ['noise', 'shots', 'light', 'distra
 const K_NOISE = 0;
 const K_LIGHT = 2;
 const K_MISSING = 4;
+/** (guard-ai S19) A dead body the finder's radio report told the section of: a calm guard goes to help search it. */
+const K_BODYDEAD = 5;
 const K_CAMBODY = 7;
 /** (guard-ai S15) A circuit switched off, seen as a fault: one witness walks to the switch and turns it back on. */
 const K_BREAKER = 10;
@@ -196,6 +200,8 @@ export const MODE_BODY = 4;
 export const MODE_BREAKER = 5;
 /** (guard-ai S17) Go to a tripped device's spot and search its room (`Enemy.respondDevice`). */
 export const MODE_DEVICE = 6;
+/** (guard-ai S19) Hurry to a dead body a radio report named and search it with its finder (`Enemy.helpSearch`). */
+export const MODE_HELP = 7;
 
 /** The board's output for one tick / report (the manager applies and clears it). */
 export class BoardOut {
@@ -424,6 +430,18 @@ export class IncidentBoard {
   }
 
   /**
+   * (guard-ai S19, walk 4.72 G3: "rush to ... bodies reported") A dead body at (x, y, z) (y: the floor) was reported over
+   * the radio and the report got through. `key`: the body (one incident per body while open). Nobody perceived it as
+   * such: `URGENT.bodyHelpers` calm free guards within `callR` by path are sent (the finder is searching: not free).
+   */
+  reportBodyCall(x: number, z: number, y: number, key: number, now = this.now): number {
+    const id = this.report('bodyDead', x, z, y, key, NO_ONE, 0, now);
+    const s = this.slotOf(id);
+    if (s >= 0) this.want[s] = URGENT.bodyHelpers;
+    return id;
+  }
+
+  /**
    * (guard-ai S14, G11) The section heard a `shots` call: shots incident `id` sends a pair, a lead and a cover
    * `pairBack` m short of the spot (from those who heard it, else calm guards within `callR`, else any free guard). Not
    * yet assigned: both go at its assignment. Assigned with one investigator: a cover joins him at the next tick; its lead
@@ -473,7 +491,7 @@ export class IncidentBoard {
       }
       // (guard-ai S7) a camera's body: by the body only, while open (two bodies side by side are two incidents);
       // (S17) a device: by the device only, while open
-      if (k === K_CAMBODY || k === K_DEVICE) {
+      if (k === K_CAMBODY || k === K_DEVICE || k === K_BODYDEAD) {
         if (sk === k && this.key[s] === key) return s;
         continue;
       }
@@ -693,6 +711,23 @@ export class IncidentBoard {
       if (this.want[s]! >= 2 && this.mark(s, view, 1, false, DEVICE.callR, view.id[first]!) > 0) {
         const second = this.best(s, view);
         if (second >= 0) this.send(s, view, second, MODE_DEVICE, 1, x, y, z);
+      }
+      this.assigned[s] = 1;
+      return;
+    }
+    if (k === K_BODYDEAD) {
+      // (guard-ai S19, G3) a dead body reported over the radio: the nearest calm guards by path within `callR` hurry
+      // over to search it with its finder (up to `want`, 0: none); nobody: let it go
+      const want = this.want[s]!;
+      if (want === 0 || this.mark(s, view, 1, false, M.callR, -1) === 0) {
+        this.close(s);
+        return;
+      }
+      const first = this.best(s, view);
+      this.send(s, view, first, MODE_HELP, 0, x, y, z);
+      if (want >= 2 && this.mark(s, view, 1, false, M.callR, view.id[first]!) > 0) {
+        const second = this.best(s, view);
+        if (second >= 0) this.send(s, view, second, MODE_HELP, 1, x, y, z);
       }
       this.assigned[s] = 1;
       return;

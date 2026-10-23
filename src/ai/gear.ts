@@ -70,6 +70,16 @@ export const DEVICE = { enabled: true, want: 2, callR: 30, wait: 20, fresh: 90 }
  */
 export const BODY_SEARCH = { timeMul: 3, r0: 1.5, step: 1.5, max: 15, look: 2.5 } as const;
 
+/**
+ * (guard-ai S19, Michael's walk of 4.72 G3: "guards should rush to any triggered alarms or bodies reported, they need a
+ * sense of urgency when it makes logical sense") Urgent responders (a tripped device, an alarm's reinforcement, a body a
+ * camera or the radio reported, a shots call, a missing man) jog there at the run speed x `PACE.rush` (`response.ts`)
+ * until they first reach the spot, then search at the search pace; calm checks (a noise, a lure, a light, a breaker)
+ * keep their pace. `bodyHelpers`: calm guards the board sends to a dead body once its finder's radio report gets
+ * through. `enabled` false: everyone at the calm paces, no helpers.
+ */
+export const URGENT = { enabled: true, bodyHelpers: 1 } as const;
+
 
 /** The gear a tag names into `out` (undefined = none). Returns `out`. */
 export function gearFromTag(tag: GearTag | undefined, out: GuardGear): GuardGear {

@@ -372,3 +372,20 @@ reported, they need a sense of urgency when it makes logical sense." A100-A119 a
   `Enemy.stepCamBody`.
 - **A108** (S18) A guard already searching (a call, a pair, another body) who finds a dead body starts the body's search
   over from zero round it (as `koSearch` does). Undo: drop the restart in `Enemy.bodySearch`.
+- **A109** (S19) Urgent = a jog: run speed x `PACE.rush` 0.75 (the aggressive jog), about 2.4 m/s for a grunt against
+  0.99 m/s on patrol, until he first reaches the spot (the investigated spot, or the first stop of his search); then
+  his calm investigate / search pace. Undo: `URGENT.enabled = false` (`ai/gear.ts`) or `PACE.rush` (`ai/response.ts`).
+- **A110** (S19) Who hurries (`urgentKind`): a tripped device's responders and its reinforcements (S17), guards a camera
+  sends to a body (S7), the guard who hears the finder's "Man down!" (S4), a guard sent on a radio body report (A111),
+  the missing pair (S2 / S5b / S10, lead and cover) and a shots investigator and its cover (S14). Calm: a noise, a lure,
+  a light gone out, a breaker fault (the S15 walk is untouched). The panel alarm runner and combat reinforcements
+  already ran; the knockout waker keeps `PACE.revive`. Undo: return false for a kind in `urgentKind`.
+- **A111** (S19) G3 "rush to ... bodies reported": when a finder's dead-body radio call gets through, the board sends
+  `URGENT.bodyHelpers` (1) calm free guard within `INCIDENT.callR` (25 m) by path to hurry over and search the body (the
+  body way, S18) with the finder; no alarm (A2 kept). Sent at the call's completion; a body carried, hidden or gone by
+  then sends nobody. Undo: `URGENT.bodyHelpers = 0`.
+- **A112** (S19) The S14 missing call itself still moves nobody (the section turns cautious); the move it goes with is the
+  board's missing pair, which now hurries. Undo: not needed.
+- **A113** (S19) Tests that change by design: e2e-stealth-ai 'bodies' and 'witness' now expect the calm guard out of voice
+  range to be searching (sent to help, `bodyHelps` 1) once the report gets through, not standing on edge; the unit
+  fakes in `awarenessWiring` / `sectionAlert` gain `helpSearch`. Undo: with A111.

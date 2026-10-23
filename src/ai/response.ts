@@ -1,6 +1,7 @@
 /**
- * (guard-ai S18, Michael's walk of 4.72) How a calm search runs (pure: no Babylon / DOM), unit-tested
- * (`tests/bodySearch.test.ts`). `Enemy` reads the table: how long he searches and the ring of points he walks.
+ * (guard-ai S18, S19, Michael's walk of 4.72) How a calm search runs and who hurries to it (pure: no Babylon / DOM),
+ * unit-tested (`tests/bodySearch.test.ts`, `tests/urgency.test.ts`). `Enemy` reads the tables: his paces (`PACE`, the
+ * rush: `urgentKind`, `paceSpeed`), how long he searches and the ring of points he walks.
  *
  * A search (searching, not after combat) walks from its centre out over a widening ring of points (`ringPoint`: the
  * k-th point `r0 + k x step` m out, capped at `max`, a golden-angle bearing per searcher so a pair fans out), looks round
@@ -13,7 +14,54 @@
  */
 import { ALERT } from './alertState';
 import { PATROL } from './patrol';
-import { BODY_SEARCH } from './gear';
+import { BODY_SEARCH, URGENT } from './gear';
+import type { IncidentKind } from './incidents';
+
+/**
+ * Calm paces (x the combat walk, which is a slow aimed walk). (guard-ai S2, A9) Coordinated guards investigate at 0.85
+ * and search at 0.75 (they were faster than the patrol: backwards); the parked modes (Hunter, Mission) keep the old
+ * 1.2 / 1.3. Patrol 1.1 is unchanged (the Sector pace checks, `CHECK_PATROL_PACE`). Walking to wake a knocked-out
+ * squadmate keeps 1.3 (he hurries to a man down). (guard-ai S4, A9) A cautious guard patrols at 0.95 (not on a timed
+ * loop: its schedule is the map's). (guard-ai S19, walk 4.72 G3) `rush` is x the RUN speed, not the walk: a jog (as
+ * the aggressive jog, `AGGRESSIVE_JOG` in `enemy.ts`) for a guard hurrying to an alarm, a reported body, shots or a
+ * missing man, until he first gets there (`paceSpeed`). (Moved here from `enemy.ts` in S19: pure; `enemy.ts`
+ * re-exports it.)
+ */
+export const PACE = {
+  patrol: 1.1,
+  cautious: 0.95,
+  investigate: 0.85,
+  search: 0.75,
+  revive: 1.3,
+  oldInvestigate: 1.2,
+  oldSearch: 1.3,
+  rush: 0.75,
+} as const;
+
+/**
+ * (guard-ai S19, G3: "guards should rush to any triggered alarms or bodies reported, they need a sense of urgency when
+ * it makes logical sense") Does a guard sent to an incident of `kind` hurry? A tripped device (an alarm), a body (a
+ * camera's, a radio report's, a kill seen), shots, a missing man, a contact: yes. A noise, a lure, a light gone out, a
+ * breaker fault: no, they keep their calm pace. `URGENT.enabled` false: never.
+ */
+export function urgentKind(kind: IncidentKind): boolean {
+  if (!URGENT.enabled) return false;
+  switch (kind) {
+    case 'noise':
+    case 'distraction':
+    case 'light':
+    case 'breaker':
+      return false;
+    default:
+      return true;
+  }
+}
+
+/** (guard-ai S19) A calm-level move's speed (m/s): hurrying (`rush`), `run` x `PACE.rush`; else `walk` x `calm` (his
+ *  pace multiplier: investigate, search, ...). */
+export function paceSpeed(rush: boolean, calm: number, walk: number, run: number): number {
+  return rush && URGENT.enabled ? run * PACE.rush : walk * calm;
+}
 
 export const SEARCH_PLAIN = 0;
 export const SEARCH_BODY = 1;

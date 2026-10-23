@@ -88,3 +88,39 @@ s6CloseOn, sectorRestart, securityBodies, securityCamera, squadWiring).
 
 E2e to run: `e2e-stealth-ai` (body finding and the search that ends), `e2e-sectorops` (all parts; camera bodies),
 `e2e-ctcourse`. Note for the runner: an e2e that waits for a body search to end now waits up to 180 s, not 60 s.
+
+## S19 (G3) Urgency: they hurry to alarms and reported bodies
+Michael: "guards should rush to any triggered alarms or bodies reported, they need a sense of urgency when it makes
+logical sense."
+
+Cause: every board send walked at the calm paces (investigate x0.85, search x0.75 of a slow walk, under 1 m/s): a
+camera's body, a missing man, a shots call alike; a dead body's radio report moved nobody.
+
+Built:
+- `src/ai/response.ts`: `PACE` moved here from `enemy.ts` (pure; `enemy.ts:170` re-exports it, its readers unchanged)
+  with `rush` 0.75 (x the RUN speed, `:30`); `urgentKind(kind)` (`:47`: device, bodies, shots, missing, contact urgent;
+  noise, distraction, light, breaker calm); `paceSpeed(rush, calm, walk, run)` (`:62`).
+- `src/ai/gear.ts:81` `URGENT` (enabled, bodyHelpers 1).
+- `src/ai/enemy.ts`: `rush` / `rushing`; set by `sendTo` (shots, `:910`), `pairSearch` (`:957`), `checkBody` (`:976`),
+  `respondDevice` / `joinAsResponder` (`:1326`, `:1349`), `bodySearch(x, z, rush)` and `helpSearch` (`:822`, new: the
+  radio body helper, bark `joining`, task kept through the search); cleared by `searchAt` (`:1171`), on arrival
+  (`calmDecide`, `:2180`) and on calm / combat (`onLevel`, `:1647`); the investigate / search walk speed is
+  `paceSpeed` (`:2200`).
+- `src/ai/incidents.ts`: `bodyDead` (code 5, never on the board before) gets an assignment (`:718`): `want` calm free
+  guards within `callR` by path, `MODE_HELP` 7 (`:204`); `reportBodyCall` (`:437`); merges by body while open.
+- `src/ai/enemyManager.ts`: `noteBodyCall` / `bodyHelp` (`:744`, `:756`): the dead body each `body` call is about (a fixed
+  ring of 8), and on the call's completion (`sink.completed`, `:326`) the `bodyDead` report unless the body is gone;
+  `MODE_HELP` -> `helpSearch` (`:1904`); the finder's voice partner hurries (`bodyFound`, `:590`); `bodyHelps` counter.
+- Tests that change by design: `scripts/e2e-stealth-ai.mjs` 'bodies' and 'witness' (A113): the calm guard out of voice
+  range is searching (sent to help, `bodyHelps` 1) once the report gets through; `tests/awarenessWiring.test.ts` (fake
+  `helpSearch`; the finder modelled as searching; the guard in range is sent once) and `tests/sectionAlert.test.ts`.
+
+Tests: `tests/urgency.test.ts` (10): `urgentKind` splits every incident kind; `paceSpeed` (the rush > 2x the patrol pace,
+calm unchanged); the board sends one calm guard in range to a radio-reported body, never the searching finder, and not a
+second time while open; on the real `Enemy` code: a tripped device (a jog, then the search pace once there), a device
+reinforcement, a camera's body, the radio body helper (a jog, then the search pace), the missing pair lead and cover and
+a shots investigator all jog; a noise investigator keeps the investigate pace; calm or combat drops the hurry. Unit test
+total for the batch: 28 new (deviceTrip 11, bodySearch 7, urgency 10); the AI set (33 files, 502 tests) green.
+
+E2e to run: `e2e-stealth-ai` (its 'bodies' and 'witness' asserts changed, A113), `e2e-sectorops` (all parts),
+`e2e-ctcourse`, `e2e-ct-warehouse`; plus `e2e-tactics` and `e2e-stealth` for the shared pace / search paths.
