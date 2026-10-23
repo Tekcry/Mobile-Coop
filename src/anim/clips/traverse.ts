@@ -353,6 +353,14 @@ export function airPoseW(airT: number): number {
  * swung wide (fLX), the right foot steps up 0.4 - 0.52 and the left comes through 0.5 - 0.63, crouched on both feet at
  * `CLIMB_UP_CROUCH_K` (0.85 s: where a climb-up without the stick held ends, crouched); the stand from the crouch runs
  * 0.654 - 1 (0.45 s, pelvis -0.42 -> 0 on a monotone ease).
+ * (traverse-fix-2) A mantle keeps the chest low over the hands while the knees come on, then pushes up: the trunk pitches
+ * forward over the lip as the root rises (pelPitch + spPitch 1.85 rad by 0.35, held to 0.52), the pelvis low (pelY -0.75)
+ * and held back over the lip as the root moves in (pelZ to -0.3 at 0.52), so the shoulders stay within reach of the lip
+ * (<= 0.53 m, arm 0.54 m; were 0.6 - 0.88 m over 0.32 - 0.52 with the near upright torso) and the palms stay on it until
+ * the right foot is on the top (0.52, CLIMB_UP_HANDS); then up into the crouch by CLIMB_UP_CROUCH_K. The right knee swings
+ * out (fRX) and comes over the lip after the left; the left foot swings wide through (fLX -0.2 at 0.57). Every knee stays
+ * over the rig's knee floor (root + KNEE_FLOOR: a knee under it lifts the pelvis at once, a pop). Headless measure:
+ * tests/climbHands.test.ts. Undo: the keys before traverse-fix-2 (git history) and CLIMB_UP_HANDS { k0 0.38, span 0.12 }.
  */
 export const CLIMB_UP_CROUCH_K = 0.654;
 export const CLIMB_UP = makeClip({
@@ -361,21 +369,37 @@ export const CLIMB_UP = makeClip({
   keys: {
     grip: [0, 0, 1, 0],
     offGrip: [0, 0, 0.56, 0, 0.654, 1, 1, 1],
-    pelPitch: [0, 0, 0.19, 0.3, 0.3, 0.55, 0.42, 0.6, 0.654, 0.3, 0.85, 0.12, 1, 0.05],
-    spPitch: [0, -0.05, 0.22, 0.3, 0.33, 0.25, 0.654, 0.02, 1, 0],
-    hdPitch: [0, -0.2, 0.22, 0.1, 0.4, -0.15, 0.654, -0.05, 1, 0],
-    // the crouch on top at 0.654 is the crouched stance's own (CROUCH_IDLE pelY -0.42, pelPitch ~0.28)
-    pelY: [0, 0, 0.245, -0.12, 0.33, -0.5, 0.5, -0.5, 0.654, -0.42, 1, 0],
-    // the left knee comes over the lip wide of the arm (0.27 - 0.3) and the shin lies on the top behind it (0.36 - 0.5),
-    // then it comes through under the body (0.52 - 0.63)
-    fLX: [0, 0, 0.2, -0.12, 0.3, -0.25, 0.36, -0.12, 0.5, -0.05, 0.63, 0, 1, 0],
-    fLY: [0, 0.05, 0.2, 0.2, 0.3, 0.4, 0.36, 0.12, 0.5, 0.12, 0.57, 0.16, 0.63, 0, 1, 0],
-    fLZ: [0, -0.1, 0.27, -0.12, 0.36, -0.38, 0.52, -0.38, 0.63, 0, 1, 0],
-    fLPitch: [0, 0, 0.3, 0.6, 0.36, 1.2, 0.52, 1.2, 0.6, 0.3, 0.63, 0, 1, 0],
-    // the right foot pushes on the face, then steps up onto the top in front (0.4 - 0.52)
-    fRY: [0, 0.05, 0.22, 0.15, 0.4, 0.15, 0.45, 0.3, 0.52, 0.05, 0.6, 0, 1, 0],
-    fRZ: [0, -0.12, 0.4, -0.15, 0.48, 0.2, 0.654, 0.06, 1, 0],
-    // (the grips hold the hands on the lip until the knee is on, 0.38 - 0.5; the clip's hands meet them there)
+    // (traverse-fix-2) the trunk pitched near flat over the lip from the pull-up until the right foot is on the top (0.4 -
+    // 0.48; the spine counters most of pelPitch: the chest's pitch is about 0.4 pelPitch + spPitch), then up into the
+    // crouch as the hands let go, spread over the release (0.48 - 0.654: rising later, the arms swung 13 cm a frame
+    // round the shoulders' rate limit at the crouch)
+    pelPitch: [0, 0, 0.24, 0.13, 0.31, 0.672, 0.35, 0.842, 0.4, 1.152, 0.44, 1.152, 0.48, 0.93, 0.52, 0.774, 0.56, 0.685, 0.6, 0.389, 0.63, 0.3, 0.654, 0.318, 0.85, 0.12, 1, 0.05],
+    spPitch: [0, -0.05, 0.24, 0.289, 0.31, 0.653, 0.35, 0.893, 0.4, 0.911, 0.44, 1.049, 0.48, 1.164, 0.52, 1.049, 0.56, 0.736, 0.6, 0.526, 0.63, 0.185, 0.654, 0.013, 1, 0],
+    // the head up, looking over the top
+    hdPitch: [0, -0.2, 0.22, 0.1, 0.36, -0.6, 0.5, -0.752, 0.654, -0.055, 1, 0],
+    // the crouch on top at 0.654 is the crouched stance's own (CROUCH_IDLE pelY -0.42, pelPitch ~0.28); (traverse-fix-2)
+    // the pelvis drops as the root rises (the shoulders pass over the hands slower: the elbows' joint rate held the palms
+    // 6 cm off the lip at 0.26) and stays low over the knees to 0.5
+    pelY: [0, 0, 0.21, -0.003, 0.27, -0.255, 0.33, -0.558, 0.38, -0.718, 0.44, -0.679, 0.5, -0.743, 0.56, -0.606, 0.6, -0.485, 0.654, -0.42, 1, 0],
+    // (traverse-fix-2) the pelvis back off the lip through the pull-up, then held back over it as the root moves in over
+    // the top (CLIMB_UP_PATH fwd0 0.33), so the shoulders stay in the arms' reach of the hands
+    pelZ: [0, 0, 0.2, -0.032, 0.26, -0.131, 0.3, -0.17, 0.36, -0.1, 0.4, -0.104, 0.44, -0.216, 0.48, -0.253, 0.52, -0.246, 0.56, -0.209, 0.6, -0.147, 0.654, 0, 1, 0],
+    // the left knee comes over the lip wide of the arm (0.27 - 0.3), the shin trailing behind it (0.36 - 0.54), then the
+    // foot swings wide (fLX) and through under the body (0.54 - 0.63)
+    fLX: [0, 0, 0.2, -0.12, 0.3, -0.25, 0.36, -0.12, 0.5, -0.05, 0.57, -0.2, 0.63, 0, 1, 0],
+    fLY: [0, 0.05, 0.2, 0.2, 0.3, 0.4, 0.36, 0.105, 0.42, 0.061, 0.46, 0.06, 0.5, 0.072, 0.54, 0.15, 0.58, 0.15, 0.63, 0, 1, 0],
+    fLZ: [0, -0.1, 0.27, -0.12, 0.42, -0.13, 0.46, -0.268, 0.5, -0.461, 0.54, -0.461, 0.58, -0.328, 0.63, 0, 1, 0],
+    fLPitch: [0, 0, 0.3, 0.6, 0.36, 1.2, 0.52, 1.2, 0.58, 0.3, 0.63, 0, 1, 0],
+    // the right foot pushes low on the face (0.4 - 0.44), its knee swung out (fRX) past the arm, then the foot steps onto
+    // the top in front (0.44 - 0.47: on it by 0.474, before the hands let go), set down under its hip (fRX -0.08 at 0.49;
+    // b22-ladder-knees): both legs folded there, a foot set wide tips the hip-ankle line out and the knee in, onto the
+    // left knee beside it (8.9 cm apart over a ladder's top with fRX 0.022 -> 0; 14.4 cm now, e2e-clip > 9)
+    fRX: [0, 0, 0.26, 0, 0.34, 0.116, 0.37, 0.164, 0.42, 0.163, 0.46, -0.02, 0.49, -0.08, 0.56, 0, 1, 0],
+    fRY: [0, 0.05, 0.22, 0.15, 0.3, 0.15, 0.36, 0.139, 0.4, -0.283, 0.42, -0.283, 0.44, -0.271, 0.46, -0.08, 0.48, -0.071, 0.52, -0.064, 0.56, -0.06, 0.6, 0, 1, 0],
+    fRZ: [0, -0.12, 0.3, -0.16, 0.335, -0.1, 0.37, -0.131, 0.4, -0.09, 0.42, -0.01, 0.44, 0.003, 0.46, 0.067, 0.48, 0.097, 0.52, 0.098, 0.56, 0, 0.654, 0.06, 1, 0],
+    // (the grips hold the hands on the lip until the right foot is on the top, then let go 0.475 - 0.64 (CLIMB_UP_HANDS).
+    // These hand keys are not what the free hands go to: the graph overwrites a traverse clip's hands with the hanging
+    // defaults except for the roll and the drop (animGraph `clipHands`))
     hLY: [0, 2.0, 0.22, 1.3, 0.33, 0.35, 0.47, 0.4, 0.654, 0.7, 1, 1.0],
     hRY: [0, 2.0, 0.22, 1.3, 0.33, 0.35, 0.47, 0.4, 0.654, 0.7, 1, 1.0],
     hLZ: [0, 0.25, 0.33, 0.45, 0.47, 0.4, 0.654, 0.3, 1, 0.25],

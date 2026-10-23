@@ -10,7 +10,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
 - `Hud.setAccess` per frame from `settings.access`: health = the screen-edge vignette plus the health bar
   (`access.healthBar`, default on; off leaves the vignette as the only readout), the weapon readout fades (`.quiet`) 3 s
   after the last change, a hold ring on the use prompt (`setInteract(text, progress)`; since G5 only on the team-move
-  direct path), subtitles
+  direct path; the hang-down's hanging player, settled, uses the menu), subtitles
   (`BarkView.subtitles`), colour-safe arcs (`AwarenessArcs.colorSafe`), `--hud-scale` (CSS `zoom`), camera `shakeMul`,
   held actions by tap (`access.holdToggle`, `GameState.holdLatch`). No medkit count: health comes back only at wall
   stations (G20, G98).

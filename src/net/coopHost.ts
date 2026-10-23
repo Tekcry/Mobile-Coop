@@ -21,7 +21,7 @@ import { RemotePlayer } from './remotePlayer';
 import { HoldClock, holdFeed, stepHoldFeed, type HoldFeed } from './holdFeed';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
-import { checkBlast, checkShot, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile } from './validate';
+import { checkBlast, checkShot, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile, SHOT_UNDER, SHOT_UNDER_HANG } from './validate';
 import { localFlags, htmlToInfo } from './netShared';
 import { keepSimInBackground } from './bgTicks';
 import { LAMP_LOS_SLACK, LampSender, lampShotOk, lampTargetId } from './lampSync';
@@ -30,11 +30,13 @@ import { localMoveState } from '../game/localMoveState';
 import { emptyMoveState, moveChanged } from '../player/moveState';
 import { hostCrackOk } from '../world/doorPeek';
 import { contactDelay, GRAB } from '../game/takedown';
+import { hangHoldStep, hangingMove, type HangSpot } from './hangHold';
 import { koCurve, type KoState } from '../game/closeQuarters';
 import { checkTeamRequest, type TeamKind, type TeamSide } from '../game/teamMoves';
 import { ThrowKo } from './throwKo';
 import { checkCommitted, type CKind, type CTargetView } from '../game/committedMoves';
 import { STRIKE, STRIKE_DUR } from '../game/elbowStrike';
+import { DualClock } from '../game/dualTakedown';
 import { stationHeal } from '../game/medkit';
 import { ReviveClock } from '../game/reviveClock';
 import type { CourseMode } from '../game/modes/courseMode';
@@ -57,8 +59,6 @@ const SHOT_NOISE = 28;
 /** A client takedown: the victim within this of the client (m), and let go after this long without an outcome (s). */
 const TD_REACH = 3;
 const TD_MAX = 6;
-/** Two takedowns by different players this close together (s) make a dual takedown. */
-const DUAL_WINDOW = 1.5;
 
 interface Hist {
   t: number;
@@ -121,7 +121,7 @@ export class CoopHost implements NetAttachment {
   /** Revive points on downed players (co-op). */
   private revives = new Map<string, Interactable>();
   /** Enemies seized by a client's takedown: enemy id -> client id and seconds held; (hostage-gait) the hold point feed. */
-  private seized = new Map<string, { by: string; t: number; hostage?: boolean } & HoldFeed>();
+  private seized = new Map<string, { by: string; t: number; hostage?: boolean; hang?: HangSpot } & HoldFeed>();
   /** (hostage-gait) Render time vs sim time for the hold feed (set each frame with the remote bodies). */
   private readonly holdClock = new HoldClock();
   /** (G7) Scratch for a client hold's knockout pose. */
@@ -275,23 +275,21 @@ export class CoopHost implements NetAttachment {
     );
   }
 
-  /** Takedowns finished by two players within `DUAL_WINDOW` s: a dual takedown. */
-  private lastTd: { by: string; t: number } | null = null;
+  /** Takedowns finished by two players within `DUAL_WINDOW` s: a dual takedown (`DualClock`). */
+  private readonly dualClock = new DualClock();
   /** Dual takedowns this match (tests). */
   duals = 0;
 
   private takedownDone(by: string): void {
-    const l = this.lastTd;
-    if (l && l.by !== by && this.time - l.t <= DUAL_WINDOW) {
-      const sub = `${this.name(l.by)} + ${this.name(by)}`;
-      this.g.hud.banner('DUAL TAKEDOWN', sub, 1800);
-      this.push({ e: 'banner', title: 'DUAL TAKEDOWN', sub });
-      this.duals++;
-      this.g.style.record('takedownNonLethal', this.g.detected);
-      this.lastTd = null;
-      return;
-    }
-    this.lastTd = { by, t: this.time };
+    const first = this.dualClock.note(by, this.time);
+    if (first === null) return;
+    const sub = `${this.name(first)} + ${this.name(by)}`;
+    this.g.hud.banner('DUAL TAKEDOWN', sub, 1800);
+    this.push({ e: 'banner', title: 'DUAL TAKEDOWN', sub });
+    this.duals++;
+    // (spare 12, A3) counted as its own event for section-rating (no extra knockout)
+    this.g.style.record('dualTakedown', this.g.detected);
+    this.g.events.emit('dualTakedown', { a: first, b: by, detected: this.g.detected });
   }
 
   private push(e: NetEvent): void {
@@ -951,7 +949,8 @@ export class CoopHost implements NetAttachment {
     // (3.2.0) a player's posed head / pelvis when recorded (hanging off a lip, crawling, leaning out), else by stance
     const body = posed ? this.tmpB.copyFrom(this.rwBody).addInPlaceFromFloats(0, 0.12, 0) : this.tmpB.copyFrom(feet).addInPlaceFromFloats(0, (crouch > 0.5 ? 0.7 : 1.0) * scale, 0);
     const head = posed ? this.tmpH.copyFrom(this.rwHead) : this.tmpH.copyFrom(feet).addInPlaceFromFloats(0, (crouch > 0.5 ? 1.15 : 1.62) * scale, 0);
-    const verdict = checkShot({ origin: { x: m.ox, y: m.oy, z: m.oz }, dir: { x: m.dx, y: m.dy, z: m.dz }, part: m.part }, r.feet, body, head, def.range, 1.1 * scale);
+    // (hang-down, A6) a client hanging head-first shoots from under its turned-over root
+    const verdict = checkShot({ origin: { x: m.ox, y: m.oy, z: m.oz }, dir: { x: m.dx, y: m.dy, z: m.dz }, part: m.part }, r.feet, body, head, def.range, 1.1 * scale, hangingMove(r.state?.mv) ? SHOT_UNDER_HANG : SHOT_UNDER);
     if (!verdict.ok) {
       r.violations++;
       return 0;
@@ -1195,7 +1194,8 @@ export class CoopHost implements NetAttachment {
       if (st.f & PF.firing && t <= 0) {
         this.firing.set(r.id, 0.4);
         const quiet = (st.f & PF.quiet) !== 0;
-        if (quiet) em.hear(r.feet, SHOT_NOISE * 0.5);
+        // (guard-ai S14, A46) as in solo: SHOT_NOISE x the weapon's noise (9.8 m for the CT guns), at most the quiet cap
+        if (quiet) em.hear(r.feet, SHOT_NOISE * Math.min(WEAPONS[st.w].noise ?? 1, 0.6));
         else em.noise(r.feet, SHOT_NOISE * (WEAPONS[st.w].noise ?? 1));
       } else this.firing.set(r.id, t);
     }
@@ -1221,6 +1221,11 @@ export class CoopHost implements NetAttachment {
       const by = this.remotes.get(s.by);
       // (3.2.0) a client holding the guard as a hostage: kept in front of them (and a shield) for as long as it lasts
       const mv = by?.state?.mv;
+      // (hang-down, A7) a client hanging head-first keeps the guard it took (grab or neck snap), lifted under its head
+      if (by && by.alive && hangingMove(mv) && hangHoldStep(this.g.enemyMgr?.enemies, eid, s, by.avatar.pos.x, by.avatar.pos.y, by.avatar.pos.z, dt)) {
+        s.t = 0;
+        continue;
+      }
       if (by && by.alive && mv?.m === 'grab' && mv.tid === eid) {
         const e = this.g.enemyMgr?.enemies.find((x) => x.id === eid);
         if (e && e.alive) {

@@ -114,6 +114,7 @@ interface FakeGuard {
   ack: ReturnType<typeof vi.fn>;
   checkLight: ReturnType<typeof vi.fn>;
   pairSearch: ReturnType<typeof vi.fn>;
+  bark: ReturnType<typeof vi.fn>;
 }
 
 let n = 0;
@@ -138,6 +139,8 @@ function guard(x: number, z: number, o: Partial<FakeGuard> = {}): FakeGuard {
     ack: vi.fn(),
     checkLight: vi.fn(),
     pairSearch: vi.fn(),
+    // (guard-ai S14) a calm hearer of a loud shot radios it ("shots fired")
+    bark: vi.fn(),
     ...o,
   };
 }

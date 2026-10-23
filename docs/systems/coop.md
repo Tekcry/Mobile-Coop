@@ -109,13 +109,17 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   placing one in every map is decided, not built yet (G98).
 - Client takedowns: `GameState.takedownVictims` = puppets; `td start / done / abort` seizes the host enemy (denied ->
   `tdDenied`). The host hears clients (footsteps by `noiseRadius`, shots by `PF.firing`, `PF.quiet` = suppressed).
+  (guard-ai S14, A46 / A77) A client's quiet shot is heard at `SHOT_NOISE x min(weapon noise, 0.6)` as a solo shot is
+  (9.8 m for the CT guns; was a fixed 14 m), a loud one at `SHOT_NOISE x weapon noise` through `EnemyManager.noise`, so
+  a client's unsuppressed shot is radioed as "shots fired" like the host's (section caution, host-only, no wire change).
 - Downed: `revive` interactables on bodies (`NetAttachment.onLocalDeath` / `onRespawn`); everyone down -> the mode.
 - Bodies: the host lists lying bodies in `snap.bodies` when they change; clients keep those ragdolls and drop the rest.
 - Pings (action `ping`: D-pad left tap, Z): `GameState.sendPing` (aim ray) -> `ping` msg / event (host rate 0.8 s) ->
   `ui/hud/pings.ts` (follows a pinged guard, edge arrows off screen).
 - Gadgets: `GadgetSystem.onLocal` reports gas / flash / EMP / noise effects; the host relays them (`gadget`, 1 s rate,
   <= 40 m) and runs `remoteEffect` on its guards.
-- Team moves: brace and boost, human ladder, dual takedown (two finishes within `DUAL_WINDOW` 1.5 s -> banner). These
+- Team moves: brace and boost, human ladder, dual takedown (two finishes within `DUAL_WINDOW` 1.5 s -> banner; counted in `StealthRating.duals` and the `dualTakedown` event for
+  section-rating (spare 12), no extra knockout). These
   are the moves that exist; the other four of loco D8 wait for the co-op phase (G52).
 - (throw-ko) Partner throw onto a guard (CT: landing on a guard knocks him out): at a throw's `tstart` the host records
   the flight (`net/throwKo.ts`, `ThrowKo`: `throwArc` from the thrown player's feet as the host has them to the bounded
@@ -137,6 +141,14 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   clock drives both bodies (`TEAM_LINK`, written by GameState; the partner's avatar reads it when the partner is ours:
   `MoveState.tid` / mode / sub / `s` / `ph` as before); an unlinked holder plays the offer pose. The rope line starts in
   the holder's hands (`ropeGripWorld`).
+- (hang-down) The hanging player's actions (`TeamController.hangActs`: hanging settled, no end asked). No wire change: the
+  hanger's MoveState stays the team mode (`boost` + `HANG_SUB`). Its takedowns (the grab, the neck snap; rules in
+  `docs/systems/takedowns.md`) go to the host as any client takedown (`td`); the host keeps a guard a hanging client
+  seized (no `TD_MAX` let-go) and holds him lifted under that client's head (`net/hangHold.ts` `hangHoldStep`, the
+  client's own `hangHoldPoint`, eased in; not solid), until the client's `td` done (the host's view shows no knockout
+  lowering: the guard drops at the finish). The pistol: `hostHandsFree` lets `boost` + `HANG_SUB` (not the rope) hold
+  it drawn, and a hanging client's shot may start `SHOT_UNDER_HANG` 2.2 m under its turned-over root (`checkShot`'s
+  `under`; 1 m otherwise). The holder's pull-up or drop ends the hang; a guard still held is knocked out there (A4).
 - Partners block each other (training D49, A49, G52: every co-op mode): each page gives each partner a
   `PartnerBlocker` (`partnerBlocker.ts`), an upright capsule at their shown (interpolated) feet in `G.PARTNER` that only
   the local controller collides with. Host: `RemotePlayer.blocker`; client: per `RemoteAvatar`. Parked while the
