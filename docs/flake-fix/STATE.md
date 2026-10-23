@@ -3,6 +3,16 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 28 (2026-10-23 ~22:40, new account; wins over SAVE 27 where they differ):**
+- Service live: pid 24928 (started 22:13, self-update), log C:/NightShift/scratch/laptop-queue/log.txt (UTC stamps).
+  heavy-4189.lock owned by it (live). No stale runs or locks. Old NightShift-chain-* tasks are all Ready (idle).
+- Train 36 0348a091 (PR #263) queued 22:34 behind a pr run on 4189; verdict to Orchestrator only on failure.
+- SAVE 26 OPEN 2 CLOSED: LR16 triage verdict SENT to Sector Ops (f8008542 vs 273539ec CPU p95 Epic start +0.5,
+  s5-worst +1.2; Medium start +1.1, s5 +0.4; guards identical, freeze off both: the cost is LR16 itself).
+- Player Build alone-guard-bake-probe bbd49206 FAIL = missing C:/NightShift/downloads/mpfb2-2.0.18 zip (setup, not
+  game). Told Player Build; a download needs Michael's OK.
+- Still open from SAVE 27: Marlow log-excerpt ask waits on Michael.
+
 **Test Runner SAVE 27 (2026-10-23 ~22:10, swap save; wins over SAVE 26 where they differ):**
 - Service restarted ~21:57 (Michael OK): now e1398df4, pid 30620, "done claim(s) pushed: 11" (desktop lane live; SAVE
   26 OPEN 1 closed). Stop-ScheduledTask does NOT kill the node child: a restart needs the node pid killed (Michael's OK).
@@ -852,7 +862,7 @@ puts it in CLAUDE.md on feature/menu). Laptop full runs: `RUN_GPU=1` (E2E_GPU=1)
 
 ## Resume prompt
 ```
-Night Shift | Test Runner (laptop, the MAIN test machine). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Test Runner" (ToolSearch if deferred). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop", "Heavy-usage throughput" incl. "Token rules"), then the newest "Test Runner SAVE" block (SAVE 27 or later) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Do what it lists, in order. If two Test Runner sessions show in ListAgents, close the older one.
+Night Shift | Test Runner (laptop, the MAIN test machine). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Test Runner" (ToolSearch if deferred). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop", "Heavy-usage throughput" incl. "Token rules"), then the newest "Test Runner SAVE" block (SAVE 28 or later) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Do what it lists, in order. If two Test Runner sessions show in ListAgents, close the older one.
 
 The queue is the SERVICE now (no hand-run chains, Orchestrator 20:26): task NightShift-laptop-queue runs scripts/laptop-queue/service.mjs from C:/NightShift/Mobile-Coop-laptop-queue-svc (follows origin/feature/laptop-queue, self-updates when idle); log + state C:/NightShift/scratch/laptop-queue/ (log.txt, runs/<id>/); verdicts are GitHub statuses laptop-e2e[/<set>] + PR comments on failure. Requests: node scripts/laptop-queue/request.mjs --sha <ref> (--suites "a b" | --full | --alone --step "<cmd>" [--env K=V]) --requester "<title>" (alone = perf / sheets, after trains and PR suites). Desktop overflow worker NightShift-desktop-queue (LQ_WORKER=desktop, pr only) claims via claims/<id>.json on the laptop-queue branch. Locks C:/NightShift/heavy-4189.lock / heavy-4192.lock (service lines "laptop-queue | ..."; a lock with no live node is stale). Restarting the service: Stop-ScheduledTask leaves the node child alive, so a restart also needs that node pid killed (needs Michael's OK).
 
