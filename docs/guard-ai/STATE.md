@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~17:00: S9 1ad04058 GREEN 4/4 (coop, netmove, stealth-ai, takedown). s9 <- s15 6b65c3a5 conflicts in src/net (master is
+protocol 35): Opus agent merging, S9 -> protocol 37 (36 = pose-parity #223), A96. S16 merged 4.75.0 (58691dcb: gate field
+renamed `fireGate`, roleStep before the armour check) + check PASS fb192d45 (S16-CHECK.md); PR #228 OPEN to master;
+Test Runner asked (sectorops 6, stealth-ai, ct-warehouse, ctcourse, tactics).
+
 ~16:40: S15 fc249f3f GREEN 9/9 (Test Runner, laptop GPU; log scratch/runs/guardais15-fc249f3f). master 4.75.0 merged up:
 s13 e8cd0a35, s14 0ecd98bb, s15 6b65c3a5 (tsc, eslint, 254 unit). TRAIN-READY #218 -> #219 -> #220 sent (train 27).
 s9 / walk still sit on fc249f3f: merge s15 6b65c3a5 in before their PRs.
@@ -437,13 +442,10 @@ unavoidable guards, stealth over shooting), then this file's "Now" (top 3 entrie
 e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep laptop CPU under ~80%. Target train 27.
 1. Stack #218 -> #219 -> #220 (S13-S15): GREEN, master 4.75.0 merged (s15 6b65c3a5), TRAIN-READY sent for train 27.
    Watch the train verdict only; #218 base still s12 (orchestrator / Michael: `gh pr edit 218 --base master`).
-2. S9 co-op (protocol 32) = 1ad04058 (s9 <- fixed s15), verdict pending (coop, netmove, stealth-ai, takedown). Green ->
-   PR S9 base s15; add A126's holster bit to `al` while protocol 32 is unreleased (after walk lands).
-3. S16 (armour fire gate): agent merging master 4.75.0 + fresh check. Done = slices/S16-CHECK.md on feature/guard-ai-s16;
-   else its mid-merge WIP is origin/feature/guard-ai-s16-wip 46ca998d (conflicts: enemy.ts ~229 rng, ~2178 S16 armour
-   block vs S8 roleStep; BRIEF / TESTING keep both): a fresh Opus agent finishes from there.
-   Then Test Runner: sectorops 6, stealth-ai, ct-warehouse, ctcourse, tactics; PR to master; tell Sector Ops Build
-   (ballistics.ts armouredFirst).
+2. S9 co-op: 1ad04058 GREEN 4/4; merging s15 6b65c3a5 (master 4.75.0) -> protocol 37 (agent; S9.md "Merge 4.75.0").
+   Then Test Runner coop, netmove, stealth-ai, takedown on the new head; PR S9 base s15; A126 holster bit in `al` later.
+3. S16 = PR #228 (fb192d45, check PASS, Sector Ops told). Waiting on Test Runner (sectorops 6, stealth-ai,
+   ct-warehouse, ctcourse, tactics) -> TRAIN-READY. (feature/guard-ai-s16-wip is a stale save: Michael may delete it.)
 4. Walk batch S17-S21 = 2082f96b on feature/guard-ai-walk (WALK.md; A100-A126). Checker RUNNING: done =
    slices/WALK-CHECK.md. Then Test Runner run (queued, full list), one batch PR (base s15 until the stack lands).
    S21 GPU sheet (slung rifle / thigh pistol) on Test Runner's GPU lane.
