@@ -13,7 +13,8 @@ import { flags } from '../../core/flags';
 import { reportGuardAi, validatePosts } from '../../ai/guardAiData';
 import { hyp2 } from '../../core/mathx';
 import { CtDevices } from '../ctDevices';
-import { SectorGuardFreeze } from '../sectorGuardFreezeView';
+import { SectorGuardFreeze, seeThroughRay } from '../sectorGuardFreezeView';
+import { inSheet } from '../../world/roofSheets';
 import { G } from '../../physics/groups';
 import {
   CONN_LOAD,
@@ -222,8 +223,16 @@ export class SectorMode implements GameMode {
       dirty: () => undefined,
     });
     g.ctDev = this.ct;
-    // (the occlusion rays: static geometry only, so glass and fences never hide a guard)
-    if (flags.guardFreeze) this.freeze = new SectorGuardFreeze(g.scene, em, (a, b) => g.ballistics.hitDistance(a, b, G.STATIC));
+    // (the occlusion rays: static geometry only, so glass and fences never hide a guard; fix round: the static bodies the
+    // camera sees through - a door leaf not shut, an unbroken breakable pane, a roof sheet - are stepped past. Render
+    // only: gameplay rays keep G.STATIC whole)
+    if (flags.guardFreeze) {
+      const w = g.world;
+      const sheets = w.level.sheets;
+      const see = (body: unknown, x: number, y: number, z: number): boolean =>
+        w.doors.seeThrough(body) || w.breakables.seeThrough(body) || inSheet(sheets, x, y, z);
+      this.freeze = new SectorGuardFreeze(g.scene, em, seeThroughRay((a, b) => g.ballistics.cast(a, b, G.STATIC), see));
+    }
     (window as unknown as { __sector?: SectorMode }).__sector = this;
     this.findDoors();
     this.team.build();

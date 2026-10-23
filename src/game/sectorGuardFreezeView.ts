@@ -6,8 +6,10 @@
 //
 // Two tests: the frustum (exact, every evaluation) and, for a guard whose body or moon shadow is in the frustum,
 // occlusion: rays from the camera to his sample points (`occlusionPoints`) against static geometry (walls, floors,
-// closed doors; never glass or fences). Occlusion is re-tested every `RETEST` evaluations per guard (staggered), at
-// once after a camera cut; a guard found visible stays drawn `HOLD` evaluations before the next test.
+// closed doors; never glass or fences; a door leaf not shut, a breakable pane and a roof sheet are stepped past:
+// `seeThroughRay`). Occlusion is re-tested every `RETEST` evaluations per guard (staggered, at most `TESTS_PER_EVAL`
+// guards per evaluation), at once after a camera cut; a guard found visible stays drawn `HOLD` evaluations before
+// the next test.
 // `?guardfreeze=0` turns it off (A/B runs).
 
 import { DirectionalLight, PointLight, SpotLight, Vector3, type Observer, type Scene } from '../core/babylon';
@@ -31,6 +33,53 @@ export const HOLD = 24;
 export const CUT = 0.75;
 /** A sample point counts as seen when the ray stops within this of it (m). */
 const SLACK = 0.25;
+/** At most this many guards get an occlusion test per evaluation (a camera cut re-tests every hidden verdict: spread
+ *  over the next evaluations; a guard waiting for his test is drawn meanwhile). ~6 rays each. */
+export const TESTS_PER_EVAL = 8;
+
+/** The first hit of a render-only cast (Babylon's `PhysicsRaycastResult` fits; read before the next cast). */
+export interface FreezeHit {
+  readonly hasHit: boolean;
+  readonly body?: unknown;
+  readonly hitPoint: { readonly x: number; readonly y: number; readonly z: number };
+}
+/** Is this hit (body, point) on something the camera sees through (a cracked door leaf, a glass pane, a roof sheet)? */
+export type SeeThrough = (body: unknown, x: number, y: number, z: number) => boolean;
+
+/** See-through hits a freeze ray steps past before it gives up and calls the point seen. */
+export const SEE_THROUGH_SKIPS = 6;
+/** How far past a see-through hit (m) the next cast starts. */
+const SKIP_STEP = 0.05;
+
+/**
+ * (sector-redesign perf, fix round) The freeze's occlusion ray: casts `cast` (static geometry) from `from` to `to`; a
+ * hit on something see-through (`see`) is stepped past and the cast goes on. Render only: gameplay rays (sight, shots,
+ * the light field, the meter) keep their masks and never use this. When unsure (too many see-through hits in a row)
+ * the point is seen: a guard drawn needlessly costs a little perf, a guard missing is a bug. One closure, made once;
+ * allocation-free per call.
+ */
+export function seeThroughRay(cast: (from: Vector3, to: Vector3) => FreezeHit, see: SeeThrough): FreezeRay {
+  const a = new Vector3();
+  return (from: Vector3, to: Vector3): number => {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const dz = to.z - from.z;
+    const total = hyp3(dx, dy, dz);
+    if (total <= 0) return 0;
+    a.copyFrom(from);
+    for (let k = 0; k <= SEE_THROUGH_SKIPS; k++) {
+      const r = cast(a, to);
+      if (!r.hasHit) return total;
+      const p = r.hitPoint;
+      const d = hyp3(p.x - from.x, p.y - from.y, p.z - from.z);
+      if (!see(r.body, p.x, p.y, p.z)) return d;
+      const s = d + SKIP_STEP;
+      if (s >= total) return total;
+      a.set(from.x + (dx * s) / total, from.y + (dy * s) / total, from.z + (dz * s) / total);
+    }
+    return total;
+  };
+}
 
 export class SectorGuardFreeze {
   private obs: Observer<Scene> | null;
@@ -76,21 +125,23 @@ export class SectorGuardFreeze {
       pl[i * 4 + 3] = p.d;
     }
     this.readLights();
-    // thaw what left the rule's reach first (died, despawned, taken in a takedown)
+    // thaw what left the rule's reach first (died, despawned, taken in a takedown), and drop what left the list or was
+    // disposed (a section unload or a restart: `Enemy.dispose` keeps `alive`)
     const fz = this.frozen;
+    const list = this.guards.enemies;
     for (let i = fz.length - 1; i >= 0; i--) {
       const e = fz[i]!;
-      if (e.alive && !e.taken && e.dog === null) continue;
+      if (e.alive && !e.taken && e.dog === null && !e.bodyRig.root.isDisposed() && list.indexOf(e) >= 0) continue;
       this.thaw(i);
     }
     const c = cam.globalPosition;
     const cut = cam !== this.lastCam || !(hyp3(c.x - this.lastPos.x, c.y - this.lastPos.y, c.z - this.lastPos.z) <= CUT);
     this.lastCam = cam;
     this.lastPos.copyFrom(c);
-    const list = this.guards.enemies;
     this.fitMemo(list.length);
     let n = 0;
     let occ = 0;
+    let tests = 0;
     this.rays = 0;
     for (let i = 0; i < list.length; i++) {
       const e = list[i]!;
@@ -108,12 +159,16 @@ export class SectorGuardFreeze {
       let want = bits === 0;
       if (bits > 0 && this.ray) {
         if (cut && this.memoHidden[i]) this.memoWait[i] = 0;
-        if (this.memoWait[i]! <= 0) {
+        if (this.memoWait[i]! > 0) {
+          this.memoWait[i]!--;
+          want = this.memoHidden[i] === 1;
+        } else if (tests < TESTS_PER_EVAL) {
+          tests++;
           const hidden = this.occluded3(bits, p.x, p.y, p.z, h, c);
           this.memoHidden[i] = hidden ? 1 : 0;
           this.memoWait[i] = hidden ? RETEST : HOLD;
-        } else this.memoWait[i]!--;
-        want = this.memoHidden[i] === 1;
+          want = hidden;
+        } else want = false; // (over the budget: drawn until his test, next evaluation)
         if (want) occ++;
       } else if (bits === FREEZE_DRAW) this.memoHidden[i] = 0;
       const on = root.isEnabled(false);

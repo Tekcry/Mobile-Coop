@@ -44,6 +44,8 @@ export class Breakables {
   private grates: Mesh | null = null;
   private glassM: Float32Array | null = null;
   private grateM: Float32Array | null = null;
+  /** The unbroken glass panes' bodies (render-only see-through test). */
+  private readonly glassBodies = new Set<unknown>();
   /** Called when a panel opens (audio, noise, vfx). */
   onOpen: ((key: string, how: OpenHow, at: Vector3) => void) | null = null;
 
@@ -112,10 +114,19 @@ export class Breakables {
       shape.filterCollideMask = 0xffffffff & ~G.STATIC;
       body.shape = shape;
       this.panels.set(p.key, { key: p.key, kind, body, node, index: i, open: false, pos: p.c.clone() });
+      if (kind === 'glass') this.glassBodies.add(body);
     });
     mesh.thinInstanceSetBuffer('matrix', buf, 16, false);
     mesh.thinInstanceRefreshBoundingInfo(false);
     return [mesh, buf];
+  }
+
+  /**
+   * (sector-redesign perf, render only: the guard freeze's occlusion rays) Is `body` an unbroken glass pane (drawn at
+   * alpha 0.3)? Grates are opaque. Gameplay rays never ask. Allocation-free.
+   */
+  seeThrough(body: unknown): boolean {
+    return this.glassBodies.has(body);
   }
 
   has(key: string): boolean {
@@ -133,6 +144,7 @@ export class Breakables {
     const p = this.panels.get(key);
     if (!p || p.open) return false;
     p.open = true;
+    this.glassBodies.delete(p.body);
     p.body.shape?.dispose();
     p.body.dispose();
     p.node.dispose();
@@ -155,6 +167,7 @@ export class Breakables {
       p.node.dispose();
     }
     this.panels.clear();
+    this.glassBodies.clear();
     this.glass?.material?.dispose();
     this.glass?.dispose();
     this.grates?.material?.dispose();
