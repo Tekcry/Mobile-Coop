@@ -235,19 +235,15 @@ describe('crouched strafe / wall slide: gun clear, pistol on one knee (AF4b)', (
   }
 });
 
-describe('low ready still: crouch -> stand while the gun is put away (AF4b, e2e-anim pop)', () => {
-  // e2e-anim "low ready still: crouch -> stand": X held 0.4 s at low ready (the hold holsters a full gun) as the crouch
-  // starts, so the kneel starts with the gun on its way to the back. The gun-hand knee rule put that kneel on the right
-  // knee and, standing from it, the free left hand swung over the raised left knee (14.5 cm a frame, <= 11.5). A kneel
-  // that starts in a draw / holster takes the holstered rule (the planted lead foot); a gun that stays drawn keeps the
-  // gun-hand knee. The real weapons, stance and carry (drawHarness); the planner's lead pinned to the left foot behind.
-  async function kneelRun(holster: boolean): Promise<{ side: number; pop: number; where: string }> {
+describe('low ready still: crouch -> kneel -> stand, pistol (AF4b, e2e-anim pop)', () => {
+  // e2e-anim "low ready still: crouch -> stand" (the pistol in hand): standing from the kneel the crouch runs out in
+  // standTime while the knees are still up; CROUCH_GUN.pistol by the crouch alone dropped the hang into the rising thighs
+  // and the body clearance threw the gun 11 cm sideways (wristL 14.5 cm a frame, <= 11.5). By the crouch or the kneel,
+  // whichever is more. The real weapons, stance and carry (drawHarness), the e2e's pop measure (velocity change a frame).
+  it('standing up from the pistol low-ready kneel does not pop', async () => {
     const { drawHarness } = await import('./helpers/drawHarness');
     const h = await drawHarness();
     const rig = h.rig;
-    const g = rig.graph as unknown as { kneelSide: number; setLead: (l: number) => void };
-    const setLead = g.setLead.bind(rig.graph);
-    g.setLead = () => setLead(-0.2);
     let crouched = false;
     let ck = 0;
     let still = 0;
@@ -262,20 +258,22 @@ describe('low ready still: crouch -> stand while the gun is put away (AF4b, e2e-
       p.motion = 'idle';
       anim(dt, p);
     };
+    h.tap('swapNext');
+    h.run(120);
     h.stance.base = 'lowReady';
     h.run(90);
-    if (holster) h.hold('draw', true);
-    h.run(24);
-    // the e2e's pop: each joint's change of velocity per 60 Hz frame (the root stays at the origin)
+    expect(h.weapons.current.def.class).toBe('pistol');
     const joints = ['hips', 'wristL', 'wristR', 'headNode'] as const;
     let prev: number[] | null = null;
     let vel: number[] | null = null;
     let pop = 0;
     let where = '';
+    let pushMax = 0;
     const now: number[] = [];
     const rec = (n: number): void => {
       for (let k = 0; k < n; k++) {
         h.step();
+        pushMax = Math.max(pushMax, (rig as unknown as { gunPush: number }).gunPush);
         now.length = 0;
         for (const j of joints) {
           const m = rig[j].computeWorldMatrix(true).m;
@@ -298,23 +296,12 @@ describe('low ready still: crouch -> stand while the gun is put away (AF4b, e2e-
     };
     crouched = true;
     rec(72);
-    const side = g.kneelSide;
     crouched = false;
     rec(72);
     h.dispose();
-    return { side, pop, where };
-  }
-
-  it('a kneel entered while holstering takes the lead foot; standing from it does not pop', async () => {
-    const a = await kneelRun(true);
-    console.info(`AF4b low ready X hold crouch -> stand: kneel side ${a.side}, worst velocity change ${cm(a.pop)} cm a frame (${a.where})`);
-    expect(a.side).toBe(-1);
-    expect(a.pop).toBeLessThanOrEqual(0.115);
-  }, 120_000);
-
-  it('a kneel with the gun staying drawn keeps the gun-hand knee', async () => {
-    const b = await kneelRun(false);
-    console.info(`AF4b low ready crouch -> stand: kneel side ${b.side}, worst velocity change ${cm(b.pop)} cm a frame (${b.where})`);
-    expect(b.side).toBe(1);
+    console.info(`AF4b pistol low ready crouch -> kneel -> stand: worst velocity change ${cm(pop)} cm a frame (${where}), body clearance push max ${cm(pushMax)} cm`);
+    expect(pop).toBeLessThanOrEqual(0.115);
+    // the hang stays clear of the thighs through the stand (by the crouch alone: pushed 4.2 cm here, 11 cm in the game)
+    expect(pushMax).toBeLessThanOrEqual(0.01);
   }, 120_000);
 });
