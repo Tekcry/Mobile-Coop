@@ -37,3 +37,7 @@ Defaults picked where BRIEF is open:
 - Synced (R4): each paid synced takedown gives +1 gadget and +1 syringe (solo: +1 gadget, +1 medkit); at most `SYNCED_PAID_MAX` = 2 paid per section (a number BRIEF left open).
 - Caps: gadget grant <= gadgetsAtStart; syringe grant <= preset + 2 - syringesAtStart (min 0). Caller passes current counts as "AtStart".
 - Detector: window inclusive (exactly 1.5 s syncs); players are 0 or 1; a paired takedown is consumed; the detector keeps its own count (`synced`), caller copies into `SectionStats.synced`.
+
+## S4 report (2026-10-23 12:34)
+Built src/ui/hud/ratingCard.ts (+ ratingCard.css, imported by the .ts; HUD CSS elsewhere lives in styles.css, which S4 does not own) and the ResultsNav.ratings option in resultsScreen.ts (one li.rs-sections line per section via sectionLine). Tests: tests/ratingCardText.test.ts, 7 pass; tsc and eslint clean.
+API: RatingView, ratingLines(view, gadgetName?), sectionLine(view), RatingCard(parent) with show(view, gadgetName?), update(dt), hide(), visible; RATING_CARD_SHOW 4 s, RATING_CARD_FADE 0.6 s. Not wired into any mode: the mode calls card.update(dt) each frame (a countdown only).
