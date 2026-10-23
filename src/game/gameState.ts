@@ -2589,7 +2589,8 @@ export class GameState implements AppState {
         // only enemies that can see the player (or are close by) show an arc: a guard who merely heard
         // something through a wall does not give himself away
         const near = hyp2(e.pos.x - p.x, e.pos.z - p.z) < ARC_NEAR;
-        if (!e.inSight && !near) continue;
+        // (guard-ai S23, A145) seeing the host's own player (players()[0]), not his target: the partner's does not count
+        if (!e.seesIndex(0) && !near) continue;
         const red = e.alerted && e.sinceSeen < 0.6;
         if (!red && (e.alerted || e.meter < ARC_MIN)) continue;
         const b = Math.atan2(e.pos.x - p.x, e.pos.z - p.z) - camYaw;

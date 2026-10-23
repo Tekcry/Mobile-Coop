@@ -68,6 +68,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Co-op guard AI (guard-ai S9): on the joiner, guards' lines and radio calls show as on the host; a cautious guard
   carries his weapon at low ready on both screens; after an alarm stage 2 / 3 the joiner sees the vests and helmets and
   a response team's shield; the joiner's headshot on a helmeted guard pings as a deflect and the helmet falls on both.
+- [ ] Co-op every player seen (guard-ai S23): hide behind a wall near a guard while your partner stands in his light in
+  front of him: the guard spots the partner and fights him; walking nearer behind the wall does not make him stop.
 - [ ] Co-op throw onto a guard (throw-ko): one player stands and offers the partner throw (RB standing), the other runs
   in about 3 m in front of a standing guard and is thrown over: the guard drops knocked out as the partner comes down
   on him, on both screens; a guard a step or more past the landing is left standing. Try it with each player thrown.
