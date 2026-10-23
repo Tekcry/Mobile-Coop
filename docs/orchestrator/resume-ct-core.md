@@ -1,5 +1,9 @@
 # Resume - Night Shift | Player Build (updated 2026-10-23 ~21:40 after the swap; live state in docs/guard-models/STATE.md "RESUMED" line)
 
+SAVE ~22:10 (92%): #247 checker PASS on afea69d3; CI red only on tests/mocapStrafe.test.ts alloc (1930.9 vs 1916.9):
+CI rerun 39942525621 + an Opus agent making the measurement robust (no threshold change) on feature/anim-fix-pass; if
+it changes only the test file the laptop request on afea69d3 still counts. guard-models live state: STATE.md "SAVE ~22:10"
+line (WIP branches gm-g2, gm-g4, gm-g7, gm-g1fix, gm-g1hfix; resume each builder from its head).
 ~22:40: #247 CI fix afea69d3 (AF3 / AF4b gated to Wren rigs, guards back to master; CI-FIX-REPORT.md): Opus checker
 + laptop request 20261023T105631-player-build-afea69d3-fd4f (anim clip coop netmove menus, set afp) in parallel. On
 both green + CI green: gh pr edit 247 --add-label train-ready + message orchestrator. guard-models: P1, G3, G1, G1h, G5
