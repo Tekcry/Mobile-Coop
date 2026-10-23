@@ -28,6 +28,7 @@ import { EYE_STAND, instantDetect, losClear, noiseSuspicion, PERCEPTION, seenAt,
 import { ALERT, AlertMachine, callInDelay, emptyAlertInput, type AlertLevel } from './alertState';
 import { HEARING } from './hearing';
 import { PatrolWalker, searchPoint, PATROL, type PatrolRoute } from './patrol';
+import { ARMOUR_FIRE, ArmourGate } from './armourFire';
 import { BODY, bodyNoticed } from './bodies';
 import type { Body } from './body';
 import { alarmStandPoint, raiseTime, type AlarmPanel } from './alarm';
@@ -200,6 +201,14 @@ export class Enemy implements Damageable {
   coverIdx = -1;
   private burstLeft = 0;
   private fireT = 0;
+  /** (guard-ai S16) The armour fire gate: the muzzle -> aim line's first hit armoured holds fire (debug / tests read it). */
+  readonly armour = new ArmourGate();
+  /** (guard-ai S16) A reposition away from armour: the next cover pick takes only spots with a clear fire line. */
+  private armourPick = false;
+  private readonly fireFrom = new Vector3();
+  private readonly fireTo = new Vector3();
+  /** (guard-ai S16) Rounds fired (debug / tests). */
+  roundsFired = 0;
   private pauseT = rand(0.6, 1.4);
   private windup = 0;
   private meleeCd = 0;
@@ -1092,6 +1101,8 @@ export class Enemy implements Damageable {
       this.setState('idle');
       this.burstLeft = 0;
       this.windup = 0;
+      this.armour.reset();
+      this.armourPick = false;
     }
     if (to === 'searching') {
       this.searchK = 0;
@@ -1232,6 +1243,7 @@ export class Enemy implements Damageable {
     }
     if (this.shotsHere > 0) this.postT += dt;
     this.fireT = Math.max(0, this.fireT - dt);
+    this.armour.step(dt);
     this.meleeCd = Math.max(0, this.meleeCd - dt);
     this.stagger = Math.max(0, this.stagger - dt);
     this.strikeStaggerT = Math.max(0, this.strikeStaggerT - dt);
@@ -1707,9 +1719,28 @@ export class Enemy implements Damageable {
       const close = this.dist <= def.engageMin + 0.5;
       return { point: close ? null : this.chasePoint(tp, false), speed: ARCHETYPE.enforcer.pushSpeed, face: toTarget };
     }
+    // (guard-ai S16) armour on the fire line, the target in sight: he holds fire (the gate in `tryFire`) and after
+    // `ARMOUR_FIRE.moveAfter` repositions: a cover spot with a clear fire line, else round by the nav (chase); held to a
+    // room or a post leash he only holds, still tracking him (sight and the alert level are unchanged)
+    if (this.los && this.armour.blocked && this.armour.plan(!outside) === 'move') {
+      this.ctx.releaseCover(this);
+      this.coverIdx = -1;
+      this.advancing = false;
+      this.peekCycles = 0;
+      if (def.usesCover) {
+        this.armourPick = true;
+        this.relocating = true;
+        this.setState('seekCover');
+        this.coverPicked = false;
+      } else this.setState('chase');
+      return { point: null, speed: 0, face: toTarget };
+    }
     switch (this.state) {
       case 'idle':
       case 'chase': {
+        // (guard-ai S16) repositioning away from armour: no stop to engage while the line stays armoured
+        const armourMove = this.los && this.armour.moveT > 0 && this.armourBlocks(t, 'aim', dt);
+        if (armourMove) return { point: this.chasePoint(tp, false), speed: def.runSpeed * 0.75, face: null };
         if (this.los && this.dist <= def.engageMax) {
           // in a fight they get behind something first
           this.advancing = false;
@@ -1772,7 +1803,11 @@ export class Enemy implements Damageable {
         if (!this.coverPicked) {
           this.coverPicked = true;
           if (!this.pickCover()) {
-            this.setState('attack');
+            // (guard-ai S16) no spot with a clear line: round by the nav instead
+            if (this.armour.moveT > 0) {
+              this.relocating = false;
+              this.setState('chase');
+            } else this.setState('attack');
             return { point: null, speed: 0, face: toTarget };
           }
         }
@@ -1941,6 +1976,9 @@ export class Enemy implements Damageable {
     const cover = this.ctx.cover;
     let best = -1;
     let bestScore = Infinity;
+    const armourPick = this.armourPick;
+    this.armourPick = false;
+    let casts = 0;
     for (let i = 0; i < cover.length; i++) {
       const c = cover[i]!;
       const dMe = hyp2(c.pos.x - this.pos.x, c.pos.z - this.pos.z);
@@ -1961,6 +1999,14 @@ export class Enemy implements Damageable {
       const q = coverQuality({ nx: c.normal.x, nz: c.normal.z, low: c.low, x: c.pos.x, z: c.pos.z }, [{ x: this.knownPt[0], z: this.knownPt[1] }]);
       const score = dMe + Math.abs(dT - 14) * 0.5 - q * 6;
       if (score < bestScore) {
+        // (guard-ai S16) away from armour: only a spot whose fire line (standing muzzle -> the target) is clear of it,
+        // cast only for a spot that would be the new best, at most `ARMOUR_FIRE.coverCasts` per pick
+        if (armourPick) {
+          if (casts >= ARMOUR_FIRE.coverCasts) continue;
+          casts++;
+          this.fireFrom.set(c.pos.x, c.pos.y + (EYE_STAND - 0.2) * this.def.scale, c.pos.z);
+          if (this.ctx.ballistics.armouredFirst(this.fireFrom, t.target.aimPoint(this.fireTo), MASK.ENEMY_SHOT)) continue;
+        }
         bestScore = score;
         best = i;
       }
@@ -1994,6 +2040,12 @@ export class Enemy implements Damageable {
       this.shieldT += dt;
       if (this.shieldT < GRAB.hesitate || mode !== 'aim') return;
     } else this.shieldT = 0;
+    // (guard-ai S16) armour first on the fire line: no wind-up, no burst, no round (the cached verdict, before every round)
+    if (this.armourBlocks(t, mode, dt)) {
+      this.windup = 0;
+      this.burstLeft = 0;
+      return;
+    }
     if (this.burstLeft <= 0) {
       this.pauseT -= dt;
       if (this.pauseT > 0) return;
@@ -2014,15 +2066,36 @@ export class Enemy implements Damageable {
     this.shoot(t, w, mode);
   }
 
+  /** The muzzle (eye height less 0.2, forward and to the right); blind fire comes over / around the cover. */
+  private muzzle(out: Vector3, mode: 'aim' | 'suppress' | 'blind'): Vector3 {
+    this.eye(out);
+    out.y -= 0.2 * this.def.scale;
+    out.x += Math.sin(this.yaw) * 0.45 + Math.cos(this.yaw) * 0.18;
+    out.z += Math.cos(this.yaw) * 0.45 - Math.sin(this.yaw) * 0.18;
+    if (mode === 'blind') out.y = Math.max(out.y, this.pos.y + 1.25);
+    return out;
+  }
+
+  /** The aim point before spread: the head or the body; suppressive and blind fire go at the last known spot. */
+  private aimAt(t: PlayerRef, mode: 'aim' | 'suppress' | 'blind', out: Vector3): Vector3 {
+    if (mode !== 'aim') return out.copyFrom(this.lastKnown);
+    return (this.losHead || t.shield) && t.target.headPoint ? t.target.headPoint(out) : t.target.aimPoint(out);
+  }
+
+  /** (guard-ai S16) The fire line's first hit is armoured (the gate, cached per guard; no allocation). */
+  private armourBlocks(t: PlayerRef, mode: 'aim' | 'suppress' | 'blind', dt: number): boolean {
+    const from = this.muzzle(this.fireFrom, mode);
+    const to = this.aimAt(t, mode, this.fireTo);
+    const nav = this.ctx.nav;
+    const mask = t.shield ? MASK.ENEMY_SHOT | G.ENEMY_HITBOX : MASK.ENEMY_SHOT;
+    return this.armour.gate(this.ctx.ballistics, from, to, mask, nav.cellOf(from.x, from.z, from.y), nav.cellOf(to.x, to.z, to.y), dt);
+  }
+
   private shoot(t: PlayerRef, w: NonNullable<EnemyDef['weapon']>, mode: 'aim' | 'suppress' | 'blind' = 'aim'): void {
     const d = this.ctx.diff;
-    const origin = this.eye(new Vector3());
-    origin.y -= 0.2 * this.def.scale;
-    origin.x += Math.sin(this.yaw) * 0.45 + Math.cos(this.yaw) * 0.18;
-    origin.z += Math.cos(this.yaw) * 0.45 - Math.sin(this.yaw) * 0.18;
-    // blind fire comes over / around the cover; suppressive and blind fire go at the last known spot
-    if (mode === 'blind') origin.y = Math.max(origin.y, this.pos.y + 1.25);
-    const aim = mode === 'aim' ? ((this.losHead || t.shield) && t.target.headPoint ? t.target.headPoint(new Vector3()) : t.target.aimPoint(new Vector3())) : this.lastKnown.clone();
+    const origin = this.muzzle(new Vector3(), mode);
+    const aim = this.aimAt(t, mode, new Vector3());
+    this.roundsFired++;
     const dir = aim.subtract(origin).normalize();
     // accuracy: settles in over the first second of sight, worse against moving/rolling targets
     const settle = Math.min(1, 0.45 + (this.losT * 0.55) / d.reaction);
