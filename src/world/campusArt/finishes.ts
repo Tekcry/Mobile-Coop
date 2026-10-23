@@ -12,7 +12,7 @@
  * The surface each colour gives through `pieceKind` (by colour; a floor's footstep surface, where one is marked, still
  * decides its texture) is `FINISH_KIND`, held by a test: walls plaster (offices, lobbies, Old House corridors), concrete
  * (labs, plant, data hall: painted block), wood (Old House panelling), brick (Old House service wing); floors and ceilings
- * concreteFloor, wood (oak) or rubber (asphalt).
+ * concreteFloor or wood (oak).
  */
 import type { SurfaceKind } from '../surfaceAtlas';
 import type { RoomDef } from '../rooms';
@@ -36,7 +36,7 @@ const OAK = '#6b4a2b';
 const OH_PLASTER = '#cbbf9f';
 const QUARRY = '#7d6a55';
 const BRICK = '#9a5440';
-const ASPHALT = '#2f3133';
+const ASPHALT = '#3a3c3e';
 const PAVING = '#7a756c';
 const MEMBRANE = '#5d6265';
 
@@ -100,7 +100,7 @@ export const CAMPUS_FINISH: Readonly<Record<ArtTag, Finish>> = {
 /** The surface `pieceKind` gives each finish colour (by colour alone; walls at 3 m, floors and ceilings as slabs). */
 export const FINISH_KIND: Readonly<Record<string, { wall?: SurfaceKind; slab: SurfaceKind }>> = {
   [CARPET]: { slab: 'concreteFloor' },
-  [PLASTER]: { wall: 'plaster', slab: 'concreteFloor' },
+  [PLASTER]: { wall: 'plaster', slab: 'plaster' },
   [CEIL]: { slab: 'concreteFloor' },
   [VINYL]: { slab: 'concreteFloor' },
   [TERRAZZO]: { slab: 'concreteFloor' },
@@ -112,14 +112,14 @@ export const FINISH_KIND: Readonly<Record<string, { wall?: SurfaceKind; slab: Su
   [RAISED]: { slab: 'concreteFloor' },
   [HALL_WALL]: { wall: 'concrete', slab: 'concreteFloor' },
   [OAK]: { wall: 'wood', slab: 'wood' },
-  [OH_PLASTER]: { wall: 'plaster', slab: 'concreteFloor' },
+  [OH_PLASTER]: { wall: 'plaster', slab: 'plaster' },
   [QUARRY]: { slab: 'concreteFloor' },
-  [BRICK]: { wall: 'brick', slab: 'concreteFloor' },
+  [BRICK]: { wall: 'brick', slab: 'corrugated' },
   [ASPHALT]: { slab: 'concreteFloor' },
   [PAVING]: { slab: 'concreteFloor' },
   [MEMBRANE]: { slab: 'concreteFloor' },
   ['#d6d1c4']: { wall: 'concrete', slab: 'concreteFloor' },
-  ['#d2c8b0']: { wall: 'plaster', slab: 'concreteFloor' },
+  ['#d2c8b0']: { wall: 'plaster', slab: 'plaster' },
   ['#b8b4aa']: { wall: 'concrete', slab: 'concreteFloor' },
   ['#7c7f82']: { wall: 'concrete', slab: 'concreteFloor' },
   ['#5a5d61']: { slab: 'concreteFloor' },
