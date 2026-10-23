@@ -4,7 +4,7 @@ import type { Ballistics } from '../weapons/ballistics';
 import { MASK } from '../physics/groups';
 import { CAMERA } from '../config/security';
 import { hyp3 } from '../core/mathx';
-import { CameraUnit, cameraRate, segmentHitsHousing, stepCamMeter, type CamMeter } from './camera';
+import { CameraUnit, cameraRate, segmentHousingT, stepCamMeter, type CamMeter } from './camera';
 import type { SecurityData } from './data';
 import type { SecurityView } from './securityView';
 
@@ -246,20 +246,28 @@ export class SecuritySystem {
    * at the lens, the camera stays as it was and null is returned.
    */
   shotRay(from: Vector3, to: Vector3): string | null {
+    // (polish 11) the housing nearest along the round, not the first in the list (a far bulletproof camera listed first
+    // no longer shields a near shootable one)
+    let c: CameraUnit | null = null;
+    let best = 2;
     for (let i = 0; i < this.cameras.length; i++) {
-      const c = this.cameras[i]!;
-      if (c.mode === 'destroyed') continue;
-      if (!segmentHitsHousing(c, from.x, from.y, from.z, to.x, to.y, to.z)) continue;
-      if (c.def.bulletproof) {
-        this.onRicochet?.(c.x, c.y, c.z);
-        return null;
+      const k = this.cameras[i]!;
+      if (k.mode === 'destroyed') continue;
+      const t = segmentHousingT(k, from.x, from.y, from.z, to.x, to.y, to.z);
+      if (t >= 0 && t < best) {
+        best = t;
+        c = k;
       }
-      c.destroy();
-      this.view?.update(this.cameras);
-      this.onEvent?.({ kind: 'cameraDown', camera: c.def.id, x: c.x, z: c.z });
-      return c.def.id;
     }
-    return null;
+    if (!c) return null;
+    if (c.def.bulletproof) {
+      this.onRicochet?.(c.x, c.y, c.z);
+      return null;
+    }
+    c.destroy();
+    this.view?.update(this.cameras);
+    this.onEvent?.({ kind: 'cameraDown', camera: c.def.id, x: c.x, z: c.z });
+    return c.def.id;
   }
 
   dispose(): void {

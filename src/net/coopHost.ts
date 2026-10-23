@@ -7,7 +7,7 @@ import type { Interactable } from '../game/interactables';
 import type { Blip } from '../ui/hud/minimap';
 import type { BlobShadows } from '../vfx/blobShadows';
 import { WEAPONS, GRENADE } from '../weapons/weaponDefs';
-import { G } from '../physics/groups';
+import { MASK } from '../physics/groups';
 import { Hitboxes } from '../ai/hitboxes';
 import { noiseRadius } from '../player/movement';
 import { defaultHq, hqStats } from '../progression/suit';
@@ -15,7 +15,7 @@ import type { NetSession } from './session';
 import { TickLimiter, type CourseWire } from '../game/course/courseWire';
 import type { SecWire } from '../game/ctDevices';
 import { syringesFor, type SectorNetExtra } from '../game/sectors';
-import { ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
+import { eventQueueKeeps, ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
 import { HoldClock, holdFeed, stepHoldFeed, type HoldFeed } from './holdFeed';
@@ -295,7 +295,7 @@ export class CoopHost implements NetAttachment {
   }
 
   private push(e: NetEvent): void {
-    if (this.queue.length < MAX_EVENTS * 2) this.queue.push(e);
+    if (eventQueueKeeps(this.queue.length, e)) this.queue.push(e);
   }
 
   private spawnPoint(i: number): Vector3 {
@@ -959,7 +959,7 @@ export class CoopHost implements NetAttachment {
     // line of sight against level geometry (props/characters do not block validation)
     const o = this.tmp.set(m.ox, m.oy, m.oz);
     const aim = m.part === 'head' ? head : body;
-    const los = this.g.ballistics.ray(o, aim, G.STATIC);
+    const los = this.g.ballistics.ray(o, aim, MASK.HOST_LOS);
     if (los.hit && los.distance < Vector3.Distance(o, aim) - 0.4) return 0;
     return Math.min(m.dmg, maxHitDamage(def, m.part === 'head'));
   }
@@ -1002,7 +1002,7 @@ export class CoopHost implements NetAttachment {
     const l = reg.lights[id]!;
     const a = this.lampA.set(m.ox, m.oy, m.oz);
     const b = this.lampB.set(l.x, l.y, l.z);
-    if (this.g.ballistics.hitDistance(a, b, G.STATIC) < Vector3.Distance(a, b) - LAMP_LOS_SLACK) return;
+    if (this.g.ballistics.hitDistance(a, b, MASK.HOST_LOS) < Vector3.Distance(a, b) - LAMP_LOS_SLACK) return;
     this.g.stealth.shootLight(id);
   }
 
