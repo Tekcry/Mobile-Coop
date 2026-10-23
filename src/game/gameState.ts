@@ -224,6 +224,8 @@ export interface NetAttachment {
   pickers?(): { id: string; feet: Vector3; needs: (k: PickupKind) => boolean }[];
   onPickup?(kind: PickupKind, who: string): void;
   blips?(): Blip[];
+  /** (guard-ai S9) Client: where guard `who`'s line shows (over his puppet's head) into `out`; false when not here. */
+  barkAt?(who: string, out: Vector3): boolean;
   dispose(): void;
 }
 
@@ -2977,7 +2979,14 @@ export class GameState implements AppState {
   /** Bark position: over the speaker's head (false when gone or off screen). */
   private placeBark = (who: string, out: { x: number; y: number }): boolean => {
     const em = this.enemyMgr;
-    if (!em) return false;
+    if (!em) {
+      // (guard-ai S9) a co-op client: the host's lines over its guards' puppets
+      const at = this.barkPt;
+      if (!this.net?.barkAt?.(who, at) || !this.project(at.x, at.y, at.z)) return false;
+      out.x = this.scr.x;
+      out.y = this.scr.y;
+      return true;
+    }
     // (guard-ai S7) the security desk's line about a camera's body: over that camera
     if (who.startsWith('cam:')) {
       const cams = this.security?.cameras ?? [];
@@ -3062,6 +3071,8 @@ export class GameState implements AppState {
   private readonly dofTo = new Vector3();
 
   private markerPt = new Vector3();
+  /** (guard-ai S9) Scratch for a co-op client's bark placement (`NetAttachment.barkAt`). */
+  private readonly barkPt = new Vector3();
   /** The last `project` result (percent of the view). */
   readonly scr = { x: 0, y: 0 };
 

@@ -15,7 +15,7 @@ import type { NetSession } from './session';
 import { TickLimiter, type CourseWire } from '../game/course/courseWire';
 import type { SecWire } from '../game/ctDevices';
 import { syringesFor, type SectorNetExtra } from '../game/sectors';
-import { ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
+import { ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, BARK_CAM, BARK_TEXT, hitConfirmKind, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
@@ -25,6 +25,7 @@ import { localFlags, htmlToInfo } from './netShared';
 import { keepSimInBackground } from './bgTicks';
 import { LAMP_LOS_SLACK, LampSender, lampShotOk, lampTargetId } from './lampSync';
 import { hyp2 } from '../core/mathx';
+import { barkIndex } from '../ai/barks';
 import { localMoveState } from '../game/localMoveState';
 import { emptyMoveState, moveChanged } from '../player/moveState';
 import { hostCrackOk } from '../world/doorPeek';
@@ -79,11 +80,12 @@ interface Hist {
 type Tally = EndStats['players'][string];
 const emptyTally = (): Tally => ({ kills: 0, headshots: 0, byKind: emptyKinds(), weaponKills: {} });
 
-/** The enemy alert level on the wire (`EnemyState.al`): level, seized and (25, coop-torches) his flashlight on. */
+/** The enemy alert level on the wire (`EnemyState.al`): level, seized, (25, coop-torches) his flashlight on and (32,
+ *  guard-ai S9) cautious, helmet, armour. */
 function alertCode(e: Enemy, torch: boolean): number {
   const l = e.level;
   const a = l === 'alert' ? 3 : l === 'searching' ? 2 : l === 'suspicious' || l === 'investigating' ? 1 : 0;
-  return packAlert(a, e.taken, torch);
+  return packAlert(a, e.taken, torch, e.caution > 0, e.helmet, e.armour);
 }
 
 /**
@@ -247,6 +249,20 @@ export class CoopHost implements NetAttachment {
       em.onKilled = (e, h) => {
         prevKilled?.(e, h);
         this.onKill(e, h);
+      };
+      // (32, guard-ai S9) every line the host shows goes to the clients: a table line by index (`barkLine` rebuilds
+      // it), a talking pair's line and the security desk's camera line as text
+      const prevBark = em.onBark;
+      em.onBark = (e, line, radio, ev, n, unit) => {
+        prevBark?.(e, line, radio, ev, n, unit);
+        const b = ev === undefined ? -1 : barkIndex(ev);
+        if (b >= 0) this.push({ e: 'bark', id: e.id, b, n: n ?? 0, u: unit ?? 0, r: radio });
+        else this.push({ e: 'bark', id: e.id, b: BARK_TEXT, n: 0, u: 0, r: radio, t: line });
+      };
+      const prevCam = em.onCameraLine;
+      em.onCameraLine = (cam, line) => {
+        prevCam?.(cam, line);
+        this.push({ e: 'bark', id: cam, b: BARK_CAM, n: 0, u: 0, r: true, t: line });
       };
       const prevShot = em.onEnemyShot;
       em.onEnemyShot = (e, from, to) => {
@@ -961,7 +977,10 @@ export class CoopHost implements NetAttachment {
     const dmg = this.judge(r, m, feet, pose?.crouch ?? 0, enemy.def.scale);
     if (dmg <= 0) return;
     const aim = (m.part === 'head' ? this.tmpH : this.tmpB).clone();
-    enemy.applyDamage({ amount: dmg, point: aim, dir: new Vector3(m.dx, m.dy, m.dz), part: m.part, kind: 'bullet', attackerTeam: 'player', attackerId: r.id, weapon: m.w, sourcePos: new Vector3(m.ox, m.oy, m.oz), impulse: WEAPONS[m.w].impulse });
+    const res = enemy.applyDamage({ amount: dmg, point: aim, dir: new Vector3(m.dx, m.dy, m.dz), part: m.part, kind: 'bullet', attackerTeam: 'player', attackerId: r.id, weapon: m.w, sourcePos: new Vector3(m.ox, m.oy, m.oz), impulse: WEAPONS[m.w].impulse });
+    // (32, guard-ai S9) a round his helmet or vest stopped: the client shows the deflect marker as the host's own does
+    // (its hits and kills it predicts on its puppet; kills also come as `kill`)
+    if (res.deflect) this.push({ e: 'hitConfirm', player: r.id, kind: 'deflect' });
   }
 
   /**
@@ -1015,7 +1034,8 @@ export class CoopHost implements NetAttachment {
       impulse: WEAPONS[m.w].impulse,
     };
     const res = self ? this.g.target.applyDamage(hit) : victim!.applyDamage(hit);
-    if (res.dealt > 0) this.push({ e: 'hitConfirm', player: r.id, kind: res.killed ? 'kill' : m.part === 'head' ? 'head' : 'hit' });
+    const kind = hitConfirmKind(res.dealt, res.killed, res.deflect === true, m.part === 'head');
+    if (kind) this.push({ e: 'hitConfirm', player: r.id, kind });
   }
 
   // --- outgoing ---
