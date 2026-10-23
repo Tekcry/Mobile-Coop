@@ -3,6 +3,19 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 33 (2026-10-24 ~10:30 laptop clock; wins over SAVE 32 where they differ):**
+- Pushed to feature/laptop-queue (#252): 3f13e816 / 159d7c95 task guard (both workers), f0fb6d4c + efcc80fc alone
+  requests wait while an open train (< 24 h, build ok) lacks a laptop-e2e success (Orchestrator rule; checkers FIX fixed).
+- PR #293 merge-train menu-only fix (9d0ea8f7 build-check fix), train-ready.
+- LR16-8: sheets + reports + script on branch shots/lr16-8 (a7a3ec69; script/ copy is pre-04/07/08 fix). Missing maps
+  on 5c20c538 done and sent. Redo of shots 04/07/08 (triage metrics; new code not yet run on a GPU) queued:
+  20261023T232726-...-5c20c538-b993, out C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538 -> ONE reply to
+  Sector Ops; watch for "INVALID" capture lines in step1.log.
+- Body compile (Sector Ops, decides #291 vs Guard AI's 45 s cap): SENT. campusOps cold per-material 29.3 s on both
+  master and LR16; LR16 total 61 s (bodies appear ~22 s later) + one "compile stuck, recompiling (1/3)" warning.
+  3-at-once on campusOps queued: 20261023T230553-...-6656 -> one line to Sector Ops.
+- Train 46 ctcourse:1 solo PASS (desktop noise), Orchestrator told.
+
 **Test Runner SAVE 32 (2026-10-24 ~07:45, full burn; wins over SAVE 31 where they differ):**
 - Chains GONE: Michael ran the stop / disable (~07:10), then confirmed the delete here: all 87 NightShift-chain-* tasks
   unregistered. One orphan laptop-runner.ps1 (pid 20544, guard-cap on 4189) may still run once (stop needs Michael).
@@ -930,7 +943,7 @@ puts it in CLAUDE.md on feature/menu). Laptop full runs: `RUN_GPU=1` (E2E_GPU=1)
 
 ## Resume prompt
 ```
-Night Shift | Test Runner (laptop, the MAIN test machine). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Test Runner" (ToolSearch if deferred). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop", "Heavy-usage throughput" incl. "Token rules"), then the newest "Test Runner SAVE" block (SAVE 32 or later) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Do what it lists, in order. If two Test Runner sessions show in ListAgents, close the older one.
+Night Shift | Test Runner (laptop, the MAIN test machine). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Test Runner" (ToolSearch if deferred). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop", "Heavy-usage throughput" incl. "Token rules"), then the newest "Test Runner SAVE" block (SAVE 33 or later) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Do what it lists, in order. If two Test Runner sessions show in ListAgents, close the older one.
 
 The queue is the SERVICE now (no hand-run chains, Orchestrator 20:26): task NightShift-laptop-queue runs scripts/laptop-queue/service.mjs from C:/NightShift/Mobile-Coop-laptop-queue-svc (follows origin/feature/laptop-queue, self-updates when idle); log + state C:/NightShift/scratch/laptop-queue/ (log.txt, runs/<id>/); verdicts are GitHub statuses laptop-e2e[/<set>] + PR comments on failure. Requests: node scripts/laptop-queue/request.mjs --sha <ref> (--suites "a b" | --full | --alone --step "<cmd>" [--env K=V]) --requester "<title>" (alone = perf / sheets, after trains and PR suites). Desktop overflow worker NightShift-desktop-queue (LQ_WORKER=desktop, pr only) claims via claims/<id>.json on the laptop-queue branch. Locks C:/NightShift/heavy-4189.lock / heavy-4192.lock (service lines "laptop-queue | ..."; a lock with no live node is stale). Restarting the service: Stop-ScheduledTask leaves the node child alive, so a restart also needs that node pid killed (needs Michael's OK).
 
