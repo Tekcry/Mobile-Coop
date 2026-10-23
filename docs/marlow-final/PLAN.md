@@ -195,6 +195,9 @@ cause file:line, the smallest change, files, tests, the split between Marlow and
 - X6 (walk 6) A3: a camera detection still sends back, but the guard does not turn hostile or respond to it (a training
   exercise). Marlow: the exercise rule (the set's camera send-back raises no device alert); Guard AI owns the AI side. This
   changes e2e-ctcourse:2's A3 steps (the 6a168e74 fix relies on the cleaner answering step 2's camera alarm).
+  Agreed with Guard AI (~22:25): X6 is all Marlow: src/game/ctDevices.ts onCamera (~:1114-1123) skips `hooks.alertAt` and the
+  alarm stage when e.camera is a pass zone `hall` rule camera (HallRule, src/game/jammer.ts:401); no src/ai change. Guard AI
+  only reports any other path that tells guards of a camera detection.
 
 ## 5. Parallel order (up to 6 Opus agents)
 Now (slice 0, already running): 0a, 0b, 0c, the lighting agent, the props agent (batch 1), and this spec writer when
