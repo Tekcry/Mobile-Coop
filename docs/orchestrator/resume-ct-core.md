@@ -12,7 +12,7 @@ scratch/ctcore/push-resume.sh <abs file> <msg>. Message the orchestrator only at
 | --- | --- | --- | --- |
 | #207 batch 22 | feature/ctcore-batch-22 (folder b22-fix) | 99c37251 + WIP | Out of train 24: e2e-clip "ladder climb: knees never knock" 8.9 vs > 9.0 cm (scripts/e2e-clip.mjs:250; master passes). Opus fix agent's WIP: src/anim/clips/traverse.ts:389 CLIMB_UP `fLX` holds -0.12 over 0.36-0.5 (plus debug-only logs in e2e-clip.mjs, drop before commit); saved at refs/heads/wip/b22-ladder-knees (7a56088d). Finish: e2e-clip / traverse / anim green, commit, push. |
 | #214 batch 23 | feature/ctcore-batch-23 (folder ctcore-batch) | 92ba8c94 | sd-rounds + team-climb + interrogation-intel + ipad-fit. Checker PASS (scratch/ctcore/b23-CHECK.md). Laptop 10/10 GREEN on dc8919cd; ipad-fit e2e-menus / desktop PASS. After #207's fix: merge batch-22 in, laptop e2e-clip (+ the batch's suites if src changed), train-ready message. |
-| #221 mocap-strafe | feature/mocap-strafe | 191c3565 | Recheck PASS, e2e-anim / clip PASS; train-ready sent. Polish list: docs/mocap-trial/MT2-STRAFE.md "Recheck after round 3". |
+| #221 mocap-strafe | feature/mocap-strafe | ebdd882f | CI red fixed (alloc compare + 1 B/frame noise, test only); train-ready re-sent. Recheck PASS, e2e-anim / clip PASS. Polish list: docs/mocap-trial/MT2-STRAFE.md "Recheck after round 3". |
 | #223 batch 24 pose-parity | feature/pose-parity | 19248c01 | PROTOCOL 36 (renumber at train if taken). Check PASS, laptop coop / netmove / takedown GREEN; train-ready sent. Stacked on #214. |
 
 ## Next, at once (parallel)
@@ -22,7 +22,15 @@ scratch/ctcore/push-resume.sh <abs file> <msg>. Message the orchestrator only at
    crouch-pops. Goal: stand -> crouch -> stand 9.6 cm and running crouch -> stand 8.3 cm pops <= 0.5 (docs/anim-bake-targets/
    STATE.md:19), baked trackMul 0.05 kept; BRIEF first, tests/crouchPops.test.ts, e2e-anim + clip. If lost: restart from
    its pushed head with this goal.
-4. Follow-ups noted: Guard AI `Enemy.patrolRoute` getter (forwarded by the orchestrator); intel part B (modes'
+4. Michael's walk 4.72 (docs/orchestrator/WALK-4.72-REPORT.md on feature/menu, "Player Build" P1-P7; started ~14:00):
+   - Anim Studio out of the pause menu (Michael 14:00; main menu keeps it, pause keeps the Animation Tuner): Sonnet agent
+     in folder ctcore-batch on batch-23 (#214), e2e-menus. Then the batch-23 laptop request covers it.
+   - P1-P5 animation fix pass: Opus PLANNER, feature/anim-fix-pass off mocap-strafe 191c3565, folder anim-fix-pass ->
+     docs/anim-fix-pass/BRIEF.md + PLAN.md (slices, files, parallel groups) + before sheets. Then build the slices in
+     parallel (Opus for rig / planner / graph / net, Sonnet from strict briefs), after-sheets, one checker per batch.
+   - P6 co-op hostage takedown both ways + P7 co-op shot audio doubled / unsuppressed: Opus builder,
+     feature/coop-walk-fixes off pose-parity 19248c01, folder coop-walk-fixes; laptop e2e-coop / netmove after. Next batch.
+5. Follow-ups noted: Guard AI `Enemy.patrolRoute` getter (forwarded by the orchestrator); intel part B (modes'
    onIntelCode) after marlow-final / sector-redesign; relay climber sub bit (pose-parity open item); Michael's iPad look.
 
 ## Resume prompt
