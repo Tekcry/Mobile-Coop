@@ -600,30 +600,30 @@ try {
             return c >= 0 && nav.isWalkable(c) ? f[c] * cell : Infinity;
           };
           let hide = null;
+          // (S25-SAI-TRIAGE) out of his sight from his walk (post (0, 5) -> last known position) and round the last
+          // known position: an alerted guard sees by line of sight alone, light or not (enemy.ts `updateAwareness`),
+          // so a spot he can see from there is no vanish: he sees him again and the last known position moves onto
+          // him (the 8bd13e0c pick (-4.75, -2.25) was in view through the 1.1 m gap in the x -4 wall). Eyes on
+          // walkable cells only; a static ray to the crouched hips, chest and head, clear as the guard's own losClear
+          const eyes = [];
+          const ne = Math.max(1, Math.ceil(Math.hypot(Lx, Lz - 5) / 0.5));
+          for (let q = 0; q <= ne; q++) eyes.push([(Lx * q) / ne, 5 + ((Lz - 5) * q) / ne]);
+          for (let q = 0; q < 8; q++) eyes.push([Lx + 1.5 * Math.cos((q * Math.PI) / 4), Lz + 1.5 * Math.sin((q * Math.PI) / 4)]);
+          const eyeV = eyes.filter(([x, z]) => nav.isWalkable(nav.cellOf(x, z, Ly))).map(([x, z]) => new t.V(x, Ly + eyeUp, z));
+          const toV = new t.V();
+          const inSight = (x, y, z) => {
+            for (const ev of eyeV) {
+              for (const h of [0.6, 0.95, 1.2]) {
+                toV.set(x, y + h, z);
+                const r = g.ballistics.ray(ev, toV, 1);
+                if (!r.hit || r.distance > Math.hypot(toV.x - ev.x, toV.y - ev.y, toV.z - ev.z) - 0.3) return true;
+              }
+            }
+            return false;
+          };
           if (which === 'near') {
             // the plan's own candidates in the band (cover at its position, dark cells), scored by its own table
             let best = -Infinity;
-            // (S25-SAI-TRIAGE) out of his sight from his walk (post (0, 5) -> last known position) and round the last
-            // known position: an alerted guard sees by line of sight alone, light or not (enemy.ts `updateAwareness`),
-            // so a spot he can see from there is no vanish: he sees him again and the last known position moves onto
-            // him (the 8bd13e0c pick (-4.75, -2.25) was in view through the 1.1 m gap in the x -4 wall). Eyes on
-            // walkable cells only; a static ray to the crouched hips, chest and head, clear as the guard's own losClear
-            const eyes = [];
-            const ne = Math.max(1, Math.ceil(Math.hypot(Lx, Lz - 5) / 0.5));
-            for (let q = 0; q <= ne; q++) eyes.push([(Lx * q) / ne, 5 + ((Lz - 5) * q) / ne]);
-            for (let q = 0; q < 8; q++) eyes.push([Lx + 1.5 * Math.cos((q * Math.PI) / 4), Lz + 1.5 * Math.sin((q * Math.PI) / 4)]);
-            const eyeV = eyes.filter(([x, z]) => nav.isWalkable(nav.cellOf(x, z, Ly))).map(([x, z]) => new t.V(x, Ly + eyeUp, z));
-            const toV = new t.V();
-            const inSight = (x, y, z) => {
-              for (const ev of eyeV) {
-                for (const h of [0.6, 0.95, 1.2]) {
-                  toV.set(x, y + h, z);
-                  const r = g.ballistics.ray(ev, toV, 1);
-                  if (!r.hit || r.distance > Math.hypot(toV.x - ev.x, toV.y - ev.y, toV.z - ev.z) - 0.3) return true;
-                }
-              }
-              return false;
-            };
             const consider = (c, cover, lx, lz) => {
               if (c < 0 || !nav.isWalkable(c) || !storey(c)) return;
               const p = f[c] * cell;
@@ -655,19 +655,25 @@ try {
             }
             if (!hide) return { seen, ownField, err: 'no dark spot 5-7.5 m by path from the last known position' };
           } else if (which === 'wall') {
-            // 4-9 m straight, more than max + 3 m by path (finite: a room reached round a wall), nearest to 6 m straight
-            let best = Infinity;
+            // (S25-SAI-TRIAGE 4) 4-9 m straight, on his floor, the most round a wall: the largest path - straight, at
+            // least 4 m (finite: a room reached round a wall), out of his sight. The old pick wanted path > max + 3
+            // (23 m): from (-0.5, 0) the warehouse has no such floor cell (scratch nav probe: the floor within 9 m
+            // straight is <= ~16 m by path; the only > 23 m cells are the x -8.5 rack top, 2.8 m up by its ladder),
+            // so the run never got past its pick. The 'wall' asserts are by path over the whole plan (every point
+            // within R + 0.5 m, no searcher past R + 1 m), not about this spot; it stages the player round a wall
+            let best = -Infinity;
             for (let c = 0; c < nav.walk.length; c++) {
               if (nav.walk[c] !== 1 || !storey(c)) continue;
               const p = f[c] * cell;
-              if (!Number.isFinite(p) || !(p > SA.max + 3)) continue;
+              if (!Number.isFinite(p)) continue;
               const [x, z] = nav.center(c);
               const d = Math.hypot(x - Lx, z - Lz);
-              if (d < 4 || d > 9 || Math.abs(d - 6) >= best) continue;
-              best = Math.abs(d - 6);
+              if (d < 4 || d > 9 || p - d < 4 || p - d <= best) continue;
+              if (inSight(x, nav.cellHeight(c), z)) continue;
+              best = p - d;
               hide = { x, z, path: r1(p), straight: r1(d) };
             }
-            if (!hide) return { seen, ownField, err: `no spot 4-9 m straight and > ${SA.max + 3} m by path from the last known position` };
+            if (!hide) return { seen, ownField, err: 'no floor spot 4-9 m straight, >= 4 m longer by path, out of his sight, from the last known position' };
           } else hide = { x: 0, z: -20, far: true };
           // he vanishes: dark, crouched
           t.light(0);
@@ -818,12 +824,14 @@ try {
     const b = await run('wall');
     const sb = JSON.stringify({ seen: b.seen, hide: b.hide, at: b.at, tS: b.tS, guard: b.guard, claims: b.claims, level: b.level, maxPathAt: b.maxPathAt });
     assert(!b.err, `wall: ${b.err ?? 'the run picks its spot and completes'} (${JSON.stringify(b)})`);
+    // (S25-SAI-TRIAGE 4) the paths below are from where he lost him: that position must hold
+    assert(!b.lkpMoved && b.resight < 0, `wall: he never sees him again and his last known position stays (moved ${JSON.stringify(b.lkpMoved)}, seen ${b.resight}; ${sb}; walk ${JSON.stringify(b.trace)})`);
     assert(b.tS > 0 && b.plans.length > 0, `wall: the search starts and asks the plan (${sb}; plans ${JSON.stringify(b.plans)})`);
     // (S25B-RECHECK: cells 1-3 m from the walled pocket are inside R by path, so "no point near it" fails on correct
     // behaviour; the rule is "by path, not straight": every plan point is within R + 0.5 m by path)
     const overR = b.plans.flatMap((p) => p.pts.filter((q) => !(Number(q[3]) <= p.R + 0.5)).map((q) => ({ pt: q, R: p.R })));
     assert(overR.length === 0, `wall: every plan point is within R + 0.5 m by path, never a room reached round a wall (${JSON.stringify(overR)}; hide ${JSON.stringify(b.hide)}; plans ${JSON.stringify(b.plans)})`);
-    console.log(`    (wall: closest searcher to the walled spot ${b.closest} m at ${b.closestT} s)`);
+    console.log(`    (wall: the spot ${JSON.stringify(b.hide)}; closest searcher ${b.closest} m at ${b.closestT} s)`);
     const rB = Math.max(...b.plans.map((p) => p.R));
     assert(b.maxPath <= rB + 1, `wall: no searcher farther from the last known position by path than R + 1 m (max ${b.maxPath} m at ${JSON.stringify(b.maxPathAt)}, R ${rB}; ${sb})`);
 

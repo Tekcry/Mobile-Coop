@@ -122,3 +122,42 @@ and 0.05 s later it is still under 0.1. That was the clock counting on, not a si
 ### Checks
 - `node --check scripts/e2e-stealth-ai.mjs`: OK. No src change.
 - Queued: set `s25-sai-fix3`, suite `e2e-stealth-ai`, on 1eb5644d, request `20261023T170434-night-shift-guard-ai-1eb5644d-9b03`.
+
+## Round 4 (1eb5644d: every 'near' assert passes; 'wall' fails at its pick)
+
+`wall: no spot 4-9 m straight and > 23 m by path from the last known position` (4189.log:74, run + rerun).
+
+### Cause: the 'wall' staging asks for a spot this map does not have from this LKP
+The pick is unchanged since 7a7725ef (`git show 7a7725ef`; rounds 1-3 touched only 'near' and the shared run loop).
+It wanted a floor cell 4-9 m straight from (-0.5, 0) and more than `max` + 3 = 23 m by path. A scratch nav probe of the
+warehouse (`runtimeNav`, a vitest in the scratchpad) lists every walkable cell 4-9 m straight from (-0.5, 0):
+- floor: 597 cells, all at most about 16 m by path;
+- over 23 m by path: only the top of the x -8.5 rack (h 2.8, reached by its ladder), which the storey filter rightly
+  drops.
+
+So the run never got past its pick. Check B's grid (S25B-RECHECK E1, "the pocket at x ~ -9, path 22-28") was that rack
+top read at (x, z). The 7a7725ef "PASS" cannot have run this scenario to the end (the RECHECK expected 'wall' to fail
+there). No src issue.
+
+### Fix (scripts/e2e-stealth-ai.mjs only)
+- 'wall' pick: a floor cell 4-9 m straight that is the most round a wall: the largest path minus straight, at least
+  4 m, finite, out of his sight. The probe's best cells are west of the x -4 wall by the crate at (-6.2, 5), e.g.
+  (-6.25, 6.25): 8.5 m straight, 13.8 m by path.
+- The 'wall' asserts are unchanged and keep the S25 intent ("by path, not straight"): every plan point within R + 0.5 m
+  by path from the LKP, and no searcher past R + 1 m by path. Both are over the whole plan and walk, not about the
+  spot. A plan or walk measured in straight lines would put points or a searcher past R by path. The run now logs the
+  spot.
+- The sight test (walk and ring round the LKP) is hoisted so 'near' and 'wall' share it. A new 'wall' premise assert:
+  he never sees him again and the LKP stays put, since the path bounds are measured from it.
+
+### 'three', walked statically
+- It shares the run loop: `t.reset()` per run, the post-tp `frameUpdate` (no LKP leak) and the far hide (0, -20).
+- Its asserts hold whether or not the LKP moves: one intruder slot, a plan of at least 3 points, a claim each, first
+  points at least 3 m apart (`take` gives one point per guard, and plan points are kept 3 m apart).
+- Timing: like 'near', each guard walks back from cover (about 11 s) and looks 3 s at the LKP, then takes a point.
+  That is about 14-15 s into a 40 s window.
+- The one risk: three guards share point 0 (the LKP). Each must get within 1.1 m of it, and the guard spacing allows
+  that (`min` 0.65 m, about 0.38 m circumradius for three).
+
+### Checks
+- `node --check scripts/e2e-stealth-ai.mjs`: OK. The scratch nav probe is as above. No src change.
