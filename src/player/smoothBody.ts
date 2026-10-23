@@ -1,4 +1,4 @@
-import { Bone, BoundingInfo, Matrix, Mesh, Quaternion, Skeleton, Vector3, VertexBuffer, type AbstractMesh, type Color4, type InstancedMesh, type Material, type Observer, type Scene, type TransformNode } from '../core/babylon';
+import { Bone, BoundingInfo, GpuBuffer, Matrix, Mesh, Quaternion, Skeleton, Vector3, VertexBuffer, type AbstractMesh, type Color4, type DataBuffer, type InstancedMesh, type Material, type Observer, type Scene, type TransformNode } from '../core/babylon';
 import { flags } from '../core/flags';
 import { flashColors, heatPattern, mergeParts, paintPart, restBox, type MergedBody, type MergePart } from './smoothBodyMerge';
 
@@ -31,6 +31,35 @@ interface Merged {
 /** Merged geometry per (look, build): the guards of one look share it (colour / pattern copied per body). */
 const CACHE = new Map<string, Merged>();
 const CACHE_MAX = 64;
+
+/** (guard-render S7) The static vertex kinds (same for every body of a cache entry): field and floats per vertex. */
+const STATIC: readonly (readonly [string, 'positions' | 'normals' | 'matricesIndices' | 'matricesWeights' | 'color2' | 'ppos' | 'pnrm', number])[] = [
+  [VertexBuffer.PositionKind, 'positions', 3],
+  [VertexBuffer.NormalKind, 'normals', 3],
+  [VertexBuffer.MatricesIndicesKind, 'matricesIndices', 4],
+  [VertexBuffer.MatricesWeightsKind, 'matricesWeights', 4],
+  ['color2', 'color2', 4],
+  ['ppos', 'ppos', 3],
+  ['pnrm', 'pnrm', 3],
+];
+/**
+ * (guard-render S7) One cache entry's static GPU buffers in a scene, shared by every body built from it: each body's
+ * mesh wraps them in its own `VertexBuffer`s (Babylon's buffer reference count: the GPU buffer goes with the last
+ * mesh) and shares the index buffer (its count raised per user). Colour (flash, lens glow) and `pattern` (heat) stay
+ * per body, as do the skeleton and the bounding box. `users` mirrors the counts so a later body after the last
+ * dispose uploads afresh; the scene's map goes with the scene.
+ */
+interface Shared {
+  vbs: GpuBuffer[];
+  index: DataBuffer;
+  users: number;
+}
+const SHARED = new Map<Scene, Map<MergedBody, Shared>>();
+
+/** Test hook: the live shared entries of a scene. */
+export function sharedBufferCount(scene: Scene): number {
+  return SHARED.get(scene)?.size ?? 0;
+}
 
 const tmpQ = new Quaternion();
 
@@ -67,6 +96,8 @@ export class SmoothBody {
   private baseColors: Float32Array[] = [];
   private flashBufs: Float32Array[] = [];
   private patterns: Float32Array[] = [];
+  /** Per mesh: the merged body its shared GPU buffers belong to (null when empty). */
+  private shared: (MergedBody | null)[] = [];
   private flashK = 0;
   private heat = 0;
   private rootInv = new Matrix();
@@ -178,17 +209,21 @@ export class SmoothBody {
     const colors = d.colors.slice();
     const pattern = d.pattern.slice();
     if (d.positions.length) {
-      mesh.setVerticesData(VertexBuffer.PositionKind, d.positions, false, 3);
-      mesh.setVerticesData(VertexBuffer.NormalKind, d.normals, false, 3);
+      // (S7) the static kinds and the indices from the cache entry's shared GPU buffers; colour / pattern per body
+      const sh = this.share(d);
+      const engine = this.scene.getEngine();
+      for (let k = 0; k < STATIC.length; k++) {
+        const [kind, , size] = STATIC[k]!;
+        mesh.setVerticesBuffer(new VertexBuffer(engine, sh.vbs[k]!, kind, { updatable: false, stride: size, size, takeBufferOwnership: true }));
+      }
       mesh.setVerticesData(VertexBuffer.ColorKind, colors, true, 4);
-      mesh.setVerticesData(VertexBuffer.MatricesIndicesKind, d.matricesIndices, false, 4);
-      mesh.setVerticesData(VertexBuffer.MatricesWeightsKind, d.matricesWeights, false, 4);
       mesh.setVerticesData('pattern', pattern, true, 4);
-      mesh.setVerticesData('color2', d.color2, false, 4);
-      mesh.setVerticesData('ppos', d.ppos, false, 3);
-      mesh.setVerticesData('pnrm', d.pnrm, false, 3);
-      mesh.setIndices(d.indices);
+      const geo = mesh.geometry!;
+      geo.setIndexBuffer(sh.index, d.positions.length / 3, d.indices.length, sh.index.is32Bits);
+      // (setIndexBuffer leaves no CPU indices: keep `getIndices` answering for CPU readers)
+      (geo as unknown as { _indices: Uint32Array })._indices = d.indices;
     }
+    this.shared.push(d.positions.length ? d : null);
     mesh.parent = this.root;
     mesh.skeleton = this.skeleton;
     mesh.numBoneInfluencers = 1;
@@ -202,6 +237,31 @@ export class SmoothBody {
     this.flashBufs.push(new Float32Array(colors.length));
     this.patterns.push(pattern);
     return mesh;
+  }
+
+  /** The shared GPU buffers of `d` in this scene (uploaded by the first user), one more user counted. */
+  private share(d: MergedBody): Shared {
+    const scene = this.scene;
+    let per = SHARED.get(scene);
+    if (!per) {
+      SHARED.set(scene, (per = new Map()));
+      scene.onDisposeObservable.addOnce(() => SHARED.delete(scene));
+    }
+    let sh = per.get(d);
+    if (sh) {
+      sh.users++;
+      // (the creator's reference is the first user's; setVerticesBuffer counts the vertex buffers itself)
+      sh.index.references++;
+      return sh;
+    }
+    const engine = scene.getEngine();
+    sh = {
+      vbs: STATIC.map(([kind, field, size]) => new GpuBuffer(engine, d[field], false, size, false, false, false, undefined, `smooth-${kind}`)),
+      index: engine.createIndexBuffer(d.indices, false, 'smooth-indices'),
+      users: 1,
+    };
+    per.set(d, sh);
+    return sh;
   }
 
   /** Once per render, for every body of a scene: the bones re-read their nodes; a re-parented joint (ragdoll) frees the box. */
@@ -272,6 +332,13 @@ export class SmoothBody {
       }
     }
     this.skeleton.onBeforeComputeObservable.removeCallback(this.poseFn);
+    // (S7) the meshes' geometries release the shared GPU buffers (reference counts); the last user drops the entry
+    const per = SHARED.get(this.scene);
+    for (const d of this.shared) {
+      const sh = d && per?.get(d);
+      if (sh && --sh.users === 0) per!.delete(d!);
+    }
+    this.shared.length = 0;
     for (const m of this.meshes) m.dispose();
     this.skeleton.dispose();
   }

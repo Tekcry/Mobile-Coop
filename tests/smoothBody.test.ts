@@ -119,3 +119,87 @@ describe('guard-render S1: SmoothBody', () => {
     scene.dispose();
   });
 });
+
+describe('guard-render S7: shared GPU buffers per cache entry', () => {
+  it('two guards of one look share the static vertex and index buffers; per guard colour, skeleton and box; disposal by reference count', async () => {
+    const { scene, lib, rig, SmoothBody, VertexBuffer } = await setup();
+    const { CharacterRig } = await import('../src/player/characterRig');
+    const { ENEMIES } = await import('../src/ai/enemyDefs');
+    const { sharedBufferCount } = await import('../src/player/smoothBody');
+    const def = ENEMIES.grunt;
+    const make = (name: string) => new CharacterRig(scene, (s, h, sl) => lib.instance(s, h, `enemy-${sl}`), def.look, def.height, name, { build: def.build, armor: def.plated, style: 'detailed', merge: true });
+    const rigB = make('g2');
+    const a = rig.voxel as InstanceType<typeof SmoothBody>;
+    const b = rigB.voxel as InstanceType<typeof SmoothBody>;
+    expect(b).toBeInstanceOf(SmoothBody);
+    const STATIC = [VertexBuffer.PositionKind, VertexBuffer.NormalKind, VertexBuffer.MatricesIndicesKind, VertexBuffer.MatricesWeightsKind, 'color2', 'ppos', 'pnrm'];
+    const gpu = (m: Mesh, kind: string) => m.getVertexBuffer(kind)!.getBuffer()!;
+    const holder = (m: Mesh, kind: string) => (m.getVertexBuffer(kind) as unknown as { _buffer: { isDisposed: boolean } })._buffer;
+    // hi and lo: one shared entry each
+    expect(sharedBufferCount(scene)).toBe(2);
+    const held: { isDisposed: boolean }[] = [];
+    const dataBufs: { references: number }[] = [];
+    for (let li = 0; li < 2; li++) {
+      const ma = a.meshes[li]!;
+      const mb = b.meshes[li]!;
+      for (const kind of STATIC) {
+        expect(gpu(mb, kind)).toBe(gpu(ma, kind));
+        expect(holder(mb, kind)).toBe(holder(ma, kind));
+        expect(gpu(ma, kind).references).toBe(2);
+        held.push(holder(ma, kind));
+        dataBufs.push(gpu(ma, kind));
+      }
+      const ia = ma.geometry!.getIndexBuffer()!;
+      expect(mb.geometry!.getIndexBuffer()).toBe(ia);
+      expect(ia.references).toBe(2);
+      dataBufs.push(ia);
+      expect(ma.getTotalIndices()).toBeGreaterThan(0);
+      expect(Array.from(mb.getIndices()!.slice(0, 6))).toEqual(Array.from(ma.getIndices()!.slice(0, 6)));
+      // per guard: colour (flash, lens glow) and pattern (heat), skeleton, box, geometry
+      expect(gpu(mb, VertexBuffer.ColorKind)).not.toBe(gpu(ma, VertexBuffer.ColorKind));
+      expect(gpu(mb, 'pattern')).not.toBe(gpu(ma, 'pattern'));
+      expect(mb.skeleton).not.toBe(ma.skeleton);
+      expect(mb.getBoundingInfo()).not.toBe(ma.getBoundingInfo());
+      expect(mb.geometry).not.toBe(ma.geometry);
+    }
+    // a flash on one guard leaves the other's colours
+    const colB = Array.from(b.meshes[0]!.getVerticesData(VertexBuffer.ColorKind)!.slice(0, 4));
+    a.setFlash(1);
+    a.setHeat(0.8);
+    expect(Array.from(b.meshes[0]!.getVerticesData(VertexBuffer.ColorKind)!.slice(0, 4))).toEqual(colB);
+    expect(b.meshes[0]!.getVerticesData('pattern')![3]).toBe(0);
+    // dispose one: the other keeps every buffer, one reference each
+    rig.dispose();
+    for (const d of dataBufs) expect(d.references).toBe(1);
+    for (const h of held) expect(h.isDisposed).toBe(false);
+    expect(sharedBufferCount(scene)).toBe(2);
+    for (const m of b.meshes) {
+      expect(m.geometry!.isReady()).toBe(true);
+      for (const kind of STATIC) expect(m.getVertexBuffer(kind)!.getBuffer()).not.toBeNull();
+      expect(m.getTotalIndices()).toBeGreaterThan(0);
+      expect(m.subMeshes[0]!.indexCount).toBe(m.getTotalIndices());
+    }
+    // still selected for drawing (NullEngine: the PBR material never reports ready, before S7 too, so the active list)
+    const { FreeCamera, Vector3 } = await import('../src/core/babylon');
+    const cam = new FreeCamera('cam', new Vector3(0, 1.5, -4), scene);
+    cam.setTarget(new Vector3(0, 1, 0));
+    scene.render();
+    expect(scene.getActiveMeshes().data.slice(0, scene.getActiveMeshes().length).map((m) => m.name)).toContain('g2-smooth');
+    cam.dispose();
+    // dispose both: the GPU buffers go, the entry with them
+    rigB.dispose();
+    for (const d of dataBufs) expect(d.references).toBe(0);
+    for (const h of held) expect(h.isDisposed).toBe(true);
+    expect(sharedBufferCount(scene)).toBe(0);
+    // a later guard of the same look uploads afresh
+    const rigC = make('g3');
+    const c = rigC.voxel as InstanceType<typeof SmoothBody>;
+    expect(gpu(c.meshes[0]!, VertexBuffer.PositionKind).references).toBe(1);
+    expect(holder(c.meshes[0]!, VertexBuffer.PositionKind)).not.toBe(held[0]);
+    expect(sharedBufferCount(scene)).toBe(2);
+    // scene dispose (guard left undisposed) drops the scene's entries
+    lib.dispose();
+    scene.dispose();
+    expect(sharedBufferCount(scene)).toBe(0);
+  });
+});
