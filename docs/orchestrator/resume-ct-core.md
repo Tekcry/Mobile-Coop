@@ -2,6 +2,10 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+~01:45: guard-models G2, G4 (fix round, re-check PASS), G4s sheet + polish all MERGED (feature/guard-models a8ff2d45).
+Pipeline code complete; blocked on ONE laptop alone bake (all stages + sheet) until the MPFB2 zip is on the laptop (Michael).
+#269 ct:4 rerun PASS (flake confirmed). coop-rejoin-2 (worktree coop-rejoin-2, stacked on #269): Opus builder on RECHECK
+polish 1, 2, 5; then 2 Opus checkers + laptop coop netmove, PR stacked on #269 (same train or next).
 #269 ~00:30: laptop 11/12; e2e-ctcourse:4 A8 grille flake (Opus triage: pre-existing, test fix fa95bc8c in #257) ->
 train-ready label + orchestrator told (train 39 with #247, ideally #257). Solo ct:4 rerun 20261023T131134-player-build-f13b91e7-b2c2.
 guard-models: G2 done d51b5f14 (smoke ok), Opus checker running -> G2-CHECK.md on gm-g2; then merge, LIBS.garments fix,
