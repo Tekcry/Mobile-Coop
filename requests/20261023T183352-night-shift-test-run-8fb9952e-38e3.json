@@ -1,0 +1,15 @@
+{
+  "id": "20261023T183352-night-shift-test-run-8fb9952e-38e3",
+  "sha": "8fb9952eda6a033746eeb976667d83b88adfc17b",
+  "branch": "",
+  "pr": 283,
+  "kind": "pr",
+  "requester": "Night Shift | Test Runner",
+  "suites": [
+    "e2e-lightbake",
+    "e2e-levels"
+  ],
+  "jobs": 1,
+  "set": "t41-solo",
+  "note": "train 41 desktop fails: lightbake + levels solo on the laptop (Orchestrator)"
+}
