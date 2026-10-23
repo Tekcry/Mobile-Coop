@@ -41,3 +41,10 @@
   with `S34-check.md`, `S567-check.md` and `S8-check.md`. Main items: A5 beam towers and A4 / A8 stair rails have no
   collision, the A6 interlock lamp has no emissive, A3 floor surfaces, the A8 marble `tile` surface, and the lamp-radius
   trim. GPU frame time per set and the perf "after" run are pending a PC run (`docs/marlow-final/slices/S9-perf.md`).
+- Slice 10 (Michael's walk 4.72 / 4.73): every Marlow camera (A3 hall, A4, A7, A8) is armoured. A shot ricochets with
+  sparks and a ricochet sound, and the camera keeps watching. Jam and power cut still work.
+- Slice 10: a checkpoint restart fully resets the set on host and client. Guards, bodies and drones go back to set
+  start, with no old incident or alert left. A carried body, gadgets and noise reset. Broken cameras come back online.
+  Doors go back as at set start: open ones shut, cracked ones whole, and locked doors shut.
+- Slice 10: the A2 locked door has no lamp on the rebuilt set. The old lamp was on the master map only. Michael to
+  re-walk A2 to confirm.

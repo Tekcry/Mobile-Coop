@@ -71,6 +71,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Marlow Yard A3 Office Range: jam the corridor camera for your partner (recess hide spot, then the east lobby), swap;
   a seen player is sent back to the west lobby with LANTERN's line, also with the corridor lights off (the camera sees in
   the dark); an office switch lures the cleaner; the lobby coves stay lit when an office is off; desks read as desks.
+- [ ] Marlow Yard A3 hall camera: shoot it. It ricochets with sparks and keeps watching; jam it instead to blind it.
 - [ ] Marlow Yard A4 Goods Shed: take the officer, loop the cameras at his console: 60 s on the HUD, "Cameras back in" at
   5 s, a press inside the 20 s re-arm refuses; back aisle dark, main aisle lit; two loaders go down together (or the
   kettle break, or the floor switch lure); the push bar opens L4's east door; read the rack signs and the video wall.
@@ -90,6 +91,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   the vault opens onto the cash dock; both in the exit zone ends the run.
 - [ ] Marlow Yard timing: a first co-op run by a pair who know the controls takes 15-20 min (target 18 min, SPEC section
   10). Note the time per set and any wait over about 30 s with nothing to do.
+- [ ] Marlow Yard restart: die or restart at a checkpoint mid-set. Guards, bodies, doors and cameras are back as at set start.
 - [ ] Marlow Yard GPU look (pending PC run): gallery glass reads as one clear layer; coves, rack and desk skins show no
   z-fighting; the frame time of each set (A2 685 skins, A4 667, A6 725 are the heaviest).
 - [ ] Loadout: primary (Heron Carbine) and sidearm (Hush 9 SD), attachments, gadget, presets; nothing to buy.
