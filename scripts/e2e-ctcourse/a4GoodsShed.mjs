@@ -59,6 +59,11 @@ const IN_C1 = [100, 39.8];
  *  he is sent), away from the L3 door the players wait behind. */
 const NOISE = [101.0, 18.2];
 const NOISE_R = 13;
+/** (guard-ai S22 A4 triage) Where the players wait while he is drawn off: against L3's north wall west of the far doorway, out of every line
+ *  from the room. L3's far door stands open (an airlock's front door opens itself when its cycle ends, `CourseMode.applyLocks`): from the
+ *  pad the officer turning to the noise had them in his periphery through the doorway, went after them and never came back to the console
+ *  (`tests/consoleNoticeA4.test.ts`). Host first, then the client. */
+const L3_HIDE = [[100.7, 12.3], [100.7, 11.5]];
 const LOOP_S = 60;
 
 /** @param {object} t the runner's helpers (scripts/e2e-ctcourse.mjs) @param {number} n the set's number */
@@ -206,6 +211,9 @@ export async function walk(t, n) {
   for (const P of [A, B]) assert((await camModes(P)).every((m) => m === 'online'), 'A4: the cameras stay online after the refusal');
   // (guard-ai S22, G6) a thrown item in the room's north-west corner (`EnemyManager.hear` as a noisemaker: 'distraction', 13 m): he is sent
   // to it, and while he investigates he watches nothing: the host's press goes through and claims B
+  // (guard-ai S22 A4 triage) both players out of his sight through L3's open far door before he turns to the noise (`L3_HIDE`)
+  await moveHost(L3_HIDE[0][0], L3_HIDE[0][1], 0.1, 0);
+  await moveClient(L3_HIDE[1][0], L3_HIDE[1][1], 0.1, 0);
   const alarmD = (await t.dev(A)).alarm;
   const cc0 = await conCount();
   await GA(([x, z, r]) => { const g = window.__app.current; g.enemyMgr.hear(new g.player.position.constructor(x, 0.3, z), r, 'distraction'); }, [NOISE[0], NOISE[1], NOISE_R]);
