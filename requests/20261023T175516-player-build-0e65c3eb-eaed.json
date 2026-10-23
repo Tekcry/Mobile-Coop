@@ -1,0 +1,14 @@
+{
+  "id": "20261023T175516-player-build-0e65c3eb-eaed",
+  "sha": "0e65c3eb9ca7d437a340a28c9d11eebcd0c8a1f5",
+  "branch": "",
+  "pr": 282,
+  "kind": "pr",
+  "requester": "player-build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "coop-rejoin-2-m",
+  "note": "#269 + #282 after master 4.84.0 merge (conflict fix in courseMode / coopHost)"
+}
