@@ -13,6 +13,10 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 - DONE: batch (a)(b)(d) pushed to feature/laptop-queue (#252, next train) 8279a48f..64a00d1a, Opus checker PASS,
   vitest 42/42; (c) PR #277 (feature/auto-train-laptop-missing, worktree Mobile-Coop-auto-train-laptop-missing,
   train-ready). The live service self-updates to 64a00d1a at its next idle pass (then it claims trains).
+- 14:10Z: TRAIN 38 a242c158 FAIL 42/43, ctcourse:2 twice (A3 LANTERN line held, a3OfficeRange.mjs:363). Opus
+  triage: culprit guard-ai S23 #254 (fails in every train with it: 35, 37, 38; train 36 without it passed). LANTERN
+  holds lines while anyAlerted (courseMode.ts:621); S23 sticky target targetPick.ts:63-74 likely re-alerts the A3
+  cleaner. Sent to Orchestrator (drop #254, rebuild; Guard AI diag steps). Service on 64a00d1a since 14:10Z.
 
 **Test Runner SAVE 29 (2026-10-23 ~23:58, new account; wins over SAVE 28 where they differ):**
 - Service live: pid 45828 (started 23:18), holds heavy-4189 / heavy-4192 locks (live). No stale runs or locks; old
