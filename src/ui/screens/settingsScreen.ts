@@ -2,7 +2,7 @@ import { runningOnWindows, type HudWidth } from '../../core/display';
 import type { App } from '../../core/app';
 import { flags } from '../../core/flags';
 import { defaultSettings, setAuto, setGfx, setPreset, type Settings } from '../../core/settings';
-import { FPS_CAPS, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type RtRes, type ShadowQuality, type TierQuality } from '../../core/quality';
+import { FPS_CAPS, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode,type ShadowQuality, type TierQuality } from '../../core/quality';
 import { BENCH } from '../../game/benchmark';
 import type { CurveKind } from '../../input/stickMath';
 import type { LampFalloff } from '../../world/lampMath';
@@ -57,14 +57,10 @@ const TIER_OPTS: { value: TierQuality; label: string }[] = [
   { value: 'ultra', label: 'Ultra' },
   { value: 'epic', label: 'Epic' },
 ];
+// (settings-rt-hide: 'Ray traced' is gone from the list since voxel-retire; a saved 'rt' shows and runs as Screen space)
 const REFL_OPTS: { value: ReflectionMode; label: string }[] = [
   { value: 'off', label: 'Off' },
   { value: 'ssr', label: 'Screen space' },
-  { value: 'rt', label: 'Ray traced' },
-];
-const RTRES_OPTS: { value: RtRes; label: string }[] = [
-  { value: 'half', label: 'Half rate' },
-  { value: 'full', label: 'Full' },
 ];
 const UPSCALER_OPTS: { value: 'off' | 'taau'; label: string }[] = [
   { value: 'off', label: 'Off' },
@@ -341,7 +337,7 @@ export class SettingsScreen extends MenuScreen {
       const f = feat(k);
       return desc(choice(label, opts, f.get, f.set), text);
     };
-    const tg = (label: string, k: 'ao' | 'bloom' | 'gi' | 'volumetrics' | 'dof' | 'lens', text: string): HTMLElement => {
+    const tg = (label: string, k: 'ao' | 'bloom' | 'volumetrics' | 'dof' | 'lens', text: string): HTMLElement => {
       const f = feat(k);
       return desc(toggle(label, f.get, f.set), text);
     };
@@ -371,10 +367,9 @@ export class SettingsScreen extends MenuScreen {
       ch('Detail and draw distance', 'detail', TIER_OPTS, 'How much map dressing is drawn and how far away.'),
       ch('Effects and weather', 'effects', TIER_OPTS, 'Rain, sparks, smoke and other particles.'),
       tg('Ambient occlusion', 'ao', 'Soft contact shadows in corners and under objects.'),
-      tg('Global illumination', 'gi', 'Light bouncing off walls and floors into the shadows.'),
+      // (settings-rt-hide: Global illumination and the ray-traced rate did nothing since voxel-retire; the fields stay)
       tg('Bloom', 'bloom', 'A glow around bright lamps and screens.'),
-      ch('Reflections', 'reflections', REFL_OPTS, 'Reflections on wet ground, glass and metal. Ray traced is the sharpest and the most costly.'),
-      ch('Ray-traced reflections rate', 'rtRes', RTRES_OPTS, 'Half rate updates ray-traced reflections every other frame to save time.'),
+      desc(choice('Reflections', REFL_OPTS, () => (s().video.gfx.reflections === 'rt' ? 'ssr' : s().video.gfx.reflections), (v) => feat('reflections').set(v)), 'Reflections on wet ground, glass and metal.'),
       tg('Volumetric light', 'volumetrics', 'Light shafts in the air around lamps. The fog itself is always on.'),
       desc(slider('Volumetric lights', { min: 2, max: 12, step: 2, get: () => s().video.gfx.volLights, set: (v) => feat('volLights').set(v), format: (v) => `${v}` }), 'How many lamps cast light shafts at once.'),
       ch('Post effects resolution', 'postRes', [

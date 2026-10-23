@@ -1,5 +1,66 @@
 # Changelog
 
+## 4.80.0 - Train 31: Guard AI co-op S9 and S22 response, calm-guard body recovery, optic cable at doors; dead RT settings hidden (2026-10-23, PR #245; #240, #234, #243, #239)
+
+### Guard AI: co-op guard weapon carry
+- Co-op: your partner now sees the guards carry their guns the way the host does. A calm patrol walks with his rifle
+  slung on his back (an officer's pistol on his thigh) on both screens, draws it when something stirs him, holds it at
+  low ready or raised as before, and holsters it again after a calm spell; before, every guard on the client stood at
+  low ready all the time. The client's draw and holster run a moment behind the host's. Protocol 41 (the same co-op
+  version as the guard-ai co-op state it ships with).
+- Co-op: the "Sensor tripped" radio line now shows on the client too.
+
+### Guard carry: calm guards drawn (stuck body shader recovered)
+- New e2e suite `e2e-guard-carry` (full run; `src/ai`, `src/player`, `src/world` quick picks): on Warehouse Infiltration
+  at High (no mission, the failing calm sheet's setup: one guard at a time under the strip lamp at 0, -3, the camera 2 m
+  in front) a grunt, then an officer, stand calm 16.5 s (S21 holstered carry), then draw; the body effect's light
+  defines are logged; each merged smooth body must
+  be among the camera's active meshes with its material ready, its effect GPU skinned as the mesh is (never Babylon's
+  CPU-skinning fallback served to a GPU-skinned body, which drew 4.77.0's calm guards as a floating gun), and no effect
+  may fail to compile (the failure's error line is printed: `Effect.LogShaderCodeOnCompilationError` off). Train 29's
+  lamp plugin changes (#232) already make the body's effect compile; this holds it. Run with `E2E_GPU=1`.
+- Fix: guards no longer go invisible after a long stall while their body shader compiles. On the laptop GPU a merged
+  smooth body's PBR effect could never finish compiling (Babylon's parallel-compile poll then gives up after ~2 min:
+  "Operation timed out after maximum retries. - Effect: pbr"); the material kept that effect, so the guard showed only
+  his weapons. `src/player/bodyEffectRecovery.ts` (run once per render for each body mesh, no allocation) drops such an
+  effect from Babylon's caches and every sub-mesh holding it and compiles it afresh: at once when it timed out, failed
+  for good or lost its program, after 8 s / 30 frames when it simply never finishes; at most 3 times per shader
+  variant, each with a console warning ("smooth body ...: body shader ..., recompiling"). `e2e-guard-carry` now
+  replays the failing sheet first: the 16.5 s calm stepped in one block with no frame rendered, then the body must be
+  ready and drawn within 30 s of rendering; the 1 s-step pass follows.
+
+### Guard AI: security console switch-back
+- Security consoles (Michael's walk G6, guard AI side): a guard now notices a security console that has been switched
+  off, but only when he actually sees it: in front of him within about 12 m, or beside him within about 4 m, never
+  through a wall. A guard who was drawn away (sent to a noise, checking something, searching) notices once he is back
+  and looks at it. He says so ("Console's dropped out again. Getting it back up."), walks over at his normal pace, works
+  it for two seconds and goes back to his post calm. Switch it off again within a minute and it is no longer a fault:
+  one or two guards come to check the console and look round it, then one turns it back on. Host only. The game side
+  (Marlow Yard's console reporting its toggles, letting you use it while its guard is away, and the guard's switch
+  back) lands with Marlow Build's console rework.
+
+### Guard AI: the co-op partner sees what the host sees
+- S9 co-op: the joiner now sees the guards' lines and radio calls (radio checks, "Shots fired!", talking pairs, the
+  security desk) as the host does, with the radio chirp.
+- A cautious guard carries his weapon at low ready, on both screens (solo too).
+- The joiner sees the guards' vests and helmets from alarm stages 2 and 3 and a response team's riot shield.
+- The joiner's headshot on a helmeted guard pings as a deflect at once, and the helmet falls on both screens.
+- Co-op protocol 41: both players need this version.
+
+### Optic cable
+- (ct-toolkit 3.2, G97) Optic cable at doors, prototype: the door menu's OPTIC CABLE at a closed door kneels the
+  operator in front of the leaf and, after a 1.2 s feed, puts the view under the door on the far side at floor height
+  (the feed overlay, 100 deg field of view). The look turns the tip within +-75 deg yaw and -10..+60 deg pitch, night
+  vision toggles as usual, a ping goes out from the view, crouch (B / C) or the stick pulled back leaves (0.6 s pull
+  out). The tip is never perceived; the kneeling body is perceived as any crouched, still body. A door tagged `seal`
+  refuses ("Sealed"), as does a blocked far side ("No gap"). The view is local (nothing on the wire). New
+  `player/opticCable.ts` (pure), `game/opticSystem.ts`, `config/tools.ts`; the door anchor gets `seal`.
+
+### Settings: dead ray-traced and GI controls hidden
+- Settings > Graphics: the "Ray traced" reflections option, "Ray-traced reflections rate" and "Global illumination"
+  are gone (they did nothing since the voxel look was retired). A saved Ray traced setting shows and runs as Screen
+  space; the saved settings are unchanged (no migration).
+
 ## 4.79.0 - Train 30: Player batches 23-24 (iPad fit, suppressor ammo, team-climb top-out, partner pose parity) and co-op walk fixes; voxel look retired (2026-10-23, PR #241; #231, #236)
 
 ### Co-op walk fixes: team takedown on a hostage, partner shot audio

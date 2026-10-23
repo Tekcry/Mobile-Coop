@@ -171,7 +171,11 @@ behind a VPN adapter).
   "stack"; the pad and keyboard verb tables cover the button
 - `e2e-stealth-ai` night Warehouse: shadow vs light detection, the arc warns first, no sight through walls, noise ->
   suspicious -> investigating, squad radio, the shout, a spotter taken out first tells nobody, LKP + ghost + converge +
-  search ends, patrols
+  search ends, patrols, the optic cable (the door menu pick, the view under the door at floor height, the look limits,
+  night vision, the tip never seen, the kneeling body seen, crouch leaves, a sealed door refuses)
+- `e2e-guard-carry` Warehouse Infiltration (High): a calm holstered grunt and officer (S21 carry) and then drawing ones
+  are drawn: body among the active meshes, material ready, GPU-skinned effect (no CPU-skinning fallback), no effect
+  compile error (its error line printed). Run with `E2E_GPU=1`
 - `e2e-takedown` takedown kinds (ground rules, over low cover, above, below, window; the grab - walk, sidearm, human
   shield, knock out / kill / shove - and drop attacks from a pipe / split, the inverted choke), tap / hold, 5 cm
   alignment, damage interrupt; no takedown on a guard in combat who saw you
