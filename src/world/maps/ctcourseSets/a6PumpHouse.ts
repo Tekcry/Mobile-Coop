@@ -46,7 +46,7 @@ import type { FacilityKit } from '../../kit/facilityKit';
 import type { LevelBuilder } from '../../levelBuilder';
 import { MARLOW_LEVEL } from '../../lighting/levels';
 import { marlowCourseGroups } from '../../lighting/marlowCircuits';
-import { FacilityProps } from '../../props/facilityProps';
+import { FacilityProps, PROP_LAMP_TINT } from '../../props/facilityProps';
 import { applyGreybox, coopDeck, hangPlate, type GreyBox } from '../ctcourseGreybox';
 import { GAL_TOP, wallRuns } from './facility';
 import { emptyPart, HALL_H, setExitDoor, tally, type SetPart } from './types';
@@ -81,6 +81,9 @@ export const A6_OUTFALL_GATE = 'g-a6-outfall';
 export const A6_CAGE_DOOR = 'A6-cage';
 /** The panel's flag (SPEC's name, A6-D5: the helper's is `a6-done`) and the hold (s) and buzzer radius (m, A6-D6). */
 export const A6_DRIVE_FLAG = 'a6-drive';
+/** (marlow-polish P3-1) The interlock lamp's device id (the pushStation beside the L6 door): red while `A6_DRIVE_FLAG` is
+ *  clear, green once it is set (`CtDevices` flag lamps; render only). */
+export const A6_INTERLOCK = 'a6-interlock';
 export const A6_HOLD = 3;
 export const A6_HOLD_NOISE = 6;
 /** The outfall door: the facility's L6 near door (A6-C7). */
@@ -282,7 +285,7 @@ export function buildA6PumpHouse(b: LevelBuilder, kit: FacilityKit): SetPart {
     kit.handrail(east, south, east, A6_BRIDGE[3], { y, h, group: 61 });
     kit.handrail(west, south, east, south, { y, h, group: 61 });
   });
-  p.register.push({ id: 'A6-8', element: "Outfall door: the facility's L6 near door, locked by a flag gate on a6-drive (A6-C7); the red / green interlock lamp beside it is a device emissive (dressing)" });
+  p.register.push({ id: 'A6-8', element: "Outfall door: the facility's L6 near door, locked by a flag gate on a6-drive (A6-C7); beside it the interlock station's lamp, red / green on a6-drive (device emissive, own supply, no collision)" });
   // the course devices and gates (the helper's, with the SPEC's flag, the door id and the buzzer)
   const panel = hang.devices[A6_PANEL]!;
   panel.label = 'Isolate drive';
@@ -738,7 +741,8 @@ export function buildA6PumpHouse(b: LevelBuilder, kit: FacilityKit): SetPart {
     face('e', A6_SHELL.west, 56.0, 56.2, 0.3, 4.2, LOOK.white, 1);
     for (let y = 0.5; y <= 4.0 + 1e-9; y += 0.5) face('e', A6_SHELL.west, 56.0, 56.2, y, y + 0.04, LOOK.black, 2);
     face('e', A6_SHELL.west, 55.8, 56.6, 3.2, 3.26, LOOK.red, 2);
-    // the outfall door's side of the east wall: the interlock lamp's housing and label, the outfall sign over the door
+    // the outfall door's side of the east wall: the interlock lamp's housing and label (behind the interlock station's
+    // cabinet, A6-25, which carries the lit lamp), the outfall sign over the door
     face('w', A6_SHELL.east, 63.8, 64.2, 2.1, 2.5, LOOK.steelDark);
     face('w', A6_SHELL.east, 63.85, 64.15, 1.85, 2.0, LOOK.white);
     face('w', A6_SHELL.east, 61.3, 62.7, 2.95, 3.35, LOOK.white);
@@ -783,14 +787,17 @@ export function buildA6PumpHouse(b: LevelBuilder, kit: FacilityKit): SetPart {
     face('s', north, 56.38, 56.42, lip, 5.4, LOOK.conduit, 1);
   });
 
-  // ---- A6-25: the props kit (PROPS.md 3 A6): the discharge main, five pipeRun modules along the east wall. Collision is the props' own boxes via `write` ----
+  // ---- A6-25: the props kit (PROPS.md 3 A6): the discharge main, five pipeRun modules along the east wall, and the interlock station. Collision is the props' own boxes via `write` ----
   const props = new FacilityProps();
   for (const z of A6_PIPES.z) props.add('pipeRun', A6_PIPES.x, z, Math.PI / 2);
-  tally(b, p.register, 'A6-25', 'Props kit: the discharge main to the outfall, five pipeRun modules end to end along the east wall (x 63.0-63.7, z 54.25-59.25, 0.7 m tall; a solid 0.4 m pipe and a see-through flange envelope each, boxes via FacilityProps.write, noLedge)', () => {
+  tally(b, p.register, 'A6-25', "Props kit: the discharge main to the outfall, five pipeRun modules end to end along the east wall (x 63.0-63.7, z 54.25-59.25, 0.7 m tall; a solid 0.4 m pipe and a see-through flange envelope each, boxes via FacilityProps.write, noLedge); the interlock station beside the L6 door (a pushStation hung on the east wall at z 64.0, y 1.41-2.41, no collision; its lamp red until a6-drive is set, green after: device emissive on the device's own supply, P3-1)", () => {
     const from = b.boxes.length;
     props.write(b);
     b.mark(from, { noLedge: true });
   });
+  // (marlow-polish P3-1) the interlock lamp, after `write` (the pushStation has no box either way): its lamp's centre at about
+  // (63.44, 2.30, 64.0), in the east wall base's gap z 63.7-64.3, over the housing and label skins (A6-22)
+  props.add('pushStation', A6_SHELL.east, 64.0, -Math.PI / 2, { y: 1.41, device: A6_INTERLOCK, flag: A6_DRIVE_FLAG, lamp: PROP_LAMP_TINT.default, lampOff: [1.0, 0.12, 0.08] });
   p.props.push(...props.placements);
 
   return p;
