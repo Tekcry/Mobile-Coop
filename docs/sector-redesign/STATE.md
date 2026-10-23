@@ -313,6 +313,14 @@ LR16 (one lighting system; Michael ~18:08-18:20; plan checks/lr16-plan.md, audit
   4007eafe built (map-light reds 15 -> 13): checker running, laptop req ...4007eafe-2ad6. LR16e 2f5ffec1 built: checker
   running, laptop req ...2f5ffec1-0c61. Merge order into lr16int: e, then 1 (LAMP_VERSION 3; bounce reads filtered
   vis), then t (bakedLamps getUniforms line: keep both). Then LR16g re-level on that head.
+- ~21:00: lr16int 15b3c686 = + LR16e (checker FIX = flaky bake-time test only, fixed 603a36c3; no leaks, parity holds).
+  LR16t recheck PASS 45e0e86a (fix 5700dff5; laptop req ...5700dff5-8673 incl. e2e-desktop). LR16-1 checker running.
+  At the LR16-1 merge: LAMP_VERSION -> 4 (not 3: laptop holds v3 no-penumbra caches); lampBake.ts call
+  bakeOne(..., sb, pen) inside LR16-1's t0/t1; lightField.test.ts keep both appended tests; rerun lampBounce +
+  bounceGrid tests. Then LR16t (bakedLamps getUniforms line: keep both).
+- LR16 perf triage (checks/lr16-perf-triage.md): NOT LR16 (unfrozen guards; #226 fix); LR16 adds ~0.1-0.3 Epic /
+  0.3-0.7 Medium; Test Runner asked for S5-worst A/B 273539ec vs f8008542. If train lands >= 12: CHAR_SHADOW_EVERY
+  2 -> 3 (charShadowSet.ts:102), skip unchanged lampTorch upload (bakedLamps.ts:913).
 - LR16 perf (Test Runner f8008542): campus S5-worst CPU p95 13.3 Epic / 12.2 Medium > 12; Opus triage running
   (checks/lr16-perf-triage.md, laptop A/B vs master 41204e30).
 - #242 TRAIN-READY 26f50415 (master 4.81.0 merged clean; label set, orchestrator told ~20:40).
