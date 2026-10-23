@@ -11,8 +11,8 @@ SAVED ~12:15 (window cap ~12:22). Parallel briefs: slices/NEXT-BRIEFS.md (sectio
 - s12 <- fixed s10 merged: 159148f6 (BRIEF / TESTING unions; pairsWiring fake gets setGear; 97 unit tests green).
   PR #208 OPEN for S11 + S12 (base feature/guard-ai-s10); orchestrator and CT Core told.
 - RUNNING (Opus): S13 in ...-guard-ai-s13, S15 in ...-guard-ai-s15 (both off s12 ebdc44a2: they need s12 159148f6
-  merged before their PRs). S14: worktree ...-guard-ai-s14 (feature/guard-ai-s14 = s12 159148f6, pushed) READY, not
-  started (desktop CPU 99%): start it from NEXT-BRIEFS.md section 4 when CPU < 80%.
+  merged before their PRs). S14: worktree ...-guard-ai-s14 (feature/guard-ai-s14 = s12 159148f6, pushed) RUNNING (Opus,
+  started ~12:20 from NEXT-BRIEFS.md section 4; A70+).
 - At the 92% save message: commit every agent worktree's files as WIP and push (s13, s15, s14); agents keep going.
 
 ~13:35: S11 + S12 check PASS ebdc44a2 (slices/S12-CHECK.md; fix: dogs wear no gear; note for S13: stage gear after
