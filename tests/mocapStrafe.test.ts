@@ -174,6 +174,27 @@ describe('mocap strafe (A10)', () => {
     }
   }, 300000);
 
+  it('restarts after a short stand, slow flips and a diagonal flip: no planted slide, flip pelvis <= OFF + 0.5 cm', async () => {
+    // (fix round 3) a restart after a 0.3 s stand at 0.9 m/s dragged the planted trailing foot 3.87 cm (the planner's
+    // reach read from the root, the hips held over the lagging side-steps); a flip every 1.37 / 1.3 s let the 23 cm hold
+    // go as a foot lifted (pelvis 3.34 / 2.36 cm, OFF 1.11 / 0.93); NW <-> SE 0.9 / 1.37 s slid 1.21 cm
+    const d = 0.9 * Math.SQRT1_2;
+    const plans: [string, [AimTarget, number, number], boolean][] = [
+      ['restart E 0.9 stand 0.3', [(t) => ({ x: t > 1 && t % 1.5 < 1.2 ? 0.9 : 0, z: 0 }), 540, 1], false],
+      ['flip 0.9 / 1.37 s', [(t) => ({ x: Math.floor(t / 1.37) % 2 ? 0.9 : -0.9, z: 0 }), 480, 1], true],
+      ['flip 0.7 / 1.3 s', [(t) => ({ x: Math.floor(t / 1.3) % 2 ? 0.7 : -0.7, z: 0 }), 480, 1], true],
+      ['NW <-> SE 0.9 / 1.37 s', [(t) => (Math.floor(t / 1.37) % 2 ? { x: d, z: -d } : { x: -d, z: d }), 480, 1], false],
+    ];
+    for (const [name, p, flip] of plans) {
+      const { off, on } = await both(p);
+      const mOff = measurePlayer(off);
+      const mOn = measurePlayer(on);
+      expect(plantSlide(on, 0.01), `${name}: planted slide`).toBeLessThan(SLIDE);
+      if (flip) expect(mOn.pel, `${name}: pelvis ON ${(mOn.pel * 100).toFixed(2)} vs OFF ${(mOff.pel * 100).toFixed(2)} cm`).toBeLessThanOrEqual(mOff.pel + 0.005);
+      expect(footGap(on), `${name}: feet crossing`).toBeGreaterThanOrEqual(GAP_MIN);
+    }
+  }, 300000);
+
   it('the knees stay over the toes in a steady strafe (knee-out <= 3 cm, the e2e-anim gate)', async () => {
     // (fresh check, the GPU e2e-anim fail) the captures' 3.6 cm hips sink and a fixed 13 cm hips hold bowed the planted
     // trailing knee 7.6-8.0 cm outside its ankle in the closed stance (the capture keeps its pelvis 4.4 cm inside); then

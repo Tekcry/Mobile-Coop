@@ -398,10 +398,12 @@ export const GLIDE_HIP = { share: 1, max: 0.09, tau: 0.08 } as const;
 /** (mocap-trial-2 strafe fix) In the mocap strafe the hips stay this far (m) inside each planted foot across the body (the
  *  captures keep theirs 4.4 cm inside; the planted knee then stays over its toes). */
 export const STRAFE_HIP_IN = 0.06;
-/** (mocap-trial-2 strafe fix 3) In the mocap strafe the hips' sideways shift over the feet (GLIDE_HIP and STRAFE_HIP_IN
- *  together) changes at most this fast (m/s): after a flip or a restart the side-steps lag the root up to 30 cm and the
- *  shift let go of them at its ease (a foot lifting freed the hold): the hips jumped 3-5 cm a frame (pelvis pops). */
-export const STRAFE_HIP_RATE = 0.3;
+/** (mocap-trial-2 strafe fix 3) In the mocap strafe the hips' sideways offset from the root (the keyed pelvis, GLIDE_HIP
+ *  and STRAFE_HIP_IN together) changes at most this fast (m/s): after a flip or a restart the side-steps lag the root up to
+ *  30 cm, the hold inside the planted feet grew to 23 cm and let go at its ease as a foot lifted (the hips jumped 3-4 cm a
+ *  frame beyond the pace). A steady strafe moves it up to ~0.75 m/s (GLIDE_HIP over the long side-steps): under that the
+ *  hips lagged their feet and the knees bowed out (0.3: knee-out 3.5 cm). */
+export const STRAFE_HIP_RATE = 0.75;
 /** (anim-rework S3, BRIEF 3 "elbows down and close to the ribs") With a gun in the hands the elbow pole's outward share
  *  is cut by this much at low ready (AIM_ELBOW_TUCK raised). */
 export const READY_ELBOW_TUCK = 0.5;
@@ -2459,17 +2461,16 @@ export class CharacterRig {
         want = (tgt - at) * t.keyStrafe;
       }
       this.strafeHip = approachTo(this.strafeHip, want, dt, GLIDE_HIP.tau);
-      // (strafe fix 3) in the strafe the shift together (the glide's and this) at most STRAFE_HIP_RATE a frame: this takes up
-      // the excess
+      // (strafe fix 3) in the strafe the hips' whole sideways offset (last frame's: strafeSum) at most STRAFE_HIP_RATE a
+      // frame: this shift takes up the excess
+      const ds = pex + this.strafeHip - this.strafeSum;
       const dm = STRAFE_HIP_RATE * dt;
-      const ds = this.glideShift + this.strafeHip - this.strafeSum;
       if (t.keyStrafe > 0 && ds > dm) this.strafeHip -= ds - dm;
       else if (t.keyStrafe > 0 && ds < -dm) this.strafeHip -= ds + dm;
       if (t.keyStrafe <= 0 && this.strafeHip < 1e-5 && this.strafeHip > -1e-5) this.strafeHip = 0;
       pex += this.strafeHip;
-      { const D = (globalThis as any).__dbg; if (D) D.push("ZZ rootX " + (rp.x * 100).toFixed(2) + " gS " + (this.glideShift * 100).toFixed(2) + " sH " + (this.strafeHip * 100).toFixed(2) + " pex " + (pex * 100).toFixed(2) + " drop " + (this.pelvisDrop * 100).toFixed(2)); }
     }
-    this.strafeSum = this.glideShift + this.strafeHip;
+    this.strafeSum = pex;
     // (anim-natural-n2) the body motion layer's pelvis sway, before the feet's reach (a Wren rig on foot; 0 on any other)
     if (t.motion.pelX !== 0) pex += t.motion.pelX * kk;
     // (anim-natural N4c, AUDIT row 49) a Wren rig's elbow strike: the hips and trunk drive it (strikeBody.ts); the weight
@@ -2636,7 +2637,6 @@ export class CharacterRig {
         if (dh2 + dv * dv <= lim * lim || dh2 >= lim * lim) continue;
         short = Math.max(short, dv - Math.sqrt(lim * lim - dh2));
       }
-      { const D = (globalThis as any).__dbg; if (D) { const H = this.hipL.getAbsolutePosition(); const dh = Math.sqrt((H.x - L.x) ** 2 + (H.z - L.z) ** 2); const dv = H.y - (L.y + p.y.ankle + lYc + heelLift(L)); D.push("RG short " + (short * 100).toFixed(2) + " lim " + (lim * 100).toFixed(1) + " Ldh " + (dh * 100).toFixed(1) + " Ldv " + (dv * 100).toFixed(1) + " Ld " + (Math.sqrt(dh * dh + dv * dv) * 100).toFixed(1) + " Lc " + L.contact); } }
       if (short > 1e-4) {
         this.hips.position.y -= short;
         this.pelvisDrop += short;

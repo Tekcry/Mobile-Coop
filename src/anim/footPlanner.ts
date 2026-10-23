@@ -1692,7 +1692,7 @@ export class FootPlanner {
       return;
     }
     // (mocap-trial-2 strafe fix 3) in the mocap strafe not while the rig still reaches the foot (its reach need last frame
-    // under CLIP_TOE_OFF_NEED): the hips sit over the planner's lagging side-steps (GLIDE_HIP, STRAFE_HIP_IN), up to 30 cm
+    // at most STRAFE_HOLD_NEED): the hips sit over the planner's lagging side-steps (GLIDE_HIP, STRAFE_HIP_IN), up to 30 cm
     // behind the root, so the reach read from the root dragged a planted trailing foot 3.9 cm the rig could hold (a
     // restart after a 0.3 s stand at 0.9 m/s) while the other foot's long side-step was in the air
     if (hyp2(dx, dz) > reach && !((i.strafe ?? 0) > STRAFE_ON && ((side < 0 ? i.reachNeedL : i.reachNeedR) ?? 0) <= STRAFE_HOLD_NEED)) {

@@ -216,6 +216,37 @@ this round's goals, for the lead:
 - `B snap 0.9 NW->SE /1.37`: planted slide 1.21 cm (as at 842270f0).
 - Not a strafe defect: `C raise/lower /1.1` slides 23-27 cm OFF and ON (the harness holds yaw while lowered).
 
+## Fix round 3, 2026-10-23
+Goals: the three items round 2 found (restart slide, slow-flip pelvis, diagonal flip slide). All changes ON only (gated on
+`keyStrafe` / `i.strafe > STRAFE_ON` / the strafes in the set). Probe: the checker's repro3 zzstrafe (plans `rs`, `we`,
+`we7`, `dg` and the sweeps), ON vs OFF, worst frame quoted.
+1. Restart after a 0.3 s stand (E 0.9): planted slide **3.87 -> 0 cm** (goal <= 0.5). footPlanner: in the mocap strafe a
+   planted foot past the planner's reach is not dragged while the rig's reach need for that leg (last frame's pelvis drop
+   share, `reachNeedL` / `R`) is at most `STRAFE_HOLD_NEED` 0.15 m: the hips sit over the lagging side-steps (up to 30 cm
+   behind the root), so the root-based reach dragged a foot the rig still held. Sweep (stand 0.15 / 0.3 / 0.5 s x 3
+   offsets): slide 0 everywhere ON and OFF; pelvis ON 1.46-1.66 (OFF 1.58-1.81; round 2 2.32).
+2. Flip pelvis pops: flip 0.9 / 1.37 s **3.34 -> 1.51 cm** (OFF 1.11, goal 1.61); flip 0.7 / 1.3 s **2.36 -> 1.36 cm**
+   (OFF 0.93, goal 1.43). Cause (frame detail): after a flip the side-steps lag the root, the hold inside the planted
+   feet (STRAFE_HIP_IN) grew to 23 cm and let go at GLIDE_HIP.tau as a foot lifted: the hips moved 4.3 cm in a frame.
+   Fix (characterRig): the hips' whole sideways offset from the root (keyed pelvis + GLIDE_HIP + the hold) changes at most
+   `STRAFE_HIP_RATE` 0.75 m/s in the strafe; the hold takes up the excess. Rates tried: 0.3 met the pelvis goals but the
+   steady knee-out rose to 3.5 cm (the hips lag the feet); limiting only the hold and GLIDE_HIP (not the keyed pelvis)
+   needed <= 0.45 for the 0.7 flip and failed the knees (3.1); a direction-split or held-split rate, or capping the hold,
+   did not reach both. Steady strafe moves the offset up to ~0.75 m/s, so 0.75 leaves it untouched.
+3. Diagonal flip NW <-> SE 0.9 / 1.37 s: slide **1.21 -> 0 cm** (goal <= 0.5); by the stSk change below with item 1.
+   Diagonal sweep (NW/NE/SE/SW flips, 0.7 / 0.9, 0.8-1.6 s): slide 0 ON and OFF, pelvis ON 0.61-1.01 (OFF 0.50-0.67).
+4. animGraph (kept from the lost agent's WIP): the strafe share for the captures reads `stSk`, the travel's unsigned
+   sideways / forward parts eased (0.18 s) and divided, not the eased direction vector, which passes the origin in a pure
+   L <-> R flip (the share dipped to 0.04 mid-strafe and the pose went to the forward glide and back).
+Kept: knee-out (facing frame, Vitest) 1.52-2.78 cm at 0.36 / 0.5 / 0.7 / 0.9 L / R (round 2 1.52-2.65; gate 3.0); CT
+start / stop pelvis 1.26-1.75 (STOP_PEL 1.95). OFF dump md5 9ce3f3d1c70c299dca072d3a4f15f9ea, 31,065,812 B (unchanged).
+No new per-frame allocation (two numbers and a field write; mocapStrafe's allocation case passes).
+Note (M1, not a fail): slow flips at 0.4 m/s read ON 1.12-1.25 vs OFF 0.61-0.64 (0.5-0.6 over OFF); the steady 0.4 strafe
+already reads ON 0.89-1.12 vs OFF 0.56 (the captures' own sway).
+Tests: tests/mocapStrafe.test.ts 12/12 (new: restart after a 0.3 s stand, flips 0.9 / 1.37 and 0.7 / 1.3 with pelvis <=
+OFF + 0.5 cm, NW <-> SE 0.9 / 1.37; slide < 0.5 cm, no crossing). mocapSwitch 13/13, mocapFix2 11/11, footPlanner 12/12,
+animSkeletonIdentity / animSkeletonGuardIdentity 1 + 1 skip; tsc clean; eslint clean.
+
 ## Not done / open
 - Toggling the switch mid-strafe is covered by the rig's switch cross-fade only (A8's residual applies; not probed here).
 - The aimed strafe ON allocates 144 B a frame over OFF (two capture samples and the side-step), against 32 B for the
