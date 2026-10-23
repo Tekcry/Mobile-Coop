@@ -1,0 +1,14 @@
+{
+  "id": "20261023T082415-night-shift-marlow-b-1bde5328-a6d4",
+  "sha": "1bde5328013d9d1bb0d593d6410f17b2ab4d27f3",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Marlow Build",
+  "suites": [
+    "e2e-ctcourse:2"
+  ],
+  "jobs": 1,
+  "set": "polish-ctc2-rerun",
+  "note": "flake rerun: A3 calm-after-corridor-lure timeout on 1bde5328"
+}
