@@ -1,6 +1,15 @@
 # laptop-queue - state
 
-## Now (2026-10-23 ~19:30, LIVE OVERLAP)
+## Now (2026-10-23 ~20:10, LIVE OVERLAP DONE -> PR)
+First sharded train through the service: train 32 25c712c9, 43/43 PASS, status `laptop-e2e` success posted by the
+service. Shards 4189 / 4192 at JOBS=3 each (bins 22 / 21 suites, weight 1391 s each): wall 564 s / 560 s, vs 666 s
+for train 31 on one slot at JOBS=3 (~15% faster). Total 873 s incl. a 309 s alone rerun of the flake e2e-ctcourse:4
+("timed out waiting for A8: N2 is at the grille stop (route index 2)", passed alone 300 s; owner fixes the test).
+Requests worked end to end (status, flake rerun, done record, lock waits behind manual chain locks). Next: PR
+(train-ready) + tell the leads the request command (below). Open idea, not in this PR: compare sharded 3+3 against
+one slot at JOBS=5 on the same train.
+
+## Earlier (2026-10-23 ~19:30, LIVE OVERLAP)
 Fix round face1711 (Opus): shard completeness gate, stale own `pending` re-picked, own stale locks cleared, task via
 Register-ScheduledTask (no time limit, battery ok, Normal). 20/20 vitest. LIVE since ~19:19: task
 NightShift-laptop-queue (every 5 min, LQ_FOLLOW=origin/feature/laptop-queue) runs service.mjs from the svc worktree
