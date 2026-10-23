@@ -1,5 +1,5 @@
 {
- "_note": "Marlow Yard light levels before marlow-bunker (master b125599e, course-ready S2 tuning): tests/ctcourseLight.test.ts CTLIGHT_PRINT=1. The bunker job proves they hold. (marlow-jammer) Station 3's levels re-taken for the camera hallway (route along z 1.6, panel in the entry lobby, the lobbies' far corners). (LR16g, 2026-10-23) Re-taken on the one light model (photometric falloff, penumbra, bounce) after the Marlow Yard re-level (bay lamps 0.9 -> 1.5, pendants 0.9 -> 1.6, S4 0.85 -> 1.4, S5 roof 0.9 -> 1.4; S2 / S7 wall-top radius 7.6 -> 4.4 / 5 -> 3.6): docs/sector-redesign/checks/lr16g-build.md. (LR16-L A, 2026-10-24) Re-taken on the lamp bake box aligned on the light point (LAMP_VERSION 6): 34 of 190 levels moved by 0.01-0.07, largest S2 route x0+8.4 0.85 -> 0.78; no band change (docs/sector-redesign/checks/lr16l-a-build.md).",
+ "_note": "Marlow Yard light levels before marlow-bunker (master b125599e, course-ready S2 tuning): tests/ctcourseLight.test.ts CTLIGHT_PRINT=1. The bunker job proves they hold. (marlow-jammer) Station 3's levels re-taken for the camera hallway (route along z 1.6, panel in the entry lobby, the lobbies' far corners). (LR16g, 2026-10-23) Re-taken on the one light model (photometric falloff, penumbra, bounce) after the Marlow Yard re-level (bay lamps 0.9 -> 1.5, pendants 0.9 -> 1.6, S4 0.85 -> 1.4, S5 roof 0.9 -> 1.4; S2 / S7 wall-top radius 7.6 -> 4.4 / 5 -> 3.6): docs/sector-redesign/checks/lr16g-build.md. (LR16-L A, 2026-10-24) Re-taken on the lamp bake box aligned on the light point (LAMP_VERSION 6): 34 of 190 levels moved by 0.01-0.07, largest S2 route x0+8.4 0.85 -> 0.78; no band change (docs/sector-redesign/checks/lr16l-a-build.md). (LR16-W, 2026-10-24) LR16-W: S7 stair light (a wall bulkhead over the stair head): S7 stair step 1 0.31 -> 0.46, step 2 0.40 -> 0.41; nothing else moved (docs/sector-redesign/checks/lr16w-c2-build.md).",
  "levels": {
   "S1 route x0+0.6": 1,
   "S1 route x0+4": 1,
@@ -131,8 +131,8 @@
   "S7 leg-up square floor": 0.62,
   "S7 rope holder": 1,
   "S7 strip": 1,
-  "S7 stair step 1 (top)": 0.31,
-  "S7 stair step 2": 0.4,
+  "S7 stair step 1 (top)": 0.46,
+  "S7 stair step 2": 0.41,
   "S7 stair step 3": 0.53,
   "S8 exit centre": 1,
   "S8 exit corner SE": 0.69,

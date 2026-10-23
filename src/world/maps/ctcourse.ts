@@ -9,7 +9,7 @@ import type { SquadSlot } from '../rooms';
 import { GUARD_INFO_LINE_MAX, type GuardInfo } from '../../ai/guardInfo';
 import type { LevelBuilder } from '../levelBuilder';
 import type { BayDef, CourseDef, CourseDevice, GateDef } from '../../game/course/courseDef';
-import type { LightFixture } from '../lights';
+import { makeCone, type LightFixture } from '../lights';
 import { bayCeiling, bayWalls, bulkheadCage, CELL_BANDS, doorFrame, emitter, floorLine, lidHaunches, liftDoors, pendantRods, plate, wallPaintZ } from './ctcourseBunker';
 import { buildVariety } from './ctcourseVariety';
 
@@ -599,6 +599,21 @@ export const ctcourse: MapDef = {
       const h = 1.1 * (4 - k);
       b.box(x0 + CT_OBST + 0.5 + k - 0.5, h / 2, S7_STAIR_Z, 1.0, h, 1.2, CONC);
     }
+    // (LR16-W C2) the stair light: one LED wall bulkhead on the south wall over the stair head (light point 0.15 m off the
+    // wall face at z 0.15, under the haunch toe at 6.5), a forward-down cone; reach 4 m (radius 2.5) stops it short of the
+    // S7 corners and of the floor. Step 1 (head 4.9) sits in its near field, so a night level of 0.05 lights it
+    // (0.31 -> 0.46); steps 2 / 3 hardly move (docs/sector-redesign/checks/lr16w-c2-build.md).
+    b.light({
+      kind: 'spot',
+      x: x0 + CT_OBST + 1,
+      y: 6.4,
+      z: 0.3,
+      radius: 2.5,
+      intensity: 0.05,
+      color: WHITE,
+      cone: makeCone(0, -0.819, 0.574, 0.96),
+      fixture: { sx: 0.3, sy: 0.16, sz: 0.07, oy: 0, model: 'bulkhead', base: 'wall', yaw: 0, mount: 0 },
+    });
 
     // 8 The lit exit zone (B8: the wall keeps an open doorway, built with the walls above)
     mark(b, (CT_EXIT_ZONE.box[0] + CT_EXIT_ZONE.box[2]) / 2, MID, CT_EXIT_ZONE.box[2] - CT_EXIT_ZONE.box[0], CT_EXIT_ZONE.box[3] - CT_EXIT_ZONE.box[1], '#2f8f5a');
