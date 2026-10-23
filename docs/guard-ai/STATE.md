@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~01:20: A3 triage DONE (S23-A3-TRIAGE.md, s23 1f97efbf): test staging (step-4 camera send-back alarms the cleaner,
+S23 lets him see the lit host at the west post; no src change). Fix for Marlow's a3OfficeRange.mjs: test-only
+feature/guard-ai-s23-a3test 829cffe1. Laptop ctcourse:2: s23-a3fix (expect PASS), s23-a3probe (all=false, PASS),
+s23-a3diag 5d1331fe (trace, FAIL). Orchestrator told. Worktrees -s23-train / -s23-probe / -s23-a3test: remove after.
+
 ~01:00 TOP: train 38 FAILED e2e-ctcourse:2 A3 swap line (a3OfficeRange.mjs:363) on every train with #254 S23
 (35, 37, 38). Orchestrator pulled train-ready from #254, #264, #270, #272: relabel after ctcourse:2 passes on the fix.
 Opus triage RUNNING in -s23 (slices/S23-A3-TRIAGE.md; sets s23-a3fix / s23-a3probe). Then merge the fix up s24 -> s25
