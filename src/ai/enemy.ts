@@ -29,6 +29,7 @@ import { ALERT, AlertMachine, callInDelay, emptyAlertInput, type AlertLevel } fr
 import { HEARING } from './hearing';
 import { PatrolWalker, PATROL, type PatrolRoute } from './patrol';
 import { PACE, paceSpeed, ringPoint, SEARCH_BODY, SEARCH_DEVICE, SEARCH_PLAIN, searchSpec, urgentKind } from './response';
+import { steerFrom, stepApart, tooClose, type SepOut } from './separation';
 import { BODY, bodyNoticed } from './bodies';
 import type { Body } from './body';
 import { alarmStandPoint, raiseTime, type AlarmPanel } from './alarm';
@@ -163,6 +164,9 @@ export interface AiContext {
   breakerOff?(group: number): boolean;
   /** (guard-ai S15) He worked the switch: circuit `group` back on (the player's own toggle path, `StealthSystems`). */
   breakerReset?(e: Enemy, group: number): void;
+  /** (guard-ai S20) May he step from (x0, z0) to (x1, z1) at feet height y past the doors (`DoorGate.blocking`)? False:
+   *  a shut door's leaf is in the way (the manager opens it when it is not locked; he waits). Absent: no doors. */
+  doorStep?(e: Enemy, x0: number, z0: number, x1: number, z1: number, y: number): boolean;
 }
 
 let nextId = 1;
@@ -233,6 +237,8 @@ export class Enemy implements Damageable {
   private tmpHead = new Vector3();
   private tmpHips = new Vector3();
   private desired = new Vector3();
+  /** (guard-ai S20) The separation's out pair (`separation.ts`). */
+  private sepOut: SepOut = { x: 0, z: 0 };
   private lunge = 0;
   private coverPicked = false;
   /** Out of sight in combat: moving up on the last known position cover to cover (a bound, then a hold). */
@@ -297,6 +303,9 @@ export class Enemy implements Damageable {
   private routeT = 0;
   /** The nav grid's `version` the route was planned under (a bolted door opened or shut since: replan). */
   private routeVer = -1;
+  /** (guard-ai S20) The last plan found no route (a locked door shut the way): the same goal is not tried again until
+   *  `routeT` runs out or the grid changes (no A* every step while he waits; a new goal plans at once). */
+  private routeFail = false;
   /** Searching round its own stimulus (a body, a light) rather than the shared last known position. */
   private searchOwn = false;
   /** (guard-ai S18) The search's kind (`response.ts` `SEARCH_*`): plain, a dead body's (longer, wider), a device's. */
@@ -416,6 +425,11 @@ export class Enemy implements Damageable {
 
   /** Seized in a takedown (the attacker's controller places the body; no brain). */
   taken = false;
+
+  /** (guard-ai S20) Solid to the other guards' separation: alive and not held in a takedown (`separation.ts`). */
+  get solid(): boolean {
+    return this.alive && !this.taken;
+  }
   /** Flashbanged: blind and staggering for this long (no perception, no fire), then alert. */
   blindT = 0;
   /** Seconds breathing sleeping gas (the gadget system knocks out at its threshold; decays outside). */
@@ -2034,13 +2048,16 @@ export class Enemy implements Damageable {
     }
     this.routeT -= dt;
     const moved = !(hyp2(p[0] - this.routeGoal[0], p[1] - this.routeGoal[1]) < 1.5);
+    // (guard-ai S20) the same goal found unreachable under this grid less than routeT ago: no new A* yet
+    if (this.routeFail && this.routeT > 0 && this.routeVer === nav.version && hyp2(p[0] - this.routeGoal[0], p[1] - this.routeGoal[1]) < 0.1) return null;
     if ((moved && this.routeT <= 0) || this.routePath.length === 0 || this.routeVer !== nav.version) {
       this.routeT = 1;
       this.routeVer = nav.version;
       this.routeGoal[0] = p[0];
       this.routeGoal[1] = p[1];
       this.routePath = nav.findPath(me, p, 3000, this.pos.y, y) ?? [];
-      if (this.routePath.length === 0) return null;
+      this.routeFail = this.routePath.length === 0;
+      if (this.routeFail) return null;
     }
     const wp = this.routePath[0]!;
     // a ladder / drop waypoint is taken (and dropped) by `move`
@@ -2863,20 +2880,16 @@ export class Enemy implements Damageable {
       if (l > 0.05) desired.scaleInPlace(Math.min(speed, l / dt) / l);
       else desired.setAll(0);
     }
-    // separation from other enemies and players
+    // separation from other enemies and players: (guard-ai S20) the soft push as before plus a sidestep round a guard
+    // ahead on his line (`separation.ts`); held and downed guards push nobody
     const others = this.ctx.enemies();
-    for (let k = 0; k < others.length; k++) {
-      const o = others[k]!;
-      if (o === this || !o.alive) continue;
-      const dx = this.pos.x - o.pos.x;
-      const dz = this.pos.z - o.pos.z;
-      const d2 = dx * dx + dz * dz;
-      if (d2 < 1.1 && d2 > 1e-4) {
-        const d = Math.sqrt(d2);
-        desired.x += (dx / d) * (1.1 - d) * 3;
-        desired.z += (dz / d) * (1.1 - d) * 3;
-      }
-    }
+    const gl = hyp2(desired.x, desired.z);
+    const sep = this.sepOut;
+    sep.x = 0;
+    sep.z = 0;
+    steerFrom(this, gl > 1e-4 ? desired.x / gl : 0, gl > 1e-4 ? desired.z / gl : 0, gl, others, sep);
+    desired.x += sep.x;
+    desired.z += sep.z;
     const pls = this.ctx.players();
     for (let k = 0; k < pls.length; k++) {
       const p = pls[k]!;
@@ -2901,8 +2914,15 @@ export class Enemy implements Damageable {
     this.motion.step(dt, mi, this.aimedMotion ? ENEMY_MOTION : ENEMY_CALM_MOTION);
     this.vel.x = this.motion.outX;
     this.vel.z = this.motion.outZ;
-    const nx = this.pos.x + this.vel.x * dt;
-    const nz = this.pos.z + this.vel.z * dt;
+    let nx = this.pos.x + this.vel.x * dt;
+    let nz = this.pos.z + this.vel.z * dt;
+    // (guard-ai S20) never nearer than SEPARATION.min to another guard: the step is cut at that circle (he slides round)
+    if (stepApart(this, nx, nz, others, sep)) {
+      nx = sep.x;
+      nz = sep.z;
+      this.vel.x = (nx - this.pos.x) / dt;
+      this.vel.z = (nz - this.pos.z) / dt;
+    }
     this.navCell = nav.cellOf(this.pos.x, this.pos.z, this.pos.y);
     if (!this.tryMove(nx, nz)) {
       // slide along an axis
@@ -2993,6 +3013,9 @@ export class Enemy implements Damageable {
 
   /** Move to (x, z) if the nav grid allows the step (no closure: called every step for every enemy). */
   private tryMove(x: number, z: number): boolean {
+    // (guard-ai S20) a shut door's leaf, or a step into another guard (the slides too), is not taken
+    if (this.ctx.doorStep && !this.ctx.doorStep(this, this.pos.x, this.pos.z, x, z, this.pos.y)) return false;
+    if (tooClose(this, x, z, this.ctx.enemies())) return false;
     const nav = this.ctx.nav;
     const cur = this.navCell;
     const c = nav.cellNear(cur, x, z);
