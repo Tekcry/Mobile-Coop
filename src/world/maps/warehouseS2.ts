@@ -134,15 +134,15 @@ const SOUTH = makeCone(0, -1, 0, 0.87);
  */
 export const S2_LAMPS: readonly LampRoom[] = [
   // the aisle strips (A1 -21.4, A2 -16.7 (-16.2 in the north), A3 -12.0, the east gangway -7.2): the lane and south racks (circuit 40), north (41)
-  { id: 'lane', model: 'strip', y: 5.8, group: 40, yaw: 0, cone: LANE, pass: true, lamps: [[-21.5, -4.6, 8.1, 0.679], [-17, -4.6, 5.89, 0.87], [-12.5, -4.6, 6.04, 0.862]] },
-  { id: 'southAisles', model: 'strip', y: 5.8, group: 40, yaw: 0, cone: SOUTH, pass: true, lamps: [[-21.4, 1.9, 6.61, 0.603], [-16.7, 1.9, 9, 0.494], [-12, 1.9, 5.56, 0.951], [-7.2, 1.9, 6.41, 0.121]] },
-  { id: 'northA', model: 'strip', y: 5.8, group: 41, yaw: 0, pass: true, lamps: [[-21.4, 6.9, 6.4, 0.966], [-12, 6.9, 9, 0.709], [-21.4, 13.5, 7.64, 0.572], [-12, 13.5, 5.78, 0.582]] },
-  { id: 'northB', model: 'strip', y: 5.8, group: 41, yaw: 0, pass: true, lamps: [[-16.2, 9.6, 7.91, 0.558], [-7.2, 9.6, 9, 0.685], [-16.2, 12.9, 6.5, 0], [-7.2, 12.9, 6.5, 0], [-16.2, 16.2, 9, 0.627], [-7.2, 16.2, 9, 0.488]] },
+  { id: 'lane', model: 'strip', y: 5.8, group: 40, yaw: 0, cone: LANE, pass: true, lamps: [[-21.5, -4.6, 8.1, 0.577], [-17, -4.6, 5.89, 0.609], [-12.5, -4.6, 6.04, 0.646]] },
+  { id: 'southAisles', model: 'strip', y: 5.8, group: 40, yaw: 0, cone: SOUTH, pass: true, lamps: [[-21.4, 1.9, 6.61, 0.693], [-16.7, 1.9, 9, 0.494], [-12, 1.9, 5.56, 0.618], [-7.2, 1.9, 3.85, 0.073]] },
+  { id: 'northA', model: 'strip', y: 5.8, group: 41, yaw: 0, pass: true, lamps: [[-21.4, 6.9, 6.4, 1.166], [-12, 6.9, 9, 0.638], [-21.4, 13.5, 7.64, 0.572], [-12, 13.5, 5.78, 0.524]] },
+  { id: 'northB', model: 'strip', y: 5.8, group: 41, yaw: 0, pass: true, lamps: [[-16.2, 9.6, 7.91, 0.474], [-7.2, 9.6, 9, 0.651], [-16.2, 12.9, 6.5, 0], [-7.2, 12.9, 6.5, 0], [-16.2, 16.2, 9, 0.627], [-7.2, 16.2, 9, 0.464]] },
   // the high-value cage (x -24 to -19.9, z 12 to 18, open under the roof): two strips down its middle (LR16dx: the south one at
   // z 14.4, clear of aisle A1's strip at (-21.4, 13.5), which it overlapped at z 13.4)
   { id: 'cage', model: 'strip', y: 5.8, group: 41, yaw: 0, pass: true, lamps: [[-22.2, 14.4, 5.2, 0.653], [-22.2, 16.2, 5.3, 0.452]] },
   // the exit signs: the west fire exit, the C3 door, the charger indicator (a small glow: it must not light the charge hand's pocket)
-  { id: 'storage', model: 'bulkhead', y: 2.4, group: 42, yaw: PI / 2, colour: EXIT_GREEN, pass: true, lamps: [[-23.7, 5.5, 0.6, 0.15], [-4.45, 14.55, 0.6, 0.15], [-4.45, -5.2, 0.3, 0.15]] },
+  { id: 'storage', model: 'bulkhead', y: 2.4, group: 42, yaw: PI / 2, colour: EXIT_GREEN, pass: true, lamps: [[-23.7, 5.5, 0.6, 0.15], [-4.45, 14.55, 0.6, 0.083], [-4.45, -5.2, 0.3, 0.15]] },
 ];
 
 /** The section's lamp pass (the light test switches these off to compare): every lit lamp of section 2. */
