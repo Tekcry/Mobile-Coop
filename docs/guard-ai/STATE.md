@@ -1,6 +1,13 @@
 # Guard AI - state
 
 ## Now
+~13:15: S12 BUILT a1a518ad (Opus; slices/S12.md; A47-A51; tsc, eslint, gearWiring 20/20 + AI files; e2e 'helmet' /
+'armour' in e2e-stealth-ai and 'gear: one takedown' in e2e-takedown written, never run). Lead fix 8ea8e08e: the
+warehouse's 3 patrol enforcers -> grunt (validator; Course Ready told), sectors + postsWiring 45/45. CT Core sent the
+playerWeapons / hud / sfx / styles deflect diff. S11 + S12 fresh Opus checker RUNNING (writes slices/S12-CHECK.md).
+S9 must carry: AL_HELMET 32 / AL_ARMOUR 64 in `al`, hitConfirm 'deflect' (coopHost.ts:1018 sends only on dealt > 0).
+Next: S12 merges the fixed s10 tip, PR (base s10) for S11 + S12 as one PR (S11 branch rides inside it), then S13.
+
 ~12:50: laptop GPU on s10 88a93584: 9/11. FAIL e2e-stealth-ai radio "everyone within the call + 4.5 s (8.10 s)"
 (passed on S8 alone: S5b / S6 suspect); e2e-sectorops:1 (a) panel scenario alarmBy 'radio' (radio command call beats
 the panel walk), (b) S5b sector tags find bound (3.93 m, found true), (c) S10 pairs find bound (4.44 m, found true).
