@@ -75,6 +75,12 @@ merged-LOD-distance tuning is not in this slice.
   shared buffer (passed explicitly); WebGPU untested. (3) Sharing helps only within a look: guards of different
   defs / factions still upload their own. (4) 16-bit indices (hi < 65535 vertices) would halve the index share; not
   done (no look change, small).
+- Checker: PASS WITH NOTES. Finding 4 (context restore) fixed: an `onContextRestoredObservable` observer per scene
+  (removed on scene dispose) sets every live entry's shared vertex buffer references to its users (each Geometry's
+  rebuild resets them to 1; each geometry rebuilds its own index buffer from `_indices`) and empties the lookup so
+  later spawns upload fresh; bodies hold their `Shared` (not the cache key), so dispose never touches a newer entry.
+  Leak left: users - 1 GL buffers per kind per restore (Babylon gives no handle). Test: restore path on NullEngine,
+  4 disposal orders. WebGPU unverified until a GPU run (comment at the upload).
 
 ## S1 doubts (for the checker / the GPU run)
 - Not rendered on a GPU yet: the plugin's shader (PBR + SURF_OBJECT + BONES + VERTEXCOLOR) compiles only in the e2e /

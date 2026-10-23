@@ -48,17 +48,30 @@ const STATIC: readonly (readonly [string, 'positions' | 'normals' | 'matricesInd
  * mesh) and shares the index buffer (its count raised per user). Colour (flash, lens glow) and `pattern` (heat) stay
  * per body, as do the skeleton and the bounding box. `users` mirrors the counts so a later body after the last
  * dispose uploads afresh; the scene's map goes with the scene.
+ *
+ * WebGL context restore: every Geometry rebuilds the shared `GpuBuffer` (one live GL buffer kept, references back to
+ * 1) and makes its own index buffer from its CPU indices, so the entry's `index` is dead. `restored` then sets each
+ * live entry's vertex buffer references to its users and empties the lookup, so later spawns upload fresh; the
+ * entries already in use stay in `live` (a later restore fixes them again). The rebuild's extra GL buffers
+ * (users - 1 per kind) leak once per restore: Babylon gives no handle to them.
  */
 interface Shared {
+  body: MergedBody;
   vbs: GpuBuffer[];
   index: DataBuffer;
   users: number;
 }
-const SHARED = new Map<Scene, Map<MergedBody, Shared>>();
+interface SceneShared {
+  /** The lookup for new spawns (emptied on a context restore). */
+  map: Map<MergedBody, Shared>;
+  /** Every entry with users, mapped or not. */
+  live: Set<Shared>;
+}
+const SHARED = new Map<Scene, SceneShared>();
 
-/** Test hook: the live shared entries of a scene. */
+/** Test hook: the live shared entries of a scene (the lookup's). */
 export function sharedBufferCount(scene: Scene): number {
-  return SHARED.get(scene)?.size ?? 0;
+  return SHARED.get(scene)?.map.size ?? 0;
 }
 
 const tmpQ = new Quaternion();
@@ -97,7 +110,7 @@ export class SmoothBody {
   private flashBufs: Float32Array[] = [];
   private patterns: Float32Array[] = [];
   /** Per mesh: the merged body its shared GPU buffers belong to (null when empty). */
-  private shared: (MergedBody | null)[] = [];
+  private shared: (Shared | null)[] = [];
   private flashK = 0;
   private heat = 0;
   private rootInv = new Matrix();
@@ -211,6 +224,7 @@ export class SmoothBody {
     if (d.positions.length) {
       // (S7) the static kinds and the indices from the cache entry's shared GPU buffers; colour / pattern per body
       const sh = this.share(d);
+      this.shared.push(sh);
       const engine = this.scene.getEngine();
       for (let k = 0; k < STATIC.length; k++) {
         const [kind, , size] = STATIC[k]!;
@@ -223,7 +237,7 @@ export class SmoothBody {
       // (setIndexBuffer leaves no CPU indices: keep `getIndices` answering for CPU readers)
       (geo as unknown as { _indices: Uint32Array })._indices = d.indices;
     }
-    this.shared.push(d.positions.length ? d : null);
+    else this.shared.push(null);
     mesh.parent = this.root;
     mesh.skeleton = this.skeleton;
     mesh.numBoneInfluencers = 1;
@@ -242,26 +256,46 @@ export class SmoothBody {
   /** The shared GPU buffers of `d` in this scene (uploaded by the first user), one more user counted. */
   private share(d: MergedBody): Shared {
     const scene = this.scene;
+    const engine = scene.getEngine();
     let per = SHARED.get(scene);
     if (!per) {
-      SHARED.set(scene, (per = new Map()));
-      scene.onDisposeObservable.addOnce(() => SHARED.delete(scene));
+      const ss: SceneShared = (per = { map: new Map(), live: new Set() });
+      SHARED.set(scene, ss);
+      // (fires after the engine's _rebuildBuffers)
+      const obs = engine.onContextRestoredObservable.add(() => SmoothBody.restored(ss));
+      scene.onDisposeObservable.addOnce(() => {
+        SHARED.delete(scene);
+        engine.onContextRestoredObservable.remove(obs);
+      });
     }
-    let sh = per.get(d);
+    let sh = per.map.get(d);
     if (sh) {
       sh.users++;
       // (the creator's reference is the first user's; setVerticesBuffer counts the vertex buffers itself)
       sh.index.references++;
       return sh;
     }
-    const engine = scene.getEngine();
+    // (WebGL verified; WebGPU unverified until a GPU run)
     sh = {
+      body: d,
       vbs: STATIC.map(([kind, field, size]) => new GpuBuffer(engine, d[field], false, size, false, false, false, undefined, `smooth-${kind}`)),
       index: engine.createIndexBuffer(d.indices, false, 'smooth-indices'),
       users: 1,
     };
-    per.set(d, sh);
+    per.map.set(d, sh);
+    per.live.add(sh);
     return sh;
+  }
+
+  /** After a context restore: references match the users again; new spawns upload fresh (see `Shared`). */
+  private static restored(ss: SceneShared): void {
+    for (const sh of ss.live) {
+      for (const vb of sh.vbs) {
+        const buf = vb.getBuffer();
+        if (buf) buf.references = sh.users;
+      }
+    }
+    ss.map.clear();
   }
 
   /** Once per render, for every body of a scene: the bones re-read their nodes; a re-parented joint (ragdoll) frees the box. */
@@ -334,9 +368,10 @@ export class SmoothBody {
     this.skeleton.onBeforeComputeObservable.removeCallback(this.poseFn);
     // (S7) the meshes' geometries release the shared GPU buffers (reference counts); the last user drops the entry
     const per = SHARED.get(this.scene);
-    for (const d of this.shared) {
-      const sh = d && per?.get(d);
-      if (sh && --sh.users === 0) per!.delete(d!);
+    for (const sh of this.shared) {
+      if (!sh || --sh.users > 0) continue;
+      per?.live.delete(sh);
+      if (per?.map.get(sh.body) === sh) per.map.delete(sh.body);
     }
     this.shared.length = 0;
     for (const m of this.meshes) m.dispose();

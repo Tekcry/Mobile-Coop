@@ -202,4 +202,76 @@ describe('guard-render S7: shared GPU buffers per cache entry', () => {
     scene.dispose();
     expect(sharedBufferCount(scene)).toBe(0);
   });
+
+  it('after a WebGL context restore: references match the users, the lookup empties, a new spawn uploads fresh, disposal in any order keeps every live guard drawing', async () => {
+    for (const order of [[0, 1, 2, 3], [3, 2, 1, 0], [1, 3, 0, 2], [2, 0, 3, 1]]) {
+      const { scene, lib, rig, SmoothBody, VertexBuffer } = await setup();
+      const { CharacterRig } = await import('../src/player/characterRig');
+      const { ENEMIES } = await import('../src/ai/enemyDefs');
+      const { sharedBufferCount } = await import('../src/player/smoothBody');
+      const def = ENEMIES.grunt;
+      const make = (name: string) => new CharacterRig(scene, (s, h, sl) => lib.instance(s, h, `enemy-${sl}`), def.look, def.height, name, { build: def.build, armor: def.plated, style: 'detailed', merge: true });
+      const STATIC = [VertexBuffer.PositionKind, VertexBuffer.NormalKind, VertexBuffer.MatricesIndicesKind, VertexBuffer.MatricesWeightsKind, 'color2', 'ppos', 'pnrm'];
+      const gpu = (m: Mesh, kind: string) => m.getVertexBuffer(kind)!.getBuffer()!;
+      const holder = (m: Mesh, kind: string) => (m.getVertexBuffer(kind) as unknown as { _buffer: { isDisposed: boolean } })._buffer;
+      const rigs = [rig, make('g2'), make('g3')];
+      const bodies = () => rigs.map((r) => r.voxel as InstanceType<typeof SmoothBody>);
+      const before = gpu(bodies()[0]!.meshes[0]!, VertexBuffer.PositionKind);
+      const deadIndex = bodies()[0]!.meshes[0]!.geometry!.getIndexBuffer()!;
+      expect(before.references).toBe(3);
+      // the restore path: the engine rebuilds every geometry, then notifies
+      const engine = scene.getEngine() as unknown as { _rebuildBuffers(): void };
+      engine._rebuildBuffers();
+      scene.getEngine().onContextRestoredObservable.notifyObservers(scene.getEngine());
+      expect(sharedBufferCount(scene)).toBe(0);
+      for (let li = 0; li < 2; li++) {
+        const ms = bodies().map((b) => b.meshes[li]!);
+        for (const kind of STATIC) {
+          const g = gpu(ms[0]!, kind);
+          for (const m of ms) expect(gpu(m, kind)).toBe(g);
+          expect(g.references).toBe(3);
+        }
+        // each geometry rebuilt its own index buffer from its CPU indices
+        for (const m of ms) {
+          expect(m.geometry!.getIndexBuffer()).not.toBe(deadIndex);
+          expect(m.geometry!.getIndexBuffer()!.references).toBe(1);
+        }
+      }
+      expect(gpu(bodies()[0]!.meshes[0]!, VertexBuffer.PositionKind)).not.toBe(before);
+      // a new spawn of the same look uploads fresh
+      rigs.push(make('g4'));
+      const d = bodies()[3]!;
+      expect(sharedBufferCount(scene)).toBe(2);
+      for (const kind of STATIC) {
+        expect(holder(d.meshes[0]!, kind)).not.toBe(holder(bodies()[0]!.meshes[0]!, kind));
+        expect(gpu(d.meshes[0]!, kind).references).toBe(1);
+      }
+      expect(d.meshes[0]!.geometry!.getIndexBuffer()).not.toBe(deadIndex);
+      expect(d.meshes[0]!.geometry!.getIndexBuffer()!.references).toBe(1);
+      // dispose in this order: every guard still alive keeps live buffers
+      const alive = new Set([0, 1, 2, 3]);
+      const all = bodies();
+      const holders = all.flatMap((bd) => bd.meshes.flatMap((m) => STATIC.map((kind) => holder(m, kind))));
+      for (const i of order) {
+        rigs[i]!.dispose();
+        alive.delete(i);
+        for (const j of alive) {
+          for (const m of all[j]!.meshes) {
+            for (const kind of STATIC) {
+              expect(holder(m, kind).isDisposed).toBe(false);
+              expect(gpu(m, kind).references).toBeGreaterThan(0);
+            }
+            expect(m.geometry!.getIndexBuffer()!.references).toBeGreaterThan(0);
+          }
+        }
+        // the lookup holds only the fresh spawn's entries, while it lives
+        expect(sharedBufferCount(scene)).toBe(alive.has(3) ? 2 : 0);
+      }
+      // all gone: every shared buffer released
+      for (const h of holders) expect(h.isDisposed).toBe(true);
+      lib.dispose();
+      scene.dispose();
+      expect(scene.getEngine().onContextRestoredObservable.hasObservers()).toBe(false);
+    }
+  });
 });
