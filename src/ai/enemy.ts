@@ -41,7 +41,7 @@ import type { GuardInfo } from './guardInfo';
 import type { CallKind } from './radioNet';
 import { LC_DONE, LC_FACE, LightCheck, type LightCheckWalker } from './lightCheck';
 import { DogModel } from './dogModel';
-import { guardHead, guardHeadRest, leanStep, newLeanState, type GuardHeadIn, type GuardHeadRest } from './guardHead';
+import { emoteBlind, emoteBlindEnd, emoteSeize, emoteStep, guardHead, guardHeadRest, leanStep, newEmoteState, newLeanState, type GuardHeadIn, type GuardHeadRest } from './guardHead';
 import type { InstancedMesh } from '../core/babylon';
 
 export type EnemyState = 'idle' | 'chase' | 'attack' | 'seekCover' | 'inCover' | 'melee' | 'dead';
@@ -211,10 +211,8 @@ export class Enemy implements Damageable {
   private readonly headRest: GuardHeadRest;
   private readonly headIn: GuardHeadIn = { x: 0, y: 0, z: 0, yaw: 0, crouch: 0, speed: 0, moveX: 0, moveZ: 0, phase: 0, aim: 0, aimPitch: 0, wall: false, wallSide: 0, lean: 0, leanDrop: 0, held: null, heldK: 0, koK: 0, blind: 0, poseW: 0, climb: false };
   private readonly headLean = newLeanState();
-  private heldT = 0;
-  private blindAge = 0;
-  /** (S3a fix round) The flashbang's emote is the rig's (set in `blind`; a seize replaces it, its end clears it). */
-  private blindPose = false;
+  /** (S3a fix round) Whose emote the rig shows, for the head (`guardHead.emoteStep`, shared with the parity harness). */
+  private readonly emoteSt = newEmoteState();
   private tmp = new Vector3();
   private tmpEye = new Vector3();
   private tmpHead = new Vector3();
@@ -402,8 +400,7 @@ export class Enemy implements Damageable {
     // (guard-ai S3) hands to his face: the call he was making is lost
     this.ctx.radioCut?.(this);
     this.blindT = Math.max(this.blindT, seconds);
-    this.blindAge = 0;
-    this.blindPose = true;
+    emoteBlind(this.emoteSt);
     this.bark('blind');
     this.burstLeft = 0;
     this.windup = 0;
@@ -426,9 +423,8 @@ export class Enemy implements Damageable {
     // (guard-ai S3) seized before the call got through: nobody else is told
     this.ctx.radioCut?.(this);
     this.taken = true;
-    this.heldT = 0;
     // the held pose replaces the flashbang's emote (one emote at a time): the head follows the held pose only
-    this.blindPose = false;
+    emoteSeize(this.emoteSt);
     this.endLink();
     this.burstLeft = 0;
     this.windup = 0;
@@ -998,11 +994,10 @@ export class Enemy implements Damageable {
     if (this.blindT > 0) {
       this.blindT -= dt;
       this.vel.setAll(0);
-      this.blindAge += dt;
       this.syncHitboxes(dt);
       if (this.blindT <= 0) {
         this.blindT = 0;
-        this.blindPose = false;
+        emoteBlindEnd(this.emoteSt);
         this.rig.emote = null;
         // (guard-ai S3) in combat before the flash (his call was cut): he calls it in again
         if (this.alerted && this.netOn) this.callContact();
@@ -1999,7 +1994,6 @@ export class Enemy implements Damageable {
     if (!this.dog) {
       const h = this.headIn;
       leanStep(this.headLean, this.coverPeek, dt);
-      if (this.taken) this.heldT += dt;
       const sp = hyp2(this.vel.x, this.vel.z);
       const sn = Math.sin(this.yaw);
       const cs = Math.cos(this.yaw);
@@ -2020,21 +2014,10 @@ export class Enemy implements Damageable {
       h.wallSide = h.wall ? this.coverWallSide : 0;
       h.lean = this.headLean.bd;
       h.leanDrop = this.headLean.dr;
-      // (S3a fix round, finding 3) the rig shows one emote: the held pose from contact (`GuardCq.pose` is null before
-      // its delay in the seize modes), else the flashbang's while it is his. With none, the last one fades out at 5 per s
-      // (`CharacterRig.emoteW`), its values kept.
+      // (S3a fix round, finding 3) the rig shows one emote: the held pose from contact, else the flashbang's while it
+      // is his; with none, the last one fades out (`emoteStep`)
       const cq = this.cq;
-      const heldOn = this.taken && (this.heldT >= cq.delay || (cq.mode !== 'seized' && cq.mode !== 'seizedLethal'));
-      const blindOn = !this.taken && this.blindPose && this.blindT > 0;
-      if (heldOn) {
-        h.held = cq.mode;
-        h.heldK = Math.max(0, Math.min(1, (this.heldT - cq.delay) * 5));
-        h.koK = cq.mode === 'ko' ? cq.k : 0;
-      } else if (blindOn) {
-        h.held = null;
-        h.blind = Math.min(1, this.blindAge * 6);
-      }
-      h.poseW = Math.max(0, Math.min(1, h.poseW + (heldOn || blindOn ? dt : -dt) * 5));
+      emoteStep(this.emoteSt, h, this.taken, this.blindT > 0, cq.mode, cq.delay, cq.k, dt);
       guardHead(h, this.headRest, this.head);
     }
     this.hitboxes.sync(this.pos, this.head);

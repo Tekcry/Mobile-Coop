@@ -14,13 +14,25 @@
  *   the dash, armed or unarmed, standing or crouched: crouch blends the two), with the aim's and the pitch's terms and
  *   the stride's left / right head bob on the gait clock (`phase`, the motion driver's, which the rig follows);
  * - moving at a wall: the wall stance plus `WALL_MOVE` / `WALL_LEAN_MOVE` over the direction relative to the wall side.
- * The `MOVE` tables were fitted (least squares, per frame, 1 mm rounding) to a NullEngine sweep of the rig fed as
- * `Enemy.frame` feeds it, a `MotionDriver` giving the velocity and the gait clock: grunt, heavy, sniper, enforcer,
- * officer, droneOp armed, the runner unarmed; aim 0.2 / 0.4 / 0.7 / 1, pitch -0.3 / 0 / 0.3, crouch 0 / 1, 14 directions,
- * 0.15 m/s up to the run speed (that sweep's script was not kept; the parity test holds the tables to the rig). The wall
- * tables (`WALL_MOVE`, `WALL_LEAN_MOVE`) were refitted in the S3a fix round by `scripts/guard-head-fit.mjs wall` from the
- * `tests/guardHeadSweep.test.ts` sweep (the same harness as the parity test). `GUARD_HEAD_PRINT=1` on the parity test
- * prints the rig offsets per case.
+ * - held (seized, hostage, ...): the held pose replaces forward / up and the free-move side offset; a walked hostage adds
+ *   `HELD_MOVE` (the rig's own gait under the pose: `Enemy.frame` gives it phase -1 when held).
+ * Every table is fitted (least squares, per frame, 1 mm rounding) by `scripts/guard-head-fit.mjs` from the NullEngine
+ * sweep `tests/guardHeadSweep.test.ts` (the parity test's harness: the rig fed as `Enemy.frame` feeds it, a
+ * `MotionDriver` giving the velocity and the gait clock). Regenerate (S3a fix 2), from the repo root:
+ *   MOVE (between the `<guard-head-fit free>` markers): grunt, heavy, sniper, enforcer, officer, droneOp armed, the runner
+ *   unarmed; aim 0.2 / 0.4 / 0.7 / 1 (aim 1 also at pitch -0.3 / 0.3), crouch 0 / 1, 14 directions, 0.15 m/s up to the
+ *   run speed, in 8 parts (one vitest each):
+ *     for i in 0 1 2 3 4 5 6 7; do GUARD_HEAD_SWEEP=1 GUARD_HEAD_CASES=free GUARD_HEAD_EVERY=3 GUARD_HEAD_PART=$i/8 \
+ *       GUARD_HEAD_OUT=free-$i.tsv npx vitest run tests/guardHeadSweep.test.ts; done
+ *     node scripts/guard-head-fit.mjs free free-*.tsv --write
+ *   HELD_MOVE (`<guard-head-fit hostage>`):
+ *     GUARD_HEAD_SWEEP=1 GUARD_HEAD_CASES=hostage GUARD_HEAD_OUT=hostage.tsv npx vitest run tests/guardHeadSweep.test.ts
+ *     node scripts/guard-head-fit.mjs hostage hostage.tsv --write
+ *   WALL_MOVE / WALL_LEAN_MOVE (printed, pasted by hand):
+ *     GUARD_HEAD_SWEEP=1 GUARD_HEAD_SETTLE=2.5 GUARD_HEAD_LEN=2 GUARD_HEAD_OUT=wall.tsv npx vitest run tests/guardHeadSweep.test.ts
+ *     node scripts/guard-head-fit.mjs wall wall.tsv
+ * Then `npx vitest run tests/guardHeadParity.test.ts`. `GUARD_HEAD_PRINT=1` on the parity test prints the rig offsets
+ * per case.
  *
  * Pure: no Babylon, no rig. `guardHead` writes `out` in place (no allocation).
  */
@@ -125,6 +137,7 @@ const SP_W = [.15, .4, .7, 1, 1.4, 1.8, 2.2, 2.8, 3.4, 4.2];
 const SP_C = [.15, .4, .7, 1, 1.4];
 const SP_D = [1.6, 2.2, 2.8, 3.4];
 
+// <guard-head-fit free>
 const MOVE: Record<MoveClass, MoveTable> = {
   /** armed, weapon low (aim < 0.5), stride along the facing (|theta| < 60 deg), standing. */
   AF0: {
@@ -411,6 +424,68 @@ const MOVE: Record<MoveClass, MoveTable> = {
     ph: 0.21,
   },
 };
+// </guard-head-fit free>
+
+/** (S3a fix 2) A walked hostage (held, `Enemy.holdAt` gives him a velocity): the rig's own gait under the held pose,
+ *  added to the held still pose. Up and forward per (theta knot, speed knot `SP_H`), one row per theta knot, scaled down
+ *  to 0 below the first speed knot (units of `height / 1.75`). */
+interface HeldMoveTable {
+  th: readonly number[];
+  up: readonly number[];
+  fw: readonly number[];
+}
+type HeldMoveClass = 'AF' | 'NF' | 'V';
+const SP_H = [.15, .3, .6, .9, 1.2, 1.6];
+// <guard-head-fit hostage>
+const HELD_MOVE: Record<HeldMoveClass, HeldMoveTable> = {
+  /** armed, stride along the facing. */
+  AF: {
+    th: TH_F,
+    up: [
+      -.026, -.035, -.035, -.035, -.035, -.034,
+      -.026, -.035, -.035, -.035, -.035, -.034,
+      -.029, -.033, -.034, -.035, -.035, -.034,
+    ],
+    fw: [
+      -.057, -.074, -.074, -.074, -.074, -.052,
+      -.057, -.074, -.074, -.074, -.074, -.029,
+      -.063, -.069, -.071, -.069, -.063, -.046,
+    ],
+  },
+  /** unarmed, stride along the facing. */
+  NF: {
+    th: TH_F,
+    up: [
+      .001, -.007, -.007, -.007, -.007, -.009,
+      .001, -.007, -.007, -.007, -.008, -.016,
+      -.002, -.005, -.007, -.008, -.009, -.012,
+    ],
+    fw: [
+      -.005, -.007, -.007, -.007, -.007, -.007,
+      -.005, -.007, -.007, -.007, -.007, -.007,
+      -.006, -.006, -.006, -.007, -.007, -.007,
+    ],
+  },
+  /** stride along the velocity (armed or not). */
+  V: {
+    th: TH_VN,
+    up: [
+      -.019, -.038, -.049, -.099, -.099, -.099,
+      -.04, -.05, -.054, -.073, -.099, -.131,
+      -.034, -.046, -.057, -.077, -.105, -.142,
+      -.06, -.048, -.05, -.063, -.081, -.107,
+      -.079, -.035, -.023, -.037, -.057, -.07,
+    ],
+    fw: [
+      -.01, -.051, -.008, -.051, -.009, -.051,
+      -.015, -.015, -.015, -.015, -.015, -.013,
+      -.018, -.019, -.019, -.019, -.019, -.01,
+      -.021, -.021, -.021, -.021, -.021, -.021,
+      -.002, .004, .004, .004, 0, -.007,
+    ],
+  },
+};
+// </guard-head-fit hostage>
 
 const WALL_TH = [-180, -150, -120, -90, -70, -50, -30, 0, 30, 50, 70, 90, 120, 150, 180];
 const WALL_THA = [0, 30, 50, 70, 90, 120, 150, 180];
@@ -637,6 +712,62 @@ export interface HeadOut {
   z: number;
 }
 
+/** (S3a fix 2) Whose emote the rig shows, the sim side: the held pose's clock, the flashbang's, and whether the
+ *  flashbang's emote is still the rig's (a seize replaces it, its end clears it). One per guard; `Enemy` and the parity
+ *  harness drive it through `emoteBlind` / `emoteSeize` / `emoteBlindEnd` / `emoteStep`, so both run the same logic. */
+export interface GuardEmoteState {
+  heldT: number;
+  blindAge: number;
+  blindPose: boolean;
+}
+
+export function newEmoteState(): GuardEmoteState {
+  return { heldT: 0, blindAge: 0, blindPose: false };
+}
+
+/** Flashbanged (`Enemy.blind`): the rig's emote is the hands-to-face pose from now. */
+export function emoteBlind(st: GuardEmoteState): void {
+  st.blindAge = 0;
+  st.blindPose = true;
+}
+
+/** Seized (`Enemy.beginTakedown`): the held pose replaces the flashbang's emote (one emote at a time). */
+export function emoteSeize(st: GuardEmoteState): void {
+  st.heldT = 0;
+  st.blindPose = false;
+}
+
+/** The flash wore off (`Enemy.update`): the rig's emote is cleared. */
+export function emoteBlindEnd(st: GuardEmoteState): void {
+  st.blindPose = false;
+}
+
+/**
+ * One fixed step of the emote the head follows (`Enemy.syncHitboxes`): writes `h.held` / `heldK` / `koK` / `blind` /
+ * `poseW`. The rig shows the held pose from contact (`GuardCq.pose` is null before its `delay` in the seize modes), else
+ * the flashbang's while it is his; with none, the last one fades out at 5 per s (`CharacterRig.emoteW`), its values kept.
+ * @param taken in a takedown (`Enemy.taken`)
+ * @param blinding the flash is still on (`Enemy.blindT > 0`)
+ * @param mode / delay / cqK the held pose's `GuardCq` mode, contact delay and `k`
+ */
+export function emoteStep(st: GuardEmoteState, h: GuardHeadIn, taken: boolean, blinding: boolean, mode: GuardCqMode, delay: number, cqK: number, dt: number): void {
+  if (taken) st.heldT += dt;
+  else if (st.blindPose) st.blindAge += dt;
+  const heldOn = taken && (st.heldT >= delay || (mode !== 'seized' && mode !== 'seizedLethal'));
+  const blindOn = !taken && st.blindPose && blinding;
+  if (heldOn) {
+    h.held = mode;
+    const k = (st.heldT - delay) * 5;
+    h.heldK = k < 0 ? 0 : k > 1 ? 1 : k;
+    h.koK = mode === 'ko' ? cqK : 0;
+  } else if (blindOn) {
+    h.held = null;
+    h.blind = st.blindAge * 6 < 1 ? st.blindAge * 6 : 1;
+  }
+  const w = h.poseW + (heldOn || blindOn ? dt : -dt) * 5;
+  h.poseW = w < 0 ? 0 : w > 1 ? 1 : w;
+}
+
 function clampPitch(p: number): number {
   return p > PITCH_MAX ? PITCH_MAX : p < -PITCH_MAX ? -PITCH_MAX : p;
 }
@@ -770,6 +901,8 @@ export function guardHead(i: GuardHeadIn, r: GuardHeadRest, out: HeadOut): void 
     u = q2(FIT.idleNU, c, pt);
   }
   let sx = 0;
+  /** The free-move share of `sx` (the held pose replaces it with the rest of the stance). */
+  let sxm = 0;
   // the direction of travel in the guard's frame (theta 0 straight ahead, `side` the sign of the sideways part)
   const mx = i.moveX;
   const mz = mx === 0 && i.moveZ === 0 ? sp : i.moveZ;
@@ -803,6 +936,7 @@ export function guardHead(i: GuardHeadIn, r: GuardHeadRest, out: HeadOut): void 
       u += mUp * c;
       f += mFw * c;
     }
+    sxm = sx;
   }
   const k = r.k;
   f *= k;
@@ -889,10 +1023,20 @@ export function guardHead(i: GuardHeadIn, r: GuardHeadRest, out: HeadOut): void 
     const hu = FIT.heldU0[0] + FIT.heldU0[1] * c + FIT.heldU0[2] * c2;
     if (!r.armed) hf += FIT.heldNoGun * (1 - c2);
     hf += q3(FIT.heldDF, pn, pc, c);
-    const hh = hu + q3(FIT.heldDU, pn, pc, c);
+    let hh = hu + q3(FIT.heldDU, pn, pc, c);
+    if (i.held !== null && sp > 0 && !i.wall && c < 1) {
+      // (S3a fix 2) walked as a hostage: the rig's own gait under the held pose (it ignores the gait clock and the free
+      // stride tables: `rp.phase` is -1 when held), fitted standing (fades with crouch)
+      const hm = mz > 0.5 * sp ? (r.armed ? HELD_MOVE.AF : HELD_MOVE.NF) : HELD_MOVE.V;
+      knots(hm.th, SP_H, th, sp, true);
+      const ns = SP_H.length;
+      hf += cell(hm.fw, ns) * (1 - c);
+      hh += cell(hm.up, ns) * (1 - c);
+    }
     f += (hf * k - f) * w;
     u += (hh * k - u) * w;
     u += lift * w;
+    sx -= sxm * k * w;
   }
   const s = Math.sin(i.yaw);
   const co = Math.cos(i.yaw);

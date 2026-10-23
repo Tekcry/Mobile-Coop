@@ -5,7 +5,7 @@
  */
 import type { CharacterRig, FkPose, RigPose } from '../../src/player/characterRig';
 import { GuardCq, type GuardCqMode } from '../../src/game/closeQuarters';
-import { BLIND_PITCH, guardHead, guardHeadRest, leanStep, newLeanState, type GuardHeadIn, type GuardHeadRest } from '../../src/ai/guardHead';
+import { BLIND_PITCH, emoteBlind, emoteSeize, emoteStep, guardHead, guardHeadRest, leanStep, newEmoteState, newLeanState, type GuardHeadIn, type GuardHeadRest } from '../../src/ai/guardHead';
 import { emptyMotionInput, MotionDriver, type MotionState } from '../../src/anim/motion';
 import { ENEMY_CALM_MOTION, ENEMY_MOTION } from '../../src/config/movement';
 
@@ -13,16 +13,16 @@ export const DT = 1 / 60;
 export const T1 = 0.05;
 export const T2 = 0.08;
 export const T3 = 0.12;
-export type Kind = 'grunt' | 'runner' | 'heavy' | 'sniper' | 'officer';
+export type Kind = 'grunt' | 'runner' | 'heavy' | 'sniper' | 'officer' | 'enforcer' | 'droneOp';
 /** Free poses: rifle average, melee lean, rifle broad. */
 export const FREE: readonly Kind[] = ['grunt', 'runner', 'heavy'];
 /** Armed free poses (aimed strafe / backpedal: a melee guard never aims). */
 export const ARMED: readonly Kind[] = ['grunt', 'heavy'];
+/** Every armed human kind (the fit sweep). */
+export const ALL_ARMED: readonly Kind[] = ['grunt', 'heavy', 'sniper', 'enforcer', 'officer', 'droneOp'];
 /** Cover users (`def.usesCover`): rifle average, rifle lean, pistol athletic. */
 export const COVER: readonly Kind[] = ['grunt', 'sniper', 'officer'];
 export const YAWS = [0.7, -2.3];
-
-const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
 
 /** What the scenario asks for this step (the brain's output, `Enemy.decide` + cover / takedown state). */
 export interface Ctl {
@@ -64,6 +64,10 @@ export interface Sc {
   holdAt?: number;
   delay?: number;
   releaseAt?: number;
+  /** (S3a fix 2) Held and walked by the operator (a hostage): from the hold, the body is placed along the local
+   *  direction `deg` of the start facing at `speed` m/s, the facing kept, as `Enemy.holdAt` places it (the velocity
+   *  eased 0.35 a step towards the placed displacement). */
+  heldMove?: { deg: number; speed: number };
   /** Blinded from the start. */
   blind?: boolean;
   /** T3: the steady bound after a change. */
@@ -238,18 +242,15 @@ export function run(kind: Kind, yaw0: number, sc: Sc, env: Env, onFrame?: (fr: F
   let vx = 0;
   let vz = 0;
   let crouch = 0;
-  let heldT = 0;
-  let blindAge = 0;
   let climbT = 0;
   const lean = newLeanState();
+  const emo = newEmoteState();
   let taken = false;
-  let blindPose = false;
   let released = false;
   const hold = (): void => {
     // `Enemy.beginTakedown` (+ the mode the takedown sets)
     taken = true;
-    heldT = 0;
-    blindPose = false;
+    emoteSeize(emo);
     cq.seize(sc.held === 'seizedLethal', sc.delay ?? 0);
     cq.set(sc.held!);
     rig.emote = (_r: CharacterRig, t: number): FkPose | undefined => cq.pose(t) ?? undefined;
@@ -258,7 +259,7 @@ export function run(kind: Kind, yaw0: number, sc: Sc, env: Env, onFrame?: (fr: F
   };
   if (sc.blind) {
     // mirrors `Enemy.blind` (src/ai/enemy.ts)
-    blindPose = true;
+    emoteBlind(emo);
     rig.emote = (_r, t) => {
       const k = Math.min(1, t * 6);
       const w = Math.sin(t * 9) * 0.1;
@@ -338,14 +339,24 @@ export function run(kind: Kind, yaw0: number, sc: Sc, env: Env, onFrame?: (fr: F
       lastChange = tt;
       prevState = motion.state;
     }
+    if (taken && sc.heldMove) {
+      // `Enemy.holdAt`: the operator places him, the velocity follows eased
+      const a = (sc.heldMove.deg * Math.PI) / 180;
+      const lx = Math.sin(a) * sc.heldMove.speed * DT;
+      const lz = Math.cos(a) * sc.heldMove.speed * DT;
+      const tx = px + lx * c0 + lz * s0;
+      const tz = pz - lx * s0 + lz * c0;
+      vx += ((tx - px) * 60 - vx) * 0.35;
+      vz += ((tz - pz) * 60 - vz) * 0.35;
+      px = tx;
+      pz = tz;
+    }
     if (cx.climb) {
       py += 1.1 * DT;
       climbT += DT * 1.1 * 1.6;
     }
     // ---- `Enemy.syncHitboxes`
     leanStep(lean, cx.peek, DT);
-    if (taken) heldT += DT;
-    else if (blindPose) blindAge += DT;
     const sn = Math.sin(yaw);
     const cs = Math.cos(yaw);
     const sp = Math.hypot(vx, vz);
@@ -365,18 +376,9 @@ export function run(kind: Kind, yaw0: number, sc: Sc, env: Env, onFrame?: (fr: F
     s.wallSide = cx.wall ? cx.wallSide : 0;
     s.lean = lean.bd;
     s.leanDrop = lean.dr;
-    const heldOn = taken && (heldT >= cq.delay || (cq.mode !== 'seized' && cq.mode !== 'seizedLethal'));
-    const blindOn = !taken && blindPose;
-    if (heldOn) {
-      s.held = cq.mode;
-      s.heldK = clamp01((heldT - cq.delay) * 5);
-      cq.k = cq.mode === 'ko' ? 1 : 0;
-      s.koK = cq.k;
-    } else if (blindOn) {
-      s.held = null;
-      s.blind = Math.min(1, blindAge * 6);
-    }
-    s.poseW = clamp01(s.poseW + (heldOn || blindOn ? DT : -DT) / 0.2);
+    // `GuardCq.k`: the knockout's limp at full (the takedown sets it), 0 otherwise
+    cq.k = cq.mode === 'ko' ? 1 : 0;
+    emoteStep(emo, s, taken, !!sc.blind, cq.mode, cq.delay, cq.k, DT);
     guardHead(s, rest, out);
     // ---- `Enemy.frame`
     rig.root.position.set(px, py, pz);

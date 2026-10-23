@@ -82,6 +82,12 @@ const SCENARIOS: Sc[] = [
   wallWalk('wall walk out R (ws -1)', -1, 0, 1),
   wallWalk('wall walk out L (ws 1)', 1, 0, -1),
   ...(['seized', 'seizedLethal', 'hostage', 'ko', 'interrogate'] as GuardCqMode[]).map(held),
+  // (S3a fix 2) a hostage walked by the operator: `holdAt` gives him a velocity, the rig runs its own gait (phase -1)
+  // under the held pose; forward at 1.2 and 0.6 m/s, sideways at 0.6 (the operator strafing; the game caps the hold
+  // at 0.7 m/s, `takedownController`)
+  { id: 'hostage walked 1.2', tier: 2, kinds: FREE, settle: 1.5, len: 1.5, held: 'hostage', heldMove: { deg: 0, speed: 1.2 }, step: () => {} },
+  { id: 'hostage walked 0.6', tier: 2, kinds: FREE, settle: 1.5, len: 1.5, held: 'hostage', heldMove: { deg: 0, speed: 0.6 }, step: () => {} },
+  { id: 'hostage walked side 0.6', tier: 2, kinds: FREE, settle: 1.5, len: 1.5, held: 'hostage', heldMove: { deg: 90, speed: 0.6 }, step: () => {} },
   { id: 'blind', tier: 2, kinds: FREE, settle: 1, len: 1, blind: true, step: (c) => { c.aim = 0.2; } },
   // (S3a fix, finding 3) blinded, then seized: the seize replaces the flashbang's emote (`beginTakedown`), the rig shows
   // the held pose only

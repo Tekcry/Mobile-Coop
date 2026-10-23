@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GuardCq, type GuardCqMode } from '../src/game/closeQuarters';
-import { BLIND_PITCH, HELD_PITCH, guardHead, guardHeadRest, leanStep, newLeanState, type GuardHeadIn } from '../src/ai/guardHead';
+import { BLIND_PITCH, HELD_PITCH, emoteBlind, emoteBlindEnd, emoteSeize, emoteStep, guardHead, guardHeadRest, leanStep, newEmoteState, newLeanState, type GuardHeadIn } from '../src/ai/guardHead';
 
 function inp(over: Partial<GuardHeadIn> = {}): GuardHeadIn {
   return { x: 0, y: 0, z: 0, yaw: 0, crouch: 0, speed: 0, moveX: 0, moveZ: 0, phase: 0, aim: 0.2, aimPitch: 0, wall: false, wallSide: 0, lean: 0, leanDrop: 0, held: null, heldK: 0, koK: 0, blind: 0, poseW: 0, climb: false, ...over };
@@ -57,6 +57,58 @@ describe('guardHead (pure sim head)', () => {
     const off = head(inp({ held: 'seizedLethal', heldK: 1, blind: 1, poseW: 0 }));
     expect(off.y).toBeCloseTo(base.y, 9);
     expect(off.z).toBeCloseTo(base.z, 9);
+  });
+
+  it('(S3a fix 2) emoteStep: blinded, seized, released while the flash still runs: no pose once released', () => {
+    // `Enemy` and the parity harness both run this; the seize hands the emote over (`emoteSeize` clears the
+    // flashbang's), so after the release the rig shows none (`releaseTakedown` clears it) and the head's pose fades
+    const st = newEmoteState();
+    const h = inp();
+    const dt = 1 / 60;
+    emoteBlind(st);
+    for (let i = 0; i < 30; i++) emoteStep(st, h, false, true, 'seized', 0.25, 0, dt);
+    expect(h.held).toBeNull();
+    expect(h.blind).toBe(1);
+    expect(h.poseW).toBe(1);
+    // seized: before contact (0.25 s) no pose is given, the flashbang's fades; from contact the held one
+    emoteSeize(st);
+    for (let i = 0; i < 6; i++) emoteStep(st, h, true, true, 'seized', 0.25, 0, dt);
+    expect(h.poseW).toBeCloseTo(0.5, 6);
+    for (let i = 0; i < 60; i++) emoteStep(st, h, true, true, 'seized', 0.25, 0, dt);
+    expect(h.held).toBe('seized');
+    expect(h.heldK).toBe(1);
+    expect(h.poseW).toBe(1);
+    for (let i = 0; i < 30; i++) emoteStep(st, h, false, true, 'seized', 0.25, 0, dt);
+    expect(h.poseW).toBe(0);
+    expect(h.held).toBe('seized');
+  });
+
+  it('(S3a fix 2) emoteStep: the flash ends, the pose fades; the knockout limp follows GuardCq.k', () => {
+    const st = newEmoteState();
+    const h = inp();
+    const dt = 1 / 60;
+    emoteBlind(st);
+    for (let i = 0; i < 30; i++) emoteStep(st, h, false, true, 'seized', 0, 0, dt);
+    expect(h.blind).toBe(1);
+    emoteBlindEnd(st);
+    for (let i = 0; i < 6; i++) emoteStep(st, h, false, true, 'seized', 0, 0, dt);
+    expect(h.poseW).toBeCloseTo(0.5, 6);
+    emoteSeize(st);
+    emoteStep(st, h, true, false, 'ko', 0, 0.4, dt);
+    expect(h.held).toBe('ko');
+    expect(h.koK).toBe(0.4);
+  });
+
+  it('(S3a fix 2) a walked hostage: the held pose plus the held walk, no free-move side offset or gait-clock bob', () => {
+    const still = head(inp({ held: 'hostage', heldK: 1, poseW: 1 }));
+    // sideways at 0.6 m/s with the frozen gait clock anywhere: the same head (the rig runs its own gait when held)
+    const a = head(inp({ held: 'hostage', heldK: 1, poseW: 1, speed: 0.6, moveX: 0.6, phase: 0 }));
+    const b = head(inp({ held: 'hostage', heldK: 1, poseW: 1, speed: 0.6, moveX: 0.6, phase: 0.37 }));
+    expect(a.x).toBeCloseTo(still.x, 9);
+    expect(a.y).toBeCloseTo(b.y, 9);
+    expect(a.z).toBeCloseTo(b.z, 9);
+    // the held walk sits lower than the held still pose (the rig's gait under the pose)
+    expect(still.y - a.y).toBeGreaterThan(0.02);
   });
 
   it('(S3a fix round) seized while blind: the held pose only (one emote at a time)', () => {
