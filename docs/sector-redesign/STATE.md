@@ -284,24 +284,27 @@ Heads: art 2276483a (#226), lampx eb45b0af (LR15 + lighting polish + atlas fix),
    views start / S3 / S4 / S5-worst, 24 guards, &guardfreeze=0 vs on (budget CPU p95 < 12; __sector.debug() guardFreeze*)
    + guard-cap. In budget -> merge master into -art, tsc + related vitest, push, message the orchestrator "train-ready #226".
    Over budget -> read frozen counts, next lever: guard-ai / guard-render proposals in campus-perf-fix.md.
-2. LR15 PR (-lampx): LR15 + lrpolish passed checkers and laptop at 0cadd6f3. eb45b0af fixes the Realistic lamp atlas
-   overflow (1023x90x2428 > MAX_3D 2048 -> black lamps, parity bug; lr-tex3d-fix.md); checker PASS (lr-tex3d-check.md, 1c22b913 docs).
-   Laptop rerun asked at eb45b0af: campusOps Realistic texImage3D warning gone, LAMP_PAGES compiles, perf + memory
-   (~205 MB VRAM), S2 / S3 sheet. Green -> merge master, open the PR against master, message the orchestrator.
+2. LR15 PR #242 OPEN (~18:50, -lampx @ 1c22b913; orchestrator told). Laptop GPU rerun at eb45b0af re-sent to Test
+   Runner (sectorops 1-6 + coop, campusOps Realistic: no texImage3D warning, LAMP_PAGES compiles, perf + VRAM, S2 / S3
+   sheet). Green -> "train-ready #242" to the orchestrator (merge master only at train entry).
 3. Polish batch PR (-artpol 1d34c348 = artpol + frzpol, checker PASS artpol-frzpol-check.md): desktop sectorops 1-6 +
    stealth-ai ALL PASS (scratch/runs/sectorpol-1d34c348/RESULT); laptop e2e-coop + perf A/B queued. Open against master after #226 merges (rebase on master);
    laptop perf A/B + door-peek / roof-shadow views.
 4. For Michael (STATE "Now"): Realistic is genuinely dimmer after the atlas fix (S2 atrium pool ~0.28 vs Classic 0.48);
    S3 hall-lit blows out to white fog in both modes (volumetric / bloom).
 5. NEW JOB LR16 (Michael ~18:08; PLAN.md "LR16", slices in checks/lr16-plan.md, 975960cc; order a -> b/c/f -> d, e -> g -> h;
-   LR16a PROTOCOL 43; LR16-0 Opus CT light / shadow
+   LR16a wire change, PROTOCOL stays master value (number set at train build, orchestrator ~18:52); LR16-0 Opus CT light / shadow
    showcase audit runs beside LR16a, gaps fold into LR16; LR16t: every guard torch
    occluded by walls / shut doors + soft torch beam edge (Michael ~18:20) - PLAN.md "LR16"): LR16a first: remove Classic + the falloff
    setting (Michael ~18:12); Realistic + character shadows on every map, fix lamp wall arcs, soft cone edges, contact-hardening penumbra, parity. Build from -lampx in the new account.
-   RUNNING ~18:25 (Opus, push WIP): LR16a on -lr16 (lr16a-build.md), LR16-0 audit (checks/lr16-0-ct-audit.md here),
-   LR16c lamp audit script on -lr16c (lr16c-lamp-audit.md), LR16-6 vision polish (Sonnet) on -lr16v (lr16v-build.md).
    LR16-0 audit DONE 34eab328: new slices LR16-1..8 in PLAN; LR16-5 moving lights needs Michael's scope; LR16-4 guard
-   relight touches guard behaviour (offer to Guard AI). Resume: check each branch, continue from its build doc.
+   relight touches guard behaviour (offer to Guard AI).
+   RUNNING ~18:50 (new account; old agents died, resumed from their WIP): LR16a Opus on -lr16 (from WIP 315a2805;
+   checks/lr16a-build.md), LR16c+LR16-2 Opus on -lr16c (lamp-audit script + run -> checks/lr16-lamp-audit.md),
+   LR16-6 Sonnet on -lr16v (checks/lr16v-build.md), LR16f Opus on NEW -lr16f off -lampx (charShadows.ts Poisson PCSS;
+   checks/lr16f-build.md). Resume: check each branch head + build doc; missing doc = rerun from lr16-plan.md row.
+   Next on their reports: LR16b (after LR16a) + LR16t torch occlusion (beside LR16b) Opus; LR16d Sonnet from the
+   LR16c table; one Opus checker for the a/c/f/6 batch.
 6. Open polish: lr15-check 1 / 2 / 4, lrpolish-check 1-6, freeze checker polish, art P6.
 Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
 Sonnet builds from strict briefs; one checker per batch; tsc / vitest slot locks C:/NightShift/scratch/sr-slot-{1,2,3,4}.lock;
