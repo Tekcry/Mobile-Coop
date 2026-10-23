@@ -119,8 +119,8 @@ describe('(sector-fixes P) every map with lasers has their panels', () => {
       expect(checkPanels(lay.lasers ?? [], lay.laserPanels ?? []), map.id).toEqual([]);
       lasers += (lay.lasers ?? []).length;
     }
-    // Sector Ops' five bands and Marlow Yard's station 4
-    expect(lasers).toBe(6);
+    // Sector Ops' five bands, Marlow Yard's station 4 and Saltmarsh Park's four (las-gown, las-store; sector-redesign slice 3; + S4's las-tray, S5's las-shaft)
+    expect(lasers).toBe(10);
     expect(WAREHOUSE_OPS_PANELS.map((p) => p.id)).toEqual(['panel-workshop', 'panel-deck', 'panel-vna', 'panel-mezz']);
     expect(WAREHOUSE_OPS_PANELS.find((p) => p.id === 'panel-mezz')!.lasers).toEqual(['laser-deck-stairs', 'laser-deck-west']);
   });

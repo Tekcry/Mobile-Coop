@@ -18,6 +18,7 @@ import { reloadClipFor } from '../anim/clips/actions';
 import { WREN_HANDS } from '../operators/handFrame';
 import { GADGETS, GadgetInventory, type GadgetId } from '../game/gadgets';
 import type { SwapReach } from '../anim/clips/actions';
+import { crateReserve } from '../game/crateLedger';
 import { LoadoutSnapshot } from './loadoutSnapshot';
 
 const modelLength = (d: WeaponDef): number => {
@@ -57,7 +58,7 @@ export interface WeaponSlot {
   sd: number;
 }
 
-export type HitKind = 'hit' | 'head' | 'kill';
+export type HitKind = 'hit' | 'head' | 'kill' | 'deflect';
 
 export interface CombatEvents {
   onHit?(kind: HitKind, weapon: WeaponId, damage: number): void;
@@ -566,6 +567,31 @@ export class PlayerWeapons {
     this.gadgets.add('frag');
   }
 
+  /**
+   * (E9-crate, A102) The weapons crate: every gun's reserve rises so that mag + reserve reaches its starting loadout
+   * (`stats.magSize + def.reserve`); never lowers, never touches the magazine, gadgets or grenades. True when any reserve
+   * changed; false with `infiniteAmmo`.
+   */
+  crateTopUp(): boolean {
+    if (this.infiniteAmmo) return false;
+    let changed = false;
+    for (const s of this.slots) {
+      const r = crateReserve(s.mag, s.reserve, s.stats.magSize, s.def.reserve);
+      if (r !== s.reserve) {
+        s.reserve = r;
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  /** (E9-crate, A103) Every gun at (or above) its starting loadout, or `infiniteAmmo`: a crate use would do nothing. */
+  atLoadout(): boolean {
+    if (this.infiniteAmmo) return true;
+    for (const s of this.slots) if (s.mag + s.reserve < s.stats.magSize + s.def.reserve) return false;
+    return true;
+  }
+
   fixedUpdate(dt: number, inp: InputState): void {
     const s = this.current;
     // (anim-natural N3) the Draw section's values for this step (identity unless a slider moved)
@@ -988,7 +1014,7 @@ export class PlayerWeapons {
       this.resolveHit(h, dir.clone(), h.distance, s);
       this.onRay?.(origin, h.point);
       // penetration: through thin world geometry, on with half the damage
-      if (s.pen > 0 && h.hit && !h.target && !h.prop) this.penetrate(h.point, dir, h.distance, s);
+      if (s.pen > 0 && h.hit && !h.target && !h.prop && !h.armoured) this.penetrate(h.point, dir, h.distance, s);
       if (!firstEnd || p % 3 === 0) {
         firstEnd = h.point;
         this.vfx.tracer(this.muzzle, h.point, def.tracer, def.pellets > 1 ? 0.012 : 0.022);
@@ -1050,7 +1076,7 @@ export class PlayerWeapons {
       t.hits++;
       if (head) t.heads++;
       if (res.killed) t.kills++;
-      this.events.onHit?.(res.killed ? 'kill' : head ? 'head' : 'hit', s.def.id, res.dealt);
+      this.events.onHit?.(res.killed ? 'kill' : res.deflect ? 'deflect' : head ? 'head' : 'hit', s.def.id, res.dealt);
     } else if (h.prop) {
       this.world.props.impulse(h.prop, dir.scale(s.def.impulse), h.point);
       this.world.props.damage(h.prop, dmg);

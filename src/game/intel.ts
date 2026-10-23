@@ -18,10 +18,15 @@ export interface GuardIntel extends GuardInfo {
   readonly codes?: readonly IntelCode[];
 }
 
-/** An enemy that may expose his patrol route (the Guard AI getter `patrolRoute`; absent: no patrol lines). */
+/** What the patrol intel reads off a guard: `Enemy` satisfies it, the route through the Guard AI getter
+ *  `Enemy.patrolRoute` (src/ai/enemy.ts; null: he stands a post). */
 export interface PatrolSource {
-  readonly pos: { x: number; y: number; z: number };
-  readonly patrolRoute?: PatrolRoute | null;
+  readonly pos: { readonly x: number; readonly y: number; readonly z: number };
+  readonly alive: boolean;
+  readonly ko: boolean;
+  readonly taken: boolean;
+  readonly def: { readonly walkSpeed: number; readonly quadruped: boolean };
+  readonly patrolRoute: PatrolRoute | null;
 }
 
 export interface IntelCam {
@@ -63,6 +68,12 @@ export function checkIntel(info: GuardIntel): string[] {
     seen.add(c.flag);
   }
   return errs;
+}
+
+/** A guard as the patrol intel sees him: standing (alive, not KO'd, not held, not a dog), his route from
+ *  `patrolRoute` and his unaware walk speed (`def.walkSpeed` x `pace`, the patrol pace `PACE.patrol`). */
+export function intelGuard(e: PatrolSource, pace: number): IntelGuard {
+  return { x: e.pos.x, y: e.pos.y, z: e.pos.z, up: e.alive && !e.ko && !e.taken && !e.def.quadruped, route: e.patrolRoute, speed: e.def.walkSpeed * pace };
 }
 
 /** Seconds for one full patrol circuit, pauses included (0: no circuit, a post). */

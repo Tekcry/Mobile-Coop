@@ -1,7 +1,7 @@
 /**
  * The canonical light-bake shapes (3.6, pure): what the lamp and moon bakes see, identical on every device, preset
  * and detail tier (bible 5.1, L1). Built straight from the level's pieces - never from what a renderer draws:
- * every visible blockout box and cylinder at least `CANON_MIN_THICK` thick, plus the Medium box dressing. Anything that exists only at higher tiers (the voxel art layer's dressing, the fine layer's
+ * every visible blockout box and cylinder at least `CANON_MIN_THICK` thick (never glass: E2, G45), plus the Medium box dressing. Anything that exists only at higher tiers (the voxel art layer's dressing, the fine layer's
  * props, the Ultra / Epic wall and floor clutter) is left out; gameplay never reads it either.
  */
 import type { BoxPiece, CylPiece } from '../world/levelBuilder';
@@ -20,7 +20,8 @@ export function canonicalLightShapes(boxes: readonly BoxPiece[], cylinders: read
   const out: VoxelShape[] = [];
   const base = boxes.filter((b) => !b.detail);
   const add = (b: BoxPiece): void => {
-    if (b.visible === false || Math.min(b.s[0], b.s[1], b.s[2]) < CANON_MIN_THICK) return;
+    // (E2, EW6) glass, clear or frosted, passes light (G45): never a light shape, whatever its other flags
+    if (b.glass || b.visible === false || Math.min(b.s[0], b.s[1], b.s[2]) < CANON_MIN_THICK) return;
     out.push({ kind: 'box', c: b.c, s: b.s, yaw: b.yaw, pitch: b.pitch, mat: 1 });
   };
   for (const b of base) add(b);

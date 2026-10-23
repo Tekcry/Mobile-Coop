@@ -136,7 +136,8 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 - (spare 9) Interrogation intel: the host / solo `intel` game event becomes `feed` events for every client (`hookHud`). A client's
   interrogation is seen on the host from its MoveState (`grab`, `sub` bit 2, `ph` >= `INTEL.donePh` then the bit drops:
   `interrogationEnded`): the host spends the guard's information and reveals the intel once. A client interrogating from the
-  hang-down (`boost`) gives only the guard's own lines (gap). No wire change.
+  hang-down (`boost`) gives only the guard's own lines (gap). No wire change. A client shows every `feed` event as the radio
+  subtitle and as a feed line (the host's intel is in its feed).
 - (anim-studio-2) Team-move animation tuning: the tuner's Co-op sections (`anim/moveTune.ts`, one per move: role A, role
   B, contact) apply to the LOCAL player's own role only (`GameState` writes `MOVE_TUNE_TEAM` from `TeamController`).
   `RemoteAvatar` never reads the live values: the partner plays the BASE table (pose-parity: `moveTuneSelectBase` with its role from the wire, `teamRowOfWire`, and its posed traversal; the Body root offsets and wall gap from its own applied base, `bodyRigRoot`), i.e. the shared defaults until an export is folded into the
