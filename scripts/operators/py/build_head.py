@@ -1276,7 +1276,7 @@ def run_haircaps(args, kit):
     baked = []
     for cap in caps:
         shell, cf, t, snapped = cap_shell(cap, S_co, S_n, S_q, edges, az, h, ears_s, face, frame)
-        obj = new_mesh_obj(f'guard-{args.base}-cap-{cap["id"]}-lod0', shell, cf)
+        obj = new_mesh_obj(f'guard-{args.base}-cap-{cap["id"]}-lod0', shell.tolist(), cf.tolist())
         vg = obj.vertex_groups.new(name='head')
         vg.add(list(range(len(shell))), 1.0, 'REPLACE')
         src_tris = tri_count(obj.data)
@@ -1356,6 +1356,11 @@ def main():
         run_haircaps(args, kit)
     elif args.head:
         run_head(args, kit)
+        if os.environ.get('GUARD_HEAD_ALSO_CAPS') and cap_styles(kit, args.base):
+            # smoke hook: a driver older than the haircaps-<base> job can still exercise the cap path in one head job
+            common.empty_scene()
+            common.seed_everything(args.seed)
+            run_haircaps(args, kit)
     else:
         raise SystemExit('build_head.py: --head <variant> or --haircaps')
 
