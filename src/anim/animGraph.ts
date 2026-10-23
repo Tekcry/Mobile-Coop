@@ -633,7 +633,7 @@ export const WALL_STANCE = { pelX: 0.05, spRoll: 0.09, pelRoll: 0.06, hdRoll: 0.
 export const WALL_SIDE_POSE = { spine: 0.14, turnFrom: 0.35, turnTo: 0.85, handAt: 0.15, handIn: 0.3, leanFwd: 1.2, narrow: 0.35 };
 /** (afp AF4b) The lowered gun crouched, added to the open-ground carry (m up / ahead, rad pitch; - muzzle up): `pistol` by the
  *  pistol's low-ready share and the crouch; `wall` side-on at a crouched wall (by the crouch and the wall blend, half
- *  raised); `pistol.kneel` m up at the middle of a kneel going down or up (4 k (1 - k) of its progress). Clears the thighs:
+ *  raised); `pistol.kneel` m up at the middle of a kneel going down or up ((4 k (1 - k))^2 of its progress: no velocity step at either end). Clears the thighs:
  *  gun vs leg capsules >= 0 and no body-clearance push flipping it between the knees (tests/crouchStrafe.test.ts). */
 export const CROUCH_GUN = { pistol: { y: 0.15, z: 0.08, pitch: -0.5, kneel: 0.2 }, wall: { y: 0.3, z: 0.1, pitch: -0.7 } } as const;
 /** (G6, AUDIT-WALLS row 9) The peek's hip shift onto the outer foot (m per rad of lean; was 0.17). */
@@ -1588,10 +1588,12 @@ export class AnimGraph {
     const pck = pistolW * crouchK * ready * cl;
     const sk = gs * wallW * ready * nw * (1 - 0.5 * this.raiseS);
     // (and through a kneel going down or coming up the body folds over the gun: the hang rises with it, CROUCH_GUN.pistol.kneel)
-    const kb = pck * 4 * this.kneelW * (1 - this.kneelW) * CG.pistol.kneel;
+    const kq = 4 * this.kneelW * (1 - this.kneelW);
+    const kb = pck * kq * kq * CG.pistol.kneel;
     src[CH.wpY] = src[CH.wpY]! + CG.pistol.y * pck + CG.wall.y * sk + kb;
     src[CH.wpZ] = src[CH.wpZ]! + CG.pistol.z * pck + CG.wall.z * sk;
-    src[CH.wpPitch] = src[CH.wpPitch]! + CG.pistol.pitch * pck + CG.wall.pitch * sk;
+    // (kneeling at the wall the trunk is upright: the muzzle is not tipped up there, or it pointed at the sky)
+    src[CH.wpPitch] = src[CH.wpPitch]! + CG.pistol.pitch * pck + CG.wall.pitch * sk * (1 - smoothstep(this.kneelW));
     // recoil absorbed through the shoulder and spine ((anim-n3b) a Wren rig: the shooting shoulder pushed back too)
     src[CH.spPitch] = src[CH.spPitch]! - rcSpine;
     src[CH.spYaw] = src[CH.spYaw]! + rcYaw;
