@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-23T10:49Z
 # guard-ai S26: guards hear you in a fight and a search (CT rule 8)
 
 Lead: Night Shift | Guard AI Build. Model: **Opus only** (AI code). The full strict brief is

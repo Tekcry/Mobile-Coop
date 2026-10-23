@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-23T10:49Z
 # guard-ai S27: role guards take cover, fire only where they can see, draw on an alarm
 
 Lead: Night Shift | Guard AI Build. Model: **Opus only** (AI code). The full strict brief is
