@@ -322,6 +322,10 @@ LATEST 16:25 Test Runner verdict: #226 perf CPU OVER at 24 guards (S5 15.6 / S3 
 19:35: #226 e2e-coop green (laptop) -> only perf views left. #232 releasing 4.78.0. Two Opus polish batches off -art
    2276483a: -artpol (art-kit P2/P3/P6/P7/P8, art P1/P2, polish2-check 1-2; artpol-build.md) and -frzpol (freeze
    retest on door / pane change, edge retest, leg point, roof moon shadow; frzpol-build.md). They ride a later batch PR.
+19:55: LR15 0cadd6f3 laptop GREEN (Classic 8/8, photo 6/6, perf in budget, photo +0.3-0.5 ms main on campus).
+   Photo logs texImage3D INVALID_VALUE and S2 atrium floor pools vanish / guards near-black -> Opus fix on -lampx
+   (checks/lr-tex3d-fix.md). For Michael: S3 hall-lit blows out to white fog in BOTH modes (volumetric / bloom).
+   frzpol d1b46acb built; one checker for artpol + frzpol when artpol lands.
 4. Polish batch 2 -polish2 cca3ccb7: checker PASS (polish2-check.md; touches src/net lamp checks, no wire change).
    Merge into -art together with the -perf fix, then one laptop batch at the new -art head: e2e-coop, e2e-sectorops 1-6,
    e2e-stealth-ai, e2e-stealth + perf rerun (MAP=campusOps MODE=sector). Still open: lr-check 1-6, lr14-check 1-7,
