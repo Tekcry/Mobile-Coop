@@ -66,6 +66,7 @@ import {
   type Grant,
   type SectionStats,
 } from '../rating/sectionRating';
+import { packRated } from '../course/courseWire';
 import { RatingCard } from '../../ui/hud/ratingCard';
 
 /** (section-rating S2) The last rated section, as the rating card reads it (S4's `RatingView` shape). */
@@ -226,6 +227,8 @@ export class SectorMode implements GameMode {
   private owed: Grant | null = null;
   /** The last rating on the wire (`rt`, copied per send). */
   private readonly rt: SectorRatingWire = { sec: -1, marks: 0, synced: 0, gadget: 0, syringe: 0, medkit: 0, alarmStep: 0 };
+  /** (marlow-polish) Each rated section's synced takedowns, by index (with `run.marks`, the wire's `rh`). */
+  private readonly ratedSynced: number[] = [];
   private readonly hook: SectionRatingHook = { stats: this.secStats, last: null, lastGrant: null };
   private readonly offs: (() => void)[] = [];
   /** (section-rating integration) The rating card on this machine's HUD (host / solo; the client has its own). */
@@ -995,6 +998,7 @@ export class SectorMode implements GameMode {
     const marks = rateSection(st, DEFAULT_RULES);
     const synced = st.synced;
     this.run.marks[i] = marks;
+    this.ratedSynced[i] = synced;
     let gadgetsAtStart = 0;
     for (const id of GRANT_GADGETS) gadgetsAtStart += GADGETS[id].carry;
     const preset = syringesFor(g.opts.difficulty);
@@ -1289,7 +1293,8 @@ export class SectorMode implements GameMode {
   private netExtra(ct: CtDevices): SectorNetExtra {
     const lk: number[] = [];
     for (const d of this.g.world.doors.list) if (d.anchor.locked) lk.push(d.index);
-    return { ls: ct.liveSection, lk, dn: ct.destroyedIds([]), sy: this.g.net?.revivesLeft?.() ?? 0, rt: { ...this.rt } };
+    const rh = this.rt.sec >= 0 ? packRated(this.run.marks, this.ratedSynced) : undefined;
+    return { ls: ct.liveSection, lk, dn: ct.destroyedIds([]), sy: this.g.net?.revivesLeft?.() ?? 0, rt: { ...this.rt }, ...(rh ? { rh } : {}) };
   }
 
   /** Co-op host: the client's held jammer target. */

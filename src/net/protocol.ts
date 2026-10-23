@@ -525,6 +525,9 @@ function sectorExtra(raw: Record<string, unknown>): Partial<SectorNetExtra> {
   if (sy !== null) out.sy = Math.round(sy);
   const rt = ratingWire(raw.rt);
   if (rt) out.rt = rt;
+  // (marlow-polish, inside 42) every section rated so far, as the course message's `rh`
+  const rh = courseRh(raw.rh).rh;
+  if (rh) out.rh = rh;
   return out;
 }
 

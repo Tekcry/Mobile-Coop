@@ -24,7 +24,7 @@ import { PartnerTarget } from './partnerTarget';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
 import type { TeamMate } from '../game/teamController';
 import type { TeamKind } from '../game/teamMoves';
-import { clampEnd, clientForcedHolster, coopSessionStats, ratingViewFromWire } from './validate';
+import { clampEnd, clientForcedHolster, coopSessionStats, ratingViewFromWire, ratingViewsFromRh } from './validate';
 import { RatingCard, type RatingView } from '../ui/hud/ratingCard';
 import { GADGETS } from '../game/gadgets';
 import { GRANT_GADGETS } from '../game/rating/sectionRating';
@@ -774,6 +774,8 @@ export class CoopClient implements NetAttachment {
       // (integration) a late join / rejoin: a rating already on the wire was shown and granted before we came; it
       // only goes to the results list (no card, no top-up)
       this.sawSector = true;
+      // (marlow-polish) every section rated before the last one, from `rh` (results lines only)
+      if (msg.rh) for (const v of ratingViewsFromRh(msg.rh, msg.rt?.sec ?? -1, this.g.world.map.sectors ?? [])) this.g.sectionRatings.push(v);
       if (msg.rt) {
         this.ratedSec = msg.rt.sec;
         const v = ratingViewFromWire(msg.rt, this.g.world.map.sectors ?? []);

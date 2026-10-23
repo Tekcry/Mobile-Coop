@@ -16,6 +16,7 @@ import { attachPose, type AttachPose } from '../player/attach';
 import type { TraversalAnchors } from '../world/anchors';
 import type { SectorRatingWire } from '../game/sectors';
 import type { RatingView } from '../ui/hud/ratingCard';
+import { unpackRated } from '../game/course/courseWire';
 
 export interface V3 {
   x: number;
@@ -265,4 +266,21 @@ export function ratingViewFromWire(rt: SectorRatingWire, defs: readonly { id: st
     synced: rt.synced,
     grant: { gadget: rt.gadget, syringe: rt.syringe, medkit: rt.medkit, alarmStep: rt.alarmStep },
   };
+}
+
+/**
+ * (marlow-polish) A late joiner's / reloaded rejoiner's results lines from the `sector` message's `rh` (already clamped
+ * by the parser): one view per rated section of this map, in index order, skipping `skip` (the section `rt` carries,
+ * pushed on its own). No grant: those were given before we came.
+ */
+export function ratingViewsFromRh(rh: readonly number[], skip: number, defs: readonly { id: string; name: string }[]): RatingView[] {
+  const out: RatingView[] = [];
+  for (let i = 0; i < rh.length && i < defs.length; i++) {
+    if (i === skip) continue;
+    const r = unpackRated(rh[i]!);
+    if (!r) continue;
+    const d = defs[i]!;
+    out.push({ sectionId: d.id, title: d.name, marks: r.marks, synced: r.synced, grant: { gadget: 0, syringe: 0, medkit: 0, alarmStep: 0 } });
+  }
+  return out;
 }
