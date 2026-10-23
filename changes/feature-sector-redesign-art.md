@@ -13,3 +13,5 @@ kind: minor
   rolling stacks, strongroom fronts and time lock, balustrades, chimney stacks, trees and the van.
 - Sector Ops campusOps: guard gear tags (helmets on the S4 / S5 late guards) and response-team sweep points for S4 and S5
   (data for the guard AI; dressing keeps clear of the sweep points).
+- Sector Ops campusOps: with guard-render in, the per-view guard limit rises from 6 awake guards to 12 guards in sight,
+  every guard counted (A99), so S4 and S5 run their full 20 / 24 guards.
