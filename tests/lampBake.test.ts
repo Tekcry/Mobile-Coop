@@ -159,7 +159,11 @@ describe('(LR16e) penumbra', () => {
     // (to the mm: the 2 mm march adds float noise)
     return Math.round((t90 - t10) * 1000) / 1000;
   }
-  // (the floor's first air row has its centres at y = 0.2; the boxes' x and z centres sit at 0.1 + 0.2 k)
+  // (the floor's first air row has its centres at y = 0.2; the boxes' x and z centres sit at 0.1 + 0.2 k. (LR16-L) The box's
+  // cell planes run through the light point, so the edge tests hang their lamps at odd tenths (3.1, 2.3): the planes then
+  // lie at odd tenths and these rows stay cell-centre rows, as on the old grid from lo -0.5. At 3.0 the 0.2 row would sit
+  // on a cell plane, half in the floor's solid row.)
+  const Y = 3.1;
   const crate = box([1.5, 0.3, 0], [0.6, 0.6, 0.6]);
   const slab = (h: number): VoxelShape => box([2.5, h + 0.05, 0], [3, 0.1, 6]);
   const fence = (h: number): VoxelShape => box([1, h / 2, 0], [0.1, h, 6]);
@@ -181,7 +185,7 @@ describe('(LR16e) penumbra', () => {
 
   it('contact shadow stays sharp (edge width <= 0.25 m at a crate\'s foot)', () => {
     for (const s of [0.3, 0.6]) {
-      const r = bakeP([floor, crate], [panel(0, 3, 0, s)]);
+      const r = bakeP([floor, crate], [panel(0, Y, 0, s)]);
       // the shadow's side, just past the crate, and its far end
       expect(edgeWidth(r, [2.1, 0.2, 0.1], [0, 0, 1], 1.2), `side, s ${s}`).toBeLessThanOrEqual(0.25);
       expect(edgeWidth(r, [2.1, 0.2, 0.1], [1, 0, 0], 1), `end, s ${s}`).toBeLessThanOrEqual(0.25);
@@ -190,19 +194,20 @@ describe('(LR16e) penumbra', () => {
 
   it('a raised occluder\'s shadow is soft (>= 0.4 m at 1.5 m)', () => {
     // a 0.3 m panel 0.7 m over a slab 1.5 m up: s x 1.5 / 0.7, more than a cell
-    const near = bakeP([floor, slab(1.5)], [panel(0, 2.2, 0, 0.3)]);
+    const near = bakeP([floor, slab(1.5)], [panel(0, 2.3, 0, 0.3)]);
     expect(edgeWidth(near, [0.5, 0.2, 0.1], [1, 0, 0], 3)).toBeGreaterThanOrEqual(0.4);
     // the same panel 3 m up (s x 1.5 / 1.5 = 0.3 m): softer than the LR16b grid edge too
-    const high = bakeP([floor, slab(1.5)], [panel(0, 3, 0, 0.3)]);
-    const old = bakeP([floor, slab(1.5)], [panel(0, 3, 0, 0.3)], false);
+    const high = bakeP([floor, slab(1.5)], [panel(0, Y, 0, 0.3)]);
+    const old = bakeP([floor, slab(1.5)], [panel(0, Y, 0, 0.3)], false);
     expect(edgeWidth(old, [0.5, 0.2, 0.1], [1, 0, 0], 3)).toBeLessThan(0.17);
     expect(edgeWidth(high, [0.5, 0.2, 0.1], [1, 0, 0], 3)).toBeGreaterThanOrEqual(0.24);
   });
 
   it('penumbra width grows with the receiver-occluder gap', () => {
     for (const s of [0.3, 0.6]) {
-      const w = [0.3, 0.8, 1.5].map((h) => edgeWidth(bakeP([floor, fence(h)], [panel(0, 3, 0, s)]), [1.3, 0.2, 0.1], [1, 0, 0], 3.5));
-      expect(w[1]!, `s ${s}: ${w.join(' / ')}`).toBeGreaterThanOrEqual(w[0]!);
+      const w = [0.3, 0.8, 1.5].map((h) => edgeWidth(bakeP([floor, fence(h)], [panel(0, Y, 0, s)]), [1.3, 0.2, 0.1], [1, 0, 0], 3.5));
+      // (LR16-L: s 0.3 reads 0.162 / 0.160, both at the contact width; 2 mm is the march's noise)
+      expect(w[1]!, `s ${s}: ${w.join(' / ')}`).toBeGreaterThanOrEqual(w[0]! - 0.005);
       expect(w[2]!, `s ${s}: ${w.join(' / ')}`).toBeGreaterThan(w[1]! + 0.2);
       // (a 0.6 m panel already softens the 0.8 m fence's edge)
       if (s === 0.6) expect(w[1]!).toBeGreaterThan(w[0]!);
