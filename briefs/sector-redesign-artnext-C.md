@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-23T20:07+1100
+status: done feature/sector-redesign-artnext-c 56557b58
 
 Lead note (Sector Ops Build ~20:15): build LANE C items C1-C6 ONLY (render-freeze polish in src/game/sectorGuardFreeze.ts, src/game/sectorGuardFreezeView.ts and their tests). C7-C9 (src/ai/animFrozen.ts, src/ai/enemy.ts) wait: animFrozen.ts folds into master's animTier.ts when #226 enters its train; the lead does them then. BASE: feature/sector-redesign-artpol @ 72e87171. New branch feature/sector-redesign-artnext-c. Lanes A / B / D are another brief (-artnext): do not touch src/world/campusArt/*, campusDress.ts, campusS*Dress.ts, docs other than the report. Render only, host and client the same; gameplay reads nothing here; hot paths do not allocate. Unit tests only (tsc + the lane C test files, --maxWorkers=2). Report: docs/sector-redesign/checks/artnext-c-build.md.
 
@@ -103,3 +103,23 @@ cover data in the greybox sections (`campusS{1..5}.ts`), `?voxels=1` path (retir
 ## Model and size
 Lane A Opus (~0.75 window), lane B Sonnet (~1 window, 5 sections, may split per section), lane C Opus (~0.5 window),
 lane D Haiku (~0.2). Fresh checker: Sonnet for lanes B / D, Opus for A / C.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-23)
+Built `feature/sector-redesign-artnext-c` @ 56557b58 on 72e87171, C1-C6 only (C7-C9, `animFrozen.ts`, `enemy.ts`
+untouched). Full report: `docs/sector-redesign/checks/artnext-c-build.md`.
+- C1 already done: `sectorGuardFreezeView.ts:213-216` (bits gain -> hidden memo `memoWait = 0`, urgent; existing test).
+- C2 already done: `sectorGuardFreeze.ts:138`, `:170` (`FREEZE_KNEE` 0.4; existing test).
+- C3 already done: `sectorGuardFreeze.ts:190-226`, `sectorGuardFreezeView.ts:265-276` (`shadowProbe` / `shadowLanding`).
+- C4 done (test only): `tests/sectorGuardFreezeView.test.ts:280-316`, two NullEngine rigs, one frozen; neck / headNode /
+  hips equal to 1e-6 after a forced world matrix.
+- C5: `STALE = RETEST` already on base (`sectorGuardFreezeView.ts:51`, used `:233`); test "over budget, a due non-edge
+  hidden guard is drawn" added (`tests/sectorGuardFreezeView.test.ts:318-357`).
+- C6 done: `FreezeRay` carries an optional `recasts` counter, `seeThroughRay` counts every cast after the first, the
+  freeze adds the evaluation's delta to `rays` (`sectorGuardFreezeView.ts:30-33, 79-101, 137, 185, 251-252`); no
+  per-frame allocation. Test `tests/sectorGuardFreezeSeeThrough.test.ts:220-256`.
+- C4 / C5 tests verified to fail on the broken code (old STALE 8; frozen rig not animated), then reverted.
+Tests: tsc clean; eslint clean on changed files; sectorGuardFreeze 13 / 13, sectorGuardFreezeView 8 -> 10,
+sectorGuardFreezeSeeThrough 6 -> 7 (27 -> 30, all pass).
+Notes: C4 checks the rig, not the in-game frame: the frozen anim tier (`enemy.ts:2803`) skips `rig.animate` while frozen,
+so forced limbs keep the pre-freeze pose until thaw (that is C7). `__sector.debug().guardFreezeRays` now includes
+recasts; the old ray bound (`TESTS_PER_EVAL x FREEZE_TEST_RAYS`) counts first casts only, plus up to 6 recasts each.
