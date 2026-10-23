@@ -355,13 +355,13 @@ describe('applyGear', () => {
     }
   });
 
-  it('heavy always plate_heavy + helmet_heavy + balaclava, whatever the flags', () => {
+  it('heavy always plate_heavy + balaclava; helmet_heavy only with the helmet bit (strict A5)', () => {
     for (const seed of SEEDS) {
       const v = look(seed, 'heavy', 'ctcourse');
       for (let bits = 0; bits < 8; bits++) {
         const p = pieces(v, (bits & 1) !== 0, (bits & 2) !== 0, (bits & 4) !== 0, 'heavy');
         expect(hasPiece(p, 'plate_heavy')).toBe(true);
-        expect(hasPiece(p, 'helmet_heavy')).toBe(true);
+        expect(hasPiece(p, 'helmet_heavy')).toBe((bits & 1) !== 0);
         expect(hasPiece(p, 'balaclava')).toBe(true);
         expect(hasPiece(p, 'helmet_std')).toBe(false);
         expect(hasPiece(p, 'shield_riot')).toBe(false);
@@ -370,12 +370,12 @@ describe('applyGear', () => {
     }
   });
 
-  it('enforcer always helmet_heavy + plate_heavy + shield_riot + balaclava (plated in enemies.json, A5)', () => {
+  it('enforcer always plate_heavy + shield_riot + balaclava; helmet_heavy only with the helmet bit (A5)', () => {
     for (const seed of SEEDS) {
       const v = look(seed, 'enforcer', 'ctcourse');
       for (let bits = 0; bits < 8; bits++) {
         const p = pieces(v, (bits & 1) !== 0, (bits & 2) !== 0, (bits & 4) !== 0, 'enforcer');
-        expect(hasPiece(p, 'helmet_heavy')).toBe(true);
+        expect(hasPiece(p, 'helmet_heavy')).toBe((bits & 1) !== 0);
         expect(hasPiece(p, 'plate_heavy')).toBe(true);
         expect(hasPiece(p, 'shield_riot')).toBe(true);
         expect(hasPiece(p, 'balaclava')).toBe(true);

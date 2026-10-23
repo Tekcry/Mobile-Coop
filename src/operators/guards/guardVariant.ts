@@ -280,7 +280,7 @@ export function guardVariant(seed: number, kind: string, mapId: string, out: Gua
  *  - A helmet replaces the headwear and hides the hair cap; a balaclava stays under it. With the helmet knocked off
  *    (`helmet` false) the headwear and hair come back.
  *  - plate_heavy for `plated` and always for heavy and enforcer (both `plated` in enemies.json; BRIEF A5: what stops a
- *    round is drawn); heavy and enforcer always wear helmet_heavy and the balaclava; the enforcer holds shield_riot.
+ *    round is drawn); heavy and enforcer wear the balaclava always and helmet_heavy only while `helmet` is set (strict A5); the enforcer holds shield_riot.
  *    A plate carrier replaces the soft vest.
  *  - Beanie, balaclava and helmets hide the hair cap; caps, boonie and headset leave it.
  */
@@ -290,7 +290,8 @@ export function applyGear(v: GuardVariant, helmet: boolean, armour: boolean, pla
   const heavy = kind === 'heavy';
   const enforcer = kind === 'enforcer';
   const heavyKit = heavy || enforcer;
-  const helmetOn = helmet || heavyKit;
+  // strict A5 (lead, G0 open item): a helmet is drawn only while the gameplay helmet bit is set, for every kind
+  const helmetOn = helmet;
 
   ids[n++] = v.head;
 
