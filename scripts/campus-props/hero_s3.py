@@ -32,7 +32,7 @@ LOOK = [
     ('steel', '#7c7f82', 0.55, 0.6), ('steelDark', '#2c2e30', 0.5, 0.5), ('galv', '#adafb1', 0.45, 0.9),
     ('plastic', '#1b1b1c', 0.6, 0.0), ('white', '#e8e8e4', 0.5, 0.0), ('safety', '#f2b705', 0.5, 0.1),
     ('timber', '#a8875c', 0.85, 0.0), ('cardboard', '#a67b4f', 0.9, 0.0), ('labWhite', '#dfe2e0', 0.45, 0.0),
-    ('epoxy', '#6c7a6f', 0.35, 0.0), ('copper', '#b0643a', 0.35, 1.0),
+    ('epoxy', '#6c7a6f', 0.35, 0.0), ('copper', '#b0643a', 0.35, 1.0), ('red', '#c0262b', 0.5, 0.1),
 ]
 lib.set_materials({n: (lin(h), r, m, (0, 0, 0)) for n, h, r, m in LOOK})
 
@@ -211,6 +211,27 @@ def hazard_plate():
     box(p, 'safety', (-0.015, 1.33, 0.018), (0.015, 1.355, 0.02))
 
 
+
+
+def gas_bottles():
+    """The gas cage's cylinder store (box 2.4 x 1.6 x 3.1; fits the greybox bottle block): 4 x 5 bottles, valve shoulders,
+    chain rails over the tops, a plinth."""
+    p = 'gasBottles'
+    box(p, 'steelDark', (-1.205, 0.0, -1.555), (1.205, 0.08, 1.555))
+    mats = ('red', 'safety', 'steel')
+    for i in range(4):
+        for j in range(5):
+            x = -1.2 + 2.4 * (i + 0.5) / 4
+            z = -1.55 + 3.1 * (j + 0.5) / 5
+            m = mats[(i + j) % 3]
+            cyl(p, m, (x, 0.79, z), 0.24, 1.38, segs=6)
+            cyl(p, m, (x, 1.535, z), 0.24, 0.11, segs=6, r2=0.08)
+    for z in (-1.0, 1.0):
+        box(p, 'galv', (-1.205, 1.575, z - 0.02), (1.205, 1.605, z + 0.02))
+    for x in (-1.2, 1.2):
+        box(p, 'galv', (x - 0.005, 1.575, -1.555), (x + 0.005, 1.605, 1.555))
+
+
 def log_desk():
     """The burn-in log desk (box 2 x 0.9 x 0.8; front +z): cabinet, worktop, a monitor and keyboard on top."""
     p = 'logDesk'
@@ -236,6 +257,7 @@ BUILDERS = {
     'stickyMat': sticky_mat,
     'hazardPlate': hazard_plate,
     'logDesk': log_desk,
+    'gasBottles': gas_bottles,
 }
 
 

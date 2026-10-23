@@ -232,6 +232,28 @@
      0.405
     ]
    }
+  },
+  "gasBottles": {
+   "meshes": {
+    "steelDark": 12,
+    "red": 280,
+    "safety": 280,
+    "steel": 240,
+    "galv": 48
+   },
+   "triangles": 860,
+   "bounds": {
+    "min": [
+     -1.205,
+     0.0,
+     -1.555
+    ],
+    "max": [
+     1.205,
+     1.605,
+     1.555
+    ]
+   }
   }
  },
  "materials": [
@@ -245,10 +267,11 @@
   "cardboard",
   "labWhite",
   "epoxy",
-  "copper"
+  "copper",
+  "red"
  ],
  "blender": "5.2.2 LTS",
  "seed": 1015,
- "bytes": 175100,
- "triangles": 2444
+ "bytes": 226428,
+ "triangles": 3304
 }

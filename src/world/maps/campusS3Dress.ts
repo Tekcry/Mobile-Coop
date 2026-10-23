@@ -14,7 +14,7 @@
 import type { ArtTag } from '../campusArt/artTags';
 import type { PropCatalogue, V3 } from '../campusArt/catalogue';
 import type { CampusDresser } from '../campusArt/dresser';
-import { boxAt, boxesIn } from '../campusArt/geometry';
+import { boxAt } from '../campusArt/geometry';
 import { CAMPUS_LOOK } from '../campusArt/campusKit';
 import { PROP_LOOK } from '../props/facilityProps';
 import heroReport from '../campusArt/assets/hero-s3.json';
@@ -45,7 +45,7 @@ const bounds: Record<string, { lo: V3; hi: V3 }> = Object.fromEntries(
   ]),
 );
 
-const H3_IDS = ['chamberWall', 'condensingUnit', 'emcPanel', 'hoardingPanel', 'stockShelf', 'craneGirder', 'cleanBench', 'passBox', 'stickyMat', 'hazardPlate', 'logDesk'] as const;
+const H3_IDS = ['chamberWall', 'condensingUnit', 'emcPanel', 'hoardingPanel', 'stockShelf', 'craneGirder', 'cleanBench', 'passBox', 'stickyMat', 'hazardPlate', 'logDesk', 'gasBottles'] as const;
 const footprint: Record<string, readonly [number, number, number, number]> = Object.fromEntries(H3_IDS.map((id) => [id, [bounds[id]!.lo[0], bounds[id]!.lo[2], bounds[id]!.hi[0], bounds[id]!.hi[2]] as const]));
 
 /**
@@ -58,7 +58,7 @@ export const HERO_S3: PropCatalogue | null = {
   id: 'H3',
   glb: 'hero-s3.glb',
   ids: H3_IDS,
-  materials: ['steel', 'steelDark', 'galv', 'plastic', 'white', 'safety', 'timber', 'cardboard', 'labWhite', 'epoxy', 'copper'],
+  materials: ['steel', 'steelDark', 'galv', 'plastic', 'white', 'safety', 'timber', 'cardboard', 'labWhite', 'epoxy', 'copper', 'red'],
   looks: { ...PROP_LOOK, ...CAMPUS_LOOK },
   collision: {
     chamberWall: null,
@@ -73,14 +73,15 @@ export const HERO_S3: PropCatalogue | null = {
     stickyMat: null,
     hazardPlate: null,
     logDesk: null,
+    gasBottles: null,
   },
   footprint,
-  triBudget: { chamberWall: 450, condensingUnit: 500, emcPanel: 460, hoardingPanel: 150, stockShelf: 210, craneGirder: 800, cleanBench: 300, passBox: 80, stickyMat: 12, hazardPlate: 60, logDesk: 200 },
+  triBudget: { chamberWall: 450, condensingUnit: 500, emcPanel: 460, hoardingPanel: 150, stockShelf: 210, craneGirder: 800, cleanBench: 300, passBox: 80, stickyMat: 12, hazardPlate: 60, logDesk: 200, gasBottles: 900 },
   hung: [],
-  fit: ['chamberWall', 'condensingUnit', 'emcPanel', 'hoardingPanel', 'stockShelf', 'logDesk'],
+  fit: ['chamberWall', 'condensingUnit', 'emcPanel', 'hoardingPanel', 'stockShelf', 'logDesk', 'gasBottles'],
   overhang: { logDesk: { by: 0.5, what: 'the monitor, keyboard and log book on the worktop' } },
   emissive: {},
-  pitch: { chamberWall: 8, condensingUnit: 2, emcPanel: 6, hoardingPanel: 1.2, stockShelf: 1.45, craneGirder: 20.4, cleanBench: 1.8, passBox: 0.6, stickyMat: 1.2, hazardPlate: 0.4, logDesk: 2 },
+  pitch: { chamberWall: 8, condensingUnit: 2, emcPanel: 6, hoardingPanel: 1.2, stockShelf: 1.45, craneGirder: 20.4, cleanBench: 1.8, passBox: 0.6, stickyMat: 1.2, hazardPlate: 0.4, logDesk: 2, gasBottles: 2.4 },
   bounds,
   classOf: {
     chamberWall: 'skin',
@@ -94,6 +95,7 @@ export const HERO_S3: PropCatalogue | null = {
     stickyMat: 'visual',
     hazardPlate: 'visual',
     logDesk: 'skin',
+    gasBottles: 'skin',
   },
 };
 
@@ -144,11 +146,10 @@ export function dressS3(d: CampusDresser): void {
   const [qx0, qz0, qx1, qz1] = S3_BOX.screen;
   d.skinRow('H3:hoardingPanel', boxAt(bx, (qx0 + qx1) / 2, 1.5, (qz0 + qz1) / 2), false, -1, { why: 'the crane bay board screen: plywood hoarding' });
   // the dock desk: the one 0.75 m box in the dock (the brief's dispatchDesk is 1.14 tall: it cannot skin 0.75)
-  const desks = boxesIn(bx, 22, -8, 40, 0, 0.3, 1.0).filter((i) => bx[i]!.s[1] > 0.7 && bx[i]!.s[1] < 1.0 && bx[i]!.s[0] > 1 && bx[i]!.s[0] < 2);
-  if (desks.length === 1) {
-    d.skin('F:officeDesk', desks[0]!, PI, { why: 'the goods-in dock desk against the north wall' });
-    S3_HERO_LOG.push('dock desk: F officeDesk (the brief names dispatchDesk, which is 1.14 tall and cannot skin the 0.75 m box)');
-  } else S3_HERO_LOG.push(`dock desk: skipped, ${desks.length} candidate boxes in s3-dock`);
+  d.skin('F:officeDesk', boxAt(bx, 31.5, 0.375, -1.0), PI, { why: 'the goods-in dock desk against the north wall' });
+  S3_HERO_LOG.push('dock desk: F officeDesk (the brief names dispatchDesk, which is 1.14 tall and cannot skin the 0.75 m box)');
+  // the gas cage's bottle block: a hero skin (the kit gasCylinders cannot stand beside a block that fills the cage)
+  d.skin('H3:gasBottles', boxAt(bx, 38.2, 0.8, -2.05), 0, { why: 'the gas cage cylinder store (dark)' });
   // the store's shelving partition (x 48.5, the aisle gap z -4.6..-3.4 stays open)
   d.skinRow('H3:stockShelf', boxAt(bx, 48.5, L1 + 1.2, -5.225), false, -1, { why: 'the store shelving partition, south run' });
   d.skinRow('H3:stockShelf', boxAt(bx, 48.5, L1 + 1.2, -2.575), false, -1, { why: 'the store shelving partition, north run' });
@@ -159,10 +160,8 @@ export function dressS3(d: CampusDresser): void {
   place(d, 'passBox', 'H3:passBox', L1, [[32.85, -5.0, (3 * PI) / 2], [32.85, -1.2, (3 * PI) / 2]], { cls: 'visual', why: 'the clean room pass-through hatch on the gowning / clean partition, beside the beam curtain' });
   place(d, 'stickyMat (door)', 'H3:stickyMat', L1, [[31.2, -4.1, 0], [31.2, -3.9, 0], [31.2, -3.5, 0]], { cls: 'visual', why: 'tacky mat inside the gowning room door' });
   place(d, 'stickyMat (clean)', 'H3:stickyMat', L1, [[32.3, -3.0, PI / 2], [32.3, -3.2, PI / 2], [32.2, -2.8, PI / 2]], { cls: 'visual', why: 'tacky mat at the pass-through to the clean room' });
-  place(d, 'holdingBench', 'F:holdingBench', L1, [[31.5, -5.4, 0], [30.4, -2.0, PI / 2], [30.4, -3.0, PI / 2], [31.5, -0.4, PI], [32.4, -2.0, PI / 2]], { cls: 'see', why: 'the gowning bench' });
-  for (const z of [-0.8, -2.0, -3.2, -4.4]) place(d, `kitCaseWall z ${z}`, 'F:kitCaseWall', L1, [[30.15, z, PI / 2]], { cls: 'see', why: 'a gown locker module on the gowning room west wall' });
-  place(d, 'gasCylinders A', 'K:gasCylinders', 0, [[36.4, -3.0, PI / 2], [36.4, -3.2, PI / 2], [36.4, -3.4, PI / 2]], { cls: 'see', why: 'gas bottles inside the gas cage against the blockwork wall' });
-  place(d, 'gasCylinders B', 'K:gasCylinders', 0, [[36.4, -1.7, PI / 2], [36.4, -1.9, PI / 2], [36.4, -2.1, PI / 2], [36.4, -2.3, PI / 2]], { cls: 'see', why: 'gas bottles inside the gas cage against the blockwork wall' });
+  place(d, 'holdingBench', 'F:holdingBench', L1, [[31.5, -5.4, 0], [30.4, -2.0, PI / 2], [30.4, -3.0, PI / 2], [31.5, -0.4, PI], [32.4, -2.0, PI / 2], [32.6, -1.2, (3 * PI) / 2], [32.6, -1.5, (3 * PI) / 2], [30.4, -1.0, PI / 2], [30.4, -5.0, PI / 2]], { cls: 'see', why: 'the gowning bench' });
+  for (const z of [-0.8, -2.0, -3.2, -4.4]) place(d, `kitCaseWall z ${z}`, 'F:kitCaseWall', L1, [[30.15, z, PI / 2], [32.85, z, (3 * PI) / 2]], { cls: 'see', why: 'a gown locker module on the gowning room west wall' });
   // hazard plates: the gas cage's blockwork wall (the cage has no door box; the plate faces the dock), the las-gown panel's wall
   // 0.85 m beside it, las-store's partition run beside the beam gap, the EMC door
   place(d, 'hazardPlate gas', 'H3:hazardPlate', 0, [[35.85, -2.0, (3 * PI) / 2], [35.85, -3.0, (3 * PI) / 2], [35.85, -1.0, (3 * PI) / 2]], { cls: 'visual', why: 'gas store warning on the cage blockwork wall' });
