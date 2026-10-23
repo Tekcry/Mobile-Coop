@@ -28,7 +28,6 @@ import type { CtDevices as CtDevicesT } from '../src/game/ctDevices';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { MAPS } from '../src/world/maps';
 import { warehouseOps } from '../src/world/maps/warehouseOps';
-import { ctcourse, S4_PANEL, S4_PANEL_JAM } from '../src/world/maps/ctcourse';
 import { WAREHOUSE_OPS_PANELS } from '../src/world/maps/warehouseSectors';
 import { SightWorld } from '../src/game/sectorCheck';
 import { distToSegment } from '../src/game/jammer';
@@ -117,10 +116,13 @@ describe('(sector-fixes P) every map with lasers has their panels', () => {
     for (const map of MAPS) {
       const lay = map.build(new LevelBuilder(), 0);
       expect(checkPanels(lay.lasers ?? [], lay.laserPanels ?? []), map.id).toEqual([]);
-      lasers += (lay.lasers ?? []).length;
+      // (marlow-final 0d) Marlow Yard's lasers come and go with its set slices (A5, A8): the frame there checks them
+      if (map.id !== 'ctcourse') lasers += (lay.lasers ?? []).length;
     }
-    // Sector Ops' five bands, Marlow Yard's station 4 and Saltmarsh Park's four (las-gown, las-store; sector-redesign slice 3; + S4's las-tray, S5's las-shaft)
-    expect(lasers).toBe(10);
+    // Sector Ops' five bands and Saltmarsh Park's four (las-gown, las-store; sector-redesign slice 3; + S4's las-tray,
+    // S5's las-shaft) = 9. Marlow Yard's lasers are left out above (marlow-final 0d); master's count of 10 included
+    // Marlow Yard's station 4
+    expect(lasers).toBe(9);
     expect(WAREHOUSE_OPS_PANELS.map((p) => p.id)).toEqual(['panel-workshop', 'panel-deck', 'panel-vna', 'panel-mezz']);
     expect(WAREHOUSE_OPS_PANELS.find((p) => p.id === 'panel-mezz')!.lasers).toEqual(['laser-deck-stairs', 'laser-deck-west']);
   });
@@ -133,7 +135,7 @@ describe('(sector-fixes P) every map with lasers has their panels', () => {
  * `JAMMER.losSlack` (the jam's own line test).
  */
 interface Place {
-  map: 'w' | 'c';
+  map: 'w';
   panel: LaserPanelDef;
   jam: [number, number, number];
   hidden: [number, number, number, number, number][];
@@ -148,17 +150,13 @@ const PLACES: Place[] = [
   { map: 'w', panel: W('panel-vna'), jam: [-18.75, 4.0, 12.5], hidden: [[-19.6, 8, -12.6, 17.6, 0]] },
   // the deck strip both bands cross, and the hall floor south of the deck; jammed along the slot behind the shelving
   { map: 'w', panel: W('panel-mezz'), jam: [19, 0, 17.4], hidden: [[8.5, 12.2, 23.5, 14.2, 3.3], [0, 0, 23.5, 11, 0]] },
-  // station 4: the near side's south half (the airlock door and the gap's south end); jammed diagonally through the gap
-  { map: 'c', panel: S4_PANEL, jam: [S4_PANEL_JAM[0], 0, S4_PANEL_JAM[1]], hidden: [[66.5, 0.5, 74.5, 4.5, 0]] },
 ];
 
 describe('(sector-fixes P) each panel: near its band, hidden from the floor round it, jammable from a spot a player reaches', () => {
   const bw = new LevelBuilder();
   const wl = warehouseOps.build(bw, 0);
-  const bc = new LevelBuilder();
-  const cl = ctcourse.build(bc, 0);
-  const worlds = { w: new SightWorld(bw.boxes, bw.cylinders), c: new SightWorld(bc.boxes, bc.cylinders) };
-  const lasersOf = { w: wl.lasers ?? [], c: cl.lasers ?? [] };
+  const worlds = { w: new SightWorld(bw.boxes, bw.cylinders) };
+  const lasersOf = { w: wl.lasers ?? [] };
   /** The jam's line test: clear up to `JAMMER.losSlack` short of the target (`CtDevices.clearFrom`). */
   const jamLine = (w: SightWorld, ax: number, ay: number, az: number, t: { x: number; y: number; z: number }): boolean => {
     const d = hyp3(t.x - ax, t.y - ay, t.z - az);
@@ -363,6 +361,39 @@ describe('(sector-fixes P) CtDevices: jamming the panel cuts its lasers', () => 
     m.dev.dispose();
   });
 
+  it('(S3-7 S1) the props renderer is told each laser\'s state on its change: dark while the panel is jammed and rebooting, lit again after (the beam towers\' lenses)', () => {
+    const w = world();
+    const calls: string[] = [];
+    (w.g.world as unknown as { facilityProps: unknown }).facilityProps = { setDevice: (id: string, on: boolean) => calls.push(`${id}:${on}`) };
+    const dev = new CtDevices(w.g as never, 'host', { say: () => undefined, record: () => undefined, dirty: () => undefined });
+    step(dev, 0.2);
+    expect(calls).toEqual([]);
+    step(dev, 0.5, 'p1');
+    expect(calls.sort()).toEqual([`${L1.id}:false`, `${L2.id}:false`].sort());
+    calls.length = 0;
+    step(dev, JAMMER.reboot + 0.3);
+    expect(calls.sort()).toEqual([`${L1.id}:true`, `${L2.id}:true`].sort());
+    dev.dispose();
+  });
+
+  it('(S3-7 S1) co-op: a client mirror tells the props renderer each laser\'s state too: dark when a snapshot jams the panel, lit again after the reboot', () => {
+    const h = make('host');
+    const c = make('client');
+    const calls: string[] = [];
+    (c.g.world as unknown as { facilityProps: unknown }).facilityProps = { setDevice: (id: string, on: boolean) => calls.push(`${id}:${on}`) };
+    step(h.dev, 0.3, 'p1');
+    c.dev.apply(h.dev.wire());
+    expect(calls.sort()).toEqual([`${L1.id}:false`, `${L2.id}:false`].sort());
+    calls.length = 0;
+    step(h.dev, 1 / 60);
+    c.dev.apply(h.dev.wire());
+    expect(calls).toEqual([]);
+    for (let t = 0; t < JAMMER.reboot + 0.1; t += 1 / 60) c.dev.frame(1 / 60);
+    expect(calls.sort()).toEqual([`${L1.id}:true`, `${L2.id}:true`].sort());
+    h.dev.dispose();
+    c.dev.dispose();
+  });
+
   it('Sector Ops: a panel of a section that is not live is dark like its lasers and no jam target', () => {
     const m = make('host', true);
     m.dev.setLive(0);
@@ -406,18 +437,7 @@ describe('(sector-fixes P) CtDevices: jamming the panel cuts its lasers', () => 
   });
 });
 
-describe('(sector-fixes P) the station 4 panel', () => {
-  it('powers the training laser and sits on the far side, past the gap, high on the south wall', () => {
-    expect(S4_PANEL.lasers).toEqual(['laser-s4']);
-    expect(S4_PANEL.y).toBeGreaterThan(3.5);
-    expect(S4_PANEL.yaw).toBe(0);
-    const lay = ctcourse.build(new LevelBuilder(), 0);
-    const l = lay.lasers![0]!;
-    expect(S4_PANEL.x).toBeGreaterThan(l.x1 + 1);
-    expect(S4_PANEL_JAM[0]).toBeLessThan(l.x1 - 2);
-    expect(lay.laserPanels).toEqual([S4_PANEL]);
-    // the release switch is on the other (north) wall
-    expect(lay.course!.devices['sw-s4-release']!.z).toBeGreaterThan(10);
-  });
-});
+// (marlow-final 0d) The station 4 panel cases (it powers the training laser, sits past the gap high on the far wall, is
+// hidden from the near side's south half and jammed diagonally through the gap) pinned the old bunker bay. A5's beam-tower
+// power panel (`A5_PANEL`, its jam spot and vantage trace) returns in tests/ctcourse/a5Substation.test.ts (SPEC 16).
 

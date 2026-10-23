@@ -3,6 +3,7 @@ import type { SessionStats } from '../../game/modes/gameMode';
 import { h } from '../dom';
 import { MenuScreen, type LegendItem } from '../menuScreen';
 import { button } from '../widgets';
+import { sectionLine, type RatingView } from '../hud/ratingCard';
 import { fmtCourseTime, TIER_LABEL, type CourseSummary } from '../../game/course/courseRating';
 
 /** The course panel (T1c, D31 / D32 / D23): per-bay times, team and per-player numbers, the finale's tier. */
@@ -42,6 +43,8 @@ export interface ResultsNav {
   next?: { label: string; go: () => void };
   /** Co-op: Play again returns to the lobby. */
   coop?: boolean;
+  /** Section ratings of the op / course, one line each (section-rating S4). */
+  ratings?: readonly RatingView[];
 }
 
 /**
@@ -104,6 +107,7 @@ export class ResultsScreen extends MenuScreen {
         h('div', { class: 'results-sub', text: subtitle }),
         h('div', { class: 'rs-time', text: `Time ${fmtTime(stats.time)}` }),
         rating,
+        nav.ratings?.length ? h('ul', { class: 'rs-sections' }, ...nav.ratings.map((r) => h('li', { text: sectionLine(r) }))) : null,
         nav.kit ? h('div', { class: 'rs-kit', text: `Kit: ${nav.kit}` }) : null,
       ),
     );

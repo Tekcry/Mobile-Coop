@@ -10,14 +10,14 @@ import { emptyKinds, ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
 import { hyp3 } from '../core/mathx';
 import { packMoveState, sanitizeMoveState, type MoveState } from '../player/moveState';
 import { CDENY_REASONS, CKINDS, type CDenyReason, type CKind } from '../game/committedMoves';
-import { CLIENT_VERBS, type ClientVerb, type CourseWire } from '../game/course/courseWire';
+import { CLIENT_VERBS, RH_HI, RH_MAX, type ClientVerb, type CourseWire } from '../game/course/courseWire';
 import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 import type { SecWire } from '../game/ctDevices';
-import type { SectorNetExtra } from '../game/sectors';
+import type { SectorNetExtra, SectorRatingWire } from '../game/sectors';
 import { LAMP_BITS, LAMP_CHARS, LAMP_MAX, type LampWire } from './lampSync';
 
 /** The wire version. Only this line holds it; tests read it. `scripts/merge-train.mjs build` bumps it once per train with a wire change (history: CHANGELOG, docs/systems/coop.md). */
-export const PROTOCOL_VERSION = 41;
+export const PROTOCOL_VERSION = 42;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -159,6 +159,8 @@ export interface NetItem {
   hold: number;
   reach: number;
   on: boolean;
+  /** (30, marlow-final Q12) The hold's noise radius (m) when it is a noisy hold; absent: silent. */
+  hn?: number;
 }
 export const ITEM_KINDS: readonly NetItem['k'][] = ['terminal', 'cache', 'switch', 'alarm', 'door', 'intel', 'charge', 'revive', 'medkitWall', 'crate'];
 
@@ -218,8 +220,10 @@ export type Msg =
   | { t: 'shot'; w: WeaponId; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; target: string; part: 'head' | 'body'; rt: number; dist: number; dmg: number }
   /** `pk` is a bitmask of available pickups (bit i = pickup i). `info` is plain text, segments split by '|'. */
   | { t: 'snap'; time: number; players: PlayerState[]; enemies: EnemyState[]; obj: string; info: string; pk: number; items?: NetItem[]; doors?: number[]; dcr?: number[]; bodies?: string[] }
-  /** Client used a mirrored item (the host checks reach and that it is usable). */
-  | { t: 'use'; id: string }
+  /** Client used a mirrored item (the host checks reach and that it is usable). (30, marlow-final Q12) `pulse`: not the
+   *  use but one noise pulse of a noisy hold under way (its first moment, then every `HOLD_NOISE_PULSE` s); the host
+   *  checks it the same way and its guards hear the item as for the host's own hold (`holdPulse.ts`). */
+  | { t: 'use'; id: string; pulse?: true }
   /** (locomotion step 13) Client door peek: crack door `i` (or close its crack); the host checks reach, closed, unlocked. */
   | { t: 'door'; i: number; crack: boolean }
   /** Client takedown on a host enemy: seize it, finish it (lethal / not), or let go. */
@@ -253,7 +257,7 @@ export type Msg =
   /** Training course state (host -> all): when it changes or every COURSE_SEND. */
   | ({ t: 'course' } & CourseWire)
   /** Sector Ops: the cameras' clock, jams and alarm stage (host -> all), on change and every 0.5 s; (24) the live
-   *  section, locked door indices, cameras shot out and the revive syringes left. */
+   *  section, locked door indices, cameras shot out and the revive syringes left; (34) the last section's rating `rt`. */
   | ({ t: 'sector'; sec?: SecWire } & Partial<SectorNetExtra>)
   /** A client's local-only drill verb (DECISIONS C10; at most CTICK_RATE a second). */
   | { t: 'ctick'; verb: ClientVerb }
@@ -345,7 +349,11 @@ function netItem(v: unknown): NetItem | null {
   const y = num(v.y, -50, 100);
   const z = num(v.z, -WORLD, WORLD);
   if (!iid || !k || x === null || y === null || z === null) return null;
-  return { id: iid, k, x, y, z, yaw: num(v.yaw, -10, 10) ?? 0, label: safeText(v.label, 24) || 'Use', hold: num(v.hold, 0, 10) ?? 0, reach: num(v.reach, 0.5, 4) ?? 1.8, on: v.on === true };
+  const item: NetItem = { id: iid, k, x, y, z, yaw: num(v.yaw, -10, 10) ?? 0, label: safeText(v.label, 24) || 'Use', hold: num(v.hold, 0, 10) ?? 0, reach: num(v.reach, 0.5, 4) ?? 1.8, on: v.on === true };
+  // (30, Q12) a noisy hold's radius; absent, 0 or malformed reads as a silent item
+  const hn = num(v.hn, 0, 30);
+  if (hn) item.hn = hn;
+  return item;
 }
 
 function playerInfo(p: unknown): PlayerInfo | null {
@@ -510,6 +518,14 @@ const mission = (v: unknown): string => (typeof v === 'string' && /^[a-z0-9-]{0,
 /** Cameras a `sec` field carries clocks for (SN60 caps a map at 12) and jammed / recovering devices it lists. */
 const SEC_CAMS = 16;
 const SEC_DEVS = 64;
+/** (30 marlow-final N6) Scanner pairs a `sec` field carries. */
+const SEC_SCANS = 8;
+
+/** (B6; 30 marlow-final N6) One scanner pair's `sec.sc` entry: phases 0-3, occupied bits 0-3, progress in tenths of a s. */
+function scanEntry(e: unknown): number[] {
+  const a: unknown[] = Array.isArray(e) ? e : [];
+  return [0, 1, 2, 3, 4].map((i) => Math.round(num(a[i], 0, i < 3 ? 3 : 100) ?? 0));
+}
 
 /** (CT prototype B3; 26 marlow-jammer) The `sec` field of a course / sector message: the jam list, each jammer's use and
  *  cooldown, the devices' jam timelines and the camera clocks, clamped. */
@@ -518,7 +534,8 @@ function secWire(v: unknown): { sec?: SecWire } {
   const j = Array.isArray(v.j) ? v.j : [];
   const ch = Array.isArray(v.ch) ? v.ch : [];
   const cd = Array.isArray(v.cd) ? v.cd : [];
-  const sc: unknown[] | null = Array.isArray(v.sc) ? v.sc : null;
+  // (30) one entry per scanner pair, in the map's order; an entry that is no array reads as idle (the order is kept)
+  const sc: number[][] | null = Array.isArray(v.sc) ? v.sc.slice(0, SEC_SCANS).map(scanEntry) : null;
   const ck: number[] = [];
   if (Array.isArray(v.ck)) for (const x of v.ck.slice(0, SEC_CAMS)) ck.push(num(x, 0, 1e6) ?? 0);
   const dv: [string, number, number][] = [];
@@ -540,8 +557,7 @@ function secWire(v: unknown): { sec?: SecWire } {
       cd: [num(cd[0], 0, 10) ?? 0, num(cd[1], 0, 10) ?? 0],
       dv,
       al: Math.round(num(v.al, 0, 9) ?? 0),
-      // (B6) the scanner pair: phases 0-3, occupied bits 0-3, progress in tenths of a second
-      ...(sc ? { sc: [0, 1, 2, 3, 4].map((i) => Math.round(num(sc[i], 0, i < 3 ? 3 : 100) ?? 0)) } : {}),
+      ...(sc ? { sc } : {}),
     },
   };
 }
@@ -562,7 +578,50 @@ function sectorExtra(raw: Record<string, unknown>): Partial<SectorNetExtra> {
   }
   const sy = num(raw.sy, 0, 9);
   if (sy !== null) out.sy = Math.round(sy);
+  const rt = ratingWire(raw.rt);
+  if (rt) out.rt = rt;
   return out;
+}
+
+/** (34) Rating counts on the wire: whole numbers 0..RT_COUNT (synced takedowns, grant parts). */
+export const RT_COUNT = 99;
+const rtInt = (v: unknown, lo: number, hi: number): number => Math.round(num(v, lo, hi) ?? 0);
+
+/**
+ * (34, section-rating S3) The `sector` message's `rt`: the last rated section. `sec` -1..63 (-1 none yet), `marks` a
+ * 0-15 bitmask, `synced` and the grant counts whole numbers 0..RT_COUNT. Not an object, or no numeric `sec`: dropped.
+ */
+export function ratingWire(v: unknown): SectorRatingWire | null {
+  if (!isObj(v)) return null;
+  const sec = num(v.sec, -1, 63);
+  if (sec === null) return null;
+  return {
+    sec: Math.round(sec),
+    marks: rtInt(v.marks, 0, 15),
+    synced: rtInt(v.synced, 0, RT_COUNT),
+    gadget: rtInt(v.gadget, 0, RT_COUNT),
+    syringe: rtInt(v.syringe, 0, RT_COUNT),
+    medkit: rtInt(v.medkit, 0, RT_COUNT),
+    alarmStep: rtInt(v.alarmStep, 0, RT_COUNT),
+  };
+}
+
+/** (37, section-rating S6) The `course` message's `rt` (the last rated Marlow set, `ratingWire`'s shape): dropped when bad. */
+function courseRt(v: unknown): { rt?: SectorRatingWire } {
+  const rt = ratingWire(v);
+  return rt ? { rt } : {};
+}
+
+/** (37, S6 fix) The course message's `rh`: one entry per bay (index kept: a bad entry reads -1, unrated), at most
+ *  RH_MAX; not an array: dropped. */
+function courseRh(v: unknown): { rh?: number[] } {
+  if (!Array.isArray(v)) return {};
+  const rh: number[] = [];
+  for (const x of v.slice(0, RH_MAX)) {
+    const n = num(x, -1, RH_HI);
+    rh.push(n === null ? -1 : Math.round(n));
+  }
+  return { rh };
 }
 
 const COURSE_LIST = 256;
@@ -595,7 +654,7 @@ function parseCourse(raw: Obj): Msg | null {
   if (!isObj(s) || !isObj(lights)) return null;
   const stat = (q: unknown) => {
     const o = isObj(q) ? q : {};
-    return { time: n0(o.time, 0, 1e6), detections: n0(o.detections, 0, 1e4), alarms: n0(o.alarms, 0, 1e4), knockouts: n0(o.knockouts, 0, 1e4), kills: n0(o.kills, 0, 1e4), revives: n0(o.revives, 0, 1e4), teamMoves: n0(o.teamMoves, 0, 1e4), bodies: n0(o.bodies, 0, 1e4) };
+    return { time: n0(o.time, 0, 1e6), detections: n0(o.detections, 0, 1e4), alarms: n0(o.alarms, 0, 1e4), knockouts: n0(o.knockouts, 0, 1e4), kills: n0(o.kills, 0, 1e4), revives: n0(o.revives, 0, 1e4), teamMoves: n0(o.teamMoves, 0, 1e4), bodies: n0(o.bodies, 0, 1e4), synced: Math.round(n0(o.synced, 0, 1e4)) };
   };
   const ps = arr(s.pstats);
   const packed: PackedCourse = {
@@ -630,7 +689,7 @@ function parseCourse(raw: Obj): Msg | null {
     const g = num(x[0], -1, 4096);
     if (g !== null && typeof x[1] === 'boolean') groups.push([Math.round(g), x[1]]);
   }
-  return { t: 'course', s: packed, locks: ints(raw.locks, 0, MAX_DOORS - 1, MAX_DOORS), anchors: ints(raw.anchors, 0, 1e5), lights: { groups, dead: ints(lights.dead, 0, 1e5, 1024) }, ref: safeText(raw.ref, 160) ?? '', rn: Math.round(n0(raw.rn, 0, 1e6)), rl: safeText(raw.rl, 160) ?? '', rln: Math.round(n0(raw.rln, 0, 1e6)), ...secWire(raw.sec) };
+  return { t: 'course', s: packed, locks: ints(raw.locks, 0, MAX_DOORS - 1, MAX_DOORS), anchors: ints(raw.anchors, 0, 1e5), lights: { groups, dead: ints(lights.dead, 0, 1e5, 1024) }, ref: safeText(raw.ref, 160) ?? '', rn: Math.round(n0(raw.rn, 0, 1e6)), rl: safeText(raw.rl, 160) ?? '', rln: Math.round(n0(raw.rln, 0, 1e6)), ...secWire(raw.sec), ...courseRt(raw.rt), ...courseRh(raw.rh) };
 }
 
 /** Validate an incoming message. Returns null for anything malformed. */
@@ -667,7 +726,8 @@ export function parseMessage(raw: unknown): Msg | null {
     }
     case 'use': {
       const iid = id(raw.id);
-      return iid ? { t: 'use', id: iid } : null;
+      if (!iid) return null;
+      return raw.pulse === true ? { t: 'use', id: iid, pulse: true } : { t: 'use', id: iid };
     }
     case 'door': {
       const i = typeof raw.i === 'number' && Number.isInteger(raw.i) && raw.i >= 0 && raw.i < MAX_DOORS ? raw.i : null;

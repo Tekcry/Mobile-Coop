@@ -40,7 +40,7 @@ describe('net message validation', () => {
     expect(m && m.t === 'pstate' && m.s).toMatchObject({ x: 400, hp: 100, speed: 0, pitch: 1.6 });
   });
   it('sanitises strings (names, ids, looks) and caps lengths', () => {
-    const m = parseMessage({ t: 'hello', v: 1, name: '<img src=x onerror=alert(1)>Mallory-the-long-name', tag: { title: '<b>', color: 'red', emblem: 'x' }, look: { hair: 'laser' } });
+    const m = parseMessage({ t: 'hello', v: PROTOCOL_VERSION, name: '<img src=x onerror=alert(1)>Mallory-the-long-name', tag: { title: '<b>', color: 'red', emblem: 'x' }, look: { hair: 'laser' } });
     expect(m?.t).toBe('hello');
     if (m?.t !== 'hello') return;
     expect(m.name).not.toMatch(/[<>]/);
@@ -50,10 +50,10 @@ describe('net message validation', () => {
     expect(parseMessage({ t: 'pstate', s: { ...ps, id: '../../etc' } })).toBeNull();
   });
   it('loadout: known weapons only, no repeats, capped', () => {
-    const m = parseMessage({ t: 'hello', v: 1, name: 'A', tag: {}, look: {}, loadout: ['rifle', 'rifle', 'railgun', 7, 'pistol', 'smg', 'pistolSd', 'sniper', 'pistolSd'] });
+    const m = parseMessage({ t: 'hello', v: PROTOCOL_VERSION, name: 'A', tag: {}, look: {}, loadout: ['rifle', 'rifle', 'railgun', 7, 'pistol', 'smg', 'pistolSd', 'sniper', 'pistolSd'] });
     // the deleted guns (G115) are unknown ids now
     expect(m?.t === 'hello' && m.loadout).toEqual(['rifle', 'pistolSd']);
-    const n = parseMessage({ t: 'hello', v: 1, name: 'A', tag: {}, look: {}, loadout: 'rifle' });
+    const n = parseMessage({ t: 'hello', v: PROTOCOL_VERSION, name: 'A', tag: {}, look: {}, loadout: 'rifle' });
     expect(n?.t === 'hello' && n.loadout).toEqual([]);
   });
   it('caps array sizes and drops bad entries', () => {
