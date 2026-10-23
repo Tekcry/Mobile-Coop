@@ -299,6 +299,9 @@ LR16 (one lighting system; plan checks/lr16-plan.md, audit lr16-0-ct-audit.md)
   checkers done for t). LR16-4 relight = Guard AI #255; then our board slice briefs/LR16-4-board.md. LR16-5 moving
   lights: Michael M13 ~21:08 "Flicker + stutter" (no sway / lightning): Opus builder on -lr16-5 (base
   lr16int 6eb6a863, slot 1; lr16-5-build.md; per-lamp multiplier, no registry version bump per frame; merge after LR16-1).
+  LR16-5b sway (M14, ctcourse only): Opus slice AFTER LR16-5 + LR16-1 merge into lr16int (same files: lights.ts,
+  charShadows.ts, bakedLamps.ts). Pendant ids in a NEW data table (e.g. src/world/lampSway.ts), never the ctcourseSets
+  files Marlow #257 edits (a2 / a4 / a6 / a8). Laptop GPU perf on ctcourse after.
 - cloud-queue: artnext-ABD + artnext-C claimed by Cloud Builder 1 (base artpol 72e87171). Done -> checker, merge.
 For Michael: Realistic dimmer (S2 atrium 0.28 vs 0.48, LR16g); S3 hall-lit white fog.
 Polish: lr15-check 1/2/4, lrpolish 1-6, art P6, perf check polish 3-7, lr16dx-check 2-7, lr16t checks, lr16-1 / e checks.

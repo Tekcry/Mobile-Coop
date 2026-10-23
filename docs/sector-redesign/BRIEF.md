@@ -58,6 +58,9 @@ lighting where players make their own shadows. Prototype first (CLAUDE.md curren
   which guards are posted and which distractions must still pull them (data shape).
 - M13 (2026-10-23 ~21:08, LR16-5 moving lights, through the orchestrator): "Flicker + stutter". Fires flicker, one
   failing tube stutters per main map, meter and guards follow through the registry. No sway, no lightning.
+- M14 (~21:12, through the orchestrator): swinging pendants on Marlow Yard ONLY (ctcourse): hanging lamps sway when shot
+  nearby or bumped; the swinging lamp keeps a character-shadow slot; meter and guards follow through the registry. Campus
+  later only if perf headroom returns after #226 / S5 triage; not the warehouse. One Opus slice + GPU perf on Marlow Yard.
 
 ## Questions sent to Michael (~01:50, through the orchestrator)
 Q1 setting, Q2 run length, Q3 guards per section, Q4 lighting default, Q5 security tools. Answers land here as M6+;
