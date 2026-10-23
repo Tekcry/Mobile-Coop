@@ -493,5 +493,6 @@ State: marlow-final PR https://github.com/Tekcry/Mobile-Coop/pull/237 (b83a27fd:
 Pending: Test Runner verdict on 053ff212 (coop, netmove, ctcourse:1-3, section-rating, course; requested ~18:05; if cut off, the next Test Runner reads runs/sectionrating-053ff212). Desktop lightbake + :4 on b83a27fd PASS.
 On all green: fill the laptop line in sr-pr.md, `gh pr create --base master --head feature/section-rating` with it, then message "Night Shift | Orchestrator": train-ready, #237 + section-rating PR together (train 32, protocol 42). On a fail: fix (Opus), rerun that suite only (desktop: C:/NightShift/scratch/mf-run.sh or sr-run.sh <wt> <suite> <log> [build]).
 If master moves again, merge only when the orchestrator builds the train (merge into marlow-final first, then into section-rating).
+Polish batch (next train): worktree C:/NightShift/Mobile-Coop-marlow-polish, branch feature/marlow-polish off 053ff212 (Opus, ~18:25: Sector Ops `rh`-style rating history, client ricochet sparks, SPEC revive reach); commits WIP after each item. If cut off, rerun from its WIP.
 Open for Michael (in both PR bodies): W5 A2 re-walk; restart shuts doors locked at set start (assumed); solo no-alarms reward = medkit heal (S1 default).
 ```
