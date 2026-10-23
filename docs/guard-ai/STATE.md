@@ -1,6 +1,12 @@
 # Guard AI - state
 
 ## Now
+~16:40: train 27 GREEN (Test Runner). S16 fix 2e51e7e6 (test-only, A88: old NOC spots were inside pod P1 / under basket
+B1) -> sectorops:6 rerun running. A126 BUILT 267553bf on feature/guard-ai-a126 (merge 567b2458 = s9 + walk; al bits 7-8
+AL_CARRY = S21 carry phase, AL_MAX 511, src/net/puppetCarry.ts, protocol stays 37 (A136); A139 `tripped` bark added to
+BARK_EVENTS). A126 must ride train 28 WITH #229: an S9-only client reads al > 127 wrong. RUNNING: Opus checker
+(scratchpad A126-CHECK.md), Test Runner coop + netmove + stealth-ai on 267553bf; S22 AI-side builder.
+
 ~16:15 laptop clock (fresh session after the swap): Test Runner verdicts: S9 f2fd1219 GREEN 4/4, walk 906765a4 GREEN
 18/18 -> TRAIN-READY #229 + #230 sent for train 28 (retarget to master after train 27; protocol 37 vs Player #231: first
 merged keeps it). S16 fb192d45 RED e2e-sectorops:6 (scripts/e2e-sectorops.mjs:3024: no NOC guard gets sight through
@@ -458,8 +464,8 @@ e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep lapto
 4. S22 AI side on feature/guard-ai-s22 (slices/S22.md): when built, one Opus checker, then PR (base walk) + Test Runner
    (stealth-ai, sectorops, ctcourse, course). Game side (securityRoom.ts, courseMode.ts, sectorReset.ts) after
    marlow-final merges, per slices/S22.md.
-5. A126 on feature/guard-ai-a126 (s9 + walk, carry bits in `al`, protocol 37): when built, Opus checker, PR after #229 /
-   #230 land, Test Runner coop + netmove.
+5. A126 267553bf (feature/guard-ai-a126 = s9 + walk + carry bits in `al`, protocol 37): checker + Test Runner (coop,
+   netmove, stealth-ai) running. On PASS + green: PR, TRAIN-READY for train 28 together with #229 (must not split).
 6. Polish lists only (no refining): WALK-CHECK.md 1-6, S16-CHECK.md.
 Rules: AI code and checkers Opus; Sonnet 5.5 tests / data from strict briefs; Haiku chores. Never two agents on the
 same files. Message the orchestrator only at PR open / train-ready / blocked / needs Michael; progress here. A-numbers:
