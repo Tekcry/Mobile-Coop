@@ -156,3 +156,4 @@ Static check of the other runs with the move-up:
   each guard reaches the LKP (earlier than from cover), so each takes a plan point well inside 40 s.
 
 Checks: `node --check scripts/e2e-stealth-ai.mjs` OK. No src change; no local e2e.
+- Queued: set `w482-sai`, suite `e2e-stealth-ai`, on 2258ae7b, request `20261023T212039-night-shift-guard-ai-2258ae7b-8f9f`.
