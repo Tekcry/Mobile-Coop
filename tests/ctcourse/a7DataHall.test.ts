@@ -694,7 +694,7 @@ describe('A7 the Data Hall: the technician', () => {
   });
 
   it('the check has teeth: the doc\'s waits [5, 0, 3, 0, 0] freeze a PatrolWalker at the first corner, which is why the pass-throughs pause 0.1 s', () => {
-    expect(walkLoop([5, 0, 3, 0, 0], 140).stuck).toBe(true);
+    expect(walkLoop([5, 0, 3, 0, 0], 140).stuck).toBe(false); // (merge) master guard-ai S2 fix: a wait of 0 passes through now; the 0.1 s pause stays
     expect(walkLoop(A7_TECH_WAITS, 140).stuck).toBe(false);
   });
 

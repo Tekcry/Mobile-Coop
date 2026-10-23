@@ -2,6 +2,7 @@ import { Quaternion, Vector3, type Scene, type TransformNode } from '../core/bab
 import { CharacterRig } from '../player/characterRig';
 import type { World } from '../world/world';
 import type { EnemyDef } from './enemyDefs';
+import type { Enemy } from './enemy';
 import { Ragdoll } from './ragdoll';
 import { attachToShoulder, captureLying, hoistAt, slideAt } from './carryPose';
 
@@ -12,6 +13,7 @@ export function buildBodyRig(scene: Scene, world: World, def: EnemyDef, name: st
   const rig = new CharacterRig(scene, (shape, hex, slot) => world.parts.instance(shape, hex, `enemy-${slot}`), def.look, def.height, name, {
     build: def.build,
     armor: def.plated,
+    merge: true, // (guard-render S1) one merged smooth mesh (`?guardmerge=0`: the parts)
   });
   for (const m of rig.renderMeshes) world.addShadowCaster(m);
   return rig;
@@ -41,6 +43,10 @@ export class Body {
   age = 0;
   /** The enemy it was (co-op: clients keep that enemy's ragdoll while the body exists). */
   enemyId = '';
+  /** (guard-ai S4) His stable guard key (`Enemy.key`, the awareness roster; -1 none) and the guard himself (a woken
+   *  guard takes over his key, route, post, squad and the rest: `Enemy.inherit`). */
+  guardKey = -1;
+  guard: Enemy | null = null;
   private ragdoll: Ragdoll | null = null;
   private rig: CharacterRig | null = null;
 

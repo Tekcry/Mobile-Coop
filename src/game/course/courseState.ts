@@ -11,6 +11,7 @@
  * Per-step and per-query paths use indexed loops and allocate nothing (conventions.md hot paths).
  */
 import { AIRLOCK_CYCLE, AIRLOCK_DOORWAY_CLEAR, AIRLOCK_Y_TOL, PAIR_WINDOW, RESTART_DELAY, TIMED_HOLD_AFTER } from '../../config/course';
+import { pressPairHalf } from '../pairPress';
 import {
   airlockPad,
   exitZoneReady,
@@ -1093,26 +1094,13 @@ export class CourseState {
   /** One half of a pair gate pressed: opens it with the other half inside the window, else the lone-press hint (F17). */
   private pressPair(g: GateRt, isA: boolean, p: PlayerIdx): string | null {
     if (g.def.kind !== 'pair') return null;
-    const win = (g.def.window ?? PAIR_WINDOW) + 1e-9;
-    if (isA) {
-      g.ta = this.clock;
-      g.pa = p;
-    } else {
-      g.tb = this.clock;
-      g.pb = p;
-    }
-    const other = isA ? g.tb : g.ta;
-    if (other < 0) return REFUSE_PAIR;
-    // two different players, unless the dev solo flag lets one work both halves (A6)
-    if (!this.solo && (isA ? g.pb : g.pa) === p) return REFUSE_PAIR;
-    if (this.clock - other <= win) {
-      if (g.def.flag !== undefined) this.addFlag(g.def.flag, g.bay);
-      this.setOpen(g, true);
-      return null;
-    }
-    if (isA) g.tb = -1;
-    else g.ta = -1;
-    return REFUSE_PAIR;
+    // (sector-redesign E3) the rule is shared with Sector Ops (`pairPress.ts`): two different players, unless the dev
+    // solo flag lets one work both halves (A6), within the window
+    if (!pressPairHalf(g, isA, p, this.clock, g.def.window ?? PAIR_WINDOW, this.solo)) return REFUSE_PAIR;
+    // (marlow-final) addFlag also ticks the bay's flag drills
+    if (g.def.flag !== undefined) this.addFlag(g.def.flag, g.bay);
+    this.setOpen(g, true);
+    return null;
   }
 
   private tickOne(d: DrillDef, p: PlayerIdx): void {

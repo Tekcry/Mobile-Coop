@@ -15,6 +15,7 @@ export { MorphTargetManager } from '@babylonjs/core/Morph/morphTargetManager';
 export { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 export { Scalar } from '@babylonjs/core/Maths/math.scalar';
 export { Ray } from '@babylonjs/core/Culling/ray';
+export { BoundingInfo } from '@babylonjs/core/Culling/boundingInfo';
 export { FreeCamera } from '@babylonjs/core/Cameras/freeCamera';
 export { Camera } from '@babylonjs/core/Cameras/camera';
 export { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';

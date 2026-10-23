@@ -1,5 +1,140 @@
 # Changelog
 
+## 4.73.0 - Train 24: Guard render moon shadow caster lists and head hit volume (2026-10-23, PR #216; #209, #211)
+
+### Guard render S3a: guard head hit volume from the sim
+- Guards: the head hit volume now comes from the guard's simulation (stance, gait, cover lean / peek, emotes, held
+  hostage), not from the rendered skeleton, so headshots and takedowns no longer depend on the animation's frame rate
+  or the Detail setting. Within 8-11 cm of the rendered head (exceptions in docs/guard-render/STATE.md).
+
+### Guard render S6: per-cascade moon shadow lists
+- Moon / sun shadows: each shadow cascade now draws only the moving casters inside it (exact per-cascade lists under
+  the baked moon), so fewer shadow draws with many guards. No look change. `?guardsun=0` turns it off.
+- (dev) `World.addShadowCaster` takes an optional sun reach (casters drop out of the moon's cascades beyond it, with
+  hysteresis); nothing passes one yet.
+
+## 4.72.0 - Train 23: Guard render merged bodies and anim cuts; Sector Ops campus sections 2-3 (2026-10-23, PR #210; #205, #206)
+
+### Guard animation cost cuts (S5)
+- Guard animation does less work per frame with no change to any pose: the foot planner's per-frame side loops no
+  longer allocate arrays or iterators; the emote layer (`applyFk`) no longer builds a map and `Object.entries` list each
+  frame; the joint limiter keeps its rate and previous rotation on the joint node instead of in two Map lookups; and
+  guard rigs skip the finger and goggle frames, whose outputs only the operator figures read.
+- New tests: a golden guard pose test with a fixture captured on the untouched code (`tests/guardPoseGolden.test.ts`)
+  and an opt-in NullEngine micro-benchmark of guard animate (`tests/guardAnimBench.test.ts`). The measured gains are
+  inside machine noise (about 0.5-2 us a guard a frame on NullEngine); the gain is less garbage.
+
+### Guard render: merged skinned guard body (S1)
+- Guards, carried bodies and fresh bodies now draw as one rigidly skinned smooth mesh each (`src/player/smoothBody*.ts`)
+  instead of about 20 instanced parts: one bone per joint, a fixed root-local bounding box, one scene observer for
+  every body, hi / lo LOD swapped as one at the body's sphere centre. `?guardmerge=0` gives the old instanced parts
+  for comparison. Colours, patterns, hit flash, thermal / night vision tint and ragdolls behave as before.
+- Measured on the laptop GPU (Epic, 1920x1080, `scripts/guard-cap.mjs`, 24 guards in view, merge off -> on, medians):
+  Sector Ops warehouse frame 9.7 -> 7.1 ms, render() CPU 7.6 -> 4.9 ms, GPU 6.7 -> 5.5 ms, active meshes 1429 -> 493;
+  Marlow Yard (ctcourse) frame 9.2 -> 6.3 ms, render() CPU 7.3 -> 4.4 ms, GPU 6.1 -> 4.8 ms. Runs:
+  `docs/guard-render/run-s1`, `run-s1-off`, `run-s0-base`.
+- Accepted look change: heads, hands, forearms and feet now cast moon, lamp and flashlight shadows (they were under
+  the 0.3 m caster-size cut as separate parts; the merged body is over it).
+
+### Unreleased - sector-redesign
+- Sector Ops campusOps: S2 HQ atrium and offices greybox.
+- Sector Ops team doors: pair bolts (open only while the partner pushes the door from the other side) and pair gates (two key switches turned within 1 s by both players), host-authoritative, reset on a restart; guards route round them while locked (engine only, no map uses them yet).
+- Sector Ops keypads: a keypad door stays locked until the team finds its code (overheard, a handover board, or an objective such as a hack); a section restart forgets the codes found in it.
+- Sector Ops engine: breaker and timed isolator boards (`MapLayout.boards`): cut light circuits until switched back or for a timed window (default 20 s), a guard comes to look, restart puts them back, co-op lamps follow (no map uses them yet).
+- Sector Ops alarm stages: a section can now force lights to full, lock doors (never the only way through) and send its reinforcements along a response route at a stage; a restart undoes them (data only, no map uses it yet).
+- Sector Ops campusOps: S3 lab block greybox (16 guards, the first lasers las-gown and las-store with their power panels, cam-view and cam-dock, the prototype grab, CR3 chamber roof).
+- Sector Ops engine: security desks (`security.desks`): with the operator down or away, the console loops its cameras (they sweep but report nothing, default 30 s) or switches them off until a restart; a restart or section change puts them back, the co-op client follows (no map uses them yet).
+- Ammo pickups removed from inside sections (a between-section weapons crate refill follows; Michael, 2026-10-23).
+
+## 4.71.0 - Train 22: Guard AI awareness, posts and camera body calls; hostage gait; changelog dedupe (2026-10-23, PR #199; #198, #194, #196)
+
+### Changelog build skips entries already released
+- Merge tools: the CHANGELOG assembly (`scripts/changelog-assemble.mjs`, run by `scripts/merge-train.mjs`) no longer writes
+  a `changes/` entry again when its text (whitespace-normalised) is already an entry in CHANGELOG.md. Each skipped entry is
+  printed. A fragment with no entries left adds no block; its file is still deleted. Tests: `tests/changelogAssemble.test.ts`.
+
+### Guard AI
+- S4 bodies and caution: a guard who finds a dead body, or sees a guard killed, shouts "Man down!" (guards close enough
+  to hear know too), searches the spot and radios it in ("Man down. Stay sharp."). When the report gets through, his
+  whole section turns cautious: they look harder, pause less on their rounds, walk slower and take torches in the dark.
+  That caution never wears off with time: it only ends when every guard who knows about the death has been taken out
+  (killed, or knocked out and not woken again). Take the finder out before his report gets through and only he and the
+  guards who heard his shout knew. A knocked-out guard who is found (or seen going down) is woken: the two search the
+  area for a minute, stay cautious for three more, then go back to normal; nobody else turns cautious. A woken guard is
+  the same guard again: back on his own route or post, with his squad. Hunter and Mission (parked) keep the old rules.
+- S5 posts: guards can now hold a post. A guard guarding something valuable or a security door never leaves the area
+  round his post: he is never sent to check a noise or a light, never joins a search or runs to an alarm panel outside
+  it, and in a fight he holds his ground there instead of chasing you. He can still be distracted: a noise, a thrown
+  item or a light going out near him draws him to the edge of his area, where he looks toward it for about 5 seconds
+  before walking back and facing his post again. Guards on an ordinary post are sent to check things like anyone else.
+  Maps can also mark noisy machinery that makes guards near it hear less. No map uses posts yet; the map teams add them.
+- S7 cameras see bodies: a security camera that sees a knocked-out or dead guard (in the dark too: cameras see in
+  infrared) calls it in on the radio, for example "Camera 2 has a man down, Delivery Yard. Nearest unit, check on him."
+  The nearest calm guard within about 25 m walks straight over (two for a dead guard) and, for a knocked-out guard,
+  wakes him; then they search the area. Looped, switched-off, jammed or shot-out cameras see nothing, so hide bodies out
+  of a camera's view or take the camera down first. Dogs never answer the call. Hunter and Mission (parked) are
+  unchanged.
+
+### Hostage gait below 60 fps
+- Co-op (host): a joiner's hostage no longer flickers his gait below 60 fps. The host placed him from the joiner's
+  drawn body, which moves once per frame, while `holdAt` runs per fixed step (one step saw the whole move, the next
+  none). The point now goes through `src/net/holdFeed.ts` (velocity from distinct drawn poses, predicted to each step,
+  eased): his speed holds within 1% at 30 / 45 / 60 fps (was 14-15% CV with real frame jitter, and 21% slow at 30 fps);
+  a stopped holder stops him within 0.1 s; a jump over 1 m snaps with no speed spike (was 42-64 m/s).
+
+## 4.70.0 - Train 21: Guard AI radio net, ledge-end hands, partner seed walk (2026-10-23, PR #197; #189, #190, #191)
+
+### Guard AI
+- S3 radio: guards no longer alert everyone within 22 m at once. A guard who spots you shouts "Contact!", and only
+  guards close enough to hear it (about 6 m in the open, less through a wall or by loud machinery) join straight away.
+  He then takes 2.5 s to call it in on the radio; when the call gets through, the rest of his section hears it one at a
+  time, nearest first, over up to 4.5 s, and other sections stay calm. Take the spotter out (or grab or flash him)
+  before the call gets through and nobody else is told. The same goes for a guard who is shot or hears gunfire close by.
+  Light checks, "nothing here" and the missing-guard call are radio calls too, answered with one "Copy.". A guard sent to
+  a noise that turns out to be nothing goes back to normal instead of staying on edge for 45 s (gunfire still keeps
+  them on edge). Hunter and Mission (parked) keep the old radio.
+
+### Partner rig first seen walking
+- Co-op: a partner first seen already walking slowly (under about 0.3 m/s at 60 Hz, 1.2 m/s at 240 Hz) no longer plays
+  a start one-shot with the mocap switch on. `RemoteAvatar` seeds its eased speed and stride heading from the first
+  received state, and again after a teleport (bay start, checkpoint reset, respawn), instead of easing up from 0.
+
+### Traversal fixes (spare job 8)
+- Ledge shimmy: a hand never re-grips on or through the other hand at a lip's end (12 cm minimum gap, `LEDGE_HAND_GAP`);
+  it stays put when the leading hand is clamped at the end.
+- Rifle draw from the diagonal sling: the grip waypoint passes further out from the hip (`TRAVEL_VIA.sling`
+  [0.4, -0.22, 0.04]), so the gun clears the trunk (e2e-clip "sling draw + glide" trunk -1.5 -> +0.9 cm, legs 2.8 cm).
+
+## 4.69.0 - Train 20: Guard AI incident board, partner throw KO, mocap on by default (2026-10-23, PR #192; #185, #186, #188)
+
+### Guard AI
+- S2 incident board: one event, one response. A noise, distant gunfire or a lure sends one guard (the nearest by walking
+  distance; an officer sends someone else), says "Checking it out." on the radio, and the others who heard it answer
+  "Copy." and look a moment; more noise in the same spot never pulls a second guard. A light shot out or switched off is
+  noticed only by guards who can see it go (in their view with a clear line, or the room they stand in goes dark): one
+  checks it, two if a second witness is close. They look at the light, sweep the area round it, say "Nothing here.
+  Back to it." and return to their routes calm. An investigator taken out (or held) who stays silent for 25 s brings
+  two more as a pair. Investigating and searching guards now walk slower than their patrol, not faster. Hunter and
+  Mission (parked) keep the old rules.
+  Fix: a patrol point with a wait of 0 is now walked straight through; before, the guard stopped there for good.
+
+### Mocap locomotion on by default
+- Settings > Gameplay > Mocap locomotion is now ON by default (Michael: "On by default"); a save from before keeps the
+  new default once, after that the player's choice stays. Off uses the hand-keyed animations.
+- Mocap locomotion (switch on): the clip's planted feet hold their contact through turns and straights (contact slide
+  0.01 cm, twist at lift 14.3 deg).
+- Mocap locomotion: the switch now drives Wren only (the player and the co-op partner); guards keep their hand-keyed
+  walk and the planner's feet with it on (they took the mocap walk and its clip feet before). The menu and Anim Studio
+  Wren keep the hand-keyed set too.
+- Tests: e2e-anim reads the mocap switch (`window.__mocapOn`, `E2E_MOCAP=0/1`); with mocap on, the old shape / style
+  bars (knee-out, knee separation, track width, elbows, pelvis / shoulder rotation, sway, head yaw / pitch) print as
+  "M1 as captured" notes; slides, crossings, pops and timings still fail. OFF asserts unchanged.
+
+### Partner throw onto a guard
+- Co-op partner throw onto a guard (throw-ko, spare job 3; CT: the thrown partner landing on a guard knocks him out):
+  the host replays each throw's arc and the guard the thrown player comes down on (head / shoulders, descending) is
+  knocked out through the existing knockout path; the joiner sees it through the guard sync. No wire change.
+
 ## 4.68.0 - Train 19: Sector Ops part 1: armed guards, reinforcements, dogs, co-op light sync; guard-cap report (2026-10-23, PR #187; #180, #184)
 
 ### Guard cap measure

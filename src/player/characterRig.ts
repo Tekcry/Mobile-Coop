@@ -1,5 +1,6 @@
 import { Color4, Matrix, Quaternion, TransformNode, Vector3, type Vector4, type AbstractMesh, type InstancedMesh, type Material, type Scene } from '../core/babylon';
 import { VoxelBody, type VoxelBodyOptions } from '../voxel/voxelBody';
+import { buildSmoothBody, type SmoothBody } from './smoothBody';
 import { addGlow, BEACON, GLOW_IDLE, GLOW_VISION } from './goggleGlow';
 import type { SwapReach } from '../anim/clips/actions';
 import type { PartShape } from '../world/partLibrary';
@@ -224,6 +225,9 @@ function clipFootOff(f: FootState): void {
   f.clipPitchT = -1;
   f.clipPitchOff = 0;
 }
+
+/** (guard-render S5 L5) A joint's limiter state (`limitJoint`): its max rate once resolved, the previous local rotation. */
+type LimitedNode = TransformNode & { _lim?: { rate: number | undefined; prev: Quaternion | null } };
 
 /**
  * Max joint angular speeds (rad/s) by joint name suffix: realistic limits, also blend continuity. (locomotion step 21)
@@ -1136,6 +1140,9 @@ export class CharacterRig {
   private footPitchR = 0;
   /** (mocap-trial, fix 2) The switch as last frame (turned off: the planner gets its feet back clean, `clipFootOff`). */
   private mocapWas = false;
+  /** (mt2-guardgate, CHECK-6 R1) The switch for this rig this frame: `LOCO.mocap` on a carrier (the player, a remote player)
+   *  only; guards and the menu preview keep the hand-keyed set and the planner's feet whatever the switch says. */
+  private mOn = false;
   /** (mt2-fixB, CHECK-3 item 5) The switch's cross-fade: the skeleton's nodes (built on the first frame), their local
    *  rotations the last two frames (x, y, z, w each) and the hips' local position, the frames seen (to 2), the offsets
    *  a toggle eases out (rotations pre-multiplied, the hips' position added), seconds into it (-1: none). */
@@ -1196,7 +1203,6 @@ export class CharacterRig {
   private handDur = EDGE_HAND_TIME;
   /** Smoothed world aim rotation of the weapon (inertia from the weapon's mass). */
   private aimQ: Quaternion | null = null;
-  private prevRot = new Map<TransformNode, Quaternion>();
   /** Joint-rate limiter hits (debug overlay warning counter). */
   limited = 0;
   /** Last graph output (debug overlay: layer weights, weapon bob). */
@@ -1228,7 +1234,7 @@ export class CharacterRig {
     look: AvatarLook,
     readonly height = 1.75,
     name = 'rig',
-    opts: { build?: Build; armor?: boolean; style?: AvatarStyle } = {},
+    opts: { build?: Build; armor?: boolean; style?: AvatarStyle; merge?: boolean } = {},
   ) {
     const p = proportions(opts.build ?? BUILD_OF[look.body], height);
     this.p = p;
@@ -1304,12 +1310,14 @@ export class CharacterRig {
     // voxels (3.0): the parts merged into one skinned voxel mesh (they stay, unseen, for what reads them)
     const skin = ((this.parts[0] as InstancedMesh | undefined)?.sourceMesh?.metadata as { skinMaterial?: Material } | null | undefined)?.skinMaterial;
     if (VOXEL_BODY && this.style === 'detailed' && skin) this.voxel = new VoxelBody(scene, this.root, this.parts, this.headNode, skin, name, VOXEL_BODY, name === 'player');
+    // (guard-render S1) else, opted in (guards): the parts merged into one rigidly skinned smooth mesh
+    else if (opts.merge && this.style === 'detailed' && skin) this.voxel = buildSmoothBody(scene, this.root, this.parts, name);
     DEBUG_RIGS.add(this);
     LIVE_RIGS.push(this);
   }
 
   /** The merged voxel body (3.0; null: the smooth parts render). */
-  voxel: VoxelBody | null = null;
+  voxel: VoxelBody | SmoothBody | null = null;
 
   /** What renders (shadow casters): the voxel body's meshes, else the parts. */
   get renderMeshes(): AbstractMesh[] {
@@ -1740,6 +1748,8 @@ export class CharacterRig {
   /** (anim-joints J1) One solved frame of `animate` (after the LOD skip; inside the rig's tuner window when it has one). */
   private animateFrame(dt: number, s: RigPose): void {
     const i = this.input;
+    this.mOn = LOCO.mocap && this.carrier;
+    i.mocapOk = this.carrier;
     i.speed = s.speed;
     i.localX = s.localX;
     i.localZ = s.localZ;
@@ -1971,14 +1981,14 @@ export class CharacterRig {
     pin.reachNeedL = this.liftL;
     pin.reachNeedR = this.liftR;
     // (mocap-trial-2, crouchpop) the switch: a clip-planted foot's hand-off rules once clip feet are gone
-    pin.mocap = LOCO.mocap;
+    pin.mocap = this.mOn;
     // (mocap-trial, fix 2) the switch turned off mid-game: no clip feet state is left on the feet (a clip-planted foot kept
     // its flag, read at a stop), so the planner has them as if the switch had never been on (but a toe-up plant's flag)
-    if (LOCO.mocap !== this.mocapWas) {
-      this.mocapWas = LOCO.mocap;
+    if (this.mOn !== this.mocapWas) {
+      this.mocapWas = this.mOn;
       // (mt2-fixB) a rig already posing cross-fades from where it was (`switchFade`); a rig's first frame does not
       if (this.xfSeen >= 2) this.xfStart = true;
-      if (!LOCO.mocap) {
+      if (!this.mOn) {
         clipFootOff(this.planner.L);
         clipFootOff(this.planner.R);
       }
@@ -1993,10 +2003,13 @@ export class CharacterRig {
     // crouched rigs keep the planner's landings uncapped with the switch on
     const PL = this.planner;
     // (orchestrator review, mocap-trial-2) the clip flags count only with clip feet on the input
-    if (LOCO.mocap && (t.keyMocap > 0 || (pin.clipFeet !== null && (PL.L.clipOwn || PL.L.clipPlant || PL.R.clipOwn || PL.R.clipPlant)))) {
+    if (this.mOn && (t.keyMocap > 0 || (pin.clipFeet !== null && (PL.L.clipOwn || PL.L.clipPlant || PL.R.clipOwn || PL.R.clipPlant)))) {
       const mx = MOCAP_FEET.pitchRate * dt;
       this.footPitchL = this.planner.L.pitch = rateTo(this.footPitchL, this.planner.L.pitch, mx);
       this.footPitchR = this.planner.R.pitch = rateTo(this.footPitchR, this.planner.R.pitch, mx);
+      // (mt2-fixF) an anchored planted foot keeps its contact at the capped pitch
+      this.planner.holdPitch(this.planner.L);
+      this.planner.holdPitch(this.planner.R);
     } else {
       this.footPitchL = this.planner.L.pitch;
       this.footPitchR = this.planner.R.pitch;
@@ -2028,8 +2041,11 @@ export class CharacterRig {
     if (this.emoteW === 0) this.lastFk = null;
     this.switchFade(dt);
     // (anim-skeleton S2) the hands' fingers and this window's goggle offsets, for the figure
-    this.fingerFrame();
-    this.goggleFrame();
+    // (guard-render S5 L6) only the operator figure reads them; a guard rig (`guardRows`, no tuner rows) has none
+    if (this.guardSt === null || this.tuneSt !== null) {
+      this.fingerFrame();
+      this.goggleFrame();
+    }
     for (let k = 0; k < this.onPosed.length; k++) this.onPosed[k]!();
   }
 
@@ -2403,7 +2419,7 @@ export class CharacterRig {
       // (mt2-fixC, CHECK-3 item 6) and at most REST_SHIFT_RATE while the mocap share keeps the hips off the feet (the
       // pelvis-follow layer, as the knee pole below): a CT stop hold's release let go of a 7 cm settle by 1.7 cm in a frame
       const rm = REST_SHIFT_RATE * dt;
-      this.restShift = LOCO.mocap && mocapLayerK(MOCAP_LAYERS.pelvisFollow, t.keyMocap) < 1 && (rs > this.restShift + rm || rs < this.restShift - rm) ? this.restShift + (rs > this.restShift ? rm : -rm) : rs;
+      this.restShift = this.mOn && mocapLayerK(MOCAP_LAYERS.pelvisFollow, t.keyMocap) < 1 && (rs > this.restShift + rm || rs < this.restShift - rm) ? this.restShift + (rs > this.restShift ? rm : -rm) : rs;
     }
     // (anim-rework S3, BRIEF 3 "the centre of mass over the base of support") gliding aimed (the drawn keyed set raised)
     // the hips ride over the feet's centre across the body (GLIDE_HIP: the weight moves onto the lead foot of a side-step
@@ -2549,7 +2565,7 @@ export class CharacterRig {
     // (mt2-fixC, CHECK-3 item 4) and while the mocap share keeps the hips off the feet (MOCAP_LAYERS.pelvisFollow: a spot
     // turn's turn-in-place slot, no clip feet), until a swap under way has run out: a spot flick's landing missed its spot
     // by 2.1 cm the same way. Placeholder clips (every layer 1) are left as before
-    const poleM = LOCO.mocap && mocapLayerK(MOCAP_LAYERS.pelvisFollow, t.keyMocap) < 1;
+    const poleM = this.mOn && mocapLayerK(MOCAP_LAYERS.pelvisFollow, t.keyMocap) < 1;
     for (let k = 0; k < 2; k++) {
       if (this.pin.clipFeet === null && !poleM && !(this.poleShare[k]! >= 0 && this.poleShare[k] !== this.poleWant(k === 0 ? -1 : 1))) {
         this.poleShare[k] = -1;
@@ -2653,8 +2669,11 @@ export class CharacterRig {
     // (mt2-fixC, CHECK-3 item 6) and on the mocap share (`poleM`), a leg on its landing frame (plantT 0): the knee leaves
     // the swing's bow and pole there, and the limit held a 5 m/s flick's landed ankle 2.2 cm off its plant for the frame
     const xf = this.xfT >= 0 || this.xfStart;
-    const xl = (xf || (poleM && L.plantT === 0)) && L.contact ? 1e9 : undefined;
-    const xrr = (xf || (poleM && R.plantT === 0)) && R.contact ? 1e9 : undefined;
+    // (mt2-fixF) and a clip-planted leg holding its contact (clip feet on hand, anchored): the limit lagged it as the clip's
+    // heel rose through a crouch's hand-over and the held ball slid 2.0 cm in the frame
+    const cfOn = this.pin.clipFeet !== null;
+    const xl = (xf || (poleM && L.plantT === 0) || (cfOn && L.clipPlant && L.anchored)) && L.contact ? 1e9 : undefined;
+    const xrr = (xf || (poleM && R.plantT === 0) || (cfOn && R.clipPlant && R.anchored)) && R.contact ? 1e9 : undefined;
     const lHip = this.limitJoint(this.hipL, dt, xl);
     const lh = this.limitJoint(this.kneeL, dt, xl) || lHip;
     const rHip = this.limitJoint(this.hipR, dt, xrr);
@@ -2672,7 +2691,7 @@ export class CharacterRig {
     // the foot keeps the planner's yaw and pitch (its pitch already turns at most MOCAP_FEET.pitchRate), its Joints offset on top
     // (mt2-fixC, CHECK-3 item 6c) also on the mocap share (`poleM`) and in the crouched capture (switch on, crouchWalk set):
     // a crouched sneak flick's toe-off turned the limited leg's foot off the planner's and its ball slid 2.1 cm
-    if ((lh || rh) && (this.pin.clipFeet || poleM || (LOCO.mocap && LOCO.set.crouchWalk !== null && this.input.crouch > 0)) && !legKeyed && !HANDS_CUR.ikOn) {
+    if ((lh || rh) && (this.pin.clipFeet || poleM || (this.mOn && LOCO.set.crouchWalk !== null && this.input.crouch > 0)) && !legKeyed && !HANDS_CUR.ikOn) {
       const ly = Number.isNaN(this.legYaw);
       if (lh) {
         Quaternion.RotationYawPitchRollToRef(ly ? L.yaw : this.legYaw, L.pitch + st.lPitch, 0, tmpQ3);
@@ -3491,7 +3510,7 @@ export class CharacterRig {
       Quaternion.RotationAxisToRef(elbAxis, pass === 0 ? best : -2 * best, elbQ);
       elbQ.multiplyToRef(sh.absoluteRotationQuaternion, tmpQ3);
       this.setWorldRot(sh, sh.parent as TransformNode, tmpQ3);
-      this.prevRot.get(sh)?.copyFrom(sh.rotationQuaternion!);
+      (sh as LimitedNode)._lim?.prev?.copyFrom(sh.rotationQuaternion!);
       fresh(sh);
       fresh(el);
       const e = el.getAbsolutePosition();
@@ -3518,7 +3537,7 @@ export class CharacterRig {
     Quaternion.RotationAxisToRef(elbAxis, th, elbQ);
     elbQ.multiplyToRef(sh.absoluteRotationQuaternion, tmpQ3);
     this.setWorldRot(sh, sh.parent as TransformNode, tmpQ3);
-    this.prevRot.get(sh)?.copyFrom(sh.rotationQuaternion!);
+    (sh as LimitedNode)._lim?.prev?.copyFrom(sh.rotationQuaternion!);
     fresh(sh);
     fresh(el);
     this.setWorldRot(wr, el, elbHand);
@@ -3530,18 +3549,19 @@ export class CharacterRig {
    * angular speed. Any abrupt pose change (state switch, IK flip, scripted pose) is spread over a few frames,
    * so motion stays continuous (an inertialization-style safety net under the weighted blends).
    */
-  private jointRate = new Map<TransformNode, number>();
-
   private limitJoint(node: TransformNode, dt: number, rate?: number): boolean {
-    let maxRate = rate ?? this.jointRate.get(node);
+    // (guard-render S5 L5) the limiter state lives on the node itself (a node belongs to one rig): no Map lookups
+    let st = (node as LimitedNode)._lim;
+    if (st === undefined) st = (node as LimitedNode)._lim = { rate: undefined, prev: null };
+    let maxRate = rate ?? st.rate;
     if (maxRate === undefined) {
       maxRate = JOINT_RATE.get(node.name.split('-').pop() ?? '') ?? 20;
-      this.jointRate.set(node, maxRate);
+      st.rate = maxRate;
     }
     const q = node.rotationQuaternion!;
-    const prev = this.prevRot.get(node);
+    const prev = st.prev;
     if (!prev) {
-      this.prevRot.set(node, q.clone());
+      st.prev = q.clone();
       return false;
     }
     const dot = Math.min(1, Math.abs(Quaternion.Dot(prev, q)));
@@ -4256,31 +4276,29 @@ export class CharacterRig {
     freshBelow(this.heldWeapon!, this.weaponPivot);
   }
 
+  /** (guard-render S5 L4) the FK joint names, in `fkNodes` order. */
+  private static readonly FK_JOINTS: readonly JointName[] = [
+    'pelvis', 'spine', 'chest', 'neck', 'head', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'hipL', 'hipR', 'kneeL', 'kneeR',
+  ];
+  /** The nodes of `FK_JOINTS`, built on the first emote (no per-frame map / entries allocation). */
+  private fkNodes: TransformNode[] | null = null;
+
   /** Blend an FK pose (scripted poses) over the procedural result. */
   private applyFk(fk: FkPose, w: number): void {
-    const map: Record<JointName, TransformNode> = {
-      pelvis: this.hips,
-      spine: this.spine,
-      chest: this.torso,
-      neck: this.neck,
-      head: this.headNode,
-      shoulderL: this.shoulderL,
-      shoulderR: this.shoulderR,
-      elbowL: this.elbowL,
-      elbowR: this.elbowR,
-      hipL: this.hipL,
-      hipR: this.hipR,
-      kneeL: this.kneeL,
-      kneeR: this.kneeR,
-    };
-    for (const [k, e] of Object.entries(fk) as [JointName | 'pelvisLift', readonly [number, number, number] | number][]) {
-      if (k === 'pelvisLift') {
-        this.hips.position.y += (e as number) * w;
-        continue;
-      }
-      const node = map[k];
-      const [x, y, z] = e as readonly [number, number, number];
-      Quaternion.RotationYawPitchRollToRef(y, x, z, tmpQ);
+    let nodes = this.fkNodes;
+    if (nodes === null) {
+      nodes = this.fkNodes = [
+        this.hips, this.spine, this.torso, this.neck, this.headNode, this.shoulderL, this.shoulderR, this.elbowL, this.elbowR,
+        this.hipL, this.hipR, this.kneeL, this.kneeR,
+      ];
+    }
+    if (fk.pelvisLift !== undefined) this.hips.position.y += fk.pelvisLift * w;
+    const names = CharacterRig.FK_JOINTS;
+    for (let j = 0; j < names.length; j++) {
+      const e = fk[names[j]!];
+      if (e === undefined) continue;
+      const node = nodes[j]!;
+      Quaternion.RotationYawPitchRollToRef(e[1], e[0], e[2], tmpQ);
       Quaternion.SlerpToRef(node.rotationQuaternion!, tmpQ, w, node.rotationQuaternion!);
     }
     if (fk.shoulderL || fk.shoulderR) {

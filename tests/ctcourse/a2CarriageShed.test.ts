@@ -618,7 +618,7 @@ describe('A2 the Carriage Shed: the shunter', () => {
   });
 
   it('the check has teeth: a pass-through wait of 0 (the doc\'s [4, 0, 3, 0]) freezes a PatrolWalker at the first corner, which is why the loop pauses 0.1 s there', () => {
-    expect(walkLoop([4, 0, 3, 0], 130).stuck).toBe(true);
+    expect(walkLoop([4, 0, 3, 0], 130).stuck).toBe(false); // (merge) master guard-ai S2 fix: a wait of 0 passes through now; the 0.1 s pause stays
     expect(walkLoop(A2_SHUNTER_WAITS, 130).stuck).toBe(false);
     expect(A2_PASS_WAIT).toBeGreaterThan(0);
   });

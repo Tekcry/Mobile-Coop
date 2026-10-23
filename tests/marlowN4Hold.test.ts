@@ -60,6 +60,7 @@ function rig(): { mode: CourseMode; items: FakeItem[]; despawned: unknown[]; spa
       return e;
     },
     despawn: (e: unknown) => despawned.push(e),
+    placeSlot: () => undefined, // (guard-ai S5, master) post, profile, section
   };
   const g = {
     interactables: {

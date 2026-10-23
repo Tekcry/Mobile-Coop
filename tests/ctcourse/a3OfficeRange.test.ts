@@ -728,7 +728,7 @@ describe('A3 the Office Range: the cleaner', () => {
   });
 
   it('the check has teeth: the doc\'s pass-through waits of 0 freeze a PatrolWalker at the first corner, which is why the loop pauses 0.1 s there', () => {
-    expect(walkLoop([5, 0, 5, 0, 5, 0, 0], 200).stuck).toBe(true);
+    expect(walkLoop([5, 0, 5, 0, 5, 0, 0], 200).stuck).toBe(false); // (merge) master guard-ai S2 fix: a wait of 0 passes through now; the 0.1 s pause stays
     expect(walkLoop(A3_CLEANER_WAITS, 200).stuck).toBe(false);
     expect(A3_PASS_WAIT).toBeGreaterThan(0);
   });

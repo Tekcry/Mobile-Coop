@@ -53,6 +53,7 @@ import { moonLight } from './lampMath';
 import { roofAt, roofGrid, type RoofGrid } from './roofGrid';
 import { KitRender } from './kit/kitRender';
 import { PropRender } from './props/propRender';
+import { SunCascadeLists, keepNearCamera, useCascadeLists } from './sunCascadeCull';
 
 /** Flashlight slots on dark maps (enemies searching / investigating in the dark): `torches.ts`. */
 export { FLASHLIGHTS } from './torches';
@@ -352,9 +353,17 @@ export class World {
   private sunT = 0;
   /** Low: the moon shades only the level (`ShadowSpec.staticSun`). */
   private staticSun = false;
+  private readonly cascadeLists = new SunCascadeLists();
+  private readonly sunReach: number[] = [];
+  private readonly sunNear: boolean[] = [];
+  /** (guard-render S6) Each cascade draws only the casters over its square (`sunCascadeCull.ts`; exact). */
+  private readonly cascadeList = (layer: number): AbstractMesh[] | null => {
+    const g = this.shadow;
+    return g instanceof CascadedShadowGenerator ? this.cascadeLists.fill(layer, this.sunCasters, g.getCascadeTransformMatrix(layer)?.m ?? null) : null;
+  };
 
   /** The moon's list: the static casters + the moving ones under open sky (indoors the roof shades them anyway). */
-  private updateSunCasters(dt: number): void {
+  private updateSunCasters(dt: number, focus: Vector3): void {
     this.sunT -= dt;
     if (this.sunT > 0) return;
     this.sunT = 0.25;
@@ -362,10 +371,22 @@ export class World {
     tmp.length = 0;
     for (let i = 0; i < this.sunStatic.length; i++) tmp.push(this.sunStatic[i]!);
     const vx = this.voxels;
+    const cp = focus; // (the player, not the orbit camera: the boom would flip guards at the edge)
     for (let i = 0; i < this.sunMoving.length && !this.staticSun; i++) {
       const m = this.sunMoving[i]!;
       // (small things - pickups, switches, mags - cast nothing worth a draw per cascade; lamps still take them)
       if (m.getBoundingInfo().boundingSphere.radiusWorld < 0.3) continue;
+      // (guard-render S6) guards: in the moon's list only near the player (`GUARD_SUN_REACH`, hysteresis)
+      const reach = this.sunReach[i]!;
+      if (reach !== Infinity) {
+        const c = m.getBoundingInfo().boundingSphere.centerWorld;
+        const dx = c.x - cp.x;
+        const dy = c.y - cp.y;
+        const dz = c.z - cp.z;
+        const near = keepNearCamera(this.sunNear[i]!, dx * dx + dy * dy + dz * dz, reach);
+        this.sunNear[i] = near;
+        if (!near) continue;
+      }
       if (vx?.sky && m.isEnabled()) {
         const b = m.getBoundingInfo().boundingBox;
         const x = (b.minimumWorld.x + b.maximumWorld.x) / 2;
@@ -492,15 +513,23 @@ export class World {
     this.sunStatic.push(m);
   }
 
-  /** Characters, weapons and props cast shadows (one shared list for the sun and every lamp). */
-  addShadowCaster(m: AbstractMesh): void {
+  /** Characters, weapons and props cast shadows (one shared list for the sun and every lamp). `sunReach`: the moon's
+   *  cascades drop it beyond this distance from the player (`sunCascadeCull.ts`; no caller passes one yet: guards with
+   *  GUARD_SUN_REACH, S6d, wait on Michael's look check); lamps and flashlights always take it. */
+  addShadowCaster(m: AbstractMesh, sunReach = Infinity): void {
     this.lightRig.addCaster(m);
     if (!this.sunMoving.includes(m)) {
       this.sunMoving.push(m);
+      this.sunReach.push(flags.guardSun ? sunReach : Infinity);
+      this.sunNear.push(true);
       this.sunT = 0;
       m.onDisposeObservable.addOnce(() => {
         const i = this.sunMoving.indexOf(m);
-        if (i >= 0) this.sunMoving.splice(i, 1);
+        if (i >= 0) {
+          this.sunMoving.splice(i, 1);
+          this.sunReach.splice(i, 1);
+          this.sunNear.splice(i, 1);
+        }
         const j = this.sunCasters.indexOf(m);
         if (j >= 0) this.sunCasters.splice(j, 1);
       });
@@ -622,7 +651,10 @@ export class World {
     csm.darkness = 0.35;
     csm.depthClamp = true;
     const sm = csm.getShadowMap();
-    if (sm) sm.renderList = this.sunCasters;
+    if (sm) {
+      sm.renderList = this.sunCasters;
+      if (useCascadeLists(flags.guardSun, this.bakedMoon)) sm.getCustomRenderList = this.cascadeList;
+    }
     this.shadow = csm;
   }
 
@@ -657,7 +689,7 @@ export class World {
   frame(focus: Vector3, dt = 0): void {
     this.updateGi();
     this.lamps?.frame();
-    this.updateSunCasters(dt);
+    this.updateSunCasters(dt, focus);
     const cam = this.scene.activeCamera;
     if (cam) {
       this.lightRig.update(dt, cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);

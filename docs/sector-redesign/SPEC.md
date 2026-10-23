@@ -151,7 +151,9 @@ until EW8 (A11). A light cut draws the nearest calm armed guard within 25 m (eng
 lamps until guard-ai provides it (GA4). **Co-op light parity needs slice L (protocol 31)** before any co-op playtest
 that cuts a light (EF7).
 
-**Guards (M1, M8, R6-R8).** All humans armed: officer (pistolSd), grunt (rifle), enforcer (pistolSd + shield). No
+**Guards (M1, M8, R6-R8).** All humans armed: officer (pistolSd), grunt (rifle), enforcer (pistolSd + shield). (Michael
+2026-10-23 ~10:10 item 3, guard-ai's validateGuardAi: no enforcer in any section guard list; shields come only with
+guard-ai's alarm response teams. The tables' enforcer rows place an officer, S5's standing team grunts.) No
 runner, heavy, sniper or droneOp (A3, A12; droneOp is not mirrored in co-op). Dogs are melee animals at a handler's
 heel (A2). Every guard has an employer (Larchmont), a job, a reason at each stop, a cycle of 25-45 s with stops 3-6 s,
 an isolation moment (LS 4.4: spot and second, written in the slice's guard sheet) and an overlap partner (LS 4.5).
@@ -312,9 +314,10 @@ lighting schedule. Opens C2.
 | cam-bridge | Camera over the C2 card door, L1 | The bridge door and landing | The lab block's only link | Sees the landing, not the NE stair door 6 m along | 9 m |
 | kp-fac | Keypad, facilities office | The BMS terminal | Building controls | Code overheard (#5-6) or on the comms-room handover board | - (EW5) |
 | alarm-rcp, alarm-brg | Alarm panels at reception and the bridge landing | The building | Guard posts | Both beside posted guards | - |
-**Lighting.** Lit: atrium pendants (`s2-atrium`, reception panel: lure #1; each pendant shootable), balcony downlights
-(`s2-l1-bal`, `s2-l2-bal`, switch at each stair door), corridor night level 25% per floor, kitchen, facilities office,
-reception. Dark by reason: open-plan offices and meeting rooms (PIR, nobody there), fire stairs (emergency pools at
+**Lighting.** Lit: atrium pendants and the reception downlight (`s2-atrium`, reception panel: lure #1, who sees his own
+room go dark - from the desk the pendants are above the L1 slab line; each lamp shootable), balcony downlights
+(`s2-l1-bal`, `s2-l2-bal`, switch at each stair door), corridor night level 25% per floor, kitchen, facilities office.
+Dark by reason: open-plan offices and meeting rooms (PIR, nobody there), fire stairs (emergency pools at
 landings), comms room (LEDs), roof plant room.
 **Observe.** From the post room door (dark): #1, #2, cam-turnstile. From the SW stair L1 door (vision panel; occlusion
 vantage, A23): #3, #4 in opposite phase, #5-6, #7 through the facilities glass.

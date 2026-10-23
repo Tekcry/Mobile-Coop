@@ -74,6 +74,10 @@ fetched, one at a time.
   ships with the default OFF (the flip b597053c reverted in 260f93eb); round F pins the contact like N1 and the flip
   follows. Undo: none needed (the setting is opt-in).
 
+- A11 (orchestrator 2026-10-23 ~08:30): the Anim Studio stage Wren and the menu preview Wren are not carriers, so with
+  the mocap switch on they keep the hand-keyed set (the tuner bakes the hand-keyed set). Undo: `carrier = true` on the
+  Studio stage rig (studioStage.ts:629 / :673).
+
 ## Polish list
 - Switch toggle at run / sprint (A8): one-cycle stride hand-over after a toggle.
 

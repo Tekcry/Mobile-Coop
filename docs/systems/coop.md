@@ -67,7 +67,10 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 - (marlow-bays item 1) A held hostage is never solid to its holder: the client's `EnemyPuppet.setSolid` (the takedown's
   `setSolid?.(false)` was a no-op there, so the puppet's capsule shoved the client's controller: slow, jittery movement
   while holding) and the partner's hostage seen there (`remoteHeld`). The host places a client's hostage from that
-  client's drawn (interpolated) pose, not its raw 20 Hz state.
+  client's drawn (interpolated) pose, not its raw 20 Hz state. (hostage-gait) That pose moves once per render frame
+  while the seized loop runs per fixed step, so the point goes through `holdFeed.ts` (velocity from distinct drawn
+  poses over render time, predicted to each step's sim time via `HoldClock`, eased; a still frame stops it, a jump
+  over 1 m snaps with no speed spike): `holdAt`'s speed, the hostage's gait, holds steady below 60 fps.
 - (marlow-bays item 2) Course items: the host's own press passes `'local'` (`gameState.ts`); `courseUser` reads it as
   P1, a client's peer id as P2 (it read `'local'` as P2, so a host unbolting alone was tested on the client's feet).
 - Objective line (coop-fix, `net/objectiveMirror.ts`): the client shows "Connecting to host…" until the first
@@ -114,6 +117,12 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   <= 40 m) and runs `remoteEffect` on its guards.
 - Team moves: brace and boost, human ladder, dual takedown (two finishes within `DUAL_WINDOW` 1.5 s -> banner). These
   are the moves that exist; the other four of loco D8 wait for the co-op phase (G52).
+- (throw-ko) Partner throw onto a guard (CT: landing on a guard knocks him out): at a throw's `tstart` the host records
+  the flight (`net/throwKo.ts`, `ThrowKo`: `throwArc` from the thrown player's feet as the host has them to the bounded
+  landing, from the host's start time) and replays it each fixed step; descending feet within `TEAM.throwKoReach` m
+  across of a guard and `throwKoLow`..`throwKoHigh` m over his feet (`teamMoves.throwKoHit`) knock him out through
+  `Enemy.knockOut` (melee, `takedown: 'throw'`, the strike's noise), one guard per throw. Credit and the client's view
+  ride the existing kill event and guard state sync: no wire change.
 - (anim-studio-2) Team-move animation tuning: the tuner's Co-op sections (`anim/moveTune.ts`, one per move: role A, role
   B, contact) apply to the LOCAL player's own role only (`GameState` writes `MOVE_TUNE_TEAM` from `TeamController`).
   `RemoteAvatar` never reads them: the partner always plays the shared defaults until an export is folded into the
