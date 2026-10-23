@@ -45,6 +45,22 @@ function otherBuildings(b: LevelBuilder): void {
   connector(b, { x0: -26, x1: -10, z0: 26, z1: 32, alongX: true });
 }
 
+/**
+ * (sector-redesign cap fix) Tags the items of one section's file with its section: the co-op host mirrors a section's
+ * switches, boards, hide spots and doors only while it is live (`Interactables.scope`; all five sections register 196
+ * items, over the wire's `MAX_ITEMS`). The connector doors are untagged again by the mode (always mirrored).
+ */
+function inSection<T extends object>(list: readonly T[], section: number): (T & { section: number })[] {
+  return list.map((x) => ({ ...x, section }));
+}
+
+/** Runs one section file's build and tags the doors it made with that section. */
+function buildSection(b: LevelBuilder, section: number, build: (b: LevelBuilder) => void): void {
+  const n0 = b.anchors.doors.length;
+  build(b);
+  for (let i = n0; i < b.anchors.doors.length; i++) b.anchors.doors[i]!.section = section;
+}
+
 /** Extra nav flood seeds: every stub section's interior and connector (the stub run is joined by doorways, but seeds keep them kept). */
 const STUB_NAV_SEEDS: Vector3[] = [
   new Vector3(24, 0, -14),
@@ -86,12 +102,12 @@ export const campusOps: MapDef = {
     // the ground (1 m thick under y 0) and the boundary walls (they set the map's bounds)
     b.floor(0, -7, 140, 154, GROUND, 0, 1);
     b.perimeter(CAMPUS_BOUNDS.minX, CAMPUS_BOUNDS.maxX, CAMPUS_BOUNDS.minZ, CAMPUS_BOUNDS.maxZ, 6, '#2c3033');
-    buildCampusS1(b);
-    buildCampusS2(b);
+    buildSection(b, 0, buildCampusS1);
+    buildSection(b, 1, buildCampusS2);
     otherBuildings(b);
-    buildCampusS3(b);
-    buildCampusS4(b);
-    buildCampusS5(b);
+    buildSection(b, 2, buildCampusS3);
+    buildSection(b, 3, buildCampusS4);
+    buildSection(b, 4, buildCampusS5);
     const alarms = CAMPUS_ALARMS.map((a) => ({ pos: new Vector3(a.at[0], a.y ?? 0, a.at[1]), yaw: a.yaw, section: a.section }));
     return {
       playerSpawns: S1_SPAWNS,
@@ -100,15 +116,15 @@ export const campusOps: MapDef = {
       props: [],
       objectives: [],
       pickups: [...S1_PICKUPS, ...S2_PICKUPS, ...S3_PICKUPS],
-      hideSpots: [...S1_HIDESPOTS, ...S2_HIDESPOTS, ...S3_HIDESPOTS, ...S4_HIDESPOTS, ...S5_HIDESPOTS],
-      switches: [...S1_SWITCHES, ...S2_SWITCHES, ...S3_SWITCHES, ...S4_SWITCHES, ...S5_SWITCHES],
+      hideSpots: [...inSection(S1_HIDESPOTS, 0), ...inSection(S2_HIDESPOTS, 1), ...inSection(S3_HIDESPOTS, 2), ...inSection(S4_HIDESPOTS, 3), ...inSection(S5_HIDESPOTS, 4)],
+      switches: [...inSection(S1_SWITCHES, 0), ...inSection(S2_SWITCHES, 1), ...inSection(S3_SWITCHES, 2), ...inSection(S4_SWITCHES, 3), ...inSection(S5_SWITCHES, 4)],
       rooms: [...S1_ROOMS, ...S2_ROOMS, ...S3_ROOMS, ...S4_ROOMS, ...S5_ROOMS],
       navSeeds: [...S1_NAV_SEEDS, ...S2_NAV_SEEDS, ...STUB_NAV_SEEDS, ...S3_NAV_SEEDS, ...S4_NAV_SEEDS, ...S5_NAV_SEEDS],
       alarms,
       security: CAMPUS_SECURITY,
       lasers: [...S3_LASERS, ...S4_LASERS, ...S5_LASERS],
       laserPanels: [...S3_PANELS, ...S4_PANELS, ...S5_PANELS],
-      boards: [...S4_BOARDS, ...S5_BOARDS],
+      boards: [...inSection(S4_BOARDS, 3), ...inSection(S5_BOARDS, 4)],
     };
   },
 };

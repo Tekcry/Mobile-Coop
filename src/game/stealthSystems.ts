@@ -71,6 +71,7 @@ export class StealthSystems {
     const reg = g.world.level.lights;
     layout.switches?.forEach((s, i) => {
       const it = ints.add(`switch-${i}`, 'switch', s.pos, 'Lights off', 0, s.yaw);
+      if (s.section !== undefined) it.section = s.section;
       it.reach = 1.3;
       const sw = { it, group: s.group, on: true };
       it.onUse = () => this.toggle(sw, reg);
@@ -97,6 +98,7 @@ export class StealthSystems {
       this.boards = boards;
       bd.forEach((b, i) => {
         const it = ints.add(`board-${i}`, 'switch', b.pos, '', 0, b.yaw);
+        if (b.section !== undefined) it.section = b.section;
         it.reach = BOARD_REACH;
         it.onUse = () => boards.use(i);
         this.boardIts.push(it);
@@ -107,6 +109,7 @@ export class StealthSystems {
       const panel: AlarmPanel = { id: `alarm-${i}`, x: a.pos.x, y: a.pos.y, z: a.pos.z, yaw: a.yaw, disabled: false, ...(a.section !== undefined ? { section: a.section } : {}) };
       em.alarms.push(panel);
       const it = ints.add(panel.id, 'alarm', a.pos, 'Disable alarm', ALARM.disableTime, a.yaw);
+      if (a.section !== undefined) it.section = a.section;
       it.reach = 1.3;
       it.onUse = () => {
         panel.disabled = true;
@@ -119,6 +122,7 @@ export class StealthSystems {
     });
     layout.hideSpots?.forEach((h, i) => {
       const it = ints.add(`hide-${i}`, 'hide', h.pos, 'Hide body', 0);
+      if (h.section !== undefined) it.section = h.section;
       it.reach = 1.5;
       it.onUse = () => this.hideCarried();
       ints.setEnabled(it, true);
@@ -129,6 +133,7 @@ export class StealthSystems {
     const doors = g.world.doors;
     for (const d of doors.list) {
       const it = ints.add(`door-${d.anchor.id}`, 'door', new Vector3(d.cx, d.anchor.hinge.y, d.cz), 'Open door', 0);
+      if (d.anchor.section !== undefined) it.section = d.anchor.section;
       it.reach = 1.4;
       it.onUse = () => {
         if (d.target === 0) doors.open(d, 'quiet');

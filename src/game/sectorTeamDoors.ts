@@ -97,6 +97,7 @@ export class SectorTeamDoors {
         if (!h.ints) return;
         const y = door ? door.anchor.hinge.y : 0;
         const it = h.ints.add(boltItemId(sec, k), 'door', new Vector3(b.at[0], y, b.at[1]), 'Unbolt', 0);
+        it.section = sec;
         it.reach = BOLT_REACH;
         it.side = b.side;
         // (sector-fixes-r2) the door's span only, not through the wall beside it (inBoltReach, the host's test)
@@ -115,6 +116,7 @@ export class SectorTeamDoors {
           const sw = isA ? g.a : g.b;
           if (!h.ints) return null;
           const it = h.ints.add(pairSwitchId(sec, k, isA), 'switch', new Vector3(sw.at[0], sw.y ?? y0, sw.at[1]), sw.label ?? PAIR_SWITCH_LABEL, 0, sw.yaw ?? 0);
+          it.section = sec;
           it.reach = PAIR_SWITCH_REACH;
           it.onUse = (_it, by) => this.turnKey(sec, k, isA, by);
           h.ints.setEnabled(it, true);

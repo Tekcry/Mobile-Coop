@@ -2080,14 +2080,16 @@ async function campusS4Part(page) {
     await sim(4.6);
   }
   // (a) section 4 is live
-  const d4 = await G(() => ({ d: window.__sector.debug(), alive: window.__app.current.enemyMgr.alive, ct: window.__ctdev.debug(), items: window.__app.current.interactables.items.length }));
+  const d4 = await G(() => ({ d: window.__sector.debug(), alive: window.__app.current.enemyMgr.alive, ct: window.__ctdev.debug(), items: window.__app.current.interactables.items.length, live: window.__app.current.interactables.scopedCount(), scope: window.__app.current.interactables.scope }));
   assert(d4.d.index === 3 && d4.d.id === 's4' && d4.d.phase === 'objective', `the run reaches section 4 (${JSON.stringify([d4.d.index, d4.d.id, d4.d.phase])})`);
   assert(d4.alive === 20, `section 4 has 20 guards in (${d4.alive})`);
   const live4 = d4.ct.cams.filter((c) => c.live).map((c) => c.id).sort();
   assert(JSON.stringify(live4) === JSON.stringify(['cam-cage', 'cam-dock4', 'cam-mantrap']), `the three S4 cameras are the live ones (${JSON.stringify(live4)})`);
   const las = d4.ct.lasers.filter((l) => l.live);
   assert(las.length === 1 && las[0].id === 'las-tray' && las[0].on && las[0].panel !== '', `las-tray is live with its panel (${JSON.stringify(las)})`);
-  assert(d4.items < 128, `the interactables stay under 128 (${d4.items})`);
+  // (cap fix) every section's items stay registered on the host; co-op mirrors the live section's plus the untagged
+  // ones (MAX_ITEMS 128 holds for that set, with headroom for E9's crates and the revives)
+  assert(d4.scope === 3 && d4.live < d4.items && d4.live <= 100, `the mirrored (live) interactables stay under the cap (${d4.live} of ${d4.items}, scope ${d4.scope})`);
 
   // (b) the dock board gives the codes: both keypads open
   const codes = await G(() => {
@@ -2318,14 +2320,14 @@ async function campusS5Part(page) {
     await sim(4.6);
   }
   // (a) section 5 is live
-  const d5 = await G(() => ({ d: window.__sector.debug(), alive: window.__app.current.enemyMgr.alive, ct: window.__ctdev.debug(), items: window.__app.current.interactables.items.length }));
+  const d5 = await G(() => ({ d: window.__sector.debug(), alive: window.__app.current.enemyMgr.alive, ct: window.__ctdev.debug(), items: window.__app.current.interactables.items.length, live: window.__app.current.interactables.scopedCount(), scope: window.__app.current.interactables.scope }));
   assert(d5.d.index === 4 && d5.d.id === 's5' && d5.d.phase === 'objective', `the run reaches section 5 (${JSON.stringify([d5.d.index, d5.d.id, d5.d.phase])})`);
   assert(d5.alive === 24, `section 5 has 24 guards in (${d5.alive})`);
   const live5 = d5.ct.cams.filter((c) => c.live).map((c) => c.id).sort();
   assert(JSON.stringify(live5) === JSON.stringify(['cam-gallery', 'cam-hall', 'cam-terrace']), `the three S5 cameras are the live ones (${JSON.stringify(live5)})`);
   const las5 = d5.ct.lasers.filter((l) => l.live);
   assert(las5.length === 1 && las5[0].id === 'las-shaft' && las5[0].panel !== '', `las-shaft is live with its panel (${JSON.stringify(las5)})`);
-  assert(d5.items < 128, `the interactable list stays under the cap (${d5.items})`);
+  assert(d5.scope === 4 && d5.live < d5.items && d5.live <= 100, `the mirrored (live) interactable list stays under the cap (${d5.live} of ${d5.items}, scope ${d5.scope})`);
 
   // (b) the keyholders stand at their posts
   const keys = await G(() => {

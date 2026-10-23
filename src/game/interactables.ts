@@ -2,6 +2,7 @@ import type { Vector3} from '../core/babylon';
 import { TransformNode, type AbstractMesh, type InstancedMesh, type Scene } from '../core/babylon';
 import type { PartLibrary } from '../world/partLibrary';
 import { hyp2 } from '../core/mathx';
+import { ITEM_SCOPE_OFF, itemInScope } from './itemScope';
 
 /** Objectives (terminal, cache, extract), light switches, alarm panels, body hiding spots, bodies, doors. */
 export type InteractKind = 'terminal' | 'cache' | 'extract' | 'switch' | 'alarm' | 'hide' | 'body' | 'door' | 'vip' | 'intel' | 'charge' | 'revive' | 'medkitWall';
@@ -50,6 +51,11 @@ export interface Interactable {
   sideDepth?: number;
   /** Noise radius (m) the hold makes while it runs (a manhole cover, a padlock); none = silent. */
   holdNoise?: number;
+  /**
+   * (sector-redesign cap fix) The Sector Ops section the item belongs to: a co-op host mirrors it only while that section
+   * is live (`Interactables.scope`, `itemScope.ts`). None: always mirrored.
+   */
+  section?: number;
   /** Called when used (else the mode handles it). */
   onUse?: (it: Interactable, who?: string) => void;
 }
@@ -61,6 +67,11 @@ export interface Interactable {
  */
 export class Interactables {
   readonly items: Interactable[] = [];
+  /**
+   * (sector-redesign cap fix) The section whose items a co-op host mirrors (`ITEM_SCOPE_OFF`: every item; Sector Ops
+   * sets the live section, -1 between sections). Local prompts are not affected.
+   */
+  scope = ITEM_SCOPE_OFF;
   private t = 0;
 
   constructor(
@@ -156,6 +167,18 @@ export class Interactables {
       }
     }
     return best;
+  }
+
+  /** Is `it` in the mirrored set (`scope`)? */
+  inScope(it: Interactable): boolean {
+    return itemInScope(it.section, this.scope);
+  }
+
+  /** How many items are in the mirrored set (debug / e2e: the wire cap holds for the live set). */
+  scopedCount(): number {
+    let n = 0;
+    for (let i = 0; i < this.items.length; i++) if (this.inScope(this.items[i]!)) n++;
+    return n;
   }
 
   remove(it: Interactable): void {

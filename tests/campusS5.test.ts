@@ -206,7 +206,8 @@ describe('S5 registration, shape and the shared blocks', () => {
 
   it('the layout carries S5: rooms, the nine switches, the board, the laser and panel, the hide spots, the nav seeds, the alarms (C4\'s door is built)', () => {
     expect(lay.switches!.length).toBeGreaterThanOrEqual(9 + 9 + 7 + 5);
-    expect(lay.boards).toContainEqual(S5_BOARDS[0]);
+    // (cap fix) the layout tags each section's board with its section
+    expect(lay.boards).toContainEqual({ ...S5_BOARDS[0]!, section: 4 });
     expect(lay.lasers!.some((l) => l.id === 'las-shaft')).toBe(true);
     expect(lay.laserPanels!.some((p) => p.id === 'panel-shaft')).toBe(true);
     const al = lay.alarms!.filter((a) => a.section === 4);
