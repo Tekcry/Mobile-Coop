@@ -288,7 +288,7 @@ Non-net PR: at most 1-2 area suites (orchestrator 23:08). Every agent: CPU wait 
   (label + orchestrator told ~01:35). Polish 1-6 held for the next batch. Opus L-A
   finisher on -lr16l-a (ad4c74ad; checks/lr16l-a-build.md). Swap WIP pushed: -lr16pol-b 536581f1, -lr16pol-e 962efbbf
   (unchecked, finish later). Polish A + D check PASS (checks/lr16pol-ad-check.md). LR16-W brief still missing.
-QUEUED on the laptop: 7a3b5815-a012 (lr16int: sectorops ctcourse lightbake darkness).
+QUEUED on the laptop: 85b7ff10-d77a (lr16int: sectorops ctcourse lightbake darkness; supersedes 7a3b5815).
 OPEN PR #226 campus art: target head -artpol b5e93548 (#226 head still -art 2276483a, CONFLICTING). Green -> push -artpol
   (+ polish D, docs only) to -art; at train entry merge master (fold animFrozen.ts into animTier.ts) + artnext C7-C9;
   label train-ready + message the orchestrator. Fail -> Opus triage.
@@ -315,7 +315,7 @@ Chain (all agents die at the swap; each branch has a WIP commit; rerun from brie
    ctcourse (no S7 stair, no ctcourseLight.tuned.json), so do not merge -lr16w-c2. RISK at the LR16 train entry: master's
    tests/ctcourseLight.test.ts gates Marlow's new map under LR16 lighting - run it on the merged tree first. Stale: -lr16wp worktree (detached 02419d1b, old planner probes; remove later).
 4. lr16int 7a3b5815 = 82f9e1bb (laptop coop + netmove GREEN) + -lr16w 7f81c2db + pol-a 36547c1e (lead merge, clean; tsc
-   + 11 light files 136 pass). RUNNING: Opus checker (checks/lr16w-batch-check.md); laptop 7a3b5815-a012 (sectorops,
+   + 11 light files 136 pass). Checker FIX 1 (S3 stores top vs walkway hang) fixed by the lead 85b7ff10; laptop 85b7ff10 (sectorops,
    ctcourse, lightbake, darkness). Opus finisher for pol-b (536581f1) then pol-e (962efbbf), reports
    checks/lr16pol-{b,e}-build.md; then one Opus checker B + E + L-B (7ed21ed6).
 Parallel (off lr16int 82f9e1bb, briefs/LR16-POLISH.md; builders started 23:20, WIP pushed): pol-a (Sonnet; skip the
