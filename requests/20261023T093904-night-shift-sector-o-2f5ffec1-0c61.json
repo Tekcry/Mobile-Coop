@@ -1,0 +1,17 @@
+{
+  "id": "20261023T093904-night-shift-sector-o-2f5ffec1-0c61",
+  "sha": "2f5ffec143f8d889d94f700ea81a9d881f384a19",
+  "branch": "feature/sector-redesign-lr16e",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-lightbake",
+    "e2e-darkness",
+    "e2e-sectorops",
+    "e2e-stealth-ai",
+    "e2e-ctcourse"
+  ],
+  "set": "lr16e",
+  "note": "LR16e baked contact-hardening penumbra (lamp bake; LAMP_VERSION 2)."
+}
