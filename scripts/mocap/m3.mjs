@@ -392,11 +392,17 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
     if (x) plan.push({ slot: 'sprint_start', kind: 'start', choice: { take: x.take, segment: x.start.segment, loop: false }, a: x, emitAs: { file: 'sprint_start.ts', name: 'sprint_start', kind: 'start', typed: true, gait: 'run', seconds: 'MOCAP_SPRINT_START_SECONDS' } });
   }
   const latNote = '. Lateral cycle: the clip format has no sideways cycle yet (CLIP-FORMAT cycles travel along +z): intermediate only, root turned to the body facing (faceRoot)';
+  // (mocap-trial-2, strafe) the strafe pair is emitted as sideways cycles (CLIP-FORMAT `travel` -x / +x); the wall side-steps stay intermediates
+  const strafeNote = '. Sideways cycle: root turned to the body facing (faceRoot), then its travel onto the x axis (emit.mjs `travel`)';
+  const STRAFE_EMIT = {
+    strafe_walk_L: { file: 'strafe_l.ts', name: 'strafe_l', kind: 'cycle', gait: 'strafe', travel: '-x' },
+    strafe_walk_R: { file: 'strafe_r.ts', name: 'strafe_r', kind: 'cycle', gait: 'strafe', travel: '+x' },
+  };
   for (const [clip, list, x, slot] of [[`strafe left (aimed, ${TARGET.strafe} m/s)`, strafeL, strafe.l, 'strafe_walk_L'], [`strafe right (aimed, ${TARGET.strafe} m/s)`, strafeR, strafe.r, 'strafe_walk_R'],
     [`wall side-step left, standing (${TARGET.wallStand} m/s)`, wallL, wall.l, 'wall_step_L'], [`wall side-step right, standing (${TARGET.wallStand} m/s)`, wallR, wall.r, 'wall_step_R'],
     [`wall side-step left, crouched (${TARGET.wallCrouch} m/s)`, wallCL, wallC.l, 'wall_crouch_step_L'], [`wall side-step right, crouched (${TARGET.wallCrouch} m/s)`, wallCR, wallC.r, 'wall_crouch_step_R']]) {
-    clips.push({ clip, pick: cyc(x), runner: cyc(other(list, x)), usable: usableCycle(x), why: (x ? cycWhy(x) : 'no candidate cycle') + (x ? latNote : ''), slot });
-    if (x) plan.push({ slot, kind: 'loop', lateral: true, choice: { take: x.a.take, segment: [x.c.a, x.c.b], foot: x.c.foot, loop: true }, a: x.a });
+    clips.push({ clip, pick: cyc(x), runner: cyc(other(list, x)), usable: usableCycle(x), why: (x ? cycWhy(x) : 'no candidate cycle') + (x ? (STRAFE_EMIT[slot] ? strafeNote : latNote) : ''), slot });
+    if (x) plan.push({ slot, kind: 'loop', lateral: true, choice: { take: x.a.take, segment: [x.c.a, x.c.b], foot: x.c.foot, loop: true }, a: x.a, ...(STRAFE_EMIT[slot] ? { emitAs: STRAFE_EMIT[slot] } : {}) });
   }
   clips.push({ clip: 'strafe left / right (jog)', pick: null, runner: '-', usable: '-', why: 'no jogging strafe on the site; 127_13 / 127_14 are forward runs with a dodge (see findings): mirror / speed up the walk strafe or keep the procedural strafe', slot: null });
   for (const side of ['L', 'R']) {
@@ -436,8 +442,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
       if (keyedClip) { const clip = keyedClip(out.def); notes.push(`keyedClip ok (${clip.frames} frames${clip.feet ? ', feet' : ''})`); }
       if (spec.kind === 'cycle') {
         const r = out.report;
-        const gameV = p.slot === 'sprint' ? TARGET.sprint : TARGET.sneak;
+        const gameV = p.slot === 'sprint' ? TARGET.sprint : spec.travel ? TARGET.strafe : TARGET.sneak;
         notes.push(`Wren ${r.speed.toFixed(2)} m/s, stride ${r.stride.toFixed(2)} m, cycle ${r.cycle.toFixed(3)} s, duty ${out.def.duty.toFixed(3)} (the take's contact ${r.warpedDuty.toFixed(3)}), capture lift ${(r.liftH * 100).toFixed(1)} cm (liftH written ${out.def.liftH}), the take's half ${r.takeHalf.toFixed(3)} (written ${r2(out.def.half * 1000) / 1000}), knee pole ${out.def.kneeOut}; at the game's ${gameV} m/s the clip plays at ${(gameV / r.speed).toFixed(2)}x its captured speed`);
+        if (spec.travel) notes.push(`travel ${spec.travel} (the take's travel turned ${r.travelTurnDeg.toFixed(1)} deg onto the axis), game / clip stride ${r.strideScale.map((x) => x.toFixed(2)).join('-')} over 0.4-0.9 m/s`);
         notes.push(seamNote(out));
       } else notes.push(`${out.def.frames} frames, ${out.seconds.toFixed(2)} s`);
       b.clip = `clips/m3/${spec.file}`;

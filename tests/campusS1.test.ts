@@ -11,7 +11,7 @@ import { isListedMap } from '../src/world/maps/listed';
 import { campusOps, CAMPUS_BOUNDS } from '../src/world/maps/campusOps';
 import { CAMPUS_COOP_LIPS } from '../src/world/maps/campusLips';
 import { C1_BOX, S1_DOORS, S1_GROUPS, S1_ROOMS, BOLLARD_XS, CANOPY_LAMPS, PARK_COLUMNS_E, PARK_COLUMNS_W } from '../src/world/maps/campusS1';
-import { CAMPUS_ALARMS, CAMPUS_POSTS, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
+import { CAMPUS_ALARMS, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
 import { SECTOR, checkSectorGuards, checkSectors, exitZone, inZone, type SectorGuard } from '../src/game/sectors';
 import { validateSecurity } from '../src/security/data';
 import { CAMERA } from '../src/config/security';
@@ -579,14 +579,14 @@ describe('M8: isolation in time at each takedown spot (sectorCheck, the Warehous
 
 describe('K1 (M12): the doorman is an unavoidable posted guard at the C1 near door', () => {
   const post = S1.guards[4]!;
-  it('the data: role posted, zone c1, leash 5, guards c1-door (`CAMPUS_POSTS` until guard-ai\'s `post` block exists)', () => {
+  it('the data: role posted, zone c1, leash 5, guards c1-door (`SquadSlot.post`)', () => {
     expect(post.role).toBe('posted');
     expect(post.zone).toBe('c1');
-    expect(CAMPUS_POSTS['s1#5']).toEqual({ leash: 5, guards: 'c1-door' });
+    expect(post.post).toEqual({ leash: 5, guards: 'c1-door' });
   });
 
   it('the leash edge is at least 1 m off the near door\'s nav cell, so a lure opens the way', () => {
-    const leash = CAMPUS_POSTS['s1#5']!.leash;
+    const leash = post.post!.leash;
     const door = S1_DOORS.c1Near;
     const cell = nav.center(nav.cellOf(door[0], door[1], 0));
     const dPost = hyp2(cell[0] - post.x, cell[1] - post.z);

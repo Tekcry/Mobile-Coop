@@ -22,7 +22,7 @@ import {
   S3_PANELS,
   S3_ROOMS,
 } from '../src/world/maps/campusS3';
-import { CAMPUS_ALARMS, CAMPUS_POSTS, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
+import { CAMPUS_ALARMS, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
 import { SECTOR, checkSectorGuards, exitZone, inZone, type SectorGuard } from '../src/game/sectors';
 import { validateSecurity } from '../src/security/data';
 import { ENEMIES } from '../src/ai/enemyDefs';
@@ -185,7 +185,7 @@ describe('S3 guards (SPEC "S3" guard table)', () => {
     expect(G[1]!.pair).toBe(2);
     expect(G[2]!.pair).toBe(1);
     expect(G.some((g) => g.role === 'posted')).toBe(false);
-    expect(Object.keys(CAMPUS_POSTS).some((k) => k.startsWith('s3#'))).toBe(false);
+    expect(G.some((g) => g.post !== undefined)).toBe(false);
   });
 
   it('each patrol cycle is 25-45 s; the posts are #1, #4, #5, #9, #13', () => {

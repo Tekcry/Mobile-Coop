@@ -1,6 +1,6 @@
 # E9-crate brief - the between-section weapons crate (builders: (a) Opus, (b) Sonnet; checker: Opus)
 
-**PROTOCOL NUMBER NEEDED from the orchestrator (ours is 31; guard-ai has 32).** This slice changes the wire. Below the
+**Protocol number: N = 35 (assigned by the orchestrator; registry: 31 master, 32 guard-ai, 33 marlow-final, 34 hang-down).**
 new version is written `N`. The lead fills in `N` before part (a) starts. Builders never pick a number.
 
 Written by the E9-crate planner (Opus) 2026-10-23 from PLAN row E9-crate, BRIEF A98 and Michael ~10:20. Build exactly

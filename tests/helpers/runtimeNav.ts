@@ -23,7 +23,8 @@ interface Obb {
 export function downCast(b: LevelBuilder): (x: number, y: number, z: number) => NavDownHit | null {
   const obbs: Obb[] = [];
   for (const p of b.boxes) {
-    if (!p.collide) continue;
+    // (E2) Havok's down-cast is G.STATIC only: glass panes (G.GLASS) are never hit
+    if (!p.collide || p.glass) continue;
     const q = Quaternion.RotationYawPitchRoll(p.yaw, p.pitch, 0);
     const rot = new Matrix();
     q.toRotationMatrix(rot);
