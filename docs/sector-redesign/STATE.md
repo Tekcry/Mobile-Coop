@@ -288,6 +288,13 @@ C:/NightShift/Mobile-Coop-sector-redesign-polish). git fetch; read CLAUDE.md, RO
   LR13 (Michael "Try it first"): -lightrev Opus: settings toggle, default off, host choice in co-op -> checks/lr13-build.md.
   Shadow audit (Michael ~14:45): -shadow Opus -> checks/shadow-audit.md (fold into light-measure.md).
   LR14 char shadow maps (Michael ~14:42, on at High+): -charshadow Opus -> LR14-PLAN.md, checks/lr14-build.md.
+  ~15:08: #226 CI voxelFit failed -> Michael ~15:05 retires ?voxels=1 + its fit test: test deleted (-art 5c48f5c4, CI rerun);
+  leave src/voxel alone (chore PR elsewhere). On the laptop verdict (+ green CI): merge master into -art, train-ready.
+  Shadow audit DONE -shadow 90dd18a1 (checks/shadow-audit.md; fixes in src/world/shadowAccuracy.ts behind the LR13
+  mode). When LR13 lands: merge -shadow into -lightrev, wire setShadowAccuracy beside setLampFalloff (main.ts), check the
+  3-line enemyManager.ts change (Guard AI file); then build the proposed 8 door slots per lamp (bakedLamps.ts /
+  lightField.ts) and exact torch drawing in the lamp shader AFTER LR14 merges (same shaders). LR13 perf: campusOps atlas
+  48 -> 134 MB, bake 27 -> 118 s.
 - Next when J + A are in: merge -cap into -art; one Sonnet checker (dressing) + Opus (kit code) -> checks/art-check.md;
   GPU perf pass + e2e-sectorops 1-6 + coop at the -art head (Test Runner, E2E_GPU=1); merge -walk; fragment
   changes/feature-sector-redesign-art.md; PR 5 -> orchestrator "PR open". W1 -> orchestrator "needs Michael".
