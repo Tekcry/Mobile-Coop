@@ -284,7 +284,8 @@ Open PRs:
    CPU p95 < 12 (Epic, 24 guards); -artpol 1d34c348 (art + polish) start 13.4 / S4 12.1 / S5 13.1 / S3 10.6.
    Fixes: -perfg 057403f5 (frozen anim skip, merged guard gun; perfg-build.md) + -perfa 3f87166e (campus art merges,
    indoor cull 60 m; perfa-build.md). Checker PASS (perf-batch-check.md); merged: -artpol 4f66a5f8.
-   2nd checker (AI rule) RUNNING perf-batch-check2.md. SENT ~19:35 to Test Runner at 4f66a5f8 (start / S3 / S4 / S5-worst, freeze on vs &guardfreeze=0, guard-cap,
+   2nd checker PASS 72e87171 (perf-batch-check2.md; fold its polish 1 thaw foot-planner reset + 2 animate in die()
+   into the master-merge commit at train entry). SENT ~19:35 to Test Runner at 4f66a5f8 (start / S3 / S4 / S5-worst, freeze on vs &guardfreeze=0, guard-cap,
    e2e-sectorops 1-6 + coop + stealth-ai; visuals: emissive dimming, car shadows, no pop at 58-60 m). In budget ->
    push -art to the -artpol head, merge master at train entry (master's animTier.ts vs our animFrozen.ts; enemy.ts
    animate-line conflict, perfg-build.md), message orchestrator + `gh pr edit 226 --add-label train-ready`.
