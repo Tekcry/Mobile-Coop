@@ -1377,22 +1377,27 @@ try {
 
   // (guard-ai S26, G139, A155, A157, A158) the partner is heard: the S24 setup with one guard (the factory floor pair's
   // spot, facing the client 9 m north under the lamp; the mission's guards statues, `em.maxAlive` raised and restored,
-  // both players invulnerable, the alarm panels off, a pinned light). The host stays dark behind the dock wall the whole
-  // time. The guard sees the lit client (by hand after 30 s if he does not), the client goes dark into the corridor behind
-  // the z -8.8 wall, the guard goes to the last known position and searches. Then the client comes back and RUNS for real
-  // (full stick: the host's `remoteNoise` reads his speed from his states at 4 Hz, a teleport is not a footstep) on a
-  // short straight leg 1.8 m behind the searcher, there and back; the leg is picked on the host from the nav (walkable,
-  // outside his search spot) and the game's own hearing (`tierOf`: no wall in the way). On the host, within 6 s of the
-  // host's sim: the client's slot `locT` < 1 with `seenT` > 1 (located, not seen), the guard's `searchSpot` within 2 m of
-  // the client and his re-aim clock set, he still hunts the client; and the host's own slot never held a position
-  // (G139: the client's noise locates the client only). A real run is a jog (CT has no sprint): its reach is ~3.4 m.
+  // both players invulnerable, the alarm panels off, a pinned light). The host stays dark in the yard lane the whole
+  // time. The guard sees the lit client (by hand after 30 s if he does not), the client goes dark out into the yard lane,
+  // the guard goes to the last known position (the lamp) and searches. (S26 coop triage: both hides are S24's dark yard
+  // lane spots, walled off from every cell inside; the old corridor hide was in sight of this guard's own combat cover
+  // picks, so he saw the client hide and searched the hide itself, and the dispatch hide is seen through its window.)
+  // Then, the moment the searcher arrives at a search spot and starts his 3 s look round, the host picks a short straight
+  // leg 2.2 m behind his look (else beside him) from the nav (walkable) and the game's own hearing (`tierOf`: no wall in
+  // the way) and holds the guard still (his brain off, as the statues) while the client is put on the leg; the guard is
+  // let go and the client RUNS for real (full stick: the host's `remoteNoise` reads his speed from his states at 4 Hz, a
+  // teleport is not a footstep) there and back. Every leg point is past the 1.8 m close range and the client is dark, so
+  // he can be heard, not seen. On the host, within 6 s of the host's sim: the client's slot `locT` < 1 with `seenT` > 1
+  // (located, not seen), the guard re-aimed on a noise since the run started and his `searchSpot` moved off his look
+  // spot to within 2 m of the client, he still hunts the client; and the host's own slot never held a position (G139:
+  // the client's noise locates the client only). A real run is a jog (CT has no sprint): its reach is ~3.4 m.
   console.log('guard-ai S26: the partner is heard (a searcher hears the client run behind him; only the client is located)');
   {
     await startMode(...MISSION);
     await GA(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
-    const S26 = { guard: [8, -6], client: [9, 3], hostHide: [0, -14], clientHide: [9, -10.3] };
+    const S26 = { guard: [8, -6], client: [9, 3], hostHide: [-3.75, -24.75], clientHide: [8.75, -24.75] };
     const cid = await GB(() => window.__coop.session.selfId);
-    // the host dark behind the dock wall from the start, the client lit under the lamp
+    // the host dark in the yard lane from the start, the client lit under the lamp
     await GA(([x, z]) => { const g = window.__app.current; const nav = g.enemyMgr.nav; const c = nav.nearestWalkable(x, z, 2, 0); const [cx, cz] = c >= 0 ? nav.center(c) : [x, z]; g.player.controller.teleport(new g.player.position.constructor(cx, 0.05, cz), 0); g.player.cam.pitch = 0; }, S26.hostHide);
     await moveClient(B, S26.client[0], 0.1, S26.client[1], Math.PI);
     await until(A, ([x, z]) => { const r = window.__app.current.remotePlayers()[0]; return !!r && Math.hypot(r.feet.x - x, r.feet.z - z) < 0.6 && r.speed < 0.15; }, S26.client, 15000, 'S26: the host has the client still under the lamp');
@@ -1430,7 +1435,42 @@ try {
         const sClient = em.intruders.slotFor(cid);
         const gen = (window.__s26Gen = (window.__s26Gen ?? 0) + 1);
         const tmp = [0, 0];
-        const s = (window.__s26 = { phase: 'seen', hopT0: -1, level: '', hunt: -1, sHost, sClient, hostValid: 0, loc0: -1, spot0: -1, locMin: 99, tLoc: -1, seenAtLoc: -1, tSpot: -1, spotMin: 99, heard: false, t: 0, seesClient: 0 });
+        const s = (window.__s26 = { phase: 'seen', hopT0: -1, level: '', hunt: -1, sHost, sClient, hostValid: 0, loc0: -1, spot0: [0, 0], hPrev: 99, locMin: 99, tLoc: -1, seenAtLoc: -1, tSpot: -1, spotMin: 99, heard: false, t: 0, leg: null, tried: [1e9, 1e9], picks: 0 });
+        // (S26 coop triage) the leg, picked on the step a searcher starts his look round at a spot: 2.2 m behind his look
+        // (else beside him), 3 m long, walkable, every point in a jog's reach with no wall in the way (`tierOf`, reach 3 of
+        // ~3.4) and past the 1.8 m close range; then he is held still (his brain off) until the client stands on it
+        const pickLeg = () => {
+          const nav = em.nav;
+          const y0 = e.pos.y;
+          const spot = e.searchSpot([0, 0]);
+          const base = e['lookBase'];
+          const walk = (x, z) => { const c = nav.cellOf(x, z, y0); return c >= 0 && nav.isWalkable(c) && Math.abs(nav.cellHeight(c) - y0) <= 1; };
+          const i = em.enemies.indexOf(e);
+          const heard = (x, z) => {
+            em['hearRoom'](em.enemies.length);
+            const d = Math.hypot(e.pos.x - x, e.pos.z - z);
+            return d > 1.9 && em['tierOf'](e, i, new V(x, y0, z), 3, d, false) >= 1;
+          };
+          for (const th of [Math.PI, 0.75 * Math.PI, -0.75 * Math.PI, 0.5 * Math.PI, -0.5 * Math.PI]) {
+            const ux = Math.sin(base + th);
+            const uz = Math.cos(base + th);
+            const mx = e.pos.x + 2.2 * ux;
+            const mz = e.pos.z + 2.2 * uz;
+            for (const sg of [1, -1]) {
+              const dx = sg * uz;
+              const dz = -sg * ux;
+              const ax = mx - 1.5 * dx;
+              const az = mz - 1.5 * dz;
+              const bx = mx + 1.5 * dx;
+              const bz = mz + 1.5 * dz;
+              let clear = true;
+              for (let k = 0; k <= 12 && clear; k++) clear = walk(ax + (bx - ax) * (k / 12), az + (bz - az) * (k / 12));
+              if (!clear || !heard(ax, az) || !heard(mx, mz) || !heard(bx, bz)) continue;
+              return { a: [ax, az], b: [bx, bz], yaw: Math.atan2(dx, dz), y: nav.cellHeight(nav.cellOf(ax, az, y0)), guard: [e.pos.x, e.pos.z], look: base, spot: [spot[0], spot[1]], loc0: em.intruders.locT[sClient], lookT: e['spotLookT'] };
+            }
+          }
+          return null;
+        };
         const hooks = window.__app.loop['hooks'];
         const orig = hooks.fixedUpdate;
         const step = (dt) => {
@@ -1444,21 +1484,41 @@ try {
           s.level = e.alive ? e.level : 'down';
           s.hunt = e.hunt;
           s.hostValid = Math.max(s.hostValid, b.valid[sHost]);
+          if (s.phase === 'pick') {
+            // at a spot (the search branch's 1.1 m), his look round just started, the client not located for 1.5 s; one
+            // try per spot
+            if (!e.alive || e.level !== 'searching') return;
+            e.searchSpot(tmp);
+            const lt = e['spotLookT'];
+            if (Math.hypot(tmp[0] - e.pos.x, tmp[1] - e.pos.z) >= 1.1 || !(lt > 0 && lt < 0.5) || b.locT[sClient] <= 1.5) return;
+            if (Math.hypot(tmp[0] - s.tried[0], tmp[1] - s.tried[1]) < 0.3) return;
+            s.tried = [tmp[0], tmp[1]];
+            s.picks++;
+            const leg = pickLeg();
+            if (!leg) return;
+            s.leg = leg;
+            // held still while the client is put on the leg (the statues' way; let go before the run)
+            e.update = () => {};
+            s.phase = 'held';
+            return;
+          }
           if (s.phase !== 'walk') return;
           const r = g.remotePlayers()[0];
           if (!r) return;
           s.t = g.time - s.hopT0;
+          // his re-aim clock (`heardAt`) only grows unless he re-aims on a noise
+          if (e.heardAt < s.hPrev) s.heard = true;
+          s.hPrev = e.heardAt;
           e.searchSpot(tmp);
           const d = Math.hypot(tmp[0] - r.feet.x, tmp[1] - r.feet.z);
           if (d < s.spotMin) s.spotMin = d;
-          if (s.tSpot < 0 && d <= 2 && e.heardAt < 99) s.tSpot = s.t;
+          if (s.tSpot < 0 && d <= 2 && s.heard && Math.hypot(tmp[0] - s.spot0[0], tmp[1] - s.spot0[1]) > 0.5) s.tSpot = s.t;
           const loc = b.locT[sClient];
           if (loc < s.locMin) s.locMin = loc;
           if (s.tLoc < 0 && loc < 1) {
             s.tLoc = s.t;
             s.seenAtLoc = b.seenT[sClient];
           }
-          if (e.heardAt < 99) s.heard = true;
         };
         hooks.fixedUpdate = step;
         return { id: e.id, sHost, sClient };
@@ -1478,7 +1538,7 @@ try {
       const c0 = await GA(() => { const s = window.__s26; const b = window.__app.current.enemyMgr.intruders; return { level: s.level, hunt: s.hunt, validClient: b.valid[s.sClient], validHost: b.valid[s.sHost] }; });
       assert(c0.level === 'alert' && c0.validClient === 1 && c0.validHost === 0, `S26: in combat with a last known position for the client and none for the host (${JSON.stringify(c0)})`);
 
-      // the client goes dark and leaves (into the corridor, snapped to the nav); the guard goes to the last known
+      // the client goes dark and leaves (out into the yard lane, snapped to the nav); the guard goes to the last known
       // position and searches
       const hide = await GA((ch) => {
         const nav = window.__app.current.enemyMgr.nav;
@@ -1488,55 +1548,37 @@ try {
       }, S26.clientHide);
       await moveClient(B, hide[0], 0.1, hide[1], 0);
       const searching = await until(A, () => window.__s26.level === 'searching', null, 60000, 'S26: the guard searches').then(() => true, () => false);
-      const st0 = await GA(() => ({ ...window.__s26 }));
+      const st0 = await GA(() => { const { leg, ...s } = window.__s26; return s; });
       assert(searching, `S26: after losing the client the guard searches (${JSON.stringify(st0)})`);
-      // a second on: he is walking to a spot
-      await waitHostSim(A, 1000);
 
-      // the leg: 1.8 m behind him (else beside him), straight, walkable, clear of walls, outside his search spot
+      // the leg, picked by the host's step hook at his next look round with room behind him (he is held still then)
+      await GA(() => { window.__s26.phase = 'pick'; });
+      const picked = await until(A, () => !!window.__s26.leg || window.__s26.level !== 'searching', null, 40000, 'S26: a leg behind the searcher').then(() => true, () => false);
       const leg = await GA(() => {
-        const g = window.__app.current;
-        const em = g.enemyMgr;
-        const nav = em.nav;
         const s = window.__s26;
-        const e = em.enemies.find((x) => x.alive && !x['s26Parked']);
-        if (!e || e.level !== 'searching') return { err: `no searching guard (${e?.level})` };
-        const y0 = e.pos.y;
-        const spot = e.searchSpot([0, 0]);
-        const walk = (x, z) => { const c = nav.cellOf(x, z, y0); return c >= 0 && nav.isWalkable(c) && Math.abs(nav.cellHeight(c) - y0) <= 1; };
-        const i = em.enemies.indexOf(e);
-        const heard = (x, z) => {
-          em['hearRoom'](em.enemies.length);
-          const d = Math.hypot(e.pos.x - x, e.pos.z - z);
-          // a reach a jog's step (~3.4 m) always has: no wall in the way (a wall would cut it below the distance)
-          return em['tierOf'](e, i, new g.player.position.constructor(x, y0, z), 3, d, false) >= 1;
-        };
-        const far = (x, z) => Math.hypot(x - spot[0], z - spot[1]) > 2.5;
-        for (const th of [Math.PI, 0.75 * Math.PI, -0.75 * Math.PI, 0.5 * Math.PI, -0.5 * Math.PI, 0.25 * Math.PI, -0.25 * Math.PI, 0]) {
-          const ux = Math.sin(e.yaw + th);
-          const uz = Math.cos(e.yaw + th);
-          const mx = e.pos.x + 1.8 * ux;
-          const mz = e.pos.z + 1.8 * uz;
-          for (const sg of [1, -1]) {
-            const dx = sg * uz;
-            const dz = -sg * ux;
-            const ax = mx - 1.5 * dx;
-            const az = mz - 1.5 * dz;
-            const bx = mx + 1.5 * dx;
-            const bz = mz + 1.5 * dz;
-            let clear = true;
-            for (let k = 0; k <= 12 && clear; k++) clear = walk(ax + (bx - ax) * (k / 12), az + (bz - az) * (k / 12));
-            if (!clear || !heard(ax, az) || !heard(mx, mz) || !heard(bx, bz) || !far(ax, az) || !far(mx, mz) || !far(bx, bz)) continue;
-            const c = nav.cellOf(ax, az, y0);
-            return { a: [ax, az], b: [bx, bz], yaw: Math.atan2(dx, dz), y: nav.cellHeight(c), guard: [e.pos.x, e.pos.z], spot: [spot[0], spot[1]], loc0: g.enemyMgr.intruders.locT[s.sClient] };
-          }
-        }
-        return { err: `no straight leg round the searcher (guard ${e.pos.x.toFixed(1)}, ${e.pos.z.toFixed(1)}, yaw ${e.yaw.toFixed(2)}, spot ${spot[0].toFixed(1)}, ${spot[1].toFixed(1)})` };
+        if (s.leg) return s.leg;
+        const e = window.__app.current.enemyMgr.enemies.find((x) => x.alive && !x['s26Parked']);
+        const sp = e ? e.searchSpot([0, 0]) : [NaN, NaN];
+        return { err: `level ${s.level}, ${s.picks} spot(s) tried, guard ${e ? `${e.pos.x.toFixed(1)}, ${e.pos.z.toFixed(1)}` : 'none'}, spot ${sp[0].toFixed(1)}, ${sp[1].toFixed(1)}, locT ${window.__app.current.enemyMgr.intruders.locT[s.sClient].toFixed(2)}` };
       });
-      assert(!leg.err, `S26: ${leg.err}`);
+      assert(picked && !leg.err, `S26: a searcher looking round at a spot with a straight leg behind him in a jog's reach (${leg.err ?? JSON.stringify(leg)})`);
       assert(leg.loc0 > 1.5, `S26: before the run the client was last located more than 1.5 s ago (locT ${leg.loc0}; ${JSON.stringify(leg)})`);
-      await GA((loc0) => { const g = window.__app.current; const s = window.__s26; s.loc0 = loc0; s.hopT0 = g.time; s.phase = 'walk'; }, leg.loc0);
+      // the client on the leg (a teleport: no step), seen there by the host, then the guard let go and the run starts
       await moveClient(B, leg.a[0], leg.y + 0.1, leg.a[1], leg.yaw);
+      await until(A, ([x, z]) => { const r = window.__app.current.remotePlayers()[0]; return !!r && Math.hypot(r.feet.x - x, r.feet.z - z) < 0.6; }, leg.a, 10000, 'S26: the host has the client on the leg');
+      await GA(() => {
+        const g = window.__app.current;
+        const s = window.__s26;
+        const e = g.enemyMgr.enemies.find((x) => x.alive && !x['s26Parked']);
+        if (e) {
+          delete e.update;
+          e.searchSpot(s.spot0);
+          s.hPrev = e.heardAt;
+        }
+        s.loc0 = g.enemyMgr.intruders.locT[s.sClient];
+        s.hopT0 = g.time;
+        s.phase = 'walk';
+      });
       const heardDone = () => GA(() => { const s = window.__s26; return s.tLoc >= 0 && s.tSpot >= 0; });
       for (let k = 0; k < 4 && !(await heardDone()); k++) {
         // there (k even) and back (k odd): the full stick along the leg
@@ -1549,7 +1591,7 @@ try {
       const why = JSON.stringify({ leg, tLoc: f2(c1.tLoc), seenAtLoc: f2(c1.seenAtLoc), tSpot: f2(c1.tSpot), spotMin: f2(c1.spotMin), locMin: f2(c1.locMin), heard: c1.heard, hunt: c1.hunt, level: c1.level, hostValid: c1.hostValid, sHost: c1.sHost, sClient: c1.sClient });
       assert(c1.tLoc >= 0 && c1.tLoc <= 6, `S26: the client's noise locates him on the host within 6 s of the host's sim (locT < 1 at ${f2(c1.tLoc)} s; ${why})`);
       assert(c1.seenAtLoc > 1, `S26: heard, not seen: his seenT was ${f2(c1.seenAtLoc)} s when he was located (${why})`);
-      assert(c1.heard && c1.tSpot >= 0 && c1.tSpot <= 6, `S26: the guard's search spot goes within 2 m of the client within 6 s (at ${f2(c1.tSpot)} s, closest ${f2(c1.spotMin)} m; ${why})`);
+      assert(c1.heard && c1.tSpot >= 0 && c1.tSpot <= 6, `S26: he re-aims on the noise: his search spot moves off his look spot to within 2 m of the client within 6 s (at ${f2(c1.tSpot)} s, closest ${f2(c1.spotMin)} m; ${why})`);
       assert(c1.hunt === c1.sClient, `S26: he still hunts the client (${why})`);
       assert(c1.hostValid === 0, `S26: the host's own slot never held a position (G139: the client's noise locates the client only) (${why})`);
       console.log(`    (S26: located after ${f2(c1.tLoc)} s, his spot within 2 m of the client after ${f2(c1.tSpot)} s, closest ${f2(c1.spotMin)} m)`);
