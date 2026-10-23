@@ -1,7 +1,7 @@
 import { Color4, TransformNode, Vector3, type InstancedMesh, type Vector4 } from '../core/babylon';
 import { CAMERA } from '../config/security';
 import { hyp2, hyp3 } from '../core/mathx';
-import { CameraUnit, sweepYaw } from '../security/camera';
+import { CameraUnit, nearestHousing, sweepYaw } from '../security/camera';
 import { SecurityView } from '../security/securityView';
 import { CameraCueView } from '../vfx/cameraCueView';
 import { cameraSight, newSeenBody, remoteHeadY, type SecurityEvent, type SeenBody } from '../security/securitySystem';
@@ -320,6 +320,27 @@ export class CtDevices {
   scanFails = 0;
   scanLast = '';
   private readonly glowAt = { x: 0, y: 0, z: 0 };
+  /** (marlow-polish) The client's own ricochet spot and the sparks' direction (as the host's `ricoAt` / `ricoDown`). */
+  private readonly ricoAt = new Vector3();
+  private readonly ricoDown = new Vector3(0, -1, 0);
+  /** (marlow-polish) The client's own rounds that sparked off a bulletproof housing (tests). */
+  ricochets = 0;
+
+  /**
+   * (marlow-polish) Client: our own round from `a` to `b` through the mirrored cameras. When the nearest housing along
+   * it is bulletproof, the host's ricochet (SecuritySystem.shotRay, GameState's `onRicochet`) plays here too: the sparks
+   * and the impact sound at the lens. Local cosmetic only (the host still resolves the shot); no allocation.
+   */
+  ricochetRay(a: Vector3, b: Vector3): boolean {
+    if (this.role !== 'client') return false;
+    const c = nearestHousing(this.cams, a.x, a.y, a.z, b.x, b.y, b.z);
+    if (!c || !c.def.bulletproof) return false;
+    this.ricochets++;
+    const at = this.ricoAt.set(c.x, c.y, c.z);
+    this.g.vfx.sparks(at, this.ricoDown, 8);
+    this.g.ballistics.onImpact?.(at, false);
+    return true;
+  }
 
   constructor(
     private g: GameState,

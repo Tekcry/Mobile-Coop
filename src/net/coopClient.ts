@@ -197,6 +197,14 @@ export class CoopClient implements NetAttachment {
     g.hud.setObjective(this.obj);
     // (coop-fix, bug 1) a hidden client page keeps simulating and sending its states
     this.offs.push(keepSimInBackground(g));
+    // (marlow-polish) our own round off a bulletproof camera (Sector Ops, Marlow Yard): the host's ricochet sparks and
+    // impact sound on our screen too (local only; the mirror's CtDevices is read per shot, the course one comes later)
+    const prevRay = g.weapons.onRay;
+    g.weapons.onRay = (a, b) => {
+      prevRay?.(a, b);
+      g.ctDev?.ricochetRay(a, b);
+    };
+    this.offs.push(() => (g.weapons.onRay = null));
   }
 
   private get renderTime(): number {
