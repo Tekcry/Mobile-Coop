@@ -1,0 +1,368 @@
+{
+ "id": "lean",
+ "pass": true,
+ "problems": [],
+ "summary": {
+  "bufferTris": [
+   30737,
+   11463,
+   3456
+  ],
+  "shownTris": [
+   {
+    "runner": 11419,
+    "sniper": 11780
+   },
+   {
+    "runner": 4841,
+    "sniper": 4921
+   },
+   {
+    "runner": 1509,
+    "sniper": 1638
+   }
+  ],
+  "bodyTris": 1194
+ },
+ "measured": {
+  "version": 1,
+  "base": "lean",
+  "lods": [
+   {
+    "lod": 0,
+    "file": "lods/guard-lean-lod0.glb",
+    "bufferTris": 30737,
+    "draws": 1,
+    "bones": [
+     "root",
+     "body",
+     "pelvis",
+     "hipL",
+     "knL",
+     "anL",
+     "toeL",
+     "hipR",
+     "knR",
+     "anR",
+     "toeR",
+     "spine",
+     "chest",
+     "clavL",
+     "shL",
+     "elL",
+     "wrL",
+     "fingerL_1_1",
+     "fingerL_2_1",
+     "fingerL_3_1",
+     "fingerL_4_1",
+     "fingerL_5_1",
+     "clavR",
+     "shR",
+     "elR",
+     "wrR",
+     "fingerR_1_1",
+     "fingerR_2_1",
+     "fingerR_3_1",
+     "fingerR_4_1",
+     "fingerR_5_1",
+     "neck",
+     "head"
+    ],
+    "influences": 4,
+    "attributes": [
+     "_TINT",
+     "_PIECE",
+     "POSITION",
+     "NORMAL",
+     "TEXCOORD_0",
+     "TANGENT",
+     "JOINTS_0",
+     "WEIGHTS_0"
+    ],
+    "textures": [
+     {
+      "role": "albedo",
+      "width": 4096,
+      "height": 2048,
+      "format": "ktx2"
+     },
+     {
+      "role": "normal",
+      "width": 2048,
+      "height": 1024,
+      "format": "ktx2"
+     },
+     {
+      "role": "orm",
+      "width": 2048,
+      "height": 1024,
+      "format": "ktx2"
+     }
+    ],
+    "vertices": 24832,
+    "mixedTris": 0,
+    "pieceAttrUint8": true,
+    "shownTris": {
+     "runner": 11419,
+     "sniper": 11780
+    },
+    "bodyTris": 1194,
+    "headTris": {
+     "lean-1": 3998,
+     "lean-2": 3998,
+     "lean-3": 4000,
+     "lean-4": 4000
+    },
+    "eyeTris": 448,
+    "hairCapTris": {
+     "buzz": 498,
+     "crop": 800,
+     "sidepart": 1000,
+     "receding": 800,
+     "fade": 698
+    },
+    "pieceTris": {
+     "uniform_rolled": 1712,
+     "work": 1885,
+     "cap": 488,
+     "beanie": 448,
+     "boonie": 522,
+     "glasses_dark": 196,
+     "helmet_std": 856,
+     "vest_soft": 1256,
+     "pouch_belt": 332,
+     "holster_thigh": 264
+    }
+   },
+   {
+    "lod": 1,
+    "file": "lods/guard-lean-lod1.glb",
+    "bufferTris": 11463,
+    "draws": 1,
+    "bones": [
+     "root",
+     "body",
+     "pelvis",
+     "hipL",
+     "knL",
+     "anL",
+     "toeL",
+     "hipR",
+     "knR",
+     "anR",
+     "toeR",
+     "spine",
+     "chest",
+     "clavL",
+     "shL",
+     "elL",
+     "wrL",
+     "clavR",
+     "shR",
+     "elR",
+     "wrR",
+     "neck",
+     "head"
+    ],
+    "influences": 4,
+    "attributes": [
+     "_TINT",
+     "_PIECE",
+     "POSITION",
+     "NORMAL",
+     "TEXCOORD_0",
+     "TANGENT",
+     "JOINTS_0",
+     "WEIGHTS_0"
+    ],
+    "textures": [
+     {
+      "role": "albedo",
+      "width": 2048,
+      "height": 1024,
+      "format": "ktx2"
+     },
+     {
+      "role": "normal",
+      "width": 1024,
+      "height": 512,
+      "format": "ktx2"
+     },
+     {
+      "role": "orm",
+      "width": 1024,
+      "height": 512,
+      "format": "ktx2"
+     }
+    ],
+    "vertices": 12936,
+    "mixedTris": 0,
+    "pieceAttrUint8": true,
+    "shownTris": {
+     "runner": 4841,
+     "sniper": 4921
+    },
+    "bodyTris": 398,
+    "headTris": {
+     "lean-1": 1198,
+     "lean-2": 1198,
+     "lean-3": 1198,
+     "lean-4": 1200
+    },
+    "eyeTris": 0,
+    "hairCapTris": {
+     "buzz": 200,
+     "crop": 250,
+     "sidepart": 298,
+     "receding": 250,
+     "fade": 248
+    },
+    "pieceTris": {
+     "uniform_rolled": 1489,
+     "work": 1625,
+     "cap": 198,
+     "beanie": 178,
+     "boonie": 197,
+     "glasses_dark": 98,
+     "helmet_std": 398,
+     "vest_soft": 596,
+     "pouch_belt": 148,
+     "holster_thigh": 98
+    }
+   },
+   {
+    "lod": 2,
+    "file": "lods/guard-lean-lod2.glb",
+    "bufferTris": 3456,
+    "draws": 1,
+    "bones": [
+     "root",
+     "body",
+     "pelvis",
+     "hipL",
+     "knL",
+     "anL",
+     "toeL",
+     "hipR",
+     "knR",
+     "anR",
+     "toeR",
+     "spine",
+     "chest",
+     "clavL",
+     "shL",
+     "elL",
+     "wrL",
+     "clavR",
+     "shR",
+     "elR",
+     "wrR",
+     "neck",
+     "head"
+    ],
+    "influences": 2,
+    "attributes": [
+     "_TINT",
+     "_PIECE",
+     "POSITION",
+     "NORMAL",
+     "TEXCOORD_0",
+     "TANGENT",
+     "JOINTS_0",
+     "WEIGHTS_0"
+    ],
+    "textures": [
+     {
+      "role": "albedo",
+      "width": 512,
+      "height": 256,
+      "format": "ktx2"
+     },
+     {
+      "role": "normal",
+      "width": 256,
+      "height": 128,
+      "format": "ktx2"
+     },
+     {
+      "role": "orm",
+      "width": 256,
+      "height": 128,
+      "format": "ktx2"
+     }
+    ],
+    "vertices": 4824,
+    "mixedTris": 0,
+    "pieceAttrUint8": true,
+    "shownTris": {
+     "runner": 1509,
+     "sniper": 1638
+    },
+    "bodyTris": 149,
+    "headTris": {
+     "lean-1": 398,
+     "lean-2": 400,
+     "lean-3": 398,
+     "lean-4": 400
+    },
+    "eyeTris": 0,
+    "hairCapTris": {
+     "buzz": 0,
+     "crop": 0,
+     "sidepart": 0,
+     "receding": 0,
+     "fade": 0
+    },
+    "pieceTris": {
+     "uniform_rolled": 552,
+     "work": 487,
+     "cap": 77,
+     "beanie": 58,
+     "boonie": 78,
+     "glasses_dark": 16,
+     "helmet_std": 148,
+     "vest_soft": 248,
+     "pouch_belt": 19,
+     "holster_thigh": 28
+    }
+   }
+  ],
+  "manifest": {
+   "id": "guard-lean",
+   "base": "lean",
+   "pieces": [
+    "lean",
+    "lean-1",
+    "lean-2",
+    "lean-3",
+    "lean-4",
+    "buzz",
+    "crop",
+    "sidepart",
+    "receding",
+    "fade",
+    "uniform_rolled",
+    "work",
+    "cap",
+    "beanie",
+    "boonie",
+    "glasses_dark",
+    "helmet_std",
+    "vest_soft",
+    "pouch_belt",
+    "holster_thigh"
+   ],
+   "tintSlots": 6,
+   "refHeight": 1.76,
+   "tintSlotNames": [
+    "uniform",
+    "kit",
+    "headwear",
+    "hair",
+    "skin",
+    "none"
+   ]
+  },
+  "notes": []
+ }
+}

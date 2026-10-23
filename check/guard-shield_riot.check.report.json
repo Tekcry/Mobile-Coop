@@ -1,0 +1,151 @@
+{
+ "id": "shield_riot",
+ "pass": true,
+ "problems": [],
+ "summary": {
+  "bufferTris": [
+   344,
+   298,
+   118
+  ]
+ },
+ "measured": {
+  "version": 1,
+  "piece": "shield_riot",
+  "lods": [
+   {
+    "lod": 0,
+    "file": "lods/guard-shield_riot-lod0.glb",
+    "bufferTris": 344,
+    "draws": 1,
+    "bones": [
+     "elL",
+     "wrL"
+    ],
+    "influences": 2,
+    "attributes": [
+     "_TINT",
+     "_PIECE",
+     "POSITION",
+     "NORMAL",
+     "TEXCOORD_0",
+     "TANGENT",
+     "JOINTS_0",
+     "WEIGHTS_0"
+    ],
+    "textures": [
+     {
+      "role": "albedo",
+      "width": 512,
+      "height": 512,
+      "format": "ktx2"
+     },
+     {
+      "role": "normal",
+      "width": 256,
+      "height": 256,
+      "format": "ktx2"
+     },
+     {
+      "role": "orm",
+      "width": 256,
+      "height": 256,
+      "format": "ktx2"
+     }
+    ],
+    "vertices": 320,
+    "mixedTris": 0,
+    "pieceAttrUint8": true
+   },
+   {
+    "lod": 1,
+    "file": "lods/guard-shield_riot-lod1.glb",
+    "bufferTris": 298,
+    "draws": 1,
+    "bones": [
+     "elL",
+     "wrL"
+    ],
+    "influences": 2,
+    "attributes": [
+     "_TINT",
+     "_PIECE",
+     "POSITION",
+     "NORMAL",
+     "TEXCOORD_0",
+     "TANGENT",
+     "JOINTS_0",
+     "WEIGHTS_0"
+    ],
+    "textures": [
+     {
+      "role": "albedo",
+      "width": 256,
+      "height": 256,
+      "format": "ktx2"
+     },
+     {
+      "role": "normal",
+      "width": 128,
+      "height": 128,
+      "format": "ktx2"
+     },
+     {
+      "role": "orm",
+      "width": 128,
+      "height": 128,
+      "format": "ktx2"
+     }
+    ],
+    "vertices": 290,
+    "mixedTris": 0,
+    "pieceAttrUint8": true
+   },
+   {
+    "lod": 2,
+    "file": "lods/guard-shield_riot-lod2.glb",
+    "bufferTris": 118,
+    "draws": 1,
+    "bones": [
+     "elL",
+     "wrL"
+    ],
+    "influences": 2,
+    "attributes": [
+     "_TINT",
+     "_PIECE",
+     "POSITION",
+     "NORMAL",
+     "TEXCOORD_0",
+     "TANGENT",
+     "JOINTS_0",
+     "WEIGHTS_0"
+    ],
+    "textures": [
+     {
+      "role": "albedo",
+      "width": 128,
+      "height": 128,
+      "format": "ktx2"
+     },
+     {
+      "role": "normal",
+      "width": 64,
+      "height": 64,
+      "format": "ktx2"
+     },
+     {
+      "role": "orm",
+      "width": 64,
+      "height": 64,
+      "format": "ktx2"
+     }
+    ],
+    "vertices": 167,
+    "mixedTris": 0,
+    "pieceAttrUint8": true
+   }
+  ],
+  "notes": []
+ }
+}

@@ -1,0 +1,390 @@
+{
+ "id": "average",
+ "pass": true,
+ "problems": [],
+ "summary": {
+  "bufferTris": [
+   32348,
+   11846,
+   3709
+  ],
+  "shownTris": [
+   {
+    "grunt": 12079,
+    "droneOp": 12083,
+    "officer": 12617
+   },
+   {
+    "grunt": 4930,
+    "droneOp": 4901,
+    "officer": 5137
+   },
+   {
+    "grunt": 1645,
+    "droneOp": 1635,
+    "officer": 1763
+   }
+  ],
+  "bodyTris": 1194
+ },
+ "measured": {
+  "version": 1,
+  "base": "average",
+  "lods": [
+   {
+    "lod": 0,
+    "file": "lods/guard-average-lod0.glb",
+    "bufferTris": 32348,
+    "draws": 1,
+    "bones": [
+     "root",
+     "body",
+     "pelvis",
+     "hipL",
+     "knL",
+     "anL",
+     "toeL",
+     "hipR",
+     "knR",
+     "anR",
+     "toeR",
+     "spine",
+     "chest",
+     "clavL",
+     "shL",
+     "elL",
+     "wrL",
+     "fingerL_1_1",
+     "fingerL_2_1",
+     "fingerL_3_1",
+     "fingerL_4_1",
+     "fingerL_5_1",
+     "clavR",
+     "shR",
+     "elR",
+     "wrR",
+     "fingerR_1_1",
+     "fingerR_2_1",
+     "fingerR_3_1",
+     "fingerR_4_1",
+     "fingerR_5_1",
+     "neck",
+     "head"
+    ],
+    "influences": 4,
+    "attributes": [
+     "_TINT",
+     "_PIECE",
+     "POSITION",
+     "NORMAL",
+     "TEXCOORD_0",
+     "TANGENT",
+     "JOINTS_0",
+     "WEIGHTS_0"
+    ],
+    "textures": [
+     {
+      "role": "albedo",
+      "width": 4096,
+      "height": 2048,
+      "format": "ktx2"
+     },
+     {
+      "role": "normal",
+      "width": 2048,
+      "height": 1024,
+      "format": "ktx2"
+     },
+     {
+      "role": "orm",
+      "width": 2048,
+      "height": 1024,
+      "format": "ktx2"
+     }
+    ],
+    "vertices": 27267,
+    "mixedTris": 0,
+    "pieceAttrUint8": true,
+    "shownTris": {
+     "grunt": 12079,
+     "droneOp": 12083,
+     "officer": 12617
+    },
+    "bodyTris": 1194,
+    "headTris": {
+     "average-1": 4000,
+     "average-2": 4000,
+     "average-3": 3998,
+     "average-4": 3998
+    },
+    "eyeTris": 448,
+    "hairCapTris": {
+     "buzz": 500,
+     "crop": 798,
+     "sidepart": 998,
+     "receding": 800,
+     "fade": 698
+    },
+    "pieceTris": {
+     "uniform": 1707,
+     "uniform_jacket": 2645,
+     "cap": 488,
+     "cap_officer": 540,
+     "beanie": 448,
+     "headset": 304,
+     "glasses_clear": 236,
+     "glasses_dark": 196,
+     "helmet_std": 856,
+     "vest_soft": 1256,
+     "radio": 180,
+     "pouch_belt": 332,
+     "holster_thigh": 264,
+     "flashlight_mount": 120
+    }
+   },
+   {
+    "lod": 1,
+    "file": "lods/guard-average-lod1.glb",
+    "bufferTris": 11846,
+    "draws": 1,
+    "bones": [
+     "root",
+     "body",
+     "pelvis",
+     "hipL",
+     "knL",
+     "anL",
+     "toeL",
+     "hipR",
+     "knR",
+     "anR",
+     "toeR",
+     "spine",
+     "chest",
+     "clavL",
+     "shL",
+     "elL",
+     "wrL",
+     "clavR",
+     "shR",
+     "elR",
+     "wrR",
+     "neck",
+     "head"
+    ],
+    "influences": 4,
+    "attributes": [
+     "_TINT",
+     "_PIECE",
+     "POSITION",
+     "NORMAL",
+     "TEXCOORD_0",
+     "TANGENT",
+     "JOINTS_0",
+     "WEIGHTS_0"
+    ],
+    "textures": [
+     {
+      "role": "albedo",
+      "width": 2048,
+      "height": 1024,
+      "format": "ktx2"
+     },
+     {
+      "role": "normal",
+      "width": 1024,
+      "height": 512,
+      "format": "ktx2"
+     },
+     {
+      "role": "orm",
+      "width": 1024,
+      "height": 512,
+      "format": "ktx2"
+     }
+    ],
+    "vertices": 13584,
+    "mixedTris": 0,
+    "pieceAttrUint8": true,
+    "shownTris": {
+     "grunt": 4930,
+     "droneOp": 4901,
+     "officer": 5137
+    },
+    "bodyTris": 398,
+    "headTris": {
+     "average-1": 1198,
+     "average-2": 1198,
+     "average-3": 1200,
+     "average-4": 1198
+    },
+    "eyeTris": 0,
+    "hairCapTris": {
+     "buzz": 198,
+     "crop": 250,
+     "sidepart": 300,
+     "receding": 248,
+     "fade": 250
+    },
+    "pieceTris": {
+     "uniform": 1321,
+     "uniform_jacket": 1756,
+     "cap": 198,
+     "cap_officer": 197,
+     "beanie": 178,
+     "headset": 148,
+     "glasses_clear": 97,
+     "glasses_dark": 98,
+     "helmet_std": 398,
+     "vest_soft": 596,
+     "radio": 98,
+     "pouch_belt": 148,
+     "holster_thigh": 97,
+     "flashlight_mount": 78
+    }
+   },
+   {
+    "lod": 2,
+    "file": "lods/guard-average-lod2.glb",
+    "bufferTris": 3709,
+    "draws": 1,
+    "bones": [
+     "root",
+     "body",
+     "pelvis",
+     "hipL",
+     "knL",
+     "anL",
+     "toeL",
+     "hipR",
+     "knR",
+     "anR",
+     "toeR",
+     "spine",
+     "chest",
+     "clavL",
+     "shL",
+     "elL",
+     "wrL",
+     "clavR",
+     "shR",
+     "elR",
+     "wrR",
+     "neck",
+     "head"
+    ],
+    "influences": 2,
+    "attributes": [
+     "_TINT",
+     "_PIECE",
+     "POSITION",
+     "NORMAL",
+     "TEXCOORD_0",
+     "TANGENT",
+     "JOINTS_0",
+     "WEIGHTS_0"
+    ],
+    "textures": [
+     {
+      "role": "albedo",
+      "width": 512,
+      "height": 256,
+      "format": "ktx2"
+     },
+     {
+      "role": "normal",
+      "width": 256,
+      "height": 128,
+      "format": "ktx2"
+     },
+     {
+      "role": "orm",
+      "width": 256,
+      "height": 128,
+      "format": "ktx2"
+     }
+    ],
+    "vertices": 5229,
+    "mixedTris": 0,
+    "pieceAttrUint8": true,
+    "shownTris": {
+     "grunt": 1645,
+     "droneOp": 1635,
+     "officer": 1763
+    },
+    "bodyTris": 149,
+    "headTris": {
+     "average-1": 398,
+     "average-2": 400,
+     "average-3": 398,
+     "average-4": 400
+    },
+    "eyeTris": 0,
+    "hairCapTris": {
+     "buzz": 0,
+     "crop": 0,
+     "sidepart": 0,
+     "receding": 0,
+     "fade": 0
+    },
+    "pieceTris": {
+     "uniform": 504,
+     "uniform_jacket": 676,
+     "cap": 77,
+     "cap_officer": 75,
+     "beanie": 58,
+     "headset": 44,
+     "glasses_clear": 15,
+     "glasses_dark": 16,
+     "helmet_std": 148,
+     "vest_soft": 248,
+     "radio": 25,
+     "pouch_belt": 23,
+     "holster_thigh": 27,
+     "flashlight_mount": 28
+    }
+   }
+  ],
+  "manifest": {
+   "id": "guard-average",
+   "base": "average",
+   "pieces": [
+    "average",
+    "average-1",
+    "average-2",
+    "average-3",
+    "average-4",
+    "buzz",
+    "crop",
+    "sidepart",
+    "receding",
+    "fade",
+    "uniform",
+    "uniform_jacket",
+    "cap",
+    "cap_officer",
+    "beanie",
+    "headset",
+    "glasses_clear",
+    "glasses_dark",
+    "helmet_std",
+    "vest_soft",
+    "radio",
+    "pouch_belt",
+    "holster_thigh",
+    "flashlight_mount"
+   ],
+   "tintSlots": 6,
+   "refHeight": 1.77,
+   "tintSlotNames": [
+    "uniform",
+    "kit",
+    "headwear",
+    "hair",
+    "skin",
+    "none"
+   ]
+  },
+  "notes": []
+ }
+}
