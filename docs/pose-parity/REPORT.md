@@ -60,3 +60,9 @@ Goal: what a player sees of their partner matches the partner's own page.
 - (pose-parity) Co-op: the partner's weapon hand follows their shoulder swap in every mode, a partner choking or
   stepping in for a lethal takedown no longer holds the strike wind-up, and baked move sections and Body root offsets
   reach the partner's rig. Protocol 36.
+
+## Check (fresh Opus, 2026-10-23): PASS
+No blockers. Polish applied by the lead: the gameState.ts:2650 comment, a blank line in localMoveState.ts, the
+hangDownNet test title, a TESTING.md line. Open: the relay climber (`relayUp`) arrives as 'boost' with no bit, so once a
+bake writes `team.relay.a` the partner would play `team.boost.a` (older, documented in `teamRowOfWire`; a relay sub bit in
+a later job); `teamRowOfWire` computed twice per frame (remoteAvatar.ts:572, :625); stale test titles in net.test.ts:676.

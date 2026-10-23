@@ -12,7 +12,6 @@ const EXIT_OF: Partial<Record<string, ExitPose>> = { climbUp: 'climbUp', mantle:
 
 let gpBuf: number[] | null = null;
 
-
 export function localMoveState(g: GameState, out: MoveState): MoveState {
   const p = g.player;
   const c = p.controller;

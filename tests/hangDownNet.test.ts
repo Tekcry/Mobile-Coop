@@ -11,7 +11,7 @@ import { PROTOCOL_VERSION } from '../src/net/protocol';
 const mv = (m: 'boost' | 'brace' | 'ground', sub: number, dw = 2) => ({ ...emptyMoveState(), m, sub, dw });
 
 describe('hang-down net: no wire change', () => {
-  it('the protocol stays at master\'s version', () => {
+  it('PROTOCOL_VERSION is 36 (pose-parity)', () => {
     expect(PROTOCOL_VERSION).toBe(36);
   });
 });

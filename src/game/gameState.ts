@@ -2647,7 +2647,7 @@ export class GameState implements AppState {
     // EDGE_HAND_TIME (the remotes from WALL_SUB.leftHand)
     // (F1a, cam-5) on the left shoulder (after the aim's shoulder swap) the weapon is in the left hand too; (anim-cleanup)
     // only settled in the aim pocket, never mid-draw / holster / reload (the travel paths and the reload are
-    // right-handed), and the partner sees it (localMoveState: ground sub bit 128)
+    // right-handed), and the partner sees it (`PF.aimLeft`, net/netShared.ts localFlags)
     pl.rig.openLeft = w.leftHand || (!w.active && pl.cam.shoulder < 0 && this.weapons.handSwitchOk);
     const g = w.seg >= 0 ? segs[w.seg] : undefined;
     pose.wallNx = g ? g.nx : 0;
