@@ -447,3 +447,72 @@ describe('guard-ai S24: two intruders', () => {
     expect(em.flowOf(-1)).toBe(fa);
   });
 });
+
+describe('guard-ai S24 levels triage: a guard spawned alerted is sent in on the intruder command knows of', () => {
+  /** A calm stand-in with the real `Enemy.tell` and `knownSpot`; `alert()` as `onLevel('alert')` takes the told intruder. */
+  function sent(x: number, z: number): FakeGuard {
+    const g = netGuard(x, z, { alerted: false, level: 'unaware' }) as FakeGuard & Record<string, unknown>;
+    const proto = Enemy.prototype as unknown as Record<string, unknown>;
+    g.pendingHunt = -1;
+    g.tell = proto.tell as unknown as FakeGuard['tell'];
+    g.alert = () => {
+      g.alerted = true;
+      g.level = 'alert';
+      if ((g.pendingHunt as number) >= 0) g.hunt = g.pendingHunt as number;
+      g.pendingHunt = -1;
+    };
+    return g;
+  }
+  const sendIn = (em: EnemyManager, g: FakeGuard) => {
+    g.ctx = (em as unknown as Priv).ctx;
+    (em as unknown as { sendIn(e: Enemy): void }).sendIn(E(g));
+  };
+
+  it('(i) nobody known: no intruder (A148); one player seen: he hunts that slot and goes for its spot, not the feet', () => {
+    const P = player('local', 0, 0);
+    const seer = guard(0, -10);
+    const { em } = manager([seer], [P]);
+    const r0 = sent(40, 40);
+    sendIn(em, r0);
+    expect([r0.alerted, r0.hunt]).toEqual([true, -1]);
+    expect([spot(r0, P).x, spot(r0, P).z]).toEqual([40, 40]);
+    // the player is seen at (0, 0), then walks on: a guard spawned alerted now goes for the seen spot
+    sees(seer, P);
+    P.feet.set(5, 0, 9);
+    const r1 = sent(40, 40);
+    sendIn(em, r1);
+    expect(r1.hunt).toBe(0);
+    expect(spot(r1, P)).toBe(em.lkpOf(0));
+    expect([spot(r1, P).x, spot(r1, P).z]).toEqual([0, 0]);
+  });
+
+  it("(i2) two intruders: the alarm's while its position is valid, else the freshest (A150); never one nobody reported", () => {
+    const A = player('host', 0, 0);
+    const B = player('guest', 30, 0);
+    const ha = guard(0, -10);
+    const hb = guard(30, -10);
+    const { em } = manager([ha, hb], [A, B]);
+    sees(ha, A);
+    const sa = em.intruders.slotFor('host');
+    // only A known: B is never named
+    const r0 = sent(40, 40);
+    sendIn(em, r0);
+    expect(r0.hunt).toBe(sa);
+    sees(hb, B);
+    const sb = em.intruders.slotFor('guest');
+    // no alarm: the freshest (B, seen last)
+    const r1 = sent(40, 40);
+    sendIn(em, r1);
+    expect(r1.hunt).toBe(sb);
+    // the alarm raised by A's hunter: A's
+    (em as unknown as { raiseAlarm(e: Enemy, p: null): void }).raiseAlarm(E(ha), null);
+    const r2 = sent(40, 40);
+    sendIn(em, r2);
+    expect(r2.hunt).toBe(sa);
+    // A forgotten: the alarm's slot has no position, the freshest valid one (B)
+    em.intruders.forget(sa);
+    const r3 = sent(40, 40);
+    sendIn(em, r3);
+    expect(r3.hunt).toBe(sb);
+  });
+});
