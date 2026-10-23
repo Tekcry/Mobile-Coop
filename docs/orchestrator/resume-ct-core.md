@@ -15,11 +15,11 @@ scratch/ctcore/push-resume.sh <abs file> <msg>. Message the orchestrator only at
 | #223 batch 24 pose-parity | feature/pose-parity | 19248c01 | PROTOCOL 36. Green; stacked on #214: merge batch-23 in when green, train-ready. |
 | spare 7 crouch-pops | feature/crouch-pops (crouch-pops) | 0824e9c6 | Built: Body row blended by crouch amount (tune.ts bodyRigBegin, tuneJointsRig.ts); pops 2.33 -> 0.26, 1.93 -> 0.24 cm; e2e-anim / clip PASS. Opus checker running. Open: OFF running crouch-down wristR 9.47 cm (armSwingMul 1.6). Stacks on #221. |
 | walk P1-P5 anim fix pass | feature/anim-fix-pass (anim-fix-pass) | 69662cf2 | PLAN.md slices AF0-AF4b (groups 0-3). Running: AF0 Sonnet (afp-af0), AF1 / AF2 / AF5 Opus (afp-af1/2/5, branches feature/afp-*). Next: AF6 (net; base on coop-walk-fixes), then group 2 AF3 + AF4a, group 3 AF4b; merge slices into feature/anim-fix-pass; one checker. |
-| walk P6-P7 co-op | feature/coop-walk-fixes (coop-walk-fixes) | c6b4f4a3 | Built (assist takedown kind, PlayerState.sc, PROTOCOL 37). takedown + weapon-audio PASS. Opus checker running; laptop e2e-coop / netmove requested. |
+| walk P6-P7 co-op | feature/coop-walk-fixes (coop-walk-fixes) | a4e1fe64 | Checker PASS (docs/coop-walk-fixes/CHECK.md, polish 1-8). PROTOCOL 37. Laptop e2e-coop / netmove requested on c6b4f4a3 (docs-only since). Then PR (stacked on #223) + train-ready. |
 
 ## Next
 1. As each agent hands back: one Opus checker per batch, laptop request to Test Runner (coop / netmove / ctcourse + clip), train-ready to the orchestrator.
-2. Anim-fix-pass: launch the PLAN's parallel groups as soon as it lands (CPU < 80%).
+2. AF6 worktree ready (Mobile-Coop-afp-af6, feature/afp-af6 off coop-walk-fixes a4e1fe64; wire change -> PROTOCOL 38): start when desktop CPU < 80% (97% at 14:5x). Anim-fix-pass: launch the PLAN's parallel groups as soon as it lands (CPU < 80%).
 3. Agent rules: scratch/ctcore/COMMON-27.md. Walk report copy: scratch/ctcore/walk472.md.
 4. Follow-ups: intel part B (modes' onIntelCode) after marlow-final / sector-redesign; relay climber sub bit (pose-parity open item).
 
