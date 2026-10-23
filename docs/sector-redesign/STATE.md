@@ -23,7 +23,11 @@
   de19debd GREEN: part 6 GPU PASS, full vitest 3572 pass; merged into feature/sector-redesign (717ef9c1). Then train 22
   (4.71.0, guard-ai S5 / S7) landed: second master merge on -m @ 6e118977 (sectorMode 3 hunks + e2e block, both sides
   kept). 6e118977 GREEN: e2e-sectorops 1-6 GPU PASS, vitest 3637 pass. PR 2 OPEN: Tekcry/Mobile-Coop#206 from
-  feature/sector-redesign @ 7b5b5840 (orchestrator told, train-ready ~12:xx). Was: green ->
+  feature/sector-redesign @ 7b5b5840 (orchestrator told, train-ready ~12:xx); + 098b3f47 / ade444c5: the S3 shift
+  supervisor is an officer (guard-ai S12: validateGuardAi rejects enforcer in section lists, Michael item 3). TODO on
+  -s45 after its GPU run: S4 enforcers (campusS4Data.ts:42, :66) -> officer; S5 four response enforcers
+  (campusS5Data.ts:29-33) -> grunt; tests. Guard-ai S12 also turns warehouseSectors.ts :54 / :102 / :157 to grunt:
+  take the same lines at the E9 merge (E9 edits that file). Was: green ->
   merge -m into feature/sector-redesign, open PR 2, message the orchestrator.
 - Guard AI asks (~11:30, plan docs/guard-ai/research/stealth-over-shooting.md on feature/guard-ai; types in S11):
   optional `gear?: 'helmet' | 'armour' | 'both'` per slot and `SectorDef.gear?` default (fill for later sections; early
