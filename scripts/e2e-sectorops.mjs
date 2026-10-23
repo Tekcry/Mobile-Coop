@@ -3370,9 +3370,17 @@ if (want(1)) {
       const cam0 = { n: ct.cams.length, s: cams() };
       const living = () => em.enemies.filter((e) => e.alive && !e.dog);
       const out = { stage0: m.run.alarm, perStage: g.world.map.sectors[0].perStage, cam0: cam0.n };
+      // (guard-ai S27, A164) the section's own guards before the stage rises, read as the `e2e-guard-carry` suite reads the
+      // carry (`carry.holstered` / `carry.drawn`); `em.alarmRaised` is the guards' own alarm (a panel / command call), which
+      // the mode's `onAlarm()` does not set: this is the camera / laser case, a stage and nothing else
+      const own = living();
+      out.carryN = own.length;
+      out.holst0 = own.filter((e) => e.carry.holstered).length;
+      out.raised0 = em.alarmRaised;
       m.onAlarm();
       step(0.6);
       out.stage1 = m.run.alarm;
+      out.holst1 = own.filter((e) => e.alive && e.carry.holstered).length;
       out.gear1 = living().map((e) => [e.helmet, e.armour]);
       m.onAlarm();
       step(0.6);
@@ -3381,6 +3389,9 @@ if (want(1)) {
       m.onAlarm();
       step(0.6);
       out.stage3 = m.run.alarm;
+      // (S27) 1.8 s after the first stage rise (inside the 2 s the draw is owed in; the longest draw clip is 0.7 s)
+      out.drawn3 = own.filter((e) => e.alive).map((e) => e.carry.drawn);
+      out.raised3 = em.alarmRaised;
       out.both3 = living().map((e) => e.helmet && e.armour);
       out.teams = em.teams.map((t) => t.members.map((e) => e.def.kind));
       out.shieldHelmet = em.teams.map((t) => t.members[0]?.helmet === true);
@@ -3392,6 +3403,10 @@ if (want(1)) {
     }, S[0].obj);
     // (the warehouse sections set no `gear` default and no slot tags: only the stage gives armour)
     assert(r.stage1 === r.stage0 + 1 && r.gear1.every(([, a]) => !a), `S13: stage 1 brings a team, no stage armour yet (${JSON.stringify(r.gear1)})`);
+    // (guard-ai S27, A164) a stage without the guards' own alarm (`em.alarmRaised` false: the camera / laser case) ends the
+    // calm area: every guard of the live section has his weapon drawn within 2 s (none holstered 0.6 s on)
+    assert(r.carryN > 0 && r.holst0 > 0 && !r.raised0, `S27: the section's guards start calm, some holstered, no guard alarm (${r.holst0} of ${r.carryN} holstered, alarmRaised ${r.raised0})`);
+    assert(!r.raised3 && r.holst1 === 0 && r.drawn3.length === r.carryN && r.drawn3.every(Boolean), `S27: after the stage rise (the guards' own alarm still ${r.raised3 ? 'raised' : 'off'}) none is holstered 0.6 s on (${r.holst1}) and all ${r.carryN} have the weapon drawn within 2 s (${r.drawn3})`);
     assert(r.stage2 === r.stage0 + 2 && r.armour2.every(Boolean), `S13: stage 2: every living guard wears armour (${r.armour2})`);
     assert(r.stage3 === r.stage0 + 3 && r.both3.every(Boolean), `S13: stage 3: every living guard wears armour and a helmet (${r.both3})`);
     assert(r.teams.length === 3 && r.teams.every((t) => t[0] === 'enforcer' && t.length === r.perStage && t.slice(1).every((k) => k === 'grunt')), `S13: each stage's team leads with a shield guard, perStage ${r.perStage} strong (${JSON.stringify(r.teams)})`);
