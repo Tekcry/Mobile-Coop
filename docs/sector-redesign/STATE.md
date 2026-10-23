@@ -274,7 +274,7 @@ Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md pol
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (self-contained; saved 2026-10-23 ~22:10, swap). Job sector-redesign (lead),
+Night Shift | Sector Ops Build: RESUME (self-contained; saved 2026-10-23 ~22:40, after the swap). Job sector-redesign (lead),
 worktree C:/NightShift/Mobile-Coop-sector-redesign-polish (feature/sector-redesign-polish: STATE / PLAN / checks / briefs).
 git fetch; read CLAUDE.md; ROADMAP Decided (grep only): "Lighting everywhere", "Moving lights", "Campus detail art",
 "Tokens for progress"; PLAN.md "LR16". Laptop runs: copy scripts/laptop-queue/request.mjs + lib.mjs from origin/master
@@ -292,20 +292,24 @@ LR16 (one lighting system; checks/lr16-plan.md, lr16-0-ct-audit.md)
   + LR16-5 flicker / stutter (da69b884, checkers A + B PASS, no wire change). tsc clean, 167 light tests; 13 map-light
   reds left for LR16g. Laptop full LR16 set on 961ca660 queued (...961ca660-9185: lightbake darkness desktop sectorops
   stealth-ai ctcourse coop netmove). Older requests 6eb6a863 / bb47a985 / 4007eafe / 5700dff5 / 2f5ffec1 are superseded.
-- RUNNING at the save (agents die at the swap): (a) LR16g builder (Opus) on -lr16g, WIP c3f03ce8 pushed; brief
-  briefs/LR16g.md (base 961ca660; lead decisions at its top), report checks/lr16g-build.md. If dead: rerun an Opus builder
-  from the brief + the WIP (LAMP_VERSION is 5; measure steady level, flicker 1; Marlow #257 files re-baselined in tests
-  only). (b) LR16-1 recheck PASS (lr16int 4ebcecbd, docs only; checks/lr16-1-recheck.md; polish 3 highp int ->
-  LR16-L). Detached check worktrees: `cmd //c rmdir <wt>\node_modules` (junction) FIRST, then git worktree remove --force.
+- RUNNING (restarted ~22:40 after the swap; agents die at a swap): (a) LR16g builder (Opus) on -lr16g from WIP c3f03ce8;
+  brief briefs/LR16g.md (base 961ca660; lead decisions at its top), report checks/lr16g-build.md. If dead: rerun an Opus
+  builder from the brief + the branch head (LAMP_VERSION is 5; measure steady level, flicker 1; Marlow #257 files
+  re-baselined in tests only). (b) LR16-5b builder (Opus) on feature/sector-redesign-lr16-5b (worktree -lr16-5b, base
+  lr16int 4ebcecbd, junction), report checks/lr16-5b-build.md; PROTOCOL = branch value +1 (the train renumbers, A-lead).
+  (c) LR16-L investigator (Opus) in -lowchk -> briefs/LR16-L.md committed on -polish. LR16-1 recheck PASS (4ebcecbd).
+  Detached check worktrees: `cmd //c rmdir <wt>\node_modules` (junction) FIRST, then git worktree remove --force.
+- LR16 perf (Test Runner ~22:35, laptop GPU alone, 273539ec -> f8008542): CPU p95 Epic start 4.5 -> 5.0, s5 6.4 -> 7.6;
+  Medium start 3.8 -> 4.9, s5 6.3 -> 6.7; GPU p95 s5 Epic 5.0 -> 6.2. Under the 12 ms budget; above the +0.1-0.7 estimate:
+  per-light shading / CPU light work (draws flat). Polish item LR16-P (files C:/NightShift/scratch/work/lr16tri-*).
+  Asked Test Runner to drop the superseded queue requests (keep b5e93548-6795, then 961ca660-9185).
 - After LR16g PASS (one Opus checker + laptop on the same sha): LR16-8 sheets (briefs/LR16h-and-8.md part 2 to Test
   Runner), then the LR16 PR (one batch; src/net touched by LR16-5 -> two checkers done). LR16-4 relight = Guard AI #255,
   then our board slice briefs/LR16-4-board.md (after LR16g; both edit campusS2.ts).
-- LR16-5b sway (M14, ctcourse only): brief briefs/LR16-5b.md (base = lr16int after g or now 961ca660; fill <sha>). Needs a
-  PROTOCOL number (sway event + shot target): ask the orchestrator when the build starts. Opus build, two checkers (net),
-  laptop perf on ctcourse.
-- Walk 4.82 (WALK-4.82-REPORT.md on feature/menu): item 1 "Marlow yard seems dark" -> LR16g target (builder told,
-  lr16g-build.md section). Item 8 "s3 lights on low look terrible on walls, blotchy" -> LR16-L: Opus investigator writing
-  briefs/LR16-L.md (uncommitted in -polish; worktree -lowchk, junction). If dead: rerun from these lines.
+- LR16-5b sway (M14, ctcourse only): building (above). Then two Opus checkers (src/net) + laptop perf on ctcourse, merge
+  into lr16int.
+- Walk 4.82 (WALK-4.82-REPORT.md on feature/menu): item 1 "Marlow yard seems dark" -> LR16g target (builder told).
+  Item 8 "s3 lights on low look terrible on walls, blotchy" -> LR16-L (investigator above). If dead: rerun from these lines.
 For Michael: Realistic dimmer (S2 atrium 0.28 vs 0.48, LR16g); S3 hall-lit white fog.
 Polish: lr15-check 1/2/4, lrpolish 1-6, art P6, perf 3-7, lr16dx 2-7, lr16t, lr16-1, lr16e, lr16-5 A 1-8 / B 1-6, artnext 1-9.
 RULES: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
