@@ -117,6 +117,7 @@ export class LightRig {
   private torchBuf: Float32Array | null = null;
   /** Registry ids in the drawn torch slots (-1: empty). */
   private readonly torchIds = new Int32Array(TORCH_DRAW_SLOTS).fill(-1);
+  private readonly torchKeep = new Uint8Array(TORCH_DRAW_SLOTS);
   setTorchDraw(buf: Float32Array | null): void {
     this.torchBuf = buf;
     this.pickT = 0;
@@ -126,6 +127,28 @@ export class LightRig {
     let n = 0;
     for (let k = 0; k < TORCH_DRAW_SLOTS; k++) if (this.torchIds[k]! >= 0) n++;
     return n;
+  }
+  /** (LR16t) Registry id per drawn torch slot (-1: empty); `TorchShadows` gives slot k atlas tile k. Read only. */
+  get torchSlotIds(): Int32Array {
+    return this.torchIds;
+  }
+  /** (LR16t) The torch shadow atlas is on (`TorchShadows`): no flashlight gets a Babylon light - the shadow pool holds
+   *  none (its casters capped at 0) and the clustered pool skips them; every torch is drawn by the baked lamps. */
+  private tsOn = false;
+  /** The last `configure` input, before the caps (a `setTorchShadows` change re-applies it). */
+  private cfgIn: LightRigConfig | null = null;
+  setTorchShadows(on: boolean): void {
+    if (on === this.tsOn) return;
+    this.tsOn = on;
+    this.pickT = 0;
+    if (this.cfgIn) this.configure(this.cfgIn);
+  }
+  get torchShadowsOn(): boolean {
+    return this.tsOn;
+  }
+  /** Shadow-mapped spot lights in the pool (tests: 0 while the torch atlas is on). */
+  get shadowSlots(): number {
+    return this.shadowPool.length;
   }
 
   /** Real lights in use (clustered + shadowed). */
@@ -330,8 +353,11 @@ export class LightRig {
    * shadow maps take the flashlights and the nearest lamps.
    */
   configure(cfg: LightRigConfig, force = false): void {
+    this.cfgIn = cfg;
     // (baked lamps: the pools only hold the moving lights - flashlights - and at most two of them cast shadows)
     if (this.baked) cfg = { ...cfg, lights: Math.min(cfg.lights, BAKED_POOL), shadow: { ...cfg.shadow, casters: Math.min(cfg.shadow.casters, BAKED_SHADOWS) } };
+    // (LR16t) the torch shadow atlas shadows every torch: no Babylon shadow map (2 samplers less in every lit shader)
+    if (this.tsOn) cfg = { ...cfg, shadow: { ...cfg.shadow, casters: 0 } };
     // (every shadowed spot is a texture unit in every lit shader, used or idle: the largest one sets the pool)
     if (cfg.micro) cfg = { ...cfg, shadow: { ...cfg.shadow, casters: Math.min(cfg.shadow.casters, MICRO_SHADOWS) } };
     const same = !force && cfg.minimal === this.cfg.minimal && cfg.lights === this.cfg.lights && cfg.shadow.casters === this.cfg.shadow.casters && cfg.shadow.size === this.cfg.shadow.size && cfg.shadow.soft === this.cfg.shadow.soft;
@@ -422,25 +448,48 @@ export class LightRig {
     // (LR15) the flashlights left without a shadow map: drawn by the baked lamps (`writeTorchDraw`), not the pool
     const tb = this.torchBuf;
     if (tb) {
-      let tk = 0;
-      for (let i = 0; i < use && tk < TORCH_DRAW_SLOTS; i++) {
+      // (LR16t) a torch still drawn keeps its slot (its shadow atlas tile stays valid); the rest fill the free slots,
+      // nearest first. Allocation-free: `torchKeep` marks the kept slots.
+      const keep = this.torchKeep;
+      keep.fill(0);
+      for (let i = 0; i < use; i++) {
         if (taken[i]) continue;
         const l = this.reg.lights[ids[i]!]!;
         if (l.kind !== 'flashlight' || this.baked?.has(l.id)) continue;
+        for (let k = 0; k < TORCH_DRAW_SLOTS; k++) {
+          if (this.torchIds[k] !== l.id) continue;
+          keep[k] = 1;
+          taken[i] = 1;
+          writeTorchDraw(tb, k, l);
+          break;
+        }
+      }
+      for (let k = 0; k < TORCH_DRAW_SLOTS; k++) if (!keep[k]) this.torchIds[k] = -1;
+      let tk = 0;
+      for (let i = 0; i < use; i++) {
+        if (taken[i]) continue;
+        const l = this.reg.lights[ids[i]!]!;
+        if (l.kind !== 'flashlight' || this.baked?.has(l.id)) continue;
+        while (tk < TORCH_DRAW_SLOTS && keep[tk]) tk++;
+        if (tk >= TORCH_DRAW_SLOTS) break;
         this.torchIds[tk] = l.id;
+        keep[tk] = 1;
         writeTorchDraw(tb, tk++, l);
         taken[i] = 1;
       }
-      for (; tk < TORCH_DRAW_SLOTS; tk++) {
-        this.torchIds[tk] = -1;
-        writeTorchDraw(tb, tk, null);
+      for (let k = 0; k < TORCH_DRAW_SLOTS; k++) {
+        if (keep[k]) continue;
+        writeTorchDraw(tb, k, null);
       }
     }
     let k = 0;
     const lit = Math.max(1, Math.ceil(this.pool.length * this.litScale));
     for (let i = 0; i < use && k < lit; i++) {
       if (taken[i] || this.baked?.has(ids[i]!)) continue;
-      this.put(this.pool[k++]!, this.reg.lights[ids[i]!]!);
+      const l = this.reg.lights[ids[i]!]!;
+      // (LR16t) with the torch atlas no flashlight is a Babylon light (one torch formula, no hard cone)
+      if (this.tsOn && l.kind === 'flashlight') continue;
+      this.put(this.pool[k++]!, l);
     }
     for (let i = k; i < this.pool.length; i++) this.idle(this.pool[i]!);
   }
