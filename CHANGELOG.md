@@ -1,5 +1,51 @@
 # Changelog
 
+## 4.73.0 - Train 24: Guard render moon shadow caster lists and head hit volume (2026-10-23, PR #216; #209, #211)
+
+### Guard render S3a: guard head hit volume from the sim
+- Guards: the head hit volume now comes from the guard's simulation (stance, gait, cover lean / peek, emotes, held
+  hostage), not from the rendered skeleton, so headshots and takedowns no longer depend on the animation's frame rate
+  or the Detail setting. Within 8-11 cm of the rendered head (exceptions in docs/guard-render/STATE.md).
+
+### Guard render S6: per-cascade moon shadow lists
+- Moon / sun shadows: each shadow cascade now draws only the moving casters inside it (exact per-cascade lists under
+  the baked moon), so fewer shadow draws with many guards. No look change. `?guardsun=0` turns it off.
+- (dev) `World.addShadowCaster` takes an optional sun reach (casters drop out of the moon's cascades beyond it, with
+  hysteresis); nothing passes one yet.
+
+## 4.72.0 - Train 23: Guard render merged bodies and anim cuts; Sector Ops campus sections 2-3 (2026-10-23, PR #210; #205, #206)
+
+### Guard animation cost cuts (S5)
+- Guard animation does less work per frame with no change to any pose: the foot planner's per-frame side loops no
+  longer allocate arrays or iterators; the emote layer (`applyFk`) no longer builds a map and `Object.entries` list each
+  frame; the joint limiter keeps its rate and previous rotation on the joint node instead of in two Map lookups; and
+  guard rigs skip the finger and goggle frames, whose outputs only the operator figures read.
+- New tests: a golden guard pose test with a fixture captured on the untouched code (`tests/guardPoseGolden.test.ts`)
+  and an opt-in NullEngine micro-benchmark of guard animate (`tests/guardAnimBench.test.ts`). The measured gains are
+  inside machine noise (about 0.5-2 us a guard a frame on NullEngine); the gain is less garbage.
+
+### Guard render: merged skinned guard body (S1)
+- Guards, carried bodies and fresh bodies now draw as one rigidly skinned smooth mesh each (`src/player/smoothBody*.ts`)
+  instead of about 20 instanced parts: one bone per joint, a fixed root-local bounding box, one scene observer for
+  every body, hi / lo LOD swapped as one at the body's sphere centre. `?guardmerge=0` gives the old instanced parts
+  for comparison. Colours, patterns, hit flash, thermal / night vision tint and ragdolls behave as before.
+- Measured on the laptop GPU (Epic, 1920x1080, `scripts/guard-cap.mjs`, 24 guards in view, merge off -> on, medians):
+  Sector Ops warehouse frame 9.7 -> 7.1 ms, render() CPU 7.6 -> 4.9 ms, GPU 6.7 -> 5.5 ms, active meshes 1429 -> 493;
+  Marlow Yard (ctcourse) frame 9.2 -> 6.3 ms, render() CPU 7.3 -> 4.4 ms, GPU 6.1 -> 4.8 ms. Runs:
+  `docs/guard-render/run-s1`, `run-s1-off`, `run-s0-base`.
+- Accepted look change: heads, hands, forearms and feet now cast moon, lamp and flashlight shadows (they were under
+  the 0.3 m caster-size cut as separate parts; the merged body is over it).
+
+### Unreleased - sector-redesign
+- Sector Ops campusOps: S2 HQ atrium and offices greybox.
+- Sector Ops team doors: pair bolts (open only while the partner pushes the door from the other side) and pair gates (two key switches turned within 1 s by both players), host-authoritative, reset on a restart; guards route round them while locked (engine only, no map uses them yet).
+- Sector Ops keypads: a keypad door stays locked until the team finds its code (overheard, a handover board, or an objective such as a hack); a section restart forgets the codes found in it.
+- Sector Ops engine: breaker and timed isolator boards (`MapLayout.boards`): cut light circuits until switched back or for a timed window (default 20 s), a guard comes to look, restart puts them back, co-op lamps follow (no map uses them yet).
+- Sector Ops alarm stages: a section can now force lights to full, lock doors (never the only way through) and send its reinforcements along a response route at a stage; a restart undoes them (data only, no map uses it yet).
+- Sector Ops campusOps: S3 lab block greybox (16 guards, the first lasers las-gown and las-store with their power panels, cam-view and cam-dock, the prototype grab, CR3 chamber roof).
+- Sector Ops engine: security desks (`security.desks`): with the operator down or away, the console loops its cameras (they sweep but report nothing, default 30 s) or switches them off until a restart; a restart or section change puts them back, the co-op client follows (no map uses them yet).
+- Ammo pickups removed from inside sections (a between-section weapons crate refill follows; Michael, 2026-10-23).
+
 ## 4.71.0 - Train 22: Guard AI awareness, posts and camera body calls; hostage gait; changelog dedupe (2026-10-23, PR #199; #198, #194, #196)
 
 ### Changelog build skips entries already released
