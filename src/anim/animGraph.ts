@@ -2088,8 +2088,8 @@ export class AnimGraph {
     let l0: { duty: number; lift: number } = L.sneak;
     let l1: { duty: number; lift: number } = L.walk;
     const P = KEYED_CROUCH_POSE;
-    let p0: { lean: number; drop: number; back: number } = mc !== null ? MOCAP_CROUCH_POSE : P.sneak;
-    let p1: { lean: number; drop: number; back: number } = P.walk;
+    let p0: { lean: number; leanD: number; drop: number; back: number } = mc !== null ? MOCAP_CROUCH_POSE : P.sneak;
+    let p1: { lean: number; leanD: number; drop: number; back: number } = P.walk;
     let t = wWalk;
     if (wRun > 0) {
       c0 = KEYED_CROUCH_WALK;
@@ -2115,9 +2115,12 @@ export class AnimGraph {
         mixKeyed(out, this.kF, t, out);
       }
       // the game's extra lean and drop (KEYED_CROUCH_POSE), the arms turned back by the lean
-      const lean = p0.lean + (p1.lean - p0.lean) * t;
+      // (afp AF3) the drawn crouched legs (`kCrD`, under the procedural gun upper body) keep the lean they had (`leanD`) and no
+      // hips-back offset: their carriage is the drawn crouch's (AF4b), and the extra lean put the low-ready elbows 6.5 cm out
+      const dw = out === this.kCrD;
+      const lean = dw ? p0.leanD + (p1.leanD - p0.leanD) * t : p0.lean + (p1.lean - p0.lean) * t;
       out.pel[1] = out.pel[1]! - (p0.drop + (p1.drop - p0.drop) * t);
-      out.pel[2] = out.pel[2]! - (p0.back + (p1.back - p0.back) * t) * this.cBackK;
+      out.pel[2] = out.pel[2]! - (p0.back + (p1.back - p0.back) * t) * (dw ? 0 : this.cBackK);
       const sn = Math.sin(lean * 0.5);
       const cs = Math.cos(lean * 0.5);
       const q = out.q;
@@ -2872,11 +2875,12 @@ export const KEYED_CROUCH_LEG = {
  * root, so the body sits over the planted feet: the centre of mass was 11-15 cm ahead of the feet in crouched double
  * support (the keyed idle that balances sits its hips 10 cm back), now about 3 cm; the walk leans 0.18 (was 0.12) so gears
  * 1-3 keep one carriage (AF0 harness: trunk 31.5-32.2 deg, hips within 2.2 cm; were 28-43 deg and 7 cm apart).
+ * `leanD` the lean of the drawn crouched legs (`kCrD`, the old values; no `back` there).
  */
 export const KEYED_CROUCH_POSE = {
-  sneak: { lean: 0.08, drop: 0.02, back: 0.1 },
-  walk: { lean: 0.18, drop: 0.03, back: 0.1 },
-  run: { lean: 0.2, drop: 0.05, back: 0.08 },
+  sneak: { lean: 0.08, leanD: 0.08, drop: 0.02, back: 0.1 },
+  walk: { lean: 0.18, leanD: 0.12, drop: 0.03, back: 0.1 },
+  run: { lean: 0.2, leanD: 0.2, drop: 0.05, back: 0.08 },
 } as const;
 /**
  * (afp AF3, walk 4.72 P2) The mocap crouch walk's carriage in the game (it was as captured, M1: trunk 43 deg, hips 7 cm
@@ -2884,7 +2888,7 @@ export const KEYED_CROUCH_POSE = {
  * it as KEYED_CROUCH_POSE's), `drop` and `back` as KEYED_CROUCH_POSE's, and `sway` the share of the capture's lateral
  * pelvis sway kept (8.4 cm p2p over the keyed sneak's narrow feet: now 4.2 cm).
  */
-const MOCAP_CROUCH_POSE = { lean: -0.19, drop: 0.05, back: 0.1, sway: 0.5 } as const;
+const MOCAP_CROUCH_POSE = { lean: -0.19, leanD: -0.19, drop: 0.05, back: 0.1, sway: 0.5 } as const;
 /**
  * (afp AF3) The crouched hips-back offset (`back` above) fades out while turning: gone by `rate` (rad/s of yaw), eased
  * over `tau` (s). With the hips behind the root a crouched landing in a turn hit the leg joints' rate limit

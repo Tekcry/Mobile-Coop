@@ -65,20 +65,20 @@ The wall is the harness's stand-in (wall behind the root, side-on body as player
 ## Crouched aimed strafe (rifle, pistol)
 | scenario | speed | pel lat p2p cm | pel beyond cm | grip step cm | grip mean cm | grip spread cm | kneels | side chg | kneel on flip fr | gun leg cm | gun trunk cm | gap min cm | slide cm |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| cstrafe-rifle-L0.4 | 0.40 | 2.2 | 0.55 | 0.37 | 23.2 | 0.0 | 0 | 0 | 0 | 42.8 | 0.9 | 9.0 | 0.00 |
-| cstrafe-rifle-R0.4 | 0.40 | 2.2 | 0.56 | 0.37 | 23.2 | 0.0 | 0 | 0 | 0 | 42.8 | 0.9 | 9.0 | 0.00 |
-| cstrafe-rifle-L0.7 | 0.70 | 2.2 | 0.85 | 0.55 | 23.1 | 0.0 | 0 | 0 | 0 | 42.8 | 0.9 | 9.0 | 0.00 |
-| cstrafe-rifle-R0.7 | 0.70 | 2.2 | 0.85 | 0.55 | 23.1 | 0.0 | 0 | 0 | 0 | 42.8 | 0.9 | 9.0 | 0.00 |
-| cstrafe-rifle-flip0.7 | 0.53 | 12.7 | 1.11 | 0.59 | 23.0 | 0.4 | 0 | 0 | 4 | 41.5 | 0.8 | 9.0 | 0.00 |
-| cstrafe-rifle-stopgo10-L | 0.34 | 8.1 | 1.10 | 0.58 | 23.1 | 0.1 | 10 | 0 | 0 | 41.4 | 0.9 | 9.0 | 0.00 |
-| cstrafe-rifle-stopgo10-R | 0.34 | 10.9 | 1.19 | 0.60 | 23.4 | 0.1 | 10 | 0 | 0 | 41.4 | 0.8 | 9.0 | 0.00 |
-| cstrafe-pistol-L0.4 | 0.40 | 2.2 | 0.55 | 0.68 | 18.2 | 0.1 | 0 | 0 | 0 | 44.3 | 8.8 | 9.0 | 0.00 |
-| cstrafe-pistol-R0.4 | 0.40 | 2.2 | 0.56 | 0.68 | 18.2 | 0.1 | 0 | 0 | 0 | 44.1 | 8.8 | 9.0 | 0.00 |
-| cstrafe-pistol-L0.7 | 0.70 | 2.2 | 0.85 | 1.01 | 18.2 | 0.1 | 0 | 0 | 0 | 44.5 | 8.8 | 9.0 | 0.00 |
-| cstrafe-pistol-R0.7 | 0.70 | 2.2 | 0.85 | 1.01 | 18.2 | 0.1 | 0 | 0 | 0 | 44.1 | 8.8 | 9.0 | 0.00 |
+| cstrafe-rifle-L0.4 | 0.40 | 2.2 | 0.55 | 0.37 | 23.2 | 0.0 | 0 | 0 | 0 | 43.3 | 0.9 | 9.0 | 0.00 |
+| cstrafe-rifle-R0.4 | 0.40 | 2.2 | 0.56 | 0.37 | 23.2 | 0.0 | 0 | 0 | 0 | 43.3 | 0.9 | 9.0 | 0.00 |
+| cstrafe-rifle-L0.7 | 0.70 | 2.2 | 0.85 | 0.55 | 23.1 | 0.0 | 0 | 0 | 0 | 43.3 | 0.9 | 9.0 | 0.00 |
+| cstrafe-rifle-R0.7 | 0.70 | 2.2 | 0.85 | 0.55 | 23.1 | 0.0 | 0 | 0 | 0 | 43.3 | 0.9 | 9.0 | 0.00 |
+| cstrafe-rifle-flip0.7 | 0.53 | 12.7 | 1.11 | 0.59 | 23.0 | 0.4 | 0 | 0 | 4 | 42.0 | 0.8 | 9.0 | 0.00 |
+| cstrafe-rifle-stopgo10-L | 0.34 | 8.1 | 1.10 | 0.58 | 23.1 | 0.1 | 10 | 0 | 0 | 41.8 | 0.9 | 9.0 | 0.00 |
+| cstrafe-rifle-stopgo10-R | 0.34 | 10.9 | 1.01 | 0.60 | 23.4 | 0.1 | 10 | 0 | 0 | 41.8 | 0.8 | 9.0 | 0.00 |
+| cstrafe-pistol-L0.4 | 0.40 | 2.2 | 0.55 | 0.68 | 18.2 | 0.1 | 0 | 0 | 0 | 49.7 | 8.8 | 9.0 | 0.00 |
+| cstrafe-pistol-R0.4 | 0.40 | 2.2 | 0.56 | 0.68 | 18.2 | 0.1 | 0 | 0 | 0 | 49.8 | 8.8 | 9.0 | 0.00 |
+| cstrafe-pistol-L0.7 | 0.70 | 2.2 | 0.85 | 1.01 | 18.2 | 0.1 | 0 | 0 | 0 | 49.8 | 8.8 | 9.0 | 0.00 |
+| cstrafe-pistol-R0.7 | 0.70 | 2.2 | 0.85 | 1.01 | 18.2 | 0.1 | 0 | 0 | 0 | 49.8 | 8.8 | 9.0 | 0.00 |
 | cstrafe-pistol-flip0.7 | 0.53 | 12.7 | 1.11 | 0.98 | 18.0 | 0.5 | 0 | 0 | 4 | 37.5 | 8.1 | 9.0 | 0.00 |
 | cstrafe-pistol-stopgo10-L | 0.34 | 8.1 | 1.10 | 1.02 | 18.1 | 0.1 | 10 | 0 | 0 | 37.3 | 8.4 | 9.0 | 0.00 |
-| cstrafe-pistol-stopgo10-R | 0.34 | 10.9 | 1.19 | 1.00 | 18.5 | 0.1 | 10 | 0 | 0 | 37.3 | 8.2 | 9.0 | 0.00 |
+| cstrafe-pistol-stopgo10-R | 0.34 | 10.9 | 1.01 | 1.00 | 18.5 | 0.1 | 10 | 0 | 0 | 37.3 | 8.2 | 9.0 | 0.00 |
 
 ## Drawn crouched wall slide
 | scenario | speed | pel lat p2p cm | grip step cm | grip mean cm | kneels | gun leg cm | gun trunk cm | trunk deg | gap min cm | slide cm |
