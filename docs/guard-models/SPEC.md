@@ -131,8 +131,16 @@ pick from each headwear and eyewear pool, every fixed and gameplay piece and the
 ## 6. Bones
 - LOD0: 33 bones, the 23 rig joints of `RIG_JOINTS` (`src/operators/runtime/pose.ts`, tested equal) plus 10 fingers.
   The rig joints are `root body pelvis spine chest neck head shL elL wrL shR elR wrR hipL knL anL hipR knR anR toeL toeR
-  clavL clavR`. The fingers are `fingerL_1..5` and `fingerR_1..5`: one bone per finger (1 = thumb, Wren's hero
-  numbering), curl only, parent `wrL` / `wrR`.
+  clavL clavR`. The fingers use Wren's joint names `finger<S>_<f>_<seg>` (`src/anim/fingers.ts` `FINGER_RE`) with one
+  segment each: `fingerL_1_1..fingerL_5_1` and `fingerR_1_1..fingerR_5_1` (f 1 = thumb .. 5 little), MCP (thumb: CMC)
+  to the fingertip, parent `wrL` / `wrR`.
+- Finger axes are Wren's, so `fingers.ts` and the runtime's `fingerRig` drive them unchanged: local +Y along the bone;
+  local Z is the curl axis, a turn about +Z (right hand) or -Z (left hand) in the game frame closes the finger toward
+  the palm; the splay axis is local X. The thumb is rolled so `THUMB_AXES[0]` (its base, opposition across the palm) is
+  Wren's (G1 bake: dot 0.995). In Blender's bone frame the game frame is mirrored: a curl there is about -Z on the right
+  hand and +Z on the left (axis (lx, -ly, -lz) for a game-local axis l). The bodies job checks both and the report's
+  `fingerAxes` and `deformCheck.fingerCurl` record it. One segment per finger: `fingers.ts` turns only segment 1 (MCP
+  80 deg, thumb 35 deg at curl 1); a one-segment fallback there is G5 / G7's (G1-REPORT "Fix round").
 - LOD1 and LOD2: the 23 rig joints; finger weights fold into the wrist.
 - Influences 4 / 4 / 2. No face bones (A15).
 
@@ -164,6 +172,13 @@ iris colour picks a cell of the shared eye block.
 toward the `head` joint (`face.neckSeam`). The topology is shared, so every head of a base welds to that base's body by
 vertex index. Skin weights blend `neck` to `head` over 2 loops each side. The seam sits under the collar of every
 outfit; the balaclava covers it on `broad`.
+- Frame: heads are built in the base body's frame (G1's fit, `guard_body.GuardFit`: the head part's vertices `V[hv]`,
+  the same 42 seam vertices as the body, hm08 index `_mh`). The body report's `seamTransforms` gives the map from the
+  MakeHuman frame (`makeHuman`: x negated, x 0.1 K, y from the hm08 floor) to the body frame: the `neck` and `head` bone
+  maps (3x3 + translation, floor lift folded in), and the best uniform scale + translation over the seam and over the
+  head part with residuals. The body blend's `guard-<base>-headref` is the head part in the body frame.
+- The crown (top of the head, feet on y = 0) is the body report's `crownY`; the head joint is `bindJoints.head`. Both
+  include the bind floor lift (about -5 mm).
 
 **Head envelope.** Per base: the shared cranium plus the union of the base's head variants (ears included), offset
 outward by `face.envelopeOffset` = 15 mm. The thickest hair cap is `sidepart` at 12 mm, plus 3 mm clearance. G1h exports

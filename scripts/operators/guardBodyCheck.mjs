@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { guardJoints } from './guardJoints.mjs';
+import { FING_LEN, FING_L, FING_R, fingerPose, fingerRig } from '../../src/anim/fingers.ts';
 
 /** Limits (metres unless named). */
 export const LIMITS = {
@@ -21,6 +22,83 @@ export const RIG_BONES = 23;
 export const FINGER_BONES = 10;
 
 const close = (a, b, eps) => a.length === b.length && a.every((v, i) => Math.abs(v - b[i]) <= eps);
+
+/** Wren's finger joint names (src/anim/fingers.ts FINGER_RE) with one segment: `finger<S>_<f>_1`. */
+export const FINGER_NAME = /^finger([LR])_([1-5])_1$/;
+
+const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const unit3 = (a) => { const l = Math.sqrt(dot3(a, a)); return [a[0] / l, a[1] / l, a[2] / l]; };
+
+/** Unit quaternion (x, y, z, w) of the rotation whose columns are the axes x, y, z. */
+function quatFromAxes(x, y, z) {
+  const t = x[0] + y[1] + z[2];
+  let q;
+  if (t > 0) { const s = Math.sqrt(t + 1) * 2; q = [(y[2] - z[1]) / s, (z[0] - x[2]) / s, (x[1] - y[0]) / s, s / 4]; }
+  else if (x[0] > y[1] && x[0] > z[2]) { const s = Math.sqrt(1 + x[0] - y[1] - z[2]) * 2; q = [s / 4, (y[0] + x[1]) / s, (z[0] + x[2]) / s, (y[2] - z[1]) / s]; }
+  else if (y[1] > z[2]) { const s = Math.sqrt(1 + y[1] - x[0] - z[2]) * 2; q = [(y[0] + x[1]) / s, s / 4, (z[1] + y[2]) / s, (z[0] - x[2]) / s]; }
+  else { const s = Math.sqrt(1 + z[2] - x[0] - y[1]) * 2; q = [(z[0] + x[2]) / s, (z[1] + y[2]) / s, s / 4, (x[1] - y[0]) / s]; }
+  return q;
+}
+
+function rotq(q, v) {
+  const [qx, qy, qz, qw] = q;
+  const tx = 2 * (qy * v[2] - qz * v[1]), ty = 2 * (qz * v[0] - qx * v[2]), tz = 2 * (qx * v[1] - qy * v[0]);
+  return [v[0] + qw * tx + (qy * tz - qz * ty), v[1] + qw * ty + (qz * tx - qx * tz), v[2] + qw * tz + (qx * ty - qy * tx)];
+}
+
+/**
+ * The guard's finger bones through the game's own finger drive (src/anim/fingers.ts): bind frames from the report
+ * (local Y along the bone, Z = `zAxis`, game frame), `fingerRig` must find all ten, and a full curl must close every
+ * finger (2..5) toward the palm on both hands. The thumb's roll is the bake's (`fingerAxes.thumbFlexDot`, the match
+ * of THUMB_AXES[0] to Wren's opposition axis). Problems as strings.
+ */
+export function checkFingerAxes(report) {
+  const p = [];
+  const fb = report.fingerBones ?? {};
+  const names = Object.keys(fb);
+  const bad = names.filter((n) => !FINGER_NAME.test(n));
+  if (bad.length) p.push(`finger bones not in Wren's scheme finger<S>_<f>_1: ${bad.join(' ')}`);
+  if (names.length !== FINGER_BONES) p.push(`${names.length} finger bones in fingerBones, want ${FINGER_BONES}`);
+  const bindPos = new Float64Array(names.length * 3);
+  const bindRot = new Float64Array(names.length * 4);
+  const ok = names.map((n, s) => {
+    const b = fb[n];
+    if (!b?.head || !b?.tail || !b?.zAxis || !b?.palm) { p.push(`${n}: head / tail / zAxis / palm missing`); return false; }
+    const y = unit3(sub3(b.tail, b.head));
+    const z = unit3(b.zAxis);
+    if (Math.abs(dot3(y, z)) > 2e-3) { p.push(`${n}: zAxis not normal to the bone (${dot3(y, z).toFixed(4)})`); return false; }
+    bindPos.set(b.head, s * 3);
+    bindRot.set(quatFromAxes(cross3(y, z), y, z), s * 4);
+    return true;
+  });
+  if (p.length) return p;
+  const r = fingerRig(names, bindPos, bindRot);
+  if (!r || r.slot.length !== names.length) return [...p, `fingerRig found ${r?.slot.length ?? 0} of ${names.length} finger joints`];
+  const v = new Float64Array(FING_LEN);
+  for (let f = 0; f < 5; f++) { v[FING_L + f * 2] = 1; v[FING_R + f * 2] = 1; }
+  const q = new Float64Array(names.length * 4);
+  const on = new Uint8Array(names.length);
+  fingerPose(r, v, q, on);
+  names.forEach((n, s) => {
+    if (!ok[s] || n.split('_')[1] === '1') return;
+    const b = fb[n];
+    const bone = sub3(b.tail, b.head);
+    const d = sub3(rotq([q[s * 4], q[s * 4 + 1], q[s * 4 + 2], q[s * 4 + 3]], bone), bone);
+    // the palm direction normal to the bone: a clean curl by a gives cos(a / 2) (80 deg MCP: 0.77)
+    const y = unit3(bone);
+    const pl = unit3(b.palm);
+    const pp = unit3(sub3(pl, y.map((c) => c * dot3(pl, y))));
+    const toward = dot3(unit3(d), pp);
+    if (!(toward > 0.5)) p.push(`${n}: a curl moves the tip ${toward.toFixed(2)} toward the palm (want > 0.5)`);
+  });
+  for (const [n, d] of Object.entries(report.fingerAxes?.thumbFlexDot ?? {})) {
+    if (!(d >= 0.95)) p.push(`${n}: THUMB_AXES[0] off Wren's opposition axis (dot ${d})`);
+  }
+  if (Object.keys(report.fingerAxes?.thumbFlexDot ?? {}).length !== 2) p.push('fingerAxes.thumbFlexDot needs both thumbs');
+  return p;
+}
 
 /**
  * Problems with one body report (empty: it passes).
@@ -56,6 +134,12 @@ export function checkGuardBody(report, kit, kindHeights) {
       if (lb.fold?.[f] !== want) p.push(`${f} folds into ${lb.fold?.[f]}, want ${want}`);
     }
   }
+
+  // fingers: Wren's names and curl axes, so src/anim/fingers.ts drives them unchanged (SPEC 6)
+  p.push(...checkFingerAxes(report));
+  // G2's reused garment scripts read `height` and the fingertip ends
+  if (report.height !== base.refHeight) p.push(`height ${report.height} != refHeight ${base.refHeight}`);
+  for (const k of ['handL', 'handR']) if (report.bindJoints?.[k]?.length !== 3) p.push(`bindJoints.${k} missing`);
 
   // skin (PLAN 5: 4 influences at LOD0; every vertex weighted)
   const maxInf = kit.bones?.influences?.[0] ?? 4;
