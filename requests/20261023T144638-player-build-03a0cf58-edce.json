@@ -1,0 +1,14 @@
+{
+  "id": "20261023T144638-player-build-03a0cf58-edce",
+  "sha": "03a0cf589146ed075d965c1e7a2ccc902ee7e83d",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "player-build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "coop-rejoin-2",
+  "note": "coop-rejoin-2 follow-up (joinWatch); PR opens on pass"
+}
