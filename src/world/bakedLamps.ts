@@ -104,7 +104,7 @@ export class BakedLamps implements CharShadowLamps {
   private readonly fillRGBA: Uint8Array | null = null;
   private bounceVer = -1;
   private bounceUp = -Infinity;
-  /** (LR16-1) The bounce's colour (`bounceColor`: the lamps' tint, luminance 1). */
+  /** (LR16-1) The bounce's colour (`bounceColor`: the lamps' tint, brightest channel 1). */
   readonly bounceC: [number, number, number];
   /** The level fill (`BakeExtras.level`) and its sky visibility texture. */
   readonly level: BakeExtras['level'];
@@ -770,11 +770,13 @@ export const NS_GRID2_GLSL = `vec2 nsGrid2(highp sampler3D t, vec3 p, vec4 o, ve
   for (int k = 0; k < 8; k++) c[k] = k == h || open;
   if (!open) {
     for (int r = 0; r < 7; r++) {
+      bool grew = false;
       for (int k = 0; k < 8; k++) {
-        if ((k & 1) == 0 && (e[k] & 1) == 0 && c[k] != c[k + 1]) { c[k] = true; c[k + 1] = true; }
-        if ((k & 2) == 0 && (e[k] & 2) == 0 && c[k] != c[k + 2]) { c[k] = true; c[k + 2] = true; }
-        if ((k & 4) == 0 && (e[k] & 4) == 0 && c[k] != c[k + 4]) { c[k] = true; c[k + 4] = true; }
+        if ((k & 1) == 0 && (e[k] & 1) == 0 && c[k] != c[k + 1]) { c[k] = true; c[k + 1] = true; grew = true; }
+        if ((k & 2) == 0 && (e[k] & 2) == 0 && c[k] != c[k + 2]) { c[k] = true; c[k + 2] = true; grew = true; }
+        if ((k & 4) == 0 && (e[k] & 4) == 0 && c[k] != c[k + 4]) { c[k] = true; c[k + 4] = true; grew = true; }
       }
+      if (!grew) break;
     }
   }
   float sw = 0.0;

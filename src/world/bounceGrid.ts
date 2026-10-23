@@ -317,8 +317,9 @@ export function packFillRGBA(amb: Uint8Array, g: Uint8Array | null, bits: Uint16
 }
 
 /**
- * (LR16-1) The bounce's colour: the baked lamps' colours averaged by intensity, luminance-normalised (Rec. 709), so the
- * picture's bounce has the map's lamp tint at the level the field reads. White without lamps.
+ * (LR16-1) The bounce's colour: the baked lamps' colours averaged by intensity, normalised to a brightest channel of 1
+ * (fix round: the level is the brightest channel, `nsS`), so the picture's bounce has the map's lamp tint at the level the
+ * field reads, no channel over it. White without lamps.
  */
 export function bounceColor(lights: readonly { color: readonly number[]; intensity: number }[]): [number, number, number] {
   let r = 0;
@@ -333,6 +334,6 @@ export function bounceColor(lights: readonly { color: readonly number[]; intensi
     w += k;
   }
   if (w <= 0) return [1, 1, 1];
-  const y = (0.2126 * r + 0.7152 * g + 0.0722 * b) / w;
+  const y = Math.max(r, g, b) / w;
   return y > 1e-6 ? [r / w / y, g / w / y, b / w / y] : [1, 1, 1];
 }

@@ -63,11 +63,13 @@ export function nsGrid2(rgba: Uint8Array, p: readonly number[], o: readonly numb
   for (let k = 0; k < 8; k++) c[k] = k === h || open;
   if (!open) {
     for (let r = 0; r < 7; r++) {
+      let grew = false;
       for (let k = 0; k < 8; k++) {
-        if ((k & 1) === 0 && (e[k]! & 1) === 0 && c[k] !== c[k + 1]) c[k] = c[k + 1] = true;
-        if ((k & 2) === 0 && (e[k]! & 2) === 0 && c[k] !== c[k + 2]) c[k] = c[k + 2] = true;
-        if ((k & 4) === 0 && (e[k]! & 4) === 0 && c[k] !== c[k + 4]) c[k] = c[k + 4] = true;
+        if ((k & 1) === 0 && (e[k]! & 1) === 0 && c[k] !== c[k + 1]) c[k] = c[k + 1] = grew = true;
+        if ((k & 2) === 0 && (e[k]! & 2) === 0 && c[k] !== c[k + 2]) c[k] = c[k + 2] = grew = true;
+        if ((k & 4) === 0 && (e[k]! & 4) === 0 && c[k] !== c[k + 4]) c[k] = c[k + 4] = grew = true;
       }
+      if (!grew) break;
     }
   }
   let sw = 0;

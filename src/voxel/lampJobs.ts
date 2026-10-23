@@ -10,8 +10,12 @@ import { WorkerPool } from './workerPool';
 
 const KEEP = 2;
 const INDEX = 'lamp-cache-index';
-/** Bump when the bake changes (old entries are never read again). (LR16-1) 3: the one-bounce fill joins the result. */
-export const LAMP_VERSION = 3;
+/**
+ * Bump when the bake changes (old entries are never read again). (LR16-1) 3: the one-bounce fill joins the result; 4
+ * (fix round): the bounce's wall bits join it and a receiver takes its centre's side only. Merging with LR16e: the
+ * merged build takes a number past both branches', so neither branch's caches are served (check lr16-1, merge hazards).
+ */
+export const LAMP_VERSION = 4;
 
 /** (LR16-1) A cached result holds every lamp's visibility and bounce. */
 function cacheOk(hit: LampResult | undefined, n: number): hit is LampResult {

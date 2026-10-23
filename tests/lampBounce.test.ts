@@ -1,7 +1,8 @@
 /**
  * (LR16-1) One-bounce fill, the bake (`src/voxel/lampBounce.ts`) read through the light field: the ceiling over a lamp
  * and the walls beside its pool take the light the pool throws; a wall stops it; no lamp, no bounce; the uplight is a
- * downward lamp's only; the bake is deterministic and costs at most a quarter of the lamp bake (ctcourse).
+ * downward lamp's only; the bake is deterministic and costs at most a quarter of the lamp bake (ctcourse). (Fix round)
+ * A wall or a slab anywhere inside its 1 m cell lets nothing through, and the lit side keeps its light.
  */
 import { describe, expect, it } from 'vitest';
 import { bakeLamps } from '../src/voxel/lampBake';
@@ -9,7 +10,7 @@ import { BOUNCE } from '../src/voxel/lampBounce';
 import { packShapes } from '../src/voxel/shapes';
 import { bakedLights } from '../src/world/lightBake';
 import { LightRegistry } from '../src/world/lights';
-import { bakeRoom, LAMP_A, roomA, SHARED_WALL, tallHall, TWO_HI, TWO_LO, twoRooms } from './helpers/bounceRoom';
+import { bakeRoom, LAMP_A, roomA, SHARED_WALL, slabProbe, tallHall, TWO_HI, TWO_LO, twoRooms, wallProbe } from './helpers/bounceRoom';
 
 /** The bounce bytes (`g` / 255) of the cell holding (x, y, z). */
 const cellAt = (f: ReturnType<typeof roomA>['field'], x: number, y: number, z: number): number => {
@@ -70,6 +71,45 @@ describe('(LR16-1) one-bounce fill: the bake', () => {
     expect(cellAt(f, 9.5, 1.5, LAMP_A.z)).toBeGreaterThan(0.02);
   });
 
+  // (LR16-1 fix round, check Blocking 1) The wall and the slab anywhere inside their 1 m cell, the lamp 1 m and 2 m from
+  // them: nothing behind (<= 0.03, body heights), and the lit side keeps at least half of what it read before the fix
+  // (`BEFORE`: `wallProbe` / `slabProbe` on bde295ef, the 1 m trilinear read and the 3-point share).
+  const BEFORE: Record<string, [number, number]> = {
+    'wall 0 1': [0.2472, 0.0574],
+    'wall 0 2': [0.1242, 0.0279],
+    'wall 0.25 1': [0.1632, 0.0431],
+    'wall 0.25 2': [0.0864, 0.0216],
+    'wall 0.5 1': [0.0787, 0.0225],
+    'wall 0.5 2': [0.0459, 0.0118],
+    'wall 0.75 1': [0.1996, 0.0412],
+    'wall 0.75 2': [0.088, 0.0103],
+    'slab 0 1': [0.0663, 0.0191],
+    'slab 0 2': [0.0602, 0.0162],
+    'slab 0.25 1': [0.0527, 0.0167],
+    'slab 0.25 2': [0.0659, 0.0186],
+    'slab 0.5 1': [0.0267, 0.0076],
+    'slab 0.5 2': [0.0392, 0.011],
+    'slab 0.75 1': [0.0201, 0.0049],
+    'slab 0.75 2': [0.0182, 0.0049],
+  };
+  it('no bounce through a wall or a slab anywhere in its cell; the lit side keeps its light', () => {
+    const rows: string[] = [];
+    for (const kind of ['wall', 'slab'] as const) {
+      for (const off of [0, 0.25, 0.5, 0.75]) {
+        for (const d of [1, 2]) {
+          const key = `${kind} ${off} ${d}`;
+          const p = kind === 'wall' ? wallProbe(10 + off, d) : slabProbe(3 + off, d);
+          const [mean0, min0] = BEFORE[key]!;
+          rows.push(`${key}: behind ${p.behind.map((v) => v.toFixed(3)).join(' / ')}, lit mean ${p.litMean.toFixed(3)} (was ${mean0}), min ${p.litMin.toFixed(3)} (was ${min0})`);
+          for (const v of p.behind) expect(v, key).toBeLessThanOrEqual(0.03);
+          expect(p.litMean, key).toBeGreaterThanOrEqual(0.5 * mean0);
+          expect(p.litMin, key).toBeGreaterThanOrEqual(0.5 * min0);
+        }
+      }
+    }
+    console.info(rows.join('\n'));
+  });
+
   it('no lamp, no bounce', () => {
     // room B has no lamp: every cell past the straddling one is 0
     const g = f.bounce;
@@ -104,7 +144,29 @@ describe('(LR16-1) one-bounce fill: the bake', () => {
     const two = bakeLamps({ kind: 'lamps', id: 0, shapes, lights: b.lights, lo: TWO_LO, hi: TWO_HI });
     expect(Buffer.from(one.bounce!.boxes.buffer).equals(Buffer.from(two.bounce!.boxes.buffer))).toBe(true);
     expect(Buffer.from(one.bounce!.data.buffer).equals(Buffer.from(two.bounce!.data.buffer))).toBe(true);
+    expect(Buffer.from(one.bounce!.bits!.buffer).equals(Buffer.from(two.bounce!.bits!.buffer))).toBe(true);
     expect(one.bounce!.data.length).toBeGreaterThan(0);
+    // (fix round) a cell's wall bits are the map's, not the lamp's: the two lamps' boxes agree where they overlap
+    expect(one.bounce!.bits!.length).toBe(one.bounce!.data.length);
+    const bx = one.bounce!.boxes;
+    const bits = one.bounce!.bits!;
+    const seen = new Map<string, number>();
+    let at = 0;
+    let shared = 0;
+    for (let i = 0; i < 2; i++) {
+      const o = i * 6;
+      for (let z = 0; z < bx[o + 5]!; z++) for (let y = 0; y < bx[o + 4]!; y++) for (let x = 0; x < bx[o + 3]!; x++) {
+        const k = `${bx[o]! + x} ${bx[o + 1]! + y} ${bx[o + 2]! + z}`;
+        const v = bits[at++]!;
+        const prev = seen.get(k);
+        if (prev === undefined) seen.set(k, v);
+        else {
+          shared++;
+          expect(v, k).toBe(prev);
+        }
+      }
+    }
+    expect(shared).toBeGreaterThan(0);
     // (one job or two: a lamp's bounce is its own)
     const lone = bakeLamps({ kind: 'lamps', id: 0, shapes, lights: b.lights.slice(10), lo: TWO_LO, hi: TWO_HI });
     expect(Array.from(lone.bounce!.boxes)).toEqual(Array.from(one.bounce!.boxes.subarray(6)));

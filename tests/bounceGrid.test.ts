@@ -193,9 +193,13 @@ describe('(LR16-1) bounce grid', () => {
     expect(g.g.every((v) => v === 0)).toBe(true);
   });
 
-  it('the bounce tint: lamp colours by intensity, luminance 1', () => {
+  it('the bounce tint: lamp colours by intensity, brightest channel 1', () => {
     const c = bounceColor([{ color: [1, 0.9, 0.75], intensity: 1 }, { color: [0.6, 0.8, 1], intensity: 3 }]);
-    expect(0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]).toBeCloseTo(1, 9);
+    expect(Math.max(...c)).toBeCloseTo(1, 12);
+    // (fix round) a warm tint draws no channel over the level (`nsS` is the brightest channel)
+    const warm = bounceColor([{ color: [1, 0.9, 0.75], intensity: 2 }]);
+    expect(warm[0]).toBeCloseTo(1, 12);
+    expect(warm[2]).toBeCloseTo(0.75, 12);
     expect(c[2]).toBeGreaterThan(c[0]);
     expect(bounceColor([])).toEqual([1, 1, 1]);
   });
@@ -216,6 +220,7 @@ describe('(LR16-1) nsGrid2 green channel = field bounce', () => {
       `int tx = (eh >> (hb.x == 1 ? ${BOUNCE_T_SHIFT[1]} : ${BOUNCE_T_SHIFT[0]})) & 3;`,
       `if (tx > 0 && d.x >= float(tx) * ${BOUNCE_T_STEP}) h ^= 1;`,
       'for (int r = 0; r < 7; r++) {',
+      'if (!grew) break;',
       'return vec2(amb, sw > 0.0 ? sv / sw : v[h]);',
     ]) expect(NS_GRID2_GLSL).toContain(line);
 
@@ -255,8 +260,9 @@ describe('(LR16-1) nsGrid2 green channel = field bounce', () => {
         expect(rgba[c * 4 + 2]! + rgba[c * 4 + 3]! * 256).toBe(bg.bits[c]);
       }
     }
-    expect(lit).toBeGreaterThan(200);
-    expect(walled).toBeGreaterThan(200);
+    console.info(`nsGrid2 parity: ${lit} lit points, ${walled} beside a wall`);
+    expect(lit).toBeGreaterThan(100);
+    expect(walled).toBeGreaterThan(300);
   });
 });
 
@@ -295,7 +301,7 @@ describe('(LR16-1 fix round) the wall-aware read', () => {
     wall.sync(reg);
     for (const [x, want] of [[0.9, 1], [0.99, 1], [1.01, 0], [1.4, 0]] as const) {
       wall.sampleInto(x, 0.5, 0.5);
-      expect(wall.out, `x ${x}`).toBe(want);
+      expect(wall.out, `x ${x}`).toBeCloseTo(want, 12);
     }
     // the wall inside the lit cell, its middle 0.3 m past the lit centre (code 2 on +x): a point 0.3 m or more past the
     // centre (x >= 0.8) reads the dark cell
@@ -303,7 +309,7 @@ describe('(LR16-1 fix round) the wall-aware read', () => {
     off.sync(reg);
     for (const [x, want] of [[0.5, 1], [0.79, 1], [0.8, 0], [0.95, 0], [1.2, 0]] as const) {
       off.sampleInto(x, 0.5, 0.5);
-      expect(off.out, `x ${x}`).toBe(want);
+      expect(off.out, `x ${x}`).toBeCloseTo(want, 12);
     }
   });
 

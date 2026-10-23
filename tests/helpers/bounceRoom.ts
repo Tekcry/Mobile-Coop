@@ -81,10 +81,10 @@ export function wallRoom(wx: number, d: number): { reg: LightRegistry; bake: Lig
 }
 
 /** Two storeys (10 x 10 m): the lower room's floor at 0, a 0.2 m slab at y `sy`..`sy` + 0.2 (`sy` >= 3), a 3 m room
- *  over it; the acceptance lamp (2.8 m up) in the lower room. */
-export function slabRoom(sy: number, intensity = 1): { reg: LightRegistry; bake: LightBake; field: LightField } {
+ *  over it; the acceptance lamp (`lampY` up, 2.8 m by default) in the lower room. */
+export function slabRoom(sy: number, intensity = 1, lampY: number = LAMP_A.y): { reg: LightRegistry; bake: LightBake; field: LightField } {
   const reg = new LightRegistry();
-  reg.add({ ...LAMP_A, x: 5, z: 5, intensity });
+  reg.add({ ...LAMP_A, x: 5, y: lampY, z: 5, intensity });
   const top = sy + 0.2 + 3;
   const shapes = [
     box([5, -0.1, 5], [10.4, 0.2, 10.4]),
@@ -96,4 +96,53 @@ export function slabRoom(sy: number, intensity = 1): { reg: LightRegistry; bake:
     box([5, top / 2, 10.1], [10.4, top, 0.2]),
   ];
   return { reg, ...bakeRoom(reg, shapes, [-1, -1, -1], [11, top + 1, 11]) };
+}
+
+/**
+ * (LR16-1 fix round, the check's wall test) Room A's lamp `d` m from a wall at x `wx`..`wx` + 0.2: `behind`, the most
+ * bounce 0.15 / 0.3 / 0.5 m past its far face (body heights 0.25-1.5 m, the room's whole length); `litMean` /
+ * `litMin`, the mean and the least bounce 0.25 m off its lit face (heights 0.25-2.5 m, z 3-7 m).
+ */
+export function wallProbe(wx: number, d: number): { behind: number[]; litMean: number; litMin: number } {
+  const { field: f } = wallRoom(wx, d);
+  const behind = [0.15, 0.3, 0.5].map((t) => {
+    let m = 0;
+    for (let z = 0.5; z < 10; z += 0.5) for (let y = 0.25; y <= 1.501; y += 0.25) m = Math.max(m, f.bounceAt(wx + 0.2 + t, y, z));
+    return m;
+  });
+  let sum = 0;
+  let n = 0;
+  let litMin = Infinity;
+  for (let z = 3; z <= 7.001; z += 1) {
+    for (let y = 0.25; y <= 2.501; y += 0.25) {
+      const v = f.bounceAt(wx - 0.25, y, z);
+      sum += v;
+      n++;
+      litMin = Math.min(litMin, v);
+    }
+  }
+  return { behind, litMean: sum / n, litMin };
+}
+
+/** The same for a slab at y `sy`..`sy` + 0.2 with the lamp `d` m under it: `behind` over the slab (the room above),
+ *  the lit side 0.25 m under it (x, z 3-7 m). */
+export function slabProbe(sy: number, d: number): { behind: number[]; litMean: number; litMin: number } {
+  const { field: f } = slabRoom(sy, 1, sy - d);
+  const behind = [0.15, 0.3, 0.5].map((t) => {
+    let m = 0;
+    for (let z = 0.5; z < 10; z += 0.5) for (let x = 0.5; x < 10; x += 0.5) m = Math.max(m, f.bounceAt(x, sy + 0.2 + t, z));
+    return m;
+  });
+  let sum = 0;
+  let n = 0;
+  let litMin = Infinity;
+  for (let z = 3; z <= 7.001; z += 0.5) {
+    for (let x = 3; x <= 7.001; x += 0.5) {
+      const v = f.bounceAt(x, sy - 0.25, z);
+      sum += v;
+      n++;
+      litMin = Math.min(litMin, v);
+    }
+  }
+  return { behind, litMean: sum / n, litMin };
 }

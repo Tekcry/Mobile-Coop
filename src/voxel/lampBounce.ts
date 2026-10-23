@@ -26,7 +26,8 @@ import { AMBIENT_CELL } from '../world/ambientGrid';
 /**
  * The bounce's constants. Check of the numbers: a 3 m pool of level ~1 (28 m^2 lit at ~0.6 mean) returns
  * PHI ~ 0.35 x 17 ~ 5.9; a wall 2 m from the pool's middle reads ~ 5.9 x 0.5 / (pi x 4.25) ~ 0.22: inside the 1/5-2/5
- * of the direct light real rooms return.
+ * of the direct light real rooms return. The cache key does not hash these: retuning any of them (LR16g: albedo) bumps
+ * `LAMP_VERSION` (`lampJobs.ts`).
  */
 export const BOUNCE = {
   /** Average indoor surface reflectance (concrete 0.3-0.4, painted plaster 0.5-0.7, dark floors 0.1-0.2). */

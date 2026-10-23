@@ -5,6 +5,7 @@ import { bakeMoon, MOON_CELL, type MoonJob } from '../src/voxel/skyBake';
 import { packShapes, type VoxelShape } from '../src/voxel/shapes';
 import { lightBakeHash, type LightBake } from '../src/world/lightBake';
 import { bytesPerCall } from './helpers/allocPerCall';
+import { nsGrid2 } from './helpers/bounceRead';
 
 describe('ambient grid (3.6)', () => {
   const reg = new LightRegistry();
@@ -175,19 +176,31 @@ describe('light field (3.6)', async () => {
     const ag = b.ambient;
     let v = at(ag.data, 0, ag.origin, ag.n, AMBIENT_CELL);
     // (LR16-1) the lit lamps' bounce: their boxes summed in exact integers (q x round(intensity x 1024)), quantised
-    // (x 2^-15 / 1024 x the gain, to a byte), read trilinearly on the ambient grid's cells
+    // (x 2^-15 / 1024 x the gain, to a byte), their wall bits OR'd, read on the ambient grid's cells as the shader reads
+    // the RGBA fill texture (fix round: never blended across a wall; `helpers/bounceRead.ts`)
     const bb = b.lamps!.r.bounce;
     if (bb) {
       const acc = new Float64Array(ag.data.length);
+      const bits = new Uint16Array(ag.data.length);
       let bo = 0;
       b.lamps!.baked.ids.forEach((id, i) => {
         const [bx, by, bz, nx, ny, nz] = Array.from(bb.boxes.subarray(i * 6, i * 6 + 6)) as number[];
         const l = reg.lights[id]!;
         const w = l.on && !l.destroyed && l.intensity > 0 ? Math.round(l.intensity * 1024) : 0;
-        for (let z = 0; z < nz!; z++) for (let y = 0; y < ny!; y++) for (let x = 0; x < nx!; x++) { const c = bx! + x + ag.n[0] * (by! + y + ag.n[1] * (bz! + z)); acc[c] = acc[c]! + bb.data[bo++]! * w; }
+        for (let z = 0; z < nz!; z++) for (let y = 0; y < ny!; y++) for (let x = 0; x < nx!; x++) {
+          const c = bx! + x + ag.n[0] * (by! + y + ag.n[1] * (bz! + z));
+          acc[c] = acc[c]! + bb.data[bo]! * w;
+          bits[c] = bits[c]! | (bb.bits ? bb.bits[bo]! : 0);
+          bo++;
+        }
       });
-      const g = Uint8Array.from(acc, (a) => Math.round(Math.min(1, a * (2 ** -15 / 1024) * 1.2) * 255));
-      v += at(g, 0, ag.origin, ag.n, AMBIENT_CELL);
+      const rgba = new Uint8Array(ag.data.length * 4);
+      for (let c = 0; c < ag.data.length; c++) {
+        rgba[c * 4 + 1] = Math.round(Math.min(1, acc[c]! * (2 ** -15 / 1024) * 1.2) * 255);
+        rgba[c * 4 + 2] = bits[c]! & 255;
+        rgba[c * 4 + 3] = bits[c]! >> 8;
+      }
+      v += nsGrid2(rgba, [x, y, z], [ag.origin[0], ag.origin[1], ag.origin[2], AMBIENT_CELL], ag.n)[1];
     }
     v += b.moonLight * at(b.moon.vis, 0, b.moon.origin, b.moon.n, MOON_CELL);
     let off = 0;
@@ -237,7 +250,7 @@ describe('light field (3.6)', async () => {
     expect(lit).toBeGreaterThan(30);
   });
 
-  it('(LR16-1) level adds the bounce read trilinearly', () => {
+  it('(LR16-1) level adds the bounce read as the picture reads it (fix round: walls kept)', () => {
     const { reg, bake } = scene();
     const f = new LightField(bake, reg);
     // the same bake without its bounce: the level before LR16-1
@@ -253,8 +266,14 @@ describe('light field (3.6)', async () => {
       const y = 0.05 + rnd() * 3.5;
       const z = -10 + rnd() * 20;
       const b = f.bounceAt(x, y, z);
-      // the bounce grid's own bytes, the ambient grid's cells, the shared trilinear read
-      expect(b).toBe(trilinear(bg.g, 0, bg.origin[0], bg.origin[1], bg.origin[2], bg.n[0], bg.n[1], bg.n[2], AMBIENT_CELL, x, y, z));
+      // the bounce grid's own bytes and wall bits on the ambient grid's cells, read as the shader's nsGrid2 reads them
+      const rgba = new Uint8Array(bg.g.length * 4);
+      for (let c = 0; c < bg.g.length; c++) {
+        rgba[c * 4 + 1] = bg.g[c]!;
+        rgba[c * 4 + 2] = bg.bits[c]! & 255;
+        rgba[c * 4 + 3] = bg.bits[c]! >> 8;
+      }
+      expect(b).toBeCloseTo(nsGrid2(rgba, [x, y, z], [bg.origin[0], bg.origin[1], bg.origin[2], AMBIENT_CELL], bg.n)[1], 12);
       const before = bare.levelAt(x, y, z);
       if (before + b < 1) expect(f.levelAt(x, y, z)).toBeCloseTo(before + b, 12);
       else expect(f.levelAt(x, y, z)).toBe(1);
