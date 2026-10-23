@@ -29,7 +29,7 @@ type Num = number | number[] | { [k: string]: Num };
 
 function readFit(): Record<string, Record<string, Num>> {
   const src = readFileSync(path.join(GEAR, 'fit.py'), 'utf8');
-  const m = /FIT-BEGIN[^\n]*\nFIT = json\.loads\(r'''([\s\S]*?)'''\)\n# FIT-END/.exec(src);
+  const m = /FIT-BEGIN[^\n]*\r?\nFIT = json\.loads\(r'''([\s\S]*?)'''\)\r?\n# FIT-END/.exec(src);
   if (!m?.[1]) throw new Error('fit.py: FIT-BEGIN / FIT-END block not found');
   return JSON.parse(m[1]) as Record<string, Record<string, Num>>;
 }
