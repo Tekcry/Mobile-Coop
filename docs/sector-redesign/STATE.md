@@ -294,7 +294,8 @@ LATEST 16:25 Test Runner verdict: #226 perf CPU OVER at 24 guards (S5 15.6 / S3 
 16:40: C1 = test timing bug (live rAF loop), fixed 00fd3392 + E2E_FALLOFF 273539ec on -charshadow; cherry-picked
    to -art eb6d63c4. Laptop asked: #232 sectorops:6 + falloff=photo darkness / lightbake / desktop at 273539ec; #226
    suites at eb6d63c4 after train 27.
-4. Polish lists (not blocking): lr-check 1-6, lr14-check 1-7, walk-472-check 1-4, art-check.
+4. Polish batch 2 (-polish2 off -art, Opus, 16:45): walk-472-check 1-4 + art-check P3 / P4 / P7 (checks/polish2-build.md);
+   rides #226 after a checker. Still open: lr-check 1-6, lr14-check 1-7 (after LR15), art P1 / P2 / P5 / P6.
 Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
 Sonnet builds from strict briefs; one checker per batch; tsc / vitest slot locks C:/NightShift/scratch/sr-slot-{1,2,3}.lock
 while desktop CPU > 80%; every e2e E2E_GPU=1; never two agents on the same files.
