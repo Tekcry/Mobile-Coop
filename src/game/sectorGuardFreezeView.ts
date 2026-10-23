@@ -46,7 +46,7 @@ export const TESTS_PER_EVAL = 8;
  *  evaluation (within the budget). */
 export const EDGE = 0.75;
 /** (frzpol) Over the budget, a non-urgent hidden verdict at most this many evaluations old is kept (else drawn). */
-export const STALE = RETEST * 2;
+export const STALE = RETEST;
 /** (frzpol) The view epoch: a number that grows when something stops hiding what is behind it (a door leaf no longer
  *  opaque, a breakable panel opened). Read once per evaluation. */
 export type FreezeViews = () => number;
