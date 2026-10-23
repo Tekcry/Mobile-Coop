@@ -3,7 +3,18 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
-**Test Runner SAVE 22 (2026-10-23 ~19:30, swap save; wins over all below; this block is the whole queue):**
+**Test Runner SAVE 23 (2026-10-23 ~19:47; wins over SAVE 22 where they differ):**
+- TRAIN 32 origin/train/32 25c712c9 (#244 release-speed + auto-train, #246 carry-fix2, #250 agent-cpu, feature/menu
+  docs, #237 marlow-final + #248 section-rating, PROTOCOL 42): run by the laptop-queue SERVICE, sharded 4189 + 4192 at
+  JOBS=3 each (first sharded train = the laptop-queue measurement; compare wall vs 666 s one slot JOBS=3 train 31).
+  Result = GitHub status "laptop-e2e" on 25c712c9 + service log. Verdict to Orchestrator (fail: suite, assert, member
+  area, last ~40 lines). The 4189 alone chains (lr15c photo only now, then ap5, then l16g at f8008542) wait for that
+  status line in the service log, then resume by themselves.
+- SENT: Player #249 stealth-pays bf9445d6 PASS (ctcourse 1-3, sectorops 1-6). Marlow 91b587f2 train32-entry 6/6 PASS
+  (685 s); polish 1bde5328 ctcourse:2 flake rerun (service) still running -> then ONE Marlow verdict.
+- LR15 classic perf (campusOps) done: runs/lr15c-perf-classic-eb45b0af; photo pending.
+
+**Test Runner SAVE 22 (2026-10-23 ~19:30, swap save):**
 Everything below runs headless through the swap (scheduled tasks + the laptop-queue service). A new session only
 collects results and sends ONE verdict per batch (fail: assert, log path, last ~40 lines - Michael ~19:25 rule).
 - laptop-queue SERVICE (task NightShift-laptop-queue; log C:/NightShift/scratch/laptop-queue/log.txt, results as
