@@ -1,4 +1,4 @@
-# Resume - Night Shift | Player Build (saved 2026-10-23 19:30 at the 77% save; all worktrees clean + pushed, no locks held)
+# Resume - Night Shift | Player Build (resumed 2026-10-23 19:58 after the swap; locks absent, connectors lean)
 
 Rules: CLAUDE.md on origin/master "Session titles", "Heavy-usage throughput", "Token rules", "Account swap". No mid-window clears.
 Opus plans / checks / anim + net code; Sonnet builds from strict briefs; Haiku chores; desktop CPU < 80%. e2e always
@@ -21,12 +21,12 @@ check; `blocked <reason>` -> answer in the file, set open. Use it first for CPU-
 Laptop queue: self-service from feature/laptop-queue (docs/systems/testing-tools.md "Laptop queue"; results as GitHub statuses laptop-e2e/<set>); until it merges, ask Test Runner.
 Released: #227 (4.76.0), #207 batch 22 (4.77.0), #214 -> #223 -> #231 stack (4.79.0, train 30, PROTOCOL 40).
 
-## Open (master 4f6db420 = 4.79.0, train 30, PROTOCOL 40; PROTOCOL asserts 11 files 210/210 + tsc green on it, 18:38)
+## Open (master 41204e30 = 4.80.0, train 31, PROTOCOL 41; train 32 25c712c9 at PROTOCOL 42 on the laptop 19:49, status laptop-e2e; #247 merge-tree vs train/32 = the brief's 15 files exactly, 19:59)
 | Job | Branch (folder C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
-| #239 optic cable (doors, no wire) | feature/optic-cable (optic-cable) | 193724a3 | Train 31, TRAIN-READY sent. Merges clean onto master 4f6db420. |
+| (#239 optic cable released in train 31, 4.80.0) | | | |
 | #247 anim-fix-pass (walk P1-P5; PLAN.md:7 maps P1-P7, P6-P7 = #231 released) | feature/anim-fix-pass | 3168f31a+STATE | PR open 19:45, all AF0-AF6 checker PASS; AF4b laptop e2e-anim + clip PASS. Train 33 (orchestrator 19:50): after train 32 releases (~20:15+, brings #244: PROTOCOL bump moves into the train build, number asserts removed) merge master, take master's side in protocol.ts + assert tests (NO renumber), brief briefs/afp-train-entry.md, laptop e2e-coop + netmove, train-ready. |
-| #249 stealth-pays (stealth over shooting 9; 7 and 12 already on master; docs/stealth-pays/) | feature/stealth-pays (stealth-pays) | 30ab34e7 | TRAIN-READY sent 19:3x (laptop ctcourse + sectorops PASS on bf9445d6; S3 docs after). Orchestrator labels. P1 parked (wire). |
+| #249 stealth-pays (stealth over shooting 9; 7 and 12 already on master; docs/stealth-pays/) | feature/stealth-pays (stealth-pays) | d228ce59 (STATE only past 30ab34e7) | TRAIN-READY sent 19:3x, labelled (laptop ctcourse + sectorops PASS on bf9445d6; S3 docs after). Orchestrator labels. P1 parked (wire). |
 
 ## Next
 1. #247: once train 32 is on master, run briefs/afp-train-entry.md (master's side, no renumber), laptop e2e-coop + netmove, message train-ready (orchestrator labels until Michael adds a permission rule).
