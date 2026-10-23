@@ -1,6 +1,7 @@
 # Guard models: state
 
 ## Resume
+- RESUMED ~21:35 (new account): P1 fix round done (9029cb72, 88ba424b, 7488d74d; P1-FIX-REPORT.md): fresh Opus re-check running on 7488d74d. G5 done (gm-g5 4f51918a, G5-REPORT.md): Opus checker running. G1 (gm-g1 5d9c601a), G1h (gm-g1h f4685346), G3 (gm-g3 456698c3) Opus builders restarted from WIP with the P1 data (bodies 3, heads 11, gear 25). Next: merge P1 on PASS, gm-g5 on PASS, then book each full stage as a laptop alone request.
 - SAVE ~21:25: P1 checker FAIL (G6 kit ids outside kit pools; GB normalizeKit misreads outfits / gear per base; helmet_heavy to gameplayGear): Opus fix round running IN this worktree (report docs/guard-models/reports/P1-FIX-REPORT.md), then a fresh re-check. WIP pushed: gm-g5 ef173084, gm-g1 729f6dcb, gm-g1h 5da3600c (nothing yet), gm-g3 09f27096. Laptop: gm-g6n e2e-coop + netmove on 0981cae6 (set gm-g6n), L0 probe (set guard-bake-probe). Hair caps: job haircaps-<base> (build_head.py --haircaps), told to G1h.
 - Now (2026-10-23 ~21:10, lead Player Build):   P1 checker (Opus) running on a63e82ca. G6n merged (f9ce1015; checkers A wire + B seed stability PASS; polish: posLook modes (Course, Infiltration) can repeat a seed within a section, ~77% for 20 guards; slot and team seeds may clash). G5 GuardFigure (Opus) running in
   Mobile-Coop-gm-g5. P2/P3 started early on GB's driver: G1 bodies (gm-g1), G1h heads (gm-g1h), G3 gear (gm-g3), Opus,
