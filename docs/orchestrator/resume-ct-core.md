@@ -2,6 +2,8 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+~02:25: laptop coop + netmove queued on 03a0cf58 (20261023T144638-player-build-03a0cf58-edce, status laptop-e2e/coop-rejoin-2):
+on pass open the PR (orchestrator: no need to wait for train 39). rig-pose-audit waits for Michael. Idle otherwise.
 ~02:20: coop-rejoin-2 READY on 03a0cf58 (polish 1, 2, 5 + check A1 / A2 / B3; checkers A 94571062 + B b68bacf1 PASS;
 CHECK2-B polish 1-2 left open). After train 39 releases: master into feature/coop-rejoin (resolve), then feature/coop-rejoin
 into coop-rejoin-2; laptop coop netmove on the coop-rejoin-2 head; PR coop-rejoin-2 (after #269 merges, or stacked) -> train.
