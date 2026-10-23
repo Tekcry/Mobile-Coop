@@ -1,6 +1,12 @@
 # Guard AI - state
 
 ## Now
+~20:50: S22 game A4 fix GREEN (a74d27e2, laptop s22game-a4fix 2/2): PR to master once #237 is on master (4.81.0).
+LR16-4 PR #255 OPEN (feature/guard-ai-relight f08c448c, worktree -relight): isolator boards relit via S15 walk +
+IsolatorBoards.switchBack; timed windows stay the player's; checks A + B PASS, polish slices/LR16-4-POLISH.md (on
+that branch). Waiting laptop set relight (fbf32636: e2e-sectorops, e2e-stealth-ai) -> train-ready label. Sector Ops
++ orchestrator told. #254 S23 waiting s23-regress + s23-coop.
+
 ~20:30: S23 PR #254 OPEN (dc964d15): checks A + B PASS (slices/S23-CHECK-A.md, -B.md), e2e-coop block 01b107b5.
 Waiting laptop: s23-regress (a87ef34c) + s23-coop (01b107b5) -> train-ready label + tell orchestrator. s22-game
 a74d27e2 laptop s22game-a4fix pending; PR after green + #237 merged (4.81.0). Cloud queue 132fff25: briefs
