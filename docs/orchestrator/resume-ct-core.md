@@ -1,4 +1,4 @@
-# Resume - Night Shift | Player Build (saved 2026-10-23 at the 100% swap; agent worktrees WIP-pushed: afp-af1, afp-af4a, afp-af6, b22-fix - restart each from its branch head with its PLAN slice / row goal)
+# Resume - Night Shift | Player Build (resumed 2026-10-23 16:05 after the swap)
 
 Rules: CLAUDE.md on origin/feature/menu "Heavy-usage throughput", "Token rules", "Account swap". No mid-window clears.
 Opus plans / checks / anim + net code; Sonnet builds from strict briefs; desktop CPU < 80%. e2e always E2E_GPU=1:
@@ -7,21 +7,20 @@ batch; desktop heavy.lock (4191) / heavy2.lock (4192) for single suites. Agent r
 COMMON-SPARE.md (subagents are refused REPORT.md: the lead writes it from the hand-back). Push this file with
 scratch/ctcore/push-resume.sh <abs file> <msg>. Message the orchestrator only at PR open / train-ready / blocked / Michael.
 
-## Open (master f5912402 after train 26, PROTOCOL 35; #221 merged). Train 27: #207 + #214 + #223 + #227 once green.
+## Open (master f5912402, PROTOCOL 35). Train 27 = #227 (origin/train/27 e83f423a). Train 28 = #207 + #214 + #223 + #231 (stack).
 | Job | Branch (folder C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
-| #207 batch 22 | feature/ctcore-batch-22 (b22-fix) | 59d69a76 WIP | Opus agent on ladder knees (e2e-clip 8.9 vs > 9.0, src/anim/clips/traverse.ts:389 fLX); told to merge master f5912402 and set tests/hangDownNet.test.ts:15 to 35 (CI red). If lost: restart from 59d69a76 with that goal. |
-| #214 batch 23 | feature/ctcore-batch-23 (ctcore-batch) | 0eaba0f8 | Recheck PASS. Merged master f5912402 (train 26, protocol 35); hangDownNet asserts 35 (CI was red on 31). Waiting on #207: merge batch-22 in, laptop batch (coop, netmove, ctcourse, clip, pad), train-ready. |
-| #223 batch 24 pose-parity | feature/pose-parity | 19248c01 | PROTOCOL 36. Green; stacked on #214: merge batch-23 in when green, train-ready. |
-| spare 7 crouch-pops #227 | feature/crouch-pops (crouch-pops) | 642ad971 | Checker PASS, e2e-anim / clip PASS. PR #227 open, train-ready sent (stacks on #221). Polish: docs/crouch-pops/CHECK.md 1-3 (OFF running crouch-down wristR 9.47 cm). |
-| walk P1-P5 anim fix pass | feature/anim-fix-pass (anim-fix-pass) | 0c886207 | Merged AF0, AF5, AF2 (run pelvis / lean / bank PASS; wrist jerk 1.44-2.45 vs bar 1.0 and sprint knee 45 deg not met - remeasure after AF1, polish). Running: AF1 afp-af1, AF4a afp-af4a (off 0c886207), AF6 afp-af6 (off coop-walk-fixes). Next: AF3 after AF1 merges (animGraph), then AF4b; one checker; flag M4 narrowing (AF5) at PR. |
-| walk P6-P7 co-op #231 | feature/coop-walk-fixes (coop-walk-fixes) | c98005de | PR #231 open, train-ready sent. Checker PASS; laptop e2e-coop GREEN c98005de, netmove ok c6b4f4a3. PROTOCOL 37 (renumber at train). Stacked on #223 -> #214. |
+| #207 batch 22 | feature/ctcore-batch-22 (b22-fix) | f1fac44a | TRAIN-READY sent 16:15 (ladder knees 14.4 cm, e2e-clip GPU PASS, CI green). |
+| #214 batch 23 (+iPad fit, Anim Studio main menu only) | feature/ctcore-batch-23 (ctcore-batch) | 34c73892 | +batch-22 merged. Train-ready on the laptop verdict for d86007b5. |
+| #223 pose-parity | feature/pose-parity | faee0255 | +batch-23 merged, PROTOCOL 36, crateWire assert 36. Same verdict. |
+| #231 coop-walk-fixes (walk P6-P7) | feature/coop-walk-fixes | d86007b5 | +pose-parity, PROTOCOL 37. Laptop batch requested 16:15 (coop, netmove, ctcourse, clip, pad); then train-ready x3. |
+| anim-fix-pass (walk P1-P5; PLAN.md:7 maps P1-P7) | feature/anim-fix-pass | origin | AF0 / AF2 / AF5 merged. AF1 done 6ae0869e, checker running (AF1-CHECK.md). AF4a (afp-af4a) and AF6 (afp-af6, PROTOCOL 38) agents running. |
 
 ## Next
-1. As each agent hands back: one Opus checker per batch, laptop request to Test Runner (coop / netmove / ctcourse + clip), train-ready to the orchestrator.
-2. AF6 worktree ready (Mobile-Coop-afp-af6, feature/afp-af6 off coop-walk-fixes a4e1fe64; wire change -> PROTOCOL 38): start when desktop CPU < 80% (97% at 14:5x). Anim-fix-pass: launch the PLAN's parallel groups as soon as it lands (CPU < 80%).
-3. Agent rules: scratch/ctcore/COMMON-27.md. Walk report copy: scratch/ctcore/walk472.md.
-4. Follow-ups: intel part B (modes' onIntelCode) after marlow-final / sector-redesign; relay climber sub bit (pose-parity open item).
+1. AF1 PASS -> merge afp-af1 into anim-fix-pass, start AF3 (animGraph, after AF1). AF4b after AF3.
+2. AF4a / AF6 hand-backs -> one Opus checker for the batch -> merge into anim-fix-pass; AF6 merges coop-walk-fixes head first.
+3. Laptop verdict on d86007b5 -> train-ready #214 / #223 / #231 to the orchestrator.
+4. Agent rules: scratch/ctcore/COMMON-27.md. Follow-ups: intel part B (onIntelCode); relay climber sub bit.
 
 ## Resume prompt
 ```
