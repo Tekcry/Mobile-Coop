@@ -284,8 +284,8 @@ Non-net PR: at most 1-2 area suites (orchestrator 23:08). Every agent: CPU wait 
 ~00:05 (new account, overnight, orchestrator: testing backlog first, then PLAN slices one at a time): b5e93548 GREEN
   (sectorops:6 + coop 2/2). RUNNING: Opus #226 train-entry integrator on -art (ff to lr16pol-d 477a3390, merge master,
   animFrozen -> animTier, C7-C9; checks/art-train-entry.md) DONE 1da8849d (MERGEABLE); Opus check PASS
-  (checks/art-train-entry-check.md, polish 1-6). Laptop 1da8849d-84e3 (sectorops + coop) queued: green -> label
-  train-ready + message the orchestrator; red -> Opus triage. Opus L-A
+  (checks/art-train-entry-check.md, polish 1-6). Laptop 1da8849d GREEN (7/7, 569 s), CI green: #226 TRAIN-READY
+  (label + orchestrator told ~01:35). Polish 1-6 held for the next batch. Opus L-A
   finisher on -lr16l-a (ad4c74ad; checks/lr16l-a-build.md). Swap WIP pushed: -lr16pol-b 536581f1, -lr16pol-e 962efbbf
   (unchecked, finish later). Polish A + D check PASS (checks/lr16pol-ad-check.md). LR16-W brief still missing.
 QUEUED on the laptop: 82f9e1bb-6cfc (lr16int: coop + netmove).
