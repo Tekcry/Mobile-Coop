@@ -280,7 +280,10 @@ C:/NightShift/Mobile-Coop-sector-redesign-p3. git fetch; read CLAUDE.md (+ token
 origin/feature/menu until master), docs/ROADMAP.md "Decided", then STATE.md on -p3 top to "## Next at ~10:20": "Now"
 and "Next window" hold everything (PR 3, lanes A-E). Briefs: docs/sector-redesign/briefs/ (ART-*.md, E9-CRATE.md).
 At the save (~12:25) in flight:
-- PR 3 GPU run at f96924e5 (sectorops 1-6 + coop + netmove + full vitest): read
+- PR 3 GPU RESULT at f96924e5: sectorops 2-6 + coop 83 s + netmove PASS, vitest 3740 pass; sectorops:1 FAIL once at
+  e2e-sectorops.mjs:526 "a loud shot inside the combat reach alerts the nearest guard" (nearest suspicious, 2 others
+  alerted; guard-ai hearing; passed at 6e118977). Rerun x2 queued (e2e-p1-1.log / -2.log in the run dir): both pass ->
+  flaky, open PR 3 and tell Guard AI; fails -> compare with master / ask Guard AI. Earlier logs: read
   C:/NightShift/scratch/runs/sectorredesign-f96924e5/{e2e,vitest,build}.log; green -> open PR 3 from -p3, message
   the orchestrator; red -> one Opus fix round per failing suite.
 - Lane A ART-KIT (Opus): feature/sector-redesign-art-kit @ e8fad392+ (worktree -art-kit, checks/art-kit-build.md).
