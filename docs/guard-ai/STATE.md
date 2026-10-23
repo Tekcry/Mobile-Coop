@@ -1,6 +1,12 @@
 # Guard AI - state
 
 ## Now
+~15:25: walk S17 339cdf96 / S18 7ea2764a / S19 0d6820f4 BUILT (slices/WALK.md, A100-A113, 28 new unit tests; e2e-stealth-ai
+'bodies' / 'witness' asserts changed by design, unrun). walk <- fixed s15 = d24453a7 (BRIEF conflict only; 130/130).
+RUNNING (Opus): S20 collision / doors on walk (A114+). Asked Marlow Build who owns the S3 console side (S22) and Test
+Runner whether the rig has a holstered carry (S21). Test Runner queue: s15 fc249f3f, s9 1ad04058, walk d24453a7
+(stealth-ai, sectorops 1-5, tactics, stealth). One Opus checker for the walk batch after S20-S22.
+
 ~15:00: S15 fix round DONE fc249f3f (2a58fcca + A65): breaker walker stands on the floor cell by the switch
 (EnemyManager.switchFloor enemyManager.ts:942, enemy.ts:1028); a breaker fault goes to the nearest witness by path,
 no officer / role / zone weight (incidents.ts:561; that was sectorops:6: the rover beat the map's lure guards #1 / #16);
