@@ -48,6 +48,19 @@ export async function walk(t, n) {
   const lockedOnClient = async (cid) => GB((i) => window.__course.wire.locks.includes(i), await doorIndex(cid));
   /** A page's baked light level for a standing body at (x, z) (the same field the meter and the guards read). */
   const level = (P, x, z) => P.evaluate(([x, z]) => window.__app.current.world.lightField?.bodyLevel(x, 0, z, 1.7) ?? -1, [x, z]);
+  /** (train 45 / 46 flake) Wait up to 6 s for (x, z) to read dark (<= 0.24) and the same on both pages. A guard's torch
+   *  sweeping the spot on the host before the client mirrors it (or the field settling after the cut) reads high for a
+   *  moment; on a miss the host's baked and dynamic levels and lit torches are in the message. */
+  async function darkOnBoth(x, z, what, sameToo) {
+    let ca = -1, cb = -1;
+    for (let i = 0; i < 30; i++) {
+      [ca, cb] = [await level(A, x, z), await level(B, x, z)];
+      if (ca <= 0.24 && cb <= 0.24 && (!sameToo || Math.abs(ca - cb) < 0.02)) return;
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    const why = await GA(([x, z]) => { const f = window.__app.current.world.lightField; return { baked: f?.levelAt(x, 1.02, z), dynamic: f?.dynamicAt(x, 1.02, z), torches: window.__app.current.enemyMgr?.torchesOn }; }, [x, z]);
+    assert(false, `${what} (host ${ca.toFixed(3)}, client ${cb.toFixed(3)}; host ${JSON.stringify(why)})`);
+  }
   /** Every lamp of the neck circuit is on, on this page's registry (the host's own, the client's from the course message). */
   const neckLit = (P) => P.evaluate((g) => { const l = window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g); return l.length === 4 && l.every((x) => x.on); }, NECK_GROUP);
   const neckDark = (P) => P.evaluate((g) => { const l = window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g); return l.length === 4 && l.every((x) => !x.on); }, NECK_GROUP);
@@ -101,10 +114,8 @@ export async function walk(t, n) {
     await until(B, (g) => window.__course.wire.lights.groups.some(([q, on]) => q === g && !on), NECK_GROUP, 15000, `${what}: the client's course message has group ${NECK_GROUP} off`);
     assert(await claimed(), `${what}: the press claims the A job`);
     await sees(B, /Isolate the neck lights at cabinet one|Cross behind the shunter|Isolate at cabinet two/, `${what}: the client reads an A or B line`);
-    const [ca, cb] = [await level(A, CROSS[0], CROSS[1]), await level(B, CROSS[0], CROSS[1])];
-    assert(ca <= 0.24 && cb <= 0.24 && Math.abs(ca - cb) < 0.02, `${what}: the crossing line reads dark and the same on both pages (host ${ca.toFixed(3)}, client ${cb.toFixed(3)})`);
-    const [ma, mb] = [await level(A, MID[0], MID[1]), await level(B, MID[0], MID[1])];
-    assert(ma <= 0.24 && mb <= 0.24, `${what}: the neck's middle reads dark on both pages (${ma.toFixed(3)}, ${mb.toFixed(3)})`);
+    await darkOnBoth(CROSS[0], CROSS[1], `${what}: the crossing line reads dark and the same on both pages`, true);
+    await darkOnBoth(MID[0], MID[1], `${what}: the neck's middle reads dark on both pages`, false);
     return d0;
   }
 
