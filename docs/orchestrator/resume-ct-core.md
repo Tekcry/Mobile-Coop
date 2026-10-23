@@ -15,7 +15,7 @@ scratch/ctcore/push-resume.sh <abs file> <msg>. Message the orchestrator only at
 | #223 batch 24 pose-parity | feature/pose-parity | 19248c01 | PROTOCOL 36. Green; stacked on #214: merge batch-23 in when green, train-ready. |
 | spare 7 crouch-pops | feature/crouch-pops (crouch-pops) | 191c3565 | Opus agent restarted: pops 9.6 / 8.3 cm -> <= 0.5 (docs/anim-bake-targets/STATE.md:19). Stacks on #221. |
 | walk P1-P5 anim fix pass | feature/anim-fix-pass (anim-fix-pass) | 191c3565 | Opus planner: docs/anim-fix-pass/BRIEF.md + PLAN.md + before sheets; then build slices in parallel, one checker. |
-| walk P6-P7 co-op | feature/coop-walk-fixes (coop-walk-fixes) | 19248c01 | Opus builder: hostage takedown both ways, partner shot audio once + suppressed; laptop e2e-coop / netmove after. |
+| walk P6-P7 co-op | feature/coop-walk-fixes (coop-walk-fixes) | c6b4f4a3 | Built (assist takedown kind, PlayerState.sc, PROTOCOL 37). takedown + weapon-audio PASS. Opus checker running; laptop e2e-coop / netmove requested. |
 
 ## Next
 1. As each agent hands back: one Opus checker per batch, laptop request to Test Runner (coop / netmove / ctcourse + clip), train-ready to the orchestrator.
