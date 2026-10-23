@@ -92,20 +92,30 @@ export function sectionContext(b: LevelBuilder, lay: MapLayout, k: number, split
   };
 }
 
+/** (artnext A1, tests only) The section order (default 0..4) and a hook that sees each section's context. */
+export interface DressOrder {
+  order?: readonly number[];
+  onContext?: (ctx: DressContext) => void;
+}
+
 /**
  * Dresses the five sections over the built greybox: `ranges[k]` is section k's `[i0, i1)` box range (`buildSection`),
  * recoloured by `applyFinishes`; each section's dresser runs on its own context, then writes its boxes.
  */
-export function dressCampus(b: LevelBuilder, lay: MapLayout, ranges: readonly (readonly [number, number])[]): CampusArtLayout {
-  // (polish2, art P4) the split gaps from the bare greybox, before any section writes its boxes: no dressing-order effect
-  const gaps: DressContext['splits'] = findSplitGaps(buildCoverSegments(b.boxes, b.cylinders)).map((g) => ({ a: g.a, b: g.b }));
+export function dressCampus(b: LevelBuilder, lay: MapLayout, ranges: readonly (readonly [number, number])[], o: DressOrder = {}): CampusArtLayout {
+  // (polish2, art P4; artnext A1) the split gaps from the bare greybox, once, before any section writes its boxes (and
+  // only when a section has a tagged room): no dressing-order effect
+  const tagged = TAGS.some((t) => Object.keys(t).length > 0);
+  const gaps: DressContext['splits'] = tagged ? findSplitGaps(buildCoverSegments(b.boxes, b.cylinders)).map((g) => ({ a: g.a, b: g.b })) : [];
   const splits = (): DressContext['splits'] => gaps;
   const placements: ArtPlacement[] = [];
   const used = new Set<string>();
-  for (let k = 0; k < DRESSERS.length; k++) {
+  for (const k of o.order ?? DRESSERS.map((_, i) => i)) {
     const range = ranges[k];
     if (range) applyFinishes(b.boxes, range, ROOMS[k]!, TAGS[k]!);
-    const d = new CampusDresser(b, sectionContext(b, lay, k, splits), sectionCatalogues(k));
+    const ctx = sectionContext(b, lay, k, splits);
+    o.onContext?.(ctx);
+    const d = new CampusDresser(b, ctx, sectionCatalogues(k));
     DRESSERS[k]!(d);
     d.write();
     for (const p of d.placements) {

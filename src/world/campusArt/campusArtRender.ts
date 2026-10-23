@@ -162,6 +162,9 @@ export class CampusArtRender {
       r.frame();
     } catch (e) {
       r.dispose();
+      // (artnext A10) `slice(n0)` is every mesh made since the build began only while nothing that existed before it was
+      // removed from `scene.meshes` (the build only adds; `r.dispose()` above disposes its own): a build that disposed a
+      // pre-existing mesh would shift the list and this would miss the newest ones
       for (const m of scene.meshes.slice(n0)) m.dispose();
       throw e;
     }

@@ -15,7 +15,7 @@ import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { LevelBuilder, type BoxPiece } from '../src/world/levelBuilder';
 import { buildCampus, campusOps } from '../src/world/maps/campusOps';
-import { campusCatalogues, sectionCatalogues, sectionContext } from '../src/world/maps/campusDress';
+import { campusCatalogues, dressCampus, sectionCatalogues, sectionContext } from '../src/world/maps/campusDress';
 import { CAMPUS_COOP_LIPS } from '../src/world/maps/campusLips';
 import { buildCoverSegments, type CoverSegment } from '../src/cover/coverData';
 import { hyp2 } from '../src/core/mathx';
@@ -348,6 +348,23 @@ function ledgeLosses(k: number, dressed: readonly Ledge[], boxes: readonly Ancho
   }
   return { fails, checked: prot.length };
 }
+
+describe('(artnext A1) the split gaps', () => {
+  it("split gaps are the greybox's whatever the order", () => {
+    const want = findSplitGaps(buildCoverSegments(bG.boxes, bG.cylinders)).map((g) => ({ a: g.a, b: g.b }));
+    expect(want.length).toBeGreaterThan(0);
+    for (const order of [
+      [0, 1, 2, 3, 4],
+      [4, 3, 2, 1, 0],
+    ]) {
+      const b = new LevelBuilder();
+      const lay = buildCampus(b, { dress: false });
+      const seen: DressContext['splits'][] = [];
+      dressCampus(b, lay, [], { order, onContext: (c) => void (seen[c.section] = c.splits) });
+      for (let k = 0; k < SECTIONS; k++) expect(seen[k], `order ${order.join('')} S${k + 1}`).toEqual(want);
+    }
+  }, 600_000);
+});
 
 describe('the ledge gate (11)', () => {
   it('is live: it protects greybox ledges in S1-S4 (S5 has none by a route leg or lip)', () => {

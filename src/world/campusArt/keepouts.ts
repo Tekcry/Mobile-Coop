@@ -24,7 +24,7 @@ import type { Door, TraversalAnchors, WindowAnchor } from '../anchors';
 import type { BoxPiece, CylPiece } from '../levelBuilder';
 import type { CoopLip } from '../maps/campusS1';
 import { isOutdoor, type ArtTag } from './artTags';
-import { artBoxes, artToWorld, boxSlice, hullObb, pieceHull, ruleV, skinFit, writesBoxes, type ArtPlacement, type CatalogueSet, type PropCatalogue, type WorldObb } from './catalogue';
+import { artBoxes, artToWorld, boxSlice, DECAL_H, hullObb, pieceHull, ruleV, skinFit, writesBoxes, type ArtPlacement, type CatalogueSet, type PropCatalogue, type WorldObb } from './catalogue';
 import { boxObb, boxPlan, obbAabb, obbOf, planRect, pointObbDist, pointRectDist, pointSegDist, rectGap, rectsOverlap, segEntryObb, segHitsObb, segRectDist, type Obb3, type PlanRect } from './geometry';
 
 export interface DressContext {
@@ -111,6 +111,8 @@ interface PlanCap {
   r: number;
   rule: string;
   what: string;
+  /** (artnext A7) The door a K3 swing belongs to (a frame over that door passes it). */
+  door?: number;
 }
 interface Zone {
   r: PlanRect;
@@ -118,6 +120,8 @@ interface Zone {
   y1: number;
   rule: string;
   what: string;
+  /** (artnext A7) The door a K3 / K13 zone belongs to (a frame over that door passes it). */
+  door?: number;
 }
 interface Tube {
   /** Sample points along the shape (x, y, z, ...), at most 0.15 apart. */
@@ -385,13 +389,13 @@ export function buildKeepouts(ctx: DressContext): Keepouts {
     const ry = Math.atan2(-(l.bz - l.az), l.bx - l.ax);
     const y0 = d.hinge.y - KEEP.band0;
     const y1 = d.hinge.y + KEEP.band1;
-    zones.push({ r: planRect(l.cx, l.cz, d.width / 2 + KEEP.doorWide, KEEP.doorDeep + 0.2, ry), y0, y1, rule: 'K3', what: `door ${d.id}` });
-    caps.push({ ax: d.hinge.x, az: d.hinge.z, bx: d.hinge.x, bz: d.hinge.z, y0, y1, r: d.width + KEEP.doorSwing, rule: 'K3', what: `door ${d.id} swing` });
-    wallZones.push({ r: planRect(l.cx, l.cz, d.width / 2 + KEEP.doorWall, 0.45, ry), y0: d.hinge.y - 0.1, y1: d.hinge.y + d.height + KEEP.doorWall, rule: 'K3', what: `door ${d.id} opening` });
+    zones.push({ r: planRect(l.cx, l.cz, d.width / 2 + KEEP.doorWide, KEEP.doorDeep + 0.2, ry), y0, y1, rule: 'K3', what: `door ${d.id}`, door: d.id });
+    caps.push({ ax: d.hinge.x, az: d.hinge.z, bx: d.hinge.x, bz: d.hinge.z, y0, y1, r: d.width + KEEP.doorSwing, rule: 'K3', what: `door ${d.id} swing`, door: d.id });
+    wallZones.push({ r: planRect(l.cx, l.cz, d.width / 2 + KEEP.doorWall, 0.45, ry), y0: d.hinge.y - 0.1, y1: d.hinge.y + d.height + KEEP.doorWall, rule: 'K3', what: `door ${d.id} opening`, door: d.id });
     const outA = roomAt(ctx.rooms, l.cx + l.nx * 1.5, l.cz + l.nz * 1.5, d.hinge.y);
     const outB = roomAt(ctx.rooms, l.cx - l.nx * 1.5, l.cz - l.nz * 1.5, d.hinge.y);
     const out = (i: number): boolean => i < 0 || isOutdoor(ctx.tags[ctx.rooms[i]!.id]);
-    if (out(outA) !== out(outB)) zones.push({ r: planRect(l.cx, l.cz, d.width / 2 + 0.1, KEEP.escape + 0.2, ry), y0, y1, rule: 'K13', what: `escape door ${d.id}` });
+    if (out(outA) !== out(outB)) zones.push({ r: planRect(l.cx, l.cz, d.width / 2 + 0.1, KEEP.escape + 0.2, ry), y0, y1, rule: 'K13', what: `escape door ${d.id}`, door: d.id });
   }
   // K4 on the wall: no wall piece within 0.6 of an item
   const wallPts = ctx.items.map((it) => ({ x: it.x, y: it.y, z: it.z, r: KEEP.itemWall, rule: 'K4', what: it.what }));
@@ -606,6 +610,86 @@ export function floorUnder(k: Keepouts, boxes: readonly BoxPiece[], cat: PropCat
   return best;
 }
 
+/** (artnext A6) A decal piece by shape: a visual piece that writes no box, not a ceiling piece, its scaled hull under
+ *  `DECAL_H` tall (the floor tile grid). `isDecal` adds the floor. */
+export function decalPiece(cat: PropCatalogue, p: ArtPlacement): boolean {
+  if (p.cls !== 'visual' || mountOf(cat, p.prop) === 'ceiling') return false;
+  const h = pieceHull(cat, p.prop);
+  return Math.abs(h.hi[1] - h.lo[1]) * (p.s?.[1] ?? 1) < DECAL_H;
+}
+
+/** (artnext A6) A floor decal: a `decalPiece` whose hull bottom is within `DECAL_H` of the floor under it. Exempt from
+ *  K1-K6 and K13 (the floor keepouts the nav gate protects: it is walked over) and from the greybox overlap. */
+export function isDecal(k: Keepouts, boxes: readonly BoxPiece[], cat: PropCatalogue, p: ArtPlacement): boolean {
+  if (!decalPiece(cat, p)) return false;
+  const h = pieceHull(cat, p.prop);
+  const bottom = p.y + Math.min(h.lo[1], h.hi[1]) * (p.s?.[1] ?? 1);
+  return Math.abs(bottom - floorUnder(k, boxes, cat, p)) <= DECAL_H;
+}
+
+/** (artnext A7) A door frame's widest wrap: the opening's width plus this (0.1 m jambs a side). */
+export const FRAME_WRAP = 0.2;
+
+/** (artnext A7) The door's opening as a thin plan rect along its closed leaf (a leg through the door crosses it). */
+function doorOpening(d: Door): PlanRect {
+  const l = doorLine(d);
+  return planRect(l.cx, l.cz, d.width / 2, 0.05, Math.atan2(-(l.bz - l.az), l.bx - l.ax));
+}
+
+/**
+ * (artnext A7) The door a frame piece wraps, or null: a visual placement of a `cat.frame` piece whose local x runs along a
+ * door's opening, whose hull spans the opening (its width to its width + `FRAME_WRAP`, the opening wholly inside), stands
+ * on the door's floor (5 cm) and reaches the door's head.
+ */
+export function frameDoor(ctx: DressContext, cat: PropCatalogue, p: ArtPlacement): Door | null {
+  if (p.cls !== 'visual' || !cat.frame?.includes(p.prop)) return null;
+  const h = pieceHull(cat, p.prop);
+  const sx = p.s?.[0] ?? 1;
+  const sy = p.s?.[1] ?? 1;
+  const span = (h.hi[0] - h.lo[0]) * sx;
+  const y0 = p.y + Math.min(h.lo[1], h.hi[1]) * sy;
+  const y1 = p.y + Math.max(h.lo[1], h.hi[1]) * sy;
+  const [cx, , cz] = artToWorld(p, (h.lo[0] + h.hi[0]) / 2, 0, (h.lo[2] + h.hi[2]) / 2);
+  const ux = Math.cos(p.yaw);
+  const uz = -Math.sin(p.yaw);
+  const hz = (Math.abs(h.hi[2] - h.lo[2]) * (p.s?.[2] ?? 1)) / 2;
+  for (const d of ctx.doors) {
+    const tx = Math.sin(d.yaw);
+    const tz = Math.cos(d.yaw);
+    if (Math.abs(ux * tx + uz * tz) < 1 - 1e-3) continue;
+    if (span < d.width - 1e-3 || span > d.width + FRAME_WRAP + 1e-3) continue;
+    if (Math.abs(y0 - d.hinge.y) > 0.05 || y1 < d.hinge.y + d.height - 1e-3) continue;
+    const l = doorLine(d);
+    const along = (l.cx - cx) * ux + (l.cz - cz) * uz;
+    const across = (l.cx - cx) * -uz + (l.cz - cz) * ux;
+    if (Math.abs(along) > (span - d.width) / 2 + 1e-3 || Math.abs(across) > hz + 1e-3) continue;
+    return d;
+  }
+  return null;
+}
+
+/** (artnext A7) A frame's drawn shapes round its door: the two jambs and the head over the opening (its hull less the opening). */
+function frameShapes(cat: PropCatalogue, p: ArtPlacement, d: Door): Shape[] {
+  const w = hullObb(cat, p);
+  const ux = Math.cos(p.yaw);
+  const uz = -Math.sin(p.yaw);
+  const l = doorLine(d);
+  const o = (l.cx - w.cx) * ux + (l.cz - w.cz) * uz;
+  const o0 = o - d.width / 2;
+  const o1 = o + d.width / 2;
+  const top = d.hinge.y + d.height;
+  const out: Shape[] = [];
+  const part = (a: number, b: number, y0: number, y1: number): void => {
+    if (b - a < 1e-3 || y1 - y0 < 1e-3) return;
+    const m = (a + b) / 2;
+    out.push(fromWorldObb({ cx: w.cx + ux * m, cz: w.cz + uz * m, hx: (b - a) / 2, hz: w.hz, yaw: w.yaw, y0, y1 }));
+  };
+  part(-w.hx, o0, w.y0, w.y1);
+  part(o1, w.hx, w.y0, w.y1);
+  part(o0, o1, Math.max(top, w.y0), w.y1);
+  return out;
+}
+
 /** (artpol, art-kit P2) A raised piece with no wall behind it hangs (ceiling rules) only from this height over its floor. */
 export const MOUNT_CEIL = 1.9;
 /** (artpol, polish2 1) How far (m) along a K8 ray a skin's hull may be entered before its own greybox piece and still
@@ -664,10 +748,25 @@ export function blocked(k: Keepouts, ctx: DressContext, cat: PropCatalogue, p: A
     const piece = p.skinCyl !== undefined ? ctx.cylinders?.[p.skinCyl] : p.skinOf !== undefined ? ctx.boxes[p.skinOf] : undefined;
     if (!piece) return `S: ${p.prop} skins no greybox piece`;
     const e = skinFit(cat, p, p.skinPart && 's' in piece ? boxSlice(piece, p, p.skinPart[0], p.skinPart[1]) : piece);
-    return e ? `S: ${e}` : null;
+    if (e) return `S: ${e}`;
+    // (artnext A2) a face skin stands proud of its box's face: the wall-mounted visual rules below (K3 door edges, K4,
+    // K7, K12 glass, K8, K9-K11 at wall radii); rule V and the floor rules do not apply (it is the box's face)
+    if (p.skinFace === undefined) return null;
+    mount = 'wall';
   }
-  const shapes = shapesOf(cat, p);
-  if (p.cls === 'visual') {
+  // (artnext A7) a door frame: its jambs and head stand in for its hull, and the door it wraps passes it
+  const fd = frameDoor(ctx, cat, p);
+  const shapes = fd ? frameShapes(cat, p, fd) : shapesOf(cat, p);
+  // (artnext A6) a floor decal does not keep the floor rules (K1-K6, K13): it is walked over
+  const decal = (mount === 'floor-wall' || mount === 'floor-free') && isDecal(k, ctx.boxes, cat, p);
+  const opening = fd ? doorOpening(fd) : null;
+  /** Is this keepout one the frame's door passes (its K3 / K13 shapes, a K1 / K2 leg through its opening)? */
+  const framePass = (rule: string, door: number | undefined, ax: number, az: number, bx: number, bz: number): boolean => {
+    if (!fd || !opening) return false;
+    if (rule === 'K3' || rule === 'K13') return door === fd.id;
+    return (rule === 'K1' || rule === 'K2') && segRectDist(opening, ax, az, bx, bz) <= 0;
+  };
+  if (p.cls === 'visual' && !fd) {
     const bg = backGap(k, ctx.boxes, cat, p);
     // rule V's wall distance is to the piece's local z = 0 (its back face sits at `back` <= 0)
     const wallDist = OVER_RUN.includes(p.prop) && bg.gap <= 0.15 ? -1 : bg.gap - bg.back;
@@ -679,6 +778,8 @@ export function blocked(k: Keepouts, ctx: DressContext, cat: PropCatalogue, p: A
     // (ART-KIT L12) a box keeps the nav agent's clearance more off K1-K6 / K13, so the walkable cells inside them stay walkable (ART-PLAN 4.4 item 2)
     const navPad = (s: Shape, rule: string): number => (s.box && NAV_RULES.includes(rule) ? KEEP.navClear : 0);
     for (const c of k.caps) {
+      if (decal && NAV_RULES.includes(c.rule)) continue;
+      if (framePass(c.rule, c.door, c.ax, c.az, c.bx, c.bz)) continue;
       for (const s of shapes) {
         if (!overlapY(s.y0, s.y1, c.y0, c.y1)) continue;
         const r = c.r + navPad(s, c.rule);
@@ -688,6 +789,8 @@ export function blocked(k: Keepouts, ctx: DressContext, cat: PropCatalogue, p: A
       }
     }
     for (const z of k.zones) {
+      if (decal && NAV_RULES.includes(z.rule)) continue;
+      if (fd && (z.rule === 'K3' || z.rule === 'K13') && z.door === fd.id) continue;
       for (const s of shapes) {
         if (!overlapY(s.y0, s.y1, z.y0, z.y1)) continue;
         const pad = navPad(s, z.rule);
@@ -720,7 +823,10 @@ export function blocked(k: Keepouts, ctx: DressContext, cat: PropCatalogue, p: A
     }
   } else if (mount === 'wall') {
     if (!OVER_DOOR.includes(p.prop)) {
-      for (const z of k.wallZones) for (const s of shapes) if (overlapY(s.y0, s.y1, z.y0, z.y1) && rectsOverlap(s.plan, z.r, 0)) return `K3: ${p.prop} within ${KEEP.doorWall} of ${z.what}`;
+      for (const z of k.wallZones) {
+        if (fd && z.door === fd.id) continue;
+        for (const s of shapes) if (overlapY(s.y0, s.y1, z.y0, z.y1) && rectsOverlap(s.plan, z.r, 0)) return `K3: ${p.prop} within ${KEEP.doorWall} of ${z.what}`;
+      }
     }
     for (const w of k.wallPts) for (const s of shapes) if (pointObbDist(s.obb, w.x, w.y, w.z) < w.r) return `K4: ${p.prop} within ${w.r} of ${w.what}`;
     for (const l of k.lips) {
@@ -786,6 +892,8 @@ export function standsOn(k: Keepouts, boxes: readonly BoxPiece[], cat: PropCatal
 
 /** Does a placement's footprint overlap a greybox box (other than the floor it stands on and the wall it hangs on)? */
 export function overlapsGreybox(k: Keepouts, boxes: readonly BoxPiece[], cat: PropCatalogue, p: ArtPlacement): number {
+  // (artnext A6) a floor decal lies on the floor and under whatever stands on it
+  if (isDecal(k, boxes, cat, p)) return -1;
   const shapes = shapesOf(cat, p);
   for (const s of shapes) {
     const e = Math.abs(s.plan.ux) * s.plan.hx + Math.abs(s.plan.uz) * s.plan.hz;
@@ -882,7 +990,7 @@ export function checkDressing(ctx: DressContext, cats: CatalogueSet, ps: readonl
       shapes.push(null);
       return;
     }
-    if (m === 'floor-wall' || m === 'floor-free') {
+    if ((m === 'floor-wall' || m === 'floor-free') && !frameDoor(ctx, cat, p)) {
       const g = overlapsGreybox(k, ctx.boxes, cat, p);
       if (g >= 0) out.push(`#${i} ${p.cat}:${p.prop}: B: overlaps greybox box ${g}`);
     }

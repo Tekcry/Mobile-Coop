@@ -64,8 +64,14 @@ export interface PropCatalogue {
   footprint: Readonly<Record<string, readonly [number, number, number, number]>>;
   triBudget: Readonly<Record<string, number>>;
   hung: readonly string[];
-  /** Pieces that may scale 0.8-1.25 per axis. */
+  /** Pieces that may scale 0.8-1.25 per axis (or within their own `fitRange`). */
   fit: readonly string[];
+  /** (artnext A3) A fit piece's own scale limits per axis (default `FIT_MIN` / `FIT_MAX`; `fitRange()` reads it). */
+  fitRange?: Readonly<Record<string, { min: number; max: number }>>;
+  /** (artnext A7) Door-frame pieces: a visual frame whose hull wraps a door opening (`frameDoor`) is held to that door's
+   *  jambs and head, not its opening: it passes K1 / K2 for the legs through that door, K3 / K13 for that door, rule V
+   *  and the greybox overlap. */
+  frame?: readonly string[];
   /** Pieces whose drawn skin may stand `by` off their greybox piece; `parts` (artpol, polish2 2), when listed, are the
    *  overhang's real parts in the piece frame (segments a -> b of radius r: rods, a stack), which the skin-reach K9 check
    *  measures beams against above and below the piece instead of the hull box. */
@@ -110,6 +116,9 @@ export interface ArtPlacement {
   skinCyl?: number;
   /** (ART-KIT L11) A module of a skinned row (`CampusDresser.skinRow`): part i of n of the box along the piece's local x. */
   skinPart?: [number, number];
+  /** (artnext A2) A face skin (`CampusDresser.skinFace`): a panel over one face of box `skinOf` (n +z, e +x, s -z, w -x),
+   *  its front at most `ART_PROUD` off the face, the rest of it inside the box (`skinFit`). */
+  skinFace?: 'n' | 'e' | 's' | 'w';
   tint?: [number, number, number];
   lamp?: [number, number, number];
   /** Light circuit (emissives dim when cut). */
@@ -126,6 +135,12 @@ export interface ArtPlacement {
 export const ART_PROUD = PROP_PROUD;
 export const FIT_MIN = 0.8;
 export const FIT_MAX = 1.25;
+/** (artnext A3) A piece's fit scale limits: its catalogue `fitRange`, else `FIT_MIN` / `FIT_MAX`. */
+export function fitRange(cat: PropCatalogue, prop: string): { min: number; max: number } {
+  return cat.fitRange?.[prop] ?? { min: FIT_MIN, max: FIT_MAX };
+}
+/** (artnext A6) A floor decal: a visual piece whose drawn hull is under this tall (m), on a floor (`isDecal`). */
+export const DECAL_H = 0.05;
 /** Greybox colour of a kit box with no `boxColor` entry. */
 export const ART_BOX_COLOR = '#6f7275';
 /** Hull height of a piece with no `bounds` entry (m). */
@@ -155,7 +170,9 @@ export const BIN_ENV: ArtBox = { lo: [-0.225, 0, -0.225], hi: [0.225, 0.9, 0.225
 export const F_COLLISION_OVERRIDE: Readonly<Record<string, readonly ArtBox[]>> = { officeChair: [CHAIR_ENV] };
 
 /** ART-PLAN 3.1 marks these F pieces `fit` (non-uniform scale 0.8-1.25 to skin greybox boxes of slightly different sizes). */
-export const F_FIT: readonly string[] = ['officeDesk', 'receptionDesk', 'securityDesk', 'serverRack', 'cableTray', 'coolingUnit', 'palletLoad', 'palletLoadLow', 'dispatchDesk'];
+export const F_FIT: readonly string[] = ['officeDesk', 'receptionDesk', 'securityDesk', 'serverRack', 'cableTray', 'coolingUnit', 'palletLoad', 'palletLoadLow', 'dispatchDesk', 'meshPanel'];
+/** (artnext A3, art-join S4 L2) `meshPanel` (2.4 high) may stretch to the campus cage walls (3.0: 1.258). */
+export const F_FIT_RANGE: Readonly<Record<string, { min: number; max: number }>> = { meshPanel: { min: FIT_MIN, max: 1.3 } };
 
 let fCat: PropCatalogue | null = null;
 
@@ -179,6 +196,7 @@ export function facilityCatalogue(): PropCatalogue {
     triBudget: PROP_TRI_BUDGET,
     hung: PROP_HUNG,
     fit: F_FIT,
+    fitRange: F_FIT_RANGE,
     overhang: PROP_OVERHANG as Readonly<Record<string, { by: number; what: string }>>,
     emissive: PROP_EMISSIVE_PARTS as Readonly<Record<string, readonly ('screen' | 'lamp')[]>>,
     pitch: PROP_PITCH,
@@ -348,6 +366,19 @@ export function skinFit(cat: PropCatalogue, p: ArtPlacement, box: BoxPiece | Cyl
   const slo = [h.lo[0] * s[0]!, h.lo[1] * s[1]!, h.lo[2] * s[2]!];
   const shi = [h.hi[0] * s[0]!, h.hi[1] * s[1]!, h.hi[2] * s[2]!];
   const axis = ['x', 'y', 'z'];
+  if (p.skinFace !== undefined) {
+    // (artnext A2) a face skin: its local +z is the face's outward normal, so the face is the box's local z hi; the
+    // panel lies within the face (x, y), its front on or at most ART_PROUD off it, its back not through the far face
+    if (!('s' in box)) return `${p.prop}: a face skin needs a box`;
+    if (tq !== FACE_TURNS[p.skinFace]) return `${p.prop}: a face skin on face ${p.skinFace} must face it (yaw ${p.yaw.toFixed(3)})`;
+    for (const k of [0, 1]) {
+      if (slo[k]! < f.lo[k]! - 1e-3 || shi[k]! > f.hi[k]! + 1e-3) return `${p.prop}: the face skin runs off face ${p.skinFace} on ${axis[k]} (${slo[k]!.toFixed(3)}..${shi[k]!.toFixed(3)} vs ${f.lo[k]!.toFixed(3)}..${f.hi[k]!.toFixed(3)})`;
+    }
+    if (shi[2]! < f.hi[2]! - 1e-3) return `${p.prop}: the face skin's front is ${(f.hi[2]! - shi[2]!).toFixed(3)} m inside face ${p.skinFace}`;
+    if (shi[2]! - f.hi[2]! > ART_PROUD + 1e-3) return `${p.prop}: the face skin stands ${(shi[2]! - f.hi[2]!).toFixed(3)} m off face ${p.skinFace} (allowed ${ART_PROUD})`;
+    if (slo[2]! < f.lo[2]! - 1e-3) return `${p.prop}: the face skin's back passes through the box (${(f.lo[2]! - slo[2]!).toFixed(3)} m)`;
+    return null;
+  }
   if (p.cls === 'skin-hide') {
     const slabs = cat.profile?.[p.prop] ?? [{ x0: h.lo[0], x1: h.hi[0], y0: h.lo[1], y1: h.hi[1], z0: h.lo[2], z1: h.hi[2] }];
     const sc = slabs.map((q) => ({ x0: q.x0 * s[0]!, x1: q.x1 * s[0]!, y0: q.y0 * s[1]!, y1: q.y1 * s[1]!, z0: q.z0 * s[2]!, z1: q.z1 * s[2]! }));
@@ -386,6 +417,9 @@ export function skinFit(cat: PropCatalogue, p: ArtPlacement, box: BoxPiece | Cyl
   }
   return null;
 }
+
+/** (artnext A2) A face's yaw in quarter turns: the piece's local +z (its front) along the face's outward normal. */
+export const FACE_TURNS: Readonly<Record<'n' | 'e' | 's' | 'w', number>> = { n: 0, e: 1, s: 2, w: 3 };
 
 /** Part i of n of a greybox box along a placement's local x (a skinned row's module covers its slice, not the box). */
 export function boxSlice(box: BoxPiece, p: ArtPlacement, i: number, n: number): BoxPiece {

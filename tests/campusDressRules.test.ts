@@ -20,9 +20,10 @@ import { boxAt, ceilingAt, cylAt, floorAt, wallRuns } from '../src/world/campusA
 import { blocked, buildKeepouts, checkDressing, KEEP, MOUNT_CEIL, overlapsGreybox, placementMount, SKIN_PART_CLEAR, skinReach, type DressContext, type Keepouts } from '../src/world/campusArt/keepouts';
 import { DOOR_EXTRAS, DRESS_RULES, newReport, planRoom } from '../src/world/campusArt/dressRules';
 import { applyFinishes, CAMPUS_FINISH, FINISH_KIND } from '../src/world/campusArt/finishes';
-import { facilityCatalogue, type ArtPlacement, type CatalogueSet, type PropCatalogue } from '../src/world/campusArt/catalogue';
+import { ART_PROUD, artToWorld, facilityCatalogue, writeArtBoxes, type ArtPlacement, type CatalogueSet, type PropCatalogue } from '../src/world/campusArt/catalogue';
 import { CAMPUS_KIT } from '../src/world/campusArt/campusKit';
-import { CampusDresser } from '../src/world/campusArt/dresser';
+import { ArtRuleError, CampusDresser } from '../src/world/campusArt/dresser';
+import { frameDoor, isDecal } from '../src/world/campusArt/keepouts';
 import { runtimeNav } from './helpers/runtimeNav';
 
 const CATS: CatalogueSet = { F: facilityCatalogue(), K: CAMPUS_KIT };
@@ -446,6 +447,143 @@ describe('base pass smoke (step 9): an office dressed by base()', () => {
     expect(b.boxes.length - n0).toBe(d.report.boxes);
     expect(d.report.boxes).toBeGreaterThan(0);
     expect(d.check()).toEqual([]);
+  });
+});
+
+describe('the artnext kit API (A2, A4, A6, A7)', () => {
+  it('(A2) skinFace is flush and visual: a panel on one face, its front within ART_PROUD, no box; door edges, glass and a thin box refuse it', () => {
+    const { b, ctx } = office(false);
+    const d = new CampusDresser(b, ctx, CATS);
+    const south = boxAt(b.boxes, 6, 1.5, -0.15);
+    const [g] = d.skinFace('F:greenWall', south, 'n', { why: 'green wall', at: [3], group: 5 });
+    const p = d.placements[g!]!;
+    expect(p.cls).toBe('skin');
+    expect(p.skinOf).toBe(south);
+    expect(p.skinFace).toBe('n');
+    expect(p.group).toBe(5);
+    // the front (local z 0.2) stands ART_PROUD off the face at z 0; the back sinks into the 0.3 wall
+    expect(artToWorld(p, 0, 1, 0.2)[2]).toBeCloseTo(ART_PROUD, 4);
+    expect(artToWorld(p, 0, 1, 0)[2]).toBeGreaterThan(-0.3);
+    // tiled: two whiteboards over x 1..5 of the same face
+    const wb = d.skinFace('K:whiteboard', south, 'n', { why: 'boards', from: 6, to: 10 });
+    expect(wb).toHaveLength(2);
+    // no box written; the gate's checks pass
+    const nb = b.boxes.length;
+    expect(writeArtBoxes(b, CATS, d.placements)).toBe(0);
+    expect(b.boxes.length).toBe(nb);
+    expect(d.check()).toEqual([]);
+    // K3: the north wall's office face beside the door (x 5..6)
+    const north = boxAt(b.boxes, 2.35, 1.5, 10.15);
+    expect(() => d.skinFace('F:greenWall', north, 's', { why: 't', at: [4.2] })).toThrow(/K3/);
+    // K12: the glass panel; S: through the thin 0.1 box
+    const glass = boxAt(b.boxes, -0.15, 1.5, 5);
+    expect(() => d.skinFace('K:noticeBoard', glass, 'e', { why: 't', at: [5] })).toThrow(/K12/);
+    expect(() => d.skinFace('F:greenWall', glass, 'e', { why: 't', at: [5] })).toThrow(/through the box/);
+    // off the face; a non-fit module wider than its slot; all or none
+    expect(() => d.skinFace('F:greenWall', south, 'n', { why: 't', at: [12] })).toThrow(/runs off face/);
+    expect(() => d.skinFace('K:whiteboard', south, 'n', { why: 't', from: 1, to: 2.5 })).toThrow(/wider than its/);
+    const n0 = d.placements.length;
+    expect(() => d.skinFace('F:greenWall', north, 's', { why: 't', at: [2, 4.2] })).toThrow(ArtRuleError);
+    expect(d.placements.length).toBe(n0);
+  });
+
+  it('(A4) tryAdd returns -1 with the rule id; add throws an ArtRuleError', () => {
+    const { b, ctx } = office(true);
+    const d = new CampusDresser(b, ctx, CATS);
+    try {
+      d.add('K:printerMfd', 2, 0, 0.8, 0, { cls: 'solid', why: 't' });
+      expect.unreachable();
+    } catch (e) {
+      expect(e).toBeInstanceOf(ArtRuleError);
+      expect((e as ArtRuleError).rule).toBe('K1');
+      expect((e as ArtRuleError).msg).toMatch(/^K1: /);
+    }
+    const spots = [
+      { x: 2, y: 0, z: 0.8, yaw: 0 },
+      { x: 6, y: 0, z: 5, yaw: 0 },
+    ];
+    const i = d.tryAdd('K:printerMfd', spots, { cls: 'solid', why: 't' });
+    expect(i).toBe(0);
+    expect(d.placements[i]!.x).toBe(6);
+    expect(d.refusals.map((r) => [r.spot, r.rule])).toEqual([[0, 'K1']]);
+    expect(d.report.dropped['K:printerMfd']).toEqual({ K1: 1 });
+    // the route, then the placed printer's box (B), then inside the east wall (B): none left
+    const none = d.tryAdd('K:printerMfd', [spots[0]!, { x: 6.2, y: 0, z: 5.2, yaw: 0 }, { x: 11.9, y: 0, z: 5, yaw: 0 }], { cls: 'solid', why: 't' });
+    expect(none).toBe(-1);
+    expect(d.refusals.slice(1).map((r) => r.rule)).toEqual(['K1', 'B', 'B']);
+    // a programming error still throws
+    expect(() => d.tryAdd('K:noSuchPiece', spots, { cls: 'solid', why: 't' })).toThrow(/unknown piece/);
+  });
+
+  it('(A6) a decal is not a keepout: a floor tile on a route and over a box passes; a 0.5 m visual there does not', () => {
+    const boxes: BoxPiece[] = [
+      { c: [0, -0.15, 0], s: [60, 0.3, 60], yaw: 0, pitch: 0, color: '#777777', collide: true },
+      { c: [5, 0.5, 5], s: [1, 1, 1], yaw: 0, pitch: 0, color: '#777777', collide: true },
+    ];
+    const ctx = ctxOf({ boxes, sector: sector({ routes: [{ name: 'r', pts: [[1, 5], [11, 5]], obj: 1 }] as SectorDef['routes'] }) });
+    const k = buildKeepouts(ctx);
+    const tile: ArtPlacement = { cat: 'K', prop: 'floorTileGrid', x: 5, y: 0, z: 5, yaw: 0, section: 0, cls: 'visual', why: 't' };
+    expect(isDecal(k, ctx.boxes, CAMPUS_KIT, tile)).toBe(true);
+    expect(blocked(k, ctx, CAMPUS_KIT, tile, placementMount(k, ctx, CAMPUS_KIT, tile))).toBeNull();
+    expect(overlapsGreybox(k, ctx.boxes, CAMPUS_KIT, tile)).toBe(-1);
+    const reeds: ArtPlacement = { ...tile, prop: 'reeds' };
+    expect(isDecal(k, ctx.boxes, CAMPUS_KIT, reeds)).toBe(false);
+    expect(blocked(k, ctx, CAMPUS_KIT, reeds, 'floor-free')).toMatch(/^K1/);
+    expect(overlapsGreybox(k, ctx.boxes, CAMPUS_KIT, reeds)).toBe(1);
+    // not a decal: a raised tile, a ceiling grid
+    expect(isDecal(k, ctx.boxes, CAMPUS_KIT, { ...tile, y: 0.5 })).toBe(false);
+    expect(isDecal(k, ctx.boxes, CAMPUS_KIT, { ...tile, prop: 'ceilingGrid', y: 3 })).toBe(false);
+    // add snaps a decal's y to 1 mm (1 cm for the rest)
+    const d = new CampusDresser(new LevelBuilder(), ctx, CATS);
+    const i = d.add('K:floorTileGrid', 5, 0.0034, 5, 0, { cls: 'visual', why: 't' });
+    expect(d.placements[i]!.y).toBeCloseTo(0.003, 6);
+  });
+
+  it('(A7) a door frame passes K1 for its door: a frame wrapping the opening (width + 0.2 at most) passes; wider, unlisted or off-door legs do not', () => {
+    const H5: PropCatalogue = {
+      id: 'H5',
+      glb: 'hero-s5.glb',
+      ids: ['frameSlim', 'frameWide'],
+      materials: [],
+      looks: {},
+      collision: { frameSlim: null, frameWide: null },
+      footprint: { frameSlim: [-0.6, -0.2, 0.6, 0.2], frameWide: [-0.65, -0.2, 0.65, 0.2] },
+      triBudget: { frameSlim: 100, frameWide: 100 },
+      hung: [],
+      fit: [],
+      overhang: {},
+      emissive: {},
+      pitch: {},
+      bounds: { frameSlim: { lo: [-0.6, 0, -0.2], hi: [0.6, 2.2, 0.2] }, frameWide: { lo: [-0.65, 0, -0.2], hi: [0.65, 2.2, 0.2] } },
+      frame: ['frameSlim', 'frameWide'],
+    };
+    const { b } = office(false);
+    // the doorway's floor (the office fixture leaves the gap under the wall open)
+    b.box(5.5, -0.15, 10.15, 1, 0.3, 0.3, '#777777');
+    // a route through the door (x 5..6 at z 10.15) and one along the corridor wall, 0.4 m off the jamb
+    const routes = [
+      { name: 'through', pts: [[5.5, 5], [5.5, 12]], obj: 1 },
+      { name: 'beside', pts: [[1, 9.5], [4.5, 9.5]], obj: 1 },
+    ] as SectorDef['routes'];
+    const ctx: DressContext = { ...office(false).ctx, boxes: b.boxes, doors: b.anchors.doors, sector: sector({ routes: [routes[0]!] }) };
+    const cats: CatalogueSet = { ...CATS, H5 };
+    const k = buildKeepouts(ctx);
+    const frame: ArtPlacement = { cat: 'H5', prop: 'frameSlim', x: 5.5, y: 0, z: 10.15, yaw: 0, section: 0, cls: 'visual', why: 't' };
+    expect(frameDoor(ctx, H5, frame)?.id).toBe(ctx.doors[0]!.id);
+    expect(placementMount(k, ctx, H5, frame)).toBe('floor-free');
+    expect(blocked(k, ctx, H5, frame, placementMount(k, ctx, H5, frame))).toBeNull();
+    expect(checkDressing(ctx, cats, [frame])).toEqual([]);
+    // 1.3 wide (opening + 0.3): not a frame of this door
+    const wide = { ...frame, prop: 'frameWide' };
+    expect(frameDoor(ctx, H5, wide)).toBeNull();
+    expect(blocked(k, ctx, H5, wide, placementMount(k, ctx, H5, wide))).toMatch(/^V: /);
+    // the same piece not listed as a frame (and let past rule V as an open frame): the route through the door keeps it off
+    const plain: PropCatalogue = { ...H5, frame: [], open: ['frameSlim'] };
+    expect(blocked(k, ctx, plain, frame, placementMount(k, ctx, plain, frame))).toMatch(/^K1: .*through/);
+    // a leg that does not go through the door still keeps the jamb off (K1)
+    const ctx2: DressContext = { ...ctx, sector: sector({ routes }) };
+    const k2 = buildKeepouts(ctx2);
+    expect(blocked(k2, ctx2, H5, frame, placementMount(k2, ctx2, H5, frame))).toMatch(/^K1: .*beside/);
   });
 });
 

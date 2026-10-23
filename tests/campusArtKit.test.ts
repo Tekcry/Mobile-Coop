@@ -22,6 +22,9 @@ import {
   artMatrix,
   artToWorld,
   facilityCatalogue,
+  fitRange,
+  FIT_MAX,
+  FIT_MIN,
   ruleV,
   skinFit,
   writeArtBoxes,
@@ -193,7 +196,8 @@ describe('campus kit K (A112)', () => {
       if (CAMPUS_KIT.footprint[id]![1] === 0) expect(b.min[2], `${id} back on the face`).toBeCloseTo(0, 3);
     }
     // the fit list (ART-PLAN 3.2) and the emissive parts are in the GLB
-    expect([...CAMPUS_KIT.fit].sort()).toEqual(['batteryRack', 'binLarge', 'boardTable', 'cafeTable', 'carBlack', 'carBlue', 'carSilver', 'carWhite', 'ceilingGrid', 'feederPillar', 'floorTileGrid', 'labBench', 'meetingTable', 'planterTrough', 'treeSkin'].sort());
+    // (artnext A8) kitchenRun / wallCupboards are fit pieces too
+    expect([...CAMPUS_KIT.fit].sort()).toEqual(['batteryRack', 'binLarge', 'boardTable', 'cafeTable', 'carBlack', 'carBlue', 'carSilver', 'carWhite', 'ceilingGrid', 'feederPillar', 'floorTileGrid', 'labBench', 'meetingTable', 'planterTrough', 'treeSkin', 'kitchenRun', 'wallCupboards'].sort());
     expect([...CAMPUS_KIT.hung].sort()).toEqual(['ductRun', 'exitSign']);
     expect(report.pieces.vendingMachine!.meshes.screen).toBeGreaterThan(0);
     expect(report.pieces.exitSign!.meshes.exitGreen).toBeGreaterThan(0);
@@ -293,6 +297,66 @@ describe('placement maths (A114)', () => {
     expect(() => d.add('K:cafeTable', 0, 0, 0, 0, { cls: 'solid', why: 't', s: [1.3, 1, 1] })).toThrow(/outside/);
     expect(d.add('K:printerMfd', 0, 0, 0, 0, { cls: 'solid', why: 't' })).toBe(0);
     expect(d.add('K:cafeTable', 3, 0, 0, 0, { cls: 'solid', why: 't', s: [1.2, 1, 0.9] })).toBe(1);
+  });
+});
+
+describe('(artnext A3 / A8) per-piece fit limits', () => {
+  /** A dresser over a floor and one greybox box (centre, size); returns the dresser and the box's index. */
+  const withBox = (c: [number, number, number], s: [number, number, number]): { d: CampusDresser; i: number } => {
+    const b = new LevelBuilder();
+    b.floor(0, 0, 40, 40, '#777777', 0, 0.3);
+    b.box(c[0], c[1], c[2], s[0], s[1], s[2], '#777777');
+    const ctx: DressContext = {
+      section: 0,
+      rooms: [{ id: 'r', name: 'r', minX: -20, maxX: 20, minZ: -20, maxZ: 20 }],
+      tags: {},
+      sector: { id: 't', name: 't', start: { x: 90, y: 0, z: 90, yaw: 0 }, objective: { kind: 'hack', label: 'o', x: 95, y: 1, z: 95, yaw: 0 }, guards: [], reinforce: [], perStage: 0, routes: [] } as SectorDef,
+      doors: [],
+      windows: [],
+      anchors: new TraversalAnchors(),
+      items: [],
+      hides: [],
+      cameras: [],
+      levels: {},
+      lasers: [],
+      lips: [],
+      lamps: [],
+      boxes: b.boxes,
+    };
+    return { d: new CampusDresser(b, ctx, { F: facilityCatalogue(), K: CAMPUS_KIT }), i: b.boxes.length - 1 };
+  };
+
+  it('per-piece fit limits: batteryRack 1.0 deep, labBench 2.0 long, meshPanel 3.0 high, kitchenRun on a 0.8 deep counter; the default stays 0.8-1.25', () => {
+    expect(fitRange(CAMPUS_KIT, 'cafeTable')).toEqual({ min: FIT_MIN, max: FIT_MAX });
+    expect(fitRange(CAMPUS_KIT, 'batteryRack').max).toBeGreaterThanOrEqual(1.275);
+    expect(fitRange(CAMPUS_KIT, 'labBench').min).toBeLessThanOrEqual(2.02 / 3.0);
+    expect(fitRange(facilityCatalogue(), 'meshPanel').max).toBeGreaterThanOrEqual(3.02 / 2.4);
+    // the S4 battery box (2.0 x 1.2 x 1.0): z 1.275
+    const br = withBox([0, 0.6, 0], [2.0, 1.2, 1.0]);
+    const ib = br.d.skin('K:batteryRack', br.i, 0, { why: 't' });
+    expect(br.d.placements[ib]!.s![2]).toBeCloseTo(1.02 / 0.8, 3);
+    // the S3 burn-in desk (2.0 long): x 0.673
+    const lb = withBox([0, 0.45, 0], [2.0, 0.9, 0.9]);
+    const il = lb.d.skin('K:labBench', lb.i, 0, { why: 't' });
+    expect(lb.d.placements[il]!.s![0]).toBeCloseTo(2.02 / 3.0, 3);
+    // a 1.8 m bench is past its own limit (0.6)
+    const lb2 = withBox([0, 0.45, 0], [1.8, 0.9, 0.9]);
+    expect(() => lb2.d.skin('K:labBench', lb2.i, 0, { why: 't' })).toThrow(/outside 0.65-1.25/);
+    // the S4 cage wall (1.5 x 3.0 x 0.05): y 1.258
+    const mp = withBox([0, 1.5, 0], [1.5, 3.0, 0.05]);
+    const im = mp.d.skin('F:meshPanel', mp.i, 0, { why: 't' });
+    expect(mp.d.placements[im]!.s![1]).toBeCloseTo(3.02 / 2.4, 3);
+    // (A8) the S5 kitchen counter (0.8 x 0.9 x 4.0): kitchenRun modules along z, 3 x 1.33 long and 0.8 deep
+    const kr = withBox([0, 0.45, 0], [0.8, 0.9, 4.0]);
+    const row = kr.d.skinRow('K:kitchenRun', kr.i, false, 1, { why: 't', group: 7 });
+    expect(row).toHaveLength(3);
+    for (const i of row) {
+      expect(kr.d.placements[i]!.group, 'skinRow passes group to every module (A5)').toBe(7);
+      expect(kr.d.placements[i]!.s![2]).toBeCloseTo(0.82 / 0.6, 3);
+    }
+    // the default limit holds for every other piece
+    const t = withBox([0, 0.375, 0], [0.9, 0.75, 0.9]);
+    expect(() => t.d.add('K:cafeTable', 5, 0, 5, 0, { cls: 'solid', why: 't', s: [1.3, 1, 1] })).toThrow(/outside 0.8-1.25/);
   });
 });
 

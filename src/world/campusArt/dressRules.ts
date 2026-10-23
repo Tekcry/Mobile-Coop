@@ -15,7 +15,7 @@ import type { ArtTag } from './artTags';
 import { isOutdoor } from './artTags';
 import { artToWorld, pieceHull, type ArtPlacement, type CatalogueSet, type PropCatalogue } from './catalogue';
 import { ceilingAt, floorAt, pointSegDist, rectsOverlap, runLen, wallRuns, type PlanRect, type WallRun } from './geometry';
-import { blocked, doorLine, overlapsGreybox, placementMount, shapesOf, standsOn, type DressContext, type Keepouts, type Mount } from './keepouts';
+import { blocked, decalPiece, doorLine, overlapsGreybox, placementMount, shapesOf, standsOn, type DressContext, type Keepouts, type Mount } from './keepouts';
 
 export interface RuleItem {
   /** Catalogue and piece: 'K:whiteboard', 'F:filingCabinet'. */
@@ -314,17 +314,12 @@ export function planRoom(ctx: DressContext, k: Keepouts, cats: CatalogueSet, roo
     }
     return null;
   };
-  const make = (cat: PropCatalogue, prop: string, x: number, y: number, z: number, yaw: number, cls: ArtPlacement['cls'], why: string): ArtPlacement => ({
-    cat: cat.id,
-    prop,
-    x,
-    y: snap(y, 0.01),
-    z,
-    yaw,
-    section: ctx.section,
-    cls,
-    why,
-  });
+  const make = (cat: PropCatalogue, prop: string, x: number, y: number, z: number, yaw: number, cls: ArtPlacement['cls'], why: string): ArtPlacement => {
+    const p: ArtPlacement = { cat: cat.id, prop, x, y: snap(y, 0.01), z, yaw, section: ctx.section, cls, why };
+    // (artnext A6) a floor decal keeps its floor's height to 1 mm
+    if (decalPiece(cat, p)) p.y = snap(y, 0.001);
+    return p;
+  };
   /** A wall-backed placement on a run at `t` m along it (the piece's back on the face; centred pieces stand off by their back depth). */
   const onRun = (cat: PropCatalogue, prop: string, r: WallRun, t: number, y: number, cls: ArtPlacement['cls'], why: string): ArtPlacement => {
     const len = runLen(r);

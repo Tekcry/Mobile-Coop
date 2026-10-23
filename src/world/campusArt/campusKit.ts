@@ -231,7 +231,11 @@ export const CAMPUS_KIT: PropCatalogue = {
   footprint: rec((r) => r.fp),
   triBudget: rec((r) => r.tris),
   hung: ['exitSign', 'ductRun'],
-  fit: ['meetingTable', 'ceilingGrid', 'cafeTable', 'planterTrough', 'labBench', 'batteryRack', 'floorTileGrid', 'boardTable', 'carSilver', 'carBlack', 'carBlue', 'carWhite', 'binLarge', 'feederPillar', 'treeSkin'],
+  // (artnext A8) kitchenRun / wallCupboards fit too: a kitchen counter box of another size takes the run's modules along x
+  fit: ['meetingTable', 'ceilingGrid', 'cafeTable', 'planterTrough', 'labBench', 'batteryRack', 'floorTileGrid', 'boardTable', 'carSilver', 'carBlack', 'carBlue', 'carWhite', 'binLarge', 'feederPillar', 'treeSkin', 'kitchenRun', 'wallCupboards'],
+  // (artnext A3) own fit limits: the S4 battery boxes are 1.0 deep (1.275), the S3 burn-in desk 2.0 long (0.673), the S5
+  // kitchen counter 0.8 deep (1.367)
+  fitRange: { batteryRack: { min: 0.8, max: 1.3 }, labBench: { min: 0.65, max: 1.25 }, kitchenRun: { min: 0.8, max: 1.4 } },
   overhang: {
     labBench: { by: 0.72, what: 'the reagent shelf on its open uprights over the bench' },
     fireplace: { by: 1.17, what: 'the surround and mantel, flush on the wall (0.15 deep) over the hearth' },
