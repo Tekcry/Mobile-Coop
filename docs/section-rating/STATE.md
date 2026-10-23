@@ -155,3 +155,10 @@ courseMarks, ratingWire, course, courseTutorial, courselab, ctcourse (104 pass),
 e2e (desktop, GPU, JOBS=1, 4191, heavy.lock per suite): e2e-section-rating pass 50 s (new Marlow block: A1 unrated,
 A2 rated 15 with the gadget grant and the card, A3 kill + restart -> rated clean, course wire rt); e2e-course pass 165 s.
 Open: co-op Marlow card / client top-up not in e2e; the finale tier and results stats stay cumulative over a restart.
+
+## S6 fix round (17:41, 2026-10-23)
+- Merged origin/feature/marlow-final (e7beba38, past 0ead059c: master 4.77.0). No conflicts; protocol kept at 37; tests/hangDownNet.test.ts asserted master's 35, now 37 (b6f2185f).
+- Should-fix 3: `coopRating(hasNet, players)` (sectionRating.ts): co-op table only with a partner in the match at rating time (`playerRefsInto` length > 1). Used by courseMode.rateSet and sectorMode.rate (both had `g.net !== null`). A host alone in a co-op room now gets the solo table (medkits). Tests in courseMarks.test.ts.
+- Should-fix 1: the course message carries `rh` (inside protocol 37, optional): every bay's rating packed (-1 unrated, else marks + 16 x synced; `packRated` / `unpackRated` in courseWire.ts, parsed by `courseRh`, index kept, clamped, max 64). A late joiner / reloaded rejoiner's first message rebuilds every earlier set's results line from it (grant shown empty, no top-up, no card); later ratings as before. Test in ratingWire.test.ts. Sector Ops' client keeps only the last rating on a late join (same gap, not changed here).
+- Checks: tsc clean; vitest courseMarks, ratingWire, net, course, sectorRatingHost: 5 files, 135 pass. e2e-section-rating (GPU, port 4191, heavy.lock): pass, 47 s.
+- Open: no co-op Marlow e2e yet (S6-check should-fix 2); the rh rebuild is unit-tested on the wire only, not in e2e.
