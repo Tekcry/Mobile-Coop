@@ -1,6 +1,13 @@
 # Guard AI - state
 
 ## Now
+~23:05: S24 re-checks A + B PASS -> 7fe4f6a2 (test-only: e2e-coop S24 host hide (0,-14), knownPt + seen asserts per
+recheck B). PR #264 OPEN (stacked on #254), orchestrator told. Laptop: set s24 on e31edd54 (20261023T105203) +
+s24-coop on 7fe4f6a2 (20261023T110228). S25b checks: A PASS, B FAIL (B1 PLAN_COVER 128 drops north cover). Opus S25b
+FIX ROUND running in -s25 (merge s24 7fe4f6a2, B1, polish A1-A3 + contactHunt validity, e2e-stealth-ai 'lkp' hide
+(0,-20) + new 'search area' scenario; writes slices/S25B-FIX.md). A7: Marlow builds feature/marlow-a7-cabinet (PR
+number to come) -> then train-ready #254 (+ #264 after its laptop sets).
+
 ~22:30: #254 S23 OUT of train 34 (orchestrator): e2e-ctcourse:4 A7 "technician leaves R0" fails: since S23 the R0
 technician picks the client at SPOT2 (96.65, 61.5) in the data-hall cage through two mesh faces (pickTarget,
 enemy.ts:1991) and investigates. Marlow ruling: SPOT2 must be hidden from R0; fix ours (fallback: Marlow makes the
@@ -652,23 +659,17 @@ Open:
 2. #258 S22 game (feature/guard-ai-s22-game dd9f6960): train-ready. CONFLICTS with master (protocol.ts, coop.md,
    old number asserts): the orchestrator resolves in the train taking master's side (no own wire change).
 3. #255 LR16-4 relight f08c448c: train-ready (label set ~21:45, laptop 7/7, orchestrator told).
-4. S24 two intruders (feature/guard-ai-s24 96d565e5 = ef44eea5 + check drafts): check A FAIL (slices/S24-CHECK-A.md:
-   hunt -1 joiners never rebind after a later sighting; solo convergence lost), check B draft no blocker. Opus FIX
-   ROUND started ~21:45 (finding 1 + unit tests + by-design e2e retunes + e2e-coop "two intruders" block; writes
-   slices/S24-FIX.md, pushes): if cut off, read the branch tip / S24-FIX.md and finish with a fresh Opus. Then:
-   merge feature/guard-ai-carry-flake (item 7) into s24, 2 fresh Opus checkers + laptop set s24 (coop, netmove,
-   stealth-ai, sectorops, tactics, stealth, takedown, ctcourse, guard-carry) on the same sha, PR stacked on #254,
-   train-ready on green.
-7. Guard-carry flake (laptop s23-regress flagged e2e-guard-carry): Opus triage on feature/guard-ai-carry-flake
-   (worktree -carry-flake), writes slices/GUARD-CARRY-FLAKE.md. If cut off: rerun it.
-8. Planner S26-S28 (Opus, docs only on feature/guard-ai: slices/S26.md+, PLAN "Next (S26-S28)", A155+). If no
-   commit landed: rerun it. Then cloud-queue briefs for the builder.
-5. S25a pure searchArea.ts: feature/guard-ai-s25a (39420159 + check). Check PASS (slices/S25A-CHECK.md in
-   -s25a). Not a PR alone: S25b = the wiring (slices/S25.md Build 2-4, tests, e2e) on S24's tip with S25a merged:
-   BRIEFED ~21:20: cloud-queue briefs/guard-ai-S25b.md (8958388b, off S24 + S25a, merges later S24 fixes).
-   S25b brief MUST add (S25A-CHECK polish 2): offer candidates best score first; searchDone finds the guard's point
-   by claim === num (a finishBy(num) helper), never a saved index; buildPlan never rebuilds a plan with live claims.
+4. S24 two intruders: PR #264 (feature/guard-ai-s24 7fe4f6a2, stacked on #254). Fix round + re-checks A + B PASS
+   (slices/S24-FIX.md, S24-RECHECK-A/B.md). Laptop set s24 on e31edd54 (all suites; ctcourse:4 A7 red until the cage
+   fix) + s24-coop on 7fe4f6a2 (test-only diff) PENDING: red -> Opus triage at once. Green + cage fix -> train-ready.
+5. S25b (feature/guard-ai-s25, worktree -s25): check A PASS, B FAIL (B1 cover cap). Opus FIX ROUND running (merges
+   s24 7fe4f6a2; writes slices/S25B-FIX.md). If cut off: read the branch tip / FIX.md, finish. Then one fresh Opus
+   re-check + laptop set s25 (stealth-ai, sectorops, tactics, stealth, takedown, ctcourse, coop, netmove), PR stacked
+   on #264.
+6. S26 (off s25) + S27 (off s24) cloud briefs OPEN on cloud-queue (ad9d59cf), A155-A164 accepted.
+7. Done this window: guard-carry flake (test race, e7d70c62 merged into s24); planner S26 + S27 (299d6265; S28 none).
 Questions for Michael (non-blocking, decision packs): S23 client arcs / LKP ghost; S25 searchers' flares.
 Polish lists only: WALK-CHECK 1-6, S16-CHECK, A126-CHECK, S22-CHECK 1-5, S22-GAME-CHECK(2), CARRY-FIX2-CHECK,
-S23-CHECK-A/B, LR16-4-POLISH. A-numbers: S23 A143-A145, S24 A146-A150, S25 A151-A154 accepted (move into BRIEF.md).
+S23-CHECK-A/B, LR16-4-POLISH, S24-RECHECK-A/B, S25B-CHECK-A/B. A-numbers: S23 A143-A145, S24 A146-A150, S25
+A151-A154, S26 A155-A160, S27 A161-A164 accepted (move into BRIEF.md).
 ```
