@@ -86,3 +86,24 @@ moveState, net (the version 36 refused / 37 joins case), poseParity, rejoin, sec
 
 `changes/feature-coop-walk-fixes.md` (minor): the team takedown both ways; one sound per partner round with the
 weapon's own sound, suppressed when it was; protocol 37.
+
+## Fix round 1 (laptop e2e-coop FAIL on c6b4f4a3)
+
+Failing assert: "two takedowns together count as a dual takedown", the step right after the new team takedown step
+(which passed). e2e-netmove passed.
+
+Cause: test state, not a game bug. The old dual step asserted absolute counts (`net.duals === 1`, `style.duals === 1`):
+before P6 it was the first dual of the match. The new team takedown is itself a dual takedown (holder + striker,
+`assistApply` -> `takedownDone(holder)` then the host's own done), so the counters stood at 1 when the old step began and
+reached 2. The game credits exactly one dual per team takedown and the old step's `dualClock.reset()` already clears any
+pending pairing, so nothing else leaks.
+
+Fix (`scripts/e2e-coop.mjs` only):
+- The dual step takes its baselines (`net.duals`, `style.duals`, knockouts) after the clock reset and asserts exactly +1;
+  the event count (listener added there) stays `=== 1`, and the pair ids are unchanged. Same strength as before.
+- The team takedown step now asserts exactly `d0 + 1` (was `> d0`): a double credit would fail it.
+- The team takedown step empties the client's `.hud-banner` at its end: the banner's text stays in the DOM after it hides,
+  so without this the old "client sees the dual takedown" check would pass on the team takedown's banner.
+
+Tests: `npx tsc --noEmit -p .` clean; `node --check` on the script (eslint ignores scripts/); `tests/coopWalkFixes.test.ts`
+15/15; e2e-takedown PASS on a desktop lane (GPU, JOBS=1, 14 s, dist current with src). No unit test added: no game logic changed. e2e-coop not run here (laptop).

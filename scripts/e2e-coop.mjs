@@ -834,14 +834,17 @@ try {
     await until(A, (id) => { const td = window.__app.current.takedown; const o = td.offer; if (td.active?.plan.kind === 'assist') return true; if (o?.plan.kind !== 'assist' || o.e.id !== id) return false; td.start(false); return true; }, gg, 6000, "the host is offered the team takedown on the client's hostage");
     await until(A, (id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || (!e.alive && e.ko); }, gg, 8000, "the team takedown knocks the client's hostage out on the host");
     await until(B, () => !window.__app.current.takedown.active, null, 4000, "the client's hold ends with him");
-    assert((await GA(() => window.__app.current.net.duals)) > d0, 'the team takedown counts as a dual (co-op) takedown');
+    assert((await GA(() => window.__app.current.net.duals)) === d0 + 1, 'the team takedown counts as a dual (co-op) takedown');
+    // (fix round 1) empty the client's HUD banner, so the dual step below proves its own banner reaches the client
+    await GB(() => { const b = document.querySelector('.hud-banner'); if (b) b.innerHTML = ''; });
   }
   // dual takedown: two players finishing takedowns together (clock cleared first: the client's takedowns above would else pair with the host's)
-  const k0 = await GA(() => { const g = window.__app.current; g.net['dualClock'].reset(); window.__duals = []; g.events.on('dualTakedown', (e) => window.__duals.push(e)); return g.style.knockouts; });
+  // (fix round 1) counts relative to here: the team takedown above is already one dual takedown
+  const { k0, nd0, sd0 } = await GA(() => { const g = window.__app.current; g.net['dualClock'].reset(); window.__duals = []; g.events.on('dualTakedown', (e) => window.__duals.push(e)); return { k0: g.style.knockouts, nd0: g.net.duals, sd0: g.style.duals }; });
   await GA(([a, b]) => { const n = window.__app.current.net; n['takedownDone'](a); n['takedownDone'](b); }, [hostId0, clientId]);
-  assert((await GA(() => window.__app.current.net.duals)) === 1, 'two takedowns together count as a dual takedown');
+  assert((await GA(() => window.__app.current.net.duals)) === nd0 + 1, 'two takedowns together count as a dual takedown');
   const dv = await GA(() => { const g = window.__app.current; const d = window.__duals; return { n: g.style.duals, k: g.style.knockouts, ev: d.length, a: d[0]?.a, b: d[0]?.b }; });
-  assert(dv.n === 1 && dv.ev === 1 && dv.a === hostId0 && dv.b === clientId, `the dual takedown is counted and evented for section-rating (${JSON.stringify(dv)} h=${hostId0} c=${clientId})`);
+  assert(dv.n === sd0 + 1 && dv.ev === 1 && dv.a === hostId0 && dv.b === clientId, `the dual takedown is counted and evented for section-rating (${JSON.stringify(dv)} h=${hostId0} c=${clientId})`);
   assert(dv.k === k0, `a dual takedown adds no knockout of its own (${k0} -> ${dv.k})`);
   await until(B, () => /DUAL TAKEDOWN/.test(document.querySelector('.hud')?.textContent ?? document.body.textContent), null, 4000, 'client sees the dual takedown');
   assert(true, 'the dual takedown banner reaches the client');
