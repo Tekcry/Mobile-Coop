@@ -11,6 +11,9 @@ import { bakeVisSampler, DOOR_SHUT, DOORS_PER_LAMP, DOORS_PER_LAMP_ACCURATE, lam
 import { TORCH_DRAW_GLSL, TORCH_DRAW_SLOTS, TORCH_DRAW_STRIDE } from './shadowAccuracy';
 import { LEVEL_FILL_GLSL as LF, type Rgb } from './levelFill';
 import { CHAR_SHADOW_GLSL, type CharShadowLamps, type CharShadowLink } from './charShadows';
+import type { TorchShadowLink } from './torchShadows';
+/** (LR16t) vec4 per drawn torch in `lampTorch`. */
+const TORCH_VEC4 = TORCH_DRAW_STRIDE / 4;
 
 export { bakedLights };
 
@@ -20,7 +23,7 @@ const LAMP_TEXELS = 8;
 /** Per door two texels after the capsules: hinge + width, (sin yaw, cos yaw, height, shut). (LR15) With 8 door slots per
  *  lamp (`DOORS_PER_LAMP_ACCURATE`, the shadow-accuracy fixes) one texel per lamp sits between the capsules and the doors: the
  *  lamp's doors 5-8 (ids + 1), at `capBase + MAX_CAPSULES * 2 + lamp`. */
-const DOOR_TEXELS = 2;
+export const DOOR_TEXELS = 2;
 
 export { LEVEL_TO_RENDER };
 
@@ -126,6 +129,9 @@ export class BakedLamps implements CharShadowLamps {
   /** (LR14) The character shadow maps of the nearest lamps (`world/charShadows.ts`; `World` sets it): their lamps
    *  shade characters from the atlas, the capsules only for what a map does not hold. */
   charShadows: CharShadowLink | null = null;
+  /** (LR16t) The guard torches' shadow atlas (`world/torchShadows.ts`; `World` sets it): with it on the torch loop
+   *  (`LAMP_TSHADOW`) shades every drawn torch from its map and its shut doors instead of the reach cut. */
+  torchShadows: TorchShadowLink | null = null;
   /** Texels per lamp (tests read the data texture). */
   readonly lampTexels = LAMP_TEXELS;
   /** Per baked lamp x, y, z, radius (`CharShadowLamps`). */
@@ -777,7 +783,7 @@ export class LampPlugin extends MaterialPluginBase {
     material: Material,
     private lamps: BakedLamps,
   ) {
-    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false, LAMP_LEVEL: false, LAMP_SKY: false, LAMP_CSHADOW: false, LAMP_DOORS8: false, LAMP_TORCH: false, LAMP_PAGES: false });
+    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false, LAMP_LEVEL: false, LAMP_SKY: false, LAMP_CSHADOW: false, LAMP_DOORS8: false, LAMP_TORCH: false, LAMP_TSHADOW: false, LAMP_PAGES: false });
     // (coop-fix) a clone must not carry it: Babylon rebuilds a cloned plugin by class name (`Tools.Instantiate`), which
     // fails for this unregistered class and aborted every figure loaded after the attach (the joiner's partner); the
     // clone is a new material, so `BakedLamps.frame` gives it its own plugin
@@ -815,12 +821,14 @@ export class LampPlugin extends MaterialPluginBase {
     defines.LAMP_DOORS8 = !!mesh && this.lamps.doorSlots > DOORS_PER_LAMP;
     // (LR15) the unshadowed flashlights drawn here (the per-lamp loop on PBR materials only)
     defines.LAMP_TORCH = !!mesh && !this.lamps.volume && !!this.lamps.torchDraw && !this.std;
+    // (LR16t) every drawn torch shadowed from one atlas (one texture more; the light rig's spot shadows go: net -1)
+    defines.LAMP_TSHADOW = !!mesh && !this.lamps.volume && !!this.lamps.torchDraw && !this.std && !!this.lamps.torchShadows?.on;
     // (lr-tex3d) a paged lamp atlas: each lamp's page offset from its t7.y
     defines.LAMP_PAGES = !!mesh && this.lamps.atlasPages > 1;
   }
 
   override getSamplers(samplers: string[]): void {
-    samplers.push('lampVis', 'lampData', 'lampVolA', 'lampVolB', 'lampMoon', 'lampAmb', 'lampSky', 'lampCsAtlas');
+    samplers.push('lampVis', 'lampData', 'lampVolA', 'lampVolB', 'lampMoon', 'lampAmb', 'lampSky', 'lampCsAtlas', 'lampTsAtlas');
   }
 
   override getUniforms(): { ubo?: { name: string; size: number; type: string; arraySize?: number }[]; fragment?: string } {
@@ -849,9 +857,13 @@ export class LampPlugin extends MaterialPluginBase {
         { name: 'lampCsP', size: 4, type: 'vec4', arraySize: 4 },
         { name: 'lampCsI', size: 4, type: 'vec4' },
         // (LR15) the drawn flashlights (`TORCH_DRAW_GLSL`)
-        { name: 'lampTorch', size: 4, type: 'vec4', arraySize: TORCH_DRAW_SLOTS * 3 },
+        { name: 'lampTorch', size: 4, type: 'vec4', arraySize: TORCH_DRAW_SLOTS * TORCH_VEC4 },
+        // (LR16t) the torch shadow atlas: per slot its view-projection, params, the atlas info (`torchShadows.ts`)
+        { name: 'lampTsM', size: 4, type: 'vec4', arraySize: 16 },
+        { name: 'lampTsP', size: 4, type: 'vec4', arraySize: 4 },
+        { name: 'lampTsI', size: 4, type: 'vec4' },
       ],
-      fragment: `#ifdef BAKED_LAMPS\nuniform vec4 lampInfo;\nuniform vec4 lampGridO;\nuniform vec4 lampAtlas;\nuniform vec4 lampVolO;\nuniform vec4 lampVolD;\nuniform vec4 lampCaps[${VOL_CAPS * 2}];\nuniform vec4 lampMore;\nuniform vec4 lampMoonO;\nuniform vec4 lampMoonN;\nuniform vec4 lampAmbO;\nuniform vec4 lampAmbN;\nuniform vec4 lampFillC;\nuniform vec4 lampDark;\nuniform vec4 lampDarkP;\nuniform vec4 lampSkyO;\nuniform vec4 lampSkyN;\nuniform vec4 lampLvlSky;\nuniform vec4 lampLvlGnd;\nuniform vec4 lampCsM[16];\nuniform vec4 lampCsP[4];\nuniform vec4 lampCsI;\nuniform vec4 lampTorch[${TORCH_DRAW_SLOTS * 3}];\n#endif`,
+      fragment: `#ifdef BAKED_LAMPS\nuniform vec4 lampInfo;\nuniform vec4 lampGridO;\nuniform vec4 lampAtlas;\nuniform vec4 lampVolO;\nuniform vec4 lampVolD;\nuniform vec4 lampCaps[${VOL_CAPS * 2}];\nuniform vec4 lampMore;\nuniform vec4 lampMoonO;\nuniform vec4 lampMoonN;\nuniform vec4 lampAmbO;\nuniform vec4 lampAmbN;\nuniform vec4 lampFillC;\nuniform vec4 lampDark;\nuniform vec4 lampDarkP;\nuniform vec4 lampSkyO;\nuniform vec4 lampSkyN;\nuniform vec4 lampLvlSky;\nuniform vec4 lampLvlGnd;\nuniform vec4 lampCsM[16];\nuniform vec4 lampCsP[4];\nuniform vec4 lampCsI;\nuniform vec4 lampTorch[${TORCH_DRAW_SLOTS * TORCH_VEC4}];\nuniform vec4 lampTsM[16];\nuniform vec4 lampTsP[4];\nuniform vec4 lampTsI;\n#endif`,
     };
   }
 
@@ -911,6 +923,14 @@ export class LampPlugin extends MaterialPluginBase {
     }
     // (LR15) the drawn flashlights
     if (l.torchDraw) ubo.updateFloatArray('lampTorch', l.torchDraw);
+    // (LR16t) their shadow atlas
+    const ts = l.torchShadows;
+    if (ts?.on && ts.atlas) {
+      ubo.updateFloatArray('lampTsM', ts.mats);
+      ubo.updateFloatArray('lampTsP', ts.params);
+      ubo.updateFloat4('lampTsI', ts.info[0]!, ts.info[1]!, ts.info[2]!, ts.info[3]!);
+      ubo.setTexture('lampTsAtlas', ts.atlas);
+    }
   }
 
   override getCustomCode(shaderType: string): { [pointName: string]: string } | null {
@@ -1130,7 +1150,7 @@ ${level('nsLampRaw')}
   // (LR15) the flashlights without a shadow map, drawn as the light field sums them x their beam's cut; like Babylon's
   // lights they join after the darkness curve. (lrpolish) x directIntensity / PI, as Babylon's lights scaled them: 1 on
   // the game's PI-intensity materials, 1 / PI on the levelBuilder glass (directIntensity 1)
-  nsDynD += nsTorches(vPositionW, normalW) * surfaceAlbedo.rgb * (vLightingIntensity.x * ${(1 / Math.PI).toFixed(7)});
+  nsDynD += nsTorches(vPositionW, normalW, normalize(vNormalW)) * surfaceAlbedo.rgb * (vLightingIntensity.x * ${(1 / Math.PI).toFixed(7)});
 #endif
   finalDiffuse = max(nsStat, vec3(0.0)) * nsR + nsDynD;
   finalAmbient *= nsR;

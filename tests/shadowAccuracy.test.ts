@@ -235,6 +235,20 @@ describe('exact torch drawing (LR15)', () => {
     expect(torchCut(l.reach!, l.reach!)).toBe(0);
   });
 
+  it('(LR16t) torchDrawTerm(cut = false): the field term past the reach, no ramp before it', () => {
+    const { l } = torch(3);
+    for (let x = 0.8; x < 9; x += 0.37) {
+      for (const [y, z] of [[1.2, 0], [0.4, 0.2]] as const) {
+        const exact = lampTerm(x - l.x, y - l.y, z - l.z, l.radius, l.cone!.dx, l.cone!.dy, l.cone!.dz, l.cone!.cosOuter, SPOT_EXP);
+        expect(torchDrawTerm(l, x, y, z, false)).toBe(exact > 0 ? exact : 0);
+        if (hyp3(x - l.x, y - l.y, z - l.z) >= l.reach!) expect(torchDrawTerm(l, x, y, z)).toBe(0);
+      }
+    }
+    // the default keeps the cut (the fallback path)
+    expect(torchDrawTerm(l, l.reach! + 1, 1.2, 0)).toBe(0);
+    expect(torchDrawTerm(l, l.reach! + 1, 1.2, 0, false)).toBeGreaterThan(0);
+  });
+
   it('the slot data: position + cut, axis + cos, colour x intensity x gain + radius; empty when off', () => {
     const { l } = torch(3);
     const buf = new Float32Array(TORCH_DRAW_SLOTS * TORCH_DRAW_STRIDE).fill(9);
@@ -245,6 +259,10 @@ describe('exact torch drawing (LR15)', () => {
     expect(buf[o + 8]).toBeCloseTo(TORCH.color[0] * TORCH.intensity * LIGHT_GAIN, 5);
     expect(buf[o + 11]).toBe(TORCH.radius);
     expect(buf[0]).toBe(9);
+    // (LR16t) stride 16: the 4th vec4 (the torch's shut doors) is the torch shadows' - a write leaves it, a clear zeros it
+    expect(TORCH_DRAW_STRIDE).toBe(16);
+    expect(Array.from(buf.subarray(o + 12, o + 16))).toEqual([9, 9, 9, 9]);
+    expect(buf[2 * TORCH_DRAW_STRIDE]).toBe(9);
     l.on = false;
     writeTorchDraw(buf, 1, l);
     expect(Array.from(buf.subarray(o, o + TORCH_DRAW_STRIDE))).toEqual(new Array(TORCH_DRAW_STRIDE).fill(0));

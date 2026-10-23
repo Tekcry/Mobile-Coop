@@ -48,6 +48,8 @@ import { skyGridFor, skyShapes } from './levelFill';
 import { flags } from '../core/flags';
 import { BakedLamps } from './bakedLamps';
 import { CharShadows } from './charShadows';
+import { TorchShadows } from './torchShadows';
+import { torchShadowSpec } from './torchShadowSet';
 import { bakeLevelLight, lightBakeHash, type LightBake } from './lightBake';
 import { LightField } from './lightField';
 import { moonLight } from './lampMath';
@@ -122,6 +124,8 @@ export class World {
   lamps: BakedLamps | null = null;
   /** (LR14) Character silhouette shadow maps from the nearest baked lamps (null without baked lamps). Rendering only. */
   charShadows: CharShadows | null = null;
+  /** (LR16t) Guard torch shadow maps, one atlas (null without baked lamps or drawn torches). Rendering only. */
+  torchShadows: TorchShadows | null = null;
   /** (LR14) The character casters (players, guards, bodies, weapons and gear: `addShadowCaster` without props). */
   readonly charCasters: AbstractMesh[] = [];
   private readonly charSet = new Set<AbstractMesh>();
@@ -266,6 +270,12 @@ export class World {
       w.lightRig.setBaked(w.lamps.ids);
       // (LR15, shadow-accuracy fixes on) the unshadowed flashlights drawn by the baked lamps
       w.lightRig.setTorchDraw(w.lamps.torchDraw);
+      // (LR16t) every drawn torch shadowed from one atlas, its shut doors tested exactly (configured in `applyQuality`)
+      if (w.lamps.torchDraw) {
+        const charSet = w.charSet;
+        w.torchShadows = new TorchShadows(scene, level.lights, w.lightRig, w.lamps.torchDraw, w.doors.list, (m) => charSet.has(m));
+        w.lamps.torchShadows = w.torchShadows;
+      }
       w.charShadows = new CharShadows(scene, w.lamps, w.charCasters);
       w.lamps.charShadows = w.charShadows;
       // (LR16-3) open door leaves and props (a pushed or carried crate) cast into the lamps' character shadow maps
@@ -565,6 +575,15 @@ export class World {
     const shadowKey = JSON.stringify(q.shadow);
     const shadowChanged = rebuildShadows || (this.shadowKey !== '' && shadowKey !== this.shadowKey);
     this.shadowKey = shadowKey;
+    // (LR16t) the torch shadow atlas, every tier (`q.minimal` none); before the rig, whose shadow pool then takes no
+    // flashlight (its spot shadow samplers go). The plugin's LAMP_TSHADOW define follows the on-state (`tsChanged`)
+    const tsWas = !!this.torchShadows?.on;
+    if (this.torchShadows) {
+      const ts = torchShadowSpec(q.features.shadows, !!q.minimal);
+      this.torchShadows.configure(ts.tile, ts.taps);
+    }
+    const tsChanged = !!this.torchShadows && this.torchShadows.on !== tsWas;
+    this.lightRig.setTorchShadows(!!this.torchShadows?.on);
     this.lightRig.configure({ lights: q.realLights, shadow: q.shadow, volumetric: q.features.volumetrics, minimal: q.minimal, micro: !!this.voxels?.micro }, rebuildShadows);
     // (LR14) the nearest lamps' character shadow maps (the shadow key above re-reads the materials' defines on a change).
     // Their atlas is one more texture in every lit shader: the voxel level's micro-detail shader (`?voxels=1`) is full
@@ -585,7 +604,7 @@ export class World {
     this.setSunShadows(q.shadow);
     // (frozen materials keep the shader built for the old shadow maps - a stale light setup draws with unbound
     // uniform buffers: let every one re-read its lights once, then freeze it again)
-    if (shadowChanged || csChanged) this.refreshMaterials();
+    if (shadowChanged || csChanged || tsChanged) this.refreshMaterials();
   }
 
   private shadowKey = '';
@@ -618,6 +637,7 @@ export class World {
   applyAdaptive(a: Readonly<Adaptive>, q: QualityLevel): void {
     this.lightRig.setAdaptive(a.lights, a.shadowEvery);
     this.charShadows?.setAdaptive(a.shadowEvery);
+    this.torchShadows?.setAdaptive(a.shadowEvery);
     const sm = this.shadow?.getShadowMap();
     if (sm) sm.refreshRate = a.shadowEvery;
     if (!q.minimal) {
@@ -703,6 +723,8 @@ export class World {
     this.updateSunCasters(dt, focus);
     if (cam) {
       this.lightRig.update(dt, cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);
+      // (LR16t) after the rig fills the torch slots: each slot's map follows its torch, its shut doors picked
+      this.torchShadows?.frame(cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);
       for (const v of this.voxelLayers) v.frame(dt, cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);
     }
     this.sun.position.copyFrom(focus).subtractInPlace(this.sun.direction.scale(40));
@@ -714,6 +736,7 @@ export class World {
     this.probe?.dispose();
     this.lightRig.dispose();
     this.charShadows?.dispose();
+    this.torchShadows?.dispose();
     this.lamps?.dispose();
     this.breakables.dispose();
     this.doors.dispose();

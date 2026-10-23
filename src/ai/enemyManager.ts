@@ -370,6 +370,8 @@ export class EnemyManager {
       cover: world.level.cover,
       coverSegments: world.level.coverSegments,
       rooms: world.layout.rooms ?? [],
+      // (LR16t) a target's light without its own sample: the flashlights tested against static geometry
+      lightOccluder: this.bodyOccluder,
       reserveCover: (e, idx) => {
         const o = this.coverOwner.get(idx);
         if (o && o !== e && o.alive) return false;
