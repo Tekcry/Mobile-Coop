@@ -2,15 +2,26 @@
 // PR) through the version step (G183): CHANGELOG from changes/ (scripts/changelog-assemble.mjs), `npm version`, CI on
 // that exact commit, and only on a green run the merge, the tag and the dev pointer. It replaces the orchestrator's
 // hand-run "Merge procedure" (docs/orchestrator/STATE.md on feature/menu).
+// `build` does the slow work once, in order: merge the members, checkout + push train/<n>, open the train PR, bump
+// PROTOCOL_VERSION to master+1 when a member touches the wire (src/net and what protocol.ts imports), make the version
+// commit (CHANGELOG heading with the PR number), run vitest under the heavy lock, push (CI starts beside the laptop
+// run). `release` then only checks, waits for green CI on that head, merges, tags and moves dev. A train built by the
+// older script (no version commit) is still released the old way (merge master, version commit, push, CI, merge).
 // Conflicts: CHANGELOG.md and changes/* are resolved (both sides kept, incoming block first, never a block dropped);
 // any other conflicting file leaves that branch out (build) or stops the run (release / single, exit 3).
 // The merges are computed on git objects (`git merge-tree`, `git commit-tree`), so --dry-run moves no ref, worktree
 // or remote (it only fetches) and prints what a real run would do.
 // Usage:
-//   node scripts/merge-train.mjs build <n> <branch>... [--dry-run]
-//   node scripts/merge-train.mjs release <n> <version> "<title>" [--dry-run]
+//   node scripts/merge-train.mjs build <n> <version> "<title>" <branch>... [--keep] [--no-test] [--dry-run]
+//   node scripts/merge-train.mjs release <n> <version> "<title>" [--resume] [--dry-run]
 //   node scripts/merge-train.mjs single <branch> <version> "<title>" [--dry-run]
-// Exit: 0 built / merged (or dry run done), 1 usage or other error, 2 CI failed (nothing merged), 3 conflict stop.
+// --keep: build on origin/train/<n> (conflicts fixed by hand there) instead of origin/master. --no-test: skip vitest.
+// --resume: release a train with fix commits after its version commit (package.json at the head must still be
+// <version>, no new changes/*.md). HEAVY_LOCK env: the lock file (default C:/NightShift/heavy.lock).
+// Exit: 0 built / merged (or dry run done), 1 usage or other error (also: --keep over a version commit, a fix commit
+// without --resume, release of an already merged train), 2 vitest failed on build or CI failed on release / single
+// (nothing merged; a failed build still pushes so a fix can go on train/<n>), 3 conflict stop (build with no member
+// merged; release when master moved since build).
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -74,6 +85,112 @@ export function membersFromLog(subjects) {
     if (m && m[1] !== 'master' && !out.includes(m[1])) out.push(m[1]);
   }
   return out;
+}
+
+/** The subject of a train's version commit (G183); `release` finds the commit by it. */
+export const versionSubject = (n, version) => `${version}: version at merge, train ${n} (G183)`;
+
+/** Index of the version commit in first-parent subjects (newest first, 0 = the head), or -1 when absent. */
+export function findVersionCommit(subjects, n, version) {
+  const want = versionSubject(n, version);
+  return subjects.findIndex((s) => s.trim() === want);
+}
+
+/**
+ * What `release` does with a version commit at `idx` of the first-parent subjects (newest first): at the head it is
+ * fine; fix commits after it (idx > 0) need --resume. { ok, after: [subjects after it], message }.
+ */
+export function resumeCheck(subjects, idx, resume) {
+  if (idx < 0) return { ok: false, after: [], message: 'no version commit on the train: build it first' };
+  const after = subjects.slice(0, idx);
+  if (!after.length) return { ok: true, after, message: '' };
+  if (!resume) {
+    return { ok: false, after, message: `${after.length} commit(s) after the version commit (${after.join(' | ')}); rerun with --resume to release them, or rebuild` };
+  }
+  return { ok: true, after, message: `resume: ${after.length} commit(s) after the version commit: ${after.join(' | ')}` };
+}
+
+/** Paths of the wire: `src/net/` plus every `../x/y` import of protocol.ts as `src/x/y.ts` (a trailing "/" is a folder). */
+export function wirePaths(protocolTs) {
+  const out = ['src/net/'];
+  for (const m of protocolTs.matchAll(/\bfrom\s+'\.\.\/([^']+)'/g)) {
+    const p = `src/${m[1]}.ts`;
+    if (!out.includes(p)) out.push(p);
+  }
+  return out;
+}
+
+/** True when any changed file is a wire path. */
+export function touchesWire(files, paths) {
+  return files.some((f) => paths.some((p) => (p.endsWith('/') ? f.startsWith(p) : f === p)));
+}
+
+const PROTOCOL_LINE = /^export const PROTOCOL_VERSION = (\d+);/m;
+
+/** The PROTOCOL_VERSION number in protocol.ts text; throws when the line is missing. */
+export function protocolValue(text) {
+  const m = PROTOCOL_LINE.exec(text);
+  if (!m) throw new Error('src/net/protocol.ts has no "export const PROTOCOL_VERSION = <n>;" line');
+  return Number(m[1]);
+}
+
+/** protocol.ts text with PROTOCOL_VERSION set to masterValue + 1 (always master+1, whatever the head holds). */
+export function bumpProtocol(text, masterValue) {
+  protocolValue(text);
+  return text.replace(PROTOCOL_LINE, `export const PROTOCOL_VERSION = ${masterValue + 1};`);
+}
+
+/** The last `count` lines of command output. */
+export const tailLines = (out, count) => out.trimEnd().split('\n').slice(-count).join('\n');
+
+/** The vitest run's verdict from its exit status (-1 = timeout / killed) and output: { ok, kind, tail }. */
+export function vitestVerdict(status, out) {
+  const tail = tailLines(out ?? '', 60);
+  if (status === 0) return { ok: true, kind: 'pass', tail };
+  return { ok: false, kind: status === -1 ? 'timeout' : 'fail', tail };
+}
+
+/** True when the heavy lock's text names merge-train (so merge-train may remove it). */
+export const lockIsOurs = (text) => /^merge-train\s*\|/.test(text.trim());
+
+const USAGE = [
+  'usage:',
+  '  node scripts/merge-train.mjs build <n> <version> "<title>" <branch>... [--keep] [--no-test] [--dry-run]',
+  '  node scripts/merge-train.mjs release <n> <version> "<title>" [--resume] [--dry-run]',
+  '  node scripts/merge-train.mjs single <branch> <version> "<title>" [--dry-run]',
+].join('\n');
+
+/** argv (after `node script`) -> { cmd, ...fields, dry }; throws an Error carrying the usage text. */
+export function parseArgs(argv) {
+  const FLAGS = ['--dry-run', '--keep', '--no-test', '--resume'];
+  const unknown = argv.find((x) => x.startsWith('--') && !FLAGS.includes(x));
+  const bad = (why) => new Error(`${why}\n${USAGE}`);
+  if (unknown) throw bad(`unknown flag ${unknown}`);
+  const has = (f) => argv.includes(f);
+  const [cmd, ...a] = argv.filter((x) => !FLAGS.includes(x));
+  const ver = (v) => { if (!/^\d+\.\d+\.\d+$/.test(v ?? '')) throw bad(`version must be X.Y.Z, got "${v}"`); return v; };
+  const only = (...ok) => { for (const f of FLAGS.slice(1)) if (has(f) && !ok.includes(f)) throw bad(`${f} does not apply to ${cmd}`); };
+  const dry = has('--dry-run');
+  if (cmd === 'build') {
+    only('--keep', '--no-test');
+    if (!/^\d+$/.test(a[0] ?? '')) throw bad('build needs a train number');
+    if (!a[2]) throw bad('build needs <version> "<title>"');
+    if (a.length < 4) throw bad('build needs at least one branch');
+    return { cmd, n: a[0], version: ver(a[1]), title: a[2], branches: a.slice(3), keep: has('--keep'), noTest: has('--no-test'), dry };
+  }
+  if (cmd === 'release') {
+    only('--resume');
+    if (!/^\d+$/.test(a[0] ?? '') || !a[2]) throw bad('release needs <n> <version> "<title>"');
+    if (a.length > 3) throw bad(`unexpected argument "${a[3]}"`);
+    return { cmd, n: a[0], version: ver(a[1]), title: a[2], resume: has('--resume'), dry };
+  }
+  if (cmd === 'single') {
+    only();
+    if (!a[0] || !a[2]) throw bad('single needs <branch> <version> "<title>"');
+    if (a.length > 3) throw bad(`unexpected argument "${a[3]}"`);
+    return { cmd, branch: a[0], version: ver(a[1]), title: a[2], dry };
+  }
+  throw bad(cmd ? `unknown command "${cmd}"` : 'no command');
 }
 
 // ---- shell helpers ----------------------------------------------------------------------------------------------
@@ -161,31 +278,6 @@ function mergeMaster(head, label) {
   return null;
 }
 
-// ---- commands -----------------------------------------------------------------------------------------------------
-
-function build(n, branches) {
-  requireClean();
-  run(['git', 'fetch', 'origin']);
-  let head = rev('origin/master');
-  const included = [], left = [];
-  for (const b of branches) {
-    console.log(`merging origin/${b}`);
-    if (!exists(`origin/${b}`)) { left.push({ b, why: 'no such branch on origin' }); continue; }
-    if (isAncestor(`origin/${b}`, head)) { console.log('  already in (nothing to merge)'); continue; }
-    const m = mergeObjects(head, rev(`origin/${b}`), `Merge origin/${b} into train/${n}`);
-    if (m.blocking) { left.push({ b, why: `conflicts in ${m.blocking.join(', ')}` }); console.log(`  LEFT OUT: ${m.blocking.join(', ')}`); continue; }
-    head = m.sha; included.push(b);
-  }
-  if (included.length) {
-    act(['git', 'checkout', '-B', `train/${n}`, head]);
-    act(['git', 'push', '--force', 'origin', `train/${n}`]);
-  }
-  console.log(`\ntrain/${n} head: ${head}${DRY ? ' (dry run: an unreferenced commit)' : ''}`);
-  console.log(`members: ${included.join(', ') || '(none)'}`);
-  for (const l of left) console.log(`LEFT OUT: ${l.b} - ${l.why}`);
-  return included.length ? 0 : 3;
-}
-
 /** The changelog assembly a real run would write at `sha`, read from git objects (dry runs). */
 function assembleAt(sha, opts) {
   const ls = exec(['git', 'ls-tree', '--name-only', `${sha}:changes`]);
@@ -218,16 +310,16 @@ async function waitCi(branch, sha) {
   return true;
 }
 
-/** The shared tail of release / single: changelog, version commit, push, CI, then merge, tag and dev. */
-async function finish({ branch, head, checkout, version, title, pr, members, subject }) {
+/** The shared version step of build / release (old style) / single: changelog, `npm version`, add, commit, optional push. */
+function versionCommit({ branch, head, checkout, version, title, pr, members, subject, push = true, extraAdd = [] }) {
   const opts = { version, title, date: today(), pr: pr ?? 'NEW', members };
   const heading = releaseHeading(opts.version, opts.title, opts.date, opts.pr, members);
-  act(checkout);
+  if (checkout) act(checkout);
   if (DRY) {
     const r = assembleAt(head, opts);
-    if (!r) { console.error('STOP (a real run fails here): nothing to assemble'); return 1; }
+    if (!r) { console.error('STOP (a real run fails here): nothing to assemble'); return { code: 1 }; }
     console.log(summary(r, `CHANGELOG.md would get: ${heading}`));
-    if (!r.text) { console.error('STOP (a real run fails here): nothing new to release'); return 1; }
+    if (!r.text) { console.error('STOP (a real run fails here): nothing new to release'); return { code: 1 }; }
   } else {
     const r = assembleDir(run(['git', 'rev-parse', '--show-toplevel']), opts);
     if (!r) throw new Error('nothing to assemble: no changes/*.md fragment and no "## Unreleased - ..." block');
@@ -235,49 +327,244 @@ async function finish({ branch, head, checkout, version, title, pr, members, sub
     if (!r.text) throw new Error('nothing new to release: every fragment entry is already in CHANGELOG.md');
   }
   act(`npm version ${version} --no-git-tag-version`);
-  act(['git', 'add', '-A', 'CHANGELOG.md', 'changes', 'package.json', 'package-lock.json']);
+  act(['git', 'add', '-A', 'CHANGELOG.md', 'changes', 'package.json', 'package-lock.json', ...extraAdd]);
   act(['git', 'commit', '-m', subject, '-m', TRAILER]);
-  act(['git', 'push', 'origin', `HEAD:refs/heads/${branch}`]);
+  if (push) act(['git', 'push', 'origin', `HEAD:refs/heads/${branch}`]);
+  return { sha: DRY ? null : rev('HEAD') };
+}
+
+/** The shared tail of release / single: merge the PR, tag the merge commit, move dev. Returns the merge commit (null in a dry run). */
+function mergeAndTag({ pr, version }) {
+  act(['gh', 'pr', 'merge', String(pr ?? 'NEW'), '--merge']);
   if (DRY) {
-    console.log(`  [dry-run] would wait for CI on that commit (gh run list --branch ${branch}, gh run watch --exit-status)`);
-    for (const c of [['gh', 'pr', 'merge', String(pr ?? 'NEW'), '--merge'], ['git', 'tag', `v${version}`, '<merge commit>'],
-      ['git', 'push', 'origin', `v${version}`], ['git', 'push', 'origin', '<merge commit>:refs/heads/dev']]) act(c);
-    return 0;
+    for (const c of [['git', 'tag', `v${version}`, '<merge commit>'], ['git', 'push', 'origin', `v${version}`],
+      ['git', 'push', 'origin', '<merge commit>:refs/heads/dev']]) act(c);
+    return null;
   }
-  const sha = rev('HEAD');
-  if (!(await waitCi(branch, sha))) { console.error(`NOT merged: CI failed on ${sha}`); return 2; }
-  act(['gh', 'pr', 'merge', String(pr), '--merge']);
   const merge = run(['gh', 'pr', 'view', String(pr), '--json', 'mergeCommit', '--jq', '.mergeCommit.oid']);
   run(['git', 'fetch', 'origin']);
   act(['git', 'tag', `v${version}`, merge]);
   act(['git', 'push', 'origin', `v${version}`]);
   act(['git', 'push', 'origin', `${merge}:refs/heads/dev`]);
   console.log(`\nMERGED #${pr} as ${merge}, tagged v${version}, dev moved`);
+  return merge;
+}
+
+/** CI on commit `sha` of `branch`, then mergeAndTag: 0 merged, 2 CI failed (nothing merged). */
+async function ciAndMerge({ branch, sha, pr, version }) {
+  if (DRY) console.log(`  [dry-run] would wait for CI on ${sha ? sha.slice(0, 8) : 'that commit'} (gh run list --branch ${branch}, gh run watch --exit-status)`);
+  else if (!(await waitCi(branch, sha))) { console.error(`NOT merged: CI failed on ${sha}`); return 2; }
+  mergeAndTag({ pr, version });
   return 0;
 }
 
-async function release(n, version, title) {
+// ---- the heavy lock and the vitest run (item 3) -------------------------------------------------------------------
+
+/** Takes the lock atomically (`wx`), retrying every `retryMs` up to `maxMs`; throws when it stays held. */
+export async function takeHeavyLock(lock, text, { retryMs = 30_000, maxMs = 30 * 60_000, sleepFn = sleep } = {}) {
+  const t0 = Date.now();
+  for (;;) {
+    try { fs.writeFileSync(lock, text, { flag: 'wx' }); return; } catch (e) {
+      if (e?.code !== 'EEXIST') throw e;
+    }
+    const holder = (() => { try { return fs.readFileSync(lock, 'utf8').trim(); } catch { return '?'; } })();
+    if (Date.now() - t0 >= maxMs) throw new Error(`${lock} stayed held (${holder}) for ${Math.round(maxMs / 60_000)} min`);
+    console.log(`  heavy lock held (${holder}); retrying in ${Math.round(retryMs / 1000)} s`);
+    await sleepFn(retryMs);
+  }
+}
+
+/** Removes the lock only while it names merge-train; true when removed. */
+export function releaseHeavyLock(lock) {
+  try {
+    if (!lockIsOurs(fs.readFileSync(lock, 'utf8'))) return false;
+    fs.rmSync(lock, { force: true });
+    return true;
+  } catch { return false; }
+}
+
+/** Runs the whole vitest suite on the checked-out train head under the heavy lock: { ok, message }. */
+async function runVitest(n, head, prev) {
+  const lock = process.env.HEAVY_LOCK || 'C:/NightShift/heavy.lock';
+  if (DRY) {
+    console.log('  [dry-run] would run npm ci when package-lock.json differs from the previous HEAD or node_modules is missing');
+    console.log(`  [dry-run] would take ${lock} (wx, retry 30 s up to 30 min), run npx vitest run (20 min timeout), release it`);
+    return { ok: true, message: '' };
+  }
+  const root = run(['git', 'rev-parse', '--show-toplevel']);
+  const lockChanged = prev && run(['git', 'diff', '--name-only', prev, head, '--', 'package-lock.json']);
+  if (lockChanged || !fs.existsSync(path.join(root, 'node_modules'))) act('npm ci', { timeout: 15 * 60_000 });
+  let taken = false;
+  try {
+    if (fs.existsSync(path.dirname(lock))) {
+      await takeHeavyLock(lock, `merge-train | train ${n} | ${new Date().toISOString()}`);
+      taken = true;
+    } else console.log(`  no heavy lock folder (${path.dirname(lock)}): running without it`);
+    console.log('  > npx vitest run');
+    const r = exec('npx vitest run', { timeout: 20 * 60_000 });
+    const v = vitestVerdict(r.status, `${r.out}\n${r.err}`);
+    if (v.ok) { console.log('vitest passed'); return { ok: true, message: '' }; }
+    console.error(`vitest ${v.kind === 'timeout' ? 'TIMED OUT or was killed' : 'failed'}; last lines:\n${v.tail}`);
+    return { ok: false, message: `vitest FAILED on ${head.slice(0, 8)}: fix on train/${n} then release --resume, or drop the member and rebuild` };
+  } catch (e) {
+    return { ok: false, message: `vitest NOT run on ${head.slice(0, 8)} (${e.message}): run it by hand, fix on train/${n}, then release --resume` };
+  } finally { if (taken) releaseHeavyLock(lock); }
+}
+
+// ---- commands -----------------------------------------------------------------------------------------------------
+
+/** First-parent subjects of `origin/master..head`, newest first (the version commit sits at the head of a built train). */
+function firstParentSubjects(head) {
+  const out = run(['git', 'log', '--first-parent', '--format=%s', `origin/master..${head}`]);
+  return out ? out.split('\n') : [];
+}
+
+/** The train's members (merge order) with their open PRs, printed. */
+function trainMembers(head) {
+  const subjects = run(['git', 'log', '--first-parent', '--merges', '--reverse', '--format=%s', `origin/master..${head}`]).split('\n');
+  const members = membersFromLog(subjects).map((b) => ({ branch: b, pr: openPr(b) }));
+  for (const m of members) console.log(`member ${m.branch}: ${m.pr ? `#${m.pr}` : 'no open PR'}`);
+  return members;
+}
+
+/** The train PR number: the open one, or a new one (null in a dry run). */
+function ensurePr(n, version, title, members) {
+  const branch = `train/${n}`;
+  const pr = openPr(branch);
+  if (pr) { console.log(`train PR: #${pr}`); return pr; }
+  const url = act(['gh', 'pr', 'create', '--base', 'master', '--head', branch, '--title', trainPrTitle(n, version, title),
+    '--body', trainPrBody(n, title, members)]);
+  return url ? Number(url.split('/').pop()) : null;
+}
+
+/** The wire decision: members whose diff against master touches a wire path -> the protocol.ts text with master+1, else null. */
+function planWire(kept, head) {
+  const protoAt = (ref) => run(['git', 'show', `${ref}:src/net/protocol.ts`], { raw: true });
+  const atHead = protoAt(head);
+  const paths = wirePaths(atHead);
+  const wire = [];
+  for (const b of kept) {
+    const mb = exec(['git', 'merge-base', 'origin/master', `origin/${b}`]);
+    if (mb.status !== 0) continue;
+    const files = run(['git', 'diff', '--name-only', mb.out.trim(), `origin/${b}`]).split('\n').filter(Boolean);
+    if (touchesWire(files, paths)) wire.push(b);
+  }
+  const master = protocolValue(protoAt('origin/master'));
+  if (!wire.length) { console.log(`PROTOCOL_VERSION ${master}: unchanged (no member touches the wire)`); return null; }
+  const text = bumpProtocol(atHead, master);
+  if (text === atHead) { console.log(`PROTOCOL_VERSION already ${master + 1} at the train head (wire: ${wire.join(', ')})`); return null; }
+  console.log(`PROTOCOL_VERSION ${master} -> ${master + 1} (wire: ${wire.join(', ')})`);
+  return text;
+}
+
+async function build({ n, version, title, branches, keep, noTest }) {
+  requireClean();
+  run(['git', 'fetch', 'origin']);
+  const branch = `train/${n}`;
+  const prev = DRY ? null : rev('HEAD');
+  let head;
+  if (keep) {
+    if (!exists(`origin/${branch}`)) throw new Error(`--keep: origin/${branch} does not exist`);
+    head = rev(`origin/${branch}`);
+    if (findVersionCommit(firstParentSubjects(head), n, version) >= 0) {
+      console.error(`STOP: origin/${branch} already holds the version commit for ${version}; rebuild without --keep`);
+      return 1;
+    }
+    console.log(`--keep: starting from origin/${branch} (${head.slice(0, 8)}), not origin/master`);
+    if (!isAncestor('origin/master', head)) console.warn('WARNING: origin/master is not in that head; release will STOP (exit 3) until the train is rebuilt');
+  } else head = rev('origin/master');
+  const included = [], kept = [], left = [];
+  for (const b of branches) {
+    console.log(`merging origin/${b}`);
+    if (!exists(`origin/${b}`)) { left.push({ b, why: 'no such branch on origin' }); continue; }
+    if (isAncestor(`origin/${b}`, head)) { console.log('  already in (nothing to merge)'); kept.push(b); continue; }
+    const m = mergeObjects(head, rev(`origin/${b}`), `Merge origin/${b} into train/${n}`);
+    if (m.blocking) { left.push({ b, why: `conflicts in ${m.blocking.join(', ')}` }); console.log(`  LEFT OUT: ${m.blocking.join(', ')}`); continue; }
+    head = m.sha; included.push(b); kept.push(b);
+  }
+  if (!included.length && !keep) {
+    console.log(`\ntrain/${n} head: ${head}${DRY ? ' (dry run: an unreferenced commit)' : ''}`);
+    console.log('members: (none)');
+    for (const l of left) console.log(`LEFT OUT: ${l.b} - ${l.why}`);
+    return 3;
+  }
+  act(['git', 'checkout', '-B', branch, head]);
+  act(keep ? ['git', 'push', 'origin', branch] : ['git', 'push', '--force', 'origin', branch]);
+  const members = trainMembers(head);
+  const pr = ensurePr(n, version, title, members);
+  const protocol = planWire(kept, head);
+  if (protocol && DRY) console.log('  [dry-run] would write src/net/protocol.ts and add it to the version commit');
+  else if (protocol) fs.writeFileSync(path.join(run(['git', 'rev-parse', '--show-toplevel']), 'src/net/protocol.ts'), protocol);
+  const v = versionCommit({ branch, head, checkout: null, version, title: `Train ${n}: ${title}`, pr,
+    members: members.filter((m) => m.pr).map((m) => m.pr), subject: versionSubject(n, version), push: false,
+    extraAdd: protocol ? ['src/net/protocol.ts'] : [] });
+  if (v.code) return v.code;
+  const sha = v.sha ?? head;
+  let verdict = { ok: true, message: '' };
+  if (noTest) console.log('--no-test: vitest skipped');
+  else verdict = await runVitest(n, sha, prev);
+  act(['git', 'push', 'origin', branch]);
+  console.log(`\ntrain/${n} head: ${DRY ? `${head} (dry run: an unreferenced commit; the version commit would sit on it)` : sha}`);
+  console.log(`members: ${kept.join(', ') || '(none)'}${pr ? ` | train PR #${pr}` : ''}`);
+  for (const l of left) console.log(`LEFT OUT: ${l.b} - ${l.why}`);
+  if (!verdict.ok) { console.error(`\n${verdict.message}`); return 2; }
+  console.log(`\nnext: node scripts/merge-train.mjs release ${n} ${version} ${JSON.stringify(title)}`);
+  return 0;
+}
+
+/** The package.json version at `ref`. */
+function versionAt(ref) {
+  return JSON.parse(run(['git', 'show', `${ref}:package.json`], { raw: true })).version;
+}
+
+/** Old-style train (no version commit on it): merge master into it, then the version commit, push, CI, merge. */
+async function releaseOld(n, version, title, head0) {
+  const branch = `train/${n}`;
+  console.log(`origin/${branch} has no version commit for ${version}: old-style release (merge master, version commit, CI, merge)`);
+  const head = mergeMaster(head0, branch);
+  if (!head) return 3;
+  const members = trainMembers(head);
+  const pr = ensurePr(n, version, title, members);
+  const v = versionCommit({ branch, head, checkout: ['git', 'checkout', '-B', branch, head], version, title: `Train ${n}: ${title}`, pr,
+    members: members.filter((m) => m.pr).map((m) => m.pr), subject: versionSubject(n, version) });
+  if (v.code) return v.code;
+  return ciAndMerge({ branch, sha: v.sha, pr, version });
+}
+
+async function release({ n, version, title, resume }) {
   requireClean();
   run(['git', 'fetch', 'origin']);
   const branch = `train/${n}`;
   if (!exists(`origin/${branch}`)) throw new Error(`origin/${branch} does not exist (run build first)`);
-  const head = mergeMaster(rev(`origin/${branch}`), branch);
-  if (!head) return 3;
-  const subjects = run(['git', 'log', '--first-parent', '--merges', '--reverse', '--format=%s', `origin/master..${head}`]).split('\n');
-  const members = membersFromLog(subjects).map((b) => ({ branch: b, pr: openPr(b) }));
-  for (const m of members) console.log(`member ${m.branch}: ${m.pr ? `#${m.pr}` : 'no open PR'}`);
-  let pr = openPr(branch);
-  if (pr) console.log(`train PR: #${pr}`);
-  else {
-    const url = act(['gh', 'pr', 'create', '--base', 'master', '--head', branch, '--title', trainPrTitle(n, version, title),
-      '--body', trainPrBody(n, title, members)]);
-    pr = url ? Number(url.split('/').pop()) : null;
+  const head = rev(`origin/${branch}`);
+  if (isAncestor(head, 'origin/master')) { console.error(`STOP: origin/${branch} is already merged into origin/master`); return 1; }
+  const subjects = firstParentSubjects(head);
+  const idx = findVersionCommit(subjects, n, version);
+  if (idx < 0) {
+    if (resume) { console.error(`STOP: --resume, but origin/${branch} holds no version commit for ${version} (build it first)`); return 1; }
+    return releaseOld(n, version, title, head);
   }
-  return finish({ branch, head, checkout: ['git', 'checkout', '-B', branch, head], version, title: `Train ${n}: ${title}`, pr,
-    members: members.filter((m) => m.pr).map((m) => m.pr), subject: `${version}: version at merge, train ${n} (G183)` });
+  if (!isAncestor('origin/master', head)) {
+    console.error(`STOP: master moved since build: rebuild with the next version (origin/master is not in origin/${branch})`);
+    return 3;
+  }
+  const check = resumeCheck(subjects, idx, resume);
+  if (!check.ok) { console.error(`STOP: ${check.message}`); return 1; }
+  if (check.message) console.log(check.message);
+  const at = versionAt(head);
+  if (at !== version) { console.error(`STOP: package.json is ${at} at ${head.slice(0, 8)}, expected ${version}; rebuild`); return 1; }
+  if (idx > 0) {
+    const added = run(['git', 'diff', '--name-only', '--diff-filter=A', `${head}~${idx}`, head, '--', 'changes'])
+      .split('\n').filter((f) => f.endsWith('.md') && !/(^|\/)readme\.md$/i.test(f));
+    if (added.length) { console.error(`STOP: changes added after the version commit (${added.join(', ')}); rebuild`); return 1; }
+  }
+  console.log(`origin/${branch} ${head.slice(0, 8)}: version commit ${idx ? `at ~${idx}` : 'at the head'}, package.json ${at}, master is in`);
+  const members = trainMembers(head);
+  const pr = ensurePr(n, version, title, members);
+  return ciAndMerge({ branch, sha: head, pr, version });
 }
 
-async function single(branch, version, title) {
+async function single({ branch, version, title }) {
   requireClean();
   run(['git', 'fetch', 'origin']);
   if (!exists(`origin/${branch}`)) throw new Error(`origin/${branch} does not exist`);
@@ -286,19 +573,18 @@ async function single(branch, version, title) {
   const head = mergeMaster(rev(`origin/${branch}`), branch);
   if (!head) return 3;
   console.log(`PR #${pr} (${branch})`);
-  return finish({ branch, head, checkout: ['git', 'checkout', '--detach', head], version, title, pr, members: [],
+  const v = versionCommit({ branch, head, checkout: ['git', 'checkout', '--detach', head], version, title, pr, members: [],
     subject: `${version}: version at merge (G183)` });
+  if (v.code) return v.code;
+  return ciAndMerge({ branch, sha: v.sha, pr, version });
 }
 
 async function main(argv) {
-  const [cmd, ...a] = argv.filter((x) => x !== '--dry-run');
-  const ver = (v) => { if (!/^\d+\.\d+\.\d+$/.test(v ?? '')) throw new Error(`version must be X.Y.Z, got "${v}"`); return v; };
+  const args = parseArgs(argv);
   if (DRY) console.log('DRY RUN: nothing is pushed, merged, tagged or checked out\n');
-  if (cmd === 'build' && /^\d+$/.test(a[0] ?? '') && a.length > 1) return build(a[0], a.slice(1));
-  if (cmd === 'release' && /^\d+$/.test(a[0] ?? '') && a[2]) return release(a[0], ver(a[1]), a[2]);
-  if (cmd === 'single' && a[0] && a[2]) return single(a[0], ver(a[1]), a[2]);
-  console.error('usage: node scripts/merge-train.mjs build <n> <branch>... | release <n> <version> "<title>" | single <branch> <version> "<title>" [--dry-run]');
-  return 1;
+  if (args.cmd === 'build') return build(args);
+  if (args.cmd === 'release') return release(args);
+  return single(args);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
