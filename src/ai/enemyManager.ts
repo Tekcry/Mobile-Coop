@@ -107,9 +107,11 @@ export const TACTICS = {
 const FLOW_CELL = 0.5;
 const FLOW_MIN = 0.5;
 /** (guard-ai S25) A search plan is rebuilt round a last known position that moved more than this (m); the cover a plan
- *  reads at most (one `coverGrid.query`), and its candidates (that cover plus the lattice, at most 21 x 21). */
+ *  reads at most (one `coverGrid.queryNearest`), and its candidates (that cover plus the lattice, at most 21 x 21).
+ *  (S25b fix, check B1) 1024 holds every cover point within `SEARCH_AREA.max` on the densest map (Sector Ops campus:
+ *  913 at 20 m, all storeys); past it the nearest are kept, so no side of the area is ever dropped. */
 const PLAN_MOVE = 1;
-const PLAN_COVER = 128;
+const PLAN_COVER = 1024;
 const PLAN_LATTICE = 2 * Math.floor(SEARCH_AREA.max / SEARCH_AREA.lattice) + 1;
 const PLAN_CAND = PLAN_COVER + PLAN_LATTICE * PLAN_LATTICE;
 
@@ -173,7 +175,7 @@ export class EnemyManager {
   // ---- (guard-ai S25, A151) the probable-area search after combat ----
   /** One search plan per intruder slot (made once): the cover spots and dark cells his searchers check, each claimed
    *  by one of them (`buildPlan`, `AiContext.searchPoint` / `searchDone`). */
-  readonly plans: readonly SearchPlan[] = [new SearchPlan(), new SearchPlan(), new SearchPlan(), new SearchPlan()];
+  readonly plans: readonly SearchPlan[] = Array.from({ length: MAX_INTRUDERS }, () => new SearchPlan());
   /** Each plan's area radius R when it was built (m; `take` weighs distance by it). */
   private readonly planR = new Float32Array(MAX_INTRUDERS);
   /** The clock the plans' ages are read on (s, the manager's updates). */
@@ -181,6 +183,7 @@ export class EnemyManager {
   /** `buildPlan` scratch (made once): the cover query, the candidates and their order, the searched points kept over a
    *  rebuild. */
   private readonly planCover = new Int32Array(PLAN_COVER);
+  private readonly planCoverD = new Float64Array(PLAN_COVER);
   private readonly candX = new Float32Array(PLAN_CAND);
   private readonly candZ = new Float32Array(PLAN_CAND);
   private readonly candS = new Float64Array(PLAN_CAND);
@@ -744,7 +747,9 @@ export class EnemyManager {
     this.alarmBy = p ? 'panel' : 'radio';
     // (guard-ai S24) the reinforcements hunt the intruder of the guard who raised it; (S24 fix) he has none: the one the
     // last contact call that got through named (command heard it), else none until one does (`sink.completed`)
-    this.alarmHunt = e.hunt >= 0 ? e.hunt : this.contactHunt;
+    // (S25b, S24 recheck A polish 1) the contact's intruder only while he is still known (not forgotten since)
+    const ch = this.contactHunt;
+    this.alarmHunt = e.hunt >= 0 ? e.hunt : ch >= 0 && ch < MAX_INTRUDERS && this.intruders.valid[ch] === 1 ? ch : -1;
     this.alarmRunner = null;
     this.command.raised();
     this.onAlarm?.(e, p);
@@ -1716,6 +1721,7 @@ export class EnemyManager {
     this.lastFault.clear();
     // (guard-ai S22) nor of a console off
     this.consoles.clear();
+    // (guard-ai S25b) the search plans went with `despawnAll` -> `clear` (S25b check A polish 4: tested)
   }
 
   spawn(kind: EnemyKind, pos: Vector3, alerted = true, yaw = 0): Enemy | null {
@@ -2711,6 +2717,9 @@ export class EnemyManager {
     this.buildPlan(s);
     const p = this.plans[s]!;
     if (p.builtAt < 0) return false;
+    // (S25b fix, check A polish 1) only a plan round his current last known position: a plan not rebuilt yet (his chase
+    // field still round the old position) is an old search's, so the ring round the new one until it is
+    if (hyp2(p.cx - this.intruders.x[s]!, p.cz - this.intruders.z[s]!) > PLAN_MOVE) return false;
     const k = p.take(e.num, e.pos.x, e.pos.z, this.planR[s]!);
     if (k < 0) return false;
     out[0] = p.x[k]!;
@@ -2729,7 +2738,9 @@ export class EnemyManager {
     for (let s = 0; s < MAX_INTRUDERS; s++) this.plans[s]!.release(num);
   }
 
-  /** A claim whose guard is gone, down, out of the search, on another intruder or off the plan is freed. */
+  /** A claim whose guard is gone, down, out of the search, on another intruder or off the plan is freed; (S25b fix,
+   *  check A polish 3) and a response-team member's once his team sweeps (the sweep has no end for him: the point would
+   *  stay held and block every rebuild). */
   private planSweep(): void {
     for (let s = 0; s < MAX_INTRUDERS; s++) {
       const p = this.plans[s]!;
@@ -2737,15 +2748,17 @@ export class EnemyManager {
         const num = p.claim[k]!;
         if (num < 0) continue;
         const e = this.byNum(num);
-        if (!e || !e.alive || e.level !== 'searching' || !e.onPlan || e.hunt !== s) p.release(num);
+        if (!e || !e.alive || e.level !== 'searching' || !e.onPlan || e.hunt !== s || e.crew?.sweeping) p.release(num);
       }
     }
   }
 
   /**
    * (guard-ai S25, A151) Intruder `slot`'s search plan, rebuilt when due: never built, older than `SEARCH_AREA.rebuild`
-   * s, or his last known position moved > `PLAN_MOVE` m; and only while no point is claimed (S25a polish 2: a rebuild
-   * never pulls a point from under a searcher) and his chase field is built round that position. The area: cells within
+   * s, or his last known position moved > `PLAN_MOVE` m; and only while his chase field is built round that position.
+   * Round the same position, only while no point is claimed (S25a polish 2: a rebuild never pulls a point from under a
+   * searcher); (S25b fix) a moved centre rebuilds at once even with claims live: their holders' `finishBy` then finds
+   * nothing (claims are found by guard, never by index), and they take the new plan's points next. The area: cells within
    * R = `areaRadius(seenT)` path metres of the last known position (`flowOf(slot)` x `nav.cell`). Candidates: (a) the
    * level cover in range at its own position, (b) a `lattice` m grid over the square of half-side R, walkable cells whose
    * baked light (`levelAt` at `sampleY` over the floor: torches excluded, A153) is below `dark`; each scored with
@@ -2763,7 +2776,7 @@ export class EnemyManager {
     const built = p.builtAt >= 0;
     const moved = !built || hyp2(cx - p.cx, cz - p.cz) > PLAN_MOVE;
     if (!moved && this.planClock - p.builtAt < SEARCH_AREA.rebuild) return;
-    if (p.anyClaim()) return;
+    if (!moved && p.anyClaim()) return;
     const f = this.slotFlow[slot];
     if (!f || this.slotFlowVer[slot] !== this.nav.version) return;
     if (hyp3(cx - this.slotFlowX[slot]!, cy - this.slotFlowY[slot]!, cz - this.slotFlowZ[slot]!) >= FLOW_CELL) return;
@@ -2786,9 +2799,9 @@ export class EnemyManager {
     const cz0 = this.candZ;
     const cs0 = this.candS;
     let n = 0;
-    // (a) the level cover in range, at its own position
+    // (a) the level cover in range, at its own position; (S25b fix, check B1) the nearest first, never one side only
     const cs = this.coverSet;
-    const nc = this.coverGrid.query(cx, cz, r, this.planCover);
+    const nc = this.coverGrid.queryNearest(cx, cz, r, this.planCover, this.planCoverD);
     for (let i = 0; i < nc; i++) {
       const j = this.planCover[i]!;
       const x = cs.x[j]!;

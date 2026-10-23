@@ -39,14 +39,14 @@ const centreZ = (c: number): number => OZ + Math.floor(c / W) + 0.5;
 
 /** The hand-set flow field (path m from the last known position; cell 1 m): straight-line distance on this side of the
  *  wall row, Infinity on it, 40 behind it (the long way round, past any R). */
-function handField(): { walk: Uint8Array; field: Float32Array } {
+function handField(open = false): { walk: Uint8Array; field: Float32Array } {
   const walk = new Uint8Array(W * W);
   const field = new Float32Array(W * W);
   for (let c = 0; c < W * W; c++) {
     const z = centreZ(c);
-    const wall = z >= WALL_Z && z < WALL_Z + 1;
+    const wall = !open && z >= WALL_Z && z < WALL_Z + 1;
     walk[c] = wall ? 0 : 1;
-    field[c] = wall ? Infinity : z >= WALL_Z + 1 ? 40 : Math.sqrt((centreX(c) - LKP.x) ** 2 + (centreZ(c) - LKP.z) ** 2);
+    field[c] = wall ? Infinity : !open && z >= WALL_Z + 1 ? 40 : Math.sqrt((centreX(c) - LKP.x) ** 2 + (centreZ(c) - LKP.z) ** 2);
   }
   return { walk, field };
 }
@@ -78,16 +78,23 @@ function guard(x: number, z: number): FakeGuard {
   return { id: `s${num}`, num, alive: true, alerted: false, level: 'searching', hunt: 0, onPlan: true, pos: new Vector3(x, 0, z), def: { kind: 'grunt' }, handler: null };
 }
 
-type Priv = { ctx: AiContext; slotFlowStep(dt: number): void; planSweep(): void; planClock: number };
+type Priv = { ctx: AiContext; slotFlowStep(dt: number): void; planSweep(): void; planClock: number; raiseAlarm(e: Enemy, p: null): void };
+
+/** Options: other cover, an open floor (no wall: the path is the straight distance everywhere), another baked light. */
+interface Opts {
+  covers?: ReturnType<typeof cp>[];
+  open?: boolean;
+  light?: (x: number, y: number, z: number) => number;
+}
 
 /** The real manager, stealth, one intruder seen at the last known position `since` s ago, his chase field built. */
-function manager(gs: FakeGuard[], since = 2) {
-  const { walk, field } = handField();
+function manager(gs: FakeGuard[], since = 2, o: Opts = {}) {
+  const { walk, field } = handField(o.open);
   const world = {
-    level: { lights: { lights: [], setOn: vi.fn() }, cover: COVERS, coverSegments: [] },
+    level: { lights: { lights: [], setOn: vi.fn() }, cover: o.covers ?? COVERS, coverSegments: [] },
     layout: { rooms: [] },
     doors: { list: [] },
-    lightField: { levelAt: vi.fn(levelAt) },
+    lightField: { levelAt: vi.fn(o.light ?? levelAt) },
   };
   const nav = {
     walk,
@@ -118,7 +125,7 @@ function manager(gs: FakeGuard[], since = 2) {
   priv.slotFlowStep(0);
   const out: P2 = [0, 0];
   const point = (g: FakeGuard): P2 | null => (priv.ctx.searchPoint!(g as unknown as Enemy, out) ? [out[0], out[1]] : null);
-  return { em, priv, ctx: priv.ctx, plan: em.plans[0]!, point, world };
+  return { em, priv, ctx: priv.ctx, plan: em.plans[0]!, point, world, players };
 }
 
 const pts = (p: SearchPlan): P2[] => {
@@ -443,5 +450,136 @@ describe('Enemy.decide: the search branch', () => {
     expect(got).toEqual([[5, -3], [30, 30], ...ring(5, -3, 1)]);
     expect(searchDone).toHaveBeenCalledTimes(1);
     expect(searchDone.mock.calls[0]![1]).toBe(false);
+  });
+});
+
+// ----- (S25b fix round) check B1 and check A polish 1-4 -----
+
+/** Lit everywhere but a 0.6 m disc round (1, 6): only the cover there is dark (no lattice point is within it). */
+const NORTH_DARK = { x: 1, z: 6 };
+const northLight = (x: number, _y: number, z: number): number => (Math.hypot(x - NORTH_DARK.x, z - NORTH_DARK.z) < 0.6 ? DARK : LIT);
+
+/** Dense lit cover on both sides of the last known position (the warehouse / campus case: far more than 128 in R) and
+ *  the one dark cover 6 m north (+z). South: a 0.4 m grid over x -10..10, z -19.6..-8; north: x -10..10, z 10..18. */
+function denseCovers(): ReturnType<typeof cp>[] {
+  const o: ReturnType<typeof cp>[] = [];
+  for (let z = -19.6; z <= -8; z += 0.4) for (let x = -10; x <= 10; x += 0.4) o.push(cp(x, z));
+  for (let z = 10; z <= 18; z += 0.8) for (let x = -10; x <= 10; x += 0.8) o.push(cp(x, z));
+  o.push(cp(NORTH_DARK.x, NORTH_DARK.z));
+  return o;
+}
+
+describe('S25b fix: cover on every side of the area (check B1)', () => {
+  it('CoverGrid.queryNearest keeps exactly the nearest when full (brute force), both sides of the centre', () => {
+    const covers = denseCovers();
+    const { em } = manager([], 60, { covers, open: true, light: northLight });
+    const cap = 64;
+    const out = new Int32Array(cap);
+    const d2 = new Float64Array(cap);
+    const got = em.coverGrid.queryNearest(0, 0, 20, out, d2);
+    expect(got).toBe(cap);
+    // (the grid reads the Float32 cover set: the same rounding here)
+    const f = Math.fround;
+    const dist = covers.map((c, i) => ({ i, d: Math.sqrt(f(c.pos.x) ** 2 + f(c.pos.z) ** 2) })).filter((c) => c.d * c.d <= 400);
+    dist.sort((a, b) => a.d - b.d);
+    const worstKept = Math.max(...Array.from(out, (i) => Math.hypot(covers[i]!.pos.x, covers[i]!.pos.z)));
+    expect(worstKept).toBeCloseTo(dist[cap - 1]!.d, 4);
+    expect(new Set(Array.from(out)).size).toBe(cap);
+    // the nearest (the dark north cover, 6.1 m) is in; room for all: every point in R, as `query`
+    expect(Array.from(out)).toContain(covers.length - 1);
+    const all = new Int32Array(4096);
+    expect(em.coverGrid.queryNearest(0, 0, 20, all, new Float64Array(4096))).toBe(dist.length);
+  });
+
+  it('> 128 cover points (and > the 1024 cap) both sides of the LKP: the dark cover 6 m north is offered, first', () => {
+    const covers = denseCovers();
+    const g = guard(LKP.x, LKP.z);
+    const { em, point, plan } = manager([g], 60, { covers, open: true, light: northLight });
+    const inR = covers.filter((c) => Math.hypot(c.pos.x, c.pos.z) <= 20).length;
+    expect(inR).toBeGreaterThan(1024);
+    // the old row-order query with the old cap of 128 never reached it (the south rows fill it)
+    const old = new Int32Array(128);
+    expect(em.coverGrid.query(0, 0, 20, old)).toBe(128);
+    expect(Array.from(old)).not.toContain(covers.length - 1);
+    expect(point(g)).toEqual([NORTH_DARK.x, NORTH_DARK.z]);
+    expect(plan.score[0]).toBeGreaterThan(1);
+    // and cover north of the LKP is in the plan at all (lit cover still outranks lit floor, which is no candidate)
+    expect(pts(plan).some(([, z]) => z > 0)).toBe(true);
+    expect(pts(plan).some(([, z]) => z < 0)).toBe(true);
+  });
+});
+
+describe('S25b fix: stale plans and held claims (check A polish 1-4)', () => {
+  it('A1: the LKP moved, the chase field not rebuilt yet: the ring, never an old plan point; then a plan round the new one at once, claims live or not', () => {
+    const a = guard(0, 0);
+    const b = guard(0, 0);
+    const { em, priv, point, plan, players, ctx } = manager([a, b]);
+    expect(point(a)).toEqual([-6, 0]);
+    // the intruder is seen again and lost 5.4 m west: his last known position moves, the field is still round the old one
+    players[0]!.feet.set(-5, 0, -2);
+    expect(priv.ctx.reportSighting(players[0]!)).toBe(0);
+    em.intruders.seenT[0] = 2;
+    expect([em.intruders.x[0], em.intruders.z[0]]).toEqual([-5, -2]);
+    expect(point(b)).toBeNull();
+    expect([plan.cx, plan.cz]).toEqual([0, 0]);
+    // the field follows (FLOW_MIN): rebuilt round (-5, -2) though a holds a claim from the old plan
+    priv.slotFlowStep(1);
+    const pb = point(b);
+    expect(pb).not.toBeNull();
+    expect([plan.cx, plan.cz]).toEqual([-5, -2]);
+    expect(plan.claimOf(a.num)).toBe(-1);
+    // a's look ends: nothing to finish (found by claim), harmless; his next point is the new plan's
+    ctx.searchDone!(a as unknown as Enemy, true);
+    expect(plan.claimOf(b.num)).toBeGreaterThanOrEqual(0);
+    expect(point(a)).not.toBeNull();
+  });
+
+  it('A2: a response-team member holding a point when his team starts sweeping lets it go', () => {
+    const g = guard(0, 0);
+    const { priv, point, plan } = manager([g]);
+    expect(point(g)).toEqual([-6, 0]);
+    (g as unknown as { crew: { sweeping: boolean } }).crew = { sweeping: false };
+    priv.planSweep();
+    expect(plan.claimOf(g.num)).toBe(0);
+    (g as unknown as { crew: { sweeping: boolean } }).crew.sweeping = true;
+    priv.planSweep();
+    expect(plan.claimOf(g.num)).toBe(-1);
+    // the point goes to the next searcher
+    const h = guard(0, 0);
+    expect(point(h)).toEqual([-6, 0]);
+  });
+
+  it('A3: a checkpoint restart (resetMemory) empties every plan: no old points, no old done flags', () => {
+    const g = guard(0, 0);
+    const { em, point, plan, ctx } = manager([g]);
+    expect(point(g)).toEqual([-6, 0]);
+    ctx.searchDone!(g as unknown as Enemy, true);
+    expect(plan.n).toBeGreaterThan(0);
+    (g as unknown as { dispose(): void }).dispose = vi.fn();
+    em.resetMemory();
+    for (const p of em.plans) expect([p.n, p.builtAt, p.anyClaim()]).toEqual([0, -1, false]);
+  });
+
+  it('the plans are one per intruder slot (MAX_INTRUDERS), not a literal', async () => {
+    const { MAX_INTRUDERS } = await import('../src/ai/targetPick');
+    const { em } = manager([]);
+    expect(em.plans.length).toBe(MAX_INTRUDERS);
+  });
+
+  it('S24 recheck A polish 1: an alarm raised by a guard with no intruder sends no one after a forgotten contact', () => {
+    const { em, priv } = manager([]);
+    const pr = em as unknown as { contactHunt: number; alarmHunt: number };
+    const raiser = guard(0, 0);
+    raiser.hunt = -1;
+    // a contact named slot 0 earlier; he is still known: the reinforcements hunt him
+    pr.contactHunt = 0;
+    priv.raiseAlarm(raiser as unknown as Enemy, null);
+    expect(pr.alarmHunt).toBe(0);
+    // the same with slot 0 forgotten since: none (they bind to the next contact that gets through)
+    em.resetAlarm();
+    pr.contactHunt = 0;
+    em.intruders.valid[0] = 0;
+    priv.raiseAlarm(raiser as unknown as Enemy, null);
+    expect(pr.alarmHunt).toBe(-1);
   });
 });
