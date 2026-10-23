@@ -111,22 +111,27 @@ const suiteBase = (s) => String(s).replace(/:.*$/, '');
 /**
  * Open requests made redundant by a newer one: Map(olderId -> newerId). R is superseded by the newest N (later id)
  * with the same requester and the same kind ('pr' or 'full' only, never 'alone'), when either both name the same
- * non-empty `set`, or R.sha is N.sha or an ancestor of it (isAncestor(R.sha, N.sha); injected, false on doubt) and the
- * suite lists overlap ('full': always; 'pr': one suite name in common, ":part" suffixes ignored).
+ * non-empty `set`, or R.sha is N.sha or an ancestor of it (isAncestor(R.sha, N.sha); injected, false on doubt) and N
+ * covers every suite of R ('full': always; 'pr': ":part" suffixes ignored). Two different non-empty sets never
+ * supersede (deliberate configurations, e.g. a flag off / on pair); nor does a request with no requester.
  */
 export function superseded(requests, isAncestor) {
   const reqs = [...requests].sort(sortById);
   const out = new Map();
   reqs.forEach((r, i) => {
     if (r.kind !== 'pr' && r.kind !== 'full') return;
+    if (!r.requester || r.requester === 'unknown') return;
     for (let j = reqs.length - 1; j > i; j--) {
       const n = reqs[j];
       if (n.id === r.id || n.requester !== r.requester || n.kind !== r.kind) continue;
-      const sameSet = typeof r.set === 'string' && r.set !== '' && r.set === n.set;
-      let ok = sameSet;
+      const rSet = typeof r.set === 'string' && r.set !== '' ? r.set : '';
+      const nSet = typeof n.set === 'string' && n.set !== '' ? n.set : '';
+      if (rSet && nSet && rSet !== nSet) continue;
+      let ok = rSet !== '' && rSet === nSet;
       if (!ok) {
-        const overlap = r.kind === 'full' || (r.suites ?? []).some((s) => (n.suites ?? []).some((t) => suiteBase(s) === suiteBase(t)));
-        ok = overlap && (r.sha === n.sha || Boolean(isAncestor(r.sha, n.sha)));
+        const nBases = new Set((n.suites ?? []).map(suiteBase));
+        const covers = r.kind === 'full' || (r.suites ?? []).every((s) => nBases.has(suiteBase(s)));
+        ok = covers && (r.sha === n.sha || Boolean(isAncestor(r.sha, n.sha)));
       }
       if (ok) { out.set(r.id, n.id); return; }
     }

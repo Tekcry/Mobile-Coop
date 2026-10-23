@@ -107,8 +107,9 @@ would pick and the shard bins, posts nothing, runs nothing). Never a full `npm r
 
 ## Supersede and newest first (2026-10-23)
 `superseded(requests, isAncestor)` (lib.mjs): an open pr / full request is dead when the same requester has a newer
-request of the same kind with the same non-empty `set`, or with the same or a descendant sha and overlapping suites
-(`:part` suffix ignored; full always overlaps). `alone` is never superseded. Each pass, before `pick`, both workers
+request of the same kind with the same non-empty `set`, or with the same or a descendant sha whose suites cover all of
+the older one's (`:part` suffix ignored; full always covers). Two different non-empty sets never supersede (a flag
+off / on pair), nor does a request with no requester (or "unknown"). `alone` is never superseded. Each pass, before `pick`, both workers
 mark such requests done in one batched claims push (state `superseded`, no run, no status); `isAncestor` is
 `git merge-base --is-ancestor`, memoized per pass, any error = false. A lost push retries next pass; open claims never
 reach the list. The desktop does it too, once the branch has claims. `pick` still puts trains, aged alone, non-alone,

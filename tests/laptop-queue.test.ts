@@ -68,10 +68,24 @@ describe('superseded', () => {
     expect([...superseded([n, o], never)]).toEqual([[o.id, n.id]]);
     expect(superseded([r(30, 'o', { set: '' }), r(10, 'n', { set: '', sha: SHA('2'), suites: ['y'] })], never).size).toBe(0);
   });
-  it('ancestor sha with overlapping suites supersedes', () => {
+  it('ancestor sha whose newer request covers every suite supersedes', () => {
+    const o = r(30, 'o', { sha: SHA('1'), suites: ['a', 'b'] });
+    const n = r(10, 'n', { sha: SHA('2'), suites: ['b', 'a', 'c'] });
+    expect(superseded([o, n], anc([[SHA('1'), SHA('2')]])).get(o.id)).toBe(n.id);
+  });
+  it('a partial overlap is kept (the dropped suite would never run)', () => {
     const o = r(30, 'o', { sha: SHA('1'), suites: ['a', 'b'] });
     const n = r(10, 'n', { sha: SHA('2'), suites: ['b', 'c'] });
-    expect(superseded([o, n], anc([[SHA('1'), SHA('2')]])).get(o.id)).toBe(n.id);
+    expect(superseded([o, n], anc([[SHA('1'), SHA('2')]])).size).toBe(0);
+  });
+  it('two different set names are kept (flag off / on pair on an ancestor)', () => {
+    const o = r(30, 'o', { set: 'gm-g7-off', suites: ['e2e-enemies', 'e2e-coop'] });
+    const n = r(10, 'n', { set: 'gm-g7-on', sha: SHA('2'), suites: ['e2e-enemies', 'e2e-coop'] });
+    expect(superseded([o, n], anc([[SHA('1'), SHA('2')]])).size).toBe(0);
+  });
+  it('no requester or "unknown" is never superseded', () => {
+    expect(superseded([r(30, 'o', { requester: 'unknown' }), r(10, 'n', { requester: 'unknown' })], never).size).toBe(0);
+    expect(superseded([r(30, 'o', { requester: undefined }), r(10, 'n', { requester: undefined })], never).size).toBe(0);
   });
   it('full requests always overlap', () => {
     const o = r(30, 'o', { kind: 'full', suites: undefined });
