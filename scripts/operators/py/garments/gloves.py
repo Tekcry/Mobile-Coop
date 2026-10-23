@@ -553,11 +553,13 @@ def _fix_uv(ob):
 
 
 # --- Guard bake (docs/guard-models PLAN G2, SPEC 4 `uniform` plain gloves / `work` work gloves, SPEC 6 bones) ----------
-# The guards' hands have one bone per finger, head at the MCP joint (thumb: CMC), tail at the tip, its Z axis to the
-# back of the hand (G1). This build reads three segments per finger (`finger<side>_<i>_1..3`), so guard_ctx() splits
-# each bone at typical phalanx shares, bends the last segment a little towards the palm (it gives the hand frame its
-# palm side, as the hero rig's curl does) and gives each finger vertex the segment it lies along. Variant 'work': no
-# knuckle panel, a longer cuff, a thicker tan leather glove.
+# The guards' hands have one bone per finger, head at the MCP joint (thumb: CMC), tail at the tip (G1: named
+# `finger<side>_<i>_1`, Wren's scheme with the one segment; the earlier `finger<side>_<i>` is read too). This build reads
+# three segments per finger (`finger<side>_<i>_1..3`), so guard_ctx() splits each bone at typical phalanx shares, bends
+# the last segment a little towards the palm (it gives the hand frame its palm side, as the hero rig's curl does) and
+# gives each finger vertex the segment it lies along. The palm side comes from the hand itself (the thumb tip lies on
+# the palm side of the knuckle plane), not from a bone roll. Variant 'work': no knuckle panel, a longer cuff, a thicker
+# tan leather glove.
 FINGER_SPLIT = {1: (0.40, 0.33), 2: (0.47, 0.29), 3: (0.47, 0.29), 4: (0.47, 0.29), 5: (0.46, 0.29)}
 TIP_CURL = 0.12
 
@@ -577,35 +579,45 @@ def configure(part, variant=None, prefix=None, **_):
 
 
 def guard_ctx(ctx):
-    rig = ctx['rig']
-    R3 = np.array(rig.matrix_world.to_3x3())
     bones = dict(ctx['bones'])
-    split = {}
+    split = {}   # vertex group name -> (segment bone stem, head, axis, length, shares)
     for side in ('L', 'R'):
+        stem = f'finger{side}'
+        whole = {}
         for i in range(1, 6):
-            name = f'finger{side}_{i}'
-            if name not in bones or f'{name}_1' in bones:
+            if f'{stem}_{i}_3' in bones:          # a hero rig (three segments): nothing to split
                 continue
-            h, t = (np.asarray(x, float) for x in bones[name])
+            name = next((n for n in (f'{stem}_{i}_1', f'{stem}_{i}') if n in bones), None)
+            if name is not None:
+                whole[i] = (name, *(np.asarray(x, float) for x in bones[name]))
+        if len(whole) < 5:
+            continue
+        # palm side: the hand frame's normal (knuckle line x the hand axis) signed so the thumb tip lies on the palm side
+        wr = np.asarray(bones[f'wr{side}'][0], float)
+        K = np.array([whole[i][1] for i in range(2, 6)])
+        a = FT.unit(K.mean(axis=0) - wr)
+        lat = K[3] - K[0]
+        lat = FT.unit(lat - a * float(lat @ a))
+        n = np.cross(a, lat)
+        dors = -n if float((whole[1][2] - K.mean(axis=0)) @ n) > 0 else n
+        for i, (name, h, t) in whole.items():
             d = t - h
             L = float(np.linalg.norm(d))
             u = d / L
-            dors = R3 @ np.array(rig.data.bones[name].z_axis)
-            dors = FT.unit(dors - u * float(dors @ u))
             f1, f2 = FINGER_SPLIT[i]
             j1, j2 = h + d * f1, h + d * (f1 + f2)
-            d3 = FT.unit(u - TIP_CURL * dors)
-            bones[f'{name}_1'] = (h, j1)
-            bones[f'{name}_2'] = (j1, j2)
-            bones[f'{name}_3'] = (j2, j2 + d3 * L * (1.0 - f1 - f2))
-            split[name] = (h, u, L, f1, f2)
+            d3 = FT.unit(u - TIP_CURL * FT.unit(dors - u * float(dors @ u)))
+            bones[f'{stem}_{i}_1'] = (h, j1)
+            bones[f'{stem}_{i}_2'] = (j1, j2)
+            bones[f'{stem}_{i}_3'] = (j2, j2 + d3 * L * (1.0 - f1 - f2))
+            split[name] = (f'{stem}_{i}', h, u, L, f1, f2)
     BV = ctx['BV']
     dom = [str(x) for x in ctx['dominant']]
     for k, dn in enumerate(dom):
         if dn in split:
-            h, u, L, f1, f2 = split[dn]
+            seg, h, u, L, f1, f2 = split[dn]
             t = float((BV[k] - h) @ u) / L
-            dom[k] = f'{dn}_{1 if t < f1 else 2 if t < f1 + f2 else 3}'
+            dom[k] = f'{seg}_{1 if t < f1 else 2 if t < f1 + f2 else 3}'
     out = dict(ctx)
     out['bones'] = bones
     out['dominant'] = np.array(dom, dtype=object)
