@@ -274,48 +274,39 @@ Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md pol
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME. Job sector-redesign (lead), branch feature/sector-redesign-polish (worktree
-C:/NightShift/Mobile-Coop-sector-redesign-polish). git fetch; read CLAUDE.md, ROADMAP "Decided" (grep only: Walk 4.72,
-campus detail art, stealth over shooting), PLAN.md "Walk 4.72" + "Campus detail art" + "LR15". Saved 2026-10-23 ~18:05.
-Heads: art 2276483a (#226), lampx eb45b0af (LR15 + lighting polish + atlas fix), artpol 1d34c348 (art + freeze polish).
-#232 (LR13 + shadow + LR14) released in 4.78.0 (train 29).
-1. #226 (-art: campus art, A64 lift, walk W2/W3, polish2 lamp probe, guard-freeze CPU fix; checks campus-perf-fix.md /
-   -check.md): all suites green. LAPTOP PERF ~18:55 OVER BUDGET (p95 < 12): 2276483a freeze on start 14.4 / S4 14.6 /
-   S5 16.9 / S3 13.3; artpol 1d34c348 start 13.4 / S4 12.1 / S5 13.1 / S3 10.6 (freeze saves 4-6 ms at S5 / S3; start
-   view = art draws, 401). guard-cap alert cpu 18.1. Results: scratch/work/artpol-1d34c348/guard-cap; 1d34c348 e2e-coop PASS.
-   RUNNING (Opus, both off -artpol): -perfg = campus-perf-fix.md proposals 1-3 (frozen anim tier, merged guard gun,
-   dog rig skip; perfg-build.md); perfa DONE 3f87166e (S1 start art in view 160 -> 85; indoor cull 60 m).
-   RUNNING: Opus checker perf-batch-check.md, on PASS merges perfg + perfa into -artpol and pushes.
-   -perfa = campusArt static merge / caster trim (perfa-build.md). perfg DONE 057403f5 (animFrozen.ts new: master animTier.ts
-   is not on -artpol - fold into it at the master merge; merged gun enemyGunMerge.ts, ?guardmerge=0 A/B; dogs already skipped). Then: one Opus checker, merge both into -artpol,
-   laptop perf rerun same 4 views + guard-cap; in budget -> #226 = -artpol head (push -art to it), train-ready.
-2. LR15 PR #242 OPEN (~18:50, -lampx @ 1c22b913; orchestrator told). Laptop GPU rerun at eb45b0af re-sent to Test
-   Runner (sectorops 1-6 + coop, campusOps Realistic: no texImage3D warning, LAMP_PAGES compiles, perf + VRAM, S2 / S3
-   sheet). Green -> "train-ready #242" to the orchestrator (merge master only at train entry).
-3. Polish batch PR (-artpol 1d34c348 = artpol + frzpol, checker PASS artpol-frzpol-check.md): desktop sectorops 1-6 +
-   stealth-ai ALL PASS (scratch/runs/sectorpol-1d34c348/RESULT); laptop e2e-coop + perf A/B queued. Open against master after #226 merges (rebase on master);
-   laptop perf A/B + door-peek / roof-shadow views.
-4. For Michael (STATE "Now"): Realistic is genuinely dimmer after the atlas fix (S2 atrium pool ~0.28 vs Classic 0.48);
-   S3 hall-lit blows out to white fog in both modes (volumetric / bloom).
-5. NEW JOB LR16 (Michael ~18:08; PLAN.md "LR16", slices in checks/lr16-plan.md, 975960cc; order a -> b/c/f -> d, e -> g -> h;
-   LR16a wire change, PROTOCOL stays master value (number set at train build, orchestrator ~18:52); LR16-0 Opus CT light / shadow
-   showcase audit runs beside LR16a, gaps fold into LR16; LR16t: every guard torch
-   occluded by walls / shut doors + soft torch beam edge (Michael ~18:20) - PLAN.md "LR16"): LR16a first: remove Classic + the falloff
-   setting (Michael ~18:12); Realistic + character shadows on every map, fix lamp wall arcs, soft cone edges, contact-hardening penumbra, parity. Build from -lampx in the new account.
-   LR16-0 audit DONE 34eab328: new slices LR16-1..8 in PLAN; LR16-5 moving lights needs Michael's scope; LR16-4 guard
-   relight touches guard behaviour (offer to Guard AI).
-   LR16a DONE -lr16 59c8bfdd (PROTOCOL left 38, train sets it; 22 Classic-tuned map light tests red until LR16d/g;
-   lamp slot overflow >8 per column found) -> LR16b + slot overflow Opus RUNNING on -lr16 (lr16b-build.md); LR16t after it.
-   Was: LR16a Opus on -lr16 (from WIP 315a2805;
-   checks/lr16a-build.md), LR16c+LR16-2 Opus on -lr16c (lamp-audit script + run -> checks/lr16-lamp-audit.md),
-   LR16-6 DONE -lr16v 5ee3a270 (G100 instant cut, G102 door ghosts incl. partners; lr16v-build.md), LR16f DONE -lr16f 8501a0c7 (PCSS char shadows; LR16-7 DONE 0561be15 (Low 1x256 / Medium 1x512); LR16-3 DONE f16591bf (door leaves + props as char casters, render only; a listed door leaf draws all its instances);
-   checks/lr16f-build.md). Resume: check each branch head + build doc; missing doc = rerun from lr16-plan.md row.
-   Next on their reports: LR16b (after LR16a) + LR16t torch occlusion (beside LR16b) Opus; LR16d Sonnet from the
-   LR16c table; one Opus checker for the a/c/f/6 batch.
-6. Open polish: lr15-check 1 / 2 / 4, lrpolish-check 1-6, freeze checker polish, art P6.
+Night Shift | Sector Ops Build: RESUME (self-contained; saved 2026-10-23 ~19:25). Job sector-redesign (lead), worktree
+C:/NightShift/Mobile-Coop-sector-redesign-polish (branch feature/sector-redesign-polish, holds this STATE / PLAN / checks).
+git fetch; read CLAUDE.md; ROADMAP Decided (grep only): "Lighting everywhere", "Campus detail art", "Stealth over shooting",
+"Sector Ops unavoidable guards", "Sector Ops 4 players"; PLAN.md "Walk 4.72", "Campus detail art", "LR15", "LR16".
+Released: PR 2 #206 (4.72.0), PR 3 #215 + PR 4 #217 (4.75.0), #232 LR13 / shadow audit / LR14 (4.78.0).
+Open PRs:
+1. #226 campus detail art (PR 5; head feature/sector-redesign-art 2276483a, not train-ready). Laptop perf MISSED
+   CPU p95 < 12 (Epic, 24 guards); -artpol 1d34c348 (art + polish) start 13.4 / S4 12.1 / S5 13.1 / S3 10.6.
+   Fixes: -perfg 057403f5 (frozen anim skip, merged guard gun; perfg-build.md) + -perfa 3f87166e (campus art merges,
+   indoor cull 60 m; perfa-build.md). Opus checker perf-batch-check.md: on PASS it merges both into -artpol and pushes.
+   Next: laptop request on that -artpol head (start / S3 / S4 / S5-worst, freeze on vs &guardfreeze=0, guard-cap,
+   e2e-sectorops 1-6 + coop + stealth-ai; visuals: emissive dimming, car shadows, no pop at 58-60 m). In budget ->
+   push -art to the -artpol head, merge master at train entry (master's animTier.ts vs our animFrozen.ts; enemy.ts
+   animate-line conflict, perfg-build.md), message orchestrator + `gh pr edit 226 --add-label train-ready`.
+2. #242 LR15 (-lampx 1c22b913): GPU sheet / lightbake / sectorops:2 PASS at eb45b0af; Test Runner's sectorops 1-6 +
+   coop + campus perf on 1c22b913 pending -> train-ready. Conflicts with master: fix only at train entry.
+Running / next - LR16 (Michael ~18:08-18:20; slices checks/lr16-plan.md + lr16-0-ct-audit.md):
+- -lr16: LR16a DONE 59c8bfdd (one photometric path; PROTOCOL left at branch value, train sets it; 22 Classic-tuned
+  map light tests red until LR16d / LR16g). LR16b soft cone / near term / torch beam + lamp slot overflow (>8 lamps
+  per column vanish) RUNNING (lr16b-build.md). Then LR16t torch occlusion (walls + shut doors, all 4 torches), then
+  LR16e penumbra, LR16-1 bounce fill, LR16g re-level, LR16h docs - all on -lr16 in order (same files).
+- -lr16c: LR16c lamp audit + LR16-2 framing RUNNING (lr16-lamp-audit.md) -> LR16d Sonnet lamp moves from that table.
+- -lr16f: LR16f PCSS char shadows 8501a0c7, LR16-7 Low/Medium slots 0561be15, LR16-3 door / prop casters f16591bf. DONE.
+- -lr16v: LR16-6 vision polish 5ee3a270 DONE (G100 instant cut, G102 door ghosts).
+- One Opus checker for -lr16f + -lr16v + -lr16 (a, b) batch, laptop GPU request on the same commits in parallel;
+  then LR16-8 showcase sheets (laptop) on every map. LR16-4 guard relight -> offer to Guard AI; LR16-5 moving lights
+  needs Michael's scope.
+3. Polish batch (-artpol): becomes #226's new head (see 1).
+For Michael: Realistic dimmer after atlas fix (S2 atrium 0.28 vs Classic 0.48, LR16g); S3 hall-lit white fog.
+Open polish: lr15-check 1/2/4, lrpolish-check 1-6, freeze checker polish, art P6, LR16-3 door instancing.
 Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
 Sonnet builds from strict briefs; one checker per batch; tsc / vitest slot locks C:/NightShift/scratch/sr-slot-{1,2,3,4}.lock;
 every e2e E2E_GPU=1 on the LAPTOP only (Michael ~19:15: no desktop e2e; heavy.lock = builds / check only); start the checker
-and the laptop request on the same commit in parallel; train-ready = message + `gh pr edit <n> --add-label train-ready`;
-#242 conflicts with master: fix at train entry only. Never two agents on one file.
+and the laptop request on the same commit in parallel; train-ready = message + `gh pr edit <n> --add-label train-ready`.
+Never two agents on one file. Agents push with explicit refs (`git push origin <branch>`).
 ```
