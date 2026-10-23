@@ -411,7 +411,9 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   `freshest`. Each guard hunts one (`Enemy.hunt`): his own sighting wins (`reportSighting` returns the slot; reported
   on going to combat so his contact call carries it); else the call or shout that told him (a contact call's incident
   is its slot, A149; `radio(delay, hunt)`, taken on going to combat); a located shot (`noise(pos, reach, by)`: the
-  shooter's id, null = the freshest); the alarm caller's for reinforcements (`alarmHunt`). His hunt ends when he calms
+  shooter's id, null = the freshest); the alarm caller's for reinforcements (`alarmHunt`); a guard spawned alerted (`spawn(.., true)`: the parked modes'
+  reinforcements, `EnemyManager.sendIn`) the one command knows of (`commandHunt`: the alarm's while valid, else the
+  freshest; none known: none). His hunt ends when he calms
   (cooldown / unaware), wakes (`inherit`) or is despawned. He goes to `lkpOf(hunt)`, searches round it, suppresses it,
   faces it and follows `flowOf(hunt)`; `pickTarget` gets his intruder's player. With no position for his intruder
   (A148, `INTRUDERS.noFeet`): his own last sighting, else his stimulus, never the player's real feet (A105 closed, solo

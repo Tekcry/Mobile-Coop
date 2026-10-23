@@ -1689,6 +1689,25 @@ export class EnemyManager {
     this.consoles.clear();
   }
 
+  /**
+   * (guard-ai S24 levels triage) A guard spawned alerted (the parked modes' reinforcements: Mission's pressure spawns,
+   * Clear's alarm squads, `reinforce`; tests) is sent in by command: he is told of the intruder command knows of
+   * (`commandHunt`) before he goes to combat, so he hunts that slot's last known position (and his contact names it).
+   * Before this he had none and stood where he spawned (A148 left him no position). Nobody known: none (A148, G139: he
+   * never goes for a player nobody saw or located).
+   */
+  private sendIn(e: Enemy): void {
+    e.tell(this.commandHunt());
+    e.alert();
+  }
+
+  /** (guard-ai S24 levels triage) The intruder command knows of: the alarm's while its position is valid, else the
+   *  freshest (A150, as the response teams); -1 none. */
+  private commandHunt(): number {
+    const a = this.alarmHunt;
+    return a >= 0 && this.intruders.valid[a] === 1 ? a : this.intruders.freshest;
+  }
+
   spawn(kind: EnemyKind, pos: Vector3, alerted = true, yaw = 0): Enemy | null {
     if (this.alive >= this.maxAlive) return null;
     const c = this.nav.nearestWalkable(pos.x, pos.z, 8, pos.y);
@@ -1698,7 +1717,7 @@ export class EnemyManager {
     // (guard-ai S4) his stable key: a clean slate in the awareness roster
     e.key = this.freeKey();
     if (e.key >= 0) this.awareness.resetKey(e.key);
-    if (alerted) e.alert();
+    if (alerted) this.sendIn(e);
     this.enemies.push(e);
     if (kind === 'droneOp') this.drones.push(new ReconDrone(this.scene, this.world.parts, this.registry, this.ballistics, this.vfx, e));
     return e;
