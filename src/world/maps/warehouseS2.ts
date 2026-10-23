@@ -137,7 +137,9 @@ export const S2_LAMPS: readonly LampRoom[] = [
   // (LR16-W S2, the hall's night state: each fitting at its LED night level; the lane's A1 fitting a wider 0.85 rad optic so the A1 mouth sits
   // in its beam; A2 south a 1.0 rad optic, A3 south 0.45 rad so the A3 / cross aisle corner reads its own strip only; northB's A2 column
   // 0.8 m west over aisle A2's centre line, its first row 0.5 m south to z 9.1, its dead A2 fitting over the A2 ladder lit low; A3 north 0.75 rad)
-  { id: 'lane', model: 'strip', y: 5.8, group: 40, yaw: 0, cone: LANE, pass: true, lamps: [[-21.5, -4.6, 8.1, 0.553, 0.85], [-17, -4.6, 5.89, 0.585], [-12.5, -4.6, 6.04, 0.64]] },
+  // (LR16-W INT: the lane's A3 fitting a 0.62 rad optic, the C2 far door (-14.5, -5.4) 2.1 m off its axis in the beam, not the
+  // 30 degree feather; the lane's east-end pocket stays outside it)
+  { id: 'lane', model: 'strip', y: 5.8, group: 40, yaw: 0, cone: LANE, pass: true, lamps: [[-21.5, -4.6, 8.1, 0.553, 0.85], [-17, -4.6, 5.89, 0.585], [-12.5, -4.6, 6.04, 0.64, 0.62]] },
   { id: 'southAisles', model: 'strip', y: 5.8, group: 40, yaw: 0, cone: SOUTH, pass: true, lamps: [[-21.4, 1.9, 6.61, 0.515], [-16.7, 1.9, 9, 0.568, 1.0], [-12, 1.9, 5.56, 0.493, 0.45], [-7.2, 1.9, 3.85, 0.064]] },
   { id: 'northA', model: 'strip', y: 5.8, group: 41, yaw: 0, pass: true, lamps: [[-21.4, 6.9, 6.4, 0.407], [-12, 6.9, 9, 0.702], [-21.4, 13.5, 7.64, 0.308], [-12, 13.5, 5.78, 0.446, 0.75]] },
   { id: 'northB', model: 'strip', y: 5.8, group: 41, yaw: 0, pass: true, lamps: [[-17, 9.1, 7.91, 0.289], [-7.2, 9.1, 9, 0.599], [-17, 12.9, 6.5, 0.16], [-7.2, 12.9, 6.5, 0], [-17, 16.2, 9, 0.472], [-7.2, 16.2, 9, 0.443]] },
