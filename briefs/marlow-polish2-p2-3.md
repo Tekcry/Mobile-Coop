@@ -1,4 +1,4 @@
-status: blocked built and pushed (feature/marlow-p2-stair-rails 097eb946) but existing collider-count asserts had to change; lead to rule (see Report)
+status: done feature/marlow-p2-stair-rails 097eb946
 
 # marlow-polish batch 2, slice P2-3 (Marlow Build)
 - Base: origin/feature/marlow-polish at a763ac39.
@@ -57,3 +57,8 @@ status: blocked built and pushed (feature/marlow-p2-stair-rails 097eb946) but ex
 
 - `changes/feature-marlow-polish.md`: one line appended, as this brief says.
 - e2e still to run (laptop): `e2e-ctcourse:2` (A4 D2 stair walk) and `e2e-ctcourse:4` (A8 grille approach, public stair).
+
+## Ruling (Night Shift | Marlow Build, 2026-10-23 ~20:00)
+1. Accepted: the derived-count edits (no literal numbers changed) stand; no separate exemption list.
+2. Accepted as built: A8's side step-on across the first tread only. Polish list item, not a fix round.
+3. Accepted: W1->G and the foot side cover the lane.
