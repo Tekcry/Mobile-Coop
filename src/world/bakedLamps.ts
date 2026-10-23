@@ -9,12 +9,13 @@ import { DARK_DESKTOP, DARK_GLSL, DARK_STANDARD, LEVEL_TO_RENDER, VISION_GAIN, v
 import { AMBIENT_CELL, type AmbientGrid } from './ambientGrid';
 import { DOOR_SHUT, DOORS_PER_LAMP, lampDoorLists, type FieldDoor } from './lightField';
 import { LEVEL_FILL_GLSL as LF, type Rgb } from './levelFill';
+import { CHAR_SHADOW_GLSL, type CharShadowLamps, type CharShadowLink } from './charShadows';
 
 export { bakedLights };
 
 /** Texels per lamp in the data texture: position + range, colour + exponent, direction + cos, box origin + ny,
- *  atlas tile + nx / nz, character capsule ids, door ids (3.6). */
-const LAMP_TEXELS = 7;
+ *  atlas tile + nx / nz, character capsule ids, door ids (3.6), (LR14) its character shadow slot + 1 (0: none). */
+const LAMP_TEXELS = 8;
 /** Per door two texels after the capsules: hinge + width, (sin yaw, cos yaw, height, shut). */
 const DOOR_TEXELS = 2;
 
@@ -61,7 +62,7 @@ const CAPS_PER_LAMP = 4;
  * shadows from every lamp. One data texture: the light grid (which lamps reach each 2 m column), the lamps, the
  * capsules (updated each frame).
  */
-export class BakedLamps {
+export class BakedLamps implements CharShadowLamps {
   /** The lamps' visibility atlas and the data texture (grid, lamps, capsules). */
   readonly vis: RawTexture3D;
   readonly data: RawTexture;
@@ -111,6 +112,21 @@ export class BakedLamps {
   bakeMs = 0;
   /** Volume re-mixes so far (3.3 spike log). */
   remixes = 0;
+  /** (LR14) The character shadow maps of the nearest lamps (`world/charShadows.ts`; `World` sets it): their lamps
+   *  shade characters from the atlas, the capsules only for what a map does not hold. */
+  charShadows: CharShadowLink | null = null;
+  /** Texels per lamp (tests read the data texture). */
+  readonly lampTexels = LAMP_TEXELS;
+  /** Per baked lamp x, y, z, radius (`CharShadowLamps`). */
+  readonly spheres: Float32Array;
+  get count(): number {
+    return this.order.length;
+  }
+  /** The lamp gives light now (on, not shot, not jammed: its colour is not black). */
+  lampLit(i: number): boolean {
+    const o = (this.lampBase + i * LAMP_TEXELS + 1) * 4;
+    return this.buf[o]! + this.buf[o + 1]! + this.buf[o + 2]! > 0;
+  }
   /** Characters' capsules each frame (foot + head points, radius): GameState's. */
   capsules: ((a: Float32Array, b: Float32Array, max: number) => number) | null = null;
   /** Volume mode (3.3; now only the Kestrel editor's light view - the game never makes one): the lamps mixed into one light volume (two taps a pixel) instead of the per-lamp loop; re-mixed on
@@ -132,6 +148,8 @@ export class BakedLamps {
     extra: BakeExtras = {},
   ) {
     this.order = baked.ids;
+    this.spheres = new Float32Array(baked.ids.length * 4);
+    for (let i = 0; i < baked.ids.length; i++) for (let k = 0; k < 4; k++) this.spheres[i * 4 + k] = baked.lights[i * LAMP_STRIDE + k]!;
     this.moon = extra.moon ?? null;
     this.fill = extra.fill ?? null;
     this.level = extra.level ?? null;
@@ -293,7 +311,8 @@ export class BakedLamps {
       this.volume.retry();
       return;
     }
-    if (nc || this.caps) {
+    if (nc || this.caps || this.charShadows?.on || this.csWas) {
+      this.csWas = !!this.charShadows?.on;
       this.caps = nc;
       this.writeCapsules(nc);
       dirty = true;
@@ -336,7 +355,11 @@ export class BakedLamps {
     return changed;
   }
 
+  /** (LR14) Character shadows were on at the last write (their slots are cleared once they go off). */
+  private csWas = false;
+
   private writeCapsules(nc: number): void {
+    const cs = this.charShadows?.on ? this.charShadows : null;
     const buf = this.buf;
     const a = this.capA;
     const b = this.capB;
@@ -359,12 +382,17 @@ export class BakedLamps {
       const ly = buf[lo + 1]!;
       const lz = buf[lo + 2]!;
       const r = buf[lo + 3]! + 0.5;
+      // (LR14) a lamp with a character shadow map: its slot in t7; the capsules only for characters its map does not hold
+      const slot = cs ? cs.lampSlot[i]! : -1;
+      buf[lo + 28] = slot + 1;
       let k = 0;
       for (let c = 0; c < nc && k < CAPS_PER_LAMP; c++) {
         const mx = (a[c * 4]! + b[c * 4]!) * 0.5 - lx;
         const my = (a[c * 4 + 1]! + b[c * 4 + 1]!) * 0.5 - ly;
         const mz = (a[c * 4 + 2]! + b[c * 4 + 2]!) * 0.5 - lz;
-        if (mx * mx + my * my + mz * mz < r * r) buf[o + k++] = c + 1;
+        if (mx * mx + my * my + mz * mz >= r * r) continue;
+        if (slot >= 0 && cs!.covers(slot, mx + lx, my + ly, mz + lz)) continue;
+        buf[o + k++] = c + 1;
       }
       for (; k < CAPS_PER_LAMP; k++) buf[o + k] = 0;
     }
@@ -652,7 +680,7 @@ export class LampPlugin extends MaterialPluginBase {
     material: Material,
     private lamps: BakedLamps,
   ) {
-    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false, LAMP_LEVEL: false, LAMP_SKY: false });
+    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false, LAMP_LEVEL: false, LAMP_SKY: false, LAMP_CSHADOW: false });
     // (coop-fix) a clone must not carry it: Babylon rebuilds a cloned plugin by class name (`Tools.Instantiate`), which
     // fails for this unregistered class and aborted every figure loaded after the attach (the joiner's partner); the
     // clone is a new material, so `BakedLamps.frame` gives it its own plugin
@@ -684,10 +712,12 @@ export class LampPlugin extends MaterialPluginBase {
     defines.LAMP_LEVEL = !!mesh && isLampLevel(this._material);
     // (fix round 2) the level's fill and image-based light by sky visibility, as the voxel walls
     defines.LAMP_SKY = !!mesh && isLampLevel(this._material) && !!this.lamps.level && !!this.lamps.skyTex;
+    // (LR14) the character shadow atlas: one texture more while it is on (the per-lamp loop only)
+    defines.LAMP_CSHADOW = !!mesh && !this.lamps.volume && !!this.lamps.charShadows?.on;
   }
 
   override getSamplers(samplers: string[]): void {
-    samplers.push('lampVis', 'lampData', 'lampVolA', 'lampVolB', 'lampMoon', 'lampAmb', 'lampSky');
+    samplers.push('lampVis', 'lampData', 'lampVolA', 'lampVolB', 'lampMoon', 'lampAmb', 'lampSky', 'lampCsAtlas');
   }
 
   override getUniforms(): { ubo?: { name: string; size: number; type: string; arraySize?: number }[]; fragment?: string } {
@@ -711,8 +741,12 @@ export class LampPlugin extends MaterialPluginBase {
         { name: 'lampSkyN', size: 4, type: 'vec4' },
         { name: 'lampLvlSky', size: 4, type: 'vec4' },
         { name: 'lampLvlGnd', size: 4, type: 'vec4' },
+        // (LR14) the character shadow slots: view-projections, params, atlas info
+        { name: 'lampCsM', size: 4, type: 'vec4', arraySize: 16 },
+        { name: 'lampCsP', size: 4, type: 'vec4', arraySize: 4 },
+        { name: 'lampCsI', size: 4, type: 'vec4' },
       ],
-      fragment: `#ifdef BAKED_LAMPS\nuniform vec4 lampInfo;\nuniform vec4 lampGridO;\nuniform vec4 lampAtlas;\nuniform vec4 lampVolO;\nuniform vec4 lampVolD;\nuniform vec4 lampCaps[${VOL_CAPS * 2}];\nuniform vec4 lampMore;\nuniform vec4 lampMoonO;\nuniform vec4 lampMoonN;\nuniform vec4 lampAmbO;\nuniform vec4 lampAmbN;\nuniform vec4 lampFillC;\nuniform vec4 lampDark;\nuniform vec4 lampDarkP;\nuniform vec4 lampSkyO;\nuniform vec4 lampSkyN;\nuniform vec4 lampLvlSky;\nuniform vec4 lampLvlGnd;\n#endif`,
+      fragment: `#ifdef BAKED_LAMPS\nuniform vec4 lampInfo;\nuniform vec4 lampGridO;\nuniform vec4 lampAtlas;\nuniform vec4 lampVolO;\nuniform vec4 lampVolD;\nuniform vec4 lampCaps[${VOL_CAPS * 2}];\nuniform vec4 lampMore;\nuniform vec4 lampMoonO;\nuniform vec4 lampMoonN;\nuniform vec4 lampAmbO;\nuniform vec4 lampAmbN;\nuniform vec4 lampFillC;\nuniform vec4 lampDark;\nuniform vec4 lampDarkP;\nuniform vec4 lampSkyO;\nuniform vec4 lampSkyN;\nuniform vec4 lampLvlSky;\nuniform vec4 lampLvlGnd;\nuniform vec4 lampCsM[16];\nuniform vec4 lampCsP[4];\nuniform vec4 lampCsI;\n#endif`,
     };
   }
 
@@ -762,6 +796,14 @@ export class LampPlugin extends MaterialPluginBase {
     ubo.updateFloat4('lampAtlas', l.atlasDims[0], l.atlasDims[1], l.atlasDims[2], LAMP_CELL);
     if (l.vis) ubo.setTexture('lampVis', l.vis);
     if (l.data) ubo.setTexture('lampData', l.data);
+    // (LR14) the character shadow slots
+    const cs = l.charShadows;
+    if (cs?.on && cs.atlas) {
+      ubo.updateFloatArray('lampCsM', cs.mats);
+      ubo.updateFloatArray('lampCsP', cs.params);
+      ubo.updateFloat4('lampCsI', cs.info[0]!, cs.info[1]!, cs.info[2]!, cs.info[3]!);
+      ubo.setTexture('lampCsAtlas', cs.atlas);
+    }
   }
 
   override getCustomCode(shaderType: string): { [pointName: string]: string } | null {
@@ -789,6 +831,7 @@ float nsR = nsDarkRatio(nsS, lampDark.x, lampDarkP);`;
       CUSTOM_FRAGMENT_DEFINITIONS: `
 #ifdef BAKED_LAMPS
 ${LAMP_GLSL.replace(LAMP_MATH_GLSL, lampMathGlsl())}
+${CHAR_SHADOW_GLSL}
 ${DARK_GLSL}
 #ifdef LAMP_VOLUME
 uniform highp sampler3D lampVolA;
@@ -909,6 +952,11 @@ ${settle}
       float ndl = dot(normalW, L);
       if (ndl <= 0.0) continue;
       k *= ndl;
+#ifdef LAMP_CSHADOW
+      // (LR14) the nearest lamps' character silhouettes from the shadow atlas (t7.x: slot + 1)
+      float csl = lampTexel(lb + 7).x;
+      if (csl > 0.5) k *= nsCharShadow(int(csl - 0.5), lp, lgn, t0.xyz);
+#endif
       vec4 t5 = lampTexel(lb + 5);
       for (int c = 0; c < ${CAPS_PER_LAMP}; c++) {
         float cid = t5[c];

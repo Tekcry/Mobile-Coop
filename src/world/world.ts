@@ -47,6 +47,7 @@ import { BRICK } from '../voxel/brickmap';
 import { skyGridFor, skyShapes } from './levelFill';
 import { flags } from '../core/flags';
 import { BakedLamps } from './bakedLamps';
+import { CharShadows } from './charShadows';
 import { bakeLevelLight, lightBakeHash, type LightBake } from './lightBake';
 import { LightField } from './lightField';
 import { moonLight } from './lampMath';
@@ -119,6 +120,11 @@ export class World {
   readonly lightRig: LightRig;
   /** 3.2: the fixed lights, baked (null: real lights - the `?gfx=min` path, `?baked=0`, maps without lights). */
   lamps: BakedLamps | null = null;
+  /** (LR14) Character silhouette shadow maps from the nearest baked lamps (null without baked lamps). Rendering only. */
+  charShadows: CharShadows | null = null;
+  /** (LR14) The character casters (players, guards, bodies, weapons and gear: `addShadowCaster` without props). */
+  readonly charCasters: AbstractMesh[] = [];
+  private readonly charSet = new Set<AbstractMesh>();
   /** 3.6: gameplay light (`LightField`): the canonical bake + the registry's state + closed doors. */
   readonly lightField: LightField;
   /** Window glass and duct grates (separate bodies that open). */
@@ -180,7 +186,7 @@ export class World {
     for (const m of level.meshes) this.addStatic(m);
     for (const v of this.voxelLayers) for (const m of v.meshes) this.addStatic(m, true);
     this.buildShadowProxy();
-    this.props = new PropSystem(scene, this.parts, (m) => this.addShadowCaster(m));
+    this.props = new PropSystem(scene, this.parts, (m) => this.addShadowCaster(m, Infinity, false));
     for (const p of layout.props) this.props.spawn(p.kind, p.pos, p.yaw ?? 0);
     // image-based light for the PBR surfaces: the level and sky seen from the middle, captured once
     const bd = level.bounds;
@@ -258,6 +264,8 @@ export class World {
       w.lamps.bakeMs = bake.ms;
       w.lamps.attachAll();
       w.lightRig.setBaked(w.lamps.ids);
+      w.charShadows = new CharShadows(scene, w.lamps, w.charCasters);
+      w.lamps.charShadows = w.charShadows;
       w.useBakedMoon();
     }
     if (voxels?.giGroups) w.giSlotOf = giLights(level.lights).slotOf;
@@ -491,8 +499,18 @@ export class World {
   /** Characters, weapons and props cast shadows (one shared list for the sun and every lamp). `sunReach`: the moon's
    *  cascades drop it beyond this distance from the player (`sunCascadeCull.ts`; no caller passes one yet: guards with
    *  GUARD_SUN_REACH, S6d, wait on Michael's look check); lamps and flashlights always take it. */
-  addShadowCaster(m: AbstractMesh, sunReach = Infinity): void {
+  addShadowCaster(m: AbstractMesh, sunReach = Infinity, character = true): void {
     this.lightRig.addCaster(m);
+    // (LR14) characters (not props) also go into the nearest lamps' character shadow maps
+    if (character && !this.charSet.has(m)) {
+      this.charSet.add(m);
+      this.charCasters.push(m);
+      m.onDisposeObservable.addOnce(() => {
+        this.charSet.delete(m);
+        const i = this.charCasters.indexOf(m);
+        if (i >= 0) this.charCasters.splice(i, 1);
+      });
+    }
     if (!this.sunMoving.includes(m)) {
       this.sunMoving.push(m);
       this.sunReach.push(flags.guardSun ? sunReach : Infinity);
@@ -544,6 +562,8 @@ export class World {
     const shadowChanged = rebuildShadows || (this.shadowKey !== '' && shadowKey !== this.shadowKey);
     this.shadowKey = shadowKey;
     this.lightRig.configure({ lights: q.realLights, shadow: q.shadow, volumetric: q.features.volumetrics, minimal: q.minimal, micro: !!this.voxels?.micro }, rebuildShadows);
+    // (LR14) the nearest lamps' character shadow maps (the shadow key above re-reads the materials' defines on a change)
+    this.charShadows?.configure(q.minimal ? 0 : q.shadow.charLamps, q.shadow.charTile);
     if (rebuildShadows) this.sunSpec = '';
     this.setCasterMode(q.features.shadows === 'epic' ? 'voxel' : 'proxy');
     if (this.staticSun !== !!q.shadow.staticSun) {
@@ -588,6 +608,7 @@ export class World {
   /** The frame governor's detail (3.1): run-time only, nothing recompiles. */
   applyAdaptive(a: Readonly<Adaptive>, q: QualityLevel): void {
     this.lightRig.setAdaptive(a.lights, a.shadowEvery);
+    this.charShadows?.setAdaptive(a.shadowEvery);
     const sm = this.shadow?.getShadowMap();
     if (sm) sm.refreshRate = a.shadowEvery;
     if (!q.minimal) {
@@ -663,9 +684,14 @@ export class World {
 
   frame(focus: Vector3, dt = 0): void {
     this.updateGi();
+    const cam = this.scene.activeCamera;
+    // (LR14) the character shadow slots before the lamps write their texels (which lamp reads which tile)
+    if (this.charShadows) {
+      const c = cam ? cam.globalPosition : focus;
+      this.charShadows.frame(focus.x, focus.y, focus.z, c.x, c.y, c.z, dt);
+    }
     this.lamps?.frame();
     this.updateSunCasters(dt, focus);
-    const cam = this.scene.activeCamera;
     if (cam) {
       this.lightRig.update(dt, cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);
       for (const v of this.voxelLayers) v.frame(dt, cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);
@@ -678,6 +704,7 @@ export class World {
     this.surfaces?.dispose();
     this.probe?.dispose();
     this.lightRig.dispose();
+    this.charShadows?.dispose();
     this.lamps?.dispose();
     this.breakables.dispose();
     this.doors.dispose();
