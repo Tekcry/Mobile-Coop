@@ -38,11 +38,52 @@ export function requestProblem(r) {
   return '';
 }
 
+/** A `claims/<id>.json` record { worker, pid, at, done } from its text; null when absent or unreadable. */
+export function parseClaim(text) {
+  if (!text) return null;
+  try {
+    const c = JSON.parse(text);
+    return c && typeof c.worker === 'string' && Number.isFinite(Date.parse(c.at)) ? c : null;
+  } catch { return null; }
+}
+
+/**
+ * True when a claim keeps `worker` off the request: a done claim (any worker), or another worker's claim younger than
+ * maxMs (an older one is a dead worker's and may be taken over). The worker's own open claim never blocks (its process
+ * restarted; the in-memory claim set guards the live one).
+ */
+export function claimBlocks(claim, worker, now, maxMs) {
+  if (!claim) return false;
+  if (claim.done) return true;
+  if (claim.worker === worker) return false;
+  return now - Date.parse(claim.at) < maxMs;
+}
+
+/** Desktop overflow lane gate: start new work only while the backlog is over minBacklog and CPU under maxCpu. */
+export function desktopGate(backlog, cpu, minBacklog, maxCpu) {
+  if (!(backlog > minBacklog)) return `backlog ${backlog} <= ${minBacklog}`;
+  if (!Number.isFinite(cpu)) return 'cpu unknown';
+  if (cpu >= maxCpu) return `cpu ${cpu}% >= ${maxCpu}%`;
+  return '';
+}
+
+/**
+ * Per-slot desktop gate: '' when the slot may start, else why it waits. s = { lockName, lockHeld, dirOk, backlog, cpu,
+ * minBacklog, maxCpu } (the slot's own lock file, worktree dir and max CPU); lock and dir are checked before desktopGate.
+ */
+export function desktopSlotGate(s) {
+  if (s.lockHeld) return `${s.lockName} held`;
+  if (!s.dirOk) return 'worktree missing';
+  return desktopGate(s.backlog, s.cpu, s.minBacklog, s.maxCpu);
+}
+
 /**
  * What to start next. queue = { trains: [{ sha, n }], requests: [request] }, slots = [{ port, busy }].
  * Returns { kind: 'train', train } or { kind: 'alone', request } (both need BOTH slots idle), { kind: 'request',
  * request, slot } (one free slot), or null. A pending train wins and, while a slot is busy, blocks all new work so the
  * slots drain (preemption). An alone request over ALONE_AGE_MIN old blocks pr / full work the same way (never starved).
+ * Among pr / full requests the requester goes by arrival (the requester whose OLDEST open request has the smallest id),
+ * and that requester's NEWEST non-alone request runs (older ones are stale; superseded() normally retires them).
  */
 export function pick(queue, now, slots) {
   const idle = slots.filter((s) => !s.busy);
@@ -55,10 +96,47 @@ export function pick(queue, now, slots) {
     return Number.isFinite(t) && now - t > ALONE_AGE_MIN * 60_000;
   });
   if (aged) return bothIdle ? { kind: 'alone', request: aged } : null;
-  const next = reqs.find((r) => r.kind !== 'alone');
+  const nonAlone = reqs.filter((r) => r.kind !== 'alone');
+  const newest = new Map(); // requester -> its newest request (reqs is sorted, so the last wins)
+  for (const r of nonAlone) newest.set(r.requester ?? '', r);
+  const first = nonAlone[0]; // the oldest request overall belongs to the requester who has waited longest
+  const next = first ? newest.get(first.requester ?? '') : undefined;
   if (next && idle[0]) return { kind: 'request', request: next, slot: idle[0].port };
   if (!next && alone[0] && bothIdle) return { kind: 'alone', request: alone[0] };
   return null;
+}
+
+const suiteBase = (s) => String(s).replace(/:.*$/, '');
+
+/**
+ * Open requests made redundant by a newer one: Map(olderId -> newerId). R is superseded by the newest N (later id)
+ * with the same requester and the same kind ('pr' or 'full' only, never 'alone'), when either both name the same
+ * non-empty `set`, or R.sha is N.sha or an ancestor of it (isAncestor(R.sha, N.sha); injected, false on doubt) and N
+ * covers every suite of R ('full': always; 'pr': ":part" suffixes ignored). Two different non-empty sets never
+ * supersede (deliberate configurations, e.g. a flag off / on pair); nor does a request with no requester.
+ */
+export function superseded(requests, isAncestor) {
+  const reqs = [...requests].sort(sortById);
+  const out = new Map();
+  reqs.forEach((r, i) => {
+    if (r.kind !== 'pr' && r.kind !== 'full') return;
+    if (!r.requester || r.requester === 'unknown') return;
+    for (let j = reqs.length - 1; j > i; j--) {
+      const n = reqs[j];
+      if (n.id === r.id || n.requester !== r.requester || n.kind !== r.kind) continue;
+      const rSet = typeof r.set === 'string' && r.set !== '' ? r.set : '';
+      const nSet = typeof n.set === 'string' && n.set !== '' ? n.set : '';
+      if (rSet && nSet && rSet !== nSet) continue;
+      let ok = rSet !== '' && rSet === nSet;
+      if (!ok) {
+        const nBases = new Set((n.suites ?? []).map(suiteBase));
+        const covers = r.kind === 'full' || (r.suites ?? []).every((s) => nBases.has(suiteBase(s)));
+        ok = covers && (r.sha === n.sha || Boolean(isAncestor(r.sha, n.sha)));
+      }
+      if (ok) { out.set(r.id, n.id); return; }
+    }
+  });
+  return out;
 }
 
 /**

@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { capTail, contextName, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseRun, pick, requestId, requestProblem, runComplete, shard, suiteSection } from '../scripts/laptop-queue/lib.mjs';
+import { capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
   const d = new Date(NOW - min * 60_000).toISOString().replace(/[-:]/g, '').slice(0, 15);
   return `${d}-${tag}-d7a3b887`;
 };
-const req = (min: number, kind: string, tag = kind) => ({ id: idAt(min, tag), kind });
+const req = (min: number, kind: string, tag = kind, requester = tag) => ({ id: idAt(min, tag), kind, requester });
 const slots = (a: boolean, b: boolean) => [{ port: '4189', busy: a }, { port: '4192', busy: b }];
 const train = { sha: 'a'.repeat(40), n: '31' };
 
@@ -30,11 +30,104 @@ describe('pick', () => {
     expect(pick({ trains: [], requests: [req(20, 'alone')] }, NOW, slots(true, false))).toBeNull();
     expect(pick({ trains: [], requests: [req(20, 'alone')] }, NOW, slots(false, false))?.kind).toBe('alone');
   });
-  it('pr and full requests go oldest first, on the free slot', () => {
+  it('pr and full requests of different requesters go oldest first, on the free slot', () => {
     const a = req(30, 'pr', 'a');
     const b = req(20, 'full', 'b');
     expect(pick({ trains: [], requests: [b, a] }, NOW, slots(true, false))).toEqual({ kind: 'request', request: a, slot: '4192' });
     expect(pick({ trains: [], requests: [b, a] }, NOW, slots(true, true))).toBeNull();
+  });
+});
+
+describe('pick newest first per requester', () => {
+  it('runs the requester with the oldest request first, then that one newest request',() => {
+    const a1 = req(50, 'pr', 'a1', 'A');
+    const b1 = req(40, 'pr', 'b1', 'B');
+    const a2 = req(30, 'pr', 'a2', 'A');
+    const b2 = req(10, 'full', 'b2', 'B');
+    const q = { trains: [], requests: [b2, a2, b1, a1] };
+    expect(pick(q, NOW, slots(false, false))).toEqual({ kind: 'request', request: a2, slot: '4189' });
+    const rest = { trains: [], requests: [b2, b1] };
+    expect(pick(rest, NOW, slots(false, false))).toEqual({ kind: 'request', request: b2, slot: '4189' });
+  });
+  it('an alone request is never the newest to run', () => {
+    const p1 = req(30, 'pr', 'p1', 'A');
+    const al = req(5, 'alone', 'al', 'A');
+    expect(pick({ trains: [], requests: [al, p1] }, NOW, slots(false, false))).toEqual({ kind: 'request', request: p1, slot: '4189' });
+  });
+});
+
+describe('superseded', () => {
+  const SHA = (c: string) => c.repeat(40);
+  const r = (min: number, tag: string, o: Record<string, unknown> = {}) => ({ id: idAt(min, tag), requester: 'A', kind: 'pr', sha: SHA('1'), suites: ['e2e-coop'], ...o });
+  const never = () => false;
+  const anc = (pairs: string[][]) => (a: string, b: string) => pairs.some(([x, y]) => x === a && y === b);
+
+  it('same non-empty set name supersedes, whatever the sha', () => {
+    const o = r(30, 'o', { set: 'train', suites: ['x'] });
+    const n = r(10, 'n', { set: 'train', sha: SHA('2'), suites: ['y'] });
+    expect([...superseded([n, o], never)]).toEqual([[o.id, n.id]]);
+    expect(superseded([r(30, 'o', { set: '' }), r(10, 'n', { set: '', sha: SHA('2'), suites: ['y'] })], never).size).toBe(0);
+  });
+  it('ancestor sha whose newer request covers every suite supersedes', () => {
+    const o = r(30, 'o', { sha: SHA('1'), suites: ['a', 'b'] });
+    const n = r(10, 'n', { sha: SHA('2'), suites: ['b', 'a', 'c'] });
+    expect(superseded([o, n], anc([[SHA('1'), SHA('2')]])).get(o.id)).toBe(n.id);
+  });
+  it('a partial overlap is kept (the dropped suite would never run)', () => {
+    const o = r(30, 'o', { sha: SHA('1'), suites: ['a', 'b'] });
+    const n = r(10, 'n', { sha: SHA('2'), suites: ['b', 'c'] });
+    expect(superseded([o, n], anc([[SHA('1'), SHA('2')]])).size).toBe(0);
+  });
+  it('two different set names are kept (flag off / on pair on an ancestor)', () => {
+    const o = r(30, 'o', { set: 'gm-g7-off', suites: ['e2e-enemies', 'e2e-coop'] });
+    const n = r(10, 'n', { set: 'gm-g7-on', sha: SHA('2'), suites: ['e2e-enemies', 'e2e-coop'] });
+    expect(superseded([o, n], anc([[SHA('1'), SHA('2')]])).size).toBe(0);
+  });
+  it('no requester or "unknown" is never superseded', () => {
+    expect(superseded([r(30, 'o', { requester: 'unknown' }), r(10, 'n', { requester: 'unknown' })], never).size).toBe(0);
+    expect(superseded([r(30, 'o', { requester: undefined }), r(10, 'n', { requester: undefined })], never).size).toBe(0);
+  });
+  it('full requests always overlap', () => {
+    const o = r(30, 'o', { kind: 'full', suites: undefined });
+    const n = r(10, 'n', { kind: 'full', suites: undefined, sha: SHA('2') });
+    expect(superseded([o, n], anc([[SHA('1'), SHA('2')]])).get(o.id)).toBe(n.id);
+  });
+  it('an ancestor without overlapping suites is kept', () => {
+    const o = r(30, 'o', { suites: ['a'] });
+    const n = r(10, 'n', { sha: SHA('2'), suites: ['b'] });
+    expect(superseded([o, n], anc([[SHA('1'), SHA('2')]])).size).toBe(0);
+  });
+  it('a sha that is not an ancestor is kept', () => {
+    expect(superseded([r(30, 'o'), r(10, 'n', { sha: SHA('2') })], never).size).toBe(0);
+  });
+  it('a different requester or kind is kept', () => {
+    expect(superseded([r(30, 'o'), r(10, 'n', { requester: 'B' })], never).size).toBe(0);
+    expect(superseded([r(30, 'o', { kind: 'full' }), r(10, 'n')], never).size).toBe(0);
+  });
+  it('alone is never superseded, even with the same set', () => {
+    const o = r(30, 'o', { kind: 'alone', set: 's', steps: ['x'], suites: undefined });
+    const n = r(10, 'n', { kind: 'alone', set: 's', steps: ['x'], suites: undefined });
+    expect(superseded([o, n], () => true).size).toBe(0);
+  });
+  it('a duplicate (same sha, overlapping suites) is superseded; the newest one stays', () => {
+    const o = r(30, 'o');
+    const n = r(10, 'n');
+    expect([...superseded([n, o], never)]).toEqual([[o.id, n.id]]);
+    expect(superseded([n, o], never).has(n.id)).toBe(false);
+  });
+  it('ignores the :part suffix when comparing suites', () => {
+    const o = r(30, 'o', { suites: ['e2e-ctcourse:2'] });
+    const n = r(10, 'n', { sha: SHA('2'), suites: ['e2e-ctcourse'] });
+    expect(superseded([o, n], anc([[SHA('1'), SHA('2')]])).get(o.id)).toBe(n.id);
+  });
+  it('a chain maps each old request to the newest request that supersedes it', () => {
+    const a = r(30, 'a');
+    const b = r(20, 'b');
+    const c = r(10, 'c');
+    const m = superseded([a, b, c], never);
+    expect(m.get(a.id)).toBe(c.id);
+    expect(m.get(b.id)).toBe(c.id);
+    expect(m.has(c.id)).toBe(false);
   });
 });
 
@@ -181,5 +274,39 @@ describe('failureExcerpt and mergeTimes', () => {
   });
   it('merges only ok, non-report suites', () => {
     expect(mergeTimes({ a: 1, b: 2 }, [{ s: 'a', ok: true, report: false, sec: 9 }, { s: 'b', ok: false, report: false, sec: 99 }, { s: 'c', ok: true, report: true, sec: 5 }])).toEqual({ a: 9, b: 2 });
+  });
+});
+
+describe('claims and the desktop lane', () => {
+  const H = 3600_000;
+  const at = (minAgo: number) => new Date(NOW - minAgo * 60_000).toISOString();
+  it('parses a claim, null for absent or bad text', () => {
+    expect(parseClaim(`{"worker":"laptop","pid":1,"at":"${at(1)}","done":false}`)).toMatchObject({ worker: 'laptop', done: false });
+    expect(parseClaim('')).toBeNull();
+    expect(parseClaim('{nope')).toBeNull();
+    expect(parseClaim('{"worker":"laptop","at":"never"}')).toBeNull();
+  });
+  it('a done claim blocks everyone; an open one blocks only the other worker until it is stale', () => {
+    expect(claimBlocks(null, 'desktop', NOW, 3 * H)).toBe(false);
+    expect(claimBlocks({ worker: 'laptop', at: at(5), done: true }, 'laptop', NOW, 3 * H)).toBe(true);
+    expect(claimBlocks({ worker: 'laptop', at: at(5), done: false }, 'desktop', NOW, 3 * H)).toBe(true);
+    expect(claimBlocks({ worker: 'laptop', at: at(5), done: false }, 'laptop', NOW, 3 * H)).toBe(false);
+    expect(claimBlocks({ worker: 'laptop', at: at(200), done: false }, 'desktop', NOW, 3 * H)).toBe(false);
+  });
+  it('the desktop gate needs backlog over the minimum and cpu under the cap', () => {
+    expect(desktopGate(4, 40, 3, 60)).toBe('');
+    expect(desktopGate(3, 40, 3, 60)).toMatch(/backlog/);
+    expect(desktopGate(5, 60, 3, 60)).toMatch(/cpu 60/);
+    expect(desktopGate(5, NaN, 3, 60)).toBe('cpu unknown');
+  });
+  it('the per-slot desktop gate: 4192 waits at cpu 55 and starts at 45, lock, missing dir, small backlog', () => {
+    const base = { lockName: 'heavy2.lock', lockHeld: false, dirOk: true, backlog: 5, cpu: 45, minBacklog: 3, maxCpu: 50 };
+    expect(desktopSlotGate(base)).toBe('');
+    expect(desktopSlotGate({ ...base, cpu: 55 })).toMatch(/cpu 55% >= 50%/);
+    expect(desktopSlotGate({ ...base, cpu: 55, maxCpu: 60 })).toBe('');
+    expect(desktopSlotGate({ ...base, lockHeld: true })).toBe('heavy2.lock held');
+    expect(desktopSlotGate({ ...base, dirOk: false })).toBe('worktree missing');
+    expect(desktopSlotGate({ ...base, backlog: 3 })).toMatch(/backlog/);
+    expect(desktopSlotGate({ ...base, cpu: NaN })).toBe('cpu unknown');
   });
 });
