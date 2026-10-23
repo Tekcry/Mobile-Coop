@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~14:45 (rules: ROADMAP Decided "Tokens for progress"): carry-fix2 93bd9db1 (+ bdfe97ee) check PASS 5cf60964
+(slices/CARRY-FIX2-CHECK.md), fragment + doc a63bef43; Test Runner runs e2e-guard-carry on 93bd9db1 -> green: PR +
+TRAIN-READY + label. RUNNING (Opus): A3 triage (s22-game ctcourse:2 log), second S22 game checker
+(slices/S22-GAME-CHECK2.md), planner briefing S23-S25 (PLAN.md + slices/S23-S25.md on feature/guard-ai).
+
 ~14:30: train 31 PASSED (666 s + guard-carry on 5ee209d8); 4.80.0 releasing (#229 S9, #234 S22 AI, #240 carry fix
 0bdfa95b; the orchestrator closes #240 by hand). Forced guard-carry: master 4f6db420 FAILS as it should; the fix tripped
 the "fault fired" assert (recovery beat the poll timeout) -> bdfe97ee on feature/guard-ai-carry-fix (assert accepts a
