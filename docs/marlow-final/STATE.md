@@ -56,6 +56,13 @@ Rejected by you (~01:25): anything that assumes a dark camera is blind (G240 sta
 Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN section 6; slice reports S0-*.md.
 
 ## Now (2026-10-23 ~01:20, new account; FULL BURN to 100% per Michael ~01:05 via the orchestrator)
+- ~13:30 (Marlow Build, resumed ~12:25 fresh). Laptop GPU on 1a47946a: :1 / :3 / coop / netmove / course PASS (393 s
+  wall). Fix 3 (25ed4646, test-only: A4 cue filter to cam-a4-*, client presses for its own refusal; A8 reads the host
+  light registry): desktop GPU :2 PASS 346 s; :4 FAIL later at "A8: N2 walks away from the grille" (a8Strongroom.mjs:320,
+  N2 alerted before N1 reaches the board; test vs game open). Running: fix 3b (Opus, same agent; appends S-e2e-fix3.md).
+  NEXT: :4 green -> merge master -> ONE full e2e (laptop, E2E_GPU=1) -> PR -> message the orchestrator.
+  section-rating (other worktree): S1-S5 + integration + S7 e2e built, check PASS (fda0ed1c), fix round running; S6 waits
+  for this PR (courseMode.ts overlap).
 - ~12:05 SAVE POINT (window caps ~12:22). Since 11:15: A8 dressing + S1 check PASS (2220e245), perf after measured
   (906065e4). Running at the save: e2e fixer 2 (Opus; uncommitted work in a3 / a6 / a7 set files, their .mjs, maybe
   doors / ai; scratch tests/zz-scratch-nav.test.ts), section-rating planner (Opus, docs only, in the section-rating
@@ -446,8 +453,8 @@ Course Ready's prep notes: origin/feature/marlow-bays docs/marlow-final-prep/ (M
 
 ## Resume prompt
 ```
-Night Shift | Menu Notes Build: resume marlow-final (Marlow Yard redesign). Read CLAUDE.md and docs/ROADMAP.md on origin/feature/menu (CLAUDE.md "Heavy-usage throughput", token rules, "Account swap", "Progress through the burn"; ROADMAP Decided: marlow-final M1-M6, "Next: stealth over shooting"), then in C:/NightShift/Mobile-Coop-marlow-final (git fetch; branch feature/marlow-final) docs/marlow-final/STATE.md: the newest Now entries (~11:15 and ~12:05).
-State: A1-A8 built, dressed, checked (A8 dressing + S1 prop emissives PASS, S8-dress-check.md); slice 9 docs in; revive-per-surface e2e written, not run; perf after measured (S9-perf.md); ghost run a design (A9). Open: e2e fixer 2 (A3 cleaner / A6 cage door / A7 technician; slices/S-e2e-fix2.md): if its report is missing or not final, rerun it (Opus) from the working tree. Then ONE Character Build request on the pushed head: e2e-ctcourse :1-:4, e2e-coop, e2e-netmove, e2e-course (E2E_GPU=1); one fix round; merge master; full e2e; PR to master (Michael: "Merge to master"); message "Night Shift | Orchestrator". heavy.lock only for the length of one suite run.
-Next job: section-rating, planned in C:/NightShift/Mobile-Coop-section-rating (feature/section-rating 00323aa3, docs/section-rating/BRIEF / PLAN / STATE: 7 slices, S1 pure rules has no dependency; the worktree has no node_modules yet: npm ci when desktop CPU allows, it was 96% at 12:25). Start S1 (Sonnet) as soon as CPU allows, the rest per its PLAN once marlow-final's PR is open.
-Also open (since 12:20): e2e fixer 3 (Opus): A4 "camera cues hidden on the host" after the restart (:2), A8 "night circuit off on the host" (:4); report slices/S-e2e-fix3.md; rerun from WIP if missing. Character Build has :1, :3, coop, netmove, course on 1a47946a (verdict pending); :2 / :4 go in a second request after fix 3.
+Night Shift | Marlow Build: resume marlow-final. Read CLAUDE.md on origin/master ("Sessions", "Heavy-usage throughput", token rules), ROADMAP Decided (marlow-final M1-M6, "Next: stealth over shooting") by grep, then docs/marlow-final/STATE.md "Now" ~13:30 entry (worktree C:/NightShift/Mobile-Coop-marlow-final, feature/marlow-final; git fetch).
+State: all sets built, dressed, checked; slice 9 docs and perf done. Green on laptop GPU 1a47946a: :1 :3 coop netmove course. Fix 3 25ed4646 (test-only): :2 PASS desktop GPU. Open: :4 fails at a8Strongroom.mjs:320 (N2 alerted before N1 reaches the board); fix 3b report appended to slices/S-e2e-fix3.md - rerun it (Opus) if missing.
+Then: merge origin/master; ONE full e2e E2E_GPU=1 (laptop: message "Night Shift | Test Runner" branch + sha); PR to master (one PR; changes/feature-marlow-final.md; protocol 33); message "Night Shift | Orchestrator" at PR open only.
+Next job section-rating (C:/NightShift/Mobile-Coop-section-rating, feature/section-rating; docs/section-rating/STATE.md): S1-S5 + integration + S7 done, check PASS; fix round report in STATE; S6 (Marlow rated sets, courseMode.ts) after this PR merges; protocol 34 provisional.
 ```
