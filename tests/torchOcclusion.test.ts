@@ -12,6 +12,7 @@ import { rayOccluder, TORCH_DRAW_SLOTS, TORCH_DRAW_STRIDE, torchDrawTerm } from 
 import { LAMP_LEVEL_GAIN } from '../src/world/lampMath';
 import { pickTorchDoors, TORCH_SHADOW } from '../src/world/torchShadowSet';
 import { hyp2, hyp3 } from '../src/core/mathx';
+import type { AiContext } from '../src/ai/enemy';
 
 /** Four guard torches at (-4.5 + 3 k, 1.45, 0), all pointing +x (pitched down a little), off. */
 function torches(): { reg: LightRegistry; ls: LightDef[] } {
@@ -163,7 +164,6 @@ describe('every torch slot stops at walls and shut doors (LR16t)', () => {
     const { fieldLight } = await import('../src/ai/enemy');
     const { EnemyManager } = await import('../src/ai/enemyManager');
     const { DIFFICULTY } = await import('../src/ai/archetypes');
-    type AiContext = import('../src/ai/enemy').AiContext;
     // the helper hands the context's occluder to the field
     const totalAt = vi.fn((_x: number, _y: number, _z: number, _o?: unknown) => 0.3);
     const occ = vi.fn(() => true);

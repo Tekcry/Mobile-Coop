@@ -206,6 +206,8 @@ describe('the A3 corridor: no lamp shadows itself from its ceiling', () => {
 const ON_ITS_POST: Record<string, string> = {
   ...Object.fromEntries(Array.from({ length: 15 }, (_, k) => [`campusOps:${k + 1}`, 'S1 lane / car park floodlight at the top of its 6.0 m pole (campusS1.ts:222, 233, 237)'])),
   ...Object.fromEntries(Array.from({ length: 8 }, (_, k) => [`campusOps:${k + 17}`, 'S1 forecourt bollard: light point 0.05 m inside the top of its 0.9 m post (campusS1.ts:269)'])),
+  'warehouseOps:34': 'exit sign, a wall bulkhead 0.09 m off the wall face (warehouseS1.ts:83): wall-mounted, accepted (lead, LR16-W)',
+  'warehouseOps:53': 'exit sign, a wall bulkhead 0.09 m off the wall face (warehouseS1.ts:92): wall-mounted, accepted (lead, LR16-W)',
 };
 /**
  * (LR16-L A2) Lamps flush with or inside a mount, listed for the lead and the map owners (map files are not LR16-L's).
@@ -213,9 +215,6 @@ const ON_ITS_POST: Record<string, string> = {
  */
 const KNOWN_EMBEDDED: Record<string, string> = {
   'campusOps:16': 'S1 bike shelter fitting (-5, 2.2, -48) flush with the roof underside at 2.2 (campusS1.ts:254); tagged out (radius 0, off): bakes nothing',
-  'campusOps:81': 'S4 cage downlight (18, 2.8, 37) (campusS4.ts:493) inside the basket support post at (18, 37), y 0-4.0 (campusS4.ts:416): the post runs through the lamp to the floor and cuts its beam',
-  'warehouseOps:34': 'S1 charging bay exit sign (-8, 2.4, -6.24) (warehouseS1.ts:83): a wall bulkhead 0.09 m off the z -6 wall face, inside its grown half cell; the room-side cells are clear',
-  'warehouseOps:53': 'S1 workshop door exit sign (11, 2.4, -17.76) (warehouseS1.ts:92): a wall bulkhead 0.09 m off the facade over the door, inside its grown half cell; the room-side cells are clear',
 };
 
 describe('every map: no lamp embedded in its own mount', () => {
