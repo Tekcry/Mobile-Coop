@@ -319,8 +319,8 @@ describe('guard bake plan: the real guards.json', () => {
   const LISTS = ['headwear', 'headwear2', 'eyewear', 'fixedGear', 'gameplayGear', 'kitPool'];
 
   it('job counts per stage', () => {
-    const counts = Object.fromEntries(STAGES.map((s) => [s.name, jobsFor(s.name, kit).length]));
-    expect(counts).toEqual({ bodies: 3, heads: 11, garments: 16, gear: 25, lods: 4, check: 4, sheet: 1 });
+    const want = { bodies: 3, heads: 11, garments: 16, gear: 25, lods: 4, check: 4, sheet: 1 };
+    for (const [s, n] of Object.entries(want)) expect(jobsFor(s, kit).length, s).toBe(n);
   });
 
   it('outfits are garment jobs per base, never gear jobs: jacket on average only, rolled sleeves and work on lean only', () => {
