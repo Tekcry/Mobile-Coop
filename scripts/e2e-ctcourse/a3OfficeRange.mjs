@@ -68,7 +68,7 @@ export async function walk(t, n) {
       if (!e) return 'no live guard';
       const f = (n) => (typeof n === 'number' ? +n.toFixed(2) : n);
       const w = e.walker;
-      return JSON.stringify({ t: f(g.time), pos: [f(e.pos.x), f(e.pos.z)], vel: [f(e.vel.x), f(e.vel.z)], lvl: e.aware?.level, st: e.state, meter: f(e.meter), al: !!e.alerted, pas: !!e.passive, taken: !!e.taken, link: !!e.link, stim: e.hasStimulus ? [f(e.stimulus[0]), f(e.stimulus[1])] : null, spot: [f(e.spot[0]), f(e.spot[1])], route: (e.routePath ?? []).slice(0, 4).map((p) => [f(p[0]), f(p[1])]), idx: w?.idx, wait: f(w?.waitT), look: f(w?.lookYaw), cell: e.navCell, walk: g.nav ? g.nav.isWalkable(e.navCell) : null, turn: f(e.turnT), n: g.enemyMgr.enemies.length, feet: g.playerRefs().map((r) => [f(r.feet.x), f(r.feet.z)]) });
+      return JSON.stringify({ t: f(g.time), pos: [f(e.pos.x), f(e.pos.z)], vel: [f(e.vel.x), f(e.vel.z)], lvl: e.aware?.level, st: e.state, meter: f(e.meter), al: !!e.alerted, pas: !!e.passive, taken: !!e.taken, link: !!e.link, stim: e.hasStimulus ? [f(e.stimulus[0]), f(e.stimulus[1])] : null, spot: [f(e.spot[0]), f(e.spot[1])], route: (e.routePath ?? []).slice(0, 4).map((p) => [f(p[0]), f(p[1])]), idx: w?.idx, wait: f(w?.waitT), look: f(w?.lookYaw), cell: e.navCell, walk: g.nav ? g.nav.isWalkable(e.navCell) : null, turn: f(e.turnT), n: g.enemyMgr.enemies.length, feet: g.playerRefs().map((r) => [f(r.feet.x), f(r.feet.z)]), ids: g.playerRefs().map((r) => r.id), tg: e.target?.id ?? null, los: !!e.los, sees: typeof e.seesIndex === 'function' ? [e.seesIndex(0), e.seesIndex(1)] : null, inc: e.incident, im: e.incMode, devs: g.enemyMgr.deviceAlerts, ss: f(e.sinceSeen) });
     });
   /** (S-e2e-fix2) Wait on `wait` while the guard is sampled every 1.5 s; on a timeout the trace is printed with the error. */
   async function traced(what, wait) {
@@ -318,6 +318,13 @@ export async function walk(t, n) {
   // (the start's damage-off can be undone by the bay-N respawn's wall-clock 2 s timer: set again, seconds later)
   await noDamage(A);
   assert((await GA(() => window.__app.current.target.health.hp)) === 100, 'A3: the host is unhurt before the jam posts');
+  // (guard-ai S23 A3 triage) the cleaner's first combat from here on: where he is, who he targets and sees, both players
+  const alertKey = await t.onHostStep(A, (g) => {
+    const e = g.enemyMgr?.enemies.find((q) => q.alive);
+    if (!e || !e.alerted) return null;
+    const f = (n) => +n.toFixed(2);
+    return { t: f(g.time), pos: [f(e.pos.x), f(e.pos.z)], yaw: f(e.yaw), ids: g.playerRefs().map((r) => r.id), feet: g.playerRefs().map((r) => [f(r.feet.x), f(r.feet.z)]), tg: e.target?.id ?? null, los: !!e.los, sees: typeof e.seesIndex === 'function' ? [e.seesIndex(0), e.seesIndex(1)] : null, inc: e.incident, im: e.incMode, devs: g.enemyMgr.deviceAlerts };
+  });
   await moveHost(POST_W[0], POST_W[1], 0.1, Math.PI / 2);
   await waitSim(500);
   n0 = await backs();
@@ -360,7 +367,12 @@ export async function walk(t, n) {
   });
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => !!document.querySelector('.course-hud tr[data-step="a3-in"] td.done'), null, 15000, `A3: the ${tag} sees the relay step ticked`);
   assert((await backs()) === n0, 'A3: the relay cost no send-back');
-  await until(B, () => /Good\. Now the other way round/.test(window.__course.wire.rl ?? ''), null, 90000, "A3: LANTERN's 'the other way round' line reaches the client");
+  // (guard-ai S23 A3 triage) the guard trace on a timeout: who he targets and sees, his incident
+  await traced('A3 swap line', until(B, () => /Good\. Now the other way round/.test(window.__course.wire.rl ?? ''), null, 90000, "A3: LANTERN's 'the other way round' line reaches the client")).catch(async (e) => {
+    console.error(`A3 swap line: first alert since step 4 ${await GA((k) => JSON.stringify(window.__hostStep?.res?.[k] ?? 'none'), alertKey)}`);
+    throw e;
+  });
+  await t.offHostStep(A, alertKey);
   await sees(B, /Jam the camera from the far lobby/, 'A3: the client (B) reads the swap line');
   await sees(A, /Move on your partner's jam/, 'A3: the host (A) reads the swap line');
   assert(!(await ticked(A, 'a3-swap')), 'A3: the swap is not done yet');
