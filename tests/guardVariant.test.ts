@@ -6,6 +6,17 @@ import {
 } from '../src/operators/guards/guardVariant';
 import type { GuardPieces, GuardVariant } from '../src/operators/guards/guardVariant';
 import enemies from '../src/config/enemies.json';
+import kitRaw from '../scripts/operators/data/guards.json';
+import type { GuardKit, GuardKindDef } from '../src/operators/guards/guardKit';
+
+const KIT = kitRaw as unknown as GuardKit;
+const kitKind = (id: string): GuardKindDef => KIT.kinds.find((k) => k.id === id) as GuardKindDef;
+const kitPiece = (id: string) => KIT.pieces.find((p) => p.id === id);
+/** Every id the kind's kit lists allow: heads, hair caps, outfit, headwear, headwear2, eyewear, fixed, gameplay, kit pool. */
+const kitAllowed = (k: GuardKindDef): Set<string> => new Set([
+  ...k.heads, ...k.hairCaps, k.outfit, ...k.headwear, ...k.headwear2, ...k.eyewear, ...k.fixedGear, ...k.gameplayGear, ...k.kitPool,
+]);
+const OPEN = ['grunt', 'runner', 'sniper', 'droneOp', 'officer'] as const;
 
 const KINDS = ['grunt', 'runner', 'heavy', 'sniper', 'enforcer', 'droneOp', 'officer'] as const;
 const MAPS = ['ctcourse', 'campusOps', 'bunker'] as const;
@@ -92,8 +103,8 @@ describe('guardVariant: contract', () => {
 });
 
 describe('guardVariant: distribution', () => {
-  it('no (head, skin tone, hair cap) combo above 15% per kind', () => {
-    for (const kind of KINDS) {
+  it('no (head, skin tone, hair cap) combo above 15% per open-face kind', () => {
+    for (const kind of OPEN) {
       const counts = new Map<string, number>();
       let total = 0;
       for (const map of MAPS) {
@@ -129,6 +140,20 @@ describe('guardVariant: distribution', () => {
       expect(skins.size, kind).toBe(SKIN_TONES);
       expect(caps.size, kind).toBe(HAIR_CAPS.length);
       expect(colours.size, kind).toBe(HAIR_COLOURS.length);
+    }
+  });
+
+  it('face-covered kinds (no kit hair caps) are bald under the balaclava and use every skin tone', () => {
+    for (const kind of ['heavy', 'enforcer']) {
+      const skins = new Set<number>();
+      for (const map of MAPS) {
+        for (const seed of SEEDS) {
+          const v = look(seed, kind, map);
+          expect(v.hairCap).toBe('bald');
+          skins.add(v.skinTone);
+        }
+      }
+      expect(skins.size, kind).toBe(SKIN_TONES);
     }
   });
 
@@ -200,12 +225,12 @@ describe('guardVariant: archetype matrix', () => {
     }
   });
 
-  it('officer: uniform_jacket, peaked cap or hair only, radio', () => {
+  it('officer: uniform_jacket, peaked cap always (headwearOptional false), radio', () => {
     for (const map of MAPS) {
       for (const seed of SEEDS) {
         const v = look(seed, 'officer', map);
         expect(v.outfit).toBe('uniform_jacket');
-        expect([null, 'cap_officer']).toContain(v.headwear);
+        expect(v.headwear).toBe('cap_officer');
         expect(v.kit.slice(0, v.kitCount)).toContain('radio');
       }
     }
@@ -236,8 +261,10 @@ describe('guardVariant: archetype matrix', () => {
     }
   });
 
-  it('only the sniper wears dark glasses; others at most rare clear glasses', () => {
+  it('eyewear: the sniper always dark glasses (fixed gear); others a rare pick from their kit eyewear', () => {
+    let gruntDark = 0;
     for (const kind of KINDS) {
+      const k = kitKind(kind);
       let glasses = 0;
       let total = 0;
       for (const map of MAPS) {
@@ -245,10 +272,41 @@ describe('guardVariant: archetype matrix', () => {
           const v = look(seed, kind, map);
           total++;
           if (v.eyewear !== null) glasses++;
-          if (kind !== 'sniper') expect(v.eyewear).not.toBe('glasses_dark');
+          if (kind === 'grunt' && v.eyewear === 'glasses_dark') gruntDark++;
+          if (kind !== 'sniper' && v.eyewear !== null) expect(k.eyewear, kind).toContain(v.eyewear);
         }
       }
       if (kind !== 'sniper') expect(glasses / total, kind).toBeLessThan(0.2);
+    }
+    expect(gruntDark).toBeGreaterThan(0); // the kit lets the grunt wear dark glasses too
+  });
+
+  it('every id guardVariant and applyGear emit, for every seed, map and gear bit, is in that kind\'s kit lists', () => {
+    for (const kind of KINDS) {
+      const k = kitKind(kind);
+      const allowed = kitAllowed(k);
+      for (const map of MAPS) {
+        for (const seed of SEEDS) {
+          const v = look(seed, kind, map);
+          expect(v.base, kind).toBe(k.base);
+          expect(k.heads, kind).toContain(v.head);
+          if (k.hairCaps.length) expect(k.hairCaps, kind).toContain(v.hairCap);
+          else expect(v.hairCap, kind).toBe('bald');
+          expect(v.outfit, kind).toBe(k.outfit);
+          if (v.headwear === null) expect(k.headwearOptional, `${kind} bare head`).toBe(true);
+          else expect(k.headwear, kind).toContain(v.headwear);
+          if (v.headwear2 !== null) expect(k.headwear2, kind).toContain(v.headwear2);
+          if (v.eyewear !== null) expect([...k.eyewear, ...k.fixedGear], kind).toContain(v.eyewear);
+          const kit = v.kit.slice(0, v.kitCount);
+          for (const id of kit) expect([...k.fixedGear, ...k.kitPool], `${kind} ${id}`).toContain(id);
+          for (const id of k.fixedGear) if (kitPiece(id)?.kind === 'kit') expect(kit, `${kind} fixed ${id}`).toContain(id);
+          for (const id of k.fixedGear) if (kitPiece(id)?.kind === 'eyewear') expect(v.eyewear, kind).toBe(id);
+          for (let bits = 0; bits < 8; bits++) {
+            const list = pieceList(pieces(v, (bits & 1) !== 0, (bits & 2) !== 0, (bits & 4) !== 0, kind));
+            for (const id of list) expect(allowed.has(id), `${kind} bits ${bits}: ${id}`).toBe(true);
+          }
+        }
+      }
     }
   });
 
@@ -290,7 +348,7 @@ describe('applyGear', () => {
     }
   });
 
-  it('helmet shows helmet_std, replaces headwear, hides hair cap (A5, A6)', () => {
+  it('helmet shows helmet_std, replaces headwear (not underHelmet pieces: the headset stays), hides hair cap (A5, A6)', () => {
     for (const kind of ['grunt', 'runner', 'sniper', 'droneOp', 'officer']) {
       for (const seed of SEEDS) {
         const v = look(seed, kind, 'ctcourse');
@@ -298,7 +356,11 @@ describe('applyGear', () => {
         expect(hasPiece(p, 'helmet_std')).toBe(true);
         expect(hasPiece(p, 'helmet_heavy')).toBe(false);
         expect(hasPiece(p, 'vest_soft')).toBe(false);
-        for (const hw of HEADWEARS) expect(hasPiece(p, hw), `${kind} ${hw}`).toBe(false);
+        for (const hw of HEADWEARS) {
+          const stays = kitPiece(hw)?.underHelmet === true && (v.headwear === hw || v.headwear2 === hw);
+          expect(hasPiece(p, hw), `${kind} ${hw}`).toBe(stays);
+        }
+        if (kind === 'droneOp') expect(hasPiece(p, 'headset')).toBe(true);
         for (const hc of HAIR_CAPS) expect(hasPiece(p, hc), `${kind} ${hc}`).toBe(false);
       }
     }
@@ -332,15 +394,16 @@ describe('applyGear', () => {
     }
   });
 
-  it('armour shows vest_soft; plated shows plate_heavy (instead of the vest)', () => {
+  it('armour (or plated) shows the kind\'s armourPiece: vest_soft on the open-face kinds, never plate_heavy', () => {
     for (const kind of ['grunt', 'runner', 'sniper', 'droneOp', 'officer']) {
       const v = look(9, kind, 'ctcourse');
-      const a = pieces(v, false, true, false, kind);
-      expect(hasPiece(a, 'vest_soft')).toBe(true);
-      expect(hasPiece(a, 'plate_heavy')).toBe(false);
-      const pl = pieces(v, false, true, true, kind);
-      expect(hasPiece(pl, 'plate_heavy')).toBe(true);
-      expect(hasPiece(pl, 'vest_soft')).toBe(false);
+      expect(hasPiece(pieces(v, false, false, false, kind), 'vest_soft')).toBe(false);
+      for (const plated of [false, true]) {
+        const a = pieces(v, false, true, plated, kind);
+        expect(hasPiece(a, 'vest_soft')).toBe(true);
+        expect(hasPiece(a, 'plate_heavy')).toBe(false);
+      }
+      expect(hasPiece(pieces(v, false, false, true, kind), 'vest_soft')).toBe(true);
     }
   });
 

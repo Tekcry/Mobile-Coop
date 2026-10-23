@@ -31,20 +31,25 @@ Bases `average`, `lean`, `broad`. Heads `average-1`..`-4`, `lean-1`..`-4`, `broa
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | grunt | average | 4 heads, hair cap | uniform (faction) | cap / beanie / none; eyewear clear / dark / none | radio, flashlight_mount | helmet_std, vest_soft | pouch_belt, holster_thigh |
 | runner | lean | 4 heads, hair cap | work (kind colour, A11) | beanie / none | - | helmet_std, vest_soft | pouch_belt |
-| heavy | broad | broad-1 under balaclava | uniform (faction) | balaclava (always) | plate_heavy, helmet_heavy | - (fixed pieces carry it) | pouch_belt |
+| heavy | broad | broad-1 under balaclava | uniform (faction) | balaclava (always) | plate_heavy | helmet_heavy (strict A5) | pouch_belt |
 | sniper | lean | 4 heads, hair cap | uniform_rolled (faction) | boonie / cap | glasses_dark | helmet_std, vest_soft | pouch_belt, holster_thigh |
-| enforcer | broad | broad-1 under balaclava | uniform (faction) | balaclava (always) | plate_heavy, helmet_heavy, shield_riot | - | pouch_belt |
+| enforcer | broad | broad-1 under balaclava | uniform (faction) | balaclava (always) | plate_heavy, shield_riot | helmet_heavy (strict A5) | pouch_belt |
 | droneOp | average | 4 heads, hair cap | uniform (faction) | headset (always) + `headwear2` cap / none; eyewear clear / none | pouch_belt | helmet_std, vest_soft | holster_thigh |
-| officer | average | 4 heads, hair cap | uniform_jacket (kind colour) | cap_officer (always); eyewear clear / none | radio | helmet_std, vest_soft | holster_thigh |
+| officer | average | 4 heads, hair cap | uniform_jacket (kind colour) | cap_officer (always, no bare head); eyewear clear / none | radio | helmet_std, vest_soft | holster_thigh |
 Changes against PLAN section 4, and why:
 - Enforcer: `plate_heavy`, not `vest_soft` (lead correction). He is `plated: true` in `enemies.json`, so by A5 what
   stops a round is what is drawn.
 - Sniper and officer also list `helmet_std` as gameplay gear. `GEAR_BY_STAGE[3]` (`src/ai/gear.ts`) gives every guard a
   helmet, and A5 says a helmet that stops a round must be drawn.
 - `helmetPiece` / `armourPiece` per kind name the piece that `Enemy.helmet` / `Enemy.armour` (`AL_HELMET` /
-  `AL_ARMOUR`) show. Heavy and enforcer map both to their fixed pieces.
-- Open for G6/G7: today heavy and enforcer draw `helmet_heavy` as fixed gear whether or not `Enemy.helmet` is set. That
-  matches today's always-shown visor look. A knock-off (A6) hides `helmet_heavy` and drops it. See section 12.
+  `AL_ARMOUR`) show. Heavy and enforcer: `helmet_heavy` and `plate_heavy`.
+- Strict A5 (lead ruling, P1 fix): every helmet, `helmet_heavy` too, is drawn only while the gameplay helmet bit
+  (`Enemy.helmet`) is set, so `helmet_heavy` is heavy / enforcer `gameplayGear`, not fixed gear. A knock-off (A6) drops
+  it. `plate_heavy` stays fixed: both kinds are `plated` in `enemies.json` and always show it.
+- G6 (`guardVariant`, `applyGear`) reads every pool from this data at module load; a test checks every id it can emit
+  is in that kind's lists. Picks: `headwearOptional` false means the headwear is always worn (the officer never shows a
+  bare head); eyewear in `fixedGear` (the sniper's `glasses_dark`) is always worn, else a rare pick from `eyewear`
+  (grunt: clear or dark); a kind with no `hairCaps` (heavy, enforcer) is `bald` (no cap mesh on `broad`).
 
 Headwear rules (G6 `applyGear`; the data flags are per headwear piece):
 | Piece | `hidesHair` | `underHelmet` |
@@ -257,13 +262,10 @@ baked.
 - Gear ids stay generic (`helmet_std`, `vest_soft`, `plate_heavy`, `shield_riot`, `cap`, `beanie`, `balaclava`).
 
 ## 12. Open items for later slices
-- Heavy and enforcer `helmet_heavy`: it is fixed gear, but `Enemy.helmet` is only true by alarm stage or response role.
-  G6/G7 choose one of two readings:
-  - show it only while `Enemy.helmet` (strict A5);
-  - keep it always (today's visor look), with a knock-off hiding it.
-
-  The data allows both (it is in `fixedGear`, and `helmetPiece` names it).
-- `applyGear` with `def.plated` keys on the kind's `armourPiece` (plate_heavy for heavy and enforcer), not on
-  `plated` alone.
+- Settled (lead, P1 fix): heavy and enforcer `helmet_heavy` is `gameplayGear`, shown only while `Enemy.helmet` (strict
+  A5), like every helmet. `Enemy.helmet` is true by alarm stage or response role, so a calm heavy shows the balaclava
+  and plate without the visor helmet.
+- `applyGear` with `plated` (or `armour`) shows the kind's `armourPiece` (plate_heavy for heavy and enforcer), not
+  plate_heavy on `plated` alone.
 - Officer trousers follow the jacket colour (one `uniform` slot). Splitting them needs a sixth slot (a `gvis` value per
   slot; cheap) if Michael flags it at G10.

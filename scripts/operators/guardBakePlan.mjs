@@ -57,6 +57,7 @@ export function contractKit() {
   return {
     bases: ['average', 'lean', 'broad'],
     heads: ['average-1', 'average-2', 'average-3', 'average-4', 'lean-1', 'lean-2', 'lean-3', 'lean-4', 'broad-1'],
+    hairCaps: ['buzz', 'crop', 'sidepart', 'receding', 'fade', 'bald'],
     outfits: ['uniform', 'uniform_rolled', 'work', 'uniform_jacket'],
     pieces: {
       headwear: ['cap', 'cap_officer', 'beanie', 'balaclava', 'headset', 'boonie'],
@@ -75,6 +76,31 @@ const DEFAULT_GARMENTS = [
   { id: 'gloves', script: 'garments/gloves.py' },
   { id: 'jacket', script: 'garments/field_jacket.py', bases: ['average'] },
 ];
+
+/**
+ * Garment parts per outfit (SPEC section 4, PLAN G2) when the kit's outfit pieces (`kind: 'outfit'`) list none
+ * (`garments` on the piece overrides). Each part is one cloth job per base that wears the outfit; a part two outfits share
+ * on a base (boots) is baked once. Variants are args to the part's script (G2 writes them).
+ */
+const OUTFIT_GARMENTS = {
+  uniform: ['shirt', 'trousers', 'boots', 'gloves'],
+  uniform_rolled: ['shirt_rolled', 'trousers', 'boots', 'gloves'],
+  work: ['work_jacket', 'work_trousers', 'boots', 'work_gloves'],
+  uniform_jacket: ['shirt', 'jacket', 'trousers', 'boots', 'gloves'],
+};
+const GARMENT_PARTS = {
+  shirt: { script: 'garments/combat_shirt.py' },
+  shirt_rolled: { script: 'garments/combat_shirt.py', variant: 'rolled' },
+  trousers: { script: 'garments/trousers.py' },
+  boots: { script: 'garments/boots.py' },
+  gloves: { script: 'garments/gloves.py' },
+  jacket: { script: 'garments/field_jacket.py' },
+  work_jacket: { script: 'garments/field_jacket.py', variant: 'work' },
+  work_trousers: { script: 'garments/trousers.py', variant: 'work' },
+  work_gloves: { script: 'garments/gloves.py', variant: 'work' },
+};
+/** Kind lists whose ids are gear jobs of the kind's base (the outfit is a garment, hair caps are a heads job). */
+const KIND_PIECE_LISTS = ['headwear', 'headwear2', 'eyewear', 'fixedGear', 'gameplayGear', 'kitPool'];
 
 /** Pieces with their own GLB, rigid and the same for every base (G3, G4): one job, not one per base. */
 const OWN_GLB = new Set(['shield_riot']);
@@ -100,9 +126,14 @@ function pieceEntries(section) {
 
 /**
  * Reads a kit (the parsed guards.json) tolerantly into what the job split needs: bases, head variants (base from the
- * entry's `base`, else the id's prefix before the last `-`), garments, pieces. `shared` is every other section; it joins
- * each job's kit hash so a change to budgets or tint slots rebakes everything, while a change to one base's entry
- * rebakes only that base's jobs.
+ * entry's `base`, else the id's prefix before the last `-`), garments, pieces, hair caps. `shared` is every other
+ * section; it joins each job's kit hash so a change to budgets or tint slots rebakes everything, while a change to one
+ * base's entry rebakes only that base's jobs.
+ *  - Garments: pieces of kind `outfit` become garment jobs (their parts, OUTFIT_GARMENTS) on the bases whose kinds wear
+ *    them; a kit without outfit pieces uses its `garments` list, else DEFAULT_GARMENTS.
+ *  - Gear: every other piece. With `kinds`, `pieceUse` names per base the pieces its kinds can show (headwear,
+ *    headwear2, eyewear, fixedGear, gameplayGear, kitPool), so a base never bakes a piece it does not use.
+ *  - Hair caps: `hairCapBases` lists the bases whose kinds wear a cap with a mesh (not bald), with those caps.
  */
 export function normalizeKit(raw) {
   if (!isObj(raw)) throw new Error('kit data is not an object');
@@ -112,16 +143,63 @@ export function normalizeKit(raw) {
     const base = h.base ?? h.id.replace(/-[^-]*$/, '');
     return { ...h, base };
   });
-  const garments = (raw.garments == null ? DEFAULT_GARMENTS : entries(raw.garments)).map((g) => ({ ...g }));
-  const pieces = pieceEntries(raw.pieces ?? raw.gear);
+  const allPieces = pieceEntries(raw.pieces ?? raw.gear);
+  const isOutfit = (p) => p.kind === 'outfit' || p.group === 'outfit' || p.group === 'outfits';
+  const outfits = allPieces.filter(isOutfit);
+  const pieces = allPieces.filter((p) => !isOutfit(p));
+  const kinds = entries(raw.kinds);
   if (!baseIds.length) throw new Error('kit has no bases');
   if (!heads.length) throw new Error('kit has no head variants');
   for (const h of heads) if (!baseIds.includes(h.base)) throw new Error(`head ${h.id}: base "${h.base}" is not in the kit's bases`);
+  for (const k of kinds) if (!baseIds.includes(k.base)) throw new Error(`kind ${k.id}: base "${k.base}" is not in the kit's bases`);
+  const kindsOf = (b) => kinds.filter((k) => k.base === b);
+
+  let garments;
+  if (outfits.length) {
+    const parts = new Map();
+    for (const o of outfits) {
+      const wornOn = kinds.length ? baseIds.filter((b) => kindsOf(b).some((k) => k.outfit === o.id)) : baseIds;
+      const list = o.garments ?? OUTFIT_GARMENTS[o.id];
+      if (!list) throw new Error(`outfit ${o.id}: no garment parts (add "garments" to the piece or OUTFIT_GARMENTS)`);
+      for (const e of entries(list)) {
+        const def = { ...(GARMENT_PARTS[e.id] ?? {}), ...e };
+        const g = parts.get(def.id) ?? { ...def, bases: [], outfits: [], outfitBases: {} };
+        for (const b of wornOn) if (!g.bases.includes(b)) g.bases.push(b);
+        if (!g.outfits.some((x) => x.id === o.id)) g.outfits.push(o);
+        g.outfitBases[o.id] = wornOn;
+        parts.set(def.id, g);
+      }
+    }
+    garments = [...parts.values()].filter((g) => g.bases.length).map((g) => ({ ...g, bases: baseIds.filter((b) => g.bases.includes(b)) }));
+  } else {
+    garments = (raw.garments == null ? DEFAULT_GARMENTS : entries(raw.garments)).map((g) => ({ ...g }));
+  }
   for (const g of garments) for (const b of g.bases ?? []) if (!baseIds.includes(b)) throw new Error(`garment ${g.id}: base "${b}" is not in the kit's bases`);
-  const own = (p) => p.perBase === false || (p.perBase === undefined && OWN_GLB.has(p.id));
+
+  const own = (p) => p.ownGlb === true || p.perBase === false || (p.perBase === undefined && OWN_GLB.has(p.id));
   const owned = pieces.filter(own);
+  const pieceIds = new Set(allPieces.map((p) => p.id));
+  let pieceUse = null;
+  if (kinds.length) {
+    pieceUse = Object.fromEntries(baseIds.map((b) => [b, new Set()]));
+    for (const k of kinds) {
+      for (const list of KIND_PIECE_LISTS) {
+        for (const id of k[list] ?? []) {
+          if (!pieceIds.has(id)) throw new Error(`kind ${k.id}: ${list} piece "${id}" is not in the kit's pieces`);
+          pieceUse[k.base].add(id);
+        }
+      }
+    }
+  }
+
+  const caps = entries(raw.hairCaps).filter((c) => c.id !== 'bald' && !(Array.isArray(c.tris) && c.tris[0] === 0));
+  const hairCapBases = baseIds.map((b) => {
+    const worn = kinds.length ? new Set(kindsOf(b).flatMap((k) => k.hairCaps ?? [])) : null;
+    return { base: b, caps: caps.filter((c) => !worn || worn.has(c.id)) };
+  }).filter((h) => h.caps.length);
+
   const shared = Object.fromEntries(Object.entries(raw).filter(([k]) => !['bases', 'heads', 'garments', 'pieces', 'gear'].includes(k)));
-  return { bases, heads, garments, pieces: pieces.filter((p) => !own(p)), ownGlb: owned, shared };
+  return { bases, heads, garments, pieces: pieces.filter((p) => !own(p)), ownGlb: owned, pieceUse, hairCapBases, shared };
 }
 
 /** Deterministic JSON: object keys sorted, so key order in guards.json never changes a hash. */
@@ -142,6 +220,9 @@ const lib = (stage) => LIBS[stage].map((f) => `${PY_REL}/${f}`);
 
 const idOf = (stage, ...parts) => [stage, ...parts].join('-');
 const slice = (nk, entry) => ({ entry, shared: nk.shared });
+
+/** The outfits a garment part serves on a base (empty for kit-listed or default garments). */
+const garmentOutfits = (g, b) => (g.outfits ?? []).filter((o) => g.outfitBases?.[o.id]?.includes(b));
 
 /**
  * The jobs of a stage for a kit. One job per base (bodies, lods, check), per head variant (heads), per (base, garment)
@@ -166,7 +247,8 @@ export function jobsFor(stage, kit, opts = {}) {
     inputs: [KIT_FILE, ...(o.files ?? lib(stage)), ...(o.needs ?? [])],
   });
   const common = (j) => ['--stage', stage, '--job', j];
-  const gearIds = (b) => nk.pieces.map((p) => idOf('gear', b, p.id));
+  const gearIds = (b) => nk.pieces.filter((p) => !nk.pieceUse || nk.pieceUse[b]?.has(p.id)).map((p) => idOf('gear', b, p.id));
+  const capsOf = (b) => nk.hairCapBases.filter((h) => h.base === b).map((h) => idOf('haircaps', h.base));
   const out = {
     bodies: () => nk.bases.map((b) => make(idOf('bodies', b.id), {
       script: 'build_body.py', args: [...common(idOf('bodies', b.id)), '--base', b.id], tags: [b.id],
@@ -177,25 +259,25 @@ export function jobsFor(stage, kit, opts = {}) {
       kit: slice(nk, h), outputs: [`heads/guard-${h.id}-head.blend`, `heads/guard-${h.id}-head.json`],
     })),
     garments: () => nk.bases.flatMap((b) => garmentsOf(b.id).map((g) => make(idOf('garments', b.id, g.id), {
-      script: g.script ?? `garments/${g.id}.py`, args: [...common(idOf('garments', b.id, g.id)), '--base', b.id, '--garment', g.id],
-      needs: [idOf('bodies', b.id)], tags: [b.id, g.id], kit: { ...slice(nk, g), base: b },
+      script: g.script ?? `garments/${g.id}.py`, args: [...common(idOf('garments', b.id, g.id)), '--base', b.id, '--garment', g.id, ...(g.variant ? ['--variant', g.variant] : [])],
+      needs: [idOf('bodies', b.id)], tags: [b.id, g.id, ...garmentOutfits(g, b.id).map((o) => o.id)], kit: { ...slice(nk, { ...g, outfits: garmentOutfits(g, b.id), outfitBases: undefined }), base: b },
       outputs: [`garments/guard-${b.id}-${g.id}.blend`, `garments/guard-${b.id}-${g.id}.json`],
     }))),
     gear: () => [
       ...nk.bases.flatMap((b) => nk.pieces.map((p) => make(idOf('gear', b.id, p.id), {
-        script: p.script ?? 'rigid_skin.py', args: [...common(idOf('gear', b.id, p.id)), '--base', b.id, '--piece', p.id],
+        script: p.script ?? 'build_gear.py', args: [...common(idOf('gear', b.id, p.id)), '--base', b.id, '--piece', p.id],
         tags: [b.id, p.id], kit: { ...slice(nk, p), base: b },
         outputs: [`gear/guard-${b.id}-${p.id}.blend`, `gear/guard-${b.id}-${p.id}.json`],
       }))),
       ...nk.ownGlb.map((p) => make(idOf('gear', p.id), {
-        script: p.script ?? 'rigid_skin.py', args: [...common(idOf('gear', p.id)), '--piece', p.id], tags: [p.id],
+        script: p.script ?? 'build_gear.py', args: [...common(idOf('gear', p.id)), '--piece', p.id], tags: [p.id],
         kit: slice(nk, p), outputs: [`gear/guard-${p.id}.blend`, `gear/guard-${p.id}.json`],
       })),
     ],
     lods: () => [
       ...nk.bases.map((b) => make(idOf('lods', b.id), {
         script: 'bake_lods.py', args: [...common(idOf('lods', b.id)), '--guard', '--base', b.id],
-        needs: [idOf('bodies', b.id), ...headsOf(b.id).map((h) => idOf('heads', h.id)), ...garmentsOf(b.id).map((g) => idOf('garments', b.id, g.id)), ...gearIds(b.id)],
+        needs: [idOf('bodies', b.id), ...headsOf(b.id).map((h) => idOf('heads', h.id)), ...capsOf(b.id), ...garmentsOf(b.id).map((g) => idOf('garments', b.id, g.id)), ...gearIds(b.id)],
         tags: [b.id], kit: slice(nk, b),
         outputs: [0, 1, 2].map((n) => `lods/guard-${b.id}-lod${n}.glb`).concat(`lods/guard-${b.id}.report.json`),
       })),
@@ -223,10 +305,22 @@ export function jobsFor(stage, kit, opts = {}) {
       outputs: ['sheet/guard-sheet.png'], files: [],
     })],
   }[stage]();
+  // hair caps: one job per base whose kinds wear a cap with a mesh (heads stage, Cycles); lods-<base> needs it
+  if (stage === 'heads') {
+    for (const { base, caps } of nk.hairCapBases) {
+      const id = idOf('haircaps', base);
+      out.push(make(id, {
+        script: 'build_head.py', args: [...common(id), '--haircaps', '--base', base], tags: [base, 'haircaps'],
+        kit: slice(nk, { base, caps }), outputs: [`heads/guard-${base}-haircaps.blend`, `heads/guard-${base}-haircaps.json`],
+      }));
+    }
+  }
+  // gear: only the pieces a base's kinds use (and the own-GLB pieces once)
+  const jobs = stage === 'gear' ? out.filter((j) => j.tags.length === 1 || gearIds(j.tags[0]).includes(j.id)) : out;
   const only = onlyList(opts.only);
-  if (!only.length) return out;
+  if (!only.length) return jobs;
   const prefix = `${stage}-`;
-  return out.filter((j) => only.some((o) => o === j.id || o === j.id.slice(prefix.length) || j.tags.includes(o)));
+  return jobs.filter((j) => only.some((o) => o === j.id || o === j.id.slice(prefix.length) || j.tags.includes(o)));
 }
 
 function onlyList(only) {
