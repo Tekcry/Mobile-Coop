@@ -46,7 +46,8 @@ const LIBS = {
   bodies: ['common.py', 'mh.py', 'build_skeleton.py'],
   heads: ['common.py', 'mh.py', 'materials.py'],
   garments: ['common.py', 'pattern.py', 'build_garment.py', 'garment_details.py', 'fitted.py', 'materials.py', 'garments/torso_common.py'],
-  gear: ['common.py', 'rigid_skin.py', 'materials.py', 'garments/kit_common.py'],
+  gear: ['common.py', 'rigid_skin.py', 'materials.py', 'gear/fit.py', 'gear/mesh.py', 'gear/headwear.py', 'gear/helmet.py',
+    'gear/torso.py', 'gear/shield.py', 'gear/kit.py'],
   lods: ['common.py', 'bake_lods.py', 'rigid_skin.py', 'materials.py'],
   check: ['common.py', 'check_garment.py'],
   sheet: [],
@@ -183,12 +184,12 @@ export function jobsFor(stage, kit, opts = {}) {
     }))),
     gear: () => [
       ...nk.bases.flatMap((b) => nk.pieces.map((p) => make(idOf('gear', b.id, p.id), {
-        script: p.script ?? 'rigid_skin.py', args: [...common(idOf('gear', b.id, p.id)), '--base', b.id, '--piece', p.id],
+        script: p.script ?? 'build_gear.py', args: [...common(idOf('gear', b.id, p.id)), '--base', b.id, '--piece', p.id],
         tags: [b.id, p.id], kit: { ...slice(nk, p), base: b },
         outputs: [`gear/guard-${b.id}-${p.id}.blend`, `gear/guard-${b.id}-${p.id}.json`],
       }))),
       ...nk.ownGlb.map((p) => make(idOf('gear', p.id), {
-        script: p.script ?? 'rigid_skin.py', args: [...common(idOf('gear', p.id)), '--piece', p.id], tags: [p.id],
+        script: p.script ?? 'build_gear.py', args: [...common(idOf('gear', p.id)), '--piece', p.id], tags: [p.id],
         kit: slice(nk, p), outputs: [`gear/guard-${p.id}.blend`, `gear/guard-${p.id}.json`],
       })),
     ],
