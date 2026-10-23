@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder, type BoxPiece } from '../src/world/levelBuilder';
-import { campusOps } from '../src/world/maps/campusOps';
+import { buildCampus, campusOps } from '../src/world/maps/campusOps';
 import { CAMPUS_COOP_LIPS } from '../src/world/maps/campusLips';
 import {
   S3_BOX,
@@ -39,6 +39,9 @@ import { SightWorld, guardPoints, isolatedInTime, longestIsolation, CHECK_ISOLAT
 const PI = Math.PI;
 const b = new LevelBuilder();
 const lay = campusOps.build(b, 0);
+/** The undressed greybox: the screen count (A99) reads its sight lines here, as invisible dressing (chairs, shelves) must not block them. */
+const bG = new LevelBuilder();
+buildCampus(bG, { dress: false });
 const S3 = CAMPUS_SECTORS[2]!;
 const G = S3.guards;
 /** The S3 footprint. */
@@ -558,7 +561,7 @@ describe('A99: the screen count (no player point sees more than CAMPUS_SCREEN_CA
   const galleryLeaf: BoxPiece = { c: [41.3, S3_L1 + 1.05, -8], s: [1.2, 2.1, 0.1], yaw: 0, pitch: 0, color: '#000', collide: true };
   /** Only the pieces near the S3 footprint (every awake guard and every sample is inside it): the same sight model, faster. */
   const near = (p: BoxPiece): boolean => p.c[0] + p.s[0] > FOOT.x0 - 2 && p.c[0] - p.s[0] < FOOT.x1 + 2 && p.c[2] + p.s[2] > FOOT.z0 - 2 && p.c[2] - p.s[2] < FOOT.z1 + 2;
-  const world = new SightWorld([...b.boxes.filter(near), galleryLeaf], b.cylinders);
+  const world = new SightWorld([...bG.boxes.filter(near), galleryLeaf], bG.cylinders);
   /** The camera's horizontal field of view (deg, CT's 86) and the facings sampled at each point (32, every 11.25 deg). */
   const HALF = ((CAMERA.fov / 2) * PI) / 180;
   const YAWS = Array.from({ length: 32 }, (_, k) => (k * PI) / 16);

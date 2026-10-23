@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder, type BoxPiece } from '../src/world/levelBuilder';
-import { campusOps } from '../src/world/maps/campusOps';
+import { buildCampus, campusOps } from '../src/world/maps/campusOps';
 import { S1_GROUPS } from '../src/world/maps/campusS1';
 import { CAMPUS_COOP_LIPS } from '../src/world/maps/campusLips';
 import { BALCONY_LAMPS, BULKHEAD_TOP, C2_BOX, C2_FLOOR, CR2, FEATURE_STAIR, PENDANTS, S2_COOP_LIPS, S2_CORES, S2_DOORS, S2_FLIGHTS, S2_FLOORS, S2_GROUPS, S2_ROOMS, S2_VOID, SW_CORE, NE_CORE, coreFlights, type Flight } from '../src/world/maps/campusS2';
@@ -29,6 +29,9 @@ import { SightWorld, isolatedInTime, longestIsolation, guardPoints, CHECK_ISOLAT
 const PI = Math.PI;
 const b = new LevelBuilder();
 const lay = campusOps.build(b, 0);
+/** The undressed greybox: the screen count (A99) reads its sight lines here, as invisible dressing (chairs, shelves) must not block them. */
+const bG = new LevelBuilder();
+buildCampus(bG, { dress: false });
 const S2 = CAMPUS_SECTORS[1]!;
 /**
  * The collision pieces as axis-aligned boxes (S2's are all plain; S1's walls are quarter-turn boxes, swapped to plain; anything
@@ -738,7 +741,7 @@ describe('A99 (the screen cap, lifting A64) and the dormant rule', () => {
 
   /** The most guards in view from any walkable point on a 2 m grid (every floor, the stairs and the roof): a guard counts when any point of its post or route has a clear eye-height line to the point within 40 m. */
   function worstView(): { n: number; x: number; y: number; z: number; who: number[]; hist: [number, number][] } {
-    const world = new SightWorld(b.boxes, b.cylinders);
+    const world = new SightWorld(bG.boxes, bG.cylinders);
     const guards = S2.guards
       .map((g, i) => ({ g, i }))
       .map(({ g, i }) => ({ i: i + 1, pts: guardPoints({ x: g.x, z: g.z, y: floorOf(g), route: g.route as readonly (readonly [number, number])[] | undefined }) }));

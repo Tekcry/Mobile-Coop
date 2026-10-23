@@ -112,3 +112,7 @@ None.
 - **P8 S1 hero errors are swallowed.**
   - Where: `campusS1Dress.ts:148`.
   - What: `hero()` catches `add` errors into `S1_OMITTED`. The S1 test pins that list, so a new refusal fails the test. That is fine, but it differs from the kit's "heroes throw" contract (S3 and S5 use the same pattern).
+
+## P2 fixed
+
+The S2-S5 screen-count tests now build their SightWorld from the undressed greybox (`buildCampus(bG, { dress: false })`), so dressing boxes no longer block sight lines. Worst counts (cap 12): S2 5, S3 6, S4 7, S5 6 (same as before; no section near the cap).

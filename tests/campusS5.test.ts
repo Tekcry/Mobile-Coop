@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder, type BoxPiece } from '../src/world/levelBuilder';
-import { campusOps } from '../src/world/maps/campusOps';
+import { buildCampus, campusOps } from '../src/world/maps/campusOps';
 import {
   S5_AMMO_CRATE,
   S5_ARMOURED,
@@ -52,6 +52,9 @@ import { runtimeNav } from './helpers/runtimeNav';
 const PI = Math.PI;
 const b = new LevelBuilder();
 const lay = campusOps.build(b, 0);
+/** The undressed greybox: the screen count (A99) reads its sight lines here, as invisible dressing (chairs, shelves) must not block them. */
+const bG = new LevelBuilder();
+buildCampus(bG, { dress: false });
 const S5 = CAMPUS_SECTORS[4]!;
 const G = S5.guards;
 /** The S5 footprint and the C4 box. */
@@ -742,7 +745,7 @@ describe('A99: the screen count (no player point sees more than CAMPUS_SCREEN_CA
     leaves.push({ c: [cx, d.hinge.y + d.height / 2, cz], s: alongX ? [d.width, d.height, 0.1] : [0.1, d.height, d.width], yaw: 0, pitch: 0, color: '#000', collide: true });
   }
   const near = (p: BoxPiece): boolean => p.c[0] + p.s[0] > FOOT.x0 - 2 && p.c[0] - p.s[0] < FOOT.x1 + 8 && p.c[2] + p.s[2] > FOOT.z0 - 2 && p.c[2] - p.s[2] < FOOT.z1 + 2;
-  const world = new SightWorld([...b.boxes.filter(near), ...leaves], b.cylinders);
+  const world = new SightWorld([...bG.boxes.filter(near), ...leaves], bG.cylinders);
   const HALF = ((CAMERA_VIEW.fov / 2) * PI) / 180;
   const YAWS = Array.from({ length: 32 }, (_, k) => (k * PI) / 16);
   it('at every walkable nav cell (0.5 m) on every S5 level, 32 facings: at most CAMPUS_SCREEN_CAP guards (dogs and dormant guards count) in the 86 deg view with a clear line within 40 m', () => {
