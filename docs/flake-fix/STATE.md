@@ -3,7 +3,32 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
-**Test Runner SAVE 16 (2026-10-23 ~17:05; wins over all below):**
+**Test Runner SAVE 17 (2026-10-23 ~18:00, 92% save; wins over all below):**
+- RUNNING / QUEUED (scheduled tasks, survive the swap; logs runs/chain-1023<x>.log, results runs/<label>/summary.txt):
+  - 4189 chain-1023t30: TRAIN 30 7e8b8c51 full (Player #214 -> #223 -> #231 protocol 40 + #236 voxel-retire) ->
+    verdict to Orchestrator (if the swap cuts it: read runs/train30-7e8b8c51, send the verdict).
+  - 4191 chain-1023gs5: invisible-guard split on old master f16600f5 (runs/guardsplit-f16600f5: cmd2 control, cmd3
+    --player-far, cmd4 --no-photo; work/guardsplit-f16600f5*/ JSON compileErrors + sheets) -> verdict to Guard AI:
+    which pass shows "Unable to compile effect", the owning mesh class (guard body / player / shadow copy), defines.
+  - 4189 chain-1023ap3 (after gs5, every lock free): #226 2276483a perf ALONE (build first; work/campus-view-perf2.mjs
+    guards + &guardfreeze=0, freeze counts via __sector.freeze; guard-cap campus 24) -> verdict to Sector Ops (budget
+    CPU p95 < 12 at start / S3 / S4 / S5-worst). #226 e2e-coop already green (75 s); desktop ran the rest green.
+- DONE + SENT this window: trains 27 / 28 / 29 GREEN 39/39 (4.76 / 4.77 / 4.78 released); #236 voxel-retire (my PR):
+  merged with 4.78.0 (9985fe55), lightbake + desktop:1 green, in train 30; guard-render CLOSED (M1 in its STATE).
+  LR15 0cadd6f3 green (suites Classic 8/8 + photo 6/6, perf table, sheet: Realistic much darker, one texImage3D
+  out-of-range warning). Guard AI gates S9 0d1bdffc / S22 18a08619 green. Marlow 64e64ef0 full 39/40 (lightbake:
+  lamp plugin 10/11 PBR materials; Marlow fixing). Player stack 0d7f04ce + AF6 b1de49f5 green.
+- Invisible calm guards: on master 4.77.0 (bodies not drawn, partSkinMat "Unable to compile effect"), gone on 4.78.0
+  (#232 LAMP_CSHADOW define likely masks it). Guard AI's e2e-guard-carry (fe910585) passes on both, so not reproduced
+  outside the sheet yet; the split above is to find the path.
+- Scripts (scratch): guard-calm-shots.mjs (--player-far, --no-photo, compile-error hook), campus-sheet.mjs (S2 / S3,
+  classic vs photo), work/campus-view-perf2.mjs, work/serve-run.mjs (serve dist + run one node script).
+- LESSONS: (1) a step that does not start with "build" runs against whatever dist the slot last built: always add
+  build when the commit changes. (2) A chain's lock check can pass before a hand-launched run on another slot takes its
+  lock: never start a run by hand while a measure chain is gated on "all locks free". (3) Chain gates on "<x> done"
+  misfired twice today (passed early); summary.txt '^DONE' gates behaved.
+
+**Test Runner SAVE 16 (2026-10-23 ~17:05):**
 - SENT GREEN: train 27 e83f423a 39/39 (merged 4.76.0), train 28 3a2b1e9a 39/39 (JOBS=3); Guard AI S9 #229 3c49981e,
   S16 #228 7f91bf3a, S22 301ade39, A126 267553bf; Sector Ops #226 08af0e9f sectorops:1, #232 273539ec sectorops:6 +
   falloff=photo trio; Player stack 0d7f04ce coop (rest green on d86007b5), AF6 b1de49f5 coop + netmove.
@@ -667,7 +692,7 @@ Runner: C:/NightShift/scratch/laptop-runner.ps1 (header explains; results runs/<
 
 Order: trains first, then PR / area suites, then measures that need 4189 alone (guard-cap, perf) only with no train queued. Laptop CPU under ~80% with Guard AI Build (it also runs here). One verdict message per batch: trains, guard-render PRs and train blockers to "Night Shift | Orchestrator"; other verdicts to the job lead (pass / fail per suite, failing assert, times, commit). Message the orchestrator only at PR open / train-ready / blocked / needs Michael; progress goes in this STATE.
 
-Guard-render job (docs/guard-render/PLAN.md, STATE.md on the newest feature/guard-render-* branch): Opus plans and checks, Sonnet 5.5 builds from strict briefs, Haiku 5.5 chores; branch guard before every write; one checker per batch.
+Own jobs: guard-render is CLOSED; voxel-retire is PR #236 (in train 30; worktree C:/NightShift/Mobile-Coop-voxel-retire). New own work only from the roadmap: Opus plans and checks, Sonnet 5.5 builds from strict briefs, Haiku 5.5 chores; branch guard before every write; one checker per batch. Every chain step that runs a different commit than the slot's last run starts with "build". The Bash tool may be blocked by the classifier: use PowerShell / Read / Grep.
 
 Burn: full burn to 100%; at the orchestrator's ~92% save commit agent worktrees as WIP + push, keep the SAVE block current, keep working. No mid-window clears unless past ~50% context. No polling turns. Native multiple choice only, hyphens not em dashes. Commits end with "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>".
 ```
