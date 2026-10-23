@@ -140,6 +140,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Talking pairs (guard-ai S10, Saltmarsh Park car park): watch the pair from cover: at their stop by the aisle end
   they face each other and swap two lines, then walk on; knock one out before they meet and ~6 s later the other walks
   to where his partner was headed.
+- [ ] Armour (guard-ai S16, campus S4): stand on the data hall floor in front of the NOC window and get seen: the NOC
+  pair aim at you but fire no round into the bulletproof glass (no sparks on it); after a moment they move (down to the
+  hall, or another spot) or hold. A plain window still lets their rounds through.
 - [ ] Response teams (guard-ai S13, Sector Ops): raise the alarm twice: every guard now wears armour; a third time:
   helmets too. Each alarm's team comes in behind a shield guard; hide: after about a minute at your last spot the team
   walks the section point to point (shield first, the rest close behind, a look round at each, torches in the dark),
