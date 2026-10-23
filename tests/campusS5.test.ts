@@ -11,7 +11,6 @@ import { campusOps } from '../src/world/maps/campusOps';
 import {
   S5_AMMO_CRATE,
   S5_ARMOURED,
-  S5_POSTS,
   S5_ROUTES,
   S5_SECTOR,
 } from '../src/world/maps/campusS5Data';
@@ -31,7 +30,7 @@ import {
   S5_BULKHEAD_TOP,
   coreFlights,
 } from '../src/world/maps/campusS5';
-import { CAMPUS_ALARMS, CAMPUS_POSTS, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
+import { CAMPUS_ALARMS, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
 import { SECTOR, checkSectorGuards, checkSectors, inZone, intelItemId, type SectorGuard } from '../src/game/sectors';
 import { addDoorClosure, checkStageActions, doorFinder } from '../src/game/sectorStage';
 import { validateSecurity, WIRE_CAMERAS } from '../src/security/data';
@@ -242,8 +241,8 @@ describe('S5 guards (brief table)', () => {
     expect(G[16]!.pair).toBe(15);
     expect(G[8]!.role).toBe('posted');
     expect(G[9]!.role).toBe('posted');
-    expect(CAMPUS_POSTS['s5#9']).toEqual({ leash: 3, highSecurity: true, guards: 'token' });
-    expect(CAMPUS_POSTS['s5#10']).toEqual(S5_POSTS['s5#9']);
+    expect(G[8]!.post).toEqual({ leash: 3, highSecurity: true, guards: 'token' });
+    expect(G[9]!.post).toEqual(G[8]!.post);
   });
 
   it('each patrol cycle is 25-45 s, stops 3-6 s on the loops (the slower walker fits every leg); slots >= 7 m from the start', () => {

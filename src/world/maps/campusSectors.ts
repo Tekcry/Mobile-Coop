@@ -3,8 +3,8 @@ import type { SecurityData } from '../../security/data';
 import { C1_BOX, S1_DOORS } from './campusS1';
 import { C2_BOX, C2_FLOOR, S2_DOORS } from './campusS2';
 import { S3_DOORS, S3_L1 } from './campusS3';
-import { S4_ALARMS, S4_CAMERAS, S4_DESKS, S4_POSTS, S4_SECTOR } from './campusS4Data';
-import { S5_ALARMS, S5_CAMERAS, S5_POSTS, S5_SECTOR } from './campusS5Data';
+import { S4_ALARMS, S4_CAMERAS, S4_DESKS, S4_SECTOR } from './campusS4Data';
+import { S5_ALARMS, S5_CAMERAS, S5_SECTOR } from './campusS5Data';
 
 const PI = Math.PI;
 
@@ -57,7 +57,7 @@ const S1_GUARDS: SectorGuard[] = [
     reason: 'Walks the rows with the grunt, as the break-in follow-up',
   },
   // 5 the doorman (K1, M12): posted under the canopy at the C1 badge door, facing south onto the walkway
-  { kind: 'officer', x: -20, z: -35, yaw: PI, takedownSpot: [-20, -34.7], role: 'posted', zone: 'c1', squad: 2, reason: 'Badge check at the only staff door' },
+  { kind: 'officer', x: -20, z: -35, yaw: PI, takedownSpot: [-20, -34.7], post: { leash: 5, guards: 'c1-door' }, role: 'posted', zone: 'c1', squad: 2, reason: 'Badge check at the only staff door' },
   // 6 the smoker: on his break in the smoking shelter, facing the car park
   { kind: 'grunt', x: 8, z: -48.5, yaw: PI, takedownSpot: [8, -47.6], role: 'smoker', zone: 'smoking', squad: 2, reason: 'On his break; he can see the car park from the shelter' },
   // 7 the fence patrol: the west fence <-> the bin store mouth, 41 s; dark at the bin-store end; comes to the feeder board if it is cut
@@ -121,23 +121,10 @@ const S2_GUARDS: SectorGuard[] = [
   // 10 the L2 lift sentry: sweeps the lobby and the corridor to the executive suite (12 s each way)
   { kind: 'grunt', x: -35, z: -7, y: 8.4, yaw: -1, route: [[-35, -7], [-33, -7]], waits: [12, 12], faces: [-1, 1], takedownSpot: [-34, -7], role: 'sentry', dormant: true, zone: 'l2-lift', squad: 3, reason: 'Watches the corridor to the executive suite' },
   // 11 the bridge officer (K2, M12): posted in the bridge landing, facing the doorways, the card door at his back
-  { kind: 'officer', x: 1, z: -14, y: 4.4, yaw: -PI / 2, takedownSpot: [2, -14], role: 'posted', zone: 'c2', squad: 1, reason: 'The only internal link to the lab block: he checks every card' },
+  { kind: 'officer', x: 1, z: -14, y: 4.4, yaw: -PI / 2, takedownSpot: [2, -14], post: { leash: 5, guards: 'c2-door' }, role: 'posted', zone: 'c2', squad: 1, reason: 'The only internal link to the lab block: he checks every card' },
   // 12 the mailroom guard: posted at the goods door, facing into the room
   { kind: 'grunt', x: -42.5, z: -16, yaw: PI / 2, takedownSpot: [-43.2, -16], role: 'post', dormant: true, zone: 'goods', squad: 0, reason: "Takes the courier's paperwork at the goods door" },
 ];
-
-/**
- * (M12, K1, K2) Posted-guard data until guard-ai's `post` block lands on `SquadSlot`: keyed `s<section>#<guard, 1-based>`. It
- * moves onto the slot when guard-ai's `post` lands. `leash` m from the post, `guards` the choke it holds.
- */
-export const CAMPUS_POSTS: Record<string, { leash: number; highSecurity?: boolean; guards: string }> = {
-  's1#5': { leash: 5, guards: 'c1-door' },
-  // K2: the bridge officer (guard 11 of section 2); the card door is 3 m behind him, inside the leash circle
-  's2#11': { leash: 5, guards: 'c2-door' },
-  ...S4_POSTS,
-  ...S5_POSTS,
-};
-
 // ---- Section 3 (slice 3): the lab block (SPEC "S3" guard table; `campusS3.ts` builds it) ------------------------------
 const Y1 = S3_L1;
 

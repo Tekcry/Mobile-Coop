@@ -11,7 +11,7 @@ import { campusOps } from '../src/world/maps/campusOps';
 import { S1_GROUPS } from '../src/world/maps/campusS1';
 import { CAMPUS_COOP_LIPS } from '../src/world/maps/campusLips';
 import { BALCONY_LAMPS, BULKHEAD_TOP, C2_BOX, C2_FLOOR, CR2, FEATURE_STAIR, PENDANTS, S2_COOP_LIPS, S2_CORES, S2_DOORS, S2_FLIGHTS, S2_FLOORS, S2_GROUPS, S2_ROOMS, S2_VOID, SW_CORE, NE_CORE, coreFlights, type Flight } from '../src/world/maps/campusS2';
-import { CAMPUS_ALARMS, CAMPUS_POSTS, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
+import { CAMPUS_ALARMS, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
 import { SECTOR, checkSectorGuards, checkSectors, exitZone, inZone, type SectorGuard } from '../src/game/sectors';
 import { validateSecurity } from '../src/security/data';
 import { CAMERA } from '../src/config/security';
@@ -671,14 +671,14 @@ describe('M8: isolation in time at each takedown spot (sectorCheck, the Warehous
 
 describe('K2 (M12): the bridge officer is an unavoidable posted guard at the C2 card door', () => {
   const post = S2.guards[10]!;
-  it('the data: role posted, zone c2, leash 5, guards c2-door (`CAMPUS_POSTS` until guard-ai\'s `post` block exists)', () => {
+  it('the data: role posted, zone c2, leash 5, guards c2-door (`SquadSlot.post`)', () => {
     expect(post.role).toBe('posted');
     expect(post.zone).toBe('c2');
-    expect(CAMPUS_POSTS['s2#11']).toEqual({ leash: 5, guards: 'c2-door' });
+    expect(post.post).toEqual({ leash: 5, guards: 'c2-door' });
   });
 
   it('the leash edge is at least 1 m off the card door\'s nav cell, the door is at his back', () => {
-    const leash = CAMPUS_POSTS['s2#11']!.leash;
+    const leash = post.post!.leash;
     const door = S2_DOORS.c2Near;
     const cell = nav.center(nav.cellOf(door[0], door[1], 4.4));
     const dPost = hyp2(cell[0] - post.x, cell[1] - post.z);
