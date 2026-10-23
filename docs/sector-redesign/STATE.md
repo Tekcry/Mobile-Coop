@@ -307,9 +307,15 @@ LR16 (one lighting system; Michael ~18:08-18:20; plan checks/lr16-plan.md, audit
 - LR16-4 relight = Guard AI #255 (feature/guard-ai-relight): untimed isolator board (no `window`) -> breaker walk +
   IsolatorBoards.switchBack. No map has an untimed board yet: after #255 is on master, add one to campus data (a hall
   board whose cut should be relit; LV:230 lure ambush) as a small data slice. Timed boards (S4 75, S5 84) unchanged.
-- LR16t built 7e4c8b8e (lr16t-build.md; src/ai changed): checkers A + B running; laptop request
-  20261023T092223-...-7e4c8b8e-2768 (lightbake darkness sectorops stealth-ai coop). lr16dx DONE 52ee8276, checker running.
-- #242: master 4.80.0 merged bd7020fd; re-merge at 4.81.0, then train-ready label + message.
+- ~20:45 status. lr16int ca764323 = + lr16dx (checker FIX -> fix round 7273be19: 115 / 118 / 62 reverted, thin posts
+  ignored; light failures = base + 3 accepted cage spots). LR16t 7e4c8b8e: checkers A + B FIX (A stale-map leak on
+  turning torches; B e2e-desktop part 3 pool assert) -> Opus fix round running; laptop req ...7e4c8b8e-2768. LR16-1
+  4007eafe built (map-light reds 15 -> 13): checker running, laptop req ...4007eafe-2ad6. LR16e 2f5ffec1 built: checker
+  running, laptop req ...2f5ffec1-0c61. Merge order into lr16int: e, then 1 (LAMP_VERSION 3; bounce reads filtered
+  vis), then t (bakedLamps getUniforms line: keep both). Then LR16g re-level on that head.
+- LR16 perf (Test Runner f8008542): campus S5-worst CPU p95 13.3 Epic / 12.2 Medium > 12; Opus triage running
+  (checks/lr16-perf-triage.md, laptop A/B vs master 41204e30).
+- #242 TRAIN-READY 26f50415 (master 4.81.0 merged clean; label set, orchestrator told ~20:40).
 - Next to queue: LR16g re-level (after dx + e + 1; set its base sha), LR16-8 sheets request text in
   briefs/LR16h-and-8.md (after g), campus-art-next (after #226). LR16-4 relight -> offer Guard AI; LR16-5 needs Michael.
 For Michael: Realistic dimmer (S2 atrium 0.28 vs 0.48, LR16g fixes); S3 hall-lit white fog.
