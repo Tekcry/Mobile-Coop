@@ -45,10 +45,14 @@ common.seed_everything(args.seed)
 with open(args.kit, encoding='utf-8') as fh:
     KIT = json.load(fh)
 entry = pieces.kit_entry(KIT, args.piece)
-own = bool(entry.get('ownGlb')) or entry.get('perBase') is False
+own = pieces.own_glb(entry)
 base = args.base or (pieces.SHIELD_BASE if own else None)
 if base is None:
     raise SystemExit(f'gear: --base is required for {args.piece}')
+# the stage's job set (P1 kit: 25 jobs); a job outside it still builds (old driver) but says so in the report
+in_job_set = (None if own else base, args.piece) in pieces.gear_jobs(KIT)
+if not in_job_set:
+    print(f'gear: note: ({base}, {args.piece}) is not in the kit\'s gear job set (no kind of this base shows it)')
 stem = f'guard-{args.piece}' if own and not args.base else f'guard-{base}-{args.piece}'
 out_dir = os.path.join(args.out, 'gear')
 os.makedirs(out_dir, exist_ok=True)
@@ -190,7 +194,7 @@ report = {
     'seed': args.seed, 'blender': bpy.app.version_string,
     'tris': tris, 'budgetLod0': budget, 'withinBudget': tris <= budget if budget else None, 'verts': len(V),
     'bones': used, 'declaredBones': sorted(declared), 'skinSpread': round(spread, 6),
-    'tint': entry.get('tint'), 'tintSlots': SLOTS, 'pieceIndex': piece_index,
+    'tint': entry.get('tint'), 'tintSlots': SLOTS, 'pieceIndex': piece_index, 'inJobSet': in_job_set,
     'parts': [{**reg[RID0 + k + 1], 'verts': int(counts.get(RID0 + k + 1, 0)), 'tris': part_tris[k]} for k in range(len(P.parts))],
     'measurements': {'rigid': list(reg.values())},
     'materials': [m.name for m in me.materials],
