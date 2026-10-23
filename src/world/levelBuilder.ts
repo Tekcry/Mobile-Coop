@@ -103,6 +103,12 @@ export interface BuiltLevel {
   voxels: LevelVoxels | null;
   /** 3.6: the canonical light-bake shapes (packed), their bounds and hash - the same on every device and tier. */
   light: { shapes: Float32Array; lo: [number, number, number]; hi: [number, number, number]; hash: string };
+  /**
+   * (sector-redesign ART-KIT, render only) Stops drawing these boxes (indices into `boxes`): their `lvl-box` instance
+   * matrices are zeroed, the buffer and the bounding info refreshed once. Never touches `BoxPiece` data, physics, cover,
+   * nav or the light bake; a box drawn as voxels or not drawn is skipped. The campus art calls it for its box-hidden skins.
+   */
+  hidePieces(boxes: readonly number[]): void;
   dispose(): void;
 }
 
@@ -506,10 +512,13 @@ export class LevelBuilder {
     const bc = new Float32Array(shown.length * 4);
     const bs = new Float32Array(shown.length);
     const mtx = new Matrix();
+    // (ART-KIT) box index -> its `lvl-box` instance (-1: not drawn as a box), for `hidePieces`
+    const instOf = new Int32Array(this.boxes.length).fill(-1);
     let vi = 0;
     this.boxes.forEach((b, i) => {
       Quaternion.RotationYawPitchRollToRef(b.yaw, b.pitch, 0, tmpQ);
       if (asMesh(i)) {
+        instOf[i] = vi;
         Matrix.ComposeToRef(new Vector3(b.s[0], b.s[1], b.s[2]), tmpQ, new Vector3(b.c[0], b.c[1], b.c[2]), mtx);
         mtx.copyToArray(bm, vi * 16);
         const [r, g, bl] = lin(hexToRgb(b.color));
@@ -634,6 +643,19 @@ export class LevelBuilder {
       surfacePlugin,
       voxels,
       light,
+      hidePieces: (ids: readonly number[]) => {
+        let any = false;
+        for (const i of ids) {
+          const v = i >= 0 && i < instOf.length ? instOf[i]! : -1;
+          if (v < 0) continue;
+          bm.fill(0, v * 16, v * 16 + 16);
+          any = true;
+        }
+        if (!any) return;
+        // the matrix buffer is static: set it again (one upload), then the bounds once
+        boxMesh.thinInstanceSetBuffer('matrix', bm, 16, true);
+        boxMesh.thinInstanceRefreshBoundingInfo(false);
+      },
       dispose: () => {
         body.dispose();
         container.dispose();

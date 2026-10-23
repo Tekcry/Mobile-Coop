@@ -29,6 +29,7 @@ import type { MapDef, MapLayout } from './mapDef';
 import { PartLibrary } from './partLibrary';
 import { PropSystem } from './props';
 import { LightRig } from './lightRig';
+import { CampusArtRender } from './campusArt/campusArtRender';
 import { Breakables } from './breakables';
 import { Doors } from './doors';
 import { Ropes } from './ropes';
@@ -124,6 +125,8 @@ export class World {
   readonly breakables: Breakables;
   /** Hinged doors (collision while closed, armed once the nav grid is built). */
   readonly doors: Doors;
+  /** (sector-redesign ART-KIT) The campus art (render only; null: no art, `?gfx=min`, or a failed load: the greybox shows). */
+  campusArt: CampusArtRender | null = null;
   private _ropes: Ropes | null = null;
   /** (3.2.0) Rappel ropes (the local player's and remotes'), created on first use. */
   get ropes(): Ropes {
@@ -260,6 +263,14 @@ export class World {
       w.useBakedMoon();
     }
     if (voxels?.giGroups) w.giSlotOf = giLights(level.lights).slotOf;
+    // (sector-redesign ART-KIT) the campus art over the greybox: PBR path only; a failed load leaves the boxes drawn
+    if (layout.campusArt?.placements.length && atlas && !opts.cheap) {
+      try {
+        w.campusArt = await CampusArtRender.create(scene, layout.campusArt, level.lights, level, (m) => w.lightRig.addCaster(m));
+      } catch (e) {
+        console.warn('[campus-art] failed to load; the greybox shows', e);
+      }
+    }
     return w;
   }
 
@@ -648,6 +659,7 @@ export class World {
     this.lightRig.dispose();
     this.lamps?.dispose();
     this.breakables.dispose();
+    this.campusArt?.dispose();
     this.doors.dispose();
     this.props.dispose();
     this.level.dispose();
