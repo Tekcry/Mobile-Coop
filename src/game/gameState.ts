@@ -69,6 +69,7 @@ import { RopeLine } from './ropeLine';
 import type { TeamKind } from './teamMoves';
 import type { Ledge } from '../world/anchors';
 import { LIGHT, type LightDef } from '../world/lights';
+import type { SwaySet } from '../world/lampSway';
 import { landingNoise, noiseRadius } from '../player/movement';
 import { CinematicPost } from '../vfx/cinematicPost';
 import { NightAutoGain } from '../vfx/nightAutoGain';
@@ -265,6 +266,8 @@ export type RewardHook = (stats: SessionStats, opts: GameOptions) => Promise<HTM
 const NO_REMOTES: readonly PlayerRef[] = Object.freeze([]);
 /** Gunshot noise radius (m) x the weapon's noise stat; at or below `SUPPRESSED_NOISE` a shot only raises
  *  suspicion; a bullet impact is heard within `IMPACT_NOISE`. */
+/** (LR16-5b) Head points a pendant-bump pass takes (the players and the live guards). */
+const MAX_SWAY_HEADS = 40;
 const SHOT_NOISE = 28;
 /** Awareness arcs: shown for enemies in line of sight or within `ARC_NEAR` m, once the meter passes `ARC_MIN`. */
 const ARC_NEAR = 2.5;
@@ -709,6 +712,30 @@ export class GameState implements AppState {
 
     if (this.puppet || opts.mode === 'sandbox') {
       this.extraBlips = () => [...(this.pickups?.blips() ?? []), ...(this.net?.blips?.() ?? [])];
+    }
+    // (LR16-5b) Marlow Yard's swinging pendants (solo and host; a co-op client asks the host, `CoopClient.swayRay`): our
+    // rounds, the guards' rounds and blasts kick them on the shared clock; the host sends each accepted kick
+    // (`CoopHost`: `onKick`). Head bumps: `updateLight`. The hooks are made once here, not per frame.
+    const sway = world.level.lights.sway;
+    if (sway && !this.puppet) {
+      const prevRay = this.weapons.onRay;
+      this.weapons.onRay = (a, b) => {
+        prevRay?.(a, b);
+        sway.shotKick(a.x, a.y, a.z, b.x, b.y, b.z, this.simNow());
+      };
+      const em = this.enemyMgr;
+      if (em) {
+        const prevShot = em.onEnemyShot;
+        em.onEnemyShot = (e, from, to) => {
+          prevShot?.(e, from, to);
+          sway.shotKick(from.x, from.y, from.z, to.x, to.y, to.z, this.simNow());
+        };
+      }
+      const prevBoom = this.explosions.onExplode;
+      this.explosions.onExplode = (pos, r) => {
+        prevBoom?.(pos, r);
+        sway.blastKick(pos.x, pos.y, pos.z, this.simNow());
+      };
     }
     // doors collide from now on (the nav grid, built above, walks through doorways); co-op clients follow the
     // host's door states (snapshots)
@@ -1513,9 +1540,12 @@ export class GameState implements AppState {
     reg.update(dt);
     // (LR16-5) fires flicker, a failing tube stutters: on the shared clock (co-op: the host's), before the meter samples
     reg.tickFlicker(this.net?.simTime?.() ?? this.time);
+    // (LR16-5b) the swinging pendants, on the same clock, before the meter samples (light parity)
+    reg.tickSway(this.net?.simTime?.() ?? this.time);
     this.lightT -= dt;
     if (this.lightT > 0) return;
     this.lightT = 1 / LIGHT.playerHz;
+    if (reg.sway && !this.puppet) this.swayBumps(reg.sway);
     const f = this.world.lightField;
     const p = this.player.position;
     // (operators 11e r1, G166) the body's real height (the rig's: Wren 1.68 m), so light hits the body you see
@@ -1549,6 +1579,51 @@ export class GameState implements AppState {
     }
   }
   private readonly headSample = { ox: 0, oz: 0, h: 0 };
+
+  /** (LR16-5b) The shared sim clock (co-op: the host's; `NetAttachment.simTime`), the swinging pendants' kicks' time. */
+  private simNow(): number {
+    return this.net?.simTime?.() ?? this.time;
+  }
+
+  /** (LR16-5b) Head points for the pendants' bumps: the players' and the guards' (x, y, z each; preallocated). */
+  private readonly swayHeads = new Float32Array((MAX_SWAY_HEADS + 1) * 3);
+
+  /**
+   * (LR16-5b) A head that touches a swinging pendant's fitting bumps it (solo and host, at `LIGHT.playerHz`): the local
+   * player, the remotes and the live guards, each head at the feet + its standing height (less when crouched). No
+   * allocation.
+   */
+  private swayBumps(sway: SwaySet): void {
+    const P = this.swayHeads;
+    let n = 0;
+    const p = this.player.position;
+    const hh = this.player.rig.height * (1 - 0.35 * this.player.controller.crouchBlend);
+    P[0] = p.x;
+    P[1] = p.y + hh;
+    P[2] = p.z;
+    n = 1;
+    const rs = this.remotePlayers();
+    for (let i = 0; i < rs.length && n < MAX_SWAY_HEADS; i++) {
+      const r = rs[i]!;
+      const rh = r.head;
+      P[n * 3] = rh ? rh.x : r.feet.x;
+      P[n * 3 + 1] = rh ? rh.y : r.feet.y + (r.height ?? STANDARD_BODY) * (r.crouched ? 0.65 : 1);
+      P[n * 3 + 2] = rh ? rh.z : r.feet.z;
+      n++;
+    }
+    const es = this.enemyMgr?.enemies;
+    if (es) {
+      for (let i = 0; i < es.length && n < MAX_SWAY_HEADS; i++) {
+        const e = es[i]!;
+        if (!e.alive) continue;
+        P[n * 3] = e.pos.x;
+        P[n * 3 + 1] = e.pos.y + e.def.height;
+        P[n * 3 + 2] = e.pos.z;
+        n++;
+      }
+    }
+    sway.bumpKick(P, n, this.simNow());
+  }
 
   private lightFrom = new Vector3();
   private readonly posedHead = new Vector3();

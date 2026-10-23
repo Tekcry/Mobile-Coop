@@ -14,9 +14,10 @@ import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 import type { SecWire } from '../game/ctDevices';
 import type { SectorNetExtra } from '../game/sectors';
 import { LAMP_BITS, LAMP_CHARS, LAMP_MAX, type LampWire } from './lampSync';
+import { SWAY } from '../world/lampSway';
 
-/** 38: the host's lamp falloff (sector-redesign lightrev LR13): `start.lf` ('linear' | 'photometric'), which the client's match runs whatever its own setting (a 37 peer would ignore it and bake the other falloff: light parity); 36-37: taken by pose-parity and coop-walk-fixes; 35: the weapons crate (sector-redesign E9-crate): `NetItem` kind `crate` and the `crate` event (host -> all: a player used a crate; `fill` false = rejoin re-send); 31: Sector Ops light state (sector-redesign slice L): the `lamps` message (host -> all: switched-off and shot-out bitsets, `lampSync.ts`) and a client's lamp shot as a `shot` whose target is `lt-<light id>`; 30: taken by marlow-final (Menu Notes); 29: the lasers' jam point is their power panel (sector-fixes P): the `jam` claim and `sec.dv` name panel ids (`panel-*`), never laser ids (a 28 peer would jam a laser the other side does not know); 28: the `jam` claim carries the client's camera eye `e` (jammer-fixes: the host checks the jam's line of sight from it); 27: rejoin (marlow-bays R): `hello.tok`, `PlayerInfo.away`, the `you` message, the `restore` event; 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
-export const PROTOCOL_VERSION = 38;
+/** 39: swinging pendants (sector-redesign LR16-5b): the `sway` event (host -> all: a pendant kick, id / sim time / amplitude / heading, applied verbatim) and a client's round past a pendant as a `shot` whose target is `sw-<light id>` (a 38 peer would never see the swing: light parity); 38: the host's lamp falloff (sector-redesign lightrev LR13): `start.lf` ('linear' | 'photometric'), which the client's match runs whatever its own setting (a 37 peer would ignore it and bake the other falloff: light parity); 36-37: taken by pose-parity and coop-walk-fixes; 35: the weapons crate (sector-redesign E9-crate): `NetItem` kind `crate` and the `crate` event (host -> all: a player used a crate; `fill` false = rejoin re-send); 31: Sector Ops light state (sector-redesign slice L): the `lamps` message (host -> all: switched-off and shot-out bitsets, `lampSync.ts`) and a client's lamp shot as a `shot` whose target is `lt-<light id>`; 30: taken by marlow-final (Menu Notes); 29: the lasers' jam point is their power panel (sector-fixes P): the `jam` claim and `sec.dv` name panel ids (`panel-*`), never laser ids (a 28 peer would jam a laser the other side does not know); 28: the `jam` claim carries the client's camera eye `e` (jammer-fixes: the host checks the jam's line of sight from it); 27: rejoin (marlow-bays R): `hello.tok`, `PlayerInfo.away`, the `you` message, the `restore` event; 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
+export const PROTOCOL_VERSION = 39;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -148,7 +149,10 @@ export type NetEvent =
   /** A ping by `player` at a spot or on an enemy (`target`, '' = the spot). */
   | { e: 'ping'; player: string; x: number; y: number; z: number; target: string }
   /** A player's gadget went off / stuck there (gas, flashbang, EMP, noisemaker): everyone sees it. */
-  | { e: 'gadget'; player: string; kind: NetGadget; x: number; y: number; z: number };
+  | { e: 'gadget'; player: string; kind: NetGadget; x: number; y: number; z: number }
+  /** (39, LR16-5b) A swinging pendant's kick (`lampSway.ts`): light `id`, the host's sim time `t`, amplitude `a` (m) and
+   *  heading `h` (rad), applied verbatim (`LightRegistry.swayImpulse`). */
+  | { e: 'sway'; id: number; t: number; a: number; h: number };
 
 export interface EndStats {
   won: boolean;
@@ -321,6 +325,15 @@ function netEvent(v: unknown): NetEvent | null {
       const z = num(v.z, -WORLD, WORLD);
       if (x === null || y === null || z === null) return null;
       return { e: 'boom', x, y, z, r: num(v.r, 0.5, 12) ?? 4 };
+    }
+    case 'sway': {
+      // (39) a light id (an integer in the lamp range), the host's sim time, an amplitude up to the cap, a heading
+      if (typeof v.id !== 'number' || !Number.isInteger(v.id) || v.id < 0 || v.id >= LAMP_MAX) return null;
+      const t = num(v.t, 0, 1e7);
+      const a = num(v.a, 0, SWAY.maxAmp);
+      const h = num(v.h, -Math.PI, Math.PI);
+      if (t === null || a === null || h === null) return null;
+      return { e: 'sway', id: v.id, t, a, h };
     }
     case 'kill': {
       const enemy = id(v.enemy);
