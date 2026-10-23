@@ -11,6 +11,10 @@ import { SectorRun, SECTOR, type ConnectorInput, type SectorDef } from '../src/g
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { buildCtcourse } from '../src/world/maps/ctcourse';
 import { layoutKnownIds, validateCourse, type CourseDef } from '../src/game/course/courseDef';
+import { startSlotPoints } from '../src/game/spawnPlace';
+import { clearOfBodies, joinSpawn, slotSpawn, SPAWN, type SlotPoint, type SpawnProbe } from '../src/game/spawnSlots';
+import { SightWorld } from '../src/game/sectorCheck';
+import { hyp2 } from '../src/core/mathx';
 
 /** (coop-rejoin, walk item 7) The host's side of a mid-run join: the `late` event, the start at the current bay, which
  *  checkpoint a (re)joining client gets, the partner's slot in map data. */
@@ -203,5 +207,52 @@ describe('which checkpoint a (re)joining client gets', () => {
     expect(r.index).toBe(2);
     expect(r.checkpoint).toEqual(pose(150));
     expect(r.checkpoint2).toEqual(pose(151.5));
+  });
+});
+
+describe('X4 (walk item 4): the client never starts or rejoins on the host', () => {
+  const b = new LevelBuilder();
+  const lay = buildCtcourse(b).layout;
+  const w = new SightWorld(b.boxes, b.cylinders);
+  // the level pieces as the game's probe reads them (floor and line: open ground in these areas)
+  const probe: SpawnProbe = { blocked: (x, y, z) => w.blocked(x, y, z, 0.3), open: () => true, floor: () => true };
+  const fake = (bay: number): GameState => ({ opts: { mode: 'course', courseBay: bay }, world: { layout: lay, map: {} }, player: { cam: { yaw: 0 } } }) as unknown as GameState;
+  const o = (): SlotPoint => ({ x: 0, y: 0, z: 0, yaw: 0 });
+
+  it('(a) the bay-1 start: the host on slot 0 = playerSpawns[0] (2, 10), the client on slot 1 = playerSpawns[1] (2, 12)', () => {
+    const pts = startSlotPoints(fake(1));
+    expect(pts.map((p) => [p.x, p.z])).toEqual([[2, 10], [2, 12]]);
+    const host = o();
+    const cli = o();
+    expect(slotSpawn(pts, 0, [], probe, host)).toBe('slot');
+    expect(slotSpawn(pts, 1, [host], probe, cli)).toBe('slot');
+    expect([host.x, host.z]).toEqual([lay.playerSpawns[0]!.pos.x, lay.playerSpawns[0]!.pos.z]);
+    expect([cli.x, cli.z]).toEqual([2, 12]);
+    expect(hyp2(cli.x - host.x, cli.z - host.z)).toBeGreaterThanOrEqual(SPAWN.minGap);
+  });
+
+  it('(a) a bay-N start: slot 0 the airlock point, slot 1 a clear spot beside it (no map slot yet)', () => {
+    for (let n = 2; n <= lay.course!.def.bays.length; n++) {
+      const pts = startSlotPoints(fake(n));
+      expect(pts.length, String(n)).toBeGreaterThanOrEqual(1);
+      const cli = o();
+      expect(slotSpawn(pts, 1, [pts[0]!], probe, cli), String(n)).not.toBe('base');
+      expect(hyp2(cli.x - pts[0]!.x, cli.z - pts[0]!.z), String(n)).toBeGreaterThanOrEqual(SPAWN.minGap);
+      expect(w.blocked(cli.x, cli.y, cli.z, 0.3), String(n)).toBe(false);
+    }
+  });
+
+  it('(b) a (re)joining client goes to a free slot: the host standing on slot 1 sends it beside, clear of the host', () => {
+    const pts = startSlotPoints(fake(1));
+    const host: SlotPoint = { ...pts[1]! };
+    const cli = o();
+    const k = joinSpawn({ sectioned: true, checkpoint: pts, reachable: () => true, host, others: [host], probe }, 1, null, cli);
+    expect(k).toBe('checkpoint');
+    expect(clearOfBodies(cli.x, cli.y, cli.z, [host])).toBe(true);
+    expect(w.blocked(cli.x, cli.y, cli.z, 0.3)).toBe(false);
+    // the host off the slots: the client takes slot 1 itself
+    const away: SlotPoint = { x: 30, y: 0, z: 30, yaw: 0 };
+    expect(joinSpawn({ sectioned: true, checkpoint: pts, reachable: () => true, host: away, others: [away], probe }, 1, null, cli)).toBe('checkpoint');
+    expect([cli.x, cli.z]).toEqual([2, 12]);
   });
 });
