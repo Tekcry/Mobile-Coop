@@ -415,10 +415,12 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 - Search after combat: the probable area (guard-ai S25, M1, CT rule 9, A151-A154; `ai/searchArea.ts` pure:
   `SEARCH_AREA`, `SearchPlan`, `areaRadius`, `pointScore`, `orderByScore`). One plan per intruder slot
   (`EnemyManager.plans`). `buildPlan(slot)`, called when one of his searchers asks: due when never built, older than
-  `rebuild` 2 s or his last known position moved > 1 m, and only while no point is claimed and his chase field is built
-  round that position. Area: cells within R = clamp(6 m + 1.5 m/s x seconds since seen, 6, 20) path metres of the last
+  `rebuild` 2 s or his last known position moved > 1 m, and only while his chase field is built round that position;
+  round the same position only while no point is claimed (a moved centre rebuilds at once, S25b fix). A searcher gets
+  plan points only from a plan round his intruder's current position, else the ring. Area: cells within R = clamp(6 m + 1.5 m/s x seconds since seen, 6, 20) path metres of the last
   known position (`flowOf(slot)` x `nav.cell`; a spot behind a wall is as far as the way round). Candidates: the level
-  cover in range (`coverGrid.query`, at the cover's position) and a 2 m lattice over the square of half-side R whose
+  cover in range (`coverGrid.queryNearest`, up to 1024, the nearest kept past that so no side is dropped; S25b fix
+  B1; at the cover's position) and a 2 m lattice over the square of half-side R whose
   baked light (`lightField.levelAt` 0.9 m over the floor; torches excluded, A153) is below `dark` (`LIGHT.shadow`);
   scored darker / cover / nearer by path (`pointScore`), offered best first, at most 12 kept 3 m apart. A rebuild round
   the same position keeps the looked-into points done. `Enemy.decide`'s search branch, for a combat search
@@ -426,7 +428,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   before, then `AiContext.searchPoint` (`take`: best score minus distance from him, one guard per point); none left:
   today's ring (`ringPoint`, from its first point). The look ending or the point unreachable: `searchDone` (found by his
   claim, done either way). Claims are freed on death / knockout (`onKilled`), despawn, leaving the search or the plan
-  (`planSweep` each update), a forgotten slot and `clear` / `resetMemory`. Calm searches (a body, a device, a call, a
+  (`planSweep` each update, also once his response team sweeps), a forgotten slot and `clear` / `resetMemory`. Calm searches (a body, a device, a call, a
   pair, a lure) keep their ring (A152). Undo: `SEARCH_AREA.enabled` false (today's points exactly). Host only, no
   protocol or save change. Brief: `docs/guard-ai/slices/S25.md`. Tests: `searchArea.test.ts`, `searchAreaWiring.test.ts`.
   (S26) R grows from `locT` (seconds since seen OR located), not `seenT`: a heard step narrows the search (A157).
