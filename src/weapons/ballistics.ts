@@ -1,5 +1,5 @@
 import { PhysicsRaycastResult, Vector3, type PhysicsEngine, type Scene } from '../core/babylon';
-import { G, isArmoured } from '../physics/groups';
+import { G, isArmouredBody } from '../physics/groups';
 import type { DamageRegistry, Damageable, HitPart, Team } from '../game/damage';
 import type { Prop, PropSystem } from '../world/props';
 import type { Vfx } from '../vfx/vfx';
@@ -98,15 +98,18 @@ export class Ballistics {
     return this.res;
   }
 
-  /** (guard-ai S16) The first hit in `collideWith` along the segment carries the armour bit (an armoured pane or door
-   *  leaf), resolved in `ray`'s order (a hit volume or a prop first is not armour); no allocation (the fire gate). */
+  /** (guard-ai S16) The first hit in `collideWith` along the segment is armour (an armoured pane or door leaf),
+   *  resolved in `ray`'s order (a hit volume or a prop first is not armour); no allocation (the fire gate).
+   *  (sniper triage) Armour is the struck body's mark (`isArmouredBody`), not the struck shape's bits: those read every
+   *  plain level wall as armour (Havok's default filter on the level container), so a guard whose muzzle line touched
+   *  his own cover held fire and lost his wind-up (e2e-enemies "sniper relocates after its shots"). */
   armouredFirst(from: Vector3, to: Vector3, collideWith: number): boolean {
     this.res.reset();
     this.q.collideWith = collideWith;
     this.eng.raycastToRef(from, to, this.res, this.q);
     const r = this.res;
     if (!r.hasHit || this.registry.lookup(r.body) || this.props.get(r.body)) return false;
-    return isArmoured((r.shape ?? r.body?.shape)?.filterMembershipMask ?? 0);
+    return isArmouredBody(r.body);
   }
 
   ray(from: Vector3, to: Vector3, collideWith: number): RayHit {
@@ -128,8 +131,8 @@ export class Ballistics {
     } else {
       const prop = this.props.get(r.body);
       if (prop) out.prop = prop;
-      // (E10) per shot, not per frame: the struck shape's bits (a pane's container or a door leaf carry the armour bit)
-      else if (isArmoured((r.shape ?? r.body?.shape)?.filterMembershipMask ?? 0)) out.armoured = true;
+      // (E10) per shot, not per frame: the struck body is armour (an armoured pane group or door leaf, `markArmoured`)
+      else if (isArmouredBody(r.body)) out.armoured = true;
     }
     return out;
   }

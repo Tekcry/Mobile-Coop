@@ -12,7 +12,7 @@ import {
   type Mesh,
   type Scene,
 } from '../core/babylon';
-import { G, doorMembership } from '../physics/groups';
+import { G, doorMembership, markArmoured } from '../physics/groups';
 import type { Door, TraversalAnchors } from './anchors';
 import { hyp2 } from '../core/mathx';
 import { DOOR_CRACK, isSlideDoor, stepCrack } from './doorPeek';
@@ -183,6 +183,8 @@ export class Doors {
     shape.filterMembershipMask = doorMembership(a.armoured === true);
     shape.filterCollideMask = 0xffffffff & ~G.STATIC;
     body.shape = shape;
+    // (sniper triage) armour is the body's mark (`isArmouredBody`, what ballistics reads)
+    if (a.armoured === true) markArmoured(body);
     d.body = body;
     d.node = node;
   }

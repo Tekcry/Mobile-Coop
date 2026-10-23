@@ -184,7 +184,8 @@ await run('autostart=warehouse&mode=clear', [
         }
         return { laser, glintMax, relocations: e.relocations, moved, shots, num: e.num, trace };
       });
-      console.log(`  sniper e${r.num}:\n    ${r.trace.join('\n    ')}`);
+      // (sniper triage) the brain trace when it did not relocate (2026-10-24: plain walls read as armour held his fire)
+      if (!(r.relocations >= 1 && r.moved > 3)) console.log(`  sniper e${r.num}:\n    ${r.trace.join('\n    ')}`);
       assert(r.laser, 'its laser shows while it aims');
       assert(r.glintMax > 0.3, `its scope glints at you (${r.glintMax.toFixed(2)})`);
       assert(r.relocations >= 1 && r.moved > 3, `it relocates after its shots (${r.relocations}, moved ${r.moved.toFixed(1)} m)`);
