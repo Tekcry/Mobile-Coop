@@ -1,0 +1,16 @@
+{
+  "id": "20261023T114659-player-build-53260ebf-8961",
+  "sha": "53260ebfa0ef99db304abc1ac26fbfa6fb517377",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Player Build",
+  "suites": [
+    "e2e-enemies",
+    "e2e-combat",
+    "e2e-guard-carry",
+    "e2e-coop"
+  ],
+  "set": "gm-g7-on",
+  "note": "guard-models G7 flag ON (scratch default flip; Wren LOD stand-in): shader / varying compile + gear"
+}
