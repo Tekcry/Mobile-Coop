@@ -20,7 +20,7 @@ for the pipeline (grep "Pipeline speed-ups", "Release speed-ups"). Message the o
 train-ready (also add the `train-ready` label) / blocked / needs Michael; progress in your STATE. Resume block lean
 (~40 lines, exact file:line pointers). No mid-window clears. Gmail / Google Drive / Fergus connectors off. One checker
 per batch, run in parallel with the laptop request on the same commit. No e2e on the desktop: every suite through Test
-Runner's laptop queue, E2E_GPU=1. No polling turns. Never merge master into your branch (the train does). Burn fast:
+Runner's laptop queue, E2E_GPU=1. No polling turns. Never merge master into your branch (the train does). Tokens for progress (ROADMAP Decided ~19:25): two checkers on AI / src/net PRs; an Opus triage agent on every laptop failure at once; Opus briefs for the next 2-3 slices written ahead (plans only); cloud sessions for heavy builder slices once a cloud environment exists. Burn fast:
 every independent slice of your PLAN in parallel up to CPU ~80%, nothing speculative, never two agents on the same
 files. Opus plans / checks / AI and anim code, Sonnet 5.5 builds from strict briefs, Haiku 5.5 chores. At the
 orchestrator's save message (~92%) commit every agent worktree as WIP and push (the orchestrator checks the branches
