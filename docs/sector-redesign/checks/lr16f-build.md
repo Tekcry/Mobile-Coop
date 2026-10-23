@@ -114,3 +114,36 @@ atlas = tile, texture dominance vs Epic, lookups allocation-free. `npx tsc --noE
 - No visible stepping from the every-2nd-frame refresh while walking (one frame of lag at 60 fps).
 - Max samplers per shader at Low / Medium <= 16 (the lightbake read-back run at those presets).
 - Frame p95 within the governor budget at Low and Medium with 2+ guards near a lamp (perf script).
+
+## LR16-3 - dynamic occluders in the character shadow casters
+Spec: `lr16-0-ct-audit.md` (props were excluded; an open door leaf cast nothing from lamps).
+
+### Changes
+- `src/world/charShadows.ts` `CharShadowDoors` / `CharShadowProps` (structural views of `Doors` and `PropSystem`, read only),
+  `setDynamic(doors, props)`, `addDynamic(slot, lx, ly, lz, reach)` (called in `gather` after the cone fit). Door leaves:
+  the one thin-instanced `leafMesh` is pushed once when any door with `open > 0` or `ajar > 0` (open, moving, cracked)
+  is within the lamp's reach (`casterInReach`, hyp3 on the door's mid-height centre, radius (width + height) / 2).
+  Props: every live prop within reach + 0.9 m (`PROP_REACH`) adds its part meshes, so a pushed or carried crate's shadow
+  follows its node each frame.
+- Render list only: the cone fit and `covers` still follow the characters (the spheres `sp` are not touched), so a leaf
+  or crate throws onto characters but never changes which characters hold a map. `src/world/lightField.ts` untouched:
+  the meter and guards are unchanged (LR14 rule).
+- `src/world/charShadowSet.ts` end: pure `casterInReach` (hyp3, allocation-free).
+- Outside the two files: `src/world/world.ts` (after `new CharShadows`): `w.charShadows.setDynamic(w.doors, w.props)`.
+  No door / prop file changed; both registries read through existing public fields (`Doors.list`, `leafMesh`; `PropSystem.props`).
+- No new texture or sampler (shader unchanged; textures stay <= 16). Per frame: indexed loops, no closures, no arrays.
+- Cost note: the leaf mesh is thin-instanced, so a slot that lists it draws every door's instance (closed ones are cheap
+  and sit in walls). Per-instance filtering would need a second matrix buffer; not done.
+
+### Tests
+`tests/charShadowSet.test.ts` block "LR16-3": reach gate (inside / edge / outside, vertical), allocation-free.
+`npx tsc --noEmit` clean; vitest `charShadowSet`, `lampPluginClone`, `lampPluginGap` 24/24 pass. No door file touched.
+
+### GPU checklist (laptop, `E2E_GPU=1`, pending)
+- A door at 90 deg under a mapped lamp on EVERY map with doors: the leaf's shadow lands on a character behind / beside it;
+  closing it removes the shadow (leaf only listed while `open` / `ajar` > 0); a closed door adds nothing new.
+- A character walking through a doorway while the leaf swings: no flicker, no pop at the swing's start / end.
+- A pushed crate and a carried crate near a mapped lamp: its shadow on a character follows it; a crate leaving the lamp's
+  reach drops out with no stale shadow.
+- Meter / guard perception unchanged beside an open door (render-only).
+- Perf with several props in reach on Low / Medium (1 slot, every 2nd frame) and Epic.

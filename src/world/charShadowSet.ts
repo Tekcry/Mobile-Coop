@@ -421,3 +421,8 @@ export function tileX(slot: number, tile: number): number {
 export function tileY(slot: number, tile: number): number {
   return (slot >> 1) * tile;
 }
+
+/** (LR16-3) A door leaf or prop at (x, y, z) with bounding radius r can reach a lamp's slot when within its range. */
+export function casterInReach(lx: number, ly: number, lz: number, reach: number, x: number, y: number, z: number, r: number): boolean {
+  return hyp3(x - lx, y - ly, z - lz) <= reach + r;
+}

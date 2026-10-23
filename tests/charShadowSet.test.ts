@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { atlasSize, CHAR_SHADOW, CHAR_SHADOW_DISK, CHAR_SHADOW_EVERY, CHAR_SHADOW_KERNEL, CHAR_SHADOW_PRESET, CHAR_SHADOW_TAPS, charFilterTexels, charPenumbra, charShadowEvery, charShadowSpec, charShadowTaps, coneCovers, FIT, fitCone, fittedSpheres, LampSlotPicker, spheresHold, tileX, tileY } from '../src/world/charShadowSet';
+import { atlasSize, CHAR_SHADOW, CHAR_SHADOW_DISK, CHAR_SHADOW_EVERY, CHAR_SHADOW_KERNEL, CHAR_SHADOW_PRESET, CHAR_SHADOW_TAPS, charFilterTexels, charPenumbra, charShadowEvery, charShadowSpec, charShadowTaps, casterInReach, coneCovers, FIT, fitCone, fittedSpheres, LampSlotPicker, spheresHold, tileX, tileY } from '../src/world/charShadowSet';
 import { CHAR_SHADOW_GLSL } from '../src/world/charShadows';
 import { GRAPHICS_PRESETS, MIN_FEATURES, PRESET_IDS, qualityLevel, shadowSpec } from '../src/core/quality';
 import { bytesPerCall } from './helpers/allocPerCall';
@@ -328,6 +328,19 @@ describe('LR16-7 character shadows on every tier', () => {
       for (let i = 0; i < m; i++) s += charShadowEvery(1, 256 << (i & 1)) + charShadowTaps(1, 512) + atlasSize(512, 1 + (i & 1));
       return s;
     }, 16, { n: 2000 });
+    expect(bytes).toBeLessThanOrEqual(16);
+  });
+});
+
+describe('LR16-3 dynamic occluders in the character shadow casters', () => {
+  it('a leaf or prop joins only within the lamp reach plus its own radius', () => {
+    expect(casterInReach(0, 3, 0, 6, 5, 3, 0, 0.9)).toBe(true);
+    expect(casterInReach(0, 3, 0, 6, 6.8, 3, 0, 0.9)).toBe(true);
+    expect(casterInReach(0, 3, 0, 6, 7.0, 3, 0, 0.9)).toBe(false);
+    expect(casterInReach(0, 3, 0, 6, 4, 8, 3, 0.9)).toBe(false);
+  });
+  it('the reach test is allocation-free', async () => {
+    const bytes = await bytesPerCall((k) => (casterInReach(0, 3, 0, 6, k % 9, 3, 0, 0.9) ? 1 : 0), 16, { n: 2000 });
     expect(bytes).toBeLessThanOrEqual(16);
   });
 });

@@ -10,7 +10,7 @@
  * only drives its shadow map. Per frame nothing is allocated (render lists and uniforms refilled in place).
  */
 import { BaseTexture, Constants, EffectRenderer, EffectWrapper, ShadowGenerator, SpotLight, Texture, Vector3, Viewport, type AbstractMesh, type Observer, type RenderTargetWrapper, type Scene } from '../core/babylon';
-import { atlasSize, CHAR_SHADOW, CHAR_SHADOW_DISK, CHAR_SHADOW_KERNEL, charShadowEvery, charShadowTaps, coneCovers, FIT, fitCone, fittedSpheres, LampSlotPicker, spheresHold, tileX, tileY } from './charShadowSet';
+import { atlasSize, CHAR_SHADOW, CHAR_SHADOW_DISK, CHAR_SHADOW_KERNEL, charShadowEvery, charShadowTaps, casterInReach, coneCovers, FIT, fitCone, fittedSpheres, LampSlotPicker, spheresHold, tileX, tileY } from './charShadowSet';
 
 type RenderTargetTexture = NonNullable<ReturnType<ShadowGenerator['getShadowMap']>>;
 
@@ -43,6 +43,20 @@ export interface CharShadowLamps {
   readonly spheres: Float32Array;
   lampLit(i: number): boolean;
 }
+
+/** (LR16-3) The door registry's side `CharShadows` reads (`Doors`): the leaves' one thin-instanced mesh and each door. */
+export interface CharShadowDoors {
+  readonly leafMesh: AbstractMesh | null;
+  readonly list: readonly { open: number; ajar: number; cx: number; cz: number; anchor: { hinge: { y: number }; width: number; height: number } }[];
+}
+
+/** (LR16-3) The prop registry's side (`PropSystem`): each live prop's node position and its part meshes. */
+export interface CharShadowProps {
+  readonly props: readonly { alive: boolean; node: { position: { x: number; y: number; z: number } }; parts: readonly AbstractMesh[] }[];
+}
+
+/** (LR16-3) Bounding radius (m) of the biggest prop (a 1 m crate's half diagonal, rounded up). */
+const PROP_REACH = 0.9;
 
 interface CsSlot {
   light: SpotLight;
@@ -164,6 +178,9 @@ export class CharShadows implements CharShadowLink {
   private governorEvery = 1;
   /** (LR16-7) The tier's least refresh interval (`charShadowEvery`: Low / Medium 2). */
   private baseEvery = 1;
+  /** (LR16-3) Doors and props whose shapes join a slot's casters when in its lamp's reach (set by `world.ts`). */
+  private doors: CharShadowDoors | null = null;
+  private dynProps: CharShadowProps | null = null;
   /** Shadow maps copied into the atlas so far (tests, the debug line). */
   copies = 0;
   /** The map's metric with a reversed depth buffer runs the other way. */
@@ -172,12 +189,18 @@ export class CharShadows implements CharShadowLink {
   constructor(
     private scene: Scene,
     private lamps: CharShadowLamps,
-    /** The character casters (`World.charCasters`): players, guards, bodies, weapons and gear; no props, no level. */
+    /** The character casters (`World.charCasters`): players, guards, bodies, weapons and gear (LR16-3: doors and props join through `setDynamic`); no level. */
     private casters: readonly AbstractMesh[],
   ) {
     this.lampSlot = new Int8Array(lamps.count).fill(-1);
     this.lit = new Uint8Array(lamps.count);
     this.depthSign = scene.getEngine().useReverseDepthBuffer ? -1 : 1;
+  }
+
+  /** (LR16-3) Door leaves (open or moving) and props also cast into the slot maps; render-only, the light field is untouched. */
+  setDynamic(doors: CharShadowDoors | null, props: CharShadowProps | null): void {
+    this.doors = doors;
+    this.dynProps = props;
   }
 
   get on(): boolean {
@@ -338,6 +361,7 @@ export class CharShadows implements CharShadowLink {
       slot.list.length = 0;
       return false;
     }
+    this.addDynamic(slot, lx, ly, lz, reach);
     const fit = slot.fit;
     const light = slot.light;
     light.position.set(lx, ly, lz);
@@ -349,6 +373,41 @@ export class CharShadows implements CharShadowLink {
     if (light.shadowMinZ !== near) light.shadowMinZ = near;
     if (light.shadowMaxZ !== far) light.shadowMaxZ = far;
     return true;
+  }
+
+  /**
+   * (LR16-3) After the cone is fitted around the characters: list the door leaves (open, moving or cracked) and the
+   * props within the lamp's reach. They join the render list only - the fit and `covers` still follow the characters -
+   * so a leaf or a pushed / carried crate throws its shape onto them. Allocation-free (indexed loops, no closures).
+   */
+  private addDynamic(slot: CsSlot, lx: number, ly: number, lz: number, reach: number): void {
+    const doors = this.doors;
+    const leaf = doors?.leafMesh;
+    if (doors && leaf && leaf.isVisible && leaf.isEnabled()) {
+      const dl = doors.list;
+      for (let i = 0; i < dl.length; i++) {
+        const d = dl[i]!;
+        if (d.open <= 0 && d.ajar <= 0) continue;
+        const a = d.anchor;
+        if (casterInReach(lx, ly, lz, reach, d.cx, a.hinge.y + a.height * 0.5, d.cz, (a.width + a.height) * 0.5)) {
+          slot.list.push(leaf);
+          break;
+        }
+      }
+    }
+    const pr = this.dynProps?.props;
+    if (!pr) return;
+    for (let i = 0; i < pr.length; i++) {
+      const p = pr[i]!;
+      if (!p.alive) continue;
+      const q = p.node.position;
+      if (!casterInReach(lx, ly, lz, reach, q.x, q.y, q.z, PROP_REACH)) continue;
+      const parts = p.parts;
+      for (let j = 0; j < parts.length; j++) {
+        const m = parts[j]!;
+        if (m.isEnabled() && m.isVisible) slot.list.push(m);
+      }
+    }
   }
 
   private setEvery(slot: CsSlot, every: number): void {
