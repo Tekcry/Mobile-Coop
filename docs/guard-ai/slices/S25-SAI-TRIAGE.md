@@ -161,3 +161,4 @@ there). No src issue.
 
 ### Checks
 - `node --check scripts/e2e-stealth-ai.mjs`: OK. The scratch nav probe is as above. No src change.
+- Queued: set `s25-sai-fix4`, suite `e2e-stealth-ai`, on cf3e013d, request `20261023T175019-night-shift-guard-ai-cf3e013d-dce3`.
