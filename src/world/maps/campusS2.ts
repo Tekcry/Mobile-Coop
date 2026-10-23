@@ -45,7 +45,7 @@ export const S2_VOID = { x0: -26, x1: -10, z0: -20, z1: -4 } as const;
 export const S2_FOOT = { x0: -44, x1: 4, z0: -30, z1: 6 } as const;
 
 /** The lamp circuits (switch groups) of section 2 (the SPEC's `s2-atrium` ... are ids; the registry's groups are numbers). */
-export const S2_GROUPS = { atrium: 50, l1Bal: 51, l2Bal: 52, reception: 53, kitchen: 54, facilities: 55, l1Cor: 56, l2Cor: 57, gCor: 58 } as const;
+export const S2_GROUPS = { atrium: 50, l1Bal: 51, l2Bal: 52, kitchen: 54, facilities: 55, l1Cor: 56, l2Cor: 57, gCor: 58 } as const;
 
 /** The doors the sector data finds by centre (`Doors.nearest`): [x, z]. */
 export const S2_DOORS = {
@@ -173,7 +173,7 @@ export const S2_NAV_SEEDS: Vector3[] = [new Vector3(-20, 0, -27.5), new Vector3(
 
 /** Light switches. Y is the floor the switch stands on (the interact test is within 1.5 m of it). */
 export const S2_SWITCHES: NonNullable<MapLayout['switches']> = [
-  // the reception panel: cuts the atrium pendants (lure #1), on the foyer's east wall
+  // the reception panel: cuts the atrium pendants and the reception downlight (lure #1: his own room goes dark), on the foyer's east wall
   { pos: new Vector3(-8.4, 0, -28.5), yaw: -PI / 2, group: S2_GROUPS.atrium },
   // one switch at each stair door for the balconies' downlights: L1 (SW, NE), L2 (SW, NE)
   { pos: new Vector3(-38.8, 4.4, -24.6), yaw: PI / 2, group: S2_GROUPS.l1Bal },
@@ -556,7 +556,9 @@ export function buildCampusS2(b: LevelBuilder): void {
     lamp(b, x, 7.9, z, { r: 5, i: 0.8, group: S2_GROUPS.l1Bal, colour: WHITE, cone: makeCone(0, -1, 0, 1.2), w: 0.4 });
     lamp(b, x, 11.9, z, { r: 5, i: 0.8, group: S2_GROUPS.l2Bal, colour: WHITE, cone: makeCone(0, -1, 0, 1.2), w: 0.4 });
   }
-  lamp(b, -20, 3.9, -26.5, { r: 6, i: 0.9, group: S2_GROUPS.reception, colour: WHITE, w: 0.6 });
+  // the reception downlight is on the panel's circuit: from the desk the pendants hang above the L1 slab line (no sight
+  // line), so #1 notices the panel by his own room going dark (guard-ai lightsOut: a fixture in the room he stands in)
+  lamp(b, -20, 3.9, -26.5, { r: 6, i: 0.9, group: S2_GROUPS.atrium, colour: WHITE, w: 0.6 });
   lamp(b, -25, 7.9, -26, { r: 5, i: 0.9, group: S2_GROUPS.kitchen, colour: WHITE, w: 0.6 });
   lamp(b, -4, 7.9, 3, { r: 6, i: 0.9, group: S2_GROUPS.facilities, colour: COOL, w: 0.6 });
   lamp(b, -3, 7.9, -1.5, { r: 8, i: 0.25, group: S2_GROUPS.l1Cor, colour: WHITE, w: 0.4 });

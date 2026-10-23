@@ -2,6 +2,7 @@ import type { SquadSlot } from '../world/rooms';
 import type { DifficultyPreset } from '../ai/archetypes';
 import { AIRLOCK_DOORWAY_CLEAR, PAIR_WINDOW } from '../config/course';
 import { clearPairHalves, pairHalves, pressPairHalf, type PairHalves } from './pairPress';
+import type { NoisySource, ReinforceEntry } from '../ai/guardAiData';
 import { ENEMIES } from '../ai/enemyDefs';
 import { checkStageActions, type SectorStageAction, type StageNavCheck } from './sectorStage';
 import { checkDesks } from './sectorDesks';
@@ -111,6 +112,10 @@ export interface SectorDef {
   guards: SectorGuard[];
   /** Where alarm reinforcements come in (x, z; taken in turn), inside the section. */
   reinforce: [number, number][];
+  /** (guard-ai) Noisy things that mask hearing in this section. */
+  noisy?: NoisySource[];
+  /** (guard-ai) Reinforcement entry points and run-in routes; none = `reinforce`. */
+  entries?: ReinforceEntry[];
   /** Guards each alarm stage sends in here (A3): armed guards (`SECTOR_REINFORCE_KIND`, no heavies, G155). */
   perStage: number;
   /**
