@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~04:30: s26-fix4 531a65e9 PASS 2/2 (e2e-coop + netmove: S26 coop block fixed). s26-sai f71ae5c7 FAIL e2e-stealth-ai
+(desktop worker, 49 s; log desktop-only: ask the orchestrator). s25-sai-fix3 (1eb5644d) still pending: if it fails
+the same, one S25 triage covers both; if it passes, triage S26's stealth-ai on its own.
+
 ~04:20 SAVE (orchestrator 90%, resume ~04:47): every guard-ai worktree clean and pushed; no agents running; laptop
 queued s25-sai-fix3, s26-fix4, s26-sai. Resume block current.
 
@@ -738,8 +742,8 @@ orchestrator). Green -> `gh pr edit <n> --add-label train-ready` + tell orchestr
    predicted pass, thin 1.49 m vs 1.5 m found margin; 'wall' / 'three' not run since round 1). Laptop s25-sai-fix3
    queued. Green -> label #266.
 3. #271 S26 (feature/guard-ai-s26, worktree -s26, head f71ae5c7 = s25 merged): e2e-coop S26 block round 2 531a65e9
-   (block sets em.alarmRaised so no response team re-locates the client; S26-COOP-TRIAGE.md). Laptop s26-fix4
-   (coop, netmove on 531a65e9) + s26-sai (stealth-ai on f71ae5c7) queued. Green on both + #266 green -> label #271.
+   (block sets em.alarmRaised so no response team re-locates the client; S26-COOP-TRIAGE.md). s26-fix4 (coop,
+   netmove on 531a65e9) PASS; s26-sai (stealth-ai on f71ae5c7) FAIL (desktop log: ask the orchestrator). Green on both + #266 green -> label #271.
    A further s25 fix -> merge s25 into s26 and requeue s26-sai.
 4. Backlog: path through a locked door (A7-cage-w) stalls ~15 s (S20 door gate never opens a locked leaf); cover
    picked by straight-line distance can send a guard behind a full wall (S24-COOP-TRIAGE.md; polish list).
