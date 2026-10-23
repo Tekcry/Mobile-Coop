@@ -1,6 +1,13 @@
 # Guard AI - state
 
 ## Now
+~14:10 (desktop CPU ~10%, cap lifted): S9 BUILT 76157035 (protocol 32 free: master 31, marlow-final 33,
+section-rating 34, art-kit 35; slices/S9.md, A90-A95; 528 unit tests). RUNNING (Opus): S15 laptop fix (s15); S9
+checker (s9, writes slices/S9-CHECK.md); S16 armoured fire check in ...-guard-ai-s16 (was -s7), branch
+feature/guard-ai-s16 OFF origin/feature/sector-redesign-e10 36124a39 (E10 check PASS, not on master; merging e10 into
+our stack conflicted, so S16 rides after E10; A80-A89). Next: s9 <- fixed s15; laptop e2e-coop, netmove, stealth-ai,
+takedown on s9; PR S9 (base s15).
+
 ~13:55: laptop GPU s15 884b89c0 12/15. FAIL e2e-stealth-ai 'breaker' (walks to 0.29 m, circuit never relit) and
 e2e-sectorops:6 (master's panel / switch-bank cuts draw no guard): one suspected cause (S15 x master stealthSystems /
 lightsOut). sectorops:3 route timeout under load (x0.90; rerun). Log C:/NightShift/scratch/runs/guardais15-884b89c0/
@@ -378,9 +385,12 @@ then this file's "Now" (top 3 entries) and slices/NEXT-BRIEFS.md section 5 (S9).
    failure: fix on the lowest branch it belongs to, merge up, rerun that suite.
 3. PRs #218 S13 (base s12), #219 S14 (base s13), #220 S15 (base s14) open; checker PASS. Laptop verdict on s15 884b89c0
    (stealth-ai, sectorops all, takedown, ct-warehouse, course, ctcourse, coop, netmove; requested). Green -> train-ready.
-4. S9 co-op on feature/guard-ai-s9 (off s15 78c2fe7c): done = slices/S9.md with checks; else a fresh Opus agent
-   finishes from NEXT-BRIEFS 5 and the WIP. Then merge the new s15 into s9, Opus checker, laptop e2e-coop + netmove.
-5. S16 armoured fire check (Now ~13:05 entry) once Sector Ops E10 (feature/sector-redesign-e10) is on master.
+4. S9 co-op BUILT 76157035 (slices/S9.md). Checker: done = slices/S9-CHECK.md; else a fresh Opus checker. Then s9 <-
+   fixed s15, laptop e2e-coop / netmove / stealth-ai / takedown, PR S9 base s15, message the orchestrator.
+5. S16 on feature/guard-ai-s16 (off e10 36124a39): done = slices/S16.md; else a fresh Opus agent finishes from the
+   STATE ~14:10 entry + Sector Ops' ask (~13:05 entry). Then one Opus checker, PR base feature/sector-redesign-e10
+   (retarget to master when E10 lands), tell Sector Ops.
+S15 laptop fix: done = S15.md "Laptop fix (884b89c0)"; then laptop rerun stealth-ai + sectorops 3 / 6 on s15.
 Rules: AI code and checkers Opus, Sonnet 5.5 tests / data from strict briefs, Haiku chores. Never two agents on the
 same files; keep the laptop CPU in step with Test Runner's queue (trains first). Every e2e E2E_GPU=1. Message the
 orchestrator only at PR open / train-ready / blocked / needs Michael; progress in this file. A-numbers: S13 A52-A59,
