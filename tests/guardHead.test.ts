@@ -3,7 +3,7 @@ import { GuardCq, type GuardCqMode } from '../src/game/closeQuarters';
 import { BLIND_PITCH, HELD_PITCH, guardHead, guardHeadRest, leanStep, newLeanState, type GuardHeadIn } from '../src/ai/guardHead';
 
 function inp(over: Partial<GuardHeadIn> = {}): GuardHeadIn {
-  return { x: 0, y: 0, z: 0, yaw: 0, crouch: 0, speed: 0, aim: 0.2, aimPitch: 0, wall: false, wallSide: 0, lean: 0, leanDrop: 0, held: null, heldK: 0, koK: 0, blind: 0, climb: false, ...over };
+  return { x: 0, y: 0, z: 0, yaw: 0, crouch: 0, speed: 0, moveX: 0, moveZ: 0, phase: 0, aim: 0.2, aimPitch: 0, wall: false, wallSide: 0, lean: 0, leanDrop: 0, held: null, heldK: 0, koK: 0, blind: 0, poseW: 0, climb: false, ...over };
 }
 const grunt = guardHeadRest(1.75, 'average');
 const head = (i: GuardHeadIn, r = grunt) => {
@@ -48,11 +48,46 @@ describe('guardHead (pure sim head)', () => {
 
   it('held and blind poses pitch the head forward and down', () => {
     const base = head(inp());
-    const held = head(inp({ held: 'seizedLethal', heldK: 1 }));
+    const held = head(inp({ held: 'seizedLethal', heldK: 1, poseW: 1 }));
     expect(held.z).toBeGreaterThan(base.z);
     expect(held.y).toBeLessThan(base.y);
-    const blind = head(inp({ blind: 1 }));
+    const blind = head(inp({ blind: 1, poseW: 1 }));
     expect(blind.y).toBeLessThan(base.y);
+    // no emote weight: no pose
+    const off = head(inp({ held: 'seizedLethal', heldK: 1, blind: 1, poseW: 0 }));
+    expect(off.y).toBeCloseTo(base.y, 9);
+    expect(off.z).toBeCloseTo(base.z, 9);
+  });
+
+  it('(S3a fix round) seized while blind: the held pose only (one emote at a time)', () => {
+    const heldOnly = head(inp({ held: 'seized', heldK: 1, poseW: 1 }));
+    const both = head(inp({ held: 'seized', heldK: 1, blind: 1, poseW: 1 }));
+    expect(both.x).toBeCloseTo(heldOnly.x, 9);
+    expect(both.y).toBeCloseTo(heldOnly.y, 9);
+    expect(both.z).toBeCloseTo(heldOnly.z, 9);
+    // and the blind pose differs from it (head back vs hands to the face)
+    expect(Math.abs(head(inp({ blind: 1, poseW: 1 })).z - heldOnly.z)).toBeGreaterThan(0.05);
+  });
+
+  it('(S3a fix round) the direction of travel in his frame changes the head (strafe, backpedal)', () => {
+    const sp = 0.9;
+    const fwd = head(inp({ aim: 1, speed: sp, moveZ: sp }));
+    // no direction given: read as straight ahead
+    const none = head(inp({ aim: 1, speed: sp }));
+    expect(none.y).toBeCloseTo(fwd.y, 9);
+    expect(none.z).toBeCloseTo(fwd.z, 9);
+    const back = head(inp({ aim: 1, speed: sp, moveZ: -sp }));
+    const right = head(inp({ aim: 1, speed: sp, moveX: sp }));
+    const left = head(inp({ aim: 1, speed: sp, moveX: -sp }));
+    for (const o of [back, right, left]) expect(Math.hypot(o.x - fwd.x, o.y - fwd.y, o.z - fwd.z)).toBeGreaterThan(0.01);
+  });
+
+  it('(S3a fix round) walking along the wall leaning out moves the head off the still lean', () => {
+    // the game's combination: wall side -1, lean +1 (away from it), walking towards the lean
+    const still = head(inp({ aim: 1, wall: true, wallSide: -1, lean: 1, leanDrop: 1 }));
+    const moving = head(inp({ aim: 1, wall: true, wallSide: -1, lean: 1, leanDrop: 1, speed: 0.9, moveX: 0.9 }));
+    expect(still.y - moving.y).toBeGreaterThan(0.08);
+    expect(moving.x).toBeGreaterThan(0.8);
   });
 
   it('scales with height', () => {

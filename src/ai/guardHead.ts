@@ -14,10 +14,13 @@
  *   the dash, armed or unarmed, standing or crouched: crouch blends the two), with the aim's and the pitch's terms and
  *   the stride's left / right head bob on the gait clock (`phase`, the motion driver's, which the rig follows);
  * - moving at a wall: the wall stance plus `WALL_MOVE` / `WALL_LEAN_MOVE` over the direction relative to the wall side.
- * The tables were fitted (least squares, per frame, 1 mm rounding) to a NullEngine sweep of the rig fed as `Enemy.frame`
- * feeds it, a `MotionDriver` giving the velocity and the gait clock: grunt, heavy, sniper, enforcer, officer, droneOp
- * armed, the runner unarmed; aim 0.2 / 0.4 / 0.7 / 1, pitch -0.3 / 0 / 0.3, crouch 0 / 1, 14 directions, 0.15 m/s up to
- * the run speed; the wall at 0.3 - 1.3 m/s. `GUARD_HEAD_PRINT=1` on the parity test prints the rig offsets per case.
+ * The `MOVE` tables were fitted (least squares, per frame, 1 mm rounding) to a NullEngine sweep of the rig fed as
+ * `Enemy.frame` feeds it, a `MotionDriver` giving the velocity and the gait clock: grunt, heavy, sniper, enforcer,
+ * officer, droneOp armed, the runner unarmed; aim 0.2 / 0.4 / 0.7 / 1, pitch -0.3 / 0 / 0.3, crouch 0 / 1, 14 directions,
+ * 0.15 m/s up to the run speed (that sweep's script was not kept; the parity test holds the tables to the rig). The wall
+ * tables (`WALL_MOVE`, `WALL_LEAN_MOVE`) were refitted in the S3a fix round by `scripts/guard-head-fit.mjs wall` from the
+ * `tests/guardHeadSweep.test.ts` sweep (the same harness as the parity test). `GUARD_HEAD_PRINT=1` on the parity test
+ * prints the rig offsets per case.
  *
  * Pure: no Babylon, no rig. `guardHead` writes `out` in place (no allocation).
  */
@@ -103,6 +106,10 @@ type MoveClass = 'AF0' | 'AF1' | 'AV0' | 'AV1' | 'DF' | 'DV' | 'NF0' | 'NF1' | '
  *  (side times `wallSide`), all scaled down to 0 below the first speed knot. */
 interface WallTable {
   up: readonly number[];
+  /** (S3a fix round) The stride's first harmonic on the gait clock (up, signed by the side of travel), same layout as
+   *  `up`; null where it is under 5 mm (lean 0). */
+  bobC: readonly number[] | null;
+  bobS: readonly number[] | null;
   fw: readonly number[];
   sx: readonly number[];
   /** up p, up p^2, forward p, forward p^2, side p, side p^2 (scaled with the speed like the rest). */
@@ -408,48 +415,91 @@ const MOVE: Record<MoveClass, MoveTable> = {
 const WALL_TH = [-180, -150, -120, -90, -70, -50, -30, 0, 30, 50, 70, 90, 120, 150, 180];
 const WALL_THA = [0, 30, 50, 70, 90, 120, 150, 180];
 const WALL_SP = [.3, .6, .9, 1.3];
+/** Lean 0 (the flat back, the side step, back to the cover point). Fitted by `scripts/guard-head-fit.mjs wall` from the
+ *  `tests/guardHeadSweep.test.ts` wall sweep (grunt, sniper, officer; settle 2.5 s, 2 s window); the pitch terms are the
+ *  WIP fit's (the sweep runs at pitch 0). */
 const WALL_MOVE: WallTable = {
   up: [
-    -.025, -.014, -.02, -.027,
-    -.052, -.053, -.053, -.057,
-    -.053, -.053, -.053, -.058,
-    -.054, -.054, -.054, -.058,
-    -.04, -.04, -.041, -.046,
-    -.031, -.032, -.033, -.042,
+    -.006, -.006, -.01, -.021,
+    -.052, -.052, -.052, -.054,
+    -.052, -.052, -.052, -.054,
+    -.052, -.052, -.053, -.053,
+    -.04, -.04, -.04, -.042,
+    -.031, -.031, -.031, -.038,
     -.022, -.022, -.022, -.022,
     -.005, -.005, -.005, -.005,
-    -.022, -.022, -.026, -.028,
-    -.043, -.043, -.046, -.083,
-    -.047, -.047, -.052, -.088,
-    -.054, -.056, -.059, -.083,
-    -.053, -.059, -.061, -.1,
-    -.052, -.054, -.057, -.072,
-    -.025, -.014, -.02, -.027,
+    -.022, -.022, -.023, -.024,
+    -.031, -.032, -.042, -.08,
+    -.04, -.04, -.047, -.085,
+    -.052, -.053, -.054, -.084,
+    -.052, -.053, -.056, -.093,
+    -.052, -.052, -.053, -.064,
+    -.006, -.006, -.01, -.021,
   ],
+  bobC: null,
+  bobS: null,
   fw: [.027, .021, .018, .014, .01, .006, .003, .027],
   sx: [.03, .031, .032, .032, .033, .034, .035, .03],
   pitch: [-.005, .017, .041, 0, -.153, .001],
 };
+/** Leaning out (the lean away from the wall side, the only one the game gives): the walk to the edge is `theta * side`
+ *  = -90. Same fit. The rig's head here rides a once-a-stride sawtooth of 10-17 cm (the hips shifted 0.7 m onto the
+ *  outer foot: the foot planner's reach) that is not locked to the gait clock; the mean and the first harmonic leave
+ *  up to ~0.12-0.17 m (see the parity test's written exception). */
 const WALL_LEAN_MOVE: WallTable = {
   up: [
-    -.058, -.097, -.146, -.207,
-    -.192, -.218, -.25, -.263,
-    -.148, -.199, -.23, -.251,
-    -.155, -.215, -.24, -.246,
-    -.158, -.2, -.243, -.229,
-    -.145, -.193, -.214, -.247,
-    -.15, -.164, -.212, -.234,
-    .011, -.02, -.059, -.115,
-    -.055, -.144, -.177, -.196,
-    -.096, -.139, -.189, -.197,
-    -.096, -.142, -.184, -.204,
-    -.104, -.152, -.197, -.211,
-    -.099, -.14, -.185, -.203,
-    -.049, -.148, -.195, -.212,
-    -.058, -.097, -.146, -.207,
+    -.042, -.056, -.079, -.123,
+    -.097, -.162, -.204, -.243,
+    -.096, -.148, -.191, -.215,
+    -.091, -.158, -.192, -.219,
+    -.084, -.157, -.193, -.211,
+    -.067, -.14, -.179, -.217,
+    -.022, -.098, -.154, -.187,
+    .005, -.012, -.036, -.064,
+    -.014, -.084, -.141, -.154,
+    -.019, -.102, -.146, -.153,
+    -.034, -.108, -.15, -.163,
+    -.031, -.115, -.152, -.169,
+    -.017, -.108, -.143, -.16,
+    -.035, -.094, -.157, -.168,
+    -.042, -.056, -.079, -.123,
   ],
-  fw: [.111, .106, .103, .1, .096, .093, .09, .111],
-  sx: [.062, .063, .064, .064, .065, .066, .067, .062],
+  bobC: [
+    0, 0, 0, 0,
+    .063, .074, .056, .037,
+    .083, .09, .058, .015,
+    .096, .091, .062, .022,
+    .085, .096, .06, .019,
+    .086, .098, .065, .021,
+    .078, .101, .088, .062,
+    0, 0, 0, 0,
+    .051, .037, -.001, -.03,
+    .075, .024, -.015, -.036,
+    .08, .021, -.018, -.031,
+    .075, .021, -.012, -.028,
+    .085, .032, -.006, -.027,
+    .077, .053, .023, -.009,
+    0, 0, 0, 0,
+  ],
+  bobS: [
+    0, 0, 0, 0,
+    .018, .026, .004, -.021,
+    -.099, -.068, -.061, -.059,
+    -.089, -.054, -.048, -.052,
+    -.092, -.062, -.054, -.054,
+    -.087, -.062, -.061, -.066,
+    -.036, -.007, -.003, -.031,
+    0, 0, 0, 0,
+    .076, .11, .108, .084,
+    .117, .131, .112, .079,
+    .124, .127, .099, .071,
+    .128, .124, .093, .071,
+    .13, .134, .103, .079,
+    .044, .081, .097, .072,
+    0, 0, 0, 0,
+  ],
+  fw: [.111, .105, .103, .1, .096, .092, .09, .111],
+  sx: [.065, .066, .067, .068, .069, .069, .07, .065],
   pitch: [.009, .03, .09, 0, -.152, .016],
 };
 
@@ -567,13 +617,17 @@ export interface GuardHeadIn {
   lean: number;
   /** The lean's |value| for the head's drop (`GuardLeanState.dr`); 0 = same as |lean|. */
   leanDrop: number;
+  /** The held pose the rig's emote shows (or showed last, while it fades out); null: none. Wins over `blind`. */
   held: GuardCqMode | null;
-  /** The struggle ramp 0..1. */
+  /** The held pose's own ramp 0..1 (`GuardCq.write`: `clamp01((t - delay) * 5)`), the pitches' scale. */
   heldK: number;
   /** The knockout's limp 0..1 (`cq.k` in mode 'ko'). */
   koK: number;
-  /** The flashbang's pose ramp 0..1. */
+  /** The flashbang's pose ramp 0..1 (`Enemy.blind`'s emote: `min(1, t * 6)`); read only when `held` is null. */
   blind: number;
+  /** (S3a fix) The emote's blend weight 0..1, the sim's copy of the rig's `emoteW`: up at 5 per s while the emote
+   *  gives a pose, down at 5 per s (holding the last pose) when it gives none. */
+  poseW: number;
   climb: boolean;
 }
 
@@ -670,11 +724,15 @@ function moveOff(t: MoveTable, a: number, p: number, th: number, side: number, s
 }
 
 /** A wall-move table's offset (side relative to the wall side, up, forward; into `mSx` / `mUp` / `mFw`). */
-function wallOff(t: WallTable, thr: number, s: number, p: number): void {
+function wallOff(t: WallTable, thr: number, s: number, p: number, side: number, ph: number): void {
   knots(WALL_TH, WALL_SP, thr, s, true);
   const ns = WALL_SP.length;
   const z = ksz;
-  const up = cell(t.up, ns);
+  let up = cell(t.up, ns);
+  if (t.bobC !== null && t.bobS !== null && side !== 0) {
+    const a = TAU * ph;
+    up += side * (cell(t.bobC, ns) * Math.cos(a) + cell(t.bobS, ns) * Math.sin(a));
+  }
   knots(WALL_THA, WALL_SP, thr < 0 ? -thr : thr, s, true);
   const pt = t.pitch;
   mUp = up + (pt[0] * p + pt[1] * p * p) * z;
@@ -784,13 +842,13 @@ export function guardHead(i: GuardHeadIn, r: GuardHeadRest, out: HeadOut): void 
     let wU = 0;
     let wF = 0;
     if (lw < 1) {
-      wallOff(WALL_MOVE, thr, sp, pt);
+      wallOff(WALL_MOVE, thr, sp, pt, side, i.phase);
       wS = mSx * (1 - lw);
       wU = mUp * (1 - lw);
       wF = mFw * (1 - lw);
     }
     if (lw > 0) {
-      wallOff(WALL_LEAN_MOVE, thr, sp, pt);
+      wallOff(WALL_LEAN_MOVE, thr, sp, pt, side, i.phase);
       wS += mSx * lw;
       wU += mUp * lw;
       wF += mFw * lw;
@@ -803,31 +861,29 @@ export function guardHead(i: GuardHeadIn, r: GuardHeadRest, out: HeadOut): void 
     f += FIT.climbF * k;
     u += FIT.climbU * k;
   }
-  // scripted upper-body pose (held / blind): the emote overrides the neck and chest
-  let w = 0;
-  let pn = 0;
-  let pc = 0;
-  let lift = 0;
-  if (i.held !== null && i.heldK > 0) {
-    const h = HELD_PITCH[i.held];
-    w = i.heldK;
-    pn = h[0] * w;
-    pc = h[1] * w;
-    if (i.held === 'ko') {
-      const hs = HELD_PITCH.hostage;
-      const m = 1 - i.koK;
-      pn = (hs[0] * m + h[0] * i.koK) * w;
-      pc = (hs[1] * m + h[1] * i.koK) * w;
-    }
-  }
-  if (i.blind > 0) {
-    // blind: the held pose's blend (the emote's own ramp), the pitches on top
-    if (i.blind > w) w = i.blind;
-    pn += BLIND_PITCH.neck * i.blind;
-    pc += BLIND_PITCH.chest * i.blind;
-    lift = BLIND_PITCH.lift * i.blind;
-  }
+  // scripted upper-body pose (held / blind): the emote overrides the neck and chest, blended by the rig's emote weight.
+  // One emote at a time: a seize replaces the flashbang's (`beginTakedown`), so `held` wins.
+  const w = i.poseW;
   if (w > 0) {
+    let pn = 0;
+    let pc = 0;
+    let lift = 0;
+    if (i.held !== null) {
+      const h = HELD_PITCH[i.held];
+      const hk = i.heldK;
+      pn = h[0] * hk;
+      pc = h[1] * hk;
+      if (i.held === 'ko') {
+        const hs = HELD_PITCH.hostage;
+        const m = 1 - i.koK;
+        pn = (hs[0] * m + h[0] * i.koK) * hk;
+        pc = (hs[1] * m + h[1] * i.koK) * hk;
+      }
+    } else if (i.blind > 0) {
+      pn = BLIND_PITCH.neck * i.blind;
+      pc = BLIND_PITCH.chest * i.blind;
+      lift = BLIND_PITCH.lift * i.blind;
+    }
     const c2 = c * c;
     let hf = FIT.heldF0[0] + FIT.heldF0[1] * c + FIT.heldF0[2] * c2;
     const hu = FIT.heldU0[0] + FIT.heldU0[1] * c + FIT.heldU0[2] * c2;
@@ -836,7 +892,7 @@ export function guardHead(i: GuardHeadIn, r: GuardHeadRest, out: HeadOut): void 
     const hh = hu + q3(FIT.heldDU, pn, pc, c);
     f += (hf * k - f) * w;
     u += (hh * k - u) * w;
-    u += lift;
+    u += lift * w;
   }
   const s = Math.sin(i.yaw);
   const co = Math.cos(i.yaw);
