@@ -1,28 +1,28 @@
 # section-rating - STATE
 
 ## Now
-- ~13:55 (Marlow Build): S1-S5, integration, S7 built; check PASS (slices/S1-5-check.md); fix round done (6fa5768a: A10
-  camera alarms break No alarms, card shows only rewards that land). Green: tsc, 9 vitest files, desktop GPU e2e-section-rating
-  41 s + e2e-sectorops 220 s. Protocol 34 provisional (marlow-final holds 33). Not merged with master yet.
+- ~17:20 (Marlow Build): S6 done (902ed880). Branch stacked on marlow-final (merge 75efa7e7, PROTOCOL_VERSION 37 =
+  the rating over marlow-final's 36). S1-S7, integration, fix round, S6 all green on the desktop lane.
 
 ## Next
-1. Lead commits the docs, checks master for guard-ai / sector-redesign / CT Core changes to the files in PLAN.md
-   (merge master into this branch if any landed).
-2. S1 (pure rules, Sonnet).
-3. S2, S3, S4, S5 in parallel.
-4. S6 and S7 in parallel; batch checkers; one PR to master.
+1. One Opus checker on S6 (courseMode.ts, courseMarks.ts, the course `rt`, the client mirror).
+2. Laptop suites: e2e-course, e2e-ctcourse, e2e-coop, e2e-netmove, e2e-sectorops, e2e-section-rating; then the full e2e.
+3. changes/feature-section-rating.md fragment; PR stacked after marlow-final (enters the same train); message
+   "Night Shift | Orchestrator".
 
 ## Open
 - M-a to M-h for Michael (BRIEF.md), defaults in use.
 - Interfaces waiting on other jobs: guard-ai alarm stage API (`alarmStep`), CT Core suppressor ammo and dual takedown.
+- S6: a set restart resets the set's rating stats only; the bay's results stats (and the finale tier) stay cumulative.
+- S6 e2e covers solo Marlow only; the co-op Marlow card / client top-up has unit and code coverage, no e2e.
 
 ## Done
-- 2026-10-23: BRIEF, PLAN, STATE written.
+- 2026-10-23: BRIEF, PLAN, STATE; S1-S5, integration, S7, fix round; merge marlow-final (37); S6.
 
 ## Resume prompt
 ```
-Night Shift | Marlow Build: resume section-rating (after marlow-final). Read CLAUDE.md on origin/master ("Sessions", "Heavy-usage throughput"), ROADMAP "Next: stealth over shooting" by grep, then this STATE (worktree C:/NightShift/Mobile-Coop-section-rating, feature/section-rating; git fetch).
-State: S1-S5 + integration + S7 + fix round done and green (6fa5768a). Left: S6 Marlow Yard rated sets (Opus; PLAN S6; courseMode.ts / courseState.ts / courseRating.ts) - start only after marlow-final's PR merges to master, then merge master here first. Then one Opus checker on S6, e2e-course + e2e-ctcourse + e2e-section-rating + e2e-sectorops on the laptop, add e2e-section-rating to run-e2e.mjs, changes/feature-section-rating.md, full e2e, PR, message "Night Shift | Orchestrator".
+Night Shift | Marlow Build: resume section-rating (stacked on marlow-final). Read CLAUDE.md ("Sessions", hard rules), then this STATE (worktree C:/NightShift/Mobile-Coop-section-rating, feature/section-rating; git fetch; merge origin/feature/marlow-final if it moved).
+State: S1-S7 + S6 done and green (S6 902ed880, protocol 37). Left: Opus checker on S6, laptop suites (e2e-course, e2e-ctcourse, e2e-coop, e2e-netmove, e2e-sectorops, e2e-section-rating), changes/feature-section-rating.md, full e2e, PR stacked after marlow-final, message "Night Shift | Orchestrator".
 ```
 
 ## S1 report (2026-10-23 12:30)
@@ -126,3 +126,32 @@ asserts "+2 noisemaker charges" with no medkit.
 Results: tsc clean; eslint clean; vitest sectionRating 23, ratingCardText 7, ratingRecord 3, ratingWire 8,
 sectorRatingHost 3, sectors 27, sectorRestart 8, net 72, rejoin 12 (all pass). e2e (desktop, GPU, JOBS=1, 4191):
 e2e-section-rating pass 41 s, e2e-sectorops pass 220 s (13:26-13:30).
+
+## S6 report (2026-10-23 17:20)
+Merge first (75efa7e7): origin/feature/marlow-final into this branch; conflicts in protocol.ts, coop.md, coopClient.ts
+(imports), sectorMode.ts, sectors.ts and 7 test files, both sides kept. PROTOCOL_VERSION 37 ("37: the section rating
+`rt` (section-rating S3), over 36"); every assert 37 (net.test / ratingWire.test: 36 refused, 37 joins; also crateWire,
+marlowHoldNoise, marlowN6Scanners). tsc clean, 14 vitest files 235 pass.
+Built (S6, 902ed880):
+- `src/game/course/courseMarks.ts` (new, pure): `bayRated`, `bayTitle`, `setStatsInto`, `courseGrant(marks, synced,
+  coop, preset, syringesLeft, gadgetsAtStart)` (rewardsFor + A9), `CourseMarks` (`begin(bay, stats)`, `camera()`,
+  `takedown(p, t)`, `live(stats)`, `rate(bay, def, stats)`, `marks[]`, `synced[]`). A set's rating = the rise of its
+  bay's stats since `begin` (set start or restart) + its camera / laser alarms (A3). Rated once.
+- `BayDef.rated` / `title` (courseDef.ts); ctcourse.ts sets rated for a set with a non-passive guard (A2-A8; A1's
+  passive checker and the bunker / courselab drill bays stay unrated), title "A2 Carriage Shed".
+- `BayStats.synced` (newStats, totals, summarise); courseMode counts a synced pair from `onEnemyKilled` knock-outs.
+- courseMode host: rated at `airlockCycled` with the grant given at once (the next set is beginning: gadgets on the
+  host kit, co-op syringes via `net.addSyringes`, medkits as station heals), the last set at `courseDone` without a
+  grant; `bayRestart` re-begins the set (never re-rates; a given grant stays, the course has no checkpoint loadout);
+  `updateRatingRecord(map id 'ctcourse', bay id, marks, synced)`; `g.sectionRatings` (results lines beside the finale
+  tier); host RatingCard; hook `window.__sectionRating` {stats, last, lastGrant}. No src/net import.
+- Wire: `CourseWire.rt` (SectorRatingWire, `sec` = bay index, finish grant zeroed), parsed by `courseRt` in
+  protocol.ts (inside the 37 bump). Client mirror (courseMode.ts `mirrorRating`): each new bay once: results line,
+  own gadget top-up, card (not for the last set); the first message after join / rejoin only records.
+- run-e2e.mjs: e2e-section-rating in REQUIRED and the quick map (rating files, both modes); testing-tools.md, coop.md,
+  modes-and-progression.md, TESTING.md lines.
+Tests: tests/courseMarks.test.ts (new, 15), ratingWire.test.ts +1 (course rt). tsc clean; eslint clean; vitest
+courseMarks, ratingWire, course, courseTutorial, courselab, ctcourse (104 pass), tests/ctcourse/* (572 pass, 1 skip).
+e2e (desktop, GPU, JOBS=1, 4191, heavy.lock per suite): e2e-section-rating pass 50 s (new Marlow block: A1 unrated,
+A2 rated 15 with the gadget grant and the card, A3 kill + restart -> rated clean, course wire rt); e2e-course pass 165 s.
+Open: co-op Marlow card / client top-up not in e2e; the finale tier and results stats stay cumulative over a restart.
