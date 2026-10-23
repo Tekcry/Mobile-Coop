@@ -798,6 +798,61 @@ console.log('sector ops: co-op client mirrors the live section');
     assert(Math.abs(la - lb) < 1e-3, `the light under the switched lamp agrees on both pages (host ${la}, client ${lb})`);
     await GA(() => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === 'switch-0'); it.onUse(it, 'local'); });
     await until(B, (id) => window.__app.current.world.level.lights.lights[id].on, sw.id, 8000, 'switched back on, the lamp is lit on the client');
+    // (walk 4.72 S2) the client shoots a live lamp out: its round goes to the host (`shot` at `lt-<id>`), the host checks
+    // and shoots it out, and the client sees it dark from the next `lamps`; both pages' light fields agree under it. The
+    // lamp: a lit, shootable one near the client with a clear line from its chest (the host's own physics decides it)
+    {
+      const cp = await GB(() => { const p = window.__app.current.player.position; return { x: p.x, y: p.y, z: p.z }; });
+      const lp = await GA((c) => {
+        const g = window.__app.current;
+        const V = g.player.position.constructor;
+        const o = new V(c.x, c.y + 1.45, c.z);
+        let best = null;
+        for (const l of g.world.level.lights.lights) {
+          if (l.kind === 'flashlight' || !l.on || l.destroyed || !l.destructible) continue;
+          const dy = l.y - o.y;
+          const h = Math.hypot(l.x - o.x, l.z - o.z);
+          if (dy < 0.5 || dy > 7 || h > 14) continue;
+          const b = new V(l.x, l.y, l.z);
+          const d = V.Distance(o, b);
+          if (g.ballistics.hitDistance(o, b, 1) < d - 0.05) continue;
+          if (!best || d < best.d) best = { id: l.id, x: l.x, y: l.y, z: l.z, d };
+        }
+        return best;
+      }, cp);
+      assert(!!lp, `a lit, shootable lamp in clear sight of the client (${JSON.stringify(cp)})`);
+      // the client aims (drawn: the host takes no hip fire) and its round runs from its chest through the lamp
+      await GB(() => { window.__app.current.player.forceAds = true; });
+      await until(A, () => [...window.__app.current.net.remotes.values()].some((r) => r.state?.mv?.dw === 2), null, 8000, 'the host sees the client drawn');
+      await GA(() => {
+        const n = window.__app.current.net;
+        if (n.__lampLog) return;
+        n.__lampLog = [];
+        const f = n.onLampShot.bind(n);
+        n.onLampShot = (r, m) => { const sh0 = window.__app.current.stealth.lightsShot; f(r, m); n.__lampLog.push({ target: m.target, o: [m.ox, m.oy, m.oz].map((v) => +v.toFixed(2)), d: [m.dx, m.dy, m.dz].map((v) => +v.toFixed(3)), dist: +m.dist.toFixed(2), w: m.w, dw: r.state?.mv?.dw, feet: [r.feet.x, r.feet.y, r.feet.z].map((v) => +v.toFixed(2)), shot: window.__app.current.stealth.lightsShot > sh0 }); };
+      });
+      const sent = await GB((l) => {
+        const g = window.__app.current;
+        const V = g.player.position.constructor;
+        const p = g.player.position;
+        const a = new V(p.x, p.y + 1.45, p.z);
+        const dir = new V(l.x - a.x, l.y - a.y, l.z - a.z).normalize();
+        const b = new V(l.x + dir.x * 2, l.y + dir.y * 2, l.z + dir.z * 2);
+        // the real round's segment ends where it lands (the ceiling over the lamp, or the far end of the line)
+        const hit = g.ballistics.ray(a, b, 1);
+        g.weapons.onRay(a, hit.hit ? hit.point : b);
+        return { on: g.world.level.lights.lights[l.id].on, hit: hit.hit };
+      }, lp);
+      assert(sent.on, `the client's lamp is lit before its round lands (${JSON.stringify(sent)})`);
+      const outA = await until(A, (id) => window.__app.current.world.level.lights.lights[id].destroyed, lp.id, 8000, 'the client\'s round shoots the host\'s lamp out').then(() => true, () => false);
+      if (!outA) console.error('  host lamp-shot log', JSON.stringify(await GA(() => window.__app.current.net.__lampLog)), 'lamp', JSON.stringify(lp));
+      assert(outA, `the client's round shoots the lamp out on the host (lamp ${lp.id})`);
+      await until(B, (id) => { const l = window.__app.current.world.level.lights.lights[id]; return l.destroyed && !l.on; }, lp.id, 8000, 'the client sees its shot lamp dark');
+      const lvS = (P) => P.evaluate((p) => window.__app.current.world.lightField.levelAt(p.x, p.y - 2, p.z), lp);
+      const [sa, sb] = [await lvS(A), await lvS(B)];
+      assert(Math.abs(sa - sb) < 1e-3, `the light under the client-shot lamp agrees on both pages (host ${sa}, client ${sb})`);
+      await GB(() => { window.__app.current.player.forceAds = false; });
+    }
     const locks = () => GA(() => window.__app.current.world.doors.list.filter((d) => d.anchor.locked).map((d) => d.index).join(','));
     const lk0 = await locks();
     await until(B, (k) => window.__app.current.world.doors.list.filter((d) => d.anchor.locked).map((d) => d.index).join(',') === k, lk0, 15000, 'the client mirrors the locked doors');
@@ -1453,6 +1508,13 @@ async function coop(title, fn) {
     await place(B, x, y, z, yaw);
     await until(A, ([x, z]) => { const r = window.__app.current.net.remotes.values().next().value; return Math.hypot(r.feet.x - x, r.feet.z - z) < 0.4; }, [x, z], 15000, `the host sees the client at ${x}, ${z}`);
   };
+  /** A tap of the pad's A on page P (interact: the context menu's row runs on the release). */
+  const tapA = async (P) => {
+    await P.evaluate(() => window.__pad.set(0, 1));
+    await waitSim(250);
+    await P.evaluate(() => window.__pad.set(0, 0));
+    await waitSim(400);
+  };
   const hostFeet = () => GA(() => { const p = window.__app.current.player.controller.pos; return [+p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2)]; });
   const clientFeet = () => GA(() => { const r = window.__app.current.net.remotes.values().next().value; return [+r.feet.x.toFixed(2), +r.feet.y.toFixed(2), +r.feet.z.toFixed(2)]; });
   /** The stick forward (camera at `yaw`) until `cond` on that page. */
@@ -1572,10 +1634,12 @@ async function coop(title, fn) {
         const g = window.__app.current;
         const n = g.interactables.nearest(g.player.position);
         const it = g.interactables.items.find((q) => q.id === id);
-        if (it) it.onUse(it);
-        return { mirrored: !!it, on: it?.enabled ?? null, nearest: n?.id ?? null };
+        return { mirrored: !!it, on: it?.enabled ?? null, nearest: n?.id ?? null, rows: g.ctxMenu.opts.slice(0, g.ctxMenu.count).map((o) => o.label) };
       }, b.id);
-      assert(near.mirrored && near.on === true && near.nearest !== b.id, `${tag}: the client mirrors the Unbolt but is not offered it on the near side (${JSON.stringify(near)})`);
+      assert(near.mirrored && near.on === true && near.nearest !== b.id && !near.rows.includes('Unbolt'), `${tag}: the client mirrors the Unbolt but is not offered it on the near side, no Unbolt row (${JSON.stringify(near)})`);
+      // (walk 4.72 S3) the real A on the near side does not draw it; nor does the item's use sent from there by hand
+      await tapA(B);
+      await GB((id) => { const it = window.__app.current.interactables.items.find((q) => q.id === id); if (it) it.onUse(it); }, b.id);
       await waitSim(1500);
       const still = (await GA(() => window.__sector.boltInfo())).find((q) => q.id === b.id);
       const cl0 = await GB((d) => window.__app.current.world.doors.list[d].anchor.locked, b.door);
@@ -1583,9 +1647,10 @@ async function coop(title, fn) {
       // far side: the client is offered "Unbolt" and uses it
       await moveClient(ax + sx * 0.8, az + sz * 0.8, Math.atan2(-sx, -sz));
       await waitSim(800);
-      const far = await GB(() => { const g = window.__app.current; const n = g.interactables.nearest(g.player.position); return { nearest: n?.id ?? null, label: n?.label ?? null }; });
-      assert(far.nearest === b.id && far.label === 'Unbolt', `${tag}: the client on the far side is offered "Unbolt" (${JSON.stringify(far)})`);
-      await GB((id) => { const it = window.__app.current.interactables.items.find((q) => q.id === id); it.onUse(it); }, b.id);
+      const far = await GB(() => { const g = window.__app.current; const n = g.interactables.nearest(g.player.position); return { nearest: n?.id ?? null, label: n?.label ?? null, rows: g.ctxMenu.opts.slice(0, g.ctxMenu.count).map((o) => o.label) }; });
+      assert(far.nearest === b.id && far.label === 'Unbolt' && far.rows.includes('Unbolt'), `${tag}: the client on the far side is offered "Unbolt" (${JSON.stringify(far)})`);
+      // (walk 4.72 S3) the client presses A (the real button: its context menu row), not a scripted use
+      await tapA(B);
       await until(A, (id) => { const q = window.__sector.boltInfo().find((r) => r.id === id); return !q.shut && q.locked === false; }, b.id, 8000, `${tag}: the host unbolts it for the client`);
       await until(B, (d) => window.__app.current.world.doors.list[d].anchor.locked === false, b.door, 8000, `${tag}: the client's door unlocks`);
       await until(B, (id) => window.__app.current.interactables.items.find((q) => q.id === id)?.enabled === false, b.id, 8000, `${tag}: the client's Unbolt goes off`);
