@@ -24,6 +24,13 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
     stealth-ai ct-warehouse ctcourse tactics; verdict -> Guard AI Build). The art perf part now runs from
     chain-1023r89b.ps1 (gated on r92 + s16 done; writes "chain-1023r89 done" to runs/chain-1023r89.log as before).
     Guard AI will send one more: feature/guard-ai-s9 after its 4.75.0 merge (protocol 37): coop netmove stealth-ai takedown.
+  - UPDATE ~15:25: walk 2082f96b STOPPED (superseded, no verdict). 4192 chain-1023g2 after s16: guardais9-f2fd1219
+    (S9 on 4.75.0, protocol 37: coop netmove stealth-ai takedown) -> guardaiwalk-906765a4 (stealth-ai sectorops ctcourse
+    course ct-warehouse stealth tactics takedown coop netmove; body search up to 180 s). ONE verdict -> Guard AI Build
+    (S16 + S9 + walk). Art perf part now in chain-1023r89c.ps1 (gated on r92 + g2 done). 4191: coopwalk2-c98005de
+    (Player fix round, e2e-coop only; verdict -> Player Build + orch; netmove from c6b4f4a3 still counts).
+  - Guard AI GPU sheet on walk 906765a4 (calm guard: rifle slung, officer pistol on thigh, clipping?; draw on suspicion;
+    two guards passing in a doorway): needs a shot script; after the perf pass, 4189 free.
   - 4189 chain-1023lr (after r89): charshadow-83b22daa = Sector Ops LR14 items 1-2: e2e-lightbake (quote its "LR14
     character shadows" line: max textures per shader, slot stats), then desktop darkness menus. Items 3-5 NOT queued
     (need a script / manual steps): 3 Epic console smoke on campusOps sector + ctcourse course (no console errors,
