@@ -23,7 +23,7 @@ import { S1_ROOMS } from './campusS1';
 import { S2_ROOMS } from './campusS2';
 import { S3_ROOMS } from './campusS3';
 import { S4_ROOMS } from './campusS4';
-import { S5_ROOMS } from './campusS5';
+import { S5_BOX, S5_ROOMS } from './campusS5';
 import { dressS1, HERO_S1, S1_ART_TAGS } from './campusS1Dress';
 import { dressS2, HERO_S2, S2_ART_TAGS } from './campusS2Dress';
 import { dressS3, HERO_S3, S3_ART_TAGS } from './campusS3Dress';
@@ -84,6 +84,8 @@ export function sectionContext(b: LevelBuilder, lay: MapLayout, k: number, split
     lamps: b.lights.lights.map((l) => ({ x: l.x, y: l.y, z: l.z })),
     boxes: b.boxes,
     cylinders: b.cylinders,
+    // the Old House chimney stacks: an oh-formal room under one gets its fireplace (ART-PLAN 4.2)
+    chimneys: k === 4 ? S5_BOX.chimneys : undefined,
     get splits() {
       return splits();
     },
