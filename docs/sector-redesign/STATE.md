@@ -275,32 +275,20 @@ Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md pol
 ## Resume prompt
 ```
 Night Shift | Sector Ops Build: RESUME. Job sector-redesign (lead), branch feature/sector-redesign-polish (worktree
-C:/NightShift/Mobile-Coop-sector-redesign-polish). git fetch; read CLAUDE.md, ROADMAP "Decided" (grep only: LR13, LR14,
-shadow audit, voxels retired), PLAN.md "Walk 4.72" + "Campus detail art". Saved 2026-10-23 ~15:15 (swap).
-Heads: art 5c48f5c4 (PR 5 #226), lightrev 72552f93 (WIP), shadow 90dd18a1, charshadow 03fd0386 (WIP), walk 53182d6b (WIP).
-1. PR 5 #226 (-art): checker PASS; voxelFit test deleted (Michael ~15:05; leave src/voxel alone), CI rerun pending.
-   Laptop batch 3 at 5504e2e3 (later commits tests / docs): 8/9 green; sectorops:6 FAIL "panel cut s2-atrium and #1
-   walked to it" = Guard AI's breaker-walker assert, rewritten by guard-ai S15 fc249f3f (GREEN, not on master yet):
-   check sectorops:6 again once S15 is on master / in the same train. Shots + parity OK (scratch/work/campusart-5504e2e3).
-   Part 2 (perf.mjs campusOps, guard-cap 0/12/24, p95 at S3/S4/S5 worst views) queued on the laptop ~15:40.
-   On green CI + part 2 in budget: merge master into -art, message the orchestrator "train-ready #226".
-2. LR13 DONE -lightrev 4ad32723 (Settings > Gameplay Lamp falloff, host value via start field `lf`, PROTOCOL 38 asked
-   of the orchestrator (36 / 37 taken), A100, no save bump). Opus merging -shadow + wiring now. Was: resume from
-   checks/lr13-build.md if present, else from the WIP diff. Then merge -shadow (fixes in src/world/shadowAccuracy.ts),
-   wire setShadowAccuracy beside setLampFalloff (main.ts), check the 3-line enemyManager.ts change; laptop GPU + perf
-   (campusOps atlas 48 -> 134 MB, bake 27 -> 118 s under LR13); own PR, train-ready.
-3. LR14 built (-charshadow 83b22daa, checks/lr14-build.md; includes LR13 WIP 8ccf7822; NO GPU run yet). Opus checker
-   running -> checks/lr14-check.md; laptop run requested (lightbake, desktop, darkness, menus, Epic smoke, perf High/Epic
-   Auto vs Off, contact sheet). On PASS + green: own PR (after LR13 PR, or one LR PR with LR13 + shadow), train-ready.
-4. After LR14: 8 door slots per lamp + exact torch drawing in the lamp shader (shadow-audit.md proposals).
-5. Walk W2 / W3 DONE (-walk c984239d): pole-top lamps unhittable -> LAMP_MOUNT_REACH 0.35 m in lights.ts; no src/net /
-   protocol; client unbolt proven (sectorops 1 / 3-5 GPU pass). Opus checker running -> checks/walk-472-check.md; on
-   PASS merge -walk into -art (rides #226).
+C:/NightShift/Mobile-Coop-sector-redesign-polish). git fetch; read CLAUDE.md, ROADMAP "Decided" (grep only: Walk 4.72,
+campus detail art, stealth over shooting), PLAN.md "Walk 4.72" + "Campus detail art" + "LR15". Saved 2026-10-23 ~16:15.
+Heads: art 8521bcbf (#226), charshadow 93546cd6 (#232 = LR13 + shadow + LR14), lampx (LR15, building).
+1. #226 (-art: kit, S1-S5 dressing, A64 lift -cap, walk W2/W3): checkers PASS, CI green. Waiting on the laptop: e2e-coop
+   + e2e-sectorops 1, 3-6 GPU at 8521bcbf + perf part 2 (perf.mjs campusOps, guard-cap 0/12/24, p95 S3/S4/S5), asked
+   ~15:45; Test Runner was offline at 16:06 (swap). Re-ask if no verdict. Green: merge master into -art, message the
+   orchestrator "train-ready #226" (train 28). sectorops:6 breaker-walker assert needs guard-ai S15 on master.
+2. #232 (-charshadow): both checkers PASS, CI green; PROTOCOL 38 awaiting the orchestrator; laptop combined GPU / perf
+   run asked at f03bb0ea (= 93546cd6 + docs). Green + 38 confirmed: merge master, train-ready.
+3. LR15 (-lampx off #232, Opus agent): 8 door slots per lamp + exact torch drawing in LampPlugin, behind the LR13
+   toggle (shadow-audit.md s2 :76, s3b :101). Then a fresh Opus checker (checks/lr15-check.md), laptop GPU checks
+   listed in checks/lr15-build.md; rides #232 if it is not yet merged, else its own PR.
+4. Polish lists (not blocking): lr-check 1-6, lr14-check 1-7, walk-472-check 1-4, art-check.
 Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
-Sonnet builds from strict briefs; one checker per batch; at most 3 tsc / vitest agents while desktop CPU > 80%
-(slot locks C:/NightShift/scratch/sr-slot-{1,2,3}.lock); every e2e E2E_GPU=1; never two agents on the same files.
-LATEST (~15:45, usage limit): #226 -art 8521bcbf (+ walk W2/W3, checker FAIL fixed 4a2702b0): laptop asked for e2e-coop +
-sectorops 1/3-6 at 8521bcbf + batch-3 part 2 perf; then merge master, train-ready. #232 lighting PR OPEN (-charshadow
-93546cd6 = LR13 + shadow + LR14, both checkers PASS, PROTOCOL 38 awaiting orchestrator); laptop combined GPU / perf run
-asked at f03bb0ea. Polish: lr-check.md 1-6, lr14-check.md 1-7, walk-472-check.md 1-4, art-check.md.
+Sonnet builds from strict briefs; one checker per batch; tsc / vitest slot locks C:/NightShift/scratch/sr-slot-{1,2,3}.lock
+while desktop CPU > 80%; every e2e E2E_GPU=1; never two agents on the same files.
 ```
