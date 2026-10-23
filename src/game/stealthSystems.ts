@@ -9,7 +9,7 @@ import type { EnemyManager } from '../ai/enemyManager';
 import type { EnemyKind } from '../ai/enemyDefs';
 import type { Enemy } from '../ai/enemy';
 import type { ReinforceEntry } from '../ai/guardAiData';
-import { lightOnRay, type LightRegistry } from '../world/lights';
+import { lampReachProbe, lightOnRay, type LightRegistry } from '../world/lights';
 import { BACK_TIMER, BOARD_REACH, IsolatorBoards, type BoardSink } from './isolators';
 import type { Interactable, Interactables } from './interactables';
 import type { GameState } from './gameState';
@@ -61,6 +61,9 @@ export class StealthSystems {
   private playerOpened = new Set<number>();
   private noticeT = 0;
   private noticeA = new Vector3();
+  /** (polish2) The mount-reach probe's ends (`lampReachProbe`). */
+  private readonly reachA = new Vector3();
+  private readonly reachB = new Vector3();
   private noticeB = new Vector3();
 
   constructor(
@@ -520,7 +523,14 @@ export class StealthSystems {
   /** A hitscan ray: shoot out the first bulb along it. */
   shotRay(from: Vector3, to: Vector3): void {
     const reg = this.g.world.level.lights;
-    this.shootLight(lightOnRay(reg, from.x, from.y, from.z, to.x, to.y, to.z));
+    const id = lightOnRay(reg, from.x, from.y, from.z, to.x, to.y, to.z);
+    if (id < 0) return;
+    // (polish2) a hit only through the mount reach needs a clear static line up from the landing to the head (a round
+    // on a door soffit never breaks the wall lamp over the door's far face); the co-op client and host test the same
+    const a = this.reachA;
+    const h = lampReachProbe(reg, id, from.x, from.y, from.z, to.x, to.y, to.z, a);
+    if (h > 0 && !this.g.ballistics.clear(a, this.reachB.set(a.x, a.y + h, a.z), G.STATIC)) return;
+    this.shootLight(id);
   }
 
   /** Shoot out light `id` (the host's own round, or a co-op client's checked lamp shot, sector-redesign slice L):

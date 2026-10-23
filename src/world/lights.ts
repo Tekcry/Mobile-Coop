@@ -444,6 +444,51 @@ function landsUnder(x: number, y: number, z: number, cx: number, cy: number, cz:
   return under >= -1e-6 && under <= LAMP_MOUNT_REACH && Math.abs(x - cx) <= hx && Math.abs(z - cz) <= hz;
 }
 
+/** (polish2) How far the reach probe starts back from the landing, against the round (m): off the struck face. */
+export const LAMP_PROBE_BACK = 0.05;
+
+/**
+ * (polish2, walk 4.72 polish 1) Light `id` taken by the shot (ax..bz, b the true landing) only through the mount reach
+ * (`landsUnder`, the segment never enters its box): the callers then need a clear static line straight up from just off
+ * the landing (`LAMP_PROBE_BACK` back along the round, written into `out`) to the head's underside, so a round that
+ * lands on a door soffit under a wall lamp on the far face cannot break it. Returns that probe's length (m), or 0 when
+ * no probe is needed (the round entered the box, or the start is already level with the underside). Allocation-free.
+ */
+export function lampReachProbe(reg: LightRegistry, id: number, ax: number, ay: number, az: number, bx: number, by: number, bz: number, out: { x: number; y: number; z: number }): number {
+  const l = reg.lights[id];
+  if (!l) return 0;
+  const dx = bx - ax;
+  const dy = by - ay;
+  const dz = bz - az;
+  const len = hyp3(dx, dy, dz);
+  if (len < 1e-4) return 0;
+  const f = l.fixture;
+  let cy: number;
+  let hy: number;
+  if (f) {
+    hy = f.sy / 2 + FIXTURE_PAD;
+    cy = l.y + f.oy;
+    const t = rayBox(ax, ay, az, dx, dy, dz, l.x, cy, l.z, f.sx / 2 + FIXTURE_PAD, hy, f.sz / 2 + FIXTURE_PAD);
+    if (t >= 0 && t <= 1) return 0;
+  } else {
+    hy = BULB_RADIUS;
+    cy = l.y;
+    const t = ((l.x - ax) * dx + (l.y - ay) * dy + (l.z - az) * dz) / (len * len);
+    if (t >= 0 && t <= 1) {
+      const px = ax + dx * t - l.x;
+      const py = ay + dy * t - l.y;
+      const pz = az + dz * t - l.z;
+      if (px * px + py * py + pz * pz <= BULB_RADIUS * BULB_RADIUS) return 0;
+    }
+  }
+  const k = LAMP_PROBE_BACK / len;
+  out.x = bx - dx * k;
+  out.y = by - dy * k;
+  out.z = bz - dz * k;
+  const h = cy - hy - out.y;
+  return h > 0.02 ? h : 0;
+}
+
 /**
  * The first shootable light (on, not destroyed, destructible, fixed) a shot from (ax, ay, az) to (bx, by, bz)
  * passes within `BULB_RADIUS` of (a fixture: enters its padded box), or -1. A round that lands just under a fitting (its

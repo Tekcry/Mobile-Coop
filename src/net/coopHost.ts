@@ -25,6 +25,7 @@ import { checkBlast, checkShot, hostShotAllowed, hostShotWeapon, maxHitDamage, p
 import { localFlags, htmlToInfo } from './netShared';
 import { keepSimInBackground } from './bgTicks';
 import { LAMP_LOS_SLACK, LampSender, lampShotOk, lampTargetId } from './lampSync';
+import { lampReachProbe } from '../world/lights';
 import { hyp2 } from '../core/mathx';
 import { localMoveState } from '../game/localMoveState';
 import { emptyMoveState, moveChanged } from '../player/moveState';
@@ -999,6 +1000,12 @@ export class CoopHost implements NetAttachment {
       r.violations++;
       return;
     }
+    // (polish2) a hit only through the mount reach at the claimed landing needs a clear static line up to the head, as
+    // our own rounds (`StealthSystems.shotRay`) and the client's `lampRay` test it
+    const end = Math.min(m.dist, WEAPONS[m.w].range);
+    const p = this.lampA;
+    const h = lampReachProbe(reg, id, m.ox, m.oy, m.oz, m.ox + m.dx * end, m.oy + m.dy * end, m.oz + m.dz * end, p);
+    if (h > 0 && !this.g.ballistics.clear(p, this.lampB.set(p.x, p.y + h, p.z), MASK.WORLD)) return;
     const l = reg.lights[id]!;
     const a = this.lampA.set(m.ox, m.oy, m.oz);
     const b = this.lampB.set(l.x, l.y, l.z);

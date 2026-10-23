@@ -22,7 +22,7 @@ import { hyp2 } from '../src/core/mathx';
 import type { MapLayout } from '../src/world/mapDef';
 import type { NavGrid } from '../src/ai/navGrid';
 import { artCounts, type ArtPlacement, type CatReport } from '../src/world/campusArt/catalogue';
-import { buildKeepouts, checkDressing, KEEP, lipLine, type DressContext, type Keepouts } from '../src/world/campusArt/keepouts';
+import { buildKeepouts, checkDressing, KEEP, lipLine, skinReach, type DressContext, type Keepouts } from '../src/world/campusArt/keepouts';
 import { boxObb, obbOf, pointObbDist, pointSegDist, segHitsObb } from '../src/world/campusArt/geometry';
 import { generateLedges, type AnchorBox, type Ledge } from '../src/world/anchors';
 import { findSplitGaps } from '../src/player/splitJump';
@@ -230,6 +230,11 @@ for (let k = 0; k < SECTIONS; k++) {
         }
       }
       expect(fails).toEqual([]);
+      // (polish2, art-check P3) a skin's listed overhang (hanger rods, an exhaust stack, chimney pots) is checked
+      // against the K8 rays and K9 laser tubes too
+      const cats = sectionCatalogues(k);
+      const skins = placementsOf(k).filter((p) => (p.cls === 'skin' || p.cls === 'skin-hide') && cats[p.cat]?.overhang[p.prop]);
+      expect(skins.map((p) => skinReach(kos[k]!, ctxs[k]!, cats[p.cat]!, p)).filter((e) => e)).toEqual([]);
     });
 
     it('(7) every interactable keeps its reach: a walkable cell within 1.6 m with a clear line (no art box)', () => {
