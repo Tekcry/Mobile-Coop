@@ -288,16 +288,18 @@ LAPTOP: e7cec732 lr16w RED 9/12 (desktop:3, darkness, lightbake). Cause (checks/
 83136f2c): LR16-1 nsGrid2 flood loop indexes bool c[8] past its end under HLSL (no short-circuit) -> fxc X3504 / X3696,
 every lamp-plugin PBR draw fails on ANGLE D3D11 at smooth Epic. Fix = cherry-pick of LR16-P F3 79d2e9b9 (no local
 arrays). 2798e57d lr16cf lightbake RED (same bug, expected). #226 MERGED in 4.84.0.
-NOW: lr16int 809c25f4 = e7cec732 + -lr16fix + -lr16pol-cf (C + F, LAMP 7) + -lr16p (F1-F3) + changelog fragment; tsc +
-9 files 86 pass. DRAFT PR Tekcry/Mobile-Coop#287 (lr16int -> master). Laptop 809c25f4-7534 (pr 287: lightbake darkness
-desktop:3 sectorops ctcourse) queued ~05:38.
+NOW: lr16int 809c25f4 (fix + C / F / P + changelog) laptop GREEN 12/12 (pr 287). DRAFT PR Tekcry/Mobile-Coop#287 is
+CONFLICTING with master; per master's CLAUDE.md (never merge master into a job branch) the resolution is on
+feature/sector-redesign-lr16-entry f85ef736 (checks/lr16-train-entry.md: 23 files, PROTOCOL 45, master's Marlow map,
+tuned.json dropped, rtReflections deleted; 110 / 111 test files green). BLOCKER: master's ctcourseLight RED under LR16
+(57 Marlow points move, 13 bands break). Orchestrator (~06:15): Sector Ops plans LR16-M, Marlow Build builds it (owns
+ctcourse.ts), #287 trains with the entry resolution once LR16-M is green. Laptop f85ef736-021e (coop netmove lightbake
+darkness sectorops) queued; LR16-P perf requeued: 1c22b913-74eb, 83136f2c-ce41, 809c25f4-6cde.
 NEXT:
-1. 809c25f4 verdict (excerpts now post on #287). Green -> mark #287 ready, train entry notes in its body (master's
-   ctcourse wins: drop LR16g's Marlow re-level + tests/ctcourseLight.tuned.json; run master's ctcourseLight on the merged
-   tree; PROTOCOL renumbered by the train), label train-ready, message the orchestrator. Red -> Opus triage at once
-   (darkness misses after the shaders draw = light-value question from LR16-L A / LR16-W).
-2. Requeue the LR16-P perf requests (steps in checks/lr16p-perf-request.md) on fixed heads: A on 1c22b913 as written,
-   C' = e7cec732 + lr16fix 83136f2c (no C / F / P), D = 809c25f4. Laptop alone, after #287's run.
+1. RUNNING ~06:15: Opus planner briefs/LR16-M.md (base f85ef736; lamp data levers only). Then send the path to Marlow Build
+   and copy the orchestrator. When Marlow's LR16-M branch is green: tell the orchestrator #287 trains with
+   -lr16-entry + LR16-M; mark #287 ready + label train-ready.
+2. Read f85ef736 verdict (wire change protocol 45) and the perf verdicts (logs on the laptop: checks/lr16p-perf-request.md).
 3. Then: LR16-8 sheets (briefs/LR16h-and-8.md part 2 to Test Runner), LR16-4 board (briefs/LR16-4-board.md).
 For Michael: Realistic dimmer (S2 atrium 0.47); S3 hall-lit white fog; R2N ladder foot 0.44 (layout cannot fix); warehouse
 fittings at 0.1-0.3x (GPU sheet judges); lamp-loop cost.
