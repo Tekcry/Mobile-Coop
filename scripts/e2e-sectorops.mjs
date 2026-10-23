@@ -497,7 +497,12 @@ await run(PARAMS, async ({ G, sim }) => {
   });
   assert(farShot.alerted === 0, `a loud shot this far off (>= ${spot.lo.toFixed(1)} m) alerts nobody: it is out of combat reach (${JSON.stringify(farShot.levels)}, noise back to ${loud})`);
   // ...and the control: the loud report from just behind the nearest guard (0.35 of the combat reach: combat even
-  // through a wall) puts him in combat, so the suppressed check above could fail
+  // through a wall) puts him in combat, so the suppressed check above could fail.
+  // (s1-shot-fix) Part 1 runs the live rAF loop: real-time frames in every gap (the spot read, `tp`, `sim`, the shot)
+  // walk the guard on along his route, and through a wall his combat reach is only 0.45 q (~3.2 m) against the 0.35 q
+  // (~2.5 m) spot. So `loop.manual` from here to the read (only `sim` steps the sim; restored in the read), and the
+  // shot re-pins the report 0.35 q behind him where he stands at the shot.
+  await G(() => { window.__app.loop.manual = true; });
   const near = await G((id) => {
     const g = window.__app.current;
     const em = g.enemyMgr;
@@ -528,24 +533,38 @@ await run(PARAMS, async ({ G, sim }) => {
   // facing the way he faces: away from him
   await tp(G, near.x, near.y, near.z, near.yaw);
   await sim(0.3);
-  await G(() => {
+  const fire = await G((id) => {
     const g = window.__app.current;
+    const em = g.enemyMgr;
+    const e = em.enemies.find((q) => q.id === id);
+    const q = g.constructor.NOISE.shot * Math.pow(10, -em.hearingTable.combatDb / 20);
+    const p0 = g.player.position;
+    const before = Math.hypot(p0.x - e.pos.x, p0.y - e.pos.y, p0.z - e.pos.z);
+    // the report from 0.35 q behind him where he stands now (he walked on during the settle), nav-snapped as above
+    const x = e.pos.x - Math.sin(e.yaw) * 0.35 * q;
+    const z = e.pos.z - Math.cos(e.yaw) * 0.35 * q;
+    const c = g.nav.nearestWalkable(x, z, 2, e.pos.y);
+    if (c >= 0) g.player.controller.teleport(new p0.constructor(g.nav.center(c)[0], g.nav.height[c], g.nav.center(c)[1]), e.yaw);
+    const p = g.player.position;
     const s = g.weapons.current.stats;
     const n0 = s.noise;
     s.noise = 1;
     // the report only (no round towards him: a hit would alert him without hearing anything)
     g.weapons.events.onShot(g.weapons.current.def);
     s.noise = n0;
-  });
+    return { before: +before.toFixed(2), d: +Math.hypot(p.x - e.pos.x, p.y - e.pos.y, p.z - e.pos.z).toFixed(2), q: +q.toFixed(2), level: e.level };
+  }, spot.nearest);
+  assert(fire.d < fire.q * 0.45, `the report is inside the nearest guard's combat reach through a wall at the shot (${JSON.stringify(fire)})`);
   // read after ~1 s (think cadence 0.22-0.3 s plus his reaction), not 0.5 s
   await sim(1.0);
   const ctl = await G((id) => {
     if (window.__rnd0) { Math.random = window.__rnd0; delete window.__rnd0; }
+    window.__app.loop.manual = false;
     const em = window.__app.current.enemyMgr;
     const e = em.enemies.find((q) => q.id === id);
     return { nearest: e ? e.alerted : null, level: e ? e.level : null, alerted: em.enemies.filter((q) => q.alive && q.alerted).length };
   }, spot.nearest);
-  assert(ctl.nearest === true, `control: a loud shot inside the combat reach alerts the nearest guard (${JSON.stringify(ctl)})`);
+  assert(ctl.nearest === true, `control: a loud shot inside the combat reach alerts the nearest guard (${JSON.stringify(ctl)}, shot ${JSON.stringify(fire)})`);
 });
 
 // (E9-crate, A101-A105) the between-section weapons crate, solo, on the Warehouse: one per section, only the current
