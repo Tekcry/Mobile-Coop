@@ -232,6 +232,10 @@ console.log('section rating: co-op (a synced pair, the client top-up, the host s
     assert(!cB2 || cB2.shown === false, `no rating card on the rejoined client (${JSON.stringify(cB2)})`);
     const seq = await GB(() => window.__app.current.net.ratingSeq);
     assert(seq === 0 || seq === undefined, `the rejoined client took no new rating (ratingSeq ${seq})`);
+    // (marlow-polish P2-1) the rejoined client's results list equals the host's, one line per section
+    const idsA = await GA(() => window.__app.current.sectionRatings.map((r) => r.sectionId));
+    const idsB = await GB(() => window.__app.current.sectionRatings.map((r) => r.sectionId));
+    assert(idsB.join() === idsA.join() && new Set(idsB).size === idsB.length && idsB.length === 1, `the rejoined client's results lines equal the host's, no repeats (host ${JSON.stringify(idsA)}, client ${JSON.stringify(idsB)})`);
     const syr2 = await GA(() => window.__app.current.net.revivesLeft());
     assert(syr2 === syr1, `the host's revive cap did not move again (${syr1} -> ${syr2})`);
   } catch (e) {
@@ -354,6 +358,9 @@ console.log('section rating: Marlow Yard co-op (the card on both pages, the clie
     assert(gB > 0 && gB <= (lastB.grant?.gadget ?? 99), `the client's gadgets were topped up (${gB} of ${JSON.stringify(lastB.grant)})`);
     await waitSim(3000);
     assert((await gadgetSum(B)) === gB, `the client's top-up is not repeated (${gB} -> ${await gadgetSum(B)})`);
+    // (marlow-polish P2-1) A3 rated as well, so the rejoin rebuilds A2 from `rh` and A3 from `rt`
+    await GA(() => { const m = window.__course; const st = m.state; st.seal(st.airById.get(st.currentBay.exit)); m.handle(); });
+    await until(B, () => window.__sectionRating?.last?.sectionId === 'A3', null, 60000, 'the client has the A3 rating');
 
     // rejoin: the first course message after it only records; no card
     const code0 = await GA(() => window.__coop.session.code);
@@ -366,6 +373,18 @@ console.log('section rating: Marlow Yard co-op (the card on both pages, the clie
     await waitSim(2000);
     const cB2 = await cardState(B);
     assert(!cB2 || cB2.shown === false, `no rating card on the rejoined client (${JSON.stringify(cB2)})`);
+    // (marlow-polish P2-1) the rejoined client's results list: A2 from `rh`, A3 from `rt`, equal to the host's lines
+    const linesOf = () => window.__app.current.sectionRatings.map((r) => ({ id: r.sectionId, marks: r.marks }));
+    await until(B, () => (window.__app.current?.sectionRatings?.length ?? 0) >= 2, null, 15000, 'the rejoined client has its results lines');
+    const linesA = await GA(linesOf);
+    const linesB = await GB(linesOf);
+    const idsA = linesA.map((l) => l.id).join();
+    const idsB = linesB.map((l) => l.id).join();
+    assert(idsB === 'A2,A3' && idsB === idsA, `the rejoined client's results lines are A2, A3, as the host's (host ${idsA}, client ${idsB})`);
+    for (const l of linesB) {
+      const h = linesA.find((x) => x.id === l.id);
+      assert(h && h.marks === l.marks, `the rejoined client's ${l.id} marks equal the host's (host ${h?.marks}, client ${l.marks})`);
+    }
   } catch (e) {
     failed = true;
     console.error(String(e));

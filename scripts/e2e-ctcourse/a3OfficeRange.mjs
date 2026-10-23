@@ -3,10 +3,13 @@
 // job by walking into the corridor first (the zone claim); a jam is the pistol's RB held while aiming (LT), see `t.lt` / `t.aimAt`.
 //   1. the start: both step lines, the cleaner alive and armed, the camera online, the corridor and the offices lit and the same on both pages;
 //   2. the send-back: the client stands in the corridor unjammed: the camera has it (stage 2), the host sends it back to (77.8, 10.75) on both
-//      pages, LANTERN's line reaches the client, the claim made the client B (the host A, the lines swap);
+//      pages, LANTERN's line reaches the client, the claim made the client B (the host A, the lines swap); (marlow-walk482 X6) the
+//      send-back is the only cost: no device alert to the guards, no alarm stage, the cleaner calm on his loop;
 //   3. the dark case: the host switches the corridor off (a3-sw-corr): the corridor reads dark on both pages and the client is sent back again
-//      (the camera sees in the dark, G240); the switch back on. The switch is a lights-out lure: the host works it from the L2 holding
-//      room, the client joins it after its send-back and the L2 far door is shut until the cleaner is back on his loop;
+//      (the camera sees in the dark, G240), again with no device alert and no alarm; the switch back on. Both players wait in the L2
+//      holding room behind its shut far door (the client out only for the send-back): the cleaner stays calm in the offices for 5 s
+//      before the cut (X6: the camera no longer sends him to search), and after the switch is back on they wait until the
+//      corridor switch's lights-out lure is over and he is back on his loop;
 //   4. the window miss: the host jams from the west post; the camera is blind and frozen on both pages, the client in the corridor in plain view
 //      is not seen (meter and stage 0, no send-back) for as long as the window lasts; when the jam ends and the camera reboots it has the client:
 //      sent back (the third send-back);
@@ -39,8 +42,13 @@ const OFFICE2 = [88.3, 4.3];
 const SW_CORR = [78.6, 12.7];
 const SW_OFF1 = [79.7, 6.0];
 /** (S-e2e-fix2) Two spots in the L2 holding room (x 70-76, z 7-13), clear of its far door's doorway (x 76, z 10): out of the
- *  cleaner's sight while the corridor switch lures him to the west lobby. */
-const L2_HIDE = [[72.5, 8.5], [72.5, 11.5]];
+ *  cleaner's sight while the corridor switch lures him to the west lobby.
+ *  (marlow-polish A3 fix) Both in the room's south half, either side of the bench (x 72.1-73.9 on the south wall): the far
+ *  wall has a clear glass slot at z 11.95-12.45 (`facility.ts` SLOT, sight passes clear glass), and through its 0.5 m wall a
+ *  guard in the west lobby sees the room's north part (z >= about 9.8). The old client spot (72.5, 11.5) was in that view:
+ *  the camera send-backs' device search round (87, 10.75) (guard-ai S17, ring out to 11 m) and the switch's breaker walk
+ *  bring him to the lobby's north end, he saw the client through the glass and fought the whole step-4 wait. */
+const L2_HIDE = [[71.5, 8.2], [74.5, 8.2]];
 
 /** @param {object} t the runner's helpers (scripts/e2e-ctcourse.mjs) @param {number} n the set's number */
 export async function walk(t, n) {
@@ -92,6 +100,31 @@ export async function walk(t, n) {
       on = false;
     }
     await sampler;
+  }
+  /** (S-e2e-fix2) Wait (150 s, traced) until the cleaner is calm and back on his office loop: unaware or cooldown (`alerted` is
+   *  the combat level only) and inside the offices (x > 79.6, z < 8.7), or no live guard. */
+  const calmOnLoop = (what, msg) =>
+    traced(what, until(A, () => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return !e || ((e.aware.level === 'unaware' || e.aware.level === 'cooldown') && e.pos.x > 79.6 && e.pos.z < 8.7); }, null, 150000, msg));
+  /** (marlow-walk482 X6) The host's device alerts taken (`EnemyManager.deviceAlerts`) and the devices' alarm stage. */
+  const camCost = () => GA(() => ({ dev: window.__app.current.enemyMgr.deviceAlerts, alarm: window.__ctdev.debug().alarm }));
+  /** (X6) A hallway send-back cost nothing else: no device alert to the guards and no alarm stage since `c0` (a beat after the
+   *  send-back, so a late camera event would show). The alarm is 0 in part 2 (A3 is its first set). */
+  async function noCamCost(what, c0) {
+    await waitSim(500);
+    const c = await camCost();
+    assert(c.dev === c0.dev, `${what}: the hall camera sends no device alert to the guards (${c.dev} of ${c0.dev})`);
+    assert(c.alarm === c0.alarm, `${what}: the hall camera raises no alarm stage (${c.alarm} of ${c0.alarm})`);
+  }
+  /** (X6) The cleaner is calm (unaware or cooldown) and on his office loop (x > 79.6, z < 8.7) now and for `ms` of sim time after
+   *  (sampled every 0.5 s), or there is no live guard. */
+  async function calmHolds(what, ms) {
+    for (let t = 0; ; t += 500) {
+      const s = await GA(() => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return e ? { ok: (e.aware.level === 'unaware' || e.aware.level === 'cooldown') && e.pos.x > 79.6 && e.pos.z < 8.7, lvl: e.aware.level, al: !!e.alerted, at: [+e.pos.x.toFixed(2), +e.pos.z.toFixed(2)] } : { ok: true }; });
+      if (!s.ok) console.error(`${what}: guard (host) ${await npcDiag()}`);
+      assert(s.ok, `${what}: the cleaner stays calm on his office loop (${t / 1000} s: ${JSON.stringify(s)})`);
+      if (t >= ms) return;
+      await waitSim(500);
+    }
   }
   /** The wall switch item near (x, z): `switch-<n>` in the map's order, found by where it is. */
   const switchId = (x, z) => GA(([x, z]) => window.__app.current.interactables.items.find((i) => /^switch-/.test(i.id) && Math.hypot(i.pos.x - x, i.pos.z - z) < 0.7)?.id ?? null, [x, z]);
@@ -183,6 +216,7 @@ export async function walk(t, n) {
   await moveHost(77.2, 9.6, 0.1, Math.PI / 2);
   await moveClient(77.2, 11.6, 0.1, Math.PI / 2);
   assert(!(await lockedOnClient('L2-far')), 'A3: the L2 far door is open to the client');
+  assert(await GA((i) => !window.__app.current.world.doors.list[i].anchor.locked, await doorIndex('L2-far')), 'A3: the L2 far door is unlocked on the host');
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
     await until(P, () => /Jam the camera for each other/.test(document.querySelector('.course-hud')?.textContent ?? ''), null, 15000, `the ${tag} sees the shared step line`);
     assert(!!(await cam(P)), `A3: the ${tag} has the corridor camera ${CAM_ID}`);
@@ -210,6 +244,30 @@ export async function walk(t, n) {
     return { mode: c.mode, ric: g.security.ricochets };
   }, CAM_ID);
   assert(shots.mode === 'online' && shots.ric >= 2, `A3: the hall camera survives two shots (ricochets) (${JSON.stringify(shots)})`);
+  // (marlow-polish P2-2) the client's own round off the bulletproof camera (CoopClient's `weapons.onRay` hook, called directly: no real
+  // trigger pull, so no noise for the cleaner and no host resolution): the sparks play on the client page only (`ctDev.ricochets` and the
+  // active vfx particles rise), the host's camera stays online and its ricochet count does not move. A ray 1.5 m under the housing is a miss.
+  const hostRic0 = await GA(() => window.__app.current.security.ricochets);
+  const cliRic = await GB((id) => {
+    const g = window.__app.current;
+    const c = g.ctDev.cams.find((q) => q.def.id === id);
+    const V = g.player.position.constructor;
+    const live = () => g.vfx.particles.filter((p) => p.active).length;
+    const ric0 = g.ctDev.ricochets;
+    const part0 = live();
+    // the same axis through the housing as the host's two shots above
+    g.weapons.onRay(new V(c.x - 6, c.y, c.z), new V(c.x + 1, c.y, c.z));
+    const ric1 = g.ctDev.ricochets;
+    const part1 = live();
+    // teeth: a ray 1.5 m under the housing passes below it and plays nothing
+    g.weapons.onRay(new V(c.x - 6, c.y - 1.5, c.z), new V(c.x + 1, c.y - 1.5, c.z));
+    return { ric0, ric1, ric2: g.ctDev.ricochets, part0, part1, mode: c.mode };
+  }, CAM_ID);
+  assert(cliRic.ric1 === cliRic.ric0 + 1, `A3: the client's own round off the hall camera sparks once on the client (${JSON.stringify(cliRic)})`);
+  assert(cliRic.part1 > cliRic.part0, `A3: the client's ricochet sparks are drawn on the client page (${JSON.stringify(cliRic)})`);
+  assert(cliRic.ric2 === cliRic.ric1, `A3: a ray 1.5 m under the housing does not spark on the client (${JSON.stringify(cliRic)})`);
+  const hostAfter = await GA((id) => ({ mode: window.__app.current.security.cameras.find((q) => q.def.id === id).mode, ric: window.__app.current.security.ricochets }), CAM_ID);
+  assert(hostAfter.mode === 'online' && hostAfter.ric === hostRic0, `A3: the client's round leaves the host's camera online and its ricochet count unchanged (${JSON.stringify({ ...hostAfter, before: hostRic0 })})`);
   await GA(() => {
     const g = window.__app.current;
     const e = g.enemyMgr.enemies.find((q) => q.alive);
@@ -262,8 +320,13 @@ export async function walk(t, n) {
   // ---- 2. the send-back: the client unjammed in the corridor ----
   console.log('  A3: the camera sends an unjammed player back');
   let n0 = await backs();
+  // (marlow-walk482 X6, Michael: "It's a training exercise, the guard should be non hostile and not respond to you being
+  // detected on the camera") the send-back is the hall camera's only cost
+  let cost0 = await camCost();
   await moveClient(SEEN[0], SEEN[1], 0.1, Math.PI / 2);
   await sentBack('A3 send-back', n0);
+  await noCamCost('A3 send-back', cost0);
+  await calmHolds('A3 send-back', 0);
   await until(B, () => /The camera had you/.test(window.__course.wire.rl ?? ''), null, 90000, "A3: LANTERN's send-back line reaches the client");
   assert(await claimed(), 'A3: walking into the corridor first claimed a job');
   assert((await roleOf(1)) === 'b' && (await roleOf(0)) === 'a', 'A3: the client is B (the first into the corridor), the host A');
@@ -279,21 +342,13 @@ export async function walk(t, n) {
   // at the send-back spot and stayed in a fight / search loop for the whole 150 s step-4 wait (his `alerted` flag is the
   // combat level only, so a passing check read his searches as calm and step 7's lure could fall on a search, which ignores
   // a heard lure: the laptop's "the cleaner walks toward office 1's switch" timeout). The host works the switch from the L2
-  // holding room (a test use, no reach), the client follows after its send-back, and the L2 far door is shut behind them
-  // until he is back on his loop.
+  // holding room (a test use, no reach) and the L2 far door is shut behind them until he is back on his loop.
+  // (marlow-polish 4) Both players are in the L2 room and its far door is shut BEFORE the switch goes off; the client leaves
+  // it only for the dark send-back, taken at once after the cut, and is teleported straight back in. mf-fix4-2b: the client
+  // stood at the send-back spot (77.8, 10.75) with the door still open (the old order: the cut, a 3.5 s wait, the send-back,
+  // then the door) while the lure drew him to the west lobby; he saw them, entered the L2 room through the far door (x 75)
+  // and fought / searched for the whole 150 s step-4 wait.
   await moveHost(L2_HIDE[0][0], L2_HIDE[0][1], 0.1, Math.PI / 2);
-  assert((await use(A, swCorr)) === 'ok', 'A3: the host turns the corridor switch off');
-  await until(A, () => !window.__app.current.stealth.switchOn(30), null, 15000, 'A3: the host sees group 30 off');
-  for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
-    await until(P, (g) => window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g).every((x) => !x.on), 30, 15000, `A3: the ${tag} sees the corridor lamps off`);
-    const l = await level(P, MID[0], MID[1]);
-    assert(l <= 0.24, `A3: the corridor reads dark on the ${tag} page (${l.toFixed(3)})`);
-  }
-  n0 = await backs();
-  await waitSim(3500);
-  await moveClient(SEEN[0], SEEN[1], 0.1, Math.PI / 2);
-  await sentBack('A3 dark send-back', n0);
-  assert((await level(B, SEEN[0], SEEN[1])) <= 0.24, 'A3: the client was sent back from a dark corridor (the camera sees in the dark)');
   await moveClient(L2_HIDE[1][0], L2_HIDE[1][1], 0.1, Math.PI / 2);
   const l2Far = await doorIndex('L2-far');
   const l2Aid = await GA((cid) => window.__app.current.world.layout.course.doors[cid], 'L2-far');
@@ -303,6 +358,28 @@ export async function walk(t, n) {
     console.error(`A3 L2 door diag ${await GA((i) => { const g = window.__app.current; const d = g.world.doors.list[i]; return JSON.stringify({ target: d.target, open: d.open, locked: d.anchor.locked, leaf: d.anchor.leaf, by: d.by, feet: g.playerRefs().map((r) => [r.feet.x, r.feet.z].map((n) => +n.toFixed(2))) }); }, l2Far)}`);
     throw e;
   });
+  // the client's send-back hold from step 2 ends before the cut (was the wait between the cut and the send-back)
+  await waitSim(3500);
+  // (marlow-polish A3 triage, docs/marlow-final/slices/A3-ctcourse2-triage.md) the cut and the dark send-back come with the
+  // cleaner on his loop: from there the corridor and the lobby are out of sight (walls, shut doors), so the cut lures nobody
+  // before the client is back in the L2 room. (The triage's cause, step 2's camera alarm sending him at a run to search the
+  // corridor where he saw the client and followed into the L2 room, is gone with marlow-walk482 X6: the hall camera's
+  // send-back no longer alerts the guards, so he never left his loop; the 150 s `calmOnLoop` wait is now a 5 s assert.)
+  await calmHolds('A3 calm before the cut', 5000);
+  assert((await use(A, swCorr)) === 'ok', 'A3: the host turns the corridor switch off');
+  await until(A, () => !window.__app.current.stealth.switchOn(30), null, 15000, 'A3: the host sees group 30 off');
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
+    await until(P, (g) => window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g).every((x) => !x.on), 30, 15000, `A3: the ${tag} sees the corridor lamps off`);
+    const l = await level(P, MID[0], MID[1]);
+    assert(l <= 0.24, `A3: the corridor reads dark on the ${tag} page (${l.toFixed(3)})`);
+  }
+  n0 = await backs();
+  cost0 = await camCost();
+  await moveClient(SEEN[0], SEEN[1], 0.1, Math.PI / 2);
+  await sentBack('A3 dark send-back', n0);
+  await noCamCost('A3 dark send-back', cost0);
+  assert((await level(B, SEEN[0], SEEN[1])) <= 0.24, 'A3: the client was sent back from a dark corridor (the camera sees in the dark)');
+  await moveClient(L2_HIDE[1][0], L2_HIDE[1][1], 0.1, Math.PI / 2);
   assert((await use(A, swCorr)) === 'ok', 'A3: the host turns the corridor switch on again');
   await until(A, () => window.__app.current.stealth.switchOn(30), null, 15000, 'A3: group 30 is back on');
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, (g) => window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g).every((x) => x.on), 30, 15000, `A3: the ${tag} sees the corridor lamps on`);
@@ -314,13 +391,14 @@ export async function walk(t, n) {
   // back on his office loop
   // (S-e2e-fix2) calm = back on his loop (unaware or cooldown): `alerted` is the combat level only, so a guard still searching
   // (60 s, ALERT.searchTime) or investigating read as calm
-  await traced('A3 calm', until(A, () => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return !e || ((e.aware.level === 'unaware' || e.aware.level === 'cooldown') && e.pos.x > 79.6 && e.pos.z < 8.7); }, null, 150000, 'A3: the cleaner is calm and back in the offices after the corridor lure'));
+  await calmOnLoop('A3 calm', 'A3: the cleaner is calm and back in the offices after the corridor lure');
   // (the start's damage-off can be undone by the bay-N respawn's wall-clock 2 s timer: set again, seconds later)
   await noDamage(A);
   assert((await GA(() => window.__app.current.target.health.hp)) === 100, 'A3: the host is unhurt before the jam posts');
   await moveHost(POST_W[0], POST_W[1], 0.1, Math.PI / 2);
   await waitSim(500);
   n0 = await backs();
+  cost0 = await camCost();
   await jamOn(0, 'A3 window miss');
   await moveClient(MID[0], MID[1], 0.1, Math.PI / 2);
   await waitSim(600);
@@ -333,6 +411,7 @@ export async function walk(t, n) {
   await unjam(0);
   await cameraBack('A3 window miss');
   await sentBack('A3 window miss', n0);
+  await noCamCost('A3 window miss', cost0);
 
   // ---- 5. the relay: jam, the client to the recess, jam again, the client to the far lobby ----
   console.log('  A3: the relay');
@@ -438,6 +517,7 @@ export async function walk(t, n) {
   await moveHost(98.6, 9.0, 0.1, Math.PI / 2);
   await moveClient(98.6, 11.0, 0.1, Math.PI / 2);
   assert(!(await lockedOnClient('L3-near')), 'A3: the L3 near door is open to the client');
+  assert(await GA((i) => !window.__app.current.world.doors.list[i].anchor.locked, await doorIndex('L3-near')), 'A3: the L3 near door is unlocked on the host');
   for (const P of [A, B]) await until(P, () => !window.__app.current.traversal.attached, null, 10000, 'A3: nobody is hanging');
   assert(/holding room three/.test(await stepLine(A)), 'A3: the host still reads the closing line');
   await t.offHostStep(A, hurtKey);

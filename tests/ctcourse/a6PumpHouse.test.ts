@@ -28,7 +28,7 @@ import { hyp2 } from '../../src/core/mathx';
 import { buildCtcourse, COOP_LIPS, LIGHT_SPOTS } from '../../src/world/maps/ctcourse';
 import { coopDeck, COOP_BAND, GREY_KEEP_CLEAR, hangPlate, INTERACT_DY, INTERACT_REACH } from '../../src/world/maps/ctcourseGreybox';
 import { kitTriangles } from '../../src/world/kit/facilityKit';
-import { FacilityProps, propGlows, PROP_OWN_SUPPLY, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_SET_BUDGET, type PropReport } from '../../src/world/props/facilityProps';
+import { FacilityProps, propGlows, PROP_LAMP_TINT, PROP_OWN_SUPPLY, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_SET_BUDGET, type PropReport } from '../../src/world/props/facilityProps';
 import { CANON_MIN_THICK } from '../../src/voxel/lightShapes';
 import { GAL_TOP } from '../../src/world/maps/ctcourseSets/facility';
 import {
@@ -55,6 +55,7 @@ import {
   A6_HOLD,
   A6_HOLD_NOISE,
   A6_HOLDER,
+  A6_INTERLOCK,
   A6_KERB,
   A6_LIP_X,
   A6_MARK,
@@ -743,6 +744,8 @@ describe('A6 the Pump House: dressing (slice 6 step 5)', () => {
   const propReport = JSON.parse(readFileSync('src/world/props/assets/facility-props.json', 'utf8')) as PropReport;
   const area = { x0: box[0], z0: box[1], x1: box[2], z1: box[3] };
   const own = part.props;
+  /** (P3-1) The pipe runs (the interlock station is the other prop). */
+  const pipes = own.filter((p) => p.prop === 'pipeRun');
   const lip4 = A6_DECK.lip;
   /** The props' own boxes as written (matched by centre, size and yaw); a quarter-turn box folded to the axis-aligned box the helpers read. */
   const propBoxes = own.flatMap((p) => propCollisionBox(p) ?? []);
@@ -780,7 +783,8 @@ describe('A6 the Pump House: dressing (slice 6 step 5)', () => {
     return null;
   };
   /** Skins whose centre lies in the plan box [x0, x1] x [z0, z1] and between `y0` and `y1`. */
-  const skinsIn = (x0: number, x1: number, z0: number, z1: number, y0 = -1, y1 = 99): BoxPiece[] => skins.filter((p) => p.c[0] > x0 && p.c[0] < x1 && p.c[2] > z0 && p.c[2] < z1 && p.c[1] > y0 && p.c[1] < y1);
+  const skinsInOf = (list: readonly BoxPiece[], x0: number, x1: number, z0: number, z1: number, y0 = -1, y1 = 99): BoxPiece[] => list.filter((p) => p.c[0] > x0 && p.c[0] < x1 && p.c[2] > z0 && p.c[2] < z1 && p.c[1] > y0 && p.c[1] < y1);
+  const skinsIn = (x0: number, x1: number, z0: number, z1: number, y0 = -1, y1 = 99): BoxPiece[] => skinsInOf(skins, x0, x1, z0, z1, y0, y1);
 
   it("the greybox is as S6 built it: its 78 boxes (checksum), 8 lamps, 1 door, 1 anchor; the only new collision is the stair's twelve rail boxes and the five pipes' ten", () => {
     let sum = 0;
@@ -808,7 +812,7 @@ describe('A6 the Pump House: dressing (slice 6 step 5)', () => {
     }
     // the only visible boxes of any thickness the dressing added are the props' solid pipes (their own greybox, hidden by the prop)
     const heavy = dressing.filter((p) => p.visible !== false && Math.min(...p.s) >= CANON_MIN_THICK);
-    expect(heavy).toHaveLength(own.length);
+    expect(heavy).toHaveLength(pipes.length);
     for (const p of heavy) expect(written).toContain(p);
     for (const p of rail) expect(p.visible, `rail box at (${p.c.join(', ')})`).toBe(false);
     for (const p of colliders) expect(p.noLedge, `collider at (${p.c.join(', ')})`).toBe(true);
@@ -878,12 +882,12 @@ describe('A6 the Pump House: dressing (slice 6 step 5)', () => {
     expect(checker.check(area, propReport)).toEqual([]);
     expect(propTriangles(counted, propReport)).toBeLessThanOrEqual(PROP_SET_BUDGET.tris);
     expect(propDraws(counted, propReport)).toBeLessThanOrEqual(PROP_SET_BUDGET.draws);
-    expect(own.map((p) => p.prop)).toEqual(Array<string>(5).fill('pipeRun'));
+    expect(pipes.map((p) => p.prop)).toEqual(Array<string>(5).fill('pipeRun'));
   });
 
   it("the pipes: five modules end to end along the east wall (x 63.0-63.7, z 54.25-59.25), 0.7 m tall, noLedge, off the wall, clear of the L6 door, the floor switch, the kerb's east opening and the exit route", () => {
-    expect(own).toHaveLength(A6_PIPES.z.length);
-    for (const [i, p] of own.entries()) {
+    expect(pipes).toHaveLength(A6_PIPES.z.length);
+    for (const [i, p] of pipes.entries()) {
       expect([p.x, p.z]).toEqual([A6_PIPES.x, A6_PIPES.z[i]]);
       expect(p.y).toBe(0);
       const f = PROP_FOOTPRINT[p.prop];
@@ -902,6 +906,22 @@ describe('A6 the Pump House: dressing (slice 6 step 5)', () => {
     }
     for (const [x, z] of [[62.6, 61.4], [62.6, 62.6], [A6_SHELL.east - 1.0, 60.4], [57.0, 58.5], [A6_DESK[2] + 0.6, 66.0]] as const) expect(bodyHits(x, 0, z), `spot (${x}, ${z})`).toBeNull();
     for (const [x0, z0, x1, z1] of [[57.0, 58.5, 62.6, 61.4], [62.6, 61.4, 62.6, 62.6], [63.0, 70.3, 62.6, 62.6], [53, 56.0, 57.0, 58.5], [A6_VANTAGE.x, A6_VANTAGE.z, 48.8, 58.4]] as const) expect(bodyWalk(x0, z0, x1, z1), `walk (${x0}, ${z0}) to (${x1}, ${z1})`).toBeNull();
+  });
+
+  it('(P3-1) the interlock station beside the L6 door: one pushStation on a6-interlock / a6-drive, green lamp with a red off colour, its lamp at (63.44, 2.3, 64.0), no collision box, on its own supply', () => {
+    const st = own.filter((p) => p.prop === 'pushStation');
+    expect(st).toHaveLength(1);
+    const s = st[0]!;
+    expect(s.device).toBe(A6_INTERLOCK);
+    expect(s.flag).toBe(A6_DRIVE_FLAG);
+    expect(s.lamp).toEqual(PROP_LAMP_TINT.default);
+    expect(s.lampOff).toEqual([1.0, 0.12, 0.08]);
+    // the status lamp's centre (build.py push_station: x 0, y 0.86-0.92, z 0.30-0.31 in the prop's frame)
+    const lamp = propToWorld(s, 0, 0.89, 0.305);
+    expect(hyp2(lamp[0] - 63.44, lamp[2] - 64.0)).toBeLessThan(0.02);
+    expect(Math.abs(lamp[1] - 2.3)).toBeLessThan(0.02);
+    expect(propCollisionBox(s)).toBeNull();
+    expect(PROP_OWN_SUPPLY).toContain(s.prop);
   });
 
   it('with the props and the rail written soloJumpThreats is still empty for the gallery lip (and still bites); nothing new stands within the keep-clear of the open edge; the game generates no new grip over 0.9 m', () => {
@@ -929,12 +949,15 @@ describe('A6 the Pump House: dressing (slice 6 step 5)', () => {
     expect(bodyWalk(54.2, 62.9, 54.2, 61.2)).toBeNull();
   });
 
-  it('every prop with an emissive part carries a circuit group (S3-7 S1, light parity): A6 places only pipe runs, which have none', () => {
+  it('every prop with an emissive part carries a circuit group (S3-7 S1, light parity): the pipe runs have none and the interlock station is on its own supply', () => {
     const plan = new Set(Object.values(marlowCourseGroups()));
     const [g0, g1] = setGroups('a6PumpHouse');
     const glowing = own.filter((p) => propGlows(p) && !PROP_OWN_SUPPLY.includes(p.prop));
-    expect(own.length).toBeGreaterThan(0);
-    expect(own.every((p) => p.prop === 'pipeRun')).toBe(true);
+    expect(pipes.length).toBeGreaterThan(0);
+    expect(pipes.every((p) => p.prop === 'pipeRun')).toBe(true);
+    // (P3-1) the only other prop is the interlock station, which glows on its own supply
+    expect(own.filter((p) => p.prop !== 'pipeRun').map((p) => p.prop)).toEqual(['pushStation']);
+    expect(own.some((p) => propGlows(p))).toBe(true);
     expect(glowing).toEqual([]);
     expect(plan.size).toBeGreaterThan(0);
     expect(g1 - g0).toBe(9);
@@ -986,29 +1009,63 @@ describe('A6 the Pump House: dressing (slice 6 step 5)', () => {
     expect(lamps).toHaveLength(GREY.lights);
   });
 
+  /** Skin `p` overlaps box `q` (a 1 mm / 1 um margin on the plan / height, as the mark test always used). */
+  const overlap = (p: BoxPiece, q: BoxPiece): boolean => {
+    const o = (k: number): number => Math.min(p.c[k]! + p.s[k]! / 2, q.c[k]! + q.s[k]! / 2) - Math.max(p.c[k]! - p.s[k]! / 2, q.c[k]! - q.s[k]! / 2);
+    return o(0) > 1e-6 && o(1) > 1e-9 && o(2) > 1e-6;
+  };
+  const marks = grey.filter((p) => !p.collide && p.visible && Math.abs(p.yaw) < 1e-6 && p.s[1] < 0.1);
+  const clearPoints: [string, number, number, number][] = [
+    ['drive panel', panel.x, panel.y, panel.z],
+    ['exit release', exit.x, exit.y, exit.z],
+    ...part.switches.map((s) => [s.id, s.pos.x, s.pos.y, s.pos.z] as [string, number, number, number]),
+    ['interlock lamp', 63.7, 2.3, 64.0],
+    ...lamps.map((l) => [`lamp ${l.id}`, l.x, l.y, l.z] as [string, number, number, number]),
+  ];
+  /** The plate's column: the 0.55 m hole from the cage floor to the slab's top. */
+  const inPlateColumn = (s: BoxPiece): boolean => {
+    const o = (k: number, a: number, e: number): number => Math.min(s.c[k]! + s.s[k]! / 2, e) - Math.max(s.c[k]! - s.s[k]! / 2, a);
+    return o(0, 51.225, 51.775) > 1e-6 && o(2, 64.625, 65.175) > 1e-6 && o(1, 0, 4.45) > 1e-9;
+  };
+  /** A planted 0.03 m skin (a cube) centred on (x, y, z): the test's own piece, never in the set. */
+  const plantAt = (x: number, y: number, z: number): BoxPiece => ({ c: [x, y, z], s: [0.03, 0.03, 0.03], yaw: 0, pitch: 0, color: '#ff00ff', collide: false });
+
   it("dressing stays off the greybox's marks, the devices, the switches, the lamps and the gland plate's drop: no skin overlaps a mark, covers a device, a switch or a lamp, or crosses the plate's column to the cage floor; the cage door's opening and the leg-up's floor are clear", () => {
-    const overlap = (p: BoxPiece, q: BoxPiece): boolean => {
-      const o = (k: number): number => Math.min(p.c[k]! + p.s[k]! / 2, q.c[k]! + q.s[k]! / 2) - Math.max(p.c[k]! - p.s[k]! / 2, q.c[k]! - q.s[k]! / 2);
-      return o(0) > 1e-6 && o(1) > 1e-9 && o(2) > 1e-6;
-    };
-    const marks = grey.filter((p) => !p.collide && p.visible && Math.abs(p.yaw) < 1e-6 && p.s[1] < 0.1);
     expect(marks.length).toBe(6);
     for (const m of marks) for (const s of level) expect(overlap(m, s), `skin at (${s.c.join(', ')}) over the mark at (${m.c.join(', ')})`).toBe(false);
-    const points: [string, number, number, number][] = [
-      ['drive panel', panel.x, panel.y, panel.z],
-      ['exit release', exit.x, exit.y, exit.z],
-      ...part.switches.map((s) => [s.id, s.pos.x, s.pos.y, s.pos.z] as [string, number, number, number]),
-      ['interlock lamp', 63.7, 2.3, 64.0],
-      ...lamps.map((l) => [`lamp ${l.id}`, l.x, l.y, l.z] as [string, number, number, number]),
-    ];
-    for (const [name, x, y, z] of points) for (const s of level) expect(inside(s, x, y, z), `${name} inside the skin at (${s.c.join(', ')})`).toBe(false);
+    for (const [name, x, y, z] of clearPoints) for (const s of level) expect(inside(s, x, y, z), `${name} inside the skin at (${s.c.join(', ')})`).toBe(false);
     // the plate's column: nothing from the cage floor to the slab's top over the 0.55 m hole
-    for (const s of level) {
-      const o = (k: number, a: number, e: number): number => Math.min(s.c[k]! + s.s[k]! / 2, e) - Math.max(s.c[k]! - s.s[k]! / 2, a);
-      expect(o(0, 51.225, 51.775) > 1e-6 && o(2, 64.625, 65.175) > 1e-6 && o(1, 0, 4.45) > 1e-9, `skin at (${s.c.join(', ')}) in the plate's column`).toBe(false);
-    }
+    for (const s of level) expect(inPlateColumn(s), `skin at (${s.c.join(', ')}) in the plate's column`).toBe(false);
     for (const s of level) expect(inside(s, 51.5, 1.0, 62.05), `cage door opening, skin at (${s.c.join(', ')})`).toBe(false);
     expect(skinsIn(A6_MARK.x - 1.0, A6_MARK.x + 1.0, A6_MARK.z - 0.6, A6_MARK.z + 0.6, -1, 0.2)).toEqual([]);
+  });
+
+  it('the dressing-clearance checks have teeth: one planted 0.03 m skin inside each window (every mark, every device, switch and lamp point, the plate column, the cage door opening, the leg-up floor) is found by the same query, and the bare dressing is not', () => {
+    // every mark
+    for (const m of marks) {
+      const skin = plantAt(m.c[0], m.c[1], m.c[2]);
+      expect(level.some((s) => overlap(m, s)), `mark at (${m.c.join(', ')}) bare`).toBe(false);
+      expect(overlap(m, skin), `mark at (${m.c.join(', ')}) planted`).toBe(true);
+    }
+    // the devices, switches and lamps (the 0.03 skin centred on the point)
+    expect(clearPoints.length).toBeGreaterThanOrEqual(2 + part.switches.length + 1 + lamps.length);
+    for (const [name, x, y, z] of clearPoints) {
+      const skin = plantAt(x, y, z);
+      expect(level.some((s) => inside(s, x, y, z)), `${name} bare`).toBe(false);
+      expect(inside(skin, x, y, z), `${name} planted`).toBe(true);
+    }
+    // the plate's column and the cage door's opening
+    const plate = plantAt(51.5, 2.0, 64.9);
+    expect(level.some(inPlateColumn), 'plate column bare').toBe(false);
+    expect(inPlateColumn(plate), 'plate column planted').toBe(true);
+    const door = plantAt(51.5, 1.0, 62.05);
+    expect(level.some((s) => inside(s, 51.5, 1.0, 62.05)), 'cage door opening bare').toBe(false);
+    expect(inside(door, 51.5, 1.0, 62.05), 'cage door opening planted').toBe(true);
+    // the leg-up's floor window: the planted skin is the only one found
+    const legUp = plantAt(A6_MARK.x, 0.1, A6_MARK.z);
+    const legWindow = [A6_MARK.x - 1.0, A6_MARK.x + 1.0, A6_MARK.z - 0.6, A6_MARK.z + 0.6, -1, 0.2] as const;
+    expect(skinsIn(...legWindow)).toEqual([]);
+    expect(skinsInOf([...skins, legUp], ...legWindow)).toEqual([legUp]);
   });
 
   it("the pumps are dressed: each has at least 70 skins (grout, caps, sole plate, bolts, guard, slots, ribs, cowl, eyes, terminal box, nameplate, keep-clear line); the numbers 1 / 2 / 3 stencilled on the plinths' south faces have 2, 5 and 5 strokes; four yellow guard bands each", () => {

@@ -1,11 +1,11 @@
 {
  "levels": {
   "A2 neck centre": 1,
-  "A2 neck crossing": 0.94,
+  "A2 neck crossing": 1,
   "A2 neck centre cut": 0.14,
   "A2 neck crossing cut": 0.14,
-  "A2 neck crossing west cut": 0.14,
-  "A2 neck crossing east cut": 0.14,
+  "A2 neck crossing west cut": 0.16,
+  "A2 neck crossing east cut": 0.16,
   "A2 neck cess west cut": 0.19,
   "A2 neck cess east cut": 0.19,
   "A2 rake gap": 0.71,

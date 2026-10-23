@@ -52,6 +52,14 @@ export interface CtcourseBuild {
   ranges: Record<SetId, { boxes: [number, number]; anchors: [number, number] }>;
 }
 
+/**
+ * (marlow-walk482 X2a) LANTERN's line for the sets where being spotted fails the set (`BayDef.spotFail`): the set restarts
+ * from its start. Kept here, not in the set's part, so the set slices never touch this rule.
+ */
+export const SPOT_FAIL: Partial<Record<SetId, string>> = {
+  a2CarriageShed: 'Spotted. Back to the start of the set.',
+};
+
 const v3 = (p: Pt): Vector3 => new Vector3(p.x, p.y, p.z);
 
 /** Merge `src` into `dst`, throwing on an id two parts both use (parallel set builders must never collide). */
@@ -98,6 +106,7 @@ export function buildCtcourse(b: LevelBuilder): CtcourseBuild {
     // (section-rating S6, A5) a set with a guard who can see is rated (A1's passive checker is not)
     rated: p.bay.squad.some((s) => !p.squads[s]?.passive),
     title: `${setBay(p.id)} ${SET_NAME[p.id].replace(/^the /, '')}`,
+    ...(SPOT_FAIL[p.id] ? { spotFail: SPOT_FAIL[p.id] } : {}),
   }));
   const def: CourseDef = {
     id: 'ctcourse',

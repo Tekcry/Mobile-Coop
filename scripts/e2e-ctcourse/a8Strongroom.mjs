@@ -288,10 +288,16 @@ export async function walk(t, n) {
 
   // ---- 5. the board: at N2's grille stop the client presses it; the hall goes dark, the grille unlocks, N1 walks to the board ----
   console.log('  A8: the lighting board, the lure');
-  await moveClient(BOARD_WEST[0], BOARD_WEST[1], 0.1, 0);
   // (S-e2e-fix3c) 60 s: N2's cycle is 39.5 s, and when the loop checks above outlast his 16 s to the grille and back off it, the next stop is a
   // full cycle away (40 s timed out at the edge)
-  await until(A, ([gx, gz]) => { const e = window.__course.squadOf('a8-night2'); return !!e && !e.alerted && e.walker?.idx === 2 && Math.hypot(e.pos.x - gx, e.pos.z - gz) < 1.3; }, [133.2, 62.0], 60000, 'A8: N2 is at the grille stop (route index 2)');
+  // (marlow-polish flake) the client waits in the dark at the jam spot (where step 3 left him) and goes to the board only once N2 is at the stop,
+  // his back to the hall: waiting at the board's west side (<= 0.40 lit, standing) put the client dead ahead of N2's W2 -> TALK leg whenever that
+  // full cycle came round (the loaded runs), so N2 looked, investigated, went alert and never reached the stop
+  await until(A, ([gx, gz]) => { const e = window.__course.squadOf('a8-night2'); return !!e && !e.alerted && e.walker?.idx === 2 && Math.hypot(e.pos.x - gx, e.pos.z - gz) < 1.3; }, [133.2, 62.0], 60000, 'A8: N2 is at the grille stop (route index 2)').catch(async (err) => {
+    const s = await GA(() => { const e = window.__course.squadOf('a8-night2'); return e && { idx: e.walker?.idx, level: e.level, alerted: e.alerted, x: +e.pos.x.toFixed(2), z: +e.pos.z.toFixed(2) }; });
+    throw new Error(`${err.message} (N2 ${JSON.stringify(s)})`);
+  });
+  await moveClient(BOARD_WEST[0], BOARD_WEST[1], 0.1, 0);
   const n1a = await guard(N1);
   const board = await GA(() => { const d = window.__app.current.world.layout.course.devices['a8-board']; return [d.x, d.z]; });
   const d0 = Math.hypot(n1a.x - board[0], n1a.z - board[1]);

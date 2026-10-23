@@ -10,7 +10,9 @@
  * bake. Per frame (allocation-free) only the strongroom leaves move, following their `Door`'s drawn swing. (S3-7 S1, light
  * parity) A placement's emissives follow its light circuit (`PropPlacement.group`: dim while no lamp of the group is on,
  * repainted when the registry changes, as the kit's LED lines) and its powered device (`PropPlacement.device`, `setDevice`:
- * the beam tower's lens while its beams are off); the emissive pieces stay thin-instanced (colour per instance).
+ * the beam tower's lens while its beams are off; (marlow-polish P3-1) a lamp with `lampOff` shows that colour lit while
+ * its device is off instead of dimming: A6's interlock lamp, red / green on a course flag); the emissive pieces stay
+ * thin-instanced (colour per instance).
  */
 import { Color3, Mesh, PBRMaterial, StandardMaterial, VertexData, type Material, type Observer, type Scene } from '../../core/babylon';
 import { parseGlb, type GlbMesh, type GlbModel } from '../../operators/lab/glb';
@@ -215,8 +217,11 @@ export class PropRender {
     for (let n = 0; n < d.idx.length; n++) {
       const p = this.placements[d.idx[n]!]!;
       const screen = d.mat === 'screen';
-      const t = screen ? (p.tint ?? PROP_SCREEN_TINT) : (p.lamp ?? PROP_LAMP_TINT[p.prop] ?? PROP_LAMP_TINT.default);
-      const k = (screen ? PROP_SCREEN_GAIN : PROP_LAMP_GAIN) * (this.litNow(p) ? 1 : PROP_DARK);
+      // (P3-1) a status lamp with an off colour shows it, lit, while its device is off (still dimmed by its circuit)
+      const offLamp = !screen && p.lampOff !== undefined && p.device !== undefined && this.deviceOff.has(p.device);
+      const t = screen ? (p.tint ?? PROP_SCREEN_TINT) : offLamp ? p.lampOff! : (p.lamp ?? PROP_LAMP_TINT[p.prop] ?? PROP_LAMP_TINT.default);
+      const lit = offLamp ? p.group === undefined || !this.reg || this.groupLit(p.group) : this.litNow(p);
+      const k = (screen ? PROP_SCREEN_GAIN : PROP_LAMP_GAIN) * (lit ? 1 : PROP_DARK);
       c[n * 4] = t[0] * k;
       c[n * 4 + 1] = t[1] * k;
       c[n * 4 + 2] = t[2] * k;
@@ -243,8 +248,9 @@ export class PropRender {
     }
   }
 
-  /** A powered device's state (`PropPlacement.device`: a laser id): its props' emissives go dark while it is off (render only;
-   *  the caller reads the device's own state, never the reverse). Allocation-free. */
+  /** A powered device's state (`PropPlacement.device`: a laser id, or a course flag's device, P3-1): its props' emissives go
+   *  dark while it is off, except a lamp with `lampOff`, which shows that colour lit instead (a red / green status lamp;
+   *  render only; the caller reads the device's own state, never the reverse). Allocation-free. */
   setDevice(id: string, on: boolean): void {
     if (on === !this.deviceOff.has(id)) return;
     if (on) this.deviceOff.delete(id);
