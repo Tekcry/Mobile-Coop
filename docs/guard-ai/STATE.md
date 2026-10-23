@@ -1,6 +1,12 @@
 # Guard AI - state
 
 ## Now
+~13:35: S11 + S12 check PASS ebdc44a2 (slices/S12-CHECK.md; fix: dogs wear no gear; note for S13: stage gear after
+placeSlot). RUNNING (Opus): S13 response teams in ...-guard-ai-s13 (off s12 ebdc44a2, A52-A59), S15 breaker / late
+discovery in ...-guard-ai-s15 (off s12 ebdc44a2, A60+), stack-tip e2e fix on s10 (holds heavy.lock). Merge order
+later: s12 <- fixed s10; s13 <- s12; s15 <- s13; S14 (needs S10 pairs) after that, then S9 (protocol 32).
+PRs: S11 + S12 as one PR from feature/guard-ai-s12 (base s10) once s12 has the fixed s10 merged.
+
 ~13:15: S12 BUILT a1a518ad (Opus; slices/S12.md; A47-A51; tsc, eslint, gearWiring 20/20 + AI files; e2e 'helmet' /
 'armour' in e2e-stealth-ai and 'gear: one takedown' in e2e-takedown written, never run). Lead fix 8ea8e08e: the
 warehouse's 3 patrol enforcers -> grunt (validator; Course Ready told), sectors + postsWiring 45/45. CT Core sent the
