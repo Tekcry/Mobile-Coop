@@ -15,6 +15,10 @@ const headJobOutputs = hc.headJobOutputs as Fn<[Kit, string], string[]>;
 const checkHeadReport = hc.checkHeadReport as Fn<[Record<string, unknown>, Kit], string[]>;
 const checkCapsReport = hc.checkCapsReport as Fn<[Record<string, unknown>, Kit], string[]>;
 const checkEnvelope = hc.checkEnvelope as Fn<[Record<string, unknown>, Kit], string[]>;
+type Rep = Record<string, unknown>;
+const checkBaseSeam = hc.checkBaseSeam as Fn<[string, Rep[], Rep | null, Rep | null], string[]>;
+const checkComplete = hc.checkComplete as Fn<[Kit, { heads: Set<string>; caps: Set<string>; envelopes: Set<string> }], string[]>;
+const faceAlbedo = hc.faceAlbedo as Fn<[Rep], number | null>;
 
 const CAPS = ['buzz', 'crop', 'sidepart', 'receding', 'fade', 'bald'];
 /** The kit sections build_head.py reads (shape of scripts/operators/data/guards.json, SPEC 7). */
@@ -41,14 +45,24 @@ function kit(): Kit {
   };
 }
 
+/** A seam loop of `n` verts: a 0.4 m-ish ring at z (Blender), hm08 indices 100.. */
+function ring(n = 42, z = 1.55, r = 0.0633) {
+  const positions = Array.from({ length: n }, (_, i) => [r * Math.cos((2 * Math.PI * i) / n), r * Math.sin((2 * Math.PI * i) / n), z]);
+  return { mhIndex: Array.from({ length: n }, (_, i) => 100 + i), positions };
+}
+const ringPerimeter = (p: number[][]) => p.reduce((s, a, i) => {
+  const b = p[(i + 1) % p.length] as number[];
+  return s + Math.hypot((b[0] ?? 0) - (a[0] ?? 0), (b[1] ?? 0) - (a[1] ?? 0), (b[2] ?? 0) - (a[2] ?? 0));
+}, 0);
+
 function headReport(over: Record<string, unknown> = {}) {
   return {
     head: 'average-1', base: 'average', iris: 'brown',
     tris: { head: { lod0: 4000, lod1: 1196, lod2: 400 }, eyes: { lod0: 448, lod1: 96, lod2: 48 } },
-    seam: { loopVerts: 42, keptVerts: { lod0: 42, lod1: 42, lod2: 42 } },
-    faceTile: { size: 1024, png: { albedo: 'a', normal: 'n', orm: 'o' }, albedoMeanLinear: [0.76, 0.74, 0.73],
-      uv: { tris: 4000, flippedTris: 0 } },
-    craniumLock: { shiftMaxMm: 0 },
+    seam: { loopVerts: 42, keptVerts: { lod0: 42, lod1: 42, lod2: 42 }, bodyGapMaxMm: 0, ...ring() },
+    faceTile: { size: 1024, png: { albedo: 'a', normal: 'n', orm: 'o' }, albedoMeanLinear: [0.70, 0.68, 0.68],
+      faceIslandAlbedoMeanLinear: [0.77, 0.74, 0.73], uv: { tris: 4000, flippedTris: 0 } },
+    craniumLock: { shiftMaxMm: 0 }, seamLock: { shiftMaxMm: 0 },
     bounds: { min: [-0.09, -0.17, 1.53], max: [0.09, 0.05, 1.77] },
     ...over,
   };
@@ -113,13 +127,58 @@ describe('head report check', () => {
   it('flags triangles, eyes, seam, tile, albedo, flips, cranium and crown', () => {
     const f = checkHeadReport(headReport({
       tris: { head: { lod0: 4100, lod1: 1200, lod2: 401 }, eyes: { lod0: 504 } },
-      seam: { loopVerts: 42, keptVerts: { lod0: 40 } },
+      seam: { loopVerts: 42, keptVerts: { lod0: 40, lod1: 42, lod2: 41 } },
       faceTile: { size: 512, png: { albedo: 'a' }, albedoMeanLinear: [0.3, 0.3, 0.3], uv: { tris: 100, flippedTris: 5 } },
       craniumLock: { shiftMaxMm: 2 }, bounds: { max: [0, 0, 1.70] }, iris: 'green',
     }), kit());
-    for (const re of [/lod0: 4100/, /lod2: 401/, /eyes lod0: 504/, /40 of 42/, /face tile 512/, /no face normal/,
-      /albedo mean 0.300/, /flipped/, /cranium moved/, /crown z/, /iris green/]) expect(f.some((x) => re.test(x))).toBe(true);
-    expect(f.some((x) => /lod1/.test(x))).toBe(false);
+    for (const re of [/lod0: 4100/, /lod2: 401/, /eyes lod0: 504/, /LOD0 keeps 40 of 42/, /LOD2 keeps 41 of 42/, /face tile 512/,
+      /no face normal/, /albedo mean 0.300/, /flipped/, /cranium moved/, /crown z/, /iris green/, /seam mhIndex missing/,
+      /seam positions missing/, /off G1's body seam/]) expect(f.some((x) => re.test(x)), String(re)).toBe(true);
+    expect(f.some((x) => /lod1|LOD1/.test(x))).toBe(false);
+  });
+  it('flags a moved seam ring and a face island outside the neutral range; the tile mean is not the neutral', () => {
+    const r = headReport({ seamLock: { shiftMaxMm: 3 } });
+    (r.faceTile as Record<string, unknown>).faceIslandAlbedoMeanLinear = [0.4, 0.4, 0.4];
+    const f = checkHeadReport(r, kit());
+    expect(f.some((x) => /seam rings moved 3/.test(x))).toBe(true);
+    expect(f.some((x) => /face-island albedo mean 0.400/.test(x))).toBe(true);
+    expect(faceAlbedo(headReport())).toBeCloseTo(0.7467, 3);
+  });
+});
+
+describe('seam per base (G1h fix round) and completeness', () => {
+  const body = () => {
+    const { mhIndex, positions } = ring();
+    return { neckSeam: { mhVerts: [...mhIndex].reverse(), perimeter: ringPerimeter(positions), meanY: 1.55 }, bindJoints: { head: [0, 1.65, 0.01] } };
+  };
+  const env = (hj: number[]) => ({ landmarks: { headJoint: hj } });
+  it('passes the same G1 seam on every head, the body\'s loop, perimeter and height, and the rig head joint', () => {
+    const heads = [headReport(), headReport({ head: 'average-2' })];
+    expect(checkBaseSeam('average', heads, body(), env([0, -0.01, 1.65]))).toEqual([]);
+    expect(checkBaseSeam('average', heads, null, null)).toEqual([]);
+  });
+  it('flags seams that differ between heads or from the body, and an envelope off the rig head joint', () => {
+    const moved = ring();
+    (moved.positions[3] as number[])[2] = 1.56;
+    const other = headReport({ head: 'average-2', seam: { loopVerts: 42, keptVerts: {}, ...moved } });
+    const f = checkBaseSeam('average', [headReport(), other], body(), env([0, -0.05, 1.62]));
+    expect(f.some((x) => /average-2 seam positions differ/.test(x))).toBe(true);
+    expect(f.some((x) => /average-2 seam perimeter/.test(x))).toBe(true);
+    expect(f.some((x) => /head joint/.test(x))).toBe(true);
+    const wrongSet = headReport({ seam: { ...ring(), mhIndex: Array.from({ length: 42 }, (_, i) => 200 + i) } });
+    expect(checkBaseSeam('average', [wrongSet], body(), null).some((x) => /not G1's neckSeam.mhVerts/.test(x))).toBe(true);
+    const low = headReport({ seam: { ...ring(42, 1.53) } });
+    expect(checkBaseSeam('average', [low], body(), null).some((x) => /seam height/.test(x))).toBe(true);
+  });
+  it('completeness: every kit head, each capped base\'s hair caps, every base\'s envelope', () => {
+    const k = kit();
+    const all = { heads: new Set((k.heads as { id: string }[]).map((h) => h.id)), caps: new Set(['average', 'lean']), envelopes: new Set(['average', 'lean', 'broad']) };
+    expect(checkComplete(k, all)).toEqual([]);
+    all.heads.delete('lean-3');
+    all.caps.delete('lean');
+    all.envelopes.delete('broad');
+    const f = checkComplete(k, all);
+    expect(f).toEqual(['lean-3: no head report', 'lean: no hair-cap report', 'broad: no envelope (heads/broad/envelope.json, written by heads-broad-1)']);
   });
 });
 

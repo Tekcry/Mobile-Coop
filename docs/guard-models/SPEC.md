@@ -179,11 +179,20 @@ outfit; the balaclava covers it on `broad`.
   head part with residuals. The body blend's `guard-<base>-headref` is the head part in the body frame.
 - The crown (top of the head, feet on y = 0) is the body report's `crownY`; the head joint is `bindJoints.head`. Both
   include the bind floor lift (about -5 mm).
+- Body frame (G1h fix round, lead ruling Fix A): each heads job runs G1's own fit (`guard_body.GuardFit`, from prep's
+  joints and MakeHuman data) and builds the head at G1's head-part positions, so the seam loop is G1's
+  `neckSeam.mhVerts` at the body's own seam positions (gap 0 mm, same perimeter). A recipe's face-target offsets go
+  through G1's skin (fit.K and the head bone's breadth / depth scale, e.g. width x 0.912).
+- Seam lock: recipes never move the seam or the 2 edge rings above it (lock = max(cranium lock, 1 - smooth(2, 4, ring))),
+  so every head of a base has the same seam positions. Head share of the neck + head weight: seam 0.5, rings 1 / 2
+  above it 0.7 / 0.9 (G1's `headShare`), 1.0 from ring 3.
 
 **Head envelope.** Per base: the shared cranium plus the union of the base's head variants (ears included), offset
 outward by `face.envelopeOffset` = 15 mm. The thickest hair cap is `sidepart` at 12 mm, plus 3 mm clearance. G1h exports
 the envelope mesh. G3 fits cap, cap_officer, beanie, boonie, headset, helmet_std and helmet_heavy over it, so G3 does
-not wait for the heads. Helmets stop at the brow line and over the ears.
+not wait for the heads. Helmets stop at the brow line and over the ears. The envelope (`heads/<base>/envelope.json`) is in
+G1's body frame; its `landmarks.headJoint` / `neckJoint` are G1's bind joints (the rig the headwear rides). The gear jobs
+of the `headEnvelope` pieces need the job that writes it (`haircaps-<b>`, or `heads-broad-1`).
 
 **Hair caps (A13).** Opaque offset scalp shells with strand normals, one hair tint slot. The data gives the triangles
 and the offset for each:
@@ -203,7 +212,9 @@ Brows, lashes and stubble are painted into the face tile. LOD2 hair is in the al
 | 1 | 0.76, 0.36, 0.20 | medium |
 | 2 | 0.42, 0.17, 0.08 | brown |
 | 3 | 0.17, 0.07, 0.035 | dark |
-The neutral albedo carries redness (nose, cheeks, ears) as relative variation. PLAN 8 lists the risk that the darkest
+The neutral albedo carries redness (nose, cheeks, ears) as relative variation. The head report's
+`faceTile.faceIslandAlbedoMeanLinear` is the face skin's mean; the whole-tile mean (~0.69) is lower only because the
+scalp's shave shadow is in it, so G4 does not divide the tints by it. PLAN 8 lists the risk that the darkest
 tone reads flat; G4's 1.5 m crops are the check.
 
 **Hair colours** (linear RGB tints over a neutral hair albedo with mean 0.6, slot `hair`):
