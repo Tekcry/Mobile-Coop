@@ -582,13 +582,16 @@ try {
       em.onBodyFound = ob;
       const lw = w.level;
       // (guard-ai S4) the finder is held cautious at once and radios it; the mate (out of voice range) learns of it
-      // when the report gets through: cautious (on edge), not searching
+      // when the report gets through: cautious; (guard-ai S19, walk 4.72 G3) and, calm and in range, the board sends him
+      // to hurry over and help search the body
       const cw = em.cautionOf(w);
       const left = em.radioLeft(w);
       const cmate0 = em.cautionOf(mate);
+      const helps0 = em.bodyHelps;
       t.step(left + em.radioTable.staggerMax + 0.5);
       const lmate = mate.level;
       const cmate = em.cautionOf(mate);
+      const helps = em.bodyHelps - helps0;
       // shadow: a body in the dark aisle, a guard 6 m away facing it
       t.reset();
       t.light(0);
@@ -600,14 +603,14 @@ try {
       t.step(5);
       const dark = em.bodiesFound - f0;
       t.light(null);
-      return { found, lw, lmate, dark, bodies: em.bodies.length, cw, left, cmate0, cmate, finder };
+      return { found, lw, lmate, dark, bodies: em.bodies.length, cw, left, cmate0, cmate, finder, helps };
     });
     assert(r.found, 'a body in the light is found');
     assert(r.finder === 'w', `the guard facing it is the finder (${r.finder})`);
     assert(r.lw === 'searching', `the finder searches (${r.lw})`);
     assert(r.cw === 2 && r.left > 0, `the finder is held cautious and radios it (caution ${r.cw}, call ${r.left.toFixed(2)} s)`);
     assert(r.cmate0 === 0, `the mate does not know before the report gets through (${r.cmate0})`);
-    assert(r.cmate === 2 && r.lmate === 'cooldown', `the report gets through: the mate is cautious, on edge (${r.cmate}, ${r.lmate})`);
+    assert(r.cmate === 2 && r.lmate === 'searching' && r.helps === 1, `the report gets through: the mate is cautious and (S19) hurries over to help search the body (${r.cmate}, ${r.lmate}, sent ${r.helps})`);
     assert(r.dark === 0, `a body in the dark at 6 m is not found (${r.dark})`);
   });
 
@@ -1112,7 +1115,7 @@ try {
     assert(a.seen === 1 && a.wc === 2 && a.left > 0, `the witness sees the kill, turns cautious and radios it (seen ${a.seen}, caution ${a.wc}, call ${a.left.toFixed(2)} s)`);
     assert(a.fc0 === 0, `the third guard does not know yet (${a.fc0})`);
     assert(a.fc === 0 && a.fl === 'unaware' && a.holds === 0, `witness taken out before his report: the section stays normal (${a.fc}, ${a.fl}, holds ${a.holds})`);
-    assert(b.fc === 2 && b.fl === 'cooldown' && b.wc === 2, `the report gets through: the third guard is cautious too (${b.fc}, ${b.fl})`);
+    assert(b.fc === 2 && b.fl === 'searching' && b.wc === 2, `the report gets through: the third guard is cautious too and (S19) helps search the body (${b.fc}, ${b.fl})`);
     assert(b.holdsMid === 1 && b.fcMid === 2, `the witness out, the third still knows: still cautious (holds ${b.holdsMid}, ${b.fcMid})`);
     assert(b.holdsEnd === 0, `everyone aware is out: the caution is gone (holds ${b.holdsEnd})`);
     assert(c.woke && c.wc === 1 && c.fc === 0 && c.holds === 0, `a knockout seen: the witness wakes him, timed caution, no hold (${c.woke}, ${c.wc}, ${c.fc}, holds ${c.holds})`);
