@@ -466,8 +466,8 @@ Read CLAUDE.md ("Sessions", "Heavy-usage throughput" incl. "Token rules"), ROADM
 unavoidable guards, stealth over shooting), then this file's "Now" (top entry).
 e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep laptop CPU under ~80%.
 1. Train 28 (origin/train/28) has #230 walk: fix any failure Test Runner reports at once.
-2. #229 S9: feature/guard-ai-a126 = S9 + walk + A126 + train 28 merge, PROTOCOL 38 (A140); feature/guard-ai-s9 is
-   fast-forwarded to it. Then Test Runner: coop, netmove, stealth-ai, takedown on that sha; green -> TRAIN-READY
+2. #229 S9 = 3c49981e (S9 + walk + A126 + train 28 merge 70279266, PROTOCOL 38, A140; s9 and a126 branches both there);
+   Test Runner asked: coop, netmove, stealth-ai, takedown on 3c49981e; green -> TRAIN-READY
    (train 29) for #229 (A126 rides inside it; never ship S9 without A126).
 3. #228 S16 7f91bf3a (test-only fix 2): Test Runner sectorops:6; green -> TRAIN-READY #228.
 4. S22 301ade39 (feature/guard-ai-s22, base walk): checker + Test Runner (stealth-ai, ct-warehouse, ctcourse,
