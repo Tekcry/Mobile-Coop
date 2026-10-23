@@ -366,6 +366,8 @@ export class CoopHost implements NetAttachment {
     if (!this.remoteRefs.includes(r.ref)) this.remoteRefs.push(r.ref);
     const at = this.restoreFor.get(r.id);
     if (at) at.until = this.time + 30;
+    // (E9-crate, A106) the crates it used: its prompt stays gone (`fill` false: no top-up)
+    for (const id of this.g.crates?.usedBy(r.id) ?? []) this.push({ e: 'crate', player: r.id, id, fill: false });
     this.g.hud.setNetNotice(null);
     this.g.app.toasts.show(`${r.avatar.info.name} rejoined`);
   }
@@ -839,6 +841,12 @@ export class CoopHost implements NetAttachment {
     return true;
   }
 
+  /** (E9-crate) Client `who` used weapons crate `id` for the first time (the host's ledger): it tops up (the `crate` event,
+   *  fill; its ammo is its own). */
+  crateUsed(who: string, id: string): void {
+    if (this.remotes.has(who)) this.push({ e: 'crate', player: who, id, fill: true });
+  }
+
   private onCommitted(by: string, kind: CKind, id: number, target: string): void {
     const self = by === this.s.selfId;
     const r = self ? null : this.remotes.get(by);
@@ -1067,12 +1075,13 @@ export class CoopHost implements NetAttachment {
   private items(): NetItem[] {
     const out: NetItem[] = [];
     // course devices (`c-` ids: switches, levers, pickups, bolts, the finish) first, so the cap never drops them (D48:
-    // a map's door items filled the list before them and the client saw no course prompts)
+    // a map's door items filled the list before them and the client saw no course prompts); (E9-crate, A107) the
+    // weapons crates too
     const list = this.g.interactables?.items ?? [];
     for (let pass = 0; pass < 2; pass++) {
       for (const it of list) {
         if (out.length >= MAX_ITEMS) break;
-        if (it.id.startsWith('c-') !== (pass === 0)) continue;
+        if ((it.id.startsWith('c-') || it.kind === 'crate') !== (pass === 0)) continue;
         const k = it.kind as NetItem['k'];
         if (!ITEM_KINDS.includes(k)) continue;
         out.push({ id: it.id, k, x: it.pos.x, y: it.pos.y, z: it.pos.z, yaw: it.node.rotation.y, label: it.label.slice(0, 24), hold: it.holdTime, reach: it.reach ?? 1.8, on: it.enabled && !it.done });

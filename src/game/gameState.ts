@@ -41,6 +41,7 @@ import type { Difficulty } from '../ai/enemyDefs';
 import { resolveDifficulty, type DifficultyDef } from '../ai/archetypes';
 import { Pickups } from './pickups';
 import { Interactables, type Interactable } from './interactables';
+import { WeaponCrates } from './weaponCrates';
 import { addDoorRows, DOOR_KIND, DoorMenuView, guardBehindDoor, type DoorOpt } from './doorMenu';
 import { addGrabRows, GRAB_KIND, GRAB_OPT_LABEL, GRAB_OPTS, GRAB_PASS, GrabMenuView, grabTriggerPick, hasInfo, type GrabOpt } from './grabMenu';
 import { ContextMenu, CtxNav, emptyCtxInput } from './contextMenu';
@@ -196,6 +197,8 @@ export interface NetAttachment {
   commitCancel?(id: number, reason: string, kind?: CKind): void;
   /** Host: a wall medkit station heals player `who` (false: down or at full health). */
   healAtStation?(who: string): boolean;
+  /** (E9-crate) Host: client `who` used crate `id` (the `crate` event, fill). */
+  crateUsed?(who: string, id: string): void;
   /** Co-op: the local player pinged (x, y, z), on an enemy (`target`) or a spot (''). */
   ping?(x: number, y: number, z: number, target: string): void;
   /** Contact shadows for the characters the net layer draws (remote players, puppets). */
@@ -361,6 +364,8 @@ export class GameState implements AppState {
   readonly enemyMgr: EnemyManager | null = null;
   readonly pickups: Pickups | null = null;
   readonly interactables: Interactables | null = null;
+  /** (E9-crate) The host's / solo's weapons crates and their per-player ledger (modes with enemies). */
+  readonly crates: WeaponCrates | null = null;
   readonly mode: GameMode | null = null;
   /** Bodies, switches, shot-out lights and alarm panels (modes with enemies). */
   readonly stealth: StealthSystems | null = null;
@@ -659,6 +664,7 @@ export class GameState implements AppState {
       w.pickups = new Pickups(this.scene, world.parts, world.layout.pickups);
       w.pickups.onPickup = (k, who) => this.pickedUp(k, who);
       w.interactables = new Interactables(this.scene, world.parts);
+      w.crates = new WeaponCrates(this);
       this.addMedkitWalls(w.interactables);
       w.mode =
         opts.mode === 'clear'
