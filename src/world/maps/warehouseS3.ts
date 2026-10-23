@@ -53,7 +53,7 @@ export const S3_SWITCHES: NonNullable<MapLayout['switches']> = [
   { pos: new Vector3(2.15, 0, 13.0), yaw: PI / 2, group: 57 },
 ];
 
-export const S3_PICKUPS: NonNullable<MapLayout['pickups']> = [{ pos: new Vector3(-3.4, 0, 3.0), kind: 'ammo' }];
+export const S3_PICKUPS: NonNullable<MapLayout['pickups']> = [];
 
 /**
  * (sector-fixes R3, docs/sector-fixes/r/R3.md) Section 3's co-op-only routes. Plan boxes [x0, x1] x [z0, z1], slab tops (m).
