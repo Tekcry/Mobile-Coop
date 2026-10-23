@@ -144,6 +144,12 @@ export class Silhouettes {
     return this.n;
   }
 
+  /** (LR16-6) The figures' emissive grey (a uniform: no shader rebuild). */
+  setGrey(k: number): void {
+    const c = this.mat.emissiveColor;
+    if (c.r !== k || c.g !== k || c.b !== k) c.set(k, k, k);
+  }
+
   /** Opacity 0..1 (0 hides the meshes). */
   setAlpha(a: number): void {
     this.mat.alpha = a;

@@ -39,8 +39,10 @@ export const THERMAL = {
   bodyEmit: 0.85,
   /** A fresh body cools over this (s). */
   coolTime: 60,
-  /** A guard behind a closed door: the silhouette's emissive grey (lands low on the ramp: dim blue) and range (m). */
-  doorGhost: 0.72,
+  /** A guard behind a closed door: the silhouette's grey as the thermal pass reads it (display luma; lands low on the
+   *  ramp: CT's dim blue, 052901 12.5 s) and range (m). (LR16-6: 0.72 -> 0.62; 0.72 x the pipeline's exposure read
+   *  ~0.75, heat ~0.5, teal-green, not dim. `DoorGhosts` divides out the exposure.) */
+  doorGhost: 0.62,
   doorRange: 14,
   /** (LR16-6, G102) The silhouette is drawn on the camera side of the shut leaf, this far in front of its centre line
    *  (m; the leaf is `DOOR.thickness` 0.05, so 0.025 a side): each joint slides along its own camera ray, so the figure

@@ -4,7 +4,7 @@ import { G } from '../physics/groups';
 import type { Doors } from '../world/doors';
 import type { CharacterRig } from '../player/characterRig';
 import { Silhouettes, type PointWarp } from './silhouettes';
-import { closedDoorIndex, doorPlaneFactor, ghostWarm, inGhostRange, type GhostDoor } from './thermalGhost';
+import { closedDoorIndex, doorPlaneFactor, ghostEmissive, ghostWarm, inGhostRange, type GhostDoor } from './thermalGhost';
 
 export { closedDoorCrossing, type GhostDoor } from './thermalGhost';
 
@@ -29,7 +29,8 @@ const BODY_SLACK = 0.3;
  * draw calls for all of them, no texture, no new pass), each joint slid along its own camera ray to `THERMAL.doorFront`
  * in front of the leaf (`doorPlaneFactor`): it looks exactly like the body would, drawn with the normal depth test, so
  * the player or a crate in front still covers it and the wall faces round the frame clip what spills past the leaf. The
- * emissive grey `THERMAL.doorGhost` lands low on the thermal ramp (dim blue). No allocation per frame.
+ * thermal pass reads it at `THERMAL.doorGhost` (`ghostEmissive` takes out the exposure): low on the ramp, dim blue; the
+ * pass's 4-tap soften blurs its edge. No allocation per frame.
  */
 export class DoorGhosts implements PointWarp {
   private readonly fig: Silhouettes;
@@ -43,7 +44,7 @@ export class DoorGhosts implements PointWarp {
   private last = 0;
 
   constructor(
-    scene: Scene,
+    private scene: Scene,
     private doors: Doors,
     private ray: (from: Vector3, to: Vector3, mask: number) => { hit: boolean; distance: number },
   ) {
@@ -70,6 +71,8 @@ export class DoorGhosts implements PointWarp {
     const n = this.fig.count;
     if (n > 0 || this.last > 0) this.fig.end();
     this.last = n;
+    // the grey the thermal pass reads stays `THERMAL.doorGhost` whatever the image-processing exposure
+    if (n > 0) this.fig.setGrey(ghostEmissive(this.scene.imageProcessingConfiguration.exposure));
     this.fig.setAlpha(n > 0 ? 1 : 0);
   }
 

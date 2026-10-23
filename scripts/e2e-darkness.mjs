@@ -144,6 +144,136 @@ async function readLuma(page) {
   }, png.toString('base64'));
 }
 
+/** Mean sRGB (0..255) of a centre square of the final image. */
+async function readRgb(page, size = 24) {
+  const vp = page.viewportSize();
+  const png = await page.screenshot({ clip: { x: Math.floor((vp.width - size) / 2), y: Math.floor((vp.height - size) / 2), width: size, height: size } });
+  return page.evaluate(async (b64) => {
+    const img = await createImageBitmap(await (await fetch(`data:image/png;base64,${b64}`)).blob());
+    const c = new OffscreenCanvas(img.width, img.height);
+    const x = c.getContext('2d');
+    x.drawImage(img, 0, 0);
+    const px = x.getImageData(0, 0, img.width, img.height).data;
+    const n = img.width * img.height;
+    const s = [0, 0, 0];
+    for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) s[k] += px[i * 4 + k];
+    return s.map((v) => Math.round(v / n));
+  }, png.toString('base64'));
+}
+
+/**
+ * (LR16-6, G100 / G102) Thermal. The vision button's cut is instant: the first frame drawn after the press is the new
+ * mode (no 0.2 s flip). A guard standing behind a shut door shows as a dim blue silhouette over the leaf (the door's
+ * centre on screen turns blue against the same view with the guard gone); the door opened, no silhouette (the body
+ * itself shows). Render only: nothing here touches gameplay state but the guard's and the player's placement.
+ */
+async function thermalChecks(page, look) {
+  const cut = await page.evaluate(() => new Promise((res) => {
+    const g = window.__app.current;
+    g.vision.set('off');
+    g.vision.selected = 'thermal';
+    requestAnimationFrame(() => {
+      g.vision.toggle();
+      const o = g.scene.onAfterRenderObservable.add(() => {
+        g.scene.onAfterRenderObservable.remove(o);
+        res({ kind: g.post.visionKind, mode: g.vision.mode });
+      });
+    });
+  }));
+  assert(cut.kind === 1 && cut.mode === 'thermal', `${look.name}: the vision button cuts to thermal on the first frame (G100) (${JSON.stringify(cut)})`);
+  // shut hinged doors with walkable floor 1.2 m behind and 2.2 m in front (either side), nearest the map's middle first
+  const cands = await page.evaluate(() => {
+    const g = window.__app.current;
+    const nav = g.nav;
+    const out = [];
+    for (const d of g.world.doors.list) {
+      const a = d.anchor;
+      if (d.open > 0 || a.leaf === 'slide' || a.locked) continue;
+      const ex = Math.sin(a.yaw), ez = Math.cos(a.yaw);
+      const mx = a.hinge.x + (ex * a.width) / 2, mz = a.hinge.z + (ez * a.width) / 2;
+      const walk = (x, z) => {
+        const c = nav.cellOf(x, z, a.hinge.y);
+        return c >= 0 && nav.isWalkable(c) && Math.abs(nav.height[c] - a.hinge.y) < 0.3;
+      };
+      for (const s of [1, -1]) {
+        const nx = ez * s, nz = -ex * s;
+        if (walk(mx + nx * 1.2, mz + nz * 1.2) && walk(mx - nx * 2.2, mz - nz * 2.2) && walk(mx - nx * 1.2, mz - nz * 1.2)) {
+          out.push({ i: d.index, mx, mz, y: a.hinge.y, nx, nz });
+          break;
+        }
+      }
+    }
+    return out.slice(0, 6);
+  });
+  assert(cands.length > 0, `${look.name}: a shut hinged door with floor on both sides for the thermal check`);
+  const place = (c, guardIn) => page.evaluate(([c, guardIn]) => {
+    const g = window.__app.current;
+    const p = g.player;
+    const V = p.position.constructor;
+    g.target.health.invulnerable = true;
+    // the HUD hidden (the crosshair sits on the read square); the world keeps running
+    document.body.classList.add('photo-mode');
+    const bd = g.world.level.bounds;
+    const es = (g.enemyMgr?.enemies ?? []).filter((e) => e.alive && !e.def.quadruped);
+    es.forEach((e, k) => {
+      // still, no brain: the interpolation keeps up with the placement
+      e.update = () => e.prevPos.copyFrom(e.pos);
+      if (k === 0 && guardIn) e.pos.set(c.mx + c.nx * 1.2, c.y, c.mz + c.nz * 1.2);
+      else e.pos.set(bd.minX + 1 + k * 0.5, c.y - 40, bd.minZ + 1);
+      e.prevPos.copyFrom(e.pos);
+    });
+    const yaw = Math.atan2(c.nx, c.nz);
+    p.controller.teleport(new V(c.mx - c.nx * 2.2, c.y, c.mz - c.nz * 2.2), yaw);
+    p.cam.yaw = yaw;
+    p.cam.pitch = 0;
+    return es.length;
+  }, [c, guardIn]);
+  const state = (i) => page.evaluate((i) => {
+    const g = window.__app.current;
+    return { ghosts: g.doorGhosts?.count ?? -1, kind: g.post.visionKind, open: g.world.doors.list[i]?.open };
+  }, i);
+  let hit = null;
+  for (const c of cands) {
+    const n = await place(c, true);
+    assert(n > 0, `${look.name}: a live guard for the thermal door check`);
+    await frames(page, 30);
+    const st = await state(c.i);
+    if (st.ghosts === 1) {
+      hit = c;
+      break;
+    }
+  }
+  assert(hit, `${look.name}: thermal shows a guard behind a shut door as a silhouette at one of ${cands.length} doors (G102)`);
+  const ghost = await readRgb(page);
+  await place(hit, false);
+  await frames(page, 30);
+  const none = await readRgb(page);
+  const st0 = await state(hit.i);
+  console.log(`  ${look.name} thermal at door ${hit.i}: silhouette rgb ${ghost}, guard gone rgb ${none} (ghosts ${st0.ghosts})`);
+  assert(st0.ghosts === 0, `${look.name}: no silhouette with the guard gone (${JSON.stringify(st0)})`);
+  // dim blue, low on the ramp (CT): blue well over the empty door's, not the warm green / yellow of a body in the open
+  assert(ghost[2] - none[2] > 40 && ghost[0] < 70 && ghost[1] < 110, `${look.name}: the silhouette reads dim blue over the leaf (${ghost} vs ${none})`);
+  // the door opened: no silhouette (the body itself shows)
+  await place(hit, true);
+  await page.evaluate((i) => { const g = window.__app.current; g.world.doors.setOpen(g.world.doors.list[i], true); }, hit.i);
+  await frames(page, 60);
+  const st1 = await page.evaluate((i) => ({ ghosts: window.__app.current.doorGhosts?.count ?? -1, open: window.__app.current.world.doors.list[i].open }), hit.i);
+  assert(st1.open > 0 && st1.ghosts === 0, `${look.name}: the door open, no silhouette (${JSON.stringify(st1)})`);
+  // off: an instant cut back, nothing drawn
+  const off = await page.evaluate(() => new Promise((res) => {
+    const g = window.__app.current;
+    requestAnimationFrame(() => {
+      g.vision.toggle();
+      const o = g.scene.onAfterRenderObservable.add(() => {
+        g.scene.onAfterRenderObservable.remove(o);
+        res({ kind: g.post.visionKind, mode: g.vision.mode, ghosts: g.doorGhosts?.count ?? -1 });
+      });
+    });
+  }));
+  await page.evaluate(() => document.body.classList.remove('photo-mode'));
+  assert(off.kind === 0 && off.mode === 'off' && off.ghosts === 0, `${look.name}: the vision button cuts back to off on the first frame (${JSON.stringify(off)})`);
+}
+
 for (const look of LOOKS) {
   try {
     const { browser, page, errors } = await launch({ url, params: look.params, viewport: { width: 640, height: 360 } });
@@ -215,6 +345,7 @@ for (const look of LOOKS) {
     });
     assert(mv.bloom.runs >= mv.n - 2 && mv.bloom.glow && mv.bloom.scale > 0, `${look.name}: night vision's bloom runs every frame (${JSON.stringify(mv.bloom)})`);
     assert(mv.night > 0.5 && mv.moved >= mv.n - 1, `${look.name}: turning in night vision, every frame reads as moving (${JSON.stringify(mv)})`);
+    await thermalChecks(page, look);
     // (the hardware driver warns about a program a disposed probe's material had in flight: Babylon polls it once more; e2e-desktop filters it too)
     const bad = errors.filter((e) => !/favicon|net::ERR|WebSocket|webrtc|glGetProgramiv: Program object expected/i.test(e));
     assert(bad.length === 0, `${look.name}: no console errors${bad.length ? ': ' + bad.slice(0, 3).join(' | ') : ''}`);

@@ -80,3 +80,13 @@ export function doorPlaneFactor(d: GhostDoor, cx: number, cz: number, px: number
   if (!(f < 1)) return 1;
   return f < 0.02 ? 0.02 : f;
 }
+
+/**
+ * The silhouette material's emissive grey for the scene's image-processing exposure, so the thermal pass reads
+ * `THERMAL.doorGhost` (display luma). A StandardMaterial colour is display-space: with the pipeline's image processing it
+ * goes to linear, is scaled by the exposure and comes back, so the display value grows by exposure^(1/2.2) (the
+ * tone map is the identity in this range; contrast is left out).
+ */
+export function ghostEmissive(exposure: number): number {
+  return THERMAL.doorGhost / Math.pow(exposure > 0 ? exposure : 1, 1 / 2.2);
+}

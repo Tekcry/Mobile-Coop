@@ -155,7 +155,9 @@ behind a VPN adapter).
 - `e2e-darkness` (GPU list) display brightness targets (bible L5): on the Warehouse a matte 50% grey card (`World.addLightProbe`)
   at field levels ~0.12 / 0.27 / 0.40 / 0.70, the camera 0.8 m in front, the HUD hidden; the screenshot centre as Rec.
   709 luma at Epic, night vision off and on (`REPORT=1` prints without asserting); turning with night vision on reads
-  as moving every frame; night vision's bloom runs every frame
+  as moving every frame; night vision's bloom runs every frame; (LR16-6) thermal: the button cuts on the first frame
+  both ways, a guard placed 1.2 m behind a shut hinged door shows one silhouette that reads dim blue at the screen
+  centre against the same view with him gone, none with the door open
 - `e2e-coop-gpu` (GPU list, port 4189) the real menu flow, two players (shared and separate contexts at High, shared at Epic; `COOPGPU_ALL=1` adds separate at Epic): fails on a "failed to load" console message, no host avatar or LOD on the joiner, the host not drawn (body mesh enabled, visible, active, bounds over 0.5 m), or "Connecting to host" still shown; `scripts/repro-coop-avatar.mjs` is the diagnostic version
 - `e2e-combat` weapons (rifle, `pistolSd` magazine 15), hits, headshots, reload, swap, grenades, barrels, death /
   respawn

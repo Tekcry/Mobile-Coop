@@ -233,6 +233,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   feet cast shadows now (accepted).
 - [ ] Wheel carousel: hold LB (Tab), put the cursor on the vision slot, A (E) cycles night, thermal, electro; release
   selects it. The wheel reopens on that mode. A off the vision slot does nothing.
+- [ ] (LR16-6) Thermal behind a shut door: in Sector Ops or Marlow Yard pick thermal, stand a few metres from a shut door
+  with a guard (or your partner) behind it: a dim blue figure in his pose shows on the door, moves as he moves, and goes
+  when the door opens (his body shows instead), behind a wall or glass, or past ~14 m; your own body in front of the
+  door still covers it. Every vision change (button or wheel) is an instant cut with the HUD label.
 - [ ] (sector-fixes W) The wheel opens on the vision slot: hold LB and tap A with the right stick untouched, the mode
   cycles. Push the stick onto a gun, then let go of the stick: the vision slot lights again (nothing stays picked). Push
   onto a gun and let go of the stick and LB together: the gun is picked. Keys: hold Tab, E cycles; move the mouse out to

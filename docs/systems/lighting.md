@@ -15,9 +15,9 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   `DOOR_SHUT` 0.05 in `world/lightField.ts`.
 - Decided, not built yet (G45): clear glass passes light and sight; frosted glass and blinds pass light only; thermal never
   sees through glass. No glass rule exists in the light field yet.
-- Decided, not built yet (G100, G101, G102): an instant goggle cut in CT's order (thermal, electro, night, off), CT grain,
-  thermal as CT (CT colour ramp; people behind closed doors as a dim silhouette). Code: the 0.2 s flip and grain on every
-  mode, below.
+- Built (G100, G101, G102; prototype A5, lr16v, LR16-6): an instant goggle cut (G181: the wheel picks the mode, one
+  button toggles it), CT grain (thermal on warm areas only, none in electro), thermal as CT (CT colour ramp; people
+  behind closed doors as a dim blue silhouette, below).
 - Decided, not built yet (G69, G73): an original goggle (no three-lens look); a dim glow on the brow with vision off, a full
   glow over the eyes with vision on. Code: `player/goggleGlow.ts` lights the current lenses always.
 - Decided (G47): the parity test, long lamps and motion lights keep their plans and are sorted out when built.
@@ -259,8 +259,9 @@ change.
   (the night-vision smear; `e2e-darkness` checks a turning camera reads as moving). Per-frame code must not call
   `getViewMatrix` / `getTransformationMatrix` / `getDirection*` / `getWorldMatrix` on the active camera before the scene
   renders.
-- The switch: `VisionState` flips over `VISION.flip` 0.2 s and switches at the middle; `CinematicPost` draws the housing as
-  a dark band sweeping down (on) or up (off) (`flipCentre`). Replaced by an instant cut (G100).
+- The switch (G100): an instant cut. `VisionState` has no flip; the first frame drawn after the button or a wheel pick is
+  the new mode (`e2e-darkness` thermal leg). A change of mode on screen flashes the HUD label for 1.5 s; the goggle sound
+  plays on on / off only (G181). Wren's goggle moving to the eyes is the figure's (`figure.setVision`), not the picture's.
 
 ## Thermal and electro (locomotion step 14)
 - `vfx/visionLook.ts` (pure, GLSL `VISION_GLSL`): a `vk` branch in the cinematic post pass (1 thermal, 2 electro). No new
@@ -268,6 +269,20 @@ change.
   instance, or per vertex on merged guard bodies), a white emissive added to the lit colour; the ramp then colours by luma.
   Thermal softens with 4 taps in the same pass. Sensor grain and softening on all three modes (A87). Render-only: the light
   meter, the light bake and guard perception never read it.
+- Through a shut door (G102, LR16-6; `vfx/doorGhosts.ts`, pure rules `vfx/thermalGhost.ts`,
+  `tests/thermalThroughDoor.test.ts`): every rig in `LIVE_RIGS` but the local player's and a dog's hidden stand-in
+  (`CharacterRig.standIn`), with thermal heat >= `THERMAL.doorMinHeat` x `bodyEmit` (guards, partners, a body for its
+  first 30 s), within `THERMAL.doorRange` 14 m, whose floor line from the camera crosses a fully shut leaf (`open` 0)
+  with nothing else static or glass on the sight line (two rays, `G.STATIC | G.GLASS`, the leaf left out). The figure is
+  the rig's posed limbs and head (`vfx/silhouettes.ts`, up to `THERMAL.doorMax` 8 figures in 2 thin-instanced draw
+  calls), each joint slid along its own camera ray to `THERMAL.doorFront` 0.06 m in front of the leaf: it looks exactly
+  like the body, keeps the normal depth test (the player or a crate in front covers it; the wall faces round the frame
+  clip what spills past the leaf). The thermal pass reads it at `THERMAL.doorGhost` 0.62 (`ghostEmissive` divides out
+  the image-processing exposure): heat ~0.15, CT's dim blue. Cost: no texture, no sampler, no pass; 2 draws while a
+  figure shows, 0 otherwise; per frame in thermal a range check per live rig, a door loop and 2 Havok rays per
+  candidate behind a shut door. Each peer draws its own (host and client both walk `LIVE_RIGS`; vision is never sent).
+  Guards the Sector Ops render freeze disabled still show (their root follows the sim; the pose is the last solved).
+  Photo mode skips the vision frame, so a photo keeps the silhouettes of the frame it froze on.
 - What glows in each mode: `docs/systems/gadgets.md`.
 - The goggle glow (`player/goggleGlow.ts`): the goggle lenses and a rear battery LED as emissive instances of one unlit
   sphere (one draw), always on (brighter in a vision mode), hidden with the head. Visual only.

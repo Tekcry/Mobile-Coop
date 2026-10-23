@@ -2,8 +2,8 @@
 // nothing else on the sight line, never the local player or a dog's hidden stand-in rig) and where the figure is drawn
 // (each joint slid along its own camera ray to just in front of the leaf, so it looks exactly like the body would).
 import { describe, expect, it, vi } from 'vitest';
-import { closedDoorIndex, doorPlaneFactor, ghostWarm, inGhostRange, type GhostDoor } from '../src/vfx/thermalGhost';
-import { THERMAL } from '../src/vfx/visionLook';
+import { closedDoorIndex, doorPlaneFactor, ghostEmissive, ghostWarm, inGhostRange, type GhostDoor } from '../src/vfx/thermalGhost';
+import { heatOf, THERMAL, thermalColor } from '../src/vfx/visionLook';
 
 // a leaf on the line x = 0, hinge (0, -0.5), 1 m wide along +z (yaw 0: edge (sin 0, cos 0))
 const door = (open = 0): GhostDoor => ({ open, anchor: { yaw: 0, width: 1, hinge: { x: 0, z: -0.5 } } });
@@ -33,6 +33,20 @@ describe('thermal through a shut door: the pure rules', () => {
     // a body cools in 1/16 steps (gameState.paintHeat): 8/16 still shows, 7/16 no longer
     expect(ghostWarm((e * 8) / 16)).toBe(true);
     expect(ghostWarm((e * 7) / 16)).toBe(false);
+  });
+
+  it('the look: CT dim blue, low on the ramp, whatever the exposure (bodies in the open stay far warmer)', () => {
+    const c = thermalColor(THERMAL.doorGhost);
+    expect(heatOf(THERMAL.doorGhost)).toBeGreaterThan(0.05);
+    expect(heatOf(THERMAL.doorGhost)).toBeLessThan(THERMAL.stops[2]![0]);
+    expect(c[2]).toBeGreaterThan(0.7);
+    expect(c[0]).toBeLessThan(0.1);
+    expect(c[1]).toBeLessThan(0.15);
+    expect(heatOf(0.97)).toBeGreaterThan(0.8);
+    // the pipeline's exposure 1.08 brightens a display-space colour by 1.08^(1/2.2): divided out
+    expect(ghostEmissive(1)).toBeCloseTo(THERMAL.doorGhost, 9);
+    expect(ghostEmissive(1.08) * Math.pow(1.08, 1 / 2.2)).toBeCloseTo(THERMAL.doorGhost, 9);
+    expect(ghostEmissive(0)).toBeCloseTo(THERMAL.doorGhost, 9);
   });
 
   it('the figure plane: every point behind the leaf lands THERMAL.doorFront in front of it, on its own camera ray', () => {
