@@ -201,6 +201,12 @@ export function validatePosts(slots: readonly GuardSlot[], label = 'slot'): stri
   return errs;
 }
 
+/** (guard-ai S5) The load-time check's output (dev and tests only; the callers gate on `import.meta.env.DEV`): one
+ *  console warning per error, prefixed with `where`. Warnings, never a throw: a bad post must not stop a map loading. */
+export function reportGuardAi(where: string, errs: readonly string[]): void {
+  for (let i = 0; i < errs.length; i++) console.warn(`guard-ai data (${where}): ${errs[i]}`);
+}
+
 export interface ValidateGuardAiOpts {
   /** Map plan bounds: entries (and their routes) and noisy sources must lie inside. */
   bounds?: PlanBounds;

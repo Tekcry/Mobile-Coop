@@ -36,11 +36,14 @@ import type { LightField } from '../world/lightField';
 import { ARCHETYPE, carriesTorch, glint, heavyMult, shieldBlocks, smellRate, sniperRelocate, torchRule, type DifficultyDef } from './archetypes';
 import { placeTorch } from '../world/torches';
 import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
-import { INCIDENT, MODE_COVER, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT } from './incidents';
+import { INCIDENT, MODE_BODY, MODE_COVER, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT } from './incidents';
 import type { GuardInfo } from './guardInfo';
 import type { CallKind } from './radioNet';
 import { LC_DONE, LC_FACE, LightCheck, type LightCheckWalker } from './lightCheck';
+import { clampToLeash, inLeash, LURE, lurePoint, POST, PostLure, type PostDef, type PostLureOut } from './posts';
+import type { BehaviourProfile } from './guardAiData';
 import { DogModel } from './dogModel';
+import { CAUTION } from './awareness';
 import type { InstancedMesh } from '../core/babylon';
 
 export type EnemyState = 'idle' | 'chase' | 'attack' | 'seekCover' | 'inCover' | 'melee' | 'dead';
@@ -111,7 +114,8 @@ export interface AiContext {
   addBody(e: Enemy, rig: CharacterRig, impulse: Vector3, lethal: boolean): void;
   bodies(): readonly Body[];
   bodyFound(e: Enemy, b: Body): void;
-  revive(b: Body): void;
+  /** Wake the knocked-out guard of body `b`; `by` woke him (guard-ai S4: both turn cautious, timed). */
+  revive(b: Body, by: Enemy): void;
   alarmRaised(): boolean;
   raiseAlarm(e: Enemy, p: AlarmPanel): void;
   /** Stealth rules: enemies only know where the target is from what they see and hear (else they are
@@ -147,10 +151,12 @@ const rand = (a: number, b: number): number => a + Math.random() * (b - a);
  * Calm paces (x the combat walk, which is a slow aimed walk). (guard-ai S2, A9) Coordinated guards investigate at 0.85
  * and search at 0.75 (they were faster than the patrol: backwards); the parked modes (Hunter, Mission) keep the old
  * 1.2 / 1.3. Patrol 1.1 is unchanged (the Sector pace checks, `CHECK_PATROL_PACE`). Walking to wake a knocked-out
- * squadmate keeps 1.3 until S4 (bodies).
+ * squadmate keeps 1.3 (he hurries to a man down). (guard-ai S4, A9) A cautious guard patrols at 0.95 (not on a timed
+ * loop: its schedule is the map's).
  */
 export const PACE = {
   patrol: 1.1,
+  cautious: 0.95,
   investigate: 0.85,
   search: 0.75,
   revive: 1.3,
@@ -241,6 +247,9 @@ export class Enemy implements Damageable {
   private incMode = 0;
   /** (guard-ai S3) Sent to a plain noise or a lure (not gunfire): an empty investigation ends calm (`calmEnd`). */
   private incCalm = false;
+  /** (guard-ai S7) The body a camera saw that the board sent him to (`checkBody`), null none; and seconds on the walk. */
+  camBody: Body | null = null;
+  private camBodyT = 0;
   /** The light check (`lightCheck.ts`, pure); `lightC` its light's floor point (the e2e reads it). */
   private readonly lc = new LightCheck();
   readonly lightC: P2 = this.lc.c;
@@ -522,6 +531,7 @@ export class Enemy implements Damageable {
   /** Walk a route while unaware (null = stand post at the spawn point). */
   setPatrol(route: PatrolRoute | null): void {
     this.walker = new PatrolWalker(route, this.post[0], this.post[1], this.yaw, this.num);
+    this.setCaution(this.caution);
   }
 
   /** 0 standing .. 1 crouched (cover). */
@@ -590,6 +600,55 @@ export class Enemy implements Damageable {
   passive = false;
   /** (PR 3) What INTERROGATE gets out of him (null: nothing, or spent); set by the squad slot that spawned him. */
   info: GuardInfo | null = null;
+  /** (guard-ai S4, design 4) Stable guard key in his section (0-31: the awareness roster), stamped at spawn by the
+   *  manager and kept by a woken guard (`inherit`); -1 none (keys run out, or no manager). */
+  key = -1;
+  /** (guard-ai S4) His caution (`awareness.ts` `Caution`: 0 none, 1 timed, 2 held), written by the manager. */
+  caution = 0;
+
+  /** (guard-ai S4) Set his caution: cautious he stays on edge (cooldown: sight x `CAUTION.sens`), patrols at
+   *  `PACE.cautious` and pauses x `CAUTION.waitMul`. */
+  setCaution(c: number): void {
+    this.caution = c;
+    this.walker.waitMul = c > 0 ? CAUTION.waitMul : 1;
+  }
+
+  /**
+   * (guard-ai S4) A woken guard is the guard who went down (`EnemyManager.revive` builds a new `Enemy` on the body):
+   * his key, squad, held room, passive flag, what he knows (`info`, unless spent), the sniper post and his patrol
+   * walker (route, post and facing; its clock moved on by `downFor` s, so a timed loop rejoins where the schedule
+   * says), back on the route at the nearest point. (guard-ai S5) He keeps his post too: the leash (centre `post`),
+   * its facing and high security, his section and profile (any lure in progress is dropped).
+   */
+  inherit(o: Enemy, downFor = 0): void {
+    this.key = o.key;
+    this.squad = o.squad;
+    this.hold = o.hold;
+    this.passive = o.passive;
+    this.info = o.info;
+    this.post[0] = o.post[0];
+    this.post[1] = o.post[1];
+    this.setPost(o.postDef, o.postYaw);
+    this.section = o.section;
+    this.profile = o.profile;
+    this.walker = o.walker;
+    this.walker.tick(downFor);
+    this.walker.rejoin(this.pos.x, this.pos.z);
+    this.setCaution(0);
+  }
+
+  /** (guard-ai S4, M3) The knockout search: search round (x, z) from now (a waker already searching starts over, so
+   *  he and the woken guard search `CAUTION.koSearch` together). */
+  koSearch(x: number, z: number): void {
+    if (!this.alive || this.alerted) return;
+    if (this.aware.level === 'searching') {
+      this.aware.t = 0;
+      this.searchK = 0;
+      this.spotSet = false;
+      this.combatSearch = false;
+    }
+    this.searchAt(x, z, null);
+  }
 
   /** The perception multiplier: difficulty, plus an officer close by. */
   private get perceptionMul(): number {
@@ -719,6 +778,60 @@ export class Enemy implements Damageable {
     this.turnT = 0;
   }
 
+  /**
+   * (guard-ai S7, design 9, M6) A camera saw a downed guard and the board sends him to it: no pause to look first (it
+   * is an order over the radio, like the light check), straight to investigating at the investigate pace towards the
+   * body. Close to it, with a clear line to it, the body-found path takes over (`AiContext.bodyFound`: a knocked-out
+   * guard is woken, the area searched). The body gone (carried, hidden, found by someone else) or the walk over
+   * `INCIDENT.bodyWalk` s: he looks round where he is (the usual end of an investigation). A glimpse drops it.
+   */
+  checkBody(b: Body, incident: number): void {
+    if (!this.sendable) return;
+    this.incident = incident;
+    this.incMode = MODE_BODY;
+    this.turnT = 0;
+    this.camBody = b;
+    this.camBodyT = 0;
+    this.stimulus[0] = b.pos.x;
+    this.stimulus[1] = b.pos.z;
+    this.hasStimulus = true;
+    this.bark('checking');
+    const from = this.aware.level;
+    if (from !== 'investigating') {
+      this.aware.set('investigating');
+      this.onLevel(from, 'investigating');
+    }
+    this.spotSet = false;
+  }
+
+  /** (guard-ai S7) Per step on the walk to a camera's body (`checkBody`): follow it, hand over to the body-found path. */
+  private stepCamBody(dt: number): void {
+    const b = this.camBody;
+    if (!b) return;
+    this.camBodyT += dt;
+    if (this.aware.level !== 'investigating') {
+      this.camBody = null;
+      return;
+    }
+    if (this.meter >= PERCEPTION.investigate) {
+      // a glimpse: he investigates what he saw (the board sees him off its task)
+      this.camBody = null;
+      this.incident = -1;
+      return;
+    }
+    if (!b.present || b.found || b.carried || b.hidden || this.camBodyT >= INCIDENT.bodyWalk) {
+      this.camBody = null;
+      return;
+    }
+    this.stimulus[0] = b.pos.x;
+    this.stimulus[1] = b.pos.z;
+    if (hyp2(b.pos.x - this.pos.x, b.pos.z - this.pos.z) >= BODY.close) return;
+    this.tmpHips.set(b.pos.x, b.pos.y + 0.15, b.pos.z);
+    if (!this.losTo(this.eye(this.tmpEye), this.tmpHips, 0.35)) return;
+    this.camBody = null;
+    this.ctx.bodyFound(this, b);
+  }
+
   /** (guard-ai S2) Someone else is checking what he perceived: look towards it `INCIDENT.ackLook` s and carry on
    *  (`copy`: say "Copy."). Already busy (sent, investigating, searching): only the line. */
   ack(x: number, z: number, copy: boolean): void {
@@ -769,7 +882,8 @@ export class Enemy implements Damageable {
     this.hasStimulus = true;
     this.searchReq = true;
     this.searchOwn = true;
-    if (revive) this.reviving = revive;
+    // (guard-ai S5) a high-security post wakes no one outside his leash (he searches from its edge)
+    if (revive && this.inLeash(revive.pos.x, revive.pos.z, 1)) this.reviving = revive;
   }
 
   /** Something caught the eye at (x, z) (not enough to walk over): raise the meter to `level` and look. */
@@ -779,6 +893,112 @@ export class Enemy implements Damageable {
     this.stimulus[0] = x;
     this.stimulus[1] = z;
     this.hasStimulus = true;
+  }
+
+  // ----- (guard-ai S5) posts: the leash, high security and the lure (design 6, goal 7, M1, A10, A12) -----
+
+  /** His post (`EnemyManager.placeSlot`): a leash circle of `postDef.leash` m round his spawn point (`post`), facing
+   *  `postYaw`; null = a free guard. A normal post is sent anywhere like any guard (`mayLeave`); a high-security one
+   *  (`secure`) never leaves the circle: searches, investigations and combat moves are clamped into it, the board never
+   *  sends him, and a distraction pulls him to the circle's edge (`lureTo`). */
+  postDef: PostDef | null = null;
+  postYaw = 0;
+  /** (guard-ai S5) His section (Sector Ops: the `SectorDef` index; other maps `sectionAt`) and behaviour profile
+   *  (read by S5b / S6; nothing acts on them yet). */
+  section = 0;
+  profile: BehaviourProfile = 'standard';
+  private readonly lure = new PostLure();
+  private readonly lureOut: PostLureOut = { x: 0, z: 0, yaw: 0, moving: false, phase: LURE.idle };
+  private readonly lureP: P2 = [0, 0];
+  private readonly lureGoal: { point: P2 | null; speed: number; face: number | null } = { point: null, speed: 0, face: null };
+  private readonly leashTmp: P2 = [0, 0];
+
+  /** (guard-ai S5) Give him a post (his spawn point is its centre; `yaw` his post facing), or none. */
+  setPost(def: PostDef | null, yaw: number): void {
+    this.postDef = def;
+    this.postYaw = yaw;
+    this.lure.cancel();
+  }
+
+  /** (guard-ai S5) A high-security post: never leaves his leash (`mayLeave` false). */
+  get secure(): boolean {
+    return this.postDef !== null && this.postDef.highSecurity === true;
+  }
+
+  /** (guard-ai S5) May he stand at (x, z)? Always for a free guard or a normal post; a high-security post: inside his
+   *  leash (+ `margin` m). */
+  inLeash(x: number, z: number, margin = 0): boolean {
+    const p = this.postDef;
+    if (!p || !p.highSecurity) return true;
+    return inLeash(x, z, this.post[0], this.post[1], p.leash + margin);
+  }
+
+  /** (guard-ai S5) The lure's phase (`LURE` in posts.ts: idle 0, walk 1, look 2, back 3, face 4, done 5). e2e / debug. */
+  get lurePhase(): number {
+    return this.lure.phase;
+  }
+
+  /** (guard-ai S5) The leash point he looks from (valid once lured). e2e / debug. */
+  get lureLook(): Readonly<P2> {
+    return this.lure.look;
+  }
+
+  /**
+   * (guard-ai S5, M1 "they should still be able to be distracted at least") A high-security posted guard is lured by a
+   * noise, a thrown item or a light cut in his area at (x, z): he walks to the point of his leash nearest it, looks
+   * toward it `POST.lureLook` s (sweep <= `POST.lureSweep`, A12), walks back and faces his post (`PostLure`). `radius`:
+   * the noise's effective reach at him (the meter floor, as `hearTurn`); 0 = a light (a fixed small floor). A new lure
+   * at the same leash point while he walks out or looks does not restart him. Anyone else: nothing (the board decides).
+   */
+  lureTo(x: number, z: number, radius = 0): void {
+    const p = this.postDef;
+    if (!p || !p.highSecurity || !this.alive || this.alerted || this.passive || this.taken) return;
+    const s = radius > 0 ? Math.min(noiseSuspicion(hyp2(x - this.pos.x, z - this.pos.z), radius), HEARING.turnMax) : PERCEPTION.suspicious + 0.02;
+    if (s > this.meter) this.meter = s;
+    const lvl = this.aware.level;
+    // already looking round (clamped into his leash): the meter only
+    if (lvl === 'investigating' || lvl === 'searching') return;
+    this.stimulus[0] = x;
+    this.stimulus[1] = z;
+    this.hasStimulus = true;
+    this.turnT = 0;
+    const lu = this.lure;
+    if (lu.phase === LURE.walk || lu.phase === LURE.look) {
+      lurePoint(x, z, this.post[0], this.post[1], p.leash, this.lureP);
+      if (hyp2(this.lureP[0] - lu.look[0], this.lureP[1] - lu.look[1]) < 1) return;
+    }
+    lu.start(x, z, this.post[0], this.post[1], this.postYaw, p.leash);
+  }
+
+  /** (guard-ai S5) One step of the lure: walk out (investigate pace), look, walk back, face the post. */
+  private lureStep(dt: number): { point: P2 | null; speed: number; face: number | null } {
+    const o = this.lureOut;
+    const lu = this.lure;
+    // at the target the previous step gave (the first step after `start` ignores it)
+    const at = hyp2(o.x - this.pos.x, o.z - this.pos.z) < POST.arrive + 0.05;
+    const was = lu.phase;
+    const ph = lu.step(dt, at, o);
+    if (ph === LURE.done && was !== LURE.done) this.walker.rejoin(this.pos.x, this.pos.z);
+    const g = this.lureGoal;
+    if (o.moving) {
+      this.lureP[0] = o.x;
+      this.lureP[1] = o.z;
+      g.point = this.goTo(this.lureP, dt, POST.arrive);
+      g.speed = this.def.walkSpeed * this.investigatePace;
+      g.face = null;
+    } else {
+      g.point = null;
+      g.speed = 0;
+      g.face = o.yaw;
+    }
+    return g;
+  }
+
+  /** (guard-ai S5) A combat move point clamped into a high-security leash (a scratch point; others unchanged). */
+  private leashed(p: Waypoint | null): Waypoint | null {
+    const d = this.postDef;
+    if (!p || !d || !d.highSecurity || inLeash(p[0], p[1], this.post[0], this.post[1], d.leash)) return p;
+    return clampToLeash(p[0], p[1], this.post[0], this.post[1], d.leash, this.leashTmp);
   }
 
   /** Assigned to raise the alarm at this panel. */
@@ -801,7 +1021,9 @@ export class Enemy implements Damageable {
     const o = this.torchOverride;
     if (typeof o === 'boolean') return o && carriesTorch(this.def);
     // (warehouse-redesign M1) dogs carry no light: the rule says no before the field is read
-    return torchRule(this.def, this.aware.level, this.los, this.def.quadruped ? 1 : field.levelAt(this.pos.x, this.pos.y + 1.4, this.pos.z), holding);
+    // (guard-ai S4, design 4) cautious and calm: the torch rule of a searching guard
+    const lvl = this.caution > 0 && this.aware.calmNow ? 'searching' : this.aware.level;
+    return torchRule(this.def, lvl, this.los, this.def.quadruped ? 1 : field.levelAt(this.pos.x, this.pos.y + 1.4, this.pos.z), holding);
   }
 
   /** (coop-torches) Tests / debug only: true or false forces the torch rule (`torchWanted`); null (always in play)
@@ -828,7 +1050,8 @@ export class Enemy implements Damageable {
     // (guard-ai S3) told by a shout or the radio: he answers, he did not see anyone
     else if (to === 'alert') this.bark(this.alertIn.called && this.netOn ? 'joining' : 'contact');
     else if (to === 'searching' && from === 'alert') this.bark(this.def.kind === 'officer' ? 'search' : 'lost');
-    else if (to === 'cooldown') this.bark(this.incident >= 0 ? 'standDown' : 'clear');
+    // (guard-ai S4) unaware -> cooldown is caution setting in: nothing to say
+    else if (to === 'cooldown' && from !== 'unaware') this.bark(this.incident >= 0 ? 'standDown' : 'clear');
     else if (to === 'unaware' && this.incident >= 0) this.bark('standDown');
     // (guard-ai S3) back from the board's task: his "nothing here" is a radio call (the section acks it)
     if ((to === 'cooldown' || to === 'unaware') && this.incident >= 0) this.ctx.radioCall?.(this, this.incident, 'standDown');
@@ -839,6 +1062,9 @@ export class Enemy implements Damageable {
       if (!keep) this.incident = -1;
     }
     if (to !== 'investigating') this.lc.stop();
+    if (to !== 'investigating') this.camBody = null;
+    // (guard-ai S5) a sighting, a search or combat takes over from a lure
+    if (to === 'investigating' || to === 'searching' || to === 'alert') this.lure.cancel();
     if (to === 'alert') {
       this.meter = 1;
       if (this.state === 'idle') this.setState('chase');
@@ -1164,6 +1390,8 @@ export class Enemy implements Damageable {
       this.called -= dt;
       if (this.called <= 0) this.alertIn.called = true;
     }
+    // (guard-ai S7) on the walk to a body a camera saw: the body-found path takes over there (`i.search` below)
+    if (this.camBody) this.stepCamBody(dt);
     const i = this.alertIn;
     i.meter = this.meter;
     // outside stealth rules (Wave) they are sent at the target: combat never cools into a search; nor does a
@@ -1181,10 +1409,14 @@ export class Enemy implements Damageable {
       this.lc.stop();
       this.incident = -1;
     }
-    i.hold = this.lc.active;
-    i.turning = this.turnT > 0;
+    // (guard-ai S7) the walk to a camera's body runs on its own clock too (`INCIDENT.bodyWalk`)
+    i.hold = this.lc.active || this.camBody !== null;
+    // (guard-ai S5) a lured posted guard is dealing with it: the linger rule does not walk him off his leash
+    i.turning = this.turnT > 0 || this.lure.active;
     // (guard-ai S3, S2 check polish 2) sent to a plain noise / lure: nothing found -> back to normal, no cooldown
     i.calmEnd = this.incident >= 0 && this.incMode === MODE_INVESTIGATE && this.incCalm;
+    // (guard-ai S4) cautious (a death he knows of, a knockout he found or woke from): on edge, never unaware
+    i.cautious = this.caution > 0;
     const from = this.aware.level;
     if (this.aware.step(dt, i)) this.onLevel(from, this.aware.level);
     // in combat without sight: arriving at the last known position with nothing there starts the search
@@ -1240,6 +1472,8 @@ export class Enemy implements Damageable {
     switch (lvl) {
       case 'unaware':
       case 'cooldown': {
+        // (guard-ai S5) a high-security post lured to his leash edge and back
+        if (this.lure.active) return this.lureStep(dt);
         // (guard-ai S1) a sound he was not sent to: stand and look towards it a moment (`hearTurn`)
         if (this.turnT > 0 && this.hasStimulus) return { point: null, speed: 0, face: Math.atan2(this.stimulus[0] - this.pos.x, this.stimulus[1] - this.pos.z) };
         // the dog heels beside its handler
@@ -1260,9 +1494,12 @@ export class Enemy implements Damageable {
         const ly = this.walker.lookYaw;
         // (walls in the way: along an A* path; the walker's own arrival radius decides when it is there)
         const wp = g ? (this.goTo(g, dt, 0.05) ?? g) : null;
-        return { point: wp, speed: def.walkSpeed * (this.walker.route?.loop ? 1 : PATROL_PACE), face: g || Number.isNaN(ly) ? null : ly };
+        // (guard-ai S4, A9) cautious: a slower, watchful patrol (a timed loop keeps its schedule's pace)
+        return { point: wp, speed: def.walkSpeed * (this.walker.route?.loop ? 1 : this.caution > 0 ? PACE.cautious : PATROL_PACE), face: g || Number.isNaN(ly) ? null : ly };
       }
       case 'suspicious': {
+        // (guard-ai S5) the lure's own suspicion: keep at it (a glimpse of something stops him to look)
+        if (this.lure.active && this.rate <= 0) return this.lureStep(dt);
         // stop and look at what caught the eye / ear
         const face = this.hasStimulus ? Math.atan2(this.stimulus[0] - this.pos.x, this.stimulus[1] - this.pos.z) : null;
         return { point: null, speed: 0, face };
@@ -1282,7 +1519,7 @@ export class Enemy implements Damageable {
               if (rv.reviveT >= BODY.reviveTime) {
                 this.reviving = null;
                 this.wantCrouch = false;
-                this.ctx.revive(rv);
+                this.ctx.revive(rv, this);
               }
               return { point: null, speed: 0, face: Math.atan2(rv.pos.x - this.pos.x, rv.pos.z - this.pos.z) };
             }
@@ -1317,6 +1554,9 @@ export class Enemy implements Damageable {
           this.spotLookT = 0;
         }
         if (this.hold && !inRoom(this.hold, this.spot[0], this.spot[1])) clampToRoom(this.hold, this.spot[0], this.spot[1], 0.8, this.spot);
+        // (guard-ai S5) a high-security post never joins a search outside his leash: he looks from its edge
+        const pd = this.postDef;
+        if (pd && pd.highSecurity) clampToLeash(this.spot[0], this.spot[1], this.post[0], this.post[1], pd.leash, this.spot);
         const d = hyp2(this.spot[0] - this.pos.x, this.spot[1] - this.pos.z);
         const there = d < 1.1;
         if (there) {
@@ -1419,7 +1659,8 @@ export class Enemy implements Damageable {
     this.knownPt[1] = known.z;
     this.advanceCd -= dt;
     // holding a room against a target outside it
-    const outside = this.hold !== null && !inRoom(this.hold, t.feet.x, t.feet.z, 1.5, t.feet.y);
+    // (guard-ai S5) a high-security post holds his leash the same way (radios, never chases out of it)
+    const outside = (this.hold !== null && !inRoom(this.hold, t.feet.x, t.feet.z, 1.5, t.feet.y)) || !this.inLeash(known.x, known.z, 1.5);
     if (this.doorCheck > 0 && !this.los) return { point: null, speed: 0, face: null };
 
     // ---- melee (runner) ----
@@ -1523,6 +1764,8 @@ export class Enemy implements Damageable {
         const sz = (dx / len) * this.strafe + (dz / len) * away;
         const sp: P2 = [this.pos.x + sx * 2, this.pos.z + sz * 2];
         if (this.hold) clampToRoom(this.hold, sp[0], sp[1], 0.6, sp);
+        const spd = this.postDef;
+        if (spd && spd.highSecurity) clampToLeash(sp[0], sp[1], this.post[0], this.post[1], spd.leash, sp);
         return { point: sp, speed: def.walkSpeed * (this.windup > 0 || this.burstLeft > 0 ? 0.3 : 0.55), face: toTarget };
       }
       case 'seekCover': {
@@ -1652,7 +1895,7 @@ export class Enemy implements Damageable {
       const cand: P2 = [p[0] + (-dz / l) * s, p[1] + (dx / l) * s];
       if (nav.lineClear(me, cand, this.pos.y)) p = cand;
     }
-    return p;
+    return this.leashed(p);
   }
 
   /** Next bound towards the last known position: cover closer to it (by 3 m at least), facing it, within 12 m. */
@@ -1667,6 +1910,7 @@ export class Enemy implements Damageable {
       if (dMe < 2.5 || dMe > 12) continue;
       if (Number.isFinite(ty) && Math.abs(c.pos.y - ty) > 2.5 && Math.abs(c.pos.y - this.pos.y) > 2.5) continue;
       if (this.hold && !inRoom(this.hold, c.pos.x, c.pos.z, -0.2, c.pos.y)) continue;
+      if (!this.inLeash(c.pos.x, c.pos.z)) continue;
       const dx = tp[0] - c.pos.x;
       const dz = tp[1] - c.pos.z;
       const dT = hyp2(dx, dz);
@@ -1703,6 +1947,7 @@ export class Enemy implements Damageable {
       if (dMe > (this.relocating ? 22 : 14)) continue;
       if (this.relocating && dMe < 5) continue;
       if (this.hold && !inRoom(this.hold, c.pos.x, c.pos.z, -0.2, c.pos.y)) continue;
+      if (!this.inLeash(c.pos.x, c.pos.z)) continue;
       // (from where they believe the target is: never the real position out of sight)
       const dx = this.knownPt[0] - c.pos.x;
       const dz = this.knownPt[1] - c.pos.z;
