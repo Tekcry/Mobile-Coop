@@ -1,6 +1,9 @@
 # Guard AI - state
 
 ## Now
+~18:55: carry fix check PASS (slices/CARRY-FIX-CHECK.md on the branch, 23cf567c); PR #240 OPEN to master (fix). Waiting:
+Test Runner watcher (e2e-guard-carry + stealth-ai on 48d049ad; suite on f16600f5 expect fail) -> TRAIN-READY #240.
+
 ~18:45: carry fix BUILT 48d049ad (src/player/bodyEffectRecovery.ts from SmoothBody.frame: an unready body effect that
 timed out / failed / lost its program, or never finishes in 8 s + 30 frames, is dropped (setEffect(null), dispose,
 cachedPipelines entry cleared) and recompiled, cap 3 per variant; Babylon polls 7500 x 16 ms then keeps the failed
@@ -534,10 +537,9 @@ Branch guard before every write. Read CLAUDE.md ("Sessions", "Heavy-usage throug
 e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep laptop CPU under ~80%.
 1. Train 31 = #229 S9 71498e16 (PROTOCOL 41, A142, + e2e-guard-carry suite) + #234 S22 c51f1b30 (contains #229) +
    Player #239: TRAIN-READY sent. Fix any failure reported at once (one Opus fix agent from the assert).
-2. feature/guard-ai-carry-fix 48d049ad: invisible guard bodies (Babylon async effect compile times out; partSkinMat
-   kept the failed effect; 4.78.0 only masks it). Fix built (bodyEffectRecovery.ts recompiles a failed / stuck body
-   effect, cap 3). Opus checker + Test Runner watcher (e2e-guard-carry + stealth-ai on 48d049ad; suite on f16600f5
-   expect fail). PASS + green -> own small PR to master, TRAIN-READY (next train).
+2. #240 carry fix (feature/guard-ai-carry-fix 23cf567c = fix 48d049ad + check doc; check PASS): invisible guard bodies
+   after a timed-out async shader compile. Test Runner watcher runs e2e-guard-carry + stealth-ai on 48d049ad and the
+   suite on f16600f5 (expect fail). Green -> TRAIN-READY #240; red -> one Opus fix agent from the assert.
 3. S22 game side (slices/S22.md: CourseState.consoleBack, CourseMode consoleHost / watchesConsole / consoleEdge) once
    marlow-final #237 merges; fix e2e-ctcourse A4 step 3 (passive officer no longer refuses) in the same branch.
 4. Polish lists only (no refining): WALK-CHECK.md 1-6, S16-CHECK.md, A126-CHECK.md, S22-CHECK.md 1-5; calm walk:
