@@ -284,7 +284,8 @@ Heads: art 5c48f5c4 (PR 5 #226), lightrev 72552f93 (WIP), shadow 90dd18a1, chars
    check sectorops:6 again once S15 is on master / in the same train. Shots + parity OK (scratch/work/campusart-5504e2e3).
    Part 2 (perf.mjs campusOps, guard-cap 0/12/24, p95 at S3/S4/S5 worst views) queued on the laptop ~15:40.
    On green CI + part 2 in budget: merge master into -art, message the orchestrator "train-ready #226".
-2. LR13 (-lightrev, Opus was building the settings toggle, default off, host choice in co-op; WIP committed): resume from
+2. LR13 DONE -lightrev 4ad32723 (Settings > Gameplay Lamp falloff, host value via start field `lf`, PROTOCOL 38 asked
+   of the orchestrator (36 / 37 taken), A100, no save bump). Opus merging -shadow + wiring now. Was: resume from
    checks/lr13-build.md if present, else from the WIP diff. Then merge -shadow (fixes in src/world/shadowAccuracy.ts),
    wire setShadowAccuracy beside setLampFalloff (main.ts), check the 3-line enemyManager.ts change; laptop GPU + perf
    (campusOps atlas 48 -> 134 MB, bake 27 -> 118 s under LR13); own PR, train-ready.
