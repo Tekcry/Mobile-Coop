@@ -305,6 +305,9 @@ LR16 (one lighting system; checks/lr16-plan.md, lr16-0-ct-audit.md)
 - LR16-5b sway (M14, ctcourse only): brief briefs/LR16-5b.md (base = lr16int after g or now 961ca660; fill <sha>). Needs a
   PROTOCOL number (sway event + shot target): ask the orchestrator when the build starts. Opus build, two checkers (net),
   laptop perf on ctcourse.
+- Walk 4.82 (WALK-4.82-REPORT.md on feature/menu): item 1 "Marlow yard seems dark" -> LR16g target (builder told,
+  lr16g-build.md section). Item 8 "s3 lights on low look terrible on walls, blotchy" -> LR16-L: Opus investigator writing
+  briefs/LR16-L.md (uncommitted in -polish; worktree -lowchk, junction). If dead: rerun from these lines.
 For Michael: Realistic dimmer (S2 atrium 0.28 vs 0.48, LR16g); S3 hall-lit white fog.
 Polish: lr15-check 1/2/4, lrpolish 1-6, art P6, perf 3-7, lr16dx 2-7, lr16t, lr16-1, lr16e, lr16-5 A 1-8 / B 1-6, artnext 1-9.
 RULES: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
