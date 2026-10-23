@@ -335,6 +335,27 @@ describe('radio net: integration hooks (S3)', () => {
     expect(order.filter((o) => o.startsWith('done'))).toEqual(['done1:3:light']);
     expect(order.length).toBe(1 + EIGHT.length - 1);
   });
+  it('(S6 stack-tip fix) a call started from completed() (the command call) does not move the receivers or their incident', () => {
+    // the completed call's slot is free during the callback, so the new call takes it: the receivers must still be due
+    // at the first call's completion + stagger, about its incident
+    const { net, v } = setup(EIGHT);
+    const got: Rec[] = [];
+    const sink: RadioSink = {
+      deliver: (guard, inc, kind, caller) => got.push({ guard, inc, kind, caller, t: net.now }),
+      alarm: () => {},
+      completed: (caller, _inc, kind) => {
+        if (kind === 'contact') net.startCall(caller, 9, 'command', RADIO.report);
+      },
+    };
+    net.startCall(1, 5, 'contact', RADIO.callIn);
+    for (let k = 0; k < Math.round((RADIO.callIn + RADIO.staggerMax + 0.5) / DT); k++) net.tick(DT, v, sink);
+    expect(got.length).toBe(EIGHT.length - 1);
+    expect(got.every((g) => g.inc === 5 && g.kind === 'contact')).toBe(true);
+    expect(Math.min(...got.map((g) => g.t))).toBeLessThan(RADIO.callIn + staggerDelay(0, 1.5) + DT + 1e-6);
+    expect(Math.max(...got.map((g) => g.t))).toBeLessThanOrEqual(RADIO.callIn + RADIO.staggerMax + DT + 1e-6);
+    // the command call itself still completes on its own clock (the alarm)
+    expect(net.alarms).toBe(1);
+  });
   it('pendingFor(): seconds to his earliest open call, 0 with none or after it completes', () => {
     const { net, v, s } = setup(EIGHT);
     expect(net.pendingFor(1)).toBe(0);

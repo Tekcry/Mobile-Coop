@@ -51,7 +51,7 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
       // 7 the clerk: paperwork at the goods-in office window
       { kind: 'grunt', x: -22.6, z: -7.0, yaw: 2.6, takedownSpot: [-22.6, -7.0] },
       // 8 the office patrol: a night tour clocking the two corridor fire doors (starts and is taken at the east end: the west end is in the bay's line of sight, so its isolation window would not survive patrol drift)
-      { kind: 'enforcer', x: 7.0, z: -12.3, yaw: Math.PI / 2, route: [[7.0, -12.3], [-7.0, -12.3]], wait: 4, faces: [Math.PI / 2, -Math.PI / 2], takedownSpot: [7.0, -12.3] },
+      { kind: 'grunt', x: 7.0, z: -12.3, yaw: Math.PI / 2, route: [[7.0, -12.3], [-7.0, -12.3]], wait: 4, faces: [Math.PI / 2, -Math.PI / 2], takedownSpot: [7.0, -12.3] },
     ],
     // alarm reinforcements come in at the vehicle gate
     reinforce: [[5.0, -25.0], [8.0, -25.0]],
@@ -99,7 +99,7 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
     // (BUILD-S2.md 8.3: the checker, driver, stocktaker and tour guard waits, the stocktaker's south end and the tour guard's lane point are the M8 ladder's adjustments; docs/warehouse-s23/step-s2-report.md)
     guards: [
       // 1 the checker (team leader): the staged delivery against the put-away list, along the marshalling lane
-      { kind: 'enforcer', x: -21.6, z: -5.0, yaw: 0, route: [[-21.6, -5.0], [-9.6, -5.0]], wait: 5, waits: [8, 2], faces: [0, 0], takedownSpot: [-21.6, -5.0] },
+      { kind: 'grunt', x: -21.6, z: -5.0, yaw: 0, route: [[-21.6, -5.0], [-9.6, -5.0]], wait: 5, waits: [8, 2], faces: [0, 0], takedownSpot: [-21.6, -5.0] },
       // 2 the reach driver: puts the staged pallets away into A3's north locations
       { kind: 'grunt', x: -11.6, z: 10.5, yaw: Math.PI / 2, route: [[-11.6, 10.5], [-11.6, -4.2]], wait: 5, waits: [8, 7], faces: [Math.PI / 2, Math.PI / 2], takedownSpot: [-11.6, 10.5] },
       // 3 the stocktaker: cycle count of W0 and R1 bays from A1
@@ -154,7 +154,7 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
     // (the deck), the clerk (the objective) and the tour guard (the exit). Deck guards carry y 3.3.
     guards: [
       // 1 the kit porter: pallet-trucks finished kits from the packing end to C3
-      { kind: 'enforcer', x: 8.0, z: 9.7, yaw: Math.PI / 2, route: [[8.0, 9.7], [-1.5, 9.8]], wait: 5, waits: [5, 5], faces: [Math.PI / 2, 0], takedownSpot: [-1.5, 9.8] },
+      { kind: 'grunt', x: 8.0, z: 9.7, yaw: Math.PI / 2, route: [[8.0, 9.7], [-1.5, 9.8]], wait: 5, waits: [5, 5], faces: [Math.PI / 2, 0], takedownSpot: [-1.5, 9.8] },
       // 2 the deck loader: lifts kit parts in at the pallet gate and stages them on the deck
       { kind: 'grunt', x: 13.5, z: 13.2, y: 3.3, yaw: Math.PI, route: [[13.5, 13.2], [3.0, 13.2]], wait: 5, waits: [5, 4], faces: [Math.PI, 0], takedownSpot: [3.0, 13.2] },
       // 3 the clerk: writes up the shift's job cards at his desk on the production office's north wall (static)

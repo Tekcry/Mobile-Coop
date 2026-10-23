@@ -7,6 +7,8 @@ import { BODY } from '../ai/bodies';
 import { ALARM, type AlarmPanel } from '../ai/alarm';
 import type { EnemyManager } from '../ai/enemyManager';
 import type { EnemyKind } from '../ai/enemyDefs';
+import type { Enemy } from '../ai/enemy';
+import type { ReinforceEntry } from '../ai/guardAiData';
 import { lightOnRay, type LightRegistry } from '../world/lights';
 import { BACK_TIMER, BOARD_REACH, IsolatorBoards, type BoardSink } from './isolators';
 import type { Interactable, Interactables } from './interactables';
@@ -175,7 +177,7 @@ export class StealthSystems {
       g.hud.feedItem('Body found', 'warn');
     };
     em.onRevived = (e) => g.mode?.onEnemyJoined?.(e);
-    em.onAlarm = (_e, p) => this.onAlarm(p);
+    em.onAlarm = (e, p) => this.onAlarm(e, p);
     for (const b of em.bodies) this.addBody(b);
   }
 
@@ -566,33 +568,65 @@ export class StealthSystems {
     }
   }
 
-  /** The alarm went off: banner, horn, reinforcements at the map's entry points. */
-  private onAlarm(p: AlarmPanel): void {
+  /** The alarm went off (a panel `p`, or (guard-ai S6) a command call by radio, `p` null; `e` raised it): banner, horn,
+   *  reinforcements at the map's entry points. */
+  private onAlarm(e: Enemy, p: AlarmPanel | null): void {
     const g = this.g;
+    const em = this.em;
     g.hud.banner('ALARM', 'Reinforcements inbound', 2200);
     g.events.emit('alarm', {});
     g.style.record('alarm', true);
-    for (const q of this.panels) if (q.panel === p) this.ints.setIndicator(q.it, '#ff3b30');
+    if (p) for (const q of this.panels) if (q.panel === p) this.ints.setIndicator(q.it, '#ff3b30');
     const pts = g.world.layout.reinforce ?? [];
-    if (!pts.length) return;
-    let at = pts[0]!;
+    const px = g.player.position.x;
+    const pz = g.player.position.z;
+    let at: Vector3 | null = null;
     let bd = -1;
     // the entry furthest from the player (they come in, not spawn on top of them)
     for (const q of pts) {
-      const d = hyp2(q.x - g.player.position.x, q.z - g.player.position.z);
+      const d = hyp2(q.x - px, q.z - pz);
       if (d > bd) {
         bd = d;
         at = q;
       }
     }
-    // Hunter: the mode doubles the hostiles itself
-    if (g.mode?.onAlarm?.(at)) return;
+    // Hunter: the mode doubles the hostiles itself; Sector Ops raises its stage and sends its section's guards
+    // (guard-ai S6: a live mode's alarm reaches it with no map reinforce points too; the parked ones as before)
+    if (at || em.coordinated) {
+      if (g.mode?.onAlarm?.(at ?? g.player.position.clone())) return;
+    }
     const kinds: EnemyKind[] = ['grunt', 'grunt', 'heavy'];
+    if (!em.coordinated) {
+      if (!at) return;
+      for (let i = 0; i < ALARM.squad; i++) {
+        const r = em.reinforce(kinds[i % kinds.length]!, at.add(new Vector3(i * 1.3 - 1.3, 0, 0)), 1)[0];
+        if (r) g.mode?.onEnemyJoined?.(r);
+      }
+      return;
+    }
+    // (guard-ai S6, design 7, M1) aggressive reinforcements at the alarm section's entry furthest from the player
+    // (`MapLayout.guardAi.entries`, running its route in), else at the map's reinforce point
+    const ents = em.entriesFor(e.section, this.entryScratch);
+    let ent: ReinforceEntry | null = null;
+    bd = -1;
+    for (const q of ents) {
+      const d = hyp2(q.at[0] - px, q.at[1] - pz);
+      if (d > bd) {
+        bd = d;
+        ent = q;
+      }
+    }
+    if (!ent && !at) return;
+    const base = ent ? new Vector3(ent.at[0], ent.y ?? Number.NaN, ent.at[1]) : at!;
+    const yaw = ent?.yaw ?? 0;
     for (let i = 0; i < ALARM.squad; i++) {
-      const e = this.em.reinforce(kinds[i % kinds.length]!, at.add(new Vector3(i * 1.3 - 1.3, 0, 0)), 1)[0];
-      if (e) g.mode?.onEnemyJoined?.(e);
+      const r = em.spawnReinforcement(kinds[i % kinds.length]!, base.add(new Vector3(i * 1.3 - 1.3, 0, 0)), yaw, e.section, ent?.route ?? null);
+      if (r) g.mode?.onEnemyJoined?.(r);
     }
   }
+
+  /** (guard-ai S6) Scratch for the alarm section's entries. */
+  private readonly entryScratch: ReinforceEntry[] = [];
 
   /**
    * (F1b, door-4, G41) A calm guard within range, facing a door the player opened (open past the shut threshold), with
