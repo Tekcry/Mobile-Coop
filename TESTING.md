@@ -130,6 +130,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
   glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen
   clear, a soft dark band only at the edges and corners).
+- [ ] Guards render (guard-render S1): in Sector Ops or Marlow Yard a guard close up looks normal, in thermal and in night
+  vision (same shape, colours and pattern as with `?guardmerge=0`); it flashes on a hit and a downed guard ragdolls
+  with no missing or stretched parts. A guard at the screen edge or on a stair does not pop out early. Heads, hands and
+  feet cast shadows now (accepted).
 - [ ] Wheel carousel: hold LB (Tab), put the cursor on the vision slot, A (E) cycles night, thermal, electro; release
   selects it. The wheel reopens on that mode. A off the vision slot does nothing.
 - [ ] (sector-fixes W) The wheel opens on the vision slot: hold LB and tap A with the right stick untouched, the mode

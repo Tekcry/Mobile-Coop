@@ -50,6 +50,9 @@ export interface TalkPair {
 // Live guard cap. 12 = the Dead Line co-op peak of 10 chapter-active guards (furthest-behind and furthest-ahead
 // player, each with their next chapter) plus the two alarm reinforcements; about 2.6 ms main thread (D1 guard cost).
 export const MAX_ALIVE = 12;
+/** (sector-redesign) Uncoordinated lights-out: the guard sent stands on the light's floor - his feet not above the
+ *  fixture height `y` (a lamp, or a wall switch + 2.5) and at most this many m below it. */
+export const LIGHTS_OUT_BELOW = 7;
 
 /** (guard-ai S3, S6) A completed `command` call ("Command, contact. Send backup.") raises the alarm like a panel (M4).
  *  On since S6: a contact call that gets through starts one (`contactThrough`). Undo: false (panels only). */
@@ -660,7 +663,7 @@ export class EnemyManager {
    */
   lightsOut(x: number, z: number, y = Number.NaN, lightId = -1, group = -1): void {
     if (!this.coordinated) {
-      this.lightsOutOld(x, z);
+      this.lightsOutOld(x, z, y);
       return;
     }
     const reg = this.world.level.lights;
@@ -727,12 +730,17 @@ export class EnemyManager {
   }
 
   /** The old lights-out rule (uncoordinated modes): the nearest calm enemy within 25 m comes to look (with a
-   *  flashlight in the dark), others within 14 m turn to look. No walls, no line of sight. */
-  private lightsOutOld(x: number, z: number): void {
+   *  flashlight in the dark), others within 14 m turn to look. No walls, no line of sight. `y` (the fixture, or a wall
+   *  switch + 2.5) limits the one who comes to look to the floor under it (sector-redesign): his feet not above `y` and at
+   *  most `LIGHTS_OUT_BELOW` under it, so a guard two storeys up over an atrium is not sent to a ground-floor switch, nor
+   *  one two floors down to an L2 switch. */
+  private lightsOutOld(x: number, z: number, y = Number.NaN): void {
     let best: Enemy | null = null;
     let bd = 25;
+    const floor = !Number.isNaN(y);
     for (const e of this.enemies) {
       if (!e.alive || e.alerted || e.def.melee) continue;
+      if (floor && (e.pos.y > y || y - e.pos.y > LIGHTS_OUT_BELOW)) continue;
       const d = hyp2(e.pos.x - x, e.pos.z - z);
       if (d < bd) {
         bd = d;

@@ -227,10 +227,12 @@ async function finish({ branch, head, checkout, version, title, pr, members, sub
     const r = assembleAt(head, opts);
     if (!r) { console.error('STOP (a real run fails here): nothing to assemble'); return 1; }
     console.log(summary(r, `CHANGELOG.md would get: ${heading}`));
+    if (!r.text) { console.error('STOP (a real run fails here): nothing new to release'); return 1; }
   } else {
     const r = assembleDir(run(['git', 'rev-parse', '--show-toplevel']), opts);
     if (!r) throw new Error('nothing to assemble: no changes/*.md fragment and no "## Unreleased - ..." block');
     console.log(summary(r, `CHANGELOG.md: ${heading}`));
+    if (!r.text) throw new Error('nothing new to release: every fragment entry is already in CHANGELOG.md');
   }
   act(`npm version ${version} --no-git-tag-version`);
   act(['git', 'add', '-A', 'CHANGELOG.md', 'changes', 'package.json', 'package-lock.json']);
