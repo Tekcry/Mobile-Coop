@@ -6,7 +6,7 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 **Test Runner SAVE 11 (2026-10-23 ~13:55, swap ~14:05; wins over all below):**
 - SENT since SAVE 10: Sector Ops b3fd1fa3 6/7 (sectorops:6 console warnings from guard-ai talking pairs; they fixed it
   in e57dac61); pose-parity 546b6e41 GREEN 3/3 (Player Build).
-- RUNNING / QUEUED (scheduled tasks): 4189 sectorp4-e57dac61 (sectorops:6 + :5 -> Sector Ops Build, PR #217);
+- RUNNING / QUEUED (scheduled tasks): 4189 sectorp4-e57dac61 SENT GREEN (PR #217 green);
   4192 marlowmerge-d32a435a SENT 4/6 (ctcourse:1 A2 shunter lure timeout, :2 A4 dock not dark 0.991). chain-1023gb (Guard AI): 4192 guardais9-59c35d7f (coop netmove
   stealth-ai takedown; S9 alone, early e2e-coop verdict) after marlow; 4189 guardais13lv-82ef72bd (e2e-levels under
   load; post on PR #218) after sectorp4. Verdicts -> Guard AI Build. Then chain-1023s4m (waits for chain-1023gb done): guardrender-s4cap-5809afe6 starts when both locks
