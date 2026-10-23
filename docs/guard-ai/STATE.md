@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~14:15: train 25 GREEN (our stack -> 4.74.0). Flake ours: e2e-levels:62 ladder climb (wall-clock wait, 0.02 m in 30 s
+under load): Sonnet test fix RUNNING on s13 (#218, sim-time wait; note in slices/S13.md). After 4.74.0 lands: retarget
+#218 to master.
+
 ~14:10 (desktop CPU ~10%, cap lifted): S9 BUILT 76157035 (protocol 32 free: master 31, marlow-final 33,
 section-rating 34, art-kit 35; slices/S9.md, A90-A95; 528 unit tests). RUNNING (Opus): S15 laptop fix (s15); S9
 checker (s9, writes slices/S9-CHECK.md); S16 armoured fire check in ...-guard-ai-s16 (was -s7), branch
