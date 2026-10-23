@@ -5,7 +5,7 @@ import { MaterialPluginBase, type AbstractMesh, type Material, type MaterialDefi
  * operator PBR material, main pass only. No new samplers: the tint mask is the albedo atlas's alpha (G4 bakes it; 1 =
  * tinted), read from the albedo sample the PBR shader already takes.
  * - albedo x the vertex's slot tint (rgb, sRGB bytes) where the mask is set;
- * - the hit flash (a below 255) blends the albedo towards white, as `SmoothBody.setFlash`;
+ * - the hit flash (a below 255) blends the albedo towards the warm white of `SmoothBody.setFlash` (`flashColors`);
  * - a hidden piece (a = 0) collapses to a degenerate point (clip-space zero). The guard's index buffer leaves hidden
  *   pieces out as well, which is what hides them in the shadow maps and the G-buffer (their shaders run no plugins).
  * A mesh without `gvis` (any other operator body) compiles without it.
@@ -61,7 +61,7 @@ float gTintMask = albedoTexture.a;
 float gTintMask = 1.0;
 #endif
 surfaceAlbedo *= mix(vec3(1.0), toLinearSpace(vGvis.rgb), gTintMask);
-surfaceAlbedo = mix(surfaceAlbedo, vec3(1.0), clamp((1.0 - vGvis.a) * (255.0 / 254.0), 0.0, 1.0));
+surfaceAlbedo = mix(surfaceAlbedo, vec3(1.0, 0.92, 0.85), clamp((1.0 - vGvis.a) * (255.0 / 254.0), 0.0, 1.0));
 #endif`,
       };
     }

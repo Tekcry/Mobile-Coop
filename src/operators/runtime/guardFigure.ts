@@ -240,7 +240,10 @@ interface GuardLod {
 }
 
 export interface GuardFigureOptions {
-  /** Uniform scale from the base's reference height to the guard's (A2); 1 by default. */
+  /**
+   * Uniform scale from the base's reference height to the guard's (A2: def height / `manifest.refHeight`); 1 by
+   * default. Fixed at construction (the world path's offsets are measured with it): do not rescale `root` later.
+   */
   scale?: number;
   /** Visible pieces at spawn (default: the base's body piece). */
   pieces?: Iterable<string>;
@@ -399,7 +402,6 @@ export class GuardFigure {
       drv[s] = k;
       off.push(m.multiply(scale).multiply(this.rigRestRel[k]!.clone().invert()));
     }
-    poser.solve(this.rigRest); // (leaves the poser as a fresh one would be)
     const parts: GuardPart[] = [];
     const meshes: Mesh[] = [];
     const bmin = new Vector3(a.box[0], a.box[1], a.box[2]);
@@ -469,7 +471,9 @@ export class GuardFigure {
   restored(): void {
     for (const l of this.lods) {
       if (!l) continue;
-      for (let i = 0; i < l.parts.length; i++) this.uploadIndices(l.parts[i]!);
+      // a LOD behind the figure's pieces rewrites everything when it is next shown
+      if (l.visVer !== this.visVer) l.visVer = -1;
+      else for (let i = 0; i < l.parts.length; i++) this.uploadIndices(l.parts[i]!);
     }
   }
 

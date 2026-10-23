@@ -197,6 +197,12 @@ describe('guard figure on a NullEngine', () => {
       else expect(after[i], `byte ${i}`).toBe(before[i]);
     }
     expect(m0.getTotalIndices()).toBe(9);
+    expect(m0.subMeshes.length).toBe(1);
+    expect(m0.subMeshes[0]!.indexCount).toBe(9);
+    // the rest box survives the index swap (mesh and submesh)
+    expect(m0.getBoundingInfo().boundingBox.minimum.y).toBeCloseTo(0.7, 5);
+    expect(m0.subMeshes[0]!.getBoundingInfo().boundingBox.minimum.y).toBeCloseTo(0.7, 5);
+    expect(m0.alwaysSelectAsActiveMesh).toBe(false);
     expect(m0.geometry!.getIndexBuffer()).not.toBe(ib0);
     expect(ib0!.references).toBe(0); // the old one released
     // a tint change: only slot 1's vertices
@@ -220,6 +226,18 @@ describe('guard figure on a NullEngine', () => {
     expect(m1.getTotalIndices()).toBe(6);
     // the mesh draws the visible pieces only: the anim tier's mesh is the shown one
     expect(a.mesh).toBe(m1);
+    // a WebGL context restore: every LOD's index buffer back to the visible pieces (the rebuild made a full one)
+    const ib1 = m1.geometry!.getIndexBuffer();
+    scene.getEngine().onContextRestoredObservable.notifyObservers(scene.getEngine());
+    expect(m1.geometry!.getIndexBuffer()).not.toBe(ib1);
+    expect(m1.getTotalIndices()).toBe(6);
+    // LOD0 (not shown, behind the helmet change) catches up when shown
+    cam.position.set(0, 1.6, -3);
+    cam.computeWorldMatrix();
+    a.update(cam);
+    expect(a.current).toBe(M.LOD_0);
+    expect(m0.getTotalIndices()).toBe(6);
+    expect(alphas(m0)).toEqual([255, 255, 255, 0, 0, 0, 255, 255, 255]);
     a.dispose();
     scene.dispose();
     forgetModels();
@@ -353,6 +371,30 @@ describe('guard figure on a NullEngine', () => {
     b.dispose();
     scene.dispose();
     forgetModels();
+  });
+
+  it('the plugin: its code in the PBR effect of a gvis mesh (GUARDFIG on), off for a mesh without gvis', async () => {
+    const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+    const B = await import('../src/core/babylon');
+    const { GuardFigurePlugin } = await import('../src/operators/runtime/guardFigurePlugin');
+    const scene = new B.Scene(new NullEngine());
+    const mat = new B.PBRMaterial('m', scene);
+    new GuardFigurePlugin(mat);
+    const effectOf = async (gvis: boolean) => {
+      const mesh = B.CreateBox(`b${gvis}`, {}, scene);
+      if (gvis) mesh.setVerticesBuffer(new B.VertexBuffer(scene.getEngine(), new Uint8Array(mesh.getTotalVertices() * 4), 'gvis', { updatable: true, stride: 4, size: 4, type: B.VertexBuffer.UNSIGNED_BYTE, normalized: true }));
+      mesh.material = mat;
+      const sm = mesh.subMeshes[0]!;
+      await vi.waitFor(() => expect(mat.isReadyForSubMesh(mesh, sm)).toBe(true));
+      return sm.effect! as unknown as { defines: string; _vertexSourceCode: string; _fragmentSourceCode: string };
+    };
+    const on = await effectOf(true);
+    expect(on.defines).toContain('#define GUARDFIG');
+    expect(on._vertexSourceCode).toContain('gl_Position *= step(0.5 / 255.0, gvis.a);');
+    expect(on._fragmentSourceCode).toContain('surfaceAlbedo *= mix(vec3(1.0), toLinearSpace(vGvis.rgb), gTintMask);');
+    const off = await effectOf(false);
+    expect(off.defines).not.toContain('#define GUARDFIG');
+    scene.dispose();
   });
 
   it('refuses a bad manifest and a hero LOD', async () => {
