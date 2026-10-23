@@ -216,3 +216,42 @@ describe('sector-redesign perf fix: release on unload, ray budget', () => {
     f.dispose();
   });
 });
+
+describe('sector-redesign artnext C6: the rays counter counts the see-through recasts', () => {
+  it('a pane before the wall: each sample ray is cast twice, and `rays` says so', async () => {
+    const { B, V, scene, guard } = await freezeScene();
+    // unbounded planes: a see-through pane at z = 5, a solid wall at z = 10 (rays toward +z)
+    const hit = { hasHit: false, body: null as unknown, hitPoint: new B.Vector3() };
+    let pane = true;
+    const cast = (a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }) => {
+      hit.hasHit = false;
+      for (const [z, body] of [[5, 'pane'], [10, 'wall']] as const) {
+        if (z === 5 && !pane) continue;
+        if (a.z < z && b.z >= z) {
+          const t = (z - a.z) / (b.z - a.z);
+          hit.hasHit = true;
+          hit.body = body;
+          hit.hitPoint.set(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, z);
+          break;
+        }
+      }
+      return hit;
+    };
+    const ray = V.seeThroughRay(cast, (body) => body === 'pane');
+    const e = guard('g', 0, 15);
+    const f = new V.SectorGuardFreeze(scene, { enemies: [e] }, ray);
+    scene.render();
+    expect(e.bodyRig.root.isEnabled(false)).toBe(false);
+    // 5 body points (head, chest, two sides, knee), all hidden: 5 primary casts + 5 recasts past the pane
+    expect(ray.recasts).toBe(5);
+    expect(f.rays).toBe(10);
+    f.dispose();
+    // no pane: primaries only
+    pane = false;
+    const f2 = new V.SectorGuardFreeze(scene, { enemies: [e] }, ray);
+    scene.render();
+    expect(ray.recasts).toBe(5);
+    expect(f2.rays).toBe(5);
+    f2.dispose();
+  });
+});

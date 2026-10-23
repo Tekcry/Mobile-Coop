@@ -27,8 +27,10 @@ export interface FreezeGuards {
   readonly enemies: readonly Enemy[];
 }
 
-/** Distance (m) from `from` to the first static hit towards `to` (`to`'s distance when clear). Allocation-free. */
-export type FreezeRay = (from: Vector3, to: Vector3) => number;
+/** Distance (m) from `from` to the first static hit towards `to` (`to`'s distance when clear). Allocation-free.
+ *  (artnext C6) `recasts`, when the ray keeps one, counts the extra casts it made past see-through hits (`seeThroughRay`),
+ *  so the freeze's `rays` debug counter includes them. */
+export type FreezeRay = ((from: Vector3, to: Vector3) => number) & { recasts?: number };
 
 /** Occlusion re-test period (camera evaluations) of a guard found hidden. */
 export const RETEST = 4;
@@ -74,7 +76,7 @@ const SKIP_STEP = 0.05;
  */
 export function seeThroughRay(cast: (from: Vector3, to: Vector3) => FreezeHit, see: SeeThrough): FreezeRay {
   const a = new Vector3();
-  return (from: Vector3, to: Vector3): number => {
+  const ray: FreezeRay = (from: Vector3, to: Vector3): number => {
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const dz = to.z - from.z;
@@ -82,6 +84,8 @@ export function seeThroughRay(cast: (from: Vector3, to: Vector3) => FreezeHit, s
     if (total <= 0) return 0;
     a.copyFrom(from);
     for (let k = 0; k <= SEE_THROUGH_SKIPS; k++) {
+      // (artnext C6) every cast after the first is a recast past a see-through hit
+      if (k > 0) ray.recasts = (ray.recasts ?? 0) + 1;
       const r = cast(a, to);
       if (!r.hasHit) return total;
       const p = r.hitPoint;
@@ -93,6 +97,8 @@ export function seeThroughRay(cast: (from: Vector3, to: Vector3) => FreezeHit, s
     }
     return total;
   };
+  ray.recasts = 0;
+  return ray;
 }
 
 export class SectorGuardFreeze {
@@ -128,7 +134,7 @@ export class SectorGuardFreeze {
   count = 0;
   /** Of them, frozen by occlusion (the rest by the frustum). */
   occluded = 0;
-  /** Rays cast at the last evaluation. */
+  /** Rays cast at the last evaluation, (artnext C6) the see-through recasts included. */
   rays = 0;
 
   constructor(
@@ -176,6 +182,7 @@ export class SectorGuardFreeze {
     let occ = 0;
     let tests = 0;
     this.rays = 0;
+    const r0 = this.ray?.recasts ?? 0;
     const len = list.length;
     if (this.rot >= len) this.rot = 0;
     const start = this.rot;
@@ -241,6 +248,8 @@ export class SectorGuardFreeze {
     }
     this.count = n;
     this.occluded = occ;
+    // (artnext C6) plus the see-through recasts the ray made this evaluation
+    if (this.ray) this.rays += (this.ray.recasts ?? 0) - r0;
   };
 
   /**
