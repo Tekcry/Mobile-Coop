@@ -233,7 +233,9 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   `StealthSystems.resetCircuit` = the player's own `toggle`; no ring, no radio, back on his route. The circuit lit again by
   other means (`BreakerHost.isOff` false: the player, an isolator) ends the walk; so does `BREAKER_WALK.giveUp` 30 s.
   A second noticed cut of the circuit within `BREAKER.repeatT` 60 s (board clock, `lastFault`) is tampering: the S2
-  `light` incident at the switch. A cut nobody saw opens nothing. Shot lamps keep the S2 check and stay dark (`setGroup`
+  `light` incident at the switch; the same cut noticed again later (`cutSeq` / `faultCut`) keeps what it was first
+  taken for. A cut nobody saw opens nothing. A course mains gate's circuit is never a fault (`StealthSystems.mainsGroups`,
+  A63): the S2 incident, nobody relights it. Shot lamps keep the S2 check and stay dark (`setGroup`
   skips destroyed lamps). Late discovery (`EnemyManager.lateStep`, every 0.1 s over a round-robin share of the guards,
   ~3 Hz each): `DarkList` holds the dark fixtures (shot, or cut at a switch that is off) no guard has reacted to
   (rebuilt only on a registry `version` change or a mark); a calm free guard with one in his focused cone within

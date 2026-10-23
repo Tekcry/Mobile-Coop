@@ -298,6 +298,34 @@ describe('late discovery (A43)', () => {
     expect(a.resetBreaker).toHaveBeenCalledTimes(2);
   });
 
+  it('a cut seen at the time by a guard who could not go, found later inside repeatT: the same cut, the reset walk (not tampering)', () => {
+    const { em, h } = setup();
+    // he sees it go but is on another task (the board sends nobody); the other has his back to it
+    const busy = guard(1, 0, 0, 0, { incident: 7 });
+    const b = guard(2, 1, 0, Math.PI);
+    for (const g of [busy, b]) em.enemies.push(g as unknown as Enemy);
+    h.cut(4);
+    em.lightsOut(6, 0, 3.7, -1, 4);
+    expect(busy.resetBreaker).not.toHaveBeenCalled();
+    expect(b.resetBreaker).not.toHaveBeenCalled();
+    // 10 s on he turns round and sees the dark lamp: the cut as it stands, a fault
+    em.board.now += 10;
+    b.yaw = 0;
+    late(em, 3);
+    expect(b.resetBreaker).toHaveBeenCalledTimes(1);
+    expect(b.checkLight).not.toHaveBeenCalled();
+    // he turned it back on; a new press 20 s later is a second cut inside repeatT: tampering
+    h.reset(4);
+    late(em, 2);
+    em.board.clear();
+    b.incident = -1;
+    em.board.now += 20;
+    h.cut(4);
+    em.lightsOut(6, 0, 3.7, -1, 4);
+    expect(b.resetBreaker).toHaveBeenCalledTimes(1);
+    expect(b.checkLight).toHaveBeenCalledTimes(1);
+  });
+
   it('a cut a witness reacted to at the time is not found again late', () => {
     const { em, h } = setup();
     const a = guard(1, 0, 0, 0);
@@ -507,7 +535,7 @@ describe('Enemy.resetBreaker: the walk at patrol pace, the reset, calm after', (
 // ----- StealthSystems: the guard's reset is the player's toggle (light parity) -----
 
 describe("StealthSystems: the guards' switch board", () => {
-  async function systems() {
+  async function systems(course?: { def: { bays: { gates: { kind: string; group?: string }[] }[] }; groups: Record<string, number> }) {
     const { StealthSystems } = await import('../src/game/stealthSystems');
     const reg = new LightRegistry();
     reg.add({ x: 0, y: 3, z: 0, group: 4 });
@@ -525,7 +553,7 @@ describe("StealthSystems: the guards' switch board", () => {
       remove: () => {},
     };
     const events = { emit: vi.fn() };
-    const g = { world: { layout: { switches: [{ pos: new Vector3(2, 1.2, 5), yaw: 0, group: 4 }] }, level: { lights: reg }, doors: { list: [], onSound: null } }, events, hud: { feedItem() {} } };
+    const g = { world: { layout: { switches: [{ pos: new Vector3(2, 1.2, 5), yaw: 0, group: 4 }], ...(course ? { course } : {}) }, level: { lights: reg }, doors: { list: [], onSound: null } }, events, hud: { feedItem() {} } };
     const em = { alarms: [], bodies: [], lightsOut: vi.fn(), breakers: null as BreakerHost | null };
     const ss = new StealthSystems(g as never, em as never, ints as never, () => {});
     return { ss, reg, em, items, events };
@@ -566,5 +594,21 @@ describe("StealthSystems: the guards' switch board", () => {
     h.reset(4);
     expect(reg.lights[0]!.on).toBe(false);
     expect(reg.lights[1]!.on).toBe(true);
+  });
+
+  it('a course mains gate circuit (cutting it opens the gate): never a fault, no guard turns it back on (A63)', async () => {
+    const { reg, em, items, ss } = await systems({ def: { bays: [{ gates: [{ kind: 'lever' }, { kind: 'mains', group: 'mains' }] }] }, groups: { mains: 4 } });
+    const h = em.breakers!;
+    items.find((i) => i.id === 'switch-0')!.onUse!();
+    expect(em.lightsOut).toHaveBeenCalledWith(2, 5, 1.2 + 2.5, -1, 4);
+    expect(h.isOff(4)).toBe(false);
+    expect(h.reset(4)).toBe(false);
+    expect(reg.lights.every((l) => !l.on)).toBe(true);
+    expect(ss.switchOn(4)).toBe(false);
+    // a course circuit no mains gate reads stays a fault
+    const o = await systems({ def: { bays: [{ gates: [] }] }, groups: { other: 4 } });
+    o.items.find((i) => i.id === 'switch-0')!.onUse!();
+    expect(o.em.breakers!.isOff(4)).toBe(true);
+    expect(o.em.breakers!.reset(4)).toBe(true);
   });
 });

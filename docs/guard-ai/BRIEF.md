@@ -242,18 +242,24 @@ doesnt make sense". A32-A34 are S10's (on `feature/guard-ai-s10`).
   aloud ("Breaker's gone again.", a new `breaker` bark, not a radio line) and starts no radio call; the other witnesses
   ack (look 3 s, up to 2 "Copy."). Undo: `this.ctx.radioCall?.(this, incident, 'light')` in `Enemy.resetBreaker`.
 - **A61** (S15) The `BREAKER.repeatT` clock runs from the last cut a guard noticed (a witness at the time or a late
-  find), on the board clock; a cut nobody saw opens nothing and starts no clock. Undo: record every press in
-  `EnemyManager.lightsOut` before the `n === 0` return in `circuitOut`.
+  find), on the board clock; a cut nobody saw opens nothing and starts no clock. Each press that leaves a circuit off
+  is a new cut (`cutSeq`); the same cut noticed again (seen at the time by guards who could not go, found late by
+  another) stays what it was first taken for, a fault or tampering, and does not restart the clock. Undo: record every
+  press in `EnemyManager.lightsOut` before the `n === 0` return in `circuitOut`; drop the `faultCut` test there to count
+  every notice as a new cut.
 - **A62** (S15) Late discovery looks with the focused cone only (no peripheral field: a fixture already dark is not a
   bright change) within `LATE.range`, one line-of-sight ray, and only calm free guards (unaware or cooldown, no task;
   not passive, held, melee, a dog, a high-security post or an alarm runner). A shot lamp found late sends him alone (the
   one witness). The scan runs every 0.1 s over a round-robin share of the guards (~3 Hz each, `LATE_SCAN`). Undo:
   `LATE.enabled = false`, or the peripheral field back in `EnemyManager.lateStep`.
 - **A63** (S15) Only a cut at a switch is a breaker fault: a circuit dark while its switches stay on (an isolator that
-  leaves the switches alone, a course device) keeps the S2 light incident, and the walk ends as soon as a lamp of the
-  circuit is lit again at its base (`BreakerHost.isOff`). marlow-final's timed isolator is not on this branch: it gets
-  the breaker walk if it sets its switches off (`StealthSystems.syncGroup(group, false)`) when it cuts and back on when
-  it relights. Undo: drop the `isOff` test in `EnemyManager.lightsOut`.
+  leaves the switches alone) keeps the S2 light incident, and the walk ends as soon as a lamp of the circuit is lit
+  again at its base (`BreakerHost.isOff`). A course mains gate's circuit (`MapLayout.course`: cutting it opens the gate)
+  is never a fault: `BreakerHost.isOff` and `reset` refuse it (`StealthSystems.mainsGroups`), so no guard turns it back
+  on and shuts the gate on the players (the S2 light incident at the switch, as before). marlow-final's timed isolator
+  is not on this branch: it gets the breaker walk if it sets its switches off (`StealthSystems.syncGroup(group, false)`)
+  when it cuts and back on when it relights, and passes its group to `lightsOut` so each cut counts as a new one (A61).
+  Undo: drop the `isOff` test in `EnemyManager.lightsOut`; empty `mainsGroups` to let guards reset mains circuits.
 - **A64** (S15) The walk ends at the walkable cell nearest the switch (`nearestWalkable`, 4 cells); he works it within
   0.7 m and gives up after 30 s without getting there (`BREAKER_WALK` in `ai/breaker.ts`); his pace is `PACE.patrol`
   (`PACE.cautious` while cautious). Undo: change `BREAKER_WALK`.

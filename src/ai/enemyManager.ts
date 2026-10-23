@@ -309,6 +309,11 @@ export class EnemyManager {
   private readonly dark = new DarkList();
   /** Board time (s) of the last cut a guard noticed, per circuit: another inside `BREAKER.repeatT` is tampering. */
   private readonly lastFault = new Map<number, number>();
+  /** Per circuit: the count of its switch cuts (each press that left it off) and the cut the guards last noticed, so a
+   *  late find of a cut already noticed is that same fault again, never "a second cut" (tampering). */
+  private readonly cutSeq = new Map<number, number>();
+  private readonly faultCut = new Map<number, number>();
+  private readonly faultTamper = new Map<number, boolean>();
   private lateT = 0;
   private lateK = 0;
   private readonly swP = new Float32Array(3);
@@ -717,7 +722,7 @@ export class EnemyManager {
     // (guard-ai S15, A42) a circuit switched off at its switch: a fault (one goes to turn it back on), or tampering
     // (a circuit cut some other way, its switches still on: the S2 light incident as before)
     if (group >= 0 && lightId < 0 && BREAKER.reset && this.breakers?.isOff(group)) {
-      this.circuitOut(group, x, floor, z, n);
+      this.circuitOut(group, x, floor, z, n, true);
       return;
     }
     const key = lightId >= 0 ? lightId : group >= 0 ? CIRCUIT_KEY + group : -1;
@@ -729,13 +734,23 @@ export class EnemyManager {
    * first cut the guards notice is a fault: a `breaker` incident (one of them walks over at patrol pace and turns it
    * back on, `Enemy.resetBreaker`); another noticed within `BREAKER.repeatT` s of the last is tampering: the S2 light
    * incident at the switch (1-2 check it and the ring). Nobody saw it: nothing now (late discovery may find it).
+   * `fresh`: a new cut (the press); false: a late find of the cut as it stands. The same cut noticed again (seen at the
+   * time by guards who could not go, found later) is what it was then, a fault or tampering, its clock unchanged.
    */
-  private circuitOut(group: number, x: number, y: number, z: number, n: number): void {
+  private circuitOut(group: number, x: number, y: number, z: number, n: number, fresh: boolean): void {
+    if (fresh) this.cutSeq.set(group, (this.cutSeq.get(group) ?? 0) + 1);
     if (n === 0) return;
     const now = this.board.now;
-    const last = this.lastFault.get(group);
-    const tamper = last !== undefined && now - last < BREAKER.repeatT;
-    this.lastFault.set(group, now);
+    const cut = this.cutSeq.get(group) ?? 0;
+    let tamper: boolean;
+    if (this.faultCut.get(group) === cut) tamper = this.faultTamper.get(group) === true;
+    else {
+      const last = this.lastFault.get(group);
+      tamper = last !== undefined && now - last < BREAKER.repeatT;
+      this.lastFault.set(group, now);
+      this.faultCut.set(group, cut);
+      this.faultTamper.set(group, tamper);
+    }
     this.report(tamper ? 'light' : 'breaker', x, y, z, CIRCUIT_KEY + group, n);
   }
 
@@ -791,7 +806,7 @@ export class EnemyManager {
     this.dark.markGroup(reg, l.group);
     const s = this.swP;
     if (!this.breakers || !this.breakers.switchOf(l.group, e.pos.x, e.pos.z, s)) return;
-    this.circuitOut(l.group, s[0]!, this.nav.heightAt(s[0]!, s[2]!, s[1]! - 1), s[2]!, 1);
+    this.circuitOut(l.group, s[0]!, this.nav.heightAt(s[0]!, s[2]!, s[1]! - 1), s[2]!, 1, false);
   }
 
   /** Is the point inside this guard's sight field and range (a light going out: the peripheral range counts)? */

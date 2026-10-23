@@ -77,6 +77,16 @@ export class StealthSystems {
       this.switches.push(sw);
     });
     // (guard-ai S15) the guards reach the switches: a cut circuit is turned back on through the player's own toggle
+    // (never a course mains gate's circuit, A63)
+    const course = layout.course;
+    if (course?.groups) {
+      for (const bay of course.def.bays) {
+        for (const gt of bay.gates) {
+          const gid = gt.kind === 'mains' ? course.groups[gt.group] : undefined;
+          if (gid !== undefined) this.mainsGroups.add(gid);
+        }
+      }
+    }
     em.breakers = this.breakerHost;
     layout.alarms?.forEach((a, i) => {
       const panel: AlarmPanel = { id: `alarm-${i}`, x: a.pos.x, y: a.pos.y, z: a.pos.z, yaw: a.yaw, disabled: false, ...(a.section !== undefined ? { section: a.section } : {}) };
@@ -455,8 +465,10 @@ export class StealthSystems {
       out[2] = p.z;
       return true;
     },
-    // off at its switches and dark (a lamp of it lit again by other means, an isolator: no longer a cut)
+    // off at its switches and dark (a lamp of it lit again by other means, an isolator: no longer a cut). A course
+    // mains gate's circuit (cutting it opens the gate) is never a fault a guard puts right (A63): the S2 incident
     isOff: (group) => {
+      if (this.mainsGroups.has(group)) return false;
       const sws = this.switches;
       for (let i = 0; i < sws.length; i++) {
         const s = sws[i]!;
@@ -464,8 +476,11 @@ export class StealthSystems {
       }
       return false;
     },
-    reset: (group) => this.resetCircuit(group),
+    reset: (group) => !this.mainsGroups.has(group) && this.resetCircuit(group),
   };
+  /** (guard-ai S15, A63) The circuits a course mains gate reads (`MapLayout.course`): cutting one opens the gate, so no
+   *  guard turns it back on (that would shut the gate on the players). */
+  private readonly mainsGroups = new Set<number>();
 
   /**
    * (guard-ai S15, A42) A guard worked the switch: circuit `group` back on through the player's own toggle, so the lamps,

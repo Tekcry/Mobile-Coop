@@ -6,5 +6,6 @@
   usual check by one or two guards and now stays dark for good. A lamp shot out or a circuit cut while nobody looked is
   no longer forgotten: the next calm guard who has the dark fixture in view within about 12 m reacts as a witness would
   (checks the shot lamp, or goes to reset the breaker), once for each time it goes dark. Turn the lights back on
-  yourself before he gets there and he turns back. Host only; co-op partners see the lights come back through the
+  yourself before he gets there and he turns back. A course mains gate's circuit is left off (no guard shuts the gate on
+  you by turning it back on). Host only; co-op partners see the lights come back through the
   existing light sync.
