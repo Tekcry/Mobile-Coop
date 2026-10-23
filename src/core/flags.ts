@@ -56,6 +56,8 @@ export interface Flags {
   mocap: boolean | null;
   /** (guard-render S1) Guards draw as one merged smooth mesh each (`SmoothBody`); `?guardmerge=0`: the parts, for comparisons. */
   guardMerge: boolean;
+  /** (guard-render S4) Guard anim tiers (off-screen every 4th frame, far every 2nd: `src/ai/animTier.ts`); `?animtier=0` off. */
+  animTier: boolean;
 }
 
 /** (mocap-trial) An on / off URL value: "1" true, "0" false, anything else (or absent) null. */
@@ -121,4 +123,5 @@ export const flags: Flags = {
   sectorGuards: /^\d{1,2}$/.test(params.get('sectorGuards') ?? '') ? Number(params.get('sectorGuards')) : null,
   mocap: onOffFlag(params.get('mocap')),
   guardMerge: params.get('guardmerge') !== '0',
+  animTier: params.get('animtier') !== '0',
 };
