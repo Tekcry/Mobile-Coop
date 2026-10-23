@@ -1,0 +1,16 @@
+{
+  "id": "20261023T232726-night-shift-sector-o-5c20c538-b993",
+  "sha": "5c20c5388eb4829f119eab0e44c63249c5c0ab58",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Sector Ops Build",
+  "steps": [
+    "set \"LR8_ONLY=campusOps:s1,campusOps:s5,warehouseOps,ctcourse\" && set \"LR8_SHOTS=04,07,08\" && set \"LR8_OUT=C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538\" && node C:/NightShift/scratch/work/lr16-8/sheets.mjs"
+  ],
+  "env": {
+    "LR8_CAP_MIN": "55"
+  },
+  "set": "lr16-8-redo040708",
+  "note": "LR16-8 shots 04/07/08 with the triage metrics (campusOps S1+S5, warehouseOps, ctcourse)"
+}
