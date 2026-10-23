@@ -1,6 +1,15 @@
 # Guard AI - state
 
 ## Now
+~13:45: orchestrator left #200-#203 out of train 24 (s10 x master 4.72.0 conflict in sectorMode.ts, #206). Wants
+train 25 = #200-#203 + #208 after: master merged up the stack, laptop sectorops 1-5 + stealth-ai rerun, train-ready.
+RUNNING (Opus): master merge agent s10 -> s12 -> s13 -> s14 (report slices/S10.md "Master 4.72.0 merge"; s15 left
+alone); fresh checker S13 + S14 + S15 on s15 tip e8a3973e (writes slices/S13-15-CHECK.md).
+S14 DONE d0c8bad2 (A70-A77; 16 test files green). Tip chain built: s13 ff56fb17 (<- s12) -> s14 7084d808 -> s15
+e8a3973e (tsc, 143 unit tests). Next: laptop run on the new s12 (sectorops 1-5, stealth-ai, takedown) -> train-ready
+#200-#203 + #208; s15 <- new s14 after the check; then PRs S13 / S14 / S15 stacked on #208 and their laptop run
+(stealth-ai, sectorops all, takedown, ct-warehouse, course, ctcourse, coop, netmove).
+
 ~13:20: laptop GPU sectorops:1 GREEN on s10 0742bd0d (8/8 with the 345fbb91 passes). TRAIN-READY sent to the
 orchestrator for train 24: #200 -> #201 -> #202 -> #203 (heads caa59027 / 29020c5a / 74095d47 / 0742bd0d).
 Next in line: #208 (s12 a31daa61), then S13 + S14 + S15 batch.
