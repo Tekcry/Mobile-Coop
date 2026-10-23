@@ -3,7 +3,15 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
-**Test Runner SAVE 17 (2026-10-23 ~18:00, 92% save; wins over all below):**
+**Test Runner SAVE 18 (2026-10-23 ~18:08, swap ~18:22; wins over all below):**
+- TRAIN 30 7e8b8c51: 38/39, e2e-stealth-ai FAIL ("a suppressed shot 10 m off only makes a guard turn to look"; SENT).
+  Player says test-only (fix 907bea89); orchestrator rebuilds train 30 on it -> run that train full when it arrives.
+  Solo rerun runs/train30-stealthai-7e8b8c51 (4191, chain-1023t30b): send pass / fail to Orchestrator AND Player Build.
+- Still queued: 4192 chain-1023mr Marlow section-rating 053ff212 -> Marlow Build; 4189 chain-1023ap3 #226 perf alone
+  (after gs5 done + all locks free; build first) -> Sector Ops. Guard AI carry-fix sha pending (see SAVE 17).
+- SENT: invisible-guard split verdict (compile timeout, all 3 passes) to Guard AI.
+
+**Test Runner SAVE 17 (2026-10-23 ~18:00, 92% save):**
 - RUNNING / QUEUED (scheduled tasks, survive the swap; logs runs/chain-1023<x>.log, results runs/<label>/summary.txt):
   - 4189 chain-1023t30: TRAIN 30 7e8b8c51 full (Player #214 -> #223 -> #231 protocol 40 + #236 voxel-retire) ->
     verdict to Orchestrator (if the swap cuts it: read runs/train30-7e8b8c51, send the verdict).
