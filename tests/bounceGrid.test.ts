@@ -2,15 +2,17 @@
  * (LR16-1) The bounce grid at runtime (`src/world/bounceGrid.ts`): a lamp switched, shot, jammed dark or EMP'd takes
  * exactly its own bounce out, at once and to the byte, and back on puts the same bytes back; only the touched box is
  * re-quantised; a sync with nothing moved costs one compare; no allocation. And the picture: the shader's `nsGrid2`
- * green channel, read as the GPU reads the RG fill texture, is the field's bounce.
+ * green channel, read as the GPU reads the RGBA fill texture, is the field's bounce. (Fix round) The read never blends
+ * across a wall: a wall bit stops the blend, a crossing code moves the home cell; without walls it is the trilinear.
  */
 import { describe, expect, it } from 'vitest';
-import { BOUNCE, BOUNCE_BOX_STRIDE, type LampBounce } from '../src/voxel/lampBounce';
-import { BOUNCE_WEIGHT, BounceGrid, bounceColor, packFillRG } from '../src/world/bounceGrid';
+import { BOUNCE, BOUNCE_BOX_STRIDE, BOUNCE_T_SHIFT, BOUNCE_T_STEP, type LampBounce } from '../src/voxel/lampBounce';
+import { BOUNCE_WEIGHT, BounceGrid, bounceColor, packFillRGBA } from '../src/world/bounceGrid';
 import { LAMP_LEVEL_GAIN } from '../src/world/lampMath';
 import { LightRegistry } from '../src/world/lights';
-import { bytesPerCall } from './helpers/allocPerCall';
-import { roomA } from './helpers/bounceRoom';
+import { bytesPerCall, HEAP_NUMBER, inputs, sink } from './helpers/allocPerCall';
+import { nsGrid2 } from './helpers/bounceRead';
+import { roomA, slabRoom, wallRoom } from './helpers/bounceRoom';
 
 const N: [number, number, number] = [14, 5, 12];
 const GRID = { origin: [-2, -1, -3], n: N };
@@ -200,54 +202,122 @@ describe('(LR16-1) bounce grid', () => {
 });
 
 describe('(LR16-1) nsGrid2 green channel = field bounce', () => {
-  it('the GLSL reads G of the RG fill texture as the field reads the bounce grid', async () => {
+  it('the GLSL reads the RGBA fill texture as the field reads the bounce grid (walls kept)', async () => {
     const { NS_GRID2_GLSL, LAMP_GLSL } = await import('../src/world/bakedLamps');
-    // the function: the same normalised coordinate as nsGrid, G read with the coordinate clamped to the grid (a clamped
-    // bilinear tap = the field's clamped trilinear), R as nsGrid (1 outside the grid)
+    // the function: R as nsGrid (one linear tap, 1 outside the grid); G, B, A by 8 texel fetches, the field's steps
     expect(LAMP_GLSL).toContain(NS_GRID2_GLSL);
-    expect(NS_GRID2_GLSL).toContain('vec3 q = (p - o.xyz) / (o.w * n.xyz);');
-    expect(NS_GRID2_GLSL).toContain('texture(t, clamp(q, 0.0, 1.0)).rg');
-    expect(NS_GRID2_GLSL).toMatch(/\? 1\.0 : v\.x, v\.y\)/);
+    for (const line of [
+      'vec3 q = (p - o.xyz) / (o.w * n.xyz);',
+      'texture(t, clamp(q, 0.0, 1.0)).r;',
+      'vec3 u = clamp((p - o.xyz) / o.w - 0.5, vec3(0.0), n.xyz - 1.0);',
+      'ivec3 i1 = min(i0 + 1, ivec3(n.xyz) - 1);',
+      'e[k] = int(s.b * 255.0 + 0.5) + int(s.a * 255.0 + 0.5) * 256;',
+      'ivec3 hb = ivec3(step(vec3(0.5), f));',
+      `int tx = (eh >> (hb.x == 1 ? ${BOUNCE_T_SHIFT[1]} : ${BOUNCE_T_SHIFT[0]})) & 3;`,
+      `if (tx > 0 && d.x >= float(tx) * ${BOUNCE_T_STEP}) h ^= 1;`,
+      'for (int r = 0; r < 7; r++) {',
+      'return vec2(amb, sw > 0.0 ? sv / sw : v[h]);',
+    ]) expect(NS_GRID2_GLSL).toContain(line);
 
-    // the bytes: the field's bounce grid packed as the fill texture (R ambient, G bounce), sampled the way GL samples a
-    // LINEAR, CLAMP_TO_EDGE 3D texture at nsGrid2's coordinate, equals the field's bounceAt
-    const { field, bake } = roomA();
-    const bg = field.bounce;
-    const amb = bake.ambient;
-    expect(bg.n).toEqual(amb.n);
-    expect(bg.origin).toEqual(amb.origin);
-    const rg = new Uint8Array(amb.data.length * 2);
-    packFillRG(amb.data, bg.g, rg, amb.n);
-    const [nx, ny, nz] = amb.n;
-    const gl = (px: number, py: number, pz: number): number => {
-      // nsGrid2: q = (p - o) / (cell x n), clamped to [0, 1]; GL LINEAR + CLAMP_TO_EDGE: u = q x n - 0.5 clamped to the edge texels
-      const q = [(px - amb.origin[0]) / nx, (py - amb.origin[1]) / ny, (pz - amb.origin[2]) / nz].map((v) => Math.min(1, Math.max(0, v)));
-      const u = [q[0]! * nx - 0.5, q[1]! * ny - 0.5, q[2]! * nz - 0.5];
-      const lo = u.map((v) => Math.floor(v));
-      const fr = u.map((v, k) => v - lo[k]!);
-      const n = [nx, ny, nz];
-      let s = 0;
-      for (let dz = 0; dz < 2; dz++) for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) {
-        const i = [dx, dy, dz].map((d, k) => Math.min(n[k]! - 1, Math.max(0, lo[k]! + d)));
-        const w = (dx ? fr[0]! : 1 - fr[0]!) * (dy ? fr[1]! : 1 - fr[1]!) * (dz ? fr[2]! : 1 - fr[2]!);
-        s += w * rg[(i[0]! + nx * (i[1]! + ny * i[2]!)) * 2 + 1]!;
-      }
-      return s / 255;
-    };
-    let seed = 3;
-    const rnd = (): number => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    // the bytes: each fixture's grid packed as the fill texture (R ambient, G bounce, B + A x 256 the wall bits) and
+    // read by the GLSL written out in JS (`helpers/bounceRead.ts`) equals the field's bounceAt: the acceptance room, a
+    // wall off the middle of its cell, a slab off the middle of its cell, a two-lamp room with a doorway
+    const rooms = [roomA(), wallRoom(10.65, 1), wallRoom(10.15, 2), slabRoom(3.65, 3)];
     let lit = 0;
-    for (let k = 0; k < 400; k++) {
-      // inside the grid, on its edges and past it
-      const x = -2 + rnd() * 25;
-      const y = -1.5 + rnd() * 6;
-      const z = -1.5 + rnd() * 14;
-      const want = field.bounceAt(x, y, z);
-      expect(gl(x, y, z), `${x.toFixed(2)} ${y.toFixed(2)} ${z.toFixed(2)}`).toBeCloseTo(want, 9);
-      if (want > 0.02) lit++;
+    let walled = 0;
+    for (const { field, bake } of rooms) {
+      const bg = field.bounce;
+      const amb = bake.ambient;
+      expect(bg.n).toEqual(amb.n);
+      expect(bg.origin).toEqual(amb.origin);
+      const rgba = new Uint8Array(amb.data.length * 4);
+      packFillRGBA(amb.data, bg.g, bg.bits, rgba, amb.n);
+      const o = [amb.origin[0], amb.origin[1], amb.origin[2], 1];
+      let seed = 3;
+      const rnd = (): number => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      const hi = bake.hi;
+      for (let k = 0; k < 600; k++) {
+        // inside the grid, on its edges and past it; half the points within a metre of the shared wall / the slab
+        const near = k % 2 === 0;
+        const x = near && hi[0] > 15 ? 9.5 + rnd() * 2.5 : -2 + rnd() * (hi[0] + 3);
+        const y = near && hi[0] < 15 ? 2.5 + rnd() * 2.5 : -1.5 + rnd() * (hi[1] + 2);
+        const z = -1.5 + rnd() * 14;
+        const want = field.bounceAt(x, y, z);
+        expect(nsGrid2(rgba, [x, y, z], o, amb.n)[1], `${x.toFixed(3)} ${y.toFixed(3)} ${z.toFixed(3)}`).toBeCloseTo(want, 9);
+        if (want > 0.02) lit++;
+        // (a point whose 8 corners know a wall: the case the fix round is about)
+        const c = [x, y, z].map((v, i) => Math.min(amb.n[i]! - 1, Math.max(0, Math.floor(v - amb.origin[i]!))));
+        if (bg.bits[c[0]! + amb.n[0] * (c[1]! + amb.n[1] * c[2]!)]! & 7) walled++;
+      }
+      // R is the ambient grid untouched, B + A the bits
+      for (let c = 0; c < amb.data.length; c++) {
+        expect(rgba[c * 4]).toBe(amb.data[c]);
+        expect(rgba[c * 4 + 2]! + rgba[c * 4 + 3]! * 256).toBe(bg.bits[c]);
+      }
     }
-    expect(lit).toBeGreaterThan(10);
-    // R is the ambient grid untouched
-    for (let c = 0; c < amb.data.length; c++) expect(rg[c * 2]).toBe(amb.data[c]);
+    expect(lit).toBeGreaterThan(200);
+    expect(walled).toBeGreaterThan(200);
+  });
+});
+
+describe('(LR16-1 fix round) the wall-aware read', () => {
+  it('without walls it is the plain trilinear read of the grid', async () => {
+    const { trilinear } = await import('../src/world/lightField');
+    const { reg, ids, b } = setup();
+    const g = new BounceGrid(b, ids, GRID);
+    g.sync(reg);
+    let seed = 9;
+    const rnd = (): number => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let k = 0; k < 400; k++) {
+      const x = -3 + rnd() * 17;
+      const y = -2 + rnd() * 8;
+      const z = -4 + rnd() * 15;
+      g.sampleInto(x, y, z);
+      expect(g.out).toBeCloseTo(trilinear(g.g, 0, -2, -1, -3, N[0], N[1], N[2], 1, x, y, z), 12);
+    }
+  });
+
+  it('a wall bit stops the blend; a crossing code moves the home to the point\'s side', () => {
+    // two cells along x: lit (255) | dark (0)
+    const reg = new LightRegistry();
+    const id = reg.add({ x: 0, y: 0, z: 0, radius: 4, intensity: 1 }).id;
+    const grid = { origin: [0, 0, 0], n: [2, 1, 1] };
+    // (30000 steps x weight 1024: past the byte cap, 255)
+    const data = new Uint16Array([30000, 0]);
+    const boxes = new Int32Array([0, 0, 0, 2, 1, 1]);
+    const open = new BounceGrid({ boxes, data, bits: new Uint16Array([0, 0]) }, [id], grid);
+    open.sync(reg);
+    expect(open.g[0]).toBe(255);
+    open.sampleInto(1, 0.5, 0.5);
+    expect(open.out).toBeCloseTo(0.5, 9);
+    // a wall between the centres (edge bit x on the lower cell): each side reads its own cell
+    const wall = new BounceGrid({ boxes, data, bits: new Uint16Array([1, 0]) }, [id], grid);
+    wall.sync(reg);
+    for (const [x, want] of [[0.9, 1], [0.99, 1], [1.01, 0], [1.4, 0]] as const) {
+      wall.sampleInto(x, 0.5, 0.5);
+      expect(wall.out, `x ${x}`).toBe(want);
+    }
+    // the wall inside the lit cell, its middle 0.3 m past the lit centre (code 2 on +x): a point 0.3 m or more past the
+    // centre (x >= 0.8) reads the dark cell
+    const off = new BounceGrid({ boxes, data, bits: new Uint16Array([1 | (2 << BOUNCE_T_SHIFT[0]), 0]) }, [id], grid);
+    off.sync(reg);
+    for (const [x, want] of [[0.5, 1], [0.79, 1], [0.8, 0], [0.95, 0], [1.2, 0]] as const) {
+      off.sampleInto(x, 0.5, 0.5);
+      expect(off.out, `x ${x}`).toBe(want);
+    }
+  });
+
+  it('allocates nothing (at most the boxed doubles of its arguments)', async () => {
+    const { field } = wallRoom(10.65, 1);
+    const g = field.bounce;
+    const xs = inputs(500, (k) => 10.3 + (k % 8) * 0.1);
+    const bytes = await bytesPerCall((n) => {
+      for (let i = 0; i < n; i++) {
+        g.sampleInto(xs[i]!, 1.5, 5);
+        sink[0] = g.out;
+      }
+    }, 3 * HEAP_NUMBER, { n: 500 });
+    expect(sink[0]).toBeGreaterThanOrEqual(0);
+    expect(bytes).toBeLessThanOrEqual(3 * HEAP_NUMBER);
   });
 });

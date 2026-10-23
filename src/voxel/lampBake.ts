@@ -133,6 +133,7 @@ export function bakeLamps(job: LampJob): LampResult {
   // (LR16-1) each light's one-bounce fill, from its own visibility
   const bBoxes = new Int32Array(count * BOUNCE_BOX_STRIDE);
   const bParts: Uint16Array[] = [];
+  const bitParts: Uint16Array[] = [];
   let bTotal = 0;
   let msVis = 0;
   let msBounce = 0;
@@ -149,6 +150,7 @@ export function bakeLamps(job: LampJob): LampResult {
     msBounce += performance.now() - t1;
     bBoxes.set(b.box, li * BOUNCE_BOX_STRIDE);
     bParts.push(b.data);
+    bitParts.push(b.bits);
     bTotal += b.data.length;
   }
   const vis = new Uint8Array(total);
@@ -158,12 +160,14 @@ export function bakeLamps(job: LampJob): LampResult {
     at += p.length;
   }
   const bData = new Uint16Array(bTotal);
+  const bBits = new Uint16Array(bTotal);
   at = 0;
-  for (const p of bParts) {
-    bData.set(p, at);
-    at += p.length;
+  for (let i = 0; i < bParts.length; i++) {
+    bData.set(bParts[i]!, at);
+    bBits.set(bitParts[i]!, at);
+    at += bParts[i]!.length;
   }
-  return { kind: 'lamps', id: job.id, boxes, vis, bounce: { boxes: bBoxes, data: bData }, ms: { vis: msVis, bounce: msBounce } };
+  return { kind: 'lamps', id: job.id, boxes, vis, bounce: { boxes: bBoxes, data: bData, bits: bBits }, ms: { vis: msVis, bounce: msBounce } };
 }
 
 function bakeOne(L: Float32Array, li: number, box: number[], occShapes: Float32Array, sb: number[][]): Uint8Array {

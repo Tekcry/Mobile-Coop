@@ -11,7 +11,8 @@ import { bakeVisSampler, DOOR_SHUT, DOORS_PER_LAMP, DOORS_PER_LAMP_ACCURATE, lam
 import { TORCH_DRAW_GLSL, TORCH_DRAW_SLOTS, TORCH_DRAW_STRIDE } from './shadowAccuracy';
 import { LEVEL_FILL_GLSL as LF, type Rgb } from './levelFill';
 import { CHAR_SHADOW_GLSL, type CharShadowLamps, type CharShadowLink } from './charShadows';
-import { bounceColor, packFillRG, type BounceGrid } from './bounceGrid';
+import { bounceColor, packFillRGBA, type BounceGrid } from './bounceGrid';
+import { BOUNCE_T_SHIFT, BOUNCE_T_STEP } from '../voxel/lampBounce';
 
 export { bakedLights };
 
@@ -35,8 +36,8 @@ export interface BakeExtras {
    *  fill on the standard-material look and on the game's non-voxel surfaces (characters, props), in place of the
    *  hemisphere (Step 4b; the voxels keep the sky bake's fill). */
   fill?: { grid: AmbientGrid; color: [number, number, number] } | null;
-  /** (LR16-1) The light field's bounce grid (`LightField.bounce`): its bytes go in the fill texture's green channel and
-   *  light every lit material, the curve's level included. */
+  /** (LR16-1) The light field's bounce grid (`LightField.bounce`): its bytes go in the fill texture's green channel (its
+   *  wall bits in blue and alpha) and light every lit material, the curve's level included. */
   bounce?: BounceGrid | null;
   /** The moon's share of the open-sky level (`moonLight`): the curve's moon term. */
   moonLight?: number;
@@ -71,7 +72,8 @@ const CAPS_PER_LAMP = 4;
  * on or off at once (switches, shots, EMP), for a 3D texture tap per lamp per pixel; characters get soft capsule
  * shadows from every lamp. One data texture: the light grid (which lamps reach each 2 m column), the lamps, the
  * capsules (updated each frame).
- * (LR16-1) The fill texture's G channel is the light field's bounce grid (the lit lamps' one-bounce fill). Light parity's
+ * (LR16-1) The fill texture's G channel is the light field's bounce grid (the lit lamps' one-bounce fill), B and A its
+ * static wall bits (fix round: `nsGrid2` never blends it across a wall, as the field reads it). Light parity's
  * one exception: the picture's bounce is re-uploaded at most every 0.25 s (`BOUNCE_UPLOAD_MS`), so it may lag a
  * switched, shot or jammed lamp by that much; the meter, the guards and the direct light never lag.
  */
@@ -94,12 +96,12 @@ export class BakedLamps implements CharShadowLamps {
   /** 3.6: the baked moon (R8, linear). */
   readonly moonTex: RawTexture3D | null = null;
   readonly moon: MoonGrid | null;
-  /** The fill texture, RG8 (LR16-1): R the ambient grid, G the bounce. */
+  /** The fill texture, RGBA8 (LR16-1): R the ambient grid, G the bounce, B + A x 256 the bounce's wall bits. */
   readonly fillTex: RawTexture3D | null = null;
   readonly fill: BakeExtras['fill'];
-  /** (LR16-1) The light field's bounce grid, its upload buffer (RG, as `fillTex`), the version and time last uploaded. */
+  /** (LR16-1) The light field's bounce grid, its upload buffer (RGBA, as `fillTex`), the version and time last uploaded. */
   readonly bounce: BounceGrid | null;
-  private readonly fillRG: Uint8Array | null = null;
+  private readonly fillRGBA: Uint8Array | null = null;
   private bounceVer = -1;
   private bounceUp = -Infinity;
   /** (LR16-1) The bounce's colour (`bounceColor`: the lamps' tint, luminance 1). */
@@ -260,16 +262,17 @@ export class BakedLamps implements CharShadowLamps {
     };
     if (this.moon) this.moonTex = mk3(this.moon.vis, this.moon.n[0], this.moon.n[1], this.moon.n[2]);
     if (this.fill) {
-      // (LR16-1) RG8: R the ambient grid as before, G the bounce (one tap reads both; the samplers are unchanged)
+      // (LR16-1) RGBA8: R the ambient grid as before, G the bounce, B + A its wall bits (fix round; one sampler, the
+      // samplers are unchanged)
       const fg = this.fill.grid;
       const bg = this.bounce && this.bounce.n.every((v, k) => v === fg.n[k]) ? this.bounce : null;
       bg?.sync(reg);
-      this.fillRG = new Uint8Array(fg.data.length * 2);
-      packFillRG(fg.data, bg && bg.active ? bg.g : null, this.fillRG, fg.n);
+      this.fillRGBA = new Uint8Array(fg.data.length * 4);
+      packFillRGBA(fg.data, bg && bg.active ? bg.g : null, bg && bg.active ? bg.bits : null, this.fillRGBA, fg.n);
       bg?.clearDirty();
       this.bounceVer = bg ? bg.version : -1;
       if (!bg) this.bounce = null;
-      const t = new RawTexture3D(this.fillRG, fg.n[0], fg.n[1], fg.n[2], Constants.TEXTUREFORMAT_RG, scene, false, false, Texture.BILINEAR_SAMPLINGMODE, Constants.TEXTURETYPE_UNSIGNED_BYTE);
+      const t = new RawTexture3D(this.fillRGBA, fg.n[0], fg.n[1], fg.n[2], Constants.TEXTUREFORMAT_RGBA, scene, false, false, Texture.BILINEAR_SAMPLINGMODE, Constants.TEXTURETYPE_UNSIGNED_BYTE);
       t.wrapU = t.wrapV = t.wrapR = Texture.CLAMP_ADDRESSMODE;
       this.fillTex = t;
     }
@@ -387,7 +390,7 @@ export class BakedLamps implements CharShadowLamps {
    */
   private uploadBounce(): void {
     const bg = this.bounce;
-    const buf = this.fillRG;
+    const buf = this.fillRGBA;
     if (!bg || !buf || !this.fillTex || !this.fill) return;
     bg.sync(this.reg);
     if (bg.version === this.bounceVer) return;
@@ -395,7 +398,7 @@ export class BakedLamps implements CharShadowLamps {
     if (now - this.bounceUp < BOUNCE_UPLOAD_MS) return;
     this.bounceUp = now;
     this.bounceVer = bg.version;
-    packFillRG(this.fill.grid.data, bg.g, buf, this.fill.grid.n, bg.dirty);
+    packFillRGBA(this.fill.grid.data, bg.g, bg.bits, buf, this.fill.grid.n, bg.dirty);
     bg.clearDirty();
     this.fillTex.update(buf);
   }
@@ -727,11 +730,63 @@ class LampVolume {
 }
 
 /**
- * (LR16-1) The fill texture's two channels at a point: R the ambient fill (1 outside the grid, as `nsGrid`), G the
- * bounce read clamped to the grid as the light field's `triInto` reads it (a clamped bilinear tap of the same bytes).
- * One line: `tests/bounceGrid.test.ts` checks it against the field.
+ * (LR16-1) The fill texture at a point: R the ambient fill (1 outside the grid, as `nsGrid`; one linear tap), G the
+ * bounce read as the light field's `BounceGrid.sampleInto` reads it (fix round: 8 texel fetches, the home cell crossed
+ * to the point's side of a wall inside it, the corners it reaches through open faces blended and renormalised; B + A x
+ * 256 the wall bits). Step for step the field's arithmetic: `tests/bounceGrid.test.ts` checks it against the field.
  */
-export const NS_GRID2_GLSL = `vec2 nsGrid2(highp sampler3D t, vec3 p, vec4 o, vec4 n) { vec3 q = (p - o.xyz) / (o.w * n.xyz); vec2 v = texture(t, clamp(q, 0.0, 1.0)).rg; return vec2(any(lessThan(q, vec3(0.0))) || any(greaterThan(q, vec3(1.0))) ? 1.0 : v.x, v.y); }`;
+export const NS_GRID2_GLSL = `vec2 nsGrid2(highp sampler3D t, vec3 p, vec4 o, vec4 n) {
+  vec3 q = (p - o.xyz) / (o.w * n.xyz);
+  float amb = any(lessThan(q, vec3(0.0))) || any(greaterThan(q, vec3(1.0))) ? 1.0 : texture(t, clamp(q, 0.0, 1.0)).r;
+  vec3 u = clamp((p - o.xyz) / o.w - 0.5, vec3(0.0), n.xyz - 1.0);
+  vec3 b = floor(u);
+  vec3 f = u - b;
+  ivec3 i0 = ivec3(b);
+  ivec3 i1 = min(i0 + 1, ivec3(n.xyz) - 1);
+  float v[8];
+  int e[8];
+  bool c[8];
+  float lit = 0.0;
+  int walls = 0;
+  for (int k = 0; k < 8; k++) {
+    vec4 s = texelFetch(t, ivec3((k & 1) != 0 ? i1.x : i0.x, (k & 2) != 0 ? i1.y : i0.y, (k & 4) != 0 ? i1.z : i0.z), 0);
+    v[k] = s.g;
+    e[k] = int(s.b * 255.0 + 0.5) + int(s.a * 255.0 + 0.5) * 256;
+    lit += s.g;
+    walls |= e[k];
+  }
+  if (lit <= 0.0) return vec2(amb, 0.0);
+  ivec3 hb = ivec3(step(vec3(0.5), f));
+  int h = hb.x + hb.y * 2 + hb.z * 4;
+  int eh = e[h];
+  vec3 d = abs(f - vec3(hb));
+  int tx = (eh >> (hb.x == 1 ? ${BOUNCE_T_SHIFT[1]} : ${BOUNCE_T_SHIFT[0]})) & 3;
+  int ty = (eh >> (hb.y == 1 ? ${BOUNCE_T_SHIFT[3]} : ${BOUNCE_T_SHIFT[2]})) & 3;
+  int tz = (eh >> (hb.z == 1 ? ${BOUNCE_T_SHIFT[5]} : ${BOUNCE_T_SHIFT[4]})) & 3;
+  if (tx > 0 && d.x >= float(tx) * ${BOUNCE_T_STEP}) h ^= 1;
+  if (ty > 0 && d.y >= float(ty) * ${BOUNCE_T_STEP}) h ^= 2;
+  if (tz > 0 && d.z >= float(tz) * ${BOUNCE_T_STEP}) h ^= 4;
+  bool open = (walls & 7) == 0;
+  for (int k = 0; k < 8; k++) c[k] = k == h || open;
+  if (!open) {
+    for (int r = 0; r < 7; r++) {
+      for (int k = 0; k < 8; k++) {
+        if ((k & 1) == 0 && (e[k] & 1) == 0 && c[k] != c[k + 1]) { c[k] = true; c[k + 1] = true; }
+        if ((k & 2) == 0 && (e[k] & 2) == 0 && c[k] != c[k + 2]) { c[k] = true; c[k + 2] = true; }
+        if ((k & 4) == 0 && (e[k] & 4) == 0 && c[k] != c[k + 4]) { c[k] = true; c[k + 4] = true; }
+      }
+    }
+  }
+  float sw = 0.0;
+  float sv = 0.0;
+  for (int k = 0; k < 8; k++) {
+    if (!c[k]) continue;
+    float w = ((k & 1) != 0 ? f.x : 1.0 - f.x) * ((k & 2) != 0 ? f.y : 1.0 - f.y) * ((k & 4) != 0 ? f.z : 1.0 - f.z);
+    sw += w;
+    sv += w * v[k];
+  }
+  return vec2(amb, sw > 0.0 ? sv / sw : v[h]);
+}`;
 
 /** The lamp loop (GLSL), shared by every material the plugin is on. Exported for the guard test that it holds
  *  `LAMP_MATH_GLSL`. */

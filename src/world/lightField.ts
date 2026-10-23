@@ -4,7 +4,8 @@
  * (`lightBake.ts`: lamp visibility boxes, moon visibility, the ambient grid) and the registry's live state (on,
  * destroyed, EMP), with the formula the renderers use (`lampMath.ts`):
  *
- *   level = ambient grid + bounce grid (LR16-1, the lit lamps' one-bounce fill) + moon x moon visibility + sum over the
+ *   level = ambient grid + bounce grid (LR16-1, the lit lamps' one-bounce fill, never blended across a wall:
+ *           `BounceGrid.sampleInto`) + moon x moon visibility + sum over the
  *           lamps listed for the point's 2 m column (as the shaders list them) of `LAMP_LEVEL_GAIN` x intensity x
  *           falloff x cone x baked visibility, with closed doors cutting lamps
  *
@@ -189,7 +190,8 @@ export class LightField {
     return this.res;
   }
 
-  /** (LR16-1) The one-bounce fill at a point (0..1): the bounce grid read trilinearly, as `levelAt` adds it. */
+  /** (LR16-1) The one-bounce fill at a point (0..1): the bounce grid read by `BounceGrid.sampleInto` (the walls kept),
+   *  as `levelAt` adds it. */
   bounceAt(x: number, y: number, z: number): number {
     this.bounceInto(x, y, z);
     return this.res;
@@ -251,7 +253,8 @@ export class LightField {
     // (shadow audit) the ambient fill read trilinearly, as the shaders' bilinear `lampAmb` texture reads it
     this.triInto(ag.data, 0, ag.origin[0], ag.origin[1], ag.origin[2], ag.n[0], ag.n[1], ag.n[2], AMBIENT_CELL, x, y, z);
     let v = this.res;
-    // (LR16-1) the lit lamps' bounce: the same cells, the same trilinear read (the fill texture's green channel)
+    // (LR16-1) the lit lamps' bounce: the same cells, read without blending across a wall (fix round), as the shader
+    // reads the fill texture's green channel
     if (this.bounce.active) {
       this.bounceInto(x, y, z);
       v += this.res;
@@ -343,7 +346,8 @@ export class LightField {
       return;
     }
     bg.sync(this.reg);
-    this.triInto(bg.g, 0, bg.origin[0], bg.origin[1], bg.origin[2], bg.n[0], bg.n[1], bg.n[2], AMBIENT_CELL, x, y, z);
+    bg.sampleInto(x, y, z);
+    this.res = bg.out;
   }
 
   private moonInto(x: number, y: number, z: number): void {

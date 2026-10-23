@@ -23,6 +23,9 @@ function cacheOk(hit: LampResult | undefined, n: number): hit is LampResult {
     !!hit.bounce &&
     hit.bounce.boxes instanceof Int32Array &&
     hit.bounce.data instanceof Uint16Array &&
+    // (LR16-1 fix round) the wall bits: a cache from before them is baked again
+    hit.bounce.bits instanceof Uint16Array &&
+    hit.bounce.bits.length === hit.bounce.data.length &&
     hit.bounce.boxes.length === n * BOUNCE_BOX_STRIDE
   );
 }
@@ -67,6 +70,7 @@ export async function bakeLevelLamps(shapes: Float32Array, lights: Float32Array,
   let blen = 0;
   for (const p of parts) blen += p.bounce?.data.length ?? 0;
   const bData = new Uint16Array(blen);
+  const bBits = new Uint16Array(blen);
   let bb = 0;
   let bd = 0;
   let msVis = 0;
@@ -76,13 +80,14 @@ export async function bakeLevelLamps(shapes: Float32Array, lights: Float32Array,
     if (p.bounce) {
       bBoxes.set(p.bounce.boxes, bb);
       bData.set(p.bounce.data, bd);
+      if (p.bounce.bits) bBits.set(p.bounce.bits, bd);
       bd += p.bounce.data.length;
     }
     bb += pn * BOUNCE_BOX_STRIDE;
     msVis += p.ms?.vis ?? 0;
     msBounce += p.ms?.bounce ?? 0;
   }
-  const r: LampResult = { kind: 'lamps', id: 0, boxes, vis, bounce: { boxes: bBoxes, data: bData }, ms: { vis: msVis, bounce: msBounce } };
+  const r: LampResult = { kind: 'lamps', id: 0, boxes, vis, bounce: { boxes: bBoxes, data: bData, bits: bBits }, ms: { vis: msVis, bounce: msBounce } };
   if (key) void saveLamps(key, r);
   return r;
 }

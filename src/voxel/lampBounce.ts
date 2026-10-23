@@ -11,12 +11,13 @@
  * 3. Fixture uplight: a downward lamp (no cone) leaks `uplight` of its level upwards, so the ceiling over it is never
  *    black: one VPL at the lamp + 0.1 m, normal +y, flux `uplight x pi`.
  * 4. Splat to the 1 m receiver cells of the ambient grid within `reach`: `PHI x max(0, n . w) / (pi x (d^2 + near^2))`
- *    x the photometric window `(1 - (d / reach)^4)^2`, an omni receiver (the meter has no normal), x the share of 3
- *    points of the receiver cell (its centre, +-0.3 m along the dominant axis from the VPL) a march on the 0.2 m
- *    occupancy reaches. A cell straddling a wall takes only its lit side's share; a room behind a wall nothing.
- * 5. Out: the receivers' integer box (ambient cells from the grid's origin) and `Uint16` steps of `BOUNCE.q` per unit
- *    intensity. `world/bounceGrid.ts` sums the lit lamps' boxes at runtime (exact integers), so a shot or switched lamp
- *    takes its bounce with it; the meter, the guards and the picture read the same bytes.
+ *    x the photometric window `(1 - (d / reach)^4)^2`, an omni receiver (the meter has no normal), when a march on the
+ *    0.2 m occupancy reaches the cell's centre (LR16-1 fix round: the centre only, so a cell a wall crosses holds the
+ *    light of the side its centre is on, never a share of the far side's; a room behind a wall nothing).
+ * 5. Out: the receivers' integer box grown by a cell (ambient cells from the grid's origin), `Uint16` steps of
+ *    `BOUNCE.q` per unit intensity, and the box's static wall bits (`bounceBits`). `world/bounceGrid.ts` sums the lit
+ *    lamps' boxes at runtime (exact integers), so a shot or switched lamp takes its bounce with it; the meter, the
+ *    guards and the picture read the same bytes and blend them only between cells no wall parts.
  */
 import { rasterise } from './shapes';
 import { LAMP_CONE_COS, LAMP_EXP, photoTerm, SPOT_EXP } from '../world/lampMath';
@@ -48,11 +49,36 @@ export const BOUNCE = {
 /** Per lamp: box origin x, y, z (ambient cells from the grid origin) and counts nx, ny, nz (0 counts: no bounce). */
 export const BOUNCE_BOX_STRIDE = 6;
 
-/** Every lamp's bounce: `BOUNCE_BOX_STRIDE` ints a lamp and their cells (x fastest) one after another, steps of `BOUNCE.q`. */
+/**
+ * Every lamp's bounce: `BOUNCE_BOX_STRIDE` ints a lamp and their cells (x fastest) one after another, steps of `BOUNCE.q`.
+ * (LR16-1 fix round) `bits`: per cell of the same boxes (same order), the static walls around it (`bounceBits`); absent
+ * only on hand-made test results (no walls).
+ */
 export interface LampBounce {
   boxes: Int32Array;
   data: Uint16Array;
+  bits?: Uint16Array;
 }
+
+/**
+ * (LR16-1 fix round) The walls a 1 m bounce cell knows, so the meter, the guards and the picture never blend the bounce
+ * across a wall (`BounceGrid.sampleInto`, the shader's `nsGrid2`: the same arithmetic). Sixteen bits per cell, from the
+ * bake's own conservative occupancy (`occupancyShapes`, grown by half a 0.2 m cell) on `BOUNCE_SUB` sub-cells a cell,
+ * aligned so the centre is a sub-cell's (one answer per cell, whichever lamp computed it):
+ * - bits 0-2 (1 / 2 / 4, the corner bit of the axis): a solid lies between this cell's centre and its +x / +y / +z
+ *   neighbour's (either centre's sub-cell included);
+ * - 2 bits per direction at `BOUNCE_T_SHIFT` (+x, -x, +y, -y, +z, -z), a code k (0: none): a point of the cell that far
+ *   or farther from the centre (k x `BOUNCE_T_STEP` m) is past a wall from the centre and reads the neighbour on its
+ *   side instead. The code is the wall's middle (the middle of the first solid run that starts in this half of the
+ *   cell), rounded to a step; from a centre inside a solid, the step of its first air sub-cell that way (none while the
+ *   solid runs on through the half cell); a wall whose middle is past `BOUNCE_T_FAR` m none. A point 0.15 m or more from a 0.2 m wall's face reads its own side wherever the wall sits.
+ */
+export const BOUNCE_SUB = 5;
+export const BOUNCE_T_SHIFT = [3, 5, 8, 10, 12, 14] as const;
+/** m a code step (3 steps: 0.15, 0.3, 0.45 from the centre). */
+export const BOUNCE_T_STEP = 0.15;
+/** A wall whose middle is farther than this from the centre (m) parts no point of the cell from it. */
+const BOUNCE_T_FAR = 0.6;
 
 /** The ambient grid's origin and counts over a bake box (`buildAmbientGrid`'s alignment: whole cells from floor(lo)). */
 export function bounceGridDims(lo: readonly number[], hi: readonly number[]): { origin: [number, number, number]; n: [number, number, number] } {
@@ -104,12 +130,106 @@ function clearPath(occ: Uint8Array, gx: number, gy: number, gz: number, GX: numb
 }
 
 /**
+ * (LR16-1 fix round) The wall bits (`BOUNCE_SUB`) of the ambient cells in `box` (x, y, z, nx, ny, nz: cells from the
+ * grid origin `A0`; `N` the grid's counts), from the bake's conservative occupancy (`occShapes` / `sb`) rasterised on
+ * sub-cells aligned to the grid: every lamp computes the same bits for a cell. x fastest.
+ */
+export function bounceBits(occShapes: Float32Array, sb: readonly (readonly number[])[], A0: readonly number[], N: readonly number[], box: readonly number[]): Uint16Array {
+  const S = BOUNCE_SUB;
+  const sub = AMBIENT_CELL / S;
+  const bx = box[0]!;
+  const by = box[1]!;
+  const bz = box[2]!;
+  const tx = box[3]!;
+  const ty = box[4]!;
+  const tz = box[5]!;
+  const out = new Uint16Array(tx * ty * tz);
+  if (out.length === 0) return out;
+  // sub-cells over the box and a cell past it each way (the neighbours' centres, the runs that start in this cell)
+  const OX = (tx + 2) * S;
+  const OY = (ty + 2) * S;
+  const OZ = (tz + 2) * S;
+  const o: [number, number, number] = [A0[0]! + (bx - 1) * AMBIENT_CELL, A0[1]! + (by - 1) * AMBIENT_CELL, A0[2]! + (bz - 1) * AMBIENT_CELL];
+  const ex = o[0] + OX * sub;
+  const ey = o[1] + OY * sub;
+  const ez = o[2] + OZ * sub;
+  const pick: number[] = [];
+  for (let i = 0; i < sb.length; i++) {
+    const b = sb[i]!;
+    if (b[3]! < o[0] || b[0]! > ex || b[4]! < o[1] || b[1]! > ey || b[5]! < o[2] || b[2]! > ez) continue;
+    pick.push(i);
+  }
+  const occ = new Uint8Array(OX * OY * OZ);
+  rasterise(occShapes, occ, o, sub, OX, OY, OZ, pick);
+  const stride = [1, OX, OX * OY];
+  const half = (S - 1) / 2;
+  const gi = [0, 0, 0];
+  for (let z = 0; z < tz; z++) {
+    for (let y = 0; y < ty; y++) {
+      for (let x = 0; x < tx; x++) {
+        const c = (x + 1) * S + half + OX * ((y + 1) * S + half + OY * ((z + 1) * S + half));
+        const solid = occ[c]! !== 0;
+        gi[0] = bx + x;
+        gi[1] = by + y;
+        gi[2] = bz + z;
+        let v = 0;
+        for (let a = 0; a < 3; a++) {
+          const st = stride[a]!;
+          // the edge to the + neighbour (inside the grid): any solid sub-cell from this centre to its centre
+          if (gi[a]! + 1 < N[a]!) {
+            for (let m = 0; m <= S; m++) {
+              if (occ[c + m * st]) {
+                v |= 1 << a;
+                break;
+              }
+            }
+          }
+          // each way: the step past which a point is beyond the wall from the centre
+          for (let sgn = 0; sgn < 2; sgn++) {
+            const step = sgn === 0 ? st : -st;
+            let code = 0;
+            if (solid) {
+              // inside a solid: past its end (the first air sub-cell this way, in this half; else it runs on and no
+              // point leaves it this way)
+              for (let m = 1; m <= half; m++) {
+                if (!occ[c + m * step]) {
+                  code = m;
+                  break;
+                }
+              }
+            } else {
+              let js = 0;
+              for (let m = 1; m <= half; m++) {
+                if (occ[c + m * step]) {
+                  js = m;
+                  break;
+                }
+              }
+              if (js > 0) {
+                let je = js;
+                while (je < 2 * half && occ[c + (je + 1) * step]) je++;
+                // the run's middle: its sub-cells' ends (js - 0.5, je + 0.5) halved
+                const mid = ((js + je) * sub) / 2;
+                code = mid > BOUNCE_T_FAR ? 0 : Math.max(1, Math.min(3, Math.round(mid / BOUNCE_T_STEP)));
+              }
+            }
+            v |= code << BOUNCE_T_SHIFT[a * 2 + sgn]!;
+          }
+        }
+        out[x + tx * (y + ty * z)] = v;
+      }
+    }
+  }
+  return out;
+}
+
+/**
  * One lamp's bounce. `L`: the job's lights, `o` this lamp's offset in it (`LAMP_STRIDE`); `box`: its visibility box
  * (`lampBox`: origin, counts in `c` cells) and `vis` its cells; `occShapes` / `sb`: the bake's conservative occupancy
  * shapes and their bounds; `lo` / `hi`: the map's bounds (the ambient grid's). Returns the receivers' box (ambient
- * cells) and their steps.
+ * cells, grown by one so every cell a read blends with a lit one knows its walls), their steps and their wall bits.
  */
-export function bounceLamp(L: Float32Array, o: number, box: readonly number[], c: number, vis: Uint8Array, occShapes: Float32Array, sb: readonly (readonly number[])[], lo: readonly number[], hi: readonly number[]): { box: number[]; data: Uint16Array } {
+export function bounceLamp(L: Float32Array, o: number, box: readonly number[], c: number, vis: Uint8Array, occShapes: Float32Array, sb: readonly (readonly number[])[], lo: readonly number[], hi: readonly number[]): { box: number[]; data: Uint16Array; bits: Uint16Array } {
   const ox = box[0]!;
   const oy = box[1]!;
   const oz = box[2]!;
@@ -278,7 +398,6 @@ export function bounceLamp(L: Float32Array, o: number, box: readonly number[], c
   const B = new Float64Array(RX * RY * RZ);
   const near2 = BOUNCE.near * BOUNCE.near;
   const reach2 = reach * reach;
-  const SIDE = 0.3;
   for (let j = 0; j < nv; j++) {
     const w = j * VS;
     const px = vpl[w]!;
@@ -321,20 +440,11 @@ export function bounceLamp(L: Float32Array, o: number, box: readonly number[], c
           const win = (1 - qd * qd) * (1 - qd * qd);
           const val = (phi * cos * win) / (Math.PI * (d2 + near2));
           if (val < VAL_MIN) continue;
-          // the 3 points: the centre and +-0.3 m along the dominant axis of VPL -> receiver
-          const aw = Math.abs(wx);
-          const bw = Math.abs(wy);
-          const cw = Math.abs(wz);
-          const sx = aw >= bw && aw >= cw ? SIDE : 0;
-          const sy = sx === 0 && bw >= cw ? SIDE : 0;
-          const sz = sx === 0 && sy === 0 ? SIDE : 0;
-          let seen = 0;
-          if (clearPath(occ, gx, gy, gz, GX, GY, GZ, c, px, py, pz, cx, cy, cz, t0)) seen++;
-          if (clearPath(occ, gx, gy, gz, GX, GY, GZ, c, px, py, pz, cx - sx, cy - sy, cz - sz, t0)) seen++;
-          if (clearPath(occ, gx, gy, gz, GX, GY, GZ, c, px, py, pz, cx + sx, cy + sy, cz + sz, t0)) seen++;
-          if (seen === 0) continue;
+          // (fix round) the centre only: a cell a wall crosses holds its centre's side, never a share of the far side
+          // (the reads cross to the neighbour on a point's own side: `bounceBits`)
+          if (!clearPath(occ, gx, gy, gz, GX, GY, GZ, c, px, py, pz, cx, cy, cz, t0)) continue;
           const bi = kx - rx0 + RX * (ky - ry0 + RY * (kz - rz0));
-          B[bi] = B[bi]! + (val * seen) / 3;
+          B[bi] = B[bi]! + val;
         }
       }
     }
@@ -364,16 +474,29 @@ export function bounceLamp(L: Float32Array, o: number, box: readonly number[], c
       }
     }
   }
-  if (bx1 < 0) return { box: [0, 0, 0, 0, 0, 0], data: new Uint16Array(0) };
-  const tx = bx1 - bx0 + 1;
-  const ty = by1 - by0 + 1;
-  const tz = bz1 - bz0 + 1;
+  if (bx1 < 0) return { box: [0, 0, 0, 0, 0, 0], data: new Uint16Array(0), bits: new Uint16Array(0) };
+  // (fix round) the tight box grown by a cell (clipped to the grid): a read that blends a lit cell takes its other
+  // corners from here, so they carry their walls
+  const gx0 = Math.max(0, rx0 + bx0 - 1);
+  const gy0 = Math.max(0, ry0 + by0 - 1);
+  const gz0 = Math.max(0, rz0 + bz0 - 1);
+  const tx = Math.min(dims.n[0] - 1, rx0 + bx1 + 1) - gx0 + 1;
+  const ty = Math.min(dims.n[1] - 1, ry0 + by1 + 1) - gy0 + 1;
+  const tz = Math.min(dims.n[2] - 1, rz0 + bz1 + 1) - gz0 + 1;
   const data = new Uint16Array(tx * ty * tz);
   for (let z = 0; z < tz; z++) {
+    const qz = gz0 + z - rz0;
+    if (qz < 0 || qz >= RZ) continue;
     for (let y = 0; y < ty; y++) {
-      const src = bx0 + RX * (by0 + y + RY * (bz0 + z));
-      data.set(Q.subarray(src, src + tx), tx * (y + ty * z));
+      const qy = gy0 + y - ry0;
+      if (qy < 0 || qy >= RY) continue;
+      for (let x = 0; x < tx; x++) {
+        const qx = gx0 + x - rx0;
+        if (qx < 0 || qx >= RX) continue;
+        data[x + tx * (y + ty * z)] = Q[qx + RX * (qy + RY * qz)]!;
+      }
     }
   }
-  return { box: [rx0 + bx0, ry0 + by0, rz0 + bz0, tx, ty, tz], data };
+  const out = [gx0, gy0, gz0, tx, ty, tz];
+  return { box: out, data, bits: bounceBits(occShapes, sb, dims.origin, dims.n, out) };
 }

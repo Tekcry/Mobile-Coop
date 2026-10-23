@@ -7,11 +7,18 @@
  *   g   = round(min(1, acc x BOUNCE.q / 1024 x LAMP_LEVEL_GAIN) x 255)
  *
  * A lamp switched off, shot, jammed dark or EMP'd takes its bounce with it at the next `sync` (the registry's version
- * moved), and back on returns the very same bytes. `LightField.levelInto` adds `g` read trilinearly beside the ambient
- * fill (the meter and the guards); `BakedLamps` packs `g` into the fill texture's green channel (the picture).
- * Allocation-free after construction.
+ * moved), and back on returns the very same bytes. `LightField.levelInto` adds `g` read by `sampleInto` beside the ambient
+ * fill (the meter and the guards); `BakedLamps` packs `g` into the fill texture's green channel and the static wall
+ * bits (`bits`) into its blue and alpha (the picture's `nsGrid2`, the same arithmetic).
+ *
+ * (LR16-1 fix round) The read never blends across a wall: a plain trilinear between 1 m cell centres let a lit cell's
+ * light up to a metre past a wall that is not in the middle of its cell (a dark room 0.15 m behind it read +0.22).
+ * `sampleInto`: the cell holding the point is its home, or the neighbour on the point's side when a wall inside the cell
+ * parts the point from the centre (`BOUNCE_T_SHIFT`); then the 8 corners are blended trilinearly over the ones the home
+ * reaches through open faces (the edge bits), the weights renormalised. Allocation-free after construction.
  */
-import { BOUNCE, BOUNCE_BOX_STRIDE, type LampBounce } from '../voxel/lampBounce';
+import { BOUNCE, BOUNCE_BOX_STRIDE, BOUNCE_T_SHIFT, BOUNCE_T_STEP, type LampBounce } from '../voxel/lampBounce';
+import { AMBIENT_CELL } from './ambientGrid';
 import { LAMP_LEVEL_GAIN } from './lampMath';
 import type { LightRegistry } from './lights';
 
@@ -27,6 +34,14 @@ export class BounceGrid {
   readonly n: [number, number, number];
   /** Per cell, the bounce level (0..1) x 255, x fastest: what the field and the fill texture's green channel read. */
   readonly g: Uint8Array;
+  /** (fix round) Per cell, the static wall bits (`bounceBits`; 0 where no lamp's box reaches): blue + alpha x 256. */
+  readonly bits: Uint16Array;
+  /** `sampleInto`'s result (a field, not a return: V8 boxes a returned double). */
+  out = 0;
+  /** `sampleInto`'s scratch: the 8 corners' bytes, bits and reach. */
+  private readonly sv = new Float64Array(8);
+  private readonly se = new Int32Array(8);
+  private readonly sc = new Uint8Array(8);
   /** Per cell, sum of q x weight over the lit lamps. */
   private readonly acc: Float64Array;
   private readonly boxes: Int32Array;
@@ -74,7 +89,26 @@ export class BounceGrid {
     const any = count > 0 && this.data.length > 0;
     this.g = new Uint8Array(any ? cells : 1);
     this.acc = new Float64Array(any ? cells : 1);
+    this.bits = new Uint16Array(any ? cells : 1);
     this.active = any;
+    // (fix round) the walls: static, from every lamp's box (OR: two lamps give a cell the same bits)
+    const bits = bounce?.bits;
+    if (any && bits && bits.length === this.data.length) {
+      const B = this.boxes;
+      for (let i = 0; i < count; i++) {
+        const o = i * BOUNCE_BOX_STRIDE;
+        const nx = B[o + 3]!;
+        const ny = B[o + 4]!;
+        const nz = B[o + 5]!;
+        let s2 = this.at[i]!;
+        for (let z = 0; z < nz; z++) {
+          for (let y = 0; y < ny; y++) {
+            const row = B[o]! + this.n[0] * (B[o + 1]! + y + this.n[1] * (B[o + 2]! + z));
+            for (let x = 0; x < nx; x++) this.bits[row + x] = this.bits[row + x]! | bits[s2++]!;
+          }
+        }
+      }
+    }
   }
 
   /** Lamps in the grid. */
@@ -108,6 +142,89 @@ export class BounceGrid {
       changed = true;
     }
     if (changed) this.version++;
+  }
+
+  /**
+   * (fix round) The bounce at a point (0..1) into `out`, never blended across a wall: the home cell (the one holding the
+   * point, or its neighbour when a wall inside the cell parts the point from the centre), then the trilinear weights of
+   * the 8 corners the home reaches through open faces, renormalised. Clamped to the grid as the trilinear read was. The
+   * shader's `nsGrid2` is this, step for step (`tests/bounceGrid.test.ts`). Allocation-free.
+   */
+  sampleInto(x: number, y: number, z: number): void {
+    const nx = this.n[0];
+    const ny = this.n[1];
+    const nz = this.n[2];
+    let u = (x - this.origin[0]) / AMBIENT_CELL - 0.5;
+    let w = (y - this.origin[1]) / AMBIENT_CELL - 0.5;
+    let s = (z - this.origin[2]) / AMBIENT_CELL - 0.5;
+    u = u < 0 ? 0 : u > nx - 1 ? nx - 1 : u;
+    w = w < 0 ? 0 : w > ny - 1 ? ny - 1 : w;
+    s = s < 0 ? 0 : s > nz - 1 ? nz - 1 : s;
+    const x0 = Math.floor(u);
+    const y0 = Math.floor(w);
+    const z0 = Math.floor(s);
+    const x1 = x0 + 1 < nx ? x0 + 1 : x0;
+    const y1 = y0 + 1 < ny ? y0 + 1 : y0;
+    const z1 = z0 + 1 < nz ? z0 + 1 : z0;
+    const fx = u - x0;
+    const fy = w - y0;
+    const fz = s - z0;
+    const V = this.sv;
+    const E = this.se;
+    const C = this.sc;
+    let lit = 0;
+    let walls = 0;
+    for (let k = 0; k < 8; k++) {
+      const i = ((k & 1) !== 0 ? x1 : x0) + nx * (((k & 2) !== 0 ? y1 : y0) + ny * ((k & 4) !== 0 ? z1 : z0));
+      V[k] = this.g[i]!;
+      E[k] = this.bits[i]!;
+      lit |= V[k]!;
+      walls |= E[k]!;
+    }
+    if (lit === 0) {
+      this.out = 0;
+      return;
+    }
+    // the home corner: the cell holding the point (the nearer centre), crossed to the neighbour on the point's side when
+    // the point is past a wall inside the cell (its code x BOUNCE_T_STEP from the centre or more: lampBounce.ts)
+    const hx = fx >= 0.5 ? 1 : 0;
+    const hy = fy >= 0.5 ? 1 : 0;
+    const hz = fz >= 0.5 ? 1 : 0;
+    let h = hx + hy * 2 + hz * 4;
+    const eh = E[h]!;
+    const tx = (eh >> BOUNCE_T_SHIFT[hx]!) & 3;
+    const ty = (eh >> BOUNCE_T_SHIFT[2 + hy]!) & 3;
+    const tz = (eh >> BOUNCE_T_SHIFT[4 + hz]!) & 3;
+    if (tx > 0 && (hx === 1 ? 1 - fx : fx) >= tx * BOUNCE_T_STEP) h ^= 1;
+    if (ty > 0 && (hy === 1 ? 1 - fy : fy) >= ty * BOUNCE_T_STEP) h ^= 2;
+    if (tz > 0 && (hz === 1 ? 1 - fz : fz) >= tz * BOUNCE_T_STEP) h ^= 4;
+    // the corners the home reaches through open faces (edge bit a of the lower corner: the face to its +a neighbour)
+    const open = (walls & 7) === 0 ? 1 : 0;
+    for (let k = 0; k < 8; k++) C[k] = k === h || open === 1 ? 1 : 0;
+    for (let r = 0; r < 7 && open === 0; r++) {
+      let grew = 0;
+      for (let k = 0; k < 8; k++) {
+        for (let a = 1; a < 8; a <<= 1) {
+          if ((k & a) !== 0 || (E[k]! & a) !== 0) continue;
+          const k2 = k | a;
+          if (C[k] !== C[k2]) {
+            C[k] = 1;
+            C[k2] = 1;
+            grew = 1;
+          }
+        }
+      }
+      if (grew === 0) break;
+    }
+    let sw = 0;
+    let sv = 0;
+    for (let k = 0; k < 8; k++) {
+      if (C[k] === 0) continue;
+      const wk = ((k & 1) !== 0 ? fx : 1 - fx) * ((k & 2) !== 0 ? fy : 1 - fy) * ((k & 4) !== 0 ? fz : 1 - fz);
+      sw += wk;
+      sv += wk * V[k]!;
+    }
+    this.out = (sw > 0 ? sv / sw : V[h]!) / 255;
   }
 
   /** The picture re-packed the dirty box. */
@@ -168,10 +285,11 @@ export class BounceGrid {
 }
 
 /**
- * (LR16-1, the picture) The fill texture's texels, RG8: R the ambient grid (unchanged), G the bounce `g`, over the box
- * x0..x1 (ends exclusive; null: every cell). Same cells, same order: the shader's `nsGrid2` reads both with one tap.
+ * (LR16-1, the picture) The fill texture's texels, RGBA8: R the ambient grid (unchanged), G the bounce `g`, B and A the
+ * wall bits (fix round: low byte, high byte), over the box x0..x1 (ends exclusive; null: every cell). Same cells, same
+ * order: the shader's `nsGrid2` reads R with one linear tap and G, B, A with 8 texel fetches.
  */
-export function packFillRG(amb: Uint8Array, g: Uint8Array | null, out: Uint8Array, n: readonly number[], box: ArrayLike<number> | null = null): void {
+export function packFillRGBA(amb: Uint8Array, g: Uint8Array | null, bits: Uint16Array | null, out: Uint8Array, n: readonly number[], box: ArrayLike<number> | null = null): void {
   const nx = n[0]!;
   const ny = n[1]!;
   const nz = n[2]!;
@@ -182,13 +300,17 @@ export function packFillRG(amb: Uint8Array, g: Uint8Array | null, out: Uint8Arra
   const y1 = box ? box[4]! : ny;
   const z1 = box ? box[5]! : nz;
   const hasG = !!g && g.length === nx * ny * nz;
+  const hasB = !!bits && bits.length === nx * ny * nz;
   for (let z = z0; z < z1; z++) {
     for (let y = y0; y < y1; y++) {
       const row = nx * (y + ny * z);
       for (let x = x0; x < x1; x++) {
         const c = row + x;
-        out[c * 2] = amb[c]!;
-        out[c * 2 + 1] = hasG ? g[c]! : 0;
+        const e = hasB ? bits[c]! : 0;
+        out[c * 4] = amb[c]!;
+        out[c * 4 + 1] = hasG ? g[c]! : 0;
+        out[c * 4 + 2] = e & 255;
+        out[c * 4 + 3] = e >> 8;
       }
     }
   }
