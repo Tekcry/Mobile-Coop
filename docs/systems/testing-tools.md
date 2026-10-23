@@ -172,7 +172,8 @@ behind a VPN adapter).
   "stack"; the pad and keyboard verb tables cover the button
 - `e2e-stealth-ai` night Warehouse: shadow vs light detection, the arc warns first, no sight through walls, noise ->
   suspicious -> investigating, squad radio, the shout, a spotter taken out first tells nobody, LKP + ghost + converge +
-  search ends, patrols, the optic cable (the door menu pick, the view under the door at floor height, the look limits,
+  search ends, the probable-area search ('search area': the near dark spot checked, the room behind a wall not, three
+  searchers on three spots), patrols, the optic cable (the door menu pick, the view under the door at floor height, the look limits,
   night vision, the tip never seen, the kneeling body seen, crouch leaves, a sealed door refuses)
 - `e2e-guard-carry` Warehouse Infiltration (High): a calm holstered grunt and officer (S21 carry) and then drawing ones
   are drawn: body among the active meshes, material ready, GPU-skinned effect (no CPU-skinning fallback), no effect

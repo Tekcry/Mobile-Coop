@@ -3471,13 +3471,17 @@ if (want(1)) {
       Object.assign(out, { aStarted: em.command.started - s0, aRaised: em.alarmRaised, aStage: [d0.stage, d1.stage], aSent: d1.reinforced - d0.reinforced });
       em.despawn(A);
       // (b) the call gets through
-      em.lkp.set(x, y, z);
-      em.lkpValid = true;
-      em.sightT = 0;
+      // (guard-ai S24, A146/A148) one last known position per player, and a guard with none for his intruder never
+      // walks to the real feet: the player was seen here (his slot, the mirrored lkp), B hunts him (told before he goes
+      // to combat), so B's contact names him and the reinforcements come for that spot (the old direct `em.lkp` write
+      // gave no guard an intruder: they stood at the entry)
+      const slot = em.ctx.reportSighting({ id: g.localRef.id, feet: new V(x, y, z), spotted: false });
       const B = em.spawn('grunt', new V(x, y, z), false, 0);
       em.placeSlot(B, { yaw: 0 }, 0);
       step(0.3);
+      B.tell(slot);
       B.alert();
+      out.bHunt = [slot, B.hunt, em.lkpValid];
       let t = 0;
       let tCmd = -1;
       while (!em.alarmRaised && t < 15) {
@@ -3517,6 +3521,7 @@ if (want(1)) {
     }, S[0].obj);
     const f2 = (v) => v.toFixed(2);
     assert(r.aLeft > 0.3 && r.aStarted === 0 && !r.aRaised && r.aStage[1] === r.aStage[0] && r.aSent === 0, `S6: the caller knocked out during his call (${f2(r.aLeft)} s left): no command call, no alarm, nobody comes (${JSON.stringify(r)})`);
+    assert(r.bHunt[0] >= 0 && r.bHunt[1] === r.bHunt[0] && r.bHunt[2], `S6: B hunts the player seen at the spot (slot, hunt, lkpValid ${JSON.stringify(r.bHunt)})`);
     assert(r.tCmd > 0 && r.by === 'radio' && Math.abs(r.tAl - r.tCmd - r.R * r.react) < 0.35, `S6: his contact gets through, he calls command, and ${f2(r.R * r.react)} s later the alarm goes off by radio (command at ${f2(r.tCmd)} s, alarm at ${f2(r.tAl)} s, '${r.by}')`);
     assert(r.stage[1] === r.stage[0] + 1 && r.sent === r.perStage && r.n === r.perStage, `S6: the stage rises and the section's ${r.perStage} reinforcements come in, aggressive (${r.stage}, sent ${r.sent}, aggressive ${r.n})`);
     assert(r.atEntry.every((d) => d < 4), `S6: they come in at the section's entry points (${r.atEntry.map(f2)} m)`);

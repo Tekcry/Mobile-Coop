@@ -493,6 +493,10 @@ export class GameState implements AppState {
   readonly events = new EventBus<GameEvents>();
   private audio: { frame(dt: number): void; dispose(): void } | null = null;
   private localRef: PlayerRef;
+  /** (guard-ai S26) The local player's id (his own noises locate him: `EnemyManager.hear`'s `by`). */
+  get localId(): string {
+    return this.localRef.id;
+  }
   /** (guard-ai S1) The guards' and cameras' per-step player list, refilled in place (`playerRefsInto`, no allocation). */
   private readonly aiRefs: PlayerRef[] = [];
   /** The local operator has been seen by a guard in combat (no takedowns on guards in combat). */
@@ -621,8 +625,9 @@ export class GameState implements AppState {
       const n = this.weapons.lastShotNoise;
       const r = SHOT_NOISE * n;
       this.eventNoise(r);
-      if (n <= SUPPRESSED_NOISE) this.enemyMgr?.hear(this.player.position, r);
-      else this.enemyMgr?.noise(this.player.position, r);
+      if (n <= SUPPRESSED_NOISE) this.enemyMgr?.hear(this.player.position, r, 'noise', null, this.localRef.id);
+      // (guard-ai S24) the shot locates this player's intruder slot
+      else this.enemyMgr?.noise(this.player.position, r, this.localRef.id);
     };
     // (sd-rounds) the quiet rounds ran out: this gun is loud from here
     this.weapons.events.onSdOut = () => this.hud.feedItem('Suppressed rounds out: shots are loud', 'warn');
@@ -1295,7 +1300,8 @@ export class GameState implements AppState {
       // a noisy hold (a manhole cover, a padlock) sounds at its start and on every pulse while it runs
       if (it.holdNoise && holdNoisePulse(prev, it.progress)) {
         this.eventNoise(it.holdNoise);
-        this.enemyMgr?.hear(it.pos, it.holdNoise);
+        // (guard-ai S26) his own noise: it locates him
+        this.enemyMgr?.hear(it.pos, it.holdNoise, 'noise', null, this.localRef.id);
       }
     } else it.progress = Math.max(0, it.progress - dt * 2);
     const pct = it.holdTime > 0 ? Math.min(1, it.progress / it.holdTime) : 0;
@@ -1395,7 +1401,7 @@ export class GameState implements AppState {
       it.progress = on ? m.holdT : r >= 0 && m.opts[r]!.kind === ITEM_KIND ? it.holdTime : 0;
       if (on && it.holdNoise && holdNoisePulse(prev, it.progress)) {
         this.eventNoise(it.holdNoise);
-        this.enemyMgr?.hear(it.pos, it.holdNoise);
+        this.enemyMgr?.hear(it.pos, it.holdNoise, 'noise', null, this.localRef.id);
       }
     }
     if (r >= 0) {
@@ -1532,7 +1538,7 @@ export class GameState implements AppState {
     const r = landingNoise(c.lastLanding);
     if (r <= 0 || !this.player.alive) return;
     this.eventNoise(r);
-    this.enemyMgr?.hear(this.player.position, r);
+    this.enemyMgr?.hear(this.player.position, r, 'noise', null, this.localRef.id);
   }
 
   /**
@@ -1770,7 +1776,7 @@ export class GameState implements AppState {
     if (this.traversal.forwardRolls !== this.rollSeen) {
       this.rollSeen = this.traversal.forwardRolls;
       this.eventNoise(CT.rollNoise);
-      this.enemyMgr?.hear(this.player.position, CT.rollNoise);
+      this.enemyMgr?.hear(this.player.position, CT.rollNoise, 'noise', null, this.localRef.id);
     }
     // attached (ladder, pipe, hang, duct) or carrying a body: both hands busy, the weapon goes to its slot
     // (3.2.0) braced in a split or hanging inverted: aiming (step 09: not firing) draws the sidearm one-handed
@@ -1905,11 +1911,11 @@ export class GameState implements AppState {
       const pp = this.player.position;
       this.surface = surfaceAt(this.world.level.surfaces, pp.x, pp.y, pp.z, this.world.map.theme.floor ?? 'concrete');
       const steps = this.player.alive && c.grounded && c.steps !== 'silent' ? noiseRadius(c.speed, c.crouched || c.steps === 'crouched') * SURFACE_NOISE[this.surface] * this.suit.noise : 0;
-      if (steps > 0) this.enemyMgr?.hear(this.player.position, steps);
+      if (steps > 0) this.enemyMgr?.hear(this.player.position, steps, 'noise', null, this.localRef.id);
       // (3.2.0) climbing a fence above a quiet gear rattles it
       const ac2 = this.traversal.attachCtl;
       const rattle = ac2.m.kind === 'fence' && ac2.fenceMoving && c.gear > FENCE.quietGear ? FENCE.rattle * this.suit.noise : 0;
-      if (rattle > 0) this.enemyMgr?.hear(this.player.position, rattle);
+      if (rattle > 0) this.enemyMgr?.hear(this.player.position, rattle, 'noise', null, this.localRef.id);
       this.noise = Math.max(steps, rattle, this.evNoise);
     }
     this.updateLight(dt);
@@ -2599,11 +2605,15 @@ export class GameState implements AppState {
     }
     arcs.end();
     this.hud.setLight(this.lightLevel, this.lightLevel < LIGHT.shadow);
-    // ghost: frozen at the last sighting; shown once the hunters have lost sight of the player
+    // ghost: frozen at the last sighting; shown once the hunters have lost sight of the player. (guard-ai S24, A150)
+    // The host's own intruder slot only: never the partner's last known position drawn with the host's rig
     const g = this.ghost;
     if (em && em.stealth) {
-      if (em.sightT < 0.25 && em.lkpValid) g.capture(this.player.rig, em.lkp);
-      g.show = em.lkpValid && em.sightT > 0.6 && em.hunting && hyp2(g.at.x - em.lkp.x, g.at.z - em.lkp.z) < 1.5;
+      const slot = em.intruders.slotFor(this.localRef.id);
+      const k = em.lkpOf(slot);
+      const seenT = slot >= 0 ? em.intruders.seenT[slot]! : 99;
+      if (k && seenT < 0.25) g.capture(this.player.rig, k);
+      g.show = k !== null && seenT > 0.6 && em.huntingOf(slot) && hyp2(g.at.x - k.x, g.at.z - k.z) < 1.5;
     } else g.show = false;
     g.update(dt);
   }

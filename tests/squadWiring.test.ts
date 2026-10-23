@@ -4,7 +4,7 @@ import { DIFFICULTY } from '../src/ai/archetypes';
 import { RADIO } from '../src/ai/radioNet';
 import { combatSeed, P_AGGRESSIVE, P_POST, P_STANDARD, R_FLANK, R_NONE, R_OVERWATCH, R_POINT, R_REPORTER, R_SEARCH, ROLES } from '../src/ai/squadRoles';
 import { Vector3, type Scene } from '../src/core/babylon';
-import { Enemy, type AiContext } from '../src/ai/enemy';
+import { Enemy, type AiContext, type PlayerRef } from '../src/ai/enemy';
 import type { World } from '../src/world/world';
 import type { NavGrid } from '../src/ai/navGrid';
 import type { DamageRegistry } from '../src/game/damage';
@@ -50,6 +50,8 @@ interface FakeGuard {
   setGear?: ReturnType<typeof vi.fn>;
   profile?: string;
   section?: number;
+  /** (guard-ai S24) The intruder slot he fights (one player here: slot 0). */
+  hunt: number;
 }
 
 let n = 0;
@@ -84,6 +86,7 @@ function guard(x: number, z: number, o: Partial<FakeGuard> = {}): FakeGuard {
     setRole: vi.fn(),
     radio: vi.fn(),
     bark: vi.fn(),
+    hunt: 0,
     ...o,
   };
   g.setRole = vi.fn((role: number, cover: number, moving: boolean, _run: boolean, mates: boolean, onRadio: boolean) => {
@@ -116,9 +119,10 @@ function manager(gs: FakeGuard[], covers = COVERS, sees: (from: Vector3) => bool
   const clear = vi.fn((a: Vector3) => sees(a));
   const em = new EnemyManager({} as Scene, world as unknown as World, nav as unknown as NavGrid, {} as DamageRegistry, { clear } as unknown as Ballistics, {} as Vfx, DIFFICULTY.normal, () => []);
   for (const g of gs) em.enemies.push(g as unknown as Enemy);
-  em.lkp.set(0, 0, 0);
-  em.lkpValid = true;
   const priv = em as unknown as { ctx: AiContext; rolesStep(dt: number): void; radioStep(dt: number): void };
+  // (guard-ai S24) the one player seen at the origin: intruder slot 0 (the guards hunt it), mirrored into `lkp`
+  expect(priv.ctx.reportSighting({ id: 'p1', feet: new Vector3(0, 0, 0) } as unknown as PlayerRef)).toBe(0);
+  expect(em.lkpValid).toBe(true);
   return { em, ctx: priv.ctx, roles: () => priv.rolesStep(TACTICS.tick), radio: (s: number) => { for (let k = 0; k < Math.round(s / 0.1); k++) priv.radioStep(0.1); }, clear };
 }
 
@@ -194,7 +198,8 @@ describe('squad roles wired (coordinated)', () => {
   it('no shared last known position: no roles', () => {
     const gs = [guard(0, -16), guard(2, -17)];
     const { em, roles } = manager(gs);
-    em.lkpValid = false;
+    // (guard-ai S24) their intruder's position forgotten
+    em.intruders.forget(0);
     roles();
     for (const g of gs) expect(g.role).toBe(R_NONE);
   });
