@@ -3,6 +3,20 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 27 (2026-10-23 ~22:10, swap save; wins over SAVE 26 where they differ):**
+- Service restarted ~21:57 (Michael OK): now e1398df4, pid 30620, "done claim(s) pushed: 11" (desktop lane live; SAVE
+  26 OPEN 1 closed). Stop-ScheduledTask does NOT kill the node child: a restart needs the node pid killed (Michael's OK).
+- Pushed to feature/laptop-queue (#252): 1c1f8451 + 791337a5 (checker FIX): trains run only at the version commit of
+  an OPEN train PR. The service self-updates at its next idle pass; check log for "service start" and no closed-train
+  rerun. #252 entered train 36 at e1398df4, so these two ride the next train (Orchestrator told).
+- Train 34 4383d8ce FAIL ctcourse:4 A7 = guard-ai-s23 regression (R0 technician picks the client at SPOT2 via
+  pickTarget, enemy.ts:1991). Sent to Guard AI (fix) / Marlow (SPOT2 not visible from R0) / Orchestrator, who dropped
+  S23 and closed train 35 #261. Closed train 35 aeadaec1 is still running once more (old code started it, ignore).
+  Train 36 (#259 #255 #252 #262) is next: verdict to Orchestrator only on failure.
+- Marlow polish2-b d0689dd8 ctcourse:2 FAIL (A3 cleaner calm) verdict SENT. Their log-excerpt asks were blocked by the
+  auto mode classifier (publishing laptop logs); Michael has not answered yet - do not send excerpts until he does.
+- SAVE 26 OPEN 2 (LR16 perf triage alone requests for Sector Ops) still open: alone runs go after trains and PR suites.
+
 **Test Runner SAVE 26 (2026-10-23 ~21:10, swap save; wins over older SAVEs):**
 - Service runs headless through the swap: train 33 db14a418 sharded (auto-train releases on green), ~18 requests queued.
 - OPEN 1: laptop service still on OLD code (pid 39160, face1711-era) until it goes idle; then it fast-forwards to
@@ -838,9 +852,9 @@ puts it in CLAUDE.md on feature/menu). Laptop full runs: `RUN_GPU=1` (E2E_GPU=1)
 
 ## Resume prompt
 ```
-Night Shift | Test Runner (laptop, the MAIN test machine). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Test Runner" (ToolSearch if deferred). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop", "Heavy-usage throughput" incl. "Token rules"), then the newest "Test Runner SAVE" block at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Do what it lists, in order. If two Test Runner sessions show in ListAgents, close the older one.
+Night Shift | Test Runner (laptop, the MAIN test machine). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Test Runner" (ToolSearch if deferred). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop", "Heavy-usage throughput" incl. "Token rules"), then the newest "Test Runner SAVE" block (SAVE 27 or later) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Do what it lists, in order. If two Test Runner sessions show in ListAgents, close the older one.
 
-The queue is the SERVICE now (no hand-run chains, Orchestrator 20:26): task NightShift-laptop-queue runs scripts/laptop-queue/service.mjs from C:/NightShift/Mobile-Coop-laptop-queue-svc (follows origin/feature/laptop-queue, self-updates when idle); log + state C:/NightShift/scratch/laptop-queue/ (log.txt, runs/<id>/); verdicts are GitHub statuses laptop-e2e[/<set>] + PR comments on failure. Requests: node scripts/laptop-queue/request.mjs --sha <ref> (--suites "a b" | --full | --alone --step "<cmd>" [--env K=V]) --requester "<title>" (alone = perf / sheets, after trains and PR suites). Desktop overflow worker NightShift-desktop-queue (LQ_WORKER=desktop, pr only) claims via claims/<id>.json on the laptop-queue branch. Locks C:/NightShift/heavy-4189.lock / heavy-4192.lock (service lines "laptop-queue | ..."; a lock with no live node is stale).
+The queue is the SERVICE now (no hand-run chains, Orchestrator 20:26): task NightShift-laptop-queue runs scripts/laptop-queue/service.mjs from C:/NightShift/Mobile-Coop-laptop-queue-svc (follows origin/feature/laptop-queue, self-updates when idle); log + state C:/NightShift/scratch/laptop-queue/ (log.txt, runs/<id>/); verdicts are GitHub statuses laptop-e2e[/<set>] + PR comments on failure. Requests: node scripts/laptop-queue/request.mjs --sha <ref> (--suites "a b" | --full | --alone --step "<cmd>" [--env K=V]) --requester "<title>" (alone = perf / sheets, after trains and PR suites). Desktop overflow worker NightShift-desktop-queue (LQ_WORKER=desktop, pr only) claims via claims/<id>.json on the laptop-queue branch. Locks C:/NightShift/heavy-4189.lock / heavy-4192.lock (service lines "laptop-queue | ..."; a lock with no live node is stale). Restarting the service: Stop-ScheduledTask leaves the node child alive, so a restart also needs that node pid killed (needs Michael's OK).
 
 Your job: watch the service log, step in when it is stuck (say why, never kill a run without the user's OK: the classifier blocks taskkill), send ONE verdict per batch only where a status is not enough (perf / sheet results the requester needs read out, as a PR comment or a message to the job lead), and own laptop-queue PR #252 (docs/laptop-queue/STATE.md on feature/laptop-queue, worktree C:/NightShift/Mobile-Coop-laptop-queue). Message "Night Shift | Orchestrator" only on a train failure, PR open / train-ready, blocked, or needs Michael. Laptop CPU under ~80% with Guard AI Build. Then the "Common tail" in docs/orchestrator/PROMPTS.md on origin/feature/menu.
 
