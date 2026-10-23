@@ -13,6 +13,8 @@ import { gearCap } from '../player/speedGears';
 import { isAttachedMode, unpackAttachSub, type MoveState } from '../player/moveState';
 import { attachPose, type AttachPose } from '../player/attach';
 import type { TraversalAnchors } from '../world/anchors';
+import type { SectorRatingWire } from '../game/sectors';
+import type { RatingView } from '../ui/hud/ratingCard';
 
 export interface V3 {
   x: number;
@@ -237,4 +239,22 @@ export function hostShotWeapon<W extends string>(w: W, held: W | undefined, load
  */
 export function clientForcedHolster(echoedDw: number, localDw: number, localMv: MoveState, downed: boolean): boolean {
   return echoedDw === 0 && localDw !== 0 && !hostHandsFree(localMv, downed);
+}
+
+/**
+ * (section-rating S3) The client's view of the host's last rating (`rt`, already clamped by the parser) for the HUD card:
+ * the section's id and title come from this map's own sector list. Null when none is rated yet (`sec` -1) or the index
+ * is not one of ours (a mismatched map is not shown).
+ */
+export function ratingViewFromWire(rt: SectorRatingWire, defs: readonly { id: string; name: string }[]): RatingView | null {
+  if (rt.sec < 0) return null;
+  const d = defs[rt.sec];
+  if (!d) return null;
+  return {
+    sectionId: d.id,
+    title: d.name,
+    marks: rt.marks & 15,
+    synced: rt.synced,
+    grant: { gadget: rt.gadget, syringe: rt.syringe, medkit: rt.medkit, alarmStep: rt.alarmStep },
+  };
 }

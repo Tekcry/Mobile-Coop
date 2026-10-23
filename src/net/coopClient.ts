@@ -22,7 +22,12 @@ import { PartnerTarget } from './partnerTarget';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
 import type { TeamMate } from '../game/teamController';
 import type { TeamKind } from '../game/teamMoves';
-import { clampEnd, clientForcedHolster, coopSessionStats } from './validate';
+import { clampEnd, clientForcedHolster, coopSessionStats, ratingViewFromWire } from './validate';
+import type { RatingView } from '../ui/hud/ratingCard';
+import { GADGETS, type GadgetId } from '../game/gadgets';
+
+/** (section-rating S3) The gadgets a rating's charges top up, in order (as the host's grant in sectorMode.ts). */
+const GRANT_GADGETS: readonly GadgetId[] = ['noise', 'gas'];
 import { applyCourseWire, clientCourseFrame, clientCourseSummary, courseStartPos, disposeClientCourse } from '../game/modes/courseMode';
 import { isClientVerb, type ClientVerb } from '../game/course/courseWire';
 import { CtDevices } from '../game/ctDevices';
@@ -36,7 +41,7 @@ import { localMoveState } from '../game/localMoveState';
 import { dropBadWallMove, emptyMoveState, moveChanged } from '../player/moveState';
 import { CrackPrediction } from '../world/doorPeek';
 import { markCompleted } from '../save/sectorRecord';
-import { BOLT_DEPTH, SECTOR_RESTART_TITLE, boltById, boltHalfSpan } from '../game/sectors';
+import { BOLT_DEPTH, SECTOR_RESTART_TITLE, boltById, boltHalfSpan, type SectorRatingWire } from '../game/sectors';
 
 const SEND_HZ = 20;
 const INTERP_DELAY = 0.12;
@@ -78,6 +83,14 @@ export class CoopClient implements NetAttachment {
   private sec: CtDevices | null = null;
   /** (sector-restart) The section our checkpoint loadout was recorded for (the host's live section only moves on). */
   private kitSection = 0;
+  /** (section-rating S3) The host's last section rating as the HUD card shows it (null before the first). */
+  rating: RatingView | null = null;
+  /** (section-rating S3) Bumped on each new rating (the HUD shows the card when it changes). */
+  ratingSeq = 0;
+  /** (section-rating S3) Called once per new rating (the HUD card hooks in here; null by default). */
+  onRating: ((v: RatingView) => void) | null = null;
+  /** The section index of the last rating taken (-1 none; a restart never re-rates, so a new index is a new rating). */
+  private ratedSec = -1;
   /** (coop-torches) The guards' flashlights: the world's slots lit and placed from the snapshot's torch bits. */
   readonly torches: TorchMirror;
   private readonly torchA = new Vector3();
@@ -641,7 +654,29 @@ export class CoopClient implements NetAttachment {
         if (d.anchor.locked !== on) doors.setLocked(d, on);
       }
     }
+    if (msg.rt && msg.rt.sec !== this.ratedSec) this.takeRating(msg.rt);
     // the HUD line (section, alarm, syringes) comes with the snapshot's `info` (the host's mode info, mirrored)
+  }
+
+  /** (section-rating S3) A new host rating: kept for the HUD, told to `onRating`, mirrored on `window.__sectionRating`. */
+  private takeRating(rt: SectorRatingWire): void {
+    const v = ratingViewFromWire(rt, this.g.world.map.sectors ?? []);
+    this.ratedSec = rt.sec;
+    if (!v) return;
+    this.rating = v;
+    this.ratingSeq++;
+    // the gadget part of the grant on our own kit (the host tops up only its own player): noisemaker first, then gas,
+    // each up to its starting carry, as the host's grant does; once per rating (a new `sec`)
+    let n = rt.gadget;
+    for (const id of GRANT_GADGETS) {
+      if (n <= 0) break;
+      n -= this.g.gadgets.topUp(id, n, GADGETS[id].carry);
+    }
+    // the test hook in the host's shape (SectionRatingHook): the client counts nothing and gives nothing itself
+    const w = window as unknown as { __sectionRating?: { stats: unknown; last: RatingView | null; lastGrant: unknown } };
+    if (w.__sectionRating) w.__sectionRating.last = v;
+    else w.__sectionRating = { stats: null, last: v, lastGrant: null };
+    this.onRating?.(v);
   }
 
   private onEndMsg(raw: EndStats): void {
