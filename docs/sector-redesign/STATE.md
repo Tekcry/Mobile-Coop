@@ -284,25 +284,20 @@ DONE this window: #226 TRAIN-READY (1da8849d: master merged, animFrozen -> animT
 LR16 batch on lr16int e7cec732 = LR16g + LR16-L A (bake box on the lamp, LAMP 6) + LR16-W layout (warehouse S1-S3 + T;
 C2 dropped: master has Marlow A1-A8) + lead fix 85b7ff10 + polish A, B, E + LR16-L B. Checks PASS: lr16w-batch-check
 (FIX 1 done), lr16-render-batch-check, lr16pol-ad-check.
-LAPTOP: e7cec732 lr16w RED 9/12 (3507 s): FAIL e2e-desktop:3, e2e-darkness, e2e-lightbake (sectorops + ctcourse pass).
-Cause (Test Runner excerpts): smooth-Epic level shader fails to compile on ANGLE D3D11 ("Error compiling dynamic pixel executable") -> no lamp light (darkness flat 9.7%), desktop:3 hangs after the 16-texture check. RUNNING: Opus triage + one fix round on
-feature/sector-redesign-lr16fix off e7cec732 (checks/lr16-laptop-triage.md). 2798e57d-642c lr16cf (lightbake) claimed
-17:44Z, no status yet. #226 MERGED in 4.84.0 (train 40). LR16-P check PASS (checks/lr16p-check.md); Sonnet agent
-queued the LR16-P perf requests (checks/lr16p-perf-request.md), lead WITHDREW all 3 (~05:25: C' / D carry the Epic shader failure); requeue the same steps on the fixed heads. Lesson: open the LR16 PR (draft) before the next run
-so failures post excerpts as PR comments.
+LAPTOP: e7cec732 lr16w RED 9/12 (desktop:3, darkness, lightbake). Cause (checks/lr16-laptop-triage.md on -lr16fix
+83136f2c): LR16-1 nsGrid2 flood loop indexes bool c[8] past its end under HLSL (no short-circuit) -> fxc X3504 / X3696,
+every lamp-plugin PBR draw fails on ANGLE D3D11 at smooth Epic. Fix = cherry-pick of LR16-P F3 79d2e9b9 (no local
+arrays). 2798e57d lr16cf lightbake RED (same bug, expected). #226 MERGED in 4.84.0.
+NOW: lr16int 809c25f4 = e7cec732 + -lr16fix + -lr16pol-cf (C + F, LAMP 7) + -lr16p (F1-F3) + changelog fragment; tsc +
+9 files 86 pass. DRAFT PR Tekcry/Mobile-Coop#287 (lr16int -> master). Laptop 809c25f4-7534 (pr 287: lightbake darkness
+desktop:3 sectorops ctcourse) queued ~05:38.
 NEXT:
-1. e7cec732 verdict. Green -> merge feature/sector-redesign-lr16pol-cf 2798e57d (polish C + F, LAMP 7, check PASS
-   checks/lr16pol-cf-check.md) into lr16int (worktree -lr16int); lightbake verdict on 2798e57d covers it if the merge is
-   clean. Then open the LR16 PR lr16int -> master; at train entry: master's ctcourse map wins (drop LR16g's Marlow
-   re-level + tests/ctcourseLight.tuned.json; ctcourseLight S7 stair red disappears), run master's ctcourseLight on the
-   merged tree, PROTOCOL = master's + the train's renumber (lr16int carries 39 from LR16-5b). Label train-ready, message
-   the orchestrator (C2-style Marlow overlap note). Red -> Opus triage at once.
-2. LR16-P DONE -lr16p 3306bdf5 (base 2798e57d; F1 lamp texture dynamic rows 560 -> 27 KB / frame, F2 char-shadow reach
-   minLevel 0.04 with far plane kept at the light reach (deviation, reasoned), F3 bounce read without local arrays; 164
-   tests; checks/lr16p-build.md). Next: one Opus checker (render / GLSL), add a changelog fragment line, then the perf
-   request (laptop alone, 4189): campusOps start + S5-worst (-50.25, 3.0, 62.25) yaw 158, Epic + Medium, 3 samples;
-   A1 1c22b913 default + A2 same sha EXTRA=falloff=photo (perf.mjs from f8008542), C' 2798e57d, D 3306bdf5; full spec in
-   checks/lr16p-build.md. Merge -lr16p into lr16int after the LR16 PR head is settled (or ride the PR if still open).
+1. 809c25f4 verdict (excerpts now post on #287). Green -> mark #287 ready, train entry notes in its body (master's
+   ctcourse wins: drop LR16g's Marlow re-level + tests/ctcourseLight.tuned.json; run master's ctcourseLight on the merged
+   tree; PROTOCOL renumbered by the train), label train-ready, message the orchestrator. Red -> Opus triage at once
+   (darkness misses after the shaders draw = light-value question from LR16-L A / LR16-W).
+2. Requeue the LR16-P perf requests (steps in checks/lr16p-perf-request.md) on fixed heads: A on 1c22b913 as written,
+   C' = e7cec732 + lr16fix 83136f2c (no C / F / P), D = 809c25f4. Laptop alone, after #287's run.
 3. Then: LR16-8 sheets (briefs/LR16h-and-8.md part 2 to Test Runner), LR16-4 board (briefs/LR16-4-board.md).
 For Michael: Realistic dimmer (S2 atrium 0.47); S3 hall-lit white fog; R2N ladder foot 0.44 (layout cannot fix); warehouse
 fittings at 0.1-0.3x (GPU sheet judges); lamp-loop cost.
