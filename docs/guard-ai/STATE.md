@@ -1,6 +1,9 @@
 # Guard AI - state
 
 ## Now
+~04:20 SAVE (orchestrator 90%, resume ~04:47): every guard-ai worktree clean and pushed; no agents running; laptop
+queued s25-sai-fix3, s26-fix4, s26-sai. Resume block current.
+
 ~04:10: S25 round 3 1eb5644d (own resight assert was wrong; S25-SAI-TRIAGE.md) -> laptop s25-sai-fix3. S26 coop
 round 2 531a65e9 (radio alarm's response team re-located the client: block sets em.alarmRaised; S26-COOP-TRIAGE.md)
 -> laptop s26-fix4 (coop, netmove); s25 merged -> s26 f71ae5c7, laptop s26-sai (stealth-ai). Green -> label #266, #271.
@@ -720,29 +723,27 @@ merges). 2 Opus checkers on AI / src/net PRs; Opus triage agent on every laptop 
 cd C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.mjs --sha <sha> --set <name>
 --jobs 2 --requester "Night Shift | Guard AI Build" --suites "a b" (verdict = GitHub status laptop-e2e/<set>).
 Cloud builder briefs: orphan branch cloud-queue, briefs/guard-ai-<slice>.md (README there).
-Master 4.83.0 (train 36, incl. #255 relight). PROTOCOL 42; asserts read the constant.
+Master 4.83.0 (train 36); train 38 #275 failed (A3), trains 39 / 40 = other jobs. PROTOCOL 42; asserts read the constant.
 Laptop worktrees (npm ci'd): C:/NightShift/Mobile-Coop-guard-ai (feature/guard-ai: STATE/PLAN/BRIEF/slices),
 -s22-game, -s23, -s24, -s25, -s25a, -s26, -s27, -walk482, -relight, -carry-flake (some node_modules = junction to -s24's).
-Open (laptop sets trimmed to area suites ~23:15, orchestrator; requests on branch laptop-queue, no cancel CLI: delete the
-JSON, commit, push. Green on a set -> `gh pr edit <n> --add-label train-ready` + tell orchestrator; red -> Opus triage):
-1. #254 S23 (dc964d15) + Marlow #265 A7 cage: train-ready, same train. Backlog: path through a locked door (A7-cage-w)
-   stalls ~15 s (S20 door gate never opens a locked leaf).
-2. #258 S22 game (a7e9b33a): train-ready, CI green. #255 LR16-4 relight MERGED (train 36, 4.83.0).
-   (2026-10-24 ~00:10: every red set below was triaged as a TEST bug, scripts-only fixes; reruns queued. Green ->
-   label; #264 + #266 + #271 + #270 + #272 enter one train together with #254.)
-3. #264 S24: s24 e31edd54 PASS 5/5. e2e-coop hide fix 0a42c6b5 (hides moved to the dark yard lane; pair 2's own cover
-   saw the corridor; slices/S24-COOP-TRIAGE.md); laptop s24-coop-fix (e2e-coop) queued.
-4. #266 S25: s25 7a7725ef PASS. 'near' fix b384befc (hide spot was visible through the x -4 wall gap;
-   S25-SAI-TRIAGE.md); laptop s25-sai-fix (stealth-ai) queued; head f0738296 = + S24 fix merged (scripts only).
-5. #271 S26: head 97da4fdf = d30601a2 + s25 (+ s24) fixes merged; laptop s26-fix2 (stealth-ai, coop, netmove) queued.
-6. #270 S27: sectorops:1 fix 1e8d1b6c (another guard's radio call beat the panel since S24 A149 + S27 A161: hush every
-   guard's calls in panelAlarm; S27-SEC1-TRIAGE.md); laptop s27-sec1-fix (sectorops:1) queued; s27-e2e other 6 PASS.
-7. #272 walk482: lkp fix d0968052 (search starts later under item 2: wait for the search's own length; WALK482.md
-   "Laptop triage"); laptop walk482-fix (stealth-ai) queued; first run of the 'report then engage' scenario.
-   Marlow does Marlow Yard item 6 itself (feature/marlow-walk482).
-   Train conflicts: s27 (enemy.ts import + inCover order onRadio -> tactics -> closeFromCover), s25 (e2e-stealth-ai
-   scenarios after lkp); rerun s25 search area + lkp after the merge.
-8. PLAN has no slice after S27 (S28 none). Next work: walk reports from Michael, polish lists only after his playtest.
+Open (requests on branch laptop-queue, no cancel CLI: delete the JSON, commit, push. Verdict = GitHub status
+laptop-e2e/<set> on the sha; logs C:/NightShift/scratch/laptop-queue/runs/<id>/ (desktop-worker runs: ask the
+orchestrator). Green -> `gh pr edit <n> --add-label train-ready` + tell orchestrator; red -> Opus triage at once):
+1. TRAIN-READY (2026-10-24 ~02:05, one train after train 40): #281 A3 calm wait (feature/guard-ai-a3-calm 8559a357,
+   off master, test only: must ride with #254; keep both sides on an a3OfficeRange.mjs conflict with Marlow), #254 S23,
+   #264 S24 (e2e-coop hide fix 0a42c6b5), #270 S27 (sectorops:1 fix 1e8d1b6c), #272 walk482 (lkp fix d0968052).
+   #258 S22 game: in train 38 (failed on S23's A3; rides again). Triage docs: slices/S23-A3-TRIAGE.md,
+   S24-COOP-TRIAGE.md, S27-SEC1-TRIAGE.md, WALK482.md "Laptop triage".
+2. #266 S25 (feature/guard-ai-s25, worktree -s25): e2e-stealth-ai 'near' round 3 1eb5644d (S25-SAI-TRIAGE.md;
+   predicted pass, thin 1.49 m vs 1.5 m found margin; 'wall' / 'three' not run since round 1). Laptop s25-sai-fix3
+   queued. Green -> label #266.
+3. #271 S26 (feature/guard-ai-s26, worktree -s26, head f71ae5c7 = s25 merged): e2e-coop S26 block round 2 531a65e9
+   (block sets em.alarmRaised so no response team re-locates the client; S26-COOP-TRIAGE.md). Laptop s26-fix4
+   (coop, netmove on 531a65e9) + s26-sai (stealth-ai on f71ae5c7) queued. Green on both + #266 green -> label #271.
+   A further s25 fix -> merge s25 into s26 and requeue s26-sai.
+4. Backlog: path through a locked door (A7-cage-w) stalls ~15 s (S20 door gate never opens a locked leaf); cover
+   picked by straight-line distance can send a guard behind a full wall (S24-COOP-TRIAGE.md; polish list).
+5. PLAN has no slice after S27 (S28 none). Next work: walk reports from Michael, polish lists only after his playtest.
 Questions for Michael (non-blocking, decision packs): S23 client arcs / LKP ghost; S25 searchers' flares.
 Polish lists only: WALK-CHECK 1-6, S16-CHECK, A126-CHECK, S22-CHECK 1-5, S22-GAME-CHECK(2), CARRY-FIX2-CHECK,
 S23-CHECK-A/B, LR16-4-POLISH, S24-RECHECK-A/B, S25B-CHECK-A/B. A-numbers: S23 A143-A145, S24 A146-A150, S25
