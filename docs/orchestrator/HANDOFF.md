@@ -17,6 +17,8 @@ Accounts are labelled by their weekly reset (no emails in git). Each orchestrato
 
 ## State at the switch (refreshed 2026-10-23 ~07:58 for the next swap; newest update block first)
 
+**~11:35: 4.71.0 RELEASED (train 22 #199, 3c460923; dev moved). Master 4.71.0. Train 23 candidates: CT Core batch PR, sector-redesign PR 2, guard-ai S8 / S5b / S6 / S10 stack.**
+
 **~11:15 weekly (Michael: stop earlier relative to the weekly left, still hit 100% safely; CLAUDE.md "Account swap"): this account (live from 10:47, weekly resets 2026-10-28 04:00) was weekly 76% at 10:47, 81% at 11:10, ends this window ~93%: next time it has ~7% weekly, about 40% of a 5-hour window, so its 95% step goes out at weekly ~95-96%. Check the other account's weekly at the swap and record it here.**
 
 **~11:20: train 22 BUILT origin/train/22 a39d688f (feature/menu + #198 + #194 + guard-ai #193 -> #195 -> #196); laptop full GPU run requested from Character Build; on a pass `node scripts/merge-train.mjs release 22 4.71.0 "Guard AI awareness, posts and camera body calls; hostage gait; changelog dedupe"` from C:/NightShift/Mobile-Coop-train.**
