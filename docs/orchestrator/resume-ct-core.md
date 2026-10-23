@@ -2,6 +2,10 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+RESUMED ~04:50 (window reset): 4.84.0 released (train 40, #247 on master). #285 OPEN train-ready (AF0 numbers test only with
+AFP_WRITE_NUMBERS=1; it rewrote tracked docs/anim-fix-pass/before/numbers.md and stopped the 4.84.0 release). #269 a6a792b8 +
+#282 0e65c3eb: master merged, conflicts resolved, train-ready for train 42 together; laptop coop + netmove on 0e65c3eb
+(20261023T175516-player-build-0e65c3eb-eaed): on fail -> Opus triage at once. Then idle (guard bake waits on MPFB2).
 SAVE ~04:20 (orchestrator 90%, resets 04:40, it wakes us ~04:47). All worktrees clean + pushed; no agents running.
 #282 coop-rejoin-2 OPEN (stacked on #269, laptop coop + netmove 2/2 PASS on 03a0cf58, train-ready label). NEXT on wake:
 when train 39 has released, merge master into feature/coop-rejoin (keep both; drop unused P2_START_DZ; tests joinWatch /
