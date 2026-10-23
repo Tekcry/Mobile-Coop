@@ -3,7 +3,8 @@
 //   node scripts/laptop-queue/service.mjs [--once] [--dry-run]
 // --once: one pass, then exit when its runs finish. --dry-run: prints what it would pick, the shard bins and the gh
 // commands; posts, pushes, builds, runs and locks nothing. Env: LQ_STATE (state dir), LQ_TRAIN_JOBS (default 3),
-// LQ_FOLLOW (ref to fast-forward to when idle, default origin/master), LQ_CLAIM_MAX_H (default 3).
+// LQ_FOLLOW (ref to fast-forward to when idle, default origin/master), LQ_CLAIM_MAX_H (default 3), LQ_TRAIN_SOLO_MIN
+// (default 10: a train holding some slots that long while the rest stay locked runs unsharded on the ones it holds).
 // LQ_WORKER=desktop: the desktop overflow lane (Michael ~20:45): pr requests only, two GPU slots at E2E_JOBS=1, each only
 // while the backlog is over LQ_DESKTOP_BACKLOG (3) requests, its lock is free and CPU is under its limit at the start:
 // 4191 (LQ_DESKTOP_DIR, default C:/NightShift/Mobile-Coop-testrun-4191) under C:/NightShift/heavy.lock, CPU < LQ_DESKTOP_CPU (60) %;
@@ -20,7 +21,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity } from './lib.mjs';
+import { assertKey, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -42,6 +43,8 @@ const PORTS = Object.keys(SLOTS);
 const TRAIN_JOBS = process.env.LQ_TRAIN_JOBS ?? (DESKTOP ? '1' : '3');
 const LAPTOP_SILENT_MS = Number(process.env.LQ_LAPTOP_SILENT_MIN ?? 10) * 60_000;
 const TRAIN_GRACE_MS = 2 * 60_000; // a live idle laptop claims a new train head within one pass (30 s)
+// a train that has held some slots this long while another stays locked (a manual run) runs unsharded on the ones it holds
+const TRAIN_SOLO_MS = Number(process.env.LQ_TRAIN_SOLO_MIN ?? 10) * 60_000;
 const POLL_MS = 30_000;
 const FLAKE_WINDOW_MS = 24 * 3600_000;
 const argv = process.argv.slice(2);
@@ -284,16 +287,18 @@ const heldLocks = new Set();
  * Takes a slot lock (exclusive create). A `laptop-queue |` line this process does not hold is stale (the pid lock means
  * no other service runs) and is deleted; any other holder (a manual run) is waited on, logged once per holder line,
  * and the wait in minutes is logged when the lock is finally taken (a long wait on a stale manual lock looked hung).
+ * `once`: a single try, null when the slot is held (the wait log state carries over between tries, per port).
  */
-async function takeLock(port, label, sha) {
+const lockWait = {}; // port -> { from, on }: the current wait, kept across `once` tries
+async function takeLock(port, label, sha, { once = false } = {}) {
   const line = `laptop-queue | ${label} ${sha.slice(0, 8)} pid ${process.pid} | ${new Date().toISOString()}`;
-  let waitFrom = 0;
-  let waitOn = '';
+  const w = (lockWait[port] ??= { from: 0, on: '' });
   for (;;) {
     try {
       fs.writeFileSync(SLOTS[port].lock, `${line}\n`, { flag: 'wx' });
       heldLocks.add(line);
-      if (waitFrom) log(`${port} lock taken after a ${((Date.now() - waitFrom) / 60_000).toFixed(1)} min wait`);
+      if (w.from) log(`${port} lock taken after a ${((Date.now() - w.from) / 60_000).toFixed(1)} min wait`);
+      delete lockWait[port];
       return line;
     } catch (e) {
       if (e.code !== 'EEXIST') throw e;
@@ -304,8 +309,9 @@ async function takeLock(port, label, sha) {
         try { fs.unlinkSync(SLOTS[port].lock); } catch { /* gone */ }
         continue;
       }
-      if (have !== waitOn) { waitOn = have; log(`${port} waiting on ${have.startsWith('laptop-queue |') ? 'own run' : 'manual lock'}: ${have}`); }
-      waitFrom ||= Date.now();
+      if (have !== w.on) { w.on = have; log(`${port} waiting on ${have.startsWith('laptop-queue |') ? 'own run' : 'manual lock'}: ${have}`); }
+      w.from ||= Date.now();
+      if (once) return null;
       await sleep(15_000);
     }
   }
@@ -353,12 +359,27 @@ async function e2e(port, suites, jobs, logFile) {
 
 // ---------- results ----------
 
-/** Reruns each failed (non-known-flaky) suite once alone; a pass is a flake. Mutates result.suites, returns flake names. */
+/** A suite's section in the run's own logs (not the reruns), '' when none. */
+function sectionOf(runDir, suite) {
+  for (const f of fs.existsSync(runDir) ? fs.readdirSync(runDir) : []) {
+    if (!f.endsWith('.log') || f.startsWith('rerun-')) continue;
+    const sec = suiteSection(fs.readFileSync(path.join(runDir, f), 'utf8'), suite);
+    if (sec) return sec;
+  }
+  return '';
+}
+
+/**
+ * Reruns each failed (non-known-flaky) suite once alone; a pass is a flake. Mutates result.suites, returns flake names.
+ * The failure stands unrerun only when the same suite flaked within 24 h on the same assert (assertKey): a new assert
+ * on a suite that flaked before is rerun (train 40 ctcourse:4, 2026-10-24).
+ */
 async function rerunFlakes(result, slotOf, job, runDir, fallback = PORTS[0]) {
   const flakes = [];
   const now = Date.now();
   for (const x of result.suites.filter((s) => !s.ok && !s.flaky && !s.report)) {
-    if (state.flakes.some((f) => f.suite === x.s && now - Date.parse(f.date) < FLAKE_WINDOW_MS)) { log(`${x.s} flaked within 24 h, failure stands`); continue; }
+    const key = assertKey(failureExcerpt(sectionOf(runDir, x.s)).assert);
+    if (flakeStands(state.flakes, x.s, key, now, FLAKE_WINDOW_MS)) { log(`${x.s} flaked within 24 h on the same assert, failure stands`); continue; }
     if (DRY) continue;
     const port = slotOf[x.s] ?? fallback;
     log(`rerun ${x.s} alone on ${port}`);
@@ -366,7 +387,7 @@ async function rerunFlakes(result, slotOf, job, runDir, fallback = PORTS[0]) {
     if (runComplete(run, 1) && run.suites.every((s) => s.ok)) {
       x.ok = true;
       flakes.push(x.s);
-      state.flakes.push({ suite: x.s, sha: job.sha, ref: job.ref, date: new Date().toISOString() });
+      state.flakes.push({ suite: x.s, key, sha: job.sha, ref: job.ref, date: new Date().toISOString() });
     }
   }
   return flakes;
@@ -375,13 +396,7 @@ async function rerunFlakes(result, slotOf, job, runDir, fallback = PORTS[0]) {
 function failureComment(job, result, runDir) {
   const parts = [`laptop-e2e failed on ${job.sha.slice(0, 8)} (${job.ref}).`];
   for (const x of result.suites.filter((s) => !s.ok && !s.flaky && !s.report)) {
-    let sec = '';
-    for (const f of fs.existsSync(runDir) ? fs.readdirSync(runDir) : []) {
-      if (!f.endsWith('.log') || f.startsWith('rerun-')) continue;
-      sec = suiteSection(fs.readFileSync(path.join(runDir, f), 'utf8'), x.s);
-      if (sec) break;
-    }
-    const { assert, tail40 } = failureExcerpt(sec);
+    const { assert, tail40 } = failureExcerpt(sectionOf(runDir, x.s));
     parts.push(`\n**${x.s}**\nFailing assert: \`${capTail(assert || 'none found', 500)}\`\nLog on the ${WORKER}: ${runDir}\n\`\`\`\n${capTail(tail40 || '(no log section)', 8_000)}\n\`\`\``);
   }
   return parts.join('\n');
@@ -410,14 +425,28 @@ async function runTrain(train, ports = PORTS) {
   log(`train ${train.n} ${train.sha.slice(0, 8)}: start`);
   const locks = {};
   try {
-    for (const p of ports) locks[p] = await takeLock(p, `train ${train.n}`, train.sha);
+    // every slot, or after TRAIN_SOLO_MS holding some while the rest stay locked: unsharded on the ones held
+    for (let since = 0; ;) {
+      for (const p of ports) locks[p] ||= await takeLock(p, `train ${train.n}`, train.sha, { once: true });
+      const held = ports.filter((p) => locks[p]);
+      if (held.length === ports.length) break;
+      if (held.length) since ||= Date.now();
+      if (since && Date.now() - since >= TRAIN_SOLO_MS) {
+        log(`train ${train.n}: ${ports.filter((p) => !locks[p]).join('+')} still locked after ${Math.round(TRAIN_SOLO_MS / 60_000)} min, running on ${held.join('+')} alone`);
+        // the given-up slot takes pr requests again once its manual run ends (dispatch marked it busy with this train)
+        for (const p of ports) if (!locks[p]) { delete lockWait[p]; busy[p] = null; }
+        ports = held;
+        break;
+      }
+      await sleep(15_000);
+    }
     // fresh `at` after the lock wait; the other worker took it over meanwhile: back off (as runRequest)
     if (writeClaims([train.sha], 'claim', `claim train ${train.n} (lock taken)`) === 'blocked') {
       log(`train ${train.n}: taken over by the other worker during the lock wait, dropped`);
       claimed.delete(train.sha);
       return;
     }
-    postStatus(train.sha, 'pending', 'laptop-e2e', `${DESKTOP ? 'desktop: ' : ''}sharded ${ports.join('+')}`);
+    postStatus(train.sha, 'pending', 'laptop-e2e', `${DESKTOP ? 'desktop: ' : ''}${ports.length > 1 ? 'sharded' : 'unsharded on'} ${ports.join('+')}`);
     const prep = await Promise.all(ports.map((p) => prepare(p, train.sha, path.join(runDir, `${p}.log`))));
     if (prep.includes('fetch')) {
       // not a verdict: the pending status is now unclaimed (stale) and the next pass picks the train again
@@ -457,7 +486,8 @@ async function runTrain(train, ports = PORTS) {
     const ok = finish(job, 'laptop-e2e', result, runDir, prNumber);
     state.trains[train.sha] = { result: ok ? 'success' : 'failure', wall: result.wall, date: new Date().toISOString() };
   } finally {
-    for (const p of ports) { if (locks[p]) releaseLock(p, locks[p]); freePort(p); }
+    // only slots this train locked: an unheld one may be serving a manual run
+    for (const p of ports) { if (locks[p]) { releaseLock(p, locks[p]); freePort(p); } }
     writeJson('state.json', state);
     if (state.trains[train.sha]) writeClaims([train.sha], 'done', `done train ${train.n}`);
     log(`train ${train.n}: done`);

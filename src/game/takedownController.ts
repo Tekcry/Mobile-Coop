@@ -790,7 +790,8 @@ export class TakedownController {
     const kind = a.grab ? (hangDown ? 'hangGrab' : 'grab') : a.plan.kind;
     this.done.byKind[kind] = (this.done.byKind[kind] ?? 0) + 1;
     const r = a.lethal ? NOISE_STRIKE : NOISE_CHOKE;
-    g.enemyMgr?.hear(g.player.position, r);
+    // (guard-ai S26) his own noise: it locates him
+    g.enemyMgr?.hear(g.player.position, r, 'noise', null, g.localId);
     g.events.emit('takedown', { phase: 'done', lethal: a.lethal, kind });
   }
 

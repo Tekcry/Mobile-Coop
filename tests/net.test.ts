@@ -461,6 +461,48 @@ describe('pstate movement state (3.2.0)', () => {
   });
 });
 
+import { clientStepNoise, MAX_FREE_SPEED } from '../src/net/validate';
+import { noiseRadius } from '../src/player/movement';
+import { NOISE_QUIET } from '../src/config/movement';
+import { PF } from '../src/net/protocol';
+
+describe('guard-ai S26 fix: the client step noise on the host (its own sent speed and stance)', () => {
+  const G = PF.grounded;
+  const st = (speed: number, f: number, m?: string) =>
+    ({ ...ps, speed, f, ...(m ? { mv: { ...emptyMoveState(), m } } : {}) }) as unknown as Parameters<typeof clientStepNoise>[0];
+  it('a crouch-walk is never heard (G40 silent band), crouched, wall slide or a crouched traversal run', () => {
+    for (let i = 0; i <= 40; i++) {
+      const v = (NOISE_QUIET.crouch * i) / 40;
+      expect(clientStepNoise(st(v, G | PF.crouch), true), `crouch ${v}`).toBe(0);
+      expect(clientStepNoise(st(v, G | PF.driven), true), `driven ${v}`).toBe(0);
+      expect(clientStepNoise(st(v, G, 'wall'), true), `wall ${v}`).toBe(0);
+    }
+    for (let i = 0; i <= 40; i++) expect(clientStepNoise(st((NOISE_QUIET.stand * i) / 40, G), true), `walk ${i}`).toBe(0);
+  });
+  it('the host player rule: noiseRadius(speed, crouched) on the same speed and stance', () => {
+    for (let v = 0; v <= MAX_FREE_SPEED; v += 0.25) {
+      expect(clientStepNoise(st(v, G), true)).toBe(noiseRadius(v, false));
+      expect(clientStepNoise(st(v, G | PF.crouch), true)).toBe(noiseRadius(v, true));
+      // (steps 'crouched': a traversal-driven move that is not silent) and a back-to-wall slide: the crouch band
+      expect(clientStepNoise(st(v, G | PF.driven), true)).toBe(noiseRadius(v, true));
+      expect(clientStepNoise(st(v, G, 'wall'), true)).toBe(noiseRadius(v, true));
+    }
+    expect(clientStepNoise(st(5, G), true)).toBeGreaterThan(6);
+  });
+  it('silent steps, in the air, or a state that jumped (teleport / respawn / send-back): no step at any speed', () => {
+    expect(clientStepNoise(st(6, G | PF.silent), true)).toBe(0);
+    expect(clientStepNoise(st(6, G | PF.driven | PF.silent), true)).toBe(0);
+    expect(clientStepNoise(st(6, 0), true)).toBe(0);
+    expect(clientStepNoise(st(6, G), false)).toBe(0);
+  });
+  it('reads the wire speed (sanitised 0..20), capped at the old bound', () => {
+    const m = parseMessage({ t: 'pstate', s: { ...ps, speed: 20, f: G } });
+    expect(m && m.t === 'pstate' && clientStepNoise(m.s, true)).toBe(noiseRadius(MAX_FREE_SPEED, false));
+    const crouchWalk = parseMessage({ t: 'pstate', s: { ...ps, speed: NOISE_QUIET.crouch, f: G | PF.crouch } });
+    expect(crouchWalk && crouchWalk.t === 'pstate' && clientStepNoise(crouchWalk.s, true)).toBe(0);
+  });
+});
+
 describe('team moves (3.2.0 phase 5)', () => {
   it('tmove: boost / ladder / end, a valid partner id, clamped numbers', () => {
     expect(parseMessage({ t: 'tmove', kind: 'boost', partner: 'peerB', target: 12, s: 1.5, gy: 4.2 })).toEqual({ t: 'tmove', kind: 'boost', partner: 'peerB', target: 12, s: 1.5, gy: 4.2 });

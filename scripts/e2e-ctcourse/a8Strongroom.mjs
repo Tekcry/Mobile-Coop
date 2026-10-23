@@ -456,7 +456,8 @@ export async function walk(t, n) {
   // (S-e2e-fix3) the host's registry (circuit 81 has no wall switch, see step 5)
   await until(A, ([g, on]) => { const l = window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g); return l.length > 0 && l.every((x) => x.on === on); }, [NIGHT_GROUP, true], 10000, 'A8 pass 2: the night circuit is back on (host)');
   await until(B, (g) => !window.__course.wire.lights.groups.some(([k, on]) => k === g && !on), NIGHT_GROUP, 15000, 'A8 pass 2: the night circuit is back on (client)');
-  assert(await lockedOnHost(DOORS.grille), 'A8 pass 2: the grille is locked again on the host');
+  // the relock lands one host step after the circuit (train 40 flake): wait for it, not a one-shot read
+  await until(A, (cid) => window.__course.state.locked(cid), DOORS.grille, 5000, 'A8 pass 2: the grille is locked again on the host');
   await until(B, (i) => window.__course.wire.locks.includes(i), await doorIndex(DOORS.grille), 15000, 'A8 pass 2: the client sees the grille locked');
   assert((await doorOpen(A, DOORS.grille)) > 0.5, 'A8 pass 2: the relock never shuts the door: it stays open (ENGINE-ANSWERS Q9)');
   await closeDoor(A, DOORS.grille, 'A8 pass 2 grille');

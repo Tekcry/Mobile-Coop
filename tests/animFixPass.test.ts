@@ -2,7 +2,9 @@
  * (anim-fix-pass AF0) The before numbers. REPORT-ONLY: nothing here asserts a bar (a scenario that throws is logged, not failed);
  * it runs the harness (tests/helpers/afpMeasure.ts) over the AF0 scenario set at the current commit and writes the table
  * docs/anim-fix-pass/before/numbers.md. Slices AF1-AF4b assert against the bars in PLAN.md in their own test files, through
- * the same helper. Run: `npx vitest run tests/animFixPass.test.ts` (rewrites numbers.md; keep the commit's copy as the "before").
+ * the same helper. Run: `AFP_WRITE_NUMBERS=1 npx vitest run tests/animFixPass.test.ts` (rewrites numbers.md; keep the commit's
+ * copy as the "before"). Skipped without that variable: the table is a record of the AF0 commit, so a normal or train run
+ * must never rewrite a tracked file (train 40 release, 2026-10-24).
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -43,12 +45,12 @@ async function table(title: string, scs: Scenario[], out: string[], extra?: (s: 
   }
 }
 
-describe('(afp AF0) before numbers (report-only)', () => {
+describe.skipIf(!process.env.AFP_WRITE_NUMBERS)('(afp AF0) before numbers (report-only)', () => {
   it('measures the AF0 scenario set and writes docs/anim-fix-pass/before/numbers.md', async () => {
     const out: string[] = [
       '# anim-fix-pass: before numbers (AF0 harness, report-only)',
       '',
-      'Written by `npx vitest run tests/animFixPass.test.ts` (tests/helpers/afpMeasure.ts). Headless Wren rig, sim 60 Hz, mocap ON',
+      'Written by `AFP_WRITE_NUMBERS=1 npx vitest run tests/animFixPass.test.ts` (tests/helpers/afpMeasure.ts). Headless Wren rig, sim 60 Hz, mocap ON',
       '(the default), at the commit the file was committed on. No bar is asserted here; the bars are in PLAN.md and each slice',
       'asserts them in its own test. Units as in the column names. Gait rows: 2 s settle + 3 s recorded, turns at the yaw rate in',
       'the name (R right, L left); trk = planted ankle offset from the hip midline in the facing frame (< -0.5 cm crossed),',

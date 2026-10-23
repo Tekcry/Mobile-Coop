@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -346,5 +346,26 @@ describe('desktop trains', () => {
     expect(desktopTrainGate({ ...base, trainAgeMs: MIN })).toBe('train head too new');
     expect(desktopTrainGate({ ...base, laptop: { last: NaN, trainClaims: false } })).toMatch(/does not claim trains/);
     expect(desktopTrainGate({ ...base, laptop: workerActivity(log.replace('claim train 37', 'claim x'), 'laptop') })).toMatch(/does not claim trains/);
+  });
+});
+
+describe('assertKey / flakeStands', () => {
+  const lantern = "Error: timed out waiting for A3: LANTERN's line reaches the client [host: sim 90.45 s in 90.1 s wall (x1.00), 60 fps]";
+  const grilleStop = 'timed out waiting for A8: N2 is at the grille stop (route index 2)';
+  const relock = 'Error: ASSERT: A8 pass 2: the grille is locked again on the host';
+  it('drops bracketed timing and numbers', () => {
+    expect(assertKey(lantern)).toBe(assertKey(lantern.replace('90.45', '90.30').replace('60 fps', '120 fps')));
+    expect(assertKey(grilleStop)).toBe('timed out waiting for A#: N# is at the grille stop (route index #)');
+    expect(assertKey('')).toBe('');
+  });
+  it('a failure stands only on the same suite and assert within the window', () => {
+    const flakes = [{ suite: 'e2e-ctcourse:4', key: assertKey(grilleStop), date: new Date(NOW - 3600_000).toISOString() }];
+    const day = 24 * 3600_000;
+    expect(flakeStands(flakes, 'e2e-ctcourse:4', assertKey(grilleStop), NOW, day)).toBe(true);
+    expect(flakeStands(flakes, 'e2e-ctcourse:4', assertKey(relock), NOW, day)).toBe(false);
+    expect(flakeStands(flakes, 'e2e-ctcourse:2', assertKey(grilleStop), NOW, day)).toBe(false);
+    expect(flakeStands(flakes, 'e2e-ctcourse:4', assertKey(grilleStop), NOW + day, day)).toBe(false);
+    expect(flakeStands(flakes, 'e2e-ctcourse:4', '', NOW, day)).toBe(false);
+    expect(flakeStands([{ suite: 'e2e-ctcourse:4', date: new Date(NOW).toISOString() }], 'e2e-ctcourse:4', assertKey(grilleStop), NOW, day)).toBe(false);
   });
 });

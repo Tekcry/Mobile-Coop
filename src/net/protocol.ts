@@ -17,8 +17,8 @@ import { LAMP_BITS, LAMP_CHARS, LAMP_MAX, type LampWire } from './lampSync';
 import { SWAY } from '../world/lampSway';
 import type { MotionState } from '../anim/motion';
 
-/** The wire version. Only this line holds it; tests read it. `scripts/merge-train.mjs build` bumps it once per train with a wire change (history: CHANGELOG, docs/systems/coop.md). 45: sector-redesign LR16 (#287): LR16a drops `start.lf` / the rejoin `lf` (one photometric light model; an old peer's `lf` parses and is dropped); LR16-5b swinging pendants: the `sway` event (host -> all: a pendant kick, id / sim time / amplitude / heading, applied verbatim) and a client's round past a pendant as a `shot` whose target is `sw-<light id>`. */
-export const PROTOCOL_VERSION = 45;
+/** The wire version. Only this line holds it; tests read it. `scripts/merge-train.mjs build` bumps it once per train with a wire change (history: CHANGELOG, docs/systems/coop.md). */
+export const PROTOCOL_VERSION = 46;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;

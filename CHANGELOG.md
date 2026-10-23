@@ -1,5 +1,92 @@
 # Changelog
 
+## 4.86.0 - Train 43: e2e-ctcourse A3: calm wait after the step-4 send-back (pairs with #254 S23); Guard AI: guards hear you in a fight and a search; Guard AI: cover, clear lines and the alarm draw; +2 more (2026-10-24, PR #289; #271, #270, #264)
+
+### Guard AI: two intruders
+- Co-op: guards keep one last known position per player. When you split up and are seen apart, the guards who saw
+  the host keep hunting the host's last seen spot and the ones who saw (or were told of) the partner hunt his; a new
+  sighting of one player no longer turns every hunter round. Each fight has its own reporter, point, overwatch and
+  flank, and two fights never take the same cover.
+- A radio contact call or a shout tells the section only of the player the caller saw; a shot locates its shooter.
+  Reinforcements hunt the player of the guard who raised the alarm. The host's last-known-position ghost shows only
+  the host's own spot.
+- Solo and co-op: an alerted guard who has no last known position for his player goes to where he last saw someone
+  (or what drew him), never to the player's real position. Otherwise solo is unchanged. Host only: no protocol or save
+  change.
+- Guards called in by a squadmate who had not seen anyone (shot from the dark) close on the player once any of them sees him: that first sighting is radioed again, naming him.
+- A guard sent in already alerted (parked modes' reinforcements, scripted spawns) now hunts what his squad already
+  knows of the players, instead of standing at his spawn.
+
+### Guard AI: search where a player could be
+- After a fight, the searchers check where you could have gone in the time since they last saw you: dark corners and
+  cover near your last seen spot, by the way you could walk there, best first, one searcher per spot. A spot behind a
+  wall is as far as the way round; lit open floor is left for later. When those run out they sweep round your last
+  seen spot as before. A search for a body, a device, a radio call or a noise is unchanged. Host only: no protocol or
+  save change.
+
+### Guard AI: guards hear you in a fight and a search
+- Once a guard is searching or fighting he still listens. Run, land, roll, rattle a fence or fire a suppressed shot
+  within his hearing (walls and nearby machinery still muffle it) and a searcher turns and walks to where he heard you
+  ("I heard something."), looks round, then goes on searching; a guard in combat who cannot see you turns his hunt to
+  the noise, and the search after it starts from there. Crouch-walking stays silent. A bottle or noise maker still pulls
+  searchers but never a guard in a fight. In co-op a noise only gives away the player who made it. Host only: no
+  protocol or save change.
+
+### Guard AI: cover, clear lines and the alarm draw
+- Guards working together no longer stand upright and still in the open when they lose sight of you: they crouch while
+  they wait for the group and take the nearest cover within about 3 s (with no cover near, they stay crouched).
+- The covering guard's suppressive fire at your last known spot now needs a clear line from his gun: no more bursts
+  into a wall. Suppressing no longer moves where he thinks you are.
+- The guard calling in the contact throws no grenade and starts no flank while his call is open; caught in the open he
+  still fires back.
+- After any alarm stage (Sector Ops: a panel, a camera or a laser) every guard of the section keeps his gun drawn; a
+  restart from a checkpoint before the alarm holsters them again after the calm time.
+- Closes guard-ai S8 checker polish items 3, 5 and 7 and walk checker polish item 4. Host only: no protocol or save
+  change.
+
+## 4.85.0 - Train 42: Changelog fragment check in CI; anim-fix-pass before numbers: written only on request; e2e-ctcourse A8 relock wait; Co-op rejoin follow-ups; +5 more (2026-10-24, PR #288; #286, #285, #284, #282, #280, #254, #252)
+
+### e2e-ctcourse A8 relock wait
+- Tests: e2e-ctcourse:4 waits up to 5 s for the A8 grille to relock on the host after the night circuit returns (it relocks one host step later; train 40 flake).
+
+### anim-fix-pass before numbers: written only on request
+- `tests/animFixPass.test.ts` (the AF0 before-numbers report) runs only with `AFP_WRITE_NUMBERS=1`, so a normal or train
+  test run no longer rewrites the tracked `docs/anim-fix-pass/before/numbers.md` (it stopped the 4.84.0 release).
+
+### Co-op rejoin follow-ups
+- (coop-rejoin-2) A co-op client whose page reloads while the host restarts the checkpoint (or sends it back from a
+  camera hallway) is still placed at the checkpoint, not left at the level start; a client that drops a second time
+  before reaching its placed spot is placed again on its next rejoin. No wire change.
+
+### Co-op rejoin at the checkpoint, two spawn slots
+- (coop-rejoin, walk item 7) A co-op client that joins, rejoins or reconnects while a run is in progress is placed by
+  the host: in Course mode (Marlow Yard) and Sector Ops at the current checkpoint on its own slot, or beside the host
+  when that checkpoint cannot reach the host (no path, or a locked door on it); never back at the level start. A
+  course client's match loads at the current bay, and the host sends the course / sector state, items, doors and lamps
+  at once. Other modes: back where its slot was held, else beside the host. No wire change (the existing `restore`
+  event and the `start` message's `bay`).
+- (coop-rejoin, walk item 4) Two spawn slots per spawn area: the host takes slot 0, the partner slot 1, at the match
+  start, a "Start at" bay, a checkpoint respawn and a set or section restart. Map data may place slot 1 (Marlow
+  airlocks `spawns`, Sector Ops `start2` / `checkpoint2`); without it the partner gets a spot beside slot 0 that is clear
+  of the level, on a floor and in an open line from it (`game/spawnSlots.ts`).
+
+### Changelog fragment check in CI
+- Tests: CI parses every `changes/*.md` fragment with the train build parser (`tests/changesFragments.test.ts`), so a fragment without its "# <title>" line or entries fails the PR instead of the train build (train 39).
+
+### Guard AI: every player is seen
+- Co-op: a guard now looks at both players, not just the nearer one. Hiding behind a wall close to a guard no longer
+  makes your partner invisible while he stands in the guard's light in front of him: the guard notices whichever of you
+  he sees best (one meter, filled at that player's rate; two in view do not add up) and goes after him. In a firefight
+  he keeps shooting at the player he is fighting while he still sees him; a nearer hidden player no longer blinds him.
+  Out of sight of him, he turns on the nearest player he does see.
+- Co-op: the host's awareness arcs show only guards that see the host's own player (or stand close by), not guards
+  filling up on the partner. The flanker is picked by each guard's distance to his own target, not to the host.
+- A calm guard casts no sight ray for a player he cannot see at all (behind him beyond arm's reach, or past his view
+  range). Solo play is otherwise unchanged. Host only: no protocol or save change.
+
+### Auto-train: big trains keep their version commit
+- Auto-train read only the first 100 commits of a train PR, so a train with more lost its version commit and stopped with "no version commit: rebuild" (trains 39 and 40). It now also reads the head commit.
+
 ## 4.84.0 - Train 40: Auto-train laptop missing alert; Marlow Yard A2: woken guards and the spotted rule; Camera reach and mocap timeouts; Marlow Yard: Michael's 4.82 walk fixes; +7 more (2026-10-24, PR #279; #277, #276, #274, #267, #265, #258, #252, #247, #226)
 
 ### Fast-gait feet (anim-fix-pass AF1)
