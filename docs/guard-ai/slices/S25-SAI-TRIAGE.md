@@ -89,3 +89,36 @@ reached point 0, never asked the plan, and `plans` stayed `[]`.
 - Risk left: the hide's rank in the plan (S25B-RECHECK). The printed plans and the walk show it if 20 s from the plan
   is still short.
 - Queued: set `s25-sai-fix2`, suite `e2e-stealth-ai`, on 923be420, request `20261023T133138-night-shift-guard-ai-923be420-40a9`.
+
+## Round 3 (923be420: 'near' fails on the round-1 `resight` assert, run + rerun identical; S26 the same)
+
+Log: `runs/20261023T133138-...-923be420-40a9/4189.log:64-70`. The plan side now works:
+- `lkpMoved` null: the LKP stays at (-0.5, 0) for the whole run, so the round-2 tp fix holds.
+- The search starts at tS 12 s. He walks back from cover (1.6, 9.6) to the LKP and looks there (23-25 s). The plan is
+  built at 13.4 s into the search, round (-0.5, 0) with R 20 and 12 points. He claims (-3.3, 3.5), then (-4.7, -2.5).
+- The run ended at tP + 10 s, on `closestP` < 1.5 m (prints 1.5; the guard was at (-3.6, -1.2), about 1.49 m from
+  the hide spot (-4.75, -0.25), going through the x -4 gap to (-4.7, -2.5)).
+
+### Cause: my own assert
+`resight` fired at 0.05 s because the guard watched the lit player right up to the tp: `sinceSeen` was about 0 then,
+and 0.05 s later it is still under 0.1. That was the clock counting on, not a sight. The LKP did not move.
+
+### Fix (scripts/e2e-stealth-ai.mjs only)
+- `resight` is now a drop in `sinceSeen` (a sight resets it to 0). It also fires if he is still in sight after 0.2 s
+  (the clock under 0.1 there).
+- The `near:` / `wall:` / `three:` run asserts printed "undefined" when there was no error. They now read
+  `the run picks its spot and completes` / `the run completes`.
+
+### Prediction for the rest of 'near', from the round-2 data
+- "the search starts and asks the plan, built": 2 plans, 12 points. PASS.
+- "a plan point within 3 m": (-4.7, -2.5) is 2.25 m from the hide spot. PASS.
+- "a searcher comes to the dark spot within 20 s of his first plan point": `closestP` < 1.5 at 10 s, his second plan
+  point. PASS. The margin is small (1.49 m), but the run is deterministic, and on through the gap he passes about
+  1.0 m from it well inside the window. `found` is not needed: the assert is closest <= 1.5 OR found.
+- "never homes in": false. PASS.
+- 'wall' and 'three' have not run since round 1; their asserts are unchanged. The tp fix keeps the LKP where he lost
+  him, which is what they assume.
+
+### Checks
+- `node --check scripts/e2e-stealth-ai.mjs`: OK. No src change.
+- Queued: set `s25-sai-fix3`, suite `e2e-stealth-ai`, on 1eb5644d, request `20261023T170434-night-shift-guard-ai-1eb5644d-9b03`.

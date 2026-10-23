@@ -690,6 +690,9 @@ try {
           let builtAt = -2;
           // (S25-SAI-TRIAGE) he sees him again after the tp (alerted: line of sight alone), and his walk, once a second
           let resight = -1;
+          // (S25-SAI-TRIAGE 3) a sight resets his `sinceSeen` to 0; it was ~0 at the tp (he watched the lit player till
+          // then), so a new sight is a drop, not a low value (round 2 flagged 0.05 s, the clock just counting on)
+          let prevSince = e.sinceSeen;
           let lkpMoved = null;
           const trace = [];
           // ('near') the first plan built in the search, and the nearest a searcher comes to the spot from then on
@@ -704,7 +707,9 @@ try {
             g.frameUpdate(0.05, 1);
             time += 0.05;
             if (tS < 0 && e.level === 'searching') tS = time;
-            if (resight < 0 && e.alerted && e.sinceSeen < 0.1) resight = r1(time);
+            // (or still in sight: 0.2 s on, the clock would be past 0.1 without one)
+            if (resight < 0 && e.alerted && (e.sinceSeen < prevSince || (time > 0.2 && e.sinceSeen < 0.1))) resight = r1(time);
+            prevSince = e.sinceSeen;
             {
               const lk = em.lkpOf(s);
               if (!lkpMoved && lk && Math.hypot(lk.x - Lx, lk.z - Lz) > 0.5) lkpMoved = { t: r1(time), at: [r1(lk.x), r1(lk.z)] };
@@ -797,7 +802,7 @@ try {
     // --- near: the dark spot 6 m by path is checked early ---
     const a = await run('near');
     const sa = JSON.stringify({ seen: a.seen, hide: a.hide, at: a.at, tS: a.tS, guard: a.guard, claims: a.claims, level: a.level });
-    assert(!a.err, `near: ${a.err} (${JSON.stringify(a)})`);
+    assert(!a.err, `near: ${a.err ?? 'the run picks its spot and completes'} (${JSON.stringify(a)})`);
     assert(a.seen.stealth && a.seen.alerted[0] && a.seen.hunt[0] >= 0, `near: the guard detects the lit player and hunts his intruder (${sa})`);
     assert(a.ownField, `near: his intruder has his own chase field (${sa})`);
     // (S25-SAI-TRIAGE) the vanish holds: out of his sight after the tp (else the last known position moves onto him)
@@ -812,7 +817,7 @@ try {
     // --- wall: the room behind a wall is not searched first ---
     const b = await run('wall');
     const sb = JSON.stringify({ seen: b.seen, hide: b.hide, at: b.at, tS: b.tS, guard: b.guard, claims: b.claims, level: b.level, maxPathAt: b.maxPathAt });
-    assert(!b.err, `wall: ${b.err} (${JSON.stringify(b)})`);
+    assert(!b.err, `wall: ${b.err ?? 'the run picks its spot and completes'} (${JSON.stringify(b)})`);
     assert(b.tS > 0 && b.plans.length > 0, `wall: the search starts and asks the plan (${sb}; plans ${JSON.stringify(b.plans)})`);
     // (S25B-RECHECK: cells 1-3 m from the walled pocket are inside R by path, so "no point near it" fails on correct
     // behaviour; the rule is "by path, not straight": every plan point is within R + 0.5 m by path)
@@ -825,7 +830,7 @@ try {
     // --- three: three searchers, three different spots ---
     const c = await run('three');
     const sc = JSON.stringify({ seen: c.seen, at: c.at, tS: c.tS, claims: c.claims, level: c.level, onPlan: c.onPlan });
-    assert(!c.err, `three: ${c.err} (${JSON.stringify(c)})`);
+    assert(!c.err, `three: ${c.err ?? 'the run completes'} (${JSON.stringify(c)})`);
     assert(c.seen.hunt.every((h) => h === c.seen.hunt[0] && h >= 0), `three: all three hunt the one intruder (${sc})`);
     assert(c.plans.length > 0 && c.plans[0].pts.length >= 3, `three: the plan has at least three points (${JSON.stringify(c.plans)})`);
     assert(c.claims.every((v) => v.length > 0), `three: each searcher takes a plan point (${sc}; plans ${JSON.stringify(c.plans)})`);
