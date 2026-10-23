@@ -14,7 +14,8 @@ collects results and sends ONE verdict per batch (fail: assert, log path, last ~
   ctcourse:2 FAIL "timed out waiting for A3: the cleaner is calm and back in the offices after the corridor lure",
   runs/marlowpolish-1bde5328, cleaner cycles alert attack / cover). Rerun pass = flake for Marlow to fix.
 - Manual chains (rerun a chain .ps1 whose log lacks "done"):
-  - 4191 l16 (LR16 c7a26ca7 suites) -> sp2: Player #249 stealth-pays bf9445d6 ctcourse + sectorops -> verdict to Player.
+  - 4191 l16 DONE: LR16 c7a26ca7 sectorops 1-6, coop, netmove, ctcourse 1-3, lightbake, darkness, menus, desktop,
+    stealth-ai ALL PASS (937 s, JOBS=2; sectorops:6 297 s slowest) -> into the LR16 verdict. Then sp2: Player #249 stealth-pays bf9445d6 ctcourse + sectorops -> verdict to Player.
   - 4192 ap4: #226 4f66a5f8 sectorops coop stealth-ai.
   - 4189 lr15c (LR15 perf, alone) -> ap5 (#226 perf / guard-cap / campus-sheet2, alone) -> l16g (LR16 perf Epic /
     Medium + warehouseOps + lr16-sheet.mjs, alone). Verdicts to Sector Ops: LR15 (with #242 1c22b913 sectorops 1-6 +
