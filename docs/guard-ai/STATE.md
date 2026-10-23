@@ -1,6 +1,12 @@
 # Guard AI - state
 
 ## Now
+~18:45: carry fix BUILT 48d049ad (src/player/bodyEffectRecovery.ts from SmoothBody.frame: an unready body effect that
+timed out / failed / lost its program, or never finishes in 8 s + 30 frames, is dropped (setEffect(null), dispose,
+cachedPipelines entry cleared) and recompiled, cap 3 per variant; Babylon polls 7500 x 16 ms then keeps the failed
+effect in _compiledEffects). tests/bodyEffectRecovery.test.ts 3; e2e-guard-carry one-block stall. RUNNING: Opus checker;
+Test Runner watcher runs e2e-guard-carry + stealth-ai on 48d049ad and the suite on f16600f5 (expect fail).
+
 ~18:35 SAVE (orchestrator, 5-hour 85%): all worktrees clean and pushed; carry-fix WIP d704098e (bodyEffectRecovery.ts,
 smoothBody.ts, babylon.ts, its test) pushed, agent still finishing. Test Runner queued: e2e-guard-carry (+ on f16600f5)
 and stealth-ai on the carry-fix commit "guard-ai carry fix: recover guard bodies ...".
