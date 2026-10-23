@@ -18,6 +18,7 @@ import { syringesFor, type SectorNetExtra } from '../game/sectors';
 import { ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
+import { HoldClock, holdFeed, stepHoldFeed, type HoldFeed } from './holdFeed';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
 import { checkBlast, checkShot, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile } from './validate';
@@ -119,8 +120,10 @@ export class CoopHost implements NetAttachment {
   private tmpH = new Vector3();
   /** Revive points on downed players (co-op). */
   private revives = new Map<string, Interactable>();
-  /** Enemies seized by a client's takedown: enemy id -> client id and seconds held. */
-  private seized = new Map<string, { by: string; t: number; hostage?: boolean }>();
+  /** Enemies seized by a client's takedown: enemy id -> client id and seconds held; (hostage-gait) the hold point feed. */
+  private seized = new Map<string, { by: string; t: number; hostage?: boolean } & HoldFeed>();
+  /** (hostage-gait) Render time vs sim time for the hold feed (set each frame with the remote bodies). */
+  private readonly holdClock = new HoldClock();
   /** (G7) Scratch for a client hold's knockout pose. */
   private koTmp: KoState = { limp: 0, lower: 0, bend: 0 };
   /** Shot noise edges per client. */
@@ -617,6 +620,11 @@ export class CoopHost implements NetAttachment {
     this.s.send({ t: 'sector', sec, ...extra });
   }
 
+  /** (sector-redesign EW5) Sector Ops: a radio line (a keypad code found) to every client, as the existing `feed` event. */
+  radioLine(text: string): void {
+    this.push({ e: 'feed', text });
+  }
+
   /** Sector Ops: the syringes left this op (the revive cap less the revives used). */
   revivesLeft(): number {
     return Math.max(0, this.reviveClock.cap - this.reviveClock.used);
@@ -660,7 +668,7 @@ export class CoopHost implements NetAttachment {
       }
       // (G7) the struggle from the client's contact (derived from where it stands: no wire data)
       e.beginTakedown(!m.lethal, contactDelay(r.feet.x, r.feet.z, e.pos.x, e.pos.z, e.yaw, !!e.def.quadruped));
-      this.seized.set(e.id, { by: r.id, t: 0 });
+      this.seized.set(e.id, { by: r.id, t: 0, ...holdFeed() });
       return;
     }
     if (!held || held.by !== r.id) return;
@@ -1216,7 +1224,10 @@ export class CoopHost implements NetAttachment {
           }
           const sy = Math.sin(yaw);
           const cy = Math.cos(yaw);
-          e.holdAt(at.x + sy * GRAB.hold + cy * GRAB.side, at.y, at.z + cy * GRAB.hold - sy * GRAB.side, yaw);
+          // (hostage-gait) the drawn body moves once per frame; below 60 fps 2+ steps see one pose and holdAt's speed
+          // (his gait) flickers 2x / 0. The feed moves the point every step (holdFeed.ts); a jump places him first
+          if (stepHoldFeed(s, at.x + sy * GRAB.hold + cy * GRAB.side, at.z + cy * GRAB.hold - sy * GRAB.side, this.holdClock, this.time, dt)) e.pos.set(s.hfX, at.y, s.hfZ);
+          e.holdAt(s.hfX, at.y, s.hfZ, yaw);
           // (G7) the client's knockout lowers him here too, its interrogation turns his head (MoveState ph / sub)
           if (mv.sub & 2) e.holdPose('interrogate', mv.ph);
           else if (mv.ph > 0 && !(mv.sub & 1)) {
@@ -1227,6 +1238,7 @@ export class CoopHost implements NetAttachment {
           continue;
         }
       }
+      s.hfOn = false;
       if (s.t > TD_MAX || !by || !by.alive) this.release(eid);
     }
     this.remoteNoise(dt);
@@ -1294,6 +1306,7 @@ export class CoopHost implements NetAttachment {
   private readonly posedHeadTmp = new Vector3();
   frameUpdate(dt: number): void {
     const now = performance.now() / 1000 - INTERP_DELAY;
+    this.holdClock.frame(now, this.time);
     for (const r of this.remotes.values()) {
       r.avatar.update(dt, now);
       if (r.alive) {

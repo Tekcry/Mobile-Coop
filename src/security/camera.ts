@@ -181,6 +181,9 @@ export function segmentHitsHousing(c: { x: number; y: number; z: number; yaw: nu
 /** Runtime state of one camera. */
 export class CameraUnit {
   mode: CameraMode = 'online';
+  /** (sector-redesign E6) The security desk's hold on it: 0 none, 1 looped, 2 off until a restart (`DESK_*` in
+   *  `game/sectorDesks.ts`); `CtDevices.applyJam` turns it into the mode. */
+  desk = 0;
   /** The camera's own clock (s): the sweep is a function of it. */
   clock = 0;
   yaw: number;
