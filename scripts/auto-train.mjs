@@ -410,6 +410,10 @@ function openTrain() {
   const n = Number(p.headRefName.split('/')[1]);
   const commits = readJson(['gh', 'pr', 'view', String(p.number), '--json', 'commits']).commits;
   const subjects = commits.map((c) => c.messageHeadline);
+  // `gh pr view --json commits` stops at 100 commits, which cuts off the version commit at the head of a big train:
+  // read the head's own subject too.
+  const headSubject = api(`repos/{owner}/{repo}/commits/${p.headRefOid}`, '.commit.message | split("\\n")[0]');
+  if (headSubject) subjects.push(headSubject.trim());
   const vc = versionFromSubjects(subjects, n);
   const fromTitle = parseTrainTitle(p.title);
   let version = vc?.version ?? null;
