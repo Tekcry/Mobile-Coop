@@ -24,6 +24,9 @@ export class IntruderBoard {
   readonly valid = new Uint8Array(MAX_INTRUDERS);
   /** Seconds since slot i was last seen (99 = never). */
   readonly seenT = new Float32Array(MAX_INTRUDERS).fill(NEVER);
+  /** (guard-ai S26, A157) Seconds since slot i was last seen OR located (a heard footstep, a located shot); 99 never.
+   *  `report` resets it always (`seenT` only when `seen`). S25's probable area grows from it. */
+  readonly locT = new Float32Array(MAX_INTRUDERS).fill(NEVER);
   /** Player id per slot ('' = free): stable when the players list reorders (a rejoin, coop4). */
   private readonly ids: string[] = ['', '', '', ''];
   /** Report order per slot (the freshest valid one takes over when the freshest is forgotten). */
@@ -63,6 +66,7 @@ export class IntruderBoard {
     this.z[s] = z;
     this.valid[s] = 1;
     if (seen) this.seenT[s] = 0;
+    this.locT[s] = 0;
     this.stamp[s] = ++this.seq;
     this.freshest = s;
   }
@@ -78,13 +82,17 @@ export class IntruderBoard {
   }
 
   step(dt: number): void {
-    for (let i = 0; i < MAX_INTRUDERS; i++) this.seenT[i] = this.seenT[i]! + dt;
+    for (let i = 0; i < MAX_INTRUDERS; i++) {
+      this.seenT[i] = this.seenT[i]! + dt;
+      this.locT[i] = this.locT[i]! + dt;
+    }
   }
 
   /** Positions dropped (a section unload, a restart); the ids are kept (the same players keep their slots). */
   clear(): void {
     this.valid.fill(0);
     this.seenT.fill(NEVER);
+    this.locT.fill(NEVER);
     this.stamp.fill(0);
     this.x.fill(0);
     this.y.fill(0);

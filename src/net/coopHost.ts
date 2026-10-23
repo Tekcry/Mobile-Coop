@@ -722,7 +722,7 @@ export class CoopHost implements NetAttachment {
     const hit = { amount: 9999, point: e.pos.clone(), dir, part: 'body' as const, kind: 'melee' as const, attackerTeam: 'player' as const, attackerId: r.id, sourcePos: r.feet.clone(), impulse: 1 };
     if (m.lethal) e.applyDamage(hit);
     else e.knockOut(hit);
-    this.g.enemyMgr?.hear(r.feet, m.lethal ? 3 : 1.2);
+    this.g.enemyMgr?.hear(r.feet, m.lethal ? 3 : 1.2, 'noise', null, r.ref.id);
     this.takedownDone(r.id);
     this.g.mode?.onRemoteTakedown?.(r.id, m.kind ?? '');
   }
@@ -1296,7 +1296,7 @@ export class CoopHost implements NetAttachment {
       if (steps && (st.f & PF.silent) === 0 && (st.f & PF.grounded) !== 0) {
         // (step 11) a back-to-wall slide is heard at the crouch band (bible 5.3)
         const n = noiseRadius(r.ref.speed, (st.f & PF.crouch) !== 0 || st.mv?.m === 'wall');
-        if (n > 0) em.hear(r.feet, n);
+        if (n > 0) em.hear(r.feet, n, 'noise', null, r.ref.id);
       }
       const t = (this.firing.get(r.id) ?? 0) - dt;
       if (st.f & PF.firing && t <= 0) {
@@ -1304,7 +1304,7 @@ export class CoopHost implements NetAttachment {
         const quiet = (st.f & PF.quiet) !== 0;
         // (guard-ai S14, A46) as in solo: SHOT_NOISE x the weapon's noise (9.8 m for the CT guns), at most the quiet cap;
         // (spare 7) a suppressed gun out of quiet rounds fires open at its open noise
-        if (quiet) em.hear(r.feet, SHOT_NOISE * Math.min(WEAPONS[st.w].noise ?? 1, 0.6));
+        if (quiet) em.hear(r.feet, SHOT_NOISE * Math.min(WEAPONS[st.w].noise ?? 1, 0.6), 'noise', null, r.ref.id);
         else em.noise(r.feet, SHOT_NOISE * (SD_OPEN_NOISE[st.w] ?? WEAPONS[st.w].noise ?? 1), r.ref.id);
       } else this.firing.set(r.id, t);
     }

@@ -98,3 +98,31 @@ export function hearTier(dist: number, reachEff: number, loud: boolean): HearTie
 export function wallMatters(dist: number, reachEff: number, loud: boolean): boolean {
   return hearTier(dist, reachEff, loud) !== hearTier(dist, reachEff * K_WALL, loud);
 }
+
+/** (guard-ai S26) Hearing in a fight and a search. `tier`: the lowest hearing tier that counts (1 = anywhere inside the
+ *  effective reach; A156). `gap`: s between two re-aims of one guard. `reportGap` / `reportMove`: a heard report of one
+ *  intruder at most this often (s) unless it moved this far (m). `switchAfter`: s since his own intruder was last
+ *  seen or located before a heard other one takes over (G139, A158). `searchLures`: lures pull searchers (A159).
+ *  `bark`: s between two "I heard something." of one guard. `enabled` false: today's deaf rule (A155). */
+export const COMBAT_HEAR = {
+  enabled: true,
+  tier: 1,
+  gap: 1.5,
+  reportGap: 1,
+  reportMove: 1.5,
+  switchAfter: 8,
+  searchLures: true,
+  bark: 6,
+} as const;
+
+/** What a guard does with a noise: 0 nothing, 1 look (a searcher walks to it), 2 locate (report its maker's position
+ *  as heard; a searcher also walks to it, a guard in combat turns his hunt to it). Pure, no allocation.
+ *  state: 0 calm (not handled here: 0), 1 searching, 2 combat. body: a player's own noise (`by` set). lure: a
+ *  distraction (bottle, noise maker, camera ping). */
+export function combatHearAct(state: 0 | 1 | 2, sees: boolean, tier: HearTier, body: boolean, lure: boolean): 0 | 1 | 2 {
+  if (state === 0 || tier < COMBAT_HEAR.tier) return 0;
+  if (state === 2) return sees || lure || !body ? 0 : 2;
+  if (body) return 2;
+  if (lure) return COMBAT_HEAR.searchLures ? 1 : 0;
+  return 1;
+}

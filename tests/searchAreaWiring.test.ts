@@ -114,7 +114,9 @@ function manager(gs: FakeGuard[], since = 2) {
   for (const g of gs) em.enemies.push(g as unknown as Enemy);
   const priv = em as unknown as Priv;
   expect(priv.ctx.reportSighting(players[0]!)).toBe(0);
+  // (S26) seen `since` s ago: both clocks (a sighting is also a location; the plan reads `locT`)
   em.intruders.seenT[0] = since;
+  em.intruders.locT[0] = since;
   priv.slotFlowStep(0);
   const out: P2 = [0, 0];
   const point = (g: FakeGuard): P2 | null => (priv.ctx.searchPoint!(g as unknown as Enemy, out) ? [out[0], out[1]] : null);
@@ -146,6 +148,7 @@ describe('the plan per intruder (EnemyManager.buildPlan)', () => {
     }
     // the same with all the time in the world (R at its cap): still nothing past the wall
     em.intruders.seenT[0] = 60;
+    em.intruders.locT[0] = 60;
     (em as unknown as Priv).planClock += SEARCH_AREA.rebuild;
     em.buildPlan(0);
     expect(plan.n).toBeGreaterThan(3);
@@ -201,6 +204,7 @@ describe('the plan per intruder (EnemyManager.buildPlan)', () => {
     const built = plan.builtAt;
     // the area grows with time, but a's point is live: no rebuild under him
     em.intruders.seenT[0] = 8;
+    em.intruders.locT[0] = 8;
     priv.planClock += SEARCH_AREA.rebuild + 1;
     const pb = point(b);
     expect(pb).not.toEqual([-6, 0]);
@@ -217,6 +221,19 @@ describe('the plan per intruder (EnemyManager.buildPlan)', () => {
     const k = pts(plan).findIndex(([x, z]) => x === -6 && z === 0);
     expect(k).toBeGreaterThanOrEqual(0);
     expect(plan.done[k]).toBe(1);
+  });
+
+  it('(guard-ai S26, A157) a plan built 10 s after the sighting but 0.5 s after a heard report: R = areaRadius(0.5)', () => {
+    const { em, plan } = manager([], 10);
+    // heard 0.5 s ago at the same spot (located, not seen)
+    em.intruders.report(0, LKP.x, 0, LKP.z, false);
+    em.intruders.step(0.5);
+    expect(em.intruders.seenT[0]).toBeCloseTo(10.5, 4);
+    em.buildPlan(0);
+    expect(plan.builtAt).toBeGreaterThanOrEqual(0);
+    const planR = (em as unknown as { planR: Float32Array }).planR;
+    expect(planR[0]).toBeCloseTo(areaRadius(0.5), 5);
+    expect(planR[0]).toBeLessThan(areaRadius(10));
   });
 
   it('exhausted, off, the parked modes or no intruder: no point (the ring)', () => {

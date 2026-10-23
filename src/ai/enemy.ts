@@ -27,7 +27,7 @@ import { clampToRoom, inRoom, roomAt, type RoomRect } from '../world/rooms';
 import { hyp2 } from '../core/mathx';
 import { EYE_STAND, instantDetect, losClear, noiseSuspicion, PERCEPTION, seenAt, sightRate, stepMeter, type SightInput } from './perception';
 import { ALERT, AlertMachine, callInDelay, emptyAlertInput, type AlertLevel } from './alertState';
-import { HEARING } from './hearing';
+import { COMBAT_HEAR, HEARING } from './hearing';
 import { PatrolWalker, PATROL, type PatrolRoute } from './patrol';
 import { ARMOUR_FIRE, ArmourGate } from './armourFire';
 import { PACE, paceSpeed, ringPoint, SEARCH_BODY, SEARCH_DEVICE, SEARCH_PLAIN, searchSpec, urgentKind } from './response';
@@ -406,6 +406,27 @@ export class Enemy implements Damageable {
   /** (guard-ai S2 fix 2) This search follows combat (alert -> searching: the walk on to the last known position and
    *  the sweep round it): the old pace and the aimed turn. Only a calm search (a body, a call, a pair) is slow. */
   private combatSearch = false;
+  /** (guard-ai S26) Seconds since his last re-aim on a noise in a fight or a search (99 none), and since his last
+   *  "I heard something." */
+  private heardT = 99;
+  private hearBarkT = 99;
+
+  /** (guard-ai S26) This search follows combat (tests / e2e). */
+  get inCombatSearch(): boolean {
+    return this.combatSearch;
+  }
+
+  /** (guard-ai S26) Seconds since his last re-aim on a noise in a fight or a search (99 none; the manager's throttle). */
+  get heardAt(): number {
+    return this.heardT;
+  }
+
+  /** (guard-ai S26) His current investigate / search spot into `out` (tests / e2e). */
+  searchSpot(out: P2): P2 {
+    out[0] = this.spot[0];
+    out[1] = this.spot[1];
+    return out;
+  }
   /** A knocked-out squadmate to wake (found body). */
   private reviving: Body | null = null;
   /** Running to an alarm panel (combat), and time spent working it. */
@@ -967,6 +988,41 @@ export class Enemy implements Damageable {
     this.stimulus[1] = z;
     this.hasStimulus = true;
     this.turnT = ALERT.hearLook;
+  }
+
+  /**
+   * (guard-ai S26, A155, CT rule 8) Searching, he heard a noise at (x, z) (the manager's `hear`: in his reach, walls and
+   * masking as S1): his next spot is the noise (snapped to a walkable cell within 4 as the search branch does), at his
+   * search pace (no hurry); the search branch walks there, looks round (`searchSpec(kind).look`) and goes on with his
+   * plan / ring (`searchK` kept). The spot is not a plan point: arriving or skipping it marks nothing done (the manager
+   * released his claim). "I heard something." at most once per `COMBAT_HEAR.bark` s. Not searching: nothing.
+   */
+  hearSearch(x: number, z: number): void {
+    if (!this.alive || this.aware.level !== 'searching') return;
+    this.spot[0] = x;
+    this.spot[1] = z;
+    const nav = this.ctx.nav;
+    const c = nav.nearestWalkable(x, z, 4);
+    if (c >= 0) {
+      // the cell's centre (`NavGrid.center` without its array)
+      const col = c % nav.cols;
+      this.spot[0] = nav.ox + ((col % nav.w) + 0.5) * nav.cell;
+      this.spot[1] = nav.oz + (((col / nav.w) | 0) + 0.5) * nav.cell;
+    }
+    this.spotSet = true;
+    this.spotLookT = 0;
+    this.planPoint = false;
+    this.rush = false;
+    this.heardT = 0;
+    if (this.hearBarkT >= COMBAT_HEAR.bark) {
+      this.hearBarkT = 0;
+      this.bark('investigate');
+    }
+  }
+
+  /** (guard-ai S26) In combat, a noise turned his hunt (the manager's `hear`): the re-aim throttle restarts. */
+  heardInFight(): void {
+    this.heardT = 0;
   }
 
   /** (guard-ai S1) Looking towards a sound he was not sent to (tests / debug). */
@@ -1941,6 +1997,9 @@ export class Enemy implements Damageable {
     this.walker.tick(dt);
     this.stateT += dt;
     this.sinceStagger += dt;
+    // (guard-ai S26) the hearing throttles
+    if (this.heardT < 99) this.heardT += dt;
+    if (this.hearBarkT < 99) this.hearBarkT += dt;
     this.prevPos.copyFrom(this.pos);
     this.prevYaw = this.yaw;
     // in a takedown: the attacker drives the body, the brain is off

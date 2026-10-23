@@ -429,6 +429,26 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   (`planSweep` each update), a forgotten slot and `clear` / `resetMemory`. Calm searches (a body, a device, a call, a
   pair, a lure) keep their ring (A152). Undo: `SEARCH_AREA.enabled` false (today's points exactly). Host only, no
   protocol or save change. Brief: `docs/guard-ai/slices/S25.md`. Tests: `searchArea.test.ts`, `searchAreaWiring.test.ts`.
+  (S26) R grows from `locT` (seconds since seen OR located), not `seenT`: a heard step narrows the search (A157).
+- Hearing in a fight and a search (guard-ai S26, M1, CT rule 8, A155-A160; `ai/hearing.ts`: `COMBAT_HEAR`,
+  `combatHearAct`). `EnemyManager.hear(pos, reach, kind, skip, by)`: `by` is the player whose own body or hands made
+  the noise (footsteps, landing, roll, fence rattle, noisy holds, takedowns, suppressed shots: `GameState.localId` /
+  the client's `r.ref.id`); glass, impacts, gadgets, doors, the dog's bark, lures and the download pass null. Coordinated
+  stealth only (`COMBAT_HEAR.enabled`): searching and alerted guards (not the melee kinds) hear too (`hearFight`); calm
+  guards keep the S1 tiers and the incident board word for word. Skipped first, no ray: in combat seeing his target, or
+  a noise nobody made / a lure (A159); re-aimed under `gap` 1.5 s ago (`Enemy.heardAt`). Then S1's tier (walls only
+  where they decide it, masking at him); any tier >= `tier` 1 counts (the whole effective reach, A156). Searching: he
+  walks to it at his search pace (`Enemy.hearSearch`: the next spot is the noise, snapped to a walkable cell; not a plan
+  point; his S25 claim released; "I heard something." at most every `bark` 6 s), looks there, then goes on with his
+  plan / ring; a sweeping response team (S13) keeps its stack; a high-security post keeps his leash (the search clamp).
+  A body noise locates its maker (`reportHeard`: `report(.., seen false)`: `locT` 0, `seenT` kept, the mirror as S24;
+  one report per slot per `reportGap` 1 s unless it moved `reportMove` 1.5 m), and he hunts that slot when he has none,
+  it is his, or his own was last seen / located `switchAfter` 8 s ago or more (G139, A158). In combat that is all: his
+  `knownSpot`, chase field (`flowOf(hunt)`) and roles follow the new spot. A heard spot more than 1 m from the slot's S25
+  plan centre resets the plan at once (claims dropped; the one exception to "never rebuild under a claim"): his
+  searchers take their next point from the plan rebuilt round it (A160). Undo: `COMBAT_HEAR.enabled` false (today's
+  deaf rule exactly). Host only, no protocol or save change. Brief: `docs/guard-ai/slices/S26.md`. Tests:
+  `combatHearing.test.ts`, `intruders.test.ts` (`locT`), `searchAreaWiring.test.ts` (R from `locT`).
 - Sound: `world/surfaces.ts` (pure) `surfaceAt` scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice. Shots:
   `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise` (combat); `onRay` hits
   are heard within `IMPACT_NOISE`.

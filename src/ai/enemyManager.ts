@@ -20,7 +20,7 @@ import { hyp2, hyp3 } from '../core/mathx';
 import { ARCHETYPE, type DifficultyDef } from './archetypes';
 import { ALERT } from './alertState';
 import { ReconDrone } from './reconDrone';
-import { HEARING, ambientDb, effectiveReach, hearTier, wallMatters, WALL_FACTOR, type HearTier, type NoisySource } from './hearing';
+import { COMBAT_HEAR, HEARING, ambientDb, combatHearAct, effectiveReach, hearTier, wallMatters, WALL_FACTOR, type HearTier, type NoisySource } from './hearing';
 import { MUFFLE } from '../config/noise';
 import { CMD_ACK, CMD_SEND, GuardView, GV_BUSY, GV_DOWN, GV_HELD, GV_MELEE, GV_OFFICER, GV_POSTED, INCIDENT, IncidentBoard, LEVEL, lightInView, MODE_COVER, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT, type IncidentKind, type PathLen } from './incidents';
 import { EYE_STAND, PERCEPTION } from './perception';
@@ -187,6 +187,10 @@ export class EnemyManager {
   private readonly candOrder = new Int32Array(PLAN_CAND);
   private readonly doneX = new Float32Array(SEARCH_AREA.points);
   private readonly doneZ = new Float32Array(SEARCH_AREA.points);
+  // ---- (guard-ai S26, A160) heard reports per intruder slot: the plan clock at the last one and where it was ----
+  private readonly heardRepAt = new Float64Array(MAX_INTRUDERS).fill(-1e9);
+  private readonly heardRepX = new Float32Array(MAX_INTRUDERS);
+  private readonly heardRepZ = new Float32Array(MAX_INTRUDERS);
   /** (guard-ai S24 fix) The intruder the last contact call that got through named (-1 none since the clear / alarm
    *  reset): an alarm raised by a guard with no intruder sends its reinforcements after him. */
   private contactHunt = -1;
@@ -2563,16 +2567,25 @@ export class EnemyManager {
    * noise close by merges into the same incident (no second investigator; a guard already sent is not re-aimed).
    * Melee guards (dogs, runners) keep their own rule: in reach they hear it (and a dog close by charges). Held guards
    * hear nothing (S1 check fix 1). Uncoordinated (parked modes): everyone in reach hears and walks over.
+   * (guard-ai S26, CT rule 8, A155-A160) `by`: the player whose own body or hands made it (null: glass, impacts,
+   * gadgets, a lure). Coordinated stealth: searching and alerted guards hear too (`hearFight`).
    */
-  hear(pos: Vector3, reach: number, kind: 'noise' | 'distraction' = 'noise', skip: Enemy | null = null): void {
+  hear(pos: Vector3, reach: number, kind: 'noise' | 'distraction' = 'noise', skip: Enemy | null = null, by: string | null = null): void {
     const list = this.enemies;
     const n = list.length;
     this.hearRoom(n);
     const who = this.hearWho;
     let nh = 0;
+    const fight = COMBAT_HEAR.enabled && this.coordinated && this.stealth;
     for (let i = 0; i < n; i++) {
       const e = list[i]!;
-      if (e === skip || !e.alive || e.alerted || e.passive || e.taken) continue;
+      if (e === skip || !e.alive || e.passive || e.taken) continue;
+      // (guard-ai S26) in a fight or a search (not the melee kinds: dogs keep their rule)
+      if (fight && !e.def.melee && (e.alerted || e.level === 'searching')) {
+        this.hearFight(e, i, pos, reach, kind, by);
+        continue;
+      }
+      if (e.alerted) continue;
       const d = hyp3(e.pos.x - pos.x, e.pos.y - pos.y, e.pos.z - pos.z);
       // ambient and walls only shrink the reach: beyond it nothing is heard
       if (d >= reach) continue;
@@ -2588,6 +2601,60 @@ export class EnemyManager {
       }
     }
     if (nh > 0) this.report(kind, pos.x, pos.y, pos.z, -1, nh);
+  }
+
+  /**
+   * (guard-ai S26, CT rule 8) One searching or alerted guard `e` (index `i`) and a noise (`hear`'s arguments). Skipped
+   * first (no ray) when it can mean nothing to him (in combat seeing his target, or a lure / a noise nobody made) or he
+   * re-aimed under `COMBAT_HEAR.gap` s ago; then his tier as S1 (walls only where they decide it, masking at him) and
+   * `combatHearAct`. A searcher walks to it (`Enemy.hearSearch`; his plan claim released; a sweeping response team keeps
+   * its stack). A body noise locates its maker (`reportHeard`) and he hunts him: his own intruder, none yet, or his own
+   * gone stale (`COMBAT_HEAR.switchAfter`, G139). In combat that is all: his `knownSpot` and chase field read the slot.
+   */
+  private hearFight(e: Enemy, i: number, pos: Vector3, reach: number, kind: 'noise' | 'distraction', by: string | null): void {
+    const state = e.alerted ? 2 : 1;
+    const sees = e.seesTarget;
+    const body = by !== null;
+    const lure = kind === 'distraction';
+    // the best tier he could get decides nothing: no need for a ray
+    if (combatHearAct(state, sees, 2, body, lure) === 0 || e.heardAt < COMBAT_HEAR.gap) return;
+    const d = hyp3(e.pos.x - pos.x, e.pos.y - pos.y, e.pos.z - pos.z);
+    if (d >= reach) return;
+    const tier = this.tierOf(e, i, pos, reach, d, false);
+    const act = combatHearAct(state, sees, tier, body, lure);
+    if (act === 0) return;
+    const crew = e.crew;
+    if (state === 1 && !(crew && crew.sweeping)) {
+      // (S25b) his plan point is given up: the heard spot comes first
+      if (e.hunt >= 0 && e.hunt < MAX_INTRUDERS) this.plans[e.hunt]!.release(e.num);
+      e.hearSearch(pos.x, pos.z);
+    } else if (state === 2) e.heardInFight();
+    if (act !== 2 || by === null) return;
+    const slot = this.intruders.slotFor(by);
+    if (slot < 0) return;
+    this.reportHeard(slot, pos);
+    const h = e.hunt;
+    if (h < 0 || h === slot || this.intruders.locT[h]! >= COMBAT_HEAR.switchAfter) {
+      e.hunt = slot;
+      if (state === 1) e.tell(slot);
+    }
+  }
+
+  /**
+   * (guard-ai S26, A157, A160) Intruder `slot` heard at `pos`: located, not seen (`locT` 0, `seenT` kept; the mirror as
+   * S24), at most once per `COMBAT_HEAR.reportGap` s unless he moved `reportMove` m. A heard spot more than `PLAN_MOVE`
+   * m from his search plan's centre resets the plan at once (claims dropped; the one exception to S25b's "never rebuild
+   * under a claim"): his searchers take their next point from the plan rebuilt round it. No allocation.
+   */
+  private reportHeard(slot: number, pos: Vector3): void {
+    const now = this.planClock;
+    if (now - this.heardRepAt[slot]! < COMBAT_HEAR.reportGap && hyp2(pos.x - this.heardRepX[slot]!, pos.z - this.heardRepZ[slot]!) < COMBAT_HEAR.reportMove) return;
+    this.heardRepAt[slot] = now;
+    this.heardRepX[slot] = pos.x;
+    this.heardRepZ[slot] = pos.z;
+    this.reportIntruder(slot, pos.x, pos.y, pos.z, false);
+    const p = this.plans[slot]!;
+    if (p.builtAt >= 0 && hyp2(pos.x - p.cx, pos.z - p.cz) > PLAN_MOVE) p.reset(0, 0, -1);
   }
 
   /** Any enemy in combat (the operator has been detected). */
@@ -2746,11 +2813,11 @@ export class EnemyManager {
    * (guard-ai S25, A151) Intruder `slot`'s search plan, rebuilt when due: never built, older than `SEARCH_AREA.rebuild`
    * s, or his last known position moved > `PLAN_MOVE` m; and only while no point is claimed (S25a polish 2: a rebuild
    * never pulls a point from under a searcher) and his chase field is built round that position. The area: cells within
-   * R = `areaRadius(seenT)` path metres of the last known position (`flowOf(slot)` x `nav.cell`). Candidates: (a) the
-   * level cover in range at its own position, (b) a `lattice` m grid over the square of half-side R, walkable cells whose
-   * baked light (`levelAt` at `sampleY` over the floor: torches excluded, A153) is below `dark`; each scored with
-   * `pointScore` and offered best first (S25a polish 1). Points searched before a rebuild round the same position stay
-   * done. No ray, no A*, no allocation.
+   * R = `areaRadius(locT)` (S26: since seen or located) path metres of the last known position (`flowOf(slot)` x
+   * `nav.cell`). Candidates: (a) the level cover in range at its own position, (b) a `lattice` m grid over the square of
+   * half-side R, walkable cells whose baked light (`levelAt` at `sampleY` over the floor: torches excluded, A153) is
+   * below `dark`; each scored with `pointScore` and offered best first (S25a polish 1). Points searched before a rebuild
+   * round the same position stay done. No ray, no A*, no allocation.
    */
   buildPlan(slot: number): void {
     if (slot < 0 || slot >= MAX_INTRUDERS) return;
@@ -2777,7 +2844,8 @@ export class EnemyManager {
       }
     }
     p.reset(cx, cz, this.planClock);
-    const r = areaRadius(b.seenT[slot]!);
+    // (guard-ai S26, A157) from the last time he was seen or located (a heard step narrows the search)
+    const r = areaRadius(b.locT[slot]!);
     this.planR[slot] = r;
     const nav = this.nav;
     const cell = nav.cell;
@@ -3314,6 +3382,8 @@ export class EnemyManager {
     this.alarmHunt = -1;
     // (guard-ai S25) and every search plan
     for (let s = 0; s < MAX_INTRUDERS; s++) this.plans[s]!.reset(0, 0, -1);
+    // (guard-ai S26) and the heard-report throttles
+    this.heardRepAt.fill(-1e9);
     this.contactHunt = -1;
     // (guard-ai S12) and the helmets on the floor
     this.helmetDrops.clear();
