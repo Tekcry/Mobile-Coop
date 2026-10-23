@@ -1,4 +1,10 @@
-# Resume - Night Shift | Player Build (saved 2026-10-23 ~21:25 at the 92% save; guard-models P1 fix round + G5 / G1 / G1h / G3 builders were running: resume them from their branches, docs/guard-models/STATE.md SAVE line)
+# Resume - Night Shift | Player Build (updated 2026-10-23 ~21:40 after the swap; live state in docs/guard-models/STATE.md "RESUMED" line)
+
+RESUMED ~21:40: #247 CI `test` RED on e70951e3 (merge ref with master 4.82.0): 13 unit tests in 8 anim / guard-rig files
+(crouch spin, guard pose golden / identity hashes, G1 gait row 7, mocapStrafe alloc). Opus triage + fix agent on
+feature/anim-fix-pass (report docs/anim-fix-pass/CI-FIX-REPORT.md); no laptop statuses on e70951e3 yet. Train-ready
+only after CI green + laptop pass on the fixed head. guard-models: P1 re-check on 7488d74d, G5 checker on gm-g5 4f51918a,
+G1 / G1h / G3 Opus builders resumed (gm-g1 5d9c601a, gm-g1h f4685346, gm-g3 456698c3).
 
 Rules: CLAUDE.md on origin/master "Session titles", "Heavy-usage throughput", "Token rules", "Account swap". No mid-window clears.
 Opus plans / checks / anim + net code; Sonnet builds from strict briefs; Haiku chores; desktop CPU < 80%. e2e always
