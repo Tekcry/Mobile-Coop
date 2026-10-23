@@ -219,6 +219,8 @@ export class SectorMode implements GameMode {
       say: (t) => g.hud.barks.say('lantern', t, true),
       record: () => this.cameraAlarm(),
       dirty: () => undefined,
+      // (guard-ai S17, G1) a laser broken / a camera's alarm: the guards search the device's spot, never the player's
+      alertAt: (x, y, z, key) => g.enemyMgr?.deviceAlert(x, y, z, key),
     });
     g.ctDev = this.ct;
     (window as unknown as { __sector?: SectorMode }).__sector = this;

@@ -36,7 +36,7 @@ import type { LightField } from '../world/lightField';
 import { ARCHETYPE, carriesTorch, glint, heavyMult, shieldBlocks, smellRate, sniperRelocate, torchRule, type DifficultyDef } from './archetypes';
 import { placeTorch } from '../world/torches';
 import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
-import { INCIDENT, MODE_BODY, MODE_BREAKER, MODE_COVER, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT } from './incidents';
+import { INCIDENT, MODE_BODY, MODE_BREAKER, MODE_COVER, MODE_DEVICE, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT } from './incidents';
 import { BREAKER_WALK } from './breaker';
 import { P_AGGRESSIVE, P_STANDARD, profileOf, R_FLANK, R_NONE, R_OVERWATCH, R_POINT, R_REPORTER, R_SEARCH, ROLES, Rng, type BehaviourProfile as TacticsProfile, type Role } from './squadRoles';
 import type { GuardInfo } from './guardInfo';
@@ -1123,6 +1123,8 @@ export class Enemy implements Damageable {
    *  knocked-out victim first. */
   searchAt(x: number, z: number, revive: Body | null = null): void {
     if (!this.alive || this.alerted) return;
+    // (guard-ai S17) a plain search keeps to no room (`respondDevice` sets one after this)
+    this.searchRoom = null;
     this.stimulus[0] = x;
     this.stimulus[1] = z;
     this.hasStimulus = true;
@@ -1250,6 +1252,76 @@ export class Enemy implements Damageable {
     this.entryK = 0;
     this.entryT = 0;
     this.radio(0);
+  }
+
+  // ----- (guard-ai S17, Michael's walk of 4.72 G1) a tripped device: its spot and its room, never the player -----
+  /** The room a device's search keeps to (null: none); `searchAt` clears it, leaving the search drops it. */
+  private searchRoom: RoomRect | null = null;
+  /** (guard-ai S17) Came in on a device's alarm (`joinAsResponder`): his search of its spot never ends (an aggressive
+   *  reinforcement never calms, S6; a response team sweeps after it, S13). */
+  responder = false;
+  private readonly entryGoal: { point: P2 | null; speed: number; face: number | null } = { point: null, speed: 0, face: null };
+
+  /** (guard-ai S17) The room a device's search keeps to (e2e / debug; null none). */
+  get searchRoomId(): string | null {
+    return this.searchRoom ? this.searchRoom.id : null;
+  }
+
+  /**
+   * (guard-ai S17, G1: "change it so they come to look where the laser is and search the room") The board sends him to a
+   * tripped device at (x, z) (a laser beam's midpoint, where a camera saw someone): no pause to look first (the alarm
+   * went off), straight to the spot, then he searches round it inside `room` (the room the spot is in; null: round the
+   * spot). He knows nothing of the player: no last known position, his own spot (`searchOwn`). Back to his route,
+   * on edge, when the search runs out (`standDown` radio line).
+   */
+  respondDevice(x: number, z: number, incident: number, room: RoomRect | null): void {
+    if (!this.sendable) return;
+    this.searchAt(x, z, null);
+    this.searchRoom = room && inRoom(room, x, z, 0.5) ? room : null;
+    this.incident = incident;
+    this.incMode = MODE_DEVICE;
+    this.turnT = 0;
+    this.bark('tripped');
+  }
+
+  /**
+   * (guard-ai S17, A102) He came in on an alarm a device raised, with no sighting to go on: profile aggressive as every
+   * reinforcement (S6, M1), he runs `route` in (if any), then searches the device's spot at (x, z) inside `room` and
+   * never calms (`responder`). Not in combat: combat with no last known position would put him on the player
+   * wherever he is (the walk's "they somehow know ive climbed elsewhere").
+   */
+  joinAsResponder(route: readonly (readonly [number, number])[] | null, x: number, z: number, room: RoomRect | null): void {
+    this.profile = 'aggressive';
+    this.tacticsProfile = P_AGGRESSIVE;
+    this.entry = route && route.length ? route : null;
+    this.entryK = 0;
+    this.entryT = 0;
+    this.responder = true;
+    this.searchAt(x, z, null);
+    this.searchRoom = room && inRoom(room, x, z, 0.5) ? room : null;
+  }
+
+  /** (guard-ai S6, S17) One step of his run-in route (`ReinforceEntry.route`), at his run speed; null when there is none
+   *  left (he saw the target, ran it to its end, or gave it up after `ENTRY_MAX` s). In combat and on a responder's
+   *  search. */
+  private entryStep(dt: number): { point: P2 | null; speed: number; face: number | null } | null {
+    const en = this.entry;
+    if (!en) return null;
+    this.entryT += dt;
+    if (this.los || this.entryK >= en.length || this.entryT > ENTRY_MAX) {
+      this.entry = null;
+      return null;
+    }
+    const p = en[this.entryK]!;
+    this.entryP[0] = p[0];
+    this.entryP[1] = p[1];
+    const wp = this.goTo(this.entryP, dt, 0.8);
+    if (!wp || hyp2(p[0] - this.pos.x, p[1] - this.pos.z) < 1) this.entryK++;
+    const g = this.entryGoal;
+    g.point = wp;
+    g.speed = this.def.runSpeed;
+    g.face = null;
+    return g;
   }
 
   /** (guard-ai S13, item 11) His response team (its sweep after the search; null: none; `team` is the damage side) and
@@ -1470,7 +1542,8 @@ export class Enemy implements Damageable {
     if ((to === 'cooldown' || to === 'unaware') && task >= 0) this.ctx.radioCall?.(this, task, 'standDown');
     // (guard-ai S2) off the board's task: back (calm), in combat, or on another search (a body, a call)
     if (task >= 0) {
-      const pair = this.incMode === MODE_LEAD || this.incMode === MODE_COVER;
+      // (guard-ai S17) a device's responder keeps his task on its search, as the missing pair does
+      const pair = this.incMode === MODE_LEAD || this.incMode === MODE_COVER || this.incMode === MODE_DEVICE;
       const keep = to === 'suspicious' || to === 'investigating' ? !pair : to === 'searching' ? pair : false;
       if (!keep) this.incident = -1;
     }
@@ -1515,6 +1588,8 @@ export class Enemy implements Damageable {
     }
     this.combatSearch = to === 'searching' && (from === 'alert' || (from === 'searching' && this.combatSearch));
     if (to !== 'searching') this.reviving = null;
+    // (guard-ai S17) a device's room bounds only its own search (combat's search is round the last known position)
+    if (to !== 'searching' || from === 'alert') this.searchRoom = null;
     if (to === 'investigating') this.spotSet = false;
     if (to === 'unaware' || to === 'cooldown') {
       this.hasStimulus = false;
@@ -1866,7 +1941,8 @@ export class Enemy implements Damageable {
     // (guard-ai S4) cautious (a death he knows of, a knockout he found or woke from): on edge, never unaware
     i.cautious = this.caution > 0;
     // (guard-ai S6) an aggressive guard who has fought (a reinforcement) never calms: his search does not end
-    i.hunting = this.aware.fought && profileOf(this.tacticsProfile).neverCautious;
+    // (guard-ai S17) so does a responder on a device's alarm (he came in on it, the stage stays up)
+    i.hunting = (this.aware.fought || this.responder) && profileOf(this.tacticsProfile).neverCautious;
     const from = this.aware.level;
     if (this.aware.step(dt, i)) this.onLevel(from, this.aware.level);
     // in combat without sight: arriving at the last known position with nothing there starts the search
@@ -1998,6 +2074,11 @@ export class Enemy implements Damageable {
             return { point: this.goTo(this.spot, dt, 0.9), speed: def.walkSpeed * PACE.revive, face: null };
           }
         }
+        // (guard-ai S17) a responder runs his entry route in before he searches the device's spot
+        if (lvl === 'searching' && this.entry) {
+          const eg = this.entryStep(dt);
+          if (eg) return eg;
+        }
         // (guard-ai S13) a response team past its search of the last known position sweeps the section
         const crew = this.crew;
         if (lvl === 'searching' && crew && crew.sweeping) return this.sweepStep(dt, crew);
@@ -2029,6 +2110,9 @@ export class Enemy implements Damageable {
           this.spotLookT = 0;
         }
         if (this.hold && !inRoom(this.hold, this.spot[0], this.spot[1])) clampToRoom(this.hold, this.spot[0], this.spot[1], 0.8, this.spot);
+        // (guard-ai S17) a device's search keeps to the device's room
+        const sr = this.searchRoom;
+        if (sr && lvl === 'searching' && !inRoom(sr, this.spot[0], this.spot[1])) clampToRoom(sr, this.spot[0], this.spot[1], 0.8, this.spot);
         // (guard-ai S5) a high-security post never joins a search outside his leash: he looks from its edge
         const pd = this.postDef;
         if (pd && pd.highSecurity) clampToLeash(this.spot[0], this.spot[1], this.post[0], this.post[1], pd.leash, this.spot);
@@ -2254,19 +2338,8 @@ export class Enemy implements Damageable {
       }
     }
     // (guard-ai S6, design 7) a reinforcement runs his entry route into the section first (until he sees the target)
-    const en = this.entry;
-    if (en) {
-      this.entryT += dt;
-      if (this.los || this.entryK >= en.length || this.entryT > ENTRY_MAX) this.entry = null;
-      else {
-        const p = en[this.entryK]!;
-        this.entryP[0] = p[0];
-        this.entryP[1] = p[1];
-        const wp = this.goTo(this.entryP, dt, 0.8);
-        if (!wp || hyp2(p[0] - this.pos.x, p[1] - this.pos.z) < 1) this.entryK++;
-        return { point: wp, speed: def.runSpeed, face: null };
-      }
-    }
+    const eg = this.entryStep(dt);
+    if (eg) return eg;
     // stealth: out of sight they go for where they last knew the target was, not where it is
     const known = this.los || this.smelled || !this.ctx.stealth() || !this.ctx.lkpValid() ? t.feet : this.ctx.lkp;
     const tp: P2 = [known.x, known.z];

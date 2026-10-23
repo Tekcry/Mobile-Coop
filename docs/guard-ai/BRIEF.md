@@ -333,3 +333,30 @@ doesnt make sense". A32-A34 are S10's (on `feature/guard-ai-s10`).
 - **A64** (S15) The walk ends at the walkable cell nearest the switch (`nearestWalkable`, 4 cells); he works it within
   0.7 m and gives up after 30 s without getting there (`BREAKER_WALK` in `ai/breaker.ts`); his pace is `PACE.patrol`
   (`PACE.cautious` while cautious). Undo: change `BREAKER_WALK`.
+
+## Walk 4.72 fixes (PLAN "Walk 4.72 fixes" S17-S19; Michael's walk of 4.72, G1-G3)
+Michael, verbatim: G1 "when guards alerted when i cross laser, they somehow know ive climbed elsewhere. theres no way
+they could no that unless they saw me. change it so they come to look where the laser is and search the room."; G2
+"guards investigating dead bodies give up too easily."; G3 "guards should rush to any triggered alarms or bodies
+reported, they need a sense of urgency when it makes logical sense." A100-A119 are this batch's (`slices/WALK.md`).
+- **A100** (S17) A broken laser is at its beam line's midpoint, at its floor (`beamSpot`): a beam sensor knows which
+  beam broke, not where along it. Undo: in `CtDevices.touch` report the nearest point of the beam to the body at the
+  break (`distToSegment`'s projection) instead.
+- **A101** (S17) A camera at full awareness is a device alert too (G3 "any triggered alarms"): its spot is where the
+  camera saw someone at that moment (a sighting, not his live position); calm guards go there as for a laser. No last
+  known position is set from it. Undo: drop the `alertAt` call in `CtDevices.onCamera`.
+- **A102** (S17) Reinforcements an alarm brings within `DEVICE.fresh` (90 s) of a device alert, with no last known
+  position (nobody has seen anyone), are responders: aggressive as every reinforcement, they run their entry route in,
+  then search the device's spot inside its room and never calm (as S6; a response team sweeps after it, S13). After a
+  sighting they go to combat on the last known position as before. Undo: `DEVICE.enabled = false` (also drops A103), or
+  return false from `EnemyManager.deviceFresh`.
+- **A103** (S17) A device alert opens a `device` board incident: the 2 nearest calm free guards by path within 30 m
+  (`DEVICE.want`, `callR`) go straight to the spot (no pause to look: the alarm went off), search round it inside the
+  room it is in (no room: round the spot), `ALERT.searchTime` (S18 may lengthen it), then back to their route on edge;
+  nobody in range: it waits 20 s (`DEVICE.wait`), then lapses. One incident per device while open (a second trip
+  merges). Undo: `DEVICE.want` / `callR` / `wait` (`src/ai/gear.ts`).
+- **A104** (S17) Marlow Yard (Course mode) gets the same device incident as Sector Ops (both host `CtDevices`): a laser or
+  camera there sends calm guards in range. Undo: drop `alertAt` from the `CtDevices` hooks in `courseMode.ts`.
+- **A105** (S17) Left as is: an alerted guard with no last known position still goes for the player's feet in combat
+  (`Enemy.decide`'s `known`). Only the device alarms led there without a sighting; a panel or command alarm follows a
+  contact (a last known position). Undo: not needed; an open item if another path is found.

@@ -321,6 +321,12 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   looks round it `SWEEP.dwell` s (unreachable: skipped), the others hold `rank x SWEEP.gap` m behind him, then the same
   order again. They stay hunting (S6), so never calm; `clear` (unload / restart) ends the teams; a woken member takes
   his place back (`swap`).
+- Device alerts (guard-ai S17, walk 4.72 G1, A100-A105; numbers `DEVICE` in `ai/gear.ts`): a broken laser
+  (`CtDevices.touch`, its beam's midpoint `beamSpot`) or a camera at full awareness (where it saw someone) calls
+  `CtHooks.alertAt` -> `EnemyManager.deviceAlert` before the alarm stage rises: a `device` board incident sends the 2
+  nearest calm guards within 30 m to the spot (`Enemy.respondDevice`: search round it inside its room, `searchRoom`),
+  and the alarm's reinforcements within `DEVICE.fresh` s with no last known position search there too
+  (`joinAsResponder`, never calm) instead of combat. Nothing reads the player's position; no last known position is set.
 - Sound: `world/surfaces.ts` (pure) `surfaceAt` scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice. Shots:
   `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise` (combat); `onRay` hits
   are heard within `IMPACT_NOISE`.

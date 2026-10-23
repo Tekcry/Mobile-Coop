@@ -51,6 +51,16 @@ export const BREAKER = { reset: true, resetT: 2, repeatT: 60 } as const;
 /** Late discovery: a calm guard who sees a dead fixture within `range` m reacts as a witness would (S14). */
 export const LATE = { enabled: true, range: 12 } as const;
 
+/**
+ * (guard-ai S17, Michael's walk of 4.72 G1: "change it so they come to look where the laser is and search the room") A
+ * tripped device (a laser beam broken, a camera's alarm) is an incident at the device, never the player's live
+ * position: `want` calm guards within `callR` m (best by path) go to the spot and search its room; nobody in range, the
+ * report waits `wait` s for one, then lapses. Alarm reinforcements that come in within `fresh` s of it, with no
+ * sighting since, search the spot too instead of going to combat. `enabled` false: the old way (no incident;
+ * reinforcements in combat, where a missing last known position leaves them on the player).
+ */
+export const DEVICE = { enabled: true, want: 2, callR: 30, wait: 20, fresh: 90 } as const;
+
 /** The gear a tag names into `out` (undefined = none). Returns `out`. */
 export function gearFromTag(tag: GearTag | undefined, out: GuardGear): GuardGear {
   out.helmet = tag === 'helmet' || tag === 'both';

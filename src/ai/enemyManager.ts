@@ -23,7 +23,7 @@ import { HEARING, ambientDb, effectiveReach, hearTier, wallMatters, WALL_FACTOR,
 import { MUFFLE } from '../config/noise';
 import { CMD_ACK, CMD_SEND, GuardView, GV_BUSY, GV_DOWN, GV_HELD, GV_MELEE, GV_OFFICER, GV_POSTED, INCIDENT, IncidentBoard, LEVEL, lightInView, MODE_COVER, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT, type IncidentKind, type PathLen } from './incidents';
 import { EYE_STAND, PERCEPTION } from './perception';
-import { roomAt, type SquadSlot } from '../world/rooms';
+import { roomAt, type RoomRect, type SquadSlot } from '../world/rooms';
 import { reportGuardAi, sectionAt, squadId, validateGuardAi, type GuardSlotTags, type ReinforceEntry } from './guardAiData';
 // (guard-ai S5b) the sector tags
 import { alarmRunMul, callerRank, isSecureZone, ROLE_DESK, roleFlags, slotSquads, TAGS, zoneRadius } from './sectorTags';
@@ -48,6 +48,9 @@ import { assignRoles, combatSeed, P_AGGRESSIVE, P_POST, P_STANDARD, R_NONE, R_RE
 import { PairMeet, PAIRS, pickMeet, type MeetPick, type PairGuard } from './pairs';
 // (guard-ai S14) section alert: missed check-ins and loud shots
 import { MISSING, SHOTS } from './gear';
+// (guard-ai S17, Michael's walk of 4.72 G1) a tripped device is an incident at the device, never the player
+import { DEVICE } from './gear';
+import { MODE_DEVICE } from './incidents';
 import { ALERT_MISSING, ALERT_SHOTS, AlertCallLog, SectionCounters, unitOf, type SectionCounts } from './sectionAlert';
 
 /** (guard-ai S10) A talking pair: its meeting clock, and the two slot indices (`guardAtSlot`; A the lower). */
@@ -694,14 +697,60 @@ export class EnemyManager {
     return e;
   }
 
-  /** (guard-ai S6) A guard just spawned (and placed) on the alarm becomes a reinforcement (`spawnReinforcement`). */
+  /** (guard-ai S6) A guard just spawned (and placed) on the alarm becomes a reinforcement (`spawnReinforcement`).
+   *  (guard-ai S17, G1, A102) An alarm a device raised (`deviceAlert` within `DEVICE.fresh` s, nobody has seen anyone
+   *  since: no last known position) brings him to the device's spot to search its room (`Enemy.joinAsResponder`), not
+   *  to combat: in combat with no last known position he would go for the player wherever he is. */
   joinReinforcement(e: Enemy, section: number, route: readonly (readonly [number, number])[] | null = null): void {
     e.section = section;
     if (!this.coordinated) {
       e.alert();
       return;
     }
+    if (this.deviceFresh()) {
+      const d = this.devSpot;
+      e.joinAsResponder(route, d.x, d.z, this.roomOf(d.x, d.y, d.z));
+      return;
+    }
     e.joinAsReinforcement(route);
+  }
+
+  /** (guard-ai S17) The last tripped device's spot (floor height) and board time (-Infinity: none since the clear). */
+  private readonly devSpot = new Vector3();
+  private devT = -Infinity;
+  /** (guard-ai S17) Device alerts taken (tests / e2e). */
+  deviceAlerts = 0;
+
+  /** (guard-ai S17) A device alert recent enough for an alarm's reinforcements, and no sighting since. */
+  private deviceFresh(): boolean {
+    return DEVICE.enabled && !this.lkpValid && this.board.now - this.devT <= DEVICE.fresh;
+  }
+
+  /** (guard-ai S17) The room at a floor point (null: none, or the map has no rooms). */
+  private roomOf(x: number, y: number, z: number): RoomRect | null {
+    const rooms = this.ctx.rooms;
+    const r = rooms.length ? roomAt(rooms, x, z, y + 0.1) : -1;
+    return r >= 0 ? rooms[r]! : null;
+  }
+
+  /**
+   * (guard-ai S17, Michael's walk of 4.72 G1: "theres no way they could no that unless they saw me. change it so they
+   * come to look where the laser is and search the room") A device was tripped at (x, y, z): a laser's beam (its
+   * midpoint, `beamSpot`), a camera's alarm (where it saw someone). `y` NaN: the nav floor there. `key`: the device
+   * (`CtHooks.alertAt`). Coordinated modes only: a `device` incident on the board (one per device while open) sends the
+   * nearest `DEVICE.want` calm guards to the spot to search its room, and the alarm's reinforcements that come in on it
+   * search there too (`joinReinforcement`). Nothing here reads a player's position: no last known position is set.
+   * Returns the incident id, -1 when ignored. Host only.
+   */
+  deviceAlert(x: number, y: number, z: number, key: number): number {
+    if (!this.coordinated || !DEVICE.enabled) return -1;
+    const fy = y === y ? y : this.nav.heightAt(x, z);
+    this.devSpot.set(x, fy, z);
+    this.devT = this.board.now;
+    this.deviceAlerts++;
+    const id = this.board.reportDevice(x, z, fy, key);
+    this.boardStep(0);
+    return id;
   }
 
   /** (guard-ai S6) The map's reinforcement entries for `section` (`MapLayout.guardAi.entries`); empty: none (the
@@ -1801,6 +1850,8 @@ export class EnemyManager {
           const body = this.camBodyOf(inc, o.x[k]!, o.z[k]!);
           if (body) e.checkBody(body, inc);
         }
+        // (guard-ai S17, G1) a tripped device: to its spot, then search its room
+        else if (m === MODE_DEVICE) e.respondDevice(o.x[k]!, o.z[k]!, inc, this.roomOf(o.x[k]!, o.y[k]!, o.z[k]!));
       } else if (o.cmd[k] === CMD_ACK) e.ack(o.x[k]!, o.z[k]!, o.arg[k] === 1);
     }
     o.n = 0;
@@ -2595,6 +2646,8 @@ export class EnemyManager {
     this.lastCheckCaller = null;
     // (guard-ai S2) nobody left to send: the incidents go too; (S3) and every call and queued reception
     this.board.clear();
+    // (guard-ai S17) and the last tripped device
+    this.devT = -Infinity;
     this.radioNet.clear();
     // (S6) and the command call it may have owed
     this.command.clear();
