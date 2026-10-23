@@ -13,6 +13,8 @@ import { flags } from '../../core/flags';
 import { reportGuardAi, validatePosts } from '../../ai/guardAiData';
 import { hyp2 } from '../../core/mathx';
 import { CtDevices } from '../ctDevices';
+import { SectorGuardFreeze } from '../sectorGuardFreezeView';
+import { G } from '../../physics/groups';
 import {
   CONN_LOAD,
   CONN_LOCK_NEAR,
@@ -170,6 +172,8 @@ export class SectorMode implements GameMode {
 
   private readonly checkpoint = new Vector3();
   private readonly tmp = new Vector3();
+  /** (sector-redesign perf) Guards whose body and shadows cannot reach the screen skip the render (`?guardfreeze=0`: off). */
+  private freeze: SectorGuardFreeze | null = null;
 
   constructor(private g: GameState) {
     this.run = new SectorRun(g.world.map.sectors ?? []);
@@ -218,6 +222,8 @@ export class SectorMode implements GameMode {
       dirty: () => undefined,
     });
     g.ctDev = this.ct;
+    // (the occlusion rays: static geometry only, so glass and fences never hide a guard)
+    if (flags.guardFreeze) this.freeze = new SectorGuardFreeze(g.scene, em, (a, b) => g.ballistics.hitDistance(a, b, G.STATIC));
     (window as unknown as { __sector?: SectorMode }).__sector = this;
     this.findDoors();
     this.team.build();
@@ -1008,6 +1014,10 @@ export class SectorMode implements GameMode {
       camAlarms: this.camAlarms,
       pending: this.pending.length,
       restarts: this.restarts,
+      // (sector-redesign perf) guards render-frozen at the last camera evaluation (-1: the freeze is off)
+      guardFreeze: this.freeze ? this.freeze.count : -1,
+      guardFreezeOccluded: this.freeze ? this.freeze.occluded : -1,
+      guardFreezeRays: this.freeze ? this.freeze.rays : -1,
       lastReset: { ...this.lastReset },
       restarting: this.restartT >= 0,
       checkpoint: { ...this.run.checkpoint },
@@ -1028,6 +1038,8 @@ export class SectorMode implements GameMode {
   }
 
   dispose(): void {
+    this.freeze?.dispose();
+    this.freeze = null;
     this.ct?.dispose();
     this.ct = null;
     this.g.ctDev = null;
