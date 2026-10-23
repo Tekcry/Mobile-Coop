@@ -312,3 +312,31 @@ export function desktopTrainGate(a) {
   if (!(a.trainAgeMs >= a.graceMs)) return 'train head too new';
   return '';
 }
+
+const SCRATCH_RE = /c:[\\/]+nightshift[\\/]+scratch/i;
+const RUNNER_RE = /laptop-runner\.ps1/i;
+
+/**
+ * Stale scheduled tasks for the task guard (2026-10-23 23:59: 87 hand-made NightShift-chain-* one-shots fired again and
+ * held the slot locks for hours). tasks = [{ name, path, state, actions: [{ execute, args }], ends: [EndBoundary] }],
+ * allow = exact names. Stale: not Disabled, not allowed, and its name starts NightShift- or an action mentions
+ * C:\NightShift\scratch or laptop-runner.ps1. Allowed: a name in allow, or NightShift-run-* with a trigger EndBoundary
+ * (one-shot-task.ps1). Allowed names skip the action rule too (the auto-train task runs a .vbs in scratch).
+ * Returns [{ name, path, state, why }].
+ */
+export function staleTasks(tasks, allow) {
+  const ok = new Set(allow ?? []);
+  const out = [];
+  for (const t of tasks ?? []) {
+    const name = String(t?.name ?? '');
+    if (!name || t.state === 'Disabled' || ok.has(name)) continue;
+    if (name.startsWith('NightShift-run-') && (t.ends ?? []).some((e) => e)) continue;
+    const acts = (t.actions ?? []).map((a) => `${a?.execute ?? ''} ${a?.args ?? ''}`);
+    let why = '';
+    if (name.startsWith('NightShift-')) why = 'not on the allowlist';
+    else if (acts.some((a) => SCRATCH_RE.test(a))) why = 'runs from C:\\NightShift\\scratch';
+    else if (acts.some((a) => RUNNER_RE.test(a))) why = 'runs laptop-runner.ps1';
+    if (why) out.push({ name, path: t.path ?? '\\', state: t.state, why });
+  }
+  return out;
+}

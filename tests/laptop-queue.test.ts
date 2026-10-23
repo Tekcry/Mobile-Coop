@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -367,5 +367,33 @@ describe('assertKey / flakeStands', () => {
     expect(flakeStands(flakes, 'e2e-ctcourse:4', assertKey(grilleStop), NOW + day, day)).toBe(false);
     expect(flakeStands(flakes, 'e2e-ctcourse:4', '', NOW, day)).toBe(false);
     expect(flakeStands([{ suite: 'e2e-ctcourse:4', date: new Date(NOW).toISOString() }], 'e2e-ctcourse:4', assertKey(grilleStop), NOW, day)).toBe(false);
+  });
+});
+
+describe('staleTasks', () => {
+  const ps = (args: string) => [{ execute: 'powershell', args }];
+  const chain = ps('-NoProfile -WindowStyle Hidden -File C:\\NightShift\\scratch\\chain-1023af.ps1');
+  const allow = ['NightShift-laptop-queue', 'NightShift-desktop-queue', 'NightShift auto-train'];
+  const t = (name: string, state: string, actions = chain, ends: string[] = ['']) => ({ name, path: '\\', state, actions, ends });
+  it('a NightShift-chain-* task is stale unless Disabled; a Running one is still listed (disabled, run left alone)', () => {
+    expect(staleTasks([t('NightShift-chain-x', 'Ready')], allow)).toEqual([{ name: 'NightShift-chain-x', path: '\\', state: 'Ready', why: 'not on the allowlist' }]);
+    expect(staleTasks([t('NightShift-chain-x', 'Disabled')], allow)).toEqual([]);
+    expect(staleTasks([t('NightShift-chain-y', 'Running')], allow).map((x: { state: string }) => x.state)).toEqual(['Running']);
+  });
+  it('the allowlisted tasks are never stale, even with an action in scratch (auto-train runs a .vbs there)', () => {
+    const vbs = [{ execute: 'wscript.exe', args: '//B //NoLogo "C:\\NightShift\\scratch\\auto-train-task.vbs"' }];
+    expect(staleTasks([t('NightShift-laptop-queue', 'Running', ps('-Command "node scripts/laptop-queue/service.mjs"')), t('NightShift-desktop-queue', 'Ready'), t('NightShift auto-train', 'Ready', vbs)], allow)).toEqual([]);
+    expect(staleTasks([t('NightShift-extra', 'Ready')], [...allow, 'NightShift-extra'])).toEqual([]);
+  });
+  it('NightShift-run-* is allowed only with an EndBoundary (one-shot-task.ps1)', () => {
+    expect(staleTasks([t('NightShift-run-a', 'Ready', chain, ['2026-10-24T11:00:00Z'])], allow)).toEqual([]);
+    expect(staleTasks([t('NightShift-run-b', 'Ready', chain, [''])], allow).map((x: { why: string }) => x.why)).toEqual(['not on the allowlist']);
+    expect(staleTasks([t('NightShift-run-c', 'Ready', chain, [])], allow)).toHaveLength(1);
+  });
+  it('any other task is stale only when an action runs laptop-runner.ps1 or from C:\\NightShift\\scratch', () => {
+    expect(staleTasks([t('MyRunner', 'Ready', ps('-File C:/Users/Micha/laptop-runner.ps1'))], allow)).toEqual([{ name: 'MyRunner', path: '\\', state: 'Ready', why: 'runs laptop-runner.ps1' }]);
+    expect(staleTasks([t('Other', 'Ready', [{ execute: 'C:/NightShift/scratch/x.cmd', args: '' }])], allow).map((x: { why: string }) => x.why)).toEqual(['runs from C:\\NightShift\\scratch']);
+    expect(staleTasks([t('MyRunner', 'Disabled', ps('-File laptop-runner.ps1'))], allow)).toEqual([]);
+    expect(staleTasks([t('OneDrive Standalone Update Task', 'Ready', [{ execute: 'OneDriveSetup.exe', args: '/reporting' }])], allow)).toEqual([]);
   });
 });

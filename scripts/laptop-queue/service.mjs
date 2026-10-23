@@ -17,11 +17,15 @@
 // atomic push) before it runs and marked done after, so the two workers never run the same request or train.
 // Supersede: an open pr / full request is marked done unrun when the same requester has a newer one (same set, or an
 // ancestor sha with overlapping suites); pick runs a requester's newest request first (lib.mjs superseded, pick).
+// Task guard (Michael 2026-10-24 07:13, after 87 stale NightShift-chain-* one-shots fired at 23:59 and held the slot
+// locks): at start and every LQ_TASK_GUARD_MIN (10; 0 = off) min, disables (never stops, kills or deletes) each stale
+// scheduled task (lib staleTasks; allowlist + env LQ_TASK_ALLOW, a comma list) and pushes alerts/<ts>-tasks.json to the
+// laptop-queue branch. --dry-run only logs what it would disable.
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { assertKey, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity } from './lib.mjs';
+import { assertKey, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -185,6 +189,82 @@ function writeClaims(ids, mode, label) {
     log(`${label}: ${String(e.message).split('\n')[0]}`);
     return false;
   } finally { fs.rmSync(tmpIndex, { force: true }); }
+}
+
+/** Adds or replaces one file (rel path) on the laptop-queue branch in one commit, writeClaims' plumbing; true when pushed. */
+function pushFile(rel, text, label) {
+  const tmpIndex = path.join(os.tmpdir(), `lq-file-${process.pid}`);
+  const env = { GIT_INDEX_FILE: tmpIndex, ...gitIdEnv() };
+  try {
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      git(['fetch', '-q', 'origin', `+refs/heads/laptop-queue:${QREF}`], { soft: true });
+      const parent = git(['rev-parse', '--verify', '-q', QREF], { soft: true });
+      if (!parent) return false;
+      fs.rmSync(tmpIndex, { force: true });
+      git(['read-tree', parent], { env });
+      const blob = git(['hash-object', '-w', '--stdin'], { input: text });
+      git(['update-index', '--add', '--index-info'], { env, input: `100644 ${blob}\t${rel}\n` });
+      const commit = git(['commit-tree', git(['write-tree'], { env }), '-p', parent, '-m', `${label} (${WORKER})`], { env });
+      try { git(['push', '-q', 'origin', `${commit}:refs/heads/laptop-queue`]); return true; } catch { /* lost the race: retry */ }
+    }
+    log(`${label}: push failed 5 times`);
+    return false;
+  } catch (e) {
+    log(`${label}: ${String(e.message).split('\n')[0]}`);
+    return false;
+  } finally { fs.rmSync(tmpIndex, { force: true }); }
+}
+
+// ---------- task guard ----------
+
+const TASK_GUARD_MS = Number(process.env.LQ_TASK_GUARD_MIN ?? 10) * 60_000;
+// exact names; NightShift-run-* one-shots with an EndBoundary are allowed in staleTasks
+const TASK_ALLOW = ['NightShift-laptop-queue', 'NightShift-desktop-queue', 'NightShift auto-train',
+  ...String(process.env.LQ_TASK_ALLOW ?? '').split(',').map((s) => s.trim()).filter(Boolean)];
+// every scheduled task as JSON: { name, path, state, actions: [{ execute, args }], ends: [trigger EndBoundary] }
+const TASK_LIST_PS = "$ErrorActionPreference = 'Stop'; $o = @(Get-ScheduledTask | ForEach-Object { [pscustomobject]@{ name = $_.TaskName; path = $_.TaskPath; state = [string]$_.State; "
+  + 'actions = @($_.Actions | ForEach-Object { [pscustomobject]@{ execute = [string]$_.Execute; args = [string]$_.Arguments } }); '
+  + 'ends = @($_.Triggers | ForEach-Object { [string]$_.EndBoundary }) } }); ConvertTo-Json -InputObject $o -Depth 4 -Compress';
+// Disable-ScheduledTask only (a running instance keeps running); tasks from env LQ_GUARD_TASKS, [{ name, ok, err }] back
+const TASK_DISABLE_PS = '$r = @(); foreach ($t in @(ConvertFrom-Json $env:LQ_GUARD_TASKS)) { try { Disable-ScheduledTask -TaskPath $t.path -TaskName $t.name -ErrorAction Stop | Out-Null; '
+  + '$r += [pscustomobject]@{ name = $t.name; ok = $true; err = \'\' } } catch { $r += [pscustomobject]@{ name = $t.name; ok = $false; err = [string]$_.Exception.Message } } }; ConvertTo-Json -InputObject @($r) -Compress';
+const ps = (script, env) => cmd('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script], { env });
+/** Disabled by the guard, alert push not landed yet: [{ name, why }], retried at the next guard pass. */
+const alertPending = [];
+let lastGuard = 0;
+
+/** One guard pass: disable stale tasks, push one alert when anything is (or was) disabled. Never throws. */
+function taskGuard() {
+  lastGuard = Date.now();
+  try {
+    const tasks = JSON.parse(ps(TASK_LIST_PS) || '[]');
+    const stale = staleTasks(tasks, TASK_ALLOW);
+    if (DRY) {
+      for (const t of stale) log(`dry-run: task guard would disable ${t.name} (${t.state}, ${t.why})`);
+      const staleNames = new Set(stale.map((t) => t.name));
+      const kept = tasks.filter((t) => !staleNames.has(t.name) && (String(t.name).startsWith('NightShift') || /nightshift[\\/]+scratch|laptop-runner/i.test(JSON.stringify(t.actions ?? []))));
+      for (const t of kept) log(`dry-run: task guard keeps ${t.name} (${t.state}, ${t.state === 'Disabled' ? 'already disabled' : 'allowed'})`);
+      log(`dry-run: task guard: ${tasks.length} task(s), ${tasks.filter((t) => String(t.name).startsWith('NightShift')).length} NightShift*, ${stale.length} stale`);
+      return;
+    }
+    if (stale.length) {
+      const res = JSON.parse(ps(TASK_DISABLE_PS, { LQ_GUARD_TASKS: JSON.stringify(stale.map(({ name, path: p }) => ({ name, path: p }))) }) || '[]');
+      const byName = new Map((Array.isArray(res) ? res : [res]).map((r) => [r.name, r]));
+      for (const t of stale) {
+        const r = byName.get(t.name);
+        if (!r?.ok) { log(`task guard: disable failed for ${t.name} (${t.state}, ${t.why}): ${r?.err || 'no result'}`); continue; }
+        log(`task guard: disabled ${t.name} (${t.state}, ${t.why})`);
+        if (t.state === 'Running') log(`task guard: ${t.name} is still running (its run is left alone)`);
+        alertPending.push({ name: t.name, why: `${t.state}, ${t.why}` });
+      }
+    }
+    if (alertPending.length === 0) return;
+    const at = new Date().toISOString();
+    const rel = `alerts/${at.replace(/[-:]/g, '').replace(/\.\d+/, '')}-tasks.json`; // 20261024T071300Z: no ':' in a path
+    const body = `${JSON.stringify({ worker: WORKER, disabled: alertPending, at }, null, 2)}\n`;
+    if (pushFile(rel, body, `task guard disabled ${alertPending.length} task(s)`)) { log(`task guard: alert pushed ${rel}`); alertPending.length = 0; }
+    else log(`task guard: alert push failed for ${alertPending.length} task(s), retried at the next guard pass`);
+  } catch (e) { log(`task guard failed: ${String(e.message).split('\n')[0]}`); }
 }
 
 /** Ids whose done claim is confirmed on the branch. */
@@ -763,12 +843,14 @@ function selfUpdate() {
 async function main() {
   if (!DRY) takePidLock();
   log(`service start (${WORKER})${ONCE ? ' --once' : ''}${DRY ? ' --dry-run' : ''} in ${HERE}`);
+  if (TASK_GUARD_MS > 0) taskGuard(); // before the first pass: a stale task must not race the service for the slot locks
   if (ONCE || DRY) {
     await pass();
     await Promise.all(Object.values(busy).filter(Boolean));
     return;
   }
   for (;;) {
+    if (TASK_GUARD_MS > 0 && Date.now() - lastGuard >= TASK_GUARD_MS) taskGuard();
     try {
       // update before taking new work too, so a busy queue still picks up new service code between runs
       if (!Object.values(busy).some(Boolean)) selfUpdate();
