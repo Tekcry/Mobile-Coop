@@ -36,6 +36,18 @@ export interface CameraDevice {
    *  (`CAMERA.irLight`, marlow-jammer M3) and no smoke or darkness-only hide exists for cameras, so this changes no
    *  detection: it is the data tag plus its own LED colour (`SecurityView`), ready for a later hide a thermal one sees. */
   thermal?: boolean;
+  /** (guard-ai walk 4.82 item 6, Michael: "It's a training exercise, the guard should be non hostile and not respond to
+   *  you being detected on the camera") `false`: a training camera. What it sees brings no guard response: its alarm
+   *  makes no device incident (nobody sent, no radio call, no investigation, nobody told of the spot for the alarm's
+   *  reinforcements) and its body sightings are not reported. Its meter, cue, the course's rules (a hallway send-back)
+   *  and the alarm stage run as before (the exercise's own rules). Absent / `true`: the guards respond (every other
+   *  camera). Read through `cameraAlertsGuards`. */
+  guardResponse?: boolean;
+}
+
+/** (guard-ai walk 4.82 item 6) Does what camera `def` sees bring a guard response (`CameraDevice.guardResponse`)? */
+export function cameraAlertsGuards(def: Pick<CameraDevice, 'guardResponse'>): boolean {
+  return def.guardResponse !== false;
 }
 
 export type SecurityDevice = CameraDevice;
