@@ -127,6 +127,8 @@ export interface BuiltLevel {
    * nav or the light bake; a box drawn as voxels or not drawn is skipped. The campus art calls it for its box-hidden skins.
    */
   hidePieces(boxes: readonly number[]): void;
+  /** (sector-redesign perf, render only) The translucent roof sheets (their collision boxes are in `body`). */
+  sheets: readonly SheetPiece[];
   dispose(): void;
 }
 
@@ -517,7 +519,7 @@ export class LevelBuilder {
    * moon reaches the floor under it as before; drawn as a pale see-through ridged panel that casts no shadow.
    */
   sheet(x0: number, x1: number, z0: number, z1: number, y0: number, y1: number): this {
-    this.sheets.push({ x0, x1, z0, z1, y: (y0 + y1) / 2 });
+    this.sheets.push({ x0, x1, z0, z1, y: (y0 + y1) / 2, y0: Math.min(y0, y1), y1: Math.max(y0, y1) });
     this.boxes.push({ c: [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2], s: [x1 - x0, y1 - y0, z1 - z0], yaw: 0, pitch: 0, color: '#d9ddd2', collide: true, visible: false, overhead: true, noLedge: true });
     return this;
   }
@@ -752,7 +754,8 @@ export class LevelBuilder {
       surfacePlugin,
       voxels,
       light,
-      hidePieces: (ids: readonly number[]) => {
+      sheets: this.sheets,
+      hidePieces:(ids: readonly number[]) => {
         let any = false;
         for (const i of ids) {
           const v = i >= 0 && i < instOf.length ? instOf[i]! : -1;

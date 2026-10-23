@@ -325,6 +325,19 @@ export class Doors {
     this.mesh?.thinInstanceRefreshBoundingInfo(false);
   }
 
+  /**
+   * (sector-redesign perf, render only: the guard freeze's occlusion rays) Is `body` a door leaf drawn not shut (cracked
+   * for a peek, easing, driven ajar, or opening / closing)? Gameplay rays never ask: the body stays solid for them.
+   * Allocation-free.
+   */
+  seeThrough(body: unknown): boolean {
+    for (let i = 0; i < this.list.length; i++) {
+      const d = this.list[i]!;
+      if (d.body === body) return leafSeeThrough(d);
+    }
+    return false;
+  }
+
   /** Leaves shown or hidden (the benchmark flight: open doorways, no leaf standing out into a corridor). */
   setVisible(on: boolean): void {
     if (this.mesh) this.mesh.isVisible = on;
@@ -391,6 +404,11 @@ export class Doors {
     this.mesh?.material?.dispose();
     this.mesh?.dispose();
   }
+}
+
+/** (sector-redesign perf, render only) A leaf the camera can see past: cracked, drawn ajar, or swung at all. */
+export function leafSeeThrough(d: Pick<DoorState, 'cracked' | 'ajar' | 'open'>): boolean {
+  return d.cracked || d.ajar > 0 || d.open > 0;
 }
 
 function smooth(t: number): number {
