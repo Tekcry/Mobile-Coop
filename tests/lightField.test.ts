@@ -222,6 +222,42 @@ describe('light field (3.6)', async () => {
     expect(lit).toBeGreaterThan(30);
   });
 
+  it('(LR16e) field equals trilinear of the baked bytes in a penumbra band', () => {
+    const { reg, bake } = scene();
+    const f = new LightField(bake, reg);
+    const { baked, r } = bake.lamps!;
+    // the band: a one-sample lamp's cells between 0 and 255 (the LR16b bake gave those lamps only 0 or 255)
+    const band: [number, number, number, number, number][] = [];
+    let off = 0;
+    for (let i = 0; i < baked.ids.length; i++) {
+      const B = r.boxes.subarray(i * BOX_STRIDE, i * BOX_STRIDE + 6);
+      const one = Math.max(baked.lights[i * 10 + 8]!, baked.lights[i * 10 + 9]!) < 0.75;
+      for (let z = 0; one && z < B[5]!; z++) for (let y = 0; y < B[4]!; y++) for (let x = 0; x < B[3]!; x++) {
+        const v = r.vis[off + x + B[3]! * (y + B[4]! * z)]!;
+        if (v > 0 && v < 255) band.push([i, off, B[0]! + (x + 0.5) * LAMP_CELL, B[1]! + (y + 0.5) * LAMP_CELL, B[2]! + (z + 0.5) * LAMP_CELL]);
+      }
+      off += B[3]! * B[4]! * B[5]!;
+    }
+    expect(band.length).toBeGreaterThan(100);
+    let seed = 5;
+    const rnd = (): number => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    let soft = 0;
+    for (let k = 0; k < 200; k++) {
+      const [i, start, cx, cy, cz] = band[Math.floor(rnd() * band.length)]!;
+      const x = cx + (rnd() - 0.5) * LAMP_CELL;
+      const y = Math.max(0.02, cy + (rnd() - 0.5) * LAMP_CELL);
+      const z = cz + (rnd() - 0.5) * LAMP_CELL;
+      const B = r.boxes.subarray(i * BOX_STRIDE, i * BOX_STRIDE + 6);
+      const own = trilinear(r.vis, start, B[0]!, B[1]!, B[2]!, B[3]!, B[4]!, B[5]!, LAMP_CELL, x, y, z);
+      const vis = f.visAt(i, x, y, z);
+      expect(vis, `lamp ${i} at ${x.toFixed(2)} ${y.toFixed(2)} ${z.toFixed(2)}`).toBeCloseTo(own, 9);
+      if (vis > 0.02 && vis < 0.98) soft++;
+      // the meter and the guards' sample: the shaders' formula x these bytes (the brute-force sum)
+      expect(f.levelAt(x, y, z)).toBeCloseTo(brute(reg, bake, x, y, z), 6);
+    }
+    expect(soft).toBeGreaterThan(50);
+  });
+
   it('switching, shooting and EMP change the level at once; the wall and the roof shade it as baked', () => {
     const { reg, bake } = scene();
     const f = new LightField(bake, reg);

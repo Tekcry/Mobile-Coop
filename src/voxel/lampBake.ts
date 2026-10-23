@@ -23,6 +23,26 @@ const MAX_SAMPLES = 6;
 /** The march stops this short of the light (the fixture's own housing and mount). */
 const NEAR_LIGHT = 0.25;
 
+/**
+ * (LR16e) Contact-hardening penumbra, baked into the visibility byte (bake-time PCSS): an area light's shadow edge is
+ * `s x receiver-occluder / occluder-light` wide, so it stays sharp where the occluder touches the receiver and widens
+ * with the gap. Per lamp, the cells near a visibility edge average the occluder distance of the blocked cells around
+ * them, then filter the visibility with a tent of that width (walls stop the filter both ways). The atlas, the shaders
+ * and the light field are unchanged and read the same bytes: the meter equals the picture by construction.
+ * - `bulb`: the smallest fixture (m; a bare bulb or small downlight).
+ * - `maxWidth` / `minWidth`: the widest / narrowest penumbra written (m); the tent's half-width in cells is width / cell
+ *   (`maxWidth`: 3 cells, 7 taps; `minWidth`: half a cell, a single tap: contact stays as sharp as the grid).
+ * - `search`: the blocker search radius and the most taps each side (cells, = maxWidth / LAMP_CELL).
+ * - `nearOcc`: the smallest occluder-to-light distance used (m, = the march's stop short of the light).
+ */
+export const PENUMBRA = {
+  bulb: 0.08,
+  maxWidth: 0.6,
+  minWidth: 0.1,
+  search: 3,
+  nearOcc: NEAR_LIGHT,
+} as const;
+
 export interface LampJob {
   kind: 'lamps';
   id: number;
@@ -112,8 +132,8 @@ export function occupancyShapes(sh: Float32Array, pad: number): Float32Array {
   return out.slice(0, k * SHAPE_STRIDE);
 }
 
-/** Bake every light in the job. */
-export function bakeLamps(job: LampJob): LampResult {
+/** Bake every light in the job. `penumbra` false: the LR16b bake, without the LR16e penumbra pass (tests compare). */
+export function bakeLamps(job: LampJob, penumbra = true): LampResult {
   const L = job.lights;
   const count = L.length / LAMP_STRIDE;
   const c = LAMP_CELL;
@@ -125,10 +145,11 @@ export function bakeLamps(job: LampJob): LampResult {
   const parts: Uint8Array[] = [];
   let total = 0;
   const bx = [0, 0, 0, 0, 0, 0];
+  const pen = penumbra ? new PenumbraBuffers() : null;
   for (let li = 0; li < count; li++) {
     lampBox(L, li, job.lo, job.hi, bx);
     boxes.set(bx, li * BOX_STRIDE);
-    const vis = bakeOne(L, li, bx, occShapes, sb);
+    const vis = bakeOne(L, li, bx, occShapes, sb, pen);
     parts.push(vis);
     total += vis.length;
   }
@@ -141,7 +162,7 @@ export function bakeLamps(job: LampJob): LampResult {
   return { kind: 'lamps', id: job.id, boxes, vis };
 }
 
-function bakeOne(L: Float32Array, li: number, box: number[], occShapes: Float32Array, sb: number[][]): Uint8Array {
+function bakeOne(L: Float32Array, li: number, box: number[], occShapes: Float32Array, sb: number[][], pen: PenumbraBuffers | null): Uint8Array {
   const c = LAMP_CELL;
   const ox = box[0]!;
   const oy = box[1]!;
@@ -172,13 +193,13 @@ function bakeOne(L: Float32Array, li: number, box: number[], occShapes: Float32A
   const vis = new Uint8Array(cells);
   const step = c * 0.5;
   const inv = 1 / c;
-  // one sample: is the segment from the cell centre (px, py, pz) to sample k clear?
-  const clear = (px: number, py: number, pz: number, k: number): boolean => {
+  // one sample: the march distance from the cell centre (px, py, pz) towards sample k to the first occupied cell; -1 clear
+  const clear = (px: number, py: number, pz: number, k: number): number => {
     let dx = S[k * 3]! - px;
     let dy = S[k * 3 + 1]! - py;
     let dz = S[k * 3 + 2]! - pz;
     const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-    if (d < 1e-4) return true;
+    if (d < 1e-4) return -1;
     dx /= d;
     dy /= d;
     dz /= d;
@@ -196,9 +217,22 @@ function bakeOne(L: Float32Array, li: number, box: number[], occShapes: Float32A
       lastZ = qz;
       // (outside the box: nothing there to block)
       if (qx < 0 || qy < 0 || qz < 0 || qx >= nx || qy >= ny || qz >= nz) continue;
-      if (occ[qx + nx * (qy + ny * qz)]) return false;
+      if (occ[qx + nx * (qy + ny * qz)]) return t;
     }
-    return true;
+    return -1;
+  };
+  // (LR16e) per air cell in reach: live = 1, and dol = the light-to-occluder distance, its distance to the light less the
+  // mean march distance to the occluder over its blocked samples (-1 when no sample was blocked)
+  pen?.take(cells, nx * ny);
+  const live = pen ? pen.live : null;
+  const dol = pen ? pen.dol : null;
+  let hits = 0;
+  let hitSum = 0;
+  const seenBy = (t: number): boolean => {
+    if (t < 0) return true;
+    hits++;
+    hitSum += t;
+    return false;
   };
   const r2 = (r + c) * (r + c);
   for (let z = 0; z < nz; z++) {
@@ -213,24 +247,31 @@ function bakeOne(L: Float32Array, li: number, box: number[], occShapes: Float32A
         const ddy = py - ly;
         const ddz = pz - lz;
         if (ddx * ddx + ddy * ddy + ddz * ddz > r2) continue;
+        hits = 0;
+        hitSum = 0;
         let seen = 0;
         if (ns <= 3) {
-          for (let k = 0; k < ns; k++) if (clear(px, py, pz, k)) seen++;
+          for (let k = 0; k < ns; k++) if (seenBy(clear(px, py, pz, k))) seen++;
         } else {
           // the ends and the middle first: when they agree the cell is in full view or fully hidden
-          const a = clear(px, py, pz, 0);
-          const b = clear(px, py, pz, ns - 1);
-          const m = clear(px, py, pz, ns >> 1);
+          const a = seenBy(clear(px, py, pz, 0));
+          const b = seenBy(clear(px, py, pz, ns - 1));
+          const m = seenBy(clear(px, py, pz, ns >> 1));
           if (a === b && b === m) seen = a ? ns : 0;
           else {
             seen = (a ? 1 : 0) + (b ? 1 : 0) + (m ? 1 : 0);
-            for (let k = 1; k < ns - 1; k++) if (k !== ns >> 1 && clear(px, py, pz, k)) seen++;
+            for (let k = 1; k < ns - 1; k++) if (k !== ns >> 1 && seenBy(clear(px, py, pz, k))) seen++;
           }
         }
         vis[i] = Math.round((seen / ns) * 255);
+        if (live) {
+          live[i] = 1;
+          if (hits > 0) dol![i] = Math.max(0, Math.sqrt(ddx * ddx + ddy * ddy + ddz * ddz) - hitSum / hits);
+        }
       }
     }
   }
+  if (pen) penumbraPass(vis, pen, box, lx, ly, lz, fixtureSize(L, li, ns));
   // solid cells: the brightest air cell beside them (a lookup just inside a lit face stays lit)
   for (let z = 0; z < nz; z++) {
     for (let y = 0; y < ny; y++) {
@@ -249,6 +290,250 @@ function bakeOne(L: Float32Array, li: number, box: number[], occShapes: Float32A
     }
   }
   return vis;
+}
+
+/** (LR16e) The fixture size that widens the penumbra (m): a strip already samples its long axis, so only its short side. */
+export function fixtureSize(L: ArrayLike<number>, i: number, ns: number): number {
+  const sx = L[i * LAMP_STRIDE + 8]!;
+  const sz = L[i * LAMP_STRIDE + 9]!;
+  return Math.max(PENUMBRA.bulb, ns > 1 ? Math.min(sx, sz) : Math.max(sx, sz));
+}
+
+/** (LR16e) Penumbra width (m) of a fixture of size `s` at a receiver `dRL` from the light whose occluders are `dOL` from
+ *  it: s x receiver-occluder / occluder-light, clamped to [`minWidth`, `maxWidth`]. */
+export function penumbraWidth(s: number, dRL: number, dOL: number): number {
+  const w = (s * Math.max(0, dRL - dOL)) / Math.max(dOL, PENUMBRA.nearOcc);
+  return w < PENUMBRA.minWidth ? PENUMBRA.minWidth : w > PENUMBRA.maxWidth ? PENUMBRA.maxWidth : w;
+}
+
+/** Cumulative tent of half-width h at x. */
+function tentCdf(h: number, x: number): number {
+  if (x <= -h) return 0;
+  if (x >= h) return 1;
+  const u = x <= 0 ? x + h : h - x;
+  const a = (u * u) / (2 * h * h);
+  return x <= 0 ? a : 1 - a;
+}
+
+/** (LR16e) Weight of the cell `j` cells off for a tent of half-width `h` cells, integrated over the cell (the last tap fractional). */
+export function tentWeight(h: number, j: number): number {
+  return tentCdf(h, j + 0.5) - tentCdf(h, j - 0.5);
+}
+
+/** Sliding sums of radius `R` across `n` slices of `w` consecutive values (slice q at `base + q x step`): `src` -> `dst`. */
+function slideSlices(src: Float32Array, dst: Float32Array, acc: Float64Array, base: number, step: number, w: number, n: number, R: number): void {
+  acc.fill(0, 0, w);
+  for (let q = 0; q <= R && q < n; q++) for (let j = 0, o = base + q * step; j < w; j++) acc[j] = acc[j]! + src[o + j]!;
+  for (let q = 0; q < n; q++) {
+    const o = base + q * step;
+    const ad = q + R + 1 < n ? base + (q + R + 1) * step : -1;
+    const rm = q - R >= 0 ? base + (q - R) * step : -1;
+    if (ad >= 0 && rm >= 0) {
+      for (let j = 0; j < w; j++) {
+        dst[o + j] = acc[j]!;
+        acc[j] = acc[j]! + src[ad + j]! - src[rm + j]!;
+      }
+    } else if (ad >= 0) {
+      for (let j = 0; j < w; j++) {
+        dst[o + j] = acc[j]!;
+        acc[j] = acc[j]! + src[ad + j]!;
+      }
+    } else if (rm >= 0) {
+      for (let j = 0; j < w; j++) {
+        dst[o + j] = acc[j]!;
+        acc[j] = acc[j]! - src[rm + j]!;
+      }
+    } else {
+      for (let j = 0; j < w; j++) dst[o + j] = acc[j]!;
+    }
+  }
+}
+
+/** Separable sums over the (2R + 1)^3 cube about every cell: x (`a` -> `t`), y (`t` -> `a`, row by row), z (`a` -> `t`,
+ *  plane by plane), so every pass walks memory in order. The sums end in `t`; `a` is overwritten. `acc`: nx x ny scratch. */
+function boxSum3(a: Float32Array, t: Float32Array, acc: Float64Array, nx: number, ny: number, nz: number, R: number): void {
+  const sxy = nx * ny;
+  for (let row = 0; row < ny * nz; row++) {
+    const base = row * nx;
+    let s = 0;
+    for (let q = 0; q <= R && q < nx; q++) s += a[base + q]!;
+    for (let q = 0; q < nx; q++) {
+      t[base + q] = s;
+      if (q + R + 1 < nx) s += a[base + q + R + 1]!;
+      if (q - R >= 0) s -= a[base + q - R]!;
+    }
+  }
+  for (let z = 0; z < nz; z++) slideSlices(t, a, acc, z * sxy, nx, nx, ny, R);
+  slideSlices(a, t, acc, 0, sxy, sxy, nz, R);
+}
+
+/** Packed counts: edge cells x `EDGE` + blocked cells (each at most (2 x 3 + 1)^3 = 343: exact in a float). */
+const EDGE = 1024;
+
+/** (LR16e) The penumbra pass's buffers: grown to the largest lamp of a bake and reused (one allocation per bake, not per
+ *  lamp); `take` sizes the views to a lamp's cells and clears the ones read before they are written. */
+class PenumbraBuffers {
+  private size = -1;
+  private plane = -1;
+  private raw = { live: new Uint8Array(0), f: [new Float32Array(0)], acc: new Float64Array(0) };
+  live = new Uint8Array(0);
+  dol = new Float32Array(0);
+  cnt = new Float32Array(0);
+  bs = new Float32Array(0);
+  tmp = new Float32Array(0);
+  den2 = new Float32Array(0);
+  acc = new Float64Array(0);
+
+  take(cells: number, plane: number): void {
+    if (cells > this.size) {
+      this.size = cells;
+      this.raw.live = new Uint8Array(cells);
+      this.raw.f = [0, 1, 2, 3, 4].map(() => new Float32Array(cells));
+    }
+    if (plane > this.plane) {
+      this.plane = plane;
+      this.raw.acc = new Float64Array(plane);
+    }
+    const f = this.raw.f;
+    this.live = this.raw.live.subarray(0, cells);
+    this.dol = f[0]!.subarray(0, cells);
+    this.cnt = f[1]!.subarray(0, cells);
+    this.bs = f[2]!.subarray(0, cells);
+    this.tmp = f[3]!.subarray(0, cells);
+    this.den2 = f[4]!.subarray(0, cells);
+    this.acc = this.raw.acc;
+    this.live.fill(0);
+    this.dol.fill(-1);
+    this.cnt.fill(0);
+    this.bs.fill(0);
+  }
+}
+
+/**
+ * (LR16e) The penumbra pass on one lamp's cells (between the visibility loop and the solid-cell pass). `pen.live`: air cells
+ * in reach; `pen.dol`: their light-to-occluder distance (-1: none blocked). Only the band within `search` cells of a
+ * visibility edge changes; a fully lit or fully hidden cell away from every edge keeps its byte. Deterministic.
+ */
+function penumbraPass(vis: Uint8Array, pen: PenumbraBuffers, box: number[], lx: number, ly: number, lz: number, s: number): void {
+  const { live, dol, cnt, bs, tmp, acc } = pen;
+  const c = LAMP_CELL;
+  const nx = box[3]!;
+  const ny = box[4]!;
+  const nz = box[5]!;
+  const sxy = nx * ny;
+  const cells = nx * ny * nz;
+  const R = PENUMBRA.search;
+  // 1. edge cells (an air cell with an air neighbour of another visibility) and blocked cells, as packed counts; the
+  // blockers' distance to the light (PCSS' average blocker depth: one value for every cell an edge shadows, where a
+  // receiver-to-occluder mean would shrink for the cells nearer the occluder)
+  let edges = 0;
+  for (let z = 0; z < nz; z++) {
+    for (let y = 0; y < ny; y++) {
+      for (let x = 0; x < nx; x++) {
+        const i = x + nx * (y + ny * z);
+        if (!live[i]) continue;
+        const d = dol[i]!;
+        if (d >= 0) {
+          bs[i] = d;
+          cnt[i] = 1;
+        }
+        const v = vis[i];
+        if (
+          (x > 0 && live[i - 1] && vis[i - 1] !== v) ||
+          (x < nx - 1 && live[i + 1] && vis[i + 1] !== v) ||
+          (y > 0 && live[i - nx] && vis[i - nx] !== v) ||
+          (y < ny - 1 && live[i + nx] && vis[i + nx] !== v) ||
+          (z > 0 && live[i - sxy] && vis[i - sxy] !== v) ||
+          (z < nz - 1 && live[i + sxy] && vis[i + sxy] !== v)
+        ) {
+          cnt[i] = cnt[i]! + EDGE;
+          edges++;
+        }
+      }
+    }
+  }
+  if (edges === 0) return;
+  // 2. within R cells: the band (an edge in range) and the blockers' mean distance to the light
+  const bsum = pen.den2;
+  boxSum3(cnt, tmp, acc, nx, ny, nz, R);
+  boxSum3(bs, bsum, acc, nx, ny, nz, R);
+  // (the sums: packed counts in tmp, blocker distances in bsum)
+  // 3. per band cell with a blocker in range: the width, as a tent's half-width in cells, and its R + 1 weights
+  let n = 0;
+  for (let i = 0; i < cells; i++) {
+    const k = tmp[i]!;
+    if (live[i] && k >= EDGE && k % EDGE > 0) n++;
+  }
+  const list = new Int32Array(n);
+  const wts = new Float32Array(n * (R + 1));
+  const taps = new Uint8Array(n);
+  let m = 0;
+  for (let z = 0; z < nz; z++) {
+    const pz = box[2]! + (z + 0.5) * c - lz;
+    for (let y = 0; y < ny; y++) {
+      const py = box[1]! + (y + 0.5) * c - ly;
+      for (let x = 0; x < nx; x++) {
+        const i = x + nx * (y + ny * z);
+        const k = tmp[i]!;
+        if (!live[i] || k < EDGE || k % EDGE === 0) continue;
+        const px = box[0]! + (x + 0.5) * c - lx;
+        const h = penumbraWidth(s, Math.sqrt(px * px + py * py + pz * pz), bsum[i]! / (k % EDGE)) / c;
+        const t = Math.min(R, Math.ceil(h - 0.5));
+        list[m] = i;
+        taps[m] = t;
+        for (let j = 0; j <= t; j++) wts[m * (R + 1) + j] = tentWeight(h, j);
+        m++;
+      }
+    }
+  }
+  // 4. filter x, y, z (weighted sums and their weights), each pass with the receiver's own width; a tap past an occupied
+  // cell (or one out of reach) weighs 0, so a wall neither darkens the air beside it nor lets light through. Cells off the
+  // band hold (vis, 1) in both buffers and are never written.
+  let num = cnt;
+  let den = bs;
+  let num2 = tmp;
+  let den2 = bsum;
+  for (let i = 0; i < cells; i++) {
+    num[i] = num2[i] = vis[i]!;
+    den[i] = den2[i] = 1;
+  }
+  for (let axis = 0; axis < 3; axis++) {
+    const stride = axis === 0 ? 1 : axis === 1 ? nx : sxy;
+    const len = axis === 0 ? nx : axis === 1 ? ny : nz;
+    for (let k = 0; k < n; k++) {
+      const i = list[k]!;
+      const q = axis === 0 ? i % nx : axis === 1 ? Math.floor(i / nx) % ny : Math.floor(i / sxy);
+      const t = taps[k]!;
+      const wo = k * (R + 1);
+      let a = wts[wo]! * num[i]!;
+      let b = wts[wo]! * den[i]!;
+      for (let j = 1; j <= t && q - j >= 0; j++) {
+        const i2 = i - j * stride;
+        if (!live[i2]) break;
+        a += wts[wo + j]! * num[i2]!;
+        b += wts[wo + j]! * den[i2]!;
+      }
+      for (let j = 1; j <= t && q + j < len; j++) {
+        const i2 = i + j * stride;
+        if (!live[i2]) break;
+        a += wts[wo + j]! * num[i2]!;
+        b += wts[wo + j]! * den[i2]!;
+      }
+      num2[i] = a;
+      den2[i] = b;
+    }
+    const sn = num;
+    num = num2;
+    num2 = sn;
+    const sd = den;
+    den = den2;
+    den2 = sd;
+  }
+  for (let k = 0; k < n; k++) {
+    const i = list[k]!;
+    const v = Math.round(num[i]! / den[i]!);
+    vis[i] = v < 0 ? 0 : v > 255 ? 255 : v;
+  }
 }
 
 /** Atlas layout for the lights' boxes: tiles side by side along x in rows along z; (lr-tex3d) when the rows pass
