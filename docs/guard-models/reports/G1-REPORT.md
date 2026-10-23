@@ -82,3 +82,95 @@ each). Errors in mm; every solved dimension 0.0 unless listed.
 - G4: fold the fingers per `lodBones` (LOD1 too), keep the clavicle split as baked.
 - `scripts/operators/py/__pycache__/common.cpython-313.pyc` is tracked in the repo and Blender rewrites it on every run; left unstaged (not committed).
 - Not checked here: `operators:check` body checks for guards (G4's `check_guard.py`).
+
+## Fix round (checker PASS with findings; lead rulings)
+Branch `feature/gm-g1fix` off feature/guard-models 955b8311.
+
+| Item | Done | What |
+| --- | --- | --- |
+| B1 | y | `gear-shield_riot` `needs: ['bodies-broad']`: an own-GLB gear job needs the body of each base whose kinds list the piece (`pieceUse`); a kit without kinds falls back to `OWN_GLB_BASE` (`shield_riot: 'broad'`, mirrors gear/pieces.py `SHIELD_BASE`). Test: fixture and real kit, the needs line and the input. |
+| X1 | y | Finger bones renamed to Wren's scheme `finger<S>_<f>_1` and rolled to Wren's axes (below). guards.json `bones.fingers`, SPEC 6, `lodBones`, guardBodyCheck and the tests follow. |
+| X2 | y | `seamTransforms` in the body report (below); `guard-<b>-headref` still ships with `_mh`. |
+| P1 | y | Neck-scale fallback only once the neck weight already sat at +-1 and still wants past it. |
+| P2 | y | Prep hash takes `{id, refHeight, build}` per base only (test: mounts / faceTiles leave it, refHeight changes it). |
+| P3 | y | Report `height` (= refHeight) and `bindJoints.handL` / `handR` (the fingertip ends, lifted like the rest). |
+| P4 | y | Report `crownY`; note for G3 below. |
+
+### X1: finger names and axes
+- Names `fingerL_1_1..fingerL_5_1`, `fingerR_1_1..fingerR_5_1` (f 1 = thumb), so `FINGER_RE` (`src/anim/fingers.ts:97`)
+  matches. Vertex groups carry the same names (garments/suit.py's `finger<S>_1_1` / `_2_1` thumb-loop lookups work).
+- Roll (guard_body.fingers(), game frame): fingers 2-5: local Z = y x palm (right), palm x y (left), so a turn about
+  +Z right / -Z left (fingers.ts:141) closes the tip toward the palm. Measured first on Wren's hero file: her roll-0
+  bones give the same axis to dot 0.98-0.999, so this is "Wren's sense". Thumb: rolled so fingers.ts `THUMB_AXES[0]`
+  (opposition) lands on Wren's opposition axis taken from wren-hero.glb in the hand frame (`WREN_THUMB_FLEX`): dot 0.995
+  on every base.
+- In Blender the game frame is mirrored: game-local axis l = Blender-local (lx, -ly, -lz), so a curl is -Z (right) /
+  +Z (left) there. The job reads the roll back (Blender local Z through the frame map = the intended axis, error
+  `fingerAxes.rollErrorDeg`, fails above 0.5 deg).
+- Deformation check (was build_guard_body.py:192, +60 deg about X): now each finger turns 60 deg about its fingers.ts
+  axis in the Blender frame; the job fails when a finger (2-5) tip does not move toward the palm (`towardPalm` = the
+  tip move . the palm direction normal to the bone; a clean 60 deg curl gives 0.866, limit 0.5). Per finger in
+  `deformCheck.fingerCurl`.
+- guardBodyCheck `checkFingerAxes`: builds the bind frames from the report (`fingerBones[].zAxis`, `palm`), runs the
+  game's own `fingerRig` + `fingerPose` (full curl) and checks every finger closes toward the palm (> 0.5; G1 bake 0.77
+  = cos 40 deg, the 80 deg MCP), the names, both thumbs' `thumbFlexDot` >= 0.95.
+
+### One-segment fallback (for G5 / G7: `src/anim/fingers.ts`, `src/operators/runtime/guardFigure.ts`; not edited)
+`fingerRig` / `fingerPose` work unchanged on the guard (regex `_1` matches, knuckles are segment 0, splay sign from the
+knuckles, `pose.ts` hang / chain by the `finger<S>_` prefix). What is lost with one segment:
+- `fingerPose` turns segment 0 only: a finger closes by the MCP's 80 deg at curl 1 (`FINGER_MAX_DEG[0]`), not 80 + 95
+  + 65 down the chain; the thumb only opposes by 35 deg (`THUMB_MAX_DEG[0]`), its MCP 40 / IP 45 flex never happen.
+  The hands will read half open on the grip.
+- Fallback to add there (G5 / G7): when a finger has no segment 1 / 2 joint, turn its segment 0 by the chord angle of
+  the 3-joint curl (MCP to tip direction of a 0.5 / 0.3 / 0.2 phalanx chain at curl x FINGER_MAX_DEG): about 70 deg at
+  curl 0.5, 115 deg at 0.85, 132 deg at 1. A rigid one-bone finger cannot shorten, so cap it near 100 deg or the tip
+  passes into the palm (check on the 1.5 m crops). Thumb: segment 0 by THUMB_MAX_DEG[0] about THUMB_AXES[0], then
+  the MCP + IP flex as one turn (about 40 deg at curl 1) about `THUMB_AXES[1]` read in the same bone frame.
+  One flag per joint in `FingerRig` (`single: Uint8Array`) keeps `fingerPose` allocation-free.
+
+### X2: the head in the body frame (`seamTransforms`)
+`makeHuman` {scale 0.1 K, flipX, floorY, K}: the MakeHuman frame `V0` = GuardFit.co() through `to_game`. `neck` / `head`
+{matrix, translation}: the bone maps the skin applies there, floor lift folded in (body = A V0 + t). `similarity`:
+the best uniform scale + translation (body ~ s V0 + T) over the seam loop and over the head part, with residuals.
+Numbers (numpy fit, all three bases):
+| Base | head map diag | seam similarity s (rms / max mm) | head part s (rms / max mm) | floor lift |
+| --- | --- | --- | --- | --- |
+| average | 0.912, 1, 0.987 | 0.957 (2.2 / 3.8) | 0.961 (3.9 / 22.2) | -4.8 mm |
+| lean | 0.912, 1, 0.995 | 0.934 (2.3 / 3.6) | 0.963 (3.9 / 22.3) | -4.7 mm |
+| broad | 0.912, 1, 0.986 | 1.041 (3.3 / 6.4) | 0.962 (4.2 / 25.2) | -5.7 mm |
+The head map is not uniform (x 0.912: the rig head width) and the seam ring mixes the neck and head maps, so no single
+uniform transform welds the seam (residual up to 6 mm): use per-vertex positions.
+
+### For G4 (and G1h's fix)
+- G1h's fix builds every head at the body fit's head-part positions `V[hv]` (`GuardFit(mpfb, op, macro).solve()`),
+  so the 42 seam vertices are the body's own (hm08 index `_mh` = the body's `_mh`): weld by `_mh`, no transform.
+- For a head built in the MakeHuman frame (G1h's first bake): body-frame vertex = headref[_mh] + J (h0 - V0[_mh]),
+  where h0 is the variant's vertex through `to_game`, V0 the base's (`guard-<b>-headref` holds the body-frame V; J =
+  the `head` map's matrix, or the `similarity.headPart` scale as an approximation). Seam vertices: face targets leave
+  them, so h0 = V0 there and they land on the body exactly.
+- `lodBones.fold` now names `finger<S>_<f>_1`; G4's guard mode reads it (unchanged rule: LOD1 / LOD2 fold the fingers).
+
+### For G3 (P4)
+gear/fit.py:113-115 takes the crown as `height - bindJoints.head.y`. The body's head joint already carries the bind
+floor lift (-4.8 mm average, -4.7 lean, -5.7 broad), so that crown is ~5 mm high against the real head. Read the body's
+`crownY` (top of the head, feet on y = 0) and `bindJoints.head` instead.
+
+### API note (G1h's fix depends on it)
+`GuardFit(mpfb_dir, op, macro, extra_targets=None)`, `solve()` and its result keys (`V`, `V0`, `tgt`, `M`, `lift`, `m`,
+...), `neck_seam(at)` and `skin_weights(...)`: unchanged. `fingers()` returns the new names with `zAxis` / `palm` added;
+`seam_transforms(seam)` is new. Numbers that moved with P1: average's neck weight now 1.0 with neck scale 1.051 (was
+0.84 with 1.086); lean and broad unchanged (lean 0.25 / scale 1.0, broad 1.0 / 1.257). Every solved dimension still 0.0
+mm (broad bideltoid -2.4 mm as before).
+
+### Smoke (desktop, one job under heavy.lock)
+SMOKE_PLACEHOLDER
+
+### Tests
+TESTS_PLACEHOLDER
+
+### For other slices
+- G2: `height` and `bindJoints.handL` / `handR` are in the report; finger vertex groups are `finger<S>_<f>_1`.
+- G4: fold per `lodBones` (new names); weld heads by `_mh`.
+- G5 / G7: names and axes now match `fingerRig` (`guardFigure.ts:149`); the one-segment fallback above is theirs.
+- G3: crown from `crownY` (above).
+- The laptop bodies bake booked before this round must be rerun (names, rolls, report fields).
