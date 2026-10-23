@@ -1,0 +1,13 @@
+{
+  "id": "20261023T165342-night-shift-test-run-6e9632d1-a69e",
+  "sha": "6e9632d126241774bc6aaffe3697ae8d7ee4397e",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Test Runner",
+  "suites": [
+    "e2e-ctcourse:4"
+  ],
+  "set": "t40-ctc4-solo",
+  "note": "train 40 ctcourse:4 A8 pass 2 grille: solo rerun (flake rule skipped it)"
+}
