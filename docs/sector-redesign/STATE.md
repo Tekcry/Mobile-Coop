@@ -305,8 +305,11 @@ Chain (all agents die at the swap; each branch has a WIP commit; rerun from brie
    change). Opus builders RUNNING ~01:25 off 67f3661a: -lr16w-s1, -s2, -s3 (disjoint warehouseSectors.ts blocks), one
    agent for -lr16w-t then -lr16w-c2; reports checks/lr16w-<part>-build.md. Rerun a part from the brief + branch head if
    cut off. Then lead merges T, C2, S1, S2, S3 into feature/sector-redesign-lr16w (off 67f3661a), INT round (brief
-   "INT"), one Opus checker (g + L-A + W), laptop sectorops + ctcourse + sheet. C2 edits ctcourse.ts (Marlow's map): tell
-   the orchestrator at PR. Stale: -lr16wp worktree (detached 02419d1b, old planner probes; remove later).
+   "INT"), one Opus checker (g + L-A + W), laptop sectorops + ctcourse + sheet.
+   T DONE bef5ca5f (checks/lr16w-t-build.md): post at (17.55, 38.5) not 37 (lead call: accepted; 37 shades the cage
+   west third), cage floor 0.29 -> 1.00, lint 0 errors. C2 DONE e2416712 but DROPPED: master already has Marlow's A1-A8
+   ctcourse (no S7 stair, no ctcourseLight.tuned.json), so do not merge -lr16w-c2. RISK at the LR16 train entry: master's
+   tests/ctcourseLight.test.ts gates Marlow's new map under LR16 lighting - run it on the merged tree first. Stale: -lr16wp worktree (detached 02419d1b, old planner probes; remove later).
 4. ONE Opus checker on g + L-A + W together; merge -lr16g -> -lr16l-a -> W parts into lr16int.
 Parallel (off lr16int 82f9e1bb, briefs/LR16-POLISH.md; builders started 23:20, WIP pushed): pol-a (Sonnet; skip the
   lampBounce.test.ts item -> F), pol-b (Opus torch picture), pol-e (Opus rig bulbs / comments), lr16l-b (Opus, LR16-L
