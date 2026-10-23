@@ -489,6 +489,12 @@ export class CoopClient implements NetAttachment {
     return this.selfSpotted;
   }
 
+  /** (LR16-5) The shared sim clock: the host's time now, from the snapshots (`ClockSync`; before the first one the
+   *  local clock). Moving lights run on it, so a flicker on this page matches the host's within the clock's jitter. */
+  simTime(): number {
+    return this.clock.now(performance.now() / 1000);
+  }
+
   private applySelf(p: PlayerState): void {
     this.selfSpotted = (p.f & PF.spotted) !== 0;
     const g = this.g;

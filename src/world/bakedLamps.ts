@@ -162,7 +162,10 @@ export class BakedLamps implements CharShadowLamps {
   /** The lamp gives light now (on, not shot, not jammed: its colour is not black). */
   lampLit(i: number): boolean {
     const o = (this.lampBase + i * LAMP_TEXELS + 1) * 4;
-    return this.buf[o]! + this.buf[o + 1]! + this.buf[o + 2]! > 0;
+    if (this.buf[o]! + this.buf[o + 1]! + this.buf[o + 2]! > 0) return true;
+    // (LR16-5) a stuttering tube at an off step is still lit: it keeps its character shadow slot
+    const l = this.reg.lights[this.order[i]!];
+    return !!l && l.flicker < 1 && l.on && !l.destroyed && l.intensity > 0;
   }
   /** Characters' capsules each frame (foot + head points, radius): GameState's. */
   capsules: ((a: Float32Array, b: Float32Array, max: number) => number) | null = null;
@@ -328,7 +331,7 @@ export class BakedLamps implements CharShadowLamps {
     const changed: number[][] = [];
     for (let i = 0; i < this.order.length; i++) {
       const l = this.reg.lights[this.order[i]!]!;
-      const k = l.on && !l.destroyed ? l.intensity * LIGHT_GAIN : 0;
+      const k = l.on && !l.destroyed ? l.intensity * l.flicker * LIGHT_GAIN : 0;
       const o = (this.lampBase + i * LAMP_TEXELS + 1) * 4;
       buf[o] = l.color[0] * k;
       buf[o + 1] = l.color[1] * k;
@@ -386,6 +389,7 @@ export class BakedLamps implements CharShadowLamps {
       this.writeCapsules(nc);
       dirty = true;
     }
+    if (this.flickV !== this.reg.flickerVersion && this.writeFlicker()) dirty = true;
     if (dirty) this.data.update(this.buf);
   }
 
@@ -443,6 +447,43 @@ export class BakedLamps implements CharShadowLamps {
       this.remixes++;
     }
     return changed;
+  }
+
+  /** (LR16-5) The registry's `flickerVersion` at the last `writeFlicker`. */
+  private flickV = -1;
+  /** (LR16-5) Registry id -> bake index (-1: not baked), made at the first `writeFlicker`. */
+  private bakeIndex: Int32Array | null = null;
+
+  /**
+   * (LR16-5) The flickering lamps only (`LightRegistry.flickering`, the dirty set): their colour texel = colour x
+   * intensity x the live `flicker` x `LIGHT_GAIN`, the value `update` writes and the light field reads (light parity).
+   * The same texel a switch or a jam scales, so no new sampler. True when one was written. No allocation after the first.
+   */
+  private writeFlicker(): boolean {
+    const reg = this.reg;
+    this.flickV = reg.flickerVersion;
+    const ids = reg.flickering;
+    if (!ids.length) return false;
+    let idx = this.bakeIndex;
+    if (!idx || idx.length < reg.lights.length) {
+      idx = this.bakeIndex = new Int32Array(reg.lights.length).fill(-1);
+      for (let i = 0; i < this.order.length; i++) idx[this.order[i]!] = i;
+    }
+    const buf = this.buf;
+    let wrote = false;
+    for (let k = 0; k < ids.length; k++) {
+      const id = ids[k]!;
+      const i = id < idx.length ? idx[id]! : -1;
+      if (i < 0) continue;
+      const l = reg.lights[id]!;
+      const g = l.on && !l.destroyed ? l.intensity * l.flicker * LIGHT_GAIN : 0;
+      const o = (this.lampBase + i * LAMP_TEXELS + 1) * 4;
+      buf[o] = l.color[0] * g;
+      buf[o + 1] = l.color[1] * g;
+      buf[o + 2] = l.color[2] * g;
+      wrote = true;
+    }
+    return wrote;
   }
 
   /** (LR14) Character shadows were on at the last write (their slots are cleared once they go off). */

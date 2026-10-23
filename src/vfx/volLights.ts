@@ -47,7 +47,8 @@ export function writeVolLight(l: LightDef, k: number, pos: Float32Array, dir: Fl
     dir[o + 2] = 0;
     dir[o + 3] = VOL_LAMP_COS;
   }
-  const g = l.intensity * (beam ? VOL_BEAM_GAIN : 1);
+  // (LR16-5) x the live flicker: the haze under a stuttering tube goes with it
+  const g = l.intensity * l.flicker * (beam ? VOL_BEAM_GAIN : 1);
   col[o] = l.color[0] * g;
   col[o + 1] = l.color[1] * g;
   col[o + 2] = l.color[2] * g;

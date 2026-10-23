@@ -1,4 +1,5 @@
 import { hyp3 } from '../core/mathx';
+import { FLICKER_FIRE, FLICKER_NONE, FLICKER_OUT, FLICKER_STEP_HZ, FLICKER_T, flickerAt, lampSeed } from './lampFlicker';
 import { LAMP_CONE_COS, LAMP_EXP, LAMP_LEVEL_GAIN, lampReach, lampTerm, photoTerm, SPOT_EXP } from './lampMath';
 /**
  * Light model (pure: no Babylon/DOM), unit-tested.
@@ -46,6 +47,10 @@ export interface LightDef {
   fixture: LightFixture | null;
   /** Rendering only: how far the beam reaches before geometry stops it (a flashlight on a wall); unset = radius. */
   reach?: number;
+  /** (LR16-5) The live flicker multiplier (a fire's flicker, a failing tube's stutter; `lampFlicker.ts`): 1 steady. The
+   *  light field, the baked lamps' data texture and the fixture glow all scale the lamp by it (light parity). Written by
+   *  `LightRegistry.tickFlicker` only; never bumps `version` (the bounce and the caches must not re-sum every frame). */
+  flicker: number;
 }
 
 /** (sector-fixes L) The LED fitting family (`fixtureModels.ts`): a flush ceiling panel, a hung linear strip, a wall bulkhead. */
@@ -68,7 +73,7 @@ export interface LightFixture {
   mount?: number;
 }
 
-export type LightInit = Partial<Omit<LightDef, 'id' | 'x' | 'y' | 'z'>> & { x: number; y: number; z: number };
+export type LightInit = Partial<Omit<LightDef, 'id' | 'x' | 'y' | 'z' | 'flicker'>> & { x: number; y: number; z: number };
 
 /** Gameplay thresholds for the light meter and perception. */
 export const LIGHT = {
@@ -89,7 +94,7 @@ export const LIGHT = {
  */
 export function contribution(l: LightDef, x: number, y: number, z: number): number {
   if (!l.on || l.destroyed) return 0;
-  return LAMP_LEVEL_GAIN * l.intensity * lightTerm(l, x, y, z);
+  return LAMP_LEVEL_GAIN * l.intensity * l.flicker * lightTerm(l, x, y, z);
 }
 
 /** (LR16 fix) A light's falloff x cone at a point, unoccluded (no gain, intensity or on / off): `contribution` and the
@@ -146,6 +151,14 @@ export class LightRegistry {
    *  the jam's own flicker). Its `on` is both; the switches and the EMP move the base, the jam only the lit bit, so a
    *  lamp switched off during a jam stays off after it (light parity: host and client run the same rule). */
   private jamBits = new Map<number, number>();
+  /** (LR16-5) The flickering lights (`lampFlicker.ts`): registry ids and their modes, in step. Their state lives here,
+   *  apart from on / off / jam (and from any later sway): it moves `flicker` and `flickerVersion`, never `version`. */
+  private readonly flickIds: number[] = [];
+  private readonly flickModes: number[] = [];
+  /** (LR16-5) The map's flicker seed (`applyMapFlicker`: map id + match seed; host and client build the same). */
+  flickerSeed = 0;
+  /** (LR16-5) Bumped when a flickering light's multiplier moves (renderers re-write those lights only). */
+  flickerVersion = 0;
 
   add(init: LightInit): LightDef {
     const l: LightDef = {
@@ -165,9 +178,12 @@ export class LightRegistry {
       electric: init.electric ?? true,
       group: init.group ?? -1,
       fixture: init.fixture ?? null,
+      flicker: 1,
     };
     this.lights.push(l);
     this.version++;
+    // (LR16-5) a fire flickers wherever it is
+    if (l.kind === 'fire') this.setFlicker(l.id, FLICKER_FIRE);
     return l;
   }
 
@@ -208,6 +224,58 @@ export class LightRegistry {
     if (!l || l.on === on) return;
     l.on = on;
     this.version++;
+  }
+
+  /** (LR16-5) The flickering lights' registry ids (renderers walk this; do not mutate). */
+  get flickering(): readonly number[] {
+    return this.flickIds;
+  }
+
+  /** (LR16-5) A light's flicker mode (`FLICKER_NONE` when it has none). */
+  flickerMode(id: number): number {
+    const k = this.flickIds.indexOf(id);
+    return k < 0 ? FLICKER_NONE : this.flickModes[k]!;
+  }
+
+  /** (LR16-5) Give a light a flicker mode (`FLICKER_NONE` takes it off and leaves the light steady). Load time. */
+  setFlicker(id: number, mode: number): void {
+    const l = this.lights[id];
+    if (!l) return;
+    const k = this.flickIds.indexOf(id);
+    if (mode === FLICKER_NONE) {
+      if (k < 0) return;
+      this.flickIds.splice(k, 1);
+      this.flickModes.splice(k, 1);
+      l.flicker = 1;
+    } else if (k < 0) {
+      this.flickIds.push(id);
+      this.flickModes.push(mode);
+    } else this.flickModes[k] = mode;
+    this.flickerVersion++;
+  }
+
+  /**
+   * (LR16-5) The flickering lights at sim time `t` (s; the host's clock in co-op, `NetAttachment.simTime`): each one's
+   * `flicker` from its mode, the map's seed and its id, a pure function, so host and client agree with no wire change.
+   * Bumps `flickerVersion` when one moved (never `version`). Once per fixed step (`GameState.updateLight`). No allocation.
+   */
+  tickFlicker(t: number): void {
+    const ids = this.flickIds;
+    if (!ids.length) return;
+    // on the fixed step's grid: the client's estimate of the host's clock lands on the host's step
+    FLICKER_T[0] = Math.round(t * FLICKER_STEP_HZ) / FLICKER_STEP_HZ;
+    let moved = false;
+    for (let k = 0; k < ids.length; k++) {
+      const id = ids[k]!;
+      const l = this.lights[id]!;
+      flickerAt(this.flickModes[k]!, lampSeed(this.flickerSeed, id));
+      const v = FLICKER_OUT[0]!;
+      if (v !== l.flicker) {
+        l.flicker = v;
+        moved = true;
+      }
+    }
+    if (moved) this.flickerVersion++;
   }
 
   /** (jammer-fixes) A jam starts on a light: its present on state becomes the base the switches and the EMP own. */

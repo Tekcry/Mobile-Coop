@@ -1201,6 +1201,11 @@ export class CoopHost implements NetAttachment {
     }
   }
 
+  /** (LR16-5) The shared sim clock: the time the snapshots carry (the client's `ClockSync` tracks it). */
+  simTime(): number {
+    return this.time;
+  }
+
   fixedUpdate(dt: number): void {
     this.time += dt;
     if (this.strikes.size) this.runStrikes();

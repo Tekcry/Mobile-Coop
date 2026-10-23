@@ -169,6 +169,9 @@ export interface GameOptions {
 export interface NetAttachment {
   /** Client: the host reports guards in combat know this operator is there. */
   spotted?(): boolean;
+  /** (LR16-5) The shared sim clock (s): the host's own, the client's estimate of the host's (`ClockSync`, from the
+   *  snapshots' `time`). Moving lights (`LightRegistry.tickFlicker`) run on it, so both pages light alike. */
+  simTime?(): number;
   /** After the local simulation, every fixed step. */
   fixedUpdate(dt: number): void;
   frameUpdate(dt: number): void;
@@ -1508,6 +1511,8 @@ export class GameState implements AppState {
   private updateLight(dt: number): void {
     const reg = this.world.level.lights;
     reg.update(dt);
+    // (LR16-5) fires flicker, a failing tube stutters: on the shared clock (co-op: the host's), before the meter samples
+    reg.tickFlicker(this.net?.simTime?.() ?? this.time);
     this.lightT -= dt;
     if (this.lightT > 0) return;
     this.lightT = 1 / LIGHT.playerHz;

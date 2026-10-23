@@ -34,6 +34,7 @@ import { Doors } from './doors';
 import { Ropes } from './ropes';
 import type { LightRegistry } from './lights';
 import { addTorchSlots } from './torches';
+import { applyMapFlicker } from './lampFlicker';
 import { GI_STRIDE } from '../voxel/skyBake';
 import { TEXTURE_ANISO, TEXTURE_SIZE, VOXEL_TIER, type QualityLevel, type ShadowSpec, type TierQuality } from '../core/quality';
 import type { Adaptive } from '../core/governor';
@@ -227,6 +228,8 @@ export class World {
     await enablePhysics(scene);
     const b = new LevelBuilder();
     const layout = map.build(b, opts.seed);
+    // (LR16-5) the map's flicker seed and its stutter tube (fires enrolled themselves)
+    applyMapFlicker(b.lights, map.id, opts.seed);
     // procedural surfaces: drawn small here, sized by the Textures setting in applyQuality
     const atlas = opts.cheap ? null : new SurfaceAtlas(scene, 256, 4);
     const vo = opts.voxel ?? null;

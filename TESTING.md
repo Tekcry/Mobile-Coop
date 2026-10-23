@@ -49,6 +49,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Lamp light (LR16a: one photometric model, no Lamp falloff row in Settings > Gameplay): start Sector Ops: the S1
   goods-in floor between the strips reads lit (meter and picture agree), Marlow station 2 still reads; a guard's torch
   beam has a soft edge, and the meter fades with it at the beam's edge (LR16 fix).
+- [ ] Failing tube (LR16-5): stand under the stutter tube (Warehouse Ops: the trade offices corridor panel, west half;
+  campusOps: HQ L1 breakout kitchen; Marlow Yard: airlock 1 / on master the A7 south rack strip): every few seconds it
+  chatters or drops out, the floor, the fitting and the light meter go with it; shoot it and it stays dark.
 - [ ] Co-op: Host a room starts on Campaign (Marlow Yard); the Mode row offers Campaign and Sector Ops only.
 - [ ] Co-op guard torches (coop-torches): on a dark map, when a guard searching in the dark switches his flashlight on,
   the joiner sees the same beam from his head, aimed where he faces, and it goes off when the host's does; standing in
