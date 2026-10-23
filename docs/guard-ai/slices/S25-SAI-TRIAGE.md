@@ -193,3 +193,4 @@ Timing is as in round 4: about 11 s back from cover plus a 3 s look, inside 40 s
 
 ### Checks
 - `node --check scripts/e2e-stealth-ai.mjs`: OK. No src change.
+- Queued: set `s25-sai-fix5`, suite `e2e-stealth-ai`, on 3a762da9, request `20261023T182918-night-shift-guard-ai-3a762da9-820f`.
