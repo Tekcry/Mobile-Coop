@@ -21,6 +21,12 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   guardrender-s3a-e704d5f3 (stealth-ai takedown sectorops enemies coop ctcourse, JOBS=3) + 4192 guardrender-s6-c181002e
   (smoke stealth-ai sectorops ctcourse, JOBS=2).
 - 11:15 TRAIN 22 a39d688f GREEN (full GPU JOBS=5, wall 408 s) -> orchestrator (4.71.0). JOBS=5 clean beside an idle 4192.
+- 11:40 GUARD-RENDER: S1 look check OK (look-s1/, on = off in all 3 visions) -> PR #204 OPEN (train-ready, orchestrator
+  told). S6 measure DONE (work/guardrender-s6-on|off; alert 24: sectorops 8.4 -> 8.1 ms, ctcourse 7.3 -> 6.5, patrol
+  noise, no render-CPU regression on baked maps). AGENTS: Opus S3a fix round 2; Sonnet S6 fix round (custom list only
+  when baked moon, reach from player, body rigs reach, runs into docs); Sonnet S5 PR prep (merge S1 + master, golden:
+  report, no recapture without CT Core). RUNNING chain w: 4189 guardais10-88a93584 then guardrender-s3a-e704d5f3 (stale
+  after fix 2: rerun on the new head), 4192 guardrender-s6-c181002e (baseline before the S6 fixes).
 - 11:30 CHECKER (Opus) S3a e704d5f3 PASS WITH NOTES: (1, blocks job PR) fit script has no `free` mode for MOVE + no
   crouch sweep; (2) harness re-implements syncHitboxes emote logic (move to a pure fn, test beginTakedown blindPose clear);
   (3) hostage walk untested (mSx survives held blend, frozen phase); exceptions OK, peek cycle 29 cm = follow-up (smaller
