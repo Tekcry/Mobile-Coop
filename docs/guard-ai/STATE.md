@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~13:20: laptop GPU sectorops:1 GREEN on s10 0742bd0d (8/8 with the 345fbb91 passes). TRAIN-READY sent to the
+orchestrator for train 24: #200 -> #201 -> #202 -> #203 (heads caa59027 / 29020c5a / 74095d47 / 0742bd0d).
+Next in line: #208 (s12 a31daa61), then S13 + S14 + S15 batch.
+
 ~13:05: S6 close-on fix s10 0742bd0d (test only: straight-line bound to a walled room; seeded, route distance,
 tests/s6CloseOn.test.ts; slices/S10.md "S6 close-on fix"); laptop rerun of sectorops:1 REQUESTED (Test Runner; green =
 train-ready #200-#203). s12 <- s10: a31daa61 (#208). S15 DONE debbfd0a (217 unit tests; A61 / A63 updated: course mains
