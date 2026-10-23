@@ -1,0 +1,17 @@
+{
+  "id": "20261023T183746-night-shift-sector-o-809c25f4-7534",
+  "sha": "809c25f40813de95da6f7bd0e467ac75c5037958",
+  "branch": "feature/sector-redesign-lr16int",
+  "pr": 287,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-lightbake",
+    "e2e-darkness",
+    "e2e-desktop:3",
+    "e2e-sectorops",
+    "e2e-ctcourse"
+  ],
+  "set": "lr16w",
+  "note": "LR16 batch with the nsGrid2 D3D11 fix + polish C/F + LR16-P"
+}
