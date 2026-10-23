@@ -125,7 +125,7 @@ describe('A129 H1', () => {
   it('the emissive parts the catalogue names exist in the meshes', () => {
     for (const [id, parts] of Object.entries(cat.emissive)) for (const m of parts) expect(Object.keys(hero.pieces[id]!.meshes), `${id}.${m}`).toContain(m);
   });
-  it('the hero placements: the exact ones of the brief placed; the refused ones left out and listed (L1: the three wall pieces sit 0.15 off the wall face, rule V; L2 / L3: the allowed K6 / K1 omissions)', () => {
+  it('the hero placements: the exact ones of the brief placed; the refused ones left out and listed (L1: the three wall pieces on the wall faces; L2 / L3: the allowed K6 / K1 omissions)', () => {
     const at = (p: ArtPlacement): number[] => [p.x, p.y, p.z].map((v) => Math.round(v * 100) / 100 + 0);
     const h1 = (prop: string): ArtPlacement[] => ofCat('H1').filter((p) => p.prop === prop);
     expect(h1('barrierHousing').map(at)).toEqual([[11, 1, -76.2]]);
@@ -133,8 +133,11 @@ describe('A129 H1', () => {
     expect(ps.filter((p) => p.prop === 'siteSign').map(at)).toEqual([[6.8, 0, -79]]);
     expect(ps.filter((p) => p.prop === 'bikeRack' && Math.abs(p.z + 46.8) < 0.01).map((p) => Math.round(p.x * 100) / 100).sort((a, b) => a - b)).toEqual([-8, -2]);
     expect(ps.filter((p) => p.prop === 'parkBench' && Math.abs(p.z + 47.6) < 0.01).length).toBe(0);
-    for (const prop of ['monitorBank', 'keyCabinet', 'visitorBoard']) expect(h1(prop).length, prop).toBe(0);
-    expect(S1_OMITTED.map((m) => /(?:H1|K):\w+/.exec(m)![0] + ' ' + /: (V|K\d+):/.exec(m)![1])).toEqual(['H1:monitorBank V', 'H1:keyCabinet V', 'H1:visitorBoard V', 'K:bikeRack K6', 'K:parkBench K1']);
+    // art-join: the three wall pieces moved onto the gatehouse's inner wall faces (S1 L1)
+    expect(h1('monitorBank').map(at)).toEqual([[18.8, 0, -73.15]]);
+    expect(h1('keyCabinet').map(at)).toEqual([[15.2, 0, -73.15]]);
+    expect(h1('visitorBoard').map(at)).toEqual([[14.15, 0, -78]]);
+    expect(S1_OMITTED.map((m) => /(?:H1|K):\w+/.exec(m)![0] + ' ' + /: (V|K\d+):/.exec(m)![1])).toEqual(['K:bikeRack K6', 'K:parkBench K1']);
   });
 });
 

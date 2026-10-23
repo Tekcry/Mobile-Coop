@@ -142,7 +142,8 @@ export function dressS1(d: CampusDresser): void {
   for (const x of BOLLARD_XS) lit(d.skinCyl('H1:lightBollard', cy(x, -45.5), { why: 'a forecourt light bollard post (the lamp stays the rig\'s)' }), S1_GROUPS.fore);
 
   // ---- 2. hero placements (exact). A throw is a brief error (the kit's keepout / rule V / W said no): the piece is left out,
-  // never moved, and the message is kept in `S1_OMITTED` for the report and the test.
+  // never moved, and the message is kept in `S1_OMITTED` for the report and the test. The three gatehouse wall pieces sit on
+  // the inner wall faces (z -73.15, x 14.15: the walls are 0.3 thick on -73 and 14; art-join, S1 L1).
   S1_OMITTED.length = 0;
   const hero = (piece: string, x: number, y: number, z: number, yaw: number, o: Parameters<CampusDresser['add']>[5]): void => {
     try {
@@ -151,9 +152,9 @@ export function dressS1(d: CampusDresser): void {
       S1_OMITTED.push((e as Error).message);
     }
   };
-  hero('H1:monitorBank', 18.8, 0, -73.3, PI, { cls: 'visual', group: S1_GROUPS.gate, why: 'the CCTV officer cam-gate / cam-walk monitors on the north wall' });
-  hero('H1:keyCabinet', 15.2, 0, -73.3, PI, { cls: 'visual', why: 'the site keys by the door' });
-  hero('H1:visitorBoard', 14.3, 0, -78.0, PI / 2, { cls: 'visual', why: 'the visitor list the player downloads is also on paper' });
+  hero('H1:monitorBank', 18.8, 0, -73.15, PI, { cls: 'visual', group: S1_GROUPS.gate, why: 'the CCTV officer cam-gate / cam-walk monitors on the north wall' });
+  hero('H1:keyCabinet', 15.2, 0, -73.15, PI, { cls: 'visual', why: 'the site keys by the door' });
+  hero('H1:visitorBoard', 14.15, 0, -78.0, PI / 2, { cls: 'visual', why: 'the visitor list the player downloads is also on paper' });
   hero('H1:barrierHousing', 11.0, 1.0, -76.2, 0, { cls: 'visual', why: 'the motor housing on the island top' });
   hero('H1:intercomPost', 12.6, 0, -79.3, 0, { cls: 'see', why: 'the drivers intercom by the gate' });
   hero('K:siteSign', 6.8, 0, -79.0, PI, { cls: 'solid', why: 'the Orrin site sign at the gate' });
