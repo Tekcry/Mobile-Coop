@@ -1,6 +1,14 @@
 # laptop-queue - state
 
-## Now (2026-10-23 ~21:00, PR #252 + desktop worker)
+## Now (2026-10-23 ~22:05, Test Runner)
+- Laptop service restarted on e1398df4 at ~21:57 (Michael approved; Stop-ScheduledTask leaves the node child alive,
+  so a restart needs the node pid killed too). "done claim(s) pushed: 11": desktop lane unblocked.
+- Open-PR train gate (Orchestrator ~22:00): `pendingTrains()` (scripts/laptop-queue/service.mjs ~201) runs only a
+  train/<n> head that is the head of an OPEN train PR; a failed PR list skips trains that pass. Fixes the rerun of
+  closed train 35 aeadaec1 and the double run of a pre-version head (ce40dc06 then aeadaec1). Pushed after #252 entered
+  train 36, so it rides the next train (PR #252 head moves past the train 36 member sha).
+
+## Earlier (2026-10-23 ~21:00, PR #252 + desktop worker)
 Desktop overflow lane (Michael ~20:45 via Orchestrator): `LQ_WORKER=desktop` (a49cee57, fix round a1fc57ac + 6a658738
 after an Opus checker FIX: done sync every pass, claim refresh at lock / drop when taken over, release on give-up, desktop
 waits for claims and heavy.lock, 140-char status), 032b8969 self-update before a pass. Claims `claims/<id>.json` on
