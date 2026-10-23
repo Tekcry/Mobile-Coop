@@ -126,3 +126,152 @@ describe('sector-redesign perf: SectorGuardFreeze occlusion (NullEngine, a fake 
     f.dispose();
   });
 });
+
+// (frzpol) Boxes as a fake static world: the distance to the first box the segment enters (slab test).
+type Box = [number, number, number, number, number, number];
+function boxRay(boxes: Box[], counter: { n: number }) {
+  return (a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }): number => {
+    counter.n++;
+    const d = [b.x - a.x, b.y - a.y, b.z - a.z];
+    const o = [a.x, a.y, a.z];
+    const full = Math.sqrt(d[0]! ** 2 + d[1]! ** 2 + d[2]! ** 2);
+    let best = 1;
+    for (const bx of boxes) {
+      let t0 = 0;
+      let t1 = 1;
+      for (let k = 0; k < 3; k++) {
+        const lo = bx[k]!;
+        const hi = bx[k + 3]!;
+        if (Math.abs(d[k]!) < 1e-12) {
+          if (o[k]! < lo || o[k]! > hi) t0 = 2;
+          continue;
+        }
+        let ta = (lo - o[k]!) / d[k]!;
+        let tb = (hi - o[k]!) / d[k]!;
+        if (ta > tb) [ta, tb] = [tb, ta];
+        t0 = Math.max(t0, ta);
+        t1 = Math.min(t1, tb);
+      }
+      if (t0 <= t1 && t0 < best) best = t0;
+    }
+    return best * full;
+  };
+}
+
+async function frzpolScene() {
+  const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+  const B = await import('../src/core/babylon');
+  const { PartLibrary } = await import('../src/world/partLibrary');
+  const { CharacterRig } = await import('../src/player/characterRig');
+  const { ENEMIES } = await import('../src/ai/enemyDefs');
+  const V = await import('../src/game/sectorGuardFreezeView');
+  vi.spyOn(Math, 'random').mockReturnValue(0.25);
+  const scene = new B.Scene(new NullEngine());
+  const cam = new B.FreeCamera('cam', new B.Vector3(0, 1.6, 0), scene);
+  cam.setTarget(new B.Vector3(0, 1.6, 10));
+  const lib = new PartLibrary(scene);
+  const def = ENEMIES.grunt;
+  const guard = (name: string, x: number, y: number, z: number) => {
+    const rig = new CharacterRig(scene, (s, h, sl) => lib.instance(s, h, `enemy-${sl}`), def.look, def.height, name, { build: def.build, armor: def.plated, merge: true });
+    rig.root.position.set(x, y, z);
+    return { alive: true, taken: false, dog: null, def, bodyRig: rig } as unknown as Enemy;
+  };
+  return { B, V, scene, cam, guard };
+}
+
+describe('sector-redesign frzpol: no late show', () => {
+  it('the view epoch moving (a door opened) re-tests a hidden guard at the next evaluation', async () => {
+    const { V, scene, guard } = await frzpolScene();
+    const boxes: Box[] = [[-20, 0, 10, 20, 3, 10.2]];
+    const c = { n: 0 };
+    let epoch = 0;
+    const e = guard('g', 0, 0, 15);
+    const f = new V.SectorGuardFreeze(scene, { enemies: [e] }, boxRay(boxes, c), () => epoch);
+    scene.render();
+    expect(e.bodyRig.root.isEnabled(false)).toBe(false);
+    // the wall goes with no epoch move: the verdict waits for the re-test
+    boxes.length = 0;
+    scene.render();
+    expect(e.bodyRig.root.isEnabled(false)).toBe(false);
+    // the epoch moves (a door leaf stopped hiding the view): tested and drawn at once
+    epoch++;
+    scene.render();
+    expect(e.bodyRig.root.isEnabled(false)).toBe(true);
+    f.dispose();
+  });
+
+  it('a hidden guard coming back into the frustum is re-tested at once (no stale verdict)', async () => {
+    const { B, V, scene, cam, guard } = await frzpolScene();
+    const boxes: Box[] = [[-20, 0, 10, 20, 3, 10.2]];
+    const e = guard('g', 0, 0, 15);
+    const f = new V.SectorGuardFreeze(scene, { enemies: [e] }, boxRay(boxes, { n: 0 }));
+    scene.render();
+    expect(f.occluded).toBe(1);
+    cam.setTarget(new B.Vector3(0, 1.6, -10));
+    scene.render();
+    expect(e.bodyRig.root.isEnabled(false)).toBe(false);
+    expect(f.occluded).toBe(0);
+    // he walks into the open while out of view; the view turns back (no camera move: not a cut)
+    boxes.length = 0;
+    cam.setTarget(new B.Vector3(0, 1.6, 10));
+    scene.render();
+    expect(e.bodyRig.root.isEnabled(false)).toBe(true);
+    f.dispose();
+  });
+
+  it('a guard hidden right behind a wall (near the edge) is re-tested every evaluation; far behind it, every RETEST', async () => {
+    const { V, scene, guard } = await frzpolScene();
+    const boxes: Box[] = [[-20, 0, 10, 20, 3, 10.2]];
+    const c = { n: 0 };
+    const near = guard('near', 0, 0, 10.7);
+    const f = new V.SectorGuardFreeze(scene, { enemies: [near] }, boxRay(boxes, c));
+    scene.render();
+    expect(near.bodyRig.root.isEnabled(false)).toBe(false);
+    for (let k = 0; k < 3; k++) {
+      const r0 = c.n;
+      scene.render();
+      expect(c.n - r0).toBeGreaterThan(0);
+      expect(near.bodyRig.root.isEnabled(false)).toBe(false);
+    }
+    boxes.length = 0;
+    scene.render();
+    expect(near.bodyRig.root.isEnabled(false)).toBe(true);
+    f.dispose();
+    // far behind the wall: the verdict is reused between re-tests
+    boxes.push([-20, 0, 10, 20, 3, 10.2]);
+    const far = guard('far', 0, 0, 16);
+    const c2 = { n: 0 };
+    const f2 = new V.SectorGuardFreeze(scene, { enemies: [far] }, boxRay(boxes, c2));
+    scene.render();
+    const r1 = c2.n;
+    for (let k = 0; k < V.RETEST; k++) scene.render();
+    expect(c2.n).toBe(r1);
+    f2.dispose();
+  });
+
+  it("a roof guard hidden by the parapet is drawn while his moon shadow lands on open ground below", async () => {
+    const { B, V, scene, guard } = await frzpolScene();
+    const sun = new B.DirectionalLight('moon', new B.Vector3(0.8, -0.6, 0), scene);
+    new B.ShadowGenerator(256, sun);
+    // ground; a block 8.4 m high (x -10..2, z 18..30) with a parapet on its front edge
+    const boxes: Box[] = [
+      [-100, -1, -100, 100, 0, 100],
+      [-10, 0, 18, 2, 8.4, 30],
+      [-10, 8.4, 18, 2, 10.5, 18.2],
+      // a sign in the air hides where his shadow would fall on his floor's plane past the edge (the old floor point)
+      [2, 5, 17, 4, 12, 17.5],
+    ];
+    const edge = guard('edge', 0, 8.4, 20);
+    const f = new V.SectorGuardFreeze(scene, { enemies: [edge] }, boxRay(boxes, { n: 0 }));
+    scene.render();
+    expect(edge.bodyRig.root.isEnabled(false)).toBe(true);
+    f.dispose();
+    // the same guard in the middle of the roof: his shadow stays on the roof, he freezes
+    const mid = guard('mid', -6, 8.4, 20);
+    const f2 = new V.SectorGuardFreeze(scene, { enemies: [mid] }, boxRay(boxes, { n: 0 }));
+    scene.render();
+    expect(mid.bodyRig.root.isEnabled(false)).toBe(false);
+    expect(f2.occluded).toBe(1);
+    f2.dispose();
+  });
+});

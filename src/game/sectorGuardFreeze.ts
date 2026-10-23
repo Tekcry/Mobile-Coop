@@ -132,16 +132,26 @@ export function guardFrozen(pl: ArrayLike<number>, x: number, y: number, z: numb
   return guardFrustum(pl, x, y, z, height, cx, cy, cz, lights) === 0;
 }
 
-/** Occlusion: sample points per guard (x, y, z each), at most this many. */
-export const FREEZE_MAX_POINTS = 6;
+/** Occlusion: sample points per guard (x, y, z each), at most this many (5 body, 2 moon shadow on his floor). */
+export const FREEZE_MAX_POINTS = 7;
+/** (frzpol) Knee height (m) of the leg sample: legs seen under an overhang, a raised shutter, or from below a floor lip. */
+export const FREEZE_KNEE = 0.4;
+/** (frzpol) A moon-shadow probe that stops more than this (m) below his feet has left his floor (a roof edge): its
+ *  landing is sampled too. */
+export const FREEZE_LEDGE = 0.5;
+/** (frzpol) Shadow probes per occlusion test (from the head, then from the middle when the head's lands below). */
+export const FREEZE_PROBES = 2;
+/** (frzpol) Most rays one occlusion test casts (before see-through recasts): the points, each probe and its landing. */
+export const FREEZE_TEST_RAYS = FREEZE_MAX_POINTS + FREEZE_PROBES * 2;
 /** Sideways reach of the body samples (m, across the view): the body's half width, his travel and the camera's over a
  *  re-test period, and a margin, so a guard about to step out from behind a corner is drawn before he shows. */
 export const FREEZE_SIDE = 1.2;
 
 /**
  * The points the camera must not see for an occluded guard to freeze, into `out` (3 numbers each); returns the count.
- * Body (`FREEZE_BODY_IN`): above the head, the chest, and the chest `FREEZE_SIDE` either side across the view. Moon
- * shadow (`FREEZE_SHADOW_IN`): on his floor where the shadow of his middle and of his head falls.
+ * Body (`FREEZE_BODY_IN`): above the head, the chest, the chest `FREEZE_SIDE` either side across the view, and the knee
+ * (frzpol). Moon shadow (`FREEZE_SHADOW_IN`): on his floor where the shadow of his middle and of his head falls (where
+ * it leaves his floor: `shadowProbe` / `shadowLanding`).
  */
 export function occlusionPoints(out: Float64Array, bits: number, x: number, y: number, z: number, height: number, cx: number, cz: number, lights: FreezeLights): number {
   let n = 0;
@@ -157,6 +167,7 @@ export function occlusionPoints(out: Float64Array, bits: number, x: number, y: n
     dz /= d;
     n = put(out, n, x + dz * FREEZE_SIDE, cy, z - dx * FREEZE_SIDE);
     n = put(out, n, x - dz * FREEZE_SIDE, cy, z + dx * FREEZE_SIDE);
+    n = put(out, n, x, y + FREEZE_KNEE, z);
   }
   if (bits & FREEZE_SHADOW_IN && lights.sun) {
     const k = 1 / Math.max(-lights.sy, FREEZE.minSunY);
@@ -174,4 +185,42 @@ function put(out: Float64Array, n: number, x: number, y: number, z: number): num
   out[n * 3 + 1] = y;
   out[n * 3 + 2] = z;
   return n + 1;
+}
+
+/**
+ * (frzpol) A moon-shadow probe for a guard (feet at x, y, z, `height` tall): the ray from the point at `frac` of his
+ * height along the light down to `FREEZE.shadowDrop` below his feet, into `out` as (fx, fy, fz, tx, ty, tz). Cast it
+ * (the freeze's render-only static ray): where it stops is where that point's shadow lands. False without a moon.
+ */
+export function shadowProbe(out: Float64Array, x: number, y: number, z: number, height: number, frac: number, lights: FreezeLights): boolean {
+  if (!lights.sun) return false;
+  const fy = y + height * frac;
+  const k = (height * frac + FREEZE.shadowDrop) / Math.max(-lights.sy, FREEZE.minSunY);
+  out[0] = x;
+  out[1] = fy;
+  out[2] = z;
+  out[3] = x + lights.sx * k;
+  out[4] = fy + lights.sy * k;
+  out[5] = z + lights.sz * k;
+  return true;
+}
+
+/**
+ * (frzpol) The probe in `out` (from `shadowProbe`) stopped `dist` along it. When that is off his floor (more than
+ * `FREEZE_LEDGE` below his feet `y`: a roof edge, the shadow on the ground below), the landing backed 0.2 m toward the
+ * light (so it sits above the surface) goes to `out[6..8]` and the result is true. False when the shadow stays on his
+ * floor (his floor points cover it) or the probe found no ground within the drop (the frustum capsule's reach too).
+ */
+export function shadowLanding(out: Float64Array, y: number, dist: number): boolean {
+  const dx = out[3]! - out[0]!;
+  const dy = out[4]! - out[1]!;
+  const dz = out[5]! - out[2]!;
+  const len = hyp3(dx, dy, dz);
+  if (len <= 0 || dist >= len - 1e-3) return false;
+  if (out[1]! + (dy * dist) / len >= y - FREEZE_LEDGE) return false;
+  const t = Math.max(0, dist - 0.2) / len;
+  out[6] = out[0]! + dx * t;
+  out[7] = out[1]! + dy * t;
+  out[8] = out[2]! + dz * t;
+  return true;
 }

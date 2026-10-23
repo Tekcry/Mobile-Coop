@@ -10,12 +10,17 @@
 // `seeThroughRay`). Occlusion is re-tested every `RETEST` evaluations per guard (staggered, at most `TESTS_PER_EVAL`
 // guards per evaluation), at once after a camera cut; a guard found visible stays drawn `HOLD` evaluations before
 // the next test.
+// (frzpol) A hidden verdict is re-tested at the next evaluation (urgent: drawn until tested if over the budget) when
+// the view epoch moves (a door leaf stops being opaque, a breakable pane opens: `views`), when his frustum bits gain a
+// part (re-entering the frustum, the body joining the shadow), or after a cut; a hidden verdict with a blocker within
+// `EDGE` of a sample point (stepping out of cover, a doorway) is re-tested every evaluation. Guards are walked from a
+// rotating start, so the per-evaluation budget is shared fairly.
 // `?guardfreeze=0` turns it off (A/B runs).
 
 import { DirectionalLight, PointLight, SpotLight, Vector3, type Observer, type Scene } from '../core/babylon';
 import type { Enemy } from '../ai/enemy';
 import { hyp3 } from '../core/mathx';
-import { FREEZE_DRAW, FREEZE_MAX_POINTS, FreezeLights, guardFrustum, occlusionPoints } from './sectorGuardFreeze';
+import { FREEZE_DRAW, FREEZE_MAX_POINTS, FREEZE_SHADOW_IN, FreezeLights, guardFrustum, occlusionPoints, shadowLanding, shadowProbe } from './sectorGuardFreeze';
 
 /** What the freeze reads of the guards (the enemy manager). */
 export interface FreezeGuards {
@@ -34,8 +39,17 @@ export const CUT = 0.75;
 /** A sample point counts as seen when the ray stops within this of it (m). */
 const SLACK = 0.25;
 /** At most this many guards get an occlusion test per evaluation (a camera cut re-tests every hidden verdict: spread
- *  over the next evaluations; a guard waiting for his test is drawn meanwhile). ~6 rays each. */
+ *  over the next evaluations; a guard waiting for his test is drawn meanwhile). At most `FREEZE_TEST_RAYS` (11) rays
+ *  each, 5-7 typical. */
 export const TESTS_PER_EVAL = 8;
+/** (frzpol) A hidden verdict whose blocker stops within this (m) of a sample point is near the edge: re-tested every
+ *  evaluation (within the budget). */
+export const EDGE = 0.75;
+/** (frzpol) Over the budget, a non-urgent hidden verdict at most this many evaluations old is kept (else drawn). */
+export const STALE = RETEST;
+/** (frzpol) The view epoch: a number that grows when something stops hiding what is behind it (a door leaf no longer
+ *  opaque, a breakable panel opened). Read once per evaluation. */
+export type FreezeViews = () => number;
 
 /** The first hit of a render-only cast (Babylon's `PhysicsRaycastResult` fits; read before the next cast). */
 export interface FreezeHit {
@@ -90,12 +104,26 @@ export class SectorGuardFreeze {
   private readonly to = new Vector3();
   /** The guards this freeze disabled (only these are ever re-enabled by it). */
   private readonly frozen: Enemy[] = [];
-  /** Occlusion memo by list index: the guard, hidden (1) or seen (0), evaluations until the next test. */
+  /** Occlusion memo by list index: the guard, hidden (1) or seen (0), evaluations until the next test; (frzpol) his
+   *  last frustum bits (0: out or drawn), an urgent re-test due (1), the hidden verdict near the edge (1), evaluations
+   *  since his last test. */
   private memoE: (Enemy | null)[] = [];
-  private memoHidden = new Uint8Array(0);
-  private memoWait = new Int16Array(0);
+  private memoHidden: Uint8Array = new Uint8Array(0);
+  private memoWait: Int16Array = new Int16Array(0);
+  private memoBits: Uint8Array = new Uint8Array(0);
+  private memoUrgent: Uint8Array = new Uint8Array(0);
+  private memoEdge: Uint8Array = new Uint8Array(0);
+  private memoAge: Int16Array = new Int16Array(0);
   private lastCam: unknown = null;
   private readonly lastPos = new Vector3(Number.NaN, 0, 0);
+  /** (frzpol) The moon-shadow probe: from, to, landing. */
+  private readonly probe = new Float64Array(9);
+  /** (frzpol) The last test's hidden verdict was near the edge. */
+  private edge = false;
+  /** (frzpol) The view epoch at the last evaluation. */
+  private lastViews = Number.NaN;
+  /** (frzpol) Where the guard walk starts (rotates each evaluation: the budget is shared fairly). */
+  private rot = 0;
   /** Guards frozen at the last evaluation (debug, perf runs). */
   count = 0;
   /** Of them, frozen by occlusion (the rest by the frustum). */
@@ -107,6 +135,7 @@ export class SectorGuardFreeze {
     private readonly scene: Scene,
     private readonly guards: FreezeGuards,
     private readonly ray: FreezeRay | null = null,
+    private readonly views: FreezeViews | null = null,
   ) {
     this.obs = scene.onBeforeActiveMeshesEvaluationObservable.add(this.step);
   }
@@ -139,16 +168,29 @@ export class SectorGuardFreeze {
     this.lastCam = cam;
     this.lastPos.copyFrom(c);
     this.fitMemo(list.length);
+    // (frzpol) the view epoch moved (a door stopped being opaque, a pane opened): every hidden verdict is re-tested
+    const v = this.views ? this.views() : 0;
+    const bump = v !== this.lastViews;
+    this.lastViews = v;
     let n = 0;
     let occ = 0;
     let tests = 0;
     this.rays = 0;
-    for (let i = 0; i < list.length; i++) {
+    const len = list.length;
+    if (this.rot >= len) this.rot = 0;
+    const start = this.rot;
+    this.rot++;
+    for (let j = 0; j < len; j++) {
+      const i = j + start < len ? j + start : j + start - len;
       const e = list[i]!;
       if (this.memoE[i] !== e) {
         this.memoE[i] = e;
         this.memoHidden[i] = 0;
         this.memoWait[i] = i % RETEST;
+        this.memoBits[i] = 0;
+        this.memoUrgent[i] = 0;
+        this.memoEdge[i] = 0;
+        this.memoAge[i] = 0;
       }
       // (a dog's humanoid rig is hidden by the enemy itself: never touched)
       if (!e.alive || e.taken || e.dog !== null) continue;
@@ -156,9 +198,16 @@ export class SectorGuardFreeze {
       const p = root.position;
       const h = e.def.height;
       const bits = guardFrustum(pl, p.x, p.y, p.z, h, c.x, c.y, c.z, this.lights);
+      const prev = this.memoBits[i]!;
+      this.memoBits[i] = bits > 0 ? bits : 0;
       let want = bits === 0;
       if (bits > 0 && this.ray) {
-        if (cut && this.memoHidden[i]) this.memoWait[i] = 0;
+        // a hidden verdict goes stale after a cut, a view-epoch move, or a part of him newly in the frustum (re-entry)
+        if (this.memoHidden[i] && (cut || bump || (bits & ~prev) !== 0)) {
+          this.memoWait[i] = 0;
+          this.memoUrgent[i] = 1;
+        }
+        if (this.memoAge[i]! < 32767) this.memoAge[i]!++;
         if (this.memoWait[i]! > 0) {
           this.memoWait[i]!--;
           want = this.memoHidden[i] === 1;
@@ -166,9 +215,16 @@ export class SectorGuardFreeze {
           tests++;
           const hidden = this.occluded3(bits, p.x, p.y, p.z, h, c);
           this.memoHidden[i] = hidden ? 1 : 0;
-          this.memoWait[i] = hidden ? RETEST : HOLD;
+          this.memoEdge[i] = hidden && this.edge ? 1 : 0;
+          this.memoUrgent[i] = 0;
+          this.memoAge[i] = 0;
+          // (near the edge: tested again next evaluation)
+          this.memoWait[i] = hidden ? (this.edge ? 0 : RETEST) : HOLD;
           want = hidden;
-        } else want = false; // (over the budget: drawn until his test, next evaluation)
+        } else {
+          // over the budget: an urgent or old verdict is drawn until his test; a fresh one (an edge re-test) is kept
+          want = this.memoHidden[i] === 1 && this.memoUrgent[i] === 0 && this.memoAge[i]! <= STALE;
+        }
         if (want) occ++;
       } else if (bits === FREEZE_DRAW) this.memoHidden[i] = 0;
       const on = root.isEnabled(false);
@@ -187,32 +243,54 @@ export class SectorGuardFreeze {
     this.occluded = occ;
   };
 
-  /** Is every sample point of the guard (feet at x, y, z) hidden from the camera `c` by static geometry? */
+  /**
+   * Is every sample point of the guard (feet at x, y, z) hidden from the camera `c` by static geometry? (frzpol) Also
+   * where his moon shadow leaves his floor (a roof edge: the probe from his head, then his middle) must be hidden; sets
+   * `edge` when a blocker stops within `EDGE` of a point.
+   */
   private occluded3(bits: number, x: number, y: number, z: number, h: number, c: Vector3): boolean {
-    const ray = this.ray!;
     const pts = this.pts;
     const n = occlusionPoints(pts, bits, x, y, z, h, c.x, c.z, this.lights);
-    this.from.copyFrom(c);
+    this.edge = false;
     for (let k = 0; k < n; k++) {
-      const px = pts[k * 3]!;
-      const py = pts[k * 3 + 1]!;
-      const pz = pts[k * 3 + 2]!;
-      this.to.set(px, py, pz);
-      this.rays++;
-      if (ray(this.from, this.to) >= hyp3(px - c.x, py - c.y, pz - c.z) - SLACK) return false;
+      if (this.seen(c, pts[k * 3]!, pts[k * 3 + 1]!, pts[k * 3 + 2]!)) return false;
+    }
+    if (bits & FREEZE_SHADOW_IN) {
+      const pr = this.probe;
+      for (let k = 0; k < 2; k++) {
+        if (!shadowProbe(pr, x, y, z, h, k === 0 ? 1 : 0.5, this.lights)) break;
+        this.from.set(pr[0]!, pr[1]!, pr[2]!);
+        this.to.set(pr[3]!, pr[4]!, pr[5]!);
+        this.rays++;
+        // (on his floor, or no ground within the drop: his floor points cover it, and the middle's lands nearer)
+        if (!shadowLanding(pr, y, this.ray!(this.from, this.to))) break;
+        if (this.seen(c, pr[6]!, pr[7]!, pr[8]!)) return false;
+      }
     }
     return true;
+  }
+
+  /** Does the camera `c` see the point (px, py, pz) past static geometry? Marks `edge` for a near blocker. */
+  private seen(c: Vector3, px: number, py: number, pz: number): boolean {
+    this.from.copyFrom(c);
+    this.to.set(px, py, pz);
+    this.rays++;
+    const d = this.ray!(this.from, this.to);
+    const t = hyp3(px - c.x, py - c.y, pz - c.z);
+    if (d >= t - SLACK) return true;
+    if (d >= t - EDGE) this.edge = true;
+    return false;
   }
 
   private fitMemo(n: number): void {
     if (this.memoHidden.length >= n) return;
     const m = Math.max(n, 32);
-    const hid = new Uint8Array(m);
-    hid.set(this.memoHidden);
-    const wait = new Int16Array(m);
-    wait.set(this.memoWait);
-    this.memoHidden = hid;
-    this.memoWait = wait;
+    this.memoHidden = grow8(this.memoHidden, m);
+    this.memoBits = grow8(this.memoBits, m);
+    this.memoUrgent = grow8(this.memoUrgent, m);
+    this.memoEdge = grow8(this.memoEdge, m);
+    this.memoWait = grow16(this.memoWait, m);
+    this.memoAge = grow16(this.memoAge, m);
     while (this.memoE.length < m) this.memoE.push(null);
   }
 
@@ -256,4 +334,16 @@ export class SectorGuardFreeze {
     while (this.frozen.length) this.thaw(this.frozen.length - 1);
     this.count = 0;
   }
+}
+
+/** (frzpol) `a` copied into a new array of `m` (the memo grows with the guard list, never per frame). */
+function grow8(a: Uint8Array, m: number): Uint8Array {
+  const b = new Uint8Array(m);
+  b.set(a);
+  return b;
+}
+function grow16(a: Int16Array, m: number): Int16Array {
+  const b = new Int16Array(m);
+  b.set(a);
+  return b;
 }

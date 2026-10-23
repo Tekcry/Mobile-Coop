@@ -225,13 +225,15 @@ export class SectorMode implements GameMode {
     g.ctDev = this.ct;
     // (the occlusion rays: static geometry only, so glass and fences never hide a guard; fix round: the static bodies the
     // camera sees through - a door leaf not shut, an unbroken breakable pane, a roof sheet - are stepped past. Render
-    // only: gameplay rays keep G.STATIC whole)
+    // only: gameplay rays keep G.STATIC whole; frzpol: a door that stops hiding the view or a pane that opens re-tests
+    // the hidden guards at the next evaluation)
     if (flags.guardFreeze) {
       const w = g.world;
       const sheets = w.level.sheets;
       const see = (body: unknown, x: number, y: number, z: number): boolean =>
         w.doors.seeThrough(body) || w.breakables.seeThrough(body) || inSheet(sheets, x, y, z);
-      this.freeze = new SectorGuardFreeze(g.scene, em, seeThroughRay((a, b) => g.ballistics.cast(a, b, G.STATIC), see));
+      const views = (): number => w.doors.viewVersion() + w.breakables.viewVersion();
+      this.freeze = new SectorGuardFreeze(g.scene, em, seeThroughRay((a, b) => g.ballistics.cast(a, b, G.STATIC), see), views);
     }
     (window as unknown as { __sector?: SectorMode }).__sector = this;
     this.findDoors();
