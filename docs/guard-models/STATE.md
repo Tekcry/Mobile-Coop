@@ -2,8 +2,7 @@
 
 ## Resume
 - Now (2026-10-23 ~21:10, lead Player Build): P1 G0 / GB / G6 DONE and merged here (a63e82ca; tsc 0, vitest 3 files 65);
-  P1 checker (Opus) running on a63e82ca. G6n done on feature/gm-g6n f9ce1015 (look seed: src/ai/guardLook.ts, al bits 9-15,
-  AL_MAX 65535); two independent Opus checkers running; merge after both PASS. G5 GuardFigure (Opus) running in
+  P1 checker (Opus) running on a63e82ca. G6n merged (f9ce1015; checkers A wire + B seed stability PASS; polish: posLook modes (Course, Infiltration) can repeat a seed within a section, ~77% for 20 guards; slot and team seeds may clash). G5 GuardFigure (Opus) running in
   Mobile-Coop-gm-g5. P2/P3 started early on GB's driver: G1 bodies (gm-g1), G1h heads (gm-g1h), G3 gear (gm-g3), Opus,
   worktrees off feature/gm-gb 5da3600c; rules C:/NightShift/scratch/ctcore/briefs/gm-common.md + gm-blender.md (desktop
   smoke runs of ONE job under heavy.lock until L0 lands; full stages = laptop alone requests).
