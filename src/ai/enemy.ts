@@ -43,6 +43,7 @@ import { LC_DONE, LC_FACE, LightCheck, type LightCheckWalker } from './lightChec
 import { DogModel } from './dogModel';
 import { emoteBlind, emoteBlindEnd, emoteSeize, emoteStep, guardHead, guardHeadRest, leanStep, newEmoteState, newLeanState, type GuardHeadIn, type GuardHeadRest } from './guardHead';
 import type { InstancedMesh } from '../core/babylon';
+import { GuardAnimTier } from './animTierView';
 
 export type EnemyState = 'idle' | 'chase' | 'attack' | 'seekCover' | 'inCover' | 'melee' | 'dead';
 
@@ -213,6 +214,8 @@ export class Enemy implements Damageable {
   private readonly headLean = newLeanState();
   /** (S3a fix round) Whose emote the rig shows, for the head (`guardHead.emoteStep`, shared with the parity harness). */
   private readonly emoteSt = newEmoteState();
+  /** (guard-render S4) How often the rig solves its pose (`animTier.ts`). */
+  private readonly animTier: GuardAnimTier;
   private tmp = new Vector3();
   private tmpEye = new Vector3();
   private tmpHead = new Vector3();
@@ -352,6 +355,8 @@ export class Enemy implements Damageable {
     const built = buildEnemyRig(ctx.scene, ctx.world, def, this.id);
     this.rig = built.rig;
     this.gun = built.gun;
+    // (guard-render S4) anim tiers: off-screen / far guards solve their pose less often (`animTier.ts`)
+    this.animTier = new GuardAnimTier(ctx.scene, this.rig.voxel?.meshes[0] ?? null, this.num);
     this.hitboxes = new Hitboxes(ctx.scene, ctx.registry, this, def.scale, def.build);
     this.headRest = guardHeadRest(def.height, def.build, def.gun !== null, def.melee ? 0 : def.runSpeed);
     this.voice = new BarkVoice(this.num);
@@ -2081,7 +2086,8 @@ export class Enemy implements Damageable {
       this.dog.update(dt, r.position.x, r.position.y, r.position.z, r.rotation.y, sp, alertK, this.kick);
       this.head.copyFrom(this.dog.head);
     } else {
-      this.rig.animate(dt, rp);
+      // (guard-render S4) full rate in a takedown / held, a scripted emote or a climb (and near any player: the tier)
+      this.rig.animate(dt, rp, this.animTier.dt(dt, r.position, this.ctx.players(), this.taken || this.climbing || this.rig.emote !== null));
     }
     if (this.laser) this.sniperFx();
   }
