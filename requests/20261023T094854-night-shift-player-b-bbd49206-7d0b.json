@@ -1,0 +1,16 @@
+{
+  "id": "20261023T094854-night-shift-player-b-bbd49206-7d0b",
+  "sha": "bbd49206966da455b5f6f7212e37ab052b955b35",
+  "branch": "master",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Player Build",
+  "steps": [
+    "node -e \"import('./scripts/operators/blender.mjs').then(m=>console.log(m.findBlender()))\"",
+    "node -e \"require('fs').accessSync('C:/Program Files/KTX-Software/bin/toktx.exe')\"",
+    "node -e \"require('fs').accessSync('C:/NightShift/downloads/mpfb2-2.0.18/add-on-mpfb-v2.0.18.zip')\""
+  ],
+  "env": {},
+  "set": "guard-bake-probe",
+  "note": "guard-models L0 probe: step 1 Blender 5.2.2, step 2 KTX toktx, step 3 MPFB2 zip; a failing step = that tool missing"
+}
