@@ -276,10 +276,6 @@ export async function walk(t, n) {
   assert(await GA(() => !window.__course.squadOf('a8-officer').alive), 'A8: the officer is down');
   // the press goes in as N2 leaves the talk for the grille (route index 0 -> 1): the board is then about 11 s off (the doc's step 7)
   await until(A, () => { const e = window.__course.squadOf('a8-night2'); return !!e && !e.alerted && e.walker?.idx === 1; }, null, 60000, 'A8: N2 leaves the talk (route index 0 -> 1)');
-  /*PROBE*/ await GA(() => { const L = (window.__pr = []); const t0 = performance.now(); const f = (v) => Math.round(v * 10) / 10;
-    const snap = (why) => { const out = { t: f((performance.now() - t0) / 1000), why }; for (const k of ['a8-night1', 'a8-night2']) { const e = window.__course.squadOf(k); if (!e) continue; out[k.slice(-6)] = { st: e.state, lv: e.aware.level, m: f(e.meter), tg: e.target?.id ?? null, los: e.los, d: f(e.dist), rate: f(e.rate ?? 0), stim: e.hasStimulus ? e.stimulus.map(f) : null, p: [f(e.pos.x), f(e.pos.y), f(e.pos.z)], yaw: f(e.yaw), idx: e.walker?.idx, inc: e.incMode }; } const e2 = window.__course.squadOf('a8-night2'); out.pl = e2 ? e2.ctx.players().map((q) => [q.id, f(q.feet.x), f(q.feet.y), f(q.feet.z), q.crouched, f(q.speed), f(q.light ?? -1)]) : null; L.push(out); };
-    for (const k of ['a8-night1', 'a8-night2']) { const e = window.__course.squadOf(k); if (!e) continue; const a = e.aware; const o = a.set.bind(a); a.set = (lv) => { if (a.level !== lv) snap(k + ' ' + a.level + '->' + lv + ' ' + (new Error().stack || '').split(String.fromCharCode(10)).slice(2, 7).join(' | ')); return o(lv); }; }
-    window.__prI = setInterval(() => { snap('tick'); }, 500); return true; });
   assert((await use(A, CONSOLE)) === 'ok', 'A8: the host presses the console again');
   await until(A, ([f, g]) => window.__course.state.hasFlag(f) && window.__course.debug().gates[g], [LOOP_FLAG, CONSOLE_GATE], 8000, 'A8: the console sets the flag and opens its gate');
   await until(B, (f) => window.__course.wire.s.flags.includes(f), LOOP_FLAG, 8000, 'A8: the client has the flag');
@@ -293,9 +289,9 @@ export async function walk(t, n) {
   // ---- 5. the board: at N2's grille stop the client presses it; the hall goes dark, the grille unlocks, N1 walks to the board ----
   console.log('  A8: the lighting board, the lure');
   await moveClient(BOARD_WEST[0], BOARD_WEST[1], 0.1, 0);
-  /*PROBE*/ try {
-  await until(A, ([gx, gz]) => { const e = window.__course.squadOf('a8-night2'); return !!e && !e.alerted && e.walker?.idx === 2 && Math.hypot(e.pos.x - gx, e.pos.z - gz) < 1.3; }, [133.2, 62.0], 40000, 'A8: N2 is at the grille stop (route index 2)');
-  } finally { const L = await GA(() => { clearInterval(window.__prI); return window.__pr; }); for (const r of L) console.log('PROBE ' + JSON.stringify(r)); }
+  // (S-e2e-fix3c) 60 s: N2's cycle is 39.5 s, and when the loop checks above outlast his 16 s to the grille and back off it, the next stop is a
+  // full cycle away (40 s timed out at the edge)
+  await until(A, ([gx, gz]) => { const e = window.__course.squadOf('a8-night2'); return !!e && !e.alerted && e.walker?.idx === 2 && Math.hypot(e.pos.x - gx, e.pos.z - gz) < 1.3; }, [133.2, 62.0], 60000, 'A8: N2 is at the grille stop (route index 2)');
   const n1a = await guard(N1);
   const board = await GA(() => { const d = window.__app.current.world.layout.course.devices['a8-board']; return [d.x, d.z]; });
   const d0 = Math.hypot(n1a.x - board[0], n1a.z - board[1]);
@@ -389,22 +385,15 @@ export async function walk(t, n) {
   assert(sc1.scans.find((s) => s.id === SCAN).fails >= 1, 'A8: the failed sync is counted');
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, (id) => { const s = window.__ctdev.debug().scans.find((q) => q.id === id); return s.ph[0] === 'idle' && s.ph[1] === 'idle'; }, SCAN, 8000, `A8: both time locks are ready again (${tag})`);
   assert((await gateTimer(CONSOLE_GATE)) > 0, 'A8: the loop is still running at the second try');
-  await GB(([id, item]) => {
-    window.__a8 = { at: -1, use: '' };
-    const f = () => {
-      const s = window.__ctdev?.debug().scans.find((q) => q.id === id);
-      if (s && s.ph[0] === 'hacking' && s.t[0] >= 0.5) {
-        window.__a8.at = s.t[0];
-        const it = window.__app.current.interactables?.items.find((i) => i.id === item);
-        window.__a8.use = !it ? 'missing' : !it.enabled ? 'disabled' : (it.onUse(it), 'ok');
-      } else requestAnimationFrame(f);
-    };
-    requestAnimationFrame(f);
-  }, [SCAN, T2]);
+  // (S-e2e-fix3c) the count on the host's clock: the client page mirrors the host's hack 1.4-1.7 s late (course snapshots), so a start
+  // timed from the client's mirror lands at the window's edge; the client presses once the host's hack has run 0.5 s, and the gap is read
+  // on the host (where the window is judged)
   assert((await use(A, T1)) === 'ok', 'A8: the host starts the synced hack at time lock one');
-  await until(B, () => window.__a8.use !== '', null, 10000, 'A8: the client starts on the count');
-  const at = await GB(() => window.__a8);
-  assert(at.use === 'ok' && at.at >= 0.5 && at.at < 1.5, `A8: the client starts 0.5 s after the host, inside the window (${JSON.stringify(at)})`);
+  await until(A, (id) => { const s = window.__ctdev.debug().scans.find((q) => q.id === id); return s.ph[0] === 'hacking' && s.t[0] >= 0.5; }, SCAN, 8000, 'A8: the host hack has run 0.5 s');
+  const use2 = await use(B, T2);
+  await until(A, (id) => window.__ctdev.debug().scans.find((q) => q.id === id).ph[1] !== 'idle', SCAN, 8000, 'A8: the host sees the client start time lock two');
+  const gap = await GA((id) => { const s = window.__ctdev.debug().scans.find((q) => q.id === id); return s.t[0] - s.t[1]; }, SCAN);
+  assert(use2 === 'ok' && gap >= 0.3 && gap < 1.5, `A8: the client starts about 0.5 s after the host, inside the window (${use2}, gap ${gap.toFixed(2)} s on the host)`);
   await until(A, () => window.__course.state.hasFlag('a8-sync'), null, 15000, 'A8: both hacks inside the window set a8-sync');
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, (id) => { const s = window.__ctdev.debug().scans.find((q) => q.id === id); return s.ph[0] === 'done' && s.ph[1] === 'done'; }, SCAN, 8000, `A8: the ${tag} page sees both time locks done`);
   assert((await hp()) >= hp1, 'A8: the synced hack cost nothing');
@@ -464,7 +453,6 @@ export async function walk(t, n) {
   assert(await lockedOnHost(DOORS.grille), 'A8 pass 2: the grille is locked again on the host');
   await until(B, (i) => window.__course.wire.locks.includes(i), await doorIndex(DOORS.grille), 15000, 'A8 pass 2: the client sees the grille locked');
   assert((await doorOpen(A, DOORS.grille)) > 0.5, 'A8 pass 2: the relock never shuts the door: it stays open (ENGINE-ANSWERS Q9)');
-  /*PROBE*/ for (let k = 0; k < 4; k++) { console.log('PROBE2 ' + JSON.stringify(await GA(([cid, aid]) => { const g = window.__app.current; const d = g.world.doors.list.find((x) => x.anchor.id === aid); const it = g.interactables.items.find((i) => i.id === 'door-' + aid); return { t: d.target, o: d.open, lk: d.anchor.locked, en: it?.enabled, st: window.__course.state.locked(cid), hp: [g.player.position.x, g.player.position.z] }; }, [DOORS.grille, await doorAid(DOORS.grille)]))); await waitSim(100); }
   await closeDoor(A, DOORS.grille, 'A8 pass 2 grille');
   const aid = await doorAid(DOORS.grille);
   assert((await use(A, `door-${aid}`)) === 'disabled', 'A8 pass 2: shut and locked, the grille cannot be opened from inside by hand');
