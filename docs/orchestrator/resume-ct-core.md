@@ -1,4 +1,4 @@
-# Resume - Night Shift | Player Build (resumed 2026-10-23 18:35 after the swap)
+# Resume - Night Shift | Player Build (saved 2026-10-23 19:30 at the 77% save; all worktrees clean + pushed, no locks held)
 
 Rules: CLAUDE.md on origin/master "Session titles", "Heavy-usage throughput", "Token rules", "Account swap". No mid-window clears.
 Opus plans / checks / anim + net code; Sonnet builds from strict briefs; Haiku chores; desktop CPU < 80%. e2e always
@@ -18,6 +18,7 @@ siblings; questions to Michael carry a decision pack (prototype / shots / GPU sh
 Cloud builder ("Night Shift | Cloud Builder 1", one-way): briefs as briefs/<job>-<slice>.md on orphan branch
 `cloud-queue`, line 1 `status: open` (format: README.md there); at each check `done <branch> <sha>` -> fetch, review,
 check; `blocked <reason>` -> answer in the file, set open. Use it first for CPU-heavy builder slices.
+Laptop queue at the save: #249 e2e-ctcourse + e2e-sectorops on bf9445d6 (sent, verdict pending; check Test Runner reply).
 Released: #227 (4.76.0), #207 batch 22 (4.77.0), #214 -> #223 -> #231 stack (4.79.0, train 30, PROTOCOL 40).
 
 ## Open (master 4f6db420 = 4.79.0, train 30, PROTOCOL 40; PROTOCOL asserts 11 files 210/210 + tsc green on it, 18:38)
