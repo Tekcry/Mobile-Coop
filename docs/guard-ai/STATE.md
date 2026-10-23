@@ -1,6 +1,12 @@
 # Guard AI - state
 
 ## Now
+~12:30: s10 <- s6 merged (88a93584; patrolRoute duplicate removed from S10; 208 unit tests). PRs OPEN: #200 S8 (base
+s7) -> #201 S5b (base s8) -> #202 S6 (base s5b) -> #203 S10 (base s6); orchestrator told (not train-ready yet).
+Laptop GPU run moved to the s10 tip 88a935849824 (stealth-ai, sectorops all, ct-warehouse, levels, enemies, wall,
+takedown). Green -> train-ready message for #200-#203. Red -> fix on the failing slice's branch, merge up the stack.
+S12 implementer RUNNING (Opus) in ...-guard-ai-s12 (off s6 74095d47 + s11); it must merge s10 before its PR.
+
 ~11:45: S4 / S5 / S7 in train 22 (origin/train/22, with #194, #198; laptop full run, 4.71.0 on a pass).
 - Planner DONE (d693ae73): research/stealth-over-shooting.md, PLAN rows S11-S15 + S9 widened (protocol 32 now
   needed), BRIEF A35-A46 (morning review: A36 armour body shots deal no damage; A40 "raise alert" = section caution).
