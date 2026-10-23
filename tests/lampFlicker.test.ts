@@ -34,7 +34,7 @@ import { warehouseOps } from '../src/world/maps/warehouseOps';
 import { warehouse } from '../src/world/maps/warehouse';
 import { ctcourse } from '../src/world/maps/ctcourse';
 import { LISTED_MAP_IDS } from '../src/world/maps/listed';
-import { bytesPerCall, HEAP_NUMBER, inputs, sink } from './helpers/allocPerCall';
+import { bytesPerCall, HEAP_NUMBER, inlineRoom, inputs, sink } from './helpers/allocPerCall';
 
 const DT = 1 / 60;
 const SEED = lampSeed(mapFlickerSeed('warehouseOps', 1), 40);
@@ -221,6 +221,7 @@ describe('registry flicker state', () => {
   });
 
   it('tickFlicker allocates nothing', async () => {
+    inlineRoom(); // the flicker call tree is deep: the inlining budget must not decide the reading (allocPerCall)
     const r = new LightRegistry();
     for (let k = 0; k < 6; k++) r.add({ kind: k % 2 ? 'fire' : 'lamp', x: k, y: 3, z: 0, radius: 6 });
     r.setFlicker(0, FLICKER_STUTTER);
