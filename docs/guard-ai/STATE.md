@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~23:20 SAVE (orchestrator 77%): every guard-ai worktree clean and pushed except -s25 (S25b fix agent mid-B1, told to
+commit WIP + push each step; s25 at 702d60d7 = S24 7fe4f6a2 merged). Laptop queued: s24 (e31edd54), s24-coop
+(7fe4f6a2). Waiting: Marlow pings when #265 (A7 cabinet) is train-ready -> label #254. S26 / S27 open on cloud-queue.
+
 ~23:05: S24 re-checks A + B PASS -> 7fe4f6a2 (test-only: e2e-coop S24 host hide (0,-14), knownPt + seen asserts per
 recheck B). PR #264 OPEN (stacked on #254), orchestrator told. Laptop: set s24 on e31edd54 (20261023T105203) +
 s24-coop on 7fe4f6a2 (20261023T110228). S25b checks: A PASS, B FAIL (B1 PLAN_COVER 128 drops north cover). Opus S25b
