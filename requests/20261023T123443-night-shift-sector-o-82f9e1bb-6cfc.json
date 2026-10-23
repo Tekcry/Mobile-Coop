@@ -1,0 +1,13 @@
+{
+  "id": "20261023T123443-night-shift-sector-o-82f9e1bb-6cfc",
+  "sha": "82f9e1bbff5713de241c07d4fa00b3f974c0619b",
+  "branch": "feature/sector-redesign-lr16int",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "note": "LR16-5b sway merged (PROTOCOL 39, src/net): area suites early; full LR16 set later on the PR head"
+}
