@@ -69,6 +69,40 @@ export const BOUNCE_UPLOAD_MS = 250;
 export const MAX_CAPSULES = 16;
 const CAPS_PER_LAMP = 4;
 
+/** (LR16-P F1) The data texture's layout (texel indices, row-major): the grid (`cols` x `rows` columns of
+ *  `LAMP_GRID_TEXELS`), the lamps (`LAMP_TEXELS` each), the capsules, (LR15) the lamps' second door texels with more than
+ *  `DOORS_PER_LAMP` door slots, the doors (`DOOR_TEXELS` each). `w` x `h` texels. */
+export interface LampDataLayout {
+  w: number;
+  h: number;
+  lampBase: number;
+  capBase: number;
+  door2Base: number;
+  doorBase: number;
+}
+export function lampDataLayout(cols: number, rows: number, lamps: number, doors: number, doorSlots: number): LampDataLayout {
+  const w = Math.max(32, cols * LAMP_GRID_TEXELS);
+  const lampBase = cols * LAMP_GRID_TEXELS * rows;
+  const capBase = lampBase + lamps * LAMP_TEXELS;
+  const door2Base = capBase + MAX_CAPSULES * 2;
+  const doorBase = door2Base + (doorSlots > DOORS_PER_LAMP ? lamps : 0);
+  const h = Math.ceil((doorBase + doors * DOOR_TEXELS) / w);
+  return { w, h, lampBase, capBase, door2Base, doorBase };
+}
+
+/**
+ * (LR16-P F1) The rows a frame re-sends: every per-frame write (lamp colours, capsule ids and slots, the pendants' t0,
+ * the capsules, the doors' shut flags) sits at or after `lampBase`, so from the row holding it to the last row. The
+ * grid above it is static and goes up only with a full upload.
+ */
+export function lampDataRows(lampBase: number, width: number, height: number): { y0: number; rows: number } {
+  const y0 = Math.min(height, Math.floor(lampBase / width));
+  return { y0, rows: height - y0 };
+}
+
+/** (LR16-P F1) `ThinEngine.updateTextureData` (`texSubImage2D`; no side-effect import): the engine side the dynamic rows use. */
+type SubUpload = { updateTextureData(t: NonNullable<ReturnType<RawTexture['getInternalTexture']>>, data: ArrayBufferView, x: number, y: number, w: number, h: number): void };
+
 /**
  * Baked lamps (3.2): every fixed light shaded through its baked visibility (`voxel/lampBake.ts`) by `LampPlugin` on
  * every lit material, instead of real Babylon lights and shadow maps. Each lamp is exact (walls, racks, doorways),
@@ -136,6 +170,14 @@ export class BakedLamps implements CharShadowLamps {
    *  the light field's formula x their beam's cut (`shadowAccuracy.writeTorchDraw`; the light rig writes it each frame). */
   readonly torchDraw: Float32Array | null;
   private readonly buf: Float32Array;
+  /** (LR16-P F1) The rows `frame` re-sends (`lampDataRows`): the first, their count, and `buf` from the first on. */
+  readonly dynY0: number;
+  readonly dynRows: number;
+  private readonly dynView: Float32Array;
+  private restoreObs: Observer<ReturnType<Scene['getEngine']>> | null = null;
+  /** (LR16-P F1) Data texture uploads so far: whole (`update`, a door in volume mode) and dynamic rows only (tests). */
+  fullUploads = 0;
+  rowUploads = 0;
   private readonly order: number[];
   private version = -1;
   private caps = 0;
@@ -227,18 +269,22 @@ export class BakedLamps implements CharShadowLamps {
     if (grid.worst > LAMP_GRID_SLOTS) console.warn(`BakedLamps: a 2 m column has ${grid.worst} lamps in reach, past the ${LAMP_GRID_SLOTS} slots: the farthest are dropped`);
     this.gridInfo = { lox: lo[0]!, loz: lo[2]!, cols: grid.cols, rows: grid.rows };
     const n = baked.ids.length;
-    // (LR16b) `LAMP_GRID_TEXELS` texels a column
-    const w = Math.max(32, grid.cols * LAMP_GRID_TEXELS);
+    // (LR16b) `LAMP_GRID_TEXELS` texels a column; (LR15: with 8 door slots, the lamps' second door texels first)
+    const lay = lampDataLayout(grid.cols, grid.rows, n, this.doors.length, this.doorSlots);
+    const w = lay.w;
+    const h = lay.h;
     this.width = w;
-    this.lampBase = grid.cols * LAMP_GRID_TEXELS * grid.rows;
-    this.capBase = this.lampBase + n * LAMP_TEXELS;
-    // (LR15: with 8 door slots, the lamps' second door texels first)
-    const door2Base = this.capBase + MAX_CAPSULES * 2;
-    this.doorBase = door2Base + (this.doorSlots > DOORS_PER_LAMP ? n : 0);
-    const texels = this.doorBase + this.doors.length * DOOR_TEXELS;
-    const h = Math.ceil(texels / w);
+    this.lampBase = lay.lampBase;
+    this.capBase = lay.capBase;
+    const door2Base = lay.door2Base;
+    this.doorBase = lay.doorBase;
     const buf = new Float32Array(w * h * 4);
     this.buf = buf;
+    // (LR16-P F1) the dynamic rows' view, made once (no per-frame subarray)
+    const dyn = lampDataRows(this.lampBase, w, h);
+    this.dynY0 = dyn.y0;
+    this.dynRows = dyn.rows;
+    this.dynView = buf.subarray(dyn.y0 * w * 4);
     // the grid: ids + 1 as floats (row-major in texel order)
     for (let i = 0; i < grid.data.length; i++) buf[i] = grid.data[i]!;
     // the lamps' fixed texels
@@ -296,6 +342,8 @@ export class BakedLamps implements CharShadowLamps {
     if (sv) this.skyTex = mk3(sv.vis, sv.n[0], sv.n[1], sv.n[2]);
 
     this.data = new RawTexture(buf, w, h, Constants.TEXTUREFORMAT_RGBA, scene, false, false, Texture.NEAREST_SAMPLINGMODE, Constants.TEXTURETYPE_FLOAT);
+    // (LR16-P F1) a restored context gets the whole texture (the grid included) before the next dynamic rows
+    this.restoreObs = scene.getEngine().onContextRestoredObservable.add(() => this.data.update(this.buf));
     if (volume) this.volume = new LampVolume(scene, this, lampVolumeGrid(r.boxes, volume.floorY));
     this.update();
   }
@@ -353,6 +401,7 @@ export class BakedLamps implements CharShadowLamps {
     }
     this.version = this.reg.version;
     this.data.update(buf);
+    this.fullUploads++;
     const region = unionRegion(changed);
     if (region && this.volume) {
       this.volume.mix(region);
@@ -402,7 +451,23 @@ export class BakedLamps implements CharShadowLamps {
       this.swayDirty = false;
       dirty = true;
     }
-    if (dirty) this.data.update(this.buf);
+    if (dirty) this.uploadRows();
+  }
+
+  /**
+   * (LR16-P F1) The per-frame upload: the dynamic rows only (`dynY0` on, `texSubImage2D`), not the static grid - the same
+   * texels the whole upload sent (every per-frame write sits at or after `lampBase`), the same GLSL. No allocation.
+   */
+  private uploadRows(): void {
+    const t = this.data.getInternalTexture();
+    const e = this.scene.getEngine() as unknown as Partial<SubUpload>;
+    if (!t || typeof e.updateTextureData !== 'function') {
+      this.data.update(this.buf);
+      this.fullUploads++;
+      return;
+    }
+    e.updateTextureData(t, this.dynView, 0, this.dynY0, this.width, this.dynRows);
+    this.rowUploads++;
   }
 
   /**
@@ -590,6 +655,8 @@ export class BakedLamps implements CharShadowLamps {
   dispose(): void {
     if (this.matObs) this.scene.onNewMaterialAddedObservable.remove(this.matObs);
     this.matObs = null;
+    if (this.restoreObs) this.scene.getEngine().onContextRestoredObservable.remove(this.restoreObs);
+    this.restoreObs = null;
     this.vis.dispose();
     this.data.dispose();
     this.moonTex?.dispose();
