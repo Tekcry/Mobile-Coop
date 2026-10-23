@@ -31,6 +31,7 @@ import { drawTuneApply } from './drawTune';
 import { CLIP_BASE, clipSpeed } from '../anim/tuneClipSpeed'; // (clip-speed, track A)
 import { STANCE } from '../player/weaponStance';
 import { computeStats, damageAt, playerSpreadDeg, recoilKick, sampleSpread, NO_UPGRADES, type EffectiveStats, type StatMods, type WeaponUpgrades } from './weaponStats';
+import { addSd, sdStart, spendShot, SUPPRESSED_NOISE } from './sdRounds';
 
 export interface LoadoutEntry {
   id: WeaponId;
@@ -52,6 +53,8 @@ export interface WeaponSlot {
   pen: number;
   /** Has a magnifying scope. */
   scoped: boolean;
+  /** (sd-rounds) Quiet rounds left (Infinity: unlimited). */
+  sd: number;
 }
 
 export type HitKind = 'hit' | 'head' | 'kill';
@@ -63,6 +66,8 @@ export interface CombatEvents {
   onDryFire?(def: WeaponDef): void;
   onSwap?(def: WeaponDef): void;
   onGrenade?(): void;
+  /** (sd-rounds) The quiet rounds of this gun ran out. */
+  onSdOut?(def: WeaponDef): void;
 }
 
 const DEG = Math.PI / 180;
@@ -192,7 +197,7 @@ export class PlayerWeapons {
       const model = new WeaponModel(world.scene, world.parts, def, e.colors ?? DEFAULT_WEAPON_COLORS, player.rig.weaponPivot, e.pattern, { mesh: true, caster: (m) => world.addShadowCaster(m) });
       for (const m of model.renderMeshes) world.addShadowCaster(m);
       model.setVisible(false);
-      this.slots.push({ def, stats, mag: stats.magSize, reserve: def.reserve, model, pen: PENETRATION[def.class] ?? 0, scoped: def.model.some((p) => p.role === 'scope') });
+      this.slots.push({ def, stats, mag: stats.magSize, reserve: def.reserve, model, pen: PENETRATION[def.class] ?? 0, scoped: def.model.some((p) => p.role === 'scope'), sd: sdStart(def.id) });
     }
     player.onWeightGear = this.weightGear; // (anim-weight) the carried-gear spring (0: the guns are not touched)
     // (operators 11e) Wren's own kit carries the throwables: the part pouches are not drawn on her
@@ -554,7 +559,10 @@ export class PlayerWeapons {
   }
 
   addAmmo(fraction: number): void {
-    for (const s of this.slots) s.reserve = Math.min(s.def.reserve * 2, s.reserve + Math.ceil(s.def.reserve * fraction));
+    for (const s of this.slots) {
+      s.reserve = Math.min(s.def.reserve * 2, s.reserve + Math.ceil(s.def.reserve * fraction));
+      addSd(s, fraction);
+    }
     this.gadgets.add('frag');
   }
 
@@ -921,11 +929,19 @@ export class PlayerWeapons {
     return this.gadgets.counts.frag;
   }
 
+  /** (sd-rounds) The last shot's noise stat and whether it was quiet (true before any shot). */
+  lastShotNoise = 0;
+  lastShotQuiet = true;
+
   private shoot(): void {
     const s = this.current;
     const def = s.def;
     const cam = this.player.cam;
     s.mag--;
+    const had = s.sd;
+    this.lastShotNoise = spendShot(s, this.infiniteAmmo);
+    this.lastShotQuiet = this.lastShotNoise <= SUPPRESSED_NOISE;
+    if (had > 0 && s.sd === 0) this.events.onSdOut?.(def);
     this.cooldown = s.stats.fireInterval;
     this.sinceShot = 0;
     this.player.aimLockTimer = 0.7;
@@ -978,7 +994,7 @@ export class PlayerWeapons {
     if (def.class !== 'shotgun') this.vfx.casing(this.muzzle.subtract(baseDir.scale(0.3)), new Vector3(Math.cos(cam.yaw), 0, -Math.sin(cam.yaw)), this.player.position.y);
     // muzzle flash, recoil, bloom
     // a suppressor hides most of the flash
-    this.vfx.muzzleFlash(this.muzzle, (def.pellets > 1 ? 0.3 : def.class === 'pistol' ? 0.16 : 0.22) * (s.stats.noise < 0.6 ? 0.35 : 1));
+    this.vfx.muzzleFlash(this.muzzle, (def.pellets > 1 ? 0.3 : def.class === 'pistol' ? 0.16 : 0.22) * (this.lastShotQuiet ? 0.35 : 1));
     const k = recoilKick(def, s.stats, this.shotIndex++);
     const adsDamp = 1 - cam.ads * 0.35;
     cam.kick(k.pitch * DEG * adsDamp, k.yaw * DEG * adsDamp);
@@ -986,7 +1002,7 @@ export class PlayerWeapons {
     // (111953 3.87, 6.27-6.33: < 0.5 deg); was 0.04
     if (def.class === 'sniper' || def.class === 'shotgun') cam.shake(def.class === 'sniper' ? 0.25 : 0.2);
     this.bloom += def.spreadPerShot;
-    this.shotFeel(s.stats.noise <= 0.6);
+    this.shotFeel(this.lastShotQuiet);
     this.events.onShot?.(def);
   }
 

@@ -1081,6 +1081,16 @@ body {
   align-items: center;
   gap: 3px;
 }
+.w-sd {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  margin-right: 6px;
+}
+.w-sd.low {
+  color: var(--danger);
+}
 .hud-center {
   position: absolute;
   left: 50%;
