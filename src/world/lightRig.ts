@@ -103,6 +103,8 @@ export class LightRig {
   private dist = new Float32Array(MAX_REAL_LIGHTS + 16);
   private pickT = 0;
   private version = -1;
+  /** (LR16-5) The registry's `flickerVersion` the bulbs were painted at (a stuttering tube's fitting goes dark with it). */
+  private flickV = -1;
   /** 3.1 frame governor: the share of the light pool lit, shadow maps re-rendered every N frames. */
   private litScale = 1;
   private shadowEvery = 1;
@@ -412,6 +414,11 @@ export class LightRig {
     if (!this.bulbs) return;
     this.pickT -= dt;
     const changed = this.version !== this.reg.version;
+    // (LR16-5) a flickering lamp's fitting follows its light on the frames it moves (no re-pick)
+    if (this.flickV !== this.reg.flickerVersion) {
+      this.flickV = this.reg.flickerVersion;
+      if (!changed) this.paintBulbs();
+    }
     if (!changed && this.pickT > 0) {
       // moving lights follow every frame between picks
       this.follow(this.pool);
@@ -583,7 +590,7 @@ export class LightRig {
     // (3.6: a shadowed light draws its whole radius - its shadow map stops it at the wall, and the falloff stays the
     // light field's; an unshadowed one still ends at the first wall, `reach`)
     sp.range = s.sg ? l.radius : (l.reach ?? l.radius);
-    sp.intensity = l.intensity * LIGHT_GAIN;
+    sp.intensity = l.intensity * l.flicker * LIGHT_GAIN;
     sp.diffuse.set(l.color[0], l.color[1], l.color[2]);
     if (l.cone) {
       sp.direction.set(l.cone.dx, l.cone.dy, l.cone.dz);
@@ -642,7 +649,8 @@ export class LightRig {
     const bulbNv = 1 + (NV_BULB - 1) * this.vision;
     for (let i = 0; i < this.bulbCount; i++) {
       const l = this.reg.lights[i]!;
-      const k = l.on && !l.destroyed ? bulbNv : 0.08;
+      // (LR16-5) x the live flicker: a stuttering tube's fitting goes dark with its light
+      const k = l.on && !l.destroyed ? Math.max(0.08, bulbNv * l.flicker) : 0.08;
       c[i * 4] = l.color[0] * k;
       c[i * 4 + 1] = l.color[1] * k;
       c[i * 4 + 2] = l.color[2] * k;

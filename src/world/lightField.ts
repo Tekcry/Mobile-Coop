@@ -310,7 +310,8 @@ export class LightField {
       if (k < 0) break;
       if (this.doorBlocksOne(k, lx, ly, lz, x, y, z)) return;
     }
-    this.res = LAMP_LEVEL_GAIN * l.intensity * t * vis;
+    // (LR16-5) x the lamp's live flicker (1 steady), the value the shader's lamp colour carries
+    this.res = LAMP_LEVEL_GAIN * l.intensity * l.flicker * t * vis;
   }
 
   private visInto(i: number, x: number, y: number, z: number): void {
@@ -368,7 +369,7 @@ export class LightField {
       if (i < this.isBaked.length && this.isBaked[i]) continue;
       if (!l.on || l.destroyed || l.intensity <= 0) continue;
       // (LR16 fix) a fixed lamp photometric, a flashlight linear: `lights.lightTerm`, as `contribution`
-      const t = LAMP_LEVEL_GAIN * l.intensity * lightTerm(l, x, y, z);
+      const t = LAMP_LEVEL_GAIN * l.intensity * l.flicker * lightTerm(l, x, y, z);
       if (t <= 0.01) continue;
       if (occluded && occluded(l, x, y, z)) continue;
       if (this.doors.length && this.doorBlocks(l.x, l.y, l.z, x, y, z)) continue;
