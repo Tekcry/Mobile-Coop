@@ -1,6 +1,12 @@
 # Guard AI - state
 
 ## Now
+~18:15: invisible-guard ROOT CAUSE (Test Runner split on f16600f5): not GLSL, not photo mode / player: Babylon's async
+effect compile gives up ("Operation timed out after maximum retries. - Effect: pbr") when the page stalls while a new
+partSkinMat body variant compiles; the material keeps the failed effect, the body never draws. Player risk: any long
+stall (load, hitch, alt-tab). RUNNING (Opus): fix on feature/guard-ai-carry-fix (recompile a timed-out body effect;
+e2e-guard-carry gets a one-block 16.5 s stall so it fails on f16600f5). Then Test Runner run, then into s9 / its own PR.
+
 ~18:10: GREEN at protocol 39: #229 S9 0d1bdffc 4/4 (coop, netmove, stealth-ai, takedown), #234 S22 18a08619 (stealth-ai,
 ctcourse:1). Train 30 built (7e8b8c51, PROTOCOL 40). RUNNING (Opus): merge train/30 into s9 (PROTOCOL 41, A142) + merge
 feature/guard-ai-carry-fix (e2e-guard-carry suite) into s9, then s9 into s22; then TRAIN-READY train 31 (orchestrator:
@@ -514,8 +520,9 @@ Read CLAUDE.md ("Sessions", "Heavy-usage throughput" incl. "Token rules"), ROADM
 unavoidable guards, stealth over shooting), then this file's "Now" (top entry).
 e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep laptop CPU under ~80%.
 1. Train 29 (61972cf1) = #228 S16 + Sector Ops #232: fix any failure reported at once.
-2. feature/guard-ai-carry-fix fe910585: e2e-guard-carry suite (passes on master too: no repro yet). Test Runner splits
-   the failing sheet on f16600f5 (photo mode vs player near) -> point the suite at the failing path, fix if real.
+2. feature/guard-ai-carry-fix: fix for guard bodies lost to a timed-out async shader compile (Opus agent) + the
+   e2e-guard-carry stall check. Test Runner: suite on the fix sha (pass) and on f16600f5 (fail). Then merge into s9
+   (train 31) or its own PR (orchestrator's call).
    Merge this branch into s9 for the train-31 PR (orchestrator's ask).
    Then train 31: when train 30 is built, merge origin/train/30 into s9 then s22, PROTOCOL 41 (42 if marlow-final #237 is train-ready first), fix the asserts, Test
    Runner coop + netmove (+ stealth-ai, takedown; S22 stealth-ai, ctcourse:1), TRAIN-READY #229 + #234.
