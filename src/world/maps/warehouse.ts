@@ -32,7 +32,7 @@ const LAMPS_ON = new Set([
 ]);
 
 /** Lit strips moved off the wall they hung on (LR16d, lamp audit: row 11): grid key -> the strip's z (its circuit stays the grid cell's room). */
-const LAMP_MOVED_Z: Record<string, number> = { '9,3': 10.09 };
+const LAMP_MOVED_Z: Record<string, number> = { '9,3': 3.8 };
 
 /** Circuit per room (light switches turn a room's lamps off). */
 function lampGroup(x: number, z: number): number {

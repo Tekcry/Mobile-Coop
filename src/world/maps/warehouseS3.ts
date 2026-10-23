@@ -134,13 +134,13 @@ export const S3_LAMPS: readonly LampRoom[] = [
   { id: 'office', model: 'panel', y: 2.95, group: 50, yaw: 0, pass: true, lamps: [[-2.5, 13.5, 4.25, 0.438], [0.5, 13.5, 5.49, 0.45], [-2.5, 16.5, 4.5, 0], [0.5, 16.5, 3.45, 0.278]] },
   { id: 'partsStore', model: 'panel', y: 2.95, group: 51, yaw: 0, pass: true, lamps: [[10, 12, 2.98, 0.213], [14, 12.8, 3, 0], [18, 12.8, 3, 0], [22, 13.05, 3, 0]] },
   { id: 'manager', model: 'panel', y: 2.95, group: 57, yaw: 0, pass: true, lamps: [[5, 15, 7, 0.906]] },
-  { id: 'prodOffice', model: 'panel', y: 5.75, group: 53, yaw: 0, pass: true, lamps: [[17.6, 16.33, 1.5, 0.278], [20.4, 15.85, 4.22, 0.282], [23.2, 15.4, 1.84, 0.25], [17.6, 16.33, 5.28, 0.578], [20.4, 16.33, 3.5, 0], [23.2, 17.1, 5.31, 0.626]] },
+  { id: 'prodOffice', model: 'panel', y: 5.75, group: 53, yaw: 0, pass: true, lamps: [[17.85, 15.7, 1.5, 0.278], [20.4, 15.7, 4.22, 0.282], [22.95, 15.7, 1.84, 0.25], [17.85, 16.95, 5.28, 0.578], [20.4, 16.95, 3.5, 0], [22.95, 16.95, 5.31, 0.626]] },
   // the plant room (54, ceiling 3.6) and the east fire-exit lobby (55, ceiling 3.0)
   { id: 'plant', model: 'panel', y: 3.55, group: 54, yaw: 0, pass: true, lamps: [[18, -3.3, 2.96, 1.296], [20, -3.3, 2.54, 1.143], [22, -3.3, 3.36, 1.366]] },
   { id: 'fireLobby', model: 'panel', y: 2.95, group: 55, yaw: 0, pass: true, lamps: [[18, -7.2, 2, 1.184], [21, -7.2, 3, 0]] },
   // the exit signs (58): the fire exit (the east wall), the deck's stair head (the production office's south wall)
   { id: 'fireLobby', model: 'bulkhead', y: 2.4, group: 58, yaw: -PI / 2, colour: EXIT_GREEN, pass: true, lamps: [[23.7, -7.2, 3.69, 0.71]] },
-  { id: 'deck', model: 'bulkhead', y: 5.6, group: 58, yaw: PI, colour: EXIT_GREEN, pass: true, lamps: [[22.15, 14.05, 0.6, 0.15]] },
+  { id: 'deck', model: 'bulkhead', y: 5.6, group: 58, yaw: PI, colour: EXIT_GREEN, pass: true, lamps: [[22.7, 14.05, 0.3, 0.15]] },
 ];
 
 /** The section's lamp pass (the light test switches these off to compare): every lit lamp of section 3. */
