@@ -1,0 +1,15 @@
+{
+  "id": "20261023T090046-night-shift-guard-ai-a74d27e2-c37e",
+  "sha": "a74d27e2c5bc949e9855b0aa416109dc3e036d37",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-ctcourse:2",
+    "e2e-ctcourse:4"
+  ],
+  "jobs": 2,
+  "set": "s22game-a4fix",
+  "note": "S22 game A4 triage: test staging fix (players hide beside L3 far doorway)"
+}
