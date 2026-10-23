@@ -11,6 +11,15 @@
   incident path wins; our floor filter lives in the uncoordinated rule. tsc clean, 26 related files 380 tests pass.
   RUNNING: build + e2e-sectorops:6 + full vitest + lint at 57a1dbc6 (log scratch/runs/sectorredesign-57a1dbc6).
   Green -> fast-forward feature/sector-redesign to -m, open PR 2, message the orchestrator.
+  RESULT 57a1dbc6: lint 0 errors; vitest 1 fail / 3568 (incidents.test.ts uncoordinated rule: our floor filter cut a
+  5 m lamp's own-floor guard); part 6 FAIL at "the panel cut s2-atrium and #1 walked to it" (guard-ai's coordinated
+  lightsOut: #1 did not see / share a room with the pendants). IN FLIGHT: Opus fixer on -m (floor rule -> not above
+  the fixture, <= 7 m below; diagnose S2 rooms / pendants / #1; fix in our data or e2e, guard-ai change only as a
+  proposal; checks/merge-m-fix.md). Then rerun part 6 + full vitest on -m.
+- Guard AI asks (~11:30, plan docs/guard-ai/research/stealth-over-shooting.md on feature/guard-ai; types in S11):
+  optional `gear?: 'helmet' | 'armour' | 'both'` per slot and `SectorDef.gear?` default (fill for later sections; early
+  sections unchanged); no `enforcer` in any section list (validateGuardAi rejects); optional `SectorDef.sweep?: [x, z][]`
+  response-team sweep points. If armoured glass (E10) gets its own collision group, tell guard-ai. Do with E10 / after S11.
 - Guard-ai types are on master now: Next 4 (CAMPUS_POSTS -> slot post, validatePosts, E2 glass) is unblocked.
 - Orchestrator ~11:00: no mid-window clears (clear only past ~50% context); Gmail / Drive / Fergus connectors off.
 - S4 DONE (Sonnet): feature/sector-redesign-s4 @ ebbd5789 (checks/slice4-build.md). S5 DONE: -s5 @ f546db0d
