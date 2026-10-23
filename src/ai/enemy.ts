@@ -36,7 +36,8 @@ import type { LightField } from '../world/lightField';
 import { ARCHETYPE, carriesTorch, glint, heavyMult, shieldBlocks, smellRate, sniperRelocate, torchRule, type DifficultyDef } from './archetypes';
 import { placeTorch } from '../world/torches';
 import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
-import { INCIDENT, MODE_BODY, MODE_COVER, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT } from './incidents';
+import { INCIDENT, MODE_BODY, MODE_BREAKER, MODE_COVER, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT } from './incidents';
+import { BREAKER_WALK } from './breaker';
 import { P_AGGRESSIVE, P_STANDARD, profileOf, R_FLANK, R_NONE, R_OVERWATCH, R_POINT, R_REPORTER, R_SEARCH, ROLES, Rng, type BehaviourProfile as TacticsProfile, type Role } from './squadRoles';
 import type { GuardInfo } from './guardInfo';
 import type { CallKind } from './radioNet';
@@ -48,8 +49,9 @@ import { emoteBlind, emoteBlindEnd, emoteSeize, emoteStep, guardHead, guardHeadR
 import { CAUTION } from './awareness';
 import type { InstancedMesh } from '../core/babylon';
 import { GuardAnimTier } from './animTierView';
-import { gearHit, type GearHit, type GuardGear } from './gear';
+import { BREAKER, gearHit, type GearHit, type GuardGear } from './gear';
 import { factionLook } from './factions';
+import { SWEEP_NEAR, type SweepTeam } from './sweepTeam';
 
 /** (guard-ai S12) Scratch for `gearHit` (one hit at a time; the damage path allocates nothing for gear). */
 const GEAR_OUT: GearHit = { mult: 1, knockOff: false, stagger: 0 };
@@ -158,6 +160,10 @@ export interface AiContext {
   /** (guard-ai S12) His helmet was shot off: a dropped helmet (colour `hex`, size `w`, `h`, `d`) falls from `top` m
    *  above his feet (x, y, z) to the floor beside them, flung along (dx, dz) (the pooled `HelmetDrops`). */
   dropHelmet?(x: number, y: number, z: number, top: number, dx: number, dz: number, hex: string, w: number, h: number, d: number): void;
+  /** (guard-ai S15) Circuit `group` is still switched off at its switches (absent: taken as off). */
+  breakerOff?(group: number): boolean;
+  /** (guard-ai S15) He worked the switch: circuit `group` back on (the player's own toggle path, `StealthSystems`). */
+  breakerReset?(e: Enemy, group: number): void;
 }
 
 let nextId = 1;
@@ -692,11 +698,12 @@ export class Enemy implements Damageable {
     return out.copyFrom(this.pos).addInPlaceFromFloats(0, (this.crouch > 0.5 ? 1.0 : EYE_STAND) * this.def.scale, 0);
   }
 
-  /** Say a line for `ev` (the dog growls whatever the event). */
-  bark(ev: BarkEvent): void {
+  /** Say a line for `ev` (the dog growls whatever the event). (guard-ai S14) `unit` >= 1: a line that names that unit
+   *  ("Unit three, report..."), where the event has one (`BARKS_UNIT`). */
+  bark(ev: BarkEvent, unit = 0): void {
     if (!this.alive) return;
     const e = this.dog && ev !== 'blind' ? 'dog' : ev;
-    const line = this.voice.say(e);
+    const line = unit >= 1 ? this.voice.sayUnit(e, unit) : this.voice.say(e);
     if (line) this.ctx.onBark?.(this, line, RADIO_BARKS.has(e));
   }
 
@@ -990,6 +997,103 @@ export class Enemy implements Damageable {
     this.ctx.bodyFound(this, b);
   }
 
+  // ----- (guard-ai S15, stealth over shooting item 8, A42) the breaker reset walk -----
+  /** The circuit he is walking to turn back on (-1 none); the switch, his stand point by it (`brkAt`) and its floor
+   *  height, seconds at the switch and on the walk. */
+  private brkGroup = -1;
+  private readonly brkSw: P2 = [0, 0];
+  readonly brkAt: P2 = [0, 0];
+  private brkY = 0;
+  private brkT = 0;
+  private brkWalkT = 0;
+  private readonly brkGoal: { point: P2 | null; speed: number; face: number | null } = { point: null, speed: 0, face: null };
+
+  /** (guard-ai S15) The circuit he is walking to turn back on, -1 none (e2e / debug). */
+  get breakerGroup(): number {
+    return this.brkGroup;
+  }
+
+  /**
+   * (guard-ai S15, A42) A circuit he saw go dark is a fault, not an attack: the board sends him (the one witness) to its
+   * switch at (x, z) (floor `y`). He says so ("Breaker's gone again."), walks over at his patrol pace without leaving his
+   * calm level (a glimpse on the way may make him suspicious; anything more drops the walk), works the switch
+   * `BREAKER.resetT` s and the circuit comes back on (`AiContext.breakerReset`: the player's own toggle path), then he
+   * rejoins his route. No ring check, no radio call. The circuit back on by other means (the player, a timed isolator)
+   * ends the walk; so does `BREAKER_WALK.giveUp` s without getting there.
+   */
+  resetBreaker(x: number, z: number, y: number, incident: number, group: number): void {
+    if (!this.sendable || group < 0) return;
+    const lvl = this.aware.level;
+    if (lvl !== 'unaware' && lvl !== 'cooldown' && lvl !== 'suspicious') return;
+    this.incident = incident;
+    this.incMode = MODE_BREAKER;
+    this.turnT = 0;
+    this.brkGroup = group;
+    this.brkSw[0] = x;
+    this.brkSw[1] = z;
+    this.brkAt[0] = x;
+    this.brkAt[1] = z;
+    this.brkY = y === y ? y : this.pos.y;
+    // the walkable cell by the switch (the switch is on a wall)
+    const nav = this.ctx.nav;
+    const c = nav.nearestWalkable(x, z, 4, this.brkY);
+    if (c >= 0) {
+      const cc = nav.center(c);
+      this.brkAt[0] = cc[0];
+      this.brkAt[1] = cc[1];
+      // (guard-ai S15 laptop fix) he stands on that cell: its height, not the point's (a wall column's surface is the
+      // wall's top, and the "at the switch" test below would never pass: he walked up to it and gave up after 30 s)
+      this.brkY = nav.cellHeight(c);
+    }
+    this.brkT = 0;
+    this.brkWalkT = 0;
+    this.routePath.length = 0;
+    this.bark('breaker');
+  }
+
+  /** (guard-ai S15) The walk is over (done, given up, dropped): off the board's task, back to his route. */
+  private endBreaker(): void {
+    if (this.brkGroup < 0) return;
+    this.brkGroup = -1;
+    if (this.incMode === MODE_BREAKER) this.incident = -1;
+    this.routePath.length = 0;
+    this.walker.rejoin(this.pos.x, this.pos.z);
+  }
+
+  /** (guard-ai S15) One step of the reset walk: to the switch at patrol pace, work it, the circuit back on. */
+  private breakerStep(dt: number): { point: P2 | null; speed: number; face: number | null } {
+    const g = this.brkGoal;
+    g.point = null;
+    g.speed = 0;
+    g.face = null;
+    this.brkWalkT += dt;
+    // the circuit came back on by other means (the player, a timed isolator relighting itself): nothing left to do
+    if (this.ctx.breakerOff?.(this.brkGroup) === false) {
+      this.endBreaker();
+      return g;
+    }
+    const d = hyp2(this.brkAt[0] - this.pos.x, this.brkAt[1] - this.pos.z);
+    if (d > BREAKER_WALK.reach || Math.abs(this.brkY - this.pos.y) > 1.2) {
+      this.brkT = 0;
+      if (this.brkWalkT >= BREAKER_WALK.giveUp) {
+        this.endBreaker();
+        return g;
+      }
+      g.point = this.goTo(this.brkAt, dt, BREAKER_WALK.reach * 0.8, this.brkY);
+      g.speed = this.def.walkSpeed * (this.caution > 0 ? PACE.cautious : PATROL_PACE);
+      return g;
+    }
+    // at the switch: face it and work it
+    this.brkT += dt;
+    g.face = Math.atan2(this.brkSw[0] - this.pos.x, this.brkSw[1] - this.pos.z);
+    if (this.brkT >= BREAKER.resetT) {
+      const group = this.brkGroup;
+      this.endBreaker();
+      this.ctx.breakerReset?.(this, group);
+    }
+    return g;
+  }
+
   /** (guard-ai S2) Someone else is checking what he perceived: look towards it `INCIDENT.ackLook` s and carry on
    *  (`copy`: say "Copy."). Already busy (sent, investigating, searching): only the line. */
   ack(x: number, z: number, copy: boolean): void {
@@ -1163,6 +1267,71 @@ export class Enemy implements Damageable {
     this.entryT = 0;
     this.radio(0);
   }
+
+  /** (guard-ai S13, item 11) His response team (its sweep after the search; null: none; `team` is the damage side) and
+   *  his rank in it (written by `SweepTeam.tick`: 0 the leader, 1.. the stack behind him, -1 down or held). */
+  crew: SweepTeam<Enemy> | null = null;
+  teamRank = -1;
+  private readonly sweepP: P2 = [0, 0];
+  private readonly sweepGoal: { point: P2 | null; speed: number; face: number | null } = { point: null, speed: 0, face: null };
+
+  /** (guard-ai S13) His patrol route's points (null: none), for a response team's sweep source (alarm time only). */
+  get routePoints(): readonly (readonly [number, number])[] | null {
+    return this.walker.route?.points ?? null;
+  }
+
+  /** (guard-ai S13) His post centre (his spawn point), for a response team's sweep source. */
+  get postPoint(): readonly [number, number] {
+    return this.post;
+  }
+
+  /**
+   * (guard-ai S13, item 11, A39) The sweep, one step (searching, his team sweeping). The leader walks to the team's
+   * current point at the search pace and looks round it `SWEEP.dwell` s (an unreachable point is skipped); a follower
+   * keeps his place in the stack behind the leader (`SweepTeam.follow`), jogging when he is well behind, and looks the
+   * way the leader looks once there. The torch follows the searching rule (`torchWanted`). No allocation.
+   */
+  private sweepStep(dt: number, tm: SweepTeam<Enemy>): { point: P2 | null; speed: number; face: number | null } {
+    const out = this.sweepGoal;
+    const pace = this.def.walkSpeed * this.searchPace;
+    const p = this.sweepP;
+    const L = tm.leader;
+    if (L === this || L === null) {
+      const i = tm.point;
+      p[0] = tm.pts[2 * i]!;
+      p[1] = tm.pts[2 * i + 1]!;
+      const d = hyp2(p[0] - this.pos.x, p[1] - this.pos.z);
+      if (d <= SWEEP_NEAR) {
+        if (tm.dwellT === 0) this.lookBase = this.yaw;
+        tm.lead(dt, this.pos.x, this.pos.z);
+        this.spotArrived = true;
+        out.point = null;
+        out.speed = 0;
+        out.face = this.lookBase + Math.sin(tm.dwellT * 1.6) * 1.0;
+        return out;
+      }
+      tm.lead(dt, this.pos.x, this.pos.z);
+      const wp = this.goTo(p, dt);
+      // unreachable: on to the next one
+      if (!wp && this.routePath.length === 0) tm.next();
+      out.point = wp;
+      out.speed = pace;
+      out.face = null;
+      return out;
+    }
+    tm.follow(this.teamRank, L.pos.x, L.pos.z, p);
+    const d = hyp2(p[0] - this.pos.x, p[1] - this.pos.z);
+    if (d < 0.8) {
+      out.point = null;
+      out.speed = 0;
+      out.face = L.yaw;
+      return out;
+    }
+    out.point = this.goTo(p, dt, 0.8);
+    out.speed = d > SWEEP_NEAR + 3 ? this.def.runSpeed * 0.6 : pace;
+    out.face = null;
+    return out;
+  }
   private readonly lure = new PostLure();
   private readonly lureOut: PostLureOut = { x: 0, z: 0, yaw: 0, moving: false, phase: LURE.idle };
   private readonly lureP: P2 = [0, 0];
@@ -1301,18 +1470,22 @@ export class Enemy implements Damageable {
 
   /** Side effects of an alert-level change. */
   private onLevel(from: AlertLevel, to: AlertLevel): void {
+    // (guard-ai S15) the breaker walk is calm: a glimpse that comes to nothing (suspicious and back) keeps it, anything
+    // more drops it (the board sees him off its task); while it lasts the task lines below stay quiet
+    if (this.brkGroup >= 0 && to !== 'suspicious' && to !== 'unaware' && to !== 'cooldown') this.endBreaker();
+    const task = this.brkGroup >= 0 ? -1 : this.incident;
     if (to === 'suspicious') this.bark('suspicious');
     else if (to === 'investigating') this.bark('investigate');
     // (guard-ai S3) told by a shout or the radio: he answers, he did not see anyone
     else if (to === 'alert') this.bark(this.alertIn.called && this.netOn ? 'joining' : 'contact');
     else if (to === 'searching' && from === 'alert') this.bark(this.def.kind === 'officer' ? 'search' : 'lost');
     // (guard-ai S4) unaware -> cooldown is caution setting in: nothing to say
-    else if (to === 'cooldown' && from !== 'unaware') this.bark(this.incident >= 0 ? 'standDown' : 'clear');
-    else if (to === 'unaware' && this.incident >= 0) this.bark('standDown');
+    else if (to === 'cooldown' && from !== 'unaware') this.bark(task >= 0 ? 'standDown' : 'clear');
+    else if (to === 'unaware' && task >= 0) this.bark('standDown');
     // (guard-ai S3) back from the board's task: his "nothing here" is a radio call (the section acks it)
-    if ((to === 'cooldown' || to === 'unaware') && this.incident >= 0) this.ctx.radioCall?.(this, this.incident, 'standDown');
+    if ((to === 'cooldown' || to === 'unaware') && task >= 0) this.ctx.radioCall?.(this, task, 'standDown');
     // (guard-ai S2) off the board's task: back (calm), in combat, or on another search (a body, a call)
-    if (this.incident >= 0) {
+    if (task >= 0) {
       const pair = this.incMode === MODE_LEAD || this.incMode === MODE_COVER;
       const keep = to === 'suspicious' || to === 'investigating' ? !pair : to === 'searching' ? pair : false;
       if (!keep) this.incident = -1;
@@ -1704,7 +1877,7 @@ export class Enemy implements Damageable {
     // (guard-ai S7) the walk to a camera's body runs on its own clock too (`INCIDENT.bodyWalk`)
     i.hold = this.lc.active || this.camBody !== null;
     // (guard-ai S5) a lured posted guard is dealing with it: the linger rule does not walk him off his leash
-    i.turning = this.turnT > 0 || this.lure.active;
+    i.turning = this.turnT > 0 || this.lure.active || this.brkGroup >= 0;
     // (guard-ai S3, S2 check polish 2) sent to a plain noise / lure: nothing found -> back to normal, no cooldown
     i.calmEnd = this.incident >= 0 && this.incMode === MODE_INVESTIGATE && this.incCalm;
     // (guard-ai S4) cautious (a death he knows of, a knockout he found or woke from): on edge, never unaware
@@ -1768,6 +1941,8 @@ export class Enemy implements Damageable {
       case 'cooldown': {
         // (guard-ai S5) a high-security post lured to his leash edge and back
         if (this.lure.active) return this.lureStep(dt);
+        // (guard-ai S15) the breaker reset walk (calm: his patrol pace)
+        if (this.brkGroup >= 0) return this.breakerStep(dt);
         // (guard-ai S1) a sound he was not sent to: stand and look towards it a moment (`hearTurn`)
         if (this.turnT > 0 && this.hasStimulus) return { point: null, speed: 0, face: Math.atan2(this.stimulus[0] - this.pos.x, this.stimulus[1] - this.pos.z) };
         // the dog heels beside its handler
@@ -1812,6 +1987,8 @@ export class Enemy implements Damageable {
       case 'suspicious': {
         // (guard-ai S5) the lure's own suspicion: keep at it (a glimpse of something stops him to look)
         if (this.lure.active && this.rate <= 0) return this.lureStep(dt);
+        // (guard-ai S15) the breaker walk goes on once nothing is in sight (a glimpse stops him to look)
+        if (this.brkGroup >= 0 && this.rate <= 0) return this.breakerStep(dt);
         // stop and look at what caught the eye / ear
         const face = this.hasStimulus ? Math.atan2(this.stimulus[0] - this.pos.x, this.stimulus[1] - this.pos.z) : null;
         return { point: null, speed: 0, face };
@@ -1838,6 +2015,9 @@ export class Enemy implements Damageable {
             return { point: this.goTo(this.spot, dt, 0.9), speed: def.walkSpeed * PACE.revive, face: null };
           }
         }
+        // (guard-ai S13) a response team past its search of the last known position sweeps the section
+        const crew = this.crew;
+        if (lvl === 'searching' && crew && crew.sweeping) return this.sweepStep(dt, crew);
         if (lvl === 'investigating' && this.lc.active) return this.lightStep(dt);
         if (lvl === 'investigating') {
           // the latest stimulus is the spot
