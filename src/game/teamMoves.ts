@@ -341,54 +341,40 @@ export function ropeEndOf(atTop: boolean, coopPressed: boolean, bPressed: boolea
 // ---- (team-climb) the rope's top-out: the root path, the hands on the lip ----
 
 const smooth01 = (x: number): number => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
-/** The k where smoothstep(k) = y (0..1). */
-const unsmooth = (y: number): number => 0.5 - Math.sin(Math.asin(1 - 2 * y) / 3);
+/** Quintic smoothstep (still and with no acceleration at both ends), clamped. */
+const smooth5 = (x: number): number => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * x * (x * (x * 6 - 15) + 10));
 
 /**
- * The rope top-out's root path over its time `TEAM.ropeTop` (k 0..1). The rise onto the top ends and the move in over it
- * starts where the old path's did (`min(1, 1.7 e)` and `(e - 0.4) / 0.6` of e = smoothstep(k): the rise done at k 0.561,
- * the move in from k 0.433), each now eased: the rise keeps the old curve to `riseHand` of its time, then slows to a stop
- * on the top (a cubic matching its speed there); the move in starts from still (`v^2 (2 - v)` of the old share). Was: the
- * rise stopped dead at k 0.561 (a 5.7 cm velocity step in a 60 Hz frame) and the move in started with a jump.
- * (team-climb) The body is also pulled in to `pullOut` m off the face by k `pullEnd` (a hang's body line, `HANG.out`),
- * faded out by the move in, so the hands reach the lip (the climber hangs 0.35 m off a rope 0.15 - 0.45 m out).
+ * The rope top-out's root path over its time `TEAM.ropeTop` (k 0..1): two quintic shares, each still (no speed and no
+ * acceleration) where it starts and ends, so the root never pops: the rise onto the top over k 0..`riseEnd` (the rope
+ * climb's speed carried in) and the move in over it from k `acrossStart` (the feet over the face's plane only once the
+ * rise is done). The climber is already pulled in to `pullOut` m off the face (a hang's body line, `HANG.out`, so the
+ * hands reach the lip) on the rope's last `pullIn` m (`ropeClimbPull`). Was: e = smoothstep(k), the rise `min(1, 1.7 e)`
+ * stopped dead at k 0.56 (a 5.7 cm velocity step in a 60 Hz frame) and the move in `(e - 0.4) / 0.6` started with a
+ * jump, over 0.9 s; no 0.9 s path keeps every frame's velocity change under 0.5 cm (the 1.5 m rise alone needs ~0.75 s
+ * at that limit), hence `TEAM.ropeTop` 1.1 s.
  */
-export const ROPE_TOP_PATH = { riseEnd: unsmooth(1 / 1.7), acrossStart: unsmooth(0.4), riseHand: 0.4, pullEnd: 0.3, pullOut: 0.22 };
-
-/** The old rise in the rise's own time u (k = u riseEnd) and its slope there (per u). */
-const riseOld = (u: number): number => {
-  const k = u * ROPE_TOP_PATH.riseEnd;
-  return 1.7 * k * k * (3 - 2 * k);
-};
+export const ROPE_TOP_PATH = { riseEnd: 0.68, acrossStart: 0.325, pullIn: 0.6, pullOut: 0.22 };
 
 /**
- * The rope top-out's path shares at `k`: `rise` (0..1 of the feet up to the top), `across` (0..1 of the move to the
- * top-out spot) and `pull` (0..1 of the pull in to the face). `m0` the rise's starting slope in its own time (the rope
- * climb's speed carried in: v riseEnd `TEAM.ropeTop` / the rise's height; 0 = from still), clamped 0..1. No allocation.
+ * The rope top-out's path shares at `k`: `rise` (0..1 of the feet up to the top) and `across` (0..1 of the move to the
+ * top-out spot). `m0` the rise's starting slope in its own time (the rope climb's speed carried in: v riseEnd
+ * `TEAM.ropeTop` / the rise's height; 0 = from still), clamped 0..1 (the rise stays monotone and under 1). No allocation.
  */
-export function ropeTopPath(k: number, m0: number, out: { rise: number; across: number; pull: number }): { rise: number; across: number; pull: number } {
+export function ropeTopPath(k: number, m0: number, out: { rise: number; across: number }): { rise: number; across: number } {
   const P = ROPE_TOP_PATH;
-  const u = Math.max(0, Math.min(1, k / P.riseEnd));
-  let r: number;
-  if (u <= P.riseHand) r = riseOld(u);
-  else {
-    // a cubic from the old curve (its height and speed) to the top, still there
-    const t = (u - P.riseHand) / (1 - P.riseHand);
-    const kh = P.riseHand * P.riseEnd;
-    const p0 = riseOld(P.riseHand);
-    const m = 1.7 * 6 * kh * (1 - kh) * P.riseEnd * (1 - P.riseHand);
-    r = (2 * t * t * t - 3 * t * t + 1) * p0 + (t * t * t - 2 * t * t + t) * m + (3 * t * t - 2 * t * t * t);
-  }
-  // the climb's speed carried in (a Hermite start slope: 0 at both ends of the rise)
-  r += (u * u * u - 2 * u * u + u) * Math.max(0, Math.min(1, m0));
-  out.rise = r;
-  const e = k <= 0 ? 0 : k >= 1 ? 1 : k * k * (3 - 2 * k);
-  const v = Math.max(0, (e - 0.4) / 0.6);
-  out.across = v * v * (2 - v);
-  // (from still and with no jolt: the clip change into the top-out is pose enough at its first frames)
-  const q = Math.max(0, Math.min(1, k / P.pullEnd));
-  out.pull = q * q * q * (q * (q * 6 - 15) + 10);
+  const s = Math.max(0, Math.min(1, k / P.riseEnd));
+  // quintic Hermite: 0 -> 1, slope m0 -> 0, no acceleration at either end; s (1 - s)^3 (1 + 3 s) carries the start slope
+  const c = 1 - s;
+  out.rise = smooth5(s) + Math.max(0, Math.min(1, m0)) * s * c * c * c * (1 + 3 * s);
+  out.across = smooth5((k - P.acrossStart) / (1 - P.acrossStart));
   return out;
+}
+
+/** The share (0..1) of the pull in to the face with the feet `below` m under the rope's top (by height: the climb's stick
+ *  and the slide drive it, so it never pops on its own). */
+export function ropeClimbPull(below: number): number {
+  return smooth5(1 - below / ROPE_TOP_PATH.pullIn);
 }
 
 /**
@@ -536,4 +522,31 @@ export function ropeLipHands(lip: RopeLip, bx: number, bz: number, yaw: number, 
     t.liftOff = ROPE_TOP_HANDS.liftOff;
     t.w = w;
   }
+}
+
+/** (team-climb) A partner's rope climb as another page sees it: in the top-out yet, and its hands' grip weight now. */
+export interface RopeSeen {
+  top: boolean;
+  w: number;
+}
+
+/** The most a seen climber's grip weight moves (per s) and the most it has as its top-out starts (`ledgeClimb`). */
+export const ROPE_SEEN = { rate: 1 / 0.12, firstW: 0.45 };
+
+/**
+ * One frame of a partner's rope climb on another page (remoteAvatar; nothing on the wire): its feet `feetY` against the
+ * rope's top under the lip at `lipY` tell the top-out (the feet past the rope's top, its wire phase `ph` reset), whose
+ * phase is then `ph`; the hands' grip weight as the owner's (`ropeClimbGripW` / `ropeTopGripW`), eased (the snapshots'
+ * phase steps) and at most `ROPE_SEEN.firstW` on the top-out's first frame. No allocation.
+ */
+export function ropeSeenStep(s: RopeSeen, feetY: number, lipY: number, ph: number, dt: number): RopeSeen {
+  const below = ropeTopY(lipY) - feetY;
+  const first = !s.top && below < -0.02 && ph < 0.35;
+  if (first) s.top = true;
+  const want = s.top ? ropeTopGripW(ph) : below < ROPE_TOP_HANDS.pre ? ropeClimbGripW(Math.max(0, below)) : 0;
+  const step = ROPE_SEEN.rate * dt;
+  let w = want > s.w + step ? s.w + step : want < s.w - step ? s.w - step : want;
+  if (first) w = Math.min(w, ROPE_SEEN.firstW);
+  s.w = w;
+  return s;
 }

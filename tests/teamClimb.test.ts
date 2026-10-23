@@ -1,5 +1,7 @@
 // (team-climb) The two-person rope's top-out (CLIMB_UP_TEAM from the rope, teamController `ropeTop`), headless.
 import { beforeAll, describe, expect, it } from 'vitest';
+import type { CharacterRig } from '../src/player/characterRig';
+import type { WREN_HANDS as WrenHands } from '../src/operators/handFrame';
 
 type V3 = { x: number; y: number; z: number };
 
@@ -58,24 +60,30 @@ interface Frame {
   shLip: number;
   /** per joint (JOINTS): its world position */
   pts: number[];
+  /** the wire phase the owner sends (localMoveState: `pose.traverseT`) */
+  ph: number;
+  /** both grip targets (L then R): x, y, z, hook, liftOff */
+  grip: number[];
 }
 
-const JOINTS = ['hips', 'spine', 'torso', 'neck', 'head', 'shL', 'shR', 'elL', 'elR', 'wrL', 'wrR', 'hipL', 'hipR', 'knL', 'knR', 'anL', 'anR', 'toeL', 'toeR'] as const;
+const gripOf = (L: object, R: object): number[] => [L as Record<string, unknown>, R as Record<string, unknown>].flatMap((t) => [Number(t.cx ?? t.x), Number(t.cy ?? t.y), Number(t.cz ?? t.z), Number(t.hook ?? 0), Number(t.liftOff ?? 0)]);
+
+export const JOINTS = ['hips', 'spine', 'torso', 'neck', 'head', 'shL', 'shR', 'elL', 'elR', 'wrL', 'wrR', 'hipL', 'hipR', 'knL', 'knR', 'anL', 'anR', 'toeL', 'toeR'] as const;
 
 /**
  * The climber's side of a rope move, driven as GameState drives it: `TeamController.begin` (the host's start), then the
  * fixed step with the stick held up until the top-out ends; the rig (Wren's) posed each frame from the controller's
  * kinematic root, facing, `pose.traverse / traverseT` and the reach targets it wrote. `rig` false: the controller only.
  */
-async function ropeTop(hz: number, rigOn: boolean): Promise<{ frames: Frame[]; reach: number }> {
+async function ropeTop(hz: number, rigOn: boolean, stick = 1): Promise<{ frames: Frame[]; reach: number }> {
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
   const { Scene, Vector3 } = await import('../src/core/babylon');
   const { TeamController } = await import('../src/game/teamController');
   const { ROPE_SUB } = await import('../src/game/teamMoves');
   const ray = await makeRay();
   const scene = new Scene(new NullEngine());
-  let rig: InstanceType<typeof import('../src/player/characterRig').CharacterRig> | null = null;
-  let WREN: typeof import('../src/operators/handFrame').WREN_HANDS | null = null;
+  let rig: CharacterRig | null = null;
+  let WREN: typeof WrenHands | null = null;
   if (rigOn) {
     const { PartLibrary } = await import('../src/world/partLibrary');
     const { CharacterRig } = await import('../src/player/characterRig');
@@ -110,22 +118,24 @@ async function ropeTop(hz: number, rigOn: boolean): Promise<{ frames: Frame[]; r
   const rpose = { speed: 0, localX: 0, localZ: 0, grounded: false, crouch: 0, aimPitch: 0, aim: 0, kick: 0, armed: false, traverse: 'none', traverseT: 0 };
   let after = -1;
   for (let n = 0; n < 60 * hz && after < Math.round(0.25 * hz); n++) {
-    tm.fixedUpdate(dt, false, false, 1);
+    tm.fixedUpdate(dt, false, false, stick);
     const ov = controller.override;
     if (ov?.kinematic) controller.pos.set(ov.kinematic.x, ov.kinematic.y, ov.kinematic.z);
     if (ov?.yaw !== undefined) controller.yaw = ov.yaw;
     const st = tm.state;
     if (st !== 'ropeClimb' && st !== 'ropeTop') after++;
-    // record from a little before the top (the rope's last 0.4 m)
-    if (st === 'ropeClimb' && controller.pos.y < TOP - 1.5 - 0.4) continue;
-    const f: Frame = { state: pose.traverse === 'climbUp' ? 'top' : pose.traverse, k: pose.traverse === 'climbUp' ? pose.traverseT : st === 'ropeClimb' ? 0 : 1, root: { x: controller.pos.x, y: controller.pos.y, z: controller.pos.z }, palm: [9, 9], palmAt: [], w: [g.player.rig.reachL.w, g.player.rig.reachR.w], shLip: 0, pts: [] };
+    // record from a little before the top (the rope's last 0.8 m: the pull in to the face starts 0.6 m under its top)
+    if (st === 'ropeClimb' && controller.pos.y < TOP - 1.5 - 0.8) continue;
+    const f: Frame = { state: pose.traverse === 'climbUp' ? 'top' : pose.traverse, k: pose.traverse === 'climbUp' ? pose.traverseT : st === 'ropeClimb' ? 0 : 1, root: { x: controller.pos.x, y: controller.pos.y, z: controller.pos.z }, palm: [9, 9], palmAt: [], w: [g.player.rig.reachL.w, g.player.rig.reachR.w], shLip: 0, pts: [], ph: pose.traverseT, grip: gripOf(g.player.rig.reachL, g.player.rig.reachR) };
     if (rig && WREN) {
       rig.root.position.set(controller.pos.x, controller.pos.y, controller.pos.z);
       rig.root.rotation.y = controller.yaw;
       rpose.traverse = pose.traverse;
       rpose.traverseT = pose.traverseT;
       rpose.grounded = st !== 'ropeClimb' && st !== 'ropeTop';
+      const lim0 = rig.limited;
       rig.animate(dt, rpose as never);
+      (f as { lim?: number }).lim = rig.limited - lim0;
       rig.root.computeWorldMatrix(true);
       for (const d of rig.root.getDescendants(false)) (d as { computeWorldMatrix?: (f: boolean) => void }).computeWorldMatrix?.(true);
       for (const nd of nodes) {
@@ -155,7 +165,9 @@ async function ropeTop(hz: number, rigOn: boolean): Promise<{ frames: Frame[]; r
   return { frames, reach };
 }
 
-/** The worst per-frame step and velocity change (m) of the points `get` returns, over frames i0.. */
+
+/** The worst per-frame step and velocity change ("pop": the step minus the frame before's, m) of the points `get`
+ *  returns over frames i0.., and the frame of the worst pop. */
 function motion(frames: Frame[], get: (f: Frame) => number[], i0 = 0): { step: number; pop: number; at: number } {
   let step = 0;
   let pop = 0;
@@ -178,59 +190,126 @@ function motion(frames: Frame[], get: (f: Frame) => number[], i0 = 0): { step: n
 }
 
 const rootOf = (f: Frame): number[] => [f.root.x, f.root.y, f.root.z];
+const cm = (m: number): string => (m * 100).toFixed(2);
 
-describe('(team-climb) the rope top-out', () => {
-  let run: Awaited<ReturnType<typeof ropeTop>>;
-  beforeAll(async () => {
-    run = await ropeTop(60, true);
-  }, 120_000);
-
-  it('baseline numbers', () => {
-    const top = run.frames.filter((f) => f.state === 'top');
-    const r = motion(run.frames, rootOf);
-    const body = motion(run.frames, (f) => f.pts);
-    const i0 = run.frames.findIndex((f) => f.state === 'top');
-    let near = 9;
-    let nearK = 0;
-    for (const f of top) if (Math.min(f.palm[0], f.palm[1]) < near) { near = Math.min(f.palm[0], f.palm[1]); nearK = f.k; }
-    const rows = top.map((f) => `${f.k.toFixed(3)} w ${f.w[0].toFixed(2)} palm ${(f.palm[0] * 100).toFixed(1)}/${(f.palm[1] * 100).toFixed(1)} sh ${f.shLip.toFixed(3)} y ${f.root.y.toFixed(3)}`);
-    console.info(rows.join('\n'));
-    console.info(`root step ${(r.step * 100).toFixed(2)} pop ${(r.pop * 100).toFixed(2)} at ${r.at - i0}; body step ${(body.step * 100).toFixed(2)} pop ${(body.pop * 100).toFixed(2)} at ${body.at - i0} of ${top.length}; nearest palm ${(near * 100).toFixed(1)} cm at k ${nearK.toFixed(2)}`);
-    const G: Record<string, number[]> = { trunk: [0, 1, 2, 3, 4, 5, 6, 11, 12], arms: [7, 8, 9, 10], legs: [13, 14, 15, 16], toes: [17, 18] };
-    for (const [n, idx] of Object.entries(G)) {
-      const m = motion(run.frames, (f) => idx.flatMap((j) => [f.pts[j * 3]!, f.pts[j * 3 + 1]!, f.pts[j * 3 + 2]!]));
-      console.info(`group ${n} step ${(m.step * 100).toFixed(1)} pop ${(m.pop * 100).toFixed(1)} at ${m.at - i0}`);
+describe('(team-climb) the rope top-out path (teamMoves)', () => {
+  it('rises 0 -> 1 and moves in 0 -> 1, monotone and still at both ends, for any carried-in speed', async () => {
+    const { ropeTopPath, ropeClimbPull, ROPE_TOP_PATH } = await import('../src/game/teamMoves');
+    const o = { rise: 0, across: 0 };
+    for (const m0 of [0, 0.5, 1]) {
+      let r0 = -1, a0 = -1;
+      for (let i = 0; i <= 400; i++) {
+        ropeTopPath(i / 400, m0, o);
+        expect(o.rise).toBeGreaterThanOrEqual(r0 - 1e-12);
+        expect(o.across).toBeGreaterThanOrEqual(a0 - 1e-12);
+        expect(o.rise).toBeLessThanOrEqual(1 + 1e-12);
+        r0 = o.rise;
+        a0 = o.across;
+      }
+      expect(ropeTopPath(0, m0, o).rise).toBe(0);
+      expect(ropeTopPath(1, m0, o).rise).toBeCloseTo(1, 12);
+      expect(o.across).toBeCloseTo(1, 12);
+      // the move in waits for the rise
+      expect(ropeTopPath(ROPE_TOP_PATH.acrossStart, m0, o).across).toBe(0);
     }
-    for (let i = i0 - 2; i < i0 + 3; i++) console.info(`DBG ${i - i0} root ${rootOf(run.frames[i]!).map((v) => v.toFixed(4)).join(" ")} sh ${run.frames[i]!.pts.slice(15, 21).map((v) => v.toFixed(4)).join(" ")}`);
-    expect(top.length).toBeGreaterThan(50);
+    // the pull in by height: none `pullIn` m under the top, all of it at the top, still at both ends
+    expect(ropeClimbPull(ROPE_TOP_PATH.pullIn)).toBe(0);
+    expect(ropeClimbPull(0)).toBe(1);
+    expect(ropeClimbPull(1e-4)).toBeGreaterThan(1 - 1e-9);
   });
 });
 
-describe.skipIf(!process.env.TC_EXPLORE)('explore', () => {
-  it('configs', async () => {
-    const { ROPE_TOP_HANDS } = await import('../src/game/teamMoves');
-    const lines: string[] = [];
-    const cfgs = JSON.parse(process.env.TC_EXPLORE!) as [number, number, number][];
-    for (const [inK, k0, span] of cfgs) {
-      ROPE_TOP_HANDS.inK = inK;
-      ROPE_TOP_HANDS.k0 = k0;
-      ROPE_TOP_HANDS.span = span;
-      const r = await ropeTop(60, true);
-      const i0 = r.frames.findIndex((f) => f.state === 'top');
-      let worst = 0, shMax = 0, slide = 0;
-      const held = r.frames.filter((f) => f.state === 'top' && f.k >= inK - 1e-9 && f.k <= k0 + 1e-9);
-      const p0 = held[0]?.palmAt ?? [];
-      for (const f of held) {
-        worst = Math.max(worst, f.palm[0], f.palm[1]);
-        shMax = Math.max(shMax, f.shLip);
-        for (let s = 0; s < 6; s += 3) slide = Math.max(slide, Math.hypot(f.palmAt[s]! - p0[s]!, f.palmAt[s + 1]! - p0[s + 1]!, f.palmAt[s + 2]! - p0[s + 2]!));
+describe('(team-climb) the rope top-out (TeamController + Wren rig, 60 Hz)', () => {
+  let run: Awaited<ReturnType<typeof ropeTop>>;
+  let i0 = 0;
+  beforeAll(async () => {
+    run = await ropeTop(60, true);
+    i0 = run.frames.findIndex((f) => f.state === 'top');
+  }, 120_000);
+
+  it("the root never pops: every frame's step within 0.5 cm of the frame before's (was 5.7 cm at the rise's stop)", () => {
+    const r = motion(run.frames, rootOf);
+    const top = run.frames.filter((f) => f.state === 'top');
+    if (process.env.TC_VERBOSE) {
+      for (const f of top) console.info(`${f.k.toFixed(3)} w ${f.w[0].toFixed(2)} palm ${cm(f.palm[0])}/${cm(f.palm[1])} sh ${f.shLip.toFixed(3)} y ${f.root.y.toFixed(3)}`);
+      const groups: Record<string, number[]> = { trunk: [0, 1, 2, 3, 4, 5, 6, 11, 12], arms: [7, 8, 9, 10], legs: [13, 14, 15, 16], toes: [17, 18] };
+      for (const [n, idx] of Object.entries(groups)) {
+        const m = motion(run.frames, (f) => idx.flatMap((j) => [f.pts[j * 3]!, f.pts[j * 3 + 1]!, f.pts[j * 3 + 2]!]));
+        console.info(`group ${n} (${idx.map((j) => JOINTS[j]).join(' ')}) step ${cm(m.step)} pop ${cm(m.pop)} at ${m.at - i0}`);
       }
-      const wr = motion(r.frames, (f) => f.pts.slice(27, 33), i0 + 2);
-      const el = motion(r.frames, (f) => f.pts.slice(21, 27), i0 + 2);
-      const ri = r.frames.findIndex((f) => f.state === 'top' && f.k >= k0) - 3;
-      const wrRel = motion(r.frames.slice(ri - 2), (f) => f.pts.slice(27, 33), 2);
-      lines.push(`in ${inK} k0 ${k0} span ${span}: palm ${(worst * 100).toFixed(1)} slide ${(slide * 100).toFixed(1)} sh ${shMax.toFixed(3)}/${r.reach.toFixed(3)}; wrists ${(wr.step * 100).toFixed(1)}/${(wr.pop * 100).toFixed(1)} at ${wr.at - i0}, release ${(wrRel.pop * 100).toFixed(1)}; elbows ${(el.step * 100).toFixed(1)}/${(el.pop * 100).toFixed(1)} at ${el.at - i0}`);
     }
-    console.info(lines.join('\n'));
-  }, 600_000);
+    console.info(`root: step ${cm(r.step)} cm, pop ${cm(r.pop)} cm at frame ${r.at - i0} of ${top.length} (the top-out from 0)`);
+    expect(top.length).toBeGreaterThan(60);
+    expect(r.pop).toBeLessThanOrEqual(0.005);
+    // the top-out ends beside the holder, on the top
+    const last = run.frames[run.frames.length - 1]!;
+    expect(last.root.y).toBeCloseTo(TOP, 3);
+    expect(last.root.z).toBeGreaterThan(0.1);
+  });
+
+  it('the hands grip the lip: on it (within 3 cm) while the body rises past, both lip ("hook") grips on the edge', async () => {
+    const { ROPE_TOP_HANDS } = await import('../src/game/teamMoves');
+    const held = run.frames.filter((f) => f.state === 'top' && f.k >= ROPE_TOP_HANDS.inK - 0.05 && f.k <= ROPE_TOP_HANDS.k0 - 0.01);
+    expect(held.length).toBeGreaterThanOrEqual(8);
+    let worst = 0;
+    for (const f of held) {
+      worst = Math.max(worst, f.palm[0], f.palm[1]);
+      expect(Math.min(f.w[0], f.w[1])).toBeGreaterThan(0.85);
+      for (let h = 0; h < 2; h++) {
+        const [, gy, gz, hook, lo] = f.grip.slice(h * 5, h * 5 + 5);
+        expect(gy).toBeCloseTo(TOP, 6);
+        expect(Math.abs(gz!)).toBeLessThan(1e-6);
+        expect(hook).toBe(1);
+        expect(lo).toBe(ROPE_TOP_HANDS.liftOff);
+      }
+      // a hand either side of the body, the ledge hang's span
+      expect(f.grip[0]! - f.grip[5]!).toBeLessThan(-0.4);
+    }
+    console.info(`palms on the lip k ${held[0]!.k.toFixed(3)} - ${held[held.length - 1]!.k.toFixed(3)}: worst miss ${cm(worst)} cm`);
+    expect(worst).toBeLessThanOrEqual(0.03);
+  });
+
+  it("the grips start on the rope's last stretch, stay light into the top-out (the team clip) and are let go after it", async () => {
+    const { ROPE_TOP_HANDS } = await import('../src/game/teamMoves');
+    const first = run.frames[i0]!;
+    expect(first.w[0]).toBeGreaterThan(0.3);
+    expect(first.w[0]).toBeLessThanOrEqual(0.5);
+    let dw = 0;
+    for (let i = 1; i < run.frames.length; i++) dw = Math.max(dw, Math.abs(run.frames[i]!.w[0] - run.frames[i - 1]!.w[0]));
+    expect(dw).toBeLessThan(0.1);
+    const pre = run.frames.filter((f) => f.state === 'climb' && f.w[0] > 0);
+    expect(pre.length).toBeGreaterThan(0);
+    for (const f of pre) expect(TOP - 1.5 - f.root.y).toBeLessThan(ROPE_TOP_HANDS.pre + 1e-9);
+    const after = run.frames.filter((f) => f.state !== 'top' && f.state !== 'climb');
+    expect(after.length).toBeGreaterThan(0);
+    for (const f of after) expect(f.w[0] + f.w[1]).toBe(0);
+  });
+
+  it('a slower stick (half speed) still never pops the root', async () => {
+    const slow = await ropeTop(60, false, 0.5);
+    const r = motion(slow.frames, rootOf);
+    console.info(`root at half stick: pop ${cm(r.pop)} cm`);
+    expect(r.pop).toBeLessThanOrEqual(0.005);
+  }, 120_000);
+
+  it("a partner sees the same: the top-out from the feet and the wire phase, the grips as the owner's (ropeSeenStep)", async () => {
+    const { ropeSeenStep, ROPE_SEEN } = await import('../src/game/teamMoves');
+    const s = { top: false, w: 0 };
+    let topAt = -1;
+    let diff = 0;
+    for (let i = 0; i < run.frames.length; i++) {
+      const f = run.frames[i]!;
+      if (f.state !== 'top' && f.state !== 'climb') break;
+      ropeSeenStep(s, f.root.y, TOP, f.ph, 1 / 60);
+      if (s.top && topAt < 0) {
+        topAt = i;
+        expect(s.w).toBeLessThanOrEqual(ROPE_SEEN.firstW);
+      }
+      if (i > i0 + 3) diff = Math.max(diff, Math.abs(s.w - f.w[0]));
+    }
+    console.info(`seen top-out at frame ${topAt - i0}; seen grip weight within ${diff.toFixed(3)} of the owner's`);
+    expect(topAt - i0).toBeGreaterThanOrEqual(0);
+    expect(topAt - i0).toBeLessThanOrEqual(3);
+    expect(diff).toBeLessThan(0.12);
+  });
 });

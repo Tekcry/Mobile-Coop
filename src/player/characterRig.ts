@@ -186,6 +186,8 @@ export interface WorldTarget {
 
 /** (team-climb) The longest a lifting-off hand's grip point is held from the shoulder (share of the arm's reach). */
 const LIFT_OFF_MAX = 0.93;
+/** (team-climb) An arm on a lifting-off grip turns up to this many times the free arm's rate limit (JOINT_RATE). */
+const LIFT_OFF_RATE = 2;
 const liftScratch: WorldTarget[] = [{ x: 0, y: 0, z: 0, w: 0 }, { x: 0, y: 0, z: 0, w: 0 }];
 
 /**
@@ -2875,10 +2877,14 @@ export class CharacterRig {
       this.handGrip.r = Math.min(1, Math.max(0, this.handGrip.r + HANDS_CUR.curl[0]!));
       this.handGrip.l = Math.min(1, Math.max(0, this.handGrip.l + HANDS_CUR.curl[1]!));
     }
-    this.limitJoint(this.shoulderL, dt);
-    this.limitJoint(this.shoulderR, dt);
-    this.limitJoint(this.elbowL, dt);
-    this.limitJoint(this.elbowR, dt);
+    // (team-climb) an arm on a lifting-off grip (the rope top-out's lip, the body rising past the hands at up to 4 m/s)
+    // turns up to LIFT_OFF_RATE x the free arm's limit, so the palm stays on the grip (was: 5.5 cm over it)
+    const lfL = this.reachL.liftOff !== undefined && this.reachL.w > 0 ? LIFT_OFF_RATE : 0;
+    const lfR = this.reachR.liftOff !== undefined && this.reachR.w > 0 ? LIFT_OFF_RATE : 0;
+    this.limitJoint(this.shoulderL, dt, lfL ? JOINT_RATE.get('shL')! * lfL : undefined);
+    this.limitJoint(this.shoulderR, dt, lfR ? JOINT_RATE.get('shR')! * lfR : undefined);
+    this.limitJoint(this.elbowL, dt, lfL ? JOINT_RATE.get('elL')! * lfL : undefined);
+    this.limitJoint(this.elbowR, dt, lfR ? JOINT_RATE.get('elR')! * lfR : undefined);
     // (G8) the keyed walk's arms (free hands only: no grip, no world grip, no knee hand)
     const kaw = kw > 0 && gripW <= 0 && this.kneeHandW === 0 ? t.keyArmW : 0;
     if (kaw > 0) {
