@@ -5,15 +5,14 @@
  * lit the floor. A map that fits keeps the old layout texel for texel (Classic unchanged); the rest widen, then page
  * along y, every cell copied exactly (light parity). `docs/sector-redesign/checks/lr-tex3d-fix.md`.
  */
-import { afterEach, describe, expect, it } from 'vitest';
-import { BOX_STRIDE, fillLampAtlas, fitLampAtlas, LAMP_ATLAS_WIDTH, lampBox, packLampAtlas, type LampAtlas, type LampResult } from '../src/voxel/lampBake';
+import { describe, expect, it } from 'vitest';
+import { BOX_STRIDE, fillLampAtlas, fitLampAtlas, lampBox, packLampAtlas, type LampAtlas, type LampResult } from '../src/voxel/lampBake';
 import { max3DTextureSize } from '../src/core/babylon';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { campusOps } from '../src/world/maps/campusOps';
 import { dressingOn } from '../src/world/detailPass';
 import { canonicalLightSet } from '../src/voxel/lightShapes';
 import { bakedLights } from '../src/world/lightBake';
-import { setLampFalloff, type LampFalloff } from '../src/world/lampMath';
 
 /** Boxes (`BOX_STRIDE`) of the given cell sizes, origin 0. */
 function boxes(sizes: readonly [number, number, number][]): Float32Array {
@@ -98,10 +97,8 @@ describe('fitLampAtlas (lr-tex3d size rule)', () => {
   });
 });
 
-describe('campusOps atlas under both falloffs', () => {
-  afterEach(() => setLampFalloff('linear'));
-  const campusBoxes = (m: LampFalloff): Float32Array => {
-    setLampFalloff(m);
+describe('campusOps atlas (photometric reach, the one light model since LR16a)', () => {
+  const campusBoxes = (): Float32Array => {
     const b = new LevelBuilder();
     campusOps.build(b, 0);
     const set = canonicalLightSet(b.boxes, b.cylinders, campusOps.id, dressingOn(campusOps));
@@ -113,12 +110,8 @@ describe('campusOps atlas under both falloffs', () => {
     return out;
   };
 
-  it('Classic keeps its layout; Realistic passed 2048 deep at the old width and fits now', () => {
-    const lin = campusBoxes('linear');
-    const fl = fitLampAtlas(lin, 2048);
-    expect(fl.dims).toEqual(packLampAtlas(lin).dims);
-    expect(fl.dims[0]).toBeLessThanOrEqual(LAMP_ATLAS_WIDTH);
-    const ph = campusBoxes('photometric');
+  it('passed 2048 deep at the old width and fits now', () => {
+    const ph = campusBoxes();
     // the bug: 1023 x 90 x 2428 at 1024 wide
     expect(packLampAtlas(ph).dims[2]).toBeGreaterThan(2048);
     const fp = fitLampAtlas(ph, 2048);

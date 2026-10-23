@@ -130,9 +130,10 @@ describe('ON7 guard view and quick light', () => {
     const reg = new LightRegistry();
     const lamp1 = reg.add({ x: 1, y: 3, z: 2, radius: 4, intensity: 0.7 });
     const spot = reg.add({ x: 0, y: 4, z: 0, radius: 8, intensity: 1, cone: { dx: 0, dy: -1, dz: 0, cosOuter: 0.8, cosInner: 0.9 } });
+    // (LR16a) the registry's radius is the photometric reach (authored x PHOTO.reach); the quick light reads it
     const p: [number, number, number] = [1.5, 1, 2.4];
-    expect(quickLevel(lamp1, ...p)).toBeCloseTo(LAMP_LEVEL_GAIN * 0.7 * lampTerm(p[0] - 1, p[1] - 3, p[2] - 2, 4, 0, -1, 0, LAMP_CONE_COS, LAMP_EXP), 12);
-    expect(quickLevel(spot, ...p)).toBeCloseTo(LAMP_LEVEL_GAIN * lampTerm(p[0], p[1] - 4, p[2], 8, 0, -1, 0, 0.8, SPOT_EXP), 12);
+    expect(quickLevel(lamp1, ...p)).toBeCloseTo(LAMP_LEVEL_GAIN * 0.7 * lampTerm(p[0] - 1, p[1] - 3, p[2] - 2, lamp1.radius, 0, -1, 0, LAMP_CONE_COS, LAMP_EXP), 12);
+    expect(quickLevel(spot, ...p)).toBeCloseTo(LAMP_LEVEL_GAIN * lampTerm(p[0], p[1] - 4, p[2], spot.radius, 0, -1, 0, 0.8, SPOT_EXP), 12);
     // the field with no bake gives every light unoccluded: the same number
     const field = new LightField(null, reg);
     reg.ambient = 0;

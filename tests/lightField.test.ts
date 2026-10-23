@@ -115,8 +115,10 @@ describe('light bake hash (3.6)', () => {
 });
 
 /** Bytes a query may leave in the young generation: V8 boxes the doubles returned by calls it does not inline (16 B
- *  each). A vector, array or closure per query costs far more (the control). */
-const BOXED_BUDGET = 64;
+ *  each). A vector, array or closure per query costs far more (the control). (LR16a) 64 -> 72: the photometric reach
+ *  (1.6 x radius, the one light model) lists more lamps per 2 m column, and each extra lamp call boxes its doubles:
+ *  levelAt 32 -> 68 B, bodyLevel 64.8 -> 134 B, the same as the pre-LR16a Realistic mode (reach 1.0: 32 B again). */
+const BOXED_BUDGET = 72;
 
 describe('light field (3.6)', async () => {
   const { LightField, trilinear } = await import('../src/world/lightField');
@@ -124,6 +126,7 @@ describe('light field (3.6)', async () => {
   const { bakedLights } = await import('../src/world/lightBake');
   const { buildAmbientGrid } = await import('../src/world/ambientGrid');
   const { makeCone } = await import('../src/world/lights');
+  const { PHOTO } = await import('../src/world/lampMath');
 
   /** A room (floor, a wall with a doorway) under three lamps and a spot, a zone, the moon: baked as the game does. */
   function scene(): { reg: LightRegistry; bake: LightBake } {
@@ -156,7 +159,8 @@ describe('light field (3.6)', async () => {
     return { reg, bake: { lo, hi, lampKey: 'k', moonKey: 'm', lamps: { baked, r }, moon: { origin: lo, n, cell: MOON_CELL, vis: m.vis, dir }, ambient, moonLight: moonL, ms: 0 } };
   }
 
-  /** An independent sum: every lamp, the plain formula, its own trilinear read. */
+  /** An independent sum: every lamp, the plain formula (LR16a: the photometric falloff, the one light model), its own
+   *  trilinear reads (the ambient fill too: the shadow-accuracy read, always on). */
   function brute(reg: LightRegistry, b: LightBake, x: number, y: number, z: number): number {
     const at = (g: Uint8Array, start: number, o: number[], nn: number[], c: number): number => {
       const f = [(x - o[0]!) / c - 0.5, (y - o[1]!) / c - 0.5, (z - o[2]!) / c - 0.5].map((v, k) => Math.min(nn[k]! - 1, Math.max(0, v)));
@@ -169,8 +173,7 @@ describe('light field (3.6)', async () => {
       return sum / 255;
     };
     const ag = b.ambient;
-    const ci = [x, y, z].map((v, k) => Math.min(ag.n[k]! - 1, Math.max(0, Math.floor(v - ag.origin[k]!))));
-    let v = ag.data[ci[0]! + ag.n[0] * (ci[1]! + ag.n[1] * ci[2]!)]! / 255;
+    let v = at(ag.data, 0, ag.origin, ag.n, AMBIENT_CELL);
     v += b.moonLight * at(b.moon.vis, 0, b.moon.origin, b.moon.n, MOON_CELL);
     let off = 0;
     b.lamps!.baked.ids.forEach((id, i) => {
@@ -189,7 +192,9 @@ describe('light field (3.6)', async () => {
       const cut = l.cone ? l.cone.cosOuter : Math.cos((Math.PI * 0.97) / 2);
       if (cosA < cut) return;
       const cone = Math.pow(Math.max(cosA, 1e-4), l.cone ? 2 : 1);
-      v += 1.2 * l.intensity * (1 - d / l.radius) * cone * at(b.lamps!.r.vis, start, [B[0]!, B[1]!, B[2]!], [B[3]!, B[4]!, B[5]!], LAMP_CELL);
+      // inverse square referenced at PHOTO.ref (clamped inside PHOTO.near), windowed (1 - (d / R)^4)^2 to 0 at the reach
+      const fall = (PHOTO.ref / Math.max(d, PHOTO.near)) ** 2 * (1 - (d / l.radius) ** 4) ** 2;
+      v += 1.2 * l.intensity * fall * cone * at(b.lamps!.r.vis, start, [B[0]!, B[1]!, B[2]!], [B[3]!, B[4]!, B[5]!], LAMP_CELL);
     });
     return Math.min(1, Math.max(0, v));
   }
