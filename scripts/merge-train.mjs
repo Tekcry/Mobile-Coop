@@ -85,6 +85,10 @@ export function resolveKeepBoth(text) {
 }
 
 /** The train PR title: "<version>: Train <n>: <title>". */
+/** A build is a train only with a member besides the docs-only feature/menu ride-along (train 44 #292, 2026-10-24). */
+export const MENU_BRANCH = 'feature/menu';
+export const hasTrainMember = (included) => included.some((b) => b.replace(/^origin\//, '') !== MENU_BRANCH);
+
 export const trainPrTitle = (n, version, title) => `${version}: Train ${n}: ${title}`;
 
 /** The train PR body: members in merge order, then the footer line. */
@@ -681,9 +685,10 @@ async function build({ n, version, title, branches, keep, noTest }) {
     if (m.blocking) { left.push({ b, why: `conflicts in ${m.blocking.join(', ')}` }); console.log(`  LEFT OUT: ${m.blocking.join(', ')}`); continue; }
     head = m.sha; included.push(b); kept.push(b);
   }
-  if (!included.length && !keep) {
+  // feature/menu alone is never a train: nothing is pushed and no PR is opened (exit 3, as with no member)
+  if (!hasTrainMember(included) && !keep) {
     console.log(`\ntrain/${n} head: ${head}${DRY ? ' (dry run: an unreferenced commit)' : ''}`);
-    console.log('members: (none)');
+    console.log(`members: (none)${included.length ? ` - only ${included.join(', ')}, not a train` : ''}`);
     for (const l of left) console.log(`LEFT OUT: ${l.b} - ${l.why}`);
     return 3;
   }

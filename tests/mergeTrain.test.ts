@@ -8,6 +8,7 @@ import {
   failedTestFiles, vitestRerunPlan, vitestRerunCmd,
   lockIsOurs, wireCandidates, membersFromLog, parseArgs, protocolValue, releaseHeavyLock,
   resolveKeepBoth, resumeCheck, tailLines, takeHeavyLock, touchesWire, trainPrBody, trainPrTitle, versionSubject, vitestVerdict, wirePaths,
+  hasTrainMember,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/merge-train.mjs';
 
@@ -377,5 +378,15 @@ describe('merge-train release pin, version race, train lock', () => {
     expect(heldByParent(t, '')).toBe(false);
     expect(heldByParent(null, t)).toBe(false);
     expect(heldByParent('merge-train build | pid 7 | x', t)).toBe(false);
+  });
+});
+
+describe('hasTrainMember', () => {
+  it('feature/menu alone is not a train (train 44 #292)', () => {
+    expect(hasTrainMember([])).toBe(false);
+    expect(hasTrainMember(['feature/menu'])).toBe(false);
+    expect(hasTrainMember(['origin/feature/menu'])).toBe(false);
+    expect(hasTrainMember(['feature/menu', 'feature/guard-ai-s25'])).toBe(true);
+    expect(hasTrainMember(['feature/guard-ai-s25'])).toBe(true);
   });
 });
