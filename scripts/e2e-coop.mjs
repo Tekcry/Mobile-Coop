@@ -3,7 +3,8 @@
 // a host guard's flashlight on, then off, on the client (coop-torches), host-validated client hits + kill credit,
 // downed/revive, results, back to lobby, guards and doors in co-op,
 // difficulty, a course restart at the checkpoint while a guard is held (Marlow Yard), a door peek and a wall medkit in
-// Free Roam, host leaving, malformed messages, and the offline state.
+// Free Roam, host leaving, malformed messages, and the offline state. (guard-ai S9) The guard-ai state on the client: alarm
+// stage gear, a bark, caution, a shield-led response team and a client deflect (helmet off on both screens).
 // (co-op test fix, process audit section 2) The pages open legacy-off: the matches are Infiltration (the Ledger
 // mission on the Warehouse: guards, and detection costs only a bonus) and Free Roam, no Hunter. Two players only (G2).
 // Waits are e2e-net-lib's, on both pages' sim clocks: the sim runs slower than real time on software GL.
@@ -316,6 +317,125 @@ try {
   const tally = await GA((id) => window.__app.current.net.tallies.get(id)?.kills ?? 0, selfB);
   assert(tally >= 1, `host credits the kill to the client (${tally})`);
   await until(B, (id) => !window.__app.current.net.puppets.has(id), victim, 5000, 'client removes the dead puppet');
+
+  // (guard-ai S9, protocol 32) the guard-ai state reaches the client: the alarm stage's gear (armour + helmet) on the
+  // puppets, a host guard's radio line shown on the client word for word, a cautious guard's caution bit, a shield-led
+  // response team with the shield and the lead's helmet, and a client round on a helmet: predicted and confirmed as a
+  // deflect, the helmet off his head and on the floor on both screens
+  console.log('guard-ai S9: stage gear, a bark, caution, a shield-led team and a deflect on the client');
+  {
+    const geared = await GA(() => {
+      const em = window.__app.current.enemyMgr;
+      em.setAlarmStage(3);
+      const e = em.enemies.find((x) => x.alive && !x.def.quadruped && x.def.kind !== 'heavy' && x.def.kind !== 'enforcer');
+      return e ? { id: e.id, helmet: e.helmet, armour: e.armour, key: e.key } : null;
+    });
+    assert(!!geared && geared.helmet && geared.armour, `alarm stage 3 puts armour and a helmet on the host's guard (${JSON.stringify(geared)})`);
+    const gid = geared?.id ?? '';
+    const gearB = await until(B, (id) => { const s = window.__app.current.net.puppets.get(id)?.gearShown; return !!s && s.helmet && s.armour; }, gid, 10000, 'client puppet wears the stage gear').then(() => true, () => false);
+    assert(gearB, `the client's puppet shows the stage gear (${JSON.stringify(await GB((id) => window.__app.current.net.puppets.get(id)?.gearShown ?? null, gid))})`);
+
+    // a radio line (the missed check naming unit three): the client shows the host's exact text
+    const said = await GA((id) => {
+      const g = window.__app.current;
+      g.enemyMgr.enemies.find((x) => x.id === id)?.bark('missed', 3);
+      return g.hud.barks.shown.find((l) => l.includes('three')) ?? '';
+    }, gid);
+    assert(said !== '', `the host shows the guard's line (${said})`);
+    const heard = await until(B, (l) => window.__app.current.hud.barks.shown.includes(l) || window.__app.current.hud.barks.subtitle.endsWith(l), said, 5000, 'client shows the bark').then(() => true, () => false);
+    assert(heard, `the client shows the host guard's radio line (${JSON.stringify({ said, client: await GB(() => ({ shown: window.__app.current.hud.barks.shown, sub: window.__app.current.hud.barks.subtitle, n: window.__app.current.net.barksShown })) })})`);
+
+    // caution (S14's timed section alert on one guard): the caution bit reaches his puppet (calm: the low ready)
+    const cid = await GA(() => {
+      const em = window.__app.current.enemyMgr;
+      const e = em.enemies.find((x) => x.alive && x.key >= 0 && !x.def.quadruped);
+      if (!e) return '';
+      em.awareness.timedHold(e.key, 60, 2);
+      em['syncCaution']();
+      return e.caution > 0 ? e.id : '';
+    });
+    if (cid) {
+      const cautB = await until(B, (id) => window.__app.current.net.puppets.get(id)?.cautious === true, cid, 5000, 'client puppet cautious').then(() => true, () => false);
+      const pose = await GB((id) => { const p = window.__app.current.net.puppets.get(id); return p ? { aim: p['aim'], level: p.level } : null; }, cid);
+      assert(cautB, `a cautious host guard is cautious on the client (${JSON.stringify(pose)})`);
+    } else console.log('    (no keyed guard to make cautious: skipped)');
+
+    // a response team: the enforcer first (always helmeted), two behind; the client builds his shield by kind
+    const team = await GA(() => {
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const V = g.player.position.constructor;
+      const t = em.newTeam(0, null, [], []);
+      const out = [];
+      const kinds = ['enforcer', 'grunt', 'grunt'];
+      for (let i = 0; i < kinds.length; i++) {
+        const e = em.spawnReinforcement(kinds[i], new V(12 + i * 1.2, 0, -6.5), 0, 0);
+        if (!e) continue;
+        em.joinTeam(e, t);
+        e['stagger'] = 99;
+        out.push({ id: e.id, kind: e.def.kind, helmet: e.helmet });
+      }
+      return out;
+    });
+    const lead = team.find((m) => m.kind === 'enforcer');
+    assert(!!lead && lead.helmet && team.length === 3, `a shield-led team spawns on the host (${JSON.stringify(team)})`);
+    if (lead) {
+      const shieldB = await until(B, (id) => { const s = window.__app.current.net.puppets.get(id)?.gearShown; return !!s && s.shield && s.helmet; }, lead.id, 10000, 'client shows the shield lead').then(() => true, () => false);
+      assert(shieldB, `the client's enforcer carries his shield and the lead's helmet (${JSON.stringify(await GB((id) => window.__app.current.net.puppets.get(id)?.gearShown ?? null, lead.id))})`);
+    }
+    await GA((ids) => {
+      const em = window.__app.current.enemyMgr;
+      for (const id of ids) { const e = em.enemies.find((x) => x.id === id); if (e) em.despawn(e); }
+      em.teams.length = 0;
+      // later spawns in this match carry no stage gear
+      em.setAlarmStage(0, false);
+    }, team.map((m) => m.id));
+
+    // a client round to the helmeted guard's head: no damage, a deflect at once on the client, the host's confirm, his
+    // helmet off on both screens and dropped on both floors
+    await GA((id) => {
+      const g = window.__app.current;
+      for (const r of g.net.remotes.values()) r.allowTeleport(5);
+      const v = g.enemyMgr.enemies.find((e) => e.id === id);
+      if (v) {
+        v['stagger'] = 99;
+        if (g.world.map.id === 'warehouse') v.pos.set(13, 0, -6.5);
+      }
+    }, gid);
+    await until(B, (id) => { const p = window.__app.current.net.puppets.get(id); return !!p && Math.hypot(p.pos.x - 13, p.pos.z + 6.5) < 1.5; }, gid, 15000, 'geared puppet moved');
+    await GB((id) => {
+      const g = window.__app.current;
+      const p = g.net.puppets.get(id);
+      g.player.controller.teleport(p.pos.add(new p.pos.constructor(0, 0.2, 2.2)), Math.PI);
+      g.player.forceAds = true;
+    }, gid);
+    await until(A, () => [...window.__app.current.net.remotes.values()].some((r) => r.state?.mv?.dw === 2), null, 5000, 'host sees the client drawn (deflect)');
+    let deflected = false;
+    let pred = null;
+    for (let i = 0; i < 20 && !deflected; i++) {
+      await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(2); });
+      pred = await GB((id) => {
+        const g = window.__app.current;
+        const p = g.net.puppets.get(id);
+        if (!p) return null;
+        const V = p.pos.constructor;
+        const src = g.player.position.add(new V(0, 1.58, 0));
+        const pt = p.pos.add(new V(0, 1.62 * p.def.scale, 0));
+        const res = p.applyDamage({ amount: 40, point: pt, dir: pt.subtract(src).normalize(), part: 'head', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', weapon: 'rifle', sourcePos: src, impulse: 3 });
+        return { dealt: res.dealt, deflect: res.deflect === true };
+      }, gid);
+      await wait(300);
+      deflected = await GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !!e && e.alive && !e.helmet; }, gid);
+    }
+    const hostSide = await GA((id) => { const em = window.__app.current.enemyMgr; const e = em.enemies.find((x) => x.id === id); return { alive: e?.alive, helmet: e?.helmet, armour: e?.armour, drops: em.helmetDrops.shown }; }, gid);
+    assert(!!pred && pred.deflect && pred.dealt === 0, `the client predicts the deflect on the helmeted puppet (${JSON.stringify(pred)})`);
+    assert(deflected && hostSide.alive && hostSide.drops >= 1, `the host's guard lives, his helmet knocked off and on the floor (${JSON.stringify(hostSide)})`);
+    const confirmed = await until(B, () => window.__app.current.net.deflectConfirms >= 1, null, 5000, 'client deflect confirm').then(() => true, () => false);
+    assert(confirmed, `the host confirms the client's deflect (hitConfirm deflect) (${await GB(() => window.__app.current.net.deflectConfirms)})`);
+    const fell = await until(B, (id) => { const g = window.__app.current; const s = g.net.puppets.get(id)?.gearShown; return !!s && !s.helmet && s.armour && (g.net.helmetDrops?.shown ?? 0) >= 1; }, gid, 5000, 'client helmet falls').then(() => true, () => false);
+    assert(fell, `the client's puppet loses the helmet and it lies on the client's floor too (${JSON.stringify(await GB((id) => ({ gear: window.__app.current.net.puppets.get(id)?.gearShown ?? null, drops: window.__app.current.net.helmetDrops?.shown ?? 0 }), gid))})`);
+    await GB(() => { window.__app.current.player.forceAds = false; });
+  }
 
   console.log('downed and revived');
   await GA(() => {
