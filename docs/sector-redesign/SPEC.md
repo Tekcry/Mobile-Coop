@@ -151,7 +151,9 @@ until EW8 (A11). A light cut draws the nearest calm armed guard within 25 m (eng
 lamps until guard-ai provides it (GA4). **Co-op light parity needs slice L (protocol 31)** before any co-op playtest
 that cuts a light (EF7).
 
-**Guards (M1, M8, R6-R8).** All humans armed: officer (pistolSd), grunt (rifle), enforcer (pistolSd + shield). No
+**Guards (M1, M8, R6-R8).** All humans armed: officer (pistolSd), grunt (rifle), enforcer (pistolSd + shield). (Michael
+2026-10-23 ~10:10 item 3, guard-ai's validateGuardAi: no enforcer in any section guard list; shields come only with
+guard-ai's alarm response teams. The tables' enforcer rows place an officer, S5's standing team grunts.) No
 runner, heavy, sniper or droneOp (A3, A12; droneOp is not mirrored in co-op). Dogs are melee animals at a handler's
 heel (A2). Every guard has an employer (Larchmont), a job, a reason at each stop, a cycle of 25-45 s with stops 3-6 s,
 an isolation moment (LS 4.4: spot and second, written in the slice's guard sheet) and an overlap partner (LS 4.5).
