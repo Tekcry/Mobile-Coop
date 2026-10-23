@@ -5,8 +5,9 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 
 **Test Runner SAVE 31 (2026-10-24 ~04:15, 90% save before the 04:40 reset; wins over SAVE 30 where they differ):**
 - Service (task NightShift-laptop-queue) runs headless; it self-updates to e52b4a79 (solo fallback) at its next idle pass.
-- STILL OPEN (Michael): ~68 old NightShift-chain-* tasks (one-shot 23:59 triggers) keep racing the service for the
-  slots. Fix: Stop-ScheduledTask + Disable-ScheduledTask on NightShift-chain-* (auto mode denies it here).
+- CLOSED ~07:10 (Michael ran it): all 87 NightShift-chain-* tasks stopped and DISABLED; NightShift-laptop-queue runs.
+  One orphan laptop-runner.ps1 (pid 20544, guardrender-s4cap-5809afe6, guard-cap on 4189, no children) waits for the
+  4189 lock and runs when the service frees it; stopping it needs Michael (auto mode denied Stop-Process).
 - Train 38 FAIL = guard-ai S23 #254 (sent). Train 40 #279 6e9632d1 42/43, ctcourse:4 "A8 pass 2: the grille is
   locked again on the host" = test race at a8Strongroom.mjs:459 (bare assert, the game relocks one host step later);
   no member caused it. Triage comment on #279, Orchestrator told, fix for Marlow: until(..., 5000) at :459.
