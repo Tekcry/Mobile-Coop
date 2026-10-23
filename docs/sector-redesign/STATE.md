@@ -295,10 +295,8 @@ LR16 (one lighting system; checks/lr16-plan.md, lr16-0-ct-audit.md)
 - RUNNING at the save (agents die at the swap): (a) LR16g builder (Opus) on -lr16g, WIP c3f03ce8 pushed; brief
   briefs/LR16g.md (base 961ca660; lead decisions at its top), report checks/lr16g-build.md. If dead: rerun an Opus builder
   from the brief + the WIP (LAMP_VERSION is 5; measure steady level, flicker 1; Marlow #257 files re-baselined in tests
-  only). (b) LR16-1 fresh recheck on 666b2a17 in detached C:/NightShift/Mobile-Coop-sector-redesign-lr16-1-chk (report
-  lr16-1-recheck.md there, untracked). If dead and no report: rerun the recheck (lr16-1-check.md Blocking 1 contract; also
-  doorway passes light). FIX -> one Opus fix round on lr16int. Remove the -chk worktree: `cmd //c rmdir <wt>\node_modules`
-  FIRST (junction to -polish node_modules), then git worktree remove --force.
+  only). (b) LR16-1 recheck PASS (lr16int 4ebcecbd, docs only; checks/lr16-1-recheck.md; polish 3 highp int ->
+  LR16-L). Detached check worktrees: `cmd //c rmdir <wt>\node_modules` (junction) FIRST, then git worktree remove --force.
 - After LR16g PASS (one Opus checker + laptop on the same sha): LR16-8 sheets (briefs/LR16h-and-8.md part 2 to Test
   Runner), then the LR16 PR (one batch; src/net touched by LR16-5 -> two checkers done). LR16-4 relight = Guard AI #255,
   then our board slice briefs/LR16-4-board.md (after LR16g; both edit campusS2.ts).
