@@ -1,0 +1,16 @@
+{
+  "id": "20261023T094120-night-shift-sector-o-273539ec-0469",
+  "sha": "273539ec0e6193d8b35c3cf1e16d795fddb6116b",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Sector Ops Build",
+  "steps": [
+    "git show 2a86dbdfd815f950c99523383aed66a8e8e1d953 > scripts/perf-ab.mjs && git show 1dea4a4ce098446f0c88db2b26977484cc38335d > lq-serve.mjs",
+    "set MAP=campusOps&& set MODE=sector&& node lq-serve.mjs scripts/perf-ab.mjs http://127.0.0.1:%E2E_PORT%/ --desktop --json",
+    "set MAP=campusOps&& set MODE=sector&& node lq-serve.mjs scripts/perf-ab.mjs http://127.0.0.1:%E2E_PORT%/ --preset=medium --json",
+    "set MAP=warehouseOps&& set MODE=sector&& node lq-serve.mjs scripts/perf-ab.mjs http://127.0.0.1:%E2E_PORT%/ --desktop --json"
+  ],
+  "env": {},
+  "note": "LR16 perf A/B triage: A0 = LR16 merge base (clean A)"
+}
