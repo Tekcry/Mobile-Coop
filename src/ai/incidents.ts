@@ -13,7 +13,8 @@
  * never a second investigator; a plain noise next to a light that just went out (the bulb's pop, the round's impact)
  * merges into the light. An investigator who goes down (dead, knocked out) or is held (grabbed, hostage, interrogated)
  * for `silentEscalate` s turns the incident into `missing`: the 2 nearest calm guards go as a pair (a lead, and a cover
- * `pairBack` m short of the spot, G11).
+ * `pairBack` m short of the spot, G11). (S7) A body a camera saw (`reportBody`, one incident per body): the nearest 1
+ * (knocked out) or 2 (dead) calm guards within `callR` by path walk to it (`MODE_BODY`).
  *
  * The board only reads a `GuardView` (struct of arrays filled by `EnemyManager`) and writes commands (`BoardOut`) the
  * manager applies to its guards. Guards are named by their stable id (`Enemy.num`), never by array index (the manager
@@ -29,6 +30,7 @@ export const KIND: readonly IncidentKind[] = ['noise', 'shots', 'light', 'distra
 const K_NOISE = 0;
 const K_LIGHT = 2;
 const K_MISSING = 4;
+const K_CAMBODY = 7;
 
 export const INCIDENT = {
   /** Fixed pool per board (oldest closed first; all open: the oldest is dropped). */
@@ -63,6 +65,11 @@ export const INCIDENT = {
   pairBack: 5,
   /** Perceivers kept per incident. */
   maxPerceivers: 16,
+  /** (guard-ai S7, design 9) A body a camera saw with no calm guard within `callR`: the report waits this long (s) for
+   *  one to come in range, then lapses (caution for the section is S4's). */
+  camWait: 30,
+  /** (guard-ai S7) A guard sent to a camera's body gives up the walk after this long (s) and looks round where he is. */
+  bodyWalk: 45,
 } as const;
 
 /** Alert level codes in `GuardView.level` (`AlertLevel`). */
@@ -78,6 +85,9 @@ export const GV_HELD = 4;
 export const GV_BUSY = 8;
 /** Dead or knocked out (still in the manager's list this step). */
 export const GV_DOWN = 16;
+/** (guard-ai S5) A high-security post (`posts.ts` `mayLeave` false): never sent out of his leash by the board; a
+ *  distraction reaches him as a `PostLure` instead (the manager never reports him as a perceiver). */
+export const GV_POSTED = 32;
 
 /** What the board reads per guard (struct of arrays, filled by `EnemyManager` before each tick). */
 export class GuardView {
@@ -145,6 +155,8 @@ export const MODE_INVESTIGATE = 0;
 export const MODE_LIGHT = 1;
 export const MODE_LEAD = 2;
 export const MODE_COVER = 3;
+/** (guard-ai S7) Walk to a body a camera saw; there the body-found path takes over (wake him / search). */
+export const MODE_BODY = 4;
 
 /** The board's output for one tick / report (the manager applies and clears it). */
 export class BoardOut {
@@ -245,6 +257,8 @@ export class IncidentBoard {
   readonly percAck = new Uint8Array(P * MP);
   readonly nPerc = new Uint8Array(P);
   readonly copies = new Uint8Array(P);
+  /** (guard-ai S7) How many guards a camera's body wants: 1 knocked out, 2 dead. */
+  readonly want = new Uint8Array(P);
 
   private nextId = 1;
   /** (S3, S2 check polish 1) The slot `follow` is escalating from: `alloc` never evicts it (a full pool could hand the
@@ -327,12 +341,25 @@ export class IncidentBoard {
       this.silentT[s * 2 + 1] = 0;
       this.nPerc[s] = 0;
       this.copies[s] = 0;
+      this.want[s] = 1;
       this.opened++;
     }
     this.lastT[s] = now;
     for (let i = 0; i < n; i++) this.addPerceiver(s, who[i]!, saw);
     if (!this.assigned[s]) this.pending = true;
     return this.id[s]!;
+  }
+
+  /**
+   * (guard-ai S7, design 9) A camera saw a downed guard at (x, y, z) (y: the floor under him). `key`: the body's number
+   * (one incident per body: a second camera's report of it merges while it is open). `lethal`: dead (2 go) or knocked
+   * out (1 goes). Nobody perceived it (the camera did): calm free guards within `callR` are asked, best by path.
+   */
+  reportBody(x: number, z: number, y: number, key: number, lethal: boolean, now = this.now): number {
+    const id = this.report('camBody', x, z, y, key, NO_ONE, 0, now);
+    const s = this.slotOf(id);
+    if (s >= 0 && lethal) this.want[s] = 2;
+    return id;
   }
 
   /** Advance the board (5 Hz; `dt` 0 just assigns what is pending): assign, acknowledge, escalate, close. */
@@ -362,6 +389,11 @@ export class IncidentBoard {
       if (!this.open[s]) continue;
       const sk = this.kind[s]!;
       if (k === K_LIGHT && key >= 0 && sk === K_LIGHT && this.key[s] === key) return s;
+      // (guard-ai S7) a camera's body: by the body only, while open (two bodies side by side are two incidents)
+      if (k === K_CAMBODY) {
+        if (sk === K_CAMBODY && this.key[s] === key) return s;
+        continue;
+      }
       if (now - this.lastT[s]! > M.mergeT) continue;
       // same kind by place, 3D (a light only by its key, above)
       if (sk === k && k !== K_LIGHT && k !== K_MISSING && hyp3(this.x[s]! - x, this.y[s]! - y, this.z[s]! - z) <= M.mergeR) return s;
@@ -410,7 +442,7 @@ export class IncidentBoard {
   /** May guard `i` be sent anywhere now? */
   private free(view: GuardView, i: number): boolean {
     const f = view.flags[i]!;
-    if (f & (GV_MELEE | GV_HELD | GV_BUSY | GV_DOWN)) return false;
+    if (f & (GV_MELEE | GV_HELD | GV_BUSY | GV_DOWN | GV_POSTED)) return false;
     if (view.task[i]! >= 0) return false;
     const l = view.level[i]!;
     return l === LEVEL.unaware || l === LEVEL.suspicious || l === LEVEL.cooldown;
@@ -529,7 +561,23 @@ export class IncidentBoard {
       this.assigned[s] = 1;
       return;
     }
-    // noise / shots / lure (and, until S4 / S7, everything else): one
+    if (k === K_CAMBODY) {
+      // (guard-ai S7, design 9, M6) a camera saw a body: the nearest calm guard by path within `callR` walks to it (a
+      // dead one: the next nearest too); nobody in range: wait for one to come in range, then let it lapse
+      if (this.mark(s, view, 1, false, M.callR, -1) === 0) {
+        if (this.now - this.lastT[s]! > M.camWait) this.close(s);
+        return;
+      }
+      const first = this.best(s, view);
+      this.send(s, view, first, MODE_BODY, 0, x, y, z);
+      if (this.want[s] === 2 && this.mark(s, view, 1, false, M.callR, view.id[first]!) > 0) {
+        const second = this.best(s, view);
+        if (second >= 0) this.send(s, view, second, MODE_BODY, 1, x, y, z);
+      }
+      this.assigned[s] = 1;
+      return;
+    }
+    // noise / shots / lure (and, until S4, everything else): one
     let c = this.mark(s, view, 0, false, Infinity, -1);
     if (c === 0) c = this.mark(s, view, 1, false, M.callR, -1);
     if (c === 0) {

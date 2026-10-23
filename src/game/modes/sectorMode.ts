@@ -9,6 +9,7 @@ import type { Blip } from '../../ui/hud/minimap';
 import type { DoorState } from '../../world/doors';
 import type { SquadSlot } from '../../world/rooms';
 import { flags } from '../../core/flags';
+import { reportGuardAi, validatePosts } from '../../ai/guardAiData';
 import { hyp2 } from '../../core/mathx';
 import { CtDevices } from '../ctDevices';
 import {
@@ -271,6 +272,10 @@ export class SectorMode implements GameMode {
     // alarm panels: only this section's work, armed again; a panel alarm can be raised again (once per section load)
     this.g.stealth?.setLiveAlarms(s ? i : -1);
     this.g.enemyMgr?.resetAlarm();
+    // (guard-ai S5) the section's noisy things mask hearing (else the map's); dev / tests check its posts (warnings)
+    const em = this.g.enemyMgr;
+    if (em) em.setNoisy(s?.noisy ?? em.mapNoisy);
+    if (s && import.meta.env.DEV) reportGuardAi(s.id, validatePosts(s.guards, s.id));
     if (!s) return;
     const n = flags.sectorGuards ?? s.guards.length;
     for (let k = 0; k < s.guards.length && k < n; k++) this.pending.push({ slot: s.guards[k]!, alerted: false });
@@ -285,6 +290,8 @@ export class SectorMode implements GameMode {
     g.net?.releaseHolds?.();
     this.pending.length = 0;
     g.enemyMgr?.despawnAll();
+    // (guard-ai S7) the cameras forget the bodies they reported (a section load or restart reports afresh)
+    g.security?.clearBodyReports();
     this.ct?.setLive(-1);
     g.stealth?.setLiveAlarms(-1);
   }
@@ -427,6 +434,8 @@ export class SectorMode implements GameMode {
       const e = em.spawn(p.slot.kind, this.tmp, p.alerted, p.slot.yaw);
       if (!e) break;
       if (p.slot.route) e.setPatrol({ points: p.slot.route, wait: p.slot.wait, waits: p.slot.waits, faces: p.slot.faces, start: p.slot.start, loop: p.slot.loop });
+      // (guard-ai S5) post, profile, section (the live SectorDef's index)
+      em.placeSlot(e, p.slot, this.run.index);
       this.pending.splice(i, 1);
     }
   }
