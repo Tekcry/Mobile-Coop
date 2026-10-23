@@ -1,0 +1,15 @@
+{
+  "id": "20261023T091149-night-shift-guard-ai-01b107b5-c635",
+  "sha": "01b107b5b4de5a3aacd4b597748a5baad2b39833",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "jobs": 2,
+  "set": "s23-coop",
+  "note": "guard-ai S23 every-player-seen e2e-coop block"
+}
