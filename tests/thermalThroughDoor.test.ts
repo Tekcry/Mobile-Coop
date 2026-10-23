@@ -1,8 +1,9 @@
 // (LR16-6, G102) Thermal through a shut door: who qualifies (warm, in range, a fully shut leaf on the floor line and
 // nothing else on the sight line, never the local player or a dog's hidden stand-in rig) and where the figure is drawn
 // (each joint slid along its own camera ray to just in front of the leaf, so it looks exactly like the body would).
-import { describe, expect, it, vi } from 'vitest';
-import { closedDoorIndex, doorPlaneFactor, ghostEmissive, ghostWarm, inGhostRange, type GhostDoor } from '../src/vfx/thermalGhost';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { bodyHeat, closedDoorIndex, doorPlaneFactor, ghostEmissive, ghostWarm, inGhostRange, type GhostDoor } from '../src/vfx/thermalGhost';
+import { stampKeptBodies } from '../src/net/keptBodies';
 import { heatOf, THERMAL, thermalColor } from '../src/vfx/visionLook';
 
 // a leaf on the line x = 0, hinge (0, -0.5), 1 m wide along +z (yaw 0: edge (sin 0, cos 0))
@@ -64,10 +65,45 @@ describe('thermal through a shut door: the pure rules', () => {
     expect(doorPlaneFactor(door(), 0.5, -3, 0.5, 3, f0)).toBe(1);
     // a camera closer to the leaf than doorFront: the factor floors at 0.02
     expect(doorPlaneFactor(door(), -0.03, 0, 2, 0, f0)).toBe(0.02);
+    // the leaf line behind the camera (the ray meets it at t <= 0): left where it is, not floored
+    expect(doorPlaneFactor(door(), -3, 0, -4, 0, f0)).toBe(1);
+  });
+
+  it('a body cools on bodyHeat: warm enough for the door figure for the first half of coolTime only', () => {
+    expect(bodyHeat(0)).toBe(THERMAL.bodyEmit);
+    expect(ghostWarm(bodyHeat(THERMAL.coolTime * 0.45))).toBe(true);
+    expect(ghostWarm(bodyHeat(THERMAL.coolTime * 0.6))).toBe(false);
+    expect(bodyHeat(THERMAL.coolTime * 2)).toBe(0);
+  });
+});
+
+describe('thermal through a shut door: the co-op client keeps its bodies cooling (LR16-6 fix)', () => {
+  it('stampKeptBodies marks each kept rig a body this frame with its age: past half coolTime it no longer shows', () => {
+    const fresh = { rig: { bodyFrame: -1, bodyAge: 0 } };
+    const old = { rig: { bodyFrame: -1, bodyAge: 0 } };
+    const kept = new Map([['e1', fresh], ['e2', old]]);
+    const at = new Map([['e1', 100], ['e2', 100 - THERMAL.coolTime * 0.6]]);
+    stampKeptBodies(kept, at, 105, 7);
+    expect(fresh.rig.bodyFrame).toBe(7);
+    expect(old.rig.bodyFrame).toBe(7);
+    expect(fresh.rig.bodyAge).toBeCloseTo(5, 9);
+    expect(old.rig.bodyAge).toBeCloseTo(5 + THERMAL.coolTime * 0.6, 9);
+    // what paintHeat then gives them (the host's curve): the fresh body ghosts, the old one no longer
+    expect(ghostWarm(bodyHeat(fresh.rig.bodyAge))).toBe(true);
+    expect(ghostWarm(bodyHeat(old.rig.bodyAge))).toBe(false);
+    // a body with no recorded time counts as fresh (age 0)
+    const lone = { rig: { bodyFrame: -1, bodyAge: 3 } };
+    stampKeptBodies(new Map([['e3', lone]]), at, 105, 8);
+    expect(lone.rig.bodyFrame).toBe(8);
+    expect(lone.rig.bodyAge).toBe(0);
   });
 });
 
 describe('thermal through a shut door: DoorGhosts on a real rig (NullEngine)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('draws a guard behind the shut leaf, in front of it; not when open, blocked, cold, out of range, the player or a stand-in', async () => {
     const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
     const { Scene, Vector3 } = await import('../src/core/babylon');
@@ -90,8 +126,15 @@ describe('thermal through a shut door: DoorGhosts on a real rig (NullEngine)', (
     const player = mk(-1.5, 0, 1);
     const d = { ...door(), index: 0 };
     const doors = { list: [d] } as unknown as ConstructorParameters<typeof DoorGhosts>[1];
+    // `Ballistics.hitDistance`: the first hit's distance, or the full length on a miss. `wall`: something on the camera
+    // side; `short`: the body-side ray (it starts past the leaf, x > 0) stops this far short of the chest
     let wall = false;
-    const ray = () => ({ hit: wall, distance: 0 });
+    let short = 0;
+    const ray = (a: InstanceType<typeof Vector3>, b: InstanceType<typeof Vector3>): number => {
+      const L = Vector3.Distance(a, b);
+      if (a.x > 0) return L - short;
+      return wall ? 0 : L;
+    };
     const gh = new DoorGhosts(scene, doors, ray);
     const cam = new Vector3(-3, 1.6, 0);
     const heads = scene.getMeshByName('doorGhostHeads')!;
@@ -100,6 +143,9 @@ describe('thermal through a shut door: DoorGhosts on a real rig (NullEngine)', (
     gh.update(true, cam, [guard, player], player);
     expect(gh.count).toBe(1);
     expect(heads.isEnabled()).toBe(true);
+    // the figure stamps its rig (a render-frozen guard keeps solving: GuardAnimTier.animate)
+    expect(guard.ghostFrame).toBe(scene.getFrameId());
+    expect(player.ghostFrame).toBe(-1);
     // the head drawn on the camera side of the leaf, at doorFront (it looks the same: moved along its camera ray)
     expect(headX()).toBeCloseTo(-THERMAL.doorFront, 3);
 
@@ -116,6 +162,15 @@ describe('thermal through a shut door: DoorGhosts on a real rig (NullEngine)', (
     gh.update(true, cam, [guard], player);
     expect(gh.count).toBe(0);
     wall = false;
+    // the body-side ray: a hit within BODY_SLACK of the chest (his own arm, a prop at his feet) still shows; well short of
+    // him (a wall between the leaf and him) blocks
+    short = 0.2;
+    gh.update(true, cam, [guard], player);
+    expect(gh.count).toBe(1);
+    short = 0.6;
+    gh.update(true, cam, [guard], player);
+    expect(gh.count).toBe(0);
+    short = 0;
     guard.setHeat(0);
     gh.update(true, cam, [guard], player);
     expect(gh.count).toBe(0);

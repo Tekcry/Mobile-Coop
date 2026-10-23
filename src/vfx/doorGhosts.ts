@@ -23,14 +23,15 @@ const BODY_SLACK = 0.3;
  * Which rigs: every rig in `LIVE_RIGS` but the local player's and hidden stand-ins (a dog's humanoid rig), warm
  * enough (`ghostWarm`: guards, partners, a fresh body), within `THERMAL.doorRange` of the camera, whose floor line from
  * the camera crosses a fully shut leaf, with nothing else static or glass on the sight line (two rays, the leaf left out).
- * Guards the sector render freeze disabled still count (their root follows the sim; the pose is the last solved one).
+ * Guards the sector render freeze disabled still count (their root follows the sim): a figure stamps its rig's
+ * `ghostFrame`, and the anim tier keeps solving a stamped frozen rig (`GuardAnimTier.animate`), so it walks, not glides.
  *
  * How: the figure is the rig's posed limbs and head (`Silhouettes`: one thin-instanced limb mesh and one head mesh, 2
  * draw calls for all of them, no texture, no new pass), each joint slid along its own camera ray to `THERMAL.doorFront`
  * in front of the leaf (`doorPlaneFactor`): it looks exactly like the body would, drawn with the normal depth test, so
  * the player or a crate in front still covers it and the wall faces round the frame clip what spills past the leaf. The
  * thermal pass reads it at `THERMAL.doorGhost` (`ghostEmissive` takes out the exposure): low on the ramp, dim blue; the
- * pass's 4-tap soften blurs its edge. No allocation per frame.
+ * pass's 4-tap soften blurs its edge. No allocation per frame: the rays are `Ballistics.hitDistance` (shared result).
  */
 export class DoorGhosts implements PointWarp {
   private readonly fig: Silhouettes;
@@ -46,7 +47,8 @@ export class DoorGhosts implements PointWarp {
   constructor(
     private scene: Scene,
     private doors: Doors,
-    private ray: (from: Vector3, to: Vector3, mask: number) => { hit: boolean; distance: number },
+    /** The first hit's distance from `from` in `mask`, or the full `from` -> `to` length on a miss (`Ballistics.hitDistance`). */
+    private ray: (from: Vector3, to: Vector3, mask: number) => number,
   ) {
     const k = THERMAL.doorGhost;
     this.fig = new Silhouettes(scene, 'doorGhost', THERMAL.doorMax, new Color3(k, k, k), false, false);
@@ -92,13 +94,14 @@ export class DoorGhosts implements PointWarp {
     const y = (hips.y + r.neck.getAbsolutePosition().y) * 0.5;
     this.a.copyFrom(cam);
     this.b.set(x.x - dx * k, y, x.z - dz * k);
-    if (this.ray(this.a, this.b, GHOST_BLOCK).hit) return true;
+    if (this.ray(this.a, this.b, GHOST_BLOCK) < Vector3.Distance(this.a, this.b) - 1e-3) return true;
     this.a.set(x.x + dx * k, y, x.z + dz * k);
     this.b.set(hips.x, y, hips.z);
-    const h = this.ray(this.a, this.b, GHOST_BLOCK);
-    if (h.hit && h.distance < Vector3.Distance(this.a, this.b) - BODY_SLACK) return true;
+    if (this.ray(this.a, this.b, GHOST_BLOCK) < Vector3.Distance(this.a, this.b) - BODY_SLACK) return true;
     this.cam = cam;
     this.door = list[di]!;
+    // (a render-frozen guard keeps solving while he is a figure: `GuardAnimTier.animate`)
+    r.ghostFrame = this.scene.getFrameId();
     return this.fig.add(r, this);
   }
 

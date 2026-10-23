@@ -52,6 +52,8 @@ closed wooden door shows as a dim blue silhouette", low end of the ramp, soft; m
 - CPU in thermal per frame: per live rig a cached `getAbsolutePosition` + range test; in range a door loop; per
   candidate behind a shut door 2 Havok rays, 23 joint reads, 12 matrix composes. Thermal off: nothing (one early gate).
 - No per-frame allocation (joint array hoisted, scratch vectors and the crossing object reused, `Vector3.Distance`).
+  (Fix round: at 543cb6da this was not true of the 2 rays, `Ballistics.ray` built a result object and vectors per
+  call; they now use the allocation-free `Ballistics.hitDistance`.)
 - The silhouette material compiles the first time a figure shows (a possible one-off shader hitch; the spike log tags
   it). Not prewarmed.
 
@@ -80,3 +82,45 @@ closed wooden door shows as a dim blue silhouette", low end of the ramp, soft; m
   of the leaf line (flush-mounted doors): it can spill a little onto that wall. A stencil clip would fix it if seen.
 - Dogs behind a door show no silhouette (no four-legged figure; co-op has no dogs, G155).
 - Photo mode skips the vision frame: a photo keeps the silhouettes of the frame it froze on.
+
+## Fix round (Opus, after check A FIX / check B PASS)
+
+Base 543cb6da. Render only throughout: no wire, `PROTOCOL_VERSION` or save change; single player still reaches
+`src/net` only through the dynamic import (`GameState.bodyStamp` is a plain function field; `src/net/keptBodies.ts` is
+imported by `coopClient.ts` only).
+
+1. MUST (A1), co-op client bodies never cooled, so a kept body behind a shut door showed for good on the client
+   (~30 s on the host). `src/net/coopClient.ts`: `keptAt` (:78) set beside `kept.set` (:731), deleted in `dropBody`
+   (:1099), cleared on dispose (:1159); `stampBodies` (:1091) wired as `g.bodyStamp` (:218, nulled on dispose :219).
+   The loop is `src/net/keptBodies.ts` `stampKeptBodies` (`Map.forEach` with a module function: no iterator or closure
+   per frame). `src/game/gameState.ts`: field `bodyStamp` (:2534), `if (on && !bodies) this.bodyStamp?.(f);` after the
+   host bodies block (:2596). The cooling curve moved to `vfx/thermalGhost.ts` `bodyHeat` (:57), used for rigs and dogs
+   in `paintHeat` (:2603, :2613; same arithmetic). Also fixes the client's main-pass body cooling.
+2. SHOULD (A2), Sector Ops door figures were statues. `CharacterRig.ghostFrame` (characterRig.ts:4666, -1 never);
+   `DoorGhosts.consider` stamps it before `fig.add` (doorGhosts.ts:104); `GuardAnimTier.animate` (animTierView.ts:107)
+   treats a rig stamped this or last frame as not frozen and as seen (`dt(..., shown)`, :75), so it solves every frame
+   like a guard in view, not at the off-screen tier's 1 in 4. At most `THERMAL.doorMax` 8 rigs, CPU only.
+3. Polish taken: the 2 rays use `Ballistics.hitDistance` (gameState.ts:2569; doorGhosts.ts:97 and :100, the ray now
+   returns a number; camera side blocked under the full length - 1e-3, body side under it - `BODY_SLACK`), the Perf
+   claim above corrected; `doorPlaneFactor` returns 1 when the leaf line is behind the camera (thermalGhost.ts:85);
+   the e2e colour read is a 12 px square at the guard's projected chest (hips-neck midpoint, `Vector3.Project`), the same
+   pixels with him gone (e2e-darkness.mjs:253-272); the `Math.random` spy is restored (`afterEach`); `lighting.md` says
+   a vault door hides the figure, and documents the client cooling and the frozen-guard solve.
+
+Tests: `thermalThroughDoor.test.ts` +2 cases (`bodyHeat` half-`coolTime` cut; `stampKeptBodies` on the client: a body
+past half `coolTime` no longer `ghostWarm`) and extended (t <= 0; the ray stub now a `hitDistance` one; body-side hit
+within `BODY_SLACK` shows, well short blocks; `ghostFrame` stamped on the figure only); `sectorGuardFreezeView.test.ts`
++1 (a disabled-root rig with a fresh `ghostFrame` animates, one frame behind still does, stale or unstamped stays frozen).
+
+Runs: `npx tsc --noEmit` clean; `npm run lint` 0 errors (42 warnings, none in changed files); vitest `--maxWorkers=2`
+under a slot lock: thermalThroughDoor, doorGhosts, vision, nightVision, visionIsolation, animTier, sectorGuardFreeze,
+sectorGuardFreezeSeeThrough, sectorGuardFreezeView, enemyGunMerge, enemyLightsOut, enemyManagerDespawn, net, netSim,
+coopFix, coopGuardAi, coopGuardCarry, coopTorches, coopWalkFixes, ratingRejoin: 20 files, 250 passed.
+`node --check scripts/e2e-darkness.mjs` clean. No e2e, build or GPU.
+
+Laptop: `E2E_GPU=1` e2e-darkness (port 4189; the colour read moved to the chest), e2e-coop and e2e-netmove (`src/net`
+and `src/game` changed). GPU look: a guard walking behind a shut door in Sector Ops (figure walks, no glide); co-op
+client in thermal, a body behind a shut door gone after ~30 s as on the host.
+
+Left for later (polish): A4 / B5 unplaced puppets and first-snapshot rigs for a frame, A7 prewarm, B2 grazing
+angle, B4 photo mode, B6 `Silhouettes.jn`.

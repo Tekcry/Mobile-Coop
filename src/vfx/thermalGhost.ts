@@ -52,6 +52,12 @@ export function inGhostRange(cx: number, cz: number, x: number, z: number): bool
   return dx * dx + dz * dz <= THERMAL.doorRange * THERMAL.doorRange;
 }
 
+/** (Step 14) A body's thermal heat `age` s after it went down: `bodyEmit`, cooling over `THERMAL.coolTime` in 1/16 steps
+ *  (its buffers change a few times a minute, not every frame). `GameState.paintHeat`, host and client bodies alike. */
+export function bodyHeat(age: number): number {
+  return THERMAL.bodyEmit * (Math.round(16 * Math.max(0, 1 - age / THERMAL.coolTime)) / 16);
+}
+
 /** Warm enough to show through a shut door: a rig's thermal heat (`CharacterRig.heat`, 0 with thermal off). */
 export function ghostWarm(heat: number): boolean {
   return heat >= THERMAL.doorMinHeat * THERMAL.bodyEmit - 1e-6;
@@ -61,7 +67,8 @@ export function ghostWarm(heat: number): boolean {
  * The factor f that slides a point p along its camera ray (p' = c + (p - c) * f) onto the camera side of the door's
  * leaf line, `front` m in front of it (horizontal measure). Moving a point along its own ray keeps its place on screen,
  * so the figure drawn there looks exactly like the body behind the leaf, and the leaf no longer hides it. A point
- * already in front of that plane (or a ray parallel to the leaf) keeps f = 1; f never drops under 0.02.
+ * already in front of that plane (or a ray parallel to the leaf, or a leaf line behind the camera) keeps f = 1; f never
+ * drops under 0.02.
  */
 export function doorPlaneFactor(d: GhostDoor, cx: number, cz: number, px: number, pz: number, front: number): number {
   const dx = px - cx;
@@ -74,6 +81,8 @@ export function doorPlaneFactor(d: GhostDoor, cx: number, cz: number, px: number
   const den = dx * ez - dz * ex;
   if (Math.abs(den) < 1e-6 * len) return 1;
   const t = ((a.hinge.x - cx) * ez - (a.hinge.z - cz) * ex) / den;
+  // the leaf line behind the camera: the point is not behind the leaf as seen from here
+  if (t <= 0) return 1;
   // the ray meets the line at t; a step ds along it moves |den| * ds off the line (|den| = len x the sine of the ray's
   // angle to the leaf), so `front` in front of the line is ds = front / |den| before t
   const f = t - front / Math.abs(den);

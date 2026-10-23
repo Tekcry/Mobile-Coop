@@ -5,3 +5,5 @@ kind: minor
   shows then), and only within about 14 m. Your own body in front of the door still covers it. Picture only: guards
   and the light meter are unchanged; in co-op each player sees their own.
 - Every goggle change is an instant cut; switching modes on the wheel with the goggles on now flashes the HUD label too.
+- Co-op: bodies now cool in thermal on the joining player's screen as they do on the host's, and a guard walking behind a
+  shut door in Sector Ops moves as a figure instead of sliding in his last pose.

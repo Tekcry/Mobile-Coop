@@ -280,8 +280,13 @@ change.
   clip what spills past the leaf). The thermal pass reads it at `THERMAL.doorGhost` 0.62 (`ghostEmissive` divides out
   the image-processing exposure): heat ~0.15, CT's dim blue. Cost: no texture, no sampler, no pass; 2 draws while a
   figure shows, 0 otherwise; per frame in thermal a range check per live rig, a door loop and 2 Havok rays per
-  candidate behind a shut door. Each peer draws its own (host and client both walk `LIVE_RIGS`; vision is never sent).
-  Guards the Sector Ops render freeze disabled still show (their root follows the sim; the pose is the last solved).
+  candidate behind a shut door (`Ballistics.hitDistance`, no allocation). Each peer draws its own (host and client both
+  walk `LIVE_RIGS`; vision is never sent); the co-op client cools its kept bodies on the host's curve (`bodyHeat`,
+  stamped through `GameState.bodyStamp` from `net/keptBodies.ts`), so a body stops showing on both peers alike.
+  Guards the Sector Ops render freeze disabled still show and walk: a figure stamps its rig's `ghostFrame`, and
+  `GuardAnimTier.animate` keeps solving a frozen rig stamped this or last frame (at most 8 rigs, CPU only).
+  A vault door (prop leaf, `leaf: 'slide'` anchor) is thick: the figure 0.06 m off its line sits inside the leaf and is
+  hidden, so thermal shows nobody through a steel vault door.
   Photo mode skips the vision frame, so a photo keeps the silhouettes of the frame it froze on.
 - What glows in each mode: `docs/systems/gadgets.md`.
 - The goggle glow (`player/goggleGlow.ts`): the goggle lenses and a rear battery LED as emissive instances of one unlit

@@ -144,10 +144,14 @@ async function readLuma(page) {
   }, png.toString('base64'));
 }
 
-/** Mean sRGB (0..255) of a centre square of the final image. */
-async function readRgb(page, size = 24) {
+/** Mean sRGB (0..255) of a square of the final image: at `at` (page px, its centre), else the screen centre. */
+async function readRgb(page, size = 24, at = null) {
   const vp = page.viewportSize();
-  const png = await page.screenshot({ clip: { x: Math.floor((vp.width - size) / 2), y: Math.floor((vp.height - size) / 2), width: size, height: size } });
+  const cx = at ? at.x : vp.width / 2;
+  const cy = at ? at.y : vp.height / 2;
+  const x = Math.max(0, Math.min(vp.width - size, Math.floor(cx - size / 2)));
+  const y = Math.max(0, Math.min(vp.height - size, Math.floor(cy - size / 2)));
+  const png = await page.screenshot({ clip: { x, y, width: size, height: size } });
   return page.evaluate(async (b64) => {
     const img = await createImageBitmap(await (await fetch(`data:image/png;base64,${b64}`)).blob());
     const c = new OffscreenCanvas(img.width, img.height);
@@ -244,12 +248,30 @@ async function thermalChecks(page, look) {
     }
   }
   assert(hit, `${look.name}: thermal shows a guard behind a shut door as a silhouette at one of ${cands.length} doors (G102)`);
-  const ghost = await readRgb(page);
+  // read at the guard's chest as projected on screen (the figure lies on his camera rays), not the screen centre (the
+  // camera's pivot sits at head height, off to the shoulder side); the same pixels with him gone
+  const chest = await page.evaluate(() => {
+    const g = window.__app.current;
+    const e = (g.enemyMgr?.enemies ?? []).find((x) => x.alive && !x.def.quadruped);
+    const r = e.bodyRig;
+    const h = r.hips.getAbsolutePosition();
+    const n = r.neck.getAbsolutePosition();
+    const V = h.constructor;
+    const cam = g.player.cam.camera;
+    const eng = g.scene.getEngine();
+    const w = eng.getRenderWidth();
+    const ht = eng.getRenderHeight();
+    const M = cam.getTransformationMatrix();
+    const s = V.Project(new V((h.x + n.x) / 2, (h.y + n.y) / 2, (h.z + n.z) / 2), M.constructor.Identity(), M, cam.viewport.toGlobal(w, ht));
+    const rect = eng.getRenderingCanvas().getBoundingClientRect();
+    return { x: rect.left + (s.x / w) * rect.width, y: rect.top + (s.y / ht) * rect.height };
+  });
+  const ghost = await readRgb(page, 12, chest);
   await place(hit, false);
   await frames(page, 30);
-  const none = await readRgb(page);
+  const none = await readRgb(page, 12, chest);
   const st0 = await state(hit.i);
-  console.log(`  ${look.name} thermal at door ${hit.i}: silhouette rgb ${ghost}, guard gone rgb ${none} (ghosts ${st0.ghosts})`);
+  console.log(`  ${look.name} thermal at door ${hit.i}: silhouette rgb ${ghost}, guard gone rgb ${none} at chest px ${Math.round(chest.x)},${Math.round(chest.y)} (ghosts ${st0.ghosts})`);
   assert(st0.ghosts === 0, `${look.name}: no silhouette with the guard gone (${JSON.stringify(st0)})`);
   // dim blue, low on the ramp (CT): blue well over the empty door's, not the warm green / yellow of a body in the open
   assert(ghost[2] - none[2] > 40 && ghost[0] < 70 && ghost[1] < 110, `${look.name}: the silhouette reads dim blue over the leaf (${ghost} vs ${none})`);

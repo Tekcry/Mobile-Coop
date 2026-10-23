@@ -49,6 +49,7 @@ import { BOLT_DEPTH, SECTOR_RESTART_TITLE, boltById, boltHalfSpan, type SectorRa
 import { barkLine, BARK_EVENTS, RADIO_BARKS } from '../ai/barks';
 import { HelmetDrops } from '../ai/helmetDrops';
 import { DeflectLedger } from './puppetGear';
+import { stampKeptBodies } from './keptBodies';
 import { DESK_NONE, deskItemId, deskModeOf } from '../game/sectorDesks';
 
 const SEND_HZ = 20;
@@ -73,6 +74,8 @@ export class CoopClient implements NetAttachment {
   private ragdolls: Ragdoll[] = [];
   /** Bodies the host still has lying, by enemy id (dropped when its `snap.bodies` leaves one out). */
   private kept = new Map<string, Ragdoll>();
+  /** (LR16-6 fix) When each kept body went down (`time`): its body-heat cooling (`stampBodies`). Render only. */
+  private readonly keptAt = new Map<string, number>();
   private dying: EnemyPuppet[] = [];
   private clock = new ClockSync();
   private sendT = 0;
@@ -211,6 +214,9 @@ export class CoopClient implements NetAttachment {
       if (kind === 'gas' || kind === 'flash' || kind === 'emp' || kind === 'noise') s.toHost({ t: 'gadget', kind, x: at.x, y: at.y, z: at.z });
     };
     g.takedownVictims = () => this.puppetList;
+    // (LR16-6 fix) our kept bodies cool as the host's do (render-only body heat)
+    g.bodyStamp = (f) => this.stampBodies(f);
+    this.offs.push(() => (g.bodyStamp = null));
     // wall medkit stations are the host's, mirrored (the host heals: health is host-authoritative)
     const own = g.interactables;
     if (own) for (const it of own.items.filter((x) => x.kind === 'medkitWall')) own.remove(it);
@@ -722,6 +728,7 @@ export class CoopClient implements NetAttachment {
               const r = new Ragdoll(g.scene, rig, away, true);
               this.ragdolls.push(r);
               this.kept.set(e.enemy, r);
+              this.keptAt.set(e.enemy, this.time);
             } else rig.dispose();
           } else this.dying.push(p);
           this.puppets.delete(e.enemy);
@@ -1079,10 +1086,17 @@ export class CoopClient implements NetAttachment {
     return true;
   }
 
+  /** (LR16-6 fix) `GameState.bodyStamp`: mark the kept bodies' rigs as bodies this render frame with their age, so
+   *  their body heat cools as the host cools its own (`paintHeat`). Render only, no allocation (`keptBodies.ts`). */
+  stampBodies(f: number): void {
+    stampKeptBodies(this.kept, this.keptAt, this.time, f);
+  }
+
   private dropBody(id: string): void {
     const r = this.kept.get(id);
     if (!r) return;
     this.kept.delete(id);
+    this.keptAt.delete(id);
     r.dispose();
   }
 
@@ -1142,6 +1156,7 @@ export class CoopClient implements NetAttachment {
     this.dying.length = 0;
     this.ragdolls.length = 0;
     this.kept.clear();
+    this.keptAt.clear();
     this.holdPulses.clear();
     this.ints?.dispose();
     this.g.explosions.onLocalBlast = null;
