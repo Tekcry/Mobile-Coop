@@ -306,7 +306,10 @@ Running / next - LR16 (Michael ~18:08-18:20; slices checks/lr16-plan.md + lr16-0
   door / prop casters outside cone fit; campusS2 boost via stale lights.contribution) -> Opus fix round RUNNING on -lr16int
   (lr16-batch-fix.md); then recheck A items only + laptop rerun of what the fix touches,
   laptop GPU request SENT ~20:00 (suites + wall-arc / torch / char-shadow / door / thermal sheets + perf). -lr16dw joins on done.
-  then LR16-8 showcase sheets (laptop) on every map. LR16-4 guard relight -> offer to Guard AI; LR16-5 moving lights
+  then LR16-8 showcase sheets (laptop) on every map. Briefs DONE 93c18cf2 (docs/sector-redesign/briefs/): LR16e + LR16-1
+  QUEUED on cloud-queue f928ba47 (merge e then 1 into lr16int); LR16t: queue after the lr16int fix lands (rebase base
+  sha; it replaces the Babylon torch shadow pool); LR16h part 1 after the fix (same docs); LR16g after dx + e + 1;
+  campus-art-next after #226. LR16-4 guard relight -> offer to Guard AI; LR16-5 moving lights
   needs Michael's scope.
 3. Polish batch (-artpol): becomes #226's new head (see 1).
 For Michael: Realistic dimmer after atlas fix (S2 atrium 0.28 vs Classic 0.48, LR16g); S3 hall-lit white fog.
