@@ -26,11 +26,11 @@ const LOOP = { period: 44, leave: [3, 25], t0: 0 };
  */
 export const S5_GUARDS: SectorGuard[] = [
   // 1-3 the response team's standing force in the control room, for the ceremony
-  { kind: 'enforcer', x: -54.5, z: 21.0, yaw: PI / 4, takedownSpot: [-54.85, 20.65], role: 'response', zone: 'ctl', squad: 0, dormant: true, reason: 'Standing reaction force for the ceremony' },
-  { kind: 'enforcer', x: -52.0, z: 21.5, yaw: 0, takedownSpot: [-52.0, 21.0], role: 'response', zone: 'ctl', squad: 0, dormant: true, reason: 'Standing reaction force for the ceremony' },
-  { kind: 'enforcer', x: -54.5, z: 26.0, yaw: PI / 2, takedownSpot: [-55.0, 26.0], role: 'response', zone: 'ctl', squad: 0, dormant: true, reason: 'Standing reaction force for the ceremony' },
+  { kind: 'enforcer', x: -55, z: 19.5, yaw: PI / 2, takedownSpot: [-55.5, 19.5], role: 'response', zone: 'ctl', squad: 0, dormant: true, reason: 'Standing reaction force for the ceremony' },
+  { kind: 'enforcer', x: -55, z: 22.4, yaw: PI / 2, takedownSpot: [-55.5, 22.4], role: 'response', zone: 'ctl', squad: 0, dormant: true, reason: 'Standing reaction force for the ceremony' },
+  { kind: 'enforcer', x: -55, z: 25.4, yaw: PI / 2, takedownSpot: [-55.5, 25.4], role: 'response', zone: 'ctl', squad: 0, dormant: true, reason: 'Standing reaction force for the ceremony' },
   // 4 the team's hall walk
-  { kind: 'enforcer', x: -53, z: 27.5, yaw: 1.9, route: [[-53, 27.5], [-41.5, 23.5]], waits: [6, 6], takedownSpot: [-53.4, 27.6], role: 'response', zone: 'hall', squad: 0, reason: "The response team's hall walk" },
+  { kind: 'enforcer', x: -53, z: 28.4, yaw: 1.9, route: [[-53, 28.4], [-41.5, 23.5]], waits: [6, 6], takedownSpot: [-53.5, 28.6], role: 'response', zone: 'hall', squad: 0, reason: "The response team's hall walk" },
   // 5-8 the grounds: the garden team and the lake-side team (a handler and a dog each, on one clock)
   { kind: 'grunt', x: -63, z: 23.5, yaw: 0, route: [[-63, 23.5], [-63, 40.5]], faces: [0, PI], loop: LOOP, takedownSpot: [-63, 23.0], role: 'handler', zone: 'garden', squad: 1, reason: 'Grounds patrol for the ceremony' },
   { kind: 'dog', x: -62, z: 23.5, yaw: 0, route: [[-62, 23.5], [-62, 40.5]], faces: [0, PI], loop: LOOP, takedownSpot: [-62, 23.0], role: 'dog', zone: 'garden', squad: 1, handler: 4, reason: 'At heel with the garden handler' },
@@ -40,12 +40,12 @@ export const S5_GUARDS: SectorGuard[] = [
   { kind: 'officer', x: -44, z: 34.0, yaw: PI, takedownSpot: [-44, 34.5], role: 'posted', zone: 'token', squad: 2, pair: 9, reason: 'Two-person rule: neither is alone with the token' },
   { kind: 'officer', x: -42, z: 34.0, yaw: PI, takedownSpot: [-42, 34.5], role: 'posted', zone: 'token', squad: 2, pair: 8, reason: 'Two-person rule: neither is alone with the token' },
   // 11 the audit escort
-  { kind: 'officer', x: -45.2, z: 33.0, yaw: PI / 2, route: [[-45.2, 33.0], [-40.8, 36.2], [-39.0, 33.6]], waits: [4, 4, 4], takedownSpot: [-40.6, 33.8], role: 'escort', zone: 'ante', squad: 2, reason: 'Escorts the audit papers; alone at the shaft door' },
+  { kind: 'officer', x: -45.2, z: 33.0, yaw: PI / 2, route: [[-45.2, 33.0], [-40.8, 36.2], [-39.0, 34.0]], waits: [4, 4, 4], takedownSpot: [-39.0, 34.3], role: 'escort', zone: 'ante', squad: 2, reason: 'Escorts the audit papers; alone at the shaft door' },
   // 12 the front door
   { kind: 'officer', x: -44, z: 20.5, yaw: PI, takedownSpot: [-44, 20.0], role: 'door', zone: 'hall', squad: 0, reason: 'Front door, under the hall camera' },
   // 13-14 the gallery pair, opposite phases
   { kind: 'grunt', x: -48.5, y: Y1, z: 19.6, yaw: 0, route: [[-48.5, 19.6], [-48.5, 28.4]], waits: [5, 5], takedownSpot: [-48.5, 19.1], role: 'gallery', zone: 'gal-w', squad: 3, reason: 'Overlooks the stair hall' },
-  { kind: 'grunt', x: -39.5, y: Y1, z: 28.4, yaw: PI, route: [[-39.5, 28.4], [-39.5, 19.6]], waits: [5, 5], takedownSpot: [-39.5, 28.9], role: 'gallery', zone: 'gal-e', squad: 3, reason: 'Overlooks the stair hall, opposite phase' },
+  { kind: 'grunt', x: -39.5, y: Y1, z: 28.4, yaw: PI, route: [[-39.5, 28.4], [-39.5, 19.6]], waits: [5, 5], takedownSpot: [-39.5, 19.1], role: 'gallery', zone: 'gal-e', squad: 3, reason: 'Overlooks the stair hall, opposite phase' },
   // 15 the boardroom
   { kind: 'officer', x: -53, y: Y1, z: 24, yaw: PI / 2, takedownSpot: [-53.5, 24], role: 'post', zone: 'board', squad: 3, dormant: true, reason: 'Board papers laid out for 08:00' },
   // 16-17 the CEO suite pair
@@ -56,7 +56,7 @@ export const S5_GUARDS: SectorGuard[] = [
   // 19 the roof marksman
   { kind: 'grunt', x: -40, y: YR, z: 43.0, yaw: 0, route: [[-40, 43.0], [-39, 43.0]], waits: [12, 12], faces: [-0.6, 0.6], takedownSpot: [-40.4, 42.6], role: 'marksman', zone: 'roof', squad: 4, reason: 'Overwatch of the lake approach' },
   // 20 the terrace gate
-  { kind: 'grunt', x: -44, z: 50.7, yaw: 0, takedownSpot: [-44, 51.2], role: 'gate', zone: 'terrace', squad: 1, reason: 'The terrace gate, lake side' },
+  { kind: 'grunt', x: -44, z: 50.7, yaw: 0, route: [[-44, 50.7], [-47.8, 57.6], [-48.1, 62.2], [-47.5, 57.6]], waits: [6, 0, 6, 0], takedownSpot: [-48.1, 62.6], role: 'gate', zone: 'terrace', squad: 1, reason: 'The terrace gate, lake side' },
   // 21 the service round
   { kind: 'grunt', x: -29, z: 42.5, yaw: PI, route: [[-29, 42.5], [-29, 23.5]], waits: [3, 3], takedownSpot: [-30.4, 23.3], role: 'patrol', zone: 'wing', squad: 5, reason: 'Service round; answers the garden board' },
   // 22 the lobby officer, the C4 door 1.6 m behind him
@@ -176,7 +176,7 @@ export const S5_SECTOR: SectorDef = {
   intel: [{ kind: 'board', grants: 's5-arch', line: 'Rota board: archive keypad 1960 until Monday.', at: [-26.15, 1.5, 37.0], yaw: -PI / 2 }],
   pairGates: [{ door: [-41, 38.6], a: { at: [-40.0, 34.45], y: Y1, yaw: PI }, b: { at: [-45.85, 42.0], y: Y1, yaw: PI / 2 }, window: 1.0 }],
   stageActions: [
-    { stage: 1, responseRoute: [[-51.6, 24], [-47, 27], [-43, 30.5]], releaseDogs: true },
+    { stage: 1, responseRoute: [[-50.8, 26.0], [-47, 27], [-43, 30.5]], releaseDogs: true },
     { stage: 2, lightsFull: [81, 84], lockDoors: [[-56, 40]] },
     { stage: 3, lightsFull: [80, 88], lockDoors: [[-38, 33.5]] },
   ],

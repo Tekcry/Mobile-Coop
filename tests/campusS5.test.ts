@@ -708,10 +708,10 @@ describe('M8: isolation in time at each takedown spot', () => {
     const rows = G.map((g, i) => ({ n: i + 1, run: longestIsolation(world, timed, i, 15, g.takedownSpot), ok: isolatedInTime(world, timed, i, g.takedownSpot) }));
     // eslint-disable-next-line no-console
     if (process.env.CAMPUS_PRINT) console.log(rows.map((r) => `#${r.n} ${r.run}s ${r.ok ? 'ok' : 'NOT isolated'}`).join('\n'));
-    // recorded exceptions (L-log, `slice5-build.md`): the pairs #5-#6, #7-#8, #9-#10, #16-#17 (brief), and, found by a search of every
-    // spot within 1.6 m of each guard (0 s best): #1-#4 (the response team: one open room and the hall walk), #11 (2 s: the anteroom with the
-    // keyholders), #13-#14 (the gallery pair sees across the void), #20 and #23 (open lawn in range of the terrace patrol and the van)
-    const must = rows.filter((r) => ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 16, 17, 20, 23].includes(r.n));
+    // recorded exceptions (brief): the pairs #5-#6, #7-#8, #9-#10, #16-#17 only; the other 16 guards hold 3 s (fix round: the
+    // control room's rack bays, the gallery screens, #11's vestibule stop, #20's walk to the jetty; `slice5-build.md` L17)
+    const must = rows.filter((r) => ![5, 6, 7, 8, 9, 10, 16, 17].includes(r.n));
+    expect(must).toHaveLength(16);
     expect(must.filter((r) => !r.ok).map((r) => `#${r.n} (${r.run}s)`)).toEqual([]);
     expect(CHECK_ISOLATION).toBe(3);
   });

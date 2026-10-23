@@ -98,6 +98,9 @@ export const S5_BOX = {
   stacks: [[-44.3, 34, -42.9, 35], [-44.3, 37, -42.9, 38], [-44.3, 40, -42.9, 41]] as const,
   stacksTop: 2.2,
   token: [-43.6, 43.2, -42.4, 43.8] as const,
+  /** The control room's rack rows (z centres; x -56..-51.6, 0.3 thick, 2.2 high) and the gallery's screens (x0, x1, z0, z1; 2.2 high on L1). */
+  racks: [21.0, 23.8, 26.9] as const,
+  screens: [[-47.4, -47.1, 18, 21.6], [-40.9, -40.6, 18, 21.6]] as const,
   anteroom: [-46, 32, -40, 37] as const,
   strongroom: [-46, 37, -40, 44] as const,
   /** The jetty deck (top 0.4) and the boathouse (3.0). */
@@ -543,6 +546,9 @@ export function buildCampusS5(b: LevelBuilder): void {
   rail(b, -41.0, -40.9, 18, 29, L1);
   rail(b, -47, -46, 29, 29.1, L1);
   rail(b, -44, -41, 29, 29.1, L1);
+  // the display screens (2.2, noLedge) on each arm's south end beside the rail: each gallery guard's south stop is out of
+  // the other arm's view (M8)
+  for (const [x0, x1, z0, z1] of S5_BOX.screens) bx(b, x0, x1, L1, L1 + 2.2, z0, z1, WALL_DARK, { noLedge: true });
 
   // ---- the cage (x -41..-38, z 34.6..39.4): 0.1 solid walls 4.2..8.2, the pair gate in its west face (opening z 38.0..39.2)
   wall(b, false, -40.95, 34.6, 39.4, L1, L_TOP, [[38.0, 39.2, L1, L1 + DOOR_H, true]], 0.1, STEEL);
@@ -552,8 +558,9 @@ export function buildCampusS5(b: LevelBuilder): void {
   // the archive's rolling stacks (2.2, noLedge)
   for (const [x0, z0, x1, z1] of S5_BOX.stacks) bx(b, x0, x1, L1, L1 + S5_BOX.stacksTop, z0, z1, STEEL, { noLedge: true });
 
-  // ---- furniture: the control room table, the token table in the strongroom (0.75 / 0.9)
-  furn(b, -53.5, -52.5, 23, 26, 0.75);
+  // ---- furniture: the control room's radio and CCTV racks (2.2, noLedge: three rows from the west wall, an aisle by the
+  // east wall, so the standing team's three bays and the hall walk's bay screen each other, M8), the token table (0.9)
+  for (const z of S5_BOX.racks) bx(b, -56, -51.6, 0, 2.2, z - 0.15, z + 0.15, STEEL, { noLedge: true });
   const [tx0, tz0, tx1, tz1] = S5_BOX.token;
   furn(b, tx0, tx1, tz0, tz1, 0.9);
 
