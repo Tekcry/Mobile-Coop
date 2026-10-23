@@ -9,6 +9,7 @@ import type { Blip } from '../../ui/hud/minimap';
 import type { DoorState } from '../../world/doors';
 import type { SquadSlot } from '../../world/rooms';
 import { flags } from '../../core/flags';
+import { reportGuardAi, validatePosts } from '../../ai/guardAiData';
 import { hyp2 } from '../../core/mathx';
 import { CtDevices } from '../ctDevices';
 import {
@@ -519,6 +520,10 @@ export class SectorMode implements GameMode {
     // (E6) a section load (a change or a restart) puts every desk's cameras back; only the live section's desks work
     this.desks.reset();
     this.deskApply();
+    // (guard-ai S5) the section's noisy things mask hearing (else the map's); dev / tests check its posts (warnings)
+    const em = this.g.enemyMgr;
+    if (em) em.setNoisy(s?.noisy ?? em.mapNoisy);
+    if (s && import.meta.env.DEV) reportGuardAi(s.id, validatePosts(s.guards, s.id));
     if (!s) return;
     this.slotEnemy.length = 0;
     const n = flags.sectorGuards ?? s.guards.length;
@@ -537,6 +542,8 @@ export class SectorMode implements GameMode {
     g.enemyMgr?.despawnAll();
     // (E5) the section's lockdown doors open again (a restart applies its start stage's actions again)
     if (this.stageRun?.release()) this.secT = 0;
+    // (guard-ai S7) the cameras forget the bodies they reported (a section load or restart reports afresh)
+    g.security?.clearBodyReports();
     this.ct?.setLive(-1);
     g.stealth?.setLiveAlarms(-1);
     // (E6) the desks' loops and offs end with the section
@@ -696,6 +703,8 @@ export class SectorMode implements GameMode {
       if (!e) break;
       if (p.slot.route) e.setPatrol({ points: p.slot.route, wait: p.slot.wait, waits: p.slot.waits, faces: p.slot.faces, start: p.slot.start, loop: p.slot.loop });
       if (p.k >= 0) this.slotEnemy[p.k] = e;
+      // (guard-ai S5) post, profile, section (the live SectorDef's index)
+      em.placeSlot(e, p.slot, this.run.index);
       this.pending.splice(i, 1);
     }
   }

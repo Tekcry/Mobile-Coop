@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 // @ts-expect-error plain .mjs process script without types
-import { assembleDir, parseFragment, releaseHeading } from '../scripts/changelog-assemble.mjs';
+import { assembleDir, parseFragment, releaseHeading, summary } from '../scripts/changelog-assemble.mjs';
 
 const OLD = '## 4.55.1 - Old fix (2026-10-22, PR #124)\n- old entry\n';
 const OPTS = { version: '4.56.0', title: 'Train 5: lamps', date: '2026-10-23', pr: 130, members: [125, '#127'] };
@@ -74,6 +74,54 @@ describe('changelog-assemble', () => {
     write('CHANGELOG.md', `# Changelog\n\n${OLD}`);
     expect(assembleDir(root, OPTS)).toBeNull();
     expect(read('CHANGELOG.md')).toBe(`# Changelog\n\n${OLD}`);
+  });
+
+  it('an entry already in CHANGELOG.md is skipped; the rest of the fragment still lands', () => {
+    write('CHANGELOG.md', `# Changelog\n\n${OLD}`);
+    write('changes/feature-lamps.md', '# Lamps\nkind: patch\n- old entry\n- lamp entry\n');
+    const r = assembleDir(root, OPTS);
+    expect(read('CHANGELOG.md')).toBe(['# Changelog', '', '## 4.56.0 - Train 5: lamps (2026-10-23, PR #130; #125, #127)',
+      '- lamp entry', '', OLD].join('\n'));
+    expect(r.skipped).toEqual(['old entry']);
+    expect(fs.existsSync(path.join(root, 'changes/feature-lamps.md'))).toBe(false);
+  });
+
+  it('a fragment whose entries are all already in CHANGELOG.md adds no block, but the file is still deleted', () => {
+    write('CHANGELOG.md', `# Changelog\n\n${OLD}`);
+    write('changes/feature-dup.md', '# Dup\n- old entry\n');
+    const r = assembleDir(root, OPTS);
+    expect(r.text).toBeNull();
+    expect(read('CHANGELOG.md')).toBe(`# Changelog\n\n${OLD}`);
+    expect(r.skipped).toEqual(['old entry']);
+    expect(fs.existsSync(path.join(root, 'changes/feature-dup.md'))).toBe(false);
+  });
+
+  it('a fully skipped fragment leaves no empty ### block beside fragments with new entries', () => {
+    write('CHANGELOG.md', `# Changelog\n\n${OLD}`);
+    write('changes/feature-a.md', '# Dup\n- old entry\n');
+    write('changes/feature-b.md', '# Wheel\n- wheel entry\n');
+    write('changes/feature-c.md', '# Lamp\n- lamp entry\n');
+    assembleDir(root, OPTS);
+    expect(read('CHANGELOG.md')).toBe(['# Changelog', '', '## 4.56.0 - Train 5: lamps (2026-10-23, PR #130; #125, #127)', '',
+      '### Wheel', '- wheel entry', '', '### Lamp', '- lamp entry', '', OLD].join('\n'));
+  });
+
+  it('whitespace differences still count as the same entry', () => {
+    write('CHANGELOG.md', '# Changelog\n\n## 4.55.1 - Old fix (2026-10-22, PR #124)\n- lamp   entry\n  continued\n');
+    write('changes/feature-ws.md', '# Lamps\n- lamp entry continued\n- new  thing\n');
+    const r = assembleDir(root, OPTS);
+    expect(r.skipped).toEqual(['lamp entry continued']);
+    expect(read('CHANGELOG.md')).not.toContain('- lamp entry continued\n');
+    expect(read('CHANGELOG.md')).toContain('- new  thing\n');
+  });
+
+  it('prints one line per skipped entry, cut to 60 characters', () => {
+    const long = `- ${'x'.repeat(80)}`;
+    write('CHANGELOG.md', `# Changelog\n\n## 4.55.1 - Old fix (2026-10-22, PR #124)\n${long}\n`);
+    write('changes/feature-long.md', `# Long\n${long}\n- fresh\n`);
+    const r = assembleDir(root, OPTS);
+    expect(summary(r, 'H')).toContain(`  - skipped (already in CHANGELOG.md): ${'x'.repeat(60)}\n`);
+    expect(summary(r, 'H')).not.toContain('x'.repeat(61));
   });
 
   it('a dry assembly (write false) leaves the files alone', () => {
