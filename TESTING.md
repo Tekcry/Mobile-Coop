@@ -207,7 +207,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Guards relight (guard-ai LR16-4, Sector Ops): switch off a hall at its switch with a guard
   watching: a guard comes and switches it back on (a shot lamp stays dark); a timed isolator's lights stay off for its
   window (guards only come to look) and come back on their own.
-  (An untimed Sector Ops breaker board uses the same walk; no map defines one yet.)
+  Campus S2: cut the reception panel board; #1 walks over and switches the atrium back on; take him at the board and it stays dark.
 - [ ] Lasers (guard-ai S17, Sector Ops campus S3 or the warehouse): break a beam near guards, then climb out of the room
   unseen: two guards come to the middle of the beam and search that room only; the reinforcements search there too and
   never head for where you went unless one sees you.
