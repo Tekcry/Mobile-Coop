@@ -337,3 +337,203 @@ export function ropeEndOf(atTop: boolean, coopPressed: boolean, bPressed: boolea
   if (coopPressed || bPressed) return 'drop';
   return null;
 }
+
+// ---- (team-climb) the rope's top-out: the root path, the hands on the lip ----
+
+const smooth01 = (x: number): number => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+/** The k where smoothstep(k) = y (0..1). */
+const unsmooth = (y: number): number => 0.5 - Math.sin(Math.asin(1 - 2 * y) / 3);
+
+/**
+ * The rope top-out's root path over its time `TEAM.ropeTop` (k 0..1). The rise onto the top ends and the move in over it
+ * starts where the old path's did (`min(1, 1.7 e)` and `(e - 0.4) / 0.6` of e = smoothstep(k): the rise done at k 0.561,
+ * the move in from k 0.433), each now eased: the rise keeps the old curve to `riseHand` of its time, then slows to a stop
+ * on the top (a cubic matching its speed there); the move in starts from still (`v^2 (2 - v)` of the old share). Was: the
+ * rise stopped dead at k 0.561 (a 5.7 cm velocity step in a 60 Hz frame) and the move in started with a jump.
+ * (team-climb) The body is also pulled in to `pullOut` m off the face by k `pullEnd` (a hang's body line, `HANG.out`),
+ * faded out by the move in, so the hands reach the lip (the climber hangs 0.35 m off a rope 0.15 - 0.45 m out).
+ */
+export const ROPE_TOP_PATH = { riseEnd: unsmooth(1 / 1.7), acrossStart: unsmooth(0.4), riseHand: 0.4, pullEnd: 0.3, pullOut: 0.22 };
+
+/** The old rise in the rise's own time u (k = u riseEnd) and its slope there (per u). */
+const riseOld = (u: number): number => {
+  const k = u * ROPE_TOP_PATH.riseEnd;
+  return 1.7 * k * k * (3 - 2 * k);
+};
+
+/**
+ * The rope top-out's path shares at `k`: `rise` (0..1 of the feet up to the top), `across` (0..1 of the move to the
+ * top-out spot) and `pull` (0..1 of the pull in to the face). `m0` the rise's starting slope in its own time (the rope
+ * climb's speed carried in: v riseEnd `TEAM.ropeTop` / the rise's height; 0 = from still), clamped 0..1. No allocation.
+ */
+export function ropeTopPath(k: number, m0: number, out: { rise: number; across: number; pull: number }): { rise: number; across: number; pull: number } {
+  const P = ROPE_TOP_PATH;
+  const u = Math.max(0, Math.min(1, k / P.riseEnd));
+  let r: number;
+  if (u <= P.riseHand) r = riseOld(u);
+  else {
+    // a cubic from the old curve (its height and speed) to the top, still there
+    const t = (u - P.riseHand) / (1 - P.riseHand);
+    const kh = P.riseHand * P.riseEnd;
+    const p0 = riseOld(P.riseHand);
+    const m = 1.7 * 6 * kh * (1 - kh) * P.riseEnd * (1 - P.riseHand);
+    r = (2 * t * t * t - 3 * t * t + 1) * p0 + (t * t * t - 2 * t * t + t) * m + (3 * t * t - 2 * t * t * t);
+  }
+  // the climb's speed carried in (a Hermite start slope: 0 at both ends of the rise)
+  r += (u * u * u - 2 * u * u + u) * Math.max(0, Math.min(1, m0));
+  out.rise = r;
+  const e = k <= 0 ? 0 : k >= 1 ? 1 : k * k * (3 - 2 * k);
+  const v = Math.max(0, (e - 0.4) / 0.6);
+  out.across = v * v * (2 - v);
+  // (from still and with no jolt: the clip change into the top-out is pose enough at its first frames)
+  const q = Math.max(0, Math.min(1, k / P.pullEnd));
+  out.pull = q * q * q * (q * (q * 6 - 15) + 10);
+  return out;
+}
+
+/**
+ * The rope top-out's hands on the lip (visual). The hands start for the lip on the rope's last `pre` m (to `preW` of the
+ * way at its top: at most 0.5 as the top-out starts, so characterRig's `ledgeClimb`, decided on a climbUp's first frame
+ * from the grip weights, stays false and the team clip plays), are on it by k `inK`, hold it while the body rises over
+ * them and leave it as the arms run out (`liftOff` of the arm: the rig eases each palm off towards its shoulder), the
+ * weight then let go over `span` from `k0`.
+ */
+export const ROPE_TOP_HANDS = { pre: 0.2, preW: 0.4, inK: 0.2, k0: 0.3, span: 0.3, liftOff: 0.8 };
+
+/** The grip weight on the rope `below` m under its top (the hands starting for the lip). */
+export function ropeClimbGripW(below: number): number {
+  const H = ROPE_TOP_HANDS;
+  return H.preW * smooth01(1 - below / H.pre);
+}
+
+/** The grip weight at the top-out's `k`. */
+export function ropeTopGripW(k: number): number {
+  const H = ROPE_TOP_HANDS;
+  return (H.preW + (1 - H.preW) * smooth01(k / H.inK)) * (1 - smooth01((k - H.k0) / H.span));
+}
+
+/** A ray into the level for the lip search, (a -> b): the hit's share of the way (> 1: no hit) and its normal into `n`. */
+export type LipRay = (ax: number, ay: number, az: number, bx: number, by: number, bz: number, n: { x: number; y: number; z: number }) => number;
+
+/** The lip a rope goes over: a point on its edge, its outward face normal (horizontal, unit); `ok` false = none found. */
+export interface RopeLip {
+  ok: boolean;
+  x: number;
+  y: number;
+  z: number;
+  nx: number;
+  nz: number;
+}
+
+export function newRopeLip(): RopeLip {
+  return { ok: false, x: 0, y: 0, z: 0, nx: 0, nz: 0 };
+}
+
+const lipN = { x: 0, y: 0, z: 0 };
+
+/**
+ * The lip in front of a climber at (`bx`, `bz`) facing `yaw`, its edge between `yLo` and `yHi`: forward rays (1.5 m)
+ * from the top down every 0.1 m; the first that meets a face (its normal level) has the edge just over it, the top's
+ * height then from a ray down just in from the face. No face (a hatch, an overhang): the first top under rays down
+ * along the facing. Once per move (the rays may allocate in the caller).
+ */
+export function findRopeLip(ray: LipRay, bx: number, bz: number, yaw: number, yLo: number, yHi: number, out: RopeLip): boolean {
+  out.ok = false;
+  const fx = Math.sin(yaw);
+  const fz = Math.cos(yaw);
+  const sx = bx - fx * 0.1;
+  const sz = bz - fz * 0.1;
+  let px = 0, pz = 0, nx = 0, nz = 0, h = NaN;
+  for (let y = yHi; y >= yLo - 1e-6; y -= 0.1) {
+    const t = ray(sx, y, sz, bx + fx * 1.5, y, bz + fz * 1.5, lipN);
+    if (t > 1 || Math.abs(lipN.y) > 0.5) continue;
+    const l = hyp2(lipN.x, lipN.z) || 1;
+    nx = lipN.x / l;
+    nz = lipN.z / l;
+    px = sx + (bx + fx * 1.5 - sx) * t;
+    pz = sz + (bz + fz * 1.5 - sz) * t;
+    h = y;
+    break;
+  }
+  if (Number.isNaN(h)) {
+    // no face ahead: the first top under the facing
+    for (let d = 0; d <= 1.5 + 1e-6; d += 0.05) {
+      const x = bx + fx * d;
+      const z = bz + fz * d;
+      const t = ray(x, yHi, z, x, yLo, z, lipN);
+      if (t > 1) continue;
+      px = bx + fx * Math.max(0, d - 0.025);
+      pz = bz + fz * Math.max(0, d - 0.025);
+      nx = -fx;
+      nz = -fz;
+      h = yHi + (yLo - yHi) * t;
+      break;
+    }
+    if (Number.isNaN(h)) return false;
+    out.y = h;
+  } else {
+    // the top's height just in from the face, over the hit
+    const x = px - nx * 0.06;
+    const z = pz - nz * 0.06;
+    const t = ray(x, h + 0.4, z, x, h - 0.2, z, lipN);
+    out.y = t <= 1 ? h + 0.4 - 0.6 * t : h + 0.05;
+  }
+  out.x = px;
+  out.z = pz;
+  out.nx = nx;
+  out.nz = nz;
+  out.ok = true;
+  return true;
+}
+
+/** A hand target on a lip (a CharacterRig `reachL / R`, loosely typed). */
+export interface LipHand {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+  ax?: number;
+  ay?: number;
+  az?: number;
+  rad?: number;
+  hook?: number;
+  cx?: number;
+  cy?: number;
+  cz?: number;
+  liftOff?: number;
+}
+
+/**
+ * Both hands' targets on `lip` for a body at (`bx`, `bz`) facing `yaw`, `half` either side of the body along the edge
+ * (the ledge hang's 0.25 m at Wren's height), each a lip ("hook") grip: the palm 4 cm in from the edge, the edge under
+ * it, the edge's axis, lifting off as the arm runs out (`ROPE_TOP_HANDS.liftOff`), weight `w`. No allocation.
+ */
+export function ropeLipHands(lip: RopeLip, bx: number, bz: number, yaw: number, half: number, w: number, L: LipHand, R: LipHand): void {
+  // along the edge: perpendicular to the face normal; the right hand on the body's right
+  let ax = -lip.nz;
+  let az = lip.nx;
+  if (ax * Math.cos(yaw) - az * Math.sin(yaw) < 0) {
+    ax = -ax;
+    az = -az;
+  }
+  const s = (bx - lip.x) * ax + (bz - lip.z) * az;
+  for (let i = 0; i < 2; i++) {
+    const t = i === 0 ? L : R;
+    const o = s + (i === 0 ? -half : half);
+    const ex = lip.x + ax * o;
+    const ez = lip.z + az * o;
+    t.cx = ex;
+    t.cy = lip.y;
+    t.cz = ez;
+    t.x = ex - lip.nx * 0.04;
+    t.y = lip.y;
+    t.z = ez - lip.nz * 0.04;
+    t.ax = ax;
+    t.ay = 0;
+    t.az = az;
+    t.rad = 0;
+    t.hook = 1;
+    t.liftOff = ROPE_TOP_HANDS.liftOff;
+    t.w = w;
+  }
+}
