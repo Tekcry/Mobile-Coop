@@ -519,7 +519,7 @@ export class EnemyManager {
     const k = d > 0.4 ? (d - 0.4) / d : 0;
     this.earA.set(e.pos.x, ey, e.pos.z);
     this.earB.set(e.pos.x + dx * k, ey + dy * k, e.pos.z + dz * k);
-    return this.ballistics.clear(this.earA, this.earB, G.STATIC);
+    return this.ballistics.clear(this.earA, this.earB, MASK.SIGHT);
   }
 
   /** The old lights-out rule (uncoordinated modes): the nearest calm enemy within 25 m comes to look (with a

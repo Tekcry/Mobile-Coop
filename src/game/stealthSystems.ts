@@ -12,7 +12,7 @@ import { BACK_TIMER, BOARD_REACH, IsolatorBoards, type BoardSink } from './isola
 import type { Interactable, Interactables } from './interactables';
 import type { GameState } from './gameState';
 import { DOOR, type DoorState } from '../world/doors';
-import { G } from '../physics/groups';
+import { G, MASK } from '../physics/groups';
 import { hyp2 } from '../core/mathx';
 import { clearGripAxis } from '../player/attachGrips';
 
@@ -624,7 +624,7 @@ export class StealthSystems {
         if (dist > 0.5 && (Math.sin(e.yaw) * dx + Math.cos(e.yaw) * dz) / dist < DOOR_NOTICE_COS) continue;
         this.noticeA.set(e.pos.x, e.pos.y + 1.6, e.pos.z);
         this.noticeB.set(d.cx, d.anchor.hinge.y + 1.2, d.cz);
-        if (!this.g.ballistics.clear(this.noticeA, this.noticeB, G.STATIC)) continue;
+        if (!this.g.ballistics.clear(this.noticeA, this.noticeB, MASK.SIGHT)) continue;
         e.hear(d.cx, d.cz, DOOR_NOTICE_RANGE + 2);
         this.guardOpened.set(i, 0);
         this.playerOpened.delete(i);

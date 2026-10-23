@@ -1,7 +1,7 @@
 import { Vector3 } from '../core/babylon';
 import type { PlayerRef } from '../ai/enemy';
 import type { Ballistics } from '../weapons/ballistics';
-import { G } from '../physics/groups';
+import { MASK } from '../physics/groups';
 import { CAMERA } from '../config/security';
 import { hyp3 } from '../core/mathx';
 import { CameraUnit, cameraRate, segmentHitsHousing, stepCamMeter, type CamMeter } from './camera';
@@ -44,7 +44,7 @@ export function remoteHeadY(feetY: number, crouched: boolean): number {
 
 /**
  * (camera-cue fix) One camera's per-player test, shared by the host's think and the co-op client's cue pulse: 0 unless
- * the head is in the camera's frame with a clear `G.STATIC` ray from the lens, else the meter rate (the guard formula
+ * the head is in the camera's frame with a clear `MASK.SIGHT` ray from the lens, else the meter rate (the guard formula
  * at the camera's own IR light, `CAMERA.irLight`: lamps do not matter to a camera, marlow-jammer M3). The camera "sees"
  * the body when `seenAt(rate)` (the rate is over the leak level).
  */
@@ -57,13 +57,13 @@ export function cameraSight(c: CameraUnit, head: Vector3, crouched: boolean, spe
 }
 
 /**
- * The one `G.STATIC` ray from the camera's lens to `to`: the distance (m) when nothing is hit closer than `slack` short
+ * The one `MASK.SIGHT` ray (static, frosted glass: E2) from the camera's lens to `to`: the distance (m) when nothing is hit closer than `slack` short
  * of the point (no hit returns the length), else -1. Shared by the player test and the body pass.
  */
 function lensRay(c: CameraUnit, to: Vector3, slack: number, ray: SightRay): number {
   LENS.set(c.x, c.y, c.z);
   const dist = hyp3(to.x - c.x, to.y - c.y, to.z - c.z);
-  return ray.hitDistance(LENS, to, G.STATIC) <= dist - slack ? -1 : dist;
+  return ray.hitDistance(LENS, to, MASK.SIGHT) <= dist - slack ? -1 : dist;
 }
 
 /** (guard-ai S7, design 9) The camera body pass: its rate and where on a body the ray aims. */
