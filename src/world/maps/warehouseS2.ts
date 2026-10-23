@@ -139,8 +139,8 @@ export const S2_LAMPS: readonly LampRoom[] = [
   { id: 'northA', model: 'strip', y: 5.8, group: 41, yaw: 0, pass: true, lamps: [[-21.4, 6.9, 6.4, 0.966], [-12, 7.63, 9, 0.709], [-21.4, 13.5, 7.64, 0.572], [-12, 13.5, 5.78, 0.582]] },
   { id: 'northB', model: 'strip', y: 5.8, group: 41, yaw: 0, pass: true, lamps: [[-16.2, 9.6, 7.91, 0.558], [-7.2, 9.6, 9, 0.685], [-16.2, 12.9, 6.5, 0], [-7.2, 12.9, 6.5, 0], [-16.2, 16.2, 9, 0.627], [-7.2, 16.2, 9, 0.488]] },
   // the high-value cage (x -24 to -19.9, z 12 to 18, open under the roof): two strips down its middle (LR16dx: the south one at
-  // z 14.8, clear of aisle A1's strip at (-21.4, 13.5), which it overlapped at z 13.4)
-  { id: 'cage', model: 'strip', y: 5.8, group: 41, yaw: 0, pass: true, lamps: [[-22.2, 14.8, 5.2, 0.653], [-22.2, 16.2, 5.3, 0.452]] },
+  // z 14.4, clear of aisle A1's strip at (-21.4, 13.5), which it overlapped at z 13.4)
+  { id: 'cage', model: 'strip', y: 5.8, group: 41, yaw: 0, pass: true, lamps: [[-22.2, 14.4, 5.2, 0.653], [-22.2, 16.2, 5.3, 0.452]] },
   // the exit signs: the west fire exit, the C3 door, the charger indicator (a small glow: it must not light the charge hand's pocket)
   { id: 'storage', model: 'bulkhead', y: 2.4, group: 42, yaw: PI / 2, colour: EXIT_GREEN, pass: true, lamps: [[-23.7, 5.5, 0.6, 0.15], [-4.45, 14.55, 0.6, 0.15], [-4.45, -5.2, 0.3, 0.15]] },
 ];
