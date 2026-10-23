@@ -84,8 +84,9 @@ interface CsSlot {
   vp: Viewport;
 }
 
-/** The copy (GLSL): a shadow map into its tile, texel for texel. */
-const COPY_GLSL = `
+/** The copy (GLSL): a shadow map into its tile, texel for texel. It reads `gl_FragCoord` only, never the default vertex
+ *  shader's `vUV` (`copy()` skips the wrapper's `scale` uniform, which feeds only `vUV`; a test holds this). */
+export const COPY_GLSL = `
 precision highp float;
 uniform highp sampler2D csSrc;
 uniform vec2 csOrg;
@@ -452,7 +453,11 @@ export class CharShadows implements CharShadowLink {
     r.saveStates();
     engine.bindFramebuffer(this.rt, 0, undefined, undefined, true);
     r.setViewport(slot.vp);
-    // (lrpolish: `applyEffectWrapper` without its `onApplyObservable.notifyObservers({})`, one object per call)
+    // (lrpolish: `applyEffectWrapper` without its `onApplyObservable.notifyObservers({})`, one object per call. (lr16pol
+    // E) What that skips, both safe here: the wrapper's `setFloat2('scale', 1, 1)`, which feeds only the default vertex
+    // shader's `vUV` - `COPY_GLSL` never reads `vUV`, it reads `gl_FragCoord` - and `bind()`, a no-op for this wrapper
+    // (not `useAsPostProcess`, so no default bindings; no shader-code processing is registered for `charShadowCopy`).
+    // A copy shader that reads `vUV` must set `scale` itself.)
     engine.setState(true);
     engine.depthCullingState.depthTest = false;
     engine.stencilState.stencilTest = false;

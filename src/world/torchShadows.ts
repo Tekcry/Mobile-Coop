@@ -12,16 +12,30 @@
  * Rendering only: the meter and guard perception read the light field (rays + doors). Parity notes: `torchShadowSet.ts`.
  * Without WebGL2 or a float render target (`supported`) it stays off and the old path draws (reach cut, Babylon pool),
  * logged once.
+ *
+ * Receivers: the lamp plugin draws the torches (lit or shadowed) only on PBR materials. The level, voxels, props, doors,
+ * characters and (lr16pol B) the fences, ropes, rope line and bullet decals (`levelLitMaterial.ts`) take them. Still no
+ * torch light: every standard material - the whole `?gfx=min` / standard level path (no torch term there), the flat
+ * unlit or standard helpers (bulbs, vfx particles and tracers) - the Kestrel light view (its `BakedLamps` is
+ * `standard`: no torch draw, no guard torches) and the menu's scenes (no baked lamps).
  */
 import { BaseTexture, Constants, EffectRenderer, EffectWrapper, ShadowGenerator, SpotLight, Texture, Vector3, Viewport, type AbstractMesh, type Observer, type RenderTargetWrapper, type Scene } from '../core/babylon';
 import type { LightRegistry } from './lights';
 import { TORCH_DRAW_SLOTS, TORCH_DRAW_STRIDE } from './shadowAccuracy';
-import { casterInTorchCone, holdsTorch, pickTorchDoors, sphereInFrustum, TORCH_SHADOW, torchAtlasSize, torchLitSphere, torchRefreshEvery, torchShadowFov, torchPoseStale, torchTileX, torchTileY, writeTorchPose, type TorchDoor, type TsPlane } from './torchShadowSet';
+import { casterInTorchCone, pickTorchDoors, sphereInFrustum, TORCH_SHADOW, torchAtlasSize, torchForceRender, torchHolderScore, torchLitSphere, torchPoseMoved, torchPoseStale, torchPoseTurned, torchRefreshEvery, torchShadowFov, torchTileX, torchTileY, writeTorchPose, type TorchDoor, type TsPlane } from './torchShadowSet';
 
 type RenderTargetTexture = NonNullable<ReturnType<ShadowGenerator['getShadowMap']>>;
+type SceneNode = NonNullable<AbstractMesh['parent']>;
 
 /** A layer bit no mesh carries (the same bit as `CharShadows`' slots): the slot lights reach no mesh. */
 const NO_MESH_LAYER = 0x20000000;
+
+/** The top of a mesh's parent chain (a character's rig root: his body, gun and gear share it). Allocation-free. */
+function rootNode(m: AbstractMesh): SceneNode {
+  let n: SceneNode = m;
+  while (n.parent) n = n.parent;
+  return n;
+}
 
 /** What the baked lamps read (`BakedLamps.torchShadows`). */
 export interface TorchShadowLink {
@@ -68,6 +82,14 @@ void main(void) {
   gl_FragColor = vec4(texelFetch(tsSrc, ivec2(gl_FragCoord.xy - tsOrg), 0).r, 0.0, 0.0, 1.0);
 }`;
 
+/** (lr16pol E, lr16t check A 6) The registry holds a guard torch slot (`addTorchSlots`: dark maps only; registry lights
+ *  are fixed at load). Without one nothing can be drawn into an atlas or take a torch's shadow map. */
+export function registryHasTorch(reg: LightRegistry): boolean {
+  const ls = reg.lights;
+  for (let i = 0; i < ls.length; i++) if (ls[i]!.kind === 'flashlight') return true;
+  return false;
+}
+
 export class TorchShadows implements TorchShadowLink {
   readonly mats = new Float32Array(TORCH_SHADOW.slots * 16);
   readonly params = new Float32Array(TORCH_SHADOW.slots * 4);
@@ -85,6 +107,9 @@ export class TorchShadows implements TorchShadowLink {
   private readonly doorDist = new Float32Array(TORCH_SHADOW.doors);
   private readonly sphere = new Float32Array(4);
   private logged = false;
+  /** (lr16pol E, lr16t check A 6) A torch slot in the registry: else `configure` builds nothing (no generators,
+   *  targets or atlas), `on` stays false, so `LAMP_TSHADOW` is off and the lit shaders lose the atlas sampler. */
+  private readonly hasTorch: boolean;
   /** Shadow maps copied into the atlas so far (tests, the debug line). */
   copies = 0;
 
@@ -100,6 +125,8 @@ export class TorchShadows implements TorchShadowLink {
     private isChar: (m: AbstractMesh) => boolean,
   ) {
     this.depthSign = scene.getEngine().useReverseDepthBuffer ? -1 : 1;
+    // (`World.create` runs `addTorchSlots` before this: a bright map's registry has no flashlight)
+    this.hasTorch = registryHasTorch(reg);
   }
 
   get on(): boolean {
@@ -115,6 +142,8 @@ export class TorchShadows implements TorchShadowLink {
 
   /** The tier's tile and filter taps (`torchShadowSpec`; tile 0: off); rebuilds only on a change. */
   configure(tile: number, taps: number): void {
+    // (lr16pol E: no torch slot on this map - nothing to build, nothing to log)
+    if (!this.hasTorch) tile = 0;
     const ok = tile > 0 && this.supported();
     if (tile > 0 && !ok && !this.logged) {
       this.logged = true;
@@ -273,15 +302,28 @@ export class TorchShadows implements TorchShadowLink {
       // (check A blocking 1 and polish 2) the tile holds no map yet (a new torch in the slot, a restore) or one made
       // from a pose the torch has left (turned past the frustum pad, or moved): render this frame, not at the slot's
       // interval. The shader reads a stale map's off-frustum texels as dark, never lit, for the frame in between.
-      if (this.params[s * 4 + 3] !== 1 || torchPoseStale(slot.pose, 0, l.x, l.y, l.z, c.dx, c.dy, c.dz)) slot.map.resetRefreshCounter();
+      // (lr16pol B, recheck 1) Under the governor (`governorEvery` > 1) a pose that only turned waits for the interval
+      // (`torchForceRender`): a dark rim at the beam's edge until then; moved, new or invalid still render at once.
+      const valid = this.params[s * 4 + 3]!;
+      const moved = valid === 1 && torchPoseMoved(slot.pose, 0, l.x, l.y, l.z);
+      const turned = valid === 1 && !moved && torchPoseTurned(slot.pose, 0, c.dx, c.dy, c.dz);
+      if (torchForceRender(valid, moved, turned, this.governorEvery)) slot.map.resetRefreshCounter();
     }
   }
 
-  /** The casters in the torch's reach and cone (+ pad), not the guard holding it, into the slot's list. */
+  /**
+   * The casters in the torch's reach and cone (+ pad), not the guard holding it, into the slot's list. (lr16pol B,
+   * lr16t check A 5) Only the holder drops: the character caster scoring lowest in `torchHolderScore` (`pickTorchHolder`'s
+   * rule: nearest the feet `placeTorch` put the torch ahead of) names him, and every character caster under the same
+   * root node (his rig: body, gun, helmet, armour) leaves the list; a second guard or the player beside him, or in front
+   * of him in his beam, still casts. Allocation-free.
+   */
   private gather(slot: TsSlot, lx: number, ly: number, lz: number, ax: number, ay: number, az: number, cosOuter: number, radius: number): void {
     const list = slot.list;
     list.length = 0;
     const cs = this.rig.casters;
+    let holder: AbstractMesh | null = null;
+    let hd = Infinity;
     for (let i = 0; i < cs.length; i++) {
       const m = cs[i]!;
       if (!m.isEnabled() || !m.isVisible) continue;
@@ -289,9 +331,24 @@ export class TorchShadows implements TorchShadowLink {
       const p = b.centerWorld;
       const r = b.radiusWorld;
       if (!casterInTorchCone(lx, ly, lz, ax, ay, az, cosOuter, radius, p.x, p.y, p.z, r)) continue;
-      if (this.isChar(m) && holdsTorch(lx, ly, lz, p.x, p.y, p.z, r)) continue;
+      if (this.isChar(m)) {
+        const d = torchHolderScore(lx, ly, lz, ax, az, p.x, p.y, p.z, r);
+        if (d >= 0 && d < hd) {
+          hd = d;
+          holder = m;
+        }
+      }
       list.push(m);
     }
+    if (!holder) return;
+    const root = rootNode(holder);
+    let k = 0;
+    for (let i = 0; i < list.length; i++) {
+      const m = list[i]!;
+      if (this.isChar(m) && rootNode(m) === root) continue;
+      list[k++] = m;
+    }
+    list.length = k;
   }
 
   private setEvery(slot: TsSlot, every: number): void {

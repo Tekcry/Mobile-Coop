@@ -502,8 +502,9 @@ export class CoopClient implements NetAttachment {
     return this.selfSpotted;
   }
 
-  /** (LR16-5) The shared sim clock: the host's time now, from the snapshots (`ClockSync`; before the first one the
-   *  local clock). Moving lights run on it, so a flicker on this page matches the host's within the clock's jitter. */
+  /** (LR16-5) The shared sim clock: the host's time from the snapshots (`ClockSync`; before the first one the local
+   *  clock). Moving lights run on it. (lr16pol E) The client trails the host by its one-way latency, as every host
+   *  state; snapping to the step (`tickFlicker`, `tickSway`) absorbs jitter only. */
   simTime(): number {
     return this.clock.now(performance.now() / 1000);
   }

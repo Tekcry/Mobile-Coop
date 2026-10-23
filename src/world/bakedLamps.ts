@@ -621,6 +621,8 @@ bool nsDoorBlocks(vec3 a, vec3 b, vec4 d0, vec4 d1) {
 export const MIX_GLSL = `
 precision highp float;
 precision highp sampler3D;
+// (LR16-L B2) no Babylon include here, so the int precision is stated: lampTexel's indices pass 16 bits on big maps
+precision highp int;
 uniform highp sampler3D lampVis;
 uniform highp sampler2D lampData;
 uniform vec4 lampInfo;
@@ -896,8 +898,11 @@ export const NS_GRID2_GLSL = `vec2 nsGrid2(highp sampler3D t, vec3 p, vec4 o, ve
 }`;
 
 /** The lamp loop (GLSL), shared by every material the plugin is on. Exported for the guard test that it holds
- *  `LAMP_MATH_GLSL`. */
-export const LAMP_GLSL = `${LAMP_MATH_GLSL}
+ *  `LAMP_MATH_GLSL`. (LR16-L B2) It states `precision highp int` itself (global scope inside
+ *  CUSTOM_FRAGMENT_DEFINITIONS): the packed lamp indices and wall bits need 32-bit ints, which Babylon's include order
+ *  gives today only by chance. */
+export const LAMP_GLSL = `precision highp int;
+${LAMP_MATH_GLSL}
 uniform highp sampler3D lampVis;
 uniform highp sampler2D lampData;
 #ifdef LAMP_MOON

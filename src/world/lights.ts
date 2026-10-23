@@ -278,7 +278,8 @@ export class LightRegistry {
   tickFlicker(t: number): void {
     const ids = this.flickIds;
     if (!ids.length) return;
-    // on the fixed step's grid: the client's estimate of the host's clock lands on the host's step
+    // on the fixed step's grid. (lr16pol E) In co-op the client trails the host by its one-way latency, as every host
+    // state; snapping to the step absorbs jitter only
     FLICKER_T[0] = Math.round(t * FLICKER_STEP_HZ) / FLICKER_STEP_HZ;
     let moved = false;
     for (let k = 0; k < ids.length; k++) {

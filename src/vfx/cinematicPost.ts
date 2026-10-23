@@ -8,7 +8,8 @@ import { GOGGLE_GLSL, SENSOR_GRAIN, THERMAL, VISION_GLSL } from './visionLook';
 Effect.ShadersStore['cinematicFragmentShader'] = `
 precision mediump float;
 varying vec2 vUV;
-uniform sampler2D textureSampler;
+// (LR16-L B1) highp samplers: HDR colour must not ride on the default lowp sampler
+uniform highp sampler2D textureSampler;
 uniform float vignette;
 uniform float grain;
 uniform float bars;
@@ -21,12 +22,12 @@ uniform vec3 tint;
 uniform float sat;
 uniform float contrast;
 uniform float bright;
-uniform sampler2D glowSampler;
+uniform highp sampler2D glowSampler;
 uniform float glowScale;
 uniform float veil;
 uniform float vk;
 uniform float nvLift;
-uniform sampler2D exposureSampler;
+uniform highp sampler2D exposureSampler;
 uniform vec4 expo;
 ${NV_GLSL}
 ${EXPOSURE_GLSL}
