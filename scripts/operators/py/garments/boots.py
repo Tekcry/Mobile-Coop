@@ -80,6 +80,36 @@ def smoothstep(a, b, x):
     return t * t * (3 - 2 * t)
 
 
+def _guard_surface_points(body, z_max, step=0.002):
+    """Guard mode only. Wren's body is subdivided, so its vertices sample the skin densely; a guard body is the bare
+    game mesh (~9k vertices, rows 2-3 cm apart up the shin), so the loft's 3.5 mm section slabs miss whole vertex rows
+    and the shaft rings come out partial or stop short of the top (smoke run: top girth 11-13 cm, Wren 24 cm). Points on
+    the evaluated body's triangles below z_max, at most `step` apart."""
+    import bpy
+    dg = bpy.context.evaluated_depsgraph_get()
+    ob = body.evaluated_get(dg)
+    me = ob.to_mesh()
+    me.calc_loop_triangles()
+    co = np.zeros(len(me.vertices) * 3)
+    me.vertices.foreach_get('co', co)
+    tri = np.zeros(len(me.loop_triangles) * 3, int)
+    me.loop_triangles.foreach_get('vertices', tri)
+    ob.to_mesh_clear()
+    M = np.array(body.matrix_world)
+    V = co.reshape(-1, 3) @ M[:3, :3].T + M[:3, 3]
+    P = V[tri.reshape(-1, 3)]
+    P = P[P[:, :, 2].min(axis=1) < z_max]
+    edge = np.max(np.linalg.norm(P - np.roll(P, 1, axis=1), axis=2), axis=1)
+    n_t = np.maximum(1, np.ceil(edge / step)).astype(int)
+    out = []
+    for n in np.unique(n_t):
+        ij = np.array([(i, j) for i in range(n + 1) for j in range(n + 1 - i)], float) / n
+        bary = np.column_stack([ij, 1.0 - ij.sum(axis=1)])
+        out.append(np.einsum('bk,tkd->tbd', bary, P[n_t == n]).reshape(-1, 3))
+    D = np.vstack(out)
+    return D[D[:, 2] < z_max]
+
+
 def build_foot(ctx, side, out, store):
     J, skin = ctx['J'], ctx['skin']
     sc = ctx['H'] / 1.68
@@ -88,6 +118,9 @@ def build_foot(ctx, side, out, store):
     BVE = ctx['BVE']
     sel = (BVE[:, 2] < z_top + 0.04) & (BVE[:, 0] * sgn > 0.04) & (BVE[:, 0] * sgn < 0.32)
     PC = BVE[sel]
+    if GUARD:   # the guard body is a game mesh with no subdivision: sample its faces (see _guard_surface_points)
+        D = _guard_surface_points(ctx['body'], z_top + 0.04)
+        PC = np.vstack([PC, D[(D[:, 0] * sgn > 0.04) & (D[:, 0] * sgn < 0.32)]])
     bl = next(((V, F) for u, V, F in ctx['layers'] if u in ('suit', 'base_layer')), None)
     if bl is not None:
         Vb = bl[0]

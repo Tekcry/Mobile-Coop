@@ -78,7 +78,9 @@ the shirt's measured hem (the copy's lowest torso point) and below the boot top 
 
 ## Files
 - New: `scripts/operators/py/guard_garment.py` (the job runner), `scripts/operators/py/guard_garments.json` (parts,
-  outfits, layer order, chains, tint), `scripts/operators/py/garments/field_jacket.py`, `tests/guardGarments.test.ts`.
+  outfits, layer order, chains, tint), `scripts/operators/py/garments/field_jacket.py`, `tests/guardGarments.test.ts`,
+  `scripts/operators/guardGarmentCheck.mjs` (pure check of a garments job's report + CLI for the laptop outputs:
+  `node scripts/operators/guardGarmentCheck.mjs <out>/garments/guard-*.json`), `tests/guardGarmentCheck.test.ts`.
 - Changed (guard mode only, behind `configure()` and the `__main__` job entry): `garments/combat_shirt.py`,
   `garments/trousers.py`, `garments/boots.py`, `garments/gloves.py`.
 - Not touched: torso_common.py, kit_common.py, rigid_skin.py, build_gear.py, py/gear/**, build_guard_body.py,
@@ -97,10 +99,44 @@ zip garages and belt loops overhang by design), names unique and prefixed, flap 
 and patch materials known to garment_details, every seam's corners exist.
 
 ## Smoke run
-SMOKE_PLACEHOLDER
+Desktop fallback (no L0 laptop bake yet), under `C:/NightShift/heavy.lock`, through the driver only:
+`node scripts/operators/guard-bake.mjs --stage garments --only garments-average-trousers --par 1 --out C:/NightShift/scratch/guard-bake-g2`
+(`-b`, BelowNormal), on the G1 average body already in that folder. Blender 5.2.2.
+- Job `garments-average-trousers`: ok, 564 s driver wall (job 558 s): chain shirt 298 s (sewn), boots 24 s (fitted),
+  trousers 235 s (sewn, sim 202 s).
+- Triangles: 1,024,608 shown (hero 880,440 evaluated after solidify; stitches 116,088; binding 4,960; 2 cargo pockets
+  6,364 each, 2 flaps 3,008 each, 7 belt loops 376 each, 2 ankle tabs 632 each, hardware 480); the hidden welded shell
+  18,317 tris (9,757 verts, 9,234 after the weld). 18 objects, all `guard-average-trousers[-...]`. G4 decimates.
+- Measurements: body measured vs target within 0.5 mm except stature 1.7655 / 1.77 m (G1's numbers). Drafted on it:
+  waist 0.969 m, crotch z 0.794, knee z 0.500, ankle z 0.072, hem drafted to `boot_top_girth` 0.318 m (the boots' top
+  girth plus one layer; the check's floor is 0.211 m x s), boot top z 0.1844, shirt hem z 0.861.
+- Layers: layer push largest 29.4 mm, 1,248 vertices pushed clear of the shirt and boots copies; 2,875 pushed clear of
+  the skin; fair max 17.9 mm.
+- Sim: shirt copy seam gap 7.9 mm at the last sew frame, 21.4 mm at the last settle frame (worst: underarm gussets);
+  trousers 24.8 mm at the last sew frame, 20.1 mm at settle (worst: crotch gussets gusFR / gusBR); weld move max 32.5 mm.
+- Check: `node scripts/operators/guardGarmentCheck.mjs .../guard-average-trousers.json` -> `ok` (exit 0), two warnings:
+  trousers seam gap 20.1 mm > 10 mm, shirt (chain copy) 21.4 mm > 10 mm (Wren's limit; under the 30 mm fail line).
+
+Fixed by the smoke runs (boots.py, guard mode only): the guard body is the bare game mesh (9,306 vertices, no
+subdivision; Wren's is subdivided), so the boot loft's 3.5 mm section slabs missed whole vertex rows up the shin: the
+shaft stopped at z 0.169 m (target 0.184) and the top girth came out 0.115-0.126 m (Wren 0.240), so the trousers hem
+was drafted round 0.070 m (the earlier jacket smoke). `_guard_surface_points` now samples the evaluated body's
+triangles at most 2 mm apart below the shaft top and adds them to the loft's point cloud (GUARD only; Wren's path is
+unchanged). After it the drafted hem is 0.318 m. The `hull_perim` nearest-ring fallback and `shaftTopRingsZ` (guard
+only) stay as diagnostics.
+
+Earlier smoke runs on this branch (same folder, code before that fix, kept for the numbers): `garments-average-gloves`
+ok, 299,116 tris shown (hero 217,932), 700 s; `garments-average-boots` 184,956 shown (hero 78,444), 22 s, FAIL top girth
+(the bug above); `garments-average-jacket` 1,236,786 shown (hero 1,077,200), chain shirt + boots + trousers, 1,051 s,
+seam gap 17.6 mm, FAIL hem drafted round 0.070 m (the same bug). Not rerun (one desktop job per the lead).
 
 ## Tests
-TESTS_PLACEHOLDER
+One file at a time on the desktop (Vitest 5.0.3):
+- `tests/guardGarments.test.ts`: 5 / 5 pass (layer data vs the kit, chains, the prefix rule).
+- `tests/guardGarmentCheck.test.ts`: 5 / 5 pass (the report check).
+- `tests/guardBakePlan.test.ts`: 33 / 33 pass (unchanged by G2; the garments jobs still split as the GB contract says).
+- `npx tsc --noEmit -p .`: clean (exit 0).
+No full vitest, `npm run check` or e2e (desktop rules); CI runs `check` on the PR.
 
 ## Decisions I assumed (each undoable)
 - Layer chains rebuilt per job (above), not a garment-to-garment dependency in the bake graph (the GB contract has
@@ -124,7 +160,13 @@ TESTS_PLACEHOLDER
   `garments/combat_shirt.py`, `garments/trousers.py`, `garments/boots.py`, `garments/field_jacket.py` (gloves.py is in
   no chain). Not needed for the first bake (nothing is cached yet).
 - GB-REPORT's job contract table could add `[--variant rolled|work]` on the garments row (P1 re-check polish item 4).
-- Not run in Blender: rolled cut + roll, gloves on the one-bone fingers, work variants, trousers alone, the lean and
-  broad bases. The lead's laptop stage after G1 lands is their first run.
+- Not run in Blender: rolled cut + roll, work variants, the lean and broad bases, the jacket and boots jobs after the
+  boots fix. The lead's laptop stage after G1 lands is their first run.
+- Seam gaps at the last settle frame 20-21 mm (shirt underarm gussets, trousers crotch gussets) against Wren's 10 mm
+  warning; the weld closes them (move max 32.5 mm). Watch the gussets on G4's sheet; if they pucker, more settle frames
+  or stiffer gusset seams in guard mode (polish, not blocking).
+- Shown triangles are hero density (trousers 1.0 M, jacket 1.2 M): G4's decimation and atlas budget are what ship.
+- The stale outputs from before the boots fix in `C:/NightShift/scratch/guard-bake-g2` (boots, jacket, and the jacket's
+  kept work folder) must not feed G4; the laptop bake rebuilds every garment.
 - Determinism of the chain copies is assumed (same machine, same inputs); the layer step gives a 4-6 mm margin.
 - The jacket hem over the trousers' belt loops and the shirt pockets under the jacket front: watch on G4's sheet (G10).
