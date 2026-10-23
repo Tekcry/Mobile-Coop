@@ -4,6 +4,7 @@ import { C1_BOX, S1_DOORS } from './campusS1';
 import { C2_BOX, C2_FLOOR, S2_DOORS } from './campusS2';
 import { S3_DOORS, S3_L1 } from './campusS3';
 import { S4_ALARMS, S4_CAMERAS, S4_DESKS, S4_POSTS, S4_SECTOR } from './campusS4Data';
+import { S5_ALARMS, S5_CAMERAS, S5_POSTS, S5_SECTOR } from './campusS5Data';
 
 const PI = Math.PI;
 
@@ -134,6 +135,7 @@ export const CAMPUS_POSTS: Record<string, { leash: number; highSecurity?: boolea
   // K2: the bridge officer (guard 11 of section 2); the card door is 3 m behind him, inside the leash circle
   's2#11': { leash: 5, guards: 'c2-door' },
   ...S4_POSTS,
+  ...S5_POSTS,
 };
 
 // ---- Section 3 (slice 3): the lab block (SPEC "S3" guard table; `campusS3.ts` builds it) ------------------------------
@@ -267,7 +269,7 @@ const S3_ALARMS: { at: [number, number]; yaw: number; section: number; y?: numbe
 
 /** The cameras (range 8-12, `aim` on the protected floor point, a `reason`); live only in their own section. */
 export const CAMPUS_SECURITY: SecurityData = {
-  levels: { ground: 0, l1: 4.4, 's3-l1': S3_L1 },
+  levels: { ground: 0, l1: 4.4, 's3-l1': S3_L1, 's5-l1': 4.2 },
   devices: [
     // fixed, faces south down the lane: the verge and the rear window are behind it
     { id: 'cam-gate', kind: 'camera', level: 'ground', at: [11, -77.9], y: 3.0, aim: 6, range: 10, facing: 180, reason: 'S1: the barrier and the gatehouse door (the insurer asks for an ANPR / tailgating camera)', section: 0 },
@@ -281,6 +283,7 @@ export const CAMPUS_SECURITY: SecurityData = {
     { id: 'cam-bridge', kind: 'camera', level: 'l1', at: [3.7, -13], y: 3.0, aim: 6, range: 9, facing: 270, reason: "S2: the bridge door and landing (the lab block's only link)", section: 1 },
     ...S3_CAMERAS,
     ...S4_CAMERAS,
+    ...S5_CAMERAS,
   ],
   desks: [...S4_DESKS],
 };
@@ -293,15 +296,12 @@ export const CAMPUS_ALARMS: { at: [number, number]; yaw: number; section: number
   { at: [3.7, -15.3], yaw: -PI / 2, section: 1, y: 4.4 },
   ...S3_ALARMS,
   ...S4_ALARMS,
+  ...S5_ALARMS,
 ];
 
-/** A one-route stub: start -> the objective -> the exit. */
-const stubRoute = (name: string, from: [number, number], obj: [number, number], out: [number, number]): SectorDef['routes'] => [{ name, pts: [from, obj, out], obj: 1 }];
-
 /**
- * Section 1 in full and the S2-S5 stubs. The stubs sit in the greybox shells `campusOps.ts` builds; their connectors
- * are ground-level rooms between the shells (the glazed bridge C2 is on L1 in the SPEC: a later slice), the stub
- * objectives are plain grabs.
+ * The five sections: S1 here, S2-S5 from their slices (`campusS2.ts` .. `campusS5Data.ts`). The connectors are
+ * ground-level rooms between the buildings (the glazed bridge C2 is on L1 in the SPEC: a later slice).
  */
 export const CAMPUS_SECTORS: SectorDef[] = [
   {
@@ -415,15 +415,5 @@ export const CAMPUS_SECTORS: SectorDef[] = [
     routes: S3_ROUTES,
   },
   S4_SECTOR,
-  {
-    id: 's5',
-    name: 'The Old House (stub)',
-    start: { x: -18, y: 0, z: 29, yaw: -PI / 2 },
-    objective: { kind: 'grab', label: 'Take the signing key (stub)', x: -46, y: 0, z: 33, yaw: 0 },
-    extract: { label: 'Extract (stub)', box: [-54, 40, -48, 46] },
-    guards: [],
-    reinforce: [[-40, 30]],
-    perStage: 2,
-    routes: stubRoute('Stub', [-18, 29], [-46, 33], [-51, 43]),
-  },
+  S5_SECTOR,
 ];

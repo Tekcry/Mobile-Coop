@@ -9,3 +9,4 @@ kind: minor
 - Sector Ops engine: security desks (`security.desks`): with the operator down or away, the console loops its cameras (they sweep but report nothing, default 30 s) or switches them off until a restart; a restart or section change puts them back, the co-op client follows (no map uses them yet).
 - Ammo pickups removed from inside sections (a between-section weapons crate refill follows; Michael, 2026-10-23).
 - Sector Ops campusOps: S4 data hall greybox (first dog, security desk, pair gate, keypads).
+- Sector Ops campusOps: S5 the Old House greybox and the jetty extraction (two dogs, response team, pair gate, light well).

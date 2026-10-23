@@ -101,24 +101,14 @@ export const S4_ROUTES: SectorDef['routes'] = [
 ];
 
 /**
- * The cameras of section 4 (SPEC register; level `ground`): cam-mantrap inside the mantrap, cam-cage on the cage's SE post,
+ * The cameras of section 4 (SPEC register; level `ground`; all bulletproof, E8 / A95): cam-mantrap inside the mantrap, cam-cage on the cage's SE post,
  * cam-dock4 over the dock (the C3 door is outside its view).
  */
 export const S4_CAMERAS: SecurityData['devices'] = [
-  { id: 'cam-mantrap', kind: 'camera', level: 'ground', at: [11.8, 21.8], y: 2.6, facing: 225, aim: 3, range: 8, reason: 'S4: the mantrap (an admission record of the entrance interlock)', section: 3 },
-  { id: 'cam-cage', kind: 'camera', level: 'ground', at: [22.15, 33.85], y: 2.8, facing: 235, aim: 5, range: 9, reason: 'S4: the cage front gate and the centre aisle (the high-value servers)', section: 3 },
-  { id: 'cam-dock4', kind: 'camera', level: 'ground', at: [25.5, 21.8], y: 3.2, facing: 150, aim: 6, range: 10, reason: 'S4: the goods-in roller door and the van bay', section: 3 },
+  { id: 'cam-mantrap', kind: 'camera', level: 'ground', at: [11.8, 21.8], y: 2.6, facing: 225, aim: 3, range: 8, reason: 'S4: the mantrap (an admission record of the entrance interlock)', section: 3, bulletproof: true },
+  { id: 'cam-cage', kind: 'camera', level: 'ground', at: [22.15, 33.85], y: 2.8, facing: 235, aim: 5, range: 9, reason: 'S4: the cage front gate and the centre aisle (the high-value servers)', section: 3, bulletproof: true },
+  { id: 'cam-dock4', kind: 'camera', level: 'ground', at: [25.5, 21.8], y: 3.2, facing: 150, aim: 6, range: 10, reason: 'S4: the goods-in roller door and the van bay', section: 3, bulletproof: true },
 ];
-
-/**
- * (stealth over shooting, Michael 2026-10-23) The bulletproof / thermal flags of S4's cameras: no flag exists on the engine
- * type yet. Moves onto `CameraDevice` with E8 (a shot ricochets, no destroy); until then the cameras stay shootable in play.
- */
-export const S4_CAMERA_FLAGS: Record<string, { bulletproof?: true; thermal?: true }> = {
-  'cam-mantrap': { bulletproof: true },
-  'cam-cage': { bulletproof: true },
-  'cam-dock4': { bulletproof: true },
-};
 
 /**
  * The armoured routes (stealth over shooting): pieces a bullet should not clear. No armoured flag exists on the engine

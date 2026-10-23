@@ -153,7 +153,7 @@ describe('Saltmarsh Park section 2 (HQ), registration and shape', () => {
 
   it('the spawn layout carries the S2 rooms, switches, hide spots and nav seeds', () => {
     expect(lay.rooms!.length).toBeGreaterThan(S2_ROOMS.length);
-    expect(lay.switches!.length).toBe(5 + 7 + 9 + 8);
+    expect(lay.switches!.length).toBe(5 + 7 + 9 + 8 + 9);
     expect(lay.navSeeds!.some((s) => s.y === 4.4)).toBe(true);
     expect(lay.alarms!.filter((a) => a.section === 1).length).toBe(2);
     expect(lay.alarms!.find((a) => a.section === 1 && a.pos.y > 4)).toBeTruthy();

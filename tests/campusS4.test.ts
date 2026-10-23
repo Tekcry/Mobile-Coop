@@ -11,7 +11,7 @@ import { campusOps } from '../src/world/maps/campusOps';
 import { CAMPUS_COOP_LIPS } from '../src/world/maps/campusLips';
 import { S3_DOORS } from '../src/world/maps/campusS3';
 import { S4_BASKET, S4_BOX, S4_DECK, S4_DOORS, S4_FLIGHT, S4_GROUPS, S4_NOC, S4_PANEL_NEAR, S4_PANELS, S4_LASERS, S4_ROOMS, S4_COOP_LIPS, S4_PODS, S4_BOARDS } from '../src/world/maps/campusS4';
-import { S4_AMMO_CRATE, S4_ARMOURED, S4_CAMERA_FLAGS } from '../src/world/maps/campusS4Data';
+import { S4_AMMO_CRATE, S4_ARMOURED } from '../src/world/maps/campusS4Data';
 import { CAMPUS_POSTS, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
 import { SECTOR, checkSectorGuards, checkSectors, exitZone, inZone, type SectorGuard } from '../src/game/sectors';
 import { checkStageActions, doorFinder, addDoorClosure } from '../src/game/sectorStage';
@@ -180,7 +180,7 @@ describe('S4 shape and registration', () => {
 
   it('the spawn layout carries the S4 rooms, switches (8), board, hide spots, nav seeds, laser and panel; the S1 test\'s door anchors stay', () => {
     expect(lay.switches!.filter((s) => s.group >= 70 && s.group <= 79).length).toBe(8);
-    expect(lay.boards!.length).toBe(1);
+    expect(lay.boards!.filter((q) => q.groups.includes(75)).length).toBe(1);
     expect(lay.lasers!.some((l) => l.id === 'las-tray')).toBe(true);
     expect(lay.laserPanels!.some((p) => p.id === 'panel-tray')).toBe(true);
     expect(lay.rooms!.filter((r) => r.id.startsWith('s4-')).length).toBe(S4_ROOMS.length);
@@ -282,7 +282,7 @@ describe('S4 guards (brief table)', () => {
 
   it('every switch, board, alarm, keypad side, pair key switch, the intel board and the desk console is within 1.1 m of a nav cell on its floor', () => {
     for (const s of lay.switches!.filter((q) => q.group >= 70 && q.group <= 79)) expect(nearNav(s.pos.x, s.pos.z, s.pos.y), `switch ${s.group}`).toBe(true);
-    for (const bd of lay.boards!) expect(nearNav(bd.pos.x, bd.pos.z, bd.pos.y), 'board').toBe(true);
+    for (const bd of lay.boards!.filter((q) => q.groups.includes(75))) expect(nearNav(bd.pos.x, bd.pos.z, bd.pos.y), 'board').toBe(true);
     for (const a of lay.alarms!.filter((q) => q.section === 3)) expect(nearNav(a.pos.x, a.pos.z, a.pos.y), 'alarm').toBe(true);
     for (const k of S4.keypads!) for (const s of [-0.8, 0.8]) expect(nearNav(k.at[0] + s, k.at[1], 0), `keypad ${k.at} side ${s}`).toBe(true);
     for (const g of S4.pairGates!) for (const s of [g.a, g.b]) expect(nearNav(s.at[0], s.at[1], s.y ?? 0), `key switch ${s.at}`).toBe(true);
@@ -468,8 +468,8 @@ describe('S4 routes', () => {
         expect(hyp2(a.at[0] - (p[0] + (q[0] - p[0]) * t), a.at[1] - (p[1] + (q[1] - p[1]) * t)), `${a.id} leg ${i}`).toBeGreaterThan(1.2);
       }
     }
-    const ids = new Set(CAMPUS_SECURITY.devices.filter((c) => c.section === 3).map((c) => c.id));
-    for (const k of Object.keys(S4_CAMERA_FLAGS)) expect(ids.has(k), k).toBe(true);
+    // (E8) every S4 camera is bulletproof (the flags moved onto the devices at the S4 / S5 join)
+    for (const c of CAMPUS_SECURITY.devices.filter((q) => q.kind === 'camera' && q.section === 3)) expect(c.bulletproof, c.id).toBe(true);
     expect(S3_DOORS.c3Near).toEqual([24, 0]);
   });
 });
