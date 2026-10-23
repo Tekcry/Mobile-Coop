@@ -115,7 +115,17 @@
    renumbers protocol at train build). Red -> one Opus fix round per failing suite (likeliest: the co-op crate prompt,
    the crate stands in the previous connector but is tagged with its own section and items are scoped to the live
    section), rerun only the failing suites. After #206 lands in master: merge master into -p3 only when PR 3 enters a train.
-PARALLEL lanes (each its own branch off -p3 + worktree with a node_modules junction; push WIP per step):
+PARALLEL lanes (each its own branch off -p3 + worktree with a node_modules junction; push WIP per step). STARTED ~12:15
+(Michael ~12:10 "do it faster"): lane B E2 glass (Opus, feature/sector-redesign-e2, checks/e2-glass.md) and lane C posts
+move (Sonnet, feature/sector-redesign-posts, checks/posts-move.md). On resume: check each branch log + report; rerun
+from this text if unfinished. Lane A: briefs DONE (2b349d4b, 87496dcc: ART-PLAN, ART-KIT A110-A126, ART-S1..S5 A127-A152,
+batch 3 A153-A157; assumptions AS1-AS10 for Michael in ART-PLAN, none blocking). ART-KIT (Opus, branch off -p3) is
+STARTED ~12:25 (Opus, feature/sector-redesign-art-kit, worktree -art-kit, checks/art-kit-build.md); rerun from
+briefs/ART-KIT.md if unfinished. Then one Opus checker, then ART-S1..S5
+(Sonnet, parallel, cut from the ART-KIT head). Note: ART-S3..S5 hero coordinates come from -s45, re-check on -p3.
+Lane C DONE: feature/sector-redesign-posts @ e20103d6 (5 posts onto slot `post`, CAMPUS_POSTS / S4_POSTS / S5_POSTS gone,
+tests/campusPosts.test.ts, 425 tests; checks/posts-move.md). Owes a Sonnet checker (batch with lane D / E data); merge
+into -p3 after PR 3 opens (or ride PR 3 if it is still unopened and green).
 A. Detail art: briefs/ART-PLAN.md + ART-KIT.md + ART-S1..S5.md (Opus planner, ~12:00; check -p3 for them; rerun the
    planner from ROADMAP "Next: campus detail art" if missing). Opus builds ART-KIT first (kit + rules engine + tests);
    then Sonnet dressers S1-S5 in parallel (each only campusS<N>Dress.ts + one registration line); one Opus checker per
@@ -265,18 +275,25 @@ Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md pol
 ## Resume prompt
 ```
 Night Shift | Sector Ops Build (was Course Ready Build): RESUME (cleared session / new account). Job: sector-redesign (lead), branch
-feature/sector-redesign-p3 (feature/sector-redesign is frozen in train 23 as #206), worktree
-C:/NightShift/Mobile-Coop-sector-redesign-p3. git fetch, then read: CLAUDE.md; docs/ROADMAP.md
-(the live "Decided" is on origin/feature/menu: Sector Ops redesign 01:08-01:25, unavoidable guards 01:50, lean windows
-01:45); docs/sector-redesign/BRIEF.md (M1-M12, A1-A77), STATE.md ("Now" and "Next" at the top), PLAN.md, SPEC.md,
-briefs/, all on origin/feature/sector-redesign; CLAUDE.md "Heavy-usage throughput" + token rules on origin/feature/menu
-until they reach master. In flight at the save: Sonnet S4 / S5 builders on feature/sector-redesign-s4 / -s5 (worktrees
--s4 / -s5, WIP pushed per step; check their logs and checks/slice4-build.md / slice5-build.md, rerun from the brief if
-unfinished). Ask "Night Shift | Character Build" for the e2e-sectorops:6 verdict at 3796700d if STATE has none. Message
-the orchestrator only at PR open / train-ready / blocked / needs Michael. Then follow "Next". Opus plans, writes
-strict briefs, runs every checker and engine work; Sonnet 5.5 builds sections from the briefs; Haiku chores; one fix
-round per slice. Agent count / pacing as the orchestrator says. Michael may be asleep: log assumptions, no question
-dialogs. Every e2e is E2E_GPU=1: coop / netmove / ctcourse on Character Build (laptop); single suites on a desktop lane
-(heavy.lock 4191 / heavy2.lock 4192) only when CPU allows. Push WIP and refresh STATE after every hand-back. Report to
-"Night Shift | Orchestrator" at each slice end, PR or blocker.
+feature/sector-redesign-p3 (feature/sector-redesign is FROZEN at f29a43da in train 23 as #206: never push it), worktree
+C:/NightShift/Mobile-Coop-sector-redesign-p3. git fetch; read CLAUDE.md (+ token / swap / session-title rules on
+origin/feature/menu until master), docs/ROADMAP.md "Decided", then STATE.md on -p3 top to "## Next at ~10:20": "Now"
+and "Next window" hold everything (PR 3, lanes A-E). Briefs: docs/sector-redesign/briefs/ (ART-*.md, E9-CRATE.md).
+In flight (window 4, ~13:05):
+- PR 3: crate leg fixed f7a3a042 (test stood in the C2 door's reach; client no longer re-sends `use`; checks/crate-client-fix.md):
+  part 1 108 s + coop 71 s GPU PASS. sectorops 2-6 / netmove / vitest green at f96924e5. RUNNING: netmove GPU on the -p3
+  head (src/net changed; worktree -run, scratch/sr-netmove.sh). Opus deflake of :526 (seed Math.random + read ~1 s later,
+  Guard AI's advice; scripts only). Both green -> open PR 3 from -p3, bind, message the orchestrator.
+- E2 glass DONE -e2 06d24d67 (check PASS after 2 one-line fixes, checks/e2-check.md). E10 DONE -e10 16442ee1 (= e2 + posts +
+  armour; checks/e10-armour.md); Opus checker running -> checks/e10-check.md. Laptop Test Runner asked for sectorops 6 / 1 +
+  coop GPU at 16442ee1. Guard AI builds S16 (fire check vs armour) once E10 is on master; item 1 (groups, flags) is ours.
+  -e10 is the PR 4 base (posts + E2 + E10); posts check PASS (checks/posts-check.md).
+- Lane A ART-KIT (Opus) running on -art-kit (checks/art-kit-build.md); then one Opus checker, then ART-S1..S5 Sonnet dressers.
+For each lane: branch log + report; finished -> one checker per batch; unfinished -> rerun from its brief / STATE text.
+Worktrees made with `worktree add -b X origin/Y` track Y: push lane branches with `git push -u origin <branch>`.
+Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
+Sonnet builds from strict briefs, Haiku chores, one fix round per slice; parallel lanes up to desktop CPU ~80%,
+never two agents on the same files; every e2e E2E_GPU=1 on a desktop lane (atomic heavy.lock 4191 / heavy2.lock 4192;
+the laptop's Character Build session is gone); push WIP + refresh STATE after every hand-back; Michael may be asleep:
+log assumptions, no question dialogs.
 ```

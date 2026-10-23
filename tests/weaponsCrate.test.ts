@@ -105,6 +105,23 @@ describe('placement data (A100, A109)', () => {
   }
 });
 
+describe('the warehouse racking crate stands in the C2 far door\'s reach (crate-client-fix)', () => {
+  // The door items' reach (`stealthSystems.ts`, `it.reach = 1.4`) at the door centre (the connector's `farAt`). Once a
+  // player has used the crate (spent: `nearest` skips it) the door, unlocked by the cycle, is the nearest item there:
+  // "the prompt is gone" means the crate's prompt (`nearest(feet, _, 'crate')`), not every prompt (e2e-sectorops co-op leg).
+  const DOOR_ITEM_REACH = 1.4;
+  it('the e2e stand point (0.9 m in front) is in reach of both the crate and the far door', () => {
+    const secs = (warehouseOps as unknown as SecMap).sectors ?? [];
+    const i = secs.findIndex((s) => s.id === 'racking');
+    const c = secs[i]!.crate!;
+    const far = secs[i - 1]!.connector!.farAt!;
+    const x = c.at[0] + Math.sin(c.yaw) * 0.9;
+    const z = c.at[2] + Math.cos(c.yaw) * 0.9;
+    expect(Math.hypot(x - c.at[0], z - c.at[2])).toBeLessThan(1.8);
+    expect(Math.hypot(x - far[0], z - far[1])).toBeLessThan(DOOR_ITEM_REACH);
+  });
+});
+
 describe('checkSectorCrates on literal defs (A109)', () => {
   const mk = (id: string, start: [number, number, number], crate: SectorDef['crate'], far?: [number, number]): SectorDef =>
     ({ id, start: { x: start[0], y: start[1], z: start[2], yaw: 0 }, crate, connector: far ? { nearAt: [50, 50], farAt: far } : undefined }) as unknown as SectorDef;
