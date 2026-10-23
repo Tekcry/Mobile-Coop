@@ -301,6 +301,9 @@ LR16 (one lighting system; Michael ~18:08-18:20; plan checks/lr16-plan.md, audit
   (f8008542, slot 4). Each writes checks/<slice>-build.md and pushes per step. If cut off: rerun from the branch head +
   its build doc + brief (git show origin/cloud-queue:briefs/sector-redesign-<slice>.md). Then: 1 checker for dx;
   e + 1 one checker; t two checkers if src/ai changed; merge dx, e, 1 (LAMP_VERSION 3), t into lr16int; laptop run.
+- cloud-queue 4a5ee501: campus-art-next split for Cloud Builder 1 (live again ~20:08): artnext-ABD (-artnext) and
+  artnext-C C1-C6 (-artnext-c), base artpol 72e87171. Done -> fetch, checker (Opus A / C, Sonnet B / D), merge onto
+  -artpol after #226; C7-C9 (animFrozen / enemy.ts) by the lead at #226 train entry.
 - Next to queue: LR16g re-level (after dx + e + 1; set its base sha), LR16-8 sheets request text in
   briefs/LR16h-and-8.md (after g), campus-art-next (after #226). LR16-4 relight -> offer Guard AI; LR16-5 needs Michael.
 For Michael: Realistic dimmer (S2 atrium 0.28 vs 0.48, LR16g fixes); S3 hall-lit white fog.
