@@ -657,6 +657,8 @@ await run(PARAMS, async ({ G, sim }) => {
     const g = window.__app.current;
     const nav = g.nav;
     const S = g.world.map.sectors;
+    // (guard-ai S28) a locked shut door is shut on the guards' grid: this level read unlocks the doors for its queries and locks them back in the same evaluate (no frame between) (the connectors' near, far and seal doors are locked at load: sectorMode.findDoors)
+    const held = g.world.doors.list.filter((d) => d.anchor.locked); for (const d of held) g.world.doors.setLocked(d, false);
     const legs = [];
     const fails = [];
     // (a nav waypoint is an [x, z] pair)
@@ -707,6 +709,7 @@ await run(PARAMS, async ({ G, sim }) => {
       const toExit = nav.findPath([s.objective.x, s.objective.z], [(ex[0] + ex[2]) / 2, (ex[1] + ex[3]) / 2], 60000, s.objective.y, 0);
       return { id: s.id, obj: !!toObj, exit: !!toExit };
     });
+    for (const d of held) g.world.doors.setLocked(d, true);
     return { legs: legs.length, fails, seals, reach };
   });
   console.log(`  ${out.legs} route legs checked`);
@@ -1964,6 +1967,8 @@ if (want(6)) {
       const g = window.__app.current;
       const fails = [];
       let legs = 0;
+      // (guard-ai S28) a locked shut door is shut on the guards' grid: this level read unlocks the doors for its queries and locks them back in the same evaluate (no frame between)
+      const held = g.world.doors.list.filter((d) => d.anchor.locked); for (const d of held) g.world.doors.setLocked(d, false);
       for (const r of g.world.map.sectors[0].routes) {
         for (let i = 0; i + 1 < r.pts.length; i++) {
           if ((r.climbs ?? []).includes(i)) continue;
@@ -1973,6 +1978,7 @@ if (want(6)) {
           if (!g.nav.findPath([a[0], a[1]], [c[0], c[1]], 60000, a[2] ?? 0, c[2] ?? 0)) fails.push(`${r.name} leg ${i}`);
         }
       }
+      for (const d of held) g.world.doors.setLocked(d, true);
       return { legs, fails };
     });
     console.log(`  ${nv.legs} route legs checked`);
@@ -2043,6 +2049,8 @@ if (want(6)) {
       const g = window.__app.current;
       const fails = [];
       let legs = 0;
+      // (guard-ai S28) a locked shut door is shut on the guards' grid: this level read unlocks the doors for its queries and locks them back in the same evaluate (no frame between)
+      const held = g.world.doors.list.filter((d) => d.anchor.locked); for (const d of held) g.world.doors.setLocked(d, false);
       for (const r of g.world.map.sectors[1].routes) {
         for (let i = 0; i + 1 < r.pts.length; i++) {
           const a = r.pts[i];
@@ -2051,6 +2059,7 @@ if (want(6)) {
           if (!g.nav.findPath([a[0], a[1]], [c[0], c[1]], 200000, a[2] ?? 0, c[2] ?? 0)) fails.push(`${r.name} leg ${i}`);
         }
       }
+      for (const d of held) g.world.doors.setLocked(d, true);
       return { legs, fails };
     });
     console.log(`  ${nv2.legs} S2 route legs checked`);
@@ -2307,6 +2316,8 @@ async function campusS3Part(page) {
     const g = window.__app.current;
     const fails = [];
     let legs = 0;
+    // (guard-ai S28) a locked shut door is shut on the guards' grid: this level read unlocks the doors for its queries and locks them back in the same evaluate (no frame between)
+    const held = g.world.doors.list.filter((d) => d.anchor.locked); for (const d of held) g.world.doors.setLocked(d, false);
     for (const r of g.world.map.sectors[2].routes) {
       for (let i = 0; i + 1 < r.pts.length; i++) {
         if ((r.climbs ?? []).includes(i)) continue;
@@ -2316,6 +2327,7 @@ async function campusS3Part(page) {
         if (!g.nav.findPath([a[0], a[1]], [c[0], c[1]], 60000, a[2] ?? 0, c[2] ?? 0)) fails.push(`${r.name} leg ${i}`);
       }
     }
+    for (const d of held) g.world.doors.setLocked(d, true);
     return { legs, fails };
   });
   console.log(`  S3: ${nv.legs} route legs checked`);
@@ -3023,6 +3035,8 @@ async function campusS4Part(page) {
     const g = window.__app.current;
     const fails = [];
     let legs = 0;
+    // (guard-ai S28) a locked shut door is shut on the guards' grid: this level read unlocks the doors for its queries and locks them back in the same evaluate (no frame between)
+    const held = g.world.doors.list.filter((d) => d.anchor.locked); for (const d of held) g.world.doors.setLocked(d, false);
     for (const r of g.world.map.sectors[3].routes) {
       for (let i = 0; i + 1 < r.pts.length; i++) {
         if ((r.climbs ?? []).includes(i)) continue;
@@ -3032,6 +3046,7 @@ async function campusS4Part(page) {
         if (!g.nav.findPath([a[0], a[1]], [c[0], c[1]], 200000, a[2] ?? 0, c[2] ?? 0)) fails.push(`${r.name} leg ${i}`);
       }
     }
+    for (const d of held) g.world.doors.setLocked(d, true);
     return { legs, fails };
   });
   console.log(`  S4: ${nv.legs} route legs checked`);
@@ -3374,6 +3389,8 @@ async function campusS5Part(page) {
     const g = window.__app.current;
     const fails = [];
     let legs = 0;
+    // (guard-ai S28) a locked shut door is shut on the guards' grid: this level read unlocks the doors for its queries and locks them back in the same evaluate (no frame between)
+    const held = g.world.doors.list.filter((d) => d.anchor.locked); for (const d of held) g.world.doors.setLocked(d, false);
     for (const r of g.world.map.sectors[4].routes) {
       for (let i = 0; i + 1 < r.pts.length; i++) {
         if ((r.climbs ?? []).includes(i)) continue;
@@ -3383,6 +3400,7 @@ async function campusS5Part(page) {
         if (!g.nav.findPath([a[0], a[1]], [c[0], c[1]], 200000, a[2] ?? 0, c[2] ?? 0)) fails.push(`${r.name} leg ${i}`);
       }
     }
+    for (const d of held) g.world.doors.setLocked(d, true);
     return { legs, fails };
   });
   console.log(`  S5: ${nv.legs} route legs checked`);
@@ -3656,6 +3674,19 @@ if (want(1)) {
         const all = em.teams.flatMap((q) => q.members);
         return { t: s.t, firstSweep: s.firstSweep, visited: s.maxVisited, moved: s.moved, switches: t.switches, count: t.count, lv: all.map((e) => (e.alive ? e.level : 'down')), lead: t.members[0]?.def.kind };
       });
+    }
+    // (guard-ai S28, train 45) no sweep point looked at: where each team stands (its point, the leader, the members, the
+    // locked shut doors on the grid) for the log
+    if (!(w.visited >= 1 && w.moved > 2)) {
+      const diag = await G(() => {
+        const g = window.__app.current;
+        const em = g.enemyMgr;
+        const f1 = (v) => Math.round(v * 10) / 10;
+        const teams = em.teams.map((t) => ({ i: t.index, pt: t.point, at: t.point >= 0 ? [t.pts[2 * t.point], t.pts[2 * t.point + 1]] : null, n: t.count, visited: t.visited, dwell: f1(t.dwellT), sweeping: t.sweeping, pts: t.pts.slice(0, 2 * t.count).map(f1), m: t.members.map((e) => [f1(e.pos.x), f1(e.pos.z), e.alive ? e.level : 'down']) }));
+        const shut = g.world.doors.list.filter((d) => d.anchor.locked && d.target === 0).map((d) => [d.index, f1(d.cx), f1(d.cz)]);
+        return { lkp: [f1(em.lkp.x), f1(em.lkp.z), em.lkpValid], teams, shut, ver: em.nav.version };
+      });
+      console.log(`  S13 diag: ${JSON.stringify(diag)}`);
     }
     await G(() => {
       const g = window.__app.current;

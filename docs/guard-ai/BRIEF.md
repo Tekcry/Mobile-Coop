@@ -482,6 +482,9 @@ reported, they need a sense of urgency when it makes logical sense." A100-A119 a
   round). No map data lets guards through a locked door (none exists). A door locked while open (a course gate) stays
   open to them. Undo: drop `doorStep` (A115); a per-door closure (`NavGrid.addClosure`, shut while locked and closed) is
   the follow-up if guards are seen waiting at locked doors.
+  (S28, 2026-10-24: that follow-up is built: `src/ai/lockedDoors.ts` shuts a locked, shut door's doorway on the guards'
+  grid, so they route round it (Marlow A7 cage stall); the e2e nav reads unlock, query and relock. A116's "walks
+  through locked doors" no longer holds.)
 - **A117** (S20) Left as is: `Doors.pushOpen` ignores height (a guard under a door's floor within 1 m of its centre opens
   it) and still runs for a held guard; dogs use the same gate and spacing. Undo: not needed; open items.
 
