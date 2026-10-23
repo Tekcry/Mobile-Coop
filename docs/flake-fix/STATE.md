@@ -11,6 +11,10 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 - Still queued: 4192 chain-1023mr Marlow section-rating 053ff212 -> Marlow Build; 4189 chain-1023ap3 #226 perf alone
   (after gs5 done + all locks free; build first) -> Sector Ops. Guard AI carry-fix sha pending (see SAVE 17).
 - SENT: invisible-guard split verdict (compile timeout, all 3 passes) to Guard AI.
+- OWN JOB in progress: settings-rt-hide (orchestrator ~18:15): hide the dead "Ray traced" option, RT rate and GI rows;
+  branch feature/settings-rt-hide off feature/voxel-retire, worktree C:/NightShift/Mobile-Coop-settings-rt-hide,
+  notes docs/settings-rt-hide/BRIEF.md + STATE.md (WIP pushed as it goes). Next: finish / check (fresh Opus checker),
+  laptop e2e-menus + e2e-desktop, PR after #236 merges (rebase onto master).
 - 4191 chain-1023gf (watcher): polls origin/feature/guard-ai-carry-fix every 2 min for a commit "guard-ai carry fix:
   recover guard bodies..." (d704098e is WIP, skipped), then guardcarryfix-<sha> (e2e-guard-carry + e2e-stealth-ai,
   expect PASS) and guardcarryfix-master-f16600f5 (same suite file, expect FAIL) -> ONE verdict to Guard AI Build.
