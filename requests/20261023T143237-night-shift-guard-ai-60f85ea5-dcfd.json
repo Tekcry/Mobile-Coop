@@ -1,0 +1,14 @@
+{
+  "id": "20261023T143237-night-shift-guard-ai-60f85ea5-dcfd",
+  "sha": "60f85ea548cce22ab6a027d16c4b364625c9fad8",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-ctcourse:2"
+  ],
+  "jobs": 2,
+  "set": "s23-a3probe",
+  "note": "S23 A3 probe: master+S23 with TARGETS.all=false (feature/guard-ai-s23-probe); expect PASS"
+}
