@@ -14,6 +14,7 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
   side on every human guard, recovery about 1.4 s; dogs cannot be palm-struck. How heavies are taken out follows the CT
   co-op research (G49). Code: the elbow strike below (aware facing guards and heavies from the front only stagger).
 - Decided (G52): the dual takedown is one of the four co-op team moves; it waits for the co-op phase.
+  The host counts each dual takedown (`StealthRating.duals`, `dualTakedown` event; `game/dualTakedown.ts`) as section-rating's input (spare 12).
 - Interrogation is part of the grab (G23); its spec is `docs/systems/ct-toolkit.md` 3.9 (not built).
 
 ## Takedowns
@@ -56,7 +57,16 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
   bark + subtitle (`GUARD_INFO_GAP` apart, `GrabState.talk`; he stops if he is knocked out or killed first); a scripted
   Interrogate on a guard with none ends in the feed line "Interrogated: nothing new". Host-side: the co-op client's puppet
   takes the same slot's info by where it first appears (`infoAtSpawn`), the interrogation runs on the interrogator's
-  machine, no wire data, PROTOCOL_VERSION 24. One use per guard per bay start (a restart spawns a fresh guard).
+  machine, no wire data, PROTOCOL_VERSION 24.
+  (spare 9, interrogation intel) A guard with information also gives intel when the interrogation ends (`intelReveal.revealIntel`,
+  pure part `game/intel.ts`): `Code: <label>` per authored code (`GuardIntel.codes`, flag to `GameMode.onIntelCode`), then
+  `Cameras near: n, sweep a-b s` and `Patrols near: n, loop a-b s` within `INTEL.reach` 30 m on his storey (patrol lines read each
+  guard's route through the Guard AI `Enemy.patrolRoute` getter, `intelGuard`). Feed lines (<= 60 chars), event `intel`; a guard with none: unchanged. One use per guard per bay start (a restart spawns a fresh guard).
+  (stealth-pays S1, S2) Part B: the code flag now acts. Course: `CourseMode.onIntelCode` sets it as a course flag
+  (`state.setFlag`; a gate reads it when it lists the flag in `def.externalFlags`; a bay restart drops it). Sector Ops: the
+  spawn copies the slot's `info` onto the guard, and `SectorMode.onIntelCode` holds the code for the live section
+  (`SectorCodes.grantCode(flag, run.index)`, host only), so the matching keypad opens; the section's restart drops it.
+  Host / solo only (a puppet never reveals). Play is unchanged until map owners author guard `info` codes; no Sector map has any yet.
   There is no let-go (the shove is removed): the hold ends only in the knockout or the
   kill, or cleanly when the holder dies, the guard dies to something else (`abort`) or the match restarts (`reset`; a
   co-op host still frees a client's guard when that client drops out or the section restarts). Carry (the knockout,
@@ -83,6 +93,42 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
   interrogating, the same fields, PROTOCOL_VERSION unchanged); `CoopHost` keeps a client's seized guard at their offset
   and `ref.shield` and lowers / turns him from `ph` / `sub`; `RemoteAvatar` poses the hold hands and the bend from them.
   The carry has no MoveState (a partner sees no body on the shoulder, as before).
+- (coop-walk-fixes P6) Team takedown: a guard the partner holds as a hostage is offered to the other player from the
+  ground or a wall (`assistPlan`: `TAKEDOWN.reach` / `dy`, line of sight, any side; not the `taken` / combat rules),
+  row TEAM TAKEDOWN. The attacker stays put facing him for `TAKEDOWN.strike` (the row: a knockout; a held direct press: the kill);
+  the guard is never seized or moved by him; the partner letting go first ends it. The host applies it and ends the
+  hold; holder and striker are credited together (a dual takedown). Net: `docs/systems/coop.md` (client takedowns).
+
+## From the co-op hang-down (hang-down job; `docs/hang-down/BRIEF.md`)
+CT 1.5 Drop Line: the hanging player can grab and neck-snap a guard below (the only grab entry while hanging) and use
+the pistol. Live only while hanging settled (`TeamController.hangActs`); lowering, the pull-up and the drop offer nothing.
+- Attacker state `hangDown` (`TakedownController.attackerState`, before the wall / attach checks); `pickTakedown` kind
+  `hangDown`: the input's `ay` is the hanging HEAD (the rig root less `HANG_HEAD`); in reach when the guard's neck
+  (`HANG_GRAB.neck` 1.5 m over his feet) is 0.75 m under to 0.35 m over the head and within 0.9 m across
+  (`TAKEDOWN.hangReach` / `hangBelow` / `hangAbove`, `hangInReach`); any awareness or facing; line of sight from the
+  head; no dog; no archetype rule (from over the head). The body never moves: the team move keeps its override (the
+  takedown's `release` clears only its own).
+- The grab (A1, A3): the hold-A menu works while hanging by a guard (rows: GRAB CHARACTER for the guard in reach, the
+  item in reach); with no guard on offer or held, A uses the item in reach directly as before (A9: press uses it, a
+  hold fills a hold item; `GameState.hangDirectA`, one consumer of A per step); `GRAB_KINDS` holds `hangDown`. `runHangGrab`: the hands reach down (`HANG_GRAB.reach` 0.3 s, his
+  struggle from there), he is lifted to them (`HANG_GRAB.lift` 0.5 s; `hangHoldPoint`: `HANG_GRAB.hold` 0.3 m out along
+  the way to him, his neck `HANG_GRAB.hands` 0.35 m under the head, at most `liftMax` 0.6 m off his floor, following the
+  holder's depth), then held with the held rules: RT tap / KBM Z knock out (`CQ.koTime`, let down limp onto his floor),
+  RT hold kills (the neck snap, `GRAB.killTime`), INTERROGATE when he knows something, LT aims the pistol (shield); no
+  let-go, no carry (a carry pick is a plain knockout). (A4) The hang ending while he is held (the holder pulls up or
+  lets go, the hold lost) knocks him out at once ("KO by default"). Event kind `hangGrab`.
+- The neck snap (A5): RT on the guard in reach, holstered (any stance while hanging) and not aiming: tap the choke
+  (knockout), held (`STANCE.rtHold`) the neck snap (lethal); KBM LMB the same, Z the choke (`GameState`, before the
+  takedown step, `grabTriggerPick`). The ordinary takedown run with kind `hangDown` (`HANG_GRAB.strike` 0.6 s; the guard
+  pulled to the hold point; no elbow arc, `pose.melee` -1, no kill tail; the hands on his neck by the takedown's reach
+  IK). The hang ending mid-way ends it as decided (a knockout when not yet decided). The elbow strike never runs from the
+  hang.
+- The pistol (A6): hanging, LT draws the sidearm one-handed (never the rifle) with the inverted pipe's aim
+  (`Player.attachAim` inverted, the `PIPE` band and spread, the aim yaw the chest's: the facing + PI) and the camera
+  frames the hanging head (`inverted` framing); RT fires; RB while aiming is the jammer (G212), so no pull-up then.
+- Co-op: `docs/systems/coop.md` (hang-down). Tests: `tests/hangDown.test.ts`, `tests/hangDownTakedown.test.ts`,
+  `tests/hangDownNet.test.ts`; e2e-coop "hang-down" (the joiner hangs: pistol, menu grab + Z, RT held neck snap, the
+  host's pull-up knocks the held guard out).
 
 ## Elbow strike (locomotion step 10)
 To be replaced by the palm strike (G42); this is the current build.

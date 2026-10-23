@@ -20,7 +20,7 @@ async function setup() {
   const guard = (name: string, z: number) => {
     const rig = new CharacterRig(scene, (s, h, sl) => lib.instance(s, h, `enemy-${sl}`), def.look, def.height, name, { build: def.build, armor: def.plated, merge: true });
     rig.root.position.set(0, 0, z);
-    return { alive: true, taken: false, dog: null, def, bodyRig: rig } as unknown as Enemy & { alive: boolean };
+    return { alive: true, taken: false, dog: null, def, bodyRig: rig, thawPose: vi.fn() } as unknown as Enemy & { alive: boolean };
   };
   const front = guard('front', 12);
   const back = guard('back', -15);
@@ -91,7 +91,7 @@ describe('sector-redesign perf: SectorGuardFreeze occlusion (NullEngine, a fake 
     const def = ENEMIES.grunt;
     const rig = new CharacterRig(scene, (s, h, sl) => lib.instance(s, h, `enemy-${sl}`), def.look, def.height, 'w', { build: def.build, armor: def.plated, merge: true });
     rig.root.position.set(0, 0, 15);
-    const e = { alive: true, taken: false, dog: null, def, bodyRig: rig } as unknown as Enemy;
+    const e = { alive: true, taken: false, dog: null, def, bodyRig: rig, thawPose: vi.fn() } as unknown as Enemy;
     // a wall across z = 10, 3 m high, everywhere (rays stop on it)
     let wall = true;
     let rays = 0;
@@ -174,7 +174,7 @@ async function frzpolScene() {
   const guard = (name: string, x: number, y: number, z: number) => {
     const rig = new CharacterRig(scene, (s, h, sl) => lib.instance(s, h, `enemy-${sl}`), def.look, def.height, name, { build: def.build, armor: def.plated, merge: true });
     rig.root.position.set(x, y, z);
-    return { alive: true, taken: false, dog: null, def, bodyRig: rig } as unknown as Enemy;
+    return { alive: true, taken: false, dog: null, def, bodyRig: rig, thawPose: vi.fn() } as unknown as Enemy;
   };
   return { B, V, scene, cam, guard };
 }
@@ -354,5 +354,96 @@ describe('sector-redesign artnext C4-C5: the forced head, the over-budget verdic
     expect(dueDrawn).toBeGreaterThan(0);
     expect(kept).toBeGreaterThan(0);
     f.dispose();
+  });
+});
+
+// (artnext C7-C9, artnext 8) The FROZEN tier driven through `GuardAnimTier` (as `Enemy.frame` / `thawPose` / `die` call
+// it), not the rig directly: a frozen rig is not animated, the thaw solves at once with the carry and re-plants feet the
+// root walked away from; a death while frozen solves at the current place before the ragdoll reads the bones.
+describe('sector-redesign artnext C7-C9: the frozen tier, the thaw and the death solve', () => {
+  const WALK = { speed: 1.4, localX: 0, localZ: 1, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0 };
+
+  async function thawScene() {
+    const s = await frzpolScene();
+    const { GuardAnimTier } = await import('../src/ai/animTierView');
+    const A = await import('../src/ai/animTier');
+    const g = s.guard('thawA', 0.5, 0, -15);
+    const rig = g.bodyRig;
+    const tier = new GuardAnimTier(s.scene, null, 0);
+    // what `Enemy.thawPose` does (the freeze calls it from `thaw`)
+    (g as unknown as { thawPose: () => void }).thawPose = () => tier.solveNow(rig, 0, WALK);
+    const frame = (): void => tier.animate(rig, 1 / 60, WALK, [], false);
+    return { ...s, A, g, rig, tier, frame };
+  }
+
+  it('frozen frames do not animate; the thaw in the freeze evaluation solves once with the carry and re-plants', async () => {
+    const { B, A, V, scene, cam, g, rig, frame } = await thawScene();
+    for (let k = 0; k < 20; k++) frame();
+    const f = new V.SectorGuardFreeze(scene, { enemies: [g] });
+    scene.render();
+    expect(rig.root.isEnabled(false)).toBe(false);
+    const anim = vi.spyOn(rig, 'animate');
+    const replant = vi.spyOn(rig, 'replantIfMoved');
+    // he walks 1.2 m while frozen: no solve, no glide
+    for (let k = 1; k <= 30; k++) {
+      rig.root.position.x = 0.5 + k * 0.04;
+      frame();
+    }
+    expect(anim).not.toHaveBeenCalled();
+    const foot = rig.planner.L;
+    expect(Math.abs(foot.x - rig.root.position.x)).toBeGreaterThan(0.9);
+    // the camera turns to him: the freeze thaws him before the evaluation and his pose is solved there
+    cam.setTarget(new B.Vector3(0, 1.6, -10));
+    scene.render();
+    expect(rig.root.isEnabled(false)).toBe(true);
+    expect(anim).toHaveBeenCalledTimes(1);
+    expect(anim.mock.calls[0]![2]).toBeCloseTo(A.ANIM_TIER_FROZEN_CARRY_MAX, 9);
+    expect(replant).toHaveReturnedWith(true);
+    // the feet are under him again, not 1.2 m behind
+    expect(Math.abs(rig.planner.L.x - rig.root.position.x)).toBeLessThan(0.5);
+    expect(Math.abs(rig.planner.R.x - rig.root.position.x)).toBeLessThan(0.5);
+    // the next frame is a plain one (the thaw is done): its own dt, no second re-plant check
+    replant.mockClear();
+    frame();
+    expect(anim).toHaveBeenCalledTimes(2);
+    expect(anim.mock.calls[1]![2]).toBeCloseTo(1 / 60, 9);
+    expect(replant).not.toHaveBeenCalled();
+    f.dispose();
+  });
+
+  it('a short move while frozen keeps the feet planted (under THAW_REPLANT); a thaw the freeze did not run is the next frame', async () => {
+    const { A, rig, tier, frame } = await thawScene();
+    for (let k = 0; k < 20; k++) frame();
+    rig.root.setEnabled(false);
+    rig.root.position.x += A.THAW_REPLANT * 0.5;
+    frame();
+    frame();
+    expect(tier.thawing).toBe(true);
+    rig.root.setEnabled(true);
+    const anim = vi.spyOn(rig, 'animate');
+    const replant = vi.spyOn(rig, 'replantIfMoved');
+    frame();
+    expect(replant).toHaveReturnedWith(false);
+    expect(anim.mock.calls[0]![2]).toBeCloseTo(3 / 60, 9);
+    expect(tier.thawing).toBe(false);
+  });
+
+  it('a death while frozen (`die`): one solve at his current place before the ragdoll reads the bones', async () => {
+    const { A, rig, tier, frame } = await thawScene();
+    for (let k = 0; k < 20; k++) frame();
+    rig.root.setEnabled(false);
+    for (let k = 1; k <= 30; k++) {
+      rig.root.position.z = -15 + k * 0.04;
+      frame();
+    }
+    const hips0 = rig.hips.getAbsolutePosition().z;
+    const anim = vi.spyOn(rig, 'animate');
+    tier.solveNow(rig, A.ANIM_TIER_FROZEN_CARRY_MAX, WALK);
+    expect(anim).toHaveBeenCalledTimes(1);
+    expect(anim.mock.calls[0]![2]).toBeCloseTo(2 * A.ANIM_TIER_FROZEN_CARRY_MAX, 9);
+    rig.hips.computeWorldMatrix(true);
+    expect(Math.abs(rig.hips.getAbsolutePosition().z - rig.root.position.z)).toBeLessThan(0.3);
+    expect(Math.abs(rig.planner.L.z - rig.root.position.z)).toBeLessThan(0.5);
+    expect(Number.isFinite(hips0)).toBe(true);
   });
 });

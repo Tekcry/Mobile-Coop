@@ -1,12 +1,12 @@
 /**
  * The level's fill light and image-based light response (smooth-world fix round 2, pure, rendering only): one set of
- * numbers both level renderers use, so the smooth default's walls answer light exactly as the voxel walls do.
+ * numbers both level renderers use, so the smooth walls answer light by one rule.
  * - Fill: the hemisphere's sky / ground colour x its PBR intensity (`hemi.intensity` x pi = the theme's `ambient`), mixed
- *   by the normal, x (`SKY_FILL_FLOOR` + (1 - floor) x sky visibility). `VoxelPlugin` (voxels) and `LampPlugin`
- *   `LAMP_LEVEL` (the smooth level) both apply it in place of the hemisphere light.
+ *   by the normal, x (`SKY_FILL_FLOOR` + (1 - floor) x sky visibility). `LampPlugin`
+ *   `LAMP_LEVEL` (the smooth level) applies it in place of the hemisphere light.
  * - Image-based light: the probe's irradiance and reflections x (`ENV_FLOOR` + (1 - floor) x sky visibility).
- * - Sky visibility: `voxel/skyBake.ts` `bakeSky` in `SKY_CELL` cells, sampled `SKY_OFFSET` cells off the face. The voxel
- *   path bakes it from its voxel shapes, the smooth path from the canonical light shapes.
+ * - Sky visibility: `voxel/skyBake.ts` `bakeSky` in `SKY_CELL` cells, sampled `SKY_OFFSET` cells off the face. It is baked
+ *   from the canonical light shapes.
  * Gameplay never reads any of it (the light meter and perception read the light field).
  */
 
@@ -67,8 +67,8 @@ export function sampleSky(g: { origin: readonly number[]; cell: number; n: reado
 }
 
 /**
- * The smooth level's sky grid, laid out as the voxel path lays its own (`levelVoxels` `gridOf` + `VoxelWorld`): the origin
- * on the voxel brick grid (`brick` m) under the filling shapes' minimum, whole chunks (`chunk` m) up to their maximum, in
+ * The smooth level's sky grid (the old voxel structure grid kept): the origin
+ * on the brick grid (`brick` m) under the filling shapes' minimum, whole chunks (`chunk` m) up to their maximum, in
  * `cell` cells. The same cell boundaries give the same conservative occupancy, so floors and wall faces read the same
  * sky either way. `bounds(i, out)` writes shape i's bounds (min xyz, max xyz); `fill(i)` says whether it adds solid.
  */
@@ -109,3 +109,7 @@ export function skyShapes(packed: Float32Array, stride: number, minThick: number
   keep.forEach((i, k) => out.set(packed.subarray(i * stride, (i + 1) * stride), k * stride));
   return out;
 }
+
+/** The smooth sky bake's grid (voxel-retire: the old 5 cm structure grid kept, so the sky cells are unchanged). */
+export const SKY_CELL = 0.5;
+export const SKY_GRID = { size: 0.05, brick: 8, chunk: 128, minThick: 1.5 } as const;

@@ -56,7 +56,7 @@ export function fakePointerLock() {
 }
 
 
-/** E2E_PROFILE=1: where a suite's time goes, printed when it exits: browser launch, page boot, match build (voxel + light
+/** E2E_PROFILE=1: where a suite's time goes, printed when it exits: browser launch, page boot, match build (the light
  * bake inside it), the first rendered frames of a match (the shaders compile there: warmup), later rendered frames, fixed
  * waits, in-page work (`stepHeadless` and the rest of `evaluate`), screenshots, and the rest. A bucket never counts inside another. */
 export const PROFILE = process.env.E2E_PROFILE === '1';
@@ -97,6 +97,12 @@ export async function launch({ url = 'http://localhost:4173/', params = '', view
   ctx.setDefaultNavigationTimeout(120000);
   const { page, errors } = await openPage(ctx, url, params);
   return { browser, ctx, page, errors };
+}
+
+/** (lightrev LR13) `E2E_FALLOFF=<value>` appends `&falloff=<value>` to a game URL's query `q` (not when it names one). */
+export function falloffParam(q, url = '') {
+  const f = process.env.E2E_FALLOFF;
+  return f && !/(^|&)falloff=/.test(q) && !/[?&]falloff=/.test(url) ? `${q}&falloff=${encodeURIComponent(f)}` : q;
 }
 
 /** Open another page in an existing context (coop tests: pages share BroadcastChannel + IndexedDB). */
@@ -194,7 +200,9 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
   // 3.5: the parked modes and the economy are behind ?legacy=1 (`npm run e2e:legacy` sets LEGACY=1; a suite can name `legacy=1` itself)
   const q0 = process.env.LEGACY === '1' && !/(^|&)legacy=/.test(g) && !/[?&]legacy=/.test(url) ? `${g}&legacy=1` : g;
   // (locomotion step 20b, D11) E2E_NETSIM=typical: the ?net=local pages run the transport's network simulator
-  const q = NETSIM && /(^|&)net=local/.test(q0) && !/(^|&)netsim=/.test(q0) ? `${q0}&netsim=${encodeURIComponent(NETSIM)}` : q0;
+  const q1 = NETSIM && /(^|&)net=local/.test(q0) && !/(^|&)netsim=/.test(q0) ? `${q0}&netsim=${encodeURIComponent(NETSIM)}` : q0;
+  // (lightrev LR13) E2E_FALLOFF=photo: every suite page runs the realistic lamp falloff (`?falloff=photo`); unset: unchanged
+  const q = falloffParam(q1, url);
   await timed('boot', async () => {
   await page.goto(url + (url.includes('?') ? '&' : '?') + q);
   await page.waitForFunction(
@@ -214,11 +222,11 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
       proto.stepHeadless.__prof = true;
     }).catch(() => {});
   }
-  // autostart: the match itself (3.0: the voxel world builds in workers before it starts)
+  // autostart: the match itself (the level builds before it starts)
   if (/(^|&)autostart=/.test(params)) {
     await timed('match', () => page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 120000 }).catch(() => {}));
     warmed = false;
-    if (PROFILE) prof.bake += await page.evaluate(() => { const w = window.__app?.current?.world; return (w?.lightInfo?.().ms ?? 0) + (w?.voxels?.stats?.ms ?? 0); }).catch(() => 0);
+    if (PROFILE) prof.bake += await page.evaluate(() => { const w = window.__app?.current?.world; return w?.lightInfo?.().ms ?? 0; }).catch(() => 0);
   }
   return { page, errors };
 }

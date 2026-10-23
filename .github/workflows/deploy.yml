@@ -20,12 +20,13 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages-${{ github.event_name == 'pull_request' && github.ref || 'site' }}
+  group: pages-${{ github.event_name == 'pull_request' && github.head_ref || 'site' }}
   cancel-in-progress: true
 
 jobs:
-  # pull requests: check the change only (no deploy)
-  check:
+  # pull requests: check the change only (no deploy). lint, test and build-check run in parallel; `check` is the one
+  # status name merge-train and CLAUDE.md use, and it fails unless all three passed (a skipped need must not pass).
+  lint:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
@@ -34,10 +35,62 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - uses: actions/cache@v4
+        id: nm
+        with:
+          path: node_modules
+          key: nm-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
+      - if: steps.nm.outputs.cache-hit != 'true'
+        run: npm ci
       - run: npm run lint
+
+  test:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/cache@v4
+        id: nm
+        with:
+          path: node_modules
+          key: nm-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
+      - if: steps.nm.outputs.cache-hit != 'true'
+        run: npm ci
       - run: npm test
+
+  build-check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/cache@v4
+        id: nm
+        with:
+          path: node_modules
+          key: nm-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
+      - if: steps.nm.outputs.cache-hit != 'true'
+        run: npm ci
       - run: npm run build
+
+  check:
+    needs: [lint, test, build-check]
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: All of lint, test and build-check passed
+        run: |
+          echo "lint=${{ needs.lint.result }} test=${{ needs.test.result }} build-check=${{ needs['build-check'].result }}"
+          test "${{ needs.lint.result }}" = success
+          test "${{ needs.test.result }}" = success
+          test "${{ needs['build-check'].result }}" = success
 
   build:
     if: github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')

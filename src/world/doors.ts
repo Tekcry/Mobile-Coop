@@ -15,7 +15,7 @@ import {
 import { G, doorMembership } from '../physics/groups';
 import type { Door, TraversalAnchors } from './anchors';
 import { hyp2 } from '../core/mathx';
-import { DOOR_CRACK, stepCrack } from './doorPeek';
+import { DOOR_CRACK, isSlideDoor, stepCrack } from './doorPeek';
 
 /** How a door was opened: quietly by hand, bashed open at a sprint, or by an enemy walking through. */
 export type DoorHow = 'quiet' | 'bash' | 'enemy' | 'close' | 'crack' | 'drive';
@@ -239,7 +239,8 @@ export class Doors {
    * clients see a held door as open).
    */
   drive(d: DoorState, amount: number): void {
-    if (d.anchor.locked) return;
+    // (marlow-final N9) a sliding door has no stealth drive (it opens only through `open` / `setOpen`)
+    if (d.anchor.locked || isSlideDoor(d.anchor)) return;
     const a = Math.max(DOOR.crack, Math.min(DOOR.driveMax, amount));
     if (a <= DOOR.driveShut) {
       if (d.target === 1) {
@@ -293,7 +294,8 @@ export class Doors {
    * stays 0); only the drawn leaf moves. False when nothing changes (open, locked, already so).
    */
   crack(d: DoorState, on: boolean): boolean {
-    if (on && (d.target !== 0 || d.anchor.locked || d.cracked)) return false;
+    // (marlow-final N9) a sliding door never cracks (host, client prediction and solo all land here)
+    if (on && (d.target !== 0 || d.anchor.locked || d.cracked || isSlideDoor(d.anchor))) return false;
     if (!on && !d.cracked) return false;
     d.cracked = on;
     d.held = false;

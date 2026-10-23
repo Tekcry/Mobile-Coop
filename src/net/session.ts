@@ -1,5 +1,6 @@
 import { EventBus } from '../core/events';
 import type { WeatherChoice } from '../world/mapDef';
+import type { LampFalloff } from '../world/lampMath';
 import type { AvatarLook } from '../cosmetics/avatarLook';
 import { capacity, parseMessage, PROTOCOL_VERSION, type Difficulty, type Msg, type NetMode, type PlayerInfo } from './protocol';
 import type { Transport } from './transport';
@@ -23,6 +24,8 @@ export interface StartInfo {
   weather: WeatherChoice;
   /** Course mode: the bay to start at (1-based, D20). */
   bay?: number;
+  /** (lightrev LR13, protocol 38) The host's lamp falloff: every peer's match runs it (`GameOptions.lampFalloff`). */
+  lampFalloff: LampFalloff;
 }
 
 export interface SessionEvents {
@@ -61,6 +64,8 @@ export class NetSession {
   weather: WeatherChoice = 'clear';
   /** Course mode: "Start at bay N" (host, 1-based; D20). */
   courseBay = 1;
+  /** (lightrev LR13, host) The lamp falloff a match started now runs (`coopUi` reads the host's setting / URL override). */
+  hostLampFalloff: () => LampFalloff = () => 'linear';
   phase: 'lobby' | 'playing' = 'lobby';
   private start: StartInfo | null = null;
   private closed = false;
@@ -237,7 +242,7 @@ export class NetSession {
     if (from !== this.hostId) return;
     if (msg.t === 'start') {
       this.phase = 'playing';
-      this.start = { mode: msg.mode, map: msg.map, seed: msg.seed, difficulty: msg.difficulty, mission: msg.mission, weather: msg.weather, bay: msg.bay ?? 1 };
+      this.start = { mode: msg.mode, map: msg.map, seed: msg.seed, difficulty: msg.difficulty, mission: msg.mission, weather: msg.weather, bay: msg.bay ?? 1, lampFalloff: msg.lf };
       this.events.emit('start', this.start);
       return;
     }
@@ -337,7 +342,7 @@ export class NetSession {
     if (!this.isHost) return null;
     this.phase = 'playing';
     if (this.overCapacity) return null;
-    this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, mission: this.mission, weather: this.weather, bay: this.mode === 'course' ? this.courseBay : 1 };
+    this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, mission: this.mission, weather: this.weather, bay: this.mode === 'course' ? this.courseBay : 1, lampFalloff: this.hostLampFalloff() };
     this.send(startMsg(this.start));
     this.broadcastLobby();
     this.events.emit('start', this.start);
@@ -366,5 +371,5 @@ export class NetSession {
 
 /** The `start` message for a match. */
 function startMsg(s: StartInfo): Msg {
-  return { t: 'start', mode: s.mode, map: s.map, seed: s.seed, difficulty: s.difficulty, time: 0, mission: s.mission, weather: s.weather, bay: s.bay ?? 1 };
+  return { t: 'start', mode: s.mode, map: s.map, seed: s.seed, difficulty: s.difficulty, time: 0, mission: s.mission, weather: s.weather, bay: s.bay ?? 1, lf: s.lampFalloff };
 }

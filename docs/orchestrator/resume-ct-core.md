@@ -1,43 +1,60 @@
-# Resume - Night Shift | Player Build (formerly CT Core Build; resumed 2026-10-23 after the ~12:20 swap)
+# Resume - Night Shift | Player Build (updated 2026-10-23 ~21:40 after the swap; live state in docs/guard-models/STATE.md "RESUMED" line)
 
-Rules: CLAUDE.md on origin/feature/menu "Heavy-usage throughput", "Token rules", "Account swap" (95% slow down, save by
-98%, small work to 100%; at the orchestrator's save message commit agent worktrees as WIP). No mid-window clears. Opus
-plans / checks / anim + net code; Sonnet builds from strict briefs; max 3 tsc / vitest agents; desktop CPU < 80%.
-e2e always E2E_GPU=1: laptop (Character Build) for coop / netmove / ctcourse and batches; desktop heavy.lock (4191,
-CPU < 80%) / heavy2.lock (4192, CPU < 50%) for single suites. Agent rules: scratch/mt2/COMMON.md, COMMON-SPARE.md
-(subagents may be refused writing REPORT.md: the lead writes it from the hand-back). Push this file with
-scratch/ctcore/push-resume.sh <file> <msg>. Message the orchestrator only at PR open / train-ready / blocked / Michael.
+~22:40: #247 CI fix afea69d3 (AF3 / AF4b gated to Wren rigs, guards back to master; CI-FIX-REPORT.md): Opus checker
++ laptop request 20261023T105631-player-build-afea69d3-fd4f (anim clip coop netmove menus, set afp) in parallel. On
+both green + CI green: gh pr edit 247 --add-label train-ready + message orchestrator. guard-models: P1, G3, G1, G1h, G5
+merged (feature/guard-models); laptop bakes bodies / gear / heads queued; G1 + G1h checkers running; G2 building.
+RESUMED ~21:40: #247 CI `test` RED on e70951e3 (merge ref with master 4.82.0): 13 unit tests in 8 anim / guard-rig files
+(crouch spin, guard pose golden / identity hashes, G1 gait row 7, mocapStrafe alloc). Opus triage + fix agent on
+feature/anim-fix-pass (report docs/anim-fix-pass/CI-FIX-REPORT.md); no laptop statuses on e70951e3 yet. Train-ready
+only after CI green + laptop pass on the fixed head. guard-models: P1 re-check on 7488d74d, G5 checker on gm-g5 4f51918a,
+G1 / G1h / G3 Opus builders resumed (gm-g1 5d9c601a, gm-g1h f4685346, gm-g3 456698c3).
 
-## Open (master 4.71.0, 3c460923)
-| Job | Branch, folder C:/NightShift/Mobile-Coop-<x> | Head | Next |
+Rules: CLAUDE.md on origin/master "Session titles", "Heavy-usage throughput", "Token rules", "Account swap". No mid-window clears.
+Opus plans / checks / anim + net code; Sonnet builds from strict briefs; Haiku chores; desktop CPU < 80%. e2e always
+E2E_GPU=1: laptop (Test Runner) for coop / netmove / ctcourse and batches, one verdict per batch; desktop heavy.lock (4191)
+/ heavy2.lock (4192) for single suites. Agent rules: scratch/ctcore/COMMON-27.md. Push this file with
+scratch/ctcore/push-resume.sh <abs file> <msg>. Message the orchestrator only at PR open / train-ready / blocked / Michael.
+
+Orchestrator 19:15 ("Pipeline speed-ups"): NO e2e on the desktop (heavy.lock = build / check only); every suite to the
+laptop queue; fresh checker + laptop request on the same commit in parallel; fix round reruns only what failed;
+train-ready = message + `gh pr edit <n> --add-label train-ready` (auto mode denied the label 19:2x: Michael adds it or
+allows it); use `node scripts/run-e2e.mjs --affected origin/master --list` once it lands. Prompts are stateless from the
+next swap: this block carries all state.
+Orchestrator 19:25 ("Tokens for progress"): lead at high effort (set in the app; a session cannot raise its own);
+an Opus agent keeps briefs for the next 2-3 slices ready (scratch/ctcore/briefs/); 2 independent checkers on AI /
+src/net changes; Opus triage agent at once on every laptop failure; a checker FAIL gets an Opus fix round and Opus
+siblings; questions to Michael carry a decision pack (prototype / shots / GPU sheets). Desktop CPU < ~80%.
+Cloud builder ("Night Shift | Cloud Builder 1", one-way): briefs as briefs/<job>-<slice>.md on orphan branch
+`cloud-queue`, line 1 `status: open` (format: README.md there); at each check `done <branch> <sha>` -> fetch, review,
+check; `blocked <reason>` -> answer in the file, set open. Use it first for CPU-heavy builder slices.
+Laptop queue: self-service from feature/laptop-queue (docs/systems/testing-tools.md "Laptop queue"; results as GitHub statuses laptop-e2e/<set>); until it merges, ask Test Runner.
+Released: #227 (4.76.0), #207 batch 22 (4.77.0), #214 -> #223 -> #231 stack (4.79.0, train 30, PROTOCOL 40).
+
+## Open (master bbd49206 = 4.81.0; train 33 db14a418 4.82.0 building with #249 stealth-pays, NOT #247)
+| Job | Branch (folder C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
-| PR #207 batch 22 | feature/ctcore-batch-22, folder ctcore-batch | 99c37251 | strike-pops + hang-down + dual-reward + traverse-fix-2; check PASS (scratch/ctcore/b22-CHECK.md, polish list); master merged. Laptop GPU 8/8 GREEN on 99c37251 (338 s), posted in #207; orchestrator told train-ready. LEFT train 24: e2e-clip "ladder climb: knees never knock" 8.9 cm vs > 9.0 (e2e-clip.mjs:250; master passes). Opus fix round in folder Mobile-Coop-b22-fix (on this branch): fix the game, rerun e2e-clip / traverse / anim. Then merge into batch-23, one laptop request (+ e2e-clip), train-ready #207 + #214 together for train 25. |
-| mocap-strafe r3 DONE (restart slide 0, flip pelvis 1.51 / 1.36, diag slide 0, knee 2.9, OFF md5 same, e2e-anim + clip PASS); fresh Opus recheck running -> scratch/ctcore/msc3-CHECK.md, then own PR. History: | feature/mocap-strafe | f34e21c9 | Round 2 149f419c met knee-out / alloc / assert / OFF md5 (docs/mocap-trial/MT2-STRAFE.md "Fix round 2"). Round 3 goals: restart after 0.3 s stand slide 3.87 cm -> <= 0.5 (footPlanner, rig reachNeed / stOff timing), flip pelvis pops 3.34 / 2.36 cm -> <= OFF + 0.5 (OFF 1.11 / 0.93), diagonal flip slide 1.21 -> <= 0.5. Keep knee-out <= 3.0 (pistol R speed 2 at 2.9), OFF md5 9ce3f3d1... / 31,065,812 B. Then e2e-anim + e2e-clip, fresh Opus recheck (msc-CHECK.md scope + these), own PR. |
-| sd-rounds spare 7 (Sonnet) | feature/sd-rounds | 2ef4000f DONE | Vitest 40/40, tsc, eslint, e2e-combat + e2e-weapon-audio GPU green; REPORT.md in. Fixed weapon-audio's pre-existing reload step (A -> X hold; first X hold after shots not read, script holds twice: checker look). Next batch, the #207 checker scope reused (fresh Opus). Near-miss with Guard AI #208: WeaponSlot fields just above HitKind (playerWeapons.ts ~55). |
-| team-climb (Opus) | feature/team-climb off 3c460923 | a5559685 WIP | CLIMB_UP_TEAM: rope-top lip grips (teamController ropeTop reachL / reachR, remoteAvatar), ease teamController.ts ~347-348 rise `min(1, e*1.7)` and `across` jump at e 0.4 (5.7 cm pop), tests/teamClimb.test.ts, e2e coop / netmove / traverse. Off traverse-fix-2's hunks. Next batch. |
-| spare 9 interrogation-intel (Sonnet) | feature/interrogation-intel off batch-22 99c37251 | a2984b63 DONE | intel.ts / intelReveal.ts, takedownController, coopHost relay; no wire / save / src/ai change. Vitest 40/40, tsc, eslint, e2e-takedown GPU green. e2e-coop relay assert untested (laptop batch). patrolRoute getter rides guard-ai-s8 (compiles without). Part B (modes' onIntelCode) after marlow-final / sector-redesign. |
+| #247 anim-fix-pass | feature/anim-fix-pass (anim-fix-pass) | e70951e3 (master 4.81.0 merged, docs/anim-fix-pass/TRAIN-ENTRY-REPORT.md; checker PASS) | Laptop request 20261023T093904-...-e70951e3 (coop netmove anim clip menus), status laptop-e2e* on e70951e3. On pass: gh pr edit 247 --add-label train-ready + message orchestrator (train 34). On fail: Opus triage at once. |
+| guard-models (lead since ~20:45, from Marlow) | feature/guard-models (guard-models) | 0c55a103 (G0 + GB + G6 + G6n merged; P1 fix round in it) | docs/guard-models/STATE.md "Now" is the live state: P1 checker on a63e82ca; G6n f9ce1015 checker A PASS, B running -> merge gm-g6n on both PASS; G5 (gm-g5), G1 (gm-g1), G1h (gm-g1h), G3 (gm-g3) Opus builders running in their worktrees (commit WIP there at the save). L0 probe: status laptop-e2e/alone-guard-bake-probe on bbd49206. Rules: briefs/gm-common.md, gm-blender.md. |
+| cloud-queue | orphan cloud-queue (a907adb6) | DONE: afp-next-AF0b -> feature/afp-af0b 9507c179 (harness, 50 rows, docs/afp-next/before/numbers.md; merge into afp-next when AF7 starts); player-rig-pose-audit -> feature/rig-pose-audit 4d7b1125 (docs/rig-pose-audit/REPORT.md: 20 gameplay reads, top risks player hit volumes / round origin / client headshot head; ranked 8 fix slices: not started, needs orchestrator / Michael priority). OPEN: player-stealth-pays-client-intel (answered: EnemyState `in` field, host-authoritative), guard-models-G4b (budget check). Note: mocapStrafe heap-per-frame test fails on 48b9b73c under load (pre-existing, load-sensitive). |
 
-| batch 23 (train 25) | feature/ctcore-batch-23 off batch-22, folder ctcore-batch | 58368e10 PR #214 | = interrogation-intel a2984b63 + sd-rounds 2ef4000f + team-climb 2805b65e (coop.md conflict: both bullets kept). Checker PASS (scratch/ctcore/b23-CHECK.md, polish list). Laptop GPU 10/10 GREEN on dc8919cd (posted in #214). Waits for the #207 fix + ipad-fit merge, then e2e-clip (+ menus / desktop) and train-ready with #207. |
-
-| ipad-fit (Sonnet, Michael ~13:05 via orchestrator: into #214) | feature/ipad-fit off batch-23 58368e10 | 58368e10 | Brief scratch/ctcore/briefs/spare-ipad-fit.md (version label, safe-area strip, GPU banner Windows only, pause room note). e2e-menus + e2e-desktop on the desktop lane, then merge into batch-23 / #214. |
-| spare 6 pose-parity (Opus) | feature/pose-parity off batch-23 58368e10 | 58368e10 | Agent writes docs/pose-parity/BRIEF.md then builds: aim side on the wire (PROTOCOL 31 -> 32 if free), remote melee -1 clamp, baked sections on the partner. Laptop e2e-coop / netmove after. Next batch (24). |
-
-## Next window, at once (parallel, CPU < 80%; orchestrator: max 2 tsc / vitest agents while CPU > 80%)
-1. (done after the swap) r3, team-climb, sd-rounds restarted from the heads above; spare 9 started. Spare 12 dual-reward is
-   in #207. If cut off again: restart each with the table's goals.
-2. Wait for hand-backs (no polling).
-3. #207 verdict -> train-ready message. Next batch (feature/ctcore-batch-23 off master) = sd-rounds + team-climb +
-   spare 9, one Opus checker, laptop coop / netmove / ctcourse.
-4. Later spares (docs/orchestrator/spare-jobs.md on feature/menu): 7 crouch pops after mocap-strafe (same rig / footPlanner
-   files). 16 partner rig start is already merged (partner-seed). 6 started.
+## Next
+1. #247 laptop verdict -> train-ready (train 34).
+2. guard-models: merge G6n after checker B; P1 checker verdict (fix round if FAIL); as G5 / G1 / G1h / G3 land: one Opus checker per group, book each full stage as a laptop alone request (node C:/NightShift/scratch/ctcore/lq/request.mjs --alone --step "node scripts/operators/guard-bake.mjs --stage <s> --push"), then G2 garments, G4 bake + sheet (to Michael, no stop), G7, G8, G9 per PLAN section 7.
+3. AF7-AF9 (briefs/afp-next-pass.md) wait for Michael's walk of AF0-AF6 (orchestrator ~20:20: hold).
 
 ## Resume prompt
 ```
-Night Shift | CT Core Build: RESUME after the ~12:20 account swap. Model Opus, effort high. Read CLAUDE.md
-("Sessions": "Heavy-usage throughput", "Token rules", "Account swap"; on origin/feature/menu if newer than master), then
-docs/orchestrator/resume-ct-core.md on origin/feature/menu (git fetch; git show
-origin/feature/menu:docs/orchestrator/resume-ct-core.md). Copy it to C:/NightShift/scratch/ctcore/resume-ct-core.md and
-push updates with scratch/ctcore/push-resume.sh. A heavy.lock / heavy2.lock naming CT Core Build with no node / bash
-process of ours is stale: delete it. Message "Night Shift | Orchestrator" once that you resumed, then only at PR open /
-train-ready / blocked / Michael needed. Work "Next window" top down. e2e always E2E_GPU=1.
+Night Shift | Player Build: RESUME after the account swap. Model Opus, effort medium. set_session_title "self" ->
+"Night Shift | Player Build". Read CLAUDE.md (origin/master "Sessions"), then docs/orchestrator/resume-ct-core.md on
+origin/feature/menu (git fetch; git show origin/feature/menu:docs/orchestrator/resume-ct-core.md). Copy it to
+C:/NightShift/scratch/ctcore/resume-ct-core.md and push updates with scratch/ctcore/push-resume.sh. A heavy.lock /
+heavy2.lock naming Player Build with no node / bash process of ours is stale: delete it. Turn off unused connectors.
+Message "Night Shift | Orchestrator" only at PR open / train-ready / blocked / Michael needed. Work "Next" top down.
+e2e always E2E_GPU=1.
 ```
+
+## History
+- 2026-10-23 16:05-18:30: stack #214 -> #223 -> #231 released in train 30 (4.79.0); #207 in 4.77.0; #227 4.76.0; #239 opened;
+  AF1, AF4a, AF6, AF3 built, checked, merged into anim-fix-pass; AF4b started.
+- 2026-10-23 12:20-14:05: restarted r3 / team-climb / sd-rounds, spare 9, ipad-fit, spare 6; opened #214, #221, #223.

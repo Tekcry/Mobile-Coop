@@ -1,9 +1,30 @@
 # Guard render: state
 
 ## Now
-S1 (merged rigidly skinned guard body) implemented and pushed on `feature/guard-render` (commits a-f below), on master
-4.68.0. Unit + NullEngine tests pass; nothing measured or seen on a GPU yet. Guards (`enemyRig.ts`) and carried /
-fresh bodies (`body.ts`) opt in; `?guardmerge=0` gives the old instanced parts for comparisons.
+**CLOSED 2026-10-23 ~17:10** (orchestrator approved: close with #225, M1 CPU overage to the polish list; perf tuning
+waits for Michael's playtest, current goal). Every planned slice is on master (S1, S3a, S5, S6, S7, S4; S2 skipped:
+voxel path only, and the voxel look is now retired).
+
+**M1 result** (guard-cap on master 4.75.0 f5912402, 4189 alone, laptop GPU, Epic 1920x1080, ~15:53;
+`C:/NightShift/scratch/work/guardrender-m1-f5912402/RESULTS.md`). Target: 24 facing, frame CPU p95 <= 12 ms,
+GPU p95 <= 15 ms.
+
+| Map | N | cell | frame CPU p95 | GPU p95 | draws |
+| --- | --- | --- | --- | --- | --- |
+| sectorops (warehouseOps) | 24 | patrol / facing | 13.9 | 8.6 | 239 |
+| sectorops | 24 | alert / facing | 15.9 | 10.1 | 300 |
+| ctcourse (Marlow) | 24 | patrol / facing | 12.7 | 7.1 | 167 |
+| ctcourse | 24 | alert / facing | 13.2 | 7.7 | 183 |
+| ctcourse | 12 (its cap, M3) | patrol / alert | 8.6 / 9.0 | 5.8 / 5.7 | 143 / 156 |
+| campusOps (5504e2e3, 4.73.0) | 24 | patrol / alert | 17.8 / 19.7 | 11.4 / 11.6 | 541 / 589 |
+
+GPU passes everywhere; frame CPU misses at 24 facing by 0.7-3.9 ms (7.7 ms on campus). Marlow at its 12-guard cap
+passes. Per added guard ~0.28 ms frame CPU (patrol) / ~0.33 ms (alert). Campus 24-guard CPU is being cut by Sector Ops
+(guard freeze, #226).
+
+## Polish list (after the playtest)
+- M1: frame CPU p95 at 24 facing guards (sectorops 13.9 / 15.9, Marlow 12.7 / 13.2 vs 12 ms). Biggest buckets per the
+  draws-per-pass lines: sun CSM shadow casters (91 draws at 24 alert) and the TAA / gBuffer passes.
 
 ## S1 done (2026-10-23)
 - (a) 63c5bdfe `src/player/smoothBodyMerge.ts` (pure) + `tests/smoothBodyMerge.test.ts`: joint-space positions,
@@ -141,7 +162,9 @@ TESTING.md line and `docs/systems/world-and-characters.md` section are written.
    instance-buffer uploads.
 
 ## Done
+- 2026-10-23 ~17:10: M1 measured (table in "Now"); job closed (rides in the voxel-retire batch PR).
 - 2026-10-23: step-1 analysis, BRIEF / PLAN / STATE written.
+- 2026-10-23: S1, S3a, S5, S6, S7, S4 merged (4.68.0 - 4.75.0); S4 measured (`run-s4-on|off`).
 - 2026-10-23: S1 implemented (commits a-f, see "S1 done"); master 4.68.0 merged in before it.
 
 ## Resume prompt
@@ -325,3 +348,84 @@ Follow-ups (not in this slice):
    ~7 cm forward off for such a guard. Needs the held guard's stride aim in `GuardHeadIn` (one field from
    `Enemy.syncHitboxes`).
 6. The facing stride's sideways-slip dip near 45-60 deg (above) is the rig's foot planner; a fix belongs in the rig.
+
+## S4 (2026-10-23, feature/guard-render-s4, cut from S3a 220d3cf7)
+Anim tiers for guards (PLAN S4). Commits 34ecc539 (pure rules + tests), 6cd4162f (scene side + flag), b5a374d3
+(characterRig hook), 077212ff (enemy hook).
+- Rules (`src/ai/animTier.ts`, pure, first match wins): `?animtier=0`, pinned (`taken`: takedown / held / hostage;
+  `rig.emote !== null`: flashbang blind, close-quarters poses; `climbing`) or within 4 m (horizontal) of any player
+  (`ctx.players()`, so remote players count on the host): every frame. Off-screen (a render happened since the last
+  update and the merged body was drawn in no local camera view): every 4th frame. Beyond `ANIM_TIER_FAR` 22 m
+  (= `ANIM_LOD_DISTANCE`, asserted; never scaled by Detail) from the nearest local camera (`activeCameras`, else
+  `activeCamera`): every 2nd. Else every frame. Stagger: solve when `(tick + slot) % period == 0`, slot = the guard's
+  spawn number (`Enemy.num`), tick per guard; the first update always solves; the skipped time is carried into the
+  next solve (`AnimTierState.carry`, the rig's `lodDt` stays 0 for guards). The weapon glide runs every frame (the
+  rig's `stepGlide` before the skip).
+- Scene side (`src/ai/animTierView.ts`): one `onAfterActiveMeshesEvaluationObservable` observer per scene marks a
+  tracked merged mesh drawn when `mesh._renderId === scene.getRenderId()` right after a camera's active-mesh
+  evaluation (frustum, layer mask, visibility and LOD-null all already applied; shadow / RTT passes do not fire it).
+  Disposed meshes are pruned there. No merged body (`?guardmerge=0`, voxel path not applicable: always active) =
+  never off-screen. Headless steps (`stepHeadless`, no render between updates) count as seen, so e2e that step
+  without rendering keep full rate for near guards.
+- Files and exact lines for the owners (line numbers on 077212ff):
+  - Player Build, `src/player/characterRig.ts` (b5a374d3): 1699-1702 (doc + `animate(dt, s, solveDt?: number)`),
+    1706-1707 (`solveDt < 0` returns after `stepGlide`; else `dt = solveDt`), 1709 (`const cam = solveDt ===
+    undefined ? ... : null`: the camera LOD only without a hint). Callers without the hint (player, puppets,
+    dummies, studio) are unchanged. Diff: `git show b5a374d3`.
+  - Guard AI Build, `src/ai/enemy.ts` (077212ff): 46 (import), 217-218 (field), 358-359 (constructed after the rig,
+    before the constructor's `frame(0, 1)`), 2089-2090 (`rig.animate(dt, rp, this.animTier.dt(...))`). Diff:
+    `git show 077212ff`.
+  - `src/core/flags.ts`: `animTier` (interface + `params.get('animtier') !== '0'`), next to `guardMerge`.
+- Co-op / gameplay readers of the render pose (verified by grep of every `.rig.` reader): on the host and solo,
+  none for an `Enemy` (the head hit volume is the S3a sim head; perception eye from the sim; takedowns read the
+  player's rig and the enemy's sim pos; the death ragdoll / carried body starts from the last solved pose, visual
+  only). Not a blocker for S4, but listed: `src/net/enemyPuppet.ts:312-314` (the client's guard puppet) still
+  copies its hitbox head from the rendered rig, under the old Detail-scaled camera LOD. S4 does not tier puppets.
+- Tests: `tests/animTier.test.ts` (14: every rule, unknown visibility, stagger 4 / 8 guards at period 4 and 6 at
+  period 2 = even per frame, carry with none lost, drop to period 1). Passed single files: animTier, animGuard,
+  animSkeletonGuardIdentity, footPlanner, smoothBody, enemyManagerDespawn, hearing, sectorRestart, guardHead;
+  `tsc --noEmit -p .` and eslint on the changed files clean. No full check, no e2e, nothing measured.
+- e2e a run should cover: smoke, stealth-ai, takedown, enemies, sectorops, ctcourse, coop, netmove, anim; plus the
+  S0 guard-cap run (PLAN section 5) with and without `?animtier=0` for `ai.anim` and frame CPU (away cell especially).
+
+S4 doubts (for the checker):
+1. `mesh._renderId` is Babylon-internal (typed public in the d.ts). If Babylon changes when it sets it, guards read
+   as always off-screen (4th-frame animation on screen, visible as choppy) or never. A GPU / e2e look is the check.
+2. A guard that steps into view is drawn once with a pose up to 3 frames old (its first visible frame); then full
+   rate. The S1 rest box + 1 m pad makes the mesh "drawn" slightly before it is really on screen, which helps.
+3. Remote views (camera gadgets) swap `activeCamera`; if any view renders through a render target with its own
+   camera, guards seen only there count as off-screen (not found by grep: `activeCameras` / RTT users are TAAU,
+   night bloom, baked lamps only).
+4. Stagger uses a per-guard tick from spawn, so guards spawned on different frames mix their phases; the slot keeps
+   a batch spawn even, a mixed population is spread but not exactly even.
+5. Pinned list choices beyond the brief: climbing (a traverse clip). Near-player radius 4 m is a guess.
+
+Checker (Opus, fresh, 2026-10-23): PASS WITH NOTES. Carry exact, glide every frame, pinned / near-player full rate,
+no gameplay reader of the stale pose, the off-screen test right in Babylon 9 (shadow / RTT passes cannot match).
+Polish list: (1) animTierView.ts:39 - with freezeActiveMeshes / snapshot rendering the observer never fires and every
+guard reads off-screen: treat scene._activeMeshesFrozen as seen if either is ever turned on; (2) enemy.ts:2090 - rp.kick
+decays every frame, recoil pulses on skipped frames are lost (off-screen / far only); (3) enemyPuppet.ts:312-314
+(pre-existing, src/net): the client puppet's hit head is the rendered rig, the host's is the S3a sim head; build the
+puppet hit head from guardHead later.
+e2e GREEN on adcd5fa7 (laptop GPU, JOBS=3, wall 330 s): smoke, stealth-ai, takedown, enemies, sectorops:1-5,
+ctcourse:1-3, coop, netmove, anim (15/15). Measure (guard-cap, ?animtier=0 vs on, 4189 alone): done, see "S4 measure".
+
+## S4 measure (2026-10-23 ~14:00-14:26, laptop 4090, Epic 1920x1080, uncapped, 4189, head 5809afe6)
+`run-s4-on` (default) vs `run-s4-off` (`?animtier=0`), counts 0 / 12 / 24, same build, 20 min apart. Frame ms med,
+24 guards (12 in sight on Sector Ops):
+
+| Cell | Sector Ops on / off | Marlow on / off |
+| --- | --- | --- |
+| patrol/facing | 9.4 / 10.7 | 9.5 / 9.3 |
+| patrol/away | 7.7 / 8.4 | 5.2 / 7.3 |
+| alert/facing | 13.0 / 12.3 | 9.6 / 11.5 |
+
+- `ai.anim` per sim step at 24, Sector Ops patrol/facing: 0.838 on vs 1.295 off (-35%); alert 1.224 vs 1.29.
+  Marlow facing 1.096 vs 0.944 (Marlow's guards stand within the 4 m near-player radius more often; noise-level).
+- So S4 gives ~-0.7 to -2 ms where guards are away or far (as PLAN S4 said) and ~0 facing. The +0.7 on Sector Ops
+  alert is inside the run-to-run spread under load.
+- 0-guard base unchanged (sectorops 3.4 vs 3.2, ctcourse 2.8 vs 2.5).
+- Not a code regression: S4's 24-guard numbers are above S1's run (7.1 ms), so a 3-build A/B (sectorops, 0 and 24,
+  patrol only, back to back, ~14:28-14:33) ran 668d623d (S1) 11.0 ms, b1e1809b (master 4.74.0) 10.8 ms: the same
+  build is ~4 ms slower than at ~10:07, so the laptop's shared load, not the code, moved. (5809afe6's point in that
+  A/B overlapped another run's build: void.) Logs: C:/NightShift/scratch/runs/guardrender-regr-*.

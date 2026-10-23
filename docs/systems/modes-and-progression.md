@@ -79,6 +79,22 @@ docs/consolidation/). The campaign mission framework is not built yet: today's m
   `checkpointReset` on the host's restart banner (`SECTOR_RESTART_TITLE`; no wire change, A1). Sector Ops issues the
   campaign kit like Infiltration: the rifle comes suppressed (A2, `loadoutEntries`). Doors and shot-out lamps stay as
   they were (polish).
+- Section rating (section-rating): each section is rated once as its connector unloads it (the last at the
+  extraction) on four marks (`game/rating/sectionRating.ts`): Undetected (no guard detection, no camera alarm), No kills
+  (knock-outs are not kills), No alarms (any alarm stage rise: panel, camera or laser, A10), Bodies hidden (no body
+  found; earned with none made). Rewards top up the kit for the next section, given as it begins (a restart keeps them
+  and never re-rates): Undetected and Bodies hidden +1 gadget charge each (A9: Bodies hidden waits for an alarm-stage skip), No alarms +1
+  syringe (solo +1 medkit), No kills +1 medkit; a synced takedown (two players' knock-outs within 1.5 s, at most 2 paid)
+  +1 gadget and +1 syringe. Gadget charges cap at the starting carry, syringes at the preset + 2. The rating card
+  (`ui/hud/ratingCard.ts`) shows the marks and only the rewards that land; the results list one line per section.
+  Co-op: the `sector` message's `rt` carries it; the client tops up its own gadgets.
+- Marlow Yard rated sets (section-rating S6, `game/course/courseMarks.ts`): every set with a guard who can see
+  (`BayDef.rated`, A5: A2-A8; A1's passive checker and the drill bays stay unrated) is rated on the same four marks as
+  its exit airlock seals (the last set at the finish, no grant), from the rise of its bay's stats since the set began;
+  a restart starts the set's rating stats again and never re-rates (the bay's results stats stay cumulative). The grant
+  lands at once (the next set is beginning): host gadgets, co-op syringes (the revive cap), medkits as station heals.
+  Synced takedowns count in `BayStats.synced`. The best per set goes to `rating:sections` under `ctcourse`. The
+  finale keeps its Ghost / Silent / Loud tier; its marks are a results line beside it.
 
 ## The Fallow training course (`course`)
 - `game/modes/courseMode.ts` runs the pure `game/course/CourseState` (gates, airlocks, drills, restart) from a map's

@@ -260,3 +260,10 @@ Lead, A64 lift (2026-10-23, guard-render S1 / S3a / S5 / S6 / S7 in; checks/a64-
   far guards (S2 #10 #12, S3 #12 #14, S4 #10 #11 #16, S5 #1-#3 #15) for a later far-guard sleep step; S1 #7's tag goes
   (A68 put it there for A64 margin only). Layout compromises made for A64 stay this slice (polish list in the check).
   Undo: `CAMPUS_SCREEN_CAP` back to 6, the tests' awake filter (`!g.dormant`) back, `dormant: true` back on S1 #7.
+- A100 (lightrev LR13, 2026-10-23 ~14:45; Michael ~14:35 "Try it first"; checks/lr13-build.md): in a co-op match the
+  host's Lamp falloff applies to both players: it rides the `start` message as `lf` (PROTOCOL_VERSION 38; 36 / 37 are
+  taken by pose-parity and coop-walk-fixes), the client's own setting and `?falloff=photo` are ignored, and its Settings
+  row is a locked row showing the host's. The mode is set once per map load (start, Retry, a co-op restart to the
+  lobby), never mid-match; a Sector Ops checkpoint restart keeps the match's mode. Undo: drop `lf` from `start`
+  (protocol back), and let `GameState.create` read only the local setting (`matchLampFalloff` without `host`).
+  (A99 is taken on `feature/sector-redesign-art`.)

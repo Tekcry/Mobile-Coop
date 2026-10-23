@@ -22,9 +22,6 @@ export interface Flags {
   gfx: 'min' | 'low' | 'medium' | 'high' | 'ultra' | 'epic' | null;
   /** (G182) A phone or tablet (touch as the main pointer): testing only; minimum settings, a small-screen UI scale. */
   phone: boolean;
-  /** Voxel world, characters and weapons (smooth-world: off by default, the blockout's pieces draw smooth in PBR with
-   *  the surface atlas; `?voxels=1` turns the 3.0 voxel look on for comparisons, `?voxels=0` stays off). */
-  voxels: boolean;
   /** 3.2 baked lamps (`?baked=0`: real lights and shadow maps, for comparisons). */
   baked: boolean;
   /** Autostart weather (clear | rain | fog). */
@@ -56,11 +53,16 @@ export interface Flags {
   mocap: boolean | null;
   /** (guard-render S1) Guards draw as one merged smooth mesh each (`SmoothBody`); `?guardmerge=0`: the parts, for comparisons. */
   guardMerge: boolean;
+  /** (guard-render S4) Guard anim tiers (off-screen every 4th frame, far every 2nd: `src/ai/animTier.ts`); `?animtier=0` off. */
+  animTier: boolean;
   /** (guard-render S6) Per-cascade sun caster lists and the guards' sun reach; `?guardsun=0`: off, for comparisons. */
   guardSun: boolean;
   /** (sector-redesign perf) Sector Ops guards whose body and shadows cannot reach the screen skip the render
    *  (`sectorGuardFreeze.ts`); `?guardfreeze=0`: off, for comparisons. */
   guardFreeze: boolean;
+  /** (lightrev LR13) `?falloff=photo`: dev override of Settings > Gameplay > Lamp falloff for this page's solo and hosted
+   *  matches (`lampMath.matchLampFalloff`; a co-op client takes the host's). Default off. */
+  photoLamps: boolean;
 }
 
 /** (mocap-trial) An on / off URL value: "1" true, "0" false, anything else (or absent) null. */
@@ -109,7 +111,6 @@ export const flags: Flags = {
   net: params.get('net') === 'local' ? 'local' : 'webrtc',
   phone: readPhone(),
   gfx: (['min', 'low', 'medium', 'high', 'ultra', 'epic'] as const).find((g) => g === params.get('gfx')) ?? (readPhone() ? 'low' : null),
-  voxels: params.get('voxels') === '1',
   baked: params.get('baked') !== '0',
   weather: (['clear', 'rain', 'fog'] as const).find((w) => w === params.get('weather')) ?? null,
   detect: params.get('detect') === '1',
@@ -126,6 +127,8 @@ export const flags: Flags = {
   sectorGuards: /^\d{1,2}$/.test(params.get('sectorGuards') ?? '') ? Number(params.get('sectorGuards')) : null,
   mocap: onOffFlag(params.get('mocap')),
   guardMerge: params.get('guardmerge') !== '0',
+  animTier: params.get('animtier') !== '0',
   guardSun: params.get('guardsun') !== '0',
   guardFreeze: params.get('guardfreeze') !== '0',
+  photoLamps: params.get('falloff') === 'photo',
 };

@@ -10,7 +10,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
 - `Hud.setAccess` per frame from `settings.access`: health = the screen-edge vignette plus the health bar
   (`access.healthBar`, default on; off leaves the vignette as the only readout), the weapon readout fades (`.quiet`) 3 s
   after the last change, a hold ring on the use prompt (`setInteract(text, progress)`; since G5 only on the team-move
-  direct path), subtitles
+  direct path; the hang-down's hanging player, settled, uses the menu), subtitles
   (`BarkView.subtitles`), colour-safe arcs (`AwarenessArcs.colorSafe`), `--hud-scale` (CSS `zoom`), camera `shakeMul`,
   held actions by tap (`access.holdToggle`, `GameState.holdLatch`). No medkit count: health comes back only at wall
   stations (G20, G98).
@@ -50,6 +50,12 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
 - (mocap-trial) Settings > Gameplay > "Mocap locomotion" (`gameplay.mocapLoco`, default off; `?mocap=0/1` overrides it
   for a page): the CMU mocap walk / jog / run trial; the animation tuner's More > Panel has the same box (`mocapHost`).
   World-and-characters.md "Mocap locomotion switch".
+- (lightrev LR13) Settings > Gameplay > "Lamp falloff" (`gameplay.lampFalloff`: Classic, the default / Realistic (test)):
+  a light-model rule, applied when a map loads; in a co-op match the row is a locked row showing the host's (lighting.md
+  "Lamp falloff").
+- (LR14) Settings > Graphics > "Character shadows" (`video.charShadows`: Auto, the default - on from High shadows - / On /
+  Off), under Shadows: the nearest lamps' silhouette shadow maps; rendering only, this machine only (lighting.md
+  "Character silhouette shadows").
 - Difficulty (`ui/difficultyRows.ts`): one row, CT's fixed levels Rookie, Normal, Realistic, Perfectionist (G106; no
   sliders). Shown on the Play screen (hidden in Free Roam) and in the co-op host's lobby; a client sees the host's level
   read-only. Rows carry `data-diff` for the e2e suites.

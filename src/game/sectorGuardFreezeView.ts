@@ -331,7 +331,12 @@ export class SectorGuardFreeze {
   private thaw(k: number): void {
     const fz = this.frozen;
     const e = fz[k]!;
-    if (!e.bodyRig.root.isDisposed()) e.bodyRig.root.setEnabled(true);
+    if (!e.bodyRig.root.isDisposed()) {
+      e.bodyRig.root.setEnabled(true);
+      // (artnext C7) his `frame` ran before this evaluation and skipped the solve: pose him now, so this render draws
+      // the current pose, not the one at the freeze (a dead or disposed guard: nothing)
+      e.thawPose();
+    }
     fz[k] = fz[fz.length - 1]!;
     fz.pop();
   }

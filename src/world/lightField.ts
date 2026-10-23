@@ -12,10 +12,11 @@
  * that are not baked (flashlights) come from `dynamicAt` with the caller's ray test. Everything is allocation-free.
  */
 import { AMBIENT_CELL } from './ambientGrid';
-import { LAMP_CONE_COS, LAMP_EXP, LAMP_LEVEL_GAIN, lampTerm, SPOT_EXP } from './lampMath';
+import { LAMP_CONE_COS, LAMP_EXP, LAMP_LEVEL_GAIN, lampFalloffMode, lampTerm, PHOTO, SPOT_EXP } from './lampMath';
 import type { LightBake } from './lightBake';
 import type { LightRegistry, Occluder } from './lights';
-import { BOX_STRIDE, LAMP_CELL, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE, lampGrid } from '../voxel/lampBake';
+import { BOX_STRIDE, LAMP_CELL, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE, lampGrid, type LampResult } from '../voxel/lampBake';
+import { shadowAccuracyOn } from './shadowAccuracy';
 
 /** A door leaf as the field needs it (`Doors.list` entries fit): closed when `open` is below `DOOR_SHUT`. */
 export interface FieldDoor {
@@ -27,15 +28,66 @@ export interface FieldDoor {
 export const DOOR_SHUT = 0.05;
 /** Doors a baked lamp tests (the GPU's lamp data holds this many per lamp; the field tests the same list). */
 export const DOORS_PER_LAMP = 4;
+/** (LR15, shadow audit 2) With the shadow-accuracy fixes on, each lamp tests this many: a second door texel in the GPU's
+ *  lamp data, so a 5th-8th shut door in a lamp's view stops its light in the meter and on screen alike. */
+export const DOORS_PER_LAMP_ACCURATE = 8;
+/** Door slots per lamp: `DOORS_PER_LAMP` today, `DOORS_PER_LAMP_ACCURATE` with the fixes on (read once per build). */
+export function lampDoorSlots(on = shadowAccuracyOn()): number {
+  return on ? DOORS_PER_LAMP_ACCURATE : DOORS_PER_LAMP;
+}
+
+/** Lamp `i`'s baked visibility at a point (0..1), read as `LightField.visAt` reads it. */
+export type BakeVisSampler = (i: number, x: number, y: number, z: number) => number;
+
+/** (shadow audit) A sampler over a bake result's visibility boxes (load time: one small table). */
+export function bakeVisSampler(r: LampResult): BakeVisSampler {
+  const B = r.boxes;
+  const n = B.length / BOX_STRIDE;
+  const at = new Float64Array(n);
+  let s = 0;
+  for (let i = 0; i < n; i++) {
+    at[i] = s;
+    s += B[i * BOX_STRIDE + 3]! * B[i * BOX_STRIDE + 4]! * B[i * BOX_STRIDE + 5]!;
+  }
+  return (i, x, y, z) => {
+    const o = i * BOX_STRIDE;
+    return trilinear(r.vis, at[i]!, B[o]!, B[o + 1]!, B[o + 2]!, B[o + 3]!, B[o + 4]!, B[o + 5]!, LAMP_CELL, x, y, z);
+  };
+}
+
+/**
+ * (shadow audit) Can lamp `i` see door `d`'s doorway at all? Nine points over the leaf's plane (a fifth, half and four
+ * fifths of its width and height), each also 0.1 m to either side, against the lamp's baked visibility (the doorway is
+ * air in the bake). A doorway the lamp cannot see passes none of its light, so its leaf needs no slot.
+ */
+export function doorSeen(seen: BakeVisSampler, i: number, d: FieldDoor): boolean {
+  const a = d.anchor;
+  const ux = Math.sin(a.yaw);
+  const uz = Math.cos(a.yaw);
+  for (let p = 0; p < 3; p++) {
+    const s = a.width * (p === 0 ? 0.2 : p === 1 ? 0.5 : 0.8);
+    for (let q = 0; q < 3; q++) {
+      const y = a.hinge.y + a.height * (q === 0 ? 0.2 : q === 1 ? 0.5 : 0.8);
+      for (let side = -1; side <= 1; side++) {
+        const x = a.hinge.x + ux * s + uz * side * 0.1;
+        const z = a.hinge.z + uz * s - ux * side * 0.1;
+        if (seen(i, x, y, z) > 0) return true;
+      }
+    }
+  }
+  return false;
+}
 
 /**
  * Per baked lamp (`LAMP_STRIDE` lights), the doors whose leaf can come between it and what it lights - the leaf's
- * middle within the lamp's reach plus the leaf's width - nearest first, up to `DOORS_PER_LAMP` (-1: none). The
- * shaders and the field read this one list.
+ * middle within the lamp's reach plus the leaf's width - nearest first, up to `slots` (-1: none; `lampDoorSlots`). The
+ * shaders and the field read this one list. (shadow audit) With `seen` (the bake's visibility) the doors whose doorway
+ * the lamp cannot see (`doorSeen`) are left out, so a lamp with more doors in reach than slots keeps the ones that can
+ * cut its light.
  */
-export function lampDoorLists(lights: Float32Array, doors: readonly FieldDoor[]): Int16Array {
+export function lampDoorLists(lights: Float32Array, doors: readonly FieldDoor[], seen?: BakeVisSampler, slots = DOORS_PER_LAMP): Int16Array {
   const n = lights.length / LAMP_STRIDE;
-  const out = new Int16Array(n * DOORS_PER_LAMP).fill(-1);
+  const out = new Int16Array(n * slots).fill(-1);
   const near: { k: number; d: number }[] = [];
   for (let i = 0; i < n; i++) {
     const o = i * LAMP_STRIDE;
@@ -48,10 +100,10 @@ export function lampDoorLists(lights: Float32Array, doors: readonly FieldDoor[])
       const dy = a.hinge.y + a.height * 0.5 - lights[o + 1]!;
       const dz = cz - lights[o + 2]!;
       const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-      if (d < lights[o + 3]! + a.width) near.push({ k, d });
+      if (d < lights[o + 3]! + a.width && (!seen || doorSeen(seen, i, doors[k]!))) near.push({ k, d });
     }
     near.sort((p, q) => p.d - q.d);
-    for (let j = 0; j < Math.min(DOORS_PER_LAMP, near.length); j++) out[i * DOORS_PER_LAMP + j] = near[j]!.k;
+    for (let j = 0; j < Math.min(slots, near.length); j++) out[i * slots + j] = near[j]!.k;
   }
   return out;
 }
@@ -70,6 +122,13 @@ export class LightField {
   private readonly gz: number;
   /** `lampDoorLists` for the baked lamps. */
   private readonly lampDoors: Int16Array;
+  /** (lightrev prototype) the baked lamps' falloff is photometric (`lampMath.photoFalloff`), read once at construction. */
+  private readonly photo = lampFalloffMode() === 'photometric';
+  /** (shadow audit, `shadowAccuracy.ts`) the ambient fill read trilinearly, as the shaders' bilinear texture reads it;
+   *  the door lists skip doorways their lamp cannot see. Read once at construction. */
+  private readonly accurate = shadowAccuracyOn();
+  /** (LR15) Door slots per lamp: 8 with the fixes on, as the shaders' second door texel (`lampDoorSlots`). */
+  private readonly doorSlots = lampDoorSlots(this.accurate);
 
   constructor(
     readonly bake: LightBake | null,
@@ -106,7 +165,7 @@ export class LightField {
       at += B[bi + 3]! * B[bi + 4]! * B[bi + 5]!;
     }
     this.grid = lamps && bake ? lampGrid(lamps.baked.lights, bake.lo, bake.hi) : null;
-    this.lampDoors = lamps ? lampDoorLists(lamps.baked.lights, doors) : new Int16Array(0);
+    this.lampDoors = lamps ? lampDoorLists(lamps.baked.lights, doors, this.accurate ? bakeVisSampler(lamps.r) : undefined, this.doorSlots) : new Int16Array(0);
     this.gx = bake?.lo[0] ?? 0;
     this.gz = bake?.lo[2] ?? 0;
   }
@@ -188,12 +247,18 @@ export class LightField {
       return;
     }
     const ag = b.ambient;
-    const ax = ag.n[0];
-    const ay = ag.n[1];
-    const cx = Math.min(ax - 1, Math.max(0, Math.floor((x - ag.origin[0]) / AMBIENT_CELL)));
-    const cy = Math.min(ay - 1, Math.max(0, Math.floor((y - ag.origin[1]) / AMBIENT_CELL)));
-    const cz = Math.min(ag.n[2] - 1, Math.max(0, Math.floor((z - ag.origin[2]) / AMBIENT_CELL)));
-    let v = ag.data[cx + ax * (cy + ay * cz)]! / 255;
+    let v: number;
+    if (this.accurate) {
+      this.triInto(ag.data, 0, ag.origin[0], ag.origin[1], ag.origin[2], ag.n[0], ag.n[1], ag.n[2], AMBIENT_CELL, x, y, z);
+      v = this.res;
+    } else {
+      const ax = ag.n[0];
+      const ay = ag.n[1];
+      const cx = Math.min(ax - 1, Math.max(0, Math.floor((x - ag.origin[0]) / AMBIENT_CELL)));
+      const cy = Math.min(ay - 1, Math.max(0, Math.floor((y - ag.origin[1]) / AMBIENT_CELL)));
+      const cz = Math.min(ag.n[2] - 1, Math.max(0, Math.floor((z - ag.origin[2]) / AMBIENT_CELL)));
+      v = ag.data[cx + ax * (cy + ay * cz)]! / 255;
+    }
     if (b.moonLight > 0) {
       this.moonInto(x, y, z);
       v += b.moonLight * this.res;
@@ -238,6 +303,13 @@ export class LightField {
     const d = Math.sqrt(vx * vx + vy * vy + vz * vz);
     if (d >= rr) return;
     let t = 1 - d / rr;
+    if (this.photo) {
+      // `lampMath.photoFalloff` written out (as above)
+      const q = (d * d) / (rr * rr);
+      const w = 1 - q * q;
+      const nd = d > PHOTO.near ? d : PHOTO.near;
+      t = ((PHOTO.ref * PHOTO.ref) / (nd * nd)) * w * w;
+    }
     if (d >= 1e-4) {
       const ca = (vx * P[o + 4]! + vy * P[o + 5]! + vz * P[o + 6]!) / d;
       if (ca < P[o + 7]!) return;
@@ -250,8 +322,9 @@ export class LightField {
     this.res = 0;
     if (vis <= 0) return;
     // (the lamp's own door list, as the shaders test it)
-    for (let j = 0; j < DOORS_PER_LAMP; j++) {
-      const k = this.lampDoors[i * DOORS_PER_LAMP + j]!;
+    const ns = this.doorSlots;
+    for (let j = 0; j < ns; j++) {
+      const k = this.lampDoors[i * ns + j]!;
       if (k < 0) break;
       if (this.doorBlocksOne(k, lx, ly, lz, x, y, z)) return;
     }

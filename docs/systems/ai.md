@@ -178,7 +178,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   sense from behind ignores a sneak / crouched approach.
 - Gear (guard-ai S12, stealth over shooting items 2 and 13, A35 / A36; numbers `GEAR` in `ai/gear.ts`): `Enemy.helmet`
   / `armour`, set by `EnemyManager.placeSlot` from the slot's `gear` tag merged with the section default
-  (`SectorDef.gear`, passed by `sectorMode.fill`; none = no gear), `Enemy.setGear` (S13's alarm stages), kept by a woken
+  (`SectorDef.gear`, passed by `sectorMode.fill`; none = no gear) plus the alarm stage's gear (S13, below), kept by a woken
   guard (`inherit`). `applyDamage` runs player and guard bullets through `gearHit` (not the heavy, not melee,
   takedowns, explosions or sleep bolts): head + helmet = 0 dealt, the helmet off (`helmetPart` hidden, a dropped
   helmet from `EnemyManager.helmetDrops`, `ai/helmetDrops.ts`: a pool of 8, a 0.4 s tumble to the floor, it stays),
@@ -186,6 +186,24 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   normal hit reaction (combat on the shot's origin, contact call) and a `deflect` bark. Both return
   `DamageResult.deflect`. Placeholder parts (A45): the rig's combat-helmet part on the head node, the armour plates on
   the torso and shoulders, built on first use and toggled. Host-only (S9 carries the gear bits and the confirm).
+- Section alert (guard-ai S14, stealth over shooting items 6 and 7, A40 / A41, A70-A76; `ai/sectionAlert.ts` pure:
+  `AlertCallLog`, `SectionCounters`, `unitOf`; numbers `MISSING` / `SHOTS` in `ai/gear.ts`). A missed check-in (a
+  radio check's miss, one call per check; a talking pair's partner who never came) -> the caller's `missing` call
+  (`EnemyManager.missingCall`, `RADIO.callIn` x reaction, cuttable) under its own incident id (`alertInc`: -2, -3, ...;
+  the S2 pair lead's own `missing` report stays an ack). A loud shot (`noise`): the nearest calm hearer at tier 1-2 not
+  sent to combat by it (`mayCallShots`) starts a `shots` call (`CallKind` appended, code 7; `shotsHeard`: one per
+  shots incident, later shots join the open call). Delivered (`radioDeliver` -> `alertHold`), each receiver is cautious
+  on a timed hold (`Awareness.timedHold(k, s, kind)`, `alertT` / `alertKind`, `ALERT_MISSING` 180 s / `ALERT_SHOTS`
+  120 s; caution 1; the longer time wins, so a later call refreshes it; it ends on its own; going down drops it; a held
+  caution beats it, so a missing guard then found dead is the S4 held caution). When the call completes
+  (`alertThrough`) the caller says `missingReport` / `shotsReport`, turns cautious too, and a shots call reports a board
+  `shots` incident at the newest shot with him as perceiver plus `IncidentBoard.wantPair`: a lead (`sendTo`) and a cover
+  `pairBack` short (`pairSearch`, cover), or a cover for the one already sent (`needCover` -> `addCover`). No alarm from
+  either (M4). Suppressed shots stay ordinary noises (`hear`). Read-only tallies `EnemyManager.sectionCounts`
+  (`bodiesFound`, `missedChecks`, `shotsCalls` through, `radioAlarms`), reset by `clear` (section load, restart).
+  Barks: `missed` names the unit (`BARKS_UNIT`, `BarkVoice.sayUnit`, `Enemy.bark(ev, unit)`), `shots`, `shotsReport`,
+  `missingReport`. Host-only, no wire change (S9's caution bit shows it on the client). Tests:
+  `tests/sectionAlert.test.ts`, `tests/radioNet.test.ts`; e2e: e2e-stealth-ai 'missed check', 'loud shot'.
 - Squad roles (guard-ai S8, coordinated modes; `squadRoles.ts`, `coverGrid.ts`): `EnemyManager.rolesStep` at 2 Hz
   (`TACTICS.tick`) fills one reused `RoleInput` from the engaged group (alerted, free, cover-using guards; >= 2,
   `TACTICS.minGroup`), runs `assignRoles` against the level cover as typed arrays (`coverSet`, mirrored from
@@ -239,8 +257,32 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   15 m. The bulb's pop and the round's impact merge into it (`shotRay` reports the light first). `Enemy.checkLight`: bark
   `lightOut`, walk at the investigate pace (a pair's second stops 2.2 m short), look at the fixture 2 s, a 4-point ring
   2-6 m round it (1.5 s at each; unreachable points skipped), bark `standDown`, back to the route unaware (no
-  cooldown; cooldown only if he has fought); a glimpse (meter >= `investigate`) drops the check. Parked modes: the old
-  rule (nearest calm enemy within 25 m investigates, others within 14 m `notice`). Flashlights:
+  cooldown; cooldown only if he has fought); a glimpse (meter >= `investigate`) drops the check. (guard-ai S15, stealth
+  over shooting item 8, A42 / A43; `ai/breaker.ts`, `BREAKER` / `LATE` in `ai/gear.ts`) A switch off with a witness is a
+  fault: a `breaker` incident (one per circuit while open), the witness nearest the switch by path (plain path length: no officer, cautious, role or zone weight; `MODE_BREAKER`, never a pair;
+  the others ack) runs `Enemy.resetBreaker`: bark `breaker`, walk at his patrol pace to the walkable cell by the switch (its own height: the switch column is often the wall)
+  without leaving his calm level (suspicious and back keeps it; investigating or worse drops it), work it
+  `BREAKER.resetT` 2 s, `AiContext.breakerReset` -> `EnemyManager.breakers` (`BreakerHost`, set by `StealthSystems`) ->
+  `StealthSystems.resetCircuit` = the player's own `toggle`; no ring, no radio, back on his route. The circuit lit again by
+  other means (`BreakerHost.isOff` false: the player, an isolator) ends the walk; so does `BREAKER_WALK.giveUp` 30 s.
+  A second noticed cut of the circuit within `BREAKER.repeatT` 60 s (board clock, `lastFault`) is tampering: the S2
+  `light` incident at the switch; the same cut noticed again later (`cutSeq` / `faultCut`) keeps what it was first
+  taken for. A cut nobody saw opens nothing. A course mains gate's circuit is never a fault (`StealthSystems.mainsGroups`,
+  A63): the S2 incident, nobody relights it. Shot lamps keep the S2 check and stay dark (`setGroup`
+  skips destroyed lamps). (guard-ai LR16-4, relight) The Sector Ops boards ride the same walk: a breaker board (no
+  `window`) cut calls `lightsOut` on its first circuit with a live lamp (`IsolatorBoards.liveGroup`) at the board, and
+  the `BreakerHost` (`StealthSystems.breakerHost`) answers for boards too: `switchOf` the nearest cut board holding the
+  circuit (`cutBoard`; else the nearest wall switch), `isOff` true while it is cut and dark, `reset` the board's
+  `switchBack` (every circuit of it, its wall switches follow) before a wall switch's toggle. A timed isolator's running
+  window is the player's (`holding`): `isOff` / `reset` are false for its circuits, even through a wall switch, and
+  `switchBack` refuses, so its cut stays the S2 look at the board (the lure) and the timer relights it; a walk already
+  going on that circuit ends (S15's isolator rule). Late discovery (`EnemyManager.lateStep`, every 0.1 s over a round-robin share of the guards,
+  ~3 Hz each): `DarkList` holds the dark fixtures (shot, or cut at a switch that is off) no guard has reacted to
+  (rebuilt only on a registry `version` change or a mark); a calm free guard with one in his focused cone within
+  `LATE.range` 12 m and a clear ray reports it as its witness (shot: the S2 light check, one; cut: the breaker walk at
+  the circuit's switch, or tampering). Once per fixture / circuit state change (`DarkList.known`, cleared when lit, on
+  `clear` and `resetMemory`). Parked modes: the old rule (nearest calm enemy within 25 m investigates, others within 14 m
+  `notice`). Flashlights:
   `World` adds `FLASHLIGHTS` (4) on dark maps; human guards (`carriesTorch`: not dogs) get them while investigating / searching / hunting unseen where the
   static light is < `TORCH_DARK` 0.35 (kept to `TORCH_KEEP` 0.45; pure `torchRule` in `archetypes.ts`); `EnemyManager.beamReach` (centre + four edge rays, 15 Hz
   per torch) stops the beam at geometry.
@@ -267,7 +309,82 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   bounds `advanceHold` (2.5 / 0.8 s), the last stretch out of sight at 0.75 x run speed for `runToContact` (else walk x
   1.15). Where: Sector Ops `SectorDef.entries` in turn (route, yaw, y), else `reinforce`; other live maps
   `MapLayout.guardAi.entries` of the alarm's section (`entriesFor`), the one furthest from the player, else the furthest
-  `MapLayout.reinforce` point (grunt, grunt, heavy). Parked modes (Hunter, Mission): their own reinforcements, unchanged.
+  `MapLayout.reinforce` point (since S13 a response team, below). Parked modes (Hunter, Mission): their own
+  reinforcements (grunt, grunt, heavy), unchanged.
+- Response teams (guard-ai S13, stealth over shooting items 3, 4, 11, A37-A39; `ai/sweepTeam.ts` pure, numbers
+  `RESPONSE` / `SWEEP` / `GEAR_BY_STAGE` in `ai/gear.ts`). Stage gear: `EnemyManager.setAlarmStage(stage, now)` keeps
+  the stage's gear (`alarmGear`; stage 2 armour, stage 3 armour + helmet) and with `now` gives it to every living
+  guard on top of his own; `placeSlot` and `revive` add it to every later guard. Sector Ops calls it on each rise
+  (`sectorMode.raised`, camera alarms too) and at each section load with the run's stage (`loadSection`; a restart
+  goes back to the section's start stage, so the dropped stage's gear goes with it). Other live maps: the one alarm is
+  stage 1 (no gear). No camera is touched. Teams: each stage's `perStage` reinforcements are `responseTeam` kinds
+  (an `enforcer` first, helmeted by `joinTeam`, the rest grunts); `StealthSystems.onAlarm` on live maps sends shield +
+  2 (`RESPONSE.liveTeam`) with the section's guard routes and posts as the sweep source (`sweepSource`). A team is an
+  `EnemyManager.teams` entry (`newTeam`, index = its order in the section = its start offset); `Enemy.crew` /
+  `teamRank`. Sweep: `SweepTeam.tick` (each step, before the guards think) ranks the members (the first one up leads)
+  and switches the sweep on when the leader has searched `ALERT.searchTime` (`begin`: the points once per switch from
+  `SectorDef.sweep`, else `sweepPoints(routes, posts, lkp, SWEEP.thin)`, start `sweepStart`) and off when he is not
+  searching (a sighting); `Enemy.sweepStep` (from `calmDecide`'s searching case): the leader walks to the point and
+  looks round it `SWEEP.dwell` s (unreachable: skipped), the others hold `rank x SWEEP.gap` m behind him, then the same
+  order again. They stay hunting (S6), so never calm; `clear` (unload / restart) ends the teams; a woken member takes
+  his place back (`swap`).
+- Co-op (guard-ai S9, protocol 37 (32 before the 4.75.0 merge), A90-A96): the brain stays host-only; the client sees what the host shows. Barks:
+  `Enemy.bark` hands `onBark` the event, `BarkVoice.lastLine` and the unit; the host sends a `bark` event (index into
+  `BARK_EVENTS`, append only) and the client rebuilds the text with `barkLine` (pair talk and the desk's camera line go
+  as text). Caution and gear ride the snapshot `al` (`AL_CAUTION` 16, `AL_HELMET` 32, `AL_ARMOUR` 64). The weapon
+  carry is `ai/guardStance.ts` on both sides (`guardAim` host, `wireGuardAim` client): cautious and calm = low ready
+  (`GUARD_AIM.caution` 0.4). The gear parts and the enforcer shield are `ai/gearParts.ts`, built by `Enemy` and by the
+  client's `EnemyPuppet` alike.
+- Device alerts (guard-ai S17, walk 4.72 G1, A100-A105; numbers `DEVICE` in `ai/gear.ts`): a broken laser
+  (`CtDevices.touch`, its beam's midpoint `beamSpot`) or a camera at full awareness (where it saw someone) calls
+  `CtHooks.alertAt` -> `EnemyManager.deviceAlert` before the alarm stage rises: a `device` board incident sends the 2
+  nearest calm guards within 30 m to the spot (`Enemy.respondDevice`: search round it inside its room, `searchRoom`),
+  and the alarm's reinforcements within `DEVICE.fresh` s with no last known position search there too
+  (`joinAsResponder`, never calm) instead of combat. Nothing reads the player's position; no last known position is set.
+- Search kinds (guard-ai S18, walk 4.72 G2, A106-A108; `ai/response.ts` pure, numbers `BODY_SEARCH` in `ai/gear.ts`):
+  a calm search has a kind (`Enemy.searchKind`: plain, body, device) whose `SearchSpec` sets its length
+  (`AlertInput.searchFor`), its ring (`ringPoint`: first radius, step, cap) and the look per point. A dead body found
+  (`EnemyManager.bodyFound`: the finder and his voice partner; the camera-sent guards) is searched `Enemy.bodySearch`:
+  3 x `ALERT.searchTime`, out to 15 m; combat's search and every other search stay plain (`PATROL`'s ring, 60 s).
+- Urgency (guard-ai S19, walk 4.72 G3, A109-A113; `ai/response.ts` `PACE` (moved from `enemy.ts`, re-exported there),
+  `urgentKind`, `paceSpeed`; `URGENT` in `ai/gear.ts`): a guard sent to a device, a body (camera, radio, a shout), a
+  missing man or shots sets `Enemy.rush`: his investigate / search walk is run x `PACE.rush` until he first reaches the
+  spot; a noise, lure, light or breaker keeps the calm pace. A dead body's radio call that gets through
+  (`EnemyManager.bodyHelp`) opens a `bodyDead` board incident: `URGENT.bodyHelpers` calm guards in `callR` hurry over and
+  search it with the finder (`Enemy.helpSearch`, `MODE_HELP`).
+- Spacing and doors (guard-ai S20, walk 4.72 G4, A114-A118; `ai/separation.ts`, `ai/doorGate.ts`, both pure):
+  `Enemy.move` steers off near guards (the old soft push plus a sidestep round a guard ahead, `steerFrom`) and cuts its
+  step at `SEPARATION.min` 0.65 m from every solid guard on his storey (`stepApart`; `tryMove` refuses the slides too);
+  held (`taken`) and downed guards are not solid. Held by the spacing with somewhere to go (pushed off, cut or refused,
+  under a quarter of his pace) for `SEPARATION.stall` 1 s, a guard squeezes past for `SEPARATION.squeeze` 2 s (the
+  soft push only), so two guards face to face in a doorway or a narrow corridor never wait forever (S20 check, A127).
+  `tryMove` asks `AiContext.doorStep` (`EnemyManager`: `DoorGate.blocking`):
+  a step into or across a shut leaf is refused; a door not locked is opened `Doors.open(d, 'enemy')` and he waits for
+  `DOOR_GATE.pass`; a locked door stops him at the leaf (he waits). The grid still walks every doorway (no closure per
+  door: A116); Sector Ops' keypad, bolt, lockdown and pair-gate closures are unchanged.
+- Weapon carry (guard-ai S21, walk 4.72 G5, A120-A126; `ai/carryState.ts` pure: `calmArea`, `mayHolster`, `carrySlotOf`,
+  `GuardCarry`, numbers `GUARD_CARRY`; render side `GuardGunCarry` in `ai/enemyRig.ts`): every guard stays armed. A calm
+  guard in a calm area (unaware, no caution, no board task, no alarm raised, not a high-security post, not a responder or
+  response team member; stealth rules) carries his gun holstered: the rifle slung across the back (`backC`), the pistol on
+  the right thigh. Anything above calm draws it (rifle 0.7 s, pistol 0.5 s; `Enemy.tryFire` waits for `carry.drawn`); he
+  holsters again after `calmHold` 15 s calm. `Enemy.update` steps it after the awareness; `Enemy.frame` drives `RigPose`
+  `ready` (holstered), `swap` / `swapFrom` / `swapTo` (the draw / holster clip, one slot) and `aim` (none while holstered);
+  `armed`, `thighGear` and `weaponTravel` follow the `WeaponModel` (`holster` / `beginTravel` / `travel` / `hold`). Sniper,
+  enforcer, melee kinds and dogs never holster. Co-op (A126, A136-A138): the phase rides `al` bits 7-8; the client's
+  `EnemyPuppet` follows it with `net/puppetCarry.ts` `PuppetCarry` and poses through the same `GuardGunCarry` / `RigPose`.
+- Security consoles (guard-ai S22, walk 4.72 G6, A128-A135; `ai/consoleFault.ts` pure: `ConsoleFaults`, `consoleInView`,
+  numbers `CONSOLE_FAULT`): a console switched off is a breaker-style fault. The game reports every toggle
+  (`EnemyManager.consoleState(id, x, floorY, z, on)`) and turns one back on through `EnemyManager.consoleHost`
+  (`ConsoleHost.reset(id)`, its own toggle path). A calm, free guard (unaware or cooldown, no board task, not held, not
+  a dog, melee kind or high-security post) notices it only when he sees its screens (1.1 m up: the focused cone to 12 m,
+  the peripheral field to 4 m, a clear ray or the same room): at the switch-off, or later on a round-robin scan on the
+  late-discovery clock, so a guard drawn off by a distraction notices once he is back and looks at it. The console rides
+  the S15 machinery as a pseudo circuit (`CONSOLE_GROUP` 50000 + index): a `breaker` incident, one walker, `resetBreaker`
+  (bark `console`, patrol pace, 2 s at the console, `breakerReset` -> `consoleHost`), calm after. A second cut noticed
+  within `BREAKER.repeatT` 60 s is the S2 `light` check at the console (bark `consoleCheck`); once that check is over the
+  next guard who sees it still off turns it back on, and a dropped walk is noticed again (`CONSOLE_FAULT.retry` 3 s).
+  `watchesConsole(e, x, floorY, z)` tells the game whether a guard is watching it now (the refusal). Game-side wiring
+  (CourseMode, after marlow-final): `docs/guard-ai/slices/S22.md`. Host only, no protocol change.
 - Sound: `world/surfaces.ts` (pure) `surfaceAt` scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice. Shots:
   `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise` (combat); `onRay` hits
   are heard within `IMPACT_NOISE`.
@@ -279,6 +396,11 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 - Goggles: `game/vision.ts`, render only (`docs/systems/gadgets.md`). The LKP ghost uses `vfx/silhouettes.ts`.
 - Interactables: kinds `switch`, `alarm`, `hide`, `body`, `door`, `medkitWall` with per-item `reach` and `onUse`;
   `nearest(feet, reach, only)`; `GameState.updateInteract` calls `onUse`.
+- Armour (guard-ai S16, A80-A87): sight stays on `MASK.SIGHT` (clear armoured glass sees), but before the wind-up, a burst
+  and every round `Enemy.tryFire` casts the fire line (muzzle -> aim point, `MASK.ENEMY_SHOT`) through `ai/armourFire.ts`
+  `ArmourGate` (pure, cached 0.25 s per guard and cell pair); an armoured first hit holds fire. After 1 s held he
+  repositions (a cover spot with a clear line, else round by the nav, 8 s) or, held to a room or post leash, holds and
+  keeps tracking. Plain glass is unchanged (bullets pass). Host only, no wire change.
 
 ## Enemy archetypes (2.0 phase 6)
 - `ai/archetypes.ts` (pure, `ARCHETYPE`): `heavyMult` (by `fromFront`), `shieldBlocks`, `grabRule` (heavy frontal = lethal
@@ -321,6 +443,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   once; `setClosed(id, on)` toggles `walk` through a per-cell count (overlaps stay shut until all open) and bumps
   `version`, which makes `goTo` routes and the manager's flow field replan. Sector Ops shuts each bolted team door's
   doorway this way (`sectorMode.findBolts` / `unbolt` / `rebolt`; host and solo only, the client has no grid).
+  (guard-ai S20) Other doors are not on the grid: the walker's door gate (`ai/doorGate.ts`) stops guards at a shut leaf.
 - Multi-level: the grid is layered - up to 3 standing surfaces per column by default (`sampleLayers`; a surface needs
   `HEADROOM` 1.7 m; a map may raise `navLayers`), cell = `layer * cols + column`; columns join by height (`stepTo`). Links
   (`navLinks`): ladders both ways (`kind 'ladder'`), ledge drops 1-2.2 m one way; A* / Dijkstra take them, paths split at

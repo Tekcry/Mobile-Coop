@@ -133,7 +133,7 @@ describe('sector-redesign perf fix: seeThroughRay (Havok)', () => {
     const def = ENEMIES.grunt;
     const rig = new CharacterRig(scene, (s, h, sl) => lib.instance(s, h, `enemy-${sl}`), def.look, def.height, 'g', { build: def.build, armor: def.plated, merge: true });
     rig.root.position.set(0, 0, 11);
-    const e = { alive: true, taken: false, dog: null, def, bodyRig: rig } as unknown as Enemy;
+    const e = { alive: true, taken: false, dog: null, def, bodyRig: rig, thawPose: vi.fn() } as unknown as Enemy;
     const f = new SectorGuardFreeze(scene, { enemies: [e] }, seeThroughRay((a, b) => bal.cast(a, b, G.STATIC), (body) => ds.seeThrough(body)), () => ds.viewVersion());
     scene.render();
     expect(rig.root.isEnabled(false)).toBe(false);
@@ -161,7 +161,7 @@ async function freezeScene() {
   const guard = (name: string, x: number, z: number) => {
     const rig = new CharacterRig(scene, (s, h, sl) => lib.instance(s, h, `enemy-${sl}`), def.look, def.height, name, { build: def.build, armor: def.plated, merge: true });
     rig.root.position.set(x, 0, z);
-    return { alive: true, taken: false, dog: null, def, bodyRig: rig } as unknown as Enemy;
+    return { alive: true, taken: false, dog: null, def, bodyRig: rig, thawPose: vi.fn() } as unknown as Enemy;
   };
   // a wall across z = 10, 3 m high (rays stop on it)
   let rays = 0;

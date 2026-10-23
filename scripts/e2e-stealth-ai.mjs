@@ -46,6 +46,8 @@ try {
           l.on = true;
         }
         reg.version++;
+        // (guard-ai S15) the wall switches read their circuits again (a switch left off by a scenario is on again)
+        g.stealth.syncSwitches();
         if (g.stealth.carry) g.stealth.dropCarried();
         // doors shut again
         const doors = g.world.doors;
@@ -580,13 +582,16 @@ try {
       em.onBodyFound = ob;
       const lw = w.level;
       // (guard-ai S4) the finder is held cautious at once and radios it; the mate (out of voice range) learns of it
-      // when the report gets through: cautious (on edge), not searching
+      // when the report gets through: cautious; (guard-ai S19, walk 4.72 G3) and, calm and in range, the board sends him
+      // to hurry over and help search the body
       const cw = em.cautionOf(w);
       const left = em.radioLeft(w);
       const cmate0 = em.cautionOf(mate);
+      const helps0 = em.bodyHelps;
       t.step(left + em.radioTable.staggerMax + 0.5);
       const lmate = mate.level;
       const cmate = em.cautionOf(mate);
+      const helps = em.bodyHelps - helps0;
       // shadow: a body in the dark aisle, a guard 6 m away facing it
       t.reset();
       t.light(0);
@@ -598,14 +603,14 @@ try {
       t.step(5);
       const dark = em.bodiesFound - f0;
       t.light(null);
-      return { found, lw, lmate, dark, bodies: em.bodies.length, cw, left, cmate0, cmate, finder };
+      return { found, lw, lmate, dark, bodies: em.bodies.length, cw, left, cmate0, cmate, finder, helps };
     });
     assert(r.found, 'a body in the light is found');
     assert(r.finder === 'w', `the guard facing it is the finder (${r.finder})`);
     assert(r.lw === 'searching', `the finder searches (${r.lw})`);
     assert(r.cw === 2 && r.left > 0, `the finder is held cautious and radios it (caution ${r.cw}, call ${r.left.toFixed(2)} s)`);
     assert(r.cmate0 === 0, `the mate does not know before the report gets through (${r.cmate0})`);
-    assert(r.cmate === 2 && r.lmate === 'cooldown', `the report gets through: the mate is cautious, on edge (${r.cmate}, ${r.lmate})`);
+    assert(r.cmate === 2 && r.lmate === 'searching' && r.helps === 1, `the report gets through: the mate is cautious and (S19) hurries over to help search the body (${r.cmate}, ${r.lmate}, sent ${r.helps})`);
     assert(r.dark === 0, `a body in the dark at 6 m is not found (${r.dark})`);
   });
 
@@ -719,8 +724,11 @@ try {
       const on1 = reg.countOn();
       t.step(2.8);
       const lv2 = e2.level;
+      // (guard-ai S15, A42) a switch cut is a fault: the one who saw it walks to the switch to turn it back on (calm)
+      const kind2 = e2.incident >= 0 ? em.board.kindOf(e2.incident) : null;
+      const brk2 = e2.breakerGroup;
       t.light(null);
-      return { before, out, end, lv, kind, goal, torch, torchLevel, swOffer, on0, on1, lv2, shot: g.stealth.lightsShot };
+      return { before, out, end, lv, kind, goal, torch, torchLevel, swOffer, on0, on1, lv2, kind2, brk2, shot: g.stealth.lightsShot };
     });
     assert(r.out, 'a shot through a bulb puts the light out');
     assert(r.end, 'a shot at the end of a lamp strip puts it out too');
@@ -729,7 +737,88 @@ try {
     assert(r.torch >= 1 && r.torchLevel < 0.35, `with a flashlight in the dark (${r.torch} on, light at his head ${r.torchLevel.toFixed(2)})`);
     assert(r.swOffer === 'Lights off', `a wall switch offers lights off (${r.swOffer})`);
     assert(r.on1 < r.on0, `switching turns the room's circuit off (${r.on0} -> ${r.on1})`);
-    assert(r.lv2 === 'investigating', `the room going dark is investigated (${r.lv2})`);
+    // (guard-ai S15) was "the room going dark is investigated": a switch off is now a fault he goes to reset, calm
+    assert(r.kind2 === 'breaker' && r.brk2 >= 0 && (r.lv2 === 'unaware' || r.lv2 === 'cooldown' || r.lv2 === 'suspicious'), `the room going dark sends him to the switch to reset it, calm (${r.kind2}, circuit ${r.brk2}, ${r.lv2})`);
+  });
+
+  await scen('breaker', async () => {
+    // (guard-ai S15, stealth over shooting item 8, A42) the factory floor circuit off at its wall switch with two guards
+    // on the floor seeing it go (their room goes dark, as in 'light pair'): a fault, not an attack. Exactly one walks to
+    // the switch at his patrol pace (never a pair), works it BREAKER.resetT s and the circuit is on again; neither goes
+    // past suspicious, both end calm with no task. The same switch again inside BREAKER.repeatT: tampering, the S2 light
+    // incident at the switch. Sim-time steps only; Math.random seeded as in 'lkp'.
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const reg = g.world.level.lights;
+      const rnd = Math.random;
+      let seed = 1515;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      try {
+        t.light(0);
+        t.tp(-22, -24, 0);
+        const sw = g.interactables.items.find((i) => i.id === 'switch-4');
+        const grp = g.world.layout.switches[4].group;
+        const lamp = reg.lights.find((l) => l.kind === 'lamp' && l.x === 0 && l.z === -3);
+        const a = t.spawn('grunt', 4, 1, 0);
+        const b = t.spawn('grunt', 3, -6.5, Math.PI / 2);
+        a.setPatrol({ points: [[a.pos.x, a.pos.z], [a.pos.x, a.pos.z + 5]], wait: 1 });
+        b.setPatrol({ points: [[b.pos.x, b.pos.z], [b.pos.x + 5, b.pos.z]], wait: 1 });
+        t.step(0.5);
+        const onCircuit = lamp?.group === grp;
+        const resets0 = em.breakerResets;
+        sw.onUse(sw, 'local');
+        const off = !g.stealth.switchOn(grp) && reg.lights.filter((l) => l.group === grp && !l.destroyed).every((l) => !l.on);
+        t.step(0.3);
+        const walkers = [a, b].map((e) => e.breakerGroup === grp);
+        const kinds = [a, b].map((e) => (e.incident >= 0 ? em.board.kindOf(e.incident) : null));
+        const w = walkers[0] ? a : walkers[1] ? b : null;
+        const rank = { unaware: 0, cooldown: 0, suspicious: 1, investigating: 2, searching: 3, alert: 4 };
+        const worst = ['unaware', 'unaware'];
+        let tt = 0.3;
+        let back = -1;
+        let atSwitch = 99;
+        let maxSpeed = 0;
+        let last = w ? [w.pos.x, w.pos.z] : null;
+        for (let k = 0; k < 240 && back < 0; k++) {
+          t.step(0.25);
+          tt += 0.25;
+          [a, b].forEach((e, i) => {
+            if (rank[e.level] > rank[worst[i]]) worst[i] = e.level;
+          });
+          if (w) {
+            maxSpeed = Math.max(maxSpeed, Math.hypot(w.pos.x - last[0], w.pos.z - last[1]) / 0.25);
+            last = [w.pos.x, w.pos.z];
+            atSwitch = Math.min(atSwitch, Math.hypot(w.pos.x - sw.pos.x, w.pos.z - sw.pos.z));
+          }
+          if (g.stealth.switchOn(grp)) back = tt;
+        }
+        const relit = reg.lights.filter((l) => l.group === grp && !l.destroyed).every((l) => l.on);
+        t.step(1);
+        const after = { levels: [a.level, b.level], inc: [a.incident, b.incident], brk: [a.breakerGroup, b.breakerGroup], resets: em.breakerResets - resets0 };
+        // the same switch again at once (inside repeatT): tampering, a light check at the switch
+        sw.onUse(sw, 'local');
+        t.step(0.3);
+        const second = [a, b].map((e) => ({ lv: e.level, kind: e.incident >= 0 ? em.board.kindOf(e.incident) : null, brk: e.breakerGroup }));
+        const sinceFirst = tt + 1.3;
+        t.light(null);
+        return { onCircuit, off, walkers, kinds, worst, back, atSwitch, maxSpeed, walkSpeed: w?.def.walkSpeed ?? 0, relit, after, second, sinceFirst, repeatT: em.breakerTable.repeatT };
+      } finally {
+        Math.random = rnd;
+      }
+    });
+    const f2 = (v) => v.toFixed(2);
+    assert(r.onCircuit && r.off, `the switch puts the factory floor circuit out (lamp (0, -3) on it ${r.onCircuit}, all off ${r.off})`);
+    assert(r.walkers.filter(Boolean).length === 1, `exactly one of the two who saw it goes to the switch (${JSON.stringify(r.walkers)}, tasks ${JSON.stringify(r.kinds)})`);
+    assert(r.kinds.filter((k) => k === 'breaker').length === 1 && !r.kinds.includes('light'), `a breaker fault, not a light check (${JSON.stringify(r.kinds)})`);
+    assert(r.maxSpeed < r.walkSpeed * 1.25, `he walks over at his patrol pace (max ${f2(r.maxSpeed)} m/s, walk speed ${f2(r.walkSpeed)})`);
+    assert(r.back > 0 && r.atSwitch < 1.6 && r.relit, `he reaches the switch and the circuit is on again (at ${f2(r.back)} s, ${f2(r.atSwitch)} m from it, all lit ${r.relit})`);
+    assert(r.worst.every((l) => l === 'unaware' || l === 'cooldown' || l === 'suspicious'), `neither goes past suspicious (${JSON.stringify(r.worst)})`);
+    assert(r.after.levels.every((l) => l === 'unaware' || l === 'cooldown') && r.after.inc.every((i) => i === -1) && r.after.brk.every((x) => x === -1), `both calm with no task after (${JSON.stringify(r.after)})`);
+    assert(r.after.resets === 1, `one reset (${r.after.resets})`);
+    assert(r.sinceFirst < r.repeatT, `the second cut is inside repeatT (${f2(r.sinceFirst)} < ${r.repeatT} s)`);
+    assert(r.second.some((s) => s.kind === 'light' && s.lv === 'investigating') && r.second.every((s) => s.brk === -1), `a second cut inside repeatT is tampering: a light incident at the switch (${JSON.stringify(r.second)})`);
   });
 
   await scen('light pair', async () => {
@@ -1026,7 +1115,7 @@ try {
     assert(a.seen === 1 && a.wc === 2 && a.left > 0, `the witness sees the kill, turns cautious and radios it (seen ${a.seen}, caution ${a.wc}, call ${a.left.toFixed(2)} s)`);
     assert(a.fc0 === 0, `the third guard does not know yet (${a.fc0})`);
     assert(a.fc === 0 && a.fl === 'unaware' && a.holds === 0, `witness taken out before his report: the section stays normal (${a.fc}, ${a.fl}, holds ${a.holds})`);
-    assert(b.fc === 2 && b.fl === 'cooldown' && b.wc === 2, `the report gets through: the third guard is cautious too (${b.fc}, ${b.fl})`);
+    assert(b.fc === 2 && b.fl === 'searching' && b.wc === 2, `the report gets through: the third guard is cautious too and (S19) helps search the body (${b.fc}, ${b.fl})`);
     assert(b.holdsMid === 1 && b.fcMid === 2, `the witness out, the third still knows: still cautious (holds ${b.holdsMid}, ${b.fcMid})`);
     assert(b.holdsEnd === 0, `everyone aware is out: the caution is gone (holds ${b.holdsEnd})`);
     assert(c.woke && c.wc === 1 && c.fc === 0 && c.holds === 0, `a knockout seen: the witness wakes him, timed caution, no hold (${c.woke}, ${c.wc}, ${c.fc}, holds ${c.holds})`);
@@ -1075,6 +1164,7 @@ try {
       const stats = g.weapons.current.stats;
       const n0 = stats.noise;
       stats.noise = 0.45;
+      g.weapons.lastShotNoise = 0.45; // (sd-rounds) onShot reads the fired round's noise, not stats
       g.weapons.events.onShot(g.weapons.current.def);
       t.step(0.2);
       // (guard-ai S1) 10 m of a 12.6 m suppressed report is outside half the reach: he only turns to look
@@ -1094,6 +1184,7 @@ try {
         const st2 = g.weapons.current.stats;
         const n1 = st2.noise;
         st2.noise = 1;
+        g.weapons.lastShotNoise = 1;
         g.weapons.events.onShot(g.weapons.current.def);
         st2.noise = n1;
       };
@@ -1237,6 +1328,113 @@ try {
     assert(r.bashed && r.bash >= 8, `the menu's Bash opens the door, loud (${r.bash.toFixed(1)} m, ${JSON.stringify(r.dbg)})`);
     assert(r.koBehind, 'the bash knocks out a guard right behind the door');
     assert(r.through && r.dOpen === 1, 'a guard walking through opens the door');
+  });
+
+  // (ct-toolkit 3.2) the door menu's OPTIC CABLE: kneel, the view under the door on the far side at floor height, the
+  // look within its limits, night vision as usual, crouch leaves; the tip is never perceived, the kneeling body is; a
+  // sealed door refuses
+  await scen('optic cable', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const st = window.__app.input.state;
+      const d = g.world.doors.nearest(-0.95, 12, 0.5);
+      const pick = () => {
+        st.tap('interact');
+        t.step(0.1);
+        const opts = [...g.doorMenu.opts];
+        const oi = opts.indexOf('optic');
+        for (let i = 0; i < oi; i++) {
+          st.tap('uiDown');
+          t.step(0.2);
+        }
+        st.tap('interact');
+        t.step(0.1);
+        return opts;
+      };
+      t.light(1);
+      // a guard 3 m behind the door faces it: he never sees the tip
+      const far = t.spawn('grunt', -0.95, 15, Math.PI);
+      t.tp(-0.95, 11.2, 0);
+      t.step(0.3);
+      g.noise = 0;
+      const opts = pick();
+      const feeding = g.optic.active && !g.optic.viewing;
+      t.step(1.3);
+      const o = g.optic.core;
+      const viewing = g.optic.viewing;
+      const cam = g.player.cam.camera.position;
+      const camAt = { x: cam.x, y: cam.y - d.anchor.hinge.y, z: cam.z };
+      const kneel = { crouched: g.player.controller.crouched, kneeling: g.player.controller.kneeling, still: g.player.controller.speed };
+      const feed = document.querySelector('.gadget-feed');
+      const feedShown = !!feed && !feed.hidden;
+      // the look turns the tip within +-75 deg yaw, -10 .. +60 deg pitch
+      st.addLook(2, 2);
+      t.step(0.1);
+      const yawOff = Math.abs(Math.atan2(Math.sin(o.yaw - o.baseYaw), Math.cos(o.yaw - o.baseYaw)));
+      const pitchA = o.pitch;
+      st.addLook(-1, -3);
+      t.step(0.1);
+      const pitchB = o.pitch;
+      // night vision toggles as usual in the view
+      const nv0 = g.vision.mode;
+      st.tap('vision');
+      t.step(0.2);
+      const nv1 = g.vision.mode;
+      st.tap('vision');
+      t.step(0.2);
+      let farRate = 0;
+      for (let i = 0; i < 10; i++) {
+        t.step(0.1);
+        farRate = Math.max(farRate, far.rate);
+      }
+      const quiet = g.noise;
+      const doorShut = d.target === 0;
+      // the kneeling body is perceived as normal: a guard on the near side in the light sees it
+      const near = t.spawn('grunt', -0.95, 7.5, 0);
+      let nearRate = 0;
+      for (let i = 0; i < 10; i++) {
+        t.step(0.1);
+        nearRate = Math.max(nearRate, near.rate);
+      }
+      g.optic.reset();
+      t.reset();
+      t.light(1);
+      t.tp(-0.95, 11.2, 0);
+      // crouch leaves: pulled out over 0.6 s, the camera back on the body
+      g.optic.pick(d.index);
+      t.step(1.4);
+      const viewing2 = g.optic.viewing;
+      st.tap('crouch');
+      t.step(0.1);
+      const retract = g.optic.core.phase;
+      t.step(0.7);
+      const done = !g.optic.active;
+      const p = g.player.position;
+      const camBack = Math.sqrt((cam.x - p.x) ** 2 + (cam.z - p.z) ** 2);
+      const camBackY = cam.y - p.y;
+      // a sealed door refuses ("Sealed"), nothing starts
+      d.anchor.seal = true;
+      t.step(0.3);
+      pick();
+      const sealed = g.optic.refused;
+      const sealedActive = g.optic.active;
+      d.anchor.seal = false;
+      t.light(null);
+      return { opts, feeding, viewing, camAt, door: { x: d.cx, z: d.cz }, kneel, feedShown, yawOff, pitchA, pitchB, nv0, nv1, farRate, quiet, doorShut, nearRate, viewing2, retract, done, camBack, camBackY, sealed, sealedActive };
+    });
+    const deg = 180 / Math.PI;
+    assert(r.opts.includes('optic') && r.feeding, `the door menu lists Optic cable and the pick starts the feed (${r.opts})`);
+    assert(r.viewing && r.feedShown, `after the 1.2 s feed the view is at the tip with the feed overlay (${r.viewing}, ${r.feedShown})`);
+    assert(Math.abs(r.camAt.y - 0.05) < 0.02 && r.camAt.z > r.door.z + 0.25, `the camera sits on the far side at floor height (${JSON.stringify(r.camAt)}, door z ${r.door.z.toFixed(2)})`);
+    assert(r.kneel.crouched && r.kneel.kneeling, `the body kneels at the door (${JSON.stringify(r.kneel)})`);
+    assert(Math.abs(r.yawOff * deg - 75) < 0.5 && Math.abs(r.pitchA * deg - 60) < 0.5 && Math.abs(r.pitchB * deg + 10) < 0.5, `the look turns the tip within +-75 / -10..+60 deg (yaw ${(r.yawOff * deg).toFixed(1)}, pitch ${(r.pitchA * deg).toFixed(1)} / ${(r.pitchB * deg).toFixed(1)})`);
+    assert(r.nv1 !== r.nv0, `night vision toggles in the view (${r.nv0} -> ${r.nv1})`);
+    assert(r.farRate === 0 && r.quiet === 0 && r.doorShut, `the tip is never perceived, the cable is silent, the door stays shut (rate ${r.farRate}, noise ${r.quiet})`);
+    assert(r.nearRate > 0, `the kneeling body is perceived as normal (${r.nearRate.toFixed(2)})`);
+    assert(r.viewing2 && r.retract === 'retract' && r.done, `crouch leaves: pulled out, then done (${r.retract}, ${r.done})`);
+    assert(r.camBack < 4 && r.camBackY > 0.3, `the camera is back on the body (${r.camBack.toFixed(2)} m, up ${r.camBackY.toFixed(2)})`);
+    assert(r.sealed === 'Sealed' && !r.sealedActive, `a sealed door refuses ("${r.sealed}")`);
   });
 
   // (locomotion step 12) a peek past a wall edge exposes only the head (guard perception from the real pose, never the
@@ -1533,6 +1731,156 @@ try {
     for (let i = 1; i < r.body.staggers.length; i++) gap = Math.min(gap, r.body.staggers[i] - r.body.staggers[i - 1]);
     assert(r.body.staggers.length >= 1 && r.body.staggers.length <= 2 && gap >= 1.5 - 1e-6, `staggered at most once per 1.5 s (${JSON.stringify(r.body.staggers)})`);
     assert(r.killed, 'one round to the head kills (no helmet)');
+  });
+
+  // (guard-ai S14, A40) a radio check misses a squad member taken out unseen: the caller radios "not answering", the
+  // section turns cautious on a timed hold (MISSING.cautious), two search the spot; the caller taken during the call:
+  // nobody is cautious
+  await scen('missed check', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const R = em.radioTable;
+      const rnd = Math.random;
+      let seed = 1414;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      try {
+        // a squad of three facing away from their third (yaw PI = -z), a far guard of the same section; dark, the
+        // player far off
+        const setup = () => {
+          t.light(0);
+          t.tp(-22, -24, 0);
+          const a = t.spawn('grunt', 0, 5, Math.PI);
+          const b = t.spawn('grunt', 6, 5, Math.PI);
+          const c = t.spawn('grunt', 10, 9, Math.PI);
+          const far = t.spawn('grunt', -21, 17, Math.PI);
+          for (const e of [a, b, c]) em.joinSquad(e, 77);
+          t.step(0.3);
+          return { a, b, c, far };
+        };
+        const s = setup();
+        t.kill(s.c, true);
+        t.step(0.2);
+        const m0 = em.sectionCounts.missedChecks;
+        em.radioCheckNow();
+        const caller = em.lastCheckCaller;
+        t.step(0.1);
+        const inc = [s.a.incident, s.b.incident];
+        const kind = s.a.incident >= 0 ? em.board.kindOf(s.a.incident) : null;
+        const left = caller ? em.radioLeft(caller) : 0;
+        const before = em.cautionOf(s.far);
+        t.step(left + R.staggerMax + 0.5);
+        const got = {
+          far: em.cautionOf(s.far),
+          farLeft: em.awareness.alertLeft(s.far.key),
+          farKind: em.awareness.alertOf(s.far.key),
+          a: em.cautionOf(s.a),
+          b: em.cautionOf(s.b),
+          missed: em.sectionCounts.missedChecks - m0,
+        };
+        // the caller taken (silently) during his call
+        t.reset();
+        const s2 = setup();
+        t.kill(s2.c, true);
+        t.step(0.2);
+        em.radioCheckNow();
+        const caller2 = em.lastCheckCaller;
+        t.step(0.5);
+        const left2 = caller2 ? em.radioLeft(caller2) : 0;
+        if (caller2) t.kill(caller2, true);
+        t.step(left2 + R.staggerMax + 1);
+        const cut = {
+          far: em.cautionOf(s2.far),
+          alerts: [s2.a, s2.b, s2.far].filter((e) => e.alive && em.awareness.alertLeft(e.key) > 0).length,
+        };
+        t.light(null);
+        return { caller: !!caller, inc, kind, left, before, got, max: em.missingTable.cautious, caller2: !!caller2, left2, cut };
+      } finally {
+        Math.random = rnd;
+      }
+    });
+    const f = (v) => v.toFixed(2);
+    assert(r.caller && r.left > 1.5, `the radio check's caller radios the miss (call ${f(r.left)} s)`);
+    assert(r.inc[0] >= 0 && r.inc[0] === r.inc[1] && r.kind === 'missing', `two of his squad search the spot (${r.inc}, ${r.kind})`);
+    assert(r.before === 0, 'nobody is cautious before the call gets through');
+    assert(r.got.far === 1 && r.got.farKind === 1 && r.got.farLeft > r.max - 10, `the far guard of the section turns cautious, timed (${JSON.stringify(r.got)})`);
+    assert(r.got.a >= 1 && r.got.b >= 1, `the squad is cautious too (${r.got.a}, ${r.got.b})`);
+    assert(r.got.missed === 1, `one missed check counted (${r.got.missed})`);
+    assert(r.caller2 && r.left2 > 0.3, `the second caller is still on the radio when he is taken (${f(r.left2)} s left)`);
+    assert(r.cut.far === 0 && r.cut.alerts === 0, `the caller taken during the call: nobody is cautious (${JSON.stringify(r.cut)})`);
+  });
+
+  // (guard-ai S14, A41) a loud shot 20 m from one guard (he only turns): he radios "shots fired"; once it gets through a
+  // far guard who never heard it turns cautious (SHOTS.cautious) and two go to the spot (lead + cover); a suppressed
+  // shot: no call
+  await scen('loud shot', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const R = em.radioTable;
+      const rnd = Math.random;
+      let seed = 2727;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      const fire = (noise) => {
+        const st = g.weapons.current.stats;
+        const n0 = st.noise;
+        st.noise = noise;
+        g.weapons.lastShotNoise = noise;
+        g.weapons.events.onShot(g.weapons.current.def);
+        st.noise = n0;
+      };
+      try {
+        t.light(0);
+        t.tp(0, -5, Math.PI);
+        // 19 m from the shot along the factory floor, a clear line (tier 1: a turn; the old spot at (-7, 14) was behind
+        // the x -4 wall: 0.45 x 28 = 12.6 m reach, never heard), and one ~30 m off (out of its 28 m reach)
+        const ear = t.spawn('grunt', 19, -5, 0);
+        const far = t.spawn('grunt', -21, 17, Math.PI);
+        t.step(0.3);
+        const c0 = em.sectionCounts.shotsCalls;
+        fire(1);
+        const left = em.radioLeft(ear);
+        const earLevel = ear.level;
+        t.step(0.1);
+        const before = em.cautionOf(far);
+        t.step(left + R.staggerMax + 0.5);
+        const got = {
+          far: em.cautionOf(far),
+          farKind: em.awareness.alertOf(far.key),
+          farLeft: em.awareness.alertLeft(far.key),
+          ear: em.cautionOf(ear),
+          inc: [ear.incident, far.incident],
+          kind: ear.incident >= 0 ? em.board.kindOf(ear.incident) : null,
+          calls: em.sectionCounts.shotsCalls - c0,
+          alarm: em.alarmRaised,
+        };
+        // a suppressed shot 8 m from him: he turns, nobody radios
+        t.reset();
+        t.light(0);
+        t.tp(0, -5, Math.PI);
+        const ear2 = t.spawn('grunt', 0, 3, 0);
+        const far2 = t.spawn('grunt', -21, 17, Math.PI);
+        t.step(0.3);
+        fire(0.35);
+        const supp = { left: em.radioLeft(ear2) };
+        t.step(5);
+        supp.far = em.cautionOf(far2);
+        supp.calls = em.sectionCounts.shotsCalls;
+        t.light(null);
+        return { left, earLevel, before, got, max: em.shotsTable.cautious, supp };
+      } finally {
+        Math.random = rnd;
+      }
+    });
+    const f = (v) => v.toFixed(2);
+    assert(r.left > 1.5 && r.earLevel !== 'alert', `the guard who heard it (${r.earLevel}) radios it (call ${f(r.left)} s)`);
+    assert(r.before === 0, 'the far guard is calm before the call gets through');
+    assert(r.got.far === 1 && r.got.farKind === 2 && r.got.farLeft > r.max - 10, `the far guard turns cautious, timed (${JSON.stringify(r.got)})`);
+    assert(r.got.inc[0] >= 0 && r.got.inc[0] === r.got.inc[1] && r.got.kind === 'shots', `two go to the spot (${r.got.inc}, ${r.got.kind})`);
+    assert(r.got.calls === 1 && !r.got.alarm, `one shots call, no alarm (${r.got.calls}, ${r.got.alarm})`);
+    assert(r.supp.left === 0 && r.supp.far === 0 && r.supp.calls === 0, `a suppressed shot: no call, nobody cautious (${JSON.stringify(r.supp)})`);
   });
 
   const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
