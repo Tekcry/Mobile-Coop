@@ -165,3 +165,12 @@ light; shadow length and direction read; cone and spill shape; bounce / ambient 
 N.L only, ceilings none); shootable and switchable lights; moving lights; torches; night / thermal vision; light-meter
 feedback; dark-by-default framing so every view holds light and shadow. Output: a gap table in checks/lr16-0-ct-audit.md,
 each gap folded into LR16 as a slice (owner, files, acceptance).
+LR16t (Michael ~18:20 on 4.78.0: "there was still guards torches showing through walls/doors, and their torches also need
+to be diffused and not so sharp"): (1) every guard torch stops at walls and shut doors, not only the shadow-mapped few;
+picture, meter and guard perception agree. LR15 (-lampx, not in 4.78.0) only partly fixes it: unshadowed torches are cut
+at the beam's reach (longest of 5 rays), so per lr15-build / lr15-check polish 4 they still (a) light past a corner when an
+edge ray escapes, (b) light a < 1 m sliver behind the wall inside the cut sphere, (c) skip the closed-door test the field
+has. Slice (Opus, after LR16a, beside LR16b): true per-torch occlusion for all 4 torch slots - small cheap shadow maps for
+every torch, or a per-pixel test against the bake / door list in LampPlugin, matching the field's rayOccluder + door test;
+GPU check: guard torch behind a wall and behind a shut door on every map, 4 torches on at once. (2) Torch beams get the
+same soft cone edge as lamps: fold into LR16b (cone feather in lampMath also drives the torch term).
