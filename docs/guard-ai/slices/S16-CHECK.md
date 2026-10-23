@@ -105,3 +105,17 @@ No blocking finding. The merge itself needed three fixes (below, made in 58691dc
   each line is blocked when arm-noc is made solid (the pane is on the line), the old in-pod spots have no line.
 - `npx tsc --noEmit -p .`: clean. vitest `tests/campusS4NocSight.test.ts`: 3 / 3. `node --check scripts/e2e-sectorops.mjs`: OK.
 - Rerun: `e2e-sectorops:6` (`E2E_GPU=1`). No `src/` change, so stealth-ai / tactics / ct-warehouse / ctcourse stand.
+
+## Fix 2 (2026-10-23, after Test Runner's GPU rerun on 2e51e7e6)
+- The new spot passed: sight through arm-noc, the gate cast and held (e51 5 casts / 29 held ticks), 0 rounds into the
+  window. Then FAIL "the pair stay in combat": both `alerted` false after the hold.
+- Root cause in the test: the block never set `window.__app.loop.manual`, so rAF stepped the sim in real time between
+  the e2e's round trips and the nominal 1.5 + 10 s ran past `ALERT.lostSight` 12 s (src/ai/alertState.ts:181;
+  `Enemy.sinceSeen` starts at 99, so `min(sinceSeen, t)` is the time since the alert for a guard who never sees again).
+  e50 (0 casts) and e51 were out of sight in their cover and timed out to searching: the pre-existing combat timeout, not
+  the gate (A85: the gate never touches the level; `onLevel` resets it only on leaving alert).
+- Fix (A89): `loop.manual = true` before the alert; the final assert prints level, time in level and time unseen.
+- Polish (not blocking): e50 never wanted to fire (0 casts): with the 0.85 cover-first roll a NOC guard takes cover in
+  the NOC, and crouched (eye 1.0 x scale, 4.6) he is at the sill and loses the hall. Pre-existing cover choice; could
+  teach the cover pick to keep a sight line on the target.
+- Checks: `node --check scripts/e2e-sectorops.mjs` OK; no TS change. Rerun: `e2e-sectorops:6` (`E2E_GPU=1`).

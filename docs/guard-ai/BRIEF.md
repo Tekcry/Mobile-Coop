@@ -290,3 +290,10 @@ doesnt make sense". A32-A34 are S10's (on `feature/guard-ai-s10`).
   the floor. New spots: the hall's west aisle (-2.5, 30), (-2, 31), (-1.5, 32), (-2.5, 29), pinned by
   `tests/campusS4NocSight.test.ts` (clear from both posts +-0.3 m at chest / head 0.9-1.6, each line crosses arm-noc).
   No game change. Undo: the old spot loop (alert first, then try spots).
+- **A89** (S16 fix 2) The same e2e block runs its timed part in sim time only: `loop.manual = true` before the alert
+  (rAF frames render, never step), as the other blocks with sim-time steps do. Without it every page round trip let rAF
+  step the sim on in real time, so the nominal 1.5 + 10 s ran past `ALERT.lostSight` (12 s; `sinceSeen` starts at 99,
+  so a guard who never sees again times out 12 s after the alert) and the pair, out of sight in their cover, dropped to
+  searching (the pre-existing combat timeout, not the gate). In sim time the window ends under 12 s, so a drop there
+  is something other than the timeout. The final assert prints each guard's level, time in it and time unseen. No game
+  change. Undo: drop the `manual` line.

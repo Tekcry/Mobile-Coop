@@ -3021,13 +3021,18 @@ if (want(6)) {
     }
     const me = await G(() => { const p = window.__app.current.player.position; return { x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2) }; });
     assert(spot && me.y < 0.5 && me.z < 41, `a NOC guard at the window has a sight line to the player on the hall floor (Enemy.perceive; ${JSON.stringify([spot, me.x, me.y, me.z])})`);
+    // (S16 fix 2, A89) sim time only from here: the loop in manual mode (rAF frames render, never step the sim), so the
+    // steps below are the only sim time (1.5 s + 10 s, under `ALERT.lostSight` 12 s) and the seeded rolls replay. Without
+    // it every page round trip let rAF step the sim on in real time: on the first GPU run (2e51e7e6) the pair, out of
+    // sight in their cover, timed out of combat (lostSight) inside a nominal ~11 s.
+    await G(() => { window.__app.loop.manual = true; });
     // the AI on, the pair straight to combat
     await G((ids) => { const g = window.__app.current; delete g.enemyMgr.update; for (const e of g.enemyMgr.enemies) if (ids.includes(e.id)) e.alert(); }, noc);
     const look = (ids) =>
       G((ids) =>
         window.__app.current.enemyMgr.enemies
           .filter((e) => ids.includes(e.id))
-          .map((e) => ({ id: e.id, alive: e.alive, alerted: e.alerted, los: e.los, blocked: e.fireGate.blocked, casts: e.fireGate.casts, held: e.fireGate.heldTicks, rounds: e.roundsFired, noc: window.__s16noc(e), x: e.pos.x, z: e.pos.z, y: e.pos.y, state: e.state })),
+          .map((e) => ({ id: e.id, alive: e.alive, alerted: e.alerted, los: e.los, blocked: e.fireGate.blocked, casts: e.fireGate.casts, held: e.fireGate.heldTicks, rounds: e.roundsFired, noc: window.__s16noc(e), x: e.pos.x, z: e.pos.z, y: e.pos.y, state: e.state, level: e.level, t: +e.aware.t.toFixed(2), since: +e.sinceSeen.toFixed(2) })),
       ids);
     // alerted, through the update path: a guard still in the NOC sees him through the pane within 1.5 s
     let sees = false;
@@ -3052,7 +3057,7 @@ if (want(6)) {
     const end = await look(noc);
     assert(sawBlocked && end.some((s) => s.casts > 0 && s.held > 0), `the fire gate cast the line and held on the pane (${JSON.stringify(end.map((s) => [s.id, s.casts, s.held]))})`);
     assert(intoGlass === 0, `no round into the armoured window from the NOC in 10 s (${intoGlass})`);
-    assert(end.every((s) => !s.alive || s.alerted), `the pair stay in combat: sight and the alert level unchanged (${JSON.stringify(end.map((s) => [s.id, s.alerted]))})`);
+    assert(end.every((s) => !s.alive || s.alerted), `the pair stay in combat: sight and the alert level unchanged (${JSON.stringify(end.map((s) => [s.id, s.alerted, s.level, `t ${s.t}`, `unseen ${s.since}`]))})`);
     const how = end.map((s) => {
       const a = at0[s.id];
       const d = Math.hypot(s.x - a[0], s.z - a[1]);
