@@ -20,8 +20,11 @@ import { getStateObject, type Effect, type Mesh, type Scene } from '../core/baby
  * the same key. Render side only: nothing in gameplay reads it.
  */
 
-/** Last resort: wall time (ms) and rendered frames a body effect may stay unready (compiling) before it is recompiled. */
-export const STUCK_MS = 45000;
+/** Last resort: wall time (ms) and rendered frames a body effect may stay unready (compiling) before it is recompiled.
+ *  90 s (was 45 s): Sector Ops measured LR16 Epic body compiles at 36.7 / 43.5 / 38.8 s with three browsers at once on
+ *  the campus (2026-10-24, laptop RTX 4090, D3D11, cold), 1.5 s under the old cap under e2e-lightbake's own load; real
+ *  failures recover at once, so the cap only bounds a compile that never finishes (Babylon's own timeout is 120 s). */
+export const STUCK_MS = 90000;
 export const STUCK_FRAMES = 30;
 /** Recompiles per shader variant (effect key) before the body is left to Babylon. */
 export const MAX_RECOMPILES = 3;
