@@ -1,6 +1,8 @@
 # Guard AI - state
 
 ## Now
+~14:55: #246 carry-fix2 a63bef43 OPEN, train-ready (label set, orchestrator told): e2e-guard-carry PASS on 93bd9db1.
+
 ~14:45 (rules: ROADMAP Decided "Tokens for progress"): carry-fix2 93bd9db1 (+ bdfe97ee) check PASS 5cf60964
 (slices/CARRY-FIX2-CHECK.md), fragment + doc a63bef43; Test Runner runs e2e-guard-carry on 93bd9db1 -> green: PR +
 TRAIN-READY + label. RUNNING (Opus): A3 triage (s22-game ctcourse:2 log), second S22 game checker
@@ -573,11 +575,8 @@ C:/NightShift/Mobile-Coop-guard-ai (feature/guard-ai: STATE / PLAN / BRIEF / sli
 Released: S1-S8 + S5b / S6 / S10 (4.66-4.74), S11-S15 in master, train 31 = #240 / #229 S9 / #234 S22 AI (4.80.0), #218-#220 (4.76.0), #230 walk (4.77.0), #228 S16 (4.78.0). Master 4.79.0, PROTOCOL 40.
 Open:
 1. Train 31 PASSED, 4.80.0 (#240 / #229 / #234; the orchestrator closes #240 by hand). Nothing open there.
-2. feature/guard-ai-carry-fix2 d7a3b887 (off #240: recompileEffect turns GPU skinning back on after Babylon's
-   CPU fallback; tests/bodyEffectRecovery.test.ts 4/4). Running in parallel: fresh Opus check
-   (slices/CARRY-FIX2-CHECK.md) + Test Runner (guard-carry + stealth-ai on it; its suite on master 4f6db420 must
-   FAIL). Then merge feature/guard-ai-carry-fix bdfe97ee (the forced-fault assert accepts a recovery drop) into it,
-   Test Runner reruns e2e-guard-carry on that head; green -> PR to master, TRAIN-READY, train-ready label.
+2. #246 feature/guard-ai-carry-fix2 a63bef43: OPEN, train-ready (label), next train. Recovered bodies GPU skinned
+   again + the forced-timeout pass; check PASS, Test Runner PASS on 93bd9db1. Fix any train failure at once.
 3. S22 game side: feature/guard-ai-s22-game 2665b622 (s22 + marlow-final #237, PROTOCOL 43 = 41 + #237's 42; A4 e2e
    08586783 scripts/e2e-ctcourse/a4GoodsShed.mjs; check PASS slices/S22-GAME-CHECK.md). e2e-coop PASS;
    e2e-ctcourse:2 FAIL in A3 (a3OfficeRange.mjs:85 the cleaner never walks to office 1's switch; Marlow's
