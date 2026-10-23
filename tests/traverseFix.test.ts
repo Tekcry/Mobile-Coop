@@ -123,5 +123,6 @@ describe('(traverse-fix 2) the climb-up hands', () => {
   // 0.84 from 0.33 to 0.48 (hips 0.41); with CLIMB_UP_PATH's root (top - 0.50 m at 0.30, - 0.23 at 0.33, - 0.04 at 0.36,
   // on the top at 0.38) that is 0.44, 0.61, 0.80, 0.84 m over the lip. Neither the grips (targets only) nor the root path
   // can close it: a lower root sinks the planted knee into the block.
-  it.todo('the palms stay on the lip (within 3 cm) until the right foot is on the top (k 0.52), then let go by the crouch');
+  // (traverse-fix-2) Fixed in the clip and the lip grip's pivot: tests/climbHands.test.ts asserts it (palms <= 1.5 cm
+  // until the right foot is on the top at k 0.474, release <= 3 cm a frame, ends before the crouch).
 });
