@@ -4,6 +4,9 @@ Causes below were traced in code at 191c3565 (read-only planner pass, four paral
 commit's. Each slice: an Opus implementer, a fresh Opus checker, at most 1 fix round (current goal). Every slice ends
 with its own Vitest file(s), `npx tsc --noEmit -p .`, eslint on its files, its after sheets (same commands as
 `before/`, see "Before" below) and the slice's e2e (one suite, lane lock, `E2E_GPU=1`).
+Walk 4.72 (docs/orchestrator/WALK-4.72-REPORT.md, Player): P1 = AF1 + AF2, P2 = AF3, P3 = AF5, P4 = AF4a + AF4b, P5 = AF6 (this
+PLAN); P6 co-op hostage team takedown and P7 partner shots doubled / unsuppressed = PR #231 (feature/coop-walk-fixes).
+
 
 ## Slices
 | id | title | files (only these) | model | group |
