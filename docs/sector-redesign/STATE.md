@@ -275,31 +275,23 @@ Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md pol
 ## Resume prompt
 ```
 Night Shift | Sector Ops Build: RESUME. Job sector-redesign (lead), branch feature/sector-redesign-polish (worktree
-C:/NightShift/Mobile-Coop-sector-redesign-polish). git fetch; read CLAUDE.md, ROADMAP "Decided" (grep only), PLAN.md
-"Walk 4.72" + "Campus detail art" (end of file). Window 2026-10-23 ~14:10 (new account).
-- Train 26 (origin/train/26, laptop full run) holds #215 PR 3 + #217 PR 4: fix any sectorops failure Test Runner reports.
-- Lanes (each its own worktree -<lane>, branch feature/sector-redesign-<lane>, report in docs/sector-redesign/checks/):
-  J  -art   Opus join: kit + art-s1..s5 + gear merged, join fixes, ledge / split gates -> checks/art-join.md.
-  A  -cap   Opus A64 lift for 20 / 24 guards (guard-render S1-S7 in) -> checks/a64-lift.md.
-  W1 -lightrev Opus lamp measure + one engine proposal -> PROPOSAL.md "Walk 4.72 S1" (Michael decides).
-  W2/W3 -walk Opus: client lamp shots + client unbolt (src/net?) -> checks/walk-472-fix.md.
-  ~14:50: train 26 = 4.75.0 (PR 3 / 4 on master). A done (d218f74b, A99 cap 12). J done + A merged: -art 5504e2e3,
-  checker PASS (checks/art-check.md; P2 screen tests -> greybox, Sonnet running); laptop batch 3 requested at 5504e2e3.
-  LR13 (Michael "Try it first"): -lightrev Opus: settings toggle, default off, host choice in co-op -> checks/lr13-build.md.
-  Shadow audit (Michael ~14:45): -shadow Opus -> checks/shadow-audit.md (fold into light-measure.md).
-  LR14 char shadow maps (Michael ~14:42, on at High+): -charshadow Opus -> LR14-PLAN.md, checks/lr14-build.md.
-  ~15:08: #226 CI voxelFit failed -> Michael ~15:05 retires ?voxels=1 + its fit test: test deleted (-art 5c48f5c4, CI rerun);
-  leave src/voxel alone (chore PR elsewhere). On the laptop verdict (+ green CI): merge master into -art, train-ready.
-  Shadow audit DONE -shadow 90dd18a1 (checks/shadow-audit.md; fixes in src/world/shadowAccuracy.ts behind the LR13
-  mode). When LR13 lands: merge -shadow into -lightrev, wire setShadowAccuracy beside setLampFalloff (main.ts), check the
-  3-line enemyManager.ts change (Guard AI file); then build the proposed 8 door slots per lamp (bakedLamps.ts /
-  lightField.ts) and exact torch drawing in the lamp shader AFTER LR14 merges (same shaders). LR13 perf: campusOps atlas
-  48 -> 134 MB, bake 27 -> 118 s.
-- Next when J + A are in: merge -cap into -art; one Sonnet checker (dressing) + Opus (kit code) -> checks/art-check.md;
-  GPU perf pass + e2e-sectorops 1-6 + coop at the -art head (Test Runner, E2E_GPU=1); merge -walk; fragment
-  changes/feature-sector-redesign-art.md; PR 5 -> orchestrator "PR open". W1 -> orchestrator "needs Michael".
-- Locks: tsc / vitest agents C:/NightShift/scratch/sr-slot-{1,2,3}.lock; desktop e2e heavy.lock 4191 (GPU, JOBS=1).
+C:/NightShift/Mobile-Coop-sector-redesign-polish). git fetch; read CLAUDE.md, ROADMAP "Decided" (grep only: LR13, LR14,
+shadow audit, voxels retired), PLAN.md "Walk 4.72" + "Campus detail art". Saved 2026-10-23 ~15:15 (swap).
+Heads: art 5c48f5c4 (PR 5 #226), lightrev 72552f93 (WIP), shadow 90dd18a1, charshadow 03fd0386 (WIP), walk 53182d6b (WIP).
+1. PR 5 #226 (-art): checker PASS; voxelFit test deleted (Michael ~15:05; leave src/voxel alone), CI rerun pending.
+   Laptop batch 3 at 5504e2e3 (later commits tests / docs): 8/9 green; sectorops:6 FAIL "panel cut s2-atrium and #1
+   walked to it" = Guard AI's breaker-walker assert, rewritten by guard-ai S15 fc249f3f (GREEN, not on master yet):
+   check sectorops:6 again once S15 is on master / in the same train. Shots + parity OK (scratch/work/campusart-5504e2e3).
+   Part 2 (perf.mjs campusOps, guard-cap 0/12/24, p95 at S3/S4/S5 worst views) queued on the laptop ~15:40.
+   On green CI + part 2 in budget: merge master into -art, message the orchestrator "train-ready #226".
+2. LR13 (-lightrev, Opus was building the settings toggle, default off, host choice in co-op; WIP committed): resume from
+   checks/lr13-build.md if present, else from the WIP diff. Then merge -shadow (fixes in src/world/shadowAccuracy.ts),
+   wire setShadowAccuracy beside setLampFalloff (main.ts), check the 3-line enemyManager.ts change; laptop GPU + perf
+   (campusOps atlas 48 -> 134 MB, bake 27 -> 118 s under LR13); own PR, train-ready.
+3. LR14 (-charshadow, Opus plan + build, WIP): docs/lighting-review/LR14-PLAN.md; on at High+, toggle after LR13 merges.
+4. After LR14: 8 door slots per lamp + exact torch drawing in the lamp shader (shadow-audit.md proposals).
+5. Walk W2 / W3 (-walk, WIP e2e legs + fix in progress): checks/walk-472-fix.md; src/net? -> own PR or ride #226.
 Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
-Sonnet builds from strict briefs; one checker per batch; one fix round per slice; parallel lanes up to desktop CPU ~80%;
-never two agents on the same files; at the ~92% save commit every lane worktree as WIP and push, keep working to 100%.
+Sonnet builds from strict briefs; one checker per batch; at most 3 tsc / vitest agents while desktop CPU > 80%
+(slot locks C:/NightShift/scratch/sr-slot-{1,2,3}.lock); every e2e E2E_GPU=1; never two agents on the same files.
 ```
