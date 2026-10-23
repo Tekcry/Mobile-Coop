@@ -41,3 +41,11 @@ Defaults picked where BRIEF is open:
 ## S4 report (2026-10-23 12:34)
 Built src/ui/hud/ratingCard.ts (+ ratingCard.css, imported by the .ts; HUD CSS elsewhere lives in styles.css, which S4 does not own) and the ResultsNav.ratings option in resultsScreen.ts (one li.rs-sections line per section via sectionLine). Tests: tests/ratingCardText.test.ts, 7 pass; tsc and eslint clean.
 API: RatingView, ratingLines(view, gadgetName?), sectionLine(view), RatingCard(parent) with show(view, gadgetName?), update(dt), hide(), visible; RATING_CARD_SHOW 4 s, RATING_CARD_FADE 0.6 s. Not wired into any mode: the mode calls card.update(dt) each frame (a countdown only).
+
+## S5 report (2026-10-23 12:40)
+Built `src/save/ratingRecord.ts`, `tests/ratingRecord.test.ts` (3 tests, pass), pips in `src/ui/screens/missionsScreen.ts`.
+- API: `RATING_RECORD_KEY` (`rating:sections`), `RatingRecord`, `SectionBest`, `emptyRatingRecord`, `sanitiseRatingRecord(raw)`, `compareBest(a, b)`, `loadRatingRecord()`, `updateRatingRecord(mapId, sectionId, marks, synced): Promise<void>` (serialised; keeps only a better result; bad ids dropped).
+- Best-of: more marks (bit count of the 4 bits) wins; tie -> more synced. Marks clamped to 0-15, synced int 0-1e4.
+- Save version: no bump (kv key outside the profile schema, as `course:fallow`; saves.md rule).
+- Select screen: Sector Ops op context panel lists each section with its best marks as four pips (filled/empty), nothing when unrecorded. `marksPips` exported. Marlow Yard has no select screen in missionsScreen.ts, so not covered here.
+- tsc: only errors are in sectorMode.ts (S2 in progress, not mine). eslint clean on my files.
