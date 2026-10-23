@@ -1,0 +1,14 @@
+{
+  "id": "20261023T195010-night-shift-sector-o-eb2c62c2-0cb6",
+  "sha": "eb2c62c286f055a0fb3987fcada0f54e55c59ec7",
+  "branch": "feature/sector-redesign-lr16-4",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-sectorops:6",
+    "e2e-coop"
+  ],
+  "set": "lr16-4",
+  "note": "LR16-4: S2 reception panel as an untimed breaker board (leg d)"
+}
