@@ -3,7 +3,7 @@ import { LockedDoorNav, lockedShut } from '../src/ai/lockedDoors';
 import { DoorGate } from '../src/ai/doorGate';
 import { NavGrid, type NavBlocker, type P2 } from '../src/ai/navGrid';
 import { STAGE_NAV_ACROSS, STAGE_NAV_ALONG } from '../src/game/sectorStage';
-import { DOOR } from '../src/world/doors';
+import { DOOR, Doors, type DoorState } from '../src/world/doors';
 import { Vector3, type Scene } from '../src/core/babylon';
 import type { Enemy } from '../src/ai/enemy';
 import type { World } from '../src/world/world';
@@ -122,6 +122,34 @@ describe('lockedDoors.ts (pure)', () => {
     console.info(`bytes per LockedDoorNav.sync: ${per.toFixed(1)}`);
     expect(sink[0]!).toBeGreaterThan(0);
     expect(per).toBeLessThanOrEqual(HEAP_NUMBER);
+  });
+});
+
+describe('EnemyManager wiring', () => {
+  it('builds the closures on its first update; a lock set between updates (Doors.setLocked) reaches the grid at once', async () => {
+    const { EnemyManager } = await import('../src/ai/enemyManager');
+    const nav = walled(false);
+    // Doors without a scene (no leaf mesh): the state rules only (tests/doors.test.ts)
+    const ds = Object.create(Doors.prototype) as Doors;
+    const d = door(false) as unknown as DoorState;
+    Object.assign(ds, { list: [d], onSound: null, onLocked: null, armed: true, mesh: null });
+    const world = { level: { lights: { lights: [] }, cover: [], coverSegments: [] }, layout: { rooms: [] }, doors: ds };
+    const em = new EnemyManager({} as Scene, world as unknown as World, nav, {} as DamageRegistry, { clear: () => true } as unknown as Ballistics, {} as Vfx, DIFFICULTY.normal, () => []);
+    em.update(1 / 60);
+    expect(em.lockedDoors).not.toBeNull();
+    expect(nav.findPath([-3, 0], [3, 0])).not.toBeNull();
+    const v0 = nav.version;
+    // no update between: the hook shuts the doorway
+    ds.setLocked(d, true);
+    expect(nav.version).toBe(v0 + 1);
+    expect(nav.findPath([-3, 0], [3, 0])).toBeNull();
+    // setting the same lock again changes nothing
+    ds.setLocked(d, true);
+    expect(nav.version).toBe(v0 + 1);
+    ds.setLocked(d, false);
+    expect(nav.findPath([-3, 0], [3, 0])).not.toBeNull();
+    em.update(1 / 60);
+    expect(nav.version).toBe(v0 + 2);
   });
 });
 

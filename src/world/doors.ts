@@ -118,6 +118,9 @@ export class Doors {
   private s = new Vector3();
   private p = new Vector3();
   onSound: ((d: DoorState, how: DoorHow) => void) | null = null;
+  /** (guard-ai S28) A door's lock changed (`setLocked`): the guards' nav grid shuts or opens its doorway at once
+   *  (`EnemyManager`, `ai/lockedDoors.ts`). */
+  onLocked: ((d: DoorState) => void) | null = null;
 
   constructor(
     private scene: Scene,
@@ -198,7 +201,9 @@ export class Doors {
 
   /** Lock or unlock a door at run time (pure state on the anchor; a locked door refuses `open`, `setOpen` ignores it). */
   setLocked(d: DoorState, on: boolean): void {
+    if (d.anchor.locked === on) return;
     d.anchor.locked = on;
+    this.onLocked?.(d);
   }
 
   /** Open a door (`how` sets the swing speed and the sound). False when locked or already opening. */

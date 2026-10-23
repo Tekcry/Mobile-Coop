@@ -2694,7 +2694,12 @@ export class EnemyManager {
     if (!this.doorGate && this.world.doors.list.length) this.doorGate = new DoorGate(this.world.doors.list);
     // (guard-ai S28) a lock or unlock since the last update shuts or opens the doorway on the grid (the version bump
     // below replans the flow field; each guard's held route replans in `Enemy.goTo`)
-    if (!this.lockedDoors && this.world.doors.list.length) this.lockedDoors = new LockedDoorNav(this.nav, this.world.doors.list);
+    if (!this.lockedDoors && this.world.doors.list.length) {
+      const ld = new LockedDoorNav(this.nav, this.world.doors.list);
+      this.lockedDoors = ld;
+      // a lock set between two updates (a script, the far side's Unbolt) reaches the grid before the next query
+      this.world.doors.onLocked = () => void ld.sync();
+    }
     this.lockedDoors?.sync();
     this.helmetDrops.update(dt);
     // nobody hunting any more: the last known position is forgotten
