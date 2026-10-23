@@ -200,22 +200,22 @@ describe('the A3 corridor: no lamp shadows itself from its ceiling', () => {
 });
 
 /**
- * Lamps with solid occupancy right under the light point (`map:id`), accepted: the light sits on top of its own post, so
- * the post shadows its own base and nothing else.
+ * Lamps with solid occupancy right under the light point (`map:id`), accepted (LR16-L A2): the light sits on top of its
+ * own post, so the post shadows its own base and nothing else.
  */
 const ON_ITS_POST: Record<string, string> = {
-  ...Object.fromEntries(Array.from({ length: 15 }, (_, k) => [`campusOps:${k + 1}`, 'S1 lane / car park floodlight on its 6.0 m pole'])),
-  ...Object.fromEntries(Array.from({ length: 8 }, (_, k) => [`campusOps:${k + 17}`, 'S1 forecourt bollard light on its 0.9 m post'])),
+  ...Object.fromEntries(Array.from({ length: 15 }, (_, k) => [`campusOps:${k + 1}`, 'S1 lane / car park floodlight at the top of its 6.0 m pole (campusS1.ts:222, 233, 237)'])),
+  ...Object.fromEntries(Array.from({ length: 8 }, (_, k) => [`campusOps:${k + 17}`, 'S1 forecourt bollard: light point 0.05 m inside the top of its 0.9 m post (campusS1.ts:269)'])),
 };
 /**
- * (LR16-L A2) Lamps flush with or inside a mount: map data errors, listed for the lead and the map owners (map files are
- * not LR16-L's). Remove an entry when its lamp moves; the test then keeps it out.
+ * (LR16-L A2) Lamps flush with or inside a mount, listed for the lead and the map owners (map files are not LR16-L's).
+ * Remove an entry when its lamp moves (or move it to ON_ITS_POST when the lead accepts it); the test then keeps it out.
  */
 const KNOWN_EMBEDDED: Record<string, string> = {
-  'campusOps:16': 'S1 bike shelter dead fitting (radius 0, off) flush with the roof underside at 2.2',
-  'campusOps:81': 'S4 cage downlight (18, 2.8, 37) inside the cable-basket support rod at (18, 37) (0..4.0)',
-  'warehouseOps:34': 'S1 charging bay exit sign 0.09 m off the z -6 wall face (wall lights stand 0.3 m off)',
-  'warehouseOps:53': 'S1 workshop door exit sign 0.09 m off the facade over the door (wall lights stand 0.3 m off)',
+  'campusOps:16': 'S1 bike shelter fitting (-5, 2.2, -48) flush with the roof underside at 2.2 (campusS1.ts:254); tagged out (radius 0, off): bakes nothing',
+  'campusOps:81': 'S4 cage downlight (18, 2.8, 37) (campusS4.ts:493) inside the basket support post at (18, 37), y 0-4.0 (campusS4.ts:416): the post runs through the lamp to the floor and cuts its beam',
+  'warehouseOps:34': 'S1 charging bay exit sign (-8, 2.4, -6.24) (warehouseS1.ts:83): a wall bulkhead 0.09 m off the z -6 wall face, inside its grown half cell; the room-side cells are clear',
+  'warehouseOps:53': 'S1 workshop door exit sign (11, 2.4, -17.76) (warehouseS1.ts:92): a wall bulkhead 0.09 m off the facade over the door, inside its grown half cell; the room-side cells are clear',
 };
 
 describe('every map: no lamp embedded in its own mount', () => {
