@@ -1,0 +1,16 @@
+{
+  "id": "20261023T224724-night-shift-sector-o-606630ed-3aac",
+  "sha": "606630ed34f49a160e45348f3573428619943377",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Sector Ops Build",
+  "steps": [
+    "set \"LR8_ONLY=warehouse,kestrel,proving\" && set \"LR8_OUT=C:/NightShift/scratch/lighting/lr16-8/warehouse-kestrel-proving\" && node C:/NightShift/scratch/work/lr16-8/sheets.mjs"
+  ],
+  "env": {
+    "LR8_CAP_MIN": "55"
+  },
+  "set": "lr16-8-rerun3",
+  "note": "LR16-8 sheets: warehouse / kestrel / proving rerun (boot fix: clear / mission modes)"
+}
