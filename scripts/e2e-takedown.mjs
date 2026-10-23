@@ -168,6 +168,26 @@ try {
     assert(r.sideCalm === 'side' && r.sideAlert === null, `from the side only while he is calm (${r.sideCalm} / ${r.sideAlert})`);
   });
 
+  // (guard-ai S12, item 2 "takedowns still one move") a helmeted, armoured guard falls to one takedown
+  await scen('gear: one takedown', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      t.tp(2, 0, -2.2, 0);
+      const e = t.spawn(2, -1, Math.PI);
+      e.setGear({ helmet: true, armour: true });
+      e.passive = true;
+      t.step(0.4);
+      const offer = g.takedown.offer?.plan.kind ?? null;
+      t.press();
+      t.run(1.4);
+      return { offer, down: !e.alive, ko: em.bodies.find((b) => !b.lethal) !== undefined, helmet: e.helmet, armour: e.armour };
+    });
+    assert(r.offer === 'front' && r.down && r.ko, `one takedown knocks out a helmeted, armoured guard (${JSON.stringify(r)})`);
+    assert(r.helmet && r.armour, `the takedown never touches his gear (${JSON.stringify(r)})`);
+  });
+
   await scen('grab', async () => {
     const r = await G(() => {
       const t = window.__t;

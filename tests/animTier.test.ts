@@ -1,0 +1,137 @@
+import { describe, expect, it } from 'vitest';
+import {
+  ANIM_TIER_FAR,
+  ANIM_TIER_FAR_PERIOD,
+  ANIM_TIER_NEAR_PLAYER,
+  ANIM_TIER_OFFSCREEN,
+  animTierPeriod,
+  animTierStep,
+  newAnimTierIn,
+  newAnimTierState,
+  type AnimTierIn,
+} from '../src/ai/animTier';
+import { ANIM_LOD_DISTANCE } from '../src/player/characterRig';
+
+/** A guard on screen, rendered, near the camera, far from every player. */
+function base(over: Partial<AnimTierIn> = {}): AnimTierIn {
+  return { ...newAnimTierIn(), on: true, pinned: false, rendered: true, seen: true, camDist2: 10 * 10, playerDist2: 20 * 20, ...over };
+}
+const FAR2 = (ANIM_TIER_FAR + 1) ** 2;
+const OFF = { seen: false };
+
+describe('animTierPeriod', () => {
+  it('far distance is the rig anim LOD distance, unscaled', () => {
+    expect(ANIM_TIER_FAR).toBe(ANIM_LOD_DISTANCE);
+    expect(ANIM_TIER_OFFSCREEN).toBe(4);
+    expect(ANIM_TIER_FAR_PERIOD).toBe(2);
+  });
+
+  it('near and on screen: every frame', () => {
+    expect(animTierPeriod(base())).toBe(1);
+    expect(animTierPeriod(base({ camDist2: ANIM_TIER_FAR ** 2 }))).toBe(1);
+  });
+
+  it('far: every 2nd frame', () => {
+    expect(animTierPeriod(base({ camDist2: FAR2 }))).toBe(2);
+    expect(animTierPeriod(base({ camDist2: Infinity }))).toBe(2);
+  });
+
+  it('off-screen: every 4th frame, near or far', () => {
+    expect(animTierPeriod(base(OFF))).toBe(4);
+    expect(animTierPeriod(base({ ...OFF, camDist2: FAR2 }))).toBe(4);
+  });
+
+  it('no render since the last update (headless): visibility unknown, counts as seen', () => {
+    expect(animTierPeriod(base({ ...OFF, rendered: false }))).toBe(1);
+    expect(animTierPeriod(base({ ...OFF, rendered: false, camDist2: FAR2 }))).toBe(2);
+  });
+
+  it('pinned (takedown / held / emote / climb): every frame', () => {
+    expect(animTierPeriod(base({ ...OFF, pinned: true }))).toBe(1);
+    expect(animTierPeriod(base({ camDist2: FAR2, pinned: true }))).toBe(1);
+  });
+
+  it('within a few metres of any player: every frame', () => {
+    const near = (ANIM_TIER_NEAR_PLAYER - 0.01) ** 2;
+    expect(animTierPeriod(base({ ...OFF, playerDist2: near }))).toBe(1);
+    expect(animTierPeriod(base({ camDist2: FAR2, playerDist2: near }))).toBe(1);
+    expect(animTierPeriod(base({ ...OFF, playerDist2: ANIM_TIER_NEAR_PLAYER ** 2 }))).toBe(4);
+  });
+
+  it('off (?animtier=0): every frame', () => {
+    expect(animTierPeriod(base({ ...OFF, on: false }))).toBe(1);
+    expect(animTierPeriod(base({ camDist2: FAR2, on: false }))).toBe(1);
+  });
+});
+
+function solves(slot: number, period: number, frames: number): number[] {
+  const st = newAnimTierState(slot);
+  animTierStep(st, 1, 0); // the first update (always solves)
+  const out: number[] = [];
+  for (let f = 1; f <= frames; f++) if (animTierStep(st, period, 1 / 60) >= 0) out.push(f);
+  return out;
+}
+
+describe('animTierStep', () => {
+  it('the first update always solves', () => {
+    for (let slot = 0; slot < 4; slot++) expect(animTierStep(newAnimTierState(slot), 4, 0.01)).toBeCloseTo(0.01, 12);
+  });
+
+  it('period 1 solves every frame', () => {
+    expect(solves(3, 1, 8)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+  });
+
+  it('period 4 solves every 4th frame, period 2 every 2nd', () => {
+    const a = solves(0, 4, 16);
+    expect(a.length).toBe(4);
+    for (let i = 1; i < a.length; i++) expect(a[i]! - a[i - 1]!).toBe(4);
+    const b = solves(0, 2, 16);
+    expect(b.length).toBe(8);
+    for (let i = 1; i < b.length; i++) expect(b[i]! - b[i - 1]!).toBe(2);
+  });
+
+  it('staggers by slot: 4 guards off-screen solve on 4 different frames, each frame one guard', () => {
+    const per = new Array<number>(17).fill(0);
+    for (let slot = 0; slot < 4; slot++) for (const f of solves(slot, 4, 16)) per[f]!++;
+    expect(per.slice(1)).toEqual(new Array<number>(16).fill(1));
+    // 8 guards: two a frame
+    const per8 = new Array<number>(17).fill(0);
+    for (let slot = 0; slot < 8; slot++) for (const f of solves(slot, 4, 16)) per8[f]!++;
+    expect(per8.slice(1)).toEqual(new Array<number>(16).fill(2));
+    // far: half the guards each frame
+    const per2 = new Array<number>(17).fill(0);
+    for (let slot = 0; slot < 6; slot++) for (const f of solves(slot, 2, 16)) per2[f]!++;
+    expect(per2.slice(1)).toEqual(new Array<number>(16).fill(3));
+  });
+
+  it('carries the skipped time into the next solve (lodDt), none lost', () => {
+    const st = newAnimTierState(1);
+    animTierStep(st, 1, 0);
+    const dts = [0.016, 0.017, 0.015, 0.02, 0.018, 0.016, 0.019, 0.017, 0.016];
+    let total = 0;
+    let solved = 0;
+    let skipped = 0;
+    for (const dt of dts) {
+      const r = animTierStep(st, 4, dt);
+      if (r < 0) {
+        skipped += dt;
+        continue;
+      }
+      expect(r).toBeCloseTo(dt + skipped, 12);
+      skipped = 0;
+      total += r;
+      solved++;
+    }
+    expect(solved).toBe(2);
+    expect(total + st.carry).toBeCloseTo(dts.reduce((a, b) => a + b, 0), 12);
+  });
+
+  it('dropping to period 1 solves at once with the carried time', () => {
+    const st = newAnimTierState(0);
+    animTierStep(st, 1, 0);
+    expect(animTierStep(st, 4, 0.01)).toBe(-1);
+    expect(animTierStep(st, 4, 0.02)).toBe(-1);
+    expect(animTierStep(st, 1, 0.03)).toBeCloseTo(0.06, 12);
+    expect(st.carry).toBe(0);
+  });
+});

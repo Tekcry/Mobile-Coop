@@ -416,6 +416,8 @@ export class CoopClient implements NetAttachment {
               return;
             }
             this.s.toHost({ t: 'use', id });
+            // (E8/E9 check P1) a held button does not re-send `use` every frame until the `crate` event lands
+            crate.progress = 0;
           };
         }
         // (sector-fixes-r RT) a team door's "Unbolt" is offered on its side only: the side from this client's own map

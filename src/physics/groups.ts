@@ -39,6 +39,12 @@ export const MASK = {
   PLAYER_SHOT: G.STATIC | G.PROP | G.ENEMY_HITBOX | G.RAGDOLL | G.GLASS_ARMOURED,
   /** What an enemy bullet can hit (E10: armoured glass stops it; a guard's fire decision must test this mask, not SIGHT). */
   ENEMY_SHOT: G.STATIC | G.PROP | G.PLAYER_HITBOX | G.GLASS_ARMOURED,
+  /** (polish 15) What shields a grenade blast: static geometry and every glass pane (the grenade itself bounces off a pane). */
+  BLAST: G.STATIC | G.GLASS,
+  /** (polish 16) What stops a thrown gadget in flight (sticky camera, noise maker, the throw arc): static and glass, as the grenade body. */
+  GADGET_FLIGHT: G.STATIC | G.GLASS,
+  /** (polish 18) The host's line-of-sight check of a client's claimed round: static geometry and armoured panes / leaves. */
+  HOST_LOS: G.STATIC | G.GLASS_ARMOURED,
   PROP_COLLIDE: G.STATIC | G.PROP | G.PLAYER | G.ENEMY | G.RAGDOLL | G.PROJECTILE | G.GLASS,
   RAGDOLL_COLLIDE: G.STATIC | G.PROP | G.RAGDOLL | G.GLASS,
   PROJECTILE_COLLIDE: G.STATIC | G.PROP | G.ENEMY | G.PLAYER | G.GLASS,

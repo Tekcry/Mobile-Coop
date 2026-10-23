@@ -80,10 +80,13 @@ export interface AlertInput {
    *  clears; then the cooldown ends as usual (`cooldownTime` from when he went on edge, so at once after a long
    *  caution; never if he has fought). */
   cautious: boolean;
+  /** (guard-ai S6, design 7, M1 "any reinforcements must be aggressive") An aggressive guard who has fought
+   *  (`BEHAVIOUR.aggressive.neverCautious`): his search never ends (no cooldown, never calm again). */
+  hunting: boolean;
 }
 
 export function emptyAlertInput(): AlertInput {
-  return { meter: 0, seeing: false, arrived: false, sinceSeen: 99, heard: false, damaged: false, gunfire: false, called: false, search: false, hold: false, turning: false, calmEnd: false, cautious: false };
+  return { meter: 0, seeing: false, arrived: false, sinceSeen: 99, heard: false, damaged: false, gunfire: false, called: false, search: false, hold: false, turning: false, calmEnd: false, cautious: false, hunting: false };
 }
 
 export class AlertMachine {
@@ -178,7 +181,8 @@ export class AlertMachine {
         if (!i.seeing && Math.min(i.sinceSeen, this.t) >= ALERT.lostSight) this.set('searching');
         break;
       case 'searching':
-        if (this.t >= ALERT.searchTime) this.set('cooldown');
+        // (guard-ai S6) a hunting (aggressive) guard keeps searching: never calm
+        if (this.t >= ALERT.searchTime && !i.hunting) this.set('cooldown');
         break;
     }
     return this.changes !== before;

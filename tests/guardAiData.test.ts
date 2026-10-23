@@ -11,6 +11,7 @@ import {
   type GuardSlot,
   type NoisySource,
 } from '../src/ai/guardAiData';
+import type { GearTag } from '../src/ai/gear';
 import { POST } from '../src/ai/posts';
 
 // (guard-ai S5 / S5b) map data shapes and the validators the map teams run (design section 11).
@@ -154,5 +155,29 @@ describe('validateGuardAi', () => {
     expect(sectionAt(good, 75, 10)).toBe(1);
     expect(sectionAt(good, 500, 10)).toBe(0);
     expect(sectionAt(undefined, 75, 10)).toBe(0);
+  });
+});
+
+describe('validateGuardAi: gear tags and shield guards (S11)', () => {
+  const g = (extra: Partial<GuardSlot>): GuardSlot => slot(5, 5, extra);
+
+  it('helmet, armour and both pass; no tag passes', () => {
+    for (const tag of ['helmet', 'armour', 'both'] as const) expect(validateGuardAi({}, [g({ gear: tag })])).toEqual([]);
+    expect(validateGuardAi({}, [g({})])).toEqual([]);
+  });
+  it('an unknown gear tag is rejected and the message names the slot', () => {
+    const errs = validateGuardAi({}, [g({}), g({ gear: 'visor' as unknown as GearTag })]);
+    expect(errs).toHaveLength(1);
+    expect(errs[0]).toMatch(/^slot 1: gear 'visor' must be one of helmet, armour, both$/);
+  });
+  it('an enforcer in a section guard list is rejected (shield guards only come in response teams)', () => {
+    const errs = validateGuardAi({}, [g({ kind: 'grunt' }), g({ kind: 'enforcer' })], { section: 2 });
+    expect(errs).toHaveLength(1);
+    expect(errs[0]).toMatch(/^slot 1: kind 'enforcer' is not allowed .*response teams/);
+    expect(validateGuardAi({}, [g({ kind: 'heavy' }), g({ kind: 'officer' }), g({ kind: 'dog' })])).toEqual([]);
+  });
+  it('both rules report together', () => {
+    const errs = validateGuardAi({}, [g({ kind: 'enforcer', gear: 'x' as unknown as GearTag })]);
+    expect(errs).toHaveLength(2);
   });
 });

@@ -210,10 +210,10 @@ describe('S4 guards (brief table)', () => {
       expect(g.reason && g.reason.length > 8, `#${i + 1} reason`).toBe(true);
       expect(g.squad, `#${i + 1} squad`).not.toBeUndefined();
     }
-    expect(G[4]!.pair).toBe(5);
-    expect(G[5]!.pair).toBe(4);
-    expect(G[13]!.pair).toBe(14);
-    expect(G[14]!.pair).toBe(13);
+    expect(G[4]!.pair).toBeUndefined(); // a standing pair, not a guard-ai S10 talking pair (needs timed loops)
+    expect(G[5]!.pair).toBeUndefined(); // a standing pair, not a guard-ai S10 talking pair (needs timed loops)
+    expect(G[13]!.pair).toBeUndefined(); // a standing pair, not a guard-ai S10 talking pair (needs timed loops)
+    expect(G[14]!.pair).toBeUndefined(); // a standing pair, not a guard-ai S10 talking pair (needs timed loops)
     expect(G[18]!.role).toBe('posted');
     expect(G[18]!.zone).toBe('c4');
     expect(G[18]!.post).toEqual({ leash: 5, guards: 'c4-gate' });
@@ -538,6 +538,14 @@ describe('CR4: the cable basket B1 against a solo player (SPEC Campus-wide rules
       if (![0, S4_NOC, S4_BASKET, S4_DECK].some((f) => Math.abs(bottom(p) - f) < 0.01)) continue;
       expect(p.noLedge, `${JSON.stringify(p.c)} ${JSON.stringify(p.s)}`).toBe(true);
     }
+  });
+
+  it('(polish 1, L6) the fuel tanks are 2.0 noLedge: no tank-top step onto the 2.8 compound wall 0.85 m east', () => {
+    const [tx0, tz0, tx1, tz1] = S4_BOX.tanks;
+    const tank = solid.find((p) => Math.abs(p.c[0] - (tx0 + tx1) / 2) < 1e-6 && Math.abs(p.c[2] - (tz0 + tz1) / 2) < 1e-6 && Math.abs(bottom(p)) < 1e-6);
+    expect(tank).toBeDefined();
+    expect(top(tank!)).toBeCloseTo(2.0);
+    expect(tank!.noLedge).toBe(true);
   });
 
   it('ledges among the baskets only on the CR4 box (its two long faces); every other basket piece and the landing is noLedge', () => {

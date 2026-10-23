@@ -513,10 +513,11 @@ export function buildCampusS5(b: LevelBuilder): void {
   doorIn(b, true, 32, -40.5, L1);
   // z 34: the passage | the well; x -46: passage, the well and the anteroom's west wall (the window), the strongroom's; L1: the archive's west wall (the hoist door)
   wall(b, true, 34, -50, -46, 0, G_TOP, []);
-  wall(b, false, -46, 32, 44, 0, G_TOP, [[34.7, 36.3, 0.45, 2.05]]);
+  // (polish 6, L11) the sill 0.5, over the guards' nav step (0.45): no guard paths through the sash; the player vaults it
+  wall(b, false, -46, 32, 44, 0, G_TOP, [[34.7, 36.3, 0.5, 2.05]]);
   wall(b, false, -46, 32, 44, L1, L_TOP, [dh(36, L1)]);
   doorIn(b, false, -46, 36, L1);
-  b.windowAt(-46, 1.25, 35.5, 1.6, 1.6, PI / 2, { sill: 0.45, open: true, breakable: false });
+  b.windowAt(-46, 1.275, 35.5, 1.6, 1.55, PI / 2, { sill: 0.5, open: true, breakable: false });
   // z 37: anteroom | strongroom (open tonight); x -40: anteroom | vestibule and shaft (side door -40, 33.2, shaft door -40, 36), strongroom | closet
   wall(b, true, 37, -46, -40, 0, G_TOP, [dh(-43, 0)]);
   doorIn(b, true, 37, -43, 0);

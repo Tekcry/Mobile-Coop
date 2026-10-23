@@ -261,7 +261,7 @@ export class Hud {
     });
   }
 
-  hitMarker(kind: 'hit' | 'head' | 'kill'): void {
+  hitMarker(kind: 'hit' | 'head' | 'kill' | 'deflect'): void {
     this.hit.className = `hitmarker show ${kind}`;
     if (this.hitTimer) clearTimeout(this.hitTimer);
     this.hitTimer = setTimeout(() => (this.hit.className = 'hitmarker'), kind === 'kill' ? 320 : 140);
