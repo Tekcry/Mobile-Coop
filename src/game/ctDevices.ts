@@ -172,6 +172,14 @@ const LED_COL: readonly Color4[] = [new Color4(0.06, 0.06, 0.06, 1), new Color4(
 /** The LED's glow (`pattern.w`, render only) by state: lit states glow, dark and the blink's dim half do not. */
 const LED_GLOW: readonly number[] = [0, 0.55, 0.8, 0, 0.6];
 
+/** (marlow-polish P3-1) A prop status lamp that follows a shared course flag (`PropPlacement.flag`, A6's interlock): render
+ *  only, nothing in gameplay reads it. `on`: the state last put on the prop (-1 none yet, 0 off, 1 on). */
+interface FlagLampRt {
+  id: string;
+  flag: string;
+  on: number;
+}
+
 /** (marlow-jammer) One jam target: its pick record, its jam timeline and the device it drives. */
 interface DevRt {
   t: JamTarget;
@@ -225,6 +233,8 @@ export class CtDevices {
   readonly lasers: LaserRt[] = [];
   /** (sector-fixes P) The lasers' power panels (the lasers' jam targets). */
   private readonly panels: PanelRt[] = [];
+  /** (P3-1) The props' flag lamps (`PropPlacement.device` + `flag`), one per device id. */
+  private readonly flagLamps: FlagLampRt[] = [];
   /** The jam targets that are live (Sector Ops: only the live section's devices). */
   readonly targets: JamTarget[] = [];
   private readonly allTargets: JamTarget[] = [];
@@ -386,6 +396,11 @@ export class CtDevices {
       }
       this.buildPanel(p);
       this.panels.push(p);
+    }
+    // (marlow-polish P3-1) the props' status lamps on a shared course flag (A6's interlock): `applyJam` puts the flag on them
+    for (const p of lay.facilityProps ?? []) {
+      if (p.device === undefined || p.flag === undefined || this.flagLamps.some((f) => f.id === p.device)) continue;
+      this.flagLamps.push({ id: p.device, flag: p.flag, on: -1 });
     }
     // (marlow-jammer, item 8) the map's fixed electric lamps are jam targets too (id `lt-<registry id>`, the same on both
     // pages: both build the level's lights in the same order)
@@ -994,6 +1009,15 @@ export class CtDevices {
       // (S3-7 S1, light parity) the beam towers' lenses follow their laser (dark while jammed, rebooting, off or dead); render only
       this.g.world.facilityProps?.setDevice(l.def.id, on);
     }
+    // (marlow-polish P3-1) a flag lamp shows its shared flag (on = set), on both roles from the same course flags; only on
+    // a change (the first pass always); render only
+    for (let i = 0; i < this.flagLamps.length; i++) {
+      const f = this.flagLamps[i]!;
+      const on = shared?.(f.flag) ? 1 : 0;
+      if (on === f.on) continue;
+      f.on = on;
+      this.g.world.facilityProps?.setDevice(f.id, on === 1);
+    }
     for (let i = 0; i < this.panels.length; i++) this.showPanel(this.panels[i]!);
     const reg = this.g.world.level.lights;
     for (let k = 0; k < this.devs.length; k++) {
@@ -1239,6 +1263,8 @@ export class CtDevices {
       lasers: this.lasers.map((l) => ({ id: l.def.id, on: l.on, live: this.live(l.def.id), panel: l.panel?.def.id ?? '' })),
       // (sector-fixes P) each power panel: its jam phase (0 idle, 1 jammed, 2 rebooting), LED (laserPanels LED_*), lasers
       panels: this.panels.map((p) => ({ id: p.def.id, ph: p.dv.d.ph, t: p.dv.d.t, led: p.ledK, live: this.live(p.def.id), lasers: p.lasers.map((l) => l.def.id), at: [p.dv.t.x, p.dv.t.y, p.dv.t.z] })),
+      // (P3-1) each flag lamp's state last put on its prop
+      flagLamps: this.flagLamps.map((f) => ({ id: f.id, on: f.on === 1 })),
       live: this.liveSection,
       range: CAMERA.range,
       cue: this.cue?.debug() ?? [],

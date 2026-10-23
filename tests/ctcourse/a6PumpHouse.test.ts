@@ -28,7 +28,7 @@ import { hyp2 } from '../../src/core/mathx';
 import { buildCtcourse, COOP_LIPS, LIGHT_SPOTS } from '../../src/world/maps/ctcourse';
 import { coopDeck, COOP_BAND, GREY_KEEP_CLEAR, hangPlate, INTERACT_DY, INTERACT_REACH } from '../../src/world/maps/ctcourseGreybox';
 import { kitTriangles } from '../../src/world/kit/facilityKit';
-import { FacilityProps, propGlows, PROP_OWN_SUPPLY, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_SET_BUDGET, type PropReport } from '../../src/world/props/facilityProps';
+import { FacilityProps, propGlows, PROP_LAMP_TINT, PROP_OWN_SUPPLY, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_SET_BUDGET, type PropReport } from '../../src/world/props/facilityProps';
 import { CANON_MIN_THICK } from '../../src/voxel/lightShapes';
 import { GAL_TOP } from '../../src/world/maps/ctcourseSets/facility';
 import {
@@ -55,6 +55,7 @@ import {
   A6_HOLD,
   A6_HOLD_NOISE,
   A6_HOLDER,
+  A6_INTERLOCK,
   A6_KERB,
   A6_LIP_X,
   A6_MARK,
@@ -743,6 +744,8 @@ describe('A6 the Pump House: dressing (slice 6 step 5)', () => {
   const propReport = JSON.parse(readFileSync('src/world/props/assets/facility-props.json', 'utf8')) as PropReport;
   const area = { x0: box[0], z0: box[1], x1: box[2], z1: box[3] };
   const own = part.props;
+  /** (P3-1) The pipe runs (the interlock station is the other prop). */
+  const pipes = own.filter((p) => p.prop === 'pipeRun');
   const lip4 = A6_DECK.lip;
   /** The props' own boxes as written (matched by centre, size and yaw); a quarter-turn box folded to the axis-aligned box the helpers read. */
   const propBoxes = own.flatMap((p) => propCollisionBox(p) ?? []);
@@ -809,7 +812,7 @@ describe('A6 the Pump House: dressing (slice 6 step 5)', () => {
     }
     // the only visible boxes of any thickness the dressing added are the props' solid pipes (their own greybox, hidden by the prop)
     const heavy = dressing.filter((p) => p.visible !== false && Math.min(...p.s) >= CANON_MIN_THICK);
-    expect(heavy).toHaveLength(own.length);
+    expect(heavy).toHaveLength(pipes.length);
     for (const p of heavy) expect(written).toContain(p);
     for (const p of rail) expect(p.visible, `rail box at (${p.c.join(', ')})`).toBe(false);
     for (const p of colliders) expect(p.noLedge, `collider at (${p.c.join(', ')})`).toBe(true);
@@ -879,12 +882,12 @@ describe('A6 the Pump House: dressing (slice 6 step 5)', () => {
     expect(checker.check(area, propReport)).toEqual([]);
     expect(propTriangles(counted, propReport)).toBeLessThanOrEqual(PROP_SET_BUDGET.tris);
     expect(propDraws(counted, propReport)).toBeLessThanOrEqual(PROP_SET_BUDGET.draws);
-    expect(own.map((p) => p.prop)).toEqual(Array<string>(5).fill('pipeRun'));
+    expect(pipes.map((p) => p.prop)).toEqual(Array<string>(5).fill('pipeRun'));
   });
 
   it("the pipes: five modules end to end along the east wall (x 63.0-63.7, z 54.25-59.25), 0.7 m tall, noLedge, off the wall, clear of the L6 door, the floor switch, the kerb's east opening and the exit route", () => {
-    expect(own).toHaveLength(A6_PIPES.z.length);
-    for (const [i, p] of own.entries()) {
+    expect(pipes).toHaveLength(A6_PIPES.z.length);
+    for (const [i, p] of pipes.entries()) {
       expect([p.x, p.z]).toEqual([A6_PIPES.x, A6_PIPES.z[i]]);
       expect(p.y).toBe(0);
       const f = PROP_FOOTPRINT[p.prop];
@@ -903,6 +906,22 @@ describe('A6 the Pump House: dressing (slice 6 step 5)', () => {
     }
     for (const [x, z] of [[62.6, 61.4], [62.6, 62.6], [A6_SHELL.east - 1.0, 60.4], [57.0, 58.5], [A6_DESK[2] + 0.6, 66.0]] as const) expect(bodyHits(x, 0, z), `spot (${x}, ${z})`).toBeNull();
     for (const [x0, z0, x1, z1] of [[57.0, 58.5, 62.6, 61.4], [62.6, 61.4, 62.6, 62.6], [63.0, 70.3, 62.6, 62.6], [53, 56.0, 57.0, 58.5], [A6_VANTAGE.x, A6_VANTAGE.z, 48.8, 58.4]] as const) expect(bodyWalk(x0, z0, x1, z1), `walk (${x0}, ${z0}) to (${x1}, ${z1})`).toBeNull();
+  });
+
+  it('(P3-1) the interlock station beside the L6 door: one pushStation on a6-interlock / a6-drive, green lamp with a red off colour, its lamp at (63.44, 2.3, 64.0), no collision box, on its own supply', () => {
+    const st = own.filter((p) => p.prop === 'pushStation');
+    expect(st).toHaveLength(1);
+    const s = st[0]!;
+    expect(s.device).toBe(A6_INTERLOCK);
+    expect(s.flag).toBe(A6_DRIVE_FLAG);
+    expect(s.lamp).toEqual(PROP_LAMP_TINT.default);
+    expect(s.lampOff).toEqual([1.0, 0.12, 0.08]);
+    // the status lamp's centre (build.py push_station: x 0, y 0.86-0.92, z 0.30-0.31 in the prop's frame)
+    const lamp = propToWorld(s, 0, 0.89, 0.305);
+    expect(hyp2(lamp[0] - 63.44, lamp[2] - 64.0)).toBeLessThan(0.02);
+    expect(Math.abs(lamp[1] - 2.3)).toBeLessThan(0.02);
+    expect(propCollisionBox(s)).toBeNull();
+    expect(PROP_OWN_SUPPLY).toContain(s.prop);
   });
 
   it('with the props and the rail written soloJumpThreats is still empty for the gallery lip (and still bites); nothing new stands within the keep-clear of the open edge; the game generates no new grip over 0.9 m', () => {
@@ -930,12 +949,15 @@ describe('A6 the Pump House: dressing (slice 6 step 5)', () => {
     expect(bodyWalk(54.2, 62.9, 54.2, 61.2)).toBeNull();
   });
 
-  it('every prop with an emissive part carries a circuit group (S3-7 S1, light parity): A6 places only pipe runs, which have none', () => {
+  it('every prop with an emissive part carries a circuit group (S3-7 S1, light parity): the pipe runs have none and the interlock station is on its own supply', () => {
     const plan = new Set(Object.values(marlowCourseGroups()));
     const [g0, g1] = setGroups('a6PumpHouse');
     const glowing = own.filter((p) => propGlows(p) && !PROP_OWN_SUPPLY.includes(p.prop));
-    expect(own.length).toBeGreaterThan(0);
-    expect(own.every((p) => p.prop === 'pipeRun')).toBe(true);
+    expect(pipes.length).toBeGreaterThan(0);
+    expect(pipes.every((p) => p.prop === 'pipeRun')).toBe(true);
+    // (P3-1) the only other prop is the interlock station, which glows on its own supply
+    expect(own.filter((p) => p.prop !== 'pipeRun').map((p) => p.prop)).toEqual(['pushStation']);
+    expect(own.some((p) => propGlows(p))).toBe(true);
     expect(glowing).toEqual([]);
     expect(plan.size).toBeGreaterThan(0);
     expect(g1 - g0).toBe(9);
