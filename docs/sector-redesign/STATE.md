@@ -287,7 +287,15 @@ In flight (window 4, ~13:15):
   PR 4 OPEN: Tekcry/Mobile-Coop#217 (laptop GPU 9/9 green at ed256ccf; orchestrator told; stacks on #215).
   -e10 at 16442ee1 was green on the laptop except the then-unfixed crate leg. Guard AI builds S16 (fire check vs armour) once
   E10 is on master. Polish follow-ups: ART-S4.md:39 / SLICE4.md:98 tank height 1.6 -> 2.0; hostCrackOk floor gap.
-- Lane A ART-KIT (Opus) running on -art-kit (checks/art-kit-build.md); then one Opus checker, then ART-S1..S5 Sonnet dressers.
+- Train 25 left #215 / #217 out (e2e-sectorops.mjs conflict with the guard-ai stack): train/25 a8bb27ab merged into -polish
+  @ b3fd1fa3 (both blocks kept, tsc clean); laptop runs sectorops 1-6 + coop GPU -> green: tell the orchestrator train-ready
+  for train 26 (#217 contains #215).
+- Lane A: ART-KIT DONE -art-kit @ 26670151 (88 new tests, kit 7028 tris / 495 KB, base() draws S1 15 / S2 25 / S3 19 / S4 15 /
+  S5 22 of 40; checks/art-kit-build.md "What the dressers must know" overrides the ART-S briefs). RUNNING ~13:35: Opus kit
+  checker (checks/art-kit-check.md) + five Sonnet dressers on feature/sector-redesign-art-s1..s5 (worktrees -art-s<N>, cut
+  from 26670151; reports checks/art-s<N>-build.md; tsc / vitest gated by C:/NightShift/scratch/sr-slot-{1,2}.lock). Then:
+  kit fix round if any, join art-kit + art-s1..s5 + -polish, one Opus checker for the dressing batch, GPU perf pass
+  (perf.mjs MODE, campus-art-shots --sheet) + sectorops 6 + coop, PR 5.
 - Lane D (gear / sweep): still blocked, guard-ai SquadSlot gear types not on master (checked 13:10).
 For each lane: branch log + report; finished -> one checker per batch; unfinished -> rerun from its brief / STATE text.
 Worktrees made with `worktree add -b X origin/Y` track Y: push lane branches with `git push -u origin <branch>`.
