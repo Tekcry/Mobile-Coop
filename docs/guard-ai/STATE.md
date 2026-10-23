@@ -453,8 +453,8 @@ unavoidable guards, stealth over shooting), then this file's "Now" (top 2 entrie
 e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep laptop CPU under ~80%.
 1. Train 27 (origin/train/27 e83f423a) has #218 -> #219 -> #220 (S13-S15): fix any failure Test Runner reports at once.
 2. Train 28: #229 S9 (f2fd1219) + #230 walk (906765a4) GREEN, TRAIN-READY sent; both base s15 (retarget after 27).
-3. #228 S16 (fb192d45): RED sectorops:6 (scripts/e2e-sectorops.mjs:3024, NOC sight through arm-noc). Fix agent ran on
-   ...-guard-ai-s16: check its commit, then ask Test Runner: sectorops:6 (+ suites the fix names); green -> TRAIN-READY.
+3. #228 S16: fix 2e51e7e6 (test-only, A88: old spots were inside pod P1). Test Runner asked: sectorops:6 on 2e51e7e6;
+   other S16 suites green on fb192d45 still count. Green -> TRAIN-READY #228; red -> one more fix agent.
 4. S22 AI side on feature/guard-ai-s22 (slices/S22.md): when built, one Opus checker, then PR (base walk) + Test Runner
    (stealth-ai, sectorops, ctcourse, course). Game side (securityRoom.ts, courseMode.ts, sectorReset.ts) after
    marlow-final merges, per slices/S22.md.
