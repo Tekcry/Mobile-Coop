@@ -25,10 +25,12 @@ the Gameplay tab has no Mocap row), TESTING.md (one checklist line), docs/system
   tuner off OFF, url over tuner, no Settings row) + tests/settings.test.ts + tests/settingsCover.test.ts +
   tests/mocapSwitch.test.ts: 4 files, 34 / 34 pass.
 - `npx tsc --noEmit -p .`: clean. eslint on the touched src / test files: clean (scripts/*.mjs is eslint-ignored).
-- e2e-menus (E2E_GPU=1, E2E_JOBS=1, desktop lane): see "e2e" below.
+- e2e-menus (E2E_GPU=1, E2E_JOBS=1, desktop lane 1): pass, 63 s.
 
 ## e2e
-RESULT_PLACEHOLDER
+e2e-menus on desktop lane 1 (heavy.lock, port 4191, E2E_GPU=1, E2E_JOBS=1) at 5766fe1a after a fresh `npm run build`:
+all asserts pass, 63 s, no console errors, including the new "Gameplay has no Mocap locomotion row" assert (the
+suite fails on any assert). The lock waited ~40 min for desktop CPU < 80%.
 
 ## Open items
 - Narrows M4 for players ("the hand-keyed set stays behind the switch" now holds for developers only): flag to Michael
