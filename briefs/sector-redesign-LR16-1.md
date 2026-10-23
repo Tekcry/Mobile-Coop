@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-23T08:26Z
 
 Lead note (Sector Ops Build ~20:20): a fix round is landing on lr16int (torch SpotLight feather, char-shadow cone fit, lights.contribution). Build from c7a26ca7 as written; the lead merges. Do not edit src/world/lightRig.ts torch code, src/world/charShadows.ts or src/world/lights.ts. Desktop-free: unit tests only, vitest --maxWorkers=2.
 
