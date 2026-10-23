@@ -488,7 +488,7 @@ Course Ready's prep notes: origin/feature/marlow-bays docs/marlow-final-prep/ (M
 
 ## Resume prompt
 ```
-Night Shift | Marlow Build: resume marlow-polish (#257) + A7 cabinet (#265). Read CLAUDE.md ("Sessions", "Heavy-usage throughput", token rules), ROADMAP Decided by grep ("Pipeline speed-ups", "Release speed-ups"), git fetch.
+Night Shift | Marlow Build: resume #257 marlow-polish + #273 walk482 (stacked) to train-ready; #265 done. Read CLAUDE.md ("Sessions", "Heavy-usage throughput", token rules), ROADMAP Decided by grep ("Pipeline speed-ups", "Release speed-ups"), git fetch.
 Rules: no e2e on the desktop; no full vitest on the desktop (orchestrator ~21:40, CPU); single vitest files, max 3 agents. Laptop runs: `node <scratch>/request.mjs --sha <sha> --pr <n> --set <name> --requester "Night Shift | Marlow Build" --suites "e2e-ctcourse:2 ..."` (copy lib.mjs + request.mjs from `git show origin/master:scripts/laptop-queue/`); verdict = GitHub status laptop-e2e/<set> on the sha (`gh api repos/Tekcry/Mobile-Coop/commits/<sha>/statuses`). At train-ready: `gh pr edit <n> --add-label train-ready` + message "Night Shift | Orchestrator".
 #257 marlow-polish https://github.com/Tekcry/Mobile-Coop/pull/257, worktree C:/NightShift/Mobile-Coop-marlow-polish, head ee24c65f (842c4140 + master 33fff449 merged; CI green, MERGEABLE). Body C:/NightShift/mp-pr.md.
 - Laptop: polish5 on ee24c65f (e2e-ctcourse:2 + e2e-coop only) pending; polish3 on 17d44d96 4/4 PASS 445 s (older commit). On polish5 PASS: body checks line (`gh pr edit 257 --body-file C:/NightShift/mp-pr.md`), `gh pr edit 257 --add-label train-ready`, message the orchestrator. The train bumps PROTOCOL.
