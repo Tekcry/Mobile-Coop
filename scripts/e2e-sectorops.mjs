@@ -1788,12 +1788,17 @@ if (want(6)) {
       await tp(G, route[i][0], 0, route[i][1], 0);
       await sim(0.1);
     }
+    // (s6-c1-fix) this part runs the live rAF loop beside `sim`: every real frame between the evaluates steps up to 0.1 s
+    // more, so the 1.3 s check (hold 1.0 + cycle 0.3, the load at cycle 1.5) had 1.2 s of slack; a busy laptop GPU run
+    // used it and caught section 2 already in (["locked",true,12,1]). Only `sim` steps the sim through the cycle.
+    await G(() => { window.__app.loop.manual = true; });
     await tp(G, S[0].cp.x, S[0].cp.y, S[0].cp.z, S[0].cp.yaw);
     await sim(1.3);
     const cyc = await G(() => ({ d: window.__sector.debug(), n: window.__app.current.enemyMgr.enemies.length }));
     assert(cyc.d.conn === 'cycling' && cyc.d.nearLocked === true && cyc.n === 0 && cyc.d.live === -1, `C1 cycles: the near door locks, section 1 unloads (${JSON.stringify([cyc.d.conn, cyc.d.nearLocked, cyc.n, cyc.d.live])})`);
     await sim(3.2);
     const nx = await G(() => ({ d: window.__sector.debug(), obj: !!window.__app.current.interactables.items.find((x) => x.id === 's2-obj'), alive: window.__app.current.enemyMgr.alive }));
+    await G(() => { window.__app.loop.manual = false; });
     assert(nx.d.index === 1 && nx.d.id === 's2' && nx.d.phase === 'objective' && nx.d.live === 1, `section 2 loads behind the far door (${JSON.stringify([nx.d.index, nx.d.id, nx.d.phase, nx.d.live])})`);
     assert(nx.d.doors[0].far === false && nx.d.doors[0].seal.length === 1 && nx.d.doors[0].seal.every((x) => x === false), `C1's far door and the dock door unlocked (${JSON.stringify(nx.d.doors[0])})`);
     assert(nx.obj && nx.alive === 12, `section 2 loads with its objective and its 12 guards (${JSON.stringify([nx.obj, nx.alive])})`);

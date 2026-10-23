@@ -138,7 +138,7 @@ export class QualityManager {
     const pick = flags.gfx ? { name: flags.gfx, f: GRAPHICS_PRESETS[flags.gfx] } : this.ov?.preset ? { name: this.ov.preset, f: GRAPHICS_PRESETS[this.ov.preset] } : { name: v.preset, f: v.gfx };
     // (Feature costs: one feature changed for a benchmark run)
     if (!flags.gfx && this.ov?.gfx) pick.f = { ...pick.f, ...this.ov.gfx };
-    return qualityLevel(pick.name, pick.f, false, up, v.panini);
+    return qualityLevel(pick.name, pick.f, false, up, v.panini, v.charShadows);
   }
 
   /** TAAU upscaling: on, with a render scale under 1 (the canvas stays at the display's resolution). */
@@ -149,7 +149,7 @@ export class QualityManager {
 
   private keyOf(): string {
     const v = this.settings.get().video;
-    return JSON.stringify(v.gfx) + v.preset + (this.taau ? v.renderScale : 1) + v.panini;
+    return JSON.stringify(v.gfx) + v.preset + (this.taau ? v.renderScale : 1) + v.panini + v.charShadows;
   }
 
   private configure(): void {

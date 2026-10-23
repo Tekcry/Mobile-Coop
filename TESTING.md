@@ -46,6 +46,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   in the yard facade and the hoist rail in goods-in; section 2 the high-bay rack R3S from the east gangway and the landing high on the east wall over the gangway; section 3 the valve platform
   in the east bay and the crane drive over the CNC cell, each climbable onto under its roof hood); they relay or drop the
   rope for you; alone, the lip cannot be reached. Each team door is locked from your side; your partner unbolts it from the other side; a restart bolts it again.
+- [ ] Lamp falloff (LR13, test): Settings > Gameplay > Lamp falloff > Realistic (test), then start Sector Ops: the S1
+  goods-in floor between the strips reads lit (meter and picture agree), Marlow station 2 still reads; back to Classic
+  for the old look. In co-op the host's choice applies to both (the joiner's row shows it locked).
 - [ ] Co-op: Host a room starts on Campaign (Marlow Yard); the Mode row offers Campaign and Sector Ops only.
 - [ ] Co-op guard torches (coop-torches): on a dark map, when a guard searching in the dark switches his flashlight on,
   the joiner sees the same beam from his head, aimed where he faces, and it goes off when the host's does; standing in
@@ -104,6 +107,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   rappel and fences on the Proving CT course.
 - [ ] Light: a lit pool on the light meter is lit on screen and guards there see you; a dark corner keeps you hidden
   (light parity). Shooting a lamp or a switch darkens it for the meter and the guards at once.
+- [ ] Character shadows (LR14, High and up): under a lamp near you a guard, your partner, a body or a held rifle throws
+  its real silhouette on the floor and walls (arms, legs, crouch), steady as you walk between lamps; at Medium (or
+  Graphics > Character shadows Off) the soft capsule shadows return.
 - [ ] Guard alerts (guard-ai S1-S3, Sector Ops): a thrown bottle sends one guard over while the others only turn; shoot
   a lamp with guards near and one or two check it and go back calm. Get spotted: the spotter shouts "Contact!" (guards
   within a few metres join at once), about 2.5 s later radios it in, then the rest of the section joins one by one,

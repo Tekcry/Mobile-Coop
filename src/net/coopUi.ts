@@ -1,5 +1,6 @@
 import type { App } from '../core/app';
 import type { WeatherChoice } from '../world/mapDef';
+import { matchLampFalloff } from '../world/lampMath';
 import type { GameOptions, GameState, SessionCallbacks } from '../game/gameState';
 import { clearRejoin, rejoinToken, saveRejoin, type RejoinRecord } from '../core/rejoin';
 import { flags } from '../core/flags';
@@ -203,6 +204,8 @@ class CoopController {
         missionId: mission?.id,
         weather: map.weathers?.includes(s.weather) ? s.weather : undefined,
         courseBay: s.mode === 'course' ? (s.bay ?? 1) : undefined,
+        // (lightrev LR13) the host's lamp falloff for everyone (the client's own setting and URL are ignored)
+        lampFalloff: s.lampFalloff,
         net: {
           role: session.role,
           code: session.code,
@@ -824,6 +827,8 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
 
 /** The room's controller and lobby for a connected session. */
 function adopt(app: App, api: CoopApi, session: NetSession): CoopController {
+  // (lightrev LR13) a match this host starts runs its lamp falloff (the setting, or `?falloff=photo`), read at the start
+  session.hostLampFalloff = () => matchLampFalloff(app.settings.get().gameplay.lampFalloff, flags.photoLamps);
   const c = new CoopController(app, api, session);
   current = c;
   (window as unknown as { __coop?: CoopController }).__coop = c;
