@@ -232,6 +232,13 @@ report = {
     'tris': tris, 'vertices': len(me.vertices), 'faces': len(me.polygons),
     'headRefTris': head_tris,
     'bones': n_bones, 'boneNames': [b.name for b in arm_data.bones], 'deformBones': gb.DEFORM_BONES,
+    # PLAN 5 / SPEC 6 for G4: LOD0 keeps the 33 bones, LOD1 / LOD2 the 23 rig joints (finger weights onto the wrist);
+    # influences per LOD from the kit (4 / 4 / 2)
+    'lodBones': {
+        'lod0': order + list(fingers), 'lod1': order, 'lod2': order,
+        'fold': {n: fb['parent'] for n, fb in fingers.items()},
+        'influences': kit.get('bones', {}).get('influences', [4, 4, 2]),
+    },
     'maxInfluences': int(inf.max()), 'unweightedVerts': unweighted_used, 'mhUnweightedBodyVerts': fit.unweighted,
     'jointRoundTripMaxError': rt, 'boneLengthMaxError': blen,
     'deformCheck': {'poses': 'elbows / knees 60, fingers curled 60, clavicles 15 deg', 'maxMove': moved},

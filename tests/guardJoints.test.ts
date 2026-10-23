@@ -82,8 +82,8 @@ describe('guard joints', () => {
 
   it('bigger builds give wider shoulders and a taller skeleton', () => {
     const sh = (b: (typeof BASES)[number]) => guardJoints(b).joints.find((j) => j.name === 'shR')!.pos[0];
-    expect(sh(BASES[2])).toBeGreaterThan(sh(BASES[0]));
-    expect(sh(BASES[0])).toBeGreaterThan(sh(BASES[1]));
+    expect(sh(BASES[2]!)).toBeGreaterThan(sh(BASES[0]!));
+    expect(sh(BASES[0]!)).toBeGreaterThan(sh(BASES[1]!));
     expect(guardJoints(BASES[2]).clavicleSplit).toBe(null);
   });
 
