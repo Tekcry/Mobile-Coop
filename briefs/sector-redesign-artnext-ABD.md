@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-23T20:07+1100
+status: done feature/sector-redesign-artnext 3ebc5e1e
 
 Lead note (Sector Ops Build ~20:15): build LANES A, then B, then D only (one session, in that order; lane B uses lane A's API). BASE: feature/sector-redesign-artpol @ 72e87171 (= the #226 target head 4f66a5f8 + a docs commit; do not wait for #226 to merge). New branch feature/sector-redesign-artnext. Lane C is a separate brief (sector-redesign-artnext-C.md, branch -artnext-c): do not touch src/game/sectorGuardFreeze*.ts, src/ai/animFrozen.ts, src/ai/enemy.ts. LR16 lighting builders run on the desktop now: never touch src/world/lampMath.ts, lightField.ts, bakedLamps.ts, lightRig.ts, charShadows.ts, src/voxel/*. Unit tests only (tsc + named vitest files, --maxWorkers=2). Report: docs/sector-redesign/checks/artnext-build.md. Push the branch per lane.
 
@@ -105,3 +105,26 @@ Lane A Opus (~0.75 window), lane B Sonnet (~1 window, 5 sections, may split per 
 lane D Haiku (~0.2). Fresh checker: Sonnet for lanes B / D, Opus for A / C.
 
 Progress (Cloud Builder 1, 20:32): lane A pushed to feature/sector-redesign-artnext @ 389b63bf (A1-A10; report docs/sector-redesign/checks/artnext-build.md). Lanes B (per section) and D building now.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-23)
+`feature/sector-redesign-artnext` @ 3ebc5e1e on 72e87171: lane A 389b63bf (Opus), lanes B + D 3ebc5e1e (five Sonnet
+section builders, Haiku docs). Full per-item report: `docs/sector-redesign/checks/artnext-build.md`.
+Acceptance (Cloud Builder 1 on the combined head): tsc clean; eslint clean on changed files; 13 files / 256 tests pass
+(campusArtGameplay all sections, campusS1-S5Dress, campusArtKit, campusDressRules, campusArtRender, campusArtLight,
+campusS2, campusS4, campusRuntimeNav).
+Lane A: A1 / A5 already done on base (guard + order test added for A1); A2-A4, A6-A10 done. Deviations: A2 depth <=
+ART_PROUD read as "stands at most 0.05 off the face"; A6 also exempts K13; A7 also exempts K2 legs and that door's
+K3 / K13, visual frames only; A8 `kitchenRun` gets 0.8-1.4.
+Dressing changes by design (A6 decals): S4 floor tiles 5 -> 72; `F:glandPlate` takes base-pass candidates -> S2
+`F:switchgearPanel` row 0.8 m south (4 solid art boxes move) -> CAMPUS LIGHT HASH MOVES 1mqg481 -> vnqe3i (no new
+collide box; art boxes keep `art: true`; campusArtLight passes); S3 `H3:stickyMat` 0.6 m.
+Lane B: B1 done (4 colours; S1 was 31 draws, not 39-40), B2 done (`tryAdd`, `S1_OMITTED` bikeRack K6 / parkBench K1),
+B3 done (greenWall skinFace both bays), B4 dropped (lockers rule S: 0.5 m deep on 0.3 m partitions; bench K5 / K2),
+B5 battery racks done / tile grid already done by A6 / meshPanel dropped FIT (0.05 panel on 0.1 cage boxes), B6 kitchen
+run + cupboards done / vault frame dropped (no catalogue `frame` entry) / monitor wall dropped S / deposit wall C, K4 /
+vault leaf K1, B7 done, B8 done (second portrait x -43.0 -> -42.2, K3 door 99), B9 done (stack + flange parts from
+`hero_s4.py`). artCounts after: S1 35 / S2 33 / S3 27 / S4 19 / S5 29 draws (all <= 40). Lane B added no box.
+Lane D: TESTING.md checklist, world-and-characters "Campus art kit" (existing section edited; K1-K13 not K1-K12),
+fragment. A99 line (art-check P7) already in `changes/feature-sector-redesign-art.md:17`: not repeated.
+Open for the lead: lane A options for thin panels (meshPanel depth stretch) and a per-call `proud` (monitorWall); a
+`frame` catalogue entry for the S5 vault frame; S3 lockers need a <= 0.35 m deep piece.
