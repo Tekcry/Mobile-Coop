@@ -152,6 +152,62 @@ OFF + 0.5 deg, ankle jump <= max(OFF, 11.5 cm), slide < 0.5 cm; toggle mid-straf
 knee-out <= 5.2 cm at 0.36 / 0.7 / 0.9 L / R). Always-run files pass (mocapSwitch 13/13, mocapFix2 11/11, footPlanner
 12/12, both skeleton identity files 1 + 1 skip); tsc clean; eslint clean.
 
+## Fix round 2, 2026-10-23
+Restarted from origin d504af7c (the first round-2 agent was lost at an account swap; its probes zzalloc2 / zzknee /
+zzstrafe were reused, not committed). All changes ON only (gated on `keyStrafe` or the strafes in the set).
+1. Knee outside the ankle (the e2e-anim gate, 3 cm): MET. The cause was the knee-gap rule, not the pole. In the captures'
+   closed stance (ankles 9 cm apart, both feet down ~8 frames; OFF 1) the inward pole (-0.08) brings the knees inside
+   KEYED_KNEE_GAP (11 cm) and the rule bowed both by 2.5 per unit of closing: the knees ended 15 cm apart, each 2 cm past
+   the gap and 3.4-3.5 cm outside its ankle (an IK re-solve with the frame's pole predicted 1.5 cm; the extra was the
+   bow). In the mocap strafe the bow is now STRAFE_KNEE_BOW 0.5 (characterRig, blended by keyStrafe): enough to part the
+   knees (one unit of pole moves each bent knee ~0.2 m across, so 0.11 m of gap needs 0.28). Facing frame (as e2e-anim
+   reads it) ON 2.54-3.48 -> 1.52-2.65 cm at 0.36 / 0.5 / 0.7 / 0.9 m/s L / R (OFF 2.66-2.90); pelvis frame 3.01-3.95 ->
+   1.99-3.14 (OFF 3.06-3.32). Knees never closer than 10.9 cm (OFF 11.0; e2e-clip's floor 9 cm).
+2. Allocation: MET for every steady plan. Two causes, by mutation and a sampling heap profile:
+   - the side ease `stSide` stuck one ulp short of 1 (k = 0.76 > 0.5 rounds back), so a steady strafe sampled both captures
+     and blended them every frame (a second sampleKeyed and a boxed weight, 32 B): it now snaps onto its side within 1e-4;
+   - `pIdle` merged a field (the eased still share) with the argument `idleShare`, and the merge boxed the field (16 B):
+     `loco` / `still` are now two boolean tests.
+   Bare graph, aimed, bytes a frame (fresh check's zzalloc2 order; base = mocap-on ab1cb6c6):
+
+   | Plan | OFF | base ON | round 1 ON | round 2 ON |
+   | --- | --- | --- | --- | --- |
+   | steady R | 1392 | 1424 | 1472 | 1424 |
+   | flips | 1438.9 | 1454.9 | 1502.9 | 1462.3 |
+   | start / stop | 1215.9 | 1281.9 | 1348.9 | 1297.1 |
+   | diagonal | 1532.2 | 1548.2 | 1596.2 | 1548.2 |
+
+   Steady L (base 1440) reads 1424. Left over, transient only: a flip's 0.2 s cross-fade samples both captures (+7.4 B a
+   frame over the flips plan, isolated and in order; each sampleKeyed call leaves two boxed doubles, mocapSwitch's note);
+   start / stop is equal to base run alone (1281.1 vs 1281.9) and +15 only after the flips plan in the same process (JIT
+   feedback order; the still-share and amplitude eases box one double a frame while they run, ~9 of the 15). mocapSwitch's
+   frame unchanged (off 1431.3 / on 1441.5 / filled 1503.7 / toggled 1473.9).
+3. Knee-out assert: MET. tests/mocapStrafe.test.ts reads it in the facing frame against CRAB.kneeBow (fails above 3.0 cm),
+   at 0.36 / 0.5 / 0.7 / 0.9 L / R. e2e-anim already asserts it (aimStrafe rows: 'knee-out' in CRAB_DRAWN_CHECKS, CRAB_STRAFE
+   kneeBow 3 cm; A11's MOCAP_STRAFE_DRAWN re-bases only kneeSep / trackHalf). New allocation case: steady R / L and the
+   diagonal <= OFF + 2 boxed doubles (= base ON), flips <= OFF + 4.
+4. Toggle mid-strafe: polish, not chased. Probe D (4 cycle offsets): W 0.7 17.5-21.6 deg, E 0.7 17.5-23.3, W 0.9 17.3-28.7,
+   E 0.9 17.2-26.5 (round 1: the same plans 1.7-2 deg lower at the two worst offsets, 26.7 / 24.8: the bow changes with
+   keyStrafe through the switch fade); base toggles 15.6-17.5.
+5. Switch OFF byte-identical: MET. The mt-check dump (repro/dump.test.ts) md5 9ce3f3d1c70c299dca072d3a4f15f9ea, 31,065,812
+   B. An aimed dump (26 plans: steady L / R, CT starts / stops, flips, snaps, E<->N, a diagonal; every joint, cycle time,
+   contacts; switch OFF and a guard rig switch ON) equal at d504af7c and the head: md5 5172ceea2a0ea3b16a98cf497f22bf8a.
+
+Files: `src/player/characterRig.ts` (STRAFE_KNEE_BOW, the bow blend), `src/anim/animGraph.ts` (side snap, loco / still),
+`tests/mocapStrafe.test.ts` (knee-out 3 cm facing frame, allocation case).
+Tests: mocapStrafe 11/11 (~74 s, the allocation case ~60 s of it), mocapSwitch 13/13, mocapFix2 11/11, footPlanner 12/12,
+animSkeletonIdentity / animSkeletonGuardIdentity 1 + 1 skip; tsc clean; eslint clean on the three files.
+GPU lane (desktop, E2E_GPU=1): see below.
+
+Found by the checker's probe on the head, present at d504af7c too (the same numbers with either file reverted), not in
+this round's goals, for the lead:
+- `C restart E 0.9 stand 0.3 +0` (strafe 1.2 s, stand 0.3 s, again): planted slide 3.87 cm, pelvis 2.32 cm (842270f0: 0 /
+  1.80). Likely round 1's footPlanner strafe toe-off / takeover rules (stOff, stTake).
+- `B snap 0.9 W->E /1.37` (flip every 1.37 s): pelvis 3.34 cm (OFF 1.11; 842270f0 1.29). `D tgl flip 0.7` ON baseline
+  (flip every 1.3 s): pelvis 2.36 (OFF 0.93).
+- `B snap 0.9 NW->SE /1.37`: planted slide 1.21 cm (as at 842270f0).
+- Not a strafe defect: `C raise/lower /1.1` slides 23-27 cm OFF and ON (the harness holds yaw while lowered).
+
 ## Not done / open
 - Toggling the switch mid-strafe is covered by the rig's switch cross-fade only (A8's residual applies; not probed here).
 - The aimed strafe ON allocates 144 B a frame over OFF (two capture samples and the side-step), against 32 B for the
