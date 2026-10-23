@@ -498,6 +498,7 @@ try {
         t.tp(-2, -15, 0);
         let ghost = false;
         let searching = false;
+        let searchAt = -1;
         let closest = 99;
         let wallhack = false;
         // why no ghost, if none: the first frame each condition of `updateStealthHud`'s show held
@@ -512,16 +513,24 @@ try {
           if (why.lkp < 0 && em.lkpValid) why.lkp = i;
           if (why.show < 0 && g.ghost.show) why.show = i;
           if (g.ghost.visible) ghost = true;
-          if (e.level === 'searching') searching = true;
+          if (e.level === 'searching' && !searching) {
+            searching = true;
+            searchAt = (i + 1) * 0.05;
+          }
           closest = Math.min(closest, Math.hypot(e.pos.x - seenAt.x, e.pos.z - seenAt.z));
           if (e.level === 'alert' && e.sinceSeen > 1 && Math.hypot(e.pos.x + 2, e.pos.z + 15) < 2) wallhack = true;
         }
         const lkpNear = Math.hypot(em.lkp.x - seenAt.x, em.lkp.z - seenAt.z);
-        // the search ends
-        for (let i = 0; i < 50; i++) t.step(1);
+        // the search ends: it runs its length (`ALERT.searchTime` 60 s) from when it started, then he calms. (guard-ai
+        // walk 4.82 item 2) He no longer sits in cover until the 12 s lost-sight cap: he closes on the last known
+        // position first and the search starts on arrival, so it starts later than the old fixed 25 + 50 s window
+        // allowed for. Stepped until the level leaves the fight / search, bounded by the search's own length + 5 s (a
+        // search that never ends, or one that restarts, still fails here).
+        for (let i = 0; i < 120 && (e.level === 'alert' || e.level === 'searching') && !(e.level === 'searching' && e.aware.t >= 65); i++) t.step(1);
+        const endT = e.aware.t;
         for (let i = 0; i < 5; i++) g.frameUpdate(0.2, 1);
         t.light(null);
-        return { seen, why, lkpNear, ghost, searching, closest, wallhack, end: e.level, lkpAfter: em.lkpValid, ghostAfter: g.ghost.visible };
+        return { seen, why, lkpNear, ghost, searching, searchAt, endT, closest, wallhack, end: e.level, lkpAfter: em.lkpValid, ghostAfter: g.ghost.visible };
       } finally {
         Math.random = rnd;
       }
@@ -530,9 +539,9 @@ try {
     assert(r.lkpNear < 1.5, `the last known position stays where the player was seen (${r.lkpNear.toFixed(2)} m off)`);
     assert(r.ghost, `the LKP ghost shows once they lose sight (first frame of: ${JSON.stringify(r.why)}, captured ${r.seen.captured})`);
     assert(r.closest < 2.5, `they converge on the last known position (closest ${r.closest.toFixed(2)} m)`);
-    assert(r.searching, 'they search from it');
+    assert(r.searching, `they search from it (from ${r.searchAt.toFixed(2)} s after he vanished)`);
     assert(!r.wallhack, 'they never home in on the hidden player');
-    assert(r.end === 'cooldown' || r.end === 'unaware', `the search ends (${r.end})`);
+    assert(r.end === 'cooldown' || r.end === 'unaware', `the search ends (${r.end}; started ${r.searchAt.toFixed(2)} s after he vanished, ${r.endT.toFixed(0)} s in that level at the end)`);
     assert(!r.lkpAfter && !r.ghostAfter, 'the LKP and its ghost clear afterwards');
   });
 

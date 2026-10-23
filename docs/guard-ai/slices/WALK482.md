@@ -100,3 +100,28 @@ relay corridor, or every training camera there).
   stage brings reinforcements, but the field is meant for course training cameras only). Marlow decides whether the
   exercise skips the stage too.
 - Item 2's other map parts (S2 fail on spotted, more guards, linear lanes, overwatch above lit crossings): Marlow.
+
+## Laptop triage (e2e-stealth-ai, run e67614c0 + rerun)
+
+Failure: `lkp` scenario, `ASSERT: the search ends (searching)`, deterministic (seeded draws), run and rerun. The S24 base
+passed it.
+
+Cause: a test timing window, not an AI leak. The `lkp` scenario is exactly item 2's case (a lone guard sees the lit
+player, the player vanishes behind the dispatch wall). It stepped a fixed 25 s + 50 s after the vanish and expected the
+60 s search (`ALERT.searchTime`, `src/ai/alertState.ts:33`) to be over. Before walk482 the guard sat in cover until
+`ALERT.lostSight` (12 s) made it a search, so the search ended at ~72 s, inside the 75 s window (3 s margin). Now he
+leaves cover after his call and a peek (`closeFromCover`, `src/ai/enemy.ts` `inCover`), closes on the last known
+position, and the search starts on arrival (`Enemy.updateAwareness`, the arrival rule), more than 15 s after the vanish,
+so at 75 s it was still running. Every earlier assert in the scenario still passed (converges 0.62 m, searches from it,
+no wallhack). A search with no sighting is untouched (`closing` needs combat and a last known position), and the search
+still ends: `searching` -> `cooldown` after `searchFor` is unchanged code, the guard is a standard grunt (not
+`neverCautious`).
+
+Fix (test only, `scripts/e2e-stealth-ai.mjs` `lkp`): record when the search starts (`searchAt`), then step 1 s at a time
+until the level leaves `alert` / `searching`, bounded by the search's own length + 5 s (`e.aware.t` >= 65 s in
+`searching`) and 120 s overall, so a search that never ends or restarts still fails the assert. The assert texts now
+print the search start and the time in the final level.
+
+Tests: `node --check scripts/e2e-stealth-ai.mjs` OK; `npx vitest run tests/loneGuardEngage.test.ts` 11/11 pass. No src
+change, so no tsc rerun needed. e2e not run locally (laptop queue rule): queued as set `walk482-fix`, suite
+`e2e-stealth-ai` (the run also covers the unrun 'report then engage' scenario after `lkp`).
