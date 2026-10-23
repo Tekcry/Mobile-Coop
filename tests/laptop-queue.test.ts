@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection } from '../scripts/laptop-queue/lib.mjs';
+import { capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -308,5 +308,16 @@ describe('claims and the desktop lane', () => {
     expect(desktopSlotGate({ ...base, dirOk: false })).toBe('worktree missing');
     expect(desktopSlotGate({ ...base, backlog: 3 })).toMatch(/backlog/);
     expect(desktopSlotGate({ ...base, cpu: NaN })).toBe('cpu unknown');
+  });
+});
+
+describe('trainBuildFailed', () => {
+  it('an auto-train/* failure or error skips the train; success, pending and other contexts do not', () => {
+    expect(trainBuildFailed([{ context: 'laptop-e2e', state: 'pending' }, { context: 'auto-train/vitest', state: 'failure' }])).toEqual({ context: 'auto-train/vitest', state: 'failure' });
+    expect(trainBuildFailed([{ context: 'auto-train/build', state: 'error' }])).toEqual({ context: 'auto-train/build', state: 'error' });
+    expect(trainBuildFailed([{ context: 'auto-train/vitest', state: 'success' }, { context: 'auto-train/x', state: 'pending' }])).toBeNull();
+    expect(trainBuildFailed([{ context: 'laptop-e2e', state: 'failure' }, { context: 'ci/auto-train', state: 'failure' }])).toBeNull();
+    expect(trainBuildFailed([])).toBeNull();
+    expect(trainBuildFailed(undefined)).toBeNull();
   });
 });

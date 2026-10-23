@@ -17,7 +17,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { capTail, claimBlocks, describe, desktopSlotGate, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, runComplete, shard, superseded, suiteSection } from './lib.mjs';
+import { capTail, claimBlocks, describe, desktopSlotGate, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, runComplete, shard, superseded, suiteSection, trainBuildFailed } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -206,7 +206,9 @@ function syncDone() {
  * error skips the head this pass (never read as "no status"). Merged heads and heads older than LQ_TRAIN_MAX_AGE_H
  * (default 24) are skipped. Only the head of an open train/<n> PR whose subject is the train's version commit runs:
  * a closed train, a PR not open yet or a pre-version head is never run; a failed PR list skips every train this pass.
+ * A head whose auto-train/* status is failure or error is skipped (logged once per head per process).
  */
+const buildFailLogged = new Set();
 function pendingTrains() {
   const out = [];
   const maxAge = Number(process.env.LQ_TRAIN_MAX_AGE_H ?? 24) * 3600;
@@ -224,10 +226,17 @@ function pendingTrains() {
     const age = Date.now() / 1000 - Number(git(['show', '-s', '--format=%ct', m[1]], { soft: true }));
     if (!(age < maxAge)) continue;
     try { git(['merge-base', '--is-ancestor', m[1], 'origin/master']); continue; } catch { /* not merged */ }
-    let st;
+    let sts;
     try {
-      st = gh(['api', `repos/${REPO}/commits/${m[1]}/status`, '--jq', '[.statuses[] | select(.context == "laptop-e2e") | .state] | first // ""']);
+      sts = JSON.parse(gh(['api', `repos/${REPO}/commits/${m[1]}/status`, '--jq', '[.statuses[] | {context, state}]']) || '[]');
     } catch (e) { log(`train ${m[2]} ${m[1].slice(0, 8)}: status read failed, skipped this pass: ${String(e.message).split('\n')[0]}`); continue; }
+    // its build already failed (auto-train/vitest, ...): never take both slots for it (train 37: 18 min after vitest failed)
+    const bad = trainBuildFailed(sts);
+    if (bad) {
+      if (!buildFailLogged.has(m[1])) { buildFailLogged.add(m[1]); log(`train ${m[2]} ${m[1].slice(0, 8)}: skipped, ${bad.context} ${bad.state}`); }
+      continue;
+    }
+    const st = sts.find((s) => s.context === 'laptop-e2e')?.state ?? '';
     if (st === '' || (st === 'pending' && !claimed.has(m[1]))) out.push({ sha: m[1], n: m[2], stale: st === 'pending' });
   }
   return out;

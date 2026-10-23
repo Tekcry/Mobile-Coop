@@ -255,3 +255,11 @@ export function failureExcerpt(sectionText) {
   const assert = lines.find((x) => /not ok|Error:|timed out|FAIL/.test(x)) ?? '';
   return { assert, tail40: lines.slice(-40).join('\n') };
 }
+
+/**
+ * The train's own build already failed: the first auto-train/* status (auto-train/vitest, ...) in failure or error as
+ * { context, state }, else null. statuses = a combined status list (latest per context). Such a head never takes the slots.
+ */
+export function trainBuildFailed(statuses) {
+  return (statuses ?? []).find((s) => /^auto-train\//.test(String(s?.context)) && (s.state === 'failure' || s.state === 'error')) ?? null;
+}
