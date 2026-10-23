@@ -204,7 +204,7 @@ references and six claims below were corrected on 2026-10-23 (spec writer).
 **Revive**
 - 30 s window; 2 revives per mission as a team total (`reviveClock.ts:8-10`); a 2.5 s hold divided by the HQ revive speed (`coopHost.ts:51`, :148).
 - LD 12.1's "there is no bleed-out" is stale.
-- The height rule: the revive is an interactable on the downed body (`coopHost.ts:401`, :428-433), moved onto it every step (:1125-1129), offered within 1.8 m horizontally and under 1.5 m of height between the item and the reviver's feet (`interactables.ts:132-140`); the host accepts a client's use within 2.55 m and 2 m of height (`coopHost.ts:575`). A player downed on a ledge or deck is revived only from that level.
+- The height rule: the revive is an interactable on the downed body (`coopHost.ts:401`, :428-433), moved onto it every step (:1125-1129), offered within 1.6 m horizontally (the item's `reach`; the 1.8 m default does not apply) and under 1.5 m of height between the item and the reviver's feet (`interactables.ts:132-140`); the host accepts a client's use within 2.55 m and 2 m of height (`coopHost.ts:575`). A player downed on a ledge or deck is revived only from that level.
 
 **Draws, CPU, memory** (`docs/systems/performance.md`)
 - At most 600 draws and 8 M triangles per frame over every pass.

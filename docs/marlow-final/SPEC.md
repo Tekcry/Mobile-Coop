@@ -863,7 +863,7 @@ not a loosening).
   test over every box top in the band, LD 11.5).
 - **Revive.** A player downed on each co-op surface (A1 yard, A2 staging, A6 gallery, A8 gallery) can be revived (e2e,
   LD 15). Revive window 30 s, 2 per mission for the team (`reviveClock.ts`), a 2.5 s hold. The revive is an
-  interactable on the downed body: offered within 1.8 m horizontally and under 1.5 m of height (ENGINE-ANSWERS Q6), so
+  interactable on the downed body: offered within 1.6 m horizontally (the item's own reach, `coopHost.ts` `addRevive`; 1.8 m is only the interactables default) and under 1.5 m of height (ENGINE-ANSWERS Q6), so
   a player downed on a deck or gallery is revived only from that level; each co-op surface needs room to stand beside
   a downed player.
 - **Both extract** (G138): the cash dock exit zone needs both.
@@ -1206,7 +1206,7 @@ CONSTRAINTS section 2; 14-16 stay open for slices 0d / 0g.
    upper levels their own zones (section 7).
 4. Squad despawn before spawn. Answer: yes, but bodies stayed; 0a switches to `em.despawn` (section 14 N7).
 5. `TEAM.ladderGrab` 4.1 vs the 4.4 lips. Answer: moot; leg-up to 4.5, relay to 4.6, `ladderGrab` unread (section 12).
-6. The revive height rule. Answer: an interactable on the body, 1.8 m horizontal, under 1.5 m of height (section 12).
+6. The revive height rule. Answer: an interactable on the body, 1.6 m horizontal, under 1.5 m of height (section 12).
 7. Glass (N10, P17). Answer: `kit.glass` (an invisible collide box in the static body) stops bodies, bullets, guard and
    camera sight and jam lines, passes baked lamp light, offers no window prompt; a guard's torch is blocked for the
    meter but drawn in the picture; no see-through pane blocks light (sections 5, 14 N10, 18 F2 / A3-5).
