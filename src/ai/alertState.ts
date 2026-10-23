@@ -75,10 +75,15 @@ export interface AlertInput {
    *  finds nothing ends back to normal (unaware), not in the cooldown (design 3 "return back to normal"). A guard who
    *  has fought keeps his cooldown. */
   calmEnd: boolean;
+  /** (guard-ai S4, design 4) Cautious (`awareness.ts`: he knows of a death, or found / was woken from a knockout):
+   *  calm, he stays on edge (cooldown: `SENSITIVITY.cooldown` 1.3 = `CAUTION.sens`) and never goes unaware until it
+   *  clears; then the cooldown ends as usual (`cooldownTime` from when he went on edge, so at once after a long
+   *  caution; never if he has fought). */
+  cautious: boolean;
 }
 
 export function emptyAlertInput(): AlertInput {
-  return { meter: 0, seeing: false, arrived: false, sinceSeen: 99, heard: false, damaged: false, gunfire: false, called: false, search: false, hold: false, turning: false, calmEnd: false };
+  return { meter: 0, seeing: false, arrived: false, sinceSeen: 99, heard: false, damaged: false, gunfire: false, called: false, search: false, hold: false, turning: false, calmEnd: false, cautious: false };
 }
 
 export class AlertMachine {
@@ -140,7 +145,9 @@ export class AlertMachine {
           this.set('suspicious');
           this.sound = i.heard;
         }
-        else if (this.level === 'cooldown' && !this.fought && this.t >= ALERT.cooldownTime) this.set('unaware');
+        // (guard-ai S4) cautious: on edge while it lasts
+        else if (this.level === 'unaware' && i.cautious) this.set('cooldown');
+        else if (this.level === 'cooldown' && !this.fought && !i.cautious && this.t >= ALERT.cooldownTime) this.set('unaware');
         break;
       case 'suspicious':
         if (i.heard) this.sound = true;

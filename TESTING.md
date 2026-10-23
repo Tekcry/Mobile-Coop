@@ -50,6 +50,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Co-op guard torches (coop-torches): on a dark map, when a guard searching in the dark switches his flashlight on,
   the joiner sees the same beam from his head, aimed where he faces, and it goes off when the host's does; standing in
   it raises the joiner's light meter as it raises the host's.
+- [ ] Co-op throw onto a guard (throw-ko): one player stands and offers the partner throw (RB standing), the other runs
+  in about 3 m in front of a standing guard and is thrown over: the guard drops knocked out as the partner comes down
+  on him, on both screens; a guard a step or more past the landing is left standing. Try it with each player thrown.
 - [ ] Co-op on the High or Epic preset, host and joiner in two windows (side by side, then one over the other): each
   sees the other's character, and the joiner's "Connecting to host" goes away once in the match.
 - [ ] Marlow Yard in co-op: every station's task shows as the HUD step line on both screens; a radio line follows each
@@ -101,10 +104,24 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   a lamp with guards near and one or two check it and go back calm. Get spotted: the spotter shouts "Contact!" (guards
   within a few metres join at once), about 2.5 s later radios it in, then the rest of the section joins one by one,
   nearest first. Take the spotter down before his radio line and nobody beyond shouting range comes.
+- [ ] Bodies and caution (guard-ai S4): kill a guard in view of another: he shouts "Man down!", searches and radios it;
+  take him out within ~2 s and the rest stay normal; let it through and the section stays on edge until everyone who
+  knows is down. Knock one out and let him be found: the finder wakes him, both search ~1 min, stay on edge ~3 min,
+  then normal; nobody else changes.
+- [ ] Posted guards (guard-ai S5; once a map has a high-security post, e.g. the campus keyholders): throw a bottle or cut
+  the light near him: he walks to the edge of his area, looks toward it ~5 s, walks back and faces his post; he never
+  follows a search or chases you out of his area.
+- [ ] Cameras see bodies (guard-ai S7, Sector Ops): knock a guard out where a camera sweeps (lit or dark): the desk
+  radios "Camera N has a man down..." and the nearest guard walks over and wakes him; loop or jam the camera first and
+  nobody comes.
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
 - [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
   glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen
   clear, a soft dark band only at the edges and corners).
+- [ ] Guards render (guard-render S1): in Sector Ops or Marlow Yard a guard close up looks normal, in thermal and in night
+  vision (same shape, colours and pattern as with `?guardmerge=0`); it flashes on a hit and a downed guard ragdolls
+  with no missing or stretched parts. A guard at the screen edge or on a stair does not pop out early. Heads, hands and
+  feet cast shadows now (accepted).
 - [ ] Wheel carousel: hold LB (Tab), put the cursor on the vision slot, A (E) cycles night, thermal, electro; release
   selects it. The wheel reopens on that mode. A off the vision slot does nothing.
 - [ ] (sector-fixes W) The wheel opens on the vision slot: hold LB and tap A with the right stick untouched, the mode
