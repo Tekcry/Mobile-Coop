@@ -1,0 +1,14 @@
+{
+  "id": "20261023T143243-night-shift-guard-ai-5d1331fe-c313",
+  "sha": "5d1331fe3ff18c15fcc4881db5c1818f1710784a",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-ctcourse:2"
+  ],
+  "jobs": 2,
+  "set": "s23-a3diag",
+  "note": "S23 A3 diag: master+S23 + guard trace at the swap line (feature/guard-ai-s23-train); expect FAIL with the trace"
+}
