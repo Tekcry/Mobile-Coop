@@ -183,6 +183,7 @@ export async function walk(t, n) {
   await moveHost(77.2, 9.6, 0.1, Math.PI / 2);
   await moveClient(77.2, 11.6, 0.1, Math.PI / 2);
   assert(!(await lockedOnClient('L2-far')), 'A3: the L2 far door is open to the client');
+  assert(await GA((i) => !window.__app.current.world.doors.list[i].anchor.locked, await doorIndex('L2-far')), 'A3: the L2 far door is unlocked on the host');
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
     await until(P, () => /Jam the camera for each other/.test(document.querySelector('.course-hud')?.textContent ?? ''), null, 15000, `the ${tag} sees the shared step line`);
     assert(!!(await cam(P)), `A3: the ${tag} has the corridor camera ${CAM_ID}`);
@@ -210,6 +211,30 @@ export async function walk(t, n) {
     return { mode: c.mode, ric: g.security.ricochets };
   }, CAM_ID);
   assert(shots.mode === 'online' && shots.ric >= 2, `A3: the hall camera survives two shots (ricochets) (${JSON.stringify(shots)})`);
+  // (marlow-polish P2-2) the client's own round off the bulletproof camera (CoopClient's `weapons.onRay` hook, called directly: no real
+  // trigger pull, so no noise for the cleaner and no host resolution): the sparks play on the client page only (`ctDev.ricochets` and the
+  // active vfx particles rise), the host's camera stays online and its ricochet count does not move. A ray 1.5 m under the housing is a miss.
+  const hostRic0 = await GA(() => window.__app.current.security.ricochets);
+  const cliRic = await GB((id) => {
+    const g = window.__app.current;
+    const c = g.ctDev.cams.find((q) => q.def.id === id);
+    const V = g.player.position.constructor;
+    const live = () => g.vfx.particles.filter((p) => p.active).length;
+    const ric0 = g.ctDev.ricochets;
+    const part0 = live();
+    // the same axis through the housing as the host's two shots above
+    g.weapons.onRay(new V(c.x - 6, c.y, c.z), new V(c.x + 1, c.y, c.z));
+    const ric1 = g.ctDev.ricochets;
+    const part1 = live();
+    // teeth: a ray 1.5 m under the housing passes below it and plays nothing
+    g.weapons.onRay(new V(c.x - 6, c.y - 1.5, c.z), new V(c.x + 1, c.y - 1.5, c.z));
+    return { ric0, ric1, ric2: g.ctDev.ricochets, part0, part1, mode: c.mode };
+  }, CAM_ID);
+  assert(cliRic.ric1 === cliRic.ric0 + 1, `A3: the client's own round off the hall camera sparks once on the client (${JSON.stringify(cliRic)})`);
+  assert(cliRic.part1 > cliRic.part0, `A3: the client's ricochet sparks are drawn on the client page (${JSON.stringify(cliRic)})`);
+  assert(cliRic.ric2 === cliRic.ric1, `A3: a ray 1.5 m under the housing does not spark on the client (${JSON.stringify(cliRic)})`);
+  const hostAfter = await GA((id) => ({ mode: window.__app.current.security.cameras.find((q) => q.def.id === id).mode, ric: window.__app.current.security.ricochets }), CAM_ID);
+  assert(hostAfter.mode === 'online' && hostAfter.ric === hostRic0, `A3: the client's round leaves the host's camera online and its ricochet count unchanged (${JSON.stringify({ ...hostAfter, before: hostRic0 })})`);
   await GA(() => {
     const g = window.__app.current;
     const e = g.enemyMgr.enemies.find((q) => q.alive);
@@ -444,6 +469,7 @@ export async function walk(t, n) {
   await moveHost(98.6, 9.0, 0.1, Math.PI / 2);
   await moveClient(98.6, 11.0, 0.1, Math.PI / 2);
   assert(!(await lockedOnClient('L3-near')), 'A3: the L3 near door is open to the client');
+  assert(await GA((i) => !window.__app.current.world.doors.list[i].anchor.locked, await doorIndex('L3-near')), 'A3: the L3 near door is unlocked on the host');
   for (const P of [A, B]) await until(P, () => !window.__app.current.traversal.attached, null, 10000, 'A3: nobody is hanging');
   assert(/holding room three/.test(await stepLine(A)), 'A3: the host still reads the closing line');
   await t.offHostStep(A, hurtKey);

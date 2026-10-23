@@ -11,3 +11,4 @@ kind: patch
   (the client out only for the dark send-back), so the lure no longer finds them (a step-4 "calm" timeout flake).
 - Docs (code): the protocol 42 comment names the `sector` message's `rh`.
 - Sector Ops: the per-section synced-takedowns list for `rh` is built with the run, so the two always reset together.
+- Tests: e2e-ctcourse A3 1b asserts the client's own round off the bulletproof hall camera sparks on the client only (host camera online, host ricochet count unchanged, a ray under the housing does not spark); A3 also asserts the L2 far and L3 near doors unlocked on the host.
