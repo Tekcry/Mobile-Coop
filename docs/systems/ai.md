@@ -376,8 +376,18 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   soft push only), so two guards face to face in a doorway or a narrow corridor never wait forever (S20 check, A127).
   `tryMove` asks `AiContext.doorStep` (`EnemyManager`: `DoorGate.blocking`):
   a step into or across a shut leaf is refused; a door not locked is opened `Doors.open(d, 'enemy')` and he waits for
-  `DOOR_GATE.pass`; a locked door stops him at the leaf (he waits). The grid still walks every doorway (no closure per
-  door: A116); Sector Ops' keypad, bolt, lockdown and pair-gate closures are unchanged.
+  `DOOR_GATE.pass`; a locked door stops him at the leaf (he waits; since S28 only a stale route or a straight walk
+  meets one). Sector Ops' keypad, bolt, lockdown and pair-gate closures are unchanged.
+- Locked doors on the grid (guard-ai S28, Marlow A7 `A7-cage-w`; `ai/lockedDoors.ts`, pure, `tests/lockedDoorPath.test.ts`):
+  S20's grid walked every doorway (A116), so A* routed through a locked door and the guard stood at its leaf (~15 s).
+  Now each door has a nav closure (the Sector Ops door size, `STAGE_NAV_ACROSS` / `STAGE_NAV_ALONG`), built with the
+  gate on the manager's first update, held shut while the door is locked and shut (`lockedShut`: `anchor.locked`,
+  `target` 0; a locked door standing open stays walkable). `LockedDoorNav.sync` runs each manager update and at once
+  from `Doors.onLocked` (any `setLocked`: course gates, Sector Ops stage / team / keypad locks), so the
+  `NavGrid.version` bump replans the flow field and every held route once. No guard has a key (the sector `keyholder`
+  is a fixed-post role): every guard treats a locked shut door as a wall. An unreachable goal (only a locked door
+  between) falls back as before (patrol: straight at the point, stopped by the gate; search: the point skipped), and
+  `Enemy.goTo` retries its A* once a `routeT` (1 s), a new goal or a grid change, not every frame (`routeMiss`).
 - Weapon carry (guard-ai S21, walk 4.72 G5, A120-A126; `ai/carryState.ts` pure: `calmArea`, `mayHolster`, `carrySlotOf`,
   `GuardCarry`, numbers `GUARD_CARRY`; render side `GuardGunCarry` in `ai/enemyRig.ts`): every guard stays armed. A calm
   guard in a calm area (unaware, no caution, no board task, no alarm raised and (guard-ai S27, A164) no alarm stage
@@ -528,6 +538,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   `version`, which makes `goTo` routes and the manager's flow field replan. Sector Ops shuts each bolted team door's
   doorway this way (`sectorMode.findBolts` / `unbolt` / `rebolt`; host and solo only, the client has no grid).
   (guard-ai S20) Other doors are not on the grid: the walker's door gate (`ai/doorGate.ts`) stops guards at a shut leaf.
+  (guard-ai S28) A locked shut door is: `ai/lockedDoors.ts` holds a closure per door while it is locked and shut.
 - Multi-level: the grid is layered - up to 3 standing surfaces per column by default (`sampleLayers`; a surface needs
   `HEADROOM` 1.7 m; a map may raise `navLayers`), cell = `layer * cols + column`; columns join by height (`stepTo`). Links
   (`navLinks`): ladders both ways (`kind 'ladder'`), ledge drops 1-2.2 m one way; A* / Dijkstra take them, paths split at
