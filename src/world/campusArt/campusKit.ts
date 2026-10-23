@@ -42,7 +42,7 @@ const ROWS: readonly Row[] = [
   { id: 'whiteboard', fp: [-0.9, 0, 0.9, 0.04], y: [0.9, 2.1], cls: 'visual', tris: 40 },
   { id: 'noticeBoard', fp: [-0.6, 0, 0.6, 0.03], y: [1.1, 2.0], cls: 'visual', tris: 40 },
   { id: 'wallClock', fp: [-0.175, 0, 0.175, 0.05], y: [2.025, 2.375], cls: 'visual', tris: 60 },
-  { id: 'fireExtinguisher', fp: [-0.09, 0, 0.09, 0.2], y: [0.3, 0.95], cls: 'visual', tris: 80 },
+  { id: 'fireExtinguisher', fp: [-0.095, 0, 0.095, 0.2], y: [0.3, 0.95], cls: 'visual', tris: 80 },
   { id: 'fireCallPoint', fp: [-0.05, 0, 0.05, 0.05], y: [1.35, 1.45], cls: 'visual', tris: 30 },
   { id: 'exitSign', fp: [-0.2, 0, 0.2, 0.05], y: [0, 0.15], cls: 'visual', tris: 30 },
   { id: 'ceilingDiffuser', fp: [-0.3, -0.3, 0.3, 0.3], y: [-0.03, 0], cls: 'visual', tris: 40 },

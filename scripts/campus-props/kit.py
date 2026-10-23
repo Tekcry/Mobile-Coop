@@ -134,7 +134,7 @@ def wall_clock():
 def fire_extinguisher():
     p = 'fireExtinguisher'
     box(p, 'steelDark', (-0.04, 0.45, 0.0), (0.04, 0.75, 0.02))
-    cyl(p, 'red', (0.0, 0.6, 0.11), 0.09, 0.6, segs=8)
+    cyl(p, 'red', (0.0, 0.6, 0.105), 0.095, 0.6, segs=8)
     box(p, 'plastic', (-0.03, 0.9, 0.07), (0.03, 0.95, 0.15))
 
 
