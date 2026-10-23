@@ -186,6 +186,72 @@ def lod_bones_from_kit(bones):
             'influences': list(bones.get('influences', [4, 4, 2]))}
 
 
+def island_labels(nv, edges):
+    """Loose-island label per vertex (the smallest vertex index of its island) from an (m, 2) int edge array: min-label
+    hooking with pointer jumping, all numpy (a 1M-triangle garment hero settles in a few rounds)."""
+    lab = np.arange(nv)
+    edges = np.asarray(edges, np.int64).reshape(-1, 2)
+    if not len(edges):
+        return lab
+    u, v = edges[:, 0], edges[:, 1]
+    while True:
+        lu, lv = lab[u], lab[v]
+        m = np.minimum(lu, lv)
+        new = lab.copy()
+        np.minimum.at(new, lu, m)
+        np.minimum.at(new, lv, m)
+        while True:
+            nn = new[new]
+            if np.array_equal(nn, new):
+                break
+            new = nn
+        if np.array_equal(new, lab):
+            return lab
+        lab = new
+
+
+def island_mask(co, loop_verts, loop_start, loop_total, target=None, min_diag=0.0):
+    """Per-polygon keep mask over a mesh's loose islands, for a LOD mesh whose source carries many tiny islands (G2's
+    stitches, rivets, grommets: a collapse decimate cannot take an island below a few triangles, so 5,000 stitches floor
+    a garment far over its budget; the full source still bakes them into the atlas). Islands whose bounding-box diagonal
+    is under `min_diag` go first; then, when `target` is given, the smallest remaining islands go until the triangles left
+    fit it. The largest island always stays. Returns (keep, islands dropped)."""
+    co = np.asarray(co, np.float64).reshape(-1, 3)
+    lv = np.asarray(loop_verts, np.int64)
+    ls = np.asarray(loop_start, np.int64)
+    lt = np.asarray(loop_total, np.int64)
+    npoly = len(ls)
+    if not npoly:
+        return np.ones(0, bool), 0
+    poly_of_loop = np.repeat(np.arange(npoly), lt)
+    first = lv[ls][poly_of_loop]
+    lab = island_labels(len(co), np.stack([lv, first], 1))
+    plab = lab[lv[ls]]
+    ids, pinv = np.unique(plab, return_inverse=True)
+    k = len(ids)
+    tris = np.bincount(pinv, weights=lt - 2, minlength=k)
+    used = np.unique(lv)
+    vinv = np.searchsorted(ids, lab[used])
+    lo = np.full((k, 3), np.inf)
+    hi = np.full((k, 3), -np.inf)
+    np.minimum.at(lo, vinv, co[used])
+    np.maximum.at(hi, vinv, co[used])
+    diag = np.linalg.norm(hi - lo, axis=1)
+    big = int(np.argmax(tris))
+    drop = diag < min_diag
+    drop[big] = False
+    if target is not None:
+        left = tris[~drop].sum()
+        for i in np.argsort(diag, kind='stable'):
+            if left <= target:
+                break
+            if drop[i] or i == big:
+                continue
+            drop[i] = True
+            left -= tris[i]
+    return ~drop[pinv], int(drop.sum())
+
+
 def _selftest():
     v, c = raster([[[0, 0], [8, 0], [0, 8]]], [1.0], 8, 8)
     assert c[0, 0] and not c[7, 7] and v[0, 0] == 1.0, 'raster'
@@ -211,6 +277,17 @@ def _selftest():
     assert lb['fold'] == {'fingerL_1_1': 'wrL'} and lb['influences'] == [4, 4, 2], 'lodBones fold'
     n = renormalize(np.array([[[0.5, 0.5, 0.75, 1.0]]]))
     assert abs(n[0, 0, 2] - 1.0) < 1e-6, 'renormalize'
+    lab = island_labels(7, [[5, 4], [4, 3], [3, 2], [2, 1], [1, 0]])
+    assert list(lab) == [0, 0, 0, 0, 0, 0, 6], 'island labels'
+    co = [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0], [5, 5, 5], [5.001, 5, 5], [5, 5.001, 5],
+          [2, 0, 0], [2.5, 0, 0], [2, 0.3, 0]]
+    lv, ls, lt = [0, 1, 2, 0, 2, 3, 4, 5, 6, 9, 8, 7], [0, 3, 6, 9], [3, 3, 3, 3]
+    keep, n = island_mask(co, lv, ls, lt, None, 0.01)
+    assert list(keep) == [True, True, False, True] and n == 1, 'islands: tiny'
+    keep, n = island_mask(co, lv, ls, lt, 2, 0.0)
+    assert list(keep) == [True, True, False, False] and n == 2, 'islands: to budget'
+    keep, n = island_mask(co, lv, ls, lt, 0, 10.0)
+    assert list(keep) == [True, True, False, False] and n == 2, 'islands: largest stays'
     print('guard_lod_util self-test: ok')
 
 

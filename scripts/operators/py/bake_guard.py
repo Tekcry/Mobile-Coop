@@ -58,6 +58,7 @@ COPY_CAGE = 0.0015                   # a LOD0 piece that is its source unchanged
 COVER_REACH = 0.08                   # body faces whose outward ray meets a garment within this are covered
 SEAM_TOL = 0.002                     # head seam vertex to body seam vertex (m)
 SCALP_REACH = 0.010                  # LOD2: head vertices this close to the buzz cap take the hair slot
+ISLAND_MIN = 0.02                    # LOD meshes drop loose islands smaller than this (stitches, rivets; they bake in)
 AO_SAMPLES = 32
 NOTES = []
 
@@ -223,6 +224,63 @@ def decimate(obj, target, keep_group=None):
         bpy.ops.object.modifier_apply(modifier=m.name)
     triangulate(obj.data)
     return tri_count(obj.data)
+
+
+def drop_islands(obj, target=None, min_diag=0.0):
+    """Drops obj's loose islands under `min_diag`, then the smallest until `target` triangles fit (U.island_mask)."""
+    me = obj.data
+    co = np.empty(len(me.vertices) * 3, np.float64)
+    me.vertices.foreach_get('co', co)
+    lv = np.empty(len(me.loops), np.int32)
+    me.loops.foreach_get('vertex_index', lv)
+    ls = np.empty(len(me.polygons), np.int32)
+    lt = np.empty(len(me.polygons), np.int32)
+    me.polygons.foreach_get('loop_start', ls)
+    me.polygons.foreach_get('loop_total', lt)
+    keep, dropped = U.island_mask(co, lv, ls, lt, target, min_diag)
+    if dropped:
+        drop_faces(obj, keep)
+    return dropped
+
+
+def decimate_piece(obj, target, label):
+    """A garment / gear LOD mesh to `target` triangles: tiny islands out first (a collapse decimate floors each island at
+    a few triangles), then decimate, then the smallest islands out while still over (the source keeps them all)."""
+    n0 = tri_count(obj.data)
+    tiny = drop_islands(obj, None, ISLAND_MIN) if n0 > target else 0
+    n = decimate(obj, target)
+    # a collapse decimate stalls on G2's sewn heroes (smoke 2026-10-24: trousers stuck at 3,463 tris at every LOD):
+    # cluster the vertices (weld at a growing distance, from half the target's mean edge) and collapse again
+    d = 0.0
+    while n > target and d < 0.25:
+        if not d:
+            area = np.empty(len(obj.data.polygons), np.float64)
+            obj.data.polygons.foreach_get('area', area)
+            d = max(0.002, 0.5 * math.sqrt(float(area.sum()) / max(1, target)))
+        else:
+            d *= 1.5
+        cluster(obj, d)
+        n = decimate(obj, target)
+    over = 0
+    if n > target:
+        over = drop_islands(obj, target)
+        triangulate(obj.data)
+        n = tri_count(obj.data)
+    if tiny or over or d:
+        log(f'{label}: {n0} -> {n} tris (target {target}), {tiny} tiny islands and {over} more dropped'
+            + (f', clustered at {d * 1000:.0f} mm' if d else ''))
+    return n
+
+
+def cluster(obj, d):
+    """Vertex clustering: welds vertices closer than d (faces that collapse go), drops loose vertices and edges."""
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=d)
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.calc_area() < 1e-12], context='FACES')
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    bm.to_mesh(obj.data)
+    bm.free()
 
 
 def drop_faces(obj, keep_mask):
@@ -651,7 +709,7 @@ def run_base(args, kit, L):
         prev = src
         for lod in LODS:
             o = duplicate(prev, f'g-{b}-garment-{g["part"]}-lod{lod}')
-            n = decimate(o, g['tris'][lod])
+            n = decimate_piece(o, g['tris'][lod], f'garment {g["part"]} LOD{lod}')
             copy = lod == 0 and n == tri_count(src.data)
             occ = [s for s in ctx_occluders if s is not src] + [body_src]
             add(lod, o, None, 'garment', f'garment:{g["part"]}', g['partTint'], src, copy=copy, occluders=occ)
@@ -665,7 +723,7 @@ def run_base(args, kit, L):
         prev = src
         for lod in LODS:
             o = duplicate(prev, f'g-{b}-piece-{gp["id"]}-lod{lod}')
-            n = decimate(o, gp['tris'][lod])
+            n = decimate_piece(o, gp['tris'][lod], f'gear {gp["id"]} LOD{lod}')
             add(lod, o, gp['id'], 'gear', gp['region'], None, src, copy=(lod == 0 and n == tri_count(src.data)))
             prev = o
 
@@ -1104,7 +1162,7 @@ def run_piece(args, kit, L):
     prev = src
     for lod in LODS:
         o = duplicate(prev, f'g-{pid}-lod{lod}')
-        n = decimate(o, L['tris'][lod])
+        n = decimate_piece(o, L['tris'][lod], f'{pid} LOD{lod}')
         unwrap_local(o)
         targets[lod] = (o, lod == 0 and n == tri_count(src.data))
         prev = o
