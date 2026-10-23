@@ -959,13 +959,20 @@ export class EnemyManager {
         if (this.tagSquad.length < slots.length) this.tagSquad = new Int32Array(slots.length);
         slotSquads(slots, e.section, this.tagSquad);
         this.tagSlots = slots;
+        // (guard-ai S10) a new section's list: its own pairs (nobody left standing in an old pair's hold)
+        for (let k = 0; k < this.slotGuard.length; k++) {
+          const o = this.slotGuard[k];
+          if (o) o.pairFace = Number.NaN;
+        }
         this.slotGuard.length = 0;
-        // (guard-ai S10) a new section's list: its own pairs
         this.pairs.length = 0;
       }
       sq = this.tagSquad[index]!;
       e.slotIdx = index;
       while (this.slotGuard.length < slots.length) this.slotGuard.push(null);
+      // (guard-ai S10) a guard the slot held before is out of its pair: no hold left on him
+      const prev = this.slotGuard[index];
+      if (prev && prev !== e) prev.pairFace = Number.NaN;
       this.slotGuard[index] = e;
     } else if (slot.squad !== undefined) sq = squadId(e.section, slot.squad);
     // a dog with a handler: bound to him once he is placed (his squad then); else the slot's squad
@@ -1008,9 +1015,17 @@ export class EnemyManager {
     if (!o || o === e) return;
     const lo = Math.min(index, j);
     const hi = Math.max(index, j);
+    // a slot of a built pair placed again (a guard respawned into it, the same section list): the old pair goes and
+    // is built afresh below, its clock lined up with the walkers as they stand now (the old clock ran on the guards
+    // that went: kept, it would open the window at the wrong loop time)
     for (let k = 0; k < this.pairs.length; k++) {
       const p = this.pairs[k]!;
-      if (p.sa === lo && p.sb === hi) return;
+      if (p.sa === lo && p.sb === hi) {
+        this.pairs.splice(k, 1);
+        e.pairFace = Number.NaN;
+        o.pairFace = Number.NaN;
+        break;
+      }
     }
     const A = index === lo ? e : o;
     const B = index === lo ? o : e;

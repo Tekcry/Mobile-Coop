@@ -282,6 +282,33 @@ describe('placeSlot builds the talking pairs', () => {
     }
   });
 
+  it('(S10 check fix) both slots placed again with new guards (same list): the pair is built afresh on their clocks', () => {
+    const gs = [guard(routeA()), guard(routeB())];
+    const { em, priv } = manager(gs);
+    const slots = pairSlots();
+    place(em, gs, slots);
+    const old = em.pairs[0]!;
+    // the first pair runs 25 s (met and done), then a stale hold is left on A as if mid-talk
+    sim(priv, gs, 25);
+    expect(em.pairLines).toBe(2);
+    gs[0]!.pairFace = 1;
+    // both respawn into their slots: new walkers, loop time 0 again
+    const ns = [guard(routeA()), guard(routeB())];
+    em.enemies.length = 0;
+    for (const g of ns) em.enemies.push(E(g));
+    place(em, ns, slots);
+    expect(em.pairs.length).toBe(1);
+    expect(em.pairs[0]).not.toBe(old);
+    expect(em.pairs[0]!.pm.loopNow()).toBeCloseTo(0, 5);
+    // the old occupant is out of the pair: no hold left on him
+    expect(Number.isNaN(gs[0]!.pairFace)).toBe(true);
+    // they meet in the first window (7.5 s) of their own clocks (the kept old clock would open it ~42 s later)
+    sim(priv, ns, 20);
+    expect(em.pairLines).toBe(4);
+    expect(ns[0]!.sayLine).toHaveBeenCalledTimes(1);
+    expect(ns[1]!.sayLine).toHaveBeenCalledTimes(1);
+  });
+
   it('one tag is enough (the partner untagged)', () => {
     const gs = [guard(routeA()), guard(routeB())];
     const { em } = manager(gs);

@@ -2174,7 +2174,9 @@ if (want(1)) {
     assert(r.a.said.every((s) => !s.radio && s.hud), `talking pairs: spoken (not radio) and shown over the speaker (${JSON.stringify(r.a.said)})`);
     assert(r.a.levels.every((l) => l === 'unaware') && r.a.split > 2, `talking pairs: calm throughout, then they split on their schedule (${r.a.levels}, ${f2(r.a.split)} m off his stop)`);
     assert(r.b.lines === 0 && r.b.misses === 1, `talking pairs: no talk with one down; one missing request (${r.b.lines} lines, ${r.b.misses})`);
-    assert(r.b.sentT >= r.b.open + 6 - 0.15 && r.b.sentT <= r.b.open + 6 + 0.5, `talking pairs: the request ${f2(r.b.sentT)} s, grace 6 s after the window opens (${f2(r.b.open)} s)`);
+    // (S10 check) the pair clock steps 0.2 s at a time and may lead the walkers by up to one step, and the grace counts
+    // from the step the window opens: the request lands 5.6 .. 6.0 s after the window opens, read at 0.1 s
+    assert(r.b.sentT >= r.b.open + 6 - 0.45 && r.b.sentT <= r.b.open + 6 + 0.5, `talking pairs: the request ${f2(r.b.sentT)} s, grace 6 s after the window opens (${f2(r.b.open)} s)`);
     assert(r.b.kind === 'missing', `talking pairs: the other is sent on a missing incident (${r.b.kind})`);
     assert(r.b.close < 2.5 && r.b.found, `talking pairs: he searches at his partner's stop and finds him (${f2(r.b.close)} m, found ${r.b.found})`);
   });
