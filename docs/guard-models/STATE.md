@@ -1,6 +1,7 @@
 # Guard models: state
 
 ## Resume
+- ~22:10: G3 MERGED (gm-g3 06b42452: checker FAIL was only the FIT regex on CRLF checkouts, fixed by the lead; 80 tests on the merge). Gear bake = laptop alone request after G1 bodies land. G3 polish (G4 / G7): helmet_heavy has no `anchors.drop` (confirm G7 drops helmet_std for every kind or add one); gear hashes miss `bodies/guard-<b>-body.json` (gear `deps: []`: set deps bodies before the bake); shield elL / wrL 0.5 shears on wrist bend (elL 1.0 = SPEC change); holster strap rides hipR only; refit headwear on G1h's envelope; `*.py text eol=lf` in .gitattributes would make GB hashes machine-independent.
 - ~22:00: G5 checker FAIL (contract with G6: B1 body piece never shown with G6's list; B2 setPieces / gearMask must take G6's reused `ids` + `count`, index loop) + R1 thermal overlay = +1 draw per guard: Opus fix round running on gm-g5, then a fresh re-check. SPEC section 8 notes come in G5-REPORT "For SPEC section 8" (lead folds them in at the merge). Laptop for G5 alone: e2e-anim + e2e-ctcourse.
 - ~21:55: G3 done (gm-g3 0753e753, G3-REPORT.md; smoke helmet_std 856 / 1200 tris, 62 s): Opus checker on a scratch merge with 5b56f8ea. Gear bake waits for G1 bodies (torso pieces) and needs a helmet refit on G1h's head envelope once G1h names that output.
 - ~21:50: P1 re-check PASS (reports/P1-RECHECK.md, polish list there): P1 group closed on feature/guard-models. G2 garments Opus builder started early (gm-g2 off 92292b90; scripts now, bake after G1 bodies).
