@@ -4,7 +4,9 @@
 Built c8d1b5da (Sonnet 5.5): tsc, eslint, 20 vitest files, PLAN grep, build clean. Fresh Opus checker PASS
 (2026-10-23 ~17:10; bake hashes unchanged, SKY_GRID / dropCpuCopy identical, saved 'rt' -> SSR, no net / save change;
 the skipped ctcourseLight / warehouseS1Light tests are print-only `it.runIf`, same on master).
-Laptop batch queued (runs/voxelretire-c8d1b5da, 4191 after Guard AI S9).
+Laptop batch GREEN 21/21 on c8d1b5da (GPU 4191, 1245 s): desktop:1/2/4, lightbake, smoke, ctcourse:1-3, levels,
+anchors, combat, weapons-carry, enemies, gadgets, sectorops:1-6, menus. Master 4.76.0 merged in (2e00ea6b, clean;
+tsc 0, no voxel refs back). PR open; train-ready (the train's full run covers the merge).
 
 ## Next
 1. Laptop batch result (e2e-desktop, e2e-lightbake, smoke, e2e-ctcourse, e2e-levels, e2e-anchors, e2e-combat,
