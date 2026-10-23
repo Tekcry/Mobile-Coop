@@ -1,0 +1,78 @@
+{
+  "worker": "laptop",
+  "disabled": [
+    {
+      "name": "ns-chain-1022aa",
+      "why": "Ready, runs from C:\\NightShift\\scratch"
+    },
+    {
+      "name": "ns-chain-1022ab",
+      "why": "Ready, runs from C:\\NightShift\\scratch"
+    },
+    {
+      "name": "ns-chain-1022ac",
+      "why": "Ready, runs from C:\\NightShift\\scratch"
+    },
+    {
+      "name": "ns-chain-1022ad",
+      "why": "Ready, runs from C:\\NightShift\\scratch"
+    },
+    {
+      "name": "ns-chain-1022ae",
+      "why": "Ready, runs from C:\\NightShift\\scratch"
+    },
+    {
+      "name": "ns-chain-1022af",
+      "why": "Ready, runs from C:\\NightShift\\scratch"
+    },
+    {
+      "name": "ns-chain-1022ag",
+      "why": "Ready, runs from C:\\NightShift\\scratch"
+    },
+    {
+      "name": "ns-chain-1022ah",
+      "why": "Ready, runs from C:\\NightShift\\scratch"
+    },
+    {
+      "name": "ns-chain-1022ai",
+      "why": "Ready, runs from C:\\NightShift\\scratch"
+    },
+    {
+      "name": "ns-chain-1022aj",
+      "why": "Ready, runs from C:\\NightShift\\scratch"
+    },
+    {
+      "name": "ns-chain-1022ak",
+      "why": "Ready, runs from C:\\NightShift\\scratch"
+    },
+    {
+      "name": "ns-chain-1022al",
+      "why": "Ready, runs from C:\\NightShift\\scratch"
+    },
+    {
+      "name": "ns-chain-1022an",
+      "why": "Ready, runs from C:\\NightShift\\scratch"
+    },
+    {
+      "name": "ns-chain-1022ao",
+      "why": "Ready, runs from C:\\NightShift\\scratch"
+    },
+    {
+      "name": "ns-chain-1022ap",
+      "why": "Ready, runs from C:\\NightShift\\scratch"
+    },
+    {
+      "name": "ns-chain-1022w",
+      "why": "Ready, runs from C:\\NightShift\\scratch"
+    },
+    {
+      "name": "ns-chain-1022z",
+      "why": "Ready, runs from C:\\NightShift\\scratch"
+    },
+    {
+      "name": "ns-cpu-burner",
+      "why": "Ready, runs from C:\\NightShift\\scratch"
+    }
+  ],
+  "at": "2026-10-23T21:14:01.819Z"
+}
