@@ -1,5 +1,11 @@
 # Resume - Night Shift | Player Build (updated 2026-10-23 ~21:40 after the swap; live state in docs/guard-models/STATE.md "RESUMED" line)
 
+RESUMED ~22:35 (new account): #247 fd34263e CI GREEN; laptop request 20261023T112112-...-fd34263e-d9aa still queued
+(queue backed up ~20 deep): on green -> label train-ready + message orchestrator. coop-rejoin: builder cut off with
+uncommitted work, saved as WIP d9fcb6be; Opus builder resumed (report docs/coop-rejoin/REPORT.md). guard-models: see
+docs/guard-models/STATE.md "RESUMED ~22:35" (G1 fix merged 0356bd58; laptop MPFB2 missing, Michael copies the zip;
+bodies rebake queued; G1h / G7 checkers, G2 / G4 builders running). Orchestrator 22:41: CPU 97-100%, no new agents
+until it says < 80%.
 #247 ~22:25: head fd34263e = real per-frame alloc fixed (AF1 / AF3 non-inlined approach / clamp / smoothstep calls written
 inline, bit-identical; mocapStrafe matches master). CI pending on fd34263e; laptop 20261023T112112-player-build-fd34263e-d9aa
 (anim clip coop netmove menus, set afp). Both green -> gh pr edit 247 --add-label train-ready + message orchestrator.
