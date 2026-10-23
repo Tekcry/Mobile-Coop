@@ -345,28 +345,28 @@ behaviour code Opus; Sonnet only for tests / e2e scenarios / data from a strict 
 
 ## Resume prompt
 ```
-Night Shift | Guard AI Build - guard-ai: RESUME. Model Opus, effort high; fresh session.
-Folder C:/NightShift/Mobile-Coop-guard-ai, branch feature/guard-ai (git fetch; branch guard before every write:
-CLAUDE.md "A job"). Read CLAUDE.md ("Sessions", "Heavy-usage throughput" incl. token rules and the swap rule),
-docs/ROADMAP.md (origin/feature/menu if newer), then docs/guard-ai/STATE.md "Now" (top entry) and
-docs/guard-ai/slices/NEXT-BRIEFS.md (sections 0-5 = the work, in order).
-1. Section 0: agents cut off at the swap. Worktrees C:/NightShift/Mobile-Coop-guard-ai-s13 / -s14 / -s15 (branches
-   feature/guard-ai-s<n>): `git log --oneline -5` and slices/S<n>.md; a "WIP at the swap" head or no report = finish
-   with a fresh Opus agent from its brief (NEXT-BRIEFS 2 = S13, 3 = S15, 4 = S14). heavy.lock: if it names Guard AI
-   and no run of ours is alive, free port 4191 and delete it.
-2. Laptop verdict on s10 345fbb91 (Character Build reply or a PR #203 comment). Green -> one train-ready message to
-   Night Shift | Orchestrator for #200 S8 -> #201 S5b -> #202 S6 -> #203 S10 (stacked on #196, train 22).
-   Red -> fix on s10 (report slices/S10.md "Stack-tip e2e fix"), then merge s10 up into s12 (#208).
-3. #208 S11 + S12 is open (base s10). Its new e2e (stealth-ai helmet / armour, takedown gear) runs with the next tip.
-4. When S13 / S14 / S15 hand back: merge them onto one tip off s12 (fewest conflicts first; S12-CHECK note: stage gear
-   after placeSlot). One fresh Opus checker for S13 + S14 + S15, one laptop GPU run on the tip (e2e-stealth-ai,
-   e2e-sectorops all, e2e-takedown, e2e-ct-warehouse, e2e-course, e2e-ctcourse, e2e-coop), one PR per slice stacked
-   on #208, one message to the orchestrator.
-5. S9 co-op (NEXT-BRIEFS 5, protocol 32) once S12-S15 are on one tip.
-Rules: AI code and checkers Opus, Sonnet 5.5 for tests / data from strict briefs, Haiku chores. Parallel up to desktop
-CPU ~80%, never two agents on the same files, at most 3 tsc / vitest agents. Every e2e E2E_GPU=1: desktop lane
-(heavy.lock 4191, single suites, CPU < 80%) or Character Build on the laptop (branch, commit, suites). Message the
-orchestrator only at PR open / train-ready / blocked / needs Michael; progress goes in this file. A-numbers: S13
-A52-A59, S15 A60-A69, S14 A70+. No question dialogs; log assumptions in BRIEF.md. Save at 93-98%: WIP pushed in every
-agent worktree, this file current.
+Night Shift | Guard AI Build - guard-ai: RESUME ON THE LAPTOP (Michael ~13:00: Guard AI moves off the desktop).
+Model Opus, effort high; fresh session. Everything is on origin: git fetch, then create laptop worktrees as needed
+(C:/NightShift/Mobile-Coop-guard-ai on feature/guard-ai, C:/NightShift/Mobile-Coop-guard-ai-s<n> on
+feature/guard-ai-s<n>; npm ci once per worktree, under the laptop heavy.lock). Branch guard before every write
+(CLAUDE.md "A job"). Read CLAUDE.md ("Sessions", "Heavy-usage throughput"), the ROADMAP "Decided" entries by grep,
+then this file's "Now" (top 3 entries) and slices/NEXT-BRIEFS.md section 5 (S9).
+1. Master merge (s10 <- master 4.72.0, conflict sectorMode.ts from #206; then s12 <- s10, s13 <- s12, s14 <- s13):
+   done = slices/S10.md "Master 4.72.0 merge" on origin/feature/guard-ai-s10 and each branch's head says "merge".
+   Not done = a fresh Opus merge agent finishes it (tsc + the sectorMode / sectors / radio / squad / response vitest
+   files, one at a time).
+2. Laptop GPU run on the new s12 tip: e2e-sectorops 1-5, e2e-stealth-ai, e2e-takedown (ask Night Shift | Test Runner,
+   or run here under its lock rules). Green -> ONE train-ready message to Night Shift | Orchestrator: train 25 =
+   #200 S8 -> #201 S5b -> #202 S6 -> #203 S10 -> #208 S11 + S12.
+3. Checker S13 + S14 + S15 on feature/guard-ai-s15 (tip e8a3973e): done = slices/S13-15-CHECK.md with a verdict.
+   Not done = a fresh Opus checker from that brief (NEXT-BRIEFS 2-4, the reports S13 / S14 / S15.md).
+   PASS -> s15 <- new s14; open PRs S13 (base s12), S14 (base s13), S15 (base s14); one laptop run on s15 (e2e-stealth-ai,
+   sectorops all, takedown, ct-warehouse, course, ctcourse, coop, netmove); then one message to the orchestrator.
+4. S9 co-op (NEXT-BRIEFS 5, protocol 32: check the registry) on the s15 tip, Opus.
+5. S16 armoured fire check (Now ~13:05 entry) once Sector Ops E10 (feature/sector-redesign-e10) is on master.
+Rules: AI code and checkers Opus, Sonnet 5.5 tests / data from strict briefs, Haiku chores. Never two agents on the
+same files; keep the laptop CPU in step with Test Runner's queue (trains first). Every e2e E2E_GPU=1. Message the
+orchestrator only at PR open / train-ready / blocked / needs Michael; progress in this file. A-numbers: S13 A52-A59,
+S15 A60-A69, S14 A70-A79, S16 A80+. No question dialogs; log assumptions in BRIEF.md. At the save: WIP pushed in every
+worktree, this block current.
 ```
