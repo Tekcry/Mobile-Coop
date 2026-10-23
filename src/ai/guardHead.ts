@@ -26,7 +26,7 @@
  *       GUARD_HEAD_OUT=free-$i.tsv npx vitest run tests/guardHeadSweep.test.ts; done
  *     node scripts/guard-head-fit.mjs free free-*.tsv --write
  *   HELD_MOVE (`<guard-head-fit hostage>`):
- *     GUARD_HEAD_SWEEP=1 GUARD_HEAD_CASES=hostage GUARD_HEAD_OUT=hostage.tsv npx vitest run tests/guardHeadSweep.test.ts
+ *     GUARD_HEAD_SWEEP=1 GUARD_HEAD_CASES=hostage GUARD_HEAD_LEN=3 GUARD_HEAD_OUT=hostage.tsv npx vitest run tests/guardHeadSweep.test.ts
  *     node scripts/guard-head-fit.mjs hostage hostage.tsv --write
  *   WALL_MOVE / WALL_LEAN_MOVE (printed, pasted by hand):
  *     GUARD_HEAD_SWEEP=1 GUARD_HEAD_SETTLE=2.5 GUARD_HEAD_LEN=2 GUARD_HEAD_OUT=wall.tsv npx vitest run tests/guardHeadSweep.test.ts
@@ -428,60 +428,98 @@ const MOVE: Record<MoveClass, MoveTable> = {
 
 /** (S3a fix 2) A walked hostage (held, `Enemy.holdAt` gives him a velocity): the rig's own gait under the held pose,
  *  added to the held still pose. Up and forward per (theta knot, speed knot `SP_H`), one row per theta knot, scaled down
- *  to 0 below the first speed knot (units of `height / 1.75`). */
+ *  to 0 below the first speed knot (units of `height / 1.75`).
+ *
+ *  (S3a fix 3) The class switch stays a step, on the rig's own test: `Enemy.frame` gives the rig stride 'facing' when
+ *  `localZ = moveZ / speed > 0.5` (and 'velocity' past 60 deg), and the rig's head steps with it: armed, the facing
+ *  stride's keyed walk carries the head 6.7 cm further back (forward -0.075 against -0.008 m at 0.6 m/s), reached in
+ *  ~0.1 s (the keyed walk's weight eases at tau 0.08 s, its pelvis at 1.2 m/s). A blend across the boundary would be off
+ *  the rig on both sides of it for every steady direction in the band; the step is off it only for the ~0.1 s the rig
+ *  takes to cross. `heldFacing` computes the test exactly as the rig's (`moveZ * (1 / speed)`), so the two switch on
+ *  the same frame. The theta knots reach the boundary from both sides (`TH_HF` up to 59 deg, `TH_HV` from 61 deg; the
+ *  60 deg row of round 2 sat on the boundary and its frames split between the classes). Near the boundary the facing
+ *  stride slips sideways and the rig's head dips up to 11 cm below its mean for ~0.5 s at irregular times (the foot
+ *  planner catching up; 52-60 deg at 0.45 m/s, 54-60 at 0.6, 58-60 at 0.75): the fit gives the mean there.
+ *  (The rig also takes stride 'velocity' when the held guard's `aimWeight()` is 0.5 or more; the sim gets aim 0 when
+ *  held and assumes the calm weight: a follow-up, docs/guard-render/STATE.md "Fix round 3".)
+ *
+ *  After a release (`releaseTakedown`) the held weight `poseW` fades over 0.2 s with the last held pose kept, and
+ *  `HELD_MOVE` and the free-move side removal (`sxm`) still apply scaled by it while the guard moves: a known short
+ *  transient (at most 0.2 s, the size of the table's value times the fading weight). */
 interface HeldMoveTable {
   th: readonly number[];
   up: readonly number[];
   fw: readonly number[];
 }
 type HeldMoveClass = 'AF' | 'NF' | 'V';
-const SP_H = [.15, .3, .6, .9, 1.2, 1.6];
+const TH_HF = [0, 30, 45, 50, 55, 59];
+const TH_HV = [61, 75, 90, 120, 150, 180];
+const SP_H = [.15, .3, .45, .6, .75, .9, 1.2, 1.6];
+
+/** (S3a fix 3) The rig's stride class test (`Enemy.frame`: `localZ > 0.5`, `localZ = moveZ * (1 / speed)`), bit for bit. */
+function heldFacing(mz: number, sp: number): boolean {
+  return sp > 0.01 && mz * (1 / sp) > 0.5;
+}
 // <guard-head-fit hostage>
 const HELD_MOVE: Record<HeldMoveClass, HeldMoveTable> = {
   /** armed, stride along the facing. */
   AF: {
-    th: TH_F,
+    th: TH_HF,
     up: [
-      -.026, -.035, -.035, -.035, -.035, -.034,
-      -.026, -.035, -.035, -.035, -.035, -.034,
-      -.029, -.033, -.034, -.035, -.035, -.034,
+      -.025, -.035, -.035, -.035, -.035, -.035, -.035, -.034,
+      -.025, -.035, -.035, -.035, -.035, -.035, -.035, -.034,
+      -.025, -.044, -.056, -.037, -.039, -.043, -.052, -.071,
+      -.025, -.049, -.037, -.04, -.042, -.049, -.06, -.078,
+      -.026, -.052, -.07, -.074, -.045, -.053, -.066, -.09,
+      -.026, -.055, -.074, -.078, -.093, -.098, -.07, -.099,
     ],
     fw: [
-      -.057, -.074, -.074, -.074, -.074, -.052,
-      -.057, -.074, -.074, -.074, -.074, -.029,
-      -.063, -.069, -.071, -.069, -.063, -.046,
+      -.057, -.074, -.074, -.074, -.074, -.074, -.074, -.063,
+      -.057, -.074, -.074, -.074, -.074, -.074, -.074, -.044,
+      -.057, -.074, -.074, -.074, -.074, -.074, -.074, -.073,
+      -.057, -.074, -.074, -.074, -.074, -.074, -.074, -.029,
+      -.057, -.074, -.074, -.074, -.074, -.074, -.074, -.055,
+      -.057, -.074, -.074, -.074, -.074, -.074, -.074, -.074,
     ],
   },
   /** unarmed, stride along the facing. */
   NF: {
-    th: TH_F,
+    th: TH_HF,
     up: [
-      .001, -.007, -.007, -.007, -.007, -.009,
-      .001, -.007, -.007, -.007, -.008, -.016,
-      -.002, -.005, -.007, -.008, -.009, -.012,
+      .002, -.007, -.007, -.007, -.007, -.007, -.007, -.009,
+      .002, -.007, -.007, -.007, -.007, -.007, -.008, -.016,
+      -.002, -.029, -.052, -.018, -.022, -.03, -.042, -.064,
+      -.005, -.036, -.019, -.023, -.028, -.037, -.052, -.078,
+      -.006, -.042, -.07, -.075, -.032, -.043, -.059, -.088,
+      -.007, -.045, -.075, -.08, -.096, -.101, -.064, -.096,
     ],
     fw: [
-      -.005, -.007, -.007, -.007, -.007, -.007,
-      -.005, -.007, -.007, -.007, -.007, -.007,
-      -.006, -.006, -.006, -.007, -.007, -.007,
+      -.005, -.007, -.007, -.007, -.007, -.007, -.007, -.007,
+      -.005, -.007, -.007, -.007, -.007, -.007, -.007, -.007,
+      -.005, -.007, -.007, -.007, -.007, -.007, -.007, -.007,
+      -.005, -.007, -.007, -.007, -.007, -.007, -.007, -.007,
+      -.005, -.007, -.007, -.007, -.007, -.007, -.007, -.007,
+      -.005, -.007, -.007, -.007, -.007, -.007, -.007, -.007,
     ],
   },
   /** stride along the velocity (armed or not). */
   V: {
-    th: TH_VN,
+    th: TH_HV,
     up: [
-      -.019, -.038, -.049, -.099, -.099, -.099,
-      -.04, -.05, -.054, -.073, -.099, -.131,
-      -.034, -.046, -.057, -.077, -.105, -.142,
-      -.06, -.048, -.05, -.063, -.081, -.107,
-      -.079, -.035, -.023, -.037, -.057, -.07,
+      -.02, -.031, -.038, -.046, -.056, -.07, -.098, -.139,
+      -.025, -.036, -.041, -.048, -.059, -.072, -.099, -.135,
+      -.036, -.048, -.049, -.053, -.062, -.072, -.099, -.133,
+      -.032, -.046, -.049, -.056, -.065, -.077, -.107, -.145,
+      -.045, -.046, -.047, -.049, -.054, -.061, -.079, -.106,
+      -.046, -.021, -.015, -.021, -.027, -.034, -.05, -.064,
     ],
     fw: [
-      -.01, -.051, -.008, -.051, -.009, -.051,
-      -.015, -.015, -.015, -.015, -.015, -.013,
-      -.018, -.019, -.019, -.019, -.019, -.01,
-      -.021, -.021, -.021, -.021, -.021, -.021,
-      -.002, .004, .004, .004, 0, -.007,
+      -.01, -.008, -.008, -.008, -.008, -.008, -.009, -.008,
+      -.012, -.011, -.011, -.011, -.011, -.011, -.011, -.01,
+      -.015, -.015, -.015, -.015, -.015, -.015, -.015, -.013,
+      -.018, -.019, -.019, -.019, -.019, -.019, -.019, -.012,
+      -.021, -.021, -.021, -.021, -.021, -.021, -.021, -.021,
+      -.002, .004, .004, .004, .004, .004, 0, -.007,
     ],
   },
 };
@@ -1027,7 +1065,7 @@ export function guardHead(i: GuardHeadIn, r: GuardHeadRest, out: HeadOut): void 
     if (i.held !== null && sp > 0 && !i.wall && c < 1) {
       // (S3a fix 2) walked as a hostage: the rig's own gait under the held pose (it ignores the gait clock and the free
       // stride tables: `rp.phase` is -1 when held), fitted standing (fades with crouch)
-      const hm = mz > 0.5 * sp ? (r.armed ? HELD_MOVE.AF : HELD_MOVE.NF) : HELD_MOVE.V;
+      const hm = heldFacing(mz, sp) ? (r.armed ? HELD_MOVE.AF : HELD_MOVE.NF) : HELD_MOVE.V;
       knots(hm.th, SP_H, th, sp, true);
       const ns = SP_H.length;
       hf += cell(hm.fw, ns) * (1 - c);

@@ -77,6 +77,12 @@ function freeCases(): Sc[] {
   return out;
 }
 
+/** (S3a fix 3) The walked hostage's directions and speeds (`HELD_MOVE`'s knots): none on the facing / velocity stride
+ *  boundary (60 deg, where cos 60 = 0.5000000000000001 split the frames between the two classes), rows 1 deg either
+ *  side of it; the speeds of the hold (up to the 0.75 m/s cap) and the faster swing of a turning hold. */
+const HOSTAGE_DIRS = [0, 30, 45, 50, 55, 59, 61, 75, 90, 120, 150, 180, -90];
+const HOSTAGE_SPEEDS = [0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1.2, 1.6];
+
 /** A hostage walked by the operator (`Enemy.holdAt`) along local `deg` at `speed`. */
 function hostageSweep(deg: number, speed: number): Sc {
   return {
@@ -95,8 +101,10 @@ function hostageSweep(deg: number, speed: number): Sc {
 function cases(): Sc[] {
   const out: Sc[] = [];
   if (process.env.GUARD_HEAD_CASES === 'hostage') {
-    for (const deg of [0, 30, 60, 90, 120, 150, 180, -90])
-      for (const sp of [0.15, 0.3, 0.6, 0.9, 1.2, 1.6]) out.push(hostageSweep(deg, sp));
+    // `GUARD_HEAD_DIRS` / `GUARD_HEAD_SPEEDS` (comma lists): other directions / speeds (exploring the rig)
+    const list = (v: string | undefined, d: number[]): number[] => (v ? v.split(',').map(Number) : d);
+    for (const deg of list(process.env.GUARD_HEAD_DIRS, HOSTAGE_DIRS))
+      for (const sp of list(process.env.GUARD_HEAD_SPEEDS, HOSTAGE_SPEEDS)) out.push(hostageSweep(deg, sp));
     return out;
   }
   if (process.env.GUARD_HEAD_CASES === 'free') return freeCases();

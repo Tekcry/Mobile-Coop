@@ -8,6 +8,7 @@ import { GuardCq, type GuardCqMode } from '../../src/game/closeQuarters';
 import { BLIND_PITCH, emoteBlind, emoteSeize, emoteStep, guardHead, guardHeadRest, leanStep, newEmoteState, newLeanState, type GuardHeadIn, type GuardHeadRest } from '../../src/ai/guardHead';
 import { emptyMotionInput, MotionDriver, type MotionState } from '../../src/anim/motion';
 import { ENEMY_CALM_MOTION, ENEMY_MOTION } from '../../src/config/movement';
+import { GRAB } from '../../src/game/takedown';
 
 export const DT = 1 / 60;
 export const T1 = 0.05;
@@ -67,7 +68,7 @@ export interface Sc {
   /** (S3a fix 2) Held and walked by the operator (a hostage): from the hold, the body is placed along the local
    *  direction `deg` of the start facing at `speed` m/s, the facing kept, as `Enemy.holdAt` places it (the velocity
    *  eased 0.35 a step towards the placed displacement). */
-  heldMove?: { deg: number; speed: number };
+  heldMove?: { deg: number; speed: number; turn?: HeldTurn };
   /** Blinded from the start. */
   blind?: boolean;
   /** T3: the steady bound after a change. */
@@ -75,6 +76,16 @@ export interface Sc {
   /** A written exception: a looser every-frame bound (and T3 steady bound) for this case, with why (the measured worst
    *  error is in the reason; see docs/guard-render/STATE.md "S3a fix round"). */
   except?: { bound: number; steady?: number; why: string };
+}
+
+/** (S3a fix 3) A turning hold: the operator turns at `rate` (rad/s, + to the right) from scenario time `from` to `to`
+ *  (default: the whole run) while she walks along the local `deg` of her own facing at `speed`; the hostage is placed
+ *  `GRAB.hold` ahead and `GRAB.side` to her side of her and faces her way (`TakedownController`, holding), so his
+ *  velocity is hers plus the swing of the ~0.34 m offset round her. */
+export interface HeldTurn {
+  rate: number;
+  from?: number;
+  to?: number;
 }
 
 const FAR = 200;
@@ -249,6 +260,10 @@ export function run(kind: Kind, yaw0: number, sc: Sc, env: Env, onFrame?: (fr: F
   const emo = newEmoteState();
   let taken = false;
   let released = false;
+  /** (S3a fix 3) The operator of a turning hold (her position and yaw; NaN until the hold). */
+  let opX = Number.NaN;
+  let opZ = Number.NaN;
+  let opYaw = yaw0;
   const hold = (): void => {
     // `Enemy.beginTakedown` (+ the mode the takedown sets)
     taken = true;
@@ -345,11 +360,38 @@ export function run(kind: Kind, yaw0: number, sc: Sc, env: Env, onFrame?: (fr: F
     }
     if (taken && sc.heldMove) {
       // `Enemy.holdAt`: the operator places him, the velocity follows eased
-      const a = (sc.heldMove.deg * Math.PI) / 180;
-      const lx = Math.sin(a) * sc.heldMove.speed * DT;
-      const lz = Math.cos(a) * sc.heldMove.speed * DT;
-      const tx = px + lx * c0 + lz * s0;
-      const tz = pz - lx * s0 + lz * c0;
+      const hm = sc.heldMove;
+      const a = (hm.deg * Math.PI) / 180;
+      let tx: number;
+      let tz: number;
+      if (hm.turn) {
+        // (S3a fix 3) `TakedownController` holding: she walks and turns, he sits at the hold offset in her frame
+        if (Number.isNaN(opX)) {
+          opYaw = yaw;
+          opX = px - (GRAB.side * Math.cos(yaw) + GRAB.hold * Math.sin(yaw));
+          opZ = pz - (-GRAB.side * Math.sin(yaw) + GRAB.hold * Math.cos(yaw));
+        }
+        const tr = hm.turn;
+        if (tt >= (tr.from ?? -Infinity) && tt < (tr.to ?? Infinity)) {
+          opYaw += tr.rate * DT;
+          // a turn with an end is a transition while it lasts (T3); a steady arc (no `to`) is not
+          if (tr.to !== undefined) lastChange = tt;
+        }
+        const so = Math.sin(opYaw);
+        const co = Math.cos(opYaw);
+        const lx = Math.sin(a) * hm.speed * DT;
+        const lz = Math.cos(a) * hm.speed * DT;
+        opX += lx * co + lz * so;
+        opZ += -lx * so + lz * co;
+        tx = opX + GRAB.side * co + GRAB.hold * so;
+        tz = opZ - GRAB.side * so + GRAB.hold * co;
+        yaw = opYaw;
+      } else {
+        const lx = Math.sin(a) * hm.speed * DT;
+        const lz = Math.cos(a) * hm.speed * DT;
+        tx = px + lx * c0 + lz * s0;
+        tz = pz - lx * s0 + lz * c0;
+      }
       vx += ((tx - px) * 60 - vx) * 0.35;
       vz += ((tz - pz) * 60 - vz) * 0.35;
       px = tx;

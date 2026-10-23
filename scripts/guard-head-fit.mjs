@@ -9,7 +9,7 @@
  *   for i in 0 1 2 3 4 5 6 7; do GUARD_HEAD_SWEEP=1 GUARD_HEAD_CASES=free GUARD_HEAD_EVERY=3 GUARD_HEAD_PART=$i/8 \
  *     GUARD_HEAD_OUT=free-$i.tsv npx vitest run tests/guardHeadSweep.test.ts; done
  *   node scripts/guard-head-fit.mjs free free-*.tsv --write
- *   GUARD_HEAD_SWEEP=1 GUARD_HEAD_CASES=hostage GUARD_HEAD_OUT=hostage.tsv npx vitest run tests/guardHeadSweep.test.ts
+ *   GUARD_HEAD_SWEEP=1 GUARD_HEAD_CASES=hostage GUARD_HEAD_LEN=3 GUARD_HEAD_OUT=hostage.tsv npx vitest run tests/guardHeadSweep.test.ts
  *   node scripts/guard-head-fit.mjs hostage hostage.tsv --write
  *
  * `--write` replaces the generated block in `src/ai/guardHead.ts` (between its `<guard-head-fit MODE>` markers)
@@ -171,7 +171,10 @@ const TH_VN = [70, 90, 120, 150, 180];
 const SP_W = [0.15, 0.4, 0.7, 1, 1.4, 1.8, 2.2, 2.8, 3.4, 4.2];
 const SP_C = [0.15, 0.4, 0.7, 1, 1.4];
 const SP_D = [1.6, 2.2, 2.8, 3.4];
-const SP_H = [0.15, 0.3, 0.6, 0.9, 1.2, 1.6];
+const SP_H = [0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1.2, 1.6];
+/** (S3a fix 3) `HELD_MOVE`'s theta knots: the facing stride up to the boundary, the velocity stride from it. */
+const TH_HF = [0, 30, 45, 50, 55, 59];
+const TH_HV = [61, 75, 90, 120, 150, 180];
 /** The bob's phase on the gait clock per stride (cycles; `MoveTable.ph`). */
 const PH_F = -0.05;
 const PH_V = 0.21;
@@ -512,9 +515,9 @@ function fitHostage() {
   // no bob (the rig's gait clock is its own), standing (the sweep's crouch 0)
   const fr = framesOf(/^hostage /).filter((r) => r.speed > 0);
   const CL = {
-    AF: { th: TH_F, doc: 'armed, stride along the facing' },
-    NF: { th: TH_F, doc: 'unarmed, stride along the facing' },
-    V: { th: TH_VN, doc: 'stride along the velocity (armed or not)' },
+    AF: { th: TH_HF, doc: 'armed, stride along the facing' },
+    NF: { th: TH_HF, doc: 'unarmed, stride along the facing' },
+    V: { th: TH_HV, doc: 'stride along the velocity (armed or not)' },
   };
   const U = new Sys();
   const F = new Sys();
@@ -532,7 +535,8 @@ function fitHostage() {
   const rowsF = [];
   for (const r of fr) {
     const { mz, th } = dirOf(r);
-    const n = mz > 0.5 * r.speed ? (r.armed ? 'AF' : 'NF') : 'V';
+    // `guardHead`'s `heldFacing` (the rig's own test, bit for bit)
+    const n = r.speed > 0.01 && mz * (1 / r.speed) > 0.5 ? (r.armed ? 'AF' : 'NF') : 'V';
     const kw = knotW(CL[n].th, SP_H, th, r.speed, true);
     const ru = kw.cells.map(([i, w]) => [ix[n].up + i, w]);
     const rf = kw.cells.map(([i, w]) => [ix[n].fw + i, w]);
@@ -544,14 +548,16 @@ function fitHostage() {
   const xu = U.solve();
   const xf = F.solve();
   for (const x of [xu, xf]) for (let i = 0; i < x.length; i++) x[i] = Math.round(x[i] * 1000) / 1000;
-  report(fr, fr.map((_, i) => [0, dot(rowsU[i], xu), dot(rowsF[i], xf)]), (r) => `${r.case.replace(/ sp [\d.]+/, '')} ${r.kind}`);
+  // (S3a fix 3) per direction, the hold's speeds (up to the 0.75 m/s cap) apart from the faster ones (a turning hold)
+  const band = (r) => (Number(/ sp ([\d.]+)/.exec(r.case)[1]) <= 0.75 ? 'hold <= 0.75' : 'fast 0.9-1.6');
+  report(fr, fr.map((_, i) => [0, dot(rowsU[i], xu), dot(rowsF[i], xf)]), (r) => `${r.case.replace(/ sp [\d.]+/, '')} ${band(r)} ${r.kind}`);
   const out = ['const HELD_MOVE: Record<HeldMoveClass, HeldMoveTable> = {'];
   for (const [n, t] of Object.entries(CL)) {
     const o = ix[n];
     const len = o.nt * ns;
     out.push(`  /** ${t.doc}. */`);
     out.push(`  ${n}: {`);
-    out.push(`    th: ${t.th === TH_F ? 'TH_F' : 'TH_VN'},`);
+    out.push(`    th: ${t.th === TH_HF ? 'TH_HF' : 'TH_HV'},`);
     out.push(`    up: [\n${fmtRows([...xu.slice(o.up, o.up + len)], ns, '      ')}\n    ],`);
     out.push(`    fw: [\n${fmtRows([...xf.slice(o.fw, o.fw + len)], ns, '      ')}\n    ],`);
     out.push('  },');

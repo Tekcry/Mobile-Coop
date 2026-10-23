@@ -22,6 +22,8 @@
 import { writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { GuardCqMode } from '../src/game/closeQuarters';
+import { GRAB } from '../src/game/takedown';
+import { CT } from '../src/config/movement';
 import { ARMED, COVER, FREE, T1, T2, T3, YAWS, held, peekCycle, run, setup, upright, walk, wallStill, wallWalk, type Env, type Sc } from './helpers/guardHeadHarness';
 
 const PRINT = process.env.GUARD_HEAD_PRINT === '1';
@@ -46,6 +48,15 @@ const PEEK_START = 'first leaning step dips 25 cm, measured 0.111-0.289 m; settl
  *  walks pass after a 3 s settle). Measured 0.118-0.129 m (S3a fix 2, the refitted `MOVE`); settled (at pace)
  *  0.083-0.105 m. */
 const BACK_START = 'backpedal start dip, measured 0.118-0.129 m; settled 0.083-0.105 m';
+
+/** (S3a fix 3) A fast turning hold (3 rad/s, radius 0.25 m): he swings round her at 1.1-1.4 m/s, over the walk cap's
+ *  pace, through the facing stride's sideways-slip band (`HELD_MOVE` doc), and the rig's body twists with the turn (the
+ *  sim has no yaw-rate term). Measured 0.079-0.145 m. */
+const TURN_ARC = 'fast hold arc: slip band and turn twist, measured 0.079-0.145 m';
+/** (S3a fix 3) A 180 at her turn cap: he swings round her at 2.4-2.9 m/s for 0.4 s; the rig's body lags its root up to
+ *  14 cm sideways and 18 cm forward (the feet planted, no yaw-rate term in the sim), and after a left turn its head dips
+ *  10 cm for ~0.6 s (the feet catching up). Measured 0.120-0.255 m every frame; settled 0.012-0.113 m. */
+const TURN_CAP = '180 at the turn cap: body lag and dip, measured 0.120-0.255 m; settled 0.012-0.113 m';
 
 const SCENARIOS: Sc[] = [
   // T1: steady upright
@@ -85,11 +96,26 @@ const SCENARIOS: Sc[] = [
   wallWalk('wall walk out L (ws 1)', 1, 0, -1),
   ...(['seized', 'seizedLethal', 'hostage', 'ko', 'interrogate'] as GuardCqMode[]).map(held),
   // (S3a fix 2) a hostage walked by the operator: `holdAt` gives him a velocity, the rig runs its own gait (phase -1)
-  // under the held pose; forward at 1.2 and 0.6 m/s, sideways at 0.6 (the operator strafing; the game caps the hold
-  // at 0.7 m/s, `takedownController`)
-  { id: 'hostage walked 1.2', tier: 2, kinds: FREE, settle: 1.5, len: 1.5, held: 'hostage', heldMove: { deg: 0, speed: 1.2 }, step: () => {} },
+  // under the held pose. The game caps the hold at `GRAB.speedCap` = 0.75 m/s (src/game/takedown.ts, applied as the
+  // operator's `speedCap` in `takedownController`): a straight 1.2 m/s walk cannot happen, that case is only a bound
+  // check of `HELD_MOVE` above the cap (a turning hold swings him faster than she walks, below).
+  { id: 'hostage walked 1.2 (bound check, over the cap)', tier: 2, kinds: FREE, settle: 1.5, len: 1.5, held: 'hostage', heldMove: { deg: 0, speed: 1.2 }, step: () => {} },
   { id: 'hostage walked 0.6', tier: 2, kinds: FREE, settle: 1.5, len: 1.5, held: 'hostage', heldMove: { deg: 0, speed: 0.6 }, step: () => {} },
   { id: 'hostage walked side 0.6', tier: 2, kinds: FREE, settle: 1.5, len: 1.5, held: 'hostage', heldMove: { deg: 90, speed: 0.6 }, step: () => {} },
+  // (S3a fix 3) diagonally: 45 deg, and 60 deg on the facing / velocity stride boundary (cos 60 = 0.5000000000000001:
+  // the rig's stride test and the sim's `heldFacing` agree bit for bit)
+  { id: 'hostage walked diag 45 0.6', tier: 2, kinds: FREE, settle: 1.5, len: 1.5, held: 'hostage', heldMove: { deg: 45, speed: 0.6 }, step: () => {} },
+  { id: 'hostage walked diag 60 0.6', tier: 2, kinds: FREE, settle: 1.5, len: 1.5, held: 'hostage', heldMove: { deg: 60, speed: 0.6 }, step: () => {} },
+  // (S3a fix 3) a turning hold: the operator walks at the cap and turns, he swings round her on the hold offset
+  // (`GRAB.hold` 0.32 ahead, `GRAB.side` -0.1: 0.335 m from her). A walking arc (1.5 rad/s, radius 0.5 m) both ways,
+  // a fast arc (3 rad/s, exception), and a 180 at her free-movement turn cap (`CT.turnRate` 7.85 rad/s, not aiming:
+  // `MotionDriver` faceTravel; his swing ~2.6 m/s for 0.4 s, the transient as T3, exception)
+  { id: 'hostage turning arc R', tier: 2, kinds: FREE, settle: 1.5, len: 1.5, held: 'hostage', heldMove: { deg: 0, speed: GRAB.speedCap, turn: { rate: 1.5 } }, step: () => {} },
+  { id: 'hostage turning arc L', tier: 2, kinds: FREE, settle: 1.5, len: 1.5, held: 'hostage', heldMove: { deg: 0, speed: GRAB.speedCap, turn: { rate: -1.5 } }, step: () => {} },
+  { id: 'hostage turning arc R 3', tier: 2, kinds: FREE, settle: 1.5, len: 1.5, held: 'hostage', heldMove: { deg: 0, speed: GRAB.speedCap, turn: { rate: 3 } }, except: { bound: 0.15, why: TURN_ARC }, step: () => {} },
+  { id: 'hostage turning arc L 3', tier: 2, kinds: FREE, settle: 1.5, len: 1.5, held: 'hostage', heldMove: { deg: 0, speed: GRAB.speedCap, turn: { rate: -3 } }, except: { bound: 0.15, why: TURN_ARC }, step: () => {} },
+  { id: 'hostage turn 180 R at the cap', tier: 3, kinds: FREE, settle: 1.5, len: 2, held: 'hostage', steady: T2, except: { bound: 0.26, steady: 0.12, why: TURN_CAP }, heldMove: { deg: 0, speed: GRAB.speedCap, turn: { rate: CT.turnRate, from: 0.3, to: 0.3 + Math.PI / CT.turnRate } }, step: () => {} },
+  { id: 'hostage turn 180 L at the cap', tier: 3, kinds: FREE, settle: 1.5, len: 2, held: 'hostage', steady: T2, except: { bound: 0.26, steady: 0.12, why: TURN_CAP }, heldMove: { deg: 0, speed: GRAB.speedCap, turn: { rate: -CT.turnRate, from: 0.3, to: 0.3 + Math.PI / CT.turnRate } }, step: () => {} },
   { id: 'blind', tier: 2, kinds: FREE, settle: 1, len: 1, blind: true, step: (c) => { c.aim = 0.2; } },
   // (S3a fix, finding 3) blinded, then seized: the seize replaces the flashbang's emote (`beginTakedown`), the rig shows
   // the held pose only
