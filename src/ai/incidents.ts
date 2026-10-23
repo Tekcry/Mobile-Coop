@@ -14,7 +14,8 @@
  * merges into the light. An investigator who goes down (dead, knocked out) or is held (grabbed, hostage, interrogated)
  * for `silentEscalate` s turns the incident into `missing`: the 2 nearest calm guards go as a pair (a lead, and a cover
  * `pairBack` m short of the spot, G11). (S7) A body a camera saw (`reportBody`, one incident per body): the nearest 1
- * (knocked out) or 2 (dead) calm guards within `callR` by path walk to it (`MODE_BODY`).
+ * (knocked out) or 2 (dead) calm guards within `callR` by path walk to it (`MODE_BODY`). (S14) A `shots` incident whose
+ * radio call got through (`wantPair`) sends a pair instead of one: the lead and a cover `pairBack` short (G11).
  *
  * The board only reads a `GuardView` (struct of arrays filled by `EnemyManager`) and writes commands (`BoardOut`) the
  * manager applies to its guards. Guards are named by their stable id (`Enemy.num`), never by array index (the manager
@@ -32,6 +33,7 @@ const K_NOISE = 0;
 const K_LIGHT = 2;
 const K_MISSING = 4;
 const K_CAMBODY = 7;
+const K_SHOTS = 1;
 
 export const INCIDENT = {
   /** Fixed pool per board (oldest closed first; all open: the oldest is dropped). */
@@ -282,6 +284,8 @@ export class IncidentBoard {
   readonly copies = new Uint8Array(P);
   /** (guard-ai S7) How many guards a camera's body wants: 1 knocked out, 2 dead. */
   readonly want = new Uint8Array(P);
+  /** (guard-ai S14) A shots incident already assigned whose section heard the call: a cover joins its lead next tick. */
+  readonly needCover = new Uint8Array(P);
 
   private nextId = 1;
   /** (S3, S2 check polish 1) The slot `follow` is escalating from: `alloc` never evicts it (a full pool could hand the
@@ -365,6 +369,7 @@ export class IncidentBoard {
       this.nPerc[s] = 0;
       this.copies[s] = 0;
       this.want[s] = 1;
+      this.needCover[s] = 0;
       this.opened++;
     }
     this.lastT[s] = now;
@@ -385,6 +390,21 @@ export class IncidentBoard {
     return id;
   }
 
+  /**
+   * (guard-ai S14, G11) The section heard a `shots` call: shots incident `id` sends a pair, a lead and a cover
+   * `pairBack` m short of the spot (from those who heard it, else calm guards within `callR`, else any free guard). Not
+   * yet assigned: both go at its assignment. Assigned with one investigator: a cover joins him at the next tick; its lead
+   * already back: a fresh pair goes. False when the incident is closed or not shots.
+   */
+  wantPair(id: number): boolean {
+    const s = this.slotOf(id);
+    if (s < 0 || this.kind[s] !== K_SHOTS) return false;
+    this.want[s] = 2;
+    if (this.assigned[s]) this.needCover[s] = 1;
+    else this.pending = true;
+    return true;
+  }
+
   /** Advance the board (5 Hz; `dt` 0 just assigns what is pending): assign, acknowledge, escalate, close. */
   tick(dt: number, view: GuardView): void {
     this.now += dt;
@@ -398,6 +418,7 @@ export class IncidentBoard {
     for (let s = 0; s < P; s++) {
       if (!this.open[s]) continue;
       if (!this.assigned[s]) this.assign(s, view);
+      else if (this.needCover[s]) this.addCover(s, view);
       if (!this.open[s]) continue;
       this.ackAll(s, view);
       this.follow(s, dt, view);
@@ -619,7 +640,45 @@ export class IncidentBoard {
     }
     const pick = this.best(s, view);
     this.send(s, view, pick, MODE_INVESTIGATE, 0, x, y, z);
+    // (guard-ai S14, G11) a shots call got through: a cover goes with him (another who heard it, else any free guard)
+    if (k === K_SHOTS && this.want[s] === 2) {
+      this.needCover[s] = 0;
+      this.cand[pick] = 0;
+      if (c <= 1 && this.mark(s, view, 1, false, M.callR, view.id[pick]!) === 0) this.mark(s, view, 2, false, Infinity, view.id[pick]!);
+      const cover = this.best(s, view);
+      if (cover >= 0) this.coverAt(s, view, cover);
+    }
     this.assigned[s] = 1;
+  }
+
+  /** (guard-ai S14) Send view index `i` as incident `s`'s cover: he holds `pairBack` m short of the spot, on his side
+   *  of it (the missing pair's rule, G11). */
+  private coverAt(s: number, view: GuardView, i: number): void {
+    const x = this.x[s]!;
+    const z = this.z[s]!;
+    const dx = view.x[i]! - x;
+    const dz = view.z[i]! - z;
+    const d = Math.sqrt(dx * dx + dz * dz);
+    const back = Math.min(INCIDENT.pairBack, d);
+    const cx = d > 1e-3 ? x + (dx / d) * back : x;
+    const cz = d > 1e-3 ? z + (dz / d) * back : z;
+    this.send(s, view, i, MODE_COVER, 1, cx, this.y[s]!, cz);
+  }
+
+  /** (guard-ai S14) A cover for an assigned shots incident (`wantPair`): beside its lead; the lead back already: a
+   *  fresh pair. */
+  private addCover(s: number, view: GuardView): void {
+    this.needCover[s] = 0;
+    if (this.inv[s * 2 + 1]! >= 0) return;
+    const lead = this.inv[s * 2]!;
+    if (lead < 0) {
+      this.assigned[s] = 0;
+      this.assign(s, view);
+      return;
+    }
+    if (this.mark(s, view, 0, false, Infinity, lead) === 0 && this.mark(s, view, 1, false, INCIDENT.callR, lead) === 0 && this.mark(s, view, 2, false, Infinity, lead) === 0) return;
+    const cover = this.best(s, view);
+    if (cover >= 0) this.coverAt(s, view, cover);
   }
 
   private giveUp(s: number): void {

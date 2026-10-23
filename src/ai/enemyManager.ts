@@ -41,6 +41,9 @@ import { HelmetDrops } from './helmetDrops';
 import { assignRoles, combatSeed, P_AGGRESSIVE, P_POST, P_STANDARD, R_NONE, R_REPORTER, RoleInput, RoleOutput, SQUAD } from './squadRoles';
 // (guard-ai S10) talking pairs
 import { PairMeet, PAIRS, pickMeet, type MeetPick, type PairGuard } from './pairs';
+// (guard-ai S14) section alert: missed check-ins and loud shots
+import { MISSING, SHOTS } from './gear';
+import { ALERT_MISSING, ALERT_SHOTS, AlertCallLog, SectionCounters, unitOf, type SectionCounts } from './sectionAlert';
 
 /** (guard-ai S10) A talking pair: its meeting clock, and the two slot indices (`guardAtSlot`; A the lower). */
 export interface TalkPair {
@@ -268,11 +271,30 @@ export class EnemyManager {
   lastHold = -1;
   /** `voiceMask`'s nearest calm hearer (scratch). */
   private voiceNear: Enemy | null = null;
+  /**
+   * (guard-ai S14, stealth over shooting 6 and 7, A40 / A41) Section alert (`sectionAlert.ts`): a missed check-in
+   * (radio check, talking pair) or a loud shot heard by a calm guard is radioed (`missing` / `shots` call, cuttable);
+   * delivered, each receiver is cautious for `MISSING.cautious` / `SHOTS.cautious` s (`Awareness.timedHold`), and a
+   * shots call sends a pair to the spot. Coordinated modes only. The log tells an alert call from other calls of the
+   * same kind; `shotsCall` is the open shots call (one per shots incident).
+   */
+  private readonly alertLog = new AlertCallLog();
+  private shotsCall = -1;
+  private shotsSeq = 0;
+  /** (guard-ai S14) The section's tallies for the section rating (bodies found, missed checks, shots calls, radio
+   *  alarms), reset with the section (`clear`: every section load and restart). */
+  private readonly counts = new SectionCounters();
+  get sectionCounts(): SectionCounts {
+    return this.counts;
+  }
+  /** The tables (tests / e2e read the numbers from here). */
+  readonly missingTable = MISSING;
+  readonly shotsTable = SHOTS;
   /** Where completed calls go (made once). */
   private readonly sink: RadioSink = {
     deliver: (gid, inc, kind, caller) => this.radioDeliver(gid, inc, kind, caller),
     alarm: (_section, caller) => this.radioAlarm(caller),
-    completed: (caller, _inc, kind) => {
+    completed: (caller, inc, kind) => {
       // the spotter's radio line, as the section hears it; (S4) the body reports
       if (kind === 'contact') {
         this.byNum(caller)?.bark('callIn');
@@ -281,6 +303,8 @@ export class EnemyManager {
       }
       else if (kind === 'body') this.byNum(caller)?.bark('deadReport');
       else if (kind === 'ko') this.byNum(caller)?.bark('koReport');
+      // (S14) a missing guard or shots: the section is told
+      else if (kind === 'missing' || kind === 'shots') this.alertThrough(caller, inc, kind);
     },
   };
 
@@ -498,6 +522,7 @@ export class EnemyManager {
     if (b.found || !b.present) return;
     b.found = true;
     this.bodiesFound++;
+    this.counts.bodiesFound++;
     if (this.coordinated) {
       if (b.lethal) {
         e.bark('body');
@@ -1335,10 +1360,13 @@ export class EnemyManager {
     const gone = pm.lookFor === 0 ? B : A;
     if (!goer || !goer.alive) return;
     this.pairMisses++;
+    this.counts.missedChecks++;
     if (gone) this.silent.add(gone);
     if (this.coordinated) {
       this.hearWho[0] = goer.num;
-      this.report('missing', pm.lookX, goer.pos.y, pm.lookZ, gone ? gone.num : -1, 1);
+      const inc = this.report('missing', pm.lookX, goer.pos.y, pm.lookZ, gone ? gone.num : -1, 1);
+      // (guard-ai S14) he radios it (his lead's report is the same call): the section turns cautious once it gets through
+      if (gone) this.missingCall(goer, inc, gone);
     } else goer.searchAt(pm.lookX, pm.lookZ, null);
   }
 
@@ -1402,16 +1430,21 @@ export class EnemyManager {
         this.lastCheckCaller ??= caller;
       }
       let missed = false;
+      let unit = 0;
       for (let i = 0; i < roster.length; i++) {
         const m = roster[i]!;
         if (m.alive || m.dog || this.silent.has(m) || this.bodyFoundOf(m)) continue;
         this.silent.add(m);
         this.radioMisses++;
+        this.counts.missedChecks++;
+        if (!missed) unit = unitOf(m.slotIdx, m.key);
         missed = true;
-        if (this.coordinated) this.reportMissing(m, roster);
+        // (guard-ai S14) and the caller radios it: the section turns cautious once it gets through (cut him first: no)
+        if (this.coordinated) this.missingCall(caller, this.reportMissing(m, roster), m);
         else caller.searchAt(m.pos.x, m.pos.z, null);
       }
-      if (missed) caller.bark('missed');
+      // (guard-ai S14) "Unit three, report... Unit three? Nothing."
+      if (missed) caller.bark('missed', unit);
       else
         for (let i = 0; i < roster.length; i++) {
           const m = roster[i]!;
@@ -1443,8 +1476,9 @@ export class EnemyManager {
   }
 
   /** (guard-ai S5b) A squad member missed on a radio check: a `missing` incident at where he went down; his squad's
-   *  calm, free members perceived it (the board sends two of them; none free: any two of the section). */
-  private reportMissing(m: Enemy, roster: readonly Enemy[]): void {
+   *  calm, free members perceived it (the board sends two of them; none free: any two of the section). Returns the
+   *  incident id (guard-ai S14: the caller's `missing` call is about it). */
+  private reportMissing(m: Enemy, roster: readonly Enemy[]): number {
     this.hearRoom(roster.length);
     const who = this.hearWho;
     let n = 0;
@@ -1453,7 +1487,7 @@ export class EnemyManager {
       if (o === m || !o.alive || o.alerted || o.dog || o.taken || o.passive) continue;
       who[n++] = o.num;
     }
-    this.report('missing', m.pos.x, m.pos.y, m.pos.z, m.num, n);
+    return this.report('missing', m.pos.x, m.pos.y, m.pos.z, m.num, n);
   }
 
   /** EMP at a point: recon drones in range drop. */
@@ -1629,6 +1663,8 @@ export class EnemyManager {
     }
     // (guard-ai S4) a death reported (`inc` is the hold): he knows of it now (held caution)
     if (kind === 'body' && this.awareness.addAware(inc, e.key)) this.syncCaution();
+    // (guard-ai S14) a missing guard or shots: cautious, timed (a later call refreshes it)
+    else if (kind === 'shots' || (kind === 'missing' && this.alertLog.find(ALERT_MISSING, inc, caller) >= 0)) this.alertHold(e, kind);
     const k = CALL_KIND.indexOf(kind);
     for (let j = 0; j < this.ackCaller.length; j++) if (this.ackCaller[j] === caller && this.ackInc[j] === inc && this.ackKind[j] === k) return;
     const j = this.ackK;
@@ -1645,6 +1681,82 @@ export class EnemyManager {
     const e = this.byNum(caller);
     if (!e) return;
     this.raiseAlarm(e, null);
+    // (guard-ai S14) the section's tally
+    if (this.alarmRaised) this.counts.radioAlarms++;
+  }
+
+  /**
+   * (guard-ai S14) An alert call got through (`missing`: only one this manager logged as the section alert; `shots`:
+   * every one): the caller's report line, he is cautious too, and a shots call sends a pair (lead + cover, G11) to the
+   * newest shot's spot with him as one who heard it.
+   */
+  private alertThrough(caller: number, inc: number, kind: CallKind): void {
+    const isShots = kind === 'shots';
+    const slot = this.alertLog.find(isShots ? ALERT_SHOTS : ALERT_MISSING, inc, caller);
+    if (slot < 0) return;
+    const e = this.byNum(caller);
+    if (isShots) this.counts.shotsCalls++;
+    if (!e) return;
+    e.bark(isShots ? 'shotsReport' : 'missingReport');
+    this.alertHold(e, kind);
+    if (!isShots || !SHOTS.pair) return;
+    const log = this.alertLog;
+    this.hearRoom(1);
+    this.hearWho[0] = e.num;
+    const id = this.board.report('shots', log.x[slot]!, log.z[slot]!, log.y[slot]!, -1, this.hearWho, 1);
+    this.board.wantPair(id);
+    this.boardStep(0);
+  }
+
+  /** (guard-ai S14) `e` knows the section is on alert (`kind` `missing` / `shots`): his timed caution. */
+  private alertHold(e: Enemy, kind: CallKind): void {
+    const shots = kind === 'shots';
+    if (shots ? !SHOTS.sectionCall : !MISSING.sectionCaution) return;
+    if (this.awareness.timedHold(e.key, shots ? SHOTS.cautious : MISSING.cautious, shots ? ALERT_SHOTS : ALERT_MISSING)) this.syncCaution();
+  }
+
+  /**
+   * (guard-ai S14, item 6, A40) `caller` radios that `m` is not answering (the radio check missed him, or he is the
+   * partner who never came): a `missing` call about incident `inc` (the board's `missing` incident at where he was),
+   * `RADIO.callIn` x reaction, cuttable. Coordinated modes, `MISSING.sectionCaution` on. The S5b / S10 pair search is
+   * the board's; this is only the section being told.
+   */
+  private missingCall(caller: Enemy, inc: number, m: Enemy): void {
+    if (!this.coordinated || !MISSING.sectionCaution || inc < 0) return;
+    const id = this.radioNet.startCall(caller.num, inc, 'missing', callHold('missing', this.reactionOf(caller)));
+    if (id < 0) return;
+    this.alertLog.add(ALERT_MISSING, inc, caller.num, m.pos.x, m.pos.y, m.pos.z);
+  }
+
+  /**
+   * (guard-ai S14, item 7, A41) A loud shot at `pos` was heard (tier 1+) by calm guard `e` (the nearest calm hearer not
+   * fighting): one `shots` call per shots incident. While a shots call is open the shot adds to it (its spot moves to
+   * the newest shot); else a new incident and call (`RADIO.callIn` x reaction, cuttable).
+   */
+  private shotsHeard(e: Enemy, pos: Vector3): void {
+    if (!SHOTS.sectionCall) return;
+    const log = this.alertLog;
+    if (this.radioNet.isOpen(this.shotsCall)) {
+      for (let s = 0; s < log.kind.length; s++) {
+        if (log.kind[s] !== ALERT_SHOTS || log.inc[s] !== this.shotsSeq) continue;
+        log.x[s] = pos.x;
+        log.y[s] = pos.y;
+        log.z[s] = pos.z;
+      }
+      return;
+    }
+    const inc = ++this.shotsSeq;
+    const id = this.radioNet.startCall(e.num, inc, 'shots', callHold('shots', this.reactionOf(e)));
+    if (id < 0) return;
+    this.shotsCall = id;
+    log.add(ALERT_SHOTS, inc, e.num, pos.x, pos.y, pos.z);
+    e.bark('shots');
+  }
+
+  /** (guard-ai S14) May `e` call in shots he heard: calm (not in combat, not on the search after a fight), armed, a
+   *  radio (not a dog, not passive, not held)? */
+  private mayCallShots(e: Enemy): boolean {
+    return e.alive && !e.alerted && !e.taken && !e.passive && !e.def.melee && !e.dog && e.blindT <= 0 && !(e.level === 'searching' && e.aware.fought);
   }
 
   /** (guard-ai S3) Seconds until this guard's open radio call gets through (0: none). Tests / e2e / debug. */
