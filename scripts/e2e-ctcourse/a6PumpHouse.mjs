@@ -91,6 +91,16 @@ export async function walk(t, n) {
         await P.evaluate(() => window.__pad.set(0, 0));
       }
     })();
+  /** (S-e2e-fix2) A real tap of A on a press row (no hold time): A down until P's context list is open on item `id`, then A up.
+   *  The list runs a press row when A is let go (G5, `contextMenu.ts`), so `holdA` (A held until the result) never runs one. */
+  async function tapA(P, id, what) {
+    await P.evaluate(() => window.__pad.set(0, 1));
+    try {
+      await until(P, (id) => { const g = window.__app.current; return g.ctxMenu.state === 'active' && g.ctxMenu.sel === 0 && g.interactTarget?.id === id; }, id, 5000, what);
+    } finally {
+      await P.evaluate(() => window.__pad.set(0, 0));
+    }
+  }
 
   /** The host crouches on the mark and offers; the client takes the leg-up and hangs on the open edge (normal -z, 4.4 m). */
   async function hostBoostsClient(what) {
@@ -336,7 +346,14 @@ export async function walk(t, n) {
   // the exit release on the cabinet's back, then the door by hand, then out
   await moveHost(51.5, 62.9, 0.1, 0);
   await until(A, (id) => { const g = window.__app.current; return g.interactables?.nearest(g.player.position)?.id === id; }, EXIT, 10000, "A6 pass 2: the exit release on the cabinet's back is the host's nearest item");
-  await holdA(A, (cid) => !window.__course.state.locked(cid), CAGE_DOOR, 'A6 pass 2: the host presses the exit release: the cage door unlocks', 8000);
+  // (S-e2e-fix2) the release is a press row, not a hold row: the context list runs a press row when A is let go, so A goes
+  // down, the list opens on the release, and A comes up (holding A until the unlock never ran it)
+  await padReady(A);
+  await tapA(A, EXIT, "A6 pass 2: the host's list opens on the exit release");
+  await until(A, (cid) => !window.__course.state.locked(cid), CAGE_DOOR, 8000, 'A6 pass 2: the host presses the exit release: the cage door unlocks').catch(async (e) => {
+    console.error(`A6 exit release diag ${await GA((cid) => { const g = window.__app.current; const m = g.ctxMenu; return JSON.stringify({ near: g.interactables?.nearest(g.player.position)?.id ?? null, ctx: { state: m.state, sel: m.sel, rows: m.opts.slice(0, m.count).map((o) => o.label) }, locked: window.__course.state.locked(cid), last: g.mode?.lastPress ?? null, team: g.team.state, feet: [g.player.position.x, g.player.position.z].map((n) => +n.toFixed(2)) }); }, CAGE_DOOR)}`);
+    throw e;
+  });
   await until(B, (i) => !window.__course.wire.locks.includes(i), await doorIndex(CAGE_DOOR), 15000, 'A6 pass 2: the client sees the cage door unlocked');
   const ci = await doorIndex(CAGE_DOOR);
   const aid = await GA((cid) => window.__app.current.world.layout.course.doors[cid], CAGE_DOOR);

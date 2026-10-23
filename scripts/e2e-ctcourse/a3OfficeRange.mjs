@@ -5,7 +5,8 @@
 //   2. the send-back: the client stands in the corridor unjammed: the camera has it (stage 2), the host sends it back to (77.8, 10.75) on both
 //      pages, LANTERN's line reaches the client, the claim made the client B (the host A, the lines swap);
 //   3. the dark case: the host switches the corridor off (a3-sw-corr): the corridor reads dark on both pages and the client is sent back again
-//      (the camera sees in the dark, G240); the switch back on;
+//      (the camera sees in the dark, G240); the switch back on. The switch is a lights-out lure: the host works it from the L2 holding
+//      room, the client joins it after its send-back and the L2 far door is shut until the cleaner is back on his loop;
 //   4. the window miss: the host jams from the west post; the camera is blind and frozen on both pages, the client in the corridor in plain view
 //      is not seen (meter and stage 0, no send-back) for as long as the window lasts; when the jam ends and the camera reboots it has the client:
 //      sent back (the third send-back);
@@ -37,6 +38,9 @@ const OFFICE1 = [82.5, 4.3];
 const OFFICE2 = [88.3, 4.3];
 const SW_CORR = [78.6, 12.7];
 const SW_OFF1 = [79.7, 6.0];
+/** (S-e2e-fix2) Two spots in the L2 holding room (x 70-76, z 7-13), clear of its far door's doorway (x 76, z 10): out of the
+ *  cleaner's sight while the corridor switch lures him to the west lobby. */
+const L2_HIDE = [[72.5, 8.5], [72.5, 11.5]];
 
 /** @param {object} t the runner's helpers (scripts/e2e-ctcourse.mjs) @param {number} n the set's number */
 export async function walk(t, n) {
@@ -55,6 +59,40 @@ export async function walk(t, n) {
   const backs = () => GA(() => window.__ctdev.debug().sendBacks);
   const cam = async (P) => (await dev(P)).cams.find((c) => c.id === CAM_ID);
   const cleaner = () => GA(() => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.alive); return e ? { x: e.pos.x, z: e.pos.z, alerted: !!e.alerted, passive: !!e.passive } : null; });
+  /** (S-e2e-fix2) The live guard's brain and walk on the host (for a timeout): place, velocity, alert level, meter, the heard spot, the
+   *  investigate spot, the A* route, the walker (index, wait), the nav cell and the players' feet. */
+  const npcDiag = () =>
+    GA(() => {
+      const g = window.__app.current;
+      const e = g.enemyMgr?.enemies.find((q) => q.alive);
+      if (!e) return 'no live guard';
+      const f = (n) => (typeof n === 'number' ? +n.toFixed(2) : n);
+      const w = e.walker;
+      return JSON.stringify({ t: f(g.time), pos: [f(e.pos.x), f(e.pos.z)], vel: [f(e.vel.x), f(e.vel.z)], lvl: e.aware?.level, st: e.state, meter: f(e.meter), al: !!e.alerted, pas: !!e.passive, taken: !!e.taken, link: !!e.link, stim: e.hasStimulus ? [f(e.stimulus[0]), f(e.stimulus[1])] : null, spot: [f(e.spot[0]), f(e.spot[1])], route: (e.routePath ?? []).slice(0, 4).map((p) => [f(p[0]), f(p[1])]), idx: w?.idx, wait: f(w?.waitT), look: f(w?.lookYaw), cell: e.navCell, walk: g.nav ? g.nav.isWalkable(e.navCell) : null, turn: f(e.turnT), n: g.enemyMgr.enemies.length, feet: g.playerRefs().map((r) => [f(r.feet.x), f(r.feet.z)]) });
+    });
+  /** (S-e2e-fix2) Wait on `wait` while the guard is sampled every 1.5 s; on a timeout the trace is printed with the error. */
+  async function traced(what, wait) {
+    const trace = [];
+    let on = true;
+    const sampler = (async () => {
+      while (on) {
+        trace.push(await npcDiag().catch((e) => String(e)));
+        if (trace.length > 30) trace.shift();
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+    })();
+    try {
+      await wait;
+    } catch (e) {
+      on = false;
+      await sampler;
+      console.error(`${what}: guard trace (host)\n    ${trace.join('\n    ')}`);
+      throw e;
+    } finally {
+      on = false;
+    }
+    await sampler;
+  }
   /** The wall switch item near (x, z): `switch-<n>` in the map's order, found by where it is. */
   const switchId = (x, z) => GA(([x, z]) => window.__app.current.interactables.items.find((i) => /^switch-/.test(i.id) && Math.hypot(i.pos.x - x, i.pos.z - z) < 0.7)?.id ?? null, [x, z]);
   const groupOn = (P, g) => P.evaluate((g) => window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g).every((x) => x.on), g);
@@ -198,6 +236,14 @@ export async function walk(t, n) {
   console.log('  A3: the dark corridor does not hide a player from the camera');
   const swCorr = await switchId(SW_CORR[0], SW_CORR[1]);
   assert(!!swCorr, `A3: the corridor switch is a map switch item (${swCorr})`);
+  // (S-e2e-fix2) the switch off is a lights-out lure: the cleaner walks to the switch in the west lobby (about 14 s from his
+  // loop). Players left standing there were seen: on the desktop he went to combat with the host at (77.2, 9.6) and the client
+  // at the send-back spot and stayed in a fight / search loop for the whole 150 s step-4 wait (his `alerted` flag is the
+  // combat level only, so a passing check read his searches as calm and step 7's lure could fall on a search, which ignores
+  // a heard lure: the laptop's "the cleaner walks toward office 1's switch" timeout). The host works the switch from the L2
+  // holding room (a test use, no reach), the client follows after its send-back, and the L2 far door is shut behind them
+  // until he is back on his loop.
+  await moveHost(L2_HIDE[0][0], L2_HIDE[0][1], 0.1, Math.PI / 2);
   assert((await use(A, swCorr)) === 'ok', 'A3: the host turns the corridor switch off');
   await until(A, () => !window.__app.current.stealth.switchOn(30), null, 15000, 'A3: the host sees group 30 off');
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
@@ -210,6 +256,15 @@ export async function walk(t, n) {
   await moveClient(SEEN[0], SEEN[1], 0.1, Math.PI / 2);
   await sentBack('A3 dark send-back', n0);
   assert((await level(B, SEEN[0], SEEN[1])) <= 0.24, 'A3: the client was sent back from a dark corridor (the camera sees in the dark)');
+  await moveClient(L2_HIDE[1][0], L2_HIDE[1][1], 0.1, Math.PI / 2);
+  const l2Far = await doorIndex('L2-far');
+  const l2Aid = await GA((cid) => window.__app.current.world.layout.course.doors[cid], 'L2-far');
+  // (a motorised far door may already have shut by itself: only an open one is closed)
+  if (await GA((i) => window.__app.current.world.doors.list[i].target !== 0, l2Far)) assert((await use(A, `door-${l2Aid}`)) === 'ok', 'A3: the host shuts the L2 far door on both players');
+  await until(A, (i) => { const d = window.__app.current.world.doors.list[i]; return d.target === 0 && d.open < 0.05; }, l2Far, 5000, 'A3: the L2 far door is shut (host)').catch(async (e) => {
+    console.error(`A3 L2 door diag ${await GA((i) => { const g = window.__app.current; const d = g.world.doors.list[i]; return JSON.stringify({ target: d.target, open: d.open, locked: d.anchor.locked, leaf: d.anchor.leaf, by: d.by, feet: g.playerRefs().map((r) => [r.feet.x, r.feet.z].map((n) => +n.toFixed(2))) }); }, l2Far)}`);
+    throw e;
+  });
   assert((await use(A, swCorr)) === 'ok', 'A3: the host turns the corridor switch on again');
   await until(A, () => window.__app.current.stealth.switchOn(30), null, 15000, 'A3: group 30 is back on');
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, (g) => window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g).every((x) => x.on), 30, 15000, `A3: the ${tag} sees the corridor lamps on`);
@@ -219,7 +274,9 @@ export async function walk(t, n) {
   await waitSim(3500);
   // (S-e2e-fix) the corridor switch lured the cleaner to the west lobby (lights out): the jam posts wait until he is calm and
   // back on his office loop
-  await until(A, () => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return !e || (!e.alerted && e.pos.x > 79.6 && e.pos.z < 8.7); }, null, 120000, 'A3: the cleaner is calm and back in the offices after the corridor lure');
+  // (S-e2e-fix2) calm = back on his loop (unaware or cooldown): `alerted` is the combat level only, so a guard still searching
+  // (60 s, ALERT.searchTime) or investigating read as calm
+  await traced('A3 calm', until(A, () => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return !e || ((e.aware.level === 'unaware' || e.aware.level === 'cooldown') && e.pos.x > 79.6 && e.pos.z < 8.7); }, null, 150000, 'A3: the cleaner is calm and back in the offices after the corridor lure'));
   // (the start's damage-off can be undone by the bay-N respawn's wall-clock 2 s timer: set again, seconds later)
   await noDamage(A);
   assert((await GA(() => window.__app.current.target.health.hp)) === 100, 'A3: the host is unhurt before the jam posts');
@@ -310,7 +367,9 @@ export async function walk(t, n) {
   console.log('  A3: the office switch lures the cleaner');
   const sw1 = await switchId(SW_OFF1[0], SW_OFF1[1]);
   assert(!!sw1, `A3: office 1's switch is a map switch item (${sw1})`);
-  await until(A, () => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return !!e && !e.alerted && e.pos.x > 85.8 && e.pos.x < 90.8 && e.pos.z < 8.5; }, null, 90000, 'A3: the cleaner is calm in office 2');
+  // (S-e2e-fix2) on his loop (unaware or cooldown), not merely out of combat: a searching guard ignores a heard lure
+  // (`alertState.ts`: 'searching' only times out; `heard` moves him from unaware, cooldown, suspicious and investigating)
+  await traced('A3 office 2', until(A, () => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return !!e && (e.aware.level === 'unaware' || e.aware.level === 'cooldown') && e.pos.x > 85.8 && e.pos.x < 90.8 && e.pos.z < 8.5; }, null, 150000, 'A3: the cleaner is calm in office 2'));
   const d0 = await cleaner();
   const dist = (e) => Math.hypot(e.x - SW_OFF1[0], e.z - SW_OFF1[1]);
   assert((await use(A, sw1)) === 'ok', 'A3: the host turns office 1\'s switch off');
@@ -322,7 +381,7 @@ export async function walk(t, n) {
   }
   const lit2 = [await level(A, OFFICE2[0], OFFICE2[1]), await level(B, OFFICE2[0], OFFICE2[1])];
   assert(lit2.every((l) => l >= 0.4), `A3: office 2 stays lit on both pages (${lit2.map((l) => l.toFixed(2))})`);
-  await until(A, ([x, z, d]) => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return !!e && (Math.hypot(e.pos.x - x, e.pos.z - z) < d - 3 || Math.hypot(e.pos.x - x, e.pos.z - z) < 3); }, [SW_OFF1[0], SW_OFF1[1], dist(d0)], 30000, `A3: the cleaner walks toward office 1's switch (from ${dist(d0).toFixed(1)} m)`);
+  await traced('A3 lure', until(A, ([x, z, d]) => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return !!e && (Math.hypot(e.pos.x - x, e.pos.z - z) < d - 3 || Math.hypot(e.pos.x - x, e.pos.z - z) < 3); }, [SW_OFF1[0], SW_OFF1[1], dist(d0)], 30000, `A3: the cleaner walks toward office 1's switch (from ${dist(d0).toFixed(1)} m)`));
   assert((await use(A, sw1)) === 'ok', 'A3: the host turns office 1\'s switch on again');
   await until(A, () => window.__app.current.stealth.switchOn(31), null, 15000, 'A3: group 31 is back on');
   await until(B, (g) => window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g).every((x) => x.on), 31, 15000, "A3: the client sees office 1's lamps on");

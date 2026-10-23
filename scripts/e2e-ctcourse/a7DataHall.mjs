@@ -9,7 +9,7 @@
 //   4. the corridor in cam2's blind windows (the sweep read from `__ctdev.debug().cams`; teleport legs between the cooling
 //      units' lees): no camera stage, no alarm; the pod door opened in the 220 deg window; the client into the pod: `a7-pod`
 //      set, `a7-split` ticks on both pages, the hack lines show;
-//   5. the hall: the host opens the hall door while the technician is on his R0 leg, waits for him to leave R0 (route index
+//   5. the hall: the host opens the hall door while the technician stands at R0 (his back to it), waits for him to leave R0 (route index
 //      0 -> 1, read on the host) and to walk west behind row 1, then to T1's spot; both at their terminals light the ready
 //      lamps on both pages (the glow colour changes);
 //   6. the fail check: the client starts 2.0 s late (on its own frame that sees T1 ready): no flag, the client loses 10 HP
@@ -28,6 +28,8 @@ const SCAN = 'sc-a7';
 const T1 = 'c-a7-t1';
 const T2 = 'c-a7-t2';
 const SPOT1 = [85.35, 61.5];
+/** (S-e2e-fix2) R0, the technician's stop at the cage front (A7_TECH_ROUTE[0], facing east). */
+const A7_R0 = [84.4, 60.6];
 const SPOT2 = [96.65, 61.5];
 /** The cooling units' west lees (hidden from cam2 by their unit), the corridor's mid point, the lobby. */
 const LEE1 = [83.7, 55.2];
@@ -53,6 +55,40 @@ export async function walk(t, n) {
   const claimed = () => GA(() => window.__course.state.roleClaimed());
   const roles = () => GA(() => [window.__course.state.roleOf(0), window.__course.state.roleOf(1)]);
   const tech = () => GA(() => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.alive); return e ? { x: e.pos.x, z: e.pos.z, idx: e.walker?.idx ?? -1, alerted: !!e.alerted, passive: !!e.passive } : null; });
+  /** (S-e2e-fix2) The live guard's brain and walk on the host (for a timeout): place, velocity, alert level, meter, the heard spot, the
+   *  investigate spot, the A* route, the walker (index, wait), the nav cell and the players' feet. */
+  const npcDiag = () =>
+    GA(() => {
+      const g = window.__app.current;
+      const e = g.enemyMgr?.enemies.find((q) => q.alive);
+      if (!e) return 'no live guard';
+      const f = (n) => (typeof n === 'number' ? +n.toFixed(2) : n);
+      const w = e.walker;
+      return JSON.stringify({ t: f(g.time), pos: [f(e.pos.x), f(e.pos.z)], vel: [f(e.vel.x), f(e.vel.z)], lvl: e.aware?.level, st: e.state, meter: f(e.meter), al: !!e.alerted, pas: !!e.passive, taken: !!e.taken, link: !!e.link, stim: e.hasStimulus ? [f(e.stimulus[0]), f(e.stimulus[1])] : null, spot: [f(e.spot[0]), f(e.spot[1])], route: (e.routePath ?? []).slice(0, 4).map((p) => [f(p[0]), f(p[1])]), idx: w?.idx, wait: f(w?.waitT), look: f(w?.lookYaw), cell: e.navCell, walk: g.nav ? g.nav.isWalkable(e.navCell) : null, turn: f(e.turnT), n: g.enemyMgr.enemies.length, feet: g.playerRefs().map((r) => [f(r.feet.x), f(r.feet.z)]) });
+    });
+  /** (S-e2e-fix2) Wait on `wait` while the guard is sampled every 1.5 s; on a timeout the trace is printed with the error. */
+  async function traced(what, wait) {
+    const trace = [];
+    let on = true;
+    const sampler = (async () => {
+      while (on) {
+        trace.push(await npcDiag().catch((e) => String(e)));
+        if (trace.length > 30) trace.shift();
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+    })();
+    try {
+      await wait;
+    } catch (e) {
+      on = false;
+      await sampler;
+      console.error(`${what}: guard trace (host)\n    ${trace.join('\n    ')}`);
+      throw e;
+    } finally {
+      on = false;
+    }
+    await sampler;
+  }
   const scan = (P) => P.evaluate((id) => window.__ctdev?.debug().scans.find((s) => s.id === id) ?? null, SCAN);
   /** The ready lamps' glow colours on this page (instanced colour of each panel's ready glow). */
   const readyGlow = (P) => P.evaluate((id) => { const sc = window.__ctdev?.scans.find((s) => s.def.id === id); return sc ? sc.ready.map((m) => { const c = m.instancedBuffers.color; return [c.r, c.g, c.b].map((v) => Math.round(v * 100) / 100).join(','); }) : null; }, SCAN);
@@ -156,10 +192,19 @@ export async function walk(t, n) {
   // ---- 5. the hall: the hall door on his R0 leg, he leaves R0, west behind row 1; the host to T1; the ready lamps ----
   console.log('  A7: the hall, the technician, terminal one');
   const glow0 = [await readyGlow(A), await readyGlow(B)];
-  await until(A, () => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.alive); return !!e && e.walker?.idx === 0; }, null, 60000, 'A7: the technician is on his R0 leg (index 0)');
+  // (S-e2e-fix2) the door opens while he stands AT R0 reading the rack screen (facing east, the door 8.4 m behind him), not
+  // anywhere on the R0 leg: walking south from R4 the open door is inside his notice cone (DOOR_NOTICE_COS 0.2, 9 m) between
+  // z 63.5 (row 2 stops hiding it) and 63.3, and a guard that notices a door a player opened comes to look (desktop trace:
+  // noticed at (84.4, 62.9), investigated the door, back on his loop at R3 / R4, R0 not left in 30 s)
+  await until(A, ([x, z]) => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return !!e && !e.alerted && e.walker?.idx === 0 && Math.hypot(e.pos.x - x, e.pos.z - z) < 0.45 && e.aware.level !== 'investigating' && e.aware.level !== 'searching'; }, A7_R0, 60000, 'A7: the technician stands at R0 (index 0, facing the rack screen)');
   await openDoor(A, DOORS.hall, 'A7 hall door');
-  await until(A, () => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.alive); return !!e && e.walker?.idx === 1; }, null, 30000, 'A7: the technician leaves R0 (index 0 -> 1)');
-  await until(A, () => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.alive); return !!e && e.walker?.idx === 2 && e.pos.x < 83; }, null, 20000, 'A7: the technician walks west behind row 1');
+  await traced('A7 R0', until(A, () => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.alive); return !!e && e.walker?.idx === 1; }, null, 30000, 'A7: the technician leaves R0 (index 0 -> 1)'));
+  await traced('A7 row 1', until(A, () => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.alive); return !!e && e.walker?.idx === 2 && e.pos.x < 83; }, null, 20000, 'A7: the technician walks west behind row 1'));
+  // (S-e2e-fix2) the host shuts the door again before the technician reaches the west cross aisle, where row 1
+  // stops hiding the doorway (from x 78.8 the open door is 4-5 m ahead of him)
+  const hallAid = await GA((cid) => window.__app.current.world.layout.course.doors[cid], DOORS.hall);
+  assert((await use(A, `door-${hallAid}`)) === 'ok', 'A7: the host shuts the hall door again');
+  await until(A, (i) => window.__app.current.world.doors.list[i].target === 0, await doorIndex(DOORS.hall), 5000, 'A7: the hall door shuts (host)');
   await moveHost(SPOT1[0], SPOT1[1], 0.1, Math.PI / 2);
   await until(A, (id) => window.__ctdev.debug().scans.find((s) => s.id === id)?.ready, SCAN, 8000, 'A7: both at their terminals light the ready lamps (host)');
   await until(B, (id) => window.__ctdev.debug().scans.find((s) => s.id === id)?.occ === 3, SCAN, 8000, 'A7: the client page shows both at their terminals');
@@ -194,23 +239,16 @@ export async function walk(t, n) {
   assert(hp1 >= 1 && hp0 - hp1 >= 9 && hp0 - hp1 <= 10, `A7: the failed hack cost ${hp0 - hp1} HP (${hp0} -> ${hp1}), never below 1`);
   assert(await lockedOnClient(DOORS.cageW), 'A7: the failed sync leaves the cage locked');
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, (id) => { const s = window.__ctdev.debug().scans.find((q) => q.id === id); return s.ph[0] === 'idle' && s.ph[1] === 'idle'; }, SCAN, 8000, `A7: both terminals ready again (${tag})`);
-  // the synced hack: the client starts on its own frame that sees the host's hack 0.5 s in
-  await GB(([id, item]) => {
-    window.__a7 = { at: -1, use: '' };
-    const f = () => {
-      const s = window.__ctdev?.debug().scans.find((q) => q.id === id);
-      if (s && s.ph[0] === 'hacking' && s.t[0] >= 0.5) {
-        window.__a7.at = s.t[0];
-        const it = window.__app.current.interactables?.items.find((i) => i.id === item);
-        window.__a7.use = !it ? 'missing' : !it.enabled ? 'disabled' : (it.onUse(it), 'ok');
-      } else requestAnimationFrame(f);
-    };
-    requestAnimationFrame(f);
-  }, [SCAN, T2]);
+  // the synced hack: the client starts once the host's hack is 0.5 s in. (S-e2e-fix2) Timed on the host's clock: the client's
+  // mirror of the pair carries the host's hack time only in the `course` message, sent on a phase change or every
+  // COURSE_SEND (2 s), and does not run it on between them, so a client-frame trigger on t >= 0.5 fired at whatever time the
+  // next message carried (1.6 s on the desktop, past the window). The start the host takes is read on its own step.
+  const startKey = await t.onHostStep(A, (g, id) => { const s = window.__ctdev?.debug().scans.find((q) => q.id === id); return s && s.ph[1] === 'hacking' ? { at: s.t[0] } : null; }, SCAN);
   assert((await use(A, T1)) === 'ok', 'A7: the host starts the synced hack at terminal one');
-  await until(B, () => window.__a7.use !== '', null, 10000, 'A7: the client starts on the count');
-  const at = await GB(() => window.__a7);
-  assert(at.use === 'ok' && at.at >= 0.5 && at.at < 1.5, `A7: the client starts 0.5 s after the host, inside the window (${JSON.stringify(at)})`);
+  await until(A, (id) => { const s = window.__ctdev.debug().scans.find((q) => q.id === id); return !!s && s.ph[0] === 'hacking' && s.t[0] >= 0.5; }, SCAN, 10000, "A7: the host's hack is 0.5 s in");
+  assert((await use(B, T2)) === 'ok', 'A7: the client starts on the count');
+  const at = await t.hostStepResult(A, startKey, 8000, "A7: the host takes the client's hack start");
+  assert(at.at >= 0.5 && at.at < 1.5, `A7: the client starts 0.5 s after the host, inside the window (${JSON.stringify(at)})`);
   await until(A, () => window.__course.state.hasFlag('a7-sync'), null, 15000, 'A7: both hacks inside the window set a7-sync');
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, (id) => { const s = window.__ctdev.debug().scans.find((q) => q.id === id); return s.ph[0] === 'done' && s.ph[1] === 'done'; }, SCAN, 8000, `A7: the ${tag} page sees both terminals done`);
   assert((await hp()) >= hp1, 'A7: the synced hack cost nothing');
