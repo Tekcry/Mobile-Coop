@@ -12,7 +12,7 @@ Item 7 (the host decides where a client goes):
 - Course mode: that `start` carries the current bay (`NetSession.lateBay`, set by CoopHost from `resumeBay()`), so a
   client whose match reloads lands in the current bay's entry airlock, not the yard start.
 - On that client's first `pstate`, CoopHost sends the whole state at once (course / sector message via new
-  `GameMode.resync`, items, doors, bodies, lamps); places the client if its match (re)loaded (`joinNeedsPlacing`: no
+  `GameMode.resync`, items, doors, bodies, lamps); places the client if its match (re)loaded (fix round: `JoinWatch` / `joinIsReload`; was `joinNeedsPlacing`: no
   state before, or a jump of 3 m or more); leaves it where it is if it kept its match up.
 - Placement (`joinSpawn`): Course and Sector Ops = the current checkpoint (`GameMode.checkpointSpawns`) on the client's
   slot if a player there can walk to the host (`canWalk`: nav path crossing no locked closed door leaf), else beside
@@ -64,3 +64,43 @@ host) with A1-A2 done, A3 doors as on the host, HUD on A3; never the yard start.
 - Marlow Build places slot 1 in map data (airlock `spawns`, `start2` / `checkpoint2`); until then the computed slot is
   used (tests show it clear in every current area).
 - Changelog: "Co-op rejoin at the checkpoint, two spawn slots".
+
+## Fix round (Opus, after CHECK-A FAIL / CHECK-B PASS)
+Items (no wire change, PROTOCOL_VERSION untouched; `courseMode.ts` fixedUpdate and `BayDef` untouched):
+1. **B1 (blocking): a rejoiner placed on its reload, not on its old match.** New pure `src/net/joinWatch.ts`
+   (`JoinWatch`), which now also holds the R2 restore map (was `CoopHost.restoreFor` / `joinPending`). After `late` the
+   watch stays open (30 s from the client's last load gap of 1 s+, so a slow load is still caught; a repeated `late`
+   keeps it). It resyncs once on the first state as before, and places the client on the first state that is its
+   reload (`spawnSlots.joinIsReload`): no state before, or a jump of `JOIN_SAME_M` 3 m+ from the previous accepted
+   state (`r.feet` before `accept`) that lands in the client's start area (`startSlotPoints(g, lateBay)`, within
+   `JOIN_START_M` 4 m) and not within `JOIN_RESTORE_M` 1.5 m of a restore the host sent it. No check while a host
+   teleport is in flight: `sendBack` (`HALL_BACK_HOLD` 3 s) and a revive to a spot (`JOIN_REVIVE_QUIET_S` 2 s). The watch
+   ends when its placement's restore is met or runs out. Old-match states at the held spot now only meet the held
+   restore; the reload jump that follows is placed (`joinSpawn`: checkpoint slot or beside the host).
+   **P1 verified fixed, with one addition:** comparing consecutive states alone does not fix P1, because a kept-up
+   client's first state after `late` is still compared with the stale pre-gap state (its hello reaches the host before
+   its next state). The start-area condition does: a kept-up client that moved 3 m+ in the gap is placed only if it
+   now stands in its own start area, where the placement is the checkpoint anyway (Course: the current airlock) or
+   wanted (Sector Ops section 1 while the host is further on).
+2. **P2:** `onRespawn` calls `JoinWatch.respawned` for each partner it moves (revived, or alive in Course / Sector Ops):
+   the repeating restore (join or held spot) stops, and the revive teleport counts as in flight.
+3. **CHECK-B polish 1:** `slotSpawn` uses `besideLoose` only when the probe finds no floor under the area's first point
+   (physics not up), not on any strict-search failure.
+4. **CHECK-B polish 3:** `validateCourse` refuses an airlock `spawns` point under 0.3 m (a body radius) inside the box.
+   **Polish 6:** the stale `courseStartPos` comment in spawnSlots.ts is gone.
+
+Files: new `src/net/joinWatch.ts`, `tests/joinWatch.test.ts`; changed `src/net/coopHost.ts`, `src/game/spawnSlots.ts`
+(`joinNeedsPlacing` -> `joinIsReload`, `JOIN_START_M`, `JOIN_RESTORE_M`, the loose-try gate), `src/game/spawnPlace.ts`
+(`startSlotPoints` takes a bay), `src/game/course/courseDef.ts` (inset), `tests/spawnSlots.test.ts`,
+`tests/coopRejoin.test.ts`, `docs/systems/coop.md`.
+
+Tests (single files, desktop): joinWatch 11/11 (old-match states then the reload jump -> placed once, resynced once;
+slow load past the watch time -> placed; new-tab rejoin and late join -> placed on the first state; repeated `late`;
+a kept-up client walking -> never placed, watch ends; P1 gap move -> not placed; `back` / revive in flight -> not a
+reload; a jump onto the held restore -> not a reload; the restore repeat; P2 restart stops the repeat; drop),
+spawnSlots 19/19 (+ `joinIsReload` cases, + loose try gated with the physics up), coopRejoin 12/12 (+ the 0.3 m inset),
+rejoin 12/12, sectors 27/27, ctcourse 27/27, net 71/71, netSim 7/7: 8 files, 188/188. `npx tsc --noEmit -p .` clean;
+eslint clean on the touched files. No e2e (desktop rule; e2e-coop / e2e-netmove / e2e-ctcourse go to the laptop).
+
+Left open: a rejoin through the start area's 3 m (P5) keeps the held-spot restore (written in coop.md); a host restart
+or `back` landing in the reload's 2-3 s window would skip that reload (the watch then sees no later jump). Rare.

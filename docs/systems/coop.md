@@ -67,23 +67,31 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 - (coop-rejoin, Michael's 4.82.0 walk item 7) Host-decided (re)join spawn, no wire change. Whenever the running match
   goes to one client (`NetSession` emits `late`: a late join, a rejoin, a reconnect the host never saw drop), a course
   `start` carries the current bay (`NetSession.lateBay`, set by `CoopHost`: `resumeBay()`), so the client's match loads
-  in that bay's entry airlock. On that client's first `pstate` the host sends the mode state at once (`GameMode.resync`:
-  the `course` / `sector` message; items, doors, lamps) and, when the client's match (re)loaded (no state before, or a
-  jump of `JOIN_SAME_M` 3 m or more from where it stood: `joinNeedsPlacing`), places it with `joinSpawn`
+  in that bay's entry airlock. The host then watches that client (`net/joinWatch.ts`, pure): on its first `pstate` it
+  sends the mode state at once (`GameMode.resync`: the `course` / `sector` message; items, doors, lamps), and it places
+  the client on its reload, which may come after states from its old match (a page left open while it waited for the
+  host keeps sending until the `start` reaches it). The reload (`joinIsReload`) is a client with no state before, or a
+  state that jumps `JOIN_SAME_M` 3 m or more from its previous accepted state into its start area (`startSlotPoints` at
+  the bay its `start` carried, within `JOIN_START_M` 4 m) and not onto a restore the host sent it; no check runs while a
+  `back` or a revive the host sent it is in flight. The watch lasts 30 s from its last load gap (no state for 1 s) and
+  ends once its placement's restore is met. The host places it with `joinSpawn`
   (`game/spawnSlots.ts`, pure): Course and Sector Ops, the current checkpoint (`GameMode.checkpointSpawns`) at the
   client's slot, when a player there can walk to the host (`canWalk`: a nav path that crosses no locked closed door
   leaf); else beside the host. Never the level start unless that is still the checkpoint. Other modes: where its slot
   was held, else beside the host. The spot goes as the existing `restore` event, repeated every 0.5 s until the client
-  stands within 1 m (30 s at most). A client that kept its match up (it ignored the `start`) plays on where it is.
+  stands within 1 m (30 s at most); a checkpoint restart (`onRespawn`) stops that repeat. A client that kept its match
+  up (it ignored the `start`) plays on where it is, even when it moved 3 m or more in a gap the host did not see. A
+  rejoin whose reloaded start lies within 3 m of its held spot (it dropped in the start area) is restored to the held
+  spot, not the checkpoint slot.
 - (coop-rejoin, walk item 4) Two spawn slots per spawn area, no wire change: slot 0 the host, slot 1 the partner
   (`CoopHost.slotOf` / `CoopClient.slot`: 1 + the place among the joiners). Map data may give slot 1 (`AirlockDef.spawns`
-  `[slot 0, slot 1]`, validated: at most 2, inside the box, 0.9 m apart; Sector Ops `SectorDef.start2`,
+  `[slot 0, slot 1]`, validated: at most 2, inside the box by 0.3 m, 0.9 m apart; Sector Ops `SectorDef.start2`,
   `ConnectorDef.checkpoint2` -> `SectorRun.checkpoint2`; the course start: the map's first two `playerSpawns`). Without
   it, `slotSpawn` gives slot 1 the first free spot of `SPAWN.rings` (1.2, 1.7, 2.3, 0.9 m) x 8 directions (the slot's
   side first): clear of the level (`SightWorld.blocked`), on a floor, an open line from slot 0 at knee and chest height
   (no wall, closed door, prop, fence or glass between) and `SPAWN.minGap` 0.9 m from every other player on the storey
-  (`game/spawnPlace.ts` builds the probe from the level; a last try without the floor and line checks covers a physics
-  world not yet up). The client takes its slot of the start area itself (`startSlotPoints`: course start or bay-N
+  (`game/spawnPlace.ts` builds the probe from the level; a last try without the floor and line checks runs only when no
+  floor is found under the area's point: a physics world not yet up). The client takes its slot of the start area itself (`startSlotPoints`: course start or bay-N
   airlock, Sector Ops section 1, else the map spawns); `CoopHost.onRespawn` puts each partner on its slot of the
   checkpoint.
 - (marlow-bays item 1) A held hostage is never solid to its holder: the client's `EnemyPuppet.setSolid` (the takedown's
