@@ -1,7 +1,7 @@
 // Headless desktop smoke test against a built `dist/` served by `vite preview`.
 // Usage: node scripts/smoke.mjs [url] [--shot=out.png] [--wait=ms] [--eval=js]
 import { chromium } from 'playwright-core';
-import { launchOptions, fakePointerLock, falloffParam } from './e2e-lib.mjs';
+import { launchOptions, fakePointerLock } from './e2e-lib.mjs';
 
 const args = process.argv.slice(2);
 const url = args.find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
@@ -22,7 +22,7 @@ page.on('console', (m) => {
   else if (process.env.VERBOSE) console.log(`[${m.type()}] ${m.text()}`);
 });
 page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));
-await page.goto(url + (url.includes('?') ? '&' : '?') + falloffParam('debug=1', url));
+await page.goto(url + (url.includes('?') ? '&' : '?') + 'debug=1');
 await page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done') || /Failed/.test(document.getElementById('boot-status')?.textContent ?? ''), null, { timeout: 60000 });
 await page.waitForTimeout(wait);
 if (evalJs) console.log('eval:', await page.evaluate(evalJs));

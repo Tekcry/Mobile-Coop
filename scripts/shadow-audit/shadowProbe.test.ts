@@ -1,7 +1,7 @@
 /**
  * Shadow accuracy probe (sector-redesign shadow audit, Michael ~14:45). Read-only: builds maps in node, bakes them with
  * the pure bakers as `tests/warehouseS1Light.test.ts` does, prints numbers to PROBE_OUT. Results:
- * docs/sector-redesign/checks/shadow-audit.md. `PROBE_PHOTO=1` runs the LR13 prototype falloff (reach 1.6 x radius).
+ * docs/sector-redesign/checks/shadow-audit.md. (LR16a: one light model, the photometric lamps and the fixes always on.)
  */
 import { writeFileSync } from 'node:fs';
 import { it } from 'vitest';
@@ -14,16 +14,13 @@ import { bakeMoon, MOON_CELL } from '@src/voxel/skyBake';
 import { bakedLights, type LightBake } from '@src/world/lightBake';
 import { ambientFromGrid, AMBIENT_CELL, buildAmbientGrid } from '@src/world/ambientGrid';
 import { bakeVisSampler, doorSeen, DOORS_PER_LAMP, LightField, trilinear, type FieldDoor } from '@src/world/lightField';
-import { setShadowAccuracy } from '@src/world/shadowAccuracy';
-import { moonLight, setLampFalloff } from '@src/world/lampMath';
+import { moonLight } from '@src/world/lampMath';
 import { LIGHT } from '@src/world/lights';
 import type { MapDef } from '@src/world/mapDef';
 
-const PHOTO = process.env.PROBE_PHOTO === '1';
-if (PHOTO) setLampFalloff('photometric');
 const OUT = process.env.PROBE_OUT ?? 'shadow-probe.json';
 const MAP_IDS = (process.env.PROBE_MAPS ?? 'warehouseOps,campusOps,ctcourse,warehouse').split(',');
-const out: Record<string, unknown> = { mode: PHOTO ? 'photometric' : 'linear' };
+const out: Record<string, unknown> = { mode: 'photometric' };
 const r3 = (v: number): number => Math.round(v * 1000) / 1000;
 const band = (v: number): number => (v < LIGHT.shadow ? 0 : v < LIGHT.lit ? 1 : 2);
 
@@ -224,9 +221,7 @@ for (const id of MAP_IDS) {
     const res: Record<string, unknown> = { bakeMs: Math.round(performance.now() - t0), atlasMB: r3(atlasBytes(bk) / 1e6), lampCell: LAMP_CELL };
     res.ambient = ambientParity(bk, b.boxes);
     res.body = bodyEdge(shut, b.boxes, bk.lo, bk.hi);
-    setShadowAccuracy(true);
     const fixedField = new LightField(bk, b.lights, doors);
-    setShadowAccuracy(null);
     res.doors = doorCap(b, bk, shut, doors, fixedField);
     out[id] = res;
     writeFileSync(OUT, JSON.stringify(out, null, 1));
