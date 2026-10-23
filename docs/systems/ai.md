@@ -3,9 +3,13 @@ Purpose: perception, alert states, enemy behaviour, archetypes, difficulty, the 
 Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible.md (Section 5.7).
 
 ## Decided direction
-- Decided, not built yet (G41): guards close doors behind them on a calm patrol and notice any door open that should be
-  shut; one 15% open threshold for light, sound and sight. Code: guards push doors open and leave them; the light cut is
-  `DOOR_SHUT` 0.05 (`docs/systems/lighting.md`).
+- Decided, built (G41; ct-prototype A3, F1b door-4): guards close doors behind them on a calm patrol and notice any door
+  open that should be shut. `game/stealthSystems.ts`: a door a guard opened is shut `DOOR_GUARD_CLOSE` 1.5 s after
+  nobody stands within 2.2 m of it, while no guard is in combat (`guardOpened`, `fixedUpdate`); a calm guard within
+  `DOOR_NOTICE_RANGE` 9 m, facing a door the player opened, with a clear line, hears it at the door (suspicion, he comes
+  to look) and it joins the doors guards shut (`noticeOpenDoors`). The 15% threshold is `DOOR.driveShut` 0.15
+  (`world/doors.ts`): a stick-driven door under it is still a crack, shut to the body, light and sight; the light
+  field's own cut for a swinging leaf stays `DOOR_SHUT` 0.05 (`world/lightField.ts`, `docs/systems/lighting.md`).
 - Decided, built (G44, g44-above): guards see poorly above them. `pitchFactor` (`PERCEPTION.up*` / `down*`) scales the
   sight term by the chest's elevation from the eye line: 1 up to +22 deg, smoothstep to 0.15 by +48 deg; below, 1 to -40
   deg, easing to 0.6 by -75 deg. `instantDetect` needs the body within +22 deg. Not applied in combat (`alerted`) or to
@@ -385,6 +389,17 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   next guard who sees it still off turns it back on, and a dropped walk is noticed again (`CONSOLE_FAULT.retry` 3 s).
   `watchesConsole(e, x, floorY, z)` tells the game whether a guard is watching it now (the refusal). Game-side wiring
   (CourseMode, after marlow-final): `docs/guard-ai/slices/S22.md`. Host only, no protocol change.
+- Every player is seen (guard-ai S23, A143-A145; `ai/targetPick.ts` pure: `mayBeSeen`, `pickTarget`, `TARGETS`,
+  `MAX_INTRUDERS` 4): each think a guard perceives every live player (`Enemy.perceive`, per-player module scratch, no
+  allocation): chest / head / hips rays, light and `sightRate` per player, a dog's smell per player; a player a calm
+  guard cannot see at all (outside his field and not felt close by, `mayBeSeen`, the two terms of `sightRate`) costs no
+  ray. The target is the best seen when calm (the highest rate, else the nearest); in combat the one he fights while he
+  sees him, else the nearest he sees, else his last (S24 passes the hunted player). One meter per guard, filled at the
+  target's rate (two in view do not add up). `seesIndex(i)` (player `i` of `players()` in sight, any body sample) drives
+  the host's awareness arcs (`seesIndex(0)`: the host's own player); `targetDist` drives the flanker pick. Undo:
+  `TARGETS.all` false (the nearest only), `TARGETS.sticky` false (best seen each think in combat). Solo: the same
+  target, rate and meter. Host only, no protocol change. Brief: `docs/guard-ai/slices/S23.md`. Tests:
+  `targetPick.test.ts`, `coopPerception.test.ts`, e2e-coop "every player seen (guard-ai S23)".
 - Sound: `world/surfaces.ts` (pure) `surfaceAt` scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice. Shots:
   `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise` (combat); `onRay` hits
   are heard within `IMPACT_NOISE`.

@@ -5,12 +5,13 @@
 // difficulty, (hang-down) the hanging joiner's pistol, grab and neck snap, a course restart at the checkpoint while a guard
 // is held (Marlow Yard), a door peek and a wall medkit in Free Roam, host leaving, malformed messages, and the offline
 // state. (guard-ai S9) The guard-ai state on the client: alarm stage gear, a bark, caution, a shield-led response team
-// and a client deflect (helmet off on both screens).
+// and a client deflect (helmet off on both screens). (guard-ai S23) Every player is seen: a calm guard spots the client
+// in his light while the host hides nearer behind a wall, and in combat keeps his target and line on the client.
 // (co-op test fix, process audit section 2) The pages open legacy-off: the matches are Infiltration (the Ledger
 // mission on the Warehouse: guards, and detection costs only a bonus) and Free Roam, no Hunter. Two players only (G2).
 // Waits are e2e-net-lib's, on both pages' sim clocks: the sim runs slower than real time on software GL.
 import { launch, openPage, frames, press, BTN, assert } from './e2e-lib.mjs';
-import { until as untilNet, waitSim, setSimPages, LOAD_MS } from './e2e-net-lib.mjs';
+import { until as untilNet, waitSim, waitHostSim, setSimPages, LOAD_MS } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const wait = (ms) => waitSim(ms);
@@ -1049,6 +1050,154 @@ try {
     assert(cd.p === 1.3 && cd.l === 'Realistic', `the client's match takes the host's level (${JSON.stringify(cd)})`);
     await toLobby();
     await GA((m) => window.__coop.session.setSettings(m[0], m[1], 'normal', m[2]), MISSION);
+  }
+
+  // (guard-ai S23, A143 / A144) every player is seen: a calm grunt on the Warehouse factory floor (9, -6) faces the
+  // client standing still under the lit lamp strip (9, 3), 9 m in front of him; the host stands 4 m away behind him in the
+  // service corridor, the z -8.8 wall between them (no line). Before S23 the guard perceived only the nearest player (the
+  // hidden host) and never saw the client. His meter fills on the client and his target is the client's ref; once he
+  // is in combat the host walks nearer behind the wall and the guard keeps his target and his line on the client.
+  // A match of its own (its guard alerted, the others statues): the AI runs on the host as in every co-op match; the
+  // test guard is pinned on his spot on every host sim step (the loop's fixedUpdate hook, as the strike pin above; facing
+  // the client while calm), his brain on; the other guards and the recon drone are statues (their brains off), so
+  // nothing else alerts him. Both players invulnerable (damageMul 0).
+  console.log('guard-ai S23: every player is seen (a calm guard spots the client in his light while the host hides nearer)');
+  {
+    await startMode(...MISSION);
+    await GA(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
+    const S23 = { guard: [9, -6], client: [9, 3], host: [9, -10.3] };
+    const cid = await GB(() => window.__coop.session.selfId);
+    // the host in the corridor behind the wall, facing it (+z); the client under the lamp strip
+    await GA(([x, z]) => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(x, 0.05, z), 0); g.player.cam.yaw = 0; g.player.cam.pitch = 0; }, S23.host);
+    await moveClient(B, S23.client[0], 0.1, S23.client[1], Math.PI);
+    await until(A, ([x, z]) => { const r = window.__app.current.remotePlayers()[0]; return !!r && Math.hypot(r.feet.x - x, r.feet.z - z) < 0.6 && r.speed < 0.15; }, S23.client, 15000, 'S23: the host has the client still under the lamp');
+    let gid = '';
+    try {
+      const setup = await GA(([sp, cl, cid]) => {
+        const g = window.__app.current;
+        const em = g.enemyMgr;
+        const V = g.player.position.constructor;
+        // (S9 pattern) room for one more guard; restored below
+        em['s23Cap'] = em.maxAlive;
+        em.maxAlive = Math.max(em.maxAlive, em.alive + 1);
+        // the others statues and calm (and the recon drone), before the test guard is there
+        for (const x of em.enemies) {
+          x.update = () => {};
+          if (x.alive && !x.taken) x.aware.set('unaware');
+        }
+        for (const d of em.drones) d.update = () => true;
+        for (const r of g.net.remotes.values()) r.ref.spotted = false;
+        g.localRef.spotted = false;
+        const yaw0 = Math.atan2(cl[0] - sp[0], cl[1] - sp[1]);
+        const e = em.spawn('grunt', new V(sp[0], 0, sp[1]), false, yaw0);
+        if (!e) return null;
+        // his spot as the nav placed him, facing the client
+        const P = { x: e.pos.x, y: e.pos.y, z: e.pos.z, yaw: Math.atan2(cl[0] - e.pos.x, cl[1] - e.pos.z) };
+        e.yaw = P.yaw;
+        e.meter = 0;
+        const refs = g.playerRefs();
+        const hd = Math.hypot(refs[0].feet.x - P.x, refs[0].feet.z - P.z);
+        const cd = Math.hypot(refs[1].feet.x - P.x, refs[1].feet.z - P.z);
+        const gen = (window.__s23Gen = (window.__s23Gen ?? 0) + 1);
+        const s = (window.__s23 = { phase: 'calm', t0: g.time, t: 0, meter: 0, rise: '', tid: '', los: false, alertT: -1, alertTid: '', seen0: 0, seen1: 0, combat: 0, offTarget: 0, noLos: 0, hostStart: hd, hostMin: hd, off: '' });
+        const pin = () => {
+          if (!e.alive) return;
+          e.pos.set(P.x, P.y, P.z);
+          if (!e.alerted) e.yaw = P.yaw;
+        };
+        const hooks = window.__app.loop['hooks'];
+        const orig = hooks.fixedUpdate;
+        const step = (dt) => {
+          if (window.__s23Gen !== gen || window.__app.current !== g) {
+            if (hooks.fixedUpdate === step) hooks.fixedUpdate = orig;
+            orig(dt);
+            return;
+          }
+          pin();
+          orig(dt);
+          pin();
+          if (!e.alive) return;
+          // what he perceived this step (the last think's): his meter while calm, his target, who is in sight
+          const tid = e['target']?.id ?? '';
+          s.t = g.time - s.t0;
+          s.tid = tid;
+          s.los = e['los'] === true;
+          if (!e.alerted) {
+            if (e.meter > s.meter) s.meter = e.meter;
+            if (e.meter > 0 && !s.rise) s.rise = tid || '(none)';
+          } else if (s.alertT < 0) {
+            s.alertT = s.t;
+            s.alertTid = tid;
+          }
+          if (e.seesIndex(0)) s.seen0++;
+          if (e.seesIndex(1)) s.seen1++;
+          if (s.phase === 'combat') {
+            s.combat++;
+            if (tid !== cid || !s.los) {
+              if (tid !== cid) s.offTarget++;
+              if (!s.los) s.noLos++;
+              if (!s.off) s.off = `t ${s.t.toFixed(2)} target ${tid || '(none)'} los ${s.los}`;
+            }
+            const h = g.player.position;
+            const d = Math.hypot(h.x - P.x, h.z - P.z);
+            if (d < s.hostMin) s.hostMin = d;
+          }
+        };
+        hooks.fixedUpdate = step;
+        pin();
+        return { id: e.id, P, hd, cd, ids: refs.map((r) => r.id), light: refs[1].light ?? null, hostLight: refs[0].light ?? null };
+      }, [S23.guard, S23.client, cid]);
+      assert(!!setup, 'S23: a calm grunt spawns on the factory floor');
+      gid = setup.id;
+      assert(setup.ids[1] === cid && setup.hd < setup.cd - 3, `S23: the host is the nearer player, the client is players()[1] (host ${setup.hd.toFixed(2)} m, client ${setup.cd.toFixed(2)} m, refs ${setup.ids.join(',')}, client ${cid})`);
+
+      // calm: until his meter reaches 0.6 (or he goes to combat), at most 6 s of the host's sim
+      await until(A, () => { const s = window.__s23; return s.meter >= 0.6 || s.alertT >= 0 || s.t > 6; }, null, 20000, 'S23: the guard notices the client (or 6 s)').catch(() => {});
+      const calm = await GA(() => ({ ...window.__s23 }));
+      const why = JSON.stringify({ calm, light: setup.light, guard: setup.P });
+      assert(calm.meter > 0.05 && calm.rise === cid, `S23: the calm guard's meter fills on the client in his light, the hidden host nearer (meter ${calm.meter.toFixed(2)} in ${calm.t.toFixed(2)} s; ${why})`);
+      assert(calm.tid === cid && calm.seen1 > 0 && calm.seen0 === 0, `S23: his target is the client's ref; he sees player 1, never the host behind the wall (seesIndex) (${why})`);
+
+      // combat on the client: his own alert (meter 1), else forced (the combat case is what is checked next)
+      const alertedSelf = await until(A, () => window.__s23.alertT >= 0, null, 8000, 'S23: the guard goes to combat').then(() => true, () => false);
+      if (!alertedSelf) {
+        console.log('    (S23: not in combat by himself within 8 s; alerted by hand)');
+        await GA((id) => window.__app.current.enemyMgr.enemies.find((x) => x.id === id)?.alert(), gid);
+      }
+      await until(A, (cid) => { const s = window.__s23; return s.alertT >= 0 && s.tid === cid && s.los; }, cid, 8000, 'S23: in combat on the client, with a line to him').catch(() => {});
+      const c0 = await GA(() => ({ ...window.__s23 }));
+      assert(c0.alertT >= 0 && c0.tid === cid && c0.los, `S23: in combat his target is the client, in sight (${JSON.stringify(c0)})`);
+
+      // the host walks nearer behind the wall (into it, ~4.3 m -> ~3.2 m): the guard keeps his target and his line
+      await GA(() => {
+        const g = window.__app.current;
+        window.__s23.phase = 'combat';
+        g.player.cam.yaw = 0;
+        g.player.cam.pitch = 0;
+        window.__app.input.state.setMove('t', 0, 0.6);
+      });
+      const walked = await waitHostSim(A, 2000);
+      await GA(() => window.__app.input.state.setMove('t', 0, 0));
+      const held = await waitHostSim(A, 1000);
+      const c1 = await GA(() => ({ ...window.__s23 }));
+      const why1 = JSON.stringify({ walked: Math.round(walked), held: Math.round(held), c1 });
+      assert(walked >= 2000 && held >= 1000 && c1.combat > 60, `S23: 3 s of the host's sim in combat (${why1})`);
+      assert(c1.hostMin < c1.hostStart - 0.5, `S23: the host walked nearer behind the wall (${c1.hostStart.toFixed(2)} -> ${c1.hostMin.toFixed(2)} m)`);
+      assert(c1.offTarget === 0 && c1.noLos === 0 && c1.seen0 === 0, `S23: the nearer hidden host does not blind him: target and line stay on the client every step (${why1})`);
+    } finally {
+      await GA((id) => {
+        window.__s23Gen = (window.__s23Gen ?? 0) + 1;
+        window.__app.input.state.setMove('t', 0, 0);
+        const em = window.__app.current?.enemyMgr;
+        if (!em) return;
+        for (const x of em.enemies) delete x.update;
+        for (const d of em.drones) delete d.update;
+        const e = em.enemies.find((x) => x.id === id);
+        if (e) em.despawn(e);
+        if (em['s23Cap'] !== undefined) em.maxAlive = em['s23Cap'];
+      }, gid).catch(() => {});
+    }
+    await toLobby();
   }
 
   console.log('infiltration co-op: the mission and its objectives reach the client');
