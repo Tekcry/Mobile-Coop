@@ -1,0 +1,16 @@
+{
+  "id": "20261023T213407-night-shift-marlow-b-5c20c538-af62",
+  "sha": "5c20c5388eb4829f119eab0e44c63249c5c0ab58",
+  "branch": "",
+  "pr": 291,
+  "kind": "pr",
+  "requester": "Night Shift | Marlow Build",
+  "suites": [
+    "e2e-ctcourse:1",
+    "e2e-ctcourse:2",
+    "e2e-ctcourse:3",
+    "e2e-ctcourse:4",
+    "e2e-sectorops:6"
+  ],
+  "set": "lr16m3"
+}
