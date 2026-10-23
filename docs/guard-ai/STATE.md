@@ -1,6 +1,17 @@
 # Guard AI - state
 
 ## Now
+~23:55 (laptop, swap; overnight mode, no swap: orchestrator wakes us after the 04:40 reset). Train 38 #275 building
+(4.84.0 incl. #258 S22 game + #254 S23 + #265). Laptop verdicts, all deterministic (rerun same):
+s24-coop 7fe4f6a2 FAIL e2e-coop S24 hide; s25-sai 8bd13e0c FAIL e2e-stealth-ai "near: the search starts and asks
+the plan" (7a7725ef passed: 8bd13e0c's script edit); s26-fix d30601a2 FAIL e2e-coop (S24) + stealth-ai (S25),
+inherited; s27-e2e 0ae92fd4 FAIL e2e-sectorops:1 "section 2: raised by the panel, not the radio (alarmBy radio)";
+walk482 e67614c0 FAIL e2e-stealth-ai "the search ends (searching)" (s24 base passed). s24 e31edd54 PASS 5/5, s25
+7a7725ef PASS. RUNNING 4 Opus triage agents (each commits + pushes its own branch, queues its own laptop rerun):
+-s24 (set s24-coop-fix, S24-COOP-TRIAGE.md), -s25 (s25-sai-fix, S25-SAI-TRIAGE.md), -s27 (s27-sec1-fix,
+S27-SEC1-TRIAGE.md), -walk482 (walk482-fix, WALK482.md "Laptop triage"). Then merge the s24 / s25 fixes up into
+s26 (+ s27 / walk482 for s24) and requeue s26.
+
 ~23:30 SAVE (orchestrator 90%): every guard-ai worktree clean and pushed. s24-coop 7fe4f6a2 e2e-coop FAILED (deterministic,
 S24 hide block): Opus triage running in -s24. s25 7a7725ef PASS. Watcher on the other laptop sets (scratchpad watch.sh).
 
