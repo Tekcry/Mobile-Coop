@@ -299,5 +299,83 @@ console.log('section rating: Marlow Yard solo (a rated set, a restart)');
   }
 }
 
+// ---------------------------------------------------------------- Marlow Yard co-op (S6 check should-fix 2)
+// Host + client on ?net=local course mode: the host jumps to A2 (`startAt`, A1 is the passive checker) and seals its
+// airlock through the state -> `.rating-card` on both pages (4 ticks), the client's hook matches the host's marks, the
+// client's emptied gadgets topped up once; a client rejoin gets no card.
+console.log('section rating: Marlow Yard co-op (the card on both pages, the client top-up, a rejoin)');
+{
+  const { browser, A, B, errors: [eA, eB], startMode } = await hostAndJoin(url, 2, { params: 'net=local' });
+  let pumping = false;
+  const pump = setInterval(async () => {
+    if (pumping) return;
+    pumping = true;
+    try {
+      await A.evaluate(() => {
+        if (window.__raf === undefined) {
+          window.__raf = 0;
+          const f = () => { window.__raf++; requestAnimationFrame(f); };
+          requestAnimationFrame(f);
+        }
+        const now = performance.now();
+        const last = window.__pumpT ?? now;
+        const idle = window.__pumpRaf === window.__raf;
+        window.__pumpT = now;
+        window.__pumpRaf = window.__raf;
+        if (idle && window.__app.current) window.__app.loop.stepHeadless(Math.min(0.1, Math.max(1 / 60, (now - last) / 1000)));
+      });
+    } catch {}
+    pumping = false;
+  }, 40);
+  const GA = (f, a) => A.evaluate(f, a);
+  const GB = (f, a) => B.evaluate(f, a);
+  try {
+    await startMode('course', 'ctcourse');
+    await until(A, () => !!window.__course?.state && !!window.__sectionRating, null, 30000, 'the host course running');
+    await until(B, () => !!window.__course?.wire, null, 30000, 'the client has the course state');
+    await GA(() => { const g = window.__app.current; g.enemyMgr.update = () => {}; if (g.security) g.security.fixedUpdate = () => {}; });
+    await GA(() => { const m = window.__course; m.state.startAt(2); m.handle(); });
+    await emptyGadgets(A);
+    await emptyGadgets(B);
+    await waitSim(500);
+    assert((await gadgetSum(B)) === 0, 'the client kit is empty before the rating');
+    await GA(() => { const m = window.__course; const st = m.state; st.seal(st.airById.get(st.currentBay.exit)); m.handle(); });
+    await poll(async () => (await cardState(A))?.shown, 60000, 'the rating card on the host');
+    await poll(async () => (await cardState(B))?.shown, 60000, 'the rating card on the client');
+    const cA = await cardState(A);
+    const cB = await cardState(B);
+    assert(cA.ok === 4 && cA.miss === 0, `host: a clean A2, four ticks (${JSON.stringify(cA.rows)})`);
+    assert(cB.ok === 4 && cB.miss === 0, `client: a clean A2, four ticks (${JSON.stringify(cB.rows)})`);
+    const lastA = await GA(() => window.__sectionRating.last);
+    const lastB = await GB(() => window.__sectionRating?.last);
+    assert(lastA && lastA.sectionId === 'A2' && lastA.marks === 15, `host rated A2 15 (${JSON.stringify(lastA)})`);
+    assert(lastB && lastB.sectionId === lastA.sectionId && lastB.marks === lastA.marks, `the client's last matches the host's (${JSON.stringify(lastB)})`);
+    const gB = await gadgetSum(B);
+    assert(gB > 0 && gB <= (lastB.grant?.gadget ?? 99), `the client's gadgets were topped up (${gB} of ${JSON.stringify(lastB.grant)})`);
+    await waitSim(3000);
+    assert((await gadgetSum(B)) === gB, `the client's top-up is not repeated (${gB} -> ${await gadgetSum(B)})`);
+
+    // rejoin: the first course message after it only records; no card
+    const code0 = await GA(() => window.__coop.session.code);
+    const pidKeep = await GB(() => window.__coop.session.selfId);
+    await GB(() => window.__coop.leave());
+    await until(A, (id) => window.__coop.session.players.get(id)?.away === true, pidKeep, 20000, 'the host holds the dropped client');
+    await until(B, (c) => (document.querySelector('.main-menu [data-key="rejoin"]')?.textContent ?? '').includes(`Rejoin ${c}`), code0, 60000, 'the client main menu offers Rejoin <code>');
+    await GB(() => document.querySelector('.main-menu [data-key="rejoin"]').click());
+    await until(B, () => !!window.__app.current?.net && !!window.__course?.wire, null, LOAD_MS, 'the client is back in the course');
+    await waitSim(2000);
+    const cB2 = await cardState(B);
+    assert(!cB2 || cB2.shown === false, `no rating card on the rejoined client (${JSON.stringify(cB2)})`);
+  } catch (e) {
+    failed = true;
+    console.error(String(e));
+    await A.screenshot({ path: process.env.SHOT ?? '/tmp/e2e-section-rating-marlow-coop-fail.png' }).catch(() => {});
+  } finally {
+    clearInterval(pump);
+    all.push(...eA, ...eB);
+    await browser.close();
+  }
+}
+
 console.log(all.length ? 'console problems:\n' + all.join('\n') : 'no console errors');
 process.exit(failed || all.length ? 1 : 0);
