@@ -64,6 +64,38 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   `restore` event (where it was held). A client whose host drops keeps the session (`hostId` null) and takes the next
   host of the room; `CoopController` keeps its match up ("waiting") and reloads it on that host's start. The main menu's
   "Rejoin" / "Resume hosting" entry (main.ts) reads the record without importing `src/net`.
+- (coop-rejoin, Michael's 4.82.0 walk item 7) Host-decided (re)join spawn, no wire change. Whenever the running match
+  goes to one client (`NetSession` emits `late`: a late join, a rejoin, a reconnect the host never saw drop), a course
+  `start` carries the current bay (`NetSession.lateBay`, set by `CoopHost`: `resumeBay()`), so the client's match loads
+  in that bay's entry airlock. The host then watches that client (`net/joinWatch.ts`, pure): on its first `pstate` it
+  sends the mode state at once (`GameMode.resync`: the `course` / `sector` message; items, doors, lamps), and it places
+  the client on its reload, which may come after states from its old match (a page left open while it waited for the
+  host keeps sending until the `start` reaches it). The reload (`joinIsReload`) is a client with no state before, or a
+  state that jumps `JOIN_SAME_M` 3 m or more from its previous accepted state into its start area (`startSlotPoints` at
+  the bay its `start` carried, within `JOIN_START_M` 4 m) and not onto a restore the host sent it; no check runs while a
+  `back` or a revive the host sent it is in flight, except on the watch's first state or the first after a load gap that
+  began before that teleport went out (a restart during the load). The watch lasts 30 s from its last load gap (no state for 1 s) and ends once its placement's restore is met or
+  the client drops again. The host places it with `joinSpawn`
+  (`game/spawnSlots.ts`, pure): Course and Sector Ops, the current checkpoint (`GameMode.checkpointSpawns`) at the
+  client's slot, when a player there can walk to the host (`canWalk`: a nav path that crosses no locked closed door
+  leaf); else beside the host. Never the level start unless that is still the checkpoint. Other modes: where its slot
+  was held, else beside the host. The spot goes as the existing `restore` event, repeated every 0.5 s until the client
+  stands within 1 m (30 s at most); a checkpoint restart (`onRespawn`) stops that repeat. A client that kept its match
+  up (it ignored the `start`) plays on where it is, even when it moved 3 m or more in a gap the host did not see,
+  unless it now stands in its start area (then placed as on a reload: the checkpoint in Course and Sector Ops, the held
+  spot or beside the host in other modes). A rejoin whose reloaded start lies within 3 m
+  of its held spot (it dropped in the start area) is restored to the held spot, not the checkpoint slot.
+- (coop-rejoin, walk item 4) Two spawn slots per spawn area, no wire change: slot 0 the host, slot 1 the partner
+  (`CoopHost.slotOf` / `CoopClient.slot`: 1 + the place among the joiners). Map data may give slot 1 (`AirlockDef.spawns`
+  `[slot 0, slot 1]`, validated: at most 2, inside the box by 0.3 m, 0.9 m apart; Sector Ops `SectorDef.start2`,
+  `ConnectorDef.checkpoint2` -> `SectorRun.checkpoint2`; the course start: the map's first two `playerSpawns`). Without
+  it, `slotSpawn` gives slot 1 the first free spot of `SPAWN.rings` (1.2, 1.7, 2.3, 0.9 m) x 8 directions (the slot's
+  side first): clear of the level (`SightWorld.blocked`), on a floor, an open line from slot 0 at knee and chest height
+  (no wall, closed door, prop, fence or glass between) and `SPAWN.minGap` 0.9 m from every other player on the storey
+  (`game/spawnPlace.ts` builds the probe from the level; a last try without the floor and line checks runs only when no
+  floor is found under the area's point: a physics world not yet up). The client takes its slot of the start area itself (`startSlotPoints`: course start or bay-N
+  airlock, Sector Ops section 1, else the map spawns); `CoopHost.onRespawn` puts each partner on its slot of the
+  checkpoint.
 - (marlow-bays item 1) A held hostage is never solid to its holder: the client's `EnemyPuppet.setSolid` (the takedown's
   `setSolid?.(false)` was a no-op there, so the puppet's capsule shoved the client's controller: slow, jittery movement
   while holding) and the partner's hostage seen there (`remoteHeld`). The host places a client's hostage from that
@@ -127,6 +159,12 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
     `barksShown`, `helmetDrops`.
   - A guard's breaker relight (S15) needs nothing here: it is a registry change, so the `lamps` message (Sector Ops)
     and `course.lights` (Marlow Yard) carry it; the client's switch labels still do not follow it (as for a host press).
+  - (guard-ai S23, A143-A145) The host's guards perceive both players: each think every live player of
+    `GameState.playerRefsInto` (the host's own player 0, the partner 1) gets his own rays, light and sight rate; the target
+    is the best seen when calm, the one he fights while he still sees him in combat (`ai/targetPick.ts`). A partner lit in
+    front of a guard is seen while the host hides nearer. The host's awareness arcs read `Enemy.seesIndex(0)` (only guards
+    that see the host's own player); the client still has no arcs. Host only: no wire or save change. e2e-coop block
+    "every player seen (guard-ai S23)".
 - Snapshots carry enemy `al` (alert level, +4 seized, +8 torch, (37) +16 cautious, +32 helmet, +64 armour) and, when changed or every 2 s, `items` (usable interactables:
   objectives, switches, alarms, doors, revive points, wall medkit stations `medkitWall`; clients mirror them and send
   `use`, the host checks reach; course devices `c-` first so the cap never drops them) and `doors` (open indices).
@@ -224,7 +262,7 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   takedowns, section-rating) and the message gains `rt`, the last rated Marlow set (S6: the sector `rt` shape, `sec` its
   bay index; the finish's rating has its grant zeroed). The client mirror takes each new bay once: the results line, its
   own gadget top-up and the card (not for the last set); the first message after a join or rejoin only records it. `start` carries `bay` ("Start at bay N", D20); both players start in that bay's entry
-  airlock (`courseStartPos`).
+  airlock, each on its own slot (coop-rejoin: `courseSlotPoints` / `startSlotPoints`).
 - Friendly fire in the course (D38, G49 pending the research): `playersHostile(friendlyFire, a, b)` (pure, `validate.ts`)
   makes partners hostile in course mode; host `Hitboxes` + `RemotePlayer.shootable`, client `PartnerTarget`, `blast`
   carry team damage; a partner at zero is downed and revivable.

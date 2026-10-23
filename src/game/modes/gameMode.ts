@@ -5,6 +5,7 @@ import type { HitInfo } from '../damage';
 import type { Blip } from '../../ui/hud/minimap';
 import type { Vector3 } from '../../core/babylon';
 import type { Interactable } from '../interactables';
+import type { SlotPoint } from '../spawnSlots';
 
 /** `clear` is Hunter (`?mode=hunter` too); `infiltration` runs a `MissionDef`; `sector` is Sector Ops. */
 export type ModeId = 'sandbox' | 'mission' | 'clear' | 'infiltration' | 'course' | 'sector';
@@ -97,6 +98,11 @@ export interface GameMode {
   restartCheckpoint?(): boolean;
   /** (marlow-bays R3) The checkpoint a resumed co-op match starts from (course: the current bay, 1-based). */
   resumeBay?(): number;
+  /** (coop-rejoin) The current checkpoint's slot points (slot 0 the host, slot 1 the partner; one is fine): where the
+   *  co-op host puts a respawning partner and a client that joins or reconnects mid-run. Course and Sector Ops. */
+  checkpointSpawns?(): SlotPoint[];
+  /** (coop-rejoin) Co-op host: send the mode's whole state on the next step (a client joined or reconnected mid-run). */
+  resync?(): void;
   blips(): Blip[];
   dispose(): void;
 }
