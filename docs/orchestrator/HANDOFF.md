@@ -17,6 +17,13 @@ Accounts are labelled by their weekly reset (no emails in git). Each orchestrato
 
 ## State at the switch (refreshed 2026-10-23 ~07:58 for the next swap; newest update block first)
 
+**~22:08 SAVE (5-hour 77% at 22:08, ~1.5%/min: 92% ~22:18, 100% ~22:23; weekly 62%, resets 2026-10-29 23:00). All five told to save.**
+- Master 4.82.0 (train 33 #256). Train 34 #260 closed (build vitest load timeout; laptop 42/43: e2e-ctcourse:4 A7 technician never leaves R0 = #254 S23 sees the client through the A7 cage, by design: map fix). Train 35 #261 closed (S23 dropped; build vitest load timeouts cameraReach + mocapShortStart).
+- TRAIN 36 BUILDING (auto-train, 11:02Z): #262 train-vitest-retry (isolated rerun of failed files at build; after it releases `git -C C:/NightShift/Mobile-Coop-autotrain pull`) + #259 snap-eol (ends the visionIsolation.snap dirt; until then on that error `git -C C:/NightShift/Mobile-Coop-train checkout -- tests/__snapshots__`) + #255 relight + feature/menu. Waiting on heavy.lock (desktop queue worker). #252 laptop-queue had a missing check at the tick (head moved to 1c1f8451: open-PR train gate; the laptop service self-updates from the branch).
+- Next train: #254 S23 + #265 Marlow A7 cage cabinet TOGETHER (Guard AI re-labels #254 when #265 is train-ready); #264 S24 (stacked on #254, laptop s24 / s24-coop pending); #257 marlow-polish (842c4140, laptop polish4 + polish3 queued); #258 S22 game (conflicting: master's side in the train).
+- Laptop queue service restarted on new code (Test Runner ~21:55); desktop overflow lane claiming (24 requests). Cloud Builder 1 (cloud) on guard-ai S25b + guard-models G4b; P4 a2 / a8 done. At the swap: reopen its claimed briefs on cloud-queue.
+- Swap rule (Michael ~21:25): at the save give ONLY the orchestrator prompt; the new orchestrator prints the other five + Cloud Builder 1 in full in one message.
+
 **~21:25: SWAP LIVE (5-hour 0%, resets 02:20; weekly 49%, resets 2026-10-29 23:00: the 5-hour meter binds). 4.82.0 RELEASED (train 33 #256, merged 21:22). Auto-train building train 34 (4.83.0, pid 20620 holds heavy.lock). No watchers. Cron 7/17/.../57 recreated. cloud-queue: marlow-polish4 a2 / a8 reopened (6c7f33e8). Prompts 2-7 printed in full to Michael.**
 
 **~21:10 SAVE (5-hour 81% at 21:08, ~0.9%/min: 92% ~21:20, 100% ~21:29; weekly 14%, resets 2026-10-25 13:00). All five told to save.**
