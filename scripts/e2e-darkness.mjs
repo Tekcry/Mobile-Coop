@@ -28,6 +28,10 @@ async function findProbes(page) {
     const g = window.__app.current;
     const w = g.world;
     const f = w.lightField;
+    // (LR16-polish A4) a tube in a drop-out burst reads dark: put every flickering light at 1 for this synchronous search
+    // (the next fixed step's tickFlicker restores it; setFlicker(id, 0) would drop it from `flickering` instead)
+    const reg = w.level.lights;
+    for (const id of reg.flickering) reg.lights[id].flicker = 1;
     const nav = g.nav;
     const B = w.lightBake.lamps;
     const L = B ? B.baked.lights : new Float32Array(0);

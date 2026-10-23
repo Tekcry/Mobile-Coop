@@ -581,12 +581,12 @@ try {
   const ts = await e.page.evaluate(() => {
     const g = window.__app.current;
     const w = g.world;
-    return { atlas: !!w.torchShadows?.on, pool: w.lightRig.shadowSlots, drawn: w.lightRig.drawnTorches, on: g.enemyMgr.torchesOn, copies: w.torchShadows?.copies ?? 0 };
+    return { atlas: !!w.torchShadows?.on, pool: w.lightRig.shadowSlots, drawn: w.lightRig.drawnTorches, on: g.enemyMgr.torchesOn, copies: w.torchShadows?.copies ?? 0, stats: w.torchShadows?.stats?.() ?? null };
   });
   assert(ts.atlas, 'Epic: the torch shadow atlas is on (world.torchShadows.on)');
   assert(ts.pool === 0, `torch atlas on: no flashlight takes the rig's shadow pool (${ts.pool} shadow slots)`);
   assert(ts.on > 0 && ts.drawn === Math.min(4, ts.on), `alerted guards' torches all drawn by the baked lamps (${ts.drawn} drawn of ${ts.on} on, up to 4)`);
-  assert(ts.copies > 0, `the torch shadow maps copied into the atlas (${ts.copies} copies)`);
+  assert(ts.copies > 0, `the torch shadow maps copied into the atlas (${ts.copies} copies, stats ${JSON.stringify(ts.stats)})`);
   assert(tex.pending === 0 && tex.max <= 16, `Epic, guards alerted: every material shader within 16 textures (${tex.max}, ${tex.who}, ${tex.pending} pending)`);
   for (const pp of ['TAA', 'ssao', 'ssr', 'volumetric', 'bloomMerge', 'imageProcessing', 'cinematic']) assert(r.pps.includes(pp), `post stack has ${pp}`);
   assert(r.pps.at(-1) === 'cinematic', 'the grade / goggles pass stays last');

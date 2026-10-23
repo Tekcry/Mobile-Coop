@@ -601,12 +601,22 @@ export function auditAll(sc: Scene, lamps: readonly AuditLamp[]): LampAudit[] {
   });
 }
 
-/** Lamp `l` placed at (x, z) crowds lamp `o`: same storey and closer than `SPACING`, or their bodies within `FIT_GAP`. */
+/** Lamp `l` placed at (x, z) crowds lamp `o`: same storey and closer than `SPACING`, or their bodies (plan extents turned
+ *  by each fitting's yaw) within `FIT_GAP`. */
 export function crowds(l: AuditLamp, x: number, z: number, o: AuditLamp): boolean {
   if (Math.abs(o.y - l.y) >= SPACING_DY) return false;
   if (hyp2(o.x - x, o.z - z) < SPACING) return true;
   if (!l.foot || !o.foot) return false;
-  return Math.abs(o.x - x) < (l.foot[0] + o.foot[0]) / 2 + FIT_GAP && Math.abs(o.z - z) < (l.foot[1] + o.foot[1]) / 2 + FIT_GAP;
+  // each fitting's plan extents turned by its yaw (a strip turned 90 degrees is long in z)
+  const ly = l.yaw ?? 0;
+  const oy = o.yaw ?? 0;
+  const lc = Math.abs(Math.cos(ly));
+  const ls = Math.abs(Math.sin(ly));
+  const oc = Math.abs(Math.cos(oy));
+  const os = Math.abs(Math.sin(oy));
+  const ex = (lc * l.foot[0] + ls * l.foot[1] + oc * o.foot[0] + os * o.foot[1]) / 2;
+  const ez = (ls * l.foot[0] + lc * l.foot[1] + os * o.foot[0] + oc * o.foot[1]) / 2;
+  return Math.abs(o.x - x) < ex + FIT_GAP && Math.abs(o.z - z) < ez + FIT_GAP;
 }
 
 /** Audit every lamp of a level against its canonical light shapes. */
