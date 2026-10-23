@@ -403,7 +403,7 @@ function finish(job, ctx, result, runDir, prNumber) {
 
 const claimed = new Set();
 
-async function runTrain(train, ports = ports) {
+async function runTrain(train, ports = PORTS) {
   const id = `train-${train.n}-${train.sha.slice(0, 8)}`;
   const job = { sha: train.sha, ref: `train/${train.n}` };
   const runDir = path.join(STATE_DIR, 'runs', id);
@@ -642,7 +642,7 @@ async function pass() {
   const dt = DESKTOP ? desktopTrains() : null;
   const queue = { trains: DESKTOP ? dt.trains : pendingTrains().filter((t) => !claimed.has(t.sha)), requests };
   // done marks first: a claim (which tells the desktop the laptop is on claims) never lands before them
-  if (!syncDone() && !DRY) { log('done claims not pushed: no new requests this pass (trains still run)'); queue.requests = []; }
+  if (!syncDone() && !DRY) { log('done claims not pushed: no new requests this pass (trains need a claim push too)'); queue.requests = []; }
   // supersede on the full list (before the desktop's pr filter); the desktop waits for claims on the branch like its gate does
   else if (!(DESKTOP && claimCount === 0)) queue.requests = applySupersedes(queue.requests);
   const desktopWait = {};
