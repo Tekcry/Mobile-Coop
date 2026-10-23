@@ -39,8 +39,13 @@ const OFFICE2 = [88.3, 4.3];
 const SW_CORR = [78.6, 12.7];
 const SW_OFF1 = [79.7, 6.0];
 /** (S-e2e-fix2) Two spots in the L2 holding room (x 70-76, z 7-13), clear of its far door's doorway (x 76, z 10): out of the
- *  cleaner's sight while the corridor switch lures him to the west lobby. */
-const L2_HIDE = [[72.5, 8.5], [72.5, 11.5]];
+ *  cleaner's sight while the corridor switch lures him to the west lobby.
+ *  (marlow-polish A3 fix) Both in the room's south half, either side of the bench (x 72.1-73.9 on the south wall): the far
+ *  wall has a clear glass slot at z 11.95-12.45 (`facility.ts` SLOT, sight passes clear glass), and through its 0.5 m wall a
+ *  guard in the west lobby sees the room's north part (z >= about 9.8). The old client spot (72.5, 11.5) was in that view:
+ *  the camera send-backs' device search round (87, 10.75) (guard-ai S17, ring out to 11 m) and the switch's breaker walk
+ *  bring him to the lobby's north end, he saw the client through the glass and fought the whole step-4 wait. */
+const L2_HIDE = [[71.5, 8.2], [74.5, 8.2]];
 
 /** @param {object} t the runner's helpers (scripts/e2e-ctcourse.mjs) @param {number} n the set's number */
 export async function walk(t, n) {
