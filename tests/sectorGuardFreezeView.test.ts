@@ -275,3 +275,84 @@ describe('sector-redesign frzpol: no late show', () => {
     f2.dispose();
   });
 });
+
+describe('sector-redesign artnext C4-C5: the forced head, the over-budget verdict', () => {
+  it('a frozen guard (root disabled) forces the same neck / head world pose after animate as an unfrozen twin', async () => {
+    const { B, V, scene, guard } = await frzpolScene();
+    // twins on the same spot behind the camera: only `a` is in the freeze's list
+    const a = guard('twinA', 0.5, 0, -15);
+    const b = guard('twinB', 0.5, 0, -15);
+    const f = new V.SectorGuardFreeze(scene, { enemies: [a] });
+    scene.render();
+    expect(a.bodyRig.root.isEnabled(false)).toBe(false);
+    expect(b.bodyRig.root.isEnabled(false)).toBe(true);
+    // he walks and turns while frozen, glancing aside: the same input on both rigs
+    const pose = { speed: 1.4, localX: 0.2, localZ: 1, grounded: true, crouch: 0.3, aimPitch: 0.1, aim: 0.6, kick: 0, lookYaw: 0.5, lookPitch: -0.2, carry: { low: 1, high: 0, compressed: 0 }, weight: 1, armed: true };
+    for (let k = 0; k < 40; k++) {
+      for (const g of [a, b]) {
+        g.bodyRig.root.position.set(0.5 + k * 0.02, 0, -15 - k * 0.01);
+        g.bodyRig.root.rotation.y = 0.3 + k * 0.01;
+        g.bodyRig.animate(1 / 60, pose);
+      }
+    }
+    scene.render();
+    expect(a.bodyRig.root.isEnabled(false)).toBe(false);
+    // the gameplay readers' path (takedown hands, bodies, puppets): force the matrix, read the absolute position
+    for (const node of ['neck', 'headNode', 'hips'] as const) {
+      const na = a.bodyRig[node];
+      const nb = b.bodyRig[node];
+      na.computeWorldMatrix(true);
+      nb.computeWorldMatrix(true);
+      const pa = na.getAbsolutePosition();
+      const pb = nb.getAbsolutePosition();
+      expect(B.Vector3.Distance(pa, pb)).toBeLessThan(1e-6);
+      const ma = na.getWorldMatrix().m;
+      const mb = nb.getWorldMatrix().m;
+      for (let i = 0; i < 16; i++) expect(ma[i]!).toBeCloseTo(mb[i]!, 6);
+    }
+    // and it is a pose, not the rest: the head moved with the root
+    expect(a.bodyRig.headNode.getAbsolutePosition().x).toBeGreaterThan(1);
+    f.dispose();
+  });
+
+  it('over budget, a due non-edge hidden guard is drawn (STALE = RETEST); a fresh verdict is kept', async () => {
+    const { V, scene, guard } = await frzpolScene();
+    expect(V.STALE).toBe(V.RETEST);
+    const boxes: Box[] = [[-40, 0, 10, 40, 3, 10.2]];
+    // 16 guards right behind the wall (near the edge: due every evaluation) fill the TESTS_PER_EVAL budget; one far
+    // behind it (a routine RETEST verdict) is last in the list
+    const list: Enemy[] = [];
+    for (let i = 0; i < 16; i++) list.push(guard(`edge${i}`, -4 + i * 0.5, 0, 10.5));
+    const far = guard('far', 0, 0, 16);
+    list.push(far);
+    const base = boxRay(boxes, { n: 0 });
+    const probe = { far: false };
+    const ray = (a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }): number => {
+      if (b.z > 13) probe.far = true;
+      return base(a, b);
+    };
+    const f = new V.SectorGuardFreeze(scene, { enemies: list }, ray);
+    let last = -1;
+    let dueDrawn = 0;
+    let kept = 0;
+    for (let k = 0; k < 60; k++) {
+      probe.far = false;
+      scene.render();
+      const on = far.bodyRig.root.isEnabled(false);
+      if (probe.far) {
+        last = k;
+        expect(on).toBe(false);
+      } else if (last >= 0 && k - last > V.RETEST) {
+        // due, not tested this evaluation (the budget went to the edge guards): drawn, not kept stale
+        expect(on).toBe(true);
+        dueDrawn++;
+      } else if (last >= 0) {
+        expect(on).toBe(false);
+        kept++;
+      }
+    }
+    expect(dueDrawn).toBeGreaterThan(0);
+    expect(kept).toBeGreaterThan(0);
+    f.dispose();
+  });
+});
