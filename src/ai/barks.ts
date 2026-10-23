@@ -46,7 +46,10 @@ export type BarkEvent =
   | 'shotsReport'
   | 'missingReport'
   // (guard-ai S17) sent to a tripped device (a laser beam, a camera's alarm)
-  | 'tripped';
+  | 'tripped'
+  // (guard-ai S22) a security console found switched off: he turns it back on; off again soon after: he checks it
+  | 'console'
+  | 'consoleCheck';
 
 export const BARKS: Record<BarkEvent, readonly string[]> = {
   suspicious: ['Huh?', 'What was that?', 'Hello?', 'Something there...'],
@@ -87,6 +90,9 @@ export const BARKS: Record<BarkEvent, readonly string[]> = {
   missingReport: ["Control, a unit's not answering. All units, stay sharp.", 'Control, we have a man not checking in. Eyes open.'],
   // (guard-ai S17) original lines, written to be voiced later (G82)
   tripped: ['Sensor tripped. Moving to check.', "Alarm point's lit. On my way."],
+  // (guard-ai S22) original lines, written to be voiced later (G82)
+  console: ["Console's dropped out again. Getting it back up.", 'Monitors are dark. Switching them back on.'],
+  consoleCheck: ["Console's off again. Someone's been at it. Checking.", 'Monitors down twice now. Taking a look.'],
 };
 
 /**
@@ -105,8 +111,41 @@ export function unitWord(n: number): string {
   return i >= 1 && i < WORDS.length ? WORDS[i]! : String(i);
 }
 
+/**
+ * (guard-ai S9, protocol 38) The wire order of the bark events (the co-op `bark` event's `b`). Append only: a new event
+ * goes at the end, so an index means the same event on both sides.
+ */
+export const BARK_EVENTS: readonly BarkEvent[] = [
+  'suspicious', 'investigate', 'contact', 'lost', 'search', 'body', 'radioCheck', 'radioOk', 'missed', 'dog', 'blind', 'grenade',
+  'alarm', 'clear', 'callIn', 'drone', 'ack', 'checking', 'lightOut', 'standDown', 'missing', 'joining', 'koFound', 'koReport',
+  'deadReport', 'command', 'moving', 'covering', 'flanking', 'deflect', 'breaker', 'shots', 'shotsReport', 'missingReport',
+  // (guard-ai A126 merge, A139) S17's device line, appended (protocol 38 still, A140: S9's table is unreleased)
+  'tripped',
+  // (guard-ai S22, A135) the console lines, appended (same train as S9: protocol 41 since A142)
+  'console', 'consoleCheck',
+];
+
+/** (guard-ai S9) The wire index of `ev` (-1 unknown). */
+export function barkIndex(ev: BarkEvent): number {
+  return BARK_EVENTS.indexOf(ev);
+}
+
+/**
+ * (guard-ai S9) The line `BarkVoice` picked, rebuilt from the wire: event index `b`, line index `n` and unit `u` (>= 1: a
+ * `BARKS_UNIT` line naming him, as `sayUnit`). Null for an unknown event. Pure; the same text the host shows.
+ */
+export function barkLine(b: number, n: number, u: number): string | null {
+  const ev = BARK_EVENTS[b];
+  if (ev === undefined) return null;
+  const t = u >= 1 ? BARKS_UNIT[ev] : undefined;
+  const lines = t ?? BARKS[ev];
+  const i = Math.floor(n);
+  const line = lines[(i >= 0 ? i : 0) % lines.length]!;
+  return t ? line.split('{unit}').join(unitWord(u)) : line;
+}
+
 /** Radio lines (a chirp plays with them). */
-export const RADIO_BARKS: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['radioCheck', 'radioOk', 'missed', 'alarm', 'drone', 'search', 'callIn', 'ack', 'checking', 'lightOut', 'standDown', 'missing', 'koReport', 'deadReport', 'command', 'shotsReport', 'missingReport']);
+export const RADIO_BARKS: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['radioCheck', 'radioOk', 'missed', 'alarm', 'drone', 'search', 'callIn', 'ack', 'checking', 'lightOut', 'standDown', 'missing', 'koReport', 'deadReport', 'command', 'shotsReport', 'missingReport', 'consoleCheck']);
 /** Urgent lines cut through a speaker's cooldown. (guard-ai S14) `missed` too: it follows his own "Radio check." at once. */
 const URGENT: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['contact', 'body', 'blind', 'grenade', 'alarm', 'callIn', 'koFound', 'koReport', 'deadReport', 'command', 'missed', 'shots', 'shotsReport', 'missingReport']);
 
@@ -123,6 +162,8 @@ export class BarkVoice {
   private next = 0;
   private t = 0;
   private turn = 0;
+  /** (guard-ai S9) The index into its table of the last line `say` / `sayUnit` returned (the co-op `bark` event's `n`). */
+  lastLine = 0;
 
   constructor(private seed: number) {
     this.turn = seed % 7;
@@ -149,7 +190,9 @@ export class BarkVoice {
 
   private pick(ev: BarkEvent, lines: readonly string[]): string | null {
     if (this.t < this.next && !URGENT.has(ev)) return null;
-    const line = lines[(this.turn + this.seed) % lines.length]!;
+    const n = (this.turn + this.seed) % lines.length;
+    const line = lines[n]!;
+    this.lastLine = n;
     this.turn++;
     this.next = this.t + BARK.cooldown;
     return line;
