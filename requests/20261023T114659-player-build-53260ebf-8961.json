@@ -7,10 +7,8 @@
   "requester": "Player Build",
   "suites": [
     "e2e-enemies",
-    "e2e-combat",
-    "e2e-guard-carry",
     "e2e-coop"
   ],
   "set": "gm-g7-on",
-  "note": "guard-models G7 flag ON (scratch default flip; Wren LOD stand-in): shader / varying compile + gear"
+  "note": "guard-models G7 flag ON (scratch default flip; Wren LOD stand-in): shader / varying compile + gear (trimmed 23:10 per orchestrator)"
 }

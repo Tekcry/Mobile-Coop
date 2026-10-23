@@ -7,16 +7,9 @@
   "requester": "Player Build",
   "suites": [
     "e2e-enemies",
-    "e2e-combat",
-    "e2e-takedown",
-    "e2e-guard-carry",
-    "e2e-stealth",
     "e2e-coop",
-    "e2e-netmove",
-    "e2e-offline",
-    "e2e-ctcourse",
-    "e2e-sectorops"
+    "e2e-netmove"
   ],
   "set": "gm-g7-off",
-  "note": "guard-models G7 merged, flag OFF regression"
+  "note": "guard-models G7 merged, flag OFF regression (trimmed 23:10 per orchestrator: G7 area + its enemyPuppet net lines; the train covers the rest)"
 }
