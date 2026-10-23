@@ -3,7 +3,6 @@ import type { LevelBuilder } from './levelBuilder';
 import type { PropKind } from './props';
 import type { RoomDef } from './rooms';
 import type { Surface } from './surfaces';
-import type { VoxelArt } from '../voxel/levelVoxels';
 import type { SecurityData } from '../security/data';
 import type { LaserDef } from '../game/jammer';
 import type { LaserPanelDef } from '../game/laserPanels';
@@ -114,8 +113,6 @@ export interface MapDef {
   /** Sector Ops (feature/sector-ops): the sectors in play order (maps that run the `sector` mode). */
   sectors?: readonly SectorDef[];
   build(b: LevelBuilder, seed: number): MapLayout;
-  /** 3.0: the voxel art layer (what the pieces' voxels look like, visual-only dressing); none = plain voxels. */
-  art?: VoxelArt;
   /** 3.0: weather the Play screen / lobby offers on this map (none: the theme's own). */
   weathers?: readonly WeatherChoice[];
   /** Walkable surfaces the nav grid keeps per column (default 3). Maps that stack more storeys raise it. */

@@ -1,4 +1,4 @@
-import type { HudWidth } from '../../core/display';
+import { runningOnWindows, type HudWidth } from '../../core/display';
 import type { App } from '../../core/app';
 import { flags } from '../../core/flags';
 import { defaultSettings, setAuto, setGfx, setPreset, type Settings } from '../../core/settings';
@@ -404,7 +404,11 @@ export class SettingsScreen extends MenuScreen {
         class: 'row-note gpu-note',
         text:
           `${app.gpu.renderer || 'Unknown renderer'} (${app.gpu.kind})` +
-          (app.gpu.kind === 'integrated' ? '. This is the integrated GPU: set your browser to "High performance" in Windows Settings > System > Display > Graphics, then restart it.' : ''),
+          (app.gpu.kind === 'integrated'
+            ? runningOnWindows()
+              ? '. This is the integrated GPU: set your browser to "High performance" in Windows Settings > System > Display > Graphics, then restart it.'
+              : '. This is the integrated GPU.'
+            : ''),
       }),
       grp('Benchmark'),
       desc(button('Run (current settings)', () => app.benchmark?.('current'), { key: 'bench-current' }), `A ${BENCH.seconds} s camera flight through the Warehouse with your settings: average and 1 % low frame rate.`),

@@ -106,7 +106,7 @@ behind a VPN adapter).
   `frames(page, n)`. Real time is kept where the suite is about it: the two-page co-op suites, `e2e-stealth` (real-time
   camera), `e2e-mouse`, `e2e-pad` (input timing), `e2e-desktop` (benchmark flights, the 15 s resolution revert, shader
   compiles), `e2e-offline`, and the rAF-sampled foot-slide check in `e2e-move`. The light bake is about 0.5 s a page
-  load and the Epic voxel bake cache is 190 MB, so neither is shared between browsers.
+  load so it is not shared between browsers.
 - Two-page suites (`?net=local`): the `until()` helper in `e2e-net-lib`, `e2e-coop`, `e2e-course` and `e2e-bunker`
   polls from Node (`page.evaluate` every 50-100 ms): in a desktop context the in-page polling stops on the background
   page. A throwing predicate shows as a timeout.
@@ -219,7 +219,8 @@ behind a VPN adapter).
   across a reload, a new co-op room on Campaign (Marlow Yard) with Campaign and Sector Ops listed, save export / import) and the
   legacy-on menus (Hunter default; Missions and Free roam listed)
 - `e2e-coop` two pages over `?net=local`, opened with `legacy=1`: lobby, a Hunter match (puppet alert levels, door sync,
-  a client door use and takedown, kept / hidden bodies, pings both ways, a client gas cloud, a dual takedown, a client
+  a client door use and takedown, kept / hidden bodies, pings both ways, a client gas cloud, a client grab and (coop-walk-fixes
+  P6) the host's team takedown on that hostage, a dual takedown, a client
   reviving the host, the team wipe), validated hits, revive, results; Infiltration objectives on the client; the host's
   fixed difficulty level read-only on the client and running on both; a client using the host's wall medkit station;
   host leaving, offline (known flaky)
@@ -310,7 +311,7 @@ behind a VPN adapter).
   Alert (with Evasion alongside)
 - `e2e-weapon-audio` (AUDIO) on Proving: the sprite decodes with a small alignment shift; automatic fire plays one shot per
   round with brass and stays under 24 voices; a suppressed rifle plays its suppressed bank and guards hear it less; a
-  reload, a dry click and a shot 20 m away play; the weapon lab (`?weaponlab=1`) fires the two kit guns, an automatic
+  reload, a dry click and a shot 20 m away play, (coop-walk-fixes P7) a partner's suppressed pistol round plays suppressed; the weapon lab (`?weaponlab=1`) fires the two kit guns, an automatic
   run, a suppressed guard shot at 18 m, both reloads, brass and dry fire
 - `e2e-foley` (AUDIO) on Proving: the sprite decodes; one foley step per real foot plant at a walk and a sprint (the walk
   check reads 3 or 4 plants against >= 4 at the step-22 speed: parked, not fixed), silence standing still, a drop
@@ -397,9 +398,8 @@ behind a VPN adapter).
   only. Cloud sessions run unit tests and logic e2e and report those checks "pending PC run"; they never claim a perf or
   visual result from SwiftShader.
 - `perf.mjs` with `E2E_GPU=1` uses the laptop goals (`LOCAL_BUDGET`, performance.md).
-- D3D11 compiles the Epic voxel characters' `partSkinMat` shader slowly (seconds after spawn); an uncompiled effect's
-  `_samplerList` holds every candidate (61), trimmed once compiled (11 for `partSkinMat`, 15 for the level `voxMat`,
-  limit 16). `e2e-desktop` therefore waits for every drawn mesh's effects before counting textures.
+- D3D11 compiles the characters' `partSkinMat` shader slowly (seconds after spawn); an uncompiled effect's
+  `_samplerList` holds every candidate (61), trimmed once compiled (11 for `partSkinMat`, limit 16). `e2e-desktop` therefore waits for every drawn mesh's effects before counting textures.
 
 ## Debug overlay
 - F3 (or the settings switch); `?debug=1` shows it at boot. Buttons: Skeleton (bones, controller capsules, hit volumes

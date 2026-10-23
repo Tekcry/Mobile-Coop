@@ -23,7 +23,7 @@ import { keyLabels, padButtons } from '../ui/prompts';
 import { bindLabel } from '../input/keyBindings';
 import type { BenchKind, BenchSession } from '../game/benchmark';
 import type { CrashLog } from '../feedback/crashLog';
-import { classifyGpu, hudInset, uiScale, type GpuKind } from './display';
+import { classifyGpu, hudInset, runningOnWindows, uiScale, type GpuKind } from './display';
 import { Calibration, CALIBRATION, deviceKey, tierFromRenderer } from './deviceTier';
 import { PRESET_DISPLAY, PRESET_IDS, type FixedPreset } from './quality';
 import { controlsMigrationNotes, setAuto } from './settings';
@@ -75,7 +75,7 @@ export class App {
   bootHold = false;
   /** Settings > Graphics > Run benchmark (set by main); a session goes on to its next run in a new match. */
   benchmark: ((kind?: BenchKind | BenchSession) => void) | null = null;
-  /** (anim-studio) Main menu / Pause > Anim Studio (dev): start the studio stage (set by main). */
+  /** (anim-studio) Main menu > Anim Studio (dev): start the studio stage (set by main; batch-23: not on the pause menu). */
   studio: (() => void) | null = null;
 
   constructor(readonly canvas: HTMLCanvasElement) {
@@ -209,7 +209,7 @@ export class App {
     }
     this.gpu = { renderer, kind: classifyGpu(renderer) };
     const v = this.settings.get().video;
-    if (this.gpu.kind !== 'integrated' || v.gpuNotice || navigator.webdriver) return;
+    if (this.gpu.kind !== 'integrated' || v.gpuNotice || navigator.webdriver || !runningOnWindows()) return;
     this.toasts.show('Running on the integrated GPU. For full speed set your browser to "High performance" in Windows Settings > System > Display > Graphics, then restart it.', 'warn', 12000);
     this.settings.update((d) => void (d.video.gpuNotice = true));
   }

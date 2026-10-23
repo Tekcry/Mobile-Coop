@@ -5,7 +5,7 @@ import type { CharacterRig } from '../player/characterRig';
 import type { DamageResult, HitInfo } from './damage';
 import { G } from '../physics/groups';
 import { hyp2 } from '../core/mathx';
-import { approachPoint, GRAB, GRAB_KINDS, HANG_GRAB, hangHoldPoint, pickTakedown, TAKEDOWN, type AttackerState, type TakedownInput, type TakedownPlan } from './takedown';
+import { approachPoint, assistPlan, GRAB, GRAB_KINDS, HANG_GRAB, hangHoldPoint, pickTakedown, TAKEDOWN, type AttackerState, type TakedownInput, type TakedownPlan } from './takedown';
 import { HANG_HEAD } from './teamMoves';
 import { gearCap } from '../player/speedGears';
 import type { GameState } from './gameState';
@@ -15,6 +15,7 @@ import { clearGripAxis } from '../player/attachGrips';
 import { wrapPi } from '../anim/motion';
 import type { MoveOverride } from '../player/playerController';
 import { GUARD_INFO_GAP, takeInfo, type GuardInfo } from '../ai/guardInfo';
+import { revealIntel } from './intelReveal';
 import { CQ, ease, grabStage, holdHandTargets, holdSway, koCurve, type GuardCqMode, type KoState } from './closeQuarters';
 import { GRAB_KILL_BLOW, KILL_TAIL_END, killWarp, TAKEDOWN_BLOW, type KillBlow } from '../anim/strikeBody';
 
@@ -232,7 +233,10 @@ export class TakedownController {
       c.standUp();
     }
     // (G7) the victim struggles from the contact, not the press
-    o.e.beginTakedown(lethal !== true, o.plan.approach);
+    // (coop-walk-fixes P6) the partner's hostage stays in the partner's hold: not seized here; the net layer is told
+    const assist = o.plan.kind === 'assist';
+    if (assist) g.net?.assistTakedown?.(o.e, 'start', false);
+    else o.e.beginTakedown(lethal !== true, o.plan.approach);
     this.active = {
       e: o.e,
       plan: o.plan,
@@ -266,9 +270,11 @@ export class TakedownController {
     cd[0] = cd[1] = cd[2] = SCAN;
     // a guard in combat who knows this operator is there cannot be taken by surprise (each player separately)
     const known = g.spottedLocal;
+    const net = g.net;
     for (let k = 0; k < vs.length; k++) {
       const e = vs[k]!;
-      if (!e.alive || e.taken || (known && e.level === 'alert')) continue;
+      // (coop-walk-fixes P6) a guard the partner holds as a hostage is on offer (the team takedown), taken or alert
+      if (!e.alive || ((e.taken || (known && e.level === 'alert')) && !(net?.partnerHolds?.(e) ?? false))) continue;
       const d = hyp2(e.pos.x - p.x, e.pos.z - p.z);
       // insertion into the three nearest
       for (let j = 0; j < TRY; j++) {
@@ -298,6 +304,15 @@ export class TakedownController {
     const p = g.player.position;
     const i = this.inp;
     i.state = this.attackerState();
+    // (coop-walk-fixes P6) the partner's hostage: the team takedown from the ground (or a wall), chest to chest sight
+    if (g.net?.partnerHolds?.(best)) {
+      if (i.state !== 'ground' && i.state !== 'wall') return null;
+      this.eye.set(p.x, p.y + 1.2, p.z);
+      this.head.set(best.pos.x, best.pos.y + 1.2, best.pos.z);
+      const hr = g.ballistics.ray(this.eye, this.head, G.STATIC);
+      const plan = assistPlan(p.x, p.y, p.z, best.pos.x, best.pos.y, best.pos.z, !hr.hit || hr.distance > Vector3.Distance(this.eye, this.head) - 0.2);
+      return plan ? { e: best, plan, lethalOnly: false } : null;
+    }
     i.ax = p.x;
     // (hang-down) the hanging head's height (the rig root is the turned-over feet reference)
     i.ay = i.state === 'hangDown' ? p.y - HANG_HEAD : p.y;
@@ -451,12 +466,14 @@ export class TakedownController {
         this.grabs.interrogated++;
         // (PR 3) what he knows, said as his own lines (subtitle, `GUARD_INFO_GAP` apart); a guard with nothing says
         // nothing new. Spent here: he gives no menu again, and the hold goes on.
+        const info = e.info ?? null;
         const lines = takeInfo(e);
         if (lines) {
           gr.talk = lines;
           gr.talkI = 0;
           gr.talkT = 0;
         } else g.hud.feedItem('Interrogated: nothing new');
+        if (!g.puppet) revealIntel(g, e.pos, info); // (spare 9) the client's intel comes from the host
       }
       return true;
     }
@@ -603,17 +620,18 @@ export class TakedownController {
     }
     const { e, plan } = a;
     a.t += dt / this.handsMul;
+    const assist = plan.kind === 'assist';
     // tap or hold: let go before `lethalHold` = non-lethal, still held then = lethal
     if (!a.decided) {
       if (!this.holding) a.decided = true;
       else if (a.t >= TAKEDOWN.lethalHold) {
         a.decided = true;
         a.lethal = true;
-        e.beginTakedown(false);
+        if (!assist) e.beginTakedown(false);
       }
     }
-    // hurt mid-move (or the victim died to something else): it falls apart
-    if (g.target.health.hp < a.hp - 0.5 || !g.player.alive || !e.alive) {
+    // hurt mid-move (or the victim died to something else): it falls apart; (P6) the partner's hold ended first too
+    if (g.target.health.hp < a.hp - 0.5 || !g.player.alive || !e.alive || (assist && !(g.net?.partnerHolds?.(e) ?? false))) {
       this.abort();
       return;
     }
@@ -634,13 +652,16 @@ export class TakedownController {
       this.override(this.pt.x, this.pt.y, this.pt.z, plan.faceYaw, false);
       this.stepping = kAp < 1;
     }
-    // victim: held (behind / front: turned so the attacker is where the plan says), pulled where planned
+    // victim: held (behind / front: turned so the attacker is where the plan says), pulled where planned; (P6) the
+    // partner's hostage stays where his holder has him
     const vt = plan.victimTo;
-    const kPull = vt ? Math.min(1, a.t / Math.max(0.01, TAKEDOWN.pullTime)) : 0;
-    const vx = vt ? a.vFrom.x + (vt.x - a.vFrom.x) * kPull : a.vFrom.x;
-    const vy = vt ? a.vFrom.y + (vt.y - a.vFrom.y) * kPull * kPull : a.vFrom.y;
-    const vz = vt ? a.vFrom.z + (vt.z - a.vFrom.z) * kPull : a.vFrom.z;
-    e.holdAt(vx, vy, vz, plan.kind === 'front' ? plan.faceYaw + Math.PI : plan.faceYaw);
+    if (!assist) {
+      const kPull = vt ? Math.min(1, a.t / Math.max(0.01, TAKEDOWN.pullTime)) : 0;
+      const vx = vt ? a.vFrom.x + (vt.x - a.vFrom.x) * kPull : a.vFrom.x;
+      const vy = vt ? a.vFrom.y + (vt.y - a.vFrom.y) * kPull * kPull : a.vFrom.y;
+      const vz = vt ? a.vFrom.z + (vt.z - a.vFrom.z) * kPull : a.vFrom.z;
+      e.holdAt(vx, vy, vz, plan.kind === 'front' ? plan.faceYaw + Math.PI : plan.faceYaw);
+    }
     // the strike / choke pose
     const ks = (a.t - plan.approach) / plan.strike;
     const pose = g.player.pose;
@@ -750,6 +771,15 @@ export class TakedownController {
       this.tailU = 1;
       g.player.pose.melee = killWarp(1, this.tailB);
     }
+    if (a.plan.kind === 'assist') {
+      // (coop-walk-fixes P6) the team takedown: the host applies it (its own at once; a client's after its check) and
+      // ends the partner's hold; the noise and the credit (a dual takedown) are the host's too
+      g.net?.assistTakedown?.(e, 'done', a.lethal);
+      this.done[a.lethal ? 'lethal' : 'nonLethal']++;
+      this.done.byKind.assist = (this.done.byKind.assist ?? 0) + 1;
+      g.events.emit('takedown', { phase: 'done', lethal: a.lethal, kind: 'assist' });
+      return;
+    }
     e.taken = false;
     e.bodyRig.emote = null;
     const dir = new Vector3(Math.sin(a.plan.faceYaw), 0, Math.cos(a.plan.faceYaw));
@@ -769,7 +799,9 @@ export class TakedownController {
     const a = this.active;
     if (!a) return;
     this.release();
-    if (a.e.alive) a.e.releaseTakedown();
+    // (P6) the partner's hostage was never seized here: the partner keeps him
+    if (a.plan.kind === 'assist') this.g.net?.assistTakedown?.(a.e, 'abort', a.lethal);
+    else if (a.e.alive) a.e.releaseTakedown();
     this.done.aborted++;
     this.g.events.emit('takedown', { phase: 'abort', lethal: a.lethal, kind: a.plan.kind });
   }

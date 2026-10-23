@@ -122,7 +122,7 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   main menu's operator are Wren, the realistic operator from the offline pipeline (feature/operators, G68); guards,
   dummies and the VIP keep the part bodies above (G68: realistic guards later). No dev switch.
   - `operators/runtime/playerFigure.ts` `operatorRig()` builds a player's `CharacterRig` at Wren's height (1.68 m,
-    G74; build `average`, style `detailed`, no voxel body) and puts an `OperatorFigure` (`operators/runtime/figure.ts`)
+    G74; build `average`, style `detailed`) and puts an `OperatorFigure` (`operators/runtime/figure.ts`)
     on it. The rig stays the pose and gameplay body: animation, IK, sockets (weapons attach to the rig's sockets as
     before), the light-meter samples (`game/bodyHeight.ts` `lightSampleHeight(rig.height, crouch)`, local and partner
     via `PlayerRef.height`; the cover exposure points scale the same way) and the hit volumes (`playerTarget.ts`,

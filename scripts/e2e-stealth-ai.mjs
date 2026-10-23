@@ -1164,6 +1164,7 @@ try {
       const stats = g.weapons.current.stats;
       const n0 = stats.noise;
       stats.noise = 0.45;
+      g.weapons.lastShotNoise = 0.45; // (sd-rounds) onShot reads the fired round's noise, not stats
       g.weapons.events.onShot(g.weapons.current.def);
       t.step(0.2);
       // (guard-ai S1) 10 m of a 12.6 m suppressed report is outside half the reach: he only turns to look
@@ -1183,6 +1184,7 @@ try {
         const st2 = g.weapons.current.stats;
         const n1 = st2.noise;
         st2.noise = 1;
+        g.weapons.lastShotNoise = 1;
         g.weapons.events.onShot(g.weapons.current.def);
         st2.noise = n1;
       };
@@ -1718,6 +1720,7 @@ try {
         const st = g.weapons.current.stats;
         const n0 = st.noise;
         st.noise = noise;
+        g.weapons.lastShotNoise = noise;
         g.weapons.events.onShot(g.weapons.current.def);
         st.noise = n0;
       };
