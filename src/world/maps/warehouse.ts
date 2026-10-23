@@ -31,7 +31,7 @@ const LAMPS_ON = new Set([
   '0,-3', '18,-3', '9,3', '9,9', '18,15', '0,15',
 ]);
 
-/** Lit strips moved off the wall they hung on (LR16d, lamp audit: row 11): grid key -> the strip's z (its circuit stays the grid cell's room). */
+/** Lit strips moved off what they hung against (LR16d / LR16dx, lamp audit row 11: the (9, 3) strip sat 0.82 m off the crane girder's face at z 2.17; at z 3.8 it clears the girder and the z 5 pillar by 1.1 m and keeps 5.2 m to the (9, 9) strip): grid key -> the strip's z (its circuit stays the grid cell's room). */
 const LAMP_MOVED_Z: Record<string, number> = { '9,3': 3.8 };
 
 /** Circuit per room (light switches turn a room's lamps off). */

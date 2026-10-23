@@ -76,7 +76,8 @@ export const S1_LAMPS: readonly LampRoom[] = [
   // the crane walkway (y 3 along the z -8.8 wall's south face): LED bulkheads at 5.0 on brackets, one every 7 m
   { id: 'walkway', model: 'bulkhead', y: 5.0, group: 36, yaw: PI, cone: WALL_S, pass: true, lamps: [[8.6, -9.25, 2.12, 0.365], [15.6, -9.25, 2.31, 0.303], [22.6, -9.25, 2.5, 0.349]] },
   { id: 'workshop', model: 'strip', y: 5.58, group: 36, yaw: 0, cone: HALL, pass: true, lamps: [[10.7, -15.8, 5.51, 0.967], [16, -15.8, 6.7, 0.921], [21.3, -15.8, 7.5, 0.921], [10.7, -11.8, 5.43, 0.921], [16, -11.8, 6.83, 1.376], [21.3, -11.8, 6.3, 1.182]] },
-  // the lobby block (ceiling 3.0): the goods-in office, the fire lobby C2; the charging bay's sign on the z -6 wall
+  // the lobby block (ceiling 3.0): the goods-in office, the fire lobby C2; the charging bay's sign on the z -6 wall (LR16dx: x -8,
+  // between the parked forklift and the charger: at x -10.2 it hung 0.16 m off the forklift's back)
   { id: 'goodsInOffice', model: 'panel', y: 2.95, group: 31, yaw: 0, pass: false, lamps: [[-20.25, -7.4, 4, 0]] },
   { id: 'lobby', model: 'panel', y: 2.95, group: 31, yaw: 0, pass: true, lamps: [[-15.15, -7.4, 4, 0], [-13.85, -7.4, 5.65, 0.626]] },
   { id: 'charging', model: 'bulkhead', y: 2.4, group: 31, yaw: PI, colour: EXIT_GREEN, pass: false, lamps: [[-8, -6.24, 0.6, 0.15]] },
