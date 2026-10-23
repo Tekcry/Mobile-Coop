@@ -21,12 +21,12 @@ import type { World } from '../world/world';
 import type { Vfx } from '../vfx/vfx';
 import type { Ballistics } from '../weapons/ballistics';
 import { ExtrapBlend, sampleSpeed, SnapshotBuffer } from './interp';
-import { PF, type PlayerInfo, type PlayerState } from './protocol';
+import { MOTION_WIRE, PF, type PlayerInfo, type PlayerState } from './protocol';
 import { hyp2 } from '../core/mathx';
 import { AttachGrips } from '../player/attachGrips';
-import { wrapPi } from '../anim/motion';
+import { easeInOut, wrapPi, type MotionState } from '../anim/motion';
 import { GRAB_KILL_BLOW, KILL_SEEN, KILL_TAIL_END, killWarp, strikeWarp, TAKEDOWN_BLOW, type KillBlow } from '../anim/strikeBody';
-import { RAPPEL, TEAM } from '../config/movement';
+import { MOVEMENT, RAPPEL, TEAM } from '../config/movement';
 import { GAMEPLAY_HEIGHT } from '../player/attach';
 import { findRopeLip, newRopeLip, ROPE_SUB, ropeLipHands, ropeSeenStep, type RopeSeen } from '../game/teamMoves';
 import { attachGripWeight, climbUpFootWeight, emptyMovePose, isAttachedMode, poseFromMoveState, TAKEDOWN_SUB_BLOW, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
@@ -82,6 +82,8 @@ export class RemoteAvatar {
   /** (afp AF6) The shown body yaw off the wall: rate-limited after a wall until it meets the owner's, as the owner's
    *  `visYaw` (player.ts: WALL_TURN.out while the wall eases out, then WALL_TURN_RATE until the gap is under 0.05). */
   private visYaw = 0;
+  /** (afp AF6) The stance transition's linear clock (0 standing .. 1 crouched), as the owner's `crouchK`. */
+  private crouchK = 0;
   private visLimit = false;
   /** (afp AF6) The owner's velocity at the render time (the buffer's span-middle blend, lightly smoothed; m/s). */
   private vx = 0;
@@ -478,7 +480,14 @@ export class RemoteAvatar {
     }
     this.prev.copyFrom(this.pos);
     const f = this.flags;
-    this.crouch += ((f & PF.crouch ? 1 : 0) - this.crouch) * Math.min(1, dt * 10);
+    // (afp AF6) the owner's stance curve (playerController.updateStance: linear over crouchTime / standTime, eased in and
+    // out), the bit from the state nearer the render time (an exponential ease at 10 / s led the owner's crouch by ~0.1 s
+    // and stood up late)
+    const cWant = ((s.k >= 0.5 ? s.to.f : s.from.f) & PF.crouch) !== 0 ? 1 : 0;
+    if (reseed) this.crouchK = cWant;
+    else if (cWant > this.crouchK) this.crouchK = Math.min(cWant, this.crouchK + dt / MOVEMENT.crouchTime);
+    else this.crouchK = Math.max(cWant, this.crouchK - dt / MOVEMENT.standTime);
+    this.crouch = easeInOut(this.crouchK);
     const aimTarget = mv ? mv.r : f & (PF.ads | PF.firing) ? 1 : 0.15;
     this.aim += (aimTarget - this.aim) * Math.min(1, dt * 10);
     // ready position weights eased to the owner's (`MoveState.rd`)
@@ -644,6 +653,35 @@ export class RemoteAvatar {
       const d = (((gb - ga) % 1) + 1) % 1;
       gaitPh = d < 0.5 ? (ga + d * Math.max(0, s.k)) % 1 : s.k >= 1 ? gb : ga;
     }
+    // (38, afp AF6) the owner's motion state at the render time: the newer state's from the moment it began (its time in
+    // it back from its stamp), else the older one's, timed on (start / stop / turn / pivot as the owner's)
+    let motion: MotionState | undefined;
+    let motionT = 0;
+    const moA = s.from.mo;
+    const moB = s.to.mo;
+    if (free && moA !== undefined && moB !== undefined) {
+      const el = Math.max(0, s.k) * s.span;
+      const bAt = s.span - (s.to.mt ?? 0);
+      if (moB !== moA && el >= bAt) {
+        motion = MOTION_WIRE[moB];
+        motionT = el - bAt;
+      } else {
+        motion = MOTION_WIRE[moA];
+        motionT = (s.from.mt ?? 0) + el;
+      }
+    }
+    // (38) the owner's acceleration across the span, in this body's frame (the lean, the mocap stop slot), as its rig
+    let accelFwd: number | undefined;
+    let accelSide: number | undefined;
+    const axA = s.from.ax;
+    const axB = s.to.ax;
+    if (motion !== undefined && axA !== undefined && axB !== undefined) {
+      const ka = s.k < 0 ? 0 : s.k > 1 ? 1 : s.k;
+      const ax = axA + (axB - axA) * ka;
+      const az = (s.from.az ?? 0) + ((s.to.az ?? 0) - (s.from.az ?? 0)) * ka;
+      accelFwd = ax * sy + az * cy;
+      accelSide = ax * cy - az * sy;
+    }
     const rpose: RigPose = {
       speed: this.speed,
       kneel: this.kneelT > KNEEL_STILL && !tense,
@@ -660,6 +698,10 @@ export class RemoteAvatar {
       phase: gaitPh >= 0 ? gaitPh : undefined,
       quickStop: free ? (st.qs ?? 0) : 0,
       holdSpeed: free ? (st.hs ?? 0) : 0,
+      motion,
+      motionT,
+      accelFwd,
+      accelSide,
       crouch: this.crouch,
       aimPitch: (upside ? -this.pitch : this.pitch) * this.aim,
       aimYaw: mv ? (upside ? -wrapPi(mv.ay + Math.PI) : mv.ay) * this.aim : 0,

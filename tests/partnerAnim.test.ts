@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CLIENT_INTERP_DELAY, ClockSync, ExtrapBlend, HOST_INTERP_DELAY, sampleSpeed, sendClock, SnapshotBuffer } from '../src/net/interp';
-import { gaitWire, parseMessage } from '../src/net/protocol';
+import { gaitWire, MOTION_WIRE, motionWire, parseMessage } from '../src/net/protocol';
 import { NETSIM_PRESETS, NetSim } from '../src/net/netSim';
 
 // afp AF6 (Michael P5, co-op partner "more jumpy"): the receiving side's continuous motion between states
@@ -184,6 +184,20 @@ describe('the gait on the wire (protocol 38, afp AF6)', () => {
     expect(sendClock(10, 5, 10.5, 5.1)).toBeCloseTo(10.5, 9);
     // the first state
     expect(sendClock(-Infinity, 0, 3, 1)).toBe(3);
+  });
+
+  it('motionWire: the driver state by index and its time; none under a scripted override; parsed and clamped', () => {
+    const o: { mo?: number; mt?: number } = {};
+    motionWire('start', 0.1, 2, -150, o);
+    expect(o).toEqual({ mo: MOTION_WIRE.indexOf('start'), mt: 0.1, ax: 2, az: -100 });
+    const n: { mo?: number; mt?: number } = {};
+    motionWire(null, 0.1, 1, 1, n);
+    expect(n).toEqual({});
+    const base = { id: 'p1', x: 1, y: 0, z: 2, yaw: 0, pitch: 0, speed: 3, f: 16, w: 'rifle', hp: 100 };
+    const m = parseMessage({ t: 'pstate', s: { ...base, mo: 9, mt: 99, ax: 3, az: -300 } });
+    expect(m && m.t === 'pstate' ? [m.s.mo, m.s.mt, m.s.ax, m.s.az] : null).toEqual([MOTION_WIRE.length - 1, 60, 3, -100]);
+    const h = parseMessage({ t: 'pstate', s: { ...base, mo: 3 } });
+    expect(h && h.t === 'pstate' ? 'mo' in h.s : null).toBe(false);
   });
 
   it('pstate carries t / gph / qs / hs, clamped; absent stays absent', () => {
