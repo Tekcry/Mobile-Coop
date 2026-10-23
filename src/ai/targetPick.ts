@@ -12,7 +12,7 @@ import { fieldFactor, motionFactor, PERCEPTION } from './perception';
 export const MAX_INTRUDERS = 4;
 
 /** `all` false: the nearest player only (today). `sticky` false: in combat the best-seen player each think. */
-export const TARGETS = { all: true, sticky: true } as const;
+export const TARGETS = { all: false, sticky: true } as const;
 
 /** `fieldFactor`'s range out (one call at a time; nothing allocated per call). */
 const rangeOut = [0];
