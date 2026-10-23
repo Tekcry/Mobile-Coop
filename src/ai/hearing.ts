@@ -10,8 +10,8 @@
  *
  * Tiers by where the listener sits inside his effective reach: beyond it nothing; inside it he turns to look (tier 1);
  * inside half of it (`investigateDb` 6) he may be sent to investigate (tier 2); loud gunfire inside a quarter of it
- * (`combatDb` 12) is straight combat (tier 3). Who of the tier-2 hearers actually walks over is the coordinator's call
- * (a stub until the incident board: the nearest, `pickNearest`); the rest only turn.
+ * (`combatDb` 12) is straight combat (tier 3). Who of the tier-2 hearers actually walks over is the incident board's
+ * call (`incidents.ts`, guard-ai S2); the rest only turn.
  *
  * Allocation-free: every function reads numbers and typed arrays and returns a number.
  */
@@ -97,22 +97,4 @@ export function hearTier(dist: number, reachEff: number, loud: boolean): HearTie
 /** Could one wall change this listener's tier? Then (and only then) the wall ray is worth casting. */
 export function wallMatters(dist: number, reachEff: number, loud: boolean): boolean {
   return hearTier(dist, reachEff, loud) !== hearTier(dist, reachEff * K_WALL, loud);
-}
-
-/**
- * The stub investigator choice (until the incident board, S2): of the `n` hearers (guard indices into `xs` / `zs`),
- * the nearest to (px, pz) by straight distance; ties go to the lower guard index. -1 when `n` is 0.
- */
-export function pickNearest(hearers: Int16Array, n: number, xs: Float32Array, zs: Float32Array, px: number, pz: number): number {
-  let best = -1;
-  let bd = Infinity;
-  for (let k = 0; k < n; k++) {
-    const i = hearers[k]!;
-    const d = hyp2(xs[i]! - px, zs[i]! - pz);
-    if (d < bd || (d === bd && i < best)) {
-      bd = d;
-      best = i;
-    }
-  }
-  return best;
 }

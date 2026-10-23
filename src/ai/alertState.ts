@@ -29,7 +29,9 @@ export const ALERT = {
   searchTime: 60,
   /** Back to normal after (s) - only after an investigation; never after combat. */
   cooldownTime: 45,
-  /** A spotter radios the sighting in after this (s); guards within `shout` (m) hear the shout at once. */
+  /** A spotter radios the sighting in after this (s); guards within `shout` (m) hear the shout at once. (guard-ai S3)
+   *  The parked modes only (`coordinated = false`); the live modes use the radio net (`radioNet.ts` `RADIO`: the same
+   *  2.5 s call, voice by the hearing model, the section staggered). */
   callIn: 2.5,
   shout: 8,
 } as const;
@@ -63,10 +65,20 @@ export interface AlertInput {
   called: boolean;
   /** Something that warrants a search without a sighting (a body found, lights cut). */
   search: boolean;
+  /** (guard-ai S2) An incident task runs its own clock (the light check): investigating does not time out or end on
+   *  arrival; the task ends it. */
+  hold: boolean;
+  /** (guard-ai S2) Looking towards a sound he was not sent to (`Enemy.hearTurn`): the linger rule waits, so a player
+   *  walking close by does not pull every guard who turns to his steps (the board sends one). */
+  turning: boolean;
+  /** (guard-ai S3, S2 check polish 2) Sent by the board to a plain noise or a lure (not gunfire): an investigation that
+   *  finds nothing ends back to normal (unaware), not in the cooldown (design 3 "return back to normal"). A guard who
+   *  has fought keeps his cooldown. */
+  calmEnd: boolean;
 }
 
 export function emptyAlertInput(): AlertInput {
-  return { meter: 0, seeing: false, arrived: false, sinceSeen: 99, heard: false, damaged: false, gunfire: false, called: false, search: false };
+  return { meter: 0, seeing: false, arrived: false, sinceSeen: 99, heard: false, damaged: false, gunfire: false, called: false, search: false, hold: false, turning: false, calmEnd: false };
 }
 
 export class AlertMachine {
@@ -135,21 +147,23 @@ export class AlertMachine {
         if (i.search) this.set('searching');
         else if (i.meter >= P.investigate) this.set('investigating');
         else if (this.sound && this.t >= ALERT.hearLook) this.set('investigating');
-        else if (i.meter >= ALERT.lingerMeter && this.t >= ALERT.lingerLook) this.set('investigating');
+        else if (!i.turning && i.meter >= ALERT.lingerMeter && this.t >= ALERT.lingerLook) this.set('investigating');
         else if (i.heard || i.meter >= P.suspicious) {
           // still something there: keep looking (the timers above decide when to walk over)
         } else if (this.t >= ALERT.suspiciousTime && i.meter < ALERT.lingerMeter) this.set(this.calm);
         break;
       case 'investigating':
         if (i.search) this.set('searching');
-        else {
+        else if (i.hold) {
+          // the task's own clock (the light check) ends it
+        } else {
           if (i.arrived) this.lookT += dt;
           if (i.heard || i.meter >= P.investigate) {
             // fresh evidence: keep at it
             this.lookT = 0;
             if (this.t > 1) this.t = 1;
           }
-          if (this.lookT >= ALERT.investigateLook || this.t >= ALERT.investigateMax) this.set(this.calm === 'unaware' ? 'cooldown' : this.calm);
+          if (this.lookT >= ALERT.investigateLook || this.t >= ALERT.investigateMax) this.set(i.calmEnd && !this.fought ? 'unaware' : this.calm === 'unaware' ? 'cooldown' : this.calm);
         }
         break;
       case 'alert':

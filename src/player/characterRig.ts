@@ -1140,6 +1140,9 @@ export class CharacterRig {
   private footPitchR = 0;
   /** (mocap-trial, fix 2) The switch as last frame (turned off: the planner gets its feet back clean, `clipFootOff`). */
   private mocapWas = false;
+  /** (mt2-guardgate, CHECK-6 R1) The switch for this rig this frame: `LOCO.mocap` on a carrier (the player, a remote player)
+   *  only; guards and the menu preview keep the hand-keyed set and the planner's feet whatever the switch says. */
+  private mOn = false;
   /** (mt2-fixB, CHECK-3 item 5) The switch's cross-fade: the skeleton's nodes (built on the first frame), their local
    *  rotations the last two frames (x, y, z, w each) and the hips' local position, the frames seen (to 2), the offsets
    *  a toggle eases out (rotations pre-multiplied, the hips' position added), seconds into it (-1: none). */
@@ -1745,6 +1748,8 @@ export class CharacterRig {
   /** (anim-joints J1) One solved frame of `animate` (after the LOD skip; inside the rig's tuner window when it has one). */
   private animateFrame(dt: number, s: RigPose): void {
     const i = this.input;
+    this.mOn = LOCO.mocap && this.carrier;
+    i.mocapOk = this.carrier;
     i.speed = s.speed;
     i.localX = s.localX;
     i.localZ = s.localZ;
@@ -1976,14 +1981,14 @@ export class CharacterRig {
     pin.reachNeedL = this.liftL;
     pin.reachNeedR = this.liftR;
     // (mocap-trial-2, crouchpop) the switch: a clip-planted foot's hand-off rules once clip feet are gone
-    pin.mocap = LOCO.mocap;
+    pin.mocap = this.mOn;
     // (mocap-trial, fix 2) the switch turned off mid-game: no clip feet state is left on the feet (a clip-planted foot kept
     // its flag, read at a stop), so the planner has them as if the switch had never been on (but a toe-up plant's flag)
-    if (LOCO.mocap !== this.mocapWas) {
-      this.mocapWas = LOCO.mocap;
+    if (this.mOn !== this.mocapWas) {
+      this.mocapWas = this.mOn;
       // (mt2-fixB) a rig already posing cross-fades from where it was (`switchFade`); a rig's first frame does not
       if (this.xfSeen >= 2) this.xfStart = true;
-      if (!LOCO.mocap) {
+      if (!this.mOn) {
         clipFootOff(this.planner.L);
         clipFootOff(this.planner.R);
       }
@@ -1998,10 +2003,13 @@ export class CharacterRig {
     // crouched rigs keep the planner's landings uncapped with the switch on
     const PL = this.planner;
     // (orchestrator review, mocap-trial-2) the clip flags count only with clip feet on the input
-    if (LOCO.mocap && (t.keyMocap > 0 || (pin.clipFeet !== null && (PL.L.clipOwn || PL.L.clipPlant || PL.R.clipOwn || PL.R.clipPlant)))) {
+    if (this.mOn && (t.keyMocap > 0 || (pin.clipFeet !== null && (PL.L.clipOwn || PL.L.clipPlant || PL.R.clipOwn || PL.R.clipPlant)))) {
       const mx = MOCAP_FEET.pitchRate * dt;
       this.footPitchL = this.planner.L.pitch = rateTo(this.footPitchL, this.planner.L.pitch, mx);
       this.footPitchR = this.planner.R.pitch = rateTo(this.footPitchR, this.planner.R.pitch, mx);
+      // (mt2-fixF) an anchored planted foot keeps its contact at the capped pitch
+      this.planner.holdPitch(this.planner.L);
+      this.planner.holdPitch(this.planner.R);
     } else {
       this.footPitchL = this.planner.L.pitch;
       this.footPitchR = this.planner.R.pitch;
@@ -2411,7 +2419,7 @@ export class CharacterRig {
       // (mt2-fixC, CHECK-3 item 6) and at most REST_SHIFT_RATE while the mocap share keeps the hips off the feet (the
       // pelvis-follow layer, as the knee pole below): a CT stop hold's release let go of a 7 cm settle by 1.7 cm in a frame
       const rm = REST_SHIFT_RATE * dt;
-      this.restShift = LOCO.mocap && mocapLayerK(MOCAP_LAYERS.pelvisFollow, t.keyMocap) < 1 && (rs > this.restShift + rm || rs < this.restShift - rm) ? this.restShift + (rs > this.restShift ? rm : -rm) : rs;
+      this.restShift = this.mOn && mocapLayerK(MOCAP_LAYERS.pelvisFollow, t.keyMocap) < 1 && (rs > this.restShift + rm || rs < this.restShift - rm) ? this.restShift + (rs > this.restShift ? rm : -rm) : rs;
     }
     // (anim-rework S3, BRIEF 3 "the centre of mass over the base of support") gliding aimed (the drawn keyed set raised)
     // the hips ride over the feet's centre across the body (GLIDE_HIP: the weight moves onto the lead foot of a side-step
@@ -2557,7 +2565,7 @@ export class CharacterRig {
     // (mt2-fixC, CHECK-3 item 4) and while the mocap share keeps the hips off the feet (MOCAP_LAYERS.pelvisFollow: a spot
     // turn's turn-in-place slot, no clip feet), until a swap under way has run out: a spot flick's landing missed its spot
     // by 2.1 cm the same way. Placeholder clips (every layer 1) are left as before
-    const poleM = LOCO.mocap && mocapLayerK(MOCAP_LAYERS.pelvisFollow, t.keyMocap) < 1;
+    const poleM = this.mOn && mocapLayerK(MOCAP_LAYERS.pelvisFollow, t.keyMocap) < 1;
     for (let k = 0; k < 2; k++) {
       if (this.pin.clipFeet === null && !poleM && !(this.poleShare[k]! >= 0 && this.poleShare[k] !== this.poleWant(k === 0 ? -1 : 1))) {
         this.poleShare[k] = -1;
@@ -2661,8 +2669,11 @@ export class CharacterRig {
     // (mt2-fixC, CHECK-3 item 6) and on the mocap share (`poleM`), a leg on its landing frame (plantT 0): the knee leaves
     // the swing's bow and pole there, and the limit held a 5 m/s flick's landed ankle 2.2 cm off its plant for the frame
     const xf = this.xfT >= 0 || this.xfStart;
-    const xl = (xf || (poleM && L.plantT === 0)) && L.contact ? 1e9 : undefined;
-    const xrr = (xf || (poleM && R.plantT === 0)) && R.contact ? 1e9 : undefined;
+    // (mt2-fixF) and a clip-planted leg holding its contact (clip feet on hand, anchored): the limit lagged it as the clip's
+    // heel rose through a crouch's hand-over and the held ball slid 2.0 cm in the frame
+    const cfOn = this.pin.clipFeet !== null;
+    const xl = (xf || (poleM && L.plantT === 0) || (cfOn && L.clipPlant && L.anchored)) && L.contact ? 1e9 : undefined;
+    const xrr = (xf || (poleM && R.plantT === 0) || (cfOn && R.clipPlant && R.anchored)) && R.contact ? 1e9 : undefined;
     const lHip = this.limitJoint(this.hipL, dt, xl);
     const lh = this.limitJoint(this.kneeL, dt, xl) || lHip;
     const rHip = this.limitJoint(this.hipR, dt, xrr);
@@ -2680,7 +2691,7 @@ export class CharacterRig {
     // the foot keeps the planner's yaw and pitch (its pitch already turns at most MOCAP_FEET.pitchRate), its Joints offset on top
     // (mt2-fixC, CHECK-3 item 6c) also on the mocap share (`poleM`) and in the crouched capture (switch on, crouchWalk set):
     // a crouched sneak flick's toe-off turned the limited leg's foot off the planner's and its ball slid 2.1 cm
-    if ((lh || rh) && (this.pin.clipFeet || poleM || (LOCO.mocap && LOCO.set.crouchWalk !== null && this.input.crouch > 0)) && !legKeyed && !HANDS_CUR.ikOn) {
+    if ((lh || rh) && (this.pin.clipFeet || poleM || (this.mOn && LOCO.set.crouchWalk !== null && this.input.crouch > 0)) && !legKeyed && !HANDS_CUR.ikOn) {
       const ly = Number.isNaN(this.legYaw);
       if (lh) {
         Quaternion.RotationYawPitchRollToRef(ly ? L.yaw : this.legYaw, L.pitch + st.lPitch, 0, tmpQ3);
