@@ -281,6 +281,13 @@ about equal to their mounting height, so their light stops before it reaches the
    grid. None of this is the walk's problem.
 
 ### 7.2 LR13 - one engine change: photometric lamp falloff (prototype in this branch, default off)
+**Status (2026-10-23, Michael ~14:35 "Try it first"): prototype shipped default off (setting).** Settings > Gameplay >
+"Lamp falloff: Classic / Realistic (test)" (`gameplay.lampFalloff`, default Classic), applied when a map loads (start
+or restart the mission; `lampMath.matchLampFalloff` in `GameState.create`); `?falloff=photo` stays as a dev override. Co-op:
+the host's choice rides the `start` message (`lf`, PROTOCOL_VERSION 38) and the client's row is locked to it. Build
+report: `docs/sector-redesign/checks/lr13-build.md`. Not adopted: no map re-tune; the default flip is still the
+"If adopted" step below.
+
 **What.** Baked lamps fall off with the inverse square, as a real fitting does, referenced so that a lamp's intensity
 is its level on axis at 3 m, and fade smoothly to 0 at a reach of 1.6 x the authored radius (the glTF / Babylon
 `FALLOFF_GLTF` window):
@@ -290,7 +297,7 @@ is its level on axis at 3 m, and fade smoothly to 0 at a reach of 1.6 x the auth
 Cone, N.L, baked visibility, closed doors, the column lists, the thresholds (`LIGHT` 0.28 / 0.6), the darkness curve,
 the zone fills and the flashlights are unchanged.
 
-**Code (prototype, `?falloff=photo`, off unless the URL says so):** `lampMath.ts` `PHOTO` {ref 3, near 1, reach 1.6},
+**Code (prototype; now the setting, `?falloff=photo` a dev override):** `lampMath.ts` `PHOTO` {ref 3, near 1, reach 1.6},
 `setLampFalloff` / `lampFalloffMode`, `photoFalloff`, `lampReach`, `LAMP_MATH_GLSL_PHOTO` / `lampMathGlsl()`;
 `LightRegistry.add` scales a fixed lamp's radius by `lampReach` once (so the bake boxes, the 2 m column lists, the
 field and the shaders read one reach; flashlights keep theirs); `LightField.lampInto` takes the photometric branch

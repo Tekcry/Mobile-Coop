@@ -5,7 +5,7 @@
  * light field reads the same function as the shaders' GLSL (light parity).
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { bakedFalloff, LAMP_LEVEL_GAIN, LAMP_MATH_GLSL, LAMP_MATH_GLSL_PHOTO, lampFalloff, lampFalloffMode, lampMathGlsl, lampReach, PHOTO, photoFalloff, setLampFalloff } from '../src/world/lampMath';
+import { bakedFalloff, LAMP_LEVEL_GAIN, LAMP_MATH_GLSL, LAMP_MATH_GLSL_PHOTO, lampFalloff, lampFalloffMode, lampMathGlsl, lampReach, matchLampFalloff, PHOTO, photoFalloff, setLampFalloff } from '../src/world/lampMath';
 import { LightRegistry } from '../src/world/lights';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { canonicalLightSet } from '../src/voxel/lightShapes';
@@ -79,5 +79,78 @@ describe('lamp falloff modes (lightrev prototype)', () => {
     // the floor under it is lit now (linear with the old radius: 0)
     expect(lampFalloff(5.58 - 0.1, 5.4)).toBe(0);
     expect(field.lampAt(0, 0, 0.1, 0)).toBeGreaterThan(0.15);
+  });
+});
+
+/** The GLSL `nsLampFalloff` body run as JS (float -> let, max -> Math.max): the shaders' own formula, evaluated. */
+function glslFalloff(glsl: string): (d: number, r: number) => number {
+  const m = /float nsLampFalloff\(float d, float r\) \{ ([^\n]*) \}\n/.exec(glsl);
+  if (!m) throw new Error('nsLampFalloff not found');
+  return new Function('d', 'r', m[1]!.replace(/\bfloat /g, 'let ').replace(/\bmax\(/g, 'Math.max(')) as (d: number, r: number) => number;
+}
+
+/** One lamp 5.58 m over a floor (the Sector Ops S1 strip), baked in the current falloff mode. */
+function bayField(): { field: LightField; reg: LightRegistry; baked: ReturnType<typeof bakedLights> } {
+  const b = new LevelBuilder();
+  b.box(0, -0.25, 0, 30, 0.5, 30, '#777');
+  b.light({ x: 0, y: 5.58, z: 0, radius: 5.4, intensity: 0.7 });
+  const set = canonicalLightSet(b.boxes, b.cylinders, 'falloffTest', false);
+  const reg = b.lights;
+  reg.ambient = 0;
+  const baked = bakedLights(reg);
+  const r = bakeLamps({ kind: 'lamps', id: 0, shapes: set.shapes, lights: baked.lights, lo: set.lo, hi: set.hi });
+  const ambient = buildAmbientGrid({ ambientAt: () => 0 }, set.lo, set.hi);
+  const bake = { lo: set.lo, hi: set.hi, lampKey: 't', moonKey: 't', lamps: { baked, r }, moon: null, ambient, moonLight: 0, ms: 0 } as unknown as LightBake;
+  return { field: new LightField(bake, reg), reg, baked };
+}
+
+describe('LR13: the setting picks the mode; meter, perception and shaders read one source in each mode', () => {
+  it('matchLampFalloff: the co-op host wins, then ?falloff=photo, then the setting (default Classic)', () => {
+    expect(matchLampFalloff('linear', false)).toBe('linear');
+    expect(matchLampFalloff('photometric', false)).toBe('photometric');
+    expect(matchLampFalloff('linear', true)).toBe('photometric');
+    expect(matchLampFalloff('photometric', true, 'linear')).toBe('linear');
+    expect(matchLampFalloff('linear', false, 'photometric')).toBe('photometric');
+  });
+
+  it('the GLSL of each mode evaluates to the TS formula the field uses', () => {
+    const lin = glslFalloff(LAMP_MATH_GLSL);
+    const pho = glslFalloff(LAMP_MATH_GLSL_PHOTO);
+    for (const r of [4, 8.64, 13]) {
+      for (let d = 0; d <= r + 1; d += 0.37) {
+        expect(lin(d, r)).toBeCloseTo(lampFalloff(d, r), 6);
+        expect(pho(d, r)).toBeCloseTo(photoFalloff(d, r), 6);
+      }
+    }
+  });
+
+  for (const mode of ['linear', 'photometric'] as const) {
+    it(`${mode}: the field (the meter's bodyLevel and the guards' levelAt) = the shaders' GLSL formula x the shaders' lamp data`, () => {
+      setLampFalloff(mode);
+      const { field, reg, baked } = bayField();
+      const l = reg.lights[0]!;
+      // one reach for all: the registry, the shaders' lamp data (`bakedLights`, column 3) and the falloff
+      expect(baked.lights[3]).toBeCloseTo(l.radius, 5);
+      expect(l.radius).toBeCloseTo(mode === 'photometric' ? 5.4 * PHOTO.reach : 5.4, 9);
+      const glsl = glslFalloff(lampMathGlsl());
+      expect(lampMathGlsl()).toBe(mode === 'photometric' ? LAMP_MATH_GLSL_PHOTO : LAMP_MATH_GLSL);
+      for (const [x, y, z] of [[0, 0.1, 0], [0, 1.02, 0], [2, 0.1, 1], [3, 1.5, -2], [4.5, 0.1, 0]] as const) {
+        const d = Math.sqrt((x - l.x) ** 2 + (y - l.y) ** 2 + (z - l.z) ** 2);
+        const cone = (l.y - y) / d;
+        const want = LAMP_LEVEL_GAIN * l.intensity * glsl(d, baked.lights[3]!) * cone * field.visAt(0, x, y, z);
+        expect(field.lampAt(0, x, y, z)).toBeCloseTo(want, 6);
+        // the guards' sample (`levelAt`) is the same field: ambient 0 and no moon here, so the lamp alone
+        expect(field.levelAt(x, y, z)).toBeCloseTo(Math.min(1, want), 5);
+      }
+    });
+  }
+
+  it('the same point reads differently in the two modes (what the e2e leg checks through the menu)', () => {
+    setLampFalloff('linear');
+    const lin = bayField().field.levelAt(2, 0.1, 1);
+    setLampFalloff('photometric');
+    const pho = bayField().field.levelAt(2, 0.1, 1);
+    expect(lin).toBe(0);
+    expect(pho).toBeGreaterThan(0.1);
   });
 });

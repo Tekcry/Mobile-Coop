@@ -46,6 +46,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   in the yard facade and the hoist rail in goods-in; section 2 the high-bay rack R3S from the east gangway and the landing high on the east wall over the gangway; section 3 the valve platform
   in the east bay and the crane drive over the CNC cell, each climbable onto under its roof hood); they relay or drop the
   rope for you; alone, the lip cannot be reached. Each team door is locked from your side; your partner unbolts it from the other side; a restart bolts it again.
+- [ ] Lamp falloff (LR13, test): Settings > Gameplay > Lamp falloff > Realistic (test), then start Sector Ops: the S1
+  goods-in floor between the strips reads lit (meter and picture agree), Marlow station 2 still reads; back to Classic
+  for the old look. In co-op the host's choice applies to both (the joiner's row shows it locked).
 - [ ] Co-op: Host a room starts on Campaign (Marlow Yard); the Mode row offers Campaign and Sector Ops only.
 - [ ] Co-op guard torches (coop-torches): on a dark map, when a guard searching in the dark switches his flashlight on,
   the joiner sees the same beam from his head, aimed where he faces, and it goes off when the host's does; standing in
