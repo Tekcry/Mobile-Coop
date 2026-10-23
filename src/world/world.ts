@@ -338,7 +338,7 @@ export class World {
   };
 
   /** The moon's list: the static casters + the moving ones under open sky (indoors the roof shades them anyway). */
-  private updateSunCasters(dt: number): void {
+  private updateSunCasters(dt: number, focus: Vector3): void {
     this.sunT -= dt;
     if (this.sunT > 0) return;
     this.sunT = 0.25;
@@ -346,14 +346,14 @@ export class World {
     tmp.length = 0;
     for (let i = 0; i < this.sunStatic.length; i++) tmp.push(this.sunStatic[i]!);
     const vx = this.voxels;
-    const cp = this.scene.activeCamera?.globalPosition;
+    const cp = focus; // (the player, not the orbit camera: the boom would flip guards at the edge)
     for (let i = 0; i < this.sunMoving.length && !this.staticSun; i++) {
       const m = this.sunMoving[i]!;
       // (small things - pickups, switches, mags - cast nothing worth a draw per cascade; lamps still take them)
       if (m.getBoundingInfo().boundingSphere.radiusWorld < 0.3) continue;
-      // (guard-render S6) guards: in the moon's list only near the camera (`GUARD_SUN_REACH`, hysteresis)
+      // (guard-render S6) guards: in the moon's list only near the player (`GUARD_SUN_REACH`, hysteresis)
       const reach = this.sunReach[i]!;
-      if (reach !== Infinity && cp) {
+      if (reach !== Infinity) {
         const c = m.getBoundingInfo().boundingSphere.centerWorld;
         const dx = c.x - cp.x;
         const dy = c.y - cp.y;
@@ -663,7 +663,7 @@ export class World {
   frame(focus: Vector3, dt = 0): void {
     this.updateGi();
     this.lamps?.frame();
-    this.updateSunCasters(dt);
+    this.updateSunCasters(dt, focus);
     const cam = this.scene.activeCamera;
     if (cam) {
       this.lightRig.update(dt, cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);

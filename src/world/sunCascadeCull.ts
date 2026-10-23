@@ -1,7 +1,7 @@
 import type { AbstractMesh } from '../core/babylon';
 import { hyp3 } from '../core/mathx';
 
-/** (guard-render S6) Guards (and their guns) are in the moon's cascades only within this distance of the camera (m). */
+/** (guard-render S6) Guards (and their guns) are in the moon's cascades only within this distance of the player (m). */
 export const GUARD_SUN_REACH = 40;
 /** Hysteresis (m): in below the reach, out above reach + this. */
 export const SUN_REACH_HYST = 3;
@@ -30,7 +30,7 @@ export function inCascadeXY(t: ArrayLike<number>, cx: number, cy: number, cz: nu
   return Math.abs(x) <= lim + rx && Math.abs(y) <= lim + ry;
 }
 
-/** In the list below `reach`; once in, stays until `reach + SUN_REACH_HYST`. `d2` is the squared distance. */
+/** In the list below `reach` (measured from the player); once in, stays until `reach + SUN_REACH_HYST`. `d2` is the squared distance. */
 export function keepNearCamera(wasIn: boolean, d2: number, reach: number): boolean {
   if (reach === Infinity) return true;
   if (d2 <= reach * reach) return true;
