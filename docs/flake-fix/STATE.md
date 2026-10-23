@@ -31,12 +31,18 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
     (Player fix round, e2e-coop only; verdict -> Player Build + orch; netmove from c6b4f4a3 still counts).
   - Guard AI GPU sheet on walk 906765a4 (calm guard: rifle slung, officer pistol on thigh, clipping?; draw on suspicion;
     two guards passing in a doorway): needs a shot script; after the perf pass, 4189 free.
-  - 4189 chain-1023lr (after r89): charshadow-83b22daa = Sector Ops LR14 items 1-2: e2e-lightbake (quote its "LR14
-    character shadows" line: max textures per shader, slot stats), then desktop darkness menus. Items 3-5 NOT queued
-    (need a script / manual steps): 3 Epic console smoke on campusOps sector + ctcourse course (no console errors,
-    world.charShadows.copies rising); 4 perf.mjs --preset=high --budget and --preset=epic --budget, 24 guards per section,
-    warehouseOps + campusOps, Character shadows Auto vs Off (p95 CPU / GPU, draws, allocations); 5 contact sheet: guard +
-    partner under a lamp Epic vs Medium, walk between two lamps (flicker). ONE verdict -> Sector Ops Build.
+  - 4189 chain-1023lr2 (RUNNING since 15:26; replaced LR14 83b22daa, never run): lighting-f03bb0ea = Sector Ops
+    combined lighting batch (LR13 + LR14, protocol 38): coop netmove menus sectorops desktop darkness lightbake.
+    Quote lightbake's "LR14 character shadows" line (max textures per shader, slot stats; a sampler count of 17 on
+    the skinned player = vertex-stage bone / morph samplers: report, not a fail). Writes "chain-1023lr done".
+    NOT queued (needs scripts / Settings): darkness + lightbake again with ?falloff=photo (Realistic); Epic console smoke
+    campusOps sector + ctcourse course (no errors, world.charShadows.copies rising); torch checks (guard torch on Wren at
+    2 / 4 m, guard facing a wall, two torches); perf.mjs --preset=high|epic --budget, 24 guards per section,
+    warehouseOps + campusOps, Character shadows Auto vs Off, Classic vs Realistic on warehouseOps (bake time, memory:
+    campusOps atlas 48 -> 134 MB expected, S1 bay frame time); contact sheet guard + partner under a lamp Epic vs
+    Medium + walk between two lamps. ONE verdict -> Sector Ops Build.
+- SENT ~15:28: Marlow WIP 1/4 (ctcourse:4 A8 grille stop timeout; s10 ctcourse:1 A2 lure timeout, :2 A4 dock 0.991;
+  course ok).
   - 4189 chain-1023m1 (after r89 + r92 + lr): guardrender-m1-f5912402 = guard-render M1 check on master 4.75.0
     (work/guardrender-m1-f5912402; load sample runs/guardrender-m1-load.csv). Judge vs BRIEF M1 (24 facing: CPU p95
     <= 12, GPU p95 <= 15), write into docs/guard-render/STATE.md on feature/guard-render-close (PR #225), then close
