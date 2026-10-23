@@ -301,8 +301,12 @@ Chain (all agents die at the swap; each branch has a WIP commit; rerun from brie
    lit-enough 0.42 < 0.43; strip #61 freed moves S2). Lead calls: #34 / #53 wall-mounted (-> ON_ITS_POST); campus #81
    cage light inside its post = our map bug -> W; wall-guard cap 3.0 stays; new reds -> W; torchOcclusion.test.ts:166
    lint error (LR16t) -> W.
-3. LR16-W layout: Opus planner RUNNING ~00:55 (briefs/LR16-W.md, base 67f3661a; if missing rerun with the calls above).
-   Then Opus builders per part in parallel (file-disjoint), branches -lr16w-<part>.
+3. LR16-W layout: brief DONE (briefs/LR16-W.md 4f19ef79; 8 asserts / 191 points + 3 pockets, all owned, no light-model
+   change). Opus builders RUNNING ~01:25 off 67f3661a: -lr16w-s1, -s2, -s3 (disjoint warehouseSectors.ts blocks), one
+   agent for -lr16w-t then -lr16w-c2; reports checks/lr16w-<part>-build.md. Rerun a part from the brief + branch head if
+   cut off. Then lead merges T, C2, S1, S2, S3 into feature/sector-redesign-lr16w (off 67f3661a), INT round (brief
+   "INT"), one Opus checker (g + L-A + W), laptop sectorops + ctcourse + sheet. C2 edits ctcourse.ts (Marlow's map): tell
+   the orchestrator at PR. Stale: -lr16wp worktree (detached 02419d1b, old planner probes; remove later).
 4. ONE Opus checker on g + L-A + W together; merge -lr16g -> -lr16l-a -> W parts into lr16int.
 Parallel (off lr16int 82f9e1bb, briefs/LR16-POLISH.md; builders started 23:20, WIP pushed): pol-a (Sonnet; skip the
   lampBounce.test.ts item -> F), pol-b (Opus torch picture), pol-e (Opus rig bulbs / comments), lr16l-b (Opus, LR16-L
