@@ -3,7 +3,7 @@
 Branch `feature/sector-redesign-lr16int`, base da773613. Status: IN PROGRESS (WIP save for an account swap).
 
 ## Plan / status
-1. Torch parity (picture feathers like the meter) - investigating, no code yet.
+1. Torch parity - DONE in code (bakedLamps SPOT_FALLOFF_*, lightRig.place SPOT_EXP), test tests/lampTorchCone.test.ts passes; doc write-up pending.
    - Plan: the lamp plugin (`bakedLamps.ts` `LampPlugin.getCustomCode`) regex-replaces Babylon's PBR spot cone call
      (`computeDirectionalLightFalloff(light*.vLightDirection.xyz,preInfo.L,...)`, in `lightFragment` and in
      `pbrClusteredLightingFunctions`) with an `nsSpotFalloff` overload that runs `nsLampCone` (LAMP_MATH_GLSL:

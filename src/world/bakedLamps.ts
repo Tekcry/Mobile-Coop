@@ -720,6 +720,46 @@ float lampCapsule(vec3 p, vec3 l, vec3 a, vec3 b, float r) {
 }`;
 
 /**
+ * (LR16 fix, torch parity) Babylon's spot lights - the shadow-mapped flashlights and any flashlight in the light rig's
+ * pool, plain or clustered - take the game's feathered cone, not Babylon's hard cut. The plugin swaps Babylon's PBR
+ * spot-cone calls (`computeDirectionalLightFalloff[_Standard](light*.vLightDirection.xyz,preInfo.L,` in
+ * `lightFragment` and `pbrClusteredLightingFunctions`; Babylon 9.29, guarded by `tests/lampTorchCone.test.ts`) for
+ * `nsSpotFalloff[_Standard]`, which run `nsLampCone` (`LAMP_MATH_GLSL`: cos^exp x the smoothstep feather, as
+ * `lampMath.lampCone`) with the light's own cut (`vLightDirection.w` = the cone's cos outer) and exponent
+ * (`vLightData.w` = `SPOT_EXP`). Babylon's standard range falloff is the meter's linear `lampFalloff`: the spot's
+ * diffuse = the meter's `lampTerm` x N.L. PBR materials only (Babylon's falloff functions are PBR's).
+ */
+export const SPOT_FALLOFF_CALL = '!computeDirectionalLightFalloff(|_Standard)\\((light\\w*\\.vLightDirection\\.xyz,preInfo\\.L,)';
+export const SPOT_FALLOFF_SWAP = 'nsSpotFalloff$1($2';
+export const SPOT_FALLOFF_GLSL = `
+float nsSpotFalloff_Standard(vec3 ld, vec3 l, float cut, float e) {
+#ifdef BAKED_LAMPS
+  return nsLampCone(dot(-ld, l), cut, e);
+#else
+  return computeDirectionalLightFalloff_Standard(ld, l, cut, e);
+#endif
+}
+float nsSpotFalloff(vec3 ld, vec3 l, float cut, float e, float s, float o) {
+#if defined(BAKED_LAMPS) && !defined(USEPHYSICALLIGHTFALLOFF) && !defined(USEGLTFLIGHTFALLOFF)
+  return nsLampCone(dot(-ld, l), cut, e);
+#else
+  return computeDirectionalLightFalloff(ld, l, cut, e, s, o);
+#endif
+}`;
+/**
+ * The same on a standard material (the editor's light view, plain lights only): its spot is Babylon's cos^exp cut at
+ * the cone, so the light's colour takes the feather's smoothstep alone (`nsLampCone / cos^exp`). Inside the plugin's
+ * `CUSTOM_LIGHT` hook, `X`: the light's index.
+ */
+export const spotFeatherStd = (x: string): string => `#ifdef SPOTLIGHT${x}
+{
+  float nsCa = dot(light${x}.vLightDirection.xyz, normalize(vPositionW - light${x}.vLightData.xyz));
+  float nsCp = pow(max(nsCa, 1e-4), light${x}.vLightData.w);
+  diffuse${x}.rgb *= nsCp > 0.0 ? nsLampCone(nsCa, light${x}.vLightDirection.w, light${x}.vLightData.w) / nsCp : 0.0;
+}
+#endif`;
+
+/**
  * Baked lamp light on a PBR material (3.2): for the lamps listed in the pixel's 2 m column, the lamp's diffuse light
  * (photometric falloff, cone, N.L: `LAMP_MATH_GLSL`) x its baked visibility at a point a cell off the surface
  * x the characters' capsule shadows; added to the material's diffuse.
@@ -957,6 +997,7 @@ diffuse$1.rgb *= nsMoon;
 nsKind = 2.0;
 #else
 nsKind = 1.0;
+${this.std ? spotFeatherStd('$1') : ''}
 #endif
 #endif
 #define CUSTOM_LIGHT$1_COLOR`,
@@ -1100,7 +1141,12 @@ ${level('nsLampRaw')}
 }
 #endif`,
     };
-    if (!this.std) return code;
+    if (!this.std) {
+      // (LR16 fix) Babylon's spot lights (the shadow-mapped and pooled flashlights) take the game's feathered cone
+      code['CUSTOM_FRAGMENT_DEFINITIONS'] += SPOT_FALLOFF_GLSL;
+      code[SPOT_FALLOFF_CALL] = SPOT_FALLOFF_SWAP;
+      return code;
+    }
     // the standard materials (the editor's light view): the volume and the ambient-grid fill join the lights' diffuse sum
     // (the material's colour and albedo multiply it after), and the curve scales the static part
     delete code['CUSTOM_FRAGMENT_BEFORE_FINALCOLORCOMPOSITION'];

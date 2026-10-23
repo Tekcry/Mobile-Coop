@@ -1,5 +1,5 @@
 import { ClusteredLightContainer, Color3, CreateBox, CreateSphere, Matrix, Mesh, PBRMaterial, Quaternion, ShadowGenerator, SpotLight, StandardMaterial, Vector3, VertexData, type AbstractMesh, type Material, type Scene } from '../core/babylon';
-import { LAMP_CONE as LAMP_CONE_MATH, LIGHT_GAIN } from './lampMath';
+import { LAMP_CONE as LAMP_CONE_MATH, LAMP_EXP, LIGHT_GAIN, SPOT_EXP } from './lampMath';
 import type { ShadowSpec } from '../core/quality';
 import { nearestLights, type FittingModel, type LightDef, type LightRegistry } from './lights';
 import { fittingMesh, type MeshArrays } from './fixtureModels';
@@ -538,12 +538,14 @@ export class LightRig {
     sp.diffuse.set(l.color[0], l.color[1], l.color[2]);
     if (l.cone) {
       sp.direction.set(l.cone.dx, l.cone.dy, l.cone.dz);
+      // (the cut at the meter's cos outer, cos^SPOT_EXP; the lamp plugin swaps Babylon's hard cut for the meter's
+      // feathered `nsLampCone`: `bakedLamps.SPOT_FALLOFF_GLSL`, LR16 fix)
       sp.angle = Math.acos(l.cone.cosOuter) * 2;
-      sp.exponent = 2;
+      sp.exponent = SPOT_EXP;
     } else {
       sp.direction.set(0, -1, 0);
       sp.angle = s.sg ? SHADOW_LAMP_CONE : LAMP_CONE;
-      sp.exponent = 1;
+      sp.exponent = LAMP_EXP;
     }
   }
 
