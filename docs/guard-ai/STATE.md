@@ -1,6 +1,15 @@
 # Guard AI - state
 
 ## Now
+~20:05 (swap, laptop): A4 triage agent was cut off with a working fix uncommitted: lead committed it, s22-game
+a74d27e2 (slices/S22-GAME-A4-TRIAGE.md: test staging, players seen through L3's open far door; players now hide
+beside the doorway; tests/consoleNoticeA4.test.ts 2/2). Laptop request s22game-a4fix (e2e-ctcourse:2 + :4).
+S23 DONE by Cloud Builder 1: feature/guard-ai-s23 a87ef34c (worktree C:/NightShift/Mobile-Coop-guard-ai-s23, npm ci'd).
+RUNNING (Opus): checkers A + B (slices/S23-CHECK-A.md, -B.md), e2e-coop "every player seen" block + coop / TESTING /
+ai.md G41 lines (commits, pushes, queues set s23-coop: e2e-coop + e2e-netmove). Laptop s23-regress on a87ef34c
+(stealth-ai, stealth, takedown, tactics, sectorops, ctcourse, guard-carry). S24 brief to cloud-queue after S23's
+checkers pass (S24.md: branch off the S23 tip after its checker passes).
+
 ~19:35: s22-game d82f9b6f: e2e-ctcourse:4 PASS (A8 refusal holds); :2 FAIL twice (real): A3 passes now, A4 fails at
 a4GoodsShed.mjs:223 "back from the noise, the officer notices the console off" (40 s, consoleFinds never rises).
 RUNNING: Opus triage-and-fix agent (writes slices/S22-GAME-A4-TRIAGE.md, pushes, queues the laptop rerun itself with
