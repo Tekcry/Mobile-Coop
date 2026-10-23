@@ -5,8 +5,8 @@
 //   2. the send-back: the client stands in the corridor unjammed: the camera has it (stage 2), the host sends it back to (77.8, 10.75) on both
 //      pages, LANTERN's line reaches the client, the claim made the client B (the host A, the lines swap);
 //   3. the dark case: the host switches the corridor off (a3-sw-corr): the corridor reads dark on both pages and the client is sent back again
-//      (the camera sees in the dark, G240); the switch back on. The switch is a lights-out lure: the host works it from the L2 holding
-//      room, the client joins it after its send-back and the L2 far door is shut until the cleaner is back on his loop;
+//      (the camera sees in the dark, G240); the switch back on. The switch is a lights-out lure: both players wait in the L2
+//      holding room behind its shut far door before the cut (the client out only for the send-back) until he is back on his loop;
 //   4. the window miss: the host jams from the west post; the camera is blind and frozen on both pages, the client in the corridor in plain view
 //      is not seen (meter and stage 0, no send-back) for as long as the window lasts; when the jam ends and the camera reboots it has the client:
 //      sent back (the third send-back);
@@ -279,21 +279,13 @@ export async function walk(t, n) {
   // at the send-back spot and stayed in a fight / search loop for the whole 150 s step-4 wait (his `alerted` flag is the
   // combat level only, so a passing check read his searches as calm and step 7's lure could fall on a search, which ignores
   // a heard lure: the laptop's "the cleaner walks toward office 1's switch" timeout). The host works the switch from the L2
-  // holding room (a test use, no reach), the client follows after its send-back, and the L2 far door is shut behind them
-  // until he is back on his loop.
+  // holding room (a test use, no reach) and the L2 far door is shut behind them until he is back on his loop.
+  // (marlow-polish 4) Both players are in the L2 room and its far door is shut BEFORE the switch goes off; the client leaves
+  // it only for the dark send-back, taken at once after the cut, and is teleported straight back in. mf-fix4-2b: the client
+  // stood at the send-back spot (77.8, 10.75) with the door still open (the old order: the cut, a 3.5 s wait, the send-back,
+  // then the door) while the lure drew him to the west lobby; he saw them, entered the L2 room through the far door (x 75)
+  // and fought / searched for the whole 150 s step-4 wait.
   await moveHost(L2_HIDE[0][0], L2_HIDE[0][1], 0.1, Math.PI / 2);
-  assert((await use(A, swCorr)) === 'ok', 'A3: the host turns the corridor switch off');
-  await until(A, () => !window.__app.current.stealth.switchOn(30), null, 15000, 'A3: the host sees group 30 off');
-  for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
-    await until(P, (g) => window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g).every((x) => !x.on), 30, 15000, `A3: the ${tag} sees the corridor lamps off`);
-    const l = await level(P, MID[0], MID[1]);
-    assert(l <= 0.24, `A3: the corridor reads dark on the ${tag} page (${l.toFixed(3)})`);
-  }
-  n0 = await backs();
-  await waitSim(3500);
-  await moveClient(SEEN[0], SEEN[1], 0.1, Math.PI / 2);
-  await sentBack('A3 dark send-back', n0);
-  assert((await level(B, SEEN[0], SEEN[1])) <= 0.24, 'A3: the client was sent back from a dark corridor (the camera sees in the dark)');
   await moveClient(L2_HIDE[1][0], L2_HIDE[1][1], 0.1, Math.PI / 2);
   const l2Far = await doorIndex('L2-far');
   const l2Aid = await GA((cid) => window.__app.current.world.layout.course.doors[cid], 'L2-far');
@@ -303,6 +295,20 @@ export async function walk(t, n) {
     console.error(`A3 L2 door diag ${await GA((i) => { const g = window.__app.current; const d = g.world.doors.list[i]; return JSON.stringify({ target: d.target, open: d.open, locked: d.anchor.locked, leaf: d.anchor.leaf, by: d.by, feet: g.playerRefs().map((r) => [r.feet.x, r.feet.z].map((n) => +n.toFixed(2))) }); }, l2Far)}`);
     throw e;
   });
+  // the client's send-back hold from step 2 ends before the cut (was the wait between the cut and the send-back)
+  await waitSim(3500);
+  assert((await use(A, swCorr)) === 'ok', 'A3: the host turns the corridor switch off');
+  await until(A, () => !window.__app.current.stealth.switchOn(30), null, 15000, 'A3: the host sees group 30 off');
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
+    await until(P, (g) => window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g).every((x) => !x.on), 30, 15000, `A3: the ${tag} sees the corridor lamps off`);
+    const l = await level(P, MID[0], MID[1]);
+    assert(l <= 0.24, `A3: the corridor reads dark on the ${tag} page (${l.toFixed(3)})`);
+  }
+  n0 = await backs();
+  await moveClient(SEEN[0], SEEN[1], 0.1, Math.PI / 2);
+  await sentBack('A3 dark send-back', n0);
+  assert((await level(B, SEEN[0], SEEN[1])) <= 0.24, 'A3: the client was sent back from a dark corridor (the camera sees in the dark)');
+  await moveClient(L2_HIDE[1][0], L2_HIDE[1][1], 0.1, Math.PI / 2);
   assert((await use(A, swCorr)) === 'ok', 'A3: the host turns the corridor switch on again');
   await until(A, () => window.__app.current.stealth.switchOn(30), null, 15000, 'A3: group 30 is back on');
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, (g) => window.__app.current.world.level.lights.lights.filter((x) => x.kind !== 'flashlight' && x.group === g).every((x) => x.on), 30, 15000, `A3: the ${tag} sees the corridor lamps on`);

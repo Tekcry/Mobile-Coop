@@ -227,8 +227,8 @@ export class SectorMode implements GameMode {
   private owed: Grant | null = null;
   /** The last rating on the wire (`rt`, copied per send). */
   private readonly rt: SectorRatingWire = { sec: -1, marks: 0, synced: 0, gadget: 0, syringe: 0, medkit: 0, alarmStep: 0 };
-  /** (marlow-polish) Each rated section's synced takedowns, by index (with `run.marks`, the wire's `rh`). */
-  private readonly ratedSynced: number[] = [];
+  /** (marlow-polish) Each rated section's synced takedowns, by index (with `run.marks`, the wire's `rh`); built with `run`, so the two reset together. */
+  private readonly ratedSynced: number[];
   private readonly hook: SectionRatingHook = { stats: this.secStats, last: null, lastGrant: null };
   private readonly offs: (() => void)[] = [];
   /** (section-rating integration) The rating card on this machine's HUD (host / solo; the client has its own). */
@@ -267,6 +267,7 @@ export class SectorMode implements GameMode {
 
   constructor(private g: GameState) {
     this.run = new SectorRun(g.world.map.sectors ?? []);
+    this.ratedSynced = this.run.marks.map(() => 0);
     this.codes = new SectorCodes(this.run.defs);
     this.desks = new SectorDesks(g.world.layout?.security?.desks ?? []);
     // getters: the interactables and the nav grid are read when the mode starts (`team.build`), not now
