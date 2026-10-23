@@ -2015,7 +2015,7 @@ describe('A8 the Strongroom: dressing (slice 8 step 5)', () => {
     expect(tuned['A8 vestibule']).toBeLessThanOrEqual(0.22);
   });
 
-  it("the public stair's open sides have a 1.1 m rail (S8-check polish 10): thirteen kit.handrail segments a side 0.05 m outside the flight from the third tread to the gallery, each at least 1.1 m over the walking line, no gap, meeting the balustrade's ends, invisible, noLedge, the flight and its foot left open", () => {
+  it("the public stair's open sides have a 1.1 m rail (S8-check polish 10): thirteen kit.handrail segments a side 0.05 m outside the flight from the fourth tread to the gallery (twelve whole segments and a shorter last one), each at least 1.1 m over the walking line, no gap, meeting the balustrade's ends, invisible, noLedge, the flight and its foot left open", () => {
     const ps = A8_PUBLIC_STAIR;
     const len = 27 * 0.285;
     const line = (z: number): number => (A8_H.gallery * (z - ps.foot)) / len;
@@ -2023,11 +2023,16 @@ describe('A8 the Strongroom: dressing (slice 8 step 5)', () => {
     expect(lines).toHaveLength(2);
     expect(lines[0]).toBeCloseTo(ps.x0 - 0.05, 9);
     expect(lines[1]).toBeCloseTo(ps.x1 + 0.05, 9);
-    expect((to - from) / seg).toBeCloseTo(13, 9);
+    // twelve whole segments and a shorter last one to the head (P4-1: the rail starts on the fourth tread, so the run is not a whole number of segments)
+    expect(Math.floor((to - from) / seg + 1e-9)).toBe(12);
+    expect(Math.ceil((to - from) / seg - 1e-9)).toBe(13);
+    const lastLen = to - from - 12 * seg;
+    expect(lastLen).toBeGreaterThan(0.1);
+    expect(lastLen).toBeLessThan(seg);
     expect(to).toBe(75);
-    // the third tread: the rail starts where the third tread does (z 67.3 + 2 x 0.285 = 67.87), 2 cm before it on the 5 cm grid
-    expect(from).toBeLessThanOrEqual(ps.foot + 2 * 0.285 + 0.05);
-    expect(from).toBeGreaterThanOrEqual(ps.foot + 2 * 0.285 - 0.05);
+    // the fourth tread (P4-1): the rail starts where the fourth tread does (z 67.3 + 3 x 0.285 = 68.155), 5 mm before it on the 5 cm grid, so the first three treads are open
+    expect(from).toBeLessThanOrEqual(ps.foot + 3 * 0.285 + 0.05);
+    expect(from).toBeGreaterThanOrEqual(ps.foot + 3 * 0.285 - 0.05);
     expect(stairRail).toHaveLength(26);
     expect(part.register.find((r) => r.id === 'A8-19')!.solids).toBe(26);
     expect(stairRail.every((p) => p.collide && p.visible === false && p.noLedge === true && Math.abs(p.yaw) < 1e-9 && Math.abs(p.pitch) < 1e-9)).toBe(true);
@@ -2047,7 +2052,7 @@ describe('A8 the Strongroom: dressing (slice 8 step 5)', () => {
       for (const p of side) {
         // a 0.1 m box on the line (its face stops on the flight's open edge), one segment long, from the low end's floor line
         expect(p.s[0]).toBeCloseTo(0.1, 9);
-        expect(p.s[2]).toBeCloseTo(seg, 6);
+        expect(p.s[2]).toBeCloseTo(Math.min(seg, to - z), 6);
         if (k === 0) expect(p.c[0] + p.s[0] / 2, 'the box face is never inside the flight').toBeLessThanOrEqual(ps.x0 + 1e-9);
         else expect(p.c[0] - p.s[0] / 2, 'the box face is never inside the flight').toBeGreaterThanOrEqual(ps.x1 - 1e-9);
         expect(p.c[2] - p.s[2] / 2, 'no gap at the low end').toBeCloseTo(z, 6);
@@ -2057,7 +2062,7 @@ describe('A8 the Strongroom: dressing (slice 8 step 5)', () => {
         z = hi;
       }
       expect(z, `side ${k}: the head`).toBeCloseTo(to, 6);
-      // no gap: at every z from the third tread to the gallery a rail box stands on the line across 0.3 m to 1.0 m over the walking line
+      // no gap: at every z from the fourth tread to the gallery a rail box stands on the line across 0.3 m to 1.0 m over the walking line
       for (let sz = from + 0.025; sz < to; sz += 0.05) for (const dy of [0.3, 0.6, 1.0]) expect(side.some((p) => Math.abs(sz - p.c[2]) <= p.s[2] / 2 + 1e-9 && Math.abs(line(sz) + dy - p.c[1]) <= p.s[1] / 2 + 1e-9), `side ${k} z ${sz.toFixed(3)} dy ${dy}`).toBe(true);
       // the head meets the balustrade's end (it stands at x 130.5 / 131.7 on z 75.0-75.2, 1.2 m over the gallery): no gap
       const bal = front.find((p) => (k === 0 ? Math.abs(p.c[0] + p.s[0] / 2 - ps.x0) < 1e-6 : Math.abs(p.c[0] - p.s[0] / 2 - ps.x1) < 1e-6))!;
@@ -2074,9 +2079,14 @@ describe('A8 the Strongroom: dressing (slice 8 step 5)', () => {
       const z = ps.foot + t;
       for (const x of [(ps.x0 + ps.x1) / 2, ps.x0 + 0.3 + 0.01, ps.x1 - 0.3 - 0.01]) expect(bodyHits(x, line(z), z), `lane x ${x.toFixed(2)} at z ${z.toFixed(2)}`).toBeNull();
     }
-    // the foot stays open to step on: a body walks in from either side across the first tread (a 0.6 m body clears the rail's first box by 0.3 m)
-    for (const dz of [0.1, 0.25]) for (const [x0, x1] of [[ps.x0 - 1.0, (ps.x0 + ps.x1) / 2], [ps.x1 + 1.0, (ps.x0 + ps.x1) / 2]] as const) for (let k = 0; k <= 10; k++) expect(bodyHits(x0 + ((x1 - x0) * k) / 10, 0, ps.foot + dz), `foot walk at z ${(ps.foot + dz).toFixed(2)}, x ${(x0 + ((x1 - x0) * k) / 10).toFixed(2)}`).toBeNull();
-    // the rest of the open sides is shut: a body 0.1 m outside the edge at the walking line meets the rail from the third tread up; without the rail boxes it meets nothing (teeth)
+    // the foot stays open to step on (P4-1): a body walks in from either side to the centre of the first and of the second tread (a 0.6 m body clears the rail's first box by 0.3 m or more)
+    const tread = (i: number): number => ps.foot + (i - 0.5) * 0.285;
+    const sides = [[ps.x0 - 1.0, (ps.x0 + ps.x1) / 2], [ps.x1 + 1.0, (ps.x0 + ps.x1) / 2]] as const;
+    for (const i of [1, 2]) for (const [x0, x1] of sides) for (let k = 0; k <= 10; k++) expect(bodyHits(x0 + ((x1 - x0) * k) / 10, line(tread(i)), tread(i)), `foot walk onto tread ${i} at z ${tread(i).toFixed(3)}, x ${(x0 + ((x1 - x0) * k) / 10).toFixed(2)}`).toBeNull();
+    expect(tread(2) + MOVEMENT.radius, 'the second tread centre is clear of the rail start').toBeLessThanOrEqual(from + 1e-9);
+    // the third tread is still shut from the side: the same walk to its centre meets the rail on both sides (teeth against a rail started too late)
+    for (const [x0, x1] of sides) expect(Array.from({ length: 11 }, (_, k) => bodyHits(x0 + ((x1 - x0) * k) / 10, line(tread(3)), tread(3))).some((h) => h !== null), 'the third tread is railed from the side').toBe(true);
+    // the rest of the open sides is shut: a body 0.1 m outside the edge at the walking line meets the rail from the fourth tread up; without the rail boxes it meets nothing (teeth)
     const without = solid.filter((p) => !stairRail.includes(p));
     for (const x of [ps.x0 - 0.1, ps.x1 + 0.1]) {
       for (let sz = from + 0.3; sz < to - 0.3 + 1e-9; sz += 0.3) {

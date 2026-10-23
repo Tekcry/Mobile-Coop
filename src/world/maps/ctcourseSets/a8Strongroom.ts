@@ -164,10 +164,11 @@ export const A8_COLUMNS_W: readonly number[] = [56.2, 62, 65.6, 71.0];
 /** The public stair (foot z 67.3, rising north) and the office stair (foot x 134.5, rising east). */
 export const A8_PUBLIC_STAIR = { x0: 130.5, x1: 131.7, foot: 67.3 } as const;
 /** The public stair's open-side rails (S8-check polish 10; A6's `A6_STAIR_RAIL` idiom): `kit.handrail` in stepped segments of `seg` m along z on the two lines `x` (0.05 m
- *  outside each open edge, so it never narrows the 1.2 m flight), from the flight's third tread (z `from`: the foot stays open to step on) to the gallery (z `to`,
+ *  outside each open edge, so it never narrows the 1.2 m flight), from the flight's fourth tread (z `from`: treads are 0.285 m deep from the foot at 67.3, so the fourth starts at 68.155, 5 mm past `from` on the kit's 0.05 m grid; the first
+ *  three treads stay open to step on from the side, a 0.6 m body's centre z <= `from` - 0.3 = 67.85 reaching the first and second treads' centres) to the gallery (z `to`,
  *  where the balustrade's ends stand at x 130.5 / 131.7); each segment's collision box starts at the floor line at its low (south) end and stands `h` m over the line
- *  at its high end. Thirteen segments a side. */
-export const A8_STAIR_RAIL = { x: [A8_PUBLIC_STAIR.x0 - 0.05, A8_PUBLIC_STAIR.x1 + 0.05] as readonly number[], from: 67.85, to: 75, seg: 0.55, h: 1.1 } as const;
+ *  at its high end. Twelve whole `seg` segments and a 0.25 m last one to `to`: thirteen a side (P4-1; P2-3 started at 67.85, the third tread). */
+export const A8_STAIR_RAIL = { x: [A8_PUBLIC_STAIR.x0 - 0.05, A8_PUBLIC_STAIR.x1 + 0.05] as readonly number[], from: 68.15, to: 75, seg: 0.55, h: 1.1 } as const;
 export const A8_OFFICE_STAIR = { z0: 70.0, z1: 71.2, foot: 134.5 } as const;
 /** The closed block south of the flight starts here (x): the foot landing is x 134.15-135.2, so a body there is 2.18 m from T1 (A8-D13). */
 export const A8_STAIR_BLOCK_X0 = 135.2;
@@ -969,11 +970,11 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
     }
     // the open sides: the kit's balustrade and its collision box per segment, `h` over the walking line at the high end
     const { x: rx, from, to, seg, h } = A8_STAIR_RAIL;
-    const n = Math.round((to - from) / seg);
+    const n = Math.ceil((to - from) / seg - 1e-9);
     for (const x of rx) {
       for (let k = 0; k < n; k++) {
         const za = from + k * seg;
-        const zb = za + seg;
+        const zb = Math.min(za + seg, to);
         kit.handrail(x, za, x, zb, { y: lineAt(za), h: h + (lineAt(zb) - lineAt(za)), group: G_GALLERY });
       }
     }
