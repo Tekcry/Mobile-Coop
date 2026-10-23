@@ -1,0 +1,13 @@
+{
+  "id": "20261023T131134-player-build-f13b91e7-b2c2",
+  "sha": "f13b91e7b6ba9c41faede6794a1d24486b53ccd0",
+  "branch": "",
+  "pr": 269,
+  "kind": "pr",
+  "requester": "player-build",
+  "suites": [
+    "e2e-ctcourse:4"
+  ],
+  "set": "coop-rejoin-ct4",
+  "note": "rerun after A8 grille-stop timeout on 327e73f4 (flake check)"
+}
