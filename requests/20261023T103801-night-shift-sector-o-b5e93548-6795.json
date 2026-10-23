@@ -1,0 +1,13 @@
+{
+  "id": "20261023T103801-night-shift-sector-o-b5e93548-6795",
+  "sha": "b5e93548649e1336bb349dad892aa55138eeeee1",
+  "branch": "feature/sector-redesign-artpol",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-sectorops:6",
+    "e2e-coop"
+  ],
+  "note": "#226 target head = artpol + artnext (checker PASS)"
+}
