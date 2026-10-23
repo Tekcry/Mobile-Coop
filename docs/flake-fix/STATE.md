@@ -13,6 +13,8 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
     MODE=sector, guard-cap campus -> work/campusart-5504e2e3/guard-cap, view probe -> work/campusart-5504e2e3/views.json;
     perf numbers are in runs/sectorart-perf-5504e2e3/cmd2.log). Verdict -> Sector Ops Build (budget p95 CPU < 12,
     GPU < 15 ms at the S3 / S4 / S5 worst views).
+  - 4189 chain-1023mw (after coopwalk, before the perf pass): marlowfinal-058156cc (e2e-ctcourse:4) ->
+    marlows10-dfee91c3 (ctcourse:1 :2 course). WIP data, not a gate; ONE verdict -> Marlow Build.
   - 4192 chain-1023r92: guardais9-1ad04058 (coop netmove stealth-ai takedown; verdict -> Guard AI Build) ->
     guardaiwalk-2082f96b (S17-S21: stealth-ai sectorops ctcourse course ct-warehouse stealth tactics takedown coop;
     verdict -> Guard AI Build; lowest).
