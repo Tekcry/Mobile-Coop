@@ -393,8 +393,22 @@ e2e for you and posts the verdict as a commit status on the tested sha. No messa
   Needs a pushed sha. It pushes `requests/<id>.json` to the `laptop-queue` branch and prints the id. `--dry-run` shows
   the JSON and pushes nothing. An `--alone` step may start with `serve ` (runs `scripts/laptop-queue/serve.mjs`).
 - Order: trains (an `origin/train/<n>` head with no `laptop-e2e` status; both slots, sharded by suite times; a head whose
-  `auto-train/*` status is failure or error is skipped), then pr / full
+  `auto-train/*` status is failure or error is skipped), then train reruns, then pr / full
   requests (one slot), then alone-measurements (both slots; one waiting over 45 min goes ahead of pr work).
+- Train reruns (2026-10-24, auto-train): `request.mjs --train-rerun --pr N --suites "a b" --requester auto-train` writes
+  `"trainRerun": true` (kind pr). It runs right after trains, before every other request and alone run, never held by
+  the alone hold, on one laptop slot at `E2E_JOBS=1` with the suites at once (no sharding; the desktop never takes it).
+  Its own context is `laptop-e2e/rerun-<suites without e2e->`. A full pass also posts `laptop-e2e` success on the sha,
+  "laptop rerun passed: <suites> (desktop fail)": the combined status keeps the latest status per context, so that
+  replaces the desktop's `laptop-e2e` failure and release sees the train green. A fail posts only its own context (the
+  train stays red) and comments on the PR as usual.
+- Duplicates (2026-10-24): a new request that runs exactly what another one runs (same sha, kind, suites sorted or steps
+  in order, env; any requester or set) is marked done unrun as "duplicate of <id>" (one push, no status) while that one
+  is open (older), claimed or running on either worker, or was done on this worker within `LQ_DUP_WINDOW_MIN` (60) min
+  with a result other than superseded / duplicate. Supersede still retires one requester's older pr / full requests.
+- Yield (2026-10-24): while a train head is pending, a pr / full / alone run that has not started its suites or steps
+  (waiting for its lock, fetch, npm ci, build) gives its slot back: locks released, claim dropped, log "<id>: yields to
+  train <n>"; the request stays queued. Once its suites or steps start it runs to the end. A train rerun never yields.
 - Statuses: `laptop-e2e` (trains), `laptop-e2e/<set>` (pr, set defaults to the suites joined by `+`), `laptop-e2e/full`,
   `laptop-e2e/alone-<set>`. Description "N/N pass, <s> s", plus "; flake: x" and "; FAIL: y". A failure also comments on the
   PR (suite, failing line, log path on the laptop). Logs: `C:/NightShift/scratch/laptop-queue/runs/<id>/`.
@@ -409,6 +423,10 @@ e2e for you and posts the verdict as a commit status on the tested sha. No messa
   the laptop is silent: no claim / done push by the laptop for 10 min (`LQ_LAPTOP_SILENT_MIN`) and the head is over 2 min
   old; then the desktop takes the train (no backlog gate; lock and CPU gates kept), sharded on 4191+4192, E2E_JOBS=1. Its
   statuses read "desktop: ..."; logs `C:/NightShift/scratch/laptop-queue-desktop/runs/<id>/` on the desktop.
+  While auto-train runs `merge-train build` it writes `C:/NightShift/scratch/auto-train-building.json` ({ train, version,
+  pid, at }; deleted after); while that file exists and is younger than `LQ_BUILD_MARKER_MAX_MIN` (30) min the desktop
+  starts no new request or train (log "train <n> building: no new claims", once per marker; an older one is ignored as
+  stale, logged once; runs already going continue). `LQ_BUILD_MARKER` overrides the path (tests).
 - Claims: each worker pushes `claims/<id>.json` (a train: `claims/<train-sha>.json`) to the `laptop-queue` branch before
   a run and marks it done after, so the two never run the same request or train. An open claim older than 3 h (`LQ_CLAIM_MAX_H`) is a dead worker's and is taken over.
 - Install / remove the task: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-queue/install-task.ps1 [-Remove]`.

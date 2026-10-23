@@ -1,6 +1,17 @@
 # laptop-queue - state
 
 ## Now (2026-10-24, laptop-queue batch, local commits, not pushed)
+- 2026-10-24 (Orchestrator audit 2026-10-23 20:30-23:35Z, ~56 + ~10 min of train time lost): duplicates (lib
+  `dupKey` / `duplicates`, `LQ_DUP_WINDOW_MIN` 60) are marked done unrun; pr / full / alone runs not yet in their
+  suites or steps yield to a pending train (lib `yieldTo`); train reruns (`request.mjs --train-rerun`, lib `pick`,
+  `contextName`, `rerunPassed`) run right after trains and post `laptop-e2e` success on a pass; the desktop starts
+  nothing while auto-train's build marker is fresh (lib `buildMarker`, `LQ_BUILD_MARKER_MAX_MIN` 30). Detail:
+  `docs/systems/testing-tools.md` "Laptop queue". The audit's a8ff2d45 pair was a pr (e2e-enemies, set
+  gm-enemies-off, 19 s) and an alone guard bake (8 steps, set guard-bake-all, 3294 s): two different runs, so neither
+  supersede nor the duplicate rule joins them; the bake started its steps at 21:14:45, before the train head appeared
+  (21:21), so yield would not have stopped it either. Interface for auto-train: `--train-rerun`, the build marker file.
+  Rollout: the laptop service must run this before auto-train sends `--train-rerun` (an older service runs it as a
+  plain pr request).
 - 2026-10-24 (Michael 07:13 "All three", after 87 old hand-made `NightShift-chain-*` one-shots fired again at 2026-10-23
   23:59 and held heavy-4189 / heavy-4192 for hours): hand-made chains are RETIRED; runs go through the queue
   (`request.mjs`). Permanent tasks: `NightShift-laptop-queue` (`install-task.ps1`), `NightShift-desktop-queue`
