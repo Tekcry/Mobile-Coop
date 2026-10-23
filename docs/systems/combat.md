@@ -30,6 +30,9 @@ Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G103-G105), then d
 - `PlayerWeapons` (fixed step) owns fire / reload / swap / grenades; `Ballistics` owns rays and pooled swept projectiles;
   `Explosions` queues detonations (never recursive); `Vfx` pools every effect.
 - Anything shootable implements `Damageable` and registers its bodies with `DamageRegistry`.
+- (guard-ai S12) A guard's helmet soaks his first bullet to the head and body armour every bullet to the body
+  (`docs/systems/ai.md` "Gear"): `DamageResult.deflect`, 0 dealt; `PlayerWeapons` reports the `deflect` hit kind (HUD
+  marker steel blue, a high ping), not a kill. Takedowns, melee, explosions and sleep bolts ignore gear.
 - HUD rules: `docs/systems/ui.md`.
 - Holstered unless aiming (step 09, G21): `weapons/drawState.ts` (pure) holds the draw phase (0 holstered, 1 drawing, 2
   drawn, 3 holstering; `DRAW_TIME_SIDEARM` 0.75 s, `DRAW_TIME_PRIMARY` 1.1 s, `HOLSTER_TIME_SIDEARM` 0.9 s,
@@ -66,6 +69,14 @@ Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G103-G105), then d
   it in Infiltration; Free Roam carries the same two; `?loadout=a,b` bypasses it.
 - Original names only (A28): `tests/weaponNames.test.ts` bans real makers, model designations and reference-game terms.
 - Suppressors: `rifle` is issued suppressed in the campaign (A62); `pistolSd` has an integral suppressor (`noise` 0.35).
+- Quiet rounds (sd-rounds, `weapons/sdRounds.ts`, pure): each suppressed gun carries a count of quiet rounds apart from the magazine
+  (`SD_ROUNDS`: rifle 60, pistolSd 45; `WeaponSlot.sd`). A suppressed shot spends one (never on infinite ammo); at 0 the gun still
+  fires but loud: its open noise (`SD_OPEN_NOISE`: rifle 1.0, pistolSd 0.8), the open audio bank and full flash, so the
+  `enemyMgr.noise` path applies. `PlayerWeapons.lastShotNoise` / `lastShotQuiet` carry that shot's noise to the guard noise
+  (`gameState.onShot`), the audio, the flash and the co-op `PF.quiet` flag (no wire change; the host uses `sdOpenNoise` for a
+  client's loud shot). An ammo pickup refills the same fraction of the start count (capped at it); a checkpoint restart
+  restores the count (`LoadoutSnapshot.sds`). HUD: "SD n" in the weapon box, red at 5 or fewer, hidden on an open gun; one
+  warn feed line when it reaches 0. Undo: set the `SD_ROUNDS` entries to `Infinity`.
 - Save: deleted gun ids in a loadout or preset map to the kept gun of their slot (`DELETED_GUNS`, v8 -> v9 migration).
 
 | id | name | role |

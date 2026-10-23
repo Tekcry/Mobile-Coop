@@ -414,10 +414,7 @@ export const port: MapDef = {
         { id: 'scanner', pos: v(17, -20.6), kind: 'terminal' },
         { id: 'extract', pos: v(31, 26), kind: 'extract' },
       ],
-      pickups: [
-        { pos: v(7.6, -27.4, 0.95), kind: 'ammo' },
-        { pos: v(-25, 26.6, DECK_Y + 1.0), kind: 'ammo' },
-      ],
+      pickups: [],
       rooms: ROOMS,
       switches: [
         { pos: v(14.15, -15.5), yaw: Math.PI / 2, group: SHEDL },

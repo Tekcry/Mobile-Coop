@@ -18,6 +18,7 @@ import { reloadClipFor } from '../anim/clips/actions';
 import { WREN_HANDS } from '../operators/handFrame';
 import { GADGETS, GadgetInventory, type GadgetId } from '../game/gadgets';
 import type { SwapReach } from '../anim/clips/actions';
+import { crateReserve } from '../game/crateLedger';
 import { LoadoutSnapshot } from './loadoutSnapshot';
 
 const modelLength = (d: WeaponDef): number => {
@@ -31,6 +32,7 @@ import { drawTuneApply } from './drawTune';
 import { CLIP_BASE, clipSpeed } from '../anim/tuneClipSpeed'; // (clip-speed, track A)
 import { STANCE } from '../player/weaponStance';
 import { computeStats, damageAt, playerSpreadDeg, recoilKick, sampleSpread, NO_UPGRADES, type EffectiveStats, type StatMods, type WeaponUpgrades } from './weaponStats';
+import { addSd, sdStart, spendShot, SUPPRESSED_NOISE } from './sdRounds';
 
 export interface LoadoutEntry {
   id: WeaponId;
@@ -52,9 +54,11 @@ export interface WeaponSlot {
   pen: number;
   /** Has a magnifying scope. */
   scoped: boolean;
+  /** (sd-rounds) Quiet rounds left (Infinity: unlimited). */
+  sd: number;
 }
 
-export type HitKind = 'hit' | 'head' | 'kill';
+export type HitKind = 'hit' | 'head' | 'kill' | 'deflect';
 
 export interface CombatEvents {
   onHit?(kind: HitKind, weapon: WeaponId, damage: number): void;
@@ -63,6 +67,8 @@ export interface CombatEvents {
   onDryFire?(def: WeaponDef): void;
   onSwap?(def: WeaponDef): void;
   onGrenade?(): void;
+  /** (sd-rounds) The quiet rounds of this gun ran out. */
+  onSdOut?(def: WeaponDef): void;
 }
 
 const DEG = Math.PI / 180;
@@ -192,7 +198,7 @@ export class PlayerWeapons {
       const model = new WeaponModel(world.scene, world.parts, def, e.colors ?? DEFAULT_WEAPON_COLORS, player.rig.weaponPivot, e.pattern, { mesh: true, caster: (m) => world.addShadowCaster(m) });
       for (const m of model.renderMeshes) world.addShadowCaster(m);
       model.setVisible(false);
-      this.slots.push({ def, stats, mag: stats.magSize, reserve: def.reserve, model, pen: PENETRATION[def.class] ?? 0, scoped: def.model.some((p) => p.role === 'scope') });
+      this.slots.push({ def, stats, mag: stats.magSize, reserve: def.reserve, model, pen: PENETRATION[def.class] ?? 0, scoped: def.model.some((p) => p.role === 'scope'), sd: sdStart(def.id) });
     }
     player.onWeightGear = this.weightGear; // (anim-weight) the carried-gear spring (0: the guns are not touched)
     // (operators 11e) Wren's own kit carries the throwables: the part pouches are not drawn on her
@@ -554,8 +560,36 @@ export class PlayerWeapons {
   }
 
   addAmmo(fraction: number): void {
-    for (const s of this.slots) s.reserve = Math.min(s.def.reserve * 2, s.reserve + Math.ceil(s.def.reserve * fraction));
+    for (const s of this.slots) {
+      s.reserve = Math.min(s.def.reserve * 2, s.reserve + Math.ceil(s.def.reserve * fraction));
+      addSd(s, fraction);
+    }
     this.gadgets.add('frag');
+  }
+
+  /**
+   * (E9-crate, A102) The weapons crate: every gun's reserve rises so that mag + reserve reaches its starting loadout
+   * (`stats.magSize + def.reserve`); never lowers, never touches the magazine, gadgets or grenades. True when any reserve
+   * changed; false with `infiniteAmmo`.
+   */
+  crateTopUp(): boolean {
+    if (this.infiniteAmmo) return false;
+    let changed = false;
+    for (const s of this.slots) {
+      const r = crateReserve(s.mag, s.reserve, s.stats.magSize, s.def.reserve);
+      if (r !== s.reserve) {
+        s.reserve = r;
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  /** (E9-crate, A103) Every gun at (or above) its starting loadout, or `infiniteAmmo`: a crate use would do nothing. */
+  atLoadout(): boolean {
+    if (this.infiniteAmmo) return true;
+    for (const s of this.slots) if (s.mag + s.reserve < s.stats.magSize + s.def.reserve) return false;
+    return true;
   }
 
   fixedUpdate(dt: number, inp: InputState): void {
@@ -921,13 +955,25 @@ export class PlayerWeapons {
     return this.gadgets.counts.frag;
   }
 
+  /** (sd-rounds) The last shot's noise stat and whether it was quiet (true before any shot). */
+  lastShotNoise = 0;
+  lastShotQuiet = true;
+  /** (coop-walk-fixes P7) Rounds fired this session (any weapon): the wire's `PlayerState.sc` (mod 256), so a partner
+   *  plays each round once (the 0.2 s `firingRecently` window played a single shot twice). */
+  shotCount = 0;
+
   private shoot(): void {
     const s = this.current;
     const def = s.def;
     const cam = this.player.cam;
     s.mag--;
+    const had = s.sd;
+    this.lastShotNoise = spendShot(s, this.infiniteAmmo);
+    this.lastShotQuiet = this.lastShotNoise <= SUPPRESSED_NOISE;
+    if (had > 0 && s.sd === 0) this.events.onSdOut?.(def);
     this.cooldown = s.stats.fireInterval;
     this.sinceShot = 0;
+    this.shotCount++;
     this.player.aimLockTimer = 0.7;
     this.player.kick = 1;
     this.tallyFor(def.id).shots++;
@@ -968,7 +1014,7 @@ export class PlayerWeapons {
       this.resolveHit(h, dir.clone(), h.distance, s);
       this.onRay?.(origin, h.point);
       // penetration: through thin world geometry, on with half the damage
-      if (s.pen > 0 && h.hit && !h.target && !h.prop) this.penetrate(h.point, dir, h.distance, s);
+      if (s.pen > 0 && h.hit && !h.target && !h.prop && !h.armoured) this.penetrate(h.point, dir, h.distance, s);
       if (!firstEnd || p % 3 === 0) {
         firstEnd = h.point;
         this.vfx.tracer(this.muzzle, h.point, def.tracer, def.pellets > 1 ? 0.012 : 0.022);
@@ -978,7 +1024,7 @@ export class PlayerWeapons {
     if (def.class !== 'shotgun') this.vfx.casing(this.muzzle.subtract(baseDir.scale(0.3)), new Vector3(Math.cos(cam.yaw), 0, -Math.sin(cam.yaw)), this.player.position.y);
     // muzzle flash, recoil, bloom
     // a suppressor hides most of the flash
-    this.vfx.muzzleFlash(this.muzzle, (def.pellets > 1 ? 0.3 : def.class === 'pistol' ? 0.16 : 0.22) * (s.stats.noise < 0.6 ? 0.35 : 1));
+    this.vfx.muzzleFlash(this.muzzle, (def.pellets > 1 ? 0.3 : def.class === 'pistol' ? 0.16 : 0.22) * (this.lastShotQuiet ? 0.35 : 1));
     const k = recoilKick(def, s.stats, this.shotIndex++);
     const adsDamp = 1 - cam.ads * 0.35;
     cam.kick(k.pitch * DEG * adsDamp, k.yaw * DEG * adsDamp);
@@ -986,7 +1032,7 @@ export class PlayerWeapons {
     // (111953 3.87, 6.27-6.33: < 0.5 deg); was 0.04
     if (def.class === 'sniper' || def.class === 'shotgun') cam.shake(def.class === 'sniper' ? 0.25 : 0.2);
     this.bloom += def.spreadPerShot;
-    this.shotFeel(s.stats.noise <= 0.6);
+    this.shotFeel(this.lastShotQuiet);
     this.events.onShot?.(def);
   }
 
@@ -1030,7 +1076,7 @@ export class PlayerWeapons {
       t.hits++;
       if (head) t.heads++;
       if (res.killed) t.kills++;
-      this.events.onHit?.(res.killed ? 'kill' : head ? 'head' : 'hit', s.def.id, res.dealt);
+      this.events.onHit?.(res.killed ? 'kill' : res.deflect ? 'deflect' : head ? 'head' : 'hit', s.def.id, res.dealt);
     } else if (h.prop) {
       this.world.props.impulse(h.prop, dir.scale(s.def.impulse), h.point);
       this.world.props.damage(h.prop, dmg);

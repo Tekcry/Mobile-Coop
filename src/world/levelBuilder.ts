@@ -25,7 +25,7 @@ import {
   Vector3,
   type Scene,
 } from '../core/babylon';
-import { G } from '../physics/groups';
+import { G, glassMembership } from '../physics/groups';
 import { LevelMaterialPlugin } from './levelMaterialPlugin';
 import { markLampLevel } from './bakedLamps';
 import { buildCoverSegments, coverPointsFromSegments, coverStandoff, type CoverSegment } from '../cover/coverData';
@@ -58,7 +58,27 @@ export interface BoxPiece {
   overhead?: boolean;
   /** Visual-only dressing from the detail pass (never collides; the minimap skips it). */
   detail?: boolean;
+  /** (guard-ai) Glass: 'clear' lets a guard's sight through, 'frosted' blocks it; hearing treats both as a wall.
+   *  (E2, EW6) Light passes both (out of the canonical light shapes); a glass piece is never drawn as a solid box or
+   *  voxels, never cover or a ledge, and its collision is its own body (`G.GLASS`: bodies stop, bullets pass). Place
+   *  panes with `LevelBuilder.glass`. */
+  glass?: 'clear' | 'frosted';
+  /** (E10, A97) An armoured (bulletproof) glass pane: its body adds `G.GLASS_ARMOURED`, so player and enemy rounds stop
+   *  on it (`MASK.PLAYER_SHOT` / `ENEMY_SHOT`) and never penetrate; light, sight (clear), hearing and bodies as plain glass. */
+  armoured?: true;
 }
+
+/** (E2) A glass pane's depth (m): a fence's nav footprint (`navBuild`: 0.1), so a pane replaces a fence panel exactly. */
+export const GLASS_THICK = 0.1;
+/** (E2) The default glass colour (the minimap, the see-through mesh's tint). */
+export const GLASS_COLOR = '#9fb8c4';
+/** (E10) The pane bodies `buildGlass` makes: one per kind and armour. */
+const GLASS_GROUPS = [
+  { id: 'clear', kind: 'clear', armoured: false },
+  { id: 'frosted', kind: 'frosted', armoured: false },
+  { id: 'clear-armoured', kind: 'clear', armoured: true },
+  { id: 'frosted-armoured', kind: 'frosted', armoured: true },
+] as const;
 
 export interface CylPiece {
   c: [number, number, number];
@@ -281,8 +301,11 @@ export class LevelBuilder {
     return this.anchors.add<WindowAnchor>({ kind: 'window', c: { x: cx, y: cy, z: cz }, w, h, yaw, sillHeight: opts.sill ?? cy - h / 2, breakable: opts.breakable ?? true, open: opts.open ?? false });
   }
 
-  door(hx: number, hy: number, hz: number, width: number, yaw: number, opts: { height?: number; swing?: 1 | -1; locked?: boolean; breachable?: boolean } = {}): Door {
-    return this.anchors.add<Door>({ kind: 'door', hinge: { x: hx, y: hy, z: hz }, width, height: opts.height ?? 2.1, yaw, swing: opts.swing ?? 1, locked: opts.locked ?? false, breachable: opts.breachable ?? true });
+  door(hx: number, hy: number, hz: number, width: number, yaw: number, opts: { height?: number; swing?: 1 | -1; locked?: boolean; breachable?: boolean; armoured?: boolean } = {}): Door {
+    const d: Omit<Door, 'id'> = { kind: 'door', hinge: { x: hx, y: hy, z: hz }, width, height: opts.height ?? 2.1, yaw, swing: opts.swing ?? 1, locked: opts.locked ?? false, breachable: opts.breachable ?? true };
+    // (E10) an armoured leaf: rounds stop on it, never through it (`doorMembership`); it opens, locks and bashes as any door
+    if (opts.armoured) d.armoured = true;
+    return this.anchors.add<Door>(d);
   }
 
   /**
@@ -313,6 +336,92 @@ export class LevelBuilder {
     }
     this.box((ax + bx) / 2, y + height - 0.02, (az + bz) / 2, 0.05, 0.05, len, color, Math.atan2(tx, tz), 0, false);
     return this.anchors.add<Fence>({ kind: 'fence', a: { x: ax, y, z: az }, b: { x: bx, y, z: bz }, height, tx, tz, nx: tz, nz: -tx, len });
+  }
+
+  /**
+   * (E2, EW6) A glass pane from (ax, az) to (bx, bz) on floor `y`, `height` tall (DEC G45): `clear` passes light and
+   * guard sight, `frosted` light only; bullets pass both unless `armoured` (E10: rounds stop, no penetration), hearing
+   * treats both as a wall, bodies stop. One collision piece `GLASS_THICK` deep (the same nav footprint as a fence panel
+   * on the same line), invisible as a box (`visible: false`: no solid mesh, voxels, cover, ledges or dressing), drawn as
+   * a see-through pane.
+   */
+  glass(ax: number, az: number, bx: number, bz: number, height: number, y = 0, kind: 'clear' | 'frosted' = 'clear', color = GLASS_COLOR, opts: { armoured?: boolean } = {}): BoxPiece {
+    const len = hyp2(bx - ax, bz - az);
+    const p: BoxPiece = {
+      c: [(ax + bx) / 2, y + height / 2, (az + bz) / 2],
+      s: [GLASS_THICK, height, len],
+      yaw: Math.atan2((bx - ax) / len, (bz - az) / len),
+      pitch: 0,
+      color,
+      collide: true,
+      visible: false,
+      noLedge: true,
+      glass: kind,
+    };
+    if (opts.armoured) p.armoured = true;
+    this.boxes.push(p);
+    return p;
+  }
+
+  /** (E2) The glass panes: their own static body (`G.GLASS`, frosted also `G.GLASS_FROSTED`) and one see-through
+   *  thin-instanced mesh per kind (not in `meshes`: no shadow caster, as the light bake has it). */
+  private buildGlass(scene: Scene, root: TransformNode, name: string): { dispose(): void } | null {
+    const panes = this.boxes.filter((b) => b.glass);
+    if (!panes.length) return null;
+    const out: { dispose(): void }[] = [];
+    const q = new Quaternion();
+    const mtx = new Matrix();
+    for (const group of GLASS_GROUPS) {
+      const kind = group.kind;
+      const list = panes.filter((b) => b.glass === kind && !!b.armoured === group.armoured);
+      if (!list.length) continue;
+      const member = glassMembership(kind, group.armoured);
+      const collide = 0xffffffff & ~(G.STATIC | G.GLASS | G.GLASS_FROSTED | G.GLASS_ARMOURED);
+      const gc = new PhysicsShapeContainer(scene);
+      const buf = new Float32Array(list.length * 16);
+      list.forEach((b, i) => {
+        Quaternion.RotationYawPitchRollToRef(b.yaw, b.pitch, 0, q);
+        if (b.collide) {
+          const s = new PhysicsShapeBox(Vector3.Zero(), Quaternion.Identity(), new Vector3(b.s[0], b.s[1], b.s[2]), scene);
+          s.filterMembershipMask = member;
+          s.filterCollideMask = collide;
+          gc.addChild(s, new Vector3(b.c[0], b.c[1], b.c[2]), q.clone());
+        }
+        Matrix.ComposeToRef(new Vector3(b.s[0], b.s[1], b.s[2]), q, new Vector3(b.c[0], b.c[1], b.c[2]), mtx);
+        mtx.copyToArray(buf, i * 16);
+      });
+      gc.filterMembershipMask = member;
+      gc.filterCollideMask = collide;
+      const node = new TransformNode(`glass-${group.id}-${name}`, scene);
+      node.parent = root;
+      const body = new PhysicsBody(node, PhysicsMotionType.STATIC, false, scene);
+      body.shape = gc;
+      const mesh = CreateBox(`glass-${group.id}`, { size: 1 }, scene);
+      const mat = new PBRMaterial(`glassMat-${group.id}-${name}`, scene);
+      mat.albedoColor = Color3.FromHexString(kind === 'frosted' ? '#dfe7ea' : list[0]!.color).toLinearSpace();
+      mat.metallic = 0;
+      mat.roughness = kind === 'frosted' ? 0.6 : 0.08;
+      // (E10) armoured glass reads a little heavier (render only; gameplay reads the collision bits)
+      mat.alpha = kind === 'frosted' ? 0.6 : group.armoured ? 0.24 : 0.16;
+      mat.usePhysicalLightFalloff = false;
+      mat.backFaceCulling = false;
+      mat.freeze();
+      mesh.material = mat;
+      mesh.parent = root;
+      mesh.isPickable = false;
+      mesh.thinInstanceSetBuffer('matrix', buf, 16, true);
+      mesh.thinInstanceRefreshBoundingInfo(false);
+      mesh.freezeWorldMatrix();
+      out.push({
+        dispose: () => {
+          body.dispose();
+          gc.dispose();
+          mesh.dispose();
+          mat.dispose();
+        },
+      });
+    }
+    return { dispose: () => out.forEach((o) => o.dispose()) };
   }
 
   private buildFences(scene: Scene, root: TransformNode, name: string, meshes: Mesh[]): void {
@@ -495,7 +604,7 @@ export class LevelBuilder {
     const tmpQ = new Quaternion();
 
     // Boxes
-    const asMesh = (i: number): boolean => this.boxes[i]!.visible !== false && !voxels?.voxelBox[i];
+    const asMesh = (i: number): boolean => this.boxes[i]!.visible !== false && !this.boxes[i]!.glass && !voxels?.voxelBox[i];
     const shown = this.boxes.filter((_b, i) => asMesh(i));
     const bm = new Float32Array(shown.length * 16);
     const bc = new Float32Array(shown.length * 4);
@@ -514,7 +623,8 @@ export class LevelBuilder {
         bs[vi] = kindOf(b.color, b.s[0], b.s[1], b.s[2], b.c[0], b.c[1] + b.s[1] / 2, b.c[2]);
         vi++;
       }
-      if (b.collide) {
+      // (E2) glass panes have their own body (`buildGlass`)
+      if (b.collide && !b.glass) {
         const shape = new PhysicsShapeBox(Vector3.Zero(), unitQ, new Vector3(b.s[0], b.s[1], b.s[2]), scene);
         container.addChild(shape, new Vector3(b.c[0], b.c[1], b.c[2]), tmpQ.clone());
       }
@@ -563,6 +673,8 @@ export class LevelBuilder {
     body.shape = container;
     // (3.2.0) fences: their own body (stops movement; bullets, sight and the level probes pass) and mesh panels
     if (this.anchors.fences.length) this.buildFences(scene, root, name, meshes);
+    // (E2, EW6) the glass panes: their own body and see-through meshes
+    const glass = this.buildGlass(scene, root, name);
     // (warehouse-lamps) the roof sheets: one see-through mesh, not in `meshes` (no shadow caster: the moon passes as the bake has it)
     let sheetMat: PBRMaterial | null = null;
     if (this.sheets.length) {
@@ -635,6 +747,7 @@ export class LevelBuilder {
         for (const m of meshes) m.dispose();
         mat.dispose();
         sheetMat?.dispose();
+        glass?.dispose();
         root.dispose();
       },
     };

@@ -46,15 +46,25 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   in the yard facade and the hoist rail in goods-in; section 2 the high-bay rack R3S from the east gangway and the landing high on the east wall over the gangway; section 3 the valve platform
   in the east bay and the crane drive over the CNC cell, each climbable onto under its roof hood); they relay or drop the
   rope for you; alone, the lip cannot be reached. Each team door is locked from your side; your partner unbolts it from the other side; a restart bolts it again.
+- [ ] (coop-walk-fixes) Co-op, two pages: one player grabs a guard (hostage); the other, beside them, gets TEAM TAKEDOWN on him and it knocks him out (the hold ends, DUAL TAKEDOWN banner), both ways (host holding, joiner holding). A partner's single shot plays once; a partner's suppressed pistol sounds suppressed.
+- [ ] (pose-parity) Co-op, two pages: a partner aiming from the left shoulder while holding a hostage or on a rope shows the gun in the left hand; a partner's choke shows no elbow wind-up.
 - [ ] Co-op: Host a room starts on Campaign (Marlow Yard); the Mode row offers Campaign and Sector Ops only.
 - [ ] Co-op guard torches (coop-torches): on a dark map, when a guard searching in the dark switches his flashlight on,
   the joiner sees the same beam from his head, aimed where he faces, and it goes off when the host's does; standing in
   it raises the joiner's light meter as it raises the host's.
+- [ ] Co-op throw onto a guard (throw-ko): one player stands and offers the partner throw (RB standing), the other runs
+  in about 3 m in front of a standing guard and is thrown over: the guard drops knocked out as the partner comes down
+  on him, on both screens; a guard a step or more past the landing is left standing. Try it with each player thrown.
 - [ ] Co-op on the High or Epic preset, host and joiner in two windows (side by side, then one over the other): each
   sees the other's character, and the joiner's "Connecting to host" goes away once in the match.
 - [ ] Marlow Yard in co-op: every station's task shows as the HUD step line on both screens; a radio line follows each
   station opening; at station 2 the far player unbolts and either player can then open the door; a bay restart brings
   an alive partner back to the airlock too.
+- [ ] (interrogation-intel) Interrogate a guard with information: after his lines the feed shows `Code: ...` (when authored), `Cameras near: n, sweep a-b s` and `Patrols near: n, loop a-b s`; in co-op the partner sees the same lines (a client's interrogation too).
+- [ ] (hang-down) Co-op hang-down over a guard (any edge with a drop, e.g. a Sector Ops mezzanine): hanging, LT draws
+  the pistol (never the rifle) and aims upside down, RT fires; hold A lists GRAB CHARACTER on a guard by your head (he is
+  lifted, then RT tap / Z knocks him out, RT hold kills, no let-go); RT on him without the menu: tap chokes, hold snaps
+  the neck; the partner pulling you up while you hold him knocks him out. Check it as the joiner and as the host.
 - [ ] Marlow Yard is a bunker: a ceiling over every cell and airlock (no sky anywhere), every lamp in a fitting (pendants
   in the tall halls, strips / panels / caged bulkheads elsewhere); the S2 / S5 / S7 leg-ups, the S4 throw under the
   header and the S7 rope work as before; the floor between the pools reads as before on the light meter.
@@ -99,10 +109,44 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   rappel and fences on the Proving CT course.
 - [ ] Light: a lit pool on the light meter is lit on screen and guards there see you; a dark corner keeps you hidden
   (light parity). Shooting a lamp or a switch darkens it for the meter and the guards at once.
+- [ ] Guard alerts (guard-ai S1-S3, Sector Ops): a thrown bottle sends one guard over while the others only turn; shoot
+  a lamp with guards near and one or two check it and go back calm. Get spotted: the spotter shouts "Contact!" (guards
+  within a few metres join at once), about 2.5 s later radios it in, then the rest of the section joins one by one,
+  nearest first. Take the spotter down before his radio line and nobody beyond shouting range comes.
+- [ ] Bodies and caution (guard-ai S4): kill a guard in view of another: he shouts "Man down!", searches and radios it;
+  take him out within ~2 s and the rest stay normal; let it through and the section stays on edge until everyone who
+  knows is down. Knock one out and let him be found: the finder wakes him, both search ~1 min, stay on edge ~3 min,
+  then normal; nobody else changes.
+- [ ] Posted guards (guard-ai S5; once a map has a high-security post, e.g. the campus keyholders): throw a bottle or cut
+  the light near him: he walks to the edge of his area, looks toward it ~5 s, walks back and faces his post; he never
+  follows a search or chases you out of his area.
+- [ ] Alarm by radio (guard-ai S6, Sector Ops): get spotted and let the radio calls through: "Command, contact. Send
+  backup.", ALARM STAGE about 6.5 s after the spotter saw you, and reinforcements run in hunting. Take the spotter down
+  before his first radio line: no alarm, nobody comes.
+- [ ] Squads and dogs (guard-ai S5b, Sector Ops): knock a guard out unseen and wait up to ~40 s: his squad's radio
+  check misses him and two squad mates walk to where he went down and wake him. A dog stays with its handler; drop the
+  handler and the dog stays by him and barks.
+- [ ] Cameras see bodies (guard-ai S7, Sector Ops): knock a guard out where a camera sweeps (lit or dark): the desk
+  radios "Camera N has a man down..." and the nearest guard walks over and wakes him; loop or jam the camera first and
+  nobody comes.
+- [ ] Guard tactics (guard-ai S8): get spotted by 4 guards and break line of sight: the caller drops back into cover,
+  one moves up cover to cover ("Moving up!"), one covers from cover ("Covering!"), one goes round the side
+  ("Flanking!"); never more than one of them moving up at once, nobody runs at you in the open.
+- [ ] Helmets and armour (guard-ai S12; once a section has `gear`, or set one with `e.setGear` in the console): shoot a
+  helmeted guard in the head: steel-blue hit marker and a ping, the helmet falls to the floor and stays, he reels and
+  comes up shooting; a second head shot kills. An armoured guard shrugs off chest rounds (a short stagger, not every
+  round); a takedown drops either in one move.
+- [ ] Talking pairs (guard-ai S10, Saltmarsh Park car park): watch the pair from cover: at their stop by the aisle end
+  they face each other and swap two lines, then walk on; knock one out before they meet and ~6 s later the other walks
+  to where his partner was headed.
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
 - [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
   glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen
   clear, a soft dark band only at the edges and corners).
+- [ ] Guards render (guard-render S1): in Sector Ops or Marlow Yard a guard close up looks normal, in thermal and in night
+  vision (same shape, colours and pattern as with `?guardmerge=0`); it flashes on a hit and a downed guard ragdolls
+  with no missing or stretched parts. A guard at the screen edge or on a stair does not pop out early. Heads, hands and
+  feet cast shadows now (accepted).
 - [ ] Wheel carousel: hold LB (Tab), put the cursor on the vision slot, A (E) cycles night, thermal, electro; release
   selects it. The wheel reopens on that mode. A off the vision slot does nothing.
 - [ ] (sector-fixes W) The wheel opens on the vision slot: hold LB and tap A with the right stick untouched, the mode
@@ -123,7 +167,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Ladders, drainpipes, pipes, ledges, the zipline, rappel rope and fences: palms sit on the rung / pipe / lip / cable /
   rope / rail with the fingers round it, no hand sunk in or floating.
 - [ ] LT held aims, RT fires (no hip fire, none from low ready); RT while holstered strikes (tap knockout, hold kill).
-  Hold X to reload, LB tap switches between the two guns. The suppressed pistol and the issued rifle suppressor sound muffled and guards hear them less.
+  Hold X to reload, LB tap switches between the two guns. The suppressed pistol and the issued rifle suppressor sound muffled and guards hear them less. The weapon box shows "SD n" (red at 5 or fewer) and counts down per suppressed shot; at 0 a feed line says "Suppressed rounds out: shots are loud" and shots sound open and alert nearby guards; an ammo crate refills quiet rounds; a checkpoint restart restores them.
 - [ ] D-pad right throws the gadget (hold aims); holding d-pad left opens the wheel (time slows).
 - [ ] Takedowns: A behind an unaware guard, GRAB CHARACTER (G7: the step-in and pull-in ~1 s; walk him at a slow pace;
   RT tap knocks him out and lowers him, RT hold kills, LT aims the pistol over his shoulder; Interrogate); a drop takedown from a pipe or ledge; a body takes 2 s to lift, carries at a slow
@@ -189,7 +233,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   clipping; pick `goggles` > `crouch`, crouch: it follows. Vision off: the stowed goggle does not move (no stowed
   socket yet). Zoom out to LOD1 / LOD2: only the lens moves there (the housing is fused into the head), a known limit.
   Bake and reset as above: the same look; a guard never takes it (the partner and the studio puppets carry it but show the stowed goggle).
-- [ ] Anim Studio (anim-studio): Main menu > Anim Studio (dev) (or Pause > Anim Studio (dev)): a dark stage with a floor
+- [ ] Pause menu: Animation Tuner (DEV) only; Anim Studio from the main menu.
+- [ ] Anim Studio (anim-studio): Main menu > Anim Studio (dev) (not from the Pause menu): a dark stage with a floor
   grid, the tuner docked on its View tab with the Loop player on top, the crab readout top left, the pad on the loop
   list. Pick "Walk clip": she walks in place, the feet stepping (green dots planted, orange rings swinging, short
   trails), and the Body tab shows Walk; Pause, "Key ▶" / "◀ Key" and the time slider move one key / any point; speed 2x;
@@ -420,7 +465,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Infiltration on the Warehouse: both see the same guards, doors and bodies; a client takedown, door and objective
   register on the host; pings show on both; a downed partner is revived; results on both pages.
 - [ ] Free Roam on Proving Grounds: brace and boost onto the 4.2 m block, the human ladder, a dual takedown; partners
-  block each other (no walking through).
+  block each other (no walking through). The dual takedown banner shows on both; the host's `g.style.duals` is 1
+  and `style.knockouts` did not rise from the pairing (e2e-coop).
 - [ ] The Fallow bunker: open `?net=local&autostart=bunker&mode=course` in both tabs. The objective list shows for both;
   one player on an airlock pad shows "Waiting for partner"; both seal it; the rear door stays locked.
 - [ ] Close the host tab: the client is told and returns to the menu.
@@ -479,3 +525,4 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] A 10-minute soak on the Warehouse (`node scripts/soak.mjs`, debug overlay): steady frame time, no heap growth, no
   audio crackle.
 - [ ] Two PCs in co-op through an Infiltration mission, then Play again, then the host leaves.
+- [ ] iPad: version label, bottom strip, no GPU banner, pause room note.

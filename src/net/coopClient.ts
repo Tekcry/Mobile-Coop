@@ -1,5 +1,6 @@
 import { Vector3 } from '../core/babylon';
 import type { GameState, NetAttachment } from '../game/gameState';
+import type { TakedownVictim } from '../game/takedownController';
 import type { Blip } from '../ui/hud/minimap';
 import type { BlobShadows } from '../vfx/blobShadows';
 import { Ragdoll } from '../ai/ragdoll';
@@ -9,10 +10,12 @@ import { LAMP_TARGET, LampMirror } from './lampSync';
 import { lightOnRay, type LightDef } from '../world/lights';
 import { BODY } from '../ai/bodies';
 import type { HitInfo } from '../game/damage';
-import { Interactables, type Interactable } from '../game/interactables';
+import { Interactables, KIND_COLOR, type Interactable } from '../game/interactables';
+import { CRATE_DARK, applyCrateEvent } from '../game/crateLedger';
 import type { NetSession } from './session';
-import { PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
-import { ClockSync } from './interp';
+import { gaitWire, motionWire, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
+import { CT } from '../config/movement';
+import { CLIENT_INTERP_DELAY, ClockSync, sendClock } from './interp';
 import type { CKind } from '../game/committedMoves';
 import { RemoteAvatar } from './remoteAvatar';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
@@ -37,9 +40,11 @@ import { dropBadWallMove, emptyMoveState, moveChanged } from '../player/moveStat
 import { CrackPrediction } from '../world/doorPeek';
 import { markCompleted } from '../save/sectorRecord';
 import { BOLT_DEPTH, SECTOR_RESTART_TITLE, boltById, boltHalfSpan } from '../game/sectors';
+import { DESK_NONE, deskItemId, deskModeOf } from '../game/sectorDesks';
 
 const SEND_HZ = 20;
-const INTERP_DELAY = 0.12;
+/** (afp AF6) `CLIENT_INTERP_DELAY` (interp.ts; was 0.12). */
+const INTERP_DELAY = CLIENT_INTERP_DELAY;
 
 /**
  * Client side of a match. Only the local player is simulated (predicted); enemies, modes, pickups, objectives, doors
@@ -74,6 +79,8 @@ export class CoopClient implements NetAttachment {
   private lastBlast: { p: Vector3; t: number } | null = null;
   private ints: Interactables | null = null;
   private items = new Map<string, Interactable>();
+  /** (E9-crate) The weapons crates this player used (fed only by `crate` events; cleared on a section restart). */
+  private readonly crateSpent = new Set<string>();
   /** Sector Ops: the client's mirror of the cameras and lasers. */
   private sec: CtDevices | null = null;
   /** (sector-restart) The section our checkpoint loadout was recorded for (the host's live section only moves on). */
@@ -260,7 +267,7 @@ export class CoopClient implements NetAttachment {
       if (!info) return null;
       const g = this.g;
       a = new RemoteAvatar(g.world, g.vfx, g.ballistics, info);
-      a.onFire = (cls, at) => g.events.emit('remoteShot', { cls, x: at.x, y: at.y, z: at.z });
+      a.onFire = (cls, at, gun, quiet) => g.events.emit('remoteShot', { cls, x: at.x, y: at.y, z: at.z, gun, quiet });
       this.avatars.set(st.id, a);
       setPlayerGlow(a.figure, [...this.s.players.values()], st.id);
       // course mode (D38): the partner can be shot (the host decides the damage, co-op rules)
@@ -338,7 +345,10 @@ export class CoopClient implements NetAttachment {
     }
     this.puppetList = [...this.puppets.values()];
     g.pickups?.setMask(m.pk);
-    if (m.items) this.syncItems(m.items);
+    if (m.items) {
+      this.syncItems(m.items);
+      this.deskSync();
+    }
     if (m.doors) this.syncDoors(m.doors, m.dcr ?? []);
     if (m.bodies) {
       // carried off, hidden or revived on the host (snaps and events arrive in order, so a kept body is listed)
@@ -361,6 +371,31 @@ export class CoopClient implements NetAttachment {
   /** (step 15) Sandbox: mirror only this item kind into the client's own interactables. */
   private mirrorOnly: NetItem['k'] | null = null;
 
+  /**
+   * (sector-redesign E6, EW10) Sector Ops: each security desk's mode (looped, off) read back from its mirrored console
+   * label (`deskModeOf`) onto our cameras, from our own map data's desk list (no wire change). Per snapshot, not per frame.
+   */
+  private deskSync(): void {
+    const ct = this.sec;
+    const desks = this.g.world.layout.security?.desks;
+    if (!ct || !desks) return;
+    for (let i = 0; i < desks.length; i++) {
+      const it = this.items.get(deskItemId(i));
+      ct.setDesk(desks[i]!.cameras, it ? deskModeOf(it.label) : DESK_NONE);
+    }
+  }
+
+  /** (E9-crate, A105) The host restarted the section: every crate usable again here. */
+  private clearCrates(): void {
+    this.crateSpent.clear();
+    for (const it of this.items.values()) {
+      if (it.kind !== 'crate') continue;
+      it.spent = false;
+      it.progress = 0;
+      if (it.enabled) this.ints?.setIndicator(it, KIND_COLOR.crate);
+    }
+  }
+
   private syncItems(list: NetItem[]): void {
     const ints = this.ints;
     if (!ints) return;
@@ -374,6 +409,20 @@ export class CoopClient implements NetAttachment {
         it.reach = n.reach;
         const id = n.id;
         it.onUse = () => this.s.toHost({ t: 'use', id });
+        // (E9-crate, A103) at the loadout the use is not sent (the host does not hold our ammo)
+        if (n.k === 'crate') {
+          const crate = it;
+          crate.onUse = () => {
+            if (this.g.weapons.atLoadout()) {
+              this.g.hud.feedItem('Ammo full');
+              crate.progress = 0;
+              return;
+            }
+            this.s.toHost({ t: 'use', id });
+            // (E8/E9 check P1) a held button does not re-send `use` every frame until the `crate` event lands
+            crate.progress = 0;
+          };
+        }
         // (sector-fixes-r RT) a team door's "Unbolt" is offered on its side only: the side from this client's own map
         // data (no wire change); the host checks the side again on the `use`
         const bolt = boltById(this.g.world.map.sectors, id);
@@ -391,8 +440,17 @@ export class CoopClient implements NetAttachment {
       if (n.k === 'medkitWall') it.done = !n.on;
       // your own revive point is for the others
       const on = n.on && n.id !== `revive-${this.s.selfId}`;
-      if (it.enabled !== on) ints.setEnabled(it, on);
+      const flip = it.enabled !== on;
+      if (flip) ints.setEnabled(it, on);
       if (!on) it.progress = 0;
+      // (E9-crate, A104) used by this player: no prompt here, the strip dark (the others still see it lit)
+      if (n.k === 'crate') {
+        const sp = this.crateSpent.has(n.id);
+        if ((it.spent === true) !== sp) {
+          it.spent = sp;
+          if (on) ints.setIndicator(it, sp ? CRATE_DARK : KIND_COLOR.crate);
+        } else if (flip && on && sp) ints.setIndicator(it, CRATE_DARK);
+      }
     }
     for (const [id, it] of this.items) {
       if (keep.has(id)) continue;
@@ -432,6 +490,19 @@ export class CoopClient implements NetAttachment {
 
   spotted(): boolean {
     return this.selfSpotted;
+  }
+
+  /** (coop-walk-fixes P6) A partner (the host or another client) holds guard `v` as a hostage: his puppet is posed from
+   *  that partner's `grab` MoveState (`remoteHeld`). The team takedown on him is on offer here. */
+  partnerHolds(v: TakedownVictim): boolean {
+    const p = this.puppets.get(v.id);
+    return !!p && p === v && p.partnerHeld;
+  }
+
+  /** (P6) Our team takedown on a partner's hostage: the host checks and applies it (`td`, kind `assist`); the guard goes
+   *  down when the host's kill event comes back. */
+  assistTakedown(v: TakedownVictim, ph: 'start' | 'done' | 'abort', lethal: boolean): void {
+    this.s.toHost({ t: 'td', target: v.id, ph, lethal, kind: 'assist' });
   }
 
   private applySelf(p: PlayerState): void {
@@ -554,15 +625,23 @@ export class CoopClient implements NetAttachment {
         if (e.player !== me) break;
         const p = this.puppets.get(e.enemy);
         if (p && g.takedown.active?.e === p) g.takedown.abort();
-        p?.deny();
+        // (P6) a denied team takedown: the partner still holds him (his puppet stays posed from that hold)
+        if (!p?.partnerHeld) p?.deny();
         break;
       }
       case 'banner':
         g.hud.banner(e.title, e.sub);
         // (sector-restart, M9) the host restarted the section: our side of the clean start (loadout, gadgets, music)
-        if (e.title === SECTOR_RESTART_TITLE && g.opts.mode === 'sector') g.checkpointReset();
+        if (e.title === SECTOR_RESTART_TITLE && g.opts.mode === 'sector') {
+          g.checkpointReset();
+          // (E9-crate, A105) every crate usable again
+          this.clearCrates();
+        }
         break;
       case 'feed':
+        // a radio line (subtitle), also kept in the feed: the host's interrogation intel arrives as these and the host
+        // shows it in its feed (`revealIntel`); a bark alone left the client's feed without it
+        g.hud.barks.say('lantern', e.text, true);
         g.hud.feedItem(e.text);
         break;
       case 'pickup':
@@ -571,6 +650,23 @@ export class CoopClient implements NetAttachment {
         g.events.emit('pickup', { kind: e.kind });
         g.hud.feedItem('Ammo refilled');
         break;
+      case 'crate': {
+        // (E9-crate) we used a crate: top up on the use itself (`fill`), only hide the prompt on a rejoin re-send
+        const r = applyCrateEvent(this.crateSpent, me, e);
+        if (!r) break;
+        if (r === 'fill') {
+          g.weapons.crateTopUp();
+          g.events.emit('pickup', { kind: 'ammo' });
+          g.hud.feedItem('Weapons refilled');
+        }
+        const it = this.items.get(e.id);
+        if (it) {
+          it.spent = true;
+          it.progress = 0;
+          if (it.enabled) this.ints?.setIndicator(it, CRATE_DARK);
+        }
+        break;
+      }
       case 'hurt': {
         if (e.player !== me) break;
         const pp = g.player.position;
@@ -593,6 +689,9 @@ export class CoopClient implements NetAttachment {
         if (e.player !== me) break;
         g.player.controller.override = null;
         g.traversal.reset();
+        // (strike-pops, n4d polish 1) a bay or section restart brings an alive partner back too: no strike or kill
+        // follow-through carried onto the restarted player (the host's own respawn does the same)
+        g.strike.reset();
         g.player.controller.teleport(new Vector3(e.x, e.y, e.z), g.player.cam.yaw);
         g.target.revive();
         g.hud.setDownTimer(null);
@@ -682,9 +781,18 @@ export class CoopClient implements NetAttachment {
     const g = this.g;
     const p = g.player;
     const c = p.controller;
+    // (39, afp AF6) the send clock (the host times the state by it) and the gait clock / CT stop (the partner's stride)
+    const sentAt = sendClock(this.sentWall, this.sentSim, performance.now() / 1000, this.time);
+    this.sentWall = sentAt;
+    this.sentSim = this.time;
+    const gw: { gph?: number; qs?: number; hs?: number; mo?: number; mt?: number; ax?: number; az?: number } = {};
+    gaitWire(c.motion.phase, c.ct, c.stopEaseT, c.stopHold, c.holdSpeed, CT.stopEase, CT.stopBlend, gw);
+    motionWire(c.override?.kinematic ? null : c.motion.state, c.motion.stateT, c.motion.ax, c.motion.az, gw);
     this.s.toHost({
       t: 'pstate',
       s: wirePlayerState({
+        ...gw,
+        t: sentAt,
         id: this.s.selfId,
         x: p.position.x,
         y: p.position.y,
@@ -695,10 +803,15 @@ export class CoopClient implements NetAttachment {
         f: localFlags(g),
         w: g.weapons.current.def.id,
         hp: g.target.health.hp,
+        sc: g.weapons.shotCount & 255,
         mv,
       }),
     });
   }
+
+  /** (39, afp AF6) The last state's send clock and sim time (`sendClock`). */
+  private sentWall = -Infinity;
+  private sentSim = 0;
 
   /** The movement state this step and the last one sent (change detection). */
   private mvNow = emptyMoveState();

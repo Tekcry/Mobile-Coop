@@ -485,6 +485,12 @@ export const TEAM = {
   throwTime: 1.0,
   throwDrop: 1.0,
   throwUp: 2.2,
+  /** (throw-ko, CT levels-digest row "Partner throw": landing on a guard knocks him out) The thrown player's descending
+   *  feet take a guard down within `throwKoReach` m across of him and `throwKoLow`..`throwKoHigh` m over his feet (his
+   *  hips to the top of his head: the falling body lands on his head / shoulders). Starting values. */
+  throwKoReach: 0.7,
+  throwKoLow: 0.3,
+  throwKoHigh: 1.7,
   /** (CT prototype B5) Hang-down (CT 1.5 Drop Line): the partner's reach to the crouched holder at the edge (m); the
    *  drop the edge must have under it (m below the holder's floor); how far ahead of the holder the drop is looked for
    *  (m); the hanging head's depth under the edge: least, most, at the start (m); how fast the holder's stick moves it
@@ -508,7 +514,7 @@ export const TEAM = {
   ropeMax: 6.0,
   ropeUp: 1.0,
   ropeDown: 1.6,
-  ropeTop: 0.9,
+  ropeTop: 1.1, // (team-climb) was 0.9: the eased path (teamMoves `ROPE_TOP_PATH`) needs 1.1 s to keep the root from popping
   ropeSlide: 3.0,
   ropeLost: 1.5,
   /** Requests a player may make (host rate limit, per second). */

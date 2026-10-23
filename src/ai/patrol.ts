@@ -58,6 +58,9 @@ export class PatrolWalker {
   private postPt: Pt;
   /** Seconds since the walker was made (the master clock of a timed loop). */
   private clock = 0;
+  /** (guard-ai S4) Pauses x this (`CAUTION.waitMul` while cautious: shorter waits, more frequent glances). Timed
+   *  loops ignore it (their schedule is the map's). */
+  waitMul = 1;
 
   constructor(
     readonly route: PatrolRoute | null,
@@ -75,6 +78,11 @@ export class PatrolWalker {
     }
   }
 
+  /** Seconds left in the current pause (tests / debug). */
+  get waiting(): number {
+    return this.waitT;
+  }
+
   /** Advance the master clock (every tick, whatever the guard is doing). */
   tick(dt: number): void {
     this.clock += dt;
@@ -84,6 +92,11 @@ export class PatrolWalker {
   private loopNow(): number {
     const l = this.route!.loop!;
     return (((l.t0 + this.clock) % l.period) + l.period) % l.period;
+  }
+
+  /** (guard-ai S10) Loop time now (s) of a timed loop, NaN without one (talking pairs line their clocks up with it). */
+  loopTime(): number {
+    return this.route?.loop ? this.loopNow() : Number.NaN;
   }
 
   private get pingPong(): boolean {
@@ -102,7 +115,7 @@ export class PatrolWalker {
     }
     const p = r.points[this.idx]!;
     if (hyp2(p[0] - x, p[1] - z) < PATROL.arrive) {
-      this.waitT = r.waits?.[this.idx] ?? r.wait ?? PATROL.wait;
+      this.waitT = (r.waits?.[this.idx] ?? r.wait ?? PATROL.wait) * this.waitMul;
       const lp = r.loop;
       if (lp) {
         // pause until the planned departure (modulo the period, within half a period either way)
@@ -110,6 +123,13 @@ export class PatrolWalker {
         if (rem > lp.period / 2) rem -= lp.period;
         else if (rem < -lp.period / 2) rem += lp.period;
         this.waitT = Math.max(1e-3, rem);
+      } else if (!(this.waitT > 0)) {
+        // a wait of 0: pass straight through (no pause, no facing). It used to set waitT 0 and return null, which
+        // never reached `advance`: the guard stood there for good (Menu Notes, route waits [4, 0, 3, 0])
+        this.waitT = 0;
+        this.advance();
+        this.lookYaw = NaN;
+        return r.points[this.idx]!;
       }
       // look along the next leg while paused (or where the route says)
       const n = r.points[this.peekNext()]!;
@@ -146,7 +166,7 @@ export class PatrolWalker {
       return this.postPt;
     }
     this.glanceT -= dt;
-    if (this.glanceT <= -PATROL.glanceHold) this.glanceT = PATROL.glanceEvery;
+    if (this.glanceT <= -PATROL.glanceHold) this.glanceT = PATROL.glanceEvery * this.waitMul;
     const side = Math.floor(this.glanceT * 7.3) % 2 === 0 ? 1 : -1;
     this.lookYaw = this.postYaw + (this.glanceT < 0 ? side * PATROL.glanceYaw : 0);
     return null;

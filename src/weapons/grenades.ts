@@ -54,7 +54,7 @@ export class Grenades {
     voxeliseParts(this.scene, node, [mesh], 'grenade');
     const shape = new PhysicsShapeSphere(Vector3.Zero(), 0.08, this.scene);
     shape.filterMembershipMask = G.PROJECTILE;
-    shape.filterCollideMask = G.STATIC | G.PROP;
+    shape.filterCollideMask = G.STATIC | G.PROP | G.GLASS;
     shape.material = { friction: 0.6, restitution: 0.35 };
     const body = new PhysicsBody(node, PhysicsMotionType.DYNAMIC, false, this.scene);
     body.shape = shape;

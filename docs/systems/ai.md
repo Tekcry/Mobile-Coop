@@ -33,33 +33,178 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 - `Enemy`: perceives at ~4 Hz (rays to chest, head, hips; hips skipped in combat), integrates the meter per fixed step
   (`updateAwareness`), `calmDecide` drives patrol (`PatrolWalker`: `SquadSlot.route` / post with glances; per-point
   `waits`), looks at the stimulus, walks to it (`goTo`: straight or A*), search sweeps (`searchPoint`, `searchSlot`).
-  Inputs: `hear(x, z, radius)`, `hearGunfire`, `radio(delay)`, `searchAt` (bodies / lights), `alert()`.
+  Inputs: `hear(x, z, radius)`, `hearTurn`, `hearGunfire`, `radio(delay)`, `searchAt` (bodies), `alert()`; from the
+  incident board (guard-ai S2): `sendTo`, `checkLight`, `pairSearch`, `ack`.
 - Hearing (guard-ai S1, `ai/hearing.ts`, pure): a noise's reach becomes an effective reach per listener,
   `reach x 10^(-(walls x 6.9 + ambientDb) / 20)`: one wall (head-height ray, cast only where it could change the tier;
   low cover does not muffle) keeps 0.45 of it (the old `MUFFLE`), and a noisy thing near the guard (`NoisySource`,
   `EnemyManager.setNoisy`; no map sets any yet) masks it (6 dB halves, 12 dB quarters). Tiers (`HEARING`): inside the
   effective reach he turns to look (`Enemy.hearTurn`: stands facing it `hearLook`, meter floor `noiseSuspicion` capped
   at 0.45, no `heard`); inside half of it he may be sent; loud gunfire (`EnemyManager.noise`) is combat only inside a
-  quarter of it. Coordinated managers (default) send one guard per noise, the nearest tier-2 hearer (`pickNearest`, a
-  stub until the incident board): `Enemy.hear` sets `heard` (suspicious, investigates after `hearLook`); the rest only
-  turn. A gunfire investigator (or any tier-3 / already fighting hearer) sets the shared LKP; turning guards do not.
-  Melee kinds (dogs, runners) keep `Enemy.hear` anywhere in reach. Hunter and Mission (parked) set
-  `coordinated = false`: everyone in reach hears and walks over, gunfire sends everyone in reach to combat.
-  `noiseSuspicion` rises with the square of closeness.
+  quarter of it. Coordinated managers (default): every hearer turns, the tier-2 hearers are reported to the incident
+  board (below; `noise`, `shots`, or `distraction` for the noise maker and the sticky-cam ping), which sends one. A
+  gunfire report with tier-2 hearers (or any tier-3 / already fighting hearer) sets the shared LKP; turning guards do
+  not. Held guards (`Enemy.taken`: grabbed, hostage, interrogated) hear nothing. Melee kinds (dogs, runners) keep
+  `Enemy.hear` anywhere in reach. Hunter and Mission (parked) set `coordinated = false`: everyone in reach hears and
+  walks over (the exact old wall ray: beyond `MUFFLE` of the reach), gunfire sends everyone in reach to combat, the old
+  lights-out rule and paces. `noiseSuspicion` rises with the square of closeness.
+- Incident board (guard-ai S2, `ai/incidents.ts`, pure; `EnemyManager.board`, 5 Hz plus an immediate pass on each
+  report): one incident per event (`INCIDENT`: pool 16; same kind within 6 m / 10 s of its last report merges; a light
+  by its id or circuit; a plain noise under a light that just went out merges into it). Who goes: the guards who
+  perceived it, else (noise kinds) a calm guard within 25 m; the 3 nearest by straight 3D distance get a path query
+  (`PathLen`: straight when the nav line is clear, else A*), score = path x officer 1.6 x cooldown 0.8, ties to the lower
+  index; never dogs / melee, held, busy (alarm run, passive), tasked, investigating, searching or alerted guards. One
+  goes (`Enemy.sendTo`: bark `checking`, the `heard` path; a later noise never re-aims him); a light sends 2 when a
+  second guard who saw it is within 15 m of it. The others who perceived it `ack` (look 3 s, keep their task; at most 2
+  "Copy." lines). An investigator down (dead / KO) or held for 25 s turns it `missing`: the 2 nearest calm guards go as
+  a pair (`pairSearch`: the lead to where he was last, bark `missing`; the cover searches 5 m short of it, G11).
+  `Enemy.incident` holds the task; the board reads guards through `GuardView` (ids = `Enemy.num`) and writes `BoardOut`
+  commands. `AlertInput.turning` (a sound he was not sent to) holds off the linger rule, so footsteps do not pull every
+  turner over.
+- Paces (A9, `PACE` in `enemy.ts`, x walkSpeed): patrol 1.1; coordinated investigate 0.85, search 0.75 (parked modes
+  1.2 / 1.3); walking to wake a KO'd squadmate 1.3; cautious patrol 0.95 (guard-ai S4; not on a timed loop).
+  Coordinated searching turns at the calm rate.
 - Pace and patience: `PATROL.wait` 5.5 s, glances every 10 s, `searchLook` 3 s, `hearLook` 2.4 s; `ENEMY_CALM_MOTION` (60
-  deg/s turns while not in combat / searching). Combat: `ALERT.lostSight` 12 s, `searchTime` 60 s; after combat a guard
+  deg/s turns while not in combat; parked modes: not searching either). Combat: `ALERT.lostSight` 12 s, `searchTime` 60 s; after combat a guard
   never returns to unaware (`AlertMachine.fought`).
-- Radio window: a sighting is shouted to guards within `ALERT.shout` 8 m at once and radioed after `ALERT.callIn` 2.5 s (x
-  reaction; bark `callIn`); a spotter taken out first tells nobody; gunfire / a hit / a flashbang (`loudAlert`) calls in at
-  once. `PlayerRef.spotted`: set when a guard in combat sees that player, cleared when nobody is in combat.
-- Tactics: from sight into cover first (85%), attack -> cover after 2.5-4.5 s, peek cycles (4.2 s, up to 5); out of sight
-  an `advancing` bound to cover closer to the believed position (`pickAdvance`), a 2.5 s hold, then the next; the last
-  stretch is walked (`ADVANCE_PACE`); cover is picked against `knownPt` (never the real position out of sight). One bullet
-  to the head kills any guard but a heavy (`Enemy.applyDamage`). The close-range sense from behind ignores a sneak /
-  crouched approach.
+- Alerts and the radio (guard-ai S3, design 5, M5; `ai/radioNet.ts` pure, `EnemyManager.radioNet`, coordinated modes):
+  a guard who goes to combat on his own (a sighting, a hit, gunfire close by, the end of a flashbang, spawned alerted)
+  first shouts: every calm guard who hears it at the investigate tier of a `RADIO.voice` 12 m reach (6 m in the open,
+  ~2.7 m through one wall, less by a noisy machine; one wall ray only where it decides it; any section) joins
+  `RADIO.voiceDelay` 0.3 s later. He then holds his radio for a `contact` call, `RADIO.callIn` 2.5 s x reaction (x the
+  officer factor near an officer). When it completes (bark `callIn`, e.g. "Control, I have contact.") every other live
+  guard of the SAME section is queued nearest first at `min(4.5, 0.6 + rank x 0.5 + d x 0.02)` s x his reaction
+  (`staggerDelay`), joins on the next step (bark `joining`) and chases the shared LKP; no relay, no `Math.random`, other
+  sections untouched. A call is a timer the caller must survive: `cut` from `Enemy.die` (kill, knockout), `beginTakedown`
+  (grab, choke, hostage, interrogation), `blind` and `EnemyManager.despawn` (and a held caller at completion) loses it,
+  so only the voice hearers know; a blinded or released guard still in combat calls again. Reports are calls of their
+  kind: `checkLight` -> `light`, the pair lead -> `missing`, a board task ending calm -> `standDown`; their first receiver
+  says "Copy." (bark only). `command` calls raise the alarm (S6, `RADIO_ALARM` true; see Alarms).
+  One net: Sector Ops loads one section at a time, so the live section is the whole cast (cleared by `despawnAll` /
+  `resetMemory` via `clear`); other maps are one section (A6). Ticked at 10 Hz from `update` with the board's
+  `GuardView` and a reaction lane (no allocation). `EnemyManager.radioLeft(e)` reads a pending call (e2e).
+  Parked modes (`coordinated = false`): the old window: a sighting shouted within `ALERT.shout` 8 m (0.3-0.6 s) and
+  radioed after `ALERT.callIn` (`Enemy.radioT`, bark `callIn`) to everyone within `RADIO` 22 m (0.4 + 0.03 d + random
+  0.3 s); gunfire / a hit / a flashbang (`loudAlert`) calls in at once. `PlayerRef.spotted`: set when a guard in combat
+  sees that player, cleared when nobody is in combat.
+- Awareness and caution (guard-ai S4, design 4, M1 / M3; `ai/awareness.ts` pure, `EnemyManager.awareness`, coordinated
+  modes; A3, A4, A14-A16):
+  - Guard keys: `Enemy.key` (0-31, u32 masks), the lowest free key at `spawn` (not held by a guard on the list or a
+    knocked-out body), kept by a woken guard (`Body.guardKey` / `Body.guard`; `revive` builds the new `Enemy` and
+    `inherit`s key, squad roster place, held room, passive, `info`, sniper post and the patrol walker, its clock moved on
+    by the time down, back on the route at the nearest point; facing as he fell, no random yaw). A dead guard's key is
+    reused with `resetKey`.
+  - A body found dead (`bodyFound`): the finder barks `body`, searches the spot; the guards who hear his shout (the S3
+    voice model) know too and the nearest calm one searches with him; all are held (`openHold('dead')`). He radios a
+    `body` call (2.5 s x reaction, `deadReport` "Man down. Stay sharp." when it completes); each receiver of the section
+    is added to the hold on delivery (staggered, one "Copy."). Cut him first (`radioCut`: down, grabbed, blinded) and
+    only he and his voice hearers knew. A2: no alarm from it.
+  - A kill seen (`witnessKill`, on `onKilled`): every calm guard (not in combat, held, passive, a dog or melee kind) who
+    would notice the body there (`bodyNoticed`: field, the light on it, `BODY.range` 20 m) with one line-of-sight ray is
+    a witness; the nearest finds the body at once (`bodyFound`, every witness held). A knockout seen: he goes to wake him
+    (A14). A dead dog (no body): the witnesses are held, the nearest searches and radios it.
+  - Held caution clears only when every aware guard is eliminated: dead, or knocked out and not woken (A3; woken, the
+    holds he knew come back). Time never clears it. `despawn` counts as dead; `clear` (Sector unload / restart) drops
+    every hold and caution.
+  - A knockout found: the finder (`koFound` "Hey. Hey! Wake up.") wakes him after `BODY.reviveTime`; `woke`:
+    `startKo` (both search `CAUTION.koSearch` 60 s round the spot, then cautious `koCautious` 180 s, then normal),
+    the waker's search restarts (`Enemy.koSearch`) and he radios a `ko` call (`koReport`, one "Copy."; nobody else
+    turns cautious).
+  - Caution per guard (`Enemy.caution`, synced at 5 Hz with the board and after each change; `EnemyManager.cautionOf`):
+    `AlertInput.cautious` keeps a calm guard in `cooldown` (sight x1.3, the board picks him first) and never unaware
+    while it lasts; patrol `PACE.cautious` 0.95; route pauses and post glances x `CAUTION.waitMul` 0.6
+    (`PatrolWalker.waitMul`; timed loops keep their schedule); the torch rule of a searching guard. Music does not
+    follow it (A8). Contact and missing holds are not wired (`fought` stays each guard's combat caution; A16).
+- Noise investigations (guard-ai S3, S2 check polish 2): a guard the board sent to a plain noise or a lure who finds
+  nothing goes back to unaware (`AlertInput.calmEnd`); gunfire keeps the 45 s cooldown, and so does a guard who has
+  fought.
+- Posts and high security (guard-ai S5, design 6, goal 7, M1, A10, A12, A17-A19; `ai/posts.ts` and `ai/guardAiData.ts`
+  pure): `SquadSlot.post?: PostDef` (`leash` m round the guard's spawn point, `highSecurity?`, `guards?` text) and
+  `profile?`; map modes call `EnemyManager.placeSlot(e, slot, section?)` after `spawn` / `setPatrol` (Sector Ops passes
+  the `SectorDef` index; Course and Infiltration let it pick the `MapLayout.guardAi` zone, else 0) -> `Enemy.setPost`,
+  `Enemy.section`, `Enemy.profile`. A normal post is sent like any guard. A high-security post (`Enemy.secure`,
+  `mayLeave` false): the board never sends him (`GV_POSTED` in the view: no investigation, light check, missing pair);
+  a noise or gunfire at his investigate tier, or a light he sees go out, lures him instead (`Enemy.lureTo` ->
+  `PostLure`): he walks to the point of his leash nearest it (investigate pace), looks toward it `POST.lureLook` 5 s
+  sweeping +-`POST.lureSweep` 0.6 rad, walks back and faces his post yaw (`returnFace` 0.8 s, then the walker); a second
+  lure at the same leash point does not restart him; the lure counts as `turning` (the linger rule never walks him off)
+  and gives only a turn's meter floor. A search (a body, a radio check, after combat) and his investigate spot are
+  clamped into the leash; he wakes no knocked-out guard outside it; in combat `chasePoint` / strafe points are clamped,
+  cover outside the leash is skipped, and a target outside it (+1.5 m) is held from the post (the `hold` rule); he
+  never runs to an alarm panel outside it. A revived guard keeps his post (`Enemy.inherit`). The sector tags: next
+  entry (S5b). Map data: `MapLayout.guardAi` (zones, `noisy`, entries, squads) and `SectorDef.noisy` /
+  `entries`; `EnemyManager.mapNoisy` loads the map's noisy things as the masking, Sector Ops swaps in the live
+  section's (`setNoisy` on load). Checks: `validateGuardAi` / `validatePosts` run on load in dev (console warnings via
+  `reportGuardAi`, never a throw) and in `tests/postsWiring.test.ts` over every live map's sectors.
+- Sector tags (guard-ai S5b, ENGINE.md section 7 on sector-redesign, A26-A28; `ai/sectorTags.ts` pure, the type
+  `GuardSlotTags` in `ai/guardAiData.ts`): `SectorGuard`'s `squad` / `handler` / `zone` / `role` / `reason` / `pair` are
+  read by `EnemyManager.placeSlot(e, slot, section, slots?, index?)` (`sectorMode.fill` passes the section's `guards` and
+  the slot's index; a reinforcement -1). `squad`: `joinSquad(squadId(section, squad))`, none = the default cluster of
+  posts within 12 m (`slotSquads` / `defaultSquads`), a dog its handler's; so squad radio checks (`radioCheckNow`,
+  `ARCHETYPE.radio` ~40 s) run in Sector Ops. The check's caller: a desk role (`ROLE_DESK`: desk / cctv / operator;
+  calm, the lowest key) for every squad of his section, else the squad's own (supervisor > officer > first; a squad of
+  one has none). A member down and not found is missed once (`silent`): coordinated, a `missing` incident at where he
+  went down with his squad's calm members as perceivers, so the board sends two of them (lead + cover; the K_MISSING
+  assign takes perceivers first); parked modes, the caller searches (old rule). `handler`: the dog is bound
+  (`Enemy.handler`, set when both are placed, either order) and heels on him only (`findLeader`); he goes down: the dog
+  searches round him, barks (`TAGS.dogBark` 14 m noise via `hear`, the dog skipped) and keeps its heel spot by him; a
+  woken handler takes it back (`swapSlot`), a despawned one frees it. `zone`: a secure zone (`isSecureZone`: 'secure'
+  or a word 'sec') gives the guard a circle (`zoneRadius`: post leash, else 8 m / route reach + 2) in the board's view
+  (`GuardView.setTags`): inside it he counts as a perceiver and ranks first (x `TAGS.secureFirst` 0.25); after a search
+  every guard walks back to his own post / route (the walker; no new code). `role` (on the guard `Enemy.job`, the word, and `roleFlags`, `ROLE_CLASS`; `Enemy.role` is S8's numeric combat role): the
+  alarm runner (`alarmRunMul`: supervisor 0.1, officer 0.25), the board's score (`roleSendMul`: supervisor sends
+  someone x1.6; a light: rover x0.8, fixed post x1.5). `reason` stored (`Enemy.reason`); `pair` stored
+  (`Enemy.pairSlot`, `EnemyManager.guardAtSlot(index)`; read by S10, next entry). All kept over a revive
+  (`Enemy.inherit`). Tests: `tests/sectorGuardTags.test.ts`; e2e: e2e-sectorops part 1 "sector tags (guard-ai S5b)".
+- Talking pairs (guard-ai S10, GA2, the `pair` tag, A32-A34; `ai/pairs.ts` pure: `PairMeet`, `pairWindow`, `pickMeet`,
+  `PAIRS`, `PAIR_LINES`). `placeSlot` builds one `PairMeet` when the second of two guards that name each other (one tag
+  is enough) is placed (`EnemyManager.buildPair`; `pairs`, id section x 100 + the lower slot): the meet stops are the
+  nearest stops within `PAIRS.meetMax` 6 m whose timed-loop stays overlap (`pickMeet`, the slower `walkSpeed`; the
+  walkers' loop times line the clocks up); none (no timed loop, periods differ, no overlap, a dog): `pairSkips` + a
+  console warning. `pairStep` runs at the board rate (`PAIRS.tick` 0.2 s) after the guards move: each side filled from
+  `guardAtSlot` (`present` = alive, not held, in his slot; `calm` = `Enemy.pairCalm`: unaware, caution 0, no incident),
+  `interrupt()` when either is `Enemy.disturbed` (a `hearTurn` look, a lure, sight evidence above `PERCEPTION.leak`),
+  `step`, then: meeting -> `Enemy.pairFace` / `pairPt` (the calm patrol walks him onto his meet point and stands him
+  facing his partner; the walker still steps, so the schedule runs on and the next timed stop absorbs the delay, A33);
+  `sayLine` -> `Enemy.sayLine` (the bark path, spoken, no voice table: `onBark(e, line, false)`); `requested` ->
+  `pairMissing`: a `missing` incident at the partner's last route point with the one left as perceiver (lead + the
+  nearest free cover; the missing guard joins `silent`, so a radio check does not miss him again); parked modes: he
+  searches. A missing pair whose guards are both up again (a woken partner takes his slot) starts over. Host only, no
+  wire change. Tests: `tests/pairs.test.ts`, `tests/pairsWiring.test.ts`; e2e: e2e-sectorops part 1 "talking pairs".
+- Tactics: from sight into cover first (85%; the profile's `coverFirst` by `profileOf(tacticsProfile)`, S6, a seeded roll, S8), attack -> cover after 2.5-4.5 s, peek cycles (4.2 s, up to 5); out of sight
+  an `advancing` bound to cover closer to the believed position (`pickAdvance`), a 2.5 s hold (`ADVANCE_HOLD`; a point or an aggressive guard: `profileOf(tacticsProfile).advanceHold`, 0.8 s aggressive), then the next; the last
+  stretch is walked (`ADVANCE_PACE`; aggressive: a jog); cover is picked against `knownPt` (never the real position out of sight). One bullet
+  to the head kills any guard but a heavy (`Enemy.applyDamage`), unless he wears a helmet (below). The close-range
+  sense from behind ignores a sneak / crouched approach.
+- Gear (guard-ai S12, stealth over shooting items 2 and 13, A35 / A36; numbers `GEAR` in `ai/gear.ts`): `Enemy.helmet`
+  / `armour`, set by `EnemyManager.placeSlot` from the slot's `gear` tag merged with the section default
+  (`SectorDef.gear`, passed by `sectorMode.fill`; none = no gear), `Enemy.setGear` (S13's alarm stages), kept by a woken
+  guard (`inherit`). `applyDamage` runs player and guard bullets through `gearHit` (not the heavy, not melee,
+  takedowns, explosions or sleep bolts): head + helmet = 0 dealt, the helmet off (`helmetPart` hidden, a dropped
+  helmet from `EnemyManager.helmetDrops`, `ai/helmetDrops.ts`: a pool of 8, a 0.4 s tumble to the floor, it stays),
+  the strike stagger 0.9 s; body + armour = 0 dealt, stagger 0.5 s at most every 1.5 s (`sinceStagger`); then the
+  normal hit reaction (combat on the shot's origin, contact call) and a `deflect` bark. Both return
+  `DamageResult.deflect`. Placeholder parts (A45): the rig's combat-helmet part on the head node, the armour plates on
+  the torso and shoulders, built on first use and toggled. Host-only (S9 carries the gear bits and the confirm).
+- Squad roles (guard-ai S8, coordinated modes; `squadRoles.ts`, `coverGrid.ts`): `EnemyManager.rolesStep` at 2 Hz
+  (`TACTICS.tick`) fills one reused `RoleInput` from the engaged group (alerted, free, cover-using guards; >= 2,
+  `TACTICS.minGroup`), runs `assignRoles` against the level cover as typed arrays (`coverSet`, mirrored from
+  `reserveCover`; `coverGrid` 4 m buckets) and calls `Enemy.setRole(role, cover, moving, run, mateMoving, onRadio)`.
+  Reporter = the engagement's first contact caller (`contactCaller`), held crouched and silent while his call is open;
+  point bounds cover to cover (`profile.advanceHold` between bounds, out of sight), walks the last stretch (`closing`)
+  when no cover is left; overwatch's low cover needs one view ray to the LKP (`TACTICS.viewChecks` 4, a blind one
+  blocked `TACTICS.blockS` 5 s), suppresses the LKP while a mate moves; flank (groups of 3+) bounds to cover >= 60 deg
+  off the point's bearing; the rest search (today's). One of point / flank moves at a time (standard). Out of sight in
+  the open a role guard waits for the group. A path failure blocks the cover. While a group has roles the single
+  `flanker` is cleared; otherwise `assignFlanker` as before. Barks `moving` / `covering` / `flanking`.
+- Combat dice (S8, A24): `Enemy.rng` (mulberry32) reseeded `combatSeed(matchSeed, engagement, num)` on going to
+  combat; `tacticsProfile` (`placeSlot`: `P_POST` with a post, `P_AGGRESSIVE` for an aggressive slot, else `P_STANDARD`;
+  kept by `Enemy.inherit`) weights cover-first (standard 0.85) and the roles (`P_POST` never point or flank). A
+  high-security post never takes a role cover outside his leash (`Enemy.setRole` drops it; A18, A25).
 - `EnemyManager.stealth` (on in Hunter, Mission and Infiltration; off in Free Roam): shared `lkp` (sightings by alerted
   enemies, located gunfire), a flow field to the LKP (never the real position), arriving with nothing there starts the
-  search; `callAlert` radios within `RADIO` 22 m (a radioed alert does not relay); `sightT`, `hunting`.
+  search; `callAlert` radios within `RADIO` 22 m in the parked modes (a radioed alert does not relay; the live modes use
+  the radio net above); `sightT`, `hunting`.
 - HUD: `ui/hud/awareness.ts` arcs round the crosshair (only for enemies `inSight` or within `ARC_NEAR` 2.5 m),
   `Hud.setLight` meter; `vfx/lkpGhost.ts` (thin-instanced silhouette) shown at the LKP while hunted unseen
   (`GameState.updateStealthHud`).
@@ -68,18 +213,61 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   goes dark with the light.
 - Bodies: `Enemy.die` / `knockOut` hand the rig to `EnemyManager.addBody` -> `ai/body.ts` `Body` (a settled `Ragdoll`, or
   laid flat when out of budget; `BODY.max` kept). Enemies not in combat look for bodies each think (`bodyNoticed`: field x
-  `lightFactor(body.light)` x distance; one ray) -> `bodyFound`: the finder searches, the squad within `RADIO` searches; a
-  non-lethal body is revived (`BODY.reviveTime`). Carry (`game/stealthSystems.ts`): an unarmed rig over the shoulder, the
+  `lightFactor(body.light)` x distance; one ray) -> `bodyFound`: the finder searches; a non-lethal body is revived
+  (`BODY.reviveTime`; the woken guard is the same guard: `Enemy.inherit`); coordinated modes: awareness and caution
+  below; parked modes: the squad within `RADIO` searches. Cameras see bodies (guard-ai S7, design 9, M6; host only, coordinated
+  modes): `SecuritySystem`'s body pass (2 Hz per online camera, IR: no light term, G240; looped / off / jammed /
+  destroyed cameras see nothing) reads `EnemyManager.bodies` (`setBodySource`, wired in `GameState` beside the
+  security system) and its `onBody` (separate from `onEvent`, which `CtDevices` owns) calls
+  `EnemyManager.cameraReport(ev, "Camera N")`: a body already found, carried, hidden or gone is ignored; else one
+  `camBody` incident per body (`IncidentBoard.reportBody`; a second camera's report merges while it is open) sends the
+  nearest 1 (KO) or 2 (dead) calm guards within `INCIDENT.callR` 25 m by path (never dogs / melee); nobody in range:
+  the report waits `camWait` 30 s for one, then lapses (section caution is S4's). A new incident gets the desk's radio
+  line (`camBodyLine`, e.g. "Camera 2 has a man down, Delivery Yard. Nearest unit, check on him."; `onCameraLine` ->
+  the HUD bark over that camera, `cam:<id>`). The sent guard (`Enemy.checkBody`, `MODE_BODY`) goes straight to
+  investigating at the investigate pace (no 2.4 s look first), held by the task (`AlertInput.hold`, `bodyWalk` 45 s);
+  within `BODY.close` with a clear line the body-found path takes over (`bodyFound`: a KO'd guard is woken, the area
+  searched). The body gone or found first, or the walk timing out: the usual investigation end; a glimpse drops it.
+  `SectorMode.unloadSection` calls `clearBodyReports` (section load / restart). Carry (`game/stealthSystems.ts`): an unarmed rig over the shoulder, the
   player's `reachL/R` hold its knees, weapon stowed, `speedCap` `BODY.carrySpeed`, no sprint / cover / traversal; drop = a
   short `Ragdoll`; hide spots (`MapLayout.hideSpots`) remove it.
 - Lights: `PlayerWeapons.onRay` -> `StealthSystems.shotRay` -> `lightOnRay` + `LightRegistry.destroy`; `MapLayout.switches`
-  toggle a `group`; both call `EnemyManager.lightsOut` (nearest calm enemy investigates, others `notice`). Flashlights:
+  toggle a `group`; both call `EnemyManager.lightsOut(x, z, y, lightId, group)` (every lights-out path goes through it;
+  the EMP passes its point). Coordinated (guard-ai S2, M1 goal 4): a `light` incident whose perceivers are the calm
+  guards who SAW it go (the fixture in the focused cone to 25 m or the peripheral field to 12 m with one line-of-sight
+  ray, or a fixture of the circuit in the room they stand in: `roomAt`); one goes, two when a second witness is within
+  15 m. The bulb's pop and the round's impact merge into it (`shotRay` reports the light first). `Enemy.checkLight`: bark
+  `lightOut`, walk at the investigate pace (a pair's second stops 2.2 m short), look at the fixture 2 s, a 4-point ring
+  2-6 m round it (1.5 s at each; unreachable points skipped), bark `standDown`, back to the route unaware (no
+  cooldown; cooldown only if he has fought); a glimpse (meter >= `investigate`) drops the check. Parked modes: the old
+  rule (nearest calm enemy within 25 m investigates, others within 14 m `notice`). Flashlights:
   `World` adds `FLASHLIGHTS` (4) on dark maps; human guards (`carriesTorch`: not dogs) get them while investigating / searching / hunting unseen where the
   static light is < `TORCH_DARK` 0.35 (kept to `TORCH_KEEP` 0.45; pure `torchRule` in `archetypes.ts`); `EnemyManager.beamReach` (centre + four edge rays, 15 Hz
   per torch) stops the beam at geometry.
 - Alarms: `ai/alarm.ts` (pure) panels from `MapLayout.alarms`; `assignAlarm` (2 Hz) sends the nearest alerted enemy to work
   it `ALARM.holdTime` -> `onAlarm` -> reinforcements (`reinforce`, at the `MapLayout.reinforce` point furthest from the
   player). The player disables a panel with a hold.
+- Alarm by radio (guard-ai S6, design 7, M4; `CommandCall` in `ai/alarm.ts` pure, `EnemyManager.command`; stealth rules
+  and coordinated modes only, as panels). A `contact` call that gets through (`sink.completed`) owes the alarm
+  (`contactThrough`): the officer in the caller's voice range (alive, free), else the caller, else the next guard in the
+  fight holds a `command` call (`RADIO.report` 4 s x reaction, bark `command` "Command, contact. Send backup." at its
+  start); its completion raises the alarm with no panel (`raiseAlarm(e, null)`, `alarmBy` 'radio'). One at a time (the
+  net refuses a second `command`). Cut (down, grabbed, blinded, despawned): after `ALARM_CALL.retry` 3 s the next guard
+  in the fight (in combat, or the search after it; not blind, held, passive, melee or a dog) takes it: out of the
+  target's sight first (`Enemy.targetInView`), then an officer, then the lower key; nobody: the debt lapses (A29). The
+  contact call cut first: nothing is owed (only the voice hearers know, and they do not call). A panel alarm settles it;
+  `resetAlarm` (Sector load / restart) and `clear` drop it. Sector Ops sets the net's section to the live `SectorDef`
+  index (`setSection`). `onAlarm(e, p)` takes `p` null for a radio alarm.
+- Reinforcements (guard-ai S6, M1 "any reinforcements must be aggressive"): `EnemyManager.spawnReinforcement` /
+  `joinReinforcement` -> `Enemy.joinAsReinforcement(route)`: `profile` 'aggressive' (the S5 string; `Enemy.behaviour` =
+  `BEHAVIOUR[profile]` in `squadRoles.ts`), told by command (`radio(0)`: in combat on the shared LKP the next step, bark
+  `joining`, no contact call of his own), runs the entry route first at run speed (dropped on sight or after 30 s), and
+  never calms (`AlertInput.hunting`: an aggressive guard who has fought keeps searching). Profile reads in the combat
+  branch: cover first on contact `behaviour.coverFirst` (standard 0.85 as before, aggressive 0.3), the hold between
+  bounds `advanceHold` (2.5 / 0.8 s), the last stretch out of sight at 0.75 x run speed for `runToContact` (else walk x
+  1.15). Where: Sector Ops `SectorDef.entries` in turn (route, yaw, y), else `reinforce`; other live maps
+  `MapLayout.guardAi.entries` of the alarm's section (`entriesFor`), the one furthest from the player, else the furthest
+  `MapLayout.reinforce` point (grunt, grunt, heavy). Parked modes (Hunter, Mission): their own reinforcements, unchanged.
 - Sound: `world/surfaces.ts` (pure) `surfaceAt` scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice. Shots:
   `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise` (combat); `onRay` hits
   are heard within `IMPACT_NOISE`.
@@ -158,7 +346,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 - Sector Ops guard rules (sector-redesign slice 0): `checkSectorGuards` (`game/sectors.ts`, run by `checkSectors`)
   fails a human guard with no gun (no runners, M1), a heavy (G155), more dogs than the section's `dogs` (default 0, M10)
   and a dog without a `handler` (an armed human guard of the section). Alarm reinforcements spawn as
-  `SECTOR_REINFORCE_KIND` (grunt), `perStage` per stage. `SectorGuard` also carries optional `squad`, `zone`, `role`,
+  `SECTOR_REINFORCE_KIND` (grunt), `perStage` per stage, aggressive at the section's entries (guard-ai S6). `SectorGuard` also carries optional `squad`, `zone`, `role`,
   `reason`, `pair` for guard-ai (not read yet; `docs/sector-redesign/research/ENGINE.md` section 7). Sector Ops still
   joins no squads, so radio checks do not run there.
 - Palm strike (G42): `strikeTargetable` (`game/elbowStrike.ts`) keeps dogs out of the strike's pick and its contact

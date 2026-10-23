@@ -1,7 +1,7 @@
 import { Color4, PhysicsRaycastResult, Vector3, type InstancedMesh, type PhysicsEngine } from '../core/babylon';
 import type { Enemy } from '../ai/enemy';
 import type { InputState } from '../input/inputState';
-import { G } from '../physics/groups';
+import { G, MASK } from '../physics/groups';
 import { hyp2, hyp3 } from '../core/mathx';
 import { GADGET_IDS, GADGETS, type GadgetId } from './gadgets';
 import { buildWheel, SelectionWheel, type WheelGadget, type WheelGun, type WheelPick, type WheelSeg } from './selectionWheel';
@@ -381,7 +381,7 @@ export class GadgetSystem {
     g.vfx.sparks(at, Vector3.UpReadOnly as Vector3, 22, '#6fb6ff');
     const n = g.world.level.lights.disrupt(at.x, at.y, at.z, d.radius, d.duration);
     this.stats.empLights += n;
-    if (n) g.enemyMgr?.lightsOut(at.x, at.z);
+    if (n) g.enemyMgr?.lightsOut(at.x, at.z, at.y);
     // enemy recon drones in range drop
     g.enemyMgr?.empAt(at.x, at.y, at.z, d.radius);
     // enemies close by are dazed for a moment (their kit sparks)
@@ -430,7 +430,7 @@ export class GadgetSystem {
       const f = this.fliers[k]!;
       this.b.copyFrom(f.v).scaleInPlace(dt).addInPlace(f.p);
       f.v.y -= GRAVITY * dt;
-      if (this.cast(f.p, this.b)) {
+      if (this.cast(f.p, this.b, MASK.GADGET_FLIGHT)) {
         this.fliers.splice(k, 1);
         this.b.copyFrom(this.hitN).scaleInPlace(0.05).addInPlace(this.hitP);
         if (f.kind === 'noise') {
@@ -458,7 +458,7 @@ export class GadgetSystem {
       n.next -= dt;
       if (n.next <= 0 && n.t > 0) {
         n.next = NOISE_PERIOD;
-        em?.hear(n.p, GADGETS.noise.radius);
+        em?.hear(n.p, GADGETS.noise.radius, 'distraction');
         g.vfx.sparks(n.p, this.hitN.set(0, 1, 0), 4, GADGETS.noise.color);
         g.events.emit('gadget', { kind: 'noise', phase: 'pulse' });
         this.stats.pulses++;
@@ -547,7 +547,7 @@ export class GadgetSystem {
       // fire: a lure ping
       if (inp.pressed('fire') && c.ping <= 0) {
         c.ping = CAM_PING_CD;
-        g.enemyMgr?.hear(c.p, CAM_PING);
+        g.enemyMgr?.hear(c.p, CAM_PING, 'distraction');
         g.events.emit('gadget', { kind: 'stickyCam', phase: 'pulse' });
         this.stats.pings++;
       }
@@ -666,7 +666,7 @@ export class GadgetSystem {
       vy -= GRAVITY * ARC_DT;
       this.a.set(px, py, pz);
       this.b.set(nx, ny, nz);
-      if (this.cast(this.a, this.b, G.STATIC | G.PROP)) {
+      if (this.cast(this.a, this.b, MASK.GADGET_FLIGHT | G.PROP)) {
         pts[n * 3] = this.hitP.x;
         pts[n * 3 + 1] = this.hitP.y;
         pts[n * 3 + 2] = this.hitP.z;

@@ -1,5 +1,6 @@
 import { CAMERA, SECURITY_LIMITS } from '../config/security';
 import { camRange } from './camera';
+import type { SecurityDesk } from '../game/sectorDesks';
 
 /**
  * Security map data (S0 section 6). Part A of S1 reads cameras only; the desk, panel and the rest join as their
@@ -27,6 +28,14 @@ export interface CameraDevice {
   range?: number;
   /** (sector-fixes S) A course flag that switches the camera off until the bay restarts (a security room's console). */
   offFlag?: string;
+  /** (sector-redesign E8, A95: stealth over shooting) Armoured housing: a round ricochets off it (sparks, the impact
+   *  sound and noise) and never destroys it. The jammer, a desk, an `offFlag` console or slipping the sweep still beat
+   *  it. The host alone destroys cameras, so a co-op client follows (`applyDestroyed`) with no wire change. */
+  bulletproof?: boolean;
+  /** (sector-redesign E8, A96) A thermal camera. Every camera already sees by its own IR and ignores the lamps
+   *  (`CAMERA.irLight`, marlow-jammer M3) and no smoke or darkness-only hide exists for cameras, so this changes no
+   *  detection: it is the data tag plus its own LED colour (`SecurityView`), ready for a later hide a thermal one sees. */
+  thermal?: boolean;
 }
 
 export type SecurityDevice = CameraDevice;
@@ -35,6 +44,9 @@ export interface SecurityData {
   devices: SecurityDevice[];
   /** Floor height (m) of each level id a device names (default 0, the ground floor). */
   levels?: Record<string, number>;
+  /** (sector-redesign E6, EW10) Sector Ops security desks: consoles that loop or switch off their section's cameras
+   *  once the operator is down or away (`game/sectorDesks.ts`; checked by `checkSectors` given the security data). */
+  desks?: SecurityDesk[];
 }
 
 /** Every rule violation in a security file (empty = valid). */

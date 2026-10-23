@@ -93,6 +93,20 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   for world props only. Each smooth shape has a hi and lo tessellation (`LOD_DISTANCE` 16 m, per-instance LOD).
   Joints are spheres sleeved into tapered limbs (limbs hang along -Y from their joint) so no pose opens gaps.
   Patterns/camos are procedural with smoothstep edges. One material, instanced: ~20 draw calls for all characters.
+- Merged guard body (guard-render S1): guards (`ai/enemyRig.ts`), carried and fresh bodies (`ai/body.ts`) pass `merge: true`
+  to `CharacterRig`, which builds a `SmoothBody` (`src/player/smoothBody.ts`, pure part `smoothBodyMerge.ts`) instead of
+  instanced parts: every part's hi and lo geometry is merged once into one rigidly skinned mesh per LOD (one bone per
+  joint node, bind identity; positions in joint space, colour / pattern / `ppos` / `pnrm` baked per vertex; cached per
+  joints + parts + instance values). Each skeleton poses its bones in `onBeforeComputeObservable` (no allocation); one scene
+  `onBeforeRenderObservable` observer marks all bodies' skeletons dirty and keeps ragdolls (re-parented joints) always active. The LOD swaps as one at the body's sphere centre
+  (`partLibrary.trackLod`, `setLodScale` moves it), so parts ~1 m from the centre swap a little earlier or later than
+  the instanced parts did. Bounds are a fixed root-local rest box (`restBox`) with margins 1 m sideways and 0.3 m up /
+  down: a keyed pose reaching further can cull a frame early at the screen edge. `SmoothBodyPlugin` (priority 220,
+  define `SMOOTHBODY`) on the part skin material reads `ppos` for the pattern and surface position. `setHeadVisible` is
+  a no-op here (only the player's camera fades a head). Flag `guardMerge` (`?guardmerge=0`: the old instanced parts, for
+  comparisons). Casters under 0.3 m are skipped by the lamp / moon shadows (`lightRig.ts`, `world.ts`): heads, hands,
+  forearms and feet were, the merged body is not, so they cast shadows now. Measured (24 guards, laptop GPU, Epic):
+  `docs/guard-render/run-s1` against `run-s1-off`.
 - Rig: root -> body (tumble pivot) -> pelvis(`hips`) -> spine -> chest(`torso`) -> neck -> head(`headNode`, head
   centre); chest -> shoulder -> elbow -> wrist; pelvis -> hip -> knee -> ankle; sockets `weaponPivot` (aim
   pocket), `backSocket`, `hipSocket`. Joints use `rotationQuaternion` (root uses Euler `rotation.y`).
