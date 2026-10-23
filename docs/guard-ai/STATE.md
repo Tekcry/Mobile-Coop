@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~16:40: S15 fc249f3f GREEN 9/9 (Test Runner, laptop GPU; log scratch/runs/guardais15-fc249f3f). master 4.75.0 merged up:
+s13 e8cd0a35, s14 0ecd98bb, s15 6b65c3a5 (tsc, eslint, 254 unit). TRAIN-READY #218 -> #219 -> #220 sent (train 27).
+s9 / walk still sit on fc249f3f: merge s15 6b65c3a5 in before their PRs.
+
 ~16:20 SAVE (orchestrator, 5-hour 82%): heads s15 fc249f3f, s9 1ad04058, walk 2082f96b, s21 00d6d3b9, s16 d6b43740
 (+ WIP 46ca998d on feature/guard-ai-s16-wip). Walk checker and S16 merge / check agents still running.
 
@@ -431,10 +435,8 @@ git fetch. Laptop worktrees (all npm ci'd): C:/NightShift/Mobile-Coop-guard-ai (
 Read CLAUDE.md ("Sessions", "Heavy-usage throughput" incl. "Token rules"), ROADMAP "Decided" by grep only (Guard AI,
 unavoidable guards, stealth over shooting), then this file's "Now" (top 3 entries).
 e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep laptop CPU under ~80%. Target train 27.
-1. Stack #218 -> #219 -> #220 (S13-S15): S15 fix fc249f3f (slices/S15.md "Laptop fix"). Waiting on Test Runner's verdict
-   (stealth-ai, sectorops 3 + 6, levels, ct-warehouse, course, ctcourse). Green -> merge origin/master into s13, s14, s15
-   in order (fix conflicts), push, TRAIN-READY to the orchestrator. #218 base still s12: needs `gh pr edit 218 --base
-   master` (auto mode blocked it here). Red -> one Opus fix agent from the failing assert.
+1. Stack #218 -> #219 -> #220 (S13-S15): GREEN, master 4.75.0 merged (s15 6b65c3a5), TRAIN-READY sent for train 27.
+   Watch the train verdict only; #218 base still s12 (orchestrator / Michael: `gh pr edit 218 --base master`).
 2. S9 co-op (protocol 32) = 1ad04058 (s9 <- fixed s15), verdict pending (coop, netmove, stealth-ai, takedown). Green ->
    PR S9 base s15; add A126's holster bit to `al` while protocol 32 is unreleased (after walk lands).
 3. S16 (armour fire gate): agent merging master 4.75.0 + fresh check. Done = slices/S16-CHECK.md on feature/guard-ai-s16;
