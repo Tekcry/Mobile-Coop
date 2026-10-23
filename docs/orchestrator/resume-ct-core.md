@@ -7,7 +7,7 @@ batch; desktop heavy.lock (4191) / heavy2.lock (4192) for single suites. Agent r
 COMMON-SPARE.md (subagents are refused REPORT.md: the lead writes it from the hand-back). Push this file with
 scratch/ctcore/push-resume.sh <abs file> <msg>. Message the orchestrator only at PR open / train-ready / blocked / Michael.
 
-## Open (4.76.0 = train 27 incl. #227). Train 28 origin/train/28 3a2b1e9a = #207 + Guard AI #230. Train 29 = stack #214 -> #223 (36) -> #231 (37) once laptop green. Guard S9 = 38, AF6 = 39.
+## Open (4.76.0 = train 27 incl. #227). Train 28 origin/train/28 3a2b1e9a = #207 + Guard AI #230. Train 29 = #229 S9 + #232 + #228 (master PROTOCOL 38). Stack #214 -> #223 -> #231 = a later train, ONE bump: at that train's master merge set PROTOCOL 39 at the stack tip (#231) + asserts. AF6 = 40 (renumber at its own merge; branch says 39 now).
 | Job | Branch (folder C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
 | #207 batch 22 | feature/ctcore-batch-22 (b22-fix) | f1fac44a | TRAIN-READY sent 16:15 (ladder knees 14.4 cm, e2e-clip GPU PASS, CI green). |
