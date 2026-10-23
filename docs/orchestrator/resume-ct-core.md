@@ -2,6 +2,11 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+SAVE ~04:20 (orchestrator 90%, resets 04:40, it wakes us ~04:47). All worktrees clean + pushed; no agents running.
+#282 coop-rejoin-2 OPEN (stacked on #269, laptop coop + netmove 2/2 PASS on 03a0cf58, train-ready label). NEXT on wake:
+when train 39 has released, merge master into feature/coop-rejoin (keep both; drop unused P2_START_DZ; tests joinWatch /
+coopRejoin / spawnSlots + tsc), push; merge feature/coop-rejoin into feature/coop-rejoin-2, push; CI green -> both in
+train 40. guard-models: one laptop alone bake (all stages + sheet) once Michael copies the MPFB2 zip.
 ~02:25: laptop coop + netmove queued on 03a0cf58 (20261023T144638-player-build-03a0cf58-edce, status laptop-e2e/coop-rejoin-2):
 on pass open the PR (orchestrator: no need to wait for train 39). rig-pose-audit waits for Michael. Idle otherwise.
 ~02:20: coop-rejoin-2 READY on 03a0cf58 (polish 1, 2, 5 + check A1 / A2 / B3; checkers A 94571062 + B b68bacf1 PASS;
