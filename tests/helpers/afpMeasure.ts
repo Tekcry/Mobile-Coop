@@ -8,13 +8,15 @@
  */
 import { centerOfMass, footTrack, segSegDistance, type BodyPoints } from '../../src/anim/audit/metrics';
 import { GEARS } from '../../src/config/movement';
-import type { CharacterRig } from '../../src/player/characterRig';
+import type { CharacterRig, RigPose } from '../../src/player/characterRig';
+import type { Quaternion, TransformNode } from '../../src/core/babylon';
 import { ctRun, pelvisStep, type Mode, type Stick, type Target } from './mocapPlayer';
 import { JOINTS, plantSlide, type J, type Rec } from './mocapMeasure';
 import { aimRun, CROUCH_PLANS, type AimOpts, type AimTarget } from './mocapStrafe';
 
 const DT = 1 / 60;
 const DEG = 180 / Math.PI;
+const wrapPi = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
 const mean = (v: number[]): number => (v.length ? v.reduce((a, b) => a + b, 0) / v.length : NaN);
 const p2p = (v: number[]): number => (v.length ? Math.max(...v) - Math.min(...v) : 0);
 const minOf = (v: number[]): number => (v.length ? Math.min(...v) : NaN);
@@ -31,13 +33,16 @@ const pct = (v: number[], q: number): number => {
 export interface Probe {
   /** keepElbowOut moved the shoulder this frame: bit 1 left, bit 2 right. */
   elbow: number[];
-  /** The held gun's segment (x y z of the back end, x y z of the muzzle end; world), 6 per frame; empty with no gun. */
+  /** The held gun's segment (x y z of the back end, x y z of the muzzle end; world), 6 per frame; empty with no gun (NaN on
+   *  a frame the gun is holstered, a probe made with a gun extent). */
   gun: number[];
   /** The graph's kneel weight and the knee down (1 right, -1 left) per frame. */
   kneelW: number[];
   kneelSide: number[];
   /** The stick's x (the run's target) per frame. */
   stickX: number[];
+  /** (afp-next AF0b) The head bone's yaw against the root's (rad, wrapped to +-pi) per frame. */
+  headYaw: number[];
   onStep: (rig: CharacterRig, k: number) => void;
 }
 
@@ -49,7 +54,7 @@ export function makeProbe(recFrom: number, gun: readonly [number, number] | null
   let hooked = false;
   let bits = 0;
   const P: Probe = {
-    elbow: [], gun: [], kneelW: [], kneelSide: [], stickX: [],
+    elbow: [], gun: [], kneelW: [], kneelSide: [], stickX: [], headYaw: [],
     onStep(rig, k) {
       const r = rig as unknown as Record<string, unknown> & { setWorldRot: (n: unknown, ...a: unknown[]) => unknown; keepElbowOut: (s: number) => void };
       if (!hooked) {
@@ -78,11 +83,16 @@ export function makeProbe(recFrom: number, gun: readonly [number, number] | null
       P.kneelSide.push(g.kneelSide);
       const st = stick ? (stick as (t: number) => { x?: number; yr?: number })(t) : null;
       P.stickX.push(st && typeof (st as { x?: number }).x === 'number' ? (st as { x: number }).x : 0);
+      const hm = rig.headNode.computeWorldMatrix(true).m;
+      P.headYaw.push(wrapPi(Math.atan2(hm[8]!, hm[10]!) - rig.root.rotation.y));
       if (gun && rig.heldWeapon) {
         const m = rig.heldWeapon.computeWorldMatrix(true).m;
         const l = Math.hypot(m[8]!, m[9]!, m[10]!) || 1;
         const fx = m[8]! / l, fy = m[9]! / l, fz = m[10]! / l;
         P.gun.push(m[12]! - fx * gun[0], m[13]! - fy * gun[0], m[14]! - fz * gun[0], m[12]! + fx * gun[1], m[13]! + fy * gun[1], m[14]! + fz * gun[1]);
+      } else if (gun) {
+        // (afp-next AF0b) holstered for now on a run that draws / holsters: a NaN segment keeps P.gun aligned with the Rec
+        P.gun.push(NaN, NaN, NaN, NaN, NaN, NaN);
       }
     },
   };
@@ -337,6 +347,7 @@ export function gunClearance(R: Rec, P: Probe, pistol: boolean): { leg: number; 
   for (let i = 0; i < n; i++) {
     const g0 = [P.gun[i * 6]!, P.gun[i * 6 + 1]!, P.gun[i * 6 + 2]!];
     const g1 = [P.gun[i * 6 + 3]!, P.gun[i * 6 + 4]!, P.gun[i * 6 + 5]!];
+    if (!Number.isFinite(g0[0]!)) continue;
     const pt = (j: J): number[] => [R.pos[j][i * 3]!, R.pos[j][i * 3 + 1]!, R.pos[j][i * 3 + 2]!];
     for (const s of ['L', 'R'] as const) {
       leg = Math.min(leg, segSegDistance(g0, g1, pt(`hip${s}`), pt(`knee${s}`)) - rg - CAPSULE.thigh);
@@ -344,7 +355,7 @@ export function gunClearance(R: Rec, P: Probe, pistol: boolean): { leg: number; 
     }
     trunk = Math.min(trunk, segSegDistance(g0, g1, pt('hips'), pt('neck')) - rg - CAPSULE.trunk);
   }
-  return { leg: n ? leg : NaN, trunk: n ? trunk : NaN, frames: n };
+  return { leg: Number.isFinite(leg) ? leg : NaN, trunk: Number.isFinite(trunk) ? trunk : NaN, frames: n };
 }
 
 /** The grip (trigger) hand, the right wrist, in the root frame against the hips: lateral (x) offset mean / p2p (m) and its
@@ -384,6 +395,43 @@ export function kneelSummary(P: Probe): { episodes: number; sides: number[]; sid
   return { episodes: sides.length, sides, sideChanges: changes, kneelOnFlip: on };
 }
 
+// ------------------------------------------------------------------ bob, head, feet pitch, cadence (afp-next AF0b)
+
+/** The hips joint's world height peak-to-peak over the record (m): the vertical bob. */
+export function pelvisVertical(R: Rec): number {
+  const y: number[] = [];
+  for (let i = 0; i < R.n; i++) y.push(R.pos.hips[i * 3 + 1]!);
+  return p2p(y);
+}
+
+/** The head bone's yaw against the root (needs the probe): peak-to-peak (deg) and the fastest frame-to-frame turn (deg / s). */
+export function headYawStats(P: Probe): { p2p: number; rateMax: number } {
+  let rate = 0;
+  for (let i = 1; i < P.headYaw.length; i++) rate = Math.max(rate, Math.abs(wrapPi(P.headYaw[i]! - P.headYaw[i - 1]!)) / DT);
+  return { p2p: p2p(P.headYaw) * DEG, rateMax: P.headYaw.length > 1 ? rate * DEG : NaN };
+}
+
+/** Each foot's pitch (heel -> ball off the horizontal, the rendered contact points): the largest change in one frame (deg),
+ *  either foot. */
+export function footPitchStep(R: Rec): number {
+  let m = 0;
+  for (const [h, b] of [[R.heelL, R.ballL], [R.heelR, R.ballR]] as const) {
+    let prev = NaN;
+    for (let i = 0; i < R.n; i++) {
+      const k = i * 3;
+      const a = Math.atan2(b[k + 1]! - h[k + 1]!, Math.hypot(b[k]! - h[k]!, b[k + 2]! - h[k + 2]!)) * DEG;
+      if (Number.isFinite(prev)) m = Math.max(m, Math.abs(a - prev));
+      prev = a;
+    }
+  }
+  return R.n > 1 ? m : NaN;
+}
+
+/** The planner's landings per second, both feet (steps / s). */
+export function cadence(R: Rec): number {
+  return R.n ? (R.landL.length / 2 + R.landR.length / 2) / (R.n * DT) : NaN;
+}
+
 // ------------------------------------------------------------------ runs
 
 export interface Run {
@@ -393,14 +441,54 @@ export interface Run {
   pistol: boolean;
 }
 
+/** (afp-next AF0b) The gun in hand on a CT-driven run: a rifle, or a pistol (weight 0.7 and the cupped support, as
+ *  weaponModel.ts sets it). */
+export type Drawn = 'rifle' | 'pistol';
+
+/** (afp-next AF0b) The `onStep` of a drawn CT run: the probe, then the held gun follows the target's `armed` for the next
+ *  step (a bare node under `weaponPivot`, as mocapStrafe.ts holds it; `heldWeapon` null when holstered). The pistol's
+ *  weight is set on every pose (wrapped under ctRun's own patch, which is installed after this hook's first call). */
+function gunFollower(drawn: Drawn, target: Target, P: Probe, B: { TransformNode: typeof TransformNode; Quaternion: typeof Quaternion }): (rig: CharacterRig, k: number) => void {
+  let gun: TransformNode | null = null;
+  let first = true;
+  return (rig, k) => {
+    if (first) {
+      first = false;
+      if (drawn === 'pistol') {
+        rig.supportStyle = 'cup';
+        const animate = rig.animate.bind(rig);
+        rig.animate = (dt: number, p: RigPose) => {
+          p.weight = 0.7;
+          animate(dt, p);
+        };
+      }
+    }
+    P.onStep(rig, k);
+    const want = !!target((k + 1) * DT).armed;
+    if (want && !gun) {
+      gun = new B.TransformNode('gun', rig.weaponPivot.getScene());
+      gun.parent = rig.weaponPivot;
+      gun.rotationQuaternion = B.Quaternion.Identity();
+      rig.heldWeapon = gun;
+    } else if (!want && gun) {
+      rig.heldWeapon = null;
+      gun.dispose();
+      gun = null;
+    }
+  };
+}
+
 /** A CT-driven free gait (ctRun) at pace `v`, yaw rate `yr` (rad/s, + right), crouched or not: `warm` s to settle, `sec` s
- *  recorded. `mode` 'on' (mocap, the default) / 'off'. The probe's `stickX` is 0. */
-export async function runGait(v: number, yr: number, opts: { crouch?: boolean; warm?: number; sec?: number; mode?: Mode; target?: Target } = {}): Promise<Run> {
+ *  recorded. `mode` 'on' (mocap, the default) / 'off'. The probe's `stickX` is 0. (afp-next AF0b) `drawn`: a gun in hand,
+ *  armed throughout with the default target; a custom `target` draws / holsters through its `armed` per time. */
+export async function runGait(v: number, yr: number, opts: { crouch?: boolean; warm?: number; sec?: number; mode?: Mode; target?: Target; drawn?: Drawn } = {}): Promise<Run> {
   const warm = opts.warm ?? 2, sec = opts.sec ?? 3;
-  const P = makeProbe(warm);
-  const target: Target = opts.target ?? ((t): Stick => ({ v, yr: t >= 0.5 ? yr : 0, crouch: opts.crouch ? 1 : 0 }));
-  const R = await ctRun(target, Math.round((warm + sec) * 60), warm, opts.mode ?? 'on', P.onStep);
-  return { R, P, pistol: false };
+  const drawn = opts.drawn;
+  const P = makeProbe(warm, drawn ? GUN_EXTENT[drawn] : null);
+  const target: Target = opts.target ?? (drawn ? (t): Stick => ({ v, yr: t >= 0.5 ? yr : 0, crouch: opts.crouch ? 1 : 0, armed: true }) : (t): Stick => ({ v, yr: t >= 0.5 ? yr : 0, crouch: opts.crouch ? 1 : 0 }));
+  const onStep = drawn ? gunFollower(drawn, target, P, await import('../../src/core/babylon')) : P.onStep;
+  const R = await ctRun(target, Math.round((warm + sec) * 60), warm, opts.mode ?? 'on', onStep);
+  return { R, P, pistol: drawn === 'pistol' };
 }
 
 /** An aimed / crouched / wall run on aimRun (`AimOpts.weight` 0.7 = pistol; `wall`: the drawn crouched back-to-wall slide). */
@@ -470,6 +558,67 @@ export function wallScenarios(): Scenario[] {
   return out;
 }
 
+// ------------------------------------------------------------------ the afp-next sets (AF0b: drawn low ready, aimed glide, idle)
+
+/** (afp-next AF0b) A scenario of the next pass's sets; `gun` names what is in hand for the table. All mocap ON. */
+export interface NextScenario {
+  name: string;
+  kind: 'ready' | 'aimed' | 'idle';
+  sg: number;
+  gun: string;
+  run: () => Promise<Run>;
+}
+
+const PACES = [['walk', 1.4], ['jog', 3.0], ['run', 4.0]] as const;
+
+/** The drawn low ready on the CT-driven run, rifle and pistol: walk 1.4 / jog 3.0 / run 4.0 straight and turning 1.5 / 2.5
+ *  rad/s both ways; a stop from each pace (3 s moving, the stick to 0 at 3 s, 2.5 s recorded from it); draw and holster
+ *  mid-jog (rifle; at 3 s, 2 s settle + 3 s recorded). */
+export function readyScenarios(): NextScenario[] {
+  const out: NextScenario[] = [];
+  for (const w of ['rifle', 'pistol'] as const) {
+    for (const [g, v] of PACES) {
+      out.push({ name: `ready-${w}-${g}-${v}-straight`, kind: 'ready', sg: 1, gun: w, run: () => runGait(v, 0, { drawn: w }) });
+      for (const yr of [1.5, 2.5]) {
+        for (const sg of [1, -1]) out.push({ name: `ready-${w}-${g}-${v}-turn${yr}${sg > 0 ? 'R' : 'L'}`, kind: 'ready', sg, gun: w, run: () => runGait(v, sg * yr, { drawn: w }) });
+      }
+    }
+    for (const [g, v] of PACES) {
+      out.push({ name: `ready-${w}-stop-${g}-${v}`, kind: 'ready', sg: 1, gun: w, run: () => runGait(v, 0, { drawn: w, warm: 3, sec: 2.5, target: (t) => ({ v: t < 3 ? v : 0, yr: 0, armed: true }) }) });
+    }
+  }
+  out.push({ name: 'ready-rifle-draw-midjog-3', kind: 'ready', sg: 1, gun: 'rifle drawn at 3 s', run: () => runGait(3, 0, { drawn: 'rifle', target: (t) => ({ v: 3, yr: 0, armed: t >= 3 }) }) });
+  out.push({ name: 'ready-rifle-holster-midjog-3', kind: 'ready', sg: 1, gun: 'rifle holstered at 3 s', run: () => runGait(3, 0, { drawn: 'rifle', target: (t) => ({ v: 3, yr: 0, armed: t < 3 }) }) });
+  return out;
+}
+
+/** The standing aimed glide (aimRun, rifle, aim 1, the body held on the aim): local z +1.4 / -1.05 / +0.75 / -0.56 steady
+ *  (2 s settle + 3 s); the raise while walking 1.4 (aim 0 -> 1 at 1.5 s, recorded from 1 s); forward 1.4 <-> back 1.05 every
+ *  1.5 s from 1 s. */
+export function aimedScenarios(): NextScenario[] {
+  const out: NextScenario[] = [];
+  for (const z of [1.4, -1.05, 0.75, -0.56]) {
+    const plan: [AimTarget, number, number] = [() => ({ x: 0, z }), 300, 2];
+    out.push({ name: `aimed-rifle-z${z > 0 ? '+' : ''}${z}`, kind: 'aimed', sg: 1, gun: 'rifle', run: () => runAimed(plan) });
+  }
+  out.push({ name: 'aimed-rifle-raise-walk1.4', kind: 'aimed', sg: 1, gun: 'rifle', run: () => runAimed([(t) => ({ x: 0, z: 1.4, aim: t < 1.5 ? 0 : 1 }), 300, 1]) });
+  out.push({ name: 'aimed-rifle-fwd-back-reverse', kind: 'aimed', sg: 1, gun: 'rifle', run: () => runAimed([(t) => ({ x: 0, z: t < 1 || Math.floor((t - 1) / 1.5) % 2 === 0 ? 1.4 : -1.05 }), 480, 1]) });
+  return out;
+}
+
+/** The standing idle: holstered and drawn (rifle) still, 2 s settle + 12 s; stop -> idle from walk 1.4 / jog 3.0 (3 s moving,
+ *  4 s recorded from the stop); idle -> start to walk 1.4 / jog 3.0 (the stick at 3 s, recorded from 2.5 s for 3 s). Holstered
+ *  except the drawn row. */
+export function idleScenarios(): NextScenario[] {
+  const out: NextScenario[] = [
+    { name: 'idle-holstered-12s', kind: 'idle', sg: 1, gun: '-', run: () => runGait(0, 0, { warm: 2, sec: 12 }) },
+    { name: 'idle-drawn-rifle-12s', kind: 'idle', sg: 1, gun: 'rifle', run: () => runGait(0, 0, { warm: 2, sec: 12, drawn: 'rifle' }) },
+  ];
+  for (const [g, v] of PACES.slice(0, 2)) out.push({ name: `idle-stop-from-${g}-${v}`, kind: 'idle', sg: 1, gun: '-', run: () => runGait(v, 0, { warm: 3, sec: 4, target: (t) => ({ v: t < 3 ? v : 0, yr: 0 }) }) });
+  for (const [g, v] of PACES.slice(0, 2)) out.push({ name: `idle-start-to-${g}-${v}`, kind: 'idle', sg: 1, gun: '-', run: () => runGait(v, 0, { warm: 2.5, sec: 3, target: (t) => ({ v: t < 3 ? 0 : v, yr: 0 }) }) });
+  return out;
+}
+
 /** One run's numbers, flat (cm / deg / s as the field names say). */
 export interface Measures {
   speed: number;
@@ -510,6 +659,13 @@ export interface Measures {
   kneelOnFlip_frames: number;
   /** Mean planted-foot stride (same-foot landings, m) and the step (half). */
   stepLen_cm: number;
+  /** (afp-next AF0b) The hips' vertical bob p2p; the head's yaw vs the root (p2p, fastest turn); the feet's worst pitch change
+   *  in a frame; landings per second. */
+  pelVertP2P_cm: number;
+  headYawP2P_deg: number;
+  headYawRateMax_dps: number;
+  footPitchStepMax_deg: number;
+  cadence_sps: number;
 }
 
 /** Every measure of one run (NaN where the run has nothing to read: no gun, no kneel, no plants). */
@@ -518,6 +674,7 @@ export async function measureAll(run: Run, sg = 1): Promise<Measures> {
   const t = plantedTrack(R), g = passingGap(R), d = plantDurations(R), f = ownershipFlips(R), w = wristJerk(R), e = elbowOutRate(P);
   const tr = trunkPitch(R), b = bankRoll(R, sg), c = comOffset(R), pl = pelvisLateral(R), gr = gripLateral(R), k = kneelSummary(P);
   const gc = P.gun.length ? gunClearance(R, P, run.pistol) : { leg: NaN, trunk: NaN };
+  const hy = headYawStats(P);
   const strides: number[] = [];
   for (const L of [R.landL, R.landR]) for (let j = 4; j + 1 < L.length; j += 2) strides.push(Math.hypot(L[j]! - L[j - 2]!, L[j + 1]! - L[j - 1]!));
   const cm = 100;
@@ -536,5 +693,7 @@ export async function measureAll(run: Run, sg = 1): Promise<Measures> {
     gripMean_cm: gr.mean * cm, gripP2P_cm: gr.p2p * cm, gripStepMax_cm: gr.stepMax, gripCycleSpread_cm: gr.cycleSpread * cm,
     kneelEpisodes: k.episodes, kneelSideChanges: k.sideChanges, kneelOnFlip_frames: k.kneelOnFlip,
     stepLen_cm: (mean(strides) / 2) * cm,
+    pelVertP2P_cm: pelvisVertical(R) * cm, headYawP2P_deg: hy.p2p, headYawRateMax_dps: hy.rateMax,
+    footPitchStepMax_deg: footPitchStep(R), cadence_sps: cadence(R),
   };
 }
