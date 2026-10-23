@@ -994,7 +994,7 @@ export class PlayerWeapons {
       this.resolveHit(h, dir.clone(), h.distance, s);
       this.onRay?.(origin, h.point);
       // penetration: through thin world geometry, on with half the damage
-      if (s.pen > 0 && h.hit && !h.target && !h.prop) this.penetrate(h.point, dir, h.distance, s);
+      if (s.pen > 0 && h.hit && !h.target && !h.prop && !h.armoured) this.penetrate(h.point, dir, h.distance, s);
       if (!firstEnd || p % 3 === 0) {
         firstEnd = h.point;
         this.vfx.tracer(this.muzzle, h.point, def.tracer, def.pellets > 1 ? 0.012 : 0.022);

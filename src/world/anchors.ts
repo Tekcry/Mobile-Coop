@@ -118,6 +118,9 @@ export interface Door extends AnchorBase {
   swing: 1 | -1;
   locked: boolean;
   breachable: boolean;
+  /** (E10, A97) An armoured (bulletproof) leaf: its body adds `G.GLASS_ARMOURED` (`doorMembership`), so a round stops on
+   *  it and never penetrates (a plain 0.1 leaf is thinner than a rifle's penetration). Opening, locks and bash unchanged. */
+  armoured?: boolean;
   /** (sector-redesign cap fix) Sector Ops: the section whose map file built it (its door item is mirrored to co-op
    *  clients only while that section is live, `Interactables.scope`); none: always. */
   section?: number;

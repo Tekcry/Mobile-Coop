@@ -25,7 +25,7 @@ import {
   Vector3,
   type Scene,
 } from '../core/babylon';
-import { G } from '../physics/groups';
+import { G, glassMembership } from '../physics/groups';
 import { LevelMaterialPlugin } from './levelMaterialPlugin';
 import { markLampLevel } from './bakedLamps';
 import { buildCoverSegments, coverPointsFromSegments, coverStandoff, type CoverSegment } from '../cover/coverData';
@@ -63,12 +63,22 @@ export interface BoxPiece {
    *  voxels, never cover or a ledge, and its collision is its own body (`G.GLASS`: bodies stop, bullets pass). Place
    *  panes with `LevelBuilder.glass`. */
   glass?: 'clear' | 'frosted';
+  /** (E10, A97) An armoured (bulletproof) glass pane: its body adds `G.GLASS_ARMOURED`, so player and enemy rounds stop
+   *  on it (`MASK.PLAYER_SHOT` / `ENEMY_SHOT`) and never penetrate; light, sight (clear), hearing and bodies as plain glass. */
+  armoured?: true;
 }
 
 /** (E2) A glass pane's depth (m): a fence's nav footprint (`navBuild`: 0.1), so a pane replaces a fence panel exactly. */
 export const GLASS_THICK = 0.1;
 /** (E2) The default glass colour (the minimap, the see-through mesh's tint). */
 export const GLASS_COLOR = '#9fb8c4';
+/** (E10) The pane bodies `buildGlass` makes: one per kind and armour. */
+const GLASS_GROUPS = [
+  { id: 'clear', kind: 'clear', armoured: false },
+  { id: 'frosted', kind: 'frosted', armoured: false },
+  { id: 'clear-armoured', kind: 'clear', armoured: true },
+  { id: 'frosted-armoured', kind: 'frosted', armoured: true },
+] as const;
 
 export interface CylPiece {
   c: [number, number, number];
@@ -291,8 +301,11 @@ export class LevelBuilder {
     return this.anchors.add<WindowAnchor>({ kind: 'window', c: { x: cx, y: cy, z: cz }, w, h, yaw, sillHeight: opts.sill ?? cy - h / 2, breakable: opts.breakable ?? true, open: opts.open ?? false });
   }
 
-  door(hx: number, hy: number, hz: number, width: number, yaw: number, opts: { height?: number; swing?: 1 | -1; locked?: boolean; breachable?: boolean } = {}): Door {
-    return this.anchors.add<Door>({ kind: 'door', hinge: { x: hx, y: hy, z: hz }, width, height: opts.height ?? 2.1, yaw, swing: opts.swing ?? 1, locked: opts.locked ?? false, breachable: opts.breachable ?? true });
+  door(hx: number, hy: number, hz: number, width: number, yaw: number, opts: { height?: number; swing?: 1 | -1; locked?: boolean; breachable?: boolean; armoured?: boolean } = {}): Door {
+    const d: Omit<Door, 'id'> = { kind: 'door', hinge: { x: hx, y: hy, z: hz }, width, height: opts.height ?? 2.1, yaw, swing: opts.swing ?? 1, locked: opts.locked ?? false, breachable: opts.breachable ?? true };
+    // (E10) an armoured leaf: rounds stop on it, never through it (`doorMembership`); it opens, locks and bashes as any door
+    if (opts.armoured) d.armoured = true;
+    return this.anchors.add<Door>(d);
   }
 
   /**
@@ -327,11 +340,12 @@ export class LevelBuilder {
 
   /**
    * (E2, EW6) A glass pane from (ax, az) to (bx, bz) on floor `y`, `height` tall (DEC G45): `clear` passes light and
-   * guard sight, `frosted` light only; bullets pass both (armoured glass is E10's), hearing treats both as a wall, bodies
-   * stop. One collision piece `GLASS_THICK` deep (the same nav footprint as a fence panel on the same line), invisible
-   * as a box (`visible: false`: no solid mesh, voxels, cover, ledges or dressing), drawn as a see-through pane.
+   * guard sight, `frosted` light only; bullets pass both unless `armoured` (E10: rounds stop, no penetration), hearing
+   * treats both as a wall, bodies stop. One collision piece `GLASS_THICK` deep (the same nav footprint as a fence panel
+   * on the same line), invisible as a box (`visible: false`: no solid mesh, voxels, cover, ledges or dressing), drawn as
+   * a see-through pane.
    */
-  glass(ax: number, az: number, bx: number, bz: number, height: number, y = 0, kind: 'clear' | 'frosted' = 'clear', color = GLASS_COLOR): BoxPiece {
+  glass(ax: number, az: number, bx: number, bz: number, height: number, y = 0, kind: 'clear' | 'frosted' = 'clear', color = GLASS_COLOR, opts: { armoured?: boolean } = {}): BoxPiece {
     const len = hyp2(bx - ax, bz - az);
     const p: BoxPiece = {
       c: [(ax + bx) / 2, y + height / 2, (az + bz) / 2],
@@ -344,6 +358,7 @@ export class LevelBuilder {
       noLedge: true,
       glass: kind,
     };
+    if (opts.armoured) p.armoured = true;
     this.boxes.push(p);
     return p;
   }
@@ -356,11 +371,12 @@ export class LevelBuilder {
     const out: { dispose(): void }[] = [];
     const q = new Quaternion();
     const mtx = new Matrix();
-    for (const kind of ['clear', 'frosted'] as const) {
-      const list = panes.filter((b) => b.glass === kind);
+    for (const group of GLASS_GROUPS) {
+      const kind = group.kind;
+      const list = panes.filter((b) => b.glass === kind && !!b.armoured === group.armoured);
       if (!list.length) continue;
-      const member = kind === 'frosted' ? G.GLASS | G.GLASS_FROSTED : G.GLASS;
-      const collide = 0xffffffff & ~(G.STATIC | G.GLASS | G.GLASS_FROSTED);
+      const member = glassMembership(kind, group.armoured);
+      const collide = 0xffffffff & ~(G.STATIC | G.GLASS | G.GLASS_FROSTED | G.GLASS_ARMOURED);
       const gc = new PhysicsShapeContainer(scene);
       const buf = new Float32Array(list.length * 16);
       list.forEach((b, i) => {
@@ -376,16 +392,17 @@ export class LevelBuilder {
       });
       gc.filterMembershipMask = member;
       gc.filterCollideMask = collide;
-      const node = new TransformNode(`glass-${kind}-${name}`, scene);
+      const node = new TransformNode(`glass-${group.id}-${name}`, scene);
       node.parent = root;
       const body = new PhysicsBody(node, PhysicsMotionType.STATIC, false, scene);
       body.shape = gc;
-      const mesh = CreateBox(`glass-${kind}`, { size: 1 }, scene);
-      const mat = new PBRMaterial(`glassMat-${kind}-${name}`, scene);
+      const mesh = CreateBox(`glass-${group.id}`, { size: 1 }, scene);
+      const mat = new PBRMaterial(`glassMat-${group.id}-${name}`, scene);
       mat.albedoColor = Color3.FromHexString(kind === 'frosted' ? '#dfe7ea' : list[0]!.color).toLinearSpace();
       mat.metallic = 0;
       mat.roughness = kind === 'frosted' ? 0.6 : 0.08;
-      mat.alpha = kind === 'frosted' ? 0.6 : 0.16;
+      // (E10) armoured glass reads a little heavier (render only; gameplay reads the collision bits)
+      mat.alpha = kind === 'frosted' ? 0.6 : group.armoured ? 0.24 : 0.16;
       mat.usePhysicalLightFalloff = false;
       mat.backFaceCulling = false;
       mat.freeze();
