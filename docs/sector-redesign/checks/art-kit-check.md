@@ -78,3 +78,24 @@ only, no dresser API change).
 - **P9 - dressing cost per load.**
   - What: with all five sections' tags, `dressCampus` cost about 0.84 s in node (builder trial), paid on every campus load by host and client.
   - Fix: worth a look in the perf pass.
+
+## P1 / P4 gate (Opus builder, 2026-10-23)
+
+Test only, `tests/campusArtGameplay.test.ts`; no kit, rule or dresser API change.
+- **P1, gate item (11), per section.** `generateLedges` runs on the greybox and the dressed box lists (pure, in
+  `beforeAll`). A greybox ledge (piece <= greybox count) is protected when a sample (0.25 m step) lies within K1's
+  radius (`KEEP.route`) of one of the section's route legs with its top in the leg's storey band + 1.0 m, or within
+  `KEEP.lipReach` of one of the section's co-op lips with its top within 2.6 m of the grip. Each protected ledge needs a
+  dressed ledge on the same piece, top and normal with both ends within 2 cm. A failure names the ledge, its piece, what
+  is left of it and the nearest art box. It reads whatever each section's dress file places.
+- **Self-test (per section, test boxes only, nothing in the data).** For the first protected ledge, a 0.6 m crate on the
+  lip and a 0.3 m sign in the hang space under it must each fail the gate, naming the piece and the test box. Both pass.
+  S5's greybox has no ledge by a route leg or a lip (3 ledges in its bounds, none near), so its self-test is a no-op.
+  The liveness item checks that S1-S4 have protected ledges (12 / 9 / 3 / 2 now).
+- **P4.** The gate's section contexts get the greybox split gaps
+  (`findSplitGaps(buildCoverSegments(greybox))`), so its `checkDressing` (item 8-10) checks K11 split gaps as the dresser
+  path does.
+- **Base dressing.** The stub dressing passes the new gate (no art boxes, every ledge kept), so no kit rule changed.
+- **Runs.** `npx tsc --noEmit` clean. `npx vitest run tests/campusArtGameplay.test.ts tests/campusDressRules.test.ts
+  tests/campusArtKit.test.ts`: 3 files, 91 tests passed (53 + 25 + 13; the gameplay file went from 42 to 53). eslint on the
+  test file clean.
