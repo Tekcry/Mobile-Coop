@@ -68,6 +68,14 @@ void main(void) {
   gl_FragColor = vec4(texelFetch(tsSrc, ivec2(gl_FragCoord.xy - tsOrg), 0).r, 0.0, 0.0, 1.0);
 }`;
 
+/** (lr16pol E, lr16t check A 6) The registry holds a guard torch slot (`addTorchSlots`: dark maps only; registry lights
+ *  are fixed at load). Without one nothing can be drawn into an atlas or take a torch's shadow map. */
+export function registryHasTorch(reg: LightRegistry): boolean {
+  const ls = reg.lights;
+  for (let i = 0; i < ls.length; i++) if (ls[i]!.kind === 'flashlight') return true;
+  return false;
+}
+
 export class TorchShadows implements TorchShadowLink {
   readonly mats = new Float32Array(TORCH_SHADOW.slots * 16);
   readonly params = new Float32Array(TORCH_SHADOW.slots * 4);
@@ -85,6 +93,9 @@ export class TorchShadows implements TorchShadowLink {
   private readonly doorDist = new Float32Array(TORCH_SHADOW.doors);
   private readonly sphere = new Float32Array(4);
   private logged = false;
+  /** (lr16pol E, lr16t check A 6) A torch slot in the registry: else `configure` builds nothing (no generators,
+   *  targets or atlas), `on` stays false, so `LAMP_TSHADOW` is off and the lit shaders lose the atlas sampler. */
+  private readonly hasTorch: boolean;
   /** Shadow maps copied into the atlas so far (tests, the debug line). */
   copies = 0;
 
@@ -100,6 +111,8 @@ export class TorchShadows implements TorchShadowLink {
     private isChar: (m: AbstractMesh) => boolean,
   ) {
     this.depthSign = scene.getEngine().useReverseDepthBuffer ? -1 : 1;
+    // (`World.create` runs `addTorchSlots` before this: a bright map's registry has no flashlight)
+    this.hasTorch = registryHasTorch(reg);
   }
 
   get on(): boolean {
@@ -115,6 +128,8 @@ export class TorchShadows implements TorchShadowLink {
 
   /** The tier's tile and filter taps (`torchShadowSpec`; tile 0: off); rebuilds only on a change. */
   configure(tile: number, taps: number): void {
+    // (lr16pol E: no torch slot on this map - nothing to build, nothing to log)
+    if (!this.hasTorch) tile = 0;
     const ok = tile > 0 && this.supported();
     if (tile > 0 && !ok && !this.logged) {
       this.logged = true;

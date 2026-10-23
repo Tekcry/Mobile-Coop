@@ -6,6 +6,7 @@ import { fittingMesh, type MeshArrays } from './fixtureModels';
 import { mountLinks } from './lampMount';
 import { HANGER_STRIDE } from './lampSway';
 import { gameLightFalloff, TORCH_DRAW_SLOTS, torchShadowPass, writeTorchDraw } from './shadowAccuracy';
+import { registryHasTorch } from './torchShadows';
 
 /** (warehouse-lamps) One fitting model's draws: the body (shared dark material) and the glowing face, and the lights they show. */
 interface FittingDraw {
@@ -477,7 +478,9 @@ export class LightRig {
     // (baked lamps: the pools only hold the moving lights - flashlights - and at most two of them cast shadows)
     if (this.baked) cfg = { ...cfg, lights: Math.min(cfg.lights, BAKED_POOL), shadow: { ...cfg.shadow, casters: Math.min(cfg.shadow.casters, BAKED_SHADOWS) } };
     // (LR16t) the torch shadow atlas shadows every torch: no Babylon shadow map (2 samplers less in every lit shader)
-    if (this.tsOn) cfg = { ...cfg, shadow: { ...cfg.shadow, casters: 0 } };
+    // (lr16pol E, lr16t check A 6) baked lamps on a map with no torch slot (a bright map: every light is baked, nothing
+    // moves): no shadow map either - the torch atlas is off there (`TorchShadows`), and no spot sampler takes its place
+    if (this.tsOn || (this.baked && !registryHasTorch(this.reg))) cfg = { ...cfg, shadow: { ...cfg.shadow, casters: 0 } };
     // (every shadowed spot is a texture unit in every lit shader, used or idle: the largest one sets the pool)
     if (cfg.micro) cfg = { ...cfg, shadow: { ...cfg.shadow, casters: Math.min(cfg.shadow.casters, MICRO_SHADOWS) } };
     const same = !force && cfg.minimal === this.cfg.minimal && cfg.lights === this.cfg.lights && cfg.shadow.casters === this.cfg.shadow.casters && cfg.shadow.size === this.cfg.shadow.size && cfg.shadow.soft === this.cfg.shadow.soft;
