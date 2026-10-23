@@ -54,7 +54,7 @@ Item 6 note: the light well now has no guard path at all (its only other way in 
 on the runtime nav it drops out of the flood. The player still vaults the sash (sill 0.5 vs player step 0.42).
 
 ### Tests
-- New `tests/polishBatch.test.ts` (10 cases): the masks (blast / gadget / host LOS / exposure), `eventQueueKeeps`, the
+- New `tests/polishBatch.test.ts` (9 cases): the masks (blast / gadget / host LOS / exposure), `eventQueueKeeps`, the
   peek floor gap, `segmentHousingT` and nearest-housing `shotRay` both orders, and the S5 well on the runtime nav
   (verified to fail on the old 0.45 sill and pass on 0.5).
 - `campusS4.test.ts`: tank 2.0 noLedge case. `campusS5.test.ts` CR7: the sash closure on the grid removed (the well
