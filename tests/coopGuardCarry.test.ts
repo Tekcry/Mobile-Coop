@@ -22,7 +22,7 @@ import { CARRY_DRAWING, CARRY_DRAWN, CARRY_HOLSTERED, CARRY_HOLSTERING, GUARD_CA
 import { carryPhaseOf, PuppetCarry, wireCarry } from '../src/net/puppetCarry';
 import type { RigPose } from '../src/player/characterRig';
 
-// (guard-ai A126, protocol 37) The S21 weapon carry on the wire: the host's carry phase in `al` bits 7-8, and the
+// (guard-ai A126, protocol 38) The S21 weapon carry on the wire: the host's carry phase in `al` bits 7-8, and the
 // client's `PuppetCarry` following it (the same draw / holster clip, posed through the host's `GuardGunCarry`).
 
 const snapEnemies = (enemies: EnemyState[]): EnemyState[] => {
@@ -32,9 +32,9 @@ const snapEnemies = (enemies: EnemyState[]): EnemyState[] => {
 
 const PHASES: CarryPhase[] = [CARRY_HOLSTERED, CARRY_DRAWING, CARRY_DRAWN, CARRY_HOLSTERING];
 
-describe('guard-ai A126: the carry bits (protocol 37)', () => {
-  it('stays protocol 37 (S9 and A126 ride the same train)', () => {
-    expect(PROTOCOL_VERSION).toBe(37);
+describe('guard-ai A126: the carry bits (protocol 38)', () => {
+  it('is protocol 38 (S9 and A126 ride the same train; 37 is Player #231)', () => {
+    expect(PROTOCOL_VERSION).toBe(38);
   });
 
   it('the carry is bits 7-8 over every S9 bit; drawn is 0, so old packAlert callers are unchanged', () => {

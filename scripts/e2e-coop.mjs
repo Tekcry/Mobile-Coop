@@ -319,7 +319,7 @@ try {
   assert(tally >= 1, `host credits the kill to the client (${tally})`);
   await until(B, (id) => !window.__app.current.net.puppets.has(id), victim, 5000, 'client removes the dead puppet');
 
-  // (guard-ai S9, protocol 37) the guard-ai state reaches the client: the alarm stage's gear (armour + helmet) on the
+  // (guard-ai S9, protocol 38) the guard-ai state reaches the client: the alarm stage's gear (armour + helmet) on the
   // puppets, a host guard's radio line shown on the client word for word, a cautious guard's caution bit, a shield-led
   // response team with the shield and the lead's helmet, and a client round on a helmet: predicted and confirmed as a
   // deflect, the helmet off his head and on the floor on both screens

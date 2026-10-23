@@ -106,14 +106,14 @@ export function unitWord(n: number): string {
 }
 
 /**
- * (guard-ai S9, protocol 37) The wire order of the bark events (the co-op `bark` event's `b`). Append only: a new event
+ * (guard-ai S9, protocol 38) The wire order of the bark events (the co-op `bark` event's `b`). Append only: a new event
  * goes at the end, so an index means the same event on both sides.
  */
 export const BARK_EVENTS: readonly BarkEvent[] = [
   'suspicious', 'investigate', 'contact', 'lost', 'search', 'body', 'radioCheck', 'radioOk', 'missed', 'dog', 'blind', 'grenade',
   'alarm', 'clear', 'callIn', 'drone', 'ack', 'checking', 'lightOut', 'standDown', 'missing', 'joining', 'koFound', 'koReport',
   'deadReport', 'command', 'moving', 'covering', 'flanking', 'deflect', 'breaker', 'shots', 'shotsReport', 'missingReport',
-  // (guard-ai A126 merge, A139) S17's device line, appended (protocol 37 still: S9's table is unreleased)
+  // (guard-ai A126 merge, A139) S17's device line, appended (protocol 38 still, A140: S9's table is unreleased)
   'tripped',
 ];
 

@@ -11,8 +11,8 @@ import { PROTOCOL_VERSION } from '../src/net/protocol';
 const mv = (m: 'boost' | 'brace' | 'ground', sub: number, dw = 2) => ({ ...emptyMoveState(), m, sub, dw });
 
 describe('hang-down net: no wire change', () => {
-  it('the protocol stays at master\'s version', () => {
-    expect(PROTOCOL_VERSION).toBe(35);
+  it('the protocol is 38, guard-ai S9 + A126 (hang-down itself has no wire change)', () => {
+    expect(PROTOCOL_VERSION).toBe(38);
   });
 });
 

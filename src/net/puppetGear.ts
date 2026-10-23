@@ -1,5 +1,5 @@
 /**
- * (guard-ai S9, protocol 37) What a co-op client's guard puppet wears and does with the host's gear bits (pure,
+ * (guard-ai S9, protocol 38) What a co-op client's guard puppet wears and does with the host's gear bits (pure,
  * unit-tested): the helmet and armour placeholder parts follow `AL_HELMET` / `AL_ARMOUR`; a helmet bit falling 1 -> 0 on
  * a guard already shown drops his helmet here (`HelmetDrops`, `helmetArc` is deterministic) unless he jumped (a re-place:
  * a restart, a new slot) between the two states. The puppet also predicts a deflect from the bits for the client's own

@@ -1,5 +1,5 @@
 /**
- * (guard-ai A126, protocol 37) The S21 weapon carry across co-op. The host packs its guard's `GuardCarry` phase into
+ * (guard-ai A126, protocol 38) The S21 weapon carry across co-op. The host packs its guard's `GuardCarry` phase into
  * the snapshot's `al` (`wireCarry` -> `packAlert`, bits 7-8); the client's `EnemyPuppet` follows it with `PuppetCarry`,
  * which drives a `GuardCarry` of its own (never `step`ped: the brain is host-only) so the rig and the gun pose through
  * the very path the host uses (`GuardGunCarry.apply`, `carryRaise`, `swapClip`, `RigPose.ready`). Low ready and raised

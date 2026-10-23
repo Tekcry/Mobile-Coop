@@ -92,7 +92,7 @@ export class CoopClient implements NetAttachment {
   /** (sector-redesign slice L, protocol 31) Sector Ops: the host's fixed lights (switched, shot) on this page's registry,
    *  so the picture, the meter and the guards' torch reads match the host's; null elsewhere. */
   lamps: LampMirror | null = null;
-  /** (guard-ai S9, protocol 37) Dropped helmets shown here (built on the first drop), the deflect markers our puppets
+  /** (guard-ai S9, protocol 38) Dropped helmets shown here (built on the first drop), the deflect markers our puppets
    *  predicted against the host's confirms, and the host's deflect confirms for us (tests / e2e). */
   helmetDrops: HelmetDrops | null = null;
   private readonly deflects = new DeflectLedger();
@@ -701,7 +701,7 @@ export class CoopClient implements NetAttachment {
         g.player.cam.yaw = e.yaw;
         break;
       case 'hitConfirm':
-        // (guard-ai S9, protocol 37) hits and kills are shown from our puppets at once (kills by `kill`); a deflect we
+        // (guard-ai S9, protocol 38) hits and kills are shown from our puppets at once (kills by `kill`); a deflect we
         // did not predict (his gear bit not here yet) shows as the host's own deflect does (marker and ping)
         if (e.player !== me || e.kind !== 'deflect') break;
         this.deflectConfirms++;
@@ -711,7 +711,7 @@ export class CoopClient implements NetAttachment {
         }
         break;
       case 'bark': {
-        // (guard-ai S9, protocol 37) the host's guard lines, as the host shows them (over the speaker, the subtitle,
+        // (guard-ai S9, protocol 38) the host's guard lines, as the host shows them (over the speaker, the subtitle,
         // the radio chirp)
         const text = e.b === BARK_CAM || e.b === BARK_TEXT;
         const line = text ? (e.t ?? null) : barkLine(e.b, e.n, e.u);

@@ -361,7 +361,8 @@ doesnt make sense". A32-A34 are S10's (on `feature/guard-ai-s10`).
   37 is the next free number. The wire content is S9's unchanged (A90) next to master's `crate` item / event (every
   message is keyed JSON: no field order to agree on). Undo: if pose-parity lands first or drops its number, renumber
   `PROTOCOL_VERSION` in `src/net/protocol.ts` and every `toBe(37)` / `v: 36` / `v: 37` in tests (net, jammer,
-  jammerFixes, moveState, rejoin, sectorLampSync, sectorStep3, crateWire, coopGuardAi) and `docs/systems/coop.md`.
+  jammerFixes, moveState, rejoin, sectorLampSync, sectorStep3, crateWire, coopGuardAi) and `docs/systems/coop.md`. **Superseded by A140**
+  (train 28 merge): 38.
 
 ## Walk 4.72 fixes (PLAN "Walk 4.72 fixes" S17-S19; Michael's walk of 4.72, G1-G3)
 Michael, verbatim: G1 "when guards alerted when i cross laser, they somehow know ive climbed elsewhere. theres no way
@@ -481,7 +482,7 @@ reported, they need a sense of urgency when it makes logical sense." A100-A119 a
 - **A136** (A126) Wire: the host's S21 carry phase in `EnemyState.al` bits 7-8 (`AL_CARRY` 384, `AL_CARRY_SHIFT` 7):
   0 drawn, 1 holstered, 2 drawing, 3 holstering (`WIRE_CARRY_*`; `packAlert`'s 7th argument, `alertCarry`; the host
   maps `Enemy.carry.phase` with `wireCarry`, read only). `AL_MAX` 127 -> 511 (the parser clamp). Drawn is 0, so a kind
-  that never holsters and every old `packAlert` caller pack what they did. `PROTOCOL_VERSION` stays 37: S9 (37) is not
+  that never holsters and every old `packAlert` caller pack what they did. `PROTOCOL_VERSION` stays 37 (38 since A140): S9 (37) is not
   released or merged, and this rides the same train (assumed). Two 37 builds are NOT compatible with each other: an
   S9-only 37 client clamps a holstered guard's `al` (128+) to 127 (combat, seized, torch, caution, helmet, armour), so
   S9 must never ship without this. Undo: if S9 merges or releases alone first, bump to the next free number and every
@@ -498,3 +499,9 @@ reported, they need a sense of urgency when it makes logical sense." A100-A119 a
   Undo: drop the carry block in `EnemyPuppet.update` (puppets back at low ready).
 - **A139** (A126 merge) S17's `tripped` bark (walk branch) was missing from S9's wire table: appended to `BARK_EVENTS`
   (append only; same protocol-37 train as A136), so the client shows "Sensor tripped. Moving to check." Undo: n/a.
+- **A140** (S9 + A126, merge of train 28: master 4.76.0 + #207 + #230) Protocol 38, not 37: S9 and A126 take 38 because
+  Player PR #231 holds 37 in the orchestrator's registry (train 28 itself is at 35). The wire content is unchanged
+  (A90, A136, A139); only the number moves. Undo: if #231 drops 37 or lands after us with a later number, renumber
+  `PROTOCOL_VERSION` in `src/net/protocol.ts` and every `toBe(38)` / `v: 37` / `v: 38` in tests (net, jammer,
+  jammerFixes, moveState, rejoin, sectorLampSync, sectorStep3, crateWire, hangDownNet, coopGuardAi, coopGuardCarry,
+  coopTorches' title), `scripts/e2e-coop.mjs`' comment, `docs/systems/coop.md` and the two changelog fragments.
