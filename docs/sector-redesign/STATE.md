@@ -313,4 +313,7 @@ Never two agents on one file. Agents push with explicit refs (`git push origin <
 Opus brief-writer keeps the next 2-3 slices briefed (docs/sector-redesign/briefs/; RUNNING: LR16t / e / 1 / g / h+8,
 campus-art-next); two independent checkers on src/ai or src/net changes; Opus triage at once on any laptop failure;
 Opus fix rounds; questions for Michael come with a decision pack (prototype / sheets).
+Cloud builder (orchestrator ~19:40): "Night Shift | Cloud Builder 1" (one-way, cannot reply): send strict briefs (base
+branch, new branch feature/sector-*, files, tsc / vitest list); it pushes the branch + docs/sector-redesign/cloud/<slice>.md.
+Use it for the briefed LR16 code slices and campus-art batches once a brief's base is ready (LR16t / e / 1 wait on LR16b).
 ```
