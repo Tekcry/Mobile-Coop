@@ -17,7 +17,8 @@ import { validateSecurity } from '../src/security/data';
 import { CAMERA } from '../src/config/security';
 import { ENEMIES } from '../src/ai/enemyDefs';
 import { PATROL } from '../src/ai/patrol';
-import { PERCEPTION } from '../src/ai/perception';
+import { EYE_STAND, PERCEPTION } from '../src/ai/perception';
+import { roomAt } from '../src/world/rooms';
 import { NavGrid, type NavBlocker, type NavSample } from '../src/ai/navGrid';
 import { HANG, LEDGE, generateLedges } from '../src/world/anchors';
 import { hyp2, hyp3 } from '../src/core/mathx';
@@ -523,13 +524,13 @@ describe('S2 lighting (SPEC "Lighting")', () => {
   const lights = b.lights.lights;
   const group = (g: number) => lights.filter((l) => l.group === g);
 
-  it('the circuits: atrium pendants (3, shootable), L1 / L2 balcony downlights (6 each), reception, kitchen, facilities, three corridor night lamps at 0.25', () => {
+  it('the circuits: atrium pendants (3, shootable) and the reception downlight on one circuit, L1 / L2 balcony downlights (6 each), kitchen, facilities, three corridor night lamps at 0.25', () => {
     expect(PENDANTS.length).toBe(3);
     expect(BALCONY_LAMPS.length).toBe(6);
-    expect(group(S2_GROUPS.atrium).length).toBe(3);
+    expect(group(S2_GROUPS.atrium).length).toBe(4);
+    expect(group(S2_GROUPS.atrium).filter((l) => l.y === 9).length).toBe(3);
     expect(group(S2_GROUPS.l1Bal).length).toBe(6);
     expect(group(S2_GROUPS.l2Bal).length).toBe(6);
-    expect(group(S2_GROUPS.reception).length).toBe(1);
     expect(group(S2_GROUPS.kitchen).length).toBe(1);
     expect(group(S2_GROUPS.facilities).length).toBe(1);
     for (const g of [S2_GROUPS.l1Cor, S2_GROUPS.l2Cor, S2_GROUPS.gCor]) {
@@ -568,6 +569,37 @@ describe('S2 lighting (SPEC "Lighting")', () => {
     expect(b.lights.zoneAt(-40.7, 1, -25)).toBe(0.3);
     expect(b.lights.zoneAt(1.3, 9, 3)).toBe(0.3);
     expect(b.lights.zoneAt(7, 5, -14)).toBe(0.3);
+  });
+
+  it('the reception panel is seen by #1 (guard-ai lightsOut): the pendants are out of his sight under the L1 slab, the reception downlight is in his room', () => {
+    // the coordinated rule: a calm guard reacts when a fixture of the cut circuit is in the room he stands in
+    // (roomAt(l.x, l.z, l.y - 1.5) === his room), or in his sight field with one clear ray to it
+    const rooms = lay.rooms!;
+    const g1 = S2.guards[0]!;
+    const gy = g1.y ?? 0;
+    const mine = roomAt(rooms, g1.x, g1.z, gy + 0.1);
+    expect(rooms[mine]!.id).toBe('foyer');
+    const circuit = lights.filter((l) => l.group === S2_GROUPS.atrium);
+    const pendants = circuit.filter((l) => l.y === 9);
+    expect(pendants.length).toBe(3);
+    // the pendants hang in the void, in no room at l.y - 1.5 (7.5: over the hall's 4.4, outside the L1 rooms' plan)
+    for (const l of pendants) expect(roomAt(rooms, l.x, l.z, l.y - 1.5), `pendant (${l.x}, ${l.z})`).toBe(-1);
+    // and the ray from his eye to each passes the void's south edge (z -20) above the L1 slab's underside (4.0): blocked
+    const eye = gy + EYE_STAND * ENEMIES[g1.kind].scale;
+    const under = S2_FLOORS[1] - 0.4;
+    for (const l of pendants) {
+      const t = (S2_VOID.z0 - g1.z) / (l.z - g1.z);
+      expect(t).toBeGreaterThan(0);
+      expect(t).toBeLessThan(1);
+      expect(eye + t * (l.y - eye), `pendant (${l.x}, ${l.z})`).toBeGreaterThan(under);
+    }
+    // the reception downlight on the same circuit is in his room: the panel's cut reaches him (lure #1)
+    const rec = circuit.filter((l) => roomAt(rooms, l.x, l.z, l.y - 1.5) === mine);
+    expect(rec.length).toBe(1);
+    expect([rec[0]!.x, rec[0]!.y, rec[0]!.z]).toEqual([-20, 3.9, -26.5]);
+    // the panel stands in the same room, on his floor
+    const panel = lay.switches!.find((s) => s.group === S2_GROUPS.atrium)!;
+    expect(roomAt(rooms, panel.pos.x, panel.pos.z, panel.pos.y + 0.1)).toBe(mine);
   });
 
   it('dark by reason: no lit lamp in the open plan, meeting rooms, stair cores, comms room, print room or on the roof', () => {

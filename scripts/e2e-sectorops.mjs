@@ -1727,7 +1727,7 @@ if (want(6)) {
     await sim(0.3);
     const hk = await G(() => window.__sector.debug());
     assert(hk.phase === 'connector' && hk.nearLocked === false && hk.farLocked === true, `the 3 s hack opens C2's card door (${JSON.stringify([hk.phase, hk.nearLocked, hk.farLocked])})`);
-    // (d) the reception panel: the switch cuts the three pendants (s2-atrium) and #1 walks to it (the guards run again; the player waits in the dark plant room)
+    // (d) the reception panel: the switch cuts s2-atrium (the three pendants and the reception downlight: #1 sees his own room go dark) and #1 walks to it (the guards run again; the player waits in the dark plant room)
     await G(() => { const g = window.__app.current; delete g.enemyMgr.update; const P = g.player.position.constructor; g.player.controller.teleport(new P(2.5, 0, -24), 0); });
     await sim(0.5);
     const pn = await G(() => {
@@ -1741,7 +1741,7 @@ if (want(6)) {
       const e = es[idx];
       return { k, idx, d0: Math.hypot(e.pos.x - sws[k].pos.x, e.pos.z - sws[k].pos.z), on: g.world.level.lights.lights.filter((l) => l.group === 50 && l.on).length };
     });
-    assert(pn.k >= 0 && pn.on === 3 && pn.d0 > 9, `the reception panel is a switch on s2-atrium (3 pendants lit), #1 stands ${pn.d0.toFixed(1)} m off it (${JSON.stringify(pn)})`);
+    assert(pn.k >= 0 && pn.on === 4 && pn.d0 > 9, `the reception panel is a switch on s2-atrium (3 pendants and the reception downlight lit), #1 stands ${pn.d0.toFixed(1)} m off it (${JSON.stringify(pn)})`);
     await G((k) => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === `switch-${k}`); it.onUse(it, 'local'); }, pn.k);
     await sim(20);
     const pa = await G(([k, idx]) => {
