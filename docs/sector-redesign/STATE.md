@@ -307,7 +307,10 @@ NEXT:
    ENTRY branch fixes (-lr16-entry): 2f719ac9 campusArtGameplay greybox re-pin (S4 post); 6e53e036 lampLevel -> LR16 formula (marlowLightingLevels 7/7; Marlow told to merge it into feature/marlow-lr16m); CI-only draft PR #290 on -lr16-entry runs the full test list (close it after). Read f85ef736 verdict (wire change protocol 45) and the perf verdicts (logs on the laptop: checks/lr16p-perf-request.md).
 3. LR16-4 DONE -lr16-4 eb2c62c2 (board-2; checks/lr16-4-build.md), check PASS (checks/lr16-4-check.md); laptop eb2c62c2-0cb6 (sectorops:6 coop). Was: one checker
    (two on src/ai if touched) + laptop sectorops:6 + coop.
-4. FULL BURN (orchestrator ~07:35, Michael swaps at the 5-hour cap): RUNNING ~07:40: Opus LR16-6 vision polish
+4. FULL BURN. LR16-6 DONE -lr16-6 543cb6da (G100 label on every cut; G102 dim-blue door figures, doorGhosts.ts /
+   thermalGhost.ts; one line each in ai/enemy.ts + net/enemyPuppet.ts); RUNNING two Opus checkers (lr16-6-check-A / -B)
+   + laptop 543cb6da-a297 (darkness incl. new thermal leg, coop, netmove). pol2 = A + B merged 35b8ab7b + a0fe26a0 (check
+   PASS, pol2-ab-check). PR for LR16-4 + pol2 + LR16-6 after #291 releases. Was: Opus LR16-6 vision polish
    (-lr16-6 off 6e53e036; G100 instant cut, G102 thermal through shut doors; checks/lr16-6-build.md); Opus planner
    briefs/LR16-POLISH2.md DONE (d9982b9f: 7 build / 18 held / 7 dropped); RUNNING Sonnet pol2-a (warehouseS3 overhead
    mark, LR16D_MOVED stale keys) + pol2-b (bounce / lamp-upload tests), off 6e53e036; then one Sonnet checker, merge
