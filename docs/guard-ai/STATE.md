@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~01:45: A3 verdicts: s23-a3fix 829cffe1 PASS, probe (all=false) PASS, diag FAIL as expected -> S23 correct; the
+A3 scenario fix (cherry-pick 829cffe1 alone, + 5d1331fe trace) goes to Marlow / the train (orchestrator told).
+#254 / #264 / #270 / #272 relabel once that commit rides the same train.
+
 ~01:20: A3 triage DONE (S23-A3-TRIAGE.md, s23 1f97efbf): test staging (step-4 camera send-back alarms the cleaner,
 S23 lets him see the lit host at the west post; no src change). Fix for Marlow's a3OfficeRange.mjs: test-only
 feature/guard-ai-s23-a3test 829cffe1. Laptop ctcourse:2: s23-a3fix (expect PASS), s23-a3probe (all=false, PASS),
