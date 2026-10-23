@@ -16,9 +16,7 @@ No wire, save or src/ai change.
 - e2e-takedown (desktop lane 4192, GPU, E2E_JOBS=1): pass (17 s; first run failed only on my cumulative `grabs.interrogated` assert, fixed to a delta). e2e-coop: not run (laptop batch).
 
 ## Open items
-- src/ai request (Guard AI): in `src/ai/enemy.ts` next to `setPatrol` (line 523) add
-  `/** (CT Core spare 9) The route he walks while unaware (null: a post); read by interrogation intel. */ get patrolRoute(): PatrolRoute | null { return this.walker.route; }`
-  Without it patrol lines are absent (this job reads it through `PatrolSource`).
+- Done (batch-23, PATROL-TIMING.md): Guard AI added `Enemy.patrolRoute` (master 4.74.0); patrol lines now read it.
 - Part B (A5): modes implement `onIntelCode` (courseMode `this.state?.setFlag(flag)` + `externalFlags`; sectorMode copy `slot.info` to `e.info` at spawn, `SectorCodes.grantCode(flag, sec)`); map owners author `codes`.
 - A client interrogating from the hang-down gives only the guard's own lines.
 
