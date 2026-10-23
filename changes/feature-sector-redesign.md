@@ -9,3 +9,4 @@ kind: minor
 - Sector Ops engine: security desks (`security.desks`): with the operator down or away, the console loops its cameras (they sweep but report nothing, default 30 s) or switches them off until a restart; a restart or section change puts them back, the co-op client follows (no map uses them yet).
 - Ammo pickups removed from inside sections (a between-section weapons crate refill follows; Michael, 2026-10-23).
 - Sector Ops: weapons crate engine and protocol 35 (crate item kind, crate event; per-player use on the host).
+- Sector Ops campusOps / warehouseOps: a weapons crate at every section start (once per player, tops up to the loadout).

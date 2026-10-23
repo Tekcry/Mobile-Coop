@@ -116,7 +116,10 @@ export class Interactables {
       add('box', '#59636b', [0.9, 0.5, 0.6], [0, 0.25, 0]);
       light = add('box', '#ffd23f', [0.92, 0.08, 0.62], [0, 0.45, 0]);
     } else if (kind === 'crate') {
-      /* E9-crate part (b): the crate model */
+      // (E9-crate) a non-solid greybox: olive body, darker lid band, an amber strip on the +z face (the indicator)
+      add('box', '#4b5a3a', [0.9, 0.45, 0.55], [0, 0.225, 0]);
+      add('box', '#3a4433', [0.92, 0.06, 0.57], [0, 0.45, 0]);
+      light = add('box', KIND_COLOR.crate, [0.5, 0.08, 0.02], [0, 0.3, 0.28]);
     } else {
       add('cyl', '#3a4048', [2.6, 0.08, 2.6], [0, 0.04, 0]);
       light = add('cyl', '#4fdc7c', [0.12, 3.2, 0.12], [0, 1.6, 0]);
