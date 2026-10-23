@@ -1,5 +1,27 @@
 # Changelog
 
+## 4.84.0 - Train 37: Train lock wait; Marlow Yard A7: equipment cabinet in the cage; Guard AI: the Marlow Yard A4 console officer; Guard AI: every player is seen; Laptop queue service (2026-10-23, PR #268; #265, #258, #254, #252)
+
+### Guard AI: the Marlow Yard A4 console officer
+- Marlow Yard A4: the security console cannot be switched off while the officer watches it (he refuses you); draw him
+  off with a distraction and the press goes through. Back from the noise he notices the console off, walks over and
+  turns it back on, calm (Michael's walk G6). The A8 strongroom console refuses the same way.
+
+### Guard AI: every player is seen
+- Co-op: a guard now looks at both players, not just the nearer one. Hiding behind a wall close to a guard no longer
+  makes your partner invisible while he stands in the guard's light in front of him: the guard notices whichever of you
+  he sees best (one meter, filled at that player's rate; two in view do not add up) and goes after him. In a firefight
+  he keeps shooting at the player he is fighting while he still sees him; a nearer hidden player no longer blinds him.
+  Out of sight of him, he turns on the nearest player he does see.
+- Co-op: the host's awareness arcs show only guards that see the host's own player (or stand close by), not guards
+  filling up on the partner. The flanker is picked by each guard's distance to his own target, not to the host.
+- A calm guard casts no sight ray for a player he cannot see at all (behind him beyond arm's reach, or past his view
+  range). Solo play is otherwise unchanged. Host only: no protocol or save change.
+
+### Marlow Yard A7: equipment cabinet in the cage
+- The A7 cage now has an equipment cabinet between the terminals, so the technician at the cage front can no longer see a
+  player waiting at terminal two through both mesh faces.
+
 ## 4.83.0 - Train 36: Train vitest retry; Snapshot line endings; Guards relight switched-off breaker boards (guard-ai LR16-4) (2026-10-23, PR #263; #262, #259, #255)
 
 ### Guards relight switched-off breaker boards (guard-ai LR16-4)
