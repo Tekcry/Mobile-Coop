@@ -135,7 +135,8 @@ const gitIdEnv = () => (git(['config', 'user.email'], { soft: true }) ? {} : { G
  * Changes claims/<id>.json for each id in one commit on top of origin/laptop-queue and pushes it (index in a temp file,
  * the checkout untouched); a lost push race refetches and retries (5 tries). mode 'claim' (open; also refreshes this
  * worker's own `at`) is refused when the fresh parent holds a claim that blocks this worker; 'done' marks finished;
- * 'release' removes the claim (the run gave up). Returns true when pushed.
+ * 'release' removes the claim (the run gave up). Returns true when pushed, 'blocked' when another worker holds the
+ * claim, false when the push failed.
  */
 function writeClaims(ids, mode, label) {
   if (ids.length === 0) return true;
@@ -149,7 +150,7 @@ function writeClaims(ids, mode, label) {
       if (!parent) return false;
       if (mode === 'claim') {
         const have = parseClaim(git(['show', `${parent}:claims/${ids[0]}.json`], { soft: true }));
-        if (claimBlocks(have, WORKER, Date.now(), CLAIM_MAX_MS)) { log(`${ids[0]}: claimed by ${have.worker}, skipped`); return false; }
+        if (claimBlocks(have, WORKER, Date.now(), CLAIM_MAX_MS)) { log(`${ids[0]}: claimed by ${have.worker}, skipped`); return 'blocked'; }
       }
       fs.rmSync(tmpIndex, { force: true });
       git(['read-tree', parent], { env });
@@ -186,7 +187,7 @@ function syncDone() {
     if (c?.done) doneSynced.add(id); else todo.push(id);
   }
   if (todo.length === 0) return true;
-  if (!writeClaims(todo, 'done', `done ${todo.length === 1 ? todo[0] : `${todo.length} requests`}`)) return false;
+  if (writeClaims(todo, 'done', `done ${todo.length === 1 ? todo[0] : `${todo.length} requests`}`) !== true) return false;
   todo.forEach((id) => doneSynced.add(id));
   log(`done claim(s) pushed: ${todo.length}`);
   return true;
@@ -421,7 +422,12 @@ async function runRequest(r, port) {
   const locks = {};
   try {
     for (const p of ports) locks[p] = await takeLock(p, r.id, r.sha);
-    writeClaims([r.id], 'claim', `claim ${r.id} (lock taken)`); // fresh `at`: a long lock wait never looks like a dead worker
+    // fresh `at`: a long lock wait never looks like a dead worker; if the other worker took it over meanwhile, back off
+    if (writeClaims([r.id], 'claim', `claim ${r.id} (lock taken)`) === 'blocked') {
+      log(`${r.id}: taken over by the other worker during the lock wait, dropped`);
+      claimed.delete(r.id);
+      return;
+    }
     postStatus(r.sha, 'pending', ctx, 'running');
     const prep = await prepare(ports[0], r.sha, path.join(runDir, 'prepare.log'));
     if (prep === 'fetch') {
@@ -472,7 +478,7 @@ async function runRequest(r, port) {
   } finally {
     for (const p of ports) { if (locks[p]) releaseLock(p, locks[p]); freePort(p); }
     writeJson('state.json', state);
-    if (state.done[r.id] && writeClaims([r.id], 'done', `done ${r.id}`)) doneSynced.add(r.id);
+    if (state.done[r.id] && writeClaims([r.id], 'done', `done ${r.id}`) === true) doneSynced.add(r.id);
     log(`${r.id}: done`);
   }
 }
@@ -549,7 +555,7 @@ async function pass() {
     else {
       queue.requests = queue.requests.filter((r) => r !== p.request);
       // the other worker may have taken it since the list was read: skip it this pass
-      if (!writeClaims([p.request.id], 'claim', `claim ${p.request.id}`)) continue;
+      if (writeClaims([p.request.id], 'claim', `claim ${p.request.id}`) !== true) continue;
     }
     const run = dispatch(p);
     if (DRY) (p.kind === 'request' ? [p.slot] : PORTS).forEach((x) => { virtual[x] = true; });
