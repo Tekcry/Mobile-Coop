@@ -634,6 +634,16 @@ export class RemoteAvatar {
       this.airTop = Number.NaN;
     }
     this.landT = Math.max(0, this.landT - dt);
+    // (38, afp AF6) the owner's gait clock between the two states around the render time (forward, wrapping), as the
+    // owner's rig plays it (player.ts: none side-on on a wall); the CT stop's blend and held pace from the state
+    const wallTurn = mp.wall ? Math.abs(Math.sin(this.yaw - Math.atan2(this.wallNx, this.wallNz))) : 0;
+    const ga = s.from.gph;
+    const gb = s.to.gph;
+    let gaitPh = -1;
+    if (free && ga !== undefined && gb !== undefined && (mv.m === 'ground' || (mv.m === 'wall' && wallTurn <= 0.5))) {
+      const d = (((gb - ga) % 1) + 1) % 1;
+      gaitPh = d < 0.5 ? (ga + d * Math.max(0, s.k)) % 1 : s.k >= 1 ? gb : ga;
+    }
     const rpose: RigPose = {
       speed: this.speed,
       kneel: this.kneelT > KNEEL_STILL && !tense,
@@ -647,6 +657,9 @@ export class RemoteAvatar {
       velX: free ? this.vx : undefined,
       velZ: free ? this.vz : undefined,
       yawRate: free && !this.visLimit && !this.wallYawOn ? s.vyaw : undefined,
+      phase: gaitPh >= 0 ? gaitPh : undefined,
+      quickStop: free ? (st.qs ?? 0) : 0,
+      holdSpeed: free ? (st.hs ?? 0) : 0,
       crouch: this.crouch,
       aimPitch: (upside ? -this.pitch : this.pitch) * this.aim,
       aimYaw: mv ? (upside ? -wrapPi(mv.ay + Math.PI) : mv.ay) * this.aim : 0,
@@ -668,7 +681,7 @@ export class RemoteAvatar {
       // (A1.2) as the owner: free movement strides along the facing (no faceGoal: the planner caps its turn guess)
       stride: this.aim > 0.5 || mp.wall || mp.settle ? 'velocity' : 'facing',
       wallSide: mp.wallSide,
-      wallTurn: mp.wall ? Math.abs(Math.sin(this.yaw - Math.atan2(this.wallNx, this.wallNz))) : 0,
+      wallTurn,
       wallBlock: this.aim > 0.05 && mv && !upside ? muzzleBlock(this.ballistics, this.pos.x, this.pos.y, this.pos.z, this.yaw + mv.ay, this.pitch, this.crouch, this.blockA, this.blockB) : 0,
       wallNx: this.wallNx,
       wallNz: this.wallNz,

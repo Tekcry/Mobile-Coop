@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CLIENT_INTERP_DELAY, ExtrapBlend, HOST_INTERP_DELAY, sampleSpeed, SnapshotBuffer } from '../src/net/interp';
+import { CLIENT_INTERP_DELAY, ClockSync, ExtrapBlend, HOST_INTERP_DELAY, sampleSpeed, SnapshotBuffer } from '../src/net/interp';
+import { gaitWire, parseMessage } from '../src/net/protocol';
 import { NETSIM_PRESETS, NetSim } from '../src/net/netSim';
 
 // afp AF6 (Michael P5, co-op partner "more jumpy"): the receiving side's continuous motion between states
@@ -100,11 +101,13 @@ describe('partner motion between states (afp AF6)', () => {
   });
 
   it('under netsim typical the host never runs out of joiner states at HOST_INTERP_DELAY (arrival stamps)', () => {
-    const res = (delay: number) => {
+    const res = (delay: number, senderTime = false) => {
       const sim = new NetSim(NETSIM_PRESETS.typical!, 11);
+      const clock = new ClockSync();
+      let last = -Infinity;
       const b = new SnapshotBuffer<S>(40, 0.25);
       const xb = new ExtrapBlend();
-      const arrivals: { at: number; s: S }[] = [];
+      const arrivals: { at: number; t: number; s: S }[] = [];
       // the joiner sends every 1 / 20 s on its 60 Hz frame timer, running 4 m/s
       let sendT = 0;
       for (let f = 0; f < 60 * 20; f++) {
@@ -112,7 +115,7 @@ describe('partner motion between states (afp AF6)', () => {
         sendT -= 1 / 60;
         if (sendT > 0) continue;
         sendT = 1 / 20;
-        arrivals.push({ at: sim.deliverAt('host', t * 1000) / 1000, s: st(4 * t, 0, 0, 4) });
+        arrivals.push({ at: sim.deliverAt('host', t * 1000) / 1000, t: t + 100, s: st(4 * t, 0, 0, 4) });
       }
       let ai = 0;
       let over = 0;
@@ -121,7 +124,17 @@ describe('partner motion between states (afp AF6)', () => {
       let prev = Number.NaN;
       for (let f = 60; f < 60 * 19; f++) {
         const now = f / 60 + 0.3 / 60; // the host's frames are not in step with the joiner's
-        while (ai < arrivals.length && arrivals[ai]!.at <= now) b.push(arrivals[ai]!.at, arrivals[ai++]!.s);
+        while (ai < arrivals.length && arrivals[ai]!.at <= now) {
+          const a = arrivals[ai++]!;
+          // (38) the host's stamp: the joiner's send clock through a ClockSync (coopHost.stateTime), else the arrival
+          let at = a.at;
+          if (senderTime) {
+            clock.observe(a.t, a.at);
+            at = Math.max(clock.toLocal(a.t), last + 1e-3);
+          }
+          last = at;
+          b.push(at, a.s);
+        }
         const o = b.sample(now - delay)!;
         if (o.over > 0) over++;
         xb.apply(o, 1 / 60);
@@ -137,9 +150,38 @@ describe('partner motion between states (afp AF6)', () => {
     // (1% of the states are retransmitted 100 ms late: those few gaps still extrapolate, and blend back)
     expect(now.over).toBeLessThan(0.02);
     expect(now.over).toBeLessThan(was.over);
-    // arrival stamps: the jitter bends the spans (a retransmit's bunched states step the pace); sender time fixes it below
+    // arrival stamps: the jitter bends the spans (a retransmit's bunched states step the pace)
     expect(now.worst).toBeGreaterThan(0.1);
+    // (38) stamped by the joiner's send clock: the spans keep the pace (the 1% retransmits still extrapolate and blend)
+    const sent = res(HOST_INTERP_DELAY, true);
+    console.info('netsim typical, sender time:', sent);
+    expect(sent.over).toBeLessThan(0.02);
+    expect(sent.worst).toBeLessThan(0.03);
     expect(CLIENT_INTERP_DELAY).toBeGreaterThanOrEqual(2 / 15 + 0.02);
     expect(HOST_INTERP_DELAY).toBeGreaterThanOrEqual(2 / 20 + 0.02);
+  });
+});
+
+describe('the gait on the wire (protocol 38, afp AF6)', () => {
+  it('gaitWire: the clock wrapped to 0..1, the CT stop only while set', () => {
+    const o: { gph?: number; qs?: number; hs?: number } = {};
+    gaitWire(1.25, true, -1, false, 0, 0.35, 0.12, o);
+    expect(o).toEqual({ gph: 0.25, qs: 0.12 });
+    const h: { gph?: number; qs?: number; hs?: number } = {};
+    gaitWire(-0.25, true, 0.1, true, 3.2, 0.35, 0.12, h);
+    expect(h).toEqual({ gph: 0.75, qs: 0.35, hs: 3.2 });
+    const n: { gph?: number; qs?: number; hs?: number } = {};
+    gaitWire(0.5, false, -1, false, 0, 0.35, 0.12, n);
+    expect(n).toEqual({ gph: 0.5 });
+  });
+
+  it('pstate carries t / gph / qs / hs, clamped; absent stays absent', () => {
+    const base = { id: 'p1', x: 1, y: 0, z: 2, yaw: 0, pitch: 0, speed: 3, f: 16, w: 'rifle', hp: 100 };
+    const m = parseMessage({ t: 'pstate', s: { ...base, t: 12.5, gph: 0.4, qs: 0.12, hs: 3 } });
+    expect(m && m.t === 'pstate' ? [m.s.t, m.s.gph, m.s.qs, m.s.hs] : null).toEqual([12.5, 0.4, 0.12, 3]);
+    const c = parseMessage({ t: 'pstate', s: { ...base, gph: 7, qs: 9, hs: -1 } });
+    expect(c && c.t === 'pstate' ? [c.s.gph, c.s.qs, c.s.hs] : null).toEqual([1, 2, 0]);
+    const a = parseMessage({ t: 'pstate', s: base });
+    expect(a && a.t === 'pstate' ? 'gph' in a.s || 't' in a.s : null).toBe(false);
   });
 });

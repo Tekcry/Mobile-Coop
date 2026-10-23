@@ -12,7 +12,8 @@ import { BODY } from '../ai/bodies';
 import type { HitInfo } from '../game/damage';
 import { Interactables, type Interactable } from '../game/interactables';
 import type { NetSession } from './session';
-import { PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
+import { gaitWire, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
+import { CT } from '../config/movement';
 import { CLIENT_INTERP_DELAY, ClockSync } from './interp';
 import type { CKind } from '../game/committedMoves';
 import { RemoteAvatar } from './remoteAvatar';
@@ -701,9 +702,14 @@ export class CoopClient implements NetAttachment {
     const g = this.g;
     const p = g.player;
     const c = p.controller;
+    // (38, afp AF6) the send clock (the host times the state by it) and the gait clock / CT stop (the partner's stride)
+    const gw: { gph?: number; qs?: number; hs?: number } = {};
+    gaitWire(c.motion.phase, c.ct, c.stopEaseT, c.stopHold, c.holdSpeed, CT.stopEase, CT.stopBlend, gw);
     this.s.toHost({
       t: 'pstate',
       s: wirePlayerState({
+        ...gw,
+        t: performance.now() / 1000,
         id: this.s.selfId,
         x: p.position.x,
         y: p.position.y,

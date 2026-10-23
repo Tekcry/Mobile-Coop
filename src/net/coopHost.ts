@@ -16,7 +16,7 @@ import type { NetSession } from './session';
 import { TickLimiter, type CourseWire } from '../game/course/courseWire';
 import type { SecWire } from '../game/ctDevices';
 import { syringesFor, type SectorNetExtra } from '../game/sectors';
-import { ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
+import { gaitWire, ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
 import { HoldClock, holdFeed, stepHoldFeed, type HoldFeed } from './holdFeed';
@@ -49,7 +49,8 @@ import { revealIntel } from '../game/intelReveal';
 import { interrogationEnded } from '../game/intel';
 import type { TeamMate } from '../game/teamController';
 import type { PlayerRef } from '../ai/enemy';
-import { HOST_INTERP_DELAY } from './interp';
+import { ClockSync, HOST_INTERP_DELAY } from './interp';
+import { CT } from '../config/movement';
 
 import type { CharacterRig } from '../player/characterRig';
 
@@ -536,6 +537,28 @@ export class CoopHost implements NetAttachment {
 
   // --- incoming ---
 
+  /** (38, afp AF6) Per joiner: its send clock against ours (ClockSync), and the last stamp. */
+  private readonly sendClocks = new Map<string, { c: ClockSync; last: number }>();
+  /**
+   * (38, afp AF6) The local time (s) a joiner's state stands for: its send clock `t` mapped through a ClockSync (the
+   * lowest latency seen wins quickly, slower arrivals nudge it back gently), so the network's jitter and a retransmit's
+   * bunched states no longer bend the interpolation spans (arrival stamps did: up to ~0.4 m a frame off the pace under
+   * netsim typical). No `t`: the arrival time. Kept increasing.
+   */
+  private stateTime(id: string, t: number | undefined): number {
+    const now = performance.now() / 1000;
+    let e = this.sendClocks.get(id);
+    if (!e) this.sendClocks.set(id, (e = { c: new ClockSync(), last: -Infinity }));
+    let at = now;
+    if (t !== undefined) {
+      e.c.observe(t, now);
+      at = e.c.toLocal(t);
+    }
+    at = Math.max(at, e.last + 1e-3);
+    e.last = at;
+    return at;
+  }
+
   private receive(msg: Msg, from: string): void {
     const r = this.remotes.get(from);
     if (!r) return;
@@ -546,7 +569,7 @@ export class CoopHost implements NetAttachment {
         if (this.rejoining.has(from)) this.resume(r);
         if (this.restoreFor.has(from)) r.allowTeleport(3);
         r.accept({ ...msg.s, id: from }, this.time, this.g.world.level.anchors, this.g.world.level.coverSegments, this.g.world.doors.list.length);
-        r.avatar.buf.push(performance.now() / 1000, r.state!);
+        r.avatar.buf.push(this.stateTime(r.id, msg.s.t), r.state!);
         if (msg.s.mv) this.g.mode?.onRemoteMove?.(r.id, msg.s.mv.m);
         this.restoreStep(r);
         break;
@@ -1119,7 +1142,11 @@ export class CoopHost implements NetAttachment {
     const p = g.player;
     const c = p.controller;
     const th = g.target.health;
+    // (38, afp AF6) the gait clock / CT stop for the partner's stride (the snapshot's `time` times it)
+    const gw: { gph?: number; qs?: number; hs?: number } = {};
+    gaitWire(c.motion.phase, c.ct, c.stopEaseT, c.stopHold, c.holdSpeed, CT.stopEase, CT.stopBlend, gw);
     return {
+      ...gw,
       mv: localMoveState(g, this.mvNow),
       id: this.s.selfId,
       x: p.position.x,

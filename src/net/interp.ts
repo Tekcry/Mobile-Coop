@@ -305,4 +305,9 @@ export class ClockSync {
   now(localTime: number): number {
     return localTime + (this.offset ?? 0);
   }
+
+  /** (afp AF6) The local time a remote time stands for (the inverse of `now`). */
+  toLocal(remoteTime: number): number {
+    return remoteTime - (this.offset ?? 0);
+  }
 }
