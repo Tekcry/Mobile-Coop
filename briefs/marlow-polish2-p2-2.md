@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-23T08:17Z
 
 # marlow-polish batch 2, slice P2-2 (Marlow Build)
 - Base: origin/feature/marlow-polish at a763ac39.
