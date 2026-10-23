@@ -1,0 +1,19 @@
+{
+  "id": "20261023T110051-night-shift-sector-o-961ca660-9185",
+  "sha": "961ca660916e06d45c20d014c229edd2a5ccf87f",
+  "branch": "feature/sector-redesign-lr16int",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-lightbake",
+    "e2e-darkness",
+    "e2e-desktop",
+    "e2e-sectorops",
+    "e2e-stealth-ai",
+    "e2e-ctcourse",
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "note": "lr16int = LR16 a/b/f/7/3/v/d/dx/e/t + LR16-1 bounce + LR16-5 flicker; supersedes the 6eb6a863 set (...6eb6a863-f2e8) if not started"
+}
