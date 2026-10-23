@@ -72,21 +72,22 @@ export const S1_LAMPS: readonly LampRoom[] = [
   // the hall: the goods-in bay (circuit 30), the lobby-block roof (31), the plant deck (34), the workshop (36)
   { id: 'bay', model: 'strip', y: 5.58, group: 30, yaw: 0, cone: HALL, pass: true, lamps: [[-22, -15.4, 7.02, 0.7], [-18, -15.4, 6.78, 0.7], [-14, -15.4, 5.51, 0.852], [-10, -15.4, 5.05, 1.022], [-22, -11.6, 5.4, 0.7], [-18, -11.6, 4.8, 0.7], [-14, -11.6, 5.55, 1.345], [-10, -11.6, 8.8, 0.579]] },
   { id: 'lobbyRoof', model: 'strip', y: 5.58, group: 31, yaw: 0, pass: true, lamps: [[-22, -7.4, 6.09, 0.567], [-17, -7.4, 6.49, 0.608], [-12, -7.4, 1.5, 0.4], [-7, -7.4, 3.5, 0]] },
-  { id: 'plantDeck', model: 'strip', y: 5.58, group: 34, yaw: 0, pass: true, lamps: [[-5, -14.6, 3.5, 0], [-1, -14.6, 3.5, 0], [3, -14.6, 5.19, 0.976], [7, -14.6, 1.5, 0.726]] },
+  { id: 'plantDeck', model: 'strip', y: 5.58, group: 34, yaw: 0, pass: true, lamps: [[-5, -15.15, 3.5, 0], [-1, -15.15, 3.5, 0], [4.2, -15.15, 5.19, 0.976], [7, -15.15, 1.5, 0.726]] },
   // the crane walkway (y 3 along the z -8.8 wall's south face): LED bulkheads at 5.0 on brackets, one every 7 m
   { id: 'walkway', model: 'bulkhead', y: 5.0, group: 36, yaw: PI, cone: WALL_S, pass: true, lamps: [[8.6, -9.25, 2.12, 0.365], [15.6, -9.25, 2.31, 0.303], [22.6, -9.25, 2.5, 0.349]] },
   { id: 'workshop', model: 'strip', y: 5.58, group: 36, yaw: 0, cone: HALL, pass: true, lamps: [[10.7, -15.8, 5.51, 0.967], [16, -15.8, 6.7, 0.921], [21.3, -15.8, 7.5, 0.921], [10.7, -11.8, 5.43, 0.921], [16, -11.8, 6.83, 1.376], [21.3, -11.8, 6.3, 1.182]] },
-  // the lobby block (ceiling 3.0): the goods-in office, the fire lobby C2; the charging bay's sign on the z -6 wall
+  // the lobby block (ceiling 3.0): the goods-in office, the fire lobby C2; the charging bay's sign on the z -6 wall (LR16dx: x -8,
+  // between the parked forklift and the charger: at x -10.2 it hung 0.16 m off the forklift's back)
   { id: 'goodsInOffice', model: 'panel', y: 2.95, group: 31, yaw: 0, pass: false, lamps: [[-20.25, -7.4, 4, 0]] },
-  { id: 'lobby', model: 'panel', y: 2.95, group: 31, yaw: 0, pass: true, lamps: [[-15.5, -7.4, 4, 0], [-13.5, -7.4, 5.65, 0.626]] },
-  { id: 'charging', model: 'bulkhead', y: 2.4, group: 31, yaw: PI, colour: EXIT_GREEN, pass: false, lamps: [[-10.2, -6.24, 0.6, 0.15]] },
+  { id: 'lobby', model: 'panel', y: 2.95, group: 31, yaw: 0, pass: true, lamps: [[-15.15, -7.4, 4, 0], [-13.85, -7.4, 5.65, 0.626]] },
+  { id: 'charging', model: 'bulkhead', y: 2.4, group: 31, yaw: PI, colour: EXIT_GREEN, pass: false, lamps: [[-8, -6.24, 0.6, 0.15]] },
   // the office block: the south rooms (ceiling 3.0 under the plant deck), the corridor and the mess (2.8 under the void), the void (4.6)
   { id: 'reception', model: 'panel', y: 2.95, group: 33, yaw: 0, pass: true, lamps: [[-6.5, -15.9, 6.93, 0.496]] },
   { id: 'reception', model: 'panel', y: 2.95, group: 33, yaw: 0, pass: false, lamps: [[-3.5, -15.9, 4.5, 0]] },
   { id: 'security', model: 'panel', y: 2.95, group: 34, yaw: 0, pass: false, lamps: [[4.3, -15.9, 4.42, 0.706], [6.7, -15.9, 2.18, 0.45]] },
   { id: 'corridor', model: 'panel', y: 2.75, group: 32, yaw: 0, pass: true, lamps: [[-6.8, -12.3, 3.46, 0.321], [-3.4, -12.3, 5.82, 0.411], [0, -12.3, 2.84, 0.314], [3.4, -12.3, 3.4, 0.664], [6.8, -12.3, 4, 0]] },
   { id: 'mess', model: 'panel', y: 2.75, group: 35, yaw: 0, pass: false, lamps: [[4.5, -9.8, 4.14, 0.861]] },
-  { id: 'void', model: 'panel', y: 4.55, group: 32, yaw: 0, pass: true, lamps: [[-5.3, -12.3, 2.53, 0.513], [-1.1, -12.3, 2.8, 0], [3.1, -12.3, 2.8, 0], [7.3, -12.3, 2.8, 0], [-5.3, -10, 2.8, 0], [-1.1, -10, 2.8, 0], [3.1, -10, 2.89, 0.623], [7.3, -10, 2, 0.732]] },
+  { id: 'void', model: 'panel', y: 4.55, group: 32, yaw: 0, pass: true, lamps: [[-5.3, -12.3, 2.53, 0.513], [-1.1, -12.3, 2.8, 0], [3.1, -12.3, 2.8, 0], [6.65, -12.3, 2.8, 0], [-5.3, -10, 2.8, 0], [-1.1, -10, 2.8, 0], [3.1, -10, 2.89, 0.623], [6.65, -10, 2, 0.732]] },
   // the workshop door's exit sign (the facade's inside face)
   { id: 'workshop', model: 'bulkhead', y: 2.4, group: 36, yaw: 0, colour: EXIT_GREEN, pass: false, lamps: [[11, -17.76, 3.14, 0.06]] },
 ];
