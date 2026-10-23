@@ -12,10 +12,10 @@
  * that are not baked (flashlights) come from `dynamicAt` with the caller's ray test. Everything is allocation-free.
  */
 import { AMBIENT_CELL } from './ambientGrid';
-import { LAMP_CONE_COS, LAMP_EXP, LAMP_LEVEL_GAIN, lampTerm, PHOTO, SPOT_EXP } from './lampMath';
+import { LAMP_CONE_COS, LAMP_EXP, LAMP_FEATHER, LAMP_LEVEL_GAIN, lampTerm, PHOTO_NEAR2, PHOTO_NUM, SPOT_EXP, SPOT_FEATHER } from './lampMath';
 import type { LightBake } from './lightBake';
 import type { LightRegistry, Occluder } from './lights';
-import { BOX_STRIDE, LAMP_CELL, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE, lampGrid, type LampResult } from '../voxel/lampBake';
+import { BOX_STRIDE, LAMP_CELL, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE, lampGrid, lampGridBase, type LampResult } from '../voxel/lampBake';
 
 /** A door leaf as the field needs it (`Doors.list` entries fit): closed when `open` is below `DOOR_SHUT`. */
 export interface FieldDoor {
@@ -249,7 +249,7 @@ export class LightField {
       const q = Math.floor((x - this.gx) / LAMP_GRID);
       const r = Math.floor((z - this.gz) / LAMP_GRID);
       if (q >= 0 && r >= 0 && q < g.cols && r < g.rows) {
-        const base = (r * g.cols * 2 + q * 2) * 4;
+        const base = lampGridBase(g.cols, q, r);
         for (let s = 0; s < LAMP_GRID_SLOTS; s++) {
           const fid = g.data[base + s]!;
           if (fid === 0) break;
@@ -274,8 +274,9 @@ export class LightField {
     const lx = P[o]!;
     const ly = P[o + 1]!;
     const lz = P[o + 2]!;
-    // falloff x cone: `lampMath.photoFalloff` x `lampCone` written out (this path must not box a returned double; change
-    // both together - the brute-force tests in `tests/lightField.test.ts` / `lampFalloff.test.ts` compare them)
+    // falloff x cone: `lampMath.photoTerm` (`photoFalloff` x the feathered `lampCone`, LR16b) written out (this path
+    // must not box a returned double; change both together - the brute-force tests in `tests/lightField.test.ts` /
+    // `lampFalloff.test.ts` compare them)
     const vx = x - lx;
     const vy = y - ly;
     const vz = z - lz;
@@ -285,14 +286,18 @@ export class LightField {
     if (d >= rr) return;
     const q = (d * d) / (rr * rr);
     const w = 1 - q * q;
-    const nd = d > PHOTO.near ? d : PHOTO.near;
-    let t = ((PHOTO.ref * PHOTO.ref) / (nd * nd)) * w * w;
+    let t = (PHOTO_NUM / (d * d + PHOTO_NEAR2)) * w * w;
     if (d >= 1e-4) {
       const ca = (vx * P[o + 4]! + vy * P[o + 5]! + vz * P[o + 6]!) / d;
-      if (ca < P[o + 7]!) return;
+      const cut = P[o + 7]!;
+      if (ca <= cut) return;
       const c = ca > 1e-4 ? ca : 1e-4;
       const e = P[o + 8]!;
       t *= e === 1 ? c : e === 2 ? c * c : Math.pow(c, e);
+      // (LR16b) the feathered edge: a smoothstep over `coneFeather(e)` x (1 - cut)
+      const band = (e < 1.5 ? LAMP_FEATHER : SPOT_FEATHER) * (1 - cut);
+      const ft = band > 1e-6 ? (ca - cut) / band : 1;
+      if (ft < 1) t *= ft * ft * (3 - 2 * ft);
     }
     this.visInto(i, x, y, z);
     const vis = this.res;

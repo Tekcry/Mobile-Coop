@@ -15,6 +15,22 @@ export const LAMP_CONE_COS = Math.cos(LAMP_CONE / 2);
 /** Cone exponents: a lamp's light falls off with the cosine from straight down; a spot's with its square. */
 export const LAMP_EXP = 1;
 export const SPOT_EXP = 2;
+/**
+ * (LR16b, Michael 2026-10-23 ~18:08 "the edge of lights should diffuse against walls/floors/etc unless something directly
+ * cuts off the light ray"; ~18:20 guard torches "also need to be diffused and not so sharp") The cone's edge is a
+ * smoothstep, not a step: the cone factor rises from 0 at the cut over this fraction of (1 - cos cut), then follows
+ * the cosine. A feather in angle, so the soft band on a wall widens with its distance from the lamp. Fixed lamps
+ * (`LAMP_EXP`): the hemisphere cut at cos 0.047 ramps to cos 0.428 (87.3 -> 64.6 degrees from straight down: a
+ * fitting's housing; floor under a 3 m lamp keeps >= 0.94 of its light out to 6 m), so the cut meets a wall as a
+ * gradient, not an arch. Spots and flashlights (`SPOT_EXP`): 0.65 puts the ramp's inner end at the torch's authored
+ * inner angle (`TORCH`: outer 0.34, inner 0.2 rad: cos 0.943 -> 0.980).
+ */
+export const LAMP_FEATHER = 0.4;
+export const SPOT_FEATHER = 0.65;
+/** The feather of a cone with exponent `exp` (fixed lamps: `LAMP_FEATHER`, spots: `SPOT_FEATHER`). */
+export function coneFeather(exp: number): number {
+  return exp < 1.5 ? LAMP_FEATHER : SPOT_FEATHER;
+}
 /** Rendering only: map lights were Babylon lights at this x their gameplay intensity. */
 export const LIGHT_GAIN = 1.6;
 /**
@@ -31,8 +47,10 @@ export function lampFalloff(d: number, r: number): number {
 
 /**
  * (lightrev LR13; the only baked-lamp falloff since LR16a, Michael 2026-10-23 ~18:12 "Disable returning to original
- * lighting system, focus on only the one new system") Inverse square as a real fitting gives it,
- * `ref^2 / max(d, near)^2`, windowed to 0 at the reach (glTF / Babylon `FALLOFF_GLTF`: `(1 - (d / R)^4)^2`). A lamp's
+ * lighting system, focus on only the one new system") Inverse square as a real fitting gives it, with a smooth near
+ * term (LR16b): `(ref^2 + near^2) / (d^2 + near^2)` (1 at `ref`, as before; LR13's `ref^2 / max(d, near)^2` was a flat
+ * 9x plateau inside 1 m with a kink at its rim, which turned the cone's step on a wall near a lamp into a hard bright
+ * arch), windowed to 0 at the reach (glTF / Babylon `FALLOFF_GLTF`: `(1 - (d / R)^4)^2`). A lamp's
  * intensity is its level on axis at `ref` m, and its reach is its authored radius x `reach` (`lampReach`, applied once
  * when the registry adds a fixed light, so the bake boxes, the 2 m column lists, the field and the shaders all read the
  * same reach). Gameplay (`LightField.lampInto`) and the picture (`LAMP_MATH_GLSL`) run the same terms: light parity.
@@ -48,15 +66,36 @@ export function photoFalloff(d: number, r: number): number {
   if (r <= 0 || d >= r) return 0;
   const q = (d * d) / (r * r);
   const w = 1 - q * q;
-  const n = d > PHOTO.near ? d : PHOTO.near;
-  return ((PHOTO.ref * PHOTO.ref) / (n * n)) * w * w;
+  return (PHOTO_NUM / (d * d + PHOTO_NEAR2)) * w * w;
+}
+/** `photoFalloff`'s numerator (`ref^2 + near^2`) and `near^2`. */
+export const PHOTO_NUM = PHOTO.ref * PHOTO.ref + PHOTO.near * PHOTO.near;
+export const PHOTO_NEAR2 = PHOTO.near * PHOTO.near;
+
+/**
+ * Cone factor from the cosine between the cone's axis and the direction to the point: 0 at and outside the cut, a
+ * smoothstep over the feather band (`coneFeather`), times the cosine to the exponent. Continuous with a bounded
+ * derivative (LR16b: no step).
+ */
+export function lampCone(cosA: number, cosCut: number, exp: number): number {
+  if (cosA <= cosCut) return 0;
+  const c = cosA > 1e-4 ? cosA : 1e-4;
+  const p = exp === 1 ? c : exp === 2 ? c * c : Math.pow(c, exp);
+  const band = coneFeather(exp) * (1 - cosCut);
+  const t = band > 1e-6 ? (cosA - cosCut) / band : 1;
+  return t >= 1 ? p : p * t * t * (3 - 2 * t);
 }
 
-/** Cone factor from the cosine between the cone's axis and the direction to the point. */
-export function lampCone(cosA: number, cosCut: number, exp: number): number {
-  if (cosA < cosCut) return 0;
-  const c = cosA > 1e-4 ? cosA : 1e-4;
-  return exp === 1 ? c : exp === 2 ? c * c : Math.pow(c, exp);
+/**
+ * (LR16b) A baked lamp's falloff x cone towards offset (vx, vy, vz) (point - light): `photoFalloff` x `lampCone`, the
+ * reference that `LightField.lampInto` writes out by hand and `LAMP_MATH_GLSL` runs. No intensity, visibility or N.L.
+ */
+export function photoTerm(vx: number, vy: number, vz: number, r: number, dx: number, dy: number, dz: number, cosCut: number, exp: number): number {
+  if (vx > r || vx < -r || vy > r || vy < -r || vz > r || vz < -r) return 0;
+  const d = Math.sqrt(vx * vx + vy * vy + vz * vz);
+  const f = photoFalloff(d, r);
+  if (f <= 0 || d < 1e-4) return f;
+  return f * lampCone((vx * dx + vy * dy + vz * dz) / d, cosCut, exp);
 }
 
 /**
@@ -104,8 +143,12 @@ export function moonLight(theme: Pick<MapTheme, 'lightLevel' | 'ambient' | 'sunI
 }
 
 const glf = (v: number): string => (Number.isInteger(v) ? `${v}.0` : `${v}`);
-/** The baked lamps' formula in GLSL (`photoFalloff`, `lampCone`; names prefixed: Babylon's macros must not clash). */
+/**
+ * The baked lamps' formula in GLSL (`photoFalloff`, `lampCone`; names prefixed: Babylon's macros must not clash),
+ * generated from the constants above (never typed twice; `tests/lampFalloff.test.ts` runs it against the TS). The guard
+ * torches' draw (`shadowAccuracy.TORCH_DRAW_GLSL`) calls `nsLampCone` too.
+ */
 export const LAMP_MATH_GLSL = `
-float nsLampFalloff(float d, float r) { float nsQ = d * d / (r * r); float nsW = max(0.0, 1.0 - nsQ * nsQ); float nsN = max(d, ${glf(PHOTO.near)}); return ${glf(PHOTO.ref * PHOTO.ref)} / (nsN * nsN) * nsW * nsW; }
-float nsLampCone(float ca, float cut, float e) { return ca < cut ? 0.0 : pow(max(ca, 1e-4), e); }
+float nsLampFalloff(float d, float r) { float nsQ = d * d / (r * r); float nsW = max(0.0, 1.0 - nsQ * nsQ); return ${glf(PHOTO_NUM)} / (d * d + ${glf(PHOTO_NEAR2)}) * nsW * nsW; }
+float nsLampCone(float ca, float cut, float e) { float nsB = (e < 1.5 ? ${glf(LAMP_FEATHER)} : ${glf(SPOT_FEATHER)}) * (1.0 - cut); float nsT = nsB > 1e-6 ? clamp((ca - cut) / nsB, 0.0, 1.0) : 1.0; return ca <= cut ? 0.0 : pow(max(ca, 1e-4), e) * nsT * nsT * (3.0 - 2.0 * nsT); }
 `;

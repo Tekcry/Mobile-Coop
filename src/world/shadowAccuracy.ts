@@ -143,8 +143,10 @@ export function writeTorchDraw(out: Float32Array, slot: number, l: (DrawTorch & 
 
 /**
  * `torchDrawTerm` in GLSL x colour x N.L, summed over the slots (uniform `lampTorch`, three vec4 a slot). The torch's
- * falloff is the linear `lampTerm` (the photometric falloff is the baked lamps' only), its cone
- * cos^2 cut at the outer angle (flashlights are cone lights: `SPOT_EXP`; a cone-less light is never drawn here).
+ * falloff is the linear `lampTerm` (the photometric falloff is the baked lamps' only), its cone `nsLampCone`
+ * (`lampMath.LAMP_MATH_GLSL`, defined before this in the lamp shader): cos^2 with the feathered edge (LR16b,
+ * `SPOT_FEATHER`: soft beam edges, Michael 2026-10-23 ~18:20), 0 at the outer angle (flashlights are cone lights:
+ * `SPOT_EXP`; a cone-less light is never drawn here).
  */
 export const TORCH_DRAW_GLSL = `
 vec3 nsTorches(vec3 p, vec3 n) {
@@ -159,11 +161,10 @@ vec3 nsTorches(vec3 p, vec3 n) {
     L /= max(d, 1e-4);
     vec4 tb = lampTorch[c * 3 + 1];
     float ca = d < 1e-4 ? 1.0 : dot(-L, tb.xyz);
-    if (ca < tb.w) continue;
+    if (ca <= tb.w) continue;
     float ndl = dot(n, L);
     if (ndl <= 0.0) continue;
-    ca = max(ca, 1e-4);
-    s += tc.rgb * ((1.0 - d / tc.w) * ca * ca * min(1.0, (ta.w - d) / ${TORCH_CUT_SOFT.toFixed(2)}) * ndl);
+    s += tc.rgb * ((1.0 - d / tc.w) * nsLampCone(ca, tb.w, ${SPOT_EXP.toFixed(1)}) * min(1.0, (ta.w - d) / ${TORCH_CUT_SOFT.toFixed(2)}) * ndl);
   }
   return s;
 }
