@@ -7,6 +7,12 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 - RUNNING / QUEUED (scheduled tasks, survive the swap; logs runs/chain-1023<x>.log, results runs/<label>/summary.txt):
   - 4189 chain-1023t30: TRAIN 30 7e8b8c51 full (Player #214 -> #223 -> #231 protocol 40 + #236 voxel-retire) ->
     verdict to Orchestrator (if the swap cuts it: read runs/train30-7e8b8c51, send the verdict).
+  - 4192 chain-1023mr (after train 30 DONE): Marlow section-rating 053ff212 (protocol 42) coop netmove ctcourse:1-3
+    section-rating course -> verdict to Marlow Build.
+  - Guard AI will send a carry-fix sha (recompile a timed-out guard-body effect + e2e-guard-carry one-block stall):
+    run e2e-guard-carry on it (expect PASS) and on f16600f5 (expect FAIL) ahead of everything except trains.
+  - DONE: split found the cause - "Operation timed out after maximum retries - Effect: pbr" on partSkinMat guard
+    bodies in all 3 passes (sent to Guard AI). Old line kept below for the record:
   - 4191 chain-1023gs5: invisible-guard split on old master f16600f5 (runs/guardsplit-f16600f5: cmd2 control, cmd3
     --player-far, cmd4 --no-photo; work/guardsplit-f16600f5*/ JSON compileErrors + sheets) -> verdict to Guard AI:
     which pass shows "Unable to compile effect", the owning mesh class (guard body / player / shadow copy), defines.
