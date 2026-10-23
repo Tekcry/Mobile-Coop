@@ -25,7 +25,7 @@ import {
   Vector3,
   type Scene,
 } from '../core/babylon';
-import { G, glassMembership } from '../physics/groups';
+import { G, glassMembership, markArmoured } from '../physics/groups';
 import { LevelMaterialPlugin } from './levelMaterialPlugin';
 import { markLampLevel } from './bakedLamps';
 import { buildCoverSegments, coverPointsFromSegments, coverStandoff, type CoverSegment } from '../cover/coverData';
@@ -402,6 +402,8 @@ export class LevelBuilder {
       node.parent = root;
       const body = new PhysicsBody(node, PhysicsMotionType.STATIC, false, scene);
       body.shape = gc;
+      // (sniper triage) armour is the body's mark: a container's filter bits cannot be read back from a hit
+      if (group.armoured) markArmoured(body);
       const mesh = CreateBox(`glass-${group.id}`, { size: 1 }, scene);
       const mat = new PBRMaterial(`glassMat-${group.id}-${name}`, scene);
       mat.albedoColor = Color3.FromHexString(kind === 'frosted' ? '#dfe7ea' : list[0]!.color).toLinearSpace();

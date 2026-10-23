@@ -65,6 +65,24 @@ export function isArmoured(membership: number): boolean {
   return (membership & G.GLASS_ARMOURED) !== 0;
 }
 
+/**
+ * (guard-ai sniper triage) The bodies that are armour, marked where they are built (an armoured pane group's body in
+ * `LevelBuilder.buildGlass`, an armoured door leaf's in `Doors.addBody`). A ray hit cannot read armour from the struck
+ * shape's bits: Havok reports no leaf for a container hit, and a container's own filter reads as Havok's default (every
+ * bit, the armour bit included) whatever was set on it, so the level's static walls read as armour (tests/armourFireStatic).
+ */
+const ARMOURED_BODIES = new WeakSet<object>();
+
+/** Marks a physics body as armour (rounds stop on it, never through it; a guard's fire gate holds at it). */
+export function markArmoured(body: object): void {
+  ARMOURED_BODIES.add(body);
+}
+
+/** (guard-ai sniper triage) The struck body is armour (`markArmoured`). No allocation. */
+export function isArmouredBody(body: object | null | undefined): boolean {
+  return body !== null && body !== undefined && ARMOURED_BODIES.has(body);
+}
+
 /** Upper bounds so a busy fight can never tank the physics step. */
 export const BUDGET = {
   maxDynamicProps: 28,

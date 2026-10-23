@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { Vector3, type PhysicsRaycastResult, type Scene } from '../src/core/babylon';
 import { Ballistics } from '../src/weapons/ballistics';
 import { ArmourGate } from '../src/ai/armourFire';
-import { G, MASK, doorMembership, glassMembership } from '../src/physics/groups';
+import { G, MASK, doorMembership, glassMembership, isArmoured, markArmoured } from '../src/physics/groups';
 import type { DamageRegistry } from '../src/game/damage';
 import type { PropSystem } from '../src/world/props';
 import type { Vfx } from '../src/vfx/vfx';
@@ -43,6 +43,8 @@ function rig(bodies: FakeBody[], registered: object[] = [], props: object[] = []
   const scene = { getPhysicsEngine: () => eng } as unknown as Scene;
   const registry = { lookup: (b: unknown) => (b && registered.includes(b as object) ? { target: {}, part: 'body' } : undefined) } as unknown as DamageRegistry;
   const propSys = { get: (b: unknown) => (b && props.includes(b as object) ? {} : undefined) } as unknown as PropSystem;
+  // (sniper triage) armour is the body's mark, as the level builder and the doors set it on an armoured pane / leaf
+  for (const b of bodies) if (isArmoured(b.bits)) markArmoured(b.body);
   const bal = new Ballistics(scene, registry, propSys, {} as Vfx);
   return { bal, casts: () => casts, res: () => lastRes };
 }
