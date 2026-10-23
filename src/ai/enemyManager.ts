@@ -32,7 +32,7 @@ import { CALL_KIND, callHold, hearsVoice, RADIO, RadioNet, type CallKind, type R
 import type { P2 } from './navGrid';
 // (guard-ai S7) cameras see bodies
 import { MODE_BODY } from './incidents';
-import { camBodyLine } from './barks';
+import { camBodyLine, type BarkEvent } from './barks';
 import type { CameraBodyEvent } from '../security/securitySystem';
 import { Awareness, CAUTION, MAX_KEYS } from './awareness';
 import { bodyNoticed, bodyNoticeRange } from './bodies';
@@ -59,6 +59,8 @@ import { urgentKind } from './response';
 import { ALERT_MISSING, ALERT_SHOTS, AlertCallLog, SectionCounters, unitOf, type SectionCounts } from './sectionAlert';
 // (guard-ai S20) doors on the walker's way
 import { DoorGate } from './doorGate';
+// (guard-ai S22, G6) security consoles switched off: noticed when seen, turned back on (the breaker walk)
+import { CONSOLE_FAULT, CONSOLE_GROUP, ConsoleFaults, consoleInView, isConsoleGroup, V_TAMPER, type ConsoleHost } from './consoleFault';
 
 /** (guard-ai S10) A talking pair: its meeting clock, and the two slot indices (`guardAtSlot`; A the lower). */
 export interface TalkPair {
@@ -197,8 +199,8 @@ export class EnemyManager {
   /** (guard-ai S5b) Who called the last radio check (tests / e2e; null none). */
   lastCheckCaller: Enemy | null = null;
   private buffT = 0;
-  /** Callouts (GameState shows them). */
-  onBark: ((e: Enemy, line: string, radio: boolean) => void) | null = null;
+  /** Callouts (GameState shows them). (guard-ai S9) `ev` / `n` / `unit`: the table line (`Enemy.bark`), for the co-op host. */
+  onBark: ((e: Enemy, line: string, radio: boolean, ev?: BarkEvent, n?: number, unit?: number) => void) | null = null;
   /**
    * (guard-ai S1) Coordinated hearing: of the guards a noise reaches, one is sent to investigate and the rest only turn
    * to look (`hear`, `noise`). Off (Hunter, Mission: the parked modes): everyone in reach hears and walks over, and
@@ -401,6 +403,18 @@ export class EnemyManager {
   /** Breaker resets the guards made and late finds (tests / e2e). */
   breakerResets = 0;
   lateFinds = 0;
+  // ----- (guard-ai S22, Michael's walk of 4.72 G6) security consoles -----
+  /** The game's consoles as the guards use them (`CourseMode` sets it, `slices/S22.md`; null: a guard who notices one
+   *  off walks over, but cannot turn it back on). */
+  consoleHost: ConsoleHost | null = null;
+  /** The consoles the game reported (`consoleState`), their cuts and the guards' verdicts. */
+  readonly consoles = new ConsoleFaults();
+  readonly consoleTable = CONSOLE_FAULT;
+  /** Consoles the guards turned back on, and notices (a guard saw one off; tests / e2e). */
+  consoleResets = 0;
+  consoleFinds = 0;
+  private conT = 0;
+  private conK = 0;
 
   constructor(
     private scene: Scene,
@@ -468,7 +482,7 @@ export class EnemyManager {
         this.onKilled?.(e, h);
       },
       onShot: (e, a, b) => this.onEnemyShot?.(e, a, b),
-      onBark: (e, line, radio) => this.onBark?.(e, line, radio),
+      onBark: (e, line, radio, ev, n, unit) => this.onBark?.(e, line, radio, ev, n, unit),
       onMelee: (e) => this.onEnemyMelee?.(e),
       onWindup: (e) => this.onEnemyWindup?.(e),
       isFlanker: (e) => this.flanker === e,
@@ -523,9 +537,11 @@ export class EnemyManager {
       },
       dropHelmet: (x, y, z, top, dx, dz, hex, w, h, d) => this.helmetDrops.drop(x, y, z, top, dx, dz, hex, w, h, d),
       // (guard-ai S15) the breaker walk: is the circuit still off; he worked the switch
-      breakerOff: (group) => (this.breakers ? this.breakers.isOff(group) : true),
+      // (guard-ai S22) a console's pseudo circuit: its state as the game reported it, its own toggle path
+      breakerOff: (group) => (isConsoleGroup(group) ? this.consoles.isOff(this.consoles.ofGroup(group)) : this.breakers ? this.breakers.isOff(group) : true),
       breakerReset: (_e, group) => {
-        if (this.breakers?.reset(group)) this.breakerResets++;
+        if (isConsoleGroup(group)) this.consoleReset(group);
+        else if (this.breakers?.reset(group)) this.breakerResets++;
       },
       // (guard-ai S20) a shut door's leaf in his step: not taken; a door not locked is opened the player's way (its
       // sound, the close behind him and the co-op door sync as before) and he waits for the swing
@@ -1052,6 +1068,136 @@ export class EnemyManager {
     this.circuitOut(l.group, s[0]!, this.switchFloor(s[0]!, s[2]!, s[1]!), s[2]!, 1, false);
   }
 
+  // ----- (guard-ai S22, Michael's walk of 4.72 G6) security consoles -----
+
+  /**
+   * (guard-ai S22) The game reports every toggle of security console `id` (its point: x, the floor it stands on y, z;
+   * `on` after the toggle): the player's press, a timed loop running out, a restart, a guard's reset. A switch-off seen
+   * at once (a calm, free guard with its screens in his sight field and a clear line, `consoleInView`) is noticed now;
+   * else the next guard who sees it off notices it (`consoleStep`): a fault, the one walker turns it back on (the S15
+   * breaker walk, `ConsoleHost.reset`); a second cut noticed inside `BREAKER.repeatT` s is tampering, the S2 light check
+   * at the console, then a reset walk. Coordinated modes only (the parked modes ignore consoles).
+   */
+  consoleState(id: string, x: number, y: number, z: number, on: boolean): void {
+    if (!this.coordinated || !CONSOLE_FAULT.enabled) return;
+    const c = this.consoles;
+    const i = c.set(id, x, y, z, on);
+    if (!c.fresh || !c.pending(i, this.board.now, this.consoleBusy(i))) return;
+    const list = this.enemies;
+    this.hearRoom(list.length);
+    const who = this.hearWho;
+    let n = 0;
+    for (let k = 0; k < list.length; k++) {
+      const e = list[k]!;
+      if (this.consoleFree(e) && this.seesConsole(e, i)) who[n++] = e.num;
+    }
+    if (n > 0) this.consoleNotice(i, n);
+  }
+
+  /**
+   * (guard-ai S22) Is guard `e` watching the console at (x, floor y, z) now: awake, calm and free (not distracted: no
+   * board task, investigation or search), its screens in his sight field with a clear line? For the game's refusal
+   * ("the guard is watching the monitors"), so a console may be used while its guard is drawn away (`slices/S22.md`).
+   */
+  watchesConsole(e: Enemy, x: number, y: number, z: number): boolean {
+    return this.consoleFree(e) && this.seesConsoleAt(e, x, y + CONSOLE_FAULT.screenY, z, y);
+  }
+
+  /** (guard-ai S22) A guard who may notice a console off: alive, calm (unaware or cooldown), on no task, not a dog, a
+   *  melee kind, a high-security post (the board never sends one), held or running the alarm. */
+  private consoleFree(e: Enemy): boolean {
+    if (!e.alive || e.alerted || e.passive || e.taken || e.def.melee || e.dog || e.secure || e.runningAlarm || e.incident >= 0) return false;
+    return e.level === 'unaware' || e.level === 'cooldown';
+  }
+
+  /** (guard-ai S22) Guard `e` sees console `i`'s screens. */
+  private seesConsole(e: Enemy, i: number): boolean {
+    const c = this.consoles;
+    const y = c.y[i]!;
+    return this.seesConsoleAt(e, c.x[i]!, y + CONSOLE_FAULT.screenY, c.z[i]!, y);
+  }
+
+  /** (guard-ai S22) The screen point (x, y, z) of a console on floor `fy` inside his sight field (`consoleInView`) with
+   *  a clear line, or in the room he stands in (no wall between). One ray at most. */
+  private seesConsoleAt(e: Enemy, x: number, y: number, z: number, fy: number): boolean {
+    const ey = e.pos.y + EYE_STAND * e.def.scale;
+    if (!consoleInView(e.pos.x, ey, e.pos.z, e.yaw, x, y, z)) return false;
+    const rooms = this.ctx.rooms;
+    if (rooms.length) {
+      const er = roomAt(rooms, e.pos.x, e.pos.z, e.pos.y + 0.1);
+      if (er >= 0 && roomAt(rooms, x, z, fy + 0.1) === er) return true;
+    }
+    return this.seesPoint(e, x, y, z);
+  }
+
+  /** (guard-ai S22) Someone is on console `i` now: a guard walking to turn it back on, or its incident still open. */
+  private consoleBusy(i: number): boolean {
+    const c = this.consoles;
+    const inc = c.inc[i]!;
+    if (inc >= 0 && this.board.slotOf(inc) >= 0) return true;
+    const g = c.group(i);
+    const list = this.enemies;
+    for (let k = 0; k < list.length; k++) {
+      const e = list[k]!;
+      if (e.alive && e.breakerGroup === g) return true;
+    }
+    return false;
+  }
+
+  /** (guard-ai S22) The `n` guards in `hearWho` noticed console `i` off: the reset walk (`breaker`, one goes) or, a
+   *  second cut inside `BREAKER.repeatT`, the S2 light check at it; at the floor by the console. */
+  private consoleNotice(i: number, n: number): void {
+    const c = this.consoles;
+    const v = c.notice(i, this.board.now);
+    this.consoleFinds++;
+    const x = c.x[i]!;
+    const z = c.z[i]!;
+    c.inc[i] = this.report(v === V_TAMPER ? 'light' : 'breaker', x, this.switchFloor(x, z, c.y[i]!), z, CIRCUIT_KEY + c.group(i), n);
+  }
+
+  /** (guard-ai S22) A guard worked console group `g`: back on through the game's own toggle path. */
+  private consoleReset(g: number): void {
+    const c = this.consoles;
+    const i = c.ofGroup(g);
+    if (i < 0 || c.on[i] === 1 || !this.consoleHost) return;
+    if (!this.consoleHost.reset(c.ids[i]!)) return;
+    c.on[i] = 1;
+    this.consoleResets++;
+  }
+
+  /**
+   * (guard-ai S22) Every `LATE_SCAN.tick` s: a share of the guards (round robin, as late discovery, each about
+   * `LATE_SCAN.perGuardHz` times a second) look for a console that is off and nobody is on; the first who sees one
+   * notices it. No console off: one pass over the consoles. No allocation.
+   */
+  private consoleStep(): void {
+    const c = this.consoles;
+    const now = this.board.now;
+    let any = false;
+    for (let i = 0; i < c.n; i++) {
+      if (c.pending(i, now, false)) {
+        any = true;
+        break;
+      }
+    }
+    if (!any) return;
+    const list = this.enemies;
+    const N = list.length;
+    if (N === 0) return;
+    const per = Math.min(N, Math.max(1, Math.ceil(N * LATE_SCAN.tick * LATE_SCAN.perGuardHz)));
+    for (let j = 0; j < per; j++) {
+      if (this.conK >= N) this.conK = 0;
+      const e = list[this.conK++]!;
+      if (!this.consoleFree(e)) continue;
+      for (let i = 0; i < c.n; i++) {
+        if (!c.pending(i, now, false) || !this.seesConsole(e, i) || this.consoleBusy(i)) continue;
+        this.hearWho[0] = e.num;
+        this.consoleNotice(i, 1);
+        return;
+      }
+    }
+  }
+
   /** (guard-ai S15 laptop fix) The floor a guard stands on to work the switch at (x, z) whose floor is about `y`: the
    *  nearest walkable cell's height. `heightAt` there reads the wall's own column, whose surface is the wall's top (the
    *  Warehouse floor switch: 3.2 m), and the walker never counted as at the switch. */
@@ -1468,6 +1614,8 @@ export class EnemyManager {
     // (guard-ai S15) the new guards know of no dark fixture or cut circuit
     this.dark.clear();
     this.lastFault.clear();
+    // (guard-ai S22) nor of a console off
+    this.consoles.clear();
   }
 
   spawn(kind: EnemyKind, pos: Vector3, alerted = true, yaw = 0): Enemy | null {
@@ -1909,8 +2057,10 @@ export class EnemyManager {
       if (o.cmd[k] === CMD_SEND) {
         const m = o.mode[k]!;
         // (guard-ai S15) a guard reacts to this fixture / circuit going dark: late discovery leaves it alone
-        if (m === MODE_LIGHT || m === MODE_BREAKER) this.dark.markKey(this.world.level.lights, b.keyOf(inc));
-        if (m === MODE_LIGHT) e.checkLight(o.x[k]!, o.z[k]!, inc, o.arg[k]!);
+        // (guard-ai S22) a console's pseudo circuit is no fixture: late discovery is not told; the check has its own line
+        const con = b.keyOf(inc) >= CIRCUIT_KEY + CONSOLE_GROUP;
+        if ((m === MODE_LIGHT || m === MODE_BREAKER) && !con) this.dark.markKey(this.world.level.lights, b.keyOf(inc));
+        if (m === MODE_LIGHT) e.checkLight(o.x[k]!, o.z[k]!, inc, o.arg[k]!, con ? 'consoleCheck' : 'lightOut');
         // (guard-ai S15, A42) a circuit switched off: walk to its switch and turn it back on
         else if (m === MODE_BREAKER) e.resetBreaker(o.x[k]!, o.z[k]!, o.y[k]!, inc, b.keyOf(inc) - CIRCUIT_KEY);
         else if (m === MODE_LEAD || m === MODE_COVER) e.pairSearch(o.x[k]!, o.z[k]!, inc, m === MODE_LEAD);
@@ -2605,6 +2755,15 @@ export class EnemyManager {
           this.lateStep();
         }
       }
+      // (guard-ai S22) a security console off: the next guard who sees it notices it
+      if (CONSOLE_FAULT.enabled && this.consoles.n > 0) {
+        this.conT -= dt;
+        if (this.conT <= 0) {
+          this.conT += LATE_SCAN.tick;
+          if (this.conT <= 0) this.conT = LATE_SCAN.tick;
+          this.consoleStep();
+        }
+      }
     }
     this.updateDrones(dt);
     // (guard-ai S13) the response teams: who leads, and the switch to the sweep after the search
@@ -2759,5 +2918,7 @@ export class EnemyManager {
     // (guard-ai S15) and what the guards knew of dark fixtures and cut circuits
     this.dark.clear();
     this.lastFault.clear();
+    // (guard-ai S22) and of the consoles (the game reports each again on its next toggle)
+    this.consoles.clear();
   }
 }
