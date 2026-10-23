@@ -1,6 +1,12 @@
 # Guard AI - state
 
 ## Now
+~17:55: calm sheet on train/29 61972cf1: bodies render, no shader error (#232's partSkinMat change fixes the master
+bug; the release of train 29 fixes master). Hotfix agent re-scoped: root cause note + an e2e regression check on
+feature/guard-ai-carry-fix rebased on train/29. Clipping: slung rifle ~10 cm off the back, thigh pistol clean (no
+clipping). Polish: while walking calm the grunt's rifle reads at the right hip / front (sling sway?). marlow-final #237
+also wants train 31: whichever of S9 / #237 is train-ready first (merged with train/30) takes PROTOCOL 41.
+
 ~17:45: invisible holstered body REPRODUCES on master f16600f5 (eNN-smooth, partSkinMat isReady false for the grunt;
 probe JSON scratch/work/guardcalm-master-f16600f5). Orchestrator: TOP PRIORITY hotfix PR off master (fix + an e2e check
 that fails on it), released at once as a patch. Protocol rule: one wire bump per train in merge order: train 30 = Player
@@ -490,10 +496,9 @@ Read CLAUDE.md ("Sessions", "Heavy-usage throughput" incl. "Token rules"), ROADM
 unavoidable guards, stealth over shooting), then this file's "Now" (top entry).
 e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep laptop CPU under ~80%.
 1. Train 29 (61972cf1) = #228 S16 + Sector Ops #232: fix any failure reported at once.
-2. TOP: hotfix feature/guard-ai-carry-fix (off master; Opus agent): holstered guards draw no body (partSkinMat effect
-   fails). Fix + unit test + an e2e check; check vs #232 LR14 (train 29). PR, Test Runner: calm sheet + the e2e check,
-   then TRAIN-READY (patch release).
-   Then train 31: when train 30 is built, merge origin/train/30 into s9 then s22, PROTOCOL 41, fix the asserts, Test
+2. feature/guard-ai-carry-fix (on train/29; Opus agent): invisible holstered body is fixed by #232 in train 29; this
+   branch = root-cause note + e2e regression check. PR after train 29 releases, Test Runner runs the check, TRAIN-READY.
+   Then train 31: when train 30 is built, merge origin/train/30 into s9 then s22, PROTOCOL 41 (42 if marlow-final #237 is train-ready first), fix the asserts, Test
    Runner coop + netmove (+ stealth-ai, takedown; S22 stealth-ai, ctcourse:1), TRAIN-READY #229 + #234.
 3. S22 game side (slices/S22.md: CourseState.consoleBack, CourseMode consoleHost / watchesConsole / consoleEdge) after
    marlow-final merges; then fix e2e-ctcourse A4 step 3 (passive officer no longer refuses) in the same branch.
