@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~05:30: round 4 failed on the 'wall' premise (spot seen at 2.2 s from his cover route through the x -4 gap). S25 round 5
+3a762da9 (player waits out the fight at (0,-20), moved to the walled spot when the search starts) -> laptop
+s25-sai-fix5; s26 2581b794 -> s26-sai3. Both green -> label #266 + #271.
+
 ~04:55 (window reset; 4.84.0 released, train 41 #283 building): S25 round 4 cf3e013d ('wall' asked for a floor spot
 the warehouse lacks; now the spot most round a wall, 4-9 m straight; S25-SAI-TRIAGE.md) -> laptop s25-sai-fix4; merged
 into s26 8e794f6c -> laptop s26-sai2 (stealth-ai; s26 coop + netmove already PASS on 531a65e9). Both green -> label
