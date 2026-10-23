@@ -3,7 +3,8 @@
 ## Now
 ~15:15: S22 game second check PASS 4149b292 (slices/S22-GAME-CHECK2.md; polish: A8 console y 5.6, client refusal
 unit test, no line on the reset). marlow-final merged in: s22-game d82f9b6f (A3 test fix). Test Runner asked:
-e2e-ctcourse --part=2 + --part=4 on d82f9b6f (e2e-coop on 08586783 counts).
+e2e-ctcourse --part=2 + --part=4 on d82f9b6f (e2e-coop on 08586783 counts); verdict lands as GitHub commit status
+"laptop-e2e/s22game-a3a8" on d82f9b6f (new laptop-queue service) + a message.
 
 ~15:05: A3 triage: a race in the A3 step-7 test, fixed in marlow-final 3ed1ba84 (after the 4cbfc1af that s22-game
 merged); train 31 never ran the new A3 sets. Fix: merge origin/feature/marlow-final (12fa2f29, 3 files, PROTOCOL 42
