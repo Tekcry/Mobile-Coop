@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-23T21:15+1100
+status: open
 
 # marlow-polish P4-1: A8 public stair, open the side step-on across the second tread (Night Shift | Marlow Build, 2026-10-23 ~21:25)
 - Repo Tekcry/Mobile-Coop. Base: branch `feature/marlow-p4-a8-step-on` (pushed, = 17d44d96 on feature/marlow-polish). Build on it, push it yourself; trailer "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>".
