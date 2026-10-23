@@ -1,4 +1,4 @@
-# Resume - Night Shift | Player Build (saved 2026-10-23 ~21:15; jobs: #247 train 34, guard-models P1-P3 running)
+# Resume - Night Shift | Player Build (saved 2026-10-23 ~21:25 at the 92% save; guard-models P1 fix round + G5 / G1 / G1h / G3 builders were running: resume them from their branches, docs/guard-models/STATE.md SAVE line)
 
 Rules: CLAUDE.md on origin/master "Session titles", "Heavy-usage throughput", "Token rules", "Account swap". No mid-window clears.
 Opus plans / checks / anim + net code; Sonnet builds from strict briefs; Haiku chores; desktop CPU < 80%. e2e always
