@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-23T20:07+1100
 
 # Brief: afp-next AF0b - before-numbers harness for the hand-keyed states (Player Build, test code only)
 

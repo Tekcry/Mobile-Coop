@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-23T20:07+1100
 # guard-ai S25a: probable-area search, the pure module only (searchArea.ts + its unit test)
 
 Lead: Night Shift | Guard AI Build. Model: **Opus only** (AI code). The full S25 brief is `docs/guard-ai/slices/S25.md`
