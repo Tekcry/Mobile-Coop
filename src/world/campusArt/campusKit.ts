@@ -14,7 +14,7 @@
  */
 import { PROP_LOOK } from '../props/facilityProps';
 import kitReport from './assets/campus-kit.json';
-import type { ArtBox, ArtLook, ArtPlacement, ArtSlab, PropCatalogue, V3 } from './catalogue';
+import { BIN_ENV, CHAIR_ENV, type ArtBox, type ArtLook, type ArtPlacement, type ArtSlab, type PropCatalogue, type V3 } from './catalogue';
 
 type Cls = ArtPlacement['cls'] | 'box';
 interface Row {
@@ -30,10 +30,6 @@ interface Row {
   noLedge?: boolean;
   pitch?: number;
 }
-
-/** The see box under any chair (ART-PLAN 3.2 `chairEnv`) and round a litter bin (`binEnv`). */
-export const CHAIR_ENV: ArtBox = { lo: [-0.3, 0, -0.3], hi: [0.3, 1.0, 0.3], see: true };
-export const BIN_ENV: ArtBox = { lo: [-0.225, 0, -0.225], hi: [0.225, 0.9, 0.225], see: true };
 
 const ROWS: readonly Row[] = [
   { id: 'chairEnv', fp: [-0.3, -0.3, 0.3, 0.3], y: [0, 1.0], cls: 'box', tris: 0, boxes: [CHAIR_ENV] },

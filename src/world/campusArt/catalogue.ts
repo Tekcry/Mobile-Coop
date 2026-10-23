@@ -135,6 +135,14 @@ interface FacilityReportShape {
   pieces: Record<string, { bounds: { min: number[]; max: number[] } }>;
 }
 
+/** The see box under any chair (ART-PLAN 3.2 `chairEnv`) and round a litter bin (`binEnv`). */
+export const CHAIR_ENV: ArtBox = { lo: [-0.3, 0, -0.3], hi: [0.3, 1.0, 0.3], see: true };
+export const BIN_ENV: ArtBox = { lo: [-0.225, 0, -0.225], hi: [0.225, 0.9, 0.225], see: true };
+
+/** (ART-KIT L5) The F pieces whose campus collision differs from the facility table: the office chair stands in the K
+ *  `chairEnv` see box (ART-PLAN 3.1 "see (K box chairEnv)"; the facility drew it as visual only). */
+export const F_COLLISION_OVERRIDE: Readonly<Record<string, readonly ArtBox[]>> = { officeChair: [CHAIR_ENV] };
+
 /** ART-PLAN 3.1 marks these F pieces `fit` (non-uniform scale 0.8-1.25 to skin greybox boxes of slightly different sizes). */
 export const F_FIT: readonly string[] = ['officeDesk', 'receptionDesk', 'securityDesk', 'serverRack', 'cableTray', 'coolingUnit', 'palletLoad', 'palletLoadLow', 'dispatchDesk'];
 
@@ -155,7 +163,7 @@ export function facilityCatalogue(): PropCatalogue {
     ids: PROP_IDS,
     materials: PROP_MATERIALS,
     looks: PROP_LOOK,
-    collision: PROP_COLLISION,
+    collision: { ...PROP_COLLISION, ...F_COLLISION_OVERRIDE },
     footprint: PROP_FOOTPRINT,
     triBudget: PROP_TRI_BUDGET,
     hung: PROP_HUNG,
@@ -369,9 +377,12 @@ export function skinFit(cat: PropCatalogue, p: ArtPlacement, box: BoxPiece | Cyl
 
 /**
  * Rule V (ART-PLAN 2) for a visual placement: no part in the body band (floor + 0.5 .. floor + 2.1) wider than 0.35 m in
- * plan, unless the whole piece lies within 0.15 of a wall face (`wallDist`: the piece's farthest point from the wall it is
- * flush to; Infinity when free-standing) or above floor + 2.3. Floor clutter under 0.5 is free. Exceptions: open frames
- * (`cat.open`); listed desk-top overhangs (each <= 0.6 wide, <= 0.5 tall). Null: passes (and always for other classes).
+ * plan, unless that part lies within 0.15 of a wall face or above floor + 2.3. Floor clutter under 0.5 is free.
+ * `wallDist` (ART-KIT L6): the gap between the wall face and the piece's back (local z = 0, a wall piece's mounting
+ * face); a part is flush when `wallDist` + its depth off the back (its local z1) is <= 0.15. Infinity: free-standing.
+ * Negative: the piece hangs over a solid or skinned run that keeps the body out (wall cupboards over a kitchen run).
+ * Exceptions: open frames (`cat.open`); listed desk-top overhangs (each <= 0.6 wide, <= 0.5 tall). Null: passes (and
+ * always for other classes).
  */
 export function ruleV(cat: PropCatalogue, p: ArtPlacement, floorY: number, wallDist: number): string | null {
   if (p.cls !== 'visual') return null;
@@ -379,8 +390,9 @@ export function ruleV(cat: PropCatalogue, p: ArtPlacement, floorY: number, wallD
   const s = [sx(p), sy(p), sz(p)];
   const h = pieceHull(cat, p.prop);
   const slabs = cat.profile?.[p.prop] ?? [{ x0: h.lo[0], x1: h.hi[0], y0: h.lo[1], y1: h.hi[1], z0: h.lo[2], z1: h.hi[2] }];
-  if (wallDist <= RULE_V.flush + 1e-6) return null;
+  if (wallDist < 0) return null;
   for (const q of slabs) {
+    if (wallDist + q.z1 * s[2]! <= RULE_V.flush + 1e-6) continue;
     const y0 = p.y + q.y0 * s[1]! - floorY;
     const y1 = p.y + q.y1 * s[1]! - floorY;
     if (y1 <= RULE_V.band0 + 1e-6) continue;
