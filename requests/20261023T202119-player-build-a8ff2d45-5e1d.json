@@ -1,0 +1,23 @@
+{
+  "id": "20261023T202119-player-build-a8ff2d45-5e1d",
+  "sha": "a8ff2d45d5054c0da3492d100771aecc3e4531af",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "player-build",
+  "steps": [
+    "node scripts/operators/guard-bake.mjs --probe",
+    "node scripts/operators/guard-bake.mjs --stage prep --kit scripts/operators/data/guards.json && node scripts/operators/guard-bake.mjs --stage bodies --par 3 --kit scripts/operators/data/guards.json --push && node scripts/operators/guardBodyCheck.mjs --kit scripts/operators/data/guards.json C:/NightShift/scratch/guard-bake/bodies/guard-average-body.json C:/NightShift/scratch/guard-bake/bodies/guard-lean-body.json C:/NightShift/scratch/guard-bake/bodies/guard-broad-body.json",
+    "node scripts/operators/guard-bake.mjs --stage heads --kit scripts/operators/data/guards.json --push && node scripts/operators/guardHeadCheck.mjs --out C:/NightShift/scratch/guard-bake --kit scripts/operators/data/guards.json",
+    "node scripts/operators/guard-bake.mjs --stage garments --kit scripts/operators/data/guards.json --push && node scripts/operators/guardGarmentCheck.mjs C:/NightShift/scratch/guard-bake/garments/guard-*.json",
+    "node scripts/operators/guard-bake.mjs --stage gear --kit scripts/operators/data/guards.json --push",
+    "node scripts/operators/guard-bake.mjs --stage lods --kit scripts/operators/data/guards.json --push",
+    "node scripts/operators/guard-bake.mjs --stage check --kit scripts/operators/data/guards.json --push",
+    "node scripts/operators/guard-bake.mjs --stage sheet --kit scripts/operators/data/guards.json --push"
+  ],
+  "env": {
+    "E2E_GPU": "1"
+  },
+  "set": "guard-bake-all",
+  "note": "guard-models full bake (G1-G4 + sheet) on a8ff2d45; probe first (needs the MPFB2 zip at C:/NightShift/downloads/mpfb2-2.0.18/ on the laptop); sheet goes to Michael"
+}
