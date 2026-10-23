@@ -60,7 +60,9 @@
   Items carry their section; the host sends only the live section + untagged (objective, connector doors, revives,
   c- items): worst 64 incl. crate headroom; no wire change. tests/sectorItemScope.test.ts. Risk: a switch / board
   reachable from another section than its builder file loses its client prompt (only doors are tested).
-  RUNNING: build + e2e-sectorops:6 + e2e-coop + e2e-netmove GPU at 5bee8eff (scratch/runs/sectorredesign-5bee8eff).
+  5bee8eff GREEN (GPU): sectorops:6 214 s, netmove 163 s, coop 78 s. IN FLIGHT: Opus PR 3 integrator on
+  feature/sector-redesign-p3 (worktree -p3) = feature/sector-redesign + -s45 + -e9, S4 / S5 crates, S4 / S5 enforcers out,
+  item-scope room test; checks/merge-p3.md. Then GPU: sectorops 1-6 + coop + netmove + full vitest, PR 3.
   Then ONE Opus checker for E8 + E9 (engine + net). Was: needs a number (NetItem kind 'crate' + event
   'crate'); asked the orchestrator ~11:20. Build (a) Opus engine + net, then (b) Sonnet crate model / placement / tests.
 - (done) Opus E9-crate planner -> briefs/E9-CRATE.md (commits only that file). On resume: check each file / branch; rerun if
