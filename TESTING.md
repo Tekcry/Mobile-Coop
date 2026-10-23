@@ -144,6 +144,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Guard tactics (guard-ai S8): get spotted by 4 guards and break line of sight: the caller drops back into cover,
   one moves up cover to cover ("Moving up!"), one covers from cover ("Covering!"), one goes round the side
   ("Flanking!"); never more than one of them moving up at once, nobody runs at you in the open.
+- [ ] Report, then attack (guard-ai walk 4.82 items 2 and 6, Marlow Yard): get spotted by the station 2 guard and break
+  line of sight: he takes cover and radios it in, then (call done, a few seconds with no sight of you) leaves cover and
+  moves up on where he last saw you, still in the fight, and searches from there; he does not sit in cover and go
+  cautious. Once station 3's camera is a training camera (`guardResponse: false`), being seen by it sends you back but
+  no guard comes for you.
 - [ ] Helmets and armour (guard-ai S12; once a section has `gear`, or set one with `e.setGear` in the console): shoot a
   helmeted guard in the head: steel-blue hit marker and a ping, the helmet falls to the floor and stays, he reels and
   comes up shooting; a second head shot kills. An armoured guard shrugs off chest rounds (a short stagger, not every

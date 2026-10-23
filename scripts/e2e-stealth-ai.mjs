@@ -536,6 +536,75 @@ try {
     assert(!r.lkpAfter && !r.ghostAfter, 'the LKP and its ghost clear afterwards');
   });
 
+  await scen('report then engage', async () => {
+    // (guard-ai walk 4.82 item 2, Michael: "s2 guard sees you, hides, reports, and forgets where you are and becomes
+    // cautious. That's not logical at all. He should report then attack you instead of hiding.") A lone guard spots the
+    // lit player and radios it in; the player vanishes out of sight. Once the call is through he does not sit in cover
+    // until the lost-sight timer turns the fight into a search: he moves up on the last known position still in combat
+    // (alert), never leaving cover while his call is open, and the search starts there with the position kept.
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const rnd = Math.random;
+      let seed = 4821;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      try {
+        t.light(1);
+        // the contact call only (no command call: the alarm run would bring Hunter's reinforcements)
+        em.alarmRaised = true;
+        const e = t.spawn('grunt', 0, 5, Math.PI);
+        t.tp(-0.5, 0, 0);
+        let k = 0;
+        while (!(e.alerted && em.sightT < 0.1) && k++ < 900) t.step(1 / 60);
+        const seen = { alerted: e.alerted, call: +em.radioLeft(e).toFixed(2), lkp: em.lkpValid };
+        const at = { x: em.lkp.x, z: em.lkp.z };
+        // out of sight behind the dispatch wall, far from the last known position
+        t.light(0);
+        t.tp(-2, -15, 0);
+        let time = 0;
+        let callDone = -1;
+        let leftEarly = false;
+        let prev = e.state;
+        let wasInCover = false;
+        let arrived = null;
+        let searchAt = -1;
+        let lkpAtSearch = false;
+        let wallhack = false;
+        let closest = 99;
+        for (let i = 0; i < 700 && searchAt < 0; i++) {
+          for (const x of em.enemies) if (x !== e) x.passive = true;
+          t.step(0.05);
+          time += 0.05;
+          const open = em.radioLeft(e) > 0;
+          if (callDone < 0 && !open) callDone = time;
+          if (e.state === 'inCover') wasInCover = true;
+          if (prev === 'inCover' && e.state === 'chase' && open) leftEarly = true;
+          prev = e.state;
+          const d = Math.hypot(e.pos.x - at.x, e.pos.z - at.z);
+          closest = Math.min(closest, d);
+          if (!arrived && d < 2) arrived = { level: e.level, t: +time.toFixed(2), unseen: +e.sinceSeen.toFixed(2) };
+          if (e.level === 'alert' && e.sinceSeen > 1 && Math.hypot(e.pos.x + 2, e.pos.z + 15) < 2) wallhack = true;
+          if (e.level === 'searching') {
+            searchAt = time;
+            lkpAtSearch = em.lkpValid && em.lkpOf(e.hunt) !== null;
+          }
+        }
+        t.light(null);
+        return { seen, callDone, leftEarly, wasInCover, arrived, closest, searchAt, lkpAtSearch, wallhack, end: e.level };
+      } finally {
+        Math.random = rnd;
+      }
+    });
+    const f = (v) => v.toFixed(2);
+    assert(r.seen.alerted && r.seen.lkp, `the guard detects the lit player and sets the last known position (${JSON.stringify(r.seen)})`);
+    assert(r.seen.call > 0 && r.callDone > 0, `he radios it in (call ${f(r.seen.call)} s, through at ${f(r.callDone)} s)`);
+    assert(!r.leftEarly, `he does not leave his cover while the call is open (in cover: ${r.wasInCover})`);
+    assert(r.arrived && r.arrived.level === 'alert', `he moves up on the last known position still in the fight, not a search (${JSON.stringify(r.arrived)}, closest ${f(r.closest)} m)`);
+    assert(r.searchAt > 0 && r.lkpAtSearch, `the search starts there and the position is kept (${f(r.searchAt)} s, ${r.lkpAtSearch})`);
+    assert(!r.wallhack, 'he never homes in on the hidden player');
+  });
+
   await scen('patrol', async () => {
     const r = await G(() => {
       const t = window.__t;
