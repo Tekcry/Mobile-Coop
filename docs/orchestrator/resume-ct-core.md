@@ -1,5 +1,8 @@
 # Resume - Night Shift | Player Build (updated 2026-10-23 ~21:40 after the swap; live state in docs/guard-models/STATE.md "RESUMED" line)
 
+#247 ~22:25: head fd34263e = real per-frame alloc fixed (AF1 / AF3 non-inlined approach / clamp / smoothstep calls written
+inline, bit-identical; mocapStrafe matches master). CI pending on fd34263e; laptop 20261023T112112-player-build-fd34263e-d9aa
+(anim clip coop netmove menus, set afp). Both green -> gh pr edit 247 --add-label train-ready + message orchestrator.
 HIGH ~22:15 (orchestrator, WALK-4.82-REPORT.md items 7 + 4): coop-rejoin = rejoining / reconnecting client spawns at
 the host's current checkpoint or beside the host with section state; two-slot spawn points (Marlow places them). Opus
 builder in C:/NightShift/Mobile-Coop-coop-rejoin (feature/coop-rejoin off master 33fff449; docs/coop-rejoin/REPORT.md).
