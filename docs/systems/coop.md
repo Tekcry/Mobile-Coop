@@ -137,6 +137,14 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   clock drives both bodies (`TEAM_LINK`, written by GameState; the partner's avatar reads it when the partner is ours:
   `MoveState.tid` / mode / sub / `s` / `ph` as before); an unlinked holder plays the offer pose. The rope line starts in
   the holder's hands (`ropeGripWorld`).
+- (team-climb) The rope top-out (CLIMB_UP_TEAM, `TEAM.ropeTop` 1.1 s, was 0.9): the climber is pulled in to 0.22 m off
+  the face over the rope's last 0.6 m by height (`ropeClimbPull`, the slide undoes it), then `ropeTopPath` rises
+  (quintic, the climb's speed carried in) and moves in (quintic from k 0.325): the root's per-frame velocity change
+  stays under 0.5 cm (was 5.7 cm at the rise's stop). The lip is found once per climb (`findRopeLip`); the hands start
+  for it on the rope's last 0.2 m (weight at most 0.4 into the top-out, so the team clip plays, not `ledgeClimb`),
+  hold it as lip ("hook") grips while the body rises past and lift off as the arms run out (`liftOff`, the rig's
+  `liftOffTarget`). The partner's avatar does the same with no wire change: its own lip search from the shown feet,
+  the top-out from the feet past the rope's top and the wire phase (`ropeSeenStep`).
 - Partners block each other (training D49, A49, G52: every co-op mode): each page gives each partner a
   `PartnerBlocker` (`partnerBlocker.ts`), an upright capsule at their shown (interpolated) feet in `G.PARTNER` that only
   the local controller collides with. Host: `RemotePlayer.blocker`; client: per `RemoteAvatar`. Parked while the
