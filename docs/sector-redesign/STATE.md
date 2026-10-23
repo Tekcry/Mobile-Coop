@@ -280,10 +280,13 @@ campus detail art, stealth over shooting), PLAN.md "Walk 4.72" + "Campus detail 
 Heads: art 2276483a (#226), lampx eb45b0af (LR15 + lighting polish + atlas fix), artpol 1d34c348 (art + freeze polish).
 #232 (LR13 + shadow + LR14) released in 4.78.0 (train 29).
 1. #226 (-art: campus art, A64 lift, walk W2/W3, polish2 lamp probe, guard-freeze CPU fix; checks campus-perf-fix.md /
-   -check.md): all suites green (desktop sectorops 1-6 + stealth-ai + stealth; laptop e2e-coop). WAITING: laptop perf
-   views start / S3 / S4 / S5-worst, 24 guards, &guardfreeze=0 vs on (budget CPU p95 < 12; __sector.debug() guardFreeze*)
-   + guard-cap. In budget -> merge master into -art, tsc + related vitest, push, message the orchestrator "train-ready #226".
-   Over budget -> read frozen counts, next lever: guard-ai / guard-render proposals in campus-perf-fix.md.
+   -check.md): all suites green. LAPTOP PERF ~18:55 OVER BUDGET (p95 < 12): 2276483a freeze on start 14.4 / S4 14.6 /
+   S5 16.9 / S3 13.3; artpol 1d34c348 start 13.4 / S4 12.1 / S5 13.1 / S3 10.6 (freeze saves 4-6 ms at S5 / S3; start
+   view = art draws, 401). guard-cap alert cpu 18.1. Results: scratch/work/artpol-1d34c348/guard-cap; 1d34c348 e2e-coop PASS.
+   RUNNING (Opus, both off -artpol): -perfg = campus-perf-fix.md proposals 1-3 (frozen anim tier, merged guard gun,
+   dog rig skip; enemy.ts / enemyRig.ts / animTier.ts - other branches edit them too, keep minimal; perfg-build.md);
+   -perfa = campusArt static merge / caster trim (perfa-build.md). Then: one Opus checker, merge both into -artpol,
+   laptop perf rerun same 4 views + guard-cap; in budget -> #226 = -artpol head (push -art to it), train-ready.
 2. LR15 PR #242 OPEN (~18:50, -lampx @ 1c22b913; orchestrator told). Laptop GPU rerun at eb45b0af re-sent to Test
    Runner (sectorops 1-6 + coop, campusOps Realistic: no texImage3D warning, LAMP_PAGES compiles, perf + VRAM, S2 / S3
    sheet). Green -> "train-ready #242" to the orchestrator (merge master only at train entry).
@@ -301,7 +304,7 @@ Heads: art 2276483a (#226), lampx eb45b0af (LR15 + lighting polish + atlas fix),
    relight touches guard behaviour (offer to Guard AI).
    RUNNING ~18:50 (new account; old agents died, resumed from their WIP): LR16a Opus on -lr16 (from WIP 315a2805;
    checks/lr16a-build.md), LR16c+LR16-2 Opus on -lr16c (lamp-audit script + run -> checks/lr16-lamp-audit.md),
-   LR16-6 Sonnet on -lr16v (checks/lr16v-build.md), LR16f Opus on NEW -lr16f off -lampx (charShadows.ts Poisson PCSS;
+   LR16-6 DONE -lr16v 5ee3a270 (G100 instant cut, G102 door ghosts incl. partners; lr16v-build.md), LR16f Opus on NEW -lr16f off -lampx (charShadows.ts Poisson PCSS;
    checks/lr16f-build.md). Resume: check each branch head + build doc; missing doc = rerun from lr16-plan.md row.
    Next on their reports: LR16b (after LR16a) + LR16t torch occlusion (beside LR16b) Opus; LR16d Sonnet from the
    LR16c table; one Opus checker for the a/c/f/6 batch.
