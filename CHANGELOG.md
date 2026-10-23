@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.86.1 - Train 45: Guards route round locked doors; Merge train: feature/menu alone is not a train (2026-10-24, PR #296; #294, #293)
+
+### Guards route round locked doors
+- Guards no longer stall at a locked door on their way (Marlow Yard A7's cage door): a locked, shut door is a wall to
+  their pathing and they go round it; unlocked, the way through opens again (guard-ai S28).
+
+### Merge train: feature/menu alone is not a train
+- `merge-train build` stops (exit 3) without pushing or opening a PR when every member except the docs-only
+  `feature/menu` ride-along was left out (train 44 opened #292 holding only the menu docs merge, no version commit).
+
 ## 4.86.0 - Train 43: e2e-ctcourse A3: calm wait after the step-4 send-back (pairs with #254 S23); Guard AI: guards hear you in a fight and a search; Guard AI: cover, clear lines and the alarm draw; +2 more (2026-10-24, PR #289; #271, #270, #264)
 
 ### Guard AI: two intruders
