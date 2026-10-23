@@ -254,7 +254,11 @@ await run(PARAMS, async ({ page, G, sim }) => {
       raised = await G(() => window.__app.current.enemyMgr.alarmRaised);
     }
     const d = await G(() => window.__sector.debug());
+    // (guard-ai S6 stack merge) the stage rises through the panel, not the radio command call (S6: a contact call that
+    // gets through also raises the alarm, ~6.5 s after the sighting), so the path this scenario names is asserted
+    const by = await G(() => window.__app.current.enemyMgr.alarmBy);
     assert(raised && d.stage === st0 + 1, `${tag}: the panel raises the alarm stage (${st0} -> ${d.stage}, raised ${raised})`);
+    assert(by === 'panel', `${tag}: raised by the panel, not the radio (alarmBy '${by}')`);
   };
   await panelAlarm('section 2');
   // (marlow-bays item 3) the restart from the pause menu: "Restart at checkpoint", a confirm opening on Stay, then Restart
@@ -1914,7 +1918,7 @@ if (want(1)) {
       out.bMax = bMax;
       g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
       return out;
-    }, site);
+    }, site.at);
     const f2 = (v) => v.toFixed(2);
     assert(r.aSent === -1 && r.fSent >= 0, `posts: the board sends the free guard, never the vault-door guard (vault ${r.aSent}, free ${r.fSent})`);
     assert(JSON.stringify(r.phases.slice(0, 3)) === '[1,2,3]' && r.phases[r.phases.length - 1] === 5, `posts: the vault-door guard walks out, looks, walks back, done (phases ${JSON.stringify(r.phases)})`);
@@ -1925,6 +1929,130 @@ if (want(1)) {
     assert(r.back < 0.6 && r.yaw < 0.2, `posts: back on his post facing it (${f2(r.back)} m, yaw off by ${f2(r.yaw)} rad)`);
     assert(r.searched && r.sMax <= 3 + 0.4, `posts: a search 15 m off is searched from inside his leash (${r.searched}, ${f2(r.sMax)} m)`);
     assert(r.bSent >= 0 && r.bMax > 3.5, `posts: a normal post is sent and walks out past his 3 m leash (sent ${r.bSent}, ${f2(r.bMax)} m)`);
+  });
+}
+
+// (guard-ai S5b, ENGINE.md section 7) The sector tags, on guards built with the test hook (spawn + placeSlot with a
+// stand-in section list; no map data edited). (a) `squad`: a squad of 3; one is knocked out unseen (the other two face
+// away, > BODY.close off); nobody knows until the next radio check, which misses him: the other two are sent as a pair
+// (a `missing` incident), reach where he went down and find him. (b) `handler`: a dog placed beside a squad mate (the old
+// "nearest of its squad" rule would heel on him) heels on its handler instead and stays with him as he walks his round;
+// the handler knocked out, the dog stays by him.
+if (want(1)) {
+  console.log('sector tags (guard-ai S5b): a squad of 3, one taken out, the radio check sends the other two; a dog stays at its handler');
+  await run(PARAMS, async ({ G, sim }) => {
+    await G(() => { const g = window.__app.current; g.target.damageMul = 0; if (g.security) g.security.fixedUpdate = () => {}; if (window.__ctdev) window.__ctdev.fixedUpdate = () => {}; });
+    await sim(0.5);
+    const S = await sections(G);
+    // the posts block's open stretch: clear 9 m east and 5 m north at x + 8 (nearest the objective first)
+    const site = await G((o) => {
+      const nav = window.__app.current.enemyMgr.nav;
+      const cells = [];
+      for (let c = 0; c < nav.walk.length; c++) {
+        if (!nav.walk[c]) continue;
+        const [x, z] = nav.center(c);
+        const y = nav.height[c];
+        if (Math.abs(y - o[1]) > 1.5) continue;
+        cells.push([Math.hypot(x - o[0], z - o[2]), x, y, z]);
+      }
+      cells.sort((a, b) => a[0] - b[0]);
+      for (const [, x, y, z] of cells) {
+        const P = (dx, dz) => [x + dx, z + dz];
+        if (nav.lineClear([x, z], P(9, 0), y, y) && nav.lineClear(P(8, 0), P(8, 5), y, y) && nav.lineClear([x, z], P(8, 4), y, y)) return { at: [x, y, z] };
+      }
+      return { at: null, cells: cells.length };
+    }, S[0].obj);
+    assert(site.at !== null, `sector tags: an open stretch on section 1's storey (${site.cells} cells)`);
+    const r = await G(([cx, cy, cz]) => {
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const V = g.player.position.constructor;
+      for (const e of [...em.enemies]) em.despawn(e);
+      g['updateLight'] = () => (g.localRef.light = g.lightLevel = 0);
+      g.player.controller.teleport(new V(cx - 40, cy, cz - 40), 0);
+      const step = (s) => window.__app.loop.stepHeadless(s);
+      const hit = (e) => ({ amount: 9999, point: e.pos.clone(), dir: new V(0, 0, 1), part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: 'local', sourcePos: e.pos.clone(), impulse: 1 });
+      const out = {};
+      // (a) a squad of 3 (squad 0 of section 0); B and C face away from A (yaw PI/2 = +x)
+      const slotsA = [
+        { kind: 'grunt', x: cx, z: cz, yaw: Math.PI / 2, squad: 0, role: 'patrol' },
+        { kind: 'grunt', x: cx + 5, z: cz, yaw: Math.PI / 2, squad: 0, role: 'patrol' },
+        { kind: 'grunt', x: cx + 8, z: cz + 4, yaw: Math.PI / 2, squad: 0, role: 'patrol' },
+      ];
+      const [A, B, C] = slotsA.map((s, i) => {
+        const e = em.spawn(s.kind, new V(s.x, cy, s.z), false, s.yaw);
+        em.placeSlot(e, s, 0, slotsA, i);
+        return e;
+      });
+      out.squads = [A.squad, B.squad, C.squad];
+      step(1);
+      const ax = A.pos.x;
+      const az = A.pos.z;
+      A.knockOut(hit(A));
+      step(2);
+      out.before = { b: B.incident, c: C.incident, bl: B.level, cl: C.level, misses: em.radioMisses };
+      em.radioCheckNow();
+      step(0.1);
+      out.misses = em.radioMisses - out.before.misses;
+      out.inc = [B.incident, C.incident];
+      out.kind = B.incident >= 0 ? em.board.kindOf(B.incident) : null;
+      let close = 99;
+      let found = false;
+      for (let k = 0; k < 400 && !found; k++) {
+        step(0.1);
+        close = Math.min(close, Math.hypot(B.pos.x - ax, B.pos.z - az), Math.hypot(C.pos.x - ax, C.pos.z - az));
+        const b = em.bodies.find((q) => q.enemyId === A.id);
+        found = !b || b.found;
+      }
+      Object.assign(out, { close, found });
+      for (const e of [...em.enemies]) em.despawn(e);
+      // (b) the dog: handler H walks a round; a squad mate D stands beside the dog's spawn
+      const slotsB = [
+        { kind: 'grunt', x: cx, z: cz, yaw: Math.PI / 2, squad: 1, role: 'handler', route: [[cx, cz], [cx + 8, cz]], wait: 1 },
+        { kind: 'grunt', x: cx + 8, z: cz + 4, yaw: Math.PI / 2, squad: 1, role: 'gate' },
+        { kind: 'dog', x: cx + 7, z: cz + 3, yaw: 0, handler: 0 },
+      ];
+      const [H, D, K] = slotsB.map((s, i) => {
+        const e = em.spawn(s.kind, new V(s.x, cy, s.z), false, s.yaw);
+        if (s.route) e.setPatrol({ points: s.route, wait: s.wait });
+        em.placeSlot(e, s, 0, slotsB, i);
+        return e;
+      });
+      out.bound = K.handler === H && K.squad === H.squad;
+      let far = 0;
+      let hMove = 0;
+      const h0x = H.pos.x;
+      for (let k = 0; k < 250; k++) {
+        step(0.1);
+        hMove = Math.max(hMove, Math.hypot(H.pos.x - h0x, H.pos.z - cz));
+        // after 6 s to reach him
+        if (k >= 60) far = Math.max(far, Math.hypot(K.pos.x - H.pos.x, K.pos.z - H.pos.z));
+      }
+      Object.assign(out, { far, hMove, leader: K.leader === H, decoy: Math.hypot(D.pos.x - K.pos.x, D.pos.z - K.pos.z) });
+      // the handler knocked out: the dog stays by him
+      const hx = H.pos.x;
+      const hz = H.pos.z;
+      H.knockOut(hit(H));
+      let stay = 0;
+      for (let k = 0; k < 150; k++) {
+        step(0.1);
+        if (k >= 50) stay = Math.max(stay, Math.hypot(K.pos.x - hx, K.pos.z - hz));
+      }
+      Object.assign(out, { stay, dogLevel: K.level, dogAlive: K.alive });
+      for (const e of [...em.enemies]) em.despawn(e);
+      g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
+      return out;
+    }, site.at);
+    const f2 = (v) => v.toFixed(2);
+    console.log(`  squad ${JSON.stringify(r.squads)}, before ${JSON.stringify(r.before)}, incident ${r.inc} (${r.kind}), closest ${f2(r.close)} m, found ${r.found}; dog far ${f2(r.far)} m (handler moved ${f2(r.hMove)} m; the squad mate ${f2(r.decoy)} m off at the end), stay ${f2(r.stay)} m (${r.dogLevel})`);
+    assert(r.squads[0] === r.squads[1] && r.squads[1] === r.squads[2] && r.squads[0] >= 0, `sector tags: the three join one squad (${r.squads})`);
+    assert(r.before.b === -1 && r.before.c === -1, `sector tags: nobody knows before the radio check (incidents ${r.before.b} / ${r.before.c}, ${r.before.bl} / ${r.before.cl})`);
+    assert(r.misses === 1, `sector tags: the radio check misses him (${r.misses})`);
+    assert(r.inc[0] >= 0 && r.inc[0] === r.inc[1] && r.kind === 'missing', `sector tags: the other two are sent as a pair to a missing incident (${r.inc}, ${r.kind})`);
+    assert(r.close < 2.5 && r.found, `sector tags: they reach where he went down and find him (${f2(r.close)} m, found ${r.found})`);
+    assert(r.bound && r.leader, `sector tags: the dog is bound to its handler, in his squad (${r.bound}, leader ${r.leader})`);
+    assert(r.hMove > 6 && r.far < 3.5, `sector tags: the dog stays at its handler on his round (${f2(r.far)} m off; he walked ${f2(r.hMove)} m)`);
+    assert(r.dogAlive && r.stay < 3.5, `sector tags: the handler down, the dog stays by him (${f2(r.stay)} m, ${r.dogLevel})`);
   });
 }
 

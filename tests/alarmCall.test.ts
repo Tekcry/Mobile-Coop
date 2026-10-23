@@ -4,7 +4,7 @@ import { ALARM_CALL, CommandCall } from '../src/ai/alarm';
 import { DIFFICULTY } from '../src/ai/archetypes';
 import { RADIO } from '../src/ai/radioNet';
 import { ALERT, AlertMachine, emptyAlertInput } from '../src/ai/alertState';
-import { BEHAVIOUR } from '../src/ai/squadRoles';
+import { BEHAVIOUR, P_AGGRESSIVE, P_STANDARD } from '../src/ai/squadRoles';
 import { BARKS, RADIO_BARKS } from '../src/ai/barks';
 import { Vector3, type Scene } from '../src/core/babylon';
 import type { AiContext, Enemy } from '../src/ai/enemy';
@@ -330,13 +330,15 @@ describe('reinforcements (wired)', () => {
     expect(em.entriesFor(5, out)).toEqual([]);
   });
 
-  it('Enemy.joinAsReinforcement: profile aggressive (the S5 string), entering with a route, told (radio 0)', async () => {
+  it('Enemy.joinAsReinforcement: profile aggressive (the S5 string and S8 tacticsProfile), entering with a route, told (radio 0)', async () => {
     const { Enemy: EnemyClass } = await import('../src/ai/enemy');
     const radio = vi.fn();
     const e = Object.create(EnemyClass.prototype) as Enemy;
-    Object.assign(e, { profile: 'standard', radio });
+    Object.assign(e, { profile: 'standard', tacticsProfile: P_STANDARD, radio });
     e.joinAsReinforcement([[1, 1]]);
     expect(e.profile).toBe('aggressive');
+    expect(e.tacticsProfile).toBe(P_AGGRESSIVE);
+    expect(e.behaviour).toBe(BEHAVIOUR.aggressive);
     expect(e.entering).toBe(true);
     expect(radio).toHaveBeenCalledWith(0);
     e.joinAsReinforcement([]);
@@ -344,18 +346,18 @@ describe('reinforcements (wired)', () => {
   });
 });
 
-describe('behaviour profiles (keyed off the S5 profile string)', () => {
-  it("Enemy.behaviour is BEHAVIOUR[profile]; 'standard' keeps the old combat numbers, 'aggressive' bounds fast and never calms", async () => {
+describe('behaviour profiles (keyed off the S8 numeric tacticsProfile)', () => {
+  it('Enemy.behaviour is profileOf(tacticsProfile); standard keeps the old combat numbers, aggressive bounds fast and never calms', async () => {
     const { Enemy: EnemyClass } = await import('../src/ai/enemy');
-    const e = Object.create(EnemyClass.prototype) as Enemy & { profile: string };
-    e.profile = 'standard';
+    const e = Object.create(EnemyClass.prototype) as Enemy;
+    e.tacticsProfile = P_STANDARD;
     expect(e.behaviour).toBe(BEHAVIOUR.standard);
     // today's guard: 2.5 s between bounds, 85% to cover on contact, walks the last stretch
     expect(e.behaviour.advanceHold).toBe(2.5);
     expect(e.behaviour.coverFirst).toBe(0.85);
     expect(e.behaviour.runToContact).toBe(false);
     expect(e.behaviour.neverCautious).toBe(false);
-    e.profile = 'aggressive';
+    e.tacticsProfile = P_AGGRESSIVE;
     expect(e.behaviour).toBe(BEHAVIOUR.aggressive);
     expect(e.behaviour.advanceHold).toBeLessThan(BEHAVIOUR.standard.advanceHold);
     expect(e.behaviour.coverFirst).toBeLessThan(BEHAVIOUR.standard.coverFirst);

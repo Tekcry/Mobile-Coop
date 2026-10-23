@@ -131,16 +131,51 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   and gives only a turn's meter floor. A search (a body, a radio check, after combat) and his investigate spot are
   clamped into the leash; he wakes no knocked-out guard outside it; in combat `chasePoint` / strafe points are clamped,
   cover outside the leash is skipped, and a target outside it (+1.5 m) is held from the post (the `hold` rule); he
-  never runs to an alarm panel outside it. A revived guard keeps his post (`Enemy.inherit`). Not yet: squads / handler /
-  zone / role tags (S5b). Map data: `MapLayout.guardAi` (zones, `noisy`, entries, squads) and `SectorDef.noisy` /
+  never runs to an alarm panel outside it. A revived guard keeps his post (`Enemy.inherit`). The sector tags: next
+  entry (S5b). Map data: `MapLayout.guardAi` (zones, `noisy`, entries, squads) and `SectorDef.noisy` /
   `entries`; `EnemyManager.mapNoisy` loads the map's noisy things as the masking, Sector Ops swaps in the live
   section's (`setNoisy` on load). Checks: `validateGuardAi` / `validatePosts` run on load in dev (console warnings via
   `reportGuardAi`, never a throw) and in `tests/postsWiring.test.ts` over every live map's sectors.
-- Tactics: from sight into cover first (85%; the profile's `coverFirst`, S6), attack -> cover after 2.5-4.5 s, peek cycles (4.2 s, up to 5); out of sight
-  an `advancing` bound to cover closer to the believed position (`pickAdvance`), a 2.5 s hold (`advanceHold`), then the next; the last
+- Sector tags (guard-ai S5b, ENGINE.md section 7 on sector-redesign, A26-A28; `ai/sectorTags.ts` pure, the type
+  `GuardSlotTags` in `ai/guardAiData.ts`): `SectorGuard`'s `squad` / `handler` / `zone` / `role` / `reason` / `pair` are
+  read by `EnemyManager.placeSlot(e, slot, section, slots?, index?)` (`sectorMode.fill` passes the section's `guards` and
+  the slot's index; a reinforcement -1). `squad`: `joinSquad(squadId(section, squad))`, none = the default cluster of
+  posts within 12 m (`slotSquads` / `defaultSquads`), a dog its handler's; so squad radio checks (`radioCheckNow`,
+  `ARCHETYPE.radio` ~40 s) run in Sector Ops. The check's caller: a desk role (`ROLE_DESK`: desk / cctv / operator;
+  calm, the lowest key) for every squad of his section, else the squad's own (supervisor > officer > first; a squad of
+  one has none). A member down and not found is missed once (`silent`): coordinated, a `missing` incident at where he
+  went down with his squad's calm members as perceivers, so the board sends two of them (lead + cover; the K_MISSING
+  assign takes perceivers first); parked modes, the caller searches (old rule). `handler`: the dog is bound
+  (`Enemy.handler`, set when both are placed, either order) and heels on him only (`findLeader`); he goes down: the dog
+  searches round him, barks (`TAGS.dogBark` 14 m noise via `hear`, the dog skipped) and keeps its heel spot by him; a
+  woken handler takes it back (`swapSlot`), a despawned one frees it. `zone`: a secure zone (`isSecureZone`: 'secure'
+  or a word 'sec') gives the guard a circle (`zoneRadius`: post leash, else 8 m / route reach + 2) in the board's view
+  (`GuardView.setTags`): inside it he counts as a perceiver and ranks first (x `TAGS.secureFirst` 0.25); after a search
+  every guard walks back to his own post / route (the walker; no new code). `role` (on the guard `Enemy.job`, the word, and `roleFlags`, `ROLE_CLASS`; `Enemy.role` is S8's numeric combat role): the
+  alarm runner (`alarmRunMul`: supervisor 0.1, officer 0.25), the board's score (`roleSendMul`: supervisor sends
+  someone x1.6; a light: rover x0.8, fixed post x1.5). `reason` stored (`Enemy.reason`); `pair` stored as the S10 hook
+  (`Enemy.pairSlot`, `EnemyManager.guardAtSlot(index)`). All kept over a revive (`Enemy.inherit`). Tests:
+  `tests/sectorGuardTags.test.ts`; e2e: e2e-sectorops part 1 "sector tags (guard-ai S5b)".
+- Tactics: from sight into cover first (85%; the profile's `coverFirst` by `profileOf(tacticsProfile)`, S6, a seeded roll, S8), attack -> cover after 2.5-4.5 s, peek cycles (4.2 s, up to 5); out of sight
+  an `advancing` bound to cover closer to the believed position (`pickAdvance`), a 2.5 s hold (`ADVANCE_HOLD`; a point or an aggressive guard: `profileOf(tacticsProfile).advanceHold`, 0.8 s aggressive), then the next; the last
   stretch is walked (`ADVANCE_PACE`; aggressive: a jog); cover is picked against `knownPt` (never the real position out of sight). One bullet
   to the head kills any guard but a heavy (`Enemy.applyDamage`). The close-range sense from behind ignores a sneak /
   crouched approach.
+- Squad roles (guard-ai S8, coordinated modes; `squadRoles.ts`, `coverGrid.ts`): `EnemyManager.rolesStep` at 2 Hz
+  (`TACTICS.tick`) fills one reused `RoleInput` from the engaged group (alerted, free, cover-using guards; >= 2,
+  `TACTICS.minGroup`), runs `assignRoles` against the level cover as typed arrays (`coverSet`, mirrored from
+  `reserveCover`; `coverGrid` 4 m buckets) and calls `Enemy.setRole(role, cover, moving, run, mateMoving, onRadio)`.
+  Reporter = the engagement's first contact caller (`contactCaller`), held crouched and silent while his call is open;
+  point bounds cover to cover (`profile.advanceHold` between bounds, out of sight), walks the last stretch (`closing`)
+  when no cover is left; overwatch's low cover needs one view ray to the LKP (`TACTICS.viewChecks` 4, a blind one
+  blocked `TACTICS.blockS` 5 s), suppresses the LKP while a mate moves; flank (groups of 3+) bounds to cover >= 60 deg
+  off the point's bearing; the rest search (today's). One of point / flank moves at a time (standard). Out of sight in
+  the open a role guard waits for the group. A path failure blocks the cover. While a group has roles the single
+  `flanker` is cleared; otherwise `assignFlanker` as before. Barks `moving` / `covering` / `flanking`.
+- Combat dice (S8, A24): `Enemy.rng` (mulberry32) reseeded `combatSeed(matchSeed, engagement, num)` on going to
+  combat; `tacticsProfile` (`placeSlot`: `P_POST` with a post, `P_AGGRESSIVE` for an aggressive slot, else `P_STANDARD`;
+  kept by `Enemy.inherit`) weights cover-first (standard 0.85) and the roles (`P_POST` never point or flank). A
+  high-security post never takes a role cover outside his leash (`Enemy.setRole` drops it; A18, A25).
 - `EnemyManager.stealth` (on in Hunter, Mission and Infiltration; off in Free Roam): shared `lkp` (sightings by alerted
   enemies, located gunfire), a flow field to the LKP (never the real position), arriving with nothing there starts the
   search; `callAlert` radios within `RADIO` 22 m in the parked modes (a radioed alert does not relay; the live modes use
