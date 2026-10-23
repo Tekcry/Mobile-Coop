@@ -2350,6 +2350,16 @@ if (want(1)) {
       const V = g.player.position.constructor;
       const step = (s) => window.__app.loop.stepHeadless(s);
       const dbg = () => window.__sector.debug();
+      // (guard-ai S10, S6 close-on fix) seeded Math.random for the block (the think cadence and the shout / radio
+      // delays still draw on it), restored at the end; every step below is sim time
+      const rnd0 = Math.random;
+      let sd = 0x5eed6;
+      Math.random = () => {
+        sd = (sd + 0x6d2b79f5) | 0;
+        let q = Math.imul(sd ^ (sd >>> 15), 1 | sd);
+        q = (q + Math.imul(q ^ (q >>> 7), 61 | q)) ^ q;
+        return ((q ^ (q >>> 14)) >>> 0) / 4294967296;
+      };
       for (const e of [...em.enemies]) em.despawn(e);
       for (const p of em.alarms) p.disabled = true;
       g['updateLight'] = () => (g.localRef.light = g.lightLevel = 0);
@@ -2393,16 +2403,29 @@ if (want(1)) {
       const pts = (sec.entries ?? []).length ? sec.entries.map((q) => q.at) : sec.reinforce;
       const reinf = em.enemies.filter((e) => e.alive && e.profile === 'aggressive');
       const atEntry = reinf.map((e) => Math.min(...pts.map((p) => Math.hypot(e.pos.x - p[0], e.pos.z - p[1]))));
+      // (S6 close-on fix) the distance they close is the route's (the flow field to the LKP, the way they go): the
+      // office's only way in is ~20 m round by the workshop door, and along it the straight line stays at 6.5-7.5 m
+      // from 4 to 10 m in (tests/s6CloseOn.test.ts)
+      const fd = nav.flowField([[x, z]], undefined, [y]);
+      const rd = (e) => {
+        let c = nav.cellOf(e.pos.x, e.pos.z, e.pos.y);
+        if (!(fd[c] < Infinity)) c = nav.nearestWalkable(e.pos.x, e.pos.z, 3, e.pos.y);
+        return c >= 0 ? fd[c] * nav.cell : Infinity;
+      };
       const toLkp = () => reinf.map((e) => Math.hypot(e.pos.x - x, e.pos.z - z));
+      const toLkpRoute = () => reinf.map(rd);
       const dl0 = toLkp();
+      const rl0 = toLkpRoute();
       step(1);
       const lv1 = reinf.map((e) => e.level);
       step(7);
       const dl1 = toLkp();
+      const rl1 = toLkpRoute();
       step(30);
       const lv2 = reinf.map((e) => (e.alive ? e.level : 'down'));
       g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
-      Object.assign(out, { tCmd, tAl: t, by: em.alarmBy, stage: [d1.stage, d2.stage], sent: d2.reinforced - d1.reinforced, perStage: sec.perStage, n: reinf.length, atEntry, lv1, dl0, dl1, lv2, walk: reinf[0]?.def.walkSpeed ?? 0 });
+      Math.random = rnd0;
+      Object.assign(out, { tCmd, tAl: t, by: em.alarmBy, stage: [d1.stage, d2.stage], sent: d2.reinforced - d1.reinforced, perStage: sec.perStage, n: reinf.length, atEntry, lv1, dl0, dl1, rl0, rl1, lv2, walk: reinf[0]?.def.walkSpeed ?? 0, run: reinf[0]?.def.runSpeed ?? 0 });
       return out;
     }, S[0].obj);
     const f2 = (v) => v.toFixed(2);
@@ -2411,9 +2434,113 @@ if (want(1)) {
     assert(r.stage[1] === r.stage[0] + 1 && r.sent === r.perStage && r.n === r.perStage, `S6: the stage rises and the section's ${r.perStage} reinforcements come in, aggressive (${r.stage}, sent ${r.sent}, aggressive ${r.n})`);
     assert(r.atEntry.every((d) => d < 4), `S6: they come in at the section's entry points (${r.atEntry.map(f2)} m)`);
     assert(r.lv1.every((l) => l === 'alert'), `S6: in combat at once, on the last known position (${r.lv1})`);
-    const closed = r.dl0.map((d, i) => d - r.dl1[i]);
-    assert(r.dl1.every((d) => d < 4) || closed.some((d) => d > 4), `S6: they close on it (${r.dl0.map(f2)} -> ${r.dl1.map(f2)} m in 7 s; walk ${r.walk})`);
+    // (S6 close-on fix) along the route, by the design: the point (aggressive) bounds and walks the last stretch at the
+    // aggressive pace (run x AGGRESSIVE_JOG 0.75, enemy.ts) for the 8 s from the spawn, less 1 s to be told by command
+    // and get a role (think + the 2 Hz roles tick), one advanceHold (0.8 s, BEHAVIOUR.aggressive) and two 0.7 s door
+    // checks (Enemy.perceive); half of that run (starts, stops, turns). The flank goes sideways by design (one closes).
+    const minClose = 0.5 * r.run * 0.75 * (8 - 1 - 0.8 - 2 * 0.7);
+    const closed = r.rl0.map((d, i) => d - r.rl1[i]);
+    assert(r.rl1.every((d) => d < 4) || closed.some((d) => d > minClose), `S6: they close on it along the route (${r.rl0.map(f2)} -> ${r.rl1.map(f2)} m in 8 s, need ${f2(minClose)} m; straight ${r.dl0.map(f2)} -> ${r.dl1.map(f2)} m; walk ${r.walk}, run ${r.run})`);
     assert(r.lv2.every((l) => l === 'alert' || l === 'searching' || l === 'down'), `S6: still hunting 38 s on (never calm: alertState pins the endless search) (${r.lv2})`);
+  });
+}
+
+// (guard-ai S13, stealth over shooting items 3, 4, 11; A37-A39) Response teams. Section 1 with its loaded guards, the
+// live panel off, the cameras held (their own clock: this checks the stage changes none of them), the player far off in
+// the dark (no damage), a last known position set in the section. Three alarms by the mode's own path (`onAlarm`):
+// stage 2 -> every living guard wears armour, stage 3 -> a helmet too; each stage's team leads with a shield guard
+// (`enforcer`, helmeted), perStage strong; the camera count and states never change. Then hide: after the search of the
+// last known position (`ALERT.searchTime`) the first team sweeps (it switches to the sweep and looks at sweep points),
+// and at 120 s every member is still hunting (searching or in combat), none calm. Sim-time steps only; Math.random
+// seeded (as e2e-stealth-ai 'lkp').
+if (want(1)) {
+  console.log('sector ops: response teams: stage gear, shield-led teams, the sweep after the search (guard-ai S13)');
+  await run(PARAMS, async ({ G, sim }) => {
+    await G(() => { const g = window.__app.current; g.target.damageMul = 0; if (g.security) g.security.fixedUpdate = () => {}; if (window.__ctdev) window.__ctdev.fixedUpdate = () => {}; });
+    await sim(0.5);
+    const S = await sections(G);
+    const r = await G((o) => {
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const m = window.__sector;
+      const nav = em.nav;
+      const V = g.player.position.constructor;
+      const step = (s) => window.__app.loop.stepHeadless(s);
+      window.__s13rnd = Math.random;
+      let seed = 1313;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      for (const p of em.alarms) p.disabled = true;
+      g['updateLight'] = () => (g.localRef.light = g.lightLevel = 0);
+      g.player.controller.teleport(new V(o[0] - 40, o[1], o[2] - 40), 0);
+      const c = nav.nearestWalkable(o[0], o[2], 6, o[1]);
+      const [x, z] = nav.center(c);
+      em.lkp.set(x, nav.height[c], z);
+      em.lkpValid = true;
+      em.sightT = 0;
+      const ct = m.ct;
+      const cams = () => JSON.stringify(ct.cams.map((k) => [k.def.id, k.mode, k.range, k.frozen, ct.live(k.def.id)]));
+      const cam0 = { n: ct.cams.length, s: cams() };
+      const living = () => em.enemies.filter((e) => e.alive && !e.dog);
+      const out = { stage0: m.run.alarm, perStage: g.world.map.sectors[0].perStage, cam0: cam0.n };
+      m.onAlarm();
+      step(0.6);
+      out.stage1 = m.run.alarm;
+      out.gear1 = living().map((e) => [e.helmet, e.armour]);
+      m.onAlarm();
+      step(0.6);
+      out.stage2 = m.run.alarm;
+      out.armour2 = living().map((e) => e.armour);
+      m.onAlarm();
+      step(0.6);
+      out.stage3 = m.run.alarm;
+      out.both3 = living().map((e) => e.helmet && e.armour);
+      out.teams = em.teams.map((t) => t.members.map((e) => e.def.kind));
+      out.shieldHelmet = em.teams.map((t) => t.members[0]?.helmet === true);
+      out.camN = ct.cams.length;
+      out.camSame = cams() === cam0.s;
+      out.ctAlarm = ct.alarm;
+      window.__s13 = { x, z, t: 1.8, firstSweep: -1, maxVisited: 0, lead0: null, moved: 0 };
+      return out;
+    }, S[0].obj);
+    // (the warehouse sections set no `gear` default and no slot tags: only the stage gives armour)
+    assert(r.stage1 === r.stage0 + 1 && r.gear1.every(([, a]) => !a), `S13: stage 1 brings a team, no stage armour yet (${JSON.stringify(r.gear1)})`);
+    assert(r.stage2 === r.stage0 + 2 && r.armour2.every(Boolean), `S13: stage 2: every living guard wears armour (${r.armour2})`);
+    assert(r.stage3 === r.stage0 + 3 && r.both3.every(Boolean), `S13: stage 3: every living guard wears armour and a helmet (${r.both3})`);
+    assert(r.teams.length === 3 && r.teams.every((t) => t[0] === 'enforcer' && t.length === r.perStage && t.slice(1).every((k) => k === 'grunt')), `S13: each stage's team leads with a shield guard, perStage ${r.perStage} strong (${JSON.stringify(r.teams)})`);
+    assert(r.shieldHelmet.every(Boolean), `S13: the shield guard always wears a helmet (${r.shieldHelmet})`);
+    assert(r.camN === r.cam0 && r.camSame && r.ctAlarm === r.stage3, `S13: no camera added, woken or retuned across the stages (${r.cam0} -> ${r.camN}, same states ${r.camSame}; devices show stage ${r.ctAlarm})`);
+    // hide: 10 s chunks to 120 s after the first alarm, the first team watched
+    let w = null;
+    for (let k = 0; k < 12; k++) {
+      w = await G(() => {
+        const em = window.__app.current.enemyMgr;
+        const s = window.__s13;
+        const t = em.teams[0];
+        for (let i = 0; i < 20; i++) {
+          window.__app.loop.stepHeadless(0.5);
+          s.t += 0.5;
+          if (t.sweeping && s.firstSweep < 0) s.firstSweep = s.t;
+          s.maxVisited = Math.max(s.maxVisited, t.visited);
+          const L = t.leader;
+          if (L && t.sweeping) {
+            if (!s.lead0) s.lead0 = [L.pos.x, L.pos.z];
+            s.moved = Math.max(s.moved, Math.hypot(L.pos.x - s.lead0[0], L.pos.z - s.lead0[1]));
+          }
+        }
+        const all = em.teams.flatMap((q) => q.members);
+        return { t: s.t, firstSweep: s.firstSweep, visited: s.maxVisited, moved: s.moved, switches: t.switches, count: t.count, lv: all.map((e) => (e.alive ? e.level : 'down')), lead: t.members[0]?.def.kind };
+      });
+    }
+    await G(() => {
+      const g = window.__app.current;
+      g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
+      if (window.__s13rnd) Math.random = window.__s13rnd;
+    });
+    const searchT = 60;
+    assert(w.count > 0 && w.firstSweep >= searchT, `S13: the team sweeps only after its search of the last known position (${searchT} s; first sweep at ${w.firstSweep} s, ${w.count} points)`);
+    assert(w.visited >= 1 && w.moved > 2, `S13: the team moves between sweep points (looked at ${w.visited}, the leader moved ${w.moved.toFixed(1)} m; switches ${w.switches})`);
+    assert(w.t >= 120 && w.lv.every((l) => l === 'searching' || l === 'alert' || l === 'down') && !w.lv.includes('cooldown') && !w.lv.includes('unaware'), `S13: still hunting at ${w.t} s, none calm (${w.lv})`);
+    assert(w.lead === 'enforcer', `S13: the shield guard still first in the team (${w.lead})`);
   });
 }
 

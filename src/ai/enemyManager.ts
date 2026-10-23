@@ -36,7 +36,8 @@ import type { CameraBodyEvent } from '../security/securitySystem';
 import { Awareness, CAUTION, MAX_KEYS } from './awareness';
 import { bodyNoticed, bodyNoticeRange } from './bodies';
 import { CoverGrid, coverSetFrom, type CoverSet } from './coverGrid';
-import { gearFromTag, mergeGear, type GearTag, type GuardGear } from './gear';
+import { gearFromTag, mergeGear, RESPONSE, stageGear, type GearTag, type GuardGear } from './gear';
+import { SweepTeam } from './sweepTeam';
 import { HelmetDrops } from './helmetDrops';
 import { assignRoles, combatSeed, P_AGGRESSIVE, P_POST, P_STANDARD, R_NONE, R_REPORTER, RoleInput, RoleOutput, SQUAD } from './squadRoles';
 // (guard-ai S10) talking pairs
@@ -346,6 +347,13 @@ export class EnemyManager {
   /** (guard-ai S12) Scratch for `placeSlot`'s gear. */
   private readonly gearA: GuardGear = { helmet: false, armour: false };
   private readonly gearB: GuardGear = { helmet: false, armour: false };
+  /** (guard-ai S13, item 4, A37) The alarm stage the mode set (`setAlarmStage`; Sector Ops only, 0 elsewhere) and its
+   *  gear (`stageGear`): every guard placed (`placeSlot`) or woken (`revive`) gets it on top of his own. */
+  alarmStage = 0;
+  readonly alarmGear: GuardGear = { helmet: false, armour: false };
+  /** (guard-ai S13, items 3 and 11, A38, A39) The response teams of the live section, in the order the alarms brought
+   *  them (the index is the sweep's start offset); cleared with the guards (`clear`: a section unload or restart). */
+  readonly teams: SweepTeam<Enemy>[] = [];
 
   constructor(
     private scene: Scene,
@@ -671,6 +679,69 @@ export class EnemyManager {
     return out;
   }
 
+  /**
+   * (guard-ai S13, item 4, A37) The alarm stage is now `stage` (Sector Ops: a rise, a section load, a restart). Its gear
+   * (`GEAR_BY_STAGE`: stage 2 armour, stage 3 armour and helmet) goes to every guard placed or woken from now on, and
+   * with `now` at once to every living guard (the live section: Sector Ops loads one at a time), on top of the gear he
+   * has. No camera is touched (the cameras are `CtDevices`'; item 4 "dont add cameras").
+   */
+  setAlarmStage(stage: number, now = true): void {
+    this.alarmStage = stage;
+    stageGear(stage, this.alarmGear);
+    if (!now) return;
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) if (list[i]!.alive) this.giveStageGear(list[i]!);
+  }
+
+  /** (guard-ai S13) The stage's gear on top of his own (nothing to give: his gear is left as it is). */
+  private giveStageGear(e: Enemy): void {
+    const g = this.alarmGear;
+    if (!g.helmet && !g.armour) return;
+    e.setGear(mergeGear(e, g, this.gearB));
+  }
+
+  /**
+   * (guard-ai S13, items 3 and 11, A38, A39) A new response team for `section` (one per alarm): its sweep reads
+   * `override` (`SectorDef.sweep`) if given, else `routes` and `posts` (thinned at the switch). Members join with
+   * `joinTeam` as they spawn.
+   */
+  newTeam(section: number, override: readonly (readonly [number, number])[] | null, routes: readonly (readonly (readonly [number, number])[])[], posts: readonly (readonly [number, number])[]): SweepTeam<Enemy> {
+    let n = 0;
+    for (let i = 0; i < this.teams.length; i++) if (this.teams[i]!.section === section) n++;
+    const t = new SweepTeam<Enemy>(n, section, override, routes, posts);
+    this.teams.push(t);
+    return t;
+  }
+
+  /** (guard-ai S13, A38) Guard `e` (spawned on the alarm) joins response team `t`; the shield guard always wears a helmet. */
+  joinTeam(e: Enemy, t: SweepTeam<Enemy>): void {
+    t.add(e);
+    e.crew = t;
+    if (e.def.kind === 'enforcer' && RESPONSE.shieldHelmet && !e.helmet) {
+      this.gearB.helmet = true;
+      this.gearB.armour = e.armour;
+      e.setGear(this.gearB);
+    }
+  }
+
+  /**
+   * (guard-ai S13) The sweep source of a live map's section (outside Sector Ops, which reads its `SectorDef`): the route
+   * points and post centres of the guards placed in `section` (not dogs, not response teams), into `routes` / `posts`.
+   * Alarm time only (it fills the caller's lists).
+   */
+  sweepSource(section: number, routes: (readonly (readonly [number, number])[])[], posts: (readonly [number, number])[]): void {
+    routes.length = 0;
+    posts.length = 0;
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
+      if (e.section !== section || e.dog || e.crew) continue;
+      const r = e.routePoints;
+      if (r && r.length) routes.push(r);
+      else posts.push(e.postPoint);
+    }
+  }
+
   /** Bring a reinforcement squad in at `at` (alerted, told the last known position). */
   reinforce(kind: EnemyKind, at: Vector3, n: number): Enemy[] {
     const out: Enemy[] = [];
@@ -884,7 +955,17 @@ export class EnemyManager {
       e.inherit(old, b.age);
       this.swapSquad(old, e);
       this.swapSlot(old, e);
+      // (guard-ai S13) a response team member takes his place in the team again and never calms (he had fought)
+      const tm = old.crew;
+      if (tm) {
+        tm.swap(old, e);
+        e.crew = tm;
+        old.crew = null;
+        e.aware.fought = true;
+      }
     }
+    // (guard-ai S13, A37) the alarm stage's gear on top of what he went down in
+    this.giveStageGear(e);
     this.enemies.push(e);
     this.removeBody(b);
     e.searchAt(e.pos.x, e.pos.z, null);
@@ -1074,6 +1155,11 @@ export class EnemyManager {
       if (j >= 0) roster.splice(j, 1);
     }
     this.silent.delete(e);
+    // (guard-ai S13) out of his response team
+    if (e.crew) {
+      e.crew.remove(e);
+      e.crew = null;
+    }
     // (guard-ai S5b) out of his slot; his dog finds a squad mate again
     if (e.slotIdx >= 0 && this.slotGuard[e.slotIdx] === e) this.slotGuard[e.slotIdx] = null;
     for (let i = 0; i < this.enemies.length; i++) {
@@ -1168,6 +1254,9 @@ export class EnemyManager {
     e.section = section ?? sectionAt(this.world.layout.guardAi, e.pos.x, e.pos.z);
     e.profile = slot.profile ?? 'standard';
     e.setGear(mergeGear(gearFromTag(slot.gear, this.gearA), gearFromTag(sectionGear, this.gearB), this.gearA));
+    // (guard-ai S13, A37) and the alarm stage's gear on top (a later spawn: next section, a restart at a carried stage,
+    // a reinforcement)
+    this.giveStageGear(e);
     // (guard-ai S8, A25) the squad-roles profile: a posted guard holds and watches (never point / flank), an aggressive
     // slot bounds first
     e.tacticsProfile = slot.post ? P_POST : slot.profile === 'aggressive' ? P_AGGRESSIVE : P_STANDARD;
@@ -2242,6 +2331,8 @@ export class EnemyManager {
       }
     }
     this.updateDrones(dt);
+    // (guard-ai S13) the response teams: who leads, and the switch to the sweep after the search
+    for (let i = 0; i < this.teams.length; i++) this.teams[i]!.tick(this.lkpValid, this.lkp.x, this.lkp.z);
     const doors = this.world.doors;
     for (const e of this.enemies) {
       e.update(dt);
@@ -2383,5 +2474,7 @@ export class EnemyManager {
     this.rolesActive = false;
     // (guard-ai S12) and the helmets on the floor
     this.helmetDrops.clear();
+    // (guard-ai S13) and the response teams: only an unload or a restart ends them
+    this.teams.length = 0;
   }
 }

@@ -178,7 +178,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   sense from behind ignores a sneak / crouched approach.
 - Gear (guard-ai S12, stealth over shooting items 2 and 13, A35 / A36; numbers `GEAR` in `ai/gear.ts`): `Enemy.helmet`
   / `armour`, set by `EnemyManager.placeSlot` from the slot's `gear` tag merged with the section default
-  (`SectorDef.gear`, passed by `sectorMode.fill`; none = no gear), `Enemy.setGear` (S13's alarm stages), kept by a woken
+  (`SectorDef.gear`, passed by `sectorMode.fill`; none = no gear) plus the alarm stage's gear (S13, below), kept by a woken
   guard (`inherit`). `applyDamage` runs player and guard bullets through `gearHit` (not the heavy, not melee,
   takedowns, explosions or sleep bolts): head + helmet = 0 dealt, the helmet off (`helmetPart` hidden, a dropped
   helmet from `EnemyManager.helmetDrops`, `ai/helmetDrops.ts`: a pool of 8, a 0.4 s tumble to the floor, it stays),
@@ -285,7 +285,25 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   bounds `advanceHold` (2.5 / 0.8 s), the last stretch out of sight at 0.75 x run speed for `runToContact` (else walk x
   1.15). Where: Sector Ops `SectorDef.entries` in turn (route, yaw, y), else `reinforce`; other live maps
   `MapLayout.guardAi.entries` of the alarm's section (`entriesFor`), the one furthest from the player, else the furthest
-  `MapLayout.reinforce` point (grunt, grunt, heavy). Parked modes (Hunter, Mission): their own reinforcements, unchanged.
+  `MapLayout.reinforce` point (since S13 a response team, below). Parked modes (Hunter, Mission): their own
+  reinforcements (grunt, grunt, heavy), unchanged.
+- Response teams (guard-ai S13, stealth over shooting items 3, 4, 11, A37-A39; `ai/sweepTeam.ts` pure, numbers
+  `RESPONSE` / `SWEEP` / `GEAR_BY_STAGE` in `ai/gear.ts`). Stage gear: `EnemyManager.setAlarmStage(stage, now)` keeps
+  the stage's gear (`alarmGear`; stage 2 armour, stage 3 armour + helmet) and with `now` gives it to every living
+  guard on top of his own; `placeSlot` and `revive` add it to every later guard. Sector Ops calls it on each rise
+  (`sectorMode.raised`, camera alarms too) and at each section load with the run's stage (`loadSection`; a restart
+  goes back to the section's start stage, so the dropped stage's gear goes with it). Other live maps: the one alarm is
+  stage 1 (no gear). No camera is touched. Teams: each stage's `perStage` reinforcements are `responseTeam` kinds
+  (an `enforcer` first, helmeted by `joinTeam`, the rest grunts); `StealthSystems.onAlarm` on live maps sends shield +
+  2 (`RESPONSE.liveTeam`) with the section's guard routes and posts as the sweep source (`sweepSource`). A team is an
+  `EnemyManager.teams` entry (`newTeam`, index = its order in the section = its start offset); `Enemy.crew` /
+  `teamRank`. Sweep: `SweepTeam.tick` (each step, before the guards think) ranks the members (the first one up leads)
+  and switches the sweep on when the leader has searched `ALERT.searchTime` (`begin`: the points once per switch from
+  `SectorDef.sweep`, else `sweepPoints(routes, posts, lkp, SWEEP.thin)`, start `sweepStart`) and off when he is not
+  searching (a sighting); `Enemy.sweepStep` (from `calmDecide`'s searching case): the leader walks to the point and
+  looks round it `SWEEP.dwell` s (unreachable: skipped), the others hold `rank x SWEEP.gap` m behind him, then the same
+  order again. They stay hunting (S6), so never calm; `clear` (unload / restart) ends the teams; a woken member takes
+  his place back (`swap`).
 - Sound: `world/surfaces.ts` (pure) `surfaceAt` scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice. Shots:
   `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise` (combat); `onRay` hits
   are heard within `IMPACT_NOISE`.
