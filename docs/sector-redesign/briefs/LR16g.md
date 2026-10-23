@@ -1,4 +1,4 @@
-status: blocked until LR16-1 (fix round running) is merged into feature/sector-redesign-lr16int; base = lr16int after the LR16-1 merge (lead fills the sha: `<sha>`)
+status: building (desktop Opus, ~22:05); base = lr16int 961ca660 (LR16-1 72ad3d4a + LR16-5 flicker merged)
 
 Lead decisions (~21:30): (1) ctcourse lamp data MAY be re-levelled, except the files Marlow #257 edits (ctcourseSets/a2CarriageShed.ts, a4GoodsShed.ts, a6PumpHouse.ts, a8Strongroom.ts, src/game/ctDevices.ts, courseMode.ts): their lamps are re-baselined in tests only and listed for Marlow Build. (2) LR16-4-board: replacing the S2 reception switch with the board is accepted (assumed A, undo = restore the switch beside it); it runs after LR16g (both edit campusS2.ts). (3) S3 white fog stays a GPU-sheet item.
 
@@ -14,7 +14,7 @@ matter where you look" (CT: "clear pools, clear dark", `checks/lr16-0-ct-audit.m
 bounce), pools read lit, the dark between them stays dark, guards' caps hold, meter = picture.
 
 ## Base and branch
-- Base: `feature/sector-redesign-lr16int` @ `<sha>` = 6eb6a863 (LR16dx ca764323, LR16e 15b3c686, LR16t) + the LR16-1
+- Base: `feature/sector-redesign-lr16int` @ `961ca660` = 6eb6a863 (LR16dx ca764323, LR16e 15b3c686, LR16t) + the LR16-1
   merge (`LAMP_VERSION` 4 there, `src/voxel/lampJobs.ts:13-14`). New branch `feature/sector-redesign-lr16g`.
 - Measure only on that base: the LR16-1 fix round (face-blocked bounce bits) moves every level near a wall.
 - Slot lock `C:/NightShift/scratch/sr-slot-{1..4}.lock` for each vitest run, `--maxWorkers=2`. No e2e, GPU or
