@@ -56,8 +56,9 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
   (`GUARD_SLOT`, passive): the interrogation spends his information (`takeInfo`) and he says his one or two lines as
   bark + subtitle (`GUARD_INFO_GAP` apart, `GrabState.talk`; he stops if he is knocked out or killed first); a scripted
   Interrogate on a guard with none ends in the feed line "Interrogated: nothing new". Host-side: the co-op client's puppet
-  takes the same slot's info by where it first appears (`infoAtSpawn`), the interrogation runs on the interrogator's
-  machine, no wire data, PROTOCOL_VERSION 24.
+  takes the same slot's lines by where it first appears (`infoAtSpawn`), the interrogation runs on the interrogator's
+  machine. (stealth-pays client intel) Whether the puppet offers INTERROGATE is the host's `EnemyState.in` flag (coop.md
+  "Guard intel"), so Sector Ops guards, revived guards and rejoins work and a spent guard stops offering it.
   (spare 9, interrogation intel) A guard with information also gives intel when the interrogation ends (`intelReveal.revealIntel`,
   pure part `game/intel.ts`): `Code: <label>` per authored code (`GuardIntel.codes`, flag to `GameMode.onIntelCode`), then
   `Cameras near: n, sweep a-b s` and `Patrols near: n, loop a-b s` within `INTEL.reach` 30 m on his storey (patrol lines read each

@@ -463,14 +463,16 @@ export class CoopClient implements NetAttachment {
         // (guard-ai S9) our own deflect shown at once; his helmet falling when the host's bit clears
         np.onDeflect = () => this.deflects.predict(this.time);
         np.onDropHelmet = (x, y, z, top, dx, dz, hex, w, h, d) => this.dropHelmet(x, y, z, top, dx, dz, hex, w, h, d);
-        // (PR 3) the training guard's information: the course slot he appeared at (both sides load the same map; no wire data)
-        np.info = infoAtSpawn(g.world.layout.course?.squads, e.x, e.z);
+        // (PR 3) the lines the training guard says: the course slot he appeared at (both sides load the same map); whether
+        // he still has intel is the host's `in` flag (stealth-pays client intel, below)
+        np.spawnInfo = infoAtSpawn(g.world.layout.course?.squads, e.x, e.z);
         // the kind of our own takedown (its 'start' event) goes with the result: the host ticks the course verb (A23)
         np.onTakedown = (ph, lethal) => this.s.toHost(ph === 'done' && this.tdKind ? { t: 'td', target: np.id, ph, lethal, kind: this.tdKind } : { t: 'td', target: np.id, ph, lethal });
         this.puppets.set(e.id, np);
         p = np;
       }
       p.stale = 0;
+      p.setIntel(e.in === 1);
       p.buf.push(m.time, e);
     }
     // enemies the host no longer reports (despawned without a kill event)

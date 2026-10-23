@@ -180,6 +180,13 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
       bits 7-8, then `AL_LOOK_SHIFT` 9 and `AL_LOOK` = 127 << 9 (the seed). `AL_MAX` is 65535 (the parser clamps to it).
       `packAlert`'s last parameter is `look` (default 0, so an older caller sends seed 0); `alertLook(al)` reads it. The
       doc comment lists the bits without a version number: the `PROTOCOL_VERSION` line is bumped by the train build.
+- Guard intel (stealth-pays client intel; wire change, the train bumps `PROTOCOL_VERSION`): `EnemyState.in` is 1 while
+  the host's guard has unspent interrogation intel (`hasInfo(e)`: Marlow course slots, Sector Ops slots, a revived guard
+  through `inherit`), absent otherwise (0 bytes for most guards). `protocol.markIntel` writes it in `CoopHost`'s
+  snapshot; the parser keeps it only when exactly 1. `EnemyPuppet.setIntel` offers INTERROGATE from the flag's rise
+  (`info` = the course slot's lines from `infoAtSpawn` (`spawnInfo`), else `guardInfo.HOST_INFO`: no lines, the
+  host's intel feed answers) and drops it when the host clears it, so a host or client interrogation, a rejoin and a
+  revive show the same on both screens. A local spend is not undone while the flag is still set.
     - Seed rule: `lookSeed(key, index) = (hash(key) + index * 79) & 127` (FNV-1a + murmur finaliser; the odd stride makes
       the slots of one key distinct up to 128). Sector Ops authored guards key on (map, section, slot index); response
       teams on (map, section, team index, member index); every other spawn on (map, authored point to 0.1 m), so Course
