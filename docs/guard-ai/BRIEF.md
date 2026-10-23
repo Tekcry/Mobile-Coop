@@ -95,3 +95,48 @@ manoeuvre beats guard count. Every map's guards are armed (Answers 3).
   to an immediate `radioCall` completion (hold 0).
 - **A11** Sector Ops tour guards that are melee-only conflict with "every map's guards are armed" (Answers 3): map data,
   passed to Course Ready, not changed here.
+
+## Stealth over shooting (ROADMAP Decided 2026-10-23 ~10:10; plan S11-S15, `research/stealth-over-shooting.md`)
+Michael's theme, verbatim: "reward stealth over shooting as sections get harder"; on alarms: "dont add cameras, that
+doesnt make sense". A32-A34 are S10's (on `feature/guard-ai-s10`).
+- **A35** (S12) Helmet: the first bullet to the head knocks it off (no damage, stagger 0.9 s, then the normal hit path:
+  combat on the shot's origin, contact call); the next head hit kills as today. Takedowns, grabs, sleep bolts, melee
+  and explosions ignore the helmet. Undo: `GEAR.helmetHits` 1 -> 0 (`src/ai/gear.ts`).
+- **A36** (S12) Body armour: a bullet to the body deals no damage and staggers 0.5 s, at most once per 1.5 s (no
+  stun-lock); head hits follow the helmet rule. Item 13 "torso shots only stagger" is read literally for every armour,
+  including the alarm-stage armour (CT's stage armour halves chest damage instead). Undo: `GEAR.armourMult` 0 -> 0.5.
+- **A37** (S13) Gear by alarm stage, Sector Ops: stage 1 a response team only, stage 2 + armour, stage 3 + helmets
+  (CT's order, research C4). Every living guard of the live section gets it at once (no suit-up beat), later spawns at
+  spawn; it carries over sections with the stage and a restart drops it with the stage. Other live maps: the one alarm
+  is stage 1. No camera is added or changed. Undo: the `GEAR_BY_STAGE` table.
+- **A38** (S13) A response team is the stage's `perStage` guards led by a shield guard (`enforcer`, always helmeted),
+  the rest armed guards: same count, so the live cap holds. Outside Sector Ops the team is shield + 2 guards (in place
+  of grunt, grunt, heavy; G155). `validateGuardAi` rejects an `enforcer` in a section's guard list. Undo:
+  `RESPONSE.shieldLead = false`.
+- **A39** (S13) Sweep: after the LKP search (60 s) a response team walks the section's route points and posts (thinned
+  to 8 m, nearest the LKP first, each once, then again), shield first, the rest 2.5 m behind, 6 s at each; teams of
+  different stages start at different points. Never calm, never leaves; only a section unload or restart ends it.
+  Undo: `SWEEP.enabled = false` (they search the LKP for good, S6).
+- **A40** (S14) "Raise alert" (item 6) means section caution, not an alarm stage (A2 kept). A missed check-in: the
+  caller radios "not answering" (2.5 s x reaction, cut if he goes down); on delivery the section is cautious 180 s
+  (timed); the S5b pair search is unchanged; a dead find promotes it to the S4 held caution. Found bodies: S4 as
+  built. Undo: `MISSING.sectionCaution = false`.
+- **A41** (S14) Gunfire (item 7): hearing stays by range (M1, S1). A calm guard who hears a loud (unsuppressed) shot
+  radios "shots fired" (one call per shots incident, cuttable); on delivery the section is cautious 120 s (a later loud
+  shot refreshes it) and the board sends a pair instead of one. Suppressed shots stay local. No alarm from shots (M4).
+  Undo: `SHOTS.sectionCall = false`.
+- **A42** (S15) A breaker cut is a fault: one witness (never two) walks at patrol pace to the switch and flips it back
+  (2 s), no ring check, suspicious at most, back to his route. A second cut of the same circuit within 60 s is
+  tampering: the S2 light incident at the switch. Shot lamps stay dark for good (never relit). Undo:
+  `BREAKER.reset = false` (the S2 light incident for every cut).
+- **A43** (S15) Late discovery: a dark fixture nobody saw go is noticed by a calm guard who later has it in view
+  (`lightInView`) within 12 m; he reacts as a witness would (shot: investigates; cut: the reset walk). Undo:
+  `LATE.enabled = false`.
+- **A44** (S9) Protocol 32 carries S9's barks and caution plus `AL_HELMET` 32, `AL_ARMOUR` 64 and a `deflect`
+  hit-confirm kind; until S9 lands the client sees no gear (the rules still apply on the host). The client puppet builds
+  the enforcer shield by kind (no wire change for that). Undo: drop the bits (host-only gear).
+- **A45** (S12, S13) Gear art is placeholder parts (a dome on the head node, torso plates, the enforcer's box shield,
+  the dome as the dropped helmet); real meshes are a Character Build / art hand-off for the visual pass (in-repo
+  Blender, headless). Undo: not needed.
+- **A46** (S14) A co-op client's suppressed shot is heard at `SHOT_NOISE x weapon noise` as in solo (9.8 m), not the
+  fixed 14 m (`coopHost.ts`). Undo: restore `SHOT_NOISE * 0.5` there.
