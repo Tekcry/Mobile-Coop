@@ -1,4 +1,4 @@
-status: claimed Night Shift | Marlow Build 2026-10-23T10:27Z
+status: done feature/marlow-p4-a2-deck-skin 4eb47294
 
 # marlow-polish P4-2: A2 deck-end rail, steel skins to match the stair handrails (Night Shift | Marlow Build, 2026-10-23 ~21:25)
 - Repo Tekcry/Mobile-Coop. Base: branch `feature/marlow-p4-a2-deck-skin` (pushed, = 17d44d96 on feature/marlow-polish). Build on it, push it yourself; trailer "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>".
@@ -7,3 +7,6 @@ status: claimed Night Shift | Marlow Build 2026-10-23T10:27Z
 - Tests: one test that the deck-end skins exist (count, x, z span, heights, no collision); existing asserts that count skins get derived edits only (each listed). If an existing light / bake test fails, stop and report.
 - Run: `npx tsc --noEmit -p tsconfig.json`; `npx vitest run tests/ctcourse/a2CarriageShed.test.ts tests/ctcourse.test.ts tests/ctcourseLight.test.ts tests/facilityKit.test.ts`. Unit tests only.
 - Done: branch pushed; report at the end of this file; status line "done feature/marlow-p4-a2-deck-skin <sha>". Unclear: `status: blocked <reason>`.
+
+## Report (Marlow Build, local Sonnet)
+See docs/marlow-final/slices/P4-2.md on the branch.
