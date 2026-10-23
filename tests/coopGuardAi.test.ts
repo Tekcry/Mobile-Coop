@@ -23,7 +23,7 @@ import { CoopHost } from '../src/net/coopHost';
 import { Vector3 } from '../src/core/babylon';
 import type { AlertLevel } from '../src/ai/alertState';
 
-// (guard-ai S9, protocol 39) The co-op guard state: the `bark` event (a guard's line by event / line / unit index, pair
+// (guard-ai S9, protocol 41) The co-op guard state: the `bark` event (a guard's line by event / line / unit index, pair
 // and desk lines as text), the caution / helmet / armour bits in the enemy `al`, the `deflect` hit confirm, and the
 // puppet's pure parts (gear from the bits, the helmet drop, deflect prediction, the stance).
 
@@ -38,9 +38,9 @@ const snapEnemies = (enemies: EnemyState[]): EnemyState[] => {
   return m && m.t === 'snap' ? m.enemies : [];
 };
 
-describe('guard-ai S9: protocol 39 (38 before the train 29 merge, 37 before the train 28 merge, 32 before 4.75.0)', () => {
-  it('is protocol 39 (38 the lamp falloff, 37 Player #231, 36 pose-parity, 35 the weapons crate)', () => {
-    expect(PROTOCOL_VERSION).toBe(39);
+describe('guard-ai S9: protocol 41 (39 before the train 30 merge, 38 before the train 29 merge, 37 before the train 28 merge, 32 before 4.75.0)', () => {
+  it('is protocol 41 (40 the Player stack at train 30, 38 the lamp falloff, 37 Player #231, 36 pose-parity, 35 the weapons crate)', () => {
+    expect(PROTOCOL_VERSION).toBe(41);
   });
 
   it('packAlert: the new bits are 16 / 32 / 64 and every combination with the old ones round-trips', () => {

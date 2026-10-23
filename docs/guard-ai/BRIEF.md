@@ -552,4 +552,13 @@ reported, they need a sense of urgency when it makes logical sense." A100-A119 a
   field `lf`; ours adds the `bark` event, `al` bits 16 / 32 / 64 and 7-8 (`AL_MAX` 511) and the `hitConfirm` kind
   `deflect`. Both are kept as they were (A90, A136, A139). Undo: if #232 drops 38 or lands after us, renumber
   `PROTOCOL_VERSION` and every `toBe(39)` / `v: 38` / `v: 39` in the A140 list of tests, `scripts/e2e-coop.mjs`'
+  comment, `docs/systems/coop.md` and the two changelog fragments. **Number superseded by A142** (train 30 merge): 41.
+- **A142** (S9 + A126, merge of train 30: master 4.78.0 + the Player stack pose-parity #223 + coop-walk-fixes #231 +
+  #236 + feature/menu) Protocol 41, not 39: the Player stack takes 40 with its own wire change (`PF.aimLeft` 64, the
+  MoveState `takedown` `sub` bit 1, `PlayerState.sc` rounds fired mod 256), so S9 and A126 move to 41 on top of it;
+  supersedes A141's number. The two wire changes do not overlap: the stack adds a player flag, a player-state field
+  and a MoveState sub bit; ours adds the `bark` event, enemy `al` bits 16 / 32 / 64 and 7-8 (`AL_MAX` 511) and the
+  `hitConfirm` kind `deflect`. Both are kept as they were. Also merged: guard-ai-carry-fix (the GPU suite
+  `scripts/e2e-guard-carry.mjs`). Undo: if the stack drops 40 or lands after us, renumber `PROTOCOL_VERSION` and every
+  `toBe(41)` / `v: 40` / `v: 41` in the A140 list of tests plus coopWalkFixes and poseParity, `scripts/e2e-coop.mjs`'
   comment, `docs/systems/coop.md` and the two changelog fragments.

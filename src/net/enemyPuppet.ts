@@ -323,6 +323,10 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
 
   /** (G7 fix) Held by the partner this frame (the crouch comes from the knockout's lowering, not the snapshot). */
   private remoteHold = false;
+  /** (coop-walk-fixes P6) Held by a partner as a hostage now (not by our own takedown): the team takedown's offer. */
+  get partnerHeld(): boolean {
+    return this.remoteHold && !this.taken && !this.dead;
+  }
   private remoteLower = 0;
   private koTmp: KoState = { limp: 0, lower: 0, bend: 0 };
 
