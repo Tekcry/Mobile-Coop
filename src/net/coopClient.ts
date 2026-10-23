@@ -9,7 +9,8 @@ import { LAMP_TARGET, LampMirror } from './lampSync';
 import { lightOnRay, type LightDef } from '../world/lights';
 import { BODY } from '../ai/bodies';
 import type { HitInfo } from '../game/damage';
-import { Interactables, type Interactable } from '../game/interactables';
+import { Interactables, KIND_COLOR, type Interactable } from '../game/interactables';
+import { CRATE_DARK, applyCrateEvent } from '../game/crateLedger';
 import type { NetSession } from './session';
 import { PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
 import { ClockSync } from './interp';
@@ -75,6 +76,8 @@ export class CoopClient implements NetAttachment {
   private lastBlast: { p: Vector3; t: number } | null = null;
   private ints: Interactables | null = null;
   private items = new Map<string, Interactable>();
+  /** (E9-crate) The weapons crates this player used (fed only by `crate` events; cleared on a section restart). */
+  private readonly crateSpent = new Set<string>();
   /** Sector Ops: the client's mirror of the cameras and lasers. */
   private sec: CtDevices | null = null;
   /** (sector-restart) The section our checkpoint loadout was recorded for (the host's live section only moves on). */
@@ -379,6 +382,17 @@ export class CoopClient implements NetAttachment {
     }
   }
 
+  /** (E9-crate, A105) The host restarted the section: every crate usable again here. */
+  private clearCrates(): void {
+    this.crateSpent.clear();
+    for (const it of this.items.values()) {
+      if (it.kind !== 'crate') continue;
+      it.spent = false;
+      it.progress = 0;
+      if (it.enabled) this.ints?.setIndicator(it, KIND_COLOR.crate);
+    }
+  }
+
   private syncItems(list: NetItem[]): void {
     const ints = this.ints;
     if (!ints) return;
@@ -392,6 +406,20 @@ export class CoopClient implements NetAttachment {
         it.reach = n.reach;
         const id = n.id;
         it.onUse = () => this.s.toHost({ t: 'use', id });
+        // (E9-crate, A103) at the loadout the use is not sent (the host does not hold our ammo)
+        if (n.k === 'crate') {
+          const crate = it;
+          crate.onUse = () => {
+            if (this.g.weapons.atLoadout()) {
+              this.g.hud.feedItem('Ammo full');
+              crate.progress = 0;
+              return;
+            }
+            this.s.toHost({ t: 'use', id });
+            // (E8/E9 check P1) a held button does not re-send `use` every frame until the `crate` event lands
+            crate.progress = 0;
+          };
+        }
         // (sector-fixes-r RT) a team door's "Unbolt" is offered on its side only: the side from this client's own map
         // data (no wire change); the host checks the side again on the `use`
         const bolt = boltById(this.g.world.map.sectors, id);
@@ -409,8 +437,17 @@ export class CoopClient implements NetAttachment {
       if (n.k === 'medkitWall') it.done = !n.on;
       // your own revive point is for the others
       const on = n.on && n.id !== `revive-${this.s.selfId}`;
-      if (it.enabled !== on) ints.setEnabled(it, on);
+      const flip = it.enabled !== on;
+      if (flip) ints.setEnabled(it, on);
       if (!on) it.progress = 0;
+      // (E9-crate, A104) used by this player: no prompt here, the strip dark (the others still see it lit)
+      if (n.k === 'crate') {
+        const sp = this.crateSpent.has(n.id);
+        if ((it.spent === true) !== sp) {
+          it.spent = sp;
+          if (on) ints.setIndicator(it, sp ? CRATE_DARK : KIND_COLOR.crate);
+        } else if (flip && on && sp) ints.setIndicator(it, CRATE_DARK);
+      }
     }
     for (const [id, it] of this.items) {
       if (keep.has(id)) continue;
@@ -578,7 +615,11 @@ export class CoopClient implements NetAttachment {
       case 'banner':
         g.hud.banner(e.title, e.sub);
         // (sector-restart, M9) the host restarted the section: our side of the clean start (loadout, gadgets, music)
-        if (e.title === SECTOR_RESTART_TITLE && g.opts.mode === 'sector') g.checkpointReset();
+        if (e.title === SECTOR_RESTART_TITLE && g.opts.mode === 'sector') {
+          g.checkpointReset();
+          // (E9-crate, A105) every crate usable again
+          this.clearCrates();
+        }
         break;
       case 'feed':
         g.hud.barks.say('lantern', e.text, true);
@@ -589,6 +630,23 @@ export class CoopClient implements NetAttachment {
         g.events.emit('pickup', { kind: e.kind });
         g.hud.feedItem('Ammo refilled');
         break;
+      case 'crate': {
+        // (E9-crate) we used a crate: top up on the use itself (`fill`), only hide the prompt on a rejoin re-send
+        const r = applyCrateEvent(this.crateSpent, me, e);
+        if (!r) break;
+        if (r === 'fill') {
+          g.weapons.crateTopUp();
+          g.events.emit('pickup', { kind: 'ammo' });
+          g.hud.feedItem('Weapons refilled');
+        }
+        const it = this.items.get(e.id);
+        if (it) {
+          it.spent = true;
+          it.progress = 0;
+          if (it.enabled) this.ints?.setIndicator(it, CRATE_DARK);
+        }
+        break;
+      }
       case 'hurt': {
         if (e.player !== me) break;
         const pp = g.player.position;

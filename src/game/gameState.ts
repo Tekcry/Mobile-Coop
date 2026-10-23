@@ -42,6 +42,7 @@ import type { Difficulty } from '../ai/enemyDefs';
 import { resolveDifficulty, type DifficultyDef } from '../ai/archetypes';
 import { Pickups } from './pickups';
 import { Interactables, type Interactable } from './interactables';
+import { WeaponCrates } from './weaponCrates';
 import { addDoorRows, DOOR_KIND, DoorMenuView, guardBehindDoor, type DoorOpt } from './doorMenu';
 import { addGrabRows, GRAB_KIND, GRAB_OPT_LABEL, GRAB_OPTS, GRAB_PASS, GrabMenuView, grabTriggerPick, hasInfo, type GrabOpt } from './grabMenu';
 import { ContextMenu, CtxNav, emptyCtxInput } from './contextMenu';
@@ -197,6 +198,8 @@ export interface NetAttachment {
   commitCancel?(id: number, reason: string, kind?: CKind): void;
   /** Host: a wall medkit station heals player `who` (false: down or at full health). */
   healAtStation?(who: string): boolean;
+  /** (E9-crate) Host: client `who` used crate `id` (the `crate` event, fill). */
+  crateUsed?(who: string, id: string): void;
   /** Co-op: the local player pinged (x, y, z), on an enemy (`target`) or a spot (''). */
   ping?(x: number, y: number, z: number, target: string): void;
   /** Contact shadows for the characters the net layer draws (remote players, puppets). */
@@ -364,6 +367,8 @@ export class GameState implements AppState {
   readonly enemyMgr: EnemyManager | null = null;
   readonly pickups: Pickups | null = null;
   readonly interactables: Interactables | null = null;
+  /** (E9-crate) The host's / solo's weapons crates and their per-player ledger (modes with enemies). */
+  readonly crates: WeaponCrates | null = null;
   readonly mode: GameMode | null = null;
   /** Bodies, switches, shot-out lights and alarm panels (modes with enemies). */
   readonly stealth: StealthSystems | null = null;
@@ -457,6 +462,9 @@ export class GameState implements AppState {
   /** (G6) Scratch for the weapon's wall-block ray. */
   private readonly blockA = new Vector3();
   private readonly blockB = new Vector3();
+  /** (sector-redesign E8) Scratch for a camera ricochet: the lens point and the sparks' spray direction. */
+  private readonly ricoAt = new Vector3();
+  private readonly ricoDown = new Vector3(0, -1, 0);
   private openOv: MoveOverride = {};
   private openKin = new Vector3();
   private openY = 0;
@@ -669,6 +677,7 @@ export class GameState implements AppState {
       w.pickups = new Pickups(this.scene, world.parts, world.layout.pickups);
       w.pickups.onPickup = (k, who) => this.pickedUp(k, who);
       w.interactables = new Interactables(this.scene, world.parts);
+      w.crates = new WeaponCrates(this);
       this.addMedkitWalls(w.interactables);
       w.mode =
         opts.mode === 'clear'
@@ -718,6 +727,13 @@ export class GameState implements AppState {
         { ballistics: this.ballistics, players: () => this.playerRefsInto(this.aiRefs) },
         new SecurityView(this.scene, world.parts),
       );
+      // (sector-redesign E8) a round off a bulletproof camera: the bullet-impact sparks and sound at the lens (the
+      // impact noise is the onRay chain's own, as for any round that lands)
+      w.security.onRicochet = (x, y, z) => {
+        const at = this.ricoAt.set(x, y, z);
+        this.vfx.sparks(at, this.ricoDown, 8);
+        this.ballistics.onImpact?.(at, false);
+      };
       const prevRay = this.weapons.onRay;
       this.weapons.onRay = (a, b) => {
         prevRay?.(a, b);
@@ -2687,7 +2703,7 @@ export class GameState implements AppState {
     let offer = -1;
     if (!was && !other && doors.list.length) {
       const d = doors.nearest(p.x, p.z, 2);
-      if (d && doorPeekEligible(d, d.cracked && this.peekedByOther(d.cx, d.cz), p.x, p.z, pl.cam.yaw, c.grounded, false)) offer = d.index;
+      if (d && doorPeekEligible(d, d.cracked && this.peekedByOther(d.cx, d.cz), p.x, p.z, pl.cam.yaw, c.grounded, false, p.y)) offer = d.index;
     }
     this.peekOffer = offer;
     if (ctx) cand = offer;
@@ -2983,7 +2999,7 @@ export class GameState implements AppState {
     this.exposure = exposureFraction(this.expPts, eyes, (a, b) => {
       this.rayA.set(a.x, a.y, a.z);
       this.rayB.set(b.x, b.y, b.z);
-      const h = this.ballistics.ray(this.rayA, this.rayB, G.STATIC);
+      const h = this.ballistics.ray(this.rayA, this.rayB, MASK.SIGHT);
       return h.hit && h.distance < Vector3.Distance(this.rayA, this.rayB) - 0.15;
     });
     this.coverQ = this.localRef.cover ? coverQuality(this.localRef.cover, eyes) : 1;
