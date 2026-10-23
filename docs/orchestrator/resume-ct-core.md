@@ -4,6 +4,10 @@ Saved 2026-10-23 ~10:30 by the CT Core session, for the ~10:45 account swap (win
 agent milestone. Agents running at a cut-off are lost: their last pushed commit is the resume point (table below).
 
 ## Live (resumed 10:48 on the new account; newest first, overrides the table)
+- 11:55 Spare team-climb (Opus) RUNNING: C:/NightShift/Mobile-Coop-team-climb, feature/team-climb off master 3c460923.
+  Goals: CLIMB_UP_TEAM rope-top lip grips (teamController ropeTop reachL / reachR, remoteAvatar), ease teamController
+  ~347-348 rise / across (5.7 cm pop), tests/teamClimb.test.ts; e2e coop / netmove / traverse. Stays off traverse-fix-2's
+  hunks. Rides the NEXT batch (not batch-22).
 - 11:50 batch-22 fresh check PASS on f75db56c (scratch/ctcore/b22-CHECK.md; no required fixes; polish list there).
   Master is 4.71.0 (train 22 incl. #194). sd-rounds builder at 36bb35c0 doing its e2e (both desktop locks held by
   others). Plan: sd-rounds done -> merge into batch -> same checker (follow-up) -> ONE laptop request (coop, netmove,
