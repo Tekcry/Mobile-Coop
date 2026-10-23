@@ -1,8 +1,13 @@
 # laptop-queue - state
 
-## Now (2026-10-23 ~19:20)
-BRIEF + PLAN written (Opus). S1 build: Sonnet 5.5 agent from PLAN.md in this worktree (branch feature/laptop-queue,
-off master 4f6db420).
+## Now (2026-10-23 ~19:55)
+S1 built (Sonnet) ad0196cc: lib / service / request / serve / install-task, 16 vitest, tsc clean, dry runs ok (train 31
+bins 895 / 894 s). Follow-up in progress: failure comments carry assert + log path + last ~40 lines (Michael ~19:25).
+Builder deviations to check: old train heads skipped (ancestor of master or > 24 h, LQ_TRAIN_MAX_AGE_H); weights seeded
+from scripts/e2e-times.json; aged alone blocks new pr work until both slots idle; "known flaky" in the description;
+self-update via LQ_FOLLOW (set origin/feature/laptop-queue until merged); crash mid-train after `pending` is not
+re-run (needs a fix: treat a stale own `pending` as not done); eslint ignores scripts/**/*.mjs (config).
+Worktree node_modules is a junction to Mobile-Coop-testrun-4189/node_modules (gitignored).
 
 ## Next
 1. S1 build lands (lib / service / request / serve / install-task, tests, testing-tools section, fragment).
