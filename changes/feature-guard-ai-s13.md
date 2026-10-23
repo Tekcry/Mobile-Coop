@@ -7,3 +7,5 @@
   close behind, looking round at each point with torches on in the dark, round and round; a sighting brings a fight,
   then the search, then the sweep again. Teams never leave or calm down until you leave the section or restart. On
   the other live maps the alarm brings a shield guard and two armed guards (no heavy) who sweep the same way.
+
+Tests: the e2e-levels ladder chases wait on sim time (a sim-seconds budget from the design, a hang guard on wall clock) and the sim clock takes over the moment the match exists, so a loaded machine no longer fails "a runner climbs the rack ladder".
