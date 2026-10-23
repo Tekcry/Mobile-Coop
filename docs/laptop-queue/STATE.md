@@ -1,6 +1,17 @@
 # laptop-queue - state
 
 ## Now (2026-10-24, laptop-queue batch, local commits, not pushed)
+- 2026-10-24 (Michael 07:13 "All three", after 87 old hand-made `NightShift-chain-*` one-shots fired again at 2026-10-23
+  23:59 and held heavy-4189 / heavy-4192 for hours): hand-made chains are RETIRED; runs go through the queue
+  (`request.mjs`). Permanent tasks: `NightShift-laptop-queue` (`install-task.ps1`), `NightShift-desktop-queue`
+  (`install-task.ps1 -Worker desktop`), `NightShift auto-train` (`scripts/auto-train-task.ps1`, master). The only way to
+  schedule an ad-hoc run: `scripts/laptop-queue/one-shot-task.ps1 -Name NightShift-run-<what> -Command "..."` (expires
+  after `-ExpireMinutes` 240, then Windows deletes it; `-WhatIf` prints only).
+  Task guard in `service.mjs` (both workers): at start and every `LQ_TASK_GUARD_MIN` (10) min, disables stale tasks
+  (lib `staleTasks`: enabled `NightShift-*` not allowlisted, or any enabled task whose action mentions
+  `C:\NightShift\scratch` / `laptop-runner.ps1`; allowlist + `LQ_TASK_ALLOW`), never stops / kills / deletes, and pushes
+  `alerts/<ts>-tasks.json` to the `laptop-queue` branch. Dry run 07:19: the 87 chain tasks were already gone; it would
+  disable 18 enabled tasks, 17 `ns-chain-1022*` + `ns-cpu-burner` (scratch actions), at the next service start.
 - `pendingTrains()` skips a train head with an `auto-train/*` status in failure / error (lib `trainBuildFailed`),
   logged once per head (train 37 held both slots 18 min after vitest had failed).
 - Trains are claimed (`claims/<train-sha>.json`) by both workers; the desktop takes a train head when the laptop has
