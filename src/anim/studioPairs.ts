@@ -14,7 +14,7 @@
  */
 import { TEAM } from '../config/movement';
 import { hyp2 } from '../core/mathx';
-import { boostPath, hangRootY, relayPath, relaySlot, ropeTopY, throwArc } from '../game/teamMoves';
+import { boostPath, hangRootY, relayPath, relaySlot, ropeTopPath, ropeTopY, throwArc } from '../game/teamMoves';
 import { hangPoint, HANG, makeLedge, type Ledge } from '../world/anchors';
 import type { TraverseKind } from './animGraph';
 import { teamContactK, teamGroup, teamRoleGroup, type TeamMoveId } from './moveTune';
@@ -99,6 +99,8 @@ export const PAIR_PARTS = {
 /** (the hang-down's pull-up and the rope's top-out are extra parts after the hold / climb) */
 const HANG_PULL = TEAM.hangPull;
 const ROPE_TOP = TEAM.ropeTop;
+/** (team-climb) The top-out path's shares (scratch: no allocation per frame). */
+const ropeTopShares = { rise: 0, across: 0 };
 
 /** A pair's loop length (s). */
 export function pairCycle(m: TeamMoveId): number {
@@ -415,14 +417,14 @@ export function pairPose(move: TeamMoveId, t: number, st: PairStation, h: number
       } else if (t < climbEnd + ROPE_TOP) {
         // over the edge to beside the holder: up first, then in (the game's top-out)
         const kk = Math.min(1, (t - climbEnd) / ROPE_TOP);
-        const e = smooth(kk);
         const x0 = world(st, ROPE_F + 0.35, 0);
         const ax0 = x0.x;
         const az0 = x0.z;
         const to = world(st, -0.45, 0.8);
-        const across = Math.max(0, (e - 0.4) / 0.6);
+        // (team-climb) the game's eased path (ropeTopPath; from still: the studio climb may wait at the top)
+        const { rise, across } = ropeTopPath(kk, 0, ropeTopShares);
         a.x = ax0 + (to.x - ax0) * across;
-        a.y = ty + (top - ty) * Math.min(1, e * 1.7);
+        a.y = ty + (top - ty) * rise;
         a.z = az0 + (to.z - az0) * across;
         a.yaw = inw;
         a.traverse = 'climbUp';

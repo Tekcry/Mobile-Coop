@@ -58,6 +58,10 @@ export type MoveMode = (typeof MOVE_MODES)[number];
 export const ATTACHED_MODES: readonly MoveMode[] = ['ladder', 'pipeV', 'pipeH', 'ledge', 'duct', 'zipline', 'split', 'wallJump', 'rappel', 'fence'];
 export const COMMITTED_MODES: readonly MoveMode[] = ['step', 'vault', 'mantle', 'drop', 'hop', 'roll', 'windowVault', 'landing'];
 
+/** (pose-parity, protocol 36) `takedown` `sub` bit: the blow is running (`ph` its phase); clear = a choke or the lethal
+ *  approach (the owner's `blowPh` -1: no arc). */
+export const TAKEDOWN_SUB_BLOW = 1;
+
 export const isAttachedMode = (m: MoveMode): boolean => ATTACHED_MODES.includes(m);
 export const isCommittedMode = (m: MoveMode): boolean => COMMITTED_MODES.includes(m);
 
@@ -286,8 +290,8 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
   out.tumble = 0;
   out.drawn = mv.dw !== 0;
   out.settle = false;
-  // (anim-cleanup) on the ground the left-shoulder aim (the shoulder swap) sets the same bit as the wall's left hand
-  out.leftHand = mv.m === 'ground' && (mv.sub & 128) !== 0;
+  // (pose-parity) the left-shoulder aim off the wall is the player flag `PF.aimLeft` (every mode), read by the remote
+  out.leftHand = false;
   switch (mv.m) {
     case 'wall':
       // (step 11) the flat-back stance, facing along the slide (WALL_SUB.faceRight = 2)
@@ -386,7 +390,9 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
       return out;
     case 'takedown':
       // (anim-n4d, M1) the wire carries the blow's own phase, posed warped onto the kill as the local player's (killWarp)
-      out.melee = killWarp(mv.ph, TAKEDOWN_BLOW);
+      // (pose-parity) only while the blow runs (TAKEDOWN_SUB_BLOW): a choke and the lethal approach pose no arc (-1), as
+      // the owner's `blowPh` -1 (the wire's `ph` is 0..1)
+      out.melee = mv.sub & TAKEDOWN_SUB_BLOW ? killWarp(mv.ph, TAKEDOWN_BLOW) : -1;
       return out;
     case 'grab':
       // (G7) the kill from the hold (sub bit 1): the blow's arc at the finisher's progress; (anim-n4d) warped onto the kill
@@ -423,8 +429,13 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
 
 /** (ct-prototype E2) A climb-up keeps the hands planted on the top until the knee is on: 1 - smooth((k - k0) / span).
  *  (F5) Released only after the knee plant (the CLIMB_UP clip plants it by k 0.56, the root is on the top by 0.59): 0.6 - 0.74.
- *  (G4) The retimed clip plants the knee by 0.36 (0.47 s), the root is on the top by 0.38: 0.38 - 0.5 (0.49 - 0.65 s). */
-export const CLIMB_UP_HANDS = { k0: 0.38, span: 0.12 };
+ *  (G4) The retimed clip plants the knee by 0.36 (0.47 s), the root is on the top by 0.38: 0.38 - 0.5 (0.49 - 0.65 s).
+ *  (traverse-fix-2, kept) The clip keeps the chest low over the lip now (shoulders within reach): the palms stay on it
+ *  until the right foot is on the top (k 0.474), then let go over 0.475 - 0.643 (0.62 - 0.84 s), off before the crouch
+ *  (CLIMB_UP_CROUCH_K 0.654, where a climb-up with the stick released ends). The longest release that fits keeps the
+ *  wrists' per-frame velocity change under 3 cm (tests/climbHands.test.ts). Undo: { k0: 0.38, span: 0.12 } with the
+ *  pre-traverse-fix-2 CLIMB_UP keys (the palms left the lip from k 0.32); the interim 0.52 / 0.12 slid the palms 4.7 cm. */
+export const CLIMB_UP_HANDS = { k0: 0.475, span: 0.168 };
 
 /** (G4) Crawling out of a duct the hands leave the duct floor over the first share of the exit (the clip's hands take over). */
 export const CRAWL_OUT_HANDS = 0.25;

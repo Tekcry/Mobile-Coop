@@ -1,3 +1,5 @@
+import { charShadowSpec, type CharShadowMode } from '../world/charShadowSet';
+
 /**
  * Graphics settings (pure, unit-tested). 3.1: one preset ladder - Low / Medium / High / Ultra / Epic - filling the
  * per-feature settings; changing any feature makes it Custom. Gameplay never depends on
@@ -11,7 +13,7 @@ export type AaMode = 'fxaa' | 'msaa' | 'taa';
 export type TierQuality = 'low' | 'medium' | 'high' | 'ultra' | 'epic';
 /** Post passes (SSAO, SSR) at half or full resolution. */
 export type PostRes = 'half' | 'full';
-/** Reflections: none, screen space, or ray traced through the voxel world (hybrid: screen space first). */
+/** Reflections: none, screen space, or 'rt' (kept for saved settings: runs screen space since voxel-retire). */
 export type ReflectionMode = 'off' | 'ssr' | 'rt';
 /** Ray-traced reflections: every pixel, or half (a checkerboard alternating each frame). */
 export type RtRes = 'half' | 'full';
@@ -96,17 +98,27 @@ export interface ShadowSpec {
   soft: boolean;
   /** 3.1 Low: the moon shades only the level; characters and props get contact blobs. */
   staticSun?: boolean;
+  /** (LR14) Lamps given a character silhouette shadow map (the nearest; 0: capsule shadows only) and each one's atlas
+   *  tile (px): one more texture per lit shader while on (`world/charShadows.ts`). */
+  charLamps: number;
+  charTile: number;
 }
 
 /**
  * Lamp / flashlight shadow maps a material can take (3.1.7): WebGL guarantees 16 textures per shader and the largest
- * material (the voxel level) already uses 11 without lamp shadows - one each (PCF) fits 4 (headless software GL allows
+ * material (the voxel-era level) already uses 11 without lamp shadows - one each (PCF) fits 4 (headless software GL allows
  * 32, so only real GPUs failed). `e2e-desktop` checks every material against 16, before and after the guards alert.
  * (Since the lamp bake the level's micro-detail shader takes 15 without a lamp shadow: `LightRig` caps the pool at one there.)
  */
 export const MAX_SHADOW_CASTERS = 4;
 
-export function shadowSpec(q: ShadowQuality): ShadowSpec {
+/** `charMode`: the character shadow override (LR14, Settings > Graphics; 'auto' = the tier's). */
+export function shadowSpec(q: ShadowQuality, charMode: CharShadowMode = 'auto'): ShadowSpec {
+  const c = charShadowSpec(q, charMode);
+  return { ...shadowBase(q), charLamps: c.lamps, charTile: c.tile };
+}
+
+function shadowBase(q: ShadowQuality): Omit<ShadowSpec, 'charLamps' | 'charTile'> {
   switch (q) {
     case 'off':
       return { sun: false, cascades: 0, sunSize: 0, casters: 0, size: 0, soft: false };
@@ -132,16 +144,6 @@ export const TEXTURE_ANISO: Record<TierQuality, number> = { low: 2, medium: 4, h
 /** Draw / animation distance multipliers and particle density per tier. */
 export const DETAIL_SCALE: Record<TierQuality, number> = { low: 1, medium: 1.5, high: 2, ultra: 3, epic: 4 };
 export const EFFECT_DENSITY: Record<TierQuality, number> = { low: 0.4, medium: 0.7, high: 1, ultra: 1.5, epic: 2 };
-/** Voxel sizes per Detail tier (m): the structure, the prop layer (0: props on the structure layer), characters and
- *  weapons (with their level of detail). Low halves the resolution; the levels of detail still double from there. */
-export const VOXEL_TIER: Record<TierQuality, { size: number; fine: number; character: number; weapon: number }> = {
-  // (one structure size on every preset: what hides a player must look the same for everyone)
-  low: { size: 0.05, fine: 0, character: 0.04, weapon: 0.02 },
-  medium: { size: 0.05, fine: 0, character: 0.02, weapon: 0.01 },
-  high: { size: 0.05, fine: 0.025, character: 0.02, weapon: 0.01 },
-  ultra: { size: 0.05, fine: 0.025, character: 0.02, weapon: 0.01 },
-  epic: { size: 0.05, fine: 0.025, character: 0.02, weapon: 0.01 },
-};
 
 /** The live level the game applies (`QualityTarget.applyQuality`). */
 export interface QualityLevel {
@@ -162,14 +164,15 @@ export interface QualityLevel {
   panini: number;
 }
 
-export function qualityLevel(name: GraphicsPreset, f: GraphicsFeatures, minimal = false, upscale = 1, panini = 0): QualityLevel {
+/** `charMode`: the character shadow override (LR14). */
+export function qualityLevel(name: GraphicsPreset, f: GraphicsFeatures, minimal = false, upscale = 1, panini = 0, charMode: CharShadowMode = 'auto'): QualityLevel {
   return {
     minimal,
     upscale: minimal ? 1 : Math.max(0.5, Math.min(1, upscale)),
     panini: minimal ? 0 : Math.max(0, Math.min(1, panini)),
     name,
     features: f,
-    shadow: shadowSpec(f.shadows),
+    shadow: shadowSpec(f.shadows, minimal ? 'off' : charMode),
     vfxDensity: EFFECT_DENSITY[f.effects],
     realLights: Math.round(Math.min(LIGHT_RANGE.max, Math.max(LIGHT_RANGE.min, f.lights))),
     detailScale: DETAIL_SCALE[f.detail],

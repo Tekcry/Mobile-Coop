@@ -60,6 +60,9 @@ Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G103-G105), then d
   `keyboardMouseSource` reads it, so RMB held then LMB fires.
 - Guards shoot with their own numbers (`enemies.json` `weapon`); `enemies.json` `gun` is only the carried model (rifle or
   suppressed pistol).
+- (guard-ai S16) Guards never fire into armour (E10 `G.GLASS_ARMOURED`): `Ballistics.armouredFirst(from, to, mask)` (no
+  allocation) tells the fire gate whether the first hit on the line is armoured; the guards hold fire and reposition
+  (`docs/systems/ai.md`, Armour). Plain glass still lets their rounds through.
 - Class-keyed code for classes no gun has now (compact carry slots, pellets, projectiles, shell reloads) stays for the
   rifle's attachment modes.
 
@@ -69,6 +72,14 @@ Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G103-G105), then d
   it in Infiltration; Free Roam carries the same two; `?loadout=a,b` bypasses it.
 - Original names only (A28): `tests/weaponNames.test.ts` bans real makers, model designations and reference-game terms.
 - Suppressors: `rifle` is issued suppressed in the campaign (A62); `pistolSd` has an integral suppressor (`noise` 0.35).
+- Quiet rounds (sd-rounds, `weapons/sdRounds.ts`, pure): each suppressed gun carries a count of quiet rounds apart from the magazine
+  (`SD_ROUNDS`: rifle 60, pistolSd 45; `WeaponSlot.sd`). A suppressed shot spends one (never on infinite ammo); at 0 the gun still
+  fires but loud: its open noise (`SD_OPEN_NOISE`: rifle 1.0, pistolSd 0.8), the open audio bank and full flash, so the
+  `enemyMgr.noise` path applies. `PlayerWeapons.lastShotNoise` / `lastShotQuiet` carry that shot's noise to the guard noise
+  (`gameState.onShot`), the audio, the flash and the co-op `PF.quiet` flag (no wire change; the host uses `sdOpenNoise` for a
+  client's loud shot). An ammo pickup refills the same fraction of the start count (capped at it); a checkpoint restart
+  restores the count (`LoadoutSnapshot.sds`). HUD: "SD n" in the weapon box, red at 5 or fewer, hidden on an open gun; one
+  warn feed line when it reaches 0. Undo: set the `SD_ROUNDS` entries to `Infinity`.
 - Save: deleted gun ids in a loadout or preset map to the kept gun of their slot (`DELETED_GUNS`, v8 -> v9 migration).
 
 | id | name | role |

@@ -1,8 +1,7 @@
 // 3.6 Phase 1 Step 1: the canonical light bake is the same on every preset. The Warehouse under `?gfx=min`,
 // `?gfx=low` and `?gfx=epic` bakes the same shapes and gives the same lamp / moon / ambient bytes (cache keys
 // and a content hash), and every config baked something; Epic draws the baked lamps.
-// smooth-world: the same with voxels on (`?gfx=epic&voxels=1`) as off (the smooth default): one bake, and both Epic paths
-// draw it through the lamp plugin on every PBR material; Ray traced reflections fall back to screen space without voxels.
+// smooth-world / voxel-retire: Epic draws the bake through the lamp plugin on every PBR material; Ray traced runs screen space reflections.
 import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -10,7 +9,6 @@ const CONFIGS = [
   ['gfx=min', 'gfx=min'],
   ['gfx=low', 'gfx=low'],
   ['gfx=epic', 'gfx=epic'],
-  ['gfx=epic&voxels=1', 'gfx=epic&voxels=1'],
 ];
 let failed = false;
 const infos = [];
@@ -34,7 +32,7 @@ await Promise.all(CONFIGS.map(async ([name, q], k) => {
       const w = window.__app.current.world;
       const q = window.__app.quality.level;
       const pbr = w.scene.materials.filter((m) => m.getClassName() === 'PBRMaterial');
-      return { ...w.lightInfo(), minimal: !!q.minimal, voxels: !!w.voxels, lamps: !!w.lamps, pbr: pbr.length, plugged: pbr.filter((m) => !!m.pluginManager?.getPlugin('BakedLamps')).length };
+      return { ...w.lightInfo(), minimal: !!q.minimal, lamps: !!w.lamps, pbr: pbr.length, plugged: pbr.filter((m) => !!m.pluginManager?.getPlugin('BakedLamps')).length };
     });
     if (name === 'gfx=epic') {
       // (fix round) the level material compiles the lamp plugin with LAMP_LEVEL (no night-vision body fill cap); no other
@@ -67,7 +65,45 @@ await Promise.all(CONFIGS.map(async ([name, q], k) => {
         return r;
       });
       info.lampLevel = lvl;
-      // the smooth default at Ray traced: no voxel world to trace, so screen space reflections run instead (no crash)
+      // (LR14) character silhouette shadows: on at Epic (4 lamp slots, one atlas), the level shader compiles
+      // LAMP_CSHADOW, the slots near the player copy maps into the atlas, and every drawn shader still fits WebGL's 16
+      // textures with the guards alerted (their flashlights take the rig's shadow pool)
+      info.cs = await page.evaluate(async () => {
+        const g = window.__app.current;
+        const cs = g.world.charShadows;
+        for (const en of g.enemyMgr?.enemies ?? []) en.alert();
+        const tex = () => {
+          let max = 0;
+          let who = '';
+          let pending = 0;
+          let define = false;
+          for (const m of g.scene.meshes) {
+            if (!m.isEnabled() || !m.isVisible) continue;
+            for (const sm of m.subMeshes ?? []) {
+              if (!sm.getMaterial?.() || !sm.effect) continue;
+              if (!sm.effect.isReady()) {
+                pending++;
+                continue;
+              }
+              if (sm.effect.defines.includes('#define LAMP_CSHADOW')) define = true;
+              const n = sm.effect._samplerList?.length ?? 0;
+              if (n > max) {
+                max = n;
+                who = sm.getMaterial().name;
+              }
+            }
+          }
+          return { max, who, pending, define };
+        };
+        let t = tex();
+        for (let i = 0; i < 240 && (t.pending > 0 || i < 8); i++) {
+          await new Promise((r) => requestAnimationFrame(r));
+          if (i % 20 === 19) await new Promise((r) => setTimeout(r, 250));
+          t = tex();
+        }
+        return { on: !!cs?.on, slots: cs?.stats().length ?? 0, stats: cs?.stats() ?? [], copies: cs?.copies ?? 0, ...t };
+      });
+      // the smooth default at Ray traced: screen space reflections run (no crash)
       await page.evaluate(() => window.__app.settings.update((d) => { d.video.preset = 'custom'; d.video.gfx.reflections = 'rt'; d.video.adaptive = false; }));
       // (load-latent-ui1) was a fixed 1.5 s wall wait: under CPU load the frame rebuilding the pipeline had not run.
       // Wait (60 s cap) for the fallback, then read; a real miss still fails the assert. Epic already runs SSR, so the
@@ -82,7 +118,7 @@ await Promise.all(CONFIGS.map(async ([name, q], k) => {
       info.pps = pps.join(',');
     }
     infos[k] = [name, info];
-    console.log(`  ${name}: shapes ${info.shapes} hash ${info.hash} lamps ${info.lights} (${(info.lampBytes / 1e6).toFixed(1)} MB) moon ${info.moonCells} cells, bake ${Math.round(info.ms)} ms, voxels ${info.voxels}, baked lamps drawn ${info.lamps}`);
+    console.log(`  ${name}: shapes ${info.shapes} hash ${info.hash} lamps ${info.lights} (${(info.lampBytes / 1e6).toFixed(1)} MB) moon ${info.moonCells} cells, bake ${Math.round(info.ms)} ms, baked lamps drawn ${info.lamps}`);
     const bad = errors.filter((e) => !/favicon|net::ERR|WebSocket|webrtc/i.test(e));
     assert(bad.length === 0, `${name}: no console errors${bad.length ? ': ' + bad.slice(0, 3).join(' | ') : ''}`);
   } catch (e) {
@@ -101,15 +137,19 @@ try {
     assert(i.hash === ref.hash, `${name}: the visibility data hash is the same (${i.hash})`);
   }
   const epic = infos.find(([n]) => n === 'gfx=epic')[1];
-  const vox = infos.find(([n]) => n === 'gfx=epic&voxels=1')[1];
-  assert(!epic.voxels && vox.voxels, `Epic is smooth by default, voxels only with ?voxels=1 (${epic.voxels}, ${vox.voxels})`);
-  for (const [n, i] of [['gfx=epic', epic], ['gfx=epic&voxels=1', vox]]) {
+  for (const [n, i] of [['gfx=epic', epic]]) {
     assert(i.lamps, `${n}: draws the bake (the baked lamps)`);
     assert(i.pbr > 0 && i.plugged === i.pbr, `${n}: the lamp plugin is on every PBR material (${i.plugged} / ${i.pbr})`);
   }
-  assert(epic.lampLevel?.sky === true, `smooth Epic: the level material takes the voxel walls' fill and probe light by sky visibility (LAMP_SKY, ${JSON.stringify(epic.lampLevel)})`);
+  assert(epic.lampLevel?.sky === true, `smooth Epic: the level material takes the fill and probe light by sky visibility (LAMP_SKY, ${JSON.stringify(epic.lampLevel)})`);
   assert(epic.lampLevel?.level === true && epic.lampLevel.others === 0, `smooth Epic: only the level material compiles LAMP_LEVEL (${JSON.stringify(epic.lampLevel)})`);
   assert(epic.rtFallback, `smooth Epic at Ray traced falls back to screen space reflections (${epic.pps})`);
+  // (LR14) character shadows: Epic on with 4 slots and the define compiled; Low and the voxel path keep the capsules
+  const cs = epic.cs ?? {};
+  console.log(`  LR14 character shadows: ${JSON.stringify({ on: cs.on, slots: cs.slots, copies: cs.copies, max: cs.max, who: cs.who, stats: cs.stats })}`);
+  assert(cs.on && cs.slots === 4 && cs.define, `smooth Epic: character shadow maps on, 4 lamp slots, LAMP_CSHADOW compiled (${JSON.stringify({ on: cs.on, slots: cs.slots, define: cs.define })})`);
+  assert(!cs.stats.some((s) => s.casters > 0) || cs.copies > 0, `smooth Epic: a slot with characters in reach copies its map into the atlas (${cs.copies} copies)`);
+  assert(cs.pending === 0 && cs.max > 0 && cs.max <= 16, `smooth Epic with character shadows, guards alerted: every shader within 16 textures (${cs.max}, ${cs.who}, ${cs.pending} pending)`);
 } catch (e) {
   failed = true;
   console.error(String(e));

@@ -1,5 +1,191 @@
 # Changelog
 
+## 4.79.0 - Train 30: Player batches 23-24 (iPad fit, suppressor ammo, team-climb top-out, partner pose parity) and co-op walk fixes; voxel look retired (2026-10-23, PR #241; #231, #236)
+
+### Co-op walk fixes: team takedown on a hostage, partner shot audio
+- (coop-walk-fixes P6) Co-op: when either player holds a guard as a hostage, the other player beside them gets TEAM
+  TAKEDOWN on him (host or joiner holding, either way); it knocks him out (a held direct press kills), ends the hold and
+  counts as a dual takedown for both. Before, the joiner's offer on the host's hostage did nothing and the host had no
+  offer on the joiner's.
+- (coop-walk-fixes P7) Co-op: a partner's shot plays once per round (a single shot played twice) and with their own
+  weapon's sound, suppressed when it was (the suppressed pistol sounded like an open pistol); its muzzle flash is small
+  when suppressed. Protocol 37: the player state carries the rounds fired (`sc`).
+
+### Interrogation intel
+- (interrogation-intel) Interrogating a guard with information now also gives intel as feed lines for every player: door
+  codes authored on the guard (`GuardIntel.codes`, flag to `GameMode.onIntelCode`), the cameras near him (count, sweep
+  time) and the patrols near him (count, loop time, read through the Guard AI `Enemy.patrolRoute` getter). A co-op client's
+  interrogation is seen on the host from its MoveState; no wire change. A co-op client now also lists the host's relayed
+  `feed` lines in its HUD feed (they were only a radio subtitle, so the partner never saw the intel there).
+
+### iPad display fit
+- iPad: the version label stays fully on screen (bottom / right offsets include the safe-area insets, `--vh` follows `dvh`
+  where supported), the page and menu frame fill the visible viewport (no dark bottom strip), the "integrated GPU ... Windows
+  Settings" banner and settings hint show only on Windows, and the pause menu's co-op room line wraps in its own block clear
+  of the help box. Desktop rendering (zero insets) is unchanged.
+
+- The in-game pause menu no longer lists Anim Studio (dev); the studio opens from the main menu only, and the pause menu keeps Animation tuner (dev).
+
+### Partner pose parity: aim side, takedown blow, baked sections
+- (pose-parity) Co-op: your partner's weapon hand now follows their shoulder swap in every mode (holding a hostage, on
+  a rope, a split, an inverted pipe, atop the human ladder), not only on the ground; a partner choking a guard or
+  stepping in for a lethal takedown no longer holds the elbow strike's wind-up (they pose no arc, as on their own
+  screen); and once tuner values are baked into the code, the partner's rig plays the baked co-op / traversal move
+  sections and Body root offsets (body forward / up, the hold's guard gap and side, the wall gap) as their own page
+  does (never your live tuner values). Protocol 36 (32-35 are taken by open branches): the player flag `aimLeft` (64)
+  and the takedown blow bit (MoveState `sub` 1); the ground `sub` bit 128 is dropped.
+
+### Limited suppressor ammo
+- Suppressed guns (the issued rifle, the Hush 9 SD) carry a limited count of quiet rounds (rifle 60, pistol 45), separate from
+  the magazine. Each suppressed shot spends one; at 0 the gun still fires but loud (open sound, full flash, an open gun's
+  noise to the guards), with a one-off "Suppressed rounds out" feed line. The weapon box shows "SD n" (red at 5 or fewer).
+  Ammo crates refill quiet rounds, a checkpoint restart restores them, infinite ammo never spends them. In co-op a client's
+  spent gun is loud on the host (no protocol change).
+
+### Team climb: the rope top-out
+- (team-climb) The two-person rope's top-out (CLIMB_UP_TEAM) no longer pops: the climber is pulled in to the face on
+  the rope's last 0.6 m, then rises and moves over the lip on eased (quintic) paths that carry the climb's speed in
+  (`teamMoves.ropeTopPath`; `TEAM.ropeTop` 0.9 -> 1.1 s). Root per-frame velocity change 5.7 cm -> 0.44 cm.
+- (team-climb) The climber's hands grip the lip at the top (lip "hook" grips, lifting off as the arms run out), on
+  the owner's page and on the partner's view of them (`ropeSeenStep`, no wire change). The Anim Studio's rope pair
+  plays the same path.
+
+### voxel-retire
+- The voxel look is retired (Michael: "nothing should be voxel"): `?voxels=1`, the voxel world, voxel characters and
+  weapons, chips, voxel GI and ray-traced reflections are removed. Ray traced now runs screen space reflections. The
+  light bakes (lamp, moon, sky, ambient grid) and their hashes are unchanged.
+
+## 4.78.0 - Train 29: Sector Ops lighting: lamp falloff setting, shadow accuracy, character lamp shadows (fixes calm guards drawn without bodies); Guard AI guards never fire into armour (2026-10-23, PR #238; #232, #228)
+
+### Guard AI S16 - guards hold fire at armour
+- Guards no longer empty their magazines into bulletproof glass or doors: before each burst and each round a guard checks
+  his line of fire, and when armour is first on it he holds fire, keeps tracking you and calling it in, then moves to a
+  spot with a clear shot (or round by the corridors), or holds if he must keep his post. Ordinary glass is unchanged:
+  guards still shoot through it.
+
+### Character silhouette shadows (LR14)
+- Character silhouette shadows from lamps, as in CT (LR14): from High up the 2-4 lamps nearest you (a steady set: a
+  newcomer must be 25% nearer and a lamp holds its slot at least 0.5 s) cast the real shape of guards, your partner,
+  bodies and held weapons - arms, legs, crouch and prone - on floors, walls and other characters. Their maps share one
+  texture; every other lamp keeps the soft capsule shadows, as do Low and Medium. Settings > Graphics > Character
+  shadows (Auto / On / Off) overrides the preset; each co-op player uses their own. Rendering only: the light meter and
+  the guards read the light exactly as before.
+
+### Lamp output review and the lamp falloff setting (walk 4.72)
+- Lighting review of the walk 4.72 S1 / M5 notes: measured lamp reach on every map (Sector Ops S1 goods-in floor median
+  0.186, real fittings 213-781 lux), proposal LR13 (photometric lamp falloff) for Michael in
+  `docs/lighting-review/PROPOSAL.md`.
+- New setting, Settings > Gameplay > Lamp falloff: Classic (the default, the game as before) or Realistic (test): lamps
+  fall off with the inverse square like real fittings and reach further. The light meter, the guards and the picture
+  switch together; it takes effect when a map loads. In co-op the host's choice applies to both players (co-op
+  protocol 38). `?falloff=photo` forces Realistic for a page (dev).
+- Shadow accuracy fixes ride Realistic (off in Classic): the meter reads the ambient fill as the picture does, shut doors
+  past a lamp's door slots stop leaking light, guards' torches light the operator figures and weapons with the level's
+  falloff, cut torch beams get the shadow maps first, and a torch behind a wall no longer lights a body for the guards.
+
+## 4.77.0 - Train 28: Player batch 22 (strike pops, hang-down, dual reward, traverse fix, ladder knees); Guard AI walk fixes (lasers, bodies, urgency, spacing) (2026-10-23, PR #235; #207, #230)
+
+### Co-op dual takedown counted for section-rating
+- Co-op host: a dual takedown (two players' takedowns within 1.5 s) is now counted in `StealthRating.duals` and emitted as a
+  `dualTakedown` event, as the input for section-rating's "synced takedowns reward more than shooting". It no longer adds a
+  knockout of its own. The banner and the wire are unchanged.
+
+### Guard AI: walk 4.72 fixes
+- Lasers (Michael's walk G1): breaking a laser beam no longer tells the guards where you are. The guards hear of the
+  beam, not of you: the two nearest calm guards within about 30 m go straight to the middle of the beam ("Sensor tripped.
+  Moving to check.") and search the room it is in, then go back to their routes on edge. Alarm reinforcements the laser
+  brings in search the beam's room too (they no longer head for wherever you climbed to); once anyone actually sees you
+  they fight as before. A camera that raises the alarm works the same way, at the spot where it saw you. Host only.
+- Dead bodies (G2): guards who find a dead body no longer give up after a minute. The finder and the guard who hears
+  his shout search round the body for about three minutes, at twice as many spots and out to about 15 m (a plain search:
+  one minute, 11 m), then stay on edge as before. Both guards a camera sends to a dead body now search it, not just the
+  one who gets there first. Knocked-out guards are still searched for a minute.
+- Urgency (G3): guards now hurry (a jog, more than twice their patrol pace) to a tripped laser or camera alarm, to a body
+  a camera or a radio report named, to a guard who is not answering and to gunfire, then search at their usual pace once
+  there. When a finder's "man down" report gets through, the nearest calm guard in range comes running to help search
+  the body. Noises, thrown items, lights going out and breaker faults are still checked at a calm walk.
+- Guards and doors (G4): guards no longer walk through each other. Two guards whose paths cross step round each other and
+  never come closer than about two thirds of a metre, at a walk, a jog or a run (two meeting in a doorway or a narrow
+  corridor brush past after a second instead of waiting); a guard held in a takedown or lying
+  on the floor is not in anyone's way. Guards no longer walk through doors: a guard opens a closed door the way he
+  always pushed it, waits for it to swing, then goes through; a locked door stays shut and a guard who reaches it stops
+  there instead of walking through it. Host only.
+- Weapon carry (G5): calm guards in a calm area now walk with their gun put away, the rifle slung across the back and
+  the pistol on the thigh, hands empty. Anything that stirs them (suspicion, a search, caution, combat) makes them draw
+  it, quickly (under a second), and they cannot fire until it is out; they put it away again after about 15 calm
+  seconds. Guards on a high-security post, a response team or any guard once the alarm is raised stay at low ready, as
+  do snipers and shield guards. Host only: in co-op the joining player still sees every guard at low ready.
+
+### Hang-down: the hanging player's grab, neck snap and pistol
+- (hang-down) The co-op hang-down's hanging player can act (CT 1.5 Drop Line): hold A lists GRAB CHARACTER on a guard
+  by the head (he is lifted to the hands, then the held rules: RT tap / Z knocks out, RT hold kills - the neck snap -,
+  Interrogate when he knows something, no let-go); RT on a guard in reach without the menu chokes (tap) or snaps the
+  neck (hold); LT draws the pistol one-handed and aims upside down (never the rifle), the camera at the hanging head.
+  A still uses the item in reach (the hack) with no guard there; by a guard it is a menu row. The partner pulling up or letting go while a guard is held knocks him
+  out. Works for the joiner: the host keeps and lifts its guard, lets it hold the pistol and shoot from the hang. No
+  protocol change (stays 31).
+
+### Strike and hand-swap pops (spare job #5)
+- (strike-pops, n4c polish 9) The elbow strike's trunk turns at its own pace (`STRIKE_BODY_RATE` 6.25 / s,
+  `strikeBodyPhase`): no load-to-drive reversal at speed (shoulders 12.6 then -12.1 deg a frame -> 9.2, -0.4, -13.3),
+  the drive over 2 frames (18.9 -> 13.3 deg max), the right wrist's largest frame 31.4 -> 27.0 cm, the pelvis'
+  2.9 -> 2.0 cm. The hit still resolves at 83 ms, the hand across at 100 ms.
+- (strike-pops, n4c polish 1) A hand swap reversed mid-swap no longer flips the gun's dip direction in one frame: the
+  dip and the tuck read the swap's progress from the hand blend (`handSwapPh`); plain swaps unchanged.
+- (strike-pops, n4d polish 1) A bay or section restart ends a strike or a kill's follow-through on the respawned player
+  (the respawn's `StrikeController.reset` ends the takedown tail; the co-op client's `revive` resets the strike too).
+
+### Climb-up hands (traverse-fix-2)
+- Ledge climb-up: the palms stay on the lip (0.0 cm off, 1.1 cm drift) until the right foot is on the top (k 0.474, was
+  0.52), then let go over `CLIMB_UP_HANDS` 0.475 - 0.643 while the trunk rises into the crouch; the wrists' worst
+  velocity change at the release is 2.8 cm a frame (was 23.5 cm).
+- Lip grips: the hand pivots over the edge continuously as the shoulder leaves its reach (was 15-degree steps with a
+  0 -> 90 degree flip in one frame).
+- Ladder top-out (the climb-up from a ladder): the right foot sets down under its hip as it steps onto the top (CLIMB_UP
+  `fRX` -0.08 at 0.49, was 0.022 -> 0), so its knee no longer folds in onto the left: the knees stay 14.4 cm apart (were
+  8.9 cm, e2e-clip asks > 9).
+
+## 4.76.0 - Train 27: Guard AI response teams, section alert, breaker faults and lasting shot lamps; crouch transition pops (2026-10-23, PR #233; #225, #227, #220)
+
+### Crouch pops
+- Animation: crouching and standing no longer pop the stance width with the baked Body tune (idle / walk / jog / run
+  feet apart 0.05): the Body rows blend from the standing row to the crouched row with the crouch itself instead of
+  switching at half way. e2e-anim's two raised crouch limits are back to the shared 7.5 cm.
+
+### Guard AI: response teams
+- S13 response teams: each Sector Ops alarm stage now brings a response team led by a riot-shield guard (always
+  helmeted), the rest armed guards, the same number as before. From stage 2 every guard of the section wears body
+  armour at once, from stage 3 a helmet too, and guards that come in later (the next section, a woken guard, the next
+  team) wear it as well; a restart drops it with the stage. No camera is added or changed. Once the team has searched
+  your last known spot for a minute it sweeps the section point by point, the shield guard leading and the others
+  close behind, looking round at each point with torches on in the dark, round and round; a sighting brings a fight,
+  then the search, then the sweep again. Teams never leave or calm down until you leave the section or restart. On
+  the other live maps the alarm brings a shield guard and two armed guards (no heavy) who sweep the same way.
+
+Tests: the e2e-levels ladder chases wait on sim time (a sim-seconds budget from the design, a hang guard on wall clock) and the sim clock takes over the moment the match exists, so a loaded machine no longer fails "a runner climbs the rack ladder".
+
+### Guard AI: missed check-ins and gunfire put the section on edge
+- S14 section alert: when a radio check gets no answer from a guard you took out ("Unit three, report... Nothing."),
+  the caller radios it in and, once the call gets through, the whole section is on edge for three minutes: guards walk
+  slower, pause longer and spot you sooner, and two still go to look for him. Take the caller down while he is on the
+  radio and nobody else hears. The same happens when one of a talking pair never turns up.
+- An unsuppressed shot heard by a calm guard is radioed in ("Shots fired! Calling it in."): the section is on edge for
+  two minutes (another loud shot keeps it going) and two guards come to the spot instead of one. Shots never raise the
+  alarm by themselves. Suppressed shots are unchanged.
+- Co-op: a client's suppressed shot is now heard as close as the host's (about 10 m, was 14 m).
+
+### Guard AI: breakers and dark lamps
+- S15 breakers and dark lamps: a room's lights switched off at the wall now read as a fault, not an attack. The nearest guard who
+  saw it go (never two) says "Breaker's gone again.", walks over at his normal patrol pace, works the switch for 2 s and
+  the lights come back on; nobody checks the area and he goes back to his route calm. Cut the same circuit again within
+  a minute and the guards treat it as tampering: the full light check at the switch. A lamp shot out still draws the
+  usual check by one or two guards and now stays dark for good. A lamp shot out or a circuit cut while nobody looked is
+  no longer forgotten: the next calm guard who has the dark fixture in view within about 12 m reacts as a witness would
+  (checks the shot lamp, or goes to reset the breaker), once for each time it goes dark. Turn the lights back on
+  yourself before he gets there and he turns back. A course mains gate's circuit is left off (no guard shuts the gate on
+  you by turning it back on). Host only; co-op partners see the lights come back through the
+  existing light sync.
+
 ## 4.75.0 - Train 26: Guard render S4, Sector Ops campus sections 4-5 with weapons crate, cameras, armoured routes and posts, mocap strafe (2026-10-23, PR #224; #212, #217, #221)
 
 ### Guard anim tiers (guard-render S4)

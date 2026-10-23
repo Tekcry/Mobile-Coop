@@ -1,5 +1,5 @@
 import { hyp3 } from '../core/mathx';
-import { LAMP_CONE_COS, LAMP_EXP, LAMP_LEVEL_GAIN, lampTerm, SPOT_EXP } from './lampMath';
+import { LAMP_CONE_COS, LAMP_EXP, LAMP_LEVEL_GAIN, lampReach, lampTerm, SPOT_EXP } from './lampMath';
 /**
  * Light model (pure: no Babylon/DOM), unit-tested.
  *
@@ -135,7 +135,8 @@ export class LightRegistry {
       x: init.x,
       y: init.y,
       z: init.z,
-      radius: init.radius ?? 8,
+      // (lightrev prototype) the fixed lamps' reach under the falloff mode (`lampReach`: the radius itself by default)
+      radius: (init.kind ?? 'lamp') === 'flashlight' ? (init.radius ?? 8) : lampReach(init.radius ?? 8),
       intensity: init.intensity ?? 0.9,
       color: init.color ?? [1, 0.9, 0.75],
       cone: init.cone ?? null,

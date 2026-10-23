@@ -1,10 +1,12 @@
-import type { HudWidth } from '../../core/display';
+import { runningOnWindows, type HudWidth } from '../../core/display';
 import type { App } from '../../core/app';
 import { flags } from '../../core/flags';
 import { defaultSettings, setAuto, setGfx, setPreset, type Settings } from '../../core/settings';
 import { FPS_CAPS, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type RtRes, type ShadowQuality, type TierQuality } from '../../core/quality';
 import { BENCH } from '../../game/benchmark';
 import type { CurveKind } from '../../input/stickMath';
+import type { LampFalloff } from '../../world/lampMath';
+import type { CharShadowMode } from '../../world/charShadowSet';
 import { h } from '../dom';
 import { MenuScreen, type LegendItem } from '../menuScreen';
 import { button, choice, describe, Dialog, lockedRow, refreshWidgets, slider, TabView, toggle, type TabDef } from '../widgets';
@@ -18,6 +20,18 @@ const CURVE_OPTS: { value: CurveKind; label: string }[] = [
   { value: 'classic', label: 'Classic' },
   { value: 'precise', label: 'Precise' },
   { value: 'aggressive', label: 'Aggressive' },
+];
+/** (lightrev LR13) Gameplay > Lamp falloff. */
+export const LAMP_FALLOFF_LABEL: Record<LampFalloff, string> = { linear: 'Classic', photometric: 'Realistic (test)' };
+const LAMP_FALLOFF_OPTS: { value: LampFalloff; label: string }[] = [
+  { value: 'linear', label: LAMP_FALLOFF_LABEL.linear },
+  { value: 'photometric', label: LAMP_FALLOFF_LABEL.photometric },
+];
+/** (LR14) Graphics > Character shadows. */
+const CHAR_SHADOW_OPTS: { value: CharShadowMode; label: string }[] = [
+  { value: 'auto', label: 'Auto' },
+  { value: 'on', label: 'On' },
+  { value: 'off', label: 'Off' },
 ];
 const PRESET_OPTS: { value: GraphicsPreset | 'auto'; label: string }[] = [
   { value: 'auto', label: 'Auto (this device)' },
@@ -154,6 +168,7 @@ export class SettingsScreen extends MenuScreen {
             desc(toggle('Last-guard slow motion', () => s().gameplay.slowBeat, (v) => upd((d) => void (d.gameplay.slowBeat = v))), 'A short slow-motion beat when the last guard in a room goes down.'),
             // (mocap-trial) the switch for the CMU mocap locomotion (default on since mocap-trial-2, M4; off: the hand-keyed set)
             desc(toggle('Mocap locomotion', () => s().gameplay.mocapLoco, (v) => upd((d) => void (d.gameplay.mocapLoco = v))), 'Wren walks, jogs, runs, sprints and sneaks crouched with motion-captured clips (CMU), weapon holstered. On by default; off uses the hand-keyed animations. This machine only (your partner\'s view follows their own setting); ?mocap=1 or ?mocap=0 in the address overrides it for that page.'),
+            this.lampFalloffRow(),
           ),
       },
       {
@@ -210,6 +225,7 @@ export class SettingsScreen extends MenuScreen {
         d.gameplay.courseMarkers = def.gameplay.courseMarkers;
         d.gameplay.slowBeat = def.gameplay.slowBeat;
         d.gameplay.mocapLoco = def.gameplay.mocapLoco;
+        d.gameplay.lampFalloff = def.gameplay.lampFalloff;
       }),
     );
     this.resets.set('video', () => st.reset('video'));
@@ -277,6 +293,20 @@ export class SettingsScreen extends MenuScreen {
     return out;
   }
 
+  /**
+   * (lightrev LR13, Michael 2026-10-23 ~14:35 "Try it first") Gameplay > Lamp falloff: a light-model rule (the meter, the
+   * guards and the picture together), read when a map loads. In a co-op match the host's applies to everyone: the row is
+   * locked there and shows the match's.
+   */
+  private lampFalloffRow(): HTMLElement {
+    const app = this.app;
+    const text =
+      'How lamp light fades with distance. Classic: the game as before. Realistic (test): lamps fall off with the inverse square like real fittings and reach further, so rooms fill with light; the light meter and the guards follow it too. Takes effect when a map loads (start or restart the mission). In co-op the host\'s choice applies to everyone. ?falloff=photo in the address forces Realistic for that page.';
+    const g = app.current as { net?: unknown; lampFalloff?: LampFalloff } | null;
+    if (g?.net && g.lampFalloff) return lockedRow('Lamp falloff', LAMP_FALLOFF_LABEL[g.lampFalloff], 'In co-op the host\'s lamp falloff applies to everyone.', text);
+    return desc(choice('Lamp falloff', LAMP_FALLOFF_OPTS, () => app.settings.get().gameplay.lampFalloff, (v) => app.settings.update((d) => void (d.gameplay.lampFalloff = v))), text);
+  }
+
   /** Graphics: preset and every feature, display options (3.0: one renderer, PC presets). */
   private graphicsTab(): HTMLElement {
     const app = this.app;
@@ -334,6 +364,8 @@ export class SettingsScreen extends MenuScreen {
       }, { class: 'subtle' }), 'Measures this device again and picks the Auto preset from the result.'),
       // (3.2: every lamp is baked - lit and shadowed on every preset; Shadows is the moon and the flashlights)
       ch('Shadows', 'shadows', SHADOW_OPTS, 'Shadows from the moon and the flashlights. Lamps are always lit and shadowed.'),
+      // (LR14) the nearest lamps' character silhouettes: Auto follows Shadows (on from High)
+      desc(choice('Character shadows', CHAR_SHADOW_OPTS, () => s().video.charShadows, (v) => upd((d) => void (d.video.charShadows = v))), 'The lamps nearest you cast the real shape of guards, your partner, bodies and weapons. Off: soft round shadows (cheaper). Auto: on from High shadows. Looks only: the light meter and the guards are the same either way.'),
       ch('Anti-aliasing', 'aa', AA_OPTS, 'Smooths jagged edges. TAA is the smoothest; FXAA is the cheapest.'),
       ch('Textures', 'textures', TIER_OPTS, 'Surface detail. Lower it if the game stutters when you enter a new area.'),
       ch('Detail and draw distance', 'detail', TIER_OPTS, 'How much map dressing is drawn and how far away.'),
@@ -372,7 +404,11 @@ export class SettingsScreen extends MenuScreen {
         class: 'row-note gpu-note',
         text:
           `${app.gpu.renderer || 'Unknown renderer'} (${app.gpu.kind})` +
-          (app.gpu.kind === 'integrated' ? '. This is the integrated GPU: set your browser to "High performance" in Windows Settings > System > Display > Graphics, then restart it.' : ''),
+          (app.gpu.kind === 'integrated'
+            ? runningOnWindows()
+              ? '. This is the integrated GPU: set your browser to "High performance" in Windows Settings > System > Display > Graphics, then restart it.'
+              : '. This is the integrated GPU.'
+            : ''),
       }),
       grp('Benchmark'),
       desc(button('Run (current settings)', () => app.benchmark?.('current'), { key: 'bench-current' }), `A ${BENCH.seconds} s camera flight through the Warehouse with your settings: average and 1 % low frame rate.`),
