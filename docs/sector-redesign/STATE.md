@@ -289,7 +289,7 @@ Heads: art 2276483a (#226), lampx eb45b0af (LR15 + lighting polish + atlas fix),
    Laptop rerun asked at eb45b0af: campusOps Realistic texImage3D warning gone, LAMP_PAGES compiles, perf + memory
    (~205 MB VRAM), S2 / S3 sheet. Green -> merge master, open the PR against master, message the orchestrator.
 3. Polish batch PR (-artpol 1d34c348 = artpol + frzpol, checker PASS artpol-frzpol-check.md): desktop sectorops 1-6 +
-   stealth-ai at scratch/runs/sectorpol-1d34c348/RESULT. Open against master after #226 merges (rebase on master);
+   stealth-ai ALL PASS (scratch/runs/sectorpol-1d34c348/RESULT); laptop e2e-coop + perf A/B queued. Open against master after #226 merges (rebase on master);
    laptop perf A/B + door-peek / roof-shadow views.
 4. For Michael (STATE "Now"): Realistic is genuinely dimmer after the atlas fix (S2 atrium pool ~0.28 vs Classic 0.48);
    S3 hall-lit blows out to white fog in both modes (volumetric / bloom).
