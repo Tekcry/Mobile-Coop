@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { bytesPerCall, HEAP_NUMBER, inputs, sink } from './helpers/allocPerCall';
 import { LAMP_GRID_SLOTS } from '../src/voxel/lampBake';
 import { contribution, LightRegistry } from '../src/world/lights';
 import { bodyEstimate, coveRow, HEAD_Y, lampLevel, lampsPerColumn, MARLOW_LEVEL, meterBand, poolIntensity, spillsPast, type LampSpec } from '../src/world/lighting/levels';
@@ -52,12 +53,19 @@ describe('Marlow light targets and estimates (LIGHTING-PLAN section 2)', () => {
     expect(r[0]![0]).toBeCloseTo(1, 9);
   });
 
-  it('bodyEstimate does not allocate', () => {
+  it('bodyEstimate does not allocate', async () => {
     const lamps: LampSpec[] = Array.from({ length: 8 }, (_, i) => ({ x: i * 2, y: 4, z: 0, radius: 5, intensity: 0.5 }));
-    const before = process.memoryUsage().heapUsed;
-    let s = 0;
-    for (let i = 0; i < 200_000; i++) s += bodyEstimate(lamps, 0.14, (i % 16) * 0.5, 0, 1);
-    expect(s).toBeGreaterThan(0);
-    expect(process.memoryUsage().heapUsed - before).toBeLessThan(2_000_000);
+    // gc() + new space per round (tests/helpers/allocPerCall.ts): a heapUsed delta read other work's garbage (5.2 MB on
+    // the train 32 release CI runner). bodyEstimate is a planning estimate (no runtime caller): a CI runner that does not
+    // inline lampLevel boxes its doubles (264 B a call on 8 lamps), so the limit allows a boxed double per lampLevel call
+    // plus the arguments and result; one { x, y, z } per lamp would add 8 x 48+ B and still fail.
+    const X = inputs(2000, (i) => (i % 16) * 0.5);
+    const limit = (2 * lamps.length + 2) * HEAP_NUMBER;
+    sink[0] = 0;
+    const per = await bytesPerCall((n) => {
+      for (let i = 0; i < n; i++) sink[0]! += bodyEstimate(lamps, 0.14, X[i]!, 0, 1);
+    }, limit);
+    expect(sink[0]!).toBeGreaterThan(0);
+    expect(per).toBeLessThanOrEqual(limit);
   });
 });

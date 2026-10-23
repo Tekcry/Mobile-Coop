@@ -321,6 +321,13 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   looks round it `SWEEP.dwell` s (unreachable: skipped), the others hold `rank x SWEEP.gap` m behind him, then the same
   order again. They stay hunting (S6), so never calm; `clear` (unload / restart) ends the teams; a woken member takes
   his place back (`swap`).
+- Co-op (guard-ai S9, protocol 37 (32 before the 4.75.0 merge), A90-A96): the brain stays host-only; the client sees what the host shows. Barks:
+  `Enemy.bark` hands `onBark` the event, `BarkVoice.lastLine` and the unit; the host sends a `bark` event (index into
+  `BARK_EVENTS`, append only) and the client rebuilds the text with `barkLine` (pair talk and the desk's camera line go
+  as text). Caution and gear ride the snapshot `al` (`AL_CAUTION` 16, `AL_HELMET` 32, `AL_ARMOUR` 64). The weapon
+  carry is `ai/guardStance.ts` on both sides (`guardAim` host, `wireGuardAim` client): cautious and calm = low ready
+  (`GUARD_AIM.caution` 0.4). The gear parts and the enforcer shield are `ai/gearParts.ts`, built by `Enemy` and by the
+  client's `EnemyPuppet` alike.
 - Device alerts (guard-ai S17, walk 4.72 G1, A100-A105; numbers `DEVICE` in `ai/gear.ts`): a broken laser
   (`CtDevices.touch`, its beam's midpoint `beamSpot`) or a camera at full awareness (where it saw someone) calls
   `CtHooks.alertAt` -> `EnemyManager.deviceAlert` before the alarm stage rises: a `device` board incident sends the 2
@@ -356,7 +363,21 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   holsters again after `calmHold` 15 s calm. `Enemy.update` steps it after the awareness; `Enemy.frame` drives `RigPose`
   `ready` (holstered), `swap` / `swapFrom` / `swapTo` (the draw / holster clip, one slot) and `aim` (none while holstered);
   `armed`, `thighGear` and `weaponTravel` follow the `WeaponModel` (`holster` / `beginTravel` / `travel` / `hold`). Sniper,
-  enforcer, melee kinds and dogs never holster. Host only: co-op puppets stay at low ready (no wire field; WALK.md S21).
+  enforcer, melee kinds and dogs never holster. Co-op (A126, A136-A138): the phase rides `al` bits 7-8; the client's
+  `EnemyPuppet` follows it with `net/puppetCarry.ts` `PuppetCarry` and poses through the same `GuardGunCarry` / `RigPose`.
+- Security consoles (guard-ai S22, walk 4.72 G6, A128-A135; `ai/consoleFault.ts` pure: `ConsoleFaults`, `consoleInView`,
+  numbers `CONSOLE_FAULT`): a console switched off is a breaker-style fault. The game reports every toggle
+  (`EnemyManager.consoleState(id, x, floorY, z, on)`) and turns one back on through `EnemyManager.consoleHost`
+  (`ConsoleHost.reset(id)`, its own toggle path). A calm, free guard (unaware or cooldown, no board task, not held, not
+  a dog, melee kind or high-security post) notices it only when he sees its screens (1.1 m up: the focused cone to 12 m,
+  the peripheral field to 4 m, a clear ray or the same room): at the switch-off, or later on a round-robin scan on the
+  late-discovery clock, so a guard drawn off by a distraction notices once he is back and looks at it. The console rides
+  the S15 machinery as a pseudo circuit (`CONSOLE_GROUP` 50000 + index): a `breaker` incident, one walker, `resetBreaker`
+  (bark `console`, patrol pace, 2 s at the console, `breakerReset` -> `consoleHost`), calm after. A second cut noticed
+  within `BREAKER.repeatT` 60 s is the S2 `light` check at the console (bark `consoleCheck`); once that check is over the
+  next guard who sees it still off turns it back on, and a dropped walk is noticed again (`CONSOLE_FAULT.retry` 3 s).
+  `watchesConsole(e, x, floorY, z)` tells the game whether a guard is watching it now (the refusal). Game-side wiring
+  (CourseMode, after marlow-final): `docs/guard-ai/slices/S22.md`. Host only, no protocol change.
 - Sound: `world/surfaces.ts` (pure) `surfaceAt` scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice. Shots:
   `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise` (combat); `onRay` hits
   are heard within `IMPACT_NOISE`.

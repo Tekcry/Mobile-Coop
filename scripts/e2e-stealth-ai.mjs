@@ -1164,6 +1164,7 @@ try {
       const stats = g.weapons.current.stats;
       const n0 = stats.noise;
       stats.noise = 0.45;
+      g.weapons.lastShotNoise = 0.45; // (sd-rounds) onShot reads the fired round's noise, not stats
       g.weapons.events.onShot(g.weapons.current.def);
       t.step(0.2);
       // (guard-ai S1) 10 m of a 12.6 m suppressed report is outside half the reach: he only turns to look
@@ -1183,6 +1184,7 @@ try {
         const st2 = g.weapons.current.stats;
         const n1 = st2.noise;
         st2.noise = 1;
+        g.weapons.lastShotNoise = 1;
         g.weapons.events.onShot(g.weapons.current.def);
         st2.noise = n1;
       };
@@ -1326,6 +1328,113 @@ try {
     assert(r.bashed && r.bash >= 8, `the menu's Bash opens the door, loud (${r.bash.toFixed(1)} m, ${JSON.stringify(r.dbg)})`);
     assert(r.koBehind, 'the bash knocks out a guard right behind the door');
     assert(r.through && r.dOpen === 1, 'a guard walking through opens the door');
+  });
+
+  // (ct-toolkit 3.2) the door menu's OPTIC CABLE: kneel, the view under the door on the far side at floor height, the
+  // look within its limits, night vision as usual, crouch leaves; the tip is never perceived, the kneeling body is; a
+  // sealed door refuses
+  await scen('optic cable', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const st = window.__app.input.state;
+      const d = g.world.doors.nearest(-0.95, 12, 0.5);
+      const pick = () => {
+        st.tap('interact');
+        t.step(0.1);
+        const opts = [...g.doorMenu.opts];
+        const oi = opts.indexOf('optic');
+        for (let i = 0; i < oi; i++) {
+          st.tap('uiDown');
+          t.step(0.2);
+        }
+        st.tap('interact');
+        t.step(0.1);
+        return opts;
+      };
+      t.light(1);
+      // a guard 3 m behind the door faces it: he never sees the tip
+      const far = t.spawn('grunt', -0.95, 15, Math.PI);
+      t.tp(-0.95, 11.2, 0);
+      t.step(0.3);
+      g.noise = 0;
+      const opts = pick();
+      const feeding = g.optic.active && !g.optic.viewing;
+      t.step(1.3);
+      const o = g.optic.core;
+      const viewing = g.optic.viewing;
+      const cam = g.player.cam.camera.position;
+      const camAt = { x: cam.x, y: cam.y - d.anchor.hinge.y, z: cam.z };
+      const kneel = { crouched: g.player.controller.crouched, kneeling: g.player.controller.kneeling, still: g.player.controller.speed };
+      const feed = document.querySelector('.gadget-feed');
+      const feedShown = !!feed && !feed.hidden;
+      // the look turns the tip within +-75 deg yaw, -10 .. +60 deg pitch
+      st.addLook(2, 2);
+      t.step(0.1);
+      const yawOff = Math.abs(Math.atan2(Math.sin(o.yaw - o.baseYaw), Math.cos(o.yaw - o.baseYaw)));
+      const pitchA = o.pitch;
+      st.addLook(-1, -3);
+      t.step(0.1);
+      const pitchB = o.pitch;
+      // night vision toggles as usual in the view
+      const nv0 = g.vision.mode;
+      st.tap('vision');
+      t.step(0.2);
+      const nv1 = g.vision.mode;
+      st.tap('vision');
+      t.step(0.2);
+      let farRate = 0;
+      for (let i = 0; i < 10; i++) {
+        t.step(0.1);
+        farRate = Math.max(farRate, far.rate);
+      }
+      const quiet = g.noise;
+      const doorShut = d.target === 0;
+      // the kneeling body is perceived as normal: a guard on the near side in the light sees it
+      const near = t.spawn('grunt', -0.95, 7.5, 0);
+      let nearRate = 0;
+      for (let i = 0; i < 10; i++) {
+        t.step(0.1);
+        nearRate = Math.max(nearRate, near.rate);
+      }
+      g.optic.reset();
+      t.reset();
+      t.light(1);
+      t.tp(-0.95, 11.2, 0);
+      // crouch leaves: pulled out over 0.6 s, the camera back on the body
+      g.optic.pick(d.index);
+      t.step(1.4);
+      const viewing2 = g.optic.viewing;
+      st.tap('crouch');
+      t.step(0.1);
+      const retract = g.optic.core.phase;
+      t.step(0.7);
+      const done = !g.optic.active;
+      const p = g.player.position;
+      const camBack = Math.sqrt((cam.x - p.x) ** 2 + (cam.z - p.z) ** 2);
+      const camBackY = cam.y - p.y;
+      // a sealed door refuses ("Sealed"), nothing starts
+      d.anchor.seal = true;
+      t.step(0.3);
+      pick();
+      const sealed = g.optic.refused;
+      const sealedActive = g.optic.active;
+      d.anchor.seal = false;
+      t.light(null);
+      return { opts, feeding, viewing, camAt, door: { x: d.cx, z: d.cz }, kneel, feedShown, yawOff, pitchA, pitchB, nv0, nv1, farRate, quiet, doorShut, nearRate, viewing2, retract, done, camBack, camBackY, sealed, sealedActive };
+    });
+    const deg = 180 / Math.PI;
+    assert(r.opts.includes('optic') && r.feeding, `the door menu lists Optic cable and the pick starts the feed (${r.opts})`);
+    assert(r.viewing && r.feedShown, `after the 1.2 s feed the view is at the tip with the feed overlay (${r.viewing}, ${r.feedShown})`);
+    assert(Math.abs(r.camAt.y - 0.05) < 0.02 && r.camAt.z > r.door.z + 0.25, `the camera sits on the far side at floor height (${JSON.stringify(r.camAt)}, door z ${r.door.z.toFixed(2)})`);
+    assert(r.kneel.crouched && r.kneel.kneeling, `the body kneels at the door (${JSON.stringify(r.kneel)})`);
+    assert(Math.abs(r.yawOff * deg - 75) < 0.5 && Math.abs(r.pitchA * deg - 60) < 0.5 && Math.abs(r.pitchB * deg + 10) < 0.5, `the look turns the tip within +-75 / -10..+60 deg (yaw ${(r.yawOff * deg).toFixed(1)}, pitch ${(r.pitchA * deg).toFixed(1)} / ${(r.pitchB * deg).toFixed(1)})`);
+    assert(r.nv1 !== r.nv0, `night vision toggles in the view (${r.nv0} -> ${r.nv1})`);
+    assert(r.farRate === 0 && r.quiet === 0 && r.doorShut, `the tip is never perceived, the cable is silent, the door stays shut (rate ${r.farRate}, noise ${r.quiet})`);
+    assert(r.nearRate > 0, `the kneeling body is perceived as normal (${r.nearRate.toFixed(2)})`);
+    assert(r.viewing2 && r.retract === 'retract' && r.done, `crouch leaves: pulled out, then done (${r.retract}, ${r.done})`);
+    assert(r.camBack < 4 && r.camBackY > 0.3, `the camera is back on the body (${r.camBack.toFixed(2)} m, up ${r.camBackY.toFixed(2)})`);
+    assert(r.sealed === 'Sealed' && !r.sealedActive, `a sealed door refuses ("${r.sealed}")`);
   });
 
   // (locomotion step 12) a peek past a wall edge exposes only the head (guard perception from the real pose, never the
@@ -1718,6 +1827,7 @@ try {
         const st = g.weapons.current.stats;
         const n0 = st.noise;
         st.noise = noise;
+        g.weapons.lastShotNoise = noise;
         g.weapons.events.onShot(g.weapons.current.def);
         st.noise = n0;
       };

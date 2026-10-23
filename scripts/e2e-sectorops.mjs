@@ -533,6 +533,7 @@ await run(PARAMS, async ({ G, sim }) => {
     const s = g.weapons.current.stats;
     const n0 = s.noise;
     s.noise = 1;
+    g.weapons.lastShotNoise = 1; // (sd-rounds) onShot reads the fired round's noise
     // the report only (no round towards him: a hit would alert him without hearing anything)
     g.weapons.events.onShot(g.weapons.current.def);
     s.noise = n0;
@@ -2783,6 +2784,23 @@ async function campusS4Part(page) {
   // (cap fix) every section's items stay registered on the host; co-op mirrors the live section's plus the untagged
   // ones (MAX_ITEMS 128 holds for that set, with headroom for E9's crates and the revives)
   assert(d4.scope === 3 && d4.live < d4.items && d4.live <= 100, `the mirrored (live) interactables stay under the cap (${d4.live} of ${d4.items}, scope ${d4.scope})`);
+
+  // (a2) (stealth-pays S2) an interrogation's code flag reaches the team's codes through the mode hook `revealIntel`
+  // calls (`g.mode.onIntelCode`): kp-batt's prompt turns to "Enter code" (not opened here: (b) opens it). The real
+  // grab-and-interrogate chain is e2e-takedown's `grab-interrogate-intel`.
+  const ic = await G(() => {
+    const m = window.__sector;
+    const q = m.keyIts.find((x) => x.sec === 3 && x.k === 0);
+    const before = { has: m.codes.has('s4-codes'), label: q?.it.label ?? null };
+    m.onIntelCode('s4-codes');
+    m.onIntelCode('s4-codes');
+    const after = { has: m.codes.has('s4-codes'), label: q?.it.label ?? null };
+    return { before, after };
+  });
+  assert(
+    ic.before.has === false && ic.before.label === 'Keypad - code needed' && ic.after.has === true && ic.after.label === 'Enter code',
+    `S2: an interrogation code readies kp-batt (${JSON.stringify(ic)})`,
+  );
 
   // (b) the dock board gives the codes: both keypads open
   const codes = await G(() => {

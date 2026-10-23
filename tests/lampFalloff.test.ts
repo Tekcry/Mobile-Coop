@@ -13,6 +13,7 @@ import { bakeLamps } from '../src/voxel/lampBake';
 import { bakedLights, type LightBake } from '../src/world/lightBake';
 import { buildAmbientGrid } from '../src/world/ambientGrid';
 import { LightField } from '../src/world/lightField';
+import { LAMP_GLSL, MIX_GLSL } from '../src/world/bakedLamps';
 
 afterEach(() => setLampFalloff('linear'));
 
@@ -152,5 +153,13 @@ describe('LR13: the setting picks the mode; meter, perception and shaders read o
     const pho = bayField().field.levelAt(2, 0.1, 1);
     expect(lin).toBe(0);
     expect(pho).toBeGreaterThan(0.1);
+  });
+
+  it('(lrpolish) the lamp loop and the volume mix hold LAMP_MATH_GLSL, so the photometric .replace takes', () => {
+    // if either template stops holding the linear math verbatim, Realistic shaders would silently stay linear
+    for (const src of [LAMP_GLSL, MIX_GLSL]) {
+      expect(src.includes(LAMP_MATH_GLSL)).toBe(true);
+      expect(src.replace(LAMP_MATH_GLSL, LAMP_MATH_GLSL_PHOTO).includes(LAMP_MATH_GLSL_PHOTO)).toBe(true);
+    }
   });
 });
