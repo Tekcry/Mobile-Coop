@@ -274,7 +274,7 @@ Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md pol
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (self-contained; saved 2026-10-23 ~21:20). Job sector-redesign (lead),
+Night Shift | Sector Ops Build: RESUME (self-contained; saved 2026-10-23 ~21:25, swap). Job sector-redesign (lead),
 worktree C:/NightShift/Mobile-Coop-sector-redesign-polish (feature/sector-redesign-polish: STATE / PLAN / checks / briefs).
 git fetch; read CLAUDE.md; ROADMAP Decided (grep only): "Lighting everywhere", "Campus detail art", "Pipeline speed-ups",
 "Tokens for progress"; PLAN.md "LR16". Laptop runs: node scripts/laptop-queue/request.mjs (from origin/feature/laptop-queue
@@ -293,6 +293,10 @@ LR16 (one lighting system; plan checks/lr16-plan.md, audit lr16-0-ct-audit.md)
   LAMP_VERSION 4; lampBake.ts bakeOne(..., sb, pen) inside LR16-1 t0/t1; keep both appended lightField tests; bakedLamps
   uniform lines keep both (torch atlas); re-count samplers <= 16. Then laptop run on lr16int (lightbake darkness desktop
   sectorops stealth-ai ctcourse coop netmove) + LR16g (brief briefs/LR16g.md, refreshed by planner ~21:15).
+- SAVE ~21:25: WIP snapshot wip/sector-redesign-lr16-1 e0caadae (LR16-1 fix round mid-way; branch head bde295ef):
+  if the fix agent died, resume from that ref + lr16-1-check.md. -lr16-5 was at base 6eb6a863 at the save (builder just
+  started): if no commits past it, restart the LR16-5 builder (prompt = M13 + this STATE). Laptop: lr16int 6eb6a863
+  full LR16 set queued (...6eb6a863-f2e8).
 - Laptop requests pending: LR16t 5700dff5-8673, LR16e 2f5ffec1-0c61, LR16-1 4007eafe-2ad6 (pre-fix), perf A/B 273539ec /
   f8008542 / 41204e30 + Test Runner S5-worst A/B asked. Perf triage: overage = unfrozen guards (#226), not LR16.
 - After g: LR16-8 sheets (briefs/LR16h-and-8.md part 2 text to Test Runner), then the LR16 PR (one batch, src/ai -> two
