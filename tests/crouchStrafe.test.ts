@@ -99,7 +99,7 @@ describe('crouched aimed strafe (AF4a)', () => {
           const { R } = await run(CROUCH_PLANS.steady(sg, v), weight);
           const pl = pelvisLateral(R);
           const gr = gripLateral(R);
-          console.log(`AF4a ${w} steady ${sg} ${v}: pel p2p ${cm(pl.p2p)} beyond ${cm(pl.beyondPace)} grip step ${gr.stepMax.toFixed(2)} knee-out ${cm(kneeOut(R))}`);
+          console.info(`AF4a ${w} steady ${sg} ${v}: pel p2p ${cm(pl.p2p)} beyond ${cm(pl.beyondPace)} grip step ${gr.stepMax.toFixed(2)} knee-out ${cm(kneeOut(R))}`);
           expect(pl.p2p).toBeLessThanOrEqual(0.04);
           expect(pl.beyondPace).toBeLessThanOrEqual(0.02);
           expect(gr.stepMax).toBeLessThanOrEqual(weight < 0.85 ? PISTOL_GRIP_STEADY : 1.0);
@@ -113,7 +113,7 @@ describe('crouched aimed strafe (AF4a)', () => {
         const { R } = await run(CROUCH_PLANS.stopGo(sg, 0.7), weight);
         const pl = pelvisLateral(R);
         const gr = gripLateral(R);
-        console.log(`AF4a ${w} stopgo ${sg}: pel p2p ${cm(pl.p2p)} beyond ${cm(pl.beyondPace)} grip step ${gr.stepMax.toFixed(2)} knee-out ${cm(kneeOut(R))}`);
+        console.info(`AF4a ${w} stopgo ${sg}: pel p2p ${cm(pl.p2p)} beyond ${cm(pl.beyondPace)} grip step ${gr.stepMax.toFixed(2)} knee-out ${cm(kneeOut(R))}`);
         expect(pl.p2p).toBeLessThanOrEqual(STOPGO_P2P);
         expect(pl.beyondPace).toBeLessThanOrEqual(0.02);
         expect(gr.stepMax).toBeLessThanOrEqual(2.0);
@@ -127,9 +127,9 @@ describe('crouched aimed strafe (AF4a)', () => {
         const pl = pelvisLateral(R);
         const gr = gripLateral(R);
         const kn = kneelSummary(P);
-        console.log(`AF4a ${w} flip gap ${gap}: pel p2p ${cm(pl.p2p)} beyond ${cm(pl.beyondPace)} grip step ${gr.stepMax.toFixed(2)} knee-out ${cm(kneeOut(R))} kneels ${kn.episodes} on flip ${kn.kneelOnFlip}`);
+        console.info(`AF4a ${w} flip gap ${gap}: pel p2p ${cm(pl.p2p)} beyond ${cm(pl.beyondPace)} grip step ${gr.stepMax.toFixed(2)} knee-out ${cm(kneeOut(R))} kneels ${kn.episodes} on flip ${kn.kneelOnFlip}`);
         const old = kneelSummary((await run(plan, weight, false)).P);
-        console.log(`AF4a ${w} flip gap ${gap} at KNEEL_STILL (the old rule): kneels ${old.episodes} on flip ${old.kneelOnFlip}`);
+        console.info(`AF4a ${w} flip gap ${gap} at KNEEL_STILL (the old rule): kneels ${old.episodes} on flip ${old.kneelOnFlip}`);
         expect(kn.episodes).toBe(0);
         expect(kn.kneelOnFlip).toBe(0);
         expect(pl.p2p).toBeLessThanOrEqual(FLIP_P2P);
@@ -142,7 +142,7 @@ describe('crouched aimed strafe (AF4a)', () => {
   it('a real crouched stop still kneels (aimed, after KNEEL_STILL_AIM)', async () => {
     const { P } = await run(CROUCH_PLANS.stopGo(1, 0.7, 4), 1);
     const kn = kneelSummary(P);
-    console.log(`AF4a stop kneels ${kn.episodes}`);
+    console.info(`AF4a stop kneels ${kn.episodes}`);
     expect(kn.episodes).toBe(4);
   }, 300_000);
 
@@ -150,7 +150,7 @@ describe('crouched aimed strafe (AF4a)', () => {
     const [tg, n, from] = STRAFE_PLANS.startStop(1, 0.7);
     const { R } = await run([tg, n, from], 1);
     const pl = pelvisLateral(R);
-    console.log(`AF4a standing startStop: pel p2p ${cm(pl.p2p)} beyond ${cm(pl.beyondPace)}`);
+    console.info(`AF4a standing startStop: pel p2p ${cm(pl.p2p)} beyond ${cm(pl.beyondPace)}`);
     expect(pl.beyondPace).toBeLessThanOrEqual(0.0195);
   }, 300_000);
 });
