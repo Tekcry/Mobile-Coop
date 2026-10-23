@@ -1,5 +1,7 @@
 # Chaos Theory toolkit - spec (V0)
-Status: spec only, nothing here is built. Approved by Michael on 2026-10-11 for Kestrel's Mission 1 (Dead Line, the
+Status: spec; built so far: the optic cable at doors (3.2, prototype: `player/opticCable.ts`, `game/opticSystem.ts`,
+`config/tools.ts`; open: hatches, panels, grilles, the partner's kneel over the wire, the camera's ease back).
+The rest is not built. Approved by Michael on 2026-10-11 for Kestrel's Mission 1 (Dead Line, the
 Kestrel map), pistol secondary revision. Kestrel is paused until after the CT co-op research (G53), and CT's gadget and
 attachment set is settled by that research (G76), so this set may change before V1 starts.
 
