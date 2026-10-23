@@ -57,6 +57,9 @@ Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G103-G105), then d
   `keyboardMouseSource` reads it, so RMB held then LMB fires.
 - Guards shoot with their own numbers (`enemies.json` `weapon`); `enemies.json` `gun` is only the carried model (rifle or
   suppressed pistol).
+- (guard-ai S16) Guards never fire into armour (E10 `G.GLASS_ARMOURED`): `Ballistics.armouredFirst(from, to, mask)` (no
+  allocation) tells the fire gate whether the first hit on the line is armoured; the guards hold fire and reposition
+  (`docs/systems/ai.md`, Armour). Plain glass still lets their rounds through.
 - Class-keyed code for classes no gun has now (compact carry slots, pellets, projectiles, shell reloads) stays for the
   rifle's attachment modes.
 

@@ -131,3 +131,25 @@ manoeuvre beats guard count. Every map's guards are armed (Answers 3).
   unit, check on him." (KO) or "He's not moving. Two of you, go." (dead); N = the camera's place in the map's security
   list (1-based), {room} the `RoomRect.name` under the body (dropped when none); a radio bark over the camera, text
   only (G82). Undo: `camBodyLine` (src/ai/barks.ts) and the label in `GameState`'s `onBody`.
+- **A80** (S16, Sector Ops E10) A guard never fires into armour: before the wind-up, a burst and every round
+  `Enemy.tryFire` casts the fire line (the muzzle `shoot` uses -> its aim point before spread, `MASK.ENEMY_SHOT`, plus
+  `G.ENEMY_HITBOX` against a human shield); a first hit with `G.GLASS_ARMOURED` (armoured pane or door leaf) drops the
+  wind-up and the burst. Aimed, suppressive and blind fire are all gated. Undo: drop the `armourBlocks` call in `tryFire`.
+- **A81** (S16) The verdict is cached per guard for `ARMOUR_FIRE.recheck` 0.25 s while his nav cell and the aim's stay the
+  same (a new cell recasts at once): at most ~4 rays a second per fighting guard, no allocation. Undo: `recheck` 0.
+- **A82** (S16) Held fire with the target in sight for `moveAfter` 1.0 s starts a reposition: a cover user takes the
+  existing cover pick in relocation range (5-22 m), clear-line spots only; no such spot, or no cover use, chases round by
+  the nav flow field at 0.75 x run, not stopping to engage while the line stays armoured. A reposition lasts at most
+  `moveT` 8 s and ends early on a clear line; the next may start `retry` 6 s after it; in between he holds. Undo: the
+  `ARMOUR_FIRE` table, or drop the plan branch in `Enemy.decide`.
+- **A83** (S16) The cover pick casts a spot's line (standing muzzle height -> the target's aim point) only for a spot that
+  would be the new best, at most `coverCasts` 6 per pick; an unverified spot is skipped. Undo: raise `coverCasts`.
+- **A84** (S16) A guard held to a room (`hold`) or a post leash with the target outside it only holds: he tracks and
+  faces him, never fires into the armour and never leaves. Undo: `plan(true)` in `Enemy.decide`.
+- **A85** (S16) Sight (`MASK.SIGHT`), hearing (`MASK.HEARING`), the alert level and reporting are unchanged: a guard behind
+  clear armour still spots, shouts and radios. Plain glass is unchanged (not in the shot mask: guards fire through it).
+- **A86** (S16) Co-op: host only (the host's guards decide), no wire change; a client player behind armour is a
+  `PlayerRef` like the host's and gets the same gate.
+- **A87** (S16) The ray is `Ballistics.armouredFirst` (src/weapons/ballistics.ts, a combat file): an additive,
+  allocation-free method in `ray`'s order (a hit volume or prop first is not armour). Sector Ops are told. Undo: remove
+  it with the gate.

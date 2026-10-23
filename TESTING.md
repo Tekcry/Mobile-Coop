@@ -114,6 +114,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Cameras see bodies (guard-ai S7, Sector Ops): knock a guard out where a camera sweeps (lit or dark): the desk
   radios "Camera N has a man down..." and the nearest guard walks over and wakes him; loop or jam the camera first and
   nobody comes.
+- [ ] Armour (guard-ai S16, campus S4): stand on the data hall floor in front of the NOC window and get seen: the NOC
+  pair aim at you but fire no round into the bulletproof glass (no sparks on it); after a moment they move (down to the
+  hall, or another spot) or hold. A plain window still lets their rounds through.
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
 - [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
   glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen
