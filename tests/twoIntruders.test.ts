@@ -395,9 +395,9 @@ describe('guard-ai S24: two intruders', () => {
     expect(all.map((g) => g.hunt)).toEqual([0, 0, 0, 0]);
     expect([em.lkp.x, em.lkp.z, em.lkpValid, em.sightT]).toEqual([0, 0, true, 0]);
     for (const g of js) expect(spot(g, P)).toBe(em.lkpOf(0));
-    // one roles group, the victim (the first caller) its reporter
+    // one roles group; (walk 4.82 item 2) the victim's call is through, so he takes a fighting role, not the reporter's
     roles();
-    expect(names(all)).toEqual(['reporter', 'point', 'overwatch', 'flank']);
+    expect(names(all)).toEqual(['point', 'overwatch', 'search', 'flank']);
     // the reinforcements: the intruder the call named
     expect(pr.alarmHunt).toBe(0);
     em.joinReinforcement(E(rf), 0, null);

@@ -3,6 +3,7 @@ import { CAMERA } from '../config/security';
 import { hyp2, hyp3 } from '../core/mathx';
 import { CameraUnit, nearestHousing, sweepYaw } from '../security/camera';
 import { SecurityView } from '../security/securityView';
+import { cameraAlertsGuards } from '../security/data';
 import { CameraCueView } from '../vfx/cameraCueView';
 import { cameraSight, newSeenBody, remoteHeadY, type SecurityEvent, type SeenBody } from '../security/securitySystem';
 import { seenAt } from '../ai/perception';
@@ -1119,10 +1120,12 @@ export class CtDevices {
     if (this.hallCamIds.has(e.camera)) return;
     // (guard-ai S17, G3) the guards hear of where the camera saw someone (a sighting then, not his live position):
     // first, so the alarm's reinforcements know the spot
+    // (guard-ai walk 4.82 item 6) not a training camera's (`CameraDevice.guardResponse` false): no guard response
     if (this.hooks.alertAt) {
       let ci = 0;
       while (ci < this.cams.length && this.cams[ci]!.def.id !== e.camera) ci++;
-      this.hooks.alertAt(e.x, Number.NaN, e.z, CAM_KEY + ci);
+      const cam = this.cams[ci];
+      if (!cam || cameraAlertsGuards(cam.def)) this.hooks.alertAt(e.x, Number.NaN, e.z, CAM_KEY + ci);
     }
     // full awareness: the alarm stage goes up one (G125: escalating, it never ends the run)
     if (!this.raiseAlarm('A camera has you')) return;

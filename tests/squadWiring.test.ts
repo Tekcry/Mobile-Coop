@@ -145,7 +145,7 @@ describe('squad roles wired (coordinated)', () => {
     expect(d.onRadio).toBe(true);
   });
 
-  it("the reporter's hold ends when his call gets through", () => {
+  it("the reporter's hold ends when his call gets through: (walk 4.82 item 2) he then takes a fighting role", () => {
     const gs = [guard(0, -16), guard(2, -17), guard(-2, -17), guard(0, -19)];
     const { ctx, roles, radio } = manager(gs);
     ctx.radioCall!(E(gs[3]!), -1, 'contact');
@@ -153,7 +153,10 @@ describe('squad roles wired (coordinated)', () => {
     expect(gs[3]!.onRadio).toBe(true);
     radio(RADIO.callIn + 0.3);
     roles();
-    expect(gs[3]!.role).toBe(R_REPORTER);
+    // (guard-ai walk 4.82 item 2, Michael: "He should report then attack you instead of hiding") the reporter only while
+    // his call is open: through, he is one of the group's fighting roles (was: R_REPORTER, held in cover for good)
+    expect(gs[3]!.role).not.toBe(R_REPORTER);
+    expect([R_POINT, R_OVERWATCH, R_FLANK, R_SEARCH]).toContain(gs[3]!.role);
     expect(gs[3]!.onRadio).toBe(false);
   });
 

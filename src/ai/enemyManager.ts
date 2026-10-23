@@ -621,6 +621,7 @@ export class EnemyManager {
       radioCut: (e) => {
         this.radioNet.cut(e.num);
       },
+      radioOpen: (e) => this.radioNet.pendingFor(e.num) > 0,
       dropHelmet: (x, y, z, top, dx, dz, hex, w, h, d) => this.helmetDrops.drop(x, y, z, top, dx, dz, hex, w, h, d),
       // (guard-ai S15) the breaker walk: is the circuit still off; he worked the switch
       // (guard-ai S22) a console's pseudo circuit: its state as the game reported it, its own toggle path
@@ -3035,7 +3036,10 @@ export class EnemyManager {
     inp.lkpY = b.y[slot]!;
     inp.lkpZ = b.z[slot]!;
     inp.targetCoverT = this.targetCoverT();
-    inp.callerSlot = this.callers[slot]!;
+    // (guard-ai walk 4.82 item 2, Michael: "He should report then attack you") the caller is the reporter only while his
+    // call is open (the contact call, then a command call he holds); once it is through he takes a fighting role
+    const caller = this.callers[slot]!;
+    inp.callerSlot = caller >= 0 && this.radioNet.pendingFor(caller) > 0 ? caller : -1;
     inp.cover = set;
     inp.grid = this.coverGrid;
     for (let k = 0; k < TACTICS.viewChecks; k++) {
