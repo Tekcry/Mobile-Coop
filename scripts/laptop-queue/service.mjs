@@ -424,7 +424,8 @@ async function runTrain(train, ports = PORTS) {
       if (held.length) since ||= Date.now();
       if (since && Date.now() - since >= TRAIN_SOLO_MS) {
         log(`train ${train.n}: ${ports.filter((p) => !locks[p]).join('+')} still locked after ${Math.round(TRAIN_SOLO_MS / 60_000)} min, running on ${held.join('+')} alone`);
-        for (const p of ports) if (!locks[p]) delete lockWait[p];
+        // the given-up slot takes pr requests again once its manual run ends (dispatch marked it busy with this train)
+        for (const p of ports) if (!locks[p]) { delete lockWait[p]; busy[p] = null; }
         ports = held;
         break;
       }
