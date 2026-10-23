@@ -1,6 +1,12 @@
 # Guard AI - state
 
 ## Now
+~15:05: A3 triage: a race in the A3 step-7 test, fixed in marlow-final 3ed1ba84 (after the 4cbfc1af that s22-game
+merged); train 31 never ran the new A3 sets. Fix: merge origin/feature/marlow-final (12fa2f29, 3 files, PROTOCOL 42
+unchanged) into s22-game once its second checker ends, then Test Runner e2e-ctcourse:2. Cloud builder: briefs as
+briefs/guard-ai-<slice>.md on the orphan branch cloud-queue (line 1 `status: open`, README there); the S23+ builder
+slices go there, AI code still gets 2 Opus checkers.
+
 ~14:55: #246 carry-fix2 a63bef43 OPEN, train-ready (label set, orchestrator told): e2e-guard-carry PASS on 93bd9db1.
 
 ~14:45 (rules: ROADMAP Decided "Tokens for progress"): carry-fix2 93bd9db1 (+ bdfe97ee) check PASS 5cf60964
@@ -580,8 +586,8 @@ Open:
 3. S22 game side: feature/guard-ai-s22-game 2665b622 (s22 + marlow-final #237, PROTOCOL 43 = 41 + #237's 42; A4 e2e
    08586783 scripts/e2e-ctcourse/a4GoodsShed.mjs; check PASS slices/S22-GAME-CHECK.md). e2e-coop PASS;
    e2e-ctcourse:2 FAIL in A3 (a3OfficeRange.mjs:85 the cleaner never walks to office 1's switch; Marlow's
-   section-rating 053ff212 fails the same, so likely marlow-final). Train 31's ctcourse:2 tells if master + S22 hit
-   it. Then rerun ctcourse:2 so A4 runs (tuning risks: distraction wait 8 s, notice wait 40 s, "stays calm"). PR after
+   section-rating 053ff212 fails the same): the A3 test race, fixed in marlow-final 3ed1ba84; merge
+   origin/feature/marlow-final in, then rerun ctcourse:2 so A4 runs (tuning risks: distraction wait 8 s, notice wait 40 s, "stays calm"). PR after
    #237 merges and train 31 lands.
 Next: PLAN.md ends at S22. S1-S8, S5b, S6, S10, S11-S15 (stealth over shooting), S16 and S17-S21 (walk) are in master;
 S9 + S22 are in train 31. Once 2 and 3 above land the job's PLAN is done: tell the orchestrator (PR open / done) and
