@@ -55,6 +55,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Co-op guard torches (coop-torches): on a dark map, when a guard searching in the dark switches his flashlight on,
   the joiner sees the same beam from his head, aimed where he faces, and it goes off when the host's does; standing in
   it raises the joiner's light meter as it raises the host's.
+- [ ] Co-op two intruders (guard-ai S24): split up and get seen apart (host in one room, joiner in another): each
+  fight stays on its own player (the guards who saw the host hunt the host's last seen spot, the joiner's hunt his);
+  out of sight, nobody walks to where a player really is without having seen or heard him. Solo is unchanged.
 - [ ] Co-op guard AI (guard-ai S9): on the joiner, guards' lines and radio calls show as on the host; a cautious guard
   carries his weapon at low ready on both screens; after an alarm stage 2 / 3 the joiner sees the vests and helmets and
   a response team's shield; the joiner's headshot on a helmeted guard pings as a deflect and the helmet falls on both.

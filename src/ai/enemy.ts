@@ -59,6 +59,8 @@ import { buildArmourParts, buildHelmetPart, buildShieldPart, gearColour, HELMET_
 import { guardAim } from './guardStance';
 import { SWEEP_NEAR, type SweepTeam } from './sweepTeam';
 import { MAX_INTRUDERS, mayBeSeen, pickTarget, TARGETS } from './targetPick';
+// (guard-ai S24) one last known position per intruder
+import { INTRUDERS } from './intruders';
 
 /** (guard-ai S12) Scratch for `gearHit` (one hit at a time; the damage path allocates nothing for gear). */
 const GEAR_OUT: GearHit = { mult: 1, knockOff: false, stagger: 0 };
@@ -127,7 +129,14 @@ export interface AiContext {
   /** (locomotion step 19) The match's difficulty, resolved once at match start (resolveDifficulty). */
   diff: DifficultyDef;
   players(): readonly PlayerRef[];
+  /** The chase flow field of the freshest intruder (stealth) or of every player (the parked modes). */
   flow(): Float32Array;
+  /** (guard-ai S24) The chase flow field towards intruder `slot`'s last known position (-1 or none built: `flow()`). */
+  flowOf?(slot: number): Float32Array;
+  /** (guard-ai S24) Intruder `slot`'s last known position (a reused vector), null when the slot is not valid / -1. */
+  lkpOf?(slot: number): Vector3 | null;
+  /** (guard-ai S24) The player id that owns intruder `slot` ('' none). */
+  intruderId?(slot: number): string;
   enemies(): readonly Enemy[];
   cover: readonly CoverPoint[];
   /** Cover faces (for peeking around the nearest edge). */
@@ -162,11 +171,13 @@ export interface AiContext {
   /** (guard-ai S2) Coordinated guards (the incident board): the new paces (A9) and the calm turn when searching.
    *  Absent / false (Hunter, Mission): the old paces. */
   coordinated?(): boolean;
-  /** Shared last known position of the target (valid once anyone has seen / located it). */
+  /** Shared last known position of the target (valid once anyone has seen / located it). (guard-ai S24) The freshest
+   *  intruder's (the guards read their own intruder's, `lkpOf`). */
   lkp: Vector3;
   lkpValid(): boolean;
-  /** An alerted enemy sees the target: the shared last known position follows it. */
-  reportSighting(p: PlayerRef): void;
+  /** An alerted enemy sees the target: that player's last known position follows it. (guard-ai S24) Returns his
+   *  intruder slot (the guard hunts it; his own sight always wins), -1 none. */
+  reportSighting(p: PlayerRef): number;
   /** Detected: radio the squad (the parked modes: at once, 22 m). */
   callAlert(e: Enemy): void;
   /** The spotter's shout: squadmates close by join at once (no radio needed). (guard-ai S3) Coordinated: the voice
@@ -337,6 +348,15 @@ export class Enemy implements Damageable {
   };
   private gunfire = false;
   private called = 0;
+  /** (guard-ai S24, A146) The intruder slot he is engaged on (`EnemyManager.intruders`), -1 none: his own sighting, the
+   *  call or shout that told him, a located shot, the alarm caller's (reinforcements). Ends when he calms down. */
+  hunt = -1;
+  /** (guard-ai S24) The intruder a call / shout / located shot named, taken when he goes to combat (-1 none). */
+  private pendingHunt = -1;
+  /** (guard-ai S24, A148) He has seen (or been shot from) a player: `lastKnown` is a real spot. */
+  private sawOnce = false;
+  /** (guard-ai S24) Scratch: the spot he goes for with no position for his intruder. */
+  private readonly knownV = new Vector3();
   /** Seconds until a spotter's radio call goes out (0 = none pending); taking them out first stops it. The parked modes
    *  only: (guard-ai S3) the live modes' call is on the radio net (`EnemyManager.radioLeft`). */
   radioT = 0;
@@ -820,6 +840,9 @@ export class Enemy implements Damageable {
     this.setCaution(0);
     // (guard-ai S12) his gear as it was when he went down (a helmet shot off stays off)
     this.setGear(o);
+    // (guard-ai S24) a woken guard knows no intruder
+    this.hunt = -1;
+    this.pendingHunt = -1;
   }
 
   /** (guard-ai S4, M3) The knockout search: search round (x, z) from now (a waker already searching starts over, so
@@ -1183,11 +1206,50 @@ export class Enemy implements Damageable {
     this.gunfire = true;
   }
 
-  /** A squadmate radioed a detection: alert after a short reaction delay. */
-  radio(delay: number): void {
-    if (!this.alive || this.alerted) return;
+  /** A squadmate radioed a detection: alert after a short reaction delay. (guard-ai S24) `hunt`: the intruder slot the
+   *  call or shout is about (-1 none), taken when he goes to combat (G139: he learns of that player only). */
+  radio(delay: number, hunt = -1): void {
+    if (!this.alive) return;
+    this.tell(hunt);
+    if (this.alerted) return;
     // (guard-ai S3) 0: the next step (the radio net's stagger already holds his reaction)
     if (this.called <= 0) this.called = delay > 0 ? delay : 1e-6;
+  }
+
+  /**
+   * (guard-ai S24) He is told of intruder `slot` (a call, a shout, a located shot, the alarm): calm or searching, he takes
+   * it when he goes to combat (the first one told); in combat with no intruder of his own, at once. -1: nothing.
+   */
+  tell(slot: number): void {
+    if (slot < 0 || !this.alive) return;
+    if (this.alerted) {
+      if (this.hunt < 0) this.hunt = slot;
+    } else if (this.pendingHunt < 0) this.pendingHunt = slot;
+  }
+
+  /** (guard-ai S24) His intruder's last known position (null: none, or no longer valid). */
+  private huntPos(): Vector3 | null {
+    return this.hunt >= 0 && this.ctx.lkpOf ? this.ctx.lkpOf(this.hunt) : null;
+  }
+
+  /**
+   * (guard-ai S24, A148) Out of sight in the stealth modes, where he goes: his intruder's last known position; none:
+   * his own last sighting (any player), else what drew him (his stimulus), else where he stands. Never the player's real
+   * feet (`INTRUDERS.noFeet` false: the old feet when his intruder has no position).
+   */
+  private knownSpot(t: PlayerRef): Vector3 {
+    const k = this.huntPos();
+    if (k) return k;
+    if (!INTRUDERS.noFeet) return t.feet;
+    if (this.sawOnce) return this.knownV.set(this.lastKnown.x, this.lastKnown.y - 1.1, this.lastKnown.z);
+    if (this.hasStimulus) return this.knownV.set(this.stimulus[0], this.pos.y, this.stimulus[1]);
+    return this.knownV.copyFrom(this.pos);
+  }
+
+  /** (guard-ai S24) An alerted guard sees `p`: that player's last known position, and he hunts him. */
+  private takeSighting(p: PlayerRef): void {
+    const s = this.ctx.reportSighting(p);
+    if (s >= 0) this.hunt = s;
   }
 
   /** (guard-ai S3) The radio net runs (coordinated modes with a manager that wires it). */
@@ -1199,7 +1261,8 @@ export class Enemy implements Damageable {
    *  (the section hears it, staggered, once it completes; take him out first and only the voice hearers know). */
   private callContact(): void {
     this.ctx.shout?.(this);
-    this.ctx.radioCall?.(this, -1, 'contact');
+    // (guard-ai S24, A149) the call's incident is his intruder slot: the section learns of that player only
+    this.ctx.radioCall?.(this, this.hunt, 'contact');
   }
 
   /** Something to search for without a sighting (a body, lights cut) around (x, z); with `revive`, wake that
@@ -1336,14 +1399,15 @@ export class Enemy implements Damageable {
    * by command (the next step he is in combat on the shared last known position, `radio(0)`: he answers, he does not call
    * a contact in), and he first runs `route` into the section (if any) unless he sees the target on the way.
    */
-  joinAsReinforcement(route: readonly (readonly [number, number])[] | null): void {
+  joinAsReinforcement(route: readonly (readonly [number, number])[] | null, hunt = -1): void {
     // the S5 string (the e2e filter) and S8's numeric code (the jog, strafes, role weights and `profileOf` read it)
     this.profile = 'aggressive';
     this.tacticsProfile = P_AGGRESSIVE;
     this.entry = route && route.length ? route : null;
     this.entryK = 0;
     this.entryT = 0;
-    this.radio(0);
+    // (guard-ai S24) told of the alarm caller's intruder
+    this.radio(0, hunt);
   }
 
   // ----- (guard-ai S17, Michael's walk of 4.72 G1) a tripped device: its spot and its room, never the player -----
@@ -1648,7 +1712,17 @@ export class Enemy implements Damageable {
     if (to !== 'investigating') this.camBody = null;
     // (guard-ai S5) a sighting, a search or combat takes over from a lure
     if (to === 'investigating' || to === 'searching' || to === 'alert') this.lure.cancel();
+    // (guard-ai S24) calm again: his intruder is forgotten (a call told later names a new one)
+    if (to === 'cooldown' || to === 'unaware') {
+      this.hunt = -1;
+      this.pendingHunt = -1;
+    }
     if (to === 'alert') {
+      // (guard-ai S24, A146) his intruder: the one he sees (his own sight wins; reported now, so his contact call carries
+      // it), else the one the call / shout / located shot named, else the one he had
+      if (this.target && this.los) this.takeSighting(this.target);
+      else if (this.pendingHunt >= 0) this.hunt = this.pendingHunt;
+      this.pendingHunt = -1;
       // (guard-ai S8) his combat dice for this engagement (seeded per guard per engagement, replayable)
       this.rng.reseed(this.ctx.combatSeed?.(this) ?? Math.imul(this.num, 2654435761));
       this.meter = 1;
@@ -1748,6 +1822,7 @@ export class Enemy implements Damageable {
       this.stimulus[1] = h.sourcePos.z;
       this.lastKnown.copyFrom(h.sourcePos);
       this.lastSeenT = 0;
+      this.sawOnce = true;
     }
     this.alert();
     if (dealt > 35) this.stagger = 0.35;
@@ -1769,6 +1844,7 @@ export class Enemy implements Damageable {
       this.stimulus[1] = h.sourcePos.z;
       this.lastKnown.copyFrom(h.sourcePos);
       this.lastSeenT = 0;
+      this.sawOnce = true;
     }
     this.bark('deflect');
     if (stagger > 0) this.strikeStagger(stagger);
@@ -1914,9 +1990,13 @@ export class Enemy implements Damageable {
     let cur = -1;
     let near = -1;
     let mask = 0;
+    // (guard-ai S24) the index of the player his intruder slot belongs to (-1 none)
+    const hid = this.hunt >= 0 && this.ctx.intruderId ? this.ctx.intruderId(this.hunt) : '';
+    let hi = -1;
     for (let i = 0; i < n; i++) {
       const p = players[i]!;
       if (p === this.target) cur = i;
+      if (hid !== '' && p.id === hid) hi = i;
       P_LOS[i] = 0;
       P_CHEST[i] = 0;
       P_HEAD[i] = 0;
@@ -1988,7 +2068,7 @@ export class Enemy implements Damageable {
     }
     // the target: the best seen (calm), the one he is fighting while he sees him (combat); `TARGETS.all` false: the
     // nearest only (before S23)
-    const k = near < 0 ? -1 : TARGETS.all ? pickTarget(n, alerted, TARGETS.sticky ? cur : -1, -1, P_LOS, P_RATE, P_DIST) : near;
+    const k = near < 0 ? -1 : TARGETS.all ? pickTarget(n, alerted, TARGETS.sticky ? cur : -1, hi, P_LOS, P_RATE, P_DIST) : near;
     this.seenMask = mask;
     const best = k >= 0 ? players[k]! : null;
     this.target = best;
@@ -2004,7 +2084,10 @@ export class Enemy implements Damageable {
     this.losHead = P_HEAD[k] === 1;
     if (P_CHEST[k] === 1) this.lastKnown.copyFrom(this.tmp);
     else if (this.losHead && best.target.headPoint) this.lastKnown.copyFrom(best.target.headPoint(this.tmpHead));
-    if (this.los) this.lastSeenT = 0;
+    if (this.los) {
+      this.lastSeenT = 0;
+      this.sawOnce = true;
+    }
     let light = P_LIGHT[k]!;
     if (Number.isNaN(light)) light = best.light ?? this.ctx.world.lightField.totalAt(this.tmp.x, this.tmp.y, this.tmp.z);
     this.targetLight = light;
@@ -2022,6 +2105,7 @@ export class Enemy implements Damageable {
     if (this.smelled) {
       best.target.aimPoint(this.lastKnown);
       this.lastSeenT = 0;
+      this.sawOnce = true;
     }
     if (!alerted && !this.passive && instantDetect(si)) this.meter = 1;
     if (this.rate > 0 && !alerted) {
@@ -2030,7 +2114,7 @@ export class Enemy implements Damageable {
       this.stimulus[1] = best.feet.z;
       this.hasStimulus = true;
     }
-    if (alerted && this.los) this.ctx.reportSighting(best);
+    if (alerted && this.los) this.takeSighting(best);
     this.lookForBodies(eye);
   }
 
@@ -2105,7 +2189,7 @@ export class Enemy implements Damageable {
     if (this.aware.step(dt, i)) this.onLevel(from, this.aware.level);
     // in combat without sight: arriving at the last known position with nothing there starts the search
     if (this.aware.level === 'alert' && !this.los && this.ctx.stealth() && this.state === 'chase' && this.sinceSeen > 1.5) {
-      const k = this.ctx.lkpValid() ? this.ctx.lkp : null;
+      const k = this.huntPos();
       if (k && hyp2(k.x - this.pos.x, k.z - this.pos.z) < 1.5) {
         this.aware.set('searching');
         this.onLevel('alert', 'searching');
@@ -2251,7 +2335,8 @@ export class Enemy implements Damageable {
           }
         } else if (!this.spotSet) {
           // next point of the sweep round the last known position (or the stimulus)
-          const k = this.ctx.lkpValid() && this.ctx.stealth() && !this.searchOwn ? this.ctx.lkp : null;
+          // (guard-ai S24) round his own intruder's last known position
+          const k = this.ctx.stealth() && !this.searchOwn ? this.huntPos() : null;
           const cx = this.hasStimulus && !k ? this.stimulus[0] : k ? k.x : this.pos.x;
           const cz = this.hasStimulus && !k ? this.stimulus[1] : k ? k.z : this.pos.z;
           if (this.searchK === 0) {
@@ -2467,11 +2552,11 @@ export class Enemy implements Damageable {
     return true;
   }
 
-  /** Overwatch: suppressive fire at the shared last known position while a squadmate moves (his own fresher sight
+  /** Overwatch: suppressive fire at his intruder's last known position while a squadmate moves (his own fresher sight
    *  is today's suppress). */
   private suppressLkp(dt: number): void {
-    if (!this.ctx.lkpValid() || this.lastSeenT < 2.5) return;
-    const k = this.ctx.lkp;
+    const k = this.huntPos();
+    if (!k || this.lastSeenT < 2.5) return;
     this.lastKnown.set(k.x, k.y + 1.1, k.z);
     this.tryFire(dt, 'suppress');
   }
@@ -2504,8 +2589,9 @@ export class Enemy implements Damageable {
     // (guard-ai S6, design 7) a reinforcement runs his entry route into the section first (until he sees the target)
     const eg = this.entryStep(dt);
     if (eg) return eg;
-    // stealth: out of sight they go for where they last knew the target was, not where it is
-    const known = this.los || this.smelled || !this.ctx.stealth() || !this.ctx.lkpValid() ? t.feet : this.ctx.lkp;
+    // stealth: out of sight they go for where they last knew the target was, not where it is (guard-ai S24, A148: his
+    // own intruder's last known position, else his own last sighting / stimulus, never the real feet)
+    const known = this.los || this.smelled || !this.ctx.stealth() ? t.feet : this.knownSpot(t);
     const tp: P2 = [known.x, known.z];
     this.knownPt[0] = known.x;
     this.knownPt[1] = known.z;
@@ -2792,7 +2878,13 @@ export class Enemy implements Damageable {
   private faceTarget(): number {
     const t = this.target;
     if (!t) return this.yaw;
-    if (!this.los && this.ctx.stealth() && this.ctx.lkpValid()) return Math.atan2(this.ctx.lkp.x - this.pos.x, this.ctx.lkp.z - this.pos.z);
+    if (!this.los && this.ctx.stealth()) {
+      // (guard-ai S24) where he thinks his intruder is (on the spot: his own facing)
+      const k = this.knownSpot(t);
+      const dx = k.x - this.pos.x;
+      const dz = k.z - this.pos.z;
+      return hyp2(dx, dz) < 0.05 ? this.yaw : Math.atan2(dx, dz);
+    }
     return Math.atan2(t.feet.x - this.pos.x, t.feet.z - this.pos.z);
   }
 
@@ -2802,7 +2894,8 @@ export class Enemy implements Damageable {
     const me: P2 = [this.pos.x, this.pos.z];
     let p: Waypoint | null;
     if (this.dist < 18 && nav.lineClear(me, tp, this.pos.y, ty)) p = tp;
-    else p = nav.flowNext(this.ctx.flow(), me[0], me[1], this.pos.y);
+    // (guard-ai S24) his intruder's field (none: the freshest's)
+    else p = nav.flowNext(this.ctx.flowOf ? this.ctx.flowOf(this.hunt) : this.ctx.flow(), me[0], me[1], this.pos.y);
     if (p && !p.link && zig && this.dist > 5) {
       const dx = p[0] - me[0];
       const dz = p[1] - me[1];

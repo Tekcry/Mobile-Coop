@@ -45,6 +45,9 @@ interface FakeGuard {
   bark: ReturnType<typeof vi.fn>;
   alert: ReturnType<typeof vi.fn>;
   joinAsReinforcement: ReturnType<typeof vi.fn>;
+  /** (guard-ai S24) his intruder slot, and told of one. */
+  hunt: number;
+  tell: ReturnType<typeof vi.fn>;
 }
 
 let n = 0;
@@ -75,6 +78,8 @@ function guard(x: number, z: number, o: Partial<FakeGuard> = {}): FakeGuard {
     bark: vi.fn(),
     alert: vi.fn(),
     joinAsReinforcement: vi.fn(),
+    hunt: -1,
+    tell: vi.fn(),
     ...o,
   };
 }
@@ -331,7 +336,8 @@ describe('reinforcements (wired)', () => {
     ];
     em.joinReinforcement(E(g), 3, route);
     expect(g.section).toBe(3);
-    expect(g.joinAsReinforcement).toHaveBeenCalledWith(route);
+    // (guard-ai S24) and told of the alarm caller's intruder (none raised here: -1)
+    expect(g.joinAsReinforcement).toHaveBeenCalledWith(route, -1);
     expect(g.alert).not.toHaveBeenCalled();
     const h = guard(0, 0);
     em.coordinated = false;
@@ -362,7 +368,7 @@ describe('reinforcements (wired)', () => {
     expect(e.tacticsProfile).toBe(P_AGGRESSIVE);
     expect(e.behaviour).toBe(BEHAVIOUR.aggressive);
     expect(e.entering).toBe(true);
-    expect(radio).toHaveBeenCalledWith(0);
+    expect(radio).toHaveBeenCalledWith(0, -1);
     e.joinAsReinforcement([]);
     expect(e.entering).toBe(false);
   });

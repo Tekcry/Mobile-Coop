@@ -147,6 +147,10 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   (guard-ai S14, A46 / A77) A client's quiet shot is heard at `SHOT_NOISE x min(weapon noise, 0.6)` as a solo shot is
   (9.8 m for the CT guns; was a fixed 14 m), a loud one at `SHOT_NOISE x weapon noise` through `EnemyManager.noise`, so
   a client's unsuppressed shot is radioed as "shots fired" like the host's (section caution, host-only, no wire change).
+  (guard-ai S24, G139) Each player is his own intruder on the host (`EnemyManager.intruders`, slot by player id): his
+  own last known position, the guards who saw or were told of him hunting it, his own squad-roles group; a shot locates
+  its shooter (`noise(pos, reach, r.ref.id)`). The host's LKP ghost shows only the host's own slot; the client draws
+  none (no wire change; a client ghost would read `lkpOf(slot)` and take a protocol bump).
 - Downed: `revive` interactables on bodies (`NetAttachment.onLocalDeath` / `onRespawn`); everyone down -> the mode.
 - Bodies: the host lists lying bodies in `snap.bodies` when they change; clients keep those ragdolls and drop the rest.
 - Pings (action `ping`: D-pad left tap, Z): `GameState.sendPing` (aim ray) -> `ping` msg / event (host rate 0.8 s) ->

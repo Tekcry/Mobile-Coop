@@ -142,6 +142,8 @@ interface FakeGuard {
   sendTo: ReturnType<typeof vi.fn>;
   pairSearch: ReturnType<typeof vi.fn>;
   hearGunfire: ReturnType<typeof vi.fn>;
+  /** (guard-ai S24) told of an intruder slot (a located shot). */
+  tell: ReturnType<typeof vi.fn>;
   [k: string]: unknown;
 }
 
@@ -197,6 +199,7 @@ function guard(x: number, z: number, key: number, o: Partial<FakeGuard> = {}): F
     ack: vi.fn(),
     hear: vi.fn(),
     hearTurn: vi.fn(),
+    tell: vi.fn(),
     hearGunfire: vi.fn(() => {
       g.alerted = true;
       g.level = 'alert';

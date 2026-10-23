@@ -208,7 +208,9 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   (`TACTICS.tick`) fills one reused `RoleInput` from the engaged group (alerted, free, cover-using guards; >= 2,
   `TACTICS.minGroup`), runs `assignRoles` against the level cover as typed arrays (`coverSet`, mirrored from
   `reserveCover`; `coverGrid` 4 m buckets) and calls `Enemy.setRole(role, cover, moving, run, mateMoving, onRadio)`.
-  Reporter = the engagement's first contact caller (`contactCaller`), held crouched and silent while his call is open;
+  (S24: one group per intruder, the guards with `hunt` = that slot, scored against his last known position; cover
+  reservations shared, so two groups never take one cover.) Reporter = the first contact caller of that fight
+  (`contactCaller`, per slot), held crouched and silent while his call is open;
   point bounds cover to cover (`profile.advanceHold` between bounds, out of sight), walks the last stretch (`closing`)
   when no cover is left; overwatch's low cover needs one view ray to the LKP (`TACTICS.viewChecks` 4, a blind one
   blocked `TACTICS.blockS` 5 s), suppresses the LKP while a mate moves; flank (groups of 3+) bounds to cover >= 60 deg
@@ -219,10 +221,11 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   combat; `tacticsProfile` (`placeSlot`: `P_POST` with a post, `P_AGGRESSIVE` for an aggressive slot, else `P_STANDARD`;
   kept by `Enemy.inherit`) weights cover-first (standard 0.85) and the roles (`P_POST` never point or flank). A
   high-security post never takes a role cover outside his leash (`Enemy.setRole` drops it; A18, A25).
-- `EnemyManager.stealth` (on in Hunter, Mission and Infiltration; off in Free Roam): shared `lkp` (sightings by alerted
-  enemies, located gunfire), a flow field to the LKP (never the real position), arriving with nothing there starts the
-  search; `callAlert` radios within `RADIO` 22 m in the parked modes (a radioed alert does not relay; the live modes use
-  the radio net above); `sightT`, `hunting`.
+- `EnemyManager.stealth` (on in Hunter, Mission and Infiltration; off in Free Roam): one last known position per
+  intruder (guard-ai S24, below; `lkp` / `lkpValid` / `sightT` mirror the freshest one: solo reads them as before),
+  sightings by alerted enemies and located gunfire, a flow field per intruder (never the real position), arriving with
+  nothing there starts the search; `callAlert` radios within `RADIO` 22 m in the parked modes (a radioed alert does
+  not relay; the live modes use the radio net above); `sightT`, `hunting`, `huntingOf(slot)`.
 - HUD: `ui/hud/awareness.ts` arcs round the crosshair (only for enemies `inSight` or within `ARC_NEAR` 2.5 m),
   `Hud.setLight` meter; `vfx/lkpGhost.ts` (thin-instanced silhouette) shown at the LKP while hunted unseen
   (`GameState.updateStealthHud`).
@@ -334,6 +337,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   nearest calm guards within 30 m to the spot (`Enemy.respondDevice`: search round it inside its room, `searchRoom`),
   and the alarm's reinforcements within `DEVICE.fresh` s with no last known position search there too
   (`joinAsResponder`, never calm) instead of combat. Nothing reads the player's position; no last known position is set.
+  (S24, A148: a guard in combat with no position for his intruder no longer walks to the player's feet either.)
 - Search kinds (guard-ai S18, walk 4.72 G2, A106-A108; `ai/response.ts` pure, numbers `BODY_SEARCH` in `ai/gear.ts`):
   a calm search has a kind (`Enemy.searchKind`: plain, body, device) whose `SearchSpec` sets its length
   (`AlertInput.searchFor`), its ring (`ringPoint`: first radius, step, cap) and the look per point. A dead body found
@@ -388,6 +392,20 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   the host's awareness arcs (`seesIndex(0)`: the host's own player); `targetDist` drives the flanker pick. Undo:
   `TARGETS.all` false (the nearest only), `TARGETS.sticky` false (best seen each think in combat). Solo: the same
   target, rate and meter. Host only, no protocol change. Brief: `docs/guard-ai/slices/S23.md`.
+- Two intruders (guard-ai S24, G139, A146-A150; `ai/intruders.ts` pure: `IntruderBoard`, `INTRUDERS`): one last known
+  position per player (up to `MAX_INTRUDERS`, slot by player id, stable over a rejoin): `x/y/z`, `valid`, `seenT`,
+  `freshest`. Each guard hunts one (`Enemy.hunt`): his own sighting wins (`reportSighting` returns the slot; reported
+  on going to combat so his contact call carries it); else the call or shout that told him (a contact call's incident
+  is its slot, A149; `radio(delay, hunt)`, taken on going to combat); a located shot (`noise(pos, reach, by)`: the
+  shooter's id, null = the freshest); the alarm caller's for reinforcements (`alarmHunt`). His hunt ends when he calms
+  (cooldown / unaware), wakes (`inherit`) or is despawned. He goes to `lkpOf(hunt)`, searches round it, suppresses it,
+  faces it and follows `flowOf(hunt)`; `pickTarget` gets his intruder's player. With no position for his intruder
+  (A148, `INTRUDERS.noFeet`): his own last sighting, else his stimulus, never the player's real feet (A105 closed, solo
+  too). A slot is forgotten `INTRUDERS.forget` 2 s after its last sighting once nobody hunts it (`huntingOf`). Flow
+  fields: one per slot, made the first time it is valid, rebuilt on a move of a nav cell (at most every 0.5 s) or a nav
+  change, one rebuild per update (round robin). Response teams, the reinforcement facing and the device-fresh test
+  follow the freshest (A150); the host's LKP ghost shows only the host's own slot. Undo: `INTRUDERS.split` false (one
+  shared position, one group). Host only, no protocol or save change. Brief: `docs/guard-ai/slices/S24.md`.
 - Sound: `world/surfaces.ts` (pure) `surfaceAt` scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice. Shots:
   `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise` (combat); `onRay` hits
   are heard within `IMPACT_NOISE`.
