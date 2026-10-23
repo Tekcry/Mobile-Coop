@@ -10,7 +10,7 @@ import type { EnemyManager } from '../ai/enemyManager';
 import type { EnemyKind } from '../ai/enemyDefs';
 import type { Enemy } from '../ai/enemy';
 import type { ReinforceEntry } from '../ai/guardAiData';
-import { groupBaseOn, lightOnRay, type LightRegistry } from '../world/lights';
+import { groupBaseOn, lampReachProbe, lightOnRay, type LightRegistry } from '../world/lights';
 import type { BreakerHost } from '../ai/breaker';
 import { BACK_TIMER, BOARD_REACH, IsolatorBoards, type BoardSink } from './isolators';
 import type { Interactable, Interactables } from './interactables';
@@ -88,6 +88,9 @@ export class StealthSystems {
   private playerOpened = new Set<number>();
   private noticeT = 0;
   private noticeA = new Vector3();
+  /** (polish2) The mount-reach probe's ends (`lampReachProbe`). */
+  private readonly reachA = new Vector3();
+  private readonly reachB = new Vector3();
   private noticeB = new Vector3();
 
   constructor(
@@ -126,8 +129,13 @@ export class StealthSystems {
       const sink: BoardSink = {
         cut: (i, x, z) => {
           this.boardChanged(i, false);
-          // the circuit going dark is noticed: the nearest calm armed guard comes to look at the board (as a switch)
-          this.em.lightsOut(x, z);
+          // the circuit going dark is noticed. (guard-ai LR16-4) A breaker board is a wall switch's fault: reported on
+          // its circuit at the board (the S15 reset walk, `breakerHost`); a timed window is the player's, so its cut
+          // stays the S2 look at the board (the lure) and the timer relights it
+          const b = this.boards;
+          const gr = b && !b.timed(i) ? b.liveGroup(i) : -1;
+          if (gr >= 0) this.em.lightsOut(x, z, b!.defs[i]!.pos.y + 2.5, -1, gr);
+          else this.em.lightsOut(x, z);
         },
         back: (i, how) => {
           this.boardChanged(i, true);
@@ -505,9 +513,19 @@ export class StealthSystems {
     }
   }
 
-  /** (guard-ai S15, A42) The switches as the guards use them (`EnemyManager.breakers`). No allocation. */
+  /** (guard-ai S15, A42) The switches as the guards use them (`EnemyManager.breakers`). (LR16-4) The breaker boards too:
+   *  a cut board with no running window is where a guard turns its circuits back on (`IsolatorBoards.switchBack`); a
+   *  running timed window is the player's, never a fault. No allocation. */
   private readonly breakerHost: BreakerHost = {
     switchOf: (group, x, z, out) => {
+      const bi = this.boards ? this.boards.cutBoard(group, x, z) : -1;
+      if (bi >= 0) {
+        const bp = this.boards!.defs[bi]!.pos;
+        out[0] = bp.x;
+        out[1] = bp.y;
+        out[2] = bp.z;
+        return true;
+      }
       const sws = this.switches;
       let best = -1;
       let bd = Infinity;
@@ -531,14 +549,26 @@ export class StealthSystems {
     // mains gate's circuit (cutting it opens the gate) is never a fault a guard puts right (A63): the S2 incident
     isOff: (group) => {
       if (this.mainsGroups.has(group)) return false;
+      const b = this.boards;
+      // (LR16-4) a running timed window holds it: the player's, the guards leave it to the timer
+      if (b?.holding(group)) return false;
+      if (groupBaseOn(this.g.world.level.lights, group)) return false;
       const sws = this.switches;
       for (let i = 0; i < sws.length; i++) {
         const s = sws[i]!;
-        if (s.group === group) return !s.on && !groupBaseOn(this.g.world.level.lights, group);
+        if (s.group === group) return !s.on;
       }
-      return false;
+      return b !== null && b.cutBoard(group, 0, 0) >= 0;
     },
-    reset: (group) => !this.mainsGroups.has(group) && this.resetCircuit(group),
+    reset: (group) => {
+      if (this.mainsGroups.has(group)) return false;
+      const b = this.boards;
+      if (b?.holding(group)) return false;
+      // (LR16-4) a cut breaker board first: every circuit of it back (its wall switches follow, `boardChanged`)
+      const bi = b ? b.cutBoard(group, 0, 0) : -1;
+      if (bi >= 0) return b!.switchBack(bi);
+      return this.resetCircuit(group);
+    },
   };
   /** (guard-ai S15, A63) The circuits a course mains gate reads (`MapLayout.course`): cutting one opens the gate, so no
    *  guard turns it back on (that would shut the gate on the players). */
@@ -614,7 +644,14 @@ export class StealthSystems {
   /** A hitscan ray: shoot out the first bulb along it. */
   shotRay(from: Vector3, to: Vector3): void {
     const reg = this.g.world.level.lights;
-    this.shootLight(lightOnRay(reg, from.x, from.y, from.z, to.x, to.y, to.z));
+    const id = lightOnRay(reg, from.x, from.y, from.z, to.x, to.y, to.z);
+    if (id < 0) return;
+    // (polish2) a hit only through the mount reach needs a clear static line up from the landing to the head (a round
+    // on a door soffit never breaks the wall lamp over the door's far face); the co-op client and host test the same
+    const a = this.reachA;
+    const h = lampReachProbe(reg, id, from.x, from.y, from.z, to.x, to.y, to.z, a);
+    if (h > 0 && !this.g.ballistics.clear(a, this.reachB.set(a.x, a.y + h, a.z), G.STATIC)) return;
+    this.shootLight(id);
   }
 
   /** Shoot out light `id` (the host's own round, or a co-op client's checked lamp shot, sector-redesign slice L):

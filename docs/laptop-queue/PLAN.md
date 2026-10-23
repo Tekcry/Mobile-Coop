@@ -105,6 +105,23 @@ FLAKY / REPORT ONLY lines, wall, the failure summary line), describe (format, 14
 `npx vitest run tests/laptop-queue`, `node scripts/laptop-queue/service.mjs --once --dry-run` (dry run: lists what it
 would pick and the shard bins, posts nothing, runs nothing). Never a full `npm run check`, never an e2e run.
 
+## Supersede and newest first (2026-10-23)
+`superseded(requests, isAncestor)` (lib.mjs): an open pr / full request is dead when the same requester has a newer
+request of the same kind with the same non-empty `set`, or with the same or a descendant sha whose suites cover all of
+the older one's (`:part` suffix ignored; full always covers). Two different non-empty sets never supersede (a flag
+off / on pair), nor does a request with no requester (or "unknown"). `alone` is never superseded. Each pass, before `pick`, both workers
+mark such requests done in one batched claims push (state `superseded`, no run, no status); `isAncestor` is
+`git merge-base --is-ancestor`, memoized per pass, any error = false. A lost push retries next pass; open claims never
+reach the list. The desktop does it too, once the branch has claims. `pick` still puts trains, aged alone, non-alone,
+alone in that order, but among non-alone requests it takes the requester with the oldest open request and runs that
+requester's NEWEST one.
+
+## Desktop overflow lane (LQ_WORKER=desktop)
+pr requests only, no trains, no alone, `E2E_GPU=1 E2E_JOBS=1`. Two slots, each gated on its own at the start of a pass:
+4191 (`heavy.lock`) needs backlog > 3 and CPU < 60 %; 4192 (`heavy2.lock`, dir `Mobile-Coop-testrun-4192`, must exist)
+needs backlog > 3 and CPU < 50 % (CLAUDE.md heavy2 rule). A gated slot waits with a logged reason (`desktopSlotGate`).
+At most one desktop start per pass (30 s), so CPU is re-read before the second slot starts.
+
 ## After the build (job lead)
 Fresh Opus checker; then live overlap: run one pr request and the next train through the service beside the manual
 queue; measure the sharded train wall vs one slot JOBS=5 (316 s / 559 s at 3 recorded); then PR, message the

@@ -12,7 +12,7 @@ import { FacilityKit, kitTriangles, type KitInstance } from '../../src/world/kit
 import { LevelBuilder } from '../../src/world/levelBuilder';
 import { MARLOW_CIRCUITS, marlowCourseGroups } from '../../src/world/lighting/marlowCircuits';
 import { buildCtcourse } from '../../src/world/maps/ctcourse';
-import { buildFacility, GALLERY_BOX, GALLERY_GROUP, GAL_FLOOR, holdGroup, LOUNGE_GROUP, DOCK_GROUP } from '../../src/world/maps/ctcourseSets/facility';
+import { buildFacility, GALLERY_BOX, GALLERY_GROUP, GAL_FLOOR, holdGroup, LOUNGE_GROUP, LOUNGE_LOCKERS, LOUNGE_LOCKER_BANKS, LOUNGE_LOCKER_H, DOCK_GROUP } from '../../src/world/maps/ctcourseSets/facility';
 import { DOCK_BOX, HOLD_BOX, HOLD_IDS, inBox, LOUNGE_BOX, SET_BOX, SET_IDS, SPAWNS, type Box } from '../../src/world/maps/ctcourseSets/types';
 import { FacilityProps, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_SET_BUDGET, type PropPlacement, type PropReport } from '../../src/world/props/facilityProps';
 
@@ -57,14 +57,14 @@ const checker = (list: readonly PropPlacement[]): FacilityProps => {
 };
 
 describe('facility dressing: the shell is as 0d built it', () => {
-  it('every collision box, door and lamp is unchanged: the same 188 shell boxes (checksum), 14 doors, 43 lamps; only the props add boxes', () => {
+  it('every collision box, door and lamp is unchanged: the same 188 shell boxes (checksum), 14 doors, 43 lamps; only the props and the armoury lockers add boxes', () => {
     let sum = 0;
     for (const p of b.boxes.slice(0, SHELL.boxes)) sum += (p.c[0] + 2 * p.c[1] + 3 * p.c[2] + 5 * p.s[0] + 7 * p.s[1] + 11 * p.s[2] + p.yaw) * (p.collide ? 1 : 1.5) * (p.visible === false ? 1.25 : 1) * (p.overhead ? 1.1 : 1);
     expect(sum).toBeCloseTo(SHELL.checksum, 3);
     const propBoxes = walkIn.reduce((n, p) => n + (propCollisionBox(p)?.length ?? 0), 0);
     expect(propBoxes).toBeGreaterThan(0);
-    expect(b.boxes.length).toBe(SHELL.boxes + propBoxes);
-    expect(b.boxes.filter((p) => p.collide).length).toBe(SHELL.solids + propBoxes);
+    expect(b.boxes.length).toBe(SHELL.boxes + propBoxes + LOUNGE_LOCKERS.boxes);
+    expect(b.boxes.filter((p) => p.collide).length).toBe(SHELL.solids + propBoxes + LOUNGE_LOCKERS.solids);
     expect(b.anchors.doors.length).toBe(SHELL.doors);
     expect(b.anchors.all.length).toBe(SHELL.anchors);
     expect(b.lights.lights.length).toBe(SHELL.lights);
@@ -167,12 +167,53 @@ describe('facility dressing: what stands where', () => {
     const setPlates = SET_IDS.flatMap((id) => of(id, 'signPlate'));
     expect(setPlates).toHaveLength(HOLD_IDS.length);
   });
-  it('the lounge has the reception desk, three green wall modules, a kit case and two seats on the west wall side; the dock a board of plates', () => {
-    expect(of('lounge', 'receptionDesk')).toHaveLength(1);
-    expect(of('lounge', 'greenWall')).toHaveLength(3);
-    expect(of('lounge', 'kitCaseWall')).toHaveLength(1);
-    expect(of('lounge', 'loungeSeat')).toHaveLength(2);
+  it('the lounge is an armoury: a weapons display cabinet of four kit cases on the west wall, two free benches, no reception desk, green wall or armchairs; the dock a board of plates', () => {
+    expect(of('lounge', 'receptionDesk')).toHaveLength(0);
+    expect(of('lounge', 'greenWall')).toHaveLength(0);
+    expect(of('lounge', 'kitCaseWall')).toHaveLength(4);
+    expect(of('lounge', 'loungeSeat')).toHaveLength(0);
+    expect(of('lounge', 'holdingBench')).toHaveLength(2);
+    for (const c of of('lounge', 'kitCaseWall')) expect(c.x, 'the cabinet backs on the west wall face').toBeCloseTo(0.25, 6);
     expect(of('dock', 'signPlate')).toHaveLength(3);
+  });
+  it('the armoury lockers: a solid noLedge box each (3.6 x 0.5, 1.8 m or taller) on the south and north flats, the rest thin visual skins', () => {
+    const solids = b.boxes.slice(SHELL.boxes).filter((p) => p.collide && Math.abs(p.s[0] - 3.6) < 1e-6 && Math.abs(p.s[2] - 0.5) < 1e-6);
+    expect(solids).toHaveLength(LOUNGE_LOCKERS.solids);
+    expect(LOUNGE_LOCKER_H).toBeGreaterThanOrEqual(1.8);
+    LOUNGE_LOCKER_BANKS.forEach((bank, i) => {
+      const s = solids.find((p) => Math.abs(p.c[2] - (bank[1] + bank[3]) / 2) < 1e-6)!;
+      expect(s, `bank ${i}`).toBeDefined();
+      expect(s.noLedge, `bank ${i} noLedge`).toBe(true);
+      expect(s.s[1]).toBeGreaterThanOrEqual(1.8);
+      expect(s.c[0] - s.s[0] / 2).toBeCloseTo(bank[0], 6);
+      expect(s.c[0] + s.s[0] / 2).toBeCloseTo(bank[2], 6);
+      expect(s.s[2]).toBeCloseTo(0.5, 6);
+    });
+    const skins = b.boxes.slice(SHELL.boxes).filter((p) => !p.collide && inBox(LOUNGE_BOX, p.c[0], p.c[2]));
+    expect(skins).toHaveLength(LOUNGE_LOCKERS.boxes - LOUNGE_LOCKERS.solids);
+    for (const p of skins) {
+      expect(p.noLedge).toBe(true);
+      expect(Math.min(...p.s), `skin at ${p.c.join(',')}`).toBeLessThan(0.05);
+    }
+  });
+  it('every lounge bench stands at least 0.5 m from every lounge wall face, locker face and cabinet face, and keeps the spawns\' aisle (z 9.7-12.3) to within 3 cm', () => {
+    const wall: Box = [0.25, 8.25, 5.75, 13.75];
+    // plan distance between two axis-aligned rectangles (a bench's yaw is 0 or pi)
+    const gap = (a: Box, o: Box): number => Math.hypot(Math.max(a[0] - o[2], o[0] - a[2], 0), Math.max(a[1] - o[3], o[1] - a[3], 0));
+    const benches = part.props.filter((p) => propAreaOf(p) === 'lounge' && p.prop === 'holdingBench');
+    expect(benches).toHaveLength(2);
+    const cases = part.props.filter((p) => p.prop === 'kitCaseWall' && propAreaOf(p) === 'lounge').flatMap((p) => propCollisionBox(p) ?? []);
+    expect(cases).toHaveLength(4);
+    for (const p of benches) {
+      const [w] = propCollisionBox(p)!;
+      const r: Box = [w!.c[0] - w!.s[0] / 2, w!.c[2] - w!.s[2] / 2, w!.c[0] + w!.s[0] / 2, w!.c[2] + w!.s[2] / 2];
+      expect(Math.abs(Math.sin(w!.yaw)), 'a bench runs along x').toBeLessThan(1e-6);
+      for (const d of [r[0] - wall[0], r[1] - wall[1], wall[2] - r[2], wall[3] - r[3]]) expect(d, `bench at ${p.x},${p.z} off a wall`).toBeGreaterThanOrEqual(0.5);
+      for (const bank of LOUNGE_LOCKER_BANKS) expect(gap(r, bank), `bench at ${p.x},${p.z} off a locker face`).toBeGreaterThanOrEqual(0.5);
+      for (const c of cases) expect(gap(r, [c.c[0] - c.s[0] / 2, c.c[2] - c.s[2] / 2, c.c[0] + c.s[0] / 2, c.c[2] + c.s[2] / 2]), 'off the cabinet').toBeGreaterThanOrEqual(0.5);
+      if (p.z < 11) expect(r[3], 'aisle edge').toBeLessThanOrEqual(9.7 + 0.03);
+      else expect(r[1], 'aisle edge').toBeGreaterThanOrEqual(12.3 - 0.03);
+    }
   });
   it('L7 holds the model vitrine over the plinth 0d built (its footprint covers the plinth, its top skin clears the old box)', () => {
     const v = of('L7', 'modelVitrine');

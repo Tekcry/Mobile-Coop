@@ -176,6 +176,11 @@ export interface BayDef {
   rated?: boolean;
   /** (section-rating S6) The name the rating card and the results line show (default the bay id). */
   title?: string;
+  /**
+   * (marlow-walk482 X2a) Spotted fails the set: once a live, non-passive squad guard is in combat, LANTERN says this line
+   * and the set restarts from its start (`spotFailed`, `CourseMode.fixedUpdate`). At most COURSE_TEXT_MAX characters.
+   */
+  spotFail?: string;
 }
 
 /**
@@ -312,7 +317,7 @@ function unique(seen: Set<string>, id: string, what: string): void {
 
 /**
  * Check a course: unique ids; every gate, airlock and drill names known ids; the bays chain start -> airlocks -> end;
- * airlocks 6 x 6 (+-0.5); radio lines and drill steps <= 90 characters; every flag read is set by a pickup, a pair gate
+ * airlocks 6 x 6 (+-0.5); radio lines, spotted lines and drill steps <= 90 characters; every flag read is set by a pickup, a pair gate
  * or `def.externalFlags`.
  * Throws with the offending id; returns the definition.
  */
@@ -420,6 +425,7 @@ export function validateCourse(def: CourseDef, known: CourseKnownIds): CourseDef
       for (const sw of r.press ?? []) need(switches, sw, b.id, 'switch');
     }
     for (const r of b.radio) text(b.id, r.text, 'radio line');
+    if (b.spotFail !== undefined) text(b.id, b.spotFail, 'spotted line');
     for (const d of b.drills) {
       unique(drillIds, d.id, 'drill');
       if (!d.verb) fail(d.id, 'no verb');

@@ -1,0 +1,302 @@
+{
+ "pieces": {
+  "receptionCounter": {
+   "meshes": {
+    "steel": 24,
+    "oak": 56,
+    "marble": 12,
+    "laminate": 12,
+    "steelDark": 48,
+    "plastic": 24,
+    "screen": 24
+   },
+   "triangles": 200,
+   "bounds": {
+    "min": [
+     -1.51,
+     0.0,
+     -0.41
+    ],
+    "max": [
+     1.51,
+     1.23,
+     0.41
+    ]
+   }
+  },
+  "speedGate": {
+   "meshes": {
+    "steel": 44,
+    "steelDark": 24,
+    "glass": 12,
+    "lamp": 12
+   },
+   "triangles": 92,
+   "bounds": {
+    "min": [
+     -0.51,
+     0.0,
+     -0.16
+    ],
+    "max": [
+     0.51,
+     1.11,
+     0.162
+    ]
+   }
+  },
+  "cafeCounter": {
+   "meshes": {
+    "steelDark": 68,
+    "timber": 120,
+    "whiteGloss": 12,
+    "chrome": 12,
+    "plastic": 24,
+    "white": 44,
+    "steel": 12
+   },
+   "triangles": 292,
+   "bounds": {
+    "min": [
+     -1.51,
+     0.0,
+     -0.31
+    ],
+    "max": [
+     1.51,
+     1.47,
+     0.31
+    ]
+   }
+  },
+  "mailCage": {
+   "meshes": {
+    "galv": 108,
+    "timber": 60,
+    "white": 12,
+    "steel": 12,
+    "plastic": 24
+   },
+   "triangles": 216,
+   "bounds": {
+    "min": [
+     -1.11,
+     0.0,
+     -0.46
+    ],
+    "max": [
+     1.11,
+     1.81,
+     0.46
+    ]
+   }
+  },
+  "switchBoard": {
+   "meshes": {
+    "steel": 44,
+    "steelDark": 24,
+    "galv": 36,
+    "plastic": 72
+   },
+   "triangles": 176,
+   "bounds": {
+    "min": [
+     -1.11,
+     0.0,
+     -0.46
+    ],
+    "max": [
+     1.11,
+     1.81,
+     0.464
+    ]
+   }
+  },
+  "sortingTable": {
+   "meshes": {
+    "laminate": 12,
+    "steel": 36,
+    "plastic": 48,
+    "timber": 36
+   },
+   "triangles": 132,
+   "bounds": {
+    "min": [
+     -1.51,
+     0.0,
+     -0.51
+    ],
+    "max": [
+     1.51,
+     1.06,
+     0.51
+    ]
+   }
+  },
+  "stockShelf": {
+   "meshes": {
+    "galv": 48,
+    "steel": 12,
+    "timber": 60,
+    "white": 12
+   },
+   "triangles": 132,
+   "bounds": {
+    "min": [
+     -0.61,
+     0.0,
+     -0.71
+    ],
+    "max": [
+     0.61,
+     1.81,
+     0.71
+    ]
+   }
+  },
+  "bmsDesk": {
+   "meshes": {
+    "laminate": 12,
+    "steel": 36,
+    "steelDark": 96,
+    "plastic": 48,
+    "screen": 36,
+    "white": 28,
+    "timber": 20
+   },
+   "triangles": 276,
+   "bounds": {
+    "min": [
+     -1.51,
+     0.0,
+     -0.46
+    ],
+    "max": [
+     1.51,
+     1.21,
+     0.46
+    ]
+   }
+  },
+  "liftDoor": {
+   "meshes": {
+    "steelDark": 24,
+    "steel": 24,
+    "chrome": 12,
+    "plastic": 12
+   },
+   "triangles": 72,
+   "bounds": {
+    "min": [
+     -0.61,
+     0.0,
+     -0.08
+    ],
+    "max": [
+     0.61,
+     2.11,
+     0.082
+    ]
+   }
+  },
+  "balconyPlanter": {
+   "meshes": {
+    "steelDark": 12,
+    "foliage": 132
+   },
+   "triangles": 144,
+   "bounds": {
+    "min": [
+     -1.0,
+     0.0,
+     -0.3
+    ],
+    "max": [
+     1.0,
+     0.45,
+     0.3
+    ]
+   }
+  },
+  "logoWall": {
+   "meshes": {
+    "steel": 12,
+    "steelDark": 48
+   },
+   "triangles": 60,
+   "bounds": {
+    "min": [
+     -2.0,
+     1.2,
+     -0.0
+    ],
+    "max": [
+     2.0,
+     2.4,
+     0.05
+    ]
+   }
+  },
+  "lowTable": {
+   "meshes": {
+    "oak": 12,
+    "steel": 48
+   },
+   "triangles": 60,
+   "bounds": {
+    "min": [
+     -0.6,
+     0.0,
+     -0.3
+    ],
+    "max": [
+     0.6,
+     0.4,
+     0.3
+    ]
+   }
+  },
+  "kitchenCounter": {
+   "meshes": {
+    "steelDark": 12,
+    "whiteGloss": 44,
+    "laminate": 12,
+    "steel": 24
+   },
+   "triangles": 92,
+   "bounds": {
+    "min": [
+     -0.61,
+     0.0,
+     -0.31
+    ],
+    "max": [
+     0.61,
+     1.11,
+     0.31
+    ]
+   }
+  }
+ },
+ "materials": [
+  "steel",
+  "steelDark",
+  "galv",
+  "plastic",
+  "white",
+  "whiteGloss",
+  "laminate",
+  "oak",
+  "marble",
+  "timber",
+  "glass",
+  "foliage",
+  "chrome",
+  "screen",
+  "lamp"
+ ],
+ "blender": "5.2.2 LTS",
+ "seed": 1015,
+ "bytes": 157588,
+ "triangles": 1944
+}

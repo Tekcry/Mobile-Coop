@@ -137,6 +137,17 @@ export function emptyGrant(): Grant {
   return { gadget: 0, syringe: 0, medkit: 0, alarmStep: 0 };
 }
 
+/** (marlow-polish P2-1) One results line per section: replaces the line with `v.sectionId` in place, else appends `v`. */
+export function putRating<T extends { sectionId: string }>(list: T[], v: T): void {
+  for (let i = 0; i < list.length; i++) {
+    if (list[i]!.sectionId === v.sectionId) {
+      list[i] = v;
+      return;
+    }
+  }
+  list.push(v);
+}
+
 function add(g: Grant, r: Readonly<Grant>, n: number): void {
   g.gadget += r.gadget * n;
   g.syringe += r.syringe * n;

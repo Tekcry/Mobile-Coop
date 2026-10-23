@@ -17,7 +17,7 @@ import { rollRide } from '../player/traversePath';
 import { overClip, addClip, type Clip } from './clip';
 import { evalCurve } from './curves';
 import { CH, Inertializer, lerpPose, newPose, type Pose } from './pose';
-import { GLIDE_SIDE, gaitRate, TURN_GAIT_MIN, TURN_STEP, type MotionState } from './motion';
+import { CROUCH_STEP, CROUCH_STEP_GUARD, GLIDE_SIDE, gaitRate, TURN_GAIT_MIN, TURN_STEP, type MotionState } from './motion';
 import { MOVEMENT, TENSE } from '../config/movement';
 import { approach, clamp, smoothstep, Spring, type V3 } from './rigMath';
 import { TUNE_CUR, tuneMoveTwist } from './tune';
@@ -461,6 +461,8 @@ export const AIM_ELBOW_TUCK = 0.85;
  * (no neck dip, no head roll onto the gun).
  */
 export const PISTOL_REACH = { x: -0.09, y: -0.06, z: 0.15, lean: 0.08 };
+/** (afp AF4b) Crouched, the raised pistol this much further out along the aim (m, by the crouch). */
+export const PISTOL_REACH_CROUCH = 0.05;
 /** `peekFull`: (G2 fix) the head lean (rad) at which a raised pistol keeps the full head roll and neck dip at a wall-edge peek. */
 export const SIGHT_HEAD = { roll: 0.15, peekFull: 0.2 };
 /**
@@ -629,6 +631,11 @@ export const WALL_STANCE = { pelX: 0.05, spRoll: 0.09, pelRoll: 0.06, hdRoll: 0.
  * (`leanFwd` of the lateral lean, rad per rad) past the edge the body faces. Starting values.
  */
 export const WALL_SIDE_POSE = { spine: 0.14, turnFrom: 0.35, turnTo: 0.85, handAt: 0.15, handIn: 0.3, leanFwd: 1.2, narrow: 0.35 };
+/** (afp AF4b) The lowered gun crouched, added to the open-ground carry (m up / ahead, rad pitch; - muzzle up): `pistol` by the
+ *  pistol's low-ready share and the crouch; `wall` side-on at a crouched wall (by the crouch and the wall blend, half
+ *  raised); `pistol.kneel` m up at the middle of a kneel going down or up ((4 k (1 - k))^2 of its progress: no velocity step at either end). Clears the thighs:
+ *  gun vs leg capsules >= 0 and no body-clearance push flipping it between the knees (tests/crouchStrafe.test.ts). */
+export const CROUCH_GUN = { pistol: { y: 0.15, z: 0.08, pitch: -0.5, kneel: 0.2 }, wall: { y: 0.3, z: 0.1, pitch: -0.7 } } as const;
 /** (G6, AUDIT-WALLS row 9) The peek's hip shift onto the outer foot (m per rad of lean; was 0.17). */
 export const PEEK_HIP = 0.7;
 /** (G6, AUDIT-WALLS row 12) A wall right in front of the raised weapon: `far` m to `near` m from the shoulder along the aim
@@ -878,6 +885,8 @@ export class AnimGraph {
   private cIdle = 0;
   private cIdleS = 0;
   private cPace = 0;
+  /** (afp AF3) The crouched hips-back share (CROUCH_BACK_TURN: 1 straight, 0 turning), eased. */
+  private cBackK = 1;
   /** (anim-rework S4) The procedural breath's phase (rad). */
   private breathPh = 0;
   /** (mocap-trial) The mocap set's slots on this graph, the set they ran on (reset on a switch), the planner values they
@@ -888,6 +897,10 @@ export class AnimGraph {
   /** (mt2-guardgate) This frame's switch for this rig (`LOCO.mocap && i.mocapOk`), its clip set (LOCO.set, or the hand-keyed
    *  set off) and slots (LOCO.slots, or none off): every mocap read in the graph goes through these. */
   private mOn = false;
+  /** (afp CI fix) The anim-fix-pass rows apply this frame: a Wren rig (`wrenReady`: the player, the partner, the studio and
+   *  menu puppets) or a carrier (`i.mocapOk`; a bare graph). The crouch carriage and step line (AF3) and the crouched gun
+   *  (AF4b) are Wren's: guards and every other rig keep theirs (mt2-guardgate; guardPoseGolden "never re-capture"). */
+  private afRig = true;
   private mS: LocoClipSet = HAND_KEYED_SET;
   private mSl = false;
   /** (mocap-trial-2, strafe) The switch with the strafe captures in its set: the mocap side-step on the gait clock. */
@@ -1031,6 +1044,7 @@ export class AnimGraph {
     const mass = clamp(i.weight, 0.5, 1.6);
     this.nSlots = 0;
     this.mOn = LOCO.mocap && i.mocapOk;
+    this.afRig = i.mocapOk || this.wrenReady;
     this.mS = this.mOn ? LOCO.set : HAND_KEYED_SET;
     this.mSl = this.mOn && LOCO.slots;
     this.mSide = this.mOn && this.mS.strafeL !== null && this.mS.strafeR !== null;
@@ -1055,7 +1069,7 @@ export class AnimGraph {
     } else {
       this.phRate = 0;
       // (A1.2) no driver (remotes, enemies): the same clock from distance and turning
-      if ((i.speed > 0.02 || Math.abs(i.yawRate) > TURN_GAIT_MIN) && i.grounded) this.phase = (this.phase + gaitRate(i.speed, i.yawRate, undefined, lateralShare(i), this.tenseW, clamp(i.crouch, 0, 1), backShare(i), this.glideK(i), this.mSide) * dt) % 1;
+      if ((i.speed > 0.02 || Math.abs(i.yawRate) > TURN_GAIT_MIN) && i.grounded) this.phase = (this.phase + gaitRate(i.speed, i.yawRate, undefined, lateralShare(i), this.tenseW, clamp(i.crouch, 0, 1), backShare(i), this.glideK(i), this.mSide, this.afRig ? CROUCH_STEP : CROUCH_STEP_GUARD) * dt) % 1;
     }
     const ph = this.phase;
     // (a Chaos Theory stop blends the frozen stride out to idle over `quickStop`: 95% within it)
@@ -1156,7 +1170,11 @@ export class AnimGraph {
     // the open-side knee up under the knee hand), from the wall side alone: the planner's lead differs between the owner
     // and the remote copy (their feet settle at different times), and a flipped kneel moved the knee hand 0.3 m
     // (e2e-netmove wall crouch). Turned toward the travel the wall is on the travel side (wallSide 1: the right).
-    if (wantKneel && this.kneelW <= 0) this.kneelSide = i.wall ? (i.wallSide < 0 ? -1 : 1) : this.lead < -0.05 ? -1 : 1;
+    // (afp AF4b, Michael P4 "pistol shifts between knees") off the wall: not from the lead (crouched the stance lead is zeroed,
+    // so after a sideways stop it was arbitrary and the knee changed between stops): armed, the gun hand's knee (a right hand
+    // kneels on the right knee); holstered (free movement squats instead, KEYED_CROUCH.squat) the planted lead foot as before
+    // (afp CI fix) Wren's rule only (afRig): guards kneel by the lead as before
+    if (wantKneel && this.kneelW <= 0) this.kneelSide = i.wall ? (i.wallSide < 0 ? -1 : 1) : i.armed && this.afRig ? (i.hand < 0 ? -1 : 1) : this.lead < -0.05 ? -1 : 1;
     this.kneelW = clamp(this.kneelW + (wantKneel ? kStep : -kStep), 0, 1);
     const kw = smoothstep(this.kneelW);
     overClip(src, this.kneelSide > 0 ? KNEEL : KNEEL_M, this.idleT * KNEEL_RATE, kw);
@@ -1206,7 +1224,9 @@ export class AnimGraph {
       // (G6, AUDIT-WALLS row 3) sliding standing the chest turns toward the travel (square at rest)
       src[CH.spYaw] = src[CH.spYaw]! + (this.wallS || 0) * st.spYawSlide * this.moveW * (1 - crouchK) * flatW * wkOff;
       // (G6, row 1) side-on: bent well over the knees, deeper than the free crouch's lean
-      src[CH.spPitch] = src[CH.spPitch]! + WALL_SIDE_POSE.spine * sideK * wallW * wkOff;
+      // (afp AF4b) not with a weapon in the hands: the extra lean put the lowered muzzle into the thighs (the free crouch's
+      // lean is kept, ~40 deg)
+      src[CH.spPitch] = src[CH.spPitch]! + WALL_SIDE_POSE.spine * sideK * wallW * wkOff * (i.armed && this.afRig ? 0 : 1);
       // reloading, swapping or throwing at the wall: tuck in closer to it, a little lower
       this.tuckW = approach(this.tuckW, atWall && (i.reload >= 0 || i.swap >= 0 || i.grenade >= 0) ? 1 : 0, 0.12, dt);
       src[CH.pelX] = src[CH.pelX]! + this.wallS * 0.035 * this.tuckW;
@@ -1480,8 +1500,14 @@ export class AnimGraph {
     // at a wall the ready is the wall tuck: muzzle down along the wall, turned away from it (the rig mirrors
     // yaw with the hand, so the away side is relative to the hand holding it)
     this.wallReadyW = approach(this.wallReadyW, atWall ? 1 : 0, 0.25, dt);
-    const cw = this.wallReadyW;
-    const nw = 1 - this.wallReadyW;
+    // (afp AF4b, Michael P4 "with rifle clips") crouched at a wall the body is side-on, the free crouch carriage along the
+    // travel: the open-ground carry, not the tuck (muzzle down along the wall, which side-on and bent over put the muzzle
+    // into the thighs). By the crouch, not the body's turn, so a reversal (the body turning through square) keeps the carry
+    // and never swings the gun into the tuck and back.
+    // (afp CI fix) Wren's only (afRig; gs 0 on a guard: the wall tuck, no CROUCH_GUN.wall, as before)
+    const gs = this.afRig ? smoothstep((crouchK - 0.35) / 0.5) : 0;
+    const cw = this.wallReadyW * (1 - gs);
+    const nw = 1 - cw;
     const awayYaw = (this.wallS === 0 ? 1 : -Math.sign(this.wallS)) * (i.hand < 0 ? -1 : 1);
     const cr = WALL_READY;
     // stepping to the wall the open-ground carry comes in tight to the chest (compressed) until the tuck takes
@@ -1500,7 +1526,9 @@ export class AnimGraph {
     if (pistolK > 0) {
       src[CH.wpX] = src[CH.wpX]! + pistolK * PISTOL_REACH.x;
       src[CH.wpY] = src[CH.wpY]! + pistolK * PISTOL_REACH.y;
-      src[CH.wpZ] = src[CH.wpZ]! + pistolK * PISTOL_REACH.z;
+      // (afp AF4b) crouched the raised pistol is held further out (PISTOL_REACH_CROUCH): close in, the rig's body clearance
+      // pushed it 0-3.6 cm in and out each step of the crouched gait (grip 1.01 cm a frame)
+      src[CH.wpZ] = src[CH.wpZ]! + pistolK * (PISTOL_REACH.z + (this.afRig ? PISTOL_REACH_CROUCH * crouchK : 0));
       // (G2, AUDIT-AIM row 5) the chest forward over the raised pistol (it leaned back with the hips forward)
       src[CH.spPitch] = src[CH.spPitch]! + pistolK * PISTOL_REACH.lean;
     }
@@ -1559,6 +1587,24 @@ export class AnimGraph {
     src[CH.wpPitch] = src[CH.wpPitch]! - bendK * 1.1;
     src[CH.wpZ] = src[CH.wpZ]! + bendK * 0.08;
     src[CH.wpY] = src[CH.wpY]! + bendK * 0.06;
+    // (afp AF4b, Michael P4 "pistol shifts between knees") crouched, the pistol's low ready (Michael's standing hang, y -0.34)
+    // sat at knee height between the knees, and the rig's body clearance pushed it out to one side or the other frame to
+    // frame: crouched it comes up and ahead (CROUCH_GUN.pistol); side-on at a crouched wall the carry rises over the knees
+    // (CROUCH_GUN.wall)
+    const CG = CROUCH_GUN;
+    // (by the crouch or the kneel, whichever is more: standing up from the kneel the crouch runs out in standTime while the
+    // knees are still up (the kneel eases out over kneelTime); by the crouch alone the hang dropped into the rising thighs
+    // and the body clearance threw it 11 cm sideways (e2e-anim low ready still crouch -> stand, pistol: 14.5 cm a frame))
+    // (afp CI fix: 0 on a guard; `sk` is through `gs`)
+    const pck = this.afRig ? pistolW * Math.max(crouchK, smoothstep(this.kneelW)) * ready * cl : 0;
+    const sk = gs * wallW * ready * nw * (1 - 0.5 * this.raiseS);
+    // (and through a kneel going down or coming up the body folds over the gun: the hang rises with it, CROUCH_GUN.pistol.kneel)
+    const kq = 4 * this.kneelW * (1 - this.kneelW);
+    const kb = pck * kq * kq * CG.pistol.kneel;
+    src[CH.wpY] = src[CH.wpY]! + CG.pistol.y * pck + CG.wall.y * sk + kb;
+    src[CH.wpZ] = src[CH.wpZ]! + CG.pistol.z * pck + CG.wall.z * sk;
+    // (kneeling at the wall the trunk is upright: the muzzle is not tipped up there, or it pointed at the sky)
+    src[CH.wpPitch] = src[CH.wpPitch]! + CG.pistol.pitch * pck + CG.wall.pitch * sk * (1 - smoothstep(this.kneelW));
     // recoil absorbed through the shoulder and spine ((anim-n3b) a Wren rig: the shooting shoulder pushed back too)
     src[CH.spPitch] = src[CH.spPitch]! - rcSpine;
     src[CH.spYaw] = src[CH.spYaw]! + rcYaw;
@@ -1894,6 +1940,10 @@ export class AnimGraph {
       const cStill = locoD + stillD > 1e-4 ? stillD / (locoD + stillD) : 0;
       this.cIdleS = approach(this.cIdleS, cStill, cStill > this.cIdleS ? KEYED_CROUCH.settleIn : KEYED_CROUCH.settleOut, dt);
       this.cPace = approach(this.cPace, effortSpeed(locoSpeed, true), KEYED_CROUCH.paceTau / Math.max(0.05, this.moveW), dt);
+      // (approach and clamp written out: a call the graph does not inline boxes its double arguments, 16 B each a frame)
+      const cbT = 1 - Math.abs(i.yawRate) / CROUCH_BACK_TURN.rate;
+      const cbC = Math.max(0, Math.min(1, cbT));
+      this.cBackK = cbC + (this.cBackK - cbC) * Math.exp(-dt / CROUCH_BACK_TURN.tau);
       // (mocap-trial-2) switch on, the crouched sneak's capture (LOCO.set.crouchWalk) into kCr; the drawn set's crouched legs
       // stay hand-keyed (kCrD, as the drawn speed set: weapons are not part of the mocap trial)
       const mcC = this.mOn ? this.mS.crouchWalk : null;
@@ -2077,7 +2127,7 @@ export class AnimGraph {
     const wWalk = smoothstep((es - C.sneakTo) / (C.walkFrom - C.sneakTo));
     const wRun = smoothstep((es - C.walkTo) / (C.runFrom - C.walkTo));
     // (mocap-trial-2, BRIEF A5) `mc` (switch on: the mocap set's crouch walk capture) poses the body in the sneak band (pelvis,
-    // trunk, arms, head; no KEYED_CROUCH_POSE on it: its lean and depth as captured, M1); the planner keeps the
+    // trunk, arms, head; (afp AF3) carried by MOCAP_CROUCH_POSE, its sway scaled to the keyed feet); the planner keeps the
     // hand-keyed sneak's feet (duty, lift, track, knee pole); the crouch walk / run bands stay hand-keyed, crossed into
     // over the same blend. Null (switch off, the drawn legs): the hand-keyed sneak.
     let c0: KeyedClip = mc ?? KEYED_SNEAK;
@@ -2085,8 +2135,8 @@ export class AnimGraph {
     let l0: { duty: number; lift: number } = L.sneak;
     let l1: { duty: number; lift: number } = L.walk;
     const P = KEYED_CROUCH_POSE;
-    let p0: { lean: number; drop: number } = mc !== null ? MOCAP_CROUCH_POSE : P.sneak;
-    let p1: { lean: number; drop: number } = P.walk;
+    let p0: { lean: number; leanD: number; drop: number; back: number } = mc !== null ? MOCAP_CROUCH_POSE : P.sneak;
+    let p1: { lean: number; leanD: number; drop: number; back: number } = P.walk;
     let t = wWalk;
     if (wRun > 0) {
       c0 = KEYED_CROUCH_WALK;
@@ -2103,7 +2153,7 @@ export class AnimGraph {
         // the sneak's amplitude by pace, the set's layer scales; the sway centred on the planner's track (the clip's root sits
         // under the pelvis at phase 0, 3.7 cm off its mean)
         sampleKeyed(mc, ph, C.ampMin + (1 - C.ampMin) * clamp(es / C.full, 0, 1), out, this.mS.layers);
-        out.pel[0] = out.pel[0]! - mc.meanPel[0]!;
+        out.pel[0] = (out.pel[0]! - mc.meanPel[0]!) * MOCAP_CROUCH_POSE.sway;
       } else sampleKeyed(c0, ph, c0 === KEYED_SNEAK ? C.ampMin + (1 - C.ampMin) * clamp(es / C.full, 0, 1) : 1, out);
       scaleKeyedArms(out.arm, c0.meanArm, this.armGain(c0)); // (anim-natural-n2 step 3) KEY_MOTION's arm gain per clip
       if (t > 0) {
@@ -2112,8 +2162,13 @@ export class AnimGraph {
         mixKeyed(out, this.kF, t, out);
       }
       // the game's extra lean and drop (KEYED_CROUCH_POSE), the arms turned back by the lean
-      const lean = p0.lean + (p1.lean - p0.lean) * t;
+      // (afp AF3) the drawn crouched legs (`kCrD`, under the procedural gun upper body) keep the lean they had (`leanD`) and no
+      // hips-back offset: their carriage is the drawn crouch's (AF4b), and the extra lean put the low-ready elbows 6.5 cm out
+      // (afp CI fix) a guard (not afRig) likewise: leanD (the old leans), no hips-back (guards keep their rig)
+      const dw = out === this.kCrD || !this.afRig;
+      const lean = dw ? p0.leanD + (p1.leanD - p0.leanD) * t : p0.lean + (p1.lean - p0.lean) * t;
       out.pel[1] = out.pel[1]! - (p0.drop + (p1.drop - p0.drop) * t);
+      out.pel[2] = out.pel[2]! - (p0.back + (p1.back - p0.back) * t) * (dw ? 0 : this.cBackK);
       const sn = Math.sin(lean * 0.5);
       const cs = Math.cos(lean * 0.5);
       const q = out.q;
@@ -2542,7 +2597,20 @@ export class AnimGraph {
     // (CT prototype G8) the keyed walk's narrow track (the feet under the body, the soles just clear)
     // (anim-rework S2) the keyed set's blended track (walk, jog, run, the idle's hip width)
     // (anim-rework S4) the free kneel's feet a little under the hips (KNEEL_NARROW: its front foot planted 10.5 cm out)
-    const half = (half0 + (this.kHalf - half0) * o.keyW) * (1 - KNEEL_NARROW * o.kneel) * TUNE_CUR.trackMul;
+    let half = (half0 + (this.kHalf - half0) * o.keyW) * (1 - KNEEL_NARROW * o.kneel) * TUNE_CUR.trackMul;
+    // (anim-fix-pass AF1, P1 "legs ... overlapping eachother") on the mocap share at a jog and faster the planner's stance
+    // half is floored at the clips' planted half (kHalf: the mocap set's, emit.mjs STANCE_HALF), not trackMul's: the
+    // planner's steps (a turn past MOCAP_FEET_TURN, a hand-off) landed 0.35 cm off the midline (Body trackMul 0.05) and its
+    // uncross gap (FREE_GAP of the stance) was ~0.6 cm, so in a turn the outside foot came in across the inside one (jog
+    // 3 m/s x 2.5 rad/s planted ankle -0.3 cm, run 4 x 4 0.5 cm). The walk keeps trackMul's (its turns are fine); off the
+    // switch keyMocap is 0, and without clip feet (the placeholders) nothing here: unchanged
+    // (smoothstep written out: a call the graph does not inline boxes its double argument, 16 B a frame)
+    const hT = Math.max(0, Math.min(1, (Math.max(0, i.speed) - MOCAP_FEET_TRACK.from) / (MOCAP_FEET_TRACK.full - MOCAP_FEET_TRACK.from)));
+    const hF = this.mFeet ? o.keyMocap * (hT * hT * (3 - 2 * hT)) : 0;
+    if (hF > 0) {
+      const hc = this.kHalf * (1 - KNEEL_NARROW * o.kneel);
+      if (hc > half) half += (hc - half) * hF;
+    }
     const st = o.stance;
     // (G1 fix, audit row 20) standing still on foot the feet sit IDLE_STANCE apart (anim-rework S2: about hip width)
     const wide = i.traverse === 'none' && !i.wall && i.grounded ? IDLE_STANCE.extra * o.keyHol * (1 - this.moveW) * (1 - clamp(i.crouch, 0, 1)) : 0;
@@ -2576,9 +2644,13 @@ export class AnimGraph {
     const tense = i.crouch > 0.5 ? this.tenseW : 0;
     // (G1 fix) moving on a driver's clock that runs ahead of the pace (a start), the swings keep to the clock
     const ckw = clamp(i.crouch, 0, 1);
-    const rate = Math.max(gaitRate(s > 0.05 ? s : 0, yr, undefined, lat, tense, ckw, bk, gl, this.mSide), i.motion === 'move' ? this.phRate : 0);
+    const rate = Math.max(gaitRate(s > 0.05 ? s : 0, yr, undefined, lat, tense, ckw, bk, gl, this.mSide, this.afRig ? CROUCH_STEP : CROUCH_STEP_GUARD), i.motion === 'move' ? this.phRate : 0);
     g.cycleTime = rate > 1e-3 ? 1 / rate : 1.2;
-    const linRate = s > 0.05 ? gaitRate(s, 0, undefined, lat, tense, ckw, bk, gl, this.mSide) : 0;
+    // (afp CI fix) the turn share is measured against the pre-AF3 crouched step line (CROUCH_STEP_GUARD) on every rig: AF3's
+    // shorter crouched steps raised the linear rate, so a crouched spin no longer read as a full turn (2.1 m/s x 7 rad/s:
+    // turning 0.90, was 1) and its longer stance wound a planted foot past PLANTED_TWIST (turnFollow 0.52 rad) and into the
+    // twist cap (footTurn crouch spin 0.85: 7.5 deg). The clock (cycleTime, phase) keeps AF3's cadence; straight, unchanged.
+    const linRate = s > 0.05 ? gaitRate(s, 0, undefined, lat, tense, ckw, bk, gl, this.mSide, CROUCH_STEP_GUARD) : 0;
     const angRate = yr > TURN_GAIT_MIN ? yr / (2 * TURN_STEP) : 0;
     g.turning = smoothstep((linRate > 1e-3 ? angRate / linRate : angRate > 0 ? 10 : 0) - 0.5);
     const nodes = i.crouch > 0.5 ? CROUCH_NODES : FORWARD_NODES;
@@ -2604,6 +2676,17 @@ export class AnimGraph {
     g.duty = clamp(duty + (TURN_DUTY - duty) * g.turning, 0.4, 0.75);
     g.liftH = lift * k * clamp(q[CH.lift]!, 0.3, 2) * TUNE_CUR.kneeLiftMul;
     this.clipFeet(i, k, s);
+    // (anim-fix-pass AF1) turning on the mocap share at a jog and faster, the outside foot's stance spot goes out by the
+    // sagitta of the body's arc over a stance (v x stance^2 x yaw rate / 8, MOCAP_FEET_TRACK.arcK times, at most .arcMax):
+    // planted on a straight chord under a curving body, the outside foot came in to the midline by its stance's end (jog
+    // 3 m/s x 4 rad/s 1.4 cm). The planner's steps read it (the clip feet keep their own x); 0 off the switch or straight
+    if (hF > 0 && i.yawRate !== 0) {
+      const sp = o.gait.duty * o.gait.cycleTime;
+      const arc = s * sp * sp * Math.abs(i.yawRate) * MOCAP_FEET_TRACK.arcK;
+      const out = (arc < MOCAP_FEET_TRACK.arcMax ? arc : MOCAP_FEET_TRACK.arcMax) * hF * k;
+      if (i.yawRate > 0) st.lX -= out;
+      else st.rX += out;
+    }
     // layer weights for the overlay
     const ly = o.layers;
     for (let k = 0; k < LOWER_STATES.length; k++) ly[LOWER_STATES[k]!] = this.weights[LOWER_STATES[k]!];
@@ -2624,6 +2707,13 @@ export class AnimGraph {
    * `on` (MOCAP_FEET): the mocap share high enough, not turning fast, past a crawl; then the contacts take the clip's own
    * duty. With the switch off (or no feet) nothing here changes a value. No allocation.
    */
+  /** (AF1) The clip feet's turn hysteresis: under the turn limit last frame, handed off by a turn (not taken back
+   *  yet), the time the turn has stayed under the take-back rate (s), the jog+ share (MOCAP_FEET_TRACK), the last pace. */
+  private cfTurnOk = true;
+  private cfTurned = false;
+  private cfT = 0;
+  private cfTk = 0;
+  private cfSpeed = 0;
   private clipFeet(i: AnimInput, k: number, speed: number): void {
     const o = this.out;
     const CF = o.clipFeet;
@@ -2656,7 +2746,20 @@ export class AnimGraph {
       // one of the clip's stances (a run's short stance keeps its clip feet through steering)
       const st = this.mDuty * o.gait.cycleTime;
       const turnMax = st > 0 && M.twistMax / st > M.turnMax ? M.twistMax / st : M.turnMax;
-      CF.on = o.keyMocap >= M.share && Math.abs(i.yawRate) < turnMax && speed > M.minSpeed;
+      // (anim-fix-pass AF1) at a jog and faster (eased in over MOCAP_FEET_TRACK's speeds) the hand-off comes at
+      // MOCAP_FEET_TURN.off and the take-back under .on (hysteresis); the walk's own limit as before
+      // (smoothstep written out: a call with a double boxes it, 16 B a frame)
+      const tkT = Math.max(0, Math.min(1, (speed - MOCAP_FEET_TRACK.from) / (MOCAP_FEET_TRACK.full - MOCAP_FEET_TRACK.from)));
+      const tk = tkT * tkT * (3 - 2 * tkT);
+      const tOff = tk > 0 ? turnMax + ((turnMax < MOCAP_FEET_TURN.off ? turnMax : MOCAP_FEET_TURN.off) - turnMax) * tk : turnMax;
+      const tOn = tk > 0 ? tOff + ((tOff < MOCAP_FEET_TURN.on ? tOff : MOCAP_FEET_TURN.on) - tOff) * tk : tOff;
+      const yrA = Math.abs(i.yawRate);
+      this.cfTurnOk = yrA < (this.cfTurnOk ? tOff : tOn);
+      this.cfTk = tk;
+      if (!this.cfTurnOk) this.cfTurned = true;
+      // (the take-back's clock: the time the turn has stayed under the take-back rate)
+      if (yrA >= tOn) this.cfT = 0;
+      CF.on = o.keyMocap >= M.share && this.cfTurnOk && speed > M.minSpeed;
       const w = o.keyMocap >= M.share ? 1 : o.keyMocap / M.share;
       const duty = o.gait.duty + (this.mDuty - o.gait.duty) * w;
       want = o.keyMocap >= M.share && speed > M.minSpeed ? duty : duty < 0.4 ? 0.4 : duty > 0.75 ? 0.75 : duty;
@@ -2685,6 +2788,17 @@ export class AnimGraph {
     // pose in a run on a walk's duty, the clip pinned a planted foot for a walk-length stance at 4.4 m/s (its reach need
     // 2 -> 43 cm in 4 frames, the pelvis 46 cm down)
     if (CF.on && Math.abs(o.gait.duty - want) > MOCAP_DUTY_GAP) CF.on = false;
+    // (anim-fix-pass AF1) after a turn's hand-off the clip takes the feet back only once the turn has stayed under the
+    // take-back rate for MOCAP_FEET_TURN.hold (on the gait clock's time; a weave through the rates stays the planner's), nor while the pace changes faster than .accel m/s^2 (a CT flick's pace dip recovering through
+    // the walk -> jog band: taken back on the walk's duty, the duty gap above handed them off again 5 frames later; from
+    // MOCAP_FEET_TRACK.from only: a walk flick's pace recovery held the planner's steps on and the pelvis lurched 2.8 cm);
+    // a hand-off is never held back
+    const cdt = dPh * o.gait.cycleTime;
+    this.cfT += cdt;
+    const acc = cdt > 0 ? Math.abs(speed - this.cfSpeed) / cdt : 0;
+    this.cfSpeed = speed;
+    if (CF.on && this.cfTurned && (this.cfT < MOCAP_FEET_TURN.hold || (this.cfTk > 0 && acc > MOCAP_FEET_TURN.accel))) CF.on = false;
+    if (CF.on) this.cfTurned = false;
     // (clip feet gone: carried until the planner's duty is met)
     this.mCarry = CF.valid || o.gait.duty !== want;
     this.mDutyGait = o.gait.duty;
@@ -2813,14 +2927,30 @@ export const KEYED_CROUCH_LEG = {
  * so they still hang as keyed, along the body) and `drop` (m at 1.75 m) a lower pelvis. In the game the keyed clips read
  * upright and high (trunk 17 / 21 / 26 deg, hips 17-25 cm under standing for the sneak / crouch walk / crouch run): about
  * 25 / 28 / 37 deg and 20-27 cm with these. The crouched idle keeps its own.
+ * (afp AF3, walk 4.72 P2 "leaning a bit too far forward seems hard to balance") `back` (m at 1.75 m) the hips behind the
+ * root, so the body sits over the planted feet: the centre of mass was 11-15 cm ahead of the feet in crouched double
+ * support (the keyed idle that balances sits its hips 10 cm back), now about 3 cm; the walk leans 0.18 (was 0.12) so gears
+ * 1-3 keep one carriage (AF0 harness: trunk 31.5-32.2 deg, hips within 2.2 cm; were 28-43 deg and 7 cm apart).
+ * `leanD` the lean of the drawn crouched legs (`kCrD`, the old values; no `back` there).
  */
 export const KEYED_CROUCH_POSE = {
-  sneak: { lean: 0.08, drop: 0.02 },
-  walk: { lean: 0.12, drop: 0.03 },
-  run: { lean: 0.2, drop: 0.05 },
+  sneak: { lean: 0.08, leanD: 0.08, drop: 0.02, back: 0.1 },
+  walk: { lean: 0.18, leanD: 0.12, drop: 0.03, back: 0.1 },
+  run: { lean: 0.2, leanD: 0.2, drop: 0.05, back: 0.08 },
 } as const;
-/** (mocap-trial-2, BRIEF A5) The mocap crouch walk takes no KEYED_CROUCH_POSE (its lean and depth as captured, M1). */
-const MOCAP_CROUCH_POSE = { lean: 0, drop: 0 } as const;
+/**
+ * (afp AF3, walk 4.72 P2) The mocap crouch walk's carriage in the game (it was as captured, M1: trunk 43 deg, hips 7 cm
+ * over the keyed crouch walk's, CoM 15 cm ahead of the feet): `lean` (rad, negative: more upright; the arms turned with
+ * it as KEYED_CROUCH_POSE's), `drop` and `back` as KEYED_CROUCH_POSE's, and `sway` the share of the capture's lateral
+ * pelvis sway kept (8.4 cm p2p over the keyed sneak's narrow feet: now 4.2 cm).
+ */
+const MOCAP_CROUCH_POSE = { lean: -0.19, leanD: -0.19, drop: 0.05, back: 0.1, sway: 0.5 } as const;
+/**
+ * (afp AF3) The crouched hips-back offset (`back` above) fades out while turning: gone by `rate` (rad/s of yaw), eased
+ * over `tau` (s). With the hips behind the root a crouched landing in a turn hit the leg joints' rate limit
+ * (characterRig limitJoint) and the planted heel slid 2-8 cm (mocapCrouch turns at 0.5-0.8 m/s).
+ */
+const CROUCH_BACK_TURN = { rate: 0.5, tau: 0.1 } as const;
 /** (anim-rework S4) The free kneel's stance width share taken off (the feet under the hips; walls keep theirs). */
 export const KNEEL_NARROW = 0.12;
 /**
@@ -2914,3 +3044,17 @@ function fwdNode(nodes: readonly { speed: number }[], s: number): number {
   while (a < nodes.length - 2 && s > nodes[a + 1]!.speed) a++;
   return a;
 }
+
+/**
+ * (anim-fix-pass AF1) The mocap fast gaits' feet (Michael P1: "anything faster is bad, legs sticking and overlapping
+ * eachother"). `MOCAP_FEET_TRACK`: from `from` m/s, in full at `full` (the walk -> jog blend), the planner's stance half on
+ * the mocap share is floored at the clips' planted half (writeTargets). `MOCAP_FEET_TURN`: at a jog and faster (eased in
+ * over the same speeds) the clip feet hand a turn to the planner past `off` rad/s and take it back under `on` (hysteresis),
+ * once the turn has stayed under `on` for `hold` s and not while the pace changes faster than `accel` m/s^2 (a hand-off is never
+ * held back; clipFeet): the clip's stance kept a
+ * planted foot pinned while the body yawed up to 2.3 (jog), 3.7 (run) and 4.7 (sprint) rad/s over it (MOCAP_FEET.twistMax /
+ * the stance), and with no hysteresis the owner changed frame to frame near the limit. The walk keeps MOCAP_FEET.turnMax
+ * (the hold applies at any pace, the pace check from MOCAP_FEET_TRACK.from).
+ */
+const MOCAP_FEET_TRACK = { from: 2.1, full: 2.6, arcK: 0.19, arcMax: 0.05 } as const;
+const MOCAP_FEET_TURN = { off: 1.5, on: 1.0, hold: 0.3, accel: 1.5 } as const;

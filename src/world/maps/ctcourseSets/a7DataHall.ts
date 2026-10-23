@@ -12,7 +12,7 @@
  * - the rack hall: rows 1-3 west of the cage (x 78.8-83.0) and row 1's east part along the cage's south face, all 2.2 m and
  *   `noLedge`, 3.0 m aisles; the technician's loop round rows 1-2;
  * - the cage x 86-96, z 60-66: `b.fence` mesh on all four faces over 1.2 m kick-panel boxes, a `noLedge` lid at 2.4-2.5, its
- *   six fence anchors locked by `anchorLock` gates on a flag nothing sets (ENGINE-ANSWERS Q8), two 1.2 m doors on the sync;
+ *   six fence anchors locked by `anchorLock` gates on a flag nothing sets (ENGINE-ANSWERS Q8), two 1.2 m doors on the sync, a solid 1.75 m equipment cabinet between the terminals (`A7_CABINET`: hides T2's spot from the technician's round);
  *   terminals `a7-t1` (west face, in the hall) and `a7-t2` (east face, in the pod), 10.1 m apart (`syncStation`, kind 'scan');
  * - the containment pod x 96-100, z 55.95-68 (2.6 m roof): reached only from the plant corridor by its south door `A7-pod-s`
  *   (or through the cage after the sync); its east door is the facility's L7 near door, on the sync too;
@@ -32,7 +32,7 @@
  * block walls on a dark dado, a raised access floor with perforated tiles, galvanised basket trays, white plant, a steel cage - and
  * only the hall above the set takes the kit's charcoal panels):
  * - the greybox's boxes, lamps, doors, anchors and devices are untouched; the dressing is appended after them (the test pins the
- *   greybox: 46 boxes, 36 of them solid, 15 lamps);
+ *   greybox: 47 boxes, 37 of them solid, 15 lamps, the cabinet included (marlow-a7-cabinet));
  * - everything built by hand is a thin visual skin (no collision, `noLedge`, one side under `CANON_MIN_THICK` so it is out of the
  *   canonical light shapes: the bake, the meter, the guards and the cameras see the greybox as built): wall finishes, the raised
  *   floor's seams and perforated tiles, rack ends and rears, the cage's posts, rails and plates, the terminals' bezels, the pod's
@@ -84,6 +84,13 @@ export const A7_T2_SPOT: [number, number] = [96.65, 61.5];
 /** The cage: plan box (fence lines), mesh height, kick-panel height, the lid's thickness (0.1: a 5 cm slab is off the 5 cm voxel
  *  grid's parity, `tests/voxelFit.test.ts`), the panels' thickness, door span (z) on the west and east faces. */
 export const A7_CAGE = { x0: 86, z0: 60, x1: 96, z1: 66, mesh: 2.4, kick: 1.2, lidT: 0.1, panelT: 0.1, door: [63.9, 65.1] as [number, number] } as const;
+/** (marlow-a7-cabinet) The solid equipment cabinet in the cage between the terminals (plan box, height; `noLedge`): the mesh
+ *  passes sight, so without it the technician at R0 (and on aisle B, the front aisle, aisle C's east end) sees a player waiting
+ *  at T2's spot through both mesh faces into the lit pod. 1.75 m: over every guard line to a standing body at T2 (head at
+ *  most about 1.67 where the lines cross it), under the T1 <-> T2 lamp lines from a standing eye (state lamp 1.95: 1.77 there;
+ *  ready lamp 2.25: 1.91). South face 0.15 m off the south kick panel, north face 0.2 m short of the door span (the
+ *  door-to-door walk at z 64.5 keeps 0.5 m beside a body). */
+export const A7_CABINET = { x0: 90.4, x1: 91.6, z0: 60.2, z1: 63.7, h: 1.75 } as const;
 /** Course doors: the cage's two, the lobby's two glazed doors, the pod's south door; the pod's east door is the facility's L7
  *  near door (SPEC's `A7-east`). */
 export const A7_CAGE_W = 'A7-cage-w';
@@ -300,12 +307,13 @@ export function buildA7DataHall(b: LevelBuilder, kit: FacilityKit): SetPart {
     ['a7-fence-n', cx0, cz1, cx1, cz1],
   ];
   const station = syncStation({ id: 'a7', kind: 'scan', a: A7_T1_AT, b: A7_T2_AT, y: A7_PANEL_Y, walk: A7_SYNC_WALK });
-  tally(b, p.register, 'A7-2', 'Cage 10 x 6 (x 86-96, z 60-66): b.fence mesh 2.4 m on all four faces (sight, the ready lamps and the jam line pass it; bodies do not) over 1.2 m solid kick panels (noLedge), door lintels; terminals T1 (west face) and T2 (east face) 10.1 m apart (syncStation, scan)', () => {
+  tally(b, p.register, 'A7-2', 'Cage 10 x 6 (x 86-96, z 60-66): b.fence mesh 2.4 m on all four faces (sight, the ready lamps and the jam line pass it; bodies do not) over 1.2 m solid kick panels (noLedge), door lintels; a solid 1.75 m equipment cabinet in the middle (x 90.4-91.6, z 60.2-63.7, noLedge) that hides T2\'s spot from the technician\'s round while the lamps show over it; terminals T1 (west face) and T2 (east face) 10.1 m apart (syncStation, scan)', () => {
     for (const [id, ax, az, bx, bz] of runs) {
       p.anchors[id] = b.fence(ax, az, bx, bz, mesh, 0).id;
       const h = panelT / 2;
       slab(Math.min(ax, bx) - (ax === bx ? h : 0), Math.max(ax, bx) + (ax === bx ? h : 0), Math.min(az, bz) - (az === bz ? h : 0), Math.max(az, bz) + (az === bz ? h : 0), 0, kick, KICK);
     }
+    slab(A7_CABINET.x0, A7_CABINET.x1, A7_CABINET.z0, A7_CABINET.z1, 0, A7_CABINET.h, RACK);
     for (const x of [cx0, cx1]) slab(x - panelT / 2, x + panelT / 2, door[0], door[1], DOOR_H, mesh, KICK);
     applyGreybox(b, station);
   });
@@ -406,7 +414,7 @@ export function buildA7DataHall(b: LevelBuilder, kit: FacilityKit): SetPart {
     { box: [96, 56, 100, 68], size: 'tight' },
     { box: [cx0, cz0, cx1, cz1], size: 'tight' },
   );
-  p.navSeeds.push({ x: 73, y: 0, z: 61 }, { x: 80.9, y: 0, z: 61.5 }, { x: 80, y: 0, z: 53.9 }, { x: 98, y: 0, z: 62 }, { x: 91, y: 0, z: 63 });
+  p.navSeeds.push({ x: 73, y: 0, z: 61 }, { x: 80.9, y: 0, z: 61.5 }, { x: 80, y: 0, z: 53.9 }, { x: 98, y: 0, z: 62 }, { x: 91, y: 0, z: 64.8 });
   p.debugPoints.push(
     { id: 'A7-entry', label: 'Set 7 entry (the lobby)', pos: { x: 72.5, y: 0, z: 62 }, yaw: Math.PI / 2 },
     { id: 'A7-mid', label: 'Set 7 middle (aisle B)', pos: { x: 80.9, y: 0, z: 61.5 }, yaw: Math.PI / 2 },

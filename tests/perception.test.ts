@@ -378,4 +378,52 @@ describe('light fixtures', () => {
     expect(rayBox(-1, 0, 0, 2, 0, 0, 0, 0, 0, 0.5, 0.5, 0.5)).toBeCloseTo(0.25, 5);
     expect(rayBox(-1, 2, 0, 2, 0, 0, 0, 0, 0, 0.5, 0.5, 0.5)).toBe(-1);
   });
+
+  it('(walk 4.72 S2) a round that lands on a street lamp pole just under its head breaks it; not lower, nor through a wall', async () => {
+    const { lightOnRay, LAMP_MOUNT_REACH } = await import('../src/world/lights');
+    const r = new LightRegistry();
+    // Saltmarsh Park's car-park lamp: a 6 m pillar (radius 0.15) with the head (0.6 x 0.1 x 0.3) centred on its top
+    const l = r.add({ x: 9, y: 6, z: -66, destructible: true, fixture: { sx: 0.6, sy: 0.1, sz: 0.3, oy: 0 } });
+    // the client's real round (e2e probe, 4.72 build): from the muzzle, landing on the pole 0.16 m under the padded head
+    expect(lightOnRay(r, 11.74, 1.56, -65.93, 9.15, 5.73, -65.99)).toBe(l.id);
+    // the same line stopped well down the pole: no
+    expect(lightOnRay(r, 11.74, 1.56, -65.93, 9.15, 5.89 - LAMP_MOUNT_REACH - 0.1, -65.99)).toBe(-1);
+    // a round landing beside the head's footprint (a wall next to it) at the same height: no
+    expect(lightOnRay(r, 11.74, 1.56, -65.93, 9.5, 5.8, -65.99)).toBe(-1);
+    // a wall lamp on the far face of a 0.2 m wall (head x 0.2..0.5): a round on the near face (x = 0) misses it
+    const w = r.add({ x: 0.35, y: 2.5, z: 4, destructible: true, fixture: { sx: 0.3, sy: 0.2, sz: 0.4, oy: 0 } });
+    expect(lightOnRay(r, -4, 1.5, 4, 0, 2.45, 4)).toBe(-1);
+    // a bare bulb on a bracket: a round landing 0.2 m under its sphere breaks it
+    const b = r.add({ x: 20, y: 3, z: 0, destructible: true });
+    expect(lightOnRay(r, 24, 1.5, 0, 20.05, 2.58, 0)).toBe(b.id);
+    expect(w.id).not.toBe(b.id);
+  });
+
+  it('(polish2) a near-face landing under a wall lamp breaks it with a clear probe; a door soffit under the far-face lamp is blocked', async () => {
+    const { lightOnRay, lampReachProbe, rayBox } = await import('../src/world/lights');
+    const r = new LightRegistry();
+    // a wall pack on the near face of a wall (wall x 0.2..0.4, head x 0..0.2), a round landing on the face 0.19 m under it
+    const w = r.add({ x: 0.1, y: 2.5, z: 4, destructible: true, fixture: { sx: 0.2, sy: 0.2, sz: 0.3, oy: 0 } });
+    expect(lightOnRay(r, -4, 1.5, 4, 0.2, 2.15, 4)).toBe(w.id);
+    const p = { x: 0, y: 0, z: 0 };
+    const h = lampReachProbe(r, w.id, -4, 1.5, 4, 0.2, 2.15, 4, p);
+    expect(h).toBeGreaterThan(0.1);
+    expect(p.x).toBeLessThan(0.2);
+    // the probe straight up from just off the face to the head never enters the wall
+    expect(rayBox(p.x, p.y, p.z, 0, h, 0, 0.3, 2, 4, 0.1, 2, 2)).toBe(-1);
+    // a round entering the head's box needs no probe
+    expect(lampReachProbe(r, w.id, -4, 2.5, 4, 0.2, 2.5, 4, p)).toBe(0);
+
+    // walk 4.72 polish 1: the S5 gallery lamp over the L1 door (wall x -50.1..-49.9, soffit at y 6.3); a rising round from
+    // the boardroom through the open doorway lands on the soffit's east half. lightOnRay alone still takes the lamp ...
+    const r2 = new LightRegistry();
+    const g = r2.add({ x: -49.85, y: 6.6, z: 27, destructible: true, fixture: { sx: 0.2, sy: 0.2, sz: 0.3, oy: 0 } });
+    expect(lightOnRay(r2, -51, 1.6, 26.9, -49.95, 6.3, 26.9)).toBe(g.id);
+    // ... but the probe up from under the soffit runs into the lintel, so the callers refuse it
+    const h2 = lampReachProbe(r2, g.id, -51, 1.6, 26.9, -49.95, 6.3, 26.9, p);
+    expect(h2).toBeGreaterThan(0);
+    const t = rayBox(p.x, p.y, p.z, 0, h2, 0, -50, 6.8, 27, 0.1, 0.5, 1);
+    expect(t).toBeGreaterThanOrEqual(0);
+    expect(t).toBeLessThanOrEqual(1);
+  });
 });
