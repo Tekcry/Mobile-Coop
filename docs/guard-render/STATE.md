@@ -63,6 +63,10 @@ on sectorops and 7.3 -> 6.5 on ctcourse; active meshes 639 -> 617 and 552 -> 503
 away cells within run noise (+-0.5 ms). Render CPU: no regression on these baked-moon maps. Shadow map renders unchanged.
 Look change needing Michael's approval before S6d reaches master: past 40 m in moonlight a guard loses its ground shadow
 (blobs are off while sun shadows are on). The measured gain is small, so the job lead may drop S6c/S6d.
+MICHAEL 2026-10-23 12:15: "Ship S6 without S6d". Reverted S6d (c181002e: enemyRig reach + tests/guardSunReach.test.ts)
+and fix (3) (063605ff: body.ts reach). The S6 PR ships S6a/S6b (per-cascade lists) and S6c (the reach machinery, no
+caller passes a reach, so no look change). The measure above ran WITH S6d: the master gain is S6b only (smaller).
+S6d stays on c181002e for a later look check (ground shadow past 40 m) if Michael wants it.
 
 ## Next
 1. Fresh checker for S1 (session-method), then Character Build on the laptop (port 4189, GPU alone):

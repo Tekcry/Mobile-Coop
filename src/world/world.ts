@@ -489,7 +489,8 @@ export class World {
   }
 
   /** Characters, weapons and props cast shadows (one shared list for the sun and every lamp). `sunReach`: the moon's
-   *  cascades drop it beyond this distance from the camera (guards, `sunCascadeCull.ts`); lamps and flashlights always take it. */
+   *  cascades drop it beyond this distance from the player (`sunCascadeCull.ts`; no caller passes one yet: guards with
+   *  GUARD_SUN_REACH, S6d, wait on Michael's look check); lamps and flashlights always take it. */
   addShadowCaster(m: AbstractMesh, sunReach = Infinity): void {
     this.lightRig.addCaster(m);
     if (!this.sunMoving.includes(m)) {
