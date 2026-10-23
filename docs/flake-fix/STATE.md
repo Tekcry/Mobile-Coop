@@ -3,6 +3,17 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 24 (2026-10-23 ~20:10, new account; wins over SAVE 23 where they differ):**
+- TRAIN 32 25c712c9 PASS 43/43, status `laptop-e2e` success posted by the service. Sharded 564 s / 560 s (vs 666 s one
+  slot JOBS=3); 873 s total incl. flake rerun e2e-ctcourse:4 ("timed out waiting for A8: N2 is at the grille stop
+  (route index 2)", passed alone 300 s; owner fixes the test). Orchestrator told.
+- laptop-queue PR #252 OPEN (train-ready). Orchestrator told, asked to pass the request command to the leads.
+- LR15 verdict POSTED on PR #242 (PASS; photo falloff no slower than classic). lr15c done.
+- Running / queued: service has Sector Ops f8008542 (lr16-f800) on 4189, Guard AI a74d27e2 s22game-a4fix on 4192. Manual
+  4189 chains ap5 (#226, alone) and l16g (LR16 perf, alone) wait on their chain logs, then take 4189 behind the service.
+  Still to send: ONE #226 verdict (ap4 done + ap5) and ONE LR16 verdict (l16 PASS + lr16-f800 + l16g), both as PR
+  comments / to Sector Ops. perf.mjs prints `"map":"warehouse"` always (hard-coded label, line 292): the MAP env is used.
+
 **Test Runner SAVE 23 (2026-10-23 ~19:47; wins over SAVE 22 where they differ):**
 - TRAIN 32 origin/train/32 25c712c9 (#244 release-speed + auto-train, #246 carry-fix2, #250 agent-cpu, feature/menu
   docs, #237 marlow-final + #248 section-rating, PROTOCOL 42): run by the laptop-queue SERVICE, sharded 4189 + 4192 at
