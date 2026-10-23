@@ -174,3 +174,12 @@ has. Slice (Opus, after LR16a, beside LR16b): true per-torch occlusion for all 4
 every torch, or a per-pixel test against the bake / door list in LampPlugin, matching the field's rayOccluder + door test;
 GPU check: guard torch behind a wall and behind a shut door on every map, 4 torches on at once. (2) Torch beams get the
 same soft cone edge as lamps: fold into LR16b (cone feather in lampMath also drives the torch term).
+LR16-0 audit slices (checks/lr16-0-ct-audit.md; folds: torch occlusion + torch char shadows -> LR16t, cone feather -> LR16b, penumbra -> LR16e/f, placement -> LR16c/d, level -> LR16g):
+- LR16-1 one-bounce fill (Opus): per-lamp indirect into the ambient grid, ceilings get light, shot / switched lamps drop it; parity via the field. After LR16b, before LR16g.
+- LR16-2 showcase framing audit (Opus writes, Haiku runs): per-view lit / dark share from the field, flag views with no pool or no dark; feeds LR16d. Folds into LR16c.
+- LR16-3 dynamic occluders (Sonnet): door leaves and movable props in the char-shadow caster list (render-only first).
+- LR16-4 guards relight (Sonnet, guard-ai files): wire isolators.ts:98 relight sink; guard switches a dark hall back on.
+- LR16-5 moving lights (Opus, Michael decides scope): pendant sway, fire flicker, failing tube stutter, driven in the registry so the meter follows.
+- LR16-6 vision polish (Sonnet): G100 instant cut, G102 thermal silhouette through shut doors.
+- LR16-7 character shadows on every tier (Opus): Low / Medium get 1 mapped lamp slot; after LR16f.
+- LR16-8 showcase sheets (Haiku, laptop): 10 shots per sector / map (campusOps 6 sectors, warehouseOps, ctcourse, warehouse, proving, kestrel) + 20 m beacon read.
