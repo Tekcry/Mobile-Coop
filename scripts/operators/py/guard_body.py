@@ -24,7 +24,14 @@ import mh
 
 GAME_BONES = ['pelvis', 'spine', 'chest', 'neck', 'head', 'shL', 'elL', 'wrL', 'shR', 'elR', 'wrR',
               'hipL', 'knL', 'anL', 'toeL', 'hipR', 'knR', 'anR', 'toeR']
-FINGERS = [f'finger{s}_{f}' for s in 'LR' for f in range(1, 6)]
+# Wren's finger joint scheme `finger<S>_<f>_<seg>` (src/anim/fingers.ts FINGER_RE; 1 = thumb), one segment per finger
+FINGERS = [f'finger{s}_{f}_1' for s in 'LR' for f in range(1, 6)]
+# The thumb's base flex axis (fingers.ts THUMB_AXES[0], opposition across the palm) as Wren's hero file has it, in the
+# hand frame (c = n x along, along = wrist to the middle knuckle, n = the back of the hand), game frame; measured from
+# src/operators/assets/wren/wren-hero.glb (fingerS_1_1's bind rotation). The guard's one thumb bone is rolled so its
+# THUMB_AXES[0] lands on it, so fingers.ts drives the guard thumb as Wren's.
+WREN_THUMB_FLEX = {'L': (-0.399, -0.408, -0.821), 'R': (-0.399, 0.408, 0.821)}
+THUMB_AXIS0 = (-0.96, -0.15, -0.25)   # fingers.ts THUMB_AXES[0] (right hand; the left mirrors x, -y, -z)
 DEFORM_BONES = GAME_BONES + ['clavL', 'clavR'] + FINGERS
 CHILD = {'pelvis': 'spine', 'spine': 'chest', 'chest': 'neck', 'neck': 'head', 'shL': 'elL', 'elL': 'wrL',
          'wrL': 'handL', 'shR': 'elR', 'elR': 'wrR', 'wrR': 'handR', 'hipL': 'knL', 'knL': 'anL', 'anL': 'toeL',
@@ -106,7 +113,7 @@ def mh_bone_to_deform(n):
     if base == 'wrist' or base.startswith('metacarpal'):
         return f'wr{side}'
     if base.startswith('finger'):
-        return f'finger{side}_{base[6]}'   # finger3-2 -> finger<side>_3: one bone per finger (SPEC 6)
+        return f'finger{side}_{base[6]}_1'   # finger3-2 -> finger<side>_3_1: one bone per finger (SPEC 6)
     if base.startswith('upperleg'):
         return f'hip{side}'
     if base.startswith('lowerleg'):
@@ -483,8 +490,9 @@ class GuardFit:
                 if slope[name]:
                     want = w + (T[key] - m[key]) / slope[name]
                     self.solved[name] = float(np.clip(want, -1.0, 1.0))
-                    if name == 'neck' and abs(want) > 1.0:
-                        # the target saturated: the neck bone's breadth / depth scale takes the rest
+                    if name == 'neck' and abs(w) >= 1.0 - 1e-9 and abs(want) > 1.0:
+                        # the target saturated (the weight already sat at +-1 and still wants past it): the neck bone's
+                        # breadth / depth scale takes the rest. An overshoot on the way in does not count.
                         self.scale['neck'] *= T[key] / m[key]
         self.result = self.evaluate()
         self.slopes = {k: v for k, v in slope.items()}
@@ -492,8 +500,11 @@ class GuardFit:
 
     # -- after the solve
     def fingers(self):
-        """One bone per finger: head at the MakeHuman MCP (thumb: CMC) joint, tail at the tip, carried by the wrist's map;
-        `dorsal`: the back-of-hand direction (the bone's Z: curl turns about its X)."""
+        """One bone per finger (`finger<S>_<f>_1`, Wren's names): head at the MakeHuman MCP (thumb: CMC) joint, tail at
+        the tip, carried by the wrist's map. `zAxis` (game frame, unit, normal to the bone) is the bone's local Z as
+        src/anim/fingers.ts reads it: the curl axis, so a turn about +Z (right hand) / -Z (left hand) closes the finger
+        toward the palm (`palm`). The thumb is rolled so fingers.ts' THUMB_AXES[0] lands on Wren's opposition axis
+        (`thumbFlexDot`: how well). `dorsal`: the back of the hand."""
         r = self.result
         out = {}
         for side, s in (('L', 'l'), ('R', 'r')):
@@ -505,15 +516,70 @@ class GuardFit:
             mcp = {f: at(f'joint-{s}-finger-{f}-1') for f in range(1, 6)}
             tip = {f: at(f'joint-{s}-finger-{f}-4') for f in range(1, 6)}
             along = (mcp[3] - at(f'joint-{s}-hand'))
+            along /= np.linalg.norm(along)
             across = mcp[5] - mcp[2]
             n = np.cross(across, along)
             n /= np.linalg.norm(n)
             palm_c = (mcp[2] + mcp[5]) / 2.0
             if np.dot(n, tip[1] - palm_c) > 0:   # the thumb tip sits on the palm side
                 n = -n
+            palm = -n
+            c = np.cross(n, along)
+            mx = -1.0 if side == 'L' else 1.0
             for f in range(1, 6):
-                out[f'finger{side}_{f}'] = {'head': mcp[f], 'tail': tip[f], 'parent': f'wr{side}', 'dorsal': n}
+                y = tip[f] - mcp[f]
+                y = y / np.linalg.norm(y)
+                extra = {}
+                if f == 1:
+                    # Z maximising (THUMB_AXES[0] in the bone frame) . Wren's axis: flex = l0 X + l1 Y + l2 Z with
+                    # X = Y x Z, so flex . a = Z . (l0 (a x Y) + l2 a) + const
+                    h = WREN_THUMB_FLEX[side]
+                    a = h[0] * c + h[1] * along + h[2] * n
+                    l0, l1, l2 = THUMB_AXIS0[0], THUMB_AXIS0[1] * mx, THUMB_AXIS0[2] * mx
+                    w = l0 * np.cross(a, y) + l2 * a
+                    z = w - np.dot(w, y) * y
+                    z /= np.linalg.norm(z)
+                    flex = l0 * np.cross(y, z) + l1 * y + l2 * z
+                    extra['thumbFlexDot'] = float(np.dot(flex / np.linalg.norm(flex), a))
+                else:
+                    z = np.cross(y, palm) if side == 'R' else np.cross(palm, y)
+                    z /= np.linalg.norm(z)
+                out[f'finger{side}_{f}_1'] = {'head': mcp[f], 'tail': tip[f], 'parent': f'wr{side}', 'dorsal': n,
+                                              'palm': palm, 'zAxis': z, **extra}
         return out
+
+    def seam_transforms(self, seam):
+        """How the MakeHuman frame maps onto the body frame round the neck seam (SPEC 7; for G1h / G4).
+        MakeHuman frame (`V0`): GuardFit.co() (macro + G1's fixed and solved targets) through `to_game`: x negated,
+        x 0.1 K, y from the hm08 floor (`floorY`, MakeHuman units). Body frame `V`: each vertex skinned by the default rig
+        weights over the bone maps (neck, head: diagonal scale + translation), then lifted by `floorLift` (the torso field
+        is 1 above the shoulders). `neck` / `head`: those maps with the lift folded in (p_body = A p0 + t). `similarity`:
+        the best uniform scale + translation (p_body ~ s p0 + T) over the seam loop and over the whole head part, with
+        the residuals that per-vertex offsets (headref - (s V0 + T)) take."""
+        r = self.result
+        V0, V = r['V0'], r['V']
+        lift = np.array([0.0, r['lift'], 0.0])
+        maps = {}
+        for b in ('neck', 'head'):
+            Am, tm = r['M'][b]
+            maps[b] = {'matrix': np.round(Am, 6).tolist(), 'translation': np.round(tm + lift, 6).tolist()}
+
+        def fit(idx):
+            P, Q = V0[idx], V[idx]
+            pc, qc = P.mean(axis=0), Q.mean(axis=0)
+            dp, dq = P - pc, Q - qc
+            s = float((dp * dq).sum() / (dp * dp).sum())
+            T = qc - s * pc
+            res = np.linalg.norm(Q - (s * P + T), axis=1)
+            return {'scale': round(s, 6), 'translation': np.round(T, 6).tolist(),
+                    'rmsMm': round(float(np.sqrt((res ** 2).mean())) * 1000, 3), 'maxMm': round(float(res.max()) * 1000, 3)}
+        head_v = sorted({v for fi in seam['head_faces'] for v in self.topo.faces[fi]})
+        return {
+            'makeHuman': {'scale': 0.1 * self.K, 'flipX': True, 'floorY': float(self.floor_y), 'K': self.K},
+            'floorLift': float(r['lift']),
+            'neck': maps['neck'], 'head': maps['head'],
+            'similarity': {'seam': fit(np.array(seam['seam'])), 'headPart': fit(np.array(head_v))},
+        }
 
     def skin_weights(self, clav_split, seam_rings):
         """Deform weights per hm08 vertex: clavicle split, the seam blend, then the 4 largest, normalised."""

@@ -11,8 +11,11 @@ G1h) and bodies/guard-<base>-body.json (measurements against targets, seam, bone
 Bones: `root body pelvis spine chest neck head clavL clavR shL elL wrL shR elR wrR hipL knL anL toeL hipR knR anR toeR`
 at the bind joints (torso joints = the game rig's, limbs = the game lengths in MakeHuman's A-pose directions, like
 Wren), `shL` / `shR` under the clavicles, the clavicles in the chest's orientation (rest identity under the chest, as
-anim-skeleton's add_joints makes Wren's), `fingerL_1..5` / `fingerR_1..5` under the wrists (1 = thumb): head at the
-MCP joint (thumb: CMC), tail at the fingertip, Z axis to the back of the hand, so a curl is a turn about the bone's X.
+anim-skeleton's add_joints makes Wren's), Wren's finger names `fingerL_<f>_1` / `fingerR_<f>_1` under the wrists (f 1 =
+thumb .. 5, one segment each): head at the MCP joint (thumb: CMC), tail at the fingertip, rolled so the bone's local Z
+is src/anim/fingers.ts' curl axis (a turn about game +Z on the right hand, -Z on the left, closes it toward the palm;
+in Blender's own bone frame that is -Z right, +Z left: the game frame is mirrored); the thumb so fingers.ts'
+THUMB_AXES[0] is Wren's opposition axis.
 The clavicle weight split is already in (G4 must not split again).
 """
 import json
@@ -71,7 +74,10 @@ if worst > 0.01 or abs(errors['stature']) > 0.012:
 seam = fit.neck_seam(seam_cfg['at'])
 W = fit.skin_weights(op.get('clavicleSplit'), seam['rings'])
 fingers = fit.fingers()
+seam_tf = fit.seam_transforms(seam)
 V, tgt, GJ = r['V'], r['tgt'], fit.GJ
+# the top of the head (feet on y = 0): what helmets and caps sit on (G3); the head joint is bindJoints.head
+crown_y = round(float(V[fit.body_idx, 1].max()), 5)
 
 # --- Blender: armature -----------------------------------------------------------------------------------------------
 G2B = common.game_to_blender
@@ -114,12 +120,21 @@ for name, fb in fingers.items():
     b.head, b.tail = Vector(G2B(fb['head'])), Vector(G2B(fb['tail']))
     if (b.tail - b.head).length < 1e-4:
         b.tail = b.head + Vector((0, 0, 0.01))
-    b.align_roll(Vector(G2B(fb['dorsal'])))
+    b.align_roll(Vector(G2B(fb['zAxis'])))
     b.parent = eb[fb['parent']]
     b.use_connect = False
 bpy.ops.object.mode_set(mode='OBJECT')
 for b in arm_data.bones:
     b.use_deform = b.name in gb.DEFORM_BONES
+# roll read back: each finger bone's local Z (Blender) in the game frame = the intended curl axis (game local Y and Z are
+# the Blender ones through the frame map; X flips with the mirror)
+B2G = lambda v: np.array((-v[0], v[2], -v[1]))  # noqa: E731
+roll_err = 0.0
+for name, fb in fingers.items():
+    zb = arm_data.bones[name].matrix_local.to_3x3().col[2]
+    roll_err = max(roll_err, math.degrees(math.acos(min(1.0, float(np.dot(B2G(zb), fb['zAxis']))))))
+if roll_err > 0.5:
+    raise SystemExit(f'{NAME}: finger roll off by {roll_err:.2f} deg')
 
 # --- the body mesh: hm08 'body' faces below the seam -----------------------------------------------------------------
 faces_all = fit.topo.faces
@@ -185,27 +200,68 @@ missing = sorted(set(kit.get('bones', {}).get('rig', [])) - set(order)) + sorted
 if missing:
     raise SystemExit(f'{NAME}: kit bones missing from the rig: {missing}')
 
-# deformation: elbows and knees 60 deg, fingers curled 60 deg about their X, clavicles shrugged 15 deg
+# deformation: elbows and knees 60 deg, fingers curled 60 deg the way src/anim/fingers.ts curls them, clavicles
+# shrugged 15 deg. fingers.ts turns a joint about its game-frame local axis l (fingers (0, 0, +-1), the thumb's base
+# THUMB_AXES[0], the left hand mirrored x, -y, -z); in the Blender bone frame that is the axis (lx, -ly, -lz).
+CURL = math.radians(60)
+
+
+def curl_axis(name):
+    mx = -1.0 if name.startswith('fingerL') else 1.0
+    if name.split('_')[1] == '1':
+        lx, ly, lz = gb.THUMB_AXIS0[0], gb.THUMB_AXIS0[1] * mx, gb.THUMB_AXIS0[2] * mx
+    else:
+        lx, ly, lz = 0.0, 0.0, mx
+    return (lx, -ly, -lz)
+
+
 bpy.context.view_layer.objects.active = arm
 bpy.ops.object.mode_set(mode='POSE')
 posed_bones = {n: (math.radians(60), 0, 0) for n in ('elL', 'elR', 'knL', 'knR')}
-posed_bones.update({n: (math.radians(60), 0, 0) for n in fingers})
 posed_bones.update({'clavL': (0, 0, math.radians(15)), 'clavR': (0, 0, math.radians(-15))})
 for n, e in posed_bones.items():
     arm.pose.bones[n].rotation_mode = 'XYZ'
     arm.pose.bones[n].rotation_euler = e
+for n in fingers:
+    pbone = arm.pose.bones[n]
+    pbone.rotation_mode = 'AXIS_ANGLE'
+    pbone.rotation_axis_angle = (CURL, *curl_axis(n))
 bpy.context.view_layer.update()
+# each fingertip's (bone tail's) move in its wrist's frame (the elbow turn moves the whole hand), back in the rest
+# frame, game axes
+tips = {}
+for n, fb in fingers.items():
+    w_rest = arm_data.bones[fb['parent']].matrix_local
+    t_pose = arm.pose.bones[fb['parent']].matrix.inverted() @ arm.pose.bones[n].tail
+    t_rest = w_rest.inverted() @ arm_data.bones[n].tail_local
+    tips[n] = B2G(w_rest.to_3x3() @ (t_pose - t_rest))
 dg = bpy.context.evaluated_depsgraph_get()
 ev = obj.evaluated_get(dg).to_mesh()
 posed = np.array([v.co[:] for v in ev.vertices])
 obj.evaluated_get(dg).to_mesh_clear()
 for n in posed_bones:
     arm.pose.bones[n].rotation_euler = (0, 0, 0)
+for n in fingers:
+    arm.pose.bones[n].rotation_axis_angle = (0.0, 0.0, 1.0, 0.0)
+    arm.pose.bones[n].rotation_mode = 'QUATERNION'
 bpy.ops.object.mode_set(mode='OBJECT')
 rest = np.array([v.co[:] for v in me.vertices])
 moved = float(np.nanmax(np.linalg.norm(posed - rest, axis=1)))
 if not np.isfinite(posed).all() or moved > 0.8:
     raise SystemExit(f'{NAME}: skin deformation check failed (max move {moved:.3f} m)')
+# the curl closes every finger (2..5) toward the palm, both hands (the thumb's base swings across, reported only):
+# towardPalm = the tip's move . the palm direction normal to the bone (cos 30 deg = 0.866 for a clean 60 deg curl)
+curl = {}
+for n, fb in fingers.items():
+    d = tips[n]
+    dn = float(np.linalg.norm(d))
+    yb = (np.asarray(fb['tail']) - np.asarray(fb['head'])) / np.linalg.norm(np.asarray(fb['tail']) - np.asarray(fb['head']))
+    pp = fb['palm'] - np.dot(fb['palm'], yb) * yb
+    pp /= np.linalg.norm(pp)
+    curl[n] = {'tipMoveMm': round(dn * 1000, 1), 'towardPalm': round(float(np.dot(d, pp)) / max(dn, 1e-9), 3)}
+bad = [n for n, c in curl.items() if not n.split('_')[1] == '1' and c['towardPalm'] < 0.5]
+if bad:
+    raise SystemExit(f'{NAME}: a curl does not close {bad} toward the palm: {[curl[n] for n in bad]}')
 
 # --- outputs -------------------------------------------------------------------------------------------------------------
 out = os.path.join(args.out, 'bodies')
@@ -217,7 +273,8 @@ head_tris = sum(len(f) - 2 for f in head_faces)
 seam_body = [remap[v] for v in seam['seam']]
 r4 = lambda v: [round(float(x), 5) for x in v]  # noqa: E731
 report = {
-    'base': args.base, 'job': args.job, 'refHeight': op['height'], 'build': op['build'], 'seed': args.seed,
+    'base': args.base, 'job': args.job, 'refHeight': op['height'], 'height': op['height'], 'build': op['build'],
+    'seed': args.seed,
     'blender': bpy.app.version_string, 'seconds': round(time.time() - T0, 1),
     'source': 'MakeHuman hm08 base mesh, targets and default rig weights, MPFB2 CC0 data (docs/art-credits.md)',
     'macro': base['macro'], 'fixedTargets': gb.FIXED_TARGETS,
@@ -241,11 +298,23 @@ report = {
     },
     'maxInfluences': int(inf.max()), 'unweightedVerts': unweighted_used, 'mhUnweightedBodyVerts': fit.unweighted,
     'jointRoundTripMaxError': rt, 'boneLengthMaxError': blen,
-    'deformCheck': {'poses': 'elbows / knees 60, fingers curled 60, clavicles 15 deg', 'maxMove': moved},
-    'bindJoints': {k: r4(tgt[k]) for k in order}, 'rigRestJoints': {k: r4(GJ[k]) for k in order},
+    'deformCheck': {'poses': 'elbows / knees 60, fingers curled 60 (fingers.ts axes and sign), clavicles 15 deg',
+                    'maxMove': moved, 'fingerCurl': curl},
+    'fingerAxes': {
+        'names': 'finger<S>_<f>_1 (src/anim/fingers.ts FINGER_RE; f 1 = thumb .. 5 little; one segment per finger)',
+        'curl': 'bone local +Z (right hand) / -Z (left hand) in the game frame closes the finger toward the palm; the '
+                'thumb base turns about THUMB_AXES[0] (left mirrored x, -y, -z); Blender bone frame: (lx, -ly, -lz)',
+        'rollErrorDeg': round(roll_err, 4),
+        'thumbFlexDot': {n: round(fb['thumbFlexDot'], 4) for n, fb in fingers.items() if 'thumbFlexDot' in fb},
+    },
+    # bind joints incl. the fingertip ends handL / handR (G2's reused garment scripts read them)
+    'bindJoints': {k: r4(tgt[k]) for k in order + ['handL', 'handR']}, 'rigRestJoints': {k: r4(GJ[k]) for k in order},
+    'crownY': crown_y,
     'boneHeads': heads,
-    'fingerBones': {n: {'head': r4(fb['head']), 'tail': r4(fb['tail']), 'parent': fb['parent'], 'dorsal': r4(fb['dorsal'])}
+    'fingerBones': {n: {'head': r4(fb['head']), 'tail': r4(fb['tail']), 'parent': fb['parent'], 'zAxis': r4(fb['zAxis']),
+                        'palm': r4(fb['palm']), 'dorsal': r4(fb['dorsal'])}
                     for n, fb in fingers.items()},
+    'seamTransforms': seam_tf,
     'clavicleSplit': op.get('clavicleSplit'),
     'hitVolumes': op['hitVolumes'],
     'neckSeam': {

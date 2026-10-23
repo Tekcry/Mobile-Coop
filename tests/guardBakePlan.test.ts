@@ -128,8 +128,11 @@ describe('guard bake plan: job split', () => {
     expect(jobsFor('check', kit).find((j) => j.id === 'check-lean')?.needs).toEqual(['lods-lean']);
     expect(jobsFor('sheet', kit)[0]?.needs).toHaveLength(4);
     expect(jobsFor('heads', kit).every((j) => j.needs.length === 0)).toBe(true);
-    // per-base gear fits its base's body (G3 gear/fit.py load_body): a rebuilt body rebakes it; the shield needs nothing
-    for (const j of jobsFor('gear', kit)) expect(j.needs).toEqual(j.tags.length === 2 ? [`bodies-${j.tags[0]}`] : []);
+    // per-base gear fits its base's body (G3 gear/fit.py load_body): a rebuilt body rebakes it; the shield is built on
+    // broad's body (gear/pieces.py SHIELD_BASE; a kit without kinds falls back to it)
+    for (const j of jobsFor('gear', kit)) expect(j.needs).toEqual(j.tags.length === 2 ? [`bodies-${j.tags[0]}`] : ['bodies-broad']);
+    expect(jobsFor('gear', realKit).find((j) => j.id === 'gear-shield_riot')?.needs).toEqual(['bodies-broad']);
+    expect(jobsFor('gear', realKit).find((j) => j.id === 'gear-shield_riot')?.inputs).toContain('bodies-broad');
     expect(jobsFor('bodies', kit).every((j) => j.needs.join() === 'prep')).toBe(true);
   });
 
@@ -146,6 +149,16 @@ describe('guard bake plan: job split', () => {
     const fb = hashesFor([b!]);
     expect(inputHash(b!, fb, { prep: 'p1' })).not.toBe(inputHash(b!, fb, { prep: 'p2' }));
     expect(b?.files).toContain('scripts/operators/py/guard_body.py');
+    // the prep hash takes only what the joints read per base (id, refHeight, build): mounts, kinds, face tiles do not
+    const rk = JSON.parse(JSON.stringify(realKit)) as { bases: Record<string, unknown>[] };
+    const [rp] = jobsFor('prep', rk);
+    expect(rp?.kit).toEqual({ bases: rk.bases.map((x) => ({ id: x.id, refHeight: x.refHeight, build: x.build })) });
+    const fr = hashesFor([rp!]);
+    rk.bases[0]!.mounts = { pistolHolster: [0.1, 0, 0] };
+    rk.bases[0]!.faceTiles = ['x'];
+    expect(inputHash(jobsFor('prep', rk)[0]!, fr)).toBe(inputHash(rp!, fr));
+    rk.bases[0]!.refHeight = 1.8;
+    expect(inputHash(jobsFor('prep', rk)[0]!, fr)).not.toBe(inputHash(rp!, fr));
   });
 
   it('marks only the Cycles stages gpuBound: heads, lods, sheet', () => {

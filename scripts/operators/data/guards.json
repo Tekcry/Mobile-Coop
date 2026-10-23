@@ -5,7 +5,7 @@
   "atlas": { "lod0": [4096, 2048], "left": 2048, "faceTile": [1024, 512, 128], "faceTiles": 4 },
   "bones": {
     "rig": ["root", "body", "pelvis", "spine", "chest", "neck", "head", "shL", "elL", "wrL", "shR", "elR", "wrR", "hipL", "knL", "anL", "hipR", "knR", "anR", "toeL", "toeR", "clavL", "clavR"],
-    "fingers": ["fingerL_1", "fingerL_2", "fingerL_3", "fingerL_4", "fingerL_5", "fingerR_1", "fingerR_2", "fingerR_3", "fingerR_4", "fingerR_5"],
+    "fingers": ["fingerL_1_1", "fingerL_2_1", "fingerL_3_1", "fingerL_4_1", "fingerL_5_1", "fingerR_1_1", "fingerR_2_1", "fingerR_3_1", "fingerR_4_1", "fingerR_5_1"],
     "fingerParent": { "fingerL": "wrL", "fingerR": "wrR" },
     "influences": [4, 4, 2]
   },
