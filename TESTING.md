@@ -151,6 +151,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   heard him search round it for about 3 minutes, spreading out to ~15 m, before going back on edge.
 - [ ] Urgency (guard-ai S19): break a laser or let a camera alarm: the guards sent jog there; let a finder's "man down"
   report get through: a calm guard nearby jogs over to help search; throw a bottle: the one sent still walks over.
+- [ ] Guards and doors (guard-ai S20): watch two patrols cross in a corridor and a guard pass a talking pair: they step
+  round, never through each other; close a door on a patrol route: the guard opens it and waits for the swing, never
+  walks through the leaf; a locked door is never crossed (he stops at it).
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
 - [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
   glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen

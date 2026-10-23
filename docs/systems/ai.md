@@ -338,6 +338,13 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   spot; a noise, lure, light or breaker keeps the calm pace. A dead body's radio call that gets through
   (`EnemyManager.bodyHelp`) opens a `bodyDead` board incident: `URGENT.bodyHelpers` calm guards in `callR` hurry over and
   search it with the finder (`Enemy.helpSearch`, `MODE_HELP`).
+- Spacing and doors (guard-ai S20, walk 4.72 G4, A114-A118; `ai/separation.ts`, `ai/doorGate.ts`, both pure):
+  `Enemy.move` steers off near guards (the old soft push plus a sidestep round a guard ahead, `steerFrom`) and cuts its
+  step at `SEPARATION.min` 0.65 m from every solid guard on his storey (`stepApart`; `tryMove` refuses the slides too);
+  held (`taken`) and downed guards are not solid. `tryMove` asks `AiContext.doorStep` (`EnemyManager`: `DoorGate.blocking`):
+  a step into or across a shut leaf is refused; a door not locked is opened `Doors.open(d, 'enemy')` and he waits for
+  `DOOR_GATE.pass`; a locked door stops him at the leaf (he waits). The grid still walks every doorway (no closure per
+  door: A116); Sector Ops' keypad, bolt, lockdown and pair-gate closures are unchanged.
 - Sound: `world/surfaces.ts` (pure) `surfaceAt` scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice. Shots:
   `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise` (combat); `onRay` hits
   are heard within `IMPACT_NOISE`.
@@ -391,6 +398,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   once; `setClosed(id, on)` toggles `walk` through a per-cell count (overlaps stay shut until all open) and bumps
   `version`, which makes `goTo` routes and the manager's flow field replan. Sector Ops shuts each bolted team door's
   doorway this way (`sectorMode.findBolts` / `unbolt` / `rebolt`; host and solo only, the client has no grid).
+  (guard-ai S20) Other doors are not on the grid: the walker's door gate (`ai/doorGate.ts`) stops guards at a shut leaf.
 - Multi-level: the grid is layered - up to 3 standing surfaces per column by default (`sampleLayers`; a surface needs
   `HEADROOM` 1.7 m; a map may raise `navLayers`), cell = `layer * cols + column`; columns join by height (`stepTo`). Links
   (`navLinks`): ladders both ways (`kind 'ladder'`), ledge drops 1-2.2 m one way; A* / Dijkstra take them, paths split at

@@ -56,8 +56,8 @@ import { MODE_HELP } from './incidents';
 import { URGENT } from './gear';
 import { urgentKind } from './response';
 import { ALERT_MISSING, ALERT_SHOTS, AlertCallLog, SectionCounters, unitOf, type SectionCounts } from './sectionAlert';
-// (guard-ai S20) doors on the walker's way; locked doors shut on the nav grid
-import { DOOR_GATE, DoorGate, doorBarred } from './doorGate';
+// (guard-ai S20) doors on the walker's way
+import { DoorGate } from './doorGate';
 
 /** (guard-ai S10) A talking pair: its meeting clock, and the two slot indices (`guardAtSlot`; A the lower). */
 export interface TalkPair {
@@ -378,10 +378,8 @@ export class EnemyManager {
   /** The match's wall switches as the guards use them (`StealthSystems` sets it; null: no switches, a cut stays the S2
    *  light incident). */
   breakers: BreakerHost | null = null;
-  /** (guard-ai S20) The doors as the walker sees them (built on the first update with doors) and each door's nav
-   *  closure id (shut while it is locked and closed: `doorBarred`). */
+  /** (guard-ai S20) The doors as the walker sees them (built on the first update with doors). */
   private doorGate: DoorGate | null = null;
-  private doorNav: Int32Array | null = null;
   /** (guard-ai S20) Doors a guard opened at the leaf (`doorStep`; tests). */
   doorOpens = 0;
   /** The tables (tests / e2e read the numbers from here). */
@@ -2530,32 +2528,10 @@ export class EnemyManager {
     this.flowVer = this.nav.version;
   }
 
-  /** (guard-ai S20) Build the door gate and the doors' nav closures once (allocates: the first update only), then shut
-   *  each closure while its door is locked and closed, open it otherwise (a change bumps the grid's version: routes
-   *  replan, the flow field is rebuilt). Allocation-free after the first call. */
-  private syncDoors(): void {
-    const list = this.world.doors.list;
-    if (!list.length) return;
-    if (!this.doorGate) {
-      this.doorGate = new DoorGate(list);
-      const ids = new Int32Array(list.length);
-      for (let k = 0; k < list.length; k++) {
-        const d = list[k]!;
-        const a = d.anchor;
-        ids[k] = this.nav.addClosure(d.cx, d.cz, DOOR_GATE.navAcross, (a.width + DOOR_GATE.navAlong) / 2, a.yaw, a.hinge.y);
-      }
-      this.doorNav = ids;
-    }
-    const ids = this.doorNav!;
-    for (let k = 0; k < list.length; k++) {
-      const want = doorBarred(list[k]!);
-      if (this.nav.isClosed(ids[k]!) !== want) this.nav.setClosed(ids[k]!, want);
-    }
-  }
-
   update(dt: number): void {
     this.sightT += dt;
-    this.syncDoors();
+    // (guard-ai S20) the door gate, built once (the door list is fixed for the map)
+    if (!this.doorGate && this.world.doors.list.length) this.doorGate = new DoorGate(this.world.doors.list);
     this.helmetDrops.update(dt);
     // nobody hunting any more: the last known position is forgotten
     if (this.lkpValid && this.sightT > 2 && !this.hunting) this.lkpValid = false;

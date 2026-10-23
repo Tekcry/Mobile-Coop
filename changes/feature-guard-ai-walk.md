@@ -12,3 +12,8 @@
   a camera or a radio report named, to a guard who is not answering and to gunfire, then search at their usual pace once
   there. When a finder's "man down" report gets through, the nearest calm guard in range comes running to help search
   the body. Noises, thrown items, lights going out and breaker faults are still checked at a calm walk.
+- Guards and doors (G4): guards no longer walk through each other. Two guards whose paths cross step round each other and
+  never come closer than about two thirds of a metre, at a walk, a jog or a run; a guard held in a takedown or lying
+  on the floor is not in anyone's way. Guards no longer walk through doors: a guard opens a closed door the way he
+  always pushed it, waits for it to swing, then goes through; a locked door stays shut and a guard who reaches it stops
+  there instead of walking through it. Host only.

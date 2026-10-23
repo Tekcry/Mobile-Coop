@@ -392,3 +392,28 @@ reported, they need a sense of urgency when it makes logical sense." A100-A119 a
 - **A113** (S19) Tests that change by design: e2e-stealth-ai 'bodies' and 'witness' now expect the calm guard out of voice
   range to be searching (sent to help, `bodyHelps` 1) once the report gets through, not standing on edge; the unit
   fakes in `awarenessWiring` / `sectionAlert` gain `helpSearch`. Undo: with A111.
+- **A114** (S20) G4 "guards seem to walk through eachother": the walker keeps the old soft push (3 x (1.1 - d) m/s inside
+  1.05 m), adds a sidestep round a guard ahead on his line (within 2.2 m and 0.9 m of his line, x0.9 of his speed at
+  contact; dead ahead each steps to his own left, so a head-on pair parts), and cuts every step at 0.65 m between centres
+  from each solid guard on his storey (1.5 m): he slides round the circle; one already nearer may only move apart; a
+  step that cannot be cut clear is not taken (`SEPARATION`, `ai/separation.ts`). Not solid: dead or knocked out, held in a
+  takedown. A talking pair (S10) and a post (S5) keep their spots (their meet points / posts are further apart than
+  0.65 m; a passer goes round them). Players keep the old soft push. Undo: `SEPARATION.min = 0` and `side = 0` (the old
+  steering alone).
+- **A115** (S20) G4 "... and sometimes doors": a guard's step into or across a shut door's leaf (its collider box grown by
+  the nav agent radius 0.32 m) is refused (`DoorGate.blocking`, every step in `Enemy.tryMove`). A shut door that is not
+  locked is opened as the guard push always did (`Doors.open(d, 'enemy')`: its sound and noise, the guard-opened close
+  behind him, the co-op door sync), and he waits until its swing reaches `DOOR_GATE.pass` 0.5 (0.2 s of the 0.4 s
+  push); the 1 m push (`Doors.pushOpen`) still runs first, so on a walk he rarely waits. Chosen over rerouting: the door
+  API keeps the door state and sound right for both players with no protocol change. Undo: drop `doorStep` from the
+  `EnemyManager` context.
+- **A116** (S20) A locked door is never crossed: the guard stops at its leaf and waits there (it opens when the door
+  unlocks). No nav closure per locked door: the e2e nav checks (`e2e-sectorops` 'nav (M8 routes, sealed sections)',
+  `e2e-course` Fallow paths) expect the guards' grid to walk through locked section doors, and guards do not route
+  across them; Sector Ops' keypad, bolt, lockdown and pair-gate doors already shut their doorways on the grid (routes go
+  round). No map data lets guards through a locked door (none exists). A door locked while open (a course gate) stays
+  open to them. Undo: drop `doorStep` (A115); a per-door closure (`NavGrid.addClosure`, shut while locked and closed) is
+  the follow-up if guards are seen waiting at locked doors.
+- **A117** (S20) Left as is: `Doors.pushOpen` ignores height (a guard under a door's floor within 1 m of its centre opens
+  it) and still runs for a held guard; dogs use the same gate and spacing. Undo: not needed; open items.
+

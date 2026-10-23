@@ -7,14 +7,13 @@
  * open (`Doors.pushOpen`), but `Doors.open` refuses a locked door, so a guard routed through a locked door walked
  * through its leaf; nothing in the walker knew a door was there.
  *
- * Now (A114, A115):
+ * Now (A115, A116):
  * - the walker (`Enemy.tryMove`) asks `DoorGate.blocking` before every step: a step into a closed door's leaf (its
  *   collider box grown by his radius `r`) or across it is not taken. A closed door that is not locked is opened the
  *   player's way (`Doors.open(d, 'enemy')`, the same door API: its sound, the guard-opened close behind him and the
  *   co-op door sync stay as they were), and he waits at the leaf until its swing reaches `pass`; a locked door stays
- *   shut and he does not cross it;
- * - the nav grid gets one closure per door (`EnemyManager`), shut while the door is locked and closed, so routes go
- *   round a locked door (or wait: no route) and open again when it unlocks or is opened.
+ *   shut and he waits at it, never across (A116: the grid keeps every doorway walkable, as before; the Sector Ops
+ *   keypad, bolt, lockdown and pair-gate doors already shut theirs on it, so routes there go round).
  * A door counts as closed while it is shut or shutting (`target` 0) or still swinging open below `pass`. A guard already
  * inside a leaf (a door shut on him) may step out, never deeper. Allocation-free after the constructor: typed arrays.
  */
@@ -27,10 +26,6 @@ export const DOOR_GATE = {
   pass: 0.5,
   /** Only doors whose floor is within this of his feet (m). */
   dy: 1.2,
-  /** The nav closure of a locked door: half depth across (m) and the width plus this along (m); the sector modes'
-   *  locked-door size (`STAGE_NAV_ACROSS` / `STAGE_NAV_ALONG`, a test keeps them equal). */
-  navAcross: 0.35,
-  navAlong: 0.5,
 } as const;
 
 /** A door as the gate reads it (`DoorState`): its doorway centre, swing state and anchor. */
@@ -47,11 +42,6 @@ export interface GateDoor {
 /** The door is shut to a walker: shut or shutting, or opening but not yet `pass` open. */
 export function doorShut(d: GateDoor): boolean {
   return d.target === 0 || d.open < DOOR_GATE.pass;
-}
-
-/** The door's nav closure is wanted: locked and shut (`target` 0). */
-export function doorBarred(d: GateDoor): boolean {
-  return d.anchor.locked && d.target === 0;
 }
 
 export class DoorGate {

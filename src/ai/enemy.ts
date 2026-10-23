@@ -303,9 +303,6 @@ export class Enemy implements Damageable {
   private routeT = 0;
   /** The nav grid's `version` the route was planned under (a bolted door opened or shut since: replan). */
   private routeVer = -1;
-  /** (guard-ai S20) The last plan found no route (a locked door shut the way): the same goal is not tried again until
-   *  `routeT` runs out or the grid changes (no A* every step while he waits; a new goal plans at once). */
-  private routeFail = false;
   /** Searching round its own stimulus (a body, a light) rather than the shared last known position. */
   private searchOwn = false;
   /** (guard-ai S18) The search's kind (`response.ts` `SEARCH_*`): plain, a dead body's (longer, wider), a device's. */
@@ -2048,16 +2045,13 @@ export class Enemy implements Damageable {
     }
     this.routeT -= dt;
     const moved = !(hyp2(p[0] - this.routeGoal[0], p[1] - this.routeGoal[1]) < 1.5);
-    // (guard-ai S20) the same goal found unreachable under this grid less than routeT ago: no new A* yet
-    if (this.routeFail && this.routeT > 0 && this.routeVer === nav.version && hyp2(p[0] - this.routeGoal[0], p[1] - this.routeGoal[1]) < 0.1) return null;
     if ((moved && this.routeT <= 0) || this.routePath.length === 0 || this.routeVer !== nav.version) {
       this.routeT = 1;
       this.routeVer = nav.version;
       this.routeGoal[0] = p[0];
       this.routeGoal[1] = p[1];
       this.routePath = nav.findPath(me, p, 3000, this.pos.y, y) ?? [];
-      this.routeFail = this.routePath.length === 0;
-      if (this.routeFail) return null;
+      if (this.routePath.length === 0) return null;
     }
     const wp = this.routePath[0]!;
     // a ladder / drop waypoint is taken (and dropped) by `move`

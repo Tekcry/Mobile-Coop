@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DOOR_GATE, DoorGate, doorBarred, doorShut } from '../src/ai/doorGate';
+import { DOOR_GATE, DoorGate, doorShut } from '../src/ai/doorGate';
 import { NavGrid, type NavBlocker } from '../src/ai/navGrid';
-import { STAGE_NAV_ACROSS, STAGE_NAV_ALONG } from '../src/game/sectorStage';
 import { DOOR } from '../src/world/doors';
 import { Vector3, type Scene } from '../src/core/babylon';
 import type { Enemy } from '../src/ai/enemy';
@@ -13,7 +12,7 @@ import { DIFFICULTY } from '../src/ai/archetypes';
 
 // (guard-ai S20, Michael's walk of 4.72 G4: "guards seem to walk through eachother and sometimes doors.") A guard routed
 // through a closed door opens it the player's way and waits for the swing, never inside its leaf while it is shut; a
-// locked door is never crossed (the walker stops at it; the nav grid routes round it).
+// locked door is never crossed (he waits at it).
 
 /** A door as `DoorState` holds it, and the bit of `Doors` the manager calls (open: the enemy push's swing). */
 type FakeDoor = { cx: number; cz: number; open: number; target: number; anchor: { yaw: number; width: number; locked: boolean; hinge: { x: number; y: number; z: number } } };
@@ -37,14 +36,12 @@ function fakeDoors(list: FakeDoor[]) {
 const door = (locked = false, y = 0): FakeDoor => ({ cx: 0, cz: 0, open: 0, target: 0, anchor: { yaw: 0, width: 1.2, locked, hinge: { x: 0, y, z: -0.6 } } });
 
 describe('doorGate.ts (pure)', () => {
-  it('its sizes are the door collider, the nav agent and the sector modes\' locked-door closure', () => {
+  it('its sizes are the door collider and the nav agent', () => {
     expect(DOOR_GATE.half).toBe(DOOR.thickness);
-    expect(DOOR_GATE.navAcross).toBe(STAGE_NAV_ACROSS);
-    expect(DOOR_GATE.navAlong).toBe(STAGE_NAV_ALONG);
     expect(DOOR_GATE.r).toBe(0.32);
   });
 
-  it('shut: closed, closing, or opening under `pass`; barred: locked and shut', () => {
+  it('shut: closed, closing, or opening under `pass`', () => {
     const d = door();
     expect(doorShut(d)).toBe(true);
     d.target = 1;
@@ -52,13 +49,9 @@ describe('doorGate.ts (pure)', () => {
     expect(doorShut(d)).toBe(true);
     d.open = DOOR_GATE.pass;
     expect(doorShut(d)).toBe(false);
-    expect(doorBarred(d)).toBe(false);
-    const l = door(true);
-    expect(doorBarred(l)).toBe(true);
-    // a door locked while open (a course gate) is not barred: it is open
-    l.target = 1;
-    l.open = 1;
-    expect(doorBarred(l)).toBe(false);
+    // the player shuts it again: shut at once
+    d.target = 0;
+    expect(doorShut(d)).toBe(true);
   });
 
   it('a step into or across a shut leaf is blocked; along it, away from it and through an open door are not', () => {
@@ -108,9 +101,9 @@ describe('doorGate.ts (pure)', () => {
   });
 });
 
-// ----- the manager's gate and closures with the real Enemy walker on a real nav grid -----
+// ----- the manager's gate with the real Enemy walker on a real nav grid (every doorway walkable, as built) -----
 
-/** A wall along x = 0 (z -10..10) with the 1.2 m doorway at z 0 and an open 1.2 m gap at z 8 (the way round). */
+/** A wall along x = 0 (z -10..10) with the 1.2 m doorway at z 0 and an open 1.2 m gap at z 8. */
 function walled(): NavGrid {
   const wall = (cz: number, hz: number): NavBlocker => ({ cx: 0, cz, hx: 0.1, hz, yaw: 0, bottom: 0, top: 3 });
   return new NavGrid({
@@ -134,7 +127,8 @@ async function setup(locked: boolean) {
   const world = { level: { lights: { lights: [] }, cover: [], coverSegments: [] }, layout: { rooms: [] }, doors };
   const em = new EnemyManager({} as Scene, world as unknown as World, nav, {} as DamageRegistry, { clear: () => true } as unknown as Ballistics, {} as Vfx, DIFFICULTY.normal, () => []);
   const mctx = (em as unknown as { ctx: { doorStep(e: Enemy, x0: number, z0: number, x1: number, z1: number, y: number): boolean } }).ctx;
-  (em as unknown as { syncDoors(): void }).syncDoors();
+  // the gate the manager builds on its first update with doors
+  (em as unknown as { doorGate: DoorGate }).doorGate = new DoorGate(doors.list);
   const list: Walker[] = [];
   const ctx = { nav, enemies: () => list, players: () => [], doorStep: mctx.doorStep };
   const e = Object.assign(Object.create(EnemyClass.prototype) as Enemy, {
@@ -155,7 +149,7 @@ async function setup(locked: boolean) {
   }) as unknown as Walker;
   Object.defineProperty(e, 'aimedMotion', { value: false });
   list.push(e);
-  return { em, nav, d, doors, e, sync: () => (em as unknown as { syncDoors(): void }).syncDoors() };
+  return { em, nav, d, doors, e };
 }
 
 describe('a guard at a door (Enemy.move through EnemyManager.doorStep)', () => {
@@ -177,33 +171,30 @@ describe('a guard at a door (Enemy.move through EnemyManager.doorStep)', () => {
     });
   }
 
-  it('a locked door: he never crosses it; its nav closure is shut so the route goes round by the open gap; unlocked: through again', async () => {
-    const { nav, d, doors, e, sync } = await setup(true);
-    for (let i = 0; i < 60 * 8; i++) {
-      e.move(1 / 60, [3, 0], 3.2, null);
-      doors.step(1 / 60);
-      expect(e.pos.x).toBeLessThan(0);
-    }
-    expect(doors.opened).toEqual([]);
-    expect(d.target).toBe(0);
-    // the way through the doorway is shut on the grid; the route goes by the gap at z 8
-    expect(nav.lineClear([-3, 0], [3, 0])).toBe(false);
-    const path = nav.findPath([-3, 0], [3, 0]);
-    expect(path).not.toBeNull();
-    let crossZ = Number.NaN;
-    for (let k = 1; k < path!.length; k++) if (Math.sign(path![k - 1]![0]) !== Math.sign(path![k]![0]) || Math.abs(path![k]![0]) < 0.3) crossZ = path![k]![1];
-    expect(crossZ).toBeGreaterThan(7);
-    // unlocked (still closed): the closure opens, the doorway is a route again (he opens the door on the way)
-    const v = nav.version;
-    d.anchor.locked = false;
-    sync();
-    expect(nav.version).toBe(v + 1);
-    expect(nav.findPath([-3, 0], [3, 0])!.every((p) => Math.abs(p[1]) < 1.5)).toBe(true);
-    // a door locked while open (a course gate) leaves the doorway open
-    d.anchor.locked = true;
-    d.target = 1;
-    d.open = 1;
-    sync();
-    expect(nav.version).toBe(v + 1);
-  });
+  for (const sp of [0.99, 3.2]) {
+    it(`a locked door: he never crosses it nor enters its leaf, he waits at it; unlocked: he opens it and goes through (${sp} m/s)`, async () => {
+      const { em, nav, d, doors, e } = await setup(true);
+      const depth = DOOR_GATE.half + DOOR_GATE.r;
+      // the doorway is walkable on the grid (as built): only the gate stops him
+      expect(nav.lineClear([-3, 0], [3, 0])).toBe(true);
+      for (let i = 0; i < 60 * 10; i++) {
+        e.move(1 / 60, [3, 0], sp, null);
+        doors.step(1 / 60);
+        expect(e.pos.x).toBeLessThan(-depth + 1e-9);
+      }
+      expect(doors.opened).toEqual([]);
+      expect(em.doorOpens).toBe(0);
+      expect(d.target).toBe(0);
+      // waiting at the leaf, not wandering off
+      expect(e.pos.x).toBeGreaterThan(-depth - 0.3);
+      d.anchor.locked = false;
+      for (let i = 0; i < 60 * 8; i++) {
+        const there = Math.abs(e.pos.x - 3) < 0.6;
+        e.move(1 / 60, there ? null : [3, 0], sp, null);
+        doors.step(1 / 60);
+      }
+      expect(doors.opened).toEqual(['enemy']);
+      expect(e.pos.x).toBeGreaterThan(2.3);
+    });
+  }
 });

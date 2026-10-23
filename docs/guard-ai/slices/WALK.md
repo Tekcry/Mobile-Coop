@@ -1,4 +1,4 @@
-# Walk 4.72 fixes S17-S19 (implementer report, 2026-10-23)
+# Walk 4.72 fixes S17-S20 (implementer report, 2026-10-23)
 
 Spec: `PLAN.md` "Walk 4.72 fixes" rows S17, S18, S19 (Michael's words G1-G3 from his walk of 4.72,
 `docs/orchestrator/WALK-4.72-REPORT.md` "Guard AI Build" on `feature/menu`); `BRIEF.md` A100 onward. Branch
@@ -124,3 +124,55 @@ total for the batch: 28 new (deviceTrip 11, bodySearch 7, urgency 10); the AI se
 
 E2e to run: `e2e-stealth-ai` (its 'bodies' and 'witness' asserts changed, A113), `e2e-sectorops` (all parts),
 `e2e-ctcourse`, `e2e-ct-warehouse`; plus `e2e-tactics` and `e2e-stealth` for the shared pace / search paths.
+
+## S20 (G4) Guards keep apart and never walk through doors
+Michael: "guards seem to walk through eachother and sometimes doors."
+
+Cause, spacing: guards are kinematic on the nav grid (no physics body against each other). `Enemy.move` added one soft
+push (3 x (1.1 - d) m/s inside about 1.05 m) to the wanted velocity, which the motion driver then smoothed; nothing held
+the step. Measured on the real `Enemy.move` before the fix (two guards head on / at right angles): nearest 0.37 m at the
+patrol walk, 0.03-0.07 m at the S19 jog, 0.03-0.05 m at a run. Cause, doors: the nav grid is built before the doors are
+armed, so every doorway is walkable; a guard within 1 m of a shut door pushes it open (`Doors.pushOpen`), but
+`Doors.open` refuses a locked door, so a guard routed at a locked door walked through its leaf, and nothing in the walker
+knew a door was there (a door the player shut in his face mid-stride, too).
+
+Built (host only: clients get guard positions and door states from the snapshots; no protocol or save change):
+- `src/ai/separation.ts` (new, pure): `SEPARATION` (`:21`: reach 1.05, gain 3, ahead 2.2, lane 0.9, side 0.9, min 0.65,
+  dy 1.5), `steerOff` / `steerFrom` (`:56`, `:83`: the old push plus the sidestep round a guard ahead), `keepApart`
+  (`:98`), `tooClose` (`:118`), `stepApart` (`:136`: the step cut at `min` from every solid guard, two passes, else no
+  step). Allocation-free.
+- `src/ai/doorGate.ts` (new, pure): `DOOR_GATE` (`:20`: r 0.32, half 0.05, pass 0.5, dy 1.2), `doorShut` (`:43`),
+  `DoorGate.blocking` (`:75`: a step into, deeper into or across a shut leaf on his floor; typed arrays built once).
+- `src/ai/enemy.ts`: `AiContext.doorStep?` (`:169`); `solid` (`:427`: alive, not taken); `move` steers with `steerFrom`
+  (`:2884`) and cuts the step with `stepApart` (`:2914`, the velocity follows the cut); `tryMove` refuses a door-gated
+  step and a step into a guard, the axis slides too (`:3011`).
+- `src/ai/enemyManager.ts`: `doorGate` built on the first update with doors (`:2534`); `doorStep` in the context
+  (`:531`): the gate; a shut, unlocked door is opened `Doors.open(d, 'enemy')` (`doorOpens`, `:384`) and the step waits.
+
+Tests: `tests/guardSpacing.test.ts` (14): the spacing is 0.6-0.7 m; `keepApart` cuts at the circle, one already nearer
+only moves apart; a head-on pair sidesteps to opposite sides; held, downed and upstairs guards push nobody; a step boxed
+in by two guards ends clear of both; a pure walker pair head on, at right angles and overtaking at 1, 2.4 and 3.2 m/s
+never nearer than 0.65 m and both arrive; on the real `Enemy.move` (motion driver, steering, cut step): head on and at
+right angles at the patrol walk, the jog and a run, never nearer than `SEPARATION.min`, both get there (fails on the old
+code: 0.03-0.37 m); a walker passes a standing pair keeping the spacing; a held and a downed guard and one upstairs do
+not stop him. `tests/guardDoors.test.ts` (8): the gate's sizes match `DOOR.thickness` and the nav agent; shut while
+closed, closing or opening under `pass`; a step at, into, deeper into or across a shut leaf is blocked, along / away /
+through an open door / another floor is not; 20000 seeded random steps at a locked door never end in the leaf or cross
+it; on the real `Enemy.move` through the manager's `doorStep` on a real nav grid: a shut door on his way is opened once
+the enemy way and he is never inside its leaf while it is shut, then gets there (walk and run); a locked door: never in
+its leaf or across it in 10 s, he waits at it, then once unlocked opens it and goes through (walk and run). The four
+real-walker door tests fail on the old code. Also green: deviceTrip, bodySearch, urgency, breaker, posts, postsWiring,
+pairs, pairsWiring, takedown, carry, hostageGait, nav, navClosure, doors, doorOpen, enemyManagerDespawn,
+awarenessWiring, sectionAlert, camBodyWiring, incidents, sweep, alarmCall, gearWiring, hearing, perception,
+radioWiring, responseWiring, s6CloseOn, sectorRestart, securityBodies, securityCamera, squadWiring, coopTorches,
+ctcourseLight, difficulty, enemyLightsOut, cameraReach, sectorGuardTags, laserAlarm, jammer, sectorBoltPair,
+sectorPairGate, campusRuntimeNav, benchmark, bunkerMap, campusS1-S3, sectorStageActions.
+
+Assumptions: A114 (spacing numbers, who is solid), A115 (open the player's way and wait for the swing), A116 (a locked
+door stops him; no per-door nav closure, and why), A117 (left as is).
+
+E2e to run: `e2e-stealth-ai` (patrols, pairs, bodies, the door bash), `e2e-sectorops` (all parts: patrol legs, bolted
+and keypad doors, posts, pair gates), `e2e-ctcourse` and `e2e-course` (course doors, airlocks, guards on the stations),
+`e2e-ct-warehouse`, `e2e-stealth`, `e2e-tactics` (combat movement in groups), `e2e-takedown` (a held guard among
+others), `e2e-coop` (host guards and the door sync). No e2e assert added (a crossing pair or a guard at a locked door
+needs a staged scene; the unit tests run the real walker).
