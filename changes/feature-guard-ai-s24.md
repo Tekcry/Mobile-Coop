@@ -10,3 +10,4 @@ kind: minor
 - Solo and co-op: an alerted guard who has no last known position for his player goes to where he last saw someone
   (or what drew him), never to the player's real position. Otherwise solo is unchanged. Host only: no protocol or save
   change.
+- Guards called in by a squadmate who had not seen anyone (shot from the dark) close on the player once any of them sees him: that first sighting is radioed again, naming him.
