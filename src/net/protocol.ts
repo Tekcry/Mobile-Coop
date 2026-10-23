@@ -16,8 +16,8 @@ import type { SecWire } from '../game/ctDevices';
 import type { SectorNetExtra } from '../game/sectors';
 import { LAMP_BITS, LAMP_CHARS, LAMP_MAX, type LampWire } from './lampSync';
 
-/** 41: guard-ai S9 + A126 on train 30 (A142; was 39 on train 29, never released): the `bark` event (a guard's line by event, line and unit index), `AL_CAUTION` 16 / `AL_HELMET` 32 / `AL_ARMOUR` 64 in the enemy `al`, the `hitConfirm` kind `deflect`, and (A126/A136) the S21 weapon carry `AL_CARRY` (bits 7-8, 128-384); 40 (pose-parity + coop-walk-fixes, one bump for the stack at train 30); was 37: the partner's rounds (coop-walk-fixes P7): `PlayerState.sc`, the player's rounds fired mod 256, so a remote plays each round once with its weapon's own (suppressed when `PF.quiet`) sound; the `PF.firing` 0.2 s window replayed one shot twice; also (P6) the team takedown on a partner's hostage is a `td` with kind `assist` (the field existed); 36: partner pose parity (pose-parity): `PF.aimLeft` 64 (the left-shoulder aim, every mode; the ground MoveState `sub` bit 128 is no longer written) and the MoveState `takedown` `sub` bit 1 (`TAKEDOWN_SUB_BLOW`: the blow is running; a choke / the lethal approach poses no arc); 39: guard-ai S9's number on train 29 (A141, never released); 38: the host's lamp falloff (sector-redesign lightrev LR13): `start.lf` ('linear' | 'photometric'), which the client's match runs whatever its own setting (a 37 peer would ignore it and bake the other falloff: light parity); 35: the weapons crate (sector-redesign E9-crate): `NetItem` kind `crate` and the `crate` event (host -> all; `fill` false = rejoin re-send); 32-34 taken by open branches (guard-ai 32, marlow-final 33, section-rating 34); 31: Sector Ops light state (sector-redesign slice L): the `lamps` message (host -> all: switched-off and shot-out bitsets, `lampSync.ts`) and a client's lamp shot as a `shot` whose target is `lt-<light id>`; 30: taken by marlow-final (Menu Notes); 29: the lasers' jam point is their power panel (sector-fixes P): the `jam` claim and `sec.dv` name panel ids (`panel-*`), never laser ids (a 28 peer would jam a laser the other side does not know); 28: the `jam` claim carries the client's camera eye `e` (jammer-fixes: the host checks the jam's line of sight from it); 27: rejoin (marlow-bays R): `hello.tok`, `PlayerInfo.away`, the `you` message, the `restore` event; 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
-export const PROTOCOL_VERSION = 41;
+/** 43: guard-ai S22 game side over marlow-final (the orchestrator renumbers at the train): both wire changes kept, guard-ai's 41 and marlow-final's 42. Guard-ai's history: 41: guard-ai S9 + A126 on train 30 (A142; was 39 on train 29, never released): the `bark` event (a guard's line by event, line and unit index), `AL_CAUTION` 16 / `AL_HELMET` 32 / `AL_ARMOUR` 64 in the enemy `al`, the `hitConfirm` kind `deflect`, and (A126/A136) the S21 weapon carry `AL_CARRY` (bits 7-8, 128-384); 40 (pose-parity + coop-walk-fixes, one bump for the stack at train 30); was 37: the partner's rounds (coop-walk-fixes P7): `PlayerState.sc`, the player's rounds fired mod 256, so a remote plays each round once with its weapon's own (suppressed when `PF.quiet`) sound; the `PF.firing` 0.2 s window replayed one shot twice; also (P6) the team takedown on a partner's hostage is a `td` with kind `assist` (the field existed); 36: partner pose parity (pose-parity): `PF.aimLeft` 64 (the left-shoulder aim, every mode; the ground MoveState `sub` bit 128 is no longer written) and the MoveState `takedown` `sub` bit 1 (`TAKEDOWN_SUB_BLOW`: the blow is running; a choke / the lethal approach poses no arc); 39: guard-ai S9's number on train 29 (A141, never released); 38: the host's lamp falloff (sector-redesign lightrev LR13): `start.lf` ('linear' | 'photometric'), which the client's match runs whatever its own setting (a 37 peer would ignore it and bake the other falloff: light parity); 35: the weapons crate (sector-redesign E9-crate): `NetItem` kind `crate` and the `crate` event (host -> all; `fill` false = rejoin re-send); 32-34 taken by open branches (guard-ai 32, marlow-final 33, section-rating 34); 31: Sector Ops light state (sector-redesign slice L): the `lamps` message (host -> all: switched-off and shot-out bitsets, `lampSync.ts`) and a client's lamp shot as a `shot` whose target is `lt-<light id>`; 30: taken by marlow-final (Menu Notes); 29: the lasers' jam point is their power panel (sector-fixes P): the `jam` claim and `sec.dv` name panel ids (`panel-*`), never laser ids (a 28 peer would jam a laser the other side does not know); 28: the `jam` claim carries the client's camera eye `e` (jammer-fixes: the host checks the jam's line of sight from it); 27: rejoin (marlow-bays R): `hello.tok`, `PlayerInfo.away`, the `you` message, the `restore` event; 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). Marlow-final's history: 42: marlow-final (its 30 / 33 / 36 wire: scanner pairs, hold pulses) over train 30's 40; 41 reserved for guard-ai S9. Train 30's history: 40 (pose-parity + coop-walk-fixes, one bump for the stack at train 30); was 37: the partner's rounds (coop-walk-fixes P7): `PlayerState.sc`, the player's rounds fired mod 256, so a remote plays each round once with its weapon's own (suppressed when `PF.quiet`) sound; the `PF.firing` 0.2 s window replayed one shot twice; also (P6) the team takedown on a partner's hostage is a `td` with kind `assist` (the field existed); 36: partner pose parity (pose-parity): `PF.aimLeft` 64 (the left-shoulder aim, every mode; the ground MoveState `sub` bit 128 is no longer written) and the MoveState `takedown` `sub` bit 1 (`TAKEDOWN_SUB_BLOW`: the blow is running; a choke / the lethal approach poses no arc); 39: guard-ai S9; 38: the host's lamp falloff (sector-redesign lightrev LR13): `start.lf` ('linear' | 'photometric'), which the client's match runs whatever its own setting (a 37 peer would ignore it and bake the other falloff: light parity); 35: the weapons crate (sector-redesign E9-crate): `NetItem` kind `crate` and the `crate` event (host -> all; `fill` false = rejoin re-send); 32-34 taken by open branches (guard-ai 32, marlow-final 33, section-rating 34); 31: Sector Ops light state (sector-redesign slice L): the `lamps` message (host -> all: switched-off and shot-out bitsets, `lampSync.ts`) and a client's lamp shot as a `shot` whose target is `lt-<light id>`; 30: taken by marlow-final (Menu Notes); 29: the lasers' jam point is their power panel (sector-fixes P): the `jam` claim and `sec.dv` name panel ids (`panel-*`), never laser ids (a 28 peer would jam a laser the other side does not know); 28: the `jam` claim carries the client's camera eye `e` (jammer-fixes: the host checks the jam's line of sight from it); 27: rejoin (marlow-bays R): `hello.tok`, `PlayerInfo.away`, the `you` message, the `restore` event; 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). Marlow-final's history: 36: the merge of marlow-final (33: its 30 changes) and master's 35 (weapons crate): both wire changes kept. Master's history: 35: the weapons crate (sector-redesign E9-crate): `NetItem` kind `crate` and the `crate` event (host -> all: a player used a crate; `fill` false = rejoin re-send); 32-34: taken by guard-ai, marlow-final, hang-down. Marlow-final's history: 33: merge of marlow-final (30) and the Sector Ops lamps (31): both wire changes; 30: `sec.sc` is one entry per scanner pair (marlow-final N6: a map with several pairs; a 29 peer sent one flat entry), and a client's noisy hold pulses to the host (marlow-final Q12: `use.pulse`, the item's radius `NetItem.hn`; a 29 host would take a pulse as the finished use). Shared: 31: Sector Ops light state (sector-redesign slice L): the `lamps` message (host -> all: switched-off and shot-out bitsets, `lampSync.ts`) and a client's lamp shot as a `shot` whose target is `lt-<light id>`; 29: the lasers' jam point is their power panel (sector-fixes P): the `jam` claim and `sec.dv` name panel ids (`panel-*`), never laser ids (a 28 peer would jam a laser the other side does not know); 28: the `jam` claim carries the client's camera eye `e` (jammer-fixes: the host checks the jam's line of sight from it); 27: rejoin (marlow-bays R): `hello.tok`, `PlayerInfo.away`, the `you` message, the `restore` event; 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
+export const PROTOCOL_VERSION = 43;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -159,6 +159,8 @@ export interface NetItem {
   hold: number;
   reach: number;
   on: boolean;
+  /** (30, marlow-final Q12) The hold's noise radius (m) when it is a noisy hold; absent: silent. */
+  hn?: number;
 }
 export const ITEM_KINDS: readonly NetItem['k'][] = ['terminal', 'cache', 'switch', 'alarm', 'door', 'intel', 'charge', 'revive', 'medkitWall', 'crate'];
 
@@ -218,8 +220,10 @@ export type Msg =
   | { t: 'shot'; w: WeaponId; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; target: string; part: 'head' | 'body'; rt: number; dist: number; dmg: number }
   /** `pk` is a bitmask of available pickups (bit i = pickup i). `info` is plain text, segments split by '|'. */
   | { t: 'snap'; time: number; players: PlayerState[]; enemies: EnemyState[]; obj: string; info: string; pk: number; items?: NetItem[]; doors?: number[]; dcr?: number[]; bodies?: string[] }
-  /** Client used a mirrored item (the host checks reach and that it is usable). */
-  | { t: 'use'; id: string }
+  /** Client used a mirrored item (the host checks reach and that it is usable). (30, marlow-final Q12) `pulse`: not the
+   *  use but one noise pulse of a noisy hold under way (its first moment, then every `HOLD_NOISE_PULSE` s); the host
+   *  checks it the same way and its guards hear the item as for the host's own hold (`holdPulse.ts`). */
+  | { t: 'use'; id: string; pulse?: true }
   /** (locomotion step 13) Client door peek: crack door `i` (or close its crack); the host checks reach, closed, unlocked. */
   | { t: 'door'; i: number; crack: boolean }
   /** Client takedown on a host enemy: seize it, finish it (lethal / not), or let go. */
@@ -345,7 +349,11 @@ function netItem(v: unknown): NetItem | null {
   const y = num(v.y, -50, 100);
   const z = num(v.z, -WORLD, WORLD);
   if (!iid || !k || x === null || y === null || z === null) return null;
-  return { id: iid, k, x, y, z, yaw: num(v.yaw, -10, 10) ?? 0, label: safeText(v.label, 24) || 'Use', hold: num(v.hold, 0, 10) ?? 0, reach: num(v.reach, 0.5, 4) ?? 1.8, on: v.on === true };
+  const item: NetItem = { id: iid, k, x, y, z, yaw: num(v.yaw, -10, 10) ?? 0, label: safeText(v.label, 24) || 'Use', hold: num(v.hold, 0, 10) ?? 0, reach: num(v.reach, 0.5, 4) ?? 1.8, on: v.on === true };
+  // (30, Q12) a noisy hold's radius; absent, 0 or malformed reads as a silent item
+  const hn = num(v.hn, 0, 30);
+  if (hn) item.hn = hn;
+  return item;
 }
 
 function playerInfo(p: unknown): PlayerInfo | null {
@@ -510,6 +518,14 @@ const mission = (v: unknown): string => (typeof v === 'string' && /^[a-z0-9-]{0,
 /** Cameras a `sec` field carries clocks for (SN60 caps a map at 12) and jammed / recovering devices it lists. */
 const SEC_CAMS = 16;
 const SEC_DEVS = 64;
+/** (30 marlow-final N6) Scanner pairs a `sec` field carries. */
+const SEC_SCANS = 8;
+
+/** (B6; 30 marlow-final N6) One scanner pair's `sec.sc` entry: phases 0-3, occupied bits 0-3, progress in tenths of a s. */
+function scanEntry(e: unknown): number[] {
+  const a: unknown[] = Array.isArray(e) ? e : [];
+  return [0, 1, 2, 3, 4].map((i) => Math.round(num(a[i], 0, i < 3 ? 3 : 100) ?? 0));
+}
 
 /** (CT prototype B3; 26 marlow-jammer) The `sec` field of a course / sector message: the jam list, each jammer's use and
  *  cooldown, the devices' jam timelines and the camera clocks, clamped. */
@@ -518,7 +534,8 @@ function secWire(v: unknown): { sec?: SecWire } {
   const j = Array.isArray(v.j) ? v.j : [];
   const ch = Array.isArray(v.ch) ? v.ch : [];
   const cd = Array.isArray(v.cd) ? v.cd : [];
-  const sc: unknown[] | null = Array.isArray(v.sc) ? v.sc : null;
+  // (30) one entry per scanner pair, in the map's order; an entry that is no array reads as idle (the order is kept)
+  const sc: number[][] | null = Array.isArray(v.sc) ? v.sc.slice(0, SEC_SCANS).map(scanEntry) : null;
   const ck: number[] = [];
   if (Array.isArray(v.ck)) for (const x of v.ck.slice(0, SEC_CAMS)) ck.push(num(x, 0, 1e6) ?? 0);
   const dv: [string, number, number][] = [];
@@ -540,8 +557,7 @@ function secWire(v: unknown): { sec?: SecWire } {
       cd: [num(cd[0], 0, 10) ?? 0, num(cd[1], 0, 10) ?? 0],
       dv,
       al: Math.round(num(v.al, 0, 9) ?? 0),
-      // (B6) the scanner pair: phases 0-3, occupied bits 0-3, progress in tenths of a second
-      ...(sc ? { sc: [0, 1, 2, 3, 4].map((i) => Math.round(num(sc[i], 0, i < 3 ? 3 : 100) ?? 0)) } : {}),
+      ...(sc ? { sc } : {}),
     },
   };
 }
@@ -667,7 +683,8 @@ export function parseMessage(raw: unknown): Msg | null {
     }
     case 'use': {
       const iid = id(raw.id);
-      return iid ? { t: 'use', id: iid } : null;
+      if (!iid) return null;
+      return raw.pulse === true ? { t: 'use', id: iid, pulse: true } : { t: 'use', id: iid };
     }
     case 'door': {
       const i = typeof raw.i === 'number' && Number.isInteger(raw.i) && raw.i >= 0 && raw.i < MAX_DOORS ? raw.i : null;

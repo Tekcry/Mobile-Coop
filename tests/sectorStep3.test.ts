@@ -50,8 +50,8 @@ describe('sector ops step 3', () => {
     expect(starsText([false, false, false, false])).toBe('☆☆☆☆');
   });
 
-  it('protocol 24 (now 41, guard-ai S9 + A126 on train 30; 40 the Player stack at train 30; 39 guard-ai S9 on train 29; 38 the lamp falloff; 37 Player #231; 35 the weapons crate; 31 the Sector lamps; 29 the laser power panels; 28 the jam claim eye; 27 rejoin; 26 the jammer rules): the sector message carries the live section, locked doors, shot cameras and syringes', () => {
-    expect(PROTOCOL_VERSION).toBe(41);
+  it('protocol 24 (now 43, guard-ai S9 41 + marlow-final 42; guard-ai S9 + A126 on train 30; 40 the Player stack at train 30; 39 guard-ai S9 on train 29; 38 the lamp falloff; 37 Player #231; 35 the weapons crate; 31 the Sector lamps; 29 the laser power panels; 28 the jam claim eye; 27 rejoin; 26 the jammer rules): the sector message carries the live section, locked doors, shot cameras and syringes', () => {
+    expect(PROTOCOL_VERSION).toBe(43);
     const sec = { ck: [1.5], j: ['', 'cam-dock'], ch: [3, 5], cd: [2.5, 0], dv: [['cam-dock', 1, 0.5]], al: 1 };
     const msg = { t: 'sector', sec, ls: 1, lk: [3, 7], dn: ['cam-floor'], sy: 2 };
     expect(parseMessage(JSON.parse(JSON.stringify(msg)))).toEqual(msg);

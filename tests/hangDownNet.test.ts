@@ -11,8 +11,8 @@ import { PROTOCOL_VERSION } from '../src/net/protocol';
 const mv = (m: 'boost' | 'brace' | 'ground', sub: number, dw = 2) => ({ ...emptyMoveState(), m, sub, dw });
 
 describe('hang-down net: no wire change', () => {
-  it('the protocol is 41, guard-ai S9 + A126 on train 30 (40 the Player stack at train 30) (hang-down itself has no wire change)', () => {
-    expect(PROTOCOL_VERSION).toBe(41);
+  it('the protocol is 43 (guard-ai S9 41 + marlow-final 42), guard-ai S9 + A126 on train 30 (40 the Player stack at train 30) (hang-down itself has no wire change)', () => {
+    expect(PROTOCOL_VERSION).toBe(43);
   });
 });
 

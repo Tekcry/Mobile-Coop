@@ -35,6 +35,31 @@ const DOOR_NOTICE_EVERY = 0.25;
 const DOOR_BASH_NOISE = 10;
 
 /**
+ * (marlow-final, ENGINE-ANSWERS Q9) Is (x, z) occupied within `r`: the local player at (px, pz), any co-op partner (a
+ * calm guard must never shut a door onto the client's player), or a live enemy? No allocation.
+ */
+export function spotOccupied(
+  x: number,
+  z: number,
+  r: number,
+  px: number,
+  pz: number,
+  remotes: readonly { feet: { x: number; z: number } }[],
+  enemies: readonly { alive: boolean; pos: { x: number; z: number } }[],
+): boolean {
+  if (hyp2(px - x, pz - z) < r) return true;
+  for (let i = 0; i < remotes.length; i++) {
+    const f = remotes[i]!.feet;
+    if (hyp2(f.x - x, f.z - z) < r) return true;
+  }
+  for (let i = 0; i < enemies.length; i++) {
+    const e = enemies[i]!;
+    if (e.alive && hyp2(e.pos.x - x, e.pos.z - z) < r) return true;
+  }
+  return false;
+}
+
+/**
  * Stealth fixtures in a match (phase 3b): bodies the player can pick up, carry (slow, weapon stowed, hands on
  * the victim), put down or hide in a container; light switches (a room's lamp circuit) and lights shot out
  * (enemies come to look, with a flashlight in the dark); alarm panels the player can disable before an
@@ -749,12 +774,10 @@ export class StealthSystems {
     }
   }
 
-  /** Someone (the player or an enemy) stands within `r` of (x, z). */
+  /** Someone (the player, a co-op partner or an enemy) stands within `r` of (x, z). */
   private occupied(x: number, z: number, r: number): boolean {
     const p = this.g.player.position;
-    if (hyp2(p.x - x, p.z - z) < r) return true;
-    for (const e of this.em.enemies) if (e.alive && hyp2(e.pos.x - x, e.pos.z - z) < r) return true;
-    return false;
+    return spotOccupied(x, z, r, p.x, p.z, this.g.remotePlayers(), this.em.enemies);
   }
 
   /** Fixed step: body interact positions, carry movement rules, doors. Call after the corner controller. `crouchPressed`
@@ -766,7 +789,13 @@ export class StealthSystems {
     this.stepping = false;
     this.loadShare = 0;
     this.liftStepK = -1;
-    for (const { d, it } of this.doorIts) it.label = d.target === 0 ? 'Open door' : 'Close door';
+    for (const { d, it } of this.doorIts) {
+      it.label = d.target === 0 ? 'Open door' : 'Close door';
+      // (S-e2e-fix3b, ENGINE-ANSWERS Q9) a lock only stops a door opening: a door left open when it relocks can still be
+      // shut by hand (the A8 grille after its 25 s window); shut and locked, its item goes off
+      const use = !d.anchor.locked || d.target !== 0;
+      if (it.enabled !== use) this.ints.setEnabled(it, use);
+    }
     if (this.playerOpened.size) this.noticeOpenDoors(1 / 60);
     // (A3, G97) running into a door does nothing special: bashing is the door menu's (CT)
     // (A3, G41) a door a guard opened is shut behind him on a calm patrol, once he is clear of it
@@ -889,6 +918,20 @@ export class StealthSystems {
       n.position.set(this.sockL.x, this.sockL.y, this.sockL.z);
     }
     return n;
+  }
+
+  /**
+   * (marlow-final N2) A course isolator switched circuit `group` off (or back on) from its cabinet at (x, z): the
+   * registry and the circuit's wall switches follow, and going dark is the lights-out lure at the cabinet (the nearest
+   * calm guard comes to look, as for a wall switch).
+   */
+  isolate(group: number, on: boolean, x: number, z: number): void {
+    this.g.world.level.lights.setGroup(group, on);
+    this.syncGroup(group, on);
+    this.g.events.emit('lightSwitch', { on });
+    // (S-e2e-fix3b) the circuit's group, as a wall switch passes it (guard-ai's coordinated lights-out): a guard who sees
+    // one of its lamps go out (or stands in a room it lights) is a witness; without it only the cabinet point was tested
+    if (!on) this.em.lightsOut(x, z, Number.NaN, -1, group);
   }
 
   /** Set every switch on a circuit to the registry's state (label and indicator too); no event, no noise. */

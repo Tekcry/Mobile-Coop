@@ -26,7 +26,7 @@ import type { TeamMate } from '../game/teamController';
 import type { TeamKind } from '../game/teamMoves';
 import { clampEnd, clientForcedHolster, coopSessionStats } from './validate';
 import { applyCourseWire, clientCourseFrame, clientCourseSummary, courseStartPos, disposeClientCourse } from '../game/modes/courseMode';
-import { isClientVerb, type ClientVerb } from '../game/course/courseWire';
+import { COURSE_RESTART_TITLE, isClientVerb, type ClientVerb } from '../game/course/courseWire';
 import { CtDevices } from '../game/ctDevices';
 import { newSeenBody, remoteHeadY, type SeenBody } from '../security/securitySystem';
 import { CourseFeed } from '../game/course/courseFeed';
@@ -38,6 +38,7 @@ import { localMoveState } from '../game/localMoveState';
 import { dropBadWallMove, emptyMoveState, moveChanged } from '../player/moveState';
 import { CrackPrediction } from '../world/doorPeek';
 import { markCompleted } from '../save/sectorRecord';
+import { HoldPulseWatch } from './holdPulse';
 import { BOLT_DEPTH, SECTOR_RESTART_TITLE, boltById, boltHalfSpan } from '../game/sectors';
 import { barkLine, BARK_EVENTS, RADIO_BARKS } from '../ai/barks';
 import { HelmetDrops } from '../ai/helmetDrops';
@@ -80,6 +81,9 @@ export class CoopClient implements NetAttachment {
   private lastBlast: { p: Vector3; t: number } | null = null;
   private ints: Interactables | null = null;
   private items = new Map<string, Interactable>();
+  /** (marlow-final Q12) The mirrored noisy holds: each pulse of our own hold goes to the host's guards. */
+  private holdPulses = new HoldPulseWatch();
+  private readonly sendPulse = (id: string): void => this.s.toHost({ t: 'use', id, pulse: true });
   /** (E9-crate) The weapons crates this player used (fed only by `crate` events; cleared on a section restart). */
   private readonly crateSpent = new Set<string>();
   /** Sector Ops: the client's mirror of the cameras and lasers. */
@@ -443,6 +447,11 @@ export class CoopClient implements NetAttachment {
           it.sideHalf = boltHalfSpan(bolt.bolt);
           it.sideDepth = BOLT_DEPTH;
         }
+        // (30, Q12) a noisy hold: our own hold pulses it to the host, and our noise meter reads it as the host's does
+        if (n.hn && n.hold > 0) {
+          it.holdNoise = n.hn;
+          this.holdPulses.add(it);
+        }
         this.items.set(n.id, it);
       }
       it.pos.set(n.x, n.y, n.z);
@@ -465,6 +474,7 @@ export class CoopClient implements NetAttachment {
     }
     for (const [id, it] of this.items) {
       if (keep.has(id)) continue;
+      this.holdPulses.remove(it);
       ints.remove(it);
       this.items.delete(id);
     }
@@ -650,6 +660,8 @@ export class CoopClient implements NetAttachment {
           // (E9-crate, A105) every crate usable again
           this.clearCrates();
         }
+        // (marlow-final S10, M2) the same for a Marlow Yard set restart (our carried body let go, gadgets out gone)
+        else if (e.title === COURSE_RESTART_TITLE && g.opts.mode === 'course') g.checkpointReset();
         break;
       case 'feed':
         // a radio line (subtitle), also kept in the feed: the host's interrogation intel arrives as these and the host
@@ -807,6 +819,8 @@ export class CoopClient implements NetAttachment {
         if (isClientVerb(v)) this.ctick(v);
       }
     }
+    // (Q12) our noisy hold's first moment and each pulse go to the host, whose guards hear them at the item
+    if (this.holdPulses.size) this.holdPulses.step(this.sendPulse);
     const changed = moveChanged(this.mvSent, mv);
     if (this.sendT > 0 && !changed) return;
     this.sendT = 1 / SEND_HZ;
@@ -951,6 +965,7 @@ export class CoopClient implements NetAttachment {
     this.dying.length = 0;
     this.ragdolls.length = 0;
     this.kept.clear();
+    this.holdPulses.clear();
     this.ints?.dispose();
     this.g.explosions.onLocalBlast = null;
     this.g.gadgets.onLocal = null;

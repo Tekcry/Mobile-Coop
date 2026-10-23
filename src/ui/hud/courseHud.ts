@@ -10,7 +10,7 @@
 import { h } from '../dom';
 import { keyLabels, promptHtml, type PromptButton } from '../prompts';
 import type { CourseState } from '../../game/course/courseState';
-import { bayObjective, type PlayerIdx } from '../../game/course/courseDef';
+import { bayObjective, timerLabel, type GateDef, type PlayerIdx } from '../../game/course/courseDef';
 
 const BUTTONS: readonly string[] = ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'LS', 'START'];
 const esc = (s: string): string => s.replace(/[&<>"]/g, (c) => (c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : '&quot;'));
@@ -40,6 +40,8 @@ export class CourseHud {
   private seenBay = -1;
   private seenOver = false;
   private seenMe = -1;
+  /** The step timer's whole seconds last written (0: none). */
+  private seenSecs = 0;
 
   constructor(parent: HTMLElement) {
     this.bayEl = h('div', { class: 'ch-bay' });
@@ -51,9 +53,18 @@ export class CourseHud {
     parent.appendChild(this.el);
   }
 
-  /** Per frame: cheap unless the course changed. */
+  /**
+   * Per frame: cheap unless the course changed. (marlow-final N1) The bay's objective steps follow its drills in the
+   * table (the shared line, ticked for both once done); the step line shows this player's line for the current step (the
+   * A or B line by their job, `CourseState.stepLine`) and, while the step's timed gate runs, its seconds left.
+   */
   update(st: CourseState, me: PlayerIdx): void {
-    if (st.gen === this.seenGen && st.bay === this.seenBay && st.over === this.seenOver && me === this.seenMe) return;
+    const step = st.over || st.nextDrill(me) ? null : st.currentStep();
+    const secs = step ? Math.ceil(st.stepTimer(step) - 1e-6) : 0;
+    if (st.gen === this.seenGen && st.bay === this.seenBay && st.over === this.seenOver && me === this.seenMe) {
+      if (secs !== this.seenSecs) this.writeStep(st, me);
+      return;
+    }
     this.seenGen = st.gen;
     this.seenBay = st.bay;
     this.seenOver = st.over;
@@ -70,15 +81,48 @@ export class CourseHud {
       };
       rows.push(h('tr', { class: d === next ? 'cur' : '', attrs: { 'data-drill': d.id } }, h('td', { class: 'ch-n', text: objectiveName(d.name ?? d.verb) }), cell(0), cell(1)));
     }
+    // (N1) the steps with a done condition, in route order (the bay's last line stays the exit row below)
+    for (const o of st.stepsOf()) {
+      if (o.done === undefined) continue;
+      const done = st.stepDone(o);
+      const cell = (p: PlayerIdx): HTMLElement => h('td', { class: `ch-t${done ? ' done' : ''}`, text: done ? '✓' : '·', attrs: { 'data-p': String(p + 1) } });
+      rows.push(h('tr', { class: o === step ? 'cur' : '', attrs: { 'data-step': o.id } }, h('td', { class: 'ch-n', text: o.text }), cell(0), cell(1)));
+    }
     // the last objective: both onto the airlock pad (or the finish), current once this player's drills are done
     const last = bay.exit === 'end' ? 'Finish the course' : `Both onto the ${bay.exit} airlock pad`;
     const lastDone = st.over || st.done[st.bay] === true;
     const lastCell = (p: PlayerIdx): HTMLElement => h('td', { class: `ch-t${lastDone ? ' done' : ''}`, text: lastDone ? '✓' : '·', attrs: { 'data-p': String(p + 1) } });
-    rows.push(h('tr', { class: !next && !lastDone ? 'cur' : '', attrs: { 'data-obj': 'exit' } }, h('td', { class: 'ch-n', text: last }), lastCell(0), lastCell(1)));
+    rows.push(h('tr', { class: !next && !step && !lastDone ? 'cur' : '', attrs: { 'data-obj': 'exit' } }, h('td', { class: 'ch-n', text: last }), lastCell(0), lastCell(1)));
     this.table.replaceChildren(...rows);
-    // (course-ready F1) a bay without drills shows its objective (the station's task) as the step line
-    const text = st.over ? 'Course complete.' : next ? next.text : bay.drills.length ? 'Objectives done. Both of you onto the airlock pad.' : (bayObjective(st.def, bay.id) ?? '');
+    this.writeStep(st, me);
+  }
+
+  /** The step line (written on a change of the course or of the timer's whole seconds). */
+  private writeStep(st: CourseState, me: PlayerIdx): void {
+    const bay = st.currentBay;
+    const next = st.over ? null : st.nextDrill(me);
+    const step = st.over || next ? null : st.currentStep();
+    const secs = step ? Math.ceil(st.stepTimer(step) - 1e-6) : 0;
+    this.seenSecs = secs;
+    let text: string;
+    if (st.over) text = 'Course complete.';
+    else if (next) text = next.text;
+    else if (step) {
+      text = st.stepLine(step, me);
+      if (secs > 0) text += ` - ${timerLabel(step.timer !== undefined ? this.gateOf(st, step.timer) : undefined)} ${secs} s`;
+    } else if (bay.drills.length) text = 'Objectives done. Both of you onto the airlock pad.';
+    // (course-ready F1) the bay's last line (its step without a done condition), or the airlock once its steps are done
+    else text = bayObjective(st.def, bay.id) ?? (st.stepsOf().length ? (bay.exit === 'end' ? 'Both of you to the exit.' : `Both of you onto the ${bay.exit} airlock pad.`) : '');
     this.stepEl.innerHTML = stepHtml(text);
+  }
+
+  private gateOf(st: CourseState, id: string): GateDef | undefined {
+    const bays = st.def.bays;
+    for (let i = 0; i < bays.length; i++) {
+      const gates = bays[i]!.gates;
+      for (let j = 0; j < gates.length; j++) if (gates[j]!.id === id) return gates[j];
+    }
+    return undefined;
   }
 
   /** The airlock status line (cached string compare: DOM written only on a change). */

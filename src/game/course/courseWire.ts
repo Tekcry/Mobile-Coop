@@ -6,6 +6,10 @@
 import type { PackedCourse } from './courseState';
 import type { SecWire } from '../ctDevices';
 
+/** (marlow-final S10, M2) The host's set-restart banner: the co-op client runs its own `checkpointReset` on it (an
+ *  existing `banner` event: no wire change). */
+export const COURSE_RESTART_TITLE = 'RESTART';
+
 export interface CourseWire {
   s: PackedCourse;
   locks: number[];

@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { GUARD_INFO_LINE_MAX, GUARD_INFO_NEAR, hasInfo, infoAtSpawn, takeInfo, type GuardInfo } from '../src/ai/guardInfo';
+import { GUARD_INFO_NEAR, hasInfo, infoAtSpawn, takeInfo, type GuardInfo } from '../src/ai/guardInfo';
 import { addGrabRows } from '../src/game/grabMenu';
 import { ContextMenu } from '../src/game/contextMenu';
-import { LevelBuilder } from '../src/world/levelBuilder';
-import { ctcourse, GUARD_INFO, GUARD_SLOT, S3_SEC_GUARD } from '../src/world/maps/ctcourse';
 
 // (CT prototype PR 3, Michael 2026-10-20 08:40: "Add one in Marlow Yard") one training guard with information, so a held
 // guard can show INTERROGATE (08:10: "once they are grabbed it can show interrogate (if they have information)").
@@ -43,54 +41,6 @@ describe('guard information (PR 3)', () => {
   });
 });
 
-describe('Marlow Yard training guard (PR 3)', () => {
-  const lay = ctcourse.build(new LevelBuilder(), 0);
-  const course = lay.course!;
-  const slot = course.squads[GUARD_SLOT]!;
-
-  // (sector-fixes S) station 3's security room adds a second passive guard with information (the duty guard at the
-  // monitors, PLAN.md section 2); station 1's guard stays the drill's own
-  it('is a passive guard with information, spawned by station 1 only (plus the station 3 security guard)', () => {
-    expect(Object.keys(course.squads)).toEqual([GUARD_SLOT, S3_SEC_GUARD]);
-    expect(slot.kind).toBe('grunt');
-    expect(slot.passive).toBe(true);
-    expect(slot.info).toBe(GUARD_INFO);
-    expect(hasInfo(slot)).toBe(true);
-    course.def.bays.forEach((b, i) => expect(b.squad).toEqual(i === 0 ? [GUARD_SLOT] : i === 2 ? [S3_SEC_GUARD] : []));
-    const sec = course.squads[S3_SEC_GUARD]!;
-    expect(sec.passive).toBe(true);
-    expect(hasInfo(sec)).toBe(true);
-  });
-
-  it('stands in bay 1, clear of the door, the panel and the airlock pad, facing away from the start', () => {
-    expect(slot.x).toBeGreaterThan(8);
-    expect(slot.x).toBeLessThan(14);
-    // the airlock door gap (z 6.4-7.6) and the pad (z 4-10) are not his; he is by the south fence
-    expect(slot.z).toBeLessThan(4);
-    // east, the way the players start facing: they come up behind him
-    expect(slot.yaw).toBeCloseTo(Math.PI / 2, 5);
-  });
-
-  it('the lines are one or two, short (radio length), original, no dash', () => {
-    expect(GUARD_INFO.lines.length).toBeGreaterThanOrEqual(1);
-    expect(GUARD_INFO.lines.length).toBeLessThanOrEqual(2);
-    for (const l of GUARD_INFO.lines) {
-      expect(l.length).toBeGreaterThan(0);
-      expect(l.length).toBeLessThanOrEqual(GUARD_INFO_LINE_MAX);
-      expect(l).not.toMatch(/[\u2013\u2014]/);
-    }
-  });
-
-  it('what he says is true: the two wall medkits are where the lines say (the annex north wall, before the last wall)', () => {
-    const med = lay.medkitWalls ?? [];
-    expect(med).toHaveLength(2);
-    // north wall: z next to the 14 m fence; the first is in station 5's annex (x 88-104), the second in station 8's bay
-    for (const k of med) expect(k.pos.z).toBeGreaterThan(13);
-    expect(med[0]!.pos.x).toBeGreaterThan(22 * 4 + 9);
-    expect(med[0]!.pos.x).toBeLessThan(22 * 4 + 16);
-    expect(med[1]!.pos.x).toBeGreaterThan(22 * 7);
-    expect(med[1]!.pos.x).toBeLessThan(22 * 7 + 9);
-    expect(GUARD_INFO.lines[0]).toMatch(/annex/);
-    expect(GUARD_INFO.lines[1]).toMatch(/last wall/);
-  });
-});
+// (marlow-final 0d) The Marlow Yard cases (the bay-1 training guard: passive, information, inside the first set, lines
+// within the radio) moved to the whole-map frame (tests/ctcourse.test.ts); the A1, A4 and A8 guard-information cases
+// return with their set slices (tests/ctcourse/<set>.test.ts, SPEC 16).
