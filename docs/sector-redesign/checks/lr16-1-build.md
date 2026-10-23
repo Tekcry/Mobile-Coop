@@ -147,3 +147,108 @@ dark pockets, pockets +0.05). The failing asserts' values move with the bounce (
 4. Samplers unchanged (RG in the same texture); `e2e-lightbake` <= 16; bake time (+~20%) and MB (bounce <= 0.3 MB).
 5. Night vision: walls not blown out by the bounce; bodies keep the fill cap (x nsBF).
 6. Jammer flicker on a lamp: the bounce flickers at most every 0.25 s (upload throttle), the pool every frame.
+
+## Fix round (check Blocking 1: bounce through walls off the cell middle)
+
+Builder: Opus 5.5, 2026-10-23. Started from the cut-off agent's WIP (cc273698, kept: it follows the check's
+recommended fix), finished it and added the check's test. Commits d795e27c (code + tests) and this report.
+
+### What changed
+- `src/voxel/lampBounce.ts:446`: a receiver cell takes a VPL's light only when the march reaches its centre (the
+  3-point share is gone), so a cell a wall crosses holds its centre's side, never a share of the far side.
+- `src/voxel/lampBounce.ts:63-80`, `:138` `bounceBits`: 16 static bits per 1 m cell from the bake's own conservative
+  occupancy on 0.2 m sub-cells aligned to the grid (every lamp computes the same bits for a cell): bits 0-2 "a solid
+  lies between this centre and the +x / +y / +z neighbour's centre" (the check's face bits), plus a 2-bit crossing
+  code per direction (+-x, +-y, +-z): a point 0.15 / 0.3 / 0.45 m or more from the centre is past a wall inside the
+  cell and reads the neighbour on its own side.
+- `src/voxel/lampBounce.ts:481-502`: the receiver box is grown by one cell (clipped) so every corner a read blends
+  carries its bits; `bounceLamp` returns `bits` beside `data`. `src/voxel/lampBake.ts:136-170` and
+  `src/voxel/lampJobs.ts:31-32`, `:70-90`: the bits travel with the result and the cache (`cacheOk` rejects an entry
+  without them).
+- `src/world/bounceGrid.ts:38`, `:95`: the grid ORs the lamps' bits per cell (static). `:153` `sampleInto`: the home
+  corner (the cell holding the point, crossed by the code), then a flood over the 8 corners through open faces, the
+  trilinear weights of the reached corners renormalised; without walls it is the plain trilinear. Allocation-free
+  (typed-array scratch, result in a field). `src/world/lightField.ts:349`: `bounceInto` reads it (meter and guards).
+- `src/world/bakedLamps.ts:738` `NS_GRID2_GLSL`: the same steps in GLSL, 8 `texelFetch`es (G = bounce, B + A x 256 =
+  bits); R stays one linear tap; the flood stops when nothing grows (field and shader alike). `:271-275`, `:401`: the
+  fill texture is RGBA8 (was RG8; still one sampler; `packFillRGBA`, `src/world/bounceGrid.ts:292`).
+- `src/voxel/lampJobs.ts:18`: `LAMP_VERSION` 3 -> 4 (cache format changed: the bits; the receivers changed too).
+- Polish 3 (trivial, taken): `src/world/bounceGrid.ts:324` `bounceColor` normalised by its brightest channel, not
+  luminance, so a warm tint draws no channel over the level (`nsS` is the max channel).
+- Merge-hazard notes taken: `src/voxel/lampBounce.ts:29` says retuning `BOUNCE` bumps `LAMP_VERSION`; the
+  `LAMP_VERSION` comment says the LR16e merge takes a number past both branches'.
+- Tests: `tests/lampBounce.test.ts:77-118` (new: the check's test); `tests/helpers/bounceRoom.ts:70-150` (`wallRoom`,
+  `slabRoom(sy, intensity, lampY)`, `wallProbe`, `slabProbe`); `tests/helpers/bounceRead.ts` (the GLSL written out in
+  JS over the RGBA bytes); `tests/bounceGrid.test.ts:208` (GLSL = field at 2400 points over 4 fixtures with walls off
+  the cell middle; R untouched; B + A = bits) and `:269` (no walls = trilinear; a wall bit stops the blend; a code
+  moves the home; allocation-free); `tests/lightField.test.ts` (the brute-force sum and the bounce test read through
+  `bounceRead.ts`); the deterministic test also compares the bits and checks two lamps' boxes agree on shared cells.
+  Scratch tests `tests/zzScratch*.test.ts` deleted.
+
+### The check's table redone (same fixture, field `bounceAt`, after the fix)
+| Wall (x) | Lamp to wall | Straddling cell | Bounce 0.15 m behind | 0.3 m behind | 0.5 m behind |
+| --- | --- | --- | --- | --- | --- |
+| 10.4-10.6 (fixture) | 1 m | 0.000 | 0.000 | 0.000 | 0.000 |
+| 10.65-10.85 | 1 m | 0.451 (centre 10.5, lit side) | 0.000 | 0.000 | 0.000 |
+| 10.65-10.85 | 2 m | 0.306 (lit side) | 0.000 | 0.000 | 0.000 |
+| 10.9-11.1 | 1 m | 0 | 0.000 | 0.000 | 0.000 |
+| 10.9-11.1 | 2 m | 0 | 0.000 | 0.000 | 0.000 |
+| 10.15-10.35 | 1 or 2 m | 0 | 0.000 | 0.000 | 0.000 |
+
+Sweep (wall every 0.05 m from 10.0 to 10.95, lamp 1 and 2 m; 0.1 / 0.15 / 0.3 / 0.5 / 1 m behind, heights 0.25-2.75):
+max 0.000 at all 40 (before: up to 0.246). Slab every 0.05 m from 3.0 to 3.95 (lamp 2.8 m up, intensity 3): max over
+it 0.000 at all 20 (before: up to 0.087).
+
+The check's test (`wallProbe` / `slabProbe`; lit = 0.25 m off the lit face, heights 0.25-2.5 m, z 3-7 m; slab lit side
+0.25 m under it, x / z 3-7 m; "before" = bde295ef):
+| Case (offset in cell, lamp distance) | Behind 0.15 / 0.3 / 0.5 before | after | Lit mean before -> after | Lit min before -> after |
+| --- | --- | --- | --- | --- |
+| wall 0, 1 m | 0.102 / 0 / 0 | 0 / 0 / 0 | 0.247 -> 0.347 | 0.057 -> 0.092 |
+| wall 0, 2 m | 0.054 / 0 / 0 | 0 / 0 / 0 | 0.124 -> 0.175 | 0.028 -> 0.047 |
+| wall 0.25, 1 m | 0.011 / 0.009 / 0.006 | 0 / 0 / 0 | 0.163 -> 0.339 | 0.043 -> 0.102 |
+| wall 0.25, 2 m | 0.007 / 0.006 / 0.004 | 0 / 0 / 0 | 0.086 -> 0.180 | 0.022 -> 0.053 |
+| wall 0.5, 1 m | 0.005 / 0.004 / 0.002 | 0 / 0 / 0 | 0.079 -> 0.321 | 0.023 -> 0.108 |
+| wall 0.5, 2 m | 0.005 / 0.004 / 0.002 | 0 / 0 / 0 | 0.046 -> 0.186 | 0.012 -> 0.061 |
+| wall 0.75, 1 m | 0.212 / 0.132 / 0.026 | 0 / 0 / 0 | 0.200 -> 0.247 | 0.041 -> 0.057 |
+| wall 0.75, 2 m | 0.115 / 0.072 / 0.014 | 0 / 0 / 0 | 0.088 -> 0.113 | 0.010 -> 0.016 |
+| slab 0, 1 m | 0.028 / 0 / 0 | 0 / 0 / 0 | 0.066 -> 0.121 | 0.019 -> 0.038 |
+| slab 0, 2 m | 0.023 / 0 / 0 | 0 / 0 / 0 | 0.060 -> 0.117 | 0.016 -> 0.029 |
+| slab 0.25, 1 m | 0 / 0 / 0 | 0 / 0 / 0 | 0.053 -> 0.106 | 0.017 -> 0.033 |
+| slab 0.25, 2 m | 0 / 0 / 0 | 0 / 0 / 0 | 0.066 -> 0.132 | 0.019 -> 0.037 |
+| slab 0.5, 1 m | 0.013 / 0.010 / 0.006 | 0 / 0 / 0 | 0.027 -> 0.088 | 0.008 -> 0.028 |
+| slab 0.5, 2 m | 0.010 / 0.008 / 0.005 | 0 / 0 / 0 | 0.039 -> 0.136 | 0.011 -> 0.041 |
+| slab 0.75, 1 m | 0.019 / 0.012 / 0.002 | 0 / 0 / 0 | 0.020 -> 0.027 | 0.005 -> 0.005 |
+| slab 0.75, 2 m | 0.014 / 0.009 / 0.002 | 0 / 0 / 0 | 0.018 -> 0.025 | 0.005 -> 0.006 |
+
+The lit side never loses light: it is brighter everywhere (the old trilinear read mixed in the dark or in-wall cell;
+now that corner drops out and the weights renormalise).
+
+Other numbers: ctcourse bake, 31 lamps: vis 10736 ms, bounce 957 ms (+8.9%, `bounceBits` included); bounce data +
+boxes 114 KB (was 73 KB: the box grown by a cell) plus the bits, the same size again. The fill texture doubles (RGBA8).
+
+### Tests
+- `npx tsc --noEmit -p .`: clean.
+- `npx vitest run tests/lampBounce.test.ts tests/bounceGrid.test.ts tests/lightField.test.ts tests/lampFalloff.test.ts
+  tests/lampGridLossless.test.ts tests/levelFillParity.test.ts tests/perception.test.ts --maxWorkers=2`: 7 files,
+  83 tests PASS (126 s). Was 79: + the check's test, + 3 wall-aware read tests.
+- Map-light tests (ctcourseLight, warehouseS1Light, S2, S3): 13 FAIL / 30 pass / 4 skipped, the same 13 tests as
+  before this round (no new failure, none fixed; LR16g re-levels).
+
+### Deviations
+1. 16 bits a cell in RGBA8 (B + A), not 3 bits in RGB8: the 3 face bits cannot tell which side of a wall inside the
+   home cell a point is on (a wall in the far half of the cell still leaks into the point's read), so the crossing
+   codes were added. Still one sampler; RGBA avoids 3-byte texel rows.
+2. The brief's "straddling cell <= 0.03" now holds where the cell's centre is behind or inside the wall (the fixture:
+   0.000); a cell whose centre is on the lit side keeps the lit value (0.45 for the wall at 10.65), as the check's fix
+   says ("takes the share of the side its centre is on"). Every read behind the wall is 0.
+3. `LAMP_VERSION` 4 (format change); see open item 1.
+
+### Open items
+1. Merge with LR16e: `LAMP_VERSION` must end past both branches' values (both may now say 4).
+2. Shader cost: `nsGrid2` is 8 texel fetches plus a flood of at most 7 rounds where a wall is near (stops when nothing
+   grows). No GPU or perf run here: pending PC run (`e2e-lightbake`, perf budget, a shader compile on the GPU).
+3. Re-upload (polish 5) now sends RGBA: ~2x the bytes per bounce change (a sub-box upload would fix both).
+4. A wall face whose VPLs sit in the receiver centre's own plane (wall at 10.8: VPL and centre both at x 10.5) lights
+   that cell little (lit-face min 0.03 at 0.25 m off). Pre-existing (0.017 before), not this round.
+5. Polish not taken (not trivial, or parked): 1 (Epic voxel double bounce), 2 (uplight march start), 4 (Kestrel light
+   view; Kestrel is paused), 5 (sub-box upload), 6 (LR16g's call), 7 (bake-time ratio test kept: +8.9% against 25%).
