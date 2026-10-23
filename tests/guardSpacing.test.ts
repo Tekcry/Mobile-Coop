@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { keepApart, SEPARATION, steerOff, stepApart, tooClose, type SepBody, type SepOut } from '../src/ai/separation';
 import { Vector3 } from '../src/core/babylon';
 import type { Enemy } from '../src/ai/enemy';
+import { NavGrid, type NavBlocker } from '../src/ai/navGrid';
 
 // (guard-ai S20, Michael's walk of 4.72 G4: "guards seem to walk through eachother and sometimes doors.") Two guards
 // whose paths cross never come nearer than SEPARATION.min between centres, at a walk, a jog or a run, and both still get
@@ -115,11 +116,11 @@ describe('separation.ts (pure)', () => {
 
 type Walker = { move(dt: number, goal: [number, number] | null, speed: number, face: number | null): void; pos: Vector3; taken: boolean; health: { alive: boolean }; readonly solid: boolean };
 
-async function walkers(n: number): Promise<{ list: Walker[]; make(x: number, z: number, y?: number): Walker }> {
+async function walkers(n: number, grid: NavGrid | null = null): Promise<{ list: Walker[]; make(x: number, z: number, y?: number): Walker }> {
   const { Enemy: EnemyClass } = await import('../src/ai/enemy');
   const { MotionDriver, emptyMotionInput } = await import('../src/anim/motion');
   const list: Walker[] = [];
-  const nav = { cellOf: () => 0, cellNear: () => 0, canStep: () => true, isWalkable: () => true, heightAt: (_x: number, _z: number, y: number) => y };
+  const nav = grid ?? { cellOf: () => 0, cellNear: () => 0, canStep: () => true, isWalkable: () => true, heightAt: (_x: number, _z: number, y: number) => y };
   const ctx = { nav, enemies: () => list, players: () => [] };
   void n;
   return {
@@ -231,4 +232,49 @@ describe('Enemy.move: guards never walk through each other (G4)', () => {
     }
     expect(near).toBeLessThan(0.2);
   });
+});
+
+// (guard-ai S20 check) Two guards face to face in a doorway or a narrow corridor cannot step round each other: the
+// spacing alone held both there forever (on the S20 code: stuck about 0.65 m apart in a 1.2 m doorway and a 1.2 m
+// corridor, walk and jog). Held by it with somewhere to go for SEPARATION.stall s, they squeeze past.
+function doorway(gap: number): NavGrid {
+  const h = gap / 2;
+  const wall = (cz: number, hz: number): NavBlocker => ({ cx: 0, cz, hx: 0.1, hz, yaw: 0, bottom: 0, top: 3 });
+  return new NavGrid({
+    minX: -6, maxX: 6, minZ: -10, maxZ: 10, cell: 0.25,
+    sample: () => ({ h: 0, ok: true }),
+    blockers: [wall(-(10 + h) / 2, (10 - h) / 2), wall((10 + h) / 2, (10 - h) / 2)],
+    agentRadius: 0.32, stepHeight: 0.45, seed: [-5, -5],
+  });
+}
+function corridor(width: number): NavGrid {
+  const wall = (cz: number): NavBlocker => ({ cx: 0, cz, hx: 6, hz: 0.1, yaw: 0, bottom: 0, top: 3 });
+  return new NavGrid({
+    minX: -6, maxX: 6, minZ: -3, maxZ: 3, cell: 0.25,
+    sample: () => ({ h: 0, ok: true }),
+    blockers: [wall(-width / 2 - 0.1), wall(width / 2 + 0.1)],
+    agentRadius: 0.32, stepHeight: 0.45, seed: [-5, 0],
+  });
+}
+
+describe('Enemy.move: two guards meeting in a doorway or a narrow corridor never wait forever (S20 check)', () => {
+  for (const [name, grid] of [['a 1.2 m doorway', () => doorway(1.2)], ['a 0.9 m doorway', () => doorway(0.9)], ['a 1.2 m corridor', () => corridor(1.2)]] as const) {
+    for (const sp of [0.99, 2.4]) {
+      it(`head on through ${name} at ${sp} m/s: both get through, the squeeze is brief`, async () => {
+        const w = await walkers(2, grid());
+        const a = w.make(-4, 0);
+        const b = w.make(4, 0.02);
+        let near = 0;
+        for (let i = 0; i < 60 * 30; i++) {
+          a.move(1 / 60, Math.abs(a.pos.x - 4) < 0.6 ? null : [4, 0], sp, null);
+          b.move(1 / 60, Math.abs(b.pos.x + 4) < 0.6 ? null : [-4, 0], sp, null);
+          if (hyp(a.pos.x - b.pos.x, a.pos.z - b.pos.z) < MIN - 1e-6) near++;
+        }
+        expect(a.pos.x).toBeGreaterThan(3);
+        expect(b.pos.x).toBeLessThan(-3);
+        // nearer than the spacing only while squeezing past (well under SEPARATION.squeeze x 2 guards)
+        expect(near / 60).toBeLessThan(SEPARATION.squeeze * 2);
+      });
+    }
+  }
 });

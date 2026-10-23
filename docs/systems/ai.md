@@ -341,7 +341,10 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 - Spacing and doors (guard-ai S20, walk 4.72 G4, A114-A118; `ai/separation.ts`, `ai/doorGate.ts`, both pure):
   `Enemy.move` steers off near guards (the old soft push plus a sidestep round a guard ahead, `steerFrom`) and cuts its
   step at `SEPARATION.min` 0.65 m from every solid guard on his storey (`stepApart`; `tryMove` refuses the slides too);
-  held (`taken`) and downed guards are not solid. `tryMove` asks `AiContext.doorStep` (`EnemyManager`: `DoorGate.blocking`):
+  held (`taken`) and downed guards are not solid. Held by the spacing with somewhere to go (pushed off, cut or refused,
+  under a quarter of his pace) for `SEPARATION.stall` 1 s, a guard squeezes past for `SEPARATION.squeeze` 2 s (the
+  soft push only), so two guards face to face in a doorway or a narrow corridor never wait forever (S20 check, A127).
+  `tryMove` asks `AiContext.doorStep` (`EnemyManager`: `DoorGate.blocking`):
   a step into or across a shut leaf is refused; a door not locked is opened `Doors.open(d, 'enemy')` and he waits for
   `DOOR_GATE.pass`; a locked door stops him at the leaf (he waits). The grid still walks every doorway (no closure per
   door: A116); Sector Ops' keypad, bolt, lockdown and pair-gate closures are unchanged.

@@ -30,7 +30,7 @@ import { ALERT, AlertMachine, callInDelay, emptyAlertInput, type AlertLevel } fr
 import { HEARING } from './hearing';
 import { PatrolWalker, PATROL, type PatrolRoute } from './patrol';
 import { PACE, paceSpeed, ringPoint, SEARCH_BODY, SEARCH_DEVICE, SEARCH_PLAIN, searchSpec, urgentKind } from './response';
-import { steerFrom, stepApart, tooClose, type SepOut } from './separation';
+import { SEPARATION, steerFrom, stepApart, tooClose, type SepOut } from './separation';
 import { BODY, bodyNoticed } from './bodies';
 import type { Body } from './body';
 import { alarmStandPoint, raiseTime, type AlarmPanel } from './alarm';
@@ -244,6 +244,11 @@ export class Enemy implements Damageable {
   private desired = new Vector3();
   /** (guard-ai S20) The separation's out pair (`separation.ts`). */
   private sepOut: SepOut = { x: 0, z: 0 };
+  /** (guard-ai S20 check) Held by the hard spacing with somewhere to go (s); squeezing past, the time left (s); this
+   *  step was cut or refused by it. */
+  private sepStall = 0;
+  private sepFree = 0;
+  private sepHit = false;
   private lunge = 0;
   private coverPicked = false;
   /** Out of sight in combat: moving up on the last known position cover to cover (a bound, then a hold). */
@@ -2899,9 +2904,14 @@ export class Enemy implements Damageable {
     const sep = this.sepOut;
     sep.x = 0;
     sep.z = 0;
-    steerFrom(this, gl > 1e-4 ? desired.x / gl : 0, gl > 1e-4 ? desired.z / gl : 0, gl, others, sep);
+    // (guard-ai S20 check) the hard spacing and the sidestep hold unless he is squeezing past (a stall, below): then
+    // the soft push only, as before S20
+    const hard = !(this.sepFree > 0);
+    if (!hard) this.sepFree -= dt;
+    steerFrom(this, gl > 1e-4 ? desired.x / gl : 0, gl > 1e-4 ? desired.z / gl : 0, hard ? gl : 0, others, sep);
     desired.x += sep.x;
     desired.z += sep.z;
+    this.sepHit = hard && hyp2(sep.x, sep.z) > 0.05;
     const pls = this.ctx.players();
     for (let k = 0; k < pls.length; k++) {
       const p = pls[k]!;
@@ -2928,8 +2938,11 @@ export class Enemy implements Damageable {
     this.vel.z = this.motion.outZ;
     let nx = this.pos.x + this.vel.x * dt;
     let nz = this.pos.z + this.vel.z * dt;
+    const x0 = this.pos.x;
+    const z0 = this.pos.z;
     // (guard-ai S20) never nearer than SEPARATION.min to another guard: the step is cut at that circle (he slides round)
-    if (stepApart(this, nx, nz, others, sep)) {
+    if (hard && stepApart(this, nx, nz, others, sep)) {
+      this.sepHit = true;
       nx = sep.x;
       nz = sep.z;
       this.vel.x = (nx - this.pos.x) / dt;
@@ -2946,6 +2959,16 @@ export class Enemy implements Damageable {
       }
       if (this.vel.x === 0 && this.vel.z === 0) this.motion.reset(this.motion.yaw);
     }
+    // (guard-ai S20 check) two guards face to face in a doorway or a narrow corridor cannot step round each other, and
+    // the spacing held both there forever: held by it (pushed off, cut or refused) with somewhere to go, at under a
+    // quarter of his pace, for SEPARATION.stall s, he squeezes past for SEPARATION.squeeze s (the soft push only)
+    if (hard && this.sepHit && gl > 0.05 && hyp2(this.pos.x - x0, this.pos.z - z0) < gl * dt * 0.25) {
+      this.sepStall = (this.sepStall > 0 ? this.sepStall : 0) + dt;
+      if (this.sepStall >= SEPARATION.stall) {
+        this.sepStall = 0;
+        this.sepFree = SEPARATION.squeeze;
+      }
+    } else this.sepStall = 0;
     const gh = nav.heightAt(this.pos.x, this.pos.z, this.pos.y);
     this.pos.y += (gh - this.pos.y) * Math.min(1, dt * 12);
     this.yaw = this.motion.yaw;
@@ -3027,7 +3050,11 @@ export class Enemy implements Damageable {
   private tryMove(x: number, z: number): boolean {
     // (guard-ai S20) a shut door's leaf, or a step into another guard (the slides too), is not taken
     if (this.ctx.doorStep && !this.ctx.doorStep(this, this.pos.x, this.pos.z, x, z, this.pos.y)) return false;
-    if (tooClose(this, x, z, this.ctx.enemies())) return false;
+    // (guard-ai S20 check) not while he squeezes past (`sepFree`)
+    if (!(this.sepFree > 0) && tooClose(this, x, z, this.ctx.enemies())) {
+      this.sepHit = true;
+      return false;
+    }
     const nav = this.ctx.nav;
     const cur = this.navCell;
     const c = nav.cellNear(cur, x, z);

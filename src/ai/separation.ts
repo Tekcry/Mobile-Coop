@@ -34,6 +34,13 @@ export const SEPARATION = {
   min: 0.65,
   /** Only guards within this height of his feet (m): a guard on the floor above is not in his way. */
   dy: 1.5,
+  /** (guard-ai S20 check) Held by the hard spacing this long (s) with somewhere to go, at under a quarter of his pace (two
+   *  guards face to face in a doorway or a narrow corridor, where neither can step round the other; a man standing in
+   *  his way): he squeezes past ... */
+  stall: 1,
+  /** ... for this long (s): the hard spacing is off for him (the soft push and the sidestep only, as before S20), so
+   *  nobody waits forever. */
+  squeeze: 2,
 } as const;
 
 /** A guard as the separation sees him (`Enemy`: `pos`, `solid`). */

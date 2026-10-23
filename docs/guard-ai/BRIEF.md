@@ -443,3 +443,8 @@ reported, they need a sense of urgency when it makes logical sense." A100-A119 a
 - **A126** (S21) Co-op: host only. A client poses guards from the snapshot's alert level (0 calm .. 3 combat), which
   cannot tell caution, a raised alarm, a post or a response team apart from calm, so it cannot derive the holster; no
   protocol change in this slice: client puppets stay at low ready (open item, `slices/WALK.md` S21). Undo: not needed.
+- **A127** (S20 check, `slices/WALK-CHECK.md`) Two guards face to face in a doorway or a corridor too narrow to step
+  round each other (1.2 m and less) were held about 0.65 m apart forever by the S20 spacing. Held by it (pushed off, cut
+  or refused) with somewhere to go, under a quarter of his pace, for `SEPARATION.stall` 1 s, a guard squeezes past for
+  `SEPARATION.squeeze` 2 s: the soft push only (as before S20, no sidestep, no hard cut), so they brush past in a narrow
+  gap and nobody waits forever; a man standing in his way is passed the same way. Undo: `SEPARATION.stall` very large.
