@@ -1,0 +1,18 @@
+{
+  "id": "20261023T093841-night-shift-sector-o-4007eafe-2ad6",
+  "sha": "4007eafee9536b47fe1222ad8648698def9eee1a",
+  "branch": "feature/sector-redesign-lr16-1",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-lightbake",
+    "e2e-darkness",
+    "e2e-sectorops",
+    "e2e-stealth-ai",
+    "e2e-ctcourse",
+    "e2e-coop"
+  ],
+  "set": "lr16-1",
+  "note": "LR16-1 one-bounce fill (lightField level + RG8 fill texture; LAMP_VERSION 3). lightbake: samplers <= 16."
+}
