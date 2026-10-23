@@ -56,6 +56,16 @@ export class SweepTeam<M extends SweepMember = SweepMember> {
   /** Unit vector behind the leader (from the point he heads for back to him): the followers stack along it. */
   bx = 0;
   bz = -1;
+  /** (guard-ai sweep fix) Seconds the leader has been held short of the current point (moved under `SWEEP.stallMove`
+   *  from (`ax`, `az`)); the stalls there so far (the first asks for a replan, the second gives the point up). */
+  stallT = 0;
+  stallN = 0;
+  /** Set by a first stall: the leader drops his route and plans again from where he stands (`Enemy.sweepStep`). */
+  replan = false;
+  /** Points given up after two stalls (tests / debug; they count in `visited`, as an unreachable point does). */
+  skipped = 0;
+  private ax = Number.NaN;
+  private az = Number.NaN;
 
   /**
    * Team `index` (its stage's order in the section: the start point offset) of section `section`. `override`: the
@@ -106,6 +116,8 @@ export class SweepTeam<M extends SweepMember = SweepMember> {
     this.dwellT = 0;
     this.passes = 0;
     this.visited = 0;
+    this.skipped = 0;
+    this.unstall();
     this.sweeping = this.count > 0;
     if (!this.sweeping) return;
     this.switches++;
@@ -125,8 +137,27 @@ export class SweepTeam<M extends SweepMember = SweepMember> {
     if (hyp2(dx, dz) > SWEEP_NEAR) {
       this.behind(dx, dz);
       this.dwellT = 0;
+      // (guard-ai sweep fix, train 45) held short of it: replan once, then give it up, so a jam never ends the sweep
+      if (hyp2(x - this.ax, z - this.az) < SWEEP.stallMove) {
+        this.stallT += dt;
+        if (this.stallT >= SWEEP.stall) {
+          this.stallT = 0;
+          this.ax = x;
+          this.az = z;
+          if (++this.stallN >= 2) {
+            this.skipped++;
+            this.next();
+          } else this.replan = true;
+        }
+      } else {
+        this.ax = x;
+        this.az = z;
+        this.stallT = 0;
+      }
       return false;
     }
+    this.ax = Number.NaN;
+    this.stallT = 0;
     this.dwellT += dt;
     if (this.dwellT >= SWEEP.dwell) this.next();
     return true;
@@ -135,11 +166,20 @@ export class SweepTeam<M extends SweepMember = SweepMember> {
   /** On to the next point (looked at, or unreachable); after the last, the same order again. */
   next(): void {
     this.dwellT = 0;
+    this.unstall();
     this.visited++;
     if (++this.k >= this.count) {
       this.k = 0;
       this.passes++;
     }
+  }
+
+  private unstall(): void {
+    this.stallT = 0;
+    this.stallN = 0;
+    this.replan = false;
+    this.ax = Number.NaN;
+    this.az = Number.NaN;
   }
 
   /** Where follower `rank` (1..) stands: `rank` x `SWEEP.gap` m behind the leader at (`lx`, `lz`), into `out`. */

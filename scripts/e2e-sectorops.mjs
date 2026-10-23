@@ -3682,7 +3682,7 @@ if (want(1)) {
         const g = window.__app.current;
         const em = g.enemyMgr;
         const f1 = (v) => Math.round(v * 10) / 10;
-        const teams = em.teams.map((t) => ({ i: t.index, pt: t.point, at: t.point >= 0 ? [t.pts[2 * t.point], t.pts[2 * t.point + 1]] : null, n: t.count, visited: t.visited, dwell: f1(t.dwellT), sweeping: t.sweeping, pts: t.pts.slice(0, 2 * t.count).map(f1), m: t.members.map((e) => [f1(e.pos.x), f1(e.pos.z), e.alive ? e.level : 'down']) }));
+        const teams = em.teams.map((t) => ({ i: t.index, pt: t.point, at: t.point >= 0 ? [t.pts[2 * t.point], t.pts[2 * t.point + 1]] : null, n: t.count, visited: t.visited, dwell: f1(t.dwellT), sweeping: t.sweeping, pts: t.pts.slice(0, 2 * t.count).map(f1), m: t.members.map((e) => [f1(e.pos.x), f1(e.pos.z), e.alive ? e.level : 'down', em.nav.isWalkable(em.nav.cellOf(e.pos.x, e.pos.z, e.pos.y)), e.routePath.length]), lead: t.leader ? t.members.indexOf(t.leader) : -1, stallN: t.stallN, skipped: t.skipped }));
         const shut = g.world.doors.list.filter((d) => d.anchor.locked && d.target === 0).map((d) => [d.index, f1(d.cx), f1(d.cz)]);
         return { lkp: [f1(em.lkp.x), f1(em.lkp.z), em.lkpValid], teams, shut, ver: em.nav.version };
       });

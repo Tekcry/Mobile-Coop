@@ -383,6 +383,43 @@ describe('sweep (item 11, A39)', () => {
     expect([SWEEP.enabled, SWEEP.thin, SWEEP.dwell, SWEEP.gap]).toEqual([true, 8, 6, 2.5]);
   });
 
+  it('(sweep fix, train 45) a leader held short of his point replans once, then gives it up; a walking leader never does', () => {
+    expect([SWEEP.stall, SWEEP.stallMove]).toEqual([5, 1]);
+    const { t, ms } = team();
+    ms[0]!.aware.t = ALERT.searchTime;
+    t.tick(true, 21, 0);
+    const dt = 0.1;
+    const p0 = t.point;
+    // held 3 m short of it (a jam at a door, another team on the point): one stall asks for a replan, the point stays
+    let s = 0;
+    while (!t.replan && s < 200) {
+      t.lead(dt, 23, 0.2 * Math.sin(s));
+      s++;
+    }
+    expect(s * dt).toBeGreaterThanOrEqual(SWEEP.stall);
+    expect(s * dt).toBeLessThan(SWEEP.stall + 0.3);
+    expect(t.point).toBe(p0);
+    expect(t.visited).toBe(0);
+    t.replan = false;
+    // still held: the second stall gives it up (counted as an unreachable point is), on to the next
+    s = 0;
+    while (t.point === p0 && s < 200) {
+      t.lead(dt, 23, 0);
+      s++;
+    }
+    expect(s * dt).toBeGreaterThanOrEqual(SWEEP.stall);
+    expect(s * dt).toBeLessThan(SWEEP.stall + 0.3);
+    expect([t.visited, t.skipped, t.stallN, t.replan]).toEqual([1, 1, 0, false]);
+    // a leader on a long detour (walking 1.2 m/s, never nearer) is never stalled
+    const p1 = t.point;
+    const px = t.pts[2 * p1]!;
+    for (let k = 0; k < 400; k++) expect(t.lead(dt, px + 5, -20 + k * 0.12)).toBe(false);
+    expect([t.point, t.stallN, t.replan]).toEqual([p1, 0, false]);
+    // the stall clock stops at the point: dwelling there is the look, not a stall
+    for (let k = 0; k < (SWEEP.dwell - 0.5) / dt; k++) t.lead(dt, px, 0);
+    expect([t.point, t.stallT, t.skipped]).toEqual([p1, 0, 1]);
+  });
+
   it('never calm: a hunting guard searches on for good (S6), so the sweep never ends on its own', () => {
     const a = new AlertMachine();
     a.set('alert');
@@ -457,6 +494,20 @@ describe('Enemy.sweepStep (the shield guard leads, the rest follow)', () => {
     const f2 = stepOf(F, tm);
     expect(f2.point).toBeNull();
     expect(f2.face).toBe(L.yaw);
+  });
+
+  it('(sweep fix) the replan a stall asks for drops the leader route, so his next step plans again from where he stands', () => {
+    const tm = new SweepTeam<Enemy>(0, 0, [[20, 0], [40, 0]], [], []);
+    const L = sweeper(tm, 0, 30, 0);
+    tm.add(L);
+    tm.leader = L;
+    tm.begin(21, 0, 30, 0);
+    const route = (L as unknown as { routePath: [number, number][] }).routePath;
+    route.push([29, 0], [20, 0]);
+    tm.replan = true;
+    stepOf(L, tm);
+    expect(tm.replan).toBe(false);
+    expect(route.length).toBe(0);
   });
 
   it('calmDecide hands a searching team member to the sweep (not the LKP ring) while the team sweeps', () => {

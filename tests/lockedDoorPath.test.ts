@@ -280,3 +280,20 @@ describe('a guard routed past a locked door (Enemy.goTo + LockedDoorNav)', () =>
     expect(s.e.pos.x).toBeGreaterThan(2.3);
   });
 });
+
+describe('(guard-ai sweep fix) a guard standing in a blocked cell walks out of it', () => {
+  it('pressed into the wall margin (a blocked cell), he steps out towards the nearest walkable cell, never deeper', async () => {
+    const st = await setup(true, false);
+    const { nav, e } = st;
+    // the wall along x = 0 blocks cells within its half thickness + the agent radius: (-0.3, -5) is such a cell
+    e.pos.x = -0.3;
+    e.pos.z = -5;
+    (e as unknown as { outP: [number, number] }).outP = [0, 0];
+    expect(nav.isWalkable(nav.cellOf(-0.3, -5))).toBe(false);
+    // asked along the wall (mostly +z, a little -x): before the fix every step inside his blocked cell was refused
+    for (let i = 0; i < 60 * 3; i++) e.move(1 / 60, [-1.2, 3], 1.4, null);
+    expect(nav.isWalkable(nav.cellOf(e.pos.x, e.pos.z))).toBe(true);
+    expect(e.pos.z).toBeGreaterThan(-4);
+    expect(e.pos.x).toBeLessThan(-0.3);
+  });
+});

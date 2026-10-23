@@ -36,8 +36,10 @@ export const GEAR_BY_STAGE: readonly GuardGear[] = [
 /** Response team shape: the shield guard leads and always wears a helmet; `liveTeam` = shield + 2 guards outside Sector Ops. */
 export const RESPONSE = { shieldLead: true, shieldHelmet: true, liveTeam: 3 } as const;
 
-/** Sweep numbers: thin route / post points to one per `thin` m, look `dwell` s at each, followers stack `gap` m behind the leader. */
-export const SWEEP = { enabled: true, thin: 8, dwell: 6, gap: 2.5 } as const;
+/** Sweep numbers: thin route / post points to one per `thin` m, look `dwell` s at each, followers stack `gap` m behind the leader.
+ *  (guard-ai sweep fix) A leader held short of his point (moved under `stallMove` m in `stall` s: a jam at a door, another
+ *  team on the point, a wall corner) replans once, then gives the point up (`SweepTeam.lead`). */
+export const SWEEP = { enabled: true, thin: 8, dwell: 6, gap: 2.5, stall: 5, stallMove: 1 } as const;
 
 /** A missed check-in makes the section cautious for `cautious` s (S13). */
 export const MISSING = { sectionCaution: true, cautious: 180 } as const;

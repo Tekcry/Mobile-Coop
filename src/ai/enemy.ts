@@ -1628,6 +1628,12 @@ export class Enemy implements Damageable {
         return out;
       }
       tm.lead(dt, this.pos.x, this.pos.z);
+      // (guard-ai sweep fix) held short of the point: his route is dropped and planned again from here
+      if (tm.replan) {
+        tm.replan = false;
+        this.routePath.length = 0;
+        this.routeMiss = false;
+      }
       const wp = this.goTo(p, dt);
       // unreachable: on to the next one
       if (!wp && this.routePath.length === 0) tm.next();
@@ -3465,6 +3471,17 @@ export class Enemy implements Damageable {
 
   private navCell = -1;
 
+  private readonly outP: P2 = [0, 0];
+
+  /** (guard-ai sweep fix) The step to (x, z) heads towards the walkable cell nearest him (he stands in a blocked one). */
+  private outward(x: number, z: number): boolean {
+    const nav = this.ctx.nav;
+    const w = nav.nearestWalkable(this.pos.x, this.pos.z, 2, this.pos.y);
+    if (w < 0) return false;
+    nav.centerInto(w, this.outP);
+    return (x - this.pos.x) * (this.outP[0] - this.pos.x) + (z - this.pos.z) * (this.outP[1] - this.pos.z) > 0;
+  }
+
   /** Move to (x, z) if the nav grid allows the step (no closure: called every step for every enemy). */
   private tryMove(x: number, z: number): boolean {
     // (guard-ai S20) a shut door's leaf, or a step into another guard (the slides too), is not taken
@@ -3478,7 +3495,9 @@ export class Enemy implements Damageable {
     const cur = this.navCell;
     const c = nav.cellNear(cur, x, z);
     if (c === cur || (c >= 0 && nav.canStep(cur < 0 ? c : cur, c)) || !nav.isWalkable(cur)) {
-      if (c >= 0 && nav.isWalkable(c)) {
+      // (guard-ai sweep fix) standing in a blocked cell (pressed into a wall's margin): a step inside it towards the
+      // nearest walkable cell is taken too, so he walks out (before, every step short of the edge was refused: frozen)
+      if (c >= 0 && (nav.isWalkable(c) || (c === cur && !nav.isWalkable(cur) && this.outward(x, z)))) {
         this.pos.x = x;
         this.pos.z = z;
         return true;
