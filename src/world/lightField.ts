@@ -4,14 +4,16 @@
  * (`lightBake.ts`: lamp visibility boxes, moon visibility, the ambient grid) and the registry's live state (on,
  * destroyed, EMP), with the formula the renderers use (`lampMath.ts`):
  *
- *   level = ambient grid + moon x moon visibility + sum over the lamps listed for the point's 2 m column (as the
- *           shaders list them) of `LAMP_LEVEL_GAIN` x intensity x falloff x cone x baked visibility, with closed
- *           doors cutting lamps
+ *   level = ambient grid + bounce grid (LR16-1, the lit lamps' one-bounce fill, never blended across a wall:
+ *           `BounceGrid.sampleInto`) + moon x moon visibility + sum over the
+ *           lamps listed for the point's 2 m column (as the shaders list them) of `LAMP_LEVEL_GAIN` x intensity x
+ *           falloff x cone x baked visibility, with closed doors cutting lamps
  *
  * Visibility is read trilinearly between cell centres and clamped to each box, as the GPU samples the atlas. Lights
  * that are not baked (flashlights) come from `dynamicAt` with the caller's ray test. Everything is allocation-free.
  */
 import { AMBIENT_CELL } from './ambientGrid';
+import { BounceGrid } from './bounceGrid';
 import { LAMP_CONE_COS, LAMP_EXP, LAMP_FEATHER, LAMP_LEVEL_GAIN, PHOTO_NEAR2, PHOTO_NUM, SPOT_EXP, SPOT_FEATHER } from './lampMath';
 import type { LightBake } from './lightBake';
 import { lightTerm, type LightRegistry, type Occluder } from './lights';
@@ -119,6 +121,8 @@ export class LightField {
   private readonly lampDoors: Int16Array;
   /** (LR15) Door slots per lamp, as the shaders' two door texels. */
   private readonly doorSlots = DOORS_PER_LAMP_ACCURATE;
+  /** (LR16-1) The lit lamps' one-bounce fill on the ambient grid's cells; `BakedLamps` packs the same bytes. */
+  readonly bounce: BounceGrid;
 
   constructor(
     readonly bake: LightBake | null,
@@ -158,6 +162,8 @@ export class LightField {
     this.lampDoors = lamps ? lampDoorLists(lamps.baked.lights, doors, bakeVisSampler(lamps.r), this.doorSlots) : new Int16Array(0);
     this.gx = bake?.lo[0] ?? 0;
     this.gz = bake?.lo[2] ?? 0;
+    this.bounce = new BounceGrid(lamps?.r.bounce, lamps ? lamps.baked.ids : [], bake ? bake.ambient : { origin: [0, 0, 0], n: [1, 1, 1] });
+    this.bounce.sync(reg);
   }
 
   /**
@@ -181,6 +187,13 @@ export class LightField {
   /** Baked visibility of lamp `i` at a point (0..1): trilinear between cell centres, clamped to its box. */
   visAt(i: number, x: number, y: number, z: number): number {
     this.visInto(i, x, y, z);
+    return this.res;
+  }
+
+  /** (LR16-1) The one-bounce fill at a point (0..1): the bounce grid read by `BounceGrid.sampleInto` (the walls kept),
+   *  as `levelAt` adds it. */
+  bounceAt(x: number, y: number, z: number): number {
+    this.bounceInto(x, y, z);
     return this.res;
   }
 
@@ -240,6 +253,12 @@ export class LightField {
     // (shadow audit) the ambient fill read trilinearly, as the shaders' bilinear `lampAmb` texture reads it
     this.triInto(ag.data, 0, ag.origin[0], ag.origin[1], ag.origin[2], ag.n[0], ag.n[1], ag.n[2], AMBIENT_CELL, x, y, z);
     let v = this.res;
+    // (LR16-1) the lit lamps' bounce: the same cells, read without blending across a wall (fix round), as the shader
+    // reads the fill texture's green channel
+    if (this.bounce.active) {
+      this.bounceInto(x, y, z);
+      v += this.res;
+    }
     if (b.moonLight > 0) {
       this.moonInto(x, y, z);
       v += b.moonLight * this.res;
@@ -317,6 +336,18 @@ export class LightField {
     const o = i * LS;
     const P = this.lamp;
     this.triInto(this.bake!.lamps!.r.vis, P[o + 9]!, P[o + 10]!, P[o + 11]!, P[o + 12]!, P[o + 13]!, P[o + 14]!, P[o + 15]!, LAMP_CELL, x, y, z);
+  }
+
+  /** The bounce grid (synced to the registry first: one compare when nothing changed) into `res`. */
+  private bounceInto(x: number, y: number, z: number): void {
+    const bg = this.bounce;
+    if (!bg.active) {
+      this.res = 0;
+      return;
+    }
+    bg.sync(this.reg);
+    bg.sampleInto(x, y, z);
+    this.res = bg.out;
   }
 
   private moonInto(x: number, y: number, z: number): void {
