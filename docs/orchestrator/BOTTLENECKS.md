@@ -17,3 +17,14 @@
 | 8 | Alone-measurements starved | #226 perf open 4 h+ | "only while no train is queued" | run them right after each release and in swap gaps | orchestrator |
 
 Not measured: laptop run dirs (not reachable from the desktop), heavy.lock history, message counts.
+
+## 2026-10-23 ~20:26 (Opus audit)
+Train 32: built 19:41, laptop pass 20:04 (43/43, sharded 564 / 560 s), release CI red 20:14 (3 stale unit files; the old build ran 198 / 425), fix 20:22: ~78 min release gap vs 51 mean.
+
+| # | Wait | Cost | Cause | Fix | Who |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Laptop queue backlog | 7 requests / 26 suites, oldest 25 min | hand-run alone chains hold 4189, 4192 idle | Test Runner drains it; alone chains become queue requests after trains (told 20:30) | Test Runner |
+| 2 | Train built on red member CI | ~17 min | #237 / #248 check red at build | gh pr checks green first; the new build runs all unit files | orchestrator |
+| 3 | Label relay, no auto trains | #249 missed train 32 by minutes | auto mode blocks gh pr edit --add-label (laptop); auto-train not registered | allow rule on the laptop; register auto-train after 4.81.0 | Michael / orchestrator |
+| 4 | Player idle, AF7-AF9 gated | spare list empty | gated on Michael walking AF0-AF6 | earlier walk on a preview of #247 | Michael |
+| 5 | Desktop capacity unused | CPU 27-37% vs 80% | no desktop e2e (19:15) | desktop as queue overflow slot (JOBS=1) when backlog > 3 | Michael |
