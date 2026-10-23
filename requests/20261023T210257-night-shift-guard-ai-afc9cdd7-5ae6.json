@@ -1,0 +1,14 @@
+{
+  "id": "20261023T210257-night-shift-guard-ai-afc9cdd7-5ae6",
+  "sha": "afc9cdd77c3016433a98ce7c374bc18566454cee",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-lightbake",
+    "e2e-guard-carry"
+  ],
+  "jobs": 2,
+  "set": "body-watchdog"
+}
