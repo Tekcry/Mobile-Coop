@@ -299,7 +299,12 @@ NEXT:
 1. LR16-M BUILT by Marlow: PR #291 feature/marlow-lr16m 606630ed (= -lr16-entry 6e53e036 + M1-M4 + INT; ctcourseLight green, 731 tests); laptop ctcourse:1-4 + lightbake (set lr16m) + Sonnet checker on their side. #291 holds all of #287 + the entry resolution. Orchestrator ~07:30: #291 alone carries LR16; Marlow labels it; do NOT label #287 (marked merged when #291 releases). #291 shows CONFLICTING vs the current master (master moved past 5d1e8e3e): the train resolves it. After #291 releases: open the LR16-4 PR from -lr16-4 (base f85ef736 is inside #291), close CI-only #290. Was: send the path to Marlow Build
    and copy the orchestrator. When Marlow's LR16-M branch is green: tell the orchestrator #287 trains with
    -lr16-entry + LR16-M; mark #287 ready + label train-ready.
-2. ENTRY branch fixes (-lr16-entry): 2f719ac9 campusArtGameplay greybox re-pin (S4 post); 6e53e036 lampLevel -> LR16 formula (marlowLightingLevels 7/7; Marlow told to merge it into feature/marlow-lr16m); CI-only draft PR #290 on -lr16-entry runs the full test list (close it after). Read f85ef736 verdict (wire change protocol 45) and the perf verdicts (logs on the laptop: checks/lr16p-perf-request.md).
+2. #291 laptop (Marlow): ctcourse:1-4 PASS, e2e-lightbake FAIL at 900 s on 606630ed (flaked on f85ef736; passed pre-merge on
+   809c25f4); checker PASS. RUNNING ~08:30: Opus lightbake triage (fix branch -lr16lb off -lr16-entry if any;
+   checks/lr16-lightbake-triage.md); Marlow reruns lightbake --pr 291 (set lr16m-lb). #291 / -lr16-entry CONFLICT again
+   with master (enemy.ts, protocol.ts, session.ts): asked the orchestrator train vs refresh. #290 CLOSED (no CI while
+   conflicting); full vitest RUNNING locally on -lr16-entry under heavy.lock (log scratchpad entry-vitest.log).
+   ENTRY branch fixes (-lr16-entry): 2f719ac9 campusArtGameplay greybox re-pin (S4 post); 6e53e036 lampLevel -> LR16 formula (marlowLightingLevels 7/7; Marlow told to merge it into feature/marlow-lr16m); CI-only draft PR #290 on -lr16-entry runs the full test list (close it after). Read f85ef736 verdict (wire change protocol 45) and the perf verdicts (logs on the laptop: checks/lr16p-perf-request.md).
 3. LR16-4 DONE -lr16-4 eb2c62c2 (board-2; checks/lr16-4-build.md), check PASS (checks/lr16-4-check.md); laptop eb2c62c2-0cb6 (sectorops:6 coop). Was: one checker
    (two on src/ai if touched) + laptop sectorops:6 + coop.
 4. FULL BURN (orchestrator ~07:35, Michael swaps at the 5-hour cap): RUNNING ~07:40: Opus LR16-6 vision polish
