@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { capTail, contextName, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseRun, pick, requestId, requestProblem, runComplete, shard, suiteSection } from '../scripts/laptop-queue/lib.mjs';
+import { capTail, claimBlocks, contextName, desktopGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, suiteSection } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -181,5 +181,29 @@ describe('failureExcerpt and mergeTimes', () => {
   });
   it('merges only ok, non-report suites', () => {
     expect(mergeTimes({ a: 1, b: 2 }, [{ s: 'a', ok: true, report: false, sec: 9 }, { s: 'b', ok: false, report: false, sec: 99 }, { s: 'c', ok: true, report: true, sec: 5 }])).toEqual({ a: 9, b: 2 });
+  });
+});
+
+describe('claims and the desktop lane', () => {
+  const H = 3600_000;
+  const at = (minAgo: number) => new Date(NOW - minAgo * 60_000).toISOString();
+  it('parses a claim, null for absent or bad text', () => {
+    expect(parseClaim(`{"worker":"laptop","pid":1,"at":"${at(1)}","done":false}`)).toMatchObject({ worker: 'laptop', done: false });
+    expect(parseClaim('')).toBeNull();
+    expect(parseClaim('{nope')).toBeNull();
+    expect(parseClaim('{"worker":"laptop","at":"never"}')).toBeNull();
+  });
+  it('a done claim blocks everyone; an open one blocks only the other worker until it is stale', () => {
+    expect(claimBlocks(null, 'desktop', NOW, 3 * H)).toBe(false);
+    expect(claimBlocks({ worker: 'laptop', at: at(5), done: true }, 'laptop', NOW, 3 * H)).toBe(true);
+    expect(claimBlocks({ worker: 'laptop', at: at(5), done: false }, 'desktop', NOW, 3 * H)).toBe(true);
+    expect(claimBlocks({ worker: 'laptop', at: at(5), done: false }, 'laptop', NOW, 3 * H)).toBe(false);
+    expect(claimBlocks({ worker: 'laptop', at: at(200), done: false }, 'desktop', NOW, 3 * H)).toBe(false);
+  });
+  it('the desktop gate needs backlog over the minimum and cpu under the cap', () => {
+    expect(desktopGate(4, 40, 3, 60)).toBe('');
+    expect(desktopGate(3, 40, 3, 60)).toMatch(/backlog/);
+    expect(desktopGate(5, 60, 3, 60)).toMatch(/cpu 60/);
+    expect(desktopGate(5, NaN, 3, 60)).toBe('cpu unknown');
   });
 });
