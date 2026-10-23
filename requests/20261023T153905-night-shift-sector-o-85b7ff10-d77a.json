@@ -1,0 +1,16 @@
+{
+  "id": "20261023T153905-night-shift-sector-o-85b7ff10-d77a",
+  "sha": "85b7ff108c8167a71b9824611402f8e55b7d13e4",
+  "branch": "feature/sector-redesign-lr16int",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-sectorops",
+    "e2e-ctcourse",
+    "e2e-lightbake",
+    "e2e-darkness"
+  ],
+  "set": "lr16w",
+  "note": "LR16 batch after the checker's one-line fix (supersedes 7a3b5815)"
+}
