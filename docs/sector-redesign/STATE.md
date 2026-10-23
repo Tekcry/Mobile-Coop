@@ -306,6 +306,10 @@ LR16 (one lighting system; checks/lr16-plan.md, lr16-0-ct-audit.md)
 - After LR16g PASS (one Opus checker + laptop on the same sha): LR16-8 sheets (briefs/LR16h-and-8.md part 2 to Test
   Runner), then the LR16 PR (one batch; src/net touched by LR16-5 -> two checkers done). LR16-4 relight = Guard AI #255,
   then our board slice briefs/LR16-4-board.md (after LR16g; both edit campusS2.ts).
+- LR16-POLISH (briefs/LR16-POLISH.md, e8f7af9c): 25 open items in parts A-F (19 dropped, 30 held). A / B / C (off lr16int
+  4ebcecbd) and D (off artpol, docs) can start now: QUEUED until desktop CPU < 80% (100% at 22:58). Lead: A's
+  lampBounce.test.ts bake-time item moves to F (LR16g may edit that file). E after LR16-5b merges, F after LR16g.
+  LR16-P perf brief (Opus) running -> briefs/LR16-P.md.
 - LR16-5b sway (M14, ctcourse only): building (above). Then two Opus checkers (src/net) + laptop perf on ctcourse, merge
   into lr16int.
 - Walk 4.82 (WALK-4.82-REPORT.md on feature/menu): item 1 "Marlow yard seems dark" -> LR16g target (builder told).
