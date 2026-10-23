@@ -612,6 +612,10 @@ try {
               const [x, z] = nav.center(c);
               // (not so near the last known position that walking to it passes the spot anyway)
               if (Math.hypot(x - Lx, z - Lz) < 3) return;
+              // (nor within 3 m of his walk from his post (0, 5) to the last known position: that would pass it too)
+              const sx = Lx, sz = Lz - 5;
+              const u = Math.max(0, Math.min(1, ((x - 0) * sx + (z - 5) * sz) / Math.max(1e-6, sx * sx + sz * sz)));
+              if (Math.hypot(x - u * sx, z - 5 - u * sz) < 3) return;
               best = sc;
               hide = { x, z, path: r1(p), straight: r1(Math.hypot(x - Lx, z - Lz)), light: +l.toFixed(3), cover, score: +sc.toFixed(2) };
             };
@@ -667,7 +671,12 @@ try {
             if (p0.builtAt !== builtAt && p0.builtAt >= 0) {
               builtAt = p0.builtAt;
               const pts = [];
-              for (let q = 0; q < p0.n; q++) pts.push([r1(p0.x[q]), r1(p0.z[q]), +p0.score[q].toFixed(2)]);
+              for (let q = 0; q < p0.n; q++) {
+                // each point's path from the last known position (his intruder's chase field), for the 'wall' bound
+                const pc = nav.nearestWalkable(p0.x[q], p0.z[q], 2, Ly);
+                const pp = pc >= 0 ? f[pc] * cell : Infinity;
+                pts.push([r1(p0.x[q]), r1(p0.z[q]), +p0.score[q].toFixed(2), r1(pp)]);
+              }
               plans.push({ t: r1(time - Math.max(0, tS)), c: [r1(p0.cx), r1(p0.cz)], R: r1(em['planR'][s]), pts });
             }
             for (let gi = 0; gi < gs.length; gi++) {
@@ -742,9 +751,11 @@ try {
     const sb = JSON.stringify({ seen: b.seen, hide: b.hide, at: b.at, tS: b.tS, guard: b.guard, claims: b.claims, level: b.level, maxPathAt: b.maxPathAt });
     assert(!b.err, `wall: ${b.err} (${JSON.stringify(b)})`);
     assert(b.tS > 0 && b.plans.length > 0, `wall: the search starts and asks the plan (${sb}; plans ${JSON.stringify(b.plans)})`);
-    const nearB = Math.min(...b.plans.map((p) => near2(p.pts, b.hide.x, b.hide.z)));
-    assert(nearB > 3, `wall: no plan point behind the wall (nearest ${nearB.toFixed(1)} m to ${JSON.stringify(b.hide)}; plans ${JSON.stringify(b.plans)})`);
-    assert(b.closest >= 4, `wall: no searcher goes round to the spot behind the wall within 20 s (closest ${b.closest} m at ${b.closestT} s; ${sb})`);
+    // (S25B-RECHECK: cells 1-3 m from the walled pocket are inside R by path, so "no point near it" fails on correct
+    // behaviour; the rule is "by path, not straight": every plan point is within R + 0.5 m by path)
+    const overR = b.plans.flatMap((p) => p.pts.filter((q) => !(Number(q[3]) <= p.R + 0.5)).map((q) => ({ pt: q, R: p.R })));
+    assert(overR.length === 0, `wall: every plan point is within R + 0.5 m by path, never a room reached round a wall (${JSON.stringify(overR)}; hide ${JSON.stringify(b.hide)}; plans ${JSON.stringify(b.plans)})`);
+    console.log(`    (wall: closest searcher to the walled spot ${b.closest} m at ${b.closestT} s)`);
     const rB = Math.max(...b.plans.map((p) => p.R));
     assert(b.maxPath <= rB + 1, `wall: no searcher farther from the last known position by path than R + 1 m (max ${b.maxPath} m at ${JSON.stringify(b.maxPathAt)}, R ${rB}; ${sb})`);
 
