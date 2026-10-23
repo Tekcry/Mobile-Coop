@@ -296,7 +296,7 @@ tuned.json dropped, rtReflections deleted; 110 / 111 test files green). BLOCKER:
 ctcourse.ts), #287 trains with the entry resolution once LR16-M is green. Laptop f85ef736-021e (coop netmove lightbake
 darkness sectorops) queued; LR16-P perf requeued: 1c22b913-74eb, 83136f2c-ce41, 809c25f4-6cde.
 NEXT:
-1. LR16-M brief DONE (f075b01b; M1-M4 + INT, all bands green in memory) and SENT to Marlow Build (~06:45, branch off f85ef736). Was: send the path to Marlow Build
+1. LR16-M BUILT by Marlow: PR #291 feature/marlow-lr16m 606630ed (= -lr16-entry 6e53e036 + M1-M4 + INT; ctcourseLight green, 731 tests); laptop ctcourse:1-4 + lightbake (set lr16m) + Sonnet checker on their side. #291 holds all of #287 + the entry resolution. Was: send the path to Marlow Build
    and copy the orchestrator. When Marlow's LR16-M branch is green: tell the orchestrator #287 trains with
    -lr16-entry + LR16-M; mark #287 ready + label train-ready.
 2. ENTRY branch fixes (-lr16-entry): 2f719ac9 campusArtGameplay greybox re-pin (S4 post); 6e53e036 lampLevel -> LR16 formula (marlowLightingLevels 7/7; Marlow told to merge it into feature/marlow-lr16m); CI-only draft PR #290 on -lr16-entry runs the full test list (close it after). Read f85ef736 verdict (wire change protocol 45) and the perf verdicts (logs on the laptop: checks/lr16p-perf-request.md).
