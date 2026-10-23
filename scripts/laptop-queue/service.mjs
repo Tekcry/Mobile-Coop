@@ -7,7 +7,7 @@
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { describe, failureExcerpt, lockChanged, mergeTimes, parseRun, pick, requestProblem, contextName, shard } from './lib.mjs';
+import { describe, failureExcerpt, lockChanged, mergeTimes, parseRun, pick, requestProblem, contextName, shard, suiteSection } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const STATE_DIR = process.env.LQ_STATE ?? 'C:/NightShift/scratch/laptop-queue';
@@ -203,13 +203,14 @@ async function rerunFlakes(result, slotOf, job, runDir) {
 function failureComment(job, result, runDir) {
   const parts = [`laptop-e2e failed on ${job.sha.slice(0, 8)} (${job.ref}).`];
   for (const x of result.suites.filter((s) => !s.ok && !s.flaky && !s.report)) {
-    let ex = '';
+    let sec = '';
     for (const f of fs.existsSync(runDir) ? fs.readdirSync(runDir) : []) {
       if (!f.endsWith('.log') || f.startsWith('rerun-')) continue;
-      ex = failureExcerpt(fs.readFileSync(path.join(runDir, f), 'utf8'), x.s);
-      if (ex) break;
+      sec = suiteSection(fs.readFileSync(path.join(runDir, f), 'utf8'), x.s);
+      if (sec) break;
     }
-    parts.push(`\n**${x.s}**\n\`\`\`\n${ex || '(no failing line found)'}\n\`\`\`\nLog on the laptop: ${runDir}`);
+    const { assert, tail40 } = failureExcerpt(sec);
+    parts.push(`\n**${x.s}**\nFailing assert: \`${assert || 'none found'}\`\nLog on the laptop: ${runDir}\n\`\`\`\n${tail40 || '(no log section)'}\n\`\`\``);
   }
   return parts.join('\n');
 }

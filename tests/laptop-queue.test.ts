@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { contextName, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseRun, pick, requestId, requestProblem, shard } from '../scripts/laptop-queue/lib.mjs';
+import { contextName, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseRun, pick, requestId, requestProblem, shard, suiteSection } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -139,10 +139,17 @@ describe('contextName and ids', () => {
 });
 
 describe('failureExcerpt and mergeTimes', () => {
-  it('takes the first matching line of the suite section and the lines before it', () => {
-    const ex = failureExcerpt(RUN, 'e2e-menus');
-    expect(ex).toBe('step 3\nnot ok - menu opens');
-    expect(failureExcerpt(RUN, 'e2e-nope')).toBe('');
+  it('cuts a suite section and gives the failing assert plus the last 40 lines', () => {
+    const sec = suiteSection(RUN, 'e2e-menus');
+    expect(sec).toBe('step 3\nnot ok - menu opens');
+    expect(failureExcerpt(sec)).toEqual({ assert: 'not ok - menu opens', tail40: 'step 3\nnot ok - menu opens' });
+    expect(suiteSection(RUN, 'e2e-nope')).toBe('');
+    const long = Array.from({ length: 100 }, (_, i) => (i === 10 ? 'Error: boom' : `line ${i}`)).join('\n');
+    const r = failureExcerpt(long);
+    expect(r.assert).toBe('Error: boom');
+    expect(r.tail40.split('\n')).toHaveLength(40);
+    expect(r.tail40.endsWith('line 99')).toBe(true);
+    expect(failureExcerpt('')).toEqual({ assert: '', tail40: '' });
   });
   it('merges only ok, non-report suites', () => {
     expect(mergeTimes({ a: 1, b: 2 }, [{ s: 'a', ok: true, report: false, sec: 9 }, { s: 'b', ok: false, report: false, sec: 99 }, { s: 'c', ok: true, report: true, sec: 5 }])).toEqual({ a: 9, b: 2 });

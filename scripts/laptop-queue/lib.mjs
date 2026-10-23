@@ -135,18 +135,23 @@ export function lockChanged(oldText, newText) {
   return a.length !== b.length || a.some((l, i) => l !== b[i]);
 }
 
-/**
- * For the PR comment: a suite's section of the run log ("=== <s> (FAIL ..." up to the next "=== "), the first line
- * matching /not ok|Error:|timed out|FAIL/ after its header, and the 20 lines before it. '' when nothing matches.
- */
-export function failureExcerpt(logText, suite) {
+
+/** A suite's section of a run log: from "=== <s> (" up to the next "=== " ('' when absent). */
+export function suiteSection(logText, suite) {
   const lines = String(logText).replace(/\r\n/g, '\n').split('\n');
   const from = lines.findIndex((l) => l.startsWith(`=== ${suite} (`));
   if (from < 0) return '';
   let to = lines.findIndex((l, i) => i > from && l.startsWith('=== '));
   if (to < 0) to = lines.length;
-  const body = lines.slice(from + 1, to);
-  const hit = body.findIndex((l) => /not ok|Error:|timed out|FAIL/.test(l));
-  if (hit < 0) return '';
-  return body.slice(Math.max(0, hit - 20), hit + 1).join('\n');
+  return lines.slice(from + 1, to).join('\n');
+}
+
+/**
+ * For the PR comment, from one suite's section text: the failing assert (first line matching
+ * /not ok|Error:|timed out|FAIL/, '' when none) and the last 40 lines of the section.
+ */
+export function failureExcerpt(sectionText) {
+  const lines = String(sectionText).replace(/\r\n/g, '\n').replace(/\n+$/, '').split('\n');
+  const assert = lines.find((x) => /not ok|Error:|timed out|FAIL/.test(x)) ?? '';
+  return { assert, tail40: lines.slice(-40).join('\n') };
 }

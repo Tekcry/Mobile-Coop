@@ -77,8 +77,9 @@ Loop every 30 s (`--once`: one pass, then exit after its runs finish):
 6. Result: commit status on the sha: `success` / `failure`, description PURE `describe(result)` =
    `"<pass>/<n> pass, <wall> s"` + `"; flake: a,b"` + `"; FAIL: a,b"`, cut to 140 chars; `target_url` none.
    On failure: a comment on the PR (train: `gh pr list --head train/<n> --json number`; pr requests: `pr` field;
-   none -> skip) with, per failed suite, the first line matching /not ok|Error:|timed out|FAIL/ in its section, the
-   20 lines before it, and the log path on the laptop. Then state.done / state.trains updated, times.json merged.
+   none -> skip) with, per failed suite, the failing assert (first line matching /not ok|Error:|timed out|FAIL/ in its
+   section), the log path on the laptop and the LAST 40 lines of its log section (Michael ~19:25; PURE `suiteSection` +
+   `failureExcerpt(section)` -> {assert, tail40}). Then state.done / state.trains updated, times.json merged.
 7. pr / full requests run on one slot (`full` = the list, `E2E_JOBS` = request.jobs or 3; `pr` = suites, jobs or 2).
    Same status / comment / flake rules with their context.
 8. Each run: take the slot lock (wait while held by someone else - manual runs keep working), `git fetch`, clean,
