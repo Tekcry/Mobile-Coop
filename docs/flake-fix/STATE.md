@@ -41,7 +41,8 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
     warehouseOps + campusOps, Character shadows Auto vs Off, Classic vs Realistic on warehouseOps (bake time, memory:
     campusOps atlas 48 -> 134 MB expected, S1 bay frame time); contact sheet guard + partner under a lamp Epic vs
     Medium + walk between two lamps. ONE verdict -> Sector Ops Build.
-- SENT ~15:28: Marlow WIP 1/4 (ctcourse:4 A8 grille stop timeout; s10 ctcourse:1 A2 lure timeout, :2 A4 dock 0.991;
+- SENT ~15:30: Player coopwalk2 c98005de e2e-coop GREEN (batch green; orch copied, protocol 37 vs Guard AI S9 37 /
+  Sector Ops 38 flagged). Marlow WIP 1/4 (ctcourse:4 A8 grille stop timeout; s10 ctcourse:1 A2 lure timeout, :2 A4 dock 0.991;
   course ok).
   - 4189 chain-1023m1 (after r89 + r92 + lr): guardrender-m1-f5912402 = guard-render M1 check on master 4.75.0
     (work/guardrender-m1-f5912402; load sample runs/guardrender-m1-load.csv). Judge vs BRIEF M1 (24 facing: CPU p95
