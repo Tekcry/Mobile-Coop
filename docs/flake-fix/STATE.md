@@ -29,6 +29,11 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   after fix 2: rerun on the new head), 4192 guardrender-s6-c181002e (baseline before the S6 fixes).
 - 11:45 PR #205 OPEN guard-render S5 9fc1e66a (stacked on #204, same train; golden passes, no recapture). Runner
   guardrender-s5-9fc1e66a waits on the 4192 lock (e2e-anim e2e-takedown, JOBS=2): message the orchestrator only on a fail.
+- 11:50 SENT Guard AI S10 88a93584 9/11 (stealth-ai radio "everyone within the call + 4.5 s"; sectorops:1 panel
+  alarmBy radio, sector tags 3.93 m, talking pairs 4.44 m). S6 fix round DONE ec859eeb (cascade lists only under
+  the baked moon, reach from the player, body rigs reach, run-s6-on|off in docs); runner guardrender-s6-ec859eeb waits on
+  4192 (smoke stealth-ai sectorops ctcourse). Next S6: one Opus checker batch with S3a fix 2, then PR WITHOUT S6d
+  unless Michael OKs the ground-shadow look (gain small).
 - 11:30 CHECKER (Opus) S3a e704d5f3 PASS WITH NOTES: (1, blocks job PR) fit script has no `free` mode for MOVE + no
   crouch sweep; (2) harness re-implements syncHitboxes emote logic (move to a pure fn, test beginTakedown blindPose clear);
   (3) hostage walk untested (mSx survives held blend, frozen phase); exceptions OK, peek cycle 29 cm = follow-up (smaller
