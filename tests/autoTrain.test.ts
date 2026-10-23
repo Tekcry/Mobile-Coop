@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  bumpVersion, ciGreenAt, ciState, contextStatus, decide, docsOnly, fragmentInfo, fragmentPath, joinTitles, laptopMissing, laptopQueueState, membersFromSubjects,
+  bumpVersion, ciGreenAt, ciState, contextStatus, decide, desktopFailSuites, docsOnly, fragmentInfo, fragmentPath, joinTitles, laptopMissing, laptopQueueState, membersFromSubjects,
   nextTrainNumber, pacing, parseChangelogHeading, parseLeftOut, parseTrainTitle, planBuild, rebuildSkip, releaseArgs, releaseKind, scratchFiles,
-  stackedTips, versionFromSubjects,
+  stackedTips, versionFromSubjects, rerunArgs, rerunContext, rerunPlan,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/auto-train.mjs';
 
@@ -263,5 +263,50 @@ describe('auto-train: release pin, rebuild loop guard, dry-run files', () => {
     expect(dry.log).toMatch(/auto-train\.dryrun\.log$/);
     expect(dry.realStatus).toBe(real.status);
     expect(new Set([real.lock, real.log, real.status, dry.lock, dry.log, dry.status]).size).toBe(6);
+  });
+});
+
+describe('auto-train: laptop rerun after a desktop failure', () => {
+  const head = 'abcdef1234567890';
+  const desk = 'desktop: 37/39 pass, 512 s; known flaky: e2e-pad; FAIL: e2e-coop,ctcourse:4';
+  const train = (o: Record<string, unknown> = {}) => ({ n: 47, pr: 301, head, version: '4.90.0', ci: 'success', vitest: 'missing', versionCommit: true,
+    laptop: { state: 'failure', description: desk }, rerun: { state: 'missing', description: '' }, ageMin: 30, ...o });
+
+  it('parses the failed suites of a desktop description only', () => {
+    expect(desktopFailSuites(desk)).toEqual(['e2e-coop', 'ctcourse:4']);
+    expect(desktopFailSuites('desktop: 38/39 pass, 300 s; flake: x; FAIL: e2e-menus')).toEqual(['e2e-menus']);
+    expect(desktopFailSuites('desktop: 39/39 pass, 300 s')).toEqual([]);
+    expect(desktopFailSuites('desktop: no result parsed, see log')).toEqual([]);
+    expect(desktopFailSuites('desktop: 30/39 pass, 300 s; FAIL: e2e-a,e2e-b,e2e-c...')).toEqual([]);
+    expect(desktopFailSuites('desktop: 1/2 pass, 3 s; FAIL: bad name')).toEqual([]);
+    expect(desktopFailSuites('37/39 pass, 512 s; FAIL: e2e-coop')).toBeNull();
+    expect(desktopFailSuites(undefined)).toBeNull();
+  });
+
+  it('requests one rerun of the failed suites for a new head', () => {
+    expect(rerunPlan(train(), null)).toMatchObject({ action: 'request', state: 'laptop-rerun', suites: ['e2e-coop', 'ctcourse:4'], set: 'train47-rerun' });
+    expect(rerunPlan(train(), { rerun: { head: 'otherhead', id: 'r0', suites: ['x'] } })).toMatchObject({ action: 'request' });
+    expect(rerunContext(47)).toBe('laptop-e2e/train47-rerun');
+    expect(rerunArgs({ sha: head, suites: ['e2e-coop', 'ctcourse:4'], pr: 301, set: 'train47-rerun' })).toEqual(['--sha', head, '--suites', 'e2e-coop ctcourse:4',
+      '--pr', '301', '--set', 'train47-rerun', '--requester', 'auto-train', '--train-rerun']);
+  });
+
+  it('never requests twice for the same head: waits, then fails on the rerun failure', () => {
+    const prev = { state: 'laptop-rerun', rerun: { head, id: 'r1', suites: ['e2e-coop'], set: 'train47-rerun' } };
+    expect(rerunPlan(train(), prev)).toMatchObject({ action: 'wait', state: 'laptop-rerun', reason: expect.stringMatching(/rerun r1 of e2e-coop on abcdef12 queued/) });
+    expect(rerunPlan(train({ rerun: { state: 'pending', description: '1/1' } }), prev)).toMatchObject({ action: 'wait' });
+    expect(rerunPlan(train({ rerun: { state: 'failure', description: '0/1 pass' } }), prev)).toMatchObject({ action: 'none', state: 'failed',
+      reason: expect.stringMatching(/laptop rerun r1 of e2e-coop failed on abcdef12 \(0\/1 pass\)/) });
+  });
+
+  it('keeps "failed" for a laptop failure, unparsed suites, or a CI / vitest failure; a rerun pass releases', () => {
+    expect(rerunPlan(train({ laptop: { state: 'failure', description: '37/39 pass, 512 s; FAIL: e2e-coop' } }), null)).toBeNull();
+    expect(rerunPlan(train({ laptop: { state: 'failure', description: 'desktop: no result parsed, see log' } }), null)).toBeNull();
+    expect(rerunPlan(train({ ci: 'failure' }), null)).toBeNull();
+    expect(rerunPlan(train({ vitest: 'failure' }), null)).toBeNull();
+    expect(rerunPlan(train({ laptop: { state: 'pending', description: 'desktop: sharded 4191+4192' } }), null)).toBeNull();
+    const passed = train({ laptop: { state: 'success', description: 'laptop rerun passed: 2/2' } });
+    expect(rerunPlan(passed, { rerun: { head, id: 'r1', suites: ['e2e-coop'] } })).toBeNull();
+    expect(decide({ train: passed })).toMatchObject({ state: 'releasing', action: 'release' });
   });
 });
