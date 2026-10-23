@@ -1,0 +1,14 @@
+{
+  "id": "20261023T143232-night-shift-guard-ai-829cffe1-3ae5",
+  "sha": "829cffe12edff5cfe459beddfd989399480cd66f",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-ctcourse:2"
+  ],
+  "jobs": 2,
+  "set": "s23-a3fix",
+  "note": "S23 A3 triage: master+S23+A3 scenario fix candidate (test-only branch feature/guard-ai-s23-a3test); expect PASS"
+}
