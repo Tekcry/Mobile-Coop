@@ -88,3 +88,4 @@ reached point 0, never asked the plan, and `plans` stayed `[]`.
   `searchAreaWiring` 17/17 stands).
 - Risk left: the hide's rank in the plan (S25B-RECHECK). The printed plans and the walk show it if 20 s from the plan
   is still short.
+- Queued: set `s25-sai-fix2`, suite `e2e-stealth-ai`, on 923be420, request `20261023T133138-night-shift-guard-ai-923be420-40a9`.
