@@ -269,7 +269,10 @@ export function buildServiceS1(b: LevelBuilder): void {
   lintel(b, 8, 2.45, -12.3, T, 0.7, 1.2);
   lintel(b, MESS_DOOR.x, 2.45, MESS_DOOR.hinge + MESS_DOOR.w / 2, T, 0.7, MESS_DOOR.w); // (R1) the mess back door's head
   b.box(-8, 3.8, -11.3, T, 2.0, 5.0, WALL); // void west wall
-  b.box(8, 3.8, -11.975, T, 2.0, 3.65, WALL); // void east wall with the catwalk opening z -10.15 to -8.95 (y 3.0 - 4.6)
+  // void east wall with the catwalk opening z -10.0 to -8.95 (y 3.0 - 4.6); (lr16fix2) its south jamb 0.15 m in from the
+  // catwalk's south edge: the corner where the deck edge met the wall end let a floor eye (x 21.6 - 23.6, z -13.2 - -13.6)
+  // see panel-workshop over the sill (tests/laserPanels.test.ts "hidden from the floor")
+  b.box(8, 3.8, -11.9, T, 2.0, 3.8, WALL);
   // (the openings' sills and caps are not ledges: the catwalk walks straight in)
   noLedgeBox(b, 8, 2.9, -9.55, T, 0.2, 1.2);
   noLedgeBox(b, 8, 4.7, -9.55, T, 0.2, 1.2);

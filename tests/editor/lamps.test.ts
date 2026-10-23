@@ -50,7 +50,9 @@ describe('fitting catalogue', () => {
 
   it('a 900 lm downlight is the Warehouse office ceiling lamp (the calibration point)', () => {
     const src = readFileSync('src/world/maps/warehouse.ts', 'utf8');
-    expect(src).toMatch(/x: 21\.45, y: 2\.45, z: -22\.9, radius: 4, intensity: 0\.7/);
+    // the gatehouse door lamp: LR16d (lr16d-warehouse-build.md, warehouse row 0) slid it x 21.45 -> 20.6 off the
+    // gatehouse face; its drop (y 2.45), radius 4 and intensity 0.7, the calibration, are unchanged
+    expect(src).toMatch(/x: 20\.6, y: 2\.45, z: -22\.9, radius: 4, intensity: 0\.7/);
     const p = lightParams({ lumens: LF('calLumens'), kelvin: 4000, beam: LF('calBeam') });
     expect(p.radius).toBe(LF('calRadius'));
     expect(p.intensity).toBe(LF('calIntensity'));
