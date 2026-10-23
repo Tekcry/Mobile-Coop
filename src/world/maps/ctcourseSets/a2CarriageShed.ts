@@ -6,12 +6,17 @@
  *
  * Ground, set box x 28-70, z 0-20, open to the 10 m hall roof (the walls on the box edges are `facility.ts`'s):
  * - roads 1, 2, 3 at z 5 / 10 / 15 with 2 m ballast strips (`gravel`, loud) and two rakes of one 10 m van per road (x 36-46 and
- *   56-66, 2.6 x 3.4 m, all `noLedge`, 2.4 m gaps: no split gap), 0.3 m wheel stops at the road ends;
- * - the neck x 46-56: 10 m open crossing under four high-bays on the isolator circuit 21;
+ *   56-66, 2.6 x 3.4 m, all `noLedge`, 2.4 m gaps: no split gap), 0.3 m wheel stops at the road ends (five: road 2's east end stays
+ *   clear for the L2 door);
+ * - the neck x 46-56: 10 m open crossing under four high-bays on the isolator circuit 21; two lanes lead into it (gap 1/2 z 6.3-8.7, the
+ *   shunter's beat, and gap 2/3 z 11.3-13.7, the taught crossing): four `noLedge` closures at the rakes' neck ends (x 45.5-46.0 and
+ *   56.0-56.5) shut the south cess (2.5 m) and the north walkway (to the deck's 4.4 m) (walk482 X2b);
  * - the shunter's cabin x 28-32, z 1-5 (every piece `noLedge`): a thick plant wall on the south side back to the shell (no
  *   gap behind it), the isolator cabinet 1 against it, the north door and the back door, a desk, the coat corner (dark pocket);
  * - the cleaning staging x 30-62, z 17.5-20 (`coopDeck`: a 4.4 m deck, the open loading edge x 31-35 is the co-op lip, 1.2 m
  *   screens on the rest of the edge, the east stair down at x 62-69.7), and the isolator cabinet 2 on the east wall.
+ * Two overwatch guards stand on the deck over the neck (`a2-watch-w` / `a2-watch-e`, x 48 / 54, z 17.9, behind the 1.2 m screens, facing south,
+ * a high-security post with a leash of 0), and being spotted fails the set (`BayDef.spotFail`, set in `ctcourse.ts`).
  * Every other block 1.9 m or taller is `noLedge`: the only way onto the staging from the shed floor is a leg-up or a relay.
  * Nothing here stands within 4.7 m of the loading edge that a player alone could climb. Prototype starting values (G10).
  *
@@ -41,6 +46,7 @@ import type { LevelBuilder } from '../../levelBuilder';
 import { MARLOW_LEVEL } from '../../lighting/levels';
 import { circuitOf, marlowCourseGroups } from '../../lighting/marlowCircuits';
 import { FacilityProps } from '../../props/facilityProps';
+import type { SquadSlot } from '../../rooms';
 import { applyGreybox, coopDeck } from '../ctcourseGreybox';
 import { GAL_TOP, wallRuns } from './facility';
 import { emptyPart, HALL_H, tally, type SetPart } from './types';
@@ -54,6 +60,17 @@ export const A2_SHUNTER_ROUTE: [number, number][] = [[51, 10], [56, 7.5], [66, 7
 export const A2_SHUNTER_WAITS = [4, A2_PASS_WAIT, 3, A2_PASS_WAIT];
 /** At his post he looks west down road 2; at the east end he faces the east wall, his back to the neck (NaN: keep facing). */
 export const A2_SHUNTER_FACES = [-Math.PI / 2, Number.NaN, Math.PI / 2, Number.NaN];
+
+/** The two overwatch guards on the staging deck (walk482 X2b): their squad slot ids and posts (x, z; y is the deck's lip), both facing south over the neck. */
+export const A2_WATCH_W = 'a2-watch-w';
+export const A2_WATCH_E = 'a2-watch-e';
+export const A2_WATCH_AT = { w: { x: 48.0, z: 17.9 }, e: { x: 54.0, z: 17.9 } } as const;
+/** The four neck closures (walk482 X2b): x spans at the rakes' neck ends, the south cess's and the north walkway's z spans and heights (the walkway's reaches the deck's 4.4 m). */
+export const A2_CLOSE_X: readonly (readonly [number, number])[] = [[45.5, 46.0], [56.0, 56.5]];
+export const A2_CLOSE_S = { z0: 0.25, z1: 3.7, h: 2.5 } as const;
+export const A2_CLOSE_N = { z0: 16.3, z1: 17.5, h: 4.4 } as const;
+/** The taught crossing's line (z): gap 2/3, the only lane into the neck that is not the shunter's beat. */
+export const A2_CROSS_Z = 12.5;
 
 /** The isolator gate (N2), its two cabinets (course devices), the circuit's groups key and the cabin's two course doors. */
 export const A2_GATE = 'g-a2-neck';
@@ -93,6 +110,7 @@ const VAN_WEST = '#74807c';
 const VAN_EAST = '#85796a';
 const STEEL = '#5c6268';
 const BALLAST = '#4a4640';
+const CLOSURE = '#4d555b';
 
 // ---- dressing (slice 2 step 5) ----
 /** The circuits the kit's accent coves follow: the shed general run (20) for the walls round the shed, the staging (23) for the wall over its glazing. */
@@ -116,6 +134,8 @@ const STOPS = [
   { side: 'e', at: 33.4, x0: 32.6, x1: 33.4 },
   { side: 'w', at: 68.6, x0: 68.6, x1: 69.4 },
 ] as const;
+/** Road 2's east wheel stop stood in the L2 door's approach (door x 70, z 9.1-10.9): it is not built (walk482 X3), the other five are. */
+const NO_STOP = (side: string, c: number): boolean => side === 'w' && c === A2_ROADS[1];
 /** The track panels (10 m modules, x centres) on each road: rails from x 29.5 to 69.5, flush with the floor. */
 export const A2_TRACK_X = [34.5, 44.5, 54.5, 64.5] as const;
 /** The permit gate that closes the pocket x 28.25-30 where the west stair stood (A2-D3): 1.0 m across, a body (0.6 m) fits neither side. */
@@ -186,10 +206,19 @@ export function buildA2CarriageShed(b: LevelBuilder, kit: FacilityKit): SetPart 
       b.box((SHELL.west + SHELL.east) / 2, 0.006, c, SHELL.east - SHELL.west, 0.012, 2, BALLAST, 0, 0, false);
     }
   });
-  tally(b, p.register, 'A2-10', 'Wheel stops 0.3 m at each road end (x 32.6-33.4 and 68.6-69.4, 1.6 m wide): low, so no solo jump top (A2-D2)', () => {
-    for (const c of A2_ROADS) for (const [x0, x1] of [[32.6, 33.4], [68.6, 69.4]] as const) slab(x0, x1, c - 0.8, c + 0.8, 0, 0.3, STEEL);
+  tally(b, p.register, 'A2-10', 'Wheel stops 0.3 m at the road ends (x 32.6-33.4 and 68.6-69.4, 1.6 m wide), five: none at road 2\'s east end, which would stand in the L2 door\'s approach (walk482 X3): low, so no solo jump top (A2-D2)', () => {
+    for (const c of A2_ROADS) {
+      for (const [side, x0, x1] of [['e', 32.6, 33.4], ['w', 68.6, 69.4]] as const) if (!NO_STOP(side, c)) slab(x0, x1, c - 0.8, c + 0.8, 0, 0.3, STEEL);
+    }
   });
-  p.register.push({ id: 'A2-11', element: 'North walkways z 16.3-17.5 behind road 3\'s vans and along the staging face (open floor, no pieces)' });
+  p.register.push({ id: 'A2-11', element: 'North walkway z 16.3-17.5 behind road 3\'s vans and along the staging face, west of x 45.5 and east of x 56.5 (open floor, no pieces; the neck ends are closed, A2-21)' });
+  // ---- A2-21: the neck closures (walk482 X2b): four noLedge boards at the rakes' neck ends, so the neck has two lanes (gap 1/2, gap 2/3) ----
+  tally(b, p.register, 'A2-21', 'Neck closures (walk482 X2b): four noLedge boards 0.5 m thick at the rakes\' neck ends (x 45.5-46.0 and 56.0-56.5): the south cess z 0.25-3.7 2.5 m tall and the north walkway z 16.3-17.5 up to the deck\'s 4.4 m; the neck keeps two lanes, gap 1/2 and gap 2/3', () => {
+    for (const [x0, x1] of A2_CLOSE_X) {
+      slab(x0, x1, A2_CLOSE_S.z0, A2_CLOSE_S.z1, 0, A2_CLOSE_S.h, CLOSURE);
+      slab(x0, x1, A2_CLOSE_N.z0, A2_CLOSE_N.z1, 0, A2_CLOSE_N.h, CLOSURE);
+    }
+  });
 
   // ---- A2-5: the shunter's cabin: plant wall, walls, roof, two doors, desk ----
   const { x1: cx1, z1: cz1, t, wallH, roofT } = A2_CABIN;
@@ -262,7 +291,12 @@ export function buildA2CarriageShed(b: LevelBuilder, kit: FacilityKit): SetPart 
 
   // ---- the shunter, the steps, the claim, the pass zones, the radio ----
   p.squads[A2_SHUNTER] = { kind: 'grunt', x: 51, z: 10, yaw: -Math.PI / 2, route: A2_SHUNTER_ROUTE, waits: A2_SHUNTER_WAITS, faces: A2_SHUNTER_FACES };
-  p.bay.squad.push(A2_SHUNTER);
+  // the two overwatch guards on the staging deck (walk482 X2b): armed grunts facing south over the neck, a high-security post with a leash of 0 (they
+  // turn on the spot and never leave the deck; a cut neck only lures them to look); the shunter stays first in the squad (the e2e helpers read the first live guard)
+  const watch = (at: { x: number; z: number }): SquadSlot => ({ kind: 'grunt', x: at.x, y: A2_DECK.lip, z: at.z, yaw: Math.PI, post: { leash: 0, highSecurity: true, guards: A2_NECK_GROUP } });
+  p.squads[A2_WATCH_W] = watch(A2_WATCH_AT.w);
+  p.squads[A2_WATCH_E] = watch(A2_WATCH_AT.e);
+  p.bay.squad.push(A2_SHUNTER, A2_WATCH_W, A2_WATCH_E);
   // the first player to press cabinet 1 takes A; until then the lead (P2 in this even set) reads the A lines
   p.bay.roles = [{ role: 'a', press: [A2_ISO_1] }];
   p.passZones.push({ id: 'a2-p-east1', box: A2_EAST_ZONE, flag: A2_EAST1_FLAG, floorY: 0, any: true });
@@ -292,6 +326,7 @@ export function buildA2CarriageShed(b: LevelBuilder, kit: FacilityKit): SetPart 
   p.bay.radio.push(
     { at: 'enter', text: 'The neck is on two isolators. Fifteen seconds of dark each time. Use them well.' },
     { at: 'enter', text: "Press while the shunter stands at the neck, or he won't come and look." },
+    { at: 'enter', text: 'Two spotters on the staging. Seen in the neck lights and we start again.' },
     { at: `warn:${A2_GATE}`, text: 'Lights back in five.' },
   );
 
@@ -308,11 +343,11 @@ export function buildA2CarriageShed(b: LevelBuilder, kit: FacilityKit): SetPart 
   );
   p.lightSpots.push(
     { name: 'A2 neck centre', kind: 'body', x: 51, y: 0, z: 10, band: 'pool' },
-    { name: 'A2 neck crossing', kind: 'body', x: 51, y: 0, z: 16.9, band: 'pool' },
+    { name: 'A2 neck crossing', kind: 'body', x: 51, y: 0, z: A2_CROSS_Z, band: 'pool' },
     { name: 'A2 neck centre cut', kind: 'body', x: 51, y: 0, z: 10, band: 'cut', off: [21] },
-    { name: 'A2 neck crossing cut', kind: 'body', x: 51, y: 0, z: 16.9, band: 'cut', off: [21] },
-    { name: 'A2 neck crossing west cut', kind: 'body', x: 46.5, y: 0, z: 16.9, band: 'cut', off: [21] },
-    { name: 'A2 neck crossing east cut', kind: 'body', x: 55.5, y: 0, z: 16.9, band: 'cut', off: [21] },
+    { name: 'A2 neck crossing cut', kind: 'body', x: 51, y: 0, z: A2_CROSS_Z, band: 'cut', off: [21] },
+    { name: 'A2 neck crossing west cut', kind: 'body', x: 46.5, y: 0, z: A2_CROSS_Z, band: 'cut', off: [21] },
+    { name: 'A2 neck crossing east cut', kind: 'body', x: 55.5, y: 0, z: A2_CROSS_Z, band: 'cut', off: [21] },
     { name: 'A2 neck cess west cut', kind: 'body', x: 46.2, y: 0, z: 7.5, band: 'cut', off: [21] },
     { name: 'A2 neck cess east cut', kind: 'body', x: 55.8, y: 0, z: 7.5, band: 'cut', off: [21] },
     { name: 'A2 rake gap', kind: 'body', x: 41, y: 0, z: 12.5, band: 'read' },
@@ -424,13 +459,39 @@ export function buildA2CarriageShed(b: LevelBuilder, kit: FacilityKit): SetPart 
   });
 
   // ---- A2-12: rails (the track panels are the props kit's, below) and the buffer faces on the wheel stops ----
-  tally(b, p.register, 'A2-12', 'Wheel stops dressed as buffer stops (visual skins, no collision): red headstock face, white band, two buffer plates and a red cap on each of the six; the rails are track panels (A2-20)', () => {
+  tally(b, p.register, 'A2-12', 'Wheel stops dressed as buffer stops (visual skins, no collision): red headstock face, white band, two buffer plates and a red cap on each of the five; the rails are track panels (A2-20)', () => {
     for (const c of A2_ROADS) {
       for (const { side, at, x0, x1 } of STOPS) {
+        if (NO_STOP(side, c)) continue;
         face(side, at, c - 0.8, c + 0.8, 0.04, 0.3, LOOK.red);
         face(side, at, c - 0.8, c + 0.8, 0.16, 0.2, LOOK.white, 1);
         for (const dz of [-0.45, 0.45]) face(side, at, c + dz - 0.12, c + dz + 0.12, 0.08, 0.24, LOOK.buffer, 1);
         skin(x0, x1, 0.3, 0.33, c - 0.8, c + 0.8, LOOK.red);
+      }
+    }
+  });
+
+  // ---- A2-22: the neck closures' dressing (walk482 X2b): hoarding of sheet on a concrete plinth with frame stanchions, rails and a hazard board ----
+  tally(b, p.register, 'A2-22', 'Neck closure dressing (visual skins, no collision): concrete plinth, sheeting, rails, frame stanchions and a cap on each of the four closures, a hazard band and a white board with red and black strokes on the neck faces', () => {
+    for (const [i, [x0, x1]] of A2_CLOSE_X.entries()) {
+      // west closures (x 45.5-46) face the neck on +x, the east ones (x 56-56.5) on -x; the back faces are dressed like the neck faces without the board
+      const faces = i === 0 ? ([['e', x1, true], ['w', x0, false]] as const) : ([['w', x0, true], ['e', x1, false]] as const);
+      for (const [cz0, cz1, hgt] of [[A2_CLOSE_S.z0, A2_CLOSE_S.z1, A2_CLOSE_S.h], [A2_CLOSE_N.z0, A2_CLOSE_N.z1, A2_CLOSE_N.h]] as const) {
+        const mid = (cz0 + cz1) / 2;
+        for (const [side, at, front] of faces) {
+          face(side, at, cz0, cz1, 0, 0.9, LOOK.concrete);
+          face(side, at, cz0, cz1, 0.9, hgt, LOOK.sheet);
+          for (const y of [1.8, 2.7, 3.6]) if (y < hgt - 0.1) face(side, at, cz0, cz1, y, y + 0.08, LOOK.sheetRail, 1);
+          for (const z of [cz0 + 0.15, mid, cz1 - 0.15]) face(side, at, z - 0.1, z + 0.1, 0, hgt - 0.12, LOOK.frame, 1);
+          face(side, at, cz0, cz1, hgt - 0.12, hgt, LOOK.frame, 1);
+          if (front) {
+            face(side, at, cz0, cz1, 0.9, 1.0, LOOK.yellow, 2);
+            face(side, at, mid - 0.45, mid + 0.45, 1.3, 1.85, LOOK.white, 2);
+            face(side, at, mid - 0.35, mid + 0.35, 1.55, 1.65, LOOK.red, 3);
+            face(side, at, mid - 0.25, mid + 0.25, 1.38, 1.46, LOOK.black, 3);
+          }
+        }
+        skin(x0, x1, hgt, hgt + SKIN, cz0, cz1, LOOK.steelDark);
       }
     }
   });

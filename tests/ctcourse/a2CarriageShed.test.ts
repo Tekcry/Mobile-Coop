@@ -7,7 +7,9 @@
  * frames (`tests/ctcourse.test.ts`, `tests/ctcourseLight.test.ts`) run the contract, the register and the light bands over this
  * part too. The last block is the dressing (slice 2 step 5): the greybox pinned, the east stair's underside solid (S2-check should-fix
  * 2), hand-built skins out of the light shapes, the staging switch's post, the budgets, the props' boxes and keep-clear rules, the routes
- * left clear, every kit glow on its circuit.
+ * left clear, every kit glow on its circuit. The walk482 block (X2b / X3) is last of the set's own cases: the neck's two lanes behind four closures, the two
+ * overwatch guards on the staging deck and their static sight rays (they see the lit crossing and the lane mouths, never a taught dark wait), and road 2's
+ * east wheel stop removed from the L2 door's approach.
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
@@ -31,6 +33,10 @@ import {
   A2_CAB1,
   A2_CAB2,
   A2_CABIN,
+  A2_CLOSE_N,
+  A2_CLOSE_S,
+  A2_CLOSE_X,
+  A2_CROSS_Z,
   A2_CABIN_DOOR,
   A2_DECK,
   A2_EAST1_FLAG,
@@ -52,9 +58,12 @@ import {
   A2_SHUNTER_WAITS,
   A2_STAIR_RAIL,
   A2_TRACK_X,
+  A2_WATCH_AT,
+  A2_WATCH_E,
+  A2_WATCH_W,
   STAIR_FILL,
 } from '../../src/world/maps/ctcourseSets/a2CarriageShed';
-import { checkSetPart, inBox, OBJECTIVE_ID_MAX, registerSum, SET_BOX, setGroups } from '../../src/world/maps/ctcourseSets/types';
+import { checkSetPart, inBox, OBJECTIVE_ID_MAX, registerSum, SET_BOX, SET_GUARDS_MAX, setGroups } from '../../src/world/maps/ctcourseSets/types';
 import { circuitOf, LURE_RANGE, marlowCourseGroups, MARLOW_POCKETS, SILENT_PACE } from '../../src/world/lighting/marlowCircuits';
 import { MARLOW_LEVEL } from '../../src/world/lighting/levels';
 import { soloJumpThreats } from '../helpers/soloJumpReach';
@@ -67,8 +76,8 @@ const course = lay.course!;
 const def = course.def;
 const range = built.ranges.a2CarriageShed;
 const mine = b.boxes.slice(range.boxes[0], range.boxes[1]);
-/** The greybox as S2 built it (slice 2 steps 2-4): its 58 boxes (27 solids, the east stair's visual risers and ramp collider among them), 15 lamps, 2 doors, the manual ledge. The dressing is appended after. */
-const GREY = { boxes: 58, solids: 27, lights: 15, doors: 2, anchors: 1, checksum: 11223.448300758693 };
+/** The greybox as S2 built it (slice 2 steps 2-4) with walk482's two changes: its 61 boxes (30 solids, the east stair's visual risers and ramp collider among them: S2's 58 less road 2's east wheel stop (X3) and plus the four neck closures (X2b)), 15 lamps, 2 doors, the manual ledge. The dressing is appended after. */
+const GREY = { boxes: 61, solids: 30, lights: 15, doors: 2, anchors: 1, checksum: 11640.39830075869 };
 const grey = mine.slice(0, GREY.boxes);
 const dressing = mine.slice(GREY.boxes);
 const solid = b.boxes.filter((p) => p.collide && Math.abs(p.yaw) < 1e-3 && Math.abs(p.pitch) < 1e-3);
@@ -146,7 +155,7 @@ describe('A2 the Carriage Shed: the part', () => {
     }
   });
 
-  it('the roads, vans and wheel stops are the plan: six 10 x 2.6 x 3.4 noLedge vans on 5 m centres (2.4 m gaps), six 0.3 m stops, gravel strips and a metal deck', () => {
+  it('the roads, vans and wheel stops are the plan: six 10 x 2.6 x 3.4 noLedge vans on 5 m centres (2.4 m gaps), five 0.3 m stops (none at road 2 east end), gravel strips and a metal deck', () => {
     const vans = mine.filter((p) => p.collide && Math.abs(p.s[1] - 3.4) < 1e-6 && Math.abs(p.s[0] - 10) < 1e-6);
     expect(vans).toHaveLength(6);
     for (const v of vans) {
@@ -159,7 +168,11 @@ describe('A2 the Carriage Shed: the part', () => {
     expect(A2_ROADS[1] - A2_ROADS[0] - 2.6).toBeCloseTo(2.4, 9);
     expect(anchors.splits.filter((s) => inBox(box, s.a.x, s.a.z))).toEqual([]);
     const stops = grey.filter((p) => p.collide && Math.abs(top(p) - 0.3) < 1e-6);
-    expect(stops).toHaveLength(6);
+    expect(stops).toHaveLength(5);
+    // road 2's east stop (x 68.6-69.4, z 9.2-10.8) is gone (X3): nothing 0.3 m tall stands east of x 66 in the L2 door's width (z 9.1-10.9)
+    expect(stops.filter((p) => p.c[0] > 66 && p.c[2] > 9.1 && p.c[2] < 10.9)).toEqual([]);
+    expect(stops.filter((p) => p.c[0] > 66).map((p) => p.c[2])).toEqual([A2_ROADS[0], A2_ROADS[2]]);
+    expect(stops.filter((p) => p.c[0] < 40)).toHaveLength(3);
     // surfaces: ballast on each road, cess concrete, the deck chequer plate
     for (const c of A2_ROADS) expect(surfaceAt(b.surfaces, 41, 0, c, 'concrete')).toBe('gravel');
     expect(surfaceAt(b.surfaces, 41, 0, 7.5, 'concrete')).toBe('concrete');
@@ -350,8 +363,8 @@ describe('A2 the Carriage Shed: the isolator (N2) and the steps', () => {
     expect(len / SILENT_PACE).toBeGreaterThan(gate.seconds);
     // the route is open floor all the way
     for (let i = 1; i < path.length; i++) expect(walkBlocked(path[i - 1]![0], path[i - 1]![1], path[i]![0], path[i]![1]), `leg ${i}`).toBeNull();
-    // B's way to cabinet 2 from the east rake's walkway is open and ready inside the re-arm (window 15 + 3 s)
-    const east: [number, number][] = [[56, 16.9], [67.2, 16.9], [67.2, A2_CAB2.z], [68.8, A2_CAB2.z]];
+    // B's way to cabinet 2 from the neck's gap 2/3 (the taught crossing, z 12.5; the north walkway is closed at the neck, X2b) is open and ready inside the re-arm (window 15 + 3 s)
+    const east: [number, number][] = [[56, A2_CROSS_Z], [67.2, A2_CROSS_Z], [67.2, A2_CAB2.z], [68.8, A2_CAB2.z]];
     for (let i = 1; i < east.length; i++) expect(walkBlocked(east[i - 1]![0], east[i - 1]![1], east[i]![0], east[i]![1]), `east leg ${i}`).toBeNull();
   });
 
@@ -373,7 +386,7 @@ describe('A2 the Carriage Shed: the isolator (N2) and the steps', () => {
     expect(neckStep.b).toMatch(/cabinet two/);
   });
 
-  it('every line fits 90 characters, no em or en dash; ids fit the wire; the radio is the doc\'s three lines', () => {
+  it('every line fits 90 characters, no em or en dash; ids fit the wire; the radio is the doc\'s four lines (three at the entry, the five-second warning)', () => {
     for (const o of def.objectives!.filter((x) => x.bay === 'A2')) {
       for (const t of [o.text, o.a, o.b]) {
         if (t === undefined) continue;
@@ -382,12 +395,13 @@ describe('A2 the Carriage Shed: the isolator (N2) and the steps', () => {
       }
       expect(o.id.length).toBeLessThanOrEqual(OBJECTIVE_ID_MAX);
     }
-    expect(part.bay.radio.map((r) => r.at)).toEqual(['enter', 'enter', `warn:${A2_GATE}`]);
+    expect(part.bay.radio.map((r) => r.at)).toEqual(['enter', 'enter', 'enter', `warn:${A2_GATE}`]);
     for (const r of part.bay.radio) {
       expect(r.text.length, r.text).toBeLessThanOrEqual(COURSE_TEXT_MAX);
       expect(/[–—]/.test(r.text), r.text).toBe(false);
     }
-    expect(part.bay.radio[2]!.text).toBe('Lights back in five.');
+    expect(part.bay.radio[2]!.text).toBe('Two spotters on the staging. Seen in the neck lights and we start again.');
+    expect(part.bay.radio[3]!.text).toBe('Lights back in five.');
   });
 
   it('the first player to press cabinet 1 takes the A job; until then the lead (P2 in this even set) reads A; the first claim stands', () => {
@@ -516,7 +530,9 @@ describe('A2 the Carriage Shed: the lights (LIGHTING-PLAN 3, A2)', () => {
       expect(tuned[c.name]!).toBeLessThan(MARLOW_LEVEL.standby + 0.1);
     }
     expect(at('A2 neck centre cut')).toMatchObject({ x: 51, z: 10 });
-    expect(at('A2 neck crossing cut')).toMatchObject({ x: 51, z: 16.9 });
+    // the taught crossing is gap 2/3 (z 12.5; the north walkway at z 16.9 is closed at the neck, X2b)
+    for (const n of ['A2 neck crossing', 'A2 neck crossing cut', 'A2 neck crossing west cut', 'A2 neck crossing east cut']) expect(at(n).z, n).toBe(A2_CROSS_Z);
+    expect(at('A2 neck crossing cut')).toMatchObject({ x: 51, z: 12.5 });
     expect(tuned['A2 neck crossing']! - tuned['A2 neck crossing cut']!).toBeGreaterThan(0.4);
     // the other states: the rake gap, the vantage, cabinet 1's spot, the deck and cabinet 2 read lit; the coat corner is the dark pocket; standby 0.14
     for (const n of ['A2 rake gap', 'A2 cess', 'A2 vantage', 'A2 cabinet 1', 'A2 deck', 'A2 cabinet 2', 'A2 east rake gap']) {
@@ -563,9 +579,9 @@ describe('A2 the Carriage Shed: the shunter', () => {
     return { left, stuck: left.length < 4 };
   }
 
-  it('is the bay\'s one guard: an armed kind (grunt) on a patrol loop from his post (51, 10) facing west, inside the set', () => {
-    expect(part.bay.squad).toEqual([A2_SHUNTER]);
-    expect(Object.keys(part.squads)).toEqual([A2_SHUNTER]);
+  it('is the squad\'s first guard (then the two overwatch guards): an armed kind (grunt) on a patrol loop from his post (51, 10) facing west, inside the set', () => {
+    expect(part.bay.squad).toEqual([A2_SHUNTER, A2_WATCH_W, A2_WATCH_E]);
+    expect(Object.keys(part.squads)).toEqual([A2_SHUNTER, A2_WATCH_W, A2_WATCH_E]);
     expect(slot.kind).toBe('grunt');
     expect(['grunt', 'heavy', 'enforcer', 'officer', 'sniper']).toContain(slot.kind);
     expect(slot.passive).toBeUndefined();
@@ -929,7 +945,7 @@ describe('A2 the Carriage Shed: dressing (slice 2 step 5)', () => {
     for (const [x, z] of [[30.6, 3.0], [30.6, A2_CAB1.z + 0.4], [68.8, A2_CAB2.z], [A2_MARK.x, A2_MARK.z], [A2_MARK.x - TEAM.roomSide, A2_MARK.z], [A2_MARK.x + TEAM.roomSide, A2_MARK.z]] as const) {
       expect(dressNear(x, z, MOVEMENT.radius), `spot (${x}, ${z})`).toBeNull();
     }
-    expect(dressWalk(33, 16.9, 66, 16.9), 'the crossing line').toBeNull();
+    expect(dressWalk(33, A2_CROSS_Z, 66, A2_CROSS_Z), 'the crossing line (gap 2/3)').toBeNull();
     for (let i = 1; i < A2_SHUNTER_ROUTE.length; i++) expect(dressWalk(A2_SHUNTER_ROUTE[i - 1]![0], A2_SHUNTER_ROUTE[i - 1]![1], A2_SHUNTER_ROUTE[i]![0], A2_SHUNTER_ROUTE[i]![1]), `loop leg ${i}`).toBeNull();
     for (const [x0, z0, x1, z1] of [[51, 10, 35, 7.5], [35, 7.5, 31, 5.3], [31, 5.3, 30.6, 3.0], [28.5, 11, 33.5, 12.5], [60, 10, 69.7, 10], [66, 9.2, 69.7, 9.2], [66, 10.8, 69.7, 10.8]] as const) {
       expect(dressWalk(x0, z0, x1, z1), `walk (${x0}, ${z0}) to (${x1}, ${z1})`).toBeNull();
@@ -967,7 +983,13 @@ describe('A2 the Carriage Shed: dressing (slice 2 step 5)', () => {
   it('the vans, the wheel stops, the cabin and the cabinets are dressed: skins round each van (at least 40), each stop (5), the cabin, both cabinets; the road numbers 1-3 are stencilled on the neck ends', () => {
     const near = (x0: number, x1: number, z0: number, z1: number, y1: number): number => skins.filter((p) => p.c[0] > x0 - 0.1 && p.c[0] < x1 + 0.1 && p.c[2] > z0 - 0.1 && p.c[2] < z1 + 0.1 && p.c[1] < y1).length;
     for (const [x0, x1] of A2_RAKES) for (const c of A2_ROADS) expect(near(x0, x1, c - 1.3, c + 1.3, 3.5), `van x ${x0}-${x1} road ${c}`).toBeGreaterThanOrEqual(40);
-    for (const c of A2_ROADS) for (const [x0, x1] of [[32.6, 33.4], [68.6, 69.4]] as const) expect(near(x0 - 0.05, x1 + 0.05, c - 0.8, c + 0.8, 0.4), `stop x ${x0} road ${c}`).toBeGreaterThanOrEqual(5);
+    for (const c of A2_ROADS) {
+      for (const [x0, x1] of [[32.6, 33.4], [68.6, 69.4]] as const) {
+        // (X3) road 2's east stop and its buffer skins are gone: nothing stands there
+        if (c === A2_ROADS[1] && x0 > 60) expect(near(x0 - 0.05, x1 + 0.05, c - 0.8, c + 0.8, 0.4), `no stop skins at road 2's east end`).toBe(0);
+        else expect(near(x0 - 0.05, x1 + 0.05, c - 0.8, c + 0.8, 0.4), `stop x ${x0} road ${c}`).toBeGreaterThanOrEqual(5);
+      }
+    }
     expect(near(28.25, 32.1, 1.1, 5.1, 2.7)).toBeGreaterThan(50);
     expect(near(30.15, 31.05, 1.1, 1.55, 2.0)).toBeGreaterThan(8);
     expect(near(69.45, 69.75, 12.95, 13.85, 2.0)).toBeGreaterThan(8);
@@ -1178,5 +1200,201 @@ describe('A2 the Carriage Shed: dressing (slice 2 step 5)', () => {
       expect(solid).not.toContain(p);
     }
     expect(deckEnd).toHaveLength(1);
+  });
+});
+
+describe('A2 the Carriage Shed: the neck lanes and the overwatch (walk482 X2b / X3)', () => {
+  const EYE = A2_DECK.lip + 1.6;
+  const HEADS = [1.05, 1.7] as const;
+  const watchSlots = [A2_WATCH_W, A2_WATCH_E].map((id) => part.squads[id]!);
+  /** The solids a body touches (as `blockedAt`, over a given list): lets the checks run with a piece taken out or put back. */
+  const touching = (list: readonly BoxPiece[], x: number, z: number, r = MOVEMENT.radius): boolean =>
+    list.some((p) => p.c[1] - p.s[1] / 2 < 1.7 && top(p) > 0.15 && Math.hypot(Math.max(Math.abs(x - p.c[0]) - p.s[0] / 2, 0), Math.max(Math.abs(z - p.c[2]) - p.s[2] / 2, 0)) < r);
+  /** The z intervals (from `lo` to `hi`, 0.05 m steps) where a body of radius 0.3 can stand on the column x: the lanes at that x. */
+  const lanes = (list: readonly BoxPiece[], x: number, lo = 0.25, hi = 17.5): [number, number][] => {
+    const out: [number, number][] = [];
+    let from: number | null = null;
+    for (let z = lo; z <= hi + 1e-9; z += 0.05) {
+      const free = !touching(list, x, z);
+      if (free && from === null) from = z;
+      if ((!free || z + 0.05 > hi + 1e-9) && from !== null) {
+        out.push([Number(from.toFixed(2)), Number((free ? z : z - 0.05).toFixed(2))]);
+        from = null;
+      }
+    }
+    return out;
+  };
+  const isClosure = (p: BoxPiece): boolean => p.collide && A2_CLOSE_X.some(([x0, x1]) => Math.abs(p.s[0] - (x1 - x0)) < 1e-6 && Math.abs(p.c[0] - (x0 + x1) / 2) < 1e-6) && p.noLedge === true && [A2_CLOSE_S, A2_CLOSE_N].some((c) => Math.abs(p.c[2] - (c.z0 + c.z1) / 2) < 1e-6 && Math.abs(p.s[2] - (c.z1 - c.z0)) < 1e-6);
+  const closures = mine.filter(isClosure);
+  const skins = dressing.filter((p) => !p.collide);
+
+  /** Does the segment p to q cross the box (slab method, the box shrunk by 1 mm so a grazing ray or an end on a face does not count)? */
+  const crosses = (p: readonly number[], q: readonly number[], bx: BoxPiece): boolean => {
+    let t0 = 0;
+    let t1 = 1;
+    for (let k = 0; k < 3; k++) {
+      const lo = bx.c[k]! - bx.s[k]! / 2 + 1e-3;
+      const hi = bx.c[k]! + bx.s[k]! / 2 - 1e-3;
+      const d = q[k]! - p[k]!;
+      if (Math.abs(d) < 1e-12) {
+        if (p[k]! < lo || p[k]! > hi) return false;
+        continue;
+      }
+      const a = (lo - p[k]!) / d;
+      const c = (hi - p[k]!) / d;
+      t0 = Math.max(t0, Math.min(a, c));
+      t1 = Math.min(t1, Math.max(a, c));
+      if (t0 > t1) return false;
+    }
+    return true;
+  };
+  /** The sight blockers: every visible upright solid (the invisible rails and the gate let the light and the eye through). */
+  const blockers = solid.filter((p) => p.visible !== false);
+  const eyeOf = (w: 'w' | 'e'): [number, number, number] => [A2_WATCH_AT[w].x, EYE, A2_WATCH_AT[w].z];
+  const sees = (w: 'w' | 'e', x: number, y: number, z: number, list: readonly BoxPiece[] = blockers): boolean => !list.some((p) => crosses(eyeOf(w), [x, y, z], p));
+
+  it('the squad is the shunter first and then the two watchers (at most SET_GUARDS_MAX), every guard an armed grunt', () => {
+    expect(part.bay.squad).toEqual([A2_SHUNTER, A2_WATCH_W, A2_WATCH_E]);
+    expect(part.bay.squad.length).toBeLessThanOrEqual(SET_GUARDS_MAX);
+    expect(Object.keys(part.squads)).toEqual(part.bay.squad);
+    for (const id of part.bay.squad) {
+      const s = part.squads[id]!;
+      expect(s.kind, id).toBe('grunt');
+      expect(s.passive, id).toBeUndefined();
+      expect(inBox(box, s.x, s.z), id).toBe(true);
+      expect(course.squads[id], id).toBe(s);
+    }
+    // the shunter's slot is untouched by the watchers
+    expect([part.squads[A2_SHUNTER]!.x, part.squads[A2_SHUNTER]!.z]).toEqual([51, 10]);
+  });
+
+  it('the watchers stand on the staging deck (x 48 and 54, z 17.9, y 4.4) facing south over the neck, on a high-security post with a leash of 0, on walkable deck behind the 1.2 m screens', () => {
+    expect(A2_WATCH_AT).toEqual({ w: { x: 48.0, z: 17.9 }, e: { x: 54.0, z: 17.9 } });
+    for (const [s, at] of [[watchSlots[0]!, A2_WATCH_AT.w], [watchSlots[1]!, A2_WATCH_AT.e]] as const) {
+      expect([s.x, s.y, s.z, s.yaw]).toEqual([at.x, A2_DECK.lip, at.z, Math.PI]);
+      expect(s.post).toEqual({ leash: 0, highSecurity: true, guards: 'a2-neck' });
+      expect(s.post!.guards).toBe(A2_NECK_GROUP);
+      expect(s.route).toBeUndefined();
+      // the deck under him: a solid whose top is the lip and which covers a body's circle; the screen is in front, below his eye, and nothing else rises round him
+      const under = solid.filter((p) => Math.abs(top(p) - A2_DECK.lip) < 1e-6 && Math.abs(s.x - p.c[0]) <= p.s[0] / 2 - MOVEMENT.radius && Math.abs(s.z - p.c[2]) <= p.s[2] / 2 - MOVEMENT.radius);
+      expect(under, 'deck under the watcher').toHaveLength(1);
+      const standing = solid.filter((p) => p !== under[0] && p.c[1] - p.s[1] / 2 < A2_DECK.lip + 1.7 && top(p) > A2_DECK.lip + 0.15 && Math.hypot(Math.max(Math.abs(s.x - p.c[0]) - p.s[0] / 2, 0), Math.max(Math.abs(s.z - p.c[2]) - p.s[2] / 2, 0)) < MOVEMENT.radius - 1e-6);
+      expect(standing, 'nothing stands inside his body circle').toEqual([]);
+      const screen = solid.find((p) => Math.abs(p.s[1] - 1.2) < 1e-6 && Math.abs(p.c[1] - 5.0) < 1e-6 && Math.abs(s.x - p.c[0]) <= p.s[0] / 2)!;
+      expect(screen.c[2] + screen.s[2] / 2, 'behind the screen').toBeLessThanOrEqual(s.z - MOVEMENT.radius + 1e-9);
+      expect(top(screen)).toBeLessThan(EYE);
+    }
+  });
+
+  it('four closures at the rakes\' neck ends (x 45.5-46.0 and 56.0-56.5): the south cess 2.5 m tall, the north walkway up to the deck\'s 4.4 m, every one solid and noLedge, dressed with skins on both faces', () => {
+    expect(A2_CLOSE_X).toEqual([[45.5, 46.0], [56.0, 56.5]]);
+    expect(closures).toHaveLength(4);
+    for (const [x0, x1] of A2_CLOSE_X) {
+      const south = closures.filter((p) => Math.abs(p.c[0] - (x0 + x1) / 2) < 1e-6 && p.c[2] < 5);
+      const north = closures.filter((p) => Math.abs(p.c[0] - (x0 + x1) / 2) < 1e-6 && p.c[2] > 15);
+      expect(south).toHaveLength(1);
+      expect(north).toHaveLength(1);
+      expect([south[0]!.c[2] - south[0]!.s[2] / 2, south[0]!.c[2] + south[0]!.s[2] / 2].map((v) => Number(v.toFixed(3)))).toEqual([0.25, 3.7]);
+      expect(top(south[0]!)).toBeCloseTo(2.5, 9);
+      expect([north[0]!.c[2] - north[0]!.s[2] / 2, north[0]!.c[2] + north[0]!.s[2] / 2].map((v) => Number(v.toFixed(3)))).toEqual([16.3, 17.5]);
+      expect(top(north[0]!)).toBeCloseTo(A2_DECK.lip, 9);
+      for (const p of [south[0]!, north[0]!]) {
+        expect(p.collide).toBe(true);
+        expect(p.noLedge).toBe(true);
+        expect(p.c[1] - p.s[1] / 2).toBeCloseTo(0, 9);
+        // dressing skins on the face and the back (thin, visual, noLedge): the sheeting, stanchions and rails
+        const near = skins.filter((q) => Math.abs(q.c[0] - p.c[0]) < p.s[0] / 2 + 0.1 && Math.abs(q.c[2] - p.c[2]) < p.s[2] / 2 + 0.01 && q.c[1] < top(p) + 0.05);
+        expect(near.length, `skins on the closure at (${p.c.join(', ')})`).toBeGreaterThanOrEqual(12);
+      }
+    }
+    // the closures sit in the greybox's boxes (the lamps, the cabin and the neck's lights are untouched by them)
+    expect(closures.every((p) => grey.includes(p))).toBe(true);
+    // register: A2-21 (the closures) and A2-22 (their skins)
+    expect(part.register.map((r) => r.id)).toEqual(expect.arrayContaining(['A2-21', 'A2-22']));
+    expect(part.register.find((r) => r.id === 'A2-21')!.solids).toBe(4);
+    expect(part.register.find((r) => r.id === 'A2-22')!.solids ?? 0).toBe(0);
+  });
+
+  it('the neck has two lanes, gap 1/2 (z 6.3-8.7) and gap 2/3 (z 11.3-13.7): at both neck ends no other way in (no walk from a rake end into the south cess or the north strip), and with the closures out there are four (teeth)', () => {
+    for (const x of [45.75, 56.25]) {
+      const l = lanes(solid, x);
+      expect(l, `lanes at x ${x}`).toHaveLength(2);
+      expect(l[0]![0]).toBeGreaterThanOrEqual(6.3 + MOVEMENT.radius - 0.06);
+      expect(l[0]![1]).toBeLessThanOrEqual(8.7 - MOVEMENT.radius + 0.06);
+      expect(l[1]![0]).toBeGreaterThanOrEqual(11.3 + MOVEMENT.radius - 0.06);
+      expect(l[1]![1]).toBeLessThanOrEqual(13.7 - MOVEMENT.radius + 0.06);
+      expect(lanes(solid.filter((p) => !closures.includes(p)), x), `lanes at x ${x} without the closures (teeth)`).toHaveLength(4);
+    }
+    // walks along the cess (z 2) and the north strip (z 16.9) from the rake's end into the neck are stopped; gap 1/2 and gap 2/3 walk through
+    for (const z of [1.0, 2.0, 3.2, 16.6, 16.9, 17.2]) {
+      expect(walkBlocked(40, z, 51, z), `west rake end, z ${z}`).not.toBeNull();
+      expect(walkBlocked(62, z, 51, z), `east rake end, z ${z}`).not.toBeNull();
+    }
+    for (const z of [7.5, A2_CROSS_Z]) {
+      expect(walkBlocked(40, z, 62, z), `through the gap at z ${z}`).toBeNull();
+    }
+    // the way round from the entry side to the neck is the two gaps only: the north strip west of the closure and the cess west of it stay open floor to the closure
+    expect(walkBlocked(31, 16.9, 45.1, 16.9)).toBeNull();
+    expect(walkBlocked(33, 2.0, 45.1, 2.0)).toBeNull();
+  });
+
+  it('the shunter\'s lured walk and his loop still run through the gaps, and the taught crossing (gap 2/3, z 12.5) is open floor from the west rake end to cabinet 2', () => {
+    expect(walkBlocked(46, 7.5, 56, 7.5)).toBeNull();
+    expect(walkBlocked(34, A2_CROSS_Z, 69, A2_CROSS_Z)).toBeNull();
+    expect(walkBlocked(46, A2_CROSS_Z, 51, A2_CROSS_Z)).toBeNull();
+    expect(walkBlocked(51, A2_CROSS_Z, 56, A2_CROSS_Z)).toBeNull();
+    expect(walkBlocked(66, A2_CROSS_Z, 68.8, A2_CAB2.z)).toBeNull();
+  });
+
+  it('static sight (watcher eye 6.0 m over the deck): both watchers see the lit crossing along z 12.5 and the four lane mouths at head heights 1.05 and 1.7, over the screens', () => {
+    for (const w of ['w', 'e'] as const) {
+      for (const h of HEADS) {
+        for (const x of [47, 49, 51, 53, 55]) expect(sees(w, x, h, A2_CROSS_Z), `${w} sees the crossing (${x}, ${h}, ${A2_CROSS_Z})`).toBe(true);
+        expect(sees(w, 51, h, 10), `${w} sees the neck's middle at ${h}`).toBe(true);
+      }
+    }
+    for (const x of [46, 56]) {
+      for (const z of [7.5, A2_CROSS_Z]) {
+        for (const h of HEADS) expect(['w', 'e'].some((w) => sees(w as 'w' | 'e', x, h, z)), `a watcher sees the lane mouth (${x}, ${h}, ${z})`).toBe(true);
+      }
+    }
+    // teeth: a fake wall on the screen's line at 3 m over the deck blinds them
+    const wall: BoxPiece = { c: [51, A2_DECK.lip + 2.5, 17.7], s: [20, 3, 0.2], yaw: 0, pitch: 0, color: '#888', collide: true, visible: true };
+    expect(sees('w', 51, 1.7, A2_CROSS_Z, [...blockers, wall])).toBe(false);
+  });
+
+  it('the taught waits are out of view of both watchers at head heights 1.05 and 1.7: the west gap 2/3 (x 41 and west of it, the centre line to x 43), the cabin corner and cabinet 2\'s spot (the vans, the cabin and the east rake hide them)', () => {
+    const waits: [string, number, number][] = [];
+    for (const x of [41, 40, 39, 37.5]) for (const z of [11.6, 12.5, 13.4]) waits.push([`west gap 2/3 (${x}, ${z})`, x, z]);
+    // (on the centre line the shadow reaches x 43; along the gap's south side the east watcher looks in diagonally from x 42)
+    for (const x of [43, 42]) waits.push([`west gap 2/3 centre (${x}, ${A2_CROSS_Z})`, x, A2_CROSS_Z]);
+    waits.push(['cabin corner', 28.95, 4.25], ['cabinet 1 spot', A2_CAB1.x, 2.6], ['cabinet 2 spot', 68.8, A2_CAB2.z], ['cabinet 2 apron', 68.4, 12.4]);
+    for (const [name, x, z] of waits) {
+      for (const w of ['w', 'e'] as const) {
+        for (const h of HEADS) expect(sees(w, x, h, z), `${w} sees ${name} at ${h}`).toBe(false);
+      }
+    }
+  });
+
+  it('soloJumpThreats stays empty with the closures in (their tops, 2.5 m and 4.4 m, are noLedge and far from the loading edge)', () => {
+    expect(soloJumpThreats(solid, LIP)).toEqual([]);
+    for (const p of closures) expect(p.noLedge).toBe(true);
+  });
+
+  it('X3: road 2\'s east wheel stop is gone: five stops, nothing 0.3 m tall in x 66-70 across the L2 door\'s width (z 9.1-10.9), and the approach is open floor along z 9.4, 10 and 10.6 from the east rake\'s end to the wall', () => {
+    const stops = grey.filter((p) => p.collide && Math.abs(top(p) - 0.3) < 1e-6);
+    expect(stops).toHaveLength(5);
+    expect(stops.filter((p) => p.c[0] + p.s[0] / 2 > 66 && p.c[2] + p.s[2] / 2 > 9.1 && p.c[2] - p.s[2] / 2 < 10.9)).toEqual([]);
+    for (const z of [9.4, 10, 10.6]) expect(walkBlocked(66.4, z, 69.7, z), `L2 door approach at z ${z}`).toBeNull();
+    // teeth: the old stop (x 68.6-69.4, z 9.2-10.8, 0.3 m) put back blocks the same walks
+    const old: BoxPiece = { c: [69, 0.15, 10], s: [0.8, 0.3, 1.6], yaw: 0, pitch: 0, color: '#888', collide: true, visible: true };
+    for (const z of [9.4, 10, 10.6]) {
+      const xs = Array.from({ length: 34 }, (_, k) => 66.4 + k * 0.1);
+      expect(xs.some((x) => touching([...solid, old], x, z)), `old stop at z ${z}`).toBe(true);
+      expect(xs.some((x) => touching(solid, x, z)), `no stop at z ${z}`).toBe(false);
+    }
+    // the other five stops are where they were: road 1 and road 3 at both ends, road 2's west end
+    const spots = stops.map((p) => [Number(p.c[0].toFixed(1)), p.c[2]]).sort((p, q) => p[0]! - q[0]! || p[1]! - q[1]!);
+    expect(spots).toEqual([[33, 5], [33, 10], [33, 15], [69, 5], [69, 15]]);
   });
 });
