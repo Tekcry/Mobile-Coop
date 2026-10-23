@@ -10,7 +10,7 @@ Branch `feature/sector-redesign-lr16int`, base da773613. Status: IN PROGRESS (WI
      same cos^exp x smoothstep feather as `lampCone`). Covers shadow-mapped torches, plain and clustered pool lights.
      Standard materials (editor only, no torches): scale `diffuse{X}` by the feather in the CUSTOM_LIGHT hook.
      `lightRig.place` exponents from `SPOT_EXP` / `LAMP_EXP`, not literals.
-2. LR16-3 door / prop casters in the slot cone fit (`charShadows.ts` fitCone) - todo.
+2. LR16-3 - DONE in code (charShadows gather/addDynamic, charShadowSet doorSphere), tests in charShadowSet.test.ts pass.
 3. `lights.contribution()` -> photometric term; campusS2 boost point - todo.
 4. Docs polish `coop.md:24,34`, `TESTING.md:49` - todo.
 

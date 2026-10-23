@@ -6,7 +6,7 @@
  * read any of it (they keep the light field, which has no character shadows at all).
  */
 import type { ShadowQuality } from '../core/quality';
-import { hyp3 } from '../core/mathx';
+import { hyp2, hyp3 } from '../core/mathx';
 
 /** The settings override: the preset's choice, or always on / off. */
 export type CharShadowMode = 'auto' | 'on' | 'off';
@@ -425,4 +425,16 @@ export function tileY(slot: number, tile: number): number {
 /** (LR16-3) A door leaf or prop at (x, y, z) with bounding radius r can reach a lamp's slot when within its range. */
 export function casterInReach(lx: number, ly: number, lz: number, reach: number, x: number, y: number, z: number, r: number): boolean {
   return hyp3(x - lx, y - ly, z - lz) <= reach + r;
+}
+
+/**
+ * (LR16 fix, LR16-3) A door leaf's bounding sphere at any swing, into `out` (x, y, z, r): centred on the hinge line at
+ * mid height, radius = the leaf's far edge from there (hyp(width, height / 2)). The slot's cone fit takes it, so the
+ * leaf's shadow is never cut at the frustum. Allocation-free.
+ */
+export function doorSphere(a: { hinge: { x: number; y: number; z: number }; width: number; height: number }, out: Float32Array): void {
+  out[0] = a.hinge.x;
+  out[1] = a.hinge.y + a.height * 0.5;
+  out[2] = a.hinge.z;
+  out[3] = hyp2(a.width, a.height * 0.5);
 }

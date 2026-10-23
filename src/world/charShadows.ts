@@ -10,7 +10,7 @@
  * only drives its shadow map. Per frame nothing is allocated (render lists and uniforms refilled in place).
  */
 import { BaseTexture, Constants, EffectRenderer, EffectWrapper, ShadowGenerator, SpotLight, Texture, Vector3, Viewport, type AbstractMesh, type Observer, type RenderTargetWrapper, type Scene } from '../core/babylon';
-import { atlasSize, CHAR_SHADOW, CHAR_SHADOW_DISK, CHAR_SHADOW_KERNEL, charShadowEvery, charShadowTaps, casterInReach, coneCovers, FIT, fitCone, fittedSpheres, LampSlotPicker, spheresHold, tileX, tileY } from './charShadowSet';
+import { atlasSize, CHAR_SHADOW, CHAR_SHADOW_DISK, CHAR_SHADOW_KERNEL, charShadowEvery, charShadowTaps, casterInReach, coneCovers, doorSphere, FIT, fitCone, fittedSpheres, LampSlotPicker, spheresHold, tileX, tileY } from './charShadowSet';
 
 type RenderTargetTexture = NonNullable<ReturnType<ShadowGenerator['getShadowMap']>>;
 
@@ -47,7 +47,7 @@ export interface CharShadowLamps {
 /** (LR16-3) The door registry's side `CharShadows` reads (`Doors`): the leaves' one thin-instanced mesh and each door. */
 export interface CharShadowDoors {
   readonly leafMesh: AbstractMesh | null;
-  readonly list: readonly { open: number; ajar: number; cx: number; cz: number; anchor: { hinge: { y: number }; width: number; height: number } }[];
+  readonly list: readonly { open: number; ajar: number; anchor: { hinge: { x: number; y: number; z: number }; width: number; height: number } }[];
 }
 
 /** (LR16-3) The prop registry's side (`PropSystem`): each live prop's node position and its part meshes. */
@@ -356,12 +356,16 @@ export class CharShadows implements CharShadowLink {
         k++;
       }
     }
+    // (characters only: `covers` and the copied map's spheres read the first `k`)
     slot.k = k;
-    if (!k || !fitCone(lx, ly, lz, sp, k, slot.fit)) {
+    if (!k) return false;
+    // (LR16 fix, LR16-3: the doors' and props' spheres follow the characters' in `sp` and join the fit, so the cone,
+    // near and far planes frame their whole shadow within reach - not clipped at a frustum fitted to the guards)
+    const n = this.addDynamic(slot, lx, ly, lz, reach, k);
+    if (!fitCone(lx, ly, lz, sp, n, slot.fit)) {
       slot.list.length = 0;
       return false;
     }
-    this.addDynamic(slot, lx, ly, lz, reach);
     const fit = slot.fit;
     const light = slot.light;
     light.position.set(lx, ly, lz);
@@ -376,39 +380,58 @@ export class CharShadows implements CharShadowLink {
   }
 
   /**
-   * (LR16-3) After the cone is fitted around the characters: list the door leaves (open, moving or cracked) and the
-   * props within the lamp's reach. They join the render list only - the fit and `covers` still follow the characters -
-   * so a leaf or a pushed / carried crate throws its shape onto them. Allocation-free (indexed loops, no closures).
+   * (LR16-3) The door leaves (open, moving or cracked) and the props within the lamp's reach join the render list, so a
+   * leaf or a pushed / carried crate throws its shape onto the characters and the floor. (LR16 fix) Their bounding
+   * spheres go into `slot.sp` after the `k` characters' (`doorSphere`, a prop: its node + `PROP_REACH`) for the
+   * cone fit only - `covers` still reads the characters. Returns the spheres to fit. Allocation-free (indexed loops,
+   * no closures).
    */
-  private addDynamic(slot: CsSlot, lx: number, ly: number, lz: number, reach: number): void {
+  private addDynamic(slot: CsSlot, lx: number, ly: number, lz: number, reach: number, k: number): number {
+    const sp = slot.sp;
+    const ds = this.doorSp;
     const doors = this.doors;
     const leaf = doors?.leafMesh;
     if (doors && leaf && leaf.isVisible && leaf.isEnabled()) {
       const dl = doors.list;
+      let listed = false;
       for (let i = 0; i < dl.length; i++) {
         const d = dl[i]!;
         if (d.open <= 0 && d.ajar <= 0) continue;
-        const a = d.anchor;
-        if (casterInReach(lx, ly, lz, reach, d.cx, a.hinge.y + a.height * 0.5, d.cz, (a.width + a.height) * 0.5)) {
-          slot.list.push(leaf);
-          break;
-        }
+        doorSphere(d.anchor, ds);
+        if (!casterInReach(lx, ly, lz, reach, ds[0]!, ds[1]!, ds[2]!, ds[3]!)) continue;
+        // (one thin-instanced mesh holds every leaf: listed once, each open leaf's sphere fitted)
+        if (!listed) slot.list.push(leaf);
+        listed = true;
+        if (k < MAX_SPHERES) sp.set(ds, k++ * 4);
       }
     }
     const pr = this.dynProps?.props;
-    if (!pr) return;
+    if (!pr) return k;
     for (let i = 0; i < pr.length; i++) {
       const p = pr[i]!;
       if (!p.alive) continue;
       const q = p.node.position;
       if (!casterInReach(lx, ly, lz, reach, q.x, q.y, q.z, PROP_REACH)) continue;
       const parts = p.parts;
+      let any = false;
       for (let j = 0; j < parts.length; j++) {
         const m = parts[j]!;
-        if (m.isEnabled() && m.isVisible) slot.list.push(m);
+        if (m.isEnabled() && m.isVisible) {
+          slot.list.push(m);
+          any = true;
+        }
+      }
+      if (any && k < MAX_SPHERES) {
+        sp[k * 4] = q.x;
+        sp[k * 4 + 1] = q.y;
+        sp[k * 4 + 2] = q.z;
+        sp[k * 4 + 3] = PROP_REACH;
+        k++;
       }
     }
+    return k;
   }
+  private readonly doorSp = new Float32Array(4);
 
   private setEvery(slot: CsSlot, every: number): void {
     if (slot.every === every) return;

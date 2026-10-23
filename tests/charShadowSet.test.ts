@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { atlasSize, CHAR_SHADOW, CHAR_SHADOW_DISK, CHAR_SHADOW_EVERY, CHAR_SHADOW_KERNEL, CHAR_SHADOW_PRESET, CHAR_SHADOW_TAPS, charFilterTexels, charPenumbra, charShadowEvery, charShadowSpec, charShadowTaps, casterInReach, coneCovers, FIT, fitCone, fittedSpheres, LampSlotPicker, spheresHold, tileX, tileY } from '../src/world/charShadowSet';
+import { atlasSize, CHAR_SHADOW, CHAR_SHADOW_DISK, CHAR_SHADOW_EVERY, CHAR_SHADOW_KERNEL, CHAR_SHADOW_PRESET, CHAR_SHADOW_TAPS, charFilterTexels, charPenumbra, charShadowEvery, charShadowSpec, charShadowTaps, casterInReach, coneCovers, doorSphere, FIT, fitCone, fittedSpheres, LampSlotPicker, spheresHold, tileX, tileY } from '../src/world/charShadowSet';
 import { CHAR_SHADOW_GLSL } from '../src/world/charShadows';
 import { GRAPHICS_PRESETS, MIN_FEATURES, PRESET_IDS, qualityLevel, shadowSpec } from '../src/core/quality';
 import { bytesPerCall } from './helpers/allocPerCall';
@@ -341,6 +341,50 @@ describe('LR16-3 dynamic occluders in the character shadow casters', () => {
   });
   it('the reach test is allocation-free', async () => {
     const bytes = await bytesPerCall((k) => (casterInReach(0, 3, 0, 6, k % 9, 3, 0, 0.9) ? 1 : 0), 16, { n: 2000 });
+    expect(bytes).toBeLessThanOrEqual(16);
+  });
+});
+
+describe('LR16 fix: door / prop spheres in the slot cone fit (LR16-3)', () => {
+  const door = { hinge: { x: 2, y: 0, z: -1 }, width: 1.2, height: 2.1 };
+  it("a door's sphere holds its leaf at any swing", () => {
+    const o = new Float32Array(4);
+    doorSphere(door, o);
+    for (let yaw = 0; yaw < Math.PI * 2; yaw += 0.7)
+      for (let sw = 0; sw <= Math.PI; sw += 0.1)
+        for (const t of [0, 0.5, 1])
+          for (const y of [0, door.height]) {
+            const x = door.hinge.x + Math.sin(yaw + sw) * door.width * t;
+            const z = door.hinge.z + Math.cos(yaw + sw) * door.width * t;
+            expect(Math.hypot(x - o[0]!, y - o[1]!, z - o[2]!)).toBeLessThanOrEqual(o[3]! + 1e-5);
+          }
+  });
+  it('a leaf nearer the lamp than the guard: with its sphere in the fit the cone and near plane hold it', () => {
+    // (lamp 3 m up at the origin; a guard 4 m off; an open leaf 1.5 m off on the other side)
+    const sp = new Float32Array(16);
+    sp.set([4, 1, 0, 0.6], 0);
+    const d = new Float32Array(4);
+    doorSphere({ hinge: { x: -1.5, y: 0, z: 0.5 }, width: 0.9, height: 2.1 }, d);
+    const charOnly = new Float32Array(FIT.size);
+    expect(fitCone(0, 3, 0, sp, 1, charOnly)).toBe(true);
+    // (before: the guard's fit cut the leaf - outside the cone)
+    expect(coneCovers(charOnly, 0, 3, 0, d[0]!, d[1]!, d[2]!, d[3]!)).toBe(false);
+    sp.set(d, 4);
+    const both = new Float32Array(FIT.size);
+    expect(fitCone(0, 3, 0, sp, 2, both)).toBe(true);
+    const dist = Math.hypot(d[0]!, d[1]! - 3, d[2]!);
+    expect(both[FIT.near]!).toBeLessThan(dist - d[3]!);
+    if (!both[FIT.partial]) expect(coneCovers(both, 0, 3, 0, d[0]!, d[1]!, d[2]!, d[3]!)).toBe(true);
+    // (the guard stays covered)
+    expect(coneCovers(both, 0, 3, 0, 4, 1, 0, 0.6)).toBe(true);
+  });
+  it('doorSphere is allocation-free', async () => {
+    const o = new Float32Array(4);
+    const bytes = await bytesPerCall((k) => {
+      door.hinge.x = k % 7;
+      doorSphere(door, o);
+      return o[3]!;
+    }, 16, { n: 2000 });
     expect(bytes).toBeLessThanOrEqual(16);
   });
 });
