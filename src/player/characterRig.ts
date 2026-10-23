@@ -4658,6 +4658,9 @@ export class CharacterRig {
   /** (Step 14) set by gameState's render frame while this rig lies as a body: the frame stamp and its age (s). */
   bodyFrame = -1;
   bodyAge = 0;
+  /** (LR16-6) Never drawn: another body is shown in its place (a dog's hidden humanoid rig). Render passes that walk
+   *  `LIVE_RIGS` (thermal's door silhouettes) skip it. Render only. */
+  standIn = false;
 
   /** (Step 14) thermal vision's warmth (render only; nothing in gameplay reads it). Only touches buffers on a change. */
   setHeat(k: number): void {

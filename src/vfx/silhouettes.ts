@@ -7,6 +7,11 @@ const RADII = [0.15, 0.06, 0.05, 0.06, 0.05, 0.085, 0.06, 0.085, 0.06, 0.07, 0.0
 /** WebGL depth function ALWAYS (draw over everything). */
 const DEPTH_ALWAYS = 519;
 
+/** (LR16-6) Moves a captured point in place (along its camera ray) and returns its scale; sizes follow it. */
+export interface PointWarp {
+  warp(p: Vector3): number;
+}
+
 /**
  * Frozen silhouettes of rigs (the LKP ghost): a pose captured from a `CharacterRig` drawn as
  * capsule-ish limbs and a head, unlit and translucent. One thin-instanced cylinder mesh for every limb of
@@ -27,6 +32,11 @@ export class Silhouettes {
   private c = new Vector3();
   private d = new Vector3();
   private enabled = false;
+  /** (LR16-6) The joints of the figure being captured (reused: `add` runs every frame for thermal's door silhouettes). */
+  private readonly jn: TransformNode[] = [];
+  /** (LR16-6) Each captured point's warp scale (1 without a warp). */
+  private readonly sc = new Float32Array(SEGS * 2);
+  private readonly hp = new Vector3();
 
   constructor(
     scene: Scene,
@@ -34,6 +44,7 @@ export class Silhouettes {
     readonly max: number,
     color: Color3,
     overlay = false,
+    fog = true,
   ) {
     const mat = new StandardMaterial(`${name}Mat`, scene);
     mat.disableLighting = true;
@@ -41,6 +52,7 @@ export class Silhouettes {
     mat.diffuseColor = Color3.Black();
     mat.specularColor = Color3.Black();
     mat.alpha = 0;
+    mat.fogEnabled = fog;
     if (overlay) {
       mat.depthFunction = DEPTH_ALWAYS;
       mat.disableDepthWrite = true;
@@ -72,11 +84,21 @@ export class Silhouettes {
     this.n = 0;
   }
 
-  /** Capture a rig's current pose as the next figure. Returns false when full. */
-  add(rig: CharacterRig): boolean {
+  /** Capture a rig's current pose as the next figure. Returns false when full. `warp` (LR16-6) moves each captured point
+   *  and scales the limb and head sizes with it. No allocation. */
+  add(rig: CharacterRig, warp?: PointWarp): boolean {
     if (this.n >= this.max) return false;
-    const j: TransformNode[] = [rig.hips, rig.neck, rig.shoulderL, rig.elbowL, rig.elbowL, rig.wristL, rig.shoulderR, rig.elbowR, rig.elbowR, rig.wristR, rig.hipL, rig.kneeL, rig.kneeL, rig.ankleL, rig.hipR, rig.kneeR, rig.kneeR, rig.ankleR, rig.shoulderL, rig.shoulderR, rig.hipL, rig.hipR];
-    for (let i = 0; i < SEGS * 2; i++) this.pts[i]!.copyFrom(j[i]!.getAbsolutePosition());
+    const j = this.jn;
+    j[0] = rig.hips; j[1] = rig.neck;
+    j[2] = rig.shoulderL; j[3] = rig.elbowL; j[4] = rig.elbowL; j[5] = rig.wristL;
+    j[6] = rig.shoulderR; j[7] = rig.elbowR; j[8] = rig.elbowR; j[9] = rig.wristR;
+    j[10] = rig.hipL; j[11] = rig.kneeL; j[12] = rig.kneeL; j[13] = rig.ankleL;
+    j[14] = rig.hipR; j[15] = rig.kneeR; j[16] = rig.kneeR; j[17] = rig.ankleR;
+    j[18] = rig.shoulderL; j[19] = rig.shoulderR; j[20] = rig.hipL; j[21] = rig.hipR;
+    for (let i = 0; i < SEGS * 2; i++) {
+      this.pts[i]!.copyFrom(j[i]!.getAbsolutePosition());
+      this.sc[i] = warp ? warp.warp(this.pts[i]!) : 1;
+    }
     const f = this.n;
     for (let k = 0; k < SEGS; k++) {
       const a = this.pts[k * 2]!;
@@ -92,13 +114,14 @@ export class Silhouettes {
         this.q.set(this.d.z, 0, -this.d.x, 1 + dot);
         this.q.normalize();
       }
-      const r = RADII[k]! * (rig.height / 1.75);
+      const r = RADII[k]! * (rig.height / 1.75) * (this.sc[k * 2]! + this.sc[k * 2 + 1]!) * 0.5;
       this.s.set(r, len + r * 0.6, r);
       Matrix.ComposeToRef(this.s, this.q, this.c, this.m);
       this.m.copyToArray(this.limbBuf, (f * SEGS + k) * 16);
     }
-    const h = rig.headNode.getAbsolutePosition();
-    const hk = rig.height / 1.75;
+    // (LR16-6) a copy: the warp must not move the rig's own cached position
+    const h = this.hp.copyFrom(rig.headNode.getAbsolutePosition());
+    const hk = (rig.height / 1.75) * (warp ? warp.warp(h) : 1);
     this.s.set(0.2 * hk, 0.24 * hk, 0.21 * hk);
     this.q.set(0, 0, 0, 1);
     Matrix.ComposeToRef(this.s, this.q, h, this.m);
