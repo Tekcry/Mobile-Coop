@@ -151,7 +151,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   woken handler takes it back (`swapSlot`), a despawned one frees it. `zone`: a secure zone (`isSecureZone`: 'secure'
   or a word 'sec') gives the guard a circle (`zoneRadius`: post leash, else 8 m / route reach + 2) in the board's view
   (`GuardView.setTags`): inside it he counts as a perceiver and ranks first (x `TAGS.secureFirst` 0.25); after a search
-  every guard walks back to his own post / route (the walker; no new code). `role` (`roleFlags`, `ROLE_CLASS`): the
+  every guard walks back to his own post / route (the walker; no new code). `role` (on the guard `Enemy.job`, the word, and `roleFlags`, `ROLE_CLASS`; `Enemy.role` is S8's numeric combat role): the
   alarm runner (`alarmRunMul`: supervisor 0.1, officer 0.25), the board's score (`roleSendMul`: supervisor sends
   someone x1.6; a light: rover x0.8, fixed post x1.5). `reason` stored (`Enemy.reason`); `pair` stored as the S10 hook
   (`Enemy.pairSlot`, `EnemyManager.guardAtSlot(index)`). All kept over a revive (`Enemy.inherit`). Tests:
@@ -161,6 +161,21 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   stretch is walked (`ADVANCE_PACE`); cover is picked against `knownPt` (never the real position out of sight). One bullet
   to the head kills any guard but a heavy (`Enemy.applyDamage`). The close-range sense from behind ignores a sneak /
   crouched approach.
+- Squad roles (guard-ai S8, coordinated modes; `squadRoles.ts`, `coverGrid.ts`): `EnemyManager.rolesStep` at 2 Hz
+  (`TACTICS.tick`) fills one reused `RoleInput` from the engaged group (alerted, free, cover-using guards; >= 2,
+  `TACTICS.minGroup`), runs `assignRoles` against the level cover as typed arrays (`coverSet`, mirrored from
+  `reserveCover`; `coverGrid` 4 m buckets) and calls `Enemy.setRole(role, cover, moving, run, mateMoving, onRadio)`.
+  Reporter = the engagement's first contact caller (`contactCaller`), held crouched and silent while his call is open;
+  point bounds cover to cover (`profile.advanceHold` between bounds, out of sight), walks the last stretch (`closing`)
+  when no cover is left; overwatch's low cover needs one view ray to the LKP (`TACTICS.viewChecks` 4, a blind one
+  blocked `TACTICS.blockS` 5 s), suppresses the LKP while a mate moves; flank (groups of 3+) bounds to cover >= 60 deg
+  off the point's bearing; the rest search (today's). One of point / flank moves at a time (standard). Out of sight in
+  the open a role guard waits for the group. A path failure blocks the cover. While a group has roles the single
+  `flanker` is cleared; otherwise `assignFlanker` as before. Barks `moving` / `covering` / `flanking`.
+- Combat dice (S8, A24): `Enemy.rng` (mulberry32) reseeded `combatSeed(matchSeed, engagement, num)` on going to
+  combat; `tacticsProfile` (`placeSlot`: `P_POST` with a post, `P_AGGRESSIVE` for an aggressive slot, else `P_STANDARD`;
+  kept by `Enemy.inherit`) weights cover-first (standard 0.85) and the roles (`P_POST` never point or flank). A
+  high-security post never takes a role cover outside his leash (`Enemy.setRole` drops it; A18, A25).
 - `EnemyManager.stealth` (on in Hunter, Mission and Infiltration; off in Free Roam): shared `lkp` (sightings by alerted
   enemies, located gunfire), a flow field to the LKP (never the real position), arriving with nothing there starts the
   search; `callAlert` radios within `RADIO` 22 m in the parked modes (a radioed alert does not relay; the live modes use

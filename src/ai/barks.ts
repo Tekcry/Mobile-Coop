@@ -30,7 +30,11 @@ export type BarkEvent =
   // (guard-ai S4, design 4 / 10) bodies: waking a knocked-out squadmate, the reports
   | 'koFound'
   | 'koReport'
-  | 'deadReport';
+  | 'deadReport'
+  // (guard-ai S8, design 8) squad tactics: the point bounds, the overwatch covers it, the flanker goes round
+  | 'moving'
+  | 'covering'
+  | 'flanking';
 
 export const BARKS: Record<BarkEvent, readonly string[]> = {
   suspicious: ['Huh?', 'What was that?', 'Hello?', 'Something there...'],
@@ -59,6 +63,9 @@ export const BARKS: Record<BarkEvent, readonly string[]> = {
   koFound: ['Hey. Hey! Wake up.'],
   koReport: ["Found him out cold. He's okay, checking around."],
   deadReport: ['Man down. Stay sharp.', 'We lost one. Stay sharp.'],
+  moving: ['Moving up!', 'Moving!', 'Cover me!'],
+  covering: ['Covering!', 'Got you covered!', 'Go, go!'],
+  flanking: ['Flanking!', 'Going round!', 'Taking the side!'],
 };
 
 /** Radio lines (a chirp plays with them). */

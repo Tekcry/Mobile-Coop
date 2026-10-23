@@ -114,6 +114,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Cameras see bodies (guard-ai S7, Sector Ops): knock a guard out where a camera sweeps (lit or dark): the desk
   radios "Camera N has a man down..." and the nearest guard walks over and wakes him; loop or jam the camera first and
   nobody comes.
+- [ ] Guard tactics (guard-ai S8): get spotted by 4 guards and break line of sight: the caller drops back into cover,
+  one moves up cover to cover ("Moving up!"), one covers from cover ("Covering!"), one goes round the side
+  ("Flanking!"); never more than one of them moving up at once, nobody runs at you in the open.
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
 - [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
   glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen

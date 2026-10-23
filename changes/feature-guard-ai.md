@@ -44,3 +44,12 @@
   wakes him; then they search the area. Looped, switched-off, jammed or shot-out cameras see nothing, so hide bodies out
   of a camera's view or take the camera down first. Dogs never answer the call. Hunter and Mission (parked) are
   unchanged.
+- S8 tactics: guards in a fight now work as a team instead of each doing his own thing. With two or more in it, the one
+  who called you in takes cover further back and stays down until his radio call is through; one guard (the point)
+  moves up from cover to cover ("Moving up!"), another covers him from cover with a view of where you were seen and
+  fires at that spot while a squadmate moves ("Covering!"), and with three or more one goes round the side
+  ("Flanking!"). Only one of the point and the flanker moves at a time, guards run only between covers, and nobody walks
+  out into the open at you. Their shooting (bursts, spread, strafes, going for cover) uses a fixed seed per guard and
+  fight, so the same fight plays the same way. A guard on a post never moves up or flanks (a high-security one never
+  takes cover outside his area), and a guard from an aggressive slot moves up first. A lone guard and Hunter / Mission
+  (parked) keep the old tactics.

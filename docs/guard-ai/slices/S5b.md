@@ -42,7 +42,7 @@ first x 0.25, secure circle 8 m (route reach + 2 m); alarm run supervisor 0.1 / 
 - `src/ai/enemyManager.ts` (`placeSlot`, `bindDog`, `guardAtSlot`, `radioCheckNow`, `deskCaller`, `bodyFoundOf`,
   `reportMissing`, `handlerDown`, `swapSlot`; `fillView` tags; `assignAlarm` one line; `hear` optional `skip`;
   `despawn` / `clear` tidy-up)
-- `src/ai/enemy.ts` (tag fields, `findLeader` handler branch, `inherit`)
+- `src/ai/enemy.ts` (tag fields; the role word is `Enemy.job` since the S8 merge, `Enemy.role` being S8's combat role; `findLeader` handler branch, `inherit`)
 - `src/ai/incidents.ts` (`GuardView.role/zx/zz/zr` + `setTags`; `mark` zone guards; `best` role / zone factors;
   K_MISSING perceivers first)
 - `src/game/modes/sectorMode.ts` (fill passes the guard list and index)

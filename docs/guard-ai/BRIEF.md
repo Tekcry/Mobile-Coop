@@ -131,6 +131,26 @@ manoeuvre beats guard count. Every map's guards are armed (Answers 3).
   unit, check on him." (KO) or "He's not moving. Two of you, go." (dead); N = the camera's place in the map's security
   list (1-based), {room} the `RoomRect.name` under the body (dropped when none); a radio bark over the camera, text
   only (G82). Undo: `camBodyLine` (src/ai/barks.ts) and the label in `GameState`'s `onBody`.
+- **A23** (S8) Squad roles run for one engaged group per guard set (the one shared last known position): every alerted,
+  free, cover-using guard (not melee, dog, sniper, enforcer, a room holder, passive, held, on an alarm run or closing in)
+  when there are at least 2 of them; a lone guard and the parked modes keep today's tactics and today's single flanker
+  (the flank role replaces it only while a group has roles). The reporter is the engagement's first contact caller.
+  Undo: `TACTICS.minGroup` (enemyManager.ts) to 99 turns the roles off.
+- **A24** (S8, A7) Combat dice: one mulberry32 `Rng` per guard, seeded by his `num` at spawn and reseeded
+  `combatSeed(matchSeed 0x5eed, engagement, num)` when he goes to combat; an engagement starts when a guard goes to
+  combat with nobody else in it (the board opens no contact incidents, so this stands in for the incident id). The
+  think cadence stays on `Math.random` (perception, not combat); the parked modes' `callAlert` / shout jitter stays
+  (parked, replaced by the radio net). Non-combat: reinforcements face the last known position, a revived guard keeps
+  the yaw he went down with (S4, `Enemy.inherit`), the squad radio check spread is a fixed golden-ratio sequence. Undo: `Math.random` back in those places.
+- **A25** (S8) Profiles: `EnemyManager.placeSlot` sets `tacticsProfile` `P_POST` for a guard with any post (normal or
+  high security: never point or flank), `P_AGGRESSIVE` for `profile: 'aggressive'`, else `P_STANDARD`; a woken guard keeps
+  it (`Enemy.inherit`); S6 reinforcements will be `P_AGGRESSIVE`. A high-security post in a group (A18) never takes a
+  role cover outside his leash (`Enemy.setRole` drops it: he holds where he is), and a point or flank role given to him
+  (another profile) becomes search (today's leashed tactics). A guard with a role
+  holds his cover and keeps peeking and firing (peek-and-report: his sightings move the shared LKP) instead of stepping
+  out after 5 peeks; the point instead walks the last stretch (`closing`, out of the group, `ADVANCE_PACE`) when he has
+  no cover left to bound to or after 5 peeks with no sight. The reporter stays crouched and holds his fire while his
+  contact call is open. Undo: `holds` in `Enemy.decide` (`inCover`).
 - **A26** (S5b) Squads and radio checks in Sector Ops: every section guard joins a squad in `placeSlot` (`squad` tag ->
   section x 100 + squad; none -> the cluster of posts within 12 m; a dog -> its handler's). A member down and not yet
   found is missed at the next check (every ~40 s) and, in the coordinated modes, opens a `missing` incident at where he

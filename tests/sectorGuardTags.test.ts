@@ -185,7 +185,7 @@ interface FakeGuard {
   section: number;
   coverIdx: number;
   roleFlags: number;
-  role: string;
+  job: string;
   zone: string;
   zoneR: number;
   slotIdx: number;
@@ -228,7 +228,7 @@ function guard(x: number, z: number, o: Partial<FakeGuard> = {}): FakeGuard {
     section: 0,
     coverIdx: -1,
     roleFlags: 0,
-    role: '',
+    job: '',
     zone: '',
     zoneR: 0,
     slotIdx: -1,
@@ -316,6 +316,7 @@ describe('placeSlot reads the sector tags', () => {
     expect(gs.map((g) => g.squad)).toEqual([201, 201, squadId(2, DEFAULT_SQUAD_BASE), squadId(2, DEFAULT_SQUAD_BASE)]);
     expect(priv.squads.get(201)).toEqual([E(gs[0]!), E(gs[1]!)]);
     expect(gs[0]!.roleFlags).toBe(ROLE_DESK | ROLE_FIXED);
+    expect(gs[0]!.job).toBe('desk');
     expect(gs[0]!.zoneR).toBe(TAGS.secureR);
     expect(gs[1]!.zoneR).toBe(0);
     expect(gs[0]!.reason).toBe('Reads the reports');
