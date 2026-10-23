@@ -8,7 +8,7 @@ import { LevelBuilder } from '../src/world/levelBuilder';
 import { buildCtcourse } from '../src/world/maps/ctcourse';
 import { CourseMarks, bayRated, bayTitle, courseGrant, setStatsInto } from '../src/game/course/courseMarks';
 import { CourseState, newStats } from '../src/game/course/courseState';
-import { ALL_MARKS, BODIES_HIDDEN, NO_ALARMS, NO_KILLS, UNDETECTED, newSectionStats } from '../src/game/rating/sectionRating';
+import { ALL_MARKS, BODIES_HIDDEN, NO_ALARMS, NO_KILLS, UNDETECTED, coopRating, newSectionStats } from '../src/game/rating/sectionRating';
 import type { BayDef } from '../src/game/course/courseDef';
 
 const bay = (id: string, rated?: boolean): BayDef => ({ id, entry: 'start', exit: 'end', squad: [], gates: [], radio: [], drills: [], elements: [], ...(rated === undefined ? {} : { rated }) });
@@ -136,6 +136,19 @@ describe('courseGrant', () => {
   it('solo (A7): No alarms gives a medkit instead of a syringe', () => {
     expect(courseGrant(ALL_MARKS, 0, false, 2, 2, 4)).toEqual({ gadget: 2, syringe: 0, medkit: 2, alarmStep: 0 });
     expect(courseGrant(0, 0, false, 2, 2, 4)).toEqual({ gadget: 0, syringe: 0, medkit: 0, alarmStep: 0 });
+  });
+});
+
+describe('coopRating (S6 fix: co-op means a partner in the match at rating time)', () => {
+  it('solo (no net) and a host alone in a co-op room rate solo; a host or client with a partner rate co-op', () => {
+    expect(coopRating(false, 1)).toBe(false);
+    expect(coopRating(true, 1)).toBe(false);
+    expect(coopRating(true, 2)).toBe(true);
+    expect(coopRating(false, 2)).toBe(false);
+  });
+  it('a host alone gets the solo table (medkits, no syringe)', () => {
+    expect(courseGrant(ALL_MARKS, 0, coopRating(true, 1), 2, 2, 4)).toEqual({ gadget: 2, syringe: 0, medkit: 2, alarmStep: 0 });
+    expect(courseGrant(ALL_MARKS, 0, coopRating(true, 2), 2, 2, 4)).toEqual({ gadget: 2, syringe: 1, medkit: 1, alarmStep: 0 });
   });
 });
 

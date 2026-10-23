@@ -6,6 +6,7 @@ import { defaultLook } from '../src/cosmetics/avatarLook';
 import { parseMessage, PROTOCOL_VERSION, RT_COUNT, ratingWire, type Msg } from '../src/net/protocol';
 import { ratingViewFromWire } from '../src/net/validate';
 import type { SectorRatingWire } from '../src/game/sectors';
+import { RH_HI, RH_MAX, packRated, unpackRated } from '../src/game/course/courseWire';
 
 /** (section-rating S3, protocol 37) The `sector` message's `rt` and the course stats' `synced`. */
 
@@ -102,6 +103,20 @@ describe('rating wire (protocol 37)', () => {
     expect(bad.rt).toBeUndefined();
     const none = parseMessage(base);
     expect(none && none.t === 'course' && 'rt' in none).toBe(false);
+  });
+
+  it('(S6 fix) the course message carries every set rated so far as rh (index kept, a bad entry -1, clamped, capped); none: dropped', () => {
+    const base = { t: 'course', s: { stats: [] }, lights: {} };
+    const rh = packRated([-1, 15, 5, -1], [0, 2, 0, 0]);
+    expect(rh).toEqual([-1, 15 + 32, 5, -1]);
+    expect(rh.map(unpackRated)).toEqual([null, { marks: 15, synced: 2 }, { marks: 5, synced: 0 }, null]);
+    const ok = parseMessage({ ...base, rh: [...rh, 'x', RH_HI + 5, -7] });
+    if (!ok || ok.t !== 'course') throw new Error('course');
+    expect(ok.rh).toEqual([...rh, -1, RH_HI, -1]);
+    const long = parseMessage({ ...base, rh: new Array(RH_MAX + 10).fill(3) });
+    expect(long && long.t === 'course' ? long.rh?.length : 0).toBe(RH_MAX);
+    const none = parseMessage(base);
+    expect(none && none.t === 'course' && 'rh' in none).toBe(false);
   });
 
   it('the client view: section id and title from the map, null before a rating or for an index the map lacks', () => {

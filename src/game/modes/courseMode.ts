@@ -20,10 +20,10 @@ import { CourseHud } from '../../ui/hud/courseHud';
 import { recordBay, recordRun, updateCourseRecord } from '../../save/courseRecord';
 import { groupBaseOn } from '../../world/lights';
 import { SectionStartState } from '../sectorReset';
-import { COURSE_RESTART_TITLE } from '../course/courseWire';
+import { COURSE_RESTART_TITLE, packRated, unpackRated } from '../course/courseWire';
 import type { PlayerRef } from '../../ai/enemy';
 import { CourseMarks, bayTitle, courseGrant } from '../course/courseMarks';
-import { GRANT_GADGETS, emptyGrant, type Grant, type SectionStats } from '../rating/sectionRating';
+import { GRANT_GADGETS, coopRating, emptyGrant, type Grant, type SectionStats } from '../rating/sectionRating';
 import { GADGETS } from '../gadgets';
 import { stationHeal } from '../medkit';
 import { REVIVES_PER_MISSION } from '../reviveClock';
@@ -750,7 +750,7 @@ export class CourseMode implements GameMode {
     const synced = r.synced[bi] ?? 0;
     let carry = 0;
     for (const id of GRANT_GADGETS) carry += GADGETS[id].carry;
-    const gr = courseGrant(marks, synced, g.net !== null, REVIVES_PER_MISSION, g.net?.revivesLeft?.() ?? REVIVES_PER_MISSION, carry);
+    const gr = courseGrant(marks, synced, coopRating(g.net !== null, g.playerRefsInto(this.refs).length), REVIVES_PER_MISSION, g.net?.revivesLeft?.() ?? REVIVES_PER_MISSION, carry);
     const view: RatingView = { sectionId: b.id, title: bayTitle(b), marks, synced, grant: gr };
     this.hook.last = view;
     g.sectionRatings.push(view);
@@ -991,7 +991,7 @@ export class CourseMode implements GameMode {
     for (const gid of Object.values(this.layout!.groups ?? {})) groups.push([gid, this.groupOn(gid)]);
     const dead: number[] = [];
     for (const l of g.world.level.lights.lights) if (l.destroyed) dead.push(l.id);
-    return { s: this.state!.pack(), locks, anchors: [...g.traversal.attachCtl.disabled], lights: { groups, dead }, ref: this.ref2, rn: this.refN, rl: this.radioLine, rln: this.radioN, ...(this.ct ? { sec: this.ct.wire() } : {}), rt: { ...this.rt } };
+    return { s: this.state!.pack(), locks, anchors: [...g.traversal.attachCtl.disabled], lights: { groups, dead }, ref: this.ref2, rn: this.refN, rl: this.radioLine, rln: this.radioN, ...(this.ct ? { sec: this.ct.wire() } : {}), rt: { ...this.rt }, ...(this.rating ? { rh: packRated(this.rating.marks, this.rating.synced) } : {}) };
   }
 
   /** Test view (`window.__course.debug()`). */
@@ -1139,7 +1139,7 @@ export function disposeClientCourse(g: GameState): void {
  * message only records what is already rated (a late join or rejoin: results only, no top-up); the course's last set,
  * rated at the finish, goes to the results only.
  */
-function mirrorRating(g: GameState, m: ClientCourse, rt: SectorRatingWire | undefined): void {
+function mirrorRating(g: GameState, m: ClientCourse, rt: SectorRatingWire | undefined, rh?: readonly number[]): void {
   const first = m.ratedBay === -2;
   if (!rt) {
     if (first) m.ratedBay = -1;
@@ -1151,6 +1151,13 @@ function mirrorRating(g: GameState, m: ClientCourse, rt: SectorRatingWire | unde
   const b = bays[rt.sec];
   if (!b) return;
   const v: RatingView = { sectionId: b.id, title: bayTitle(b), marks: rt.marks, synced: rt.synced, grant: { gadget: rt.gadget, syringe: rt.syringe, medkit: rt.medkit, alarmStep: rt.alarmStep } };
+  // (S6 fix) a late join / rejoin: every set rated before we came from `rh` (results lines only), the last as on `rt`
+  if (first && rh) {
+    for (let i = 0; i < rh.length && i < bays.length; i++) {
+      const r = i === rt.sec ? null : unpackRated(rh[i]!);
+      if (r) g.sectionRatings.push({ sectionId: bays[i]!.id, title: bayTitle(bays[i]!), marks: r.marks, synced: r.synced, grant: emptyGrant() });
+    }
+  }
   g.sectionRatings.push(v);
   const w = window as unknown as { __sectionRating?: { stats: unknown; last: RatingView | null; lastGrant: unknown; seq?: number } };
   if (w.__sectionRating) w.__sectionRating.last = v;
@@ -1242,7 +1249,7 @@ export function applyCourseWire(g: GameState, w: CourseWire): void {
   }
   mirrorApply(g, w);
   const mm = mirrorOf(g);
-  if (mm) mirrorRating(g, mm, w.rt);
+  if (mm) mirrorRating(g, mm, w.rt, w.rh);
   if (w.sec) mm?.ct.apply(w.sec);
   (window as unknown as { __course?: unknown }).__course = { wire: w, hud: () => mirrors.get(g)?.hud.el, debug: () => ({ bay: w.s.bay, locks: w.locks, anchors: w.anchors, lights: w.lights, ticks: w.s.ticks, refusal: w.ref, rn: w.rn, air: w.s.air }) };
 }

@@ -9,7 +9,7 @@ import { emptyKinds, ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
 import { hyp3 } from '../core/mathx';
 import { packMoveState, sanitizeMoveState, type MoveState } from '../player/moveState';
 import { CDENY_REASONS, CKINDS, type CDenyReason, type CKind } from '../game/committedMoves';
-import { CLIENT_VERBS, type ClientVerb, type CourseWire } from '../game/course/courseWire';
+import { CLIENT_VERBS, RH_HI, RH_MAX, type ClientVerb, type CourseWire } from '../game/course/courseWire';
 import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 import type { SecWire } from '../game/ctDevices';
 import type { SectorNetExtra, SectorRatingWire } from '../game/sectors';
@@ -551,6 +551,18 @@ function courseRt(v: unknown): { rt?: SectorRatingWire } {
   return rt ? { rt } : {};
 }
 
+/** (37, S6 fix) The course message's `rh`: one entry per bay (index kept: a bad entry reads -1, unrated), at most
+ *  RH_MAX; not an array: dropped. */
+function courseRh(v: unknown): { rh?: number[] } {
+  if (!Array.isArray(v)) return {};
+  const rh: number[] = [];
+  for (const x of v.slice(0, RH_MAX)) {
+    const n = num(x, -1, RH_HI);
+    rh.push(n === null ? -1 : Math.round(n));
+  }
+  return { rh };
+}
+
 const COURSE_LIST = 256;
 const PHASES: readonly AirlockPhase[] = ['open', 'waiting', 'ready', 'cycling', 'sealed'];
 const ints = (v: unknown, lo: number, hi: number, max = COURSE_LIST): number[] => {
@@ -616,7 +628,7 @@ function parseCourse(raw: Obj): Msg | null {
     const g = num(x[0], -1, 4096);
     if (g !== null && typeof x[1] === 'boolean') groups.push([Math.round(g), x[1]]);
   }
-  return { t: 'course', s: packed, locks: ints(raw.locks, 0, MAX_DOORS - 1, MAX_DOORS), anchors: ints(raw.anchors, 0, 1e5), lights: { groups, dead: ints(lights.dead, 0, 1e5, 1024) }, ref: safeText(raw.ref, 160) ?? '', rn: Math.round(n0(raw.rn, 0, 1e6)), rl: safeText(raw.rl, 160) ?? '', rln: Math.round(n0(raw.rln, 0, 1e6)), ...secWire(raw.sec), ...courseRt(raw.rt) };
+  return { t: 'course', s: packed, locks: ints(raw.locks, 0, MAX_DOORS - 1, MAX_DOORS), anchors: ints(raw.anchors, 0, 1e5), lights: { groups, dead: ints(lights.dead, 0, 1e5, 1024) }, ref: safeText(raw.ref, 160) ?? '', rn: Math.round(n0(raw.rn, 0, 1e6)), rl: safeText(raw.rl, 160) ?? '', rln: Math.round(n0(raw.rln, 0, 1e6)), ...secWire(raw.sec), ...courseRt(raw.rt), ...courseRh(raw.rh) };
 }
 
 /** Validate an incoming message. Returns null for anything malformed. */

@@ -110,6 +110,14 @@ export interface RewardCtx {
   syringesAtStart: number;
 }
 
+/**
+ * (S6 fix) Whether a rating pays the co-op column: a partner is in the match at rating time (`players` counts the local
+ * player too), not merely a net session (a host alone in a co-op room is rated solo: medkits, not syringes).
+ */
+export function coopRating(hasNet: boolean, players: number): boolean {
+  return hasNet && players > 1;
+}
+
 /** One row per mark (A1). Co-op column, then the solo column (A7: syringes become medkits, no revives solo). */
 const MARK_REWARD: Record<number, { coop: Grant; solo: Grant }> = {
   [UNDETECTED]: { coop: { gadget: 1, syringe: 0, medkit: 0, alarmStep: 0 }, solo: { gadget: 1, syringe: 0, medkit: 0, alarmStep: 0 } },

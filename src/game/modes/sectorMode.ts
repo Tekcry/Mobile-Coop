@@ -57,6 +57,7 @@ import {
   DEFAULT_RULES,
   GRANT_GADGETS,
   SyncedDetector,
+  coopRating,
   emptyGrant,
   newSectionStats,
   rateSection,
@@ -998,7 +999,7 @@ export class SectorMode implements GameMode {
     for (const id of GRANT_GADGETS) gadgetsAtStart += GADGETS[id].carry;
     const preset = syringesFor(g.opts.difficulty);
     const r = rewardsFor(marks, synced, {
-      coop: g.net !== null,
+      coop: coopRating(g.net !== null, g.playerRefsInto(this.refs).length),
       preset,
       gadgetsAtStart,
       syringesAtStart: g.net?.revivesLeft?.() ?? preset,
