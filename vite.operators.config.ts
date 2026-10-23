@@ -4,7 +4,7 @@
 // `npm run build` output is checked for the Lab.
 // (guard-models G4s) guards.html, the guard variety sheet's page, is the second entry. Its bake out dir is served at
 // /__guards from GUARD_SHEET_IN (`GUARD_SHEET_IN=<dir> npm run operators`, or scripts/operators/guard-sheet.mjs, which also
-// sets GUARD_SHEET_ONLY=1: that page alone, built into build/guards-lab/, so the Lab's build is left untouched).
+// sets GUARD_SHEET_ONLY=1: that page alone, built into build/guards-lab/, so the Lab's build is left untouched; with neither variable set the Lab builds its single operators.html entry).
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { defineConfig, type Connect } from 'vite';
@@ -41,7 +41,7 @@ export default defineConfig({
     target: 'es2022',
     sourcemap: false,
     chunkSizeWarningLimit: 8192,
-    rollupOptions: { input: guardsOnly ? { guards: page('guards.html') } : { operators: page('operators.html'), guards: page('guards.html') } },
+    rollupOptions: { input: guardsOnly ? { guards: page('guards.html') } : guardsRoot ? { operators: page('operators.html'), guards: page('guards.html') } : page('operators.html') },
   },
   preview: { host: '127.0.0.1', port, strictPort: true, open: guardsOnly ? false : '/operators.html' },
   plugins: [
