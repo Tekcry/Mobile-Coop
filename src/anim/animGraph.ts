@@ -2646,10 +2646,10 @@ export class AnimGraph {
    * `on` (MOCAP_FEET): the mocap share high enough, not turning fast, past a crawl; then the contacts take the clip's own
    * duty. With the switch off (or no feet) nothing here changes a value. No allocation.
    */
-  /** (AF1) The clip feet's turn hysteresis: under the turn limit last frame, the last on state, its age (s), the
-   *  jog+ share (MOCAP_FEET_TRACK), the last pace. */
+  /** (AF1) The clip feet's turn hysteresis: under the turn limit last frame, handed off by a turn (not taken back
+   *  yet), the time the turn has stayed under the take-back rate (s), the jog+ share (MOCAP_FEET_TRACK), the last pace. */
   private cfTurnOk = true;
-  private cfLast = false;
+  private cfTurned = false;
   private cfT = 0;
   private cfTk = 0;
   private cfSpeed = 0;
@@ -2689,9 +2689,13 @@ export class AnimGraph {
       // MOCAP_FEET_TURN.off and the take-back under .on (hysteresis); the walk's own limit as before
       const tk = smoothstep((speed - MOCAP_FEET_TRACK.from) / (MOCAP_FEET_TRACK.full - MOCAP_FEET_TRACK.from));
       const tOff = tk > 0 ? turnMax + ((turnMax < MOCAP_FEET_TURN.off ? turnMax : MOCAP_FEET_TURN.off) - turnMax) * tk : turnMax;
-      const tLim = this.cfTurnOk || tk <= 0 ? tOff : tOff + ((tOff < MOCAP_FEET_TURN.on ? tOff : MOCAP_FEET_TURN.on) - tOff) * tk;
-      this.cfTurnOk = Math.abs(i.yawRate) < tLim;
+      const tOn = tk > 0 ? tOff + ((tOff < MOCAP_FEET_TURN.on ? tOff : MOCAP_FEET_TURN.on) - tOff) * tk : tOff;
+      const yrA = Math.abs(i.yawRate);
+      this.cfTurnOk = yrA < (this.cfTurnOk ? tOff : tOn);
       this.cfTk = tk;
+      if (!this.cfTurnOk) this.cfTurned = true;
+      // (the take-back's clock: the time the turn has stayed under the take-back rate)
+      if (yrA >= tOn) this.cfT = 0;
       CF.on = o.keyMocap >= M.share && this.cfTurnOk && speed > M.minSpeed;
       const w = o.keyMocap >= M.share ? 1 : o.keyMocap / M.share;
       const duty = o.gait.duty + (this.mDuty - o.gait.duty) * w;
@@ -2721,8 +2725,8 @@ export class AnimGraph {
     // pose in a run on a walk's duty, the clip pinned a planted foot for a walk-length stance at 4.4 m/s (its reach need
     // 2 -> 43 cm in 4 frames, the pelvis 46 cm down)
     if (CF.on && Math.abs(o.gait.duty - want) > MOCAP_DUTY_GAP) CF.on = false;
-    // (anim-fix-pass AF1) the clip takes the feet back no sooner than MOCAP_FEET_TURN.hold after the last hand-over (on
-    // the gait clock's time), nor while the pace changes faster than .accel m/s^2 (a CT flick's pace dip recovering through
+    // (anim-fix-pass AF1) after a turn's hand-off the clip takes the feet back only once the turn has stayed under the
+    // take-back rate for MOCAP_FEET_TURN.hold (on the gait clock's time; a weave through the rates stays the planner's), nor while the pace changes faster than .accel m/s^2 (a CT flick's pace dip recovering through
     // the walk -> jog band: taken back on the walk's duty, the duty gap above handed them off again 5 frames later; from
     // MOCAP_FEET_TRACK.from only: a walk flick's pace recovery held the planner's steps on and the pelvis lurched 2.8 cm);
     // a hand-off is never held back
@@ -2730,11 +2734,8 @@ export class AnimGraph {
     this.cfT += cdt;
     const acc = cdt > 0 ? Math.abs(speed - this.cfSpeed) / cdt : 0;
     this.cfSpeed = speed;
-    if (CF.on && !this.cfLast && (this.cfT < MOCAP_FEET_TURN.hold || (this.cfTk > 0 && acc > MOCAP_FEET_TURN.accel))) CF.on = false;
-    if (CF.on !== this.cfLast) {
-      this.cfLast = CF.on;
-      this.cfT = 0;
-    }
+    if (CF.on && this.cfTurned && (this.cfT < MOCAP_FEET_TURN.hold || (this.cfTk > 0 && acc > MOCAP_FEET_TURN.accel))) CF.on = false;
+    if (CF.on) this.cfTurned = false;
     // (clip feet gone: carried until the planner's duty is met)
     this.mCarry = CF.valid || o.gait.duty !== want;
     this.mDutyGait = o.gait.duty;
@@ -2970,7 +2971,7 @@ function fwdNode(nodes: readonly { speed: number }[], s: number): number {
  * eachother"). `MOCAP_FEET_TRACK`: from `from` m/s, in full at `full` (the walk -> jog blend), the planner's stance half on
  * the mocap share is floored at the clips' planted half (writeTargets). `MOCAP_FEET_TURN`: at a jog and faster (eased in
  * over the same speeds) the clip feet hand a turn to the planner past `off` rad/s and take it back under `on` (hysteresis),
- * at least `hold` s after the last hand-over and not while the pace changes faster than `accel` m/s^2 (a hand-off is never
+ * once the turn has stayed under `on` for `hold` s and not while the pace changes faster than `accel` m/s^2 (a hand-off is never
  * held back; clipFeet): the clip's stance kept a
  * planted foot pinned while the body yawed up to 2.3 (jog), 3.7 (run) and 4.7 (sprint) rad/s over it (MOCAP_FEET.twistMax /
  * the stance), and with no hysteresis the owner changed frame to frame near the limit. The walk keeps MOCAP_FEET.turnMax
