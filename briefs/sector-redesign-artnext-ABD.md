@@ -103,3 +103,5 @@ cover data in the greybox sections (`campusS{1..5}.ts`), `?voxels=1` path (retir
 ## Model and size
 Lane A Opus (~0.75 window), lane B Sonnet (~1 window, 5 sections, may split per section), lane C Opus (~0.5 window),
 lane D Haiku (~0.2). Fresh checker: Sonnet for lanes B / D, Opus for A / C.
+
+Progress (Cloud Builder 1, 20:32): lane A pushed to feature/sector-redesign-artnext @ 389b63bf (A1-A10; report docs/sector-redesign/checks/artnext-build.md). Lanes B (per section) and D building now.
