@@ -171,6 +171,19 @@ describe('lamp audit rules (LR16dx: realistic moves)', () => {
     expect(crowds(strip, 0, 0, { ...strip, id: 1, y: 8 })).toBe(false);
   });
 
+  it('a fitting turned by its yaw crowds along its turned plan, not its authored one', () => {
+    const strip = { id: 0, x: 0, y: 5, z: 0, cone: null, foot: [1.2, 0.2] as const };
+    const turned = { ...strip, yaw: Math.PI / 2 };
+    const o = { ...strip, id: 1 };
+    const oT = { ...turned, id: 1 };
+    // yaw 0: long in x, so a neighbour 1.4 m along x is within the gap and one 1.4 m along z is not
+    expect(crowds(strip, 1.4, 0.1, o)).toBe(true);
+    expect(crowds(strip, 0.1, 1.4, o)).toBe(false);
+    // yaw PI / 2: long in z, the reverse
+    expect(crowds(turned, 0.1, 1.4, oT)).toBe(true);
+    expect(crowds(turned, 1.4, 0.1, oT)).toBe(false);
+  });
+
   it('a move toward the centre line goes only as far as needed and never past it', () => {
     // a full-height column (z 0.8 - 1.2, x -3.8 - -3.2) blocks the push target x -3.8 (0.8 m off its face)
     const col = [...room(), box([-3.5, 1.5, 1.0], [0.6, 3, 0.4])];

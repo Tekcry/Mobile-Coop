@@ -371,9 +371,9 @@ export class RtReflections {
       } else {
         this.lDir[k * 4 + 3] = -2;
       }
-      this.lCol[k * 4] = l.color[0] * l.intensity;
-      this.lCol[k * 4 + 1] = l.color[1] * l.intensity;
-      this.lCol[k * 4 + 2] = l.color[2] * l.intensity;
+      this.lCol[k * 4] = l.color[0] * l.intensity * l.flicker;
+      this.lCol[k * 4 + 1] = l.color[1] * l.intensity * l.flicker;
+      this.lCol[k * 4 + 2] = l.color[2] * l.intensity * l.flicker;
     }
     this.count = n;
   }
