@@ -301,6 +301,10 @@ LR16 (one lighting system; plan checks/lr16-plan.md, audit lr16-0-ct-audit.md)
   when the build starts; pendants matched by position, A2 / A4 ones depend on #257). If dead on resume: rerun
   from these lines. Laptop: lr16int 6eb6a863 full LR16 set queued (...6eb6a863-f2e8); queue at 21:28 = 27 requests,
   laptop service not claiming yet (old service; Michael restarts it).
+- LR16-5 BUILT bb47a985 (no wire change; lr16-5-build.md). RUNNING: two Opus checkers A (parity / render) and B
+  (net / determinism) in detached worktrees -lr16-5-chka / -chkb (reports lr16-5-check-A.md / -B.md there, untracked;
+  remove junctions with `cmd //c rmdir` before deleting the worktree). Laptop on bb47a985 queued (...bb47a985-c170:
+  lightbake darkness coop netmove ctcourse sectorops:6 stealth-ai). Merge into lr16int AFTER LR16-1.
 - artnext check PASS (checks/artnext-check.md, 436 tests, polish 1-9): merged into -artpol b5e93548 = #226 target head.
   Laptop e2e-sectorops:6 + e2e-coop on b5e93548 queued (...b5e93548-6795). C7-C9 still at #226's train entry.
 - Laptop requests pending: LR16t 5700dff5-8673, LR16e 2f5ffec1-0c61, LR16-1 4007eafe-2ad6 (pre-fix), perf A/B 273539ec /
