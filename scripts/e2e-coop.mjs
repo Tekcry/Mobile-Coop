@@ -1409,6 +1409,12 @@ try {
         const V = g.player.position.constructor;
         // (S9 pattern) room for one more guard; restored below
         em['s26Cap'] = em.maxAlive;
+        // (S26 coop triage r2) no alarm run (as e2e-stealth-ai's no-alarm runs): the panels are off, but the contact call
+        // still owes the radio alarm (`RADIO_ALARM`), whose response team comes in at the entry furthest from the host,
+        // (18, -24.5) in the yard lane 9 m from the client's hide; alerted, its guards report him from a bare line of sight
+        // (`takeSighting`, dark or not), his last known position moves into the yard and the searcher follows it there
+        em['s26Alarm'] = em.alarmRaised;
+        em.alarmRaised = true;
         em.maxAlive = Math.max(em.maxAlive, em.alive + 1);
         // the mission's guards statues, calm, out of every ray; the drone a statue; no alarm panel
         for (const x of em.enemies) {
@@ -1435,7 +1441,7 @@ try {
         const sClient = em.intruders.slotFor(cid);
         const gen = (window.__s26Gen = (window.__s26Gen ?? 0) + 1);
         const tmp = [0, 0];
-        const s = (window.__s26 = { phase: 'seen', hopT0: -1, level: '', hunt: -1, sHost, sClient, hostValid: 0, loc0: -1, spot0: [0, 0], hPrev: 99, locMin: 99, tLoc: -1, seenAtLoc: -1, tSpot: -1, spotMin: 99, heard: false, t: 0, leg: null, tried: [1e9, 1e9], picks: 0 });
+        const s = (window.__s26 = { phase: 'seen', hopT0: -1, level: '', hunt: -1, sHost, sClient, hostValid: 0, loc0: -1, spot0: [0, 0], hPrev: 99, locMin: 99, tLoc: -1, seenAtLoc: -1, tSpot: -1, spotMin: 99, heard: false, t: 0, leg: null, tried: [1e9, 1e9], picks: 0, nSeen: 0, nLoc: 0, pSeen: 99, pLoc: 99 });
         // (S26 coop triage) the leg, picked on the step a searcher starts his look round at a spot: 2.2 m behind his look
         // (else beside him), 3 m long, walkable, every point in a jog's reach with no wall in the way (`tierOf`, reach 3 of
         // ~3.4) and past the 1.8 m close range; then he is held still (his brain off) until the client stands on it
@@ -1484,6 +1490,11 @@ try {
           s.level = e.alive ? e.level : 'down';
           s.hunt = e.hunt;
           s.hostValid = Math.max(s.hostValid, b.valid[sHost]);
+          // the client's reports (diagnostics): seen (`seenT` reset) or located only (`locT` reset)
+          if (b.seenT[sClient] < s.pSeen) s.nSeen++;
+          else if (b.locT[sClient] < s.pLoc) s.nLoc++;
+          s.pSeen = b.seenT[sClient];
+          s.pLoc = b.locT[sClient];
           if (s.phase === 'pick') {
             // at a spot (the search branch's 1.1 m), his look round just started, the client not located for 1.5 s; one
             // try per spot
@@ -1559,7 +1570,7 @@ try {
         if (s.leg) return s.leg;
         const e = window.__app.current.enemyMgr.enemies.find((x) => x.alive && !x['s26Parked']);
         const sp = e ? e.searchSpot([0, 0]) : [NaN, NaN];
-        return { err: `level ${s.level}, ${s.picks} spot(s) tried, guard ${e ? `${e.pos.x.toFixed(1)}, ${e.pos.z.toFixed(1)}` : 'none'}, spot ${sp[0].toFixed(1)}, ${sp[1].toFixed(1)}, locT ${window.__app.current.enemyMgr.intruders.locT[s.sClient].toFixed(2)}` };
+        return { err: `level ${s.level}, ${s.picks} spot(s) tried, guard ${e ? `${e.pos.x.toFixed(1)}, ${e.pos.z.toFixed(1)}` : 'none'}, spot ${sp[0].toFixed(1)}, ${sp[1].toFixed(1)}, locT ${window.__app.current.enemyMgr.intruders.locT[s.sClient].toFixed(2)}, client seen ${s.nSeen} / located ${s.nLoc} times, alarm ${window.__app.current.enemyMgr.alarmRaised}, ${window.__app.current.enemyMgr.enemies.filter((x) => x.alive && !x['s26Parked']).length} live guard(s)` };
       });
       assert(picked && !leg.err, `S26: a searcher looking round at a spot with a straight leg behind him in a jog's reach (${leg.err ?? JSON.stringify(leg)})`);
       assert(leg.loc0 > 1.5, `S26: before the run the client was last located more than 1.5 s ago (locT ${leg.loc0}; ${JSON.stringify(leg)})`);
@@ -1615,6 +1626,7 @@ try {
         const e = em.enemies.find((x) => x.id === id);
         if (e) em.despawn(e);
         if (em['s26Cap'] !== undefined) em.maxAlive = em['s26Cap'];
+        if (em['s26Alarm'] !== undefined) em.alarmRaised = em['s26Alarm'];
       }, gid).catch(() => {});
     }
     await toLobby();

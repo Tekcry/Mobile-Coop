@@ -54,3 +54,35 @@ than 1.5 s ago (locT 0.2; guard [17.18, -8.26], spot [9.25, -10.25])`. The block
 ## Open items
 - If the rerun fails at the new leg assert, the dump says whether no spot had room or the guard stopped searching.
 - Pre-existing, from the S24 triage: cover is picked by straight-line distance, on the polish list.
+
+## Round 2 (2026-10-24): laptop FAIL on c42e38f1 (79f0de67 + S25 merge), run and rerun
+`S26: a searcher looking round at a spot with a straight leg behind him ... (level searching, 0 spot(s) tried, guard
+12.7, -21.4, spot 8.8, -21.3, locT 0.23)`; rerun the same with the guard at (5.7, -24.8), spot (5.3, -25.3), locT 0.28.
+That puts the searcher in the yard lane near the client's hide (8.75, -24.75), with the client freshly located.
+
+### Cause: the radio alarm's response team, a staging gap (no game change)
+- **The hook fields are fine.** `spotLookT` and `lookBase` exist on S26 (`src/ai/enemy.ts:377-378`, set at `:2471`).
+  `picks` stayed 0 because the hook gates on the client not being located for 1.5 s (`locT` > 1.5) before it counts a
+  try, and `locT` never got there.
+- **The client sends no step noise while hidden.** `teleport` resets the controller velocity
+  (`src/player/playerController.ts:351`), and there is no stick input, so `clientStepNoise` gives 0. A heard locate
+  would also have moved the searcher's spot onto the client, but the spot was 3.5 m off.
+- **The real source is the radio alarm.** The block turns the alarm panels off, but the contact call still owes the
+  radio alarm (`RADIO_ALARM`, `src/ai/enemyManager.ts:85`; `contactThrough` `:769` -> command call -> `radioAlarm`
+  `:2307` -> `raiseAlarm` `:750`). `onAlarm` (`src/game/stealthSystems.ts:647`) brings the response team in at the
+  entry furthest from the host. With the host at (-3.75, -24.75), that is the yard lane at (18, -24.5)
+  (`src/world/maps/warehouse.ts:524`), 9 m from the client's hide.
+- **Why that locates him.** An alerted guard reports a player from a bare line of sight (`if (alerted && this.los)
+  this.takeSighting(best)`, `src/ai/enemy.ts:2215`), dark or not. So the team keeps seeing the client in the open yard:
+  his last known position moves into the yard, the S25 plan follows it, and the searcher walks there. Round 1 already
+  had this alarm, but it showed up as a different failure first. S24's 10 s hide is too short for it.
+
+### Fix (scripts/e2e-coop.mjs only)
+- **No alarm run.** At setup the block sets `em.alarmRaised = true`, as e2e-stealth-ai's no-alarm runs do, and
+  restores it in the `finally`. Its only other effect is `carryCalm` for calm guards (holstering), which plays no part
+  here.
+- **Diagnostics.** The hook counts the client's reports, seen (`seenT` reset) and located only (`locT` reset). The leg
+  assert's dump now adds those counts, `alarmRaised` and the number of live unparked guards.
+
+### Tests
+- `node --check scripts/e2e-coop.mjs`: OK. No `src/` change. `e2e-stealth-ai.mjs` not touched (the S25 agent owns it).
