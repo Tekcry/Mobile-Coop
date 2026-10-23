@@ -16,6 +16,10 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   vision off in all 6 (MODE replace bug, fixed); merged guard renders fine). Verdict -> orchestrator (4.71.0 on pass).
 - 11:15 SENT Menu Notes: marlowcap-cc24e992 vs 5100141d table (draws -10..35%, GPU down everywhere) + s9 shots
   (all 25 meter / field rows identical to 0.001). Chain t now holds only s6cap + s1look2 (after train 22).
+- 11:20 S3a fix round DONE e704d5f3 (guard-render STATE "S3a fix round"; exceptions: lean wall walk 17 cm, peek walk
+  cycle 29 cm, backpedal start 13 cm). Opus checker running: S3a recheck + S6. chain-1023v.ps1 (after chain t): 4189
+  guardrender-s3a-e704d5f3 (stealth-ai takedown sectorops enemies coop ctcourse, JOBS=3) + 4192 guardrender-s6-c181002e
+  (smoke stealth-ai sectorops ctcourse, JOBS=2).
 - 11:15 TRAIN 22 a39d688f GREEN (full GPU JOBS=5, wall 408 s) -> orchestrator (4.71.0). JOBS=5 clean beside an idle 4192.
 - RUNNING: chain-1023p.ps1 (waits for no locks, then 4189 ALONE guardrender-s6cap-c181002e), chain-1023q.ps1 (after p),
   chain-1023r.ps1 marlowfinal-45a74383 on 4189 (JOBS=3; verdict per suite to Menu Notes). 4192: guardais7-4052c434
