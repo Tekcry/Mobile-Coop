@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-23T20:14+1100
 
 # marlow-polish P3-2: collision rail on A2's east stair (Night Shift | Marlow Build, 2026-10-23 ~20:15)
 - Repo Tekcry/Mobile-Coop. Base: branch `feature/marlow-p3-a2-stair-rail` (already pushed, = afefe329 on feature/marlow-polish). Build on it, push it.

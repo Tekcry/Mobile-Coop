@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-23T20:14+1100
 
 # Brief: rig-pose-audit - where gameplay reads animation / render pose (Player Build spare job 12, docs only)
 
