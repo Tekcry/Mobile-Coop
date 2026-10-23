@@ -4,6 +4,34 @@ Saved 2026-10-23 ~10:30 by the CT Core session, for the ~10:45 account swap (win
 agent milestone. Agents running at a cut-off are lost: their last pushed commit is the resume point (table below).
 
 ## Live (resumed 10:48 on the new account; newest first, overrides the table)
+- 12:00 mocap-strafe round 2 DONE 149f419c: knee-out facing 1.52-2.65 cm (STRAFE_KNEE_BOW 0.5), steady alloc = base ON,
+  knee-out assert, OFF md5 holds; e2e-anim 31 s + e2e-clip 13 s desktop GPU PASS. Found round-1 regressions (M1 fails):
+  restart after 0.3 s stand slide 3.87 cm (842270f0: 0), flip pelvis pops 3.34 / 2.36 cm (OFF 1.11 / 0.93), diagonal
+  flip slide 1.21 cm. ROUND 3 (Opus) RUNNING on those. Then: fresh Opus recheck (msc-CHECK.md scope + these), own PR.
+- 11:55 Spare team-climb (Opus) RUNNING: C:/NightShift/Mobile-Coop-team-climb, feature/team-climb off master 3c460923.
+  Goals: CLIMB_UP_TEAM rope-top lip grips (teamController ropeTop reachL / reachR, remoteAvatar), ease teamController
+  ~347-348 rise / across (5.7 cm pop), tests/teamClimb.test.ts; e2e coop / netmove / traverse. Stays off traverse-fix-2's
+  hunks. Rides the NEXT batch (not batch-22).
+- 11:50 batch-22 fresh check PASS on f75db56c (scratch/ctcore/b22-CHECK.md; no required fixes; polish list there).
+  Master is 4.71.0 (train 22 incl. #194). sd-rounds builder at 36bb35c0 doing its e2e (both desktop locks held by
+  others). Plan: sd-rounds done -> merge into batch -> same checker (follow-up) -> ONE laptop request (coop, netmove,
+  ctcourse, anim, takedown, weapon-audio) on the final head -> PR. Spare 9 can start once batch-22 is on master.
+- 11:40 traverse-fix-2 DONE a7425bfe (lead wrote REPORT.md from the hand-back; CLIMB_UP palms 0.0 cm, release 2.8 cm,
+  lip-grip continuous pivot in characterRig solveWorldGrip; e2e-move 17 s + e2e-traverse 16 s desktop GPU PASS). Merged
+  into batch-22 + traverseFix item-2 todo -> comment (f75db56c). Batch = strike-pops, hang-down, dual-reward,
+  traverse-fix-2. ONE Opus fresh checker RUNNING on f75db56c -> scratch/ctcore/b22-CHECK.md (sd-rounds sent to the same
+  checker as a follow-up when done). Then: GPU suites e2e-anim, e2e-move, e2e-takedown (desktop lane) + laptop
+  coop / netmove / ctcourse (src/net), CI, ONE PR, orchestrator.
+  New spare (open item from traverse-fix-2): CLIMB_UP_TEAM - rope top has no lip grips (teamController ropeTop reachL /
+  reachR hook targets, remoteAvatar too) and a 5.7 cm whole-body pop (teamController.ts ~347 `Math.min(1, e*1.7)` and
+  `across` jump at e 0.4). Co-op path: laptop coop / netmove. Not started.
+- 11:25 Guard AI heads-up: S12 (armour) adds a `deflect` hit-confirm kind (~2 lines in playerWeapons.ts, diff sent
+  before its PR: check vs sd-rounds' playerWeapons edits); an empty suppressor's loud shot reaches guards through
+  em.noise (S14 reacts) - sd-rounds A2 uses open noise rifle 1.0 / pistolSd 0.8 (> 0.6 = loud), consistent. Offered
+  `patrolTiming(e)` for spare 9: not needed (spare 9 computes the period from the route).
+- 11:20 dual-reward DONE d262b5e7 (REPORT.md; e2e-coop desktop GPU PASS 183 s after a test fix: dualClock.reset()
+  before the pair, the client's earlier takedowns had left a stale note). Merged into batch-22 (e74faae7). Spare 7
+  sd-rounds Sonnet builder RUNNING in C:/NightShift/Mobile-Coop-sd-rounds (feature/sd-rounds off 8e5dbd83).
 - 11:02 Rule (Michael ~11:00, CLAUDE.md token rules): no mid-window clears; sessions start fresh at each swap; clear
   only past ~50% context. Gmail / Google Drive / Fergus connectors turned off in this session (~20k tokens per turn).
 - 11:00 Spare 9's `patrolRoute` getter rides on Guard AI's feature/guard-ai-s8 (S8 tactics PR, stacked on #196). Spare 9
