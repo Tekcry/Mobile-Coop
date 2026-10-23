@@ -134,6 +134,8 @@ describe('(LR16-P F1) BakedLamps uploads the dynamic rows only', () => {
     expect(swayChanged).toBeGreaterThanOrEqual(1);
     expect([0, 1, 2].some((k) => buf[t0c + k] !== snap[t0c + k])).toBe(true);
     expect(buf[t0c]).toBeCloseTo(c.x + c.swx, 5);
+    expect(buf[t0c + 1]).toBeCloseTo(c.y + c.swy, 5);
+    expect(buf[t0c + 2]).toBeCloseTo(c.z + c.swz, 5);
     expect(full).not.toHaveBeenCalled();
     expect(subs.length).toBe(1);
     expect(subs[0]!.y).toBe(y0);
