@@ -1,0 +1,16 @@
+{
+  "id": "20261023T120152-night-shift-guard-ai-d30601a2-63d6",
+  "sha": "d30601a250296ded2bdbe6215ec82483c3751667",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-stealth-ai",
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "jobs": 2,
+  "set": "s26-fix",
+  "note": "S26 fix round (client step noise from sent speed, blinded guard deaf) + new S26 scenarios: stealth-ai 'heard in a search', coop 'partner is heard'"
+}
