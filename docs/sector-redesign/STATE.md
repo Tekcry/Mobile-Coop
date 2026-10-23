@@ -22,7 +22,8 @@
   for guard-ai: a witness when the light's lit area reaches his room. RUNNING: build + part 6 + full vitest at de19debd.
   de19debd GREEN: part 6 GPU PASS, full vitest 3572 pass; merged into feature/sector-redesign (717ef9c1). Then train 22
   (4.71.0, guard-ai S5 / S7) landed: second master merge on -m @ 6e118977 (sectorMode 3 hunks + e2e block, both sides
-  kept). RUNNING: build + e2e-sectorops 1-6 GPU + full vitest at 6e118977 (scratch/runs/sectorredesign-m2). Green ->
+  kept). 6e118977 GREEN: e2e-sectorops 1-6 GPU PASS, vitest 3637 pass. PR 2 OPEN: Tekcry/Mobile-Coop#206 from
+  feature/sector-redesign @ 7b5b5840 (orchestrator told, train-ready ~12:xx). Was: green ->
   merge -m into feature/sector-redesign, open PR 2, message the orchestrator.
 - Guard AI asks (~11:30, plan docs/guard-ai/research/stealth-over-shooting.md on feature/guard-ai; types in S11):
   optional `gear?: 'helmet' | 'armour' | 'both'` per slot and `SectorDef.gear?` default (fill for later sections; early
