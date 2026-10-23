@@ -500,3 +500,4 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] A 10-minute soak on the Warehouse (`node scripts/soak.mjs`, debug overlay): steady frame time, no heap growth, no
   audio crackle.
 - [ ] Two PCs in co-op through an Infiltration mission, then Play again, then the host leaves.
+- [ ] iPad: version label, bottom strip, no GPU banner, pause room note.

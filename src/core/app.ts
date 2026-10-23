@@ -23,7 +23,7 @@ import { keyLabels, padButtons } from '../ui/prompts';
 import { bindLabel } from '../input/keyBindings';
 import type { BenchKind, BenchSession } from '../game/benchmark';
 import type { CrashLog } from '../feedback/crashLog';
-import { classifyGpu, hudInset, uiScale, type GpuKind } from './display';
+import { classifyGpu, hudInset, runningOnWindows, uiScale, type GpuKind } from './display';
 import { Calibration, CALIBRATION, deviceKey, tierFromRenderer } from './deviceTier';
 import { PRESET_DISPLAY, PRESET_IDS, type FixedPreset } from './quality';
 import { controlsMigrationNotes, setAuto } from './settings';
@@ -209,7 +209,7 @@ export class App {
     }
     this.gpu = { renderer, kind: classifyGpu(renderer) };
     const v = this.settings.get().video;
-    if (this.gpu.kind !== 'integrated' || v.gpuNotice || navigator.webdriver) return;
+    if (this.gpu.kind !== 'integrated' || v.gpuNotice || navigator.webdriver || !runningOnWindows()) return;
     this.toasts.show('Running on the integrated GPU. For full speed set your browser to "High performance" in Windows Settings > System > Display > Graphics, then restart it.', 'warn', 12000);
     this.settings.update((d) => void (d.video.gpuNotice = true));
   }
