@@ -156,3 +156,12 @@ placement / wall offsets that paint hard arcs; (3) soft cone and beam edges on w
 where an occluder cuts the ray, softer with occluder-to-surface distance (contact-hardening penumbra); (5) light parity:
 meter and guards follow the picture. Base: -lampx (LR15 + atlas fix). One Opus checker; GPU + perf run and contact sheets
 of every map before the train. Detailed slices: checks/lr16-plan.md (Opus planner, ~18:10).
+LR16a: PROTOCOL 43 (orchestrator ~18:16; 40 / 41 / 42 go to trains 30-32; renumber at its train if the order changes).
+LR16-0 (Michael ~18:15, "Fold into LR16": "I want to make sure we emphasis the light/shadow system like chaos theory did,
+like a showcase no matter where you look"): Opus audit, in parallel with LR16a and before LR16b-g, of every CT light and
+shadow feature against ours. Sources: docs/ct-research (design-kit / moves digests), docs/research/night-vision-and-lamps.md,
+docs/lighting-review/PROPOSAL.md, plus laptop GPU sheets of every map. Covers: character and prop shadows from every key
+light; shadow length and direction read; cone and spill shape; bounce / ambient on walls and ceilings (PROPOSAL 7.1: walls
+N.L only, ceilings none); shootable and switchable lights; moving lights; torches; night / thermal vision; light-meter
+feedback; dark-by-default framing so every view holds light and shadow. Output: a gap table in checks/lr16-0-ct-audit.md,
+each gap folded into LR16 as a slice (owner, files, acceptance).
