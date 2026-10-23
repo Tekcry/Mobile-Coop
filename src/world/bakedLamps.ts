@@ -7,7 +7,8 @@ import { bakedLights, type MoonGrid } from './lightBake';
 import { LAMP_CONE_COS, LAMP_EXP, LAMP_MATH_GLSL, LIGHT_GAIN, lampFalloffMode, lampMathGlsl, SPOT_EXP } from './lampMath';
 import { DARK_DESKTOP, DARK_GLSL, DARK_STANDARD, LEVEL_TO_RENDER, VISION_GAIN, visionAmount, visionDark, type DarkParams } from './darkCurve';
 import { AMBIENT_CELL, type AmbientGrid } from './ambientGrid';
-import { DOOR_SHUT, DOORS_PER_LAMP, lampDoorLists, type FieldDoor } from './lightField';
+import { bakeVisSampler, DOOR_SHUT, DOORS_PER_LAMP, lampDoorLists, type FieldDoor } from './lightField';
+import { shadowAccuracyOn } from './shadowAccuracy';
 import { LEVEL_FILL_GLSL as LF, type Rgb } from './levelFill';
 
 export { bakedLights };
@@ -140,7 +141,8 @@ export class BakedLamps {
     this.dark = { ...(this.standard ? DARK_STANDARD : DARK_DESKTOP) };
     this.doors = extra.doors ?? [];
     this.doorShut = new Uint8Array(this.doors.length).fill(2);
-    this.lampDoors = lampDoorLists(baked.lights, this.doors);
+    // (shadow audit) the light field's own list: with the fixes on, doorways the lamp cannot see take no slot
+    this.lampDoors = lampDoorLists(baked.lights, this.doors, shadowAccuracyOn() ? bakeVisSampler(r) : undefined);
     this.ids = new Set(baked.ids);
     this.boxes = r.boxes;
     this.lastColors = new Float32Array(baked.ids.length * 3).fill(-1);

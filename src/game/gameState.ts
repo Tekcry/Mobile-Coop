@@ -4,6 +4,7 @@ import { Color3, type FreeCamera, InstancedMesh, PhysicsRaycastResult, Vector3, 
 import { VOXEL_LOD, World } from '../world/world';
 import { flags } from '../core/flags';
 import { lampFalloffMode, matchLampFalloff, setLampFalloff, type LampFalloff } from '../world/lampMath';
+import { matchShadowAccuracy, setShadowAccuracy } from '../world/shadowAccuracy';
 import { cqSimSet } from '../anim/cqGait';
 import { showEconomy } from '../core/legacy';
 import { shownResolution } from '../core/display';
@@ -853,7 +854,10 @@ export class GameState implements AppState {
     setVoxelProps(vw);
     // (lightrev LR13) the lamp falloff, before the level adds its lights (`LightRegistry.add` scales the reach), bakes and
     // builds its field and shaders: the host's in co-op, else the URL override, else the setting (never mid-match)
-    setLampFalloff(matchLampFalloff(app.settings.get().gameplay.lampFalloff, flags.photoLamps, opts.lampFalloff));
+    const lampFalloff = matchLampFalloff(app.settings.get().gameplay.lampFalloff, flags.photoLamps, opts.lampFalloff);
+    setLampFalloff(lampFalloff);
+    // (shadow audit) the shadow-accuracy fixes ride the same resolved mode, at the same point: on exactly in Realistic
+    setShadowAccuracy(matchShadowAccuracy(lampFalloff));
     const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, voxel, cheap: plain });
     const g = new GameState(app, world, opts, cb);
     if (opts.net) g.net = opts.net.attach(g);

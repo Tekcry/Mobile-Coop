@@ -7,3 +7,6 @@ kind: minor
   fall off with the inverse square like real fittings and reach further. The light meter, the guards and the picture
   switch together; it takes effect when a map loads. In co-op the host's choice applies to both players (co-op
   protocol 38). `?falloff=photo` forces Realistic for a page (dev).
+- Shadow accuracy fixes ride Realistic (off in Classic): the meter reads the ambient fill as the picture does, shut doors
+  past a lamp's door slots stop leaking light, guards' torches light the operator figures and weapons with the level's
+  falloff, cut torch beams get the shadow maps first, and a torch behind a wall no longer lights a body for the guards.
