@@ -127,6 +127,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   helmeted guard in the head: steel-blue hit marker and a ping, the helmet falls to the floor and stays, he reels and
   comes up shooting; a second head shot kills. An armoured guard shrugs off chest rounds (a short stagger, not every
   round); a takedown drops either in one move.
+- [ ] Response teams (guard-ai S13, Sector Ops): raise the alarm twice: every guard now wears armour; a third time:
+  helmets too. Each alarm's team comes in behind a shield guard; hide: after about a minute at your last spot the team
+  walks the section point to point (shield first, the rest close behind, a look round at each, torches in the dark),
+  still hunting minutes later; the cameras are as before. A restart drops the gear with the stage.
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
 - [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
   glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen

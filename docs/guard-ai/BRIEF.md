@@ -237,3 +237,21 @@ doesnt make sense". A32-A34 are S10's (on `feature/guard-ai-s10`).
 - **A51** (S12) The `deflect` hit marker is steel blue (`#8fb3d9`, `styles.css`) with a 2600 Hz ping (`sfx.hitMarker`);
   the HUD and sfx `hitMarker` signatures take the new kind. Undo: drop the CSS rule and the ping (falls back to the
   white hit marker).
+- **A52** (S13) A stage rise gives its gear to every living guard of the loaded section (Sector Ops loads one section)
+  on top of what he wears, so a guard whose own helmet was shot off gets a new one when stage 3 arrives. Undo: in
+  `EnemyManager.giveStageGear` skip the helmet for a guard who lost one (a flag set in `Enemy.knockHelmetOff`).
+- **A53** (S13) The sweep switches on when the team's leader (the first member up: the shield guard while he stands)
+  has searched `ALERT.searchTime`; members still searching follow him at once, a member in combat fights. The point
+  list is built at each switch from the last known position then (a sighting, the search, then a fresh order).
+  Undo: build once per team (`SweepTeam.begin` only when `switches === 0`).
+- **A54** (S13) Every pass starts at the team's own start point (`sweepStart`: team 0 at the point nearest the last
+  known position), so teams of different stages stay apart pass after pass. Undo: `this.start = 0` when `passes`
+  goes up in `SweepTeam.next`.
+- **A55** (S13) Followers stack on the leader's approach line (from the point back to him), rank x `SWEEP.gap`, jog
+  (0.6 x run speed) when more than 4.1 m off their place, and look the way he looks once there; the leader skips a
+  point his path cannot reach. A `SectorDef.sweep` list is used as given (only ordered, not thinned). Undo: `SWEEP.gap`;
+  pass `SWEEP.thin` for the override in `SweepTeam.begin`.
+- **A56** (S13) Sweep source: Sector Ops reads the section's guard list (route points, and the spawn point of each
+  guard with no route; dogs left out); other live maps read the guards placed in the alarm's section at the alarm
+  (dead ones included, dogs and team members left out). A woken team member takes his place back, counts as having
+  fought (never calms) and gets the stage gear. Undo: drop `e.aware.fought = true` in `EnemyManager.revive`.
