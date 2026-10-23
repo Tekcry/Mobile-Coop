@@ -293,8 +293,8 @@ Heads: art 2276483a (#226), lampx eb45b0af (LR15 + lighting polish + atlas fix),
    laptop perf A/B + door-peek / roof-shadow views.
 4. For Michael (STATE "Now"): Realistic is genuinely dimmer after the atlas fix (S2 atrium pool ~0.28 vs Classic 0.48);
    S3 hall-lit blows out to white fog in both modes (volumetric / bloom).
-5. NEW JOB LR16 (Michael ~18:08; PLAN.md "LR16", slices in checks/lr16-plan.md): Realistic + character shadows default on
-   every map, fix lamp wall arcs, soft cone edges, contact-hardening penumbra, parity. Build from -lampx in the new account.
+5. NEW JOB LR16 (Michael ~18:08; PLAN.md "LR16", slices in checks/lr16-plan.md): LR16a first: remove Classic + the falloff
+   setting (Michael ~18:12); Realistic + character shadows on every map, fix lamp wall arcs, soft cone edges, contact-hardening penumbra, parity. Build from -lampx in the new account.
 6. Open polish: lr15-check 1 / 2 / 4, lrpolish-check 1-6, freeze checker polish, art P6.
 Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
 Sonnet builds from strict briefs; one checker per batch; tsc / vitest slot locks C:/NightShift/scratch/sr-slot-{1,2,3,4}.lock;

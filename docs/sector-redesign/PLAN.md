@@ -148,7 +148,10 @@ positioning needs to be improved to prevent all the sharp light bleeding on the 
 against walls/floors/etc unless something directly cuts off the light ray, depending on how far away it is. Must be
 realistic depiction of light." Screenshot: C:/NightShift/scratch/lighting/michael-4.78-wall-arcs.png (4.78.0 Sector Ops
 Workshop, hard bright arcs on the walls behind the lamps).
-Scope: (1) Realistic falloff + character shadows the default on every map, Classic kept as a setting; (2) fix lamp
+Michael ~18:12: "Disable returning to original lighting system, focus on only the one new system": LR16a (first slice)
+removes the Lamp falloff setting, ?falloff / start lf / rejoin lf, the Classic lamp path and its tests, and the e2e
+falloff=photo variants; shadow accuracy always on; Character shadows Auto / On / Off stays.
+Scope: (1) Realistic falloff + character shadows on every map (only path); (2) fix lamp
 placement / wall offsets that paint hard arcs; (3) soft cone and beam edges on walls and floors; (4) hard shadow edges only
 where an occluder cuts the ray, softer with occluder-to-surface distance (contact-hardening penumbra); (5) light parity:
 meter and guards follow the picture. Base: -lampx (LR15 + atlas fix). One Opus checker; GPU + perf run and contact sheets
