@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~08:10: #281 CLOSED (superseded on master: Marlow 6a168e74 calm wait + walk482 X6 58fcf7b5). S28 BUILT 147c4a34
+(src/ai/lockedDoors.ts nav closure per locked shut door + Doors.onLocked; goTo unreachable retry 1/s; S28.md).
+RUNNING: Opus checkers A + B (S28-CHECK-A/B.md in -s28, uncommitted: lead commits); laptop set s28 (stealth-ai,
+ctcourse, sectorops, course, tactics). Both green -> PR to master + train-ready.
+
 ~07:35 FULL BURN (orchestrator; swap at the 5-hour cap, likely before 09:40). Train 42 #288 merged (#281 + #254 on
 master 79a527aa). S28 locked-door re-path APPROVED (orchestrator ~07:30; known bug A7-cage-w): worktree
 C:/NightShift/Mobile-Coop-guard-ai-s28, feature/guard-ai-s28 off master 79a527aa (npm ci'd). Opus builder RUNNING
@@ -771,14 +776,14 @@ Laptop worktrees (npm ci'd): C:/NightShift/Mobile-Coop-guard-ai (feature/guard-a
 Open (requests on branch laptop-queue, no cancel CLI: delete the JSON, commit, push. Verdict = GitHub status
 laptop-e2e/<set> on the sha; logs C:/NightShift/scratch/laptop-queue/runs/<id>/ (desktop-worker runs: ask the
 orchestrator). Green -> `gh pr edit <n> --add-label train-ready` + tell orchestrator; red -> Opus triage at once):
-1. TRAIN-READY (2026-10-24 ~06:45): #281 A3 calm wait + #254 S23 in train 42 #288. Then ONE train: #264 S24 76431481
+1. #254 S23 MERGED (train 42, master 79a527aa); #281 closed (superseded). TRAIN-READY, ONE train: #264 S24 76431481
    (+ ladder fix f3c62b00: an alerted spawn is told the command's known intruder; S24-LEVELS-TRIAGE / -CHECK PASS),
    #266 S25 5cb67c9d, #271 S26 2c92865d, #270 S27 321b1e2e, #272 walk482 046776ca (all merged up with the fix; laptop
    s26-levels / s27-levels / w482-levels PASS). On a train failure: bisect with single-suite laptop sets on master
    and each stack head (as for train 41), Opus triage at once, merge the fix up s24 -> s25 -> s26, s27, walk482.
 2. Triage docs (this window): S23-A3-TRIAGE, S24-COOP-TRIAGE, S24-LEVELS-TRIAGE/-CHECK, S25-SAI-TRIAGE (5 rounds),
    S26-COOP-TRIAGE, S27-SEC1-TRIAGE, WALK482.md "Laptop triage". All test-only except S24 ladder (src).
-3. S28 locked-door re-path: feature/guard-ai-s28 (worktree -s28), builder running; then check + laptop + PR.
+3. S28 locked-door re-path: feature/guard-ai-s28 147c4a34 (worktree -s28): checkers A + B + laptop s28 running -> PR.
 4. Polish (S24-LEVELS-CHECK): redundant tell(alarmHunt) after spawn in reinforce (enemyManager.ts:979) and parked
    joinReinforcement (:811). Mission reinforcements with nothing known stand at spawn (A148): Michael's call.
 5. After S28 (low, legacy suite, not in the full run; orchestrator ~07:45): e2e-enemies "sniper relocates after its
