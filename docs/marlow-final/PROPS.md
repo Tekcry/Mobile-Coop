@@ -101,13 +101,15 @@ face; the placement's `y` is the mount height (section 1).
 | `galleryScreen` | Wall-hung 86" display showing a set's camera feed (screen tinted per instance), hung | 1.95 x 0.06 x 1.15 | none | 24 (60) | B2 |
 | `monitorWall` | Shared with A4: 3 x 3 video wall on a floor frame (the bridge copy shows the sets) | 3.7 x 0.35 x 2.6 | none on the bridge (out of bounds) | 332 (400) | B1 |
 | `instructorFigure` | Seated static dressing figure (LANTERN's chair, two instructors) | - | none | - | P (needs the guard / figure avatar job) |
-| `receptionDesk` | Arrival lounge reception desk: marble-look visitor front, oak transaction top with a warm LED line under its lip, low staff worktop behind | 3.6 x 1.15 x 1.1 | builder: visitor front 3.58 x 0.38 x 1.09 + staff side 3.58 x 0.7 x 0.74 (solid) | 104 (300) | B2 |
-| `loungeSeat` | Leather club armchair on a dark plinth | 0.85 x 0.85 x 0.8 | builder: base, two arms, back (solid; the seat stays open) | 200 (400) | B2 |
-| `greenWall` | Living green wall module (1.2 m): planter trough, capping, planted mat, seeded leaf clumps | 1.2 x 0.2 x 3.0 | none (wall) | 252 (300) | B2 |
+| `receptionDesk` | (no longer placed: the lounge became an armoury, walk 4.82 X5) Arrival lounge reception desk: marble-look visitor front, oak transaction top with a warm LED line under its lip, low staff worktop behind | 3.6 x 1.15 x 1.1 | builder: visitor front 3.58 x 0.38 x 1.09 + staff side 3.58 x 0.7 x 0.74 (solid) | 104 (300) | B2 |
+| `loungeSeat` | (no longer placed, X5) Leather club armchair on a dark plinth | 0.85 x 0.85 x 0.8 | builder: base, two arms, back (solid; the seat stays open) | 200 (400) | B2 |
+| `greenWall` | (no longer placed, X5) Living green wall module (1.2 m): planter trough, capping, planted mat, seeded leaf clumps | 1.2 x 0.2 x 3.0 | none (wall) | 252 (300) | B2 |
 | `modelVitrine` | L7: white card scale model of A8 under a glass hood on a dark plinth | 2.0 x 1.2 x 1.1 | builder: plinth 1.98 x 1.18 x 0.74 (solid) + hood (see), `noLedge` | 204 (600) | B2 |
-| `holdingBench` | Holding-room bench, oak slab on brushed plate legs | 1.8 x 0.45 x 0.45 | builder 1.8 x 0.45 x 0.45 (see) | 68 (120) | B2 |
-| `kitCaseWall` | Glass-fronted kit room module: rifle cases standing, pistol cases on shelves, warm LED line (1.2 m) | 1.2 x 0.5 x 2.4 | builder 1.2 x 0.5 x 2.4 (see: glass front), `noLedge` | 216 (400) | B2 |
+| `holdingBench` | Holding-room and armoury bench (two free-standing in the lounge), oak slab on brushed plate legs | 1.8 x 0.45 x 0.45 | builder 1.8 x 0.45 x 0.45 (see) | 68 (120) | B2 |
+| `kitCaseWall` | Glass-fronted kit room module (the lounge armoury's weapons display cabinet: four in a row on the west wall): rifle cases standing, pistol cases on shelves, warm LED line (1.2 m) | 1.2 x 0.5 x 2.4 | builder 1.2 x 0.5 x 2.4 (see: glass front), `noLedge` | 216 (400) | B2 |
 | `signPlate` | Set signage stand-in: dark plate with a backlit face (text waits for a texture, KIT.md 6), hung | 1.2 x 0.042 x 0.3 | none | 24 (60) | B2 |
+
+The arrival lounge is an armoury (walk 4.82 X5, `dressLounge` in `facility.ts`): a weapons display cabinet of four `kitCaseWall` modules on the west wall (x 0.25, z 8.6-13.4, circuit 10), two hand-built locker banks on the south and north flats (x 1.0-4.6, z 8.25-8.75 and 13.25-13.75; 8 doors of 0.45 m, 1.9 m tall, 0.5 m deep; each one solid `noLedge` box plus thin visual skins for the doors, vents, handles and number plates, no props), and two free `holdingBench` props at (3.4, 9.5) and (3.4, 12.5), at least 0.5 m off every wall and locker face. The aisle from the spawns (2, 10) and (2, 12) to the door stays open.
 
 ### A1 - The Gate (lorry gate, goods-yard wall, wicket)
 | Prop | Real object | Size | Collision | Tris | Status |
@@ -222,11 +224,11 @@ racking loads stay as built). Collision, footprint, pitch and box colour of each
 | `galleryConsole` | gallery | steelDark 92, plastic 60, screen 24 | 176 | 500 |
 | `galleryChair` | gallery | steelDark 268, fabric 56, mesh 12 | 336 | 350 |
 | `galleryScreen` | gallery | plastic 12, screen 12 | 24 | 60 |
-| `receptionDesk` | lounge | steelDark 24, marble 12, oak 56, lamp 12 | 104 | 300 |
-| `loungeSeat` | lounge | steelDark 12, leather 188 | 200 | 400 |
-| `greenWall` | lounge | steelDark 48, foliage 204 | 252 | 300 |
+| `receptionDesk` | none (was the lounge) | steelDark 24, marble 12, oak 56, lamp 12 | 104 | 300 |
+| `loungeSeat` | none (was the lounge) | steelDark 12, leather 188 | 200 | 400 |
+| `greenWall` | none (was the lounge) | steelDark 48, foliage 204 | 252 | 300 |
 | `modelVitrine` | L7 | steelDark 92, white 60, oak 12, brass 28, glass 12 | 204 | 600 |
-| `holdingBench` | holding rooms | oak 44, steel 24 | 68 | 120 |
+| `holdingBench` | holding rooms, the lounge | oak 44, steel 24 | 68 | 120 |
 | `kitCaseWall` | lounge | steelDark 96, plastic 96, lamp 12, glass 12 | 216 | 400 |
 | `signPlate` | set doors | steelDark 12, lamp 12 | 24 | 60 |
 | `barrierPost` | A1 | steel 40, red 60, white 60 | 160 | 250 |
