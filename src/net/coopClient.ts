@@ -30,7 +30,7 @@ import { RatingCard, type RatingView } from '../ui/hud/ratingCard';
 import { GADGETS } from '../game/gadgets';
 import { GRANT_GADGETS, putRating } from '../game/rating/sectionRating';
 import { stationHeal } from '../game/medkit';
-import { applyCourseWire, clientCourseFrame, clientCourseSummary, courseStartPos, disposeClientCourse } from '../game/modes/courseMode';
+import { applyCourseWire, clientCourseFrame, clientCourseSummary, disposeClientCourse } from '../game/modes/courseMode';
 import { COURSE_RESTART_TITLE, isClientVerb, type ClientVerb } from '../game/course/courseWire';
 import { CtDevices } from '../game/ctDevices';
 import { newSeenBody, remoteHeadY, type SeenBody } from '../security/securitySystem';
@@ -49,6 +49,8 @@ import { barkLine, BARK_EVENTS, RADIO_BARKS } from '../ai/barks';
 import { HelmetDrops } from '../ai/helmetDrops';
 import { DeflectLedger } from './puppetGear';
 import { DESK_NONE, deskItemId, deskModeOf } from '../game/sectorDesks';
+import { placeSlot, startSlotPoints } from '../game/spawnPlace';
+import type { SlotPoint } from '../game/spawnSlots';
 
 const SEND_HZ = 20;
 /** (afp AF6) `CLIENT_INTERP_DELAY` (interp.ts; was 0.12). */
@@ -150,11 +152,11 @@ export class CoopClient implements NetAttachment {
     // (G135) the goggle colours follow the host's player order (host green, us cyan as the partner)
     this.recolour();
     this.offs.push(s.events.on('lobby', () => this.recolour()));
+    // (coop-rejoin, walk item 4) our own slot of the start area (the map's slot point, else a safe spot beside the
+    // host's), before our first `pstate` (the host takes a first state anywhere): a course bay-N start's entry airlock
+    // (D20), Sector Ops' first section, else the map's spawns. A late join or rejoin is then placed by the host.
+    this.placeStart();
     if (g.opts.mode === 'course') {
-      // a bay-N start (D20): beside the host in that bay's entry airlock, before our first `pstate` (the host takes a
-      // first state anywhere)
-      const at = courseStartPos(g, g.opts.courseBay ?? 1, 1);
-      if (at) g.player.controller.teleport(at, g.player.cam.yaw);
       const feed = new CourseFeed(g, true);
       this.feed = feed;
       this.offs.push(g.events.on('takedown', (e) => {
@@ -343,6 +345,29 @@ export class CoopClient implements NetAttachment {
       this.blockers.push({ id: st.id, a, b: new PartnerBlocker(g.scene, st.id) });
     }
     return a;
+  }
+
+  /** (coop-rejoin) Our player slot: 1 + our place among the joiners in the host's lobby order (the host is slot 0). */
+  private slot(): number {
+    let i = 1;
+    for (const p of this.s.players.values()) {
+      if (p.host) continue;
+      if (p.id === this.s.selfId) return i;
+      i++;
+    }
+    return 1;
+  }
+
+  /** (coop-rejoin, walk item 4) Our start: our slot of the start area, clear of the host's slot 0 point. */
+  private placeStart(): void {
+    const g = this.g;
+    const pts = startSlotPoints(g);
+    const base = pts[0];
+    if (!base) return;
+    const out: SlotPoint = { x: 0, y: 0, z: 0, yaw: 0 };
+    if (placeSlot(g, pts, this.slot(), [base], out) === 'none') return;
+    g.player.controller.teleport(new Vector3(out.x, out.y, out.z), out.yaw);
+    g.player.cam.yaw = out.yaw;
   }
 
   /** (G135) Every body's goggle colour from its player slot: the partner beacon. */

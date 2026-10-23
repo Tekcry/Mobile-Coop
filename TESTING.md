@@ -52,6 +52,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   in the east bay and the crane drive over the CNC cell, each climbable onto under its roof hood); they relay or drop the
   rope for you; alone, the lip cannot be reached. Each team door is locked from your side; your partner unbolts it from the other side; a restart bolts it again.
 - [ ] (coop-walk-fixes) Co-op, two pages: one player grabs a guard (hostage); the other, beside them, gets TEAM TAKEDOWN on him and it knocks him out (the hold ends, DUAL TAKEDOWN banner), both ways (host holding, joiner holding). A partner's single shot plays once; a partner's suppressed pistol sounds suppressed.
+- [ ] (coop-rejoin) Co-op Marlow Yard, two pages: at the start, after a set restart and after "Start at A3" the two
+  players stand on separate spots (never inside each other). Play into A3 (past its airlock), then close the joiner's
+  tab and rejoin from its menu (or toggle its network off and on): the joiner comes back in the A3 entry airlock (or
+  beside the host if that airlock is shut off), with A1-A2 done, the A3 doors as the host has them and the HUD on A3,
+  never at the yard start. Same in Sector Ops in section 2 or 3.
 - [ ] (pose-parity) Co-op, two pages: a partner aiming from the left shoulder while holding a hostage or on a rope shows the gun in the left hand; a partner's choke shows no elbow wind-up.
 - [ ] Lamp falloff (LR13, test): Settings > Gameplay > Lamp falloff > Realistic (test), then start Sector Ops: the S1
   goods-in floor between the strips reads lit (meter and picture agree), Marlow station 2 still reads; back to Classic

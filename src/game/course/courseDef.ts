@@ -4,6 +4,7 @@
  * map really has (doors, switches, holds, anchors, light groups) and throws naming the bad id.
  */
 import { AIRLOCK_PAD_INSET, AIRLOCK_SIZE, AIRLOCK_SIZE_TOL, COURSE_TEXT_MAX } from '../../config/course';
+import { hyp2 } from '../../core/mathx';
 import type { SquadSlot } from '../../world/rooms';
 import type { SecurityConsole } from './securityRoom';
 
@@ -28,6 +29,11 @@ export interface AirlockDef {
   nearDoor: string;
   /** The door into the next bay (locked until the airlock seals). */
   farDoor: string;
+  /**
+   * (coop-rejoin, walk item 4) The checkpoint's player slots: slot 0 (P1, the host) and slot 1 (P2), plan x, z inside
+   * the box and the facing (default: the box middle for slot 0, the partner on a safe spot beside it). Map data.
+   */
+  spawns?: { x: number; z: number; yaw?: number }[];
 }
 
 /**
@@ -336,6 +342,15 @@ export function validateCourse(def: CourseDef, known: CourseKnownIds): CourseDef
     if (Math.abs(w - AIRLOCK_SIZE) > AIRLOCK_SIZE_TOL || Math.abs(d - AIRLOCK_SIZE) > AIRLOCK_SIZE_TOL) {
       fail(a.id, `airlock is ${w} x ${d}, not ${AIRLOCK_SIZE} x ${AIRLOCK_SIZE}`);
     }
+    // (coop-rejoin) the slot points: at most two, inside the box by a body radius (a point on its edge stands in the
+    // wall), two bodies apart
+    const sp = a.spawns ?? [];
+    if (sp.length > 2) fail(a.id, `airlock has ${sp.length} spawns, at most 2 (slot 0, slot 1)`);
+    const m = 0.3;
+    for (const p of sp) {
+      if (p.x < Math.min(a.box[0], a.box[2]) + m || p.x > Math.max(a.box[0], a.box[2]) - m || p.z < Math.min(a.box[1], a.box[3]) + m || p.z > Math.max(a.box[1], a.box[3]) - m) fail(a.id, `airlock spawn (${p.x}, ${p.z}) is outside its box (${m} m in from its walls)`);
+    }
+    if (sp[0] && sp[1] && hyp2(sp[0].x - sp[1].x, sp[0].z - sp[1].z) < 0.9) fail(a.id, 'airlock spawns overlap (slot 0 and slot 1 under 0.9 m apart)');
   }
 
   const bayIds = new Set<string>();
