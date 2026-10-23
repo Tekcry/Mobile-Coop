@@ -151,6 +151,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   heard him search round it for about 3 minutes, spreading out to ~15 m, before going back on edge.
 - [ ] Urgency (guard-ai S19): break a laser or let a camera alarm: the guards sent jog there; let a finder's "man down"
   report get through: a calm guard nearby jogs over to help search; throw a bottle: the one sent still walks over.
+- [ ] Weapon carry (guard-ai S21): a calm patrol walks with his rifle slung on his back (an officer's pistol on his thigh),
+  hands empty; make a noise: he draws (the rifle off the back in the right hand, under a second) and walks at low ready;
+  seen, he fires only once drawn; calm again, he holsters after about 15 s. A high-security post, and every guard once
+  the alarm is up, stays at low ready.
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
 - [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
   glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen

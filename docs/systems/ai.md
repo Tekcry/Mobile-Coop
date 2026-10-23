@@ -338,6 +338,15 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   spot; a noise, lure, light or breaker keeps the calm pace. A dead body's radio call that gets through
   (`EnemyManager.bodyHelp`) opens a `bodyDead` board incident: `URGENT.bodyHelpers` calm guards in `callR` hurry over and
   search it with the finder (`Enemy.helpSearch`, `MODE_HELP`).
+- Weapon carry (guard-ai S21, walk 4.72 G5, A120-A126; `ai/carryState.ts` pure: `calmArea`, `mayHolster`, `carrySlotOf`,
+  `GuardCarry`, numbers `GUARD_CARRY`; render side `GuardGunCarry` in `ai/enemyRig.ts`): every guard stays armed. A calm
+  guard in a calm area (unaware, no caution, no board task, no alarm raised, not a high-security post, not a responder or
+  response team member; stealth rules) carries his gun holstered: the rifle slung across the back (`backC`), the pistol on
+  the right thigh. Anything above calm draws it (rifle 0.7 s, pistol 0.5 s; `Enemy.tryFire` waits for `carry.drawn`); he
+  holsters again after `calmHold` 15 s calm. `Enemy.update` steps it after the awareness; `Enemy.frame` drives `RigPose`
+  `ready` (holstered), `swap` / `swapFrom` / `swapTo` (the draw / holster clip, one slot) and `aim` (none while holstered);
+  `armed`, `thighGear` and `weaponTravel` follow the `WeaponModel` (`holster` / `beginTravel` / `travel` / `hold`). Sniper,
+  enforcer, melee kinds and dogs never holster. Host only: co-op puppets stay at low ready (no wire field; WALK.md S21).
 - Sound: `world/surfaces.ts` (pure) `surfaceAt` scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice. Shots:
   `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise` (combat); `onRay` hits
   are heard within `IMPACT_NOISE`.

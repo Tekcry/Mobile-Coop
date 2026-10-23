@@ -13,7 +13,7 @@ import type { AlertLevel } from './alertState';
 import { DRAW_BEAT } from '../anim/drawMotion';
 import { carryKind, type CarrySlot } from '../weapons/carrySlots';
 
-/** (guard-ai S21, A120-A125) The numbers. Undo: `enabled` false (every guard at low ready, as before S21). */
+/** (guard-ai S21, A120-A126) The numbers. Undo: `enabled` false (every guard at low ready, as before S21). */
 export const GUARD_CARRY = {
   enabled: true,
   /** Calm this long (s, without a break) before he holsters again (A122). */
@@ -59,10 +59,11 @@ export function carrySlotOf(cls: string): CarrySlot {
   return k === 'pistol' ? 'thigh' : k === 'compact' ? 'sling' : 'backC';
 }
 
-/** The rig's raise (`RigPose.aim`) for the brain's aim weight `aim` (low ready 0.2-0.7, raised 1 in combat): none until
- *  the gun is drawn. */
+/** The rig's raise (`RigPose.aim`) for the brain's aim weight `aim` (low ready 0.2-0.7, raised 1 in combat): none while
+ *  holstered; through a draw the raise he wants (the travel ends in the pocket at the rig's raise, so the hand-over to
+ *  the hold never jumps: gating it to 0 until drawn popped the gun 15-34 cm at the hand-over). */
 export function carryRaise(aim: number, c: GuardCarry): number {
-  return c.drawn ? aim : 0;
+  return c.holstered ? 0 : aim;
 }
 
 /** The fixed-step draw / holster machine of one guard. */
@@ -120,9 +121,10 @@ export class GuardCarry {
         if (calm && this.calmT >= GUARD_CARRY.calmHold) this.set(CARRY_HOLSTERING, this.holsterTime);
         break;
       case CARRY_DRAWING:
-        // calm again mid-draw: the draw ends, then the calm hold
-        this.u += dt / this.dur;
+        // calm again mid-draw: the draw ends, then the calm hold. The end (u 1) shows for a step before the hand-over, so
+        // the travel's last pose (the settle in the pocket) is posed and the gun is never held from short of it
         if (this.u >= 1) this.set(CARRY_DRAWN, 1);
+        else this.u = Math.min(1, this.u + dt / this.dur);
         break;
       case CARRY_HOLSTERING:
         if (!calm) {
@@ -130,8 +132,8 @@ export class GuardCarry {
           this.set(CARRY_DRAWING, Math.max(GUARD_CARRY.reverseMin, this.drawTime * this.u));
           break;
         }
-        this.u += dt / this.dur;
         if (this.u >= 1) this.set(CARRY_HOLSTERED, 1);
+        else this.u = Math.min(1, this.u + dt / this.dur);
         break;
     }
   }

@@ -90,13 +90,13 @@ describe('the carry (GuardCarry)', () => {
     expect(d.swapClip()).toBe(-1);
   });
 
-  it('suspicious: he draws (the draw clip from the holstered beat), at low ready once drawn; no raise until then', () => {
+  it('suspicious: he draws (the draw clip from the holstered beat), at low ready once drawn; no raise while holstered', () => {
     const c = rifle(true);
+    expect(carryRaise(0.2, c)).toBe(0);
     c.step(DT, false);
     expect(c.phase).toBe(CARRY_DRAWING);
     expect(c.drawn).toBe(false);
     expect(c.swapClip()).toBeCloseTo(DRAW_BEAT, 9);
-    expect(carryRaise(0.4, c)).toBe(0);
     let prev = c.swapClip();
     for (let i = 0; i < 20; i++) {
       c.step(DT, false);
@@ -116,7 +116,7 @@ describe('the carry (GuardCarry)', () => {
       c.step(DT, false);
       t += DT;
     }
-    expect(t).toBeLessThanOrEqual(GUARD_CARRY.draw.long + 2 * DT);
+    expect(t).toBeLessThanOrEqual(GUARD_CARRY.draw.long + 3 * DT);
     expect(GUARD_CARRY.draw.long).toBeLessThanOrEqual(0.75);
     expect(carryRaise(1, c)).toBe(1);
     const p = new GuardCarry(true, WEAPONS.pistolSd.class);
@@ -126,7 +126,7 @@ describe('the carry (GuardCarry)', () => {
       p.step(DT, false);
       t += DT;
     }
-    expect(t).toBeLessThanOrEqual(GUARD_CARRY.draw.pistol + 2 * DT);
+    expect(t).toBeLessThanOrEqual(GUARD_CARRY.draw.pistol + 3 * DT);
   });
 
   it('an alarm raised or a high-security post: drawn (the calm-area rule is false), and he stays drawn', () => {

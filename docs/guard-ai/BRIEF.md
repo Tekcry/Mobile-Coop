@@ -392,3 +392,29 @@ reported, they need a sense of urgency when it makes logical sense." A100-A119 a
 - **A113** (S19) Tests that change by design: e2e-stealth-ai 'bodies' and 'witness' now expect the calm guard out of voice
   range to be searching (sent to help, `bodyHelps` 1) once the report gets through, not standing on edge; the unit
   fakes in `awarenessWiring` / `sectionAlert` gain `helpSearch`. Undo: with A111.
+- **A120** (S21) G5 Michael, verbatim: "they also dont always have to be low-ready, then can walk around holstered if they
+  are in a calm area." Every guard stays armed (2026-10-23 ~01:25). A calm area for a guard (`calmArea`,
+  `ai/carryState.ts`; `Enemy.carryCalm`): he is unaware (no suspicion, investigation, search, combat or its cooldown),
+  not cautious (S4 held / S14 section alert timed caution), on no board task or camera body, no alarm raised in his
+  section (`ctx.alarmRaised`, S6), not a high-security post (S5 `secure`), not a device responder (S17) or a response
+  team member (S13 `crew`), and stealth rules are on (the parked modes keep low ready). Undo: `GUARD_CARRY.enabled = false`.
+- **A121** (S21) Who holsters (`mayHolster`): every kind with a gun except the sniper (on his watch, laser and glint) and
+  the enforcer (the shield in his other hand); melee kinds and the dog never. Undo: edit `GUARD_CARRY.never`.
+- **A122** (S21) He holsters again only after `GUARD_CARRY.calmHold` 15 s calm without a break (no flicker after a glance
+  or a cooldown); stirred mid-holster he draws straight back up from where the gun is. Undo: `calmHold`.
+- **A123** (S21) Guard draw times: rifle 0.7 s, pistol 0.5 s (`GUARD_CARRY.draw`; the player's N3 draws are 1.1 / 0.75 s;
+  CT guards shoulder fast); holster 1.0 / 0.9 s (the player's). A guard who spots the player has usually drawn by then
+  (suspicion draws); one hit or sent to combat from calm waits the draw before his first shot (`Enemy.tryFire` gates on
+  `carry.drawn`), on top of the old reaction / aim settle. Undo: shorter `draw` values, or drop the gate in `tryFire`.
+- **A124** (S21) Where the gun rides: the player's carry slots and placement (`carrySlotOf` -> `WeaponModel.holster`):
+  the rifle slung diagonally across the back (`backC`, as Wren's, not the vertical `backSocket` mount), the pistol on the
+  right thigh (sets the rig's `thighGear`), a compact on the hip sling. The draw / holster runs the player's travel
+  (`beginTravel` / `travel`, the trigger hand on the grip) and the swap clip (one slot). Undo: `carrySlotOf`.
+- **A125** (S21) The rig: the shared `RigPose` gains an optional `ready` (the holstered carry with ready hands and the
+  armed carriage; unset it keeps `carrier && !heldWeapon`, so the player and remotes are unchanged). Guards are not
+  `carrier` (that also switches mocap and the keyed drawn set), so they set `ready` directly. The raise (`RigPose.aim`) is
+  0 while holstered and the wanted aim through a draw (gating it to 0 until drawn popped the gun 15-34 cm at the
+  hand-over). Undo: with A120.
+- **A126** (S21) Co-op: host only. A client poses guards from the snapshot's alert level (0 calm .. 3 combat), which
+  cannot tell caution, a raised alarm, a post or a response team apart from calm, so it cannot derive the holster; no
+  protocol change in this slice: client puppets stay at low ready (open item, `slices/WALK.md` S21). Undo: not needed.
