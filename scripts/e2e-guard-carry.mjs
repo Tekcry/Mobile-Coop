@@ -9,6 +9,11 @@
 // meshes with its material and effect ready, its effect GPU skinned as the mesh is, and no effect may fail to compile;
 // then he draws (suspicious) and the same holds. Each check logs the body effect's light defines. Run with E2E_GPU=1
 // (the failure was on the hardware GPU). `node scripts/e2e-guard-carry.mjs [url] [--spot=x,z]`
+// (stall) First, as the sheet ran it on the laptop GPU (master f16600f5): the 16.5 s calm stepped in ONE block with no
+// frame rendered, then the body must be ready and drawn within STALL_WAIT_MS of rendering. There the body's PBR
+// effect never finished compiling (Babylon's poll then times out, "Operation timed out after maximum retries. -
+// Effect: pbr") and the guard stayed invisible; the fix (src/player/bodyEffectRecovery.ts) recompiles a stuck body
+// effect and logs "smooth body ... recompiling" (printed here). Then the 1 s-step pass as before.
 import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
@@ -16,6 +21,8 @@ const spotArg = process.argv.find((a) => a.startsWith('--spot='))?.slice(7).spli
 const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=infiltration&gfx=high', viewport: { width: 960, height: 720 } });
 const G = (f, a) => page.evaluate(f, a);
 const CALM_SEC = 16.5;
+/** Rendering time a body may take to be ready after the one-block stall (the fix recompiles a stuck one after 8 s). */
+const STALL_WAIT_MS = 30000;
 let failed = false;
 try {
   await frames(page, 10);
@@ -148,15 +155,19 @@ try {
   assert(!!setup.spot, `a walkable spot near ${spotArg}`);
   const [x, z] = setup.spot;
 
-  /** Render until his body is ready (shaders compile over a few frames), then check what is drawn. */
-  const check = async (label, holstered) => {
+  /** Render until his body is ready (shaders compile over a few frames, at most `waitMs`), then check what is drawn. */
+  const check = async (label, holstered, waitMs = 0) => {
     await G(() => window.__gc.look());
     let b = [];
-    for (let i = 0; i < 40; i++) {
+    const t0 = Date.now();
+    let n = 0;
+    for (let i = 0; i < 40 || Date.now() - t0 < waitMs; i++) {
       await frames(page, 5);
+      n += 5;
       b = await G(() => window.__gc.bodies());
       if (b.length === 1 && b.every((e) => e.drawn && e.meshes.every((m) => m.ready && m.effectReady))) break;
     }
+    console.log(`  ${label}: ${n} frames / ${((Date.now() - t0) / 1000).toFixed(1)} s rendered until the check`);
     for (const e of b) {
       console.log(`  ${label}: ${e.kind} ${e.id} @${e.pos} ${e.level} hol ${e.holstered} ph ${e.phase} drawn ${e.drawn}`);
       for (const m of e.meshes) console.log(`    ${m.name}: ready ${m.ready}/${m.effectReady} gpuSkin ${m.gpuSkin} infl ${m.shaderInfluencers} cpuFallback ${m.forcedCpu} | ${m.lights} | lights ${m.lightSources}`);
@@ -173,6 +184,18 @@ try {
       assert(e.drawn, `${label}: ${e.kind}'s body is among the camera's active meshes`);
     }
   };
+
+  // (stall) as the sheet: the whole calm in one block, no frame rendered before the first check
+  for (const kind of ['grunt', 'officer']) {
+    console.log(`${kind}: ${CALM_SEC} s calm in ONE block at ${x.toFixed(2)},${z.toFixed(2)}, no render before the check`);
+    await G(() => window.__gc.reset());
+    assert(await G(([k, x, z]) => window.__gc.spawn(k, x, z), [kind, x, z]), `${kind} spawned (stall pass)`);
+    await G((s) => window.__gc.step(s), CALM_SEC);
+    await check(`${kind} calm after the one-block stall`, true, STALL_WAIT_MS);
+  }
+  const recovered = errors.filter((e) => /smooth body .*(recompil|left to Babylon)/.test(e));
+  if (recovered.length) console.log(`  body effect recoveries:\n  ${recovered.slice(0, 8).join('\n  ')}`);
+  else console.log('  body effect recoveries: none');
 
   for (const kind of ['grunt', 'officer']) {
     console.log(`${kind}: ${CALM_SEC} s calm at ${x.toFixed(2)},${z.toFixed(2)} (holstered), then the draw`);
