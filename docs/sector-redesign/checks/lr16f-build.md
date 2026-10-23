@@ -56,3 +56,61 @@ gating 0/0/0/8/12/16 and the override; pure math allocation-free. `npx tsc --noE
 
 ## Open
 - `lightRadius` 0.12 m is one value for every fixture; per-lamp fixture size would need a lamp texel lane (LR16e area).
+
+## LR16-7 - character shadows on every tier
+Spec: `lr16-0-ct-audit.md` gap 1 and the LR16-7 row (Low / Medium were capsule blobs only).
+
+### Changes
+- `src/world/charShadowSet.ts:21-29` `CHAR_SHADOW_PRESET`: Low `1 x 256`, Medium `1 x 512` (was 0 slots). Off stays 0;
+  the override 'on' now only lifts Off (to High's set, `:33`). The slot count is read from this table only
+  (`core/quality.ts:117` `shadowSpec` copies it into `charLamps` / `charTile`); no governor or `quality.ts` change.
+- `:80-97` `CHAR_SHADOW_TAPS` Low / Medium 4 (search 2); `charShadowTaps` maps a single slot at <= 512 px to 4.
+- `:100-106` new `CHAR_SHADOW_EVERY` (Low / Medium 2, rest 1) and `charShadowEvery(lamps, tile)`.
+- `:299-302` `LampSlotPicker.refreshEvery(s, governorEvery, base = 1)`: `max(base, near ? 1 : 2) x governor`.
+- `:413-417` `atlasSize(tile, slots = 4)`: one slot -> the atlas is the single tile (slot 0's origin is 0, the GLSL is
+  unchanged), a quarter of the memory.
+- `src/world/charShadows.ts:165-166, 205-207, 224` `configure`: `baseEvery = charShadowEvery(n, tile)`, atlas
+  `atlasSize(tile, n)`; `:238, :255` `makeSlot` sizes its copy viewport `tile / size` (was a fixed 0.5); `:301` the
+  refresh passes `baseEvery`.
+- Unchanged: the nearest lamp wins the one slot (the picker's distance order + hysteresis); every character outside
+  that slot's fitted map, and every other lamp, keeps the capsule blob (`covers` / `spheresHold`). Picture only: the
+  meter and guards read the light field, which never sees these maps.
+
+### Tap choice (Low / Medium: 4 filter + 2 search, same shader as High up)
+The old 2 x 2 PCF took 4 fetches on every pixel in a slot's frustum. 4 + 2 takes 2 where no blocker is near (most of
+the pool) and 6 inside or beside a shadow, so the mean cost is at or under the old PCF while keeping contact
+hardening (sharp feet, soft head). The kernel's first point sits near its centre, so a 2-tap search still finds the
+umbra; only the outer fringe of a wide penumbra can read a little harder. 4 taps give 5 grey levels; at Low's 256 tile
+the filter radius in metres is the same (texels per metre scale with the tile). A separate 2 x 2 PCF path for Low was
+not worth a second shader variant.
+
+### Per-tier cost estimate (one slot, every 2nd frame)
+| Tier | Atlas | Shadow map | Caster pass | Lit-pixel fetches (no blocker / shadow) |
+|---|---|---|---|---|
+| Low | 256^2 R32F 0.25 MB | 256^2 + depth ~0.5 MB | casters in the lamp's reach, 1 draw each, every 2nd frame | 2 / 6 |
+| Medium | 512^2 R32F 1 MB | 512^2 + depth ~2 MB | same | 2 / 6 |
+Expected GPU: caster pass ~0.05-0.15 ms on the frames it runs (2-6 skinned bodies into a small depth target) plus the
+copy (one quad); lit pixels ~+0.02-0.08 ms at 1080p with a guard's shadow on screen. Near zero with no character
+under the nearest lamp (the slot idles, nothing drawn). CPU: the picker and one cone fit per frame, no allocation.
+
+### Textures
+`scripts/e2e-lightbake.mjs:73-156` counts `effect._samplerList.length` on every ready visible submesh at smooth Epic
+(guards alerted) and asserts <= 16; it does not run Low / Medium. The atlas is one sampler on any tier with maps, and
+Low / Medium's other lamp-shadow samplers (rig casters 0 / 2, cascades 1 / 2) are at or under Epic's (4 / 4), so every
+tier stays within Epic's count; the micro-detail voxel shader still gets no maps (`world/world.ts:571`). Unit test
+"textures" asserts the casters / cascades dominance. Note: the comment at `e2e-lightbake.mjs:151` ("Low ... keep the
+capsules") is now stale (comment only, not an assert; not this slice's file).
+
+### Tests
+`tests/charShadowSet.test.ts`: preset test now expects maps on every preset and 'on' lifting only Off; taps 4/4/8/12/16;
+new block "LR16-7": refresh floor 2 at Low / Medium (x governor), the single slot takes the nearest lamp, one-slot
+atlas = tile, texture dominance vs Epic, lookups allocation-free. `npx tsc --noEmit` clean; vitest `charShadowSet`,
+`lampPluginClone`, `lampPluginGap`, `settings`, `shadowAccuracy`, `graphics` all pass (65).
+
+### GPU checklist (laptop, `E2E_GPU=1`, pending)
+- `?gfx=low` and `?gfx=medium`: `world.charShadows.stats()` shows 1 slot; LAMP_CSHADOW compiles on ANGLE D3D11.
+- A guard at 1 m and 4 m from the nearest lamp on Low and Medium: his shape (not a blob) on the floor; feet sharp,
+  head softer at 4 m; a second guard under another lamp keeps his capsule blob.
+- No visible stepping from the every-2nd-frame refresh while walking (one frame of lag at 60 fps).
+- Max samplers per shader at Low / Medium <= 16 (the lightbake read-back run at those presets).
+- Frame p95 within the governor budget at Low and Medium with 2+ guards near a lamp (perf script).

@@ -10,7 +10,7 @@
  * only drives its shadow map. Per frame nothing is allocated (render lists and uniforms refilled in place).
  */
 import { BaseTexture, Constants, EffectRenderer, EffectWrapper, ShadowGenerator, SpotLight, Texture, Vector3, Viewport, type AbstractMesh, type Observer, type RenderTargetWrapper, type Scene } from '../core/babylon';
-import { atlasSize, CHAR_SHADOW, CHAR_SHADOW_DISK, CHAR_SHADOW_KERNEL, charShadowTaps, coneCovers, FIT, fitCone, fittedSpheres, LampSlotPicker, spheresHold, tileX, tileY } from './charShadowSet';
+import { atlasSize, CHAR_SHADOW, CHAR_SHADOW_DISK, CHAR_SHADOW_KERNEL, charShadowEvery, charShadowTaps, coneCovers, FIT, fitCone, fittedSpheres, LampSlotPicker, spheresHold, tileX, tileY } from './charShadowSet';
 
 type RenderTargetTexture = NonNullable<ReturnType<ShadowGenerator['getShadowMap']>>;
 
@@ -162,6 +162,8 @@ export class CharShadows implements CharShadowLink {
   private key = '';
   private tile = 0;
   private governorEvery = 1;
+  /** (LR16-7) The tier's least refresh interval (`charShadowEvery`: Low / Medium 2). */
+  private baseEvery = 1;
   /** Shadow maps copied into the atlas so far (tests, the debug line). */
   copies = 0;
   /** The map's metric with a reversed depth buffer runs the other way. */
@@ -200,8 +202,10 @@ export class CharShadows implements CharShadowLink {
     this.lampSlot.fill(-1);
     if (n === 0) return;
     this.tile = tile;
+    this.baseEvery = charShadowEvery(n, tile);
     const engine = this.scene.getEngine();
-    const size = atlasSize(tile);
+    // (LR16-7: one slot - Low / Medium - the atlas is that one tile)
+    const size = atlasSize(tile, n);
     const caps = engine.getCaps();
     this.rt = engine.createRenderTargetTexture(
       { width: size, height: size },
@@ -217,7 +221,7 @@ export class CharShadows implements CharShadowLink {
     this.info[1] = charShadowTaps(n, tile);
     this.info[2] = size;
     this.info[3] = this.depthSign;
-    for (let s = 0; s < n; s++) this.slots.push(this.makeSlot(s, tile));
+    for (let s = 0; s < n; s++) this.slots.push(this.makeSlot(s, tile, size));
     this.restoreObs = engine.onContextRestoredObservable.add(() => this.invalidate());
   }
 
@@ -231,7 +235,7 @@ export class CharShadows implements CharShadowLink {
     this.lampSlot.fill(-1);
   }
 
-  private makeSlot(s: number, tile: number): CsSlot {
+  private makeSlot(s: number, tile: number, size: number): CsSlot {
     const light = new SpotLight(`charshadow-${s}`, new Vector3(0, -50, 0), new Vector3(0, -1, 0), 1, 1, this.scene);
     light.includeOnlyWithLayerMask = NO_MESH_LAYER;
     light.intensity = 0;
@@ -248,7 +252,7 @@ export class CharShadows implements CharShadowLink {
     // (an empty list of its own, never filled: the casters come from `getCustomRenderList`)
     map.renderList = [];
     map.refreshRate = 0;
-    const slot: CsSlot = { light, sg, map, list: [], lamp: -1, ready: -1, fit: new Float32Array(FIT.size), fitReady: new Float32Array(FIT.size), sp: new Float32Array(MAX_SPHERES * 4), k: 0, spReady: new Float32Array(MAX_SPHERES * 4), kReady: 0, every: 0, obs: null, vp: new Viewport(tileX(s, tile) / atlasSize(tile), tileY(s, tile) / atlasSize(tile), 0.5, 0.5) };
+    const slot: CsSlot = { light, sg, map, list: [], lamp: -1, ready: -1, fit: new Float32Array(FIT.size), fitReady: new Float32Array(FIT.size), sp: new Float32Array(MAX_SPHERES * 4), k: 0, spReady: new Float32Array(MAX_SPHERES * 4), kReady: 0, every: 0, obs: null, vp: new Viewport(tileX(s, tile) / size, tileY(s, tile) / size, tile / size, tile / size) };
     map.getCustomRenderList = () => slot.list;
     // (after the generator's own observer, which restores the camera's matrices)
     slot.obs = map.onAfterUnbindObservable.add(() => this.copy(s));
@@ -294,7 +298,7 @@ export class CharShadows implements CharShadowLink {
         this.setEvery(slot, 0);
         continue;
       }
-      this.setEvery(slot, this.picker.refreshEvery(s, this.governorEvery));
+      this.setEvery(slot, this.picker.refreshEvery(s, this.governorEvery, this.baseEvery));
       if (slot.ready === lamp) ls[lamp] = s;
     }
   }

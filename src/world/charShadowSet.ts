@@ -18,16 +18,18 @@ export interface CharShadowSpec {
   tile: number;
 }
 
-/** Per shadow tier (Graphics > Shadows; the presets fill it): capsules at Low / Medium, maps from High up. */
+/** Per shadow tier (Graphics > Shadows; the presets fill it). (LR16-7) Low and Medium get one slot - the nearest lamp
+ *  only, its map refreshed every 2nd frame (`charShadowEvery`) - so a guard under it throws his shape on every tier;
+ *  the characters outside that slot keep the capsules. Off: capsules only. */
 export const CHAR_SHADOW_PRESET: Readonly<Record<ShadowQuality, Readonly<CharShadowSpec>>> = {
   off: { lamps: 0, tile: 0 },
-  low: { lamps: 0, tile: 0 },
-  medium: { lamps: 0, tile: 0 },
+  low: { lamps: 1, tile: 256 },
+  medium: { lamps: 1, tile: 512 },
   high: { lamps: 2, tile: 512 },
   ultra: { lamps: 3, tile: 1024 },
   epic: { lamps: 4, tile: 1024 },
 };
-/** The override 'on' below High: High's set. */
+/** The override 'on' on a tier without maps (Off): High's set. */
 export const CHAR_SHADOW_FORCED: Readonly<CharShadowSpec> = CHAR_SHADOW_PRESET.high;
 
 /** The spec a shadow tier and the override give. */
@@ -77,17 +79,30 @@ export const CHAR_SHADOW = {
   maxTexels: 24,
 } as const;
 
-/** (LR16f) Filter taps per shadow tier (the blocker search takes half as many): picture only, never the meter. */
-export const CHAR_SHADOW_TAPS: Readonly<Record<ShadowQuality, number>> = { off: 0, low: 0, medium: 0, high: 8, ultra: 12, epic: 16 };
+/** (LR16f) Filter taps per shadow tier (the blocker search takes half as many): picture only, never the meter.
+ *  (LR16-7) Low / Medium: 4 filter + 2 search - 2 fetches where no blocker is near (most pixels; the old 2 x 2 PCF
+ *  took 4 everywhere), 6 in or near a shadow; the kernel's first point sits near its centre, so the 2-tap search
+ *  still finds the umbra and only the outermost fringe of a wide penumbra reads a little harder. */
+export const CHAR_SHADOW_TAPS: Readonly<Record<ShadowQuality, number>> = { off: 0, low: 4, medium: 4, high: 8, ultra: 12, epic: 16 };
 /** The kernel's size (the most taps any tier takes). */
 export const CHAR_SHADOW_KERNEL = 16;
 
-/** Filter taps for a configured spec (`CharShadows.configure` gets lamps and tile, not the tier): High's 512 tile 8,
- *  Ultra's 1024 tile 12, Epic's 4 lamps 16; the override 'on' below High takes High's. */
+/** Filter taps for a configured spec (`CharShadows.configure` gets lamps and tile, not the tier): a single slot at
+ *  Medium's tile or smaller (Low / Medium) 4, High's 512 tile 8, Ultra's 1024 tile 12, Epic's 4 lamps 16; the override
+ *  'on' on Off takes High's. */
 export function charShadowTaps(lamps: number, tile: number): number {
   if (lamps <= 0 || tile <= 0) return 0;
+  if (lamps < CHAR_SHADOW_PRESET.high.lamps && tile <= CHAR_SHADOW_PRESET.medium.tile) return CHAR_SHADOW_TAPS.medium;
   if (tile < CHAR_SHADOW_PRESET.ultra.tile) return CHAR_SHADOW_TAPS.high;
   return lamps >= CHAR_SHADOW_PRESET.epic.lamps ? CHAR_SHADOW_TAPS.epic : CHAR_SHADOW_TAPS.ultra;
+}
+
+/** (LR16-7) The least frames between a slot's map refreshes per tier: Low / Medium every 2nd frame (half the caster
+ *  draws), High up every frame (far slots still every 2nd, `LampSlotPicker.refreshEvery`). */
+export const CHAR_SHADOW_EVERY: Readonly<Record<ShadowQuality, number>> = { off: 1, low: 2, medium: 2, high: 1, ultra: 1, epic: 1 };
+/** That floor for a configured spec (the same rule as `charShadowTaps`). */
+export function charShadowEvery(lamps: number, tile: number): number {
+  return lamps > 0 && lamps < CHAR_SHADOW_PRESET.high.lamps && tile <= CHAR_SHADOW_PRESET.medium.tile ? CHAR_SHADOW_EVERY.medium : 1;
 }
 
 /**
@@ -281,9 +296,10 @@ export class LampSlotPicker {
     return this.version !== v0;
   }
 
-  /** Frames between a slot's map refreshes: every frame near the focus, every 2nd further, x the governor's. */
-  refreshEvery(s: number, governorEvery = 1): number {
-    return (this.slotDist[s]! <= CHAR_SHADOW.near ? 1 : 2) * Math.max(1, governorEvery | 0);
+  /** Frames between a slot's map refreshes: every frame near the focus, every 2nd further, at least the tier's
+   *  `base` (LR16-7: Low / Medium 2), x the governor's. */
+  refreshEvery(s: number, governorEvery = 1, base = 1): number {
+    return Math.max(base | 0, this.slotDist[s]! <= CHAR_SHADOW.near ? 1 : 2) * Math.max(1, governorEvery | 0);
   }
 }
 
@@ -394,9 +410,10 @@ export function spheresHold(spheres: Float32Array, n: number, x: number, y: numb
   return false;
 }
 
-/** The atlas (2 x 2 tiles): its side (px) and a slot's tile origin (px). */
-export function atlasSize(tile: number): number {
-  return tile * 2;
+/** The atlas (2 x 2 tiles): its side (px) and a slot's tile origin (px). (LR16-7) One slot (Low / Medium): the atlas is
+ *  that one tile (slot 0's origin is 0, so the shader reads it unchanged), a quarter of the memory. */
+export function atlasSize(tile: number, slots: number = CHAR_SHADOW.maxSlots): number {
+  return slots > 1 ? tile * 2 : tile;
 }
 export function tileX(slot: number, tile: number): number {
   return (slot & 1) * tile;

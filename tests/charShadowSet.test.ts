@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { atlasSize, CHAR_SHADOW, CHAR_SHADOW_DISK, CHAR_SHADOW_KERNEL, CHAR_SHADOW_PRESET, CHAR_SHADOW_TAPS, charFilterTexels, charPenumbra, charShadowSpec, charShadowTaps, coneCovers, FIT, fitCone, fittedSpheres, LampSlotPicker, spheresHold, tileX, tileY } from '../src/world/charShadowSet';
+import { atlasSize, CHAR_SHADOW, CHAR_SHADOW_DISK, CHAR_SHADOW_EVERY, CHAR_SHADOW_KERNEL, CHAR_SHADOW_PRESET, CHAR_SHADOW_TAPS, charFilterTexels, charPenumbra, charShadowEvery, charShadowSpec, charShadowTaps, coneCovers, FIT, fitCone, fittedSpheres, LampSlotPicker, spheresHold, tileX, tileY } from '../src/world/charShadowSet';
 import { CHAR_SHADOW_GLSL } from '../src/world/charShadows';
-import { GRAPHICS_PRESETS, MIN_FEATURES, PRESET_IDS, qualityLevel } from '../src/core/quality';
+import { GRAPHICS_PRESETS, MIN_FEATURES, PRESET_IDS, qualityLevel, shadowSpec } from '../src/core/quality';
 import { bytesPerCall } from './helpers/allocPerCall';
 
 /** Lamps as the picker reads them: x, y, z, radius. */
@@ -14,19 +14,20 @@ const allLit = (n: number): Uint8Array => new Uint8Array(n).fill(1);
 const focusAt = (x: number, y: number, z: number): Float32Array => new Float32Array([x, y, z, x, y + 2, z - 3]);
 
 describe('LR14 character shadow presets', () => {
-  it('maps from High up, capsules at Low / Medium; the override wins', () => {
-    expect(CHAR_SHADOW_PRESET.low.lamps).toBe(0);
-    expect(CHAR_SHADOW_PRESET.medium.lamps).toBe(0);
+  it('maps on every preset (LR16-7: Low / Medium one slot), none with shadows off; the override wins', () => {
+    expect(CHAR_SHADOW_PRESET.low).toEqual({ lamps: 1, tile: 256 });
+    expect(CHAR_SHADOW_PRESET.medium).toEqual({ lamps: 1, tile: 512 });
+    expect(CHAR_SHADOW_PRESET.off.lamps).toBe(0);
     expect(CHAR_SHADOW_PRESET.high.lamps).toBeGreaterThanOrEqual(2);
     expect(CHAR_SHADOW_PRESET.epic.lamps).toBeLessThanOrEqual(CHAR_SHADOW.maxSlots);
     for (const id of PRESET_IDS) {
       const q = qualityLevel(id, GRAPHICS_PRESETS[id]);
-      const on = id === 'high' || id === 'ultra' || id === 'epic';
-      expect(q.shadow.charLamps > 0, id).toBe(on);
+      expect(q.shadow.charLamps > 0, id).toBe(true);
       expect(qualityLevel(id, GRAPHICS_PRESETS[id], false, 1, 0, 'off').shadow.charLamps, id).toBe(0);
       expect(qualityLevel(id, GRAPHICS_PRESETS[id], false, 1, 0, 'on').shadow.charLamps, id).toBeGreaterThan(0);
     }
-    expect(charShadowSpec('low', 'on')).toEqual({ ...CHAR_SHADOW_PRESET.high });
+    expect(charShadowSpec('low', 'on')).toEqual({ ...CHAR_SHADOW_PRESET.low });
+    expect(charShadowSpec('off', 'on')).toEqual({ ...CHAR_SHADOW_PRESET.high });
     // the test path (`?gfx=min`) never takes them
     expect(qualityLevel('custom', MIN_FEATURES, true, 1, 0, 'on').shadow.charLamps).toBe(0);
   });
@@ -254,16 +255,16 @@ describe('LR16f character shadow softness (contact hardening)', () => {
     }
   });
 
-  it('taps are gated by the preset (picture only): 8 / 12 / 16, none without maps', () => {
-    expect(CHAR_SHADOW_TAPS).toEqual({ off: 0, low: 0, medium: 0, high: 8, ultra: 12, epic: 16 });
+  it('taps are gated by the preset (picture only): 4 / 4 / 8 / 12 / 16, none without maps', () => {
+    expect(CHAR_SHADOW_TAPS).toEqual({ off: 0, low: 4, medium: 4, high: 8, ultra: 12, epic: 16 });
     for (const q of ['off', 'low', 'medium', 'high', 'ultra', 'epic'] as const) {
       const p = CHAR_SHADOW_PRESET[q];
       expect(charShadowTaps(p.lamps, p.tile), q).toBe(CHAR_SHADOW_TAPS[q]);
       expect(CHAR_SHADOW_TAPS[q]).toBeLessThanOrEqual(CHAR_SHADOW_KERNEL);
       expect(CHAR_SHADOW_TAPS[q] % 2, q).toBe(0);
     }
-    // the override 'on' below High takes High's maps and High's taps
-    const forced = charShadowSpec('low', 'on');
+    // the override 'on' with shadows off takes High's maps and High's taps
+    const forced = charShadowSpec('off', 'on');
     expect(charShadowTaps(forced.lamps, forced.tile)).toBe(CHAR_SHADOW_TAPS.high);
     expect(charShadowTaps(0, 0)).toBe(0);
   });
@@ -272,6 +273,59 @@ describe('LR16f character shadow softness (contact hardening)', () => {
     const bytes = await bytesPerCall((m) => {
       let s = 0;
       for (let i = 0; i < m; i++) s += charFilterTexels(charPenumbra(4, 2 + (i % 7) * 0.1), 4, 1.5, 1024) + charShadowTaps(3, 1024);
+      return s;
+    }, 16, { n: 2000 });
+    expect(bytes).toBeLessThanOrEqual(16);
+  });
+});
+
+describe('LR16-7 character shadows on every tier', () => {
+  it('Low / Medium: one slot, the nearest lamp, every 2nd frame; High up unchanged', () => {
+    for (const q of ['off', 'low', 'medium', 'high', 'ultra', 'epic'] as const) {
+      const p = CHAR_SHADOW_PRESET[q];
+      expect(charShadowEvery(p.lamps, p.tile), q).toBe(p.lamps > 0 ? CHAR_SHADOW_EVERY[q] : 1);
+    }
+    expect(CHAR_SHADOW_EVERY.low).toBe(2);
+    expect(CHAR_SHADOW_EVERY.medium).toBe(2);
+    // the one slot takes the nearest lit lamp in reach
+    const L = lamps([6, 4, 0, 8], [1, 4, 0, 8], [3, 4, 0, 8]);
+    const p = new LampSlotPicker();
+    p.setSlots(CHAR_SHADOW_PRESET.medium.lamps);
+    p.update(L, allLit(3), 3, focusAt(0, 0, 0), 2, 0.2);
+    expect(p.slotLamp[0]).toBe(1);
+    expect(p.slotOf(0)).toBe(-1);
+    expect(p.slotOf(2)).toBe(-1);
+    const base = charShadowEvery(CHAR_SHADOW_PRESET.medium.lamps, CHAR_SHADOW_PRESET.medium.tile);
+    expect(p.refreshEvery(0, 1, base)).toBe(2);
+    expect(p.refreshEvery(0, 2, base)).toBe(4);
+    // High's near slot still refreshes every frame
+    expect(p.refreshEvery(0, 1, charShadowEvery(CHAR_SHADOW_PRESET.high.lamps, CHAR_SHADOW_PRESET.high.tile))).toBe(1);
+  });
+
+  it('one slot: the atlas is the one tile (slot 0 at the origin); 2+ slots keep the 2 x 2 layout', () => {
+    expect(atlasSize(256, 1)).toBe(256);
+    expect(atlasSize(512, 1)).toBe(512);
+    expect(atlasSize(512, 2)).toBe(1024);
+    expect(atlasSize(1024)).toBe(2048);
+    expect(tileX(0, 256)).toBe(0);
+    expect(tileY(0, 256)).toBe(0);
+  });
+
+  it('textures: a tier with maps takes no more lamp shadow samplers than Epic (the e2e-lightbake 16 check)', () => {
+    // the atlas is one sampler on any tier with maps; the rest of the lamp-shadow pool is the rig's casters
+    const epic = shadowSpec('epic');
+    for (const q of ['low', 'medium', 'high', 'ultra', 'epic'] as const) {
+      const s = shadowSpec(q);
+      expect(s.charLamps, q).toBeGreaterThan(0);
+      expect(s.casters, q).toBeLessThanOrEqual(epic.casters);
+      expect(s.cascades, q).toBeLessThanOrEqual(epic.cascades);
+    }
+  });
+
+  it('the tier lookups are allocation-free', async () => {
+    const bytes = await bytesPerCall((m) => {
+      let s = 0;
+      for (let i = 0; i < m; i++) s += charShadowEvery(1, 256 << (i & 1)) + charShadowTaps(1, 512) + atlasSize(512, 1 + (i & 1));
       return s;
     }, 16, { n: 2000 });
     expect(bytes).toBeLessThanOrEqual(16);
