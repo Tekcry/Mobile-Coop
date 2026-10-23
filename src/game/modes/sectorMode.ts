@@ -60,6 +60,7 @@ import {
   coopRating,
   emptyGrant,
   newSectionStats,
+  putRating,
   rateSection,
   resetSectionStats,
   rewardsFor,
@@ -1016,7 +1017,7 @@ export class SectorMode implements GameMode {
     const view: SectionRatingView = { sectionId: s.id, title: s.name, marks, synced, grant: r };
     this.hook.last = view;
     // (integration) every section's rating, for the op-end results lines
-    g.sectionRatings.push(view);
+    putRating(g.sectionRatings, view);
     // (integration) an ungranted rating (the extraction's) carries no grant on the wire: the client tops up nothing
     const w = this.rt;
     w.sec = i;

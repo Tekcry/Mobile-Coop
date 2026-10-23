@@ -27,7 +27,7 @@ import type { TeamKind } from '../game/teamMoves';
 import { clampEnd, clientForcedHolster, coopSessionStats, ratingViewFromWire, ratingViewsFromRh } from './validate';
 import { RatingCard, type RatingView } from '../ui/hud/ratingCard';
 import { GADGETS } from '../game/gadgets';
-import { GRANT_GADGETS } from '../game/rating/sectionRating';
+import { GRANT_GADGETS, putRating } from '../game/rating/sectionRating';
 import { stationHeal } from '../game/medkit';
 import { applyCourseWire, clientCourseFrame, clientCourseSummary, courseStartPos, disposeClientCourse } from '../game/modes/courseMode';
 import { COURSE_RESTART_TITLE, isClientVerb, type ClientVerb } from '../game/course/courseWire';
@@ -783,13 +783,13 @@ export class CoopClient implements NetAttachment {
       // only goes to the results list (no card, no top-up)
       this.sawSector = true;
       // (marlow-polish) every section rated before the last one, from `rh` (results lines only)
-      if (msg.rh) for (const v of ratingViewsFromRh(msg.rh, msg.rt?.sec ?? -1, this.g.world.map.sectors ?? [])) this.g.sectionRatings.push(v);
+      if (msg.rh) for (const v of ratingViewsFromRh(msg.rh, msg.rt?.sec ?? -1, this.g.world.map.sectors ?? [])) putRating(this.g.sectionRatings, v);
       if (msg.rt) {
         this.ratedSec = msg.rt.sec;
         const v = ratingViewFromWire(msg.rt, this.g.world.map.sectors ?? []);
         if (v) {
           this.rating = v;
-          this.g.sectionRatings.push(v);
+          putRating(this.g.sectionRatings, v);
         }
       }
     } else if (msg.rt && msg.rt.sec !== this.ratedSec) this.takeRating(msg.rt);
@@ -822,7 +822,7 @@ export class CoopClient implements NetAttachment {
     this.rating = v;
     this.ratingSeq++;
     // (integration) every rating for the op-end results lines
-    this.g.sectionRatings.push(v);
+    putRating(this.g.sectionRatings, v);
     // the gadget part of the grant on our own kit (the host tops up only its own player): noisemaker first, then gas,
     // each up to its starting carry, as the host's grant does; once per rating (a new `sec`). The extraction's rating
     // carries no grant (the host zeroes it).

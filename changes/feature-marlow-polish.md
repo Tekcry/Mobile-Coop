@@ -11,3 +11,4 @@ kind: patch
   (the client out only for the dark send-back), so the lure no longer finds them (a step-4 "calm" timeout flake).
 - Docs (code): the protocol 42 comment names the `sector` message's `rh`.
 - Sector Ops: the per-section synced-takedowns list for `rh` is built with the run, so the two always reset together.
+- Co-op results: each section's rating line goes into the op-end results list at most once (`putRating` replaces by section id); e2e-section-rating's rejoin parts now check the client's list equals the host's (Marlow: A2 from `rh`, A3 from `rt`).

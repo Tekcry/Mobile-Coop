@@ -23,7 +23,7 @@ import { SectionStartState } from '../sectorReset';
 import { COURSE_RESTART_TITLE, packRated, unpackRated } from '../course/courseWire';
 import type { PlayerRef } from '../../ai/enemy';
 import { CourseMarks, bayTitle, courseGrant } from '../course/courseMarks';
-import { GRANT_GADGETS, coopRating, emptyGrant, type Grant, type SectionStats } from '../rating/sectionRating';
+import { GRANT_GADGETS, coopRating, emptyGrant, putRating, type Grant, type SectionStats } from '../rating/sectionRating';
 import { GADGETS } from '../gadgets';
 import { stationHeal } from '../medkit';
 import { REVIVES_PER_MISSION } from '../reviveClock';
@@ -753,7 +753,7 @@ export class CourseMode implements GameMode {
     const gr = courseGrant(marks, synced, coopRating(g.net !== null, g.playerRefsInto(this.refs).length), REVIVES_PER_MISSION, g.net?.revivesLeft?.() ?? REVIVES_PER_MISSION, carry);
     const view: RatingView = { sectionId: b.id, title: bayTitle(b), marks, synced, grant: gr };
     this.hook.last = view;
-    g.sectionRatings.push(view);
+    putRating(g.sectionRatings, view);
     // an ungranted rating (the finish's) carries no grant on the wire: the client tops up nothing
     const w = this.rt;
     w.sec = bi;
@@ -1155,10 +1155,10 @@ function mirrorRating(g: GameState, m: ClientCourse, rt: SectorRatingWire | unde
   if (first && rh) {
     for (let i = 0; i < rh.length && i < bays.length; i++) {
       const r = i === rt.sec ? null : unpackRated(rh[i]!);
-      if (r) g.sectionRatings.push({ sectionId: bays[i]!.id, title: bayTitle(bays[i]!), marks: r.marks, synced: r.synced, grant: emptyGrant() });
+      if (r) putRating(g.sectionRatings, { sectionId: bays[i]!.id, title: bayTitle(bays[i]!), marks: r.marks, synced: r.synced, grant: emptyGrant() });
     }
   }
-  g.sectionRatings.push(v);
+  putRating(g.sectionRatings, v);
   const w = window as unknown as { __sectionRating?: { stats: unknown; last: RatingView | null; lastGrant: unknown; seq?: number } };
   if (w.__sectionRating) w.__sectionRating.last = v;
   else w.__sectionRating = { stats: null, last: v, lastGrant: null, seq: 0 };
