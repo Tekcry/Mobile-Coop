@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-23T10:29Z
+status: done feature/stealth-pays-client-intel 8bbd6d54
 
 # Brief: stealth-pays client-intel - the Sector Ops co-op client can interrogate for intel (Player Build)
 
@@ -87,3 +87,25 @@ Your report is right (revive, reload, spent). Reshape:
   puppet offer follows the flag), changes/feature-stealth-pays-client-intel.md. Base and branch unchanged
   (d228ce59 -> feature/stealth-pays-client-intel).
 - Run tsc, eslint on the files, `npx vitest run tests/sectorIntelClient.test.ts tests/sectorIntelCode.test.ts tests/intelPartB.test.ts tests/net.test.ts`.
+
+## Report 2 (Night Shift | Cloud Builder 1, 2026-10-23 ~21:40): done, feature/stealth-pays-client-intel 8bbd6d54
+Built per the Answer (one commit on d228ce59):
+- `src/net/protocol.ts`: `EnemyState.in?: 1`; parse keeps it only when exactly 1 (absent otherwise, 0 bytes);
+  `markIntel(s, has)` is the host writer (set / delete). `PROTOCOL_VERSION` untouched (no test on this base asserts it).
+- `src/net/coopHost.ts` snapshot(): `enemies.push(markIntel(es, hasInfo(e)))` - unspent `e.info` (Marlow course and
+  Sector slots, inherited by a revive); the host's `takeInfo` (its own or the client's interrogation) clears it.
+- `src/net/enemyPuppet.ts`: `spawnInfo` (the lines he says) + `setIntel(on)`: on the flag's rise `info = spawnInfo ??
+  HOST_INFO`, on a clear `info = null`; a local spend is not undone while the flag is still set (only a rise re-offers).
+- `src/net/coopClient.ts`: `np.spawnInfo = infoAtSpawn(course squads, ...)` (kept: Marlow Yard's local subtitle lines,
+  byte-identical there) and `p.setIntel(e.in === 1)` on each snapshot.
+Deviations (2 files beyond the Answer's list, both needed for the flag-only case; review them):
+- `src/ai/guardInfo.ts` (on the original list): `HOST_INFO` frozen sentinel with no lines; `hasInfo` true for it;
+  `takeInfo` returns null for it (the client says nothing; the host's intel feed answers).
+- `src/game/takedownController.ts:475` (1 line): "Interrogated: nothing new" only when `!g.puppet` - else every
+  Sector Ops client interrogation printed it beside the host's intel lines.
+Tests: tsc clean; eslint clean on the 7 files. vitest sectorIntelClient + sectorIntelCode + intelPartB + net:
+79 -> 87 / 87 (new file 8 tests: wire round trip + bad values dropped, 0-byte cost, host writer info / spent / none,
+puppet offer Marlow / no flag / HOST_INFO / host spend / re-rise). Also green: guardInfo, coopTorches and the 7 test files
+importing the takedown controller (306 / 306).
+Note for e2e (lead): e2e-coop / the Marlow interrogation block should be unchanged; a Sector Ops client interrogation
+now works (no e2e covers it yet). Any test that deep-equals a whole snapshot enemy with an info guard would now see `in`.
