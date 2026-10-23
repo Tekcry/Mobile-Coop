@@ -5,7 +5,7 @@ import { paniniScale } from '../core/panini';
 Effect.ShadersStore['paniniFragmentShader'] = `
 precision highp float;
 varying vec2 vUV;
-uniform sampler2D textureSampler;
+uniform highp sampler2D textureSampler;
 uniform vec4 params;
 void main(void) {
   // params: tan of the half FOVs (x, y), strength d, fit zoom
