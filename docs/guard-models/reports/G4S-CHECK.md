@@ -82,6 +82,7 @@ the report documents a workaround (delete `sheet.hash`), so it does not stop the
 No browser, Vite build, Blender, e2e or full vitest was run.
 
 ## Polish
+- P1-P3 done (this commit).
 - **P1 (do with the framing pass): the sheet hash misses the code the page runs.** `guardBakePlan.mjs:385`
   `SHEET_FILES` covers only the sheet's own four files. Extend it with:
   - `vite.operators.config.ts`;

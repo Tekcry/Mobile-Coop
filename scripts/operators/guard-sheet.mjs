@@ -24,6 +24,14 @@ const KIT_DEFAULT = path.join(ROOT, 'scripts', 'operators', 'data', 'guards.json
 const CONFIG = path.join(ROOT, 'vite.operators.config.ts');
 const log = (s) => console.info(`guard-sheet: ${s}`);
 
+/** Rejects after `ms` naming `what` (the page-ready wait and each tile's render), so a texture that never readies cannot hang the run. */
+const TILE_TIMEOUT_MS = Number(process.env.GUARD_SHEET_TILE_TIMEOUT_MS) > 0 ? Number(process.env.GUARD_SHEET_TILE_TIMEOUT_MS) : 60000;
+function withTimeout(promise, what, ms = TILE_TIMEOUT_MS) {
+  let timer;
+  const limit = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`timeout after ${ms / 1000} s: ${what}`)), ms); });
+  return Promise.race([promise, limit]).finally(() => clearTimeout(timer));
+}
+
 function fail(msg, code = 1) {
   console.error(`guard-sheet: ${msg}`);
   process.exit(code);
@@ -99,7 +107,7 @@ try {
   page.on('console', (m) => { if (m.type() === 'error' && !/404/.test(m.text())) errors.push(m.text().slice(0, 300)); });
   page.on('pageerror', (e) => errors.push(String(e).slice(0, 300)));
   await page.goto(`${BASE}/guards.html`);
-  const st = await page.evaluate(() => window.__guardsReady);
+  const st = await withTimeout(page.evaluate(() => window.__guardsReady), 'page ready (window.__guardsReady)');
   log(`renderer ${st.renderer}`);
   // the runtime's own verdict on each base (resolveGuardAsset: what the game would refuse)
   const refused = Object.entries(st.bases).filter(([b, x]) => !x.ok && status.ready.includes(b));
@@ -116,7 +124,7 @@ try {
   for (const t of lay.tiles) {
     if (t.tile.skip) continue;
     await page.setViewportSize({ width: t.tile.size[0], height: t.tile.size[1] });
-    const r = await page.evaluate((tile) => window.__guards.render(tile), t.tile);
+    const r = await withTimeout(page.evaluate((tile) => window.__guards.render(tile), t.tile), `tile ${t.tile.id}`);
     shots.set(t.tile.id, r.url);
     for (const x of r.notes) notes.push(`${t.tile.id}: ${x}`);
     if (++n % 10 === 0 || n === total) log(`  ${n} / ${total} tiles`);

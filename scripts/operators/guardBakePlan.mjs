@@ -382,7 +382,13 @@ const G4_JS = ['scripts/operators/guardAtlas.mjs', 'scripts/operators/guardGlb.m
 const LODS_FILES = [...G4_JS, 'scripts/operators/ktx2.mjs', 'scripts/operators/blender.mjs',
   ...['bake_lods.py', 'bake_guard.py', 'guard_lod_util.py', 'guard_skin.py', 'materials.py', 'common.py'].map((f) => `${PY_REL}/${f}`)];
 const CHECK_FILES = [...G4_JS, 'src/operators/guards/guardBudget.ts', 'src/operators/guards/guardKit.ts', 'src/operators/guards/gearMask.ts'];
-const SHEET_FILES = ['scripts/operators/guard-sheet.mjs', 'scripts/operators/guardSheetPlan.mjs', 'src/operators/lab/guardSheet.ts', 'guards.html'];
+// the sheet's own files plus the config that builds its page and the runtime modules the page imports (G4s check P1)
+const SHEET_FILES = ['scripts/operators/guard-sheet.mjs', 'scripts/operators/guardSheetPlan.mjs', 'src/operators/lab/guardSheet.ts', 'guards.html',
+  'vite.operators.config.ts',
+  ...['guardFigure', 'guardFigurePlugin', 'figure', 'lodPick', 'manifest', 'pose'].map((f) => `src/operators/runtime/${f}.ts`),
+  ...['guardAssets', 'gearMask', 'guardVariant', 'guardTints'].map((f) => `src/operators/guards/${f}.ts`),
+  ...['guardShield', 'guardHelmet', 'helmetDrops', 'enemyDefs', 'factions'].map((f) => `src/ai/${f}.ts`),
+  'src/player/characterRig.ts', 'src/vfx/nightVision.ts', 'src/operators/lab/labData.ts'];
 
 /** A base's kit slice for its lods / check hash: its entry, its heads, every piece its kinds use, the shared sections. */
 function g4Slice(nk, baseId) {
