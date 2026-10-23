@@ -562,8 +562,13 @@ export class World {
     const shadowChanged = rebuildShadows || (this.shadowKey !== '' && shadowKey !== this.shadowKey);
     this.shadowKey = shadowKey;
     this.lightRig.configure({ lights: q.realLights, shadow: q.shadow, volumetric: q.features.volumetrics, minimal: q.minimal, micro: !!this.voxels?.micro }, rebuildShadows);
-    // (LR14) the nearest lamps' character shadow maps (the shadow key above re-reads the materials' defines on a change)
-    this.charShadows?.configure(q.minimal ? 0 : q.shadow.charLamps, q.shadow.charTile);
+    // (LR14) the nearest lamps' character shadow maps (the shadow key above re-reads the materials' defines on a change).
+    // Their atlas is one more texture in every lit shader: the voxel level's micro-detail shader (`?voxels=1`) is full
+    // at 16 with its one flashlight shadow (`LightRig` MICRO_SHADOWS), so that path keeps the capsules
+    const csWas = !!this.charShadows?.on;
+    this.charShadows?.configure(q.minimal || this.voxels?.micro ? 0 : q.shadow.charLamps, q.shadow.charTile);
+    // (the lamp plugin's LAMP_CSHADOW define follows it: on the first apply too, the materials may have compiled already)
+    const csChanged = !!this.charShadows && this.charShadows.on !== csWas;
     if (rebuildShadows) this.sunSpec = '';
     this.setCasterMode(q.features.shadows === 'epic' ? 'voxel' : 'proxy');
     if (this.staticSun !== !!q.shadow.staticSun) {
@@ -576,7 +581,7 @@ export class World {
     this.setSunShadows(q.shadow);
     // (frozen materials keep the shader built for the old shadow maps - a stale light setup draws with unbound
     // uniform buffers: let every one re-read its lights once, then freeze it again)
-    if (shadowChanged) this.refreshMaterials();
+    if (shadowChanged || csChanged) this.refreshMaterials();
   }
 
   private shadowKey = '';

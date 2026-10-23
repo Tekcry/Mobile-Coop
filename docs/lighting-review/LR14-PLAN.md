@@ -66,9 +66,9 @@ or the partner throws a real silhouette across the floor and walls from the lamp
 ### 2.5 Budget
 - Textures per shader: +1 (`lampCsAtlas`) while on. Smooth default: the plugin's 5 + surface atlas 2 + env / BRDF +
   the moon's cascades + the cluster's 2 + 2 flashlight shadows; the GPU smoke counts the real maximum with the
-  `e2e-desktop` probe. Voxel micro detail (`?voxels=1`, 15 + 1 flashlight = 16 today): the flashlight pool drops to 0
-  while character shadows are on (`LightRig` `MICRO_SHADOWS` - 1), so the count stays 16. If the smooth default reads
-  17 the flashlight pool drops to 1 there too (decided from the smoke's number, logged in the report).
+  `e2e-desktop` probe (now also in `e2e-lightbake`, smooth Epic, guards alerted). Voxel micro detail (`?voxels=1`, a dev
+  path: 15 + 1 flashlight = 16 today) keeps the capsules (as built: the flashlight keeps its one shadow, which
+  `e2e-desktop` part 3 asserts). If the smooth default reads 17 the flashlight pool drops to 1 there.
 - GPU: per slot one depth pass over the characters in reach (instanced guard parts batch: about 20-40 draws per
   lamp), one tile copy; per pixel in a mapped lamp's light: 1 mat4 x vec4 and 4 texelFetch in place of up to 4
   capsule tests.

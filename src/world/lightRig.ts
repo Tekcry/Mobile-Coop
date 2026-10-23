@@ -314,9 +314,7 @@ export class LightRig {
     // (baked lamps: the pools only hold the moving lights - flashlights - and at most two of them cast shadows)
     if (this.baked) cfg = { ...cfg, lights: Math.min(cfg.lights, BAKED_POOL), shadow: { ...cfg.shadow, casters: Math.min(cfg.shadow.casters, BAKED_SHADOWS) } };
     // (every shadowed spot is a texture unit in every lit shader, used or idle: the largest one sets the pool)
-    // (LR14) character shadows take one texture unit in every lit shader (the lamp atlas): one shadowed spot less where
-    // the shader is full (micro detail)
-    if (cfg.micro) cfg = { ...cfg, shadow: { ...cfg.shadow, casters: Math.min(cfg.shadow.casters, MICRO_SHADOWS - (this.baked && cfg.shadow.charLamps > 0 ? 1 : 0)) } };
+    if (cfg.micro) cfg = { ...cfg, shadow: { ...cfg.shadow, casters: Math.min(cfg.shadow.casters, MICRO_SHADOWS) } };
     const same = !force && cfg.minimal === this.cfg.minimal && cfg.lights === this.cfg.lights && cfg.shadow.casters === this.cfg.shadow.casters && cfg.shadow.size === this.cfg.shadow.size && cfg.shadow.soft === this.cfg.shadow.soft;
     this.cfg = cfg;
     if (!this.bulbs || (same && this.pool.length + this.shadowPool.length > 0)) return;
