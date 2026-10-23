@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~13:55: laptop GPU s15 884b89c0 12/15. FAIL e2e-stealth-ai 'breaker' (walks to 0.29 m, circuit never relit) and
+e2e-sectorops:6 (master's panel / switch-bank cuts draw no guard): one suspected cause (S15 x master stealthSystems /
+lightsOut). sectorops:3 route timeout under load (x0.90; rerun). Log C:/NightShift/scratch/runs/guardais15-884b89c0/
+(laptop). Opus fix agent RUNNING on s15 (S15.md "Laptop fix (884b89c0)"). Then rerun stealth-ai + sectorops 3 / 6.
+
 ~13:40: laptop GPU s12 f14b93af 7/7 GREEN -> TRAIN-READY sent for train 25 (#200 -> #201 -> #202 -> #203 5ca7d45d ->
 #208 f14b93af). s15 884b89c0 run in progress (Test Runner, port 4189). Orchestrator: stack in train 25
 (origin/train/25 a8bb27ab, with #213), full laptop run, 4.74.0 on a pass; #218-#220 -> train 26.
