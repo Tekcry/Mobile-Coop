@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -405,5 +405,72 @@ describe('trainHold', () => {
     expect(trainHold([{ n: '46', sha: 'a', laptop: 'success' }, { n: '47', sha: 'b', laptop: '' }])).toEqual({ n: '47', sha: 'b', laptop: '' });
     expect(trainHold([{ n: '46', sha: 'a', laptop: 'failure' }])?.n).toBe('46'); // failed, still open: rerun or release pending
     expect(trainHold([{ n: '46', sha: 'a', laptop: 'pending' }])?.n).toBe('46');
+  });
+});
+
+describe('duplicates', () => {
+  const SHA = 'a8ff2d45d5054c0da3492d100771aecc3e4531af';
+  const W = 60 * 60_000;
+  const r = (min: number, tag: string, o: Record<string, unknown> = {}) => ({ id: idAt(min, tag), requester: 'A', kind: 'pr', sha: SHA, suites: ['e2e-coop', 'e2e-enemies'], ...o });
+  const bake = { kind: 'alone', set: 'guard-bake-all', suites: undefined, steps: ['node a.mjs --probe', 'node a.mjs --stage sheet'], env: { E2E_GPU: '1' } };
+
+  it('the same run from another requester or set, open and older, is the one kept', () => {
+    const o = r(30, 'o');
+    const n = r(10, 'n', { requester: 'B', set: 'mine', suites: ['e2e-enemies', 'e2e-coop'] });
+    expect([...duplicates([n, o], [], NOW, W)]).toEqual([[n.id, o.id]]);
+  });
+  it('a request equal to a claimed or running one never runs; the active one is never marked', () => {
+    const a = { ...r(30, 'a'), active: true };
+    const n = r(10, 'n');
+    expect([...duplicates([a, n], [], NOW, W)]).toEqual([[n.id, a.id]]);
+    expect(duplicates([{ ...r(5, 'b'), active: true }, a], [], NOW, W).size).toBe(0);
+  });
+  it('alone requests match on steps in order and env (the a8ff2d45 57-min bake, sent twice 34 s apart)', () => {
+    const first = r(1, 'first', bake);
+    const again = r(0, 'again', { ...bake, requester: 'Player Build', set: 'bake-2' });
+    expect(duplicates([first, again], [], NOW, W).get(again.id)).toBe(first.id);
+    expect(duplicates([first, r(0, 'swap', { ...bake, steps: [...bake.steps].reverse() })], [], NOW, W).size).toBe(0);
+    expect(duplicates([first, r(0, 'cpu', { ...bake, env: { E2E_GPU: '0' } })], [], NOW, W).size).toBe(0);
+  });
+  it('the real a8ff2d45 pair (pr e2e-enemies set gm-enemies-off, then the alone bake) is two different runs', () => {
+    const pr = r(1, 'pr', { requester: 'player-build', suites: ['e2e-enemies'], set: 'gm-enemies-off' });
+    const al = r(0, 'al', { requester: 'player-build', ...bake });
+    expect(duplicates([pr, al], [], NOW, W).size).toBe(0);
+  });
+  it('a different sha, kind or suite list is kept', () => {
+    const o = r(30, 'o');
+    expect(duplicates([o, r(10, 'n', { sha: 'b'.repeat(40) })], [], NOW, W).size).toBe(0);
+    expect(duplicates([o, r(10, 'n', { suites: ['e2e-coop'] })], [], NOW, W).size).toBe(0);
+    expect(duplicates([r(30, 'f', { kind: 'full', suites: undefined }), r(10, 'n', { kind: 'full', suites: undefined })], [], NOW, W).size).toBe(1);
+    expect(duplicates([r(30, 'f', { kind: 'full', suites: undefined }), r(10, 'n')], [], NOW, W).size).toBe(0);
+  });
+  it('a request done within the window is matched unless it was superseded or a duplicate itself', () => {
+    const n = r(5, 'n');
+    const done = (min: number, result: string) => ({ id: idAt(min + 20, 'd'), key: dupKey(r(0, 'x')), result, date: new Date(NOW - min * 60_000).toISOString() });
+    expect(duplicates([n], [done(30, 'failure')], NOW, W).get(n.id)).toBe(done(30, 'failure').id);
+    expect(duplicates([n], [done(30, 'success')], NOW, W).size).toBe(1);
+    expect(duplicates([n], [done(61, 'success')], NOW, W).size).toBe(0);
+    expect(duplicates([n], [done(10, 'superseded'), done(10, 'duplicate')], NOW, W).size).toBe(0);
+    expect(duplicates([n], [{ id: 'old', result: 'success', date: new Date(NOW).toISOString() }], NOW, W).size).toBe(0);
+  });
+  it('three equal open requests all point at the oldest', () => {
+    const [a, b, c] = [r(30, 'a'), r(20, 'b'), r(10, 'c')];
+    const m = duplicates([c, b, a], [], NOW, W);
+    expect(m.get(b.id)).toBe(a.id);
+    expect(m.get(c.id)).toBe(a.id);
+    expect(m.has(a.id)).toBe(false);
+  });
+});
+
+describe('yieldTo', () => {
+  const t = { sha: 'a'.repeat(40), n: '47' };
+  it('a run not yet in its suites / steps yields to the first pending train', () => {
+    expect(yieldTo({ kind: 'pr' }, false, [t])).toBe(t);
+    expect(yieldTo({ kind: 'alone' }, false, [t, { ...t, n: '48' }])).toBe(t);
+  });
+  it('never once started, without a train, or for a train rerun', () => {
+    expect(yieldTo({ kind: 'pr' }, true, [t])).toBeNull();
+    expect(yieldTo({ kind: 'full' }, false, [])).toBeNull();
+    expect(yieldTo({ kind: 'pr', trainRerun: true }, false, [t])).toBeNull();
   });
 });

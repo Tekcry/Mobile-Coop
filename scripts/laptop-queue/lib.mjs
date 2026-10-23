@@ -140,6 +140,56 @@ export function superseded(requests, isAncestor) {
 }
 
 /**
+ * What a request runs, as one string: sha, kind, train-rerun flag, suites (sorted) or steps (in order), env (sorted).
+ * Requester, set, note, jobs and pr do not count (two sessions asking for the same run on the same sha).
+ */
+export function dupKey(r) {
+  const env = Object.entries(r.env ?? {}).map(([k, v]) => `${k}=${v}`).sort();
+  const what = r.kind === 'alone' ? r.steps ?? [] : r.kind === 'pr' ? [...(r.suites ?? [])].sort() : [];
+  return JSON.stringify([r.sha, r.kind, Boolean(r.trainRerun), what, env]);
+}
+
+/** Done results that never ran: a request equal to one of these is not a duplicate of it. */
+const UNRUN = new Set(['superseded', 'duplicate']);
+
+/**
+ * Open requests that repeat another request: Map(id -> the id it duplicates). requests = the open ones plus the claimed
+ * or running ones (`active: true`, never marked themselves); recentDone = [{ id, key: dupKey, result, date }]. An open
+ * request R is a duplicate (same dupKey) of an active request, else of the oldest older open request, else of a request
+ * done within windowMs before now whose result is not superseded / duplicate. Different requesters and sets still match
+ * (player a8ff2d45, 2026-10-23: supersede only joins one requester's pr / full requests and never alone ones).
+ */
+export function duplicates(requests, recentDone, now, windowMs) {
+  const reqs = [...(requests ?? [])].sort(sortById);
+  const out = new Map();
+  const active = new Map();
+  const firstOpen = new Map();
+  for (const r of reqs) if (r.active && !active.has(dupKey(r))) active.set(dupKey(r), r.id);
+  const done = new Map();
+  for (const d of recentDone ?? []) {
+    if (!d?.key || UNRUN.has(d.result) || !(now - Date.parse(d.date) < windowMs)) continue;
+    if (!done.has(d.key)) done.set(d.key, d.id);
+  }
+  for (const r of reqs) {
+    if (r.active) continue;
+    const k = dupKey(r);
+    const by = active.get(k) ?? firstOpen.get(k) ?? done.get(k);
+    if (by) out.set(r.id, by); else firstOpen.set(k, r.id);
+  }
+  return out;
+}
+
+/**
+ * The train a non-train run gives its slot back to, or null: the first pending train head (pendingTrains non-empty)
+ * while the run (r = the request) has not started its suites or steps (started = false: lock wait, fetch, npm ci,
+ * build). A train rerun never yields (it runs at train priority).
+ */
+export function yieldTo(r, started, trains) {
+  if (started || r?.trainRerun || !(trains ?? []).length) return null;
+  return trains[0];
+}
+
+/**
  * Splits a job list into `bins` bins, longest first into the lighter bin. weights = suite -> seconds; a suite with no
  * time weighs the median of the known ones (1 when none are known). Deterministic: ties go by name, then the first bin.
  * Returns [{ suites, weight }].

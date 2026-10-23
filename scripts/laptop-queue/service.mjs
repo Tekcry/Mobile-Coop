@@ -17,6 +17,11 @@
 // atomic push) before it runs and marked done after, so the two workers never run the same request or train.
 // Supersede: an open pr / full request is marked done unrun when the same requester has a newer one (same set, or an
 // ancestor sha with overlapping suites); pick runs a requester's newest request first (lib.mjs superseded, pick).
+// Duplicates (Orchestrator audit 2026-10-24): an open request that runs exactly what another request runs (lib dupKey:
+// sha, kind, suites or steps, env; any requester or set) is marked done unrun as "duplicate of <id>" when that one is
+// open (older), claimed or running, or done here within LQ_DUP_WINDOW_MIN (60) min without being superseded / a duplicate.
+// Yield: a pr / full / alone run that has not started its suites or steps (lock wait, fetch, npm ci, build) while a train
+// head is pending gives its slot back (locks released, claim dropped, request stays queued; lib yieldTo).
 // Task guard (Michael 2026-10-24 07:13, after 87 stale NightShift-chain-* one-shots fired at 23:59 and held the slot
 // locks): at start and every LQ_TASK_GUARD_MIN (10; 0 = off) min, disables (never stops, kills or deletes) each stale
 // scheduled task (lib staleTasks; allowlist + env LQ_TASK_ALLOW, a comma list) and pushes alerts/<ts>-<worker>-tasks.json to the
@@ -25,7 +30,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { assertKey, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity } from './lib.mjs';
+import { assertKey, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -51,6 +56,7 @@ const TRAIN_GRACE_MS = 2 * 60_000; // a live idle laptop claims a new train head
 const TRAIN_SOLO_MS = Number(process.env.LQ_TRAIN_SOLO_MIN ?? 10) * 60_000;
 const POLL_MS = 30_000;
 const FLAKE_WINDOW_MS = 24 * 3600_000;
+const DUP_WINDOW_MS = Number(process.env.LQ_DUP_WINDOW_MIN ?? 60) * 60_000;
 const argv = process.argv.slice(2);
 const ONCE = argv.includes('--once');
 const DRY = argv.includes('--dry-run');
@@ -121,6 +127,8 @@ const badSeen = new Set();
 const doneElsewhere = new Set();
 /** claims/ files on the branch at the last listRequests (0: the laptop has not marked its old requests done yet). */
 let claimCount = 0;
+/** Requests the other worker holds an open claim on (claimed or running there), from the last listRequests. */
+let otherActive = [];
 
 function listRequests() {
   git(['fetch', '-q', 'origin'], { soft: true });
@@ -128,13 +136,18 @@ function listRequests() {
   const claims = new Set(git(['ls-tree', '--name-only', 'origin/laptop-queue', 'claims/'], { soft: true }).split('\n').filter(Boolean).map((n) => path.basename(n, '.json')));
   claimCount = claims.size;
   const out = [];
+  otherActive = [];
   for (const n of names) {
     const id = path.basename(n, '.json');
     if (state.done[id] || badSeen.has(id) || doneElsewhere.has(id)) continue;
     if (claims.has(id) && !claimed.has(id)) {
       const c = parseClaim(git(['show', `origin/laptop-queue:claims/${id}.json`], { soft: true }));
       if (c?.done) { doneElsewhere.add(id); continue; }
-      if (claimBlocks(c, WORKER, Date.now(), CLAIM_MAX_MS)) continue;
+      if (claimBlocks(c, WORKER, Date.now(), CLAIM_MAX_MS)) {
+        // kept for the duplicate check only (a new request equal to a run on the other worker never runs twice)
+        try { const o = JSON.parse(git(['show', `origin/laptop-queue:${n}`])); if (!requestProblem(o)) otherActive.push(o); } catch { /* unreadable */ }
+        continue;
+      }
     }
     let r;
     try { r = JSON.parse(git(['show', `origin/laptop-queue:${n}`])); } catch { r = null; }
@@ -387,9 +400,10 @@ const heldLocks = new Set();
  * no other service runs) and is deleted; any other holder (a manual run) is waited on, logged once per holder line,
  * and the wait in minutes is logged when the lock is finally taken (a long wait on a stale manual lock looked hung).
  * `once`: a single try, null when the slot is held (the wait log state carries over between tries, per port).
+ * `stop`: checked during a wait; when it returns truthy the wait ends with null (the run yields to a train).
  */
 const lockWait = {}; // port -> { from, on }: the current wait, kept across `once` tries
-async function takeLock(port, label, sha, { once = false } = {}) {
+async function takeLock(port, label, sha, { once = false, stop } = {}) {
   const line = `laptop-queue | ${label} ${sha.slice(0, 8)} pid ${process.pid} | ${new Date().toISOString()}`;
   const w = (lockWait[port] ??= { from: 0, on: '' });
   for (;;) {
@@ -411,6 +425,7 @@ async function takeLock(port, label, sha, { once = false } = {}) {
       if (have !== w.on) { w.on = have; log(`${port} waiting on ${have.startsWith('laptop-queue |') ? 'own run' : 'manual lock'}: ${have}`); }
       w.from ||= Date.now();
       if (once) return null;
+      if (stop?.()) { delete lockWait[port]; return null; }
       await sleep(15_000);
     }
   }
@@ -424,8 +439,9 @@ function releaseLock(port, line) {
  * Fetch (one retry), clean, detach at sha, npm ci when needed, build. Returns 'ok' | 'fetch' (fetch failed twice: skip
  * this pass, not a verdict) | 'nosha' | 'build'. npm ci runs when node_modules is missing or package-lock.json differs
  * (beyond its version lines) from the text saved after this slot's last SUCCESSFUL npm ci, so a failed one is retried.
+ * `stop` (a request run): checked before npm ci and before the build; truthy returns 'yield'.
  */
-async function prepare(port, sha, logFile) {
+async function prepare(port, sha, logFile, stop) {
   const cwd = SLOTS[port].dir;
   let fetched = false;
   for (let i = 0; i < 2 && !fetched; i++) {
@@ -439,10 +455,12 @@ async function prepare(port, sha, logFile) {
   let lockInstalled = null;
   try { lockInstalled = fs.readFileSync(file(`npm-ci-${port}.lock.json`), 'utf8'); } catch { /* never installed by the service */ }
   if (!fs.existsSync(path.join(cwd, 'node_modules')) || lockInstalled === null || lockChanged(lockInstalled, lockNow)) {
+    if (stop?.()) return 'yield';
     if (await sh('npm ci', { cwd, logFile }) !== 0) return 'build';
     fs.mkdirSync(STATE_DIR, { recursive: true });
     fs.writeFileSync(file(`npm-ci-${port}.lock.json`), lockNow);
   }
+  if (stop?.()) return 'yield';
   return (await sh('npm run build', { cwd, logFile })) === 0 ? 'ok' : 'build';
 }
 
@@ -516,6 +534,11 @@ function finish(job, ctx, result, runDir, prNumber) {
 // ---------- the runs ----------
 
 const claimed = new Set();
+/** Requests claimed or running here (id -> request), for the duplicate check. */
+const activeReqs = new Map();
+/** The train heads the last pass saw pending (desktop: those it may take); trainsNow() drops the ones claimed since. */
+let pendingNow = [];
+const trainsNow = () => pendingNow.filter((t) => !claimed.has(t.sha));
 
 async function runTrain(train, ports = PORTS) {
   const id = `train-${train.n}-${train.sha.slice(0, 8)}`;
@@ -600,8 +623,21 @@ async function runRequest(r, port) {
   log(`${r.id}: ${r.kind} on ${port}`);
   const ports = r.kind === 'alone' ? PORTS : [port];
   const locks = {};
+  // yield: a pending train head takes the slot back until the suites / steps start (lib yieldTo)
+  let yielded = null;
+  const stop = () => (yielded ??= yieldTo(r, false, trainsNow()));
+  let posted = false;
+  const giveBack = () => {
+    log(`${r.id}: yields to train ${yielded.n}`);
+    if (posted) postStatus(r.sha, 'pending', ctx, `queued, yielded to train ${yielded.n}`);
+    writeClaims([r.id], 'release', `release ${r.id} (yields to train ${yielded.n})`);
+    claimed.delete(r.id);
+  };
   try {
-    for (const p of ports) locks[p] = await takeLock(p, r.id, r.sha);
+    for (const p of ports) {
+      locks[p] = await takeLock(p, r.id, r.sha, { stop });
+      if (!locks[p] || stop()) return giveBack();
+    }
     // fresh `at`: a long lock wait never looks like a dead worker; if the other worker took it over meanwhile, back off
     if (writeClaims([r.id], 'claim', `claim ${r.id} (lock taken)`) === 'blocked') {
       log(`${r.id}: taken over by the other worker during the lock wait, dropped`);
@@ -609,7 +645,9 @@ async function runRequest(r, port) {
       return;
     }
     postStatus(r.sha, 'pending', ctx, 'running');
-    const prep = await prepare(ports[0], r.sha, path.join(runDir, 'prepare.log'));
+    posted = true;
+    const prep = await prepare(ports[0], r.sha, path.join(runDir, 'prepare.log'), stop);
+    if (prep === 'yield' || (prep === 'ok' && stop())) return giveBack();
     if (prep === 'fetch') {
       // not a verdict and not done: the claim is dropped and the next pass takes it again
       postStatus(r.sha, 'pending', ctx, 'fetch failed, retrying');
@@ -658,9 +696,10 @@ async function runRequest(r, port) {
     state.done[r.id] = { result: ok ? 'success' : 'failure', wall: result.wall, date: new Date().toISOString() };
   } finally {
     for (const p of ports) { if (locks[p]) releaseLock(p, locks[p]); freePort(p); }
+    if (state.done[r.id]) state.done[r.id].key = dupKey(r); // the duplicate check reads it for LQ_DUP_WINDOW_MIN
     writeJson('state.json', state);
     if (state.done[r.id] && writeClaims([r.id], 'done', `done ${r.id}`) === true) doneSynced.add(r.id);
-    log(`${r.id}: done`);
+    if (!yielded) log(`${r.id}: done`);
   }
 }
 
@@ -685,12 +724,13 @@ function dispatch(p) {
   claimed.add(p.request.id);
   const ports = p.kind === 'alone' ? PORTS : [p.slot];
   if (DRY) { log(`dry-run: would run ${p.request.id} (${p.request.kind}, ${p.request.suites ?? p.request.steps ?? 'full'}) on ${ports.join('+')}`); return Promise.resolve(); }
+  activeReqs.set(p.request.id, p.request);
   const run = runRequest(p.request, p.slot ?? PORTS[0]).catch((e) => {
     log(`${p.request.id} service error: ${e.stack ?? e.message}`);
     postStatus(p.request.sha, 'error', contextName(p.request.kind, p.request.set, p.request.suites), 'service error, see log');
     writeClaims([p.request.id], 'release', `release ${p.request.id}`);
     claimed.delete(p.request.id);
-  });
+  }).finally(() => activeReqs.delete(p.request.id));
   ports.forEach((x) => { busy[x] = run; });
   return run;
 }
@@ -752,6 +792,29 @@ function applySupersedes(requests) {
 }
 
 /**
+ * Marks open requests that repeat another request done as duplicates (no run, no status) in one push and drops them
+ * (lib duplicates): against the open ones, the ones claimed or running here or on the other worker, and the ones done
+ * here within LQ_DUP_WINDOW_MIN. A lost push is retried next pass.
+ */
+function applyDuplicates(requests) {
+  const recent = Object.entries(state.done).filter(([, d]) => d?.key).map(([id, d]) => ({ id, key: d.key, result: d.result, date: d.date }));
+  const active = [...activeReqs.values(), ...otherActive].map((r) => ({ ...r, active: true }));
+  const dup = duplicates([...requests, ...active], recent, Date.now(), DUP_WINDOW_MS);
+  if (dup.size === 0) return requests;
+  const ids = [...dup.keys()];
+  const date = new Date().toISOString();
+  if (!DRY && writeClaims(ids, 'done', `duplicate ${ids.length} request(s)`) !== true) { log(`duplicate push failed for ${ids.length} request(s), retried next pass`); return requests; }
+  for (const [id, by] of dup) {
+    log(`${id}: duplicate of ${by}`);
+    if (DRY) continue;
+    state.done[id] = { result: 'duplicate', by, date };
+    doneSynced.add(id);
+  }
+  writeJson('state.json', state);
+  return requests.filter((r) => !dup.has(r.id));
+}
+
+/**
  * Desktop: the train heads it may take now and why none ('' when it may), from the laptop's claim pushes on the branch
  * (desktopTrainGate; pendingTrains only runs while the laptop is silent).
  */
@@ -770,16 +833,18 @@ async function pass() {
   const requests = listRequests().filter((r) => !claimed.has(r.id));
   const dt = DESKTOP ? desktopTrains() : null;
   const queue = { trains: DESKTOP ? dt.trains : pendingTrains().filter((t) => !claimed.has(t.sha)), requests };
+  pendingNow = queue.trains; // runs still before their suites / steps yield to these
+  // done marks first: a claim (which tells the desktop the laptop is on claims) never lands before them
+  if (!syncDone() && !DRY) { log('done claims not pushed: no new requests this pass (trains need a claim push too)'); queue.requests = []; }
+  // supersede and duplicates on the full list (before the alone hold and the desktop's pr filter); the desktop waits for
+  // claims on the branch like its gate does
+  else if (!(DESKTOP && claimCount === 0)) queue.requests = applyDuplicates(applySupersedes(queue.requests));
   // alone runs wait while any open train lacks a laptop-e2e success (trains and their reruns first; CLAUDE.md laptop order)
   if (!DESKTOP && aloneHold && queue.requests.some((r) => r.kind === 'alone')) {
     const key = `${aloneHold.n} ${aloneHold.sha} ${aloneHold.laptop}`;
     if (key !== aloneHoldLogged) { aloneHoldLogged = key; log(`alone requests held: train ${aloneHold.n} ${String(aloneHold.sha).slice(0, 8)} open, laptop-e2e ${aloneHold.laptop || 'none'}`); }
     queue.requests = queue.requests.filter((r) => r.kind !== 'alone');
   } else if (!aloneHold) aloneHoldLogged = '';
-  // done marks first: a claim (which tells the desktop the laptop is on claims) never lands before them
-  if (!syncDone() && !DRY) { log('done claims not pushed: no new requests this pass (trains need a claim push too)'); queue.requests = []; }
-  // supersede on the full list (before the desktop's pr filter); the desktop waits for claims on the branch like its gate does
-  else if (!(DESKTOP && claimCount === 0)) queue.requests = applySupersedes(queue.requests);
   const desktopWait = {};
   if (DESKTOP) {
     const backlog = queue.requests.length;
