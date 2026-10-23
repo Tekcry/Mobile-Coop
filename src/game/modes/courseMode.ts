@@ -746,11 +746,15 @@ export class CourseMode implements GameMode {
     const x = dv ? dv.x : 0;
     const z = dv ? dv.z : 0;
     const s = this.g.stealth;
-    if (s) s.isolate(gid, on, x, z);
-    else {
-      this.g.world.level.lights.setGroup(gid, on);
-      if (!on) this.g.enemyMgr?.lightsOut(x, z);
+    this.g.world.level.lights.setGroup(gid, on);
+    if (s) {
+      s.syncGroup(gid, on);
+      this.g.events.emit('lightSwitch', { on });
     }
+    // (S-merge-fix) the lure names the circuit, as a wall switch does: guard-ai S2's light incident goes to the guards
+    // who saw its lamps go out (a pair within `lightPairR`). Without the group only a guard who saw the cabinet itself
+    // counted (`StealthSystems.isolate` passes none), so A2's shunter under the neck was never sent.
+    if (!on) this.g.enemyMgr?.lightsOut(x, z, Number.NaN, -1, gid);
     this.dirty = true;
   }
 

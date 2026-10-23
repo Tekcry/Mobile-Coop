@@ -62,6 +62,10 @@ export async function walk(t, n) {
   const lockedOnClient = async (cid) => GB((i) => window.__course.wire.locks.includes(i), await doorIndex(cid));
   /** A page's baked light level for a body of height h at (x, z) (the same field the meter and the guards read). */
   const level = (P, x, z, h = 1.7) => P.evaluate(([x, z, h]) => window.__app.current.world.lightField?.bodyLevel(x, 0, z, h) ?? -1, [x, z, h]);
+  /** (S-merge-fix) The lamps' part of `level` only: the baked field at `bodyLevel`'s chest and head samples, without the flashlights
+   *  (`dynamicAt`). Since guard-ai S2 a cut circuit sends the loaders who saw it go (a pair within `INCIDENT.lightPairR`), torches on in the
+   *  dark, and the dock spot between their posts sits in a beam: the full level reads lit there (0.991) with every floor lamp off. */
+  const lampLevel = (P, x, z, h = 1.7) => P.evaluate(([x, z, h]) => { const f = window.__app.current.world.lightField; return f ? Math.max(f.levelAt(x, h * 0.6, z), f.levelAt(x, h * 0.95, z)) : -1; }, [x, z, h]);
   const hasFlag = (f) => GA((f) => window.__course.state.hasFlag(f), f);
   const claimed = () => GA(() => window.__course.state.roleClaimed());
   const gateOpen = (id) => GA((id) => window.__course.state.isGateOpen(id), id);
@@ -151,10 +155,11 @@ export async function walk(t, n) {
   await until(B, () => window.__course.wire.lights.groups.some(([g, on]) => g === 41 && !on), null, 15000, "A4: the client's course message has group 41 off");
   assert((await lampsOn(A, FLOOR_GROUP, false)) && (await lampsOn(B, FLOOR_GROUP, false)), 'A4: the eight floor lamps are off on both pages');
   for (const [x, z, what] of [[92, 39.8, 'the main aisle'], [80, 33, 'the dock']]) {
-    const [la, lb] = [await level(A, x, z), await level(B, x, z)];
-    assert(la <= 0.24 && lb <= 0.24 && Math.abs(la - lb) < 0.02, `A4: ${what} reads dark and the same on both pages with the floor circuit cut (host ${la.toFixed(3)}, client ${lb.toFixed(3)})`);
+    const [la, lb] = [await lampLevel(A, x, z), await lampLevel(B, x, z)];
+    const full = `full ${(await level(A, x, z)).toFixed(3)} / ${(await level(B, x, z)).toFixed(3)}, ${await GA(() => window.__app.current.enemyMgr.torchesOn)} torches on`;
+    assert(la <= 0.24 && lb <= 0.24 && Math.abs(la - lb) < 0.02, `A4: ${what}'s lamps read dark and the same on both pages with the floor circuit cut (host ${la.toFixed(3)}, client ${lb.toFixed(3)}; ${full})`);
   }
-  // the lured guard (D1: the nearest calm guard within 25 m) walks towards the switch
+  // the lured guards (since guard-ai S2 the loaders who saw the floor lamps go out: D1 and D2, a pair) walk towards the switch
   await until(A, ([sx, sz, d0]) => { const e = window.__course.squadOf('a4-dock1'); if (!e || !e.alive) return false; const d = Math.hypot(e.pos.x - sx, e.pos.z - sz); return d < 1.6 || d < d0 - 1.2; }, [SWITCH[0], SWITCH[1], d0], 30000, 'A4: D1 walks to the floor switch');
   assert(await GA(() => window.__course.restartCheckpoint()), 'A4: the host restarts at the checkpoint');
   const cp = await GA(() => { const p = window.__course.checkpointPos(); return [p.x, p.z]; });
