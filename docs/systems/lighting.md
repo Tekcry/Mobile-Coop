@@ -103,7 +103,10 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
 ## Baked lamps (3.2)
 - `voxel/lampBake.ts` (pure, in the voxel workers): per fixed light (`bakedLights(reg)`: every kind but flashlight) a box
   over its reach of `LAMP_CELL` 0.2 m cells: the share of the fixture's sample points each air cell sees through
-  conservative occupancy; solid cells take their brightest air neighbour. `packLampAtlas` / `fillLampAtlas`, `lampGrid` (2 m
+  conservative occupancy; solid cells take their brightest air neighbour. (LR16-L) The box's cell planes run through the
+  light point (`lampBox`), so a lamp hung up to a cell under its mount sits under the mount's solid row and never shadows
+  itself from it (walk 4.82 item 8: the toothed dark band on upper walls); `tests/lampBoxAlign.test.ts` audits every map
+  for lamps inside their mount (known data errors listed there). `packLampAtlas` / `fillLampAtlas`, `lampGrid` (2 m
   columns, <= 8 lights each, nearest first; a cone light only in the columns its beam reaches, `lampPlanReach` /
   `lampColumnDist`: radius x sin(its widest angle from straight down) and the cone's plan box, lossless since the
   formula is 0 outside the outer angle; sector-fixes L). `voxel/lampJobs.ts` `bakeLevelLamps` splits the lights across the `WorkerPool`
