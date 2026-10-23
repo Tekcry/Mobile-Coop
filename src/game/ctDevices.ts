@@ -907,8 +907,8 @@ export class CtDevices {
   /**
    * (marlow-jammer fix round 1, Michael item 5) The camera hallway's hard rule (`hallStep`): a player its camera has
    * while in the hallway (or still running in the far lobby) goes back to the entry lobby's spot. The host moves its
-   * own player; the client's goes through the co-op layer (`sendBack`: a `back` event). Being seen also raises the
-   * alarm stage as everywhere (both kept: the simpler choice).
+   * own player; the client's goes through the co-op layer (`sendBack`: a `back` event). A hall camera raises no alarm
+   * stage and no guard alert (marlow-walk482 X6, `onCamera`): the send-back is the only cost.
    */
   private stepHall(z: number, zone: PassZone, hall: HallRule, refs: PlayerRef[], n: number, dt: number): void {
     const cam = this.hallCam[z] ?? null;

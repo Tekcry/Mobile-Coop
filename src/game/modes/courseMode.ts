@@ -98,6 +98,8 @@ function drawMarker(g: GameState, st: CourseState, lay: CourseLayout, me: Player
 
 /** Lateral offset (m, along z) of P2 from the middle of an entry airlock at a bay-N start. */
 const P2_START_DZ = 1.2;
+/** (marlow-walk482 X2a) s after a set restart before the spotted rule can fire again (0.5 s respawn + co-op lag). */
+const SPOT_HOLD = 1.5;
 
 /**
  * Where player `p` starts at bay `n` (1-based, D20): the middle of that bay's entry airlock (P2 beside P1), or null for
@@ -155,6 +157,8 @@ export class CourseMode implements GameMode {
   private sendT = 0;
   private dirty = true;
   private restartT = -1;
+  /** (marlow-walk482 X2a) seconds left in which the spotted rule cannot fire again after a set restart */
+  private spotHold = 0;
   private lightsVer = -1;
   private feed: CourseFeed | null = null;
   /** The remote's host-visible verbs (its MoveState mode, C10). */
@@ -573,8 +577,11 @@ export class CourseMode implements GameMode {
     // both players back to the checkpoint; the client hears the line through `rl`). Once: the restart drops the squad
     // this step (`handle`), and never over a pending everyone-down restart. The line goes first in the queue so a
     // full queue of lines held while the guard was alerted never drops it.
+    // A hold after any set restart covers the respawn wait (players still where they were seen) and co-op lag, so a
+    // fresh guard cannot fail the set again before both players are back (W482 check should-fix 1).
+    if (this.spotHold > 0) this.spotHold -= dt;
     const sf = st.currentBay.spotFail;
-    if (sf && !st.over && this.restartT < 0 && spotFailed(st.currentBay, this.squad)) {
+    if (sf && !st.over && this.restartT < 0 && this.spotHold <= 0 && spotFailed(st.currentBay, this.squad)) {
       this.radioQ.unshift(sf);
       if (this.radioQ.length > 4) this.radioQ.length = 4;
       this.restartCheckpoint();
@@ -677,6 +684,7 @@ export class CourseMode implements GameMode {
       case 'bayRestart':
         this.restartT = -1;
         this.restarts++;
+        this.spotHold = SPOT_HOLD;
         // (section-rating S6, A8) the set's rating stats start again; a set already rated is never re-rated, and a grant
         // already given stays (the course has no checkpoint loadout to put back)
         this.rating?.begin(st.bay, st.stats[st.bay]!);
