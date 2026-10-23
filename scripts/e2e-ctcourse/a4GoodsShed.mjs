@@ -62,6 +62,10 @@ export async function walk(t, n) {
   const lockedOnClient = async (cid) => GB((i) => window.__course.wire.locks.includes(i), await doorIndex(cid));
   /** A page's baked light level for a body of height h at (x, z) (the same field the meter and the guards read). */
   const level = (P, x, z, h = 1.7) => P.evaluate(([x, z, h]) => window.__app.current.world.lightField?.bodyLevel(x, 0, z, h) ?? -1, [x, z, h]);
+  /** The lamps' part of it only (ambient, moon, baked lamps; no guard torches): bodyLevel's chest and head samples without `dynamicAt`.
+   *  (S-e2e-fix4) Since guard-ai's coordinated lights-out both dock loaders see the floor circuit go and check it with their
+   *  torches on, at the dock: the host's field has them at once, the client's mirror a snapshot later (`torchMirror.ts`). */
+  const lampLevel = (P, x, z, h = 1.7) => P.evaluate(([x, z, h]) => { const f = window.__app.current.world.lightField; return f ? Math.max(f.levelAt(x, h * 0.6, z), f.levelAt(x, h * 0.95, z)) : -1; }, [x, z, h]);
   const hasFlag = (f) => GA((f) => window.__course.state.hasFlag(f), f);
   const claimed = () => GA(() => window.__course.state.roleClaimed());
   const gateOpen = (id) => GA((id) => window.__course.state.isGateOpen(id), id);
@@ -151,7 +155,7 @@ export async function walk(t, n) {
   await until(B, () => window.__course.wire.lights.groups.some(([g, on]) => g === 41 && !on), null, 15000, "A4: the client's course message has group 41 off");
   assert((await lampsOn(A, FLOOR_GROUP, false)) && (await lampsOn(B, FLOOR_GROUP, false)), 'A4: the eight floor lamps are off on both pages');
   for (const [x, z, what] of [[92, 39.8, 'the main aisle'], [80, 33, 'the dock']]) {
-    const [la, lb] = [await level(A, x, z), await level(B, x, z)];
+    const [la, lb] = [await lampLevel(A, x, z), await lampLevel(B, x, z)];
     assert(la <= 0.24 && lb <= 0.24 && Math.abs(la - lb) < 0.02, `A4: ${what} reads dark and the same on both pages with the floor circuit cut (host ${la.toFixed(3)}, client ${lb.toFixed(3)})`);
   }
   // the lured guard (D1: the nearest calm guard within 25 m) walks towards the switch
