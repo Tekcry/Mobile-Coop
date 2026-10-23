@@ -99,3 +99,11 @@ rejoin 12, sectorLampSync 11, sectorStep3 7.
   gadget top-up happens at the rating (connector unload), the host's at the next section's begin (a few seconds apart);
   a client rejoining after a rating gets no second top-up. A rejoined client's results list starts at the last rating
   before it rejoined (earlier sections are not resent). Not run: any e2e.
+
+## S7 report (2026-10-23 13:12)
+Built `scripts/e2e-section-rating.mjs` (not in the runner's suite list; the lead adds it at the merge). No src edits, no hooks added.
+- Solo (warehouseOps, 4 guards): section 1 clean -> `.rating-card` with 4 `.rc-row.ok` and a `.rc-grant` line, hides by itself (~4.1 s wall after first read), `__sectionRating.last.marks` 15; section 2 with a `killOutright` -> No kills `.rc-row.miss` (marks 13); extraction: no card, results show 3 `ul.rs-sections li` lines.
+- Co-op (two pages): a synced KO pair (host 'local' + client id, one host step) -> stats synced 1, "Synced x1" on both cards, a syringe in both cards' grant text; client gadgets (emptied first) topped up once (2 of a 2-charge grant, unchanged 3 s later); host revive cap 2 -> 4 (= lastGrant.syringe) as section 2 begins; rejoin via the main-menu Rejoin: no card, ratingSeq 0, revive cap unchanged.
+- Run: `E2E_GPU=1 E2E_JOBS=1 E2E_PORT=4191 node scripts/run-e2e.mjs e2e-section-rating`: pass, 46 s.
+- NEEDS HOOK: a real client takedown (the client's own press carried to the host) has no test hook; the pair is fed to the host's `Enemy.knockOut` with attackerId 'local' and the client's id. No hook for the client's gadget top-up on a rejoined page (its kit rebuilds at the starting carry), so the rejoin check is card hidden + ratingSeq 0 + host cap unchanged.
+- Observed (not asserted): the co-op grant read +2 syringes (No alarms + one synced pair); the host's section-1 rating was 3/4 because the KO'd bodies were found (bodiesFound 1).
