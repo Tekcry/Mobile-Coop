@@ -151,6 +151,11 @@ export class Doors {
   /** Leaf matrix at its current swing. */
   private write(d: DoorState): void {
     const a = d.anchor;
+    // (marlow-final kit) a sliding door's leaves are the facility kit's (world/kit/kitRender.ts): no hinged leaf drawn
+    if (a.leaf === 'slide') {
+      this.buf!.fill(0, d.index * 16, d.index * 16 + 16);
+      return;
+    }
     const yaw = a.yaw + a.swing * DOOR.openAngle * leafFraction(d);
     Quaternion.RotationYawPitchRollToRef(yaw, 0, 0, this.q);
     const w = a.width - 0.04;

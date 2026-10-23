@@ -121,6 +121,9 @@ export interface Door extends AnchorBase {
   /** (sector-redesign cap fix) Sector Ops: the section whose map file built it (its door item is mirrored to co-op
    *  clients only while that section is live, `Interactables.scope`); none: always. */
   section?: number;
+  /** (marlow-final kit) How the leaf is drawn: the hinged leaf (default) or none ('slide': the facility kit draws two
+   *  sliding leaves from the same open state; collision, light, sight and sound are the hinged door's, unchanged). */
+  leaf?: 'swing' | 'slide';
 }
 
 /** A zipline from `a` (high end) to `b`, at the cable. */
