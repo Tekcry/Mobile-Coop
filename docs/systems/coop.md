@@ -106,10 +106,13 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 - Guard-ai state (guard-ai S9, protocol 41 (39 before the train 30 merge, 38 before the train 29 merge, 37 before the train 28 merge, 32 before 4.75.0); the AI stays host-only):
   - `al` gains `AL_CAUTION` 16 (S4 / S14 caution), `AL_HELMET` 32 and `AL_ARMOUR` 64 (S12 / S13 gear), packed by
     `packAlert(level, seized, torch, cautious, helmet, armour, carry)` (`coopHost.alertCode`); the parser clamps `al`
-    to 0-511. (A126) Bits 7-8 (`AL_CARRY`) are the guard's S21 weapon carry (`WIRE_CARRY_*`: 0 drawn, 1 holstered,
+    to 0-`AL_MAX`. (A126) Bits 7-8 (`AL_CARRY`) are the guard's S21 weapon carry (`WIRE_CARRY_*`: 0 drawn, 1 holstered,
     2 drawing, 3 holstering; the host's `Enemy.carry.phase` through `wireCarry`); `EnemyPuppet` follows it with
     `net/puppetCarry.ts` `PuppetCarry` (the clips on its own clock at the host's times) and poses the gun and rig through
     the host's `GuardGunCarry`, `RigPose.ready` / `swap` and `carryRaise`.
+  - (guard-models G6n) Bits 9-15 (`AL_LOOK`, `packAlert`'s last argument, read with `alertLook`; `AL_MAX` is now
+    65535) carry the guard's look seed `Enemy.look` (0-127, `ai/guardLook.ts`: set once at spawn from his
+    spawn slot, so a section restart keeps every slot's look), which `EnemyPuppet.look` exposes for the guard figure.
   - `bark` event: `{ id, b, n, u, r, t? }`. The host wraps `EnemyManager.onBark` / `onCameraLine`
     (`CoopHost.hookCombat`): a table line goes as `b` = its `BARK_EVENTS` index, `n` = `BarkVoice.lastLine`, `u` = the
     unit it names; a talking pair's line as `BARK_TEXT` 255 and the desk's camera line as `BARK_CAM` 254 with the text

@@ -200,6 +200,10 @@ export class Enemy implements Damageable {
    *  perception, not combat. */
   readonly rng = new Rng(Math.imul(this.num, 2654435761));
   readonly id = `e${this.num}`;
+  /** (guard-models G6n, M3) His 7-bit look seed (0-127, `guardLook.ts`): set once by `EnemyManager` at spawn from his
+   *  spawn slot (never from `num`), so a section restart gives the slot the same look; a woken guard keeps it
+   *  (`inherit`). Co-op: sent in the enemy `al` (`AL_LOOK`). */
+  look = 0;
   readonly team = 'enemy' as const;
   readonly health: Health;
   readonly pos: Vector3;
@@ -761,6 +765,7 @@ export class Enemy implements Damageable {
    */
   inherit(o: Enemy, downFor = 0): void {
     this.key = o.key;
+    this.look = o.look;
     this.squad = o.squad;
     this.hold = o.hold;
     this.passive = o.passive;

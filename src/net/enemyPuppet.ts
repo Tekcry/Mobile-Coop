@@ -11,7 +11,7 @@ import type { DamageRegistry, Damageable, DamageResult, HitInfo } from '../game/
 import type { TakedownVictim } from '../game/takedownController';
 import type { World } from '../world/world';
 import { SnapshotBuffer } from './interp';
-import { AL_ARMOUR, AL_CAUTION, AL_HELMET, AL_TORCH, alertCarry, type EnemyState } from './protocol';
+import { AL_ARMOUR, AL_CAUTION, AL_HELMET, AL_TORCH, alertCarry, alertLook, type EnemyState } from './protocol';
 import type { TorchHolder } from './torchMirror';
 import type { GuardInfo } from '../ai/guardInfo';
 import { hyp2 } from '../core/mathx';
@@ -101,6 +101,9 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
   private gunCarry: GuardGunCarry | null = null;
   /** The newest wire carry (`alertCarry`, `WIRE_CARRY_*`). */
   private carryWire = 0;
+  /** (guard-models G6n, M3) The host guard's look seed (`alertLook`, 0-127; `Enemy.look`): read from every snapshot
+   *  state shown, so it is set before the rig first shows; constant for one guard id. */
+  private lookSeed = 0;
   /** The rig pose, reused each frame. */
   private readonly rp: RigPose = { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0 };
 
@@ -134,6 +137,11 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
   /** (guard-ai S9) Shown wearing (tests / e2e): the helmet, the armour, the shield. */
   get gearShown(): { helmet: boolean; armour: boolean; shield: boolean } {
     return { helmet: !!this.helmetPart?.isVisible, armour: !!this.armourParts?.[0]?.isVisible, shield: !!this.shield && !this.dead };
+  }
+
+  /** (guard-models G6n) His look seed from the host (`AL_LOOK`), for the guard figure's variant. */
+  get look(): number {
+    return this.lookSeed;
   }
 
   /** (guard-ai S9) The host says he is cautious (`AL_CAUTION`): calm, he carries at low ready. */
@@ -372,6 +380,7 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
       this.torchBit = (s.state.al & AL_TORCH) !== 0;
       this.cautionBit = (s.state.al & AL_CAUTION) !== 0;
       this.carryWire = alertCarry(s.state.al);
+      this.lookSeed = alertLook(s.state.al);
       // (guard-ai S9) gear from the state shown now; a jump since the last frame is a re-place, not a knock-off
       if (this.gearAl < 0 || ((s.state.al ^ this.gearAl) & GEAR_BITS) !== 0) this.applyGear(s.state.al, this.placed ? hyp2(this.pos.x - this.prev.x, this.pos.z - this.prev.z) : 0);
       // (G7 fix) held by the partner: lowered with the knockout's own phase (the snapshot's crouch bit flips at half way)
