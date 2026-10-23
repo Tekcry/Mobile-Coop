@@ -299,4 +299,8 @@ Heads: art 5c48f5c4 (PR 5 #226), lightrev 72552f93 (WIP), shadow 90dd18a1, chars
 Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
 Sonnet builds from strict briefs; one checker per batch; at most 3 tsc / vitest agents while desktop CPU > 80%
 (slot locks C:/NightShift/scratch/sr-slot-{1,2,3}.lock); every e2e E2E_GPU=1; never two agents on the same files.
+LATEST (~15:45, usage limit): #226 -art 8521bcbf (+ walk W2/W3, checker FAIL fixed 4a2702b0): laptop asked for e2e-coop +
+sectorops 1/3-6 at 8521bcbf + batch-3 part 2 perf; then merge master, train-ready. #232 lighting PR OPEN (-charshadow
+93546cd6 = LR13 + shadow + LR14, both checkers PASS, PROTOCOL 38 awaiting orchestrator); laptop combined GPU / perf run
+asked at f03bb0ea. Polish: lr-check.md 1-6, lr14-check.md 1-7, walk-472-check.md 1-4, art-check.md.
 ```
