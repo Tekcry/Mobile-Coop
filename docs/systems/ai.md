@@ -219,7 +219,15 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   when no cover is left; overwatch's low cover needs one view ray to the LKP (`TACTICS.viewChecks` 4, a blind one
   blocked `TACTICS.blockS` 5 s), suppresses the LKP while a mate moves; flank (groups of 3+) bounds to cover >= 60 deg
   off the point's bearing; the rest search (today's). One of point / flank moves at a time (standard). Out of sight in
-  the open a role guard waits for the group. A path failure blocks the cover. While a group has roles the single
+  the open a role guard waits for the group, crouched (guard-ai S27, A161: `Enemy.roleStep`'s open wait, at most
+  `SQUAD.openWait` 3 s, one think with no role cover at all), then takes today's cover pick (`pickCover`, reserved
+  through `reserveCover`); no cover anywhere: crouched where he is until `ALERT.lostSight`; the wait restarts when he
+  sees his target, is in or on his way to cover, or his role changes (`Infinity`: the S8 wait). The overwatch's
+  suppress (S27, A162: `suppressLkp`) aims at its own spot (`suppressAim`, the hunt's spot + 1.1 m; his `lastKnown` is
+  left alone) and, with `SQUAD.suppressView`, fires only along a clear static line from the muzzle (one `G.STATIC` ray
+  per 0.25 s, cached; counters `suppressRounds` / `suppressHeld`). The reporter (S27, A163) throws and flanks nothing
+  while his call is open (`inCover` runs the radio hold before `tactics`; in `attack` he fights with his rifle only).
+  A path failure blocks the cover. While a group has roles the single
   `flanker` is cleared; otherwise `assignFlanker` as before. Barks `moving` / `covering` / `flanking`.
 - Report, then engage (guard-ai walk 4.82 item 2, Michael: "He should report then attack you instead of hiding";
   coordinated modes, stealth): the caller is the group's reporter only while his call is open (`radioNet.pendingFor`:
@@ -286,7 +294,14 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   `light` incident at the switch; the same cut noticed again later (`cutSeq` / `faultCut`) keeps what it was first
   taken for. A cut nobody saw opens nothing. A course mains gate's circuit is never a fault (`StealthSystems.mainsGroups`,
   A63): the S2 incident, nobody relights it. Shot lamps keep the S2 check and stay dark (`setGroup`
-  skips destroyed lamps). Late discovery (`EnemyManager.lateStep`, every 0.1 s over a round-robin share of the guards,
+  skips destroyed lamps). (guard-ai LR16-4, relight) The Sector Ops boards ride the same walk: a breaker board (no
+  `window`) cut calls `lightsOut` on its first circuit with a live lamp (`IsolatorBoards.liveGroup`) at the board, and
+  the `BreakerHost` (`StealthSystems.breakerHost`) answers for boards too: `switchOf` the nearest cut board holding the
+  circuit (`cutBoard`; else the nearest wall switch), `isOff` true while it is cut and dark, `reset` the board's
+  `switchBack` (every circuit of it, its wall switches follow) before a wall switch's toggle. A timed isolator's running
+  window is the player's (`holding`): `isOff` / `reset` are false for its circuits, even through a wall switch, and
+  `switchBack` refuses, so its cut stays the S2 look at the board (the lure) and the timer relights it; a walk already
+  going on that circuit ends (S15's isolator rule). Late discovery (`EnemyManager.lateStep`, every 0.1 s over a round-robin share of the guards,
   ~3 Hz each): `DarkList` holds the dark fixtures (shot, or cut at a switch that is off) no guard has reacted to
   (rebuilt only on a registry `version` change or a mark); a calm free guard with one in his focused cone within
   `LATE.range` 12 m and a clear ray reports it as its witness (shot: the S2 light check, one; cut: the breaker walk at
@@ -380,8 +395,9 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   door: A116); Sector Ops' keypad, bolt, lockdown and pair-gate closures are unchanged.
 - Weapon carry (guard-ai S21, walk 4.72 G5, A120-A126; `ai/carryState.ts` pure: `calmArea`, `mayHolster`, `carrySlotOf`,
   `GuardCarry`, numbers `GUARD_CARRY`; render side `GuardGunCarry` in `ai/enemyRig.ts`): every guard stays armed. A calm
-  guard in a calm area (unaware, no caution, no board task, no alarm raised, not a high-security post, not a responder or
-  response team member; stealth rules) carries his gun holstered: the rifle slung across the back (`backC`), the pistol on
+  guard in a calm area (unaware, no caution, no board task, no alarm raised and (guard-ai S27, A164) no alarm stage
+  (`AiContext.alarmStage`, Sector Ops' panel, camera or laser stage; it carries over sections, A37), not a
+  high-security post, not a responder or response team member; stealth rules) carries his gun holstered: the rifle slung across the back (`backC`), the pistol on
   the right thigh. Anything above calm draws it (rifle 0.7 s, pistol 0.5 s; `Enemy.tryFire` waits for `carry.drawn`); he
   holsters again after `calmHold` 15 s calm. `Enemy.update` steps it after the awareness; `Enemy.frame` drives `RigPose`
   `ready` (holstered), `swap` / `swapFrom` / `swapTo` (the draw / holster clip, one slot) and `aim` (none while holstered);
@@ -429,6 +445,45 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   follow the freshest (A150); the host's LKP ghost shows only the host's own slot. Undo: `INTRUDERS.split` false (one
   shared position, one group). Host only, no protocol or save change. Brief: `docs/guard-ai/slices/S24.md`. Tests:
   `intruders.test.ts`, `twoIntruders.test.ts`, `coopPerception.test.ts` (S24 block).
+- Search after combat: the probable area (guard-ai S25, M1, CT rule 9, A151-A154; `ai/searchArea.ts` pure:
+  `SEARCH_AREA`, `SearchPlan`, `areaRadius`, `pointScore`, `orderByScore`). One plan per intruder slot
+  (`EnemyManager.plans`). `buildPlan(slot)`, called when one of his searchers asks: due when never built, older than
+  `rebuild` 2 s or his last known position moved > 1 m, and only while his chase field is built round that position;
+  round the same position only while no point is claimed (a moved centre rebuilds at once, S25b fix). A searcher gets
+  plan points only from a plan round his intruder's current position, else the ring. Area: cells within R = clamp(6 m + 1.5 m/s x seconds since seen, 6, 20) path metres of the last
+  known position (`flowOf(slot)` x `nav.cell`; a spot behind a wall is as far as the way round). Candidates: the level
+  cover in range (`coverGrid.queryNearest`, up to 1024, the nearest kept past that so no side is dropped; S25b fix
+  B1; at the cover's position) and a 2 m lattice over the square of half-side R whose
+  baked light (`lightField.levelAt` 0.9 m over the floor; torches excluded, A153) is below `dark` (`LIGHT.shadow`);
+  scored darker / cover / nearer by path (`pointScore`), offered best first, at most 12 kept 3 m apart. A rebuild round
+  the same position keeps the looked-into points done. `Enemy.decide`'s search branch, for a combat search
+  (`combatSearch`, not `searchOwn`, `hunt` >= 0, `SEARCH_AREA.enabled`): the first point is the last known position as
+  before, then `AiContext.searchPoint` (`take`: best score minus distance from him, one guard per point); none left:
+  today's ring (`ringPoint`, from its first point). The look ending or the point unreachable: `searchDone` (found by his
+  claim, done either way). Claims are freed on death / knockout (`onKilled`), despawn, leaving the search or the plan
+  (`planSweep` each update, also once his response team sweeps), a forgotten slot and `clear` / `resetMemory`. Calm searches (a body, a device, a call, a
+  pair, a lure) keep their ring (A152). Undo: `SEARCH_AREA.enabled` false (today's points exactly). Host only, no
+  protocol or save change. Brief: `docs/guard-ai/slices/S25.md`. Tests: `searchArea.test.ts`, `searchAreaWiring.test.ts`.
+  (S26) R grows from `locT` (seconds since seen OR located), not `seenT`: a heard step narrows the search (A157).
+- Hearing in a fight and a search (guard-ai S26, M1, CT rule 8, A155-A160; `ai/hearing.ts`: `COMBAT_HEAR`,
+  `combatHearAct`). `EnemyManager.hear(pos, reach, kind, skip, by)`: `by` is the player whose own body or hands made
+  the noise (footsteps, landing, roll, fence rattle, noisy holds, takedowns, suppressed shots: `GameState.localId` /
+  the client's `r.ref.id`); glass, impacts, gadgets, doors, the dog's bark, lures and the download pass null. Coordinated
+  stealth only (`COMBAT_HEAR.enabled`): searching and alerted guards (not the melee kinds) hear too (`hearFight`); calm
+  guards keep the S1 tiers and the incident board word for word. Skipped first, no ray: in combat seeing his target, or
+  a noise nobody made / a lure (A159); re-aimed under `gap` 1.5 s ago (`Enemy.heardAt`). Then S1's tier (walls only
+  where they decide it, masking at him); any tier >= `tier` 1 counts (the whole effective reach, A156). Searching: he
+  walks to it at his search pace (`Enemy.hearSearch`: the next spot is the noise, snapped to a walkable cell; not a plan
+  point; his S25 claim released; "I heard something." at most every `bark` 6 s), looks there, then goes on with his
+  plan / ring; a sweeping response team (S13) keeps its stack; a high-security post keeps his leash (the search clamp).
+  A body noise locates its maker (`reportHeard`: `report(.., seen false)`: `locT` 0, `seenT` kept, the mirror as S24;
+  one report per slot per `reportGap` 1 s unless it moved `reportMove` 1.5 m), and he hunts that slot when he has none,
+  it is his, or his own was last seen / located `switchAfter` 8 s ago or more (G139, A158). In combat that is all: his
+  `knownSpot`, chase field (`flowOf(hunt)`) and roles follow the new spot. A heard spot more than 1 m from the slot's S25
+  plan centre resets the plan at once (claims dropped; the one exception to "never rebuild under a claim"): his
+  searchers take their next point from the plan rebuilt round it (A160). Undo: `COMBAT_HEAR.enabled` false (today's
+  deaf rule exactly). Host only, no protocol or save change. Brief: `docs/guard-ai/slices/S26.md`. Tests:
+  `combatHearing.test.ts`, `intruders.test.ts` (`locT`), `searchAreaWiring.test.ts` (R from `locT`).
 - Sound: `world/surfaces.ts` (pure) `surfaceAt` scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice. Shots:
   `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise` (combat); `onRay` hits
   are heard within `IMPACT_NOISE`.

@@ -4,7 +4,7 @@ import type { ShadowSpec } from '../core/quality';
 import { nearestLights, type FittingModel, type LightDef, type LightRegistry } from './lights';
 import { fittingMesh, type MeshArrays } from './fixtureModels';
 import { mountLinks } from './lampMount';
-import { gameLightFalloff, shadowAccuracyOn, torchShadowPass } from './shadowAccuracy';
+import { gameLightFalloff, shadowAccuracyOn, TORCH_DRAW_SLOTS, torchShadowPass, writeTorchDraw } from './shadowAccuracy';
 
 /** (warehouse-lamps) One fitting model's draws: the body (shared dark material) and the glowing face, and the lights they show. */
 interface FittingDraw {
@@ -113,6 +113,21 @@ export class LightRig {
   setBaked(ids: Set<number>): void {
     this.baked = ids;
     this.pickT = 0;
+  }
+  /** (LR15, fixes on) The baked lamps' torch uniforms (`BakedLamps.torchDraw`): the flashlights that get no shadow map
+   *  are drawn there with the light field's formula x their beam's cut, not as the pool's Babylon lights. */
+  private torchBuf: Float32Array | null = null;
+  /** Registry ids in the drawn torch slots (-1: empty). */
+  private readonly torchIds = new Int32Array(TORCH_DRAW_SLOTS).fill(-1);
+  setTorchDraw(buf: Float32Array | null): void {
+    this.torchBuf = this.accurate ? buf : null;
+    this.pickT = 0;
+  }
+  /** Flashlights drawn by the baked lamps now (tests / debug). */
+  get drawnTorches(): number {
+    let n = 0;
+    for (let k = 0; k < TORCH_DRAW_SLOTS; k++) if (this.torchIds[k]! >= 0) n++;
+    return n;
   }
 
   /** Real lights in use (clustered + shadowed). */
@@ -377,6 +392,7 @@ export class LightRig {
       // moving lights follow every frame between picks
       this.follow(this.pool);
       this.follow(this.shadowPool);
+      this.followTorches();
       return;
     }
     this.pickT = PICK_INTERVAL;
@@ -406,6 +422,23 @@ export class LightRig {
       }
     }
     for (let i = sh; i < this.shadowPool.length; i++) this.idle(this.shadowPool[i]!);
+    // (LR15) the flashlights left without a shadow map: drawn by the baked lamps (`writeTorchDraw`), not the pool
+    const tb = this.torchBuf;
+    if (tb) {
+      let tk = 0;
+      for (let i = 0; i < use && tk < TORCH_DRAW_SLOTS; i++) {
+        if (taken[i]) continue;
+        const l = this.reg.lights[ids[i]!]!;
+        if (l.kind !== 'flashlight' || this.baked?.has(l.id)) continue;
+        this.torchIds[tk] = l.id;
+        writeTorchDraw(tb, tk++, l);
+        taken[i] = 1;
+      }
+      for (; tk < TORCH_DRAW_SLOTS; tk++) {
+        this.torchIds[tk] = -1;
+        writeTorchDraw(tb, tk, null);
+      }
+    }
     let k = 0;
     const lit = Math.max(1, Math.ceil(this.pool.length * this.litScale));
     for (let i = 0; i < use && k < lit; i++) {
@@ -413,6 +446,16 @@ export class LightRig {
       this.put(this.pool[k++]!, this.reg.lights[ids[i]!]!);
     }
     for (let i = k; i < this.pool.length; i++) this.idle(this.pool[i]!);
+  }
+
+  /** (LR15) The drawn torches follow their guards every frame (and their beam's reach). Allocation-free. */
+  private followTorches(): void {
+    const tb = this.torchBuf;
+    if (!tb) return;
+    for (let k = 0; k < TORCH_DRAW_SLOTS; k++) {
+      const id = this.torchIds[k]!;
+      if (id >= 0) writeTorchDraw(tb, k, this.reg.lights[id]!);
+    }
   }
 
   private follow(pool: Slot[]): void {

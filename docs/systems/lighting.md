@@ -39,7 +39,7 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   (`lampMath.matchLampFalloff`: the co-op host's `start.lf`, else the URL, else the setting; `GameState.lampFalloff`),
   before the level adds its lights, so the registry, the bake, the field (meter and guards) and the shaders
   (`lampMathGlsl()`; the `LAMP_PHOTO` define keeps the two modes' compiled effects apart) all read one mode; never
-  mid-match. Co-op: protocol 38 `start.lf`, the client's row locked to the host's. `?gfx=min` keeps Babylon's linear real
+  mid-match. Co-op: protocol 38 `start.lf`; in a match the row is locked to the match's mode (host and client); "Resume hosting" runs the dropped match's mode (`RejoinRecord.lf`). `?gfx=min` keeps Babylon's linear real
   lights for the picture (the field is photometric). Not adopted: `docs/lighting-review/PROPOSAL.md` section 7 (LR13),
   numbers in `docs/sector-redesign/checks/light-measure.md`; tests `tests/lampFalloff.test.ts`.
 - (shadow audit, PROTOTYPE, rides the LR13 toggle) `world/shadowAccuracy.ts`: on exactly when the match runs Realistic
@@ -50,6 +50,10 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   weapons) to the standard falloff so flashlights light them as they light the level (`gameLightFalloff`) and gives shadow
   maps to cut beams first (`torchShadowPass`); guards' body-light samples test flashlights against static geometry
   (`rayOccluder`). Findings: `docs/sector-redesign/checks/light-measure.md` (shadow audit); test `tests/shadowAccuracy.test.ts`.
+  LR15 (same toggle): 8 door slots per lamp (doors 5-8 in one extra texel per lamp, field and shaders share the list;
+  `LAMP_DOORS8`) and torches without a shadow map drawn in `LampPlugin` with the field's `lampTerm` x a cut at the beam's
+  reach (`LAMP_TORCH`, `lampTorch` UBO); non-PBR lit materials (fences, ropes, decals) then get no unshadowed torch light.
+  Build and check: `docs/sector-redesign/checks/lr15-build.md`, `lr15-check.md`.
 - `world/lightField.ts` (pure) `LightField` (`World.lightField`): `levelAt` = ambient grid + moon x moon visibility + the
   lamps listed for the 2 m column x `LAMP_LEVEL_GAIN` x intensity x formula x trilinear baked visibility, closed doors
   (`Doors.list`, `DOOR_SHUT`) cutting a lamp by one segment-leaf test; `dynamicAt` = non-baked lights (flashlights);
@@ -72,6 +76,11 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   change. `setGroup` skips destroyed lamps, so a shot lamp is never relit. A course mains gate's circuit is never
   relit by a guard (`StealthSystems.mainsGroups`: cutting it opens the gate). Late discovery reads the registry only
   (`destroyed`, `baseOn`, `group`, `version`) and collision for its one ray (`ai/breaker.ts` `DarkList`).
+- (guard-ai LR16-4) The board switch-back sink is wired: `IsolatorBoards.switchBack(i)` (`game/isolators.ts`, the old
+  "GA4 hook point") is what a guard's breaker walk calls at a cut breaker board (`StealthSystems.breakerHost.reset`), so
+  every circuit of the board comes back through `restore` -> `setGroup` -> the sink's `back(i, BACK_HAND)`, as a player's
+  switch-back (labels, wall switches, the `lightSwitch` event, the co-op `lamps` sync). Shot lamps stay dark. A running
+  timed window is the player's: `switchBack` refuses it and the timer brings the circuits back.
 - Guard flashlights (`world/torches.ts`, pure; coop-torches): `addTorchSlots` (dark maps: `FLASHLIGHTS` 4 slots,
   radius 13, intensity 0.85, cone 0.34 / 0.2 rad), `placeTorch` (eye height x scale, 0.35 m ahead, 0.15 m right,
   pitched 0.16 rad down; crouched past half way 1.0 m) and `beamReach` (rendering only) are the one code for the host
@@ -82,7 +91,15 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   from a host-built and a client-built torch.
 - `world/lights.ts` (pure): `LightRegistry` holds state only (lights, on / destroyed, groups, EMP, `zones`, `ambientAt` /
   `zoneAt`, `version`); `contribution` calls `lampMath`; `LIGHT` thresholds 0.28 / 0.6 (bible L6); `visibilityFromLight`;
-  `nearestLights`; `lightOnRay`.
+  `nearestLights`; `lightOnRay` (a padded fixture box or the bulb sphere along the round; walk 4.72: a round landing
+  within `LAMP_MOUNT_REACH` 0.35 m under a head, inside its footprint, counts too, so a head on top of its own pole breaks).
+  The reach is measured at the segment's end, so callers must pass the round's true landing, not a stretched or
+  range-length ray (`lampShotOk` tries the exact claimed landing first). A hit through the reach alone also needs a clear
+  static line straight up from just off the landing to the head's underside (`lampReachProbe`, polish2): a round on a
+  door soffit under a wall lamp on the far face does not break it. `StealthSystems.shotRay`, the client's `lampRay` and
+  the host's `onLampShot` all run that probe (`G.STATIC`), so host and client agree. The fixture box ignores the light's
+  `yaw` (axis-aligned `sx` / `sz`): a bulkhead on an x-facing wall keeps `sx` along x, so its footprint reaches ~0.14 m
+  into the wall; harmless with 0.2 m walls.
 - `world/lightRig.ts`: emissive bulbs (one thin-instanced mesh) for every light, and a fixed pool of `MAX_REAL_LIGHTS` spot
   lights given to the nearest lights at 4 Hz; quality sets how many are lit (`QualityLevel.realLights`). Pool lights are
   never enabled / disabled (no recompiles). Maps without lights create nothing.

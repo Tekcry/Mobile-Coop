@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ITEM_KINDS, PROTOCOL_VERSION, parseMessage, type Msg } from '../src/net/protocol';
+import { ITEM_KINDS, parseMessage, type Msg } from '../src/net/protocol';
 import { CRATE_DARK, CRATE_HOLD, CRATE_LABEL, CRATE_REACH, CrateLedger, applyCrateEvent, crateItemId, crateReserve } from '../src/game/crateLedger';
 
 const evs = (events: unknown[]): unknown[] => {
@@ -8,10 +8,6 @@ const evs = (events: unknown[]): unknown[] => {
 };
 
 describe('E9-crate wire (protocol 35)', () => {
-  it('PROTOCOL_VERSION is 41 (41 guard-ai S9 + A126 on train 30; 40 the Player stack at train 30; 39 guard-ai S9 on train 29; 38 the lamp falloff; 37 Player #231; 36 pose-parity; 35 the weapons crate; 31 the Sector lamps)', () => {
-    expect(PROTOCOL_VERSION).toBe(41);
-  });
-
   it('the crate item kind is appended at the end of ITEM_KINDS', () => {
     expect(ITEM_KINDS[ITEM_KINDS.length - 1]).toBe('crate');
   });

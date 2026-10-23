@@ -148,6 +148,25 @@ export function segmentHitsHousing(c: { x: number; y: number; z: number; yaw: nu
   return segmentHousingT(c, ax, ay, az, bx, by, bz) >= 0;
 }
 
+/**
+ * (polish 11; marlow-polish shared by the host's `shotRay` and the client's `ricochetRay`) The camera whose housing the
+ * segment a -> b enters first (destroyed ones skipped), null when it passes none. No allocation.
+ */
+export function nearestHousing(cams: readonly CameraUnit[], ax: number, ay: number, az: number, bx: number, by: number, bz: number): CameraUnit | null {
+  let c: CameraUnit | null = null;
+  let best = 2;
+  for (let i = 0; i < cams.length; i++) {
+    const k = cams[i]!;
+    if (k.mode === 'destroyed') continue;
+    const t = segmentHousingT(k, ax, ay, az, bx, by, bz);
+    if (t >= 0 && t < best) {
+      best = t;
+      c = k;
+    }
+  }
+  return c;
+}
+
 /** (polish 11) The segment parameter (0..1) where a -> b enters the housing box, -1 on a miss. */
 export function segmentHousingT(c: { x: number; y: number; z: number; yaw: number }, ax: number, ay: number, az: number, bx: number, by: number, bz: number): number {
   const s = Math.sin(c.yaw);

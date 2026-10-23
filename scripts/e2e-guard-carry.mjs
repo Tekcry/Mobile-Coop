@@ -327,8 +327,8 @@ try {
       throw fail;
     }
     assert(recompiled.length > 0 && f.disposed >= 1, `forced: the body recovered through the recompile (${recompiled.length} log lines, ${f.disposed} faulted effects dropped)`);
-    // (Babylon's first fallback switched the mesh to CPU skinning before the recompile; the recovery keeps that)
-    for (const e of b) for (const m of e.meshes) if (!m.gpuSkin) console.log(`  NOTE forced: ${m.name} recovered CPU skinned (Babylon's skinning fallback ran before the recompile)`);
+    // (Babylon's first fallback switched the mesh to CPU skinning before the recompile; the recovery turns it back)
+    for (const e of b) for (const m of e.meshes) assert(m.gpuSkin, `forced: ${m.name} GPU skinned again after the recovery (Babylon's CPU-skinning fallback undone)`);
     await G(() => window.__gc.reset());
     for (let i = e0; i < errors.length; i++) if (FAULT_LOG.test(errors[i])) forcedLog.add(i);
   }

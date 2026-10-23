@@ -118,6 +118,9 @@ export interface Door extends AnchorBase {
   swing: 1 | -1;
   locked: boolean;
   breachable: boolean;
+  /** (marlow-final kit) How the leaf is drawn: the hinged leaf (default) or none ('slide': the facility kit draws two
+   *  sliding leaves from the same open state; collision, light, sight and sound are the hinged door's, unchanged). */
+  leaf?: 'swing' | 'slide';
   /** (E10, A97) An armoured (bulletproof) leaf: its body adds `G.GLASS_ARMOURED` (`doorMembership`), so a round stops on
    *  it and never penetrates (a plain 0.1 leaf is thinner than a rifle's penetration). Opening, locks and bash unchanged. */
   armoured?: boolean;

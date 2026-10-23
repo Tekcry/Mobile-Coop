@@ -7,6 +7,7 @@
  */
 import type { Difficulty } from '../ai/archetypes';
 import type { WeatherChoice } from '../world/mapDef';
+import type { LampFalloff } from '../world/lampMath';
 
 /** How long the host holds a dropped joiner's slot and the menu offers the room again (s). */
 export const REJOIN_HOLD_S = 600;
@@ -25,6 +26,9 @@ export interface RejoinRecord {
   weather: WeatherChoice;
   /** The checkpoint to restart from on "Resume hosting" (course: the bay, 1-based). */
   bay: number;
+  /** (lrpolish) The lamp falloff the match ran: "Resume hosting" runs it again, not the host's current setting. Absent in
+   *  an older record (the host's setting then decides, as before). */
+  lf?: LampFalloff;
 }
 
 const KEY = 'ns-rejoin';
@@ -62,7 +66,7 @@ function parse(raw: string | null): RejoinRecord | null {
   try {
     const v = JSON.parse(raw) as Partial<RejoinRecord>;
     if (!v || typeof v.code !== 'string' || !CODE.test(v.code) || !ROLES.includes(v.role as 'host') || typeof v.at !== 'number' || typeof v.map !== 'string') return null;
-    return { code: v.code, role: v.role!, at: v.at, mode: (v.mode ?? 'course') as RejoinMode, map: v.map, difficulty: (v.difficulty ?? 'normal') as Difficulty, mission: v.mission ?? '', weather: (v.weather ?? 'clear') as WeatherChoice, bay: Math.max(1, Math.floor(Number(v.bay) || 1)) };
+    return { code: v.code, role: v.role!, at: v.at, mode: (v.mode ?? 'course') as RejoinMode, map: v.map, difficulty: (v.difficulty ?? 'normal') as Difficulty, mission: v.mission ?? '', weather: (v.weather ?? 'clear') as WeatherChoice, bay: Math.max(1, Math.floor(Number(v.bay) || 1)), ...(v.lf === 'linear' || v.lf === 'photometric' ? { lf: v.lf } : {}) };
   } catch {
     return null;
   }

@@ -27,7 +27,7 @@ const SUITE_TIMEOUT = Number(process.env.E2E_SUITE_TIMEOUT ?? 600) * 1000;
 // (Marlow Yard) and the systems it stands on. Everything else has its own list, outside the full run:
 // LEGACY = parked content (Hunter / Mission, the economy and cosmetics, Fallow, Kestrel, the Warehouse routes and AI
 // archetypes); AUDIO = the sound suites; GPU = visual read-backs (no visual result from SwiftShader).
-const REQUIRED = ['smoke', 'e2e-pad', 'e2e-mouse', 'e2e-menus', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-clip', 'e2e-tactics', 'e2e-wall', 'e2e-stealth-ai', 'e2e-guard-carry', 'e2e-takedown', 'e2e-gadgets', 'e2e-levels', 'e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-course', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-ct', 'e2e-lightbake', 'e2e-feedback', 'e2e-desktop', 'e2e-offline', 'e2e-studio', 'e2e-tuner-phone'];
+const REQUIRED = ['smoke', 'e2e-pad', 'e2e-mouse', 'e2e-menus', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-clip', 'e2e-tactics', 'e2e-wall', 'e2e-stealth-ai', 'e2e-guard-carry', 'e2e-takedown', 'e2e-gadgets', 'e2e-levels', 'e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-course', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-section-rating', 'e2e-ct', 'e2e-lightbake', 'e2e-feedback', 'e2e-desktop', 'e2e-offline', 'e2e-studio', 'e2e-tuner-phone'];
 // e2e-wall:flanker = e2e-wall's Warehouse (Clear) flanker section; e2e-bunker: Fallow, parked behind ?legacy=1 (CT prototype B1)
 const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-clear', 'e2e-bunker', 'e2e-missions', 'e2e-modes', 'e2e-enemies', 'e2e-ct-warehouse', 'e2e-wall:flanker', 'e2e-kestrel', 'e2e-camera-bounds', 'e2e-security'];
 // the suites written for `?legacy=1` pages (LEGACY=1 makes e2e-lib add it); the others moved to LEGACY run as they always did
@@ -40,9 +40,9 @@ const GPU = ['e2e-darkness', 'e2e-desktop:3', 'e2e-coop-gpu'];
 const REPORT = ['anim-audit'];
 // A suite that is several independent sections (each its own browser) runs as one job per section: `e2e-desktop` =
 // `e2e-desktop:1`, `:2`, `:4` (part 3 is in GPU). `node scripts/e2e-desktop.mjs --part=N`; the script run directly with no --part runs whole.
-// (test-speed) e2e-ctcourse = three station groups (1-3, 4-5, 6-8), each its own pair of pages.
+// (marlow-final 0d) e2e-ctcourse = four pairs of sets (A1-A2, A3-A4, A5-A6, A7-A8), each its own pair of pages.
 // (sector-fixes-r RE) e2e-sectorops = part 1 (sections, alarms, restarts, nav, the co-op mirror), 2 (solo: co-op lips refused, route links, team doors), 3-5 (co-op routes and team doors of sections 1-3), 6 (campusOps: S1-S3 greybox routes)
-const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6'] };
+const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6'] };
 const expand = (list) => list.flatMap((s) => (PARTS[s] ? PARTS[s].map((n) => `${s}:${n}`) : [s]));
 const REQUIRED_JOBS = new Set(expand(REQUIRED));
 
@@ -81,13 +81,17 @@ const COVERS = {
   'src/core/flags': ['e2e-park', ...CORE],
   'src/core/': ['e2e-offline', ...CORE],
   'src/input/': ['e2e-pad', 'e2e-mouse', 'e2e-move', 'e2e-menus'],
+  'src/ui/hud/ratingCard': ['e2e-section-rating'],
   'src/ui/screens/missionsScreen': ['e2e-sectorops', 'e2e-menus', 'e2e-pad', 'e2e-park'],
   'src/ui/': ['e2e-pad', 'e2e-desktop', 'e2e-feedback', 'e2e-park', 'e2e-menus'],
   // the training course (T1b): its own suite on top of co-op
   'src/game/course/': ['e2e-course', 'e2e-ctcourse', 'e2e-coop'],
-  'src/game/modes/courseMode.ts': ['e2e-course', 'e2e-ctcourse', 'e2e-coop'],
+  'src/game/modes/courseMode.ts': ['e2e-course', 'e2e-ctcourse', 'e2e-coop', 'e2e-section-rating'],
   // Sector Ops (feature/sector-ops): its mode, sectors and Warehouse copy
-  'src/game/modes/sectorMode.ts': ['e2e-sectorops', 'e2e-park'],
+  'src/game/modes/sectorMode.ts': ['e2e-sectorops', 'e2e-park', 'e2e-section-rating'],
+  // (section-rating) the rating rules, the card and the record: their suite on top of the modes'
+  'src/game/rating/': ['e2e-section-rating', 'e2e-sectorops', 'e2e-course'],
+  'src/save/ratingRecord': ['e2e-section-rating'],
   'src/game/sectors': ['e2e-sectorops'],
   'src/world/maps/warehouseOps.ts': ['e2e-sectorops'],
   'src/world/maps/warehouseSectors.ts': ['e2e-sectorops'],
@@ -109,6 +113,9 @@ const COVERS = {
   'src/world/maps/courselab.ts': ['e2e-course'],
   'src/world/maps/bunker': ['e2e-course'],
   'src/world/maps/ctcourse.ts': ['e2e-ctcourse'],
+  // (marlow-final 0d) the set parts, the facility and the greybox helpers of Marlow Yard
+  'src/world/maps/ctcourseSets/': ['e2e-ctcourse'],
+  'src/world/maps/ctcourseGreybox.ts': ['e2e-ctcourse'],
   'src/world/': ['e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
   'src/voxel/': ['e2e-lightbake', 'e2e-desktop'],
   'src/vfx/': ['e2e-desktop'],
@@ -128,6 +135,8 @@ const COVERS = {
 // (the -lib helpers are not suites: e2e-lib reruns CORE, e2e-net-lib the two-page suites in HELPERS)
 const SCRIPT = /^scripts\/(smoke|anim-audit|e2e-(?!(?:[\w-]*-)?lib\.mjs$)[\w-]+)\.mjs$/;
 const HELPERS = { 'scripts/e2e-net-lib.mjs': ['e2e-netmove', 'anim-audit'] };
+// (marlow-final 0d) the set step modules of e2e-ctcourse (scripts/e2e-ctcourse/<set>.mjs) rerun it
+const SUITE_DIRS = { 'scripts/e2e-ctcourse/': ['e2e-ctcourse'] };
 
 const argv = process.argv.slice(2);
 const flag = (n) => argv.includes(`--${n}`);
@@ -169,6 +178,7 @@ function quickSuites() {
     let hit = null;
     if (f.startsWith('src/')) hit = Object.entries(COVERS).find(([p]) => f.startsWith(p))?.[1] ?? CORE;
     else if (HELPERS[f]) hit = HELPERS[f];
+    else if (Object.keys(SUITE_DIRS).some((d) => f.startsWith(d))) hit = SUITE_DIRS[Object.keys(SUITE_DIRS).find((d) => f.startsWith(d))];
     else if (SCRIPT.test(f)) hit = [f.replace(/^scripts\/|\.mjs$/g, '')];
     else if (/^(scripts\/(e2e-lib|run-e2e)\.mjs|package\.json|index\.html|vite\.config\.\w+|public\/)/.test(f)) hit = CORE;
     for (const s of hit ?? []) picked.add(s);

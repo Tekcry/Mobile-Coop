@@ -57,6 +57,9 @@ export interface Flags {
   animTier: boolean;
   /** (guard-render S6) Per-cascade sun caster lists and the guards' sun reach; `?guardsun=0`: off, for comparisons. */
   guardSun: boolean;
+  /** (sector-redesign perf) Sector Ops guards whose body and shadows cannot reach the screen skip the render
+   *  (`sectorGuardFreeze.ts`); `?guardfreeze=0`: off, for comparisons. */
+  guardFreeze: boolean;
   /** (lightrev LR13) `?falloff=photo`: dev override of Settings > Gameplay > Lamp falloff for this page's solo and hosted
    *  matches (`lampMath.matchLampFalloff`; a co-op client takes the host's). Default off. */
   photoLamps: boolean;
@@ -126,5 +129,6 @@ export const flags: Flags = {
   guardMerge: params.get('guardmerge') !== '0',
   animTier: params.get('animtier') !== '0',
   guardSun: params.get('guardsun') !== '0',
+  guardFreeze: params.get('guardfreeze') !== '0',
   photoLamps: params.get('falloff') === 'photo',
 };

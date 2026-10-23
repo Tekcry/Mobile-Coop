@@ -57,7 +57,6 @@ export class SectionStartState {
   /** Put them back (a section restart). Returns how many lights and doors changed (tests). */
   apply<D extends ResetDoor>(reg: LightRegistry, doors: ResetDoors<D>): { lights: number; doors: number } {
     let nl = 0;
-    let nd = 0;
     if (!this.taken) return { lights: 0, doors: 0 };
     const ls = reg.lights;
     for (let i = 0; i < ls.length && i < this.lights.length; i++) {
@@ -69,10 +68,22 @@ export class SectionStartState {
       reg.resetTo(l.id, s === 1, s === 2);
       nl++;
     }
+    const nd = this.applyDoors(doors);
+    return { lights: nl, doors: nd };
+  }
+
+  /**
+   * (marlow-final S10, Michael's walk M3) The doors only, as recorded by `take`: every unlocked door open or shut as it
+   * was, and uncracked (Marlow Yard's set restart; its lamps have their own reset); with `locked`, the locked ones too
+   * (the course has just put its locks back as at the set start). Returns how many changed.
+   */
+  applyDoors<D extends ResetDoor>(doors: ResetDoors<D>, locked = false): number {
+    if (!this.taken) return 0;
+    let nd = 0;
     const ds = doors.list;
     for (let i = 0; i < ds.length && i < this.doors.length; i++) {
       const d = ds[i]!;
-      if (d.anchor.locked) continue;
+      if (d.anchor.locked && !locked) continue;
       let changed = false;
       if (d.cracked) changed = doors.crack(d, false) || changed;
       const open = this.doors[i] === 1;
@@ -82,6 +93,6 @@ export class SectionStartState {
       }
       if (changed) nd++;
     }
-    return { lights: nl, doors: nd };
+    return nd;
   }
 }

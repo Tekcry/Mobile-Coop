@@ -28,6 +28,13 @@ export interface FieldDoor {
 export const DOOR_SHUT = 0.05;
 /** Doors a baked lamp tests (the GPU's lamp data holds this many per lamp; the field tests the same list). */
 export const DOORS_PER_LAMP = 4;
+/** (LR15, shadow audit 2) With the shadow-accuracy fixes on, each lamp tests this many: a second door texel in the GPU's
+ *  lamp data, so a 5th-8th shut door in a lamp's view stops its light in the meter and on screen alike. */
+export const DOORS_PER_LAMP_ACCURATE = 8;
+/** Door slots per lamp: `DOORS_PER_LAMP` today, `DOORS_PER_LAMP_ACCURATE` with the fixes on (read once per build). */
+export function lampDoorSlots(on = shadowAccuracyOn()): number {
+  return on ? DOORS_PER_LAMP_ACCURATE : DOORS_PER_LAMP;
+}
 
 /** Lamp `i`'s baked visibility at a point (0..1), read as `LightField.visAt` reads it. */
 export type BakeVisSampler = (i: number, x: number, y: number, z: number) => number;
@@ -73,14 +80,14 @@ export function doorSeen(seen: BakeVisSampler, i: number, d: FieldDoor): boolean
 
 /**
  * Per baked lamp (`LAMP_STRIDE` lights), the doors whose leaf can come between it and what it lights - the leaf's
- * middle within the lamp's reach plus the leaf's width - nearest first, up to `DOORS_PER_LAMP` (-1: none). The
+ * middle within the lamp's reach plus the leaf's width - nearest first, up to `slots` (-1: none; `lampDoorSlots`). The
  * shaders and the field read this one list. (shadow audit) With `seen` (the bake's visibility) the doors whose doorway
  * the lamp cannot see (`doorSeen`) are left out, so a lamp with more doors in reach than slots keeps the ones that can
  * cut its light.
  */
-export function lampDoorLists(lights: Float32Array, doors: readonly FieldDoor[], seen?: BakeVisSampler): Int16Array {
+export function lampDoorLists(lights: Float32Array, doors: readonly FieldDoor[], seen?: BakeVisSampler, slots = DOORS_PER_LAMP): Int16Array {
   const n = lights.length / LAMP_STRIDE;
-  const out = new Int16Array(n * DOORS_PER_LAMP).fill(-1);
+  const out = new Int16Array(n * slots).fill(-1);
   const near: { k: number; d: number }[] = [];
   for (let i = 0; i < n; i++) {
     const o = i * LAMP_STRIDE;
@@ -96,7 +103,7 @@ export function lampDoorLists(lights: Float32Array, doors: readonly FieldDoor[],
       if (d < lights[o + 3]! + a.width && (!seen || doorSeen(seen, i, doors[k]!))) near.push({ k, d });
     }
     near.sort((p, q) => p.d - q.d);
-    for (let j = 0; j < Math.min(DOORS_PER_LAMP, near.length); j++) out[i * DOORS_PER_LAMP + j] = near[j]!.k;
+    for (let j = 0; j < Math.min(slots, near.length); j++) out[i * slots + j] = near[j]!.k;
   }
   return out;
 }
@@ -120,6 +127,8 @@ export class LightField {
   /** (shadow audit, `shadowAccuracy.ts`) the ambient fill read trilinearly, as the shaders' bilinear texture reads it;
    *  the door lists skip doorways their lamp cannot see. Read once at construction. */
   private readonly accurate = shadowAccuracyOn();
+  /** (LR15) Door slots per lamp: 8 with the fixes on, as the shaders' second door texel (`lampDoorSlots`). */
+  private readonly doorSlots = lampDoorSlots(this.accurate);
 
   constructor(
     readonly bake: LightBake | null,
@@ -156,7 +165,7 @@ export class LightField {
       at += B[bi + 3]! * B[bi + 4]! * B[bi + 5]!;
     }
     this.grid = lamps && bake ? lampGrid(lamps.baked.lights, bake.lo, bake.hi) : null;
-    this.lampDoors = lamps ? lampDoorLists(lamps.baked.lights, doors, this.accurate ? bakeVisSampler(lamps.r) : undefined) : new Int16Array(0);
+    this.lampDoors = lamps ? lampDoorLists(lamps.baked.lights, doors, this.accurate ? bakeVisSampler(lamps.r) : undefined, this.doorSlots) : new Int16Array(0);
     this.gx = bake?.lo[0] ?? 0;
     this.gz = bake?.lo[2] ?? 0;
   }
@@ -313,8 +322,9 @@ export class LightField {
     this.res = 0;
     if (vis <= 0) return;
     // (the lamp's own door list, as the shaders test it)
-    for (let j = 0; j < DOORS_PER_LAMP; j++) {
-      const k = this.lampDoors[i * DOORS_PER_LAMP + j]!;
+    const ns = this.doorSlots;
+    for (let j = 0; j < ns; j++) {
+      const k = this.lampDoors[i * ns + j]!;
       if (k < 0) break;
       if (this.doorBlocksOne(k, lx, ly, lz, x, y, z)) return;
     }

@@ -42,11 +42,21 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Sector Ops restart: get spotted (alarm, alert music), use some ammo and a gadget, go down. After "Restarting from
   checkpoint" the music fades to silence, the guards are back on their routes unaware, the guns are full (the rifle
   suppressed), the gadgets are back and health is full; a suppressed shot away from the guards alerts nobody.
+- [ ] Section rating: clear a Sector Ops section unseen; as the connector shuts, a card shows four ticks and the
+  rewards that land (none with a full kit and health; use a gadget first and it names the charges), then fades. Set off
+  an alarm (panel or camera) in the next: No alarms is a cross. The results list one line per section.
+- [ ] Marlow Yard rating: clear A2 unseen with a gadget used; as its airlock seals a card shows four ticks and the
+  charges. In A3 get seen, restart the set: the card at its exit ignores the sighting. Co-op: both screens show it.
 - [ ] (sector-fixes R) Co-op Sector Ops, each section: leg-up your partner onto a 4.4 m lip (section 1 the high door
   in the yard facade and the hoist rail in goods-in; section 2 the high-bay rack R3S from the east gangway and the landing high on the east wall over the gangway; section 3 the valve platform
   in the east bay and the crane drive over the CNC cell, each climbable onto under its roof hood); they relay or drop the
   rope for you; alone, the lip cannot be reached. Each team door is locked from your side; your partner unbolts it from the other side; a restart bolts it again.
 - [ ] (coop-walk-fixes) Co-op, two pages: one player grabs a guard (hostage); the other, beside them, gets TEAM TAKEDOWN on him and it knocks him out (the hold ends, DUAL TAKEDOWN banner), both ways (host holding, joiner holding). A partner's single shot plays once; a partner's suppressed pistol sounds suppressed.
+- [ ] (coop-rejoin) Co-op Marlow Yard, two pages: at the start, after a set restart and after "Start at A3" the two
+  players stand on separate spots (never inside each other). Play into A3 (past its airlock), then close the joiner's
+  tab and rejoin from its menu (or toggle its network off and on): the joiner comes back in the A3 entry airlock (or
+  beside the host if that airlock is shut off), with A1-A2 done, the A3 doors as the host has them and the HUD on A3,
+  never at the yard start. Same in Sector Ops in section 2 or 3.
 - [ ] (pose-parity) Co-op, two pages: a partner aiming from the left shoulder while holding a hostage or on a rope shows the gun in the left hand; a partner's choke shows no elbow wind-up.
 - [ ] Lamp falloff (LR13, test): Settings > Gameplay > Lamp falloff > Realistic (test), then start Sector Ops: the S1
   goods-in floor between the strips reads lit (meter and picture agree), Marlow station 2 still reads; back to Classic
@@ -55,6 +65,12 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Co-op guard torches (coop-torches): on a dark map, when a guard searching in the dark switches his flashlight on,
   the joiner sees the same beam from his head, aimed where he faces, and it goes off when the host's does; standing in
   it raises the joiner's light meter as it raises the host's.
+- [ ] Search after combat (guard-ai S25): get seen, break contact and crouch in a dark corner or behind cover a few
+  metres from where you were seen: the first searcher comes to it and looks into it. Hide farther, in light or behind
+  a wall: they search the near dark spots first; a body or a device search still walks its ring.
+- [ ] Heard in a search (guard-ai S26): get seen, break contact, then run (standing) behind a searching guard in the
+  dark: he turns and comes to where you were, looks round there, then carries on searching. Crouch-walk past him
+  instead: he does not. In a fight out of his sight, run a few metres to his side: he turns to where he heard you.
 - [ ] Co-op two intruders (guard-ai S24): split up and get seen apart (host in one room, joiner in another): each
   fight stays on its own player (the guards who saw the host hunt the host's last seen spot, the joiner's hunt his);
   out of sight, nobody walks to where a player really is without having seen or heard him. Solo is unchanged.
@@ -68,28 +84,57 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   on him, on both screens; a guard a step or more past the landing is left standing. Try it with each player thrown.
 - [ ] Co-op on the High or Epic preset, host and joiner in two windows (side by side, then one over the other): each
   sees the other's character, and the joiner's "Connecting to host" goes away once in the match.
-- [ ] Marlow Yard in co-op: every station's task shows as the HUD step line on both screens; a radio line follows each
-  station opening; at station 2 the far player unbolts and either player can then open the door; a bay restart brings
-  an alive partner back to the airlock too.
+- [ ] Marlow Yard (marlow-final; two tabs `?net=local&autostart=ctcourse&mode=course`, or Co-op > Host): eight sets A1-A8
+  in a luxury training hall, no explainer pads. Both screens show the objective table and your own A or B line (the lines
+  swap once the first player takes a job); a radio line follows each step; each holding room's pad cycles only with both
+  on it (near door locks, far door opens); a bay restart brings an alive partner back; every glass wall, LED cove and
+  sliding door (Open only, no swing-only verbs) reads as a rehearsal centre; every set is lit and the players make the dark.
+- [ ] Marlow Yard records: the old best times (bays S1-S8) no longer show. The bays are now A1-A8, so the record starts
+  again (no save migration). Co-op > Host > Start at lists A1-A8 once the bay before was finished.
+- [ ] Marlow Yard A1 Gate: no panel needed: the lounge door, the striped mark and the bolted wicket say what to do; the
+  leg-up from the mark lands on the wall top, drop into the yard, unbolt (refused from the apron side); the relay variant
+  works; no way over alone (cabin, wall end, gallery sill).
+- [ ] Marlow Yard A2 Carriage Shed: press a neck cabinet: the neck is dark 15 s on both screens ("Lights back in", warning
+  at 5 s), the shunter comes to look; the other cabinet refuses while re-arming; take him from the coat corner; cross in
+  the dark, then back the other way; the staging deck (leg-up at the mark) is slower and silent when crouched.
+- [ ] Marlow Yard A3 Office Range: jam the corridor camera for your partner (recess hide spot, then the east lobby), swap;
+  a seen player is sent back to the west lobby with LANTERN's line, also with the corridor lights off (the camera sees in
+  the dark); an office switch lures the cleaner; the lobby coves stay lit when an office is off; desks read as desks.
+- [ ] Marlow Yard A3 hall camera: shoot it. It ricochets with sparks and keeps watching; jam it instead to blind it.
+- [ ] Marlow Yard A4 Goods Shed: take the officer, loop the cameras at his console: 60 s on the HUD, "Cameras back in" at
+  5 s, a press inside the 20 s re-arm refuses; back aisle dark, main aisle lit; two loaders go down together (or the
+  kettle break, or the floor switch lure); the push bar opens L4's east door; read the rack signs and the video wall.
+- [ ] Marlow Yard A5 Substation: in night vision the beams show across the gateway; throw your partner over while the
+  patrol's back is turned, he lands in the dark pocket; jam the floodlight, he keys the kiosk release: the beams go off for
+  good; jamming the beam panel is the other way (a beam touch raises the alarm stage, no health cost); the towers have no
+  collision. Known open: one player can jam the panel, let go and walk through its 1.5 s reboot.
+- [ ] Marlow Yard A6 Pump House: leg-up onto the dark west end of the motor gallery, the rescue line up, along to the
+  bridge; lower your partner head-first to the drive panel, he holds the isolate key 3 s (the buzzer is noise: the attendant
+  hears it, host or joiner) and is pulled up; the staff stair's open side holds you from the third tread, its foot is open.
+- [ ] Marlow Yard A7 Data Hall: split, A through the hall, B along the plant corridor under the sweeping camera (blind
+  windows, silent crouched on the grating); both terminals' ready lamps show through the mesh; hack together (2 s,
+  within 1.5 s of each other; late costs 10 HP, never below 1); the cage and the east door open; cooling-unit lees hide.
+- [ ] Marlow Yard A8 Strongroom: from the vestibule read the 40 s round; leg-up at (109.5, 68.25) onto the return; jam C2
+  from behind the counters so A crosses the gallery unseen; take the officer, loop the cameras (60 s); cut the hall lights
+  at the board (25 s, 12 s to the grille), slip through, shut it; throw over the beam curtain; both time locks together;
+  the vault opens onto the cash dock; both in the exit zone ends the run.
+- [ ] Marlow Yard timing: a first co-op run by a pair who know the controls takes 15-20 min (target 18 min, SPEC section
+  10). Note the time per set and any wait over about 30 s with nothing to do.
+- [ ] Marlow Yard restart: die or restart at a checkpoint mid-set. Guards, bodies, doors and cameras are back as at set start.
+- [ ] Marlow Yard GPU look (pending PC run): gallery glass reads as one clear layer; coves, rack and desk skins show no
+  z-fighting; the frame time of each set (A2 685 skins, A4 667, A6 725 are the heaviest).
 - [ ] (interrogation-intel) Interrogate a guard with information: after his lines the feed shows `Code: ...` (when authored), `Cameras near: n, sweep a-b s` and `Patrols near: n, loop a-b s`; in co-op the partner sees the same lines (a client's interrogation too).
+- [ ] (stealth-pays) An interrogation's door code now acts: Course mode sets it as a course flag (a gate listing it in `externalFlags` opens); Sector Ops holds it for the section (the matching keypad prompt turns to "Enter code" and opens; a section restart drops it). Pending until a map authors guard `info` codes. Checks: `tests/intelPartB.test.ts` (Course flag, repeat is one `flagSet`), `tests/sectorIntelCode.test.ts` (`grantCode`, restart drops it, keypad opens); `e2e-ctcourse` (appended check: `onIntelCode` sets `hasFlag`) and `e2e-sectorops` (check (a2): `onIntelCode('s4-codes')` turns kp-batt to "Enter code") drive the mode hook directly; the real interrogate chain stays in `e2e-takedown` `grab-interrogate-intel`.
 - [ ] (hang-down) Co-op hang-down over a guard (any edge with a drop, e.g. a Sector Ops mezzanine): hanging, LT draws
   the pistol (never the rifle) and aims upside down, RT fires; hold A lists GRAB CHARACTER on a guard by your head (he is
   lifted, then RT tap / Z knocks him out, RT hold kills, no let-go); RT on him without the menu: tap chokes, hold snaps
   the neck; the partner pulling you up while you hold him knocks him out. Check it as the joiner and as the host.
-- [ ] Marlow Yard is a bunker: a ceiling over every cell and airlock (no sky anywhere), every lamp in a fitting (pendants
-  in the tall halls, strips / panels / caged bulkheads elsewhere); the S2 / S5 / S7 leg-ups, the S4 throw under the
-  header and the S7 rope work as before; the floor between the pools reads as before on the light meter.
-- [ ] Marlow Yard variety: each cell reads as what it is (sentry desk, monitor wall, kill-house plywood, scanner frames
-  and racks, training-block stair, the exit coffer); nothing new to climb or bump into but the S6 racks; the guard grab
-  at station 1 and every door work as before.
-- [ ] Marlow Yard station 3 security room (co-op): the first runner crosses under the partner's jam, opens the door
-  off the far lobby; the console refuses while the duty guard stands; take him down, use it: the camera goes dark and
-  the second player walks the hallway unseen on both screens. Restart the bay: the camera and the guard are back. The
-  second jam still works if you skip the room.
 - [ ] Loadout: primary (Heron Carbine) and sidearm (Hush 9 SD), attachments, gadget, presets; nothing to buy.
 - [ ] Settings > Controller: vibration on / off and strength. Settings > Controls is the only Controls place (Pause has
   no Controls item): Remap controls rebinds a verb (A), clears a slot (Y), a conflict shows a warning, reset restores
   the defaults.
+- [ ] Settings > Gameplay has no "Mocap locomotion" row; Wren walks / runs with the mocap clips even on an old save that
+  had it off (only `?mocap=0` or the tuner's Mocap box shows the hand-keyed set).
 - [ ] Unplug the pad mid-match: no stuck movement or firing, keyboard and mouse take over; plug it back in and press a
   button: the pad works again without a reload.
 
@@ -144,6 +189,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Guard tactics (guard-ai S8): get spotted by 4 guards and break line of sight: the caller drops back into cover,
   one moves up cover to cover ("Moving up!"), one covers from cover ("Covering!"), one goes round the side
   ("Flanking!"); never more than one of them moving up at once, nobody runs at you in the open.
+- [ ] Guard cover and fire (guard-ai S27, Sector Ops): break sight on a group of 3-4: nobody stands upright and still in
+  the open (they crouch, then take cover within ~3 s); the covering guard fires at your last spot only where he has a
+  clear line (no rounds into a wall); the caller throws no grenade while he is on the radio. Trip a camera or a laser:
+  every guard in the section draws his gun and none holsters while the alarm stage holds.
 - [ ] Report, then attack (guard-ai walk 4.82 items 2 and 6, Marlow Yard): get spotted by the station 2 guard and break
   line of sight: he takes cover and radios it in, then (call done, a few seconds with no sight of you) leaves cover and
   moves up on where he last saw you, still in the fight, and searches from there; he does not sit in cover and go
@@ -173,6 +222,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   "Breaker's gone again.", walks over at his normal pace and the lights come back about 2 s later, both stay calm;
   switch it off again at once: a full light check at the switch. Shoot a lamp out while no guard looks: the next guard
   who walks into view of it (within ~12 m) comes to check it; it stays dark for good.
+- [ ] Guards relight (guard-ai LR16-4, Sector Ops): switch off a hall at its switch with a guard
+  watching: a guard comes and switches it back on (a shot lamp stays dark); a timed isolator's lights stay off for its
+  window (guards only come to look) and come back on their own.
+  (An untimed Sector Ops breaker board uses the same walk; no map defines one yet.)
 - [ ] Lasers (guard-ai S17, Sector Ops campus S3 or the warehouse): break a beam near guards, then climb out of the room
   unseen: two guards come to the middle of the beam and search that room only; the reinforcements search there too and
   never head for where you went unless one sees you.
@@ -360,28 +413,27 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Hang from a ledge and shimmy: slow, one hand at a time, wide reaches. Drainpipe climb: knees bend up and forward.
   Ledge climb-up (1.3 s): pull up, the hands stay on the lip until a knee is on the top, then a smooth stand (no hop).
   A team boost climb-up still works.
-- [ ] Marlow Yard station 3 (co-op, marlow-jammer): the camera hallway. Aim the pistol at the camera, hold RB / F and
+- [ ] Marlow Yard A3 (co-op, marlow-jammer): the corridor camera. Aim the pistol at the camera, hold RB / F and
   stand still: the red grid goes, the camera stops turning, its LED flashes, a quiet buzz plays (both hear it); the HUD
   counts 5 s, then COOLDOWN 5 s; released, the camera stays blind 1.5 s and cannot be jammed meanwhile. One jams while
-  the other runs; from the far lobby, the one through jams for the other; both there unlock the airlock door. The camera's
-  grid never shows inside an airlock. Jam a hallway lamp: it flickers off, stays off 4 s after you let go, flickers on.
-  Run the hallway without a jam: the camera catches you and you are put back at the hallway's start (radio line); the
-  airlock door stays locked until both got through under a jam.
-- [ ] Camera range (camera-range): Marlow Yard station 3, stand in the entry lobby in line with the hallway (stand, crouch,
-  run on the spot): the camera never picks you up there; step a metre into the hallway and it does. Sector Ops: walk
+  the other runs; from the east lobby, the one through jams for the other; both there ends the step. The camera's
+  grid never shows through a wall. Jam a lamp: it flickers off, stays off 4 s after you let go, flickers on.
+  Walk the corridor without a jam: the camera catches you and you are put back at the west lobby (radio line).
+- [ ] Camera range (camera-range): Marlow Yard A3 (camera range 14 m), stand in the west lobby in line with the corridor (stand, crouch,
+  run on the spot): the camera never picks you up there; step a metre into the corridor and it does. Sector Ops: walk
   toward each camera from just past the far end of its red grid: nothing until you are inside the grid's far edge.
-- [ ] Cameras and lasers (sector-fixes C): in Sector Ops and Marlow Yard station 3 each camera points down at the floor
+- [ ] Cameras and lasers (sector-fixes C): in Sector Ops and Marlow Yard A3 / A4 / A7 / A8 each camera points down at the floor
   in front of it; its red grid is faint (thin lines) and covers only that patch, never far walls or the ceiling, and it
   catches you only there. Lasers are invisible until night vision (not in thermal or electro); walking through one
   raises the alarm stage (banner, radio) and costs no health.
 - [ ] Laser power panels (sector-fixes P): every laser has a small wall panel nearby, hidden (Sector Ops: in the office
   void off the workshop catwalk, behind the plant deck's AHU, on R2N's rack top by the VNA sensor, under the mezzanine
-  behind the parts store's back shelf; Marlow Yard station 4: high on the far side's south wall, seen through the gap).
+  behind the parts store's back shelf; Marlow Yard A5: high on the switchroom's south face, seen through the gateway; A8's curtain has its own).
   Electro shows it; its LED is green. Jam it from its vantage (pistol, RB / F, stand still): the LED blinks cyan and its
   lasers are off (walk through: no alarm), amber for the 1.5 s reboot, then the lasers are back. Aiming at the beams
   jams nothing. In co-op the partner's page shows the same.
-- [ ] Scanners (co-op course): a lone hack with the partner never started costs nothing; a late or abandoned hack costs
-  10 HP.
+- [ ] Scanners (co-op course; A7 terminals, A8 time locks): a lone hack with the partner never started costs nothing; a
+  late or abandoned hack costs 10 HP; both hacks within 1.5 s open the cage (A7) or the vault (A8).
 - [ ] Footage pass (G1-G4): walk, jog, run and turn on the spot: feet stay under the hips and turn with the body, the
   walk is upright, the run quick with a lean; stop from a run: a small split, upright; crouch and stop: she kneels at
   once; near an unaware guard, crouch-walk slowly: the tense high-kneed sneak with a hand over the knife.
@@ -394,7 +446,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   the throat, walk him (slow), knock out (lowered), pick up a body (2 s lift), carry (slow), drop.
 - [ ] Action menu (G5): near a door, hold A: BACK TO GAME on top, move the highlight, release on a row (it runs) or
   on BACK TO GAME (nothing); a quick tap runs row 1; behind a guard: GRAB CHARACTER only; holding him: no menu (only the
-  Marlow Yard station 1 guard has information: hold A, INTERROGATE, two lines, then no menu again), RT kills, LT knocks out, X aims (human shield), B / Y never let him go.
+  Marlow Yard A1's checker, A4's and A8's officers have information: hold A, INTERROGATE, two lines, then no menu again), RT kills, LT knocks out, X aims (human shield), B / Y never let him go.
 - [ ] Optic cable (ct-toolkit 3.2): at a closed door hold A, OPTIC CABLE: she kneels, after about 1.2 s the view is
   under the door on the far side at floor height (feed overlay); the stick turns it (+-75 deg, -10..+60 deg), D-pad
   left toggles vision, B or the stick pulled back leaves; a guard on your side still sees you kneeling.
@@ -511,6 +563,36 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   walks in to the body standing, crouches, and her feet step (no slide) before she stands with it. F3 tuner, "Holds
   and carries": each slider moves only its walk; reset puts it back.
 
+### Campus detail art (Sector Ops, campusOps)
+- [ ] Sector Ops, campus, `?gfx=min` first: the plain boxes show (no props) and every route below still plays. Then Epic.
+- [ ] S1 (gatehouse, car park, grounds): walk the gate route, the verge and the car park. No prop stops you, blocks a
+  hiding spot, a ledge, a vent or a door. The gatehouse desk, monitors and key cabinet stand on the inner walls. Cars,
+  planters and trees look finished, nothing floats.
+- [ ] S2 (HQ offices round the atrium): the atrium shows its hero set (the model on the reception desk, green wall,
+  seating) and the offices their desks, boards and ceiling tiles. Both stair and lift routes stay open; no desk in a
+  doorway or on a patrol line.
+- [ ] S3 (lab block): lab hall, clean room and stores show their benches, hoods and shelving. Cover stays where it was;
+  walk the gown room and the airlock doors free.
+- [ ] S4 (data hall, plant, dock): racks, pods, UPS and battery racks, ducts and the dock fit their boxes. Climb every
+  ledge and vent you used before; no rack edge blocks the lip. Raised-floor and pallets do not sink or float.
+- [ ] S5 (Old House, strongroom): oak panel, bookcases, the fireplace and the strongroom vault set read as 1960s. The
+  vault door, deposit wall and time-lock stay usable; the objective prompts still show.
+- [ ] In each section: every lamp you see is a lamp the light meter reacts to. Stand in a shadow beside a prop: the
+  meter stays dark; stand in light: it lights. Props never change what a guard or camera sees.
+- [ ] No prop floats, sinks into a wall or clips another prop; no flicker or z-fighting up close.
+- [ ] Frame rate holds steady in the busiest views (S2 atrium, S1 car park, S4 data hall) with 20 and with 24 guards
+  (laptop GPU; the draw and triangle numbers are in `docs/systems/world-and-characters.md`, "Campus art kit").
+
+### Campus art (artnext)
+- [ ] Load: Sector Ops campus loads with no console error on `?gfx=min`, then Epic; the props show, and the load is no
+  slower than the #226 build.
+- [ ] Views s1-a to s5-g (`scripts/campus-art-shots.mjs`, laptop GPU): each shot reads as finished dressing; nothing
+  floats, sinks or blocks a door, route, hiding spot or light.
+- [ ] No greybox showing: no bare grey box where a skin or hero belongs (S2 green wall, S5 kitchen run).
+- [ ] Draws: each section within 40 draws, 150 k triangles and 2500 placements (`world-and-characters.md`, "Campus art
+  kit"); S1 35, S2 33 of 40, and the GPU draw count matches the `artCounts` in the dump.
+- [ ] Gate: `tests/campusArtGameplay.test.ts` passes on the build (routes, cover, nav, lips, ledges, split gaps).
+
 ### Co-op (two browser tabs)
 - [ ] Two tabs with `?net=local` (or two PCs with a room code): Co-op > Host in one, Join in the other. The lobby shows
   both players and the host's difficulty read-only on the client.
@@ -524,9 +606,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Close the host tab: the client is told and returns to the menu.
 - [ ] (marlow-bays B+M) Marlow Yard in two tabs (`?net=local&autostart=ctcourse&mode=course`): as the joiner, grab a
   guard and walk: full hold speed, no shoving or jitter; on the host the guard stays in front of the joiner's body.
-- [ ] Station 2: only the host does the leg-up, jumps over and picks Unbolt: the door opens; the near side shows
+- [ ] A1: only the host does the leg-up, drops into the yard and presses the bolt: the wicket opens; the apron side shows
   "Bolted from the other side" to whoever pressed it.
-- [ ] Station 3: the camera shows the red grid only, no flashing red border when it sees you (GPU look: pending PC run).
+- [ ] A3: the camera shows the red grid only, no flashing red border when it sees you (GPU look: pending PC run).
 - [ ] Host: Start (Esc) > Restart at checkpoint: the confirm opens on Stay; Restart puts both players at the bay start.
   Joiner: Start > Restart at checkpoint and Return to lobby are greyed "Host only"; Quit to menu still works.
 - [ ] Host: Start > Return to lobby > Return: both tabs land in the room lobby (ready cleared), a new match starts.

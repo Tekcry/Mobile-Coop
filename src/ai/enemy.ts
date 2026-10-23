@@ -27,10 +27,11 @@ import { clampToRoom, inRoom, roomAt, type RoomRect } from '../world/rooms';
 import { hyp2 } from '../core/mathx';
 import { EYE_STAND, instantDetect, losClear, noiseSuspicion, PERCEPTION, seenAt, sightRate, stepMeter, type SightInput } from './perception';
 import { ALERT, AlertMachine, callInDelay, emptyAlertInput, type AlertLevel } from './alertState';
-import { HEARING } from './hearing';
+import { COMBAT_HEAR, HEARING } from './hearing';
 import { PatrolWalker, PATROL, type PatrolRoute } from './patrol';
 import { ARMOUR_FIRE, ArmourGate } from './armourFire';
 import { PACE, paceSpeed, ringPoint, SEARCH_BODY, SEARCH_DEVICE, SEARCH_PLAIN, searchSpec, urgentKind } from './response';
+import { SEARCH_AREA } from './searchArea';
 import { SEPARATION, steerFrom, stepApart, tooClose, type SepOut } from './separation';
 import { BODY, bodyNoticed } from './bodies';
 import type { Body } from './body';
@@ -43,7 +44,7 @@ import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
 import { INCIDENT, MODE_BODY, MODE_BREAKER, MODE_COVER, MODE_DEVICE, MODE_HELP, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT } from './incidents';
 import { BREAKER_WALK } from './breaker';
 import { isConsoleGroup } from './consoleFault';
-import { closeFromCover, P_AGGRESSIVE, P_STANDARD, profileOf, R_FLANK, R_NONE, R_OVERWATCH, R_POINT, R_REPORTER, R_SEARCH, ROLES, Rng, type BehaviourProfile as TacticsProfile, type Role } from './squadRoles';
+import { closeFromCover, P_AGGRESSIVE, P_STANDARD, profileOf, R_FLANK, R_NONE, R_OVERWATCH, R_POINT, R_REPORTER, R_SEARCH, ROLES, Rng, SQUAD, type BehaviourProfile as TacticsProfile, type Role } from './squadRoles';
 import type { GuardInfo } from './guardInfo';
 import type { CallKind } from './radioNet';
 import { LC_DONE, LC_FACE, LightCheck, type LightCheckWalker } from './lightCheck';
@@ -54,6 +55,7 @@ import { emoteBlind, emoteBlindEnd, emoteSeize, emoteStep, guardHead, guardHeadR
 import { CAUTION } from './awareness';
 import type { InstancedMesh } from '../core/babylon';
 import { GuardAnimTier } from './animTierView';
+import { ANIM_TIER_FROZEN_CARRY_MAX } from './animTier';
 import { BREAKER, gearHit, type GearHit, type GuardGear } from './gear';
 import { buildArmourParts, buildHelmetPart, buildShieldPart, gearColour, HELMET_FIT } from './gearParts';
 import { guardAim } from './guardStance';
@@ -164,6 +166,9 @@ export interface AiContext {
   /** Wake the knocked-out guard of body `b`; `by` woke him (guard-ai S4: both turn cautious, timed). */
   revive(b: Body, by: Enemy): void;
   alarmRaised(): boolean;
+  /** (guard-ai S27) The mode's alarm stage (the manager's `alarmStage`: Sector Ops' panel, camera or laser stage;
+   *  absent = 0). Only the carry rule reads it (`carryCalm`). */
+  alarmStage?(): number;
   raiseAlarm(e: Enemy, p: AlarmPanel): void;
   /** Stealth rules: enemies only know where the target is from what they see and hear (else they are
    *  sent at it, as in Wave). */
@@ -192,6 +197,12 @@ export interface AiContext {
   radioOpen?(e: Enemy): boolean;
   /** This enemy's slot among the searchers (fans the sweep out). */
   searchSlot(e: Enemy): number;
+  /** (guard-ai S25, A151) His next point of a search after combat from his intruder's probable area (`searchArea.ts`):
+   *  written into `out` and claimed for him; false = none left or no plan (the ring then). Absent: the ring. */
+  searchPoint?(e: Enemy, out: P2): boolean;
+  /** (guard-ai S25) His claimed plan point is over: looked into (`reached`) or found unreachable; done either way, so
+   *  nobody retries it. */
+  searchDone?(e: Enemy, reached: boolean): void;
   /** A callout (shown near the speaker; radio lines chirp). (guard-ai S9) `ev`, `n`, `unit`: the table line it is (the
    *  event, its line index, the unit it names; absent for a line said verbatim, a talking pair's), for the co-op host. */
   onBark?(e: Enemy, line: string, radio: boolean, ev?: BarkEvent, n?: number, unit?: number): void;
@@ -218,6 +229,8 @@ const ADVANCE_HOLD = 2.5;
  *  profile's (`profileOf(tacticsProfile).advanceHold`: aggressive 0.8 s, post 4 s), everyone else `ADVANCE_HOLD`
  *  (2.5 s, as before); an aggressive guard's last stretch is a jog (x run speed), not `ADVANCE_PACE`. */
 const AGGRESSIVE_JOG = 0.75;
+/** (guard-ai S27) The overwatch's suppress line (muzzle -> spot, static geometry) is cast at most this often (s). */
+const SUPPRESS_CHECK = 0.25;
 /** (guard-ai S6) A reinforcement gives up his entry route after this long (s; a blocked route). */
 const ENTRY_MAX = 30;
 /** Body sample heights for exposure (fractions of the target's height above the feet, then the head). */
@@ -372,6 +385,10 @@ export class Enemy implements Damageable {
   private spotLookT = 0;
   private lookBase = 0;
   private searchK = 0;
+  /** (guard-ai S25) The current spot came from his intruder's search plan (`AiContext.searchPoint`), and how many plan
+   *  points this search has had (the ring fallback counts on from its own first point). */
+  private planPoint = false;
+  private planN = 0;
   private routePath: Waypoint[] = [];
   private routeGoal: P2 = [NaN, NaN];
   private routeT = 0;
@@ -389,9 +406,35 @@ export class Enemy implements Damageable {
   get rushing(): boolean {
     return this.rush;
   }
+
+  /** (guard-ai S25) He holds a point of a search plan (the manager releases a claim whose guard no longer does). */
+  get onPlan(): boolean {
+    return this.planPoint;
+  }
   /** (guard-ai S2 fix 2) This search follows combat (alert -> searching: the walk on to the last known position and
    *  the sweep round it): the old pace and the aimed turn. Only a calm search (a body, a call, a pair) is slow. */
   private combatSearch = false;
+  /** (guard-ai S26) Seconds since his last re-aim on a noise in a fight or a search (99 none), and since his last
+   *  "I heard something." */
+  private heardT = 99;
+  private hearBarkT = 99;
+
+  /** (guard-ai S26) This search follows combat (tests / e2e). */
+  get inCombatSearch(): boolean {
+    return this.combatSearch;
+  }
+
+  /** (guard-ai S26) Seconds since his last re-aim on a noise in a fight or a search (99 none; the manager's throttle). */
+  get heardAt(): number {
+    return this.heardT;
+  }
+
+  /** (guard-ai S26) His current investigate / search spot into `out` (tests / e2e). */
+  searchSpot(out: P2): P2 {
+    out[0] = this.spot[0];
+    out[1] = this.spot[1];
+    return out;
+  }
   /** A knocked-out squadmate to wake (found body). */
   private reviving: Body | null = null;
   /** Running to an alarm panel (combat), and time spent working it. */
@@ -854,6 +897,8 @@ export class Enemy implements Damageable {
     if (this.aware.level === 'searching') {
       this.aware.t = 0;
       this.searchK = 0;
+      this.planN = 0;
+      this.planPoint = false;
       this.spotSet = false;
       this.combatSearch = false;
     }
@@ -871,6 +916,8 @@ export class Enemy implements Damageable {
     if (this.aware.level === 'searching') {
       this.aware.t = 0;
       this.searchK = 0;
+      this.planN = 0;
+      this.planPoint = false;
       this.spotSet = false;
       this.combatSearch = false;
     }
@@ -949,6 +996,41 @@ export class Enemy implements Damageable {
     this.stimulus[1] = z;
     this.hasStimulus = true;
     this.turnT = ALERT.hearLook;
+  }
+
+  /**
+   * (guard-ai S26, A155, CT rule 8) Searching, he heard a noise at (x, z) (the manager's `hear`: in his reach, walls and
+   * masking as S1): his next spot is the noise (snapped to a walkable cell within 4 as the search branch does), at his
+   * search pace (no hurry); the search branch walks there, looks round (`searchSpec(kind).look`) and goes on with his
+   * plan / ring (`searchK` kept). The spot is not a plan point: arriving or skipping it marks nothing done (the manager
+   * released his claim). "I heard something." at most once per `COMBAT_HEAR.bark` s. Not searching: nothing.
+   */
+  hearSearch(x: number, z: number): void {
+    if (!this.alive || this.aware.level !== 'searching') return;
+    this.spot[0] = x;
+    this.spot[1] = z;
+    const nav = this.ctx.nav;
+    const c = nav.nearestWalkable(x, z, 4);
+    if (c >= 0) {
+      // the cell's centre (`NavGrid.center` without its array)
+      const col = c % nav.cols;
+      this.spot[0] = nav.ox + ((col % nav.w) + 0.5) * nav.cell;
+      this.spot[1] = nav.oz + (((col / nav.w) | 0) + 0.5) * nav.cell;
+    }
+    this.spotSet = true;
+    this.spotLookT = 0;
+    this.planPoint = false;
+    this.rush = false;
+    this.heardT = 0;
+    if (this.hearBarkT >= COMBAT_HEAR.bark) {
+      this.hearBarkT = 0;
+      this.bark('investigate');
+    }
+  }
+
+  /** (guard-ai S26) In combat, a noise turned his hunt (the manager's `hear`): the re-aim throttle restarts. */
+  heardInFight(): void {
+    this.heardT = 0;
   }
 
   /** (guard-ai S1) Looking towards a sound he was not sent to (tests / debug). */
@@ -1262,6 +1344,12 @@ export class Enemy implements Damageable {
     if (had < 0 && recall && this.netOn) this.callContact();
   }
 
+  /** (guard-ai S25) His plan point is over (looked into, or unreachable): the manager marks it done. */
+  private planOver(reached: boolean): void {
+    this.planPoint = false;
+    this.ctx.searchDone?.(this, reached);
+  }
+
   /** (guard-ai S3) The radio net runs (coordinated modes with a manager that wires it). */
   private get netOn(): boolean {
     return this.ctx.radioCall !== undefined && (this.ctx.coordinated?.() ?? false);
@@ -1358,9 +1446,11 @@ export class Enemy implements Damageable {
   }
 
   /** (guard-ai S21, A120) In a calm area (`calmArea`): calm himself, no alarm, not a high-security post, not on a
-   *  response; stealth rules only (the parked modes keep low ready). */
+   *  response; stealth rules only (the parked modes keep low ready). (guard-ai S27, A164) Any alarm stage (Sector Ops:
+   *  a panel, a camera or a laser) is an alarm too: no guard of the live section holsters after it. */
   private carryCalm(): boolean {
-    return this.ctx.stealth() && calmArea(this.aware.level, this.caution, this.incident >= 0 || this.camBody !== null, this.ctx.alarmRaised(), this.secure, this.responder || this.crew !== null);
+    const alarm = this.ctx.alarmRaised() || (this.ctx.alarmStage?.() ?? 0) > 0;
+    return this.ctx.stealth() && calmArea(this.aware.level, this.caution, this.incident >= 0 || this.camBody !== null, alarm, this.secure, this.responder || this.crew !== null);
   }
 
   /** (guard-ai S10) Reacting to something that leaves his level as it is: a look toward a sound, a lure, a glimpse
@@ -1768,6 +1858,7 @@ export class Enemy implements Damageable {
     }
     if (to === 'searching') {
       this.searchK = 0;
+      this.planN = 0;
       this.spotSet = false;
       if (from === 'alert') {
         this.searchOwn = false;
@@ -1776,6 +1867,8 @@ export class Enemy implements Damageable {
       }
     }
     this.combatSearch = to === 'searching' && (from === 'alert' || (from === 'searching' && this.combatSearch));
+    // (guard-ai S25) a new search, or none: no plan point held (the manager frees the claim)
+    this.planPoint = false;
     if (to !== 'searching') this.reviving = null;
     // (guard-ai S17) a device's room bounds only its own search (combat's search is round the last known position)
     if (to !== 'searching' || from === 'alert') this.searchRoom = null;
@@ -1882,6 +1975,10 @@ export class Enemy implements Damageable {
       return;
     }
     this.rig.heldWeapon = null;
+    // (artnext C9) killed while render-frozen (a partner's shot, a grenade out of view): the rig still holds the pose at
+    // the freeze, so solve it once at his current place first; the ragdoll and `Body.pos` then never depend on whether
+    // this page's camera saw him
+    if (!this.rig.root.isEnabled(false)) this.animTier.solveNow(this.rig, ANIM_TIER_FROZEN_CARRY_MAX, this.rp);
     const imp = h.dir.scale(Math.min(80, 8 + h.impulse * 3) * (h.kind === 'explosion' ? 2.5 : 1));
     imp.y += h.kind === 'explosion' ? 25 : 3;
     // the rig stays in the world as a body (ragdoll when one can be spared)
@@ -1914,6 +2011,9 @@ export class Enemy implements Damageable {
     this.walker.tick(dt);
     this.stateT += dt;
     this.sinceStagger += dt;
+    // (guard-ai S26) the hearing throttles
+    if (this.heardT < 99) this.heardT += dt;
+    if (this.hearBarkT < 99) this.hearBarkT += dt;
     this.prevPos.copyFrom(this.pos);
     this.prevYaw = this.yaw;
     // in a takedown: the attacker drives the body, the brain is off
@@ -2353,10 +2453,15 @@ export class Enemy implements Damageable {
           const k = this.ctx.stealth() && !this.searchOwn ? this.huntPos() : null;
           const cx = this.hasStimulus && !k ? this.stimulus[0] : k ? k.x : this.pos.x;
           const cz = this.hasStimulus && !k ? this.stimulus[1] : k ? k.z : this.pos.z;
+          this.planPoint = false;
           if (this.searchK === 0) {
             this.spot[0] = cx;
             this.spot[1] = cz;
-          } else ringPoint(cx, cz, this.searchK - 1, this.ctx.searchSlot(this), searchSpec(this.searchKind), this.spot);
+          } else if (lvl === 'searching' && this.combatSearch && !this.searchOwn && this.hunt >= 0 && SEARCH_AREA.enabled && this.ctx.searchPoint?.(this, this.spot)) {
+            // (guard-ai S25, A151) after combat: the next point of his intruder's probable area (dark, cover, near)
+            this.planPoint = true;
+            this.planN++;
+          } else ringPoint(cx, cz, this.searchK - 1 - this.planN, this.ctx.searchSlot(this), searchSpec(this.searchKind), this.spot);
           const c = this.ctx.nav.nearestWalkable(this.spot[0], this.spot[1], 4);
           if (c >= 0) {
             const cc = this.ctx.nav.center(c);
@@ -2383,6 +2488,7 @@ export class Enemy implements Damageable {
           this.spotLookT += dt;
           // (guard-ai S18) the look per point by the search's kind
           if (lvl === 'searching' && this.spotLookT >= searchSpec(this.searchKind).look) {
+            if (this.planPoint) this.planOver(true);
             this.searchK++;
             this.spotSet = false;
           }
@@ -2393,6 +2499,7 @@ export class Enemy implements Damageable {
         const wp = this.goTo(this.spot, dt);
         if (!wp && lvl === 'searching' && this.routePath.length === 0 && d > 1.1) {
           // unreachable: skip it
+          if (this.planPoint) this.planOver(false);
           this.searchK++;
           this.spotSet = false;
         }
@@ -2472,6 +2579,24 @@ export class Enemy implements Damageable {
   /** Point with no cover left to bound to: walking the last stretch to the last known position (out of the group;
    *  the manager clears it when he leaves combat). */
   closing = false;
+  /** (guard-ai S27, A161) Seconds waiting for the group out of sight in the open (`roleStep`; 0 when he sees his
+   *  target, is in or on his way to cover, or his role changes). */
+  private openT = 0;
+  /** (guard-ai S27) The open wait's cover pick found no cover: he waits crouched (the 12 s rule ends it) until he sees his target, gets
+   *  to cover or his role changes. */
+  private openNoCover = false;
+  /** (guard-ai S27, A162) The overwatch's suppress spot (his hunt's spot + 1.1 m; scratch, made once): never his own
+   *  `lastKnown`. */
+  private readonly suppressAim = new Vector3();
+  /** (guard-ai S27) A `suppressLkp` round is in flight: `aimAt` returns `suppressAim`. */
+  private suppressing = false;
+  /** (guard-ai S27) The cached verdict of the static ray muzzle -> `suppressAim` and the time to the next cast (s). */
+  private suppressOk = false;
+  private suppressCheckT = 0;
+  /** (guard-ai S27) Rounds the overwatch's suppress put out, and the thinks it held for a blocked line (tests, e2e,
+   *  debug). */
+  suppressRounds = 0;
+  suppressHeld = 0;
   /** `roleStep`'s goal, reused (decide runs every frame: no allocation). */
   private readonly roleGoal: { point: P2 | null; speed: number; face: number | null } = { point: null, speed: 0, face: null };
 
@@ -2499,6 +2624,11 @@ export class Enemy implements Damageable {
       }
     }
     if (role === R_OVERWATCH && mateMoving && !this.mateMoving && this.alive && this.alerted) this.bark('covering');
+    // (guard-ai S27) a new role: the open wait starts again
+    if (role !== this.role) {
+      this.openT = 0;
+      this.openNoCover = false;
+    }
     this.role = role;
     this.roleCover = cover;
     this.roleMoving = moving;
@@ -2538,14 +2668,36 @@ export class Enemy implements Damageable {
         this.roleCover = -1;
       }
     }
-    if (this.los || (this.state !== 'chase' && this.state !== 'idle')) return null;
+    if (this.los || (this.state !== 'chase' && this.state !== 'idle')) {
+      if (this.los || this.state === 'seekCover' || this.state === 'inCover') this.openNoCover = false;
+      this.openT = 0;
+      return null;
+    }
     // out of sight in the open with no cover to bound to: the point walks the last stretch (out of the group, today's
     // advance at ADVANCE_PACE, a jog if aggressive); the rest wait for the group
     if (role === R_POINT && c < 0) {
       this.closing = true;
       return null;
     }
-    this.wantCrouch = this.onRadio;
+    if (SQUAD.openWait === Infinity) this.wantCrouch = this.onRadio;
+    else {
+      // (guard-ai S27, A161) he waits crouched, at most `SQUAD.openWait` (with no role cover at all: one think), then
+      // takes today's cover pick (`pickCover`: the nearest protecting cover, reserved through `reserveCover`) and the
+      // `seekCover` branch walks him there; no cover anywhere: crouched where he is (the 12 s rule ends it)
+      this.wantCrouch = true;
+      if (!this.openNoCover && this.openT > 0 && (c < 0 || this.openT >= SQUAD.openWait)) {
+        this.openT = 0;
+        this.armourPick = false;
+        if (this.pickCover()) {
+          // (from chase / idle: the reservation is kept)
+          this.setState('seekCover');
+          this.coverPicked = true;
+          return null;
+        }
+        this.openNoCover = true;
+      }
+      this.openT += dt;
+    }
     if (role === R_OVERWATCH && this.mateMoving && profileOf(this.tacticsProfile).suppress) this.suppressLkp(dt);
     return g;
   }
@@ -2573,12 +2725,28 @@ export class Enemy implements Damageable {
   }
 
   /** Overwatch: suppressive fire at his intruder's last known position while a squadmate moves (his own fresher sight
-   *  is today's suppress). */
+   *  is today's suppress). (guard-ai S27, A162) At his own spot (`suppressAim`; his `lastKnown` is left alone) and,
+   *  with `SQUAD.suppressView`, only along a clear static line from the muzzle (one ray per `SUPPRESS_CHECK`, cached). */
   private suppressLkp(dt: number): void {
     const k = this.huntPos();
     if (!k || this.lastSeenT < 2.5) return;
-    this.lastKnown.set(k.x, k.y + 1.1, k.z);
+    this.suppressAim.set(k.x, k.y + 1.1, k.z);
+    if (SQUAD.suppressView) {
+      this.suppressCheckT -= dt;
+      if (this.suppressCheckT <= 0) {
+        this.suppressCheckT = SUPPRESS_CHECK;
+        this.suppressOk = this.ctx.ballistics.clear(this.muzzle(this.fireFrom, 'suppress'), this.suppressAim, G.STATIC);
+      }
+      if (!this.suppressOk) {
+        this.suppressHeld++;
+        return;
+      }
+    }
+    const before = this.roundsFired;
+    this.suppressing = true;
     this.tryFire(dt, 'suppress');
+    this.suppressing = false;
+    this.suppressRounds += this.roundsFired - before;
   }
 
   private decide(dt: number): { point: P2 | null; speed: number; face: number | null } {
@@ -2739,7 +2907,9 @@ export class Enemy implements Damageable {
         // lost sight a moment ago: keep their head down with suppressive fire at the last position
         if (this.los) this.tryFire(dt);
         else if (this.lastSeenT < 2.5) this.tryFire(dt, 'suppress');
-        if (this.tactics(t)) return { point: null, speed: 0, face: toTarget };
+        // (guard-ai S27, A163) a reporter caught in the open with his call open fights back with his rifle, but throws and
+        // flanks only after the call
+        if (!this.onRadio && this.tactics(t)) return { point: null, speed: 0, face: toTarget };
         if (!this.los && this.stateT > 2.6) {
           this.setState('chase');
         } else if (this.dist > def.engageMax + 3) {
@@ -2833,14 +3003,15 @@ export class Enemy implements Damageable {
           this.setState('attack');
           return { point: null, speed: 0, face: toTarget };
         }
-        if (this.tactics(t)) return { point: null, speed: 0, face: toTarget };
         // (guard-ai S8) the reporter stays down while he calls it in; the overwatch suppresses while a squadmate moves
+        // (guard-ai S27, A163) before the grenade and the flank: nothing is thrown or started while his call is open
         if (this.onRadio) {
           this.coverPose = cp.low ? 'low' : 'high';
           this.wantCrouch = true;
           this.coverPeek = 0;
           return { point: [cp.pos.x, cp.pos.z], speed: def.walkSpeed, face: toTarget };
         }
+        if (this.tactics(t)) return { point: null, speed: 0, face: toTarget };
         // (guard-ai walk 4.82 item 2, Michael: "He should report then attack you instead of hiding") no holding role (a
         // lone guard, a group's search), his call through, a whole peek with no sight of him: he leaves the cover and
         // moves up on his intruder's last known position (the chase branch's out-of-sight advance) instead of sitting
@@ -3090,9 +3261,10 @@ export class Enemy implements Damageable {
     return out;
   }
 
-  /** The aim point before spread: the head or the body; suppressive and blind fire go at the last known spot. */
+  /** The aim point before spread: the head or the body; suppressive and blind fire go at the last known spot.
+   *  (guard-ai S27) An overwatch's `suppressLkp` round goes at its own spot (`suppressAim`). */
   private aimAt(t: PlayerRef, mode: 'aim' | 'suppress' | 'blind', out: Vector3): Vector3 {
-    if (mode !== 'aim') return out.copyFrom(this.lastKnown);
+    if (mode !== 'aim') return out.copyFrom(mode === 'suppress' && this.suppressing ? this.suppressAim : this.lastKnown);
     return (this.losHead || t.shield) && t.target.headPoint ? t.target.headPoint(out) : t.target.aimPoint(out);
   }
 
@@ -3442,10 +3614,21 @@ export class Enemy implements Damageable {
       this.dog.update(dt, r.position.x, r.position.y, r.position.z, r.rotation.y, sp, alertK, this.kick);
       this.head.copyFrom(this.dog.head);
     } else {
-      // (guard-render S4) full rate in a takedown / held, a scripted emote or a climb (and near any player: the tier)
-      this.rig.animate(dt, rp, this.animTier.dt(dt, r.position, this.ctx.players(), this.taken || this.climbing || this.rig.emote !== null));
+      // (guard-render S4) full rate in a takedown / held, a scripted emote or a climb (and near any player: the tier);
+      // (perfg, folded into `animTier.ts`) the FROZEN tier: a rig the render freeze disabled is not animated (C8 at its thaw)
+      this.animTier.animate(this.rig, dt, rp, this.ctx.players(), this.taken || this.climbing || this.rig.emote !== null);
     }
     if (this.laser) this.sniperFx();
+  }
+
+  /**
+   * (artnext C7) The render freeze re-enabled his rig root (`SectorGuardFreeze.thaw`, in the camera evaluation after this
+   * frame's `frame`, which skipped the solve): solve the pose now with the carried time, so the first frame drawn is
+   * current, not the pose at the freeze. Render only (gameplay reads none of the pose). No allocation.
+   */
+  thawPose(): void {
+    if (!this.alive || this.dog || this.rig.root.isDisposed()) return;
+    this.animTier.solveNow(this.rig, 0, this.rp);
   }
 
   /** Sniper: the laser from the scope along the aim while it aims, and the glint (sized for the local view). */

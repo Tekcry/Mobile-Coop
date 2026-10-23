@@ -2,16 +2,16 @@
  * Saltmarsh Park (`campusOps`) slice 2: section 2, the HQ atrium and offices (`docs/sector-redesign/SPEC.md` "S2", PLAN
  * "Common to every map slice"). Data and geometry only (the map is built with the pure `LevelBuilder`, as in
  * `tests/campusS1.test.ts`): the 12 guards, cameras, routes, the co-op lip CR2 against a solo player, the light circuits,
- * the M8 isolation check, the K2 choke (the bridge officer) and the A64 screen count (no more than 6 awake guards in view from
- * any walkable point).
+ * the M8 isolation check, the K2 choke (the bridge officer) and the screen count (A99: no more than `CAMPUS_SCREEN_CAP` guards in
+ * view from any walkable point, every guard counted).
  */
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder, type BoxPiece } from '../src/world/levelBuilder';
-import { campusOps } from '../src/world/maps/campusOps';
+import { buildCampus, campusOps } from '../src/world/maps/campusOps';
 import { S1_GROUPS } from '../src/world/maps/campusS1';
 import { CAMPUS_COOP_LIPS } from '../src/world/maps/campusLips';
 import { BALCONY_LAMPS, BULKHEAD_TOP, C2_BOX, C2_FLOOR, CR2, FEATURE_STAIR, PENDANTS, S2_COOP_LIPS, S2_CORES, S2_DOORS, S2_FLIGHTS, S2_FLOORS, S2_GROUPS, S2_ROOMS, S2_VOID, SW_CORE, NE_CORE, coreFlights, type Flight } from '../src/world/maps/campusS2';
-import { CAMPUS_ALARMS, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
+import { CAMPUS_ALARMS, CAMPUS_SCREEN_CAP, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
 import { SECTOR, checkSectorGuards, checkSectors, exitZone, inZone, type SectorGuard } from '../src/game/sectors';
 import { validateSecurity } from '../src/security/data';
 import { CAMERA } from '../src/config/security';
@@ -29,6 +29,9 @@ import { SightWorld, isolatedInTime, longestIsolation, guardPoints, CHECK_ISOLAT
 const PI = Math.PI;
 const b = new LevelBuilder();
 const lay = campusOps.build(b, 0);
+/** The undressed greybox: the screen count (A99) reads its sight lines here, as invisible dressing (chairs, shelves) must not block them. */
+const bG = new LevelBuilder();
+buildCampus(bG, { dress: false });
 const S2 = CAMPUS_SECTORS[1]!;
 /**
  * The collision pieces as axis-aligned boxes (S2's are all plain; S1's walls are quarter-turn boxes, swapped to plain; anything
@@ -726,7 +729,7 @@ describe('K2 (M12): the bridge officer is an unavoidable posted guard at the C2 
   });
 });
 
-describe('A64 (guard render budget) and the dormant rule', () => {
+describe('A99 (the screen cap, lifting A64) and the dormant rule', () => {
   it('no posted, pair, handler or dog guard is dormant; only #10 and #12 are', () => {
     const handlers = new Set(S2.guards.map((g) => g.handler).filter((h): h is number => h !== undefined));
     S2.guards.forEach((g, i) => {
@@ -737,11 +740,10 @@ describe('A64 (guard render budget) and the dormant rule', () => {
   });
 
   /** The most guards in view from any walkable point on a 2 m grid (every floor, the stairs and the roof): a guard counts when any point of its post or route has a clear eye-height line to the point within 40 m. */
-  function worstView(skipDormant: boolean): { n: number; x: number; y: number; z: number; who: number[]; hist: [number, number][] } {
-    const world = new SightWorld(b.boxes, b.cylinders);
+  function worstView(): { n: number; x: number; y: number; z: number; who: number[]; hist: [number, number][] } {
+    const world = new SightWorld(bG.boxes, bG.cylinders);
     const guards = S2.guards
       .map((g, i) => ({ g, i }))
-      .filter((q) => !skipDormant || !q.g.dormant)
       .map(({ g, i }) => ({ i: i + 1, pts: guardPoints({ x: g.x, z: g.z, y: floorOf(g), route: g.route as readonly (readonly [number, number])[] | undefined }) }));
     let worst = { n: 0, x: 0, y: 0, z: 0, who: [] as number[] };
     const hist = new Map<number, number>();
@@ -771,18 +773,11 @@ describe('A64 (guard render budget) and the dormant rule', () => {
     return { ...worst, hist: [...hist.entries()].sort((p, q) => p[0] - q[0]) };
   }
 
-  it('no walkable S2 point (a 2 m grid on every floor and stair) sees more than 6 awake, non-dormant guards with a clear static line within 40 m', () => {
-    const w = worstView(true);
+  it('no walkable S2 point (a 2 m grid on every floor and stair) sees more than CAMPUS_SCREEN_CAP guards (every guard, dormant too) with a clear static line within 40 m', () => {
+    const w = worstView();
     // eslint-disable-next-line no-console
-    if (process.env.CAMPUS_PRINT) console.log(`A64 worst (awake only): ${w.n} at (${w.x}, ${w.y.toFixed(1)}, ${w.z}) sees #${w.who.join(', #')}; histogram ${JSON.stringify(w.hist)}`);
-    expect(w.n, `worst point (${w.x}, ${w.y}, ${w.z}) sees #${w.who.join(', #')}`).toBeLessThanOrEqual(6);
-  });
-
-  it('even with #10 and #12 woken no point sees more than 7 (their dormancy is margin, not the whole answer)', () => {
-    const w = worstView(false);
-    // eslint-disable-next-line no-console
-    if (process.env.CAMPUS_PRINT) console.log(`A64 worst (all 12): ${w.n} at (${w.x}, ${w.y.toFixed(1)}, ${w.z}) sees #${w.who.join(', #')}`);
-    expect(w.n, `worst point (${w.x}, ${w.y}, ${w.z}) sees #${w.who.join(', #')}`).toBeLessThanOrEqual(7);
+    if (process.env.CAMPUS_PRINT) console.log(`A99 worst (all 12): ${w.n} at (${w.x}, ${w.y.toFixed(1)}, ${w.z}) sees #${w.who.join(', #')}; histogram ${JSON.stringify(w.hist)}`);
+    expect(w.n, `worst point (${w.x}, ${w.y}, ${w.z}) sees #${w.who.join(', #')}`).toBeLessThanOrEqual(CAMPUS_SCREEN_CAP);
   });
 });
 

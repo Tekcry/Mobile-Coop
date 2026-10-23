@@ -57,6 +57,8 @@ export interface BoxPiece {
   overhead?: boolean;
   /** Visual-only dressing from the detail pass (never collides; the minimap skips it). */
   detail?: boolean;
+  /** (artpol, art-kit P7) A campus art box (`writeArtBoxes`): the detail pass leaves it bare (its skin is the look). */
+  art?: boolean;
   /** (guard-ai) Glass: 'clear' lets a guard's sight through, 'frosted' blocks it; hearing treats both as a wall.
    *  (E2, EW6) Light passes both (out of the canonical light shapes); a glass piece is never drawn as a solid box,
    *  never cover or a ledge, and its collision is its own body (`G.GLASS`: bodies stop, bullets pass). Place
@@ -118,6 +120,14 @@ export interface BuiltLevel {
   surfacePlugin: SurfacePlugin | null;
   /** 3.6: the canonical light-bake shapes (packed), their bounds and hash - the same on every device and tier. */
   light: { shapes: Float32Array; lo: [number, number, number]; hi: [number, number, number]; hash: string };
+  /**
+   * (sector-redesign ART-KIT, render only) Stops drawing these boxes (indices into `boxes`): their `lvl-box` instance
+   * matrices are zeroed, the buffer and the bounding info refreshed once. Never touches `BoxPiece` data, physics, cover,
+   * nav or the light bake; a box drawn as voxels or not drawn is skipped. The campus art calls it for its box-hidden skins.
+   */
+  hidePieces(boxes: readonly number[]): void;
+  /** (sector-redesign perf, render only) The translucent roof sheets (their collision boxes are in `body`). */
+  sheets: readonly SheetPiece[];
   dispose(): void;
 }
 
@@ -295,8 +305,10 @@ export class LevelBuilder {
     return this.anchors.add<WindowAnchor>({ kind: 'window', c: { x: cx, y: cy, z: cz }, w, h, yaw, sillHeight: opts.sill ?? cy - h / 2, breakable: opts.breakable ?? true, open: opts.open ?? false });
   }
 
-  door(hx: number, hy: number, hz: number, width: number, yaw: number, opts: { height?: number; swing?: 1 | -1; locked?: boolean; breachable?: boolean; armoured?: boolean } = {}): Door {
+  door(hx: number, hy: number, hz: number, width: number, yaw: number, opts: { height?: number; swing?: 1 | -1; locked?: boolean; breachable?: boolean; leaf?: 'swing' | 'slide'; armoured?: boolean } = {}): Door {
     const d: Omit<Door, 'id'> = { kind: 'door', hinge: { x: hx, y: hy, z: hz }, width, height: opts.height ?? 2.1, yaw, swing: opts.swing ?? 1, locked: opts.locked ?? false, breachable: opts.breachable ?? true };
+    // (marlow-final kit) only a sliding door carries the field: every other anchor stays as it was
+    if (opts.leaf === 'slide') d.leaf = 'slide';
     // (E10) an armoured leaf: rounds stop on it, never through it (`doorMembership`); it opens, locks and bashes as any door
     if (opts.armoured) d.armoured = true;
     return this.anchors.add<Door>(d);
@@ -482,11 +494,12 @@ export class LevelBuilder {
   }
 
   /** Mark the pieces added since `from` (an index into `boxes`): overhead and / or without ledges. */
-  mark(from: number, flags: { overhead?: boolean; noLedge?: boolean }): this {
+  mark(from: number, flags: { overhead?: boolean; noLedge?: boolean; art?: boolean }): this {
     for (let k = from; k < this.boxes.length; k++) {
       const b = this.boxes[k]!;
       if (flags.overhead) b.overhead = true;
       if (flags.noLedge) b.noLedge = true;
+      if (flags.art) b.art = true;
     }
     return this;
   }
@@ -503,7 +516,7 @@ export class LevelBuilder {
    * moon reaches the floor under it as before; drawn as a pale see-through ridged panel that casts no shadow.
    */
   sheet(x0: number, x1: number, z0: number, z1: number, y0: number, y1: number): this {
-    this.sheets.push({ x0, x1, z0, z1, y: (y0 + y1) / 2 });
+    this.sheets.push({ x0, x1, z0, z1, y: (y0 + y1) / 2, y0: Math.min(y0, y1), y1: Math.max(y0, y1) });
     this.boxes.push({ c: [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2], s: [x1 - x0, y1 - y0, z1 - z0], yaw: 0, pitch: 0, color: '#d9ddd2', collide: true, visible: false, overhead: true, noLedge: true });
     return this;
   }
@@ -600,10 +613,13 @@ export class LevelBuilder {
     const bc = new Float32Array(shown.length * 4);
     const bs = new Float32Array(shown.length);
     const mtx = new Matrix();
+    // (ART-KIT) box index -> its `lvl-box` instance (-1: not drawn as a box), for `hidePieces`
+    const instOf = new Int32Array(this.boxes.length).fill(-1);
     let vi = 0;
     this.boxes.forEach((b, i) => {
       Quaternion.RotationYawPitchRollToRef(b.yaw, b.pitch, 0, tmpQ);
       if (asMesh(i)) {
+        instOf[i] = vi;
         Matrix.ComposeToRef(new Vector3(b.s[0], b.s[1], b.s[2]), tmpQ, new Vector3(b.c[0], b.c[1], b.c[2]), mtx);
         mtx.copyToArray(bm, vi * 16);
         const [r, g, bl] = lin(hexToRgb(b.color));
@@ -728,6 +744,20 @@ export class LevelBuilder {
       bounds: this.bounds,
       surfacePlugin,
       light,
+      sheets: this.sheets,
+      hidePieces:(ids: readonly number[]) => {
+        let any = false;
+        for (const i of ids) {
+          const v = i >= 0 && i < instOf.length ? instOf[i]! : -1;
+          if (v < 0) continue;
+          bm.fill(0, v * 16, v * 16 + 16);
+          any = true;
+        }
+        if (!any) return;
+        // the matrix buffer is static: set it again (one upload), then the bounds once
+        boxMesh.thinInstanceSetBuffer('matrix', bm, 16, true);
+        boxMesh.thinInstanceRefreshBoundingInfo(false);
+      },
       dispose: () => {
         body.dispose();
         container.dispose();

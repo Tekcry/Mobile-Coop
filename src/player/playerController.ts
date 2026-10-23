@@ -30,6 +30,16 @@ export const PLAYER_TUNING = MOVEMENT;
  * 52.6-53.6: last crouch step at 53.2, knee on the floor at 53.5).
  */
 export const KNEEL_STILL = 0.05;
+/**
+ * (anim-fix-pass AF4a, Michael P4 "Crouch cover strafe: ... moves around constantly") Crouched and aiming the kneel waits
+ * this long (s) still: an L <-> R stick flip crosses the dead zone for ~0.1-0.3 s, and at KNEEL_STILL the strafe could drop
+ * into a kneel and back on a flip. A real stop still kneels, a beat later.
+ */
+export const KNEEL_STILL_AIM = 0.35;
+/** The stillness (s) before the crouched kneel: KNEEL_STILL_AIM aiming, else KNEEL_STILL. */
+export function kneelStill(aiming: boolean): number {
+  return aiming ? KNEEL_STILL_AIM : KNEEL_STILL;
+}
 
 /**
  * Lets another system (cover) drive the controller for a step: a desired horizontal velocity and
@@ -85,6 +95,11 @@ const DOWN = new Vector3(0, -1, 0);
  *  rays' offset (x radius) - the capsule only comes down as far as the highest floor under it (a step's edge). */
 const SETTLE = { rest: 0.02, tol: 0.025, reach: 0.2, rim: 0.7 } as const;
 const RIM_SAG = MOVEMENT.radius - Math.sqrt(MOVEMENT.radius * MOVEMENT.radius * (1 - SETTLE.rim * SETTLE.rim));
+/** (S-e2e-fix) `floorNear`: the highest a floor top may be over the feet (m): a kinematic move or a teleport puts the feet
+ *  0.02 over the floor it ends on, a step-up a little more; a ray that starts inside a solid reads far higher. */
+const STALE_TOP = 0.1;
+/** The floor rays' filter (`floorUnder`): one shared bag, no allocation per ray. */
+const FLOOR_QUERY = { membership: G.PLAYER, collideWith: MASK.PLAYER_COLLIDE };
 
 /**
  * Stealth-operative Havok character controller. Movement is camera-relative; not aiming, the body faces
@@ -170,6 +185,13 @@ export class PlayerController {
   lastFall = 0;
   lastLanding: LandingKind = 'none';
   landings = 0;
+  /**
+   * (marlow-final S-e2e-fix) The Havok controller answers `checkSupport` from the contacts of its last `integrate`, and
+   * `setPosition` does not refresh them: after a kinematic step or a teleport they are the floor the body left (the wall
+   * top a hang began on), so the next free step read support in mid-air (`grounded` one step at the hang height after a
+   * let-go). True from such a move until the next `integrate`; that step keeps the support only with a floor under it.
+   */
+  private staleSupport = false;
   /** (anim-weight) A weapon in hand (Player writes it from the weapon stance): the Weight section's `weight.drawn` group. */
   weightDrawn = false;
   /** Horizontal velocity at the moment of the last landing (m/s). */
@@ -348,6 +370,7 @@ export class PlayerController {
   teleport(feet: Vector3, yaw?: number): void {
     this.cc.setPosition(feet.add(new Vector3(0, this.height / 2 + 0.02, 0)));
     this.cc.setVelocity(Vector3.Zero());
+    this.staleSupport = true;
     this.vel.reset();
     this.motion.reset(yaw ?? this.yaw);
     // a fresh stance: the gait clock restarts with the feet (the player resets the foot planner on a teleport)
@@ -403,11 +426,32 @@ export class PlayerController {
     return gap > SETTLE.tol ? gap : 0;
   }
 
+  /**
+   * (S-e2e-fix) A floor under the body now: the centre ray or one of the four rim rays (as `settleGap`) finds a top within
+   * `SETTLE.reach` under the feet and no higher than `STALE_TOP` over them (a ray that starts inside a wall reads its own
+   * start). No physics engine: true (the controller's own answer stands). Allocation-free; runs once after a kinematic
+   * move or a teleport.
+   */
+  private floorNear(): boolean {
+    const eng = this.scene.getPhysicsEngine() as PhysicsEngine | null;
+    if (!eng) return true;
+    const c = this.cc.getPosition();
+    const feet = c.y - this.height / 2;
+    const d = MOVEMENT.radius * SETTLE.rim;
+    for (let k = 0; k < 5; k++) {
+      const ox = k === 1 ? d : k === 2 ? -d : 0;
+      const oz = k === 3 ? d : k === 4 ? -d : 0;
+      const h = this.floorUnder(eng, c.x + ox, c.y, c.z + oz, feet);
+      if (h !== null && h <= feet + STALE_TOP) return true;
+    }
+    return false;
+  }
+
   /** Height of the floor under (x, z) within `SETTLE.reach` of the feet, else null. */
   private floorUnder(eng: PhysicsEngine, x: number, y: number, z: number, feet: number): number | null {
     this.settleFrom.set(x, y, z);
     this.settleTo.set(x, feet - SETTLE.reach, z);
-    eng.raycastToRef(this.settleFrom, this.settleTo, this.settleRay, { membership: G.PLAYER, collideWith: MASK.PLAYER_COLLIDE });
+    eng.raycastToRef(this.settleFrom, this.settleTo, this.settleRay, FLOOR_QUERY);
     return this.settleRay.hasHit ? this.settleRay.hitPointWorld.y : null;
   }
 
@@ -439,6 +483,7 @@ export class PlayerController {
       this.crouchPend = false;
       this.cc.setPosition(ov.kinematic.add(new Vector3(0, this.height / 2 + 0.02, 0)));
       this.cc.setVelocity(Vector3.Zero());
+      this.staleSupport = true;
       this.syncFeet();
       if (ov.yaw !== undefined) this.yaw = turnTowards(this.yaw, ov.yaw, (ov.turnRate ?? T.turnMoving * 1.5) * dt);
       this.speed = Vector3.Distance(this.pos, this.prevPos) / Math.max(dt, 1e-4);
@@ -578,6 +623,9 @@ export class PlayerController {
 
     // Havok character controller step
     const support = (this.support = this.cc.checkSupport(dt, DOWN));
+    // (S-e2e-fix) the first free step after a kinematic move or a teleport: the support is the old contacts' unless a floor
+    // is under the body now (`staleSupport`)
+    if (this.staleSupport && support.supportedState === CharacterSupportedState.SUPPORTED && !this.floorNear()) support.supportedState = CharacterSupportedState.UNSUPPORTED;
     const cur = this.cc.getVelocity();
     // (a jump's first steps never count as supported while it still rises)
     this.takeoffT = Math.max(0, this.takeoffT - dt);
@@ -631,6 +679,8 @@ export class PlayerController {
     }
     this.cc.setVelocity(out);
     this.cc.integrate(dt, support, GRAVITY);
+    // (the integrate queried the contacts where the body is: the support is fresh again)
+    this.staleSupport = false;
     this.syncFeet();
 
     // facing: the driver's (weapon-led, stance-limited, stepped on the spot); overrides may turn faster
@@ -652,7 +702,7 @@ export class PlayerController {
     this.stillT = this.crouched && mag < 0.1 && (this.ct ? this.motion.state === 'idle' : this.speed < 0.4) ? this.stillT + dt : 0;
     // (G1, audit row 3) crouched, the stop goes straight to the kneel (the stop hold lets go for it); not beside an
     // unaware guard (the tense sneak holds its pose there)
-    this.kneeling = this.stillT > KNEEL_STILL && (!this.stopHold || this.crouched) && this.stopEaseT < 0 && !this.tense;
+    this.kneeling = this.stillT > kneelStill(aiming) && (!this.stopHold || this.crouched) && this.stopEaseT < 0 && !this.tense;
     if (this.kneeling && this.stopHold) {
       this.stopHold = false;
       this.holdSpeed = 0;

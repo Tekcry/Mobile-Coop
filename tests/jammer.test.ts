@@ -37,6 +37,10 @@ import {
   type JamTarget,
   type LaserDef,
 } from '../src/game/jammer';
+import { hallCameras, type PassZone } from '../src/game/passZones';
+import { LevelBuilder } from '../src/world/levelBuilder';
+import { buildCtcourse } from '../src/world/maps/ctcourse';
+import { A3_CAMERA, A3_HALL } from '../src/world/maps/ctcourseSets/a3OfficeRange';
 
 const DT = 1 / 60;
 
@@ -391,8 +395,7 @@ describe('jam wire', () => {
     expect(parseMessage({ t: 'jam' })).toBeNull();
   });
   it('(26) the sec field round-trips the jam state: camera clocks, use, cooldown, device timelines; junk is clamped or dropped', async () => {
-    const { parseMessage, PROTOCOL_VERSION } = await import('../src/net/protocol');
-    expect(PROTOCOL_VERSION).toBe(41);
+    const { parseMessage } = await import('../src/net/protocol');
     const sec = { ck: [12.5, 3], j: ['cam-s3', ''], ch: [2.5, 5], cd: [0, 3.2], dv: [['cam-s3', 1, 2.5], ['lt-4', 2, 1.25]], al: 1 };
     const msg = { t: 'sector', sec };
     expect(parseMessage(JSON.parse(JSON.stringify(msg)))).toEqual(msg);
@@ -407,168 +410,22 @@ describe('jam wire', () => {
   });
 });
 
-describe('ctcourse devices', () => {
-  it('station 4 has a laser across the doorway', async () => {
-    const { ctcourse } = await import('../src/world/maps/ctcourse');
-    const { LevelBuilder } = await import('../src/world/levelBuilder');
-    const lay = ctcourse.build(new LevelBuilder(), 0);
-    const laser = lay.lasers![0]!;
-    expect(laser.ys.length).toBeGreaterThanOrEqual(3);
-    // a body walking through the doorway at its centre touches it
-    expect(laserTouch(laser, laser.x1 + 0.1, 0, (laser.z1 + laser.z2) / 2, LASER.standHeight)).toBe(true);
-  });
-  it('station 4 (B4): the band closes the whole wall gap, the far-side release switches it off, no plates or door', async () => {
-    const { ctcourse, S4_FLAG, S4_GAP } = await import('../src/world/maps/ctcourse');
-    const { LevelBuilder } = await import('../src/world/levelBuilder');
-    const lay = ctcourse.build(new LevelBuilder(), 0);
-    const laser = lay.lasers![0]!;
-    expect(laser.offFlag).toBe(S4_FLAG);
-    expect(Math.min(laser.z1, laser.z2)).toBeLessThanOrEqual(S4_GAP[0]);
-    expect(Math.max(laser.z1, laser.z2)).toBeGreaterThanOrEqual(S4_GAP[1]);
-    const c = lay.course!;
-    const rel = c.devices['sw-s4-release']!;
-    // the release is on the far side of the band
-    expect(rel.x).toBeGreaterThan(laser.x1 + 1);
-    const gate = c.def.bays[3]!.gates.find((g) => g.kind === 'pickup' && g.switchId === 'sw-s4-release');
-    expect(gate && gate.kind === 'pickup' && gate.flag).toBe(S4_FLAG);
-    expect(c.devices['sw-s4-a']).toBeUndefined();
-    expect(c.doors['S4-door']).toBeUndefined();
-  });
-});
+// (marlow-final 0d) The Marlow Yard cases (the station 4 laser band and its release, the station 3 camera hallway: its
+// cover, the view kept inside the bay, one jam per runner, the pass-zone gate and the send-back) pinned the old bunker
+// bays. They return with A3 (the jam relay corridor, `A3_HALL`) and A5 (the laser, `A5_LASER`) in their set tests
+// (tests/ctcourse/<set>.test.ts, SPEC 16).
 
-describe('station 3 camera hallway (marlow-jammer item 5, A5)', () => {
-  const DEG = Math.PI / 180;
-  /** The first collide box (yaw 0) the segment a -> b passes through, or false. */
-  type Box = { c: number[]; s: number[]; yaw: number; collide: boolean };
-  const blocked = (boxes: Box[], a: number[], b: number[]): boolean => {
-    for (const bx of boxes) {
-      if (!bx.collide || bx.yaw !== 0) continue;
-      let t0 = 0;
-      let t1 = 1;
-      let hit = true;
-      for (let k = 0; k < 3 && hit; k++) {
-        const d = b[k]! - a[k]!;
-        const lo = bx.c[k]! - bx.s[k]! / 2;
-        const hi = bx.c[k]! + bx.s[k]! / 2;
-        if (Math.abs(d) < 1e-9) {
-          if (a[k]! < lo || a[k]! > hi) hit = false;
-          continue;
-        }
-        let u = (lo - a[k]!) / d;
-        let v = (hi - a[k]!) / d;
-        if (u > v) [u, v] = [v, u];
-        t0 = Math.max(t0, u);
-        t1 = Math.min(t1, v);
-        if (t0 > t1) hit = false;
-      }
-      // the segment's own ends (the lens, the point) are not occluders
-      if (hit && t1 > 0.001 && t0 < 0.999) return true;
-    }
-    return false;
-  };
-  const build = async () => {
-    const m = await import('../src/world/maps/ctcourse');
-    const { LevelBuilder } = await import('../src/world/levelBuilder');
-    const b = new LevelBuilder();
-    const lay = m.ctcourse.build(b, 0);
-    return { m, b, lay };
-  };
-
-  it('the camera sits at the hallway end, looking back down it, and covers it end to end at every sweep angle', async () => {
-    const { m, b, lay } = await build();
-    // (sector-fixes C) with the camera's own pitch (aimed at the hallway floor) and range, as its detection reads them
-    const { camPitch, camRange, inFrame } = await import('../src/security/camera');
-    const cam = lay.security!.devices.find((d) => d.id === 'cam-s3')!;
-    expect(cam.at[0]).toBe(m.S3_CAMERA.x);
-    const [s0, s1] = cam.sweep!;
-    const lens = [cam.at[0], cam.y, cam.at[1]];
-    // standing and crouched heads along the hallway's centre and both edges, from its mouth to 3 m short of the camera
-    for (let x = m.S3_HALL.x0 + 0.3; x <= m.S3_CAMERA.x - 3; x += 0.5) {
-      for (const z of [m.S3_HALL.z0 + 0.35, (m.S3_HALL.z0 + m.S3_HALL.z1) / 2, m.S3_HALL.z1 - 0.35]) {
-        for (const y of [1.6, 1.05]) {
-          for (let a = s0; a <= s1; a += 2) expect(inFrame(a * DEG, cam.at[0], cam.y, cam.at[1], x, y, z, camPitch(cam), camRange(cam)), `${x.toFixed(1)}, ${y}, ${z} at ${a}`).toBe(true);
-          expect(blocked(b.boxes, lens, [x, y, z]), `clear line to ${x.toFixed(1)}, ${z}`).toBe(false);
-        }
-      }
-    }
+describe('marlow-walk482 X6: a hallway rule camera only sends back (no guard alert, no alarm)', () => {
+  it("over Marlow Yard's pass zones the set is A3's hall camera alone", () => {
+    const zones = buildCtcourse(new LevelBuilder()).layout.passZones ?? [];
+    expect(zones.some((z) => z.hall === A3_HALL)).toBe(true);
+    expect([...hallCameras(zones)]).toEqual(['cam-a3-hall']);
+    expect(A3_CAMERA).toBe('cam-a3-hall');
   });
-
-  it('its view stays inside the bay: no point of either airlock is seen, the doors open', async () => {
-    const { b, lay, m } = await build();
-    // (sector-fixes C) with the camera's own pitch (aimed at the hallway floor) and range, as its detection reads them
-    const { camPitch, camRange, inFrame } = await import('../src/security/camera');
-    const cam = lay.security!.devices.find((d) => d.id === 'cam-s3')!;
-    const lens = [cam.at[0], cam.y, cam.at[1]];
-    const x0 = m.bayX(2);
-    let tested = 0;
-    // A2 (behind the entry lobby's wall) and A3 (behind the camera); door leaves are not boxes: every door counts as open
-    for (const [ax0, ax1] of [[x0 - 6, x0], [x0 + 16, x0 + 22]] as const) {
-      for (let x = ax0 + 0.2; x < ax1; x += 0.4) {
-        for (let z = 4.2; z < 10; z += 0.4) {
-          for (const y of [0.3, 1.0, 1.7, 2.5]) {
-            for (let a = cam.sweep![0]; a <= cam.sweep![1]; a += 4) {
-              if (!inFrame(a * DEG, cam.at[0], cam.y, cam.at[1], x, y, z, camPitch(cam), camRange(cam))) continue;
-              tested++;
-              expect(blocked(b.boxes, lens, [x, y, z]), `airlock point ${x.toFixed(1)}, ${y}, ${z.toFixed(1)} is seen`).toBe(true);
-            }
-          }
-        }
-      }
-    }
-    // (camera-range) A2 lay in the camera's frame and its old 18 m range (behind the wall); with the zone range (2 x aim,
-    // 13 m) no point of either airlock is even in range: the walls are no longer needed to keep it inside the bay
-    expect(camRange(cam)).toBe(13);
-    expect(tested).toBe(0);
-  });
-
-  it('one jam covers one runner, never both: the covered stretch at the course speeds', async () => {
-    const { m } = await build();
-    const { CAMERA } = await import('../src/config/security');
-    const { GEARS } = await import('../src/config/movement');
-    // a standing head (1.7 m) leaves the vertical frame this close to the camera: the covered stretch ends there
-    // (sector-fixes C) the frame's lower edge is half the field below the camera's pitch
-    const blind = (m.S3_CAMERA.y - 1.7) / Math.tan(CAMERA.vFov / 2 + Math.atan2(m.S3_CAMERA.y, m.S3_CAMERA_AIM));
-    const len = m.S3_CAMERA.x - blind - m.S3_HALL.x0;
-    const run = GEARS.stand[4];
-    // one runner gets through inside one 5 s jam
-    expect(len / run).toBeLessThan(JAMMER.useMax);
-    // two in a row would not fit in one jam (and the jammer must stand still while it jams)
-    expect((2 * len) / run).toBeGreaterThan(JAMMER.useMax);
-    // the jammer cannot follow inside the 1.5 s reboot either
-    expect(len / run).toBeGreaterThan(JAMMER.reboot);
-    // a narrow hallway (2.5 - 3.5 m)
-    const w = m.S3_HALL.z1 - m.S3_HALL.z0;
-    expect(w).toBeGreaterThanOrEqual(2.5);
-    expect(w).toBeLessThanOrEqual(3.5);
-  });
-
-  it('the gate: both players in the far lobby unlock the exit airlock door; the old pocket door is gone', async () => {
-    const { m, lay } = await build();
-    const c = lay.course!;
-    const gate = c.def.bays[2]!.gates.find((g) => g.kind === 'flag');
-    expect(gate && gate.kind === 'flag' && gate.flag).toBe(m.S3_FLAG);
-    expect(gate && gate.kind === 'flag' && gate.doorId).toBe('A3-near');
-    expect(c.def.externalFlags).toContain(m.S3_FLAG);
-    expect(c.doors['S3-door']).toBeUndefined();
-    const zone = lay.passZones!.find((z) => z.flag === m.S3_FLAG)!;
-    expect(Math.min(zone.box[0], zone.box[2])).toBeGreaterThanOrEqual(m.S3_HALL.x1);
-    expect(inBox(zone.box, m.bayX(2) + 15, 7)).toBe(true);
-    // (fix round 1) the hallway rule: its box covers the hallway up to the far lobby (no gap), the camera is the bay's,
-    // the send-back spot is in the entry lobby facing the hallway, the radio line fits
-    const hall = zone.hall!;
-    expect(hall.camera).toBe('cam-s3');
-    expect(inBox(hall.box, m.S3_HALL.x0 + 0.1, 1.6)).toBe(true);
-    expect(Math.max(hall.box[0], hall.box[2])).toBeCloseTo(Math.min(zone.box[0], zone.box[2]));
-    const [bx, bz, yaw] = hall.back;
-    expect(bx).toBeGreaterThan(m.bayX(2));
-    expect(bx).toBeLessThan(m.S3_HALL.x0);
-    expect(inBox(hall.box, bx, bz)).toBe(false);
-    expect(inBox(zone.box, bx, bz)).toBe(false);
-    expect(yaw).toBeCloseTo(Math.PI / 2);
-    expect(hall.say.length).toBeLessThanOrEqual(90);
-    // (fix round 2) the entry lobby box holds the send-back spot, touches the hallway, and never the far lobby
-    expect(inBox(hall.lobby, bx, bz)).toBe(true);
-    expect(Math.max(hall.lobby[0], hall.lobby[2])).toBeCloseTo(m.S3_HALL.x0);
-    expect(Math.max(hall.lobby[0], hall.lobby[2])).toBeLessThan(Math.min(zone.box[0], zone.box[2]));
+  it('a zone without a hall adds nothing', () => {
+    const plain: PassZone = { id: 'p', box: [0, 0, 1, 1], flag: 'f' };
+    expect(hallCameras([]).size).toBe(0);
+    expect(hallCameras([plain]).size).toBe(0);
+    expect([...hallCameras([plain, { id: 'h', box: [0, 0, 1, 1], flag: 'g', hall: A3_HALL }])]).toEqual([A3_CAMERA]);
   });
 });

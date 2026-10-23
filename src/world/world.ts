@@ -25,6 +25,7 @@ import type { MapDef, MapLayout } from './mapDef';
 import { PartLibrary } from './partLibrary';
 import { PropSystem } from './props';
 import { LightRig } from './lightRig';
+import { CampusArtRender } from './campusArt/campusArtRender';
 import { Breakables } from './breakables';
 import { Doors } from './doors';
 import { Ropes } from './ropes';
@@ -43,6 +44,8 @@ import { bakeLevelLight, lightBakeHash, type LightBake } from './lightBake';
 import { LightField } from './lightField';
 import { moonLight } from './lampMath';
 import { roofAt, roofGrid, type RoofGrid } from './roofGrid';
+import { KitRender } from './kit/kitRender';
+import { PropRender } from './props/propRender';
 import { SunCascadeLists, keepNearCamera, useCascadeLists } from './sunCascadeCull';
 
 /** Flashlight slots on dark maps (enemies searching / investigating in the dark): `torches.ts`. */
@@ -81,6 +84,14 @@ export class World {
   readonly breakables: Breakables;
   /** Hinged doors (collision while closed, armed once the nav grid is built). */
   readonly doors: Doors;
+  /** (sector-redesign ART-KIT) The campus art (render only; null: no art, `?gfx=min`, or a failed load: the greybox shows). */
+  campusArt: CampusArtRender | null = null;
+  /** (marlow-final M5) The facility kit's meshes over the level (null: the map places none, `?gfx=min`, or the GLB
+   *  failed to load - the greybox boxes under it then show). Render only. */
+  kit: KitRender | null = null;
+  /** (marlow-final M5) The props kit's meshes (null: the map places none, `?gfx=min`, or the GLB failed to load - the
+   *  prop boxes under them then show). Render only: gameplay reads the boxes `props.write(b)` put in the level. */
+  facilityProps: PropRender | null = null;
   private _ropes: Ropes | null = null;
   /** (3.2.0) Rappel ropes (the local player's and remotes'), created on first use. */
   get ropes(): Ropes {
@@ -169,6 +180,23 @@ export class World {
     const skyJob = atlas && flags.baked ? smoothSky(level.light).catch(() => null) : null;
     const bake = await bakeLevelLight({ mapId: bakeId, seed: opts.seed, shapes: level.light.shapes, shapesHash: level.light.hash, lo: level.light.lo, hi: level.light.hi, reg: level.lights, sunDir: map.theme.sunDir, moonLight: moonLight(map.theme) });
     const w = new World(scene, map, level, layout, atlas, bake);
+    // (marlow-final M5) the facility kit: skins over the level's own boxes (gameplay reads the boxes), made before the
+    // lamp bake's plugin attaches so its materials are lit as level
+    if (layout.kit?.instances.length && atlas && !opts.cheap) {
+      try {
+        w.kit = await KitRender.create(scene, layout.kit, w.doors.list, level.lights, (m) => w.lightRig.addCaster(m));
+      } catch (e) {
+        console.warn('[kit] the facility kit failed to load; the greybox shows', e);
+      }
+    }
+    // (marlow-final M5) the props kit: drawn over the boxes the map builder wrote for them (the kit's rules)
+    if (layout.facilityProps?.length && atlas && !opts.cheap) {
+      try {
+        w.facilityProps = await PropRender.create(scene, layout.facilityProps, w.doors.list, level.lights);
+      } catch (e) {
+        console.warn('[props] the props kit failed to load; the greybox shows', e);
+      }
+    }
     // 3.2 baked lamps: drawn from the bake on every PBR path, so the picture
     // matches the light meter (smooth-world); not the cheap test path; `?baked=0` off
     if (bake.lamps && flags.baked && atlas && !opts.cheap) {
@@ -186,9 +214,19 @@ export class World {
       w.lamps.bakeMs = bake.ms;
       w.lamps.attachAll();
       w.lightRig.setBaked(w.lamps.ids);
+      // (LR15, shadow-accuracy fixes on) the unshadowed flashlights drawn by the baked lamps
+      w.lightRig.setTorchDraw(w.lamps.torchDraw);
       w.charShadows = new CharShadows(scene, w.lamps, w.charCasters);
       w.lamps.charShadows = w.charShadows;
       w.useBakedMoon();
+    }
+    // (sector-redesign ART-KIT) the campus art over the greybox: PBR path only; a failed load leaves the boxes drawn
+    if (layout.campusArt?.placements.length && atlas && !opts.cheap) {
+      try {
+        w.campusArt = await CampusArtRender.create(scene, layout.campusArt, level.lights, level, (m) => w.lightRig.addCaster(m));
+      } catch (e) {
+        console.warn('[campus-art] failed to load; the greybox shows', e);
+      }
     }
     return w;
   }
@@ -487,6 +525,8 @@ export class World {
   }
 
   dispose(): void {
+    this.kit?.dispose();
+    this.facilityProps?.dispose();
     this.shadow?.dispose();
     this.surfaces?.dispose();
     this.probe?.dispose();
@@ -494,6 +534,7 @@ export class World {
     this.charShadows?.dispose();
     this.lamps?.dispose();
     this.breakables.dispose();
+    this.campusArt?.dispose();
     this.doors.dispose();
     this.props.dispose();
     this.level.dispose();

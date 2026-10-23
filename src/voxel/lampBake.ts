@@ -251,23 +251,38 @@ function bakeOne(L: Float32Array, li: number, box: number[], occShapes: Float32A
   return vis;
 }
 
-/** Atlas layout for the lights' boxes: tiles side by side along x in rows along z (all at y = 0). */
+/** Atlas layout for the lights' boxes: tiles side by side along x in rows along z; (lr-tex3d) when the rows pass
+ *  `maxDepth` they continue on a new page stacked along y. */
 export interface LampAtlas {
   /** Per light: tile offset in cells (x, z). */
   offsets: Int32Array;
+  /** Per light: tile offset in cells along y (its page; 0 on a one-page atlas). */
+  ys: Int32Array;
+  /** Pages stacked along y (1: every tile at y = 0, the layout before lr-tex3d). */
+  pages: number;
   dims: [number, number, number];
 }
 
-/** Pure: shelf-pack the boxes (x across, z rows) within `maxWidth` cells. */
-export function packLampAtlas(boxes: Float32Array, maxWidth = 1024): LampAtlas {
+/** The atlas width the lamps have always packed to (cells): a map whose atlas fits keeps this layout exactly. */
+export const LAMP_ATLAS_WIDTH = 1024;
+
+/** Pure: shelf-pack the boxes (x across, z rows) within `maxWidth` cells; rows past `maxDepth` start a new page
+ *  along y (each page as tall as its tallest box). `order`: the lights in packing order (default: light order). */
+export function packLampAtlas(boxes: Float32Array, maxWidth = LAMP_ATLAS_WIDTH, maxDepth = Infinity, order?: Int32Array): LampAtlas {
   const n = boxes.length / BOX_STRIDE;
   const offsets = new Int32Array(n * 2);
+  const ys = new Int32Array(n);
   let x = 0;
   let z = 0;
   let row = 0;
   let w = 1;
-  let h = 1;
-  for (let i = 0; i < n; i++) {
+  let d = 1;
+  // the page's y offset and height
+  let py = 0;
+  let ph = 1;
+  let pages = 1;
+  for (let k = 0; k < n; k++) {
+    const i = order ? order[k]! : k;
     const bx = boxes[i * BOX_STRIDE + 3]!;
     const by = boxes[i * BOX_STRIDE + 4]!;
     const bz = boxes[i * BOX_STRIDE + 5]!;
@@ -276,14 +291,64 @@ export function packLampAtlas(boxes: Float32Array, maxWidth = 1024): LampAtlas {
       x = 0;
       row = 0;
     }
+    if (z > 0 && z + bz > maxDepth) {
+      py += ph;
+      ph = 1;
+      pages++;
+      z = 0;
+      x = 0;
+      row = 0;
+    }
     offsets[i * 2] = x;
     offsets[i * 2 + 1] = z;
+    ys[i] = py;
     x += bx;
     row = Math.max(row, bz);
+    ph = Math.max(ph, by);
     w = Math.max(w, x);
-    h = Math.max(h, by);
+    d = Math.max(d, z + row);
   }
-  return { offsets, dims: [w, h, z + row || 1] };
+  return { offsets, ys, pages, dims: [w, py + ph, d] };
+}
+
+/**
+ * (lr-tex3d) Pure: the atlas layout that fits a 3D texture of `maxSize` texels per axis (the GPU's
+ * `MAX_3D_TEXTURE_SIZE`, read at runtime). Under LR13's 1.6x reach campusOps packed to 1023 x 90 x 2428 at the
+ * 1024-cell width: past the 2048 most GPUs allow, the upload failed and every baked lamp read 0 on screen while the
+ * light field (CPU, the bake itself) still lit the floor. The old 1024 width first (a map that fits keeps its layout
+ * texel for texel); else the smallest of wider rows up to `maxSize` and pages along y. Every cell is copied exactly, so
+ * the picture and the field read the same visibility (light parity; nothing is down-sampled, and the field never reads
+ * the GPU limit). `fits` is false only when even the paged atlas passes `maxSize` (no WebGL2 GPU at 2048 for any map
+ * today: campusOps Realistic needs 134 M cells against 8.6 G).
+ */
+export function fitLampAtlas(boxes: Float32Array, maxSize: number): LampAtlas & { fits: boolean } {
+  const ok = (a: LampAtlas): boolean => a.dims[0] <= maxSize && a.dims[1] <= maxSize && a.dims[2] <= maxSize;
+  const w0 = Math.min(LAMP_ATLAS_WIDTH, maxSize);
+  const first = packLampAtlas(boxes, w0);
+  if (ok(first)) return { ...first, fits: true };
+  // past the old layout: tallest, then deepest boxes first (pages and rows of like boxes waste the fewest cells)
+  const n = boxes.length / BOX_STRIDE;
+  const order = Int32Array.from({ length: n }, (_, i) => i).sort(
+    (a, b) => boxes[b * BOX_STRIDE + 4]! - boxes[a * BOX_STRIDE + 4]! || boxes[b * BOX_STRIDE + 5]! - boxes[a * BOX_STRIDE + 5]! || a - b,
+  );
+  // the smallest that fits of: wider rows (one page), then pages along y of shrinking depth (short boxes on short pages)
+  const vol = (a: LampAtlas): number => a.dims[0] * a.dims[1] * a.dims[2];
+  let best: LampAtlas | null = null;
+  for (let w = w0; ; w = Math.min(w * 2, maxSize)) {
+    const a = packLampAtlas(boxes, w, Infinity, order);
+    if (ok(a)) {
+      best = a;
+      break;
+    }
+    if (w >= maxSize) break;
+  }
+  for (let d = maxSize; d >= 64; d >>= 1) {
+    const a = packLampAtlas(boxes, maxSize, d, order);
+    if (ok(a) && (!best || vol(a) < vol(best))) best = a;
+  }
+  if (best) return { ...best, fits: true };
+  const a = packLampAtlas(boxes, maxSize, maxSize, order);
+  return { ...a, fits: false };
 }
 
 /** Pure: copy every light's cells into the atlas (R8, x fastest). */
@@ -298,10 +363,11 @@ export function fillLampAtlas(r: LampResult, a: LampAtlas): Uint8Array {
     const nz = r.boxes[i * BOX_STRIDE + 5]!;
     const tx = a.offsets[i * 2]!;
     const tz = a.offsets[i * 2 + 1]!;
+    const ty = a.ys[i]!;
     for (let z = 0; z < nz; z++) {
       for (let y = 0; y < ny; y++) {
         const src = at + nx * (y + ny * z);
-        out.set(r.vis.subarray(src, src + nx), tx + ax * (y + ay * (tz + z)));
+        out.set(r.vis.subarray(src, src + nx), tx + ax * (ty + y + ay * (tz + z)));
       }
     }
     at += nx * ny * nz;

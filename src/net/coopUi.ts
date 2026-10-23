@@ -1,6 +1,6 @@
 import type { App } from '../core/app';
 import type { WeatherChoice } from '../world/mapDef';
-import { matchLampFalloff } from '../world/lampMath';
+import { matchLampFalloff, type LampFalloff } from '../world/lampMath';
 import type { GameOptions, GameState, SessionCallbacks } from '../game/gameState';
 import { clearRejoin, rejoinToken, saveRejoin, type RejoinRecord } from '../core/rejoin';
 import { flags } from '../core/flags';
@@ -23,6 +23,7 @@ import { CoopClient } from './coopClient';
 import { loadCourseRecord, startableBays, type CourseRecord } from '../save/courseRecord';
 import { loadSectorRecord, starsOf, starsText, type SectorRecord } from '../save/sectorRecord';
 import { courseAllBaysFlag } from '../game/modes/courseMode';
+import { registeredBayCount } from '../game/course/courseDef';
 
 /** What the coop UI needs from the app shell (main.ts), so this module never imports it. */
 export interface CoopApi {
@@ -71,6 +72,8 @@ class CoopController {
   private left = false;
   /** (R1) Refreshes the rejoin record while a match runs. */
   private recT: ReturnType<typeof setInterval> | null = null;
+  /** (lrpolish) The running match's lamp falloff, kept in the rejoin record so "Resume hosting" runs the same mode. */
+  private matchLf: LampFalloff | undefined;
   /** (server browser) Host: the room is listed in Browse rooms (default Private). */
   isPublic = false;
   dir: DirectoryPoster | null = null;
@@ -181,7 +184,7 @@ class CoopController {
       return;
     }
     const s = this.session;
-    const r: RejoinRecord = { code: s.code, role: s.role, at: Date.now(), mode: s.mode, map: s.map, difficulty: s.difficulty, mission: s.mission, weather: s.weather, bay: g.mode?.resumeBay?.() ?? s.courseBay };
+    const r: RejoinRecord = { code: s.code, role: s.role, at: Date.now(), mode: s.mode, map: s.map, difficulty: s.difficulty, mission: s.mission, weather: s.weather, bay: g.mode?.resumeBay?.() ?? s.courseBay, lf: this.matchLf };
     saveRejoin(r);
   }
 
@@ -191,6 +194,7 @@ class CoopController {
     if (this.inGame && !this.waiting) return;
     this.waiting = false;
     this.inGame = true;
+    this.matchLf = s.lampFalloff;
     if (!this.recT) this.recT = setInterval(() => this.record(), 2000);
     const session = this.session;
     const mission = s.mode === 'infiltration' ? missionById(s.mission) : null;
@@ -593,9 +597,9 @@ class LobbyScreen extends MenuScreen {
         if (this.c.session.mode === 'course') this.buildOpts();
       });
     }
-    const map = MAPS.find((m) => m.id === s.map);
     const entry = this.courseRec?.courses[s.map];
-    const bays = startableBays(entry, courseAllBaysFlag(), courseAllBaysFlag() ? (map ? 9 : 0) : 0);
+    // (marlow-final N8) the dev flag offers the course's own bays (its registered definition), not an assumed 9
+    const bays = startableBays(entry, courseAllBaysFlag(), courseAllBaysFlag() ? registeredBayCount(s.map) : 0);
     if (!bays.includes(s.courseBay)) s.courseBay = 1;
     return choice('Start at', bays.map((n) => ({ value: String(n), label: n === 1 ? 'Bay 1' : `Bay ${n}${entry?.bays[n - 1] ? ` (${entry.bays[n - 1]})` : ''}` })), () => String(s.courseBay), (v) => {
       s.courseBay = Number(v) || 1;
@@ -805,6 +809,9 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
     session.weather = resume.weather;
     session.courseBay = resume.bay;
     adopt(app, api, session);
+    // (lrpolish) the resumed match runs the falloff the dropped one ran (an older record: the host's setting, as before)
+    const lf = resume.lf;
+    if (lf) session.hostLampFalloff = () => matchLampFalloff(app.settings.get().gameplay.lampFalloff, flags.photoLamps, lf);
     session.startMatch();
     return;
   }

@@ -7,14 +7,15 @@ import { Ragdoll } from '../ai/ragdoll';
 import { BUDGET, G } from '../physics/groups';
 import { TorchMirror } from './torchMirror';
 import { LAMP_TARGET, LampMirror } from './lampSync';
-import { lightOnRay, type LightDef } from '../world/lights';
+import { lampReachProbe, lightOnRay, type LightDef } from '../world/lights';
 import { BODY } from '../ai/bodies';
 import type { HitInfo } from '../game/damage';
 import { Interactables, KIND_COLOR, type Interactable } from '../game/interactables';
 import { CRATE_DARK, applyCrateEvent } from '../game/crateLedger';
 import type { NetSession } from './session';
-import { BARK_CAM, BARK_TEXT, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
-import { ClockSync } from './interp';
+import { BARK_CAM, BARK_TEXT, gaitWire, motionWire, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
+import { CT } from '../config/movement';
+import { CLIENT_INTERP_DELAY, ClockSync, sendClock } from './interp';
 import type { CKind } from '../game/committedMoves';
 import { RemoteAvatar } from './remoteAvatar';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
@@ -24,9 +25,13 @@ import { PartnerTarget } from './partnerTarget';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
 import type { TeamMate } from '../game/teamController';
 import type { TeamKind } from '../game/teamMoves';
-import { clampEnd, clientForcedHolster, coopSessionStats } from './validate';
-import { applyCourseWire, clientCourseFrame, clientCourseSummary, courseStartPos, disposeClientCourse } from '../game/modes/courseMode';
-import { isClientVerb, type ClientVerb } from '../game/course/courseWire';
+import { clampEnd, clientForcedHolster, coopSessionStats, ratingViewFromWire, ratingViewsFromRh } from './validate';
+import { RatingCard, type RatingView } from '../ui/hud/ratingCard';
+import { GADGETS } from '../game/gadgets';
+import { GRANT_GADGETS, putRating } from '../game/rating/sectionRating';
+import { stationHeal } from '../game/medkit';
+import { applyCourseWire, clientCourseFrame, clientCourseSummary, disposeClientCourse } from '../game/modes/courseMode';
+import { COURSE_RESTART_TITLE, isClientVerb, type ClientVerb } from '../game/course/courseWire';
 import { CtDevices } from '../game/ctDevices';
 import { newSeenBody, remoteHeadY, type SeenBody } from '../security/securitySystem';
 import { CourseFeed } from '../game/course/courseFeed';
@@ -38,14 +43,18 @@ import { localMoveState } from '../game/localMoveState';
 import { dropBadWallMove, emptyMoveState, moveChanged } from '../player/moveState';
 import { CrackPrediction } from '../world/doorPeek';
 import { markCompleted } from '../save/sectorRecord';
-import { BOLT_DEPTH, SECTOR_RESTART_TITLE, boltById, boltHalfSpan } from '../game/sectors';
+import { HoldPulseWatch } from './holdPulse';
+import { BOLT_DEPTH, SECTOR_RESTART_TITLE, boltById, boltHalfSpan, type SectorRatingWire } from '../game/sectors';
 import { barkLine, BARK_EVENTS, RADIO_BARKS } from '../ai/barks';
 import { HelmetDrops } from '../ai/helmetDrops';
 import { DeflectLedger } from './puppetGear';
 import { DESK_NONE, deskItemId, deskModeOf } from '../game/sectorDesks';
+import { placeSlot, startSlotPoints } from '../game/spawnPlace';
+import type { SlotPoint } from '../game/spawnSlots';
 
 const SEND_HZ = 20;
-const INTERP_DELAY = 0.12;
+/** (afp AF6) `CLIENT_INTERP_DELAY` (interp.ts; was 0.12). */
+const INTERP_DELAY = CLIENT_INTERP_DELAY;
 
 /**
  * Client side of a match. Only the local player is simulated (predicted); enemies, modes, pickups, objectives, doors
@@ -80,16 +89,46 @@ export class CoopClient implements NetAttachment {
   private lastBlast: { p: Vector3; t: number } | null = null;
   private ints: Interactables | null = null;
   private items = new Map<string, Interactable>();
+  /** (marlow-final Q12) The mirrored noisy holds: each pulse of our own hold goes to the host's guards. */
+  private holdPulses = new HoldPulseWatch();
+  private readonly sendPulse = (id: string): void => this.s.toHost({ t: 'use', id, pulse: true });
   /** (E9-crate) The weapons crates this player used (fed only by `crate` events; cleared on a section restart). */
   private readonly crateSpent = new Set<string>();
   /** Sector Ops: the client's mirror of the cameras and lasers. */
   private sec: CtDevices | null = null;
   /** (sector-restart) The section our checkpoint loadout was recorded for (the host's live section only moves on). */
   private kitSection = 0;
+  /** (section-rating S3) The host's last section rating as the HUD card shows it (null before the first). */
+  rating: RatingView | null = null;
+  /** (section-rating S3) Bumped on each new rating (the HUD shows the card when it changes). */
+  ratingSeq = 0;
+  /**
+   * (section-rating S3) Called once per new granted rating with the gadget the grant topped up here (by name, or
+   * undefined when none or several); not for the op's last section (that one goes to the results). Sector Ops sets it
+   * to the rating card below.
+   */
+  onRating: ((v: RatingView, gadgetName?: string) => void) | null = null;
+  /** The section index of the last rating taken (-1 none; a restart never re-rates, so a new index is a new rating). */
+  private ratedSec = -1;
+  /** (section-rating fix) The card's copy of a rating, its grant trimmed to what lands here (reused). */
+  private readonly cardView: RatingView = {
+    sectionId: '',
+    title: '',
+    marks: 0,
+    synced: 0,
+    grant: { gadget: 0, syringe: 0, medkit: 0, alarmStep: 0 },
+  };
+  /** (integration) A sector message has arrived since this client connected (the first one's rating is history). */
+  private sawSector = false;
+  /** (integration) Sector Ops: the section rating card on our HUD (null elsewhere). */
+  private card: RatingCard | null = null;
   /** (coop-torches) The guards' flashlights: the world's slots lit and placed from the snapshot's torch bits. */
   readonly torches: TorchMirror;
   private readonly torchA = new Vector3();
   private readonly torchB = new Vector3();
+  /** (polish2) The mount-reach probe's ends (`lampReachProbe`). */
+  private readonly reachA = new Vector3();
+  private readonly reachB = new Vector3();
   /** (sector-redesign slice L, protocol 31) Sector Ops: the host's fixed lights (switched, shot) on this page's registry,
    *  so the picture, the meter and the guards' torch reads match the host's; null elsewhere. */
   lamps: LampMirror | null = null;
@@ -113,11 +152,11 @@ export class CoopClient implements NetAttachment {
     // (G135) the goggle colours follow the host's player order (host green, us cyan as the partner)
     this.recolour();
     this.offs.push(s.events.on('lobby', () => this.recolour()));
+    // (coop-rejoin, walk item 4) our own slot of the start area (the map's slot point, else a safe spot beside the
+    // host's), before our first `pstate` (the host takes a first state anywhere): a course bay-N start's entry airlock
+    // (D20), Sector Ops' first section, else the map's spawns. A late join or rejoin is then placed by the host.
+    this.placeStart();
     if (g.opts.mode === 'course') {
-      // a bay-N start (D20): beside the host in that bay's entry airlock, before our first `pstate` (the host takes a
-      // first state anywhere)
-      const at = courseStartPos(g, g.opts.courseBay ?? 1, 1);
-      if (at) g.player.controller.teleport(at, g.player.cam.yaw);
       const feed = new CourseFeed(g, true);
       this.feed = feed;
       this.offs.push(g.events.on('takedown', (e) => {
@@ -139,6 +178,15 @@ export class CoopClient implements NetAttachment {
       this.offs.push(() => {
         ct.dispose();
         g.ctDev = null;
+      });
+      // (section-rating integration) the host's section ratings on our own card (the host's mode shows its own)
+      const card = new RatingCard(g.hud.el);
+      this.card = card;
+      this.onRating = (v, name) => card.show(v, name);
+      this.offs.push(() => {
+        card.el.remove();
+        this.card = null;
+        this.onRating = null;
       });
     }
     g.explosions.onLocalBlast = (p) => {
@@ -166,6 +214,14 @@ export class CoopClient implements NetAttachment {
     g.hud.setObjective(this.obj);
     // (coop-fix, bug 1) a hidden client page keeps simulating and sending its states
     this.offs.push(keepSimInBackground(g));
+    // (marlow-polish) our own round off a bulletproof camera (Sector Ops, Marlow Yard): the host's ricochet sparks and
+    // impact sound on our screen too (local only; the mirror's CtDevices is read per shot, the course one comes later)
+    const prevRay = g.weapons.onRay;
+    g.weapons.onRay = (a, b) => {
+      prevRay?.(a, b);
+      g.ctDev?.ricochetRay(a, b);
+    };
+    this.offs.push(() => (g.weapons.onRay = null));
   }
 
   private get renderTime(): number {
@@ -289,6 +345,29 @@ export class CoopClient implements NetAttachment {
       this.blockers.push({ id: st.id, a, b: new PartnerBlocker(g.scene, st.id) });
     }
     return a;
+  }
+
+  /** (coop-rejoin) Our player slot: 1 + our place among the joiners in the host's lobby order (the host is slot 0). */
+  private slot(): number {
+    let i = 1;
+    for (const p of this.s.players.values()) {
+      if (p.host) continue;
+      if (p.id === this.s.selfId) return i;
+      i++;
+    }
+    return 1;
+  }
+
+  /** (coop-rejoin, walk item 4) Our start: our slot of the start area, clear of the host's slot 0 point. */
+  private placeStart(): void {
+    const g = this.g;
+    const pts = startSlotPoints(g);
+    const base = pts[0];
+    if (!base) return;
+    const out: SlotPoint = { x: 0, y: 0, z: 0, yaw: 0 };
+    if (placeSlot(g, pts, this.slot(), [base], out) === 'none') return;
+    g.player.controller.teleport(new Vector3(out.x, out.y, out.z), out.yaw);
+    g.player.cam.yaw = out.yaw;
   }
 
   /** (G135) Every body's goggle colour from its player slot: the partner beacon. */
@@ -443,6 +522,11 @@ export class CoopClient implements NetAttachment {
           it.sideHalf = boltHalfSpan(bolt.bolt);
           it.sideDepth = BOLT_DEPTH;
         }
+        // (30, Q12) a noisy hold: our own hold pulses it to the host, and our noise meter reads it as the host's does
+        if (n.hn && n.hold > 0) {
+          it.holdNoise = n.hn;
+          this.holdPulses.add(it);
+        }
         this.items.set(n.id, it);
       }
       it.pos.set(n.x, n.y, n.z);
@@ -465,6 +549,7 @@ export class CoopClient implements NetAttachment {
     }
     for (const [id, it] of this.items) {
       if (keep.has(id)) continue;
+      this.holdPulses.remove(it);
       ints.remove(it);
       this.items.delete(id);
     }
@@ -537,6 +622,10 @@ export class CoopClient implements NetAttachment {
     const id = lightOnRay(reg, a.x, a.y, a.z, b.x, b.y, b.z);
     const l = id >= 0 ? reg.lights[id] : undefined;
     if (!l || !l.destructible || l.destroyed) return;
+    // (polish2) the host's mount-reach probe (`StealthSystems.shotRay`, `onLampShot`): never ask for a lamp it refuses
+    const p = this.reachA;
+    const h = lampReachProbe(reg, id, a.x, a.y, a.z, b.x, b.y, b.z, p);
+    if (h > 0 && !this.g.ballistics.clear(p, this.reachB.set(p.x, p.y + h, p.z), G.STATIC)) return;
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     const dz = b.z - a.z;
@@ -650,6 +739,8 @@ export class CoopClient implements NetAttachment {
           // (E9-crate, A105) every crate usable again
           this.clearCrates();
         }
+        // (marlow-final S10, M2) the same for a Marlow Yard set restart (our carried body let go, gadgets out gone)
+        else if (e.title === COURSE_RESTART_TITLE && g.opts.mode === 'course') g.checkpointReset();
         break;
       case 'feed':
         // a radio line (subtitle), also kept in the feed: the host's interrogation intel arrives as these and the host
@@ -756,6 +847,22 @@ export class CoopClient implements NetAttachment {
    */
   private onSector(msg: Extract<Msg, { t: 'sector' }>): void {
     const ct = this.sec;
+    // (section-rating fix) the rating first: a top-up in the same message as a new `ls` goes into that checkpoint loadout
+    if (!this.sawSector) {
+      // (integration) a late join / rejoin: a rating already on the wire was shown and granted before we came; it
+      // only goes to the results list (no card, no top-up)
+      this.sawSector = true;
+      // (marlow-polish) every section rated before the last one, from `rh` (results lines only)
+      if (msg.rh) for (const v of ratingViewsFromRh(msg.rh, msg.rt?.sec ?? -1, this.g.world.map.sectors ?? [])) putRating(this.g.sectionRatings, v);
+      if (msg.rt) {
+        this.ratedSec = msg.rt.sec;
+        const v = ratingViewFromWire(msg.rt, this.g.world.map.sectors ?? []);
+        if (v) {
+          this.rating = v;
+          putRating(this.g.sectionRatings, v);
+        }
+      }
+    } else if (msg.rt && msg.rt.sec !== this.ratedSec) this.takeRating(msg.rt);
     // (sector-restart, M9) a later section went live (the connector loaded it): our loadout now is the one a restart of
     // it gives back (the host records its own as the section begins)
     if (msg.ls !== undefined && msg.ls > this.kitSection) {
@@ -775,6 +882,54 @@ export class CoopClient implements NetAttachment {
       }
     }
     // the HUD line (section, alarm, syringes) comes with the snapshot's `info` (the host's mode info, mirrored)
+  }
+
+  /** (section-rating S3) A new host rating: kept for the HUD, told to `onRating`, mirrored on `window.__sectionRating`. */
+  private takeRating(rt: SectorRatingWire): void {
+    const v = ratingViewFromWire(rt, this.g.world.map.sectors ?? []);
+    this.ratedSec = rt.sec;
+    if (!v) return;
+    this.rating = v;
+    this.ratingSeq++;
+    // (integration) every rating for the op-end results lines
+    putRating(this.g.sectionRatings, v);
+    // the gadget part of the grant on our own kit (the host tops up only its own player): noisemaker first, then gas,
+    // each up to its starting carry, as the host's grant does; once per rating (a new `sec`). The extraction's rating
+    // carries no grant (the host zeroes it).
+    let n = rt.gadget;
+    let name: string | undefined;
+    let ids = 0;
+    let added = 0;
+    for (const id of GRANT_GADGETS) {
+      if (n <= 0) break;
+      const k = this.g.gadgets.topUp(id, n, GADGETS[id].carry);
+      if (k <= 0) continue;
+      n -= k;
+      added += k;
+      ids++;
+      name = GADGETS[id].name.toLowerCase();
+    }
+    if (ids !== 1) name = undefined;
+    // (section-rating fix) the card names only what lands here: the charges actually added, a medkit only when the
+    // host's heal would heal us now (the view kept for the results and the hook is what was earned)
+    const c = this.cardView;
+    c.sectionId = v.sectionId;
+    c.title = v.title;
+    c.marks = v.marks;
+    c.synced = v.synced;
+    const g = this.g;
+    const h = g.target.health;
+    c.grant.gadget = added;
+    c.grant.syringe = v.grant.syringe;
+    c.grant.medkit = stationHeal(h.hp, h.maxHp, g.player.alive, g.opts.difficulty ?? 'normal') !== null ? v.grant.medkit : 0;
+    c.grant.alarmStep = v.grant.alarmStep;
+    // the test hook in the host's shape (SectionRatingHook): the client counts nothing and gives nothing itself
+    const w = window as unknown as { __sectionRating?: { stats: unknown; last: RatingView | null; lastGrant: unknown } };
+    if (w.__sectionRating) w.__sectionRating.last = v;
+    else w.__sectionRating = { stats: null, last: v, lastGrant: null };
+    // the op's last section (rated at the extraction) shows on the results screen, not the card
+    const defs = this.g.world.map.sectors ?? [];
+    if (rt.sec < defs.length - 1) this.onRating?.(c, name);
   }
 
   private onEndMsg(raw: EndStats): void {
@@ -807,6 +962,8 @@ export class CoopClient implements NetAttachment {
         if (isClientVerb(v)) this.ctick(v);
       }
     }
+    // (Q12) our noisy hold's first moment and each pulse go to the host, whose guards hear them at the item
+    if (this.holdPulses.size) this.holdPulses.step(this.sendPulse);
     const changed = moveChanged(this.mvSent, mv);
     if (this.sendT > 0 && !changed) return;
     this.sendT = 1 / SEND_HZ;
@@ -815,9 +972,18 @@ export class CoopClient implements NetAttachment {
     const g = this.g;
     const p = g.player;
     const c = p.controller;
+    // (afp AF6) the send clock (the host times the state by it) and the gait clock / CT stop (the partner's stride)
+    const sentAt = sendClock(this.sentWall, this.sentSim, performance.now() / 1000, this.time);
+    this.sentWall = sentAt;
+    this.sentSim = this.time;
+    const gw: { gph?: number; qs?: number; hs?: number; mo?: number; mt?: number; ax?: number; az?: number } = {};
+    gaitWire(c.motion.phase, c.ct, c.stopEaseT, c.stopHold, c.holdSpeed, CT.stopEase, CT.stopBlend, gw);
+    motionWire(c.override?.kinematic ? null : c.motion.state, c.motion.stateT, c.motion.ax, c.motion.az, gw);
     this.s.toHost({
       t: 'pstate',
       s: wirePlayerState({
+        ...gw,
+        t: sentAt,
         id: this.s.selfId,
         x: p.position.x,
         y: p.position.y,
@@ -834,6 +1000,10 @@ export class CoopClient implements NetAttachment {
     });
   }
 
+  /** (afp AF6) The last state's send clock and sim time (`sendClock`). */
+  private sentWall = -Infinity;
+  private sentSim = 0;
+
   /** The movement state this step and the last one sent (change detection). */
   private mvNow = emptyMoveState();
   private mvSent = emptyMoveState();
@@ -841,6 +1011,7 @@ export class CoopClient implements NetAttachment {
   frameUpdate(dt: number): void {
     if (this.inCourse) clientCourseFrame(this.g, dt);
     this.sec?.frame(dt);
+    this.card?.update(dt);
     const t = this.renderTime;
     for (const a of this.avatars.values()) a.update(dt, t);
     // (G7 fix) the partner holding one of the host's guards: his puppet posed from the partner's MoveState (hostage,
@@ -951,6 +1122,7 @@ export class CoopClient implements NetAttachment {
     this.dying.length = 0;
     this.ragdolls.length = 0;
     this.kept.clear();
+    this.holdPulses.clear();
     this.ints?.dispose();
     this.g.explosions.onLocalBlast = null;
     this.g.gadgets.onLocal = null;

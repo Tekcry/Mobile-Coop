@@ -10,12 +10,13 @@
  * only drives its shadow map. Per frame nothing is allocated (render lists and uniforms refilled in place).
  */
 import { BaseTexture, Constants, EffectRenderer, EffectWrapper, ShadowGenerator, SpotLight, Texture, Vector3, Viewport, type AbstractMesh, type Observer, type RenderTargetWrapper, type Scene } from '../core/babylon';
-import { atlasSize, CHAR_SHADOW, coneCovers, FIT, fitCone, LampSlotPicker, tileX, tileY } from './charShadowSet';
+import { atlasSize, CHAR_SHADOW, coneCovers, FIT, fitCone, fittedSpheres, LampSlotPicker, spheresHold, tileX, tileY } from './charShadowSet';
 
 type RenderTargetTexture = NonNullable<ReturnType<ShadowGenerator['getShadowMap']>>;
 
-/** A layer bit no mesh carries: the slots' lights reach no mesh (no light, no sampler, no recompiles). */
-const NO_MESH_LAYER = 0x10000000;
+/** A layer bit no mesh carries: the slots' lights reach no mesh (no light, no sampler, no recompiles). (lrpolish: its own
+ *  bit, not `world.ts` PROXY_LAYER 0x10000000, so the spots do not "affect" the shadow proxies either.) */
+const NO_MESH_LAYER = 0x20000000;
 /** Caster spheres a slot's cone fit reads (the rest still draw into the map). */
 const MAX_SPHERES = 256;
 
@@ -55,6 +56,12 @@ interface CsSlot {
   /** The fit placed now and the fit of the map in the tile. */
   fit: Float32Array;
   fitReady: Float32Array;
+  /** The casters' spheres this frame's fit read (x, y, z, r; `k` of them), and (lrpolish) the fitted ones of the map in
+   *  the tile (`kReady`): `covers` drops a capsule only for a caster the copied map was fitted around. */
+  sp: Float32Array;
+  k: number;
+  spReady: Float32Array;
+  kReady: number;
   /** Frames between refreshes (0: not rendering). */
   every: number;
   obs: Observer<RenderTargetTexture> | null;
@@ -118,7 +125,9 @@ export class CharShadows implements CharShadowLink {
   private slots: CsSlot[] = [];
   private readonly lit: Uint8Array;
   private readonly focus = new Float32Array(6);
-  private readonly spheres = new Float32Array(MAX_SPHERES * 4);
+  /** (lrpolish LR14 polish 1) A lost context comes back with a blank atlas: every slot reads as not ready until it
+   *  copies again. */
+  private restoreObs: Observer<ReturnType<Scene['getEngine']>> | null = null;
   /** The configured spec (`charLamps:charTile`). */
   private key = '';
   private tile = 0;
@@ -178,6 +187,17 @@ export class CharShadows implements CharShadowLink {
     this.info[2] = size;
     this.info[3] = this.depthSign;
     for (let s = 0; s < n; s++) this.slots.push(this.makeSlot(s, tile));
+    this.restoreObs = engine.onContextRestoredObservable.add(() => this.invalidate());
+  }
+
+  /** Every slot's tile as empty (a restored context's blank atlas): capsules until each map copies again. */
+  private invalidate(): void {
+    for (let s = 0; s < this.slots.length; s++) {
+      this.slots[s]!.ready = -1;
+      this.slots[s]!.kReady = 0;
+      this.params[s * 4 + 3] = 0;
+    }
+    this.lampSlot.fill(-1);
   }
 
   private makeSlot(s: number, tile: number): CsSlot {
@@ -197,7 +217,7 @@ export class CharShadows implements CharShadowLink {
     // (an empty list of its own, never filled: the casters come from `getCustomRenderList`)
     map.renderList = [];
     map.refreshRate = 0;
-    const slot: CsSlot = { light, sg, map, list: [], lamp: -1, ready: -1, fit: new Float32Array(FIT.size), fitReady: new Float32Array(FIT.size), every: 0, obs: null, vp: new Viewport(tileX(s, tile) / atlasSize(tile), tileY(s, tile) / atlasSize(tile), 0.5, 0.5) };
+    const slot: CsSlot = { light, sg, map, list: [], lamp: -1, ready: -1, fit: new Float32Array(FIT.size), fitReady: new Float32Array(FIT.size), sp: new Float32Array(MAX_SPHERES * 4), k: 0, spReady: new Float32Array(MAX_SPHERES * 4), kReady: 0, every: 0, obs: null, vp: new Viewport(tileX(s, tile) / atlasSize(tile), tileY(s, tile) / atlasSize(tile), 0.5, 0.5) };
     map.getCustomRenderList = () => slot.list;
     // (after the generator's own observer, which restores the camera's matrices)
     slot.obs = map.onAfterUnbindObservable.add(() => this.copy(s));
@@ -256,7 +276,7 @@ export class CharShadows implements CharShadowLink {
     const lz = S[lamp * 4 + 2]!;
     const reach = S[lamp * 4 + 3]!;
     const cs = this.casters;
-    const sp = this.spheres;
+    const sp = slot.sp;
     let k = 0;
     for (let i = 0; i < cs.length; i++) {
       const m = cs[i]!;
@@ -278,6 +298,7 @@ export class CharShadows implements CharShadowLink {
         k++;
       }
     }
+    slot.k = k;
     if (!k || !fitCone(lx, ly, lz, sp, k, slot.fit)) {
       slot.list.length = 0;
       return false;
@@ -312,7 +333,12 @@ export class CharShadows implements CharShadowLink {
     r.saveStates();
     engine.bindFramebuffer(this.rt, 0, undefined, undefined, true);
     r.setViewport(slot.vp);
-    r.applyEffectWrapper(w);
+    // (lrpolish: `applyEffectWrapper` without its `onApplyObservable.notifyObservers({})`, one object per call)
+    engine.setState(true);
+    engine.depthCullingState.depthTest = false;
+    engine.stencilState.stencilTest = false;
+    engine.enableEffect(w.drawWrapper);
+    r.bindBuffers(w.effect);
     w.effect.setTexture('csSrc', slot.map);
     w.effect.setFloat2('csOrg', tileX(s, this.tile), tileY(s, this.tile));
     r.draw();
@@ -328,6 +354,9 @@ export class CharShadows implements CharShadowLink {
     p[s * 4 + 2] = CHAR_SHADOW.bias / Math.max(0.01, hi - lo);
     p[s * 4 + 3] = 1;
     slot.fitReady.set(slot.fit);
+    const S = this.lamps.spheres;
+    const l = slot.lamp;
+    slot.kReady = fittedSpheres(S[l * 4]!, S[l * 4 + 1]!, S[l * 4 + 2]!, slot.sp, slot.k, slot.spReady);
     slot.ready = slot.lamp;
     this.copies++;
   }
@@ -335,6 +364,9 @@ export class CharShadows implements CharShadowLink {
   covers(s: number, x: number, y: number, z: number): boolean {
     const slot = this.slots[s];
     if (!slot || slot.ready < 0) return false;
+    // (lrpolish LR14 polish 4-6) only a caster the copied map was fitted around: one the fit skipped (the lamp inside
+    // its sphere), one past MAX_SPHERES, or one newly in reach since the copy keeps its capsule
+    if (!spheresHold(slot.spReady, slot.kReady, x, y, z)) return false;
     const f = slot.fitReady;
     if (!f[FIT.partial]) return true;
     const S = this.lamps.spheres;
@@ -348,6 +380,8 @@ export class CharShadows implements CharShadowLink {
   }
 
   private disposeSlots(): void {
+    if (this.restoreObs) this.scene.getEngine().onContextRestoredObservable.remove(this.restoreObs);
+    this.restoreObs = null;
     for (const s of this.slots) {
       if (s.obs) s.map.onAfterUnbindObservable.remove(s.obs);
       s.sg.dispose();

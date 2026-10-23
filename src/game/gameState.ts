@@ -53,6 +53,7 @@ import { roomAt } from '../world/rooms';
 import { camSpaceAt, doorPassing } from '../world/camSpaces';
 import { CAMERA } from '../config/camera';
 import { ResultsScreen, type ResultsNav } from '../ui/screens/resultsScreen';
+import type { RatingView } from '../ui/hud/ratingCard';
 import { EventBus } from '../core/events';
 import type { GameEvents } from './gameEvents';
 import { attachGameAudio } from '../audio/gameAudio';
@@ -98,7 +99,7 @@ import { TakedownController, type TakedownVictim } from './takedownController';
 import { StrikeController } from './strikeController';
 import { MEDKIT, stationHeal } from './medkit';
 import type { PickupKind } from './pickups';
-import { DOOR_PEEK, DoorPeekCore, PEEK_ACT, crackedHandle, doorFrame, doorPeekEligible, emptyFrame, type DoorPeekInput } from '../world/doorPeek';
+import { DOOR_PEEK, DoorPeekCore, PEEK_ACT, crackedHandle, doorFrame, doorPeekEligible, emptyFrame, isSlideDoor, type DoorPeekInput } from '../world/doorPeek';
 import { DOOR, driveStep, leafFraction } from '../world/doors';
 import { DOOR_OPEN, DoorOpenCore, OPEN_ACT, leafHandPoint } from '../world/doorOpen';
 import { muzzleBlock } from '../player/wallBlock';
@@ -216,6 +217,8 @@ export interface NetAttachment {
   radioLine?(text: string): void;
   /** Host, Sector Ops: revive syringes left this op (co-op only). */
   revivesLeft?(): number;
+  /** (section-rating) Host: a rating's syringe grant, added to the op's revive cap. */
+  addSyringes?(n: number): void;
   /** Host, Sector Ops: every guard a client holds (takedown grab, hostage) is let go, before a section unloads. */
   releaseHolds?(): void;
   /** (coop-walk-fixes P6) Co-op: another player holds guard `v` as a hostage now (the team takedown on him is on
@@ -490,6 +493,10 @@ export class GameState implements AppState {
   readonly events = new EventBus<GameEvents>();
   private audio: { frame(dt: number): void; dispose(): void } | null = null;
   private localRef: PlayerRef;
+  /** (guard-ai S26) The local player's id (his own noises locate him: `EnemyManager.hear`'s `by`). */
+  get localId(): string {
+    return this.localRef.id;
+  }
   /** (guard-ai S1) The guards' and cameras' per-step player list, refilled in place (`playerRefsInto`, no allocation). */
   private readonly aiRefs: PlayerRef[] = [];
   /** The local operator has been seen by a guard in combat (no takedowns on guards in combat). */
@@ -498,6 +505,8 @@ export class GameState implements AppState {
   }
   /** Coop attachment (null in single player). */
   net: NetAttachment | null = null;
+  /** (section-rating) The op's rated sections in order (Sector Ops: the host's mode, or the co-op client's mirror), for the results lines. */
+  readonly sectionRatings: RatingView[] = [];
   /** (lightrev LR13) The lamp falloff this match runs (set before its map built; the meter, the guards and the shaders
    *  all read it, `lampMath`). */
   readonly lampFalloff: LampFalloff = lampFalloffMode();
@@ -616,7 +625,7 @@ export class GameState implements AppState {
       const n = this.weapons.lastShotNoise;
       const r = SHOT_NOISE * n;
       this.eventNoise(r);
-      if (n <= SUPPRESSED_NOISE) this.enemyMgr?.hear(this.player.position, r);
+      if (n <= SUPPRESSED_NOISE) this.enemyMgr?.hear(this.player.position, r, 'noise', null, this.localRef.id);
       // (guard-ai S24) the shot locates this player's intruder slot
       else this.enemyMgr?.noise(this.player.position, r, this.localRef.id);
     };
@@ -739,7 +748,7 @@ export class GameState implements AppState {
         { ballistics: this.ballistics, players: () => this.playerRefsInto(this.aiRefs) },
         new SecurityView(this.scene, world.parts),
       );
-      // (sector-redesign E8) a round off a bulletproof camera: the bullet-impact sparks and sound at the lens (the
+      // (sector-redesign E8; marlow-final S10's Marlow cameras too) a round off a bulletproof camera: the bullet-impact sparks and sound at the lens (the
       // impact noise is the onRay chain's own, as for any round that lands)
       w.security.onRicochet = (x, y, z) => {
         const at = this.ricoAt.set(x, y, z);
@@ -1061,6 +1070,7 @@ export class GameState implements AppState {
     if (gid && GADGETS[gid]) names.push(GADGETS[gid].name);
     const nav: ResultsNav = { coop: !!this.net };
     if (names.length) nav.kit = names.join(', ');
+    if (this.sectionRatings.length) nav.ratings = this.sectionRatings;
     const cb = this.cb;
     const id = this.stats.missionId;
     if (!this.net && id && cb.missions) {
@@ -1290,7 +1300,8 @@ export class GameState implements AppState {
       // a noisy hold (a manhole cover, a padlock) sounds at its start and on every pulse while it runs
       if (it.holdNoise && holdNoisePulse(prev, it.progress)) {
         this.eventNoise(it.holdNoise);
-        this.enemyMgr?.hear(it.pos, it.holdNoise);
+        // (guard-ai S26) his own noise: it locates him
+        this.enemyMgr?.hear(it.pos, it.holdNoise, 'noise', null, this.localRef.id);
       }
     } else it.progress = Math.max(0, it.progress - dt * 2);
     const pct = it.holdTime > 0 ? Math.min(1, it.progress / it.holdTime) : 0;
@@ -1354,7 +1365,7 @@ export class GameState implements AppState {
           else m.add(TD_KIND, 'ko', -1, TD_LABEL[o.plan.kind]);
         }
         const dIdx = this.doorMenuCandidate();
-        if (dIdx >= 0) addDoorRows(m, dIdx, this.peekOffer === dIdx, this.doorMenu.opts);
+        if (dIdx >= 0) addDoorRows(m, dIdx, this.peekOffer === dIdx, this.doorMenu.opts, isSlideDoor(this.world.doors.list[dIdx]!.anchor));
         // (hang-down) no body is picked up from the hang
         it = hangDirect ? null : ((hangActs ? null : this.stealth?.carryTarget(this.player.position)) ?? this.interactables?.nearest(this.player.position) ?? null);
         let label = it ? it.label : '';
@@ -1390,7 +1401,7 @@ export class GameState implements AppState {
       it.progress = on ? m.holdT : r >= 0 && m.opts[r]!.kind === ITEM_KIND ? it.holdTime : 0;
       if (on && it.holdNoise && holdNoisePulse(prev, it.progress)) {
         this.eventNoise(it.holdNoise);
-        this.enemyMgr?.hear(it.pos, it.holdNoise);
+        this.enemyMgr?.hear(it.pos, it.holdNoise, 'noise', null, this.localRef.id);
       }
     }
     if (r >= 0) {
@@ -1456,6 +1467,8 @@ export class GameState implements AppState {
       if (it?.onUse) it.onUse(it, 'local');
       else doors.open(d, 'quiet');
     };
+    // (marlow-final N9) a sliding door lists Open only; any other pick at it is ignored
+    if (isSlideDoor(d.anchor) && o !== 'open') return;
     switch (o) {
       case 'open':
         // (G6, AUDIT-WALLS row 4) a short committed move: the step to the latch side, then the door's own open
@@ -1525,7 +1538,7 @@ export class GameState implements AppState {
     const r = landingNoise(c.lastLanding);
     if (r <= 0 || !this.player.alive) return;
     this.eventNoise(r);
-    this.enemyMgr?.hear(this.player.position, r);
+    this.enemyMgr?.hear(this.player.position, r, 'noise', null, this.localRef.id);
   }
 
   /**
@@ -1763,7 +1776,7 @@ export class GameState implements AppState {
     if (this.traversal.forwardRolls !== this.rollSeen) {
       this.rollSeen = this.traversal.forwardRolls;
       this.eventNoise(CT.rollNoise);
-      this.enemyMgr?.hear(this.player.position, CT.rollNoise);
+      this.enemyMgr?.hear(this.player.position, CT.rollNoise, 'noise', null, this.localRef.id);
     }
     // attached (ladder, pipe, hang, duct) or carrying a body: both hands busy, the weapon goes to its slot
     // (3.2.0) braced in a split or hanging inverted: aiming (step 09: not firing) draws the sidearm one-handed
@@ -1898,11 +1911,11 @@ export class GameState implements AppState {
       const pp = this.player.position;
       this.surface = surfaceAt(this.world.level.surfaces, pp.x, pp.y, pp.z, this.world.map.theme.floor ?? 'concrete');
       const steps = this.player.alive && c.grounded && c.steps !== 'silent' ? noiseRadius(c.speed, c.crouched || c.steps === 'crouched') * SURFACE_NOISE[this.surface] * this.suit.noise : 0;
-      if (steps > 0) this.enemyMgr?.hear(this.player.position, steps);
+      if (steps > 0) this.enemyMgr?.hear(this.player.position, steps, 'noise', null, this.localRef.id);
       // (3.2.0) climbing a fence above a quiet gear rattles it
       const ac2 = this.traversal.attachCtl;
       const rattle = ac2.m.kind === 'fence' && ac2.fenceMoving && c.gear > FENCE.quietGear ? FENCE.rattle * this.suit.noise : 0;
-      if (rattle > 0) this.enemyMgr?.hear(this.player.position, rattle);
+      if (rattle > 0) this.enemyMgr?.hear(this.player.position, rattle, 'noise', null, this.localRef.id);
       this.noise = Math.max(steps, rattle, this.evNoise);
     }
     this.updateLight(dt);
@@ -2827,7 +2840,11 @@ export class GameState implements AppState {
     const d = this.world.doors.list[di];
     const p = this.player.position;
     if (!d || this.doorOpen.active) return;
-    this.doorOpen.start(di, d.anchor, p.x, p.z);
+    // (marlow-final N9) a sliding door: no committed step-and-push, the door's own open at once
+    if (!this.doorOpen.start(di, d.anchor, p.x, p.z)) {
+      use();
+      return;
+    }
     this.openUse = use;
     this.openHp = this.target.health.hp;
     this.openY = p.y;

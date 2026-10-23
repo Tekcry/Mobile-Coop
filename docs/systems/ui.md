@@ -47,8 +47,9 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   Settings > Controls also holds hold / toggle (aim, crouch, back to wall, sprint) and the pad sensitivities.
 - Settings > Controller: Vibration (on / off), Rumble strength (`gameplay.rumble` 0-100%, `config/rumble.ts`), Test
   vibration.
-- (mocap-trial) Settings > Gameplay > "Mocap locomotion" (`gameplay.mocapLoco`, default off; `?mocap=0/1` overrides it
-  for a page): the CMU mocap walk / jog / run trial; the animation tuner's More > Panel has the same box (`mocapHost`).
+- (mocap-trial; anim-fix-pass AF5) Mocap locomotion has no Settings row since AF5 (BRIEF A1: mocap is the only player
+  path; `gameplay.mocapLoco` stays in the save but a stored false boots ON). `?mocap=0/1` overrides it
+  for a page, then the animation tuner's More > Panel box (`mocapHost`, this page only, not saved).
   World-and-characters.md "Mocap locomotion switch".
 - (lightrev LR13) Settings > Gameplay > "Lamp falloff" (`gameplay.lampFalloff`: Classic, the default / Realistic (test)):
   a light-model rule, applied when a map loads; in a co-op match the row is a locked row showing the host's (lighting.md

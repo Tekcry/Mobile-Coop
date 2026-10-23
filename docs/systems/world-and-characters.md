@@ -55,6 +55,69 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   and a `collideWith` mask; hit volumes (`ai/hitboxes.ts`, `game/playerTarget.ts`) are ANIMATED bodies
   registered in the `DamageRegistry`, which maps bodies to `Damageable`s.
 
+## Campus art kit
+The detail art of Saltmarsh Park (`campusOps`, Sector Ops) is a shared, instanced prop and material kit drawn over the
+level-builder boxes. Gameplay never reads it: collision, cover, ledges, nav, perception, the light bake and the meter use
+only the boxes. `?gfx=min`, a GLB that fails to load, or `buildCampus(b, { dress: false })` show the plain greybox.
+Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-redesign/checks/art-kit-build.md`,
+`art-join.md`.
+
+- **Generated, not drawn.** Headless Blender scripts in the repo (`scripts/campus-props/`: `lib.py`, `kit.py`,
+  `hero_s1.py` .. `hero_s5.py`, driver `build.mjs`; `npm run campus-props:build [-- --set kit|hero-s<N>]`). Output is
+  deterministic (byte-identical GLB per run) and lands in `src/world/campusArt/assets/` as `campus-kit.glb/.json` and
+  `hero-s<N>.glb/.json`. Factor-only materials, no UVs, no textures. The kit is 60 ids, about 7 k triangles.
+- **Base dressing by room tag.** Each section lists an art tag per room (`S<N>_ART_TAGS`, `artTags.ts`). The rule table
+  (`dressRules.ts`, `DRESS_RULES`, plus `DOOR_EXTRAS`) fills free floor, wall and ceiling by tag: `per`, `max`, `perRun`,
+  `alt`, `tile`. Finish colours per room come from `finishes.ts`.
+- **Bespoke hero sets.** One catalogue per section (`HERO_S<N>`, ids `H1`..`H5`): S1 gatehouse, S2 atrium, S3 lab block,
+  S4 data hall, S5 Old House strongroom. Placed by hand at exact positions before the base pass.
+- **Dressers.** `src/world/maps/campusS<N>Dress.ts` exports `S<N>_ART_TAGS`, `HERO_S<N>` and `dressS<N>(d)`; the registry
+  is `maps/campusDress.ts` (do not edit). API in `campusArt/dresser.ts`: skins, then heroes, then `d.base()` last.
+  - `d.add(piece, x, y, z, yaw, { cls, why, s?, group?, tint?, free? })`: exact placement. Throws `ArtRuleError`
+    (`rule`: 'K1'..'K13', 'C', 'V', 'S', 'W', 'B', 'FIT'; `msg`) on any keepout, skin-rule, overlap or fit failure.
+  - `d.tryAdd(piece, spots, { cls, why, ... })`: the first `{ x, y, z, yaw }` spot that passes, or -1. Each refusal goes
+    to `d.refusals` (`{ piece, spot, rule, msg }`) and to `report.dropped`. A hero with fallback spots uses it; a hero
+    that may be lost goes in an explicit omitted list the test asserts, never a bare `try / catch`.
+  - `d.skin(piece, boxIndex, yaw, { why, dy?, group? })`: skins one greybox box, scaled within the piece's own fit range.
+  - `d.skinFace(piece, boxIndex, face, { why, group?, tint?, dy?, at?, from?, to?, fitY? })`: a visual panel flush on one
+    face of a box (`'n'` +z, `'e'` +x, `'s'` -z, `'w'` -x), at most `ART_PROUD` (0.05) off it. It writes no box: the
+    greybox face stays the collision, light and sight. Modules go at `at` (one per centre), along `from`..`to`, or at
+    the piece's pitch. All modules or none.
+  - `d.skinHide(...)`: as `skin`, and hides the box's own drawn instance (cars, the S5 van).
+  - `d.skinCyl(piece, cylIndex, { why, group? })`: cylinders (tree trunks).
+  - `d.skinRow(piece, boxIndex, alongX, faceSign, { why, group? })`: tiles a long box with whole modules; `group` goes on
+    every module.
+  - `group` is optional on all skin calls and ties a piece to a circuit group.
+  - Fit: `PropCatalogue.fitRange` gives a piece its own scale range (`fitRange()`; default 0.8-1.25; `batteryRack`
+    0.8-1.3, `labBench` 0.65-1.25, `F:meshPanel` 0.8-1.3, now also fit in height, so a 3.0 m cage wall fits; `kitchenRun` 0.8-1.4).
+  - Floor decals: a visual piece under `DECAL_H` (0.05 m) tall on a floor (`K:floorTileGrid`, `F:glandPlate`) is exempt
+    from K1-K6, K13 and the greybox overlap; its y snaps to 1 mm. K7-K12 still apply.
+  - Door frames: a piece in the catalogue's `frame` list, placed visual, whose hull spans one door's opening (width to
+    width + `FRAME_WRAP` 0.2) and reaches the door head. It passes K1 and K2 for legs through that opening and K3 and K13
+    for that door. It is checked as its jambs and head, so camera rays through the opening stay clear. Check it with
+    `frameDoor`.
+  - Pieces are named `'K:whiteboard'`, `'F:filingCabinet'`, `'H2:atriumModel'`. Find boxes with `boxAt` / `cylAt`
+    (`geometry.ts`).
+- **Keepouts.** `keepouts.ts` builds the shapes once per section (`buildKeepouts`); `blocked` returns the first rule a
+  placement breaks. A prop never lands on one:
+  - K1 player route legs (climbs included); K2 guard patrol legs, entry run-ins, reinforce and sweep points, stage
+    response legs; K3 doors (zone, swing, wall edges); K4 items and the wall round them; K5 takedown spots; K6 hide,
+    spawn, nav seed and checkpoint spots, the extract zone; K7 co-op lips (headroom and the box and wall rules); K8
+    camera sight rays; K9 laser tubes; K10 lamps; K11 traversal anchors; K12 glass boxes; K13 escape doors.
+  - Other rule ids: `C` cover (a new box tall enough to hide behind stays 3.0 m off route and patrol legs), `V` rule V
+    (`ruleV` in `catalogue.ts`), `S` the skin rule, `W` no wall, `B` a box over another box, `FIT` a scale outside the
+    piece's range.
+  - A visual piece that writes no box (a skin, a decal, a frame) keeps the rules its mount gives it, as above.
+  - Every art box is `noLedge`. Light class and the three prop classes: ART-PLAN section 2.
+- **Gameplay gate.** `tests/campusArtGameplay.test.ts` (`-t S<N>`): legs, protected nav cells, patrols, cover, lips,
+  cameras, lasers, reach, ledges, split gaps (computed from the greybox, whatever the dressing order), `checkDressing`,
+  budgets. `tests/campusArtLight.test.ts` bakes and checks every protected point within 0.02. Others: `campusArtKit`
+  (the API above, one case per kit item), `campusDressRules`, `campusArtRender`, `campusS<N>Dress`.
+- **Render.** `campusArtRender.ts` draws one instanced mesh per (section, material); the World hook and
+  `BuiltLevel.hidePieces` (`levelBuilder.ts`) hide the boxes a skin replaces.
+- **Budget.** At most 40 draws, 150 k triangles and 2500 placements per section. Now: S1 35 / S2 33 / S3 27 / S4 19 /
+  S5 29 draws; the campus is 143 draws and 186 k triangles (1930 placements). S1 sits at 35 of 40. Perf budgets: `docs/systems/performance.md`; shots: `scripts/campus-art-shots.mjs`.
+
 ## Characters (one rig for player, enemies, coop remotes, dummies and the menu operator)
 - (anim-natural-n2) Wren's body motion layer (`src/anim/bodyMotion.ts`, pure): per tuner body row (`BODY_MOTION`,
   one literal per field: hipTurn / hipTime, chestTurn / chestTime deg and cycles, sway / swayTime cm and cycles,
@@ -109,7 +172,8 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   `docs/guard-render/run-s1` against `run-s1-off`. A body effect that will not finish compiling (Babylon's poll timed
   out, the compile failed, its program was disposed under it, or 8 s / 30 frames unready) is dropped and recompiled,
   at most 3 times per variant with a console warning (`bodyEffectRecovery.ts`, guard-ai carry fix: a stall during a
-  new variant's compile left guards invisible on the laptop GPU).
+  new variant's compile left guards invisible on the laptop GPU); the meshes holding it are switched back to GPU
+  skinning (Babylon's first fallback had set `computeBonesUsingShaders` false, drawing the body unskinned; carry fix 2).
 - Rig: root -> body (tumble pivot) -> pelvis(`hips`) -> spine -> chest(`torso`) -> neck -> head(`headNode`, head
   centre); chest -> shoulder -> elbow -> wrist; pelvis -> hip -> knee -> ankle; sockets `weaponPivot` (aim
   pocket), `backSocket`, `hipSocket`. Joints use `rotationQuaternion` (root uses Euler `rotation.y`).
@@ -196,8 +260,9 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   swinging leg's knee pole stays nearer the pelvis forward (`KNEE_SWING_SHARE`). The idle's head scan reaches the
   head through `RigTargets.keyScan` (added to the world-stabilised head yaw: the camera aim and look still drive it). Remotes pose the same from MoveState (speed, crouch, the graph's own
   clock); no wire change.
-- (mocap-trial) Mocap locomotion switch (`anim/mocap.ts`; Settings > Gameplay > "Mocap locomotion", the tuner's More >
-  Panel box, `?mocap=0/1`; default off, IndexedDB with the settings): `LOCO.set` picks the clip set the standing holstered
+- (mocap-trial) Mocap locomotion switch (`anim/mocap.ts`; `?mocap=0/1`, then the tuner's More > Panel box for that page;
+  ON otherwise: anim-fix-pass AF5 removed the Settings row and a stored `gameplay.mocapLoco: false` no longer sticks,
+  core/app.ts; the switch is per machine and drives the co-op partner's copy on this machine too): `LOCO.set` picks the clip set the standing holstered
   speed set samples (`speedSet`: the hand-keyed `HAND_KEYED_SET` or `MOCAP_SET`, `anim/clips/mocap/*` in the keyed format;
   the drawn, crouched, idle and wall sets stay hand-keyed), plus its optional one-shot slots (`MocapSlots`: turn in place,
   turn on the move L / R, start, stop). A mocap clip with a `feet` channel drives the planner's clip feet mode

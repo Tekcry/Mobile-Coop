@@ -284,6 +284,38 @@ export function coneCovers(fit: Float32Array, lx: number, ly: number, lz: number
   return a <= fit[FIT.half]!;
 }
 
+/**
+ * (lrpolish) The spheres `fitCone` fitted (the lamp outside sphere + `sphereMargin`), copied from `src` (`n`, stride 4)
+ * into `dst`; returns their count. What a copied map holds, for `spheresHold`.
+ */
+export function fittedSpheres(lx: number, ly: number, lz: number, src: Float32Array, n: number, dst: Float32Array): number {
+  let k = 0;
+  for (let c = 0; c < n; c++) {
+    const o = c * 4;
+    const r = src[o + 3]!;
+    if (hyp3(src[o]! - lx, src[o + 1]! - ly, src[o + 2]! - lz) <= r + CHAR_SHADOW.sphereMargin) continue;
+    dst[k * 4] = src[o]!;
+    dst[k * 4 + 1] = src[o + 1]!;
+    dst[k * 4 + 2] = src[o + 2]!;
+    dst[k * 4 + 3] = r;
+    k++;
+  }
+  return k;
+}
+
+/** (lrpolish) True when (x, y, z) - a capsule's midpoint - lies in one of `n` spheres (+ `sphereMargin`). */
+export function spheresHold(spheres: Float32Array, n: number, x: number, y: number, z: number): boolean {
+  for (let c = 0; c < n; c++) {
+    const o = c * 4;
+    const r = spheres[o + 3]! + CHAR_SHADOW.sphereMargin;
+    const dx = x - spheres[o]!;
+    const dy = y - spheres[o + 1]!;
+    const dz = z - spheres[o + 2]!;
+    if (dx * dx + dy * dy + dz * dz <= r * r) return true;
+  }
+  return false;
+}
+
 /** The atlas (2 x 2 tiles): its side (px) and a slot's tile origin (px). */
 export function atlasSize(tile: number): number {
   return tile * 2;

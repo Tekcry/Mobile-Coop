@@ -83,6 +83,8 @@ const MAP_Q = {
   sectorops: 'autostart=warehouseOps&mode=sector&sectorGuards=0',
   // Marlow Yard, the co-op training course, solo page (its two passive squad guards are removed)
   ctcourse: 'autostart=ctcourse&mode=course',
+  // (sector-redesign ART-KIT) Saltmarsh Park (campusOps), no section guards spawn; section 1's start
+  campus: 'autostart=campusOps&mode=sector&sectorGuards=0',
 };
 const mapQuery = (m) => MAP_Q[m] ?? (m.includes(':') ? `autostart=${m.split(':')[0]}&mode=${m.split(':')[1]}` : `autostart=${m}&mode=sandbox`);
 

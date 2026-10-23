@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { EnemyManager, TACTICS } from '../src/ai/enemyManager';
 import { DIFFICULTY } from '../src/ai/archetypes';
 import { RADIO } from '../src/ai/radioNet';
-import { combatSeed, P_AGGRESSIVE, P_POST, P_STANDARD, R_FLANK, R_NONE, R_OVERWATCH, R_POINT, R_REPORTER, R_SEARCH, ROLES } from '../src/ai/squadRoles';
+import { combatSeed, P_AGGRESSIVE, P_POST, P_STANDARD, R_FLANK, R_NONE, R_OVERWATCH, R_POINT, R_REPORTER, R_SEARCH, ROLES, Rng, SQUAD } from '../src/ai/squadRoles';
+import { ENEMIES } from '../src/ai/enemyDefs';
 import { Vector3, type Scene } from '../src/core/babylon';
 import { Enemy, type AiContext, type PlayerRef } from '../src/ai/enemy';
 import type { World } from '../src/world/world';
@@ -359,5 +360,340 @@ describe('squad roles and posts (S5 wiring)', () => {
     (e as unknown as { postDef: object }).postDef = { leash: 3 };
     e.setRole(R_REPORTER, 3, true, false, false, false);
     expect([e.role, p.roleCover, p.roleMoving]).toEqual([R_REPORTER, 3, true]);
+  });
+});
+
+// (guard-ai S27) The role guard's own steps on Enemy's prototype (no rig, no scene; a stub ctx, a stub ballistics whose
+// static ray is set blocked / clear, a stub cover list; the decide loop run at 60 Hz): out of sight in the open he
+// crouches while he waits for the group and then takes today's cover pick (A161); the overwatch suppresses only along
+// a clear line and never moves his own last known position (A162); the reporter throws and flanks nothing while his
+// call is open (A163); R_NONE, a lone guard, `openWait` Infinity and `suppressView` false keep the S8 steps.
+const DT = 1 / 60;
+const sq = SQUAD as unknown as { openWait: number; suppressView: boolean };
+
+interface Probe {
+  e: Enemy;
+  p: {
+    state: string;
+    stateT: number;
+    wantCrouch: boolean;
+    coverIdx: number;
+    lastKnown: Vector3;
+    lastSeenT: number;
+    los: boolean;
+    fireT: number;
+    roundsFired: number;
+    suppressRounds: number;
+    suppressHeld: number;
+    grenadeCd: number;
+    decide(dt: number): { point: [number, number] | null; speed: number; face: number | null };
+  };
+  ctx: { reserveCover: ReturnType<typeof vi.fn>; throwGrenade: ReturnType<typeof vi.fn>; ballistics: { clear: ReturnType<typeof vi.fn> } };
+  line: { clear: boolean };
+  owner: number[];
+  /** Steps of `decide` (stateT and the fire clock run as `update` runs them). */
+  step(n?: number): { point: [number, number] | null; speed: number; face: number | null };
+}
+
+/** A grunt at (x, z) hunting intruder slot 0, whose last known position is the origin (the target there, unseen). */
+function roleProbe(o: { role: number; cover?: number; moving?: boolean; mates?: boolean; onRadio?: boolean; covers?: ReturnType<typeof cp>[]; x?: number; z?: number; state?: string; targetCover?: object | null; coverT?: number }): Probe {
+  const covers = o.covers ?? COVERS;
+  const owner = covers.map(() => -1);
+  const line = { clear: true };
+  const lkp = new Vector3(0, 0, 0);
+  const target = { id: 'p1', feet: new Vector3(0, 0, 0), speed: 0, crouched: false, cover: o.targetCover ?? null, coverT: o.coverT ?? 0, target: { aimPoint: (v: Vector3) => v.set(0, 1, 0), headPoint: (v: Vector3) => v.set(0, 1.6, 0) } };
+  const e = Object.create(Enemy.prototype) as Enemy;
+  const ctx = {
+    cover: covers,
+    coverSegments: [],
+    nav: { findPath: vi.fn((_a: number[], b: number[]) => [[b[0], b[1]]]), isWalkable: () => true, cellOf: () => 0, lineClear: () => true },
+    reserveCover: vi.fn((g: Enemy, i: number) => {
+      if (owner[i] !== -1 && owner[i] !== g.num) return false;
+      for (let k = 0; k < owner.length; k++) if (owner[k] === g.num) owner[k] = -1;
+      owner[i] = g.num;
+      return true;
+    }),
+    releaseCover: vi.fn((g: Enemy) => {
+      for (let k = 0; k < owner.length; k++) if (owner[k] === g.num) owner[k] = -1;
+    }),
+    blockCover: vi.fn(),
+    stealth: () => true,
+    lkpOf: () => lkp,
+    ballistics: { clear: vi.fn(() => line.clear), ray: vi.fn((_a: Vector3, b: Vector3) => ({ hit: false, point: b })), armouredFirst: () => false },
+    vfx: { tracer: vi.fn(), muzzleFlash: vi.fn() },
+    diff: DIFFICULTY.normal,
+    players: () => [],
+    throwGrenade: vi.fn(() => true),
+    isFlanker: () => false,
+    alarmRaised: () => false,
+  };
+  Object.assign(e, {
+    ctx,
+    def: ENEMIES.grunt,
+    num: 9100 + n++,
+    pos: new Vector3(o.x ?? 0, 0, o.z ?? -16),
+    yaw: 0,
+    aware: { alert: true, level: 'alert' },
+    health: { alive: true },
+    target,
+    stagger: 0,
+    los: false,
+    losT: 0,
+    losHead: false,
+    dist: 16,
+    lastSeenT: 5,
+    lastKnown: new Vector3(3, 1.1, 3),
+    sawOnce: true,
+    hasStimulus: false,
+    stimulus: [0, 0],
+    knownV: new Vector3(),
+    hunt: 0,
+    alarm: null,
+    entry: null,
+    smelled: false,
+    knownPt: [0, 0],
+    advanceCd: 0,
+    hold: null,
+    postDef: null,
+    post: [o.x ?? 0, o.z ?? -16],
+    doorCheck: 0,
+    role: R_NONE,
+    roleCover: -1,
+    roleMoving: false,
+    roleRun: false,
+    mateMoving: false,
+    onRadio: false,
+    closing: false,
+    tacticsProfile: P_STANDARD,
+    roleGoal: { point: null, speed: 0, face: null },
+    coverIdx: -1,
+    state: o.state ?? 'chase',
+    stateT: 0,
+    coverPicked: false,
+    armourPick: false,
+    relocating: false,
+    flanking: false,
+    advancing: false,
+    path: [],
+    peekCycles: 0,
+    fireGate: { blocked: false, moveT: 0, gate: () => false, plan: () => 'hold' },
+    coverPose: 'none',
+    coverPeek: 0,
+    coverWallSide: 0,
+    wantCrouch: false,
+    crouch: 0,
+    rng: new Rng(7),
+    strafeT: 0,
+    strafe: 1,
+    blindPlan: false,
+    grenadeCd: 0,
+    carry: { drawn: true },
+    shieldT: 0,
+    burstLeft: 0,
+    pauseT: 0,
+    windup: 0,
+    fireT: 0,
+    roundsFired: 0,
+    buff: false,
+    shotsHere: 0,
+    kick: 0,
+    fireFrom: new Vector3(),
+    fireTo: new Vector3(),
+    openT: 0,
+    openNoCover: false,
+    suppressAim: new Vector3(),
+    suppressing: false,
+    suppressOk: false,
+    suppressCheckT: 0,
+    suppressRounds: 0,
+    suppressHeld: 0,
+    bark: vi.fn(),
+  });
+  e.setRole(o.role, o.cover ?? -1, o.moving ?? false, false, o.mates ?? false, o.onRadio ?? false);
+  const p = e as unknown as Probe['p'];
+  const step = (k = 1) => {
+    let g = p.decide(DT);
+    for (let i = 1; i < k; i++) {
+      p.stateT += DT;
+      p.fireT = Math.max(0, p.fireT - DT);
+      g = p.decide(DT);
+    }
+    p.stateT += DT;
+    p.fireT = Math.max(0, p.fireT - DT);
+    return g;
+  };
+  return { e, p, ctx: ctx as unknown as Probe['ctx'], line, owner, step };
+}
+
+describe('role guards out of sight in the open (guard-ai S27, A161)', () => {
+  it('(a) an overwatch with no role cover: crouched at once, in seekCover with a reserved cover on the next step', () => {
+    const r = roleProbe({ role: R_OVERWATCH });
+    const g = r.step();
+    expect(r.p.wantCrouch).toBe(true);
+    expect(r.p.state).toBe('chase');
+    expect(g.point).toBeNull();
+    r.step();
+    expect(r.p.state).toBe('seekCover');
+    expect(r.p.coverIdx).toBeGreaterThanOrEqual(0);
+    expect(r.owner[r.p.coverIdx]).toBe(r.e.num);
+    expect(r.ctx.reserveCover).toHaveBeenCalled();
+  });
+
+  it('(a) no cover anywhere: crouched where he stands, never upright, no new pick every think', () => {
+    const r = roleProbe({ role: R_OVERWATCH, covers: [] });
+    for (let i = 0; i < 60 * 5; i++) {
+      const g = r.step();
+      expect(r.p.wantCrouch).toBe(true);
+      expect(r.p.state).toBe('chase');
+      expect(g.point).toBeNull();
+    }
+    expect(r.ctx.reserveCover).not.toHaveBeenCalled();
+    // he sees his target: the wait starts again (the next time he is in the open, he tries once more)
+    r.p.los = true;
+    r.p.lastSeenT = 0;
+    r.step();
+    expect(r.p.state).not.toBe('chase');
+  });
+
+  it('(b) a point held by the one-mover rule (a cover, not moving): crouched, then seekCover once openWait has passed', () => {
+    const r = roleProbe({ role: R_POINT, cover: 0, moving: false });
+    const waits = Math.floor(SQUAD.openWait / DT) - 2;
+    for (let i = 0; i < waits; i++) {
+      r.step();
+      expect(r.p.state).toBe('chase');
+      expect(r.p.wantCrouch).toBe(true);
+    }
+    for (let i = 0; i < 5 && r.p.state === 'chase'; i++) r.step();
+    expect(r.p.state).toBe('seekCover');
+    expect(r.owner[r.p.coverIdx]).toBe(r.e.num);
+  });
+
+  it('a role change starts the wait again', () => {
+    const r = roleProbe({ role: R_POINT, cover: 0, moving: false });
+    r.step(Math.floor(SQUAD.openWait / DT) - 10);
+    r.e.setRole(R_FLANK, 2, false, false, false, false);
+    r.step(5);
+    expect(r.p.state).toBe('chase');
+    r.step(Math.floor(SQUAD.openWait / DT));
+    expect(r.p.state).toBe('seekCover');
+  });
+
+  it('(e) openWait Infinity: the S8 wait (upright and still; only the reporter on his call crouches)', () => {
+    const was = sq.openWait;
+    sq.openWait = Infinity;
+    try {
+      const r = roleProbe({ role: R_OVERWATCH });
+      for (let i = 0; i < 60 * 4; i++) r.step();
+      expect(r.p.state).toBe('chase');
+      expect(r.p.wantCrouch).toBe(false);
+      expect(r.ctx.reserveCover).not.toHaveBeenCalled();
+      const rep = roleProbe({ role: R_REPORTER, onRadio: true });
+      rep.step(60);
+      expect([rep.p.state, rep.p.wantCrouch]).toEqual(['chase', true]);
+    } finally {
+      sq.openWait = was;
+    }
+  });
+
+  it('(e) R_NONE (a lone guard, or coordinated false: no roles): today steps, the cover-to-cover advance', () => {
+    const r = roleProbe({ role: R_NONE });
+    const g = r.step();
+    // today's chase: an advance pick on the last known position (more than 7 m away) or a walk-up on it
+    expect(r.p.wantCrouch).toBe(false);
+    expect(r.p.state === 'seekCover' || g.point !== null).toBe(true);
+    const s = roleProbe({ role: R_SEARCH });
+    s.step();
+    expect(s.p.wantCrouch).toBe(false);
+  });
+});
+
+describe('the overwatch suppress line (guard-ai S27, A162)', () => {
+  /** An overwatch in his cover (c1, high), a mate moving, the target out of sight 5 s ago. */
+  function overwatch() {
+    const r = roleProbe({ role: R_OVERWATCH, cover: 1, moving: false, mates: true, x: 1, z: -12, state: 'inCover' });
+    Object.assign(r.e, { coverIdx: 1 });
+    r.owner[1] = r.e.num;
+    return r;
+  }
+
+  it('(c) the line blocked: no round, held; clear: rounds go out; his lastKnown never moves', () => {
+    const r = overwatch();
+    r.line.clear = false;
+    const lk = r.p.lastKnown.clone();
+    // (his hide-phase blind fire over the cover at his own lastKnown is today's, not the suppress)
+    const aims: Vector3[] = [];
+    const aimAt = (Enemy.prototype as unknown as { aimAt(t: unknown, mode: string, out: Vector3): Vector3 }).aimAt;
+    Object.assign(r.e, {
+      aimAt(this: Enemy, t: unknown, mode: string, out: Vector3) {
+        const v = aimAt.call(this, t, mode, out);
+        if (mode === 'suppress') aims.push(v.clone());
+        return v;
+      },
+    });
+    for (let i = 0; i < 60 * 3; i++) r.step();
+    expect(r.p.suppressRounds).toBe(0);
+    expect(aims.length).toBe(0);
+    expect(r.p.suppressHeld).toBeGreaterThan(0);
+    expect(r.p.lastKnown.equals(lk)).toBe(true);
+    // one cached ray per SUPPRESS_CHECK (0.25 s): at most ~4 a second
+    expect(r.ctx.ballistics.clear.mock.calls.length).toBeLessThanOrEqual(Math.ceil(3 / 0.25) + 1);
+    r.line.clear = true;
+    for (let i = 0; i < 60 * 3; i++) r.step();
+    expect(r.p.suppressRounds).toBeGreaterThan(0);
+    expect(r.p.lastKnown.equals(lk)).toBe(true);
+    // the rounds went at the hunt's spot + 1.1 m (the last known position at the origin), not at his lastKnown
+    expect(aims.length).toBeGreaterThan(0);
+    for (const a of aims) expect([a.x, a.y, a.z]).toEqual([0, 1.1, 0]);
+  });
+
+  it('(c) out of sight in the open (waiting for the group) the same line rule holds', () => {
+    const r = roleProbe({ role: R_OVERWATCH, cover: -1, mates: true, covers: [] });
+    r.line.clear = false;
+    for (let i = 0; i < 60 * 2; i++) r.step();
+    expect([r.p.suppressRounds, r.p.roundsFired]).toEqual([0, 0]);
+    expect(r.p.suppressHeld).toBeGreaterThan(0);
+  });
+
+  it('(e) suppressView false: the S8 rule (rounds through the blocked line)', () => {
+    const was = sq.suppressView;
+    sq.suppressView = false;
+    try {
+      const r = overwatch();
+      r.line.clear = false;
+      for (let i = 0; i < 60 * 3; i++) r.step();
+      expect(r.p.suppressRounds).toBeGreaterThan(0);
+      expect(r.p.suppressHeld).toBe(0);
+      expect(r.ctx.ballistics.clear).not.toHaveBeenCalled();
+    } finally {
+      sq.suppressView = was;
+    }
+  });
+});
+
+describe("the reporter's call (guard-ai S27, A163)", () => {
+  it('(d) in cover with his call open and the player in cover 7 s: no grenade until the call ends, then allowed', () => {
+    const pc = { x: 0, z: 0, nx: 0, nz: -1, low: false };
+    const r = roleProbe({ role: R_REPORTER, cover: 3, onRadio: true, x: 1, z: -17.5, state: 'inCover', targetCover: pc, coverT: 7 });
+    Object.assign(r.e, { coverIdx: 3, dist: 17.5, lastSeenT: 3 });
+    r.owner[3] = r.e.num;
+    for (let i = 0; i < 60 * 2; i++) r.step();
+    expect(r.ctx.throwGrenade).not.toHaveBeenCalled();
+    expect(r.p.wantCrouch).toBe(true);
+    // the call gets through: the next roles tick clears his hold
+    r.e.setRole(R_REPORTER, 3, false, false, false, false);
+    r.step();
+    expect(r.ctx.throwGrenade).toHaveBeenCalledTimes(1);
+  });
+
+  it('(d) caught in the open (attack) with his call open: no grenade either', () => {
+    const pc = { x: 0, z: 0, nx: 0, nz: -1, low: false };
+    const r = roleProbe({ role: R_REPORTER, onRadio: true, x: 0, z: -12, state: 'attack', targetCover: pc, coverT: 7 });
+    Object.assign(r.e, { dist: 12, lastSeenT: 3 });
+    for (let i = 0; i < 30; i++) r.step();
+    expect(r.ctx.throwGrenade).not.toHaveBeenCalled();
+    r.e.setRole(R_REPORTER, -1, false, false, false, false);
+    r.p.state = 'attack';
+    r.step();
+    expect(r.ctx.throwGrenade).toHaveBeenCalledTimes(1);
   });
 });

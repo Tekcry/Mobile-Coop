@@ -62,6 +62,11 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
   pure part `game/intel.ts`): `Code: <label>` per authored code (`GuardIntel.codes`, flag to `GameMode.onIntelCode`), then
   `Cameras near: n, sweep a-b s` and `Patrols near: n, loop a-b s` within `INTEL.reach` 30 m on his storey (patrol lines read each
   guard's route through the Guard AI `Enemy.patrolRoute` getter, `intelGuard`). Feed lines (<= 60 chars), event `intel`; a guard with none: unchanged. One use per guard per bay start (a restart spawns a fresh guard).
+  (stealth-pays S1, S2) Part B: the code flag now acts. Course: `CourseMode.onIntelCode` sets it as a course flag
+  (`state.setFlag`; a gate reads it when it lists the flag in `def.externalFlags`; a bay restart drops it). Sector Ops: the
+  spawn copies the slot's `info` onto the guard, and `SectorMode.onIntelCode` holds the code for the live section
+  (`SectorCodes.grantCode(flag, run.index)`, host only), so the matching keypad opens; the section's restart drops it.
+  Host / solo only (a puppet never reveals). Play is unchanged until map owners author guard `info` codes; no Sector map has any yet.
   There is no let-go (the shove is removed): the hold ends only in the knockout or the
   kill, or cleanly when the holder dies, the guard dies to something else (`abort`) or the match restarts (`reset`; a
   co-op host still frees a client's guard when that client drops out or the section restarts). Carry (the knockout,
