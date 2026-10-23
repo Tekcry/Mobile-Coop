@@ -291,15 +291,14 @@ LR16 (one lighting system; Michael ~18:08-18:20; plan checks/lr16-plan.md, audit
 - -lr16int = LR16a 59c8bfdd + LR16b fe23ef4c + LR16f/7/3 (-lr16f f16591bf) + LR16-6 (-lr16v 5ee3a270) + LR16d campus
   (-lr16d 5811ed95), merged c7a26ca7. Checker B PASS 3223fefe; checker A FIX da773613 (torch SpotLight hard cut vs
   feathered meter, lightRig.ts:539 / bakedLamps.ts:175; door/prop casters outside cone fit charShadows.ts:357;
-  lights.contribution linear). FIX ROUND was running (Opus, pushes WIP; lr16-batch-fix.md): resume from that doc,
-  then recheck A's 3 items (fresh Opus) + laptop rerun of what the fix touched. Laptop GPU batch 1 SENT for c7a26ca7.
+  lights.contribution linear). FIX DONE f8008542 (lr16-batch-fix.md; torch cone feathered on every PBR torch path,
+  meter vs picture < 1e-6). Recheck RUNNING (lr16-batch-recheck.md). Laptop: batch 1 redirected to f8008542 (~20:40).
   Known reds after fix: exactly 15 (ctcourseLight 4, warehouseS1Light 4, S2 3, S3 4) -> LR16g. PROTOCOL stays 38: train bumps.
 - -lr16dx = lr16int c7a26ca7 + -lr16dw 0cdee9f1 (22 warehouse moves). Opus FIX ROUND was running (lr16dx-build.md):
   ids 20 / 71, wrong 75 / 11 / 120+123, audit rule, none rows, full audit rerun. Resume from that doc; then 1 checker.
-- cloud-queue f928ba47: briefs/sector-redesign-LR16e.md + LR16-1.md OPEN (base c7a26ca7). Read status each check;
+- cloud-queue 12302947: LR16e + LR16-1 CLAIMED by Cloud Builder 1 (base c7a26ca7); LR16t + LR16h part 1 OPEN (base f8008542). Read status each check;
   done -> fetch, review (two checkers if src/net / ai), merge e then 1 into lr16int, laptop run.
-- Next to queue: LR16t (briefs/LR16t.md; rebase on lr16int after the fix lands, it replaces the torch shadow pool),
-  LR16h part 1 docs (after the fix), LR16g re-level (after dx + e + 1; set its base sha), LR16-8 sheets request text in
+- Next to queue: LR16g re-level (after dx + e + 1; set its base sha), LR16-8 sheets request text in
   briefs/LR16h-and-8.md (after g), campus-art-next (after #226). LR16-4 relight -> offer Guard AI; LR16-5 needs Michael.
 For Michael: Realistic dimmer (S2 atrium 0.28 vs 0.48, LR16g fixes); S3 hall-lit white fog.
 Polish: lr15-check 1/2/4, lrpolish 1-6, freeze polish, art P6, LR16-3 door instancing, perf check polish 3-7.
