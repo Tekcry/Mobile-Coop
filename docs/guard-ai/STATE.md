@@ -2,8 +2,9 @@
 
 ## Now
 ~14:15: train 25 GREEN (our stack -> 4.74.0). Flake ours: e2e-levels:62 ladder climb (wall-clock wait, 0.02 m in 30 s
-under load): Sonnet test fix RUNNING on s13 (#218, sim-time wait; note in slices/S13.md). After 4.74.0 lands: retarget
-#218 to master.
+under load): FIXED on s13 82ef72bd (test only: the wait was already sim time; manual clock now taken at the first poll
++ 2 s settle, condition wait, budget from run / climb speeds ~48 s; slices/S13.md note). Rides train 26 (needs a run:
+add e2e-levels to the s15 rerun). After 4.74.0 lands: retarget #218 to master.
 
 ~14:10 (desktop CPU ~10%, cap lifted): S9 BUILT 76157035 (protocol 32 free: master 31, marlow-final 33,
 section-rating 34, art-kit 35; slices/S9.md, A90-A95; 528 unit tests). RUNNING (Opus): S15 laptop fix (s15); S9
