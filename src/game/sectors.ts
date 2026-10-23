@@ -142,6 +142,14 @@ export interface SectorDef {
   intel?: readonly SectorIntel[];
   /** (sector-redesign E5, EW9) Alarm-stage extras: lights to full, lockdown doors, the response route, dog release (`sectorStage.ts`). */
   stageActions?: readonly SectorStageAction[];
+  /** (E9-crate) the weapons crate at this section's start (A100, A109). */
+  crate?: SectorCrate;
+}
+
+/** (sector-redesign E9-crate) A section's weapons crate: its floor point and yaw (the strip side, +z, faces the room). */
+export interface SectorCrate {
+  readonly at: readonly [number, number, number];
+  readonly yaw: number;
 }
 
 /**

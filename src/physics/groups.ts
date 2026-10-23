@@ -15,21 +15,55 @@ export const G = {
   FENCE: 1 << 10,
   /** (T5b2, D49) A co-op partner's body (`PartnerBlocker`): blocks the local player's controller only. */
   PARTNER: 1 << 11,
+  /** (E2, EW6) Glass panes (`BoxPiece.glass`): they stop bodies, props, ragdolls and grenades and are a wall to
+   *  hearing; bullets, the camera boom, the level probes and light pass (G45; armoured glass is E10's). */
+  GLASS: 1 << 12,
+  /** (E2) Frosted glass carries this bit as well: it blocks guard sight (`MASK.SIGHT`); clear glass does not (G45). */
+  GLASS_FROSTED: 1 << 13,
+  /** (E10, A97) The armour bit: an armoured glass pane (`BoxPiece.armoured`, with `G.GLASS`) and an armoured door leaf
+   *  (`Door.armoured`, with `G.STATIC`). Rounds stop on it (`PLAYER_SHOT` / `ENEMY_SHOT`) and never penetrate it; it is
+   *  not in `SIGHT` (armoured clear glass still sees) nor `WORLD` (the camera boom passes). */
+  GLASS_ARMOURED: 1 << 14,
 } as const;
 
 export const MASK = {
   /** What blocks the camera boom and line of sight. */
   WORLD: G.STATIC,
   /** What the player controller capsule collides with. */
-  PLAYER_COLLIDE: G.STATIC | G.PROP | G.ENEMY | G.FENCE | G.PARTNER,
+  PLAYER_COLLIDE: G.STATIC | G.PROP | G.ENEMY | G.FENCE | G.PARTNER | G.GLASS,
+  /** (E2) What blocks a guard's line of sight: static geometry and frosted glass (clear glass sees, G45). */
+  SIGHT: G.STATIC | G.GLASS_FROSTED,
+  /** (E2) What muffles a sound as a wall: static geometry and every glass pane. */
+  HEARING: G.STATIC | G.GLASS,
   /** What a player bullet can hit. */
-  PLAYER_SHOT: G.STATIC | G.PROP | G.ENEMY_HITBOX | G.RAGDOLL,
-  /** What an enemy bullet can hit. */
-  ENEMY_SHOT: G.STATIC | G.PROP | G.PLAYER_HITBOX,
-  PROP_COLLIDE: G.STATIC | G.PROP | G.PLAYER | G.ENEMY | G.RAGDOLL | G.PROJECTILE,
-  RAGDOLL_COLLIDE: G.STATIC | G.PROP | G.RAGDOLL,
-  PROJECTILE_COLLIDE: G.STATIC | G.PROP | G.ENEMY | G.PLAYER,
+  PLAYER_SHOT: G.STATIC | G.PROP | G.ENEMY_HITBOX | G.RAGDOLL | G.GLASS_ARMOURED,
+  /** What an enemy bullet can hit (E10: armoured glass stops it; a guard's fire decision must test this mask, not SIGHT). */
+  ENEMY_SHOT: G.STATIC | G.PROP | G.PLAYER_HITBOX | G.GLASS_ARMOURED,
+  /** (polish 15) What shields a grenade blast: static geometry and every glass pane (the grenade itself bounces off a pane). */
+  BLAST: G.STATIC | G.GLASS,
+  /** (polish 16) What stops a thrown gadget in flight (sticky camera, noise maker, the throw arc): static and glass, as the grenade body. */
+  GADGET_FLIGHT: G.STATIC | G.GLASS,
+  /** (polish 18) The host's line-of-sight check of a client's claimed round: static geometry and armoured panes / leaves. */
+  HOST_LOS: G.STATIC | G.GLASS_ARMOURED,
+  PROP_COLLIDE: G.STATIC | G.PROP | G.PLAYER | G.ENEMY | G.RAGDOLL | G.PROJECTILE | G.GLASS,
+  RAGDOLL_COLLIDE: G.STATIC | G.PROP | G.RAGDOLL | G.GLASS,
+  PROJECTILE_COLLIDE: G.STATIC | G.PROP | G.ENEMY | G.PLAYER | G.GLASS,
 } as const;
+
+/** (E2 / E10) A glass pane's body bits: `G.GLASS`, frosted adds `G.GLASS_FROSTED`, armoured adds `G.GLASS_ARMOURED`. */
+export function glassMembership(kind: 'clear' | 'frosted', armoured: boolean): number {
+  return G.GLASS | (kind === 'frosted' ? G.GLASS_FROSTED : 0) | (armoured ? G.GLASS_ARMOURED : 0);
+}
+
+/** (E10) A closed door leaf's body bits: `G.STATIC` (a round stops; a plain 0.1 leaf is thinner than a rifle's penetration), armoured adds the armour bit. */
+export function doorMembership(armoured: boolean): number {
+  return G.STATIC | (armoured ? G.GLASS_ARMOURED : 0);
+}
+
+/** (E10) A struck body's bits carry the armour bit: the round stops on it (sparks), never penetrates. */
+export function isArmoured(membership: number): boolean {
+  return (membership & G.GLASS_ARMOURED) !== 0;
+}
 
 /** Upper bounds so a busy fight can never tank the physics step. */
 export const BUDGET = {

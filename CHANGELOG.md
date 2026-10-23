@@ -1,5 +1,35 @@
 # Changelog
 
+## 4.75.0 - Train 26: Guard render S4, Sector Ops campus sections 4-5 with weapons crate, cameras, armoured routes and posts, mocap strafe (2026-10-23, PR #224; #212, #217, #221)
+
+### Guard anim tiers (guard-render S4)
+- Guards solve their animation less often when it cannot be seen: a guard whose merged body was drawn in no local
+  view last frame every 4th frame, a guard beyond 22 m of the camera (not scaled by the Detail setting) every 2nd,
+  otherwise every frame; the skipped time is carried into the next solve and the weapon glide runs every frame.
+  Guards are staggered so the cost spreads across frames. Full rate in a takedown or hold, a scripted emote, a climb,
+  or within 4 m of any player. `?animtier=0` turns it off. Gameplay is unaffected: the guard head hit volume comes
+  from the sim since S3a.
+
+### Mocap strafe
+- Mocap locomotion (switch on): aiming sideways, Wren plays captured strafe steps (CMU 69_59 / 69_56) at their own rhythm
+  instead of the hand-keyed glide strafe, with no pops or foot slides on starts, stops, flips and snaps; switch off and
+  guards unchanged. Clip format: a cycle can travel sideways (`travel` '+x' / '-x').
+
+### Sector Ops: campus S4 / S5, weapons crate, bulletproof / thermal cameras
+- Sector Ops campusOps: S4 data hall greybox (first dog, security desk, pair gate, keypads).
+- Sector Ops campusOps: S5 the Old House greybox and the jetty extraction (two dogs, response team, pair gate, light well).
+- Sector Ops: weapons crate engine and protocol 35 (crate item kind, crate event; per-player use on the host).
+- Sector Ops campusOps / warehouseOps: a weapons crate at every section start (once per player, tops up to the loadout).
+- Sector Ops: bulletproof cameras in S4 (shots ricochet) and bulletproof + thermal cameras in S5; early sections keep shootable cameras.
+- Sector Ops co-op: the host sends only the live section's interactables (plus objective, connector doors, revives), keeping the item list under the 128 cap.
+- Sector Ops: the S4 / S5 enforcers become officers / grunts (no enforcer in any section list).
+
+### Sector Ops: glass, armoured routes, posts on guard slots, polish
+- Sector Ops: armoured glass and armoured doors (rounds stop on them, no penetration; guards still see through armoured clear glass): S4 mantrap inner door and NOC window, S5 anteroom hall door and front door, each with a quiet way round (keypad, hang-down, side door, rappel).
+- Sector Ops polish: a grenade blast and thrown gadgets stop at glass panes; the host's shot and lamp-shot checks and the partner's tracer stop at armoured glass; the HUD exposure reads guard sight (frosted glass hides); a weapons-crate refill is never dropped in a busy co-op moment; a round hits the nearest camera on its line; no door peek offered from a walkway above the door; S4's fuel tanks no longer step out over the compound wall; S5 guards no longer walk through the open sash into the light well.
+- Sector Ops campusOps: glass panes (clear and frosted): light and clear-glass sight pass, bodies, props and grenades stop, rounds pass plain glass; nav treats a pane as a fence; takedowns and partner throws stop at glass.
+- Sector Ops campusOps: the guard posts live on each guard slot (no separate post tables).
+
 ## 4.74.0 - Train 25: Guard AI squad tactics, Sector Ops tags, alarms and reinforcements, talking pairs, helmets and body armour; guard render GPU buffer share (2026-10-23, PR #222; #208, #213)
 
 ### Guard AI: stealth over shooting data

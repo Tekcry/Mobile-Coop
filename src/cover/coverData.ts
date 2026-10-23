@@ -43,6 +43,8 @@ export interface CoverBox {
   pitch: number;
   collide: boolean;
   visible?: boolean;
+  /** (E2) Glass is never cover (bullets pass it; clear glass hides no one). */
+  glass?: unknown;
 }
 
 export interface CoverCyl {
@@ -71,7 +73,7 @@ export function buildCoverSegments(boxes: readonly CoverBox[], cyls: readonly Co
   let piece = 0;
   for (const b of boxes) {
     piece++;
-    if (!b.collide || b.visible === false || Math.abs(b.pitch) > 1e-3) continue;
+    if (!b.collide || b.visible === false || b.glass || Math.abs(b.pitch) > 1e-3) continue;
     const [w, h, d] = b.s;
     const cls = classifyHeight(h);
     if (!cls || Math.max(w, d) < MIN_FACE) continue;
