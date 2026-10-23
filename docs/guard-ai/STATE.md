@@ -1,6 +1,14 @@
 # Guard AI - state
 
 ## Now
+~13:55: forced guard-carry check 0bdfa95b on #240 (script only: a body compile is made to time out; master must
+fail). It showed a fix gap: Babylon's fallback leaves the recovered body CPU skinned -> feature/guard-ai-carry-fix2
+d7a3b887 (bodyEffectRecovery.ts recompileEffect turns computeBonesUsingShaders back on; unit 4/4; the forced pass
+asserts GPU skinned). Off the train-31 head; next train, PR after Test Runner (asked: e2e-guard-carry + stealth-ai on
+d7a3b887, the d7a3b887 suite on master 4f6db420, expect fail). S22 game 08586783: e2e-coop PASS; ctcourse:2 FAIL in A3
+(cleaner never walks to office 1's switch, a3OfficeRange.mjs:85), before A4; Marlow section-rating 053ff212 failed
+the same assert, so it's likely from marlow-final, not S22. Wait for train 31's ctcourse:2.
+
 ~13:30: S22 game side: A4 e2e 08586783 (a4GoodsShed.mjs: refused while the officer watches, a distraction lets it
 through, he walks back and turns it on), fresh check PASS 2665b622 (slices/S22-GAME-CHECK.md, 6 polish). Test Runner
 asked: e2e-ctcourse --part=2 + e2e-coop on 08586783 (GPU). #240 Test Runner PASS on 23cf567c, but the suite also passes
