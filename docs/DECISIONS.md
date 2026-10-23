@@ -1462,3 +1462,8 @@ routes of G238.)
 you hit it." Every session runs at full speed to 100% with parallel agents; WIP is pushed after every agent hand-back, so
 a cutoff loses only the step in flight (docs/orchestrator/STATE.md "Pacing"). (Replaces the 97% and 99% stops of G245
 and G249.)
+
+**G282. Voxel look retired.** Michael (2026-10-23 ~15:05, native multiple choice, after #226 failed the voxel fit test on
+three campus props: "nothing should be voxel"): "Retire it". The `?voxels=1` render path, voxel characters / weapons and
+their tests are removed (#236); the lamp / sky / light bakes in `src/voxel` stay as light grids (not drawn). Replaces
+G68's "voxels only as the way the world is drawn" and G223's voxel comparison flag.

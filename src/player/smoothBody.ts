@@ -3,7 +3,7 @@ import { flags } from '../core/flags';
 import { flashColors, heatPattern, mergeParts, paintPart, restBox, type MergedBody, type MergePart } from './smoothBodyMerge';
 
 /**
- * (guard-render S1) The smooth twin of `VoxelBody`: a rig's smooth parts merged into one mesh (and its low-LOD twin
+ * (guard-render S1) A rig's smooth parts merged into one mesh (and its low-LOD twin
  * from the part bases' 16 m LOD) skinned rigidly to one bone per joint, on the frozen `partSkinMat`, so a guard costs
  * two meshes in the scene's evaluation instead of ~50 instances. Same pixels: per-vertex colour / pattern / `color2`
  * are the instance values, `ppos` / `pnrm` the instances' pattern and surface space (`SmoothBodyPlugin`). The parts

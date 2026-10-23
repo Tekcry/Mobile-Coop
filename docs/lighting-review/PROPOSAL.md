@@ -231,3 +231,147 @@ under `COURSE_DARK` 0.25; renders about 5-8% on L5's scale) before touching any 
   only.
 - LR6: timed isolators become held ones (dark while a player holds the isolator, the existing `timedHold` gate) and
   consoles stay off until a restart (today's behaviour).
+
+## 7. Walk 4.72 S1 (lamp output; LR13 proposed, NOT applied)
+Written 2026-10-23 ~14:40 by the sector-redesign lighting reviewer (branch `feature/sector-redesign-lightrev`; this
+section is appended to the shared file as it stood on `feature/marlow-final` at 6b211fb7; sections 0-6 are unchanged).
+Raw numbers: `docs/sector-redesign/checks/light-measure.md`. Probe: `scripts/light-measure/`.
+
+### 7.0 Michael's words (walk on 4.72, verbatim)
+- S1 Sector Ops: "goods in seems brighter but the lights just dont light up everything like the would normally. theres
+  so many lights but its still hard to see, are the lights actually outputting light as they should realistically??"
+- M5 Marlow: "light above s2 locked door is on and half over both rooms but doesnt shed any light into the first room -
+  lighting system doesnt seem to be working properly or spreading light as much as it should. not realistic."
+
+Short answer: no, the lamps do not put out light as real fittings do. Parity is fine (the picture, the meter and the
+guards read the same number); the formula they share is not physical, and most Sector Ops fittings were given a reach
+about equal to their mounting height, so their light stops before it reaches the floor.
+
+### 7.1 Findings
+1. **One formula, linear to the radius.** Every baked lamp, in the meter, the guards and the picture, is
+   `intensity x (1 - d / radius) x cone x baked visibility` (`lampMath.ts:27` `lampFalloff`; the field writes it out at
+   `lightField.ts:242`; the shaders at `bakedLamps.ts:888` from `LAMP_MATH_GLSL`). A real fitting falls off with the
+   inverse square of distance and has no hard end: its light reaches every surface in view, weaker with distance.
+   Here the light is 0 at the radius, whatever is there.
+2. **Radius about equal to mounting height.** Sector Ops (`warehouseOps`): median fitting height 3.4 m, median radius
+   5.3 m (r / h 1.25); 31 of its 100 lit fittings put nothing on the floor straight under them, 58 under 0.25 of their
+   intensity. The S1 Goods-in Bay strips hang at 5.58 m with radii 4.8-8.8 (`warehouseS1.ts:73`): 5 of 8 reach the
+   floor with less than 0.1 of their light or none. Result over the bay (144 points): floor median **0.186**, 108
+   points under the shadow line 0.28, none lit; standing bodies median 0.436 (heads are nearer the strips). Real
+   fittings in the same places (12 000 lm LED high-bay battens, 45 degree optic, inverse square): **213-781 lux, median
+   488** at chest height, a well-lit warehouse (task areas 100-200 lux, offices 300-500). The other maps: Saltmarsh
+   Park r / h 1.77, master Marlow 2.3 (its pendants reach the floor); marlow-final's course 1.25 with 22 of 149
+   fittings dark under themselves.
+3. **The darkness curve hides the tails.** `DARK_DESKTOP` (`darkCurve.ts:39`) renders level 0.186 at 0.056 and 0.28
+   at 0.096 (near black), 0.45 at 0.65. The little light that reaches the floor between the pools is crushed: the
+   pools glow, the floor, racks and walls around them stay black. "So many lights but still hard to see."
+4. **No bounce.** No inter-reflection anywhere. The fill is the zone's flat ambient (the shed 0.12), on or off alike.
+   Walls take lamp light only through N.L of the direct term, ceilings none (the lamp hemisphere stops 3 degrees short
+   of horizontal, `lampMath.ts:11`). A real room's walls and ceiling get a fifth to two fifths of the direct light back.
+5. **M5 is the same cause, not a split fitting.** The lamp is master Marlow's `S2_TOP_LAMP` (`ctcourse.ts:83`, placed
+   at `ctcourse.ts:534`): a 1.6 m strip at 7.35 m, 0.4-1.2 m past the 1 m thick, 4.4 m high station 2 wall, so from
+   the first room it looks to hang over the wall and the door. Its radius is 7.6 m. The wall shadows the first room's
+   floor for about 3.9 m; beyond that the floor is 8.3 m away, past the radius: it gets exactly 0. On the second room's
+   floor it gives 0.02 at most; it lights only the wall top (0.35). No fitting in any map has its centre inside a wall
+   (scan in the raw numbers); panels bake from one sample point (`lampBake.ts:71`), a latent risk for a future panel
+   laid over a wall line, not today's bug. marlow-final's W5 (A2) is the Marlow lead's data fix.
+6. **Render path against the meter.** Same function, same visibility, same column lists; the picture adds
+   `LIGHT_GAIN` 1.6 / `LAMP_LEVEL_GAIN` 1.2, N.L, albedo and the character capsule shadows; on the smooth default the
+   level's own boxes take their fill from the sky-visibility bake (`bakedLamps.ts:936-941`) rather than the gameplay
+   grid. None of this is the walk's problem.
+
+### 7.2 LR13 - one engine change: photometric lamp falloff (prototype in this branch, default off)
+**Status (2026-10-23, Michael ~14:35 "Try it first"): prototype shipped default off (setting).** Settings > Gameplay >
+"Lamp falloff: Classic / Realistic (test)" (`gameplay.lampFalloff`, default Classic), applied when a map loads (start
+or restart the mission; `lampMath.matchLampFalloff` in `GameState.create`); `?falloff=photo` stays as a dev override. Co-op:
+the host's choice rides the `start` message (`lf`, PROTOCOL_VERSION 38) and the client's row is locked to it. Build
+report: `docs/sector-redesign/checks/lr13-build.md`. Not adopted: no map re-tune; the default flip is still the
+"If adopted" step below.
+
+**What.** Baked lamps fall off with the inverse square, as a real fitting does, referenced so that a lamp's intensity
+is its level on axis at 3 m, and fade smoothly to 0 at a reach of 1.6 x the authored radius (the glTF / Babylon
+`FALLOFF_GLTF` window):
+
+    falloff(d) = (3^2 / max(d, 1)^2) x (1 - (d / R)^4)^2,   R = 1.6 x radius
+
+Cone, N.L, baked visibility, closed doors, the column lists, the thresholds (`LIGHT` 0.28 / 0.6), the darkness curve,
+the zone fills and the flashlights are unchanged.
+
+**Code (prototype; now the setting, `?falloff=photo` a dev override):** `lampMath.ts` `PHOTO` {ref 3, near 1, reach 1.6},
+`setLampFalloff` / `lampFalloffMode`, `photoFalloff`, `lampReach`, `LAMP_MATH_GLSL_PHOTO` / `lampMathGlsl()`;
+`LightRegistry.add` scales a fixed lamp's radius by `lampReach` once (so the bake boxes, the 2 m column lists, the
+field and the shaders read one reach; flashlights keep theirs); `LightField.lampInto` takes the photometric branch
+(read once per field); `bakedLamps.ts` builds its lamp loop and the editor's volume mix from `lampMathGlsl()`;
+`flags.photoLamps` and one line in `main.ts`. Test: `tests/lampFalloff.test.ts` (default unchanged; formula; registry
+scaling; the field equals the GLSL formula with the bake's visibility).
+
+**Effect, measured with the real bake** (`light-measure.md`):
+
+| | Today | LR13 |
+| --- | --- | --- |
+| S1 bay floor median / under 0.28 / lit | 0.186 / 108 of 144 / 0 | 0.431 / 22 / 19 |
+| S1 bay standing body median / under 0.28 / lit | 0.436 / 19 / 7 | 0.721 / 1 / 100 |
+| S1 bay floor on screen (curve) at the median | ~0.056 (black) | ~0.58 (readable) |
+| Marlow S2 lamp on the first room's floor (x 26-28) | 0 | 0.02 |
+| Marlow S2 floor overall (pendants, radius 13) | 0.83-0.9 | 0.56-0.68 |
+| warehouseOps lamp bake (node) / visibility atlas | 5.9 s / 11.3 MB | 16.5 s / 30.1 MB |
+| Lamps in reach of a point in the bay (median / max) | 2 / 5 | 6 / 9 (8 kept per column) |
+
+Every fitting reaches the floor and every surface in its view, pools overlap into an even working light, and the
+gradients are soft. Intensities authored for the linear model do not carry over one to one: tight-radius lamps
+(Sector Ops) get brighter, wide-radius lamps (Marlow's 13 m pendants) darker. Adopting it means one re-tune per map.
+
+**Stealth balance.** A lit working space reads lit (the S1 bay: 100 of 144 standing points lit, from 7) and the dark
+between pools mostly goes, so a crossing needs the circuit cut, the jammer or a shot (LR1: the players make the
+dark). Cutting a circuit is still true dark: the lamp's whole term goes with it (no bounce term survives a cut) and
+the standby fills (0.12 / 0.14) do not change. Guards see further across lit floors (R3, R4): layouts lean on
+occluders and short sightlines. Dark pockets can no longer come from a short radius ("a corner no fitting reaches"
+must be out of the fittings' view, a dead fitting or a cut circuit). Meter thresholds and perception are not retuned.
+
+**Light parity.** One function for gameplay and picture: TS (`photoFalloff`, written out in `lightField.ts`) and GLSL
+(`LAMP_MATH_GLSL_PHOTO`) from the same constants; the registry holds the one reach. Unchanged gaps: `?gfx=min` (no
+bake) keeps the linear `lampTerm` for the meter and Babylon's linear range for its real lights, both with the longer
+reach (consistent with each other, not photometric); co-op peers must run the same mode (a URL flag now; a default
+once adopted).
+
+**Costs and risks.** Bake time and the R8 visibility atlas grow about 2.7-2.8x on Sector Ops (reach 1.6; reach 1.4
+would cost about two thirds of that); more lamps per 2 m column (the 9th nearest is dropped by meter and picture
+alike, small under an inverse square; `tests/lampGridLossless.test.ts` would fail in this mode until the grids are
+re-checked); a longer per-pixel lamp loop (a GPU perf run before adopting). Volumetric haze and night-vision glare read
+the registry radius (longer) and need a look.
+
+### 7.3 Level design Section 12 and the decisions that relied on the old fact
+`docs/level-design.md` Section 12 lists no lamp falloff today. If LR13 is adopted it gains: "Lamps: inverse square from
+3 m, reach 1.6 x the authored radius (`lampMath.ts` `PHOTO`); a dark pocket comes from occlusion, a dead fitting or a
+cut circuit, never from a short radius." Decisions that relied on the linear reach and get re-tuned:
+- Sector Ops `warehouseOps` S1-S3 lamp tables (`warehouseS1.ts`, `warehouseS2.ts`, `warehouseS3.ts`; sector-fixes L,
+  warehouse-s23 M1), each fitting tuned to `tests/warehouseS{1,2,3}Light.test.ts`, including the dark pockets kept by
+  short radii (spawn corner, trailer lane, shelter, skip, charger corner, east corridor end) and the 0.30 roof.
+- Saltmarsh Park `campusOps` S1-S5 fittings and their light tests (sector-redesign SPEC light bands).
+- Marlow Yard: master `ctcourse` spot levels (`tests/ctcourseLight.test.ts`, `ctcourseLight.tuned.json`); the
+  marlow-final LIGHTING-PLAN circuits and levels (`src/world/lighting/`, `MARLOW_LEVEL`, pocket maxima).
+- Warehouse (`warehouse`) floor bands (the 3.5 band behind `LAMP_LEVEL_GAIN` 1.2, `lampMath.ts:19-24`).
+- `tests/lampGridLossless.test.ts` (8 lamps per 2 m column) and the lamp bake budgets.
+LR7's standby fills, the meter thresholds, the darkness curve and the cameras' IR (G240) do not depend on it.
+
+### 7.4 Test plan
+1. Unit (done): `tests/lampFalloff.test.ts`; `tests/lightField.test.ts` and `tests/lights.test.ts` unchanged and green.
+2. Node bake, every map, both modes (`scripts/light-measure/`, `PROBE_PHOTO=1`), and each map's light test run once
+   under `setLampFalloff('photometric')` to list the bands that move (the re-tune list).
+3. GPU (Test Runner, port 4189, `E2E_GPU=1`): `e2e-darkness` and `e2e-lightbake` with `?falloff=photo`: the shader
+   compiles; rendered luma at fixed S1 bay and Marlow S2 points against the field's level through `darkCurve`
+   (parity); `DARK_TARGETS` bands.
+4. Perf: bake time and atlas memory on warehouseOps, campusOps and the marlow-final course; frame time in the S1 bay,
+   photo against linear (`docs/systems/performance.md`).
+5. Co-op: host and client both on the flag; the client's meter against the host's perception at the S1 points.
+6. Michael walks S1 goods-in and Marlow station 2 on a preview with `?falloff=photo` against the default.
+If adopted: the default flips in one PR with the map re-tunes (one slice per map), `lighting.md` and level-design 12.
+
+### 7.5 Considered, not proposed now
+- Data only (no engine change): every radius at least 1.6 x its mounting height, with a `lampMount.ts` check. Lights
+  the floors, keeps the hard linear pool edge and the dead tail; a re-tune per map all the same.
+- A baked bounce term per lamp (switches with its lamp, so the made dark stays dark): lights walls, ceilings and
+  corners; a new bake, a shader term and its own parity test. The natural second step after LR13.
+- Brightening the darkness curve or raising zone fills: breaks "darkness is dark" (L7) and makes a cut circuit not
+  dark. Rejected, as in section 3.
+- A fitting check that rejects a footprint across a wall line (a data guard for M5-like layouts).

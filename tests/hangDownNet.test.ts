@@ -11,8 +11,8 @@ import { PROTOCOL_VERSION } from '../src/net/protocol';
 const mv = (m: 'boost' | 'brace' | 'ground', sub: number, dw = 2) => ({ ...emptyMoveState(), m, sub, dw });
 
 describe('hang-down net: no wire change', () => {
-  it('the protocol stays at master\'s version', () => {
-    expect(PROTOCOL_VERSION).toBe(35);
+  it('PROTOCOL_VERSION is 42 (42 marlow-final over train 30 (40); 41 reserved for guard-ai S9; 40 the stack at train 30; 39 guard-ai S9; 38 lamp falloff; was pose-parity)', () => {
+    expect(PROTOCOL_VERSION).toBe(42);
   });
 });
 

@@ -138,7 +138,11 @@ stat), which nothing here reads or changes.
   Reload sources are kept and cut on a swap or when the match ends. Until the sprite is decoded the old synth plays.
 - **Wiring** (`gameAudio.ts`): `onShot` (suppressed when the live `stats.noise` < 0.6: the suppressed pistol's 0.35 or a
   fitted suppressor's 0.45, which includes the campaign rifle's issued suppressor), `onReload`, `onDryFire`, `onSwap`; guards' shots (`onEnemyShot`, by archetype) and co-op
-  `remoteShot` (by class) through `AudioEngine.spatial` at range 70.
+  `remoteShot` through `AudioEngine.spatial` at range 70: a guard's by class, (coop-walk-fixes P7) a partner's round by its
+  weapon id (`remoteGun`: the suppressed pistol is `pistolSd`, not the class's open pistol) and suppressed when it was
+  (`PF.quiet`; `stats.remoteSd`). One per round: `RemoteAvatar` plays a round per step of the partner's
+  `PlayerState.sc` (`net/remoteShots.ts`), no longer every fire interval while `PF.firing` (0.2 s) is set, which
+  played a single shot twice.
 - **Weapon lab** (`?weaponlab=1`, `audio/weapons/weaponLab.ts`): the two CT kit guns; single, three-round burst or a second of
   automatic fire at the gun's rate; suppressed; the player or a guard at 6, 18 or 40 m; reloads, dry fire, brass on
   each floor, a running footstep for level; "Old synth" for an A/B.

@@ -24,8 +24,8 @@ function hostOwnPulses(secs: number): number {
 }
 
 describe('marlow-final Q12: client hold noise on the wire', () => {
-  it('rides protocol 36 (the merge of marlow-final 33 (ours 30 merged with the Sector lamps 31) and master 35 the weapons crate)', () => {
-    expect(PROTOCOL_VERSION).toBe(36);
+  it('rides protocol 42 (42 marlow-final over train 30 (40); 36 the merge of marlow-final 33 (ours 30 merged with the Sector lamps 31) and master 35 the weapons crate)', () => {
+    expect(PROTOCOL_VERSION).toBe(42);
   });
 
   it('`use` carries the pulse flag; a plain use stays a plain use', () => {

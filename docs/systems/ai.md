@@ -368,6 +368,11 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 - Goggles: `game/vision.ts`, render only (`docs/systems/gadgets.md`). The LKP ghost uses `vfx/silhouettes.ts`.
 - Interactables: kinds `switch`, `alarm`, `hide`, `body`, `door`, `medkitWall` with per-item `reach` and `onUse`;
   `nearest(feet, reach, only)`; `GameState.updateInteract` calls `onUse`.
+- Armour (guard-ai S16, A80-A87): sight stays on `MASK.SIGHT` (clear armoured glass sees), but before the wind-up, a burst
+  and every round `Enemy.tryFire` casts the fire line (muzzle -> aim point, `MASK.ENEMY_SHOT`) through `ai/armourFire.ts`
+  `ArmourGate` (pure, cached 0.25 s per guard and cell pair); an armoured first hit holds fire. After 1 s held he
+  repositions (a cover spot with a clear line, else round by the nav, 8 s) or, held to a room or post leash, holds and
+  keeps tracking. Plain glass is unchanged (bullets pass). Host only, no wire change.
 
 ## Enemy archetypes (2.0 phase 6)
 - `ai/archetypes.ts` (pure, `ARCHETYPE`): `heavyMult` (by `fromFront`), `shieldBlocks`, `grabRule` (heavy frontal = lethal
