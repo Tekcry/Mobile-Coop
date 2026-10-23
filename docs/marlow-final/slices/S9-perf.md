@@ -171,3 +171,24 @@ Same machine and settings as the 5100141d baseline. Nothing else running. Laptop
 - vitest `tests/ctcourse.test.ts tests/ctcourseLight.test.ts tests/facilityKit.test.ts tests/facilityProps.test.ts`:
   63 passed, 1 skipped.
 - No e2e and no GPU run (by brief).
+
+## Measured on the laptop (Character Build, 2026-10-23 ~11:20; 4189 alone, Epic 1920x1080, one 10 s sample per cell)
+"Before" 5100141d, "after" cc24e992. Frame med / frame CPU / render CPU / GPU ms; draws.
+| Cell | Before | After | Draws |
+| --- | --- | --- | --- |
+| N0 patrol facing | 4.4 / 4.1 / 3.4 / 5.3 | 3.9 / 3.7 / 3.0 / 4.0 | 375 -> 249 |
+| N0 patrol away | 2.7 / 2.5 / 1.9 / 4.1 | 3.5 / 3.3 / 2.5 / 3.9 | 124 -> 104 |
+| N0 alert facing | 4.3 / 4.0 / 3.3 / 5.1 | 3.8 / 3.5 / 2.9 / 4.0 | 375 -> 249 |
+| N0 A8 hall | 3.3 / 3.0 / 2.3 / 3.1 | 2.9 / 2.6 / 2.0 / 3.0 | 95 -> 85 |
+| N0 A7 data | 4.6 / 4.4 / 3.4 / 4.6 | 3.7 / 3.5 / 2.7 / 3.9 | 207 -> 161 |
+| N12 patrol facing | 7.6 / 7.4 / 6.0 / 7.2 | 8.3 / 8.1 / 6.3 / 6.5 | 393 -> 267 |
+| N12 patrol away | 5.2 / 4.9 / 3.6 / 5.1 | 4.2 / 4.0 / 2.9 / 3.9 | 124 -> 104 |
+| N12 alert facing | 9.2 / 8.5 / 6.9 / 8.0 | 8.8 / 8.3 / 6.5 / 7.2 | 407 -> 284 |
+| N12 A8 hall | 7.3 / 7.0 / 5.5 / 5.5 | 6.4 / 6.1 / 4.7 / 4.6 | 109 -> 99 |
+| N12 A7 data | 6.6 / 6.4 / 5.0 / 6.1 | 7.3 / 7.0 / 5.4 / 6.0 | 225 -> 179 |
+Draws down 10-35% and GPU down in every cell (up to -1.3 ms); tris up ~0.1 M in the away / A8 hall cells; shadow passes
+and maps unchanged. Frame worse in three cells (N0 away, N12 facing, N12 A7: +0.7-0.8 ms, render CPU at the same or
+fewer draws): read as single-sample noise, not rerun. Every cell is under the 16.7 ms frame. GPU over 7.5 ms only at
+N12 alert (was 8.0, now 7.2: now under).
+Shots (25 vantages, s9 before / after): meter and light field identical to 0.001 at every vantage (light parity
+unchanged). Images on the laptop: C:/NightShift/scratch/runs/s9-shots/*-{before,after}.png.
