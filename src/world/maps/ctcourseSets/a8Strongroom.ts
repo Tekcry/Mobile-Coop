@@ -41,7 +41,7 @@
  *   the counters' back panels and lamp stems, the grille's stone surround and two brass bar panels, the lighting board's cabinet, the
  *   office, the stairwell, the lobby, the beam curtain's plates, the time locks' cases and dials, the vault's inner surround;
  * - the one collision the stair's rails add: the public stair's two open sides' collision rail (kit.handrail, invisible noLedge, thirteen 0.55 m segments a side
- *   from the third tread to the gallery, S8-check polish 10), so a body cannot step off the flight; the foot and the flight stay open;
+ *   from the fourth tread to the gallery, S8-check polish 10), so a body cannot step off the flight; the foot and the flight stay open;
  * - the props kit: 8 bank counters and the night desk stand over their greybox boxes (no box written), 5 sign plates hang on the walls,
  *   and the vault's 6 deposit walls are the dressing's only collision (their own six `noLedge` boxes, 0.56 m deep on the two flanks: the
  *   vault stays 6.58 m wide (the test floor is 6.5 m) and the door's axis and swing are clear);
@@ -952,7 +952,7 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
   const lineAt = (z: number): number => (A8_H.gallery * (z - ps.foot)) / st.len;
   const stairPitch = -Math.atan2(A8_H.gallery, st.len);
   const stairLen = hyp2(st.len, A8_H.gallery);
-  tally(b, p.register, 'A8-19', "Public stair rails (visual skins, and the open sides' 1.1 m collision rail: kit.handrail, invisible noLedge, thirteen stepped segments of 0.55 m a side 0.05 m outside the flight, from the third tread to the gallery where they meet the balustrade's ends; the foot stays open to step on; accent on the gallery strip 82): on both sides a post every 1.5 m with balusters every 0.4 m under a brass top rail 1.0 m over the nosing line and a mid rail at 0.5 m (pitched like the flight), a stringer board along the nosings, a cross-plate newel 1.1 m at each foot", () => {
+  tally(b, p.register, 'A8-19', "Public stair rails (visual skins, and the open sides' 1.1 m collision rail: kit.handrail, invisible noLedge, thirteen stepped segments of 0.55 m a side 0.05 m outside the flight, from the fourth tread to the gallery where they meet the balustrade's ends; the foot stays open to step on; accent on the gallery strip 82): on both sides a post every 1.5 m with balusters every 0.4 m under a brass top rail 1.0 m over the nosing line and a mid rail at 0.5 m (pitched like the flight), a stringer board along the nosings, a cross-plate newel 1.1 m at each foot", () => {
     for (const x of [ps.x0 - 0.03, ps.x1 + 0.03]) {
       const mid = ps.foot + st.len / 2;
       slope(x, A8_H.gallery / 2 + A8_RAIL_LIFT.top, mid, 0.05, 0.04, stairLen, 0, stairPitch, LOOK.brass);
