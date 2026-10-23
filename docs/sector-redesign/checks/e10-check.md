@@ -34,7 +34,7 @@ Scope: `git diff 251c2bfa dc19015d` (4c8ad94c engine, 527e2e05 data + tests, dc1
 - No e2e (docs check); owed at the slice: `e2e-sectorops` S4 / S5 parts and a GPU look at the pane and sparks.
 
 ## Polish list (non-blocking)
-1. `src/net/coopHost.ts:962` (`judge`) and `:997` (`onLampShot`) validate line of sight with `G.STATIC` only: a
+1. `src/net/coopHost.ts:962` (`judge`) and `:1005` (`onLampShot`) validate line of sight with `G.STATIC` only: a
    modified client could claim a hit through armoured glass and the host would accept it. Parity for honest clients
    holds. Suggest `G.STATIC | G.GLASS_ARMOURED` in both host LOS checks.
 2. `src/net/remoteAvatar.ts:604`: the partner's tracer is cast on `MASK.WORLD`, so it draws through an armoured pane
