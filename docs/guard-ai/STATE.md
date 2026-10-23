@@ -781,7 +781,10 @@ orchestrator). Green -> `gh pr edit <n> --add-label train-ready` + tell orchestr
 3. S28 locked-door re-path: feature/guard-ai-s28 (worktree -s28), builder running; then check + laptop + PR.
 4. Polish (S24-LEVELS-CHECK): redundant tell(alarmHunt) after spawn in reinforce (enemyManager.ts:979) and parked
    joinReinforcement (:811). Mission reinforcements with nothing known stand at spawn (A148): Michael's call.
-5. Backlog: cover
+5. After S28 (low, legacy suite, not in the full run; orchestrator ~07:45): e2e-enemies "sniper relocates after its
+   shots" fails, the sniper never fires (Player triage: not guard-models; suspects S16 / S21 tryFire gates or a stale
+   test; Player has a flag-off confirmation run queued: ask for its result first).
+6. Backlog: cover
    picked by straight-line distance can send a guard behind a full wall (S24-COOP-TRIAGE.md; polish list).
 5. PLAN has no slice after S27 (S28 none). Next work: walk reports from Michael, polish lists only after his playtest.
 Questions for Michael (non-blocking, decision packs): S23 client arcs / LKP ghost; S25 searchers' flares.
