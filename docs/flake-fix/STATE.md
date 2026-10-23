@@ -9,7 +9,7 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 - RUNNING / QUEUED (scheduled tasks): 4189 sectorp4-e57dac61 SENT GREEN (PR #217 green);
   4192 marlowmerge-d32a435a SENT 4/6 (ctcourse:1 A2 shunter lure timeout, :2 A4 dock not dark 0.991). chain-1023gb (Guard AI): 4192 guardais9-59c35d7f (coop netmove
   stealth-ai takedown; S9 alone, early e2e-coop verdict) after marlow; 4189 guardais13lv-82ef72bd (e2e-levels under
-  load; post on PR #218) after sectorp4. Verdicts -> Guard AI Build. Then chain-1023s4m (waits for chain-1023gb done): guardrender-s4cap-5809afe6 starts when both locks
+  load; post on PR #218) after sectorp4. BOTH SENT 14:00 (s9 3/4: stealth-ai breaker from the S13-S15 base; 13lv GREEN, PR #218). Then chain-1023s4m (waits for chain-1023gb done): guardrender-s4cap-5809afe6 starts when both locks
   are gone (out C:/NightShift/scratch/work/guardrender-s4-on|off -> copy to docs/guard-render/run-s4-on|off on
   feature/guard-render-s4, numbers into STATE "## S4"). A new request that arrives while it runs waits on the 4189
   lock: run it on 4192.
