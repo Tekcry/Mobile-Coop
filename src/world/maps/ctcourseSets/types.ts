@@ -69,10 +69,10 @@ export const setBay = (id: SetId): string => `A${SET_NO[id]}`;
  * of an earlier set stays shootable (A1 and A2 have none today). Undo: a number above 8 (every camera shootable).
  */
 export const ARMOURED_FROM_SET = 3;
-/** Set `id`'s cameras with the armour rule applied (a camera's own `armoured` wins). Not on a hot path (map build). */
+/** Set `id`'s cameras with the armour rule applied (a camera's own `bulletproof` wins). Not on a hot path (map build). */
 export function armourCameras(id: SetId, cams: readonly CameraDevice[]): CameraDevice[] {
   if (SET_NO[id] < ARMOURED_FROM_SET) return [...cams];
-  return cams.map((c) => (c.armoured === undefined ? { ...c, armoured: true } : c));
+  return cams.map((c) => (c.bulletproof === undefined ? { ...c, bulletproof: true } : c));
 }
 /** The prefix of every id a set owns ('a1-'). */
 export const setIdPrefix = (id: SetId): string => `a${SET_NO[id]}-`;

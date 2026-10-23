@@ -5,6 +5,7 @@ import type { HitInfo } from '../damage';
 import type { GameState } from '../gameState';
 import type { GameMode } from './gameMode';
 import type { Interactable } from '../interactables';
+import { ITEM_SCOPE_OFF } from '../itemScope';
 import type { Blip } from '../../ui/hud/minimap';
 import type { DoorState } from '../../world/doors';
 import type { SquadSlot } from '../../world/rooms';
@@ -12,6 +13,9 @@ import { flags } from '../../core/flags';
 import { reportGuardAi, validatePosts } from '../../ai/guardAiData';
 import { hyp2 } from '../../core/mathx';
 import { CtDevices } from '../ctDevices';
+import { responseTeam } from '../../ai/gear';
+import type { SweepTeam } from '../../ai/sweepTeam';
+import type { EnemyKind } from '../../ai/enemyDefs';
 import {
   CONN_LOAD,
   CONN_LOCK_NEAR,
@@ -44,6 +48,7 @@ import { SectorTeamDoors } from '../sectorTeamDoors';
 import { SectorCodes, inOverhear } from '../sectorKeypads';
 import { SectorStageRun, addDoorClosure, doorwayClear, reinforceSlot } from '../sectorStage';
 import { markCompleted } from '../../save/sectorRecord';
+import { crateItemId } from '../crateLedger';
 import {
   DESK_HOLD,
   DESK_ITEM_Y,
@@ -76,6 +81,11 @@ interface Pending {
   k: number;
   slot: SquadSlot;
   alerted: boolean;
+  /** (guard-ai S6) An alarm reinforcement (aggressive, told by command), and the entry route it runs in. */
+  reinforce?: boolean;
+  route?: readonly (readonly [number, number])[] | null;
+  /** (guard-ai S13) The response team it joins at spawn. */
+  team?: SweepTeam<Enemy> | null;
 }
 
 /** The doors of one connector, found by position at the start. */
@@ -218,6 +228,7 @@ export class SectorMode implements GameMode {
     this.team.build();
     this.findKeypads();
     this.findDesks();
+    this.findCrates();
     this.findStageDoors();
     const s = this.run.current;
     if (s) {
@@ -245,7 +256,18 @@ export class SectorMode implements GameMode {
       if (near) this.lockDoor(near, true);
       if (far) this.lockDoor(far, true);
       for (const d of seal) this.lockDoor(d, true);
+      // (cap fix) a connector's doors sit between two sections: their items are always mirrored (untagged)
+      this.untagDoor(near);
+      this.untagDoor(far);
+      for (const d of seal) this.untagDoor(d);
     }
+  }
+
+  /** (sector-redesign cap fix) Door `d`'s item goes on the co-op wire in every section (`Interactables.scope`). */
+  private untagDoor(d: DoorState | null): void {
+    if (!d) return;
+    const it = this.g.interactables?.items.find((x) => x.id === `door-${d.anchor.id}`);
+    if (it) delete it.section;
   }
 
   /**
@@ -267,6 +289,7 @@ export class SectorMode implements GameMode {
         if (!ints) return;
         const y = door ? door.anchor.hinge.y : 0;
         const it = ints.add(keypadItemId(sec, k), 'door', new Vector3(p.at[0], y, p.at[1]), KEYPAD_LABEL_NONE, KEYPAD_HOLD, 0);
+        it.section = sec;
         it.reach = KEYPAD_REACH;
         it.onUse = (u, by) => this.enterCode(sec, k, u, by);
         ints.setEnabled(it, true);
@@ -275,6 +298,7 @@ export class SectorMode implements GameMode {
       s.intel?.forEach((n, k) => {
         if (n.kind !== 'board' || !ints) return;
         const it = ints.add(intelItemId(sec, k), 'intel', new Vector3(n.at[0], n.at[1], n.at[2]), BOARD_LABEL, BOARD_READ, n.yaw ?? 0);
+        it.section = sec;
         it.onUse = () => {
           if (this.codes.grant(sec, k)) this.learned(sec, k);
         };
@@ -415,11 +439,26 @@ export class SectorMode implements GameMode {
         continue;
       }
       const it = ints.add(deskItemId(i), 'switch', new Vector3(d.at[0], (d.y ?? 0) + DESK_ITEM_Y, d.at[1]), deskLabel(0), DESK_HOLD, d.yaw);
+      it.section = d.section;
       it.reach = DESK_REACH;
       it.onUse = (_u, by) => {
         this.useDesk(i, by);
       };
       this.deskIts.push(it);
+    }
+  }
+
+  /**
+   * (E9-crate, A100) Each section's weapons crate (host / solo; disabled until its section begins). (PR 3) Tagged with its
+   * section, so a co-op host mirrors only the live section's crate (`Interactables.scope`).
+   */
+  private findCrates(): void {
+    const cr = this.g.crates;
+    if (!cr) return;
+    for (let i = 0; i < this.run.defs.length; i++) {
+      const s = this.run.defs[i]!;
+      const c = s.crate;
+      if (c) cr.add(crateItemId(s.id), new Vector3(c.at[0], c.at[1], c.at[2]), c.yaw).section = i;
     }
   }
 
@@ -514,6 +553,8 @@ export class SectorMode implements GameMode {
     const s = this.run.defs[i];
     this.deskSec = s ? i : -1;
     this.ct?.setLive(s ? i : -1);
+    // (cap fix) co-op mirrors this section's items only (plus the untagged ones)
+    if (this.g.interactables) this.g.interactables.scope = s ? i : -1;
     // alarm panels: only this section's work, armed again; a panel alarm can be raised again (once per section load)
     this.g.stealth?.setLiveAlarms(s ? i : -1);
     this.g.enemyMgr?.resetAlarm();
@@ -522,7 +563,12 @@ export class SectorMode implements GameMode {
     this.deskApply();
     // (guard-ai S5) the section's noisy things mask hearing (else the map's); dev / tests check its posts (warnings)
     const em = this.g.enemyMgr;
+    // (guard-ai S6, S3-CHECK) the radio net serves the live section (its command call raises this section's alarm)
+    if (em && s) em.setSection(i);
     if (em) em.setNoisy(s?.noisy ?? em.mapNoisy);
+    // (guard-ai S13, A37) the stage's gear for every guard this load places (the stage carried in, or the section's
+    // start stage on a restart: a restart drops what the dropped stage gave)
+    if (em) em.setAlarmStage(this.run.alarm, false);
     if (s && import.meta.env.DEV) reportGuardAi(s.id, validatePosts(s.guards, s.id));
     if (!s) return;
     this.slotEnemy.length = 0;
@@ -546,6 +592,7 @@ export class SectorMode implements GameMode {
     g.security?.clearBodyReports();
     this.ct?.setLive(-1);
     g.stealth?.setLiveAlarms(-1);
+    if (g.interactables) g.interactables.scope = -1;
     // (E6) the desks' loops and offs end with the section
     this.deskSec = -1;
     this.desks.reset();
@@ -579,6 +626,8 @@ export class SectorMode implements GameMode {
     }
     this.g.hud.banner(`SECTION ${this.run.index + 1}  ·  ${s.name.toUpperCase()}`, s.objective.label, 2600);
     this.setup(s);
+    // (E9-crate, A100) only this section's crate is live
+    this.g.crates?.setLive(s.crate ? crateItemId(s.id) : null);
   }
 
   /** Put down the current step's interactable: the objective, or the exit marker once it is done. */
@@ -699,12 +748,21 @@ export class SectorMode implements GameMode {
         continue;
       }
       this.tmp.set(p.slot.x, p.slot.y ?? Number.NaN, p.slot.z);
-      const e = em.spawn(p.slot.kind, this.tmp, p.alerted, p.slot.yaw);
+      // (guard-ai S6) a reinforcement is told by command (`joinReinforcement`), not spawned alerted (no contact call)
+      const e = em.spawn(p.slot.kind, this.tmp, p.alerted && !(p.reinforce && em.coordinated), p.slot.yaw);
       if (!e) break;
       if (p.slot.route) e.setPatrol({ points: p.slot.route, wait: p.slot.wait, waits: p.slot.waits, faces: p.slot.faces, start: p.slot.start, loop: p.slot.loop });
       if (p.k >= 0) this.slotEnemy[p.k] = e;
-      // (guard-ai S5) post, profile, section (the live SectorDef's index)
-      em.placeSlot(e, p.slot, this.run.index);
+      // (guard-ai S5) post, profile, section (the live SectorDef's index); (S5b) the sector tags (squad, handler,
+      // zone, role, pair) with the section's guard list and this slot's place in it (`k`; a reinforcement: -1, none)
+      const gs = this.run.defs[this.run.index]?.guards;
+      // (guard-ai S12) and his gear: the slot tag plus the section default
+      em.placeSlot(e, p.slot, this.run.index, gs, gs ? p.k : -1, this.run.defs[this.run.index]?.gear);
+      // (guard-ai S6, M1) aggressive, knows the last known position, runs its entry route in (after `placeSlot`, which
+      // sets `tacticsProfile` first)
+      if (p.reinforce) em.joinReinforcement(e, this.run.index, p.route ?? null);
+      // (guard-ai S13) into its response team (the shield guard spawns first: the pending order)
+      if (p.team) em.joinTeam(e, p.team);
       this.pending.splice(i, 1);
     }
   }
@@ -732,21 +790,62 @@ export class SectorMode implements GameMode {
     const stage = this.run.alarm;
     if (this.ct) this.ct.alarm = stage;
     if (stage > from && banner) g.hud.banner(`ALARM STAGE ${stage}`, send ? 'Reinforcements coming' : '', 2200);
+    // (guard-ai S13, item 4, A37) every living guard of the live section gets the stage's gear at once; no camera is
+    // added, woken or retuned (the devices only show the stage, as before)
+    const em = g.enemyMgr;
+    if (stage > from && em) em.setAlarmStage(stage);
     const s = this.run.current;
     if (s && stage > from) this.stageActions(from, stage);
     if (!s || !send) return;
+    // (guard-ai S6, design 7) the stage's response route (E5, `reinforceSlot`: the guard's patrol) first; else the
+    // section's entries (`SectorDef.entries`, with their run-in routes); else its reinforce points; taken in turn
+    const ents = s.entries?.length && !s.stageActions?.some((a) => a.stage === stage && a.responseRoute?.length) ? s.entries : null;
+    // (guard-ai S13, items 3 and 11, A38) the stage's response team: a shield guard first, the rest armed guards (the
+    // same count, so the live cap holds); it sweeps the section after its search (the section's sweep list, else its
+    // route points and posts). Made with the first guard that has a slot (none: no team).
+    const nt = responseTeam(stage, send, this.teamKinds);
+    let team: SweepTeam<Enemy> | null = null;
     let n = 0;
     for (let i = 0; i < send; i++) {
+      const en = ents ? ents[this.reinforceK++ % ents.length]! : null;
       // (sector-redesign G3) armed guards, never heavies (G155); the count is the section's `perStage`; (E5) at the
       // stage's response route (its patrol) when it has one
-      const slot = reinforceSlot(s, stage, i, this.reinforceK++, SECTOR_REINFORCE_KIND);
+      const slot: SquadSlot | null = en
+        ? { kind: SECTOR_REINFORCE_KIND, x: en.at[0] + (i % 2) * 1.3, z: en.at[1], yaw: en.yaw ?? 0 }
+        : reinforceSlot(s, stage, i, this.reinforceK++, SECTOR_REINFORCE_KIND);
       if (!slot) break;
-      this.pending.push({ k: -1, slot, alerted: true });
+      // (S13) the team's kinds (a fresh slot either way)
+      if (i < nt) slot.kind = this.teamKinds[i]!;
+      if (en?.y !== undefined) slot.y = en.y;
+      if (!team && em && nt > 0) team = em.newTeam(this.run.index, s.sweep ?? null, ...this.sweepSource(s));
+      this.pending.push({ k: -1, slot, alerted: true, reinforce: true, route: en?.route ?? null, team });
       n++;
     }
     if (!n) return;
     this.reinforced += n;
     this.fill();
+  }
+
+  /** (guard-ai S13) Scratch for a response team's kinds. */
+  private readonly teamKinds: EnemyKind[] = [];
+  /** (guard-ai S13) Each section's sweep source (its guards' route points, and the stand posts of the guards without a
+   *  route; dogs left out), built the first time the section's alarm brings a team. */
+  private readonly sweepSrc = new Map<SectorDef, [readonly (readonly [number, number])[][], [number, number][]]>();
+
+  private sweepSource(s: SectorDef): [readonly (readonly [number, number])[][], [number, number][]] {
+    let v = this.sweepSrc.get(s);
+    if (!v) {
+      const routes: (readonly [number, number])[][] = [];
+      const posts: [number, number][] = [];
+      for (const q of s.guards) {
+        if (q.kind === 'dog') continue;
+        if (q.route && q.route.length) routes.push(q.route);
+        else posts.push([q.x, q.z]);
+      }
+      v = [routes, posts];
+      this.sweepSrc.set(s, v);
+    }
+    return v;
   }
 
   /** The extraction: the stinger, then the result line. */
@@ -798,6 +897,8 @@ export class SectorMode implements GameMode {
     // the stealth leftovers cleared, the music calmed (`GameState.checkpointReset`)
     g.enemyMgr?.resetMemory();
     g.checkpointReset();
+    // (E9-crate, A105) every crate usable again by everyone
+    g.crates?.resetAll();
     this.loadSection(this.run.index);
     // a camera shot out in the section comes back: the restart is a clean retry (step 3)
     this.ct?.repair(this.run.index);
@@ -965,6 +1066,7 @@ export class SectorMode implements GameMode {
       keypadLocked: this.keyIts.map((q) => (q.door ? q.door.anchor.locked : null)),
       lockdown: this.stageRun?.lockedCount() ?? 0,
       desks: Array.from(this.desks.mode),
+      crates: this.g.crates?.debug() ?? [],
       ...this.result(),
     };
   }
@@ -973,6 +1075,7 @@ export class SectorMode implements GameMode {
     this.ct?.dispose();
     this.ct = null;
     this.g.ctDev = null;
+    if (this.g.interactables) this.g.interactables.scope = ITEM_SCOPE_OFF;
     this.pending.length = 0;
     const em = this.g.enemyMgr;
     if (em && this.prevMaxAlive >= 0) em.maxAlive = this.prevMaxAlive;

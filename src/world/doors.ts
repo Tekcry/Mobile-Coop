@@ -12,7 +12,7 @@ import {
   type Mesh,
   type Scene,
 } from '../core/babylon';
-import { G } from '../physics/groups';
+import { G, doorMembership } from '../physics/groups';
 import type { Door, TraversalAnchors } from './anchors';
 import { hyp2 } from '../core/mathx';
 import { DOOR_CRACK, isSlideDoor, stepCrack } from './doorPeek';
@@ -180,7 +180,7 @@ export class Doors {
     node.rotationQuaternion = Quaternion.RotationYawPitchRoll(a.yaw, 0, 0);
     const body = new PhysicsBody(node, PhysicsMotionType.STATIC, false, this.scene);
     const shape = new PhysicsShapeBox(Vector3.Zero(), Quaternion.Identity(), new Vector3(DOOR.thickness * 2, a.height, a.width - 0.04), this.scene);
-    shape.filterMembershipMask = G.STATIC;
+    shape.filterMembershipMask = doorMembership(a.armoured === true);
     shape.filterCollideMask = 0xffffffff & ~G.STATIC;
     body.shape = shape;
     d.body = body;

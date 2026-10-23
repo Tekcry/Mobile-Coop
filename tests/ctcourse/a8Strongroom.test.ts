@@ -687,7 +687,7 @@ describe('A8 the Strongroom: the cameras', () => {
     expect(133.85 - c2.at[0]).toBeLessThan(0.3);
     expect(lens(c3)[1]).toBeLessThan(A8_H.lobby);
     for (const c of part.cameras) expect(inBox(box, c.at[0], c.at[1])).toBe(true);
-    expect(lay.security!.devices).toEqual(expect.arrayContaining(part.cameras.map((c) => ({ ...c, armoured: true }))));
+    expect(lay.security!.devices).toEqual(expect.arrayContaining(part.cameras.map((c) => ({ ...c, bulletproof: true }))));
   });
 
   it('C2 watches the gallery deck\'s last 8 m (x 126-134) and the office door, standing or crouched, and not the hall floor below it', () => {

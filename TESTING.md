@@ -137,9 +137,39 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Posted guards (guard-ai S5; once a map has a high-security post, e.g. the campus keyholders): throw a bottle or cut
   the light near him: he walks to the edge of his area, looks toward it ~5 s, walks back and faces his post; he never
   follows a search or chases you out of his area.
+- [ ] Alarm by radio (guard-ai S6, Sector Ops): get spotted and let the radio calls through: "Command, contact. Send
+  backup.", ALARM STAGE about 6.5 s after the spotter saw you, and reinforcements run in hunting. Take the spotter down
+  before his first radio line: no alarm, nobody comes.
+- [ ] Squads and dogs (guard-ai S5b, Sector Ops): knock a guard out unseen and wait up to ~40 s: his squad's radio
+  check misses him and two squad mates walk to where he went down and wake him. A dog stays with its handler; drop the
+  handler and the dog stays by him and barks.
 - [ ] Cameras see bodies (guard-ai S7, Sector Ops): knock a guard out where a camera sweeps (lit or dark): the desk
   radios "Camera N has a man down..." and the nearest guard walks over and wakes him; loop or jam the camera first and
   nobody comes.
+- [ ] Guard tactics (guard-ai S8): get spotted by 4 guards and break line of sight: the caller drops back into cover,
+  one moves up cover to cover ("Moving up!"), one covers from cover ("Covering!"), one goes round the side
+  ("Flanking!"); never more than one of them moving up at once, nobody runs at you in the open.
+- [ ] Helmets and armour (guard-ai S12; once a section has `gear`, or set one with `e.setGear` in the console): shoot a
+  helmeted guard in the head: steel-blue hit marker and a ping, the helmet falls to the floor and stays, he reels and
+  comes up shooting; a second head shot kills. An armoured guard shrugs off chest rounds (a short stagger, not every
+  round); a takedown drops either in one move.
+- [ ] Talking pairs (guard-ai S10, Saltmarsh Park car park): watch the pair from cover: at their stop by the aisle end
+  they face each other and swap two lines, then walk on; knock one out before they meet and ~6 s later the other walks
+  to where his partner was headed.
+- [ ] Response teams (guard-ai S13, Sector Ops): raise the alarm twice: every guard now wears armour; a third time:
+  helmets too. Each alarm's team comes in behind a shield guard; hide: after about a minute at your last spot the team
+  walks the section point to point (shield first, the rest close behind, a look round at each, torches in the dark),
+  still hunting minutes later; the cameras are as before. A restart drops the gear with the stage.
+- [ ] Section alert (guard-ai S14, Sector Ops): knock a squad guard out unseen and wait for the radio check: "Unit N,
+  report... Nothing.", then "a unit's not answering" on the radio; the section's guards walk slower and look longer for
+  a few minutes (cautious), two search the spot. Do it again but take the caller down while he is still on the radio:
+  nobody turns cautious. Fire an unsuppressed shot ~20 m from a guard: "Shots fired! Calling it in.", then a far guard
+  who never heard it turns cautious and two guards come to the spot; no alarm. A suppressed shot: no call. In co-op
+  the client's suppressed shot is heard as close as the host's (about 10 m).
+- [ ] Breakers and dark lamps (guard-ai S15, Sector Ops): switch a room's lights off with two guards watching: one says
+  "Breaker's gone again.", walks over at his normal pace and the lights come back about 2 s later, both stay calm;
+  switch it off again at once: a full light check at the switch. Shoot a lamp out while no guard looks: the next guard
+  who walks into view of it (within ~12 m) comes to check it; it stays dark for good.
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
 - [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
   glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen

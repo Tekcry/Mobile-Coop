@@ -65,15 +65,17 @@ export interface MapLayout {
   /** Tagged rooms (HUD room tag, Clear mode, enemies holding rooms). */
   rooms?: RoomDef[];
   /** Light switches on walls (facing `yaw`): each turns a lamp circuit (`group`) on / off. */
-  switches?: { pos: Vector3; yaw: number; group: number }[];
+  switches?: { pos: Vector3; yaw: number; group: number; section?: number }[];
   /** (sector-redesign E4, EW8) Breaker / timed isolator boards on walls (facing `yaw`): each cuts its circuits
    *  (`groups`) until switched back (a breaker) or for `window` s (a timed isolator); `game/isolators.ts`. */
+  // (sector-redesign cap fix) `section` on switches, boards, hide spots and door anchors (Sector Ops): the item is
+  // mirrored to co-op clients only while that section is live (`Interactables.scope`); none: always
   boards?: BoardDef[];
   /** Alarm panels on walls: an alerted enemy who reaches one calls reinforcements. `section` (Sector Ops): the panel
    *  works only while that section is live. */
   alarms?: { pos: Vector3; yaw: number; section?: number }[];
   /** Where a carried body can be hidden (in front of a container / locker). */
-  hideSpots?: { pos: Vector3 }[];
+  hideSpots?: { pos: Vector3; section?: number }[];
   /** Where reinforcement squads come in. */
   reinforce?: Vector3[];
   /** (guard-ai) Zones, noisy things, reinforcement entries and squads; none = the whole map is one section. */

@@ -252,12 +252,23 @@ function doorIn(b: LevelBuilder, alongX: boolean, at: number, c: number, y: numb
   else b.door(at, y, c - 0.6, 1.2, 0, { swing: o.swing ?? 1, ...(o.locked !== undefined ? { locked: o.locked } : {}), ...(o.breachable !== undefined ? { breachable: o.breachable } : {}) });
 }
 
-/** A glass front (EW6 is not built): fence panels `height` tall along a wall line between gaps, and a head box over the whole run. */
-function glassFront(b: LevelBuilder, alongX: boolean, at: number, a: number, e: number, openings: readonly (readonly [number, number])[], y: number, y1: number, head = false, height = 2.4): void {
+/** (E2) The meeting rooms' frosted band (SPEC S2 stealth route: "crouch under the meeting rooms' frosted band"): frosted
+ *  from the floor to this height (over a crouched body, `MOVEMENT.crouchHeight` 1.15), clear above. */
+export const S2_FROSTED_BAND = 1.2;
+
+/**
+ * A glass front (E2, EW6; was the L10 fence fallback): glass panes `height` tall along a wall line between gaps, on the
+ * fence panels' lines (the same nav footprint), clear, or frosted to `band` and clear above; and a head box over the
+ * whole run.
+ */
+function glassFront(b: LevelBuilder, alongX: boolean, at: number, a: number, e: number, openings: readonly (readonly [number, number])[], y: number, y1: number, head = false, height = 2.4, band = 0): void {
   const seg = (s: number, f: number): void => {
     if (f - s < 0.3) return;
-    if (alongX) b.fence(s, at, f, at, height, y, GLASS);
-    else b.fence(at, s, at, f, height, y, GLASS);
+    const [ax, az, bx, bz] = alongX ? [s, at, f, at] : [at, s, at, f];
+    if (band > 0) {
+      b.glass(ax, az, bx, bz, band, y, 'frosted', GLASS);
+      b.glass(ax, az, bx, bz, height - band, y + band, 'clear', GLASS);
+    } else b.glass(ax, az, bx, bz, height, y, 'clear', GLASS);
   };
   let s = a;
   for (const g of [...openings].sort((p, q) => p[0] - q[0])) {
@@ -440,15 +451,15 @@ export function buildCampusS2(b: LevelBuilder): void {
   wall(b, false, -28.5, Z0, -22.5, [gc(-26)], A1, B1);
   doorIn(b, false, -28.5, -26, A1);
   for (const x of [-21, -13]) wall(b, false, x, Z0, -22.5, [], A1, B1);
-  // meeting rooms with glass fronts: MR1 west (x -44..-36, z -20..-14), MR2 and MR3 north (z 2..6)
+  // meeting rooms with glass fronts (E2: the frosted band, clear above): MR1 west (x -44..-36, z -20..-14), MR2 and MR3 north (z 2..6)
   wall(b, true, -20, X0, -36, [], A1, B1);
   wall(b, true, -14, X0, -36, [], A1, B1);
-  glassFront(b, false, -36, -20, -14, [gc(-17)], A1, B1);
+  glassFront(b, false, -36, -20, -14, [gc(-17)], A1, B1, false, 2.4, S2_FROSTED_BAND);
   wall(b, false, -34, 2, Z1, [], A1, B1);
-  glassFront(b, true, 2, X0, -34, [gc(-39)], A1, B1);
+  glassFront(b, true, 2, X0, -34, [gc(-39)], A1, B1, false, 2.4, S2_FROSTED_BAND);
   wall(b, false, -26, 2, Z1, [], A1, B1);
   wall(b, false, -16, 2, Z1, [], A1, B1);
-  glassFront(b, true, 2, -26, -16, [gc(-21)], A1, B1);
+  glassFront(b, true, 2, -26, -16, [gc(-21)], A1, B1, false, 2.4, S2_FROSTED_BAND);
   // L1 furniture: desks (0.75), the kitchen counter and table, the print room copier, the comms UPS cabinets, the BMS desk and plotter
   for (const [x, z] of [[-31.5, -4.5], [-31.5, 0.5], [-12, 3], [-12, 5]] as const) furn(b, x, z, 1.6, 0.75, 0.8, DESK, A1);
   furn(b, -25, -29.4, 5, 1.1, 0.6, DESK, A1);

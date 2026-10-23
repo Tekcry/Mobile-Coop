@@ -36,6 +36,7 @@ try {
         em.lkpValid = false;
         em.sightT = 99;
         em.alarmRaised = false;
+        em.alarmBy = '';
         for (const p of em.alarms) p.disabled = false;
         for (const it of g.interactables.items) if (it.kind === 'alarm') { it.done = false; g.interactables.setEnabled(it, true); }
         const reg = g.world.level.lights;
@@ -45,6 +46,8 @@ try {
           l.on = true;
         }
         reg.version++;
+        // (guard-ai S15) the wall switches read their circuits again (a switch left off by a scenario is on again)
+        g.stealth.syncSwitches();
         if (g.stealth.carry) g.stealth.dropCarried();
         // doors shut again
         const doors = g.world.doors;
@@ -365,6 +368,8 @@ try {
       while (!a.alerted && k++ < 300) t.step(1 / 60);
       const bBefore = b.alerted;
       const pending = em.radioLeft(a);
+      // (guard-ai S6) the contact call completing (his command call opens at once, so radioLeft stays > 0)
+      const c0 = em.radioNet.completed;
       let time = 0;
       let bT = -1;
       let farT = -1;
@@ -372,7 +377,7 @@ try {
       while (time < pending + R.staggerMax + 1.5) {
         t.step(0.05);
         time += 0.05;
-        if (done < 0 && em.radioLeft(a) === 0) done = time;
+        if (done < 0 && em.radioNet.completed > c0) done = time;
         if (bT < 0 && b.alerted) bT = time;
         if (farT < 0 && far.alerted) farT = time;
       }
@@ -434,6 +439,8 @@ try {
       while (!a.alerted && k++ < 300) t.step(1 / 60);
       const before = os.filter((e) => e.alerted).length;
       const pending = em.radioLeft(a);
+      // (guard-ai S6) the contact call completing (his command call opens at once, so radioLeft stays > 0)
+      const c0 = em.radioNet.completed;
       const at = os.map(() => -1);
       let dist = null;
       let time = 0;
@@ -441,7 +448,7 @@ try {
         t.step(0.05);
         time += 0.05;
         // distances from the spotter where the call completes (the net sorts by them)
-        if (!dist && em.radioLeft(a) === 0) dist = os.map((e) => Math.hypot(e.pos.x - a.pos.x, e.pos.y - a.pos.y, e.pos.z - a.pos.z));
+        if (!dist && em.radioNet.completed > c0) dist = os.map((e) => Math.hypot(e.pos.x - a.pos.x, e.pos.y - a.pos.y, e.pos.z - a.pos.z));
         os.forEach((e, i) => {
           if (at[i] < 0 && e.alerted) at[i] = time;
         });
@@ -714,8 +721,11 @@ try {
       const on1 = reg.countOn();
       t.step(2.8);
       const lv2 = e2.level;
+      // (guard-ai S15, A42) a switch cut is a fault: the one who saw it walks to the switch to turn it back on (calm)
+      const kind2 = e2.incident >= 0 ? em.board.kindOf(e2.incident) : null;
+      const brk2 = e2.breakerGroup;
       t.light(null);
-      return { before, out, end, lv, kind, goal, torch, torchLevel, swOffer, on0, on1, lv2, shot: g.stealth.lightsShot };
+      return { before, out, end, lv, kind, goal, torch, torchLevel, swOffer, on0, on1, lv2, kind2, brk2, shot: g.stealth.lightsShot };
     });
     assert(r.out, 'a shot through a bulb puts the light out');
     assert(r.end, 'a shot at the end of a lamp strip puts it out too');
@@ -724,7 +734,88 @@ try {
     assert(r.torch >= 1 && r.torchLevel < 0.35, `with a flashlight in the dark (${r.torch} on, light at his head ${r.torchLevel.toFixed(2)})`);
     assert(r.swOffer === 'Lights off', `a wall switch offers lights off (${r.swOffer})`);
     assert(r.on1 < r.on0, `switching turns the room's circuit off (${r.on0} -> ${r.on1})`);
-    assert(r.lv2 === 'investigating', `the room going dark is investigated (${r.lv2})`);
+    // (guard-ai S15) was "the room going dark is investigated": a switch off is now a fault he goes to reset, calm
+    assert(r.kind2 === 'breaker' && r.brk2 >= 0 && (r.lv2 === 'unaware' || r.lv2 === 'cooldown' || r.lv2 === 'suspicious'), `the room going dark sends him to the switch to reset it, calm (${r.kind2}, circuit ${r.brk2}, ${r.lv2})`);
+  });
+
+  await scen('breaker', async () => {
+    // (guard-ai S15, stealth over shooting item 8, A42) the factory floor circuit off at its wall switch with two guards
+    // on the floor seeing it go (their room goes dark, as in 'light pair'): a fault, not an attack. Exactly one walks to
+    // the switch at his patrol pace (never a pair), works it BREAKER.resetT s and the circuit is on again; neither goes
+    // past suspicious, both end calm with no task. The same switch again inside BREAKER.repeatT: tampering, the S2 light
+    // incident at the switch. Sim-time steps only; Math.random seeded as in 'lkp'.
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const reg = g.world.level.lights;
+      const rnd = Math.random;
+      let seed = 1515;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      try {
+        t.light(0);
+        t.tp(-22, -24, 0);
+        const sw = g.interactables.items.find((i) => i.id === 'switch-4');
+        const grp = g.world.layout.switches[4].group;
+        const lamp = reg.lights.find((l) => l.kind === 'lamp' && l.x === 0 && l.z === -3);
+        const a = t.spawn('grunt', 4, 1, 0);
+        const b = t.spawn('grunt', 3, -6.5, Math.PI / 2);
+        a.setPatrol({ points: [[a.pos.x, a.pos.z], [a.pos.x, a.pos.z + 5]], wait: 1 });
+        b.setPatrol({ points: [[b.pos.x, b.pos.z], [b.pos.x + 5, b.pos.z]], wait: 1 });
+        t.step(0.5);
+        const onCircuit = lamp?.group === grp;
+        const resets0 = em.breakerResets;
+        sw.onUse(sw, 'local');
+        const off = !g.stealth.switchOn(grp) && reg.lights.filter((l) => l.group === grp && !l.destroyed).every((l) => !l.on);
+        t.step(0.3);
+        const walkers = [a, b].map((e) => e.breakerGroup === grp);
+        const kinds = [a, b].map((e) => (e.incident >= 0 ? em.board.kindOf(e.incident) : null));
+        const w = walkers[0] ? a : walkers[1] ? b : null;
+        const rank = { unaware: 0, cooldown: 0, suspicious: 1, investigating: 2, searching: 3, alert: 4 };
+        const worst = ['unaware', 'unaware'];
+        let tt = 0.3;
+        let back = -1;
+        let atSwitch = 99;
+        let maxSpeed = 0;
+        let last = w ? [w.pos.x, w.pos.z] : null;
+        for (let k = 0; k < 240 && back < 0; k++) {
+          t.step(0.25);
+          tt += 0.25;
+          [a, b].forEach((e, i) => {
+            if (rank[e.level] > rank[worst[i]]) worst[i] = e.level;
+          });
+          if (w) {
+            maxSpeed = Math.max(maxSpeed, Math.hypot(w.pos.x - last[0], w.pos.z - last[1]) / 0.25);
+            last = [w.pos.x, w.pos.z];
+            atSwitch = Math.min(atSwitch, Math.hypot(w.pos.x - sw.pos.x, w.pos.z - sw.pos.z));
+          }
+          if (g.stealth.switchOn(grp)) back = tt;
+        }
+        const relit = reg.lights.filter((l) => l.group === grp && !l.destroyed).every((l) => l.on);
+        t.step(1);
+        const after = { levels: [a.level, b.level], inc: [a.incident, b.incident], brk: [a.breakerGroup, b.breakerGroup], resets: em.breakerResets - resets0 };
+        // the same switch again at once (inside repeatT): tampering, a light check at the switch
+        sw.onUse(sw, 'local');
+        t.step(0.3);
+        const second = [a, b].map((e) => ({ lv: e.level, kind: e.incident >= 0 ? em.board.kindOf(e.incident) : null, brk: e.breakerGroup }));
+        const sinceFirst = tt + 1.3;
+        t.light(null);
+        return { onCircuit, off, walkers, kinds, worst, back, atSwitch, maxSpeed, walkSpeed: w?.def.walkSpeed ?? 0, relit, after, second, sinceFirst, repeatT: em.breakerTable.repeatT };
+      } finally {
+        Math.random = rnd;
+      }
+    });
+    const f2 = (v) => v.toFixed(2);
+    assert(r.onCircuit && r.off, `the switch puts the factory floor circuit out (lamp (0, -3) on it ${r.onCircuit}, all off ${r.off})`);
+    assert(r.walkers.filter(Boolean).length === 1, `exactly one of the two who saw it goes to the switch (${JSON.stringify(r.walkers)}, tasks ${JSON.stringify(r.kinds)})`);
+    assert(r.kinds.filter((k) => k === 'breaker').length === 1 && !r.kinds.includes('light'), `a breaker fault, not a light check (${JSON.stringify(r.kinds)})`);
+    assert(r.maxSpeed < r.walkSpeed * 1.25, `he walks over at his patrol pace (max ${f2(r.maxSpeed)} m/s, walk speed ${f2(r.walkSpeed)})`);
+    assert(r.back > 0 && r.atSwitch < 1.6 && r.relit, `he reaches the switch and the circuit is on again (at ${f2(r.back)} s, ${f2(r.atSwitch)} m from it, all lit ${r.relit})`);
+    assert(r.worst.every((l) => l === 'unaware' || l === 'cooldown' || l === 'suspicious'), `neither goes past suspicious (${JSON.stringify(r.worst)})`);
+    assert(r.after.levels.every((l) => l === 'unaware' || l === 'cooldown') && r.after.inc.every((i) => i === -1) && r.after.brk.every((x) => x === -1), `both calm with no task after (${JSON.stringify(r.after)})`);
+    assert(r.after.resets === 1, `one reset (${r.after.resets})`);
+    assert(r.sinceFirst < r.repeatT, `the second cut is inside repeatT (${f2(r.sinceFirst)} < ${r.repeatT} s)`);
+    assert(r.second.some((s) => s.kind === 'light' && s.lv === 'investigating') && r.second.every((s) => s.brk === -1), `a second cut inside repeatT is tampering: a light incident at the switch (${JSON.stringify(r.second)})`);
   });
 
   await scen('light pair', async () => {
@@ -804,10 +895,18 @@ try {
       e.alert();
       const n0 = em.alive;
       let raised = false;
+      let tRaise = -1;
       for (let i = 0; i < 100 && !raised; i++) {
         t.step(0.1);
         raised = em.alarmRaised;
+        if (raised) tRaise = (i + 1) * 0.1;
       }
+      // (guard-ai S6) the panel 6 m off is worked before his command call (contact + report, ~6.5 s) gets through: the
+      // panel wins by ~2.5 s at reaction 1. (Stack merge) so the expected order is panel first, with his command call
+      // possibly already started (`cmdStarted`); the panel's raise cancels it (`command.raised()`), so it never
+      // completes and `alarmBy` stays 'panel'
+      const by = em.alarmBy;
+      const cmdStarted = em.command.started;
       t.step(0.5);
       const n1 = em.alive;
       // disable a panel first (hold), then nobody can raise it
@@ -825,14 +924,95 @@ try {
       t.tp(-22, 16, 0);
       const e2 = t.spawn('grunt', 2, 6, 0);
       e2.alert();
-      t.step(8);
+      // (guard-ai S6) with both panels off he never runs to one; his command call by radio may still raise it
+      let ran = false;
+      for (let i = 0; i < 80; i++) {
+        t.step(0.1);
+        if (e2.runningAlarm) ran = true;
+      }
       t.light(null);
-      return { raised, n0, n1, offer, dis, raised2: em.alarmRaised };
+      return { raised, tRaise, by, cmdStarted, n0, n1, offer, dis, ran, raised2: em.alarmRaised, by2: em.alarmBy };
     });
-    assert(r.raised, 'an alerted guard runs to the alarm panel and raises it');
+    // the panel first (the radio would raise it ~6.5 s after the sighting; a command call already started is fine)
+    assert(r.raised && r.by === 'panel', `an alerted guard runs to the alarm panel and raises it before his command call gets through (by '${r.by}' at ${r.tRaise} s, command calls started ${r.cmdStarted})`);
     assert(r.n1 > r.n0, `reinforcements come in (${r.n0} -> ${r.n1})`);
     assert(/Disable alarm/.test(r.offer ?? ''), `the panel can be disabled (${r.offer})`);
-    assert(r.dis && !r.raised2, 'a disabled panel never raises the alarm');
+    assert(r.dis && !r.ran && r.by2 !== 'panel', `a disabled panel never raises the alarm (ran ${r.ran}, raised ${r.raised2} by '${r.by2}')`);
+  });
+
+  await scen('alarm call', async () => {
+    // (guard-ai S6, design 7, M4) the alarm by radio, the panels off (only the radio path): (A) the spotter taken out
+    // during his contact call: no command call, no alarm, nobody comes; (B) his contact gets through: he holds the
+    // command call (RADIO.report x reaction) and the alarm goes off by radio, reinforcements come; (C) the commander
+    // taken out during that call: the squadmate still fighting takes it ALARM_CALL.retry s later and it gets through
+    const r = await G(() => {
+      const t = window.__t;
+      const em = window.__app.current.enemyMgr;
+      const R = em.radioTable;
+      const retry = em.alarmCallTable.retry;
+      const off = () => {
+        for (const p of em.alarms) p.disabled = true;
+      };
+      const spot = () => {
+        const a = t.spawn('grunt', 0, 5, Math.PI);
+        t.tp(-0.5, 0, 0);
+        let k = 0;
+        while (!a.alerted && k++ < 300) t.step(1 / 60);
+        return a;
+      };
+      const until = (f, max) => {
+        let s = 0;
+        while (!f() && s < max) {
+          t.step(0.05);
+          s += 0.05;
+        }
+        return s;
+      };
+      const out = {};
+      // (A)
+      t.light(1);
+      off();
+      const s0 = em.command.started;
+      const a = spot();
+      out.aLeft = em.radioLeft(a);
+      t.kill(a, true);
+      const n0 = em.alive;
+      t.step(12);
+      Object.assign(out, { aStarted: em.command.started - s0, aRaised: em.alarmRaised, aNew: em.alive - n0 });
+      // (B)
+      t.reset();
+      t.light(1);
+      off();
+      const b = spot();
+      const pending = em.radioLeft(b);
+      const tCmd = until(() => em.command.caller === b.num, pending + 2);
+      const report = em.radioLeft(b);
+      const nb = em.alive;
+      const tAl = tCmd + until(() => em.alarmRaised, report + 2);
+      t.step(0.5);
+      Object.assign(out, { pending, tCmd, report, tAl, bBy: em.alarmBy, bNew: em.alive - nb });
+      // (C)
+      t.reset();
+      t.light(1);
+      off();
+      const c = spot();
+      const mate = t.spawn('grunt', 10, 9, Math.PI);
+      until(() => em.command.caller === c.num, em.radioLeft(c) + 2);
+      out.cCaller = em.command.caller === c.num;
+      t.kill(c, true);
+      const tB = until(() => em.command.caller === mate.num, retry + 3);
+      const tAl2 = tB + until(() => em.alarmRaised, R.report * 2 + 2);
+      t.light(null);
+      Object.assign(out, { tB, mateUp: mate.alive && mate.alerted, tAl2, cBy: em.alarmBy, retry, R: R.report });
+      return out;
+    });
+    const f = (v) => v.toFixed(2);
+    assert(r.aLeft > 0.3 && r.aStarted === 0 && !r.aRaised && r.aNew === 0, `the spotter taken out during his call (${f(r.aLeft)} s left): no command call, no alarm, nobody comes (${r.aStarted}, ${r.aRaised}, +${r.aNew})`);
+    assert(Math.abs(r.tCmd - r.pending) < 0.2, `his contact gets through, then he calls command (${f(r.tCmd)} s, contact ${f(r.pending)} s)`);
+    assert(r.report > r.R * 0.5 && Math.abs(r.tAl - r.tCmd - r.report) < 0.2 && r.bBy === 'radio', `the command call (${f(r.report)} s) raises the alarm by radio (at ${f(r.tAl)} s, '${r.bBy}')`);
+    assert(r.bNew > 0, `reinforcements come in (+${r.bNew})`);
+    assert(r.cCaller && r.mateUp && Math.abs(r.tB - r.retry) < 0.3, `the commander taken out: the squadmate in the fight takes the call ${f(r.tB)} s later (retry ${r.retry} s)`);
+    assert(r.cBy === 'radio' && r.tAl2 > r.tB && r.tAl2 - r.tB < r.R * 1.6 + 0.3, `...and it gets through: the alarm ${f(r.tAl2 - r.tB)} s after he took it ('${r.cBy}')`);
   });
 
   await scen('revive', async () => {
@@ -1357,6 +1537,237 @@ try {
     assert(r.thermal.mode === 'thermal' && r.thermal.vk === 1 && r.thermal.nv < 0.01, `the wheel picked thermal, the button turns it on (${JSON.stringify(r.thermal)})`);
     assert(r.electro.mode === 'electro' && r.electro.vk === 2, `picking electro with the goggles on switches at once (${JSON.stringify(r.electro)})`);
     assert(r.nvOff < 0.01, `night vision is off (${r.nvOff})`);
+  });
+
+  // (guard-ai S12, A35) a helmeted guard: the first round to the head knocks the helmet off (no damage, he reels, a
+  // deflect, the helmet tumbles to the floor and stays), the second kills
+  await scen('helmet', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      // the same random draws every run (as 'lkp')
+      const rnd = Math.random;
+      let seed = 3535;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      try {
+        t.light(1);
+        em.alarmRaised = true;
+        t.tp(-0.5, 0, 0);
+        const e = t.spawn('grunt', 0, 5, Math.PI);
+        e.setGear({ helmet: true, armour: false });
+        t.step(0.1);
+        const head = () => ({ amount: 60, point: e.pos.clone(), dir: new t.V(0, 0, 1), part: 'head', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', sourcePos: g.player.position.clone(), impulse: 1 });
+        const hp = e.health.hp;
+        const r1 = e.applyDamage(head());
+        const first = { deflect: r1.deflect === true, dealt: r1.dealt, alive: e.alive, hp: e.health.hp, helmet: e.helmet, stagger: +e['stagger'].toFixed(2), alerted: e.alerted, dropped: em.helmetDrops.shown };
+        t.step(0.6);
+        const d = em.helmetDrops['drops'][0];
+        const floor = d ? +(d.m.position.y - e.pos.y).toFixed(3) : 99;
+        const r2 = e.applyDamage(head());
+        return { hp, first, floor, killed: r2.killed, alive: e.alive, still: em.helmetDrops.shown };
+      } finally {
+        Math.random = rnd;
+      }
+    });
+    assert(r.first.deflect && r.first.dealt === 0 && r.first.alive && r.first.hp === r.hp, `the first head round is a deflect: no damage, alive (${JSON.stringify(r.first)})`);
+    assert(!r.first.helmet && r.first.dropped === 1, `the helmet is knocked off and dropped (${JSON.stringify(r.first)})`);
+    assert(r.first.stagger >= 0.85 && r.first.alerted, `he reels (stagger ${r.first.stagger}) and is in combat`);
+    assert(r.floor < 0.3, `the helmet lies on the floor after its tumble (${r.floor} m above his feet)`);
+    assert(r.killed && !r.alive, 'the second head round kills');
+    assert(r.still === 1, 'the dropped helmet stays as a clue');
+  });
+
+  // (guard-ai S12, A36) an armoured guard: five rounds to the body leave him alive and unhurt (staggered at most once
+  // per 1.5 s); one round to the head kills
+  await scen('armour', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const rnd = Math.random;
+      let seed = 4646;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      try {
+        t.light(1);
+        em.alarmRaised = true;
+        t.tp(-0.5, 0, 0);
+        const e = t.spawn('grunt', 0, 5, Math.PI);
+        e.setGear({ helmet: false, armour: true });
+        t.step(0.1);
+        const shot = (part) => ({ amount: 30, point: e.pos.clone(), dir: new t.V(0, 0, 1), part, kind: 'bullet', attackerTeam: 'player', attackerId: 'local', sourcePos: g.player.position.clone(), impulse: 1 });
+        const hp = e.health.hp;
+        let deflects = 0;
+        const staggers = [];
+        let clock = 0;
+        for (let i = 0; i < 5; i++) {
+          const before = e.sinceStagger;
+          if (e.applyDamage(shot('body')).deflect) deflects++;
+          if (e.sinceStagger < before) staggers.push(+clock.toFixed(2));
+          t.step(0.4);
+          clock += 0.4;
+        }
+        const body = { alive: e.alive, hp: e.health.hp, deflects, staggers };
+        const killed = e.applyDamage(shot('head')).killed;
+        return { hp, body, killed };
+      } finally {
+        Math.random = rnd;
+      }
+    });
+    assert(r.body.alive && r.body.hp === r.hp && r.body.deflects === 5, `five body rounds: alive, unhurt, five deflects (${JSON.stringify(r.body)})`);
+    let gap = 99;
+    for (let i = 1; i < r.body.staggers.length; i++) gap = Math.min(gap, r.body.staggers[i] - r.body.staggers[i - 1]);
+    assert(r.body.staggers.length >= 1 && r.body.staggers.length <= 2 && gap >= 1.5 - 1e-6, `staggered at most once per 1.5 s (${JSON.stringify(r.body.staggers)})`);
+    assert(r.killed, 'one round to the head kills (no helmet)');
+  });
+
+  // (guard-ai S14, A40) a radio check misses a squad member taken out unseen: the caller radios "not answering", the
+  // section turns cautious on a timed hold (MISSING.cautious), two search the spot; the caller taken during the call:
+  // nobody is cautious
+  await scen('missed check', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const R = em.radioTable;
+      const rnd = Math.random;
+      let seed = 1414;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      try {
+        // a squad of three facing away from their third (yaw PI = -z), a far guard of the same section; dark, the
+        // player far off
+        const setup = () => {
+          t.light(0);
+          t.tp(-22, -24, 0);
+          const a = t.spawn('grunt', 0, 5, Math.PI);
+          const b = t.spawn('grunt', 6, 5, Math.PI);
+          const c = t.spawn('grunt', 10, 9, Math.PI);
+          const far = t.spawn('grunt', -21, 17, Math.PI);
+          for (const e of [a, b, c]) em.joinSquad(e, 77);
+          t.step(0.3);
+          return { a, b, c, far };
+        };
+        const s = setup();
+        t.kill(s.c, true);
+        t.step(0.2);
+        const m0 = em.sectionCounts.missedChecks;
+        em.radioCheckNow();
+        const caller = em.lastCheckCaller;
+        t.step(0.1);
+        const inc = [s.a.incident, s.b.incident];
+        const kind = s.a.incident >= 0 ? em.board.kindOf(s.a.incident) : null;
+        const left = caller ? em.radioLeft(caller) : 0;
+        const before = em.cautionOf(s.far);
+        t.step(left + R.staggerMax + 0.5);
+        const got = {
+          far: em.cautionOf(s.far),
+          farLeft: em.awareness.alertLeft(s.far.key),
+          farKind: em.awareness.alertOf(s.far.key),
+          a: em.cautionOf(s.a),
+          b: em.cautionOf(s.b),
+          missed: em.sectionCounts.missedChecks - m0,
+        };
+        // the caller taken (silently) during his call
+        t.reset();
+        const s2 = setup();
+        t.kill(s2.c, true);
+        t.step(0.2);
+        em.radioCheckNow();
+        const caller2 = em.lastCheckCaller;
+        t.step(0.5);
+        const left2 = caller2 ? em.radioLeft(caller2) : 0;
+        if (caller2) t.kill(caller2, true);
+        t.step(left2 + R.staggerMax + 1);
+        const cut = {
+          far: em.cautionOf(s2.far),
+          alerts: [s2.a, s2.b, s2.far].filter((e) => e.alive && em.awareness.alertLeft(e.key) > 0).length,
+        };
+        t.light(null);
+        return { caller: !!caller, inc, kind, left, before, got, max: em.missingTable.cautious, caller2: !!caller2, left2, cut };
+      } finally {
+        Math.random = rnd;
+      }
+    });
+    const f = (v) => v.toFixed(2);
+    assert(r.caller && r.left > 1.5, `the radio check's caller radios the miss (call ${f(r.left)} s)`);
+    assert(r.inc[0] >= 0 && r.inc[0] === r.inc[1] && r.kind === 'missing', `two of his squad search the spot (${r.inc}, ${r.kind})`);
+    assert(r.before === 0, 'nobody is cautious before the call gets through');
+    assert(r.got.far === 1 && r.got.farKind === 1 && r.got.farLeft > r.max - 10, `the far guard of the section turns cautious, timed (${JSON.stringify(r.got)})`);
+    assert(r.got.a >= 1 && r.got.b >= 1, `the squad is cautious too (${r.got.a}, ${r.got.b})`);
+    assert(r.got.missed === 1, `one missed check counted (${r.got.missed})`);
+    assert(r.caller2 && r.left2 > 0.3, `the second caller is still on the radio when he is taken (${f(r.left2)} s left)`);
+    assert(r.cut.far === 0 && r.cut.alerts === 0, `the caller taken during the call: nobody is cautious (${JSON.stringify(r.cut)})`);
+  });
+
+  // (guard-ai S14, A41) a loud shot 20 m from one guard (he only turns): he radios "shots fired"; once it gets through a
+  // far guard who never heard it turns cautious (SHOTS.cautious) and two go to the spot (lead + cover); a suppressed
+  // shot: no call
+  await scen('loud shot', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const R = em.radioTable;
+      const rnd = Math.random;
+      let seed = 2727;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      const fire = (noise) => {
+        const st = g.weapons.current.stats;
+        const n0 = st.noise;
+        st.noise = noise;
+        g.weapons.events.onShot(g.weapons.current.def);
+        st.noise = n0;
+      };
+      try {
+        t.light(0);
+        t.tp(0, -5, Math.PI);
+        // 19 m from the shot along the factory floor, a clear line (tier 1: a turn; the old spot at (-7, 14) was behind
+        // the x -4 wall: 0.45 x 28 = 12.6 m reach, never heard), and one ~30 m off (out of its 28 m reach)
+        const ear = t.spawn('grunt', 19, -5, 0);
+        const far = t.spawn('grunt', -21, 17, Math.PI);
+        t.step(0.3);
+        const c0 = em.sectionCounts.shotsCalls;
+        fire(1);
+        const left = em.radioLeft(ear);
+        const earLevel = ear.level;
+        t.step(0.1);
+        const before = em.cautionOf(far);
+        t.step(left + R.staggerMax + 0.5);
+        const got = {
+          far: em.cautionOf(far),
+          farKind: em.awareness.alertOf(far.key),
+          farLeft: em.awareness.alertLeft(far.key),
+          ear: em.cautionOf(ear),
+          inc: [ear.incident, far.incident],
+          kind: ear.incident >= 0 ? em.board.kindOf(ear.incident) : null,
+          calls: em.sectionCounts.shotsCalls - c0,
+          alarm: em.alarmRaised,
+        };
+        // a suppressed shot 8 m from him: he turns, nobody radios
+        t.reset();
+        t.light(0);
+        t.tp(0, -5, Math.PI);
+        const ear2 = t.spawn('grunt', 0, 3, 0);
+        const far2 = t.spawn('grunt', -21, 17, Math.PI);
+        t.step(0.3);
+        fire(0.35);
+        const supp = { left: em.radioLeft(ear2) };
+        t.step(5);
+        supp.far = em.cautionOf(far2);
+        supp.calls = em.sectionCounts.shotsCalls;
+        t.light(null);
+        return { left, earLevel, before, got, max: em.shotsTable.cautious, supp };
+      } finally {
+        Math.random = rnd;
+      }
+    });
+    const f = (v) => v.toFixed(2);
+    assert(r.left > 1.5 && r.earLevel !== 'alert', `the guard who heard it (${r.earLevel}) radios it (call ${f(r.left)} s)`);
+    assert(r.before === 0, 'the far guard is calm before the call gets through');
+    assert(r.got.far === 1 && r.got.farKind === 2 && r.got.farLeft > r.max - 10, `the far guard turns cautious, timed (${JSON.stringify(r.got)})`);
+    assert(r.got.inc[0] >= 0 && r.got.inc[0] === r.got.inc[1] && r.got.kind === 'shots', `two go to the spot (${r.got.inc}, ${r.got.kind})`);
+    assert(r.got.calls === 1 && !r.got.alarm, `one shots call, no alarm (${r.got.calls}, ${r.got.alarm})`);
+    assert(r.supp.left === 0 && r.supp.far === 0 && r.supp.calls === 0, `a suppressed shot: no call, nobody cautious (${JSON.stringify(r.supp)})`);
   });
 
   const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));

@@ -80,7 +80,8 @@ export function navGridFromLevel(
   const bh = Math.max(1, Math.ceil((bd.maxZ - bd.minZ) / BUCKET));
   const buckets: (typeof level.boxes)[] = Array.from({ length: bw * bh }, () => []);
   for (const o of level.boxes) {
-    if (!o.collide || Math.abs(o.pitch) > 1e-3) continue;
+    // (E2) glass is not hit by the down-cast (its own body, not G.STATIC): never a piece to cast on under
+    if (!o.collide || o.glass || Math.abs(o.pitch) > 1e-3) continue;
     const r = hyp2(o.s[0], o.s[2]) / 2;
     const x0 = Math.max(0, Math.floor((o.c[0] - r - bd.minX) / BUCKET));
     const x1 = Math.min(bw - 1, Math.floor((o.c[0] + r - bd.minX) / BUCKET));

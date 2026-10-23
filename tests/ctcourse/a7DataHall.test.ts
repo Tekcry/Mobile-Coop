@@ -476,7 +476,7 @@ describe('A7 the Data Hall: the cameras', () => {
     expect(A7_CAM2.y).toBeLessThan(A7_H.corridor);
     expect(71.75 - A7_CAM1.at[1]).toBeLessThan(0.3);
     expect(99.75 - A7_CAM2.at[0]).toBeLessThan(0.3);
-    expect(lay.security!.devices).toEqual(expect.arrayContaining([A7_CAM1, A7_CAM2].map((c) => ({ ...c, armoured: true }))));
+    expect(lay.security!.devices).toEqual(expect.arrayContaining([A7_CAM1, A7_CAM2].map((c) => ({ ...c, bulletproof: true }))));
   });
 
   it('C2: cam1 watches the front aisle\'s north mouth and the cage\'s north apron, and a head at T1\'s hack spot (standing or crouched) is out of its frame', () => {

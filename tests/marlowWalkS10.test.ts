@@ -9,7 +9,7 @@ import { LevelBuilder } from '../src/world/levelBuilder';
 import { buildCtcourse } from '../src/world/maps/ctcourse';
 import type { LightRegistry } from '../src/world/lights';
 
-const cam = (id: string, armoured?: boolean): CameraDevice => ({ id, kind: 'camera', level: 'ground', at: [0, 0], y: 3, facing: 0, reason: 't', ...(armoured === undefined ? {} : { armoured }) });
+const cam = (id: string, bulletproof?: boolean): CameraDevice => ({ id, kind: 'camera', level: 'ground', at: [0, 0], y: 3, facing: 0, reason: 't', ...(bulletproof === undefined ? {} : { bulletproof }) });
 const host = { ballistics: { hitDistance: () => Infinity }, players: () => [] } as unknown as SecurityHost;
 
 /** A round along the camera's facing axis, through its housing. */
@@ -39,16 +39,16 @@ describe('armoured cameras (M1)', () => {
 
   it('the set rule: A3 on armoured, earlier sets shootable, a camera may opt out', () => {
     expect(ARMOURED_FROM_SET).toBe(3);
-    expect(armourCameras('a2CarriageShed', [cam('x')])[0]!.armoured).toBeUndefined();
-    expect(armourCameras('a3OfficeRange', [cam('x')])[0]!.armoured).toBe(true);
-    expect(armourCameras('a8Strongroom', [cam('x', false)])[0]!.armoured).toBe(false);
+    expect(armourCameras('a2CarriageShed', [cam('x')])[0]!.bulletproof).toBeUndefined();
+    expect(armourCameras('a3OfficeRange', [cam('x')])[0]!.bulletproof).toBe(true);
+    expect(armourCameras('a8Strongroom', [cam('x', false)])[0]!.bulletproof).toBe(false);
   });
 
   it("Marlow Yard's cameras (A3's hall camera and every later one) are armoured", () => {
     const devs = buildCtcourse(new LevelBuilder()).layout.security!.devices;
-    expect(devs.find((d) => d.id === 'cam-a3-hall')?.armoured).toBe(true);
+    expect(devs.find((d) => d.id === 'cam-a3-hall')?.bulletproof).toBe(true);
     expect(devs.length).toBeGreaterThan(0);
-    for (const d of devs) expect(d.armoured, d.id).toBe(true);
+    for (const d of devs) expect(d.bulletproof, d.id).toBe(true);
   });
 });
 

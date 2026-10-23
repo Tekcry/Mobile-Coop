@@ -202,8 +202,8 @@ describe('jammer-fixes 2: jamming courselab\'s mains lamp never opens g-mains; t
 });
 
 describe('jammer-fixes 3: the jam claim carries the client\'s camera eye (protocol 27)', () => {
-  it('PROTOCOL_VERSION is 33 (33 the merge of 30 and 31, 32 reserved for guard-ai; 31 the Sector lamps; 30 marlow-final; 29 the panels)', () => {
-    expect(PROTOCOL_VERSION).toBe(33);
+  it('PROTOCOL_VERSION is 36 (36 the merge of marlow-final 33 and master 35; 35 the weapons crate; 33 the merge of 30 and 31; 31 the Sector lamps; 30 marlow-final; 29 the panels)', () => {
+    expect(PROTOCOL_VERSION).toBe(36);
   });
 
   it('the eye round-trips, is clamped to the world, and a malformed one is dropped; a release carries none', () => {
