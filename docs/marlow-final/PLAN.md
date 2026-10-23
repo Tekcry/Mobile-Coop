@@ -166,6 +166,20 @@ Per-set notes (what is special; sizes are greybox + dressing):
   open with the summary, the proposals and the manual checks for Michael.
 - Size: about 3 h of agent work plus the Character Build queue.
 
+### Slice 10 - Michael's walk 4.72 / 4.73 (2026-10-23 ~13:55, docs/orchestrator/WALK-4.72-REPORT.md on feature/menu "Marlow Build")
+The walk was on master's old Marlow Yard (its "S2" / "S3" = sections there); each item is mapped onto the A-sets and fixed
+where the rebuilt yard still has it. One Opus diagnosis (read-only, slices/S10-walk.md: per item, does it reproduce on this
+branch, cause file:line, smallest fix), then one implementer after the merge fixes land, one checker, e2e-ctcourse parts.
+- W1 (M1) The hallway camera (A3's hall camera) is bulletproof: shots ricochet, no break (also ROADMAP "stealth over
+  shooting" (1); early sets keep shootable cameras unless Michael's note covers them).
+- W2 (M2) Checkpoint / set restart is a full reset: the set's guards respawn fresh (no caution from the restart, no old
+  body left), killed / knocked-out bodies removed, broken cameras repaired; host and co-op client alike.
+- W3 (M3) Set restart resets the set's doors (open / closed / locked as at the set start); Marlow only (Sector Ops is fine).
+- W4 (M4) The A3 console's "guard still watching" refusal stays (expected); G6's switch-back (a guard who sees the console
+  off turns it back on) is Guard AI Build's item, not this job.
+- W5 (M5) The A2 locked-door lamp lights both rooms it hangs over (the fitting's falloff / occlusion or its room
+  assignment); the all-maps lamp output review is Sector Ops Build's (S1 / LR1-LR12), so fix only Marlow's data here.
+
 ## 5. Parallel order (up to 6 Opus agents)
 Now (slice 0, already running): 0a, 0b, 0c, the lighting agent, the props agent (batch 1), and this spec writer when
 it ends. Start 0g as soon as a slot frees: it touches no file the others own.
