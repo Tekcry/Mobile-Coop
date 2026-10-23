@@ -1,6 +1,13 @@
 # Guard AI - state
 
 ## Now
+~06:15: S24 ladder fix f3c62b00 (src: spawn(.., true) is told the command's known intruder via commandHunt, no
+wallhack (A148); e2e-levels reports the player seen before the spawn; twoIntruders (i)/(i2); S24-LEVELS-TRIAGE.md).
+Merged up: s25 5cb67c9d, s26 2c92865d, s27 321b1e2e, walk482 046776ca. Laptop: s24-levels-fix (levels, stealth-ai,
+coop), s25-levels, s26-levels, s27-levels, w482-levels. Opus re-check RUNNING (S24-LEVELS-CHECK.md, uncommitted:
+lead commits). All green + check PASS -> relabel #264, #266, #270, #271, #272. Open: e2e-enemies alerted spawns
+(:135 :156 :276) may need the same retune; Mission reinforcements with nothing known stand (A148).
+
 ~06:05: s25-sai-fix5 3a762da9 PASS, s26-sai3 2581b794 PASS (e2e-stealth-ai green on S25 + S26; S26 coop + netmove PASS
 on 531a65e9). Train 41 closed; #281 + #254 in train 42. #264 / #266 / #270 / #271 / #272 wait for the S24 ladder fix
 (merged up + e2e-levels green) -> relabel all.
