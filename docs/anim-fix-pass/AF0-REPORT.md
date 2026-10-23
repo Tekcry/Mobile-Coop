@@ -3,7 +3,7 @@
 ## What
 - `tests/helpers/afpMeasure.ts` (new): the harness. One exported function per measure, JSDoc'd, all taking a `Rec`
   (mocapMeasure) and, where a `Rec` lacks the data, a `Probe` (keepElbowOut state, gun segment, kneel, stick).
-- `tests/animFixPass.test.ts` (new): report-only (always passes); runs the AF0 scenario set and writes
+- `tests/animFixPass.test.ts` (new): report-only (always passes; only with `AFP_WRITE_NUMBERS=1` since 4.84.0); runs the AF0 scenario set and writes
   `docs/anim-fix-pass/before/numbers.md` (committed).
 - `tests/helpers/mocapStrafe.ts`: `aimRun` gains `opts` (`weight` pistol 0.7, `wall` drawn crouched back-to-wall slide), the
   stick's `crouch`, the kneel rule (`KNEEL_STILL`, playerController), `R.yaw` = the visual yaw; new `CROUCH_PLANS`
