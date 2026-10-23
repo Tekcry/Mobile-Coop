@@ -28,6 +28,54 @@ export function lampFalloff(d: number, r: number): number {
   return r <= 0 || d >= r ? 0 : 1 - d / r;
 }
 
+/**
+ * (lightrev LR13, PROPOSAL "Walk 4.72 S1"; prototype, default off: Settings > Gameplay > Lamp falloff, `?falloff=photo`
+ * dev override) The baked lamps' distance falloff.
+ * 'linear' (today): `1 - d / r`. 'photometric': inverse square as a real fitting gives it, `ref^2 / max(d, near)^2`,
+ * windowed to 0 at the reach (glTF / Babylon `FALLOFF_GLTF`: `(1 - (d / R)^4)^2`). A lamp's intensity is then its
+ * level on axis at `ref` m, and its reach is its authored radius x `reach` (`lampReach`, applied once when the registry
+ * adds a fixed light, so the bake boxes, the 2 m column lists, the field and the shaders all read the same reach).
+ * Gameplay (`LightField.lampInto`) and the picture (`lampMathGlsl`) switch together: light parity holds in both modes.
+ * Flashlights and the unbaked path keep `lampTerm` (linear).
+ */
+export type LampFalloff = 'linear' | 'photometric';
+export const PHOTO = { ref: 3, near: 1, reach: 1.6 } as const;
+let falloffMode: LampFalloff = 'linear';
+/** Set when a match's map loads (`GameState.create`, before the level builds); tests set and reset it. */
+export function setLampFalloff(m: LampFalloff): void {
+  falloffMode = m;
+}
+export function lampFalloffMode(): LampFalloff {
+  return falloffMode;
+}
+/** A fixed (baked) lamp's reach under the current falloff. */
+export function lampReach(radius: number): number {
+  return falloffMode === 'photometric' ? radius * PHOTO.reach : radius;
+}
+/** Photometric falloff at distance `d` of a lamp of reach `r` (0 at and beyond it). */
+export function photoFalloff(d: number, r: number): number {
+  if (r <= 0 || d >= r) return 0;
+  const q = (d * d) / (r * r);
+  const w = 1 - q * q;
+  const n = d > PHOTO.near ? d : PHOTO.near;
+  return ((PHOTO.ref * PHOTO.ref) / (n * n)) * w * w;
+}
+/**
+ * (LR13, Michael 2026-10-23 ~14:35 "Try it first") The falloff a match runs, decided once when its map loads
+ * (`GameState.create`): a co-op match takes the host's (`host`, from the `start` message: the client's own setting and
+ * URL are ignored), else the `?falloff=photo` dev override, else Settings > Gameplay > Lamp falloff. A light-model rule,
+ * never a graphics preset: the meter, the guards and the shaders read the one mode.
+ */
+export function matchLampFalloff(setting: LampFalloff, urlPhoto: boolean, host?: LampFalloff): LampFalloff {
+  return host ?? (urlPhoto ? 'photometric' : setting);
+}
+export const LAMP_FALLOFFS: readonly LampFalloff[] = ['linear', 'photometric'];
+
+/** The baked lamps' falloff in the current mode. */
+export function bakedFalloff(d: number, r: number): number {
+  return falloffMode === 'photometric' ? photoFalloff(d, r) : lampFalloff(d, r);
+}
+
 /** Cone factor from the cosine between the cone's axis and the direction to the point. */
 export function lampCone(cosA: number, cosCut: number, exp: number): number {
   if (cosA < cosCut) return 0;
@@ -83,3 +131,14 @@ export const LAMP_MATH_GLSL = `
 float nsLampFalloff(float d, float r) { return max(0.0, 1.0 - d / r); }
 float nsLampCone(float ca, float cut, float e) { return ca < cut ? 0.0 : pow(max(ca, 1e-4), e); }
 `;
+
+const glf = (v: number): string => (Number.isInteger(v) ? `${v}.0` : `${v}`);
+/** The photometric falloff in GLSL (`photoFalloff`). */
+export const LAMP_MATH_GLSL_PHOTO = `
+float nsLampFalloff(float d, float r) { float nsQ = d * d / (r * r); float nsW = max(0.0, 1.0 - nsQ * nsQ); float nsN = max(d, ${glf(PHOTO.near)}); return ${glf(PHOTO.ref * PHOTO.ref)} / (nsN * nsN) * nsW * nsW; }
+float nsLampCone(float ca, float cut, float e) { return ca < cut ? 0.0 : pow(max(ca, 1e-4), e); }
+`;
+/** The lamp formula's GLSL in the current falloff mode (read when a shader is built, after boot set the mode). */
+export function lampMathGlsl(): string {
+  return falloffMode === 'photometric' ? LAMP_MATH_GLSL_PHOTO : LAMP_MATH_GLSL;
+}
