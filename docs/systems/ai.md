@@ -259,8 +259,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   2-6 m round it (1.5 s at each; unreachable points skipped), bark `standDown`, back to the route unaware (no
   cooldown; cooldown only if he has fought); a glimpse (meter >= `investigate`) drops the check. (guard-ai S15, stealth
   over shooting item 8, A42 / A43; `ai/breaker.ts`, `BREAKER` / `LATE` in `ai/gear.ts`) A switch off with a witness is a
-  fault: a `breaker` incident (one per circuit while open), the one witness best by path (`MODE_BREAKER`, never a pair;
-  the others ack) runs `Enemy.resetBreaker`: bark `breaker`, walk at his patrol pace to the walkable cell by the switch
+  fault: a `breaker` incident (one per circuit while open), the witness nearest the switch by path (plain path length: no officer, cautious, role or zone weight; `MODE_BREAKER`, never a pair;
+  the others ack) runs `Enemy.resetBreaker`: bark `breaker`, walk at his patrol pace to the walkable cell by the switch (its own height: the switch column is often the wall)
   without leaving his calm level (suspicious and back keeps it; investigating or worse drops it), work it
   `BREAKER.resetT` 2 s, `AiContext.breakerReset` -> `EnemyManager.breakers` (`BreakerHost`, set by `StealthSystems`) ->
   `StealthSystems.resetCircuit` = the player's own `toggle`; no ring, no radio, back on his route. The circuit lit again by

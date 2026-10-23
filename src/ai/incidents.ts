@@ -532,7 +532,8 @@ export class IncidentBoard {
   }
 
   /** The best marked candidate for incident `s` (view index, -1): the `pathCandidates` nearest by straight distance get
-   *  a path query; score = path x officer x cautious; ties to the lower index. */
+   *  a path query; score = path x officer x cautious x role x zone (a breaker fault: the path alone); ties to the lower
+   *  index. */
   private best(s: number, view: GuardView): number {
     const M = INCIDENT;
     let pick = -1;
@@ -556,10 +557,17 @@ export class IncidentBoard {
       const len = this.paths.len(view.x[bi]!, view.y[bi]!, view.z[bi]!, this.x[s]!, this.y[s]!, this.z[s]!);
       if (!(len < Infinity)) continue;
       const f = view.flags[bi]!;
-      let score = len * (f & GV_OFFICER ? M.officerMul : 1) * (view.level[bi] === LEVEL.cooldown ? M.cautiousMul : 1);
-      // (guard-ai S5b) the role (a supervisor sends someone; a rover checks a light first) and a secure zone
-      score *= roleSendMul(view.role[bi]!, this.kind[s] === K_LIGHT || this.kind[s] === K_BREAKER);
-      if (inZone(view, bi, this.x[s]!, this.z[s]!)) score *= TAGS.secureFirst;
+      let score = len;
+      // (guard-ai S15 laptop fix) a breaker fault: the witness nearest the switch by path flips it, whoever he is (a
+      // chore, not a check: no officer, cautious, role or zone weight). With the weights the one walker was the rover
+      // the light check sends first, and the map's lure (S2 #1 at the reception panel, S3 #16 at the switch bank, the
+      // second of the light pair on master and the nearest witness) stayed put
+      if (this.kind[s] !== K_BREAKER) {
+        score *= (f & GV_OFFICER ? M.officerMul : 1) * (view.level[bi] === LEVEL.cooldown ? M.cautiousMul : 1);
+        // (guard-ai S5b) the role (a supervisor sends someone; a rover checks a light first) and a secure zone
+        score *= roleSendMul(view.role[bi]!, this.kind[s] === K_LIGHT);
+        if (inZone(view, bi, this.x[s]!, this.z[s]!)) score *= TAGS.secureFirst;
+      }
       if (score < pickScore || (score === pickScore && bi < pick)) {
         pickScore = score;
         pick = bi;

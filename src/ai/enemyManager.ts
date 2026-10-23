@@ -60,6 +60,9 @@ export interface TalkPair {
 // Live guard cap. 12 = the Dead Line co-op peak of 10 chapter-active guards (furthest-behind and furthest-ahead
 // player, each with their next chapter) plus the two alarm reinforcements; about 2.6 ms main thread (D1 guard cost).
 export const MAX_ALIVE = 12;
+/** (sector-redesign) Uncoordinated lights-out: the guard sent stands on the light's floor - his feet not above the
+ *  fixture height `y` (a lamp, or a wall switch + 2.5) and at most this many m below it. */
+export const LIGHTS_OUT_BELOW = 7;
 
 /** (guard-ai S3, S6) A completed `command` call ("Command, contact. Send backup.") raises the alarm like a panel (M4).
  *  On since S6: a contact call that gets through starts one (`contactThrough`). Undo: false (panels only). */
@@ -801,7 +804,7 @@ export class EnemyManager {
    */
   lightsOut(x: number, z: number, y = Number.NaN, lightId = -1, group = -1): void {
     if (!this.coordinated) {
-      this.lightsOutOld(x, z);
+      this.lightsOutOld(x, z, y);
       return;
     }
     const reg = this.world.level.lights;
@@ -846,7 +849,7 @@ export class EnemyManager {
     // (guard-ai S15, A42) a circuit switched off at its switch: a fault (one goes to turn it back on), or tampering
     // (a circuit cut some other way, its switches still on: the S2 light incident as before)
     if (group >= 0 && lightId < 0 && BREAKER.reset && this.breakers?.isOff(group)) {
-      this.circuitOut(group, x, floor, z, n, true);
+      this.circuitOut(group, x, this.switchFloor(x, z, fy - 2.5), z, n, true);
       return;
     }
     const key = lightId >= 0 ? lightId : group >= 0 ? CIRCUIT_KEY + group : -1;
@@ -930,7 +933,16 @@ export class EnemyManager {
     this.dark.markGroup(reg, l.group);
     const s = this.swP;
     if (!this.breakers || !this.breakers.switchOf(l.group, e.pos.x, e.pos.z, s)) return;
-    this.circuitOut(l.group, s[0]!, this.nav.heightAt(s[0]!, s[2]!, s[1]! - 1), s[2]!, 1, false);
+    this.circuitOut(l.group, s[0]!, this.switchFloor(s[0]!, s[2]!, s[1]!), s[2]!, 1, false);
+  }
+
+  /** (guard-ai S15 laptop fix) The floor a guard stands on to work the switch at (x, z) whose floor is about `y`: the
+   *  nearest walkable cell's height. `heightAt` there reads the wall's own column, whose surface is the wall's top (the
+   *  Warehouse floor switch: 3.2 m), and the walker never counted as at the switch. */
+  private switchFloor(x: number, z: number, y: number): number {
+    const nav = this.nav;
+    const c = nav.nearestWalkable(x, z, 4, y);
+    return c >= 0 ? nav.cellHeight(c) : nav.heightAt(x, z, y);
   }
 
   /** Is the point inside this guard's sight field and range (a light going out: the peripheral range counts)? */
@@ -954,12 +966,17 @@ export class EnemyManager {
   }
 
   /** The old lights-out rule (uncoordinated modes): the nearest calm enemy within 25 m comes to look (with a
-   *  flashlight in the dark), others within 14 m turn to look. No walls, no line of sight. */
-  private lightsOutOld(x: number, z: number): void {
+   *  flashlight in the dark), others within 14 m turn to look. No walls, no line of sight. `y` (the fixture, or a wall
+   *  switch + 2.5) limits the one who comes to look to the floor under it (sector-redesign): his feet not above `y` and at
+   *  most `LIGHTS_OUT_BELOW` under it, so a guard two storeys up over an atrium is not sent to a ground-floor switch, nor
+   *  one two floors down to an L2 switch. */
+  private lightsOutOld(x: number, z: number, y = Number.NaN): void {
     let best: Enemy | null = null;
     let bd = 25;
+    const floor = !Number.isNaN(y);
     for (const e of this.enemies) {
       if (!e.alive || e.alerted || e.def.melee) continue;
+      if (floor && (e.pos.y > y || y - e.pos.y > LIGHTS_OUT_BELOW)) continue;
       const d = hyp2(e.pos.x - x, e.pos.z - z);
       if (d < bd) {
         bd = d;

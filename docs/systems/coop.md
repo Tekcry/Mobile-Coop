@@ -67,7 +67,10 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 - (marlow-bays item 1) A held hostage is never solid to its holder: the client's `EnemyPuppet.setSolid` (the takedown's
   `setSolid?.(false)` was a no-op there, so the puppet's capsule shoved the client's controller: slow, jittery movement
   while holding) and the partner's hostage seen there (`remoteHeld`). The host places a client's hostage from that
-  client's drawn (interpolated) pose, not its raw 20 Hz state.
+  client's drawn (interpolated) pose, not its raw 20 Hz state. (hostage-gait) That pose moves once per render frame
+  while the seized loop runs per fixed step, so the point goes through `holdFeed.ts` (velocity from distinct drawn
+  poses over render time, predicted to each step's sim time via `HoldClock`, eased; a still frame stops it, a jump
+  over 1 m snaps with no speed spike): `holdAt`'s speed, the hostage's gait, holds steady below 60 fps.
 - (marlow-bays item 2) Course items: the host's own press passes `'local'` (`gameState.ts`); `courseUser` reads it as
   P1, a client's peer id as P2 (it read `'local'` as P2, so a host unbolting alone was tested on the client's feet).
 - Objective line (coop-fix, `net/objectiveMirror.ts`): the client shows "Connecting to host…" until the first

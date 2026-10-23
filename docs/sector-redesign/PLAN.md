@@ -108,6 +108,9 @@ Done when: the full campus plays end to end solo and co-op.
 | E5 | EW9 alarm-stage extras: lockdown doors (never a softlock), lights to full, response-team route, dog release | S2-S5 | M | unit (stage -> actions), e2e-sectorops |
 | E6 | EW10 security desk in Sector (operator post; console loops cameras) | S3, S4 | M | unit, e2e |
 | E7 | EW-L1 chunk loading, only if EW16 fails | - | L | load / unload e2e |
+| E8 | Stealth over shooting (Michael ~10:10, items 1 + 14): `bulletproof` camera flag (shots ricochet; jam, cut power or slip the sweep) and `thermal` flag; move the S3 cam-view / S4 / S5 side tables onto the camera data (A95, A96) | S3-S5 | S | unit (shot -> ricochet, no kill), e2e-sectorops |
+| E9-crate | Ammo (Michael ~10:20): no ammo inside sections (done 88f5c33a, `checkMapLayout`); one weapons-crate refill at each section start / connector checkpoint, each player once, tops up to the starting loadout never above, weapon ammo only, restart resets it, used state per player (prompt gone). Per-player use tracked on the host: Opus plans the net part first (protocol: ours is 31; ask the orchestrator for a number if a wire change is needed), Sonnet builds the crate model and data | S1-S5 (warehouseOps too) | M | unit (once per player, cap, restart), e2e-sectorops + e2e-coop |
+| E10 | Armoured routes (item 10): bulletproof glass / doors, each with a quiet bypass (vent, hack, hang-down) named in data (A97); the glass half needs E2 | S4, S5 | M | unit, e2e-sectorops |
 Guard-ai provides (dependencies, not our slices): GA1 squads and radio checks, GA2 talking pairs, GA3 posted guards
 that hold but can be distracted, GA4 light investigations by 1-2 guards (relight if it lands), GA5 staggered radio
 alerts, GA6 reinforcement tactics. Our slices only place guards and tag them; each section is re-checked when a GA
