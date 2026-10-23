@@ -3,6 +3,19 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 26 (2026-10-23 ~21:10, swap save; wins over older SAVEs):**
+- Service runs headless through the swap: train 33 db14a418 sharded (auto-train releases on green), ~18 requests queued.
+- OPEN 1: laptop service still on OLD code (pid 39160, face1711-era) until it goes idle; then it fast-forwards to
+  origin/feature/laptop-queue (e1398df4: claims + desktop worker) and logs "done claim(s) pushed". Until then the desktop
+  worker (NightShift-desktop-queue, registered by the Orchestrator) waits "no claims on the branch yet" - safe. Michael
+  was asked (via Orchestrator) whether to restart NightShift-laptop-queue between runs. Verify the switch in log.txt.
+- OPEN 2: LR16 perf triage for Sector Ops: alone requests 20261023T094402-...-273539ec-a3be and 094409-...-f8008542-1994
+  (campus guards start + s5-worst, Epic then Medium; out C:/NightShift/scratch/work/lr16tri-<sha>/views-*.json), plus
+  Sector Ops' own start-view requests 094112 (41204e30, droppable) / 094116 (f8008542) / 094120 (273539ec). When done:
+  ONE verdict message to "Night Shift | Sector Ops Build": CPU p95 per view per preset, 273539ec vs f8008542 delta
+  (their triage expects LR16 +0.1-0.3 ms Epic / +0.3-0.7 Medium, the rest = unfrozen campus guards from #226).
+- PR #252 (laptop-queue) open, train-ready; Orchestrator has the desktop start commands.
+
 **Test Runner SAVE 25 (2026-10-23 ~20:35; wins over SAVE 24 where they differ):**
 - ALL manual chains are finished; NO hand-run chains from now on (Orchestrator 20:26). Alone runs (perf, guard-cap,
   sheets) go through the service: `request.mjs --sha <ref> --alone --step "<cmd>"` (runs after trains and PR suites).
@@ -823,15 +836,11 @@ puts it in CLAUDE.md on feature/menu). Laptop full runs: `RUN_GPU=1` (E2E_GPU=1)
 
 ## Resume prompt
 ```
-Night Shift | Test Runner (laptop, the MAIN test machine; GPU for every e2e run). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop", "Heavy-usage throughput" incl. "Token rules"), then the newest "Test Runner SAVE" block at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Do what it lists, in order.
+Night Shift | Test Runner (laptop, the MAIN test machine). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Test Runner" (ToolSearch if deferred). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop", "Heavy-usage throughput" incl. "Token rules"), then the newest "Test Runner SAVE" block at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Do what it lists, in order. If two Test Runner sessions show in ListAgents, close the older one.
 
-Start: check C:/NightShift/scratch/runs/<label>/summary.txt for each run the SAVE names (no DONE line = died in the swap: rerun) and C:/NightShift/heavy-4189.lock / heavy-4192.lock (a lock with no live node.exe is stale: taskkill /T /F, delete). If two Test Runner sessions show in ListAgents, close the older one.
+The queue is the SERVICE now (no hand-run chains, Orchestrator 20:26): task NightShift-laptop-queue runs scripts/laptop-queue/service.mjs from C:/NightShift/Mobile-Coop-laptop-queue-svc (follows origin/feature/laptop-queue, self-updates when idle); log + state C:/NightShift/scratch/laptop-queue/ (log.txt, runs/<id>/); verdicts are GitHub statuses laptop-e2e[/<set>] + PR comments on failure. Requests: node scripts/laptop-queue/request.mjs --sha <ref> (--suites "a b" | --full | --alone --step "<cmd>" [--env K=V]) --requester "<title>" (alone = perf / sheets, after trains and PR suites). Desktop overflow worker NightShift-desktop-queue (LQ_WORKER=desktop, pr only) claims via claims/<id>.json on the laptop-queue branch. Locks C:/NightShift/heavy-4189.lock / heavy-4192.lock (service lines "laptop-queue | ..."; a lock with no live node is stale).
 
-Runner: C:/NightShift/scratch/laptop-runner.ps1 (header explains; results runs/<label>/summary.txt, DONE at the end). RUN_GPU=1 always. Full runs and trains on -Slot 4189: RUN_JOBS=5 only while 4192 is idle, else 3. Singles on 4192 RUN_JOBS=1. Chain runs in C:/NightShift/scratch/chain-1023<x>.ps1 and launch each through a scheduled task (schtasks /create /sc once /st 23:59 /f /tn NightShift-chain-<x>-<slot> /tr "powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File <chain.ps1>", then schtasks /run): survives swaps. In a step passed to cmd /c write query flags as ^& unquoted. A PowerShell run list with one run needs an ArrayList.
+Your job: watch the service log, step in when it is stuck (say why, never kill a run without the user's OK: the classifier blocks taskkill), send ONE verdict per batch only where a status is not enough (perf / sheet results the requester needs read out, as a PR comment or a message to the job lead), and own laptop-queue PR #252 (docs/laptop-queue/STATE.md on feature/laptop-queue, worktree C:/NightShift/Mobile-Coop-laptop-queue). Message "Night Shift | Orchestrator" only on a train failure, PR open / train-ready, blocked, or needs Michael. Laptop CPU under ~80% with Guard AI Build. Then the "Common tail" in docs/orchestrator/PROMPTS.md on origin/feature/menu.
 
-Order: trains first, then PR / area suites, then measures that need 4189 alone (guard-cap, perf) only with no train queued. Laptop CPU under ~80% with Guard AI Build (it also runs here). One verdict message per batch: trains, guard-render PRs and train blockers to "Night Shift | Orchestrator"; other verdicts to the job lead (pass / fail per suite, failing assert, times, commit). Message the orchestrator only at PR open / train-ready / blocked / needs Michael; progress goes in this STATE.
-
-Own jobs: guard-render is CLOSED; voxel-retire is PR #236 (in train 30; worktree C:/NightShift/Mobile-Coop-voxel-retire). New own work only from the roadmap: Opus plans and checks, Sonnet 5.5 builds from strict briefs, Haiku 5.5 chores; branch guard before every write; one checker per batch. Every chain step that runs a different commit than the slot's last run starts with "build". The Bash tool may be blocked by the classifier: use PowerShell / Read / Grep.
-
-Burn: full burn to 100%; at the orchestrator's ~92% save commit agent worktrees as WIP + push, keep the SAVE block current, keep working. No mid-window clears unless past ~50% context. No polling turns. Native multiple choice only, hyphens not em dashes. Commits end with "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>".
+Burn: full burn to 100%; at the orchestrator's ~92% save push WIP, keep this SAVE current, keep working. No polling turns (Monitor / background waits). Native multiple choice only, hyphens not em dashes. Commits end with "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>".
 ```
