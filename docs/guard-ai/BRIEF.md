@@ -177,6 +177,25 @@ manoeuvre beats guard count. Every map's guards are armed (Answers 3).
   points; other live maps `MapLayout.guardAi.entries` of the alarm's section furthest from the player, else the furthest
   `MapLayout.reinforce` point; kinds unchanged (design Q4). No live map has entries yet. Undo: `joinReinforcement`
   (src/ai/enemyManager.ts) -> `e.alert()` (the old alerted spawn, standard profile).
+- **A32** (S10) A talking pair meets at the nearest pair of stops (one per route) within `PAIRS.meetMax` 6 m whose stays
+  overlap (`pickMeet`; a tie within 0.05 m goes to the longer stay), timed at the slower guard's `walkSpeed` (a timed loop
+  walks at `walkSpeed`, not the x1.1 patrol pace the module note assumed); the two clocks are lined up by each walker's
+  loop time when the second guard is placed. No timed loop, periods that differ or no overlap: no pair, logged
+  (`EnemyManager.pairSkips`, a console warning). Undo: `PAIRS.meetMax` / `pickMeet` (src/ai/pairs.ts), or add an explicit
+  meet-stop field with Course Ready and read it in `EnemyManager.buildPair`.
+- **A33** (S10) While meeting, both stand at their meet points facing each other until the talk ends (~6.7 s from the
+  meeting: lines at 1.0 and 4.2 s, then 2.5 s), even past the earlier stop's `leave`: the walker's clock and schedule run
+  on underneath, so a held guard walks on late and his next timed stop takes the delay back. (The module's `leaveR` split
+  therefore never fires in play.) Undo: in `Enemy.calmDecide` (src/ai/enemy.ts, the `pairFace` branch) return the
+  walker's point once he has arrived and the walker moves him on, so his schedule splits the talk.
+- **A34** (S10) A partner who never comes (down, held, despawned; `PAIRS.grace` 6 s after the window opens) opens a
+  `missing` board incident at his last route point with the one left as its only perceiver (he leads, the nearest free
+  guard covers; keyed by the missing guard's number) and the missing guard counts as missed for the squad radio checks
+  (not missed twice); parked modes: the one left searches himself. A disturbance that stops a talk without changing his
+  level is a look toward a sound (`hearTurn`), a post lure, or sight evidence above `PERCEPTION.leak`. The lines go
+  through the bark layer like any bark: shown over the speaker and as a subtitle with no earshot limit (the layer has
+  none), and not sent to a co-op client (no bark is). Undo: `EnemyManager.pairMissing` (src/ai/enemyManager.ts) calls
+  `goer.searchAt` in place of `report('missing', ...)`; `Enemy.disturbed`.
 
 ## Stealth over shooting (ROADMAP Decided 2026-10-23 ~10:10; plan S11-S15, `research/stealth-over-shooting.md`)
 Michael's theme, verbatim: "reward stealth over shooting as sections get harder"; on alarms: "dont add cameras, that
@@ -237,6 +256,24 @@ doesnt make sense". A32-A34 are S10's (on `feature/guard-ai-s10`).
 - **A51** (S12) The `deflect` hit marker is steel blue (`#8fb3d9`, `styles.css`) with a 2600 Hz ping (`sfx.hitMarker`);
   the HUD and sfx `hitMarker` signatures take the new kind. Undo: drop the CSS rule and the ping (falls back to the
   white hit marker).
+- **A52** (S13) A stage rise gives its gear to every living guard of the loaded section (Sector Ops loads one section)
+  on top of what he wears, so a guard whose own helmet was shot off gets a new one when stage 3 arrives. Undo: in
+  `EnemyManager.giveStageGear` skip the helmet for a guard who lost one (a flag set in `Enemy.knockHelmetOff`).
+- **A53** (S13) The sweep switches on when the team's leader (the first member up: the shield guard while he stands)
+  has searched `ALERT.searchTime`; members still searching follow him at once, a member in combat fights. The point
+  list is built at each switch from the last known position then (a sighting, the search, then a fresh order).
+  Undo: build once per team (`SweepTeam.begin` only when `switches === 0`).
+- **A54** (S13) Every pass starts at the team's own start point (`sweepStart`: team 0 at the point nearest the last
+  known position), so teams of different stages stay apart pass after pass. Undo: `this.start = 0` when `passes`
+  goes up in `SweepTeam.next`.
+- **A55** (S13) Followers stack on the leader's approach line (from the point back to him), rank x `SWEEP.gap`, jog
+  (0.6 x run speed) when more than 4.1 m off their place, and look the way he looks once there; the leader skips a
+  point his path cannot reach. A `SectorDef.sweep` list is used as given (only ordered, not thinned). Undo: `SWEEP.gap`;
+  pass `SWEEP.thin` for the override in `SweepTeam.begin`.
+- **A56** (S13) Sweep source: Sector Ops reads the section's guard list (route points, and the spawn point of each
+  guard with no route; dogs left out); other live maps read the guards placed in the alarm's section at the alarm
+  (dead ones included, dogs and team members left out). A woken team member takes his place back, counts as having
+  fought (never calms) and gets the stage gear. Undo: drop `e.aware.fought = true` in `EnemyManager.revive`.
 - **A60** (S15) The breaker walk is calm: the guard keeps his level (unaware or cooldown; suspicious only if a glimpse
   comes on the way, and the walk goes on once nothing is in sight); investigating or worse drops it. A fault is said
   aloud ("Breaker's gone again.", a new `breaker` bark, not a radio line) and starts no radio call; the other witnesses

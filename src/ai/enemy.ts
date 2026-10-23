@@ -49,6 +49,7 @@ import { CAUTION } from './awareness';
 import type { InstancedMesh } from '../core/babylon';
 import { BREAKER, gearHit, type GearHit, type GuardGear } from './gear';
 import { factionLook } from './factions';
+import { SWEEP_NEAR, type SweepTeam } from './sweepTeam';
 
 /** (guard-ai S12) Scratch for `gearHit` (one hit at a time; the damage path allocates nothing for gear). */
 const GEAR_OUT: GearHit = { mult: 1, knockOff: false, stagger: 0 };
@@ -1164,6 +1165,46 @@ export class Enemy implements Damageable {
   reason = '';
   /** (S10 hook) His talking-pair partner's slot index (the `pair` tag; -1 none); `EnemyManager.guardAtSlot` finds him. */
   pairSlot = -1;
+  /** (guard-ai S10) While his talking pair meets: the yaw that faces his partner (NaN: no meeting) and his meet point;
+   *  the manager writes them at every pair step (`EnemyManager.pairStep`). */
+  pairFace = Number.NaN;
+  readonly pairPt: P2 = [0, 0];
+  private readonly pairGoal: { point: P2 | null; speed: number; face: number | null } = { point: null, speed: 0, face: null };
+
+  // (guard-ai S10) his patrol route: `get patrolRoute()` (CT Core spare 9, after `setPatrol`)
+
+  /** (guard-ai S10) His timed loop's time now (s), NaN without one. */
+  loopTime(): number {
+    return this.walker.loopTime();
+  }
+
+  /** (guard-ai S10) The route point he is at or heading for (his post without a route), written into `out`. */
+  routePoint(out: P2): P2 {
+    const r = this.walker.route;
+    const p = r && r.points.length > 0 ? r.points[Math.min(this.walker.idx, r.points.length - 1)]! : this.post;
+    out[0] = p[0];
+    out[1] = p[1];
+    return out;
+  }
+
+  /** (guard-ai S10) Calm enough to stand and talk: unaware, not cautious, not on a board task, not held. */
+  get pairCalm(): boolean {
+    return this.aware.level === 'unaware' && this.caution === 0 && this.incident < 0 && !this.taken && this.camBody === null;
+  }
+
+  /** (guard-ai S10) Reacting to something that leaves his level as it is: a look toward a sound, a lure, a glimpse
+   *  building (sight evidence above the leak). A talk stops for it (`PairMeet.interrupt`). */
+  get disturbed(): boolean {
+    return this.turnT > 0 || this.lure.active || this.rate > PERCEPTION.leak;
+  }
+
+  /** (guard-ai S10) Say a talking pair's line: spoken (not radio), over his head like a bark; the line is the pair's
+   *  table string, so the voice table and its cooldown are skipped. */
+  sayLine(text: string): void {
+    if (!this.alive) return;
+    this.ctx.onBark?.(this, text, false);
+  }
+
   /** A dog's `handler` tag (slot index, -1 none) and the guard it is bound to once he is placed: it heels on him only,
    *  and stays by him when he goes down (`findLeader`). */
   handlerSlot = -1;
@@ -1205,6 +1246,71 @@ export class Enemy implements Damageable {
     this.entryK = 0;
     this.entryT = 0;
     this.radio(0);
+  }
+
+  /** (guard-ai S13, item 11) His response team (its sweep after the search; null: none; `team` is the damage side) and
+   *  his rank in it (written by `SweepTeam.tick`: 0 the leader, 1.. the stack behind him, -1 down or held). */
+  crew: SweepTeam<Enemy> | null = null;
+  teamRank = -1;
+  private readonly sweepP: P2 = [0, 0];
+  private readonly sweepGoal: { point: P2 | null; speed: number; face: number | null } = { point: null, speed: 0, face: null };
+
+  /** (guard-ai S13) His patrol route's points (null: none), for a response team's sweep source (alarm time only). */
+  get routePoints(): readonly (readonly [number, number])[] | null {
+    return this.walker.route?.points ?? null;
+  }
+
+  /** (guard-ai S13) His post centre (his spawn point), for a response team's sweep source. */
+  get postPoint(): readonly [number, number] {
+    return this.post;
+  }
+
+  /**
+   * (guard-ai S13, item 11, A39) The sweep, one step (searching, his team sweeping). The leader walks to the team's
+   * current point at the search pace and looks round it `SWEEP.dwell` s (an unreachable point is skipped); a follower
+   * keeps his place in the stack behind the leader (`SweepTeam.follow`), jogging when he is well behind, and looks the
+   * way the leader looks once there. The torch follows the searching rule (`torchWanted`). No allocation.
+   */
+  private sweepStep(dt: number, tm: SweepTeam<Enemy>): { point: P2 | null; speed: number; face: number | null } {
+    const out = this.sweepGoal;
+    const pace = this.def.walkSpeed * this.searchPace;
+    const p = this.sweepP;
+    const L = tm.leader;
+    if (L === this || L === null) {
+      const i = tm.point;
+      p[0] = tm.pts[2 * i]!;
+      p[1] = tm.pts[2 * i + 1]!;
+      const d = hyp2(p[0] - this.pos.x, p[1] - this.pos.z);
+      if (d <= SWEEP_NEAR) {
+        if (tm.dwellT === 0) this.lookBase = this.yaw;
+        tm.lead(dt, this.pos.x, this.pos.z);
+        this.spotArrived = true;
+        out.point = null;
+        out.speed = 0;
+        out.face = this.lookBase + Math.sin(tm.dwellT * 1.6) * 1.0;
+        return out;
+      }
+      tm.lead(dt, this.pos.x, this.pos.z);
+      const wp = this.goTo(p, dt);
+      // unreachable: on to the next one
+      if (!wp && this.routePath.length === 0) tm.next();
+      out.point = wp;
+      out.speed = pace;
+      out.face = null;
+      return out;
+    }
+    tm.follow(this.teamRank, L.pos.x, L.pos.z, p);
+    const d = hyp2(p[0] - this.pos.x, p[1] - this.pos.z);
+    if (d < 0.8) {
+      out.point = null;
+      out.speed = 0;
+      out.face = L.yaw;
+      return out;
+    }
+    out.point = this.goTo(p, dt, 0.8);
+    out.speed = d > SWEEP_NEAR + 3 ? this.def.runSpeed * 0.6 : pace;
+    out.face = null;
+    return out;
   }
   private readonly lure = new PostLure();
   private readonly lureOut: PostLureOut = { x: 0, z: 0, yaw: 0, moving: false, phase: LURE.idle };
@@ -1833,6 +1939,24 @@ export class Enemy implements Damageable {
           }
         }
         const g = this.walker.step(dt, this.pos.x, this.pos.z);
+        // (guard-ai S10) his talking pair is meeting: on to his meet point, then stand there facing his partner. The
+        // walker still steps (its clock and schedule run on): he walks on late after the talk and the timed loop's
+        // next stop takes the delay back
+        const pf = this.pairFace;
+        if (pf === pf) {
+          const pg = this.pairGoal;
+          const pp = this.pairPt;
+          if (hyp2(pp[0] - this.pos.x, pp[1] - this.pos.z) > PATROL.arrive) {
+            pg.point = this.goTo(pp, dt, 0.05) ?? pp;
+            pg.speed = def.walkSpeed;
+            pg.face = null;
+          } else {
+            pg.point = null;
+            pg.speed = 0;
+            pg.face = pf;
+          }
+          return pg;
+        }
         const ly = this.walker.lookYaw;
         // (walls in the way: along an A* path; the walker's own arrival radius decides when it is there)
         const wp = g ? (this.goTo(g, dt, 0.05) ?? g) : null;
@@ -1870,6 +1994,9 @@ export class Enemy implements Damageable {
             return { point: this.goTo(this.spot, dt, 0.9), speed: def.walkSpeed * PACE.revive, face: null };
           }
         }
+        // (guard-ai S13) a response team past its search of the last known position sweeps the section
+        const crew = this.crew;
+        if (lvl === 'searching' && crew && crew.sweeping) return this.sweepStep(dt, crew);
         if (lvl === 'investigating' && this.lc.active) return this.lightStep(dt);
         if (lvl === 'investigating') {
           // the latest stimulus is the spot

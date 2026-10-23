@@ -5,6 +5,7 @@ import { SOCKET_YAW, socketLocal } from '../ai/carryPose';
 import type { Body } from '../ai/body';
 import { BODY } from '../ai/bodies';
 import { ALARM, type AlarmPanel } from '../ai/alarm';
+import { RESPONSE, responseTeam } from '../ai/gear';
 import type { EnemyManager } from '../ai/enemyManager';
 import type { EnemyKind } from '../ai/enemyDefs';
 import type { Enemy } from '../ai/enemy';
@@ -624,11 +625,24 @@ export class StealthSystems {
     if (!ent && !at) return;
     const base = ent ? new Vector3(ent.at[0], ent.y ?? Number.NaN, ent.at[1]) : at!;
     const yaw = ent?.yaw ?? 0;
-    for (let i = 0; i < ALARM.squad; i++) {
-      const r = em.spawnReinforcement(kinds[i % kinds.length]!, base.add(new Vector3(i * 1.3 - 1.3, 0, 0)), yaw, e.section, ent?.route ?? null);
-      if (r) g.mode?.onEnemyJoined?.(r);
+    // (guard-ai S13, items 3 and 11, A38) a response team in place of grunt, grunt, heavy (no heavies in the co-op
+    // missions, G155): the shield guard first (helmeted), then armed guards (`RESPONSE.liveTeam`); the one alarm is
+    // stage 1 (no stage gear). It sweeps the section's guard routes and posts after its search.
+    const n = responseTeam(1, RESPONSE.liveTeam, this.teamKinds);
+    em.sweepSource(e.section, this.teamRoutes, this.teamPosts);
+    const team = em.newTeam(e.section, null, this.teamRoutes.slice(), this.teamPosts.slice());
+    for (let i = 0; i < n; i++) {
+      const r = em.spawnReinforcement(this.teamKinds[i]!, base.add(new Vector3(i * 1.3 - 1.3, 0, 0)), yaw, e.section, ent?.route ?? null);
+      if (!r) continue;
+      em.joinTeam(r, team);
+      g.mode?.onEnemyJoined?.(r);
     }
   }
+
+  /** (guard-ai S13) Scratch for the response team's kinds and sweep source. */
+  private readonly teamKinds: EnemyKind[] = [];
+  private readonly teamRoutes: (readonly (readonly [number, number])[])[] = [];
+  private readonly teamPosts: (readonly [number, number])[] = [];
 
   /** (guard-ai S6) Scratch for the alarm section's entries. */
   private readonly entryScratch: ReinforceEntry[] = [];

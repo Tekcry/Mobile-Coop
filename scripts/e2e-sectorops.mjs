@@ -241,6 +241,10 @@ await run(PARAMS, async ({ page, G, sim }) => {
         }
       }
       best.alert();
+      // (guard-ai S6 stack-tip fix) the panel path only: his contact call is cut at once, so nothing gets through and no
+      // command call is owed (S6 A29: contact cut first = no radio alarm); else the command call (callIn + report, ~6.5 s
+      // x reaction) beats his run to the panel. He stays in combat and is still the panel runner.
+      em.radioNet.cut(best.num);
     });
     let runner = null;
     for (let k = 0; k < 12 && !runner; k++) {
@@ -1999,13 +2003,16 @@ if (want(1)) {
       out.kind = B.incident >= 0 ? em.board.kindOf(B.incident) : null;
       let close = 99;
       let found = false;
+      let light = 0;
       for (let k = 0; k < 400 && !found; k++) {
         step(0.1);
         close = Math.min(close, Math.hypot(B.pos.x - ax, B.pos.z - az), Math.hypot(C.pos.x - ax, C.pos.z - az));
         const b = em.bodies.find((q) => q.enemyId === A.id);
+        if (b) light = b.light;
         found = !b || b.found;
       }
-      Object.assign(out, { close, found });
+      // (stack-tip fix) the game's find range for that body: sight in focus at its light (BODY.close at the least)
+      Object.assign(out, { close, found, light, reach: em.bodyNoticeRange(light) });
       for (const e of [...em.enemies]) em.despawn(e);
       // (b) the dog: handler H walks a round; a squad mate D stands beside the dog's spawn
       const slotsB = [
@@ -2045,15 +2052,156 @@ if (want(1)) {
       return out;
     }, site.at);
     const f2 = (v) => v.toFixed(2);
-    console.log(`  squad ${JSON.stringify(r.squads)}, before ${JSON.stringify(r.before)}, incident ${r.inc} (${r.kind}), closest ${f2(r.close)} m, found ${r.found}; dog far ${f2(r.far)} m (handler moved ${f2(r.hMove)} m; the squad mate ${f2(r.decoy)} m off at the end), stay ${f2(r.stay)} m (${r.dogLevel})`);
+    console.log(`  squad ${JSON.stringify(r.squads)}, before ${JSON.stringify(r.before)}, incident ${r.inc} (${r.kind}), closest ${f2(r.close)} m (find range ${f2(r.reach)} m at light ${f2(r.light)}), found ${r.found}; dog far ${f2(r.far)} m (handler moved ${f2(r.hMove)} m; the squad mate ${f2(r.decoy)} m off at the end), stay ${f2(r.stay)} m (${r.dogLevel})`);
     assert(r.squads[0] === r.squads[1] && r.squads[1] === r.squads[2] && r.squads[0] >= 0, `sector tags: the three join one squad (${r.squads})`);
     assert(r.before.b === -1 && r.before.c === -1, `sector tags: nobody knows before the radio check (incidents ${r.before.b} / ${r.before.c}, ${r.before.bl} / ${r.before.cl})`);
     assert(r.misses === 1, `sector tags: the radio check misses him (${r.misses})`);
     assert(r.inc[0] >= 0 && r.inc[0] === r.inc[1] && r.kind === 'missing', `sector tags: the other two are sent as a pair to a missing incident (${r.inc}, ${r.kind})`);
-    assert(r.close < 2.5 && r.found, `sector tags: they reach where he went down and find him (${f2(r.close)} m, found ${r.found})`);
+    // (stack-tip fix) found by sight, not only inside BODY.close (2.5 m, the old bound): a guard notices a body at up to
+    // `bodyNoticeRange(light)` m straight ahead (BODY.range x the falloff at BODY.threshold, BODY.close at the least);
+    // + 0.5 m for the think interval (0.22-0.3 s) and the body's 1 Hz light sample. The laptop run found him at 3.93 m.
+    assert(r.close < r.reach + 0.5 && r.found, `sector tags: they reach where he went down and find him (${f2(r.close)} m, find range ${f2(r.reach)} m, found ${r.found})`);
     assert(r.bound && r.leader, `sector tags: the dog is bound to its handler, in his squad (${r.bound}, leader ${r.leader})`);
     assert(r.hMove > 6 && r.far < 3.5, `sector tags: the dog stays at its handler on his round (${f2(r.far)} m off; he walked ${f2(r.hMove)} m)`);
-    assert(r.dogAlive && r.stay < 3.5, `sector tags: the handler down, the dog stays by him (${f2(r.stay)} m, ${r.dogLevel})`);
+    // (stack-tip fix) the handler down, the dog searches round him (`handlerDown` -> `searchAt` on his spot), on the search
+    // rings (patrol.ts `searchPoint`: PATROL.searchR0 2 m, then + searchStep 2.5 m): in the 5-15 s window it reaches the
+    // second ring at most (4.5 m) + 0.5 m for the walk past a point. The old 3.5 m cut the second ring (3.72 m seen).
+    assert(r.dogAlive && r.stay < 5, `sector tags: the handler down, the dog stays by him (${f2(r.stay)} m, ${r.dogLevel})`);
+  });
+}
+
+// (guard-ai S10, GA2, the `pair` tag) Talking pairs, on guards built with the test hook (spawn + a timed loop + placeSlot
+// with a stand-in section list naming each other as `pair`; no map data edited). Two lanes 1.2 m apart (z and z + 1.2):
+// A walks the south lane from x + 3.2, B the north lane from x; both stop at x + 5 (their meet stops, 1.2 m apart) on a
+// 40 s master clock. (a) Both up: they meet, face each other, say two lines (one each, over the speaker on the HUD), then
+// split on their schedule. (b) B knocked out at his first stop before the window (3.4 m behind A's back, unseen): `grace`
+// s after the window opens A is sent (a `missing` incident, the lead) to B's last stop, reaches it and finds him.
+if (want(1)) {
+  console.log('talking pairs (guard-ai S10): a pair meets, talks, splits; take one before the meeting and the other searches');
+  await run(PARAMS, async ({ G, sim }) => {
+    await G(() => { const g = window.__app.current; g.target.damageMul = 0; if (g.security) g.security.fixedUpdate = () => {}; if (window.__ctdev) window.__ctdev.fixedUpdate = () => {}; });
+    await sim(0.5);
+    const S = await sections(G);
+    // two clear lanes 9 m east, 1.2 m apart, nearest section 1's objective first
+    const site = await G((o) => {
+      const nav = window.__app.current.enemyMgr.nav;
+      const cells = [];
+      for (let c = 0; c < nav.walk.length; c++) {
+        if (!nav.walk[c]) continue;
+        const [x, z] = nav.center(c);
+        const y = nav.height[c];
+        if (Math.abs(y - o[1]) > 1.5) continue;
+        cells.push([Math.hypot(x - o[0], z - o[2]), x, y, z]);
+      }
+      cells.sort((a, b) => a[0] - b[0]);
+      for (const [, x, y, z] of cells) {
+        if (nav.lineClear([x, z], [x + 9, z], y, y) && nav.lineClear([x, z + 1.2], [x + 9, z + 1.2], y, y) && nav.lineClear([x + 5, z], [x + 5, z + 1.2], y, y)) return { at: [x, y, z] };
+      }
+      return { at: null, cells: cells.length };
+    }, S[0].obj);
+    assert(site.at !== null, `talking pairs: two open lanes on section 1's storey (${site.cells} cells)`);
+    const r = await G(([cx, cy, cz]) => {
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const V = g.player.position.constructor;
+      for (const e of [...em.enemies]) em.despawn(e);
+      g['updateLight'] = () => (g.localRef.light = g.lightLevel = 0);
+      g.player.controller.teleport(new V(cx - 40, cy, cz - 40), 0);
+      // no squad radio check in the middle of it (the pair's own miss is under test)
+      em['radioT'] = 1e9;
+      const step = (s) => window.__app.loop.stepHeadless(s);
+      const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+      const hit = (e) => ({ amount: 9999, point: e.pos.clone(), dir: new V(0, 0, 1), part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: 'local', sourcePos: e.pos.clone(), impulse: 1 });
+      const said = [];
+      const prevBark = em.onBark;
+      em.onBark = (e, line, radio) => {
+        prevBark?.(e, line, radio);
+        said.push({ id: e.id, line, radio, hud: g.hud.barks.shown.includes(line) });
+      };
+      const slots = [
+        { kind: 'grunt', x: cx + 3.2, z: cz, yaw: Math.PI / 2, pair: 1, route: [[cx + 3.2, cz], [cx + 5, cz], [cx + 8, cz]], loop: { period: 40, leave: [3, 18, 30], t0: 0 } },
+        { kind: 'grunt', x: cx, z: cz + 1.2, yaw: Math.PI / 2, pair: 0, route: [[cx, cz + 1.2], [cx + 5, cz + 1.2], [cx + 8.5, cz + 1.2]], loop: { period: 40, leave: [1, 18, 30], t0: 0 } },
+      ];
+      const make = () =>
+        slots.map((s, i) => {
+          const e = em.spawn(s.kind, new V(s.x, cy, s.z), false, s.yaw);
+          e.setPatrol({ points: s.route, loop: s.loop });
+          em.placeSlot(e, s, 0, slots, i);
+          return e;
+        });
+      const out = {};
+      // (a) both up
+      const [A, B] = make();
+      const p = em.pairs[0];
+      out.built = { n: em.pairs.length, skips: em.pairSkips.slice(), open: p ? p.pm.def.open : -1, close: p ? p.pm.def.close : -1 };
+      let faceA = 9;
+      let faceB = 9;
+      let atA = 99;
+      let met = -1;
+      for (let k = 0; k < 250; k++) {
+        step(0.1);
+        if (p && p.pm.state === 'meeting') {
+          if (met < 0) met = (k + 1) * 0.1;
+          // after the calm turn has had a second
+          if ((k + 1) * 0.1 > met + 1.5) {
+            faceA = Math.min(faceA, Math.abs(wrap(A.yaw - Math.atan2(B.pos.x - A.pos.x, B.pos.z - A.pos.z))));
+            faceB = Math.min(faceB, Math.abs(wrap(B.yaw - Math.atan2(A.pos.x - B.pos.x, A.pos.z - B.pos.z))));
+            atA = Math.min(atA, Math.hypot(A.pos.x - (cx + 5), A.pos.z - cz));
+          }
+        }
+      }
+      const pairSaid = said.filter((s) => s.id === A.id || s.id === B.id);
+      out.a = { met, faceA, faceB, atA, lines: em.pairLines, said: pairSaid, levels: [A.level, B.level], state: p ? p.pm.state : null, split: Math.hypot(A.pos.x - (cx + 5), A.pos.z - cz) };
+      for (const e of [...em.enemies]) em.despawn(e);
+      // (b) B knocked out at his first stop before the window, behind A's back
+      said.length = 0;
+      const lines0 = em.pairLines;
+      const [A2, B2] = make();
+      const p2 = em.pairs[0];
+      step(0.5);
+      B2.knockOut(hit(B2));
+      const bx = B2.pos.x;
+      const bz = B2.pos.z;
+      let sentT = -1;
+      let kind = null;
+      let close = 99;
+      let found = false;
+      let light = 0;
+      for (let k = 0; k < 500 && !found; k++) {
+        step(0.1);
+        const t = 0.5 + (k + 1) * 0.1;
+        if (sentT < 0 && em.pairMisses > 0) {
+          sentT = t;
+          kind = A2.incident >= 0 ? em.board.kindOf(A2.incident) : null;
+        }
+        if (sentT >= 0) close = Math.min(close, Math.hypot(A2.pos.x - bx, A2.pos.z - bz));
+        const b = em.bodies.find((q) => q.enemyId === B2.id);
+        if (b) light = b.light;
+        found = !b || b.found;
+      }
+      // (stack-tip fix) the game's find range for that body (as the sector tags block)
+      out.b = { open: p2 ? p2.pm.def.open : -1, sentT, kind, close, found, light, reach: em.bodyNoticeRange(light), misses: em.pairMisses, lines: em.pairLines - lines0, radioMisses: em.radioMisses, witnessed: em.lastWitnesses };
+      for (const e of [...em.enemies]) em.despawn(e);
+      em.onBark = prevBark;
+      g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
+      return out;
+    }, site.at);
+    const f2 = (v) => v.toFixed(2);
+    console.log(`  built ${JSON.stringify(r.built)}; met at ${f2(r.a.met)} s, facing off ${f2(r.a.faceA)} / ${f2(r.a.faceB)} rad, ${f2(r.a.atA)} m from his stop, lines ${r.a.lines} ${JSON.stringify(r.a.said.map((s) => s.line))}, then ${r.a.state}, ${f2(r.a.split)} m off; missing: open ${f2(r.b.open)} s, sent at ${f2(r.b.sentT)} s (${r.b.kind}), closest ${f2(r.b.close)} m (find range ${f2(r.b.reach)} m at light ${f2(r.b.light)}), found ${r.b.found}, lines ${r.b.lines}`);
+    assert(r.built.n === 1 && r.built.skips.length === 0, `talking pairs: the pair is built (${r.built.n}, skips ${JSON.stringify(r.built.skips)})`);
+    assert(r.a.met > 0 && r.a.met < 18, `talking pairs: they meet inside the window (${f2(r.a.met)} s, window ${f2(r.built.open)}..${f2(r.built.close)})`);
+    assert(r.a.faceA < 0.35 && r.a.faceB < 0.35 && r.a.atA < 0.8, `talking pairs: they stand at their stops facing each other (${f2(r.a.faceA)} / ${f2(r.a.faceB)} rad, ${f2(r.a.atA)} m)`);
+    assert(r.a.lines === 2 && r.a.said.length === 2 && r.a.said[0].id !== r.a.said[1].id, `talking pairs: two lines, one each (${r.a.lines}, ${JSON.stringify(r.a.said)})`);
+    assert(r.a.said.every((s) => !s.radio && s.hud), `talking pairs: spoken (not radio) and shown over the speaker (${JSON.stringify(r.a.said)})`);
+    assert(r.a.levels.every((l) => l === 'unaware') && r.a.split > 2, `talking pairs: calm throughout, then they split on their schedule (${r.a.levels}, ${f2(r.a.split)} m off his stop)`);
+    assert(r.b.lines === 0 && r.b.misses === 1, `talking pairs: no talk with one down; one missing request (${r.b.lines} lines, ${r.b.misses})`);
+    // (S10 check) the pair clock steps 0.2 s at a time and may lead the walkers by up to one step, and the grace counts
+    // from the step the window opens: the request lands 5.6 .. 6.0 s after the window opens, read at 0.1 s
+    assert(r.b.sentT >= r.b.open + 6 - 0.45 && r.b.sentT <= r.b.open + 6 + 0.5, `talking pairs: the request ${f2(r.b.sentT)} s, grace 6 s after the window opens (${f2(r.b.open)} s)`);
+    assert(r.b.kind === 'missing', `talking pairs: the other is sent on a missing incident (${r.b.kind})`);
+    // (stack-tip fix) found by sight within the game's find range, not only inside BODY.close (see the sector tags block;
+    // the laptop run found him at 4.44 m). `lines` 0 above is right: part (b) has no meeting (B is down before the window)
+    assert(r.b.close < r.b.reach + 0.5 && r.b.found, `talking pairs: he searches at his partner's stop and finds him (${f2(r.b.close)} m, find range ${f2(r.b.reach)} m, found ${r.b.found})`);
   });
 }
 
@@ -2267,6 +2415,105 @@ if (want(1)) {
     const closed = r.dl0.map((d, i) => d - r.dl1[i]);
     assert(r.dl1.every((d) => d < 4) || closed.some((d) => d > 4), `S6: they close on it (${r.dl0.map(f2)} -> ${r.dl1.map(f2)} m in 7 s; walk ${r.walk})`);
     assert(r.lv2.every((l) => l === 'alert' || l === 'searching' || l === 'down'), `S6: still hunting 38 s on (never calm: alertState pins the endless search) (${r.lv2})`);
+  });
+}
+
+// (guard-ai S13, stealth over shooting items 3, 4, 11; A37-A39) Response teams. Section 1 with its loaded guards, the
+// live panel off, the cameras held (their own clock: this checks the stage changes none of them), the player far off in
+// the dark (no damage), a last known position set in the section. Three alarms by the mode's own path (`onAlarm`):
+// stage 2 -> every living guard wears armour, stage 3 -> a helmet too; each stage's team leads with a shield guard
+// (`enforcer`, helmeted), perStage strong; the camera count and states never change. Then hide: after the search of the
+// last known position (`ALERT.searchTime`) the first team sweeps (it switches to the sweep and looks at sweep points),
+// and at 120 s every member is still hunting (searching or in combat), none calm. Sim-time steps only; Math.random
+// seeded (as e2e-stealth-ai 'lkp').
+if (want(1)) {
+  console.log('sector ops: response teams: stage gear, shield-led teams, the sweep after the search (guard-ai S13)');
+  await run(PARAMS, async ({ G, sim }) => {
+    await G(() => { const g = window.__app.current; g.target.damageMul = 0; if (g.security) g.security.fixedUpdate = () => {}; if (window.__ctdev) window.__ctdev.fixedUpdate = () => {}; });
+    await sim(0.5);
+    const S = await sections(G);
+    const r = await G((o) => {
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const m = window.__sector;
+      const nav = em.nav;
+      const V = g.player.position.constructor;
+      const step = (s) => window.__app.loop.stepHeadless(s);
+      window.__s13rnd = Math.random;
+      let seed = 1313;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      for (const p of em.alarms) p.disabled = true;
+      g['updateLight'] = () => (g.localRef.light = g.lightLevel = 0);
+      g.player.controller.teleport(new V(o[0] - 40, o[1], o[2] - 40), 0);
+      const c = nav.nearestWalkable(o[0], o[2], 6, o[1]);
+      const [x, z] = nav.center(c);
+      em.lkp.set(x, nav.height[c], z);
+      em.lkpValid = true;
+      em.sightT = 0;
+      const ct = m.ct;
+      const cams = () => JSON.stringify(ct.cams.map((k) => [k.def.id, k.mode, k.range, k.frozen, ct.live(k.def.id)]));
+      const cam0 = { n: ct.cams.length, s: cams() };
+      const living = () => em.enemies.filter((e) => e.alive && !e.dog);
+      const out = { stage0: m.run.alarm, perStage: g.world.map.sectors[0].perStage, cam0: cam0.n };
+      m.onAlarm();
+      step(0.6);
+      out.stage1 = m.run.alarm;
+      out.gear1 = living().map((e) => [e.helmet, e.armour]);
+      m.onAlarm();
+      step(0.6);
+      out.stage2 = m.run.alarm;
+      out.armour2 = living().map((e) => e.armour);
+      m.onAlarm();
+      step(0.6);
+      out.stage3 = m.run.alarm;
+      out.both3 = living().map((e) => e.helmet && e.armour);
+      out.teams = em.teams.map((t) => t.members.map((e) => e.def.kind));
+      out.shieldHelmet = em.teams.map((t) => t.members[0]?.helmet === true);
+      out.camN = ct.cams.length;
+      out.camSame = cams() === cam0.s;
+      out.ctAlarm = ct.alarm;
+      window.__s13 = { x, z, t: 1.8, firstSweep: -1, maxVisited: 0, lead0: null, moved: 0 };
+      return out;
+    }, S[0].obj);
+    // (the warehouse sections set no `gear` default and no slot tags: only the stage gives armour)
+    assert(r.stage1 === r.stage0 + 1 && r.gear1.every(([, a]) => !a), `S13: stage 1 brings a team, no stage armour yet (${JSON.stringify(r.gear1)})`);
+    assert(r.stage2 === r.stage0 + 2 && r.armour2.every(Boolean), `S13: stage 2: every living guard wears armour (${r.armour2})`);
+    assert(r.stage3 === r.stage0 + 3 && r.both3.every(Boolean), `S13: stage 3: every living guard wears armour and a helmet (${r.both3})`);
+    assert(r.teams.length === 3 && r.teams.every((t) => t[0] === 'enforcer' && t.length === r.perStage && t.slice(1).every((k) => k === 'grunt')), `S13: each stage's team leads with a shield guard, perStage ${r.perStage} strong (${JSON.stringify(r.teams)})`);
+    assert(r.shieldHelmet.every(Boolean), `S13: the shield guard always wears a helmet (${r.shieldHelmet})`);
+    assert(r.camN === r.cam0 && r.camSame && r.ctAlarm === r.stage3, `S13: no camera added, woken or retuned across the stages (${r.cam0} -> ${r.camN}, same states ${r.camSame}; devices show stage ${r.ctAlarm})`);
+    // hide: 10 s chunks to 120 s after the first alarm, the first team watched
+    let w = null;
+    for (let k = 0; k < 12; k++) {
+      w = await G(() => {
+        const em = window.__app.current.enemyMgr;
+        const s = window.__s13;
+        const t = em.teams[0];
+        for (let i = 0; i < 20; i++) {
+          window.__app.loop.stepHeadless(0.5);
+          s.t += 0.5;
+          if (t.sweeping && s.firstSweep < 0) s.firstSweep = s.t;
+          s.maxVisited = Math.max(s.maxVisited, t.visited);
+          const L = t.leader;
+          if (L && t.sweeping) {
+            if (!s.lead0) s.lead0 = [L.pos.x, L.pos.z];
+            s.moved = Math.max(s.moved, Math.hypot(L.pos.x - s.lead0[0], L.pos.z - s.lead0[1]));
+          }
+        }
+        const all = em.teams.flatMap((q) => q.members);
+        return { t: s.t, firstSweep: s.firstSweep, visited: s.maxVisited, moved: s.moved, switches: t.switches, count: t.count, lv: all.map((e) => (e.alive ? e.level : 'down')), lead: t.members[0]?.def.kind };
+      });
+    }
+    await G(() => {
+      const g = window.__app.current;
+      g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
+      if (window.__s13rnd) Math.random = window.__s13rnd;
+    });
+    const searchT = 60;
+    assert(w.count > 0 && w.firstSweep >= searchT, `S13: the team sweeps only after its search of the last known position (${searchT} s; first sweep at ${w.firstSweep} s, ${w.count} points)`);
+    assert(w.visited >= 1 && w.moved > 2, `S13: the team moves between sweep points (looked at ${w.visited}, the leader moved ${w.moved.toFixed(1)} m; switches ${w.switches})`);
+    assert(w.t >= 120 && w.lv.every((l) => l === 'searching' || l === 'alert' || l === 'down') && !w.lv.includes('cooldown') && !w.lv.includes('unaware'), `S13: still hunting at ${w.t} s, none calm (${w.lv})`);
+    assert(w.lead === 'enforcer', `S13: the shield guard still first in the team (${w.lead})`);
   });
 }
 
