@@ -400,8 +400,8 @@ export function buildCampusS4(b: LevelBuilder): void {
   wall(b, true, 42, -4, 34.15, 0, R, [doorHole(2, 0), doorHole(20, 0), [-3.5, 7.5, 4.6, 6.6], [31.55, 32.65, S4_BASKET, 6.4]]);
   doorAt(b, true, 42, 2, 0, -1);
   doorAt(b, true, 42, 20, 0, -1);
-  // the NOC's window: the L10 fence fallback (fence panels, the wall head above)
-  b.fence(-3.5, 42, 7.5, 42, 2.0, 4.6);
+  // the NOC's window (E2): clear glass on the old L10 fence line (the wall head above); E10 makes it armoured (arm-noc)
+  b.glass(-3.5, 42, 7.5, 42, 2.0, 4.6);
 
   // ---- the pods P1-P5
   for (const x0 of S4_PODS) pod(b, x0);
