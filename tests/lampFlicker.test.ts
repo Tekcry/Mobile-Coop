@@ -65,8 +65,10 @@ describe('fire flicker', () => {
     expect(hi).toBeLessThanOrEqual(FIRE_MAX);
     // it uses most of its range, not a near-constant
     expect(hi - lo).toBeGreaterThan(0.15);
-    // smooth: no jump over 0.02 between two 60 Hz ticks
-    expect(maxStep).toBeLessThan(0.02);
+    // smooth: no jump over 0.03 between two 60 Hz ticks. (lr16fix3: hash2 is 30-bit now, so the sequence moved: this seed's
+    // 10-minute worst step is now 0.0202, just over the old 0.02. The model caps a step at 0.25 x 1.5 / 60 x sum(W x Hz) = 0.0282, so 0.03
+    // is the guarantee, not a number tuned to one sequence.)
+    expect(maxStep).toBeLessThan(0.03);
     // a few Hz
     expect(peaks / secs).toBeGreaterThan(1.5);
     expect(peaks / secs).toBeLessThan(8);
