@@ -10,16 +10,18 @@ export const KIT_FILE = 'scripts/operators/data/guards.json';
 const HASH_VERSION = 1;
 
 /**
- * The stage graph in run order. `deps` are the stages whose outputs the stage reads; heads and gear need only the kit
- * data (guards.json). `prep` (G1) is one node job: each base's skeleton from the game rig (`joints/guard-<base>.json`)
- * and the MakeHuman data (`mpfb2/`) under the out dir, which the bodies read.
+ * The stage graph in run order. `deps` are the stages whose outputs the stage reads. Heads (G1h fix round) build on
+ * G1's fit of the base (guard_body.GuardFit over prep's joints and MakeHuman data), so they need prep; gear pieces fitted
+ * on the head envelope (`fit: 'headEnvelope'`) need the job that writes `heads/<base>/envelope.json`. `prep` (G1) is one
+ * node job: each base's skeleton from the game rig (`joints/guard-<base>.json`) and the MakeHuman data (`mpfb2/`) under
+ * the out dir, which the bodies and heads read.
  */
 export const STAGES = [
   { name: 'prep', deps: [] },
   { name: 'bodies', deps: ['prep'] },
-  { name: 'heads', deps: [] },
+  { name: 'heads', deps: ['prep'] },
   { name: 'garments', deps: ['bodies'] },
-  { name: 'gear', deps: ['bodies'] }, // G3's gear fits read bodies/guard-<base>-body.json
+  { name: 'gear', deps: ['bodies', 'heads'] }, // G3's gear fits read bodies/guard-<base>-body.json (+ the head envelope)
   { name: 'lods', deps: ['bodies', 'heads', 'garments', 'gear'] },
   { name: 'check', deps: ['lods'] },
   { name: 'sheet', deps: ['check'] },
@@ -47,7 +49,7 @@ export const GPU_STAGES = new Set(['heads', 'lods']);
 const LIBS = {
   prep: [],
   bodies: ['common.py', 'mh.py', 'guard_body.py'],
-  heads: ['common.py', 'mh.py', 'materials.py', 'guard_skin.py'],
+  heads: ['common.py', 'mh.py', 'materials.py', 'guard_skin.py', 'guard_body.py'],
   garments: ['common.py', 'pattern.py', 'build_garment.py', 'garment_details.py', 'fitted.py', 'materials.py', 'garments/torso_common.py'],
   gear: ['common.py', 'rigid_skin.py', 'materials.py', 'gear/__init__.py', 'gear/fit.py', 'gear/mesh.py', 'gear/headwear.py', 'gear/helmet.py',
     'gear/torso.py', 'gear/shield.py', 'gear/kit.py', 'gear/pieces.py'],
@@ -117,6 +119,8 @@ const GARMENT_PARTS = {
 };
 /** Kind lists whose ids are gear jobs of the kind's base (the outfit is a garment, hair caps are a heads job). */
 const KIND_PIECE_LISTS = ['headwear', 'headwear2', 'eyewear', 'fixedGear', 'gameplayGear', 'kitPool'];
+/** Gear fits that sit over the head envelope (G3 `fit`; G1h writes the envelope): their jobs need the envelope's job. */
+const ENVELOPE_FIT = new Set(['headEnvelope']);
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
@@ -262,6 +266,13 @@ export function jobsFor(stage, kit, opts = {}) {
   const common = (j) => ['--stage', stage, '--job', j];
   const gearIds = (b) => nk.pieces.filter((p) => !nk.pieceUse || nk.pieceUse[b]?.has(p.id)).map((p) => idOf('gear', b, p.id));
   const capsOf = (b) => nk.hairCapBases.filter((h) => h.base === b).map((h) => idOf('haircaps', h.base));
+  // heads (G1h): the base entry (macro, refHeight) shapes every head; the job writing a base's envelope + eye block is
+  // its hair-cap job, else its single head's job (guardHeadCheck.mjs envelopeJob); the PNGs and envelope are outputs
+  const baseEntry = (id) => nk.bases.find((b) => b.id === id);
+  const envelopeJob = (b) => (capsOf(b).length ? idOf('haircaps', b) : headsOf(b).length === 1 ? idOf('heads', headsOf(b)[0].id) : null);
+  const MAPS = ['albedo', 'normal', 'orm'];
+  const envOutputs = (b) => [`heads/${b}/envelope.json`, ...MAPS.map((m) => `heads/guard-${b}-eyes-${m}.png`)];
+  const envNeeds = (b, p) => (ENVELOPE_FIT.has(p.fit) && envelopeJob(b) ? [envelopeJob(b)] : []);
   const out = {
     // the joints come from the game's TypeScript (proportions, the rig layout, the clavicle point): those files join the hash
     prep: () => [make('prep', {
@@ -274,7 +285,9 @@ export function jobsFor(stage, kit, opts = {}) {
     })),
     heads: () => nk.heads.map((h) => make(idOf('heads', h.id), {
       script: 'build_head.py', args: [...common(idOf('heads', h.id)), '--base', h.base, '--head', h.id], tags: [h.id, h.base],
-      kit: slice(nk, h), outputs: [`heads/guard-${h.id}-head.blend`, `heads/guard-${h.id}-head.json`],
+      needs: ['prep'], kit: { ...slice(nk, h), base: baseEntry(h.base) },
+      outputs: [`heads/guard-${h.id}-head.blend`, `heads/guard-${h.id}-head.json`, ...MAPS.map((m) => `heads/guard-${h.id}-face-${m}.png`),
+        ...(envelopeJob(h.base) === idOf('heads', h.id) ? envOutputs(h.base) : [])],
     })),
     garments: () => nk.bases.flatMap((b) => garmentsOf(b.id).map((g) => make(idOf('garments', b.id, g.id), {
       script: g.script ?? `garments/${g.id}.py`, args: [...common(idOf('garments', b.id, g.id)), '--base', b.id, '--garment', g.id, ...(g.variant ? ['--variant', g.variant] : [])],
@@ -285,7 +298,7 @@ export function jobsFor(stage, kit, opts = {}) {
       ...nk.bases.flatMap((b) => nk.pieces.map((p) => make(idOf('gear', b.id, p.id), {
         script: p.script ?? 'build_gear.py', args: [...common(idOf('gear', b.id, p.id)), '--base', b.id, '--piece', p.id],
         tags: [b.id, p.id], kit: { ...slice(nk, p), base: b },
-        outputs: [`gear/guard-${b.id}-${p.id}.blend`, `gear/guard-${b.id}-${p.id}.json`], needs: [idOf('bodies', b.id)],
+        outputs: [`gear/guard-${b.id}-${p.id}.blend`, `gear/guard-${b.id}-${p.id}.json`], needs: [idOf('bodies', b.id), ...envNeeds(b.id, p)],
       }))),
       ...nk.ownGlb.map((p) => make(idOf('gear', p.id), {
         script: p.script ?? 'build_gear.py', args: [...common(idOf('gear', p.id)), '--piece', p.id], tags: [p.id],
@@ -329,7 +342,9 @@ export function jobsFor(stage, kit, opts = {}) {
       const id = idOf('haircaps', base);
       out.push(make(id, {
         script: 'build_head.py', args: [...common(id), '--haircaps', '--base', base], tags: [base, 'haircaps'],
-        kit: slice(nk, { base, caps }), outputs: [`heads/guard-${base}-haircaps.blend`, `heads/guard-${base}-haircaps.json`],
+        needs: ['prep'], kit: { ...slice(nk, { base, caps, heads: headsOf(base) }), base: baseEntry(base) },
+        outputs: [`heads/guard-${base}-haircaps.blend`, `heads/guard-${base}-haircaps.json`,
+          ...caps.flatMap((c) => MAPS.map((m) => `heads/guard-${base}-cap-${c.id}-${m}.png`)), ...envOutputs(base)],
       }));
     }
   }
