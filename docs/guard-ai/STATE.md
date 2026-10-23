@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~17:45: invisible holstered body REPRODUCES on master f16600f5 (eNN-smooth, partSkinMat isReady false for the grunt;
+probe JSON scratch/work/guardcalm-master-f16600f5). Orchestrator: TOP PRIORITY hotfix PR off master (fix + an e2e check
+that fails on it), released at once as a patch. Protocol rule: one wire bump per train in merge order: train 30 = Player
+stack (PROTOCOL 40) + #236 + hotfix; S9 / S22 ride train 31 (merge train/30, PROTOCOL 41).
+
 ~17:30 laptop clock: train 29 (61972cf1) = #228 S16 + Sector Ops #232 (PROTOCOL 38, `start.lf`). #229 / #234 out ->
 merged train 29: S9 0d1bdffc (PROTOCOL 39, A141; tests 313/313), S22 18a08619 (172/172). Test Runner asked: S9 coop,
 netmove, stealth-ai, takedown; S22 stealth-ai, ctcourse:1. BUG (Test Runner calm sheet 267553bf): holstered calm guards
@@ -485,9 +490,11 @@ Read CLAUDE.md ("Sessions", "Heavy-usage throughput" incl. "Token rules"), ROADM
 unavoidable guards, stealth over shooting), then this file's "Now" (top entry).
 e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep laptop CPU under ~80%.
 1. Train 29 (61972cf1) = #228 S16 + Sector Ops #232: fix any failure reported at once.
-2. Train 30: #229 S9 0d1bdffc (PROTOCOL 39, A141) + #234 S22 18a08619 (contains #229): Test Runner runs asked; green ->
-   TRAIN-READY both. BUG first: holstered guards invisible (feature/guard-ai-carry-fix, master base): fix, then
-   calm sheet + stealth-ai via Test Runner, PR, TRAIN-READY (orchestrator copied if master shows it).
+2. TOP: hotfix feature/guard-ai-carry-fix (off master; Opus agent): holstered guards draw no body (partSkinMat effect
+   fails). Fix + unit test + an e2e check; check vs #232 LR14 (train 29). PR, Test Runner: calm sheet + the e2e check,
+   then TRAIN-READY (patch release).
+   Then train 31: when train 30 is built, merge origin/train/30 into s9 then s22, PROTOCOL 41, fix the asserts, Test
+   Runner coop + netmove (+ stealth-ai, takedown; S22 stealth-ai, ctcourse:1), TRAIN-READY #229 + #234.
 3. S22 game side (slices/S22.md: CourseState.consoleBack, CourseMode consoleHost / watchesConsole / consoleEdge) after
    marlow-final merges; then fix e2e-ctcourse A4 step 3 (passive officer no longer refuses) in the same branch.
 4. Calm-guard GPU sheet (Test Runner, 267553bf): a grunt still drawn with e.carryCalm() true after 16 s calm = bug -> fix.
