@@ -534,11 +534,10 @@ Branch guard before every write. Read CLAUDE.md ("Sessions", "Heavy-usage throug
 e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep laptop CPU under ~80%.
 1. Train 31 = #229 S9 71498e16 (PROTOCOL 41, A142, + e2e-guard-carry suite) + #234 S22 c51f1b30 (contains #229) +
    Player #239: TRAIN-READY sent. Fix any failure reported at once (one Opus fix agent from the assert).
-2. feature/guard-ai-carry-fix: invisible guard bodies (Babylon async effect compile times out in a long stall,
-   "Operation timed out after maximum retries. - Effect: pbr"; partSkinMat keeps the failed effect; 4.78.0 only masks
-   it). Opus agent: recompile a timed-out body effect + unit test + e2e-guard-carry one-block 16.5 s stall. If it did
-   not finish, its WIP is pushed (d704098e+): check the branch, finish it (Test Runner already queued on the final commit). Then Test Runner: e2e-guard-carry on the sha (pass) and
-   on f16600f5 (fail); fresh Opus check; own small PR to master (orchestrator), TRAIN-READY.
+2. feature/guard-ai-carry-fix 48d049ad: invisible guard bodies (Babylon async effect compile times out; partSkinMat
+   kept the failed effect; 4.78.0 only masks it). Fix built (bodyEffectRecovery.ts recompiles a failed / stuck body
+   effect, cap 3). Opus checker + Test Runner watcher (e2e-guard-carry + stealth-ai on 48d049ad; suite on f16600f5
+   expect fail). PASS + green -> own small PR to master, TRAIN-READY (next train).
 3. S22 game side (slices/S22.md: CourseState.consoleBack, CourseMode consoleHost / watchesConsole / consoleEdge) once
    marlow-final #237 merges; fix e2e-ctcourse A4 step 3 (passive officer no longer refuses) in the same branch.
 4. Polish lists only (no refining): WALK-CHECK.md 1-6, S16-CHECK.md, A126-CHECK.md, S22-CHECK.md 1-5; calm walk:
