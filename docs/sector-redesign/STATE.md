@@ -314,6 +314,9 @@ LATEST 16:25 Test Runner verdict: #226 perf CPU OVER at 24 guards (S5 15.6 / S3 
 18:55: desktop lane runs #226 2276483a sectorops 1-6 + stealth-ai + stealth (scratch/runs/sectorart226-2276483a/RESULT);
    laptop: e2e-coop + perf views freeze on / off (__sector.debug() guardFreeze*) + guard-cap. Lighting polish batch
    (-lrpolish off LR15, Opus: lr-check 1-4, lr14-check 1-6, lr15-check 3 / 5 / 6; checks/lrpolish-build.md).
+19:15: desktop GPU at 2276483a: sectorops 1-6, stealth-ai, stealth ALL PASS. Waiting on the laptop: e2e-coop + perf
+   views (freeze on / off) + guard-cap. #232 in train 29 (61972cf1, 4.78.0 on pass). lrpolish 56a6dbf9 built, Opus checker
+   running (lrpolish-check.md); rides the LR15 PR.
 4. Polish batch 2 -polish2 cca3ccb7: checker PASS (polish2-check.md; touches src/net lamp checks, no wire change).
    Merge into -art together with the -perf fix, then one laptop batch at the new -art head: e2e-coop, e2e-sectorops 1-6,
    e2e-stealth-ai, e2e-stealth + perf rerun (MAP=campusOps MODE=sector). Still open: lr-check 1-6, lr14-check 1-7,
