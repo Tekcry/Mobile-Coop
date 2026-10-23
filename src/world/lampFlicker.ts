@@ -20,6 +20,9 @@ export const FLICKER_FIRE = 1;
 export const FLICKER_STUTTER = 2;
 export type FlickerMode = typeof FLICKER_NONE | typeof FLICKER_FIRE | typeof FLICKER_STUTTER;
 
+/** The sim's fixed step rate (`core/loop.ts` FIXED_DT = 1 / 60): `LightRegistry.tickFlicker` snaps its time to it. */
+export const FLICKER_STEP_HZ = 60;
+
 /** Fire: the lowest and highest multiplier. */
 export const FIRE_MIN = 0.75;
 export const FIRE_MAX = 1;

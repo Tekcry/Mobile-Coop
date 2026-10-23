@@ -1,5 +1,5 @@
 import { hyp3 } from '../core/mathx';
-import { FLICKER_FIRE, FLICKER_NONE, FLICKER_OUT, FLICKER_T, flickerAt, lampSeed } from './lampFlicker';
+import { FLICKER_FIRE, FLICKER_NONE, FLICKER_OUT, FLICKER_STEP_HZ, FLICKER_T, flickerAt, lampSeed } from './lampFlicker';
 import { LAMP_CONE_COS, LAMP_EXP, LAMP_LEVEL_GAIN, lampReach, lampTerm, photoTerm, SPOT_EXP } from './lampMath';
 /**
  * Light model (pure: no Babylon/DOM), unit-tested.
@@ -73,7 +73,7 @@ export interface LightFixture {
   mount?: number;
 }
 
-export type LightInit = Partial<Omit<LightDef, 'id' | 'x' | 'y' | 'z' | 'flicker'>> &{ x: number; y: number; z: number };
+export type LightInit = Partial<Omit<LightDef, 'id' | 'x' | 'y' | 'z' | 'flicker'>> & { x: number; y: number; z: number };
 
 /** Gameplay thresholds for the light meter and perception. */
 export const LIGHT = {
@@ -261,6 +261,9 @@ export class LightRegistry {
    */
   tickFlicker(t: number): void {
     const ids = this.flickIds;
+    if (!ids.length) return;
+    // on the fixed step's grid: the client's estimate of the host's clock lands on the host's step
+    FLICKER_T[0] = Math.round(t * FLICKER_STEP_HZ) / FLICKER_STEP_HZ;
     let moved = false;
     for (let k = 0; k < ids.length; k++) {
       const id = ids[k]!;
@@ -275,7 +278,7 @@ export class LightRegistry {
     if (moved) this.flickerVersion++;
   }
 
-  /** (jammer-fixes) A jam starts on a light:its present on state becomes the base the switches and the EMP own. */
+  /** (jammer-fixes) A jam starts on a light: its present on state becomes the base the switches and the EMP own. */
   jamStart(id: number): void {
     const l = this.lights[id];
     if (!l || this.jamBits.has(id)) return;

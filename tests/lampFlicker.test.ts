@@ -89,7 +89,8 @@ function bursts(seed: number, secs: number): { start: number; len: number; first
     const t = i * DT;
     const v = tubeStutter(t, seed);
     if (v < 1) {
-      if (!cur || t - (cur.start + cur.len) > 0.2) {
+      // (one burst per window by construction: the steps under 1 in a window are one burst, its on steps inside it)
+      if (!cur || Math.floor(t / STUTTER_WINDOW) !== Math.floor(cur.start / STUTTER_WINDOW)) {
         cur = { start: t, len: 0, first: v, vals: new Set() };
         out.push(cur);
       }
@@ -145,9 +146,9 @@ describe('tube stutter', () => {
       const v = tubeStutter(i * DT, SEED);
       expect([0, STUTTER_DIM, STUTTER_BLINK, 1]).toContain(v);
     }
+    // every step under 1 in a window lies in one burst's span (never two bursts in one window)
     const bs = bursts(SEED, 1800);
-    const win = bs.map((b) => Math.floor(b.start / STUTTER_WINDOW));
-    expect(new Set(win).size).toBe(win.length);
+    for (const b of bs) expect(b.len).toBeLessThanOrEqual(STUTTER_BURST_MAX + DT);
   });
 });
 
@@ -263,5 +264,177 @@ describe('stutter tubes per main map', () => {
     expect(applyMapFlicker(r, 'proving', 3)).toBe(-1);
     expect(r.flickerSeed).toBe(mapFlickerSeed('proving', 3));
     expect(r.flickering.length).toBe(0);
+  });
+});
+
+/** The first fixed step (60 Hz) at or after `from` where the light's flicker passes `want`; the registry is left there. */
+function stepWhere(reg: LightRegistry, id: number, want: (v: number) => boolean, from = 0): number {
+  for (let i = Math.round(from * 60); i < 60 * 1200; i++) {
+    reg.tickFlicker(i / 60);
+    if (want(reg.lights[id]!.flicker)) return i / 60;
+  }
+  throw new Error('no such step in 20 min');
+}
+
+describe('the meter and the guards follow the flicker (light parity)', async () => {
+  const { LightField } = await import('../src/world/lightField');
+  const { bakeLamps } = await import('../src/voxel/lampBake');
+  const { bakedLights } = await import('../src/world/lightBake');
+  const { buildAmbientGrid } = await import('../src/world/ambientGrid');
+  const { bakeMoon } = await import('../src/voxel/skyBake');
+  const { packShapes } = await import('../src/voxel/shapes');
+  const { sightRate } = await import('../src/ai/perception');
+
+  /** A dark room: a floor, a stutter tube and a steady lamp, baked as the game does (the tubes on the maps are baked). */
+  function scene(): { reg: LightRegistry; field: InstanceType<typeof LightField> } {
+    const reg = new LightRegistry();
+    reg.ambient = 0.05;
+    reg.add({ x: 0, y: 3, z: 0, radius: 6, intensity: 0.9, group: 4 });
+    reg.add({ x: 8, y: 3, z: 0, radius: 6, intensity: 0.9 });
+    reg.flickerSeed = mapFlickerSeed('warehouseOps', 3);
+    reg.setFlicker(0, FLICKER_STUTTER);
+    const shapes = packShapes([{ kind: 'box', c: [0, -0.25, 0], s: [24, 0.5, 24], yaw: 0, pitch: 0, mat: 1 }]);
+    const lo: [number, number, number] = [-11, -1, -11];
+    const hi: [number, number, number] = [11, 6, 11];
+    const baked = bakedLights(reg);
+    const r = bakeLamps({ kind: 'lamps', id: 0, shapes, lights: baked.lights, lo, hi });
+    const n: [number, number, number] = [44, 14, 44];
+    const dir: [number, number, number] = [0, 1, 0];
+    const m = bakeMoon({ kind: 'moon', id: 0, origin: lo, n, shapes, dir });
+    const ambient = buildAmbientGrid({ ambientAt: () => reg.ambient }, lo, hi);
+    const field = new LightField({ lo, hi, lampKey: 'k', moonKey: 'm', lamps: { baked, r }, moon: { origin: lo, n, cell: 0.5, vis: m.vis, dir }, ambient, moonLight: 0, ms: 0 }, reg);
+    return { reg, field };
+  }
+
+  it('the baked lamp level is the steady level x the live multiplier at every step', () => {
+    const { reg, field } = scene();
+    const steady = field.lampAt(0, 0.5, 1, 0.3);
+    expect(steady).toBeGreaterThan(0.2);
+    let seen = 0;
+    for (let i = 0; i < 60 * 120; i++) {
+      reg.tickFlicker(i / 60);
+      const f = reg.lights[0]!.flicker;
+      expect(field.lampAt(0, 0.5, 1, 0.3)).toBeCloseTo(steady * f, 9);
+      if (f < 1) seen++;
+    }
+    expect(seen).toBeGreaterThan(30);
+    // the steady lamp never moves
+    expect(reg.lights[1]!.flicker).toBe(1);
+  });
+
+  it('an off step takes the meter (bodyLevel) down under the tube, and a guard fills slower; on again, as before', () => {
+    const { reg, field } = scene();
+    const tOn = stepWhere(reg, 0, (v) => v === 1);
+    const lit = field.bodyLevel(0.5, 0, 0.3, 1.68);
+    const tOff = stepWhere(reg, 0, (v) => v === 0, tOn);
+    const dark = field.bodyLevel(0.5, 0, 0.3, 1.68);
+    expect(dark).toBeLessThan(lit - 0.2);
+    // the guards read the meter's value (`ref.light`): the same walker is slower to see at the off step
+    const see = (light: number): number => sightRate({ dist: 8, angle: 0, light, crouched: false, speed: 1.4, exposure: 1, sensitivity: 1 });
+    expect(see(dark)).toBeLessThan(see(lit));
+    stepWhere(reg, 0, (v) => v === 1, tOff);
+    expect(field.bodyLevel(0.5, 0, 0.3, 1.68)).toBeCloseTo(lit, 9);
+  });
+
+  it('the unbaked path (no bake: fires, dynamic lights) scales the same way', () => {
+    const reg = new LightRegistry();
+    reg.ambient = 0;
+    const fire = reg.add({ kind: 'fire', x: 0, y: 1, z: 0, radius: 8, intensity: 0.7 });
+    const field = new LightField(null, reg);
+    const steady = field.totalAt(1, 0.8, 0.5);
+    expect(steady).toBeGreaterThan(0.05);
+    for (let i = 0; i < 600; i++) {
+      reg.tickFlicker(i / 60);
+      expect(field.totalAt(1, 0.8, 0.5)).toBeCloseTo(Math.min(1, steady * fire.flicker), 9);
+    }
+  });
+});
+
+describe('a lamp that is off stays off (flicker never relights it)', () => {
+  const make = (): LightRegistry => {
+    const r = new LightRegistry();
+    r.add({ x: 0, y: 3, z: 0, radius: 6, intensity: 0.9, group: 2, destructible: true });
+    r.flickerSeed = mapFlickerSeed('campusOps', 9);
+    r.setFlicker(0, FLICKER_STUTTER);
+    return r;
+  };
+  const cases: [string, (r: LightRegistry) => void][] = [
+    ['shot', (r) => r.destroy(0)],
+    ['switched off', (r) => r.setOn(0, false)],
+    ['breaker cut (group)', (r) => r.setGroup(2, false)],
+    ['jam dark step', (r) => {
+      r.jamStart(0);
+      r.jamLit(0, false);
+    }],
+  ];
+  for (const [name, off] of cases) {
+    it(name, () => {
+      const r = make();
+      off(r);
+      const l = r.lights[0]!;
+      const v = r.version;
+      for (let i = 0; i < 60 * 60; i++) {
+        r.tickFlicker(i / 60);
+        expect(l.on).toBe(false);
+        expect(contribution(l, 0.5, 1, 0.3)).toBe(0);
+      }
+      // the flicker never touched the on state or the registry version
+      expect(r.version).toBe(v);
+    });
+  }
+
+  it('restart: a lamp put back (restore / a section reset) flickers again; a rebuilt map starts the same pattern over', () => {
+    const r = make();
+    r.destroy(0);
+    r.restore(0);
+    const l = r.lights[0]!;
+    const t = stepWhere(r, 0, (x) => x === 0);
+    expect(contribution(l, 0.5, 1, 0.3)).toBe(0);
+    stepWhere(r, 0, (x) => x === 1, t);
+    expect(contribution(l, 0.5, 1, 0.3)).toBeGreaterThan(0);
+    r.destroy(0);
+    r.resetTo(0, true, false);
+    expect(l.on).toBe(true);
+    stepWhere(r, 0, (x) => x === 0, t);
+    // a full restart builds the map again (World.create): same tube, same seed, the clock from 0, the same values
+    const build = (): LightRegistry => {
+      const b = new LevelBuilder();
+      warehouseOps.build(b, 4);
+      applyMapFlicker(b.lights, 'warehouseOps', 4);
+      return b.lights;
+    };
+    const a = build();
+    const b = build();
+    expect(a.flickering).toEqual(b.flickering);
+    expect(a.flickerSeed).toBe(b.flickerSeed);
+    for (const id of a.flickering) expect(a.lights[id]!.flicker).toBe(1);
+    for (let i = 0; i < 60 * 30; i++) {
+      a.tickFlicker(i / 60);
+      b.tickFlicker(i / 60);
+      for (const id of a.flickering) expect(b.lights[id]!.flicker).toBe(a.lights[id]!.flicker);
+    }
+  });
+});
+
+describe('the shared clock', () => {
+  it("the client's estimate snaps to the host's fixed step: a few ms of clock jitter give the host's value", () => {
+    const mk = (): LightRegistry => {
+      const r = new LightRegistry();
+      r.add({ x: 0, y: 3, z: 0 });
+      r.flickerSeed = 77;
+      r.setFlicker(0, FLICKER_STUTTER);
+      return r;
+    };
+    const host = mk();
+    const client = mk();
+    let same = 0;
+    const n = 60 * 300;
+    for (let i = 0; i < n; i++) {
+      host.tickFlicker(i / 60);
+      // a jitter of up to 4 ms either side of the step
+      client.tickFlicker(i / 60 + 0.004 * Math.sin(i * 1.7));
+      if (client.lights[0]!.flicker === host.lights[0]!.flicker) same++;
+    }
+    expect(same).toBe(n);
   });
 });

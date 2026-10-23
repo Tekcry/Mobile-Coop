@@ -517,6 +517,8 @@ export class LightRig {
       if (s.id < 0) continue;
       const l = this.reg.lights[s.id]!;
       if (l.kind === 'flashlight') this.place(s, l);
+      // (LR16-5) a pooled fire / failing tube follows its live flicker between picks (as `place`)
+      else s.light.intensity = l.intensity * l.flicker * LIGHT_GAIN;
     }
   }
 
