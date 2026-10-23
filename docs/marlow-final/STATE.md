@@ -56,6 +56,8 @@ Rejected by you (~01:25): anything that assumes a dark camera is blind (G240 sta
 Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN section 6; slice reports S0-*.md.
 
 ## Now (2026-10-23 ~01:20, new account; FULL BURN to 100% per Michael ~01:05 via the orchestrator)
+- ~16:35. Merged head 7d13e391 (desktop GPU): :3 PASS 417 s, :4 PASS 344 s. Slice 10 changelog / TESTING lines
+  67794f95. Waiting: fix 4 (:1 / :2).
 - ~16:20. :4 PASS on a48aae2b (desktop GPU, 308 s; fix 3c done). Slice 10 check PASS (slices/S10-check.md), its
   should-fix done (916703a5), merged in (f7720e9a, tsc clean). Desktop CPU 94% (orchestrator trim, no heavy2). Waiting:
   fix 4 report, then merge -fix4, then ONE laptop request :1-:4 coop netmove course on the head.
