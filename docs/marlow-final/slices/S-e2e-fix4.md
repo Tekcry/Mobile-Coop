@@ -59,9 +59,9 @@ Branch `feature/marlow-final-fix4` (off 058156cc + fix 3c a48aae2b). One test ch
 - **Fix (test only), `scripts/e2e-ctcourse/a3OfficeRange.mjs`:**
   - `:414` the office-2 wait also needs his loop's leg back west (walker index 6), no incident and no breaker walk, so office 1's
     lamps come into his view (a witness, or late discovery as he reaches the communicating door);
-  - `:428` the lure assert needs the lure itself (`breakerGroup === 31` or a light-check incident) and then the walk toward the
+  - `:429` the lure assert needs the lure itself (`breakerGroup === 31` or a light-check incident) and then the walk toward the
     switch (or the circuit back on by his hand), 45 s; his loop alone no longer passes it;
-  - `:430` the host turns office 1 back on only if the cleaner has not.
+  - `:431` the host turns office 1 back on only if the cleaner has not.
 - **Results (desktop, E2E_GPU=1, E2E_JOBS=1, port 4191, heavy.lock):**
   - build (tsc + vite) pass; no TS or vitest file touched.
   - mf-fix4-2b (build, 18:41-18:48): FAIL 311 s at step 4, `A3: the cleaner is calm and back in the offices after the corridor
