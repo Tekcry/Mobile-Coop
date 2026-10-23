@@ -7,7 +7,7 @@ batch; desktop heavy.lock (4191) / heavy2.lock (4192) for single suites. Agent r
 COMMON-SPARE.md (subagents are refused REPORT.md: the lead writes it from the hand-back). Push this file with
 scratch/ctcore/push-resume.sh <abs file> <msg>. Message the orchestrator only at PR open / train-ready / blocked / Michael.
 
-## Open (master f16600f5 after train 28 incl. #207). Train 29 origin/train/29 61972cf1 = PROTOCOL 38. Train 30 = my stack (40 at tip) + Guard AI S9 (39) / S22 + #236. AF6 = 41.
+## Open (master f16600f5 after train 28 incl. #207). Train 29 origin/train/29 61972cf1 = PROTOCOL 38. Train 30 = my stack (40) right after train 29. Guard AI S9 = train 31 at 41. AF6 = 42 (one wire bump per train, merge order).
 | Job | Branch (folder C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
 | #214 batch 23 (+iPad fit, Anim Studio main menu only) | feature/ctcore-batch-23 (ctcore-batch) | 4f569e38 | + master f16600f5 (coop shot noise: SD_OPEN_NOISE on open rounds) + train/29 (38). |
@@ -18,7 +18,7 @@ scratch/ctcore/push-resume.sh <abs file> <msg>. Message the orchestrator only at
 ## Next
 1. AF3 hand-back -> checker (batch with AF4a / AF6) -> merge; then AF4b (animGraph, after AF3).
 2. AF4b brief adds: pistol grip back to 1.0 (crouchStrafe.test.ts:32), hip swing 4.6-4.9 cm, kneel knee-out 10 cm (AF4a-CHECK.md).
-3. Stack train-ready sent; renumber only if the orchestrator says so at the build. AF6 -> 41 when it merges into anim-fix-pass via the stack (scratch/ctcore/tests40.js renumbers asserts).
+3. Stack train-ready sent; renumber only if the orchestrator says so at the build. AF6 -> 42 when it merges into anim-fix-pass via the stack (scratch/ctcore/tests40.js renumbers asserts).
 4. Agent rules: scratch/ctcore/COMMON-27.md. Follow-ups: intel part B (onIntelCode); relay climber sub bit.
 
 ## Resume prompt
