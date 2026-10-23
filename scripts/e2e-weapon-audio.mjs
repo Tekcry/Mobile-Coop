@@ -87,10 +87,12 @@ try {
   await G(() => { const c = window.__app.current.weapons.current; c.stats.noise = 1; c.sd = 60; window.__app.current.weapons['infiniteAmmo'] = true; });
 
   // reload, then dry fire on an empty gun with nothing in reserve
-  console.log('DBG', JSON.stringify(await G(() => { const w = window.__app.current.weapons; return { mag: w.current.mag, size: w.current.stats.magSize, inf: w.infiniteAmmo, rel: w.reloading, ph: w.draw && w.draw.phase, stats: { ...window.__app.weaponAudio.stats } }; })), JSON.stringify(s2));
-  await press(page, BTN.A);
+  // (X held 0.4 s with the gun out reloads; A never does: anim-rework S1)
+  // (the first X down after the shots is not read as a hold: hold it twice, the second starts the reload)
+  await sim(0.55, [[BTN.X, 1]]);
+  await sim(0.2);
+  await sim(0.55, [[BTN.X, 1]]);
   await sim(0.3);
-  console.log('DBG2', JSON.stringify(await G(() => { const w = window.__app.current.weapons; const g = window.__app.current; return { mag: w.current.mag, rel: w.reloading, hp: g.target && g.target.health && g.target.health.hp, ads: g.player && g.player.ads, ph: w.draw.phase, stowed: w.stowed, reloads: window.__app.weaponAudio.stats.reloads }; })));
   const s3 = await stats();
   assert(s3.reloads > s2.reloads, 'a reload plays the handling');
   await sim(2.5);
