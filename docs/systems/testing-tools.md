@@ -443,6 +443,24 @@ behind a VPN adapter).
     `run-e2e` it is the REPORT entry; the quick map runs it (`--quick`) for `src/anim/`, `src/player/`, `src/net/` and
     `scripts/e2e-net-lib.mjs`.
 
+## Laptop queue
+A service on the laptop (`scripts/laptop-queue/service.mjs`, one scheduled task, see `docs/laptop-queue/PLAN.md`) runs
+e2e for you and posts the verdict as a commit status on the tested sha. No message per verdict.
+- Request (from any desktop, never touches your working tree): `node scripts/laptop-queue/request.mjs --sha <ref> [--pr N]
+  [--set name] [--jobs N] [--requester "<title>"] (--suites "e2e-coop e2e-netmove" | --full | --alone --step "<cmd>" [--env K=V])`.
+  Needs a pushed sha. It pushes `requests/<id>.json` to the `laptop-queue` branch and prints the id. `--dry-run` shows
+  the JSON and pushes nothing. An `--alone` step may start with `serve ` (runs `scripts/laptop-queue/serve.mjs`).
+- Order: trains (an `origin/train/<n>` head with no `laptop-e2e` status; both slots, sharded by suite times), then pr / full
+  requests (one slot), then alone-measurements (both slots; one waiting over 45 min goes ahead of pr work).
+- Statuses: `laptop-e2e` (trains), `laptop-e2e/<set>` (pr, set defaults to the suites joined by `+`), `laptop-e2e/full`,
+  `laptop-e2e/alone-<set>`. Description "N/N pass, <s> s", plus "; flake: x" and "; FAIL: y". A failure also comments on the
+  PR (suite, failing line, log path on the laptop). Logs: `C:/NightShift/scratch/laptop-queue/runs/<id>/`.
+- Flakes: a failed suite reruns once alone on the same sha; a pass counts as a pass and is logged as a flake (state.json,
+  for its owner to fix); a suite that flaked in the last 24 h is not rerun again.
+- Manual runs keep working: the service uses the `C:/NightShift/heavy-<slot>.lock` files and waits while one is held.
+- Install / remove the task: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-queue/install-task.ps1 [-Remove]`.
+  Dry run: `node scripts/laptop-queue/service.mjs --once --dry-run`.
+
 ## GPU runs (Michael's PC only)
 - `E2E_GPU=1 npm run e2e` (or any script, e.g. `E2E_GPU=1 node scripts/perf.mjs --desktop --budget`): `e2e-lib` launches
   Chromium with the hardware GPU (Windows: ANGLE D3D11, GPU blocklist ignored) instead of SwiftShader, headless with a
