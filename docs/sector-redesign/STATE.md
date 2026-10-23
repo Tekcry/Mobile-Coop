@@ -285,7 +285,7 @@ Heads: art 2276483a (#226), lampx eb45b0af (LR15 + lighting polish + atlas fix),
    + guard-cap. In budget -> merge master into -art, tsc + related vitest, push, message the orchestrator "train-ready #226".
    Over budget -> read frozen counts, next lever: guard-ai / guard-render proposals in campus-perf-fix.md.
 2. LR15 PR (-lampx): LR15 + lrpolish passed checkers and laptop at 0cadd6f3. eb45b0af fixes the Realistic lamp atlas
-   overflow (1023x90x2428 > MAX_3D 2048 -> black lamps, parity bug; lr-tex3d-fix.md); Opus checker -> lr-tex3d-check.md.
+   overflow (1023x90x2428 > MAX_3D 2048 -> black lamps, parity bug; lr-tex3d-fix.md); checker PASS (lr-tex3d-check.md, 1c22b913 docs).
    Laptop rerun asked at eb45b0af: campusOps Realistic texImage3D warning gone, LAMP_PAGES compiles, perf + memory
    (~205 MB VRAM), S2 / S3 sheet. Green -> merge master, open the PR against master, message the orchestrator.
 3. Polish batch PR (-artpol 1d34c348 = artpol + frzpol, checker PASS artpol-frzpol-check.md): desktop sectorops 1-6 +
