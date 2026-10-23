@@ -6,7 +6,7 @@ import { Ragdoll } from '../ai/ragdoll';
 import { BUDGET, G } from '../physics/groups';
 import { TorchMirror } from './torchMirror';
 import { LAMP_TARGET, LampMirror } from './lampSync';
-import { lightOnRay, type LightDef } from '../world/lights';
+import { lampReachProbe, lightOnRay, type LightDef } from '../world/lights';
 import { BODY } from '../ai/bodies';
 import type { HitInfo } from '../game/damage';
 import { Interactables, KIND_COLOR, type Interactable } from '../game/interactables';
@@ -86,6 +86,9 @@ export class CoopClient implements NetAttachment {
   readonly torches: TorchMirror;
   private readonly torchA = new Vector3();
   private readonly torchB = new Vector3();
+  /** (polish2) The mount-reach probe's ends (`lampReachProbe`). */
+  private readonly reachA = new Vector3();
+  private readonly reachB = new Vector3();
   /** (sector-redesign slice L, protocol 31) Sector Ops: the host's fixed lights (switched, shot) on this page's registry,
    *  so the picture, the meter and the guards' torch reads match the host's; null elsewhere. */
   lamps: LampMirror | null = null;
@@ -510,6 +513,10 @@ export class CoopClient implements NetAttachment {
     const id = lightOnRay(reg, a.x, a.y, a.z, b.x, b.y, b.z);
     const l = id >= 0 ? reg.lights[id] : undefined;
     if (!l || !l.destructible || l.destroyed) return;
+    // (polish2) the host's mount-reach probe (`StealthSystems.shotRay`, `onLampShot`): never ask for a lamp it refuses
+    const p = this.reachA;
+    const h = lampReachProbe(reg, id, a.x, a.y, a.z, b.x, b.y, b.z, p);
+    if (h > 0 && !this.g.ballistics.clear(p, this.reachB.set(p.x, p.y + h, p.z), G.STATIC)) return;
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     const dz = b.z - a.z;

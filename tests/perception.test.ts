@@ -398,4 +398,32 @@ describe('light fixtures', () => {
     expect(lightOnRay(r, 24, 1.5, 0, 20.05, 2.58, 0)).toBe(b.id);
     expect(w.id).not.toBe(b.id);
   });
+
+  it('(polish2) a near-face landing under a wall lamp breaks it with a clear probe; a door soffit under the far-face lamp is blocked', async () => {
+    const { lightOnRay, lampReachProbe, rayBox } = await import('../src/world/lights');
+    const r = new LightRegistry();
+    // a wall pack on the near face of a wall (wall x 0.2..0.4, head x 0..0.2), a round landing on the face 0.19 m under it
+    const w = r.add({ x: 0.1, y: 2.5, z: 4, destructible: true, fixture: { sx: 0.2, sy: 0.2, sz: 0.3, oy: 0 } });
+    expect(lightOnRay(r, -4, 1.5, 4, 0.2, 2.15, 4)).toBe(w.id);
+    const p = { x: 0, y: 0, z: 0 };
+    const h = lampReachProbe(r, w.id, -4, 1.5, 4, 0.2, 2.15, 4, p);
+    expect(h).toBeGreaterThan(0.1);
+    expect(p.x).toBeLessThan(0.2);
+    // the probe straight up from just off the face to the head never enters the wall
+    expect(rayBox(p.x, p.y, p.z, 0, h, 0, 0.3, 2, 4, 0.1, 2, 2)).toBe(-1);
+    // a round entering the head's box needs no probe
+    expect(lampReachProbe(r, w.id, -4, 2.5, 4, 0.2, 2.5, 4, p)).toBe(0);
+
+    // walk 4.72 polish 1: the S5 gallery lamp over the L1 door (wall x -50.1..-49.9, soffit at y 6.3); a rising round from
+    // the boardroom through the open doorway lands on the soffit's east half. lightOnRay alone still takes the lamp ...
+    const r2 = new LightRegistry();
+    const g = r2.add({ x: -49.85, y: 6.6, z: 27, destructible: true, fixture: { sx: 0.2, sy: 0.2, sz: 0.3, oy: 0 } });
+    expect(lightOnRay(r2, -51, 1.6, 26.9, -49.95, 6.3, 26.9)).toBe(g.id);
+    // ... but the probe up from under the soffit runs into the lintel, so the callers refuse it
+    const h2 = lampReachProbe(r2, g.id, -51, 1.6, 26.9, -49.95, 6.3, 26.9, p);
+    expect(h2).toBeGreaterThan(0);
+    const t = rayBox(p.x, p.y, p.z, 0, h2, 0, -50, 6.8, 27, 0.1, 0.5, 1);
+    expect(t).toBeGreaterThanOrEqual(0);
+    expect(t).toBeLessThanOrEqual(1);
+  });
 });

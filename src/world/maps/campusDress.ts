@@ -57,7 +57,7 @@ export function campusCatalogues(): CatalogueSet {
   return cats;
 }
 
-/** Section k's dressing context over the built greybox (the split gaps are computed on first use, once per build). */
+/** Section k's dressing context over the built greybox (the split gaps come from the greybox, computed once before the dressing loop). */
 export function sectionContext(b: LevelBuilder, lay: MapLayout, k: number, splits: () => DressContext['splits']): DressContext {
   const sector = CAMPUS_SECTORS[k]!;
   const rooms = ROOMS[k]!;
@@ -97,8 +97,9 @@ export function sectionContext(b: LevelBuilder, lay: MapLayout, k: number, split
  * recoloured by `applyFinishes`; each section's dresser runs on its own context, then writes its boxes.
  */
 export function dressCampus(b: LevelBuilder, lay: MapLayout, ranges: readonly (readonly [number, number])[]): CampusArtLayout {
-  let gaps: DressContext['splits'] | null = null;
-  const splits = (): DressContext['splits'] => (gaps ??= findSplitGaps(buildCoverSegments(b.boxes, b.cylinders)).map((g) => ({ a: g.a, b: g.b })));
+  // (polish2, art P4) the split gaps from the bare greybox, before any section writes its boxes: no dressing-order effect
+  const gaps: DressContext['splits'] = findSplitGaps(buildCoverSegments(b.boxes, b.cylinders)).map((g) => ({ a: g.a, b: g.b }));
+  const splits = (): DressContext['splits'] => gaps;
   const placements: ArtPlacement[] = [];
   const used = new Set<string>();
   for (let k = 0; k < DRESSERS.length; k++) {

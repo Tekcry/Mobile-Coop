@@ -737,6 +737,45 @@ export function overlapsGreybox(k: Keepouts, boxes: readonly BoxPiece[], cat: Pr
   return -1;
 }
 
+/**
+ * (polish2, art-check P3) A skin with a listed overhang (`cat.overhang`: hanger rods, an exhaust stack, chimney pots)
+ * draws past its greybox piece, which the K8 camera rays and the K9 laser tubes were never measured against: its hull
+ * must not cross a camera ray (K8) nor come within `KEEP.laser` of a laser (K9). Skins flush on their piece are the
+ * greybox itself and are not checked. The hull is a box, so what the greybox piece already decides is left out: a ray
+ * that touches the piece itself (a floor point on the counter's face), and laser points over the piece's own plan
+ * footprint (las-tray runs across the S4 cage basket's walk surface by design; the hanger rods stand at the basket's
+ * edges). Null: clear.
+ */
+export function skinReach(k: Keepouts, ctx: DressContext, cat: PropCatalogue, p: ArtPlacement): string | null {
+  if (!cat.overhang[p.prop]) return null;
+  const s = fromWorldObb(hullObb(cat, p));
+  const box = p.skinOf !== undefined ? ctx.boxes[p.skinOf] : undefined;
+  const cyl = p.skinCyl !== undefined ? ctx.cylinders?.[p.skinCyl] : undefined;
+  const own = box ? boxObb(box) : cyl ? obbOf(cyl.c, [cyl.r * 2, cyl.h, cyl.r * 2], 0) : null;
+  const ownPlan = box ? boxPlan(box).r : null;
+  const lo0 = s.plan.cx - s.plan.hx - s.plan.hz;
+  const hi0 = s.plan.cx + s.plan.hx + s.plan.hz;
+  const lo2 = s.plan.cz - s.plan.hx - s.plan.hz;
+  const hi2 = s.plan.cz + s.plan.hx + s.plan.hz;
+  for (const r of k.rays) {
+    if (r.hi[0] < lo0 || r.lo[0] > hi0 || r.hi[1] < s.y0 || r.lo[1] > s.y1 || r.hi[2] < lo2 || r.lo[2] > hi2) continue;
+    if (!segHitsObb(s.obb, r.ax, r.ay, r.az, r.bx, r.by, r.bz, 0.005)) continue;
+    if (own && segHitsObb(own, r.ax, r.ay, r.az, r.bx, r.by, r.bz, 0)) continue;
+    return `K8: skin ${p.prop} blocks camera ${r.cam} towards (${r.bx.toFixed(1)}, ${r.by.toFixed(1)}, ${r.bz.toFixed(1)})`;
+  }
+  for (const t of k.tubes) {
+    if (t.rule !== 'K9') continue;
+    for (let i = 0; i + 2 < t.pts.length; i += 3) {
+      const x = t.pts[i]!;
+      const y = t.pts[i + 1]!;
+      const z = t.pts[i + 2]!;
+      if (ownPlan ? pointRectDist(ownPlan, x, z) <= 0 : cyl ? hyp2(x - cyl.c[0], z - cyl.c[2]) <= cyl.r : false) continue;
+      if (pointObbDist(s.obb, x, y, z) < KEEP.laser - 1e-6) return `K9: skin ${p.prop} within ${KEEP.laser} of ${t.what}`;
+    }
+  }
+  return null;
+}
+
 /** Every violation of a placement list (empty: clean): each placement's `blocked`, overlaps with greybox boxes ('B',
  *  skins excepted) and between two placements' boxes ('B'). */
 export function checkDressing(ctx: DressContext, cats: CatalogueSet, ps: readonly ArtPlacement[]): string[] {
@@ -754,6 +793,8 @@ export function checkDressing(ctx: DressContext, cats: CatalogueSet, ps: readonl
     const e = blocked(k, ctx, cat, p, m);
     if (e) out.push(`#${i} ${p.cat}:${p.prop} (${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)}): ${e}`);
     if (p.cls === 'skin' || p.cls === 'skin-hide') {
+      const r = e ? null : skinReach(k, ctx, cat, p);
+      if (r) out.push(`#${i} ${p.cat}:${p.prop} (${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)}): ${r}`);
       shapes.push(null);
       return;
     }
