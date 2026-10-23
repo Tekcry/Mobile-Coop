@@ -102,7 +102,7 @@ export function unitWord(n: number): string {
 }
 
 /**
- * (guard-ai S9, protocol 32) The wire order of the bark events (the co-op `bark` event's `b`). Append only: a new event
+ * (guard-ai S9, protocol 37) The wire order of the bark events (the co-op `bark` event's `b`). Append only: a new event
  * goes at the end, so an index means the same event on both sides.
  */
 export const BARK_EVENTS: readonly BarkEvent[] = [

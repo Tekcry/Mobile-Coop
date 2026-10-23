@@ -392,7 +392,7 @@ describe('jam wire', () => {
   });
   it('(26) the sec field round-trips the jam state: camera clocks, use, cooldown, device timelines; junk is clamped or dropped', async () => {
     const { parseMessage, PROTOCOL_VERSION } = await import('../src/net/protocol');
-    expect(PROTOCOL_VERSION).toBe(32);
+    expect(PROTOCOL_VERSION).toBe(37);
     const sec = { ck: [12.5, 3], j: ['cam-s3', ''], ch: [2.5, 5], cd: [0, 3.2], dv: [['cam-s3', 1, 2.5], ['lt-4', 2, 1.25]], al: 1 };
     const msg = { t: 'sector', sec };
     expect(parseMessage(JSON.parse(JSON.stringify(msg)))).toEqual(msg);

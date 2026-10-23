@@ -7,7 +7,7 @@ import type { Interactable } from '../game/interactables';
 import type { Blip } from '../ui/hud/minimap';
 import type { BlobShadows } from '../vfx/blobShadows';
 import { WEAPONS, GRENADE } from '../weapons/weaponDefs';
-import { G } from '../physics/groups';
+import { MASK } from '../physics/groups';
 import { Hitboxes } from '../ai/hitboxes';
 import { noiseRadius } from '../player/movement';
 import { defaultHq, hqStats } from '../progression/suit';
@@ -15,7 +15,7 @@ import type { NetSession } from './session';
 import { TickLimiter, type CourseWire } from '../game/course/courseWire';
 import type { SecWire } from '../game/ctDevices';
 import { syringesFor, type SectorNetExtra } from '../game/sectors';
-import { ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, BARK_CAM, BARK_TEXT, hitConfirmKind, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
+import { eventQueueKeeps, ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, BARK_CAM, BARK_TEXT, hitConfirmKind, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
 import { HoldClock, holdFeed, stepHoldFeed, type HoldFeed } from './holdFeed';
@@ -311,7 +311,7 @@ export class CoopHost implements NetAttachment {
   }
 
   private push(e: NetEvent): void {
-    if (this.queue.length < MAX_EVENTS * 2) this.queue.push(e);
+    if (eventQueueKeeps(this.queue.length, e)) this.queue.push(e);
   }
 
   private spawnPoint(i: number): Vector3 {
@@ -385,6 +385,8 @@ export class CoopHost implements NetAttachment {
     if (!this.remoteRefs.includes(r.ref)) this.remoteRefs.push(r.ref);
     const at = this.restoreFor.get(r.id);
     if (at) at.until = this.time + 30;
+    // (E9-crate, A106) the crates it used: its prompt stays gone (`fill` false: no top-up)
+    for (const id of this.g.crates?.usedBy(r.id) ?? []) this.push({ e: 'crate', player: r.id, id, fill: false });
     this.g.hud.setNetNotice(null);
     this.g.app.toasts.show(`${r.avatar.info.name} rejoined`);
   }
@@ -858,6 +860,12 @@ export class CoopHost implements NetAttachment {
     return true;
   }
 
+  /** (E9-crate) Client `who` used weapons crate `id` for the first time (the host's ledger): it tops up (the `crate` event,
+   *  fill; its ammo is its own). */
+  crateUsed(who: string, id: string): void {
+    if (this.remotes.has(who)) this.push({ e: 'crate', player: who, id, fill: true });
+  }
+
   private onCommitted(by: string, kind: CKind, id: number, target: string): void {
     const self = by === this.s.selfId;
     const r = self ? null : this.remotes.get(by);
@@ -967,7 +975,7 @@ export class CoopHost implements NetAttachment {
     // line of sight against level geometry (props/characters do not block validation)
     const o = this.tmp.set(m.ox, m.oy, m.oz);
     const aim = m.part === 'head' ? head : body;
-    const los = this.g.ballistics.ray(o, aim, G.STATIC);
+    const los = this.g.ballistics.ray(o, aim, MASK.HOST_LOS);
     if (los.hit && los.distance < Vector3.Distance(o, aim) - 0.4) return 0;
     return Math.min(m.dmg, maxHitDamage(def, m.part === 'head'));
   }
@@ -1013,7 +1021,7 @@ export class CoopHost implements NetAttachment {
     const l = reg.lights[id]!;
     const a = this.lampA.set(m.ox, m.oy, m.oz);
     const b = this.lampB.set(l.x, l.y, l.z);
-    if (this.g.ballistics.hitDistance(a, b, G.STATIC) < Vector3.Distance(a, b) - LAMP_LOS_SLACK) return;
+    if (this.g.ballistics.hitDistance(a, b, MASK.HOST_LOS) < Vector3.Distance(a, b) - LAMP_LOS_SLACK) return;
     this.g.stealth.shootLight(id);
   }
 
@@ -1090,12 +1098,17 @@ export class CoopHost implements NetAttachment {
   private items(): NetItem[] {
     const out: NetItem[] = [];
     // course devices (`c-` ids: switches, levers, pickups, bolts, the finish) first, so the cap never drops them (D48:
-    // a map's door items filled the list before them and the client saw no course prompts)
-    const list = this.g.interactables?.items ?? [];
+    // a map's door items filled the list before them and the client saw no course prompts); (E9-crate, A107) the
+    // weapons crates too
+    // (sector-redesign cap fix) Sector Ops mirrors only the live section's items and the untagged ones (objective, exit,
+    // connector doors, revives); every section's items stay registered on the host (`Interactables.scope`)
+    const ints = this.g.interactables;
+    const list = ints?.items ?? [];
     for (let pass = 0; pass < 2; pass++) {
       for (const it of list) {
         if (out.length >= MAX_ITEMS) break;
-        if (it.id.startsWith('c-') !== (pass === 0)) continue;
+        if ((it.id.startsWith('c-') || it.kind === 'crate') !== (pass === 0)) continue;
+        if (ints && !ints.inScope(it)) continue;
         const k = it.kind as NetItem['k'];
         if (!ITEM_KINDS.includes(k)) continue;
         out.push({ id: it.id, k, x: it.pos.x, y: it.pos.y, z: it.pos.z, yaw: it.node.rotation.y, label: it.label.slice(0, 24), hold: it.holdTime, reach: it.reach ?? 1.8, on: it.enabled && !it.done });

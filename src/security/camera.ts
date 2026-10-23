@@ -145,6 +145,11 @@ export function stepCamMeter(m: CamMeter, rate: number, dt: number): 0 | 1 | 2 {
  * `h` high, centred on the lens position). Slab test in the housing's own frame.
  */
 export function segmentHitsHousing(c: { x: number; y: number; z: number; yaw: number }, ax: number, ay: number, az: number, bx: number, by: number, bz: number): boolean {
+  return segmentHousingT(c, ax, ay, az, bx, by, bz) >= 0;
+}
+
+/** (polish 11) The segment parameter (0..1) where a -> b enters the housing box, -1 on a miss. */
+export function segmentHousingT(c: { x: number; y: number; z: number; yaw: number }, ax: number, ay: number, az: number, bx: number, by: number, bz: number): number {
   const s = Math.sin(c.yaw);
   const co = Math.cos(c.yaw);
   const ox = ax - c.x;
@@ -161,7 +166,7 @@ export function segmentHitsHousing(c: { x: number; y: number; z: number; yaw: nu
     const d = i === 0 ? dx * co - dz * s : i === 1 ? dy : dx * s + dz * co;
     const h = (i === 0 ? CAMERA.housing.w : i === 1 ? CAMERA.housing.h : CAMERA.housing.len) / 2;
     if (Math.abs(d) < 1e-9) {
-      if (o < -h || o > h) return false;
+      if (o < -h || o > h) return -1;
       continue;
     }
     let a = (-h - o) / d;
@@ -173,9 +178,9 @@ export function segmentHitsHousing(c: { x: number; y: number; z: number; yaw: nu
     }
     if (a > t0) t0 = a;
     if (b < t1) t1 = b;
-    if (t0 > t1) return false;
+    if (t0 > t1) return -1;
   }
-  return true;
+  return t0;
 }
 
 /** Runtime state of one camera. */

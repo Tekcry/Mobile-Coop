@@ -75,7 +75,7 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
   /** (guard-ai S9) His helmet bit cleared: a helmet falls (the client's `HelmetDrops`). */
   onDropHelmet: PuppetHelmetDrop | null = null;
 
-  // ----- (guard-ai S9, protocol 32) gear and caution from the snapshot's `al` -----
+  // ----- (guard-ai S9, protocol 37) gear and caution from the snapshot's `al` -----
   /** The enforcer's riot shield (by kind, as the host's `Enemy`). */
   private shield: InstancedMesh | null = null;
   /** The S12 placeholder parts, built the first time his bits ask for them, then shown or hidden. */

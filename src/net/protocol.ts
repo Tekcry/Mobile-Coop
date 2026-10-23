@@ -15,8 +15,8 @@ import type { SecWire } from '../game/ctDevices';
 import type { SectorNetExtra } from '../game/sectors';
 import { LAMP_BITS, LAMP_CHARS, LAMP_MAX, type LampWire } from './lampSync';
 
-/** 32: guard-ai S9: the `bark` event (a guard's line by event, line and unit index), `AL_CAUTION` 16 / `AL_HELMET` 32 / `AL_ARMOUR` 64 in the enemy `al`, the `hitConfirm` kind `deflect`; 31: Sector Ops light state (sector-redesign slice L): the `lamps` message (host -> all: switched-off and shot-out bitsets, `lampSync.ts`) and a client's lamp shot as a `shot` whose target is `lt-<light id>`; 30: taken by marlow-final (Menu Notes); 29: the lasers' jam point is their power panel (sector-fixes P): the `jam` claim and `sec.dv` name panel ids (`panel-*`), never laser ids (a 28 peer would jam a laser the other side does not know); 28: the `jam` claim carries the client's camera eye `e` (jammer-fixes: the host checks the jam's line of sight from it); 27: rejoin (marlow-bays R): `hello.tok`, `PlayerInfo.away`, the `you` message, the `restore` event; 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
-export const PROTOCOL_VERSION = 32;
+/** 37: guard-ai S9: the `bark` event (a guard's line by event, line and unit index), `AL_CAUTION` 16 / `AL_HELMET` 32 / `AL_ARMOUR` 64 in the enemy `al`, the `hitConfirm` kind `deflect`; 36: taken by pose-parity (#223); 35: the weapons crate (sector-redesign E9-crate): `NetItem` kind `crate` and the `crate` event (host -> all: a player used a crate; `fill` false = rejoin re-send); 32-34: guard-ai S9's number before the 4.75.0 merge (never released), marlow-final, hang-down; 31: Sector Ops light state (sector-redesign slice L): the `lamps` message (host -> all: switched-off and shot-out bitsets, `lampSync.ts`) and a client's lamp shot as a `shot` whose target is `lt-<light id>`; 30: taken by marlow-final (Menu Notes); 29: the lasers' jam point is their power panel (sector-fixes P): the `jam` claim and `sec.dv` name panel ids (`panel-*`), never laser ids (a 28 peer would jam a laser the other side does not know); 28: the `jam` claim carries the client's camera eye `e` (jammer-fixes: the host checks the jam's line of sight from it); 27: rejoin (marlow-bays R): `hello.tok`, `PlayerInfo.away`, the `you` message, the `restore` event; 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
+export const PROTOCOL_VERSION = 37;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -129,7 +129,7 @@ export function hitConfirmKind(dealt: number, killed: boolean, deflect: boolean,
 /** A usable thing on the host (mirrored on clients, used through `use`). */
 export interface NetItem {
   id: string;
-  k: 'terminal' | 'cache' | 'switch' | 'alarm' | 'door' | 'intel' | 'charge' | 'revive' | 'medkitWall';
+  k: 'terminal' | 'cache' | 'switch' | 'alarm' | 'door' | 'intel' | 'charge' | 'revive' | 'medkitWall' | 'crate';
   x: number;
   y: number;
   z: number;
@@ -139,7 +139,13 @@ export interface NetItem {
   reach: number;
   on: boolean;
 }
-export const ITEM_KINDS: readonly NetItem['k'][] = ['terminal', 'cache', 'switch', 'alarm', 'door', 'intel', 'charge', 'revive', 'medkitWall'];
+export const ITEM_KINDS: readonly NetItem['k'][] = ['terminal', 'cache', 'switch', 'alarm', 'door', 'intel', 'charge', 'revive', 'medkitWall', 'crate'];
+
+/** (polish 8) The host's event queue holds `MAX_EVENTS * 2`; a `crate` fill is never dropped (a dropped one left that
+ *  client's use recorded but never filled until a restart). Crate events are bounded by crates x players. */
+export function eventQueueKeeps(len: number, e: NetEvent): boolean {
+  return len < MAX_EVENTS * 2 || e.e === 'crate';
+}
 
 export type NetEvent =
   | { e: 'tracer'; ax: number; ay: number; az: number; bx: number; by: number; bz: number; c: string }
@@ -148,9 +154,12 @@ export type NetEvent =
   | { e: 'banner'; title: string; sub: string }
   | { e: 'feed'; text: string }
   | { e: 'pickup'; player: string; kind: 'ammo' }
-  /** (32) `deflect`: the round was stopped by the guard's helmet or vest (guard-ai S12 / S9). */
+  /** (35, E9-crate) `player` used weapons crate `id`: `fill` true = the use itself (that player tops up), false = a
+   *  re-send after a rejoin (hide the prompt only, never top up). */
+  | { e: 'crate'; player: string; id: string; fill: boolean }
+  /** (32/37) `deflect`: the round was stopped by the guard's helmet or vest (guard-ai S12 / S9). */
   | { e: 'hitConfirm'; player: string; kind: 'hit' | 'head' | 'kill' | 'deflect' }
-  /** (32, guard-ai S9) A guard's line as the host shows it: speaker `id` (a guard; with `BARK_CAM` a camera), `b` the
+  /** (32/37, guard-ai S9) A guard's line as the host shows it: speaker `id` (a guard; with `BARK_CAM` a camera), `b` the
    *  bark event's index (`BARK_EVENTS`), `n` its line index, `u` the unit it names (0 none); `BARK_CAM` / `BARK_TEXT`
    *  carry the line in `t` (radio `r`). */
   | { e: 'bark'; id: string; b: number; n: number; u: number; r: boolean; t?: string }
@@ -355,6 +364,11 @@ function netEvent(v: unknown): NetEvent | null {
       const player = id(v.player);
       const kind = oneOf(v.kind, ['ammo'] as const);
       return player && kind ? { e: 'pickup', player, kind } : null;
+    }
+    case 'crate': {
+      const player = id(v.player);
+      const cid = id(v.id);
+      return player && cid ? { e: 'crate', player, id: cid, fill: v.fill === true } : null;
     }
     case 'hitConfirm': {
       const player = id(v.player);

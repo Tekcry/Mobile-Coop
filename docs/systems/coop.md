@@ -21,7 +21,7 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 ## Protocol (`protocol.ts`)
 - Every inbound message goes through `parseMessage` (shape, clamps, string sanitising, caps); anything unknown is
   dropped. Add a message: type in `Msg`, case in `parseMessage`, a test in `tests/net.test.ts`.
-- `PROTOCOL_VERSION` 32 (32: guard-ai S9, the guard-ai state: the `bark` event, `AL_CAUTION` / `AL_HELMET` / `AL_ARMOUR` in enemy `al`, the `hitConfirm` kind `deflect`, below; 31: the Sector Ops lamps, sector-redesign slice L, below; 30: marlow-final's Menu Notes; 29: the lasers are jammed at their power panels, sector-fixes P: `jam` and `sec.dv` name panel ids; 28: the `jam` claim's camera eye `e`, jammer-fixes; 26: the jammer rules in `sec`, marlow-jammer: per-camera clocks `ck`, jam left `ch`, cooldown `cd`, jammed / recovering devices `dv`; 25: the guard torch bit in enemy `al`, below; 24: the `sector` message extras, below). A `hello` with another version is ignored by the host. History: 11 = the training course and
+- `PROTOCOL_VERSION` 37 (37: guard-ai S9, the guard-ai state: the `bark` event, `AL_CAUTION` / `AL_HELMET` / `AL_ARMOUR` in enemy `al`, the `hitConfirm` kind `deflect`, below; 36: taken by pose-parity (#223); 35: the weapons crate, sector-redesign E9-crate: `NetItem` kind `crate` and the `crate` event, host -> all, `{ player, id, fill }`: a player used a crate, `fill` false = a rejoin re-send that only hides the prompt; the host keeps the per-player ledger, `game/weaponCrates.ts`; 32-34: guard-ai S9's number before the 4.75.0 merge, marlow-final, hang-down; 31: the Sector Ops lamps, sector-redesign slice L, below; 30: marlow-final's Menu Notes; 29: the lasers are jammed at their power panels, sector-fixes P: `jam` and `sec.dv` name panel ids; 28: the `jam` claim's camera eye `e`, jammer-fixes; 26: the jammer rules in `sec`, marlow-jammer: per-camera clocks `ck`, jam left `ch`, cooldown `cd`, jammed / recovering devices `dv`; 25: the guard torch bit in enemy `al`, below; 24: the `sector` message extras, below). A `hello` with another version is ignored by the host. History: 11 = the training course and
   locomotion 10 together (G52); 12 = Wave, team deathmatch, free-for-all and PvP removed (`NetMode`, `team`, `ptd`,
   `frag`, snapshot `score` / `tl`, end `waves` / `winner`); 13 = emotes removed (`emote` message and event), then in the
   same version the custom difficulty (`dc`) and carried medkits (`PlayerState.mk`, MoveState `medkit`, `cmove` kind
@@ -101,7 +101,7 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   the client's own torch slots (`addTorchSlots`, the same `FLASHLIGHTS` 4 as the host) per guard whose
   `EnemyPuppet.torch` is set (the bit, alive, not stale: one missed snapshot switches it off), sets `reach` with the
   host's `beamReach` and switches off the rest. Test hooks: `Enemy.torchOverride` (host), `CoopClient.torches.slotOf(id)`.
-- Guard-ai state (guard-ai S9, protocol 32; the AI stays host-only):
+- Guard-ai state (guard-ai S9, protocol 37 (32 before the 4.75.0 merge); the AI stays host-only):
   - `al` gains `AL_CAUTION` 16 (S4 / S14 caution), `AL_HELMET` 32 and `AL_ARMOUR` 64 (S12 / S13 gear), packed by
     `packAlert(level, seized, torch, cautious, helmet, armour)` (`coopHost.alertCode`); the parser clamps `al` to 0-127.
   - `bark` event: `{ id, b, n, u, r, t? }`. The host wraps `EnemyManager.onBark` / `onCameraLine`
@@ -123,7 +123,7 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
     `barksShown`, `helmetDrops`.
   - A guard's breaker relight (S15) needs nothing here: it is a registry change, so the `lamps` message (Sector Ops)
     and `course.lights` (Marlow Yard) carry it; the client's switch labels still do not follow it (as for a host press).
-- Snapshots carry enemy `al` (alert level, +4 seized, +8 torch, (32) +16 cautious, +32 helmet, +64 armour) and, when changed or every 2 s, `items` (usable interactables:
+- Snapshots carry enemy `al` (alert level, +4 seized, +8 torch, (37) +16 cautious, +32 helmet, +64 armour) and, when changed or every 2 s, `items` (usable interactables:
   objectives, switches, alarms, doors, revive points, wall medkit stations `medkitWall`; clients mirror them and send
   `use`, the host checks reach; course devices `c-` first so the cap never drops them) and `doors` (open indices).
 - Wall medkit stations (G20, G98): a client's use asks the host, which heals the client's host-authoritative health

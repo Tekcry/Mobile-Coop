@@ -4,4 +4,4 @@
 - A cautious guard carries his weapon at low ready, on both screens (solo too).
 - The joiner sees the guards' vests and helmets from alarm stages 2 and 3 and a response team's riot shield.
 - The joiner's headshot on a helmeted guard pings as a deflect at once, and the helmet falls on both screens.
-- Co-op protocol 32: both players need this version.
+- Co-op protocol 37: both players need this version.

@@ -356,3 +356,9 @@ doesnt make sense". A32-A34 are S10's (on `feature/guard-ai-s10`).
   client round on the shield no longer predicts damage. Undo: drop the line in `EnemyPuppet.applyDamage`.
 - **A95** (S9) The gear parts and the shield are one builder for both sides (`ai/gearParts.ts`, moved out of `Enemy`
   without a change in look); gear parts build on the puppet the first time its bits ask, then toggle. Undo: n/a.
+- **A96** (S9, merge of master 4.75.0) Protocol 37, not 32: master 4.75.0 is at 35 (sector-redesign E9-crate) and the
+  orchestrator's registry has 33 marlow-final, 34 hang-down, 35 sector-redesign, 36 pose-parity (#223, unreleased);
+  37 is the next free number. The wire content is S9's unchanged (A90) next to master's `crate` item / event (every
+  message is keyed JSON: no field order to agree on). Undo: if pose-parity lands first or drops its number, renumber
+  `PROTOCOL_VERSION` in `src/net/protocol.ts` and every `toBe(37)` / `v: 36` / `v: 37` in tests (net, jammer,
+  jammerFixes, moveState, rejoin, sectorLampSync, sectorStep3, crateWire, coopGuardAi) and `docs/systems/coop.md`.
