@@ -392,6 +392,9 @@ export class Enemy implements Damageable {
   private routeT = 0;
   /** The nav grid's `version` the route was planned under (a bolted door opened or shut since: replan). */
   private routeVer = -1;
+  /** (guard-ai S28) The last plan found no path (a locked door shut the way): the next try waits for `routeT`, a new goal
+   *  or a grid change, not every frame. */
+  private routeMiss = false;
   /** Searching round its own stimulus (a body, a light) rather than the shared last known position. */
   private searchOwn = false;
   /** (guard-ai S18) The search's kind (`response.ts` `SEARCH_*`): plain, a dead body's (longer, wider), a device's. */
@@ -2324,18 +2327,23 @@ export class Enemy implements Damageable {
     const nav = this.ctx.nav;
     if (nav.lineClear(me, p, this.pos.y, y)) {
       this.routePath.length = 0;
+      this.routeMiss = false;
       return p;
     }
     this.routeT -= dt;
     const moved = !(hyp2(p[0] - this.routeGoal[0], p[1] - this.routeGoal[1]) < 1.5);
-    if ((moved && this.routeT <= 0) || this.routePath.length === 0 || this.routeVer !== nav.version) {
+    // (guard-ai S28) an unreachable goal is retried each `routeT`, or at once for a new goal (0.5 m off the missed one) or
+    // a grid change
+    const retry = this.routePath.length === 0 && (!this.routeMiss || this.routeT <= 0 || !(hyp2(p[0] - this.routeGoal[0], p[1] - this.routeGoal[1]) < 0.5));
+    if ((moved && this.routeT <= 0) || retry || this.routeVer !== nav.version) {
       this.routeT = 1;
       this.routeVer = nav.version;
       this.routeGoal[0] = p[0];
       this.routeGoal[1] = p[1];
       this.routePath = nav.findPath(me, p, 3000, this.pos.y, y) ?? [];
-      if (this.routePath.length === 0) return null;
+      this.routeMiss = this.routePath.length === 0;
     }
+    if (this.routePath.length === 0) return null;
     const wp = this.routePath[0]!;
     // a ladder / drop waypoint is taken (and dropped) by `move`
     if (!wp.link && hyp2(wp[0] - me[0], wp[1] - me[1]) < 0.4) this.routePath.shift();
