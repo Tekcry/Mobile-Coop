@@ -49,4 +49,4 @@ No assert was loosened.
 - `node --check scripts/e2e-stealth-ai.mjs`: OK.
 - `npx vitest run tests/searchAreaWiring.test.ts`: 17 / 17 passed.
 - Scratch nav probe (warehouse, `runtimeNav`): the gap geometry and routes quoted above.
-- No local e2e (laptop rule). Laptop rerun queued: set `s25-sai-fix`, suite `e2e-stealth-ai` (request id below).
+- No local e2e (laptop rule). Laptop rerun queued on b384befc: set `s25-sai-fix`, suite `e2e-stealth-ai`, request `20261023T130835-night-shift-guard-ai-b384befc-75cc`.
