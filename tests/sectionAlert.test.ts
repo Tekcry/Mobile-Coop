@@ -180,6 +180,11 @@ function guard(x: number, z: number, key: number, o: Partial<FakeGuard> = {}): F
     yaw: Math.PI,
     bark: vi.fn(),
     searchAt: vi.fn(),
+    // (guard-ai S18) a dead body's search (`Enemy.bodySearch`); (S19) sent to a reported one (`helpSearch`)
+    bodySearch: vi.fn(),
+    helpSearch: vi.fn((_x: number, _z: number, inc: number) => {
+      g.incident = inc;
+    }),
     sendTo: vi.fn((_x: number, _z: number, inc: number) => {
       g.incident = inc;
     }),

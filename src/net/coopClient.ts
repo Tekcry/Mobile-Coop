@@ -681,6 +681,9 @@ export class CoopClient implements NetAttachment {
         if (e.player !== me) break;
         g.player.controller.override = null;
         g.traversal.reset();
+        // (strike-pops, n4d polish 1) a bay or section restart brings an alive partner back too: no strike or kill
+        // follow-through carried onto the restarted player (the host's own respawn does the same)
+        g.strike.reset();
         g.player.controller.teleport(new Vector3(e.x, e.y, e.z), g.player.cam.yaw);
         g.target.revive();
         g.hud.setDownTimer(null);
