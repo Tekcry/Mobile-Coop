@@ -1,5 +1,8 @@
 # Changelog
 
+## 4.88.1 - Train 48: e2e-ctcourse A2 crossing settle (2026-10-24, PR #301; #299)
+- Tests: e2e-ctcourse:1 A2 waits up to 6 s for the neck crossing to read dark and equal on both pages after the cut, and names the host's baked / dynamic level and lit torches on a miss (a host-only torch is named as the known co-op torch parity gap) (train 45 / 46 flake: host 1.000, client 0.141).
+
 ## 4.88.0 - Train 47: Guard AI: plain walls are not armour (sniper fires again); Marlow Yard re-lit under the LR16 light model (2026-10-24, PR #300; #298, #291)
 
 ### Guard AI: plain walls are not armour (sniper fires again)
