@@ -18,8 +18,10 @@ scratch/ctcore/push-resume.sh <abs file> <msg>. Message the orchestrator only at
 ## Next, at once (parallel)
 1. If the b22-fix agent was lost: restart an Opus agent in folder b22-fix from the WIP above with the table's goal.
 2. When #207 is green: steps in the #214 row; message the orchestrator train-ready for #207 + #214 (+ #221 + #223).
-3. Then start spare 7 crouch pops (spare-jobs.md row 7, feature/menu; characterRig / footPlanner, after the b22 fix):
-   write a strict brief, Opus builder, own folder off batch 24 or master 4.74.0.
+3. Spare 7 crouch-pops (Opus) STARTED ~13:50: feature/crouch-pops off mocap-strafe 191c3565 (stacks on #221), folder
+   crouch-pops. Goal: stand -> crouch -> stand 9.6 cm and running crouch -> stand 8.3 cm pops <= 0.5 (docs/anim-bake-targets/
+   STATE.md:19), baked trackMul 0.05 kept; BRIEF first, tests/crouchPops.test.ts, e2e-anim + clip. If lost: restart from
+   its pushed head with this goal.
 4. Follow-ups noted: Guard AI `Enemy.patrolRoute` getter (forwarded by the orchestrator); intel part B (modes'
    onIntelCode) after marlow-final / sector-redesign; relay climber sub bit (pose-parity open item); Michael's iPad look.
 
