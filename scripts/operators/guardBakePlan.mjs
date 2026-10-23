@@ -19,7 +19,7 @@ export const STAGES = [
   { name: 'bodies', deps: ['prep'] },
   { name: 'heads', deps: [] },
   { name: 'garments', deps: ['bodies'] },
-  { name: 'gear', deps: [] },
+  { name: 'gear', deps: ['bodies'] }, // G3's gear fits read bodies/guard-<base>-body.json
   { name: 'lods', deps: ['bodies', 'heads', 'garments', 'gear'] },
   { name: 'check', deps: ['lods'] },
   { name: 'sheet', deps: ['check'] },
@@ -202,7 +202,7 @@ export function jobsFor(stage, kit, opts = {}) {
       ...nk.bases.flatMap((b) => nk.pieces.map((p) => make(idOf('gear', b.id, p.id), {
         script: p.script ?? 'rigid_skin.py', args: [...common(idOf('gear', b.id, p.id)), '--base', b.id, '--piece', p.id],
         tags: [b.id, p.id], kit: { ...slice(nk, p), base: b },
-        outputs: [`gear/guard-${b.id}-${p.id}.blend`, `gear/guard-${b.id}-${p.id}.json`],
+        outputs: [`gear/guard-${b.id}-${p.id}.blend`, `gear/guard-${b.id}-${p.id}.json`], needs: [idOf('bodies', b.id)],
       }))),
       ...nk.ownGlb.map((p) => make(idOf('gear', p.id), {
         script: p.script ?? 'rigid_skin.py', args: [...common(idOf('gear', p.id)), '--piece', p.id], tags: [p.id],

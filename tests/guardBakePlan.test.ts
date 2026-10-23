@@ -48,7 +48,7 @@ describe('guard bake plan: stage graph', () => {
     expect(STAGES.map((s) => s.name)).toEqual(['prep', 'bodies', 'heads', 'garments', 'gear', 'lods', 'check', 'sheet']);
     const deps = Object.fromEntries(STAGES.map((s) => [s.name, s.deps]));
     expect(deps).toEqual({
-      prep: [], bodies: ['prep'], heads: [], garments: ['bodies'], gear: [], lods: ['bodies', 'heads', 'garments', 'gear'], check: ['lods'], sheet: ['check'],
+      prep: [], bodies: ['prep'], heads: [], garments: ['bodies'], gear: ['bodies'], lods: ['bodies', 'heads', 'garments', 'gear'], check: ['lods'], sheet: ['check'],
     });
     const seen = new Set<string>();
     for (const s of STAGES) { for (const d of s.deps) expect(seen.has(d)).toBe(true); seen.add(s.name); }
@@ -126,7 +126,8 @@ describe('guard bake plan: job split', () => {
     expect(jobsFor('check', kit).find((j) => j.id === 'check-lean')?.needs).toEqual(['lods-lean']);
     expect(jobsFor('sheet', kit)[0]?.needs).toHaveLength(4);
     expect(jobsFor('heads', kit).every((j) => j.needs.length === 0)).toBe(true);
-    expect(jobsFor('gear', kit).every((j) => j.needs.length === 0)).toBe(true);
+    // per-base gear fits its base's body (G3 gear/fit.py load_body): a rebuilt body rebakes it; the shield needs nothing
+    for (const j of jobsFor('gear', kit)) expect(j.needs).toEqual(j.tags.length === 2 ? [`bodies-${j.tags[0]}`] : []);
     expect(jobsFor('bodies', kit).every((j) => j.needs.join() === 'prep')).toBe(true);
   });
 
