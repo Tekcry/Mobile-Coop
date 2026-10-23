@@ -40,6 +40,42 @@ fresh bodies (`body.ts`) opt in; `?guardmerge=0` gives the old instanced parts f
 - GPU run: first-draw compile of the BONES + VERTEXCOLOR + SMOOTHBODY variant may hide the first guard for a few
   frames; the box has only 0.3 m headroom (raised hands poke out).
 
+## S7 (2026-10-23, branch `feature/guard-render-s7` off S1 d53caf0f): shared GPU buffers per cache entry
+Re-planned by the job lead: S1's checker note ("GPU buffers are per body; CACHE shares only CPU arrays"). The PLAN's
+merged-LOD-distance tuning is not in this slice.
+- What: guards built from one `CACHE` entry (same look, build, height) now share the static GPU vertex buffers
+  (position, normal, matricesIndices, matricesWeights, color2, ppos, pnrm) and the index buffer of each LOD level.
+  Per guard stay: `color` (flash, lens glow), `pattern` (w = thermal heat), the skeleton / bone texture, the
+  root-local `BoundingInfo` (culling), the Geometry (its own VAOs). No shader, material or plugin change, so normal /
+  thermal / night vision and light parity are untouched; `?guardmerge=0` (parts) untouched (`buildSmoothBody` returns
+  before any of it).
+- How (`src/player/smoothBody.ts`): `STATIC` kinds (35-44); `Shared` + `SHARED` per scene per `MergedBody` (45-62,
+  `sharedBufferCount` test hook); `mesh()` wraps the shared Babylon `Buffer`s in per-mesh `VertexBuffer`s with
+  `takeBufferOwnership` and sets the shared index `DataBuffer` with `setIndexBuffer(..., is32Bits)` (212-226); CPU
+  `_indices` restored so `getIndices()` still answers; `share()` (243-265) uploads on the first user, raises the index
+  buffer's count per later user; `dispose()` (335-341) drops the entry with the last user. Disposal rides Babylon's
+  own reference counts (`Geometry.setVerticesBuffer` -> `Buffer._increaseReferences`; geometry dispose ->
+  `_releaseBuffer`), so the GPU buffer goes with the last mesh, whoever disposes it (also scene dispose); the scene's
+  map is deleted on `scene.onDisposeObservable`. A guard of a look whose users all left uploads afresh.
+  `src/core/babylon.ts:69-70`: `Buffer as GpuBuffer`, type `DataBuffer`.
+- Test (`tests/smoothBody.test.ts` "guard-render S7", NullEngine): two grunts -> 2 entries (hi, lo); every static kind
+  and the index buffer are the same `DataBuffer` / `Buffer` (references 2); colour / pattern buffers, skeleton,
+  bounding info and geometry differ; a flash + heat on one leaves the other; dispose one -> references 1, the other
+  keeps every buffer, full index count and is still in the active list after a render; dispose both -> references 0,
+  `Buffer.isDisposed`, entries 0; a third guard uploads afresh; scene dispose clears the map.
+- Numbers (NullEngine, grunt): hi 6250 vertices / 36900 indices, lo 2628 / 15168. Static 96 B a vertex + 4 B an
+  index (Uint32 -> 32-bit index buffer): hi 748 KB + lo 313 KB = 1.06 MB shared per look; per guard left: colour +
+  pattern 32 B a vertex = 284 KB. Per guard 1.34 MB -> 0.28 MB; 24 guards of one look 32.3 MB -> 7.9 MB of buffers,
+  and a spawn uploads 0.28 MB instead of 1.34 MB (after the first of its look). No frame-time claim: draws, bone
+  uploads and vertex fetch are unchanged; GPU not run.
+- Checks: `tsc --noEmit -p .`, eslint on the changed files, vitest single files smoothBody, smoothBodyMerge, voxel,
+  animGear, coopTorches, enemyManagerDespawn, sectorRestart: all pass. No full check, no e2e, no GPU run.
+- Doubts: (1) `_indices` is a private Geometry field (Babylon 9.29); without it `getIndices()` would return [] (no
+  game code reads it on these meshes; picking is off). (2) Not seen on a GPU: WebGL draws read `is32Bits` from the
+  shared buffer (passed explicitly); WebGPU untested. (3) Sharing helps only within a look: guards of different
+  defs / factions still upload their own. (4) 16-bit indices (hi < 65535 vertices) would halve the index share; not
+  done (no look change, small).
+
 ## S1 doubts (for the checker / the GPU run)
 - Not rendered on a GPU yet: the plugin's shader (PBR + SURF_OBJECT + BONES + VERTEXCOLOR) compiles only in the e2e /
   GPU run; a compile error would show as missing guards in smoke.
