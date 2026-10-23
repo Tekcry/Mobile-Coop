@@ -274,34 +274,28 @@ Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md pol
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build (was Course Ready Build): RESUME (cleared session / new account). Job: sector-redesign (lead), branch
-feature/sector-redesign-p3 (feature/sector-redesign is FROZEN at f29a43da in train 23 as #206: never push it), worktree
-C:/NightShift/Mobile-Coop-sector-redesign-p3. git fetch; read CLAUDE.md (+ token / swap / session-title rules on
-origin/feature/menu until master), docs/ROADMAP.md "Decided", then STATE.md on -p3 top to "## Next at ~10:20": "Now"
-and "Next window" hold everything (PR 3, lanes A-E). Briefs: docs/sector-redesign/briefs/ (ART-*.md, E9-CRATE.md).
-In flight (window 4, ~13:15):
-- PR 3 OPEN: Tekcry/Mobile-Coop#215 from -p3 @ 19e05b1a (orchestrator told, train-ready). All GPU green (crate fix f7a3a042,
-  :526 deflake 941dee7d, netmove 5d7eb6dd). Fragment changes/feature-sector-redesign-p3.md. Merge master only at the train.
-- PR 4 = feature/sector-redesign-polish @ ed256ccf (worktree -polish) = PR 3 + posts + E2 glass + E10 armour + polish batch
-  (checks posts-check / e2-check / e10-check / polish-check all PASS; fragment changes/feature-sector-redesign-polish.md).
-  PR 4 OPEN: Tekcry/Mobile-Coop#217 (laptop GPU 9/9 green at ed256ccf; orchestrator told; stacks on #215).
-  -e10 at 16442ee1 was green on the laptop except the then-unfixed crate leg. Guard AI builds S16 (fire check vs armour) once
-  E10 is on master. Polish follow-ups: ART-S4.md:39 / SLICE4.md:98 tank height 1.6 -> 2.0; hostCrackOk floor gap.
-- Train 25 left #215 / #217 out (e2e-sectorops.mjs conflict with the guard-ai stack): train/25 a8bb27ab merged into -polish
-  @ b3fd1fa3 (both blocks kept, tsc clean); laptop runs sectorops 1-6 + coop GPU -> green: tell the orchestrator train-ready
-  for train 26 (#217 contains #215).
-- Lane A: ART-KIT DONE -art-kit @ 26670151 (88 new tests, kit 7028 tris / 495 KB, base() draws S1 15 / S2 25 / S3 19 / S4 15 /
-  S5 22 of 40; checks/art-kit-build.md "What the dressers must know" overrides the ART-S briefs). RUNNING ~13:35: Opus kit
-  checker (checks/art-kit-check.md) + five Sonnet dressers on feature/sector-redesign-art-s1..s5 (worktrees -art-s<N>, cut
-  from 26670151; reports checks/art-s<N>-build.md; tsc / vitest gated by C:/NightShift/scratch/sr-slot-{1,2}.lock). Then:
-  kit fix round if any, join art-kit + art-s1..s5 + -polish, one Opus checker for the dressing batch, GPU perf pass
-  (perf.mjs MODE, campus-art-shots --sheet) + sectorops 6 + coop, PR 5.
-- Lane D (gear / sweep): still blocked, guard-ai SquadSlot gear types not on master (checked 13:10).
-For each lane: branch log + report; finished -> one checker per batch; unfinished -> rerun from its brief / STATE text.
-Worktrees made with `worktree add -b X origin/Y` track Y: push lane branches with `git push -u origin <branch>`.
+Night Shift | Sector Ops Build: RESUME (new account). Job: sector-redesign (lead). Lead branch now
+feature/sector-redesign-polish (worktree C:/NightShift/Mobile-Coop-sector-redesign-polish; -p3 = PR 3 #215, frozen unless the
+train asks). git fetch; read CLAUDE.md, ROADMAP "Decided" (grep only), this file's "Now" sections. Briefs docs/sector-redesign/briefs/.
+State at the ~90% save (~13:55):
+- PR 3 #215 (-p3 @ 19e05b1a) + PR 4 #217 (-polish, contains #215) were left out of train 25 (e2e-sectorops.mjs conflict).
+  train/25 a8bb27ab merged into -polish (b3fd1fa3, both e2e blocks kept). Laptop GPU at b3fd1fa3: sectorops 1-5 + coop PASS;
+  sectorops:6 failed only on guard-ai S10 pairs warnings -> fixed e57dac61 (S4 / S5 standing pairs drop `pair`, tests updated).
+  Asked Test Runner for sectorops:6 (+5) at e57dac61. Green -> message the orchestrator "train-ready: train 26 (#217 with #215)".
+- Lane A detail art: ART-KIT -art-kit @ 31b72d65 (kit check PASS, checks/art-kit-check.md; ledge gate P1 + split gaps P4 added
+  in tests/campusArtGameplay.test.ts). Dressers feature/sector-redesign-art-s1..s5 (worktrees -art-s<N>, from 26670151;
+  reports checks/art-s<N>-build.md): S5 DONE 1a588f84 (30 draws; kit gaps in its report); S1-S4 were running, WIP pushed at
+  the save. Next: finish/rerun S1-S4 from briefs/ART-S<N>.md + checks/art-kit-build.md "What the dressers must know";
+  join -art-kit (31b72d65+) + art-s1..s5 + -polish on a new branch -art (merge each, rerun campusArtGameplay: the new
+  ledge gate must pass for every section), drop any committed __pycache__ .pyc, one Sonnet checker for the dressing batch
+  (Opus for kit code), GPU perf pass (perf.mjs MODE, scripts/campus-art-shots.mjs --sheet, port 4189) + sectorops:6 + coop,
+  fragment changes/feature-sector-redesign-art.md, PR 5.
+- Lane D gear / sweep: Sonnet on feature/sector-redesign-gear (worktree -gear, off e57dac61): S4 / S5 helmet defaults,
+  'both' for NOC / supervisor / response / token guards, sweep points; checks/gear-sweep.md, tests/campusGear.test.ts.
+  Then one Sonnet checker, merge into the PR 4 follow-up (or -art).
+- Guard AI builds S16 (no firing into armour) once E10 is on master. Polish: hostCrackOk floor gap (doorPeek.ts:146).
 Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
-Sonnet builds from strict briefs, Haiku chores, one fix round per slice; parallel lanes up to desktop CPU ~80%,
-never two agents on the same files; every e2e E2E_GPU=1 on a desktop lane (atomic heavy.lock 4191 / heavy2.lock 4192;
-the laptop's Character Build session is gone); push WIP + refresh STATE after every hand-back; Michael may be asleep:
-log assumptions, no question dialogs.
+Sonnet builds from strict briefs; one fix round per slice; parallel lanes up to desktop CPU ~80%; never two agents on the
+same files; tsc / vitest agents take C:/NightShift/scratch/sr-slot-{1,2,3}.lock; e2e GPU on the laptop (Test Runner) or
+the desktop heavy.lock 4191; push WIP + refresh STATE after every hand-back; Michael may be asleep: log assumptions.
 ```
