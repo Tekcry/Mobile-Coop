@@ -567,15 +567,12 @@ C:/NightShift/Mobile-Coop-guard-ai (feature/guard-ai: STATE / PLAN / BRIEF / sli
 -carry-fix2, -s22-game. Never merge master into a branch (the train does).
 Released: S1-S8 + S5b / S6 / S10 (4.66-4.74), S11-S15 in master, train 31 = #240 / #229 S9 / #234 S22 AI (4.80.0), #218-#220 (4.76.0), #230 walk (4.77.0), #228 S16 (4.78.0). Master 4.79.0, PROTOCOL 40.
 Open:
-1. Train 31 (orchestrator, head 5ee209d8, full run on the laptop): #240 carry-fix 0bdfa95b (PROTOCOL 40; the
-   body-compile recovery src/player/bodyEffectRecovery.ts + scripts/e2e-guard-carry.mjs with its forced timeout pass),
-   #229 S9 4731c869 (PROTOCOL 41, contains #240's 74c352a7), #234 S22 283d26f3 (contains S9). Fix any failure it
-   reports at once (one Opus fix agent from the assert; rerun only what failed). Label: gh pr edit 240/229/234
-   --add-label train-ready once the label exists (missing ~14:00).
+1. Train 31 PASSED, 4.80.0 (#240 / #229 / #234; the orchestrator closes #240 by hand). Nothing open there.
 2. feature/guard-ai-carry-fix2 d7a3b887 (off #240: recompileEffect turns GPU skinning back on after Babylon's
    CPU fallback; tests/bodyEffectRecovery.test.ts 4/4). Running in parallel: fresh Opus check
    (slices/CARRY-FIX2-CHECK.md) + Test Runner (guard-carry + stealth-ai on it; its suite on master 4f6db420 must
-   FAIL). Both green -> open the PR to master, TRAIN-READY (next train), label.
+   FAIL). Then merge feature/guard-ai-carry-fix bdfe97ee (the forced-fault assert accepts a recovery drop) into it,
+   Test Runner reruns e2e-guard-carry on that head; green -> PR to master, TRAIN-READY, train-ready label.
 3. S22 game side: feature/guard-ai-s22-game 2665b622 (s22 + marlow-final #237, PROTOCOL 43 = 41 + #237's 42; A4 e2e
    08586783 scripts/e2e-ctcourse/a4GoodsShed.mjs; check PASS slices/S22-GAME-CHECK.md). e2e-coop PASS;
    e2e-ctcourse:2 FAIL in A3 (a3OfficeRange.mjs:85 the cleaner never walks to office 1's switch; Marlow's
