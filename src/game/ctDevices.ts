@@ -69,7 +69,7 @@ import {
   type ScanResult,
   type ScannerDef,
 } from './scanners';
-import { passZoneNeed, type PassZone } from './passZones';
+import { hallCameras, passZoneNeed, type PassZone } from './passZones';
 import type { CourseDevice } from './course/courseDef';
 import { cameraOff, consoleCamMode } from './course/securityRoom';
 import { deskCamMode } from './sectorDesks';
@@ -318,6 +318,8 @@ export class CtDevices {
   /** (fix round 2) Per zone and player: seconds left of the sent-back hold (`HALL_BACK_HOLD`, the client only). */
   private hallHold = new Float32Array(0);
   private hallCam: (CameraUnit | null)[] = [];
+  /** (marlow-walk482 X6) Host: the hallway rules' cameras (`hallCameras`): the send-back is their only cost (`onCamera`). */
+  private hallCamIds: ReadonlySet<string> = new Set<string>();
   private readonly backAt = new Vector3();
   /** (fix round 1) Players the hallway camera sent back (tests). */
   sendBacks = 0;
@@ -376,6 +378,7 @@ export class CtDevices {
     this.hallRun = new Uint8Array(this.zones.length * 2);
     this.hallHold = new Float32Array(this.zones.length * 2);
     this.hallCam = this.zones.map((z) => (z.hall && role === 'host' ? (this.cams.find((c) => c.def.id === z.hall!.camera) ?? null) : null));
+    if (role === 'host') this.hallCamIds = hallCameras(this.zones);
     this.cueSeen = new Uint8Array(this.cams.length);
     if (this.cams.length > 0) {
       const b = g.ballistics;
@@ -1111,6 +1114,9 @@ export class CtDevices {
       }
       return;
     }
+    // (marlow-walk482 X6, Michael: "It's a training exercise, the guard should be non hostile and not respond to you being
+    // detected on the camera") a hallway rule's camera only sends the player back (`stepHall`): no device alert, no alarm
+    if (this.hallCamIds.has(e.camera)) return;
     // (guard-ai S17, G3) the guards hear of where the camera saw someone (a sighting then, not his live position):
     // first, so the alarm's reinforcements know the spot
     if (this.hooks.alertAt) {

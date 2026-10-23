@@ -14,6 +14,7 @@ import { hyp2 } from '../../core/mathx';
 import { CtDevices } from '../ctDevices';
 import { consoleFor, consoleRefusal } from '../course/securityRoom';
 import { CourseFeed } from '../course/courseFeed';
+import { spotFailed } from '../course/spotFail';
 import { DrillDetect, emptySnap, VERBS } from '../course/drillDetect';
 import { summarise } from '../course/courseRating';
 import { CourseHud } from '../../ui/hud/courseHud';
@@ -568,6 +569,16 @@ export class CourseMode implements GameMode {
     const det = g.style.detections;
     if (det > this.detSeen) st.record('detections', det - this.detSeen);
     this.detSeen = det;
+    // (marlow-walk482 X2a) spotted fails the set: a squad guard in combat restarts it from its start (the full reset,
+    // both players back to the checkpoint; the client hears the line through `rl`). Once: the restart drops the squad
+    // this step (`handle`), and never over a pending everyone-down restart. The line goes first in the queue so a
+    // full queue of lines held while the guard was alerted never drops it.
+    const sf = st.currentBay.spotFail;
+    if (sf && !st.over && this.restartT < 0 && spotFailed(st.currentBay, this.squad)) {
+      this.radioQ.unshift(sf);
+      if (this.radioQ.length > 4) this.radioQ.length = 4;
+      this.restartCheckpoint();
+    }
     // (section-rating S6) the set's live rating stats (the test hook)
     const rs = this.rating;
     if (rs && rs.current >= 0) {
