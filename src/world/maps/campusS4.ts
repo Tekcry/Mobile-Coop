@@ -494,12 +494,12 @@ export function buildCampusS4(b: LevelBuilder): void {
   for (const [x, z] of [[26.8, 25], [26.8, 29], [32.7, 26], [32.7, 34]] as const) lamp(b, x, 3.6, z, { r: 4.5, i: 0.8, group: S4_GROUPS.cold3, cone: down });
   lamp(b, 5, 2.8, 20, { r: 5, i: 0.8, group: S4_GROUPS.lobby, cone: down });
   for (const x of [20, 29]) lamp(b, x, 6.0, 19, { r: 8, i: 0.9, group: S4_GROUPS.dock, w: 0.6 });
-  for (const z of [24, 40]) lamp(b, 34.3, 6.0, z, { r: 9, i: 0.9, group: S4_GROUPS.yard, w: 0.6 });
+  for (const z of [24, 40]) lamp(b, 35.35, 6.0, z, { r: 9, i: 0.9, group: S4_GROUPS.yard, w: 0.6 });
   for (const x of [0, 5]) lamp(b, x, 6.4, 45, { r: 6, i: 0.8, group: S4_GROUPS.noc, w: 0.5 });
   for (const x of [0, 5]) lamp(b, x, 3.1, 44.5, { r: 5, i: 0.8, group: S4_GROUPS.sec, w: 0.5 });
   for (const z of [34, 41]) lamp(b, -7, 3.4, z, { r: 5, i: 0.7, group: S4_GROUPS.ups, cone: down });
   lamp(b, -7, 2.8, 29, { r: 5, i: 0.7, group: S4_GROUPS.ups, cone: down });
-  for (const x of [6, 14, 22, 28]) lamp(b, x, 8.8, 33.6, { r: 3.5, i: 0.7, group: S4_GROUPS.deck, w: 0.5 });
+  for (const x of [6, 14, 22, 28]) lamp(b, x, 8.8, 34.2, { r: 3.5, i: 0.7, group: S4_GROUPS.deck, w: 0.5 });
 
   // ---- ambient: the section at the standby fill 0.14 (true dark with a circuit cut); C3 and C4 keep their 0.30
   b.ambientZone(-10, 40, 16, 48, 0.14, -1, 9.5);

@@ -598,16 +598,16 @@ export function buildCampusS5(b: LevelBuilder): void {
   // well, the back corridor, the service lobby, the plant room, the lawn, the boathouse path, the jetty, the roof but for #19's
   const down = makeCone(0, -1, 0, 1.15);
   lamp(b, -44, 6.5, 23.5, { r: 12, i: 0.9, group: S5_GROUPS.chand, w: 0.7 });
-  for (const [x, z] of [[-49.85, 21], [-49.85, 27], [-46, 31.85], [-42, 31.85], [-38.15, 21], [-38.15, 27]] as const) lamp(b, x, 6.6, z, { r: 5, group: S5_GROUPS.gal, w: 0.3 });
+  for (const [x, z] of [[-48.7, 21], [-48.7, 27], [-46, 30.7], [-42, 30.7], [-39.2, 21], [-39.2, 27]] as const) lamp(b, x, 6.6, z, { r: 5, group: S5_GROUPS.gal, w: 0.3 });
   for (const z of [21, 27]) lamp(b, -53, 7.4, z, { r: 6, group: S5_GROUPS.board, cone: down });
   lamp(b, -43, 3.4, 34.5, { r: 6, group: S5_GROUPS.ante, cone: down });
   lamp(b, -43, 3.4, 40.5, { r: 6, group: S5_GROUPS.ante, cone: down });
-  for (const [x, z] of [[-67, 25], [-59, 25], [-67, 37], [-59, 37]] as const) lamp(b, x, 0.3, z, { r: 6, group: S5_GROUPS.garden, w: 0.3 });
-  for (const x of [-64, -56, -48, -40, -34, -28]) lamp(b, x, 0.8, 49.5, { r: 4, group: S5_GROUPS.garden, w: 0.3 });
+  for (const [x, z] of [[-67, 25], [-59, 25], [-67, 37.2], [-59, 37.2]] as const) lamp(b, x, 0.3, z, { r: 6, group: S5_GROUPS.garden, w: 0.3 });
+  for (const x of [-64, -56, -48, -40, -34, -28]) lamp(b, x, 0.8, 48.7, { r: 4, group: S5_GROUPS.garden, w: 0.3 });
   for (const z of [21, 27]) lamp(b, -53, 3.4, z, { r: 6, group: S5_GROUPS.ctl, cone: down });
   for (const z of [35, 41]) lamp(b, -29, 3.4, z, { r: 6, group: S5_GROUPS.kitchen, cone: down });
-  lamp(b, -40, 9.6, 43.6, { r: 4, group: S5_GROUPS.roof, w: 0.3 });
-  for (const [x, z] of [[-49.85, 22], [-49.85, 28], [-38.15, 26], [-38.15, 30]] as const) lamp(b, x, 2.6, z, { r: 5, group: S5_GROUPS.hall, w: 0.3 });
+  lamp(b, -40, 9.6, 42.6, { r: 4, group: S5_GROUPS.roof, w: 0.3 });
+  for (const [x, z] of [[-48.7, 22], [-48.7, 28], [-39.3, 26], [-39.3, 30]] as const) lamp(b, x, 2.6, z, { r: 5, group: S5_GROUPS.hall, w: 0.3 });
   for (const z of [34, 40]) lamp(b, -53, 7.4, z, { r: 6, group: S5_GROUPS.ceo, cone: down });
 
   // ---- ambient (LR7): the grounds and the house at the standby fill 0.14; the service stair 0.30 (transit); C4 keeps its 0.30
