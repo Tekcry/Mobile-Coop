@@ -378,6 +378,16 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   next guard who sees it still off turns it back on, and a dropped walk is noticed again (`CONSOLE_FAULT.retry` 3 s).
   `watchesConsole(e, x, floorY, z)` tells the game whether a guard is watching it now (the refusal). Game-side wiring
   (CourseMode, after marlow-final): `docs/guard-ai/slices/S22.md`. Host only, no protocol change.
+- Every player is seen (guard-ai S23, A143-A145; `ai/targetPick.ts` pure: `mayBeSeen`, `pickTarget`, `TARGETS`,
+  `MAX_INTRUDERS` 4): each think a guard perceives every live player (`Enemy.perceive`, per-player module scratch, no
+  allocation): chest / head / hips rays, light and `sightRate` per player, a dog's smell per player; a player a calm
+  guard cannot see at all (outside his field and not felt close by, `mayBeSeen`, the two terms of `sightRate`) costs no
+  ray. The target is the best seen when calm (the highest rate, else the nearest); in combat the one he fights while he
+  sees him, else the nearest he sees, else his last (S24 passes the hunted player). One meter per guard, filled at the
+  target's rate (two in view do not add up). `seesIndex(i)` (player `i` of `players()` in sight, any body sample) drives
+  the host's awareness arcs (`seesIndex(0)`: the host's own player); `targetDist` drives the flanker pick. Undo:
+  `TARGETS.all` false (the nearest only), `TARGETS.sticky` false (best seen each think in combat). Solo: the same
+  target, rate and meter. Host only, no protocol change. Brief: `docs/guard-ai/slices/S23.md`.
 - Sound: `world/surfaces.ts` (pure) `surfaceAt` scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice. Shots:
   `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise` (combat); `onRay` hits
   are heard within `IMPACT_NOISE`.
