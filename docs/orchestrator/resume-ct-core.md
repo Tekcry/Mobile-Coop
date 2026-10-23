@@ -1,4 +1,4 @@
-# Resume - Night Shift | Player Build (saved 2026-10-23 ~15:15 at the 82% swap save; all agent worktrees WIP-pushed)
+# Resume - Night Shift | Player Build (saved 2026-10-23 at the 100% swap; agent worktrees WIP-pushed: afp-af1, afp-af4a, afp-af6, b22-fix - restart each from its branch head with its PLAN slice / row goal)
 
 Rules: CLAUDE.md on origin/feature/menu "Heavy-usage throughput", "Token rules", "Account swap". No mid-window clears.
 Opus plans / checks / anim + net code; Sonnet builds from strict briefs; desktop CPU < 80%. e2e always E2E_GPU=1:
