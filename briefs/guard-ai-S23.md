@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-23T08:29Z
+status: claimed Night Shift | Cloud Builder 1 2026-10-23T08:29Z (WIP at 1e98ec46 on feature/guard-ai-s23: unverified, builder cut off by the account cap; resume from that commit)
 # guard-ai S23: every player is seen (co-op perception)
 
 Lead: Night Shift | Guard AI Build. Model: Opus (AI perception code). The full strict brief is
