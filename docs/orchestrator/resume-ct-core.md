@@ -24,14 +24,13 @@ Released: #227 (4.76.0), #207 batch 22 (4.77.0), #214 -> #223 -> #231 stack (4.7
 | Job | Branch (folder C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
 | #239 optic cable (doors, no wire) | feature/optic-cable (optic-cable) | 193724a3 | Train 31, TRAIN-READY sent. Merges clean onto master 4f6db420. |
-| #247 anim-fix-pass (walk P1-P5; PLAN.md:7 maps P1-P7, P6-P7 = #231 released) | feature/anim-fix-pass | 3168f31a+STATE | PR open 19:45, all AF0-AF6 checker PASS; AF4b laptop e2e-anim + clip PASS. Waits on the orchestrator: AF6 PROTOCOL number + train. Then brief briefs/afp-train-entry.md (merge master, renumber), laptop e2e-coop + netmove, train-ready. |
+| #247 anim-fix-pass (walk P1-P5; PLAN.md:7 maps P1-P7, P6-P7 = #231 released) | feature/anim-fix-pass | 3168f31a+STATE | PR open 19:45, all AF0-AF6 checker PASS; AF4b laptop e2e-anim + clip PASS. Train 33 (orchestrator 19:50): after train 32 releases (~20:15+, brings #244: PROTOCOL bump moves into the train build, number asserts removed) merge master, take master's side in protocol.ts + assert tests (NO renumber), brief briefs/afp-train-entry.md, laptop e2e-coop + netmove, train-ready. |
 | stealth-pays (ROADMAP stealth over shooting 9 / 12 / 7; docs/stealth-pays/PLAN.md) | feature/stealth-pays (stealth-pays) | 956c1243 | 7 and 12 already on master. S1 done 53e89d69 (feature/stealth-pays-s1). S2 698f14c5 (feature/stealth-pays-s2): e2e a2 grab setup failed; Opus fix round making a2 call onIntelCode directly (as S1). Then merge S1+S2 into stealth-pays, one checker + laptop e2e-ctcourse / e2e-sectorops in parallel, S3 (briefs/stealth-pays-s3.md), one batch PR. P1 parked (wire). |
 
 ## Next
-1. #247: on the orchestrator's number, run briefs/afp-train-entry.md.
+1. #247: once train 32 is on master, run briefs/afp-train-entry.md (master's side, no renumber), laptop e2e-coop + netmove, message train-ready (orchestrator labels until Michael adds a permission rule).
 2. Entering its train: merge master; conflicts = src/net/protocol.ts, the 11 PROTOCOL assert tests, settingsScreen.ts
-   (git merge-tree). AF6 wire number after Guard AI 41 and marlow-final 42: orchestrator confirms (43?); renumber with
-   scratch/ctcore/tests40.js. Laptop e2e-coop + netmove on the merged head.
+   (git merge-tree). AF6 wire number after Guard AI 41 and marlow-final 42: orchestrator confirms (43?); NO renumber from train 32 (#244). Laptop e2e-coop + netmove on the merged head.
 3. After ANY master / train merge: run every test file with a PROTOCOL_VERSION assert (git grep -l PROTOCOL_VERSION -- tests)
    + tsc; master check worktree C:/NightShift/Mobile-Coop-proto-check (detached, node_modules junction to Mobile-Coop-train).
 4. Follow-ups (not in a PLAN yet): intel part B (onIntelCode); relay climber sub bit; stealth-over-shooting CT Core items
