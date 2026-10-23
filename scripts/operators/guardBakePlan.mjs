@@ -47,7 +47,7 @@ export const GPU_STAGES = new Set(['heads', 'lods']);
 const LIBS = {
   prep: [],
   bodies: ['common.py', 'mh.py', 'guard_body.py'],
-  heads: ['common.py', 'mh.py', 'materials.py'],
+  heads: ['common.py', 'mh.py', 'materials.py', 'guard_skin.py'],
   garments: ['common.py', 'pattern.py', 'build_garment.py', 'garment_details.py', 'fitted.py', 'materials.py', 'garments/torso_common.py'],
   gear: ['common.py', 'rigid_skin.py', 'materials.py', 'gear/__init__.py', 'gear/fit.py', 'gear/mesh.py', 'gear/headwear.py', 'gear/helmet.py',
     'gear/torso.py', 'gear/shield.py', 'gear/kit.py', 'gear/pieces.py'],
