@@ -51,7 +51,7 @@ const doors = { list: [] as ResetDoor[], setOpen: () => undefined, crack: () => 
 
 describe('Sector Ops lamp sync (slice L, protocol 31)', () => {
   it('PROTOCOL_VERSION is 31', () => {
-    expect(PROTOCOL_VERSION).toBe(31);
+    expect(PROTOCOL_VERSION).toBe(32);
   });
 
   it('encode / decode round trips every state, flashlights read on', () => {
