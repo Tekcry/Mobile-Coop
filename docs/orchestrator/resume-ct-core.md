@@ -7,14 +7,14 @@ batch; desktop heavy.lock (4191) / heavy2.lock (4192) for single suites. Agent r
 COMMON-SPARE.md (subagents are refused REPORT.md: the lead writes it from the hand-back). Push this file with
 scratch/ctcore/push-resume.sh <abs file> <msg>. Message the orchestrator only at PR open / train-ready / blocked / Michael.
 
-## Open (master f5912402, PROTOCOL 35). Train 27 = #227 (origin/train/27 e83f423a). Train 28 = #207 + #214 + #223 + #231 (stack).
+## Open (4.76.0 = train 27 incl. #227). Train 28 origin/train/28 3a2b1e9a = #207 + Guard AI #230. Train 29 = stack #214 -> #223 (36) -> #231 (37) once laptop green. Guard S9 = 38, AF6 = 39.
 | Job | Branch (folder C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
 | #207 batch 22 | feature/ctcore-batch-22 (b22-fix) | f1fac44a | TRAIN-READY sent 16:15 (ladder knees 14.4 cm, e2e-clip GPU PASS, CI green). |
 | #214 batch 23 (+iPad fit, Anim Studio main menu only) | feature/ctcore-batch-23 (ctcore-batch) | 34c73892 | +batch-22 merged. Train-ready on the laptop verdict for d86007b5. |
 | #223 pose-parity | feature/pose-parity | faee0255 | +batch-23 merged, PROTOCOL 36, crateWire assert 36. Same verdict. |
 | #231 coop-walk-fixes (walk P6-P7) | feature/coop-walk-fixes | d86007b5 | +pose-parity, PROTOCOL 37. Laptop batch requested 16:15 (coop, netmove, ctcourse, clip, pad); then train-ready x3. |
-| anim-fix-pass (walk P1-P5; PLAN.md:7 maps P1-P7) | feature/anim-fix-pass | origin | AF0 / AF1 / AF2 / AF5 merged (44ed5389; AF1 checker PASS). AF3 running (afp-af3, node_modules junction to afp-af1). AF4a done c0fab095 (e2e-anim GPU PASS; pistol grip 1.01 vs 1.0 -> AF4b; AF4a-REPORT.md open items). AF6 (afp-af6, PROTOCOL 38) running. |
+| anim-fix-pass (walk P1-P5; PLAN.md:7 maps P1-P7) | feature/anim-fix-pass | origin | AF0 / AF1 / AF2 / AF5 merged (44ed5389; AF1 checker PASS). AF3 running (afp-af3, node_modules junction to afp-af1). AF4a done c0fab095 (e2e-anim GPU PASS; pistol grip 1.01 vs 1.0 -> AF4b; AF4a-REPORT.md open items). AF6 (afp-af6, PROTOCOL 39, told 16:2x) running. |
 
 ## Next
 1. AF3 hand-back -> checker (batch with AF4a / AF6) -> merge; then AF4b (animGraph, after AF3).
