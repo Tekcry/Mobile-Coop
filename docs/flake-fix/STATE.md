@@ -21,7 +21,15 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   guardrender-s3a-e704d5f3 (stealth-ai takedown sectorops enemies coop ctcourse, JOBS=3) + 4192 guardrender-s6-c181002e
   (smoke stealth-ai sectorops ctcourse, JOBS=2).
 - 11:15 TRAIN 22 a39d688f GREEN (full GPU JOBS=5, wall 408 s) -> orchestrator (4.71.0). JOBS=5 clean beside an idle 4192.
-- RUNNING: chain-1023p.ps1 (waits for no locks, then 4189 ALONE guardrender-s6cap-c181002e), chain-1023q.ps1 (after p),
+- 11:30 CHECKER (Opus) S3a e704d5f3 PASS WITH NOTES: (1, blocks job PR) fit script has no `free` mode for MOVE + no
+  crouch sweep; (2) harness re-implements syncHitboxes emote logic (move to a pure fn, test beginTakedown blindPose clear);
+  (3) hostage walk untested (mSx survives held blend, frozen phase); exceptions OK, peek cycle 29 cm = follow-up (smaller
+  guard PEEK_HIP or sim foot model). -> Opus fix round 2 running on feature/guard-render-s3a. S6 c181002e PASS WITH NOTES:
+  (2) getCustomRenderList re-prepares the list per cascade: check render() CPU on a NON-baked-moon map in the on / off
+  measure, else cull only with moving casters; (3) reach measured from activeCamera, use the player / camera target;
+  (4) dropped carried bodies have no reach; (7) past 40 m guards lose ground contact in moonlight (blobs off): S6d stays
+  off master until Michael sees the look check. Light parity clean. S6 fixes wait for guardrender-s6cap results.
+- RUNNING (old, see above for current): chain-1023p.ps1 (waits for no locks, then 4189 ALONE guardrender-s6cap-c181002e), chain-1023q.ps1 (after p),
   chain-1023r.ps1 marlowfinal-45a74383 on 4189 (JOBS=3; verdict per suite to Menu Notes). 4192: guardais7-4052c434
   (Guard AI S7 test fix: build; e2e-stealth-ai x2; e2e-sectorops, JOBS=2; replaces the 62884858 2x rerun) -> verdict
   to Guard AI Build + PR #196 comment (full 'lkp' assert line if it fails).
