@@ -108,7 +108,31 @@
 - Backlog note: `LevelBuilder.ramp` end-cap error (collision slab lowered vertically only; a one-cell-wide flight can
   lose a nav cell; fixing it moves every map's ramps). Plus the 09:50 polish list below.
 
-## Next (in order)
+## Next window (saved ~12:15; start all PARALLEL lanes at once, CPU <= ~80%, never two agents on the same files)
+0. Read the GPU verdict of the PR 3 run at f96924e5 (C:/NightShift/scratch/runs/sectorredesign-f96924e5: build.log,
+   e2e.log = sectorops 1-6 + coop + netmove, vitest.log). Green -> open PR 3 (feature/sector-redesign-p3 -> master: S4 /
+   S5 / E8 / E9 crate protocol 35 / item scope / enforcers out), bind it, message the orchestrator (train-ready; it
+   renumbers protocol at train build). Red -> one Opus fix round per failing suite (likeliest: the co-op crate prompt,
+   the crate stands in the previous connector but is tagged with its own section and items are scoped to the live
+   section), rerun only the failing suites. After #206 lands in master: merge master into -p3 only when PR 3 enters a train.
+PARALLEL lanes (each its own branch off -p3 + worktree with a node_modules junction; push WIP per step):
+A. Detail art: briefs/ART-PLAN.md + ART-KIT.md + ART-S1..S5.md (Opus planner, ~12:00; check -p3 for them; rerun the
+   planner from ROADMAP "Next: campus detail art" if missing). Opus builds ART-KIT first (kit + rules engine + tests);
+   then Sonnet dressers S1-S5 in parallel (each only campusS<N>Dress.ts + one registration line); one Opus checker per
+   batch; then the GPU perf pass (E2E_GPU=1) + sectorops 6 + coop.
+B. E2 glass (EW6): guard-ai's `glass?` on BoxPiece is on master: skip glass pieces in canonicalLightShapes
+   (src/voxel/lightShapes.ts), campus glass data where SPEC has it, bullets per G45; Opus (small). Then E10 armoured
+   routes (S4 / S5 bulletproof glass / doors + a named quiet bypass each, A97); if armoured glass gets its own collision
+   group tell Guard AI (their sight must see through it).
+C. Posts move: CAMPUS_POSTS -> each slot's `post` (guard-ai SquadSlot post), validatePosts in the campus tests; Sonnet
+   from a short Opus brief; touches campusSectors.ts / campusS4Data.ts / campusS5Data.ts only (not lane A / B files).
+D. When feature/guard-ai-s11 types reach master: `gear?` per slot / `SectorDef.gear?` (helmets / armour in S4-S5, none
+   early), `SectorDef.sweep?` points; after lane C (same files).
+E. Polish (Sonnet, after A-C so files do not overlap): S4 polish 1-4, S5 1 / 2 (L11 window nav) / 4 (checks/slice45-check.md);
+   E8 / E9 polish P1-P7 (checks/e8-e9-check.md; e.g. the client re-sends `use` every frame while held); E6 polish; S2 / S3
+   polish lists below; the LevelBuilder.ramp end-cap backlog item.
+
+## Next at ~10:20 (superseded)
 1. Part 6 verdict at 3796700d (Character Build). Green -> PR 2 (feature/sector-redesign -> master: slices 2-3, E1 / E3 /
    E4 / E5 / E6, lips, part-6 fixes, campusOps listed, no in-section ammo). Area suites: coop + netmove green at 22e755bf
    (E6 touched src/net/coopClient.ts; nothing in src/net since); part 6 on the PR head or in the train. Merge master in
