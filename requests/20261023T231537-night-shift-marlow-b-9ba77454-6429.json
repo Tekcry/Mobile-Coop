@@ -1,0 +1,12 @@
+{
+  "id": "20261023T231537-night-shift-marlow-b-9ba77454-6429",
+  "sha": "9ba77454d4755865eb4101e4815c6be45d62145e",
+  "branch": "",
+  "pr": 299,
+  "kind": "pr",
+  "requester": "Night Shift | Marlow Build",
+  "suites": [
+    "e2e-ctcourse:1"
+  ],
+  "set": "a2settle"
+}
