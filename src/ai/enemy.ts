@@ -58,9 +58,27 @@ import { BREAKER, gearHit, type GearHit, type GuardGear } from './gear';
 import { buildArmourParts, buildHelmetPart, buildShieldPart, gearColour, HELMET_FIT } from './gearParts';
 import { guardAim } from './guardStance';
 import { SWEEP_NEAR, type SweepTeam } from './sweepTeam';
+import { MAX_INTRUDERS, mayBeSeen, pickTarget, TARGETS } from './targetPick';
 
 /** (guard-ai S12) Scratch for `gearHit` (one hit at a time; the damage path allocates nothing for gear). */
 const GEAR_OUT: GearHit = { mult: 1, knockOff: false, stagger: 0 };
+
+/** (guard-ai S23) Per-player perception scratch (`Enemy.perceive`, index = `players()`'s): perceive runs one guard at a
+ *  time, so one set serves every guard (no per-guard arrays, nothing allocated per think). Float64 keeps the solo
+ *  numbers exactly as before (the rate and distance are copied to the guard unrounded). */
+const P_LOS = new Uint8Array(MAX_INTRUDERS);
+const P_CHEST = new Uint8Array(MAX_INTRUDERS);
+/** The head seen and the chest not (`losHead`). */
+const P_HEAD = new Uint8Array(MAX_INTRUDERS);
+const P_SMELL = new Uint8Array(MAX_INTRUDERS);
+const P_RATE = new Float64Array(MAX_INTRUDERS);
+const P_DIST = new Float64Array(MAX_INTRUDERS);
+const P_EXPO = new Float64Array(MAX_INTRUDERS);
+/** The light on him (NaN: not read, he could not be seen). */
+const P_LIGHT = new Float64Array(MAX_INTRUDERS);
+const P_ANGLE = new Float64Array(MAX_INTRUDERS);
+/** One player's sight input (the chosen player's goes to `Enemy.sight`). */
+const P_SIGHT: SightInput = { dist: 0, angle: 0, light: 1, crouched: false, speed: 0, exposure: 0, sensitivity: 1, pitch: 0 };
 
 export type EnemyState = 'idle' | 'chase' | 'attack' | 'seekCover' | 'inCover' | 'melee' | 'dead';
 
@@ -224,6 +242,8 @@ export class Enemy implements Damageable {
   private los = false;
   private losT = 0;
   private dist = 99;
+  /** (guard-ai S23) Bit `i`: player `i` of `players()` in sight at the last think (`seesIndex`). */
+  private seenMask = 0;
   private thinkT = Math.random() * 0.25;
   /** Light level on the target at the last think (0 dark .. 1 lit). */
   targetLight = 1;
@@ -638,6 +658,17 @@ export class Enemy implements Damageable {
   /** The target was in line of sight (any body sample) at the last think. */
   get inSight(): boolean {
     return this.sight.exposure > 0;
+  }
+
+  /** (guard-ai S23) Player `i` of `players()` (the host's own player is 0) was in sight (any body sample, as `inSight`
+   *  for the target) at the last think; the awareness arcs read it (A145). */
+  seesIndex(i: number): boolean {
+    return i >= 0 && i < 31 && ((this.seenMask >> i) & 1) === 1;
+  }
+
+  /** (guard-ai S23) Distance to his target at the last think (m; the flanker pick). */
+  get targetDist(): number {
+    return this.dist;
   }
 
   /** The animated body (LKP ghost). */
@@ -1871,88 +1902,135 @@ export class Enemy implements Damageable {
         this.room = ri;
       }
     }
-    // nearest living player
-    let best: PlayerRef | null = null;
-    let bd = Infinity;
-    for (const p of this.ctx.players()) {
-      if (!p.target.alive) continue;
-      const d = Vector3.Distance(p.feet, this.pos);
-      if (d < bd) {
-        bd = d;
-        best = p;
+    // (guard-ai S23, A143 / A144) every live player (at most MAX_INTRUDERS), each into the module scratch: a player he
+    // cannot see at all (`mayBeSeen`: a calm guard, outside his field and not felt close by) costs no ray
+    const players = this.ctx.players();
+    const n = players.length < MAX_INTRUDERS ? players.length : MAX_INTRUDERS;
+    const alerted = this.alerted;
+    const dog = this.dog !== null;
+    const pm = this.perceptionMul;
+    const sens = this.aware.sensitivity * pm;
+    const eye = this.eye(this.tmpEye);
+    let cur = -1;
+    let near = -1;
+    let mask = 0;
+    for (let i = 0; i < n; i++) {
+      const p = players[i]!;
+      if (p === this.target) cur = i;
+      P_LOS[i] = 0;
+      P_CHEST[i] = 0;
+      P_HEAD[i] = 0;
+      P_SMELL[i] = 0;
+      P_RATE[i] = 0;
+      P_EXPO[i] = 0;
+      P_LIGHT[i] = NaN;
+      if (!p.target.alive) {
+        P_DIST[i] = Infinity;
+        continue;
       }
+      const d = Vector3.Distance(p.feet, this.pos);
+      P_DIST[i] = d;
+      if (near < 0 || d < P_DIST[near]!) near = i;
+      const angle = wrapAngle(Math.atan2(p.feet.x - this.pos.x, p.feet.z - this.pos.z) - this.yaw);
+      P_ANGLE[i] = angle;
+      if (!mayBeSeen(d, angle, p.speed, alerted, dog)) continue;
+      // line of sight to the chest, head and hips: in combat any of them is enough to shoot at; the fraction
+      // in view scales how fast an unaware enemy notices
+      const t = p.target;
+      t.aimPoint(this.tmp);
+      // (G44) elevation of the chest above the eye line: the vertical view limit (perception `pitchFactor`)
+      const pitch = Math.atan2(this.tmp.y - eye.y, hyp2(this.tmp.x - eye.x, this.tmp.z - eye.z));
+      const chest = this.losTo(eye, this.tmp, 0.3);
+      let head = false;
+      let seen = chest ? 1 : 0;
+      if (t.headPoint) {
+        t.headPoint(this.tmpHead);
+        head = this.losTo(eye, this.tmpHead, 0.2);
+        if (head) seen++;
+      }
+      // hips (only needed for the meter, so skipped in combat)
+      if (!alerted) {
+        const top = t.headPoint ? this.tmpHead.y : this.tmp.y + 0.4;
+        this.tmpHips.set(p.feet.x, p.feet.y + (top - p.feet.y) * EXPOSE_HIPS, p.feet.z);
+        if (this.losTo(eye, this.tmpHips, 0.2)) seen++;
+      }
+      const los = chest || head;
+      const expo = alerted ? (los ? 1 : 0) : seen / (t.headPoint ? 3 : 2);
+      // light on him (perception reads it): the owner's sample, else the light field at the aim point
+      const light = p.light ?? this.ctx.world.lightField.totalAt(this.tmp.x, this.tmp.y, this.tmp.z);
+      // awareness: sight fill rate from distance, field of view, light, stance, motion and exposure
+      const si = P_SIGHT;
+      si.dist = d;
+      si.angle = angle;
+      si.light = light;
+      si.crouched = p.crouched;
+      si.speed = p.speed;
+      si.exposure = expo;
+      si.sensitivity = sens;
+      // in combat the guard tracks the target in 3D, and a dog's low eye looks up at everyone: no vertical limit
+      si.pitch = alerted || dog ? 0 : pitch;
+      let rate = sightRate(si);
+      // the dog smells what it cannot see (no light or line of sight needed)
+      if (dog) {
+        const sm = smellRate(d, p.crouched) * pm;
+        if (sm > 0) {
+          P_SMELL[i] = 1;
+          if (sm > rate) rate = sm;
+        }
+      }
+      P_LOS[i] = los ? 1 : 0;
+      P_CHEST[i] = chest ? 1 : 0;
+      P_HEAD[i] = head && !chest ? 1 : 0;
+      P_EXPO[i] = expo;
+      P_LIGHT[i] = light;
+      P_RATE[i] = rate;
+      if (expo > 0) mask |= 1 << i;
     }
+    // the target: the best seen (calm), the one he is fighting while he sees him (combat); `TARGETS.all` false: the
+    // nearest only (before S23)
+    const k = near < 0 ? -1 : TARGETS.all ? pickTarget(n, alerted, TARGETS.sticky ? cur : -1, -1, P_LOS, P_RATE, P_DIST) : near;
+    this.seenMask = mask;
+    const best = k >= 0 ? players[k]! : null;
     this.target = best;
-    this.dist = bd;
+    this.dist = best ? P_DIST[k]! : Infinity;
     if (!best) {
       this.los = false;
       this.rate = 0;
       return;
     }
-    const eye = this.eye(this.tmpEye);
-    // line of sight to the chest, head and hips: in combat any of them is enough to shoot at; the fraction
-    // in view scales how fast an unaware enemy notices
+    // today's tail for him: the points re-read (no new ray)
     best.target.aimPoint(this.tmp);
-    // (G44) elevation of the chest above the eye line: the vertical view limit (perception `pitchFactor`)
-    const pitch = Math.atan2(this.tmp.y - eye.y, hyp2(this.tmp.x - eye.x, this.tmp.z - eye.z));
-    const chest = this.losTo(eye, this.tmp, 0.3);
-    if (chest) this.lastKnown.copyFrom(this.tmp);
-    let head = false;
-    let n = chest ? 1 : 0;
-    this.losHead = false;
-    if (best.target.headPoint) {
-      best.target.headPoint(this.tmpHead);
-      head = this.losTo(eye, this.tmpHead, 0.2);
-      if (head) {
-        n++;
-        if (!chest) {
-          this.losHead = true;
-          this.lastKnown.copyFrom(this.tmpHead);
-        }
-      }
-    }
-    this.los = chest || head;
-    // hips (only needed for the meter, so skipped in combat)
-    if (!this.alerted) {
-      const top = best.target.headPoint ? this.tmpHead.y : this.tmp.y + 0.4;
-      this.tmpHips.set(best.feet.x, best.feet.y + (top - best.feet.y) * EXPOSE_HIPS, best.feet.z);
-      if (this.losTo(eye, this.tmpHips, 0.2)) n++;
-    }
-    const samples = best.target.headPoint ? 3 : 2;
+    this.los = P_LOS[k] === 1;
+    this.losHead = P_HEAD[k] === 1;
+    if (P_CHEST[k] === 1) this.lastKnown.copyFrom(this.tmp);
+    else if (this.losHead && best.target.headPoint) this.lastKnown.copyFrom(best.target.headPoint(this.tmpHead));
     if (this.los) this.lastSeenT = 0;
-    // light on the target (perception reads it): the owner's sample, else the light field at the aim point
-    this.targetLight = best.light ?? this.ctx.world.lightField.totalAt(this.tmp.x, this.tmp.y, this.tmp.z);
-    // awareness: sight fill rate from distance, field of view, light, stance, motion and exposure
+    let light = P_LIGHT[k]!;
+    if (Number.isNaN(light)) light = best.light ?? this.ctx.world.lightField.totalAt(this.tmp.x, this.tmp.y, this.tmp.z);
+    this.targetLight = light;
     const si = this.sight;
-    si.dist = bd;
-    si.angle = wrapAngle(Math.atan2(best.feet.x - this.pos.x, best.feet.z - this.pos.z) - this.yaw);
-    si.light = this.targetLight;
+    si.dist = this.dist;
+    si.angle = P_ANGLE[k]!;
+    si.light = light;
     si.crouched = best.crouched;
     si.speed = best.speed;
-    si.exposure = this.alerted ? (this.los ? 1 : 0) : n / samples;
-    si.sensitivity = this.aware.sensitivity * this.perceptionMul;
-    // in combat the guard tracks the target in 3D, and a dog's low eye looks up at everyone: no vertical limit
-    si.pitch = this.alerted || this.dog !== null ? 0 : pitch;
-    this.rate = sightRate(si);
-    // the dog smells what it cannot see (no light or line of sight needed)
-    this.smelled = false;
-    if (this.dog) {
-      const sm = smellRate(bd, best.crouched) * this.perceptionMul;
-      if (sm > 0) {
-        this.smelled = true;
-        if (sm > this.rate) this.rate = sm;
-        best.target.aimPoint(this.lastKnown);
-        this.lastSeenT = 0;
-      }
+    si.exposure = P_EXPO[k]!;
+    si.sensitivity = sens;
+    si.pitch = alerted || dog ? 0 : Math.atan2(this.tmp.y - eye.y, hyp2(this.tmp.x - eye.x, this.tmp.z - eye.z));
+    this.rate = P_RATE[k]!;
+    this.smelled = P_SMELL[k] === 1;
+    if (this.smelled) {
+      best.target.aimPoint(this.lastKnown);
+      this.lastSeenT = 0;
     }
-    if (!this.alerted && !this.passive && instantDetect(si)) this.meter = 1;
-    if (this.rate > 0 && !this.alerted) {
+    if (!alerted && !this.passive && instantDetect(si)) this.meter = 1;
+    if (this.rate > 0 && !alerted) {
       // what caught the eye: look there (and investigate there)
       this.stimulus[0] = best.feet.x;
       this.stimulus[1] = best.feet.z;
       this.hasStimulus = true;
     }
-    if (this.alerted && this.los) this.ctx.reportSighting(best);
+    if (alerted && this.los) this.ctx.reportSighting(best);
     this.lookForBodies(eye);
   }
 
