@@ -12,3 +12,4 @@ kind: minor
 - Sector Ops campusOps: S5 the Old House greybox and the jetty extraction (two dogs, response team, pair gate, light well).
 - Sector Ops: weapons crate engine and protocol 35 (crate item kind, crate event; per-player use on the host).
 - Sector Ops campusOps / warehouseOps: a weapons crate at every section start (once per player, tops up to the loadout).
+- Sector Ops: armoured glass and armoured doors (rounds stop on them, no penetration; guards still see through armoured clear glass): S4 mantrap inner door and NOC window, S5 anteroom hall door and front door, each with a quiet way round (keypad, hang-down, side door, rappel).
