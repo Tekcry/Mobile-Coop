@@ -1,6 +1,14 @@
 # Guard AI - state
 
 ## Now
+~20:30: S23 PR #254 OPEN (dc964d15): checks A + B PASS (slices/S23-CHECK-A.md, -B.md), e2e-coop block 01b107b5.
+Waiting laptop: s23-regress (a87ef34c) + s23-coop (01b107b5) -> train-ready label + tell orchestrator. s22-game
+a74d27e2 laptop s22game-a4fix pending; PR after green + #237 merged (4.81.0). Cloud queue 132fff25: briefs
+guard-ai-S24 (off S23 a87ef34c, A146-A150 accepted) + guard-ai-S25a (pure searchArea.ts off master; S25b wiring
+after S24). LR16-4 guards relight (orchestrator ~20:20; spec lr16-0-ct-audit.md "LR16-4" on
+feature/sector-redesign-polish): Opus builder in C:/NightShift/Mobile-Coop-guard-ai-relight, feature/guard-ai-relight
+off master 41204e30 -> 2 Opus checkers + laptop, PR, tell Sector Ops Build.
+
 ~20:05 (swap, laptop): A4 triage agent was cut off with a working fix uncommitted: lead committed it, s22-game
 a74d27e2 (slices/S22-GAME-A4-TRIAGE.md: test staging, players seen through L3's open far door; players now hide
 beside the doorway; tests/consoleNoticeA4.test.ts 2/2). Laptop request s22game-a4fix (e2e-ctcourse:2 + :4).
