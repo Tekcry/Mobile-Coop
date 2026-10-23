@@ -24,7 +24,7 @@ import type { TeamMate } from '../game/teamController';
 import type { TeamKind } from '../game/teamMoves';
 import { clampEnd, clientForcedHolster, coopSessionStats } from './validate';
 import { applyCourseWire, clientCourseFrame, clientCourseSummary, courseStartPos, disposeClientCourse } from '../game/modes/courseMode';
-import { isClientVerb, type ClientVerb } from '../game/course/courseWire';
+import { COURSE_RESTART_TITLE, isClientVerb, type ClientVerb } from '../game/course/courseWire';
 import { CtDevices } from '../game/ctDevices';
 import { newSeenBody, remoteHeadY, type SeenBody } from '../security/securitySystem';
 import { CourseFeed } from '../game/course/courseFeed';
@@ -589,6 +589,8 @@ export class CoopClient implements NetAttachment {
         g.hud.banner(e.title, e.sub);
         // (sector-restart, M9) the host restarted the section: our side of the clean start (loadout, gadgets, music)
         if (e.title === SECTOR_RESTART_TITLE && g.opts.mode === 'sector') g.checkpointReset();
+        // (marlow-final S10, M2) the same for a Marlow Yard set restart (our carried body let go, gadgets out gone)
+        else if (e.title === COURSE_RESTART_TITLE && g.opts.mode === 'course') g.checkpointReset();
         break;
       case 'feed':
         g.hud.barks.say('lantern', e.text, true);

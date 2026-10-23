@@ -19,6 +19,8 @@ import { summarise } from '../course/courseRating';
 import { CourseHud } from '../../ui/hud/courseHud';
 import { recordBay, recordRun, updateCourseRecord } from '../../save/courseRecord';
 import { groupBaseOn } from '../../world/lights';
+import { SectionStartState } from '../sectorReset';
+import { COURSE_RESTART_TITLE } from '../course/courseWire';
 
 /** Seconds between two LANTERN radio lines. */
 const RADIO_GAP = 3;
@@ -174,6 +176,14 @@ export class CourseMode implements GameMode {
   private lastPress = '';
   /** (N2) Every light group's on state at the start: a bay restart puts the map's lamps back this way. */
   private lampStart: [number, boolean][] = [];
+  /** (marlow-final S10, M3) The doors as the current set began (Sector Ops' `SectionStartState`): a restart puts them back. */
+  private readonly startState = new SectionStartState();
+  /** (S10) Set by `bayStarted` / `bayRestart`: after this step's locks the doors are recorded (1) or put back (2). */
+  private doorStep = 0;
+  /** (S10) Set restarts done (tests). */
+  restarts = 0;
+  /** (S10) Doors the last restart put back (tests). */
+  lastDoors = 0;
 
   constructor(private g: GameState) {}
 
@@ -592,6 +602,10 @@ export class CourseMode implements GameMode {
     for (const e of evs) this.onEvent(e);
     this.dirty = true;
     this.applyLocks();
+    // (S10, M3) after the locks: a set start records its doors, a restart puts them back (locked ones too: shut as they began)
+    if (this.doorStep === 1) this.startState.take(this.g.world.level.lights, this.g.world.doors);
+    else if (this.doorStep === 2) this.lastDoors = this.startState.applyDoors(this.g.world.doors, true);
+    this.doorStep = 0;
   }
 
   private onEvent(e: CourseEvent): void {
@@ -601,13 +615,27 @@ export class CourseMode implements GameMode {
       case 'bayStarted':
         this.spawnSquad(e.squad);
         this.radio('enter');
+        // (S10, M3) the doors as the set begins, recorded once this step's locks are on (`handle`)
+        this.doorStep = 1;
         break;
       case 'bayRestart':
         this.restartT = -1;
+        this.restarts++;
+        // (S10, M2) a full reset, as Sector Ops' section restart: every guard, body (carried ones too) and incident
+        // goes with the guards' shared memory, so the set's guards come back fresh and nobody finds the old bodies
+        this.dropSquad(true);
         this.spawnSquad(e.squad);
+        // the players' side (the grenades and gadgets out in the world, the stealth leftovers, the noise, the music);
+        // the co-op client runs its own on the restart banner
+        this.g.checkpointReset();
+        this.g.security?.clearBodyReports();
+        // a shot-out camera (none on Marlow's armoured ones) comes back, and every camera forgets what it had seen
+        this.ct?.repair(-1);
         this.resetLights();
+        // (S10, M3) the doors as the set began, once this step's locks are back on (`handle`)
+        this.doorStep = 2;
         for (const h of this.holds) h.holders = 0;
-        this.g.hud.banner('RESTART', bay.id, 2000);
+        this.g.hud.banner(COURSE_RESTART_TITLE, bay.id, 2000);
         this.g.scheduleRespawn(this.checkpointPos(), 0.5);
         // (marlow-final) no pass zone fires on the old positions before both players are back at the checkpoint
         this.ct?.holdZones(2);
@@ -688,21 +716,32 @@ export class CourseMode implements GameMode {
     return new Vector3((a.box[0] + a.box[2]) / 2, a.floorY + 0.05, (a.box[1] + a.box[3]) / 2);
   }
 
-  private spawnSquad(ids: string[]): void {
+  /**
+   * The old squad goes. A held guard is let go first, as Sector Ops does (course-restart-hold): the host's own takedown
+   * or grab, and co-op every guard a client holds (`tdDenied` aborts its takedown). `full` (a restart, S10 M2): every
+   * guard, body and drone and the guards' shared memory (`EnemyManager.resetMemory`: incidents, calls, caution, alarm,
+   * last known position), as Sector Ops' restart; else (the next set) the squad's own guards and bodies (`despawn`).
+   */
+  private dropSquad(full: boolean): void {
     const em = this.g.enemyMgr;
     if (!em) return;
-    if (this.squad.length) {
-      // (course-restart-hold) a held guard is let go first, as Sector Ops does: the host's own takedown or grab, and
-      // co-op every guard a client holds (`tdDenied` aborts its takedown) before the squad is disposed
-      const g = this.g;
+    const g = this.g;
+    if (this.squad.length || full) {
       if (g.takedown.active) g.takedown.reset();
       g.net?.releaseHolds?.();
     }
-    // (ENGINE-ANSWERS Q4) `despawn`, not a splice and dispose: the old squad's knocked-out or dead bodies go too, so a
-    // restarted or next set's guards never find them
-    for (const e of this.squad) em.despawn(e);
+    if (full) em.resetMemory();
+    // (ENGINE-ANSWERS Q4) `despawn`, not a splice and dispose: the old squad's knocked-out or dead bodies go too, so the
+    // next set's guards never find them
+    else for (const e of this.squad) em.despawn(e);
     this.squad.length = 0;
     this.squadIds.length = 0;
+  }
+
+  private spawnSquad(ids: string[]): void {
+    const em = this.g.enemyMgr;
+    if (!em) return;
+    this.dropSquad(false);
     for (const id of ids) {
       const s = this.layout!.squads[id];
       if (!s) continue;
