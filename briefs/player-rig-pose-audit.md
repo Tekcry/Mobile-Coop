@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-23T20:14+1100
+status: done feature/rig-pose-audit 4d7b1125
 
 # Brief: rig-pose-audit - where gameplay reads animation / render pose (Player Build spare job 12, docs only)
 
@@ -35,3 +35,18 @@ Nothing beyond grep / read (no tests needed; CI `check` runs on the PR if one is
 ## Done when
 REPORT.md committed and pushed; report summary (counts per class, top 3 risks) at the end of this brief; commit
 trailer `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`; `status: done feature/rig-pose-audit <sha>`.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-23)
+`docs/rig-pose-audit/REPORT.md` on `feature/rig-pose-audit` @ 4d7b1125 (base origin/master 41204e30 = 4.80.0; master
+had not reached 4.81.0 yet, noted in the report header). No src change.
+Counts: GAMEPLAY 20 (H 6, M 7, L 7), PRESENTATION 14 (all L), CLEAN 8 (verified sim-only; the guard eye backlog 28 cited
+at `enemy.ts:1779` is already a sim constant, `enemy.ts:686`).
+Top 3 risks:
+1. G1-G3: player hit volumes and guard perception points come from the rig pose (`playerTarget.ts:101-120`; client on
+   the host via the 0.1 s old drawn copy, `remotePlayer.ts:219-230`: host mocap / LOD / fps, one capsule, no head).
+2. G6: every player round starts at the animated muzzle or rig head (`playerWeapons.ts:994-997`); the client sends that
+   origin as its claim.
+3. G7: a client's guard headshot is decided on the puppet's rendered head (`enemyPuppet.ts:436-439`); the host judges
+   against a stance constant (`coopHost.ts:1050-1067`) while its own rounds use `guardHead`: three head models.
+Next: G4 / G5 wall head sample (`rig.posedHead`) for the light meter and perception (light parity; A51 chose it, needs
+Michael's review). Ranked fix list (8 slices with files and tests) in the report.
