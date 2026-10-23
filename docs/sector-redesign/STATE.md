@@ -304,7 +304,7 @@ Heads: art 2276483a (#226), lampx eb45b0af (LR15 + lighting polish + atlas fix),
    relight touches guard behaviour (offer to Guard AI).
    RUNNING ~18:50 (new account; old agents died, resumed from their WIP): LR16a Opus on -lr16 (from WIP 315a2805;
    checks/lr16a-build.md), LR16c+LR16-2 Opus on -lr16c (lamp-audit script + run -> checks/lr16-lamp-audit.md),
-   LR16-6 DONE -lr16v 5ee3a270 (G100 instant cut, G102 door ghosts incl. partners; lr16v-build.md), LR16f Opus on NEW -lr16f off -lampx (charShadows.ts Poisson PCSS;
+   LR16-6 DONE -lr16v 5ee3a270 (G100 instant cut, G102 door ghosts incl. partners; lr16v-build.md), LR16f DONE -lr16f 8501a0c7 (PCSS char shadows; LR16-7 every-tier slots RUNNING on -lr16f, then LR16-3 there;
    checks/lr16f-build.md). Resume: check each branch head + build doc; missing doc = rerun from lr16-plan.md row.
    Next on their reports: LR16b (after LR16a) + LR16t torch occlusion (beside LR16b) Opus; LR16d Sonnet from the
    LR16c table; one Opus checker for the a/c/f/6 batch.
