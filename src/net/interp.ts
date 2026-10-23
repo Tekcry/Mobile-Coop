@@ -286,6 +286,15 @@ function set<T extends Pose>(o: Sampled<T>, a: T, b: T, k: number): Sampled<T> {
 }
 
 /**
+ * (38, afp AF6) A joiner's state's send clock (s): the wall clock, but never closer to the last state's than the sim time
+ * between them (two catch-up steps in one frame shared the frame's clock and bent the host's span: 6 cm in 1 ms; the sim
+ * time alone drifted from the wall clock when a slow page dropped its backlog, and the host's ClockSync lagged it).
+ */
+export function sendClock(lastWall: number, lastSim: number, wall: number, sim: number): number {
+  return Math.max(wall, lastWall + Math.max(0, sim - lastSim));
+}
+
+/**
  * Estimates the remote (host) clock from snapshot timestamps. Faster-than-expected packets pull the
  * estimate forward quickly; slower ones nudge it back gently, so jitter does not cause stutter.
  */

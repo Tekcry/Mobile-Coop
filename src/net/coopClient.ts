@@ -14,7 +14,7 @@ import { Interactables, type Interactable } from '../game/interactables';
 import type { NetSession } from './session';
 import { gaitWire, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
 import { CT } from '../config/movement';
-import { CLIENT_INTERP_DELAY, ClockSync } from './interp';
+import { CLIENT_INTERP_DELAY, ClockSync, sendClock } from './interp';
 import type { CKind } from '../game/committedMoves';
 import { RemoteAvatar } from './remoteAvatar';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
@@ -702,15 +702,17 @@ export class CoopClient implements NetAttachment {
     const g = this.g;
     const p = g.player;
     const c = p.controller;
-    // (38, afp AF6) the sim clock (`time`, the fixed steps summed: the host times the state by it; the frame's wall clock
-    // is not the state's, two catch-up steps in one frame shared it and bent the host's spans) and the gait clock / CT stop
+    // (38, afp AF6) the send clock (the host times the state by it) and the gait clock / CT stop (the partner's stride)
+    const sentAt = sendClock(this.sentWall, this.sentSim, performance.now() / 1000, this.time);
+    this.sentWall = sentAt;
+    this.sentSim = this.time;
     const gw: { gph?: number; qs?: number; hs?: number } = {};
     gaitWire(c.motion.phase, c.ct, c.stopEaseT, c.stopHold, c.holdSpeed, CT.stopEase, CT.stopBlend, gw);
     this.s.toHost({
       t: 'pstate',
       s: wirePlayerState({
         ...gw,
-        t: this.time,
+        t: sentAt,
         id: this.s.selfId,
         x: p.position.x,
         y: p.position.y,
@@ -726,6 +728,10 @@ export class CoopClient implements NetAttachment {
       }),
     });
   }
+
+  /** (38, afp AF6) The last state's send clock and sim time (`sendClock`). */
+  private sentWall = -Infinity;
+  private sentSim = 0;
 
   /** The movement state this step and the last one sent (change detection). */
   private mvNow = emptyMoveState();

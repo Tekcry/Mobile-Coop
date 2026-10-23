@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CLIENT_INTERP_DELAY, ClockSync, ExtrapBlend, HOST_INTERP_DELAY, sampleSpeed, SnapshotBuffer } from '../src/net/interp';
+import { CLIENT_INTERP_DELAY, ClockSync, ExtrapBlend, HOST_INTERP_DELAY, sampleSpeed, sendClock, SnapshotBuffer } from '../src/net/interp';
 import { gaitWire, parseMessage } from '../src/net/protocol';
 import { NETSIM_PRESETS, NetSim } from '../src/net/netSim';
 
@@ -173,6 +173,17 @@ describe('the gait on the wire (protocol 38, afp AF6)', () => {
     const n: { gph?: number; qs?: number; hs?: number } = {};
     gaitWire(0.5, false, -1, false, 0, 0.35, 0.12, n);
     expect(n).toEqual({ gph: 0.5 });
+  });
+
+  it('sendClock: the wall clock, never closer to the last stamp than the sim time between them', () => {
+    // two catch-up steps in one frame: the second is a step later, not the same instant
+    expect(sendClock(10, 5, 10, 5 + 1 / 60)).toBeCloseTo(10 + 1 / 60, 9);
+    // a normal frame: the wall clock
+    expect(sendClock(10, 5, 10.05, 5.05)).toBeCloseTo(10.05, 9);
+    // a slow page dropped its backlog (sim behind the wall): the wall clock, the host's ClockSync is not left behind
+    expect(sendClock(10, 5, 10.5, 5.1)).toBeCloseTo(10.5, 9);
+    // the first state
+    expect(sendClock(-Infinity, 0, 3, 1)).toBe(3);
   });
 
   it('pstate carries t / gph / qs / hs, clamped; absent stays absent', () => {
