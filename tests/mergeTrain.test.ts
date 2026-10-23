@@ -4,8 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   bumpProtocol, classifyConflicts, closeComment, cmpVersion, findTrainVersionCommit, headPinCheck, heldByParent, mergeCmd, trainLockPath, versionRace,
+  findVersionCommit, heavyLockWaitMs, keepStopMessage, killTreeCmd, lockfilesDiffer,
   failedTestFiles, vitestRerunPlan, vitestRerunCmd,
-  findVersionCommit, keepStopMessage, killTreeCmd, lockfilesDiffer,
   lockIsOurs, wireCandidates, membersFromLog, parseArgs, protocolValue, releaseHeavyLock,
   resolveKeepBoth, resumeCheck, tailLines, takeHeavyLock, touchesWire, trainPrBody, trainPrTitle, versionSubject, vitestVerdict, wirePaths,
   // @ts-expect-error plain .mjs process script without types
@@ -251,6 +251,14 @@ describe('merge-train vitest verdict and heavy lock', () => {
       expect(fs.existsSync(lock)).toBe(true);
       expect(releaseHeavyLock(path.join(dir, 'none.lock'))).toBe(false);
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  it('heavyLockWaitMs: 5 min by default, TRAIN_LOCK_WAIT_MIN overrides, invalid falls back', () => {
+    expect(heavyLockWaitMs({})).toBe(5 * 60_000);
+    expect(heavyLockWaitMs({ TRAIN_LOCK_WAIT_MIN: '12' })).toBe(12 * 60_000);
+    expect(heavyLockWaitMs({ TRAIN_LOCK_WAIT_MIN: '0.5' })).toBe(30_000);
+    expect(heavyLockWaitMs({ TRAIN_LOCK_WAIT_MIN: '0' })).toBe(0);
+    for (const bad of ['', ' ', 'abc', '-3', 'NaN', 'Infinity']) expect(heavyLockWaitMs({ TRAIN_LOCK_WAIT_MIN: bad })).toBe(5 * 60_000);
   });
 
   it('takeHeavyLock breaks a lock whose pid is dead on this host', async () => {

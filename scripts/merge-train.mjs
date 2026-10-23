@@ -36,7 +36,7 @@
 // commit, --head mismatch, --no-fallback with no version commit, version not above master's, train lock held),
 // 2 vitest failed on build or CI failed on release / single
 // (nothing merged; a failed build still pushes so a fix can go on train/<n>), 3 conflict stop (build with no member
-// merged; release when master moved since build), 4 vitest NOT run on build (heavy lock wait timed out; the train is
+// merged; release when master moved since build), 4 vitest NOT run on build (heavy lock wait of 5 min (TRAIN_LOCK_WAIT_MIN) timed out; the train is
 // pushed, CI's check still runs the unit tests: pending, not a failure).
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -533,11 +533,18 @@ async function ciAndMerge({ branch, sha, pr, version }) {
 
 // ---- the heavy lock and the vitest run (item 3) -------------------------------------------------------------------
 
+/** The build's heavy-lock wait in ms: TRAIN_LOCK_WAIT_MIN minutes (a number, 0 or more), 5 when absent or invalid. */
+export function heavyLockWaitMs(env = process.env) {
+  const raw = env.TRAIN_LOCK_WAIT_MIN;
+  const min = raw === undefined || String(raw).trim() === '' ? NaN : Number(raw);
+  return (Number.isFinite(min) && min >= 0 ? min : 5) * 60_000;
+}
+
 /**
  * Takes the lock atomically (`wx`, scripts/heavy-lock.mjs: a lock whose pid is dead on this host is broken),
  * retrying every `retryMs` up to `maxMs`; throws when it stays held.
  */
-export async function takeHeavyLock(lock, text, { retryMs = 30_000, maxMs = 30 * 60_000, sleepFn = sleep, alive } = {}) {
+export async function takeHeavyLock(lock, text, { retryMs = 30_000, maxMs = heavyLockWaitMs(), sleepFn = sleep, alive } = {}) {
   return takeLockText(lock, text, { retryMs, maxMs, sleepFn, alive });
 }
 
@@ -555,7 +562,7 @@ async function runVitest(n, head, prev) {
   const lock = process.env.HEAVY_LOCK || 'C:/NightShift/heavy.lock';
   if (DRY) {
     console.log('  [dry-run] would run npm ci when package-lock.json (version fields ignored) differs from the previous HEAD or node_modules is missing');
-    console.log(`  [dry-run] would take ${lock} (wx, stale pid broken, retry 30 s up to 30 min), run npx vitest run (20 min timeout, tree killed), release it`);
+    console.log(`  [dry-run] would take ${lock} (wx, stale pid broken, retry 30 s up to ${heavyLockWaitMs() / 60_000} min), run npx vitest run (20 min timeout, tree killed), release it`);
     console.log(`  [dry-run] when it fails: if every failure is a timeout or at most ${RERUN_MAX_FILES} test files failed, would rerun only those files once (${vitestRerunCmd(['<failed files>'])}, 20 min timeout); a pass there counts as ok`);
     return { ok: true, message: '' };
   }
