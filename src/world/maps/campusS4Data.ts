@@ -1,5 +1,6 @@
 import type { RoutePt, SectorDef, SectorGuard } from '../../game/sectors';
 import type { SecurityData } from '../../security/data';
+import type { GearTag } from '../../ai/gear';
 import type { SecurityDesk } from '../../game/sectorDesks';
 import { S4_DOORS } from './campusS4';
 
@@ -23,12 +24,15 @@ const YARD_LOOP = { period: 44, leave: [3, 25], t0: 0 };
 /** The dock pair's loop (staggered trips, A89): 15.1 m, 42 s, stops 4.2 s each end. */
 const DOCK_LOOP = { period: 42, leave: [4, 25], t0: 0 };
 
+/** A section guard with its per-slot gear tag (`SquadSlot` has no `gear` field on this branch; the guard-ai wiring reads it off the slot as `GuardSlotTags.gear`, so the tag rides here until the type gains it). */
+export type GearGuard = SectorGuard & { gear?: GearTag };
+
 /**
  * Section 4's guards (20; officer = pistolSd, grunt = rifle, enforcer = pistolSd + shield, dog = melee at the handler's heel).
- * The 0-based index in this list is the guard's number minus one. Dormant (A64): #10, #11 (the hot-aisle checkers) and #16
- * (the north corridor tour); none is posted, paired, a handler or a dog.
+ * The 0-based index in this list is the guard's number minus one. Dormant (A64 / A99, data only): #10, #11 (the hot-aisle checkers)
+ * and #16 (the north corridor tour); none is posted, paired, a handler or a dog.
  */
-export const S4_GUARDS: SectorGuard[] = [
+export const S4_GUARDS: GearGuard[] = [
   // 1 the yard handler (L1: the lane is the compound's west side, x 35.3, because the tanks and the generator stand on x 36..39)
   { kind: 'grunt', x: 35.3, z: 27, yaw: 0, route: [[35.3, 27], [35.3, 44]], faces: [0, PI], loop: YARD_LOOP, takedownSpot: [35.3, 44.0], role: 'handler', zone: 'yard', squad: 0, reason: 'Diesel was stolen from the tanks twice' },
   // 2 the dog, at heel (A87): the same loop, one lane over; the handler is #1 (index 0)
@@ -37,9 +41,10 @@ export const S4_GUARDS: SectorGuard[] = [
   { kind: 'officer', x: 37, z: 17.6, yaw: PI, takedownSpot: [37, 18.0], role: 'gate', zone: 'yard', squad: 0, reason: 'Lets the 03:00 courier van in at the yard gate' },
   // 4 the mantrap officer: at the mantrap desk, facing the mantrap door
   { kind: 'officer', x: 6.0, z: 20.2, yaw: PI / 2, takedownSpot: [5.5, 20.2], role: 'mantrap', zone: 'lobby', squad: 1, reason: 'Admits one at a time; answers the hall panel' },
+  // gear (stealth over shooting): the whole section wears helmets (the first headshot knocks one off); the two NOC officers and the security room supervisor wear body armour as well (torso shots only stagger)
   // 5-6 the security room pair: the operator at the console, the supervisor beside him
   { kind: 'officer', x: -2.5, z: 44.6, yaw: -PI / 2, takedownSpot: [-2.1, 44.6], role: 'operator', zone: 'sec', squad: 2, reason: 'Watches the hall cameras (desk operator)' },
-  { kind: 'officer', x: -1.2, z: 44.0, yaw: -PI / 2 + 0.6, takedownSpot: [-0.8, 44.0], role: 'supervisor', zone: 'sec', squad: 2, reason: 'Site supervisor at the monitors' },
+  { kind: 'officer', x: -1.2, z: 44.0, yaw: -PI / 2 + 0.6, takedownSpot: [-0.8, 44.0], role: 'supervisor', zone: 'sec', squad: 2, gear: 'both', reason: 'Site supervisor at the monitors' },
   // 7-8 the cold-aisle patrols: a loop each, opposite phase (west aisles, east aisles)
   { kind: 'grunt', x: 3.6, z: 23, yaw: 0, route: [[3.6, 23], [3.6, 33], [9.2, 33], [9.2, 23]], waits: [3, 0.5, 3, 0.5], faces: [0, PI / 2, PI, -PI / 2], takedownSpot: [3.6, 23], role: 'patrol', zone: 'cold-w', squad: 3, reason: 'Floor round, west aisles' },
   { kind: 'grunt', x: 32.7, z: 33, yaw: PI, route: [[32.7, 33], [32.7, 23], [26.8, 23], [26.8, 33]], waits: [3, 0.5, 3, 0.5], takedownSpot: [32.7, 24.0], role: 'patrol', zone: 'cold-e', squad: 3, reason: 'Floor round, east aisles (opposite phase)' },
@@ -53,8 +58,8 @@ export const S4_GUARDS: SectorGuard[] = [
   // 13 the deck patrol (on the deck): along the chillers' north side, covering the riser hatch
   { kind: 'grunt', x: 12, y: DECK, z: 36, yaw: PI / 2, route: [[12, 36], [30, 36]], waits: [3, 3], takedownSpot: [12, 36], role: 'patrol', zone: 'deck', squad: 5, reason: 'A chiller alarm earlier tonight; covers the riser hatch' },
   // 14-15 the NOC pair (on the mezzanine): at the window over the hall
-  { kind: 'officer', x: 1.0, y: NOC, z: 43.0, yaw: PI, takedownSpot: [1.0, 43.5], role: 'noc', zone: 'noc', squad: 2, reason: 'Watches the hall from the NOC window' },
-  { kind: 'officer', x: 3.0, y: NOC, z: 43.0, yaw: PI, takedownSpot: [3.0, 43.5], role: 'noc', zone: 'noc', squad: 2, reason: 'Watches the screens and the hall' },
+  { kind: 'officer', x: 1.0, y: NOC, z: 43.0, yaw: PI, takedownSpot: [1.0, 43.5], role: 'noc', zone: 'noc', squad: 2, gear: 'both', reason: 'Watches the hall from the NOC window' },
+  { kind: 'officer', x: 3.0, y: NOC, z: 43.0, yaw: PI, takedownSpot: [3.0, 43.5], role: 'noc', zone: 'noc', squad: 2, gear: 'both', reason: 'Watches the screens and the hall' },
   // 16 the north corridor tour (dormant): the security room's side door <-> the riser door
   { kind: 'officer', x: 11, z: 45.8, yaw: PI / 2, route: [[11, 45.8], [28, 45.8]], waits: [3, 3], takedownSpot: [20, 45.8], role: 'tour', zone: 'nc', squad: 4, dormant: true, reason: 'Clocking round: the security room side door and the riser door (A94)' },
   // 17-18 the dock pair: a timed loop of the dock (staggered, A89), opposite ends
@@ -183,6 +188,10 @@ export const S4_SECTOR: SectorDef = {
   guards: S4_GUARDS,
   // stage 1: the dock's east end and the UPS room
   reinforce: [[28, 20.5], [-7, 40]],
+  // gear: a helmet on every guard (the dog is left unset)
+  gear: 'helmet',
+  // sweep points (response team): the service corridor, the battery room (kp-batt side), the centre of the hall, the cage front and the hang-down landing in the cage
+  sweep: [[12.8, 17.0], [-5.4, 17.0], [-7.0, 22.0], [6.4, 23.0], [16.6, 33.2], [19.3, 36.6]],
   perStage: 2,
   dogs: 1,
   routes: S4_ROUTES,

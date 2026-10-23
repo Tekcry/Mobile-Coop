@@ -3,11 +3,11 @@
  * every map slice" and "Slice 3"). Data and geometry only (the pure `LevelBuilder`): the 16 guards, the cameras, the first
  * lasers and their panels (each seen from its near side), the routes on an analytic nav grid (stair ramps included),
  * CR3 (the chamber roof) against a solo player, the gallery -> chamber roof step from above, the light circuits, the M8
- * isolation check, the dormant rule and the A64 screen count. S3 has no choke (A60).
+ * isolation check, the dormant rule and the A99 screen count (lifts A64). S3 has no choke (A60).
  */
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder, type BoxPiece } from '../src/world/levelBuilder';
-import { campusOps } from '../src/world/maps/campusOps';
+import { buildCampus, campusOps } from '../src/world/maps/campusOps';
 import { CAMPUS_COOP_LIPS } from '../src/world/maps/campusLips';
 import {
   S3_BOX,
@@ -22,7 +22,7 @@ import {
   S3_PANELS,
   S3_ROOMS,
 } from '../src/world/maps/campusS3';
-import { CAMPUS_ALARMS, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
+import { CAMPUS_ALARMS, CAMPUS_SCREEN_CAP, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
 import { SECTOR, checkSectorGuards, exitZone, inZone, type SectorGuard } from '../src/game/sectors';
 import { validateSecurity } from '../src/security/data';
 import { ENEMIES } from '../src/ai/enemyDefs';
@@ -39,6 +39,9 @@ import { SightWorld, guardPoints, isolatedInTime, longestIsolation, CHECK_ISOLAT
 const PI = Math.PI;
 const b = new LevelBuilder();
 const lay = campusOps.build(b, 0);
+/** The undressed greybox: the screen count (A99) reads its sight lines here, as invisible dressing (chairs, shelves) must not block them. */
+const bG = new LevelBuilder();
+buildCampus(bG, { dress: false });
 const S3 = CAMPUS_SECTORS[2]!;
 const G = S3.guards;
 /** The S3 footprint. */
@@ -553,17 +556,17 @@ describe('M8: isolation in time at each takedown spot (sectorCheck, as slice 1 r
   });
 });
 
-describe('A64: the screen count (no player point sees more than 6 awake guards)', () => {
+describe('A99: the screen count (no player point sees more than CAMPUS_SCREEN_CAP guards, every guard counted)', () => {
   /** The gallery door leaf on L1 (x 40.7..41.9 at z -8) counted as shut: a real leaf in play, closed by default. */
   const galleryLeaf: BoxPiece = { c: [41.3, S3_L1 + 1.05, -8], s: [1.2, 2.1, 0.1], yaw: 0, pitch: 0, color: '#000', collide: true };
   /** Only the pieces near the S3 footprint (every awake guard and every sample is inside it): the same sight model, faster. */
   const near = (p: BoxPiece): boolean => p.c[0] + p.s[0] > FOOT.x0 - 2 && p.c[0] - p.s[0] < FOOT.x1 + 2 && p.c[2] + p.s[2] > FOOT.z0 - 2 && p.c[2] - p.s[2] < FOOT.z1 + 2;
-  const world = new SightWorld([...b.boxes.filter(near), galleryLeaf], b.cylinders);
+  const world = new SightWorld([...bG.boxes.filter(near), galleryLeaf], bG.cylinders);
   /** The camera's horizontal field of view (deg, CT's 86) and the facings sampled at each point (32, every 11.25 deg). */
   const HALF = ((CAMERA.fov / 2) * PI) / 180;
   const YAWS = Array.from({ length: 32 }, (_, k) => (k * PI) / 16);
-  it('at every walkable nav cell centre (0.5 m) on every S3 level, 32 facings: at most 6 awake guards anywhere on their routes in the 86 deg view with a clear line within 40 m', () => {
-    const awake = G.map((g, i) => ({ g, i })).filter((q) => !q.g.dormant);
+  it('at every walkable nav cell centre (0.5 m) on every S3 level, 32 facings: at most CAMPUS_SCREEN_CAP guards (dormant too) anywhere on their routes in the 86 deg view with a clear line within 40 m', () => {
+    const awake = G.map((g, i) => ({ g, i }));
     // every point a guard stands on or walks through (the post, then each route leg every 1 m): guards start out of
     // phase in play, so any combination of positions can line up
     const pts = awake.map(({ g }) => guardPoints({ x: g.x, z: g.z, y: g.y, route: g.route as readonly (readonly [number, number])[] | undefined }).map(([px, py, pz]) => [px, py + 1.2, pz] as const));
@@ -593,14 +596,14 @@ describe('A64: the screen count (no player point sees more than 6 awake guards)'
           if (who.length > best) best = who.length;
           if (who.length > worst.n) worst = { n: who.length, at: `(${x}, ${h.toFixed(2)}, ${z}) facing ${((yaw * 180) / PI).toFixed(0)}`, who };
         }
-        if (best > 6) over++;
+        if (best > CAMPUS_SCREEN_CAP) over++;
       }
     }
     // eslint-disable-next-line no-console
-    if (process.env.CAMPUS_PRINT) console.log(`A64 worst ${worst.n} at ${worst.at}: #${worst.who.join(', #')} (${samples} points, ${walkway} on the walkway interior, ${over} over 6)`);
+    if (process.env.CAMPUS_PRINT) console.log(`A99 worst ${worst.n} at ${worst.at}: #${worst.who.join(', #')} (${samples} points, ${walkway} on the walkway interior, ${over} over ${CAMPUS_SCREEN_CAP})`);
     expect(samples).toBeGreaterThan(3000);
     // the crane walkway's interior (between its ladders, past the rail's ends) is sampled: the old 2 m grid missed it
     expect(walkway).toBeGreaterThan(50);
-    expect(worst.n, `worst ${worst.at}: #${worst.who.join(', #')}`).toBeLessThanOrEqual(6);
+    expect(worst.n, `worst ${worst.at}: #${worst.who.join(', #')}`).toBeLessThanOrEqual(CAMPUS_SCREEN_CAP);
   }, 300_000);
 });

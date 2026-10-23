@@ -32,6 +32,7 @@
     "kit:build": "node scripts/facility-kit/build.mjs",
     "props:build": "node scripts/facility-props/build.mjs",
     "weapons:shots": "node scripts/weapons/shots.mjs",
+    "campus-props:build": "node scripts/campus-props/build.mjs",
     "music:fetch": "node scripts/music/fetch-samples.mjs",
     "music:render": "node scripts/music/render.mjs",
     "music:orch": "node scripts/music/render-orch.mjs",

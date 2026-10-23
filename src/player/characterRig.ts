@@ -1182,6 +1182,23 @@ export class CharacterRig {
     this.prevRootX += dx;
     this.prevRootZ += dz;
   }
+
+  /** (artnext C8) Before a solve after a skipped stretch (a guard thawed from the render freeze, or seeding his ragdoll):
+   *  when the root moved more than `d` m (horizontal) since the last solve, the feet re-plant, as the 2 m jump rule in
+   *  `animateFrame` does, instead of stretching back to where they were planted. Returns whether it reset. No allocation. */
+  replantIfMoved(d: number): boolean {
+    const p = this.root.position;
+    const jx = p.x - this.prevRootX;
+    const jz = p.z - this.prevRootZ;
+    if (jx * jx + jz * jz <= d * d) return false;
+    this.planner.L.init = this.planner.R.init = false;
+    this.derive.reset();
+    // (the measured velocity starts again from here, as after a jump; a guard's driver supplies its own)
+    this.velX = this.velZ = 0;
+    this.prevRootX = p.x;
+    this.prevRootZ = p.z;
+    return true;
+  }
   /** (locomotion step 22) Acceleration and motion state derived from the measured velocity (remote copies). */
   private derive = new MotionDerive();
   private pelvisDrop = 0;

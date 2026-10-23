@@ -91,7 +91,15 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   from a host-built and a client-built torch.
 - `world/lights.ts` (pure): `LightRegistry` holds state only (lights, on / destroyed, groups, EMP, `zones`, `ambientAt` /
   `zoneAt`, `version`); `contribution` calls `lampMath`; `LIGHT` thresholds 0.28 / 0.6 (bible L6); `visibilityFromLight`;
-  `nearestLights`; `lightOnRay`.
+  `nearestLights`; `lightOnRay` (a padded fixture box or the bulb sphere along the round; walk 4.72: a round landing
+  within `LAMP_MOUNT_REACH` 0.35 m under a head, inside its footprint, counts too, so a head on top of its own pole breaks).
+  The reach is measured at the segment's end, so callers must pass the round's true landing, not a stretched or
+  range-length ray (`lampShotOk` tries the exact claimed landing first). A hit through the reach alone also needs a clear
+  static line straight up from just off the landing to the head's underside (`lampReachProbe`, polish2): a round on a
+  door soffit under a wall lamp on the far face does not break it. `StealthSystems.shotRay`, the client's `lampRay` and
+  the host's `onLampShot` all run that probe (`G.STATIC`), so host and client agree. The fixture box ignores the light's
+  `yaw` (axis-aligned `sx` / `sz`): a bulkhead on an x-facing wall keeps `sx` along x, so its footprint reaches ~0.14 m
+  into the wall; harmless with 0.2 m walls.
 - `world/lightRig.ts`: emissive bulbs (one thin-instanced mesh) for every light, and a fixed pool of `MAX_REAL_LIGHTS` spot
   lights given to the nearest lights at 4 Hz; quality sets how many are lit (`QualityLevel.realLights`). Pool lights are
   never enabled / disabled (no recompiles). Maps without lights create nothing.
