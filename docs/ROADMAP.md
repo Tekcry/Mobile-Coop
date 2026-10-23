@@ -55,6 +55,7 @@ Theme: as sections get harder, stealth pays and shooting gets worse. Jobs (each 
 - New job section-rating (after marlow-final, Menu Notes): undetected / no kills / no alarms / bodies hidden, with real rewards (5); rewards synced takedowns (12).
 
 ## Decided (Michael, 2026-10-22 ~11:15 unless dated)
+- iPad display (2026-10-23 ~13:05, iPad screenshots of 4.72.0: "what ever happened to the ipad display fix?"; no earlier record found): "Yes, in Player batch 23". Menus and HUD only (G182): version label inside the screen, safe-area insets, the Windows GPU banner only on Windows, the pause room-code line no longer clipped. Player Build, #214, train 25.
 - Realistic guards (2026-10-23 ~11:45, on the proposal to build guards from Wren's Blender operator pipeline, bible 5.14): "after sector ops. i would prefer clear variety in guards. They can all be male, and larger build than Wren as she is quite small. Different types of guards should look different where needed (some may have armour, some without, some helmets etc), and also need to build additional coop player characters, but would rather fix this after all levels are completed". Read as: job guard-models starts after sector-redesign (incl. campus detail art); all male, larger build than Wren (1.68 m); clear variety; archetypes look different (armour / helmets per type, matching the stealth-over-shooting gear). Additional co-op player characters after all levels are completed. guard-render S1 ships meanwhile as the bridge.
 - Campus detail art (2026-10-23 ~10:40): "add the full detail-art lift of campus as efficiently as possible". G278 (detail art lifted for marlow-final only) extends to campusOps: full finish, not greybox only.
 - Sector Ops 4 players (2026-10-23 ~10:25): "make a note to increase sector ops to 4 player coop after the redesigned map is completed. marlow yard stays at 2." Sector Ops only, up to 4 players, after sector-redesign; Marlow Yard (the campaign training level) stays 2 players (G2 / G50 kept there).
@@ -227,6 +228,10 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
 | 2026-10-23 | #178 | 4.65.0: train 16: guards see poorly above (#169), deploy reload waits for the menu (#176), load-robust e2e (#170-#175), decisions G276-G281 (#168) |
 | 2026-10-23 | #181 | 4.66.0: train 17: guards hear by range, one investigator per noise (guard-ai S1, #179) |
 | 2026-10-23 | #183 | 4.67.0: train 18: mocap batch 1, default off (#182), shorter camera range on all maps (#177) |
+| 2026-10-23 | #210 | 4.72.0: train 23: guard render merged bodies and anim cuts (#204, #205), Sector Ops campus sections 2-3 (#206) |
+| 2026-10-23 | #199 | 4.71.0: train 22: Guard AI awareness, posts and camera body calls (#193, #195, #196); hostage gait (#194); changelog dedupe (#198) |
+| 2026-10-23 | #197 | 4.70.0: train 21: Guard AI radio net (#191), ledge-end hands (#189), partner seed walk (#190) |
+| 2026-10-23 | #192 | 4.69.0: train 20: Guard AI incident board (#185), partner throw KO (#186), mocap on by default (#188) |
 | 2026-10-23 | #187 | 4.68.0: train 19: Sector Ops part 1 - armed guards, reinforcements, dogs, co-op light sync, protocol 31 (#184); guard-cap report (#180) |
 | 2026-10-23 | #160 | 4.62.0: train 12: co-op holders, mantle / drop / roll and split brace, holds that breathe (#119 N4b), co-op takedown offer test steady under load (#158) |
 | 2026-10-22 | #157 | 4.61.0: train 8: Wren's body moves with the gait (twist, sway, head, arms) and run pops fixed (#138), feet in turns (#135, inside #138), Sector Ops strip lights no longer throw fog cones; floods and torches keep their beams (#156; closes Waiting item 5) |
