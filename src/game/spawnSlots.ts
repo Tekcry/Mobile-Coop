@@ -252,3 +252,16 @@ export function areaSlotPoints(a: SpawnArea, yaw = 0): SlotPoint[] {
   if (a.spawns?.length) return a.spawns.slice(0, 2).map((p) => ({ x: p.x, y, z: p.z, yaw: p.yaw ?? yaw }));
   return [{ x: (a.box[0] + a.box[2]) / 2, y, z: (a.box[1] + a.box[3]) / 2, yaw }];
 }
+
+/** (coop-rejoin) A client the match went to again whose first state is within this of where it stood (m) kept its
+ *  match up (it ignored the start): it plays on where it is. */
+export const JOIN_SAME_M = 3;
+
+/**
+ * (coop-rejoin) Does the host place a client the match went to again (`late`), from its first state at (x, z)? Yes when
+ * it had no state before (a late join) or its state jumped (its match reloaded at the course start, a bay airlock or
+ * Sector Ops' first section); no when it stands where it stood (a reconnect that kept the match up).
+ */
+export function joinNeedsPlacing(prev: { x: number; z: number } | null, x: number, z: number): boolean {
+  return !prev || hyp2(x - prev.x, z - prev.z) >= JOIN_SAME_M;
+}

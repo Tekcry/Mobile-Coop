@@ -52,15 +52,12 @@ import { revealIntel } from '../game/intelReveal';
 import { interrogationEnded } from '../game/intel';
 import type { TeamMate } from '../game/teamController';
 import type { PlayerRef } from '../ai/enemy';
-import { joinSpawn, slotSpawn, type SlotPoint, type SpawnBody } from '../game/spawnSlots';
+import { joinNeedsPlacing, joinSpawn, slotSpawn, type SlotPoint, type SpawnBody } from '../game/spawnSlots';
 import { canWalk, spawnProbe } from '../game/spawnPlace';
 
 import type { CharacterRig } from '../player/characterRig';
 
 const SNAP_HZ = 15;
-/** (coop-rejoin) A client the match went to again whose first state is within this of where it was (m) kept its match
- *  up (the start was ignored): it plays on where it is. */
-const JOIN_SAME_M = 3;
 const HISTORY_HZ = 20;
 const MAX_REWIND = 0.6;
 const INTERP_DELAY = 0.1;
@@ -412,7 +409,7 @@ export class CoopHost implements NetAttachment {
     this.itemsT = 0;
     this.lampForce = true;
     this.g.mode?.resync?.();
-    if (prev && hyp2(x - prev.x, z - prev.z) < JOIN_SAME_M) return;
+    if (!joinNeedsPlacing(prev, x, z)) return;
     const held = this.restoreFor.get(r.id);
     const at = this.joinSpot(r, held ? { x: held.x, y: held.y, z: held.z, yaw: held.yaw } : null);
     this.restoreFor.set(r.id, { x: at.x, y: at.y, z: at.z, yaw: at.yaw, sent: -1, until: this.time + 30 });
