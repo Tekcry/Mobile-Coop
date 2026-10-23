@@ -46,6 +46,7 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 | Candidates, paced to go | building / built | `merge-train build <n+1> <version> "<title>" <branches...>`; exit 2 -> failed (and an `auto-train/vitest` failure status on the head); exit 3 -> failed (every member left out); exit 4 (vitest not run: the heavy-lock wait timed out; the train is pushed and CI's `check` runs the unit tests) -> pending, the next tick goes on |
 | Any command error, or no version for the open train | error | none |
 
+- The `build` vitest step (under the heavy lock) is load-tolerant: when the full run fails and every failure is a `Test timed out in` or at most 3 test files failed, only those files rerun once with `npx vitest run --no-file-parallelism <files>`; a pass there is ok ("passed on isolated rerun: <files>"), a fail reports the rerun's tail. More than 3 failed files that are not all timeouts fail at once, no rerun.
 - Version of an open train: its newest `"<version>: version at merge, train <n> (G183)"` commit, else its PR title
   `"<version>: Train <n>: <title>"`, else a CHANGELOG heading that names `Train <n>`.
 - Candidates: open PRs to master labelled `train-ready` (the tick creates the label when missing) whose `check` passed
