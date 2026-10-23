@@ -234,3 +234,87 @@ describe('crouched strafe / wall slide: gun clear, pistol on one knee (AF4b)', (
     }, 300_000);
   }
 });
+
+describe('low ready still: crouch -> stand while the gun is put away (AF4b, e2e-anim pop)', () => {
+  // e2e-anim "low ready still: crouch -> stand": X held 0.4 s at low ready (the hold holsters a full gun) as the crouch
+  // starts, so the kneel starts with the gun on its way to the back. The gun-hand knee rule put that kneel on the right
+  // knee and, standing from it, the free left hand swung over the raised left knee (14.5 cm a frame, <= 11.5). A kneel
+  // that starts in a draw / holster takes the holstered rule (the planted lead foot); a gun that stays drawn keeps the
+  // gun-hand knee. The real weapons, stance and carry (drawHarness); the planner's lead pinned to the left foot behind.
+  async function kneelRun(holster: boolean): Promise<{ side: number; pop: number; where: string }> {
+    const { drawHarness } = await import('./helpers/drawHarness');
+    const h = await drawHarness();
+    const rig = h.rig;
+    const g = rig.graph as unknown as { kneelSide: number; setLead: (l: number) => void };
+    const setLead = g.setLead.bind(rig.graph);
+    g.setLead = () => setLead(-0.2);
+    let crouched = false;
+    let ck = 0;
+    let still = 0;
+    const r = rig as unknown as { animate: (dt: number, p: RigPose) => void };
+    const anim = r.animate.bind(rig);
+    r.animate = (dt: number, p: RigPose) => {
+      // PlayerController: crouchTime / standTime 0.22 s eased, the kneel after KNEEL_STILL still crouched
+      ck = crouched ? Math.min(1, ck + dt / 0.22) : Math.max(0, ck - dt / 0.22);
+      p.crouch = ck * ck * (3 - 2 * ck);
+      still = crouched ? still + dt : 0;
+      p.kneel = still > KNEEL_STILL;
+      p.motion = 'idle';
+      anim(dt, p);
+    };
+    h.stance.base = 'lowReady';
+    h.run(90);
+    if (holster) h.hold('draw', true);
+    h.run(24);
+    // the e2e's pop: each joint's change of velocity per 60 Hz frame (the root stays at the origin)
+    const joints = ['hips', 'wristL', 'wristR', 'headNode'] as const;
+    let prev: number[] | null = null;
+    let vel: number[] | null = null;
+    let pop = 0;
+    let where = '';
+    const now: number[] = [];
+    const rec = (n: number): void => {
+      for (let k = 0; k < n; k++) {
+        h.step();
+        now.length = 0;
+        for (const j of joints) {
+          const m = rig[j].computeWorldMatrix(true).m;
+          now.push(m[12]!, m[13]!, m[14]!);
+        }
+        if (prev) {
+          const v = now.map((x, i) => x - prev![i]!);
+          if (vel)
+            for (let i = 0; i < joints.length; i++) {
+              const a = Math.hypot(v[3 * i]! - vel[3 * i]!, v[3 * i + 1]! - vel[3 * i + 1]!, v[3 * i + 2]! - vel[3 * i + 2]!);
+              if (a > pop) {
+                pop = a;
+                where = joints[i]!;
+              }
+            }
+          vel = v;
+        }
+        prev = now.slice();
+      }
+    };
+    crouched = true;
+    rec(72);
+    const side = g.kneelSide;
+    crouched = false;
+    rec(72);
+    h.dispose();
+    return { side, pop, where };
+  }
+
+  it('a kneel entered while holstering takes the lead foot; standing from it does not pop', async () => {
+    const a = await kneelRun(true);
+    console.info(`AF4b low ready X hold crouch -> stand: kneel side ${a.side}, worst velocity change ${cm(a.pop)} cm a frame (${a.where})`);
+    expect(a.side).toBe(-1);
+    expect(a.pop).toBeLessThanOrEqual(0.115);
+  }, 120_000);
+
+  it('a kneel with the gun staying drawn keeps the gun-hand knee', async () => {
+    const b = await kneelRun(false);
+    console.info(`AF4b low ready crouch -> stand: kneel side ${b.side}, worst velocity change ${cm(b.pop)} cm a frame (${b.where})`);
+    expect(b.side).toBe(1);
+  }, 120_000);
+});

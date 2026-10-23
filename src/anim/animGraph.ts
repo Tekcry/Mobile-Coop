@@ -1167,8 +1167,10 @@ export class AnimGraph {
     // (e2e-netmove wall crouch). Turned toward the travel the wall is on the travel side (wallSide 1: the right).
     // (afp AF4b, Michael P4 "pistol shifts between knees") off the wall: not from the lead (crouched the stance lead is zeroed,
     // so after a sideways stop it was arbitrary and the knee changed between stops): armed, the gun hand's knee (a right hand
-    // kneels on the right knee); holstered (free movement squats instead, KEYED_CROUCH.squat) the planted lead foot as before
-    if (wantKneel && this.kneelW <= 0) this.kneelSide = i.wall ? (i.wallSide < 0 ? -1 : 1) : i.armed ? (i.hand < 0 ? -1 : 1) : this.lead < -0.05 ? -1 : 1;
+    // kneels on the right knee); holstered (free movement squats instead, KEYED_CROUCH.squat) the planted lead foot as before,
+    // and so a kneel that starts while the gun is being put away or drawn (i.swap): the low ready X hold holstered into a
+    // right-knee kneel, and standing from it the free left hand swung over the raised left knee (e2e-anim 14.5 cm a frame)
+    if (wantKneel && this.kneelW <= 0) this.kneelSide = i.wall ? (i.wallSide < 0 ? -1 : 1) : i.armed && i.swap < 0 ? (i.hand < 0 ? -1 : 1) : this.lead < -0.05 ? -1 : 1;
     this.kneelW = clamp(this.kneelW + (wantKneel ? kStep : -kStep), 0, 1);
     const kw = smoothstep(this.kneelW);
     overClip(src, this.kneelSide > 0 ? KNEEL : KNEEL_M, this.idleT * KNEEL_RATE, kw);
