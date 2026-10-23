@@ -62,7 +62,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   commands. `AlertInput.turning` (a sound he was not sent to) holds off the linger rule, so footsteps do not pull every
   turner over.
 - Paces (A9, `PACE` in `enemy.ts`, x walkSpeed): patrol 1.1; coordinated investigate 0.85, search 0.75 (parked modes
-  1.2 / 1.3); walking to wake a KO'd squadmate 1.3 (until S4). Coordinated searching turns at the calm rate.
+  1.2 / 1.3); walking to wake a KO'd squadmate 1.3; cautious patrol 0.95 (guard-ai S4; not on a timed loop).
+  Coordinated searching turns at the calm rate.
 - Pace and patience: `PATROL.wait` 5.5 s, glances every 10 s, `searchLook` 3 s, `hearLook` 2.4 s; `ENEMY_CALM_MOTION` (60
   deg/s turns while not in combat; parked modes: not searching either). Combat: `ALERT.lostSight` 12 s, `searchTime` 60 s; after combat a guard
   never returns to unaware (`AlertMachine.fought`).
@@ -86,9 +87,55 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   radioed after `ALERT.callIn` (`Enemy.radioT`, bark `callIn`) to everyone within `RADIO` 22 m (0.4 + 0.03 d + random
   0.3 s); gunfire / a hit / a flashbang (`loudAlert`) calls in at once. `PlayerRef.spotted`: set when a guard in combat
   sees that player, cleared when nobody is in combat.
+- Awareness and caution (guard-ai S4, design 4, M1 / M3; `ai/awareness.ts` pure, `EnemyManager.awareness`, coordinated
+  modes; A3, A4, A14-A16):
+  - Guard keys: `Enemy.key` (0-31, u32 masks), the lowest free key at `spawn` (not held by a guard on the list or a
+    knocked-out body), kept by a woken guard (`Body.guardKey` / `Body.guard`; `revive` builds the new `Enemy` and
+    `inherit`s key, squad roster place, held room, passive, `info`, sniper post and the patrol walker, its clock moved on
+    by the time down, back on the route at the nearest point; facing as he fell, no random yaw). A dead guard's key is
+    reused with `resetKey`.
+  - A body found dead (`bodyFound`): the finder barks `body`, searches the spot; the guards who hear his shout (the S3
+    voice model) know too and the nearest calm one searches with him; all are held (`openHold('dead')`). He radios a
+    `body` call (2.5 s x reaction, `deadReport` "Man down. Stay sharp." when it completes); each receiver of the section
+    is added to the hold on delivery (staggered, one "Copy."). Cut him first (`radioCut`: down, grabbed, blinded) and
+    only he and his voice hearers knew. A2: no alarm from it.
+  - A kill seen (`witnessKill`, on `onKilled`): every calm guard (not in combat, held, passive, a dog or melee kind) who
+    would notice the body there (`bodyNoticed`: field, the light on it, `BODY.range` 20 m) with one line-of-sight ray is
+    a witness; the nearest finds the body at once (`bodyFound`, every witness held). A knockout seen: he goes to wake him
+    (A14). A dead dog (no body): the witnesses are held, the nearest searches and radios it.
+  - Held caution clears only when every aware guard is eliminated: dead, or knocked out and not woken (A3; woken, the
+    holds he knew come back). Time never clears it. `despawn` counts as dead; `clear` (Sector unload / restart) drops
+    every hold and caution.
+  - A knockout found: the finder (`koFound` "Hey. Hey! Wake up.") wakes him after `BODY.reviveTime`; `woke`:
+    `startKo` (both search `CAUTION.koSearch` 60 s round the spot, then cautious `koCautious` 180 s, then normal),
+    the waker's search restarts (`Enemy.koSearch`) and he radios a `ko` call (`koReport`, one "Copy."; nobody else
+    turns cautious).
+  - Caution per guard (`Enemy.caution`, synced at 5 Hz with the board and after each change; `EnemyManager.cautionOf`):
+    `AlertInput.cautious` keeps a calm guard in `cooldown` (sight x1.3, the board picks him first) and never unaware
+    while it lasts; patrol `PACE.cautious` 0.95; route pauses and post glances x `CAUTION.waitMul` 0.6
+    (`PatrolWalker.waitMul`; timed loops keep their schedule); the torch rule of a searching guard. Music does not
+    follow it (A8). Contact and missing holds are not wired (`fought` stays each guard's combat caution; A16).
 - Noise investigations (guard-ai S3, S2 check polish 2): a guard the board sent to a plain noise or a lure who finds
   nothing goes back to unaware (`AlertInput.calmEnd`); gunfire keeps the 45 s cooldown, and so does a guard who has
   fought.
+- Posts and high security (guard-ai S5, design 6, goal 7, M1, A10, A12, A17-A19; `ai/posts.ts` and `ai/guardAiData.ts`
+  pure): `SquadSlot.post?: PostDef` (`leash` m round the guard's spawn point, `highSecurity?`, `guards?` text) and
+  `profile?`; map modes call `EnemyManager.placeSlot(e, slot, section?)` after `spawn` / `setPatrol` (Sector Ops passes
+  the `SectorDef` index; Course and Infiltration let it pick the `MapLayout.guardAi` zone, else 0) -> `Enemy.setPost`,
+  `Enemy.section`, `Enemy.profile`. A normal post is sent like any guard. A high-security post (`Enemy.secure`,
+  `mayLeave` false): the board never sends him (`GV_POSTED` in the view: no investigation, light check, missing pair);
+  a noise or gunfire at his investigate tier, or a light he sees go out, lures him instead (`Enemy.lureTo` ->
+  `PostLure`): he walks to the point of his leash nearest it (investigate pace), looks toward it `POST.lureLook` 5 s
+  sweeping +-`POST.lureSweep` 0.6 rad, walks back and faces his post yaw (`returnFace` 0.8 s, then the walker); a second
+  lure at the same leash point does not restart him; the lure counts as `turning` (the linger rule never walks him off)
+  and gives only a turn's meter floor. A search (a body, a radio check, after combat) and his investigate spot are
+  clamped into the leash; he wakes no knocked-out guard outside it; in combat `chasePoint` / strafe points are clamped,
+  cover outside the leash is skipped, and a target outside it (+1.5 m) is held from the post (the `hold` rule); he
+  never runs to an alarm panel outside it. A revived guard keeps his post (`Enemy.inherit`). Not yet: squads / handler /
+  zone / role tags (S5b). Map data: `MapLayout.guardAi` (zones, `noisy`, entries, squads) and `SectorDef.noisy` /
+  `entries`; `EnemyManager.mapNoisy` loads the map's noisy things as the masking, Sector Ops swaps in the live
+  section's (`setNoisy` on load). Checks: `validateGuardAi` / `validatePosts` run on load in dev (console warnings via
+  `reportGuardAi`, never a throw) and in `tests/postsWiring.test.ts` over every live map's sectors.
 - Tactics: from sight into cover first (85%), attack -> cover after 2.5-4.5 s, peek cycles (4.2 s, up to 5); out of sight
   an `advancing` bound to cover closer to the believed position (`pickAdvance`), a 2.5 s hold, then the next; the last
   stretch is walked (`ADVANCE_PACE`); cover is picked against `knownPt` (never the real position out of sight). One bullet
@@ -106,8 +153,22 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   goes dark with the light.
 - Bodies: `Enemy.die` / `knockOut` hand the rig to `EnemyManager.addBody` -> `ai/body.ts` `Body` (a settled `Ragdoll`, or
   laid flat when out of budget; `BODY.max` kept). Enemies not in combat look for bodies each think (`bodyNoticed`: field x
-  `lightFactor(body.light)` x distance; one ray) -> `bodyFound`: the finder searches, the squad within `RADIO` searches; a
-  non-lethal body is revived (`BODY.reviveTime`). Carry (`game/stealthSystems.ts`): an unarmed rig over the shoulder, the
+  `lightFactor(body.light)` x distance; one ray) -> `bodyFound`: the finder searches; a non-lethal body is revived
+  (`BODY.reviveTime`; the woken guard is the same guard: `Enemy.inherit`); coordinated modes: awareness and caution
+  below; parked modes: the squad within `RADIO` searches. Cameras see bodies (guard-ai S7, design 9, M6; host only, coordinated
+  modes): `SecuritySystem`'s body pass (2 Hz per online camera, IR: no light term, G240; looped / off / jammed /
+  destroyed cameras see nothing) reads `EnemyManager.bodies` (`setBodySource`, wired in `GameState` beside the
+  security system) and its `onBody` (separate from `onEvent`, which `CtDevices` owns) calls
+  `EnemyManager.cameraReport(ev, "Camera N")`: a body already found, carried, hidden or gone is ignored; else one
+  `camBody` incident per body (`IncidentBoard.reportBody`; a second camera's report merges while it is open) sends the
+  nearest 1 (KO) or 2 (dead) calm guards within `INCIDENT.callR` 25 m by path (never dogs / melee); nobody in range:
+  the report waits `camWait` 30 s for one, then lapses (section caution is S4's). A new incident gets the desk's radio
+  line (`camBodyLine`, e.g. "Camera 2 has a man down, Delivery Yard. Nearest unit, check on him."; `onCameraLine` ->
+  the HUD bark over that camera, `cam:<id>`). The sent guard (`Enemy.checkBody`, `MODE_BODY`) goes straight to
+  investigating at the investigate pace (no 2.4 s look first), held by the task (`AlertInput.hold`, `bodyWalk` 45 s);
+  within `BODY.close` with a clear line the body-found path takes over (`bodyFound`: a KO'd guard is woken, the area
+  searched). The body gone or found first, or the walk timing out: the usual investigation end; a glimpse drops it.
+  `SectorMode.unloadSection` calls `clearBodyReports` (section load / restart). Carry (`game/stealthSystems.ts`): an unarmed rig over the shoulder, the
   player's `reachL/R` hold its knees, weapon stowed, `speedCap` `BODY.carrySpeed`, no sprint / cover / traversal; drop = a
   short `Ragdoll`; hide spots (`MapLayout.hideSpots`) remove it.
 - Lights: `PlayerWeapons.onRay` -> `StealthSystems.shotRay` -> `lightOnRay` + `LightRegistry.destroy`; `MapLayout.switches`
