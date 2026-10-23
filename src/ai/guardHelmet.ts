@@ -1,11 +1,13 @@
 /**
  * (guard-models G7, A6) The dropped helmet's mesh with the guard figures: helmet_std's own triangles cut out of a guard
  * base's LOD1 file (the average base, else the lean one: broad has helmet_heavy only, which has no drop anchor, so every
- * kind drops helmet_std), centred on its box, in the faction's helmet colour (vertex colour over the base's shared
- * material: one faction per map), drawn as instances by `HelmetDrops`. Built once per scene on the first drop (load
- * time); null until it is in, and while Wren stands in (no helmet_std piece): `HelmetDrops` keeps its box then.
+ * kind drops helmet_std), centred on its box, over the base's shared material, drawn as instances by `HelmetDrops`.
+ * (G7b) The colour is per instance (`registerInstancedBuffer('color')`, `helmetDropColour`): a heavy's or enforcer's
+ * dark helmet and the faction helmet of the rest never bleed into each other through the shared source mesh. Built once
+ * per scene on the first drop (load time); null until it is in, and while Wren stands in (no helmet_std piece):
+ * `HelmetDrops` keeps its box then.
  */
-import { Mesh, VertexBuffer, VertexData, type PBRMaterial, type Scene } from '../core/babylon';
+import { Color4, Mesh, VertexData, type InstancedMesh, type PBRMaterial, type Scene } from '../core/babylon';
 import type { GlbModel } from '../operators/lab/glb';
 import { loadModel } from '../operators/runtime/figure';
 import { guardLibrary, type GuardGlbMesh } from '../operators/runtime/guardFigure';
@@ -42,7 +44,7 @@ export function helmetManifest(): GuardManifest | null {
 }
 
 /** The scene's helmet drop mesh, or null (loading, or none in the build). The first call starts the load. */
-export function helmetDropSource(scene: Scene, hex: string): HelmetMeshSource | null {
+export function helmetDropSource(scene: Scene): HelmetMeshSource | null {
   let e = BY_SCENE.get(scene);
   if (!e) {
     e = { src: null };
@@ -53,7 +55,7 @@ export function helmetDropSource(scene: Scene, hex: string): HelmetMeshSource | 
       const entry = e;
       Promise.all([guardLibrary(scene).load(m, LOD_1), loadModel(url)])
         .then(([asset, model]) => {
-          if (!scene.isDisposed) entry.src = buildHelmetDropMesh(scene, model, m, asset.materials[0] ?? null, hex);
+          if (!scene.isDisposed) entry.src = buildHelmetDropMesh(scene, model, m, asset.materials[0] ?? null);
         })
         .catch((err: unknown) => console.warn('[guards] helmet drop mesh not built (the box stays)', err));
     }
@@ -62,12 +64,46 @@ export function helmetDropSource(scene: Scene, hex: string): HelmetMeshSource | 
   return e.src;
 }
 
+function nibble(c: number): number {
+  return c <= 57 ? c - 48 : (c | 32) - 87;
+}
+
+/**
+ * A drop's colour from its helmet hex (`#rrggbb`, sRGB): over the fabric neutral the helmet shell sits on, linear,
+ * clamped to 1 (the instance colour multiplies the albedo). Into `out`; no allocation (a drop reuses its instance).
+ */
+export function helmetDropColour(hex: string, out: Color4): Color4 {
+  for (let i = 0; i < 3; i++) {
+    const b = (nibble(hex.charCodeAt(1 + i * 2)) << 4) | nibble(hex.charCodeAt(2 + i * 2));
+    const v = srgbToLinear(b / 255) / FABRIC_NEUTRAL;
+    const c = v < 1 ? v : 1;
+    if (i === 0) out.r = c;
+    else if (i === 1) out.g = c;
+    else out.b = c;
+  }
+  out.a = 1;
+  return out;
+}
+
+/** One drop: an instance of `src` with its own colour (`hex`). Load / pool-growth time (allocates). */
+export function helmetDropInstance(src: HelmetMeshSource, hex: string, name: string): InstancedMesh {
+  const m = src.mesh.createInstance(name);
+  m.instancedBuffers.color = helmetDropColour(hex, new Color4());
+  return m;
+}
+
+/** Recolours a drop made by `helmetDropInstance` in place (a reused drop of another guard). No allocation. */
+export function setHelmetDropColour(m: InstancedMesh, hex: string): void {
+  const c = m.instancedBuffers.color as Color4 | undefined;
+  if (c) helmetDropColour(hex, c);
+}
+
 /**
  * helmet_std's triangles from `model` (a guard base's LOD file; `_PIECE` per vertex) as one static mesh centred on its
- * box, coloured `hex` (sRGB, the faction's helmet) over `material`, hidden itself (its instances draw). Null when the
+ * box over `material`, coloured per instance (`helmetDropInstance`), hidden itself (its instances draw). Null when the
  * file has no helmet_std piece. Load time (allocates).
  */
-export function buildHelmetDropMesh(scene: Scene, model: GlbModel, manifest: GuardManifest, material: PBRMaterial | null, hex: string): HelmetMeshSource | null {
+export function buildHelmetDropMesh(scene: Scene, model: GlbModel, manifest: GuardManifest, material: PBRMaterial | null): HelmetMeshSource | null {
   const pi = manifest.pieces.indexOf(HELMET);
   const g = model.meshes[0] as GuardGlbMesh | undefined;
   if (pi < 0 || !g?.piece) return null;
@@ -103,14 +139,6 @@ export function buildHelmetDropMesh(scene: Scene, model: GlbModel, manifest: Gua
     uv[o * 2 + 1] = g.uvs[v * 2 + 1]!;
   }
   for (let o = 0; o < nv; o++) for (let a = 0; a < 3; a++) pos[o * 3 + a] = pos[o * 3 + a]! - (lo[a]! + hi[a]!) / 2;
-  const col = new Float32Array(nv * 4);
-  const tint = [0, 1, 2].map((i) => Math.min(1, srgbToLinear(parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16) / 255) / FABRIC_NEUTRAL));
-  for (let o = 0; o < nv; o++) {
-    col[o * 4] = tint[0]!;
-    col[o * 4 + 1] = tint[1]!;
-    col[o * 4 + 2] = tint[2]!;
-    col[o * 4 + 3] = 1;
-  }
   const mesh = new Mesh('helmet-drop-src', scene);
   const vd = new VertexData();
   vd.positions = pos;
@@ -118,7 +146,9 @@ export function buildHelmetDropMesh(scene: Scene, model: GlbModel, manifest: Gua
   vd.uvs = uv;
   vd.indices = idx;
   vd.applyToMesh(mesh, false);
-  mesh.setVerticesData(VertexBuffer.ColorKind, col, false, 4);
+  // (G7b) no vertex colour: each drop carries its own (one shared colour per source would bleed between kinds)
+  mesh.registerInstancedBuffer('color', 4);
+  mesh.instancedBuffers.color = new Color4(1, 1, 1, 1);
   mesh.hasVertexAlpha = false;
   if (material) mesh.material = material;
   mesh.isPickable = false;

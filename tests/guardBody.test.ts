@@ -277,9 +277,9 @@ describe("the dropped helmet's mesh (A6)", () => {
     const { scene, world } = await setup();
     const { helmetDropSource } = await import('../src/ai/guardHelmet');
     const { HelmetDrops } = await import('../src/ai/helmetDrops');
-    expect(helmetDropSource(scene, '#22262b')).toBeNull(); // loading
-    await vi.waitFor(() => expect(helmetDropSource(scene, '#22262b')).not.toBeNull());
-    const src = helmetDropSource(scene, '#22262b')!;
+    expect(helmetDropSource(scene)).toBeNull(); // loading
+    await vi.waitFor(() => expect(helmetDropSource(scene)).not.toBeNull());
+    const src = helmetDropSource(scene)!;
     expect(src.mesh.getTotalVertices()).toBe(3);
     expect(src.w).toBeCloseTo(0.05, 5);
     const pos = src.mesh.getVerticesData('position')!;
@@ -300,7 +300,7 @@ describe("the dropped helmet's mesh (A6)", () => {
     H.assets.set('lean', { manifest: AVG, standIn: true, problems: [] });
     const { helmetDropSource } = await import('../src/ai/guardHelmet');
     const { HelmetDrops } = await import('../src/ai/helmetDrops');
-    expect(helmetDropSource(scene, '#22262b')).toBeNull();
+    expect(helmetDropSource(scene)).toBeNull();
     const drops = new HelmetDrops(world.parts, () => {});
     drops.drop(0, 0, 0, 1.7, 0, 1, '#22262b', 0.25, 0.2, 0.26);
     const m = (drops as unknown as { drops: { m: { sourceMesh: Mesh; scaling: { x: number } } }[] }).drops[0]!.m;

@@ -7,7 +7,7 @@
 import type { InstancedMesh } from '../core/babylon';
 import { flags } from '../core/flags';
 import type { PartLibrary } from '../world/partLibrary';
-import { helmetDropSource, type HelmetMeshSource } from './guardHelmet';
+import { helmetDropInstance, helmetDropSource, setHelmetDropColour, type HelmetMeshSource } from './guardHelmet';
 
 /** Pool size, tumble time (s), how far from his feet it lands (m), the arc's height (m). Prototype values (G4). */
 export const HELMET_DROP = { pool: 8, tumble: 0.4, fling: 0.7, arc: 0.25 } as const;
@@ -75,13 +75,14 @@ export class HelmetDrops {
     return n;
   }
 
-  /** A helmet (colour `hex` on the first drop: one faction per map) of size `w` x `h` x `d` falls from `top` m above
-   *  (x, y, z) along (dx, dz). The pool's oldest drop is reused once all `HELMET_DROP.pool` are out. */
+  /** A helmet (colour `hex`: the box keeps the colour of the drop that made it; a helmet_std drop takes it on every
+   *  drop, G7b) of size `w` x `h` x `d` falls from `top` m above (x, y, z) along (dx, dz). The pool's oldest drop is
+   *  reused once all `HELMET_DROP.pool` are out. */
   drop(x: number, y: number, z: number, top: number, dx: number, dz: number, hex: string, w: number, h: number, d: number): void {
     let i = this.next;
     // (guard-models G7, A6) with the guard figures: helmet_std's own LOD1 geometry once a base file with it is in (the
     // box until then, and with Wren standing in)
-    const src = flags.guardModels ? this.helmetSource(hex) : null;
+    const src = flags.guardModels ? this.helmetSource() : null;
     // a new instance while the pool is short (after a `clear`, the hidden ones are reused first)
     if (this.drops.length < HELMET_DROP.pool && (i >= this.drops.length || this.drops[i]!.m.isVisible)) {
       i = this.drops.push({ m: this.make(src, hex), src, t: 0, x: 0, y: 0, z: 0, top: 0, rest: 0, dx: 0, dz: 0 }) - 1;
@@ -94,6 +95,8 @@ export class HelmetDrops {
       o.m = this.make(src, hex);
       o.src = src;
     }
+    // (G7b) a helmet_std drop takes this guard's colour, reused or not (per instance: no bleed between kinds)
+    if (src) setHelmetDropColour(o.m, hex);
     o.t = 0;
     o.x = x;
     o.y = y;
@@ -110,16 +113,16 @@ export class HelmetDrops {
   }
 
   private make(src: HelmetMeshSource | null, hex: string): InstancedMesh {
-    const m = src ? src.mesh.createInstance('helmet-drop') : this.parts.instance('helmet', hex, 'helmet-drop');
+    const m = src ? helmetDropInstance(src, hex, 'helmet-drop') : this.parts.instance('helmet', hex, 'helmet-drop');
     m.isPickable = false;
     this.shadow(m);
     return m;
   }
 
   /** The scene's helmet_std drop mesh (null: not loaded, or no guard file with it: the box). Load time only. */
-  private helmetSource(hex: string): HelmetMeshSource | null {
+  private helmetSource(): HelmetMeshSource | null {
     const scene = (this.parts as Partial<PartLibrary>).material?.getScene();
-    return scene ? helmetDropSource(scene, hex) : null;
+    return scene ? helmetDropSource(scene) : null;
   }
 
   private place(o: Drop): void {
