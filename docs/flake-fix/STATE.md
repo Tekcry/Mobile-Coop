@@ -11,10 +11,14 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   ns-cpu-burner on first run; alerts/<ts>-<worker>-tasks.json). Opus checker FIX fixed (PS 5.1 array loop). Vitest 48/48.
 - Earlier today: e9363533 flake rule by assert, cf6f674b + e52b4a79 train solo fallback (all on #252).
 - Train 41 closed (S24 #264 levels); t41-solo: lightbake PASS, levels FAIL. Train 42 runs first when opened.
-- RUNNING: Opus agent writes C:/NightShift/scratch/work/lr16-8/sheets.mjs (LR16-8 showcase, 110 shots, Sector Ops
-  request on feature/marlow-lr16m 606630ed). Next: queue it as an alone request (--alone --step "node
-  C:/NightShift/scratch/work/lr16-8/sheets.mjs", 4189 GPU), then ONE reply to Sector Ops (flags, probe table, perf,
-  folder C:/NightShift/scratch/lighting/lr16-8/).
+- LR16-8 sheets: script C:/NightShift/scratch/work/lr16-8/sheets.mjs (+ pure.mjs; not in git, not run yet) queued as
+  alone request 20261023T204902-...-606630ed-fe4c (status laptop-e2e/alone-lr16-8-sheets), 3 steps under the 60 min
+  step limit: campusOps / warehouseOps+ctcourse / warehouse+kestrel+proving, outputs in
+  C:/NightShift/scratch/lighting/lr16-8/<part>/ (report.json each). When done: ONE reply to Sector Ops (per map pass /
+  flag list, probe table, bake, perf, folder). Known not-faithful: no shader readback hook (probe = meter vs field +
+  grey card), "campusOps Workshop" = warehouseOps workshop, proving / kestrel have no fixed lamps (04-08 n/a).
+- merge-train fix PR #293 (feature/merge-train-menu-only, train-ready): feature/menu alone is never a train.
+- Guard on desktop too (159d7c95; Orchestrator's dry run: only the 2 allowed tasks there).
 - Sent Sector Ops the lr16w e7cec732 excerpts (desktop:3 hang after the 16-texture check, darkness flat 9.7%,
   lightbake D3D11 pixel shader compile error on smooth Epic).
 
