@@ -13,18 +13,21 @@
 // silent: no claim / done push by 'laptop' on the branch for LQ_LAPTOP_SILENT_MIN (10) min, the laptop service claims
 // trains itself and the head is over 2 min old; then the backlog gate is dropped (lock, dir and CPU gates stay) and the
 // train runs sharded on the desktop slots whose dir exists (4191+4192), E2E_JOBS=LQ_TRAIN_JOBS (desktop default 1).
-// Build marker (desktop): while C:/NightShift/scratch/auto-train-building.json (auto-train writes it during
-// `merge-train build`; LQ_BUILD_MARKER overrides the path) exists and is younger than LQ_BUILD_MARKER_MAX_MIN (30) min,
+// Build marker (desktop): while <AUTO_TRAIN_SCRATCH or C:/NightShift/scratch>/auto-train-building.json (auto-train writes
+// it during `merge-train build`, in the same folder; LQ_BUILD_MARKER overrides the path) exists and is younger than LQ_BUILD_MARKER_MAX_MIN (30) min,
 // the desktop starts no new request or train; runs already going continue. An older marker is ignored (logged once).
 // Every request and train is claimed (claims/<id>.json, a train: claims/<sha>.json, on the laptop-queue branch, an
 // atomic push) before it runs and marked done after, so the two workers never run the same request or train.
 // Train reruns (request.mjs --train-rerun, from auto-train): kind pr, picked right after trains on one slot at E2E_JOBS=1
-// (laptop only); own context laptop-e2e/rerun-<suites>; a full pass also posts laptop-e2e success on the sha.
+// (laptop only); its context is laptop-e2e/<set> like any request (auto-train's: laptop-e2e/train<n>-rerun), and
+// laptop-e2e/rerun-<suites> only when it has no set; a full pass also posts laptop-e2e success on the sha.
 // Supersede: an open pr / full request is marked done unrun when the same requester has a newer one (same set, or an
 // ancestor sha with overlapping suites); pick runs a requester's newest request first (lib.mjs superseded, pick).
 // Duplicates (Orchestrator audit 2026-10-24): an open request that runs exactly what another request runs (lib dupKey:
-// sha, kind, suites or steps, env; any requester or set) is marked done unrun as "duplicate of <id>" when that one is
-// open (older), claimed or running, or done here within LQ_DUP_WINDOW_MIN (60) min without being superseded / a duplicate.
+// sha, kind, suites or steps, env, set, jobs, pr; any requester) is marked done unrun as "duplicate of <id>" when that
+// one is open (older), claimed or running, or done here with result success within LQ_DUP_WINDOW_MIN (60) min (never
+// against a failure, error, build, nosha or incomplete result: a rerun of a failure runs). state.done entries older
+// than 7 days (done claim pushed) are pruned on every state save.
 // Yield: a pr / full / alone run that has not started its suites or steps (lock wait, fetch, npm ci, build) while a train
 // head is pending gives its slot back (locks released, claim dropped, request stays queued; lib yieldTo).
 // Task guard (Michael 2026-10-24 07:13, after 87 stale NightShift-chain-* one-shots fired at 23:59 and held the slot
@@ -35,7 +38,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { assertKey, buildMarker, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo } from './lib.mjs';
+import { assertKey, buildMarker, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -83,6 +86,12 @@ function writeJson(name, data) {
   if (DRY) return;
   fs.mkdirSync(STATE_DIR, { recursive: true });
   fs.writeFileSync(file(name), JSON.stringify(data, null, 2));
+}
+const DONE_KEEP_MS = 7 * 24 * 3600_000;
+/** Saves state.json, first dropping state.done entries over 7 days old whose done claim is on the branch (lib pruneDone). */
+function saveState() {
+  state.done = pruneDone(state.done, Date.now(), DONE_KEEP_MS, (id) => doneSynced.has(id));
+  writeJson('state.json', state);
 }
 
 const state = readJson('state.json', {});
@@ -615,7 +624,7 @@ async function runTrain(train, ports = PORTS) {
   } finally {
     // only slots this train locked: an unheld one may be serving a manual run
     for (const p of ports) { if (locks[p]) { releaseLock(p, locks[p]); freePort(p); } }
-    writeJson('state.json', state);
+    saveState();
     if (state.trains[train.sha]) writeClaims([train.sha], 'done', `done train ${train.n}`);
     log(`train ${train.n}: done`);
   }
@@ -705,7 +714,7 @@ async function runRequest(r, port) {
   } finally {
     for (const p of ports) { if (locks[p]) releaseLock(p, locks[p]); freePort(p); }
     if (state.done[r.id]) state.done[r.id].key = dupKey(r); // the duplicate check reads it for LQ_DUP_WINDOW_MIN
-    writeJson('state.json', state);
+    saveState();
     if (state.done[r.id] && writeClaims([r.id], 'done', `done ${r.id}`) === true) doneSynced.add(r.id);
     if (!yielded) log(`${r.id}: done`);
   }
@@ -795,7 +804,7 @@ function applySupersedes(requests) {
     state.done[id] = { result: 'superseded', by, date };
     doneSynced.add(id);
   }
-  writeJson('state.json', state);
+  saveState();
   return requests.filter((r) => !sup.has(r.id));
 }
 
@@ -818,7 +827,7 @@ function applyDuplicates(requests) {
     state.done[id] = { result: 'duplicate', by, date };
     doneSynced.add(id);
   }
-  writeJson('state.json', state);
+  saveState();
   return requests.filter((r) => !dup.has(r.id));
 }
 
@@ -836,7 +845,7 @@ function desktopTrains() {
   return { trains, why: all.length && !trains.length ? 'train head too new' : '' };
 }
 
-const BUILD_MARKER = process.env.LQ_BUILD_MARKER ?? 'C:/NightShift/scratch/auto-train-building.json';
+const BUILD_MARKER = process.env.LQ_BUILD_MARKER ?? `${process.env.AUTO_TRAIN_SCRATCH || 'C:/NightShift/scratch'}/auto-train-building.json`; // auto-train's buildMarkerPath
 const BUILD_MARKER_MAX_MS = Number(process.env.LQ_BUILD_MARKER_MAX_MIN ?? 30) * 60_000;
 let markerLogged = '';
 /** Desktop: auto-train's build marker when it blocks new starts (lib buildMarker), else null; logged once per marker. */

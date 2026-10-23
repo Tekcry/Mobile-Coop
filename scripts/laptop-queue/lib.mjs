@@ -21,11 +21,13 @@ export function requestId(now, requester, sha) {
 
 /**
  * Commit status context: `laptop-e2e/<set>` (alone: `laptop-e2e/alone-<set>`), set cut to [a-z0-9+._-], 40 chars. A train
- * rerun: `laptop-e2e/rerun-<suites short>` (the suites without their e2e- prefix, joined by +, 40 chars with "rerun-").
+ * rerun with a set uses that same `laptop-e2e/<set>` (auto-train sends `--set train<n>-rerun` and reads
+ * `laptop-e2e/train<n>-rerun`); only one with no set gets `laptop-e2e/rerun-<suites short>` (the suites without their
+ * e2e- prefix, joined by +, 40 chars with "rerun-").
  */
 export function contextName(kind, set, suites = [], trainRerun = false) {
   const cut = (raw, n) => String(raw).toLowerCase().replace(/[^a-z0-9+._-]/g, '-').slice(0, n);
-  if (trainRerun) return `laptop-e2e/rerun-${cut((suites ?? []).map((s) => String(s).replace(/^e2e-/, '')).join('+'), 34) || 'run'}`;
+  if (trainRerun && !set) return `laptop-e2e/rerun-${cut((suites ?? []).map((s) => String(s).replace(/^e2e-/, '')).join('+'), 34) || 'run'}`;
   const clean = cut(set || (kind === 'full' ? 'full' : suites.join('+')), 40) || 'run';
   return `laptop-e2e/${kind === 'alone' ? 'alone-' : ''}${clean}`;
 }
@@ -171,24 +173,25 @@ export function buildMarker(text, mtimeMs, now, maxMs) {
 }
 
 /**
- * What a request runs, as one string: sha, kind, train-rerun flag, suites (sorted) or steps (in order), env (sorted).
- * Requester, set, note, jobs and pr do not count (two sessions asking for the same run on the same sha).
+ * What a request runs, as one string: sha, kind, train-rerun flag, suites (sorted) or steps (in order), env (sorted),
+ * set, jobs and pr (a different set posts a different context, --jobs 1 is a solo rerun, a pr gets the failure comment).
+ * Requester and note do not count (two sessions asking for the same run on the same sha).
  */
 export function dupKey(r) {
   const env = Object.entries(r.env ?? {}).map(([k, v]) => `${k}=${v}`).sort();
   const what = r.kind === 'alone' ? r.steps ?? [] : r.kind === 'pr' ? [...(r.suites ?? [])].sort() : [];
-  return JSON.stringify([r.sha, r.kind, Boolean(r.trainRerun), what, env]);
+  const opt = (v) => (v === undefined || v === null || v === '' ? '' : String(v));
+  return JSON.stringify([r.sha, r.kind, Boolean(r.trainRerun), what, env, opt(r.set), opt(r.jobs), opt(r.pr)]);
 }
-
-/** Done results that never ran: a request equal to one of these is not a duplicate of it. */
-const UNRUN = new Set(['superseded', 'duplicate']);
 
 /**
  * Open requests that repeat another request: Map(id -> the id it duplicates). requests = the open ones plus the claimed
  * or running ones (`active: true`, never marked themselves); recentDone = [{ id, key: dupKey, result, date }]. An open
  * request R is a duplicate (same dupKey) of an active request, else of the oldest older open request, else of a request
- * done within windowMs before now whose result is not superseded / duplicate. Different requesters and sets still match
- * (player a8ff2d45, 2026-10-23: supersede only joins one requester's pr / full requests and never alone ones).
+ * done within windowMs before now with result success. A failure / error / build / nosha / incomplete result never
+ * retires a request (a rerun of a failure is meant to run: checker FIX 2026-10-24, the desktop retired the laptop
+ * reruns of its own failures). Different requesters still match (player a8ff2d45, 2026-10-23: supersede only joins
+ * one requester's pr / full requests and never alone ones); a different set, jobs or pr does not (dupKey).
  */
 export function duplicates(requests, recentDone, now, windowMs) {
   const reqs = [...(requests ?? [])].sort(sortById);
@@ -198,7 +201,7 @@ export function duplicates(requests, recentDone, now, windowMs) {
   for (const r of reqs) if (r.active && !active.has(dupKey(r))) active.set(dupKey(r), r.id);
   const done = new Map();
   for (const d of recentDone ?? []) {
-    if (!d?.key || UNRUN.has(d.result) || !(now - Date.parse(d.date) < windowMs)) continue;
+    if (!d?.key || d.result !== 'success' || !(now - Date.parse(d.date) < windowMs)) continue;
     if (!done.has(d.key)) done.set(d.key, d.id);
   }
   for (const r of reqs) {
@@ -206,6 +209,20 @@ export function duplicates(requests, recentDone, now, windowMs) {
     const k = dupKey(r);
     const by = active.get(k) ?? firstOpen.get(k) ?? done.get(k);
     if (by) out.set(r.id, by); else firstOpen.set(k, r.id);
+  }
+  return out;
+}
+
+/**
+ * state.done without the entries older than maxMs whose done claim is on the branch (synced(id) true); entries with no
+ * readable date stay. A new object; the service prunes on every state save (7 days).
+ */
+export function pruneDone(done, now, maxMs, synced = () => true) {
+  const out = {};
+  for (const [id, d] of Object.entries(done ?? {})) {
+    const t = Date.parse(d?.date);
+    if (Number.isFinite(t) && !(now - t < maxMs) && synced(id)) continue;
+    out[id] = d;
   }
   return out;
 }

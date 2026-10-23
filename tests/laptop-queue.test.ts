@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -414,10 +414,18 @@ describe('duplicates', () => {
   const r = (min: number, tag: string, o: Record<string, unknown> = {}) => ({ id: idAt(min, tag), requester: 'A', kind: 'pr', sha: SHA, suites: ['e2e-coop', 'e2e-enemies'], ...o });
   const bake = { kind: 'alone', set: 'guard-bake-all', suites: undefined, steps: ['node a.mjs --probe', 'node a.mjs --stage sheet'], env: { E2E_GPU: '1' } };
 
-  it('the same run from another requester or set, open and older, is the one kept', () => {
+  it('the same run from another requester, open and older, is the one kept', () => {
     const o = r(30, 'o');
-    const n = r(10, 'n', { requester: 'B', set: 'mine', suites: ['e2e-enemies', 'e2e-coop'] });
+    const n = r(10, 'n', { requester: 'B', suites: ['e2e-enemies', 'e2e-coop'] });
     expect([...duplicates([n, o], [], NOW, W)]).toEqual([[n.id, o.id]]);
+  });
+  it('a different set, jobs or pr is a different run (checker FIX: own context, solo rerun, failure comment)', () => {
+    const o = r(30, 'o', { set: 'flag-on' });
+    expect(duplicates([o, r(10, 'n', { set: 'flag-off' })], [], NOW, W).size).toBe(0);
+    expect(duplicates([o, r(10, 'n')], [], NOW, W).size).toBe(0);
+    expect(duplicates([o, r(10, 'n', { set: 'flag-on', jobs: 1 })], [], NOW, W).size).toBe(0);
+    expect(duplicates([o, r(10, 'n', { set: 'flag-on', pr: 301 })], [], NOW, W).size).toBe(0);
+    expect(duplicates([o, r(10, 'n', { set: 'flag-on', requester: 'B' })], [], NOW, W).size).toBe(1);
   });
   it('a request equal to a claimed or running one never runs; the active one is never marked', () => {
     const a = { ...r(30, 'a'), active: true };
@@ -427,7 +435,7 @@ describe('duplicates', () => {
   });
   it('alone requests match on steps in order and env (the a8ff2d45 57-min bake, sent twice 34 s apart)', () => {
     const first = r(1, 'first', bake);
-    const again = r(0, 'again', { ...bake, requester: 'Player Build', set: 'bake-2' });
+    const again = r(0, 'again', { ...bake, requester: 'Player Build' });
     expect(duplicates([first, again], [], NOW, W).get(again.id)).toBe(first.id);
     expect(duplicates([first, r(0, 'swap', { ...bake, steps: [...bake.steps].reverse() })], [], NOW, W).size).toBe(0);
     expect(duplicates([first, r(0, 'cpu', { ...bake, env: { E2E_GPU: '0' } })], [], NOW, W).size).toBe(0);
@@ -444,14 +452,30 @@ describe('duplicates', () => {
     expect(duplicates([r(30, 'f', { kind: 'full', suites: undefined }), r(10, 'n', { kind: 'full', suites: undefined })], [], NOW, W).size).toBe(1);
     expect(duplicates([r(30, 'f', { kind: 'full', suites: undefined }), r(10, 'n')], [], NOW, W).size).toBe(0);
   });
-  it('a request done within the window is matched unless it was superseded or a duplicate itself', () => {
+  it('only a request done with success within the window is matched (never a failure: a rerun of it is meant to run)', () => {
     const n = r(5, 'n');
     const done = (min: number, result: string) => ({ id: idAt(min + 20, 'd'), key: dupKey(r(0, 'x')), result, date: new Date(NOW - min * 60_000).toISOString() });
-    expect(duplicates([n], [done(30, 'failure')], NOW, W).get(n.id)).toBe(done(30, 'failure').id);
-    expect(duplicates([n], [done(30, 'success')], NOW, W).size).toBe(1);
+    for (const bad of ['failure', 'error', 'build', 'nosha', 'incomplete']) expect(duplicates([n], [done(30, bad)], NOW, W).size).toBe(0);
+    expect(duplicates([n], [done(30, 'success')], NOW, W).get(n.id)).toBe(done(30, 'success').id);
     expect(duplicates([n], [done(61, 'success')], NOW, W).size).toBe(0);
     expect(duplicates([n], [done(10, 'superseded'), done(10, 'duplicate')], NOW, W).size).toBe(0);
     expect(duplicates([n], [{ id: 'old', result: 'success', date: new Date(NOW).toISOString() }], NOW, W).size).toBe(0);
+  });
+  it('checker scenarios: a desktop failure then a laptop re-request; a --jobs 1 solo rerun of a failure; another --set', () => {
+    const first = r(40, 'desk', { requester: 'guard-ai', pr: 300 });
+    const doneAs = (result: string) => [{ id: first.id, key: dupKey(first), result, date: new Date(NOW - 20 * 60_000).toISOString() }];
+    // the desktop ran it and failed: the same request again (to run on the laptop) runs
+    const again = r(10, 'again', { requester: 'guard-ai', pr: 300 });
+    expect(duplicates([again], doneAs('failure'), NOW, W).size).toBe(0);
+    expect(duplicates([again], doneAs('success'), NOW, W).get(again.id)).toBe(first.id);
+    // a solo rerun of the failure at --jobs 1 runs, even next to a success of the default run
+    const solo = r(10, 'solo', { requester: 'guard-ai', pr: 300, jobs: 1 });
+    expect(duplicates([solo], doneAs('failure'), NOW, W).size).toBe(0);
+    expect(duplicates([solo], doneAs('success'), NOW, W).size).toBe(0);
+    // another set of the same suites on the same sha (a flag off / on pair) runs, open, active or done
+    const other = r(10, 'other', { requester: 'guard-ai', pr: 300, set: 'gm-off' });
+    expect(duplicates([other], doneAs('success'), NOW, W).size).toBe(0);
+    expect(duplicates([{ ...first, active: true }, other], [], NOW, W).size).toBe(0);
   });
   it('three equal open requests all point at the oldest', () => {
     const [a, b, c] = [r(30, 'a'), r(20, 'b'), r(10, 'c')];
@@ -490,7 +514,10 @@ describe('train reruns', () => {
     expect(pick({ trains: [], requests: [rerun(5, 'b'), a] }, NOW, slots(false, false))?.request).toBe(a);
   });
   it('context, description and validation', () => {
-    expect(contextName('pr', 'ignored', ['e2e-coop', 'e2e-netmove'], true)).toBe('laptop-e2e/rerun-coop+netmove');
+    // with a set: the normal set context (auto-train's --set train<n>-rerun is what it reads back)
+    expect(contextName('pr', 'train47-rerun', ['e2e-coop', 'e2e-netmove'], true)).toBe('laptop-e2e/train47-rerun');
+    expect(contextName('pr', '', ['e2e-coop', 'e2e-netmove'], true)).toBe('laptop-e2e/rerun-coop+netmove');
+    expect(contextName('pr', undefined, ['e2e-coop'], true)).toBe('laptop-e2e/rerun-coop');
     expect(contextName('pr', '', ['e2e-' + 'x'.repeat(60)], true).length).toBe('laptop-e2e/'.length + 40);
     expect(rerunPassed(['e2e-coop', 'e2e-netmove'])).toBe('laptop rerun passed: e2e-coop,e2e-netmove (desktop fail)');
     const long = rerunPassed(Array.from({ length: 20 }, (_, i) => `e2e-suite-${i}`));
@@ -506,6 +533,18 @@ describe('train reruns', () => {
     const rr = { ...rerun(10), sha: 'a'.repeat(40) };
     expect(superseded([plain, rr], () => true).size).toBe(0);
     expect(duplicates([plain, rr], [], NOW, 3600_000).size).toBe(0);
+  });
+});
+
+describe('pruneDone', () => {
+  const at = (days: number) => new Date(NOW - days * 24 * 3600_000).toISOString();
+  const WEEK = 7 * 24 * 3600_000;
+  it('drops entries over 7 days old whose done claim is on the branch; keeps new, unsynced and undated ones', () => {
+    const done = { old: { result: 'success', date: at(8) }, oldUnsynced: { result: 'failure', date: at(9) }, fresh: { result: 'failure', date: at(1) }, nodate: { result: 'success' } };
+    const out = pruneDone(done, NOW, WEEK, (id: string) => id !== 'oldUnsynced');
+    expect(Object.keys(out).sort()).toEqual(['fresh', 'nodate', 'oldUnsynced']);
+    expect(done).toHaveProperty('old'); // a new object
+    expect(Object.keys(pruneDone(done, NOW, WEEK))).not.toContain('old');
   });
 });
 

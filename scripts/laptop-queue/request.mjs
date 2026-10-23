@@ -3,7 +3,8 @@
 //   node scripts/laptop-queue/request.mjs --sha <ref> [--pr N] [--set name] [--jobs N] [--requester "<title>"]
 //     (--suites "a b c" | --full | --alone --step "<cmd>" [--step ...] [--env K=V ...]) [--note ".."] [--branch x] [--dry-run]
 // --train-rerun (with --pr N and --suites; auto-train, --requester auto-train): a train's failed suites rerun on the
-// laptop at train priority; "trainRerun": true, kind pr. A pass also posts laptop-e2e success on the sha.
+// laptop at train priority; "trainRerun": true, kind pr. Context laptop-e2e/<set> (no --set: laptop-e2e/rerun-<suites>).
+// A pass also posts laptop-e2e success on the sha.
 // --dry-run: builds the commit but pushes nothing; prints the sha it would push and the JSON.
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';

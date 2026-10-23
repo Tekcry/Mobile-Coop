@@ -11,7 +11,10 @@
   supersede nor the duplicate rule joins them; the bake started its steps at 21:14:45, before the train head appeared
   (21:21), so yield would not have stopped it either. Interface for auto-train: `--train-rerun`, the build marker file.
   Rollout: the laptop service must run this before auto-train sends `--train-rerun` (an older service runs it as a
-  plain pr request).
+  plain pr request). Checker FIX (same day): a train rerun with a set posts `laptop-e2e/<set>` (auto-train's
+  `laptop-e2e/train<n>-rerun`), `rerun-<suites>` only without a set; duplicates match set, jobs and pr too and only a
+  success (never a failure) in the window; the desktop's build-marker path follows `AUTO_TRAIN_SCRATCH`; state.done
+  entries over 7 days old are pruned on save.
 - 2026-10-24 (Michael 07:13 "All three", after 87 old hand-made `NightShift-chain-*` one-shots fired again at 2026-10-23
   23:59 and held heavy-4189 / heavy-4192 for hours): hand-made chains are RETIRED; runs go through the queue
   (`request.mjs`). Permanent tasks: `NightShift-laptop-queue` (`install-task.ps1`), `NightShift-desktop-queue`
