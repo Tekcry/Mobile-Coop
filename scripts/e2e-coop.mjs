@@ -1207,15 +1207,17 @@ try {
   // client 9 m north under the lamp strip (S23's spot). Both players are lit by a pinned light (the host's sampler is
   // replaced for the block, as e2e-stealth-ai's `t.light`); the mission's own guards and the drone are statues with their
   // hitboxes parked (no ray stops on them), the alarm panels off. Once both pairs are in combat: two valid intruder
-  // slots, pair 1 hunts the host's and pair 2 the client's. Then both players go dark and leave (the host to the dock
-  // behind the z -6 wall, the client to the corridor behind the z -8.8 wall): within 10 s of the host's sim each pair's
-  // closest approach is to its own player's last known position (< 3 m), never to the other's, and no guard of either
-  // pair ever hunts the other pair's player.
+  // slots, pair 1 hunts the host's and pair 2 the client's. Then both players go dark and leave, out through the south
+  // facade into the dark yard lane (z -24.75; S24 coop triage: no walkable cell inside the building has a line to either
+  // spot, door leaves left out; the old service-corridor and dispatch spots were in sight of pair 2's own cover picks
+  // against the client's spot, the corridor side of the z -8.8 wall and through the glazed dispatch window): each guard
+  // works from his own player's last known position, never the other's, and no guard of either pair ever hunts the
+  // other pair's player.
   console.log('guard-ai S24: two intruders (each pair hunts the player it saw, never the other)');
   {
     await startMode(...MISSION);
     await GA(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
-    const S24 = { pair1: [[-15, -2.5], [-14, -2.5]], host: [-14.5, 5.2], pair2: [[8, -6], [9.2, -6]], client: [9, 3], hostHide: [0, -14], clientHide: [9, -10.3] };
+    const S24 = { pair1: [[-15, -2.5], [-14, -2.5]], host: [-14.5, 5.2], pair2: [[8, -6], [9.2, -6]], client: [9, 3], hostHide: [-3.75, -24.75], clientHide: [8.75, -24.75] };
     const cid = await GB(() => window.__coop.session.selfId);
     const hostSpot = await GA(([x, z]) => { const g = window.__app.current; const nav = g.enemyMgr.nav; const c = nav.nearestWalkable(x, z, 2, 0); const [cx, cz] = c >= 0 ? nav.center(c) : [x, z]; g.player.controller.teleport(new g.player.position.constructor(cx, 0.05, cz), Math.PI); g.player.cam.pitch = 0; return [cx, cz]; }, S24.host);
     await moveClient(B, S24.client[0], 0.1, S24.client[1], Math.PI);
@@ -1315,7 +1317,7 @@ try {
       assert(c0.hunts[0] === setup.sHost && c0.hunts[1] === setup.sHost, `S24: pair 1 hunts the host's slot (${why0})`);
       assert(c0.hunts[2] === setup.sClient && c0.hunts[3] === setup.sClient, `S24: pair 2 hunts the client's slot (${why0})`);
 
-      // both go dark and leave: the host to the dock, the client into the corridor (snapped to the nav)
+      // both go dark and leave: out into the dark yard lane, walled off from every cell inside (snapped to the nav)
       const hide = await GA(([hh, ch]) => {
         const g = window.__app.current;
         const em = g.enemyMgr;
