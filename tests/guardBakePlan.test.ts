@@ -46,20 +46,22 @@ const upstreamFor = (job: Job, v = '1') => Object.fromEntries(job.needs.map((n) 
 
 describe('guard bake plan: stage graph', () => {
   it('lists the stages in dependency order with the planned deps', () => {
-    expect(STAGES.map((s) => s.name)).toEqual(['bodies', 'heads', 'garments', 'gear', 'lods', 'check', 'sheet']);
+    expect(STAGES.map((s) => s.name)).toEqual(['prep', 'bodies', 'heads', 'garments', 'gear', 'lods', 'check', 'sheet']);
     const deps = Object.fromEntries(STAGES.map((s) => [s.name, s.deps]));
     expect(deps).toEqual({
-      bodies: [], heads: [], garments: ['bodies'], gear: [], lods: ['bodies', 'heads', 'garments', 'gear'], check: ['lods'], sheet: ['check'],
+      prep: [], bodies: ['prep'], heads: [], garments: ['bodies'], gear: ['bodies'], lods: ['bodies', 'heads', 'garments', 'gear'], check: ['lods'], sheet: ['check'],
     });
     const seen = new Set<string>();
     for (const s of STAGES) { for (const d of s.deps) expect(seen.has(d)).toBe(true); seen.add(s.name); }
   });
 
   it('stagesBefore gives the transitive deps in run order', () => {
-    expect(plan.stagesBefore('bodies')).toEqual([]);
-    expect(plan.stagesBefore('garments')).toEqual(['bodies']);
-    expect(plan.stagesBefore('check')).toEqual(['bodies', 'heads', 'garments', 'gear', 'lods']);
-    expect(plan.stagesBefore('sheet')).toEqual(['bodies', 'heads', 'garments', 'gear', 'lods', 'check']);
+    expect(plan.stagesBefore('prep')).toEqual([]);
+    expect(plan.stagesBefore('bodies')).toEqual(['prep']);
+    expect(plan.stagesBefore('heads')).toEqual([]);
+    expect(plan.stagesBefore('garments')).toEqual(['prep', 'bodies']);
+    expect(plan.stagesBefore('check')).toEqual(['prep', 'bodies', 'heads', 'garments', 'gear', 'lods']);
+    expect(plan.stagesBefore('sheet')).toEqual(['prep', 'bodies', 'heads', 'garments', 'gear', 'lods', 'check']);
     expect(() => plan.stageDeps('nope')).toThrow(/unknown stage/);
   });
 
@@ -76,7 +78,8 @@ describe('guard bake plan: job split', () => {
   const kit = fixtureKit();
   const count = (s: string) => jobsFor(s, kit).length;
 
-  it('one job per base, head variant, (base, garment), (base, piece), sheet', () => {
+  it('one job per base, head variant, (base, garment), (base, piece), prep, sheet', () => {
+    expect(count('prep')).toBe(1);
     expect(count('bodies')).toBe(3);
     expect(count('heads')).toBe(9 + 3); // 9 head variants + one hair-cap job per base (no kinds: every base wears caps)
     expect(count('garments')).toBe(13); // shirt, trousers, boots, gloves on 3 bases + officer jacket on average
@@ -90,7 +93,7 @@ describe('guard bake plan: job split', () => {
     const all = STAGES.flatMap((s) => jobsFor(s.name, kit)).filter((j) => !j.tags.includes('haircaps')); // haircaps-<base>: own test
     expect(new Set(all.map((j) => j.id)).size).toBe(all.length);
     for (const j of all) {
-      expect(j.id.startsWith(j.stage === 'sheet' ? 'sheet' : `${j.stage}-`)).toBe(true);
+      expect(j.id.startsWith(['sheet', 'prep'].includes(j.stage) ? j.stage : `${j.stage}-`)).toBe(true);
       expect(j.script).toMatch(/\.(py|mjs)$/);
       expect(j.args).toContain(j.stage === 'sheet' ? '--guards' : j.id);
       expect(j.outputs.length).toBeGreaterThan(0);
@@ -98,8 +101,10 @@ describe('guard bake plan: job split', () => {
     }
   });
 
-  it('scripts match the plan: build_body, build_head, garments/<g>, build_gear, bake_lods', () => {
-    expect(jobsFor('bodies', kit)[0]?.script).toBe('build_body.py');
+  it('scripts match the plan: guard-prep, build_guard_body, build_head, garments/<g>, build_gear, bake_lods', () => {
+    expect(jobsFor('prep', kit)[0]?.script).toBe('scripts/operators/guard-prep.mjs');
+    expect(jobsFor('prep', kit)[0]?.runner).toBe('node');
+    expect(jobsFor('bodies', kit)[0]?.script).toBe('build_guard_body.py');
     expect(jobsFor('heads', kit)[0]?.script).toBe('build_head.py');
     expect(jobsFor('garments', kit).map((j) => j.script).every((s) => s.startsWith('garments/'))).toBe(true);
     expect(jobsFor('garments', kit).find((j) => j.id === 'garments-average-shirt')?.script).toBe('garments/combat_shirt.py');
@@ -123,8 +128,24 @@ describe('guard bake plan: job split', () => {
     expect(jobsFor('check', kit).find((j) => j.id === 'check-lean')?.needs).toEqual(['lods-lean']);
     expect(jobsFor('sheet', kit)[0]?.needs).toHaveLength(4);
     expect(jobsFor('heads', kit).every((j) => j.needs.length === 0)).toBe(true);
-    expect(jobsFor('gear', kit).every((j) => j.needs.length === 0)).toBe(true);
-    expect(jobsFor('bodies', kit).every((j) => j.needs.length === 0)).toBe(true);
+    // per-base gear fits its base's body (G3 gear/fit.py load_body): a rebuilt body rebakes it; the shield needs nothing
+    for (const j of jobsFor('gear', kit)) expect(j.needs).toEqual(j.tags.length === 2 ? [`bodies-${j.tags[0]}`] : []);
+    expect(jobsFor('bodies', kit).every((j) => j.needs.join() === 'prep')).toBe(true);
+  });
+
+  it('prep (G1): one node job for the joints of every base and the MakeHuman data; the game TS it reads joins its hash', () => {
+    const [p] = jobsFor('prep', kit);
+    expect(p?.id).toBe('prep');
+    expect(p?.outputs).toEqual(['joints/guard-average.json', 'joints/guard-lean.json', 'joints/guard-broad.json', 'mpfb2/3dobjs/base.obj', 'prep/prep.json']);
+    expect(p?.files).toEqual(expect.arrayContaining(['scripts/operators/guardJoints.mjs', 'src/player/proportions.ts', 'src/operators/operatorBody.ts', 'src/anim/clavicle.ts']));
+    expect(p?.gpuBound).toBe(false);
+    const f = hashesFor([p!]);
+    expect(inputHash(p!, { ...f, 'src/player/proportions.ts': 'changed' })).not.toBe(inputHash(p!, f));
+    // a body rebuilds when prep was rebuilt with other inputs (its upstream hash changes)
+    const [b] = jobsFor('bodies', kit, { only: 'average' });
+    const fb = hashesFor([b!]);
+    expect(inputHash(b!, fb, { prep: 'p1' })).not.toBe(inputHash(b!, fb, { prep: 'p2' }));
+    expect(b?.files).toContain('scripts/operators/py/guard_body.py');
   });
 
   it('marks only the Cycles stages gpuBound: heads, lods, sheet', () => {
@@ -397,6 +418,6 @@ describe('guard bake plan: shippable outputs and the contract kit', () => {
 
   it('the built-in contract kit gives the same split as the fixture', () => {
     const ck = plan.contractKit();
-    for (const s of ['bodies', 'heads', 'garments', 'gear', 'lods', 'check', 'sheet']) expect(jobsFor(s, ck).map((j) => j.id)).toEqual(jobsFor(s, fixtureKit()).map((j) => j.id));
+    for (const s of ['prep', 'bodies', 'heads', 'garments', 'gear', 'lods', 'check', 'sheet']) expect(jobsFor(s, ck).map((j) => j.id)).toEqual(jobsFor(s, fixtureKit()).map((j) => j.id));
   });
 });
