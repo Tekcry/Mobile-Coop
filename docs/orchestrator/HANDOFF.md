@@ -17,7 +17,7 @@ Accounts are labelled by their weekly reset (no emails in git). Each orchestrato
 
 ## State at the switch (refreshed 2026-10-23 ~07:58 for the next swap; newest update block first)
 
-**~11:35: 4.71.0 RELEASED (train 22 #199, 3c460923; dev moved). Master 4.71.0. Train 23 candidates: CT Core batch PR, sector-redesign PR 2, guard-ai S8 / S5b / S6 / S10 stack.**
+**~11:35: 4.71.0 RELEASED (train 22 #199, 3c460923; dev moved). Master 4.71.0. Train 23 candidates: #204 guard-render S1 (READY ~11:45: CI + checker PASS, e2e GPU 14/14; Sector Ops 24 guards 9.7 -> 7.1 ms), guard-ai #200 S8 -> #201 S5b -> #202 S6 -> #203 S10 (laptop run on 88a93584 pending), CT Core batch PR, sector-redesign PR 2. Build at 3+ ready or ~13:45.**
 
 **~11:15 weekly (Michael: stop earlier relative to the weekly left, still hit 100% safely; CLAUDE.md "Account swap"): this account (live from 10:47, weekly resets 2026-10-28 04:00) was weekly 76% at 10:47, 81% at 11:10, ends this window ~93%: next time it has ~7% weekly, about 40% of a 5-hour window, so its 95% step goes out at weekly ~95-96%. Check the other account's weekly at the swap and record it here.**
 
