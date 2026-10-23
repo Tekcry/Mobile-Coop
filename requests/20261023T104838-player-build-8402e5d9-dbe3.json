@@ -1,0 +1,14 @@
+{
+  "id": "20261023T104838-player-build-8402e5d9-dbe3",
+  "sha": "8402e5d9f2bdae48c2e9f0830fbf9f2ac88384fb",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Player Build",
+  "steps": [
+    "node scripts/operators/guard-bake.mjs --stage gear --kit scripts/operators/data/guards.json --push"
+  ],
+  "env": {},
+  "set": "guard-bake-gear",
+  "note": "guard-models G3 gear bake (25 jobs), runs after guard-bake-bodies on the same out dir"
+}
