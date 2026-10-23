@@ -18,8 +18,8 @@
 // Supersede: an open pr / full request is marked done unrun when the same requester has a newer one (same set, or an
 // ancestor sha with overlapping suites); pick runs a requester's newest request first (lib.mjs superseded, pick).
 // Task guard (Michael 2026-10-24 07:13, after 87 stale NightShift-chain-* one-shots fired at 23:59 and held the slot
-// locks): at start and every LQ_TASK_GUARD_MIN (10; 0 = off) min, disables (never stops, kills or deletes) each stale
-// scheduled task (lib staleTasks; allowlist + env LQ_TASK_ALLOW, a comma list) and pushes alerts/<ts>-tasks.json to the
+// locks): at start and every LQ_TASK_GUARD_MIN (laptop 10, desktop 0 = off) min, disables (never stops, kills or deletes) each stale
+// scheduled task (lib staleTasks; allowlist + env LQ_TASK_ALLOW, a comma list) and pushes alerts/<ts>-<worker>-tasks.json to the
 // laptop-queue branch. --dry-run only logs what it would disable.
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -217,7 +217,7 @@ function pushFile(rel, text, label) {
 
 // ---------- task guard ----------
 
-const TASK_GUARD_MS = Number(process.env.LQ_TASK_GUARD_MIN ?? 10) * 60_000;
+const TASK_GUARD_MS = Number(process.env.LQ_TASK_GUARD_MIN ?? (DESKTOP ? 0 : 10)) * 60_000; // desktop: off until its tasks are checked (set LQ_TASK_GUARD_MIN)
 // exact names; NightShift-run-* one-shots with an EndBoundary are allowed in staleTasks
 const TASK_ALLOW = ['NightShift-laptop-queue', 'NightShift-desktop-queue', 'NightShift auto-train',
   ...String(process.env.LQ_TASK_ALLOW ?? '').split(',').map((s) => s.trim()).filter(Boolean)];
@@ -226,7 +226,7 @@ const TASK_LIST_PS = "$ErrorActionPreference = 'Stop'; $o = @(Get-ScheduledTask 
   + 'actions = @($_.Actions | ForEach-Object { [pscustomobject]@{ execute = [string]$_.Execute; args = [string]$_.Arguments } }); '
   + 'ends = @($_.Triggers | ForEach-Object { [string]$_.EndBoundary }) } }); ConvertTo-Json -InputObject $o -Depth 4 -Compress';
 // Disable-ScheduledTask only (a running instance keeps running); tasks from env LQ_GUARD_TASKS, [{ name, ok, err }] back
-const TASK_DISABLE_PS = '$r = @(); foreach ($t in @(ConvertFrom-Json $env:LQ_GUARD_TASKS)) { try { Disable-ScheduledTask -TaskPath $t.path -TaskName $t.name -ErrorAction Stop | Out-Null; '
+const TASK_DISABLE_PS = '$r = @(); $list = ConvertFrom-Json $env:LQ_GUARD_TASKS; foreach ($t in $list) { try { Disable-ScheduledTask -TaskPath $t.path -TaskName $t.name -ErrorAction Stop | Out-Null; '
   + '$r += [pscustomobject]@{ name = $t.name; ok = $true; err = \'\' } } catch { $r += [pscustomobject]@{ name = $t.name; ok = $false; err = [string]$_.Exception.Message } } }; ConvertTo-Json -InputObject @($r) -Compress';
 const ps = (script, env) => cmd('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script], { env });
 /** Disabled by the guard, alert push not landed yet: [{ name, why }], retried at the next guard pass. */
@@ -260,7 +260,7 @@ function taskGuard() {
     }
     if (alertPending.length === 0) return;
     const at = new Date().toISOString();
-    const rel = `alerts/${at.replace(/[-:]/g, '').replace(/\.\d+/, '')}-tasks.json`; // 20261024T071300Z: no ':' in a path
+    const rel = `alerts/${at.replace(/[-:]/g, '').replace(/\.\d+/, '')}-${WORKER}-tasks.json`; // 20261024T071300Z: no ':' in a path; per worker
     const body = `${JSON.stringify({ worker: WORKER, disabled: alertPending, at }, null, 2)}\n`;
     if (pushFile(rel, body, `task guard disabled ${alertPending.length} task(s)`)) { log(`task guard: alert pushed ${rel}`); alertPending.length = 0; }
     else log(`task guard: alert push failed for ${alertPending.length} task(s), retried at the next guard pass`);

@@ -10,7 +10,7 @@
   Task guard in `service.mjs` (both workers): at start and every `LQ_TASK_GUARD_MIN` (10) min, disables stale tasks
   (lib `staleTasks`: enabled `NightShift-*` not allowlisted, or any enabled task whose action mentions
   `C:\NightShift\scratch` / `laptop-runner.ps1`; allowlist + `LQ_TASK_ALLOW`), never stops / kills / deletes, and pushes
-  `alerts/<ts>-tasks.json` to the `laptop-queue` branch. Dry run 07:19: the 87 chain tasks were already gone; it would
+  `alerts/<ts>-<worker>-tasks.json` to the `laptop-queue` branch. Dry run 07:19: the 87 chain tasks were already gone; it would
   disable 18 enabled tasks, 17 `ns-chain-1022*` + `ns-cpu-burner` (scratch actions), at the next service start.
 - `pendingTrains()` skips a train head with an `auto-train/*` status in failure / error (lib `trainBuildFailed`),
   logged once per head (train 37 held both slots 18 min after vitest had failed).
