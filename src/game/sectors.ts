@@ -1,6 +1,6 @@
 import type { SquadSlot } from '../world/rooms';
 import type { DifficultyPreset } from '../ai/archetypes';
-import type { NoisySource, ReinforceEntry } from '../ai/guardAiData';
+import type { GearTag, NoisySource, ReinforceEntry } from '../ai/guardAiData';
 import { AIRLOCK_DOORWAY_CLEAR } from '../config/course';
 import { ENEMIES } from '../ai/enemyDefs';
 
@@ -112,6 +112,10 @@ export interface SectorDef {
   noisy?: NoisySource[];
   /** (guard-ai) Reinforcement entry points and run-in routes; none = `reinforce`. */
   entries?: ReinforceEntry[];
+  /** (guard-ai S11) Gear every guard of this section wears from the start (helmet / armour / both); none = no gear. */
+  gear?: GearTag;
+  /** (guard-ai S11) Sweep points the response teams walk, overriding the section's route points and posts. */
+  sweep?: readonly (readonly [number, number])[];
   /** Guards each alarm stage sends in here (A3): armed guards (`SECTOR_REINFORCE_KIND`, no heavies, G155). */
   perStage: number;
   /**
