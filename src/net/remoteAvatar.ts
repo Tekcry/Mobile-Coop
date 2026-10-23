@@ -38,6 +38,7 @@ import { bodyRigRoot, bodyRigWallGap } from '../anim/tune';
 import { clearGripAxis } from '../player/attachGrips';
 import { GRAB } from '../game/takedown';
 import { easeRemoteSpeed, isShownTeleport, seedHeading } from './remoteSeed';
+import { RemoteShots } from './remoteShots';
 import { bodyPoint, CQ, ease, holdHandsLocal, koCurve, type KoState } from '../game/closeQuarters';
 
 /** Rope slots per remote (`Ropes` keys). */
@@ -83,7 +84,8 @@ export class RemoteAvatar {
   private models = new Map<WeaponId, WeaponModel>();
   private pouches: GrenadePouches;
   private weapon: WeaponId | null = null;
-  private fireT = 0;
+  /** (coop-walk-fixes P7) The partner's rounds from its `sc` counter (one shot each, at most at the fire rate). */
+  private readonly shots = new RemoteShots();
   private kick = 0;
   private crouch = 0;
   private aim = 0;
@@ -168,8 +170,8 @@ export class RemoteAvatar {
     const l = Vector3.Distance(this.lipA, this.lipB);
     return l > 1e-6 ? h.distance / l : 0;
   };
-  /** Fire sound hook. */
-  onFire: ((cls: string, at: Vector3) => void) | null = null;
+  /** Fire sound hook: the weapon's class and id, the muzzle, (P7) whether the round was suppressed (`PF.quiet`). */
+  onFire: ((cls: string, at: Vector3, gun: WeaponId, quiet: boolean) => void) | null = null;
 
   constructor(
     private world: World,
@@ -307,6 +309,7 @@ export class RemoteAvatar {
     const mv = st.mv;
     this.pitch = st.pitch;
     this.flags = st.f;
+    this.shots.observe(st.sc);
     this.mode = mv?.m ?? 'ground';
     this.anchor = mv?.a ?? -1;
     this.sub = mv?.sub ?? 0;
@@ -673,23 +676,25 @@ export class RemoteAvatar {
   }
 
   private fireVisuals(dt: number): void {
-    if (!(this.flags & PF.firing) || this.dead || !this.weapon) {
-      this.fireT = 0;
+    if (this.dead || !this.weapon) {
+      this.shots.clear();
       return;
     }
-    this.fireT -= dt;
-    if (this.fireT > 0) return;
     const def = WEAPONS[this.weapon];
-    this.fireT = Math.max(0.06, 60 / def.rpm);
+    // (coop-walk-fixes P7) one round per step of the partner's counter (was: every fire interval while `PF.firing`,
+    // fired within 0.2 s, was set: a single shot played twice)
+    if (!this.shots.step(dt, Math.max(0.06, 60 / def.rpm))) return;
+    const quiet = (this.flags & PF.quiet) !== 0;
     const m = this.models.get(this.weapon)!;
     const muzzle = m.muzzleWorld(this.tmpA);
     const cp = Math.cos(this.pitch);
     const end = this.tmpB.set(muzzle.x + Math.sin(this.yaw) * cp * 60, muzzle.y + Math.sin(this.pitch) * 60, muzzle.z + Math.cos(this.yaw) * cp * 60);
     const hit = this.ballistics.ray(muzzle, end, MASK.WORLD);
     this.vfx.tracer(muzzle, hit.point, def.tracer, def.pellets > 1 ? 0.012 : 0.02);
-    this.vfx.muzzleFlash(muzzle, def.pellets > 1 ? 0.3 : 0.2);
+    // (P7) a suppressed round's flash is small, as the owner's own (`PlayerWeapons.shoot`)
+    this.vfx.muzzleFlash(muzzle, (def.pellets > 1 ? 0.3 : 0.2) * (quiet ? 0.35 : 1));
     this.kick = 1;
-    this.onFire?.(def.class, muzzle);
+    this.onFire?.(def.class, muzzle, def.id, quiet);
   }
 
   dispose(): void {

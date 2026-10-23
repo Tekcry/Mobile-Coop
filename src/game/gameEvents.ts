@@ -35,5 +35,6 @@ export interface GameEvents {
   /** An enemy callout (a radio line chirps). */
   bark: { radio: boolean };
   /** Coop: a shot by a teammate or a host-simulated enemy (audio only). */
-  remoteShot: { cls: string; x: number; y: number; z: number };
+  /** Co-op: a guard's or partner's shot; (coop-walk-fixes P7) a partner's carries its weapon id `gun` and `quiet` (suppressed). */
+  remoteShot: { cls: string; x: number; y: number; z: number; gun?: string; quiet?: boolean };
 }

@@ -210,6 +210,12 @@ export interface NetAttachment {
   revivesLeft?(): number;
   /** Host, Sector Ops: every guard a client holds (takedown grab, hostage) is let go, before a section unloads. */
   releaseHolds?(): void;
+  /** (coop-walk-fixes P6) Co-op: another player holds guard `v` as a hostage now (the team takedown on him is on
+   *  offer to this player: `TakedownController`, kind `assist`). */
+  partnerHolds?(v: TakedownVictim): boolean;
+  /** (P6) This player's team takedown on a partner's hostage: `start`, `done` (`lethal`: the kill) or `abort`. The host
+   *  applies its own at `done`; a client asks the host (`td`, kind `assist`), which checks and applies it. */
+  assistTakedown?(v: TakedownVictim, ph: 'start' | 'done' | 'abort', lethal: boolean): void;
   /** (camera-cue fix) Client: the other living players' bodies for the camera cue's own sight test, written into
    *  `out` from index `from` (entries added when missing); returns how many. */
   partnerBodies?(out: SeenBody[], from: number): number;
@@ -286,6 +292,8 @@ const TD_LABEL: Readonly<Record<TakedownKind, string>> = {
   inverted: 'Choke',
   // (hang-down) the only grab row while hanging (CT); RT is the neck snap
   hangDown: 'Grab character',
+  // (coop-walk-fixes P6) the partner's hostage: the co-op team takedown
+  assist: 'Team takedown',
 };
 
 const TRAVERSE_LABEL: Record<string, string> = { step: 'Step up', vault: 'Vault', mantle: 'Climb', drop: 'Drop down', hop: 'Jump', none: '' };

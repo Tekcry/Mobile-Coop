@@ -932,6 +932,9 @@ export class PlayerWeapons {
   /** (sd-rounds) The last shot's noise stat and whether it was quiet (true before any shot). */
   lastShotNoise = 0;
   lastShotQuiet = true;
+  /** (coop-walk-fixes P7) Rounds fired this session (any weapon): the wire's `PlayerState.sc` (mod 256), so a partner
+   *  plays each round once (the 0.2 s `firingRecently` window played a single shot twice). */
+  shotCount = 0;
 
   private shoot(): void {
     const s = this.current;
@@ -944,6 +947,7 @@ export class PlayerWeapons {
     if (had > 0 && s.sd === 0) this.events.onSdOut?.(def);
     this.cooldown = s.stats.fireInterval;
     this.sinceShot = 0;
+    this.shotCount++;
     this.player.aimLockTimer = 0.7;
     this.player.kick = 1;
     this.tallyFor(def.id).shots++;
