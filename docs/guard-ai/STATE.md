@@ -568,7 +568,11 @@ e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep lapto
    train 31 merges: merge master + s22, Opus checker, Test Runner (ctcourse A4 part, coop), PR after #237 merges.
 3. Polish lists only (no refining): WALK-CHECK.md 1-6, S16-CHECK.md, A126-CHECK.md, S22-CHECK.md 1-5; calm walk:
    the grunt's slung rifle reads at the right hip while walking.
-Rules: AI code and checkers Opus; Sonnet 5.5 tests / data from strict briefs; Haiku chores. Never two agents on the
+Rules (orchestrator ~19:15): start the fresh checker and the Test Runner request on the same commit in parallel; a
+fix round reruns only what failed; a train-ready PR also gets `gh pr edit <n> --add-label train-ready` (the label did
+not exist at ~14:00: add it to #240 / #229 / #234 once it does); soon `node scripts/run-e2e.mjs --affected origin/master
+--list` names each PR's suites. carry-fix2 d7a3b887 rides the next train once green. Train 31 head 5ee209d8.
+AI code and checkers Opus; Sonnet 5.5 tests / data from strict briefs; Haiku chores. Never two agents on the
 same files. One wire bump per train in merge order. Message the orchestrator only at PR open / train-ready / blocked /
 needs Michael; progress here. A-numbers: S16 A80-A89, S9 A90-A96, walk A100-A127, S22 A128-A135, A126 A136-A139,
 protocol A140-A142 (next A143). No question dialogs; assumptions in BRIEF.md. At ~92%: WIP commit + push in every
