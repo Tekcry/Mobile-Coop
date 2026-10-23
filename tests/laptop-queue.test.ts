@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { capTail, claimBlocks, contextName, desktopGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, suiteSection } from '../scripts/laptop-queue/lib.mjs';
+import { capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, suiteSection } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -205,5 +205,15 @@ describe('claims and the desktop lane', () => {
     expect(desktopGate(3, 40, 3, 60)).toMatch(/backlog/);
     expect(desktopGate(5, 60, 3, 60)).toMatch(/cpu 60/);
     expect(desktopGate(5, NaN, 3, 60)).toBe('cpu unknown');
+  });
+  it('the per-slot desktop gate: 4192 waits at cpu 55 and starts at 45, lock, missing dir, small backlog', () => {
+    const base = { lockName: 'heavy2.lock', lockHeld: false, dirOk: true, backlog: 5, cpu: 45, minBacklog: 3, maxCpu: 50 };
+    expect(desktopSlotGate(base)).toBe('');
+    expect(desktopSlotGate({ ...base, cpu: 55 })).toMatch(/cpu 55% >= 50%/);
+    expect(desktopSlotGate({ ...base, cpu: 55, maxCpu: 60 })).toBe('');
+    expect(desktopSlotGate({ ...base, lockHeld: true })).toBe('heavy2.lock held');
+    expect(desktopSlotGate({ ...base, dirOk: false })).toBe('worktree missing');
+    expect(desktopSlotGate({ ...base, backlog: 3 })).toMatch(/backlog/);
+    expect(desktopSlotGate({ ...base, cpu: NaN })).toBe('cpu unknown');
   });
 });

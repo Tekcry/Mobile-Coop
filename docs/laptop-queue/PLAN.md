@@ -105,6 +105,12 @@ FLAKY / REPORT ONLY lines, wall, the failure summary line), describe (format, 14
 `npx vitest run tests/laptop-queue`, `node scripts/laptop-queue/service.mjs --once --dry-run` (dry run: lists what it
 would pick and the shard bins, posts nothing, runs nothing). Never a full `npm run check`, never an e2e run.
 
+## Desktop overflow lane (LQ_WORKER=desktop)
+pr requests only, no trains, no alone, `E2E_GPU=1 E2E_JOBS=1`. Two slots, each gated on its own at the start of a pass:
+4191 (`heavy.lock`) needs backlog > 3 and CPU < 60 %; 4192 (`heavy2.lock`, dir `Mobile-Coop-testrun-4192`, must exist)
+needs backlog > 3 and CPU < 50 % (CLAUDE.md heavy2 rule). A gated slot waits with a logged reason (`desktopSlotGate`).
+At most one desktop start per pass (30 s), so CPU is re-read before the second slot starts.
+
 ## After the build (job lead)
 Fresh Opus checker; then live overlap: run one pr request and the next train through the service beside the manual
 queue; measure the sharded train wall vs one slot JOBS=5 (316 s / 559 s at 3 recorded); then PR, message the

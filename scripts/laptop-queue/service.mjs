@@ -4,29 +4,34 @@
 // --once: one pass, then exit when its runs finish. --dry-run: prints what it would pick, the shard bins and the gh
 // commands; posts, pushes, builds, runs and locks nothing. Env: LQ_STATE (state dir), LQ_TRAIN_JOBS (default 3),
 // LQ_FOLLOW (ref to fast-forward to when idle, default origin/master), LQ_CLAIM_MAX_H (default 3).
-// LQ_WORKER=desktop: the desktop overflow lane (Michael ~20:45): pr requests only, one slot 4191 (LQ_DESKTOP_DIR,
-// default C:/NightShift/Mobile-Coop-testrun-4191) under C:/NightShift/heavy.lock at E2E_JOBS=1, and only while the
-// backlog is over LQ_DESKTOP_BACKLOG (3) requests and CPU is under LQ_DESKTOP_CPU (60) % at the start. No trains, no alone.
+// LQ_WORKER=desktop: the desktop overflow lane (Michael ~20:45): pr requests only, two GPU slots at E2E_JOBS=1, each only
+// while the backlog is over LQ_DESKTOP_BACKLOG (3) requests, its lock is free and CPU is under its limit at the start:
+// 4191 (LQ_DESKTOP_DIR, default C:/NightShift/Mobile-Coop-testrun-4191) under C:/NightShift/heavy.lock, CPU < LQ_DESKTOP_CPU (60) %;
+// 4192 (LQ_DESKTOP_DIR2, default ...-testrun-4192) under heavy2.lock, CPU < LQ_DESKTOP_CPU2 (50) %, and its dir must exist.
+// At most one new start per pass, so CPU is re-read before the second slot. No trains, no alone.
 // Every request is claimed (claims/<id>.json on the laptop-queue branch, an atomic push) before it runs and marked
 // done after, so the two workers never run the same request.
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { capTail, claimBlocks, describe, desktopGate, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, runComplete, shard, suiteSection } from './lib.mjs';
+import { capTail, claimBlocks, describe, desktopSlotGate, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, runComplete, shard, suiteSection } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
 const WORKER = DESKTOP ? 'desktop' : 'laptop';
 const STATE_DIR = process.env.LQ_STATE ?? `C:/NightShift/scratch/laptop-queue${DESKTOP ? '-desktop' : ''}`;
 const SLOTS = DESKTOP
-  ? { 4191: { dir: process.env.LQ_DESKTOP_DIR ?? 'C:/NightShift/Mobile-Coop-testrun-4191', lock: 'C:/NightShift/heavy.lock' } }
+  ? {
+      4191: { dir: process.env.LQ_DESKTOP_DIR ?? 'C:/NightShift/Mobile-Coop-testrun-4191', lock: 'C:/NightShift/heavy.lock' },
+      4192: { dir: process.env.LQ_DESKTOP_DIR2 ?? 'C:/NightShift/Mobile-Coop-testrun-4192', lock: 'C:/NightShift/heavy2.lock' },
+    }
   : {
       4189: { dir: 'C:/NightShift/Mobile-Coop-testrun-4189', lock: 'C:/NightShift/heavy-4189.lock' },
       4192: { dir: 'C:/NightShift/Mobile-Coop-testrun-4192', lock: 'C:/NightShift/heavy-4192.lock' },
     };
 const DESKTOP_BACKLOG = Number(process.env.LQ_DESKTOP_BACKLOG ?? 3);
-const DESKTOP_CPU = Number(process.env.LQ_DESKTOP_CPU ?? 60);
+const DESKTOP_CPU = { 4191: Number(process.env.LQ_DESKTOP_CPU ?? 60), 4192: Number(process.env.LQ_DESKTOP_CPU2 ?? 50) };
 const CLAIM_MAX_MS = Number(process.env.LQ_CLAIM_MAX_H ?? 3) * 3600_000;
 const PORTS = Object.keys(SLOTS);
 const TRAIN_JOBS = process.env.LQ_TRAIN_JOBS ?? '3';
@@ -537,25 +542,38 @@ function cpuLoad() {
   return Number(cmd('powershell', ['-NoProfile', '-NonInteractive', '-Command', '(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average'], { soft: true }));
 }
 
+/** A CPU reader that samples once, on first use (one sample per pass). */
+function lazyCpu() {
+  let v;
+  return () => (v === undefined ? (v = cpuLoad()) : v);
+}
+
 async function pass() {
   const queue = { trains: DESKTOP ? [] : pendingTrains().filter((t) => !claimed.has(t.sha)), requests: listRequests().filter((r) => !claimed.has(r.id)) };
   // done marks first: a claim (which tells the desktop the laptop is on claims) never lands before them
   if (!syncDone() && !DRY) { log('done claims not pushed: no new requests this pass (trains still run)'); queue.requests = []; }
+  const desktopWait = {};
   if (DESKTOP) {
     const backlog = queue.requests.length;
     queue.requests = queue.requests.filter((r) => r.kind === 'pr');
-    let why = '';
-    if (!busy[PORTS[0]] && queue.requests.length > 0) {
-      // no claims yet: the laptop runs an older service and its finished requests are not marked; never rerun them
-      if (claimCount === 0) why = 'no claims on the branch yet (laptop service not updated)';
-      else if (fs.existsSync(SLOTS[PORTS[0]].lock)) why = 'heavy.lock held';
-      else why = desktopGate(backlog, cpuLoad(), DESKTOP_BACKLOG, DESKTOP_CPU);
+    const why = {};
+    if (queue.requests.length > 0) {
+      const cpu = lazyCpu();
+      for (const port of PORTS) {
+        if (busy[port]) continue;
+        // no claims yet: the laptop runs an older service and its finished requests are not marked; never rerun them
+        if (claimCount === 0) why[port] = 'no claims on the branch yet (laptop service not updated)';
+        else why[port] = desktopSlotGate({ lockName: path.basename(SLOTS[port].lock), lockHeld: fs.existsSync(SLOTS[port].lock), dirOk: fs.existsSync(SLOTS[port].dir), backlog, cpu: cpu(), minBacklog: DESKTOP_BACKLOG, maxCpu: DESKTOP_CPU[port] });
+        if (why[port]) desktopWait[port] = true;
+      }
     }
-    log(`queue: ${backlog} request(s), ${queue.requests.length} pr${why ? `; waiting: ${why}` : ''}`);
-    if (why) return;
+    const waits = Object.entries(why).filter(([, w]) => w).map(([p, w]) => `${p} ${w}`);
+    log(`queue: ${backlog} request(s), ${queue.requests.length} pr${waits.length ? `; waiting: ${waits.join('; ')}` : ''}`);
+    if (queue.requests.length === 0 || PORTS.every((p) => busy[p] || why[p])) return;
   } else log(`queue: ${queue.trains.length} train(s), ${queue.requests.length} request(s)`);
-  const virtual = {};
-  for (let i = 0; i < 4; i++) {
+  const virtual = { ...desktopWait };
+  let started = false;
+  for (let i = 0; i < 4 && !started; i++) {
     const slots = PORTS.map((port) => ({ port, busy: Boolean(busy[port] || virtual[port]) }));
     const p = pick(queue, Date.now(), slots);
     if (!p) break;
@@ -566,6 +584,7 @@ async function pass() {
       if (writeClaims([p.request.id], 'claim', `claim ${p.request.id}`) !== true) continue;
     }
     const run = dispatch(p);
+    if (DESKTOP) started = true;
     if (DRY) (p.kind === 'request' ? [p.slot] : PORTS).forEach((x) => { virtual[x] = true; });
     else run.finally(() => PORTS.forEach((x) => { if (busy[x] === run) busy[x] = null; }));
   }

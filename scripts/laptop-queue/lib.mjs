@@ -68,6 +68,16 @@ export function desktopGate(backlog, cpu, minBacklog, maxCpu) {
 }
 
 /**
+ * Per-slot desktop gate: '' when the slot may start, else why it waits. s = { lockName, lockHeld, dirOk, backlog, cpu,
+ * minBacklog, maxCpu } (the slot's own lock file, worktree dir and max CPU); lock and dir are checked before desktopGate.
+ */
+export function desktopSlotGate(s) {
+  if (s.lockHeld) return `${s.lockName} held`;
+  if (!s.dirOk) return 'worktree missing';
+  return desktopGate(s.backlog, s.cpu, s.minBacklog, s.maxCpu);
+}
+
+/**
  * What to start next. queue = { trains: [{ sha, n }], requests: [request] }, slots = [{ port, busy }].
  * Returns { kind: 'train', train } or { kind: 'alone', request } (both need BOTH slots idle), { kind: 'request',
  * request, slot } (one free slot), or null. A pending train wins and, while a slot is busy, blocks all new work so the
