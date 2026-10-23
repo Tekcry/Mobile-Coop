@@ -1,6 +1,20 @@
 # Guard AI - state
 
 ## Now
+SAVED ~12:15 (window cap ~12:22). Parallel briefs: slices/NEXT-BRIEFS.md (sections 0-5; start there on resume).
+- Stack-tip fix DONE s10 345fbb91 (slices/S10.md "Stack-tip e2e fix"): radioNet.complete read the slot after
+  `completed` (S6 command call reused it: section told 4 s late) = GAME FIX (S6), radioNet.ts:265-271 + 2 unit tests;
+  panel scenario cuts the contact call; find bounds = bodyNoticeRange(light) + 0.5 m (new pure helper,
+  src/ai/bodies.ts:48); dog bound 5 m. Desktop lane: e2e-stealth-ai + e2e-sectorops:1 PASS (S6 "they close on it"
+  failed once, passed on the rerun: watch). Laptop rerun REQUESTED on 345fbb91 (stealth-ai, sectorops all, takedown,
+  ct-warehouse; verdict also as a PR #203 comment). Green -> train-ready message for #200-#203.
+- s12 <- fixed s10 merged: 159148f6 (BRIEF / TESTING unions; pairsWiring fake gets setGear; 97 unit tests green).
+  PR for S11 + S12 (from feature/guard-ai-s12, base feature/guard-ai-s10) NOT yet opened: open it next, tell CT Core.
+- RUNNING (Opus): S13 in ...-guard-ai-s13, S15 in ...-guard-ai-s15 (both off s12 ebdc44a2: they need s12 159148f6
+  merged before their PRs). S14: worktree ...-guard-ai-s14 (feature/guard-ai-s14 = s12 159148f6, pushed) READY, not
+  started (desktop CPU 99%): start it from NEXT-BRIEFS.md section 4 when CPU < 80%.
+- At the 92% save message: commit every agent worktree's files as WIP and push (s13, s15, s14); agents keep going.
+
 ~13:35: S11 + S12 check PASS ebdc44a2 (slices/S12-CHECK.md; fix: dogs wear no gear; note for S13: stage gear after
 placeSlot). RUNNING (Opus): S13 response teams in ...-guard-ai-s13 (off s12 ebdc44a2, A52-A59), S15 breaker / late
 discovery in ...-guard-ai-s15 (off s12 ebdc44a2, A60+), stack-tip e2e fix on s10 (holds heavy.lock). Merge order
@@ -297,10 +311,10 @@ write: CLAUDE.md "A job"). Read CLAUDE.md, docs/ROADMAP.md (origin/feature/menu 
 PLAN.md and this STATE.md. Continue from "Now" (top entry first): per slice worktree
 C:/NightShift/Mobile-Coop-guard-ai-s<n> (branch feature/guard-ai-s<n>, its own guard). Agents cut off by a swap leave
 WIP commits "WIP at the swap" on their branch: review `git show --stat HEAD` and the slice's report, then finish with a
-fresh Opus agent. Order: "Now" top entry first: laptop GPU verdict on s7 4052c434 ('lkp' seeded) -> one
-"train-ready" message (S4 #193 / S5 #195 / S7 #196) -> stack merge (s8 <- s7, s5b <- s8, s6 <- s5b, s10 <- s6; check
-each branch's slice report "Stack merge" section for what is done) -> one laptop GPU run on the s10 tip -> one PR per
-slice (S8 stacked on #196) -> build the stealth-over-shooting slices S11+ from PLAN.md. Token rules: CLAUDE.md "Heavy-usage
+fresh Opus agent. Order: "Now" top entry first, then docs/guard-ai/slices/NEXT-BRIEFS.md: section 0 (agents cut
+off: s13, s15, s14 WIP; heavy.lock check) -> laptop verdict on s10 345fbb91 (PR #203 comment) -> train-ready message
+for #200-#203 -> open the S11 + S12 PR (s12, base s10) -> start S14 (section 4) beside S13 / S15 up to CPU ~80% ->
+s13 <- s12, s15 <- s13 (+ s14), one checker for S13 + S15 (+ S14), one laptop run -> PRs -> S9 (section 5). Token rules: CLAUDE.md "Heavy-usage
 throughput" on master (message the orchestrator only at PRs / train-ready / blocked; no new tsc / vitest agent while
 desktop CPU >= 80%; at 95% no new agents, save by 98%, small work to 100%). The loop in docs/systems/session-method.md (implementer, fresh
 checker, at most 1 fix round per slice; subagents start from docs/systems/agent-preamble.md; slice detail in
