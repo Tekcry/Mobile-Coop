@@ -308,7 +308,7 @@ export async function main(argv) {
 
   if (opts.push) {
     const rels = shippableFiles(outDir, opts.stage);
-    if (!rels.length) { console.info(`push: stage ${opts.stage} has no shippable outputs (glb, ktx2, png, report.json)`); return 0; }
+    if (!rels.length) { console.info(`push: stage ${opts.stage} has no shippable outputs (glb, ktx2, png, report.json, guard-<base>.json)`); return 0; }
     try {
       const r = pushShippable({ outDir, rels, remote: opts.remote, message: `guard-bake ${opts.stage}: ${rels.length} files` });
       console.info(r.commit ? `push: ${r.files} files to ${opts.remote} ${PUSH_BRANCH} as ${r.commit.slice(0, 10)}` : `push: ${PUSH_BRANCH} already holds these ${r.files} files`);
