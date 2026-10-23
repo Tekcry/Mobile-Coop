@@ -1,6 +1,9 @@
 # Guard AI - state
 
 ## Now
+~09:15: #294 TRAIN-READY; #295 OPEN (body watchdog); #272 conflicts resolved (merge 5a3dd588). Laptop pending:
+body-watchdog, w482-merge. Next after these: e2e-enemies sniper (item 5).
+
 ~08:50: S28 checks A + B FAIL (e2e-sectorops nav reads: Sector Ops locks connectors at load) -> fix round 902c86c7 (test
 reads unlock / query / relock; no guard needs a locked connector; doc F2; A7 detour fits A* 1611 / 3000; polish) +
 BRIEF A116 note 6c1c05cf. RUNNING: Opus re-check (S28-RECHECK.md), laptop s28-fix (sectorops, ctcourse); s28 on 147c4a34
@@ -784,15 +787,14 @@ Laptop worktrees (npm ci'd): C:/NightShift/Mobile-Coop-guard-ai (feature/guard-a
 Open (requests on branch laptop-queue, no cancel CLI: delete the JSON, commit, push. Verdict = GitHub status
 laptop-e2e/<set> on the sha; logs C:/NightShift/scratch/laptop-queue/runs/<id>/ (desktop-worker runs: ask the
 orchestrator). Green -> `gh pr edit <n> --add-label train-ready` + tell orchestrator; red -> Opus triage at once):
-1. #254 S23 MERGED (train 42, master 79a527aa); #281 closed (superseded). TRAIN-READY, ONE train: #264 S24 76431481
-   (+ ladder fix f3c62b00: an alerted spawn is told the command's known intruder; S24-LEVELS-TRIAGE / -CHECK PASS),
-   #266 S25 5cb67c9d, #271 S26 2c92865d, #270 S27 321b1e2e, #272 walk482 046776ca (all merged up with the fix; laptop
-   s26-levels / s27-levels / w482-levels PASS). On a train failure: bisect with single-suite laptop sets on master
-   and each stack head (as for train 41), Opus triage at once, merge the fix up s24 -> s25 -> s26, s27, walk482.
-2. Triage docs (this window): S23-A3-TRIAGE, S24-COOP-TRIAGE, S24-LEVELS-TRIAGE/-CHECK, S25-SAI-TRIAGE (5 rounds),
-   S26-COOP-TRIAGE, S27-SEC1-TRIAGE, WALK482.md "Laptop triage". All test-only except S24 ladder (src).
-3. S28 locked-door re-path: feature/guard-ai-s28 6c1c05cf (fix round 902c86c7): re-check + laptop s28-fix -> PR.
-   Body watchdog (urgent, LR16 #291): feature/guard-ai-body-watchdog (worktree -body-watchdog): builder -> check -> PR.
+1. MERGED: #254 S23 (train 42), #264 S24 / #266 S25 / #271 S26 / #270 S27 (train 43, master cacd0c7e). #281 closed.
+2. #272 walk482 (train-ready): master merged for real conflicts 5a3dd588 (onCamera: Marlow's hall return first; enemy.ts
+   onRadio -> tactics -> closeFromCover; e2e-stealth-ai keeps 'report then engage' + 'search area'); laptop w482-merge
+   (stealth-ai) pending: red -> Opus triage.
+3. #294 S28 locked-door re-path TRAIN-READY (5d0b2c38; laptop s28-fix 10/10; re-check PASS).
+   #295 body watchdog (urgent, unblocks LR16 #291): Opus check PASS 8ada677d; laptop body-watchdog (lightbake,
+   guard-carry on afc9cdd7) pending -> train-ready. Follow-ups: LR16 Epic compile time on the laptop (> 45 s still
+   warns); glWarningFix.test.ts to pin the Babylon internals the unlink uses.
 4. Polish (S24-LEVELS-CHECK): redundant tell(alarmHunt) after spawn in reinforce (enemyManager.ts:979) and parked
    joinReinforcement (:811). Mission reinforcements with nothing known stand at spawn (A148): Michael's call.
 5. After S28 (low, legacy suite, not in the full run; orchestrator ~07:45): e2e-enemies "sniper relocates after its
