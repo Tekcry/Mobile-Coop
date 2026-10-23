@@ -299,8 +299,8 @@ NEXT:
 1. LR16-M brief DONE (f075b01b; M1-M4 + INT, all bands green in memory) and SENT to Marlow Build (~06:45, branch off f85ef736). Was: send the path to Marlow Build
    and copy the orchestrator. When Marlow's LR16-M branch is green: tell the orchestrator #287 trains with
    -lr16-entry + LR16-M; mark #287 ready + label train-ready.
-2. ENTRY branch fixes (-lr16-entry): 2f719ac9 campusArtGameplay greybox re-pin (S4 post); RUNNING Opus lampLevel -> LR16 formula (master marlowLightingLevels red, Marlow reported); CI-only draft PR #290 on -lr16-entry runs the full test list (close it after). Read f85ef736 verdict (wire change protocol 45) and the perf verdicts (logs on the laptop: checks/lr16p-perf-request.md).
-3. LR16-4 DONE -lr16-4 eb2c62c2 (board-2; 184 tests; checks/lr16-4-build.md). RUNNING: Sonnet checker (checks/lr16-4-check.md) + laptop eb2c62c2-0cb6 (sectorops:6 coop). Was: one checker
+2. ENTRY branch fixes (-lr16-entry): 2f719ac9 campusArtGameplay greybox re-pin (S4 post); 6e53e036 lampLevel -> LR16 formula (marlowLightingLevels 7/7; Marlow told to merge it into feature/marlow-lr16m); CI-only draft PR #290 on -lr16-entry runs the full test list (close it after). Read f85ef736 verdict (wire change protocol 45) and the perf verdicts (logs on the laptop: checks/lr16p-perf-request.md).
+3. LR16-4 DONE -lr16-4 eb2c62c2 (board-2; checks/lr16-4-build.md), check PASS (checks/lr16-4-check.md); laptop eb2c62c2-0cb6 (sectorops:6 coop). Was: one checker
    (two on src/ai if touched) + laptop sectorops:6 + coop. Then LR16-8 sheets (briefs/LR16h-and-8.md part 2 to Test Runner).
 For Michael: Realistic dimmer (S2 atrium 0.47); S3 hall-lit white fog; R2N ladder foot 0.44 (layout cannot fix); warehouse
 fittings at 0.1-0.3x (GPU sheet judges); lamp-loop cost.
