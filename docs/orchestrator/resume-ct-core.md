@@ -11,10 +11,10 @@ scratch/ctcore/push-resume.sh <abs file> <msg>. Message the orchestrator only at
 | Job | Branch (folder C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
 | #207 batch 22 | feature/ctcore-batch-22 (b22-fix) | f1fac44a | TRAIN-READY sent 16:15 (ladder knees 14.4 cm, e2e-clip GPU PASS, CI green). |
-| #214 batch 23 (+iPad fit, Anim Studio main menu only) | feature/ctcore-batch-23 (ctcore-batch) | 34c73892 | +batch-22 merged. Train-ready on the laptop verdict for d86007b5. |
-| #223 pose-parity | feature/pose-parity | faee0255 | +batch-23 merged, PROTOCOL 36, crateWire assert 36. Same verdict. |
-| #231 coop-walk-fixes (walk P6-P7) | feature/coop-walk-fixes | d86007b5 | +pose-parity, PROTOCOL 37. Laptop d86007b5 6/7: e2e-coop FAIL "client sees the intel line" (e2e-coop.mjs:738). Opus fix agent running (lowest branch, no merge-up); then merge up, laptop e2e-coop rerun, train-ready x3 (train 29). |
-| anim-fix-pass (walk P1-P5; PLAN.md:7 maps P1-P7) | feature/anim-fix-pass | origin | AF0 / AF1 / AF2 / AF5 merged (44ed5389; AF1 checker PASS). AF3 running (afp-af3, node_modules junction to afp-af1). AF4a done c0fab095 (e2e-anim GPU PASS; pistol grip 1.01 vs 1.0 -> AF4b; AF4a-REPORT.md open items). AF6 handed back 9048e2b7 (PROTOCOL 39; pops ~0, gait ok; wall 21-31 cm vs 20, lowerBody 15-45 vs 10 miss: causes in characterRig / footPlanner, outside AF6 -> checker decides, polish per current goal). Laptop e2e-coop / netmove on AF6 after the intel fix is merged in. |
+| #214 batch 23 (+iPad fit, Anim Studio main menu only) | feature/ctcore-batch-23 (ctcore-batch) | 498b65df | +batch-22; intel feed fix 498b65df (coopClient feed -> hud.feedItem, desktop e2e-coop PASS). Train-ready on the laptop verdict for d86007b5. |
+| #223 pose-parity | feature/pose-parity | b8f45be7 | +batch-23 merged, PROTOCOL 36, crateWire assert 36. Same verdict. |
+| #231 coop-walk-fixes (walk P6-P7) | feature/coop-walk-fixes | 0d7f04ce | PROTOCOL 37. Laptop d86007b5 6/7 (coop failed on intel, fixed); laptop e2e-coop rerun on 0d7f04ce requested -> train-ready x3 (train 29). |
+| anim-fix-pass (walk P1-P5; PLAN.md:7 maps P1-P7) | feature/anim-fix-pass | origin | AF0 / AF1 / AF2 / AF5 merged (44ed5389; AF1 checker PASS). AF3 running (afp-af3, node_modules junction to afp-af1). AF4a done c0fab095 (e2e-anim GPU PASS; pistol grip 1.01 vs 1.0 -> AF4b; AF4a-REPORT.md open items). AF6 handed back 9048e2b7 (PROTOCOL 39; pops ~0, gait ok; wall 21-31 cm vs 20, lowerBody 15-45 vs 10 miss: causes in characterRig / footPlanner, outside AF6 -> checker decides, polish per current goal). AF6 head b1de49f5 (merged 0d7f04ce); laptop e2e-coop + netmove requested. |
 
 ## Next
 1. AF3 hand-back -> checker (batch with AF4a / AF6) -> merge; then AF4b (animGraph, after AF3).
