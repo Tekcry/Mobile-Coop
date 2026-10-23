@@ -8,7 +8,7 @@ Where the brief and `art-kit-build.md` differ, the kit report won (API, rules C 
 ## Numbers
 | | |
 | --- | --- |
-| Placements (section 5) | 247 (skins and heroes 91, base pass 156) |
+| Placements (section 5) | 247 (skins and heroes 83, base pass 164) |
 | Draws (of 40) | 30 |
 | Triangles (of 150 k) | 25.1 k |
 | H5 hero set | 8 pieces, 1388 tris (of 5 k), GLB 98 KB (of 0.5 MB) |
@@ -25,7 +25,7 @@ Where the brief and `art-kit-build.md` differ, the kit report won (API, rules C 
 | Skin (cylinder) | K treeSkin | 6 |
 | Skin-hide | H5 panelVan (AS10; see L2) | 1 |
 | Skin (row) | H5 balustrade (5 + 19 + 17 modules; the gate and path openings stay open) | 41 |
-| Hero (visual, flush) | H5 depositFront... `H5:depositFace` on the strongroom west and east walls, z 38.0..42.8 (L3) | 8 |
+| Hero (visual, flush) | `H5:depositFace` on the strongroom west and east walls, z 38.0..42.8 (L3) | 8 |
 | Hero | F timeLockPanel, strongroom south wall inner face, y 1.4, 0.65 east of the opening | 1 |
 | Base | portraitFrame 27, bookcase 15, fireplace 3, wingChair 6, sideboard 1, longcaseClock 1 (hall), plantPot 1, noticeBoard 3, wallClock 1, smokeDetector 3, lockerBank 2 | 63 |
 | Base | exitSign 14, fireExtinguisher 14, signPlate 34 (door extras) | 62 |
@@ -40,7 +40,7 @@ gate run's `DressReport`; none of it gates.
 ## Gates (this worktree, one slot at a time)
 - `npx tsc --noEmit` clean; eslint clean on the two TS files.
 - `npx vitest run tests/campusArtGameplay.test.ts tests/campusArtLight.test.ts tests/campusS5.test.ts tests/campusS5Dress.test.ts`: 4 files, 82 tests pass
-  (gameplay 42 incl. S5, light 5 with a real bake, campusS5 29... counted with the rest, own test 6). Gameplay unchanged: K4 choke in the anteroom
+  (gameplay 42, light 5 with a real bake, campusS5 29, own test 6). Gameplay unchanged: K4 choke in the anteroom
   untouched (no box in s5-ante), M8, A64, dogs, CR6 / CR7 (nothing within K7 / K11 of the cage, well or rope edge), las-shaft clear.
 - Not run (lead / CI): `npm run check`, `campusRuntimeNav`, `campusArtKit`, any e2e, GPU shots (batch 3).
 
