@@ -7,6 +7,28 @@
  */
 import type { ShadowQuality } from '../core/quality';
 import { hyp2, hyp3 } from '../core/mathx';
+import { LAMP_LEVEL_GAIN, photoFalloff } from './lampMath';
+
+/**
+ * (LR16-P F2) A lamp's character shadow reach (m): the distance where its level on the axis, `LAMP_LEVEL_GAIN` x
+ * `intensity` x `photoFalloff(d, reach)`, falls to `minLevel` (bisection; at most `reach`); 0 when the lamp never gives
+ * that much. Load time: intensity is map data (switches, jams and flicker scale the colour, not it). The slot picker,
+ * the casters a slot's map draws and its doors and props read it (`BakedLamps.spheres` w); the light field never does.
+ */
+export function charShadowReach(intensity: number, reach: number, minLevel: number = CHAR_SHADOW.minLevel): number {
+  const k = LAMP_LEVEL_GAIN * intensity;
+  if (!(reach > 0) || !(k > 0)) return 0;
+  if (!(minLevel > 0)) return reach;
+  if (k * photoFalloff(0, reach) < minLevel) return 0;
+  let lo = 0;
+  let hi = reach;
+  for (let i = 0; i < 48; i++) {
+    const m = (lo + hi) * 0.5;
+    if (k * photoFalloff(m, reach) >= minLevel) lo = m;
+    else hi = m;
+  }
+  return lo;
+}
 
 /** The settings override: the preset's choice, or always on / off. */
 export type CharShadowMode = 'auto' | 'on' | 'off';
@@ -43,7 +65,10 @@ export function charShadowSpec(q: ShadowQuality, mode: CharShadowMode = 'auto'):
 export const CHAR_SHADOW = {
   /** Slots in the atlas (2 x 2 tiles). */
   maxSlots: 4,
-  /** A lamp is a candidate while the nearest focus point is within its radius + this (m). */
+  /** (LR16-P F2) A slot's shadow reach (`charShadowReach`): where the lamp's level (`LAMP_LEVEL_GAIN` x intensity x
+   *  `photoFalloff`, on its axis) falls to this. Past it a character keeps his capsule from that lamp. Picture only. */
+  minLevel: 0.04,
+  /** A lamp is a candidate while the nearest focus point is within its shadow reach + this (m). */
   reachMargin: 3,
   /** A held lamp stays a candidate this much further (m). */
   keepMargin: 1,
@@ -221,8 +246,8 @@ export class LampSlotPicker {
   }
 
   /**
-   * Per frame. `lamps`: per lamp x, y, z, radius (stride 4), `n` of them; `lit`: non-zero while the lamp gives light;
-   * `focus`: x, y, z per point (the local player, the camera), `nf` of them. Returns true when the assignment changed.
+   * Per frame. `lamps`: per lamp x, y, z, radius (stride 4; (LR16-P F2) the shadow reach, 0: never a slot), `n` of
+   * them; `lit`: non-zero while the lamp gives light; `focus`: x, y, z per point (the local player, the camera), `nf` of them. Returns true when the assignment changed.
    */
   update(lamps: Float32Array, lit: Uint8Array, n: number, focus: Float32Array, nf: number, dt: number, moving: Uint8Array | null = null): boolean {
     const v0 = this.version;
@@ -244,8 +269,9 @@ export class LampSlotPicker {
     const k = this.slots;
     let nc = 0;
     for (let i = 0; i < n; i++) {
-      if (!lit[i]) continue;
       const o = i * 4;
+      // ((LR16-P F2) a lamp whose shadow reach is 0 never gives minLevel: no slot)
+      if (!lit[i] || !(lamps[o + 3]! > 0)) continue;
       const lx = lamps[o]!;
       const ly = lamps[o + 1]!;
       const lz = lamps[o + 2]!;
