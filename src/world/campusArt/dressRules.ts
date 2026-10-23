@@ -474,7 +474,6 @@ export function planRoom(ctx: DressContext, k: Keepouts, cats: CatalogueSet, roo
       }
       const allowed = rule.tile || rule.row || (corridor && rule.per) ? Infinity : Math.min(rule.max ?? Infinity, rule.per ? Math.max(1, Math.floor(area / rule.per + 0.5)) : (rule.max ?? 1));
       const yaw = rule.row && w < d ? Math.PI / 2 : 0;
-      let rowPlaced = 0;
       for (const [x0, z0] of pts) {
         if (placed >= allowed) break;
         const x = snap(x0);
@@ -494,10 +493,8 @@ export function planRoom(ctx: DressContext, k: Keepouts, cats: CatalogueSet, roo
         const p = make(base.cat, base.prop, x, y, z, yaw, rule.cls, why(rule));
         const e = tryPlace(rule.piece, base.cat, p, 'ceiling');
         if (e) drop(rep, rule.piece, e);
-        else if (rule.row) rowPlaced++;
-        else placed++;
+        else if (!rule.row) placed++;
       }
-      if (rule.row && rowPlaced) placed++;
       continue;
     }
     // floor-free: a 0.5 m grid from the room's min corner, row-major

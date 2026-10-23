@@ -5,9 +5,11 @@
  * the box-hidden skins, whose boxes it hides; and `BuiltLevel.hidePieces` is render-only (physics, light hash, cover and
  * boxes unchanged; the hidden instances draw nothing).
  */
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import type { NullEngine } from '@babylonjs/core/Engines/nullEngine';
+import type { Scene } from '../src/core/babylon';
 import { parseGlb } from '../src/operators/lab/glb';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { LightRegistry } from '../src/world/lights';
@@ -26,7 +28,7 @@ const fReport = JSON.parse(readFileSync(path.resolve(__dirname, '../src/world/pr
 
 const P = (o: Partial<ArtPlacement> & Pick<ArtPlacement, 'cat' | 'prop' | 'section' | 'cls'>): ArtPlacement => ({ x: 0, y: 0, z: 0, yaw: 0, why: 't', ...o });
 
-async function physicsScene(): Promise<{ engine: import('@babylonjs/core').NullEngine; scene: import('../src/core/babylon').Scene }> {
+async function physicsScene(): Promise<{ engine: NullEngine; scene: Scene }> {
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
   const B = await import('../src/core/babylon');
   const HavokPhysics = (await import('@babylonjs/havok')).default;
@@ -125,6 +127,22 @@ describe('CampusArtRender (NullEngine)', () => {
     expect(r.meshes().length).toBe(0);
     scene.dispose();
     engine.dispose();
+  });
+});
+
+describe('gameplay never reads the art (A121)', () => {
+  it('only the World hook imports the renderer: no game, AI, player, cover, security or net module does', () => {
+    const root = path.resolve(__dirname, '../src');
+    const users: string[] = [];
+    const walk = (dir: string): void => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        const f = path.join(dir, e.name);
+        if (e.isDirectory()) walk(f);
+        else if (e.name.endsWith('.ts') && /from '[^']*campusArtRender'/.test(readFileSync(f, 'utf8'))) users.push(path.relative(root, f).split(path.sep).join('/'));
+      }
+    };
+    walk(root);
+    expect(users).toEqual(['world/world.ts']);
   });
 });
 
