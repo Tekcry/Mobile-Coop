@@ -97,7 +97,9 @@ describe('light model', () => {
     const r = new LightRegistry();
     r.ambient = 0.05;
     // a low, short-range lamp above head height: a standing head is in it, a crouch is not
-    r.add({ x: 0, y: 1.9, z: 0, radius: 0.6, intensity: 1 });
+    // (LR16 fix: the unbaked field reads the photometric term over the reach, radius x 1.6 = 0.72 m; a crouched head
+    // 0.81 m below the lamp is out of it)
+    r.add({ x: 0, y: 1.9, z: 0, radius: 0.45, intensity: 1 });
     const stand = bodyLightLevel(r, 0, 0, 0, 1.75);
     const crouch = bodyLightLevel(r, 0, 0, 0, 1.15);
     expect(stand).toBeGreaterThan(0.5);
