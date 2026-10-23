@@ -14,7 +14,16 @@ Sole: a cupped rubber unit with a toe spring, a heel bevel and a midsole groove;
 a recessed arch and a transverse heel-brake bar.
 Wear ('wear' attribute): scuffed toe rand and toe cap, a scuffed heel; two shallow flex creases across the forefoot;
 dust packs into the lugs through the rubber's ambient-occlusion dust.
+
+Guard bake (docs/guard-models PLAN G2): run as the main script by guard-bake.mjs, it hands the job to guard_garment.py,
+which calls configure() on a copy of this module (bottom of this file): the same boot sized from the guard's foot, a
+taller shaft. Wren's boot is untouched while configure() has not been called.
 """
+if __name__ == '__main__':   # guard bake job: py/ and py/garments/ on the path before the imports below
+    import os as _os
+    import sys as _sys
+    _here = _os.path.dirname(_os.path.abspath(__file__))
+    _sys.path[:0] = [_here, _os.path.dirname(_here)]
 import math
 
 import numpy as np
@@ -34,6 +43,7 @@ LIFT = {'rand': 0.0008, 'toecap': 0.0009, 'counter': 0.0010, 'eyestay': 0.0014, 
 SLOT = {'quarter': 0, 'tongue': 0, 'collar': 0, 'toecap': 1, 'counter': 1, 'eyestay': 1, 'rand': 2}
 PRIO = {'rand': 7, 'tongue': 6, 'eyestay': 5, 'collar': 4, 'toecap': 3, 'counter': 2, 'quarter': 1}
 TWIN = {'eyestay', 'counter'}
+Z_TOP = 0.155        # x s: the shaft's top above the floor (configure() raises it for the guards' field boot)
 
 
 class Frame:
@@ -72,7 +82,7 @@ def smoothstep(a, b, x):
 def build_foot(ctx, side, out, store):
     J, skin = ctx['J'], ctx['skin']
     sc = ctx['H'] / 1.68
-    z_top = 0.155 * sc
+    z_top = Z_TOP * sc
     sgn = float(np.sign(J[f'an{side}'][0]))
     BVE = ctx['BVE']
     sel = (BVE[:, 2] < z_top + 0.04) & (BVE[:, 0] * sgn > 0.04) & (BVE[:, 0] * sgn < 0.32)
@@ -698,3 +708,22 @@ def _planar_uv(ob):
         for li in p.loop_indices:
             co = me.vertices[me.loops[li].vertex_index].co
             lay.data[li].uv = (co[ax[0]], co[ax[1]])
+
+
+# --- Guard bake (docs/guard-models PLAN G2, SPEC 4: laced boots on every outfit) ---------------------------------------
+# The same boot, sized from the guard's own foot (the last is lofted from it), with a shaft 2 cm taller (a field boot
+# under the trousers' hem). One boots job per base serves every outfit there (lean: uniform_rolled and work).
+def configure(part, variant=None, prefix=None, **_):
+    """Guard mode for this module copy (guard_garment.load_part)."""
+    global KIT, Z_TOP
+    if variant is not None:
+        raise SystemExit(f'boots: no variants (got {variant!r})')
+    if part != 'boots':
+        raise SystemExit(f'boots: the part must be "boots" (build_garment reads boots-sim.json by that name), got {part!r}')
+    KIT = part
+    Z_TOP = 0.175
+
+
+if __name__ == '__main__':   # guard bake job (guard-bake.mjs --stage garments)
+    import guard_garment
+    guard_garment.main()
