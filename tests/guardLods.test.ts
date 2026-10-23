@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import raw from '../scripts/operators/data/guards.json';
 // @ts-expect-error plain JS module (scripts/operators), no types
 import { ATLAS, garmentParts, guardLayout, pieceLayout, pieceOrder, rectsAt, skylinePack, TILE_ORIGIN } from '../scripts/operators/guardAtlas.mjs';
@@ -313,5 +315,15 @@ describe('guard check (files)', () => {
     for (const re of [/span two pieces/, /not UNSIGNED_BYTE/, /extras.guard.pieces/, /pouch_belt has no triangles/, /body seam ring 40/, /bake note: garment shirt missing/, /report drift/]) {
       expect(p.some((x: string) => re.test(x)), String(re)).toBe(true);
     }
+  });
+});
+
+// The bake's numpy helpers (guard_lod_util.py: raster, dilate, resize, place, the finger fold, the neck weld by hm08
+// index, lodBones from the kit) carry their own self-test; it runs here when Blender's bundled Python is installed.
+const BLENDER_PY = process.env.BLENDER_PYTHON ?? 'C:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe';
+describe('guard LOD bake numpy helpers', () => {
+  it.skipIf(!existsSync(BLENDER_PY))('guard_lod_util.py self-test passes', () => {
+    const out = execFileSync(BLENDER_PY, ['-I', 'scripts/operators/py/guard_lod_util.py'], { encoding: 'utf8', windowsHide: true, timeout: 60_000 });
+    expect(out).toContain('self-test: ok');
   });
 });

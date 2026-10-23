@@ -110,7 +110,8 @@ export async function main(argv) {
   } else {
     report = pieceReport(layout, stats, bake.notes ?? []);
   }
-  report.bake = { leftScale: layout.leftScale ?? 1, seconds: bake.seconds, device: bake.device, seamKept: bake.lods?.map((l) => l.seamKept), coverage: bake.bakeCoverage,
+  report.bake = { leftScale: layout.leftScale ?? 1, seconds: bake.seconds, device: bake.device, seamKept: bake.lods?.map((l) => l.seamKept),
+    seamSnapMm: bake.lods?.map((l) => l.seamSnapMm), seamBy: bake.lods?.map((l) => l.seamBy), lodBonesFrom: bake.lodBonesFrom, coverage: bake.bakeCoverage,
     garmentsBuilt: bake.garmentsBuilt, gearBuilt: bake.gearBuilt, headsBuilt: bake.headsBuilt };
   writeFileSync(reportFile, `${JSON.stringify(report, null, 1)}\n`);
   for (const l of report.lods) console.info(`guard-lods ${id} LOD${l.lod}: ${l.bufferTris} tris, ${l.bones.length} bones, influences ${l.influences}, ${l.textures.map((t) => `${t.role} ${t.width}x${t.height} ${t.format}`).join(', ')}`);

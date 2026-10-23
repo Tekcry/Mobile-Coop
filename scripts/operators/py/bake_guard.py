@@ -11,8 +11,9 @@ A base: per LOD ONE skinned mesh with ONE material (A3, PLAN 2):
     outward ray meets no garment of at least one outfit, one ring of faces of margin), decimated with the neck seam ring
     kept at every LOD, the procedural skin (guard_skin.skin) baked;
   - every head variant (G1h, heads/guard-<v>-head.blend: LOD0 / LOD1 / LOD2 meshes, the LOD0 eyes, the face tile PNGs),
-    welded to the body's seam by position (G1h builds the heads in the body frame with the seam ring on the body's
-    seam: the head's seam vertices take the body seam vertices' positions and skin weights);
+    welded to the body's seam by hm08 index (G1h's `mh_index` against the body's `_mh` / `neckSeam.mhVerts`; no
+    transform: G1h builds the heads in G1's body frame with a seam lock): the head's seam vertices take the body seam
+    vertices' positions and skin weights;
   - every hair cap (heads/guard-<b>-haircaps.blend LOD0 / LOD1; LOD2 has none: the head's scalp vertices take the hair
     tint slot, "hair in the albedo" at > 25 m);
   - the garment parts of every outfit (G2, garments/guard-<b>-<part>.blend; a part two outfits share is one bake and one
@@ -27,7 +28,8 @@ rect and baked from their own source on the GPU (selected to active, one piece a
 bake into each other): tangent normal, AO, albedo, roughness / metal; heads, caps and the eye block are G1h's baked
 tiles, resized into their rects. Albedo alpha = the tint mask (1 where the face's slot is not `none`, G5 / SPEC 8).
 Normal / ORM at half the albedo size. Skin: LOD0 the 33 bones of the body report's `lodBones`, LOD1 / LOD2 its rig
-joints with the fingers folded onto the wrists (`fold`); influences 4 / 4 / 2. The clavicle split is G1's (kept).
+joints with the fingers folded onto the wrists (`fold`); influences 4 / 4 / 2. The clavicle split is G1's (kept). The
+skin albedo is used as baked (its 0.69 mean is scalp shadow, lead ruling: no divide here).
 Writes <out>/lods/guard-<id>-lod{0,1,2}.glb (PNG inside; guard-lods.mjs then fixes the attributes, encodes KTX2 and
 writes the report), <out>/lods/textures/guard-<id>-lod<n>-{albedo,normal,orm}.png, <out>/lods/guard-<id>.bake.json.
 """
@@ -181,8 +183,7 @@ def append(path, want):
             continue
         if o.name not in bpy.context.scene.collection.objects:
             link(o)
-        o.hide_render = False
-        o.hide_viewport = False
+        o.hide_viewport = False   # hide_render stays as the file has it (G2: hidden = not shipped, e.g. the shell)
         o.parent = None
         got[o.name] = o
     return got
@@ -272,6 +273,16 @@ def point_attr(me, name):
     v = np.zeros(len(me.vertices), np.float32)
     a.data.foreach_get('value', v)
     return v
+
+
+def int_point_attr(me, name):
+    """An integer point attribute (G1's `_mh`, G1h's `mh_index`: hm08 vertex indices) as int64, or None."""
+    a = me.attributes.get(name)
+    if a is None or a.domain != 'POINT':
+        return None
+    v = np.zeros(len(me.vertices), np.int32 if a.data_type == 'INT' else np.float32)
+    a.data.foreach_get('value', v)
+    return np.rint(v).astype(np.int64)
 
 
 def strip_attrs(me, keep=('_PIECE', '_TINT')):
@@ -391,7 +402,7 @@ class Baker:
         self.scene.cycles.samples = samples
         margin = max(2, min(img.size) // 64)
         kw = dict(type=kind, use_selected_to_active=True, cage_extrusion=cage, max_ray_distance=cage * 3, margin=margin,
-                  margin_type='EXTEND', use_clear=True, target='IMAGE_TEXTURES')
+                  margin_type='EXTEND', use_clear=True, target='IMAGE_TEXTURES', uv_layer='atlas')
         if kind == 'NORMAL':
             kw.update(normal_space='TANGENT', normal_r='POS_X', normal_g='POS_Y', normal_b='POS_Z')
         bpy.ops.object.bake(**kw)
@@ -461,7 +472,12 @@ def run_base(args, kit, L):
     href = bpy.data.objects.get(f'guard-{b}-headref')
     if href is not None:
         bpy.data.objects.remove(href, do_unlink=True)
-    lod_bones = BR['lodBones']
+    lod_bones = BR.get('lodBones')
+    lod_bones_from = 'body report'
+    if not lod_bones:   # a body baked before G1 wrote `lodBones`: the same lists from the kit
+        lod_bones = U.lod_bones_from_kit(kit['bones'])
+        lod_bones_from = 'kit (the body report has no lodBones)'
+        log('lodBones from the kit')
     fold = lod_bones.get('fold', {})
     influences = lod_bones.get('influences', L.get('influences', [4, 4, 2]))
     piece_index = {p: i for i, p in enumerate(L['pieces'])}
@@ -484,8 +500,32 @@ def run_base(args, kit, L):
         kd_body.insert(Vector(p), i)
     kd_body.balance()
     seam_idx = BR['neckSeam']['bodyVerts']
+    seam_mh = [int(v) for v in BR['neckSeam']['mhVerts']]   # same order as bodyVerts
     seam_pts = body_co[seam_idx]
     body.hide_render = True
+
+    def seam_pairing(o, kind):
+        """(pair, snap) of a body / head LOD mesh onto the seam slots: by hm08 index (`_mh` on the body, `mh_index` on
+        G1h's heads; eye faces never pair), by position when the mesh carries no index."""
+        me = o.data
+        co = world_co(o)
+        mh = int_point_attr(me, '_mh' if kind == 'body' else 'mh_index')
+        if mh is None:
+            pair = U.seam_pairs(co, seam_pts, SEAM_TOL if kind == 'head' else 1e-5)
+            snap = np.full(len(seam_pts), np.inf)
+            for i, j in enumerate(pair):
+                if j >= 0:
+                    snap[j] = float(np.linalg.norm(co[i] - seam_pts[j]))
+            return pair, snap, 'position'
+        ok = np.ones(len(me.vertices), bool)
+        if kind == 'head':
+            mi = np.zeros(len(me.polygons), np.int32)
+            me.polygons.foreach_get('material_index', mi)
+            for p in me.polygons:
+                if mi[p.index] == 1:
+                    ok[list(p.vertices)] = False
+        pair, snap = U.seam_pairs_mh(mh, co, seam_mh, seam_pts, ok)
+        return pair, snap, 'mh'
 
     # ---- the pieces' sources
     heads = {}
@@ -508,7 +548,7 @@ def run_base(args, kit, L):
         part = g['part']
         path = os.path.join(out, 'garments', f'guard-{b}-{part}.blend')
         got = append(path, lambda n, part=part: n == f'guard-{b}-{part}' or n.startswith(f'guard-{b}-{part}-'))
-        shown = [o for o in got.values() if o.type == 'MESH' and o.name != f'guard-{b}-{part}']
+        shown = [o for o in got.values() if o.type == 'MESH' and o.name != f'guard-{b}-{part}' and not o.hide_render]
         if not shown:
             note(f'garment {part}: {os.path.relpath(path, out)} missing (G2 not baked yet): left out; outfits {g["outfits"]} miss it')
             for o in got.values():
@@ -539,11 +579,12 @@ def run_base(args, kit, L):
         parts = [garments[p] for p in o['parts'] if p in garments]
         if not parts:
             continue
-        bm = bmesh.new()
+        verts, polys = [], []
         for s in parts:
-            bm.from_mesh(s.data)
-        outfit_trees.append((o['id'], BVHTree.FromBMesh(bm)))
-        bm.free()
+            base_i = len(verts)
+            verts.extend(Vector(p) for p in world_co(s))
+            polys.extend([base_i + v for v in p.vertices] for p in s.data.polygons)
+        outfit_trees.append((o['id'], BVHTree.FromPolygons(verts, polys)))
     me = body0.data
     if outfit_trees:
         visible = np.zeros(len(me.polygons), bool)
@@ -570,9 +611,8 @@ def run_base(args, kit, L):
     else:
         note('body: no garment built for any outfit: the whole body is kept (over its budget until G2 lands)')
     keepg = body0.vertex_groups.new(name='g4-keep')
-    bco = world_co(body0)
-    on_seam = U.seam_pairs(bco, seam_pts, 1e-5) >= 0
-    for i in range(len(bco)):
+    on_seam = seam_pairing(body0, 'body')[0] >= 0
+    for i in range(len(on_seam)):
         keepg.add([i], 0.0 if on_seam[i] else 1.0, 'REPLACE')
 
     # ---- LOD meshes per piece: {lod: [record]}; record = dict(obj, piece, kind, region, tint, source)
@@ -720,7 +760,9 @@ def run_base(args, kit, L):
                 note(f'{reg}: {k} tile PNG missing (filled flat)')
 
     # ---- per LOD: UVs into the atlas, attributes, weights, the seam weld, assembly, export
+    seam_far = set()
     report = {'base': b, 'device': device, 'notes': NOTES, 'lods': [], 'leftScale': L.get('leftScale', 1),
+              'lodBonesFrom': lod_bones_from,
               'garmentsBuilt': sorted(garments), 'gearBuilt': sorted(gear), 'headsBuilt': sorted(heads)}
     lods_dir = os.path.join(out, 'lods')
     tex_dir = os.path.join(lods_dir, 'textures')
@@ -767,6 +809,8 @@ def run_base(args, kit, L):
         tri_by_piece = {}
         mask_tris, mask_vals = [], []
         seam_kept = {}
+        seam_snap = {}
+        seam_how = {}
         for r in records[lod]:
             src_obj = r['obj']
             pieces = [r['piece']] if r['kind'] != 'garment' else [o['id'] for o in L['outfits'] if r['region'][8:] in o['parts']]
@@ -823,10 +867,13 @@ def run_base(args, kit, L):
                         rows = [w if w else {'head': 1.0} for w in rows]
                 bones = lod_bones[f'lod{lod}']
                 rows = U.fold_weights(rows, bones, fold, influences[lod])
-                # the neck weld: head seam vertices onto the body's seam ring (positions and weights)
+                # the neck weld (lead ruling X2): head seam vertices paired with the body's seam ring by hm08 index, no
+                # transform (G1h builds the heads in G1's body frame); the pair takes the body vertex's exact position
+                # and skin weights, so the two pieces close without a crack (they stay separate vertices: G5 groups by
+                # piece). A head whose seam sits off the body's (`seamSnapMm` > SEAM_TOL) is a bake note.
                 if r['kind'] in ('body', 'head'):
-                    co = world_co(o)
-                    pair = U.seam_pairs(co, seam_pts, SEAM_TOL if r['kind'] == 'head' else 1e-5)
+                    pair, snap, how = seam_pairing(o, r['kind'])
+                    seam_how[r['kind']] = how
                     if r['kind'] == 'body':
                         seam_rows = {int(j): rows[i] for i, j in enumerate(pair) if j >= 0}
                         report.setdefault('_seamRows', {})[lod] = seam_rows
@@ -844,6 +891,13 @@ def run_base(args, kit, L):
                                 rows[i] = dict(sr[j])
                             n_weld += 1
                         seam_kept[pid] = n_weld
+                        fin = snap[np.isfinite(snap)]
+                        worst = float(fin.max()) if len(fin) else 0.0
+                        seam_snap[pid] = round(worst * 1000, 2)
+                        if worst > SEAM_TOL and pid not in seam_far:
+                            seam_far.add(pid)
+                            note(f'head {pid}: seam {worst * 1000:.1f} mm off the body seam (welded by hm08 index; '
+                                 f'built outside G1\'s body frame?)')
                 set_weights(o, rows)
                 # tint mask triangles (albedo alpha)
                 uvl = uv_array(me, 'atlas')
@@ -878,7 +932,8 @@ def run_base(args, kit, L):
         glb = os.path.join(lods_dir, f'{stem}.glb')
         export(arm, final, glb)
         report['lods'].append({'lod': lod, 'tris': tri_count(final.data), 'trisByPiece': tri_by_piece, 'textures': files,
-                               'seamKept': seam_kept, 'bones': len(lod_bones[f'lod{lod}']), 'glb': os.path.relpath(glb, out).replace('\\', '/')})
+                               'seamKept': seam_kept, 'seamSnapMm': seam_snap, 'seamBy': seam_how,
+                               'bones': len(lod_bones[f'lod{lod}']), 'glb': os.path.relpath(glb, out).replace('\\', '/')})
         log('LOD', lod, tri_count(final.data), 'tris, pieces', len(tri_by_piece), 'seam', seam_kept)
         final.hide_render = True
     report.pop('_seamRows', None)
@@ -998,6 +1053,7 @@ def export(arm, obj, path):
         o.select_set(False)
     for o in (arm, obj):
         o.hide_viewport = False
+        o.hide_render = False
         o.hide_set(False)
         o.select_set(True)
     bpy.context.view_layer.objects.active = arm

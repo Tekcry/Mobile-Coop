@@ -153,6 +153,39 @@ def seam_pairs(head_pts, body_pts, tol):
     return np.where(d[np.arange(len(head_pts)), j] <= tol, j, -1)
 
 
+def seam_pairs_mh(mh, pts, seam_mh, seam_pts, eligible=None):
+    """The neck weld by hm08 index (lead ruling X2: G1h builds the heads in G1's body frame, so no transform): for each
+    seam slot j (body seam vertex with hm08 index seam_mh[j] at seam_pts[j]) the one vertex of this mesh carrying that
+    index (among `eligible`), the nearest to seam_pts[j] when decimation left more than one with it. Returns (pair, snap):
+    pair[i] = j for the chosen vertex i, else -1; snap[j] = that vertex's distance to seam_pts[j] (inf when absent)."""
+    mh = np.asarray(mh).reshape(-1)
+    pts = np.asarray(pts, np.float64).reshape(-1, 3)
+    seam_pts = np.asarray(seam_pts, np.float64).reshape(-1, 3)
+    ok = np.ones(len(mh), bool) if eligible is None else np.asarray(eligible, bool)
+    pair = np.full(len(mh), -1, int)
+    snap = np.full(len(seam_mh), np.inf)
+    for j, m in enumerate(seam_mh):
+        cand = np.nonzero((mh == int(m)) & ok)[0]
+        if not len(cand):
+            continue
+        d = np.linalg.norm(pts[cand] - seam_pts[j], axis=1)
+        k = int(d.argmin())
+        pair[cand[k]] = j
+        snap[j] = float(d[k])
+    return pair, snap
+
+
+def lod_bones_from_kit(bones):
+    """`lodBones` as G1's body report gives it, rebuilt from the kit's `bones` (bodies baked before G1 wrote it): LOD0 the
+    rig joints + fingers, LOD1 / LOD2 the rig joints, each finger folding onto its `fingerParent` (finger<S>... -> wr<S>)."""
+    rig = list(bones['rig'])
+    fingers = list(bones.get('fingers', []))
+    parent = bones.get('fingerParent', {})
+    fold = {f: parent[f.split('_')[0]] for f in fingers if f.split('_')[0] in parent}
+    return {'lod0': rig + fingers, 'lod1': rig, 'lod2': rig, 'fold': fold,
+            'influences': list(bones.get('influences', [4, 4, 2]))}
+
+
 def _selftest():
     v, c = raster([[[0, 0], [8, 0], [0, 8]]], [1.0], 8, 8)
     assert c[0, 0] and not c[7, 7] and v[0, 0] == 1.0, 'raster'
@@ -169,6 +202,13 @@ def _selftest():
     assert set(w[0]) == {'a', 'b'} and abs(sum(w[0].values()) - 1) < 1e-9, 'limit'
     p = seam_pairs([[0, 0, 0], [1, 1, 1]], [[0, 0, 1e-7]], 1e-4)
     assert list(p) == [0, -1], 'seam'
+    # mh weld: the duplicate index 7 (a decimated vertex) loses to the nearer one; an ineligible (eye) vertex never pairs
+    pr, sn = seam_pairs_mh([7, 9, 7, 9, 3], [[0, 0, 0.5], [1, 0, 0], [0, 0, 0], [1, 0, 0], [5, 5, 5]],
+                           [7, 9, 4], [[0, 0, 0], [1, 0, 0], [2, 0, 0]], [True, False, True, True, True])
+    assert list(pr) == [-1, -1, 0, 1, -1] and sn[0] == 0 and sn[1] == 0 and sn[2] == np.inf, 'seam mh'
+    lb = lod_bones_from_kit({'rig': ['root', 'wrL'], 'fingers': ['fingerL_1_1'], 'fingerParent': {'fingerL': 'wrL'}})
+    assert lb['lod0'] == ['root', 'wrL', 'fingerL_1_1'] and lb['lod1'] == ['root', 'wrL'], 'lodBones'
+    assert lb['fold'] == {'fingerL_1_1': 'wrL'} and lb['influences'] == [4, 4, 2], 'lodBones fold'
     n = renormalize(np.array([[[0.5, 0.5, 0.75, 1.0]]]))
     assert abs(n[0, 0, 2] - 1.0) < 1e-6, 'renormalize'
     print('guard_lod_util self-test: ok')
