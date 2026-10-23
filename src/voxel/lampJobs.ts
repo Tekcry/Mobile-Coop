@@ -17,8 +17,10 @@ const INDEX = 'lamp-cache-index';
  * LR16-1 4), so neither branch's caches are served: an LR16-1-alone v4 entry has the bounce and bits but no penumbra,
  * which `cacheOk` cannot see (the penumbra lives in the `vis` bytes, no field marks it); only the key can reject it.
  * (LR16-L) 6: the box grid aligned on the light point (`lampBox`): new origins and bytes.
+ * (LR16-POLISH F) 7: the bounce's wall bits (`bounceBits`): a thin wall's code at its middle, a run's middle of its first
+ * two sub-cells, no crossing from inside a hull past a second solid run.
  */
-export const LAMP_VERSION = 6;
+export const LAMP_VERSION = 7;
 
 /** (LR16-1) A cached result holds every lamp's visibility and bounce (LR16e's penumbra: covered by `LAMP_VERSION`). */
 function cacheOk(hit: LampResult | undefined, n: number): hit is LampResult {
