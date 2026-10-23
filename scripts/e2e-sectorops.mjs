@@ -2671,6 +2671,90 @@ if (want(6)) {
   });
 }
 
+// (guard-ai S16, `--part=6`) guards hold fire at armour: written, not run (the slice brief). The NOC pair (S4 #14-15, on
+// the mezzanine at z 43, y 3.6) watch the hall through arm-noc, the armoured clear window (x -3.5..7.5, z 42, sill 4.6).
+// Seeded Math.random, sim-time steps. The player stands on the hall floor in front of the window, the pair are told
+// straight to combat: one of them sees him through the pane (sight is MASK.SIGHT, which clear armour passes), the fire
+// gate casts and finds the pane, and neither fires a round while he stands in the NOC over 10 s; each then repositions
+// (leaves the NOC by the stairs, or a cover spot with a clear line) or holds there (a leash), still alerted.
+if (want(6)) {
+  console.log('campus ops (S4, guard-ai S16): guards hold fire at armour (the NOC pair, arm-noc)');
+  await run(CAMPUS, async ({ G, sim }) => {
+    const S = await sections(G);
+    if (!(S.length >= 4 && S[3].id === 's4' && S[3].guards === 20)) {
+      console.log(`  guard-ai S16: section 4 is not the built one here (${JSON.stringify(S.map((s) => [s.id, s.guards]))}), skipped`);
+      return;
+    }
+    // seeded Math.random (mulberry32): the bursts, pauses and cover rolls replay
+    await G(() => {
+      let a = 0x516;
+      Math.random = () => {
+        a = (a + 0x6d2b79f5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    });
+    // frozen AI and no damage on the way in (campusS4Part's walk to section 4)
+    await G(() => { const g = window.__app.current; g.target.damageMul = 0; g.enemyMgr.update = () => {}; if (g.security) g.security.fixedUpdate = () => {}; if (window.__ctdev) window.__ctdev.fixedUpdate = () => {}; });
+    await sim(0.5);
+    for (let i = 0; i < 3; i++) {
+      await G(() => { const m = window.__sector; if (m.run.current.objective.kind === 'download') { m.run.downloading = true; m.run.download(999); } else m.run.objectiveDone(); });
+      await sim(0.3);
+      await tp(G, S[i].cp.x, S[i].cp.y, S[i].cp.z, S[i].cp.yaw);
+      await sim(4.6);
+    }
+    const d4 = await G(() => window.__sector.debug());
+    assert(d4.index === 3 && d4.id === 's4', `the run reaches section 4 (${JSON.stringify([d4.index, d4.id])})`);
+    // in the NOC: on the mezzanine behind the window (x -4..8, z 42..48, y 3.6)
+    await G(() => { window.__s16noc = (e) => e.pos.y > 3 && e.pos.z > 41.8 && e.pos.z < 48 && e.pos.x > -4 && e.pos.x < 8; });
+    const noc = await G(() => window.__app.current.enemyMgr.enemies.filter((e) => e.alive && window.__s16noc(e)).map((e) => e.id));
+    assert(noc.length >= 1, `the NOC pair stand in the NOC (${JSON.stringify(noc)})`);
+    // the AI on, the pair straight to combat; the player on the hall floor in front of the window (the first spot one
+    // of them sees him from)
+    await G((ids) => { const g = window.__app.current; delete g.enemyMgr.update; for (const e of g.enemyMgr.enemies) if (ids.includes(e.id)) e.alert(); }, noc);
+    const look = (ids) =>
+      G((ids) =>
+        window.__app.current.enemyMgr.enemies
+          .filter((e) => ids.includes(e.id))
+          .map((e) => ({ id: e.id, alive: e.alive, alerted: e.alerted, los: e.los, blocked: e.armour.blocked, casts: e.armour.casts, held: e.armour.heldTicks, rounds: e.roundsFired, noc: window.__s16noc(e), x: e.pos.x, z: e.pos.z, y: e.pos.y, state: e.state })),
+      ids);
+    let spot = null;
+    for (const [x, z] of [[2, 31], [0, 30], [-1.5, 32], [4, 29], [2, 27]]) {
+      await tp(G, x, 0, z, 0);
+      for (let k = 0; k < 15 && !spot; k++) {
+        await G(() => window.__app.loop.stepHeadless(0.1));
+        if ((await look(noc)).some((s) => s.noc && s.los)) spot = [x, z];
+      }
+      if (spot) break;
+    }
+    assert(spot, 'a NOC guard sees the player on the hall floor through the armoured window (sight passes clear armour)');
+    const start = await look(noc);
+    const prev = Object.fromEntries(start.map((s) => [s.id, s.rounds]));
+    const at0 = Object.fromEntries(start.map((s) => [s.id, [s.x, s.z, s.y]]));
+    let intoGlass = 0;
+    let sawBlocked = false;
+    for (let k = 0; k < 100; k++) {
+      await G(() => window.__app.loop.stepHeadless(0.1));
+      for (const s of await look(noc)) {
+        if (s.noc && s.rounds > prev[s.id]) intoGlass += s.rounds - prev[s.id];
+        prev[s.id] = s.rounds;
+        if (s.blocked) sawBlocked = true;
+      }
+    }
+    const end = await look(noc);
+    assert(sawBlocked && end.some((s) => s.casts > 0 && s.held > 0), `the fire gate cast the line and held on the pane (${JSON.stringify(end.map((s) => [s.id, s.casts, s.held]))})`);
+    assert(intoGlass === 0, `no round into the armoured window from the NOC in 10 s (${intoGlass})`);
+    assert(end.every((s) => !s.alive || s.alerted), `the pair stay in combat: sight and the alert level unchanged (${JSON.stringify(end.map((s) => [s.id, s.alerted]))})`);
+    const how = end.map((s) => {
+      const a = at0[s.id];
+      const d = Math.hypot(s.x - a[0], s.z - a[1]);
+      return `${s.id}: ${!s.noc ? 'left the NOC' : d > 1.5 ? `moved ${d.toFixed(1)} m` : 'held'} (${s.state}, rounds ${s.rounds})`;
+    });
+    console.log(`  guard-ai S16: from (${spot}) ${how.join('; ')}`);
+  });
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // (sector-redesign slice 5, `--part=6`) Saltmarsh Park, section 5: the Old House and the extraction
 // (docs/sector-redesign/briefs/SLICE5.md). A self-contained block, run only when the page's section 5 is the built one (24
