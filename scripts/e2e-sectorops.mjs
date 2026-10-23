@@ -831,18 +831,36 @@ console.log('sector ops: co-op client mirrors the live section');
         const f = n.onLampShot.bind(n);
         n.onLampShot = (r, m) => { const sh0 = window.__app.current.stealth.lightsShot; f(r, m); n.__lampLog.push({ target: m.target, o: [m.ox, m.oy, m.oz].map((v) => +v.toFixed(2)), d: [m.dx, m.dy, m.dz].map((v) => +v.toFixed(3)), dist: +m.dist.toFixed(2), w: m.w, dw: r.state?.mv?.dw, feet: [r.feet.x, r.feet.y, r.feet.z].map((v) => +v.toFixed(2)), shot: window.__app.current.stealth.lightsShot > sh0 }); };
       });
+      // the client aims its camera at the lamp (the spring rig settles between passes) and fires its gun's own round
+      // (`shoot()`: the real ray from the muzzle, the real `onRay` segment); its `lampRay` calls are logged
+      await GB(() => {
+        const n = window.__app.current.net;
+        if (n.__rayLog) return;
+        n.__rayLog = [];
+        const f = n.lampRay.bind(n);
+        n.lampRay = (a, b) => { n.__rayLog.push({ a: [a.x, a.y, a.z].map((v) => +v.toFixed(2)), b: [b.x, b.y, b.z].map((v) => +v.toFixed(2)) }); f(a, b); };
+      });
+      for (let i = 0; i < 6; i++) {
+        await GB((l) => {
+          const cam = window.__app.current.player.cam;
+          const cp = cam.camera.position;
+          const dx = l.x - cp.x, dy = l.y - cp.y, dz = l.z - cp.z;
+          cam.yaw = Math.atan2(dx, dz);
+          cam.pitch = Math.atan2(dy, Math.hypot(dx, dz));
+          cam.snap();
+        }, lp);
+        await waitSim(120);
+      }
       const sent = await GB((l) => {
         const g = window.__app.current;
-        const V = g.player.position.constructor;
-        const p = g.player.position;
-        const a = new V(p.x, p.y + 1.45, p.z);
-        const dir = new V(l.x - a.x, l.y - a.y, l.z - a.z).normalize();
-        const b = new V(l.x + dir.x * 2, l.y + dir.y * 2, l.z + dir.z * 2);
-        // the real round's segment ends where it lands (the ceiling over the lamp, or the far end of the line)
-        const hit = g.ballistics.ray(a, b, 1);
-        g.weapons.onRay(a, hit.hit ? hit.point : b);
-        return { on: g.world.level.lights.lights[l.id].on, hit: hit.hit };
+        const on = g.world.level.lights.lights[l.id].on;
+        const w = g.weapons;
+        const m0 = w.current.mag;
+        w.shoot();
+        const ls = w.lastShot;
+        return { on, fired: m0 - w.current.mag, last: ls && { o: [ls.origin.x, ls.origin.y, ls.origin.z].map((v) => +v.toFixed(2)), hit: [ls.hit.x, ls.hit.y, ls.hit.z].map((v) => +v.toFixed(2)), target: ls.target }, rays: window.__app.current.net.__rayLog };
       }, lp);
+      console.log('  client round', JSON.stringify(sent), 'lamp', JSON.stringify(lp));
       assert(sent.on, `the client's lamp is lit before its round lands (${JSON.stringify(sent)})`);
       const outA = await until(A, (id) => window.__app.current.world.level.lights.lights[id].destroyed, lp.id, 8000, 'the client\'s round shoots the host\'s lamp out').then(() => true, () => false);
       if (!outA) console.error('  host lamp-shot log', JSON.stringify(await GA(() => window.__app.current.net.__lampLog)), 'lamp', JSON.stringify(lp));
@@ -911,6 +929,91 @@ console.log('sector ops: co-op client mirrors the live section');
       await GA(() => window.__sector.restartCheckpoint());
       await until(B, () => { const it = window.__app.current.interactables.items.find((x) => x.id === 'racking-crate'); return !!it && !it.spent; }, null, 15000, 'after the host\'s restart the client\'s crate prompt is back');
     }
+  } catch (e) {
+    failed = true;
+    console.error(String(e));
+  } finally {
+    clearInterval(pump);
+    all.push(...eA, ...eB);
+    await browser.close();
+  }
+}
+
+// (walk 4.72 S2) Saltmarsh Park's street lamps: the head sits on top of its 6 m pole, so a round aimed at it from the
+// ground lands on the pole just under the head (`LAMP_MOUNT_REACH`). The client's real round (camera aimed, the gun's own
+// `shoot()`) at the lane lamp goes to the host and both pages go dark there; the host's own round does the same to a
+// car-park lamp. Before the fix neither page's round broke either lamp (the probe on 4.72's code: 0 of 13).
+console.log('sector ops: co-op street lamps on Saltmarsh Park (client and host rounds)');
+{
+  const { browser, A, B, errors: [eA, eB], startMode } = await hostAndJoin(url, 2, { params: 'net=local&sectorGuards=4' });
+  let pumping = false;
+  const pump = setInterval(async () => {
+    if (pumping) return;
+    pumping = true;
+    try {
+      await A.evaluate(() => {
+        if (window.__raf === undefined) {
+          window.__raf = 0;
+          const loop = () => { window.__raf++; requestAnimationFrame(loop); };
+          requestAnimationFrame(loop);
+        }
+        const now = performance.now();
+        const last = window.__pumpT ?? now;
+        const idle = window.__pumpRaf === window.__raf;
+        window.__pumpT = now;
+        window.__pumpRaf = window.__raf;
+        if (idle && window.__app.current) window.__app.loop.stepHeadless(Math.min(0.1, Math.max(1 / 60, (now - last) / 1000)));
+      });
+    } catch {}
+    pumping = false;
+  }, 40);
+  const GA = (f, a) => A.evaluate(f, a);
+  const GB = (f, a) => B.evaluate(f, a);
+  /** Page P stands at `s`, aims (drawn) at lamp `l` and fires one round; true when it fired. */
+  const fireAt = async (P, s, l, headless) => {
+    await P.evaluate(([s, l]) => { const g = window.__app.current; g.player.forceAds = true; g.player.controller.teleport(new g.player.position.constructor(s[0], s[1], s[2]), Math.atan2(l.x - s[0], l.z - s[2])); }, [s, l]);
+    await waitSim(900);
+    for (let i = 0; i < 6; i++) {
+      await P.evaluate(([l, h]) => {
+        const cam = window.__app.current.player.cam;
+        const cp = cam.camera.position;
+        const dx = l.x - cp.x, dy = l.y - cp.y, dz = l.z - cp.z;
+        cam.yaw = Math.atan2(dx, dz);
+        cam.pitch = Math.atan2(dy, Math.hypot(dx, dz));
+        cam.snap();
+        if (h) window.__app.loop.stepHeadless(0.1);
+      }, [l, headless]);
+      if (!headless) await waitSim(100);
+    }
+    return P.evaluate(() => { const w = window.__app.current.weapons; const m0 = w.current.mag; w.shoot(); const ls = w.lastShot; return { fired: m0 - w.current.mag, hit: ls && [ls.hit.x, ls.hit.y, ls.hit.z].map((v) => +v.toFixed(2)), target: ls?.target }; });
+  };
+  const lampAt = (P, x, z) => P.evaluate(([x, z]) => { const l = window.__app.current.world.level.lights.lights.find((q) => q.kind !== 'flashlight' && Math.abs(q.x - x) < 0.01 && Math.abs(q.z - z) < 0.01 && q.y > 5); return l && { id: l.id, x: l.x, y: l.y, z: l.z, on: l.on, destroyed: l.destroyed, destructible: l.destructible }; }, [x, z]);
+  try {
+    await startMode('sector', 'campusOps');
+    await until(B, () => !!window.__app.current?.net && window.__app.current.world.level.lights.lights.length > 0, null, 15000, 'the client is in the match');
+    // the lane lamp (9, 6, -66) and a car-park lamp (-34, 6, -62): lit and shootable on both pages, the same ids
+    const [la, lb] = [await lampAt(A, 9, -66), await lampAt(B, 9, -66)];
+    const [pa, pb] = [await lampAt(A, -34, -62), await lampAt(B, -34, -62)];
+    assert(!!la && !!lb && la.id === lb.id && la.on && lb.on && la.destructible && !!pa && !!pb && pa.id === pb.id && pa.on, `the street lamps are lit, shootable and the same on both pages (${JSON.stringify([la, lb, pa, pb])})`);
+    // the client: 3 m east of the lane lamp, its real round
+    await until(A, () => [...window.__app.current.net.remotes.values()].length > 0, null, 8000, 'the host has the client');
+    await GB(() => { window.__app.current.player.forceAds = true; });
+    await until(A, () => [...window.__app.current.net.remotes.values()].some((r) => r.state?.mv?.dw === 2), null, 8000, 'the host sees the client drawn');
+    const cs = await fireAt(B, [12, 0.02, -66], lb, false);
+    assert(cs.fired === 1, `the client fires one round at the lane lamp (${JSON.stringify(cs)})`);
+    const outA = await until(A, (id) => window.__app.current.world.level.lights.lights[id].destroyed, la.id, 8000, 'host lamp out').then(() => true, () => false);
+    assert(outA, `the client's round on the lane lamp's pole top shoots it out on the host (${JSON.stringify(cs)}, lamp ${JSON.stringify(la)})`);
+    await until(B, (id) => { const l = window.__app.current.world.level.lights.lights[id]; return l.destroyed && !l.on; }, lb.id, 8000, 'the client sees the lane lamp dark');
+    const lv = (P, l) => P.evaluate((p) => window.__app.current.world.lightField.levelAt(p.x, 0.9, p.z), l);
+    const [va, vb] = [await lv(A, la), await lv(B, la)];
+    assert(Math.abs(va - vb) < 1e-3, `the light under the lane lamp agrees on both pages (host ${va}, client ${vb})`);
+    await GB(() => { window.__app.current.player.forceAds = false; });
+    // the host: 3 m east of the car-park lamp, its own round
+    const hs = await fireAt(A, [-31, 0.02, -62], pa, true);
+    const hOut = await GA((id) => window.__app.current.world.level.lights.lights[id].destroyed, pa.id);
+    assert(hs.fired === 1 && hOut, `the host's round on the car-park lamp's pole top shoots it out (${JSON.stringify(hs)})`);
+    await until(B, (id) => window.__app.current.world.level.lights.lights[id].destroyed, pb.id, 8000, 'the client sees the car-park lamp dark');
+    await GA(() => { window.__app.current.player.forceAds = false; });
   } catch (e) {
     failed = true;
     console.error(String(e));

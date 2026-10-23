@@ -259,4 +259,15 @@ describe('Sector Ops lamp sync (slice L, protocol 31)', () => {
     reg.destroy(0);
     expect(lampShotOk(reg, 0, o, d, 10, feet, 60)).toBe(false);
   });
+
+  it("(walk 4.72 S2) the host takes a client's round that lands on a street lamp pole just under its head", () => {
+    const reg = new LightRegistry();
+    const id = reg.add({ x: 9, y: 6, z: -66, destructible: true, fixture: { sx: 0.6, sy: 0.1, sz: 0.3, oy: 0 } }).id;
+    // the client's real `shot` (e2e probe on the 4.72 build): muzzle, direction to where it landed, that distance
+    const o = { x: 11.74, y: 1.56, z: -65.93 };
+    const b = { x: 9.15, y: 5.73, z: -65.99 };
+    const len = Math.hypot(b.x - o.x, b.y - o.y, b.z - o.z);
+    const d = { x: (b.x - o.x) / len, y: (b.y - o.y) / len, z: (b.z - o.z) / len };
+    expect(lampShotOk(reg, id, o, d, len, { x: 12, y: 0.02, z: -66 }, 60)).toBe(true);
+  });
 });

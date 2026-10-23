@@ -378,4 +378,24 @@ describe('light fixtures', () => {
     expect(rayBox(-1, 0, 0, 2, 0, 0, 0, 0, 0, 0.5, 0.5, 0.5)).toBeCloseTo(0.25, 5);
     expect(rayBox(-1, 2, 0, 2, 0, 0, 0, 0, 0, 0.5, 0.5, 0.5)).toBe(-1);
   });
+
+  it('(walk 4.72 S2) a round that lands on a street lamp pole just under its head breaks it; not lower, nor through a wall', async () => {
+    const { lightOnRay, LAMP_MOUNT_REACH } = await import('../src/world/lights');
+    const r = new LightRegistry();
+    // Saltmarsh Park's car-park lamp: a 6 m pillar (radius 0.15) with the head (0.6 x 0.1 x 0.3) centred on its top
+    const l = r.add({ x: 9, y: 6, z: -66, destructible: true, fixture: { sx: 0.6, sy: 0.1, sz: 0.3, oy: 0 } });
+    // the client's real round (e2e probe, 4.72 build): from the muzzle, landing on the pole 0.16 m under the padded head
+    expect(lightOnRay(r, 11.74, 1.56, -65.93, 9.15, 5.73, -65.99)).toBe(l.id);
+    // the same line stopped well down the pole: no
+    expect(lightOnRay(r, 11.74, 1.56, -65.93, 9.15, 5.89 - LAMP_MOUNT_REACH - 0.1, -65.99)).toBe(-1);
+    // a round landing beside the head's footprint (a wall next to it) at the same height: no
+    expect(lightOnRay(r, 11.74, 1.56, -65.93, 9.5, 5.8, -65.99)).toBe(-1);
+    // a wall lamp on the far face of a 0.2 m wall (head x 0.2..0.5): a round on the near face (x = 0) misses it
+    const w = r.add({ x: 0.35, y: 2.5, z: 4, destructible: true, fixture: { sx: 0.3, sy: 0.2, sz: 0.4, oy: 0 } });
+    expect(lightOnRay(r, -4, 1.5, 4, 0, 2.45, 4)).toBe(-1);
+    // a bare bulb on a bracket: a round landing 0.2 m under its sphere breaks it
+    const b = r.add({ x: 20, y: 3, z: 0, destructible: true });
+    expect(lightOnRay(r, 24, 1.5, 0, 20.05, 2.58, 0)).toBe(b.id);
+    expect(w.id).not.toBe(b.id);
+  });
 });
