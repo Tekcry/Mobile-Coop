@@ -284,7 +284,7 @@ Open PRs:
    CPU p95 < 12 (Epic, 24 guards); -artpol 1d34c348 (art + polish) start 13.4 / S4 12.1 / S5 13.1 / S3 10.6.
    Fixes: -perfg 057403f5 (frozen anim skip, merged guard gun; perfg-build.md) + -perfa 3f87166e (campus art merges,
    indoor cull 60 m; perfa-build.md). Checker PASS (perf-batch-check.md); merged: -artpol 4f66a5f8.
-   SENT ~19:35 to Test Runner at 4f66a5f8 (start / S3 / S4 / S5-worst, freeze on vs &guardfreeze=0, guard-cap,
+   2nd checker (AI rule) RUNNING perf-batch-check2.md. SENT ~19:35 to Test Runner at 4f66a5f8 (start / S3 / S4 / S5-worst, freeze on vs &guardfreeze=0, guard-cap,
    e2e-sectorops 1-6 + coop + stealth-ai; visuals: emissive dimming, car shadows, no pop at 58-60 m). In budget ->
    push -art to the -artpol head, merge master at train entry (master's animTier.ts vs our animFrozen.ts; enemy.ts
    animate-line conflict, perfg-build.md), message orchestrator + `gh pr edit 226 --add-label train-ready`.
@@ -295,7 +295,8 @@ Running / next - LR16 (Michael ~18:08-18:20; slices checks/lr16-plan.md + lr16-0
   map light tests red until LR16d / LR16g). LR16b soft cone / near term / torch beam + lamp slot overflow (>8 lamps
   per column vanish) RUNNING (lr16b-build.md). Then LR16t torch occlusion (walls + shut doors, all 4 torches), then
   LR16e penumbra, LR16-1 bounce fill, LR16g re-level, LR16h docs - all on -lr16 in order (same files).
-- -lr16c: LR16c lamp audit + LR16-2 framing RUNNING (lr16-lamp-audit.md) -> LR16d Sonnet lamp moves from that table.
+- -lr16c: LR16c DONE f80e11fc (lr16-lamp-audit.md: campusOps 26 / warehouseOps 28 / warehouse 2 flagged; bunker /
+  embassy parked, skipped). LR16d RUNNING (Sonnet): -lr16d campus S3-S5, -lr16dw warehouse S1-S3 (lr16d-*-build.md).
 - -lr16f: LR16f PCSS char shadows 8501a0c7, LR16-7 Low/Medium slots 0561be15, LR16-3 door / prop casters f16591bf. DONE.
 - -lr16v: LR16-6 vision polish 5ee3a270 DONE (G100 instant cut, G102 door ghosts).
 - One Opus checker for -lr16f + -lr16v + -lr16 (a, b) batch, laptop GPU request on the same commits in parallel;
@@ -308,5 +309,8 @@ Rules: message the orchestrator only at PR open / train-ready / blocked / needs 
 Sonnet builds from strict briefs; one checker per batch; tsc / vitest slot locks C:/NightShift/scratch/sr-slot-{1,2,3,4}.lock;
 every e2e E2E_GPU=1 on the LAPTOP only (Michael ~19:15: no desktop e2e; heavy.lock = builds / check only); start the checker
 and the laptop request on the same commit in parallel; train-ready = message + `gh pr edit <n> --add-label train-ready`.
-Never two agents on one file. Agents push with explicit refs (`git push origin <branch>`).
+Never two agents on one file. Agents push with explicit refs (`git push origin <branch>`). Michael ~19:25 (high effort):
+Opus brief-writer keeps the next 2-3 slices briefed (docs/sector-redesign/briefs/; RUNNING: LR16t / e / 1 / g / h+8,
+campus-art-next); two independent checkers on src/ai or src/net changes; Opus triage at once on any laptop failure;
+Opus fix rounds; questions for Michael come with a decision pack (prototype / sheets).
 ```
