@@ -3,6 +3,15 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 25 (2026-10-23 ~20:35; wins over SAVE 24 where they differ):**
+- ALL manual chains are finished; NO hand-run chains from now on (Orchestrator 20:26). Alone runs (perf, guard-cap,
+  sheets) go through the service: `request.mjs --sha <ref> --alone --step "<cmd>"` (runs after trains and PR suites).
+- SENT: #226 verdict as PR comment (at 4f66a5f8; head moved to 2276483a, rerun needed there); LR16 verdict to Sector Ops
+  (logic PASS; campus S5-worst CPU p95 13.3 Epic / 12.2 Medium, over 12). Guard AI s22game a74d27e2 2/2 PASS (status).
+- TRAIN 32 rerun on fff3b639 (4.81.0 version commit) started 20:30 sharded. Head 8a95a089 differs by 3 vitest files only:
+  a monitor copies a success status to 8a95a089 ("carried from fff3b639") so the service skips a second train. If
+  the session died first: post that status by hand (gh api statuses, context laptop-e2e).
+
 **Test Runner SAVE 24 (2026-10-23 ~20:10, new account; wins over SAVE 23 where they differ):**
 - TRAIN 32 25c712c9 PASS 43/43, status `laptop-e2e` success posted by the service. Sharded 564 s / 560 s (vs 666 s one
   slot JOBS=3); 873 s total incl. flake rerun e2e-ctcourse:4 ("timed out waiting for A8: N2 is at the grille stop
