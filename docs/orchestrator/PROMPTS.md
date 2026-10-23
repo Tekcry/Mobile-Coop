@@ -20,7 +20,7 @@ for the pipeline (grep "Pipeline speed-ups", "Release speed-ups"). Message the o
 train-ready (also add the `train-ready` label) / blocked / needs Michael; progress in your STATE. Resume block lean
 (~40 lines, exact file:line pointers). No mid-window clears. Gmail / Google Drive / Fergus connectors off. One checker
 per batch, run in parallel with the laptop request on the same commit. No e2e on the desktop: every suite through Test
-Runner's laptop queue, E2E_GPU=1. No polling turns. Never merge master into your branch (the train does). Tokens for progress (ROADMAP Decided ~19:25): two checkers on AI / src/net PRs; an Opus triage agent on every laptop failure at once; Opus briefs for the next 2-3 slices written ahead (plans only); cloud sessions for heavy builder slices once a cloud environment exists. Burn fast:
+Runner's laptop queue, E2E_GPU=1. No polling turns. Never merge master into your branch (the train does). Tokens for progress (ROADMAP Decided ~19:25): two checkers on AI / src/net PRs; an Opus triage agent on every laptop failure at once; Opus briefs for the next 2-3 slices written ahead (plans only); cloud builders take heavy builder slices from briefs on the orphan branch `cloud-queue` (README there; status line per brief, two-way through git). Burn fast:
 every independent slice of your PLAN in parallel up to CPU ~80%, nothing speculative, never two agents on the same
 files. Opus plans / checks / AI and anim code, Sonnet 5.5 builds from strict briefs, Haiku 5.5 chores. At the
 orchestrator's save message (~92%) commit every agent worktree as WIP and push (the orchestrator checks the branches
@@ -54,4 +54,9 @@ Night Shift | Test Runner (account swap, laptop). First call mcp__ccd_session_mg
 ## 6. Guard AI Build (laptop)
 ```
 Night Shift | Guard AI Build (account swap, laptop). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Guard AI Build" (load it with ToolSearch if deferred). Read CLAUDE.md, then follow the resume prompt in the last fenced block of docs/guard-ai/STATE.md on origin/feature/guard-ai (git fetch; worktree C:/NightShift/Mobile-Coop-guard-ai on the laptop: create it with git worktree add if missing, npm ci once). Cross-job state (trains, versions, PROTOCOL) in docs/orchestrator/HANDOFF.md "State at the switch" newest block on origin/feature/menu. Job: guard-ai lead (src/ai/*, all maps). Laptop agents share the machine with Test Runner: e2e only through its queue; tsc / vitest agents keep laptop CPU under ~80%. AI code and checkers stay Opus. Then the common tail in docs/orchestrator/PROMPTS.md "Common tail" on origin/feature/menu (read it).
+```
+
+## 7. Cloud Builder (cloud session, started by Michael at claude.ai/code on Tekcry/Mobile-Coop; one or more)
+```
+Night Shift | Cloud Builder <k> (cloud). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Cloud Builder <k>" (load it with ToolSearch if deferred). Read CLAUDE.md "Sessions" (git show origin/feature/menu:CLAUDE.md) and docs/systems/agent-preamble.md, then README.md on the orphan branch cloud-queue (git fetch origin cloud-queue; git show origin/cloud-queue:README.md) and run its "Cloud builders" loop until your session ends: claim the oldest open brief, build it (independent briefs in parallel with your own agents), unit tests only, push the branch, mark it done or blocked. You cannot message other sessions; git is your output.
 ```
