@@ -1788,12 +1788,17 @@ if (want(6)) {
       await tp(G, route[i][0], 0, route[i][1], 0);
       await sim(0.1);
     }
+    // (s6-c1-fix) this part runs the live rAF loop beside `sim`: every real frame between the evaluates steps up to 0.1 s
+    // more, so the 1.3 s check (hold 1.0 + cycle 0.3, the load at cycle 1.5) had 1.2 s of slack; a busy laptop GPU run
+    // used it and caught section 2 already in (["locked",true,12,1]). Only `sim` steps the sim through the cycle.
+    await G(() => { window.__app.loop.manual = true; });
     await tp(G, S[0].cp.x, S[0].cp.y, S[0].cp.z, S[0].cp.yaw);
     await sim(1.3);
     const cyc = await G(() => ({ d: window.__sector.debug(), n: window.__app.current.enemyMgr.enemies.length }));
     assert(cyc.d.conn === 'cycling' && cyc.d.nearLocked === true && cyc.n === 0 && cyc.d.live === -1, `C1 cycles: the near door locks, section 1 unloads (${JSON.stringify([cyc.d.conn, cyc.d.nearLocked, cyc.n, cyc.d.live])})`);
     await sim(3.2);
     const nx = await G(() => ({ d: window.__sector.debug(), obj: !!window.__app.current.interactables.items.find((x) => x.id === 's2-obj'), alive: window.__app.current.enemyMgr.alive }));
+    await G(() => { window.__app.loop.manual = false; });
     assert(nx.d.index === 1 && nx.d.id === 's2' && nx.d.phase === 'objective' && nx.d.live === 1, `section 2 loads behind the far door (${JSON.stringify([nx.d.index, nx.d.id, nx.d.phase, nx.d.live])})`);
     assert(nx.d.doors[0].far === false && nx.d.doors[0].seal.length === 1 && nx.d.doors[0].seal.every((x) => x === false), `C1's far door and the dock door unlocked (${JSON.stringify(nx.d.doors[0])})`);
     assert(nx.obj && nx.alive === 12, `section 2 loads with its objective and its 12 guards (${JSON.stringify([nx.obj, nx.alive])})`);
@@ -2978,6 +2983,109 @@ if (want(6)) {
     await probe('CR4 east face from the floor at (5.6, 34)', [5.6, 34.0], -PI / 2, [10.6, 34.0]);
     await probe('CR4-west face from the floor at (1.6, 34)', [1.6, 34.0], PI / 2, [-3.4, 34.0]);
     await probe('CR4 wall jump off the pod P2 west face', [4.2, 30.0], PI / 2, [2.9, 30.0]);
+  });
+}
+
+// (guard-ai S16, `--part=6`) guards hold fire at armour: written, not run (the slice brief). The NOC pair (S4 #14-15, on
+// the mezzanine at z 43, y 3.6) watch the hall through arm-noc, the armoured clear window (x -3.5..7.5, z 42, sill 4.6).
+// Seeded Math.random, sim-time steps. The player stands on the hall floor in front of the window, the pair are told
+// straight to combat: one of them sees him through the pane (sight is MASK.SIGHT, which clear armour passes), the fire
+// gate casts and finds the pane, and neither fires a round while he stands in the NOC over 10 s; each then repositions
+// (leaves the NOC by the stairs, or a cover spot with a clear line) or holds there (a leash), still alerted.
+if (want(6)) {
+  console.log('campus ops (S4, guard-ai S16): guards hold fire at armour (the NOC pair, arm-noc)');
+  await run(CAMPUS, async ({ G, sim }) => {
+    const S = await sections(G);
+    if (!(S.length >= 4 && S[3].id === 's4' && S[3].guards === 20)) {
+      console.log(`  guard-ai S16: section 4 is not the built one here (${JSON.stringify(S.map((s) => [s.id, s.guards]))}), skipped`);
+      return;
+    }
+    // seeded Math.random (mulberry32): the bursts, pauses and cover rolls replay
+    await G(() => {
+      let a = 0x516;
+      Math.random = () => {
+        a = (a + 0x6d2b79f5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    });
+    // frozen AI and no damage on the way in (campusS4Part's walk to section 4)
+    await G(() => { const g = window.__app.current; g.target.damageMul = 0; g.enemyMgr.update = () => {}; if (g.security) g.security.fixedUpdate = () => {}; if (window.__ctdev) window.__ctdev.fixedUpdate = () => {}; });
+    await sim(0.5);
+    for (let i = 0; i < 3; i++) {
+      await G(() => { const m = window.__sector; if (m.run.current.objective.kind === 'download') { m.run.downloading = true; m.run.download(999); } else m.run.objectiveDone(); });
+      await sim(0.3);
+      await tp(G, S[i].cp.x, S[i].cp.y, S[i].cp.z, S[i].cp.yaw);
+      await sim(4.6);
+    }
+    const d4 = await G(() => window.__sector.debug());
+    assert(d4.index === 3 && d4.id === 's4', `the run reaches section 4 (${JSON.stringify([d4.index, d4.id])})`);
+    // in the NOC: on the mezzanine behind the window (x -4..8, z 42..48, y 3.6)
+    await G(() => { window.__s16noc = (e) => e.pos.y > 3 && e.pos.z > 41.8 && e.pos.z < 48 && e.pos.x > -4 && e.pos.x < 8; });
+    const noc = await G(() => window.__app.current.enemyMgr.enemies.filter((e) => e.alive && window.__s16noc(e)).map((e) => e.id));
+    assert(noc.length >= 1, `the NOC pair stand in the NOC (${JSON.stringify(noc)})`);
+    // (S16 fix round, A88) the player on the hall floor in front of the window, picked with the AI still frozen so the pair
+    // stay at the window while spots are tried (alerted without sight they head for the stairs, and from the back of the NOC
+    // the sill hides the floor): each NOC guard runs his own sight pass (Enemy.perceive, the one update calls) and the first
+    // spot either sees him from is kept. The spots are the west aisle of the hall, clear of pod P1's roof (x -1..2.6, z
+    // 24..32, top 3.0) and the baskets B1 / B-N, far enough out that the sill (4.6) does not hide them; every line from the
+    // NOC to the hall floor crosses arm-noc, the only opening (tests/campusS4NocSight.test.ts pins the spots and the pane).
+    let spot = null;
+    for (const [x, z] of [[-2.5, 30], [-2, 31], [-1.5, 32], [-2.5, 29]]) {
+      await tp(G, x, 0, z, 0);
+      await sim(0.4);
+      const seen = await G((ids) => window.__app.current.enemyMgr.enemies.filter((e) => e.alive && ids.includes(e.id) && window.__s16noc(e)).map((e) => { e.perceive(); return e.los; }), noc);
+      if (seen.some(Boolean)) {
+        spot = [x, z];
+        break;
+      }
+    }
+    const me = await G(() => { const p = window.__app.current.player.position; return { x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2) }; });
+    assert(spot && me.y < 0.5 && me.z < 41, `a NOC guard at the window has a sight line to the player on the hall floor (Enemy.perceive; ${JSON.stringify([spot, me.x, me.y, me.z])})`);
+    // (S16 fix 2, A89) sim time only from here: the loop in manual mode (rAF frames render, never step the sim), so the
+    // steps below are the only sim time (1.5 s + 10 s, under `ALERT.lostSight` 12 s) and the seeded rolls replay. Without
+    // it every page round trip let rAF step the sim on in real time: on the first GPU run (2e51e7e6) the pair, out of
+    // sight in their cover, timed out of combat (lostSight) inside a nominal ~11 s.
+    await G(() => { window.__app.loop.manual = true; });
+    // the AI on, the pair straight to combat
+    await G((ids) => { const g = window.__app.current; delete g.enemyMgr.update; for (const e of g.enemyMgr.enemies) if (ids.includes(e.id)) e.alert(); }, noc);
+    const look = (ids) =>
+      G((ids) =>
+        window.__app.current.enemyMgr.enemies
+          .filter((e) => ids.includes(e.id))
+          .map((e) => ({ id: e.id, alive: e.alive, alerted: e.alerted, los: e.los, blocked: e.fireGate.blocked, casts: e.fireGate.casts, held: e.fireGate.heldTicks, rounds: e.roundsFired, noc: window.__s16noc(e), x: e.pos.x, z: e.pos.z, y: e.pos.y, state: e.state, level: e.level, t: +e.aware.t.toFixed(2), since: +e.sinceSeen.toFixed(2) })),
+      ids);
+    // alerted, through the update path: a guard still in the NOC sees him through the pane within 1.5 s
+    let sees = false;
+    for (let k = 0; k < 15 && !sees; k++) {
+      await G(() => window.__app.loop.stepHeadless(0.1));
+      sees = (await look(noc)).some((s) => s.noc && s.los);
+    }
+    assert(sees, `a NOC guard sees the player on the hall floor through the armoured window (sight passes clear armour; from ${spot})`);
+    const start = await look(noc);
+    const prev = Object.fromEntries(start.map((s) => [s.id, s.rounds]));
+    const at0 = Object.fromEntries(start.map((s) => [s.id, [s.x, s.z, s.y]]));
+    let intoGlass = 0;
+    let sawBlocked = false;
+    for (let k = 0; k < 100; k++) {
+      await G(() => window.__app.loop.stepHeadless(0.1));
+      for (const s of await look(noc)) {
+        if (s.noc && s.rounds > prev[s.id]) intoGlass += s.rounds - prev[s.id];
+        prev[s.id] = s.rounds;
+        if (s.blocked) sawBlocked = true;
+      }
+    }
+    const end = await look(noc);
+    assert(sawBlocked && end.some((s) => s.casts > 0 && s.held > 0), `the fire gate cast the line and held on the pane (${JSON.stringify(end.map((s) => [s.id, s.casts, s.held]))})`);
+    assert(intoGlass === 0, `no round into the armoured window from the NOC in 10 s (${intoGlass})`);
+    assert(end.every((s) => !s.alive || s.alerted), `the pair stay in combat: sight and the alert level unchanged (${JSON.stringify(end.map((s) => [s.id, s.alerted, s.level, `t ${s.t}`, `unseen ${s.since}`]))})`);
+    const how = end.map((s) => {
+      const a = at0[s.id];
+      const d = Math.hypot(s.x - a[0], s.z - a[1]);
+      return `${s.id}: ${!s.noc ? 'left the NOC' : d > 1.5 ? `moved ${d.toFixed(1)} m` : 'held'} (${s.state}, rounds ${s.rounds})`;
+    });
+    console.log(`  guard-ai S16: from (${spot}) ${how.join('; ')}`);
   });
 }
 
