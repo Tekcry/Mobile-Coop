@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~04:10: S25 round 3 1eb5644d (own resight assert was wrong; S25-SAI-TRIAGE.md) -> laptop s25-sai-fix3. S26 coop
+round 2 531a65e9 (radio alarm's response team re-located the client: block sets em.alarmRaised; S26-COOP-TRIAGE.md)
+-> laptop s26-fix4 (coop, netmove); s25 merged -> s26 f71ae5c7, laptop s26-sai (stealth-ai). Green -> label #266, #271.
+
 ~02:05: PR #281 feature/guard-ai-a3-calm 8559a357 (off master; A3 calm wait + trace, test only; not cherry-picked onto
 #254: the file postdates S23's base). CI green on #281 + #254 -> TRAIN-READY #281, #254, #264, #270, #272 (train after 40;
 keep both sides on an a3OfficeRange.mjs conflict). Temp worktrees -s23-train / -probe / -a3test removed (branches kept).
