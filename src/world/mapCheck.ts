@@ -1,5 +1,6 @@
 import type { MapLayout } from './mapDef';
 import type { SectorDef } from '../game/sectors';
+import { hyp2 } from '../core/mathx';
 
 /**
  * Map data rules (pure). Returns one message per broken rule, an empty list when the layout is clean.
@@ -35,10 +36,10 @@ export function checkSectorCrates(id: string, sectors: readonly SectorDef[]): st
       continue;
     }
     if (Math.abs(c.at[1] - s.start.y) > 0.3) out.push(`${id}: section ${s.id} crate is at y ${c.at[1]}, not on the start floor (y ${s.start.y})`);
-    const d = Math.hypot(c.at[0] - s.start.x, c.at[2] - s.start.z);
+    const d = hyp2(c.at[0] - s.start.x, c.at[2] - s.start.z);
     if (d < 1 || d > 3) out.push(`${id}: section ${s.id} crate is ${d.toFixed(2)} m from the start, must be 1.0-3.0 m`);
     for (const q of doors) {
-      const dd = Math.hypot(c.at[0] - q.p[0], c.at[2] - q.p[1]);
+      const dd = hyp2(c.at[0] - q.p[0], c.at[2] - q.p[1]);
       if (dd < 1.2) out.push(`${id}: section ${s.id} crate is ${dd.toFixed(2)} m from ${q.s} ${q.k} (${q.p[0]}, ${q.p[1]}), must be at least 1.2 m`);
     }
   }
