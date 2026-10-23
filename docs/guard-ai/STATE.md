@@ -305,22 +305,28 @@ behaviour code Opus; Sonnet only for tests / e2e scenarios / data from a strict 
 
 ## Resume prompt
 ```
-Night Shift | Guard AI Build - guard-ai: RESUME. Model Opus, effort high; clear context first.
-Folder C:/NightShift/Mobile-Coop-guard-ai, branch feature/guard-ai (git fetch; git status; branch guard before every
-write: CLAUDE.md "A job"). Read CLAUDE.md, docs/ROADMAP.md (origin/feature/menu if newer), docs/guard-ai/BRIEF.md,
-PLAN.md and this STATE.md. Continue from "Now" (top entry first): per slice worktree
-C:/NightShift/Mobile-Coop-guard-ai-s<n> (branch feature/guard-ai-s<n>, its own guard). Agents cut off by a swap leave
-WIP commits "WIP at the swap" on their branch: review `git show --stat HEAD` and the slice's report, then finish with a
-fresh Opus agent. Order: "Now" top entry first, then docs/guard-ai/slices/NEXT-BRIEFS.md: section 0 (agents cut
-off: s13, s15, s14 WIP; heavy.lock check) -> laptop verdict on s10 345fbb91 (PR #203 comment) -> train-ready message
-for #200-#203 -> (#208 S11 + S12 is open) -> start S14 (section 4) beside S13 / S15 up to CPU ~80% ->
-s13 <- s12, s15 <- s13 (+ s14), one checker for S13 + S15 (+ S14), one laptop run -> PRs -> S9 (section 5). Token rules: CLAUDE.md "Heavy-usage
-throughput" on master (message the orchestrator only at PRs / train-ready / blocked; no new tsc / vitest agent while
-desktop CPU >= 80%; at 95% no new agents, save by 98%, small work to 100%). The loop in docs/systems/session-method.md (implementer, fresh
-checker, at most 1 fix round per slice; subagents start from docs/systems/agent-preamble.md; slice detail in
-research/tactics-design.md and slices/S<n>-module.md). AI behaviour code and checkers Opus; Sonnet 5.5 only for tests /
-data from strict briefs. Every e2e run E2E_GPU=1: desktop lane (heavy2.lock, 4192, E2E_JOBS=1) when CPU allows, else
-message Night Shift | Character Build (branch, commit, suites). Message Night Shift | Orchestrator at each slice, hand-back
-and PR; push WIP and refresh this file after every hand-back. Log assumptions (BRIEF A-numbers, next free after the
-slices' A14-A25), no question dialogs.
+Night Shift | Guard AI Build - guard-ai: RESUME. Model Opus, effort high; fresh session.
+Folder C:/NightShift/Mobile-Coop-guard-ai, branch feature/guard-ai (git fetch; branch guard before every write:
+CLAUDE.md "A job"). Read CLAUDE.md ("Sessions", "Heavy-usage throughput" incl. token rules and the swap rule),
+docs/ROADMAP.md (origin/feature/menu if newer), then docs/guard-ai/STATE.md "Now" (top entry) and
+docs/guard-ai/slices/NEXT-BRIEFS.md (sections 0-5 = the work, in order).
+1. Section 0: agents cut off at the swap. Worktrees C:/NightShift/Mobile-Coop-guard-ai-s13 / -s14 / -s15 (branches
+   feature/guard-ai-s<n>): `git log --oneline -5` and slices/S<n>.md; a "WIP at the swap" head or no report = finish
+   with a fresh Opus agent from its brief (NEXT-BRIEFS 2 = S13, 3 = S15, 4 = S14). heavy.lock: if it names Guard AI
+   and no run of ours is alive, free port 4191 and delete it.
+2. Laptop verdict on s10 345fbb91 (Character Build reply or a PR #203 comment). Green -> one train-ready message to
+   Night Shift | Orchestrator for #200 S8 -> #201 S5b -> #202 S6 -> #203 S10 (stacked on #196, train 22).
+   Red -> fix on s10 (report slices/S10.md "Stack-tip e2e fix"), then merge s10 up into s12 (#208).
+3. #208 S11 + S12 is open (base s10). Its new e2e (stealth-ai helmet / armour, takedown gear) runs with the next tip.
+4. When S13 / S14 / S15 hand back: merge them onto one tip off s12 (fewest conflicts first; S12-CHECK note: stage gear
+   after placeSlot). One fresh Opus checker for S13 + S14 + S15, one laptop GPU run on the tip (e2e-stealth-ai,
+   e2e-sectorops all, e2e-takedown, e2e-ct-warehouse, e2e-course, e2e-ctcourse, e2e-coop), one PR per slice stacked
+   on #208, one message to the orchestrator.
+5. S9 co-op (NEXT-BRIEFS 5, protocol 32) once S12-S15 are on one tip.
+Rules: AI code and checkers Opus, Sonnet 5.5 for tests / data from strict briefs, Haiku chores. Parallel up to desktop
+CPU ~80%, never two agents on the same files, at most 3 tsc / vitest agents. Every e2e E2E_GPU=1: desktop lane
+(heavy.lock 4191, single suites, CPU < 80%) or Character Build on the laptop (branch, commit, suites). Message the
+orchestrator only at PR open / train-ready / blocked / needs Michael; progress goes in this file. A-numbers: S13
+A52-A59, S15 A60-A69, S14 A70+. No question dialogs; log assumptions in BRIEF.md. Save at 93-98%: WIP pushed in every
+agent worktree, this file current.
 ```
