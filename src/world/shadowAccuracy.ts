@@ -19,6 +19,7 @@
  *   (`torchDrawTerm`), not as Babylon lights whose range is the reach (the beam dimmed towards the wall it lands on).
  */
 import { LAMP_CONE_COS, LAMP_EXP, lampFalloffMode, lampTerm, LIGHT_GAIN, SPOT_EXP, type LampFalloff } from './lampMath';
+import { hyp3 } from '../core/mathx';
 
 let override: boolean | null = null;
 
@@ -134,7 +135,7 @@ export function torchDrawTerm(l: DrawTorch, x: number, y: number, z: number): nu
   const vz = z - l.z;
   const t = lampTerm(vx, vy, vz, l.radius, c ? c.dx : 0, c ? c.dy : -1, c ? c.dz : 0, c ? c.cosOuter : LAMP_CONE_COS, c ? SPOT_EXP : LAMP_EXP);
   if (t <= 0) return 0;
-  return t * torchCut(Math.sqrt(vx * vx + vy * vy + vz * vz), Math.min(l.reach ?? l.radius, l.radius));
+  return t * torchCut(hyp3(vx, vy, vz), Math.min(l.reach ?? l.radius, l.radius));
 }
 
 /** Write torch slot `slot` of the shader's torch uniforms (`null`, off or shot out: the slot empty). Allocation-free. */

@@ -39,7 +39,7 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   (`lampMath.matchLampFalloff`: the co-op host's `start.lf`, else the URL, else the setting; `GameState.lampFalloff`),
   before the level adds its lights, so the registry, the bake, the field (meter and guards) and the shaders
   (`lampMathGlsl()`; the `LAMP_PHOTO` define keeps the two modes' compiled effects apart) all read one mode; never
-  mid-match. Co-op: protocol 38 `start.lf`, the client's row locked to the host's. `?gfx=min` keeps Babylon's linear real
+  mid-match. Co-op: protocol 38 `start.lf`; in a match the row is locked to the match's mode (host and client); "Resume hosting" runs the dropped match's mode (`RejoinRecord.lf`). `?gfx=min` keeps Babylon's linear real
   lights for the picture (the field is photometric). Not adopted: `docs/lighting-review/PROPOSAL.md` section 7 (LR13),
   numbers in `docs/sector-redesign/checks/light-measure.md`; tests `tests/lampFalloff.test.ts`.
 - (shadow audit, PROTOTYPE, rides the LR13 toggle) `world/shadowAccuracy.ts`: on exactly when the match runs Realistic

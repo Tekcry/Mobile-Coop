@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { atlasSize, CHAR_SHADOW, CHAR_SHADOW_PRESET, charShadowSpec, coneCovers, FIT, fitCone, LampSlotPicker, tileX, tileY } from '../src/world/charShadowSet';
+import { atlasSize, CHAR_SHADOW, CHAR_SHADOW_PRESET, charShadowSpec, coneCovers, FIT, fitCone, fittedSpheres, LampSlotPicker, spheresHold, tileX, tileY } from '../src/world/charShadowSet';
 import { GRAPHICS_PRESETS, MIN_FEATURES, PRESET_IDS, qualityLevel } from '../src/core/quality';
 import { bytesPerCall } from './helpers/allocPerCall';
 
@@ -179,5 +179,26 @@ describe('LR14 cone fit', () => {
     const out = new Float32Array(FIT.size);
     expect(fitCone(0, 0, 0, new Float32Array(0), 0, out)).toBe(false);
     expect(fitCone(0, 1, 0, new Float32Array([0, 1, 0, 0.5]), 1, out)).toBe(false);
+  });
+
+  it('(lrpolish) a capsule is dropped only for a caster the map was fitted around', async () => {
+    // lamp at (0, 3, 0); caster A 2 m out (fitted), caster B with the lamp inside its sphere (skipped by fitCone)
+    const src = new Float32Array([2, 1, 0, 0.9, 0.2, 2.6, 0, 0.9]);
+    const dst = new Float32Array(8);
+    const k = fittedSpheres(0, 3, 0, src, 2, dst);
+    expect(k).toBe(1);
+    expect(spheresHold(dst, k, 2, 0.9, 0)).toBe(true);
+    // B's capsule stays (polish 4); a caster never listed - past MAX_SPHERES, or newly in reach - stays too (5, 6)
+    expect(spheresHold(dst, k, 0.2, 2.5, 0)).toBe(false);
+    expect(spheresHold(dst, k, -3, 1, 0)).toBe(false);
+    // nothing copied yet: nothing held
+    expect(spheresHold(dst, 0, 2, 0.9, 0)).toBe(false);
+    const bytes = await bytesPerCall((m) => {
+      for (let i = 0; i < m; i++) {
+        fittedSpheres(0, 3, 0, src, 2, dst);
+        spheresHold(dst, 1, 2, 0.9, 0);
+      }
+    }, 16, { n: 2000 });
+    expect(bytes).toBeLessThanOrEqual(16);
   });
 });

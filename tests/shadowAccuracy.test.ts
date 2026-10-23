@@ -304,4 +304,32 @@ describe('exact torch drawing (LR15)', () => {
     expect(TORCH_DRAW_GLSL).toContain(`c < ${TORCH_DRAW_SLOTS}`);
     expect(TORCH_DRAW_GLSL).toContain(TORCH_CUT_SOFT.toFixed(2));
   });
+
+  it('(lrpolish, LR15 polish 5) the rig: 1 shadow slot and 3 torches -> 1 shadowed, 2 drawn; fixes off: none drawn', async () => {
+    const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+    const { Scene } = await import('../src/core/babylon');
+    const { LightRig } = await import('../src/world/lightRig');
+    const { LightRegistry } = await import('../src/world/lights');
+    const run = (on: boolean): { drawn: number; buf: Float32Array } => {
+      setShadowAccuracy(on);
+      const scene = new Scene(new NullEngine());
+      const reg = new LightRegistry();
+      for (let i = 0; i < 3; i++) reg.add({ kind: 'flashlight', x: i * 2, y: 1.45, z: 0, radius: TORCH.radius, intensity: TORCH.intensity, color: [...TORCH.color], cone: makeCone(1, -0.2, 0, TORCH.outer, TORCH.inner), on: true, destructible: false, electric: false });
+      const rig = new LightRig(scene, reg);
+      rig.configure({ lights: 8, shadow: { sun: false, cascades: 0, sunSize: 0, casters: 1, size: 64, soft: false, charLamps: 0, charTile: 0 }, volumetric: false, minimal: true });
+      const buf = new Float32Array(TORCH_DRAW_SLOTS * TORCH_DRAW_STRIDE);
+      rig.setTorchDraw(buf);
+      rig.update(1, 0, 1.6, 0);
+      const drawn = rig.drawnTorches;
+      scene.getEngine().dispose();
+      return { drawn, buf };
+    };
+    const on = run(true);
+    expect(on.drawn).toBe(2);
+    // two slots filled (reach > 0), the rest empty
+    let filled = 0;
+    for (let s = 0; s < TORCH_DRAW_SLOTS; s++) if (on.buf[s * TORCH_DRAW_STRIDE + 3]! > 0) filled++;
+    expect(filled).toBe(2);
+    expect(run(false).drawn).toBe(0);
+  });
 });

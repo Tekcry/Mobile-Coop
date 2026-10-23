@@ -445,8 +445,9 @@ bool nsDoorBlocks(vec3 a, vec3 b, vec4 d0, vec4 d1) {
 }
 `;
 
-/** The volume mix (GLSL): per cell, the lamps in its 2 m column as the per-lamp loop lights them, without N.L. */
-const MIX_GLSL = `
+/** The volume mix (GLSL): per cell, the lamps in its 2 m column as the per-lamp loop lights them, without N.L.
+ *  Exported for the guard test that it holds `LAMP_MATH_GLSL` (the photometric `.replace`). */
+export const MIX_GLSL = `
 precision highp float;
 precision highp sampler3D;
 uniform highp sampler3D lampVis;
@@ -657,8 +658,9 @@ class LampVolume {
   }
 }
 
-/** The lamp loop (GLSL), shared by every material the plugin is on. */
-const LAMP_GLSL = `${LAMP_MATH_GLSL}
+/** The lamp loop (GLSL), shared by every material the plugin is on. Exported for the guard test that it holds
+ *  `LAMP_MATH_GLSL` (the photometric `.replace`). */
+export const LAMP_GLSL = `${LAMP_MATH_GLSL}
 uniform highp sampler3D lampVis;
 uniform highp sampler2D lampData;
 #ifdef LAMP_MOON
@@ -1063,8 +1065,9 @@ ${level('nsLampRaw')}
 #endif
 #ifdef LAMP_TORCH
   // (LR15) the flashlights without a shadow map, drawn as the light field sums them x their beam's cut; like Babylon's
-  // lights they join after the darkness curve
-  nsDynD += nsTorches(vPositionW, normalW) * surfaceAlbedo.rgb;
+  // lights they join after the darkness curve. (lrpolish) x directIntensity / PI, as Babylon's lights scaled them: 1 on
+  // the game's PI-intensity materials, 1 / PI on the levelBuilder glass (directIntensity 1)
+  nsDynD += nsTorches(vPositionW, normalW) * surfaceAlbedo.rgb * (vLightingIntensity.x * ${(1 / Math.PI).toFixed(7)});
 #endif
   finalDiffuse = max(nsStat, vec3(0.0)) * nsR + nsDynD;
   finalAmbient *= nsR;
