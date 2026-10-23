@@ -20,6 +20,7 @@ simulated full length, then cut above the elbow and finished with a rolled cuff)
 (trousers.py), boots (boots.py), gloves and work_gloves (gloves.py), jacket and work_jacket (field_jacket.py).
 """
 import argparse
+import gc
 import importlib.util
 import json
 import math
@@ -146,11 +147,18 @@ def run_stage(script, argv):
 def shirt_hem_z(work, op, part):
     """Lowest point of the tucked shirt's torso (Blender z, after the simulation): the trousers count it as a layer
     above this height."""
-    npz = np.load(os.path.join(work, f'{op}-{part}-sim.npz'))
     with open(os.path.join(work, f'{op}-{part}-sim.json'), encoding='utf-8') as f:
         names = json.load(f)['panelNames']
-    torso = np.isin(npz['panel_idx'], [i for i, n in enumerate(names) if n in ('front', 'back')])
-    return float(npz['sim'][torso, 2].min())
+    with np.load(os.path.join(work, f'{op}-{part}-sim.npz')) as npz:   # closed at once: Windows cannot delete open files
+        torso = np.isin(npz['panel_idx'], [i for i, n in enumerate(names) if n in ('front', 'back')])
+        return float(npz['sim'][torso, 2].min())
+
+
+def step_gap_mm(work, op, part):
+    """A sewn part's worst seam gap at the last settle frame, before the weld (Wren's check_garment limit: 10 mm)."""
+    with open(os.path.join(work, f'{op}-{part}-sim.json'), encoding='utf-8') as f:
+        gaps = json.load(f).get('seamGapByFrame') or []
+    return round(gaps[-1][2] * 1000, 1) if gaps else None
 
 
 def boot_top_z(work, op):
@@ -241,6 +249,8 @@ def add_rolls(op, part, roll, scale):
         pts = FT.smooth_polyline(V[lp], 4, True)
         nrm = FT.smooth_polyline(N[lp], 4, True)
         nrm = nrm / np.maximum(np.linalg.norm(nrm, axis=1), 1e-9)[:, None]
+        if float(np.einsum('ij,ij->', nrm, pts - pts.mean(axis=0))) < 0:   # outward, whatever the shell's winding
+            nrm = -nrm
         centre = pts + nrm * (r * 0.55)
         base = len(TV)
         FT.tube(TV, TF, centre, r, sides=10, closed=True, caps=False)
@@ -313,6 +323,7 @@ def main():
             else:   # a chain copy: the next layer opens its welded simulation (details never change it)
                 shutil.copyfile(os.path.join(work, f'{op}-{q}-sim.blend'), os.path.join(work, f'{op}-{q}.blend'))
         steps.append({'part': q, 'method': qs['method'], 'under': list(built), 'seconds': round(time.time() - ts, 1),
+                      **({'seamGapBeforeWeldMm': step_gap_mm(work, op, q)} if qs['method'] == 'sewn' else {}),
                       **({'options': opts} if opts else {})})
         built.append(q)
     finish(args, layers, kit, spec, part, base, op, work, out_dir, chain, steps, body_report, head_joined, s, frames, t0)
@@ -378,6 +389,9 @@ def finish(args, layers, kit, spec, part, base, op, work, out_dir, chain, steps,
     with open(stem + '.json', 'w', encoding='utf-8') as f:
         json.dump(report, f, indent=1, default=lambda o: o.tolist() if hasattr(o, 'tolist') else str(o))
     if not args.keep_work:
+        gc.collect()   # garment_details' np.load handle lives on in its dropped runpy namespace; free it first (Windows)
         shutil.rmtree(work, ignore_errors=True)
+        if os.path.exists(work):
+            print(f'guard garment: work folder {work} not fully deleted (a file is still open)')
     print(f"guard garment {base} {part}: {len(objects)} objects, {report['shownTris']} tris shown, chain "
           f"{','.join(chain) or '-'}, seam gap {report['seamGapBeforeWeldMm']} mm, {report['seconds']:.0f} s -> {stem}.blend")

@@ -43,6 +43,7 @@ LIFT = {'rand': 0.0008, 'toecap': 0.0009, 'counter': 0.0010, 'eyestay': 0.0014, 
 SLOT = {'quarter': 0, 'tongue': 0, 'collar': 0, 'toecap': 1, 'counter': 1, 'eyestay': 1, 'rand': 2}
 PRIO = {'rand': 7, 'tongue': 6, 'eyestay': 5, 'collar': 4, 'toecap': 3, 'counter': 2, 'quarter': 1}
 TWIN = {'eyestay', 'counter'}
+GUARD = False        # configure(): the guard bake (a measurement fallback in build_foot; never set on Wren's path)
 Z_TOP = 0.155        # x s: the shaft's top above the floor (configure() raises it for the guards' field boot)
 
 
@@ -625,6 +626,10 @@ def build_foot(ctx, side, out, store):
         nl += 1
     def hull_perim(zz):
         pts = W[:T_main * N_RING][np.abs(W[:T_main * N_RING, 2] - zz) < 0.003][:, :2]
+        if len(pts) < 3 and GUARD:   # guard: no shaft point in the band; measure the shaft ring nearest zz
+            ring_z = W[:T_main * N_RING, 2].reshape(T_main, N_RING).mean(axis=1)
+            t_ = int(np.argmin(np.abs(ring_z - zz)))
+            pts = W[t_ * N_RING:(t_ + 1) * N_RING, :2]
         if len(pts) < 3:
             return 0.0
         h = FT.hull2d(pts)
@@ -636,6 +641,9 @@ def build_foot(ctx, side, out, store):
         'girthAtHemM': round(hull_perim(0.104 * ctx['H'] / 1.68), 4), 'rings': T, 'lugs': nl,
         'pushedClear': int(moved.sum()), 'sliceVerts': int(len(shell) - n_before), 'toeWidthRatio': round(width_at(s_nose - 0.02) / max(width_at(s_ball), 1e-6), 3), 'throat': [round(float(s_Q), 4), round(float(z_Q), 4)],
     }
+    if GUARD:   # where the shaft's top rings really are (the top girth is measured 4 mm under z_top)
+        rz = W[:T_main * N_RING, 2].reshape(T_main, N_RING)
+        store['measure'][side]['shaftTopRingsZ'] = [[round(float(r.min()), 4), round(float(r.max()), 4)] for r in rz[-4:]]
 
 
 def build(ctx):
@@ -715,11 +723,12 @@ def _planar_uv(ob):
 # under the trousers' hem). One boots job per base serves every outfit there (lean: uniform_rolled and work).
 def configure(part, variant=None, prefix=None, **_):
     """Guard mode for this module copy (guard_garment.load_part)."""
-    global KIT, Z_TOP
+    global GUARD, KIT, Z_TOP
     if variant is not None:
         raise SystemExit(f'boots: no variants (got {variant!r})')
     if part != 'boots':
         raise SystemExit(f'boots: the part must be "boots" (build_garment reads boots-sim.json by that name), got {part!r}')
+    GUARD = True
     KIT = part
     Z_TOP = 0.175
 
