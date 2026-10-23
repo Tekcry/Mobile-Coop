@@ -9,10 +9,10 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   heavy-4192; the rest wait to race the service for the locks. Train 38 a242c158 was dispatched 13:09Z and sits in
   takeLock. Fix: Stop-ScheduledTask + Disable-ScheduledTask on every NightShift-chain-* (chain scripts only; the two
   active runs finish and free the locks). The auto mode classifier denied it here. Orchestrator told (~00:45).
-- Building (Opus agent, worktree Mobile-Coop-laptop-queue, local commits): Orchestrator batch (a) pendingTrains skips
-  heads with a failed auto-train/* status, (b) desktop takes trains when the laptop has made no claims for 10+ min
-  (train claims for both workers), (c) auto-train flags "laptop missing" 10 min after CI green, (d) takeLock logs
-  manual-lock waits. Next: fresh Opus checker, push to feature/laptop-queue (#252 rides train 39).
+- ~00:50: train 38 holds heavy-4189; old chain guardais12-f14b93af took 4192 (still racing). Blocker stands.
+- DONE: batch (a)(b)(d) pushed to feature/laptop-queue (#252, next train) 8279a48f..64a00d1a, Opus checker PASS,
+  vitest 42/42; (c) PR #277 (feature/auto-train-laptop-missing, worktree Mobile-Coop-auto-train-laptop-missing,
+  train-ready). The live service self-updates to 64a00d1a at its next idle pass (then it claims trains).
 
 **Test Runner SAVE 29 (2026-10-23 ~23:58, new account; wins over SAVE 28 where they differ):**
 - Service live: pid 45828 (started 23:18), holds heavy-4189 / heavy-4192 locks (live). No stale runs or locks; old
