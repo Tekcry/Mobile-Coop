@@ -77,7 +77,7 @@ working sets (shed, offices, warehouse, substation, pump house); sodium for A1's
 real outdoor fitting copied indoors). Colour is rendering only (`LightDef.color`); gameplay reads intensity.
 
 **The gallery glow.** The instructor gallery (y 4.5, house circuit 90, about 30 lamps) reads as a warm lit box from
-every set but lights none of them: each gallery lamp's radius stops 0.3 m short of its glazing plane (`spillsPast`),
+every set but lights none of them: each gallery lamp's reach stops 0.3 m short of its glazing plane (`spillsPast`; under LR16 the reach is the authored radius x 1.6, so radius <= (distance to glazing - 0.3) / 1.6),
 so the falloff is zero before the glass in the bake, the meter, the guards and the picture alike. The glazing itself is
 the kit's collision-only glass (passes light, blocks movement, bullets and guard sight). The gallery's coves and desk
 lights are the lit look; the instructors are static figures (no perception).
@@ -88,7 +88,7 @@ emergency lighting, real), the door status bars and exit signs (kit emissives, n
 non-maintained emergency bulkheads switching on with a cut (an inverse group): not needed for the read, and it would
 need N2 to drive two groups. Kept as a later option (section 6).
 
-**Engine budgets per set** (`MARLOW_LAMP_BUDGET`): at most 24 baked lamps per set, 8 per 2 m bake column
+**Engine budgets per set** (`MARLOW_LAMP_BUDGET`): at most 24 baked lamps per set, 24 per 2 m bake column (`LAMP_GRID_SLOTS`; 8 before LR16)
 (`LAMP_GRID_SLOTS`, `lampBake.ts:313-315`; `lampsPerColumn` estimates it before the bake), 200 in the map (planned
 ~150: sets ~103 with the lounge's 4 in A1, holding rooms 14, gallery 30, dock 2; today 31). The 48-light real pool (`MAX_REAL_LIGHTS`,
 `lightRig.ts:19`) is the unbaked path's only: with the bake the pool holds 4 moving lights (`BAKED_POOL`), so the
@@ -257,7 +257,7 @@ Light parity check, every set (the per-set light test and the e2e in section 5):
 **New (this agent, pure, Babylon-free, tested):**
 - `src/world/lighting/levels.ts`: `MARLOW_LEVEL` targets, `meterBand`, `lampLevel` (the registry's own formula),
   `bodyEstimate` (allocation-free), `poolIntensity` (solve a fitting's intensity for a pool), `coveRow`, `spillsPast`
-  (the gallery / glass rule), `lampsPerColumn` (the 8-per-column estimate).
+  (the gallery / glass rule), `lampsPerColumn` (the per-column estimate against `LAMP_GRID_SLOTS` 24).
 - `src/world/lighting/circuitSchedule.ts`: `CircuitSchedule`, the timed isolator core: press (cuts a ready circuit),
   step (cut -> restore -> re-arm -> ready, overshoot carried), event bits (`EV_CUT`, `EV_RESTORE`, `EV_WARN` at 5 s
   left, `EV_READY`), `remaining` for the objective line, `reset` for a restart, `setPhase` for a mirror. Typed arrays,
@@ -307,7 +307,7 @@ Light parity check, every set (the per-set light test and the e2e in section 5):
   `TORCH_DARK`, `COURSE_DARK`, `LIGHT`); zones; every set has a non-shot cut and holds its budget; the validator catches
   each planned mistake.
 - `tests/marlowLightingLevels.test.ts` (7): `lampLevel` equals `contribution`; `poolIntensity` solves a pool; a room cove
-  row reads >= 0.40 on 0.14 within 8 per column; a cut leaves standby (dark); `spillsPast`; `coveRow`; no allocation.
+  row reads >= 0.40 on 0.14 within the column budget (24); a cut leaves standby (dark); `spillsPast`; `coveRow`; no allocation.
 
 **Unit (slice 0 / per set, the builders):** the map test in section 4 step 5; per set in `tests/ctcourseLight.test.ts`
 (baked field, as today's file does): every lit pool >= 0.60, read floor >= 0.40, every pocket <= 0.22 crouched, the
