@@ -12,13 +12,13 @@ scratch/ctcore/push-resume.sh <abs file> <msg>. Message the orchestrator only at
 | --- | --- | --- | --- |
 | #214 batch 23 (+iPad fit, Anim Studio main menu only) | feature/ctcore-batch-23 (ctcore-batch) | 4f569e38 | + master f16600f5 (coop shot noise: SD_OPEN_NOISE on open rounds) + train/29 (38). |
 | #223 pose-parity | feature/pose-parity | 57b68268 | PROTOCOL 40 (one bump for the stack; asserts 40; net.test hello 39 refused / 40 joins). |
-| #231 coop-walk-fixes (walk P6-P7) | feature/coop-walk-fixes | bd55878b | PROTOCOL 40 tip. Laptop green on 0d7f04ce (coop) + d86007b5 (rest). CI watch running -> train-ready x3 for train 30. |
+| #231 coop-walk-fixes (walk P6-P7) | feature/coop-walk-fixes | bd55878b | PROTOCOL 40 tip. Laptop green on 0d7f04ce (coop) + d86007b5 (rest). CI pass x3, TRAIN-READY sent (train 30). |
 | anim-fix-pass (walk P1-P5; PLAN.md:7 maps P1-P7) | feature/anim-fix-pass | origin | AF0 / AF1 / AF2 / AF4a / AF5 merged (20a67cd7; AF1, AF4a checker PASS). AF3 running (afp-af3, node_modules junction to afp-af1). AF6 checker PASS 2bb1ba3f (polish: wall, lowerBody, test titles; AF6-CHECK.md). Merge into anim-fix-pass after laptop e2e-coop + netmove (brings the stack in). AF6 head b1de49f5 (merged 0d7f04ce); laptop e2e-coop + netmove requested. |
 
 ## Next
 1. AF3 hand-back -> checker (batch with AF4a / AF6) -> merge; then AF4b (animGraph, after AF3).
 2. AF4b brief adds: pistol grip back to 1.0 (crouchStrafe.test.ts:32), hip swing 4.6-4.9 cm, kneel knee-out 10 cm (AF4a-CHECK.md).
-3. CI green on 4f569e38 / 57b68268 / bd55878b -> train-ready x3. AF6 -> 41 when it merges into anim-fix-pass via the stack (scratch/ctcore/tests40.js renumbers asserts).
+3. Stack train-ready sent; renumber only if the orchestrator says so at the build. AF6 -> 41 when it merges into anim-fix-pass via the stack (scratch/ctcore/tests40.js renumbers asserts).
 4. Agent rules: scratch/ctcore/COMMON-27.md. Follow-ups: intel part B (onIntelCode); relay climber sub bit.
 
 ## Resume prompt
