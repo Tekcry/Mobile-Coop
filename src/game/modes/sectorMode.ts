@@ -13,6 +13,9 @@ import { flags } from '../../core/flags';
 import { reportGuardAi, validatePosts } from '../../ai/guardAiData';
 import { hyp2 } from '../../core/mathx';
 import { CtDevices } from '../ctDevices';
+import { responseTeam } from '../../ai/gear';
+import type { SweepTeam } from '../../ai/sweepTeam';
+import type { EnemyKind } from '../../ai/enemyDefs';
 import {
   CONN_LOAD,
   CONN_LOCK_NEAR,
@@ -81,6 +84,8 @@ interface Pending {
   /** (guard-ai S6) An alarm reinforcement (aggressive, told by command), and the entry route it runs in. */
   reinforce?: boolean;
   route?: readonly (readonly [number, number])[] | null;
+  /** (guard-ai S13) The response team it joins at spawn. */
+  team?: SweepTeam<Enemy> | null;
 }
 
 /** The doors of one connector, found by position at the start. */
@@ -561,6 +566,9 @@ export class SectorMode implements GameMode {
     // (guard-ai S6, S3-CHECK) the radio net serves the live section (its command call raises this section's alarm)
     if (em && s) em.setSection(i);
     if (em) em.setNoisy(s?.noisy ?? em.mapNoisy);
+    // (guard-ai S13, A37) the stage's gear for every guard this load places (the stage carried in, or the section's
+    // start stage on a restart: a restart drops what the dropped stage gave)
+    if (em) em.setAlarmStage(this.run.alarm, false);
     if (s && import.meta.env.DEV) reportGuardAi(s.id, validatePosts(s.guards, s.id));
     if (!s) return;
     this.slotEnemy.length = 0;
@@ -753,6 +761,8 @@ export class SectorMode implements GameMode {
       // (guard-ai S6, M1) aggressive, knows the last known position, runs its entry route in (after `placeSlot`, which
       // sets `tacticsProfile` first)
       if (p.reinforce) em.joinReinforcement(e, this.run.index, p.route ?? null);
+      // (guard-ai S13) into its response team (the shield guard spawns first: the pending order)
+      if (p.team) em.joinTeam(e, p.team);
       this.pending.splice(i, 1);
     }
   }
@@ -780,12 +790,21 @@ export class SectorMode implements GameMode {
     const stage = this.run.alarm;
     if (this.ct) this.ct.alarm = stage;
     if (stage > from && banner) g.hud.banner(`ALARM STAGE ${stage}`, send ? 'Reinforcements coming' : '', 2200);
+    // (guard-ai S13, item 4, A37) every living guard of the live section gets the stage's gear at once; no camera is
+    // added, woken or retuned (the devices only show the stage, as before)
+    const em = g.enemyMgr;
+    if (stage > from && em) em.setAlarmStage(stage);
     const s = this.run.current;
     if (s && stage > from) this.stageActions(from, stage);
     if (!s || !send) return;
     // (guard-ai S6, design 7) the stage's response route (E5, `reinforceSlot`: the guard's patrol) first; else the
     // section's entries (`SectorDef.entries`, with their run-in routes); else its reinforce points; taken in turn
     const ents = s.entries?.length && !s.stageActions?.some((a) => a.stage === stage && a.responseRoute?.length) ? s.entries : null;
+    // (guard-ai S13, items 3 and 11, A38) the stage's response team: a shield guard first, the rest armed guards (the
+    // same count, so the live cap holds); it sweeps the section after its search (the section's sweep list, else its
+    // route points and posts). Made with the first guard that has a slot (none: no team).
+    const nt = responseTeam(stage, send, this.teamKinds);
+    let team: SweepTeam<Enemy> | null = null;
     let n = 0;
     for (let i = 0; i < send; i++) {
       const en = ents ? ents[this.reinforceK++ % ents.length]! : null;
@@ -795,13 +814,38 @@ export class SectorMode implements GameMode {
         ? { kind: SECTOR_REINFORCE_KIND, x: en.at[0] + (i % 2) * 1.3, z: en.at[1], yaw: en.yaw ?? 0 }
         : reinforceSlot(s, stage, i, this.reinforceK++, SECTOR_REINFORCE_KIND);
       if (!slot) break;
+      // (S13) the team's kinds (a fresh slot either way)
+      if (i < nt) slot.kind = this.teamKinds[i]!;
       if (en?.y !== undefined) slot.y = en.y;
-      this.pending.push({ k: -1, slot, alerted: true, reinforce: true, route: en?.route ?? null });
+      if (!team && em && nt > 0) team = em.newTeam(this.run.index, s.sweep ?? null, ...this.sweepSource(s));
+      this.pending.push({ k: -1, slot, alerted: true, reinforce: true, route: en?.route ?? null, team });
       n++;
     }
     if (!n) return;
     this.reinforced += n;
     this.fill();
+  }
+
+  /** (guard-ai S13) Scratch for a response team's kinds. */
+  private readonly teamKinds: EnemyKind[] = [];
+  /** (guard-ai S13) Each section's sweep source (its guards' route points, and the stand posts of the guards without a
+   *  route; dogs left out), built the first time the section's alarm brings a team. */
+  private readonly sweepSrc = new Map<SectorDef, [readonly (readonly [number, number])[][], [number, number][]]>();
+
+  private sweepSource(s: SectorDef): [readonly (readonly [number, number])[][], [number, number][]] {
+    let v = this.sweepSrc.get(s);
+    if (!v) {
+      const routes: (readonly [number, number])[][] = [];
+      const posts: [number, number][] = [];
+      for (const q of s.guards) {
+        if (q.kind === 'dog') continue;
+        if (q.route && q.route.length) routes.push(q.route);
+        else posts.push([q.x, q.z]);
+      }
+      v = [routes, posts];
+      this.sweepSrc.set(s, v);
+    }
+    return v;
   }
 
   /** The extraction: the stinger, then the result line. */

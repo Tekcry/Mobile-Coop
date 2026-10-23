@@ -256,3 +256,83 @@ doesnt make sense". A32-A34 are S10's (on `feature/guard-ai-s10`).
 - **A51** (S12) The `deflect` hit marker is steel blue (`#8fb3d9`, `styles.css`) with a 2600 Hz ping (`sfx.hitMarker`);
   the HUD and sfx `hitMarker` signatures take the new kind. Undo: drop the CSS rule and the ping (falls back to the
   white hit marker).
+- **A52** (S13) A stage rise gives its gear to every living guard of the loaded section (Sector Ops loads one section)
+  on top of what he wears, so a guard whose own helmet was shot off gets a new one when stage 3 arrives. Undo: in
+  `EnemyManager.giveStageGear` skip the helmet for a guard who lost one (a flag set in `Enemy.knockHelmetOff`).
+- **A53** (S13) The sweep switches on when the team's leader (the first member up: the shield guard while he stands)
+  has searched `ALERT.searchTime`; members still searching follow him at once, a member in combat fights. The point
+  list is built at each switch from the last known position then (a sighting, the search, then a fresh order).
+  Undo: build once per team (`SweepTeam.begin` only when `switches === 0`).
+- **A54** (S13) Every pass starts at the team's own start point (`sweepStart`: team 0 at the point nearest the last
+  known position), so teams of different stages stay apart pass after pass. Undo: `this.start = 0` when `passes`
+  goes up in `SweepTeam.next`.
+- **A55** (S13) Followers stack on the leader's approach line (from the point back to him), rank x `SWEEP.gap`, jog
+  (0.6 x run speed) when more than 4.1 m off their place, and look the way he looks once there; the leader skips a
+  point his path cannot reach. A `SectorDef.sweep` list is used as given (only ordered, not thinned). Undo: `SWEEP.gap`;
+  pass `SWEEP.thin` for the override in `SweepTeam.begin`.
+- **A56** (S13) Sweep source: Sector Ops reads the section's guard list (route points, and the spawn point of each
+  guard with no route; dogs left out); other live maps read the guards placed in the alarm's section at the alarm
+  (dead ones included, dogs and team members left out). A woken team member takes his place back, counts as having
+  fought (never calms) and gets the stage gear. Undo: drop `e.aware.fought = true` in `EnemyManager.revive`.
+- **A70** (S14) An alert call (`missing` for a miss, `shots`) carries its own incident id (-2, -3, ...), apart from the
+  board's: the S2 pair lead's own `missing` report (board id) stays an ack and never makes anyone cautious, so taking
+  the caller during his call leaves the section calm even when another guard leads the search. When the caller also
+  leads, he holds two calls (both cut with him). Undo: start the alert call on the board's incident and drop the log
+  check in `radioDeliver` (the queue then merges the two calls' receivers under whichever completed first).
+- **A71** (S14) One `missing` call per radio check (several members missed in one check: one call, at the first one's
+  spot); the S10 pair miss calls too, also when the partner's guard is gone (the spot is his last route point). Each
+  missed member still counts in `missedChecks`. Undo: call per member in `radioCheckNow`.
+- **A72** (S14) "One call per shots incident" is the open call: loud shots heard while the shots call is going out join
+  it (the spot moves to the newest); once it is through or cut, the next loud shot heard is a new call, whose delivery
+  refreshes the caution. No refresh without a call. The caller is the nearest calm hearer (tier 1 or 2) whom this shot
+  does not send to combat; not a dog or melee guard, not passive, held or blinded, not on the search after a fight.
+  Undo: `SHOTS.sectionCall = false`.
+- **A73** (S14) The shots pair: the delivered call reports a board `shots` incident at the newest shot's spot with the
+  caller as a perceiver (`IncidentBoard.wantPair`): the lead walks over as an investigator (`sendTo`), the cover holds
+  `pairBack` short as the missing pair's cover; the cover is another perceiver, else a calm guard within `callR`, else
+  any free guard. Merged into a shots incident already assigned, its one investigator gets the cover. Undo:
+  `SHOTS.pair = false` (one goes, as before).
+- **A74** (S14) The section alert is the S4 caution 1 (cooldown sight, `PACE.cautious`, waits x `CAUTION.waitMul`, the
+  torch rule of a searching guard while calm); the caller is cautious too. A guard who goes down loses his timed alert
+  (woken: the S4 knockout caution). Undo: none needed (the caution model is S4's).
+- **A75** (S14) Section counters (`EnemyManager.sectionCounts`): `bodiesFound` (a guard found the body), `missedChecks`
+  (each member a check missed, each pair partner who never came, counted at the miss), `shotsCalls` (only calls that got
+  through), `radioAlarms` (a `command` call that raised the alarm); reset by `EnemyManager.clear` (section load via
+  `despawnAll`, restart via `resetMemory`). The older run tallies (`bodiesFound`, `radioMisses`, `pairMisses`) are
+  unchanged. Undo: not needed (read-only).
+- **A76** (S14) Barks: the radio check's "missed" line names the unit ("Unit three, report... Unit three? Nothing.";
+  slot + 1, else key + 1) and is urgent now (it follows his own "Radio check." at once; the cooldown dropped it before);
+  `shots` ("Shots fired! Calling it in.") at the call's start; radio lines `shotsReport` / `missingReport` when the call
+  gets through. Undo: drop `'missed'` from `URGENT`, call `bark('missed')` without the unit.
+- **A77** (S14) The co-op quiet shot (A46) uses `min(weapon def noise, 0.6)`: the host does not know a client's
+  suppressor mods, and a quiet shot is never louder than the suppressed cap. Undo: `SHOT_NOISE * 0.5` in
+  `CoopHost.remoteNoise`.
+- **A60** (S15) The breaker walk is calm: the guard keeps his level (unaware or cooldown; suspicious only if a glimpse
+  comes on the way, and the walk goes on once nothing is in sight); investigating or worse drops it. A fault is said
+  aloud ("Breaker's gone again.", a new `breaker` bark, not a radio line) and starts no radio call; the other witnesses
+  ack (look 3 s, up to 2 "Copy."). Undo: `this.ctx.radioCall?.(this, incident, 'light')` in `Enemy.resetBreaker`.
+- **A61** (S15) The `BREAKER.repeatT` clock runs from the last cut a guard noticed (a witness at the time or a late
+  find), on the board clock; a cut nobody saw opens nothing and starts no clock. Each press that leaves a circuit off
+  is a new cut (`cutSeq`); the same cut noticed again (seen at the time by guards who could not go, found late by
+  another) stays what it was first taken for, a fault or tampering, and does not restart the clock. Undo: record every
+  press in `EnemyManager.lightsOut` before the `n === 0` return in `circuitOut`; drop the `faultCut` test there to count
+  every notice as a new cut.
+- **A62** (S15) Late discovery looks with the focused cone only (no peripheral field: a fixture already dark is not a
+  bright change) within `LATE.range`, one line-of-sight ray, and only calm free guards (unaware or cooldown, no task;
+  not passive, held, melee, a dog, a high-security post or an alarm runner). A shot lamp found late sends him alone (the
+  one witness). The scan runs every 0.1 s over a round-robin share of the guards (~3 Hz each, `LATE_SCAN`). Undo:
+  `LATE.enabled = false`, or the peripheral field back in `EnemyManager.lateStep`.
+- **A63** (S15) Only a cut at a switch is a breaker fault: a circuit dark while its switches stay on (an isolator that
+  leaves the switches alone) keeps the S2 light incident, and the walk ends as soon as a lamp of the circuit is lit
+  again at its base (`BreakerHost.isOff`). A course mains gate's circuit (`MapLayout.course`: cutting it opens the gate)
+  is never a fault: `BreakerHost.isOff` and `reset` refuse it (`StealthSystems.mainsGroups`), so no guard turns it back
+  on and shuts the gate on the players (the S2 light incident at the switch, as before). marlow-final's timed isolator
+  is not on this branch: it gets the breaker walk if it sets its switches off (`StealthSystems.syncGroup(group, false)`)
+  when it cuts and back on when it relights, and passes its group to `lightsOut` so each cut counts as a new one (A61).
+  Undo: drop the `isOff` test in `EnemyManager.lightsOut`; empty `mainsGroups` to let guards reset mains circuits.
+- **A64** (S15) The walk ends at the walkable cell nearest the switch (`nearestWalkable`, 4 cells); he works it within
+  0.7 m and gives up after 30 s without getting there (`BREAKER_WALK` in `ai/breaker.ts`); his pace is `PACE.patrol`
+  (`PACE.cautious` while cautious). Undo: change `BREAKER_WALK`.
+- **A65** (S15 laptop fix) The breaker walker is the witness nearest the switch by path: no officer, cautious, role or
+  zone weight (a chore, not a check), so a map's lure guard by the panel / switch bank walks (`IncidentBoard.best`,
+  `incidents.ts:561`). Undo: drop the `K_BREAKER` branch there.

@@ -796,7 +796,8 @@ console.log('sector ops: co-op client mirrors the live section');
     const lvl = (P) => P.evaluate((p) => window.__app.current.world.lightField.levelAt(p.x, p.y - 2, p.z), sw);
     const [la, lb] = [await lvl(A), await lvl(B)];
     assert(Math.abs(la - lb) < 1e-3, `the light under the switched lamp agrees on both pages (host ${la}, client ${lb})`);
-    await GA(() => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === 'switch-0'); it.onUse(it, 'local'); });
+    // (guard-ai S15) a section guard who saw the cut may have turned it back on already (the breaker walk): press only while off
+    await GA(() => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === 'switch-0'); if (!g.stealth.switchOn(g.world.layout.switches[0].group)) it.onUse(it, 'local'); });
     await until(B, (id) => window.__app.current.world.level.lights.lights[id].on, sw.id, 8000, 'switched back on, the lamp is lit on the client');
     const locks = () => GA(() => window.__app.current.world.doors.list.filter((d) => d.anchor.locked).map((d) => d.index).join(','));
     const lk0 = await locks();
@@ -1888,14 +1889,29 @@ if (want(6)) {
     });
     assert(pn.k >= 0 && pn.on === 4 && pn.d0 > 9, `the reception panel is a switch on s2-atrium (3 pendants and the reception downlight lit), #1 stands ${pn.d0.toFixed(1)} m off it (${JSON.stringify(pn)})`);
     await G((k) => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === `switch-${k}`); it.onUse(it, 'local'); }, pn.k);
-    await sim(20);
+    // (guard-ai S15, A42; laptop fix 884b89c0) the cut is a breaker fault: #1, the witness nearest the panel by path, walks
+    // to it at his patrol pace and turns s2-atrium back on (master's light check sent a pair and left it dark): his
+    // nearest approach and the relight over 25 s of sim, half-second steps
     const pa = await G(([k, idx]) => {
       const g = window.__app.current;
       const sw = g.world.layout.switches[k];
       const e = g.enemyMgr.enemies[idx];
-      return { d: Math.hypot(e.pos.x - sw.pos.x, e.pos.z - sw.pos.z), alive: e.alive, on: g.world.level.lights.lights.filter((l) => l.group === 50 && l.on).length };
+      const lit = () => g.world.level.lights.lights.filter((l) => l.group === 50 && l.on).length;
+      const off = lit();
+      let task = -1;
+      let dMin = 1e9;
+      let back = -1;
+      for (let t = 0.5; t <= 25; t += 0.5) {
+        window.__app.loop.stepHeadless(0.5);
+        if (t === 0.5) task = e.breakerGroup;
+        dMin = Math.min(dMin, Math.hypot(e.pos.x - sw.pos.x, e.pos.z - sw.pos.z));
+        if (back < 0 && lit() === 4) back = t;
+      }
+      return { off, task, dMin, back, alive: e.alive, on: lit() };
     }, [pn.k, pn.idx]);
-    assert(pa.on === 0 && pa.alive && pa.d < pn.d0 - 6, `the panel cut s2-atrium and #1 walked to it (${pn.d0.toFixed(1)} m -> ${pa.d.toFixed(1)} m, lamps on ${pa.on})`);
+    await sim(0.1);
+    assert(pa.off === 0 && pa.task === 50, `the panel cut s2-atrium (lamps on ${pa.off}) and sends #1 to reset it (breaker task, circuit ${pa.task})`);
+    assert(pa.alive && pa.dMin < 2 && pa.back > 0 && pa.on === 4, `#1 walked to the panel and turned s2-atrium back on (${pn.d0.toFixed(1)} m -> ${pa.dMin.toFixed(1)} m, relit at ${pa.back} s, lamps on ${pa.on})`);
   });
 
   console.log('campus ops (S1): the feeder pillar board cuts s1-park-w; the west half goes dark');
@@ -2094,6 +2110,7 @@ async function campusS3Part(page) {
   assert(nv.fails.length === 0, `every walked S3 route leg has a nav path (${nv.fails.join('; ')})`);
 
   // (b) the lure: the player out of sight in the closed east annex, the AI on, the switch bank's row-1 breaker thrown
+  // ((guard-ai S15) a breaker fault: #16, the witness nearest the switch by path, walks to it and turns it back on)
   await tp(G, 58, 0, -20, 0);
   const lure = await G(() => {
     const g = window.__app.current;
@@ -3199,6 +3216,105 @@ if (want(1)) {
     const closed = r.rl0.map((d, i) => d - r.rl1[i]);
     assert(r.rl1.every((d) => d < 4) || closed.some((d) => d > minClose), `S6: they close on it along the route (${r.rl0.map(f2)} -> ${r.rl1.map(f2)} m in 8 s, need ${f2(minClose)} m; straight ${r.dl0.map(f2)} -> ${r.dl1.map(f2)} m; walk ${r.walk}, run ${r.run})`);
     assert(r.lv2.every((l) => l === 'alert' || l === 'searching' || l === 'down'), `S6: still hunting 38 s on (never calm: alertState pins the endless search) (${r.lv2})`);
+  });
+}
+
+// (guard-ai S13, stealth over shooting items 3, 4, 11; A37-A39) Response teams. Section 1 with its loaded guards, the
+// live panel off, the cameras held (their own clock: this checks the stage changes none of them), the player far off in
+// the dark (no damage), a last known position set in the section. Three alarms by the mode's own path (`onAlarm`):
+// stage 2 -> every living guard wears armour, stage 3 -> a helmet too; each stage's team leads with a shield guard
+// (`enforcer`, helmeted), perStage strong; the camera count and states never change. Then hide: after the search of the
+// last known position (`ALERT.searchTime`) the first team sweeps (it switches to the sweep and looks at sweep points),
+// and at 120 s every member is still hunting (searching or in combat), none calm. Sim-time steps only; Math.random
+// seeded (as e2e-stealth-ai 'lkp').
+if (want(1)) {
+  console.log('sector ops: response teams: stage gear, shield-led teams, the sweep after the search (guard-ai S13)');
+  await run(PARAMS, async ({ G, sim }) => {
+    await G(() => { const g = window.__app.current; g.target.damageMul = 0; if (g.security) g.security.fixedUpdate = () => {}; if (window.__ctdev) window.__ctdev.fixedUpdate = () => {}; });
+    await sim(0.5);
+    const S = await sections(G);
+    const r = await G((o) => {
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const m = window.__sector;
+      const nav = em.nav;
+      const V = g.player.position.constructor;
+      const step = (s) => window.__app.loop.stepHeadless(s);
+      window.__s13rnd = Math.random;
+      let seed = 1313;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      for (const p of em.alarms) p.disabled = true;
+      g['updateLight'] = () => (g.localRef.light = g.lightLevel = 0);
+      g.player.controller.teleport(new V(o[0] - 40, o[1], o[2] - 40), 0);
+      const c = nav.nearestWalkable(o[0], o[2], 6, o[1]);
+      const [x, z] = nav.center(c);
+      em.lkp.set(x, nav.height[c], z);
+      em.lkpValid = true;
+      em.sightT = 0;
+      const ct = m.ct;
+      const cams = () => JSON.stringify(ct.cams.map((k) => [k.def.id, k.mode, k.range, k.frozen, ct.live(k.def.id)]));
+      const cam0 = { n: ct.cams.length, s: cams() };
+      const living = () => em.enemies.filter((e) => e.alive && !e.dog);
+      const out = { stage0: m.run.alarm, perStage: g.world.map.sectors[0].perStage, cam0: cam0.n };
+      m.onAlarm();
+      step(0.6);
+      out.stage1 = m.run.alarm;
+      out.gear1 = living().map((e) => [e.helmet, e.armour]);
+      m.onAlarm();
+      step(0.6);
+      out.stage2 = m.run.alarm;
+      out.armour2 = living().map((e) => e.armour);
+      m.onAlarm();
+      step(0.6);
+      out.stage3 = m.run.alarm;
+      out.both3 = living().map((e) => e.helmet && e.armour);
+      out.teams = em.teams.map((t) => t.members.map((e) => e.def.kind));
+      out.shieldHelmet = em.teams.map((t) => t.members[0]?.helmet === true);
+      out.camN = ct.cams.length;
+      out.camSame = cams() === cam0.s;
+      out.ctAlarm = ct.alarm;
+      window.__s13 = { x, z, t: 1.8, firstSweep: -1, maxVisited: 0, lead0: null, moved: 0 };
+      return out;
+    }, S[0].obj);
+    // (the warehouse sections set no `gear` default and no slot tags: only the stage gives armour)
+    assert(r.stage1 === r.stage0 + 1 && r.gear1.every(([, a]) => !a), `S13: stage 1 brings a team, no stage armour yet (${JSON.stringify(r.gear1)})`);
+    assert(r.stage2 === r.stage0 + 2 && r.armour2.every(Boolean), `S13: stage 2: every living guard wears armour (${r.armour2})`);
+    assert(r.stage3 === r.stage0 + 3 && r.both3.every(Boolean), `S13: stage 3: every living guard wears armour and a helmet (${r.both3})`);
+    assert(r.teams.length === 3 && r.teams.every((t) => t[0] === 'enforcer' && t.length === r.perStage && t.slice(1).every((k) => k === 'grunt')), `S13: each stage's team leads with a shield guard, perStage ${r.perStage} strong (${JSON.stringify(r.teams)})`);
+    assert(r.shieldHelmet.every(Boolean), `S13: the shield guard always wears a helmet (${r.shieldHelmet})`);
+    assert(r.camN === r.cam0 && r.camSame && r.ctAlarm === r.stage3, `S13: no camera added, woken or retuned across the stages (${r.cam0} -> ${r.camN}, same states ${r.camSame}; devices show stage ${r.ctAlarm})`);
+    // hide: 10 s chunks to 120 s after the first alarm, the first team watched
+    let w = null;
+    for (let k = 0; k < 12; k++) {
+      w = await G(() => {
+        const em = window.__app.current.enemyMgr;
+        const s = window.__s13;
+        const t = em.teams[0];
+        for (let i = 0; i < 20; i++) {
+          window.__app.loop.stepHeadless(0.5);
+          s.t += 0.5;
+          if (t.sweeping && s.firstSweep < 0) s.firstSweep = s.t;
+          s.maxVisited = Math.max(s.maxVisited, t.visited);
+          const L = t.leader;
+          if (L && t.sweeping) {
+            if (!s.lead0) s.lead0 = [L.pos.x, L.pos.z];
+            s.moved = Math.max(s.moved, Math.hypot(L.pos.x - s.lead0[0], L.pos.z - s.lead0[1]));
+          }
+        }
+        const all = em.teams.flatMap((q) => q.members);
+        return { t: s.t, firstSweep: s.firstSweep, visited: s.maxVisited, moved: s.moved, switches: t.switches, count: t.count, lv: all.map((e) => (e.alive ? e.level : 'down')), lead: t.members[0]?.def.kind };
+      });
+    }
+    await G(() => {
+      const g = window.__app.current;
+      g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
+      if (window.__s13rnd) Math.random = window.__s13rnd;
+    });
+    const searchT = 60;
+    assert(w.count > 0 && w.firstSweep >= searchT, `S13: the team sweeps only after its search of the last known position (${searchT} s; first sweep at ${w.firstSweep} s, ${w.count} points)`);
+    assert(w.visited >= 1 && w.moved > 2, `S13: the team moves between sweep points (looked at ${w.visited}, the leader moved ${w.moved.toFixed(1)} m; switches ${w.switches})`);
+    assert(w.t >= 120 && w.lv.every((l) => l === 'searching' || l === 'alert' || l === 'down') && !w.lv.includes('cooldown') && !w.lv.includes('unaware'), `S13: still hunting at ${w.t} s, none calm (${w.lv})`);
+    assert(w.lead === 'enforcer', `S13: the shield guard still first in the team (${w.lead})`);
   });
 }
 

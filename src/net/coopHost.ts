@@ -1195,7 +1195,8 @@ export class CoopHost implements NetAttachment {
       if (st.f & PF.firing && t <= 0) {
         this.firing.set(r.id, 0.4);
         const quiet = (st.f & PF.quiet) !== 0;
-        if (quiet) em.hear(r.feet, SHOT_NOISE * 0.5);
+        // (guard-ai S14, A46) as in solo: SHOT_NOISE x the weapon's noise (9.8 m for the CT guns), at most the quiet cap
+        if (quiet) em.hear(r.feet, SHOT_NOISE * Math.min(WEAPONS[st.w].noise ?? 1, 0.6));
         else em.noise(r.feet, SHOT_NOISE * (WEAPONS[st.w].noise ?? 1));
       } else this.firing.set(r.id, t);
     }
