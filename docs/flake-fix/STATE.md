@@ -3,7 +3,27 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
-**Test Runner SAVE 19 (2026-10-23 ~18:55, new account; wins over all below):**
+**Test Runner SAVE 20 (2026-10-23 ~19:25; wins over all below; prompts carry no state from the next swap, so this
+block is the whole queue):**
+- Chains (scheduled tasks NightShift-chain-1023<x>-<slot>; logs runs/chain-1023<x>.log, results runs/<label>/summary.txt;
+  a chain whose log has no "done" line died: rerun its script C:/NightShift/scratch/chain-1023<x>.ps1):
+  - 4189 t31: TRAIN 31 f1864d3f full (JOBS=3) -> then t31b: e2e-guard-carry on train head 5ee209d8 -> ONE verdict to
+    Orchestrator (both results; on a fail: suite, assert, member area: menu / #240 carry / #229 S9 + #234 S22 net /
+    #243 settings / #239 optic cable). Note: S22-game 08586783 failed ctcourse:2 at A3 "cleaner walks toward office
+    1's switch" (also Marlow 053ff212): if train 31 fails there, name A3 lure (Marlow's test fix 16caeacd pending).
+  - 4192 gf4: Guard AI carry-fix2 d7a3b887 (guard-carry + stealth-ai, expect PASS "forced fault: injected") + its
+    guard-carry file on master 4f6db420 (expect FAIL "(forced)" pass) -> ONE verdict to Guard AI (on "the forced
+    fault fired" fail: that line + the "armed ..." line).
+  - 4192 mb2 (after gf4): section-rating 16caeacd ctcourse:2 + marlow-polish ecdd7b22 coop netmove sectorops -> ONE
+    verdict to Marlow Build.
+  - 4189 lr15c (after t31b + s22g + mb2, alone): LR15 perf campusOps sector Epic classic / photo on eb45b0af -> ONE
+    LR15 verdict to Sector Ops with: #242 1c22b913 sectorops 1-6 + coop PASS (227 s), lr15b suites PASS, sheet clean.
+- SENT this window: #226 perf (Sector Ops), #240 23cf567c PASS (Orch + Guard AI), S22-game verdict (Guard AI), #243 PR.
+- OWN JOB laptop-queue (orchestrator ~19:15): docs/laptop-queue/{BRIEF,PLAN,STATE}.md on feature/laptop-queue
+  (worktree C:/NightShift/Mobile-Coop-laptop-queue). S1 Sonnet build running from PLAN.md; next: Opus checker, live
+  overlap, PR. Its STATE.md has its own next steps.
+
+**Test Runner SAVE 19 (2026-10-23 ~18:55, new account):**
 - Runner fix: laptop-runner.ps1 now `git clean -fdq` before checkout (an untracked scripts/e2e-guard-carry.mjs in
   Mobile-Coop-testrun aborted guardcarryfix-48d049ad and the first 23cf567c try).
 - RUNNING (scheduled tasks, logs runs/chain-1023<x>.log):
