@@ -51,6 +51,19 @@ fresh bodies (`body.ts`) opt in; `?guardmerge=0` gives the old instanced parts f
   victim, lying without a ragdoll: the root itself rotates, so `lay` is fine) could cull a frame early at the screen
   edge. Ragdolls re-parent the joints, so they go always-active.
 
+## S6 (2026-10-23)
+What: per-cascade sun / moon shadow caster lists (S6a/S6b, exact) and guards leaving the moon cascades beyond 40 m
+(S6c/S6d, GUARD_SUN_REACH, 3 m hysteresis); `?guardsun=0` turns both off.
+Checker: PASS WITH NOTES (light parity clean). Findings fixed here: (1) the custom cascade render list is set only under
+the baked moon (Babylon re-prepares a custom list per cascade layer; without the baked moon the level is in it);
+(2) reach is measured from the player (`World.frame` focus), not the orbit camera; (3) body rigs register
+GUARD_SUN_REACH like a guard's corpse.
+Measure at c181002e (laptop GPU, alone; `run-s6-on`, `run-s6-off`): with 24 guards alert (spread out) frame 8.4 -> 8.1 ms
+on sectorops and 7.3 -> 6.5 on ctcourse; active meshes 639 -> 617 and 552 -> 503; draws 303 -> 271. Patrol / facing /
+away cells within run noise (+-0.5 ms). Render CPU: no regression on these baked-moon maps. Shadow map renders unchanged.
+Look change needing Michael's approval before S6d reaches master: past 40 m in moonlight a guard loses its ground shadow
+(blobs are off while sun shadows are on). The measured gain is small, so the job lead may drop S6c/S6d.
+
 ## Next
 1. Fresh checker for S1 (session-method), then Character Build on the laptop (port 4189, GPU alone):
    `E2E_GPU=1 E2E_PORT=4189 node scripts/guard-cap.mjs --maps=sectorops,ctcourse --counts=0,12,16,24 --cells=patrol,away,alert --out=docs/guard-render/run-s1`
