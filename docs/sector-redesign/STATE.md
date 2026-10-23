@@ -34,6 +34,12 @@
   sections unchanged); no `enforcer` in any section list (validateGuardAi rejects); optional `SectorDef.sweep?: [x, z][]`
   response-team sweep points. If armoured glass (E10) gets its own collision group, tell guard-ai. Do with E10 / after S11.
 - Guard-ai types are on master now: Next 4 (CAMPUS_POSTS -> slot post, validatePosts, E2 glass) is unblocked.
+- FROZEN (orchestrator ~12:xx): feature/sector-redesign stays at f29a43da for train 23 (#206); every later commit,
+  STATE included, goes on feature/sector-redesign-p3 (worktree -p3). PR 3 INTEGRATED: -p3 @ f96924e5 (s45 a6681b4e +
+  e9 ff0522ad; S4 / S5 crates; S4 #6 #20 officers, S5 #1-#4 grunts; section-tag room test; 810 tests; checks/merge-p3.md).
+  RUNNING: build + e2e-sectorops 1-6 + coop + netmove GPU + full vitest (scratch/runs/sectorredesign-f96924e5). Watch:
+  crates stand in the previous section's connector but are tagged with their own section (co-op prompt on arrival).
+  warehouseSectors.ts still lists 3 enforcers (guard-ai S12 changes them).
 - Orchestrator ~11:00: no mid-window clears (clear only past ~50% context); Gmail / Drive / Fergus connectors off.
 - S4 DONE (Sonnet): feature/sector-redesign-s4 @ ebbd5789 (checks/slice4-build.md). S5 DONE: -s5 @ f546db0d
   (checks/slice5-build.md). Data only, no nav code.
