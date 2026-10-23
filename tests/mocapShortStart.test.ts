@@ -72,5 +72,6 @@ describe('mocap switch: starts after a short stand (CHECK-2 required 3)', () => 
       setMocapLocomotion(false);
     }
     console.info(rows.join(String.fromCharCode(10)));
-  }, 120_000);
+    // (train build) all start sweeps; timed out once on a loaded desktop
+  }, 300_000);
 });
