@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~02:05: PR #281 feature/guard-ai-a3-calm 8559a357 (off master; A3 calm wait + trace, test only; not cherry-picked onto
+#254: the file postdates S23's base). CI green on #281 + #254 -> TRAIN-READY #281, #254, #264, #270, #272 (train after 40;
+keep both sides on an a3OfficeRange.mjs conflict). Temp worktrees -s23-train / -probe / -a3test removed (branches kept).
+Waiting: s25-sai-fix2 (923be420), s26-fix3 (c42e38f1) -> label #266, #271.
+
 ~01:45: A3 verdicts: s23-a3fix 829cffe1 PASS, probe (all=false) PASS, diag FAIL as expected -> S23 correct; the
 A3 scenario fix (cherry-pick 829cffe1 alone, + 5d1331fe trace) goes to Marlow / the train (orchestrator told).
 #254 / #264 / #270 / #272 relabel once that commit rides the same train.
