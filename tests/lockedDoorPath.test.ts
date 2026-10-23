@@ -150,6 +150,14 @@ describe('EnemyManager wiring', () => {
     expect(nav.findPath([-3, 0], [3, 0])).not.toBeNull();
     em.update(1 / 60);
     expect(nav.version).toBe(v0 + 2);
+    // lock then shut (courseMode.applyLocks, sectorMode.lockDoor): locked while open the doorway stays walkable; the
+    // shut (Doors.setOpen) closes it on the grid at once, no update between
+    d.target = 1;
+    d.open = 1;
+    ds.setLocked(d, true);
+    expect(nav.findPath([-3, 0], [3, 0])).not.toBeNull();
+    ds.setOpen(d, false);
+    expect(nav.findPath([-3, 0], [3, 0])).toBeNull();
   });
 });
 

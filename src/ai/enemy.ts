@@ -2138,12 +2138,14 @@ export class Enemy implements Damageable {
     const nav = this.ctx.nav;
     if (nav.lineClear(me, p, this.pos.y, y)) {
       this.routePath.length = 0;
+      this.routeMiss = false;
       return p;
     }
     this.routeT -= dt;
     const moved = !(hyp2(p[0] - this.routeGoal[0], p[1] - this.routeGoal[1]) < 1.5);
-    // (guard-ai S28) an unreachable goal is retried each `routeT` (or at once for a new goal / a grid change)
-    const retry = this.routePath.length === 0 && (!this.routeMiss || moved || this.routeT <= 0);
+    // (guard-ai S28) an unreachable goal is retried each `routeT`, or at once for a new goal (0.5 m off the missed one) or
+    // a grid change
+    const retry = this.routePath.length === 0 && (!this.routeMiss || this.routeT <= 0 || !(hyp2(p[0] - this.routeGoal[0], p[1] - this.routeGoal[1]) < 0.5));
     if ((moved && this.routeT <= 0) || retry || this.routeVer !== nav.version) {
       this.routeT = 1;
       this.routeVer = nav.version;

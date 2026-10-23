@@ -118,8 +118,8 @@ export class Doors {
   private s = new Vector3();
   private p = new Vector3();
   onSound: ((d: DoorState, how: DoorHow) => void) | null = null;
-  /** (guard-ai S28) A door's lock changed (`setLocked`): the guards' nav grid shuts or opens its doorway at once
-   *  (`EnemyManager`, `ai/lockedDoors.ts`). */
+  /** (guard-ai S28) A door's lock changed (`setLocked`), or a locked door was shut (`setOpen`): the guards' nav grid
+   *  shuts or opens its doorway at once (`EnemyManager`, `ai/lockedDoors.ts`). */
   onLocked: ((d: DoorState) => void) | null = null;
 
   constructor(
@@ -287,6 +287,8 @@ export class Doors {
     d.drift = 0;
     d.target = open ? 1 : 0;
     d.rate = 1 / (open ? DOOR.quietTime : DOOR.closeTime);
+    // (guard-ai S28) lock then shut (`courseMode.applyLocks`, `sectorMode.lockDoor`): the doorway shuts on the grid now
+    if (!open && d.anchor.locked) this.onLocked?.(d);
     // (closed: the body comes back when the leaf is shut, in `update`)
     if (open) {
       this.uncrackOpen(d);
