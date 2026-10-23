@@ -100,11 +100,14 @@ function postComment(pr, body) {
 const badSeen = new Set();
 /** Requests the other worker finished (a done claim): never read again. */
 const doneElsewhere = new Set();
+/** claims/ files on the branch at the last listRequests (0: the laptop has not marked its old requests done yet). */
+let claimCount = 0;
 
 function listRequests() {
   git(['fetch', '-q', 'origin'], { soft: true });
   const names = git(['ls-tree', '--name-only', 'origin/laptop-queue', 'requests/'], { soft: true }).split('\n').filter((n) => n.endsWith('.json'));
   const claims = new Set(git(['ls-tree', '--name-only', 'origin/laptop-queue', 'claims/'], { soft: true }).split('\n').filter(Boolean).map((n) => path.basename(n, '.json')));
+  claimCount = claims.size;
   const out = [];
   for (const n of names) {
     const id = path.basename(n, '.json');
@@ -129,13 +132,14 @@ const QREF = 'refs/remotes/origin/laptop-queue';
 const gitIdEnv = () => (git(['config', 'user.email'], { soft: true }) ? {} : { GIT_AUTHOR_NAME: 'laptop-queue', GIT_AUTHOR_EMAIL: 'laptop-queue@localhost', GIT_COMMITTER_NAME: 'laptop-queue', GIT_COMMITTER_EMAIL: 'laptop-queue@localhost' });
 
 /**
- * Writes claims/<id>.json for each id in one commit on top of origin/laptop-queue and pushes it (index in a temp file,
- * the checkout untouched); a lost push race refetches and retries (5 tries). An open claim (done false) is not written
- * when the fresh parent holds a claim that blocks this worker. Returns true when pushed.
+ * Changes claims/<id>.json for each id in one commit on top of origin/laptop-queue and pushes it (index in a temp file,
+ * the checkout untouched); a lost push race refetches and retries (5 tries). mode 'claim' (open; also refreshes this
+ * worker's own `at`) is refused when the fresh parent holds a claim that blocks this worker; 'done' marks finished;
+ * 'release' removes the claim (the run gave up). Returns true when pushed.
  */
-function writeClaims(ids, done, label) {
+function writeClaims(ids, mode, label) {
   if (ids.length === 0) return true;
-  if (DRY) { log(`dry-run: would push ${done ? 'done' : 'claim'} ${ids.length === 1 ? ids[0] : `${ids.length} ids`} (${WORKER})`); return true; }
+  if (DRY) { log(`dry-run: would push ${mode} ${ids.length === 1 ? ids[0] : `${ids.length} ids`} (${WORKER})`); return true; }
   const tmpIndex = path.join(os.tmpdir(), `lq-claim-${process.pid}`);
   const env = { GIT_INDEX_FILE: tmpIndex, ...gitIdEnv() };
   try {
@@ -143,16 +147,17 @@ function writeClaims(ids, done, label) {
       git(['fetch', '-q', 'origin', `+refs/heads/laptop-queue:${QREF}`], { soft: true });
       const parent = git(['rev-parse', '--verify', '-q', QREF], { soft: true });
       if (!parent) return false;
-      if (!done) {
+      if (mode === 'claim') {
         const have = parseClaim(git(['show', `${parent}:claims/${ids[0]}.json`], { soft: true }));
         if (claimBlocks(have, WORKER, Date.now(), CLAIM_MAX_MS)) { log(`${ids[0]}: claimed by ${have.worker}, skipped`); return false; }
       }
       fs.rmSync(tmpIndex, { force: true });
       git(['read-tree', parent], { env });
-      const at = new Date().toISOString();
-      for (const id of ids) {
-        const blob = git(['hash-object', '-w', '--stdin'], { input: `${JSON.stringify({ worker: WORKER, pid: process.pid, at, done })}\n` });
-        git(['update-index', '--add', '--cacheinfo', `100644,${blob},claims/${id}.json`], { env });
+      if (mode === 'release') {
+        for (const id of ids) git(['update-index', '--force-remove', `claims/${id}.json`], { env });
+      } else {
+        const blob = git(['hash-object', '-w', '--stdin'], { input: `${JSON.stringify({ worker: WORKER, pid: process.pid, at: new Date().toISOString(), done: mode === 'done' })}\n` });
+        git(['update-index', '--add', '--index-info'], { env, input: ids.map((id) => `100644 ${blob}\tclaims/${id}.json\n`).join('') });
       }
       const tree = git(['write-tree'], { env });
       const commit = git(['commit-tree', tree, '-p', parent, '-m', `${label} (${WORKER})`], { env });
@@ -166,12 +171,25 @@ function writeClaims(ids, done, label) {
   } finally { fs.rmSync(tmpIndex, { force: true }); }
 }
 
-/** Once per start (laptop): done claims for requests this worker finished before claims existed, in one commit. */
-function backfillDone() {
-  git(['fetch', '-q', 'origin', `+refs/heads/laptop-queue:${QREF}`], { soft: true });
-  const have = new Set(git(['ls-tree', '--name-only', QREF, 'claims/'], { soft: true }).split('\n').filter(Boolean).map((n) => path.basename(n, '.json')));
-  const ids = Object.keys(state.done).filter((id) => !have.has(id));
-  if (ids.length && writeClaims(ids, true, `backfill ${ids.length} done`)) log(`backfilled ${ids.length} done claim(s)`);
+/** Ids whose done claim is confirmed on the branch. */
+const doneSynced = new Set();
+
+/**
+ * Every pass: a done claim for each request in state.done whose claim is missing or still open (a failed done push,
+ * or requests finished before claims existed), all in one commit; retried next pass when the push fails.
+ */
+function syncDone() {
+  const todo = [];
+  for (const id of Object.keys(state.done)) {
+    if (doneSynced.has(id)) continue;
+    const c = parseClaim(git(['show', `${QREF}:claims/${id}.json`], { soft: true }));
+    if (c?.done) doneSynced.add(id); else todo.push(id);
+  }
+  if (todo.length === 0) return true;
+  if (!writeClaims(todo, 'done', `done ${todo.length === 1 ? todo[0] : `${todo.length} requests`}`)) return false;
+  todo.forEach((id) => doneSynced.add(id));
+  log(`done claim(s) pushed: ${todo.length}`);
+  return true;
 }
 
 /**
@@ -328,7 +346,8 @@ function failureComment(job, result, runDir) {
 function finish(job, ctx, result, runDir, prNumber) {
   const bad = result.suites.filter((s) => !s.ok && !s.flaky && !s.report);
   const ok = result.suites.length > 0 && bad.length === 0;
-  const desc = `${DESKTOP ? 'desktop: ' : ''}${result.suites.length ? describe(result) : 'no result parsed, see log'}`;
+  const full = `${DESKTOP ? 'desktop: ' : ''}${result.suites.length ? describe(result) : 'no result parsed, see log'}`;
+  const desc = full.length > 140 ? `${full.slice(0, 137)}...` : full; // GitHub rejects a status description over 140
   postStatus(job.sha, ok ? 'success' : 'failure', ctx, desc);
   if (!ok && prNumber && !DRY) postComment(prNumber, failureComment(job, result, runDir));
   times = mergeTimes(times, result.suites);
@@ -402,12 +421,14 @@ async function runRequest(r, port) {
   const locks = {};
   try {
     for (const p of ports) locks[p] = await takeLock(p, r.id, r.sha);
+    writeClaims([r.id], 'claim', `claim ${r.id} (lock taken)`); // fresh `at`: a long lock wait never looks like a dead worker
     postStatus(r.sha, 'pending', ctx, 'running');
     const prep = await prepare(ports[0], r.sha, path.join(runDir, 'prepare.log'));
     if (prep === 'fetch') {
       // not a verdict and not done: the claim is dropped and the next pass takes it again
       postStatus(r.sha, 'pending', ctx, 'fetch failed, retrying');
       log(`${r.id}: fetch failed, retried next pass`);
+      writeClaims([r.id], 'release', `release ${r.id}`);
       claimed.delete(r.id);
       return;
     }
@@ -451,7 +472,7 @@ async function runRequest(r, port) {
   } finally {
     for (const p of ports) { if (locks[p]) releaseLock(p, locks[p]); freePort(p); }
     writeJson('state.json', state);
-    if (state.done[r.id]) writeClaims([r.id], true, `done ${r.id}`);
+    if (state.done[r.id] && writeClaims([r.id], 'done', `done ${r.id}`)) doneSynced.add(r.id);
     log(`${r.id}: done`);
   }
 }
@@ -478,6 +499,7 @@ function dispatch(p) {
   const run = runRequest(p.request, p.slot ?? PORTS[0]).catch((e) => {
     log(`${p.request.id} service error: ${e.stack ?? e.message}`);
     postStatus(p.request.sha, 'error', contextName(p.request.kind, p.request.set, p.request.suites), 'service error, see log');
+    writeClaims([p.request.id], 'release', `release ${p.request.id}`);
     claimed.delete(p.request.id);
   });
   ports.forEach((x) => { busy[x] = run; });
@@ -503,10 +525,18 @@ function cpuLoad() {
 
 async function pass() {
   const queue = { trains: DESKTOP ? [] : pendingTrains().filter((t) => !claimed.has(t.sha)), requests: listRequests().filter((r) => !claimed.has(r.id)) };
+  // done marks first: a claim (which tells the desktop the laptop is on claims) never lands before them
+  if (!syncDone() && !DRY) { log('done claims not pushed: no new requests this pass (trains still run)'); queue.requests = []; }
   if (DESKTOP) {
     const backlog = queue.requests.length;
     queue.requests = queue.requests.filter((r) => r.kind === 'pr');
-    const why = busy[PORTS[0]] || queue.requests.length === 0 ? '' : desktopGate(backlog, cpuLoad(), DESKTOP_BACKLOG, DESKTOP_CPU);
+    let why = '';
+    if (!busy[PORTS[0]] && queue.requests.length > 0) {
+      // no claims yet: the laptop runs an older service and its finished requests are not marked; never rerun them
+      if (claimCount === 0) why = 'no claims on the branch yet (laptop service not updated)';
+      else if (fs.existsSync(SLOTS[PORTS[0]].lock)) why = 'heavy.lock held';
+      else why = desktopGate(backlog, cpuLoad(), DESKTOP_BACKLOG, DESKTOP_CPU);
+    }
     log(`queue: ${backlog} request(s), ${queue.requests.length} pr${why ? `; waiting: ${why}` : ''}`);
     if (why) return;
   } else log(`queue: ${queue.trains.length} train(s), ${queue.requests.length} request(s)`);
@@ -519,7 +549,7 @@ async function pass() {
     else {
       queue.requests = queue.requests.filter((r) => r !== p.request);
       // the other worker may have taken it since the list was read: skip it this pass
-      if (!writeClaims([p.request.id], false, `claim ${p.request.id}`)) continue;
+      if (!writeClaims([p.request.id], 'claim', `claim ${p.request.id}`)) continue;
     }
     const run = dispatch(p);
     if (DRY) (p.kind === 'request' ? [p.slot] : PORTS).forEach((x) => { virtual[x] = true; });
@@ -558,7 +588,6 @@ function selfUpdate() {
 async function main() {
   if (!DRY) takePidLock();
   log(`service start (${WORKER})${ONCE ? ' --once' : ''}${DRY ? ' --dry-run' : ''} in ${HERE}`);
-  if (!DESKTOP) backfillDone();
   if (ONCE || DRY) {
     await pass();
     await Promise.all(Object.values(busy).filter(Boolean));
