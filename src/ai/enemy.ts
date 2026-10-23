@@ -523,6 +523,7 @@ export class Enemy implements Damageable {
     if (def.quadruped) {
       // the dog: its own body on the shared brain; the humanoid rig stays hidden
       this.rig.root.setEnabled(false);
+      this.rig.standIn = true;
       this.gun?.dispose();
       this.gun = null;
       this.dog = new DogModel(ctx.scene, parts, def.look.colors.torso, def.look.colors.accent);
