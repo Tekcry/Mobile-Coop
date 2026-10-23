@@ -126,4 +126,4 @@ Total 265 tests in 13 files. Not run (brief / lead rules): `npm run check`, e2e,
 - Parity / render: every reader at rest + offset (`lightTerm`, `lampInto`, t0 + `spheres` via `writeSway` before
   `charShadows.frame`, one upload a frame, rig bodies / hangers, pooled light, haze); visibility and `lightOnRay` at
   rest; the picker's hold and per-frame refresh while `moving`; the hidden hangers on ctcourse only (canonical set
-  unchanged, the voxel cache key changes once since the rods are no longer level pieces).
+  unchanged; the ctcourse voxel cache key may change once if the voxel layer held the 4 cm rods: not checked).
