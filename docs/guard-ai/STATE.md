@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~17:25: walk check PASS 773f8f2b (S20 fix: doorway stall -> squeeze past, A127; WALK-CHECK.md polish list 1-6). walk <- s15
+6b65c3a5 = 906765a4 (407 unit). s9 <- s15 = f2fd1219, PROTOCOL 37 (A96). PRs OPEN: #229 S9, #230 walk (both base s15),
+#228 S16 (master). Test Runner: S16 fb192d45, s9 f2fd1219, walk 906765a4 (+ GPU sheet). Train-ready each on green.
+
 ~17:00: S9 1ad04058 GREEN 4/4 (coop, netmove, stealth-ai, takedown). s9 <- s15 6b65c3a5 conflicts in src/net (master is
 protocol 35): Opus agent merging, S9 -> protocol 37 (36 = pose-parity #223), A96. S16 merged 4.75.0 (58691dcb: gate field
 renamed `fireGate`, roleStep before the armour check) + check PASS fb192d45 (S16-CHECK.md); PR #228 OPEN to master;
@@ -440,17 +444,15 @@ git fetch. Laptop worktrees (all npm ci'd): C:/NightShift/Mobile-Coop-guard-ai (
 Read CLAUDE.md ("Sessions", "Heavy-usage throughput" incl. "Token rules"), ROADMAP "Decided" by grep only (Guard AI,
 unavoidable guards, stealth over shooting), then this file's "Now" (top 3 entries).
 e2e only via Test Runner's queue (4189 / 4192), all E2E_GPU=1; agents keep laptop CPU under ~80%. Target train 27.
-1. Stack #218 -> #219 -> #220 (S13-S15): GREEN, master 4.75.0 merged (s15 6b65c3a5), TRAIN-READY sent for train 27.
-   Watch the train verdict only; #218 base still s12 (orchestrator / Michael: `gh pr edit 218 --base master`).
-2. S9 co-op: 1ad04058 GREEN 4/4; merging s15 6b65c3a5 (master 4.75.0) -> protocol 37 (agent; S9.md "Merge 4.75.0").
-   Then Test Runner coop, netmove, stealth-ai, takedown on the new head; PR S9 base s15; A126 holster bit in `al` later.
-3. S16 = PR #228 (fb192d45, check PASS, Sector Ops told). Waiting on Test Runner (sectorops 6, stealth-ai,
-   ct-warehouse, ctcourse, tactics) -> TRAIN-READY. (feature/guard-ai-s16-wip is a stale save: Michael may delete it.)
-4. Walk batch S17-S21 = 2082f96b on feature/guard-ai-walk (WALK.md; A100-A126). Checker RUNNING: done =
-   slices/WALK-CHECK.md. Then Test Runner run (queued, full list), one batch PR (base s15 until the stack lands).
-   S21 GPU sheet (slung rifle / thigh pistol) on Test Runner's GPU lane.
-5. S22 console (G6): AI side on walk; game side (securityRoom.ts, courseMode.ts, sectorReset.ts) only after
-   marlow-final merges (Marlow Build: ours; its slice 10 owns the restart reset).
+1. #218 -> #219 -> #220 (S13-S15, s15 6b65c3a5): TRAIN-READY sent for train 27; #218 base still s12 (orchestrator).
+2. #228 S16 (fb192d45, master), #229 S9 (f2fd1219, protocol 37, base s15), #230 walk S17-S21 (906765a4, base s15):
+   checks PASS, Test Runner runs requested (S16: sectorops 6, stealth-ai, ct-warehouse, ctcourse, tactics; S9: coop,
+   netmove, stealth-ai, takedown; walk: stealth-ai, sectorops, ctcourse, course, ct-warehouse, stealth, tactics,
+   takedown, coop, netmove). Green -> TRAIN-READY each; red -> one Opus fix agent from the failing assert.
+3. Open: A126 co-op clients pose guards low ready (needs S21's holstered bit in S9's protocol 37 `al` once #229 and
+   #230 meet); WALK-CHECK.md polish 1-6; S16-CHECK.md polish.
+4. S22 console (G6): AI side + game side (securityRoom.ts, courseMode.ts, sectorReset.ts) after marlow-final merges
+   (Marlow Build: ours; its slice 10 owns the restart reset). Branch off walk.
 Rules: AI code and checkers Opus; Sonnet 5.5 tests / data from strict briefs; Haiku chores. Never two agents on the
 same files. Message the orchestrator only at PR open / train-ready / blocked / needs Michael; progress here. A-numbers:
 S16 A80-A89, S9 A90-A95, walk A100-A126 (next A127). No question dialogs; assumptions in BRIEF.md. At ~92%: WIP commit
