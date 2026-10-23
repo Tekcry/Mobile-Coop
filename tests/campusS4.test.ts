@@ -12,7 +12,7 @@ import { CAMPUS_COOP_LIPS } from '../src/world/maps/campusLips';
 import { S3_DOORS } from '../src/world/maps/campusS3';
 import { S4_BASKET, S4_BOX, S4_DECK, S4_DOORS, S4_FLIGHT, S4_GROUPS, S4_NOC, S4_PANEL_NEAR, S4_PANELS, S4_LASERS, S4_ROOMS, S4_COOP_LIPS, S4_PODS, S4_BOARDS } from '../src/world/maps/campusS4';
 import { S4_AMMO_CRATE, S4_ARMOURED } from '../src/world/maps/campusS4Data';
-import { CAMPUS_POSTS, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
+import { CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
 import { SECTOR, checkSectorGuards, checkSectors, exitZone, inZone, type SectorGuard } from '../src/game/sectors';
 import { checkStageActions, doorFinder, addDoorClosure } from '../src/game/sectorStage';
 import { DESK_POST_RADIUS } from '../src/game/sectorDesks';
@@ -216,7 +216,7 @@ describe('S4 guards (brief table)', () => {
     expect(G[14]!.pair).toBe(13);
     expect(G[18]!.role).toBe('posted');
     expect(G[18]!.zone).toBe('c4');
-    expect(CAMPUS_POSTS['s4#19']).toEqual({ leash: 5, guards: 'c4-gate' });
+    expect(G[18]!.post).toEqual({ leash: 5, guards: 'c4-gate' });
     expect(G.map((g) => g.squad)).toEqual([0, 0, 0, 1, 2, 2, 3, 3, 3, 3, 3, 4, 5, 2, 2, 4, 1, 1, 4, 3]);
   });
 
@@ -707,7 +707,7 @@ describe('K3 (M12): the colonnade sentry is an unavoidable posted guard at the C
       return (d <= PERCEPTION.focusRange && ang <= PERCEPTION.focusHalf) || (d <= PERCEPTION.periphRange && ang <= PERCEPTION.periphHalf);
     };
     const doorCell = nav.center(nav.cellOf(door[0], door[1], 0));
-    const leash = CAMPUS_POSTS['s4#19']!.leash;
+    const leash = post.post!.leash;
     expect(inCone(doorCell[0], doorCell[1]), 'the C4 door cell is not in the cone').toBe(false);
     expect(leash - hyp2(doorCell[0] - post.x, doorCell[1] - post.z)).toBeGreaterThanOrEqual(1);
     for (const [x, z] of [S4_DOORS.ccUps, S4_DOORS.battCC, S4_DOORS.hallCC]) {

@@ -37,8 +37,8 @@ export const S5_GUARDS: SectorGuard[] = [
   { kind: 'grunt', x: -36, z: 47, yaw: -PI / 2, route: [[-36, 47], [-53, 47]], faces: [-PI / 2, PI / 2], loop: LOOP, takedownSpot: [-35.5, 47], role: 'handler', zone: 'terrace', squad: 1, reason: 'Lake-side patrol' },
   { kind: 'dog', x: -36, z: 46, yaw: -PI / 2, route: [[-36, 46], [-53, 46]], faces: [-PI / 2, PI / 2], loop: LOOP, takedownSpot: [-35.5, 46], role: 'dog', zone: 'terrace', squad: 1, handler: 6, reason: 'At heel with the lake-side handler' },
   // 9-10 the token room's keyholders (K4): neither alone with the token
-  { kind: 'officer', x: -44, z: 34.0, yaw: PI, takedownSpot: [-44, 34.5], role: 'posted', zone: 'token', squad: 2, pair: 9, reason: 'Two-person rule: neither is alone with the token' },
-  { kind: 'officer', x: -42, z: 34.0, yaw: PI, takedownSpot: [-42, 34.5], role: 'posted', zone: 'token', squad: 2, pair: 8, reason: 'Two-person rule: neither is alone with the token' },
+  { kind: 'officer', x: -44, z: 34.0, yaw: PI, takedownSpot: [-44, 34.5], post: { leash: 3, highSecurity: true, guards: 'token' }, role: 'posted', zone: 'token', squad: 2, pair: 9, reason: 'Two-person rule: neither is alone with the token' },
+  { kind: 'officer', x: -42, z: 34.0, yaw: PI, takedownSpot: [-42, 34.5], post: { leash: 3, highSecurity: true, guards: 'token' }, role: 'posted', zone: 'token', squad: 2, pair: 8, reason: 'Two-person rule: neither is alone with the token' },
   // 11 the audit escort
   { kind: 'officer', x: -45.2, z: 33.0, yaw: PI / 2, route: [[-45.2, 33.0], [-40.8, 36.2], [-39.0, 34.0]], waits: [4, 4, 4], takedownSpot: [-39.0, 34.3], role: 'escort', zone: 'ante', squad: 2, reason: 'Escorts the audit papers; alone at the shaft door' },
   // 12 the front door
@@ -66,12 +66,6 @@ export const S5_GUARDS: SectorGuard[] = [
   // 24 the clocking round
   { kind: 'officer', x: -35, z: 37.2, yaw: PI, route: [[-35, 37.2], [-35, 19.6]], waits: [3, 3], takedownSpot: [-35, 37.6], role: 'tour', zone: 'back', squad: 5, reason: 'Clocking round of the back stair door and the hall door' },
 ];
-
-/** (M12, K4) The two keyholders' posts: `leash` m from the post, `guards` the choke they hold. Keyed `s5#<guard, 1-based>`. */
-export const S5_POSTS: Record<string, { leash: number; highSecurity?: boolean; guards: string }> = {
-  's5#9': { leash: 3, highSecurity: true, guards: 'token' },
-  's5#10': { leash: 3, highSecurity: true, guards: 'token' },
-};
 
 /** The ways in (M8): stealth by the back corridor, the side door and the garden; loud by the hall, the kitchen and the terrace gate; high by the service stair, the roof and the rappel. */
 /** The stealth route's exit from the strongroom door to the jetty (shared by the high route). */

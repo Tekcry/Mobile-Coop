@@ -61,18 +61,10 @@ export const S4_GUARDS: SectorGuard[] = [
   { kind: 'grunt', x: 31.8, z: 18.6, yaw: -PI / 2, route: [[31.8, 18.6], [16.2, 20.4]], loop: DOCK_LOOP, takedownSpot: [31.8, 18.6], role: 'dock', zone: 'dock', squad: 1, reason: 'Unloads the 03:00 drives (staggered, A89)' },
   { kind: 'grunt', x: 16.2, z: 18.6, yaw: PI / 2, route: [[16.2, 18.6], [31.8, 20.4]], loop: DOCK_LOOP, takedownSpot: [16.2, 18.6], role: 'dock', zone: 'dock', squad: 1, reason: 'Unloads the drives; alone at the shelf end each trip' },
   // 19 the colonnade sentry (K3, M12): posted at the C4 gate, facing east, the C4 door 1.5 m behind him
-  { kind: 'grunt', x: -8.5, z: 29, yaw: PI / 2, takedownSpot: [-9.0, 29], role: 'posted', zone: 'c4', squad: 4, reason: 'The Old House is closed tonight: nobody goes down the colonnade' },
+  { kind: 'grunt', x: -8.5, z: 29, yaw: PI / 2, takedownSpot: [-9.0, 29], post: { leash: 5, guards: 'c4-gate' }, role: 'posted', zone: 'c4', squad: 4, reason: 'The Old House is closed tonight: nobody goes down the colonnade' },
   // 20 the mobile supervisor: the hall's west aisle, visiting the battery, colonnade and UPS doors
   { kind: 'officer', x: -2.5, z: 23.0, yaw: 0, route: [[-2.5, 23.0], [-2.5, 39.5]], waits: [3, 3], takedownSpot: [-2.5, 23.0], role: 'supervisor', zone: 'hall-w', squad: 3, reason: 'Mobile supervisor: visits the battery, colonnade and UPS doors' },
 ];
-
-/**
- * (M12, K3) Posted-guard data until guard-ai's `post` block lands on `SquadSlot`: keyed `s<section>#<guard, 1-based>`. `leash` m
- * from the post, `guards` the choke it holds (the C4 near door, 1.5 m behind him inside the leash circle).
- */
-export const S4_POSTS: Record<string, { leash: number; highSecurity?: boolean; guards: string }> = {
-  's4#19': { leash: 5, guards: 'c4-gate' },
-};
 
 /** The exit legs every S4 route shares from the objective: the cage front, the build-out area, the UPS room, the colonnade, C4. */
 const EXIT: readonly RoutePt[] = [[18.0, 34.8], [16.6, 33.2], [12.6, 35.5], [5.0, 36.0], [-2.6, 38.0], [-5.4, 38.0], [-7.0, 33.0], [-7.0, 30.9], [-7.6, 29.5], [-9.4, 29.0], [-11.0, 29.0], [-18, 29]];
