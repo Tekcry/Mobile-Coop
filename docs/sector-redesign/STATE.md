@@ -274,58 +274,39 @@ Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md pol
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (self-contained; saved 2026-10-23 ~21:25, swap). Job sector-redesign (lead),
+Night Shift | Sector Ops Build: RESUME (self-contained; saved 2026-10-23 ~22:10, swap). Job sector-redesign (lead),
 worktree C:/NightShift/Mobile-Coop-sector-redesign-polish (feature/sector-redesign-polish: STATE / PLAN / checks / briefs).
-git fetch; read CLAUDE.md; ROADMAP Decided (grep only): "Lighting everywhere", "Campus detail art", "Pipeline speed-ups",
-"Tokens for progress"; PLAN.md "LR16". Laptop runs: node scripts/laptop-queue/request.mjs (from origin/feature/laptop-queue
-until #252 merges; copy request.mjs + lib.mjs to scratch) --sha <ref> --suites "a b" --requester "Night Shift | Sector Ops
-Build"; verdict = GitHub status laptop-e2e; alone perf: --alone --step "<cmd>".
+git fetch; read CLAUDE.md; ROADMAP Decided (grep only): "Lighting everywhere", "Moving lights", "Campus detail art",
+"Tokens for progress"; PLAN.md "LR16". Laptop runs: copy scripts/laptop-queue/request.mjs + lib.mjs from origin/master
+to scratch; node <scratch>/request.mjs --sha <sha> --branch <b> --suites "a b" --requester "Night Shift | Sector Ops
+Build"; verdict = GitHub status laptop-e2e/<set>; queue = origin/laptop-queue requests/ (laptop service must be restarted
+by Michael before it claims; at 21:28 nothing claimed).
 OPEN PRs
-1. #226 campus art (target head -artpol 72e87171 = art + polish + perfg + perfa, checkers PASS). WAITING Test Runner perf
-   (S5-worst etc., budget CPU p95 < 12). Pass -> push -art to -artpol; at train entry merge master (fold animFrozen.ts into
-   master animTier.ts) + artnext C7-C9; label train-ready + message. Fail -> Opus triage.
-2. #242 LR15 TRAIN-READY 26f50415 (master 4.81.0 merged) for train 33.
-LR16 (one lighting system; plan checks/lr16-plan.md, audit lr16-0-ct-audit.md)
-- lr16int 6eb6a863 = LR16a/b/f/7/3/v/d + h docs + dx (7273be19) + e (603a36c3) + t (5700dff5, recheck PASS). tsc clean,
-  138 light / torch tests pass. Known map-light reds 15 -> LR16g.
-- LR16-1 bounce (-lr16-1): checker FIX (bleed through off-centre walls) -> Opus fix round running (face bits, field +
-  shader same maths; report lr16-1-build.md "Fix round"). Done -> lead recheck (or 1 Opus recheck), merge into lr16int:
-  LAMP_VERSION 4; lampBake.ts bakeOne(..., sb, pen) inside LR16-1 t0/t1; keep both appended lightField tests; bakedLamps
-  uniform lines keep both (torch atlas); re-count samplers <= 16. Then laptop run on lr16int (lightbake darkness desktop
-  sectorops stealth-ai ctcourse coop netmove) + LR16g (brief briefs/LR16g.md, refreshed by planner ~21:15).
-- RESUMED ~21:30 (new account): old agents died at the swap; their worktrees committed as WIP and pushed:
-  -lr16-1 cc273698 (face-bit fix mid-way), -lr16-5 fa676c57 (lampFlicker.ts + tests mid-way). RUNNING (Opus): LR16-1 fix
-  round from cc273698 (report lr16-1-build.md "Fix round"); LR16-5 builder from fa676c57 (lr16-5-build.md); artnext
-  checker (ABD 3ebc5e1e + C 56557b58, cloud-built, done) in worktree -artnext-chk (artnext-check.md there, untracked);
-  LR16-5b brief DONE (briefs/LR16-5b.md: wire event sway + shot target, needs a PROTOCOL number from the orchestrator
-  when the build starts; pendants matched by position, A2 / A4 ones depend on #257). If dead on resume: rerun
-  from these lines. Laptop: lr16int 6eb6a863 full LR16 set queued (...6eb6a863-f2e8); queue at 21:28 = 27 requests,
-  laptop service not claiming yet (old service; Michael restarts it).
-- lr16int 961ca660 = 72ad3d4a (LR16-1 merged, LAMP_VERSION 5, reds 13, lr16int-merge-1.md) + LR16-5 (clean merge, 167
-  tests). Laptop full LR16 set on 961ca660 queued (...961ca660-9185; supersedes the 6eb6a863 set). LR16g BUILDING (Opus,
-  -lr16g worktree off 961ca660, lr16g-build.md). LR16-1 recheck still running on 666b2a17: a FIX lands on lr16int.
-- LR16-1 FIX ROUND DONE 666b2a17 (wall bits, behind-wall bounce 0.000 at all offsets; LAMP_VERSION 4; reds 13 same).
-  RUNNING: Opus recheck (detached -lr16-1-chk, lr16-1-recheck.md there) + Opus integrator merging it into lr16int
-  (checks/lr16int-merge-1.md). Both done -> laptop full LR16 set on the merged lr16int, then LR16-5 merge, then LR16g.
-- LR16-5 checkers A + B PASS (da69b884; A polish 4: e2e-darkness may pick a probe during a warehouse tube burst -
-  freeze flicker in that suite if it flakes). LR16-5 BUILT bb47a985 (no wire change; lr16-5-build.md). RUNNING: two Opus checkers A (parity / render) and B
-  (net / determinism) in detached worktrees -lr16-5-chka / -chkb (reports lr16-5-check-A.md / -B.md there, untracked;
-  remove junctions with `cmd //c rmdir` before deleting the worktree). Laptop on bb47a985 queued (...bb47a985-c170:
-  lightbake darkness coop netmove ctcourse sectorops:6 stealth-ai). Merge into lr16int AFTER LR16-1.
-- artnext check PASS (checks/artnext-check.md, 436 tests, polish 1-9): merged into -artpol b5e93548 = #226 target head.
-  Laptop e2e-sectorops:6 + e2e-coop on b5e93548 queued (...b5e93548-6795). C7-C9 still at #226's train entry.
-- Laptop requests pending: LR16t 5700dff5-8673, LR16e 2f5ffec1-0c61, LR16-1 4007eafe-2ad6 (pre-fix), perf A/B 273539ec /
-  f8008542 / 41204e30 + Test Runner S5-worst A/B asked. Perf triage: overage = unfrozen guards (#226), not LR16.
-- After g: LR16-8 sheets (briefs/LR16h-and-8.md part 2 text to Test Runner), then the LR16 PR (one batch, src/ai -> two
-  checkers done for t). LR16-4 relight = Guard AI #255; then our board slice briefs/LR16-4-board.md. LR16-5 moving
-  lights: Michael M13 ~21:08 "Flicker + stutter" (no sway / lightning): Opus builder on -lr16-5 (base
-  lr16int 6eb6a863, slot 1; lr16-5-build.md; per-lamp multiplier, no registry version bump per frame; merge after LR16-1).
-  LR16-5b sway (M14, ctcourse only): Opus slice AFTER LR16-5 + LR16-1 merge into lr16int (same files: lights.ts,
-  charShadows.ts, bakedLamps.ts). Pendant ids in a NEW data table (e.g. src/world/lampSway.ts), never the ctcourseSets
-  files Marlow #257 edits (a2 / a4 / a6 / a8). Laptop GPU perf on ctcourse after.
-- cloud-queue: artnext-ABD + artnext-C DONE, checked, merged into -artpol.
+1. #226 campus art: target head -artpol b5e93548 (= 72e87171 + artnext ABD / C, check PASS checks/artnext-check.md).
+   #226 head is still -art 2276483a, CONFLICTING with master. WAITING Test Runner perf (S5-worst A/B, CPU p95 < 12; it ran
+   on the old head) + laptop sectorops:6 + coop on b5e93548 (...b5e93548-6795). Green -> push -artpol to -art; at train
+   entry merge master (fold animFrozen.ts into master animTier.ts) + artnext C7-C9; label train-ready + message. Fail ->
+   Opus triage.
+LR16 (one lighting system; checks/lr16-plan.md, lr16-0-ct-audit.md)
+- lr16int 961ca660 = LR16a/b/f/7/3/v/d/h/dx/e/t + LR16-1 bounce (72ad3d4a, LAMP_VERSION 5, checks/lr16int-merge-1.md)
+  + LR16-5 flicker / stutter (da69b884, checkers A + B PASS, no wire change). tsc clean, 167 light tests; 13 map-light
+  reds left for LR16g. Laptop full LR16 set on 961ca660 queued (...961ca660-9185: lightbake darkness desktop sectorops
+  stealth-ai ctcourse coop netmove). Older requests 6eb6a863 / bb47a985 / 4007eafe / 5700dff5 / 2f5ffec1 are superseded.
+- RUNNING at the save (agents die at the swap): (a) LR16g builder (Opus) on -lr16g, WIP c3f03ce8 pushed; brief
+  briefs/LR16g.md (base 961ca660; lead decisions at its top), report checks/lr16g-build.md. If dead: rerun an Opus builder
+  from the brief + the WIP (LAMP_VERSION is 5; measure steady level, flicker 1; Marlow #257 files re-baselined in tests
+  only). (b) LR16-1 fresh recheck on 666b2a17 in detached C:/NightShift/Mobile-Coop-sector-redesign-lr16-1-chk (report
+  lr16-1-recheck.md there, untracked). If dead and no report: rerun the recheck (lr16-1-check.md Blocking 1 contract; also
+  doorway passes light). FIX -> one Opus fix round on lr16int. Remove the -chk worktree: `cmd //c rmdir <wt>\node_modules`
+  FIRST (junction to -polish node_modules), then git worktree remove --force.
+- After LR16g PASS (one Opus checker + laptop on the same sha): LR16-8 sheets (briefs/LR16h-and-8.md part 2 to Test
+  Runner), then the LR16 PR (one batch; src/net touched by LR16-5 -> two checkers done). LR16-4 relight = Guard AI #255,
+  then our board slice briefs/LR16-4-board.md (after LR16g; both edit campusS2.ts).
+- LR16-5b sway (M14, ctcourse only): brief briefs/LR16-5b.md (base = lr16int after g or now 961ca660; fill <sha>). Needs a
+  PROTOCOL number (sway event + shot target): ask the orchestrator when the build starts. Opus build, two checkers (net),
+  laptop perf on ctcourse.
 For Michael: Realistic dimmer (S2 atrium 0.28 vs 0.48, LR16g); S3 hall-lit white fog.
-Polish: lr15-check 1/2/4, lrpolish 1-6, art P6, perf check polish 3-7, lr16dx-check 2-7, lr16t checks, lr16-1 / e checks.
+Polish: lr15-check 1/2/4, lrpolish 1-6, art P6, perf 3-7, lr16dx 2-7, lr16t, lr16-1, lr16e, lr16-5 A 1-8 / B 1-6, artnext 1-9.
 RULES: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
 Sonnet from strict briefs; two independent checkers on src/ai or src/net; Opus triage on any laptop failure; one Opus fix
 round; every e2e E2E_GPU=1 on the laptop queue, none on the desktop; checker + laptop request on the same commit; vitest
