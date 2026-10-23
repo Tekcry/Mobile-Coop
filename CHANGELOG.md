@@ -1,5 +1,46 @@
 # Changelog
 
+## 4.76.0 - Train 27: Guard AI response teams, section alert, breaker faults and lasting shot lamps; crouch transition pops (2026-10-23, PR #233; #225, #227, #220)
+
+### Crouch pops
+- Animation: crouching and standing no longer pop the stance width with the baked Body tune (idle / walk / jog / run
+  feet apart 0.05): the Body rows blend from the standing row to the crouched row with the crouch itself instead of
+  switching at half way. e2e-anim's two raised crouch limits are back to the shared 7.5 cm.
+
+### Guard AI: response teams
+- S13 response teams: each Sector Ops alarm stage now brings a response team led by a riot-shield guard (always
+  helmeted), the rest armed guards, the same number as before. From stage 2 every guard of the section wears body
+  armour at once, from stage 3 a helmet too, and guards that come in later (the next section, a woken guard, the next
+  team) wear it as well; a restart drops it with the stage. No camera is added or changed. Once the team has searched
+  your last known spot for a minute it sweeps the section point by point, the shield guard leading and the others
+  close behind, looking round at each point with torches on in the dark, round and round; a sighting brings a fight,
+  then the search, then the sweep again. Teams never leave or calm down until you leave the section or restart. On
+  the other live maps the alarm brings a shield guard and two armed guards (no heavy) who sweep the same way.
+
+Tests: the e2e-levels ladder chases wait on sim time (a sim-seconds budget from the design, a hang guard on wall clock) and the sim clock takes over the moment the match exists, so a loaded machine no longer fails "a runner climbs the rack ladder".
+
+### Guard AI: missed check-ins and gunfire put the section on edge
+- S14 section alert: when a radio check gets no answer from a guard you took out ("Unit three, report... Nothing."),
+  the caller radios it in and, once the call gets through, the whole section is on edge for three minutes: guards walk
+  slower, pause longer and spot you sooner, and two still go to look for him. Take the caller down while he is on the
+  radio and nobody else hears. The same happens when one of a talking pair never turns up.
+- An unsuppressed shot heard by a calm guard is radioed in ("Shots fired! Calling it in."): the section is on edge for
+  two minutes (another loud shot keeps it going) and two guards come to the spot instead of one. Shots never raise the
+  alarm by themselves. Suppressed shots are unchanged.
+- Co-op: a client's suppressed shot is now heard as close as the host's (about 10 m, was 14 m).
+
+### Guard AI: breakers and dark lamps
+- S15 breakers and dark lamps: a room's lights switched off at the wall now read as a fault, not an attack. The nearest guard who
+  saw it go (never two) says "Breaker's gone again.", walks over at his normal patrol pace, works the switch for 2 s and
+  the lights come back on; nobody checks the area and he goes back to his route calm. Cut the same circuit again within
+  a minute and the guards treat it as tampering: the full light check at the switch. A lamp shot out still draws the
+  usual check by one or two guards and now stays dark for good. A lamp shot out or a circuit cut while nobody looked is
+  no longer forgotten: the next calm guard who has the dark fixture in view within about 12 m reacts as a witness would
+  (checks the shot lamp, or goes to reset the breaker), once for each time it goes dark. Turn the lights back on
+  yourself before he gets there and he turns back. A course mains gate's circuit is left off (no guard shuts the gate on
+  you by turning it back on). Host only; co-op partners see the lights come back through the
+  existing light sync.
+
 ## 4.75.0 - Train 26: Guard render S4, Sector Ops campus sections 4-5 with weapons crate, cameras, armoured routes and posts, mocap strafe (2026-10-23, PR #224; #212, #217, #221)
 
 ### Guard anim tiers (guard-render S4)
